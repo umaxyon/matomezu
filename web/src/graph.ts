@@ -173,6 +173,10 @@ interface Edge {
   lines: SVGLineElement[];
 }
 
+// 文字の大きさを測った結果（graph.ts の measure）。フォントの読み込みが終わると文字の幅が変わるので捨てる
+const measureCache = new Map<string, [number, number]>();
+if (typeof document !== "undefined") document.fonts?.addEventListener?.("loadingdone", () => measureCache.clear());
+
 // 値が既定（isDefault）なら項目ごと消し、そうでなければ書く（既定値は JSON に残さない）
 function setOrDelete<T extends object, K extends keyof T>(obj: T, key: K, value: T[K] | undefined, isDefault: boolean) {
   if (isDefault || value === undefined) delete obj[key];
@@ -322,14 +326,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // ---- 大きさ ----
 
-  // 文字の大きさを測る（width が null なら1行のまま）
+  // 文字の大きさを測る（width が null なら1行のまま）。
+  // 測るたびにブラウザが配置を計算し直すので、表示に関わるもの（クラス、文字、幅、行の高さ）が同じなら結果を使い回す
   function measure(n: Box, width: number | null): [number, number] {
+    const t = n.textEl;
+    const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}`;
+    const hit = measureCache.get(key);
+    if (hit) return hit;
     const s = n.head.style;
     const prev = [s.width, s.height] as const;
     s.width = width == null ? "max-content" : width + "px";
     s.height = "auto";
     const r: [number, number] = [n.head.offsetWidth, n.head.offsetHeight];
     [s.width, s.height] = prev;
+    if (measureCache.size > 2000) measureCache.clear();
+    measureCache.set(key, r);
     return r;
   }
 
@@ -921,8 +932,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function changed() {
-    record();
-    opt.onChange?.(api.toJSON());
+    const data = api.toJSON();
+    record(data);
+    opt.onChange?.(data);
   }
 
   // ---- 履歴 ----
@@ -934,8 +946,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const historyState = (): HistoryState => ({ canUndo: past.length > 1, canRedo: future.length > 0 });
   const notifyHistory = () => opt.onHistory?.(historyState());
 
-  function record() {
-    const s = JSON.stringify(api.toJSON());
+  function record(data = api.toJSON()) {
+    const s = JSON.stringify(data);
     if (s === past[past.length - 1]) return;
     past.push(s);
     if (past.length > HISTORY_LIMIT) past.shift();

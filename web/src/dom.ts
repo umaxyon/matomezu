@@ -10,8 +10,19 @@ export function injectStyle(id: string, css: string): void {
   document.head.appendChild(s);
 }
 
-// どんな色指定でも、ブラウザに解釈させて [r, g, b] にする
+// どんな色指定でも、ブラウザに解釈させて [r, g, b] にする。
+// 解釈には一時的な要素を画面に足してスタイルを計算させるので、同じ色の結果は覚えておく
+const rgbCache = new Map<string, number[]>();
 function rgbOf(color: string): number[] {
+  const hit = rgbCache.get(color);
+  if (hit) return hit;
+  const rgb = parseColor(color);
+  if (rgbCache.size > 500) rgbCache.clear();
+  rgbCache.set(color, rgb);
+  return rgb;
+}
+
+function parseColor(color: string): number[] {
   const probe = document.createElement("span");
   probe.style.color = color;
   document.body.appendChild(probe);
