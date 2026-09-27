@@ -30,24 +30,31 @@ export function createNodeKinds(ctx: KindContext) {
   const headRect = (n: Box): Rect => ({ x: n.hx, y: n.hy, w: n.hw, h: n.hh });
 
   // ボックスとして見せるときの本体の大きさ。useSpec が false なら width, height, overflow を使わない。
-  // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す
+  // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す。
+  // capW があれば（同じ段の兄弟にはみ出さないための上限。layout.ts の fitToRow）、それも上限にする
   function fitHead(n: Box, useSpec: boolean) {
     const z = SIZES[sizeOf(n)];
     const specW = useSpec ? n.specW : 0;
     const specH = useSpec ? n.specH : 0;
-    const textW = () => Math.max(z.minW, Math.min(z.maxW, measure(n, null)[0]));
+    const maxW = Math.min(z.maxW, n.capW || Infinity);
+    const textW = () => Math.max(z.minW, Math.min(maxW, measure(n, null)[0]));
     if (shapeOf(n) === "person") {
       // 人の形と足元の文字。背景が無いので、最小の幅は使わない
-      const w = Math.max(PERSON_MIN_W, Math.min(specW || z.maxW, measure(n, null)[0]));
+      const w = Math.max(PERSON_MIN_W, Math.min(specW || maxW, measure(n, null)[0]));
       n.hw = w;
       n.hh = measure(n, w)[1];
       return;
     }
     const ov = useSpec ? overflowOf(n) : "wrap";
-    // 切り詰めるときは大きさを文字で変えない
-    const w = specW || (ov === "clip" ? z.minW : textW());
+    if (ov === "clip") {
+      // 切り詰める: 1行にして、width を幅の上限にする（文字が少なければ中身に合わせて縮み、多ければ上限の幅で … で切る）
+      n.hw = Math.max(z.minW, Math.min(specW || maxW, measure(n, null)[0]));
+      n.hh = specH || z.h;
+      return;
+    }
+    const w = specW || textW();
     n.hw = w;
-    n.hh = specH || (z.fixedH || ov === "clip" ? z.h : Math.max(z.h, measure(n, w)[1]));
+    n.hh = specH || (z.fixedH ? z.h : Math.max(z.h, measure(n, w)[1]));
   }
 
   // 本体だけを見せる（文字の箱と非表示）。非表示は子を持つので、大きさの指定（width, height, overflow）を使わない

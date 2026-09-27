@@ -158,7 +158,28 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     return [cx + dx * t, cy + dy * t];
   }
 
-  // 線は本体どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
+  // 2つの矩形を結ぶ線の両端。上下の範囲が重なっていれば（真横に並んでいれば）、重なる範囲の真ん中の高さで
+  // 水平に、左右の範囲が重なっていれば垂直に引く（箱が伸び縮みしても、つなぐ位置が滑るだけで角度は変わらない）。
+  // どちらも重ならなければ、中心どうしを結んだ線を縁で切る
+  type Abs = { x: number; y: number; w: number; h: number };
+  function edgeEnds(a: Abs, b: Abs): [number, number, number, number] {
+    const top = Math.max(a.y, b.y), bottom = Math.min(a.y + a.h, b.y + b.h);
+    const left = Math.max(a.x, b.x), right = Math.min(a.x + a.w, b.x + b.w);
+    if (bottom > top && right <= left) {
+      const y = (top + bottom) / 2;
+      return a.x < b.x ? [a.x + a.w, y, b.x, y] : [a.x, y, b.x + b.w, y];
+    }
+    if (right > left && bottom <= top) {
+      const x = (left + right) / 2;
+      return a.y < b.y ? [x, a.y + a.h, x, b.y] : [x, a.y, x, b.y + b.h];
+    }
+    const acx = a.x + a.w / 2, acy = a.y + a.h / 2, bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
+    const [x1, y1] = clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy);
+    const [x2, y2] = clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy);
+    return [x1, y1, x2, y2];
+  }
+
+  // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
   function renderEdges() {
     for (const e of ctx.edges()) {
       const hidden = isHidden(e.a) || isHidden(e.b) || inTree(e.a);
@@ -167,10 +188,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const [ax, ay] = absPos(e.a);
       const [bx, by] = absPos(e.b);
       const ra = anchorRect(e.a), rb = anchorRect(e.b);
-      const acx = ax + ra.x + ra.w / 2, acy = ay + ra.y + ra.h / 2;
-      const bcx = bx + rb.x + rb.w / 2, bcy = by + rb.y + rb.h / 2;
-      const [x1, y1] = clipToRect(acx, acy, ra.w, ra.h, bcx - acx, bcy - acy);
-      const [x2, y2] = clipToRect(bcx, bcy, rb.w, rb.h, acx - bcx, acy - bcy);
+      const [x1, y1, x2, y2] = edgeEnds(
+        { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
+        { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h });
       for (const l of e.lines) {
         l.setAttribute("x1", String(x1)); l.setAttribute("y1", String(y1));
         l.setAttribute("x2", String(x2)); l.setAttribute("y2", String(y2));

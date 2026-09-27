@@ -57,6 +57,7 @@
  *       "clip" … ボックスの大きさで切り詰める
  *     既定は子を持つボックスが grow、持たないボックスとワールドが wrap。S サイズでは使わない。
  *     width, height は grow では最小サイズ、wrap では幅、clip では幅と高さになる。
+ *     ただし文字のボックスの clip は1行にし、width を幅の上限にする（文字が少なければ縮み、多ければ … で切る）。
  *     文字のボックスで grow を使わないのは、伸ばしたあとで折り返しに戻せなくなるため。
  *   - 線は同じ parent を持つボックス同士（最上位同士を含む）でだけ引ける。
  *     ツリーの子同士の線は描かない（データには残り、内包に戻すと表示される）。
@@ -451,8 +452,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           // 大きさが固定される方向は、今の大きさを引き継ぐ
           if (overflowOf(n) === "grow") setSpec(n, "w", Math.round(n.hw));
           if (next.overflow === "clip") {
+            // 今の幅を上限にする。文字のボックスは1行になるので高さは決めず、グループは今の高さで切る
             if (!n.specW) setSpec(n, "w", Math.round(n.hw));
-            setSpec(n, "h", Math.round(n.hh));
+            if (n.children.length) setSpec(n, "h", Math.round(n.hh));
           }
           n.src.overflow = next.overflow;
         }
@@ -526,6 +528,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       w: 0, h: 0, hx: 0, hy: 0, hw: 0, hh: 0,
       hasPos: Number.isFinite(src.x) && Number.isFinite(src.y),
       home: null,
+      capW: 0,
       el, head, textEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };
     boxOfEl.set(el, n);

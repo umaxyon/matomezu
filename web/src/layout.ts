@@ -5,6 +5,7 @@
 // 従って行う。場面ごとの違い（何を保つか、誰が動くか、大きい相手に譲るか、はみ出しを調整するか）は SCENES の表を見る。
 // どの場面でも、ぶつかった相手は同じ x のまま下へずらし（placeGroup + spotBelow + slide）、位置の無いボックスは
 // 空きを探す（findFreeSpot / findGridSpot）。押し下げたボックスは元の位置を覚え（home）、空いたら戻す。
+// 文字の箱が右の大きい兄弟にはみ出すときは、ずらさずにその手前まで狭めて折り返す（fitToRow）。
 //
 // 表に載っていない場面（段階 5〜6 で移す）:
 //   ドラッグ中                tryMove + pushAway       動かしたボックスは兄弟にぶつかれば止まる。広がった祖先は、
@@ -105,7 +106,7 @@ export function createLayout(ctx: LayoutContext) {
   // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）。ツリーで見せていれば枠全体、それ以外は本体
   const anchorRect = (n: Box) => kindOf(n).anchorRect(n);
   // 大きさが変わったとき、どこを保つか（policy.ts）
-  const anchors = createAnchorRules({ anchorRect, incident });
+  const anchors = createAnchorRules({ anchorRect });
 
   // 置く処理（placeGroup、compress）の途中で、まだ置いていないボックス。重なりの判定の相手にしない。
   // 置く処理の外（ドラッグ中など）では空で、すべてのボックスが相手になる
@@ -123,9 +124,10 @@ export function createLayout(ctx: LayoutContext) {
     if (!inNest(n)) return [x, y]; // ツリーの子は自動で並ぶ
     const c = containerOf(n);
     const a = innerArea(c);
-    const pad = c.isWorld ? 0 : opt.padding;
-    const minX = c.isWorld ? 0 : a.left;
-    const minY = c.isWorld ? 0 : a.top;
+    // ワールドにも、グループと同じ余白を残す
+    const pad = opt.padding;
+    const minX = a.left;
+    const minY = a.top;
     const f = fixedSize(c);
     const maxX = f.w != null ? f.w - pad - n.w : Infinity;
     const maxY = f.h != null ? f.h - pad - n.h : Infinity;
@@ -133,6 +135,35 @@ export function createLayout(ctx: LayoutContext) {
       Math.max(minX, Math.min(maxX, x)),
       Math.max(minY, Math.min(maxY, y)),
     ];
+  }
+
+  // 文字の箱（と、本体だけを見せる非表示）が、同じ段の右にいる自分より大きい兄弟にはみ出すなら、その手前まで
+  // 狭めて折り返す（大きい相手には自分がずれる決まり（stepAside）だと、空きを探して離れた所へ飛んでしまうため）。
+  // 右端を相手の手前にそろえる。center を渡すと（設定を変えた最上位の箱を置き直すとき）、その中心を保つ幅にする
+  // （文字を戻すと同じ中心から縮んで元の位置に戻る。左に空きが足りなければ左端に寄せる）。渡さなければ左端を保つ。
+  // 右端が相手の手前にそろっているので、左端を保って何度計算し直しても（Undo や読み直しを含む）同じ幅になる。
+  // 自分以下の大きさの兄弟は今までどおり押し下げ、左の大きい相手とぶつかるときは stepAside に任せる。
+  // 幅の指定がある箱、位置の無い箱は変えない。最小の幅でも収まらなければ狭めない
+  function fitToRow(n: Box, center?: number) {
+    const kind = kindOf(n).name;
+    if (!n.hasPos || !inNest(n) || (kind !== "text" && kind !== "hidden") || (kind === "text" && n.specW)) return;
+    if (n.capW) { n.capW = 0; fit(n); }
+    const g = opt.gap, c = containerOf(n);
+    const cx = n.x + n.w / 2, top = n.y, bottom = n.y + n.h, area = n.w * n.h;
+    const row = siblings(n).filter(o =>
+      o !== n && o.hasPos && o.w * o.h > area && o.y < bottom + g && o.y + o.h + g > top);
+    const ahead = row.filter(o => o.x + o.w / 2 >= cx);
+    if (!ahead.length) return;
+    const right = Math.min(...ahead.map(o => o.x - g));
+    if (n.x + n.w <= right + 0.5) return;
+    const left = Math.max(innerArea(c).left,
+      ...row.filter(o => o.x + o.w / 2 < cx).map(o => o.x + o.w + g));
+    const x = center == null ? n.x : Math.max(left, 2 * center - right); // 中心を保つ幅の左端（足りなければ left）
+    if (x >= right) return;
+    n.capW = right - x;
+    fit(n);
+    if (n.w > n.capW + 0.5) { n.capW = 0; fit(n); return; } // 最小の幅でも収まらない
+    n.x = right - n.w;
   }
 
   function overlaps(n: Box, x: number, y: number, o: Box) {
@@ -322,6 +353,7 @@ export function createLayout(ctx: LayoutContext) {
   function settleNode(n: Box, keep?: Set<Box>, restore = true) {
     n.children.forEach(c => settleNode(c, keep, restore));
     if (kindOf(n).holdsChildren) {
+      n.children.forEach(c => fitToRow(c));
       placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)), restore);
     }
     fit(n);
@@ -349,7 +381,7 @@ export function createLayout(ctx: LayoutContext) {
     // 親の高さが決まっていれば（ワールドの高さの指定や、切り詰める枠）、下にも限りがある
     const c = containerOf(n);
     const f = fixedSize(c);
-    const maxY = f.h != null ? f.h - (c.isWorld ? 0 : opt.padding) - n.h : Infinity;
+    const maxY = f.h != null ? f.h - opt.padding - n.h : Infinity;
     return slide(n, n.x, n.y, "down", maxY) ?? (c.isWorld ? findFreeSpot(n, n.x, n.y) : findGridSpot(n));
   }
 
@@ -395,12 +427,16 @@ export function createLayout(ctx: LayoutContext) {
     apply?.();
     if (anchored && keepAt) {
       settleNode(anchored, undefined, scene.restore);
-      [anchored.x, anchored.y] = clamp(anchored, keepAt.x(anchored), keepAt.y(anchored));
+      const want = keepAt.x(anchored);
+      [anchored.x, anchored.y] = clamp(anchored, want, keepAt.y(anchored));
+      // 最上位は、押し戻される前の本来の中心を保って狭める（グループの中は左上を保つので左端を保つ）
+      fitToRow(anchored, anchored.parent ? undefined : want + anchored.w / 2);
       if (scene.giveWayToLarger) stepAside(anchored);
     }
     // 変えた節点と祖先はその場に残し、ぶつかる相手の方を動かす（others）。later なら後から置くものが動く
     const keep = changed && scene.yieldTo === "others" ? new Set([changed, ...ancestors(changed)]) : undefined;
     roots().forEach(r => settleNode(r, keep, scene.restore));
+    roots().forEach(r => fitToRow(r));
     syncWorld();
     placeAutoRoots();
     settleRoots(keep ? (ancestors(changed!).pop() ?? changed) : undefined, scene.restore);

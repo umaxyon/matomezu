@@ -18,6 +18,8 @@ export interface Box {
   hasPos: boolean;
   // 重なりを直すために押し下げられる前の位置。空いたらここへ戻す（ドラッグで動かしたら消す）
   home: { x: number; y: number } | null;
+  // 同じ段の兄弟にはみ出さないための、文字の幅の上限（0 なら無し）。配置を決め直すたびに計算し直す（保存しない）
+  capW: number;
   el: HTMLDivElement;
   head: HTMLDivElement;
   textEl: HTMLDivElement;

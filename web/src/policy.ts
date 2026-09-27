@@ -1,8 +1,8 @@
 // 配置の方針。判断の単位ごとのストラテジーを組み合わせて、場面の表（SCENES）にする。
 // この表が配置の決まりの仕様（docs/REFACTOR-layout.md の 3.2）。場面ごとの違いは、ここの1行の差として見る。
 // 表で書けない振る舞いを足したくなったら、まず表（と決まり）を見直す
+import type { Box } from "./model";
 import type { Rect } from "./node-kinds";
-import { type Box, type Edge, other } from "./model";
 
 // ---- 何を保つか（AnchorRule） ----
 
@@ -12,60 +12,35 @@ export interface Keep {
   y(m: Box): number;
 }
 export type AnchorRule = (n: Box) => Keep;
-export type AnchorName = "topLeft" | "edgeOrCenter";
+export type AnchorName = "topLeft" | "topCenter";
 
 export interface AnchorContext {
-  anchorRect(n: Box): Rect;
-  incident(n: Box): Edge[];
+  anchorRect(n: Box): Rect; // 線がつながる範囲（ツリーなら外枠、それ以外は本体）
 }
 
 export function createAnchorRules(ctx: AnchorContext): Record<AnchorName, AnchorRule> {
-  const { anchorRect, incident } = ctx;
-
-  // 左上を保ち、右と下へ伸び縮みする。グループの中で使う（中心を保つと、親の端で押し戻されたずれが
-  // 次に縮むときに残り、切り替えるたびに位置が変わっていくため）
-  const topLeft: AnchorRule = n => {
-    const { x, y } = n;
-    return { x: () => x, y: () => y };
+  const { anchorRect } = ctx;
+  return {
+    // 左上を保ち、右と下へ伸び縮みする。グループの中で使う。位置がずれないので、切り替えを繰り返しても元に戻り、
+    // 上の相手にもぶつからない
+    topLeft: n => {
+      const { x, y } = n;
+      return { x: () => x, y: () => y };
+    },
+    // 上辺と、線がつながる範囲の横の中心を保つ。左右と下へ伸び縮みする。最上位で使う
+    // （左上を保つと、非表示にしたとき元の枠の左上に寄ってしまう）。上へは伸びないので、上の相手にぶつからない。
+    // 前後で同じ範囲（anchorRect）の中心を使うので、往復しても元に戻る（ワールドの左端で押し戻されたときを除く）
+    topCenter: n => {
+      const a = anchorRect(n);
+      const cx = n.x + a.x + a.w / 2, { y } = n;
+      return { x: m => { const b = anchorRect(m); return cx - b.x - b.w / 2; }, y: () => y };
+    },
   };
-
-  // 線でつながる相手が片側にだけいれば、線がつながる範囲（anchorRect。ツリーなら外枠）のその側の辺を保つ
-  // （線の長さも角度も変わらない）。相手が範囲の内側（真横や真下）にいるか両側にいれば、線がつながる範囲の
-  // 中心を保つ。相手がいなければ本体の中心を保つ（見た目の位置が変わらない）。横と縦は別々に決める。最上位で使う
-  const edgeOrCenter: AnchorRule = n => {
-    const l = n.x + n.hx, t = n.y + n.hy, r = l + n.hw, b = t + n.hh;
-    const ar = anchorRect(n);
-    const al = n.x + ar.x, at = n.y + ar.y, arr = al + ar.w, ab = at + ar.h;
-    const others = incident(n)
-      .filter(e => e.a.parent === e.b.parent)
-      .map(e => other(e, n))
-      .map(o => { const a = anchorRect(o); return [o.x + a.x + a.w / 2, o.y + a.y + a.h / 2] as const; });
-    // 相手が範囲の内側（真横や真下）にいる方向は、中心を保つ（辺を保つと、その相手への線が斜めになる）
-    const side = (lo: number, hi: number, vs: number[]) => {
-      const before = vs.some(v => v < lo), after = vs.some(v => v > hi);
-      const inside = vs.some(v => v >= lo && v <= hi);
-      return inside ? "center" : before && !after ? "start" : after && !before ? "end" : "center";
-    };
-    const sx = side(al, arr, others.map(o => o[0])), sy = side(at, ab, others.map(o => o[1]));
-    const linked = others.length > 0;
-    return {
-      x: m => {
-        const a = anchorRect(m);
-        if (sx === "start") return al - a.x;
-        if (sx === "end") return arr - a.x - a.w;
-        return linked ? (al + arr) / 2 - a.x - a.w / 2 : (l + r) / 2 - m.hx - m.hw / 2;
-      },
-      y: m => {
-        const a = anchorRect(m);
-        if (sy === "start") return at - a.y;
-        if (sy === "end") return ab - a.y - a.h;
-        return linked ? (at + ab) / 2 - a.y - a.h / 2 : (t + b) / 2 - m.hy - m.hh / 2;
-      },
-    };
-  };
-
-  return { topLeft, edgeOrCenter };
 }
+
+// 線は、真横や真下の相手とはつなぐ位置が滑るだけで水平・垂直のまま保たれる（render.ts の edgeEnds）ので、
+// 線の角度を箱の位置で保つ必要は無い。以前は最上位で線の相手の側の辺や中心を保っていたが、親の端で押し戻された
+// ずれが残ったり、上の相手にぶつかったりして、切り替えるたびに位置が変わったのでやめた（2026-09-28）
 
 // ---- 場面の表 ----
 
@@ -91,7 +66,7 @@ export const SCENES = {
   reload: { anchor: null, yieldTo: "later", giveWayToLarger: false, direction: "down", restore: true, fitViewport: false },
   // サイドバーでの設定変更（キャプション、サイズ、形、見せ方など）
   settings: {
-    anchor: { inGroup: "topLeft", topLevel: "edgeOrCenter" },
+    anchor: { inGroup: "topLeft", topLevel: "topCenter" },
     yieldTo: "others", giveWayToLarger: true, direction: "down", restore: true, fitViewport: false,
   },
   // 子のサイズをそろえたあと（子の詰め直しは compress が行う）

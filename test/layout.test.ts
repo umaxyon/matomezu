@@ -130,71 +130,24 @@ test("決まった操作の結果（全ボックスの位置と大きさ）が�
   expect(steps.join("\n\n")).toMatchSnapshot();
 }, 60000);
 
-describe("線でつながる相手の側の辺を保つ", () => {
-  // 外部サービス（非表示）を内包にして広げ、どこが保たれるかを見る。
-  // 相手は表示領域（幅 1000）の中に置く（はみ出すと、読み込み時に下へ移されて「下にいる」扱いになる）
-  const data = (nx: number, ny: number, both = false): Diagram => ({
-    nodes: [
-      { id: 1, caption: "相手", x: nx, y: ny },
-      ...(both ? [{ id: 3, caption: "反対側", x: 2 * 500 - nx, y: 2 * 300 - ny }] : []),
-      { id: 2, caption: "外部", childView: "hidden", x: 500, y: 300 },
-      { id: 21, caption: "決済", parent: 2 }, { id: 22, caption: "メール", parent: 2 },
-    ],
-    edges: [[1, 2], ...(both ? [[3, 2] as [number, number]] : [])],
-  });
-  const grow = (d: Diagram) => {
-    const { graph } = setup(d);
-    const before = graph.info(2);
-    graph.update(2, { childView: "nest" });
-    return { before, after: graph.info(2) };
-  };
-
-  test("相手が右: 右辺を保つ", () => {
-    const { before, after } = grow(data(800, 300));
-    expect(after.x + after.w).toBe(before.x + before.w);
-  });
-  test("相手が上: 上辺を保つ", () => {
-    const { before, after } = grow(data(500, 60));
-    expect(after.y).toBe(before.y);
-  });
-  test("相手が下: 下辺を保つ", () => {
-    const { before, after } = grow(data(500, 700));
-    expect(after.y + after.h).toBe(before.y + before.h);
-  });
-  test("相手が左右両側: 横は中心を保つ", () => {
-    const { before, after } = grow(data(150, 300, true));
-    expect(Math.abs(after.x + after.w / 2 - (before.x + before.w / 2))).toBeLessThanOrEqual(1);
-  });
-
-  // ツリーでは線が外枠のふちにつながるので、保つのは本体ではなく外枠の辺
-  const toTree = (d: Diagram) => {
-    const { graph } = setup(d);
-    const before = graph.info(2);
-    graph.update(2, { childView: "tree" });
-    return { before, after: graph.info(2) };
-  };
-  test("ツリーにしたとき、相手が下: 外枠の下辺を保つ", () => {
-    const { before, after } = toTree(data(500, 700));
-    expect(after.y + after.h).toBe(before.y + before.h);
-  });
-  test("ツリーにしたとき、相手が右: 外枠の右辺を保つ", () => {
-    const { before, after } = toTree(data(800, 300));
-    expect(after.x + after.w).toBe(before.x + before.w);
-  });
-
-  test("相手が真横や真下（範囲の内側）にいる方向は中心を保ち、非表示を挟んでも元に戻る", () => {
-    // フロントエンドの相手は、左のユーザー（上下の範囲の内側）と、真下のバックエンド（左右の範囲の内側）
+describe("大きさや見せ方が変わっても、グループの中は左上、最上位は上辺の中央を保つ", () => {
+  // 線は、真横や真下の相手とは水平・垂直のまま保たれる（graph.test.ts の「線のつなぎ方」）
+  test("最上位は上辺の中央を保つ。見せ方を何度切り替えても元に戻り、上の相手も押し下げない", () => {
     const { graph } = setup(sample());
-    const center = () => { const i = graph.info(3); return [i.x + i.w / 2, i.y + i.h / 2]; };
-    const before = graph.info(3), user = graph.info(2), c0 = center();
-    graph.update(3, { childView: "hidden" });
-    expect(center()).toEqual(c0); // 左下の角に寄らず、中心に縮む（真下のバックエンドへの線は縦のまま）
-    graph.update(3, { childView: "nest" });
-    expect([graph.info(3).x, graph.info(3).y]).toEqual([before.x, before.y]);
-    expect([graph.info(2).x, graph.info(2).y]).toEqual([user.x, user.y]); // ユーザーは押し下げられない
+    const at = (id: number) => [graph.info(id).x, graph.info(id).y];
+    const center = () => graph.info(3).x + graph.info(3).w / 2;
+    const title = at(1), front = at(3), user = at(2), back = at(10), c0 = center();
+    for (const v of ["tree", "nest", "hidden", "tree", "nest", "hidden", "nest"] as const) {
+      graph.update(3, { childView: v });
+      expect(graph.info(3).y).toBe(front[1]!); // 上辺は動かない
+      expect(Math.abs(center() - c0)).toBeLessThanOrEqual(1); // 横の中心も動かない（非表示でも左に寄らない）
+      expect([at(1), at(2)]).toEqual([title, user]);
+    }
+    expect(at(3)).toEqual(front);
+    expect(at(10)).toEqual(back); // ツリーのときに押し下げたバックエンドも戻る
   });
 
-  test("ツリーから内包に戻しても、相手の側の辺（外枠の左辺）を保つ", () => {
+  test("ツリーと内包を切り替えても、外枠の上辺と横の中心を保つ", () => {
     const { graph } = setup({
       nodes: [
         { id: 1, caption: "ユーザー", x: 40, y: 300 },
@@ -203,11 +156,13 @@ describe("線でつながる相手の側の辺を保つ", () => {
       ],
       edges: [[1, 2]],
     });
-    const before = graph.info(2);
+    const top = () => { const i = graph.info(2); return [i.x + i.w / 2, i.y]; };
+    const before = top();
     graph.update(2, { childView: "nest" });
-    expect(graph.info(2).x).toBe(before.x);
+    expect(Math.abs(top()[0]! - before[0]!)).toBeLessThanOrEqual(1);
+    expect(top()[1]).toBe(before[1]);
     graph.update(2, { childView: "tree" });
-    expect(graph.info(2).x).toBe(before.x);
+    expect(graph.info(2).x).toBe(400); // 往復すれば元どおり
   });
 
   test("入れ子の中で内包からツリーにしても、下の相手との間で上に余白を作らない", () => {
@@ -336,5 +291,64 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
     const moved = at(graph, 3);
     graph.update(2, { caption: "トップ画面" });
     expect(at(graph, 3)).toEqual(moved);
+  });
+});
+
+describe("文字の箱は、同じ段の兄弟にはみ出すなら空いている幅まで狭めて折り返す", () => {
+  const LONG = "ユーザーあいうえおかきくけこさしすせそたちつてと".repeat(3);
+  const rect = (graph: Graph, id: number) => { const i = graph.info(id); return [i.x, i.y, i.w, i.h]; };
+
+  test("長い文字を入れても右の大きい隣へ飛ばず、左に残って折り返す。文字を戻せば元の大きさと位置", () => {
+    const { graph } = setup(sample());
+    const user = rect(graph, 2), front = graph.info(3);
+    graph.update(2, { caption: LONG });
+    const u = graph.info(2);
+    expect(u.x + u.w).toBeLessThanOrEqual(front.x - 8); // フロントエンドの手前まで
+    expect(u.y).toBe(user[1]!);
+    expect(u.h).toBeGreaterThan(user[3]!); // 折り返して高くなる
+    expect([front.x, front.y]).toEqual([graph.info(3).x, graph.info(3).y]); // フロントエンドは動かない
+    graph.update(2, { caption: "ユーザー" });
+    // ユーザーはワールドの左端の近くにいるので、広がったときに左端で寄せた分だけ中心がずれる（最初の1回だけ）
+    const back = rect(graph, 2);
+    expect(back.slice(1)).toEqual(user.slice(1));
+    graph.update(2, { caption: LONG });
+    graph.update(2, { caption: "ユーザー" });
+    expect(rect(graph, 2)).toEqual(back); // 繰り返しても、ずれは積み重ならない
+  });
+
+  test("左に空きがあれば、中心を保って狭めるので、文字を戻すと元の位置に戻る", () => {
+    const { graph } = setup({
+      nodes: [{ id: 1, caption: "ユーザー", x: 200, y: 100 }, { id: 2, caption: "大きい相手", x: 350, y: 60, width: 400, height: 200 }],
+      edges: [[1, 2]],
+    });
+    const user = rect(graph, 1);
+    graph.update(1, { caption: LONG });
+    const u = graph.info(1);
+    expect(u.x + u.w).toBe(350 - 8);
+    expect(u.x + u.w / 2).toBeCloseTo(260, 0); // 中心 (200 + 60) を保つ
+    graph.update(1, { caption: "ユーザー" });
+    expect(rect(graph, 1)).toEqual(user);
+  });
+
+  test("ワールドの左端にも、グループと同じ余白（12）を残す", () => {
+    const { graph } = setup(sample());
+    graph.update(2, { caption: LONG });
+    expect(graph.info(2).x).toBe(12);
+    expect(graph.info(2).x + graph.info(2).w).toBe(graph.info(3).x - 8);
+  });
+
+  test("Undo・Redo（データからの作り直し）でも同じ幅になる", () => {
+    const { graph } = setup(sample());
+    graph.update(2, { caption: LONG });
+    const after = rect(graph, 2), front = rect(graph, 3);
+    graph.undo();
+    graph.redo();
+    expect([rect(graph, 2), rect(graph, 3)]).toEqual([after, front]);
+  });
+
+  test("ファイルには幅を書かない", () => {
+    const { graph } = setup(sample());
+    graph.update(2, { caption: LONG });
+    expect("width" in graph.toJSON().nodes.find(n => n.id === 2)!).toBe(false);
   });
 });

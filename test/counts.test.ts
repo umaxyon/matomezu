@@ -1,6 +1,7 @@
 // 処理の回数のテスト。配置のリファクタ（docs/REFACTOR-layout.md）で、文字を測る回数（ブラウザに配置を計算し直させる、
 // 一番重い処理）と重なりの判定の回数が増えていないことを確かめる。時間は環境でぶれるので回数で見る。
-// 基準の値は 119f164 の時点のもの。減ったら基準を下げてよい（増えたら理由を確かめる）
+// 基準の値は 119f164 の時点のもの（振る舞いを変えて増えた分は、理由を書いて足している）。
+// 減ったら基準を下げてよい（増えたら理由を確かめる）
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { layoutStats } from "../web/src/layout";
@@ -68,12 +69,13 @@ test("大きな図での処理の回数が、基準を超えない", () => {
     fit: count(() => graph.fitChildren(groupId(0), "both")),
     reload: count(() => graph.load(graph.toJSON(), { keepHistory: true })),
   };
-  // 119f164 の時点の回数
+  // 119f164 の時点の回数。設定変更と子のサイズをそろえる操作は、最上位で上辺を保つようにした（2026-09-28）ことで
+  // 下の箱を押し下げる量が増えた分を含む
   const base = {
     load: { measures: 480, overlapChecks: 50770 },
-    settings: { measures: 6, overlapChecks: 237072 },
+    settings: { measures: 6, overlapChecks: 248134 },
     drag: { measures: 0, overlapChecks: 1785 },
-    fit: { measures: 0, overlapChecks: 49829 },
+    fit: { measures: 0, overlapChecks: 53675 },
     reload: { measures: 0, overlapChecks: 1090 },
   };
   const over = Object.entries(out).flatMap(([scene, v]) =>
