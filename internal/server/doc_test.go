@@ -14,7 +14,8 @@ import (
 	"time"
 )
 
-func setup(t *testing.T, content string) (*Server, *httptest.Server, string) {
+// 図を1つ登録した Hub を立て、その図の URL（/d/<id>）とファイルのパスを返す
+func setup(t *testing.T, content string) (string, string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "d.json")
 	if content != "" {
@@ -22,17 +23,17 @@ func setup(t *testing.T, content string) (*Server, *httptest.Server, string) {
 			t.Fatal(err)
 		}
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	web := fstest.MapFS{"index.html": {Data: []byte("<html>")}}
-	s, err := New(path, web, WithInterval(20*time.Millisecond))
+	hub := NewHub(ctx, web, WithInterval(20*time.Millisecond))
+	res, err := hub.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	go s.Watch(ctx)
-	ts := httptest.NewServer(s.Handler())
+	ts := httptest.NewServer(hub.Handler())
 	t.Cleanup(ts.Close)
-	return s, ts, path
+	return ts.URL + "/d/" + res.ID, path
 }
 
 func do(t *testing.T, method, url, body string, header map[string]string) *http.Response {
@@ -54,12 +55,12 @@ func do(t *testing.T, method, url, body string, header map[string]string) *http.
 }
 
 func TestCreatesMissingFile(t *testing.T) {
-	_, ts, path := setup(t, "")
+	base, path := setup(t, "")
 	b, err := os.ReadFile(path)
 	if err != nil || string(b) != emptyDiagram {
 		t.Fatalf("file = %q, %v", b, err)
 	}
-	res := do(t, "GET", ts.URL+"/api/data", "", nil)
+	res := do(t, "GET", base+"/api/data", "", nil)
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != emptyDiagram || res.Header.Get("ETag") == "" {
 		t.Fatalf("GET = %q etag=%q", body, res.Header.Get("ETag"))
@@ -67,10 +68,10 @@ func TestCreatesMissingFile(t *testing.T) {
 }
 
 func TestPutWithMatchingVersion(t *testing.T) {
-	_, ts, path := setup(t, `{"nodes":[]}`)
-	etag := do(t, "GET", ts.URL+"/api/data", "", nil).Header.Get("ETag")
+	base, path := setup(t, `{"nodes":[]}`)
+	etag := do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag")
 
-	res := do(t, "PUT", ts.URL+"/api/data", `{"nodes":[{"id":1}]}`, map[string]string{"If-Match": etag})
+	res := do(t, "PUT", base+"/api/data", `{"nodes":[{"id":1}]}`, map[string]string{"If-Match": etag})
 	if res.StatusCode != http.StatusNoContent {
 		t.Fatalf("status = %d", res.StatusCode)
 	}
@@ -83,11 +84,11 @@ func TestPutWithMatchingVersion(t *testing.T) {
 }
 
 func TestPutConflictKeepsExternalChange(t *testing.T) {
-	_, ts, path := setup(t, `{"nodes":[]}`)
-	etag := do(t, "GET", ts.URL+"/api/data", "", nil).Header.Get("ETag")
+	base, path := setup(t, `{"nodes":[]}`)
+	etag := do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag")
 	os.WriteFile(path, []byte(`{"nodes":[{"id":9}]}`), 0o644) // LLM が書き換えた
 
-	res := do(t, "PUT", ts.URL+"/api/data", `{"nodes":[{"id":1}]}`, map[string]string{"If-Match": etag})
+	res := do(t, "PUT", base+"/api/data", `{"nodes":[{"id":1}]}`, map[string]string{"If-Match": etag})
 	if res.StatusCode != http.StatusConflict {
 		t.Fatalf("status = %d", res.StatusCode)
 	}
@@ -97,8 +98,8 @@ func TestPutConflictKeepsExternalChange(t *testing.T) {
 }
 
 func TestPutRejectsInvalidJSON(t *testing.T) {
-	_, ts, path := setup(t, `{"nodes":[]}`)
-	res := do(t, "PUT", ts.URL+"/api/data", `{"nodes":`, nil)
+	base, path := setup(t, `{"nodes":[]}`)
+	res := do(t, "PUT", base+"/api/data", `{"nodes":`, nil)
 	if res.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d", res.StatusCode)
 	}
@@ -108,16 +109,16 @@ func TestPutRejectsInvalidJSON(t *testing.T) {
 }
 
 func TestRejectsForeignHost(t *testing.T) {
-	_, ts, _ := setup(t, `{"nodes":[]}`)
-	res := do(t, "GET", ts.URL+"/api/data", "", map[string]string{"Host": "evil.example:80"})
+	base, _ := setup(t, `{"nodes":[]}`)
+	res := do(t, "GET", base+"/api/data", "", map[string]string{"Host": "evil.example:80"})
 	if res.StatusCode != http.StatusForbidden {
 		t.Fatalf("status = %d", res.StatusCode)
 	}
 }
 
 func TestServesWeb(t *testing.T) {
-	_, ts, _ := setup(t, `{"nodes":[]}`)
-	res := do(t, "GET", ts.URL+"/", "", nil)
+	base, _ := setup(t, `{"nodes":[]}`)
+	res := do(t, "GET", base+"/", "", nil)
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != "<html>" {
 		t.Fatalf("body = %q", body)
@@ -150,11 +151,11 @@ func nextVersion(t *testing.T, r *bufio.Reader) string {
 }
 
 func TestEventsOnExternalChangeOnly(t *testing.T) {
-	_, ts, path := setup(t, `{"nodes":[]}`)
-	res := do(t, "GET", ts.URL+"/api/events", "", nil)
+	base, path := setup(t, `{"nodes":[]}`)
+	res := do(t, "GET", base+"/api/events", "", nil)
 	r := bufio.NewReader(res.Body)
 	first := nextVersion(t, r)
-	if `"`+first+`"` != do(t, "GET", ts.URL+"/api/data", "", nil).Header.Get("ETag") {
+	if `"`+first+`"` != do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag") {
 		t.Fatal("first event is not the current version")
 	}
 
@@ -166,7 +167,7 @@ func TestEventsOnExternalChangeOnly(t *testing.T) {
 	}
 
 	// 画面からの保存も版が変わるので知らせる（画面は自分の版と同じなら無視する）
-	put := do(t, "PUT", ts.URL+"/api/data", `{"nodes":[{"id":3}]}`, map[string]string{"If-Match": `"` + ext + `"`})
+	put := do(t, "PUT", base+"/api/data", `{"nodes":[{"id":3}]}`, map[string]string{"If-Match": `"` + ext + `"`})
 	if v := nextVersion(t, r); `"`+v+`"` != put.Header.Get("ETag") {
 		t.Fatalf("event %s != put etag %s", v, put.Header.Get("ETag"))
 	}

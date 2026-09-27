@@ -11,66 +11,192 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/umaxyon/matomezu/internal/browser"
+	"github.com/umaxyon/matomezu/internal/daemon"
 	"github.com/umaxyon/matomezu/internal/server"
 	"github.com/umaxyon/matomezu/web"
 )
 
 var version = "dev"
 
+const usageText = `usage:
+  matomezu open [-no-browser] <file.json>   show the diagram in the browser (starts the background server)
+  matomezu serve [-addr host:port] <file.json>   run a server in the foreground for one diagram
+  matomezu stop                              stop the background server
+  matomezu version
+`
+
 func main() {
 	if len(os.Args) < 2 {
-		usage()
+		fmt.Fprint(os.Stderr, usageText)
 		os.Exit(2)
 	}
+	args := os.Args[2:]
+	var err error
 	switch os.Args[1] {
+	case "open":
+		err = open(args)
 	case "serve":
-		serve(os.Args[2:])
+		err = serve(args)
+	case "stop":
+		err = stop()
+	case "daemon":
+		err = runDaemon(args)
 	case "version":
 		fmt.Println(version)
 	default:
-		usage()
+		fmt.Fprint(os.Stderr, usageText)
 		os.Exit(2)
 	}
-}
-
-func usage() {
-	fmt.Fprintln(os.Stderr, "usage: matomezu serve [-addr host:port] <file.json>")
-	fmt.Fprintln(os.Stderr, "       matomezu version")
-}
-
-func serve(args []string) {
-	fset := flag.NewFlagSet("serve", flag.ExitOnError)
-	addr := fset.String("addr", "127.0.0.1:0", "待ち受けるアドレス（ポート 0 は空いている番号）")
-	fset.Usage = usage
-	fset.Parse(args)
-	if fset.NArg() != 1 {
-		usage()
-		os.Exit(2)
-	}
-
-	srv, err := server.New(fset.Arg(0), web.FS)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, "matomezu:", err)
+		os.Exit(1)
+	}
+}
+
+func newFlags(name string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ExitOnError)
+	fs.Usage = func() { fmt.Fprint(os.Stderr, usageText) }
+	return fs
+}
+
+// open は図をブラウザで見せる。バックグラウンドのサーバーが無ければ起動し、すぐに戻る。
+// 1行目に URL を出す。LLM はブラウザを開けなかったとき、この URL をユーザーに伝える
+func open(args []string) error {
+	fs := newFlags("open")
+	noBrowser := fs.Bool("no-browser", false, "print the URL without opening a browser")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		fs.Usage()
+		os.Exit(2)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	s, err := daemon.Ensure(context.Background(), exe, version)
+	if err != nil {
+		return err
+	}
+	res, err := daemon.Open(s, fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	url := s.URL("/d/" + res.ID + "/")
+	fmt.Println(url)
+	switch {
+	case res.Connections > 0:
+		fmt.Fprintln(os.Stderr, "Already open in a browser; it updates automatically when the file changes.")
+	case *noBrowser:
+	default:
+		if err := browser.Open(url); err != nil {
+			fmt.Fprintf(os.Stderr, "Could not open a browser: %v. Ask the user to open the URL above.\n", err)
+		} else {
+			fmt.Fprintln(os.Stderr, "Opened in the browser.")
+		}
+	}
+	return nil
+}
+
+// serve は1つの図のサーバーを前面で動かす（開発やデバッグ用）
+func serve(args []string) error {
+	fs := newFlags("serve")
+	addr := fs.String("addr", "127.0.0.1:0", "address to listen on (port 0 picks a free port)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		fs.Usage()
+		os.Exit(2)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	hub := server.NewHub(ctx, web.FS)
+	res, err := hub.Open(fs.Arg(0))
+	if err != nil {
+		return err
 	}
 	ln, err := net.Listen("tcp", *addr)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	fmt.Printf("http://%s/d/%s/\n", ln.Addr(), res.ID)
+	return run(ctx, ln, hub.Handler())
+}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	go srv.Watch(ctx)
+func stop() error {
+	s := daemon.Running()
+	if s == nil {
+		fmt.Fprintln(os.Stderr, "No server is running.")
+		return nil
+	}
+	return daemon.Shutdown(s)
+}
 
-	hs := &http.Server{Handler: srv.Handler(), BaseContext: func(net.Listener) context.Context { return ctx }}
+// runDaemon は open から切り離して起動されるバックグラウンドのサーバー。
+// 画面が1つもつながらない状態が idle 続くか、状態ファイルが別のサーバーのものになったら止まる
+func runDaemon(args []string) error {
+	fs := newFlags("daemon")
+	idle := fs.Duration("idle", 30*time.Minute, "stop after this long with no browser connected")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	log.SetPrefix(fmt.Sprintf("[daemon %d] ", os.Getpid()))
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	ctx, stopNow := context.WithCancel(ctx)
+	defer stopNow()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	st := &daemon.State{PID: os.Getpid(), Addr: ln.Addr().String(), Token: daemon.NewToken(), Version: version}
+	hub := server.NewHub(ctx, web.FS, server.WithControl(st.Token, version, stopNow))
+	if err := daemon.WriteState(st); err != nil {
+		return err
+	}
+	defer daemon.RemoveState(st.PID)
+	log.Printf("listening on %s", st.Addr)
+
+	go func() {
+		t := time.NewTicker(10 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if hub.Idle() > *idle {
+					log.Print("idle, stopping")
+					stopNow()
+				}
+				// 同時に起動した別のサーバーが状態ファイルを書いたら、つながりが無くなりしだい譲る
+				if cur, _ := daemon.ReadState(); (cur == nil || cur.PID != st.PID) && hub.Idle() > 0 {
+					log.Print("replaced by another server, stopping")
+					stopNow()
+				}
+			}
+		}
+	}()
+	err = run(ctx, ln, hub.Handler())
+	log.Print("stopped")
+	return err
+}
+
+func run(ctx context.Context, ln net.Listener, h http.Handler) error {
+	hs := &http.Server{Handler: h, BaseContext: func(net.Listener) context.Context { return ctx }}
 	go func() {
 		<-ctx.Done()
 		hs.Shutdown(context.Background())
 	}()
-
-	// LLM が読み取れるよう、1行目に URL だけを出す
-	fmt.Printf("http://%s/\n", ln.Addr())
 	if err := hs.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }
