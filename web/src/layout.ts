@@ -1,22 +1,23 @@
 // 配置: 重なりの判定と直し方、読み込み時の配置。節点ごとの大きさの決め方とツリーの並べ方は node-kinds.ts。
 // 状態（ボックスや線の一覧）は ctx から読む。
 //
-// 読み込み・外部の変更の読み直し・設定変更・子のサイズをそろえたあとは、settle が場面の方針（policy.ts の SCENES）に
-// 従って行う。場面ごとの違い（何を保つか、誰が動くか、大きい相手に譲るか、はみ出しを調整するか）は SCENES の表を見る。
+// 読み込み・外部の変更の読み直し・設定変更・子のサイズをそろえるときは、settle が場面の方針（policy.ts の SCENES）に
+// 従って行う。場面ごとの違い（何を保つか、誰が動くか、大きい相手に譲るか、子を詰め直す向き、はみ出しを調整するか）は
+// SCENES の表を見る。設定を変える処理（子のサイズをそろえるときは alignChildren）は apply として settle に渡す。
 // どの場面でも、ぶつかった相手は同じ x のまま下へずらし（placeGroup + spotBelow + slide）、位置の無いボックスは
 // 空きを探す（findFreeSpot / findGridSpot）。押し下げたボックスは元の位置を覚え（home）、空いたら戻す。
 // 文字の箱が右の大きい兄弟にはみ出すときは、ずらさずにその手前まで狭めて折り返す（fitToRow）。
 //
-// 表に載っていない場面（段階 5〜6 で移す）:
-//   ドラッグ中                tryMove + pushAway       動かしたボックスは兄弟にぶつかれば止まる。広がった祖先は、
-//                                                       前に下にいた相手を下へ、右にいた相手を右へ押す（連鎖）
-//   子のサイズをそろえる      compress                 中身を寄せ、重なれば下（高さのときは右）へ
+// 場面だけの追加の手順:
 //   最初に開いたとき          fitToViewport            右半分からはみ出した最上位を、線の相手の真下へ
 //                                                       （SCENES の fitViewport が true の場面だけ）
+// 表に載っていない場面（段階 6 で移す）:
+//   ドラッグ中                tryMove + pushAway       動かしたボックスは兄弟にぶつかれば止まる。広がった祖先は、
+//                                                       前に下にいた相手を下へ、右にいた相手を右へ押す（連鎖）
 
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, inNest, isNesting, other, overflowOf, shapeOf, sizeOf, viewOf,
+  ancestors, inNest, other, overflowOf, setSpec, shapeOf, sizeOf,
 } from "./model";
 import type { TextMeasurer } from "./measure";
 import { createNodeKinds } from "./node-kinds";
@@ -475,12 +476,14 @@ export function createLayout(ctx: LayoutContext) {
 
   // ---- 子の大きさをそろえる ----
 
-  // そろえられる子。S は高さが固定で小さい、スティックマンは文字で幅が決まり、
+  // そろえられる子（内包か文字の箱）。S は高さが固定で小さい、スティックマンは文字で幅が決まり、
   // ツリーや非表示で子を見せているボックスは子の並びで大きさが決まるので除く
   function sizable(n: Box): Box[] {
-    if (!isNesting(n)) return [];
-    return n.children.filter(k =>
-      sizeOf(k) !== "S" && shapeOf(k) !== "person" && !(k.children.length && viewOf(k) !== "nest"));
+    if (!kindOf(n).holdsChildren) return [];
+    return n.children.filter(k => {
+      const kind = kindOf(k).name;
+      return (kind === "nest" || kind === "text") && sizeOf(k) !== "S" && shapeOf(k) !== "person";
+    });
   }
 
   // 大きさの指定を外して、今の中身の配置のまま収まる大きさを測る（文字だけのボックスは既定の大きさ）
@@ -497,17 +500,17 @@ export function createLayout(ctx: LayoutContext) {
 
   // 中身を詰め直してもこれより小さくできない大きさ（一番大きい中身が入る大きさ）
   function minimumSize(k: Box, dim: "w" | "h") {
-    if (!isNesting(k)) return naturalSize(k, dim);
+    if (!kindOf(k).holdsChildren) return naturalSize(k, dim);
     const a = innerArea(k);
     return dim === "w"
       ? Math.max(GROUP_MIN.w, a.left + a.right + Math.max(...k.children.map(g => g.w)))
       : Math.max(GROUP_MIN.h, a.top + a.bottom + Math.max(...k.children.map(g => g.h)));
   }
 
-  // 内包している k の中身を、大きさ limit に収まるよう詰め直す。
-  // 幅なら右にはみ出す中身を左へ寄せ、重なったら下へずらす。高さなら上へ寄せ、重なったら右へずらす
-  function compress(k: Box, dim: "w" | "h", limit: number) {
-    if (!isNesting(k)) return;
+  // 内包している k の中身を、大きさ limit に収まるよう詰め直す。はみ出す中身を内側へ寄せ、
+  // 重なったら dir の向き（場面の表の repack。幅なら下、高さなら右）へずらす
+  function compress(k: Box, dim: "w" | "h", limit: number, dir: "down" | "right") {
+    if (!kindOf(k).holdsChildren) return;
     const a = innerArea(k);
     const kids = [...k.children].sort((p, q) => (dim === "w" ? p.y - q.y || p.x - q.x : p.x - q.x || p.y - q.y));
     for (const g of kids) {
@@ -516,10 +519,36 @@ export function createLayout(ctx: LayoutContext) {
       unplaced.add(g);
     }
     for (const g of kids) {
-      [g.x, g.y] = slide(g, g.x, g.y, dim === "w" ? "down" : "right")!;
+      [g.x, g.y] = slide(g, g.x, g.y, dir)!;
       unplaced.delete(g);
     }
     fit(k);
+  }
+
+  // 内包している n の子の幅や高さを、今いちばん小さい子に合わせてそろえる。縮める方向にしか働かない
+  // （ボックスは中身に合わせた大きさが正解なので、そろえるために大きくはしない）。
+  // 広い子は中身を詰め直して縮め、中身の都合で目標まで縮められない子は、縮められるところまで縮める。
+  // グループに大きさの指定（width, height）を付けるのは、目標にぴったり合わせるのに要るときだけ。
+  // 両方なら幅を先にそろえる。settle(SCENES.fitChildren, n, apply) の apply として呼ぶ。
+  // そろえた子の数と、目標まで縮められなかった子があったかを返す
+  function alignChildren(n: Box, what: "width" | "height" | "both", scene: Scene) {
+    const kids = sizable(n);
+    let partial = false;
+    const align = (dim: "w" | "h") => {
+      const cur = (k: Box) => (dim === "w" ? k.w : k.h);
+      const target = Math.min(...kids.map(cur));
+      for (const k of kids) {
+        const t = Math.round(Math.max(target, minimumSize(k, dim)));
+        if (t > target + 0.5) partial = true;
+        compress(k, dim, t, scene.repack![dim]);
+        // グループは中身に合わせた大きさが目標に届かないときだけ指定を付け、文字のボックスは常に指定する
+        setSpec(k, dim, kindOf(k).holdsChildren && naturalSize(k, dim) >= t ? 0 : t);
+        fit(k);
+      }
+    };
+    if (what !== "height") align("w");
+    if (what !== "width") align("h");
+    return { count: kids.length, partial };
   }
 
   return {
@@ -528,6 +557,6 @@ export function createLayout(ctx: LayoutContext) {
     clamp, clamped, overlaps, collides, validChain, pushAway, settleChain, tryMove,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
     settle, fitToViewport,
-    sizable, naturalSize, minimumSize, compress,
+    sizable, alignChildren,
   };
 }

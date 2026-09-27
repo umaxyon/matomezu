@@ -53,6 +53,8 @@ export interface Scene {
   giveWayToLarger: boolean;
   // ぶつかった相手をずらす向き
   direction: "down";
+  // 子の中身を詰め直すときにずらす向き（幅を縮めるとき / 高さを縮めるとき）。null なら詰め直さない
+  repack: { w: "down" | "right"; h: "down" | "right" } | null;
   // 押し下げた相手を、空いたら元の位置へ戻すか
   restore: boolean;
   // 表示領域の右にはみ出した最上位を下へ移すか（最初に開いたときだけ）
@@ -61,14 +63,23 @@ export interface Scene {
 
 export const SCENES = {
   // 開いたとき
-  open: { anchor: null, yieldTo: "later", giveWayToLarger: false, direction: "down", restore: true, fitViewport: true },
+  open: {
+    anchor: null, yieldTo: "later", giveWayToLarger: false,
+    direction: "down", repack: null, restore: true, fitViewport: true,
+  },
   // 外部の変更の読み直し・Undo・Redo
-  reload: { anchor: null, yieldTo: "later", giveWayToLarger: false, direction: "down", restore: true, fitViewport: false },
+  reload: {
+    anchor: null, yieldTo: "later", giveWayToLarger: false,
+    direction: "down", repack: null, restore: true, fitViewport: false,
+  },
   // サイドバーでの設定変更（キャプション、サイズ、形、見せ方など）
   settings: {
-    anchor: { inGroup: "topLeft", topLevel: "topCenter" },
-    yieldTo: "others", giveWayToLarger: true, direction: "down", restore: true, fitViewport: false,
+    anchor: { inGroup: "topLeft", topLevel: "topCenter" }, yieldTo: "others", giveWayToLarger: true,
+    direction: "down", repack: null, restore: true, fitViewport: false,
   },
-  // 子のサイズをそろえたあと（子の詰め直しは compress が行う）
-  fitChildren: { anchor: null, yieldTo: "others", giveWayToLarger: false, direction: "down", restore: true, fitViewport: false },
+  // 子のサイズをそろえる（alignChildren で子の中身を詰め直してから、全体を決め直す）
+  fitChildren: {
+    anchor: null, yieldTo: "others", giveWayToLarger: false,
+    direction: "down", repack: { w: "down", h: "right" }, restore: true, fitViewport: false,
+  },
 } as const satisfies Record<string, Scene>;

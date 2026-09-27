@@ -149,8 +149,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const L = createLayout({ opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges });
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges }, L);
   const {
-    incident, innerArea, syncWorld, fit,
-    settle, sizable, naturalSize, minimumSize, compress,
+    incident, innerArea, syncWorld,
+    settle, sizable, alignChildren,
   } = L;
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
   const H = createHistory({
@@ -302,38 +302,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  // 内包している子の幅や高さを、今いちばん小さい子に合わせてそろえる。縮める方向にしか働かない
-  // （ボックスは中身に合わせた大きさが正解なので、そろえるために大きくはしない）。
-  // 広い子は中身を詰め直して縮め、中身の都合で目標まで縮められない子は、縮められるところまで縮める。
-  // グループに大きさの指定（width, height）を付けるのは、目標にぴったり合わせるのに要るときだけ。
-  // 両方なら幅を先にそろえる。そろえた子の数を返す
+  // 内包している子の幅や高さを、今いちばん小さい子に合わせてそろえる（layout.ts の alignChildren）。
+  // そろえた子の数を返す
   function fitChildren(id: Id, what: "width" | "height" | "both") {
     const n = nodeOf(id);
     if (n.isWorld) throw new Error("ワールドの子はそろえられません");
-    const kids = sizable(n);
-    if (kids.length < 2) return 0;
-    let partial = false;
-    const align = (dim: "w" | "h") => {
-      const cur = (k: Box) => (dim === "w" ? k.w : k.h);
-      const target = Math.min(...kids.map(cur));
-      for (const k of kids) {
-        const t = Math.round(Math.max(target, minimumSize(k, dim)));
-        if (t > target + 0.5) partial = true;
-        compress(k, dim, t);
-        // グループは中身に合わせた大きさが目標に届かないときだけ指定を付け、文字のボックスは常に指定する
-        setSpec(k, dim, isNesting(k) && naturalSize(k, dim) >= t ? 0 : t);
-        fit(k);
-      }
-    };
-    if (what !== "height") align("w");
-    if (what !== "width") align("h");
-    settle(SCENES.fitChildren, n);
+    if (sizable(n).length < 2) return 0;
+    let result = { count: 0, partial: false };
+    settle(SCENES.fitChildren, n, () => { result = alignChildren(n, what, SCENES.fitChildren); });
+    const { count, partial } = result;
     render();
     changed();
     notifySelect();
     const label = what === "width" ? "幅" : what === "height" ? "高さ" : "幅と高さ";
-    opt.onNotice?.(`子 ${kids.length} 個の${label}をそろえました` + (partial ? "（中身の都合で狭められない子があります）" : ""));
-    return kids.length;
+    opt.onNotice?.(`子 ${count} 個の${label}をそろえました` + (partial ? "（中身の都合で狭められない子があります）" : ""));
+    return count;
   }
 
   function setMode(m: Mode) {

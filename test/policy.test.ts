@@ -26,12 +26,13 @@ test("何を保つか topCenter: 上辺と横の中心を保つ", () => {
   expect([keep.x(n), keep.y(n)]).toEqual([130, 50]);
 });
 
-test("場面の表: 開いたときだけはみ出しを調整し、設定変更だけが位置を保って大きい相手に譲る", () => {
-  const rows = Object.entries(SCENES).map(([name, s]) => [name, !!s.anchor, s.yieldTo, s.giveWayToLarger, s.fitViewport]);
+test("場面の表: 開いたときだけはみ出しを調整し、設定変更だけが位置を保って大きい相手に譲り、子のサイズをそろえるときだけ詰め直す", () => {
+  const rows = Object.entries(SCENES).map(([name, s]) =>
+    [name, !!s.anchor, s.yieldTo, s.giveWayToLarger, s.repack, s.fitViewport]);
   expect(rows).toEqual([
-    ["open", false, "later", false, true],
-    ["reload", false, "later", false, false],
-    ["settings", true, "others", true, false],
-    ["fitChildren", false, "others", false, false],
+    ["open", false, "later", false, null, true],
+    ["reload", false, "later", false, null, false],
+    ["settings", true, "others", true, null, false],
+    ["fitChildren", false, "others", false, { w: "down", h: "right" }, false],
   ]);
 });
