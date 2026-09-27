@@ -447,16 +447,73 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
+  const clamped = (m: Box) => {
+    const [cx, cy] = clamp(m, m.x, m.y);
+    return Math.abs(cx - m.x) <= 0.5 && Math.abs(cy - m.y) <= 0.5;
+  };
+
+  // 広がった祖先 m が兄弟にぶつかったら、相手を押しのける。before は広がる前の m の位置と大きさ。
+  // 前に m の下にあった相手は下へ、右にあった相手は右へ押す。押した先でぶつかる相手も同じ向きに押す。
+  // 左や上にあった相手とぶつかる、押した先が親に収まらない、などのときは false（呼び出し側で元に戻す）。
+  // 動かした相手の元の位置は moved に残す
+  function pushAway(m: Box, before: { x: number; y: number; w: number; h: number },
+                    moved: Map<Box, [number, number]>): boolean {
+    const g = opt.gap;
+    // o を、by に重ならないよう dir の向きへ押す
+    const push = (o: Box, dir: "down" | "right", by: Box, depth: number): boolean => {
+      if (depth > 50) return false;
+      const origX = o.x, origY = o.y;
+      if (!moved.has(o)) moved.set(o, [o.x, o.y]);
+      if (dir === "down") o.y = by.y + by.h + g;
+      else o.x = by.x + by.w + g;
+      if (!clamped(o)) return false;
+      for (const p of siblings(m)) {
+        if (p === o || p === m || !p.placed || !overlaps(o, o.x, o.y, p)) continue;
+        // 押した相手の先（下か右）にあるものだけ、続けて押す
+        const ahead = dir === "down" ? p.y >= origY - 0.5 : p.x >= origX - 0.5;
+        if (!ahead || !push(p, dir, o, depth + 1)) return false;
+      }
+      return true;
+    };
+    for (const o of siblings(m)) {
+      if (o === m || !o.placed || !overlaps(m, m.x, m.y, o)) continue;
+      if (o.y >= before.y + before.h - 0.5) {
+        if (!push(o, "down", m, 0)) return false;
+      } else if (o.x >= before.x + before.w - 0.5) {
+        if (!push(o, "right", m, 0)) return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // n を動かしたあと、n が正しく置けているか確かめ、広がった祖先の周りを押しのける
+  function settleChain(n: Box, before: Map<Box, { x: number; y: number; w: number; h: number }>,
+                       moved: Map<Box, [number, number]>): boolean {
+    if (collides(n, n.x, n.y) || !clamped(n)) return false;
+    for (const m of ancestors(n)) {
+      fit(m); // 下の階層で押しのけた分を反映する
+      if (!clamped(m)) return false;
+      if (collides(m, m.x, m.y) && !pushAway(m, before.get(m)!, moved)) return false;
+    }
+    return true;
+  }
+
   // 目標位置に向けて動かす。重なる場合は、ぶつかった相手の外側へ押し出し、
   // それでも無理なら軸ごとにスライドさせ、最後は動かさない。
+  // n の移動で広がった親が隣にぶつかったら、隣を押しのける（pushAway）
   function tryMove(n: Box, tx: number, ty: number) {
     const ox = n.x, oy = n.y;
     // すでに重なっているなら、引き離せるよう重なりの判定をしない（重なったままだと、どこへも動けなくなる）
     const stuck = !validChain(n);
     const attempt = ([x, y]: [number, number]) => {
+      const before = new Map(ancestors(n).map(m => [m, { x: m.x, y: m.y, w: m.w, h: m.h }]));
+      const moved = new Map<Box, [number, number]>();
       n.x = x; n.y = y;
       refitAncestors(n);
-      if (stuck || validChain(n)) return true;
+      if (stuck || settleChain(n, before, moved)) return true;
+      for (const [b, [bx, by]] of moved) { b.x = bx; b.y = by; }
       n.x = ox; n.y = oy;
       refitAncestors(n);
       return false;

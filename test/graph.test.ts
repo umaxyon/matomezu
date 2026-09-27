@@ -519,3 +519,56 @@ describe("ツリーの向き", () => {
 });
 
 type R = { x: number; y: number; w: number; h: number };
+
+describe("ドラッグで親が広がったとき", () => {
+  // id のボックスを dx, dy だけ、何回かに分けてドラッグする
+  function dragBy(el: HTMLElement, graph: Graph, id: number, dx: number, dy: number) {
+    graph.select(id);
+    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
+    const fire = (type: string, x: number, y: number) =>
+      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    fire("pointerdown", 0, 0);
+    for (let i = 1; i <= 10; i++) fire("pointermove", (dx * i) / 10, (dy * i) / 10);
+    fire("pointerup", dx, dy);
+  }
+  const group = (extra: BoxData[]): Diagram => ({
+    nodes: [
+      { id: 1, caption: "グループ", x: 40, y: 40 },
+      { id: 2, caption: "上", parent: 1, x: 12, y: 30 },
+      { id: 3, caption: "下", parent: 1, x: 12, y: 110 },
+      ...extra,
+    ],
+  });
+
+  test("下にある隣は下へ押しのける（止めない）", () => {
+    const { el, graph } = setup(group([{ id: 9, caption: "隣", x: 40, y: 250 }]));
+    const g0 = graph.info(1);
+    expect(graph.info(9).y).toBeGreaterThanOrEqual(g0.y + g0.h); // 最初はすぐ下にある
+    dragBy(el, graph, 3, 0, 120);
+    expect(byId(graph.toJSON(), 3).y).toBe(230);
+    const g = graph.info(1), n = graph.info(9);
+    expect(n.y).toBeGreaterThanOrEqual(g.y + g.h); // 押されて、重ならない
+    expect(n.x).toBe(40);
+    graph.undo();
+    expect([byId(graph.toJSON(), 3).y, byId(graph.toJSON(), 9).y]).toEqual([110, 250]); // 1回で戻る
+  });
+
+  test("右にある隣は右へ押しのけ、ワールドの幅を超えるなら止める", () => {
+    const { el, graph } = setup(group([{ id: 9, caption: "右", x: 240, y: 40 }]));
+    dragBy(el, graph, 2, 100, 0);
+    const g = graph.info(1), r = graph.info(9);
+    expect(byId(graph.toJSON(), 2).x).toBe(112);
+    expect(r.x).toBeGreaterThanOrEqual(g.x + g.w);
+    expect(r.y).toBe(40);
+  });
+
+  test("押しのけると横にはみ出す場合は、今までどおり止める", () => {
+    const { el, graph } = setup(group([{ id: 9, caption: "右端", x: 860, y: 40 }]));
+    const before = byId(graph.toJSON(), 2).x;
+    dragBy(el, graph, 2, 900, 0);
+    const g = graph.info(1), r = graph.info(9);
+    expect(r.x).toBe(860);
+    expect(g.x + g.w).toBeLessThanOrEqual(r.x); // グループは右端のボックスの手前で止まる
+    expect(byId(graph.toJSON(), 2).x).toBeGreaterThan(before!);
+  });
+});

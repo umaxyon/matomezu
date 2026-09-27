@@ -41,7 +41,6 @@ export const GRAPH_CSS = `
   --mz-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .mz-world { position: absolute; left: 0; top: 0; }
-.mz-world.mz-current { outline: 2px dashed var(--mz-select); outline-offset: -3px; }
 .mz-world.mz-ov-clip { overflow: hidden; }
 .mz-world > svg {
   position: absolute; inset: 0; width: 100%; height: 100%;
