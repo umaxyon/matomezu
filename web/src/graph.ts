@@ -68,6 +68,7 @@ import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle } from "./dom";
 import { createHistory, type HistoryState } from "./history";
 import { createInteraction, type Mode } from "./interaction";
+import { createDrag } from "./drag";
 import { createLayout } from "./layout";
 import { SCENES } from "./policy";
 import { type MeasureText, createTextMeasurer } from "./measure";
@@ -175,7 +176,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     changed,
     notifySelect,
     reparent,
-  }, L, R);
+  }, L, R, createDrag(opt, L));
 
   function changed() {
     const data = api.toJSON();
