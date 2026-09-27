@@ -63,10 +63,12 @@
 
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle } from "./dom";
+import { createHistory, type HistoryState } from "./history";
+import { createInteraction, type Mode } from "./interaction";
 import { createLayout } from "./layout";
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, borderOf, captionOf, descendants, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
+  borderOf, captionOf, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { createRenderer } from "./render";
@@ -89,13 +91,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onNotice?: (text: string) => void;          // 利用者に知らせたいこと（付け替えで線を外したなど）
 }
 
-// ドラッグの働き。移動か、親子の付け替えか
-export type Mode = "move" | "reparent";
-
-export interface HistoryState {
-  canUndo: boolean;
-  canRedo: boolean;
-}
+export type { HistoryState, Mode };
 
 // 履歴に残す件数
 const HISTORY_LIMIT = 100;
@@ -118,14 +114,6 @@ export interface Graph {
   destroy(): void;
 }
 
-interface Released {
-  m: Box;
-  specW: number;
-  specH: number;
-  width: number | undefined;
-  height: number | undefined;
-}
-
 export function createGraph(container: HTMLElement, data: unknown, options: GraphOptions = {}): Graph {
   injectStyle(GRAPH_STYLE_ID, GRAPH_CSS);
   const opt = { ...DEFAULTS, ...options };
@@ -141,17 +129,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let roots: Box[] = [];
   let byId = new Map<string, Box>();
   let edges: Edge[] = [];
-  let drag: {
-    n: Box; sx: number; sy: number; ox: number; oy: number; moved: boolean;
-    released: Released[] | null; // 動かし始めたときに外した、祖先の最小の大きさ
-  } | null = null;
   let linking: Box | null = null;      // Ctrl+クリックで選んだ1つ目
   let mode: Mode = "move";
-  // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）
-  let lift: {
-    n: Box; pointerId: number; sx: number; sy: number; offX: number; offY: number;
-    ghost: HTMLElement | null; target: Box | null | undefined;
-  } | null = null;
   let current: Box | null = null;      // 選択中（null はワールド）
   const boxOfEl = new WeakMap<Element, Box>();
 
@@ -163,92 +142,42 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const L = createLayout({ opt, world, worldEl, container, roots: () => roots, edges: () => edges });
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges }, L);
   const {
-    incident, innerArea, syncWorld, fit, refitAncestors, clamp,
-    tryMove, settleTree, anchorPlan, stepAside, settleAll, layout, sizable, naturalSize, minimumSize, compress,
+    incident, innerArea, syncWorld, fit, clamp,
+    settleTree, anchorPlan, stepAside, settleAll, layout, sizable, naturalSize, minimumSize, compress,
   } = L;
-  const { applyWorldStyle, applyStyle, renderEdges, render } = R;
-
-  function blocked(n: Box) {
-    if (n.el.classList.contains("mz-blocked")) return;
-    n.el.classList.add("mz-blocked");
-    setTimeout(() => n.el.classList.remove("mz-blocked"), 180);
-  }
+  const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
+  const H = createHistory({
+    snapshot: () => api.toJSON(),
+    // 記録した状態に戻す。選択は保ち、読み込み直後のはみ出しの調整はしない（記録どおりに戻すため）
+    apply(d) {
+      const sel = current?.id ?? null;
+      build(d, false);
+      if (sel != null && byId.has(sel)) select(byId.get(sel)!);
+      opt.onChange?.(api.toJSON());
+    },
+    onHistory: opt.onHistory,
+    limit: HISTORY_LIMIT,
+  });
+  const I = createInteraction({
+    container, world, boxOfEl,
+    current: () => current,
+    mode: () => mode,
+    select,
+    cancelLinking: () => setLinking(null),
+    ctrlClick,
+    changed,
+    notifySelect,
+    reparent,
+  }, L, R);
 
   function changed() {
     const data = api.toJSON();
-    record(data);
+    H.record(data);
     opt.onChange?.(data);
-  }
-
-  // ---- 履歴 ----
-  // 変更のたびに図全体の JSON を1件として残す。戻るときはそれを読み込み直す
-
-  let past: string[] = []; // 最後が今の状態
-  let future: string[] = [];
-
-  const historyState = (): HistoryState => ({ canUndo: past.length > 1, canRedo: future.length > 0 });
-  const notifyHistory = () => opt.onHistory?.(historyState());
-
-  function record(data = api.toJSON()) {
-    const s = JSON.stringify(data);
-    if (s === past[past.length - 1]) return;
-    past.push(s);
-    if (past.length > HISTORY_LIMIT) past.shift();
-    future = [];
-    notifyHistory();
-  }
-
-  function resetHistory() {
-    past = [JSON.stringify(api.toJSON())];
-    future = [];
-    notifyHistory();
-  }
-
-  // 記録した状態に戻す。選択は保ち、読み込み直後のはみ出しの調整はしない（記録どおりに戻すため）
-  function restore(s: string) {
-    const sel = current?.id ?? null;
-    build(JSON.parse(s), false);
-    if (sel != null && byId.has(sel)) select(byId.get(sel)!);
-    opt.onChange?.(api.toJSON());
-    notifyHistory();
-  }
-
-  function undo() {
-    if (past.length <= 1) return false;
-    future.push(past.pop()!);
-    restore(past[past.length - 1]!);
-    return true;
-  }
-
-  function redo() {
-    const s = future.pop();
-    if (s == null) return false;
-    past.push(s);
-    restore(s);
-    return true;
   }
 
   function notifySelect() {
     opt.onSelect?.(info(current));
-  }
-
-  // ---- フォーカス（Obsidian 風: 関係の無いものを薄くする） ----
-
-  function focus(n: Box) {
-    const near = new Set([n, ...descendants(n)]);
-    for (const e of edges) {
-      const on = e.a === n || e.b === n;
-      if (on) { near.add(e.a); near.add(e.b); }
-      e.el.classList.toggle("mz-hi", on);
-      e.el.classList.toggle("mz-dim", !on);
-    }
-    for (const m of [...near]) ancestors(m).forEach(p => near.add(p));
-    for (const o of nodes) o.el.classList.toggle("mz-dim", !near.has(o));
-  }
-
-  function unfocus() {
-    for (const e of edges) e.el.classList.remove("mz-hi", "mz-dim");
-    for (const o of nodes) o.el.classList.remove("mz-dim");
   }
 
   // ---- 選択 ----
@@ -323,197 +252,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     changed();
     notifySelect();
   }
-
-  // ---- ポインタ操作 ----
-
-  function boxOf(target: EventTarget | null): Box | null {
-    if (!(target instanceof Element)) return null;
-    const el = target.closest(".mz-node");
-    return el && container.contains(el) ? boxOfEl.get(el) ?? null : null;
-  }
-
-  const onEdge = (target: EventTarget | null) => target instanceof Element && !!target.closest(".mz-edge");
-
-  // ツリーの子は自分では動かず、ツリー全体（内包されている祖先）を動かす
-  function dragTarget(n: Box): Box {
-    let m = n;
-    while (!inNest(m) && m.parent) m = m.parent;
-    return m;
-  }
-
-  function onPointerDown(e: PointerEvent) {
-    const n = boxOf(e.target);
-    if (!n) {
-      if (!onEdge(e.target)) {
-        setLinking(null);
-        select(null);
-      }
-      return;
-    }
-    e.stopPropagation();
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      ctrlClick(n);
-      return;
-    }
-    if (current !== n) select(n);
-    if (mode === "reparent") {
-      const r = n.el.getBoundingClientRect();
-      n.head.setPointerCapture(e.pointerId);
-      lift = { n, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY,
-        offX: e.clientX - r.left, offY: e.clientY - r.top, ghost: null, target: undefined };
-      return;
-    }
-    const d = dragTarget(n);
-    n.head.setPointerCapture(e.pointerId);
-    drag = { n: d, sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, moved: false, released: null };
-    d.el.classList.add("mz-dragging");
-    focus(n);
-  }
-
-  function onPointerMove(e: PointerEvent) {
-    if (lift) return moveLift(e);
-    if (!drag) return;
-    const { n } = drag;
-    if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
-    drag.released ??= releaseSizes(n);
-    if (tryMove(n, drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy)) {
-      drag.moved = true;
-      render();
-    } else {
-      blocked(n);
-    }
-  }
-
-  function onPointerUp(e: PointerEvent) {
-    if (lift) return dropLift(e);
-    if (!drag) return;
-    drag.n.el.classList.remove("mz-dragging");
-    const moved = drag.moved;
-    if (!moved && drag.released) restoreSizes(drag.released, drag.n);
-    drag = null;
-    unfocus();
-    if (moved) {
-      syncWorld();
-      changed();
-      notifySelect();
-    }
-  }
-
-  // 中身を手で動かしたら、中身に合わせて伸びる祖先の最小の大きさ（width, height）を外し、中身に追従させる。
-  // 「子のサイズをそろえる」で付いた大きさも、手で動かした方を優先する。
-  // 幅に合わせて折り返す・切り詰めるグループは、大きさを意図して決めているので外さない
-  function releaseSizes(n: Box): Released[] {
-    const out: Released[] = [];
-    for (const m of ancestors(n)) {
-      if (overflowOf(m) !== "grow" || !(m.specW || m.specH)) continue;
-      out.push({ m, specW: m.specW, specH: m.specH, width: m.src.width, height: m.src.height });
-      setSpec(m, "w", 0);
-      setSpec(m, "h", 0);
-    }
-    return out;
-  }
-
-  // 実際には動かさなかったときは、外した大きさを戻す
-  function restoreSizes(list: Released[], n: Box) {
-    for (const r of list) {
-      r.m.specW = r.specW;
-      r.m.specH = r.specH;
-      if (r.width != null) r.m.src.width = r.width;
-      if (r.height != null) r.m.src.height = r.height;
-    }
-    refitAncestors(n);
-    render();
-  }
-
-  function onPointerOver(e: PointerEvent) {
-    if (drag || lift) return;
-    const n = boxOf(e.target);
-    if (n) focus(n);
-    else if (!onEdge(e.target)) unfocus();
-  }
-
-  function onKeyDown(e: KeyboardEvent) {
-    if (e.key !== "Escape") return;
-    setLinking(null);
-    endLift();
-  }
-
-  // ---- 付け替えのドラッグ ----
-  // つかんだボックスの半透明のコピー（ゴースト）をポインタに付けて動かし、下にある落とし先を強調する
-
-  // ポインタの下の落とし先。自分と自分の子孫の上は落とせない（undefined）
-  function dropTargetAt(x: number, y: number): Box | null | undefined {
-    const r = container.getBoundingClientRect();
-    if (x < r.left || x > r.right || y < r.top || y > r.bottom) return undefined;
-    for (const el of document.elementsFromPoint(x, y)) {
-      if (!container.contains(el)) continue;
-      const head = el.closest(".mz-head");
-      if (!head) continue;
-      const b = boxOf(head);
-      if (!b) continue;
-      return isInside(b, lift!.n) ? undefined : b;
-    }
-    return null;
-  }
-
-  function markTarget(t: Box | null | undefined) {
-    if (!lift) return;
-    if (lift.target !== undefined) (lift.target ?? world).el.classList.remove("mz-drop");
-    lift.target = t;
-    if (t !== undefined) (t ?? world).el.classList.add("mz-drop");
-    lift.ghost?.classList.toggle("mz-ghost-no", t === undefined);
-  }
-
-  function moveLift(e: PointerEvent) {
-    const l = lift!;
-    if (!l.ghost) {
-      if (Math.hypot(e.clientX - l.sx, e.clientY - l.sy) < 4) return; // クリックとドラッグを見分ける
-      const g = l.n.el.cloneNode(true) as HTMLElement;
-      g.classList.add("mz-ghost");
-      g.classList.remove("mz-current", "mz-dim");
-      container.appendChild(g);
-      l.ghost = g;
-      l.n.el.classList.add("mz-lifted");
-      unfocus(); // ポインタを乗せたときの薄い表示を消し、落とし先を見やすくする
-    }
-    const r = container.getBoundingClientRect();
-    l.ghost.style.left = e.clientX - l.offX - r.left + container.scrollLeft + "px";
-    l.ghost.style.top = e.clientY - l.offY - r.top + container.scrollTop + "px";
-    markTarget(dropTargetAt(e.clientX, e.clientY));
-  }
-
-  function endLift() {
-    if (!lift) return;
-    markTarget(undefined);
-    lift.ghost?.remove();
-    lift.n.el.classList.remove("mz-lifted");
-    lift = null;
-  }
-
-  function dropLift(e: PointerEvent) {
-    const l = lift!;
-    const t = l.ghost ? l.target : undefined;
-    // 新しい親の中での位置（ゴーストの左上）
-    let at: { x: number; y: number } | undefined;
-    if (t !== undefined) {
-      const r = (t ?? world).el.getBoundingClientRect();
-      at = { x: e.clientX - l.offX - r.left, y: e.clientY - l.offY - r.top };
-    }
-    const n = l.n;
-    endLift();
-    if (t !== undefined) reparent(n.id, t ? t.id : null, at);
-  }
-
-  const listening = new AbortController();
-  const signal = listening.signal;
-  container.addEventListener("pointerdown", onPointerDown, { signal });
-  container.addEventListener("pointermove", onPointerMove, { signal });
-  container.addEventListener("pointerup", onPointerUp, { signal });
-  container.addEventListener("pointercancel", onPointerUp, { signal });
-  container.addEventListener("pointerover", onPointerOver, { signal });
-  container.addEventListener("pointerleave", () => { if (!drag) unfocus(); }, { signal });
-  document.addEventListener("keydown", onKeyDown, { signal });
 
   // ---- 親子の付け替え ----
 
@@ -592,7 +330,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function setMode(m: Mode) {
-    endLift();
+    I.endLift();
     mode = m;
     container.classList.toggle("mz-mode-reparent", m === "reparent");
   }
@@ -734,7 +472,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     roots = [];
     byId = new Map();
     edges = [];
-    drag = null;
+    I.reset();
     linking = null;
     current?.el.classList.remove("mz-current");
     current = null;
@@ -787,8 +525,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function load(newData: unknown, o: { keepHistory?: boolean } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
     build(copy, !o.keepHistory);
-    if (o.keepHistory) record();
-    else resetHistory();
+    if (o.keepHistory) H.record();
+    else H.reset();
   }
 
   // データを検証して描き直す。fit は読み込み直後のはみ出しの調整をするか
@@ -841,9 +579,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const api: Graph = {
     load,
-    undo,
-    redo,
-    history: historyState,
+    undo: () => H.undo(),
+    redo: () => H.redo(),
+    history: () => H.state(),
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
     selected: () => (current ? current.id : null),
     info: id => info(id == null ? null : nodeOf(id)),
@@ -861,15 +599,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       out.edges = edges.map(e => ({ ...e.src, id: e.id, from: e.a.src.id!, to: e.b.src.id! }));
       return out;
     },
-    dragging: () => drag != null || lift != null,
+    dragging: () => I.dragging(),
     setMode,
     mode: () => mode,
     reparent,
     fitChildren,
     destroy() {
-      endLift();
+      I.endLift();
       ro.disconnect();
-      listening.abort();
+      I.destroy();
       clear();
       worldEl.remove();
       container.classList.remove("mz-stage");

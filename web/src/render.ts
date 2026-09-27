@@ -4,7 +4,7 @@ import { isLightColor } from "./dom";
 import type { Layout } from "./layout";
 import {
   type Box, type Edge, type World,
-  absPos, borderOf, captionOf, displayCaption, fillOf, inTree, isHidden, isNesting, overflowOf,
+  absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -20,6 +20,8 @@ export interface RenderContext {
   nodes(): Box[];
   edges(): Edge[];
 }
+
+export type Renderer = ReturnType<typeof createRenderer>;
 
 export function createRenderer(ctx: RenderContext, L: Layout) {
   const { opt, world, worldEl } = ctx;
@@ -194,5 +196,30 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     renderEdges();
   }
 
-  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render };
+  function blocked(n: Box) {
+    if (n.el.classList.contains("mz-blocked")) return;
+    n.el.classList.add("mz-blocked");
+    setTimeout(() => n.el.classList.remove("mz-blocked"), 180);
+  }
+
+  // ---- フォーカス（Obsidian 風: 関係の無いものを薄くする） ----
+
+  function focus(n: Box) {
+    const near = new Set([n, ...descendants(n)]);
+    for (const e of ctx.edges()) {
+      const on = e.a === n || e.b === n;
+      if (on) { near.add(e.a); near.add(e.b); }
+      e.el.classList.toggle("mz-hi", on);
+      e.el.classList.toggle("mz-dim", !on);
+    }
+    for (const m of [...near]) ancestors(m).forEach(p => near.add(p));
+    for (const o of ctx.nodes()) o.el.classList.toggle("mz-dim", !near.has(o));
+  }
+
+  function unfocus() {
+    for (const e of ctx.edges()) e.el.classList.remove("mz-hi", "mz-dim");
+    for (const o of ctx.nodes()) o.el.classList.remove("mz-dim");
+  }
+
+  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render, blocked, focus, unfocus };
 }
