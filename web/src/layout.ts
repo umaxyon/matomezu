@@ -434,8 +434,8 @@ export function createLayout(ctx: LayoutContext) {
 
   // 大きさが変わる前の位置を覚え、変わったあとの n の位置を返す関数を作る。
   // 最上位では、線でつながる相手が片側にだけいれば、線がつながる範囲（anchorRect。ツリーなら外枠）の
-  // その側の辺を動かさない（線の長さも角度も変わらない）。
-  // 両側にいるか、相手がいなければ本体の中心を保つ。横と縦は別々に決める
+  // その側の辺を動かさない（線の長さも角度も変わらない）。相手が範囲の内側（真横や真下）にいるか両側にいれば、
+  // 線がつながる範囲の中心を保つ。相手がいなければ本体の中心を保つ。横と縦は別々に決める
   function anchorPlan(n: Box) {
     // グループの中では左上を保ち、右と下へ伸び縮みする。中心を保つと、親の端で押し戻されたずれが
     // 次に縮むときに残り、切り替えるたびに位置が変わっていくため
@@ -450,19 +450,28 @@ export function createLayout(ctx: LayoutContext) {
       .filter(e => e.a.parent === e.b.parent)
       .map(e => other(e, n))
       .map(o => { const a = anchorRect(o); return [o.x + a.x + a.w / 2, o.y + a.y + a.h / 2] as const; });
+    // 相手が範囲の内側（真横や真下）にいる方向は、中心を保つ（辺を保つと、その相手への線が斜めになる）
     const side = (lo: number, hi: number, vs: number[]) => {
       const before = vs.some(v => v < lo), after = vs.some(v => v > hi);
-      return before && !after ? "start" : after && !before ? "end" : "center";
+      const inside = vs.some(v => v >= lo && v <= hi);
+      return inside ? "center" : before && !after ? "start" : after && !before ? "end" : "center";
     };
     const sx = side(al, arr, others.map(o => o[0])), sy = side(at, ab, others.map(o => o[1]));
+    // 中心を保つとき、相手がいれば線がつながる範囲（ツリーなら外枠）の中心を保つ（線の角度が変わらない）。
+    // 相手がいなければ本体の中心を保つ（見た目の位置が変わらない）
+    const linked = others.length > 0;
     return {
       x: (m: Box) => {
         const a = anchorRect(m);
-        return sx === "start" ? al - a.x : sx === "end" ? arr - a.x - a.w : (l + r) / 2 - m.hx - m.hw / 2;
+        if (sx === "start") return al - a.x;
+        if (sx === "end") return arr - a.x - a.w;
+        return linked ? (al + arr) / 2 - a.x - a.w / 2 : (l + r) / 2 - m.hx - m.hw / 2;
       },
       y: (m: Box) => {
         const a = anchorRect(m);
-        return sy === "start" ? at - a.y : sy === "end" ? ab - a.y - a.h : (t + b) / 2 - m.hy - m.hh / 2;
+        if (sy === "start") return at - a.y;
+        if (sy === "end") return ab - a.y - a.h;
+        return linked ? (at + ab) / 2 - a.y - a.h / 2 : (t + b) / 2 - m.hy - m.hh / 2;
       },
     };
   }

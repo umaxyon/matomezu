@@ -182,6 +182,18 @@ describe("線でつながる相手の側の辺を保つ", () => {
     expect(after.x + after.w).toBe(before.x + before.w);
   });
 
+  test("相手が真横や真下（範囲の内側）にいる方向は中心を保ち、非表示を挟んでも元に戻る", () => {
+    // フロントエンドの相手は、左のユーザー（上下の範囲の内側）と、真下のバックエンド（左右の範囲の内側）
+    const { graph } = setup(sample());
+    const center = () => { const i = graph.info(3); return [i.x + i.w / 2, i.y + i.h / 2]; };
+    const before = graph.info(3), user = graph.info(2), c0 = center();
+    graph.update(3, { childView: "hidden" });
+    expect(center()).toEqual(c0); // 左下の角に寄らず、中心に縮む（真下のバックエンドへの線は縦のまま）
+    graph.update(3, { childView: "nest" });
+    expect([graph.info(3).x, graph.info(3).y]).toEqual([before.x, before.y]);
+    expect([graph.info(2).x, graph.info(2).y]).toEqual([user.x, user.y]); // ユーザーは押し下げられない
+  });
+
   test("ツリーから内包に戻しても、相手の側の辺（外枠の左辺）を保つ", () => {
     const { graph } = setup({
       nodes: [
