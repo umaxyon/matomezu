@@ -23,6 +23,23 @@ export const GRAPH_CSS = `
     --mz-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
   }
 }
+/* 背景色を付けたワールドでは、背景の明るさに合わせてテーマと関係なく配色を切り替える */
+.mz-world.mz-on-light {
+  --mz-edge: rgba(90, 90, 110, 0.45);
+  --mz-edge-hi: rgba(120, 80, 220, 0.9);
+  --mz-edge-del: #dc2626;
+  --mz-text: #1b1b1f;
+  --mz-select: #6d4bd8;
+  --mz-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+.mz-world.mz-on-dark {
+  --mz-edge: rgba(180, 180, 190, 0.45);
+  --mz-edge-hi: rgba(200, 180, 255, 0.9);
+  --mz-edge-del: #f87171;
+  --mz-text: #e4e4e7;
+  --mz-select: #c4b5fd;
+  --mz-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
 .mz-world { position: absolute; left: 0; top: 0; }
 .mz-world.mz-current { outline: 2px dashed var(--mz-select); outline-offset: -3px; }
 .mz-world.mz-ov-clip { overflow: hidden; }

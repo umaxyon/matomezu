@@ -35,3 +35,8 @@ test("shape の値を検証する", () => {
   expect(() => validate({ nodes: [{ id: 1, shape: "person" }, { id: 2, shape: "db" }] })).not.toThrow();
   expect(() => validate({ nodes: [{ id: 1, shape: "cloud" }] })).toThrow("shape の値が不正です: 1 (cloud)");
 });
+
+test("world の background は文字列", () => {
+  expect(() => validate({ world: { background: "#fff" }, nodes: [] })).not.toThrow();
+  expect(() => validate({ world: { background: 123 }, nodes: [] })).toThrow("background");
+});

@@ -68,6 +68,9 @@ export function validate(data: unknown): asserts data is Diagram {
     if (!isObject(data.world)) throw new Error("world がオブジェクトではありません");
     checkSettings(data.world, "world");
     if (data.world.overflow === "grow") throw new Error("world に overflow: grow は使えません");
+    if (data.world.background != null && typeof data.world.background !== "string") {
+      throw new Error("world の background は色の文字列にしてください");
+    }
   }
   const byId = new Map<string, Record<string, unknown>>();
   for (const n of data.nodes as unknown[]) {

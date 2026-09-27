@@ -108,6 +108,8 @@ const VIEW_HINTS = {
   hidden: "子を隠し、▼ で子がいることだけを示します",
 };
 const PRESETS = ["#ffffff", "#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#a855f7", "#64748b"];
+// ワールドの背景によく使う色（明るい色と暗い色）
+const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
 
 function chips(list: Brief[]): string {
   if (!list.length) return '<span class="mzp-none">なし</span>';
@@ -127,6 +129,19 @@ function html(info: Info): string {
 
   if (info.kind === "world") {
     parts.push(`<div class="mzp-head"><span class="mzp-title">${esc(info.caption)}</span></div>`);
+    const bg = info.background;
+    const hex = bg ? toHex(bg) : "#ffffff";
+    parts.push(`<div class="mzp-section"><h3>背景</h3>
+      <div class="mzp-field"><span>色</span>
+        <div class="mzp-color">
+          <input class="mzp-picker" type="color" data-edit="bg-picker" value="${hex}" aria-label="背景の色を選ぶ">
+          <input class="mzp-input" type="text" data-edit="background" value="${esc(bg ?? "")}" placeholder="なし" aria-label="背景の色の値">
+        </div>
+      </div>
+      <div class="mzp-presets">${BG_PRESETS.map(c =>
+        `<button type="button" class="mzp-preset" data-bg="${c}" style="background:${c}" title="${c}" aria-pressed="${bg != null && c === hex}"></button>`
+      ).join("")}<button type="button" class="mzp-chip" data-bg="" aria-pressed="${bg == null}">なし</button></div>
+    </div>`);
   } else {
     parts.push(`<div class="mzp-head">
       <span class="mzp-swatch" style="background:${esc(info.color)}"></span>
@@ -220,7 +235,9 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
     const chip = e.target.closest<HTMLElement>("[data-select]");
     if (chip) return graph.select(chip.dataset.select!);
     const preset = e.target.closest<HTMLElement>("[data-color]");
-    if (preset) graph.update(info.id, { color: preset.dataset.color! });
+    if (preset) return graph.update(info.id, { color: preset.dataset.color! });
+    const bg = e.target.closest<HTMLElement>("[data-bg]");
+    if (bg) graph.update(null, { background: bg.dataset.bg || null });
   });
 
   // 文字入力は Enter で確定する（フォーカスが外れたときも確定する）
@@ -236,10 +253,11 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
     if (!(t instanceof HTMLInputElement)) return;
     const edit = t.dataset.edit;
     if (edit === "caption") return graph.update(info.id, { caption: t.value });
-    if (edit === "picker" || edit === "color") {
+    if (edit === "picker" || edit === "color" || edit === "bg-picker" || edit === "background") {
       const color = t.value.trim();
       // 解釈できない色の文字列は受け付けずに元へ戻す
       if (color && !CSS.supports("color", color)) return show(info);
+      if (edit.startsWith("bg") || edit === "background") return graph.update(null, { background: color || null });
       return graph.update(info.id, { color });
     }
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });

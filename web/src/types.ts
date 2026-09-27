@@ -10,6 +10,7 @@ export interface WorldData {
   width?: number;
   height?: number;
   overflow?: Exclude<Overflow, "grow">;
+  background?: string; // 背景色。省略すると背景なし
   [key: string]: unknown;
 }
 
@@ -64,6 +65,7 @@ export interface WorldInfo {
   links: [];
   overflow: Overflow;
   overflows: Overflow[];
+  background: string | null;
 }
 
 export interface BoxInfo {
@@ -90,8 +92,9 @@ export interface BoxInfo {
 
 export type Info = WorldInfo | BoxInfo;
 
-// update() で変えられる項目。caption と color は空にすると既定に戻る
+// update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）
 export interface Patch {
+  background?: string | null;
   caption?: string | null;
   color?: string | null;
   size?: Size;

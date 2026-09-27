@@ -240,3 +240,29 @@ test("重なってしまったボックスも、ドラッグで引き離せる",
   head.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1 }));
   expect(graph.info(2).x).not.toBe(x0);
 });
+
+test("ワールドの背景色を変え、明るさに合わせて配色を切り替え、なしで元に戻す", () => {
+  const { el, graph } = setup({ nodes: [{ id: 1 }] });
+  const worldEl = el.querySelector(".mz-world") as HTMLElement;
+
+  graph.update(null, { background: "#ffffff" });
+  expect(graph.toJSON().world).toEqual({ background: "#ffffff" });
+  expect(graph.info(null)).toMatchObject({ kind: "world", background: "#ffffff" });
+  expect(worldEl.classList.contains("mz-on-light")).toBe(true);
+
+  graph.update(null, { background: "#0f172a" });
+  expect(worldEl.classList.contains("mz-on-dark")).toBe(true);
+  expect(worldEl.classList.contains("mz-on-light")).toBe(false);
+
+  graph.update(null, { background: null });
+  expect(graph.toJSON().world?.background).toBeUndefined();
+  expect(worldEl.style.background).toBe("");
+  expect(worldEl.classList.contains("mz-on-dark")).toBe(false);
+});
+
+test("背景色はファイルから読み込める", () => {
+  const { el } = setup({ world: { background: "#fefce8" }, nodes: [] });
+  const worldEl = el.querySelector(".mz-world") as HTMLElement;
+  expect(worldEl.style.background).not.toBe("");
+  expect(worldEl.classList.contains("mz-on-light")).toBe(true);
+});

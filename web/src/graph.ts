@@ -31,6 +31,7 @@
  *     ]
  *   }
  *   - world は省略できる。width, height が無ければ、表示領域と置かれているボックスの範囲の大きい方になる。
+ *     background で背景色を付けられる（文字や線の色は、背景の明るさに合わせて切り替わる）。
  *   - ノードの項目はすべて省略できる。color の既定は白。
  *   - id は連番の数値を使う。省くと読み込み時に、既存の数値 id の続きから連番を振る。
  *   - parent に親ボックスの id を書くと、その子になる。x, y は親の左上からの位置（内包のときに使う）。
@@ -243,6 +244,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     worldEl.style.width = world.w + "px";
     worldEl.style.height = world.h + "px";
     worldEl.classList.toggle("mz-ov-clip", overflowOf(world) === "clip");
+  }
+
+  // 背景色。明るさに合わせて、ワールドの中の文字や線を見やすい配色にする（graph-style.ts の .mz-on-light / .mz-on-dark）
+  function applyWorldStyle() {
+    const bg = world.src.background;
+    worldEl.style.background = bg || "";
+    const light = bg ? isLightColor(bg) : null;
+    worldEl.classList.toggle("mz-on-light", light === true);
+    worldEl.classList.toggle("mz-on-dark", light === false);
   }
 
   // ---- 大きさ ----
@@ -915,6 +925,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         links: [],
         overflow: overflowOf(world),
         overflows: ["wrap", "clip"],
+        background: world.src.background || null,
       };
     }
     const size = sizeOf(n);
@@ -1002,8 +1013,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       }
     }
     if (n.isWorld) {
+      if ("background" in next) {
+        if (next.background) world.src.background = String(next.background);
+        else delete world.src.background;
+      }
       source.world = world.src;
       syncWorld();
+      applyWorldStyle();
     } else {
       applyStyle(n);
     }
@@ -1081,6 +1097,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     source = copy;
     world.src = source.world ?? {};
     syncWorld();
+    applyWorldStyle();
 
     nodes = source.nodes.map(buildNode);
     byId = new Map(nodes.map(n => [n.id, n]));
