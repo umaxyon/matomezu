@@ -444,11 +444,14 @@ export function createLayout(ctx: LayoutContext) {
     return slide(n, n.x, n.y, "down", maxY) ?? (c.isWorld ? findFreeSpot(n, n.x, n.y) : findGridSpot(n));
   }
 
-  // 大きさが変わる前の本体の位置を覚え、変わったあとの n の位置を返す関数を作る。
-  // 線でつながる相手が片側にだけいれば、その側の辺を動かさない（線の長さも角度も変わらない）。
-  // 両側にいるか、相手がいなければ中心を保つ。横と縦は別々に決める
+  // 大きさが変わる前の位置を覚え、変わったあとの n の位置を返す関数を作る。
+  // 線でつながる相手が片側にだけいれば、線がつながる範囲（anchorRect。ツリーなら外枠）の
+  // その側の辺を動かさない（線の長さも角度も変わらない）。
+  // 両側にいるか、相手がいなければ本体の中心を保つ。横と縦は別々に決める
   function anchorPlan(n: Box) {
     const l = n.x + n.hx, t = n.y + n.hy, r = l + n.hw, b = t + n.hh;
+    const ar = anchorRect(n);
+    const al = n.x + ar.x, at = n.y + ar.y, arr = al + ar.w, ab = at + ar.h;
     const others = incident(n)
       .filter(e => e.a.parent === e.b.parent)
       .map(e => other(e, n))
@@ -457,10 +460,16 @@ export function createLayout(ctx: LayoutContext) {
       const before = vs.some(v => v < lo), after = vs.some(v => v > hi);
       return before && !after ? "start" : after && !before ? "end" : "center";
     };
-    const sx = side(l, r, others.map(o => o[0])), sy = side(t, b, others.map(o => o[1]));
+    const sx = side(al, arr, others.map(o => o[0])), sy = side(at, ab, others.map(o => o[1]));
     return {
-      x: (m: Box) => (sx === "start" ? l - m.hx : sx === "end" ? r - m.hx - m.hw : (l + r) / 2 - m.hx - m.hw / 2),
-      y: (m: Box) => (sy === "start" ? t - m.hy : sy === "end" ? b - m.hy - m.hh : (t + b) / 2 - m.hy - m.hh / 2),
+      x: (m: Box) => {
+        const a = anchorRect(m);
+        return sx === "start" ? al - a.x : sx === "end" ? arr - a.x - a.w : (l + r) / 2 - m.hx - m.hw / 2;
+      },
+      y: (m: Box) => {
+        const a = anchorRect(m);
+        return sy === "start" ? at - a.y : sy === "end" ? ab - a.y - a.h : (t + b) / 2 - m.hy - m.hh / 2;
+      },
     };
   }
 

@@ -182,6 +182,42 @@ describe("線でつながる相手の側の辺を保つ", () => {
     const { before, after } = grow(data(150, 300, true));
     expect(Math.abs(after.x + after.w / 2 - (before.x + before.w / 2))).toBeLessThanOrEqual(1);
   });
+
+  // ツリーでは線が外枠のふちにつながるので、保つのは本体ではなく外枠の辺
+  const toTree = (d: Diagram) => {
+    const { graph } = setup(d);
+    const before = graph.info(2);
+    graph.update(2, { childView: "tree" });
+    return { before, after: graph.info(2) };
+  };
+  test("ツリーにしたとき、相手が下: 外枠の下辺を保つ", () => {
+    const { before, after } = toTree(data(500, 700));
+    expect(after.y + after.h).toBe(before.y + before.h);
+  });
+  test("ツリーにしたとき、相手が右: 外枠の右辺を保つ", () => {
+    const { before, after } = toTree(data(800, 300));
+    expect(after.x + after.w).toBe(before.x + before.w);
+  });
+
+  test("入れ子の中で内包からツリーにしても、下の相手との間で上に余白を作らない", () => {
+    // データ枠の中で、DB（API を内包）の右下にキャッシュがつながっている
+    const { graph } = setup({
+      nodes: [
+        { id: 1, caption: "データ", x: 40, y: 40 },
+        { id: 2, caption: "DB", parent: 1, x: 12, y: 36 },
+        { id: 3, caption: "API", parent: 2, childView: "tree", x: 12, y: 36 },
+        { id: 4, caption: "認証", parent: 3, size: "S" }, { id: 5, caption: "注文", parent: 3, size: "S" },
+        { id: 6, caption: "キャッシュ", parent: 1, x: 150, y: 330 },
+      ],
+      edges: [[2, 6]],
+    } as Diagram);
+    const before = graph.info(2);
+    graph.update(2, { childView: "tree" });
+    const after = graph.info(2);
+    expect(after.y).toBeLessThanOrEqual(before.y);
+    const cache = graph.info(6);
+    expect(cache.y).toBeGreaterThanOrEqual(after.y + after.h); // キャッシュは下へずれる
+  });
 });
 
 describe("押しのけ", () => {
