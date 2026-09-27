@@ -1,12 +1,134 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>matomezu</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>matomezu</title>
+<style>
+  :root {
+    --bg: #1e1e1e;
+    --grid: rgba(255, 255, 255, 0.035);
+    --text: #e4e4e7;
+    --hint: rgba(220, 220, 230, 0.55);
+    --bar: #252526;
+    --bar-border: rgba(255, 255, 255, 0.08);
+    --btn: #3a3a3f;
+    --btn-hover: #4a4a50;
+    --accent: #8b6cf0;
+    --error: #f87171;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f6f6f8;
+      --grid: rgba(0, 0, 0, 0.045);
+      --text: #1b1b1f;
+      --hint: rgba(40, 40, 50, 0.55);
+      --bar: #ffffff;
+      --bar-border: rgba(0, 0, 0, 0.1);
+      --btn: #ececf0;
+      --btn-hover: #dedee4;
+      --accent: #6d4bd8;
+      --error: #dc2626;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bar);
+    border-bottom: 1px solid var(--bar-border);
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  header .name { margin-right: auto; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button {
+    font: inherit;
+    color: inherit;
+    background: var(--btn);
+    border: 1px solid var(--bar-border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--btn-hover); }
+  button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  button.primary:hover { filter: brightness(1.1); }
+  main { flex: 1; display: flex; min-height: 0; }
+  #sidebar {
+    width: 280px;
+    flex: none;
+    overflow-y: auto;
+    background: var(--bar);
+    border-right: 1px solid var(--bar-border);
+  }
+  .canvas { position: relative; flex: 1; min-width: 0; }
+  #stage {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(var(--grid) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  #stage.dropping { outline: 2px dashed var(--accent); outline-offset: -8px; }
+  .hint {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 12px;
+    font-size: 12px;
+    color: var(--hint);
+    pointer-events: none;
+  }
+  .hint.error { color: var(--error); }
+  @media (max-width: 640px) {
+    main { flex-direction: column-reverse; }
+    #sidebar { width: auto; max-height: 40vh; border-right: 0; border-top: 1px solid var(--bar-border); }
+  }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="dist/matomezu.js"></script>
+<header>
+  <span class="name" id="name">サンプル</span>
+  <button id="open">JSONを開く</button>
+  <button id="save" class="primary">保存</button>
+  <input id="file" type="file" accept="application/json,.json" hidden>
+</header>
+<main>
+  <aside id="sidebar"></aside>
+  <div class="canvas">
+    <div id="stage"></div>
+    <div class="hint" id="hint">クリックで選択 / ドラッグで移動 / 線をクリックで削除 / Ctrl+クリックで同じ階層の2つを選ぶと線を追加（Esc で取り消し）/ JSON はドロップでも開けます</div>
+  </div>
+</main>
+
+<!-- 最初に表示するデータ。?src=xxx.json を付けて開くとそちらを読む（http で配信しているときのみ） -->
+<script type="application/json" id="initial-data">
+{
+  "nodes": [
+    { "id": 1, "caption": "Blue", "color": "#3b82f6" },
+    { "id": 2, "caption": "Warm", "color": "#f97316" },
+    { "id": 3, "caption": "Yellow", "color": "#eab308", "parent": 2 },
+    { "id": 4, "caption": "Orange", "color": "#f97316", "parent": 2 },
+    { "id": 5, "caption": "Red", "color": "#ef4444", "parent": 2 },
+    { "id": 6, "caption": "Green", "color": "#22c55e" },
+    { "id": 7, "caption": "透明・枠線なしのボックス", "fill": false, "border": false, "x": 24, "y": 24, "width": 200 }
+  ],
+  "edges": [
+    { "id": "e1", "from": 1, "to": 6 },
+    { "id": "e2", "from": 1, "to": 2 },
+    { "id": "e3", "from": 6, "to": 2 }
+  ]
+}
+</script>
+<script src="dist/matomezu.js"></script>
 </body>
 </html>
