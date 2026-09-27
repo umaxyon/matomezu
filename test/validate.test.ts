@@ -40,3 +40,8 @@ test("world の background は文字列", () => {
   expect(() => validate({ world: { background: "#fff" }, nodes: [] })).not.toThrow();
   expect(() => validate({ world: { background: 123 }, nodes: [] })).toThrow("background");
 });
+
+test("treeDirection の値を検証する", () => {
+  expect(() => validate({ nodes: [{ id: 1, treeDirection: "left" }] })).not.toThrow();
+  expect(() => validate({ nodes: [{ id: 1, treeDirection: "diagonal" }] })).toThrow("treeDirection の値が不正です");
+});

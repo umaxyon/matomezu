@@ -9,7 +9,7 @@
 
 import { esc, injectStyle, toHex } from "./dom";
 import type { Graph } from "./graph";
-import type { Brief, ChildView, Info, Overflow, Shape, Size } from "./types";
+import type { Brief, ChildView, Info, Overflow, Shape, Size, TreeDirection } from "./types";
 
 const STYLE_ID = "matomezu-panel-style";
 const PANEL_CSS = `
@@ -87,6 +87,7 @@ const PANEL_CSS = `
 .mzp-seg label:has(input:checked) { background: var(--mzp-accent); color: #fff; }
 .mzp-seg label:has(input:focus-visible) { outline: 2px solid var(--mzp-accent); outline-offset: -2px; }
 .mzp-hint { font-size: 11px; color: var(--mzp-muted); margin: 6px 0 0; }
+.mzp-subhead { font-size: 11px; color: var(--mzp-muted); margin: 10px 0 4px; }
 `;
 
 const OVERFLOW_LABELS: Record<Overflow, string> = {
@@ -101,10 +102,11 @@ const SIZE_HINTS = {
   S: "10 文字まで表示。小さい固定サイズ",
 };
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["hidden", "非表示"]];
+const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];
 const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"]];
 const VIEW_HINTS = {
   nest: "子を親の中に入れて見せます",
-  tree: "子を親の下にぶら下げて見せます（子は自動で並びます）",
+  tree: "子を親の上下左右にぶら下げて見せます（子は自動で並びます）",
   hidden: "子を隠し、▼ で子がいることだけを示します",
 };
 const PRESETS = ["#ffffff", "#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#a855f7", "#64748b"];
@@ -179,6 +181,7 @@ function html(info: Info): string {
       parts.push(`<div class="mzp-section"><h3>子の見せ方</h3>
         ${segment("mzp-view", info.childView, VIEW_OPTIONS)}
         <p class="mzp-hint">${VIEW_HINTS[info.childView]}</p>
+        ${info.childView === "tree" ? `<div class="mzp-subhead">向き</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}
       </div>`);
     }
   }
@@ -264,6 +267,7 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
     if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });
     if (t.name === "mzp-size") return graph.update(info.id, { size: t.value as Size });
     if (t.name === "mzp-shape") return graph.update(info.id, { shape: t.value as Shape });
+    if (t.name === "mzp-treedir") return graph.update(info.id, { treeDirection: t.value as TreeDirection });
     if (t.name === "mzp-view") return graph.update(info.id, { childView: t.value as ChildView });
   });
 

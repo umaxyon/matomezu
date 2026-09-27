@@ -4,6 +4,7 @@ export type Size = "L" | "M" | "S";
 export type ChildView = "nest" | "tree" | "hidden";
 export type Overflow = "wrap" | "grow" | "clip";
 export type Shape = "box" | "person" | "db";
+export type TreeDirection = "down" | "up" | "left" | "right";
 export type Id = number | string;
 
 export interface WorldData {
@@ -26,6 +27,7 @@ export interface BoxData {
   size?: Size;
   shape?: Shape;
   childView?: ChildView;
+  treeDirection?: TreeDirection; // ツリーで子を置く向き（既定は down）
   fill?: boolean;
   border?: boolean;
   overflow?: Overflow;
@@ -79,6 +81,7 @@ export interface BoxInfo {
   shape: Shape;
   canShape: boolean; // 形を選べるか（内包しているグループは枠なので選べない）
   childView: ChildView;
+  treeDirection: TreeDirection;
   parent: Brief | null;
   x: number;
   y: number;
@@ -100,6 +103,7 @@ export interface Patch {
   size?: Size;
   shape?: Shape;
   childView?: ChildView;
+  treeDirection?: TreeDirection;
   fill?: boolean;
   border?: boolean;
   overflow?: Overflow;

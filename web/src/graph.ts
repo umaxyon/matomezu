@@ -47,6 +47,7 @@
  *       "M" … 14 文字まで（超えると … で切る）。幅と高さに上限あり
  *       "S" … 小さい固定サイズ・小さい文字。10 文字まで（超えると … で切る）
  *   - childView は子の見せ方: "nest"（内包、既定）/ "tree"（ツリー）/ "hidden"（非表示、▼ で子がいることを示す）
+ *     treeDirection はツリーで子を置く向き: "down"（既定）/ "up" / "left" / "right"
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
  *   - overflow は中身（内包の子、または文字）の扱い:
  *       "wrap" … 幅に合わせて折り返す（幅は固定、高さは伸びる）
@@ -62,10 +63,10 @@
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle, isLightColor, truncate } from "./dom";
 import type {
-  BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Overflow, Patch, Shape, Size, WorldData,
+  BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Overflow, Patch, Shape, Size, TreeDirection, WorldData,
 } from "./types";
 import {
-  OVERFLOWS, SHAPES, SIZES, assignIds, checkSettings, isShape, isSize, isView, normalizeEdge, validate,
+  OVERFLOWS, SHAPES, SIZES, assignIds, checkSettings, isShape, isSize, isTreeDirection, isView, normalizeEdge, validate,
 } from "./validate";
 
 export const DEFAULTS = {
@@ -217,6 +218,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const sizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "L");
   const viewOf = (n: Box): ChildView => (isView(n.src.childView) ? n.src.childView : "nest");
+  const treeDirOf = (n: Box): TreeDirection => (isTreeDirection(n.src.treeDirection) ? n.src.treeDirection : "down");
   // 内包しているボックス（子を持ち、見せ方が内包）
   const isNesting = (n: Box) => n.children.length > 0 && viewOf(n) === "nest";
   // 親の中に入っている（ドラッグで自由に動かせる）子か。最上位も含む
@@ -330,25 +332,41 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     n.hh = Math.min(maxH, h);
   }
 
-  // 子を組織図のように、親の下へ横一列に並べる。
-  // 全体を薄い枠で囲むので、周りに余白を取る（同じ階層との線は、この枠のふちにつなぐ）
+  // 子を組織図のように並べる。上下なら横一列、左右なら縦一列にして、親をその中央にそろえる。
+  // 全体を薄い枠で囲むので、周りに余白を取る（同じ階層との線は、この枠のふちにつなぐ）。
+  // 向きごとに書き分けず、子を置く向きを「主軸」、それに直交する向きを「副軸」として扱う
   function layoutTree(n: Box) {
     const kids = n.children;
-    const GX = opt.treeGapX;
+    const dir = treeDirOf(n);
+    const vertical = dir === "down" || dir === "up";
+    const forward = dir === "down" || dir === "right"; // 子が親より後ろ（下か右）に来るか
     const P = opt.padding;
-    const total = kids.reduce((s, k) => s + k.w, 0) + GX * (kids.length - 1);
-    n.w = Math.max(n.hw, total) + P * 2;
-    n.hx = (n.w - n.hw) / 2;
-    n.hy = P;
-    let x = (n.w - total) / 2;
-    const y = P + n.hh + opt.treeGapY;
+    const GAP = opt.treeGapX; // 子どうしの間隔（副軸）
+    const DIST = opt.treeGapY; // 親と子の間隔（主軸）
+    // [主軸, 副軸] の大きさ
+    const headSize = vertical ? [n.hh, n.hw] : [n.hw, n.hh];
+    const kidSize = (k: Box) => (vertical ? [k.h, k.w] : [k.w, k.h]);
+    const crossTotal = kids.reduce((s, k) => s + kidSize(k)[1]!, 0) + GAP * (kids.length - 1);
+    const cross = Math.max(headSize[1]!, crossTotal);
+    const kidsMain = Math.max(...kids.map(k => kidSize(k)[0]!));
+
+    // 主軸: 親、間隔、子の順（前向き）か、子、間隔、親の順（後ろ向き）。子は親に向いた側の端をそろえる
+    const headMain = forward ? P : P + kidsMain + DIST;
+    const headCross = P + (cross - headSize[1]!) / 2;
+    let c = P + (cross - crossTotal) / 2;
+    const place = (k: Box, main: number, crossPos: number) => {
+      if (vertical) { k.x = crossPos; k.y = main; } else { k.x = main; k.y = crossPos; }
+    };
     for (const k of kids) {
-      k.x = x;
-      k.y = y;
+      const [km, kc] = kidSize(k);
+      place(k, forward ? P + headSize[0]! + DIST : P + kidsMain - km!, c);
       k.placed = true;
-      x += k.w + GX;
+      c += kc! + GAP;
     }
-    n.h = y + Math.max(...kids.map(k => k.h)) + P;
+    if (vertical) { n.hx = headCross; n.hy = headMain; } else { n.hx = headMain; n.hy = headCross; }
+    const main = P + headSize[0]! + DIST + kidsMain + P;
+    const crossAll = P + cross + P;
+    if (vertical) { n.w = crossAll; n.h = main; } else { n.w = main; n.h = crossAll; }
   }
 
   // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）。ツリーで見せていれば枠全体、それ以外は本体
@@ -685,12 +703,25 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (!n.children.length || viewOf(n) !== "tree") return;
     n.treeSvg.setAttribute("width", String(n.w));
     n.treeSvg.setAttribute("height", String(n.h));
-    const px = n.hx + n.hw / 2;
-    const top = n.hy + n.hh;
-    const midY = top + opt.treeGapY / 2;
-    const xs = n.children.map(k => k.x + k.hx + k.hw / 2);
-    const d = [`M${px},${top}V${midY}`, `M${Math.min(px, ...xs)},${midY}H${Math.max(px, ...xs)}`];
-    n.children.forEach((k, i) => d.push(`M${xs[i]},${midY}V${k.y + k.hy}`));
+    // 親の子に向いた辺の中央から主軸方向へ半分進み、副軸方向に分けて、各子の親に向いた辺へつなぐ
+    const dir = treeDirOf(n);
+    const half = opt.treeGapY / 2;
+    const d: string[] = [];
+    if (dir === "down" || dir === "up") {
+      const px = n.hx + n.hw / 2;
+      const from = dir === "down" ? n.hy + n.hh : n.hy;
+      const mid = dir === "down" ? from + half : from - half;
+      const xs = n.children.map(k => k.x + k.hx + k.hw / 2);
+      d.push(`M${px},${from}V${mid}`, `M${Math.min(px, ...xs)},${mid}H${Math.max(px, ...xs)}`);
+      n.children.forEach((k, i) => d.push(`M${xs[i]},${mid}V${dir === "down" ? k.y + k.hy : k.y + k.hy + k.hh}`));
+    } else {
+      const py = n.hy + n.hh / 2;
+      const from = dir === "right" ? n.hx + n.hw : n.hx;
+      const mid = dir === "right" ? from + half : from - half;
+      const ys = n.children.map(k => k.y + k.hy + k.hh / 2);
+      d.push(`M${from},${py}H${mid}`, `M${mid},${Math.min(py, ...ys)}V${Math.max(py, ...ys)}`);
+      n.children.forEach((k, i) => d.push(`M${mid},${ys[i]}H${dir === "right" ? k.x + k.hx : k.x + k.hx + k.hw}`));
+    }
     n.treePath.setAttribute("d", d.join(""));
     const f = n.treeFrame;
     f.setAttribute("width", String(Math.max(0, n.w - 1.5)));
@@ -1151,6 +1182,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       shape: shapeOf(n),
       canShape: !isNesting(n),
       childView: viewOf(n),
+      treeDirection: treeDirOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
       children: n.children.map(brief),
@@ -1209,6 +1241,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         else n.src.shape = next.shape;
       }
       if (next.childView) setView(n, next.childView);
+      if (next.treeDirection) {
+        if (next.treeDirection === "down") delete n.src.treeDirection; // 既定に戻すときは項目ごと消す
+        else n.src.treeDirection = next.treeDirection;
+      }
     }
     if (next.overflow && next.overflow !== overflowOf(n)) {
       if (n.isWorld) {

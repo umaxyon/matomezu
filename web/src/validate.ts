@@ -21,12 +21,14 @@ export const SIZES: Record<Size, SizeSpec> = {
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 export const VIEWS = ["nest", "tree", "hidden"] as const;
 export const SHAPES = ["box", "person", "db"] as const;
+export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 
 const includes = <T>(list: readonly T[], v: unknown): v is T => list.includes(v as T);
 export const isSize = (v: unknown): v is Size => typeof v === "string" && v in SIZES;
 export const isOverflow = (v: unknown) => includes(OVERFLOWS, v);
 export const isView = (v: unknown) => includes(VIEWS, v);
 export const isShape = (v: unknown) => includes(SHAPES, v);
+export const isTreeDirection = (v: unknown) => includes(TREE_DIRECTIONS, v);
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -45,6 +47,9 @@ export function checkSettings(s: Record<string, unknown>, where: unknown): void 
   }
   if (s.shape != null && !isShape(s.shape)) {
     throw new Error(`shape の値が不正です: ${where} (${s.shape})`);
+  }
+  if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) {
+    throw new Error(`treeDirection の値が不正です: ${where} (${s.treeDirection})`);
   }
   if (s.childView != null && !isView(s.childView)) {
     throw new Error(`childView の値が不正です: ${where} (${s.childView})`);

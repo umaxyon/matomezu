@@ -464,3 +464,58 @@ describe("親子の付け替え", () => {
     expect(moved.x + moved.w).toBeLessThanOrEqual(webInfo.w);
   });
 });
+
+describe("ツリーの向き", () => {
+  // 親の本体と子の枠の位置を、ツリー全体の左上からの座標で返す
+  function treeRects(el: HTMLElement) {
+    const node = el.querySelector(".mz-world > .mz-node") as HTMLElement;
+    const head = node.querySelector(":scope > .mz-head") as HTMLElement;
+    const r = (s: CSSStyleDeclaration) => ({
+      x: parseFloat(s.left), y: parseFloat(s.top), w: parseFloat(s.width), h: parseFloat(s.height),
+    });
+    const kids = [...node.querySelectorAll(":scope > .mz-node")].map(k => r((k as HTMLElement).style));
+    return { frame: r(node.style), head: r(head.style), kids };
+  }
+  const data = (dir?: string): Diagram => ({
+    nodes: [
+      { id: 1, caption: "親", childView: "tree", ...(dir ? { treeDirection: dir } : {}), x: 40, y: 40 },
+      { id: 2, caption: "子A", parent: 1 }, { id: 3, caption: "子B", parent: 1 }, { id: 4, caption: "子C", parent: 1 },
+    ],
+  } as Diagram);
+
+  test.each([
+    ["down", (h: R, k: R) => k.y >= h.y + h.h],
+    ["up", (h: R, k: R) => k.y + k.h <= h.y],
+    ["right", (h: R, k: R) => k.x >= h.x + h.w],
+    ["left", (h: R, k: R) => k.x + k.w <= h.x],
+  ] as const)("%s: 子が親のその向きに並び、親は子の並びの中央にそろう", (dir, beyond) => {
+    const { el } = setup(data(dir));
+    const { frame, head, kids } = treeRects(el);
+    for (const k of kids) expect(beyond(head, k)).toBe(true);
+    const vertical = dir === "down" || dir === "up";
+    const center = (r: R) => (vertical ? r.x + r.w / 2 : r.y + r.h / 2);
+    const first = kids[0]!, last = kids[kids.length - 1]!;
+    expect(center(head)).toBeCloseTo((vertical ? first.x + last.x + last.w : first.y + last.y + last.h) / 2);
+    // 子どうしは重ならず、全体が枠（余白 12px）に収まる
+    for (let i = 1; i < kids.length; i++) {
+      expect(vertical ? kids[i]!.x >= kids[i - 1]!.x + kids[i - 1]!.w : kids[i]!.y >= kids[i - 1]!.y + kids[i - 1]!.h).toBe(true);
+    }
+    for (const r of [head, ...kids]) {
+      expect(r.x).toBeGreaterThanOrEqual(12);
+      expect(r.y).toBeGreaterThanOrEqual(12);
+      expect(r.x + r.w).toBeLessThanOrEqual(frame.w - 12 + 0.01);
+      expect(r.y + r.h).toBeLessThanOrEqual(frame.h - 12 + 0.01);
+    }
+  });
+
+  test("サイドバーから変え、下に戻すと項目を消す", () => {
+    const { graph } = setup(data());
+    expect((graph.info(1) as { treeDirection: string }).treeDirection).toBe("down");
+    graph.update(1, { treeDirection: "left" });
+    expect(byId(graph.toJSON(), 1).treeDirection).toBe("left");
+    graph.update(1, { treeDirection: "down" });
+    expect("treeDirection" in byId(graph.toJSON(), 1)).toBe(false);
+  });
+});
+
+type R = { x: number; y: number; w: number; h: number };
