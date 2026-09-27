@@ -68,6 +68,7 @@ import { SVGNS, injectStyle } from "./dom";
 import { createHistory, type HistoryState } from "./history";
 import { createInteraction, type Mode } from "./interaction";
 import { createLayout } from "./layout";
+import { type MeasureText, createTextMeasurer } from "./measure";
 import {
   type Box, type Container, type Edge, type World,
   borderOf, captionOf, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
@@ -91,6 +92,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onSelect?: (info: Info) => void;
   onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
   onNotice?: (text: string) => void;          // 利用者に知らせたいこと（付け替えで線を外したなど）
+  measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
 export type { HistoryState, Mode };
@@ -141,7 +143,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     get children() { return roots; },
   };
 
-  const L = createLayout({ opt, world, worldEl, container, roots: () => roots, edges: () => edges });
+  const measurer = createTextMeasurer(options.measureText);
+  const L = createLayout({ opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges });
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges }, L);
   const {
     incident, innerArea, syncWorld, fit, clamp,
@@ -618,6 +621,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     reparent,
     fitChildren,
     destroy() {
+      measurer.dispose();
       I.endLift();
       ro.disconnect();
       I.destroy();

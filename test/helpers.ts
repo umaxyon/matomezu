@@ -1,6 +1,7 @@
 // テストで共通に使う補助関数
 import { readFileSync } from "node:fs";
 import type { Graph } from "../web/src/graph";
+import type { MeasureText } from "../web/src/measure";
 import type { Diagram } from "../web/src/types";
 
 export const example = (name: string) =>
@@ -34,3 +35,12 @@ export function dragBy(el: HTMLElement, graph: Graph, id: number, dx: number, dy
   for (let i = 1; i <= steps; i++) fire("pointermove", (dx * i) / steps, (dy * i) / steps);
   fire("pointerup", dx, dy);
 }
+
+// 文字の測り方の偽物（happy-dom には配置の計算が無いため）。1 文字 9px、行の高さ 18px、左右の余白 16px、上下 8px。
+// 本体の文字（▼ の印を含む）を数える
+export const fakeMeasure: MeasureText = (head, width) => {
+  const tw = Array.from(head.textContent ?? "").length * 9;
+  const w = width ?? tw + 16;
+  const lines = width == null ? 1 : Math.max(1, Math.ceil(tw / Math.max(1, width - 16)));
+  return [w, lines * 18 + 8];
+};

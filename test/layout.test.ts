@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { Diagram, Patch } from "../web/src/types";
-import { type R, dragBy, example, frames, rectOf } from "./helpers";
+import { type R, dragBy, example, fakeMeasure, frames, rectOf } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -13,7 +13,7 @@ afterEach(() => {
 function setup(data: Diagram) {
   const el = document.createElement("div");
   document.body.appendChild(el);
-  const graph = createGraph(el, data);
+  const graph = createGraph(el, data, { measureText: fakeMeasure });
   graphs.push(graph);
   return { el, graph };
 }

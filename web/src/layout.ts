@@ -18,17 +18,13 @@ import {
   type Box, type Container, type Edge, type World,
   ancestors, inNest, isNesting, other, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
+import type { TextMeasurer } from "./measure";
+import { layoutStats } from "./stats";
 import { GROUP_MIN, SIZES } from "./validate";
 
+export { layoutStats };
+
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
-
-// 処理の回数（テストで、リファクタで回数が増えていないことを確かめる）。
-// measures は文字を実際に測った回数（使い回しで済まなかった回数）、overlapChecks は重なりの判定の回数
-export const layoutStats = { measures: 0, overlapChecks: 0 };
-
-// 文字の大きさを測った結果（measure）。フォントの読み込みが終わると文字の幅が変わるので捨てる
-const measureCache = new Map<string, [number, number]>();
-if (typeof document !== "undefined") document.fonts?.addEventListener?.("loadingdone", () => measureCache.clear());
 
 export interface LayoutOptions {
   gap: number;
@@ -43,6 +39,7 @@ export interface LayoutContext {
   world: World;
   worldEl: HTMLElement;
   container: HTMLElement;
+  measurer: TextMeasurer;
   roots(): Box[];
   edges(): Edge[];
 }
@@ -99,30 +96,8 @@ export function createLayout(ctx: LayoutContext) {
 
   // ---- 大きさ ----
 
-  // 文字の大きさを測る（width が null なら1行のまま）。
-  // 測るたびにブラウザが配置を計算し直すので、表示に関わるもの（クラス、文字、幅、行の高さ）が同じなら結果を使い回す
-  function measure(n: Box, width: number | null): [number, number] {
-    const t = n.textEl;
-    const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}`;
-    const hit = measureCache.get(key);
-    if (hit) return hit;
-    layoutStats.measures++;
-    const s = n.head.style;
-    const prev = [s.width, s.height] as const;
-    s.width = width == null ? "max-content" : width + "px";
-    s.height = "auto";
-    // offsetWidth は整数に丸めるので、実際の幅より小さいとその幅で最後の文字が折り返される。小数まで測って切り上げる
-    // （happy-dom など配置の計算が無い環境では 0 が返るので offsetWidth を使う）
-    const rect = n.head.getBoundingClientRect();
-    const r: [number, number] = [
-      rect.width ? Math.ceil(rect.width) : n.head.offsetWidth,
-      rect.height ? Math.ceil(rect.height) : n.head.offsetHeight,
-    ];
-    [s.width, s.height] = prev;
-    if (measureCache.size > 2000) measureCache.clear();
-    measureCache.set(key, r);
-    return r;
-  }
+  // 文字の大きさを測る（width が null なら1行のまま）
+  const measure = (n: Box, width: number | null) => ctx.measurer.measure(n, width);
 
   // ボックスとして見せるときの本体の大きさ。useSpec が false なら width, height, overflow を使わない。
   // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す

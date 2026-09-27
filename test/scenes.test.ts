@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { Diagram, Id, Patch } from "../web/src/types";
-import { dragBy, example, frames } from "./helpers";
+import { dragBy, example, fakeMeasure, frames } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -15,7 +15,7 @@ afterEach(() => {
 function setup(data: Diagram) {
   const el = document.createElement("div");
   document.body.appendChild(el);
-  const graph = createGraph(el, data);
+  const graph = createGraph(el, data, { measureText: fakeMeasure });
   graphs.push(graph);
   return { el, graph };
 }

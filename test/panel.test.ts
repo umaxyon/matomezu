@@ -3,6 +3,7 @@ import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { createPanel, type Panel } from "../web/src/panel";
 import type { BoxInfo, Diagram } from "../web/src/types";
+import { fakeMeasure } from "./helpers";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -17,7 +18,7 @@ function setup(data: Diagram) {
   document.body.append(side, stage);
   let panel: Panel | null = null;
   const notices: string[] = [];
-  graph = createGraph(stage, data, { onSelect: i => panel?.show(i), onNotice: t => notices.push(t) });
+  graph = createGraph(stage, data, { measureText: fakeMeasure, onSelect: i => panel?.show(i), onNotice: t => notices.push(t) });
   panel = createPanel(side, graph);
   const $ = <T extends Element>(sel: string) => side.querySelector<T>(sel);
   const click = (sel: string) => $<HTMLElement>(sel)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));

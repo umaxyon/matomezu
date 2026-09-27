@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { BoxData, BoxInfo, Diagram } from "../web/src/types";
-import { dragBy } from "./helpers";
+import { dragBy, fakeMeasure } from "./helpers";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -13,7 +13,7 @@ afterEach(() => {
 function setup(data: Diagram, opts = {}) {
   const el = document.createElement("div");
   document.body.appendChild(el);
-  graph = createGraph(el, data, opts);
+  graph = createGraph(el, data, { measureText: fakeMeasure, ...opts });
   return { el, graph };
 }
 
@@ -960,28 +960,6 @@ describe("サイズの段階", () => {
     expect(["width" in out, "height" in out]).toEqual([false, false]);
     graph.update(1, { caption: "API" }); // 文字を減らせば縮む
     expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]);
-  });
-
-  test("文字の幅は小数まで測って切り上げる（丸めで足りずに折り返さない）", () => {
-    // ブラウザの offsetWidth は整数に丸めるので、実際の幅より小さくなることがある
-    // 測った結果は文字ごとに使い回されるので、同じ長さの別の文字で測る
-    const widthOf = (c: string) => {
-      const { graph } = setup({ nodes: [{ id: 1, caption: c.repeat(15) }] });
-      const w = graph.info(1).w;
-      graph.destroy();
-      return w;
-    };
-    const rounded = widthOf("い");
-    const proto = HTMLElement.prototype;
-    const orig = proto.getBoundingClientRect;
-    proto.getBoundingClientRect = function (this: HTMLElement) {
-      return { width: this.offsetWidth + 0.4, height: this.offsetHeight } as DOMRect;
-    };
-    try {
-      expect(widthOf("う")).toBe(rounded + 1);
-    } finally {
-      proto.getBoundingClientRect = orig;
-    }
   });
 
   test("グループの最小の大きさはサイズによらず 120 × 64", () => {

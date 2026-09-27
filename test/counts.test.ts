@@ -5,7 +5,7 @@ import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { layoutStats } from "../web/src/layout";
 import type { BoxData, Diagram } from "../web/src/types";
-import { dragBy } from "./helpers";
+import { dragBy, fakeMeasure } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -52,7 +52,7 @@ test("大きな図での処理の回数が、基準を超えない", () => {
   document.body.appendChild(el);
   let graph!: Graph;
   const out = {
-    load: count(() => { graph = createGraph(el, big()); graphs.push(graph); }),
+    load: count(() => { graph = createGraph(el, big(), { measureText: fakeMeasure }); graphs.push(graph); }),
     settings: count(() => {
       graph.update(kidId(0, 0), { caption: "計測で長くしたキャプション".repeat(4) });
       graph.update(kidId(0, 0), { size: "L" });

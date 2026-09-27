@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { setupHistory, setupModes } from "../web/src/toolbar";
+import { fakeMeasure } from "./helpers";
 
 let graph: Graph | null = null;
 let dispose: (() => void) | null = null;
@@ -21,6 +22,7 @@ function setup() {
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const undoBtn = $<HTMLButtonElement>("undo"), redoBtn = $<HTMLButtonElement>("redo");
   graph = createGraph($("stage"), { nodes: [{ id: 1, caption: "a" }] }, {
+    measureText: fakeMeasure,
     onHistory: h => { undoBtn.disabled = !h.canUndo; redoBtn.disabled = !h.canRedo; },
   });
   dispose = setupHistory(graph, undoBtn, redoBtn);

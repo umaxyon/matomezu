@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { fetchRemote, startSync, type Sync } from "../web/src/sync";
 import type { Diagram } from "../web/src/types";
+import { fakeMeasure } from "./helpers";
 
 // ---- 偽のサーバー ----
 
@@ -77,7 +78,7 @@ async function setup() {
   const el = document.createElement("div");
   document.body.appendChild(el);
   const remote = (await fetchRemote())!;
-  graph = createGraph(el, { nodes: [] }, { onChange: (d: Diagram) => sync?.changed(d) });
+  graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d) });
   sync = startSync(graph, remote, {
     status: t => messages.push(t),
     error: t => messages.push("ERROR " + t),
