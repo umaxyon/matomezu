@@ -1,18 +1,17 @@
 // 配置: 重なりの判定と直し方、読み込み時の配置。節点ごとの大きさの決め方とツリーの並べ方は node-kinds.ts。
 // 状態（ボックスや線の一覧）は ctx から読む。
 //
-// 重なりの直し方は場面ごとに決まりが違う（どれも利用者と相談して決めたもの）:
-//   （「ぶつからなくなるまで少しずつずらす」は slide にまとめてある。ドラッグ中の pushAway だけは別の置き方）
-//   読み込み・設定変更のあと  placeGroup + spotBelow   変更したボックス（と祖先）を残し、ほかは同じ x のまま下へ。
-//                                                       位置の無いボックスは空きを探す（findFreeSpot / findGridSpot）。
-//                                                       押し下げたボックスは元の位置を覚え（home）、空いたら戻す
+// 読み込み・外部の変更の読み直し・設定変更・子のサイズをそろえたあとは、settle が場面の方針（policy.ts の SCENES）に
+// 従って行う。場面ごとの違い（何を保つか、誰が動くか、大きい相手に譲るか、はみ出しを調整するか）は SCENES の表を見る。
+// どの場面でも、ぶつかった相手は同じ x のまま下へずらし（placeGroup + spotBelow + slide）、位置の無いボックスは
+// 空きを探す（findFreeSpot / findGridSpot）。押し下げたボックスは元の位置を覚え（home）、空いたら戻す。
+//
+// 表に載っていない場面（段階 5〜6 で移す）:
 //   ドラッグ中                tryMove + pushAway       動かしたボックスは兄弟にぶつかれば止まる。広がった祖先は、
 //                                                       前に下にいた相手を下へ、右にいた相手を右へ押す（連鎖）
-//   設定変更で広がったとき    anchorPlan + stepAside   グループの中では左上を保つ。最上位は線の相手の側の辺（か中心）を
-//                                                       保つ。自分より大きい相手とは自分がずれる
 //   子のサイズをそろえる      compress                 中身を寄せ、重なれば下（高さのときは右）へ
 //   最初に開いたとき          fitToViewport            右半分からはみ出した最上位を、線の相手の真下へ
-//                                                       （外部の変更の読み直しや Undo では行わない）
+//                                                       （SCENES の fitViewport が true の場面だけ）
 
 import {
   type Box, type Container, type Edge, type World,
@@ -20,6 +19,7 @@ import {
 } from "./model";
 import type { TextMeasurer } from "./measure";
 import { createNodeKinds } from "./node-kinds";
+import { type Scene, createAnchorRules } from "./policy";
 import { layoutStats } from "./stats";
 import { GROUP_MIN } from "./validate";
 
@@ -104,6 +104,8 @@ export function createLayout(ctx: LayoutContext) {
   const fit = (n: Box) => kindOf(n).measure(n);
   // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）。ツリーで見せていれば枠全体、それ以外は本体
   const anchorRect = (n: Box) => kindOf(n).anchorRect(n);
+  // 大きさが変わったとき、どこを保つか（policy.ts）
+  const anchors = createAnchorRules({ anchorRect, incident });
 
   // 置く処理（placeGroup、compress）の途中で、まだ置いていないボックス。重なりの判定の相手にしない。
   // 置く処理の外（ドラッグ中など）では空で、すべてのボックスが相手になる
@@ -290,14 +292,14 @@ export function createLayout(ctx: LayoutContext) {
   // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす
   // first を指定すると、それを最初に置く（変更したボックスをその場に残し、相手の方をずらすため）。
   // 前に押し下げたボックスは、ほかを置いたあとで、元の位置から今の位置までの一番上の空きへ戻す（縮んだら戻るように）
-  function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box) {
+  function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box, restore = true) {
     for (const n of list) unplaced.add(n);
     const rest = list.filter(n => n !== first);
     const pushed = rest.filter(n => n.hasPos && n.home).sort((a, b) => a.home!.y - b.home!.y);
     const order = (first && list.includes(first) ? [first] : [])
       .concat(rest.filter(n => n.hasPos && !n.home), pushed, rest.filter(n => !n.hasPos));
     for (const n of order) {
-      if (n.home && n !== first) {
+      if (restore && n.home && n !== first) {
         const back = slide(n, n.home.x, n.home.y, "down", n.y);
         if (back) [n.x, n.y] = back;
         if (n.x === n.home.x && n.y === n.home.y) n.home = null;
@@ -317,18 +319,18 @@ export function createLayout(ctx: LayoutContext) {
   // 子から順に大きさと配置を決める
   // keep は変更したボックスとその祖先。重なったときはこれらをその場に残し、相手の方をずらす。
   // 位置のある子が重なったら同じ x のまま下へずらし、位置の無い子は左上から空きを探す
-  function settleNode(n: Box, keep?: Set<Box>) {
-    n.children.forEach(c => settleNode(c, keep));
+  function settleNode(n: Box, keep?: Set<Box>, restore = true) {
+    n.children.forEach(c => settleNode(c, keep, restore));
     if (kindOf(n).holdsChildren) {
-      placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)));
+      placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)), restore);
     }
     fit(n);
   }
 
   // 位置のあるボックスが重なったら、同じ x のまま下へずらす（周りを探すより元の並びが崩れにくい）。
   // 位置の無いボックスは、置こうとした場所の近くの空きを探す
-  function settleRoots(first?: Box) {
-    placeGroup(roots(), n => (n.hasPos ? spotBelow(n) : findFreeSpot(n, n.x, n.y)), first);
+  function settleRoots(first?: Box, restore = true) {
+    placeGroup(roots(), n => (n.hasPos ? spotBelow(n) : findFreeSpot(n, n.x, n.y)), first, restore);
   }
 
   // n を (x, y) から、兄弟とぶつからなくなるまで opt.gap ずつ dir の向きへずらした位置を返す。
@@ -351,52 +353,8 @@ export function createLayout(ctx: LayoutContext) {
     return slide(n, n.x, n.y, "down", maxY) ?? (c.isWorld ? findFreeSpot(n, n.x, n.y) : findGridSpot(n));
   }
 
-  // 大きさが変わる前の位置を覚え、変わったあとの n の位置を返す関数を作る。
-  // 最上位では、線でつながる相手が片側にだけいれば、線がつながる範囲（anchorRect。ツリーなら外枠）の
-  // その側の辺を動かさない（線の長さも角度も変わらない）。相手が範囲の内側（真横や真下）にいるか両側にいれば、
-  // 線がつながる範囲の中心を保つ。相手がいなければ本体の中心を保つ。横と縦は別々に決める
-  function anchorPlan(n: Box) {
-    // グループの中では左上を保ち、右と下へ伸び縮みする。中心を保つと、親の端で押し戻されたずれが
-    // 次に縮むときに残り、切り替えるたびに位置が変わっていくため
-    if (n.parent) {
-      const { x, y } = n;
-      return { x: () => x, y: () => y };
-    }
-    const l = n.x + n.hx, t = n.y + n.hy, r = l + n.hw, b = t + n.hh;
-    const ar = anchorRect(n);
-    const al = n.x + ar.x, at = n.y + ar.y, arr = al + ar.w, ab = at + ar.h;
-    const others = incident(n)
-      .filter(e => e.a.parent === e.b.parent)
-      .map(e => other(e, n))
-      .map(o => { const a = anchorRect(o); return [o.x + a.x + a.w / 2, o.y + a.y + a.h / 2] as const; });
-    // 相手が範囲の内側（真横や真下）にいる方向は、中心を保つ（辺を保つと、その相手への線が斜めになる）
-    const side = (lo: number, hi: number, vs: number[]) => {
-      const before = vs.some(v => v < lo), after = vs.some(v => v > hi);
-      const inside = vs.some(v => v >= lo && v <= hi);
-      return inside ? "center" : before && !after ? "start" : after && !before ? "end" : "center";
-    };
-    const sx = side(al, arr, others.map(o => o[0])), sy = side(at, ab, others.map(o => o[1]));
-    // 中心を保つとき、相手がいれば線がつながる範囲（ツリーなら外枠）の中心を保つ（線の角度が変わらない）。
-    // 相手がいなければ本体の中心を保つ（見た目の位置が変わらない）
-    const linked = others.length > 0;
-    return {
-      x: (m: Box) => {
-        const a = anchorRect(m);
-        if (sx === "start") return al - a.x;
-        if (sx === "end") return arr - a.x - a.w;
-        return linked ? (al + arr) / 2 - a.x - a.w / 2 : (l + r) / 2 - m.hx - m.hw / 2;
-      },
-      y: (m: Box) => {
-        const a = anchorRect(m);
-        if (sy === "start") return at - a.y;
-        if (sy === "end") return ab - a.y - a.h;
-        return linked ? (at + ab) / 2 - a.y - a.h / 2 : (t + b) / 2 - m.hy - m.hh / 2;
-      },
-    };
-  }
-
   // 広がった n が、自分より大きい兄弟にぶつかったら、n の方が動く量の一番少ない向きへずれる
-  // （大きい方を動かすと全体が崩れるため）。自分より小さい兄弟は、このあと settleAll で下へずらされる
+  // （大きい方を動かすと全体が崩れるため）。自分より小さい兄弟は、このあと settle の中で下へずらされる
   function stepAside(n: Box) {
     if (!inNest(n)) return;
     const area = (b: Box) => b.w * b.h;
@@ -417,19 +375,8 @@ export function createLayout(ctx: LayoutContext) {
     }
   }
 
-  // 大きさが変わったあとに、全体を重なりの無い状態へ直す。changed は変更したボックス（その最上位をその場に残す）
-  function settleAll(changed?: Box) {
-    const keep = changed ? new Set([changed, ...ancestors(changed)]) : undefined;
-    roots().forEach(r => settleNode(r, keep));
-    syncWorld();
-    settleRoots(changed ? (ancestors(changed).pop() ?? changed) : undefined);
-    syncWorld();
-  }
-
-  // 最初の配置。位置の無い最上位のボックスは円形に並べる
-  function layout(fit = true) {
-    roots().forEach(r => settleNode(r));
-    syncWorld();
+  // 位置の無い最上位のボックスを円形に並べる（開いたときと、外部の変更で増えたとき）
+  function placeAutoRoots() {
     const auto = roots().filter(n => !n.hasPos);
     const R = Math.min(world.w, world.h) * 0.3 + 40;
     auto.forEach((n, i) => {
@@ -437,9 +384,28 @@ export function createLayout(ctx: LayoutContext) {
       n.x = world.w / 2 + R * Math.cos(a) - n.w / 2;
       n.y = world.h / 2 + R * Math.sin(a) - n.h / 2;
     });
-    settleRoots();
+  }
+
+  // 場面の方針（policy.ts の SCENES の1行）に従って、全体の大きさと位置を決め直す。
+  // changed は変えた節点、apply はその変更。変える前に保つ位置を覚えてから apply を呼ぶ
+  // （先に変えると、変わったあとの大きさで覚えてしまう）
+  function settle(scene: Scene, changed?: Box, apply?: () => void) {
+    const anchored = changed && scene.anchor && inNest(changed) ? changed : undefined;
+    const keepAt = anchored && anchors[anchored.parent ? scene.anchor!.inGroup : scene.anchor!.topLevel](anchored);
+    apply?.();
+    if (anchored && keepAt) {
+      settleNode(anchored, undefined, scene.restore);
+      [anchored.x, anchored.y] = clamp(anchored, keepAt.x(anchored), keepAt.y(anchored));
+      if (scene.giveWayToLarger) stepAside(anchored);
+    }
+    // 変えた節点と祖先はその場に残し、ぶつかる相手の方を動かす（others）。later なら後から置くものが動く
+    const keep = changed && scene.yieldTo === "others" ? new Set([changed, ...ancestors(changed)]) : undefined;
+    roots().forEach(r => settleNode(r, keep, scene.restore));
     syncWorld();
-    if (fit) fitToViewport();
+    placeAutoRoots();
+    settleRoots(keep ? (ancestors(changed!).pop() ?? changed) : undefined, scene.restore);
+    syncWorld();
+    if (scene.fitViewport) fitToViewport();
   }
 
   // 読み込んだ直後だけ、表示領域の右にはみ出した最上位のボックスを下へ移す（横スクロールより縦の方が見やすい）。
@@ -524,8 +490,8 @@ export function createLayout(ctx: LayoutContext) {
     containerOf, siblings, incident, innerArea, fixedSize, syncWorld,
     kindOf, anchorRect, fit, refitAncestors,
     clamp, clamped, overlaps, collides, validChain, pushAway, settleChain, tryMove,
-    findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, anchorPlan, stepAside,
-    settleAll, layout, fitToViewport,
+    findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
+    settle, fitToViewport,
     sizable, naturalSize, minimumSize, compress,
   };
 }

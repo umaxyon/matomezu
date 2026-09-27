@@ -68,6 +68,7 @@ import { SVGNS, injectStyle } from "./dom";
 import { createHistory, type HistoryState } from "./history";
 import { createInteraction, type Mode } from "./interaction";
 import { createLayout } from "./layout";
+import { SCENES } from "./policy";
 import { type MeasureText, createTextMeasurer } from "./measure";
 import {
   type Box, type Container, type Edge, type World,
@@ -147,8 +148,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const L = createLayout({ opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges });
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges }, L);
   const {
-    incident, innerArea, syncWorld, fit, clamp,
-    settleNode, anchorPlan, stepAside, settleAll, layout, sizable, naturalSize, minimumSize, compress,
+    incident, innerArea, syncWorld, fit,
+    settle, sizable, naturalSize, minimumSize, compress,
   } = L;
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
   const H = createHistory({
@@ -325,7 +326,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     };
     if (what !== "height") align("w");
     if (what !== "width") align("h");
-    settleAll(n);
+    settle(SCENES.fitChildren, n);
     render();
     changed();
     notifySelect();
@@ -415,61 +416,57 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const next = { ...patch };
     checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id);
     if (n.isWorld && next.overflow === "grow") throw new Error("ワールドは伸ばせません");
-    // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ。
-    // 変える前の見せ方と大きさで覚える（見せ方だけ先に変わると、ツリーの外枠ではなく本体の辺を保ってしまう）
-    const keepAt = !n.isWorld && inNest(n) ? anchorPlan(n) : null;
     if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error("文字のボックスは伸ばせません");
 
-    if (!n.isWorld) {
-      // キャプションが空なら id を表示し、色が空なら既定色に戻す
-      if ("caption" in next) {
-        setOrDelete(n.src, "caption", String(next.caption ?? ""), next.caption == null || String(next.caption) === "");
-      }
-      if ("color" in next) setOrDelete(n.src, "color", String(next.color ?? ""), !next.color);
-      if ("fill" in next) n.src.fill = !!next.fill;
-      if ("border" in next) n.src.border = !!next.border;
-      if (next.size) {
-        // サイズを選んだら、そのサイズで中身に合わせた大きさに戻す（付いていた大きさの指定を外す）
-        n.src.size = next.size;
-        setSpec(n, "w", 0);
-        setSpec(n, "h", 0);
-      }
-      if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === "box");
-      if (next.childView) setView(n, next.childView);
-      if (next.treeDirection) setOrDelete(n.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
-    }
-    if (next.overflow && next.overflow !== overflowOf(n)) {
-      if (n.isWorld) {
-        n.src.overflow = next.overflow as Exclude<Overflow, "grow">;
-      } else {
-        // 文字のボックスを折り返すに戻したら、切り詰めるときに固定した大きさを外して中身に合わせる
-        if (!n.children.length && next.overflow === "wrap") {
+    // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ（設定変更の場面）。
+    // settle が保つ位置を覚えてから apply を呼ぶ
+    const apply = () => {
+      if (!n.isWorld) {
+        // キャプションが空なら id を表示し、色が空なら既定色に戻す
+        if ("caption" in next) {
+          setOrDelete(n.src, "caption", String(next.caption ?? ""), next.caption == null || String(next.caption) === "");
+        }
+        if ("color" in next) setOrDelete(n.src, "color", String(next.color ?? ""), !next.color);
+        if ("fill" in next) n.src.fill = !!next.fill;
+        if ("border" in next) n.src.border = !!next.border;
+        if (next.size) {
+          // サイズを選んだら、そのサイズで中身に合わせた大きさに戻す（付いていた大きさの指定を外す）
+          n.src.size = next.size;
           setSpec(n, "w", 0);
           setSpec(n, "h", 0);
         }
-        // 大きさが固定される方向は、今の大きさを引き継ぐ
-        if (overflowOf(n) === "grow") setSpec(n, "w", Math.round(n.hw));
-        if (next.overflow === "clip") {
-          if (!n.specW) setSpec(n, "w", Math.round(n.hw));
-          setSpec(n, "h", Math.round(n.hh));
+        if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === "box");
+        if (next.childView) setView(n, next.childView);
+        if (next.treeDirection) setOrDelete(n.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
+      }
+      if (next.overflow && next.overflow !== overflowOf(n)) {
+        if (n.isWorld) {
+          n.src.overflow = next.overflow as Exclude<Overflow, "grow">;
+        } else {
+          // 文字のボックスを折り返すに戻したら、切り詰めるときに固定した大きさを外して中身に合わせる
+          if (!n.children.length && next.overflow === "wrap") {
+            setSpec(n, "w", 0);
+            setSpec(n, "h", 0);
+          }
+          // 大きさが固定される方向は、今の大きさを引き継ぐ
+          if (overflowOf(n) === "grow") setSpec(n, "w", Math.round(n.hw));
+          if (next.overflow === "clip") {
+            if (!n.specW) setSpec(n, "w", Math.round(n.hw));
+            setSpec(n, "h", Math.round(n.hh));
+          }
+          n.src.overflow = next.overflow;
         }
-        n.src.overflow = next.overflow;
       }
-    }
-    if (n.isWorld) {
-      if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
-      source.world = world.src;
-      syncWorld();
-      applyWorldStyle();
-    } else {
-      applyStyle(n);
-      if (keepAt) {
-        settleNode(n);
-        [n.x, n.y] = clamp(n, keepAt.x(n), keepAt.y(n));
-        stepAside(n);
+      if (n.isWorld) {
+        if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
+        source.world = world.src;
+        syncWorld();
+        applyWorldStyle();
+      } else {
+        applyStyle(n);
       }
-    }
-    settleAll(n.isWorld ? undefined : n);
+    };
+    settle(SCENES.settings, n.isWorld ? undefined : n, apply);
     render();
     // 選択中のボックスが非表示になったら、隠した親を選び直す
     if (current && isHidden(current)) select(n.isWorld ? null : n);
@@ -579,7 +576,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       addEdge(src, byId.get(String(src.from))!, byId.get(String(src.to))!);
     }
 
-    layout(fit);
+    settle(fit ? SCENES.open : SCENES.reload);
     render();
     select(null);
   }
