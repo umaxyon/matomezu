@@ -4,7 +4,8 @@
 // 重なりの直し方は場面ごとに決まりが違う（どれも利用者と相談して決めたもの）:
 //   （「ぶつからなくなるまで少しずつずらす」は slide にまとめてある。ドラッグ中の pushAway だけは別の置き方）
 //   読み込み・設定変更のあと  placeGroup + spotBelow   変更したボックス（と祖先）を残し、ほかは同じ x のまま下へ。
-//                                                       位置の無いボックスは空きを探す（findFreeSpot / findGridSpot）
+//                                                       位置の無いボックスは空きを探す（findFreeSpot / findGridSpot）。
+//                                                       押し下げたボックスは元の位置を覚え（home）、空いたら戻す
 //   ドラッグ中                tryMove + pushAway       動かしたボックスは兄弟にぶつかれば止まる。広がった祖先は、
 //                                                       前に下にいた相手を下へ、右にいた相手を右へ押す（連鎖）
 //   設定変更で広がったとき    anchorPlan + stepAside   グループの中では左上を保つ。最上位は線の相手の側の辺（か中心）を
@@ -387,15 +388,27 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす
-  // first を指定すると、それを最初に置く（変更したボックスをその場に残し、相手の方をずらすため）
+  // first を指定すると、それを最初に置く（変更したボックスをその場に残し、相手の方をずらすため）。
+  // 前に押し下げたボックスは、ほかを置いたあとで、元の位置から今の位置までの一番上の空きへ戻す（縮んだら戻るように）
   function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box) {
     for (const n of list) n.placed = false;
     const rest = list.filter(n => n !== first);
+    const pushed = rest.filter(n => n.hasPos && n.home).sort((a, b) => a.home!.y - b.home!.y);
     const order = (first && list.includes(first) ? [first] : [])
-      .concat(rest.filter(n => n.hasPos), rest.filter(n => !n.hasPos));
+      .concat(rest.filter(n => n.hasPos && !n.home), pushed, rest.filter(n => !n.hasPos));
     for (const n of order) {
+      if (n.home && n !== first) {
+        const back = slide(n, n.home.x, n.home.y, "down", n.y);
+        if (back) [n.x, n.y] = back;
+        if (n.x === n.home.x && n.y === n.home.y) n.home = null;
+      }
+      const at = { x: n.x, y: n.y };
       [n.x, n.y] = clamp(n, n.x, n.y);
-      if (!n.hasPos || collides(n, n.x, n.y)) [n.x, n.y] = spot(n);
+      if (!n.hasPos || collides(n, n.x, n.y)) {
+        const wasPlaced = n.hasPos;
+        [n.x, n.y] = spot(n);
+        if (wasPlaced && (n.x !== at.x || n.y !== at.y)) n.home ??= at;
+      }
       n.placed = true;
       n.hasPos = true;
     }

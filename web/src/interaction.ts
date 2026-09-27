@@ -101,6 +101,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     drag.released ??= releaseSizes(n);
     if (tryMove(n, drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy)) {
       drag.moved = true;
+      n.home = null; // 手で置いた位置を優先する
       render();
     } else {
       blocked(n);

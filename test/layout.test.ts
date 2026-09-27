@@ -295,3 +295,69 @@ test("読み込んだデータの位置が重なっていれば、後ろのボ�
   expect(graph.info(2).y).toBeGreaterThanOrEqual(100 + graph.info(1).h);
   expect(graph.info(32).x).toBe(20);
 });
+
+describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
+  const long = "トップ画面あいうえおかきくけこさしすせそ";
+  const data = (): Diagram => ({
+    nodes: [
+      { id: 1, caption: "Web", x: 40, y: 200 },
+      { id: 2, caption: "トップ画面", parent: 1, x: 12, y: 30 },
+      { id: 3, caption: "カート画面", parent: 1, x: 140, y: 30 },
+    ],
+    edges: [[2, 3]],
+  });
+  const at = (graph: Graph, id: number) => [graph.info(id).x, graph.info(id).y];
+  function dragBy(el: HTMLElement, graph: Graph, id: number, dx: number, dy: number) {
+    graph.select(id);
+    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
+    const fire = (type: string, x: number, y: number) =>
+      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    fire("pointerdown", 0, 0);
+    for (let i = 1; i <= 10; i++) fire("pointermove", (dx * i) / 10, (dy * i) / 10);
+    fire("pointerup", dx, dy);
+  }
+
+  test("文字を長くして押し下げた兄弟は、文字を戻すと元の位置へ戻り、親も元の大きさに戻る", () => {
+    const { graph } = setup(data());
+    const cart = at(graph, 3), web = graph.info(1);
+    graph.update(2, { caption: long });
+    expect(at(graph, 3)[1]).toBeGreaterThan(cart[1]!); // 押し下げられる
+    graph.update(2, { caption: "トップ画面" });
+    expect(at(graph, 3)).toEqual(cart);
+    expect([graph.info(1).w, graph.info(1).h]).toEqual([web.w, web.h]);
+  });
+
+  test("縮んでも元の位置が空かなければ、空いたところまで上がる", () => {
+    const { graph } = setup(data());
+    graph.update(2, { caption: long.repeat(8) }); // 高く伸びて大きく押し下げる
+    const pushed = at(graph, 3)[1]!;
+    graph.update(2, { caption: long.repeat(5) }); // 少し低くなる（まだ元の位置とは重なる）
+    const y = at(graph, 3)[1]!;
+    expect(y).toBeLessThan(pushed);
+    expect(y).toBeGreaterThan(30);
+  });
+
+  test("最上位でも、広がって押し下げた相手は縮むと戻る", () => {
+    const { graph } = setup({
+      nodes: [
+        { id: 1, caption: "Web", x: 40, y: 40 },
+        { id: 2, caption: "トップ画面", parent: 1, x: 12, y: 30 },
+        { id: 9, caption: "下の箱", x: 40, y: 160 },
+      ],
+    });
+    const below = at(graph, 9);
+    graph.update(2, { caption: long.repeat(5) }); // Web が下へ伸びて、下の箱を押し下げる
+    expect(at(graph, 9)[1]).toBeGreaterThan(below[1]!);
+    graph.update(2, { caption: "トップ画面" });
+    expect(at(graph, 9)).toEqual(below);
+  });
+
+  test("押し下げられたあとにドラッグした相手は、その位置のまま", () => {
+    const { el, graph } = setup(data());
+    graph.update(2, { caption: long });
+    dragBy(el, graph, 3, 0, 20);
+    const moved = at(graph, 3);
+    graph.update(2, { caption: "トップ画面" });
+    expect(at(graph, 3)).toEqual(moved);
+  });
+});
