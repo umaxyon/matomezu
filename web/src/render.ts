@@ -1,7 +1,7 @@
 // 描画: ボックスの見た目、DB やツリーの線、ボックスどうしの線を DOM に反映する
 
 import { isLightColor } from "./dom";
-import type { Layout } from "./layout";
+import type { Layout } from "./layout/layout";
 import {
   type Box, type Edge, type World,
   absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, overflowOf,

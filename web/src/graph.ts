@@ -68,10 +68,10 @@ import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle } from "./dom";
 import { createHistory, type HistoryState } from "./history";
 import { createInteraction, type Mode } from "./interaction";
-import { createDrag } from "./drag";
-import { createLayout } from "./layout";
-import { SCENES } from "./policy";
-import { type MeasureText, createTextMeasurer } from "./measure";
+import { createDrag } from "./layout/drag";
+import { createLayout } from "./layout/layout";
+import { SCENES } from "./layout/policy";
+import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
   borderOf, captionOf, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
@@ -303,7 +303,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  // 内包している子の幅や高さを、今いちばん小さい子に合わせてそろえる（layout.ts の alignChildren）。
+  // 内包している子の幅や高さを、今いちばん小さい子に合わせてそろえる（layout/layout.ts の alignChildren）。
   // そろえた子の数を返す
   function fitChildren(id: Id, what: "width" | "height" | "both") {
     const n = nodeOf(id);

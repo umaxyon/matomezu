@@ -16,12 +16,12 @@
 import {
   type Box, type Container, type Edge, type World,
   ancestors, inNest, other, overflowOf, setSpec, shapeOf, sizeOf,
-} from "./model";
+} from "../model";
 import type { TextMeasurer } from "./measure";
 import { createNodeKinds } from "./node-kinds";
 import { type Scene, createAnchorRules } from "./policy";
 import { layoutStats } from "./stats";
-import { GROUP_MIN } from "./validate";
+import { GROUP_MIN } from "../validate";
 
 export { layoutStats };
 

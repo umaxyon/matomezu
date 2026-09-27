@@ -1,7 +1,7 @@
 // テストで共通に使う補助関数
 import { readFileSync } from "node:fs";
 import type { Graph } from "../web/src/graph";
-import type { MeasureText } from "../web/src/measure";
+import type { MeasureText } from "../web/src/layout/measure";
 import type { Diagram } from "../web/src/types";
 
 export const example = (name: string) =>

@@ -1,7 +1,7 @@
 // 方針（policy.ts）の単体のテスト。図全体を作らずに、判断の単位ごとの決まりを確かめる
 import { expect, test } from "bun:test";
 import type { Box } from "../web/src/model";
-import { SCENES, createAnchorRules } from "../web/src/policy";
+import { SCENES, createAnchorRules } from "../web/src/layout/policy";
 
 const box = (x: number, y: number, w = 100, h = 60) =>
   ({ x, y, w, h, hx: 0, hy: 0, hw: w, hh: h, parent: null }) as unknown as Box;

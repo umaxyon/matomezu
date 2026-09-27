@@ -4,7 +4,7 @@
 //     左や上にいた相手とぶつかる、押した先が親に収まらない、などのときはその動きを取り消す
 //   - 押し方は settle の slide（opt.gap ずつずらす）と違い、相手の端まで一度に押す（そろえるかは要相談）
 import type { Layout, LayoutOptions } from "./layout";
-import { type Box, ancestors } from "./model";
+import { type Box, ancestors } from "../model";
 
 export type Drag = ReturnType<typeof createDrag>;
 

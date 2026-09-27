@@ -1,5 +1,5 @@
 // 文字の大きさを測る。ブラウザでの測り方（browserMeasure）を、テストでは偽物に差し替えられるようにする
-import type { Box } from "./model";
+import type { Box } from "../model";
 import { layoutStats } from "./stats";
 
 // ボックスの本体（head）を幅 width（null なら1行のまま）にしたときの大きさを返す

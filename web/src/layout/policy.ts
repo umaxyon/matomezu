@@ -1,7 +1,7 @@
 // 配置の方針。判断の単位ごとのストラテジーを組み合わせて、場面の表（SCENES）にする。
 // この表が配置の決まりの仕様（docs/REFACTOR-layout.md の 3.2）。場面ごとの違いは、ここの1行の差として見る。
 // 表で書けない振る舞いを足したくなったら、まず表（と決まり）を見直す
-import type { Box } from "./model";
+import type { Box } from "../model";
 import type { Rect } from "./node-kinds";
 
 // ---- 何を保つか（AnchorRule） ----

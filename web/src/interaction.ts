@@ -1,8 +1,8 @@
 // ポインタ操作: 移動のドラッグ、付け替えのドラッグ（ゴースト）、クリックでの選択、Esc。
 // 図の状態の変更（選択、線、付け替え）は ctx の関数を呼んで graph.ts に任せる
 
-import type { Drag } from "./drag";
-import type { Layout } from "./layout";
+import type { Drag } from "./layout/drag";
+import type { Layout } from "./layout/layout";
 import { type Box, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
 import type { Renderer } from "./render";
 

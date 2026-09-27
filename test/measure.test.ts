@@ -1,8 +1,8 @@
 // 文字の測り方のテスト
 import { expect, test } from "bun:test";
-import { browserMeasure, createTextMeasurer } from "../web/src/measure";
+import { browserMeasure, createTextMeasurer } from "../web/src/layout/measure";
 import type { Box } from "../web/src/model";
-import { layoutStats } from "../web/src/stats";
+import { layoutStats } from "../web/src/layout/stats";
 
 test("ブラウザの測り方: 小数まで測って切り上げ、幅と高さの指定を元に戻す", () => {
   // offsetWidth は整数に丸めるので、実際の幅より小さくなることがある（最後の文字が折り返される）

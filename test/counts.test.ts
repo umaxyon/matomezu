@@ -4,7 +4,7 @@
 // 減ったら基準を下げてよい（増えたら理由を確かめる）
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import { layoutStats } from "../web/src/layout";
+import { layoutStats } from "../web/src/layout/layout";
 import type { BoxData, Diagram } from "../web/src/types";
 import { dragBy, fakeMeasure } from "./helpers";
 

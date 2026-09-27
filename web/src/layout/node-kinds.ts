@@ -2,8 +2,8 @@
 // 種類は子の有無と childView で決まる（文字の箱 / 非表示 / 内包 / ツリー）。
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
-import { type Box, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "./model";
-import { GROUP_MIN, SIZES } from "./validate";
+import { type Box, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
+import { GROUP_MIN, SIZES } from "../validate";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
 
