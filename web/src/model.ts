@@ -16,7 +16,6 @@ export interface Box {
   x: number; y: number; w: number; h: number;
   hx: number; hy: number; hw: number; hh: number;
   hasPos: boolean;
-  placed: boolean;
   // 重なりを直すために押し下げられる前の位置。空いたらここへ戻す（ドラッグで動かしたら消す）
   home: { x: number; y: number } | null;
   el: HTMLDivElement;

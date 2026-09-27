@@ -105,6 +105,11 @@ export function createLayout(ctx: LayoutContext) {
   // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）。ツリーで見せていれば枠全体、それ以外は本体
   const anchorRect = (n: Box) => kindOf(n).anchorRect(n);
 
+  // 置く処理（placeGroup、compress）の途中で、まだ置いていないボックス。重なりの判定の相手にしない。
+  // 置く処理の外（ドラッグ中など）では空で、すべてのボックスが相手になる
+  const unplaced = new Set<Box>();
+  const isPlaced = (o: Box) => !unplaced.has(o);
+
   function refitAncestors(n: Box) {
     for (const p of ancestors(n)) fit(p);
   }
@@ -137,7 +142,7 @@ export function createLayout(ctx: LayoutContext) {
 
   function collides(n: Box, x: number, y: number) {
     if (!inNest(n)) return false;
-    return siblings(n).some(o => o !== n && o.placed && overlaps(n, x, y, o));
+    return siblings(n).some(o => o !== n && isPlaced(o) && overlaps(n, x, y, o));
   }
 
   // 親の中に収まる位置にあるか
@@ -170,7 +175,7 @@ export function createLayout(ctx: LayoutContext) {
       else o.x = by.x + by.w + g;
       if (!clamped(o)) return false;
       for (const p of siblings(m)) {
-        if (p === o || p === m || !p.placed || !overlaps(o, o.x, o.y, p)) continue;
+        if (p === o || p === m || !isPlaced(p) || !overlaps(o, o.x, o.y, p)) continue;
         // 押した相手の先（下か右）にあるものだけ、続けて押す
         const ahead = dir === "down" ? p.y >= origY - 0.5 : p.x >= origX - 0.5;
         if (!ahead || !push(p, dir, o, depth + 1)) return false;
@@ -178,7 +183,7 @@ export function createLayout(ctx: LayoutContext) {
       return true;
     };
     for (const o of siblings(m)) {
-      if (o === m || !o.placed || !overlaps(m, m.x, m.y, o)) continue;
+      if (o === m || !isPlaced(o) || !overlaps(m, m.x, m.y, o)) continue;
       if (o.y >= before.y + before.h - 0.5) {
         if (!push(o, "down", m, 0)) return false;
       } else if (o.x >= before.x + before.w - 0.5) {
@@ -286,7 +291,7 @@ export function createLayout(ctx: LayoutContext) {
   // first を指定すると、それを最初に置く（変更したボックスをその場に残し、相手の方をずらすため）。
   // 前に押し下げたボックスは、ほかを置いたあとで、元の位置から今の位置までの一番上の空きへ戻す（縮んだら戻るように）
   function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box) {
-    for (const n of list) n.placed = false;
+    for (const n of list) unplaced.add(n);
     const rest = list.filter(n => n !== first);
     const pushed = rest.filter(n => n.hasPos && n.home).sort((a, b) => a.home!.y - b.home!.y);
     const order = (first && list.includes(first) ? [first] : [])
@@ -304,7 +309,7 @@ export function createLayout(ctx: LayoutContext) {
         [n.x, n.y] = spot(n);
         if (wasPlaced && (n.x !== at.x || n.y !== at.y)) n.home ??= at;
       }
-      n.placed = true;
+      unplaced.delete(n);
       n.hasPos = true;
     }
   }
@@ -506,11 +511,11 @@ export function createLayout(ctx: LayoutContext) {
     for (const g of kids) {
       if (dim === "w" && g.x + g.w > limit - a.right) g.x = Math.max(a.left, limit - a.right - g.w);
       if (dim === "h" && g.y + g.h > limit - a.bottom) g.y = Math.max(a.top, limit - a.bottom - g.h);
-      g.placed = false;
+      unplaced.add(g);
     }
     for (const g of kids) {
       [g.x, g.y] = slide(g, g.x, g.y, dim === "w" ? "down" : "right")!;
-      g.placed = true;
+      unplaced.delete(g);
     }
     fit(k);
   }

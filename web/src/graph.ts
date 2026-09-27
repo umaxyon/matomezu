@@ -528,7 +528,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       y: Number(src.y) || 0,
       w: 0, h: 0, hx: 0, hy: 0, hw: 0, hh: 0,
       hasPos: Number.isFinite(src.x) && Number.isFinite(src.y),
-      placed: false,
       home: null,
       el, head, textEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };

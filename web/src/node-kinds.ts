@@ -115,7 +115,6 @@ export function createNodeKinds(ctx: KindContext) {
       for (const k of kids) {
         const [km, kc] = kidSize(k);
         place(k, forward ? P + headSize[0]! + DIST : P + kidsMain - km!, c);
-        k.placed = true;
         c += kc! + GAP;
       }
       if (vertical) { n.hx = headCross; n.hy = headMain; } else { n.hx = headMain; n.hy = headCross; }
