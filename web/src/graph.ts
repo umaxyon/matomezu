@@ -173,6 +173,12 @@ interface Edge {
   lines: SVGLineElement[];
 }
 
+// 値が既定（isDefault）なら項目ごと消し、そうでなければ書く（既定値は JSON に残さない）
+function setOrDelete<T extends object, K extends keyof T>(obj: T, key: K, value: T[K] | undefined, isDefault: boolean) {
+  if (isDefault || value === undefined) delete obj[key];
+  else obj[key] = value;
+}
+
 export function createGraph(container: HTMLElement, data: unknown, options: GraphOptions = {}): Graph {
   injectStyle(GRAPH_STYLE_ID, GRAPH_CSS);
   const opt = { ...DEFAULTS, ...options };
@@ -225,6 +231,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     let x = 0, y = 0;
     for (let m: Box | null = n; m; m = m.parent) { x += m.x; y += m.y; }
     return [x, y];
+  }
+
+  // n につながる線と、線の反対側のボックス
+  const incident = (n: Box) => edges.filter(e => e.a === n || e.b === n);
+  const other = (e: Edge, n: Box) => (e.a === n ? e.b : e.a);
+
+  // 大きさの指定（width, height）を付ける。0 なら外す（中身に合わせた大きさに戻る）
+  function setSpec(n: Box, dim: "w" | "h", value: number) {
+    if (dim === "w") {
+      n.specW = value;
+      if (value) n.src.width = value; else delete n.src.width;
+    } else {
+      n.specH = value;
+      if (value) n.src.height = value; else delete n.src.height;
+    }
   }
 
   // ---- 設定値 ----
@@ -450,20 +471,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return siblings(n).some(o => o !== n && o.placed && overlaps(n, x, y, o));
   }
 
-  // n と、n の移動で広がった祖先がすべて正しく置けているか
-  function validChain(n: Box) {
-    for (let m: Box | null = n; m; m = m.parent) {
-      if (collides(m, m.x, m.y)) return false;
-      const [cx, cy] = clamp(m, m.x, m.y);
-      if (Math.abs(cx - m.x) > 0.5 || Math.abs(cy - m.y) > 0.5) return false;
-    }
-    return true;
-  }
-
+  // 親の中に収まる位置にあるか
   const clamped = (m: Box) => {
     const [cx, cy] = clamp(m, m.x, m.y);
     return Math.abs(cx - m.x) <= 0.5 && Math.abs(cy - m.y) <= 0.5;
   };
+
+  // n と、n の移動で広がった祖先がすべて正しく置けているか
+  function validChain(n: Box) {
+    for (let m: Box | null = n; m; m = m.parent) {
+      if (collides(m, m.x, m.y) || !clamped(m)) return false;
+    }
+    return true;
+  }
 
   // 広がった祖先 m が兄弟にぶつかったら、相手を押しのける。before は広がる前の m の位置と大きさ。
   // 前に m の下にあった相手は下へ、右にあった相手は右へ押す。押した先でぶつかる相手も同じ向きに押す。
@@ -641,9 +661,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 両側にいるか、相手がいなければ中心を保つ。横と縦は別々に決める
   function anchorPlan(n: Box) {
     const l = n.x + n.hx, t = n.y + n.hy, r = l + n.hw, b = t + n.hh;
-    const others = edges
-      .filter(e => (e.a === n || e.b === n) && e.a.parent === e.b.parent)
-      .map(e => (e.a === n ? e.b : e.a))
+    const others = incident(n)
+      .filter(e => e.a.parent === e.b.parent)
+      .map(e => other(e, n))
       .map(o => { const a = anchorRect(o); return [o.x + a.x + a.w / 2, o.y + a.y + a.h / 2] as const; });
     const side = (lo: number, hi: number, vs: number[]) => {
       const before = vs.some(v => v < lo), after = vs.some(v => v > hi);
@@ -718,10 +738,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       .sort((a, b) => a.x - b.x);
     if (!over.length) return;
     for (const n of over) {
-      const anchor = edges
-        .filter(e => e.a === n || e.b === n)
-        .map(e => (e.a === n ? e.b : e.a))
-        .find(o => !o.parent && inside(o));
+      const anchor = incident(n).map(e => other(e, n)).find(o => !o.parent && inside(o));
       const minX = opt.padding, maxX = limit - n.w;
       const x = anchor
         ? Math.max(minX, Math.min(maxX, anchor.x + centerOffset(anchor) - centerOffset(n)))
@@ -1136,10 +1153,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     for (const m of ancestors(n)) {
       if (overflowOf(m) !== "grow" || !(m.specW || m.specH)) continue;
       out.push({ m, specW: m.specW, specH: m.specH, width: m.src.width, height: m.src.height });
-      m.specW = 0;
-      m.specH = 0;
-      delete m.src.width;
-      delete m.src.height;
+      setSpec(m, "w", 0);
+      setSpec(m, "h", 0);
     }
     return out;
   }
@@ -1363,14 +1378,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if (t > target + 0.5) partial = true;
         compress(k, dim, t);
         // グループは中身に合わせた大きさが目標に届かないときだけ指定を付け、文字のボックスは常に指定する
-        const size = isNesting(k) && naturalSize(k, dim) >= t ? 0 : t;
-        if (dim === "w") {
-          k.specW = size;
-          if (size) k.src.width = size; else delete k.src.width;
-        } else {
-          k.specH = size;
-          if (size) k.src.height = size; else delete k.src.height;
-        }
+        setSpec(k, dim, isNesting(k) && naturalSize(k, dim) >= t ? 0 : t);
         fit(k);
       }
     };
@@ -1434,10 +1442,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
       children: n.children.map(brief),
-      links: edges.filter(e => e.a === n || e.b === n).map(e => {
-        const o = e.a === n ? e.b : e.a;
-        return { edgeId: e.id, ...brief(o) };
-      }),
+      links: incident(n).map(e => ({ edgeId: e.id, ...brief(other(e, n)) })),
       overflow: overflowOf(n),
       overflows: usesOverflow ? [...OVERFLOWS] : [],
     };
@@ -1471,35 +1476,22 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (n.isWorld && next.overflow === "grow") throw new Error("ワールドは伸ばせません");
 
     if (!n.isWorld) {
+      // キャプションが空なら id を表示し、色が空なら既定色に戻す
       if ("caption" in next) {
-        // 空なら id を表示する
-        if (next.caption != null && String(next.caption) !== "") n.src.caption = String(next.caption);
-        else delete n.src.caption;
+        setOrDelete(n.src, "caption", String(next.caption ?? ""), next.caption == null || String(next.caption) === "");
       }
-      if ("color" in next) {
-        // 空なら既定色に戻す
-        if (next.color) n.src.color = String(next.color);
-        else delete n.src.color;
-      }
+      if ("color" in next) setOrDelete(n.src, "color", String(next.color ?? ""), !next.color);
       if ("fill" in next) n.src.fill = !!next.fill;
       if ("border" in next) n.src.border = !!next.border;
       if (next.size) {
         // サイズを選んだら、そのサイズで中身に合わせた大きさに戻す（付いていた大きさの指定を外す）
         n.src.size = next.size;
-        n.specW = 0;
-        n.specH = 0;
-        delete n.src.width;
-        delete n.src.height;
+        setSpec(n, "w", 0);
+        setSpec(n, "h", 0);
       }
-      if (next.shape) {
-        if (next.shape === "box") delete n.src.shape; // 既定に戻すときは項目ごと消す
-        else n.src.shape = next.shape;
-      }
+      if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === "box");
       if (next.childView) setView(n, next.childView);
-      if (next.treeDirection) {
-        if (next.treeDirection === "down") delete n.src.treeDirection; // 既定に戻すときは項目ごと消す
-        else n.src.treeDirection = next.treeDirection;
-      }
+      if (next.treeDirection) setOrDelete(n.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
     }
     // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう本体の位置を保つ
     const keepAt = !n.isWorld && inNest(n) ? anchorPlan(n) : null;
@@ -1508,16 +1500,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         n.src.overflow = next.overflow as Exclude<Overflow, "grow">;
       } else {
         // 大きさが固定される方向は、今の大きさを引き継ぐ
-        if (overflowOf(n) === "grow") { n.specW = Math.round(n.hw); n.src.width = n.specW; }
-        if (next.overflow === "clip") { n.specH = Math.round(n.hh); n.src.height = n.specH; }
+        if (overflowOf(n) === "grow") setSpec(n, "w", Math.round(n.hw));
+        if (next.overflow === "clip") setSpec(n, "h", Math.round(n.hh));
         n.src.overflow = next.overflow;
       }
     }
     if (n.isWorld) {
-      if ("background" in next) {
-        if (next.background) world.src.background = String(next.background);
-        else delete world.src.background;
-      }
+      if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
       source.world = world.src;
       syncWorld();
       applyWorldStyle();
