@@ -76,7 +76,6 @@ export const GRAPH_CSS = `
 .mz-leaf.mz-light { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 .mz-leaf.mz-dark { color: #1b1b1f; }
 .mz-text { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
-.mz-leaf.mz-ov-grow .mz-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mz-leaf.mz-ov-clip .mz-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mz-group > .mz-caption {
   position: absolute; left: 0; right: 0; top: 0;

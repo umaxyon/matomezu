@@ -133,15 +133,8 @@ export function createLayout(ctx: LayoutContext) {
     const ov = useSpec ? overflowOf(n) : "wrap";
     const minW = Math.min(maxW, (useSpec && n.specW) || z.w);
     const minH = Math.min(maxH, (useSpec && n.specH) || z.h);
-    let w = minW, h = minH;
-    if (ov === "wrap") {
-      h = Math.max(minH, measure(n, minW)[1]);
-    } else if (ov === "grow") {
-      const [tw, th] = measure(n, null);
-      w = Math.max(minW, tw);
-      h = Math.max(minH, th);
-    }
-    n.hw = Math.min(maxW, w);
+    const h = ov === "wrap" ? Math.max(minH, measure(n, minW)[1]) : minH;
+    n.hw = minW;
     n.hh = Math.min(maxH, h);
   }
 

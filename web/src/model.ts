@@ -106,7 +106,9 @@ export const fillOf = (n: Box) => n.src.fill !== false;
 export const borderOf = (n: Box) => (n.src.border != null ? !!n.src.border : isNesting(n));
 export function overflowOf(c: Container): Overflow {
   if (c.isWorld) return c.src.overflow === "clip" ? "clip" : "wrap";
-  return c.src.overflow || (c.children.length ? "grow" : "wrap");
+  // 文字のボックスは伸ばさない（伸ばすと折り返しに戻せなくなる）。grow はグループになったときに使う
+  if (!c.children.length) return c.src.overflow === "clip" ? "clip" : "wrap";
+  return c.src.overflow || "grow";
 }
 export const displayCaption = (n: Box) => truncate(captionOf(n), SIZES[sizeOf(n)].limit);
 

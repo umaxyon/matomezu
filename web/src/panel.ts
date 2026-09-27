@@ -219,7 +219,8 @@ function html(info: Info): string {
   if (!info.overflows.length) return parts.join("");
   const target = info.kind === "box" ? "文字" : "子ボックス";
   parts.push(`<div class="mzp-section"><h3>中身（${target}）の扱い</h3>${
-    (["wrap", "grow", "clip"] as const).map(ov => {
+    // ワールドでは伸ばすを選べない理由を見せる。文字のボックスには伸ばすを出さない
+    (["wrap", "grow", "clip"] as const).filter(ov => info.kind === "world" || info.overflows.includes(ov)).map(ov => {
       const ok = info.overflows.includes(ov);
       return `<label class="mzp-radio${ok ? "" : " mzp-disabled"}">
         <input type="radio" name="mzp-overflow" value="${ov}"${ov === info.overflow ? " checked" : ""}${ok ? "" : " disabled"}>

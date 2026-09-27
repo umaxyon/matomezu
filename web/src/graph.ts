@@ -52,10 +52,11 @@
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
  *   - overflow は中身（内包の子、または文字）の扱い:
  *       "wrap" … 幅に合わせて折り返す（幅は固定、高さは伸びる）
- *       "grow" … 中身に合わせてボックスを伸ばす（ワールドでは使えない）
+ *       "grow" … 子に合わせてボックスを伸ばす（子を持つボックスだけ。文字のボックスでは wrap として扱う）
  *       "clip" … ボックスの大きさで切り詰める
  *     既定は子を持つボックスが grow、持たないボックスとワールドが wrap。S サイズでは使わない。
  *     width, height は grow では最小サイズ、wrap では幅、clip では幅と高さになる。
+ *     文字のボックスで grow を使わないのは、伸ばしたあとで折り返しに戻せなくなるため。
  *   - 線は同じ parent を持つボックス同士（最上位同士を含む）でだけ引ける。
  *     ツリーの子同士の線は描かない（データには残り、内包に戻すと表示される）。
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
@@ -380,7 +381,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       children: n.children.map(brief),
       links: incident(n).map(e => ({ edgeId: e.id, ...brief(other(e, n)) })),
       overflow: overflowOf(n),
-      overflows: usesOverflow ? [...OVERFLOWS] : [],
+      overflows: !usesOverflow ? [] : n.children.length ? [...OVERFLOWS] : ["wrap", "clip"],
     };
     return out;
   }
@@ -410,6 +411,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const next = { ...patch };
     checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id);
     if (n.isWorld && next.overflow === "grow") throw new Error("ワールドは伸ばせません");
+    if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error("文字のボックスは伸ばせません");
 
     if (!n.isWorld) {
       // キャプションが空なら id を表示し、色が空なら既定色に戻す

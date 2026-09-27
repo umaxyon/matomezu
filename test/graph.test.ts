@@ -599,7 +599,7 @@ describe("子の大きさをそろえる", () => {
       nodes: [
         { id: 1, x: 40, y: 40 },
         { id: 2, caption: "短い", parent: 1, width: 300 },
-        { id: 3, caption: "とても長いキャプションの入ったボックス", parent: 1, overflow: "grow" },
+        { id: 3, caption: "とても長いキャプションの入ったボックス", parent: 1 },
       ],
     });
     graph.fitChildren(1, "both");
@@ -877,4 +877,30 @@ test("はみ出しの調整は最初に開いたときだけで、外部の変�
   expect([graph.info(2).x, graph.info(2).y]).toEqual([900, 40]); // ファイルの位置のまま
   graph.load(data("開き直し"));
   expect(graph.info(2).x).not.toBe(900);
+});
+
+describe("文字のボックスは中身に合わせて伸ばさない", () => {
+  // 伸ばしたあとで折り返しに戻せなくなるので、文字のボックスでは grow を使わない
+  const long = "とても長いキャプションの入ったボックス";
+
+  test("データに grow があっても、折り返して既定の幅に収める", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: long, overflow: "grow" }, { id: 2, caption: long }] });
+    const a = graph.info(1), b = graph.info(2);
+    expect(a.overflow).toBe("wrap");
+    expect([a.w, a.h]).toEqual([b.w, b.h]);
+    expect(graph.toJSON().nodes[0]!.overflow).toBe("grow"); // データは書き換えない（子が入ればグループとして使う）
+  });
+
+  test("選べる扱いに grow は無く、update で指定するとエラー", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: long }] });
+    expect(graph.info(1).overflows).toEqual(["wrap", "clip"]);
+    expect(() => graph.update(1, { overflow: "grow" })).toThrow("文字のボックスは伸ばせません");
+    expect(graph.toJSON().nodes[0]!.overflow).toBeUndefined();
+  });
+
+  test("グループでは今まで通り grow を選べる", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "グループ" }, { id: 2, parent: 1 }] });
+    expect(graph.info(1).overflow).toBe("grow");
+    expect(graph.info(1).overflows).toContain("grow");
+  });
 });
