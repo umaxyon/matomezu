@@ -102,6 +102,17 @@ export const GRAPH_CSS = `
 .mz-leaf.mz-size-S.mz-shape-db { padding-top: 14px; padding-bottom: 7px; }
 .mz-shape-db > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .mz-shape-db > .mz-text { position: relative; }
+/* 付け替えのドラッグ */
+.mz-mode-reparent .mz-head { cursor: alias; }
+.mz-node.mz-lifted { opacity: 0.3; }
+.mz-ghost { z-index: 50; opacity: 0.8; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35)); }
+.mz-ghost .mz-head { pointer-events: none; }
+.mz-ghost.mz-ghost-no { opacity: 0.35; }
+.mz-node.mz-drop > .mz-head {
+  outline: 3px solid var(--mz-select); outline-offset: 3px;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--mz-select) 25%, transparent) !important;
+}
+.mz-world.mz-drop { outline: 3px solid var(--mz-select); outline-offset: -4px; }
 .mz-node.mz-dim { opacity: 0.35; }
 .mz-node.mz-dragging { z-index: 10; }
 .mz-node.mz-dragging > .mz-head { cursor: grabbing; outline-color: var(--mz-edge-hi); }

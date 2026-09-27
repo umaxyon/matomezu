@@ -362,3 +362,105 @@ describe("履歴", () => {
     expect(graph.info(1).caption).toBe("21");
   });
 });
+
+describe("親子の付け替え", () => {
+  const sample = (): Diagram => ({
+    nodes: [
+      { id: 1, caption: "フロントエンド", x: 40, y: 40 },
+      { id: 2, caption: "Web", parent: 1 }, { id: 3, caption: "トップ画面", parent: 2 },
+      { id: 4, caption: "バックエンド", x: 40, y: 400 },
+      { id: 5, caption: "API", parent: 4 }, { id: 6, caption: "データ", parent: 4 },
+      { id: 7, caption: "外部サービス", x: 600, y: 400 },
+    ],
+    edges: [[1, 4], [4, 7], [5, 6]],
+  });
+  const parentOf = (d: Diagram, id: number) => byId(d, id).parent;
+
+  test("子孫ごと移り、同じ階層でなくなった線だけ外す", () => {
+    const notices: string[] = [];
+    const { graph } = setup(sample(), { onNotice: (t: string) => notices.push(t) });
+    expect(graph.reparent(4, 2, { x: 900, y: 40 })).toBe(true); // 子を内包する先では at は使わない
+    const out = graph.toJSON();
+    expect(parentOf(out, 4)).toBe(2);
+    expect([parentOf(out, 5), parentOf(out, 6)]).toEqual([4, 4]); // 子孫はそのまま
+    // バックエンドとフロントエンド・外部サービスの線は外れ、API-データの線は残る
+    expect(out.edges).toEqual([{ id: "e3", from: 5, to: 6 }]);
+    expect(notices.at(-1)).toBe("「Web」の中へ移しました（階層が変わったため、線を 2 本外しました）");
+    // 今ある子（トップ画面）の下の左端に置かれる
+    const top = graph.info(3), back = graph.info(4);
+    expect(back.x).toBe(top.x);
+    expect(back.y).toBeGreaterThanOrEqual(top.y + top.h);
+    expect(graph.selected()).toBe("4");
+  });
+
+  test("Undo 1回で、線も含めて元に戻る", () => {
+    const { graph } = setup(sample());
+    const before = graph.toJSON();
+    graph.reparent(4, 2);
+    graph.undo();
+    expect(graph.toJSON()).toEqual(before);
+  });
+
+  test("子の無いボックスに移すと、そのボックスが内包の枠になる（形は使われなくなる）", () => {
+    const d = sample();
+    byId(d, 3).shape = "db";
+    const { graph } = setup(d);
+    graph.reparent(7, 3);
+    const top = graph.info(3) as import("../web/src/types").BoxInfo;
+    expect(top.children.map(c => c.id)).toEqual(["7"]);
+    expect([top.kind, top.canShape]).toEqual(["group", false]);
+    expect(byId(graph.toJSON(), 7).x).toBeGreaterThan(0); // 自動で枠の中に並ぶ
+  });
+
+  test("最上位へ出す", () => {
+    const { graph } = setup(sample());
+    graph.reparent(5, null, { x: 700, y: 40 });
+    const out = graph.toJSON();
+    expect(parentOf(out, 5)).toBeUndefined();
+    expect(out.edges!.length).toBe(2); // API-データの線が外れる
+  });
+
+  test("自分や子孫の中には移せず、同じ親なら何もしない", () => {
+    const { graph } = setup(sample());
+    expect(() => graph.reparent(4, 4)).toThrow("自分や自分の子孫");
+    expect(() => graph.reparent(4, 5)).toThrow("自分や自分の子孫");
+    expect(graph.reparent(5, 4)).toBe(false);
+    expect(graph.history().canUndo).toBe(false);
+  });
+
+  test("付け替えモードでドラッグして落とすと、落とした先の子になる", () => {
+    const { el, graph } = setup(sample());
+    graph.setMode("reparent");
+    expect(graph.mode()).toBe("reparent");
+    // この DOM には位置の計算が無いので、ポインタの下の要素と位置を決め打ちする
+    const web = [...el.querySelectorAll(".mz-head")].find(h => h.textContent?.startsWith("Web"))!;
+    const rect = HTMLElement.prototype.getBoundingClientRect;
+    const doc = document as unknown as { elementsFromPoint?: (x: number, y: number) => Element[] };
+    HTMLElement.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 700);
+    doc.elementsFromPoint = () => [web];
+    try {
+      graph.select(7);
+      const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
+      const fire = (type: string, x: number) =>
+        head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 100, pointerId: 1 }));
+      head.dispatchEvent(new PointerEvent("pointerover", { bubbles: true })); // 乗せると関係の無いものが薄くなる
+      expect(el.querySelector(".mz-dim")).not.toBeNull();
+      fire("pointerdown", 100);
+      fire("pointermove", 150);
+      expect(el.querySelector(".mz-ghost")).not.toBeNull();
+      expect(el.querySelector(".mz-dim")).toBeNull(); // ドラッグを始めたら薄い表示は消える
+      expect(web.parentElement!.classList.contains("mz-drop")).toBe(true);
+      expect(graph.dragging()).toBe(true);
+      fire("pointerup", 150);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = rect;
+      delete doc.elementsFromPoint;
+    }
+    expect(el.querySelector(".mz-ghost")).toBeNull();
+    expect(parentOf(graph.toJSON(), 7)).toBe(2);
+    // 位置は Web の中の座標になり、Web の内側の余白より内に収まる
+    const moved = graph.info(7), webInfo = graph.info(2);
+    expect(moved.x).toBeGreaterThanOrEqual(12);
+    expect(moved.x + moved.w).toBeLessThanOrEqual(webInfo.w);
+  });
+});

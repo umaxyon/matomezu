@@ -3,7 +3,7 @@
 // - それ以外（file:// や静的配信）: 埋め込みのサンプルか ?src= の JSON を表示し、開く・保存のボタンで扱う。
 
 import { download, readFile } from "./dom";
-import { createGraph, type Graph } from "./graph";
+import { createGraph, type Graph, type Mode } from "./graph";
 import { createPanel, type Panel } from "./panel";
 import { fetchRemote, startSync, type Sync } from "./sync";
 
@@ -50,6 +50,20 @@ function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: HTMLBut
   });
 }
 
+const MODE_LABELS: Record<Mode, string> = { move: "移動モード", reparent: "付け替えモード" };
+
+// ドラッグの働きの切り替え（移動 / 親子の付け替え）と、今のモードの表示
+function setupModes(graph: Graph) {
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
+  const label = $("mode-label");
+  const set = (m: Mode) => {
+    graph.setMode(m);
+    for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.mode === m));
+    label.textContent = MODE_LABELS[m];
+  };
+  for (const b of buttons) b.addEventListener("click", () => set(b.dataset.mode as Mode));
+}
+
 async function main() {
   const remote = await fetchRemote();
   let panel: Panel | null = null;
@@ -64,9 +78,11 @@ async function main() {
       undoBtn.disabled = !h.canUndo;
       redoBtn.disabled = !h.canRedo;
     },
+    onNotice: showStatus,
   });
   panel = createPanel($("sidebar"), graph);
   setupHistory(graph, undoBtn, redoBtn);
+  setupModes(graph);
 
   if (remote) {
     document.body.classList.add("served");

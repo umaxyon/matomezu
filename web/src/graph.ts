@@ -17,6 +17,8 @@
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
+ *   graph.setMode(mode);         // ドラッグの働き: "move"（移動）/ "reparent"（親子の付け替え）
+ *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
  *   graph.destroy();
  *
  * データ形式:
@@ -85,7 +87,11 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onChange?: (data: Diagram) => void;
   onSelect?: (info: Info) => void;
   onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
+  onNotice?: (text: string) => void;          // 利用者に知らせたいこと（付け替えで線を外したなど）
 }
+
+// ドラッグの働き。移動か、親子の付け替えか
+export type Mode = "move" | "reparent";
 
 export interface HistoryState {
   canUndo: boolean;
@@ -106,6 +112,9 @@ export interface Graph {
   update(id: Id | null, patch: Patch): void;
   toJSON(): Diagram;
   dragging(): boolean;
+  setMode(mode: Mode): void;
+  mode(): Mode;
+  reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean; // at は最上位へ移すときの位置
   destroy(): void;
 }
 
@@ -170,6 +179,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let edges: Edge[] = [];
   let drag: { n: Box; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null = null;
   let linking: Box | null = null;      // Ctrl+クリックで選んだ1つ目
+  let mode: Mode = "move";
+  // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）
+  let lift: {
+    n: Box; pointerId: number; sx: number; sy: number; offX: number; offY: number;
+    ghost: HTMLElement | null; target: Box | null | undefined;
+  } | null = null;
   let current: Box | null = null;      // 選択中（null はワールド）
   const boxOfEl = new WeakMap<Element, Box>();
 
@@ -916,6 +931,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return;
     }
     if (current !== n) select(n);
+    if (mode === "reparent") {
+      const r = n.el.getBoundingClientRect();
+      n.head.setPointerCapture(e.pointerId);
+      lift = { n, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY,
+        offX: e.clientX - r.left, offY: e.clientY - r.top, ghost: null, target: undefined };
+      return;
+    }
     const d = dragTarget(n);
     n.head.setPointerCapture(e.pointerId);
     drag = { n: d, sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, moved: false };
@@ -924,6 +946,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function onPointerMove(e: PointerEvent) {
+    if (lift) return moveLift(e);
     if (!drag) return;
     const { n } = drag;
     if (tryMove(n, drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy)) {
@@ -934,7 +957,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     }
   }
 
-  function onPointerUp() {
+  function onPointerUp(e: PointerEvent) {
+    if (lift) return dropLift(e);
     if (!drag) return;
     drag.n.el.classList.remove("mz-dragging");
     const moved = drag.moved;
@@ -948,14 +972,87 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function onPointerOver(e: PointerEvent) {
-    if (drag) return;
+    if (drag || lift) return;
     const n = boxOf(e.target);
     if (n) focus(n);
     else if (!onEdge(e.target)) unfocus();
   }
 
   function onKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape") setLinking(null);
+    if (e.key !== "Escape") return;
+    setLinking(null);
+    endLift();
+  }
+
+  // ---- 付け替えのドラッグ ----
+  // つかんだボックスの半透明のコピー（ゴースト）をポインタに付けて動かし、下にある落とし先を強調する
+
+  function isInside(t: Box, n: Box) {
+    for (let m: Box | null = t; m; m = m.parent) if (m === n) return true;
+    return false;
+  }
+
+  // ポインタの下の落とし先。自分と自分の子孫の上は落とせない（undefined）
+  function dropTargetAt(x: number, y: number): Box | null | undefined {
+    const r = container.getBoundingClientRect();
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) return undefined;
+    for (const el of document.elementsFromPoint(x, y)) {
+      if (!container.contains(el)) continue;
+      const head = el.closest(".mz-head");
+      if (!head) continue;
+      const b = boxOf(head);
+      if (!b) continue;
+      return isInside(b, lift!.n) ? undefined : b;
+    }
+    return null;
+  }
+
+  function markTarget(t: Box | null | undefined) {
+    if (!lift) return;
+    if (lift.target !== undefined) (lift.target ?? world).el.classList.remove("mz-drop");
+    lift.target = t;
+    if (t !== undefined) (t ?? world).el.classList.add("mz-drop");
+    lift.ghost?.classList.toggle("mz-ghost-no", t === undefined);
+  }
+
+  function moveLift(e: PointerEvent) {
+    const l = lift!;
+    if (!l.ghost) {
+      if (Math.hypot(e.clientX - l.sx, e.clientY - l.sy) < 4) return; // クリックとドラッグを見分ける
+      const g = l.n.el.cloneNode(true) as HTMLElement;
+      g.classList.add("mz-ghost");
+      g.classList.remove("mz-current", "mz-dim");
+      container.appendChild(g);
+      l.ghost = g;
+      l.n.el.classList.add("mz-lifted");
+      unfocus(); // ポインタを乗せたときの薄い表示を消し、落とし先を見やすくする
+    }
+    const r = container.getBoundingClientRect();
+    l.ghost.style.left = e.clientX - l.offX - r.left + container.scrollLeft + "px";
+    l.ghost.style.top = e.clientY - l.offY - r.top + container.scrollTop + "px";
+    markTarget(dropTargetAt(e.clientX, e.clientY));
+  }
+
+  function endLift() {
+    if (!lift) return;
+    markTarget(undefined);
+    lift.ghost?.remove();
+    lift.n.el.classList.remove("mz-lifted");
+    lift = null;
+  }
+
+  function dropLift(e: PointerEvent) {
+    const l = lift!;
+    const t = l.ghost ? l.target : undefined;
+    // 新しい親の中での位置（ゴーストの左上）
+    let at: { x: number; y: number } | undefined;
+    if (t !== undefined) {
+      const r = (t ?? world).el.getBoundingClientRect();
+      at = { x: e.clientX - l.offX - r.left, y: e.clientY - l.offY - r.top };
+    }
+    const n = l.n;
+    endLift();
+    if (t !== undefined) reparent(n.id, t ? t.id : null, at);
   }
 
   const listening = new AbortController();
@@ -967,6 +1064,54 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   container.addEventListener("pointerover", onPointerOver, { signal });
   container.addEventListener("pointerleave", () => { if (!drag) unfocus(); }, { signal });
   document.addEventListener("keydown", onKeyDown, { signal });
+
+  // ---- 親子の付け替え ----
+
+  // id のボックス（子孫ごと）を parentId の子にする。同じ階層でなくなった線は外す。
+  // 位置: 最上位なら at。子を内包しているグループなら、今ある子の下の左端。
+  // それ以外（子の無いボックスやツリー、非表示）は自動で並べる
+  function reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
+    const n = nodeOf(id);
+    if (n.isWorld) throw new Error("ワールドは移せません");
+    const t = parentId == null ? null : (nodeOf(parentId) as Box);
+    if (t && isInside(t, n)) throw new Error("自分や自分の子孫の中には移せません");
+    if (n.parent === t) return false;
+
+    const data = api.toJSON();
+    const src = data.nodes.find(s => String(s.id) === n.id)!;
+    if (t) src.parent = t.src.id;
+    else delete src.parent;
+    if (t == null && at) {
+      src.x = Math.max(0, Math.round(at.x));
+      src.y = Math.max(0, Math.round(at.y));
+    } else if (t && isNesting(t)) {
+      src.x = innerArea(t).left;
+      src.y = Math.max(...t.children.map(k => k.y + k.h)) + opt.gap * 2;
+    } else {
+      delete src.x;
+      delete src.y;
+    }
+    const parentOf = new Map(data.nodes.map(s => [String(s.id), s.parent == null ? null : String(s.parent)]));
+    const kept = (data.edges ?? []).filter(e => {
+      const { from, to } = e as EdgeData;
+      return parentOf.get(String(from)) === parentOf.get(String(to));
+    });
+    const removed = (data.edges?.length ?? 0) - kept.length;
+    data.edges = kept;
+
+    build(data, false);
+    select(byId.get(n.id)!);
+    changed();
+    const where = t ? `「${captionOf(byId.get(t.id)!)}」の中` : "最上位";
+    opt.onNotice?.(`${where}へ移しました` + (removed ? `（階層が変わったため、線を ${removed} 本外しました）` : ""));
+    return true;
+  }
+
+  function setMode(m: Mode) {
+    endLift();
+    mode = m;
+    container.classList.toggle("mz-mode-reparent", m === "reparent");
+  }
 
   // ---- 情報と変更 ----
 
@@ -1229,8 +1374,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       out.edges = edges.map(e => ({ ...e.src, id: e.id, from: e.a.src.id!, to: e.b.src.id! }));
       return out;
     },
-    dragging: () => drag != null,
+    dragging: () => drag != null || lift != null,
+    setMode,
+    mode: () => mode,
+    reparent,
     destroy() {
+      endLift();
       ro.disconnect();
       listening.abort();
       clear();
