@@ -2,10 +2,13 @@
 
 import type { Graph, Mode } from "./graph";
 
-// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）
-export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: HTMLButtonElement) {
-  undoBtn.addEventListener("click", () => graph.undo());
-  redoBtn.addEventListener("click", () => graph.redo());
+// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）。
+// 登録を外す関数を返す（ページ全体のキー操作に登録するので、図を作り直すときに外せるように）
+export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: HTMLButtonElement): () => void {
+  const listening = new AbortController();
+  const { signal } = listening;
+  undoBtn.addEventListener("click", () => graph.undo(), { signal });
+  redoBtn.addEventListener("click", () => graph.redo(), { signal });
   document.addEventListener("keydown", e => {
     if (!(e.ctrlKey || e.metaKey) || e.altKey || graph.dragging()) return;
     // 入力欄では、文字入力の取り消しに使う
@@ -16,7 +19,8 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
     else if (key === "y" || (key === "z" && e.shiftKey)) graph.redo();
     else return;
     e.preventDefault();
-  });
+  }, { signal });
+  return () => listening.abort();
 }
 
 const MODE_LABELS: Record<Mode, string> = { move: "移動モード", reparent: "付け替えモード" };
