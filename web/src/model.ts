@@ -89,7 +89,7 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 
 // ---- 設定値 ----
 
-export const sizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "L");
+export const sizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "M");
 export const viewOf = (n: Box): ChildView => (isView(n.src.childView) ? n.src.childView : "nest");
 export const treeDirOf = (n: Box): TreeDirection => (isTreeDirection(n.src.treeDirection) ? n.src.treeDirection : "down");
 // 内包しているボックス（子を持ち、見せ方が内包）

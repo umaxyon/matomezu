@@ -69,7 +69,7 @@ test("色の候補と、塗りつぶし・枠線", () => {
 test("サイズを押すと、今と同じサイズでも大きさの指定を外す", () => {
   const { g, click } = setup({ nodes: [{ id: 1, x: 40, y: 40, width: 312 }] });
   g.select(1);
-  click('input[name="mzp-size"][value="L"]');
+  click('input[name="mzp-size"][value="M"]');
   expect(box(g, 1).w).toBe(120);
   expect("width" in g.toJSON().nodes[0]!).toBe(false);
   click('input[name="mzp-size"][value="S"]');

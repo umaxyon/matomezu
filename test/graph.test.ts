@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import type { BoxData, Diagram } from "../web/src/types";
+import type { BoxData, BoxInfo, Diagram } from "../web/src/types";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -738,7 +738,7 @@ test("子の大きさをそろえる: 縮められない子があっても、ほ
 test("サイズを選ぶと、付いていた大きさの指定を外して中身に合わせた大きさに戻る", () => {
   const { graph } = setup({ nodes: [{ id: 1, caption: "トップ画面", x: 40, y: 40, width: 312, height: 90 }] });
   expect(graph.info(1).w).toBe(312);
-  graph.update(1, { size: "L" }); // 今と同じサイズでも戻す
+  graph.update(1, { size: "M" }); // 今と同じサイズでも戻す
   const out = byId(graph.toJSON(), 1);
   expect(["width" in out, "height" in out]).toEqual([false, false]);
   expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]);
@@ -795,24 +795,20 @@ describe("子の見せ方を変えても本体の中心を保つ", () => {
     expect(after[1]).toBeCloseTo(before[1]!);
   });
 
-  test("入れ子の中でも、変えたボックスはその場に残り、ぶつかる兄弟が下へずれる", () => {
-    const { el, graph } = setup({
+  test("入れ子の中では左上を保ち、ぶつかる兄弟が下へずれる", () => {
+    const { graph } = setup({
       nodes: [
         { id: 1, caption: "枠", x: 40, y: 40 },
-        // 親の端から離しておく（端に接していると、ツリーの外枠が親からはみ出さないよう戻される）
         { id: 2, caption: "外部", parent: 1, childView: "hidden", x: 200, y: 60 },
         { id: 21, caption: "決済", parent: 2 }, { id: 22, caption: "メール", parent: 2 },
-        { id: 3, caption: "兄弟", parent: 1, x: 12, y: 150 },
+        { id: 3, caption: "兄弟", parent: 1, x: 200, y: 150 }, // 真下にいて、広がると重なる
       ],
     });
-    const before = headCenter(el, graph, 2);
     graph.update(2, { childView: "tree" });
-    const after = headCenter(el, graph, 2);
-    expect(after[0]).toBeCloseTo(before[0]!);
-    expect(after[1]).toBeCloseTo(before[1]!);
+    expect([graph.info(2).x, graph.info(2).y]).toEqual([200, 60]);
     const a = graph.info(2), b = graph.info(3);
     expect(b.y).toBeGreaterThanOrEqual(a.y + a.h);
-    expect(b.x).toBe(12);
+    expect(b.x).toBe(200); // 同じ x のまま下へ
   });
 });
 
@@ -902,5 +898,145 @@ describe("文字のボックスは中身に合わせて伸ばさない", () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: "グループ" }, { id: 2, parent: 1 }] });
     expect(graph.info(1).overflow).toBe("grow");
     expect(graph.info(1).overflows).toContain("grow");
+  });
+});
+
+describe("サイズの段階", () => {
+  // どのサイズも、文字が少なければ中身に合わせて小さくなり、多ければ最大の幅まで広がってから折り返す。
+  // 幅の範囲: M 120〜240（既定）、L 120〜400、S 64〜96（高さ 44 固定、10 文字で切る）
+  // テストの文字の幅は 1 文字 9px（test/setup.ts）
+  const chars = (n: number) => "あ".repeat(n);
+
+  test("既定は M。短い文字なら最小の幅 120", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "API" }] });
+    expect((graph.info(1) as BoxInfo).size).toBe("M");
+    expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]);
+  });
+
+  test("M は文字に合わせて 240 まで広がり、それを越えると折り返す", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: chars(15) }, { id: 2, caption: chars(100) }] });
+    expect(graph.info(1).w).toBeGreaterThan(120);
+    expect(graph.info(1).w).toBeLessThan(240);
+    expect(graph.info(2).w).toBe(240);
+    expect(graph.info(2).h).toBeGreaterThan(64);
+  });
+
+  test("L は 400 まで広がる。短い文字なら M と同じ大きさ", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: chars(60), size: "L" }, { id: 2, caption: "API", size: "L" }] });
+    expect(graph.info(1).w).toBe(400);
+    expect([graph.info(2).w, graph.info(2).h]).toEqual([120, 64]);
+  });
+
+  test("S は 64〜96 の幅で、高さは 44 のまま", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "DB", size: "S" }, { id: 2, caption: chars(8), size: "S" }] });
+    expect([graph.info(1).w, graph.info(1).h]).toEqual([64, 44]);
+    expect([graph.info(2).w, graph.info(2).h]).toEqual([96, 44]);
+  });
+
+  test("あとから文字を増やすと、最大の幅まで広がる", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "トップ画面" }] });
+    expect(graph.info(1).w).toBe(120);
+    graph.update(1, { caption: chars(20) });
+    const w = graph.info(1).w;
+    expect(w).toBeGreaterThan(120);
+    graph.update(1, { caption: chars(21) });
+    expect(graph.info(1).w).toBe(w + 9); // 1 文字分だけ広がる
+  });
+
+  test("M は文字数で切らない", () => {
+    const long = chars(40);
+    const { el } = setup({ nodes: [{ id: 1, caption: long }] });
+    expect(el.querySelector(".mz-node .mz-head")!.textContent).toContain(long);
+  });
+
+  test("width の指定があれば、その幅で折り返す", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: chars(60), width: 150 }] });
+    expect(graph.info(1).w).toBe(150);
+  });
+
+  test("切り詰めるにしたら、今の幅と高さのまま", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: chars(20) }] });
+    const before = graph.info(1);
+    graph.update(1, { overflow: "clip" });
+    expect([graph.info(1).w, graph.info(1).h]).toEqual([before.w, before.h]);
+  });
+
+  test("切り詰めるから折り返すに戻すと、固定を外して中身に合わせる", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: chars(40) }] });
+    graph.update(1, { overflow: "clip" });
+    graph.update(1, { overflow: "wrap" });
+    const out = byId(graph.toJSON(), 1);
+    expect(["width" in out, "height" in out]).toEqual([false, false]);
+    graph.update(1, { caption: "API" }); // 文字を減らせば縮む
+    expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]);
+  });
+
+  test("文字の幅は小数まで測って切り上げる（丸めで足りずに折り返さない）", () => {
+    // ブラウザの offsetWidth は整数に丸めるので、実際の幅より小さくなることがある
+    // 測った結果は文字ごとに使い回されるので、同じ長さの別の文字で測る
+    const widthOf = (c: string) => {
+      const { graph } = setup({ nodes: [{ id: 1, caption: c.repeat(15) }] });
+      const w = graph.info(1).w;
+      graph.destroy();
+      return w;
+    };
+    const rounded = widthOf("い");
+    const proto = HTMLElement.prototype;
+    const orig = proto.getBoundingClientRect;
+    proto.getBoundingClientRect = function (this: HTMLElement) {
+      return { width: this.offsetWidth + 0.4, height: this.offsetHeight } as DOMRect;
+    };
+    try {
+      expect(widthOf("う")).toBe(rounded + 1);
+    } finally {
+      proto.getBoundingClientRect = orig;
+    }
+  });
+
+  test("グループの最小の大きさはサイズによらず 120 × 64", () => {
+    const { graph } = setup({ nodes: [{ id: 1, size: "L" }, { id: 2, parent: 1, size: "S", x: 12, y: 30 }] });
+    expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 86]);
+  });
+});
+
+describe("グループの中のボックスは、大きさが変わっても左上を動かさない", () => {
+  const long = "あ".repeat(100);
+  const data = (x = 12): Diagram => ({
+    nodes: [
+      { id: 1, caption: "Web", x: 40, y: 40 },
+      { id: 2, caption: long, parent: 1, x, y: 30 },
+      { id: 3, caption: "カート画面", parent: 1, x: x + 140, y: 250 },
+    ],
+    edges: [[2, 3]],
+  });
+
+  test("サイズを何度切り替えても、変えたボックスも兄弟も同じ位置に戻る", () => {
+    const { graph } = setup(data());
+    const pos = () => [2, 3].map(id => [graph.info(id).x, graph.info(id).y]);
+    const size = () => [graph.info(1).w, graph.info(1).h];
+    const start = pos(), startSize = size();
+    for (const s of ["L", "M", "S", "M", "S", "L", "M"] as const) {
+      graph.update(2, { size: s });
+      expect(pos()).toEqual(start);
+    }
+    expect(size()).toEqual(startSize);
+  });
+
+  test("L にしてから M に戻すと、中身が左上に寄って親が縮む", () => {
+    const { graph } = setup(data());
+    const before = graph.info(1);
+    graph.update(2, { size: "L" });
+    graph.update(2, { size: "M" });
+    const top = graph.info(2);
+    expect([top.x, top.y]).toEqual([12, 30]);
+    expect(graph.info(1).w).toBeLessThanOrEqual(before.w);
+  });
+
+  test("もともと空けていた余白は残す", () => {
+    const d = data(100);
+    d.nodes[1]!.size = "L";
+    const { graph } = setup(d);
+    graph.update(2, { size: "M" });
+    expect(graph.info(2).x).toBe(100);
   });
 });

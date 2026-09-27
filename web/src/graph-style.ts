@@ -91,7 +91,6 @@ export const GRAPH_CSS = `
 .mz-shape { display: none; }
 .mz-leaf.mz-shape-person { flex-direction: column; justify-content: flex-start; gap: 2px; padding: 0 4px; }
 .mz-shape-person > .mz-shape { display: block; flex: none; width: 36px; height: 52px; overflow: visible; }
-.mz-size-M.mz-shape-person > .mz-shape { width: 32px; height: 46px; }
 .mz-size-S.mz-shape-person > .mz-shape { width: 26px; height: 38px; }
 .mz-shape-person .mz-figure { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .mz-leaf.mz-shape-person .mz-text { color: var(--mz-text); text-shadow: none; line-height: 1.25; }

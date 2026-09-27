@@ -44,9 +44,10 @@
  *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱）。
  *     子を内包しているボックスは枠なので、形は使わない（ツリーや非表示で見せているときは使う）。
  *   - size はボックスの大きさの段階:
- *       "L" … 既定。文字数の制限なし
- *       "M" … 14 文字まで（超えると … で切る）。幅と高さに上限あり
- *       "S" … 小さい固定サイズ・小さい文字。10 文字まで（超えると … で切る）
+ *       "L" … 幅は文字に合わせて 120〜400。越えると折り返す
+ *       "M" … 既定。幅は文字に合わせて 120〜240。越えると折り返す
+ *       "S" … 小さい文字。幅は 64〜96、高さは固定。10 文字まで（超えると … で切る）
+ *     幅の範囲は validate.ts の SIZES で決めている。width を書けば、その幅で折り返す。
  *   - childView は子の見せ方: "nest"（内包、既定）/ "tree"（ツリー）/ "hidden"（非表示、▼ で子がいることを示す）
  *     treeDirection はツリーで子を置く向き: "down"（既定）/ "up" / "left" / "right"
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
@@ -411,6 +412,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const next = { ...patch };
     checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id);
     if (n.isWorld && next.overflow === "grow") throw new Error("ワールドは伸ばせません");
+    // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ。
+    // 変える前の見せ方と大きさで覚える（見せ方だけ先に変わると、ツリーの外枠ではなく本体の辺を保ってしまう）
+    const keepAt = !n.isWorld && inNest(n) ? anchorPlan(n) : null;
     if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error("文字のボックスは伸ばせません");
 
     if (!n.isWorld) {
@@ -431,15 +435,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (next.childView) setView(n, next.childView);
       if (next.treeDirection) setOrDelete(n.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
     }
-    // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう本体の位置を保つ
-    const keepAt = !n.isWorld && inNest(n) ? anchorPlan(n) : null;
     if (next.overflow && next.overflow !== overflowOf(n)) {
       if (n.isWorld) {
         n.src.overflow = next.overflow as Exclude<Overflow, "grow">;
       } else {
+        // 文字のボックスを折り返すに戻したら、切り詰めるときに固定した大きさを外して中身に合わせる
+        if (!n.children.length && next.overflow === "wrap") {
+          setSpec(n, "w", 0);
+          setSpec(n, "h", 0);
+        }
         // 大きさが固定される方向は、今の大きさを引き継ぐ
         if (overflowOf(n) === "grow") setSpec(n, "w", Math.round(n.hw));
-        if (next.overflow === "clip") setSpec(n, "h", Math.round(n.hh));
+        if (next.overflow === "clip") {
+          if (!n.specW) setSpec(n, "w", Math.round(n.hw));
+          setSpec(n, "h", Math.round(n.hh));
+        }
         n.src.overflow = next.overflow;
       }
     }

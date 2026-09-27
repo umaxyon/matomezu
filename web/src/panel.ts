@@ -97,9 +97,9 @@ const OVERFLOW_LABELS: Record<Overflow, string> = {
 };
 const KIND_LABELS = { group: "グループ", box: "ボックス" };
 const SIZE_HINTS = {
-  L: "文字数の制限なし",
-  M: "14 文字まで表示。大きさに上限あり（180 × 80）",
-  S: "10 文字まで表示。小さい固定サイズ",
+  L: "幅は文字に合わせて 400 まで。越えると折り返す",
+  M: "幅は文字に合わせて 240 まで。越えると折り返す",
+  S: "10 文字まで表示。小さい文字で高さは固定",
 };
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["hidden", "非表示"]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];

@@ -7,8 +7,8 @@
 //                                                       位置の無いボックスは空きを探す（findFreeSpot / findGridSpot）
 //   ドラッグ中                tryMove + pushAway       動かしたボックスは兄弟にぶつかれば止まる。広がった祖先は、
 //                                                       前に下にいた相手を下へ、右にいた相手を右へ押す（連鎖）
-//   設定変更で広がったとき    anchorPlan + stepAside   線の相手の側の辺（か中心）を保ち、自分より大きい相手とは
-//                                                       自分がずれる
+//   設定変更で広がったとき    anchorPlan + stepAside   グループの中では左上を保つ。最上位は線の相手の側の辺（か中心）を
+//                                                       保つ。自分より大きい相手とは自分がずれる
 //   子のサイズをそろえる      compress                 中身を寄せ、重なれば下（高さのときは右）へ
 //   最初に開いたとき          fitToViewport            右半分からはみ出した最上位を、線の相手の真下へ
 //                                                       （外部の変更の読み直しや Undo では行わない）
@@ -17,7 +17,7 @@ import {
   type Box, type Container, type Edge, type World,
   ancestors, inNest, isNesting, other, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
-import { SIZES } from "./validate";
+import { GROUP_MIN, SIZES } from "./validate";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
 
@@ -70,8 +70,8 @@ export function createLayout(ctx: LayoutContext) {
     if (c.isWorld) return { w: world.w, h: world.src.height ? world.h : null };
     const ov = overflowOf(c);
     return {
-      w: ov === "grow" ? null : (c.specW || SIZES.L.w),
-      h: ov === "clip" ? (c.specH || SIZES.L.h) : null,
+      w: ov === "grow" ? null : (c.specW || GROUP_MIN.w),
+      h: ov === "clip" ? (c.specH || GROUP_MIN.h) : null,
     };
   }
 
@@ -105,37 +105,38 @@ export function createLayout(ctx: LayoutContext) {
     const prev = [s.width, s.height] as const;
     s.width = width == null ? "max-content" : width + "px";
     s.height = "auto";
-    const r: [number, number] = [n.head.offsetWidth, n.head.offsetHeight];
+    // offsetWidth は整数に丸めるので、実際の幅より小さいとその幅で最後の文字が折り返される。小数まで測って切り上げる
+    // （happy-dom など配置の計算が無い環境では 0 が返るので offsetWidth を使う）
+    const rect = n.head.getBoundingClientRect();
+    const r: [number, number] = [
+      rect.width ? Math.ceil(rect.width) : n.head.offsetWidth,
+      rect.height ? Math.ceil(rect.height) : n.head.offsetHeight,
+    ];
     [s.width, s.height] = prev;
     if (measureCache.size > 2000) measureCache.clear();
     measureCache.set(key, r);
     return r;
   }
 
-  // ボックスとして見せるときの本体の大きさ。useSpec が false なら width, height, overflow を使わない
+  // ボックスとして見せるときの本体の大きさ。useSpec が false なら width, height, overflow を使わない。
+  // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す
   function fitHead(n: Box, useSpec: boolean) {
     const z = SIZES[sizeOf(n)];
+    const specW = useSpec ? n.specW : 0;
+    const specH = useSpec ? n.specH : 0;
+    const textW = () => Math.max(z.minW, Math.min(z.maxW, measure(n, null)[0]));
     if (shapeOf(n) === "person") {
-      // 人の形と足元の文字。幅は文字に合わせ、長ければ折り返す（背景が無いので、固定の大きさは使わない）
-      const maxText = Math.min(z.maxW || Infinity, (useSpec && n.specW) || SIZES.L.w);
-      const w = Math.max(PERSON_MIN_W, Math.min(maxText, measure(n, null)[0]));
+      // 人の形と足元の文字。背景が無いので、最小の幅は使わない
+      const w = Math.max(PERSON_MIN_W, Math.min(specW || z.maxW, measure(n, null)[0]));
       n.hw = w;
       n.hh = measure(n, w)[1];
       return;
     }
-    if (z.fixed) {
-      n.hw = z.w;
-      n.hh = z.h;
-      return;
-    }
-    const maxW = z.maxW || Infinity;
-    const maxH = z.maxH || Infinity;
     const ov = useSpec ? overflowOf(n) : "wrap";
-    const minW = Math.min(maxW, (useSpec && n.specW) || z.w);
-    const minH = Math.min(maxH, (useSpec && n.specH) || z.h);
-    const h = ov === "wrap" ? Math.max(minH, measure(n, minW)[1]) : minH;
-    n.hw = minW;
-    n.hh = Math.min(maxH, h);
+    // 切り詰めるときは大きさを文字で変えない
+    const w = specW || (ov === "clip" ? z.minW : textW());
+    n.hw = w;
+    n.hh = specH || (z.fixedH || ov === "clip" ? z.h : Math.max(z.h, measure(n, w)[1]));
   }
 
   // 子を組織図のように並べる。上下なら横一列、左右なら縦一列にして、親をその中央にそろえる。
@@ -196,8 +197,8 @@ export function createLayout(ctx: LayoutContext) {
     }
     // 内包: 子に合わせる（指定サイズは最小値として扱う）
     const ov = overflowOf(n);
-    const minW = n.specW || SIZES.L.w;
-    const minH = n.specH || SIZES.L.h;
+    const minW = n.specW || GROUP_MIN.w;
+    const minH = n.specH || GROUP_MIN.h;
     let r = 0, b = 0;
     for (const c of n.children) {
       r = Math.max(r, c.x + c.w);
@@ -438,10 +439,16 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   // 大きさが変わる前の位置を覚え、変わったあとの n の位置を返す関数を作る。
-  // 線でつながる相手が片側にだけいれば、線がつながる範囲（anchorRect。ツリーなら外枠）の
+  // 最上位では、線でつながる相手が片側にだけいれば、線がつながる範囲（anchorRect。ツリーなら外枠）の
   // その側の辺を動かさない（線の長さも角度も変わらない）。
   // 両側にいるか、相手がいなければ本体の中心を保つ。横と縦は別々に決める
   function anchorPlan(n: Box) {
+    // グループの中では左上を保ち、右と下へ伸び縮みする。中心を保つと、親の端で押し戻されたずれが
+    // 次に縮むときに残り、切り替えるたびに位置が変わっていくため
+    if (n.parent) {
+      const { x, y } = n;
+      return { x: () => x, y: () => y };
+    }
     const l = n.x + n.hx, t = n.y + n.hy, r = l + n.hw, b = t + n.hh;
     const ar = anchorRect(n);
     const al = n.x + ar.x, at = n.y + ar.y, arr = al + ar.w, ab = at + ar.h;
@@ -544,7 +551,7 @@ export function createLayout(ctx: LayoutContext) {
 
   // ---- 子の大きさをそろえる ----
 
-  // そろえられる子。S は大きさが固定、スティックマンは文字で幅が決まり、
+  // そろえられる子。S は高さが固定で小さい、スティックマンは文字で幅が決まり、
   // ツリーや非表示で子を見せているボックスは子の並びで大きさが決まるので除く
   function sizable(n: Box): Box[] {
     if (!isNesting(n)) return [];
@@ -569,8 +576,8 @@ export function createLayout(ctx: LayoutContext) {
     if (!isNesting(k)) return naturalSize(k, dim);
     const a = innerArea(k);
     return dim === "w"
-      ? Math.max(SIZES.L.w, a.left + a.right + Math.max(...k.children.map(g => g.w)))
-      : Math.max(SIZES.L.h, a.top + a.bottom + Math.max(...k.children.map(g => g.h)));
+      ? Math.max(GROUP_MIN.w, a.left + a.right + Math.max(...k.children.map(g => g.w)))
+      : Math.max(GROUP_MIN.h, a.top + a.bottom + Math.max(...k.children.map(g => g.h)));
   }
 
   // 内包している k の中身を、大きさ limit に収まるよう詰め直す。

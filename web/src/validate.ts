@@ -3,20 +3,23 @@
 import type { Diagram, EdgeData, Id, Size } from "./types";
 
 export interface SizeSpec {
-  w: number;
-  h: number;
-  maxW?: number;
-  maxH?: number;
+  minW: number;
+  maxW: number; // 文字がこれより長ければ折り返す
+  h: number; // 高さの最小（fixedH なら固定）
+  fixedH?: boolean;
   limit?: number; // 表示する最大文字数
-  fixed?: boolean;
 }
 
-// ボックスの大きさの段階
+// ボックスの大きさの段階。文字のボックスの幅は、文字に合わせて minW〜maxW の間で決まる。
+// 見た目の調整で変えてよい値（テストは test/graph.test.ts の「サイズの段階」）
 export const SIZES: Record<Size, SizeSpec> = {
-  L: { w: 120, h: 64 },
-  M: { w: 120, h: 64, maxW: 180, maxH: 80, limit: 14 },
-  S: { w: 96, h: 44, fixed: true, limit: 10 },
+  L: { minW: 120, maxW: 400, h: 64 },
+  M: { minW: 120, maxW: 240, h: 64 },
+  S: { minW: 64, maxW: 96, h: 44, fixedH: true, limit: 10 },
 };
+
+// 子を内包するボックスとワールドの最小の大きさ（サイズによらない）
+export const GROUP_MIN = { w: 120, h: 64 };
 
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 export const VIEWS = ["nest", "tree", "hidden"] as const;

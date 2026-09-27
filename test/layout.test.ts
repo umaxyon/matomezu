@@ -199,6 +199,22 @@ describe("線でつながる相手の側の辺を保つ", () => {
     expect(after.x + after.w).toBe(before.x + before.w);
   });
 
+  test("ツリーから内包に戻しても、相手の側の辺（外枠の左辺）を保つ", () => {
+    const { graph } = setup({
+      nodes: [
+        { id: 1, caption: "ユーザー", x: 40, y: 300 },
+        { id: 2, caption: "フロントエンド", childView: "tree", x: 400, y: 260 },
+        { id: 3, caption: "とても長い名前のグループ", parent: 2 }, { id: 4, caption: "モバイル", parent: 2 },
+      ],
+      edges: [[1, 2]],
+    });
+    const before = graph.info(2);
+    graph.update(2, { childView: "nest" });
+    expect(graph.info(2).x).toBe(before.x);
+    graph.update(2, { childView: "tree" });
+    expect(graph.info(2).x).toBe(before.x);
+  });
+
   test("入れ子の中で内包からツリーにしても、下の相手との間で上に余白を作らない", () => {
     // データ枠の中で、DB（API を内包）の右下にキャッシュがつながっている
     const { graph } = setup({
