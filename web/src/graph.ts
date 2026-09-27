@@ -35,6 +35,8 @@
  *   - id は連番の数値を使う。省くと読み込み時に、既存の数値 id の続きから連番を振る。
  *   - parent に親ボックスの id を書くと、その子になる。x, y は親の左上からの位置（内包のときに使う）。
  *   - 位置が無いボックスは自動で配置する。
+ *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱）。
+ *     子を内包しているボックスは枠なので、形は使わない（ツリーや非表示で見せているときは使う）。
  *   - size はボックスの大きさの段階:
  *       "L" … 既定。文字数の制限なし
  *       "M" … 14 文字まで（超えると … で切る）。幅と高さに上限あり
@@ -55,9 +57,11 @@
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle, isLightColor, truncate } from "./dom";
 import type {
-  BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Overflow, Patch, Size, WorldData,
+  BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Overflow, Patch, Shape, Size, WorldData,
 } from "./types";
-import { OVERFLOWS, SIZES, assignIds, checkSettings, isSize, isView, normalizeEdge, validate } from "./validate";
+import {
+  OVERFLOWS, SHAPES, SIZES, assignIds, checkSettings, isShape, isSize, isView, normalizeEdge, validate,
+} from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -67,6 +71,12 @@ export const DEFAULTS = {
   treeGapX: 24,  // ツリーで横に並ぶ子の間隔
   treeGapY: 40,  // ツリーの親と子の縦の間隔
 };
+
+const PERSON_MIN_W = 64; // スティックマンの最小の幅
+
+// スティックマン（viewBox 0 0 36 52）
+const PERSON_SVG =
+  '<g class="mz-figure"><circle cx="18" cy="8" r="6.5"/><path d="M18 14.5V33M5 21.5H31M18 33 7 50M18 33 29 50"/></g>';
 
 export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onChange?: (data: Diagram) => void;
@@ -101,8 +111,10 @@ interface Box {
   head: HTMLDivElement;
   textEl: HTMLDivElement;
   moreEl: HTMLSpanElement;
+  shapeSvg: SVGSVGElement; // スティックマンや DB の絵
   treeSvg: SVGSVGElement;
   treePath: SVGPathElement;
+  treeFrame: SVGRectElement; // ツリーで見せているときに全体を囲む枠
 }
 
 // ワールドは親の無いボックスたちの入れ物。ノードと同じように扱える形にしておく
@@ -183,6 +195,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const isHidden = (n: Box) => ancestors(n).some(p => viewOf(p) === "hidden");
   // ツリーで並んでいる子か（子同士の線は描かない）
   const inTree = (n: Box) => !!n.parent && viewOf(n.parent) === "tree";
+  // 子を内包しているボックスは枠なので、形は常にボックス
+  const shapeOf = (n: Box): Shape => (!isNesting(n) && isShape(n.src.shape) ? n.src.shape : "box");
   const fillOf = (n: Box) => n.src.fill !== false;
   const borderOf = (n: Box) => (n.src.border != null ? !!n.src.border : isNesting(n));
   function overflowOf(c: Container): Overflow {
@@ -201,9 +215,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     };
   }
 
-  // 大きさが固定されている方向（grow 以外は幅、clip は高さも。ワールドは両方）
+  // 大きさが固定されている方向（grow 以外は幅、clip は高さも）。
+  // ワールドは幅を固定し、高さは指定が無ければ下へ伸ばせる（横スクロールより縦スクロールの方が見やすい）
   function fixedSize(c: Container): { w: number | null; h: number | null } {
-    if (c.isWorld) return { w: world.w, h: world.h };
+    if (c.isWorld) return { w: world.w, h: world.src.height ? world.h : null };
     const ov = overflowOf(c);
     return {
       w: ov === "grow" ? null : (c.specW || SIZES.L.w),
@@ -246,6 +261,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ボックスとして見せるときの本体の大きさ。useSpec が false なら width, height, overflow を使わない
   function fitHead(n: Box, useSpec: boolean) {
     const z = SIZES[sizeOf(n)];
+    if (shapeOf(n) === "person") {
+      // 人の形と足元の文字。幅は文字に合わせ、長ければ折り返す（背景が無いので、固定の大きさは使わない）
+      const maxText = Math.min(z.maxW || Infinity, (useSpec && n.specW) || SIZES.L.w);
+      const w = Math.max(PERSON_MIN_W, Math.min(maxText, measure(n, null)[0]));
+      n.hw = w;
+      n.hh = measure(n, w)[1];
+      return;
+    }
     if (z.fixed) {
       n.hw = z.w;
       n.hh = z.h;
@@ -268,23 +291,31 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     n.hh = Math.min(maxH, h);
   }
 
-  // 子を組織図のように、親の下へ横一列に並べる
+  // 子を組織図のように、親の下へ横一列に並べる。
+  // 全体を薄い枠で囲むので、周りに余白を取る（同じ階層との線は、この枠のふちにつなぐ）
   function layoutTree(n: Box) {
     const kids = n.children;
     const GX = opt.treeGapX;
+    const P = opt.padding;
     const total = kids.reduce((s, k) => s + k.w, 0) + GX * (kids.length - 1);
-    n.w = Math.max(n.hw, total);
+    n.w = Math.max(n.hw, total) + P * 2;
     n.hx = (n.w - n.hw) / 2;
-    n.hy = 0;
+    n.hy = P;
     let x = (n.w - total) / 2;
-    const y = n.hh + opt.treeGapY;
+    const y = P + n.hh + opt.treeGapY;
     for (const k of kids) {
       k.x = x;
       k.y = y;
       k.placed = true;
       x += k.w + GX;
     }
-    n.h = y + Math.max(...kids.map(k => k.h));
+    n.h = y + Math.max(...kids.map(k => k.h)) + P;
+  }
+
+  // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）。ツリーで見せていれば枠全体、それ以外は本体
+  function anchorRect(n: Box) {
+    if (n.children.length && viewOf(n) === "tree") return { x: 0, y: 0, w: n.w, h: n.h };
+    return { x: n.hx, y: n.hy, w: n.hw, h: n.hh };
   }
 
   function fit(n: Box) {
@@ -363,10 +394,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // それでも無理なら軸ごとにスライドさせ、最後は動かさない。
   function tryMove(n: Box, tx: number, ty: number) {
     const ox = n.x, oy = n.y;
+    // すでに重なっているなら、引き離せるよう重なりの判定をしない（重なったままだと、どこへも動けなくなる）
+    const stuck = !validChain(n);
     const attempt = ([x, y]: [number, number]) => {
       n.x = x; n.y = y;
       refitAncestors(n);
-      if (validChain(n)) return true;
+      if (stuck || validChain(n)) return true;
       n.x = ox; n.y = oy;
       refitAncestors(n);
       return false;
@@ -434,9 +467,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす
-  function placeGroup(list: Box[], spot: (n: Box) => [number, number]) {
+  // first を指定すると、それを最初に置く（変更したボックスをその場に残し、相手の方をずらすため）
+  function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box) {
     for (const n of list) n.placed = false;
-    const order = list.filter(n => n.hasPos).concat(list.filter(n => !n.hasPos));
+    const rest = list.filter(n => n !== first);
+    const order = (first && list.includes(first) ? [first] : [])
+      .concat(rest.filter(n => n.hasPos), rest.filter(n => !n.hasPos));
     for (const n of order) {
       [n.x, n.y] = clamp(n, n.x, n.y);
       if (!n.hasPos || collides(n, n.x, n.y)) [n.x, n.y] = spot(n);
@@ -452,15 +488,25 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     fit(n);
   }
 
-  function settleRoots() {
-    placeGroup(roots, n => findFreeSpot(n, n.x, n.y));
+  // 位置のあるボックスが重なったら、同じ x のまま下へずらす（周りを探すより元の並びが崩れにくい）。
+  // 位置の無いボックスは、置こうとした場所の近くの空きを探す
+  function settleRoots(first?: Box) {
+    placeGroup(roots, n => (n.hasPos ? spotBelow(n) : findFreeSpot(n, n.x, n.y)), first);
   }
 
-  // 大きさが変わったあとに、全体を重なりの無い状態へ直す
-  function settleAll() {
+  function spotBelow(n: Box): [number, number] {
+    let y = n.y;
+    // ワールドの高さが指定されていれば、下にも限りがある
+    const maxY = world.src.height ? world.h - n.h : Infinity;
+    while (collides(n, n.x, y) && y <= maxY) y += opt.gap;
+    return y <= maxY ? [n.x, y] : findFreeSpot(n, n.x, n.y);
+  }
+
+  // 大きさが変わったあとに、全体を重なりの無い状態へ直す。changed は変更したボックス（その最上位をその場に残す）
+  function settleAll(changed?: Box) {
     roots.forEach(settleTree);
     syncWorld();
-    settleRoots();
+    settleRoots(changed ? (ancestors(changed).pop() ?? changed) : undefined);
     syncWorld();
   }
 
@@ -488,7 +534,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const limit = container.clientWidth - opt.padding;
     if (world.src.width || limit <= 0) return;
     const inside = (n: Box) => n.x + n.w <= limit;
-    const headCenter = (n: Box) => n.x + n.hx + n.hw / 2;
+    const centerOffset = (n: Box) => { const r = anchorRect(n); return r.x + r.w / 2; };
     const over = roots.filter(n => !inside(n) && n.w <= limit - opt.padding).sort((a, b) => a.x - b.x);
     if (!over.length) return;
     for (const n of over) {
@@ -498,7 +544,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         .find(o => !o.parent && inside(o));
       const minX = opt.padding, maxX = limit - n.w;
       const x = anchor
-        ? Math.max(minX, Math.min(maxX, headCenter(anchor) - n.hx - n.hw / 2))
+        ? Math.max(minX, Math.min(maxX, anchor.x + centerOffset(anchor) - centerOffset(n)))
         : minX;
       let y = anchor
         ? anchor.y + anchor.h + opt.treeGapY
@@ -526,22 +572,47 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     head.classList.toggle("mz-leaf", !group);
     for (const s of Object.keys(SIZES)) head.classList.toggle("mz-size-" + s, s === size);
     // 文字の扱いは子を持たないボックスだけが overflow に従う（S は固定の大きさの中で折り返す）
-    const textOv = n.children.length || size === "S" ? "wrap" : overflowOf(n);
+    const textOv = n.children.length || size === "S" || shapeOf(n) === "person" ? "wrap" : overflowOf(n);
     for (const ov of OVERFLOWS) head.classList.toggle("mz-ov-" + ov, !group && textOv === ov);
     n.el.classList.toggle("mz-clip", group && overflowOf(n) === "clip");
 
-    const light = !group && fill && isLightColor(color);
-    head.classList.toggle("mz-dark", !group && fill && light);
-    head.classList.toggle("mz-light", !group && fill && !light);
-    head.style.background = !fill ? "transparent"
-      : group ? `color-mix(in srgb, ${color} 16%, transparent)` : color;
-    const shadow: string[] = [];
-    if (borderOf(n)) {
-      const bc = group || !fill ? color : `color-mix(in srgb, ${color} 70%, #000)`;
-      shadow.push(`inset 0 0 0 2px ${bc}`);
+    const shape = shapeOf(n);
+    for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape);
+    // 文字を塗りの上に書くのは、ボックスと DB（塗りつぶしあり）だけ
+    const onFill = !group && fill && shape !== "person";
+    const light = onFill && isLightColor(color);
+    head.classList.toggle("mz-dark", onFill && light);
+    head.classList.toggle("mz-light", onFill && !light);
+    const edge = `color-mix(in srgb, ${color} 70%, #000)`;
+    if (shape === "box") {
+      head.style.background = !fill ? "transparent"
+        : group ? `color-mix(in srgb, ${color} 16%, transparent)` : color;
+      const shadow: string[] = [];
+      if (borderOf(n)) shadow.push(`inset 0 0 0 2px ${group || !fill ? color : edge}`);
+      if (fill) shadow.push("var(--mz-shadow)");
+      head.style.boxShadow = shadow.join(", ") || "none";
+      n.shapeSvg.replaceChildren();
+    } else {
+      // 形は SVG で描くので、ボックスの背景と影は使わない
+      head.style.background = "transparent";
+      head.style.boxShadow = "none";
+      const svg = n.shapeSvg;
+      if (shape === "person") {
+        svg.setAttribute("viewBox", "0 0 36 52");
+        svg.innerHTML = PERSON_SVG;
+        // 色の指定が無ければ文字の色で描く（白だと明るいテーマで見えないため）
+        svg.style.stroke = n.src.color ? color : "var(--mz-text)";
+        svg.style.fill = "";
+        svg.style.filter = "";
+      } else {
+        svg.removeAttribute("viewBox");
+        svg.innerHTML = '<path class="mz-db-body"/><path class="mz-db-rim" fill="none"/>';
+        svg.style.fill = fill ? color : "none";
+        svg.style.stroke = fill ? edge : color;
+        svg.style.strokeWidth = "1.5";
+        svg.style.filter = fill ? "drop-shadow(var(--mz-shadow))" : "";
+      }
     }
-    if (fill) shadow.push("var(--mz-shadow)");
-    head.style.boxShadow = shadow.join(", ") || "none";
 
     const caption = captionOf(n);
     const shown = displayCaption(n);
@@ -553,7 +624,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     n.moreEl.hidden = !(n.children.length && view === "hidden");
     n.moreEl.title = `子 ${n.children.length} 件`;
     n.treeSvg.style.display = n.children.length && view === "tree" ? "" : "none";
+    // 色の指定が無ければ線と同じ色にする（白だと明るいテーマで見えないため）
+    n.treeFrame.style.stroke = n.src.color ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";
+    n.treeFrame.style.fill = `color-mix(in srgb, ${color} 5%, transparent)`;
     for (const k of n.children) k.el.style.display = view === "hidden" ? "none" : "";
+  }
+
+  // DB の円柱。胴（上面の奥の縁から底の手前の縁まで）を塗り、上面の手前の縁を線で描く
+  function renderDb(n: Box) {
+    const ry = sizeOf(n) === "S" ? 6 : 8; // graph-style.ts の .mz-shape-db の上下の余白と合わせる
+    const x0 = 1, x1 = n.hw - 1, top = ry + 1, bottom = n.hh - ry - 1;
+    const rx = (x1 - x0) / 2;
+    const [body, rim] = n.shapeSvg.children;
+    body?.setAttribute("d",
+      `M${x0},${top}A${rx},${ry} 0 0 1 ${x1},${top}V${bottom}A${rx},${ry} 0 0 1 ${x0},${bottom}Z`);
+    rim?.setAttribute("d", `M${x0},${top}A${rx},${ry} 0 0 0 ${x1},${top}`);
   }
 
   // ツリーの折れ線: 親から1本下ろし、横に分けて各子の上へつなぐ
@@ -568,6 +653,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const d = [`M${px},${top}V${midY}`, `M${Math.min(px, ...xs)},${midY}H${Math.max(px, ...xs)}`];
     n.children.forEach((k, i) => d.push(`M${xs[i]},${midY}V${k.y + k.hy}`));
     n.treePath.setAttribute("d", d.join(""));
+    const f = n.treeFrame;
+    f.setAttribute("width", String(Math.max(0, n.w - 1.5)));
+    f.setAttribute("height", String(Math.max(0, n.h - 1.5)));
   }
 
   // 中心 (cx, cy) から (dx, dy) 方向へ伸ばした線が矩形の縁と交わる点
@@ -586,10 +674,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (hidden) continue;
       const [ax, ay] = absPos(e.a);
       const [bx, by] = absPos(e.b);
-      const acx = ax + e.a.hx + e.a.hw / 2, acy = ay + e.a.hy + e.a.hh / 2;
-      const bcx = bx + e.b.hx + e.b.hw / 2, bcy = by + e.b.hy + e.b.hh / 2;
-      const [x1, y1] = clipToRect(acx, acy, e.a.hw, e.a.hh, bcx - acx, bcy - acy);
-      const [x2, y2] = clipToRect(bcx, bcy, e.b.hw, e.b.hh, acx - bcx, acy - bcy);
+      const ra = anchorRect(e.a), rb = anchorRect(e.b);
+      const acx = ax + ra.x + ra.w / 2, acy = ay + ra.y + ra.h / 2;
+      const bcx = bx + rb.x + rb.w / 2, bcy = by + rb.y + rb.h / 2;
+      const [x1, y1] = clipToRect(acx, acy, ra.w, ra.h, bcx - acx, bcy - acy);
+      const [x2, y2] = clipToRect(bcx, bcy, rb.w, rb.h, acx - bcx, acy - bcy);
       for (const l of e.lines) {
         l.setAttribute("x1", String(x1)); l.setAttribute("y1", String(y1));
         l.setAttribute("x2", String(x2)); l.setAttribute("y2", String(y2));
@@ -609,6 +698,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       h.top = n.hy + "px";
       h.width = n.hw + "px";
       h.height = n.hh + "px";
+      if (shapeOf(n) === "db") renderDb(n);
       renderTree(n);
     }
     renderEdges();
@@ -829,7 +919,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     }
     const size = sizeOf(n);
     // 中身の扱いを選べるのは、文字を持つボックス（S 以外）か、内包しているボックス
-    const usesOverflow = n.children.length ? isNesting(n) : size !== "S";
+    // スティックマンは文字の置き方が決まっているので使わない
+    const usesOverflow = n.children.length ? isNesting(n) : size !== "S" && shapeOf(n) !== "person";
     const out: BoxInfo = {
       kind: n.children.length ? "group" : "box",
       id: n.id,
@@ -838,6 +929,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       fill: fillOf(n),
       border: borderOf(n),
       size,
+      shape: shapeOf(n),
+      canShape: !isNesting(n),
       childView: viewOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
@@ -892,6 +985,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if ("fill" in next) n.src.fill = !!next.fill;
       if ("border" in next) n.src.border = !!next.border;
       if (next.size) n.src.size = next.size;
+      if (next.shape) {
+        if (next.shape === "box") delete n.src.shape; // 既定に戻すときは項目ごと消す
+        else n.src.shape = next.shape;
+      }
       if (next.childView) setView(n, next.childView);
     }
     if (next.overflow && next.overflow !== overflowOf(n)) {
@@ -910,7 +1007,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     } else {
       applyStyle(n);
     }
-    settleAll();
+    settleAll(n.isWorld ? undefined : n);
     render();
     // 選択中のボックスが非表示になったら、隠した親を選び直す
     if (current && isHidden(current)) select(n.isWorld ? null : n);
@@ -943,11 +1040,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const moreEl = document.createElement("span");
     moreEl.className = "mz-more";
     moreEl.textContent = "▼";
-    head.append(textEl, moreEl);
+    const shapeSvg = document.createElementNS(SVGNS, "svg");
+    shapeSvg.setAttribute("class", "mz-shape");
+    shapeSvg.setAttribute("aria-hidden", "true");
+    head.append(shapeSvg, textEl, moreEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
     treeSvg.setAttribute("class", "mz-tree");
     const treePath = document.createElementNS(SVGNS, "path");
-    treeSvg.appendChild(treePath);
+    const treeFrame = document.createElementNS(SVGNS, "rect");
+    treeFrame.setAttribute("class", "mz-tree-frame");
+    treeFrame.setAttribute("x", "0.75");
+    treeFrame.setAttribute("y", "0.75");
+    treeFrame.setAttribute("rx", "10");
+    treeSvg.append(treeFrame, treePath);
     el.append(treeSvg, head);
     const n: Box = {
       isWorld: false,
@@ -962,7 +1067,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       w: 0, h: 0, hx: 0, hy: 0, hw: 0, hh: 0,
       hasPos: Number.isFinite(src.x) && Number.isFinite(src.y),
       placed: false,
-      el, head, textEl, moreEl, treeSvg, treePath,
+      el, head, textEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };
     boxOfEl.set(el, n);
     return n;

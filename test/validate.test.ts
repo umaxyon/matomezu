@@ -30,3 +30,8 @@ test("assignIds は既存の数値 id の続きから振る", () => {
   assignIds(data);
   expect(data.nodes.map(n => n.id)).toEqual([8, 7, 9]);
 });
+
+test("shape の値を検証する", () => {
+  expect(() => validate({ nodes: [{ id: 1, shape: "person" }, { id: 2, shape: "db" }] })).not.toThrow();
+  expect(() => validate({ nodes: [{ id: 1, shape: "cloud" }] })).toThrow("shape の値が不正です: 1 (cloud)");
+});

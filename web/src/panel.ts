@@ -9,7 +9,7 @@
 
 import { esc, injectStyle, toHex } from "./dom";
 import type { Graph } from "./graph";
-import type { Brief, ChildView, Info, Overflow, Size } from "./types";
+import type { Brief, ChildView, Info, Overflow, Shape, Size } from "./types";
 
 const STYLE_ID = "matomezu-panel-style";
 const PANEL_CSS = `
@@ -81,7 +81,7 @@ const PANEL_CSS = `
 }
 .mzp-preset[aria-pressed="true"] { outline: 2px solid var(--mzp-accent); outline-offset: 2px; }
 .mzp-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--mzp-control); }
-.mzp-seg label { flex: 1; text-align: center; padding: 4px 0; cursor: pointer; }
+.mzp-seg label { flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; white-space: nowrap; font-size: 12px; }
 .mzp-seg label:hover { background: var(--mzp-control-hover); }
 .mzp-seg input { position: absolute; opacity: 0; pointer-events: none; }
 .mzp-seg label:has(input:checked) { background: var(--mzp-accent); color: #fff; }
@@ -101,6 +101,7 @@ const SIZE_HINTS = {
   S: "10 文字まで表示。小さい固定サイズ",
 };
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["hidden", "非表示"]];
+const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"]];
 const VIEW_HINTS = {
   nest: "子を親の中に入れて見せます",
   tree: "子を親の下にぶら下げて見せます（子は自動で並びます）",
@@ -147,6 +148,12 @@ function html(info: Info): string {
         `<button type="button" class="mzp-preset" data-color="${c}" style="background:${c}" title="${c}" aria-pressed="${c === hex}"></button>`
       ).join("")}</div>
     </div>`);
+
+    if (info.canShape) {
+      parts.push(`<div class="mzp-section"><h3>形</h3>
+        ${segment("mzp-shape", info.shape, SHAPE_OPTIONS)}
+      </div>`);
+    }
 
     parts.push(`<div class="mzp-section"><h3>サイズ</h3>
       ${segment("mzp-size", info.size, [["L", "L"], ["M", "M"], ["S", "S"]])}
@@ -238,6 +245,7 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
     if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });
     if (t.name === "mzp-size") return graph.update(info.id, { size: t.value as Size });
+    if (t.name === "mzp-shape") return graph.update(info.id, { shape: t.value as Shape });
     if (t.name === "mzp-view") return graph.update(info.id, { childView: t.value as ChildView });
   });
 

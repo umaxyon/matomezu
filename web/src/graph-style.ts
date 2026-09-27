@@ -71,6 +71,20 @@ export const GRAPH_CSS = `
 .mz-more { position: absolute; right: 5px; bottom: 3px; font-size: 9px; line-height: 1; opacity: 0.8; }
 .mz-tree { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .mz-tree path { fill: none; stroke: var(--mz-edge); stroke-width: 1.5; }
+.mz-tree .mz-tree-frame { stroke-width: 1.5; stroke-dasharray: 6 4; }
+/* 形: スティックマン（背景なし、人の形の足元に文字）と DB（円柱。胴の中央に文字） */
+.mz-shape { display: none; }
+.mz-leaf.mz-shape-person { flex-direction: column; justify-content: flex-start; gap: 2px; padding: 0 4px; }
+.mz-shape-person > .mz-shape { display: block; flex: none; width: 36px; height: 52px; overflow: visible; }
+.mz-size-M.mz-shape-person > .mz-shape { width: 32px; height: 46px; }
+.mz-size-S.mz-shape-person > .mz-shape { width: 26px; height: 38px; }
+.mz-shape-person .mz-figure { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.mz-leaf.mz-shape-person .mz-text { color: var(--mz-text); text-shadow: none; line-height: 1.25; }
+/* 上は上面の楕円（縦の半径 8px、S は 6px）の分、下は底の楕円の手前半分の分をあける */
+.mz-leaf.mz-shape-db { padding-top: 18px; padding-bottom: 10px; }
+.mz-leaf.mz-size-S.mz-shape-db { padding-top: 14px; padding-bottom: 7px; }
+.mz-shape-db > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mz-shape-db > .mz-text { position: relative; }
 .mz-node.mz-dim { opacity: 0.35; }
 .mz-node.mz-dragging { z-index: 10; }
 .mz-node.mz-dragging > .mz-head { cursor: grabbing; outline-color: var(--mz-edge-hi); }

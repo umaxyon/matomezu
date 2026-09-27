@@ -20,11 +20,13 @@ export const SIZES: Record<Size, SizeSpec> = {
 
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 export const VIEWS = ["nest", "tree", "hidden"] as const;
+export const SHAPES = ["box", "person", "db"] as const;
 
 const includes = <T>(list: readonly T[], v: unknown): v is T => list.includes(v as T);
 export const isSize = (v: unknown): v is Size => typeof v === "string" && v in SIZES;
 export const isOverflow = (v: unknown) => includes(OVERFLOWS, v);
 export const isView = (v: unknown) => includes(VIEWS, v);
+export const isShape = (v: unknown) => includes(SHAPES, v);
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -40,6 +42,9 @@ export function checkSettings(s: Record<string, unknown>, where: unknown): void 
   }
   if (s.size != null && !isSize(s.size)) {
     throw new Error(`size の値が不正です: ${where} (${s.size})`);
+  }
+  if (s.shape != null && !isShape(s.shape)) {
+    throw new Error(`shape の値が不正です: ${where} (${s.shape})`);
   }
   if (s.childView != null && !isView(s.childView)) {
     throw new Error(`childView の値が不正です: ${where} (${s.childView})`);

@@ -3,6 +3,7 @@
 export type Size = "L" | "M" | "S";
 export type ChildView = "nest" | "tree" | "hidden";
 export type Overflow = "wrap" | "grow" | "clip";
+export type Shape = "box" | "person" | "db";
 export type Id = number | string;
 
 export interface WorldData {
@@ -22,6 +23,7 @@ export interface BoxData {
   height?: number;
   color?: string;
   size?: Size;
+  shape?: Shape;
   childView?: ChildView;
   fill?: boolean;
   border?: boolean;
@@ -72,6 +74,8 @@ export interface BoxInfo {
   fill: boolean;
   border: boolean;
   size: Size;
+  shape: Shape;
+  canShape: boolean; // 形を選べるか（内包しているグループは枠なので選べない）
   childView: ChildView;
   parent: Brief | null;
   x: number;
@@ -91,6 +95,7 @@ export interface Patch {
   caption?: string | null;
   color?: string | null;
   size?: Size;
+  shape?: Shape;
   childView?: ChildView;
   fill?: boolean;
   border?: boolean;
