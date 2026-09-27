@@ -78,7 +78,7 @@ func open(args []string) error {
 	if err != nil {
 		return err
 	}
-	s, err := daemon.Ensure(context.Background(), exe, version)
+	s, err := daemon.Ensure(context.Background(), exe, buildVersion(exe))
 	if err != nil {
 		return err
 	}
@@ -100,6 +100,18 @@ func open(args []string) error {
 		}
 	}
 	return nil
+}
+
+// 開発中のビルドは版がすべて dev なので、実行ファイルの更新時刻で見分ける。
+// 作り直したら、古い画面を持った常駐サーバーを入れ替えるため
+func buildVersion(exe string) string {
+	if version != "dev" {
+		return version
+	}
+	if st, err := os.Stat(exe); err == nil {
+		return fmt.Sprintf("dev-%x", st.ModTime().UnixNano())
+	}
+	return version
 }
 
 // serve は1つの図のサーバーを前面で動かす（開発やデバッグ用）
@@ -156,8 +168,13 @@ func runDaemon(args []string) error {
 	if err != nil {
 		return err
 	}
-	st := &daemon.State{PID: os.Getpid(), Addr: ln.Addr().String(), Token: daemon.NewToken(), Version: version}
-	hub := server.NewHub(ctx, web.FS, server.WithControl(st.Token, version, stopNow))
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	v := buildVersion(exe)
+	st := &daemon.State{PID: os.Getpid(), Addr: ln.Addr().String(), Token: daemon.NewToken(), Version: v}
+	hub := server.NewHub(ctx, web.FS, server.WithControl(st.Token, v, stopNow))
 	if err := daemon.WriteState(st); err != nil {
 		return err
 	}

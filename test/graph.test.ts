@@ -92,3 +92,42 @@ test("検証エラーのときは例外を投げ、表示は元のまま", () =>
   expect(() => graph.load({ nodes: [{ id: 1, parent: 1 }] })).toThrow("循環");
   expect(graph.info(1).caption).toBe("keep");
 });
+
+test("読み込んだ直後、右にはみ出したボックスを、つながる相手の真下へ移す", () => {
+  const { graph } = setup({
+    nodes: [
+      { id: 1, caption: "表示内", x: 300, y: 40 },
+      { id: 2, caption: "はみ出し", x: 1100, y: 40 },
+      { id: 3, caption: "無関係", x: 40, y: 300 },
+    ],
+    edges: [[1, 2]],
+  });
+  const out = graph.toJSON();
+  const a = graph.info(1), b = graph.info(2);
+  expect(b.x + b.w).toBeLessThanOrEqual(1000);
+  expect(b.y).toBeGreaterThan(a.y + a.h);
+  expect(b.x + b.w / 2).toBe(a.x + a.w / 2); // 真下なので線は垂直
+  expect([byId(out, 1).x, byId(out, 1).y, byId(out, 3).x, byId(out, 3).y]).toEqual([300, 40, 40, 300]);
+});
+
+test("つながる相手が無ければ一番下へ。ワールドの幅が指定されていれば動かさない", () => {
+  const { graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 1200, y: 40 }] });
+  expect(graph.info(2).x + graph.info(2).w).toBeLessThanOrEqual(1000);
+  expect(graph.info(2).y).toBeGreaterThan(graph.info(1).y + graph.info(1).h);
+  graph.destroy();
+
+  const fixed = setup({ world: { width: 1600 }, nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 1200, y: 40 }] }).graph;
+  expect(fixed.info(2).x).toBe(1200);
+});
+
+test("ウィンドウの大きさが変わっても動かさない（読み込みのときだけ）", () => {
+  const { graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 600, y: 40 }] });
+  // 表示領域が狭くなったことにして、変更（読み込み以外）をしても位置は保たれる
+  Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 500 });
+  try {
+    graph.update(1, { color: "#ff0000" });
+    expect(graph.info(2).x).toBe(600);
+  } finally {
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1000 });
+  }
+});

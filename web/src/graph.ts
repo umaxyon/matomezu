@@ -477,6 +477,38 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     });
     settleRoots();
     syncWorld();
+    fitToViewport();
+  }
+
+  // 読み込んだ直後だけ、表示領域の右にはみ出した最上位のボックスを下へ移す（横スクロールより縦の方が見やすい）。
+  // つながる相手が表示領域に収まっていれば、その真下に中心をそろえて置く。無ければ全体の一番下の左端に置く。
+  // 表示の上だけで動かし、ファイルには次に編集したときに保存される。
+  // ワールドの幅が指定されている、または表示領域より大きいボックスは動かさない
+  function fitToViewport() {
+    const limit = container.clientWidth - opt.padding;
+    if (world.src.width || limit <= 0) return;
+    const inside = (n: Box) => n.x + n.w <= limit;
+    const headCenter = (n: Box) => n.x + n.hx + n.hw / 2;
+    const over = roots.filter(n => !inside(n) && n.w <= limit - opt.padding).sort((a, b) => a.x - b.x);
+    if (!over.length) return;
+    for (const n of over) {
+      const anchor = edges
+        .filter(e => e.a === n || e.b === n)
+        .map(e => (e.a === n ? e.b : e.a))
+        .find(o => !o.parent && inside(o));
+      const minX = opt.padding, maxX = limit - n.w;
+      const x = anchor
+        ? Math.max(minX, Math.min(maxX, headCenter(anchor) - n.hx - n.hw / 2))
+        : minX;
+      let y = anchor
+        ? anchor.y + anchor.h + opt.treeGapY
+        : Math.max(...roots.filter(o => o !== n && inside(o)).map(o => o.y + o.h), 0) + opt.treeGapY;
+      // ぶつかれば下へずらす
+      while (collides(n, x, y)) y += opt.gap;
+      n.x = x;
+      n.y = y;
+    }
+    syncWorld();
   }
 
   // ---- 描画 ----
