@@ -22,6 +22,10 @@ import { GROUP_MIN, SIZES } from "./validate";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
 
+// 処理の回数（テストで、リファクタで回数が増えていないことを確かめる）。
+// measures は文字を実際に測った回数（使い回しで済まなかった回数）、overlapChecks は重なりの判定の回数
+export const layoutStats = { measures: 0, overlapChecks: 0 };
+
 // 文字の大きさを測った結果（measure）。フォントの読み込みが終わると文字の幅が変わるので捨てる
 const measureCache = new Map<string, [number, number]>();
 if (typeof document !== "undefined") document.fonts?.addEventListener?.("loadingdone", () => measureCache.clear());
@@ -102,6 +106,7 @@ export function createLayout(ctx: LayoutContext) {
     const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}`;
     const hit = measureCache.get(key);
     if (hit) return hit;
+    layoutStats.measures++;
     const s = n.head.style;
     const prev = [s.width, s.height] as const;
     s.width = width == null ? "max-content" : width + "px";
@@ -235,6 +240,7 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   function overlaps(n: Box, x: number, y: number, o: Box) {
+    layoutStats.overlapChecks++;
     const g = opt.gap;
     return x < o.x + o.w + g && x + n.w + g > o.x &&
            y < o.y + o.h + g && y + n.h + g > o.y;

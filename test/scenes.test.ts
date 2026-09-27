@@ -179,7 +179,7 @@ describe("場面の表の行のうち、テストが無かったもの", () => {
     }
   });
 
-  // 今の振る舞いを固定する（見直す候補: docs/REFACTOR-layout.md の 5 章）
+  // 今の振る舞いを固定する（見直す候補: docs/REFACTOR-layout.md の 6 章）
   test("押し下げられる前の位置は、読み直しで消える（そのあと縮んでも戻らない）", () => {
     const { graph } = setup(example("three-levels"));
     graph.update(5, { caption: LONG });
