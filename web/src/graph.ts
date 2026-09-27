@@ -14,6 +14,7 @@
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）
+ *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
  *   graph.destroy();
  *
  * データ形式:
@@ -79,6 +80,7 @@ export interface Graph {
   info(id: Id | null): Info;
   update(id: Id | null, patch: Patch): void;
   toJSON(): Diagram;
+  dragging(): boolean;
   destroy(): void;
 }
 
@@ -1000,6 +1002,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       out.edges = edges.map(e => ({ ...e.src, id: e.id, from: e.a.src.id!, to: e.b.src.id! }));
       return out;
     },
+    dragging: () => drag != null,
     destroy() {
       ro.disconnect();
       listening.abort();

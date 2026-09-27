@@ -50,7 +50,10 @@
     font-size: 13px;
     flex-wrap: wrap;
   }
-  header .name { margin-right: auto; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header .name { opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header .status { margin-right: auto; color: var(--hint); font-size: 12px; }
+  /* serve から開いたときは自動で保存するので、開く・保存のボタンは使わない */
+  body.served #open, body.served #save { display: none; }
   button {
     font: inherit;
     color: inherit;
@@ -98,6 +101,7 @@
 <body>
 <header>
   <span class="name" id="name">サンプル</span>
+  <span class="status" id="status" role="status"></span>
   <button id="open">JSONを開く</button>
   <button id="save" class="primary">保存</button>
   <input id="file" type="file" accept="application/json,.json" hidden>
