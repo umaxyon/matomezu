@@ -15,10 +15,11 @@
  *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.info(id);              // ボックス（null はワールド）の情報
- *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）
+ *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
  *   graph.setMode(mode);         // ドラッグの働き: "move"（移動）/ "reparent"（親子の付け替え）
  *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
+ *   graph.fitChildren(id, "width" | "height" | "both"); // 内包している子の大きさを、一番大きい子にそろえる
  *   graph.destroy();
  *
  * データ形式:
@@ -116,6 +117,7 @@ export interface Graph {
   setMode(mode: Mode): void;
   mode(): Mode;
   reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean; // at は最上位へ移すときの位置
+  fitChildren(id: Id, what: "width" | "height" | "both"): number;
   destroy(): void;
 }
 
@@ -154,6 +156,14 @@ interface World {
 
 type Container = Box | World;
 
+interface Released {
+  m: Box;
+  specW: number;
+  specH: number;
+  width: number | undefined;
+  height: number | undefined;
+}
+
 interface Edge {
   src: EdgeData;
   id: string;
@@ -178,7 +188,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let roots: Box[] = [];
   let byId = new Map<string, Box>();
   let edges: Edge[] = [];
-  let drag: { n: Box; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null = null;
+  let drag: {
+    n: Box; sx: number; sy: number; ox: number; oy: number; moved: boolean;
+    released: Released[] | null; // 動かし始めたときに外した、祖先の最小の大きさ
+  } | null = null;
   let linking: Box | null = null;      // Ctrl+クリックで選んだ1つ目
   let mode: Mode = "move";
   // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）
@@ -643,13 +656,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 読み込んだ直後だけ、表示領域の右にはみ出した最上位のボックスを下へ移す（横スクロールより縦の方が見やすい）。
   // つながる相手が表示領域に収まっていれば、その真下に中心をそろえて置く。無ければ全体の一番下の左端に置く。
   // 表示の上だけで動かし、ファイルには次に編集したときに保存される。
-  // ワールドの幅が指定されている、または表示領域より大きいボックスは動かさない
+  // ワールドの幅が指定されている、表示領域より大きい、または左端が表示領域の左半分にあるボックスは動かさない
+  // （左から始まる大きなボックスが少しはみ出しただけなら、動かすと全体の並びが崩れる）
   function fitToViewport() {
     const limit = container.clientWidth - opt.padding;
     if (world.src.width || limit <= 0) return;
     const inside = (n: Box) => n.x + n.w <= limit;
     const centerOffset = (n: Box) => { const r = anchorRect(n); return r.x + r.w / 2; };
-    const over = roots.filter(n => !inside(n) && n.w <= limit - opt.padding).sort((a, b) => a.x - b.x);
+    const over = roots
+      .filter(n => !inside(n) && n.w <= limit - opt.padding && n.x >= limit / 2)
+      .sort((a, b) => a.x - b.x);
     if (!over.length) return;
     for (const n of over) {
       const anchor = edges
@@ -1028,7 +1044,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     }
     const d = dragTarget(n);
     n.head.setPointerCapture(e.pointerId);
-    drag = { n: d, sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, moved: false };
+    drag = { n: d, sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, moved: false, released: null };
     d.el.classList.add("mz-dragging");
     focus(n);
   }
@@ -1037,6 +1053,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (lift) return moveLift(e);
     if (!drag) return;
     const { n } = drag;
+    if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
+    drag.released ??= releaseSizes(n);
     if (tryMove(n, drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy)) {
       drag.moved = true;
       render();
@@ -1050,6 +1068,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (!drag) return;
     drag.n.el.classList.remove("mz-dragging");
     const moved = drag.moved;
+    if (!moved && drag.released) restoreSizes(drag.released, drag.n);
     drag = null;
     unfocus();
     if (moved) {
@@ -1057,6 +1076,34 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       changed();
       notifySelect();
     }
+  }
+
+  // 中身を手で動かしたら、中身に合わせて伸びる祖先の最小の大きさ（width, height）を外し、中身に追従させる。
+  // 「子のサイズをそろえる」で付いた大きさも、手で動かした方を優先する。
+  // 幅に合わせて折り返す・切り詰めるグループは、大きさを意図して決めているので外さない
+  function releaseSizes(n: Box): Released[] {
+    const out: Released[] = [];
+    for (const m of ancestors(n)) {
+      if (overflowOf(m) !== "grow" || !(m.specW || m.specH)) continue;
+      out.push({ m, specW: m.specW, specH: m.specH, width: m.src.width, height: m.src.height });
+      m.specW = 0;
+      m.specH = 0;
+      delete m.src.width;
+      delete m.src.height;
+    }
+    return out;
+  }
+
+  // 実際には動かさなかったときは、外した大きさを戻す
+  function restoreSizes(list: Released[], n: Box) {
+    for (const r of list) {
+      r.m.specW = r.specW;
+      r.m.specH = r.specH;
+      if (r.width != null) r.m.src.width = r.width;
+      if (r.height != null) r.m.src.height = r.height;
+    }
+    refitAncestors(n);
+    render();
   }
 
   function onPointerOver(e: PointerEvent) {
@@ -1195,6 +1242,99 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
+  // ---- 子の大きさをそろえる ----
+
+  // そろえられる子。S は大きさが固定、スティックマンは文字で幅が決まり、
+  // ツリーや非表示で子を見せているボックスは子の並びで大きさが決まるので除く
+  function sizable(n: Box): Box[] {
+    if (!isNesting(n)) return [];
+    return n.children.filter(k =>
+      sizeOf(k) !== "S" && shapeOf(k) !== "person" && !(k.children.length && viewOf(k) !== "nest"));
+  }
+
+  // 大きさの指定を外して、今の中身の配置のまま収まる大きさを測る（文字だけのボックスは既定の大きさ）
+  function naturalSize(k: Box, dim: "w" | "h") {
+    const [sw, sh] = [k.specW, k.specH];
+    if (dim === "w") k.specW = 0;
+    else k.specH = 0;
+    fit(k);
+    const v = dim === "w" ? k.w : k.h;
+    [k.specW, k.specH] = [sw, sh];
+    fit(k);
+    return v;
+  }
+
+  // 中身を詰め直してもこれより小さくできない大きさ（一番大きい中身が入る大きさ）
+  function minimumSize(k: Box, dim: "w" | "h") {
+    if (!isNesting(k)) return naturalSize(k, dim);
+    const a = innerArea(k);
+    return dim === "w"
+      ? Math.max(SIZES.L.w, a.left + a.right + Math.max(...k.children.map(g => g.w)))
+      : Math.max(SIZES.L.h, a.top + a.bottom + Math.max(...k.children.map(g => g.h)));
+  }
+
+  // 内包している k の中身を、大きさ limit に収まるよう詰め直す。
+  // 幅なら右にはみ出す中身を左へ寄せ、重なったら下へずらす。高さなら上へ寄せ、重なったら右へずらす
+  function compress(k: Box, dim: "w" | "h", limit: number) {
+    if (!isNesting(k)) return;
+    const a = innerArea(k);
+    const kids = [...k.children].sort((p, q) => (dim === "w" ? p.y - q.y || p.x - q.x : p.x - q.x || p.y - q.y));
+    for (const g of kids) {
+      if (dim === "w" && g.x + g.w > limit - a.right) g.x = Math.max(a.left, limit - a.right - g.w);
+      if (dim === "h" && g.y + g.h > limit - a.bottom) g.y = Math.max(a.top, limit - a.bottom - g.h);
+      g.placed = false;
+    }
+    for (const g of kids) {
+      while (collides(g, g.x, g.y)) {
+        if (dim === "w") g.y += opt.gap;
+        else g.x += opt.gap;
+      }
+      g.placed = true;
+    }
+    fit(k);
+  }
+
+  // 内包している子の幅や高さを、今いちばん小さい子に合わせてそろえる。縮める方向にしか働かない
+  // （ボックスは中身に合わせた大きさが正解なので、そろえるために大きくはしない）。
+  // 広い子は中身を詰め直して縮め、中身の都合で目標まで縮められない子は、縮められるところまで縮める。
+  // グループに大きさの指定（width, height）を付けるのは、目標にぴったり合わせるのに要るときだけ。
+  // 両方なら幅を先にそろえる。そろえた子の数を返す
+  function fitChildren(id: Id, what: "width" | "height" | "both") {
+    const n = nodeOf(id);
+    if (n.isWorld) throw new Error("ワールドの子はそろえられません");
+    const kids = sizable(n);
+    if (kids.length < 2) return 0;
+    let partial = false;
+    const align = (dim: "w" | "h") => {
+      const cur = (k: Box) => (dim === "w" ? k.w : k.h);
+      const target = Math.min(...kids.map(cur));
+      for (const k of kids) {
+        const t = Math.round(Math.max(target, minimumSize(k, dim)));
+        if (t > target + 0.5) partial = true;
+        compress(k, dim, t);
+        // グループは中身に合わせた大きさが目標に届かないときだけ指定を付け、文字のボックスは常に指定する
+        const size = isNesting(k) && naturalSize(k, dim) >= t ? 0 : t;
+        if (dim === "w") {
+          k.specW = size;
+          if (size) k.src.width = size; else delete k.src.width;
+        } else {
+          k.specH = size;
+          if (size) k.src.height = size; else delete k.src.height;
+        }
+        fit(k);
+      }
+    };
+    if (what !== "height") align("w");
+    if (what !== "width") align("h");
+    settleAll(n);
+    render();
+    changed();
+    notifySelect();
+    const label = what === "width" ? "幅" : what === "height" ? "高さ" : "幅と高さ";
+    opt.onNotice?.(`子 ${kids.length} 個の${label}をそろえました` + (partial ? "（中身の都合で狭められない子があります）" : ""));
+    return kids.length;
+  }
+
   function setMode(m: Mode) {
     endLift();
     mode = m;
@@ -1238,6 +1378,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       size,
       shape: shapeOf(n),
       canShape: !isNesting(n),
+      sizableChildren: sizable(n).length,
       childView: viewOf(n),
       treeDirection: treeDirOf(n),
       parent: n.parent ? brief(n.parent) : null,
@@ -1292,7 +1433,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       }
       if ("fill" in next) n.src.fill = !!next.fill;
       if ("border" in next) n.src.border = !!next.border;
-      if (next.size) n.src.size = next.size;
+      if (next.size) {
+        // サイズを選んだら、そのサイズで中身に合わせた大きさに戻す（付いていた大きさの指定を外す）
+        n.src.size = next.size;
+        n.specW = 0;
+        n.specH = 0;
+        delete n.src.width;
+        delete n.src.height;
+      }
       if (next.shape) {
         if (next.shape === "box") delete n.src.shape; // 既定に戻すときは項目ごと消す
         else n.src.shape = next.shape;
@@ -1471,6 +1619,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     setMode,
     mode: () => mode,
     reparent,
+    fitChildren,
     destroy() {
       endLift();
       ro.disconnect();

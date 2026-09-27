@@ -572,3 +572,176 @@ describe("ドラッグで親が広がったとき", () => {
     expect(byId(graph.toJSON(), 2).x).toBeGreaterThan(before!);
   });
 });
+
+describe("子の大きさをそろえる", () => {
+  test("広い子は中身を詰め直して、狭い子の幅に縮む", () => {
+    const { graph } = setup({
+      nodes: [
+        { id: 1, caption: "バックエンド", x: 40, y: 40 },
+        { id: 2, caption: "API", parent: 1, x: 12, y: 30 },
+        { id: 21, caption: "認証", parent: 2, x: 12, y: 30 }, { id: 22, caption: "注文", parent: 2, x: 280, y: 90 },
+        { id: 3, caption: "データ", parent: 1, x: 200, y: 250 },
+        { id: 31, caption: "DB", parent: 3, x: 12, y: 30 }, { id: 32, caption: "キャッシュ", parent: 3, x: 130, y: 120 },
+      ],
+    });
+    expect([graph.info(2).w, graph.info(3).w]).toEqual([412, 262]);
+    graph.fitChildren(1, "width");
+    expect([graph.info(2).w, graph.info(3).w]).toEqual([262, 262]); // データは伸びず、API が縮む
+    // 注文は左へ寄り、認証と重なる分だけ下へずれる
+    const order = graph.info(22), auth = graph.info(21);
+    expect(order.x + order.w).toBeLessThanOrEqual(262 - 12);
+    expect(order.y).toBeGreaterThanOrEqual(auth.y + auth.h);
+  });
+
+  // 文字だけのボックスは既定の大きさまで縮み、長い文字は折り返して高くなる
+  test("文字のボックスは既定の幅まで縮めてそろえる", () => {
+    const { graph } = setup({
+      nodes: [
+        { id: 1, x: 40, y: 40 },
+        { id: 2, caption: "短い", parent: 1, width: 300 },
+        { id: 3, caption: "とても長いキャプションの入ったボックス", parent: 1, overflow: "grow" },
+      ],
+    });
+    graph.fitChildren(1, "both");
+    const a = graph.info(2), b = graph.info(3);
+    expect(a.w).toBe(b.w);
+    expect(a.h).toBe(b.h);
+    expect(a.w).toBeLessThan(300);
+  });
+
+  const data = (): Diagram => ({
+    nodes: [
+      { id: 1, caption: "バックエンド", x: 40, y: 40 },
+      { id: 2, caption: "API", parent: 1, x: 12, y: 30 },
+      { id: 21, caption: "認証", parent: 2 }, { id: 22, caption: "注文", parent: 2 },
+      { id: 3, caption: "データ", parent: 1, x: 12, y: 200, width: 400 },
+      { id: 31, caption: "DB", parent: 3 },
+      { id: 4, caption: "小", parent: 1, x: 500, y: 30, size: "S" },
+    ],
+  });
+
+  test("幅を、全員がそろえられる一番小さい幅にそろえ、対象外（S）は変えない", () => {
+    const notices: string[] = [];
+    const { graph } = setup(data(), { onNotice: (t: string) => notices.push(t) });
+    expect((graph.info(1) as import("../web/src/types").BoxInfo).sizableChildren).toBe(2);
+    const s = graph.info(4).w;
+    expect(graph.fitChildren(1, "width")).toBe(2);
+    // API は中の2つが横に並ぶので 12+120+8+120+12 = 272 より小さくできない。広げてあったデータ（400）も 272 に縮む
+    expect([graph.info(2).w, graph.info(3).w]).toEqual([272, 272]);
+    expect(graph.info(4).w).toBe(s);
+    expect(byId(graph.toJSON(), 3).width).toBe(272); // 保存される
+    expect(notices.at(-1)).toBe("子 2 個の幅をそろえました");
+  });
+
+  test("高さと両方。広がってぶつかる子はずらし、Undo 1回で戻る", () => {
+    const { graph } = setup(data());
+    const before = graph.toJSON();
+    graph.fitChildren(1, "both");
+    const a = graph.info(2), d = graph.info(3);
+    expect(a.w).toBe(d.w);
+    expect(a.h).toBe(d.h);
+    const apart = a.y + a.h <= d.y || d.y + d.h <= a.y || a.x + a.w <= d.x || d.x + d.w <= a.x;
+    expect(apart).toBe(true);
+    graph.undo();
+    expect(graph.toJSON()).toEqual(before);
+  });
+
+  test("そろえられる子が1つ以下なら何もしない", () => {
+    const { graph } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3, parent: 1, size: "S" }] });
+    expect(graph.fitChildren(1, "width")).toBe(0);
+    expect(graph.history().canUndo).toBe(false);
+  });
+});
+
+test("左から始まる大きなボックスが少しはみ出しただけなら、読み込み時に動かさない", () => {
+  const { graph } = setup({
+    nodes: [
+      { id: 1, caption: "ユーザー", x: 40, y: 140 },
+      { id: 2, caption: "大きな枠", x: 220, y: 100, width: 780 }, // 右端 1000 が、表示領域（1000 - 余白）を少し越える
+      { id: 3, caption: "中", parent: 2 },
+    ],
+    edges: [[1, 2]],
+  });
+  expect([graph.info(2).x, graph.info(2).y]).toEqual([220, 100]);
+});
+
+describe("中身をドラッグしたら親が追従する", () => {
+  const data = (): Diagram => ({
+    nodes: [
+      { id: 1, caption: "API", x: 40, y: 40, width: 400, height: 150 }, // そろえた後のように最小の大きさが付いている
+      { id: 2, caption: "認証", parent: 1, x: 12, y: 30 },
+      { id: 3, caption: "注文", parent: 1, x: 260, y: 30 },
+    ],
+  });
+  function press(el: HTMLElement, graph: Graph, id: number, moves: [number, number][]) {
+    graph.select(id);
+    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
+    const fire = (type: string, x: number, y: number) =>
+      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    fire("pointerdown", 0, 0);
+    for (const [x, y] of moves) fire("pointermove", x, y);
+    const last = moves.at(-1) ?? [0, 0];
+    fire("pointerup", last[0], last[1]);
+  }
+
+  test("子を内側へ動かすと、最小の大きさを外して縮む。Undo で戻る", () => {
+    const { el, graph } = setup(data());
+    expect(graph.info(1).w).toBe(400);
+    press(el, graph, 3, [[-40, 0], [-80, 0], [-120, 0]]);
+    // 注文は x=140 まで動き、API は中身（140 + 120 + 余白 12）に合わせて縮む
+    expect(byId(graph.toJSON(), 3).x).toBe(140);
+    expect(graph.info(1).w).toBe(272);
+    expect(graph.info(1).h).toBe(30 + 64 + 12);
+    expect("width" in byId(graph.toJSON(), 1)).toBe(false);
+    graph.undo();
+    expect([byId(graph.toJSON(), 1).width, graph.info(1).w]).toEqual([400, 400]);
+  });
+
+  test("つかんだだけで動かさなければ、何も変えない", () => {
+    const { el, graph } = setup(data());
+    press(el, graph, 3, [[0, 0]]);
+    expect([byId(graph.toJSON(), 1).width, graph.info(1).w]).toEqual([400, 400]);
+    expect(graph.history().canUndo).toBe(false);
+  });
+
+  test("幅に合わせて折り返すグループの大きさは外さない", () => {
+    const d = data();
+    byId(d, 1).overflow = "wrap";
+    const { el, graph } = setup(d);
+    press(el, graph, 3, [[-40, 0], [-80, 0]]);
+    expect(graph.info(1).w).toBe(400);
+  });
+});
+
+test("子の大きさをそろえる: 縮められない子があっても、ほかの子は大きくならない", () => {
+  const notices: string[] = [];
+  const { graph } = setup({
+    nodes: [
+      { id: 1, caption: "Web", x: 40, y: 40 },
+      { id: 2, caption: "トップ画面", parent: 1, x: 12, y: 30 },
+      { id: 3, caption: "カート画面", parent: 1, x: 150, y: 30 },
+      { id: 4, caption: "バックエンド", parent: 1, x: 12, y: 120 },
+      { id: 41, caption: "データ", parent: 4, x: 12, y: 30 }, { id: 42, caption: "API", parent: 4, x: 200, y: 30 },
+    ],
+  }, { onNotice: (t: string) => notices.push(t) });
+  const before = [2, 3, 4].map(id => graph.info(id).w);
+  graph.fitChildren(1, "width");
+  const after = [2, 3, 4].map(id => graph.info(id).w);
+  for (let i = 0; i < 3; i++) expect(after[i]!).toBeLessThanOrEqual(before[i]!);
+  expect(after[0]).toBe(120); // 文字のボックスは一番小さい幅のまま
+  // バックエンドは中身を縦に並べ直し、中身1つ分（12 + 120 + 12）まで縮む。目標の 120 には届かない
+  expect(after[2]).toBe(144);
+  expect(graph.info(42).y).toBeGreaterThanOrEqual(graph.info(41).y + graph.info(41).h);
+  expect(notices.at(-1)).toContain("中身の都合で狭められない子があります");
+});
+
+test("サイズを選ぶと、付いていた大きさの指定を外して中身に合わせた大きさに戻る", () => {
+  const { graph } = setup({ nodes: [{ id: 1, caption: "トップ画面", x: 40, y: 40, width: 312, height: 90 }] });
+  expect(graph.info(1).w).toBe(312);
+  graph.update(1, { size: "L" }); // 今と同じサイズでも戻す
+  const out = byId(graph.toJSON(), 1);
+  expect(["width" in out, "height" in out]).toEqual([false, false]);
+  expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]);
+  graph.undo();
+  expect(graph.info(1).w).toBe(312);
+});

@@ -80,6 +80,7 @@ export interface BoxInfo {
   size: Size;
   shape: Shape;
   canShape: boolean; // 形を選べるか（内包しているグループは枠なので選べない）
+  sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: ChildView;
   treeDirection: TreeDirection;
   parent: Brief | null;

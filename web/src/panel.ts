@@ -174,7 +174,7 @@ function html(info: Info): string {
 
     parts.push(`<div class="mzp-section"><h3>サイズ</h3>
       ${segment("mzp-size", info.size, [["L", "L"], ["M", "M"], ["S", "S"]])}
-      <p class="mzp-hint">${SIZE_HINTS[info.size]}</p>
+      <p class="mzp-hint">${SIZE_HINTS[info.size]}。押すと中身に合わせた大きさに戻ります</p>
     </div>`);
 
     if (info.children.length) {
@@ -199,6 +199,16 @@ function html(info: Info): string {
   }</dl></div>`);
 
   if (info.kind !== "world") {
+    if (info.sizableChildren >= 2) {
+      parts.push(`<div class="mzp-section"><h3>子のサイズ</h3>
+        <div class="mzp-chips">
+          <button type="button" class="mzp-chip" data-fit="width">幅をそろえる</button>
+          <button type="button" class="mzp-chip" data-fit="height">高さをそろえる</button>
+          <button type="button" class="mzp-chip" data-fit="both">両方</button>
+        </div>
+        <p class="mzp-hint">一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません（S サイズ、スティックマン、ツリー・非表示の子は対象外）</p>
+      </div>`);
+    }
     parts.push(`<div class="mzp-section"><h3>見た目</h3>
       <label class="mzp-check"><input type="checkbox" data-field="fill"${info.fill ? " checked" : ""}>塗りつぶし</label>
       <label class="mzp-check"><input type="checkbox" data-field="border"${info.border ? " checked" : ""}>枠線</label>
@@ -240,7 +250,13 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
     const preset = e.target.closest<HTMLElement>("[data-color]");
     if (preset) return graph.update(info.id, { color: preset.dataset.color! });
     const bg = e.target.closest<HTMLElement>("[data-bg]");
-    if (bg) graph.update(null, { background: bg.dataset.bg || null });
+    if (bg) return graph.update(null, { background: bg.dataset.bg || null });
+    // サイズはクリックで受け取る（選んでいるサイズをもう一度押しても、大きさを戻せるように）
+    if (e.target instanceof HTMLInputElement && e.target.name === "mzp-size") {
+      return graph.update(info.id, { size: e.target.value as Size });
+    }
+    const fit = e.target.closest<HTMLElement>("[data-fit]");
+    if (fit && info.id != null) graph.fitChildren(info.id, fit.dataset.fit as "width" | "height" | "both");
   });
 
   // 文字入力は Enter で確定する（フォーカスが外れたときも確定する）
@@ -265,7 +281,6 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
     }
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
     if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });
-    if (t.name === "mzp-size") return graph.update(info.id, { size: t.value as Size });
     if (t.name === "mzp-shape") return graph.update(info.id, { shape: t.value as Shape });
     if (t.name === "mzp-treedir") return graph.update(info.id, { treeDirection: t.value as TreeDirection });
     if (t.name === "mzp-view") return graph.update(info.id, { childView: t.value as ChildView });
