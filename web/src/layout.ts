@@ -9,7 +9,8 @@
 //   設定変更で広がったとき    anchorPlan + stepAside   線の相手の側の辺（か中心）を保ち、自分より大きい相手とは
 //                                                       自分がずれる
 //   子のサイズをそろえる      compress                 中身を寄せ、重なれば下（高さのときは右）へ
-//   読み込み直後              fitToViewport            右半分からはみ出した最上位を、線の相手の真下へ
+//   最初に開いたとき          fitToViewport            右半分からはみ出した最上位を、線の相手の真下へ
+//                                                       （外部の変更の読み直しや Undo では行わない）
 
 import {
   type Box, type Container, type Edge, type World,

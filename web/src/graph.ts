@@ -11,7 +11,7 @@
  *   const graph = createGraph(document.getElementById('stage'), data, { onChange, onSelect });
  *   graph.toJSON();              // 現在の状態を反映したデータ
  *   graph.load(data);            // 別のデータで描き直す（検証エラーなら例外を投げ、表示はそのまま残る）。履歴は空にする
- *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す
+ *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す（はみ出しの調整はしない）
  *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.info(id);              // ボックス（null はワールド）の情報
@@ -782,9 +782,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return n;
   }
 
+  // 読み込み直後のはみ出しの調整（fitToViewport）は、最初に開いたときだけ行う。
+  // 外部（LLM など）の変更の読み直しでは行わない。行うと、ファイルの位置と画面の位置がずれていくため
   function load(newData: unknown, o: { keepHistory?: boolean } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
-    build(copy, true);
+    build(copy, !o.keepHistory);
     if (o.keepHistory) record();
     else resetHistory();
   }

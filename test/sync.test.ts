@@ -214,3 +214,10 @@ test("最初の読み込みは履歴に残さない", async () => {
   const g = await setup();
   expect(g.history().canUndo).toBe(false);
 });
+
+test("LLM の変更を読み直しても、はみ出したボックスを動かさない", async () => {
+  const g = await setup();
+  external({ nodes: [{ id: 1, x: 20, y: 20 }, { id: 2, caption: "右端", x: 900, y: 20 }], edges: [[1, 2]] });
+  await wait(10);
+  expect([g.info(2).x, g.info(2).y]).toEqual([900, 20]);
+});

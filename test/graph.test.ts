@@ -865,3 +865,16 @@ test("つながる相手が片側にだけいれば、その側の辺を動か�
   graph.update(2, { size: "S" }); // 内包のままサイズを変えても左辺は同じ
   expect(graph.info(2).x).toBe(before.x);
 });
+
+test("はみ出しの調整は最初に開いたときだけで、外部の変更の読み直しでは行わない", () => {
+  const data = (caption: string): Diagram => ({
+    nodes: [{ id: 1, caption: "相手", x: 40, y: 40 }, { id: 2, caption, x: 900, y: 40 }],
+    edges: [[1, 2]],
+  });
+  const { graph } = setup(data("右端"));
+  expect(graph.info(2).x).not.toBe(900); // 最初に開いたときは下へ移す
+  graph.load(data("LLM が書き換えた"), { keepHistory: true });
+  expect([graph.info(2).x, graph.info(2).y]).toEqual([900, 40]); // ファイルの位置のまま
+  graph.load(data("開き直し"));
+  expect(graph.info(2).x).not.toBe(900);
+});
