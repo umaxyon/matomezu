@@ -745,3 +745,123 @@ test("サイズを選ぶと、付いていた大きさの指定を外して中�
   graph.undo();
   expect(graph.info(1).w).toBe(312);
 });
+
+describe("子の見せ方を変えても本体の中心を保つ", () => {
+  // 本体の中心（ワールドでの位置）
+  function headCenter(el: HTMLElement, graph: Graph, id: number) {
+    graph.select(id);
+    const node = el.querySelector(".mz-node.mz-current") as HTMLElement;
+    const head = node.querySelector(":scope > .mz-head") as HTMLElement;
+    let x = parseFloat(head.style.left) + parseFloat(head.style.width) / 2;
+    let y = parseFloat(head.style.top) + parseFloat(head.style.height) / 2;
+    for (let m: HTMLElement | null = node; m && m.classList.contains("mz-node"); m = m.parentElement) {
+      x += parseFloat(m.style.left);
+      y += parseFloat(m.style.top);
+    }
+    return [x, y];
+  }
+  const data = (): Diagram => ({
+    nodes: [
+      { id: 1, caption: "外部サービス", childView: "tree", treeDirection: "right", x: 300, y: 200 },
+      { id: 2, caption: "決済", parent: 1 }, { id: 3, caption: "メール配信", parent: 1 },
+      { id: 9, caption: "下の箱", x: 300, y: 420 },
+    ],
+  } as Diagram);
+
+  test.each([
+    ["ツリー → 非表示", { childView: "hidden" }],
+    ["ツリー → 内包", { childView: "nest" }],
+    ["ツリーの向き 右 → 下", { treeDirection: "down" }],
+    ["ツリーの向き 右 → 左", { treeDirection: "left" }],
+  ] as const)("%s", (_, patch) => {
+    const { el, graph } = setup(data());
+    const before = headCenter(el, graph, 1);
+    graph.update(1, patch);
+    const after = headCenter(el, graph, 1);
+    expect(after[0]).toBeCloseTo(before[0]!);
+    expect(after[1]).toBeCloseTo(before[1]!);
+    // 広がってもほかのボックスとは重ならない（相手の方がずれる）
+    const a = graph.info(1), b = graph.info(9);
+    expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true);
+  });
+
+  test("非表示 → ツリーに戻しても中心を保つ", () => {
+    const { el, graph } = setup(data());
+    graph.update(1, { childView: "hidden" });
+    const before = headCenter(el, graph, 1);
+    graph.update(1, { childView: "tree" });
+    const after = headCenter(el, graph, 1);
+    expect(after[0]).toBeCloseTo(before[0]!);
+    expect(after[1]).toBeCloseTo(before[1]!);
+  });
+
+  test("入れ子の中でも、変えたボックスはその場に残り、ぶつかる兄弟が下へずれる", () => {
+    const { el, graph } = setup({
+      nodes: [
+        { id: 1, caption: "枠", x: 40, y: 40 },
+        // 親の端から離しておく（端に接していると、ツリーの外枠が親からはみ出さないよう戻される）
+        { id: 2, caption: "外部", parent: 1, childView: "hidden", x: 200, y: 60 },
+        { id: 21, caption: "決済", parent: 2 }, { id: 22, caption: "メール", parent: 2 },
+        { id: 3, caption: "兄弟", parent: 1, x: 12, y: 150 },
+      ],
+    });
+    const before = headCenter(el, graph, 2);
+    graph.update(2, { childView: "tree" });
+    const after = headCenter(el, graph, 2);
+    expect(after[0]).toBeCloseTo(before[0]!);
+    expect(after[1]).toBeCloseTo(before[1]!);
+    const a = graph.info(2), b = graph.info(3);
+    expect(b.y).toBeGreaterThanOrEqual(a.y + a.h);
+    expect(b.x).toBe(12);
+  });
+});
+
+test("見せ方を変えて広がったボックスが大きい隣にぶつかったら、自分の方が少しずれる", () => {
+  const { graph } = setup({
+    nodes: [
+      { id: 1, caption: "フロントエンド", x: 40, y: 40, width: 500, height: 400 }, // 大きい隣
+      { id: 2, caption: "外部サービス", childView: "hidden", x: 560, y: 200 },
+      { id: 21, caption: "決済", parent: 2 }, { id: 22, caption: "メール配信", parent: 2 },
+    ],
+  });
+  const big = graph.info(1);
+  graph.update(2, { childView: "nest" }); // 中心から左右に広がり、左の大きい隣に重なる
+  const after = graph.info(1), ext = graph.info(2);
+  expect([after.x, after.y]).toEqual([big.x, big.y]); // 大きい隣は動かない
+  expect(ext.x).toBeGreaterThanOrEqual(after.x + after.w); // 自分が右へずれる
+  expect(ext.y + ext.h / 2).toBeCloseTo(200 + 32); // 縦の中心は保つ
+});
+
+test.each([
+  ["サイズ L → S", { size: "S" }],
+  ["形をスティックマンに", { shape: "person" }],
+  ["キャプションを長く", { caption: "とても長いキャプションに書き換えて大きさが変わる" }],
+] as const)("設定を変えて大きさが変わっても、本体の中心を保つ: %s", (_, patch) => {
+  const { graph } = setup({ nodes: [{ id: 1, caption: "外部サービス", x: 300, y: 200 }, { id: 2, x: 40, y: 40 }] });
+  const center = () => { const i = graph.info(1); return [i.x + i.w / 2, i.y + i.h / 2]; };
+  const before = center();
+  graph.update(1, patch);
+  const after = center();
+  // info() は整数に丸めるので、1px までの差は許す
+  expect(Math.abs(after[0]! - before[0]!)).toBeLessThanOrEqual(1);
+  expect(Math.abs(after[1]! - before[1]!)).toBeLessThanOrEqual(1);
+});
+
+test("つながる相手が片側にだけいれば、その側の辺を動かさない（線の長さと角度を保つ）", () => {
+  const { graph } = setup({
+    nodes: [
+      { id: 1, caption: "フロントエンド", x: 40, y: 40, width: 400, height: 400 },
+      { id: 2, caption: "外部サービス", childView: "hidden", x: 560, y: 200 },
+      { id: 21, caption: "決済", parent: 2 }, { id: 22, caption: "メール配信", parent: 2 },
+    ],
+    edges: [[1, 2]],
+  });
+  const before = graph.info(2);
+  graph.update(2, { childView: "nest" });
+  const after = graph.info(2);
+  expect(after.x).toBe(before.x); // 左（相手の側）の辺はそのまま、右へ広がる
+  expect(after.w).toBeGreaterThan(before.w);
+  expect(Math.abs(after.y + after.h / 2 - (before.y + before.h / 2))).toBeLessThanOrEqual(1); // 縦は中心
+  graph.update(2, { size: "S" }); // 内包のままサイズを変えても左辺は同じ
+  expect(graph.info(2).x).toBe(before.x);
+});

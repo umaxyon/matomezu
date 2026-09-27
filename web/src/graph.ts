@@ -609,9 +609,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   // 子から順に大きさと配置を決める
-  function settleTree(n: Box) {
-    n.children.forEach(settleTree);
-    if (isNesting(n)) placeGroup(n.children, findGridSpot);
+  // keep は変更したボックスとその祖先。重なったときはこれらをその場に残し、相手の方をずらす。
+  // 位置のある子が重なったら同じ x のまま下へずらし、位置の無い子は左上から空きを探す
+  function settleTree(n: Box, keep?: Set<Box>) {
+    n.children.forEach(c => settleTree(c, keep));
+    if (isNesting(n)) {
+      placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)));
+    }
     fit(n);
   }
 
@@ -623,15 +627,61 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   function spotBelow(n: Box): [number, number] {
     let y = n.y;
-    // ワールドの高さが指定されていれば、下にも限りがある
-    const maxY = world.src.height ? world.h - n.h : Infinity;
+    // 親の高さが決まっていれば（ワールドの高さの指定や、切り詰める枠）、下にも限りがある
+    const c = containerOf(n);
+    const f = fixedSize(c);
+    const maxY = f.h != null ? f.h - (c.isWorld ? 0 : opt.padding) - n.h : Infinity;
     while (collides(n, n.x, y) && y <= maxY) y += opt.gap;
-    return y <= maxY ? [n.x, y] : findFreeSpot(n, n.x, n.y);
+    if (y <= maxY) return [n.x, y];
+    return c.isWorld ? findFreeSpot(n, n.x, n.y) : findGridSpot(n);
+  }
+
+  // 大きさが変わる前の本体の位置を覚え、変わったあとの n の位置を返す関数を作る。
+  // 線でつながる相手が片側にだけいれば、その側の辺を動かさない（線の長さも角度も変わらない）。
+  // 両側にいるか、相手がいなければ中心を保つ。横と縦は別々に決める
+  function anchorPlan(n: Box) {
+    const l = n.x + n.hx, t = n.y + n.hy, r = l + n.hw, b = t + n.hh;
+    const others = edges
+      .filter(e => (e.a === n || e.b === n) && e.a.parent === e.b.parent)
+      .map(e => (e.a === n ? e.b : e.a))
+      .map(o => { const a = anchorRect(o); return [o.x + a.x + a.w / 2, o.y + a.y + a.h / 2] as const; });
+    const side = (lo: number, hi: number, vs: number[]) => {
+      const before = vs.some(v => v < lo), after = vs.some(v => v > hi);
+      return before && !after ? "start" : after && !before ? "end" : "center";
+    };
+    const sx = side(l, r, others.map(o => o[0])), sy = side(t, b, others.map(o => o[1]));
+    return {
+      x: (m: Box) => (sx === "start" ? l - m.hx : sx === "end" ? r - m.hx - m.hw : (l + r) / 2 - m.hx - m.hw / 2),
+      y: (m: Box) => (sy === "start" ? t - m.hy : sy === "end" ? b - m.hy - m.hh : (t + b) / 2 - m.hy - m.hh / 2),
+    };
+  }
+
+  // 広がった n が、自分より大きい兄弟にぶつかったら、n の方が動く量の一番少ない向きへずれる
+  // （大きい方を動かすと全体が崩れるため）。自分より小さい兄弟は、このあと settleAll で下へずらされる
+  function stepAside(n: Box) {
+    if (!inNest(n)) return;
+    const area = (b: Box) => b.w * b.h;
+    const g = opt.gap;
+    for (let i = 0; i < 8; i++) {
+      const hit = siblings(n).find(o => o !== n && area(o) >= area(n) && overlaps(n, n.x, n.y, o));
+      if (!hit) return;
+      const cands: [number, number][] = [
+        [hit.x + hit.w + g, n.y], [hit.x - g - n.w, n.y], [n.x, hit.y + hit.h + g], [n.x, hit.y - g - n.h],
+      ].map(([x, y]) => clamp(n, x!, y!));
+      const dist = ([x, y]: [number, number]) => Math.hypot(x - n.x, y - n.y);
+      // 大きい兄弟とは重ならない位置のうち、一番近いもの
+      const ok = cands
+        .filter(([x, y]) => !siblings(n).some(o => o !== n && area(o) >= area(n) && overlaps(n, x, y, o)))
+        .sort((a, b) => dist(a) - dist(b))[0];
+      if (!ok) return;
+      [n.x, n.y] = ok;
+    }
   }
 
   // 大きさが変わったあとに、全体を重なりの無い状態へ直す。changed は変更したボックス（その最上位をその場に残す）
   function settleAll(changed?: Box) {
-    roots.forEach(settleTree);
+    const keep = changed ? new Set([changed, ...ancestors(changed)]) : undefined;
+    roots.forEach(r => settleTree(r, keep));
     syncWorld();
     settleRoots(changed ? (ancestors(changed).pop() ?? changed) : undefined);
     syncWorld();
@@ -639,7 +689,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // 最初の配置。位置の無い最上位のボックスは円形に並べる
   function layout(fit = true) {
-    roots.forEach(settleTree);
+    roots.forEach(r => settleTree(r));
     syncWorld();
     const auto = roots.filter(n => !n.hasPos);
     const R = Math.min(world.w, world.h) * 0.3 + 40;
@@ -1451,6 +1501,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         else n.src.treeDirection = next.treeDirection;
       }
     }
+    // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう本体の位置を保つ
+    const keepAt = !n.isWorld && inNest(n) ? anchorPlan(n) : null;
     if (next.overflow && next.overflow !== overflowOf(n)) {
       if (n.isWorld) {
         n.src.overflow = next.overflow as Exclude<Overflow, "grow">;
@@ -1471,6 +1523,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       applyWorldStyle();
     } else {
       applyStyle(n);
+      if (keepAt) {
+        settleTree(n);
+        [n.x, n.y] = clamp(n, keepAt.x(n), keepAt.y(n));
+        stepAside(n);
+      }
     }
     settleAll(n.isWorld ? undefined : n);
     render();
