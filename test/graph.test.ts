@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { BoxData, BoxInfo, Diagram } from "../web/src/types";
+import { dragBy } from "./helpers";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -521,16 +522,6 @@ describe("ツリーの向き", () => {
 type R = { x: number; y: number; w: number; h: number };
 
 describe("ドラッグで親が広がったとき", () => {
-  // id のボックスを dx, dy だけ、何回かに分けてドラッグする
-  function dragBy(el: HTMLElement, graph: Graph, id: number, dx: number, dy: number) {
-    graph.select(id);
-    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
-    const fire = (type: string, x: number, y: number) =>
-      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
-    fire("pointerdown", 0, 0);
-    for (let i = 1; i <= 10; i++) fire("pointermove", (dx * i) / 10, (dy * i) / 10);
-    fire("pointerup", dx, dy);
-  }
   const group = (extra: BoxData[]): Diagram => ({
     nodes: [
       { id: 1, caption: "グループ", x: 40, y: 40 },

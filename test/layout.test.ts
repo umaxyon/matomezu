@@ -1,8 +1,8 @@
 // 配置の動きを固定するテスト。配置の処理を整理するときに、動きが変わっていないことを確かめる
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { Diagram, Patch } from "../web/src/types";
+import { type R, dragBy, example, frames, rectOf } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -18,27 +18,10 @@ function setup(data: Diagram) {
   return { el, graph };
 }
 
-const sample = () => JSON.parse(readFileSync(`${import.meta.dir}/../examples/three-levels.json`, "utf8")) as Diagram;
+const sample = () => example("three-levels");
 
-type R = { x: number; y: number; w: number; h: number };
-const rectOf = (n: HTMLElement): R => ({
-  x: parseFloat(n.style.left), y: parseFloat(n.style.top), w: parseFloat(n.style.width), h: parseFloat(n.style.height),
-});
 const apart = (a: R, b: R) =>
   a.x + a.w <= b.x + 0.5 || b.x + b.w <= a.x + 0.5 || a.y + a.h <= b.y + 0.5 || b.y + b.h <= a.y + 0.5;
-
-// 画面に出ている全ボックスの枠（親の左上からの位置）。キャプションで並べる
-function frames(el: HTMLElement) {
-  return [...el.querySelectorAll<HTMLElement>(".mz-world .mz-node")]
-    .filter(n => !n.classList.contains("mz-ghost"))
-    .map(n => {
-      const r = rectOf(n);
-      const head = rectOf(n.querySelector(":scope > .mz-head") as HTMLElement);
-      const caption = (n.querySelector(":scope > .mz-head") as HTMLElement).textContent!.replace("▼", "");
-      const round = (v: number) => Math.round(v * 100) / 100;
-      return `${caption} ${[r.x, r.y, r.w, r.h, head.x, head.y, head.w, head.h].map(round).join(",")}`;
-    });
-}
 
 // 崩れてはいけない性質を確かめ、見つかった問題を返す
 function violations(el: HTMLElement): string[] {
@@ -237,15 +220,6 @@ describe("線でつながる相手の側の辺を保つ", () => {
 });
 
 describe("押しのけ", () => {
-  function dragBy(el: HTMLElement, graph: Graph, id: number, dx: number, dy: number) {
-    graph.select(id);
-    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
-    const fire = (type: string, x: number, y: number) =>
-      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
-    fire("pointerdown", 0, 0);
-    for (let i = 1; i <= 10; i++) fire("pointermove", (dx * i) / 10, (dy * i) / 10);
-    fire("pointerup", dx, dy);
-  }
 
   test("押した相手の下にある箱も、続けて下へ押す", () => {
     const { el, graph } = setup({
@@ -307,15 +281,6 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
     edges: [[2, 3]],
   });
   const at = (graph: Graph, id: number) => [graph.info(id).x, graph.info(id).y];
-  function dragBy(el: HTMLElement, graph: Graph, id: number, dx: number, dy: number) {
-    graph.select(id);
-    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
-    const fire = (type: string, x: number, y: number) =>
-      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
-    fire("pointerdown", 0, 0);
-    for (let i = 1; i <= 10; i++) fire("pointermove", (dx * i) / 10, (dy * i) / 10);
-    fire("pointerup", dx, dy);
-  }
 
   test("文字を長くして押し下げた兄弟は、文字を戻すと元の位置へ戻り、親も元の大きさに戻る", () => {
     const { graph } = setup(data());
