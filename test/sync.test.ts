@@ -198,3 +198,19 @@ test("不正なファイルのあいだは保存を止め、直ったら再開�
   await settle();
   expect(JSON.parse(file).nodes[0].caption).toBe("after");
 });
+
+test("外部の変更は Undo で取り消せ、取り消した状態が保存される", async () => {
+  const g = await setup();
+  external({ nodes: [{ id: 1, caption: "LLM" }, { id: 2 }] });
+  await wait(10);
+  expect(captions(g)[0]).toBe("LLM");
+  expect(g.undo()).toBe(true);
+  await settle();
+  expect(captions(g)[0]).toBeNull();
+  expect(JSON.parse(file).nodes[0].caption).toBeUndefined();
+});
+
+test("最初の読み込みは履歴に残さない", async () => {
+  const g = await setup();
+  expect(g.history().canUndo).toBe(false);
+});

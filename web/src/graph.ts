@@ -10,7 +10,9 @@
  * 使い方:
  *   const graph = createGraph(document.getElementById('stage'), data, { onChange, onSelect });
  *   graph.toJSON();              // 現在の状態を反映したデータ
- *   graph.load(data);            // 別のデータで描き直す（検証エラーなら例外を投げ、表示はそのまま残る）
+ *   graph.load(data);            // 別のデータで描き直す（検証エラーなら例外を投げ、表示はそのまま残る）。履歴は空にする
+ *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す
+ *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）
@@ -82,10 +84,22 @@ const PERSON_SVG =
 export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onChange?: (data: Diagram) => void;
   onSelect?: (info: Info) => void;
+  onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
 }
 
+export interface HistoryState {
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
+// 履歴に残す件数
+const HISTORY_LIMIT = 100;
+
 export interface Graph {
-  load(data: unknown): void;
+  load(data: unknown, options?: { keepHistory?: boolean }): void;
+  undo(): boolean;
+  redo(): boolean;
+  history(): HistoryState;
   select(id: Id | null): void;
   selected(): string | null;
   info(id: Id | null): Info;
@@ -521,7 +535,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   // 最初の配置。位置の無い最上位のボックスは円形に並べる
-  function layout() {
+  function layout(fit = true) {
     roots.forEach(settleTree);
     syncWorld();
     const auto = roots.filter(n => !n.hasPos);
@@ -533,7 +547,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     });
     settleRoots();
     syncWorld();
-    fitToViewport();
+    if (fit) fitToViewport();
   }
 
   // 読み込んだ直後だけ、表示領域の右にはみ出した最上位のボックスを下へ移す（横スクロールより縦の方が見やすい）。
@@ -721,7 +735,56 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function changed() {
+    record();
     opt.onChange?.(api.toJSON());
+  }
+
+  // ---- 履歴 ----
+  // 変更のたびに図全体の JSON を1件として残す。戻るときはそれを読み込み直す
+
+  let past: string[] = []; // 最後が今の状態
+  let future: string[] = [];
+
+  const historyState = (): HistoryState => ({ canUndo: past.length > 1, canRedo: future.length > 0 });
+  const notifyHistory = () => opt.onHistory?.(historyState());
+
+  function record() {
+    const s = JSON.stringify(api.toJSON());
+    if (s === past[past.length - 1]) return;
+    past.push(s);
+    if (past.length > HISTORY_LIMIT) past.shift();
+    future = [];
+    notifyHistory();
+  }
+
+  function resetHistory() {
+    past = [JSON.stringify(api.toJSON())];
+    future = [];
+    notifyHistory();
+  }
+
+  // 記録した状態に戻す。選択は保ち、読み込み直後のはみ出しの調整はしない（記録どおりに戻すため）
+  function restore(s: string) {
+    const sel = current?.id ?? null;
+    build(JSON.parse(s), false);
+    if (sel != null && byId.has(sel)) select(byId.get(sel)!);
+    opt.onChange?.(api.toJSON());
+    notifyHistory();
+  }
+
+  function undo() {
+    if (past.length <= 1) return false;
+    future.push(past.pop()!);
+    restore(past[past.length - 1]!);
+    return true;
+  }
+
+  function redo() {
+    const s = future.pop();
+    if (s == null) return false;
+    past.push(s);
+    restore(s);
+    return true;
   }
 
   function notifySelect() {
@@ -1089,8 +1152,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return n;
   }
 
-  function load(newData: unknown) {
+  function load(newData: unknown, o: { keepHistory?: boolean } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
+    build(copy, true);
+    if (o.keepHistory) record();
+    else resetHistory();
+  }
+
+  // データを検証して描き直す。fit は読み込み直後のはみ出しの調整をするか
+  function build(copy: unknown, fit: boolean) {
     assignIds(copy);
     validate(copy);
     clear();
@@ -1124,7 +1194,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       addEdge(src, byId.get(String(src.from))!, byId.get(String(src.to))!);
     }
 
-    layout();
+    layout(fit);
     render();
     select(null);
   }
@@ -1139,6 +1209,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const api: Graph = {
     load,
+    undo,
+    redo,
+    history: historyState,
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
     selected: () => (current ? current.id : null),
     info: id => info(id == null ? null : nodeOf(id)),

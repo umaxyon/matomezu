@@ -66,6 +66,11 @@
   button:hover { background: var(--btn-hover); }
   button.primary { background: var(--accent); color: #fff; border-color: transparent; }
   button.primary:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.4; cursor: default; }
+  button:disabled:hover { background: var(--btn); }
+  .toolbar { display: flex; gap: 4px; padding-right: 10px; margin-right: 2px; border-right: 1px solid var(--bar-border); }
+  .icon-btn { padding: 5px; line-height: 0; }
+  .icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   main { flex: 1; display: flex; min-height: 0; }
   #sidebar {
     width: 280px;
@@ -100,6 +105,14 @@
 </head>
 <body>
 <header>
+  <div class="toolbar" role="toolbar" aria-label="ツールバー">
+    <button id="undo" class="icon-btn" title="元に戻す (Ctrl+Z)" aria-label="元に戻す" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+    </button>
+    <button id="redo" class="icon-btn" title="やり直す (Ctrl+Shift+Z)" aria-label="やり直す" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+    </button>
+  </div>
   <span class="name" id="name">サンプル</span>
   <span class="status" id="status" role="status"></span>
   <button id="open">JSONを開く</button>

@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { BoxData, Diagram } from "../web/src/types";
 
@@ -265,4 +265,100 @@ test("背景色はファイルから読み込める", () => {
   const worldEl = el.querySelector(".mz-world") as HTMLElement;
   expect(worldEl.style.background).not.toBe("");
   expect(worldEl.classList.contains("mz-on-light")).toBe(true);
+});
+
+describe("履歴", () => {
+  test("変更を戻して進め、戻したときも onChange で知らせる", () => {
+    const changes: Diagram[] = [];
+    const states: string[] = [];
+    const { graph } = setup({ nodes: [{ id: 1, caption: "a" }] }, {
+      onChange: (d: Diagram) => changes.push(d),
+      onHistory: (h: { canUndo: boolean; canRedo: boolean }) => states.push(`${h.canUndo},${h.canRedo}`),
+    });
+    expect(graph.history()).toEqual({ canUndo: false, canRedo: false });
+
+    graph.update(1, { caption: "b" });
+    graph.update(1, { color: "#ff0000" });
+    expect(graph.history()).toEqual({ canUndo: true, canRedo: false });
+
+    expect(graph.undo()).toBe(true);
+    expect(graph.info(1)).toMatchObject({ caption: "b", color: "#ffffff" });
+    expect(graph.undo()).toBe(true);
+    expect(graph.info(1).caption).toBe("a");
+    expect(graph.undo()).toBe(false); // 最初より前には戻れない
+    expect(graph.history()).toEqual({ canUndo: false, canRedo: true });
+
+    expect(graph.redo()).toBe(true);
+    expect(graph.info(1).caption).toBe("b");
+    expect(changes.at(-1)!.nodes[0]!.caption).toBe("b"); // 戻した状態も保存される
+    expect(states.at(-1)).toBe("true,true");
+  });
+
+  test("戻したあとに変更すると、進む先は消える", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "a" }] });
+    graph.update(1, { caption: "b" });
+    graph.undo();
+    graph.update(1, { caption: "c" });
+    expect(graph.history().canRedo).toBe(false);
+    graph.undo();
+    expect(graph.info(1).caption).toBe("a");
+  });
+
+  test("ドラッグは手を離したときに1件、線の追加と削除も1件ずつ", () => {
+    const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 40 }] });
+    graph.select(1);
+    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
+    const fire = (type: string, x: number, extra = {}) =>
+      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1, ...extra }));
+    fire("pointerdown", 0);
+    for (const x of [10, 20, 30]) fire("pointermove", x);
+    fire("pointerup", 30);
+    expect(byId(graph.toJSON(), 1).x).toBe(70);
+
+    graph.undo();
+    expect(byId(graph.toJSON(), 1).x).toBe(40); // 途中の位置ではなく、つかむ前に戻る
+    graph.redo();
+
+    // 線を引いて、消す
+    const click = (id: number) => {
+      graph.select(id);
+      el.querySelector(".mz-node.mz-current > .mz-head")!
+        .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, ctrlKey: true, pointerId: 1 }));
+    };
+    click(1); click(2);
+    el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(graph.toJSON().edges).toEqual([]);
+    graph.undo();
+    expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+    graph.undo();
+    expect(graph.toJSON().edges).toEqual([]);
+    expect(byId(graph.toJSON(), 1).x).toBe(70);
+  });
+
+  test("戻しても選択は保つ", () => {
+    const { graph } = setup({ nodes: [{ id: 1 }, { id: 2 }] });
+    graph.update(2, { caption: "x" });
+    graph.select(2);
+    graph.undo();
+    expect(graph.selected()).toBe("2");
+  });
+
+  test("load は履歴を空にし、keepHistory なら1件足す", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "a" }] });
+    graph.load({ nodes: [{ id: 1, caption: "外部の変更" }] }, { keepHistory: true });
+    graph.undo();
+    expect(graph.info(1).caption).toBe("a");
+
+    graph.load({ nodes: [{ id: 1, caption: "開き直し" }] });
+    expect(graph.history()).toEqual({ canUndo: false, canRedo: false });
+  });
+
+  test("履歴は100件まで", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "0" }] });
+    for (let i = 1; i <= 120; i++) graph.update(1, { caption: String(i) });
+    let n = 0;
+    while (graph.undo()) n++;
+    expect(n).toBe(99);
+    expect(graph.info(1).caption).toBe("21");
+  });
 });

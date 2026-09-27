@@ -4,6 +4,7 @@
  * - ファイルが外部（LLM など）で変わったら SSE で知り、読み直す。外部の変更を優先する。
  * - ドラッグ中や保存中に届いた変更は、それが終わってから読み直す。
  * - 読み直したデータが不正なときは表示を残し、直るまで保存を止める（書きかけのファイルを上書きしないため）。
+ * - 外部の変更は履歴に1件として残す（Undo で取り消せる）。最初の読み込みでは履歴を空にする。
  */
 
 import type { Graph } from "./graph";
@@ -60,13 +61,13 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
   let loading = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
-  function apply(r: Remote) {
+  function apply(r: Remote, keepHistory: boolean) {
     version = r.version;
     remote = r.version;
     try {
       if (r.data instanceof Error) throw r.data;
       const sel = graph.selected();
-      graph.load(r.data);
+      graph.load(r.data, { keepHistory });
       if (sel != null) {
         try { graph.select(sel); } catch { /* 消えたボックスは選び直さない */ }
       }
@@ -89,7 +90,7 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
         ui.error("サーバーに接続できません");
         return;
       }
-      if (apply(r)) ui.status("外部の変更を読み込みました");
+      if (apply(r, true)) ui.status("外部の変更を読み込みました");
     } finally {
       loading = false;
     }
@@ -155,7 +156,7 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
   window.addEventListener("pointerup", onUp);
   window.addEventListener("pointercancel", onUp);
 
-  apply(first);
+  apply(first, false);
 
   return {
     changed() {

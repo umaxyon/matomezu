@@ -3,7 +3,7 @@
 // - それ以外（file:// や静的配信）: 埋め込みのサンプルか ?src= の JSON を表示し、開く・保存のボタンで扱う。
 
 import { download, readFile } from "./dom";
-import { createGraph } from "./graph";
+import { createGraph, type Graph } from "./graph";
 import { createPanel, type Panel } from "./panel";
 import { fetchRemote, startSync, type Sync } from "./sync";
 
@@ -33,16 +33,40 @@ function showStatus(text: string) {
   statusTimer = setTimeout(() => { statusEl.textContent = ""; }, 3000);
 }
 
+// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）
+function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: HTMLButtonElement) {
+  undoBtn.addEventListener("click", () => graph.undo());
+  redoBtn.addEventListener("click", () => graph.redo());
+  document.addEventListener("keydown", e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || graph.dragging()) return;
+    // 入力欄では、文字入力の取り消しに使う
+    const t = e.target;
+    if (t instanceof HTMLElement && (t.matches("input, textarea, select") || t.isContentEditable)) return;
+    const key = e.key.toLowerCase();
+    if (key === "z" && !e.shiftKey) graph.undo();
+    else if (key === "y" || (key === "z" && e.shiftKey)) graph.redo();
+    else return;
+    e.preventDefault();
+  });
+}
+
 async function main() {
   const remote = await fetchRemote();
   let panel: Panel | null = null;
   let sync: Sync | null = null;
   const initial = remote ? { nodes: [] } : JSON.parse($("initial-data").textContent ?? "{}");
+  const undoBtn = $<HTMLButtonElement>("undo");
+  const redoBtn = $<HTMLButtonElement>("redo");
   const graph = createGraph(stage, initial, {
     onSelect: info => panel?.show(info),
     onChange: data => sync?.changed(data),
+    onHistory: h => {
+      undoBtn.disabled = !h.canUndo;
+      redoBtn.disabled = !h.canRedo;
+    },
   });
   panel = createPanel($("sidebar"), graph);
+  setupHistory(graph, undoBtn, redoBtn);
 
   if (remote) {
     document.body.classList.add("served");
