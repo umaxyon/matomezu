@@ -148,7 +148,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges }, L);
   const {
     incident, innerArea, syncWorld, fit, clamp,
-    settleTree, anchorPlan, stepAside, settleAll, layout, sizable, naturalSize, minimumSize, compress,
+    settleNode, anchorPlan, stepAside, settleAll, layout, sizable, naturalSize, minimumSize, compress,
   } = L;
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
   const H = createHistory({
@@ -464,7 +464,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     } else {
       applyStyle(n);
       if (keepAt) {
-        settleTree(n);
+        settleNode(n);
         [n.x, n.y] = clamp(n, keepAt.x(n), keepAt.y(n));
         stepAside(n);
       }

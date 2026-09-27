@@ -1,4 +1,4 @@
-// 配置: 大きさの計算、ツリーの並べ方、重なりの判定と直し方、読み込み時の配置。
+// 配置: 重なりの判定と直し方、読み込み時の配置。節点ごとの大きさの決め方とツリーの並べ方は node-kinds.ts。
 // 状態（ボックスや線の一覧）は ctx から読む。
 //
 // 重なりの直し方は場面ごとに決まりが違う（どれも利用者と相談して決めたもの）:
@@ -16,15 +16,14 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, inNest, isNesting, other, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf,
+  ancestors, inNest, isNesting, other, overflowOf, shapeOf, sizeOf, viewOf,
 } from "./model";
 import type { TextMeasurer } from "./measure";
+import { createNodeKinds } from "./node-kinds";
 import { layoutStats } from "./stats";
-import { GROUP_MIN, SIZES } from "./validate";
+import { GROUP_MIN } from "./validate";
 
 export { layoutStats };
-
-const PERSON_MIN_W = 64; // スティックマンの最小の幅
 
 export interface LayoutOptions {
   gap: number;
@@ -98,98 +97,13 @@ export function createLayout(ctx: LayoutContext) {
 
   // 文字の大きさを測る（width が null なら1行のまま）
   const measure = (n: Box, width: number | null) => ctx.measurer.measure(n, width);
+  // 節点の種類（文字の箱、非表示、内包、ツリー）ごとの、大きさの決め方と線がつながる範囲
+  const { kindOf } = createNodeKinds({ opt, measure });
 
-  // ボックスとして見せるときの本体の大きさ。useSpec が false なら width, height, overflow を使わない。
-  // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す
-  function fitHead(n: Box, useSpec: boolean) {
-    const z = SIZES[sizeOf(n)];
-    const specW = useSpec ? n.specW : 0;
-    const specH = useSpec ? n.specH : 0;
-    const textW = () => Math.max(z.minW, Math.min(z.maxW, measure(n, null)[0]));
-    if (shapeOf(n) === "person") {
-      // 人の形と足元の文字。背景が無いので、最小の幅は使わない
-      const w = Math.max(PERSON_MIN_W, Math.min(specW || z.maxW, measure(n, null)[0]));
-      n.hw = w;
-      n.hh = measure(n, w)[1];
-      return;
-    }
-    const ov = useSpec ? overflowOf(n) : "wrap";
-    // 切り詰めるときは大きさを文字で変えない
-    const w = specW || (ov === "clip" ? z.minW : textW());
-    n.hw = w;
-    n.hh = specH || (z.fixedH || ov === "clip" ? z.h : Math.max(z.h, measure(n, w)[1]));
-  }
-
-  // 子を組織図のように並べる。上下なら横一列、左右なら縦一列にして、親をその中央にそろえる。
-  // 全体を薄い枠で囲むので、周りに余白を取る（同じ階層との線は、この枠のふちにつなぐ）。
-  // 向きごとに書き分けず、子を置く向きを「主軸」、それに直交する向きを「副軸」として扱う
-  function layoutTree(n: Box) {
-    const kids = n.children;
-    const dir = treeDirOf(n);
-    const vertical = dir === "down" || dir === "up";
-    const forward = dir === "down" || dir === "right"; // 子が親より後ろ（下か右）に来るか
-    const P = opt.padding;
-    const GAP = opt.treeGapX; // 子どうしの間隔（副軸）
-    const DIST = opt.treeGapY; // 親と子の間隔（主軸）
-    // [主軸, 副軸] の大きさ
-    const headSize = vertical ? [n.hh, n.hw] : [n.hw, n.hh];
-    const kidSize = (k: Box) => (vertical ? [k.h, k.w] : [k.w, k.h]);
-    const crossTotal = kids.reduce((s, k) => s + kidSize(k)[1]!, 0) + GAP * (kids.length - 1);
-    const cross = Math.max(headSize[1]!, crossTotal);
-    const kidsMain = Math.max(...kids.map(k => kidSize(k)[0]!));
-
-    // 主軸: 親、間隔、子の順（前向き）か、子、間隔、親の順（後ろ向き）。子は親に向いた側の端をそろえる
-    const headMain = forward ? P : P + kidsMain + DIST;
-    const headCross = P + (cross - headSize[1]!) / 2;
-    let c = P + (cross - crossTotal) / 2;
-    const place = (k: Box, main: number, crossPos: number) => {
-      if (vertical) { k.x = crossPos; k.y = main; } else { k.x = main; k.y = crossPos; }
-    };
-    for (const k of kids) {
-      const [km, kc] = kidSize(k);
-      place(k, forward ? P + headSize[0]! + DIST : P + kidsMain - km!, c);
-      k.placed = true;
-      c += kc! + GAP;
-    }
-    if (vertical) { n.hx = headCross; n.hy = headMain; } else { n.hx = headMain; n.hy = headCross; }
-    const main = P + headSize[0]! + DIST + kidsMain + P;
-    const crossAll = P + cross + P;
-    if (vertical) { n.w = crossAll; n.h = main; } else { n.w = main; n.h = crossAll; }
-  }
-
+  // 自分の大きさと本体の矩形を決める（子の大きさと、内包なら子の位置はもう決まっていること）
+  const fit = (n: Box) => kindOf(n).measure(n);
   // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）。ツリーで見せていれば枠全体、それ以外は本体
-  function anchorRect(n: Box) {
-    if (n.children.length && viewOf(n) === "tree") return { x: 0, y: 0, w: n.w, h: n.h };
-    return { x: n.hx, y: n.hy, w: n.hw, h: n.hh };
-  }
-
-  function fit(n: Box) {
-    const view = viewOf(n);
-    if (!n.children.length || view === "hidden") {
-      fitHead(n, !n.children.length);
-      n.hx = 0; n.hy = 0;
-      n.w = n.hw; n.h = n.hh;
-      return;
-    }
-    if (view === "tree") {
-      fitHead(n, false);
-      layoutTree(n);
-      return;
-    }
-    // 内包: 子に合わせる（指定サイズは最小値として扱う）
-    const ov = overflowOf(n);
-    const minW = n.specW || GROUP_MIN.w;
-    const minH = n.specH || GROUP_MIN.h;
-    let r = 0, b = 0;
-    for (const c of n.children) {
-      r = Math.max(r, c.x + c.w);
-      b = Math.max(b, c.y + c.h);
-    }
-    n.w = ov === "grow" ? Math.max(minW, r + opt.padding) : minW;
-    n.h = ov === "clip" ? minH : Math.max(minH, b + opt.padding);
-    n.hx = 0; n.hy = 0;
-    n.hw = n.w; n.hh = n.h;
-  }
+  const anchorRect = (n: Box) => kindOf(n).anchorRect(n);
 
   function refitAncestors(n: Box) {
     for (const p of ancestors(n)) fit(p);
@@ -398,9 +312,9 @@ export function createLayout(ctx: LayoutContext) {
   // 子から順に大きさと配置を決める
   // keep は変更したボックスとその祖先。重なったときはこれらをその場に残し、相手の方をずらす。
   // 位置のある子が重なったら同じ x のまま下へずらし、位置の無い子は左上から空きを探す
-  function settleTree(n: Box, keep?: Set<Box>) {
-    n.children.forEach(c => settleTree(c, keep));
-    if (isNesting(n)) {
+  function settleNode(n: Box, keep?: Set<Box>) {
+    n.children.forEach(c => settleNode(c, keep));
+    if (kindOf(n).holdsChildren) {
       placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)));
     }
     fit(n);
@@ -501,7 +415,7 @@ export function createLayout(ctx: LayoutContext) {
   // 大きさが変わったあとに、全体を重なりの無い状態へ直す。changed は変更したボックス（その最上位をその場に残す）
   function settleAll(changed?: Box) {
     const keep = changed ? new Set([changed, ...ancestors(changed)]) : undefined;
-    roots().forEach(r => settleTree(r, keep));
+    roots().forEach(r => settleNode(r, keep));
     syncWorld();
     settleRoots(changed ? (ancestors(changed).pop() ?? changed) : undefined);
     syncWorld();
@@ -509,7 +423,7 @@ export function createLayout(ctx: LayoutContext) {
 
   // 最初の配置。位置の無い最上位のボックスは円形に並べる
   function layout(fit = true) {
-    roots().forEach(r => settleTree(r));
+    roots().forEach(r => settleNode(r));
     syncWorld();
     const auto = roots().filter(n => !n.hasPos);
     const R = Math.min(world.w, world.h) * 0.3 + 40;
@@ -603,9 +517,9 @@ export function createLayout(ctx: LayoutContext) {
 
   return {
     containerOf, siblings, incident, innerArea, fixedSize, syncWorld,
-    measure, fitHead, layoutTree, anchorRect, fit, refitAncestors,
+    kindOf, anchorRect, fit, refitAncestors,
     clamp, clamped, overlaps, collides, validChain, pushAway, settleChain, tryMove,
-    findGridSpot, findFreeSpot, placeGroup, settleTree, settleRoots, spotBelow, anchorPlan, stepAside,
+    findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, anchorPlan, stepAside,
     settleAll, layout, fitToViewport,
     sizable, naturalSize, minimumSize, compress,
   };
