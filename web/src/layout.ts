@@ -2,6 +2,7 @@
 // 状態（ボックスや線の一覧）は ctx から読む。
 //
 // 重なりの直し方は場面ごとに決まりが違う（どれも利用者と相談して決めたもの）:
+//   （「ぶつからなくなるまで少しずつずらす」は slide にまとめてある。ドラッグ中の pushAway だけは別の置き方）
 //   読み込み・設定変更のあと  placeGroup + spotBelow   変更したボックス（と祖先）を残し、ほかは同じ x のまま下へ。
 //                                                       位置の無いボックスは空きを探す（findFreeSpot / findGridSpot）
 //   ドラッグ中                tryMove + pushAway       動かしたボックスは兄弟にぶつかれば止まる。広がった祖先は、
@@ -423,15 +424,24 @@ export function createLayout(ctx: LayoutContext) {
     placeGroup(roots(), n => (n.hasPos ? spotBelow(n) : findFreeSpot(n, n.x, n.y)), first);
   }
 
+  // n を (x, y) から、兄弟とぶつからなくなるまで opt.gap ずつ dir の向きへずらした位置を返す。
+  // その向きの位置が limit を越えたら null（呼び出し側で別の置き方をする）。
+  // 読み込み・設定変更のあと（spotBelow）、子のサイズをそろえる（compress）、最初に開いたとき（fitToViewport）で使う
+  function slide(n: Box, x: number, y: number, dir: "down" | "right" = "down", limit = Infinity): [number, number] | null {
+    const pos = () => (dir === "down" ? y : x);
+    while (collides(n, x, y) && pos() <= limit) {
+      if (dir === "down") y += opt.gap;
+      else x += opt.gap;
+    }
+    return pos() <= limit ? [x, y] : null;
+  }
+
   function spotBelow(n: Box): [number, number] {
-    let y = n.y;
     // 親の高さが決まっていれば（ワールドの高さの指定や、切り詰める枠）、下にも限りがある
     const c = containerOf(n);
     const f = fixedSize(c);
     const maxY = f.h != null ? f.h - (c.isWorld ? 0 : opt.padding) - n.h : Infinity;
-    while (collides(n, n.x, y) && y <= maxY) y += opt.gap;
-    if (y <= maxY) return [n.x, y];
-    return c.isWorld ? findFreeSpot(n, n.x, n.y) : findGridSpot(n);
+    return slide(n, n.x, n.y, "down", maxY) ?? (c.isWorld ? findFreeSpot(n, n.x, n.y) : findGridSpot(n));
   }
 
   // 大きさが変わる前の本体の位置を覚え、変わったあとの n の位置を返す関数を作る。
@@ -521,13 +531,11 @@ export function createLayout(ctx: LayoutContext) {
       const x = anchor
         ? Math.max(minX, Math.min(maxX, anchor.x + centerOffset(anchor) - centerOffset(n)))
         : minX;
-      let y = anchor
+      const y = anchor
         ? anchor.y + anchor.h + opt.treeGapY
         : Math.max(...roots().filter(o => o !== n && inside(o)).map(o => o.y + o.h), 0) + opt.treeGapY;
       // ぶつかれば下へずらす
-      while (collides(n, x, y)) y += opt.gap;
-      n.x = x;
-      n.y = y;
+      [n.x, n.y] = slide(n, x, y)!;
     }
     syncWorld();
   }
@@ -575,10 +583,7 @@ export function createLayout(ctx: LayoutContext) {
       g.placed = false;
     }
     for (const g of kids) {
-      while (collides(g, g.x, g.y)) {
-        if (dim === "w") g.y += opt.gap;
-        else g.x += opt.gap;
-      }
+      [g.x, g.y] = slide(g, g.x, g.y, dim === "w" ? "down" : "right")!;
       g.placed = true;
     }
     fit(k);
