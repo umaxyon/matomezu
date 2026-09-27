@@ -1,0 +1,10 @@
+# 試作（参照用。コミットしない）
+/prototype/
+
+# ビルド結果
+/web/dist/
+/matomezu
+/matomezu.exe
+
+node_modules/
+.claude/settings.local.json

@@ -1,0 +1,14 @@
+{
+  "name": "matomezu-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser",
+    "dev": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

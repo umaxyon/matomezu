@@ -1,0 +1,8 @@
+{
+  "name": "matomezu",
+  "description": "LLM がまとめた内容を、ブラウザで調整できる箱と線の図にする",
+  "version": "0.0.0",
+  "author": { "name": "umaxyon", "url": "https://github.com/umaxyon" },
+  "homepage": "https://github.com/umaxyon/matomezu",
+  "repository": "https://github.com/umaxyon/matomezu"
+}

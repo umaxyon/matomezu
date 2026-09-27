@@ -1,0 +1,7 @@
+{
+  "name": "matomezu",
+  "owner": { "name": "umaxyon" },
+  "plugins": [
+    { "name": "matomezu", "source": "./plugin" }
+  ]
+}
