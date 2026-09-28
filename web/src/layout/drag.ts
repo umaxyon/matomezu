@@ -86,8 +86,8 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
       n.x = x; n.y = y;
       refitAncestors(n);
       if (stuck || settleChain(n, before, moved)) {
-        // ドラッグで広がった祖先に押された箱は、押された先を本来いたい位置にする（離れても戻さない。
-        // 戻すかどうかは docs/LAYOUT-PENDING.md の 6 で仕分ける）
+        // ドラッグで広がった祖先に押された箱は、押された先を本来いたい位置にする
+        // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
         for (const b of moved.keys()) b.intendedY = b.y;
         return true;
       }
