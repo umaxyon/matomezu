@@ -70,7 +70,7 @@
  */
 
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
-import { SVGNS, injectStyle } from "./dom";
+import { SVGNS, injectStyle, keyOf } from "./dom";
 import { createHistory, type HistoryState } from "./history";
 import { createInteraction, type Mode } from "./interaction";
 import { createDrag } from "./layout/drag";
@@ -311,7 +311,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     build(data, false);
     select(byId.get(n.id)!);
     changed();
-    const where = t ? `「${captionOf(byId.get(t.id)!)}」の中` : "最上位";
+    const where = t ? `「${keyOfBox(byId.get(t.id)!)}」の中` : "最上位";
     opt.onNotice?.(`${where}へ移しました` + (removed ? `（階層が変わったため、線を ${removed} 本外しました）` : ""));
     return true;
   }
@@ -353,7 +353,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     changed();
     notifySelect();
     const kids = gone.size - 1;
-    opt.onNotice?.(`「${captionOf(n)}」を消しました` +
+    opt.onNotice?.(`「${keyOfBox(n)}」を消しました` +
       (kids || cut.length ? `（${[kids ? `子 ${kids} 個` : "", cut.length ? `線 ${cut.length} 本` : ""].filter(Boolean).join("、")}も）` : ""));
     return true;
   }
@@ -401,7 +401,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     n.intendedCX = centerX(n);
     select(n);
     changed();
-    opt.onNotice?.(`「${captionOf(n)}」を戻しました`);
+    opt.onNotice?.(`「${keyOfBox(n)}」を戻しました`);
     return true;
   }
 
@@ -459,6 +459,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   const brief = (n: Box) => ({ id: n.id, caption: captionOf(n) });
+  // 知らせに出す短いキー（長いキャプションでヘッダーが崩れないように）
+  const keyOfBox = (n: Box) => keyOf(n.src.id, captionOf(n));
 
   function info(n: Container | null): Info {
     if (n == null || n.isWorld) {

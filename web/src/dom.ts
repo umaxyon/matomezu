@@ -49,6 +49,24 @@ export function truncate(text: string, limit?: number): string {
   return chars.length > limit ? chars.slice(0, limit).join("") + "…" : text;
 }
 
+// 見た目の幅（半角 1、全角 2）で limit を超えたら、入るだけ残して … を付ける
+export function truncateWidth(text: string, limit: number): string {
+  let used = 0, out = "";
+  for (const c of text) {
+    const cp = c.codePointAt(0)!;
+    const w = cp < 0x100 || (cp >= 0xff61 && cp <= 0xff9f) ? 1 : 2; // Latin-1 と半角カナは半角
+    if (used + w > limit) return out + "…";
+    used += w;
+    out += c;
+  }
+  return out;
+}
+
+// ボックスを短く示すキー: 「id_キャプションの先頭（全角 8 文字分、半角なら 16 文字）」。超えたら … を付ける。
+// 同じ書き出しのボックスが並んでも見分けられるよう id を付ける。改行や続く空白は 1 つの空白にする
+export const keyOf = (id: unknown, caption: string) =>
+  `${id}_${truncateWidth(caption.replace(/\s+/g, " ").trim(), 16)}`;
+
 export const esc = (s: unknown): string =>
   String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 

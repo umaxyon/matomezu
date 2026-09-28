@@ -10,7 +10,7 @@
  *   panel.tab("info");           // タブを切り替える
  */
 
-import { esc, injectStyle, toHex } from "./dom";
+import { esc, injectStyle, keyOf, toHex } from "./dom";
 import { type Graph, REMOVED_MIME } from "./graph";
 import type { Brief, ChildView, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
 
@@ -99,7 +99,7 @@ const PANEL_CSS = `
   font: inherit; font-size: 12px; color: var(--mzp-muted); cursor: pointer;
   background: none; border: 0; border-bottom: 2px solid transparent; padding: 6px 10px; margin-bottom: -1px;
 }
-.mzp-tab:hover { color: var(--mzp-text); }
+.mzp-tab:hover { color: var(--mzp-text); background: none; }
 .mzp-tab[aria-selected="true"] { color: var(--mzp-text); border-bottom-color: var(--mzp-accent); font-weight: 600; }
 .mzp-pane[hidden] { display: none; }
 .mzp-pane > .mzp-section:first-child { border-top: 0; }
@@ -150,7 +150,7 @@ const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1
 function chips(list: Brief[]): string {
   if (!list.length) return '<span class="mzp-none">なし</span>';
   return '<div class="mzp-chips">' + list.map(x =>
-    `<button type="button" class="mzp-chip" data-select="${esc(x.id)}">${esc(x.caption)}</button>`
+    `<button type="button" class="mzp-chip" data-select="${esc(x.id)}" title="${esc(x.caption)}">${esc(keyOf(x.id, x.caption))}</button>`
   ).join("") + "</div>";
 }
 
@@ -264,15 +264,17 @@ function html(info: Info): string {
   return parts.join("");
 }
 
-// 一覧の 1 行。表示中は押すと選び、右端の × で消す。消したものは図へドラッグすると戻る
+// 一覧の 1 行。表示中は押すと選び、右端の × で消す。消したものは図へドラッグすると戻る。
+// キャプションは「id_」を付けて幅に入るだけ出し、はみ出た分は … にする（CSS）。全文はポインタを乗せると出る
 function row(item: ListItem, removed: boolean): string {
   const parent = item.parent != null ? `<span class="mzp-row-parent">${esc(item.parent)} の中</span>` : "";
+  const caption = item.caption.replace(/\s+/g, " ").trim();
   const attrs = removed
     ? ` class="mzp-row mzp-removed" draggable="true" data-restore="${esc(item.id)}" title="図へドラッグすると戻ります"`
     : ` class="mzp-row" data-select="${esc(item.id)}"`;
   return `<li${attrs}>
     <span class="mzp-swatch" style="background:${esc(item.color)}"></span>
-    <span class="mzp-row-text"><span class="mzp-row-cap">${esc(item.caption)}</span>${parent}</span>
+    <span class="mzp-row-text"><span class="mzp-row-cap" title="${esc(item.caption)}">${esc(item.id)}_${esc(caption)}</span>${parent}</span>
     ${removed ? "" : `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="消す（子も一緒に消えます）" aria-label="「${esc(item.caption)}」を消す">×</button>`}
   </li>`;
 }

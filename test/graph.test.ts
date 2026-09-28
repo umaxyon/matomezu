@@ -418,7 +418,7 @@ describe("親子の付け替え", () => {
     expect([parentOf(out, 5), parentOf(out, 6)]).toEqual([4, 4]); // 子孫はそのまま
     // バックエンドとフロントエンド・外部サービスの線は外れ、API-データの線は残る
     expect(out.edges).toEqual([{ id: "e3", from: 5, to: 6 }]);
-    expect(notices.at(-1)).toBe("「Web」の中へ移しました（階層が変わったため、線を 2 本外しました）");
+    expect(notices.at(-1)).toBe("「2_Web」の中へ移しました（階層が変わったため、線を 2 本外しました）");
     // 今ある子（トップ画面）の下の左端に置かれる
     const top = graph.info(3), back = graph.info(4);
     expect(back.x).toBe(top.x);
