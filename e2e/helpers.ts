@@ -69,13 +69,14 @@ export async function choose(page: Page, id: number, name: string, value: string
   await page.locator(`#sidebar label:has(input[name="${name}"][value="${value}"])`).click();
 }
 
-// 箱の本体をつかんで (dx, dy) だけドラッグする
+// 箱の本体をつかんで (dx, dy) だけドラッグする。人がマウスで動かすのに近づけるため、5px ずつ動かす
+// （大きく飛ばすと、途中でぶつかって止まるはずの箱を飛び越えてしまう）
 export async function dragBy(page: Page, id: number, dx: number, dy: number) {
   const box = (await head(page, id).boundingBox())!;
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
   await page.mouse.move(x, y);
   await page.mouse.down();
-  await page.mouse.move(x + dx, y + dy, { steps: 10 });
+  await page.mouse.move(x + dx, y + dy, { steps: Math.max(1, Math.ceil(Math.hypot(dx, dy) / 5)) });
   await page.mouse.up();
 }
 
