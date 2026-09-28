@@ -11,7 +11,8 @@
 // 場面だけの追加の手順:
 //   最初に開いたとき          fitToViewport            右半分からはみ出した最上位を、線の相手の真下へ
 //                                                       （SCENES の fitViewport が true の場面だけ）
-// ドラッグ中は settle を使わず、drag.ts の tryMove が行う（場面の表には載せていない）
+// ドラッグ中は settle を使わず、drag.ts の DragSession が開始時の写しから毎回決め直す（場面の表では表せない）。
+// 手を離したときに重なりが残っていれば、settle(SCENES.drop) で直す
 
 import {
   type Box, type Container, type Edge, type World,

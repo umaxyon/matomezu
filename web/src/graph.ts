@@ -176,6 +176,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     changed,
     notifySelect,
     reparent,
+    drop: n => { settle(SCENES.drop, n); render(); },
   }, L, R, createDrag(opt, L));
 
   function changed() {

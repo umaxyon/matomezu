@@ -2,7 +2,7 @@
 // examples/three-levels.json の id: 1 タイトル、2 ユーザー、3 フロントエンド、5 トップ画面、10 バックエンド、17 外部サービス
 import { expect, test } from "@playwright/test";
 import {
-  choose, edgeEnds, example, lines, openDiagram, rect, select, setCaption, violations,
+  choose, dragBy, edgeEnds, example, lines, openDiagram, rect, select, setCaption, violations,
 } from "./helpers";
 
 const LONG = "トップ画面あいうえおかきくけこさしすせそたちつてとなにぬねの".repeat(2);
@@ -100,4 +100,16 @@ test("真横の相手への線は水平、真下の相手への線は垂直", as
   expect((await edgeEnds(page, 0))[1]).toBe((await edgeEnds(page, 0))[3]);
   expect((await edgeEnds(page, 1))[0]).toBe((await edgeEnds(page, 1))[2]);
   await select(page, 3);
+});
+
+test("タイトルを、途中の箱にぶつかっても止まらずにバックエンドの下まで動かせる（docs/DRAG-plan.md）", async ({ page }) => {
+  const [title, user, front, back] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 3), rect(page, 10)]);
+  const dy = back.y + back.h + 8 - title.y;
+  await dragBy(page, 1, 0, dy);
+  const after = await rect(page, 1);
+  expect(after.y).toBeGreaterThanOrEqual(back.y + back.h + 8 - 1);
+  // 通り過ぎた箱は元の位置のまま
+  expect(await rect(page, 2)).toEqual(user);
+  expect(await rect(page, 3)).toEqual(front);
+  expect(await rect(page, 10)).toEqual(back);
 });

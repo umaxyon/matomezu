@@ -43,7 +43,7 @@ test("自動配置した最上位のボックスは重ならない", () => {
   }
 });
 
-test("ドラッグで動かし、ぶつかる相手の中には入らない", () => {
+test("ドラッグでぶつかった相手は、つかんだ箱の開始位置の側へどく", () => {
   const changes: Diagram[] = [];
   const { el, graph } = setup(
     { nodes: [{ id: 1, x: 100, y: 100 }, { id: 2, x: 400, y: 100 }] },
@@ -58,8 +58,9 @@ test("ドラッグで動かし、ぶつかる相手の中には入らない", ()
   fire("pointerup", 300);
 
   const out = graph.toJSON();
-  // 2（x=400）の左に、間隔 8px を空けて止まる
-  expect(byId(out, 1).x).toBe(400 - 8 - graph.info(1).w);
+  // 1 はポインタに追従して止まらず、2 は 1 の開始位置の側（左）へ、間隔 8px を空けてどく
+  expect(byId(out, 1).x).toBe(400);
+  expect(byId(out, 2).x).toBe(400 - 8 - graph.info(2).w);
   expect(apart(byId(out, 1), graph.info(1), byId(out, 2), graph.info(2))).toBe(true);
   expect(changes.length).toBe(1);
 });
@@ -553,14 +554,16 @@ describe("ドラッグで親が広がったとき", () => {
     expect(r.y).toBe(40);
   });
 
-  test("押しのけると横にはみ出す場合は、今までどおり止める", () => {
+  test("右へ押しのけるとワールドからはみ出す場合は、下へ押しのける", () => {
     const { el, graph } = setup(group([{ id: 9, caption: "右端", x: 860, y: 40 }]));
     const before = byId(graph.toJSON(), 2).x;
     dragBy(el, graph, 2, 900, 0);
     const g = graph.info(1), r = graph.info(9);
     expect(r.x).toBe(860);
-    expect(g.x + g.w).toBeLessThanOrEqual(r.x); // グループは右端のボックスの手前で止まる
+    expect(r.y).toBeGreaterThanOrEqual(g.y + g.h); // 右端のボックスはグループの下へ
+    // グループはワールドの右端（余白 12 の手前）までは広がる。それを越える位置へは動かさない
     expect(byId(graph.toJSON(), 2).x).toBeGreaterThan(before!);
+    expect(g.x + g.w).toBe(graph.info(null).w - 12);
   });
 });
 

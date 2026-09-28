@@ -83,4 +83,10 @@ export const SCENES = {
     anchor: null, yieldTo: "others", giveWayToLarger: false,
     direction: "down", repack: { w: "down", h: "right" }, restore: true, fitViewport: false,
   },
+  // ドラッグして手を離したとき（ドラッグ中にどけられなかった兄弟が重なっていれば、相手を下へずらす。
+  // ドラッグ中の配置は表では表せないので drag.ts の先頭に決まりがある）
+  drop: {
+    anchor: null, yieldTo: "others", giveWayToLarger: false,
+    direction: "down", repack: null, restore: true, fitViewport: false,
+  },
 } as const satisfies Record<string, Scene>;

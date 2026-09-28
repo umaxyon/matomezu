@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { Diagram, Patch } from "../web/src/types";
-import { type R, dragBy, example, fakeMeasure, frames, rectOf } from "./helpers";
+import { dragBy, example, fakeMeasure, frames, violations } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -19,34 +19,6 @@ function setup(data: Diagram) {
 }
 
 const sample = () => example("three-levels");
-
-const apart = (a: R, b: R) =>
-  a.x + a.w <= b.x + 0.5 || b.x + b.w <= a.x + 0.5 || a.y + a.h <= b.y + 0.5 || b.y + b.h <= a.y + 0.5;
-
-// 崩れてはいけない性質を確かめ、見つかった問題を返す
-function violations(el: HTMLElement): string[] {
-  const out: string[] = [];
-  const containers = [el.querySelector(".mz-world") as HTMLElement,
-    ...[...el.querySelectorAll<HTMLElement>(".mz-node")].filter(n =>
-      n.querySelector(":scope > .mz-head")!.classList.contains("mz-group"))];
-  for (const c of containers) {
-    const kids = [...c.querySelectorAll<HTMLElement>(":scope > .mz-node")]
-      .filter(n => n.style.display !== "none" && !n.classList.contains("mz-ghost"));
-    const rects = kids.map(rectOf);
-    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
-      if (!apart(rects[i]!, rects[j]!)) out.push(`重なり: ${kids[i]!.textContent} / ${kids[j]!.textContent}`);
-    }
-    if (c.classList.contains("mz-world")) continue;
-    const p = rectOf(c);
-    for (const [i, r] of rects.entries()) {
-      // 内包の子は、余白（左右下 12、上は見出し 30）の内側に収まる
-      if (r.x < 11.5 || r.y < 29.5 || r.x + r.w > p.w - 11.5 || r.y + r.h > p.h - 11.5) {
-        out.push(`はみ出し: ${kids[i]!.textContent}`);
-      }
-    }
-  }
-  return out;
-}
 
 // 決まった種の乱数（毎回同じ操作になる）
 function random(seed: number) {

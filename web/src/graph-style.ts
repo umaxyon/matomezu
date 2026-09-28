@@ -111,7 +111,7 @@ export const GRAPH_CSS = `
 }
 .mz-world.mz-drop { outline: 3px solid var(--mz-select); outline-offset: -4px; }
 .mz-node.mz-dim { opacity: 0.35; }
-.mz-node.mz-dragging { z-index: 10; }
+.mz-node.mz-dragging { z-index: 10; opacity: 0.85; } /* 兄弟に重ねて通すので、下が透けて見えるように */
 .mz-node.mz-dragging > .mz-head { cursor: grabbing; outline-color: var(--mz-edge-hi); }
 .mz-node.mz-current > .mz-head { outline-color: var(--mz-select); }
 .mz-node.mz-linking > .mz-head { outline: 2px dashed var(--mz-select); }

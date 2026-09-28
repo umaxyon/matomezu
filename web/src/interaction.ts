@@ -1,7 +1,7 @@
 // ポインタ操作: 移動のドラッグ、付け替えのドラッグ（ゴースト）、クリックでの選択、Esc。
 // 図の状態の変更（選択、線、付け替え）は ctx の関数を呼んで graph.ts に任せる
 
-import type { Drag } from "./layout/drag";
+import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
 import { type Box, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
 import type { Renderer } from "./render";
@@ -14,8 +14,7 @@ interface Released {
   m: Box;
   specW: number;
   specH: number;
-  width: number | undefined;
-  height: number | undefined;
+  src: Box["src"]; // 外す前のデータ（項目の順番も戻すため、丸ごと写す）
 }
 
 export interface InteractionContext {
@@ -30,17 +29,19 @@ export interface InteractionContext {
   changed(): void;
   notifySelect(): void;
   reparent(id: string, parentId: string | null, at?: { x: number; y: number }): void;
+  drop(n: Box): void;             // ドラッグ中に解決できなかった重なりを直す（場面の表の drop）
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
   const { container, world } = ctx;
   const { refitAncestors, syncWorld, centerX } = L;
-  const { tryMove } = D;
+
   const { render, blocked, focus, unfocus } = R;
 
   let drag: {
     n: Box; sx: number; sy: number; ox: number; oy: number; moved: boolean;
     released: Released[] | null; // 動かし始めたときに外した、祖先の最小の大きさ
+    session: DragSession | null; // 動かし始めたときの位置の写し
   } | null = null;
   // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）
   let lift: {
@@ -90,7 +91,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     }
     const d = dragTarget(n);
     n.head.setPointerCapture(e.pointerId);
-    drag = { n: d, sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, moved: false, released: null };
+    drag = { n: d, sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, moved: false, released: null, session: null };
     d.el.classList.add("mz-dragging");
     focus(n);
   }
@@ -101,25 +102,29 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     const { n } = drag;
     if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
     drag.released ??= releaseSizes(n);
-    if (tryMove(n, drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy)) {
-      drag.moved = true;
-      n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
-      n.intendedCX = centerX(n);
-      render();
-    } else {
-      blocked(n);
-    }
+    drag.session ??= D.begin(n);
+    // 置けない位置（広がった祖先が親の枠からはみ出す）なら、置ける所で止めて知らせる
+    const reached = drag.session.compute(drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy);
+    if (n.x !== drag.ox || n.y !== drag.oy) drag.moved = true;
+    n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
+    n.intendedCX = centerX(n);
+    render();
+    if (!reached) blocked(n);
   }
 
   function onPointerUp(e: PointerEvent) {
     if (lift) return dropLift(e);
     if (!drag) return;
-    drag.n.el.classList.remove("mz-dragging");
-    const moved = drag.moved;
-    if (!moved && drag.released) restoreSizes(drag.released, drag.n);
+    const { n, moved, session } = drag;
+    n.el.classList.remove("mz-dragging");
+    if (!moved && drag.released) restoreSizes(drag.released, n);
     drag = null;
     unfocus();
-    if (moved) {
+    if (moved && session) {
+      // 手を離したときの位置で確定する。どいた箱は、どいた先が本来いたい位置になる
+      // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
+      for (const b of session.displaced()) { b.intendedY = b.y; b.intendedCX = centerX(b); }
+      if (session.overlapping()) ctx.drop(n);
       syncWorld();
       ctx.changed();
       ctx.notifySelect();
@@ -133,7 +138,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     const out: Released[] = [];
     for (const m of ancestors(n)) {
       if (overflowOf(m) !== "grow" || !(m.specW || m.specH)) continue;
-      out.push({ m, specW: m.specW, specH: m.specH, width: m.src.width, height: m.src.height });
+      out.push({ m, specW: m.specW, specH: m.specH, src: { ...m.src } });
       setSpec(m, "w", 0);
       setSpec(m, "h", 0);
     }
@@ -145,8 +150,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     for (const r of list) {
       r.m.specW = r.specW;
       r.m.specH = r.specH;
-      if (r.width != null) r.m.src.width = r.width;
-      if (r.height != null) r.m.src.height = r.height;
+      // データの入れ物は図全体から参照されているので、入れ替えずに中身を戻す
+      for (const k of Object.keys(r.m.src)) delete r.m.src[k as keyof Box["src"]];
+      Object.assign(r.m.src, r.src);
     }
     refitAncestors(n);
     render();
