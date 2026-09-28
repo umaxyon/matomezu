@@ -4,7 +4,7 @@
  * - 子の見せ方は「内包」（親の中に入れる）「ツリー」（組織図のように下へぶら下げる）「非表示」から選ぶ。
  * - ボックスはドラッグで移動でき、同じ階層のボックス同士は重ならない。
  * - 線は同じ階層（同じ親を持つボックス同士）でだけ引ける。
- * - 線をクリックすると消える。Ctrl（Mac は Cmd）+クリックでボックスを2つ選ぶと線が引かれる。
+ * - 線モードでは、線をクリックすると消え、Ctrl（Mac は Cmd）+クリックでボックスを2つ選ぶと線が引かれる。
  * - クリックしたボックス（背景ならワールド）が選択され、onSelect で知らせる。
  *
  * 使い方:
@@ -17,7 +17,7 @@
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
- *   graph.setMode(mode);         // ドラッグの働き: "move"（移動）/ "reparent"（親子の付け替え）
+ *   graph.setMode(mode);         // ツールのモード: "move"（移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）
  *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
  *   graph.fitChildren(id, "width" | "height" | "both"); // 内包している子の大きさを、一番大きい子にそろえる
  *   graph.destroy();
@@ -232,6 +232,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     svg.appendChild(g);
     const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit] };
     hit.addEventListener("click", ev => {
+      if (mode !== "link") return; // 線モード以外では、線は CSS でもクリックを受けない
       ev.stopPropagation();
       removeEdge(e);
     });
@@ -323,8 +324,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   function setMode(m: Mode) {
     I.endLift();
+    if (m !== "link") setLinking(null);
     mode = m;
     container.classList.toggle("mz-mode-reparent", m === "reparent");
+    container.classList.toggle("mz-mode-link", m === "link");
   }
 
   // ---- 情報と変更 ----

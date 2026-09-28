@@ -6,8 +6,8 @@ import type { Layout } from "./layout/layout";
 import { type Box, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
 import type { Renderer } from "./render";
 
-// ドラッグの働き。移動か、親子の付け替えか
-export type Mode = "move" | "reparent";
+// ツールのモード。移動、親子の付け替え、線（線のクリックで削除、Ctrl+クリックで線を引く。ドラッグは移動）
+export type Mode = "move" | "reparent" | "link";
 
 // 動かし始めたときに外した、祖先の最小の大きさ（実際に動かさなければ戻す）
 interface Released {
@@ -76,7 +76,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       return;
     }
     e.stopPropagation();
-    if (e.ctrlKey || e.metaKey) {
+    if ((e.ctrlKey || e.metaKey) && ctx.mode() === "link") {
       e.preventDefault();
       ctx.ctrlClick(n);
       return;

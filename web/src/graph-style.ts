@@ -68,10 +68,12 @@ export const GRAPH_CSS = `
   stroke: var(--mz-edge); stroke-width: 1.5;
   transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
 }
-.mz-hit { stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
+.mz-hit { stroke: transparent; stroke-width: 12; pointer-events: none; }
+/* 線を消せるのは線モードだけ。それ以外では線はクリックを受けず、下のボックスや背景に届く */
+.mz-mode-link .mz-hit { pointer-events: stroke; cursor: pointer; }
 .mz-edge.mz-hi .mz-line { stroke: var(--mz-edge-hi); stroke-width: 2.2; }
 .mz-edge.mz-dim .mz-line { opacity: 0.25; }
-.mz-edge:hover .mz-line { stroke: var(--mz-edge-del); stroke-width: 2.5; stroke-dasharray: 6 4; opacity: 1; }
+.mz-mode-link .mz-edge:hover .mz-line { stroke: var(--mz-edge-del); stroke-width: 2.5; stroke-dasharray: 6 4; opacity: 1; }
 .mz-node { position: absolute; pointer-events: none; transition: opacity 0.15s; }
 .mz-node.mz-clip { overflow: hidden; }
 .mz-head {
@@ -119,6 +121,7 @@ export const GRAPH_CSS = `
 .mz-shape-db > .mz-text { position: relative; }
 /* 付け替えのドラッグ */
 .mz-mode-reparent .mz-head { cursor: alias; }
+.mz-mode-link .mz-head { cursor: crosshair; }
 .mz-node.mz-lifted { opacity: 0.3; }
 .mz-ghost { z-index: 50; opacity: 0.8; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35)); }
 .mz-ghost .mz-head { pointer-events: none; }

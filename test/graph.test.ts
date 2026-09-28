@@ -75,8 +75,9 @@ test("ツリーから内包に戻すと、元の位置に戻る", () => {
   expect([byId(after, 3).x, byId(after, 3).y]).toEqual([byId(before, 3).x!, byId(before, 3).y!]);
 });
 
-test("Ctrl+クリックで同じ階層の2つに線を引き、階層が違えば引かない", () => {
+test("線モードで、Ctrl+クリックで同じ階層の2つに線を引き、階層が違えば引かない", () => {
   const { el, graph } = setup({ nodes: [{ id: 1 }, { id: 2 }, { id: 3, parent: 2 }] });
+  graph.setMode("link");
   const click = (id: number) => {
     graph.select(id);
     const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
@@ -87,6 +88,35 @@ test("Ctrl+クリックで同じ階層の2つに線を引き、階層が違え�
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   click(1); click(2);
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+});
+
+test("線モード以外では、Ctrl+クリックで線を引かず、線をクリックしても消えない", () => {
+  const { el, graph } = setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [[1, 2]] });
+  const click = (id: number) => {
+    graph.select(id);
+    el.querySelector(".mz-node.mz-current > .mz-head")!
+      .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, ctrlKey: true, pointerId: 1 }));
+    el.querySelector(".mz-node.mz-current > .mz-head")!
+      .dispatchEvent(new PointerEvent("pointerup", { bubbles: true, ctrlKey: true, pointerId: 1 }));
+  };
+  for (const mode of ["move", "reparent"] as const) {
+    graph.setMode(mode);
+    el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+    graph.setMode("link");
+    click(1); // 1 つ目を選んだところでモードを変えると、選んだものは取り消す
+    graph.setMode(mode);
+    expect(el.querySelector(".mz-linking")).toBeNull();
+  }
+  // 移動モードの Ctrl+クリックは、線を引く 1 つ目にならない
+  graph.setMode("move");
+  click(1); click(2);
+  expect(el.querySelector(".mz-linking")).toBeNull();
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+  // 線モードなら、線のクリックで消える
+  graph.setMode("link");
+  el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(graph.toJSON().edges).toEqual([]);
 });
 
 test("検証エラーのときは例外を投げ、表示は元のまま", () => {
@@ -322,6 +352,7 @@ describe("履歴", () => {
     graph.redo();
 
     // 線を引いて、消す
+    graph.setMode("link");
     const click = (id: number) => {
       graph.select(id);
       el.querySelector(".mz-node.mz-current > .mz-head")!
