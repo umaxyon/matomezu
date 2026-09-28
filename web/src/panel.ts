@@ -103,6 +103,15 @@ const PANEL_CSS = `
 .mzp-tab[aria-selected="true"] { color: var(--mzp-text); border-bottom-color: var(--mzp-accent); font-weight: 600; }
 .mzp-pane[hidden] { display: none; }
 .mzp-pane > .mzp-section:first-child { border-top: 0; }
+.mzp-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.mzp-fold > summary::-webkit-details-marker { display: none; }
+.mzp-fold > summary::before {
+  content: "▶"; font-size: 8px; line-height: 1; color: var(--mzp-muted); transition: transform 0.15s;
+}
+.mzp-fold[open] > summary::before { transform: rotate(90deg); }
+.mzp-fold > summary h3 { margin: 0; }
+.mzp-fold[open] > summary { margin-bottom: 8px; }
+.mzp-fold > summary:hover h3 { color: var(--mzp-text); }
 .mzp-list { list-style: none; margin: 0; padding: 0; }
 .mzp-row {
   display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 6px; border-radius: 6px; min-width: 0;
@@ -279,15 +288,19 @@ function row(item: ListItem, removed: boolean): string {
   </li>`;
 }
 
-function listHtml(items: Items): string {
+// 一覧の区画（表示中 / 消したもの）。見出しを押すと折りたたむ（ボックスが多いと下の区画に気づけないため）
+export type Fold = "live" | "removed";
+
+function listHtml(items: Items, open: Record<Fold, boolean>): string {
   const list = (rows: string[]) => rows.length ? `<ul class="mzp-list">${rows.join("")}</ul>` : '<span class="mzp-none">なし</span>';
-  return `<div class="mzp-section"><h3>表示中（${items.live.length}）</h3>
-      ${list(items.live.map(i => row(i, false)))}
-    </div>
-    <div class="mzp-section"><h3>消したもの（${items.removed.length}）</h3>
-      ${list(items.removed.map(i => row(i, true)))}
-      <p class="mzp-hint">消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません</p>
-    </div>`;
+  const fold = (name: Fold, title: string, body: string) =>
+    `<details class="mzp-section mzp-fold" data-fold="${name}"${open[name] ? " open" : ""}>
+      <summary><h3>${title}</h3></summary>${body}
+    </details>`;
+  // 消したものを上に置く（表示中は数が多くなりやすく、下に置くと消したものに気づけないため）
+  return fold("removed", `消したもの（${items.removed.length}）`, list(items.removed.map(i => row(i, true))) +
+      '<p class="mzp-hint">消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません</p>') +
+    fold("live", `表示中（${items.live.length}）`, list(items.live.map(i => row(i, false))));
 }
 
 export type PanelTab = "info" | "list";
@@ -310,13 +323,20 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
   const listPane = el.querySelector<HTMLElement>('[data-pane="list"]')!;
   let info = graph.info(graph.selected());
   let current: PanelTab = "info";
+  const open: Record<Fold, boolean> = { live: true, removed: true }; // 描き直しても折りたたみを保つ
 
   // 選択や図の変更のたびに呼ばれるので、一覧もここで描き直す
   function show(next: Info) {
     info = next;
     infoPane.innerHTML = html(info);
-    listPane.innerHTML = listHtml(graph.items());
+    listPane.innerHTML = listHtml(graph.items(), open);
   }
+
+  // details の開け閉めを覚える（toggle は泡立たないので、捕捉で受け取る）
+  el.addEventListener("toggle", e => {
+    if (!(e.target instanceof HTMLDetailsElement) || !e.target.dataset.fold) return;
+    open[e.target.dataset.fold as Fold] = e.target.open;
+  }, true);
 
   function tab(name: PanelTab) {
     current = name;

@@ -175,3 +175,14 @@ test("一覧: 表示中の × で子ごと消え、消したものに並ぶ。�
   // タブは追加削除のまま
   expect(side.querySelector<HTMLElement>('[data-pane="list"]')!.hidden).toBe(false);
 });
+
+test("一覧の区画は折りたためて、描き直しても開け閉めを保つ", () => {
+  const { g, side } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
+  const fold = (name: string) => side.querySelector<HTMLDetailsElement>(`[data-fold="${name}"]`)!;
+  expect([fold("live").open, fold("removed").open]).toEqual([true, true]);
+  const d = fold("live");
+  d.open = false;
+  d.dispatchEvent(new Event("toggle")); // ブラウザでは開け閉めで起きる
+  g.remove(1); // 一覧が描き直される
+  expect([fold("live").open, fold("removed").open]).toEqual([false, true]);
+});
