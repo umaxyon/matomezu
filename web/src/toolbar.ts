@@ -34,7 +34,8 @@ const FLIP: Partial<Record<Mode, Mode>> = { move: "reparent", reparent: "move" }
 // ボタンを押すと、そのモードになる（Ctrl を押しながらでも同じ。そのときは Ctrl による入れ替えを解く）。
 // 移動と付け替えのときは、Ctrl（Mac は Cmd）を押している間だけ、もう一方のモードになり、離すと戻る。
 // ドラッグ中は切り替えず、手を離してから切り替える（付け替えのドラッグの途中で Ctrl を離しても取り消さないため）。
-// ボタンとラベルには、今効いているモードを出す。登録を外す関数を返す
+// ボタンとラベルには、今効いているモードを出す。図の側でモードが変わったとき（一覧から戻したときなど）は、
+// それをボタンで選んだのと同じに扱う。登録を外す関数を返す
 export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HTMLElement): () => void {
   let base: Mode = graph.mode(); // ボタンで選んだモード
   let held = false;              // Ctrl で入れ替えているか
@@ -68,6 +69,14 @@ export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HT
   }, { signal });
   // Ctrl を押したままほかのウィンドウへ移ると、離したことが届かないので解く
   window.addEventListener("blur", () => { held = false; show(); }, { signal });
+  // 図の側で変わったモード（ここで切り替えた分は、今効いているモードと同じなので何もしない）
+  const unsubscribe = graph.onModeChange(m => {
+    if (m === effective()) return;
+    base = m;
+    held = false;
+    show();
+  });
+  signal.addEventListener("abort", unsubscribe);
   // ドラッグ中に押したり離したりした分は、手を離したあとで反映する（図の側の処理が済んでから届く）
   document.addEventListener("pointerup", show, { signal });
   document.addEventListener("pointercancel", show, { signal });

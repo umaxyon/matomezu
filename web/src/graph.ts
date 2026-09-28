@@ -17,7 +17,8 @@
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
- *   graph.setMode(mode);         // ツールのモード: "move"（移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）
+ *   graph.setMode(mode);         // ツールのモード: "move"（移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）/ "remove"（削除）
+ *   graph.onModeChange(fn);      // モードが変わったら知らせる（一覧から戻したときに移動モードへ切り替えるなど、図の側で変えたときも）
  *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
  *   graph.fitChildren(id, "width" | "height" | "both"); // 内包している子の大きさを、一番大きい子にそろえる
  *   graph.remove(id);            // 子孫ごと消す（removed へ移す。つながっていた線は捨てる）
@@ -121,6 +122,7 @@ export interface Graph {
   toJSON(): Diagram;
   dragging(): boolean;
   setMode(mode: Mode): void;
+  onModeChange(listener: (mode: Mode) => void): () => void; // モードが変わったら知らせる（図の側で変えたときも）。外す関数を返す
   mode(): Mode;
   reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean; // at は最上位へ移すときの位置
   fitChildren(id: Id, what: "width" | "height" | "both"): number;
@@ -187,7 +189,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     reparent,
     drop: n => { settle(SCENES.drop, n); render(); },
     remove: n => { remove(n.id); },
-    restore: (id, parentId, at) => { restore(id, parentId, at); },
+    // 一覧からドラッグして戻したら、線モードや削除モードのままだと戻した箱をすぐ動かせないので、移動モードにする
+    restore: (id, parentId, at) => {
+      restore(id, parentId, at);
+      if (mode === "link" || mode === "remove") setMode("move");
+    },
   }, L, R, createDrag(opt, L));
 
   function changed() {
@@ -447,7 +453,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     container.classList.toggle("mz-mode-reparent", m === "reparent");
     container.classList.toggle("mz-mode-link", m === "link");
     container.classList.toggle("mz-mode-remove", m === "remove");
+    for (const f of modeListeners) f(m);
   }
+  const modeListeners = new Set<(m: Mode) => void>();
 
   // ---- 情報と変更 ----
 
@@ -728,6 +736,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     dragging: () => I.dragging(),
     setMode,
+    onModeChange(f) {
+      modeListeners.add(f);
+      return () => modeListeners.delete(f);
+    },
     mode: () => mode,
     reparent,
     fitChildren,

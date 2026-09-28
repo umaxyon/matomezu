@@ -161,3 +161,15 @@ test("ドラッグ中は切り替えず、手を離してから切り替える",
   expect(graph.mode()).toBe("reparent");
   expect(graph.info(1).x).toBe(60); // 移動のドラッグはそのまま終わる
 });
+
+test("図の側でモードが変わったら、ボタンとラベルもそれに合わせる", () => {
+  const { g, $, buttons } = setupWithModes();
+  buttons[2]!.click(); // 線モード
+  g.setMode("move");   // 図の側で変える（一覧から戻したときなど）
+  expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
+  expect($("label").textContent).toBe("移動モード");
+  key("Control", { ctrlKey: true }); // 以後は移動モードを元に Ctrl で入れ替わる
+  expect(g.mode()).toBe("reparent");
+  keyup("Control");
+  expect(g.mode()).toBe("move");
+});
