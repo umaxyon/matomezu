@@ -260,16 +260,20 @@ export function createLayout(ctx: LayoutContext) {
     placeGroup(roots(), n => (n.hasPos ? spotBelow(n) : findFreeSpot(n, n.x, n.y)), first, restore);
   }
 
-  // n を (x, y) から、兄弟とぶつからなくなるまで opt.gap ずつ dir の向きへずらした位置を返す。
+  // n を (x, y) から dir の向きへ、兄弟とぶつからなくなるまでずらした位置を返す。ぶつかった相手の端のちょうど
+  // opt.gap 先へ一度に進めるので、押し下げた相手との間隔はいつも opt.gap になる（ドラッグの pushAway と同じ。
+  // 少しずつずらすと、止まる位置が刻みに引っ張られて間隔がばらつく）。
   // その向きの位置が limit を越えたら null（呼び出し側で別の置き方をする）。
   // 読み込み・設定変更のあと（spotBelow）、子のサイズをそろえる（compress）、最初に開いたとき（fitToViewport）で使う
   function slide(n: Box, x: number, y: number, dir: "down" | "right" = "down", limit = Infinity): [number, number] | null {
-    const pos = () => (dir === "down" ? y : x);
-    while (collides(n, x, y) && pos() <= limit) {
-      if (dir === "down") y += opt.gap;
-      else x += opt.gap;
+    const g = opt.gap;
+    for (;;) {
+      if ((dir === "down" ? y : x) > limit) return null;
+      const hits = siblings(n).filter(o => o !== n && isPlaced(o) && overlaps(n, x, y, o));
+      if (!inNest(n) || !hits.length) return [x, y];
+      if (dir === "down") y = Math.max(...hits.map(o => o.y + o.h + g));
+      else x = Math.max(...hits.map(o => o.x + o.w + g));
     }
-    return pos() <= limit ? [x, y] : null;
   }
 
   function spotBelow(n: Box): [number, number] {

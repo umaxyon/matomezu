@@ -1,6 +1,6 @@
 // 処理の回数のテスト。配置のリファクタ（docs/REFACTOR-layout.md）で、文字を測る回数（ブラウザに配置を計算し直させる、
 // 一番重い処理）と重なりの判定の回数が増えていないことを確かめる。時間は環境でぶれるので回数で見る。
-// 基準の値は 119f164 の時点のもの（振る舞いを変えて増えた分は、理由を書いて足している）。
+// 基準の値は下のコメントの時点のもの（振る舞いを変えて増えた分は、理由を書いて足している）。
 // 減ったら基準を下げてよい（増えたら理由を確かめる）
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
@@ -69,13 +69,13 @@ test("大きな図での処理の回数が、基準を超えない", () => {
     fit: count(() => graph.fitChildren(groupId(0), "both")),
     reload: count(() => graph.load(graph.toJSON(), { keepHistory: true })),
   };
-  // 119f164 の時点の回数。設定変更と子のサイズをそろえる操作は、最上位で上辺を保つようにした（2026-09-28）ことで
-  // 下の箱を押し下げる量が増えた分を含む
+  // slide をぶつかった相手の端へ一度に進める形にした時点（2026-09-28）の回数。それまでは 8px ずつずらして
+  // 判定していたので、読み込みで約 5 万回、設定変更で約 25 万回あった
   const base = {
-    load: { measures: 480, overlapChecks: 50770 },
-    settings: { measures: 6, overlapChecks: 248134 },
+    load: { measures: 480, overlapChecks: 5289 },
+    settings: { measures: 6, overlapChecks: 10874 },
     drag: { measures: 0, overlapChecks: 1785 },
-    fit: { measures: 0, overlapChecks: 53675 },
+    fit: { measures: 0, overlapChecks: 2080 },
     reload: { measures: 0, overlapChecks: 1090 },
   };
   const over = Object.entries(out).flatMap(([scene, v]) =>

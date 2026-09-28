@@ -259,6 +259,15 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
     expect([graph.info(1).w, graph.info(1).h]).toEqual([web.w, web.h]);
   });
 
+  test("押し下げた相手との間隔は、ドラッグ以外の場面でもちょうど 8px（ずらす量の刻みで間隔がばらつかない）", () => {
+    const { graph } = setup(data());
+    for (const n of [1, 2, 3, 5, 8]) {
+      graph.update(2, { caption: long.repeat(n) });
+      const top = graph.info(2), cart = graph.info(3);
+      if (cart.y > 30) expect(cart.y - (top.y + top.h)).toBe(8);
+    }
+  });
+
   test("縮んでも元の位置が空かなければ、空いたところまで上がる", () => {
     const { graph } = setup(data());
     graph.update(2, { caption: long.repeat(8) }); // 高く伸びて大きく押し下げる

@@ -36,6 +36,14 @@ test("文字を増やすと最大の幅まで広がって折り返し、減ら�
   expect(await rect(page, 5)).toEqual(before);
 });
 
+test("押し下げた相手との間隔は、ちょうど 8px", async ({ page }) => {
+  for (const n of [1, 2, 3]) {
+    await setCaption(page, 5, LONG.repeat(n)); // トップ画面が伸びて、カート画面を押し下げる
+    const top = await rect(page, 5), cart = await rect(page, 6);
+    if (cart.y > top.y) expect(cart.y - (top.y + top.h)).toBe(8);
+  }
+});
+
 test("切り詰めるにすると1行になり、文字を減らせば縮み、増やせば上限の幅で切る", async ({ page }) => {
   const before = await rect(page, 5);
   await setCaption(page, 5, LONG);
