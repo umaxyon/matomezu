@@ -16,8 +16,10 @@ export interface Box {
   x: number; y: number; w: number; h: number;
   hx: number; hy: number; hw: number; hh: number;
   hasPos: boolean;
-  // 重なりを直すために押し下げられる前の位置。空いたら今の x のまま、この y まで戻す（ドラッグで動かしたら消す）
-  home: { x: number; y: number } | null;
+  // 本来いたい高さ（ほかの箱に押し下げられていなければいる高さ。保存しない）。データの位置、ドラッグで置いた位置、
+  // 自分の設定を変えたときに保った位置など、意図して置かれたときに決まり、押し下げられても変わらない。
+  // 今の高さ（y）がこれより下なら、上が空いたときに今の x のままここへ向かって上がる
+  intendedY: number;
   // 同じ段の兄弟にはみ出さないための、文字の幅の上限（0 なら無し）。配置を決め直すたびに計算し直す（保存しない）
   capW: number;
   el: HTMLDivElement;

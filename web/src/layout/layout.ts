@@ -5,7 +5,7 @@
 // 従って行う。場面ごとの違い（何を保つか、誰が動くか、大きい相手に譲るか、子を詰め直す向き、はみ出しを調整するか）は
 // SCENES の表を見る。設定を変える処理（子のサイズをそろえるときは alignChildren）は apply として settle に渡す。
 // どの場面でも、ぶつかった相手は同じ x のまま下へずらし（placeGroup + spotBelow + slide）、位置の無いボックスは
-// 空きを探す（findFreeSpot / findGridSpot）。押し下げたボックスは元の位置を覚え（home）、空いたら戻す。
+// 空きを探す（findFreeSpot / findGridSpot）。押し下げられたボックスは、上が空いたら本来いたい高さ（intendedY）へ戻す。
 // 文字の箱が右の大きい兄弟にはみ出すときは、ずらさずにその手前まで狭めて折り返す（fitToRow）。
 //
 // 場面だけの追加の手順:
@@ -212,29 +212,28 @@ export function createLayout(ctx: LayoutContext) {
     return [x, y]; // 置き場が無いほど狭い場合は重なりを許容する
   }
 
-  // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす
+  // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす（押し下げる。本来いたい高さは変えない）。
   // first を指定すると、それを最初に置く（変更したボックスをその場に残し、相手の方をずらすため）。
-  // 前に押し下げたボックスは、ほかを置いたあとで、元の位置から今の位置までの一番上の空きへ戻す（縮んだら戻るように）
+  // 本来いたい高さより下にいるボックスは、ほかを置いたあとで、本来いたい高さから今の高さまでの一番上の空きへ戻す
+  // （押し下げた相手が縮んだら戻るように）
   function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box, restore = true) {
     for (const n of list) unplaced.add(n);
     const rest = list.filter(n => n !== first);
-    const pushed = rest.filter(n => n.hasPos && n.home).sort((a, b) => a.home!.y - b.home!.y);
+    const below = (n: Box) => n.hasPos && n.y > n.intendedY + 0.5;
+    const pushed = rest.filter(below).sort((a, b) => a.intendedY - b.intendedY);
     const order = (first && list.includes(first) ? [first] : [])
-      .concat(rest.filter(n => n.hasPos && !n.home), pushed, rest.filter(n => !n.hasPos));
+      .concat(rest.filter(n => n.hasPos && !below(n)), pushed, rest.filter(n => !n.hasPos));
     for (const n of order) {
       // 押し下げは同じ x のまま下へずらすものなので、戻すときも今の x のまま上へ戻すだけにする
-      // （覚えた x を使うと、そのあと大きさが変わって x がずれた箱が横へ動いてしまう）
-      if (restore && n.home && n !== first) {
-        const back = slide(n, n.x, n.home.y, "down", n.y);
+      if (restore && n !== first && below(n)) {
+        const back = slide(n, n.x, clamp(n, n.x, n.intendedY)[1], "down", n.y);
         if (back) [n.x, n.y] = back;
-        if (n.y <= n.home.y) n.home = null;
       }
-      const at = { x: n.x, y: n.y };
       [n.x, n.y] = clamp(n, n.x, n.y);
       if (!n.hasPos || collides(n, n.x, n.y)) {
         const wasPlaced = n.hasPos;
         [n.x, n.y] = spot(n);
-        if (wasPlaced && (n.x !== at.x || n.y !== at.y)) n.home ??= at;
+        if (!wasPlaced) n.intendedY = n.y; // 位置の無いボックスは、空きに置いた位置が本来いたい位置
       }
       unplaced.delete(n);
       n.hasPos = true;
@@ -336,6 +335,8 @@ export function createLayout(ctx: LayoutContext) {
     settleRoots(keep ? (ancestors(changed!).pop() ?? changed) : undefined, scene.restore);
     syncWorld();
     if (scene.fitViewport) fitToViewport();
+    // 自分の設定を変えたボックスは、保った位置が本来いたい位置になる
+    if (anchored) anchored.intendedY = anchored.y;
   }
 
   // 読み込んだ直後だけ、表示領域の右にはみ出した最上位のボックスを下へ移す（横スクロールより縦の方が見やすい）。
@@ -363,6 +364,7 @@ export function createLayout(ctx: LayoutContext) {
         : Math.max(...roots().filter(o => o !== n && inside(o)).map(o => o.y + o.h), 0) + opt.treeGapY;
       // ぶつかれば下へずらす
       [n.x, n.y] = slide(n, x, y)!;
+      n.intendedY = n.y;
     }
     syncWorld();
   }
@@ -413,6 +415,7 @@ export function createLayout(ctx: LayoutContext) {
     }
     for (const g of kids) {
       [g.x, g.y] = slide(g, g.x, g.y, dir)!;
+      g.intendedY = g.y; // 詰め直した位置が、本来いたい位置になる
       unplaced.delete(g);
     }
     fit(k);

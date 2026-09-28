@@ -297,6 +297,15 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
     expect(at(3)).toEqual(front);
   });
 
+  test("押し下げられている箱の設定を自分で変えたら、その位置が本来いたい位置になり、上が空いても上がらない", () => {
+    const { graph } = setup(data());
+    graph.update(2, { caption: long.repeat(3) }); // カート画面を押し下げる
+    const pushed = at(graph, 3);
+    graph.update(3, { color: "#ef4444" }); // 押し下げられたカート画面の設定を変える
+    graph.update(2, { caption: "トップ画面" });
+    expect(at(graph, 3)).toEqual(pushed);
+  });
+
   test("押し下げられたあとにドラッグした相手は、その位置のまま", () => {
     const { el, graph } = setup(data());
     graph.update(2, { caption: long });

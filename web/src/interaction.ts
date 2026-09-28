@@ -103,7 +103,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     drag.released ??= releaseSizes(n);
     if (tryMove(n, drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy)) {
       drag.moved = true;
-      n.home = null; // 手で置いた位置を優先する
+      n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
       render();
     } else {
       blocked(n);

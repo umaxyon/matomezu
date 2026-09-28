@@ -61,7 +61,7 @@ const scenarios: { no: number; title: string; watch: Record<number, string>; ste
     ],
   },
   {
-    no: 7, title: "元の位置（home）が Undo・Redo で消える",
+    no: 7, title: "押し下げられた位置が保存され、Undo・Redo のあとは上がらない",
     watch: { 5: "トップ画面", 6: "カート画面" },
     steps: [
       ["トップ画面の文字を長くする（カート画面を押し下げる）", p => setCaption(p, 5, LONG.repeat(3))],

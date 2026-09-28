@@ -392,6 +392,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         k.hasPos = Number.isFinite(k.src.x) && Number.isFinite(k.src.y);
         k.x = Number(k.src.x) || 0;
         k.y = Number(k.src.y) || 0;
+        k.intendedY = k.y;
       }
     }
   }
@@ -512,7 +513,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       y: Number(src.y) || 0,
       w: 0, h: 0, hx: 0, hy: 0, hw: 0, hh: 0,
       hasPos: Number.isFinite(src.x) && Number.isFinite(src.y),
-      home: null,
+      intendedY: Number(src.y) || 0,
       capW: 0,
       el, head, textEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };

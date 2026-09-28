@@ -85,7 +85,12 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
       const moved = new Map<Box, [number, number]>();
       n.x = x; n.y = y;
       refitAncestors(n);
-      if (stuck || settleChain(n, before, moved)) return true;
+      if (stuck || settleChain(n, before, moved)) {
+        // ドラッグで広がった祖先に押された箱は、押された先を本来いたい位置にする（離れても戻さない。
+        // 戻すかどうかは docs/LAYOUT-PENDING.md の 6 で仕分ける）
+        for (const b of moved.keys()) b.intendedY = b.y;
+        return true;
+      }
       for (const [b, [bx, by]] of moved) { b.x = bx; b.y = by; }
       n.x = ox; n.y = oy;
       refitAncestors(n);
