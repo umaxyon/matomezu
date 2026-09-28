@@ -26,14 +26,14 @@ test("何を保つか topCenter: 上辺と横の中心を保つ", () => {
   expect([keep.x(n), keep.y(n)]).toEqual([130, 50]);
 });
 
-test("場面の表: 開いたときだけはみ出しを調整し、設定変更だけが位置を保って大きい相手に譲り、子のサイズをそろえるときだけ詰め直す。手を離したときは重なった相手が動く", () => {
+test("場面の表: 開いたときだけはみ出しを調整し、設定変更だけが位置を保って大きい相手に譲り、子のサイズをそろえるときだけ詰め直す。手を離したときは重なった相手が動く。開いたとき・読み直しでは置いた位置を正とする", () => {
   const rows = Object.entries(SCENES).map(([name, s]) =>
-    [name, !!s.anchor, s.yieldTo, s.giveWayToLarger, s.repack, s.fitViewport]);
+    [name, !!s.anchor, s.yieldTo, s.giveWayToLarger, s.repack, s.fitViewport, s.adoptPlaced]);
   expect(rows).toEqual([
-    ["open", false, "later", false, null, true],
-    ["reload", false, "later", false, null, false],
-    ["settings", true, "others", true, null, false],
-    ["fitChildren", false, "others", false, { w: "down", h: "right" }, false],
-    ["drop", false, "others", false, null, false],
+    ["open", false, "later", false, null, true, true],
+    ["reload", false, "later", false, null, false, true],
+    ["settings", true, "others", true, null, false, false],
+    ["fitChildren", false, "others", false, { w: "down", h: "right" }, false, false],
+    ["drop", false, "others", false, null, false, false],
   ]);
 });

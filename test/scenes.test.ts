@@ -189,3 +189,13 @@ describe("場面の表の行のうち、テストが無かったもの", () => {
     expect(graph.info(6).y).toBe(pushed);
   });
 });
+
+describe("開いたときに押し下げた位置（docs/LAYOUT-PENDING.md の 3）", () => {
+  test("データの位置が重なって押し下げられた箱は、あとで上が空いても上がらない", () => {
+    // three-levels.json のフロントエンド（3）はデータ上 y=80 で、タイトル（1）と間隔 8px 分重なるので 88 に押し下げられる
+    const { graph } = setup(example("three-levels"));
+    expect(graph.info(3).y).toBe(88);
+    graph.update(1, { size: "S" }); // タイトルが低くなり、上が空く
+    expect(graph.info(3).y).toBe(88);
+  });
+});

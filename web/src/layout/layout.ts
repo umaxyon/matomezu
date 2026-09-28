@@ -16,7 +16,7 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, inNest, other, overflowOf, setSpec, shapeOf, sizeOf,
+  ancestors, descendants, inNest, other, overflowOf, setSpec, shapeOf, sizeOf,
 } from "../model";
 import type { TextMeasurer } from "./measure";
 import { createNodeKinds } from "./node-kinds";
@@ -344,6 +344,7 @@ export function createLayout(ctx: LayoutContext) {
     settleRoots(keep ? (ancestors(changed!).pop() ?? changed) : undefined, scene.restore);
     syncWorld();
     if (scene.fitViewport) fitToViewport();
+    if (scene.adoptPlaced) for (const b of roots().flatMap(r => [r, ...descendants(r)])) b.intendedY = b.y;
     // 自分の設定を変えたボックスは、保とうとした高さが本来いたい高さになる（押し下げられていれば、その位置）
     if (anchored) anchored.intendedY = wantY;
     // まだ本来いたい中心が決まっていない最上位（データから置いたばかり）は、今の中心にする

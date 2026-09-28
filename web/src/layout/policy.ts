@@ -60,33 +60,37 @@ export interface Scene {
   restore: boolean;
   // 表示領域の右にはみ出した最上位を下へ移すか（最初に開いたときだけ）
   fitViewport: boolean;
+  // 置いた位置を、すべての箱の本来いたい位置にするか（データの位置が重なって押し下げられた箱も、押し下げられた
+  // 位置を正とする。あとで上が空いても上がらない。保存された位置を正とする Undo・読み直しと同じ考え方。
+  // docs/LAYOUT-PENDING.md の 3）
+  adoptPlaced: boolean;
 }
 
 export const SCENES = {
   // 開いたとき
   open: {
     anchor: null, yieldTo: "later", giveWayToLarger: false,
-    direction: "down", repack: null, restore: true, fitViewport: true,
+    direction: "down", repack: null, restore: true, fitViewport: true, adoptPlaced: true,
   },
   // 外部の変更の読み直し・Undo・Redo
   reload: {
     anchor: null, yieldTo: "later", giveWayToLarger: false,
-    direction: "down", repack: null, restore: true, fitViewport: false,
+    direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: true,
   },
   // サイドバーでの設定変更（キャプション、サイズ、形、見せ方など）
   settings: {
     anchor: { inGroup: "topLeft", topLevel: "topCenter" }, yieldTo: "others", giveWayToLarger: true,
-    direction: "down", repack: null, restore: true, fitViewport: false,
+    direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: false,
   },
   // 子のサイズをそろえる（alignChildren で子の中身を詰め直してから、全体を決め直す）
   fitChildren: {
     anchor: null, yieldTo: "others", giveWayToLarger: false,
-    direction: "down", repack: { w: "down", h: "right" }, restore: true, fitViewport: false,
+    direction: "down", repack: { w: "down", h: "right" }, restore: true, fitViewport: false, adoptPlaced: false,
   },
   // ドラッグして手を離したとき（ドラッグ中にどけられなかった兄弟が重なっていれば、相手を下へずらす。
   // ドラッグ中の配置は表では表せないので drag.ts の先頭に決まりがある）
   drop: {
     anchor: null, yieldTo: "others", giveWayToLarger: false,
-    direction: "down", repack: null, restore: true, fitViewport: false,
+    direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: false,
   },
 } as const satisfies Record<string, Scene>;
