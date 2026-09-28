@@ -20,6 +20,9 @@
  *   graph.setMode(mode);         // ツールのモード: "move"（移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）
  *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
  *   graph.fitChildren(id, "width" | "height" | "both"); // 内包している子の大きさを、一番大きい子にそろえる
+ *   graph.remove(id);            // 子孫ごと消す（removed へ移す。つながっていた線は捨てる）
+ *   graph.restore(id, parentId, at); // 消したボックスを子孫ごと parentId（null は最上位）の子に戻す。at は親の中での位置
+ *   graph.items();               // サイドバーの一覧（表示中と、消したもの）
  *   graph.destroy();
  *
  * データ形式:
@@ -62,6 +65,8 @@
  *   - 線は同じ parent を持つボックス同士（最上位同士を含む）でだけ引ける。
  *     ツリーの子同士の線は描かない（データには残り、内包に戻すと表示される）。
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
+ *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
+ *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
  */
 
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
@@ -74,11 +79,11 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  borderOf, captionOf, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
+  ancestors, borderOf, captionOf, descendants, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { createRenderer } from "./render";
-import type { BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Overflow, Patch } from "./types";
+import type { BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Items, ListItem, Overflow, Patch } from "./types";
 import { OVERFLOWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
@@ -99,6 +104,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
 }
 
 export type { HistoryState, Mode };
+export { REMOVED_MIME } from "./interaction";
 
 // 履歴に残す件数
 const HISTORY_LIMIT = 100;
@@ -118,6 +124,9 @@ export interface Graph {
   mode(): Mode;
   reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean; // at は最上位へ移すときの位置
   fitChildren(id: Id, what: "width" | "height" | "both"): number;
+  remove(id: Id): boolean;
+  restore(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean;
+  items(): Items;
   destroy(): void;
 }
 
@@ -150,7 +159,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const L = createLayout({ opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges });
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges }, L);
   const {
-    incident, innerArea, syncWorld,
+    incident, innerArea, syncWorld, clamp, centerX,
     settle, sizable, alignChildren,
   } = L;
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
@@ -177,6 +186,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     notifySelect,
     reparent,
     drop: n => { settle(SCENES.drop, n); render(); },
+    remove: n => { remove(n.id); },
+    restore: (id, parentId, at) => { restore(id, parentId, at); },
   }, L, R, createDrag(opt, L));
 
   function changed() {
@@ -305,6 +316,112 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
+  // ---- 削除と復活（docs/DELETE-plan.md） ----
+
+  // n を子孫ごと消す。図は作り直さずにその場で外す（作り直すと、押し下げられた箱が本来いたい高さを忘れる）。
+  // 今の位置を書いて removed の末尾へ移し、つながっていた線は捨てる。親は縮み（中身に合わせて伸びる祖先の
+  // 大きさの指定は外す）、残った子は動かさない
+  function remove(id: Id) {
+    const n = nodeOf(id);
+    if (n.isWorld) throw new Error("ワールドは消せません");
+    const gone = new Set([n, ...descendants(n)]);
+    const out = api.toJSON();
+    const moved = out.nodes.filter((_, i) => gone.has(nodes[i]!));
+    source.removed = [...(source.removed ?? []), ...moved];
+    source.nodes = source.nodes.filter((_, i) => !gone.has(nodes[i]!));
+    nodes = nodes.filter(b => !gone.has(b));
+    for (const b of gone) byId.delete(b.id);
+
+    const parent = n.parent;
+    for (const m of parent ? [parent, ...ancestors(parent)] : []) {
+      if (overflowOf(m) !== "grow" || !(m.specW || m.specH)) continue;
+      setSpec(m, "w", 0);
+      setSpec(m, "h", 0);
+    }
+    if (parent) parent.children.splice(parent.children.indexOf(n), 1);
+    else roots.splice(roots.indexOf(n), 1);
+    n.el.remove();
+    const cut = edges.filter(e => gone.has(e.a) || gone.has(e.b));
+    for (const e of cut) e.el.remove();
+    edges = edges.filter(e => !cut.includes(e));
+
+    if (current && gone.has(current)) select(null);
+    if (linking && gone.has(linking)) setLinking(null);
+    unfocus();
+    settle(SCENES.remove, parent ?? undefined);
+    render();
+    changed();
+    notifySelect();
+    const kids = gone.size - 1;
+    opt.onNotice?.(`「${captionOf(n)}」を消しました` +
+      (kids || cut.length ? `（${[kids ? `子 ${kids} 個` : "", cut.length ? `線 ${cut.length} 本` : ""].filter(Boolean).join("、")}も）` : ""));
+    return true;
+  }
+
+  // 消したボックス id を、removed の中の子孫ごと parentId（null は最上位）の子に戻す。付け替えと同じく作り直す。
+  // 位置: 内包（か子の無いボックス）の中や最上位なら at（親の中での位置）。ツリー・非表示の中なら自動で並べる。
+  // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
+  function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
+    const data = api.toJSON();
+    const list = data.removed ?? [];
+    const root = list.find(s => String(s.id) === String(id));
+    if (!root) throw new Error(`消したボックスにありません: ${id}`);
+    const t = parentId == null ? null : (nodeOf(parentId) as Box);
+    const take = new Set([String(root.id)]);
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const s of list) {
+        if (take.has(String(s.id)) || s.parent == null || !take.has(String(s.parent))) continue;
+        take.add(String(s.id));
+        grew = true;
+      }
+    }
+    data.removed = list.filter(s => !take.has(String(s.id)));
+    if (!data.removed.length) delete data.removed;
+    if (t) root.parent = t.src.id;
+    else delete root.parent;
+    const placeAt = at && (!t || viewOf(t) === "nest");
+    if (placeAt) {
+      root.x = Math.round(at.x);
+      root.y = Math.round(at.y);
+    } else {
+      delete root.x;
+      delete root.y;
+    }
+    data.nodes.push(...list.filter(s => take.has(String(s.id))));
+
+    build(data, false);
+    const n = byId.get(String(id))!;
+    if (placeAt) {
+      [n.x, n.y] = clamp(n, at.x, at.y);
+      settle(SCENES.drop, n);
+      render();
+    }
+    n.intendedY = n.y;
+    n.intendedCX = centerX(n);
+    select(n);
+    changed();
+    opt.onNotice?.(`「${captionOf(n)}」を戻しました`);
+    return true;
+  }
+
+  // サイドバーの一覧。消したボックスの親は、表示中か消したものの中から名前を引く
+  function items(): Items {
+    const item = (id: Id, caption: string, color: unknown, parent: string | null): ListItem =>
+      ({ id: String(id), caption, color: typeof color === "string" && color ? color : opt.color, parent });
+    const removed = source.removed ?? [];
+    const removedCaption = new Map(removed.map(s => [String(s.id), s.caption != null ? String(s.caption) : String(s.id)]));
+    const nameOf = (p: Id | undefined) => {
+      if (p == null) return null;
+      const live = byId.get(String(p));
+      return live ? captionOf(live) : removedCaption.get(String(p)) ?? null;
+    };
+    return {
+      live: nodes.map(n => item(n.id, captionOf(n), n.src.color, n.parent ? captionOf(n.parent) : null)),
+      removed: removed.map(s => item(s.id!, removedCaption.get(String(s.id))!, s.color, nameOf(s.parent))),
+    };
+  }
+
   // 内包している子の幅や高さを、今いちばん小さい子に合わせてそろえる（layout/layout.ts の alignChildren）。
   // そろえた子の数を返す
   function fitChildren(id: Id, what: "width" | "height" | "both") {
@@ -324,10 +441,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   function setMode(m: Mode) {
     I.endLift();
+    I.unmarkRemove();
     if (m !== "link") setLinking(null);
     mode = m;
     container.classList.toggle("mz-mode-reparent", m === "reparent");
     container.classList.toggle("mz-mode-link", m === "link");
+    container.classList.toggle("mz-mode-remove", m === "remove");
   }
 
   // ---- 情報と変更 ----
@@ -610,6 +729,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     mode: () => mode,
     reparent,
     fitChildren,
+    remove,
+    restore,
+    items,
     destroy() {
       measurer.dispose();
       I.endLift();

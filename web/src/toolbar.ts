@@ -25,12 +25,12 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   return () => listening.abort();
 }
 
-const MODE_LABELS: Record<Mode, string> = { move: "移動モード", reparent: "付け替えモード", link: "線モード" };
+const MODE_LABELS: Record<Mode, string> = { move: "移動モード", reparent: "付け替えモード", link: "線モード", remove: "削除モード" };
 
 // Ctrl を押している間だけ入れ替わる相手（線モードでは Ctrl を線を引くのに使うので、入れ替えない）
 const FLIP: Partial<Record<Mode, Mode>> = { move: "reparent", reparent: "move" };
 
-// ツールのモードの切り替え（移動 / 親子の付け替え / 線）と、今のモードの表示。
+// ツールのモードの切り替え（移動 / 親子の付け替え / 線 / 削除）と、今のモードの表示。
 // ボタンを押すと、そのモードになる（Ctrl を押しながらでも同じ。そのときは Ctrl による入れ替えを解く）。
 // 移動と付け替えのときは、Ctrl（Mac は Cmd）を押している間だけ、もう一方のモードになり、離すと戻る。
 // ドラッグ中は切り替えず、手を離してから切り替える（付け替えのドラッグの途中で Ctrl を離しても取り消さないため）。

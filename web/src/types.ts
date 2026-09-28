@@ -45,6 +45,8 @@ export interface Diagram {
   world?: WorldData;
   nodes: BoxData[];
   edges?: (EdgeData | [Id, Id])[]; // [from, to] の形でも読める
+  // 人が消したボックス（nodes と同じ形。parent は消す直前の親）。サイドバーの一覧から戻せる
+  removed?: BoxData[];
   [key: string]: unknown;
 }
 
@@ -95,6 +97,20 @@ export interface BoxInfo {
 }
 
 export type Info = WorldInfo | BoxInfo;
+
+// サイドバーの一覧の 1 行。parent は親のキャプション（最上位なら null）
+export interface ListItem {
+  id: string;
+  caption: string;
+  color: string;
+  parent: string | null;
+}
+
+// サイドバーの一覧: 表示中のボックスと、消したボックス（どちらもデータの並び順）
+export interface Items {
+  live: ListItem[];
+  removed: ListItem[];
+}
 
 // update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）
 export interface Patch {

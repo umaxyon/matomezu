@@ -93,4 +93,10 @@ export const SCENES = {
     anchor: null, yieldTo: "others", giveWayToLarger: false,
     direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: false,
   },
+  // ボックスを消したとき（親と祖先はその場に残して縮め、縮んだ分、押し下げていた相手は元の高さへ戻る。
+  // 残った子は動かさない。docs/DELETE-plan.md）
+  remove: {
+    anchor: null, yieldTo: "others", giveWayToLarger: false,
+    direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: false,
+  },
 } as const satisfies Record<string, Scene>;

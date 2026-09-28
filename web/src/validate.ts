@@ -59,11 +59,12 @@ export function checkSettings(s: Record<string, unknown>, where: unknown): void 
   }
 }
 
-// id の無いボックスに連番を振る（既存の数値 id の続きから）
+// id の無いボックスに連番を振る（既存の数値 id の続きから。消したボックスの id も使用済みとして数える）
 export function assignIds(data: unknown): void {
   if (!isObject(data) || !Array.isArray(data.nodes)) return;
   const nodes: unknown[] = data.nodes;
-  const used = nodes.map(n => Number(isObject(n) ? n.id : NaN)).filter(Number.isInteger);
+  const removed: unknown[] = Array.isArray(data.removed) ? data.removed : [];
+  const used = [...nodes, ...removed].map(n => Number(isObject(n) ? n.id : NaN)).filter(Number.isInteger);
   let next = Math.max(0, ...used) + 1;
   for (const n of nodes) {
     if (isObject(n) && n.id == null) n.id = next++;
@@ -86,6 +87,14 @@ export function validate(data: unknown): asserts data is Diagram {
     if (byId.has(String(n.id))) throw new Error(`id が重複しています: ${n.id}`);
     byId.set(String(n.id), n);
     checkSettings(n, n.id);
+  }
+  // 消したボックス。id は nodes と重ならないこと（parent は消したボックスや、もう無い id でもよい）
+  if (data.removed != null && !Array.isArray(data.removed)) throw new Error("removed が配列ではありません");
+  const removedIds = new Set<string>();
+  for (const n of (data.removed ?? []) as unknown[]) {
+    if (!isObject(n) || n.id == null) throw new Error("removed に空のノードがあります");
+    if (byId.has(String(n.id)) || removedIds.has(String(n.id))) throw new Error(`id が重複しています: ${n.id}`);
+    removedIds.add(String(n.id));
   }
   for (const n of byId.values()) {
     if (n.parent == null) continue;

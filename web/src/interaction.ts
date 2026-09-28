@@ -6,8 +6,12 @@ import type { Layout } from "./layout/layout";
 import { type Box, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
 import type { Renderer } from "./render";
 
-// ツールのモード。移動、親子の付け替え、線（線のクリックで削除、Ctrl+クリックで線を引く。ドラッグは移動）
-export type Mode = "move" | "reparent" | "link";
+// ツールのモード。移動、親子の付け替え、線（線のクリックで削除、Ctrl+クリックで線を引く。ドラッグは移動）、
+// 削除（ボックスを押すと子孫ごと消える。ドラッグはしない）
+export type Mode = "move" | "reparent" | "link" | "remove";
+
+// サイドバーの一覧から、消したボックスを図へドラッグするときのデータの種類（中身は id）
+export const REMOVED_MIME = "application/x-matomezu-removed";
 
 // 動かし始めたときに外した、祖先の最小の大きさ（実際に動かさなければ戻す）
 interface Released {
@@ -30,6 +34,8 @@ export interface InteractionContext {
   notifySelect(): void;
   reparent(id: string, parentId: string | null, at?: { x: number; y: number }): void;
   drop(n: Box): void;             // ドラッグ中に解決できなかった重なりを直す（場面の表の drop）
+  remove(n: Box): void;           // 子孫ごと消す
+  restore(id: string, parentId: string | null, at: { x: number; y: number }): void; // 消したボックスを戻す
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -79,6 +85,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if ((e.ctrlKey || e.metaKey) && ctx.mode() === "link") {
       e.preventDefault();
       ctx.ctrlClick(n);
+      return;
+    }
+    if (ctx.mode() === "remove") {
+      e.preventDefault();
+      unmarkRemove();
+      ctx.remove(n);
       return;
     }
     if (ctx.current() !== n) ctx.select(n);
@@ -165,8 +177,22 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   function onPointerOver(e: PointerEvent) {
     if (drag || lift) return;
     const n = boxOf(e.target);
+    if (ctx.mode() === "remove") return markRemove(n);
     if (n) focus(n);
     else if (!onEdge(e.target)) unfocus();
+  }
+
+  // 削除モードでポインタを乗せたボックスに、一緒に消える範囲（子孫を含む）を示す印を付ける
+  let removing: Box | null = null;
+  function markRemove(n: Box | null) {
+    if (removing === n) return;
+    unmarkRemove();
+    removing = n;
+    n?.el.classList.add("mz-removing");
+  }
+  function unmarkRemove() {
+    removing?.el.classList.remove("mz-removing");
+    removing = null;
   }
 
   function onKeyDown(e: KeyboardEvent) {
@@ -178,8 +204,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // ---- 付け替えのドラッグ ----
   // つかんだボックスの半透明のコピー（ゴースト）をポインタに付けて動かし、下にある落とし先を強調する
 
-  // ポインタの下の落とし先。自分と自分の子孫の上は落とせない（undefined）
-  function dropTargetAt(x: number, y: number): Box | null | undefined {
+  // ポインタの下の落とし先。moving（動かしているボックス）と、その子孫の上は落とせない（undefined）
+  function dropTargetAt(x: number, y: number, moving: Box | null): Box | null | undefined {
     const r = container.getBoundingClientRect();
     if (x < r.left || x > r.right || y < r.top || y > r.bottom) return undefined;
     for (const el of document.elementsFromPoint(x, y)) {
@@ -188,7 +214,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       if (!head) continue;
       const b = boxOf(head);
       if (!b) continue;
-      return isInside(b, lift!.n) ? undefined : b;
+      return moving && isInside(b, moving) ? undefined : b;
     }
     return null;
   }
@@ -216,7 +242,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     const r = container.getBoundingClientRect();
     l.ghost.style.left = e.clientX - l.offX - r.left + container.scrollLeft + "px";
     l.ghost.style.top = e.clientY - l.offY - r.top + container.scrollTop + "px";
-    markTarget(dropTargetAt(e.clientX, e.clientY));
+    markTarget(dropTargetAt(e.clientX, e.clientY, l.n));
   }
 
   function endLift() {
@@ -241,6 +267,37 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (t !== undefined) ctx.reparent(n.id, t ? t.id : null, at);
   }
 
+  // ---- 消したボックスを一覧から戻す（HTML のドラッグ＆ドロップ） ----
+  // 落とし先の判定は付け替えと同じ。落とした位置（ポインタの少し左上）を、落とし先の中での左上にする
+
+  let restoreTarget: Box | null | undefined;
+  function markRestore(t: Box | null | undefined) {
+    if (restoreTarget !== undefined) (restoreTarget ?? world).el.classList.remove("mz-drop");
+    restoreTarget = t;
+    if (t !== undefined) (t ?? world).el.classList.add("mz-drop");
+  }
+  const carriesRemoved = (e: DragEvent) => !!e.dataTransfer?.types.includes(REMOVED_MIME);
+
+  function onDragOver(e: DragEvent) {
+    if (!carriesRemoved(e)) return;
+    const t = dropTargetAt(e.clientX, e.clientY, null);
+    markRestore(t);
+    if (t === undefined) return;
+    e.preventDefault(); // 落とせることを知らせる
+    e.dataTransfer!.dropEffect = "move";
+  }
+
+  function onDrop(e: DragEvent) {
+    if (!carriesRemoved(e)) return;
+    e.preventDefault();
+    const t = dropTargetAt(e.clientX, e.clientY, null);
+    markRestore(undefined);
+    const id = e.dataTransfer!.getData(REMOVED_MIME);
+    if (t === undefined || !id) return;
+    const r = (t ?? world).el.getBoundingClientRect();
+    ctx.restore(id, t ? t.id : null, { x: e.clientX - r.left - 16, y: e.clientY - r.top - 12 });
+  }
+
   // ---- 受け付けるイベント ----
 
   const listening = new AbortController();
@@ -250,14 +307,20 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   container.addEventListener("pointerup", onPointerUp, { signal });
   container.addEventListener("pointercancel", onPointerUp, { signal });
   container.addEventListener("pointerover", onPointerOver, { signal });
-  container.addEventListener("pointerleave", () => { if (!drag) unfocus(); }, { signal });
+  container.addEventListener("pointerleave", () => { if (!drag) unfocus(); unmarkRemove(); }, { signal });
+  container.addEventListener("dragover", onDragOver, { signal });
+  container.addEventListener("dragleave", e => {
+    if (!(e.relatedTarget instanceof Node && container.contains(e.relatedTarget))) markRestore(undefined);
+  }, { signal });
+  container.addEventListener("drop", onDrop, { signal });
   document.addEventListener("keydown", onKeyDown, { signal });
 
   return {
     dragging: () => drag != null || lift != null,
     endLift,
-    // 描き直すときに、移動のドラッグを忘れる
-    reset() { drag = null; },
+    // 描き直すときに、移動のドラッグと削除の印を忘れる
+    reset() { drag = null; removing = null; },
+    unmarkRemove,
     destroy() { listening.abort(); },
   };
 }

@@ -122,6 +122,10 @@ export const GRAPH_CSS = `
 /* 付け替えのドラッグ */
 .mz-mode-reparent .mz-head { cursor: alias; }
 .mz-mode-link .mz-head { cursor: crosshair; }
+.mz-mode-remove .mz-head { cursor: pointer; }
+/* 削除モードでポインタを乗せたボックス: 一緒に消える範囲（子孫を含む）を赤い枠で示す */
+.mz-node.mz-removing > .mz-head, .mz-node.mz-removing .mz-head { outline: 2px solid var(--mz-edge-del); outline-offset: 1px; }
+.mz-node.mz-removing { opacity: 0.7; }
 .mz-node.mz-lifted { opacity: 0.3; }
 .mz-ghost { z-index: 50; opacity: 0.8; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35)); }
 .mz-ghost .mz-head { pointer-events: none; }

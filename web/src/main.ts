@@ -51,6 +51,10 @@ async function main() {
     onNotice: showStatus,
   });
   panel = createPanel($("sidebar"), graph);
+  // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
+  stage.addEventListener("pointerdown", e => {
+    if (e.target instanceof Element && e.target.closest(".mz-head") && graph.mode() !== "remove") panel?.tab("info");
+  });
   setupHistory(graph, undoBtn, redoBtn);
   setupModes(graph, [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")], $("mode-label"));
 
@@ -87,9 +91,12 @@ async function main() {
     fileInput.value = "";
   });
 
-  stage.addEventListener("dragover", e => { e.preventDefault(); stage.classList.add("dropping"); });
+  // JSON ファイルのドロップ（サイドバーの一覧から消したボックスを戻すドラッグは、図の側で受け取る）
+  const carriesFile = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files");
+  stage.addEventListener("dragover", e => { if (!carriesFile(e)) return; e.preventDefault(); stage.classList.add("dropping"); });
   stage.addEventListener("dragleave", () => stage.classList.remove("dropping"));
   stage.addEventListener("drop", e => {
+    if (!carriesFile(e)) return;
     e.preventDefault();
     stage.classList.remove("dropping");
     const file = e.dataTransfer?.files[0];

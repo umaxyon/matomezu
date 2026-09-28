@@ -1,15 +1,18 @@
 /*
- * 選択中のボックスの情報と設定を表示するサイドバー。
+ * サイドバー。タブが 2 つ:
+ *   情報     … 選択中のボックスの情報と設定
+ *   追加削除 … 全ボックスの一覧（表示中と、消したもの）。表示中の行の × で消し、消したものの行を図へドラッグすると戻る
  *
  * 使い方:
  *   let panel;
  *   const graph = createGraph(stage, data, { onSelect: info => panel?.show(info) });
  *   panel = createPanel(document.getElementById('sidebar'), graph);
+ *   panel.tab("info");           // タブを切り替える
  */
 
 import { esc, injectStyle, toHex } from "./dom";
-import type { Graph } from "./graph";
-import type { Brief, ChildView, Info, Overflow, Shape, Size, TreeDirection } from "./types";
+import { type Graph, REMOVED_MIME } from "./graph";
+import type { Brief, ChildView, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
 
 const STYLE_ID = "matomezu-panel-style";
 const PANEL_CSS = `
@@ -88,6 +91,37 @@ const PANEL_CSS = `
 .mzp-seg label:has(input:focus-visible) { outline: 2px solid var(--mzp-accent); outline-offset: -2px; }
 .mzp-hint { font-size: 11px; color: var(--mzp-muted); margin: 6px 0 0; }
 .mzp-subhead { font-size: 11px; color: var(--mzp-muted); margin: 10px 0 4px; }
+.mzp-tabs {
+  position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 8px 12px 0;
+  background: inherit; border-bottom: 1px solid var(--mzp-line);
+}
+.mzp-tab {
+  font: inherit; font-size: 12px; color: var(--mzp-muted); cursor: pointer;
+  background: none; border: 0; border-bottom: 2px solid transparent; padding: 6px 10px; margin-bottom: -1px;
+}
+.mzp-tab:hover { color: var(--mzp-text); }
+.mzp-tab[aria-selected="true"] { color: var(--mzp-text); border-bottom-color: var(--mzp-accent); font-weight: 600; }
+.mzp-pane[hidden] { display: none; }
+.mzp-pane > .mzp-section:first-child { border-top: 0; }
+.mzp-list { list-style: none; margin: 0; padding: 0; }
+.mzp-row {
+  display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 6px; border-radius: 6px; min-width: 0;
+}
+.mzp-row:hover { background: var(--mzp-control); }
+.mzp-row[data-select] { cursor: pointer; }
+.mzp-row[draggable="true"] { cursor: grab; }
+.mzp-row .mzp-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.mzp-row-text { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.3; }
+.mzp-row-cap { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mzp-row-parent { font-size: 11px; color: var(--mzp-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mzp-removed .mzp-row-cap { color: var(--mzp-muted); text-decoration: line-through; }
+.mzp-del {
+  flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 4px; cursor: pointer;
+  font: inherit; font-size: 15px; line-height: 22px; color: var(--mzp-muted); background: none;
+  visibility: hidden;
+}
+.mzp-row:hover .mzp-del, .mzp-del:focus-visible { visibility: visible; }
+.mzp-del:hover { color: #fff; background: #dc2626; }
 `;
 
 const OVERFLOW_LABELS: Record<Overflow, string> = {
@@ -230,22 +264,71 @@ function html(info: Info): string {
   return parts.join("");
 }
 
+// 一覧の 1 行。表示中は押すと選び、右端の × で消す。消したものは図へドラッグすると戻る
+function row(item: ListItem, removed: boolean): string {
+  const parent = item.parent != null ? `<span class="mzp-row-parent">${esc(item.parent)} の中</span>` : "";
+  const attrs = removed
+    ? ` class="mzp-row mzp-removed" draggable="true" data-restore="${esc(item.id)}" title="図へドラッグすると戻ります"`
+    : ` class="mzp-row" data-select="${esc(item.id)}"`;
+  return `<li${attrs}>
+    <span class="mzp-swatch" style="background:${esc(item.color)}"></span>
+    <span class="mzp-row-text"><span class="mzp-row-cap">${esc(item.caption)}</span>${parent}</span>
+    ${removed ? "" : `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="消す（子も一緒に消えます）" aria-label="「${esc(item.caption)}」を消す">×</button>`}
+  </li>`;
+}
+
+function listHtml(items: Items): string {
+  const list = (rows: string[]) => rows.length ? `<ul class="mzp-list">${rows.join("")}</ul>` : '<span class="mzp-none">なし</span>';
+  return `<div class="mzp-section"><h3>表示中（${items.live.length}）</h3>
+      ${list(items.live.map(i => row(i, false)))}
+    </div>
+    <div class="mzp-section"><h3>消したもの（${items.removed.length}）</h3>
+      ${list(items.removed.map(i => row(i, true)))}
+      <p class="mzp-hint">消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません</p>
+    </div>`;
+}
+
+export type PanelTab = "info" | "list";
+
 export interface Panel {
   show(info: Info): void;
+  tab(name: PanelTab): void;
 }
 
 export function createPanel(el: HTMLElement, graph: Graph): Panel {
   injectStyle(STYLE_ID, PANEL_CSS);
   el.classList.add("mzp");
+  el.innerHTML = `<div class="mzp-tabs" role="tablist">
+      <button type="button" class="mzp-tab" role="tab" data-tab="info">情報</button>
+      <button type="button" class="mzp-tab" role="tab" data-tab="list">追加削除</button>
+    </div>
+    <div class="mzp-pane" role="tabpanel" data-pane="info"></div>
+    <div class="mzp-pane" role="tabpanel" data-pane="list"></div>`;
+  const infoPane = el.querySelector<HTMLElement>('[data-pane="info"]')!;
+  const listPane = el.querySelector<HTMLElement>('[data-pane="list"]')!;
   let info = graph.info(graph.selected());
+  let current: PanelTab = "info";
 
+  // 選択や図の変更のたびに呼ばれるので、一覧もここで描き直す
   function show(next: Info) {
     info = next;
-    el.innerHTML = html(info);
+    infoPane.innerHTML = html(info);
+    listPane.innerHTML = listHtml(graph.items());
+  }
+
+  function tab(name: PanelTab) {
+    current = name;
+    for (const b of el.querySelectorAll<HTMLElement>("[data-tab]")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
+    infoPane.hidden = name !== "info";
+    listPane.hidden = name !== "list";
   }
 
   el.addEventListener("click", e => {
     if (!(e.target instanceof Element)) return;
+    const tabBtn = e.target.closest<HTMLElement>("[data-tab]");
+    if (tabBtn) return tab(tabBtn.dataset.tab as PanelTab);
+    const del = e.target.closest<HTMLElement>("[data-remove]");
+    if (del) return void graph.remove(del.dataset.remove!);
     const chip = e.target.closest<HTMLElement>("[data-select]");
     if (chip) return graph.select(chip.dataset.select!);
     const preset = e.target.closest<HTMLElement>("[data-color]");
@@ -287,6 +370,15 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
     if (t.name === "mzp-view") return graph.update(info.id, { childView: t.value as ChildView });
   });
 
+  // 消したものの行を図へドラッグする（落とす側の処理は interaction.ts）
+  el.addEventListener("dragstart", e => {
+    const r = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-restore]") : null;
+    if (!r || !e.dataTransfer) return;
+    e.dataTransfer.setData(REMOVED_MIME, r.dataset.restore!);
+    e.dataTransfer.effectAllowed = "move";
+  });
+
   show(info);
-  return { show };
+  tab(current);
+  return { show, tab };
 }

@@ -35,5 +35,6 @@ test("場面の表: 開いたときだけはみ出しを調整し、設定変更
     ["settings", true, "others", true, null, false, false],
     ["fitChildren", false, "others", false, { w: "down", h: "right" }, false, false],
     ["drop", false, "others", false, null, false, false],
+    ["remove", false, "others", false, null, false, false],
   ]);
 });

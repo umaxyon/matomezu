@@ -142,3 +142,36 @@ test("親・子・つながりのボタンで、そのボックスを選ぶ", ()
   click('[data-select="3"]'); // つながり
   expect(g.selected()).toBe("3");
 });
+
+test("タブで情報と追加削除を切り替える", () => {
+  const { $, click } = setup({ nodes: [{ id: 1, caption: "API" }] });
+  const hidden = () => [$<HTMLElement>('[data-pane="info"]')!.hidden, $<HTMLElement>('[data-pane="list"]')!.hidden];
+  expect(hidden()).toEqual([false, true]);
+  click('[data-tab="list"]');
+  expect(hidden()).toEqual([true, false]);
+  expect($('[data-tab="list"]')!.getAttribute("aria-selected")).toBe("true");
+  click('[data-tab="info"]');
+  expect(hidden()).toEqual([false, true]);
+});
+
+test("一覧: 表示中の × で子ごと消え、消したものに並ぶ。表示中の行を押すと選ぶ", () => {
+  const { g, side, click, notices } = setup({
+    nodes: [{ id: 1, caption: "親" }, { id: 2, caption: "子", parent: 1 }, { id: 3, caption: "隣" }],
+    edges: [[1, 3]],
+  });
+  // 行ごとに「キャプション / 親の欄 / × の有無」
+  const rows = (sel: string) => [...side.querySelectorAll<HTMLElement>(sel)].map(r =>
+    [r.querySelector(".mzp-row-cap")!.textContent, r.querySelector(".mzp-row-parent")?.textContent ?? "", !!r.querySelector(".mzp-del")].join("/"));
+  click('[data-tab="list"]');
+  expect(rows('.mzp-row:not(.mzp-removed)')).toEqual(["親//true", "子/親 の中/true", "隣//true"]);
+  expect(rows(".mzp-removed")).toEqual([]);
+  click('[data-select="3"]');
+  expect(g.selected()).toBe("3");
+  click('[data-remove="1"]');
+  expect(rows('.mzp-row:not(.mzp-removed)')).toEqual(["隣//true"]);
+  expect(rows(".mzp-removed")).toEqual(["親//false", "子/親 の中/false"]);
+  expect(side.querySelector('[data-restore="1"]')!.getAttribute("draggable")).toBe("true");
+  expect(notices.at(-1)).toBe("「親」を消しました（子 1 個、線 1 本も）");
+  // タブは追加削除のまま
+  expect(side.querySelector<HTMLElement>('[data-pane="list"]')!.hidden).toBe(false);
+});
