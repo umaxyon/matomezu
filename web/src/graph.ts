@@ -479,6 +479,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function buildNode(src: BoxData): Box {
     const el = document.createElement("div");
     el.className = "mz-node";
+    el.dataset.id = String(src.id); // 外から箱を特定するため（実際のブラウザのテストなど）
     const head = document.createElement("div");
     head.className = "mz-head";
     const textEl = document.createElement("div");

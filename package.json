@@ -6,10 +6,13 @@
     "build": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser",
     "dev": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser --watch",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "e2e": "bun run build && playwright test",
+    "e2e:shots": "bun run build && SHOTS=1 playwright test e2e/pending-shots.spec.ts"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.14.5",
+    "@playwright/test": "^1.63.0",
     "@types/bun": "^1.4.2",
     "typescript": "7.0.2"
   }

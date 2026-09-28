@@ -1,2 +1,4 @@
 [test]
+# 実際のブラウザのテスト（e2e/、Playwright）は bun test では動かさない
+root = "./test"
 preload = ["./test/setup.ts"]
