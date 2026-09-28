@@ -123,8 +123,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (moved && session) {
       // 手を離したときの位置で確定する。どいた箱は、どいた先が本来いたい位置になる
       // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
+      session.finish();
+      n.intendedY = n.y;
+      n.intendedCX = centerX(n);
       for (const b of session.displaced()) { b.intendedY = b.y; b.intendedCX = centerX(b); }
       if (session.overlapping()) ctx.drop(n);
+      else render();
       syncWorld();
       ctx.changed();
       ctx.notifySelect();

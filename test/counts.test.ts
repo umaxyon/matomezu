@@ -71,13 +71,14 @@ test("大きな図での処理の回数が、基準を超えない", () => {
   };
   // slide をぶつかった相手の端へ一度に進める形にした時点（2026-09-28）の回数。それまでは 8px ずつずらして
   // 判定していたので、読み込みで約 5 万回、設定変更で約 25 万回あった。
-  // drag は、ドラッグで箱を通す形（docs/DRAG-plan.md）にした時点（2026-09-28）で 1785 → 2240。
-  // ポインタが動くたびに、開始時の写しから兄弟をどけ直すため
+  // drag は、ドラッグで箱を通す形（docs/DRAG-plan.md）にした時点（2026-09-28）で 1785 → 3426。
+  // ポインタが動くたびに、開始時の写しから入れ替えを決め直し、ずれた先のぶつかりを確かめるため。
+  // fit は、その前のドラッグの結果が入れ替えで変わったので 2080 → 2114
   const base = {
     load: { measures: 480, overlapChecks: 5289 },
     settings: { measures: 6, overlapChecks: 10874 },
-    drag: { measures: 0, overlapChecks: 2240 },
-    fit: { measures: 0, overlapChecks: 2080 },
+    drag: { measures: 0, overlapChecks: 3426 },
+    fit: { measures: 0, overlapChecks: 2114 },
     reload: { measures: 0, overlapChecks: 1090 },
   };
   const over = Object.entries(out).flatMap(([scene, v]) =>

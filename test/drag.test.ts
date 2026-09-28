@@ -1,5 +1,6 @@
-// ドラッグで箱を通す（docs/DRAG-plan.md）。つかんだ箱はポインタに追従し、通り道の兄弟は開始位置の側へどく。
-// ドラッグ中は開始時の写しから毎回計算し直すので、離れればどいた箱は戻る。手を離したら確定する
+// ドラッグで箱を通す（docs/DRAG-plan.md）。つかんだ箱はポインタに追従し、進む向きの先にいた兄弟は、触れた瞬間に
+// つかんだ箱の大きさ + 8px だけ開始位置の側へずれる（入れ替わる）。ドラッグ中は開始時の写しから毎回計算し直すので、
+// 戻れば入れ替えも戻る。手を離したら確定する
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { Diagram } from "../web/src/types";
@@ -22,16 +23,14 @@ function setup(data: Diagram) {
 const at = (g: Graph, id: number) => [g.info(id).x, g.info(id).y];
 
 // three-levels.json の id: 1 タイトル、2 ユーザー、3 フロントエンド、10 バックエンド、17 外部サービス
-test("タイトルを、途中の箱にぶつかっても止まらずにバックエンドの下まで動かせる", () => {
+test("タイトルを、途中の箱にぶつかっても止まらずにバックエンドの下まで動かせる。通り過ぎた箱は上へずれる", () => {
   const { el, graph } = setup(example("three-levels"));
-  const before = { 2: at(graph, 2), 3: at(graph, 3), 10: at(graph, 10) };
   // 5px ずつ動かす（人の操作と同じく、途中を飛び越えない）
-  dragBy(el, graph, 1, 0, 420, 84);
-  expect(at(graph, 1)).toEqual([24, 436]);
-  // 通り過ぎた箱は元の位置のまま
-  expect(at(graph, 2)).toEqual(before[2]);
-  expect(at(graph, 3)).toEqual(before[3]);
-  expect(at(graph, 10)).toEqual(before[10]);
+  dragBy(el, graph, 1, 0, 380, 76);
+  expect(at(graph, 1)).toEqual([24, 396]);
+  // タイトルの高さ 64 + 8 だけ上へ
+  expect([at(graph, 2), at(graph, 3), at(graph, 10)]).toEqual([[40, 120 - 72], [220, 88 - 72], [220, 280 - 72]]);
+  expect(at(graph, 17)).toEqual([364, 468]); // まだ触れていない
   expect(violations(el)).toEqual([]);
 });
 
@@ -57,41 +56,52 @@ function grab(el: HTMLElement, graph: Graph, id: number) {
 // 文字の箱（fakeMeasure で 120×64。width を書けばその幅）
 const box = (id: number, x: number, y: number, width?: number) => ({ id, caption: `b${id}`, x, y, ...(width ? { width } : {}) });
 
-test("小さい箱を大きい箱の上から下へ通す: 相手は下へ、上に収まれば上へ、通り過ぎれば元の位置へ", () => {
+test("触れた瞬間に入れ替わり、そのまま通り過ぎても入れ替わったまま。戻れば元に戻る", () => {
   const { el, graph } = setup({ world: { width: 1000 }, nodes: [box(1, 40, 40), box(2, 40, 120, 300)] });
   const d = grab(el, graph, 1);
-  d.move(0, 30); // 1 は y=70。上へはどけない（ワールドの上端）ので下へ
-  expect(at(graph, 2)).toEqual([40, 70 + 64 + 8]);
-  d.move(0, 60); // 1 は y=100。上に収まる
-  expect(at(graph, 2)).toEqual([40, 100 - 8 - 64]);
-  d.move(0, 160); // 1 は y=200。もう重ならない
+  d.move(0, 5); // 1 は y=45。まだ触れていない（間隔 8px の手前）
   expect(at(graph, 2)).toEqual([40, 120]);
+  d.move(0, 10); // 1 は y=50。触れたので、2 は 1 の高さ + 8 だけ上へ
+  expect(at(graph, 2)).toEqual([40, 120 - 72]);
+  d.move(0, 160);
+  expect(at(graph, 2)).toEqual([40, 48]);
+  d.move(0, 0);
+  expect(at(graph, 2)).toEqual([40, 120]);
+  d.move(0, 160);
   d.up();
-  expect(at(graph, 1)).toEqual([40, 200]);
+  expect([at(graph, 1), at(graph, 2)]).toEqual([[40, 200], [40, 48]]);
   expect(violations(el)).toEqual([]);
 });
 
-test("大きい箱を小さい 3 つの上へ: 3 つとも開始位置の側へそろってどく", () => {
+test("触れた直後に手を離すと、つかんだ箱が入れ替えた相手の向こう側へ寄って、入れ替えが完成する", () => {
+  const { el, graph } = setup({ world: { width: 1000 }, nodes: [box(1, 40, 40), box(2, 40, 120, 300)] });
+  dragBy(el, graph, 1, 0, 30, 6);
+  expect([at(graph, 1), at(graph, 2)]).toEqual([[40, 48 + 64 + 8], [40, 48]]);
+  expect(violations(el)).toEqual([]);
+});
+
+test("大きい箱を小さい 3 つの上へ: 3 つとも同じだけ開始位置の側へずれる", () => {
   const { el, graph } = setup({
     world: { width: 1000 },
     nodes: [box(1, 40, 40, 400), box(2, 40, 200), box(3, 180, 200), box(4, 320, 200)],
   });
-  dragBy(el, graph, 1, 0, 150, 30); // 1 は y=190
-  expect([at(graph, 2), at(graph, 3), at(graph, 4)]).toEqual([[40, 118], [180, 118], [320, 118]]);
+  dragBy(el, graph, 1, 0, 150, 30); // 1 は y=190。3 つは 72 上の 128 へ。離すと 1 はその下へ寄る
+  expect([at(graph, 2), at(graph, 3), at(graph, 4)]).toEqual([[40, 128], [180, 128], [320, 128]]);
+  expect(at(graph, 1)).toEqual([40, 200]);
   expect(violations(el)).toEqual([]);
   // Undo 1 回で全員が戻る
   graph.undo();
   expect([at(graph, 1), at(graph, 2), at(graph, 3), at(graph, 4)]).toEqual([[40, 40], [40, 200], [180, 200], [320, 200]]);
 });
 
-test("どいた先でぶつかる相手も、同じ向きに続けてどく", () => {
+test("横へ通すと、通り過ぎた箱はすべて同じだけ反対へずれる（並びを保つ）", () => {
   const { el, graph } = setup({ world: { width: 1000 }, nodes: [box(1, 320, 40), box(2, 40, 40), box(3, 176, 40)] });
-  dragBy(el, graph, 1, -280, 0, 56); // 1 は x=40。開始位置の側（右）へ
-  expect([at(graph, 1), at(graph, 2), at(graph, 3)]).toEqual([[40, 40], [168, 40], [296, 40]]);
+  dragBy(el, graph, 1, -280, 0, 56); // 1 は x=40。2 と 3 は 1 の幅 120 + 8 だけ右へ
+  expect([at(graph, 1), at(graph, 2), at(graph, 3)]).toEqual([[40, 40], [168, 40], [304, 40]]);
   expect(violations(el)).toEqual([]);
 });
 
-test("行って戻れば、全員が開始時の位置に戻る（押した結果を積み重ねない）", () => {
+test("行って戻れば、全員が開始時の位置に戻る（ずらした結果を積み重ねない）", () => {
   const { el, graph } = setup({
     world: { width: 1000 },
     nodes: [box(1, 40, 40, 400), box(2, 40, 200), box(3, 180, 200), box(4, 180, 272)],
@@ -105,15 +115,15 @@ test("行って戻れば、全員が開始時の位置に戻る（押した結�
   d.up();
 });
 
-test("どちらへもどけられなければ重なったまま通し、手を離したら相手をずらす", () => {
-  // ワールドの高さが決まっていて、2 は上にも下にも逃げられない
-  const { el, graph } = setup({ world: { width: 800, height: 200 }, nodes: [box(1, 12, 12), box(2, 12, 100, 376)] });
+test("ずれた先がほかの箱とぶつかるなら入れ替えずに重ねて通し、手を離したら相手を下へずらす", () => {
+  // 2 が上へずれると、1 の右隣の 3 にぶつかる
+  const { el, graph } = setup({ world: { width: 1000 }, nodes: [box(1, 12, 12), box(3, 140, 12), box(2, 12, 100, 376)] });
   const d = grab(el, graph, 1);
   d.move(0, 60);
   expect(at(graph, 1)).toEqual([12, 72]);
   expect(at(graph, 2)).toEqual([12, 100]); // 重なったまま
   d.up();
-  expect(at(graph, 1)).toEqual([12, 72]);
+  expect([at(graph, 1), at(graph, 2), at(graph, 3)]).toEqual([[12, 72], [12, 72 + 64 + 8], [140, 12]]);
   expect(violations(el)).toEqual([]);
 });
 
@@ -128,10 +138,10 @@ test("中身を動かして広がった祖先は、下にいた相手を押す",
   expect(violations(el)).toEqual([]);
 });
 
-test("手を離すと、どいた先が本来いたい位置になる（あとで押していた箱が縮んでも戻らない）", () => {
+test("手を離すと、入れ替わった先が本来いたい位置になる（あとでつかんだ箱が縮んでも戻らない）", () => {
   const { el, graph } = setup({ world: { width: 1000 }, nodes: [box(1, 40, 300), box(2, 40, 150)] });
-  dragBy(el, graph, 1, 0, -130, 26); // 1 は y=170。2 は開始位置の側（下）へ
-  expect(at(graph, 2)).toEqual([40, 170 + 64 + 8]);
+  dragBy(el, graph, 1, 0, -130, 26); // 1 は y=170。2 は 72 下の 222 へ。離すと 1 はその上へ寄る
+  expect([at(graph, 1), at(graph, 2)]).toEqual([[40, 150], [40, 222]]);
   graph.update(1, { size: "S" }); // 1 が低くなる
-  expect(at(graph, 2)).toEqual([40, 242]);
+  expect(at(graph, 2)).toEqual([40, 222]);
 });

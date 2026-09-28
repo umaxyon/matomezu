@@ -102,14 +102,16 @@ test("真横の相手への線は水平、真下の相手への線は垂直", as
   await select(page, 3);
 });
 
-test("タイトルを、途中の箱にぶつかっても止まらずにバックエンドの下まで動かせる（docs/DRAG-plan.md）", async ({ page }) => {
+test("タイトルを下へ動かすと、触れた箱と入れ替わりながら止まらずに通る（docs/DRAG-plan.md）", async ({ page }) => {
   const [title, user, front, back] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 3), rect(page, 10)]);
-  const dy = back.y + back.h + 8 - title.y;
-  await dragBy(page, 1, 0, dy);
-  const after = await rect(page, 1);
-  expect(after.y).toBeGreaterThanOrEqual(back.y + back.h + 8 - 1);
-  // 通り過ぎた箱は元の位置のまま
-  expect(await rect(page, 2)).toEqual(user);
-  expect(await rect(page, 3)).toEqual(front);
-  expect(await rect(page, 10)).toEqual(back);
+  // バックエンドの中ほどまで動かして離す
+  await dragBy(page, 1, 0, back.y + 20 - title.y);
+  // 触れた箱は、タイトルの高さ + 8 だけ上へずれる
+  const up = title.h + 8;
+  expect(await rect(page, 2)).toEqual({ ...user, y: user.y - up });
+  expect(await rect(page, 3)).toEqual({ ...front, y: front.y - up });
+  const back2 = await rect(page, 10);
+  expect(back2).toEqual({ ...back, y: back.y - up });
+  // 離すと、タイトルはバックエンドの下へ寄る
+  expect((await rect(page, 1)).y).toBe(back2.y + back2.h + 8);
 });
