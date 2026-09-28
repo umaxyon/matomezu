@@ -8,6 +8,8 @@ export const GRAPH_CSS = `
   --mz-text: #e4e4e7;
   --mz-select: #c4b5fd;
   --mz-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --mz-scroll: rgba(255, 255, 255, 0.2);
+  --mz-scroll-hover: rgba(255, 255, 255, 0.36);
   position: relative;
   overflow: auto;
   user-select: none;
@@ -21,8 +23,24 @@ export const GRAPH_CSS = `
     --mz-text: #1b1b1f;
     --mz-select: #6d4bd8;
     --mz-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    --mz-scroll: rgba(0, 0, 0, 0.2);
+    --mz-scroll-hover: rgba(0, 0, 0, 0.36);
   }
 }
+/* スクロールバー: 細い角丸のつまみだけを見せ、通り道は透明にする。乗せると太く濃くなる。
+   Chrome・Edge・Safari は ::-webkit-scrollbar で形を作る（scrollbar-width / scrollbar-color を指定すると
+   Chrome はこちらを無視するので、それらは ::-webkit-scrollbar が使えない Firefox だけに当てる） */
+.mz-stage::-webkit-scrollbar { width: 12px; height: 12px; }
+.mz-stage::-webkit-scrollbar-track, .mz-stage::-webkit-scrollbar-corner { background: transparent; }
+.mz-stage::-webkit-scrollbar-thumb {
+  background: var(--mz-scroll); border-radius: 6px;
+  border: 3px solid transparent; background-clip: padding-box;
+}
+.mz-stage::-webkit-scrollbar-thumb:hover { background-color: var(--mz-scroll-hover); border-width: 2px; }
+@supports not selector(::-webkit-scrollbar) {
+  .mz-stage { scrollbar-width: thin; scrollbar-color: var(--mz-scroll) transparent; }
+}
+
 /* 背景色を付けたワールドでは、背景の明るさに合わせてテーマと関係なく配色を切り替える */
 .mz-world.mz-on-light {
   --mz-edge: rgba(90, 90, 110, 0.45);

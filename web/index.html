@@ -16,6 +16,8 @@
     --btn-hover: #4a4a50;
     --accent: #8b6cf0;
     --error: #f87171;
+    --scroll: rgba(255, 255, 255, 0.2);
+    --scroll-hover: rgba(255, 255, 255, 0.36);
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
@@ -29,6 +31,8 @@
       --btn-hover: #dedee4;
       --accent: #6d4bd8;
       --error: #dc2626;
+      --scroll: rgba(0, 0, 0, 0.2);
+      --scroll-hover: rgba(0, 0, 0, 0.36);
     }
   }
   * { box-sizing: border-box; }
@@ -81,6 +85,19 @@
     overflow-y: auto;
     background: var(--bar);
     border-right: 1px solid var(--bar-border);
+  }
+  /* スクロールバー: 細い角丸のつまみだけを見せ、通り道は透明にする。乗せると太く濃くなる。
+     Chrome・Edge・Safari は ::-webkit-scrollbar で形を作る（scrollbar-width / scrollbar-color を指定すると
+     Chrome はこちらを無視するので、それらは ::-webkit-scrollbar が使えない Firefox だけに当てる） */
+  #sidebar::-webkit-scrollbar { width: 12px; height: 12px; }
+  #sidebar::-webkit-scrollbar-track, #sidebar::-webkit-scrollbar-corner { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb {
+    background: var(--scroll); border-radius: 6px;
+    border: 3px solid transparent; background-clip: padding-box;
+  }
+  #sidebar::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-hover); border-width: 2px; }
+  @supports not selector(::-webkit-scrollbar) {
+    #sidebar { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
   }
   .canvas { position: relative; flex: 1; min-width: 0; }
   #stage {
