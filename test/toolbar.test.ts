@@ -18,6 +18,7 @@ function setup() {
   document.body.innerHTML = `
     <button id="undo"></button><button id="redo"></button>
     <button data-mode="move" aria-pressed="true"></button><button data-mode="reparent" aria-pressed="false"></button>
+    <button data-mode="link" aria-pressed="false"></button>
     <span id="label"></span><input id="text"><div id="stage"></div>`;
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const undoBtn = $<HTMLButtonElement>("undo"), redoBtn = $<HTMLButtonElement>("redo");
@@ -71,14 +72,92 @@ test("登録を外すと、キーもボタンも効かない", () => {
   expect(g.info(1).caption).toBe("b");
 });
 
-test("モードの切り替えと表示", () => {
-  const { g, $ } = setup();
+function setupWithModes() {
+  const r = setup();
   const buttons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
-  setupModes(g, buttons, $("label"));
+  const disposeModes = setupModes(r.g, buttons, r.$("label"));
+  const disposeHistory = dispose;
+  dispose = () => { disposeHistory?.(); disposeModes(); };
+  return { ...r, buttons };
+}
+
+const keyup = (k: string, opts: KeyboardEventInit = {}, target: EventTarget = document.body) =>
+  target.dispatchEvent(new KeyboardEvent("keyup", { key: k, bubbles: true, cancelable: true, ...opts }));
+
+test("モードの切り替えと表示", () => {
+  const { g, $, buttons } = setupWithModes();
   buttons[1]!.click();
   expect(g.mode()).toBe("reparent");
-  expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
+  expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["false", "true", "false"]);
   expect($("label").textContent).toBe("付け替えモード");
+  buttons[2]!.click();
+  expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
+  expect([g.mode(), $("label").textContent]).toEqual(["link", "線モード"]);
   buttons[0]!.click();
   expect([g.mode(), $("label").textContent]).toEqual(["move", "移動モード"]);
+});
+
+test("Ctrl を押している間だけ、移動と付け替えが入れ替わる。離すと戻る", () => {
+  const { g, $, buttons } = setupWithModes();
+  const pressed = () => buttons.map(b => b.getAttribute("aria-pressed"));
+  key("Control", { ctrlKey: true });
+  expect([g.mode(), $("label").textContent]).toEqual(["reparent", "付け替えモード"]);
+  expect(pressed()).toEqual(["false", "true", "false"]);
+  keyup("Control");
+  expect([g.mode(), $("label").textContent]).toEqual(["move", "移動モード"]);
+  buttons[1]!.click();
+  key("Meta", { metaKey: true }); // Mac の Cmd
+  expect(g.mode()).toBe("move");
+  keyup("Meta");
+  expect(g.mode()).toBe("reparent");
+});
+
+test("Ctrl を押しながらボタンを押すと、ふつうのクリックと同じくそのモードになる", () => {
+  const { g, buttons } = setupWithModes();
+  key("Control", { ctrlKey: true }); // 一時的に付け替え
+  buttons[1]!.click();               // 付け替えを押す
+  expect(g.mode()).toBe("reparent");
+  keyup("Control");
+  expect(g.mode()).toBe("reparent"); // 離しても付け替えのまま
+  key("Control", { ctrlKey: true });
+  buttons[0]!.click();               // Ctrl を押したまま移動を押す
+  expect(g.mode()).toBe("move");
+  keyup("Control");
+  expect(g.mode()).toBe("move");
+});
+
+test("線モードでは Ctrl で切り替わらない。入力欄や、ウィンドウから離れたときも", () => {
+  const { g, $, buttons } = setupWithModes();
+  buttons[2]!.click();
+  key("Control", { ctrlKey: true });
+  expect(g.mode()).toBe("link");
+  keyup("Control");
+  buttons[0]!.click();
+  key("Control", { ctrlKey: true }, $("text"));
+  expect(g.mode()).toBe("move");
+  keyup("Control", {}, $("text"));
+  key("Control", { ctrlKey: true });
+  window.dispatchEvent(new Event("blur"));
+  expect(g.mode()).toBe("move");
+});
+
+test("ドラッグ中は切り替えず、手を離してから切り替える", () => {
+  document.body.innerHTML = `
+    <button data-mode="move" aria-pressed="true"></button><button data-mode="reparent" aria-pressed="false"></button>
+    <button data-mode="link" aria-pressed="false"></button><span id="label"></span><div id="stage"></div>`;
+  const stage = document.getElementById("stage")!;
+  graph = createGraph(stage, { nodes: [{ id: 1, caption: "a", x: 40, y: 40 }] }, { measureText: fakeMeasure });
+  dispose = setupModes(graph, [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")], document.getElementById("label")!);
+  graph.select(1);
+  const head = stage.querySelector(".mz-node.mz-current > .mz-head")!;
+  const fire = (type: string, x: number) =>
+    head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
+  fire("pointerdown", 0);
+  fire("pointermove", 10);
+  key("Control", { ctrlKey: true });
+  expect(graph.mode()).toBe("move");
+  fire("pointermove", 20);
+  fire("pointerup", 20);
+  expect(graph.mode()).toBe("reparent");
+  expect(graph.info(1).x).toBe(60); // 移動のドラッグはそのまま終わる
 });
