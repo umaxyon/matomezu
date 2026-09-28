@@ -72,13 +72,15 @@ test("非表示にした最上位は、関係ない箱を変えても横へ動�
 });
 
 test("ユーザーに長い文字を入れても右の大きい隣へ飛ばず、ワールドの余白を残して手前で折り返す", async ({ page }) => {
-  const front = await rect(page, 3);
+  const front = await rect(page, 3), user = await rect(page, 2);
   await setCaption(page, 2, "ユーザー" + LONG);
   const u = await rect(page, 2);
   expect(u.x).toBe(12);
   expect(u.x + u.w).toBeLessThanOrEqual(front.x - 8);
   expect(await lines(page, 2)).toBeGreaterThan(1);
   expect(await rect(page, 3)).toEqual(front);
+  await setCaption(page, 2, "ユーザー"); // 左端で寄せられても、文字を戻せば元の位置
+  expect(await rect(page, 2)).toEqual(user);
 });
 
 test("真横の相手への線は水平、真下の相手への線は垂直", async ({ page }) => {

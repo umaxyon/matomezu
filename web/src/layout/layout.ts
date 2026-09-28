@@ -106,6 +106,8 @@ export function createLayout(ctx: LayoutContext) {
   const anchorRect = (n: Box) => kindOf(n).anchorRect(n);
   // 大きさが変わったとき、どこを保つか（policy.ts）
   const anchors = createAnchorRules({ anchorRect });
+  // 線がつながる範囲の横の中心（親の中での位置）
+  const centerX = (n: Box) => { const a = anchorRect(n); return n.x + a.x + a.w / 2; };
 
   // 置く処理（placeGroup、compress）の途中で、まだ置いていないボックス。重なりの判定の相手にしない。
   // 置く処理の外（ドラッグ中など）では空で、すべてのボックスが相手になる
@@ -317,11 +319,13 @@ export function createLayout(ctx: LayoutContext) {
   function settle(scene: Scene, changed?: Box, apply?: () => void) {
     const anchored = changed && scene.anchor && inNest(changed) ? changed : undefined;
     const keepAt = anchored && anchors[anchored.parent ? scene.anchor!.inGroup : scene.anchor!.topLevel](anchored);
+    let wantY = anchored?.y ?? 0; // 自分の設定を変えたとき、保とうとした高さ（押し戻しやずれの前）
     apply?.();
     if (anchored && keepAt) {
       settleNode(anchored, undefined, scene.restore);
       const want = keepAt.x(anchored);
-      [anchored.x, anchored.y] = clamp(anchored, want, keepAt.y(anchored));
+      wantY = keepAt.y(anchored);
+      [anchored.x, anchored.y] = clamp(anchored, want, wantY);
       // 最上位は、押し戻される前の本来の中心を保って狭める（グループの中は左上を保つので左端を保つ）
       fitToRow(anchored, anchored.parent ? undefined : want + anchored.w / 2);
       if (scene.giveWayToLarger) stepAside(anchored);
@@ -335,8 +339,10 @@ export function createLayout(ctx: LayoutContext) {
     settleRoots(keep ? (ancestors(changed!).pop() ?? changed) : undefined, scene.restore);
     syncWorld();
     if (scene.fitViewport) fitToViewport();
-    // 自分の設定を変えたボックスは、保った位置が本来いたい位置になる
-    if (anchored) anchored.intendedY = anchored.y;
+    // 自分の設定を変えたボックスは、保とうとした高さが本来いたい高さになる（押し下げられていれば、その位置）
+    if (anchored) anchored.intendedY = wantY;
+    // まだ本来いたい中心が決まっていない最上位（データから置いたばかり）は、今の中心にする
+    for (const r of roots()) if (!Number.isFinite(r.intendedCX)) r.intendedCX = centerX(r);
   }
 
   // 読み込んだ直後だけ、表示領域の右にはみ出した最上位のボックスを下へ移す（横スクロールより縦の方が見やすい）。
@@ -365,6 +371,7 @@ export function createLayout(ctx: LayoutContext) {
       // ぶつかれば下へずらす
       [n.x, n.y] = slide(n, x, y)!;
       n.intendedY = n.y;
+      n.intendedCX = centerX(n);
     }
     syncWorld();
   }
@@ -449,7 +456,7 @@ export function createLayout(ctx: LayoutContext) {
 
   return {
     containerOf, siblings, incident, innerArea, fixedSize, syncWorld,
-    kindOf, anchorRect, fit, refitAncestors,
+    kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
     settle, fitToViewport,

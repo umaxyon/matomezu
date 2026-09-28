@@ -34,7 +34,7 @@ export interface InteractionContext {
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
   const { container, world } = ctx;
-  const { refitAncestors, syncWorld } = L;
+  const { refitAncestors, syncWorld, centerX } = L;
   const { tryMove } = D;
   const { render, blocked, focus, unfocus } = R;
 
@@ -104,6 +104,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (tryMove(n, drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy)) {
       drag.moved = true;
       n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
+      n.intendedCX = centerX(n);
       render();
     } else {
       blocked(n);

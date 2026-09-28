@@ -330,12 +330,23 @@ describe("文字の箱は、同じ段の兄弟にはみ出すなら空いてい�
     expect(u.h).toBeGreaterThan(user[3]!); // 折り返して高くなる
     expect([front.x, front.y]).toEqual([graph.info(3).x, graph.info(3).y]); // フロントエンドは動かない
     graph.update(2, { caption: "ユーザー" });
-    // ユーザーはワールドの左端の近くにいるので、広がったときに左端で寄せた分だけ中心がずれる（最初の1回だけ）
-    const back = rect(graph, 2);
-    expect(back.slice(1)).toEqual(user.slice(1));
+    // 広がったときにワールドの左端で寄せられても、本来いたい中心は変わらないので、元の位置に戻る
+    expect(rect(graph, 2)).toEqual(user);
     graph.update(2, { caption: LONG });
     graph.update(2, { caption: "ユーザー" });
-    expect(rect(graph, 2)).toEqual(back); // 繰り返しても、ずれは積み重ならない
+    expect(rect(graph, 2)).toEqual(user);
+  });
+
+  test("大きい隣にぶつかって自分がずれても、縮めば元の位置に戻る", () => {
+    // 左の大きい隣には狭めずに自分がずれる（stepAside）。ずれるのは今の位置だけで、本来いたい中心は変わらない
+    const { graph } = setup({
+      nodes: [{ id: 1, caption: "大きい相手", x: 40, y: 100, width: 250, height: 200 }, { id: 2, caption: "箱", x: 300, y: 150 }],
+    });
+    const before = rect(graph, 2);
+    graph.update(2, { caption: LONG });
+    expect(graph.info(2).x).toBeGreaterThanOrEqual(40 + 250 + 8); // 左の大きい隣と重ならない
+    graph.update(2, { caption: "箱" });
+    expect(rect(graph, 2)).toEqual(before);
   });
 
   test("左に空きがあれば、中心を保って狭めるので、文字を戻すと元の位置に戻る", () => {

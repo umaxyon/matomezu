@@ -514,6 +514,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       w: 0, h: 0, hx: 0, hy: 0, hw: 0, hh: 0,
       hasPos: Number.isFinite(src.x) && Number.isFinite(src.y),
       intendedY: Number(src.y) || 0,
+      intendedCX: NaN,
       capW: 0,
       el, head, textEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };

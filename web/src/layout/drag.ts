@@ -9,7 +9,7 @@ import { type Box, ancestors } from "../model";
 export type Drag = ReturnType<typeof createDrag>;
 
 export function createDrag(opt: LayoutOptions, L: Layout) {
-  const { siblings, clamp, overlaps, collides, isPlaced, fit, refitAncestors } = L;
+  const { siblings, clamp, overlaps, collides, isPlaced, fit, refitAncestors, centerX } = L;
 
   // 親の中に収まる位置にあるか
   const clamped = (m: Box) => {
@@ -88,7 +88,7 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
       if (stuck || settleChain(n, before, moved)) {
         // ドラッグで広がった祖先に押された箱は、押された先を本来いたい位置にする
         // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
-        for (const b of moved.keys()) b.intendedY = b.y;
+        for (const b of moved.keys()) { b.intendedY = b.y; b.intendedCX = centerX(b); }
         return true;
       }
       for (const [b, [bx, by]] of moved) { b.x = bx; b.y = by; }

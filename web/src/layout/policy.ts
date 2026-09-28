@@ -29,10 +29,11 @@ export function createAnchorRules(ctx: AnchorContext): Record<AnchorName, Anchor
     },
     // 上辺と、線がつながる範囲の横の中心を保つ。左右と下へ伸び縮みする。最上位で使う
     // （左上を保つと、非表示にしたとき元の枠の左上に寄ってしまう）。上へは伸びないので、上の相手にぶつからない。
-    // 前後で同じ範囲（anchorRect）の中心を使うので、往復しても元に戻る（ワールドの左端で押し戻されたときを除く）
+    // 保つのは今の中心ではなく本来いたい中心（intendedCX）なので、端で押し戻されたり大きい隣にぶつかってずれたり
+    // した分は、縮めば元に戻る
     topCenter: n => {
       const a = anchorRect(n);
-      const cx = n.x + a.x + a.w / 2, { y } = n;
+      const cx = Number.isFinite(n.intendedCX) ? n.intendedCX : n.x + a.x + a.w / 2, { y } = n;
       return { x: m => { const b = anchorRect(m); return cx - b.x - b.w / 2; }, y: () => y };
     },
   };
