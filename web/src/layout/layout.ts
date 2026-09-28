@@ -222,10 +222,12 @@ export function createLayout(ctx: LayoutContext) {
     const order = (first && list.includes(first) ? [first] : [])
       .concat(rest.filter(n => n.hasPos && !n.home), pushed, rest.filter(n => !n.hasPos));
     for (const n of order) {
+      // 押し下げは同じ x のまま下へずらすものなので、戻すときも今の x のまま上へ戻すだけにする
+      // （覚えた x を使うと、そのあと大きさが変わって x がずれた箱が横へ動いてしまう）
       if (restore && n.home && n !== first) {
-        const back = slide(n, n.home.x, n.home.y, "down", n.y);
+        const back = slide(n, n.x, n.home.y, "down", n.y);
         if (back) [n.x, n.y] = back;
-        if (n.x === n.home.x && n.y === n.home.y) n.home = null;
+        if (n.y <= n.home.y) n.home = null;
       }
       const at = { x: n.x, y: n.y };
       [n.x, n.y] = clamp(n, n.x, n.y);

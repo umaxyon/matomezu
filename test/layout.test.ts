@@ -284,6 +284,19 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
     expect(at(graph, 9)).toEqual(below);
   });
 
+  test("元の位置へ戻すときは今の x のまま上へ戻すだけで、横には動かさない", () => {
+    // サンプルのフロントエンドは、開いたときにタイトルとわずかに重なって押し下げられ、元の位置を覚えている
+    const { graph } = setup(sample());
+    const at = (id: number) => [graph.info(id).x, graph.info(id).y];
+    const front = at(3);
+    graph.update(3, { childView: "hidden" }); // 上辺の中央を保って縮む（x が変わる）
+    const hidden = at(3);
+    graph.update(17, { childView: "nest" }); // 関係ない箱を変えて、全体を置き直す
+    expect(at(3)).toEqual(hidden);
+    graph.update(3, { childView: "nest" });
+    expect(at(3)).toEqual(front);
+  });
+
   test("押し下げられたあとにドラッグした相手は、その位置のまま", () => {
     const { el, graph } = setup(data());
     graph.update(2, { caption: long });

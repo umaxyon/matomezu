@@ -1,5 +1,5 @@
 // 2026-09-28 にユーザーが画面で確認した動きを、実際のブラウザで確かめる。
-// examples/three-levels.json の id: 1 タイトル、2 ユーザー、3 フロントエンド、5 トップ画面、10 バックエンド
+// examples/three-levels.json の id: 1 タイトル、2 ユーザー、3 フロントエンド、5 トップ画面、10 バックエンド、17 外部サービス
 import { expect, test } from "@playwright/test";
 import {
   choose, edgeEnds, example, lines, openDiagram, rect, select, setCaption, violations,
@@ -57,6 +57,17 @@ test("最上位の見せ方を切り替えても元の位置に戻り、上辺�
     expect(r.y, v).toBe(front.y);
     expect(await rect(page, 1), v).toEqual(title);
   }
+  expect(await rect(page, 3)).toEqual(front);
+});
+
+test("非表示にした最上位は、関係ない箱を変えても横へ動かず、内包に戻すと元の位置", async ({ page }) => {
+  // フロントエンドは開いたときにタイトルとわずかに重なって押し下げられ、元の位置を覚えている
+  const front = await rect(page, 3);
+  await choose(page, 3, "mzp-view", "hidden");
+  const hidden = await rect(page, 3);
+  await choose(page, 17, "mzp-view", "nest"); // 関係ない外部サービスを変える
+  expect(await rect(page, 3)).toEqual(hidden);
+  await choose(page, 3, "mzp-view", "nest");
   expect(await rect(page, 3)).toEqual(front);
 });
 
