@@ -115,3 +115,22 @@ test("タイトルを下へ動かすと、触れた箱と入れ替わりなが�
   // 離すと、タイトルはバックエンドの下へ寄る
   expect((await rect(page, 1)).y).toBe(back2.y + back2.h + 8);
 });
+
+test("表示領域の幅に小数があっても、中身が収まっていればワールドははみ出さない（スクロールバーを出さない）", async ({ page }) => {
+  // Windows の表示倍率などで表示領域の幅に小数が出る状態を、サイドバーの幅で作る
+  for (const w of ["280.2px", "280.4px", "280.6px", "280.8px"]) {
+    await page.evaluate(w => { document.getElementById("sidebar")!.style.width = w; }, w);
+    await page.waitForTimeout(50);
+    const r = await page.evaluate(() => {
+      const s = document.getElementById("stage")!, world = document.querySelector<HTMLElement>(".mz-world")!;
+      // スクロールバーの分を除いた、表示領域の中身の幅と高さ（小数まで）
+      const rect = s.getBoundingClientRect();
+      return {
+        w: rect.width - (s.offsetWidth - s.clientWidth), h: rect.height - (s.offsetHeight - s.clientHeight),
+        worldW: parseFloat(world.style.width), worldH: parseFloat(world.style.height),
+      };
+    });
+    expect(r.worldW, w).toBeLessThanOrEqual(r.w);
+    expect(r.worldH, w).toBeLessThanOrEqual(r.h);
+  }
+});

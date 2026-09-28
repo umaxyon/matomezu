@@ -77,6 +77,17 @@ export function createLayout(ctx: LayoutContext) {
     };
   }
 
+  // 表示領域の中身（スクロールバーを除く）の幅と高さ。clientWidth / clientHeight は小数を四捨五入するので、
+  // 実際の幅が 836.6 のとき 837 になり、それに合わせたワールドが 0.4px はみ出して、動かせないスクロールバーが出る
+  // （Windows の表示倍率などで幅に小数が出る）。小数まで測って切り捨てる
+  function viewport() {
+    const r = container.getBoundingClientRect();
+    return {
+      w: Math.floor(r.width - (container.offsetWidth - container.clientWidth)),
+      h: Math.floor(r.height - (container.offsetHeight - container.clientHeight)),
+    };
+  }
+
   // 指定が無ければ、表示領域と置かれているボックスの範囲の大きい方にする。
   // 表示領域が狭くなってもボックスは動かさず、はみ出た分はスクロールで見る
   function syncWorld() {
@@ -87,8 +98,9 @@ export function createLayout(ctx: LayoutContext) {
       right = Math.max(right, n.x + n.w + opt.padding);
       bottom = Math.max(bottom, n.y + n.h + opt.padding);
     }
-    world.w = Number(s.width) || Math.max(container.clientWidth, right);
-    world.h = Number(s.height) || Math.max(container.clientHeight, bottom);
+    const v = viewport();
+    world.w = Number(s.width) || Math.max(v.w, right);
+    world.h = Number(s.height) || Math.max(v.h, bottom);
     worldEl.style.width = world.w + "px";
     worldEl.style.height = world.h + "px";
     worldEl.classList.toggle("mz-ov-clip", overflowOf(world) === "clip");
@@ -357,7 +369,7 @@ export function createLayout(ctx: LayoutContext) {
   // ワールドの幅が指定されている、表示領域より大きい、または左端が表示領域の左半分にあるボックスは動かさない
   // （左から始まる大きなボックスが少しはみ出しただけなら、動かすと全体の並びが崩れる）
   function fitToViewport() {
-    const limit = container.clientWidth - opt.padding;
+    const limit = viewport().w - opt.padding;
     if (world.src.width || limit <= 0) return;
     const inside = (n: Box) => n.x + n.w <= limit;
     const centerOffset = (n: Box) => { const r = anchorRect(n); return r.x + r.w / 2; };
