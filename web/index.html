@@ -85,6 +85,9 @@
   .tab:hover { color: var(--text); background: var(--btn); }
   .tab[aria-selected="true"] { color: var(--text); background: var(--bg); border-color: var(--bar-border); }
   .tab-name { overflow: hidden; text-overflow: ellipsis; }
+  /* ブックごとのタブグループ。左端の色の印でブックを見分ける。先頭のタブ（ブックの名前）が最初のページ */
+  .tab-group { display: flex; gap: 2px; padding-left: 6px; margin-right: 8px; border-left: 3px solid var(--book, var(--accent)); }
+  .tab-book .tab-name { font-weight: 600; }
   .tab-close { padding: 0 5px; border: 0; background: transparent; line-height: 1.4; color: inherit; opacity: 0.6; }
   .tab-close:hover { opacity: 1; background: var(--btn-hover); }
   button {

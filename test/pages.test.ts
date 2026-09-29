@@ -161,3 +161,8 @@ test("ページは入れ子にできない（読み込みエラー）", () => {
   node(d, 4).page = true;
   expect(() => validate(d)).toThrow(/ページの中の箱はページにできません/);
 });
+
+test("pages はブックのページの箱の一覧", () => {
+  const { graph } = setup(book());
+  expect(graph.pages()).toEqual([{ id: "1", caption: "詳細" }]);
+});

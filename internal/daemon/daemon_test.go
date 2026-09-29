@@ -87,7 +87,7 @@ func TestPingOpenAndRunning(t *testing.T) {
 	if v, err := Ping(s); err != nil || v != "v1" {
 		t.Fatalf("ping = %q, %v", v, err)
 	}
-	res, err := Open(s, filepath.Join(t.TempDir(), "d.json"), false)
+	res, err := Open(s, filepath.Join(t.TempDir(), "d.json"), false, "")
 	if err != nil || res.ID == "" {
 		t.Fatalf("open = %+v, %v", res, err)
 	}

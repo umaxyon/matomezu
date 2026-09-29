@@ -28,8 +28,8 @@ const maxBody = 16 << 20
 //	GET  api/data    ファイルの中身。ETag に版（中身のハッシュ）、X-Matomezu-Name にファイル名、
 //	                 X-Matomezu-Server にサーバーの版を入れる
 //	PUT  api/data    画面からの保存。If-Match の版が今のファイルと違えば 409 を返す
-//	POST api/layout  画面からの配置の要約 {"version", "summary"}。最新の1件だけを覚える
-//	GET  api/layout  覚えている配置の要約と、今のファイルの版 {"version", "summary", "current"}
+//	POST api/layout  画面からの配置の要約 {"version", "page", "summary"}。ページごとに最新の1件だけを覚える
+//	GET  api/layout  ?page=<id> のページ（無ければ最初のページ）の要約と、今のファイルの版 {"version", "page", "summary", "current"}
 //
 // 版の変更は Hub の通知（hub.go の /api/events）で画面へ知らせる。
 // ファイルの変更は、画面がつながっているあいだ一定間隔で読み直し、中身のハッシュを比べて見つける。
@@ -44,12 +44,13 @@ type doc struct {
 
 	mu      sync.Mutex
 	version string
-	layout  Layout // 画面から届いた最新の配置の要約
+	layout  map[string]Layout // 画面から届いた最新の配置の要約（ページの箱の id ごと。最初のページは ""）
 }
 
-// Layout は画面が配置した結果の要約。Version はそのとき画面が表示していたファイルの版
+// Layout は画面が配置した結果の要約。Version はそのとき画面が表示していたファイルの版、Page は描いていたページ
 type Layout struct {
 	Version string `json:"version"`
+	Page    string `json:"page"`
 	Summary string `json:"summary"`
 }
 
@@ -65,7 +66,8 @@ func newDoc(path, server string, interval time.Duration, onVersion func(id, vers
 	if err != nil {
 		return nil, err
 	}
-	d := &doc{id: docID(abs), path: abs, server: server, interval: interval, onVersion: onVersion, active: active}
+	d := &doc{id: docID(abs), path: abs, server: server, interval: interval, onVersion: onVersion, active: active,
+		layout: map[string]Layout{}}
 	b, err := os.ReadFile(abs)
 	if errors.Is(err, fs.ErrNotExist) {
 		b = []byte(emptyDiagram)
@@ -175,20 +177,24 @@ func (d *doc) putLayout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d.mu.Lock()
-	d.layout = l
+	d.layout[l.Page] = l
 	d.mu.Unlock()
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (d *doc) getLayout(w http.ResponseWriter, _ *http.Request) {
+func (d *doc) getLayout(w http.ResponseWriter, r *http.Request) {
 	b, err := os.ReadFile(d.path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	page := r.URL.Query().Get("page")
 	d.mu.Lock()
-	l := d.layout
+	l, ok := d.layout[page]
 	d.mu.Unlock()
+	if !ok {
+		l = Layout{Page: page}
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, struct {
 		Layout

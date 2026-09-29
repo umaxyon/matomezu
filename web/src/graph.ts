@@ -27,6 +27,7 @@
  *   graph.geometry();            // 見えているボックスと線の位置、表示領域の大きさ（配置の要約 report.ts に渡す）
  *   graph.setPage(id);           // 描くページを変える（ページの箱の id。null は最初のページ）。履歴はそのまま
  *   graph.page();                // 描いているページ
+ *   graph.pages();               // ブックのページ（ページの箱の id とキャプション）
  *   graph.destroy();
  *
  * データ形式:
@@ -113,6 +114,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onSelect?: (info: Info) => void;
   onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
   onNotice?: (text: string) => void;          // 利用者に知らせたいこと（付け替えで線を外したなど）
+  onBuild?: () => void;                       // 図を組み立て直した（ページの増減やキャプションを見直すため）
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
@@ -144,6 +146,7 @@ export interface Graph {
   geometry(): Geometry;
   setPage(id: Id | null): void;
   page(): string | null;
+  pages(): { id: string; caption: string }[];
   destroy(): void;
 }
 
@@ -753,7 +756,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     settle(fit ? SCENES.open : SCENES.reload);
     render();
     select(null);
+    opt.onBuild?.();
   }
+
 
   // ワールドの大きさが指定されていなければ、表示領域に合わせて追従する。
   // ここでボックスを動かすと、スクロールバーの出入りで大きさが変わり続けるので動かさない
@@ -817,6 +822,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       notifySelect();
     },
     page: () => page,
+    pages: () => source.nodes.filter(s => s.page === true)
+      .map(s => ({ id: String(s.id), caption: s.caption != null && s.caption !== "" ? String(s.caption) : String(s.id) })),
     geometry() {
       const boxes = nodes.filter(n => !isHidden(n)).map(n => {
         const [x, y] = absPos(n);

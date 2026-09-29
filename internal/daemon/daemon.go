@@ -151,14 +151,14 @@ func Ping(s *State) (string, error) {
 }
 
 // Open は path の図をサーバーに登録する。相対パスはサーバーの作業フォルダではなく、呼んだ側の作業フォルダから解決する。
-// show なら、つながっている画面にその図を開くよう知らせる
-func Open(s *State, path string, show bool) (server.OpenResult, error) {
+// show なら、つながっている画面にその図（page があればそのページ）を開くよう知らせる
+func Open(s *State, path string, show bool, page string) (server.OpenResult, error) {
 	var res server.OpenResult
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return res, err
 	}
-	err = call(s, "POST", "/api/open", map[string]any{"path": abs, "show": show}, &res)
+	err = call(s, "POST", "/api/open", map[string]any{"path": abs, "show": show, "page": page}, &res)
 	return res, err
 }
 

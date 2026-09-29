@@ -109,7 +109,7 @@ func TestShowIsSentAndReplayed(t *testing.T) {
 	if a.Connections != 1 {
 		t.Fatalf("connections = %d", a.Connections)
 	}
-	want := `{"doc":"` + a.ID + `"}`
+	want := `{"doc":"` + a.ID + `","page":""}`
 	if v := nextEvent(t, r, "open"); v != want {
 		t.Fatalf("open = %s", v)
 	}

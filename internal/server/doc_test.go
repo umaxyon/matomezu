@@ -28,7 +28,7 @@ func setup(t *testing.T, content string) (string, string) {
 	t.Cleanup(cancel)
 	web := fstest.MapFS{"index.html": {Data: []byte("<html>")}}
 	hub := NewHub(ctx, web, WithInterval(20*time.Millisecond))
-	res, err := hub.Open(path, false)
+	res, err := hub.Open(path, false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,5 +188,23 @@ func TestEventsOnExternalChangeOnly(t *testing.T) {
 	put := do(t, "PUT", base+"/api/data", `{"nodes":[{"id":3}]}`, map[string]string{"If-Match": `"` + ext + `"`})
 	if v := nextVersion(t, r); `"`+v+`"` != put.Header.Get("ETag") {
 		t.Fatalf("event %s != put etag %s", v, put.Header.Get("ETag"))
+	}
+}
+
+// 配置の要約はページごとに覚える
+func TestLayoutPerPage(t *testing.T) {
+	base, _ := setup(t, `{"nodes":[]}`)
+	v := strings.Trim(do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag"), `"`)
+	for _, l := range []string{`{"version":"` + v + `","page":"","summary":"first"}`, `{"version":"` + v + `","page":"3","summary":"third"}`} {
+		if res := do(t, "POST", base+"/api/layout", l, nil); res.StatusCode != http.StatusNoContent {
+			t.Fatalf("post: %d", res.StatusCode)
+		}
+	}
+	for page, want := range map[string]string{"": "first", "3": "third", "9": ""} {
+		var got struct{ Version, Page, Summary, Current string }
+		json.NewDecoder(do(t, "GET", base+"/api/layout?page="+page, "", nil).Body).Decode(&got)
+		if got.Summary != want || got.Page != page || got.Current != v {
+			t.Fatalf("page %q: %+v", page, got)
+		}
 	}
 }

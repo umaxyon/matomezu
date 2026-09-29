@@ -75,3 +75,45 @@ test("開いていたタブは、読み直しても残る", async ({ page }) => 
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
   await expect(selected(page)).toHaveText("b.json");
 });
+
+// ページ（docs/TABS-plan.md の段階 4）。1 はページの箱で、中に 3 と 4
+const paged = {
+  nodes: [
+    { id: 1, caption: "詳細", page: true, x: 40, y: 40 },
+    { id: 2, caption: "隣", x: 400, y: 40 },
+    { id: 3, caption: "中A", parent: 1, x: 20, y: 20 },
+    { id: 4, caption: "中B", parent: 1, x: 300, y: 20 },
+  ],
+  edges: [{ id: "e1", from: 1, to: 2 }, { id: "e2", from: 3, to: 4 }],
+};
+const visibleIds = (page: import("@playwright/test").Page) =>
+  page.locator(".stage:visible .mz-node").evaluateAll(els => els.map(e => (e as HTMLElement).dataset.id).sort());
+
+test("open -page でページのタブが開き、同じブックのタブグループに並ぶ。閉じると最初のページに戻る", async ({ page }) => {
+  writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
+  await page.goto(run("open", "-no-browser", "p.json").trim());
+  expect(await visibleIds(page)).toEqual(["1", "2"]);
+
+  run("open", "-no-browser", "-page", "1", "p.json");
+  const group = page.locator(".tab-group", { hasText: "p.json" });
+  await expect(group.locator(".tab-name")).toHaveText(["p.json", "詳細"]);
+  await expect(selected(page)).toHaveText("詳細");
+  expect(await visibleIds(page)).toEqual(["3", "4"]);
+  expect(page.url()).toContain("p=1");
+
+  await group.locator(".tab", { hasText: "詳細" }).locator(".tab-close").click();
+  await expect(selected(page)).toHaveText("p.json");
+  expect(await visibleIds(page)).toEqual(["1", "2"]);
+});
+
+test("check -page はそのページのタブを前に出して要約を返し、page を外すとページのタブは閉じる", async ({ page }) => {
+  writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
+  await page.goto(run("open", "-no-browser", "p.json").trim());
+  const out = run("check", "-page", "1", "p.json");
+  expect(out).toContain("#3 中A");
+  await expect(selected(page)).toHaveText("詳細");
+
+  run("set", "p.json", "1.page=");
+  await expect(page.locator(".tab-group", { hasText: "p.json" }).locator(".tab-name")).toHaveText(["p.json"]);
+  expect(await visibleIds(page)).toEqual(["1", "2", "3", "4"]);
+});

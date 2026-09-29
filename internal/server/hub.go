@@ -9,15 +9,15 @@
 //	GET  /api/events     SSE。全部の図の通知を1本で送る（下を参照）
 //	GET  /api/info       {"server"} サーバーの版。画面が matomezu のサーバーから開かれたかを知るのに使う
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
-//	POST /api/open       {"path", "show"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
-//	                     show なら、つながっている画面にその図を開くよう知らせる
+//	POST /api/open       {"path", "show", "page"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
+//	                     show なら、つながっている画面にその図（page があればそのページ）を開くよう知らせる
 //	POST /api/shutdown   サーバーを止める                                … 要トークン
 //
 // /api/events のイベント（data は JSON）:
 //
 //	server   サーバーの版（文字列）。つないだときに送る。画面は読み込んだときの版と違えば読み直す
 //	version  {"doc", "version"} 図のファイルの版が変わった。つないだときは登録済みの全部の図の分を送る
-//	open     {"doc"} その図を開いて前に出す。つないだときも、少し前に頼まれていれば送る
+//	open     {"doc", "page"} その図のページ（page が "" なら最初のページ）を開いて前に出す。つないだときも、少し前に頼まれていれば送る
 //
 // 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
 //
@@ -52,7 +52,7 @@ type Hub struct {
 	docs      map[string]*doc
 	clients   map[chan event]struct{} // つながっている画面
 	idleSince time.Time               // 画面が 0 になった時刻
-	shown     string                  // 最後に開くよう頼まれた図
+	shown     string                  // 最後に開くよう頼まれた図とページ（open イベントの data）
 	shownAt   time.Time
 }
 
@@ -100,7 +100,7 @@ type OpenResult struct {
 
 // Open は path の図を登録する。登録済みならそれを返す。ファイルが無ければ空の図で作る。
 // show なら、つながっている画面にその図を開くよう知らせる
-func (h *Hub) Open(path string, show bool) (OpenResult, error) {
+func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
 	d, err := newDoc(path, h.version, h.interval, h.versionChanged, h.connected)
 	if err != nil {
 		return OpenResult{}, err
@@ -114,12 +114,13 @@ func (h *Hub) Open(path string, show bool) (OpenResult, error) {
 	}
 	h.idleSince = time.Now() // 開いた直後は、画面がつながるまで待つ
 	conns := len(h.clients)
+	opened := jsonString(map[string]string{"doc": d.id, "page": page})
 	if show {
-		h.shown, h.shownAt = d.id, time.Now()
+		h.shown, h.shownAt = opened, time.Now()
 	}
 	h.mu.Unlock()
 	if show {
-		h.broadcast(event{"open", jsonString(map[string]string{"doc": d.id})})
+		h.broadcast(event{"open", opened})
 	}
 	return OpenResult{ID: d.id, Path: d.path, Connections: conns}, nil
 }
@@ -215,7 +216,7 @@ func (h *Hub) events(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if shown != "" && !send(event{"open", jsonString(map[string]string{"doc": shown})}) {
+	if shown != "" && !send(event{"open", shown}) {
 		return
 	}
 	ping := time.NewTicker(15 * time.Second)
@@ -297,12 +298,13 @@ func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Path string `json:"path"`
 		Show bool   `json:"show"`
+		Page string `json:"page"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.Path == "" {
 		http.Error(w, "path required", http.StatusBadRequest)
 		return
 	}
-	res, err := h.Open(req.Path, req.Show)
+	res, err := h.Open(req.Path, req.Show, req.Page)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

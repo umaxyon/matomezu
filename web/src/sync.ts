@@ -61,6 +61,8 @@ export interface Sync {
   notify(version: string): void;
   // 見ているタブか。前に出たら、届いていた変更を読み直し、配置の要約を送る
   setActive(active: boolean): void;
+  // 配置の要約を送り直す（描くページを変えたときなど）
+  report(): void;
   close(): void;
 }
 
@@ -86,7 +88,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
     fetch(base + "api/layout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: version.replace(/^W\//, "").replace(/"/g, ""), summary }),
+      body: JSON.stringify({ version: version.replace(/^W\//, "").replace(/"/g, ""), page: graph.page() ?? "", summary }),
     }).catch(() => {});
   }
 
@@ -213,6 +215,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       active = next;
       if (active) show();
     },
+    report,
     close() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);

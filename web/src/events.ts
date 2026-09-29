@@ -2,13 +2,13 @@
  * サーバーの通知（/api/events、hub.go）を 1 本だけつなぎ、アプリ内の全部のタブに配る。
  * - server: 最初につないだときの版を覚え、つなぎ直したときに違えば画面ごと読み直す（作り直したサーバーの新しい JS にするため）。
  * - version: 図のファイルの版が変わった。
- * - open: その図を開いて前に出すよう頼まれた（matomezu open）。
+ * - open: その図（のページ）を開いて前に出すよう頼まれた（matomezu open / check / set）。
  * - 接続が切れても、つなぎ直しを続ける（入れ替わったサーバーが同じアドレスで起動するのを待つ）。
  */
 
 export interface EventHandlers {
   version(doc: string, version: string): void;
-  open(doc: string): void;
+  open(doc: string, page: string | null): void;
   status(text: string): void;
 }
 
@@ -48,7 +48,7 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): () => voi
     });
     es.addEventListener("open", e => {
       const v = parse(e);
-      if (v && typeof v.doc === "string") h.open(v.doc);
+      if (v && typeof v.doc === "string") h.open(v.doc, typeof v.page === "string" && v.page ? v.page : null);
     });
     es.addEventListener("error", () => {
       h.status("再接続中…");

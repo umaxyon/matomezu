@@ -25,10 +25,10 @@ var version = "dev"
 const reconnectWait = 4 * time.Second
 
 const usageText = `usage:
-  matomezu open [-no-browser] <file.json>   show the diagram in the browser (starts the background server)
+  matomezu open [-no-browser] [-page id] <file.json>   show the diagram (or the page of box id) in the browser (starts the background server)
   matomezu serve [-addr host:port] <file.json>   run a server in the foreground for one diagram
-  matomezu check <file.json>                 print a summary of how the open browser laid it out
-  matomezu set <file.json> <id.key=value>... change fields of boxes (id "world" for the diagram), then print the summary
+  matomezu check [-page id] <file.json>      print a summary of how the open browser laid it out (the first page, or the page of box id)
+  matomezu set [-page id] <file.json> <id.key=value>... change fields of boxes (id "world" for the diagram), then print the summary
                                              an empty value removes the field, e.g. 12.x=
   matomezu stop                              stop the background server
   matomezu version
@@ -77,6 +77,7 @@ func newFlags(name string) *flag.FlagSet {
 func open(args []string) error {
 	fs := newFlags("open")
 	noBrowser := fs.Bool("no-browser", false, "print the URL without opening a browser")
+	page := fs.String("page", "", "open the page of this box (a box with page: true) instead of the first page")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -93,14 +94,14 @@ func open(args []string) error {
 		return err
 	}
 	// 画面がつながっていれば、そのタブの中で図を開く（サーバーは、少しあとにつながった画面にも知らせる）
-	res, err := daemon.Open(s, fs.Arg(0), true)
+	res, err := daemon.Open(s, fs.Arg(0), true, *page)
 	if err != nil {
 		return err
 	}
 	// サーバーを入れ替えたときは、開いていた画面が同じ URL でつなぎ直すのを少し待つ（つながればブラウザを開かない）
 	if replaced && res.Connections == 0 {
 		for deadline := time.Now().Add(reconnectWait); time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
-			if res, err = daemon.Open(s, fs.Arg(0), false); err != nil {
+			if res, err = daemon.Open(s, fs.Arg(0), false, ""); err != nil {
 				return err
 			}
 			if res.Connections > 0 {
@@ -109,6 +110,9 @@ func open(args []string) error {
 		}
 	}
 	url := s.URL("/?d=" + res.ID)
+	if *page != "" {
+		url += "&p=" + *page
+	}
 	fmt.Println(url)
 	switch {
 	case res.Connections > 0:
@@ -150,7 +154,7 @@ func serve(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	hub := server.NewHub(ctx, web.FS)
-	res, err := hub.Open(fs.Arg(0), false)
+	res, err := hub.Open(fs.Arg(0), false, "")
 	if err != nil {
 		return err
 	}

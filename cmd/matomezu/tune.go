@@ -2,8 +2,10 @@ package main
 
 // LLM が図の配置を調整するためのコマンド。
 //
-//	matomezu check <file.json>             開いている画面が配置した結果の要約を出す
-//	matomezu set <file.json> <id.key=value>...  ボックス（world は図全体）の項目だけを書き換え、要約を出す
+//	matomezu check [-page id] <file.json>             開いている画面が配置した結果の要約を出す
+//	matomezu set [-page id] <file.json> <id.key=value>...  ボックス（world は図全体）の項目だけを書き換え、要約を出す
+//
+// -page があれば、その箱のページ（page: true の箱の中身）の要約を出す。無ければ最初のページ。
 //
 // JSON 全体を読み書きせずに済むよう、書き換えは項目単位、結果は問題のあるところだけの短い要約にしている。
 
@@ -13,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -28,6 +31,7 @@ const layoutWait = 10 * time.Second
 
 func check(args []string) error {
 	fs := newFlags("check")
+	page := fs.String("page", "", "summarize the page of this box instead of the first page")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -35,7 +39,7 @@ func check(args []string) error {
 		fs.Usage()
 		os.Exit(2)
 	}
-	summary, err := waitLayout(fs.Arg(0))
+	summary, err := waitLayout(fs.Arg(0), *page)
 	if err != nil {
 		return err
 	}
@@ -45,6 +49,7 @@ func check(args []string) error {
 
 func set(args []string) error {
 	fs := newFlags("set")
+	page := fs.String("page", "", "summarize the page of this box instead of the first page")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -64,7 +69,7 @@ func set(args []string) error {
 	if err := writeFile(path, out); err != nil {
 		return err
 	}
-	summary, err := waitLayout(path)
+	summary, err := waitLayout(path, *page)
 	if err != nil {
 		return fmt.Errorf("written, but %w", err)
 	}
@@ -72,8 +77,8 @@ func set(args []string) error {
 	return nil
 }
 
-// waitLayout は、開いている画面が今のファイルの版を配置した結果を待って返す
-func waitLayout(path string) (string, error) {
+// waitLayout は、開いている画面が今のファイルの版の page（"" は最初のページ）を配置した結果を待って返す
+func waitLayout(path, page string) (string, error) {
 	s := daemon.Running()
 	if s == nil {
 		return "", errors.New("not open in a browser; run: matomezu open " + path)
@@ -84,7 +89,7 @@ func waitLayout(path string) (string, error) {
 	for {
 		var err error
 		// 見ていないタブには配置の結果が無いので、その図のタブを前に出して配置させる
-		if res, err = daemon.Open(s, path, true); err != nil {
+		if res, err = daemon.Open(s, path, true, page); err != nil {
 			return "", err
 		}
 		if res.Connections > 0 {
@@ -95,7 +100,7 @@ func waitLayout(path string) (string, error) {
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-	url := s.URL("/d/" + res.ID + "/api/layout")
+	url := s.URL("/d/" + res.ID + "/api/layout?page=" + neturl.QueryEscape(page))
 	for {
 		var l struct {
 			server.Layout

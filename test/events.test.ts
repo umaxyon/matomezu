@@ -26,7 +26,7 @@ beforeEach(() => {
   globalThis.EventSource = FakeEventSource as unknown as typeof EventSource;
   stop = connectEvents({
     version: (doc, v) => log.push(`version ${doc} ${v}`),
-    open: doc => log.push(`open ${doc}`),
+    open: (doc, page) => log.push(`open ${doc} ${page}`),
     status: () => {},
   }, { reload: () => { reloads++; }, retryDelay: 20 });
 });
@@ -42,8 +42,9 @@ test("1 本の接続で、図ごとの版と開く知らせを配る", () => {
   expect(sources.length).toBe(1);
   sources[0]!.send("version", { doc: "a", version: "v1" });
   sources[0]!.send("version", { doc: "b", version: "v2" });
-  sources[0]!.send("open", { doc: "b" });
-  expect(log).toEqual(["version a v1", "version b v2", "open b"]);
+  sources[0]!.send("open", { doc: "b", page: "" });
+  sources[0]!.send("open", { doc: "b", page: "7" });
+  expect(log).toEqual(["version a v1", "version b v2", "open b null", "open b 7"]);
 });
 
 test("つなぎ直したサーバーの版が違えば画面を読み直す（同じなら読み直さない）", () => {
