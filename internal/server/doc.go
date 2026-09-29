@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -26,21 +25,32 @@ const maxBody = 16 << 20
 
 // doc は1つの図の JSON ファイルを、画面と LLM の間で同期させる。
 //
-//	GET  api/data    ファイルの中身。ETag に版（中身のハッシュ）、X-Matomezu-Name にファイル名を入れる
+//	GET  api/data    ファイルの中身。ETag に版（中身のハッシュ）、X-Matomezu-Name にファイル名、
+//	                 X-Matomezu-Server にサーバーの版を入れる
 //	PUT  api/data    画面からの保存。If-Match の版が今のファイルと違えば 409 を返す
-//	GET  api/events  SSE。ファイルの版が変わるたびに version イベントを送る
+//	POST api/layout  画面からの配置の要約 {"version", "summary"}。最新の1件だけを覚える
+//	GET  api/layout  覚えている配置の要約と、今のファイルの版 {"version", "summary", "current"}
 //
+// 版の変更は Hub の通知（hub.go の /api/events）で画面へ知らせる。
 // ファイルの変更は、画面がつながっているあいだ一定間隔で読み直し、中身のハッシュを比べて見つける。
 // inotify は WSL の /mnt/c などで Windows 側からの変更を拾えないため使わない。
 type doc struct {
-	id       string
-	path     string
-	interval time.Duration
-	onConn   func(delta int) // 画面の接続数が変わったときに Hub へ知らせる
+	id        string
+	path      string
+	server    string // サーバーの版
+	interval  time.Duration
+	onVersion func(id, version string) // 版が変わったときに Hub へ知らせる
+	active    func() bool              // 画面がつながっているか（つながっていなければ読み直さない）
 
 	mu      sync.Mutex
 	version string
-	clients map[chan string]struct{}
+	layout  Layout // 画面から届いた最新の配置の要約
+}
+
+// Layout は画面が配置した結果の要約。Version はそのとき画面が表示していたファイルの版
+type Layout struct {
+	Version string `json:"version"`
+	Summary string `json:"summary"`
 }
 
 // ファイルの絶対パスから、URL に使う id を作る。同じファイルなら毎回同じ URL になる
@@ -50,12 +60,12 @@ func docID(path string) string {
 }
 
 // newDoc は path のファイルを扱う。ファイルが無ければ空の図で作る。
-func newDoc(path string, interval time.Duration, onConn func(int)) (*doc, error) {
+func newDoc(path, server string, interval time.Duration, onVersion func(id, version string), active func() bool) (*doc, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
-	d := &doc{id: docID(abs), path: abs, interval: interval, onConn: onConn, clients: map[chan string]struct{}{}}
+	d := &doc{id: docID(abs), path: abs, server: server, interval: interval, onVersion: onVersion, active: active}
 	b, err := os.ReadFile(abs)
 	if errors.Is(err, fs.ErrNotExist) {
 		b = []byte(emptyDiagram)
@@ -98,11 +108,11 @@ func writeAtomic(path string, b []byte) error {
 	return os.Rename(tmp.Name(), path)
 }
 
-// 今つながっている画面の数
-func (d *doc) connections() int {
+// 今の版
+func (d *doc) currentVersion() string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return len(d.clients)
+	return d.version
 }
 
 func (d *doc) getData(w http.ResponseWriter, _ *http.Request) {
@@ -121,6 +131,7 @@ func (d *doc) getData(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("ETag", quote(v))
 	w.Header().Set("X-Matomezu-Name", url.PathEscape(filepath.Base(d.path)))
+	w.Header().Set("X-Matomezu-Server", d.server)
 	w.Write(b)
 }
 
@@ -157,69 +168,41 @@ func (d *doc) putData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (d *doc) events(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+func (d *doc) putLayout(w http.ResponseWriter, r *http.Request) {
+	var l Layout
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&l); err != nil || l.Version == "" {
+		http.Error(w, "version required", http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-store")
-
-	ch := make(chan string, 1)
 	d.mu.Lock()
-	d.clients[ch] = struct{}{}
-	v := d.version
+	d.layout = l
 	d.mu.Unlock()
-	d.onConn(1)
-	defer func() {
-		d.mu.Lock()
-		delete(d.clients, ch)
-		d.mu.Unlock()
-		d.onConn(-1)
-	}()
-
-	// 接続した時点の版を送る。再接続のあいだに変わっていれば、画面はこれで気づける
-	send := func(v string) bool {
-		_, err := fmt.Fprintf(w, "event: version\ndata: %s\n\n", v)
-		flusher.Flush()
-		return err == nil
-	}
-	if !send(v) {
-		return
-	}
-	ping := time.NewTicker(15 * time.Second)
-	defer ping.Stop()
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		case v := <-ch:
-			if !send(v) {
-				return
-			}
-		case <-ping.C:
-			if _, err := io.WriteString(w, ": ping\n\n"); err != nil {
-				return
-			}
-			flusher.Flush()
-		}
-	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
-// setVersion は版を更新し、変わっていれば SSE で知らせる。d.mu を持った状態で呼ぶ
+func (d *doc) getLayout(w http.ResponseWriter, _ *http.Request) {
+	b, err := os.ReadFile(d.path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	d.mu.Lock()
+	l := d.layout
+	d.mu.Unlock()
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, struct {
+		Layout
+		Current string `json:"current"`
+	}{l, hash(b)})
+}
+
+// setVersion は版を更新し、変わっていれば Hub へ知らせる。d.mu を持った状態で呼ぶ
 func (d *doc) setVersion(v string) {
 	if v == d.version {
 		return
 	}
 	d.version = v
-	for ch := range d.clients {
-		select {
-		case <-ch: // 送り損ねた古い版は捨て、最新だけを残す
-		default:
-		}
-		ch <- v
-	}
+	d.onVersion(d.id, v)
 }
 
 // watch はファイルを一定間隔で読み直し、外部での変更を知らせる。ctx が終わるまで戻らない。
@@ -232,7 +215,7 @@ func (d *doc) watch(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			if d.connections() == 0 {
+			if !d.active() {
 				continue
 			}
 			b, err := os.ReadFile(d.path)

@@ -1,18 +1,22 @@
 /*
- * matomezu serve と画面の同期。
+ * matomezu serve と画面の同期（図 1 つ分。アプリ内のタブ 1 つに 1 つ）。
  * - 画面での変更は、少し待ってまとめて保存する（If-Match に読み込んだときの版を付ける）。
- * - ファイルが外部（LLM など）で変わったら SSE で知り、読み直す。外部の変更を優先する。
+ * - ファイルが外部（LLM など）で変わったら、サーバーの通知（events.ts が受けて notify で渡す）で知り、読み直す。
+ *   外部の変更を優先する。
  * - ドラッグ中や保存中に届いた変更は、それが終わってから読み直す。
  * - 読み直したデータが不正なときは表示を残し、直るまで保存を止める（書きかけのファイルを上書きしないため）。
  * - 外部の変更は履歴に1件として残す（Undo で取り消せる）。最初の読み込みでは履歴を空にする。
+ * - 見ていないタブ（active でない）では読み直さず、前に出たときに読み直す。隠れた画面では文字の幅を測れず、配置が壊れるため。
+ * - 見ているタブは、読み込みと保存のたび、表示領域の大きさが変わるたびに、配置の要約（report.ts）をその版と一緒に送る。
+ *   LLM は matomezu check / set でそれを読み、図を調整する。
  */
 
 import type { Graph } from "./graph";
+import { summarize } from "./report";
 import type { Diagram } from "./types";
 
-const API = "api/data";
-const EVENTS = "api/events";
 const SAVE_DELAY = 300;
+const RESIZE_DELAY = 300;
 
 export interface SyncUi {
   status(text: string): void;
@@ -26,11 +30,14 @@ export interface Remote {
   name: string;
 }
 
-// サーバーから図を読む。サーバー無しで開いたとき（file:// や静的配信）は null を返す
-export async function fetchRemote(): Promise<Remote | null> {
+// 図ごとの API の場所（例 "d/<id>/"）。画面の URL からの相対
+export const docBase = (id: string) => `d/${encodeURIComponent(id)}/`;
+
+// サーバーから図を読む。サーバーが無いとき（file:// や静的配信）や、知らない図のときは null を返す
+export async function fetchRemote(base: string): Promise<Remote | null> {
   let res: Response;
   try {
-    res = await fetch(API, { cache: "no-store" });
+    res = await fetch(base + "api/data", { cache: "no-store" });
   } catch {
     return null;
   }
@@ -50,16 +57,38 @@ export async function fetchRemote(): Promise<Remote | null> {
 export interface Sync {
   // 画面での変更を知らせる（createGraph の onChange から呼ぶ）
   changed(data: Diagram): void;
+  // サーバーから知らされたファイルの版（引用符なし）
+  notify(version: string): void;
+  // 見ているタブか。前に出たら、届いていた変更を読み直し、配置の要約を送る
+  setActive(active: boolean): void;
   close(): void;
 }
 
-export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
-  let version = first.version; // 画面が表示している版
+export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi, o: { active?: boolean } = {}): Sync {
+  let active = o.active ?? true;
+  let version = "";            // 画面が表示している版（まだ表示していなければ空）
   let remote = first.version;  // サーバーから知らされた最新の版
+  let pending: Remote | null = first; // 前に出たら表示する、最初の読み込み
   let blocked = false;         // 表示と違う不正なファイルがあるので保存しない
   let saving = false;
   let loading = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
+
+  // 表示している版の配置の要約を送る。届かなくても図の操作には関係しないので、失敗は知らせない
+  function report() {
+    if (!active || !version || blocked) return;
+    let summary: string;
+    try {
+      summary = summarize(graph.geometry());
+    } catch {
+      return;
+    }
+    fetch(base + "api/layout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version: version.replace(/^W\//, "").replace(/"/g, ""), summary }),
+    }).catch(() => {});
+  }
 
   function apply(r: Remote, keepHistory: boolean) {
     version = r.version;
@@ -73,6 +102,7 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
       }
       blocked = false;
       ui.clearError();
+      report();
       return true;
     } catch (err) {
       blocked = true;
@@ -85,7 +115,7 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
     if (timer) { clearTimeout(timer); timer = null; } // 外部の変更を優先し、保存待ちは捨てる
     loading = true;
     try {
-      const r = await fetchRemote();
+      const r = await fetchRemote(base);
       if (!r) {
         ui.error("サーバーに接続できません");
         return;
@@ -99,6 +129,7 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
 
   // 外部の変更が届いていて、今読み直してよいなら読み直す
   function maybeReload() {
+    if (!active || pending) return;
     if (remote !== version && !saving && !loading && !graph.dragging()) reload();
   }
 
@@ -110,7 +141,7 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
     const prev = version;
     ui.status("保存中…");
     try {
-      const res = await fetch(API, {
+      const res = await fetch(base + "api/data", {
         method: "PUT",
         headers: { "Content-Type": "application/json", "If-Match": version },
         body: JSON.stringify(graph.toJSON(), null, 2) + "\n",
@@ -122,6 +153,7 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
         // 届いていれば、それは自分の保存か、そのあとの外部の変更なので、そのまま比べる
         if (remote === prev) remote = etag;
         ui.status("保存しました");
+        report();
       } else if (res.status === 409) {
         if (etag) remote = etag;
         ui.status("外部で変更されていたため、画面の変更を取り消して読み直します");
@@ -141,33 +173,52 @@ export function startSync(graph: Graph, first: Remote, ui: SyncUi): Sync {
     timer = setTimeout(save, SAVE_DELAY);
   }
 
-  const events = new EventSource(EVENTS);
-  events.addEventListener("version", e => {
-    remote = `"${(e as MessageEvent<string>).data}"`;
+  function show() {
+    if (pending) {
+      const r = pending;
+      pending = null;
+      apply(r, false);
+    } else {
+      report();
+    }
     maybeReload();
-  });
-  events.addEventListener("error", () => {
-    // EventSource は自分で再接続する。つながり直すと最新の版が届く
-    if (events.readyState === EventSource.CONNECTING) ui.status("再接続中…");
-  });
+  }
 
   // ドラッグ中に届いた変更は、手を離してから反映する（graph のハンドラーより後に動くよう待つ）
   const onUp = () => setTimeout(maybeReload, 0);
   window.addEventListener("pointerup", onUp);
   window.addEventListener("pointercancel", onUp);
 
-  apply(first, false);
+  // 表示領域の大きさが変わると収まるかどうかも変わるので、落ち着いてから送り直す
+  let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  const onResize = () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { resizeTimer = null; report(); }, RESIZE_DELAY);
+  };
+  window.addEventListener("resize", onResize);
+
+  if (active) show();
 
   return {
     changed() {
       if (blocked) return;
       schedule();
     },
+    notify(v) {
+      remote = `"${v}"`;
+      maybeReload();
+    },
+    setActive(next) {
+      if (active === next) return;
+      active = next;
+      if (active) show();
+    },
     close() {
-      events.close();
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("resize", onResize);
       if (timer) clearTimeout(timer);
+      if (resizeTimer) clearTimeout(resizeTimer);
     },
   };
 }

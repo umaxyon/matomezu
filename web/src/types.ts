@@ -31,6 +31,8 @@ export interface BoxData {
   fill?: boolean;
   border?: boolean;
   overflow?: Overflow;
+  page?: boolean;        // 中身を別のページにする（docs/TABS-plan.md）。ページは入れ子にしない
+  world?: WorldData;     // ページの箱のとき、そのページのワールドの設定
   [key: string]: unknown; // 未知の項目は保存時にそのまま残す
 }
 

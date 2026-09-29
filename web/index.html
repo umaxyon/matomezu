@@ -56,8 +56,37 @@
   }
   header .name { opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   header .status { margin-right: auto; color: var(--hint); font-size: 12px; }
-  /* serve から開いたときは自動で保存するので、開く・保存のボタンは使わない */
-  body.served #open, body.served #save { display: none; }
+  /* サーバーから開いたときは自動で保存するので、開く・保存のボタンは使わない。図の名前はタブに出す */
+  body.served #open, body.served #save, body.served #name { display: none; }
+  /* アプリ内のタブ（サーバーから開いたときだけ） */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 4px 8px 0;
+    background: var(--bar);
+    border-bottom: 1px solid var(--bar-border);
+    overflow-x: auto;
+    font-size: 13px;
+  }
+  .tabs[hidden] { display: none; }
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 240px;
+    padding: 5px 6px 5px 12px;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+    color: var(--hint);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); background: var(--btn); }
+  .tab[aria-selected="true"] { color: var(--text); background: var(--bg); border-color: var(--bar-border); }
+  .tab-name { overflow: hidden; text-overflow: ellipsis; }
+  .tab-close { padding: 0 5px; border: 0; background: transparent; line-height: 1.4; color: inherit; opacity: 0.6; }
+  .tab-close:hover { opacity: 1; background: var(--btn-hover); }
   button {
     font: inherit;
     color: inherit;
@@ -100,13 +129,17 @@
   @supports not selector(::-webkit-scrollbar) {
     #sidebar { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
   }
-  .canvas { position: relative; flex: 1; min-width: 0; }
-  #stage {
+  /* ワールドの列。タブはワールドの上だけに出す（サイドバーの上には出さない） */
+  .work { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .canvas { position: relative; flex: 1; min-width: 0; min-height: 0; }
+  /* 図の側の .mz-stage（position: relative）より強くする */
+  #stage, .canvas > .stage {
     position: absolute;
     inset: 0;
     background-image: radial-gradient(var(--grid) 1px, transparent 1px);
     background-size: 22px 22px;
   }
+  .canvas > .stage[hidden], .side-pane[hidden] { display: none; }
   #stage.dropping { outline: 2px dashed var(--accent); outline-offset: -8px; }
   .hint {
     position: absolute;
@@ -157,9 +190,12 @@
 </header>
 <main>
   <aside id="sidebar"></aside>
-  <div class="canvas">
-    <div id="stage"></div>
-    <div class="hint" id="hint">クリックで選択 / ドラッグで移動 / 線の追加・削除は線モードで / JSON はドロップでも開けます</div>
+  <div class="work">
+    <nav class="tabs" id="tabs" role="tablist" aria-label="開いている図" hidden></nav>
+    <div class="canvas">
+      <div id="stage"></div>
+      <div class="hint" id="hint">クリックで選択 / ドラッグで移動 / 線の追加・削除は線モードで / JSON はドロップでも開けます</div>
+    </div>
   </div>
 </main>
 

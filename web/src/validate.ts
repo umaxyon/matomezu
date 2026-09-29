@@ -105,6 +105,20 @@ export function validate(data: unknown): asserts data is Diagram {
       seen.add(String(p));
     }
   }
+  // ページは入れ子にしない（page: true の箱の祖先に、page: true の箱があってはいけない）
+  for (const n of byId.values()) {
+    if (n.page == null) continue;
+    if (typeof n.page !== "boolean") throw new Error(`page は true か false にしてください: ${n.id}`);
+    if (n.world != null) {
+      if (!isObject(n.world)) throw new Error(`world がオブジェクトではありません: ${n.id}`);
+      checkSettings(n.world, `${n.id} の world`);
+      if (n.world.overflow === "grow") throw new Error(`world に overflow: grow は使えません: ${n.id}`);
+    }
+    if (n.page !== true) continue;
+    for (let p = byId.get(String(n.parent)); p; p = byId.get(String(p.parent))) {
+      if (p.page === true) throw new Error(`ページの中の箱はページにできません: ${n.id}（${p.id} のページの中）`);
+    }
+  }
   const parentOf = (id: unknown) => {
     const p = byId.get(String(id))?.parent;
     return p == null ? null : String(p);

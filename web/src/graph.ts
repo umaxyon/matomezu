@@ -24,6 +24,9 @@
  *   graph.remove(id);            // 子孫ごと消す（removed へ移す。つながっていた線は捨てる）
  *   graph.restore(id, parentId, at); // 消したボックスを子孫ごと parentId（null は最上位）の子に戻す。at は親の中での位置
  *   graph.items();               // サイドバーの一覧（表示中と、消したもの）
+ *   graph.geometry();            // 見えているボックスと線の位置、表示領域の大きさ（配置の要約 report.ts に渡す）
+ *   graph.setPage(id);           // 描くページを変える（ページの箱の id。null は最初のページ）。履歴はそのまま
+ *   graph.page();                // 描いているページ
  *   graph.destroy();
  *
  * データ形式:
@@ -68,6 +71,13 @@
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
+ *   - page: true のボックスの中身は、別のページ（別のワールド）になる（docs/TABS-plan.md）。ページは入れ子にしない。
+ *     ページのワールドの設定は、そのボックスの world に持つ（ファイルの world と同じ形）。
+ *
+ * ブックとページ（docs/TABS-plan.md 3.2）:
+ *   ファイル全体（ブック）のデータを持ち、描くのは 1 ページだけ。描くページの箱だけを Box にするので、
+ *   ページの箱の子は親の無い箱（最上位）として、ワールドに並ぶ。配置と描画は、今のページだけを見ている。
+ *   ほかのページの箱と線はデータ（source）にそのまま残し、保存のときに書き戻す。
  */
 
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
@@ -80,10 +90,12 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, borderOf, captionOf, descendants, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
+  absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
+import { pageMembers, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
+import type { Geometry } from "./report";
 import type { BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Items, ListItem, Overflow, Patch } from "./types";
 import { OVERFLOWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
@@ -129,6 +141,9 @@ export interface Graph {
   remove(id: Id): boolean;
   restore(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean;
   items(): Items;
+  geometry(): Geometry;
+  setPage(id: Id | null): void;
+  page(): string | null;
   destroy(): void;
 }
 
@@ -142,7 +157,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   container.appendChild(worldEl);
   const svg = document.createElementNS(SVGNS, "svg");
 
-  let source: Diagram = { nodes: [] }; // 読み込んだデータ（保存時に未知の項目もそのまま残す）
+  let source: Diagram = { nodes: [] }; // 読み込んだデータ（ブック全体。保存時に未知の項目もそのまま残す）
+  let page: string | null = null;      // 描いているページ（ページの箱の id。null は最初のページ）
+  let offEdges: EdgeData[] = [];       // ほかのページの線（描かずに残しておく）
   let nodes: Box[] = [];               // データの並び順
   let roots: Box[] = [];
   let byId = new Map<string, Box>();
@@ -224,7 +241,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ---- 線の追加・削除 ----
 
   function newEdgeId() {
-    const used = new Set(edges.map(e => e.id));
+    const used = new Set([...edges.map(e => e.id), ...offEdges.map(e => String(e.id))]);
     let i = edges.length + 1;
     while (used.has("e" + i)) i++;
     return "e" + i;
@@ -294,8 +311,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
     const data = api.toJSON();
     const src = data.nodes.find(s => String(s.id) === n.id)!;
-    if (t) src.parent = t.src.id;
-    else delete src.parent;
+    setParent(src, t);
     if (t == null && at) {
       src.x = Math.max(0, Math.round(at.x));
       src.y = Math.max(0, Math.round(at.y));
@@ -331,10 +347,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = nodeOf(id);
     if (n.isWorld) throw new Error("ワールドは消せません");
     const gone = new Set([n, ...descendants(n)]);
+    // ほかのページにある子孫（消す箱がページの箱なら、そのページの中身）も一緒に消す
+    const goneIds = subtreeIds(source.nodes, n.id);
     const out = api.toJSON();
-    const moved = out.nodes.filter((_, i) => gone.has(nodes[i]!));
+    const moved = out.nodes.filter(s => goneIds.has(String(s.id)));
     source.removed = [...(source.removed ?? []), ...moved];
-    source.nodes = source.nodes.filter((_, i) => !gone.has(nodes[i]!));
+    source.nodes = source.nodes.filter(s => !goneIds.has(String(s.id)));
+    offEdges = offEdges.filter(e => !goneIds.has(String(e.from)) && !goneIds.has(String(e.to)));
     nodes = nodes.filter(b => !gone.has(b));
     for (const b of gone) byId.delete(b.id);
 
@@ -384,8 +403,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     }
     data.removed = list.filter(s => !take.has(String(s.id)));
     if (!data.removed.length) delete data.removed;
-    if (t) root.parent = t.src.id;
-    else delete root.parent;
+    setParent(root, t);
     const placeAt = at && (!t || viewOf(t) === "nest");
     if (placeAt) {
       root.x = Math.round(at.x);
@@ -579,7 +597,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       }
       if (n.isWorld) {
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
-        source.world = world.src;
+        storeWorld();
         syncWorld();
         applyWorldStyle();
       } else {
@@ -593,6 +611,30 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (linking && isHidden(linking)) setLinking(null);
     changed();
     notifySelect();
+  }
+
+  // ---- ページ ----
+
+  // 描いているページの箱のデータ（最初のページなら null）
+  const pageBox = () => (page == null ? null : source.nodes.find(s => String(s.id) === page) ?? null);
+
+  // src を t の子にする。t が null なら今のページの最上位（ページの中ならページの箱の子）
+  function setParent(src: BoxData, t: Box | null) {
+    if (t) src.parent = t.src.id;
+    else if (page != null) src.parent = pageBox()!.id;
+    else delete src.parent;
+  }
+
+  // ワールドの設定を、今のページの持ち主（ファイルかページの箱）へ書き戻す。空なら項目ごと消す
+  function storeWorld() {
+    const box = pageBox();
+    const empty = !Object.keys(world.src).length;
+    if (box) {
+      if (empty) delete box.world;
+      else box.world = world.src;
+    } else {
+      source.world = world.src;
+    }
   }
 
   // ---- 読み込み ----
@@ -670,11 +712,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     validate(copy);
     clear();
     source = copy;
-    world.src = source.world ?? {};
+    // 描いていたページが無くなっていたら（Undo や外部の変更で）、最初のページに戻る
+    if (page != null && !source.nodes.some(s => String(s.id) === page && s.page === true)) page = null;
+    const pageSrc = pageBox();
+    world.src = (pageSrc ? pageSrc.world : source.world) ?? {};
     syncWorld();
     applyWorldStyle();
 
-    nodes = source.nodes.map(buildNode);
+    const shown = new Set(pageMembers(source.nodes, page));
+    nodes = source.nodes.filter(s => shown.has(String(s.id))).map(buildNode);
     byId = new Map(nodes.map(n => [n.id, n]));
     for (const n of nodes) {
       n.parent = n.src.parent != null ? byId.get(String(n.src.parent)) ?? null : null;
@@ -690,14 +736,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const raw = (source.edges ?? []).map(normalizeEdge);
     const used = new Set(raw.map(e => e.id).filter(id => id != null).map(String));
     let seq = 1;
+    offEdges = [];
     for (const src of raw) {
       if (src.id == null) {
         while (used.has("e" + seq)) seq++;
         src.id = "e" + seq;
         used.add(src.id);
       }
-      addEdge(src, byId.get(String(src.from))!, byId.get(String(src.to))!);
+      // 線は同じ親どうしなので、両端とも今のページにあるか、両端ともほかのページにある
+      const a = byId.get(String(src.from)), b = byId.get(String(src.to));
+      if (a && b) addEdge(src, a, b);
+      else offEdges.push(src);
     }
+    source.edges = raw;
 
     settle(fit ? SCENES.open : SCENES.reload);
     render();
@@ -724,14 +775,22 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 現在の状態を返す（元データにある他の項目はそのまま残す）
     toJSON() {
       const out: Diagram = JSON.parse(JSON.stringify(source));
-      out.nodes.forEach((src, i) => {
-        const n = nodes[i]!;
-        // ツリーや非表示の子は自動配置なので、内包のときの位置を残す
-        if (!inNest(n)) return;
+      for (const src of out.nodes) {
+        const n = byId.get(String(src.id));
+        // ほかのページの箱はそのまま。ツリーや非表示の子は自動配置なので、内包のときの位置を残す
+        if (!n || !inNest(n)) continue;
         src.x = Math.round(n.x);
         src.y = Math.round(n.y);
-      });
-      out.edges = edges.map(e => ({ ...e.src, id: e.id, from: e.a.src.id!, to: e.b.src.id! }));
+      }
+      // 線は読み込んだときの並びを保ち、ほかのページの線はそのまま残す。消した線は外し、足した線は後ろに付ける
+      const drawn = new Map(edges.map(e => [e.id, { ...e.src, id: e.id, from: e.a.src.id!, to: e.b.src.id! }]));
+      const off = new Set(offEdges);
+      const list: EdgeData[] = [];
+      for (const e of (source.edges ?? []) as EdgeData[]) {
+        if (off.has(e)) list.push(JSON.parse(JSON.stringify(e)));
+        else if (drawn.has(String(e.id))) { list.push(drawn.get(String(e.id))!); drawn.delete(String(e.id)); }
+      }
+      out.edges = [...list, ...drawn.values()];
       return out;
     },
     dragging: () => I.dragging(),
@@ -746,6 +805,34 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     remove,
     restore,
     items,
+    setPage(id) {
+      const next = id == null ? null : String(id);
+      if (next === page) return;
+      if (next != null && !source.nodes.some(s => String(s.id) === next && s.page === true)) {
+        throw new Error(`ページの箱ではありません: ${id}`);
+      }
+      const data = api.toJSON();
+      page = next;
+      build(data, true);
+      notifySelect();
+    },
+    page: () => page,
+    geometry() {
+      const boxes = nodes.filter(n => !isHidden(n)).map(n => {
+        const [x, y] = absPos(n);
+        return {
+          id: n.id, caption: captionOf(n), ancestors: ancestors(n).map(p => p.id),
+          x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n),
+        };
+      });
+      const at = (e: Edge, k: string) => Number(e.lines[0]!.getAttribute(k));
+      const shown = edges.filter(e => e.el.style.display !== "none");
+      return {
+        viewport: L.viewport(),
+        boxes,
+        edges: shown.map(e => ({ id: e.id, a: e.a.id, b: e.b.id, x1: at(e, "x1"), y1: at(e, "y1"), x2: at(e, "x2"), y2: at(e, "y2") })),
+      };
+    },
     destroy() {
       measurer.dispose();
       I.endLift();

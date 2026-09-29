@@ -150,9 +150,15 @@ func Ping(s *State) (string, error) {
 	return res.Version, nil
 }
 
-func Open(s *State, path string) (server.OpenResult, error) {
+// Open は path の図をサーバーに登録する。相対パスはサーバーの作業フォルダではなく、呼んだ側の作業フォルダから解決する。
+// show なら、つながっている画面にその図を開くよう知らせる
+func Open(s *State, path string, show bool) (server.OpenResult, error) {
 	var res server.OpenResult
-	err := call(s, "POST", "/api/open", map[string]string{"path": path}, &res)
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return res, err
+	}
+	err = call(s, "POST", "/api/open", map[string]any{"path": abs, "show": show}, &res)
 	return res, err
 }
 
@@ -171,15 +177,24 @@ func Running() *State {
 }
 
 // Ensure は version のサーバーが動いていればそれを返し、無ければ exe daemon を切り離して起動する。
-// 違う版のサーバーが動いていれば止めてから起動し直す
-func Ensure(ctx context.Context, exe, version string) (*State, error) {
+// 違う版のサーバーが動いていれば止めてから起動し直す。そのときは同じアドレスで起動を試し、replaced を true で返す
+// （開いていた画面が同じ URL のままつなぎ直せるようにするため）
+func Ensure(ctx context.Context, exe, version string) (s *State, replaced bool, err error) {
+	var args []string
 	if s := Running(); s != nil {
 		if v, _ := Ping(s); v == version {
-			return s, nil
+			return s, false, nil
 		}
 		Shutdown(s)
 		waitGone(s)
+		replaced = true
+		args = append(args, "-addr", s.Addr)
 	}
+	s, err = start(ctx, exe, version, args)
+	return s, replaced, err
+}
+
+func start(ctx context.Context, exe, version string, args []string) (*State, error) {
 	dir, err := Dir()
 	if err != nil {
 		return nil, err
@@ -192,7 +207,7 @@ func Ensure(ctx context.Context, exe, version string) (*State, error) {
 		return nil, err
 	}
 	defer log.Close()
-	cmd := exec.Command(exe, "daemon")
+	cmd := exec.Command(exe, append([]string{"daemon"}, args...)...)
 	cmd.Stdout, cmd.Stderr = log, log
 	detach(cmd)
 	if err := cmd.Start(); err != nil {

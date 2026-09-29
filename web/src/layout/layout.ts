@@ -477,7 +477,7 @@ export function createLayout(ctx: LayoutContext) {
     kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
-    settle, fitToViewport,
+    settle, fitToViewport, viewport,
     sizable, alignChildren,
   };
 }

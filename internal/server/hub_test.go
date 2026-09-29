@@ -68,8 +68,8 @@ func TestOpenIsStablePerFile(t *testing.T) {
 	if a1.ID == "" || a1.ID != a2.ID || a1.ID == b.ID {
 		t.Fatalf("ids: %s %s %s", a1.ID, a2.ID, b.ID)
 	}
-	// 図ごとに画面と dist が配信される
-	for _, p := range []string{"/d/" + b.ID + "/", "/d/" + b.ID + "/dist/matomezu.js", "/d/" + b.ID + "/api/data"} {
+	// 画面と dist は1つ、API は図ごと
+	for _, p := range []string{"/", "/dist/matomezu.js", "/api/info", "/d/" + b.ID + "/api/data"} {
 		if res := do(t, "GET", ts.URL+p, "", nil); res.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s: %d", p, res.StatusCode)
 		}
@@ -79,17 +79,43 @@ func TestOpenIsStablePerFile(t *testing.T) {
 	}
 }
 
-func TestRedirectsToTrailingSlash(t *testing.T) {
+func TestOldURLRedirectsToApp(t *testing.T) {
 	_, ts, _ := setupHub(t)
 	_, a := openVia(t, ts, "secret", filepath.Join(t.TempDir(), "a.json"))
 	c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	res, err := c.Get(ts.URL + "/d/" + a.ID)
-	if err != nil {
-		t.Fatal(err)
+	for _, p := range []string{"/d/" + a.ID, "/d/" + a.ID + "/"} {
+		res, err := c.Get(ts.URL + p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if loc := res.Header.Get("Location"); loc != "/?d="+a.ID {
+			t.Fatalf("%s: location = %q", p, loc)
+		}
 	}
-	res.Body.Close()
-	if loc := res.Header.Get("Location"); loc != "/d/"+a.ID+"/" {
-		t.Fatalf("location = %q", loc)
+}
+
+// open の show は、つながっている画面と、少しあとにつながった画面に届く
+func TestShowIsSentAndReplayed(t *testing.T) {
+	_, ts, _ := setupHub(t)
+	res := do(t, "GET", ts.URL+"/api/events", "", nil)
+	r := bufio.NewReader(res.Body)
+	if v := nextEvent(t, r, "server"); v != `"v1"` {
+		t.Fatalf("server = %s", v)
+	}
+	body, _ := json.Marshal(map[string]any{"path": filepath.Join(t.TempDir(), "a.json"), "show": true})
+	var a OpenResult
+	json.NewDecoder(do(t, "POST", ts.URL+"/api/open", string(body), map[string]string{"X-Matomezu-Token": "secret"}).Body).Decode(&a)
+	if a.Connections != 1 {
+		t.Fatalf("connections = %d", a.Connections)
+	}
+	want := `{"doc":"` + a.ID + `"}`
+	if v := nextEvent(t, r, "open"); v != want {
+		t.Fatalf("open = %s", v)
+	}
+	late := bufio.NewReader(do(t, "GET", ts.URL+"/api/events", "", nil).Body)
+	if v := nextEvent(t, late, "open"); v != want {
+		t.Fatalf("replayed open = %s", v)
 	}
 }
 
@@ -102,7 +128,7 @@ func TestConnectionsAndIdle(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/d/"+a.ID+"/api/events", nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events", nil)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)

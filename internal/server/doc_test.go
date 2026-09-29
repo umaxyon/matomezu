@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"bufio"
 	"context"
 	"io"
@@ -27,7 +28,7 @@ func setup(t *testing.T, content string) (string, string) {
 	t.Cleanup(cancel)
 	web := fstest.MapFS{"index.html": {Data: []byte("<html>")}}
 	hub := NewHub(ctx, web, WithInterval(20*time.Millisecond))
-	res, err := hub.Open(path)
+	res, err := hub.Open(path, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,17 +126,21 @@ func TestServesWeb(t *testing.T) {
 	}
 }
 
-// SSE から version イベントを1つ読む
-func nextVersion(t *testing.T, r *bufio.Reader) string {
+// SSE から name のイベントを1つ読み、data を返す（ほかのイベントは読み飛ばす）
+func nextEvent(t *testing.T, r *bufio.Reader, name string) string {
 	t.Helper()
 	got := make(chan string, 1)
 	go func() {
+		ev := ""
 		for {
 			line, err := r.ReadString('\n')
 			if err != nil {
 				return
 			}
-			if v, ok := strings.CutPrefix(strings.TrimSpace(line), "data: "); ok {
+			line = strings.TrimSpace(line)
+			if v, ok := strings.CutPrefix(line, "event: "); ok {
+				ev = v
+			} else if v, ok := strings.CutPrefix(line, "data: "); ok && ev == name {
 				got <- v
 				return
 			}
@@ -145,14 +150,27 @@ func nextVersion(t *testing.T, r *bufio.Reader) string {
 	case v := <-got:
 		return v
 	case <-time.After(2 * time.Second):
-		t.Fatal("no event")
+		t.Fatalf("no %s event", name)
 		return ""
 	}
 }
 
+// SSE から version イベントを1つ読み、版を返す
+func nextVersion(t *testing.T, r *bufio.Reader) string {
+	t.Helper()
+	var e struct{ Doc, Version string }
+	if err := json.Unmarshal([]byte(nextEvent(t, r, "version")), &e); err != nil {
+		t.Fatal(err)
+	}
+	return e.Version
+}
+
+// 図の URL（/d/<id>）から、サーバーの根の URL を取り出す
+func rootOf(base string) string { return base[:strings.Index(base, "/d/")] }
+
 func TestEventsOnExternalChangeOnly(t *testing.T) {
 	base, path := setup(t, `{"nodes":[]}`)
-	res := do(t, "GET", base+"/api/events", "", nil)
+	res := do(t, "GET", rootOf(base)+"/api/events", "", nil)
 	r := bufio.NewReader(res.Body)
 	first := nextVersion(t, r)
 	if `"`+first+`"` != do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag") {

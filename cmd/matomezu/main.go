@@ -21,9 +21,15 @@ import (
 
 var version = "dev"
 
+// サーバーを入れ替えたあと、開いていた画面がつなぎ直すのを待つ時間（画面は 1 秒ごとにつなぎ直しを試す）
+const reconnectWait = 4 * time.Second
+
 const usageText = `usage:
   matomezu open [-no-browser] <file.json>   show the diagram in the browser (starts the background server)
   matomezu serve [-addr host:port] <file.json>   run a server in the foreground for one diagram
+  matomezu check <file.json>                 print a summary of how the open browser laid it out
+  matomezu set <file.json> <id.key=value>... change fields of boxes (id "world" for the diagram), then print the summary
+                                             an empty value removes the field, e.g. 12.x=
   matomezu stop                              stop the background server
   matomezu version
 `
@@ -40,6 +46,10 @@ func main() {
 		err = open(args)
 	case "serve":
 		err = serve(args)
+	case "check":
+		err = check(args)
+	case "set":
+		err = set(args)
 	case "stop":
 		err = stop()
 	case "daemon":
@@ -78,19 +88,31 @@ func open(args []string) error {
 	if err != nil {
 		return err
 	}
-	s, err := daemon.Ensure(context.Background(), exe, buildVersion(exe))
+	s, replaced, err := daemon.Ensure(context.Background(), exe, buildVersion(exe))
 	if err != nil {
 		return err
 	}
-	res, err := daemon.Open(s, fs.Arg(0))
+	// 画面がつながっていれば、そのタブの中で図を開く（サーバーは、少しあとにつながった画面にも知らせる）
+	res, err := daemon.Open(s, fs.Arg(0), true)
 	if err != nil {
 		return err
 	}
-	url := s.URL("/d/" + res.ID + "/")
+	// サーバーを入れ替えたときは、開いていた画面が同じ URL でつなぎ直すのを少し待つ（つながればブラウザを開かない）
+	if replaced && res.Connections == 0 {
+		for deadline := time.Now().Add(reconnectWait); time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
+			if res, err = daemon.Open(s, fs.Arg(0), false); err != nil {
+				return err
+			}
+			if res.Connections > 0 {
+				break
+			}
+		}
+	}
+	url := s.URL("/?d=" + res.ID)
 	fmt.Println(url)
 	switch {
 	case res.Connections > 0:
-		fmt.Fprintln(os.Stderr, "Already open in a browser; it updates automatically when the file changes.")
+		fmt.Fprintln(os.Stderr, "Opened in the matomezu tab already open in the browser; it updates automatically when the file changes.")
 	case *noBrowser:
 	default:
 		if err := browser.Open(url); err != nil {
@@ -128,7 +150,7 @@ func serve(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	hub := server.NewHub(ctx, web.FS)
-	res, err := hub.Open(fs.Arg(0))
+	res, err := hub.Open(fs.Arg(0), false)
 	if err != nil {
 		return err
 	}
@@ -136,7 +158,7 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("http://%s/d/%s/\n", ln.Addr(), res.ID)
+	fmt.Printf("http://%s/?d=%s\n", ln.Addr(), res.ID)
 	return run(ctx, ln, hub.Handler())
 }
 
@@ -154,6 +176,7 @@ func stop() error {
 func runDaemon(args []string) error {
 	fs := newFlags("daemon")
 	idle := fs.Duration("idle", 30*time.Minute, "stop after this long with no browser connected")
+	addr := fs.String("addr", "", "try this address first (the replaced server's), so open pages reconnect to the same URL")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -164,9 +187,17 @@ func runDaemon(args []string) error {
 	ctx, stopNow := context.WithCancel(ctx)
 	defer stopNow()
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return err
+	var ln net.Listener
+	var err error
+	if *addr != "" {
+		if ln, err = net.Listen("tcp", *addr); err != nil {
+			log.Printf("could not reuse %s: %v", *addr, err)
+		}
+	}
+	if ln == nil {
+		if ln, err = net.Listen("tcp", "127.0.0.1:0"); err != nil {
+			return err
+		}
 	}
 	exe, err := os.Executable()
 	if err != nil {

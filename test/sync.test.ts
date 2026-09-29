@@ -1,4 +1,4 @@
-// sync.ts のテスト。fetch と EventSource を偽のサーバーに置き換え、届く順番を操作する
+// sync.ts のテスト。fetch を偽のサーバーに置き換え、サーバーの通知（notify）の届く順番を操作する
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { fetchRemote, startSync, type Sync } from "../web/src/sync";
@@ -12,7 +12,6 @@ let seq = 0;
 let fileVersion = "";
 let putGate: Promise<void> | null = null; // これが解決するまで PUT の応答を返さない
 let puts: string[] = [];
-let sources: FakeEventSource[] = [];
 
 function writeFile(text: string) {
   file = text;
@@ -25,27 +24,17 @@ function external(data: unknown) {
   emit();
 }
 
+// サーバーの通知（本物は events.ts が受けて sync.notify に渡す）
 function emit() {
-  for (const s of sources) s.emit(fileVersion.slice(1, -1));
-}
-
-class FakeEventSource extends EventTarget {
-  static CONNECTING = 0;
-  readyState = 1;
-  constructor(_url: string) { super(); sources.push(this); }
-  emit(v: string) { this.dispatchEvent(new MessageEvent("version", { data: v })); }
-  close() { sources = sources.filter(s => s !== this); }
+  sync?.notify(fileVersion.slice(1, -1));
 }
 
 const realFetch = globalThis.fetch;
-const realEventSource = globalThis.EventSource;
 
 beforeEach(() => {
   writeFile(JSON.stringify({ nodes: [{ id: 1, x: 20, y: 20 }, { id: 2, x: 300, y: 20 }] }));
   puts = [];
   putGate = null;
-  sources = [];
-  globalThis.EventSource = FakeEventSource as unknown as typeof EventSource;
   globalThis.fetch = (async (_url: string, init?: RequestInit) => {
     if (init?.method === "PUT") {
       // 本物と同じく、書き込んでから応答を返す。putGate があれば応答だけを遅らせる
@@ -57,7 +46,7 @@ beforeEach(() => {
       if (putGate) await putGate;
       return new Response(null, { status: 204, headers: { ETag: written } });
     }
-    return new Response(file, { headers: { ETag: fileVersion, "X-Matomezu-Name": "d.json" } });
+    return new Response(file, { headers: { ETag: fileVersion, "X-Matomezu-Name": "d.json", "X-Matomezu-Server": "s1" } });
   }) as typeof fetch;
 });
 
@@ -70,16 +59,15 @@ afterEach(() => {
   graph = null; sync = null;
   document.body.innerHTML = "";
   globalThis.fetch = realFetch;
-  globalThis.EventSource = realEventSource;
 });
 
 async function setup() {
   messages = [];
   const el = document.createElement("div");
   document.body.appendChild(el);
-  const remote = (await fetchRemote())!;
+  const remote = (await fetchRemote(""))!;
   graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d) });
-  sync = startSync(graph, remote, {
+  sync = startSync(graph, "", remote, {
     status: t => messages.push(t),
     error: t => messages.push("ERROR " + t),
     clearError: () => {},
@@ -95,7 +83,7 @@ const captions = (g: Graph) => g.toJSON().nodes.map(n => n.caption ?? null);
 
 test("サーバーが無ければ null", async () => {
   globalThis.fetch = (async () => { throw new TypeError("failed"); }) as unknown as typeof fetch;
-  expect(await fetchRemote()).toBeNull();
+  expect(await fetchRemote("")).toBeNull();
 });
 
 test("画面の変更はまとめて1回保存する", async () => {
@@ -221,4 +209,26 @@ test("LLM の変更を読み直しても、はみ出したボックスを動か�
   external({ nodes: [{ id: 1, x: 20, y: 20 }, { id: 2, caption: "右端", x: 900, y: 20 }], edges: [[1, 2]] });
   await wait(10);
   expect([g.info(2).x, g.info(2).y]).toEqual([900, 20]);
+});
+
+test("見ていないあいだの変更は、前に出たときに読み直す", async () => {
+  const g = await setup();
+  sync!.setActive(false);
+  external({ nodes: [{ id: 1, caption: "x" }] });
+  await wait(10);
+  expect(captions(g)).toEqual([null, null]);
+  sync!.setActive(true);
+  await wait(10);
+  expect(captions(g)).toEqual(["x"]);
+});
+
+test("最初から見ていなければ、前に出るまで読み込まない", async () => {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const remote = (await fetchRemote(""))!;
+  graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure });
+  sync = startSync(graph, "", remote, { status() {}, error() {}, clearError() {} }, { active: false });
+  expect(graph.toJSON().nodes).toEqual([]);
+  sync.setActive(true);
+  expect(graph.toJSON().nodes.length).toBe(2);
 });

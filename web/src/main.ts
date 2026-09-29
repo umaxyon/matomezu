@@ -1,11 +1,11 @@
 // 画面の組み立て。ヘッダー、サイドバー、描画領域をつなぐ。
-// - matomezu serve から開いたとき: ファイルを読み、自動で保存し、外部の変更を反映する。
+// - matomezu のサーバーから開いたとき: 図をアプリ内のタブとして開き、自動で保存し、外部の変更を反映する（app.ts）。
 // - それ以外（file:// や静的配信）: 埋め込みのサンプルか ?src= の JSON を表示し、開く・保存のボタンで扱う。
 
+import { startApp } from "./app";
 import { download, readFile } from "./dom";
 import { createGraph } from "./graph";
 import { createPanel, type Panel } from "./panel";
-import { fetchRemote, startSync, type Sync } from "./sync";
 import { setupHistory, setupModes } from "./toolbar";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -34,16 +34,40 @@ function showStatus(text: string) {
   statusTimer = setTimeout(() => { statusEl.textContent = ""; }, 3000);
 }
 
+// matomezu のサーバーから開かれたか
+async function served() {
+  if (location.protocol === "file:") return false;
+  try {
+    const res = await fetch("api/info", { cache: "no-store" });
+    return res.ok && typeof (await res.json()).server === "string";
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
-  const remote = await fetchRemote();
-  let panel: Panel | null = null;
-  let sync: Sync | null = null;
-  const initial = remote ? { nodes: [] } : JSON.parse($("initial-data").textContent ?? "{}");
   const undoBtn = $<HTMLButtonElement>("undo");
   const redoBtn = $<HTMLButtonElement>("redo");
+  const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
+  if (await served()) {
+    document.body.classList.add("served");
+    const canvas = stage.parentElement ?? document.body;
+    stage.remove(); // 描画領域はタブごとに作る
+    const tabs = $("tabs");
+    tabs.hidden = false;
+    startApp({
+      tabs, canvas, sidebar: $("sidebar"),
+      undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"),
+      status: showStatus, error: showError, clearError,
+      hint: text => { hint.textContent = text; hint.classList.remove("error"); },
+    });
+    return;
+  }
+
+  let panel: Panel | null = null;
+  const initial = JSON.parse($("initial-data").textContent ?? "{}");
   const graph = createGraph(stage, initial, {
     onSelect: info => panel?.show(info),
-    onChange: data => sync?.changed(data),
     onHistory: h => {
       undoBtn.disabled = !h.canUndo;
       redoBtn.disabled = !h.canRedo;
@@ -56,15 +80,7 @@ async function main() {
     if (e.target instanceof Element && e.target.closest(".mz-head") && graph.mode() !== "remove") panel?.tab("info");
   });
   setupHistory(graph, undoBtn, redoBtn);
-  setupModes(graph, [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")], $("mode-label"));
-
-  if (remote) {
-    document.body.classList.add("served");
-    nameEl.textContent = remote.name;
-    document.title = `${remote.name} - matomezu`;
-    sync = startSync(graph, remote, { status: showStatus, error: showError, clearError });
-    return;
-  }
+  setupModes(graph, modeButtons, $("mode-label"));
 
   let fileName = "matomezu.json";
   function setLoaded(name: string) {

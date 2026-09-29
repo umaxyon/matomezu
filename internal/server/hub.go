@@ -1,12 +1,25 @@
 // Package server は図の JSON ファイルを、画面と LLM の間で同期させる HTTP サーバー。
 //
-// 1つのサーバーで複数の図を扱う。図ごとの URL は /d/<id>/ で、id はファイルの絶対パスから作る。
+// 1つのサーバーで複数の図を扱う。画面は1つ（/）で、図はその中のタブとして開く。
+// 図の id はファイルの絶対パスから作る。
 //
-//	/d/<id>/             画面（埋め込みの web）
+//	/                    画面（埋め込みの web）。?d=<id> で開く図を指定する
+//	/d/<id>/             /?d=<id> へ転送する（以前の URL）
 //	/d/<id>/api/...      図ごとの API（doc.go を参照）
+//	GET  /api/events     SSE。全部の図の通知を1本で送る（下を参照）
+//	GET  /api/info       {"server"} サーバーの版。画面が matomezu のサーバーから開かれたかを知るのに使う
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
-//	POST /api/open       {"path"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
+//	POST /api/open       {"path", "show"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
+//	                     show なら、つながっている画面にその図を開くよう知らせる
 //	POST /api/shutdown   サーバーを止める                                … 要トークン
+//
+// /api/events のイベント（data は JSON）:
+//
+//	server   サーバーの版（文字列）。つないだときに送る。画面は読み込んだときの版と違えば読み直す
+//	version  {"doc", "version"} 図のファイルの版が変わった。つないだときは登録済みの全部の図の分を送る
+//	open     {"doc"} その図を開いて前に出す。つないだときも、少し前に頼まれていれば送る
+//
+// 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
 //
 // トークンは X-Matomezu-Token ヘッダーで渡す。/api/open は任意のファイルを読み書きさせられる入口なので、
 // 本人だけが読める state ファイルにあるトークンを持つプロセスにしか使わせない。
@@ -16,9 +29,12 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
 	"time"
@@ -34,8 +50,19 @@ type Hub struct {
 
 	mu        sync.Mutex
 	docs      map[string]*doc
-	conns     int       // 全部の図の画面の接続数
-	idleSince time.Time // conns が 0 になった時刻
+	clients   map[chan event]struct{} // つながっている画面
+	idleSince time.Time               // 画面が 0 になった時刻
+	shown     string                  // 最後に開くよう頼まれた図
+	shownAt   time.Time
+}
+
+// 開くよう頼まれた図を、少しあとにつながった画面にも知らせる時間。
+// サーバーを入れ替えた直後は、画面がつなぎ直して読み直すあいだに届いた知らせを取りこぼすため
+const showReplay = 5 * time.Second
+
+type event struct {
+	name string
+	data string
 }
 
 type Option func(*Hub)
@@ -55,6 +82,7 @@ func NewHub(ctx context.Context, web fs.FS, opts ...Option) *Hub {
 		web:       http.FileServerFS(web),
 		interval:  300 * time.Millisecond,
 		docs:      map[string]*doc{},
+		clients:   map[chan event]struct{}{},
 		idleSince: time.Now(),
 	}
 	for _, o := range opts {
@@ -67,12 +95,13 @@ func NewHub(ctx context.Context, web fs.FS, opts ...Option) *Hub {
 type OpenResult struct {
 	ID          string `json:"id"`
 	Path        string `json:"path"`
-	Connections int    `json:"connections"` // すでに開いている画面の数（0 ならブラウザを開く）
+	Connections int    `json:"connections"` // つながっている画面の数（0 ならブラウザを開く）
 }
 
 // Open は path の図を登録する。登録済みならそれを返す。ファイルが無ければ空の図で作る。
-func (h *Hub) Open(path string) (OpenResult, error) {
-	d, err := newDoc(path, h.interval, h.connChanged)
+// show なら、つながっている画面にその図を開くよう知らせる
+func (h *Hub) Open(path string, show bool) (OpenResult, error) {
+	d, err := newDoc(path, h.version, h.interval, h.versionChanged, h.connected)
 	if err != nil {
 		return OpenResult{}, err
 	}
@@ -84,24 +113,49 @@ func (h *Hub) Open(path string) (OpenResult, error) {
 		go d.watch(h.ctx)
 	}
 	h.idleSince = time.Now() // 開いた直後は、画面がつながるまで待つ
+	conns := len(h.clients)
+	if show {
+		h.shown, h.shownAt = d.id, time.Now()
+	}
 	h.mu.Unlock()
-	return OpenResult{ID: d.id, Path: d.path, Connections: d.connections()}, nil
+	if show {
+		h.broadcast(event{"open", jsonString(map[string]string{"doc": d.id})})
+	}
+	return OpenResult{ID: d.id, Path: d.path, Connections: conns}, nil
 }
 
-func (h *Hub) connChanged(delta int) {
+func (h *Hub) connected() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.conns += delta
-	if h.conns == 0 {
-		h.idleSince = time.Now()
+	return len(h.clients) > 0
+}
+
+func (h *Hub) versionChanged(id, v string) {
+	h.broadcast(event{"version", jsonString(map[string]string{"doc": id, "version": v})})
+}
+
+// broadcast は全部の画面に送る。詰まっている画面には送り損ねてもよい（つなぎ直すと全部の版が届く）
+func (h *Hub) broadcast(e event) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for ch := range h.clients {
+		select {
+		case ch <- e:
+		default:
+		}
 	}
+}
+
+func jsonString(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
 }
 
 // Idle は画面が1つもつながっていない時間。つながっていれば 0。
 func (h *Hub) Idle() time.Duration {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.conns > 0 {
+	if len(h.clients) > 0 {
 		return 0
 	}
 	return time.Since(h.idleSince)
@@ -111,6 +165,76 @@ func (h *Hub) doc(id string) *doc {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.docs[id]
+}
+
+func (h *Hub) events(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-store")
+
+	ch := make(chan event, 64)
+	h.mu.Lock()
+	h.clients[ch] = struct{}{}
+	docs := make([]*doc, 0, len(h.docs))
+	for _, d := range h.docs {
+		docs = append(docs, d)
+	}
+	shown := ""
+	if time.Since(h.shownAt) < showReplay {
+		shown = h.shown
+	}
+	h.mu.Unlock()
+	defer func() {
+		h.mu.Lock()
+		delete(h.clients, ch)
+		if len(h.clients) == 0 {
+			h.idleSince = time.Now()
+		}
+		h.mu.Unlock()
+	}()
+
+	send := func(e event) bool {
+		_, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", e.name, e.data)
+		flusher.Flush()
+		return err == nil
+	}
+	// サーバーが入れ替わったときに早くつなぎ直せるよう、再接続の間隔を 1 秒にする
+	if _, err := io.WriteString(w, "retry: 1000\n"); err != nil {
+		return
+	}
+	if !send(event{"server", jsonString(h.version)}) {
+		return
+	}
+	// つないだ時点の版を送る。再接続のあいだに変わっていれば、画面はこれで気づける
+	for _, d := range docs {
+		if !send(event{"version", jsonString(map[string]string{"doc": d.id, "version": d.currentVersion()})}) {
+			return
+		}
+	}
+	if shown != "" && !send(event{"open", jsonString(map[string]string{"doc": shown})}) {
+		return
+	}
+	ping := time.NewTicker(15 * time.Second)
+	defer ping.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case e := <-ch:
+			if !send(e) {
+				return
+			}
+		case <-ping.C:
+			if _, err := io.WriteString(w, ": ping\n\n"); err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+	}
 }
 
 // Handler は API と画面の配信をまとめたもの。
@@ -128,14 +252,20 @@ func (h *Hub) Handler() http.Handler {
 	}
 	mux.HandleFunc("GET /d/{id}/api/data", withDoc((*doc).getData))
 	mux.HandleFunc("PUT /d/{id}/api/data", withDoc((*doc).putData))
-	mux.HandleFunc("GET /d/{id}/api/events", withDoc((*doc).events))
-	// 画面は相対パスで API と dist/ を読むので、末尾の / をそろえる
-	mux.HandleFunc("GET /d/{id}", withDoc(func(d *doc, w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/d/"+d.id+"/", http.StatusMovedPermanently)
-	}))
-	mux.HandleFunc("GET /d/{id}/", withDoc(func(d *doc, w http.ResponseWriter, r *http.Request) {
-		http.StripPrefix("/d/"+d.id, h.web).ServeHTTP(w, r)
-	}))
+	mux.HandleFunc("POST /d/{id}/api/layout", withDoc((*doc).putLayout))
+	mux.HandleFunc("GET /d/{id}/api/layout", withDoc((*doc).getLayout))
+	// 以前の図ごとの URL は、画面の URL へ転送する
+	toApp := func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/?d="+url.QueryEscape(r.PathValue("id")), http.StatusFound)
+	}
+	mux.HandleFunc("GET /d/{id}", toApp)
+	mux.HandleFunc("GET /d/{id}/{$}", toApp)
+	mux.HandleFunc("GET /api/events", h.events)
+	mux.HandleFunc("GET /api/info", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]string{"server": h.version})
+	})
+	mux.Handle("GET /{$}", h.web)
+	mux.Handle("GET /dist/", h.web)
 
 	if h.token != "" {
 		mux.HandleFunc("GET /api/ping", h.control(h.ping))
@@ -166,12 +296,13 @@ func (h *Hub) ping(w http.ResponseWriter, _ *http.Request) {
 func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Path string `json:"path"`
+		Show bool   `json:"show"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.Path == "" {
 		http.Error(w, "path required", http.StatusBadRequest)
 		return
 	}
-	res, err := h.Open(req.Path)
+	res, err := h.Open(req.Path, req.Show)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
