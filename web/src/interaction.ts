@@ -36,6 +36,9 @@ export interface InteractionContext {
   drop(n: Box): void;             // ドラッグ中に解決できなかった重なりを直す（場面の表の drop）
   remove(n: Box): void;           // 子孫ごと消す
   restore(id: string, parentId: string | null, at: { x: number; y: number }): void; // 消したボックスを戻す
+  boxById(id: string): Box | undefined; // 今のページにある箱（無ければ undefined）
+  liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
+  liftEnd(): void;                      // 付け替えのドラッグが終わった
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -49,10 +52,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     released: Released[] | null; // 動かし始めたときに外した、祖先の最小の大きさ
     session: DragSession | null; // 動かし始めたときの位置の写し
   } | null = null;
-  // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）
+  // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）。
+  // 運んでいる箱は id で覚える。途中でタブを切り替えてページを描き直すと、箱の要素は作り直される（ほかのページなら無くなる）ため。
+  // 同じ理由で、ポインタは図の要素で捕まえず、ページ全体（document）で受け取る
   let lift: {
-    n: Box; pointerId: number; sx: number; sy: number; offX: number; offY: number;
-    ghost: HTMLElement | null; target: Box | null | undefined;
+    id: string; pointerId: number; sx: number; sy: number; offX: number; offY: number;
+    ghost: HTMLElement | null; target: Box | null | undefined; stop: AbortController;
   } | null = null;
 
   // ---- ポインタ操作 ----
@@ -96,9 +101,14 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (ctx.current() !== n) ctx.select(n);
     if (ctx.mode() === "reparent") {
       const r = n.el.getBoundingClientRect();
-      n.head.setPointerCapture(e.pointerId);
-      lift = { n, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY,
-        offX: e.clientX - r.left, offY: e.clientY - r.top, ghost: null, target: undefined };
+      e.preventDefault(); // 文字の選択を始めない（ポインタを図の要素で捕まえないため）
+      const stop = new AbortController();
+      lift = { id: n.id, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY,
+        offX: e.clientX - r.left, offY: e.clientY - r.top, ghost: null, target: undefined, stop };
+      const mine = (ev: PointerEvent) => lift != null && ev.pointerId === lift.pointerId;
+      document.addEventListener("pointermove", ev => { if (mine(ev)) moveLift(ev); }, { signal: stop.signal });
+      document.addEventListener("pointerup", ev => { if (mine(ev)) dropLift(ev); }, { signal: stop.signal });
+      document.addEventListener("pointercancel", ev => { if (mine(ev)) endLift(); }, { signal: stop.signal });
       return;
     }
     const d = dragTarget(n);
@@ -109,8 +119,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerMove(e: PointerEvent) {
-    if (lift) return moveLift(e);
-    if (!drag) return;
+    if (lift || !drag) return; // 付け替えのドラッグはページ全体で受け取っている
     const { n } = drag;
     if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
     drag.released ??= releaseSizes(n);
@@ -124,9 +133,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (!reached) blocked(n);
   }
 
-  function onPointerUp(e: PointerEvent) {
-    if (lift) return dropLift(e);
-    if (!drag) return;
+  function onPointerUp() {
+    if (lift || !drag) return;
     const { n, moved, session } = drag;
     n.el.classList.remove("mz-dragging");
     if (!moved && drag.released) restoreSizes(drag.released, n);
@@ -204,7 +212,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // ---- 付け替えのドラッグ ----
   // つかんだボックスの半透明のコピー（ゴースト）をポインタに付けて動かし、下にある落とし先を強調する
 
-  // ポインタの下の落とし先。moving（動かしているボックス）と、その子孫の上は落とせない（undefined）
+  // ポインタの下の落とし先。moving（動かしているボックス）と、その子孫の上は落とせない（undefined）。
+  // ページの箱の上も落とせない（中身は別のページにあり、落とすと見えなくなるため。docs/TABS-plan.md）
   function dropTargetAt(x: number, y: number, moving: Box | null): Box | null | undefined {
     const r = container.getBoundingClientRect();
     if (x < r.left || x > r.right || y < r.top || y > r.bottom) return undefined;
@@ -214,6 +223,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       if (!head) continue;
       const b = boxOf(head);
       if (!b) continue;
+      if (b.src.page === true) return undefined;
       return moving && isInside(b, moving) ? undefined : b;
     }
     return null;
@@ -229,42 +239,47 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   function moveLift(e: PointerEvent) {
     const l = lift!;
+    const n = ctx.boxById(l.id); // 今のページに無ければ undefined（タブを切り替えてほかのページを描いているとき）
     if (!l.ghost) {
       if (Math.hypot(e.clientX - l.sx, e.clientY - l.sy) < 4) return; // クリックとドラッグを見分ける
-      const g = l.n.el.cloneNode(true) as HTMLElement;
+      if (!n) return;
+      const g = n.el.cloneNode(true) as HTMLElement;
       g.classList.add("mz-ghost");
       g.classList.remove("mz-current", "mz-dim");
       container.appendChild(g);
       l.ghost = g;
-      l.n.el.classList.add("mz-lifted");
       unfocus(); // ポインタを乗せたときの薄い表示を消し、落とし先を見やすくする
     }
-    const r = container.getBoundingClientRect();
-    l.ghost.style.left = e.clientX - l.offX - r.left + container.scrollLeft + "px";
-    l.ghost.style.top = e.clientY - l.offY - r.top + container.scrollTop + "px";
-    markTarget(dropTargetAt(e.clientX, e.clientY, l.n));
+    n?.el.classList.add("mz-lifted"); // 描き直しで作られた要素にも付ける
+    l.ghost.style.left = e.clientX - l.offX + "px";
+    l.ghost.style.top = e.clientY - l.offY + "px";
+    markTarget(dropTargetAt(e.clientX, e.clientY, n ?? null));
+    ctx.liftOver(e.clientX, e.clientY);
   }
 
   function endLift() {
     if (!lift) return;
     markTarget(undefined);
     lift.ghost?.remove();
-    lift.n.el.classList.remove("mz-lifted");
+    ctx.boxById(lift.id)?.el.classList.remove("mz-lifted");
+    lift.stop.abort();
     lift = null;
+    ctx.liftEnd();
   }
 
   function dropLift(e: PointerEvent) {
     const l = lift!;
-    const t = l.ghost ? l.target : undefined;
+    // 落とす直前に、ポインタの下を見直す（タブの切り替えで描き直したあと、まだ動かしていないこともある）
+    const t = l.ghost ? dropTargetAt(e.clientX, e.clientY, ctx.boxById(l.id) ?? null) : undefined;
     // 新しい親の中での位置（ゴーストの左上）
     let at: { x: number; y: number } | undefined;
     if (t !== undefined) {
       const r = (t ?? world).el.getBoundingClientRect();
       at = { x: e.clientX - l.offX - r.left, y: e.clientY - l.offY - r.top };
     }
-    const n = l.n;
+    const id = l.id;
     endLift();
-    if (t !== undefined) ctx.reparent(n.id, t ? t.id : null, at);
+    if (t !== undefined) ctx.reparent(id, t ? t.id : null, at);
   }
 
   // ---- 消したボックスを一覧から戻す（HTML のドラッグ＆ドロップ） ----
@@ -318,9 +333,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   return {
     dragging: () => drag != null || lift != null,
     endLift,
-    // 描き直すときに、移動のドラッグと削除の印を忘れる
-    reset() { drag = null; removing = null; },
+    // 描き直すときに、移動のドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
+    reset() { drag = null; removing = null; if (lift) lift.target = undefined; },
     unmarkRemove,
-    destroy() { listening.abort(); },
+    destroy() { lift?.stop.abort(); listening.abort(); },
   };
 }

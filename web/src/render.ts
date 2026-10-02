@@ -4,7 +4,7 @@ import { isLightColor } from "./dom";
 import type { Layout } from "./layout/layout";
 import {
   type Box, type Edge, type World,
-  absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, overflowOf,
+  absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -56,14 +56,16 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.el.classList.toggle("mz-clip", group && overflowOf(n) === "clip");
 
     const shape = shapeOf(n);
-    for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape);
+    const page = isPageBox(n);
+    for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape && !page);
+    head.classList.toggle("mz-shape-page", page);
     // 文字を塗りの上に書くのは、ボックスと DB（塗りつぶしあり）だけ
     const onFill = !group && fill && shape !== "person";
     const light = onFill && isLightColor(color);
     head.classList.toggle("mz-dark", onFill && light);
     head.classList.toggle("mz-light", onFill && !light);
     const edge = `color-mix(in srgb, ${color} 70%, #000)`;
-    if (shape === "box") {
+    if (shape === "box" && !page) {
       head.style.background = !fill ? "transparent"
         : group ? `color-mix(in srgb, ${color} 16%, transparent)` : color;
       const shadow: string[] = [];
@@ -83,6 +85,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.stroke = n.src.color ? color : "var(--mz-text)";
         svg.style.fill = "";
         svg.style.filter = "";
+      } else if (page) {
+        // タブ付きの見出し（フォルダ）。輪郭は renderPage で大きさに合わせて描く
+        svg.removeAttribute("viewBox");
+        svg.innerHTML = '<path class="mz-page-body"/>';
+        svg.style.fill = fill ? color : "none";
+        svg.style.stroke = borderOf(n) || !fill ? (fill ? edge : color) : "none";
+        svg.style.strokeWidth = "1.5";
+        svg.style.filter = fill ? "drop-shadow(var(--mz-shadow))" : "";
       } else {
         svg.removeAttribute("viewBox");
         svg.innerHTML = '<path class="mz-db-body"/><path class="mz-db-rim" fill="none"/>';
@@ -118,6 +128,17 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     body?.setAttribute("d",
       `M${x0},${top}A${rx},${ry} 0 0 1 ${x1},${top}V${bottom}A${rx},${ry} 0 0 1 ${x0},${bottom}Z`);
     rim?.setAttribute("d", `M${x0},${top}A${rx},${ry} 0 0 0 ${x1},${top}`);
+  }
+
+  // ページの箱: 左上に耳（タブ）の付いた見出し。耳の高さは graph-style.ts の .mz-shape-page の上の余白と合わせる
+  function renderPage(n: Box) {
+    const e = sizeOf(n) === "S" ? 6 : 9;
+    const r = 4;
+    const x0 = 1, x1 = n.hw - 1, y0 = 1, y1 = n.hh - 1, top = y0 + e;
+    const ear = Math.max(x0 + 2 * r, Math.min(x0 + Math.max(n.hw * 0.4, 36), x1 - e - 2 * r)); // 耳の右端
+    n.shapeSvg.firstElementChild?.setAttribute("d",
+      `M${x0},${y0 + r}Q${x0},${y0} ${x0 + r},${y0}H${ear}L${ear + e},${top}H${x1 - r}Q${x1},${top} ${x1},${top + r}` +
+      `V${y1 - r}Q${x1},${y1} ${x1 - r},${y1}H${x0 + r}Q${x0},${y1} ${x0},${y1 - r}Z`);
   }
 
   // ツリーの折れ線: 親から1本下ろし、横に分けて各子の上へつなぐ
@@ -211,6 +232,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       h.width = n.hw + "px";
       h.height = n.hh + "px";
       if (shapeOf(n) === "db") renderDb(n);
+      if (isPageBox(n)) renderPage(n);
       renderTree(n);
     }
     renderEdges();

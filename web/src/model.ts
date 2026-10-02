@@ -110,7 +110,10 @@ export const isHidden = (n: Box) => ancestors(n).some(p => viewOf(p) === "hidden
 // ツリーで並んでいる子か（子同士の線は描かない）
 export const inTree = (n: Box) => !!n.parent && viewOf(n.parent) === "tree";
 // 子を内包しているボックスは枠なので、形は常にボックス
-export const shapeOf = (n: Box): Shape => (!isNesting(n) && isShape(n.src.shape) ? n.src.shape : "box");
+// ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
+export const shapeOf = (n: Box): Shape => (!isNesting(n) && n.src.page !== true && isShape(n.src.shape) ? n.src.shape : "box");
+// ページの箱（中身は別のページ。docs/TABS-plan.md）。最初のページでは子を持たない箱として描く
+export const isPageBox = (n: Box) => n.src.page === true && !n.children.length;
 export const fillOf = (n: Box) => n.src.fill !== false;
 export const borderOf = (n: Box) => (n.src.border != null ? !!n.src.border : isNesting(n));
 export function overflowOf(c: Container): Overflow {

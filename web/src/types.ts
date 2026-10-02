@@ -106,12 +106,14 @@ export interface ListItem {
   caption: string;
   color: string;
   parent: string | null;
+  page: string | null; // 載っているページ（ページの箱の id。null は最初のページ）
 }
 
-// サイドバーの一覧: 表示中のボックスと、消したボックス（どちらもデータの並び順）
+// サイドバーの一覧（ブック全体）: 表示中のボックスと、消したボックス（どちらもデータの並び順）、ブックのページ
 export interface Items {
   live: ListItem[];
   removed: ListItem[];
+  pages: { id: string | null; caption: string; current: boolean }[]; // 先頭は最初のページ
 }
 
 // update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）

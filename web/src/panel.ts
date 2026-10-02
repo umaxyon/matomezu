@@ -113,6 +113,10 @@ const PANEL_CSS = `
 .mzp-fold[open] > summary { margin-bottom: 8px; }
 .mzp-fold > summary:hover h3 { color: var(--mzp-text); }
 .mzp-list { list-style: none; margin: 0; padding: 0; }
+.mzp-subfold { margin: 0 0 10px 4px; }
+.mzp-subfold > summary h3 { font-size: 12px; }
+.mzp-here { margin-left: 6px; font-size: 11px; color: var(--mzp-hint); font-weight: normal; }
+.mzp-elsewhere { cursor: default; }
 .mzp-row {
   display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 6px; border-radius: 6px; min-width: 0;
 }
@@ -273,14 +277,15 @@ function html(info: Info): string {
   return parts.join("");
 }
 
-// 一覧の 1 行。表示中は押すと選び、右端の × で消す。消したものは図へドラッグすると戻る。
+// 一覧の 1 行。表示中は押すと選び（今のページの箱だけ）、右端の × で消す（どのページの箱でも）。
+// 消したものは図へドラッグすると戻る。
 // キャプションは「id_」を付けて幅に入るだけ出し、はみ出た分は … にする（CSS）。全文はポインタを乗せると出る
-function row(item: ListItem, removed: boolean): string {
+function row(item: ListItem, removed: boolean, selectable = true): string {
   const parent = item.parent != null ? `<span class="mzp-row-parent">${esc(item.parent)} の中</span>` : "";
   const caption = item.caption.replace(/\s+/g, " ").trim();
   const attrs = removed
     ? ` class="mzp-row mzp-removed" draggable="true" data-restore="${esc(item.id)}" title="図へドラッグすると戻ります"`
-    : ` class="mzp-row" data-select="${esc(item.id)}"`;
+    : selectable ? ` class="mzp-row" data-select="${esc(item.id)}"` : ` class="mzp-row mzp-elsewhere"`;
   return `<li${attrs}>
     <span class="mzp-swatch" style="background:${esc(item.color)}"></span>
     <span class="mzp-row-text"><span class="mzp-row-cap" title="${esc(item.caption)}">${esc(item.id)}_${esc(caption)}</span>${parent}</span>
@@ -288,19 +293,28 @@ function row(item: ListItem, removed: boolean): string {
   </li>`;
 }
 
-// 一覧の区画（表示中 / 消したもの）。見出しを押すと折りたたむ（ボックスが多いと下の区画に気づけないため）
-export type Fold = "live" | "removed";
+// 一覧の区画（表示中 / 消したもの、ページがあれば表示中の中にページごとの見出し）。見出しを押すと折りたたむ
+// （ボックスが多いと下の区画に気づけないため）。キーは "live" / "removed" / "page:<ページの箱の id。最初のページは空>"
+export type Fold = string;
 
 function listHtml(items: Items, open: Record<Fold, boolean>): string {
   const list = (rows: string[]) => rows.length ? `<ul class="mzp-list">${rows.join("")}</ul>` : '<span class="mzp-none">なし</span>';
-  const fold = (name: Fold, title: string, body: string) =>
-    `<details class="mzp-section mzp-fold" data-fold="${name}"${open[name] ? " open" : ""}>
+  const fold = (name: Fold, title: string, body: string, cls = "mzp-section mzp-fold") =>
+    `<details class="${cls}" data-fold="${esc(name)}"${open[name] ?? true ? " open" : ""}>
       <summary><h3>${title}</h3></summary>${body}
     </details>`;
+  // ページがあれば、表示中をページごとに分ける。選べるのは今描いているページの箱だけ
+  const live = items.pages.length <= 1
+    ? list(items.live.map(i => row(i, false)))
+    : items.pages.map(p => {
+      const rows = items.live.filter(i => i.page === p.id);
+      return fold(`page:${p.id ?? ""}`, `${esc(p.caption)}（${rows.length}）${p.current ? '<span class="mzp-here">表示中のページ</span>' : ""}`,
+        list(rows.map(i => row(i, false, p.current))), "mzp-fold mzp-subfold");
+    }).join("");
   // 消したものを上に置く（表示中は数が多くなりやすく、下に置くと消したものに気づけないため）
   return fold("removed", `消したもの（${items.removed.length}）`, list(items.removed.map(i => row(i, true))) +
       '<p class="mzp-hint">消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません</p>') +
-    fold("live", `表示中（${items.live.length}）`, list(items.live.map(i => row(i, false))));
+    fold("live", `表示中（${items.live.length}）`, live);
 }
 
 export type PanelTab = "info" | "list";
@@ -323,7 +337,7 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
   const listPane = el.querySelector<HTMLElement>('[data-pane="list"]')!;
   let info = graph.info(graph.selected());
   let current: PanelTab = "info";
-  const open: Record<Fold, boolean> = { live: true, removed: true }; // 描き直しても折りたたみを保つ
+  const open: Record<Fold, boolean> = {}; // 描き直しても折りたたみを保つ（無ければ開いている）
 
   // 選択や図の変更のたびに呼ばれるので、一覧もここで描き直す
   function show(next: Info) {
@@ -335,7 +349,7 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
   // details の開け閉めを覚える（toggle は泡立たないので、捕捉で受け取る）
   el.addEventListener("toggle", e => {
     if (!(e.target instanceof HTMLDetailsElement) || !e.target.dataset.fold) return;
-    open[e.target.dataset.fold as Fold] = e.target.open;
+    open[e.target.dataset.fold] = e.target.open;
   }, true);
 
   function tab(name: PanelTab) {

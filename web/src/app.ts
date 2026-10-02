@@ -3,11 +3,14 @@
  * - ブック 1 つに、描画領域・サイドバー・図（graph）・同期（sync.ts）を 1 つずつ持つ。図はブック全体を持ち、1 ページだけを描く。
  *   同じブックのページのタブは、図と Undo の履歴を共有し、切り替えは graph.setPage で描き直す。
  * - タブ列はブックごとのタブグループ。先頭のタブが最初のページで、ブックの名前を出す（閉じるとブックごと閉じる）。
- *   その後ろに、開いたページのタブを並べる（ページの箱のキャプション）。
+ *   その後ろに、ブックの全部のページのタブを並べる（ページの箱のキャプション）。ページのタブは閉じられない
+ *   （ページの箱から飛ぶ手段を作らない方針なので、閉じると画面からそのページへ行けなくなるため。docs/TABS-plan.md）。
+ *   ページが増えればタブも増え、無くなれば消える。
  * - 見ていないブックは隠しておき、外部の変更は前に出たときに反映する（隠れた要素では文字の幅が測れないため）。
  * - ツールバー（Undo/Redo、モード）は、前に出ているブックの図に付け替える。
  * - サーバーの通知は events.ts の 1 本で受け、ブックごとに配る。matomezu open などで頼まれたページは、タブを開いて前に出す。
  * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているタブは localStorage に覚える（無くても動く）。
+ * - 付け替えのドラッグで、箱を同じブックのページのタブの上に少し止めると、そのページに切り替わる（そのまま落とすと、そのページへ移る）。
  */
 
 import { connectEvents } from "./events";
@@ -57,6 +60,7 @@ interface Book {
 interface Saved { d: string; p: string[] }
 
 const STORE_KEY = "matomezu.tabs";
+const HOVER_SWITCH = 500; // 付け替えのドラッグで、タブの上にこれだけ止めたらページを切り替える（ミリ秒）
 const EMPTY_HINT = "開いている図がありません。LLM に matomezu open で開くよう頼んでください";
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
@@ -88,6 +92,26 @@ export async function startApp(ui: AppUi) {
   let current: { book: Book; page: PageId } | null = null;
   let unbind: (() => void)[] = [];
   const opening = new Map<string, Promise<Book | null>>(); // 読み込み中のブック（同じブックを二重に開かない）
+  // 付け替えのドラッグで、ポインタが乗っているタブと、切り替えるまでの時計
+  let hover: { tab: PageTab; timer: ReturnType<typeof setTimeout> } | null = null;
+
+  function endHover() {
+    if (!hover) return;
+    clearTimeout(hover.timer);
+    hover.tab.button.classList.remove("tab-drop");
+    hover = null;
+  }
+
+  // 付け替えのドラッグ中のポインタの位置。同じブックの、今と違うページのタブの上なら、少し止まったら切り替える
+  function liftOver(b: Book, x: number, y: number) {
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>(".tab");
+    const tab = el ? b.tabs.find(t => t.button === el) : undefined;
+    if (hover?.tab === tab) return;
+    endHover();
+    if (!tab || (current?.book === b && current.page === tab.page)) return;
+    tab.button.classList.add("tab-drop");
+    hover = { tab, timer: setTimeout(() => { const t = hover?.tab; endHover(); if (t) activate(b, t.page); }, HOVER_SWITCH) };
+  }
 
   const pagesOf = (b: Book) => (b.loaded ? b.graph.pages() : b.initialPages);
 
@@ -120,20 +144,20 @@ export async function startApp(ui: AppUi) {
     const label = document.createElement("span");
     label.className = "tab-name";
     label.textContent = name;
-    const x = document.createElement("button");
-    x.type = "button";
-    x.className = "tab-close";
-    x.title = page == null ? "ブックを閉じる" : "ページのタブを閉じる";
-    x.setAttribute("aria-label", x.title);
-    x.textContent = "×";
-    button.append(label, x);
+    button.append(label);
     const tab: PageTab = { page, button, label };
     button.addEventListener("click", () => activate(b, page));
-    x.addEventListener("click", e => {
-      e.stopPropagation();
-      if (page == null) closeBook(b);
-      else closePage(b, tab);
-    });
+    // 閉じられるのはブック（先頭のタブ）だけ
+    if (page == null) {
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "tab-close";
+      x.title = "ブックを閉じる";
+      x.setAttribute("aria-label", x.title);
+      x.textContent = "×";
+      x.addEventListener("click", e => { e.stopPropagation(); closeBook(b); });
+      button.append(x);
+    }
     return tab;
   }
 
@@ -150,9 +174,10 @@ export async function startApp(ui: AppUi) {
     return t;
   }
 
-  // ページの増減やキャプションの変更に、タブを合わせる。無くなったページのタブは閉じる
+  // ページの増減やキャプションの変更に、タブを合わせる。増えたページのタブは足し、無くなったページのタブは閉じる
   function refreshPages(b: Book) {
     const pages = pagesOf(b);
+    for (const p of pages) pageTab(b, p.id);
     for (const t of [...b.tabs]) {
       if (t.page == null) continue;
       const info = pages.find(p => p.id === t.page);
@@ -284,6 +309,8 @@ export async function startApp(ui: AppUi) {
         onHistory: () => { if (book && current?.book === book) refreshButtons(book); },
         onNotice: text => { if (book && current?.book === book) ui.status(text); },
         onBuild: () => { if (book) refreshPages(book); },
+        onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
+        onLiftEnd: endHover,
       });
       const panel = createPanel(side, graph);
       // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
@@ -302,6 +329,7 @@ export async function startApp(ui: AppUi) {
       const first = makeTab(b, null, remote.name);
       b.tabs.push(first);
       group.appendChild(first.button);
+      for (const p of b.initialPages) pageTab(b, p.id);
       ui.tabs.appendChild(group);
       book = b;
       books.push(b);
@@ -337,10 +365,6 @@ export async function startApp(ui: AppUi) {
   // 並びは覚えていた順にそろえる（読み込みの終わった順ではなく）
   books.sort((a, b) => saved.findIndex(s => s.d === a.id) - saved.findIndex(s => s.d === b.id));
   for (const b of books) ui.tabs.appendChild(b.group);
-  for (const s of saved) {
-    const b = books.find(x => x.id === s.d);
-    if (b) for (const p of s.p) pageTab(b, p);
-  }
   remember();
   if (current) return; // 読み込みの間に open の知らせで前に出たものがある
   const first = books.find(b => b.id === wanted) ?? books[0];

@@ -91,10 +91,10 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isInside, isNesting, other,
+  absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
-import { pageMembers, subtreeIds } from "./pages";
+import { pageMembers, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import type { Geometry } from "./report";
 import type { BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Items, ListItem, Overflow, Patch } from "./types";
@@ -115,6 +115,8 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
   onNotice?: (text: string) => void;          // 利用者に知らせたいこと（付け替えで線を外したなど）
   onBuild?: () => void;                       // 図を組み立て直した（ページの増減やキャプションを見直すため）
+  onLiftOver?: (x: number, y: number) => void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
+  onLiftEnd?: () => void;                     // 付け替えのドラッグが終わった
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
@@ -209,6 +211,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     reparent,
     drop: n => { settle(SCENES.drop, n); render(); },
     remove: n => { remove(n.id); },
+    boxById: id => byId.get(id),
+    liftOver: (x, y) => opt.onLiftOver?.(x, y),
+    liftEnd: () => opt.onLiftEnd?.(),
     // 一覧からドラッグして戻したら、線モードや削除モードのままだと戻した箱をすぐ動かせないので、移動モードにする
     restore: (id, parentId, at) => {
       restore(id, parentId, at);
@@ -302,18 +307,26 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // ---- 親子の付け替え ----
 
-  // id のボックス（子孫ごと）を parentId の子にする。同じ階層でなくなった線は外す。
+  // id のボックス（子孫ごと）を parentId（今のページの箱。null は今のページの最上位）の子にする。同じ階層でなくなった線は外す。
+  // id はほかのページの箱でもよい（タブへのドラッグでページを移したとき）。
   // 位置: 最上位なら at。子を内包しているグループなら、今ある子の下の左端。
   // それ以外（子の無いボックスやツリー、非表示）は自動で並べる
   function reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
-    const n = nodeOf(id);
-    if (n.isWorld) throw new Error("ワールドは移せません");
-    const t = parentId == null ? null : (nodeOf(parentId) as Box);
-    if (t && isInside(t, n)) throw new Error("自分や自分の子孫の中には移せません");
-    if (n.parent === t) return false;
-
     const data = api.toJSON();
-    const src = data.nodes.find(s => String(s.id) === n.id)!;
+    const src = data.nodes.find(s => String(s.id) === String(id));
+    if (!src) throw new Error(`ボックスがありません: ${id}`);
+    const t = parentId == null ? null : (nodeOf(parentId) as Box);
+    if (t?.src.page === true) throw new Error("ページの箱の中には移せません（そのページのタブへ運んでください）");
+    const moving = subtreeIds(data.nodes, id);
+    if (t && moving.has(t.id)) throw new Error("自分や自分の子孫の中には移せません");
+    const to = t ? t.src.id : pageBox()?.id;
+    if (String(src.parent ?? "") === String(to ?? "")) return false;
+    // ページは入れ子にしない（ページの箱を、ページの中へは移せない）
+    if (page != null && data.nodes.some(s => moving.has(String(s.id)) && s.page === true)) {
+      opt.onNotice?.("ページの中には、ページの箱を入れられません");
+      return false;
+    }
+    const fromPage = pageOf(data.nodes, id);
     setParent(src, t);
     if (t == null && at) {
       src.x = Math.max(0, Math.round(at.x));
@@ -334,12 +347,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     data.edges = kept;
 
     build(data, false);
-    select(byId.get(n.id)!);
+    select(byId.get(String(id))!);
     changed();
-    const where = t ? `「${keyOfBox(byId.get(t.id)!)}」の中` : "最上位";
+    const where = (t ? `「${keyOfBox(byId.get(t.id)!)}」の中` : "最上位") + (fromPage !== page ? `（${pageName(page)}）` : "");
     opt.onNotice?.(`${where}へ移しました` + (removed ? `（階層が変わったため、線を ${removed} 本外しました）` : ""));
     return true;
   }
+
+  const pageName = (p: string | null) =>
+    p == null ? "最初のページ" : captionOfData(source.nodes.find(s => String(s.id) === p));
+  const captionOfData = (s: BoxData | undefined) =>
+    s == null ? "" : s.caption != null && s.caption !== "" ? String(s.caption) : String(s.id);
 
   // ---- 削除と復活（docs/DELETE-plan.md） ----
 
@@ -347,6 +365,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 今の位置を書いて removed の末尾へ移し、つながっていた線は捨てる。親は縮み（中身に合わせて伸びる祖先の
   // 大きさの指定は外す）、残った子は動かさない
   function remove(id: Id) {
+    if (!byId.has(String(id))) return removeElsewhere(id);
     const n = nodeOf(id);
     if (n.isWorld) throw new Error("ワールドは消せません");
     const gone = new Set([n, ...descendants(n)]);
@@ -386,6 +405,27 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
+  // ほかのページの箱を子孫ごと消す（一覧の × から）。描いていないので、データだけを直す。
+  // 今描いているページの箱そのものを消したら、最初のページに戻る
+  function removeElsewhere(id: Id) {
+    const s = source.nodes.find(x => String(x.id) === String(id));
+    if (!s) throw new Error(`ボックスがありません: ${id}`);
+    const goneIds = subtreeIds(source.nodes, id);
+    const out = api.toJSON();
+    const cut = offEdges.filter(e => goneIds.has(String(e.from)) || goneIds.has(String(e.to))).length;
+    out.removed = [...(out.removed ?? []), ...out.nodes.filter(x => goneIds.has(String(x.id)))];
+    out.nodes = out.nodes.filter(x => !goneIds.has(String(x.id)));
+    out.edges = (out.edges as EdgeData[]).filter(e => !goneIds.has(String(e.from)) && !goneIds.has(String(e.to)));
+    if (page != null && goneIds.has(page)) page = null;
+    build(out, false);
+    changed();
+    notifySelect();
+    const kids = goneIds.size - 1;
+    opt.onNotice?.(`「${keyOf(s.id, captionOfData(s))}」を消しました` +
+      (kids || cut ? `（${[kids ? `子 ${kids} 個` : "", cut ? `線 ${cut} 本` : ""].filter(Boolean).join("、")}も）` : ""));
+    return true;
+  }
+
   // 消したボックス id を、removed の中の子孫ごと parentId（null は最上位）の子に戻す。付け替えと同じく作り直す。
   // 位置: 内包（か子の無いボックス）の中や最上位なら at（親の中での位置）。ツリー・非表示の中なら自動で並べる。
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
@@ -395,6 +435,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const root = list.find(s => String(s.id) === String(id));
     if (!root) throw new Error(`消したボックスにありません: ${id}`);
     const t = parentId == null ? null : (nodeOf(parentId) as Box);
+    if (t?.src.page === true) throw new Error("ページの箱の中には戻せません（そのページのタブで戻してください）");
     const take = new Set([String(root.id)]);
     for (let grew = true; grew;) {
       grew = false;
@@ -432,10 +473,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  // サイドバーの一覧。消したボックスの親は、表示中か消したものの中から名前を引く
+  // サイドバーの一覧（ブック全体）。表示中の箱は、載っているページを添える（ページの箱の直下の子は、親を出さない）。
+  // 消したボックスの親は、表示中か消したものの中から名前を引く
   function items(): Items {
-    const item = (id: Id, caption: string, color: unknown, parent: string | null): ListItem =>
-      ({ id: String(id), caption, color: typeof color === "string" && color ? color : opt.color, parent });
+    const item = (id: Id, caption: string, color: unknown, parent: string | null, p: string | null = null): ListItem =>
+      ({ id: String(id), caption, color: typeof color === "string" && color ? color : opt.color, parent, page: p });
     const removed = source.removed ?? [];
     const removedCaption = new Map(removed.map(s => [String(s.id), s.caption != null ? String(s.caption) : String(s.id)]));
     const nameOf = (p: Id | undefined) => {
@@ -443,9 +485,18 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const live = byId.get(String(p));
       return live ? captionOf(live) : removedCaption.get(String(p)) ?? null;
     };
+    const all = source.nodes;
+    const byKey = new Map(all.map(s => [String(s.id), s]));
+    const live = all.map(s => {
+      const p = byKey.get(String(s.parent));
+      const parent = p && p.page !== true ? captionOfData(p) : null;
+      return item(s.id!, captionOfData(s), s.color, parent, pageOf(all, s.id!));
+    });
     return {
-      live: nodes.map(n => item(n.id, captionOf(n), n.src.color, n.parent ? captionOf(n.parent) : null)),
+      live,
       removed: removed.map(s => item(s.id!, removedCaption.get(String(s.id))!, s.color, nameOf(s.parent))),
+      pages: [null, ...all.filter(s => s.page === true).map(s => String(s.id))]
+        .map(id => ({ id, caption: pageName(id), current: id === page })),
     };
   }
 
@@ -516,7 +567,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       border: borderOf(n),
       size,
       shape: shapeOf(n),
-      canShape: !isNesting(n),
+      canShape: !isNesting(n) && n.src.page !== true,
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
       treeDirection: treeDirOf(n),

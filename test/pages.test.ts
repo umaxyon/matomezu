@@ -166,3 +166,152 @@ test("pages はブックのページの箱の一覧", () => {
   const { graph } = setup(book());
   expect(graph.pages()).toEqual([{ id: "1", caption: "詳細" }]);
 });
+
+// ---- 段階 5: ブック単位の一覧、ほかのページの箱を消す、ページの間の移動 ----
+
+test("一覧はブック全体。表示中の箱に載っているページを添え、ページの箱の直下の子は親を出さない", () => {
+  const { graph } = setup(book());
+  const items = graph.items();
+  expect(items.live.map(i => [i.id, i.page, i.parent])).toEqual([
+    ["1", null, null], ["2", null, null], ["3", "1", null], ["4", "1", null], ["5", "1", "中B"], ["6", null, null],
+  ]);
+  expect(items.pages).toEqual([
+    { id: null, caption: "最初のページ", current: true },
+    { id: "1", caption: "詳細", current: false },
+  ]);
+  graph.setPage(1);
+  expect(graph.items().pages.map(p => p.current)).toEqual([false, true]);
+});
+
+test("ほかのページの箱を消すと、子孫と中の線も消える。今のページの表示は変わらない", () => {
+  const { el, graph } = setup(book());
+  graph.remove(4);
+  const out = graph.toJSON();
+  expect(out.nodes.map(n => n.id)).toEqual([1, 2, 3, 6]);
+  expect((out.removed ?? []).map(n => n.id)).toEqual([4, 5]);
+  expect(edgeIds(out)).toEqual(["e1"]);
+  expect(drawn(el)).toEqual(["1", "2", "6"]);
+  graph.undo();
+  expect(graph.toJSON().nodes.length).toBe(6);
+});
+
+test("描いているページの箱を一覧から消すと、最初のページに戻る", () => {
+  const { graph } = setup(book());
+  graph.setPage(1);
+  graph.remove(1);
+  expect(graph.page()).toBeNull();
+  expect(graph.toJSON().nodes.map(n => n.id)).toEqual([2, 6]);
+});
+
+test("ほかのページの箱を、今のページへ付け替えられる。階層が変わった線は外れる", () => {
+  const notices: string[] = [];
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const graph = createGraph(el, book(), { measureText: fakeMeasure, onNotice: t => notices.push(t) });
+  graphs.push(graph);
+  // 最初のページを描いたまま、ページ 1 の 3 を最上位へ
+  expect(graph.reparent(3, null, { x: 40, y: 400 })).toBe(true);
+  const out = graph.toJSON();
+  expect(node(out, 3).parent).toBeUndefined();
+  expect(edgeIds(out)).toEqual(["e1"]);
+  expect(drawn(el)).toContain("3");
+  expect(notices.at(-1)).toContain("最初のページ");
+});
+
+test("ページの箱は、ページの中へは移せない", () => {
+  const notices: string[] = [];
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const graph = createGraph(el, book(), { measureText: fakeMeasure, onNotice: t => notices.push(t) });
+  graphs.push(graph);
+  graph.setPage(1);
+  expect(graph.reparent(1, null, { x: 0, y: 0 })).toBe(false);
+  expect(notices.at(-1)).toContain("ページの箱を入れられません");
+});
+
+test("付け替えのドラッグは、途中でページを切り替えても続き、落としたページへ移る", () => {
+  const over: [number, number][] = [];
+  let ended = 0;
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const graph = createGraph(el, book(), {
+    measureText: fakeMeasure, onLiftOver: (x, y) => over.push([x, y]), onLiftEnd: () => { ended++; },
+  });
+  graphs.push(graph);
+  graph.setPage(1);
+  graph.setMode("reparent");
+  const rect = HTMLElement.prototype.getBoundingClientRect;
+  const doc = document as unknown as { elementsFromPoint?: (x: number, y: number) => Element[] };
+  HTMLElement.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 700);
+  doc.elementsFromPoint = () => []; // ポインタの下は空き（ワールド）
+  try {
+    const head = el.querySelector('.mz-node[data-id="3"] > .mz-head')!;
+    const fire = (target: EventTarget, type: string, x: number) =>
+      target.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 300, pointerId: 1 }));
+    fire(head, "pointerdown", 100);
+    fire(document, "pointermove", 150);
+    expect(el.querySelector(".mz-ghost")).not.toBeNull();
+    // アプリがタブの上で止まったのを見て、最初のページに切り替える
+    graph.setPage(null);
+    expect(graph.dragging()).toBe(true);
+    expect(el.querySelector(".mz-ghost")).not.toBeNull();
+    fire(document, "pointermove", 200);
+    fire(document, "pointerup", 200);
+  } finally {
+    HTMLElement.prototype.getBoundingClientRect = rect;
+    delete doc.elementsFromPoint;
+  }
+  expect(over.length).toBe(2);
+  expect(ended).toBe(1);
+  expect(graph.dragging()).toBe(false);
+  expect(el.querySelector(".mz-ghost")).toBeNull();
+  expect(node(graph.toJSON(), 3).parent).toBeUndefined();
+  expect(drawn(el)).toContain("3");
+});
+
+test("ページの箱の中へは、付け替えも復活もできない（中身は別のページで、落とすと見えなくなるため）", () => {
+  const { graph } = setup(book());
+  expect(() => graph.reparent(2, 1)).toThrow("ページの箱の中には移せません");
+  graph.remove(6);
+  expect(() => graph.restore(6, 1, { x: 0, y: 0 })).toThrow("ページの箱の中には戻せません");
+  expect(node(graph.toJSON(), 2).parent).toBeUndefined();
+});
+
+test("付け替えのドラッグで、ページの箱の上は落とし先にならない", () => {
+  const { el, graph } = setup(book());
+  graph.setMode("reparent");
+  const pageHead = el.querySelector('.mz-node[data-id="1"] > .mz-head')!;
+  const rect = HTMLElement.prototype.getBoundingClientRect;
+  const doc = document as unknown as { elementsFromPoint?: (x: number, y: number) => Element[] };
+  HTMLElement.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 700);
+  doc.elementsFromPoint = () => [pageHead];
+  try {
+    const head = el.querySelector('.mz-node[data-id="2"] > .mz-head')!;
+    const fire = (target: EventTarget, type: string, x: number) =>
+      target.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 100, pointerId: 1 }));
+    fire(head, "pointerdown", 100);
+    fire(document, "pointermove", 150);
+    expect(pageHead.parentElement!.classList.contains("mz-drop")).toBe(false);
+    expect(el.querySelector(".mz-ghost")!.classList.contains("mz-ghost-no")).toBe(true);
+    fire(document, "pointerup", 150);
+  } finally {
+    HTMLElement.prototype.getBoundingClientRect = rect;
+    delete doc.elementsFromPoint;
+  }
+  expect(node(graph.toJSON(), 2).parent).toBeUndefined();
+});
+
+test("最初のページのページの箱はタブ付きの見出しの形で描き、形の指定は効かない。ページを外すと普通の箱に戻る", () => {
+  const d = book();
+  node(d, 1).shape = "db";
+  const { el, graph } = setup(d);
+  const head = () => el.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head')!;
+  expect(head().classList.contains("mz-shape-page")).toBe(true);
+  expect(head().classList.contains("mz-shape-db")).toBe(false);
+  expect(head().querySelector(".mz-page-body")!.getAttribute("d")).toMatch(/^M/);
+  expect(graph.info(1)).toMatchObject({ shape: "box", canShape: false });
+  const next = book();
+  delete node(next, 1).page;
+  graph.load(next, { keepHistory: true });
+  expect(head().classList.contains("mz-shape-page")).toBe(false); // 子を内包するグループになる
+});

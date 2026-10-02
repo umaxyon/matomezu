@@ -119,6 +119,11 @@ export const GRAPH_CSS = `
 .mz-leaf.mz-size-S.mz-shape-db { padding-top: 14px; padding-bottom: 7px; }
 .mz-shape-db > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .mz-shape-db > .mz-text { position: relative; }
+/* ページの箱（タブ付きの見出し）。上の余白は耳の分（render.ts の renderPage と合わせる） */
+.mz-leaf.mz-shape-page { padding-top: 13px; background: transparent; }
+.mz-leaf.mz-size-S.mz-shape-page { padding-top: 8px; }
+.mz-shape-page > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mz-shape-page > .mz-text { position: relative; }
 /* 付け替えのドラッグ */
 .mz-mode-reparent .mz-head { cursor: alias; }
 .mz-mode-link .mz-head { cursor: crosshair; }
@@ -127,7 +132,8 @@ export const GRAPH_CSS = `
 .mz-node.mz-removing > .mz-head, .mz-node.mz-removing .mz-head { outline: 2px solid var(--mz-edge-del); outline-offset: 1px; }
 .mz-node.mz-removing { opacity: 0.7; }
 .mz-node.mz-lifted { opacity: 0.3; }
-.mz-ghost { z-index: 50; opacity: 0.8; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35)); }
+/* 画面の座標で置く（図の外のタブの上へ持っていっても、図の端で切れないように） */
+.mz-ghost { position: fixed; z-index: 50; opacity: 0.8; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35)); }
 .mz-ghost .mz-head { pointer-events: none; }
 .mz-ghost.mz-ghost-no { opacity: 0.35; }
 .mz-node.mz-drop > .mz-head {

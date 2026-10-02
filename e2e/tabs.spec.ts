@@ -2,7 +2,7 @@
 // 実行ファイルを作り、テスト用のフォルダ（MATOMEZU_HOME）で常駐サーバーを動かして、matomezu open / set で図を渡す。
 // ブラウザは開かせず（-no-browser）、Playwright のページで表示された URL を開く
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
@@ -89,20 +89,21 @@ const paged = {
 const visibleIds = (page: import("@playwright/test").Page) =>
   page.locator(".stage:visible .mz-node").evaluateAll(els => els.map(e => (e as HTMLElement).dataset.id).sort());
 
-test("open -page でページのタブが開き、同じブックのタブグループに並ぶ。閉じると最初のページに戻る", async ({ page }) => {
+test("ブックを開くと全部のページのタブが並ぶ。ページのタブは閉じられない。open -page でそのページが前に出る", async ({ page }) => {
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   await page.goto(run("open", "-no-browser", "p.json").trim());
-  expect(await visibleIds(page)).toEqual(["1", "2"]);
-
-  run("open", "-no-browser", "-page", "1", "p.json");
   const group = page.locator(".tab-group", { hasText: "p.json" });
   await expect(group.locator(".tab-name")).toHaveText(["p.json", "詳細"]);
+  await expect(selected(page)).toHaveText("p.json");
+  expect(await visibleIds(page)).toEqual(["1", "2"]);
+  await expect(group.locator(".tab", { hasText: "詳細" }).locator(".tab-close")).toHaveCount(0);
+
+  run("open", "-no-browser", "-page", "1", "p.json");
   await expect(selected(page)).toHaveText("詳細");
   expect(await visibleIds(page)).toEqual(["3", "4"]);
   expect(page.url()).toContain("p=1");
 
-  await group.locator(".tab", { hasText: "詳細" }).locator(".tab-close").click();
-  await expect(selected(page)).toHaveText("p.json");
+  await group.locator(".tab", { hasText: "p.json" }).click();
   expect(await visibleIds(page)).toEqual(["1", "2"]);
 });
 
@@ -116,4 +117,42 @@ test("check -page はそのページのタブを前に出して要約を返し�
   run("set", "p.json", "1.page=");
   await expect(page.locator(".tab-group", { hasText: "p.json" }).locator(".tab-name")).toHaveText(["p.json"]);
   expect(await visibleIds(page)).toEqual(["1", "2", "3", "4"]);
+});
+
+test("付け替えのドラッグでタブの上に少し止めるとページが切り替わり、落としたページへ移る", async ({ page }) => {
+  writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
+  await page.goto(run("open", "-no-browser", "p.json").trim());
+  run("open", "-no-browser", "-page", "1", "p.json");
+  await expect(selected(page)).toHaveText("詳細");
+  await page.locator("#mode-reparent").click();
+
+  const box = (await page.locator('.stage:visible .mz-node[data-id="3"] > .mz-head').boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 40, box.y + 40, { steps: 5 });
+  const tab = (await page.locator(".tab", { hasText: "p.json" }).boundingBox())!;
+  await page.mouse.move(tab.x + 20, tab.y + tab.height / 2, { steps: 5 });
+  await expect(selected(page)).toHaveText("p.json"); // 少し止まると最初のページに切り替わる
+  const stage = (await page.locator(".stage:visible").boundingBox())!;
+  await page.mouse.move(stage.x + 300, stage.y + stage.height - 120, { steps: 10 });
+  await page.mouse.up();
+
+  expect(await visibleIds(page)).toEqual(["1", "2", "3"]);
+  await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.find((n: { id: number }) => n.id === 3).parent)
+    .toBeUndefined();
+});
+
+test("追加削除の一覧はページごとの見出しで分かれ、ほかのページの箱も × で消せる", async ({ page }) => {
+  writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
+  await page.goto(run("open", "-no-browser", "p.json").trim());
+  const side = page.locator(".side-pane:visible");
+  await side.locator('[data-tab="list"]').click();
+  await expect(side.locator(".mzp-subfold > summary h3")).toHaveText([/最初のページ（2）\s*表示中のページ/, "詳細（2）"]);
+  // × は行にポインタを乗せると出る
+  const row = side.locator('.mzp-subfold[data-fold="page:1"] .mzp-row', { hasText: "中B" });
+  await row.hover();
+  await row.locator('[data-remove="4"]').click();
+  await expect(side.locator(".mzp-subfold > summary h3")).toHaveText([/最初のページ（2）/, "詳細（1）"]);
+  await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.map((n: { id: number }) => n.id))
+    .toEqual([1, 2, 3]);
 });
