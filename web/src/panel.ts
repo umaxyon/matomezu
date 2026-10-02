@@ -303,7 +303,8 @@ export type Fold = string;
 // ほかのブック（タブで開いているもの）。一覧の「他ブックも表示」で出し、行を図へドラッグすると移植する（docs/TABS-plan.md 4.3）
 export interface OtherBook { id: string; name: string; data: Diagram }
 
-function listHtml(items: Items, open: Record<Fold, boolean>, others: OtherBook[] | null, showOthers: boolean): string {
+// others は「他ブックも表示」の状態（無ければ、その欄を出さない。サーバーから開いていないとき）。books は shown のときだけ要る
+function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: boolean; books: OtherBook[] }): string {
   const list = (rows: string[]) => rows.length ? `<ul class="mzp-list">${rows.join("")}</ul>` : '<span class="mzp-none">なし</span>';
   const fold = (name: Fold, title: string, body: string, cls = "mzp-section mzp-fold") =>
     `<details class="${cls}" data-fold="${esc(name)}"${open[name] ?? true ? " open" : ""}>
@@ -321,9 +322,9 @@ function listHtml(items: Items, open: Record<Fold, boolean>, others: OtherBook[]
   const live = byPage(items, "", (i, current) => row(i, false, current));
   // ほかのブック。ブックごとの見出しの中を、ページごとに分ける
   const otherHtml = others == null ? "" :
-    `<label class="mzp-check mzp-others"><input type="checkbox" data-others${showOthers ? " checked" : ""}>他ブックも表示</label>` +
-    (!showOthers ? "" : !others.length ? '<p class="mzp-hint">ほかに開いているブックはありません</p>' :
-      others.map(b => {
+    `<label class="mzp-check mzp-others"><input type="checkbox" data-others${others.shown ? " checked" : ""}>他ブックも表示</label>` +
+    (!others.shown ? "" : !others.books.length ? '<p class="mzp-hint">ほかに開いているブックはありません</p>' :
+      others.books.map(b => {
         const l = liveItems(b.data.nodes ?? [], undefined, "#ffffff");
         return fold(`book:${b.id}`, `${esc(b.name)}（${l.live.length}）`,
           byPage(l, `book:${b.id}:`, i => row(i, false, false, b.id)) +
@@ -367,7 +368,8 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
   function show(next: Info) {
     info = next;
     infoPane.innerHTML = html(info);
-    listPane.innerHTML = listHtml(graph.items(), open, showOthers ? o.otherBooks?.() ?? [] : o.otherBooks ? [] : null, showOthers);
+    const others = o.otherBooks && { shown: showOthers, books: showOthers ? o.otherBooks() : [] };
+    listPane.innerHTML = listHtml(graph.items(), open, others);
   }
 
   // details の開け閉めを覚える（toggle は泡立たないので、捕捉で受け取る）

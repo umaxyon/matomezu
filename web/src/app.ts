@@ -9,7 +9,7 @@
  * - 見ていないブックは隠しておき、外部の変更は前に出たときに反映する（隠れた要素では文字の幅が測れないため）。
  * - ツールバー（Undo/Redo、モード）は、前に出ているブックの図に付け替える。
  * - サーバーの通知は events.ts の 1 本で受け、ブックごとに配る。matomezu open などで頼まれたページは、タブを開いて前に出す。
- * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているタブは localStorage に覚える（無くても動く）。
+ * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているブックは localStorage に覚える（無くても動く）。
  * - 付け替えのドラッグで、箱を同じブックのページのタブの上に少し止めると、そのページに切り替わる（そのまま落とすと、そのページへ移る）。
  * - サイドバーの一覧の「他ブックも表示」には、ほかに開いているブックの箱を出す（行を図へドラッグすると移植。docs/TABS-plan.md 4.3）。
  */
@@ -55,12 +55,10 @@ interface Book {
   panel: Panel;
   sync: Sync;
   loaded: boolean;          // 図にデータを読み込んだか（前に出るまで読み込まない）
-  initialPages: { id: string; caption: string }[]; // 読み込む前のページの一覧（取ってきたデータから）
-  data: unknown;            // 読み込む前の最新のデータ（ほかのブックの一覧に使う。読み込んだら図から取る）
+  data: unknown;            // 読み込む前の最新のデータ（ページのタブと、ほかのブックの一覧に使う。読み込んだら図から取る）
   error: string | null;
 }
 
-interface Saved { d: string; p: string[] }
 
 const STORE_KEY = "matomezu.tabs";
 const HOVER_SWITCH = 500; // 付け替えのドラッグで、タブの上にこれだけ止めたらページを切り替える（ミリ秒）
@@ -68,15 +66,12 @@ const EMPTY_HINT = "開いている図がありません。LLM に matomezu open
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
 
-function loadSaved(): Saved[] {
+// 開いていたブックの id。ページのタブは、ブックを開けば全部並ぶので覚えない（以前の形 { d, p } も読める）
+function loadSaved(): string[] {
   try {
     const v = JSON.parse(localStorage.getItem(STORE_KEY) ?? "[]");
     if (!Array.isArray(v)) return [];
-    return v.flatMap((x): Saved[] => {
-      if (typeof x === "string") return [{ d: x, p: [] }]; // 以前の形（ブックの id だけ）
-      if (x && typeof x.d === "string") return [{ d: x.d, p: Array.isArray(x.p) ? x.p.filter((p: unknown) => typeof p === "string") : [] }];
-      return [];
-    });
+    return v.flatMap((x): string[] => (typeof x === "string" ? [x] : x && typeof x.d === "string" ? [x.d] : []));
   } catch {
     return [];
   }
@@ -116,7 +111,7 @@ export async function startApp(ui: AppUi) {
     hover = { tab, timer: setTimeout(() => { const t = hover?.tab; endHover(); if (t) activate(b, t.page); }, HOVER_SWITCH) };
   }
 
-  const pagesOf = (b: Book) => (b.loaded ? b.graph.pages() : b.initialPages);
+  const pagesOf = (b: Book) => (b.loaded ? b.graph.pages() : pagesInData(b.data));
 
   // b から見たほかのブック。読み込んだブックは図から、まだのブックは取ってきた最新のデータから
   function othersOf(b: Book): OtherBook[] {
@@ -128,9 +123,7 @@ export async function startApp(ui: AppUi) {
 
   function remember() {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(books.map(b => ({
-        d: b.id, p: b.tabs.filter(t => t.page != null).map(t => t.page),
-      }))));
+      localStorage.setItem(STORE_KEY, JSON.stringify(books.map(b => b.id)));
     } catch { /* 覚えられなくても動く */ }
   }
 
@@ -330,7 +323,7 @@ export async function startApp(ui: AppUi) {
       });
       const b: Book = {
         id, name: remote.name, color, group, tabs: [], stage, side, graph, panel,
-        sync: null as unknown as Sync, loaded: false, initialPages: pagesInData(remote.data), data: remote.data, error: null,
+        sync: null as unknown as Sync, loaded: false, data: remote.data, error: null,
       };
       b.sync = startSync(graph, base, remote, {
         status: text => { if (current?.book === b) ui.status(text); },
@@ -340,7 +333,7 @@ export async function startApp(ui: AppUi) {
       const first = makeTab(b, null, remote.name);
       b.tabs.push(first);
       group.appendChild(first.button);
-      for (const p of b.initialPages) pageTab(b, p.id);
+      for (const p of pagesOf(b)) pageTab(b, p.id);
       ui.tabs.appendChild(group);
       book = b;
       books.push(b);
@@ -365,7 +358,6 @@ export async function startApp(ui: AppUi) {
         fetchRemote(docBase(b.id)).then(r => {
           if (!r || b.loaded) return;
           b.data = r.data;
-          b.initialPages = pagesInData(r.data);
           refreshPages(b);
         });
       }
@@ -382,10 +374,10 @@ export async function startApp(ui: AppUi) {
   const wanted = params.get("d");
   const wantedPage = params.get("p");
   const saved = loadSaved();
-  if (wanted && !saved.some(s => s.d === wanted)) saved.push({ d: wanted, p: [] });
-  await Promise.all(saved.map(s => openBook(s.d)));
+  if (wanted && !saved.includes(wanted)) saved.push(wanted);
+  await Promise.all(saved.map(openBook));
   // 並びは覚えていた順にそろえる（読み込みの終わった順ではなく）
-  books.sort((a, b) => saved.findIndex(s => s.d === a.id) - saved.findIndex(s => s.d === b.id));
+  books.sort((a, b) => saved.indexOf(a.id) - saved.indexOf(b.id));
   for (const b of books) ui.tabs.appendChild(b.group);
   remember();
   if (current) return; // 読み込みの間に open の知らせで前に出たものがある

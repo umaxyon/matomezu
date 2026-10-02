@@ -101,7 +101,7 @@ type OpenResult struct {
 // Open は path の図を登録する。登録済みならそれを返す。ファイルが無ければ空の図で作る。
 // show なら、つながっている画面にその図を開くよう知らせる
 func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
-	d, err := newDoc(path, h.version, h.interval, h.versionChanged, h.connected)
+	d, err := newDoc(path, h.interval, h.versionChanged, h.connected)
 	if err != nil {
 		return OpenResult{}, err
 	}

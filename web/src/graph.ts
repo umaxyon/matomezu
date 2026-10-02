@@ -95,6 +95,7 @@ import {
   absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
+import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import type { Geometry } from "./report";
@@ -318,46 +319,64 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const data = api.toJSON();
     const src = data.nodes.find(s => String(s.id) === String(id));
     if (!src) throw new Error(`ボックスがありません: ${id}`);
-    const t = parentId == null ? null : (nodeOf(parentId) as Box);
-    if (t?.src.page === true) throw new Error("ページの箱の中には移せません（そのページのタブへ運んでください）");
-    const moving = subtreeIds(data.nodes, id);
-    if (t && moving.has(t.id)) throw new Error("自分や自分の子孫の中には移せません");
-    const to = t ? t.src.id : pageBox()?.id;
+    const t = target(parentId, "移せません（そのページのタブへ運んでください）");
+    const to = parentIdOf(t);
     if (String(src.parent ?? "") === String(to ?? "")) return false;
     // ページは入れ子にしない（ページの箱を、ページの中へは移せない）
+    const moving = subtreeIds(data.nodes, id);
     if (page != null && data.nodes.some(s => moving.has(String(s.id)) && s.page === true)) {
       opt.onNotice?.("ページの中には、ページの箱を入れられません");
       return false;
     }
     const fromPage = pageOf(data.nodes, id);
-    setParent(src, t);
-    if (t == null && at) {
-      src.x = Math.max(0, Math.round(at.x));
-      src.y = Math.max(0, Math.round(at.y));
-    } else if (t && isNesting(t)) {
-      src.x = innerArea(t).left;
-      src.y = Math.max(...t.children.map(k => k.y + k.h)) + opt.gap * 2;
-    } else {
-      delete src.x;
-      delete src.y;
-    }
-    const parentOf = new Map(data.nodes.map(s => [String(s.id), s.parent == null ? null : String(s.parent)]));
-    const kept = (data.edges ?? []).filter(e => {
-      const { from, to } = e as EdgeData;
-      return parentOf.get(String(from)) === parentOf.get(String(to));
-    });
-    const removed = (data.edges?.length ?? 0) - kept.length;
-    data.edges = kept;
+    const pos = t == null && at ? { x: Math.max(0, at.x), y: Math.max(0, at.y) }
+      : t && isNesting(t) ? { x: innerArea(t).left, y: Math.max(...t.children.map(k => k.y + k.h)) + opt.gap * 2 }
+      : null;
+    const cut = moveSubtree(data, id, to, pos);
 
     build(data, false);
     select(byId.get(String(id))!);
     changed();
     const where = (t ? `「${keyOfBox(byId.get(t.id)!)}」の中` : "最上位") + (fromPage !== page ? `（${pageName(page)}）` : "");
-    opt.onNotice?.(`${where}へ移しました` + (removed ? `（階層が変わったため、線を ${removed} 本外しました）` : ""));
+    opt.onNotice?.(`${where}へ移しました` + (cut ? `（階層が変わったため、線を ${cut} 本外しました）` : ""));
     return true;
   }
 
   const pageName = (p: string | null) => pageNameOf(source.nodes, p);
+
+  // 落とし先（parentId。null は今のページの最上位）の箱。ページの箱の中へは入れられない
+  // （中身は別のページにあり、入れると見えなくなるため）。what はそのときの知らせの後半
+  function target(parentId: Id | null, what: string): Box | null {
+    const t = parentId == null ? null : (nodeOf(parentId) as Box);
+    if (t?.src.page === true) throw new Error(`ページの箱の中には${what}`);
+    return t;
+  }
+
+  // 落とし先の親の id。今のページの最上位なら、ページの中ではページの箱、最初のページでは無し
+  const parentIdOf = (t: Box | null) => (t ? t.src.id : pageBox()?.id);
+
+  // 落とした位置に置くか（内包か子の無い箱の中、または最上位）。ツリー・非表示の中なら自動で並べる（null）
+  const dropPos = (t: Box | null, at?: { x: number; y: number }) => (at && (!t || viewOf(t) === "nest") ? at : null);
+
+  // 組み立て直したあと、落とした箱を落とした位置に置き直し、ぶつかった相手を下へずらして選ぶ（復活と移植）
+  function settleDropped(id: string, at: { x: number; y: number } | null) {
+    const n = byId.get(id)!;
+    if (at) {
+      [n.x, n.y] = clamp(n, at.x, at.y);
+      settle(SCENES.drop, n);
+      render();
+    }
+    n.intendedY = n.y;
+    n.intendedCX = centerX(n);
+    select(n);
+    changed();
+    return n;
+  }
+
+  // 消したときの知らせ
+  const removedNotice = (key: string, kids: number, cut: number) =>
+    `「${key}」を消しました` +
+    (kids || cut ? `（${[kids ? `子 ${kids} 個` : "", cut ? `線 ${cut} 本` : ""].filter(Boolean).join("、")}も）` : "");
 
   // ---- 削除と復活（docs/DELETE-plan.md） ----
 
@@ -369,13 +388,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = nodeOf(id);
     if (n.isWorld) throw new Error("ワールドは消せません");
     const gone = new Set([n, ...descendants(n)]);
-    // ほかのページにある子孫（消す箱がページの箱なら、そのページの中身）も一緒に消す
-    const goneIds = subtreeIds(source.nodes, n.id);
+    // データは今の位置を書いた写しで消し、消したものだけを移す（ほかのページにある子孫、つまりページの箱の中身も一緒に消える）。
+    // 残る箱のデータは図の箱が参照しているので、入れ替えずに外すだけにする
     const out = api.toJSON();
-    const moved = out.nodes.filter(s => goneIds.has(String(s.id)));
-    source.removed = [...(source.removed ?? []), ...moved];
-    source.nodes = source.nodes.filter(s => !goneIds.has(String(s.id)));
-    offEdges = offEdges.filter(e => !goneIds.has(String(e.from)) && !goneIds.has(String(e.to)));
+    const { ids } = removeSubtree(out, n.id);
+    source.removed = out.removed;
+    source.nodes = source.nodes.filter(s => !ids.has(String(s.id)));
+    offEdges = offEdges.filter(e => !ids.has(String(e.from)) && !ids.has(String(e.to)));
     nodes = nodes.filter(b => !gone.has(b));
     for (const b of gone) byId.delete(b.id);
 
@@ -399,30 +418,22 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     render();
     changed();
     notifySelect();
-    const kids = gone.size - 1;
-    opt.onNotice?.(`「${keyOfBox(n)}」を消しました` +
-      (kids || cut.length ? `（${[kids ? `子 ${kids} 個` : "", cut.length ? `線 ${cut.length} 本` : ""].filter(Boolean).join("、")}も）` : ""));
+    opt.onNotice?.(removedNotice(keyOfBox(n), gone.size - 1, cut.length));
     return true;
   }
 
-  // ほかのページの箱を子孫ごと消す（一覧の × から）。描いていないので、データだけを直す。
+  // ほかのページの箱を子孫ごと消す（一覧の × から）。描いていないので、データだけを直して組み立て直す。
   // 今描いているページの箱そのものを消したら、最初のページに戻る
   function removeElsewhere(id: Id) {
     const s = source.nodes.find(x => String(x.id) === String(id));
     if (!s) throw new Error(`ボックスがありません: ${id}`);
-    const goneIds = subtreeIds(source.nodes, id);
     const out = api.toJSON();
-    const cut = offEdges.filter(e => goneIds.has(String(e.from)) || goneIds.has(String(e.to))).length;
-    out.removed = [...(out.removed ?? []), ...out.nodes.filter(x => goneIds.has(String(x.id)))];
-    out.nodes = out.nodes.filter(x => !goneIds.has(String(x.id)));
-    out.edges = (out.edges as EdgeData[]).filter(e => !goneIds.has(String(e.from)) && !goneIds.has(String(e.to)));
-    if (page != null && goneIds.has(page)) page = null;
+    const { ids, cut } = removeSubtree(out, id);
+    if (page != null && ids.has(page)) page = null;
     build(out, false);
     changed();
     notifySelect();
-    const kids = goneIds.size - 1;
-    opt.onNotice?.(`「${keyOf(s.id, captionOfData(s))}」を消しました` +
-      (kids || cut ? `（${[kids ? `子 ${kids} 個` : "", cut ? `線 ${cut} 本` : ""].filter(Boolean).join("、")}も）` : ""));
+    opt.onNotice?.(removedNotice(keyOf(s.id, captionOfData(s)), ids.size - 1, cut));
     return true;
   }
 
@@ -431,44 +442,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
   function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
     const data = api.toJSON();
-    const list = data.removed ?? [];
-    const root = list.find(s => String(s.id) === String(id));
-    if (!root) throw new Error(`消したボックスにありません: ${id}`);
-    const t = parentId == null ? null : (nodeOf(parentId) as Box);
-    if (t?.src.page === true) throw new Error("ページの箱の中には戻せません（そのページのタブで戻してください）");
-    const take = new Set([String(root.id)]);
-    for (let grew = true; grew;) {
-      grew = false;
-      for (const s of list) {
-        if (take.has(String(s.id)) || s.parent == null || !take.has(String(s.parent))) continue;
-        take.add(String(s.id));
-        grew = true;
-      }
-    }
-    data.removed = list.filter(s => !take.has(String(s.id)));
-    if (!data.removed.length) delete data.removed;
-    setParent(root, t);
-    const placeAt = at && (!t || viewOf(t) === "nest");
-    if (placeAt) {
-      root.x = Math.round(at.x);
-      root.y = Math.round(at.y);
-    } else {
-      delete root.x;
-      delete root.y;
-    }
-    data.nodes.push(...list.filter(s => take.has(String(s.id))));
-
+    const t = target(parentId, "戻せません（そのページのタブで戻してください）");
+    const pos = dropPos(t, at);
+    restoreSubtree(data, id, parentIdOf(t), pos);
     build(data, false);
-    const n = byId.get(String(id))!;
-    if (placeAt) {
-      [n.x, n.y] = clamp(n, at.x, at.y);
-      settle(SCENES.drop, n);
-      render();
-    }
-    n.intendedY = n.y;
-    n.intendedCX = centerX(n);
-    select(n);
-    changed();
+    const n = settleDropped(String(id), pos);
     opt.onNotice?.(`「${keyOfBox(n)}」を戻しました`);
     return true;
   }
@@ -479,53 +457,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 写した箱の新しい id を返す
   function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string) {
     const data = api.toJSON();
-    const t = parentId == null ? null : (nodeOf(parentId) as Box);
-    if (t?.src.page === true) throw new Error("ページの箱の中には移植できません（そのページのタブで落としてください）");
-    if (!copy.nodes.some(s => String(s.id) === copy.root)) throw new Error(`写した箱がありません: ${copy.root}`);
-    const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
-    let next = Math.max(0, ...used) + 1;
-    const ids = new Map(copy.nodes.map(s => [String(s.id), next++]));
-    const nodes = copy.nodes.map(s => {
-      const c: BoxData = { ...JSON.parse(JSON.stringify(s)), id: ids.get(String(s.id))! };
-      if (String(s.id) === copy.root) setParent(c, t);
-      else c.parent = ids.get(String(s.parent));
-      if (page != null) { delete c.page; delete c.world; }
-      return c;
-    });
-    const root = nodes[copy.nodes.findIndex(s => String(s.id) === copy.root)]!;
-    const placeAt = at && (!t || viewOf(t) === "nest");
-    if (placeAt) {
-      root.x = Math.round(at.x);
-      root.y = Math.round(at.y);
-    } else {
-      delete root.x;
-      delete root.y;
-    }
-    const usedEdges = new Set((data.edges as EdgeData[]).map(e => String(e.id)));
-    let seq = 1;
-    const edges = copy.edges.map(e => {
-      while (usedEdges.has("e" + seq)) seq++;
-      usedEdges.add("e" + seq);
-      return { ...e, id: "e" + seq, from: ids.get(String(e.from))!, to: ids.get(String(e.to))! };
-    });
-    data.nodes.push(...nodes);
-    data.edges = [...(data.edges as EdgeData[]), ...edges];
-
+    const t = target(parentId, "移植できません（そのページのタブで落としてください）");
+    const pos = dropPos(t, at);
+    const r = pasteSubtree(data, copy, parentIdOf(t), pos, page != null);
     build(data, false);
-    const n = byId.get(String(root.id))!;
-    if (placeAt) {
-      [n.x, n.y] = clamp(n, at.x, at.y);
-      settle(SCENES.drop, n);
-      render();
-    }
-    n.intendedY = n.y;
-    n.intendedCX = centerX(n);
-    select(n);
-    changed();
-    const kids = nodes.length - 1;
-    const notes = [from ? `${from} から` : "", kids ? `子 ${kids} 個` : "", edges.length ? `線 ${edges.length} 本` : ""].filter(Boolean);
+    const n = settleDropped(r.root, pos);
+    const notes = [from ? `${from} から` : "", r.nodes > 1 ? `子 ${r.nodes - 1} 個` : "", r.edges ? `線 ${r.edges} 本` : ""].filter(Boolean);
     opt.onNotice?.(`「${keyOfBox(n)}」を移植しました` + (notes.length ? `（${notes.join("、")}）` : ""));
-    return String(root.id);
+    return r.root;
   }
 
   // サイドバーの一覧（ブック全体）。表示中の箱は、載っているページを添える（ページの箱の直下の子は、親を出さない）。
@@ -717,13 +656,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // 描いているページの箱のデータ（最初のページなら null）
   const pageBox = () => (page == null ? null : source.nodes.find(s => String(s.id) === page) ?? null);
-
-  // src を t の子にする。t が null なら今のページの最上位（ページの中ならページの箱の子）
-  function setParent(src: BoxData, t: Box | null) {
-    if (t) src.parent = t.src.id;
-    else if (page != null) src.parent = pageBox()!.id;
-    else delete src.parent;
-  }
 
   // ワールドの設定を、今のページの持ち主（ファイルかページの箱）へ書き戻す。空なら項目ごと消す
   function storeWorld() {

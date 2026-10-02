@@ -25,8 +25,7 @@ const maxBody = 16 << 20
 
 // doc は1つの図の JSON ファイルを、画面と LLM の間で同期させる。
 //
-//	GET  api/data    ファイルの中身。ETag に版（中身のハッシュ）、X-Matomezu-Name にファイル名、
-//	                 X-Matomezu-Server にサーバーの版を入れる
+//	GET  api/data    ファイルの中身。ETag に版（中身のハッシュ）、X-Matomezu-Name にファイル名を入れる
 //	PUT  api/data    画面からの保存。If-Match の版が今のファイルと違えば 409 を返す
 //	POST api/layout  画面からの配置の要約 {"version", "page", "summary"}。ページごとに最新の1件だけを覚える
 //	GET  api/layout  ?page=<id> のページ（無ければ最初のページ）の要約と、今のファイルの版 {"version", "page", "summary", "current"}
@@ -37,7 +36,6 @@ const maxBody = 16 << 20
 type doc struct {
 	id        string
 	path      string
-	server    string // サーバーの版
 	interval  time.Duration
 	onVersion func(id, version string) // 版が変わったときに Hub へ知らせる
 	active    func() bool              // 画面がつながっているか（つながっていなければ読み直さない）
@@ -61,12 +59,12 @@ func docID(path string) string {
 }
 
 // newDoc は path のファイルを扱う。ファイルが無ければ空の図で作る。
-func newDoc(path, server string, interval time.Duration, onVersion func(id, version string), active func() bool) (*doc, error) {
+func newDoc(path string, interval time.Duration, onVersion func(id, version string), active func() bool) (*doc, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
-	d := &doc{id: docID(abs), path: abs, server: server, interval: interval, onVersion: onVersion, active: active,
+	d := &doc{id: docID(abs), path: abs, interval: interval, onVersion: onVersion, active: active,
 		layout: map[string]Layout{}}
 	b, err := os.ReadFile(abs)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -133,7 +131,6 @@ func (d *doc) getData(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("ETag", quote(v))
 	w.Header().Set("X-Matomezu-Name", url.PathEscape(filepath.Base(d.path)))
-	w.Header().Set("X-Matomezu-Server", d.server)
 	w.Write(b)
 }
 

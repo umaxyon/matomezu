@@ -88,8 +88,7 @@ func waitLayout(path, page string) (string, error) {
 	var res server.OpenResult
 	for {
 		var err error
-		// 見ていないタブには配置の結果が無いので、その図のタブを前に出して配置させる
-		if res, err = daemon.Open(s, path, true, page); err != nil {
+		if res, err = daemon.Open(s, path, false, ""); err != nil {
 			return "", err
 		}
 		if res.Connections > 0 {
@@ -99,6 +98,10 @@ func waitLayout(path, page string) (string, error) {
 			return "", errors.New("not open in a browser; run: matomezu open " + path)
 		}
 		time.Sleep(200 * time.Millisecond)
+	}
+	// 見ていないタブには配置の結果が無いので、つながった画面に、その図のタブを前に出して配置させる（1 回だけ頼む）
+	if _, err := daemon.Open(s, path, true, page); err != nil {
+		return "", err
 	}
 	url := s.URL("/d/" + res.ID + "/api/layout?page=" + neturl.QueryEscape(page))
 	for {
