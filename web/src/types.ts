@@ -12,6 +12,7 @@ export interface WorldData {
   height?: number;
   overflow?: Exclude<Overflow, "grow">;
   background?: string; // 背景色。省略すると背景なし
+  route?: Route;       // 線の通り方の既定（無ければ直線）
   [key: string]: unknown;
 }
 
@@ -42,6 +43,7 @@ export interface EdgeData {
   to: Id;
   arrow?: Arrow; // 矢印（無ければなし）
   dash?: Dash;   // 線の模様（無ければ実線）
+  route?: Route; // 線の通り方（無ければ図の既定。図にも無ければ直線）
   [key: string]: unknown;
 }
 
@@ -74,6 +76,7 @@ export interface WorldInfo {
   overflow: Overflow;
   overflows: Overflow[];
   background: string | null;
+  route: Route; // 線の通り方の既定
 }
 
 export interface BoxInfo {
@@ -104,6 +107,8 @@ export interface BoxInfo {
 export type Arrow = "start" | "end" | "both";
 // 線の模様。無ければ実線（"solid"）。あとで点線（"dotted"）なども足せる
 export type Dash = "solid" | "dashed";
+// 線の通り方。直線か、90 度で折れる線（docs/EDGE-plan.md）
+export type Route = "straight" | "elbow";
 
 // 選んだ線の情報（サイドバーに出す）
 export interface EdgeInfo {
@@ -113,6 +118,7 @@ export interface EdgeInfo {
   to: Brief;   // 終点の箱
   arrow: Arrow | null;
   dash: Dash;
+  route: Route;        // 実際の通り方（線に無ければ図の既定）
 }
 
 // ボックスかワールドの情報（graph.info が返す）。onSelect には線を選んだときの EdgeInfo も届く
@@ -135,7 +141,8 @@ export interface Items {
   pages: { id: string | null; caption: string; current: boolean }[]; // 先頭は最初のページ
 }
 
-// update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）
+// update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）。
+// route はワールドだけ（線の通り方の既定。null か "straight" で直線）
 export interface Patch {
   background?: string | null;
   caption?: string | null;
@@ -147,4 +154,5 @@ export interface Patch {
   fill?: boolean;
   border?: boolean;
   overflow?: Overflow;
+  route?: Route | null;
 }

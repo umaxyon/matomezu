@@ -27,6 +27,8 @@ export const SHAPES = ["box", "person", "db"] as const;
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;
+export const ROUTES = ["straight", "elbow"] as const;
+export const isRoute = (v: unknown) => includes(ROUTES, v);
 
 const includes = <T>(list: readonly T[], v: unknown): v is T => list.includes(v as T);
 export const isSize = (v: unknown): v is Size => typeof v === "string" && v in SIZES;
@@ -79,6 +81,7 @@ export function validate(data: unknown): asserts data is Diagram {
     if (!isObject(data.world)) throw new Error("world がオブジェクトではありません");
     checkSettings(data.world, "world");
     if (data.world.overflow === "grow") throw new Error("world に overflow: grow は使えません");
+    if (data.world.route != null && !includes(ROUTES, data.world.route)) throw new Error(`world の route の値が不正です: ${data.world.route}`);
     if (data.world.background != null && typeof data.world.background !== "string") {
       throw new Error("world の background は色の文字列にしてください");
     }
@@ -115,6 +118,7 @@ export function validate(data: unknown): asserts data is Diagram {
       if (!isObject(n.world)) throw new Error(`world がオブジェクトではありません: ${n.id}`);
       checkSettings(n.world, `${n.id} の world`);
       if (n.world.overflow === "grow") throw new Error(`world に overflow: grow は使えません: ${n.id}`);
+      if (n.world.route != null && !includes(ROUTES, n.world.route)) throw new Error(`world の route の値が不正です: ${n.id} (${n.world.route})`);
     }
     if (n.page !== true) continue;
     for (let p = byId.get(String(n.parent)); p; p = byId.get(String(p.parent))) {
@@ -136,6 +140,8 @@ export function validate(data: unknown): asserts data is Diagram {
     if (String(from) === String(to)) throw new Error(`同じボックス同士の線があります: ${from}`);
     const arrow = (e as EdgeData).arrow;
     if (arrow != null && !includes(ARROWS, arrow)) throw new Error(`arrow の値が不正です: ${from} - ${to} (${arrow})`);
+    const route = (e as EdgeData).route;
+    if (route != null && !includes(ROUTES, route)) throw new Error(`route の値が不正です: ${from} - ${to} (${route})`);
     const dash = (e as EdgeData).dash;
     if (dash != null && !includes(DASHES, dash)) throw new Error(`dash の値が不正です: ${from} - ${to} (${dash})`);
     if (parentOf(from) !== parentOf(to)) {

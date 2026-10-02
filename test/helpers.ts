@@ -72,3 +72,11 @@ export const fakeMeasure: MeasureText = (head, width) => {
   const lines = width == null ? 1 : Math.max(1, Math.ceil(tw / Math.max(1, width - 16)));
   return [w, lines * 18 + 8];
 };
+
+// 線（polyline）の点の並びと、両端の座標 [x1, y1, x2, y2]
+export const pointsOf = (l: Element): [number, number][] =>
+  (l.getAttribute("points") ?? "").trim().split(/\s+/).filter(Boolean).map(p => p.split(",").map(Number) as [number, number]);
+export function endsOf(l: Element): [number, number, number, number] {
+  const p = pointsOf(l);
+  return [p[0]![0], p[0]![1], p.at(-1)![0], p.at(-1)![1]];
+}

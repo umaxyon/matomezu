@@ -4,7 +4,7 @@ import { isLightColor } from "./dom";
 import type { Layout } from "./layout/layout";
 import {
   type Box, type Edge, type World,
-  absPos, ancestors, arrowOf, borderOf, dashOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  absPos, ancestors, arrowOf, borderOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -179,25 +179,35 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     return [cx + dx * t, cy + dy * t];
   }
 
-  // 2つの矩形を結ぶ線の両端。上下の範囲が重なっていれば（真横に並んでいれば）、重なる範囲の真ん中の高さで
-  // 水平に、左右の範囲が重なっていれば垂直に引く（箱が伸び縮みしても、つなぐ位置が滑るだけで角度は変わらない）。
-  // どちらも重ならなければ、中心どうしを結んだ線を縁で切る
   type Abs = { x: number; y: number; w: number; h: number };
-  function edgeEnds(a: Abs, b: Abs): [number, number, number, number] {
+  type Pt = [number, number];
+
+  // 2つの矩形を結ぶ線の点の並び。上下の範囲が重なっていれば（真横に並んでいれば）、重なる範囲の真ん中の高さで
+  // 水平に、左右の範囲が重なっていれば垂直に引く（箱が伸び縮みしても、つなぐ位置が滑るだけで角度は変わらない）。
+  // どちらも重ならなければ、直線は中心どうしを結んだ線を縁で切り、折れ線（elbow）は Z 字に折る:
+  // 左右に離れていれば、向き合う辺の真ん中の高さから横に出て、間の真ん中で縦に折れ、また横に入る（上下なら縦・横・縦）。
+  // L 字への切り替え、中棒の位置の調整、ほかの箱を避けることは、まだしない（docs/EDGE-plan.md）
+  function edgePoints(a: Abs, b: Abs, elbow: boolean): Pt[] {
     const top = Math.max(a.y, b.y), bottom = Math.min(a.y + a.h, b.y + b.h);
     const left = Math.max(a.x, b.x), right = Math.min(a.x + a.w, b.x + b.w);
     if (bottom > top && right <= left) {
       const y = (top + bottom) / 2;
-      return a.x < b.x ? [a.x + a.w, y, b.x, y] : [a.x, y, b.x + b.w, y];
+      return a.x < b.x ? [[a.x + a.w, y], [b.x, y]] : [[a.x, y], [b.x + b.w, y]];
     }
     if (right > left && bottom <= top) {
       const x = (left + right) / 2;
-      return a.y < b.y ? [x, a.y + a.h, x, b.y] : [x, a.y, x, b.y + b.h];
+      return a.y < b.y ? [[x, a.y + a.h], [x, b.y]] : [[x, a.y], [x, b.y + b.h]];
     }
     const acx = a.x + a.w / 2, acy = a.y + a.h / 2, bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
-    const [x1, y1] = clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy);
-    const [x2, y2] = clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy);
-    return [x1, y1, x2, y2];
+    if (!elbow) {
+      return [clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy), clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy)];
+    }
+    if (Math.abs(bcx - acx) >= Math.abs(bcy - acy)) {
+      const x1 = bcx > acx ? a.x + a.w : a.x, x2 = bcx > acx ? b.x : b.x + b.w, mx = (x1 + x2) / 2;
+      return [[x1, acy], [mx, acy], [mx, bcy], [x2, bcy]];
+    }
+    const y1 = bcy > acy ? a.y + a.h : a.y, y2 = bcy > acy ? b.y : b.y + b.h, my = (y1 + y2) / 2;
+    return [[acx, y1], [acx, my], [bcx, my], [bcx, y2]];
   }
 
   // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
@@ -209,43 +219,47 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const [ax, ay] = absPos(e.a);
       const [bx, by] = absPos(e.b);
       const ra = anchorRect(e.a), rb = anchorRect(e.b);
-      const [x1, y1, x2, y2] = edgeEnds(
+      const pts = edgePoints(
         { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
-        { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h });
+        { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
+        routeOf(e, ctx.world) === "elbow");
+      e.points = pts;
       const arrow = arrowOf(e);
       const atStart = arrow === "start" || arrow === "both", atEnd = arrow === "end" || arrow === "both";
       // 見える線は、矢印のある端では矢印の付け根で止める（線の太さで先端が四角く太って見えないように）。
       // クリックを受ける透明な線は端まで
-      const [line, hit] = e.lines as [SVGLineElement, SVGLineElement];
-      const [sx, sy] = atStart ? toward(x1, y1, x2, y2, ARROW_LEN - 1) : [x1, y1];
-      const [ex, ey] = atEnd ? toward(x2, y2, x1, y1, ARROW_LEN - 1) : [x2, y2];
-      setLine(line, sx, sy, ex, ey);
-      setLine(hit, x1, y1, x2, y2);
+      const [line, hit] = e.lines as [SVGPolylineElement, SVGPolylineElement];
+      const shown = pts.map(p => [...p] as Pt);
+      const n = pts.length;
+      if (atStart) shown[0] = toward(pts[0]!, pts[1]!, ARROW_LEN - 1);
+      if (atEnd) shown[n - 1] = toward(pts[n - 1]!, pts[n - 2]!, ARROW_LEN - 1);
+      setPoints(line, shown);
+      setPoints(hit, pts);
       line.classList.toggle("mz-dashed", dashOf(e) === "dashed");
       const heads = [];
-      if (atStart) heads.push(arrowHead(x2, y2, x1, y1));
-      if (atEnd) heads.push(arrowHead(x1, y1, x2, y2));
+      if (atStart) heads.push(arrowHead(pts[1]!, pts[0]!));
+      if (atEnd) heads.push(arrowHead(pts[n - 2]!, pts[n - 1]!));
       e.arrowEl.setAttribute("d", heads.join(""));
     }
   }
 
-  function setLine(l: SVGLineElement, x1: number, y1: number, x2: number, y2: number) {
-    l.setAttribute("x1", String(x1)); l.setAttribute("y1", String(y1));
-    l.setAttribute("x2", String(x2)); l.setAttribute("y2", String(y2));
+  const round = (v: number) => Math.round(v * 10) / 10;
+  function setPoints(l: SVGPolylineElement, pts: Pt[]) {
+    l.setAttribute("points", pts.map(([x, y]) => `${round(x)},${round(y)}`).join(" "));
   }
 
-  // (x, y) から (tx, ty) の向きへ d だけ進んだ点（線より長ければ真ん中で止める）
-  function toward(x: number, y: number, tx: number, ty: number, d: number): [number, number] {
-    const len = Math.hypot(tx - x, ty - y);
-    if (len < 1) return [x, y];
+  // p から q の向きへ d だけ進んだ点（区間より長ければ真ん中で止める）
+  function toward(p: Pt, q: Pt, d: number): Pt {
+    const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    if (len < 1) return [...p];
     const k = Math.min(d, len / 2) / len;
-    return [x + (tx - x) * k, y + (ty - y) * k];
+    return [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
   }
 
   const ARROW_LEN = 10; // 矢印の長さ
 
-  // (fx, fy) から (tx, ty) へ向かう線の、(tx, ty) の側の矢印の三角（先端が (tx, ty)）。線が短すぎれば描かない
-  function arrowHead(fx: number, fy: number, tx: number, ty: number) {
+  // f から t へ向かう区間の、t の側の矢印の三角（先端が t）。区間が短すぎれば描かない
+  function arrowHead([fx, fy]: Pt, [tx, ty]: Pt) {
     const len = Math.hypot(tx - fx, ty - fy);
     if (len < 1) return "";
     const ux = (tx - fx) / len, uy = (ty - fy) / len;

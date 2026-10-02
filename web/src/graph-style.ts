@@ -69,6 +69,8 @@ export const GRAPH_CSS = `
   transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
 }
 .mz-hit { stroke: transparent; stroke-width: 12; pointer-events: none; }
+/* 線は polyline なので、塗らない（塗ると折れ線の点で囲まれた面が既定の黒で塗られる） */
+.mz-line, .mz-hit { fill: none; }
 .mz-arrow { fill: var(--mz-edge); stroke: none; pointer-events: none; }
 .mz-line.mz-dashed { stroke-dasharray: 6 4; }
 /* 線を消せるのは線モードだけ。それ以外では線はクリックを受けず、下のボックスや背景に届く */

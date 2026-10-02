@@ -11,8 +11,9 @@ export interface GeoBox extends Rect {
   cut: boolean;        // キャプションが … で切れている
 }
 
-// 見えている線（ツリーの線は含まない）
-export interface GeoEdge { id: string; a: string; b: string; x1: number; y1: number; x2: number; y2: number }
+// 見えている線（ツリーの線は含まない）。points は線の点の並び（折れ線なら折れ点を含む）
+export type Pt = [number, number];
+export interface GeoEdge { id: string; a: string; b: string; points: Pt[] }
 
 export interface Geometry {
   viewport: { w: number; h: number };
@@ -31,23 +32,32 @@ function label(b: GeoBox) {
 }
 
 // 線分どうしが交わるか（端点が触れるだけのものは数えない）
-function cross(a: GeoEdge, b: GeoEdge) {
+// 線の区間（隣り合う 2 点）の並び
+const segments = (e: GeoEdge): [Pt, Pt][] => e.points.slice(1).map((p, i) => [e.points[i]!, p]);
+
+function segCross([[ax1, ay1], [ax2, ay2]]: [Pt, Pt], [[bx1, by1], [bx2, by2]]: [Pt, Pt]) {
   const d = (px: number, py: number, qx: number, qy: number, rx: number, ry: number) =>
     (qx - px) * (ry - py) - (qy - py) * (rx - px);
-  const d1 = d(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1);
-  const d2 = d(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2);
-  const d3 = d(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1);
-  const d4 = d(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2);
+  const d1 = d(ax1, ay1, ax2, ay2, bx1, by1);
+  const d2 = d(ax1, ay1, ax2, ay2, bx2, by2);
+  const d3 = d(bx1, by1, bx2, by2, ax1, ay1);
+  const d4 = d(bx1, by1, bx2, by2, ax2, ay2);
   return d1 * d2 < 0 && d3 * d4 < 0;
 }
 
+// 2 本の線のどこかの区間どうしが交わるか
+const cross = (a: GeoEdge, b: GeoEdge) => segments(a).some(s => segments(b).some(t => segCross(s, t)));
+
+// 線のどこかの区間が矩形の内側を通るか
+const through = (e: GeoEdge, r: Rect) => segments(e).some(s => segThrough(s, r));
+
 // 線分が矩形の内側を通るか（縁に触れるだけのものは数えない）
-function through(e: GeoEdge, r: Rect) {
+function segThrough([[ex1, ey1], [ex2, ey2]]: [Pt, Pt], r: Rect) {
   const m = 1;
   const x0 = r.x + m, y0 = r.y + m, x1 = r.x + r.w - m, y1 = r.y + r.h - m;
   if (x1 <= x0 || y1 <= y0) return false;
   // Liang–Barsky で線分を矩形に切り取り、残れば通っている
-  const dx = e.x2 - e.x1, dy = e.y2 - e.y1;
+  const dx = ex2 - ex1, dy = ey2 - ey1;
   let t0 = 0, t1 = 1;
   const clip = (p: number, q: number) => {
     if (p === 0) return q > 0;
@@ -56,7 +66,7 @@ function through(e: GeoEdge, r: Rect) {
     else { if (t < t0) return false; if (t < t1) t1 = t; }
     return true;
   };
-  return clip(-dx, e.x1 - x0) && clip(dx, x1 - e.x1) && clip(-dy, e.y1 - y0) && clip(dy, y1 - e.y1) && t0 < t1;
+  return clip(-dx, ex1 - x0) && clip(dx, x1 - ex1) && clip(-dy, ey1 - y0) && clip(dy, y1 - ey1) && t0 < t1;
 }
 
 export function summarize(g: Geometry): string {

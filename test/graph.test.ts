@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { BoxData, BoxInfo, Diagram, Info } from "../web/src/types";
-import { dragBy, fakeMeasure } from "./helpers";
+import { dragBy, endsOf, fakeMeasure, pointsOf } from "./helpers";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -126,7 +126,7 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(el.classList.contains("mz-mode-move")).toBe(true); // 開いた直後から、線はクリックを受ける
   graph.select(1);
   el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid" });
+  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", route: "straight" });
   expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(true);
   expect(graph.selected()).toBeNull(); // ボックスの選択は外れる
 
@@ -134,7 +134,7 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, arrow: "end" }]);
   expect(el.querySelector(".mz-arrow")!.getAttribute("d")).toMatch(/^M.*Z$/);
   // 見える線は矢印の付け根で止まり、クリックを受ける透明な線は端まで
-  const end = (sel: string) => [el.querySelector(sel)!.getAttribute("x2"), el.querySelector(sel)!.getAttribute("y2")].map(Number);
+  const end = (sel: string) => endsOf(el.querySelector(sel)!).slice(2);
   const [lx, ly] = end(".mz-line"), [hx, hy] = end(".mz-hit");
   expect(Math.hypot(hx! - lx!, hy! - ly!)).toBeCloseTo(9, 5);
   expect(got.at(-1)).toMatchObject({ kind: "edge", arrow: "end" });
@@ -256,7 +256,8 @@ test("ツリーで見せると全体を枠で囲み、同じ階層との線は�
 
   // 線は枠の下のふちから出る（本体の下ではない）
   const line = el.querySelector(".mz-line")!;
-  const ys = [Number(line.getAttribute("y1")), Number(line.getAttribute("y2"))];
+  const [, y1, , y2] = endsOf(line);
+  const ys = [y1, y2];
   expect(Math.min(...ys)).toBeCloseTo(g.y + g.h);
 
   // 内包に戻すと枠は隠れ、データも変わらない
@@ -1068,8 +1069,7 @@ describe("グループの中のボックスは、大きさが変わっても左�
 describe("線のつなぎ方", () => {
   // 線（最初の線）の両端
   const ends = (el: HTMLElement) => {
-    const l = el.querySelector(".mz-edge .mz-line")!;
-    return ["x1", "y1", "x2", "y2"].map(k => Number(l.getAttribute(k)));
+    return endsOf(el.querySelector(".mz-edge .mz-line")!);
   };
 
   test("上下の範囲が重なっていれば（真横に並んでいれば）、重なる範囲の真ん中の高さで水平に引く", () => {
@@ -1089,6 +1089,59 @@ describe("線のつなぎ方", () => {
     const [x1, y1, x2, y2] = ends(el);
     expect(x1).not.toBe(x2);
     expect(y1).not.toBe(y2);
+  });
+
+  // 線（最初の線）の点の並び（矢印の分を縮めていない、クリックを受ける線）
+  const pts = (el: HTMLElement) => pointsOf(el.querySelector(".mz-edge .mz-hit")!);
+
+  test("折れ線は、左右に離れていれば横・縦・横の Z 字に折れる（向き合う辺の真ん中の高さから出て、間の真ん中で折れる）", () => {
+    // 1: 40〜160 × 40〜104（中心の高さ 72）、2: 400〜520 × 300〜364（中心の高さ 332）。間の真ん中は x = 280
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)).toEqual([[160, 72], [280, 72], [280, 332], [400, 332]]);
+  });
+
+  test("折れ線は、上下に離れていれば縦・横・縦の Z 字に折れる", () => {
+    // 1: 中心 x 100、下の辺 104。2: 200〜320 × 400〜464（中心 x 260）。間の真ん中は y = 252
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 200, y: 400 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)).toEqual([[100, 104], [100, 252], [260, 252], [260, 400]]);
+  });
+
+  test("折れ線でも、上下か左右の範囲が重なっていれば折らずにまっすぐ結ぶ", () => {
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 300, y: 60 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)).toEqual([[160, 82], [300, 82]]);
+  });
+
+  test("折れ線の矢印は、最後の区間の向きに付き、見える線はその区間で付け根まで縮む", () => {
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ from: 1, to: 2, route: "elbow", arrow: "end" }] });
+    expect(pointsOf(el.querySelector(".mz-line")!).at(-1)).toEqual([391, 332]); // 横向きに入るので、x だけ 9 手前
+    expect(el.querySelector(".mz-arrow")!.getAttribute("d")).toMatch(/^M400,332/);
+  });
+
+  test("線の route が無ければ図の既定（world.route）に従い、線の route が優先する", () => {
+    const { el, graph } = setup({
+      world: { route: "elbow" },
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }, { id: 3, x: 40, y: 500 }],
+      edges: [{ id: "e1", from: 1, to: 2 }, { id: "e2", from: 1, to: 3, route: "straight" }],
+    });
+    const lines = el.querySelectorAll(".mz-edge .mz-hit");
+    expect(pointsOf(lines[0]!).length).toBe(4);
+    expect(pointsOf(lines[1]!).length).toBe(2);
+    graph.selectEdge("e1");
+    // 既定と同じ通り方を選んだら、線の側には書かない。既定を変えると一緒に変わる
+    graph.updateEdge("e1", { route: "elbow" });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2 });
+    graph.update(null, { route: "straight" });
+    expect(graph.toJSON().world).toEqual({});
+    expect(pointsOf(el.querySelectorAll(".mz-edge .mz-hit")[0]!).length).toBe(2);
+    // 既定と違う通り方は、線の側に書く
+    graph.updateEdge("e1", { route: "elbow" });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
+    expect(graph.info(null)).toMatchObject({ route: "straight" });
+  });
+
+  test("route は straight / elbow だけ（線と図の既定）", () => {
+    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, route: "curve" as never }] })).toThrow("route の値が不正です");
+    expect(() => setup({ world: { route: "curve" as never }, nodes: [] })).toThrow("world の route の値が不正です");
   });
 
   test("箱が大きくなっても、真横の相手への線は水平のまま（つなぐ位置が滑る）", () => {

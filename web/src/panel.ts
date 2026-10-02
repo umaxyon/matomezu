@@ -13,7 +13,7 @@
 import { esc, injectStyle, keyOf, toHex } from "./dom";
 import { COPY_MIME, type Graph, REMOVED_MIME } from "./graph";
 import { copySubtree, liveItems } from "./pages";
-import type { Brief, ChildView, Dash, Diagram, EdgeInfo, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
+import type { Brief, ChildView, Dash, Diagram, EdgeInfo, Route, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
 
 const STYLE_ID = "matomezu-panel-style";
 const PANEL_CSS = `
@@ -146,6 +146,7 @@ const OVERFLOW_LABELS: Record<Overflow, string> = {
   clip: "サイズで切り詰める",
 };
 const KIND_LABELS = { group: "グループ", box: "ボックス" };
+const ROUTE_OPTIONS: [string, string][] = [["straight", "直線"], ["elbow", "折れ線"]];
 const SIZE_HINTS = {
   L: "幅は文字に合わせて 400 まで。越えると折り返す",
   M: "幅は文字に合わせて 240 まで。越えると折り返す",
@@ -185,6 +186,9 @@ function edgeHtml(info: EdgeInfo): string {
       <dt>始点</dt><dd>${chips([info.from])}</dd>
       <dt>終点</dt><dd>${chips([info.to])}</dd>
     </dl></div>
+    <div class="mzp-section"><h3>通り方</h3>
+      ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
+    </div>
     <div class="mzp-section"><h3>線の種類</h3>
       ${segment("mzp-dash", info.dash, [["solid", "実線"], ["dashed", "破線"]])}
     </div>
@@ -215,6 +219,10 @@ function html(info: Info): string {
       <div class="mzp-presets">${BG_PRESETS.map(c =>
         `<button type="button" class="mzp-preset" data-bg="${c}" style="background:${c}" title="${c}" aria-pressed="${bg != null && c === hex}"></button>`
       ).join("")}<button type="button" class="mzp-chip" data-bg="" aria-pressed="${bg == null}">なし</button></div>
+    </div>`);
+    parts.push(`<div class="mzp-section"><h3>線の通り方（既定）</h3>
+      ${segment("mzp-world-route", info.route, ROUTE_OPTIONS)}
+      <p class="mzp-hint">通り方を決めていない線は、これに従います</p>
     </div>`);
   } else {
     parts.push(`<div class="mzp-head">
@@ -447,6 +455,8 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
       return show(info);
     }
     if (t.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: t.value as Dash });
+    if (t.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: t.value as Route });
+    if (t.name === "mzp-world-route") return graph.update(null, { route: t.value as Route });
     // 矢印は、始点と終点の 2 つの選択を合わせて 1 つの値にする
     if (t.dataset.arrow && info.kind === "edge") {
       const on = (side: string) => !!infoPane.querySelector<HTMLInputElement>(`[data-arrow="${side}"]`)?.checked;

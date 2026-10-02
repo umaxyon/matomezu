@@ -5,7 +5,7 @@ import { type GeoBox, type GeoEdge, summarize } from "../web/src/report";
 const box = (id: string, x: number, y: number, w = 100, h = 50, ancestors: string[] = [], caption = id): GeoBox =>
   ({ id, caption, ancestors, x, y, w, h, cut: false });
 const edge = (id: string, a: GeoBox, b: GeoBox): GeoEdge =>
-  ({ id, a: a.id, b: b.id, x1: a.x + a.w / 2, y1: a.y + a.h / 2, x2: b.x + b.w / 2, y2: b.y + b.h / 2 });
+  ({ id, a: a.id, b: b.id, points: [[a.x + a.w / 2, a.y + a.h / 2], [b.x + b.w / 2, b.y + b.h / 2]] });
 
 test("収まっていれば1行だけ", () => {
   const a = box("1", 0, 0), b = box("2", 200, 0);
@@ -40,4 +40,15 @@ test("線の両端の祖先は、線が通っていても挙げない", () => {
 test("切れたキャプションを挙げる", () => {
   const a = { ...box("1", 0, 0, 64, 44, [], "とても長い名前のボックスです"), cut: true };
   expect(summarize({ viewport: { w: 800, h: 600 }, boxes: [a], edges: [] })).toContain("cut 1: #1 とても長い名前のボックスです");
+});
+
+test("折れ線は区間ごとに、交差と箱を通る線を調べる", () => {
+  const a = box("1", 0, 0), b = box("2", 400, 300), mid = box("3", 260, 100, 40, 40);
+  // 1 の右から出て x = 280 で縦に下り、2 の左へ入る。縦の区間が 3 を通る
+  const elbow: GeoEdge = { id: "e1", a: "1", b: "2", points: [[100, 25], [280, 25], [280, 325], [400, 325]] };
+  const c = box("4", 200, 400), d = box("5", 360, 0, 40, 40);
+  const other: GeoEdge = { id: "e2", a: "4", b: "5", points: [[250, 400], [380, 40]] };
+  const text = summarize({ viewport: { w: 800, h: 600 }, boxes: [a, b, mid, c, d], edges: [elbow, other] });
+  expect(text).toContain("through 1: e1(1-2)>#3 3");
+  expect(text).toContain("cross 1: e1(1-2)xe2(4-5)");
 });

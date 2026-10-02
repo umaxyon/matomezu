@@ -16,7 +16,8 @@
  *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
- *   graph.updateEdge(id, patch); // 線を変更する（arrow は null で矢印なし、dash は null か "solid" で実線）
+ *   graph.updateEdge(id, patch); // 線を変更する（arrow は null で矢印なし、dash は null か "solid" で実線、
+ *                                //   route は "straight" / "elbow"。図の既定と同じなら線の側からは消す）
  *   graph.removeEdge(id);        // 線を消す
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
@@ -77,7 +78,8 @@
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
  *   - arrow は線の矢印: "end"（終点 to の側）/ "start"（始点 from の側）/ "both"。無ければ矢印なし。
  *   - dash は線の模様: "dashed"（破線）。無ければ（"solid"）実線。
- *     線の通り方（一本線か、90 度で折れる線か）は、将来 route という別の項目にする予定（"straight" / "elbow"）。
+ *   - route は線の通り方: "straight"（直線）/ "elbow"（90 度で折れる線）。無ければ world.route（図の既定）、それも無ければ直線。
+ *     ページの既定は、ページの箱の world.route。docs/EDGE-plan.md
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
  *   - page: true のボックスの中身は、別のページ（別のワールド）になる（docs/TABS-plan.md）。ページは入れ子にしない。
@@ -99,15 +101,15 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, arrowOf, borderOf, dashOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
+  absPos, ancestors, arrowOf, borderOf, dashOf, routeDefaultOf, routeOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import type { Geometry } from "./report";
-import type { Arrow, BoxData, Dash, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
-import { ARROWS, DASHES, OVERFLOWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
+import { ARROWS, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -143,7 +145,7 @@ export interface Graph {
   select(id: Id | null): void;
   selected(): string | null;
   selectEdge(id: Id): void;
-  updateEdge(id: Id, patch: { arrow?: Arrow | null; dash?: Dash | null }): void;
+  updateEdge(id: Id, patch: { arrow?: Arrow | null; dash?: Dash | null; route?: Route | null }): void;
   removeEdge(id: Id): void;
   info(id: Id | null): NodeInfo;
   update(id: Id | null, patch: Patch): void;
@@ -271,7 +273,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function edgeInfo(e: Edge): EdgeInfo {
-    return { kind: "edge", id: e.id, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e) };
+    return { kind: "edge", id: e.id, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), route: routeOf(e, world) };
   }
 
   function edgeOf(id: Id) {
@@ -303,15 +305,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function addEdge(src: EdgeData, a: Box, b: Box) {
     const g = document.createElementNS(SVGNS, "g");
     g.setAttribute("class", "mz-edge");
-    const line = document.createElementNS(SVGNS, "line");
+    const line = document.createElementNS(SVGNS, "polyline");
     line.setAttribute("class", "mz-line");
     const arrowEl = document.createElementNS(SVGNS, "path");
     arrowEl.setAttribute("class", "mz-arrow");
-    const hit = document.createElementNS(SVGNS, "line");
+    const hit = document.createElementNS(SVGNS, "polyline");
     hit.setAttribute("class", "mz-hit");
     g.append(line, arrowEl, hit);
     svg.appendChild(g);
-    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl };
+    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [] };
     hit.addEventListener("click", ev => {
       if (mode !== "move") return; // 選択モード以外では、線は CSS でもクリックを受けない
       ev.stopPropagation();
@@ -330,7 +332,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     notifySelect();
   }
 
-  function updateEdge(e: Edge, patch: { arrow?: Arrow | null; dash?: Dash | null }) {
+  function updateEdge(e: Edge, patch: { arrow?: Arrow | null; dash?: Dash | null; route?: Route | null }) {
+    if ("route" in patch) {
+      if (patch.route != null && !(ROUTES as readonly string[]).includes(patch.route)) throw new Error(`route の値が不正です: ${patch.route}`);
+      // 図の既定と同じなら書かない（既定を変えたとき一緒に変わるように）
+      setOrDelete(e.src, "route", patch.route ?? undefined, patch.route == null || patch.route === routeDefaultOf(world));
+    }
     if ("arrow" in patch) {
       if (patch.arrow != null && !(ARROWS as readonly string[]).includes(patch.arrow)) throw new Error(`arrow の値が不正です: ${patch.arrow}`);
       setOrDelete(e.src, "arrow", patch.arrow ?? undefined, patch.arrow == null);
@@ -589,6 +596,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         overflow: overflowOf(world),
         overflows: ["wrap", "clip"],
         background: world.src.background || null,
+        route: routeDefaultOf(world),
       };
     }
     const size = sizeOf(n);
@@ -688,6 +696,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       }
       if (n.isWorld) {
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
+        if ("route" in next) {
+          if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(`route の値が不正です: ${next.route}`);
+          setOrDelete(world.src, "route", next.route ?? undefined, next.route == null || next.route === "straight");
+        }
         storeWorld();
         syncWorld();
         applyWorldStyle();
@@ -918,13 +930,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n),
         };
       });
-      // 端まである透明な線（見える線は、矢印のある端で短くしている）
-      const at = (e: Edge, k: string) => Number(e.lines[1]!.getAttribute(k));
+      // 線の点の並びは、矢印の分を縮める前のもの（見える線は、矢印のある端で短くしている）
       const shown = edges.filter(e => e.el.style.display !== "none");
       return {
         viewport: L.viewport(),
         boxes,
-        edges: shown.map(e => ({ id: e.id, a: e.a.id, b: e.b.id, x1: at(e, "x1"), y1: at(e, "y1"), x2: at(e, "x2"), y2: at(e, "y2") })),
+        edges: shown.map(e => ({ id: e.id, a: e.a.id, b: e.b.id, points: e.points.map(p => [...p] as [number, number]) })),
       };
     },
     destroy() {

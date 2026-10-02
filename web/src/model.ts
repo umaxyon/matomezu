@@ -1,8 +1,8 @@
 // ボックスと線の内部の形と、ボックスの設定を読む関数。DOM の操作はしない
 
 import { truncate } from "./dom";
-import type { Arrow, BoxData, Dash, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
-import { ARROWS, SIZES, isShape, isSize, isTreeDirection, isView } from "./validate";
+import type { Arrow, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
+import { ARROWS, SIZES, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
 
@@ -56,13 +56,17 @@ export interface Edge {
   a: Box;
   b: Box;
   el: SVGGElement;
-  lines: SVGLineElement[];
+  lines: SVGPolylineElement[]; // [見える線, クリックを受ける透明な線]
   arrowEl: SVGPathElement; // 矢印の三角（始点・終点の両方を 1 つの path に描く）
+  points: [number, number][]; // 線の点の並び（ワールドの座標。折れ点を含む。矢印の分は縮めていない）
 }
 
 // 値が既定（isDefault）なら項目ごと消し、そうでなければ書く（既定値は JSON に残さない）
 export const arrowOf = (e: Edge): Arrow | null => (isArrow(e.src.arrow) ? e.src.arrow : null);
 export const dashOf = (e: Edge): Dash => (e.src.dash === "dashed" ? "dashed" : "solid");
+// 図（ワールド）の線の通り方の既定と、線の実際の通り方（線に無ければ図の既定）
+export const routeDefaultOf = (w: World): Route => (isRoute(w.src.route) ? (w.src.route as Route) : "straight");
+export const routeOf = (e: Edge, w: World): Route => (isRoute(e.src.route) ? (e.src.route as Route) : routeDefaultOf(w));
 
 export function setOrDelete<T extends object, K extends keyof T>(obj: T, key: K, value: T[K] | undefined, isDefault: boolean) {
   if (isDefault || value === undefined) delete obj[key];

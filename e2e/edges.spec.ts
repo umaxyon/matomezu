@@ -8,9 +8,10 @@ test("選択モードで線をクリックすると情報タブに線の情報�
   // e2（1-4、フロントエンドとバックエンド）の真ん中を押す
   const edge = page.locator(".mz-edge").nth(1);
   const mid = await edge.locator(".mz-hit").evaluate(l => {
-    const svg = (l as SVGLineElement).ownerSVGElement!.getBoundingClientRect();
-    const n = (k: string) => Number(l.getAttribute(k));
-    return { x: svg.left + (n("x1") + n("x2")) / 2, y: svg.top + (n("y1") + n("y2")) / 2 };
+    const g = l as SVGPolylineElement;
+    const svg = g.ownerSVGElement!.getBoundingClientRect();
+    const p = g.getPointAtLength(g.getTotalLength() / 2);
+    return { x: svg.left + p.x, y: svg.top + p.y };
   });
   await page.mouse.click(mid.x, mid.y);
   await expect(edge).toHaveClass(/mz-selected/);
@@ -36,4 +37,26 @@ test("選択モードで線をクリックすると情報タブに線の情報�
   await side.locator("[data-remove-edge]").click();
   await expect(page.locator(".mz-edge")).toHaveCount(before - 1);
   await expect(side.locator(".mzp-title")).toHaveText("ワールド");
+});
+
+test("斜めに離れた箱どうしの線を折れ線にすると Z 字になり、直線に戻せる", async ({ page }) => {
+  await openDiagram(page, example("nested"));
+  // e1（9 ユーザー - 1 フロントエンド）は、上下にも左右にも重ならない
+  const edge = page.locator(".mz-edge").nth(0);
+  const mid = await edge.locator(".mz-hit").evaluate(l => {
+    const g = l as SVGPolylineElement;
+    const svg = g.ownerSVGElement!.getBoundingClientRect();
+    const p = g.getPointAtLength(g.getTotalLength() / 2);
+    return { x: svg.left + p.x, y: svg.top + p.y };
+  });
+  await page.mouse.click(mid.x, mid.y);
+  const side = page.locator("#sidebar");
+  const count = () => edge.locator(".mz-hit").evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/).length);
+  await side.locator("label", { hasText: "折れ線" }).click();
+  await expect.poll(count).toBe(4);
+  // 線は塗らない（折れ線の点で囲まれた面が黒く塗られないように）
+  expect(await edge.locator(".mz-line").evaluate(l => getComputedStyle(l).fill)).toBe("none");
+  expect(await edge.locator(".mz-hit").evaluate(l => getComputedStyle(l).fill)).toBe("none");
+  await side.locator("label", { hasText: "直線" }).click();
+  await expect.poll(count).toBe(2);
 });
