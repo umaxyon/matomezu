@@ -1094,16 +1094,28 @@ describe("線のつなぎ方", () => {
   // 線（最初の線）の点の並び（矢印の分を縮めていない、クリックを受ける線）
   const pts = (el: HTMLElement) => pointsOf(el.querySelector(".mz-edge .mz-hit")!);
 
-  test("折れ線は、左右に離れていれば横・縦・横の Z 字に折れる（向き合う辺の真ん中の高さから出て、間の真ん中で折れる）", () => {
-    // 1: 40〜160 × 40〜104（中心の高さ 72）、2: 400〜520 × 300〜364（中心の高さ 332）。間の真ん中は x = 280
-    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
-    expect(pts(el)).toEqual([[160, 72], [280, 72], [280, 332], [400, 332]]);
+  test("折れ線は、ほぼ横に並んでいれば（縦の隙間が横の隙間の 1/3 より小さい）横・縦・横の Z 字に折れる", () => {
+    // 1: 40〜160 × 40〜104（中心の高さ 72）、2: 400〜520 × 120〜184（中心の高さ 152）。隙間は横 240、縦 16。間の真ん中は x = 280
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)).toEqual([[160, 72], [280, 72], [280, 152], [400, 152]]);
   });
 
-  test("折れ線は、上下に離れていれば縦・横・縦の Z 字に折れる", () => {
-    // 1: 中心 x 100、下の辺 104。2: 200〜320 × 400〜464（中心 x 260）。間の真ん中は y = 252
-    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 200, y: 400 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
-    expect(pts(el)).toEqual([[100, 104], [100, 252], [260, 252], [260, 400]]);
+  test("折れ線は、ほぼ縦に並んでいれば縦・横・縦の Z 字に折れる", () => {
+    // 1: 中心 x 100、下の辺 104。2: 180〜300 × 400〜464（中心 x 240）。隙間は横 20、縦 296。間の真ん中は y = 252
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 180, y: 400 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)).toEqual([[100, 104], [100, 252], [240, 252], [240, 400]]);
+  });
+
+  test("折れ線は、はっきり斜めなら L 字。横の隙間が大きければ横に出て、相手の上の辺に入る", () => {
+    // 2: 400〜520 × 300〜364（中心 x 460）。隙間は横 240、縦 196
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)).toEqual([[160, 72], [460, 72], [460, 300]]);
+  });
+
+  test("L 字で縦の隙間が大きければ、縦に出て相手の横の辺に入る", () => {
+    // 2: 300〜420 × 500〜564（中心の高さ 532）。隙間は横 140、縦 396
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 300, y: 500 }], edges: [{ from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)).toEqual([[100, 104], [100, 532], [300, 532]]);
   });
 
   test("折れ線でも、上下か左右の範囲が重なっていれば折らずにまっすぐ結ぶ", () => {
@@ -1113,8 +1125,9 @@ describe("線のつなぎ方", () => {
 
   test("折れ線の矢印は、最後の区間の向きに付き、見える線はその区間で付け根まで縮む", () => {
     const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ from: 1, to: 2, route: "elbow", arrow: "end" }] });
-    expect(pointsOf(el.querySelector(".mz-line")!).at(-1)).toEqual([391, 332]); // 横向きに入るので、x だけ 9 手前
-    expect(el.querySelector(".mz-arrow")!.getAttribute("d")).toMatch(/^M400,332/);
+    // L 字で上から入るので、y だけ 9 手前
+    expect(pointsOf(el.querySelector(".mz-line")!).at(-1)).toEqual([460, 291]);
+    expect(el.querySelector(".mz-arrow")!.getAttribute("d")).toMatch(/^M460,300/);
   });
 
   test("線の route が無ければ図の既定（world.route）に従い、線の route が優先する", () => {
@@ -1124,7 +1137,7 @@ describe("線のつなぎ方", () => {
       edges: [{ id: "e1", from: 1, to: 2 }, { id: "e2", from: 1, to: 3, route: "straight" }],
     });
     const lines = el.querySelectorAll(".mz-edge .mz-hit");
-    expect(pointsOf(lines[0]!).length).toBe(4);
+    expect(pointsOf(lines[0]!).length).toBe(3); // 斜めなので L 字
     expect(pointsOf(lines[1]!).length).toBe(2);
     graph.selectEdge("e1");
     // 既定と同じ通り方を選んだら、線の側には書かない。既定を変えると一緒に変わる

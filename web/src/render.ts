@@ -184,9 +184,11 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // 2つの矩形を結ぶ線の点の並び。上下の範囲が重なっていれば（真横に並んでいれば）、重なる範囲の真ん中の高さで
   // 水平に、左右の範囲が重なっていれば垂直に引く（箱が伸び縮みしても、つなぐ位置が滑るだけで角度は変わらない）。
-  // どちらも重ならなければ、直線は中心どうしを結んだ線を縁で切り、折れ線（elbow）は Z 字に折る:
-  // 左右に離れていれば、向き合う辺の真ん中の高さから横に出て、間の真ん中で縦に折れ、また横に入る（上下なら縦・横・縦）。
-  // L 字への切り替え、中棒の位置の調整、ほかの箱を避けることは、まだしない（docs/EDGE-plan.md）
+  // どちらも重ならなければ、直線は中心どうしを結んだ線を縁で切る。折れ線（elbow）は、箱と箱の間の隙間（横 gx、縦 gy）で形を決める:
+  // - 縦の隙間が横の隙間の 1/3 より小さい（ほぼ横に並ぶ）: 横・縦・横の Z 字。向き合う辺の真ん中の高さから出て、間の真ん中で折れる
+  // - 横の隙間が縦の隙間の 1/3 より小さい（ほぼ縦に並ぶ）: 縦・横・縦の Z 字
+  // - それ以外（はっきり斜め）: L 字。隙間の大きい向きに先に出る（横なら、横の辺の真ん中から出て、相手の上か下の辺の真ん中に入る）
+  // 1/3 は見た目で調整する前提の仮の値（ELBOW_Z_RATIO）。中棒の位置の調整、ほかの箱を避けることは、まだしない（docs/EDGE-plan.md）
   function edgePoints(a: Abs, b: Abs, elbow: boolean): Pt[] {
     const top = Math.max(a.y, b.y), bottom = Math.min(a.y + a.h, b.y + b.h);
     const left = Math.max(a.x, b.x), right = Math.min(a.x + a.w, b.x + b.w);
@@ -202,13 +204,23 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (!elbow) {
       return [clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy), clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy)];
     }
-    if (Math.abs(bcx - acx) >= Math.abs(bcy - acy)) {
-      const x1 = bcx > acx ? a.x + a.w : a.x, x2 = bcx > acx ? b.x : b.x + b.w, mx = (x1 + x2) / 2;
-      return [[x1, acy], [mx, acy], [mx, bcy], [x2, bcy]];
+    // 向き合う辺（a の出る辺と b の入る辺）の位置
+    const ax = bcx > acx ? a.x + a.w : a.x, bxSide = bcx > acx ? b.x : b.x + b.w;
+    const ay = bcy > acy ? a.y + a.h : a.y, bySide = bcy > acy ? b.y : b.y + b.h;
+    const gx = Math.abs(bxSide - ax), gy = Math.abs(bySide - ay);
+    if (gy < gx * ELBOW_Z_RATIO) {
+      const mx = (ax + bxSide) / 2;
+      return [[ax, acy], [mx, acy], [mx, bcy], [bxSide, bcy]];
     }
-    const y1 = bcy > acy ? a.y + a.h : a.y, y2 = bcy > acy ? b.y : b.y + b.h, my = (y1 + y2) / 2;
-    return [[acx, y1], [acx, my], [bcx, my], [bcx, y2]];
+    if (gx < gy * ELBOW_Z_RATIO) {
+      const my = (ay + bySide) / 2;
+      return [[acx, ay], [acx, my], [bcx, my], [bcx, bySide]];
+    }
+    return gx >= gy ? [[ax, acy], [bcx, acy], [bcx, bySide]] : [[acx, ay], [acx, bcy], [bxSide, bcy]];
   }
+
+  // 折れ線で、片方の隙間がもう片方のこれだけより小さければ、L 字ではなく Z 字にする（見た目で調整する前提の仮の値）
+  const ELBOW_Z_RATIO = 1 / 3;
 
   // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
   function renderEdges() {
