@@ -4,6 +4,7 @@
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
 import { type Box, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
+import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 
 // ツールのモード。移動、親子の付け替え、線（線のクリックで削除、Ctrl+クリックで線を引く。ドラッグは移動）、
@@ -12,6 +13,8 @@ export type Mode = "move" | "reparent" | "link" | "remove";
 
 // サイドバーの一覧から、消したボックスを図へドラッグするときのデータの種類（中身は id）
 export const REMOVED_MIME = "application/x-matomezu-removed";
+// サイドバーの一覧から、ほかのブックの箱を図へドラッグして移植するときのデータの種類（中身は { copy: Subtree, from: ブック名 } の JSON）
+export const COPY_MIME = "application/x-matomezu-copy";
 
 // 動かし始めたときに外した、祖先の最小の大きさ（実際に動かさなければ戻す）
 interface Released {
@@ -37,6 +40,7 @@ export interface InteractionContext {
   remove(n: Box): void;           // 子孫ごと消す
   restore(id: string, parentId: string | null, at: { x: number; y: number }): void; // 消したボックスを戻す
   boxById(id: string): Box | undefined; // 今のページにある箱（無ければ undefined）
+  paste(copy: Subtree, parentId: string | null, at: { x: number; y: number }, from?: string): void; // ほかのブックの箱を移植する
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
 }
@@ -292,25 +296,37 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (t !== undefined) (t ?? world).el.classList.add("mz-drop");
   }
   const carriesRemoved = (e: DragEvent) => !!e.dataTransfer?.types.includes(REMOVED_MIME);
+  const carriesCopy = (e: DragEvent) => !!e.dataTransfer?.types.includes(COPY_MIME);
 
   function onDragOver(e: DragEvent) {
-    if (!carriesRemoved(e)) return;
+    if (!carriesRemoved(e) && !carriesCopy(e)) return;
     const t = dropTargetAt(e.clientX, e.clientY, null);
     markRestore(t);
     if (t === undefined) return;
     e.preventDefault(); // 落とせることを知らせる
-    e.dataTransfer!.dropEffect = "move";
+    e.dataTransfer!.dropEffect = carriesCopy(e) ? "copy" : "move";
   }
 
   function onDrop(e: DragEvent) {
-    if (!carriesRemoved(e)) return;
+    if (!carriesRemoved(e) && !carriesCopy(e)) return;
     e.preventDefault();
     const t = dropTargetAt(e.clientX, e.clientY, null);
     markRestore(undefined);
-    const id = e.dataTransfer!.getData(REMOVED_MIME);
-    if (t === undefined || !id) return;
+    if (t === undefined) return;
     const r = (t ?? world).el.getBoundingClientRect();
-    ctx.restore(id, t ? t.id : null, { x: e.clientX - r.left - 16, y: e.clientY - r.top - 12 });
+    const at = { x: e.clientX - r.left - 16, y: e.clientY - r.top - 12 };
+    if (carriesCopy(e)) {
+      let payload: { copy: Subtree; from?: string };
+      try {
+        payload = JSON.parse(e.dataTransfer!.getData(COPY_MIME));
+      } catch {
+        return;
+      }
+      ctx.paste(payload.copy, t ? t.id : null, at, payload.from);
+      return;
+    }
+    const id = e.dataTransfer!.getData(REMOVED_MIME);
+    if (id) ctx.restore(id, t ? t.id : null, at);
   }
 
   // ---- 受け付けるイベント ----

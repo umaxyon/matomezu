@@ -11,11 +11,13 @@
  * - サーバーの通知は events.ts の 1 本で受け、ブックごとに配る。matomezu open などで頼まれたページは、タブを開いて前に出す。
  * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているタブは localStorage に覚える（無くても動く）。
  * - 付け替えのドラッグで、箱を同じブックのページのタブの上に少し止めると、そのページに切り替わる（そのまま落とすと、そのページへ移る）。
+ * - サイドバーの一覧の「他ブックも表示」には、ほかに開いているブックの箱を出す（行を図へドラッグすると移植。docs/TABS-plan.md 4.3）。
  */
 
 import { connectEvents } from "./events";
 import { createGraph, type Graph } from "./graph";
-import { createPanel, type Panel } from "./panel";
+import { type OtherBook, createPanel, type Panel } from "./panel";
+import type { Diagram } from "./types";
 import { docBase, fetchRemote, startSync, type Sync } from "./sync";
 import { setupHistory, setupModes } from "./toolbar";
 
@@ -54,6 +56,7 @@ interface Book {
   sync: Sync;
   loaded: boolean;          // 図にデータを読み込んだか（前に出るまで読み込まない）
   initialPages: { id: string; caption: string }[]; // 読み込む前のページの一覧（取ってきたデータから）
+  data: unknown;            // 読み込む前の最新のデータ（ほかのブックの一覧に使う。読み込んだら図から取る）
   error: string | null;
 }
 
@@ -114,6 +117,14 @@ export async function startApp(ui: AppUi) {
   }
 
   const pagesOf = (b: Book) => (b.loaded ? b.graph.pages() : b.initialPages);
+
+  // b から見たほかのブック。読み込んだブックは図から、まだのブックは取ってきた最新のデータから
+  function othersOf(b: Book): OtherBook[] {
+    return books.filter(x => x !== b).flatMap(x => {
+      const data = x.loaded ? x.graph.toJSON() : x.data;
+      return data && Array.isArray((data as Diagram).nodes) ? [{ id: x.id, name: x.name, data: data as Diagram }] : [];
+    });
+  }
 
   function remember() {
     try {
@@ -312,14 +323,14 @@ export async function startApp(ui: AppUi) {
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
       });
-      const panel = createPanel(side, graph);
+      const panel = createPanel(side, graph, { otherBooks: () => (book ? othersOf(book) : []) });
       // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
       stage.addEventListener("pointerdown", e => {
         if (e.target instanceof Element && e.target.closest(".mz-head") && graph.mode() !== "remove") panel.tab("info");
       });
       const b: Book = {
         id, name: remote.name, color, group, tabs: [], stage, side, graph, panel,
-        sync: null as unknown as Sync, loaded: false, initialPages: pagesInData(remote.data), error: null,
+        sync: null as unknown as Sync, loaded: false, initialPages: pagesInData(remote.data), data: remote.data, error: null,
       };
       b.sync = startSync(graph, base, remote, {
         status: text => { if (current?.book === b) ui.status(text); },
@@ -346,7 +357,18 @@ export async function startApp(ui: AppUi) {
 
   connectEvents({
     version(doc, v) {
-      books.find(b => b.id === doc)?.sync.notify(v);
+      const b = books.find(x => x.id === doc);
+      if (!b) return;
+      b.sync.notify(v);
+      // まだ読み込んでいないブックは、ほかのブックの一覧に出すデータだけ取り直す
+      if (!b.loaded) {
+        fetchRemote(docBase(b.id)).then(r => {
+          if (!r || b.loaded) return;
+          b.data = r.data;
+          b.initialPages = pagesInData(r.data);
+          refreshPages(b);
+        });
+      }
     },
     async open(doc, page) {
       const b = await openBook(doc);

@@ -1,7 +1,7 @@
 // ブックとページ（docs/TABS-plan.md 3.2）。図はブック全体を持ち、描くのは 1 ページだけ
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import { pageMembers, pageOf, subtreeIds } from "../web/src/pages";
+import { copySubtree, pageMembers, pageOf, subtreeIds } from "../web/src/pages";
 import type { BoxData, Diagram, EdgeData } from "../web/src/types";
 import { validate } from "../web/src/validate";
 import { dragBy, fakeMeasure } from "./helpers";
@@ -314,4 +314,50 @@ test("最初のページのページの箱はタブ付きの見出しの形で�
   delete node(next, 1).page;
   graph.load(next, { keepHistory: true });
   expect(head().classList.contains("mz-shape-page")).toBe(false); // 子を内包するグループになる
+});
+
+// ---- 段階 6: ほかのブックからの移植（コピー） ----
+
+test("copySubtree は箱を子孫ごと写し、線は写した箱どうしのものだけ", () => {
+  const c = copySubtree(book(), 1);
+  expect(c.root).toBe("1");
+  expect(c.nodes.map(n => n.id)).toEqual([1, 3, 4, 5]);
+  expect(c.edges.map(e => e.id)).toEqual(["e2"]); // e1（1-2）は 2 を写さないので持っていかない
+});
+
+test("移植すると id と線の id を振り直し、親子と線を保つ。最初のページに落とせばページのまま", () => {
+  const { graph } = setup(book());
+  graph.remove(6); // 消したものの id（6）も使わない
+  // ほかのブックの 7（子 8、孫 9）を写す。このブックの 7〜9 とは別の箱
+  const nodes: BoxData[] = [{ id: 7, caption: "外の箱" }, { id: 8, caption: "外の子", parent: 7 }, { id: 9, caption: "外の孫", parent: 8 }];
+  const copy = { root: "7", nodes, edges: [] as EdgeData[] };
+  const id = graph.paste(copy, null, { x: 40, y: 500 }, "other.json");
+  const out = graph.toJSON();
+  expect(id).toBe("7");
+  expect(out.nodes.slice(-3).map(n => [n.id, n.parent])).toEqual([[7, undefined], [8, 7], [9, 8]]);
+  const id2 = graph.paste(copySubtree(book(), 1), null, { x: 300, y: 500 });
+  const out2 = graph.toJSON();
+  expect(id2).toBe("10");
+  expect(out2.nodes.slice(-4).map(n => [n.id, n.parent, n.page])).toEqual([[10, undefined, true], [11, 10, undefined], [12, 10, undefined], [13, 12, undefined]]);
+  // e2（3-4）は写した先で 11-12 の線になり、id は空いている番号になる
+  const added = (out2.edges as EdgeData[]).at(-1)!;
+  expect([added.from, added.to]).toEqual([11, 12]);
+  expect(new Set(edgeIds(out2)).size).toBe(edgeIds(out2).length);
+  graph.undo();
+  expect(graph.toJSON().nodes.length).toBe(out.nodes.length);
+});
+
+test("ページの中へ移植すると、写したページの箱は普通のグループになる", () => {
+  const { graph } = setup(book());
+  graph.setPage(1);
+  const id = graph.paste(copySubtree(book(), 1), null, { x: 20, y: 300 });
+  const n = node(graph.toJSON(), Number(id));
+  expect(n.page).toBeUndefined();
+  expect(n.world).toBeUndefined();
+  expect(n.parent).toBe(1);
+});
+
+test("ページの箱の中へは移植できない", () => {
+  const { graph } = setup(book());
+  expect(() => graph.paste(copySubtree(book(), 2), 1)).toThrow("ページの箱の中には移植できません");
 });

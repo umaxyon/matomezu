@@ -11,8 +11,9 @@
  */
 
 import { esc, injectStyle, keyOf, toHex } from "./dom";
-import { type Graph, REMOVED_MIME } from "./graph";
-import type { Brief, ChildView, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
+import { COPY_MIME, type Graph, REMOVED_MIME } from "./graph";
+import { copySubtree, liveItems } from "./pages";
+import type { Brief, ChildView, Diagram, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
 
 const STYLE_ID = "matomezu-panel-style";
 const PANEL_CSS = `
@@ -280,16 +281,18 @@ function html(info: Info): string {
 // 一覧の 1 行。表示中は押すと選び（今のページの箱だけ）、右端の × で消す（どのページの箱でも）。
 // 消したものは図へドラッグすると戻る。
 // キャプションは「id_」を付けて幅に入るだけ出し、はみ出た分は … にする（CSS）。全文はポインタを乗せると出る
-function row(item: ListItem, removed: boolean, selectable = true): string {
+function row(item: ListItem, removed: boolean, selectable = true, copyFrom?: string): string {
   const parent = item.parent != null ? `<span class="mzp-row-parent">${esc(item.parent)} の中</span>` : "";
   const caption = item.caption.replace(/\s+/g, " ").trim();
-  const attrs = removed
+  const attrs = copyFrom != null
+    ? ` class="mzp-row mzp-copy" draggable="true" data-copy-book="${esc(copyFrom)}" data-copy="${esc(item.id)}" title="図へドラッグすると、この図にコピーします（子と、中の線も）"`
+    : removed
     ? ` class="mzp-row mzp-removed" draggable="true" data-restore="${esc(item.id)}" title="図へドラッグすると戻ります"`
     : selectable ? ` class="mzp-row" data-select="${esc(item.id)}"` : ` class="mzp-row mzp-elsewhere"`;
   return `<li${attrs}>
     <span class="mzp-swatch" style="background:${esc(item.color)}"></span>
     <span class="mzp-row-text"><span class="mzp-row-cap" title="${esc(item.caption)}">${esc(item.id)}_${esc(caption)}</span>${parent}</span>
-    ${removed ? "" : `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="消す（子も一緒に消えます）" aria-label="「${esc(item.caption)}」を消す">×</button>`}
+    ${removed || copyFrom != null ? "" : `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="消す（子も一緒に消えます）" aria-label="「${esc(item.caption)}」を消す">×</button>`}
   </li>`;
 }
 
@@ -297,24 +300,40 @@ function row(item: ListItem, removed: boolean, selectable = true): string {
 // （ボックスが多いと下の区画に気づけないため）。キーは "live" / "removed" / "page:<ページの箱の id。最初のページは空>"
 export type Fold = string;
 
-function listHtml(items: Items, open: Record<Fold, boolean>): string {
+// ほかのブック（タブで開いているもの）。一覧の「他ブックも表示」で出し、行を図へドラッグすると移植する（docs/TABS-plan.md 4.3）
+export interface OtherBook { id: string; name: string; data: Diagram }
+
+function listHtml(items: Items, open: Record<Fold, boolean>, others: OtherBook[] | null, showOthers: boolean): string {
   const list = (rows: string[]) => rows.length ? `<ul class="mzp-list">${rows.join("")}</ul>` : '<span class="mzp-none">なし</span>';
   const fold = (name: Fold, title: string, body: string, cls = "mzp-section mzp-fold") =>
     `<details class="${cls}" data-fold="${esc(name)}"${open[name] ?? true ? " open" : ""}>
       <summary><h3>${title}</h3></summary>${body}
     </details>`;
   // ページがあれば、表示中をページごとに分ける。選べるのは今描いているページの箱だけ
-  const live = items.pages.length <= 1
-    ? list(items.live.map(i => row(i, false)))
-    : items.pages.map(p => {
-      const rows = items.live.filter(i => i.page === p.id);
-      return fold(`page:${p.id ?? ""}`, `${esc(p.caption)}（${rows.length}）${p.current ? '<span class="mzp-here">表示中のページ</span>' : ""}`,
-        list(rows.map(i => row(i, false, p.current))), "mzp-fold mzp-subfold");
-    }).join("");
+  const byPage = (l: Pick<Items, "live" | "pages">, key: string, toRow: (i: ListItem, current: boolean) => string) =>
+    l.pages.length <= 1
+      ? list(l.live.map(i => toRow(i, true)))
+      : l.pages.map(p => {
+        const rows = l.live.filter(i => i.page === p.id);
+        return fold(`${key}page:${p.id ?? ""}`, `${esc(p.caption)}（${rows.length}）${p.current ? '<span class="mzp-here">表示中のページ</span>' : ""}`,
+          list(rows.map(i => toRow(i, p.current))), "mzp-fold mzp-subfold");
+      }).join("");
+  const live = byPage(items, "", (i, current) => row(i, false, current));
+  // ほかのブック。ブックごとの見出しの中を、ページごとに分ける
+  const otherHtml = others == null ? "" :
+    `<label class="mzp-check mzp-others"><input type="checkbox" data-others${showOthers ? " checked" : ""}>他ブックも表示</label>` +
+    (!showOthers ? "" : !others.length ? '<p class="mzp-hint">ほかに開いているブックはありません</p>' :
+      others.map(b => {
+        const l = liveItems(b.data.nodes ?? [], undefined, "#ffffff");
+        return fold(`book:${b.id}`, `${esc(b.name)}（${l.live.length}）`,
+          byPage(l, `book:${b.id}:`, i => row(i, false, false, b.id)) +
+          '<p class="mzp-hint">図へドラッグすると、子と中の線ごとこの図にコピーします（元のブックは変わりません）</p>',
+          "mzp-section mzp-fold mzp-other-book");
+      }).join(""));
   // 消したものを上に置く（表示中は数が多くなりやすく、下に置くと消したものに気づけないため）
   return fold("removed", `消したもの（${items.removed.length}）`, list(items.removed.map(i => row(i, true))) +
       '<p class="mzp-hint">消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません</p>') +
-    fold("live", `表示中（${items.live.length}）`, live);
+    fold("live", `表示中（${items.live.length}）`, live) + otherHtml;
 }
 
 export type PanelTab = "info" | "list";
@@ -324,7 +343,11 @@ export interface Panel {
   tab(name: PanelTab): void;
 }
 
-export function createPanel(el: HTMLElement, graph: Graph): Panel {
+export interface PanelOptions {
+  otherBooks?: () => OtherBook[]; // ほかのブック（サーバーから開いたときだけ。無ければ「他ブックも表示」を出さない）
+}
+
+export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {}): Panel {
   injectStyle(STYLE_ID, PANEL_CSS);
   el.classList.add("mzp");
   el.innerHTML = `<div class="mzp-tabs" role="tablist">
@@ -338,12 +361,13 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
   let info = graph.info(graph.selected());
   let current: PanelTab = "info";
   const open: Record<Fold, boolean> = {}; // 描き直しても折りたたみを保つ（無ければ開いている）
+  let showOthers = false;                 // 「他ブックも表示」
 
   // 選択や図の変更のたびに呼ばれるので、一覧もここで描き直す
   function show(next: Info) {
     info = next;
     infoPane.innerHTML = html(info);
-    listPane.innerHTML = listHtml(graph.items(), open);
+    listPane.innerHTML = listHtml(graph.items(), open, showOthers ? o.otherBooks?.() ?? [] : o.otherBooks ? [] : null, showOthers);
   }
 
   // details の開け閉めを覚える（toggle は泡立たないので、捕捉で受け取る）
@@ -390,6 +414,10 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
   el.addEventListener("change", e => {
     const t = e.target;
     if (!(t instanceof HTMLInputElement)) return;
+    if (t.dataset.others != null) {
+      showOthers = t.checked;
+      return show(info);
+    }
     const edit = t.dataset.edit;
     if (edit === "caption") return graph.update(info.id, { caption: t.value });
     if (edit === "picker" || edit === "color" || edit === "bg-picker" || edit === "background") {
@@ -406,12 +434,21 @@ export function createPanel(el: HTMLElement, graph: Graph): Panel {
     if (t.name === "mzp-view") return graph.update(info.id, { childView: t.value as ChildView });
   });
 
-  // 消したものの行を図へドラッグする（落とす側の処理は interaction.ts）
+  // 消したものの行と、ほかのブックの行を図へドラッグする（落とす側の処理は interaction.ts）
   el.addEventListener("dragstart", e => {
-    const r = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-restore]") : null;
-    if (!r || !e.dataTransfer) return;
-    e.dataTransfer.setData(REMOVED_MIME, r.dataset.restore!);
-    e.dataTransfer.effectAllowed = "move";
+    if (!(e.target instanceof Element) || !e.dataTransfer) return;
+    const r = e.target.closest<HTMLElement>("[data-restore]");
+    if (r) {
+      e.dataTransfer.setData(REMOVED_MIME, r.dataset.restore!);
+      e.dataTransfer.effectAllowed = "move";
+      return;
+    }
+    const c = e.target.closest<HTMLElement>("[data-copy]");
+    const book = c && o.otherBooks?.().find(b => b.id === c.dataset.copyBook);
+    if (!c || !book) return;
+    // 持っていく中身はドラッグを始めたときに写す（落とす側は、ほかのブックを知らない）
+    e.dataTransfer.setData(COPY_MIME, JSON.stringify({ copy: copySubtree(book.data, c.dataset.copy!), from: book.name }));
+    e.dataTransfer.effectAllowed = "copy";
   });
 
   show(info);

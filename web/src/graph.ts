@@ -28,6 +28,7 @@
  *   graph.setPage(id);           // 描くページを変える（ページの箱の id。null は最初のページ）。履歴はそのまま
  *   graph.page();                // 描いているページ
  *   graph.pages();               // ブックのページ（ページの箱の id とキャプション）
+ *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
  *   graph.destroy();
  *
  * データ形式:
@@ -94,7 +95,7 @@ import {
   absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
-import { pageMembers, pageOf, subtreeIds } from "./pages";
+import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import type { Geometry } from "./report";
 import type { BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Items, ListItem, Overflow, Patch } from "./types";
@@ -121,7 +122,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
 }
 
 export type { HistoryState, Mode };
-export { REMOVED_MIME } from "./interaction";
+export { COPY_MIME, REMOVED_MIME } from "./interaction";
 
 // 履歴に残す件数
 const HISTORY_LIMIT = 100;
@@ -149,6 +150,7 @@ export interface Graph {
   setPage(id: Id | null): void;
   page(): string | null;
   pages(): { id: string; caption: string }[];
+  paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
   destroy(): void;
 }
 
@@ -212,6 +214,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     drop: n => { settle(SCENES.drop, n); render(); },
     remove: n => { remove(n.id); },
     boxById: id => byId.get(id),
+    paste: (copy, parentId, at, from) => { paste(copy, parentId, at, from); },
     liftOver: (x, y) => opt.onLiftOver?.(x, y),
     liftEnd: () => opt.onLiftEnd?.(),
     // 一覧からドラッグして戻したら、線モードや削除モードのままだと戻した箱をすぐ動かせないので、移動モードにする
@@ -354,10 +357,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  const pageName = (p: string | null) =>
-    p == null ? "最初のページ" : captionOfData(source.nodes.find(s => String(s.id) === p));
-  const captionOfData = (s: BoxData | undefined) =>
-    s == null ? "" : s.caption != null && s.caption !== "" ? String(s.caption) : String(s.id);
+  const pageName = (p: string | null) => pageNameOf(source.nodes, p);
 
   // ---- 削除と復活（docs/DELETE-plan.md） ----
 
@@ -473,6 +473,61 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
+  // ほかのブックの箱を子孫ごと、parentId（null は今のページの最上位）の子にコピーする（移植。docs/TABS-plan.md 4.3）。
+  // id はこのブックで空いている番号に振り直し、線は写した箱どうしのものだけ持ってくる（線の id も振り直す）。
+  // ページの中へ落としたら、ページは入れ子にしないので、写した箱の page を外す。位置の扱いは復活と同じ。
+  // 写した箱の新しい id を返す
+  function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string) {
+    const data = api.toJSON();
+    const t = parentId == null ? null : (nodeOf(parentId) as Box);
+    if (t?.src.page === true) throw new Error("ページの箱の中には移植できません（そのページのタブで落としてください）");
+    if (!copy.nodes.some(s => String(s.id) === copy.root)) throw new Error(`写した箱がありません: ${copy.root}`);
+    const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
+    let next = Math.max(0, ...used) + 1;
+    const ids = new Map(copy.nodes.map(s => [String(s.id), next++]));
+    const nodes = copy.nodes.map(s => {
+      const c: BoxData = { ...JSON.parse(JSON.stringify(s)), id: ids.get(String(s.id))! };
+      if (String(s.id) === copy.root) setParent(c, t);
+      else c.parent = ids.get(String(s.parent));
+      if (page != null) { delete c.page; delete c.world; }
+      return c;
+    });
+    const root = nodes[copy.nodes.findIndex(s => String(s.id) === copy.root)]!;
+    const placeAt = at && (!t || viewOf(t) === "nest");
+    if (placeAt) {
+      root.x = Math.round(at.x);
+      root.y = Math.round(at.y);
+    } else {
+      delete root.x;
+      delete root.y;
+    }
+    const usedEdges = new Set((data.edges as EdgeData[]).map(e => String(e.id)));
+    let seq = 1;
+    const edges = copy.edges.map(e => {
+      while (usedEdges.has("e" + seq)) seq++;
+      usedEdges.add("e" + seq);
+      return { ...e, id: "e" + seq, from: ids.get(String(e.from))!, to: ids.get(String(e.to))! };
+    });
+    data.nodes.push(...nodes);
+    data.edges = [...(data.edges as EdgeData[]), ...edges];
+
+    build(data, false);
+    const n = byId.get(String(root.id))!;
+    if (placeAt) {
+      [n.x, n.y] = clamp(n, at.x, at.y);
+      settle(SCENES.drop, n);
+      render();
+    }
+    n.intendedY = n.y;
+    n.intendedCX = centerX(n);
+    select(n);
+    changed();
+    const kids = nodes.length - 1;
+    const notes = [from ? `${from} から` : "", kids ? `子 ${kids} 個` : "", edges.length ? `線 ${edges.length} 本` : ""].filter(Boolean);
+    opt.onNotice?.(`「${keyOfBox(n)}」を移植しました` + (notes.length ? `（${notes.join("、")}）` : ""));
+    return String(root.id);
+  }
+
   // サイドバーの一覧（ブック全体）。表示中の箱は、載っているページを添える（ページの箱の直下の子は、親を出さない）。
   // 消したボックスの親は、表示中か消したものの中から名前を引く
   function items(): Items {
@@ -485,18 +540,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const live = byId.get(String(p));
       return live ? captionOf(live) : removedCaption.get(String(p)) ?? null;
     };
-    const all = source.nodes;
-    const byKey = new Map(all.map(s => [String(s.id), s]));
-    const live = all.map(s => {
-      const p = byKey.get(String(s.parent));
-      const parent = p && p.page !== true ? captionOfData(p) : null;
-      return item(s.id!, captionOfData(s), s.color, parent, pageOf(all, s.id!));
-    });
     return {
-      live,
+      ...liveItems(source.nodes, page, opt.color),
       removed: removed.map(s => item(s.id!, removedCaption.get(String(s.id))!, s.color, nameOf(s.parent))),
-      pages: [null, ...all.filter(s => s.page === true).map(s => String(s.id))]
-        .map(id => ({ id, caption: pageName(id), current: id === page })),
     };
   }
 
@@ -873,6 +919,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       notifySelect();
     },
     page: () => page,
+    paste,
     pages: () => source.nodes.filter(s => s.page === true)
       .map(s => ({ id: String(s.id), caption: s.caption != null && s.caption !== "" ? String(s.caption) : String(s.id) })),
     geometry() {

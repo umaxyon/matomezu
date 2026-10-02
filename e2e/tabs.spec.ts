@@ -156,3 +156,25 @@ test("追加削除の一覧はページごとの見出しで分かれ、ほか�
   await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.map((n: { id: number }) => n.id))
     .toEqual([1, 2, 3]);
 });
+
+test("他ブックも表示で、ほかのブックの箱を図へドラッグすると、子と中の線ごとコピーされる。元のブックは変わらない", async ({ page }) => {
+  writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
+  writeFileSync(join(dir, "a.json"), JSON.stringify(example("nested")));
+  const before = readFileSync(join(dir, "a.json"), "utf8");
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  run("open", "-no-browser", "p.json");
+  await expect(selected(page)).toHaveText("p.json");
+  const side = page.locator(".side-pane:visible");
+  await side.locator('[data-tab="list"]').click();
+  await side.locator("[data-others]").check();
+  const book = side.locator(".mzp-other-book", { hasText: "a.json" });
+  await expect(book.locator(".mzp-row")).toHaveCount(9);
+  // nested の 4（バックエンド）は、子 5・6 と孫 7・8 を持ち、中に線 5-6 と 7-8 がある
+  await book.locator('[data-copy="4"]').dragTo(page.locator(".stage:visible"), { targetPosition: { x: 200, y: 400 } });
+  await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.length).toBe(9);
+  const out = JSON.parse(readFileSync(join(dir, "p.json"), "utf8"));
+  expect(out.nodes.slice(-5).map((n: { id: number; parent?: number }) => [n.id, n.parent ?? null]))
+    .toEqual([[5, null], [6, 5], [7, 5], [8, 7], [9, 7]]);
+  expect(out.edges.length).toBe(4);
+  expect(readFileSync(join(dir, "a.json"), "utf8")).toBe(before);
+});
