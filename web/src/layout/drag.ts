@@ -1,8 +1,13 @@
 // ドラッグ中の配置（設計は docs/DRAG-plan.md）。settle（場面の表）は使わず、ポインタが動くたびに compute で決め直す。決まり:
 //   - つかんだボックスはポインタに追従する（親の固定された枠に収める分だけ寄せる）。兄弟とぶつかっても止まらない
-//   - 進む向きの先にいた兄弟は、つかんだボックスが触れた瞬間に入れ替わる: つかんだボックスの大きさ + opt.gap だけ
+//   - 進む向きの先にいた兄弟は、つかんだボックスが正面から触れた瞬間に入れ替わる: つかんだボックスの大きさ + opt.gap だけ
 //     開始位置の側へずれる（並べ替えのリストで、通り過ぎた項目が空いた枠へずれるのと同じ）。ずれた先でほかの箱と
-//     ぶつかる、親の枠からはみ出すときはずらさず、重なったまま通す
+//     ぶつかる、親の枠からはみ出すときはずらさず、重なったまま通す。正面とは、進む向きを横切る軸で、小さい方の箱の
+//     幅（か高さ）の半分以上重なっていること。角をかすめるだけでは入れ替えない（2026-10-03 ユーザー）。
+//     入れ替えるのは、このドラッグの中で、進む向きの先端が実際にその兄弟まで来たことがあるときだけ（通り道を覚える）。
+//     開始位置と今の位置だけで決めると、兄弟の上を回り込んで反対側へ出たときにも、通り抜けたのと同じに見えて入れ替わるため。
+//     進む向きは今の動き（前に置けた位置から）で決め、入れ替える向きは兄弟ごとに、先端が来たときの向きにする
+//     （縦に動いてから横からぶつけても、横に入れ替わるように）
 //   - 手を離したとき、入れ替えた相手とまだ重なっていれば、つかんだボックスを相手の向こう側へ寄せる（入れ替えを
 //     完成させる）。それでも残った重なりは、場面の表の drop で直す
 //   - 中身を動かして広がった祖先は、前に下にいた相手を下へ、右にいた相手を右へ（無理なら下へ）押す
@@ -17,6 +22,11 @@ export type Drag = ReturnType<typeof createDrag>;
 export type DragSession = ReturnType<Drag["begin"]>;
 
 type Dir = "down" | "up" | "right" | "left";
+
+// 入れ替えるのは、進む向きを横切る軸で、小さい方の箱の幅（か高さ）のこの割合以上重なっているとき（正面から触れたとき）
+const FACE_RATIO = 0.5;
+
+const OPPOSITE: Record<Dir, Dir> = { down: "up", up: "down", right: "left", left: "right" };
 type Rect = { x: number; y: number; w: number; h: number };
 
 export function createDrag(opt: LayoutOptions, L: Layout) {
@@ -31,15 +41,16 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
 
   // n をつかんで動かし始める。n と各祖先の兄弟（自分を含む）の位置と大きさを写しておく
   function begin(n: Box) {
-    const origin = { x: n.x, y: n.y };
     const snap = new Map<Box, Rect>();
     for (const m of [n, ...ancestors(n)]) {
       for (const o of siblings(m)) snap.set(o, { x: o.x, y: o.y, w: o.w, h: o.h });
     }
     const at = (o: Box) => snap.get(o)!;
     let last: [number, number] = [n.x, n.y]; // 前に置けた位置
-    let travel: Dir = "down";                 // 進む向き（開始位置から大きく動いた軸）
+    let travel: Dir = "down";                 // 今進んでいる向き（前に置けた位置から今の位置への動き）
     let swapped: Box[] = [];                  // 入れ替えた兄弟
+    const met = new Map<Box, Dir>();          // このドラッグで、先端が正面から来たことのある兄弟と、来た向き（最後に来たとき）
+    const backed = new Set<Box>();            // 引き返している途中の兄弟（そこを抜けるまで、来たことにしない）
 
     // o を、by に重ならないよう dir の向きへ、by の端のちょうど gap 先へどける。
     // どいた先でぶつかる相手のうち、写しで o より dir の先にいたものを、同じ向きに続けてどける。
@@ -89,28 +100,54 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
       }
     }
 
-    // 進む向きの先にいて（写しで）、n が触れた兄弟を、n の大きさ + gap だけ開始位置の側へずらす
+    // 横切る軸で、正面から n と重なっているか（d の向きに進むとき。小さい方の幅か高さの FACE_RATIO 以上。
+    // 斜めにかすめるだけなら入れ替えない）
+    function facing(r: Rect, d: Dir) {
+      const vertical = d === "down" || d === "up";
+      const overlap = vertical
+        ? Math.min(r.x + r.w, n.x + n.w) - Math.max(r.x, n.x)
+        : Math.min(r.y + r.h, n.y + n.h) - Math.max(r.y, n.y);
+      return overlap >= (vertical ? Math.min(r.w, n.w) : Math.min(r.h, n.h)) * FACE_RATIO;
+    }
+
+    // d の向きに進む n の先端が、兄弟のところ（手前の gap から、兄弟の向こうの端の手前まで）に来ているか
+    function arrived(r: Rect, d: Dir) {
+      return d === "down" ? n.y + n.h > r.y - g && n.y + n.h < r.y + r.h
+        : d === "up" ? n.y < r.y + r.h + g && n.y > r.y
+        : d === "right" ? n.x + n.w > r.x - g && n.x + n.w < r.x + r.w
+        : n.x < r.x + r.w + g && n.x > r.x;
+    }
+
+    // d の向きから来た n の先端が、兄弟の手前の gap まで来ているか、もう越えているか
+    function engaged(r: Rect, d: Dir) {
+      return d === "down" ? n.y + n.h > r.y - g
+        : d === "up" ? n.y < r.y + r.h + g
+        : d === "right" ? n.x + n.w > r.x - g
+        : n.x < r.x + r.w + g;
+    }
+
+    // 入れ替え: 今進んでいる向き（travel）で、先端が正面から来た兄弟を、その向きと一緒に覚える（met）。
+    // 覚えた兄弟は、来た向きで正面に重なり、先端がまだそこまで来ているか越えているあいだ、n の大きさ + gap だけ
+    // 来た側（逆向き）へずらす。下がって離れれば元に戻る
     function swap() {
-      const vertical = travel === "down" || travel === "up";
-      const shift = vertical ? n.h + g : n.w + g;
       const cands: Box[] = [];
       for (const o of siblings(n)) {
         if (o === n) continue;
         const r = at(o);
-        // 横切る軸で n と重なっているか
-        const across = vertical
-          ? r.x < n.x + n.w + g && r.x + r.w + g > n.x
-          : r.y < n.y + n.h + g && r.y + r.h + g > n.y;
-        // 開始時に n より進む向きの先にいて、n がそこまで来たか
-        const reached = travel === "down" ? r.y >= origin.y && r.y < n.y + n.h + g
-          : travel === "up" ? r.y + r.h <= origin.y + n.h && r.y + r.h + g > n.y
-          : travel === "right" ? r.x >= origin.x && r.x < n.x + n.w + g
-          : r.x + r.w <= origin.x + n.w && r.x + r.w + g > n.x;
-        if (!across || !reached) continue;
-        if (travel === "down") o.y = r.y - shift;
-        else if (travel === "up") o.y = r.y + shift;
-        else if (travel === "right") o.x = r.x - shift;
-        else o.x = r.x + shift;
+        if (facing(r, travel) && arrived(r, travel)) {
+          // 来た向きと逆から来たのは、引き返したということなので、覚えた向きを忘れる（逆向きに入れ替えない）。
+          // 兄弟のところを抜けるまでは、来たことにしない（抜ける前に、逆向きに来たと数え直さないように）
+          if (met.get(o) === OPPOSITE[travel]) { met.delete(o); backed.add(o); }
+          else if (!backed.has(o)) met.set(o, travel);
+        } else {
+          backed.delete(o);
+        }
+        const d = met.get(o);
+        if (!d || !facing(r, d) || !engaged(r, d)) continue;
+        if (d === "down") o.y = r.y - (n.h + g);
+        else if (d === "up") o.y = r.y + n.h + g;
+        else if (d === "right") o.x = r.x - (n.w + g);
+        else o.x = r.x + n.w + g;
         cands.push(o);
       }
       // ずれた先でほかの箱（n は除く）とぶつかる、枠からはみ出すものは戻す（戻したことでぶつかるものも続けて戻す）
@@ -131,8 +168,10 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
     function place(tx: number, ty: number) {
       for (const [o, r] of snap) { o.x = r.x; o.y = r.y; }
       [n.x, n.y] = clamp(n, tx, ty);
-      const dx = n.x - origin.x, dy = n.y - origin.y;
-      travel = Math.abs(dy) >= Math.abs(dx) ? (dy >= 0 ? "down" : "up") : (dx > 0 ? "right" : "left");
+      // 進む向きは、開始位置からではなく、前に置けた位置からの今の動きで決める（縦に動いてから横からぶつけたときに、
+      // 縦の入れ替えにならないように）。止まっていれば前の向きのまま
+      const dx = n.x - last[0], dy = n.y - last[1];
+      if (Math.hypot(dx, dy) >= 1) travel = Math.abs(dy) >= Math.abs(dx) ? (dy >= 0 ? "down" : "up") : (dx > 0 ? "right" : "left");
       swap();
       // 広がった祖先は、前に下にいた相手を下へ、右にいた相手を右へ（無理なら下へ）押す
       for (const m of ancestors(n)) {
@@ -169,13 +208,16 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
       // 寄せた先でまた入れ替わる相手がいれば、それも越える（数回まで）。置けなければ寄せない
       finish() {
         for (let i = 0; i < 5; i++) {
-          const hits = swapped.filter(o => overlaps(n, n.x, n.y, o));
-          if (!hits.length) return;
+          const all = swapped.filter(o => overlaps(n, n.x, n.y, o));
+          if (!all.length) return;
+          // 入れ替えた向き（来た向き）ごとに寄せる。向きの違う相手が混ざっていれば、最初の相手の向きにそろえる
+          const d = met.get(all[0]!)!;
+          const hits = all.filter(o => met.get(o) === d);
           const [x, y] = [n.x, n.y];
-          const tx = travel === "right" ? Math.max(...hits.map(o => o.x + o.w + g))
-            : travel === "left" ? Math.min(...hits.map(o => o.x - g - n.w)) : x;
-          const ty = travel === "down" ? Math.max(...hits.map(o => o.y + o.h + g))
-            : travel === "up" ? Math.min(...hits.map(o => o.y - g - n.h)) : y;
+          const tx = d === "right" ? Math.max(...hits.map(o => o.x + o.w + g))
+            : d === "left" ? Math.min(...hits.map(o => o.x - g - n.w)) : x;
+          const ty = d === "down" ? Math.max(...hits.map(o => o.y + o.h + g))
+            : d === "up" ? Math.min(...hits.map(o => o.y - g - n.h)) : y;
           const [cx, cy] = clamp(n, tx, ty);
           if (Math.abs(cx - tx) > 0.5 || Math.abs(cy - ty) > 0.5 || !place(tx, ty)) { place(x, y); return; }
         }
