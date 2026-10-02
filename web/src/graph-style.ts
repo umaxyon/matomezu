@@ -69,11 +69,19 @@ export const GRAPH_CSS = `
   transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
 }
 .mz-hit { stroke: transparent; stroke-width: 12; pointer-events: none; }
+.mz-arrow { fill: var(--mz-edge); stroke: none; pointer-events: none; }
+.mz-line.mz-dashed { stroke-dasharray: 6 4; }
 /* 線を消せるのは線モードだけ。それ以外では線はクリックを受けず、下のボックスや背景に届く */
-.mz-mode-link .mz-hit { pointer-events: stroke; cursor: pointer; }
+/* 線を選べるのは選択モード（"move"）だけ */
+.mz-mode-move .mz-hit { pointer-events: stroke; cursor: pointer; }
 .mz-edge.mz-hi .mz-line { stroke: var(--mz-edge-hi); stroke-width: 2.2; }
-.mz-edge.mz-dim .mz-line { opacity: 0.25; }
-.mz-mode-link .mz-edge:hover .mz-line { stroke: var(--mz-edge-del); stroke-width: 2.5; stroke-dasharray: 6 4; opacity: 1; }
+.mz-edge.mz-hi .mz-arrow { fill: var(--mz-edge-hi); }
+.mz-edge.mz-dim .mz-line, .mz-edge.mz-dim .mz-arrow { opacity: 0.25; }
+/* ポインタを乗せた線は、矢印も一緒に強調する（選んでいる線は選択の色のまま） */
+.mz-mode-move .mz-edge:not(.mz-selected):hover .mz-line { stroke: var(--mz-edge-hi); }
+.mz-mode-move .mz-edge:not(.mz-selected):hover .mz-arrow { fill: var(--mz-edge-hi); }
+.mz-edge.mz-selected .mz-line { stroke: var(--mz-select); stroke-width: 3; opacity: 1; }
+.mz-edge.mz-selected .mz-arrow { fill: var(--mz-select); opacity: 1; }
 .mz-node { position: absolute; pointer-events: none; transition: opacity 0.15s; }
 .mz-node.mz-clip { overflow: hidden; }
 .mz-head {

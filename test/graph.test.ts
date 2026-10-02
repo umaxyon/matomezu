@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import type { BoxData, BoxInfo, Diagram } from "../web/src/types";
+import type { BoxData, BoxInfo, Diagram, Info } from "../web/src/types";
 import { dragBy, fakeMeasure } from "./helpers";
 
 let graph: Graph | null = null;
@@ -90,7 +90,7 @@ test("線モードで、Ctrl+クリックで同じ階層の2つに線を引き�
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
 });
 
-test("線モード以外では、Ctrl+クリックで線を引かず、線をクリックしても消えない", () => {
+test("線モード以外では Ctrl+クリックで線を引かない。線はどのモードでもクリックで消えない", () => {
   const { el, graph } = setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [[1, 2]] });
   const click = (id: number) => {
     graph.select(id);
@@ -108,15 +108,63 @@ test("線モード以外では、Ctrl+クリックで線を引かず、線をク
     graph.setMode(mode);
     expect(el.querySelector(".mz-linking")).toBeNull();
   }
-  // 移動モードの Ctrl+クリックは、線を引く 1 つ目にならない
+  // 選択モードの Ctrl+クリックは、線を引く 1 つ目にならない
   graph.setMode("move");
   click(1); click(2);
   expect(el.querySelector(".mz-linking")).toBeNull();
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
-  // 線モードなら、線のクリックで消える
+  // 線モードでも、線のクリックでは消えない（消すのはサイドバーのボタン）
   graph.setMode("link");
   el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+});
+
+test("選択モードで線をクリックすると線を選び、線の情報が届く。矢印を変えて、消せる", () => {
+  const got: Info[] = [];
+  const { el, graph } = setup({ nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B" }], edges: [[1, 2]] },
+    { onSelect: (i: Info) => got.push(i) });
+  expect(el.classList.contains("mz-mode-move")).toBe(true); // 開いた直後から、線はクリックを受ける
+  graph.select(1);
+  el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid" });
+  expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(true);
+  expect(graph.selected()).toBeNull(); // ボックスの選択は外れる
+
+  graph.updateEdge("e1", { arrow: "end" });
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, arrow: "end" }]);
+  expect(el.querySelector(".mz-arrow")!.getAttribute("d")).toMatch(/^M.*Z$/);
+  // 見える線は矢印の付け根で止まり、クリックを受ける透明な線は端まで
+  const end = (sel: string) => [el.querySelector(sel)!.getAttribute("x2"), el.querySelector(sel)!.getAttribute("y2")].map(Number);
+  const [lx, ly] = end(".mz-line"), [hx, hy] = end(".mz-hit");
+  expect(Math.hypot(hx! - lx!, hy! - ly!)).toBeCloseTo(9, 5);
+  expect(got.at(-1)).toMatchObject({ kind: "edge", arrow: "end" });
+  graph.updateEdge("e1", { arrow: null });
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+  expect(el.querySelector(".mz-arrow")!.getAttribute("d")).toBe("");
+
+  graph.updateEdge("e1", { dash: "dashed" });
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, dash: "dashed" }]);
+  expect(el.querySelector(".mz-line")!.classList.contains("mz-dashed")).toBe(true);
+  expect(got.at(-1)).toMatchObject({ kind: "edge", dash: "dashed" });
+  graph.updateEdge("e1", { dash: "solid" }); // 実線は既定なので JSON に書かない
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+  expect(el.querySelector(".mz-line")!.classList.contains("mz-dashed")).toBe(false);
+
+  graph.select(2); // ボックスを選ぶと、線の選択は外れる
+  expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(false);
+  graph.selectEdge("e1");
+  graph.removeEdge("e1");
   expect(graph.toJSON().edges).toEqual([]);
+  expect(got.at(-1)).toMatchObject({ kind: "world" }); // 選んでいた線が消えたら、ワールドを選ぶ
+  graph.undo();
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+});
+
+test("線の arrow は start / end / both、dash は solid / dashed だけ", () => {
+  expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, arrow: "left" as never }] }))
+    .toThrow("arrow の値が不正です");
+  expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, dash: "wavy" as never }] }))
+    .toThrow("dash の値が不正です");
 });
 
 test("検証エラーのときは例外を投げ、表示は元のまま", () => {
@@ -359,7 +407,7 @@ describe("履歴", () => {
         .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, ctrlKey: true, pointerId: 1 }));
     };
     click(1); click(2);
-    el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    graph.removeEdge("e1");
     expect(graph.toJSON().edges).toEqual([]);
     graph.undo();
     expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);

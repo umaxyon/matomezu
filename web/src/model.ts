@@ -1,8 +1,10 @@
 // ボックスと線の内部の形と、ボックスの設定を読む関数。DOM の操作はしない
 
 import { truncate } from "./dom";
-import type { BoxData, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
-import { SIZES, isShape, isSize, isTreeDirection, isView } from "./validate";
+import type { Arrow, BoxData, Dash, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
+import { ARROWS, SIZES, isShape, isSize, isTreeDirection, isView } from "./validate";
+
+const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
 
 // n.x, n.y, n.w, n.h は枠（子孫を含めた範囲）、n.hx, n.hy, n.hw, n.hh は枠内の本体（ヘッド）の位置と大きさ
 export interface Box {
@@ -55,9 +57,13 @@ export interface Edge {
   b: Box;
   el: SVGGElement;
   lines: SVGLineElement[];
+  arrowEl: SVGPathElement; // 矢印の三角（始点・終点の両方を 1 つの path に描く）
 }
 
 // 値が既定（isDefault）なら項目ごと消し、そうでなければ書く（既定値は JSON に残さない）
+export const arrowOf = (e: Edge): Arrow | null => (isArrow(e.src.arrow) ? e.src.arrow : null);
+export const dashOf = (e: Edge): Dash => (e.src.dash === "dashed" ? "dashed" : "solid");
+
 export function setOrDelete<T extends object, K extends keyof T>(obj: T, key: K, value: T[K] | undefined, isDefault: boolean) {
   if (isDefault || value === undefined) delete obj[key];
   else obj[key] = value;

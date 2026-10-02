@@ -4,8 +4,9 @@
  * - 子の見せ方は「内包」（親の中に入れる）「ツリー」（組織図のように下へぶら下げる）「非表示」から選ぶ。
  * - ボックスはドラッグで移動でき、同じ階層のボックス同士は重ならない。
  * - 線は同じ階層（同じ親を持つボックス同士）でだけ引ける。
- * - 線モードでは、線をクリックすると消え、Ctrl（Mac は Cmd）+クリックでボックスを2つ選ぶと線が引かれる。
- * - クリックしたボックス（背景ならワールド）が選択され、onSelect で知らせる。
+ * - 線モードでは、Ctrl（Mac は Cmd）+クリックでボックスを2つ選ぶと線が引かれる。
+ * - 選択モード（モードの名前は "move"）では、クリックしたボックス（背景ならワールド）か線が選択され、onSelect で知らせる。
+ *   ボックスはそのままドラッグで動かせる。線を消すのは removeEdge（サイドバーのボタン）。
  *
  * 使い方:
  *   const graph = createGraph(document.getElementById('stage'), data, { onChange, onSelect });
@@ -14,10 +15,13 @@
  *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す（はみ出しの調整はしない）
  *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
  *   graph.select(id);            // 選択する（null はワールド）
+ *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
+ *   graph.updateEdge(id, patch); // 線を変更する（arrow は null で矢印なし、dash は null か "solid" で実線）
+ *   graph.removeEdge(id);        // 線を消す
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
- *   graph.setMode(mode);         // ツールのモード: "move"（移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）/ "remove"（削除）
+ *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）/ "remove"（削除）
  *   graph.onModeChange(fn);      // モードが変わったら知らせる（一覧から戻したときに移動モードへ切り替えるなど、図の側で変えたときも）
  *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
  *   graph.fitChildren(id, "width" | "height" | "both"); // 内包している子の大きさを、一番大きい子にそろえる
@@ -41,7 +45,7 @@
  *         "width": 120, "height": 64, "fill": false, "border": true, "overflow": "clip" }
  *     ],
  *     "edges": [
- *       { "id": "e1", "from": 1, "to": 3 }   // [1, 3] の形でも読める
+ *       { "id": "e1", "from": 1, "to": 3, "arrow": "end" }   // [1, 3] の形でも読める
  *     ]
  *   }
  *   - world は省略できる。width, height が無ければ、表示領域と置かれているボックスの範囲の大きい方になる。
@@ -71,6 +75,9 @@
  *   - 線は同じ parent を持つボックス同士（最上位同士を含む）でだけ引ける。
  *     ツリーの子同士の線は描かない（データには残り、内包に戻すと表示される）。
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
+ *   - arrow は線の矢印: "end"（終点 to の側）/ "start"（始点 from の側）/ "both"。無ければ矢印なし。
+ *   - dash は線の模様: "dashed"（破線）。無ければ（"solid"）実線。
+ *     線の通り方（一本線か、90 度で折れる線か）は、将来 route という別の項目にする予定（"straight" / "elbow"）。
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
  *   - page: true のボックスの中身は、別のページ（別のワールド）になる（docs/TABS-plan.md）。ページは入れ子にしない。
@@ -92,15 +99,15 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
+  absPos, ancestors, arrowOf, borderOf, dashOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import type { Geometry } from "./report";
-import type { BoxData, BoxInfo, ChildView, Diagram, EdgeData, Id, Info, Items, ListItem, Overflow, Patch } from "./types";
-import { OVERFLOWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import type { Arrow, BoxData, Dash, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
+import { ARROWS, DASHES, OVERFLOWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -135,7 +142,10 @@ export interface Graph {
   history(): HistoryState;
   select(id: Id | null): void;
   selected(): string | null;
-  info(id: Id | null): Info;
+  selectEdge(id: Id): void;
+  updateEdge(id: Id, patch: { arrow?: Arrow | null; dash?: Dash | null }): void;
+  removeEdge(id: Id): void;
+  info(id: Id | null): NodeInfo;
   update(id: Id | null, patch: Patch): void;
   toJSON(): Diagram;
   dragging(): boolean;
@@ -158,7 +168,7 @@ export interface Graph {
 export function createGraph(container: HTMLElement, data: unknown, options: GraphOptions = {}): Graph {
   injectStyle(GRAPH_STYLE_ID, GRAPH_CSS);
   const opt = { ...DEFAULTS, ...options };
-  container.classList.add("mz-stage");
+  container.classList.add("mz-stage", "mz-mode-move"); // 最初は選択モード（setMode と同じ印を付けておく）
 
   const worldEl = document.createElement("div");
   worldEl.className = "mz-world";
@@ -175,6 +185,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let linking: Box | null = null;      // Ctrl+クリックで選んだ1つ目
   let mode: Mode = "move";
   let current: Box | null = null;      // 選択中（null はワールド）
+  let currentEdge: Edge | null = null; // 選択中の線（選んでいればボックスは選んでいない）
   const boxOfEl = new WeakMap<Element, Box>();
 
   const world: World = {
@@ -232,16 +243,41 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function notifySelect() {
-    opt.onSelect?.(info(current));
+    opt.onSelect?.(currentEdge ? edgeInfo(currentEdge) : info(current));
   }
 
   // ---- 選択 ----
 
   function select(n: Box | null) {
+    markEdge(null);
     (current ?? world).el.classList.remove("mz-current");
     current = n;
     (current ?? world).el.classList.add("mz-current");
     notifySelect();
+  }
+
+  // 線を選ぶ。ボックス（とワールド）の選択は外す
+  function selectEdge(e: Edge) {
+    (current ?? world).el.classList.remove("mz-current");
+    current = null;
+    markEdge(e);
+    notifySelect();
+  }
+
+  function markEdge(e: Edge | null) {
+    currentEdge?.el.classList.remove("mz-selected");
+    currentEdge = e;
+    e?.el.classList.add("mz-selected");
+  }
+
+  function edgeInfo(e: Edge): EdgeInfo {
+    return { kind: "edge", id: e.id, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e) };
+  }
+
+  function edgeOf(id: Id) {
+    const e = edges.find(x => x.id === String(id));
+    if (!e) throw new Error(`線がありません: ${id}`);
+    return e;
   }
 
   function setLinking(n: Box | null) {
@@ -269,18 +305,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     g.setAttribute("class", "mz-edge");
     const line = document.createElementNS(SVGNS, "line");
     line.setAttribute("class", "mz-line");
+    const arrowEl = document.createElementNS(SVGNS, "path");
+    arrowEl.setAttribute("class", "mz-arrow");
     const hit = document.createElementNS(SVGNS, "line");
     hit.setAttribute("class", "mz-hit");
-    const title = document.createElementNS(SVGNS, "title");
-    title.textContent = "クリックで線を削除";
-    hit.appendChild(title);
-    g.append(line, hit);
+    g.append(line, arrowEl, hit);
     svg.appendChild(g);
-    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit] };
+    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl };
     hit.addEventListener("click", ev => {
-      if (mode !== "link") return; // 線モード以外では、線は CSS でもクリックを受けない
+      if (mode !== "move") return; // 選択モード以外では、線は CSS でもクリックを受けない
       ev.stopPropagation();
-      removeEdge(e);
+      selectEdge(e);
     });
     edges.push(e);
     return e;
@@ -289,7 +324,23 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function removeEdge(e: Edge) {
     e.el.remove();
     edges = edges.filter(x => x !== e);
+    if (currentEdge === e) select(null);
     unfocus();
+    changed();
+    notifySelect();
+  }
+
+  function updateEdge(e: Edge, patch: { arrow?: Arrow | null; dash?: Dash | null }) {
+    if ("arrow" in patch) {
+      if (patch.arrow != null && !(ARROWS as readonly string[]).includes(patch.arrow)) throw new Error(`arrow の値が不正です: ${patch.arrow}`);
+      setOrDelete(e.src, "arrow", patch.arrow ?? undefined, patch.arrow == null);
+    }
+    if ("dash" in patch) {
+      if (patch.dash != null && !(DASHES as readonly string[]).includes(patch.dash)) throw new Error(`dash の値が不正です: ${patch.dash}`);
+      // 実線は既定なので、JSON には書かない
+      setOrDelete(e.src, "dash", patch.dash ?? undefined, patch.dash == null || patch.dash === "solid");
+    }
+    renderEdges();
     changed();
     notifySelect();
   }
@@ -507,6 +558,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     I.unmarkRemove();
     if (m !== "link") setLinking(null);
     mode = m;
+    container.classList.toggle("mz-mode-move", m === "move");
     container.classList.toggle("mz-mode-reparent", m === "reparent");
     container.classList.toggle("mz-mode-link", m === "link");
     container.classList.toggle("mz-mode-remove", m === "remove");
@@ -527,7 +579,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 知らせに出す短いキー（長いキャプションでヘッダーが崩れないように）
   const keyOfBox = (n: Box) => keyOf(n.src.id, captionOf(n));
 
-  function info(n: Container | null): Info {
+  function info(n: Container | null): NodeInfo {
     if (n == null || n.isWorld) {
       return {
         kind: "world", id: null, caption: "ワールド",
@@ -680,6 +732,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     edges = [];
     I.reset();
     linking = null;
+    currentEdge = null;
     current?.el.classList.remove("mz-current");
     current = null;
   }
@@ -804,6 +857,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     history: () => H.state(),
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
     selected: () => (current ? current.id : null),
+    selectEdge: id => selectEdge(edgeOf(id)),
+    updateEdge: (id, patch) => updateEdge(edgeOf(id), patch),
+    removeEdge: id => removeEdge(edgeOf(id)),
     info: id => info(id == null ? null : nodeOf(id)),
     update,
     // 現在の状態を返す（元データにある他の項目はそのまま残す）
@@ -862,7 +918,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n),
         };
       });
-      const at = (e: Edge, k: string) => Number(e.lines[0]!.getAttribute(k));
+      // 端まである透明な線（見える線は、矢印のある端で短くしている）
+      const at = (e: Edge, k: string) => Number(e.lines[1]!.getAttribute(k));
       const shown = edges.filter(e => e.el.style.display !== "none");
       return {
         viewport: L.viewport(),

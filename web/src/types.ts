@@ -40,6 +40,8 @@ export interface EdgeData {
   id?: Id;
   from: Id;
   to: Id;
+  arrow?: Arrow; // 矢印（無ければなし）
+  dash?: Dash;   // 線の模様（無ければ実線）
   [key: string]: unknown;
 }
 
@@ -98,7 +100,24 @@ export interface BoxInfo {
   overflows: Overflow[]; // 空なら中身の扱いを選べない
 }
 
-export type Info = WorldInfo | BoxInfo;
+// 線の矢印。始点（from）の側、終点（to）の側、両方。無ければ矢印なし
+export type Arrow = "start" | "end" | "both";
+// 線の模様。無ければ実線（"solid"）。あとで点線（"dotted"）なども足せる
+export type Dash = "solid" | "dashed";
+
+// 選んだ線の情報（サイドバーに出す）
+export interface EdgeInfo {
+  kind: "edge";
+  id: string;
+  from: Brief; // 始点の箱
+  to: Brief;   // 終点の箱
+  arrow: Arrow | null;
+  dash: Dash;
+}
+
+// ボックスかワールドの情報（graph.info が返す）。onSelect には線を選んだときの EdgeInfo も届く
+export type NodeInfo = WorldInfo | BoxInfo;
+export type Info = NodeInfo | EdgeInfo;
 
 // サイドバーの一覧の 1 行。parent は親のキャプション（最上位なら null）
 export interface ListItem {

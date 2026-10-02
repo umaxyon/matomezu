@@ -94,7 +94,7 @@ test("モードの切り替えと表示", () => {
   expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
   expect([g.mode(), $("label").textContent]).toEqual(["link", "線モード"]);
   buttons[0]!.click();
-  expect([g.mode(), $("label").textContent]).toEqual(["move", "移動モード"]);
+  expect([g.mode(), $("label").textContent]).toEqual(["move", "選択モード"]);
 });
 
 test("Ctrl を押している間だけ、移動と付け替えが入れ替わる。離すと戻る", () => {
@@ -104,7 +104,7 @@ test("Ctrl を押している間だけ、移動と付け替えが入れ替わる
   expect([g.mode(), $("label").textContent]).toEqual(["reparent", "付け替えモード"]);
   expect(pressed()).toEqual(["false", "true", "false"]);
   keyup("Control");
-  expect([g.mode(), $("label").textContent]).toEqual(["move", "移動モード"]);
+  expect([g.mode(), $("label").textContent]).toEqual(["move", "選択モード"]);
   buttons[1]!.click();
   key("Meta", { metaKey: true }); // Mac の Cmd
   expect(g.mode()).toBe("move");
@@ -167,7 +167,7 @@ test("図の側でモードが変わったら、ボタンとラベルもそれ�
   buttons[2]!.click(); // 線モード
   g.setMode("move");   // 図の側で変える（一覧から戻したときなど）
   expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
-  expect($("label").textContent).toBe("移動モード");
+  expect($("label").textContent).toBe("選択モード");
   key("Control", { ctrlKey: true }); // 以後は移動モードを元に Ctrl で入れ替わる
   expect(g.mode()).toBe("reparent");
   keyup("Control");

@@ -319,7 +319,7 @@ export async function startApp(ui: AppUi) {
       const panel = createPanel(side, graph, { otherBooks: () => (book ? othersOf(book) : []) });
       // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
       stage.addEventListener("pointerdown", e => {
-        if (e.target instanceof Element && e.target.closest(".mz-head") && graph.mode() !== "remove") panel.tab("info");
+        if (e.target instanceof Element && e.target.closest(".mz-head, .mz-hit") && graph.mode() !== "remove") panel.tab("info");
       });
       const b: Book = {
         id, name: remote.name, color, group, tabs: [], stage, side, graph, panel,

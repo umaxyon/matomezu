@@ -69,7 +69,7 @@ test("一覧の見出しを押すと区画が折りたたまれ、箱を消し�
 });
 
 for (const mode of ["link", "remove"]) {
-  test(`${mode === "link" ? "線" : "削除"}モードで一覧から戻すと、移動モードに切り替わる`, async ({ page }) => {
+  test(`${mode === "link" ? "線" : "削除"}モードで一覧から戻すと、選択モードに切り替わる`, async ({ page }) => {
     await page.click('[data-tab="list"]');
     const row = page.locator('.mzp-row[data-select="2"]');
     await row.hover();
@@ -79,6 +79,6 @@ for (const mode of ["link", "remove"]) {
     await expect(node(page, 2)).toHaveCount(1);
     await expect(page.locator("#mode-move")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(`#mode-${mode}`)).toHaveAttribute("aria-pressed", "false");
-    await expect(page.locator("#mode-label")).toHaveText("移動モード");
+    await expect(page.locator("#mode-label")).toHaveText("選択モード");
   });
 }

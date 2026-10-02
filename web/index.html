@@ -172,15 +172,15 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
     </button>
     <span class="sep" aria-hidden="true"></span>
-    <button id="mode-move" class="icon-btn" data-mode="move" title="移動モード: ドラッグでボックスを動かす" aria-label="移動モード" aria-pressed="true">
+    <button id="mode-move" class="icon-btn" data-mode="move" title="選択モード: クリックでボックスや線を選ぶ / ドラッグでボックスを動かす" aria-label="選択モード" aria-pressed="true">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20"/><path d="m9 5 3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3"/></svg>
     </button>
     <button id="mode-reparent" class="icon-btn" data-mode="reparent" title="付け替えモード: ドラッグして落とした先のボックスの子にする" aria-label="付け替えモード" aria-pressed="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/><path d="M3 12h12"/><path d="m11 8 4 4-4 4"/></svg>
     </button>
-    <span class="mode-label" id="mode-label" aria-live="polite">移動モード</span>
+    <span class="mode-label" id="mode-label" aria-live="polite">選択モード</span>
     <span class="sep" aria-hidden="true"></span>
-    <button id="mode-link" class="icon-btn" data-mode="link" title="線モード: 線をクリックで削除 / Ctrl+クリックで同じ階層の2つを選ぶと線を追加（Esc で取り消し）" aria-label="線モード" aria-pressed="false">
+    <button id="mode-link" class="icon-btn" data-mode="link" title="線モード: Ctrl+クリックで同じ階層の2つを選ぶと線を追加（Esc で取り消し）。線を選ぶ・消すのは選択モードで" aria-label="線モード" aria-pressed="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="5.5" r="2.5"/><path d="M7.5 16.5l9-9"/></svg>
     </button>
     <button id="mode-remove" class="icon-btn" data-mode="remove" title="削除モード: ボックスを押すと子も一緒に消える（消したものはサイドバーの「追加削除」から戻せる）" aria-label="削除モード" aria-pressed="false">
@@ -199,7 +199,7 @@
     <nav class="tabs" id="tabs" role="tablist" aria-label="開いている図" hidden></nav>
     <div class="canvas">
       <div id="stage"></div>
-      <div class="hint" id="hint">クリックで選択 / ドラッグで移動 / 線の追加・削除は線モードで / JSON はドロップでも開けます</div>
+      <div class="hint" id="hint">クリックでボックスや線を選択 / ドラッグで移動 / 線の追加は線モードで / JSON はドロップでも開けます</div>
     </div>
   </div>
 </main>

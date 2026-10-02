@@ -25,6 +25,8 @@ export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 export const VIEWS = ["nest", "tree", "hidden"] as const;
 export const SHAPES = ["box", "person", "db"] as const;
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
+export const ARROWS = ["start", "end", "both"] as const;
+export const DASHES = ["solid", "dashed"] as const;
 
 const includes = <T>(list: readonly T[], v: unknown): v is T => list.includes(v as T);
 export const isSize = (v: unknown): v is Size => typeof v === "string" && v in SIZES;
@@ -132,6 +134,10 @@ export function validate(data: unknown): asserts data is Diagram {
       throw new Error(`存在しないノードへの線があります: ${from} - ${to}`);
     }
     if (String(from) === String(to)) throw new Error(`同じボックス同士の線があります: ${from}`);
+    const arrow = (e as EdgeData).arrow;
+    if (arrow != null && !includes(ARROWS, arrow)) throw new Error(`arrow の値が不正です: ${from} - ${to} (${arrow})`);
+    const dash = (e as EdgeData).dash;
+    if (dash != null && !includes(DASHES, dash)) throw new Error(`dash の値が不正です: ${from} - ${to} (${dash})`);
     if (parentOf(from) !== parentOf(to)) {
       throw new Error(`階層の違うボックス同士の線があります: ${from} - ${to}`);
     }

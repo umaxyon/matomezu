@@ -13,7 +13,7 @@
 import { esc, injectStyle, keyOf, toHex } from "./dom";
 import { COPY_MIME, type Graph, REMOVED_MIME } from "./graph";
 import { copySubtree, liveItems } from "./pages";
-import type { Brief, ChildView, Diagram, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
+import type { Brief, ChildView, Dash, Diagram, EdgeInfo, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
 
 const STYLE_ID = "matomezu-panel-style";
 const PANEL_CSS = `
@@ -118,6 +118,8 @@ const PANEL_CSS = `
 .mzp-subfold > summary h3 { font-size: 12px; }
 .mzp-here { margin-left: 6px; font-size: 11px; color: var(--mzp-hint); font-weight: normal; }
 .mzp-elsewhere { cursor: default; }
+.mzp-danger { color: #fff; background: #dc2626; border-color: transparent; }
+.mzp-danger:hover { background: #b91c1c; }
 .mzp-row {
   display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 6px; border-radius: 6px; min-width: 0;
 }
@@ -174,7 +176,29 @@ function segment(name: string, value: string, options: [string, string][]): stri
   ).join("") + "</div>";
 }
 
+// 選んだ線の情報: ID とつなぐ箱（始点・終点。押すとその箱を選ぶ）、矢印、消すボタン
+function edgeHtml(info: EdgeInfo): string {
+  const has = (side: "start" | "end") => info.arrow === side || info.arrow === "both";
+  return `<div class="mzp-head"><span class="mzp-title">線</span></div>
+    <div class="mzp-section"><h3>情報</h3><dl class="mzp-dl">
+      <dt>ID</dt><dd>${esc(info.id)}</dd>
+      <dt>始点</dt><dd>${chips([info.from])}</dd>
+      <dt>終点</dt><dd>${chips([info.to])}</dd>
+    </dl></div>
+    <div class="mzp-section"><h3>線の種類</h3>
+      ${segment("mzp-dash", info.dash, [["solid", "実線"], ["dashed", "破線"]])}
+    </div>
+    <div class="mzp-section"><h3>矢印</h3>
+      <label class="mzp-check"><input type="checkbox" data-arrow="start"${has("start") ? " checked" : ""}>始点</label>
+      <label class="mzp-check"><input type="checkbox" data-arrow="end"${has("end") ? " checked" : ""}>終点</label>
+    </div>
+    <div class="mzp-section">
+      <button type="button" class="mzp-chip mzp-danger" data-remove-edge="${esc(info.id)}">線を消す</button>
+    </div>`;
+}
+
 function html(info: Info): string {
+  if (info.kind === "edge") return edgeHtml(info);
   const parts: string[] = [];
 
   if (info.kind === "world") {
@@ -359,7 +383,7 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     <div class="mzp-pane" role="tabpanel" data-pane="list"></div>`;
   const infoPane = el.querySelector<HTMLElement>('[data-pane="info"]')!;
   const listPane = el.querySelector<HTMLElement>('[data-pane="list"]')!;
-  let info = graph.info(graph.selected());
+  let info: Info = graph.info(graph.selected());
   let current: PanelTab = "info";
   const open: Record<Fold, boolean> = {}; // 描き直しても折りたたみを保つ（無ければ開いている）
   let showOthers = false;                 // 「他ブックも表示」
@@ -391,6 +415,8 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     if (tabBtn) return tab(tabBtn.dataset.tab as PanelTab);
     const del = e.target.closest<HTMLElement>("[data-remove]");
     if (del) return void graph.remove(del.dataset.remove!);
+    const delEdge = e.target.closest<HTMLElement>("[data-remove-edge]");
+    if (delEdge) return graph.removeEdge(delEdge.dataset.removeEdge!);
     const chip = e.target.closest<HTMLElement>("[data-select]");
     if (chip) return graph.select(chip.dataset.select!);
     const preset = e.target.closest<HTMLElement>("[data-color]");
@@ -419,6 +445,13 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     if (t.dataset.others != null) {
       showOthers = t.checked;
       return show(info);
+    }
+    if (t.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: t.value as Dash });
+    // 矢印は、始点と終点の 2 つの選択を合わせて 1 つの値にする
+    if (t.dataset.arrow && info.kind === "edge") {
+      const on = (side: string) => !!infoPane.querySelector<HTMLInputElement>(`[data-arrow="${side}"]`)?.checked;
+      const start = on("start"), end = on("end");
+      return graph.updateEdge(info.id, { arrow: start && end ? "both" : start ? "start" : end ? "end" : null });
     }
     const edit = t.dataset.edit;
     if (edit === "caption") return graph.update(info.id, { caption: t.value });

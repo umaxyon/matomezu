@@ -4,7 +4,7 @@ import { isLightColor } from "./dom";
 import type { Layout } from "./layout/layout";
 import {
   type Box, type Edge, type World,
-  absPos, ancestors, borderOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  absPos, ancestors, arrowOf, borderOf, dashOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -212,11 +212,47 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const [x1, y1, x2, y2] = edgeEnds(
         { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
         { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h });
-      for (const l of e.lines) {
-        l.setAttribute("x1", String(x1)); l.setAttribute("y1", String(y1));
-        l.setAttribute("x2", String(x2)); l.setAttribute("y2", String(y2));
-      }
+      const arrow = arrowOf(e);
+      const atStart = arrow === "start" || arrow === "both", atEnd = arrow === "end" || arrow === "both";
+      // 見える線は、矢印のある端では矢印の付け根で止める（線の太さで先端が四角く太って見えないように）。
+      // クリックを受ける透明な線は端まで
+      const [line, hit] = e.lines as [SVGLineElement, SVGLineElement];
+      const [sx, sy] = atStart ? toward(x1, y1, x2, y2, ARROW_LEN - 1) : [x1, y1];
+      const [ex, ey] = atEnd ? toward(x2, y2, x1, y1, ARROW_LEN - 1) : [x2, y2];
+      setLine(line, sx, sy, ex, ey);
+      setLine(hit, x1, y1, x2, y2);
+      line.classList.toggle("mz-dashed", dashOf(e) === "dashed");
+      const heads = [];
+      if (atStart) heads.push(arrowHead(x2, y2, x1, y1));
+      if (atEnd) heads.push(arrowHead(x1, y1, x2, y2));
+      e.arrowEl.setAttribute("d", heads.join(""));
     }
+  }
+
+  function setLine(l: SVGLineElement, x1: number, y1: number, x2: number, y2: number) {
+    l.setAttribute("x1", String(x1)); l.setAttribute("y1", String(y1));
+    l.setAttribute("x2", String(x2)); l.setAttribute("y2", String(y2));
+  }
+
+  // (x, y) から (tx, ty) の向きへ d だけ進んだ点（線より長ければ真ん中で止める）
+  function toward(x: number, y: number, tx: number, ty: number, d: number): [number, number] {
+    const len = Math.hypot(tx - x, ty - y);
+    if (len < 1) return [x, y];
+    const k = Math.min(d, len / 2) / len;
+    return [x + (tx - x) * k, y + (ty - y) * k];
+  }
+
+  const ARROW_LEN = 10; // 矢印の長さ
+
+  // (fx, fy) から (tx, ty) へ向かう線の、(tx, ty) の側の矢印の三角（先端が (tx, ty)）。線が短すぎれば描かない
+  function arrowHead(fx: number, fy: number, tx: number, ty: number) {
+    const len = Math.hypot(tx - fx, ty - fy);
+    if (len < 1) return "";
+    const ux = (tx - fx) / len, uy = (ty - fy) / len;
+    const L = ARROW_LEN, W = 6; // 矢印の長さと、軸からの半分の幅（幅は 12px）
+    const bx = tx - ux * L, by = ty - uy * L;
+    const r = (n: number) => Math.round(n * 10) / 10;
+    return `M${r(tx)},${r(ty)}L${r(bx - uy * W)},${r(by + ux * W)}L${r(bx + uy * W)},${r(by - ux * W)}Z`;
   }
 
   function render() {
