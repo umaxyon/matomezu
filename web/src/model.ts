@@ -59,9 +59,15 @@ export interface Edge {
   lines: SVGPolylineElement[]; // [見える線, クリックを受ける透明な線]
   arrowEl: SVGPathElement; // 矢印の三角（始点・終点の両方を 1 つの path に描く）
   points: [number, number][]; // 線の点の並び（ワールドの座標。折れ点を含む。矢印の分は縮めていない）
+  bendEl: SVGLineElement;     // Z 字の中棒をつかむ透明な線（Z 字のときだけ出す）
+  // Z 字の中棒が動ける範囲。axis の向きの座標で、from が始点の箱の辺、to が終点の箱の辺（Z 字でなければ null）
+  span: { axis: "x" | "y"; from: number; to: number } | null;
 }
 
 // 値が既定（isDefault）なら項目ごと消し、そうでなければ書く（既定値は JSON に残さない）
+// Z 字の中棒を、向き合う辺から最低これだけ離す（矢印の長さ + 余白。描くときもドラッグでも使う）
+export const BEND_MARGIN = 12;
+
 export const arrowOf = (e: Edge): Arrow | null => (isArrow(e.src.arrow) ? e.src.arrow : null);
 export const dashOf = (e: Edge): Dash => (e.src.dash === "dashed" ? "dashed" : "solid");
 // 図（ワールド）の線の通り方の既定と、線の実際の通り方（線に無ければ図の既定）

@@ -79,6 +79,8 @@
  *   - arrow は線の矢印: "end"（終点 to の側）/ "start"（始点 from の側）/ "both"。無ければ矢印なし。
  *   - dash は線の模様: "dashed"（破線）。無ければ（"solid"）実線。
  *   - route は線の通り方: "straight"（直線）/ "elbow"（90 度で折れる線）。無ければ world.route（図の既定）、それも無ければ直線。
+ *   - bend は Z 字の中棒の位置（向き合う 2 辺の間の割合。0 が始点の側）。選択モードで中棒をドラッグすると付く。
+ *     無ければ真ん中（線がほかの箱を通るなら、近い空いた位置）。Z 字でなくなった線からは消える。
  *     ページの既定は、ページの箱の world.route。docs/EDGE-plan.md
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
@@ -145,7 +147,7 @@ export interface Graph {
   select(id: Id | null): void;
   selected(): string | null;
   selectEdge(id: Id): void;
-  updateEdge(id: Id, patch: { arrow?: Arrow | null; dash?: Dash | null; route?: Route | null }): void;
+  updateEdge(id: Id, patch: { arrow?: Arrow | null; dash?: Dash | null; route?: Route | null; bend?: number | null }): void;
   removeEdge(id: Id): void;
   info(id: Id | null): NodeInfo;
   update(id: Id | null, patch: Patch): void;
@@ -189,6 +191,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let current: Box | null = null;      // 選択中（null はワールド）
   let currentEdge: Edge | null = null; // 選択中の線（選んでいればボックスは選んでいない）
   const boxOfEl = new WeakMap<Element, Box>();
+  const edgeOfEl = new WeakMap<Element, Edge>(); // Z 字の中棒をつかむ要素から線を引く
 
   const world: World = {
     isWorld: true, id: null, el: worldEl, x: 0, y: 0, w: 0, h: 0, src: {},
@@ -228,6 +231,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     drop: n => { settle(SCENES.drop, n); render(); },
     remove: n => { remove(n.id); },
     boxById: id => byId.get(id),
+    edgeOfEl: el => edgeOfEl.get(el),
+    // 中棒をドラッグしている間、位置を変えて描き直す（手を離したら changed で 1 件の履歴にする）
+    setBend: (e, bend) => {
+      e.src.bend = bend;
+      renderEdges();
+      if (currentEdge === e) notifySelect();
+    },
     paste: (copy, parentId, at, from) => { paste(copy, parentId, at, from); },
     liftOver: (x, y) => opt.onLiftOver?.(x, y),
     liftEnd: () => opt.onLiftEnd?.(),
@@ -273,7 +283,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function edgeInfo(e: Edge): EdgeInfo {
-    return { kind: "edge", id: e.id, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), route: routeOf(e, world) };
+    return {
+      kind: "edge", id: e.id, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), route: routeOf(e, world),
+      bend: typeof e.src.bend === "number" ? e.src.bend : null, zigzag: !!e.span,
+    };
   }
 
   function edgeOf(id: Id) {
@@ -311,14 +324,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     arrowEl.setAttribute("class", "mz-arrow");
     const hit = document.createElementNS(SVGNS, "polyline");
     hit.setAttribute("class", "mz-hit");
-    g.append(line, arrowEl, hit);
+    const bendEl = document.createElementNS(SVGNS, "line");
+    bendEl.setAttribute("class", "mz-bend");
+    g.append(line, arrowEl, hit, bendEl);
     svg.appendChild(g);
-    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [] };
-    hit.addEventListener("click", ev => {
-      if (mode !== "move") return; // 選択モード以外では、線は CSS でもクリックを受けない
-      ev.stopPropagation();
-      selectEdge(e);
-    });
+    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], bendEl, span: null };
+    edgeOfEl.set(bendEl, e);
+    for (const el of [hit, bendEl]) {
+      el.addEventListener("click", ev => {
+        if (mode !== "move") return; // 選択モード以外では、線は CSS でもクリックを受けない
+        ev.stopPropagation();
+        selectEdge(e);
+      });
+    }
     edges.push(e);
     return e;
   }
@@ -332,7 +350,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     notifySelect();
   }
 
-  function updateEdge(e: Edge, patch: { arrow?: Arrow | null; dash?: Dash | null; route?: Route | null }) {
+  function updateEdge(e: Edge, patch: { arrow?: Arrow | null; dash?: Dash | null; route?: Route | null; bend?: number | null }) {
+    if ("bend" in patch) {
+      if (patch.bend != null && !(patch.bend > 0 && patch.bend < 1)) throw new Error(`bend は 0 より大きく 1 より小さい数にしてください: ${patch.bend}`);
+      setOrDelete(e.src, "bend", patch.bend ?? undefined, patch.bend == null);
+    }
     if ("route" in patch) {
       if (patch.route != null && !(ROUTES as readonly string[]).includes(patch.route)) throw new Error(`route の値が不正です: ${patch.route}`);
       // 図の既定と同じなら書かない（既定を変えたとき一緒に変わるように）

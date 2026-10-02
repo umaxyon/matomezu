@@ -142,6 +142,8 @@ export function validate(data: unknown): asserts data is Diagram {
     if (arrow != null && !includes(ARROWS, arrow)) throw new Error(`arrow の値が不正です: ${from} - ${to} (${arrow})`);
     const route = (e as EdgeData).route;
     if (route != null && !includes(ROUTES, route)) throw new Error(`route の値が不正です: ${from} - ${to} (${route})`);
+    const bend = (e as EdgeData).bend;
+    if (bend != null && !(typeof bend === "number" && bend > 0 && bend < 1)) throw new Error(`bend は 0 より大きく 1 より小さい数にしてください: ${from} - ${to} (${bend})`);
     const dash = (e as EdgeData).dash;
     if (dash != null && !includes(DASHES, dash)) throw new Error(`dash の値が不正です: ${from} - ${to} (${dash})`);
     if (parentOf(from) !== parentOf(to)) {

@@ -60,3 +60,33 @@ test("斜めに離れた箱どうしの線を折れ線にすると Z 字にな�
   await side.locator("label", { hasText: "直線" }).click();
   await expect.poll(count).toBe(2);
 });
+
+test("Z 字の中棒をドラッグで動かせ、線を選ぶと真ん中に戻せる", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 120 }],
+    edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
+  });
+  const edge = page.locator(".mz-edge").first();
+  const midX = () => edge.locator(".mz-hit").evaluate(l => Number((l.getAttribute("points") ?? "").trim().split(/\s+/)[1]!.split(",")[0]));
+  const before = await midX();
+  const bar = await edge.locator(".mz-bend").evaluate(l => {
+    const g = l as SVGLineElement;
+    const svg = g.ownerSVGElement!.getBoundingClientRect();
+    const n = (k: string) => Number(g.getAttribute(k));
+    return { x: svg.left + n("x1"), y: svg.top + (n("y1") + n("y2")) / 2 };
+  });
+  expect(await edge.locator(".mz-bend").evaluate(l => getComputedStyle(l).cursor)).toBe("col-resize");
+  await page.mouse.move(bar.x, bar.y);
+  await page.mouse.down();
+  await page.mouse.move(bar.x + 60, bar.y, { steps: 5 });
+  await page.mouse.up();
+  expect(await midX()).toBeCloseTo(before + 60, 0);
+
+  // 線を選ぶと「中棒を真ん中に戻す」が出て、押すと戻る
+  await page.mouse.click(bar.x + 60, bar.y);
+  const reset = page.locator("#sidebar [data-bend-reset]");
+  await expect(reset).toBeVisible();
+  await reset.click();
+  await expect.poll(midX).toBeCloseTo(before, 0);
+  await expect(reset).toHaveCount(0);
+});

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import type { BoxData, BoxInfo, Diagram, Info } from "../web/src/types";
+import type { BoxData, BoxInfo, Diagram, EdgeData, Info } from "../web/src/types";
 import { dragBy, endsOf, fakeMeasure, pointsOf } from "./helpers";
 
 let graph: Graph | null = null;
@@ -126,7 +126,7 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(el.classList.contains("mz-mode-move")).toBe(true); // 開いた直後から、線はクリックを受ける
   graph.select(1);
   el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", route: "straight" });
+  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", route: "straight", bend: null, zigzag: false });
   expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(true);
   expect(graph.selected()).toBeNull(); // ボックスの選択は外れる
 
@@ -1150,6 +1150,81 @@ describe("線のつなぎ方", () => {
     graph.updateEdge("e1", { route: "elbow" });
     expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
     expect(graph.info(null)).toMatchObject({ route: "straight" });
+  });
+
+  test("Z 字の中棒は、真ん中だとほかの箱を通るなら、近い空いた位置へずれる", () => {
+    // 1: 40〜160 × 40〜104、2: 400〜520 × 120〜184（横の Z 字、真ん中は x = 280）。3 は 260〜380 × 60〜124 で真ん中の縦棒にかかる
+    const { el } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }, { id: 3, x: 260, y: 300 }],
+      edges: [{ from: 1, to: 2, route: "elbow" }],
+    });
+    expect(pts(el)[1]![0]).toBe(280);
+    const { el: el2 } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }, { id: 3, x: 260, y: 80, width: 40 }],
+      edges: [{ from: 1, to: 2, route: "elbow" }],
+    });
+    // 3 は 260〜300 × 80〜144。真ん中の 280 から外へ 4 ずつ探し、同じ距離なら右を先に試すので、縁に触れるだけの 300 になる
+    expect(pts(el2)[1]![0]).toBe(300);
+  });
+
+  test("bend があれば中棒はその割合の所。Z 字でなくなると bend は消える", () => {
+    const { el, graph } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", bend: 0.25 }],
+    });
+    // 範囲は 160〜400 なので、0.25 は x = 220
+    expect(pts(el)).toEqual([[160, 72], [220, 72], [220, 152], [400, 152]]);
+    graph.selectEdge("e1");
+    expect(graph.toJSON().edges![0]).toMatchObject({ bend: 0.25 });
+    // 2 が下へ動いて L 字になると（外部の変更で読み直す）、bend は消える
+    graph.load({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 400 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow", bend: 0.25 }] },
+      { keepHistory: true });
+    expect(pts(el).length).toBe(3);
+    expect((graph.toJSON().edges![0] as EdgeData).bend).toBeUndefined();
+  });
+
+  test("選択モードで中棒をドラッグすると bend が付き、手を離すと 1 件の履歴になる。真ん中に戻せる", () => {
+    const { el, graph } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
+    });
+    const handle = el.querySelector(".mz-bend")!;
+    expect((handle as SVGElement).style.display).toBe("");
+    const fire = (type: string, x: number) =>
+      handle.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 100, pointerId: 1 }));
+    const before = graph.history().canUndo;
+    fire("pointerdown", 280);
+    fire("pointermove", 340);
+    fire("pointermove", 370);
+    fire("pointerup", 370);
+    // 範囲 160〜400 の 370 は 0.875
+    expect(graph.toJSON().edges![0]).toMatchObject({ bend: 0.875 });
+    expect(pts(el)[1]![0]).toBe(370);
+    graph.undo();
+    expect((graph.toJSON().edges![0] as EdgeData).bend).toBeUndefined();
+    expect(before).toBe(false);
+    graph.redo();
+    graph.updateEdge("e1", { bend: null });
+    expect((graph.toJSON().edges![0] as EdgeData).bend).toBeUndefined();
+    expect(pts(el)[1]![0]).toBe(280);
+  });
+
+  test("中棒は両端の余白より外へは動かない", () => {
+    const { el } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
+    });
+    const handle = el.querySelector(".mz-bend")!;
+    const fire = (type: string, x: number) =>
+      handle.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 100, pointerId: 1 }));
+    fire("pointerdown", 280);
+    fire("pointermove", 900);
+    fire("pointerup", 900);
+    expect(pts(el)[1]![0]).toBe(388); // 400 - 12
+  });
+
+  test("bend は 0 より大きく 1 より小さい数だけ", () => {
+    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, bend: 1.5 }] })).toThrow("bend は");
   });
 
   test("route は straight / elbow だけ（線と図の既定）", () => {

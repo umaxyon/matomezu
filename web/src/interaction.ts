@@ -3,7 +3,7 @@
 
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
-import { type Box, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
+import { BEND_MARGIN, type Box, type Edge, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 
@@ -40,6 +40,8 @@ export interface InteractionContext {
   remove(n: Box): void;           // 子孫ごと消す
   restore(id: string, parentId: string | null, at: { x: number; y: number }): void; // 消したボックスを戻す
   boxById(id: string): Box | undefined; // 今のページにある箱（無ければ undefined）
+  edgeOfEl(el: Element): Edge | undefined;  // Z 字の中棒をつかむ要素の線
+  setBend(e: Edge, bend: number): void;     // Z 字の中棒の位置を変えて描き直す
   paste(copy: Subtree, parentId: string | null, at: { x: number; y: number }, from?: string): void; // ほかのブックの箱を移植する
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
@@ -64,6 +66,23 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     ghost: HTMLElement | null; target: Box | null | undefined; stop: AbortController;
   } | null = null;
 
+  // Z 字の中棒のドラッグ（選択モード）。moved は実際に動かしたか
+  let bendDrag: { e: Edge; pointerId: number; moved: boolean } | null = null;
+
+  // 中棒のドラッグ中のポインタから、中棒の位置（向き合う辺の間の割合）を求める。両端の余白（BEND_MARGIN）より内側に収める
+  function moveBend(ev: PointerEvent) {
+    const b = bendDrag!;
+    const span = b.e.span;
+    if (!span || span.to === span.from) return;
+    const r = world.el.getBoundingClientRect();
+    const at = span.axis === "x" ? ev.clientX - r.left : ev.clientY - r.top;
+    const len = Math.abs(span.to - span.from);
+    const margin = Math.min(0.5, BEND_MARGIN / len);
+    const ratio = Math.min(1 - margin, Math.max(margin, (at - span.from) / (span.to - span.from)));
+    b.moved = true;
+    ctx.setBend(b.e, Math.round(ratio * 1000) / 1000);
+  }
+
   // ---- ポインタ操作 ----
 
   function boxOf(target: EventTarget | null): Box | null {
@@ -82,6 +101,14 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerDown(e: PointerEvent) {
+    const handle = e.target instanceof Element ? e.target.closest(".mz-bend") : null;
+    const bent = handle && ctx.mode() === "move" ? ctx.edgeOfEl(handle) : undefined;
+    if (bent?.span) {
+      e.stopPropagation();
+      handle!.setPointerCapture(e.pointerId);
+      bendDrag = { e: bent, pointerId: e.pointerId, moved: false };
+      return;
+    }
     const n = boxOf(e.target);
     if (!n) {
       if (!onEdge(e.target)) {
@@ -123,6 +150,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerMove(e: PointerEvent) {
+    if (bendDrag) return moveBend(e);
     if (lift || !drag) return; // 付け替えのドラッグはページ全体で受け取っている
     const { n } = drag;
     if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
@@ -138,6 +166,11 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerUp() {
+    if (bendDrag) {
+      if (bendDrag.moved) ctx.changed();
+      bendDrag = null;
+      return;
+    }
     if (lift || !drag) return;
     const { n, moved, session } = drag;
     n.el.classList.remove("mz-dragging");
@@ -347,10 +380,10 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   document.addEventListener("keydown", onKeyDown, { signal });
 
   return {
-    dragging: () => drag != null || lift != null,
+    dragging: () => drag != null || lift != null || bendDrag != null,
     endLift,
     // 描き直すときに、移動のドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
-    reset() { drag = null; removing = null; if (lift) lift.target = undefined; },
+    reset() { drag = null; bendDrag = null; removing = null; if (lift) lift.target = undefined; },
     unmarkRemove,
     destroy() { lift?.stop.abort(); listening.abort(); },
   };

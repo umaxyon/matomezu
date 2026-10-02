@@ -76,6 +76,10 @@ export const GRAPH_CSS = `
 /* 線を消せるのは線モードだけ。それ以外では線はクリックを受けず、下のボックスや背景に届く */
 /* 線を選べるのは選択モード（"move"）だけ */
 .mz-mode-move .mz-hit { pointer-events: stroke; cursor: pointer; }
+/* Z 字の中棒をつかむ透明な線。横の Z 字（中棒が縦）は左右に、縦の Z 字（中棒が横）は上下に動かす */
+.mz-bend { stroke: transparent; stroke-width: 12; pointer-events: none; }
+.mz-mode-move .mz-bend { pointer-events: stroke; cursor: row-resize; }
+.mz-mode-move .mz-bend.mz-bend-x { cursor: col-resize; }
 .mz-edge.mz-hi .mz-line { stroke: var(--mz-edge-hi); stroke-width: 2.2; }
 .mz-edge.mz-hi .mz-arrow { fill: var(--mz-edge-hi); }
 .mz-edge.mz-dim .mz-line, .mz-edge.mz-dim .mz-arrow { opacity: 0.25; }

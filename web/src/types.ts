@@ -44,6 +44,7 @@ export interface EdgeData {
   arrow?: Arrow; // 矢印（無ければなし）
   dash?: Dash;   // 線の模様（無ければ実線）
   route?: Route; // 線の通り方（無ければ図の既定。図にも無ければ直線）
+  bend?: number; // Z 字の中棒の位置。向き合う 2 辺の間の割合（0 が始点の側、1 が終点の側）。無ければ自動（真ん中か、箱を避けた位置）
   [key: string]: unknown;
 }
 
@@ -119,6 +120,8 @@ export interface EdgeInfo {
   arrow: Arrow | null;
   dash: Dash;
   route: Route;        // 実際の通り方（線に無ければ図の既定）
+  bend: number | null; // Z 字の中棒の位置（ユーザーが動かした割合。動かしていなければ null）
+  zigzag: boolean;     // 今 Z 字で描いているか（中棒がある）
 }
 
 // ボックスかワールドの情報（graph.info が返す）。onSelect には線を選んだときの EdgeInfo も届く
