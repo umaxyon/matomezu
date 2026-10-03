@@ -443,6 +443,20 @@ describe("履歴", () => {
     expect(graph.history()).toEqual({ canUndo: false, canRedo: false });
   });
 
+  test("外部の変更を読み直しても、位置の無い箱は直前まで描いていた位置のまま（LLM が位置を書かずに足しても、見ている配置が動かない）", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "B", x: 20, y: 20 }, { id: 2, caption: "C", x: 20, y: 300 }, { id: 3, caption: "D" }] });
+    const before = [graph.info(3).x, graph.info(3).y];
+    // C は動いた（データに位置がある）。D は位置が無いまま、子 E が足された
+    graph.load({
+      nodes: [{ id: 1, caption: "B", x: 20, y: 20 }, { id: 2, caption: "C", x: 20, y: 150 }, { id: 3, caption: "D" }, { id: 4, caption: "E", parent: 3 }],
+    }, { keepHistory: true });
+    expect([graph.info(3).x, graph.info(3).y]).toEqual(before);
+    // 新しく足した最上位の箱は、空いている所に置く
+    graph.load({ nodes: [...graph.toJSON().nodes, { id: 5, caption: "F" }] }, { keepHistory: true });
+    expect([graph.info(3).x, graph.info(3).y]).toEqual(before);
+    expect(Number.isFinite(graph.info(5).x)).toBe(true);
+  });
+
   test("履歴は100件まで", () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: "0" }] });
     for (let i = 1; i <= 120; i++) graph.update(1, { caption: String(i) });

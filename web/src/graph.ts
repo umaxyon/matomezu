@@ -980,10 +980,29 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 外部（LLM など）の変更の読み直しでは行わない。行うと、ファイルの位置と画面の位置がずれていくため
   function load(newData: unknown, o: { keepHistory?: boolean } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
+    if (o.keepHistory) keepShownPositions(copy);
     build(copy, !o.keepHistory);
     if (!o.keepHistory) touched = false;
     if (o.keepHistory && touched) H.record();
     else H.reset();
+  }
+
+  // 外部の変更を読み直すとき、データに位置（x, y）の無い箱でも、直前まで同じ親の中に描いていた箱なら、その位置を使う。
+  // 位置の無い箱は画面が空いている所に置くが、その位置は保存されないので、読み直すたびに置き直されて動いてしまう
+  // （LLM が位置を書かずに箱を足したとき、見ている配置が変わらないように。2026-10-03 ユーザー）。
+  // 自由に置ける箱（最上位と内包の子）だけ。ツリーの子の位置は自動なので使わない（使うと内包に戻したときの位置になってしまう）
+  function keepShownPositions(data: unknown) {
+    if (!data || typeof data !== "object" || !Array.isArray((data as Diagram).nodes)) return;
+    const shown = new Map(nodes.filter(n => inNest(n)).map(n => [n.id, n]));
+    for (const s of (data as Diagram).nodes) {
+      if (!s || typeof s !== "object" || s.id == null) continue;
+      if (Number.isFinite(s.x) && Number.isFinite(s.y)) continue;
+      const n = shown.get(String(s.id));
+      // ページを描いているときは、ページの箱の子が最上位に並ぶ（描いている親は null だが、データの親はページの箱）
+      if (!n || (n.parent?.id ?? page) !== (s.parent == null ? null : String(s.parent))) continue;
+      s.x = Math.round(n.x);
+      s.y = Math.round(n.y);
+    }
   }
 
   // データを検証して描き直す。fit は読み込み直後のはみ出しの調整をするか
