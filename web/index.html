@@ -192,6 +192,10 @@
   <button id="open">JSONを開く</button>
   <button id="save" class="primary">保存</button>
   <input id="file" type="file" accept="application/json,.json" hidden>
+  <!-- 全体像（ミニマップ）は図の右上に出るので、ボタンもヘッダーの右端に置く -->
+  <button id="minimap-toggle" class="icon-btn" disabled title="全体像（ミニマップ）: 図の右上に全体を出す。四角をドラッグすると見る範囲が動く（図が画面に収まっているときは使えない）" aria-label="全体像" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="7" width="6" height="5" rx="1"/></svg>
+  </button>
 </header>
 <main>
   <aside id="sidebar"></aside>

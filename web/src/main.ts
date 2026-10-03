@@ -5,6 +5,7 @@
 import { startApp } from "./app";
 import { download, readFile } from "./dom";
 import { createGraph } from "./graph";
+import { createMinimap, setupMinimapToggle } from "./minimap";
 import { createPanel, type Panel } from "./panel";
 import { setupHistory, setupModes } from "./toolbar";
 
@@ -49,6 +50,7 @@ async function main() {
   const undoBtn = $<HTMLButtonElement>("undo");
   const redoBtn = $<HTMLButtonElement>("redo");
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
+  setupMinimapToggle($<HTMLButtonElement>("minimap-toggle"));
   if (await served()) {
     document.body.classList.add("served");
     const canvas = stage.parentElement ?? document.body;
@@ -75,6 +77,7 @@ async function main() {
     onNotice: showStatus,
   });
   panel = createPanel($("sidebar"), graph);
+  createMinimap(stage, graph);
   // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
   stage.addEventListener("pointerdown", e => {
     if (e.target instanceof Element && e.target.closest(".mz-head, .mz-hit") && graph.mode() !== "remove") panel?.tab("info");

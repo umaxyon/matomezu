@@ -11,6 +11,7 @@ export interface GeoBox extends Rect {
   cut: boolean;        // キャプションが … で切れている
   view?: "nest" | "tree" | "hidden"; // 子の見せ方（子があるときだけ）
   kids?: number;       // 子の数（非表示の子も数える）
+  color?: string;      // 箱の色（ミニマップで使う）
 }
 
 // 見えている線（ツリーの線は含まない）。points は線の点の並び（折れ線なら折れ点を含む）

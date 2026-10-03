@@ -16,6 +16,7 @@
 
 import { type EventConnection, connectEvents } from "./events";
 import { createGraph, type Graph } from "./graph";
+import { type Minimap, createMinimap } from "./minimap";
 import { type OtherBook, createPanel, type Panel } from "./panel";
 import type { Diagram } from "./types";
 import { docBase, fetchRemote, startSync, type Sync } from "./sync";
@@ -55,6 +56,7 @@ interface Book {
   panel: Panel;
   sync: Sync;
   loaded: boolean;          // 図にデータを読み込んだか（前に出るまで読み込まない）
+  minimap: Minimap;         // 右上の全体像（図の枠ごと。前に出ていない図の分は隠れる）
   data: unknown;            // 読み込む前の最新のデータ（ページのタブと、ほかのブックの一覧に使う。読み込んだら図から取る）
   error: string | null;
 }
@@ -286,6 +288,7 @@ export async function startApp(ui: AppUi) {
     if (i < 0) return;
     books.splice(i, 1);
     b.sync.close();
+    b.minimap.destroy();
     b.panel.destroy();
     b.graph.destroy();
     b.stage.remove();
@@ -353,6 +356,7 @@ export async function startApp(ui: AppUi) {
       const b: Book = {
         id, name: remote.name, color, group, tabs: [], stage, side, graph, panel,
         sync: null as unknown as Sync, loaded: false, data: remote.data, error: null,
+        minimap: createMinimap(stage, graph),
       };
       b.sync = startSync(graph, base, remote, {
         status: text => { if (current?.book === b) ui.status(text); },

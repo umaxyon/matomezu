@@ -1103,7 +1103,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         const [x, y] = absPos(n);
         return {
           id: n.id, caption: captionOf(n), ancestors: ancestors(n).map(p => p.id),
-          x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n),
+          x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n), color: n.src.color || opt.color,
           ...(n.children.length ? { view: viewOf(n), kids: n.children.length } : {}),
         };
       });
