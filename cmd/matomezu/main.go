@@ -30,6 +30,7 @@ const usageText = `usage:
   matomezu check [-page id] <file.json>      print a summary of how the open browser laid it out (the first page, or the page of box id)
   matomezu set [-page id] <file.json> <id.key=value>... change fields of boxes or edges (an edge id such as e3; "world" for the diagram), then print the summary
                                              an empty value removes the field, e.g. 12.x=; JSON values are allowed, e.g. e3.via=[280,140,400]
+  matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu stop                              stop the background server
   matomezu version
 `
@@ -50,6 +51,8 @@ func main() {
 		err = check(args)
 	case "set":
 		err = set(args)
+	case "validate":
+		err = validateCmd(args)
 	case "stop":
 		err = stop()
 	case "daemon":

@@ -24,6 +24,7 @@ import (
 
 	"github.com/umaxyon/matomezu/internal/daemon"
 	"github.com/umaxyon/matomezu/internal/server"
+	"github.com/umaxyon/matomezu/internal/validate"
 )
 
 // 画面が新しい版を配置し終えるのを待つ時間
@@ -39,12 +40,48 @@ func check(args []string) error {
 		fs.Usage()
 		os.Exit(2)
 	}
+	if err := checkData(fs.Arg(0)); err != nil {
+		return err
+	}
 	summary, err := waitLayout(fs.Arg(0), *page)
 	if err != nil {
 		return err
 	}
 	fmt.Println(summary)
 	return nil
+}
+
+// validateCmd は図のデータの誤りを 1 行ずつ出す。無ければ ok
+func validateCmd(args []string) error {
+	fs := newFlags("validate")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		fs.Usage()
+		os.Exit(2)
+	}
+	if err := checkData(fs.Arg(0)); err != nil {
+		return err
+	}
+	fmt.Println("ok")
+	return nil
+}
+
+// checkData は、ファイルに誤りがあれば全部を並べたエラーを返す（画面は誤りのあるファイルを配置しないので、配置の要約を待っても来ない）
+func checkData(path string) error {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	list, err := validate.Problems(b)
+	if err != nil {
+		return err
+	}
+	if len(list) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%d problem(s) in %s:\n  %s", len(list), path, strings.Join(list, "\n  "))
 }
 
 func set(args []string) error {
@@ -68,6 +105,9 @@ func set(args []string) error {
 	}
 	if err := writeFile(path, out); err != nil {
 		return err
+	}
+	if err := checkData(path); err != nil {
+		return fmt.Errorf("written, but %w", err)
 	}
 	summary, err := waitLayout(path, *page)
 	if err != nil {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { assignIds, validate } from "../web/src/validate";
+import { assignIds, problems, validate } from "../web/src/validate";
 
 describe("validate", () => {
   test("正しいデータは通る", () => {
@@ -44,4 +44,29 @@ test("world の background は文字列", () => {
 test("treeDirection の値を検証する", () => {
   expect(() => validate({ nodes: [{ id: 1, treeDirection: "left" }] })).not.toThrow();
   expect(() => validate({ nodes: [{ id: 1, treeDirection: "diagonal" }] })).toThrow("treeDirection の値が不正です");
+});
+
+test("problems は誤りを全部挙げる（validate は最初の 1 つで止める）", () => {
+  const data = {
+    nodes: [{ id: 1, size: "XL" }, { id: 2, parent: 9 }, { id: 1 }],
+    edges: [{ from: 1, to: 3 }, { from: 1, to: 2, exitAt: 2 }],
+  };
+  expect(problems(data)).toEqual([
+    "size の値が不正です: 1 (XL)",
+    "id が重複しています: 1",
+    "存在しない親です: 2 → 9",
+    "存在しないノードへの線があります: 1 - 3",
+    "exitAt は 0 から 1 の数にしてください: 1 - 2 (2)",
+    "階層の違うボックス同士の線があります: 1 - 2",
+  ]);
+  expect(() => validate(data)).toThrow("size の値が不正です: 1 (XL)");
+  expect(problems({ nodes: [{ id: 1 }] })).toEqual([]);
+});
+
+test("problems は親子の循環があっても止まる", () => {
+  expect(problems({ nodes: [{ id: 1, parent: 2, page: true }, { id: 2, parent: 1, page: true }] }))
+    .toEqual([
+      "親子関係が循環しています: 1", "親子関係が循環しています: 2",
+      "ページの中の箱はページにできません: 1（2 のページの中）", "ページの中の箱はページにできません: 2（1 のページの中）",
+    ]);
 });

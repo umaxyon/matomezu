@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestApplySets(t *testing.T) {
 	in := `{"world":{"width":800},"nodes":[{"id":1,"caption":"A","x":10},{"id":2,"caption":"B","parent":1}],"edges":[],"extra":1}`
@@ -85,5 +90,19 @@ func TestApplySetsEdges(t *testing.T) {
 	}
 	if _, err := applySets([]byte(in), []string{"e9.arrow=end"}); err == nil {
 		t.Error("unknown edge: expected an error")
+	}
+}
+
+func TestCheckDataListsAllProblems(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.json")
+	os.WriteFile(path, []byte(`{"nodes":[{"id":1,"size":"XL"},{"id":2,"parent":9}]}`), 0o644)
+	err := checkData(path)
+	if err == nil || !strings.Contains(err.Error(), "2 problem(s)") ||
+		!strings.Contains(err.Error(), "size の値が不正です: 1 (XL)") || !strings.Contains(err.Error(), "存在しない親です: 2 → 9") {
+		t.Fatalf("err = %v", err)
+	}
+	os.WriteFile(path, []byte(`{"nodes":[{"id":1}]}`), 0o644)
+	if err := checkData(path); err != nil {
+		t.Fatalf("ok file: %v", err)
 	}
 }

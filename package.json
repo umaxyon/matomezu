@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser",
+    "build": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser && bun build web/src/validate-cli.ts --outfile web/dist/validate.js --target browser",
     "dev": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser --watch",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
