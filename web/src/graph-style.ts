@@ -80,7 +80,7 @@ export const GRAPH_CSS = `
 .mz-bend { stroke: transparent; stroke-width: 12; pointer-events: none; }
 .mz-mode-move .mz-bend { pointer-events: stroke; cursor: row-resize; }
 .mz-mode-move .mz-bend.mz-bend-x { cursor: col-resize; }
-/* 直線の両端をつかむ丸。選択モードで線を選んでいるときだけ出す */
+/* 線の両端をつかむ丸。選択モードで線を選んでいるときだけ出す */
 .mz-end { display: none; fill: var(--mz-select); stroke: #fff; stroke-width: 1.5; pointer-events: none; }
 .mz-mode-move .mz-edge.mz-selected .mz-end { display: inline; pointer-events: all; cursor: move; }
 .mz-edge.mz-hi .mz-line { stroke: var(--mz-edge-hi); stroke-width: 2.2; }

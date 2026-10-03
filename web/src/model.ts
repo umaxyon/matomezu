@@ -2,7 +2,7 @@
 
 import { truncate } from "./dom";
 import type { Arrangement, Arrow, Axis, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
-import type { Facing, RouteShape, Segment } from "./routing";
+import type { EndPaths, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
@@ -64,8 +64,8 @@ export interface Edge {
   shape: RouteShape | null;   // 折れ線の形（描いたときのもの。直線などは null）
   segments: Segment[];        // ドラッグで動かせる途中の区間（描いたときのもの）
   arrangement: Arrangement;   // 2 つの箱の並び（描いたときのもの）
-  facing: Facing | null;  // 直線のとき、始点から見た相手の向き（描いたときのもの。変わったら端の位置を自動に戻す）
-  endsEl: SVGGElement;        // 直線の両端をつかむ丸（線を選んでいるときだけ出す）
+  ends: EndPaths | null;  // 両端の位置をずらせるとき、その基準（描いたときのもの。基準が変わったら端の位置を自動に戻す）
+  endsEl: SVGGElement;        // 線の両端をつかむ丸（線を選んでいるときだけ出す）
 }
 
 // 値が既定（isDefault）なら項目ごと消し、そうでなければ書く（既定値は JSON に残さない）

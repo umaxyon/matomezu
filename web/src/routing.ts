@@ -4,6 +4,7 @@
 //   via の 1 つ目は、出た区間と交わる向きの区間の位置（exit が横なら縦の区間の x 座標、2 つ目は横の区間の y 座標、…）。
 //   exit と enter が同じ向きなら via は奇数個、違えば偶数個（0 個が L 字）。出る辺（左か右か）は via の位置から決まる。
 // 自動の道筋（Z 字・L 字・コの字）も、この形を作ってから点の並びにする。手で直した via は、引けるあいだはそのまま使う
+// 両端の位置（exitAt / enterAt）は、直線でも折れ線でも、出入りする辺の上の割合（0〜1）。無ければ自動（折れ線は辺の真ん中）
 
 import type { Arrangement, Axis } from "./types";
 
@@ -26,14 +27,21 @@ export interface RouteInput {
   bend: number | null;    // 以前の持ち方（Z 字の中棒の割合）。via に移し替える
   obstacles: Rect[];      // 線が通ってほしくない箱（同じ親のほかの箱）
   margin: number;         // 途中の区間を、両端の箱の辺から最低これだけ離す（BEND_MARGIN）
-  exitAt?: number | null;  // 直線の始点の位置（相手に向いた側の辺の上の割合。null は自動。borderPath）
+  exitAt?: number | null;  // 始点の位置（出る辺の上の割合。null は自動。直線は borderPath、折れ線は sidePath）
   enterAt?: number | null; // 終点の位置
-  prevFacing?: Facing | null; // 前に描いたときの相手の向き（変わったら端の位置を自動に戻す）
+  prevFrame?: string | null; // 前に描いたときの端の位置の基準（EndPaths の frame。変わったら端の位置を自動に戻す）
 }
 
 // 直線でつなぐ相手のいる向き（始点から見て）。斜めなら "ne" は右上、"se" は右下、"sw" は左下、"nw" は左上。
 // 横か縦に並ぶなら "e" は右、"s" は下、"w" は左、"n" は上
 export type Facing = "ne" | "se" | "sw" | "nw" | "e" | "s" | "w" | "n";
+
+// 両端の位置をずらせるとき、その基準。exit / enter は端が動ける道（割合 0〜1 で測る）。
+// frame は基準の名前（直線は相手の向き Facing、折れ線は "elbow:" と出る辺・入る辺。例 "elbow:rt"）。変わったら端の位置を自動に戻す
+export interface EndPaths { frame: string; exit: Pt[]; enter: Pt[] }
+
+// 箱の辺。"t" は上、"r" は右、"b" は下、"l" は左
+export type Side = "t" | "r" | "b" | "l";
 
 // データに書き戻すこと（描画の側ではデータを書き換えない。graph が受け取って直す）
 export interface RouteFix {
@@ -41,7 +49,7 @@ export interface RouteFix {
   clearVia?: boolean;        // 手で直した via を消す（もう引けない、直線になった）
   clearBend?: boolean;       // 以前の bend を消す
   migrate?: RouteShape;           // 以前の bend を、この形として書き込む（bend は消す）
-  clearAt?: boolean;         // 直線の端の位置（exitAt / enterAt）を消す（直線でなくなった、重なった、相手の向きが変わった）
+  clearAt?: boolean;         // 端の位置（exitAt / enterAt）を消す（箱が重なった、端の位置の基準が変わった）
 }
 
 export interface Route {
@@ -49,7 +57,7 @@ export interface Route {
   arrangement: Arrangement;
   shape: RouteShape | null;  // 折れ線の形（直線や、まっすぐに並ぶ箱どうしなら null）
   segments: Segment[];  // ドラッグで動かせる途中の区間
-  facing: Facing | null; // 直線のとき、相手のいる向き（端の位置をずらせる）。折れ線や、重なった箱どうしなら null
+  ends: EndPaths | null; // 両端の位置をずらせるとき、その基準（重なった箱どうしなら null）
   fix: RouteFix;
 }
 
@@ -89,20 +97,21 @@ export function passes(pts: Pt[], r: Rect) {
 
 // 形（exit / enter / via）から点の並びを作る。引けない（出る区間が始点の箱の中へ向かう、入る区間が終点の箱の中から来る、
 // 線が両端の箱の中を通る、via の数が向きと合わない）なら null
-export function shapePoints(a: Rect, b: Rect, s: RouteShape): Pt[] | null {
+export function shapePoints(a: Rect, b: Rect, s: RouteShape, at: EndsAt = NO_AT): Pt[] | null {
   const { exit, enter, via } = s;
   if ((exit === enter) !== (via.length % 2 === 1)) return null;
-  const [acx, acy] = center(a), [bcx, bcy] = center(b);
+  // 出る辺・入る辺の上の位置（出る向きが横なら y、縦なら x）
+  const as = endCoord(a, exit, at.exitAt), bs = endCoord(b, enter, at.enterAt);
   // 出る辺: 最初に向かう位置が、始点の箱のどちら側にあるか
-  const first = via.length ? via[0]! : exit === "horizontal" ? bcx : bcy;
+  const first = via.length ? via[0]! : bs;
   let c: Pt;
   if (exit === "horizontal") {
-    if (first >= a.x + a.w) c = [a.x + a.w, acy];
-    else if (first <= a.x) c = [a.x, acy];
+    if (first >= a.x + a.w) c = [a.x + a.w, as];
+    else if (first <= a.x) c = [a.x, as];
     else return null;
   } else {
-    if (first >= a.y + a.h) c = [acx, a.y + a.h];
-    else if (first <= a.y) c = [acx, a.y];
+    if (first >= a.y + a.h) c = [as, a.y + a.h];
+    else if (first <= a.y) c = [as, a.y];
     else return null;
   }
   const pts: Pt[] = [c];
@@ -114,16 +123,16 @@ export function shapePoints(a: Rect, b: Rect, s: RouteShape): Pt[] | null {
   }
   // 入る辺: 終点の箱の手前まで来て、enter の向きで入る
   if (enter === "horizontal") {
-    c = [c[0], bcy];
+    c = [c[0], bs];
     pts.push(c);
-    if (c[0] <= b.x) pts.push([b.x, bcy]);
-    else if (c[0] >= b.x + b.w) pts.push([b.x + b.w, bcy]);
+    if (c[0] <= b.x) pts.push([b.x, bs]);
+    else if (c[0] >= b.x + b.w) pts.push([b.x + b.w, bs]);
     else return null;
   } else {
-    c = [bcx, c[1]];
+    c = [bs, c[1]];
     pts.push(c);
-    if (c[1] <= b.y) pts.push([bcx, b.y]);
-    else if (c[1] >= b.y + b.h) pts.push([bcx, b.y + b.h]);
+    if (c[1] <= b.y) pts.push([bs, b.y]);
+    else if (c[1] >= b.y + b.h) pts.push([bs, b.y + b.h]);
     else return null;
   }
   const out = pts.filter((p, i) => i === 0 || p[0] !== pts[i - 1]![0] || p[1] !== pts[i - 1]![1]);
@@ -150,23 +159,16 @@ export function segmentsOf(a: Rect, b: Rect, s: RouteShape, margin: number): Seg
 }
 
 // 長さ 0 になった途中の区間の折れ目をまとめる（S 字の真ん中の区間が 0 なら Z 字に戻る）。区間の向きの数は変わらない
-export function simplifyVia(a: Rect, b: Rect, s: RouteShape): number[] {
-  const [acx, acy] = center(a), [bcx, bcy] = center(b);
+export function simplifyVia(a: Rect, b: Rect, s: RouteShape, at: EndsAt = NO_AT): number[] {
   const via = [...s.via];
-  // i 番目の区間は、前の位置から次の位置までのびる。前は 1 つ前の値（無ければ始点の中心）、次は 1 つ後の値（無ければ終点の中心）
-  const startOf = (i: number) => {
-    const xAxis = (i % 2 === 0) === (s.exit === "horizontal"); // この区間は x の位置（縦の区間）
-    return xAxis ? acy : acx;
-  };
-  const endOf = (i: number) => {
-    const xAxis = (i % 2 === 0) === (s.exit === "horizontal");
-    return xAxis ? bcy : bcx;
-  };
+  // i 番目の区間は、前の位置から次の位置までのびる。前は 1 つ前の値（無ければ始点の出る位置）、次は 1 つ後の値（無ければ終点の入る位置）
+  const startOf = () => endCoord(a, s.exit, at.exitAt);
+  const endOf = () => endCoord(b, s.enter, at.enterAt);
   for (let changed = true; changed && via.length > 1;) {
     changed = false;
     for (let i = 0; i < via.length; i++) {
-      const prev = i > 0 ? via[i - 1]! : startOf(i);
-      const next = i < via.length - 1 ? via[i + 1]! : endOf(i);
+      const prev = i > 0 ? via[i - 1]! : startOf();
+      const next = i < via.length - 1 ? via[i + 1]! : endOf();
       if (Math.abs(prev - next) > 0.5) continue;
       via.splice(i + 1 < via.length ? i : i - 1, 2);
       changed = true;
@@ -176,42 +178,44 @@ export function simplifyVia(a: Rect, b: Rect, s: RouteShape): number[] {
   return via;
 }
 
-// 線の道筋を決める
+// 線の道筋を決める。端の位置（exitAt / enterAt）は、基準（EndPaths の frame）が前に描いたときと変わったら使わずに自動に戻す
 export function route(r: RouteInput): Route {
+  const hasAt = r.exitAt != null || r.enterAt != null;
+  const first = routeWith(r, { exitAt: r.exitAt ?? null, enterAt: r.enterAt ?? null });
+  if (!hasAt || first.fix.clearAt || !r.prevFrame || !first.ends || first.ends.frame === r.prevFrame) return first;
+  const auto = routeWith(r, NO_AT);
+  auto.fix.clearAt = true;
+  return auto;
+}
+
+function routeWith(r: RouteInput, at: EndsAt): Route {
   const { a, b } = r;
   const arrangement = arrangementOf(a, b);
   const fix: RouteFix = {};
   const [acx, acy] = center(a), [bcx, bcy] = center(b);
-  const hasAt = r.exitAt != null || r.enterAt != null;
-  const plain = (points: Pt[], facing: Facing | null = null): Route => {
+  const hasAt = at.exitAt != null || at.enterAt != null;
+  const plain = (points: Pt[], ends: EndPaths | null): Route => {
     if (r.via) fix.clearVia = true;
     if (r.bend != null) fix.clearBend = true;
-    if (hasAt && !facing) fix.clearAt = true;
-    return { points, arrangement, shape: null, segments: [], facing, fix };
+    if (hasAt && !ends) fix.clearAt = true;
+    return { points, arrangement, shape: null, segments: [], ends, fix };
   };
-  const drawn = (shape: RouteShape, points: Pt[]): Route => {
-    if (hasAt) fix.clearAt = true;
-    return { points, arrangement, shape, segments: segmentsOf(a, b, shape, r.margin), facing: null, fix };
-  };
+  const drawn = (shape: RouteShape, points: Pt[]): Route =>
+    ({ points, arrangement, shape, segments: segmentsOf(a, b, shape, r.margin), ends: elbowEnds(a, b, shape.exit, shape.enter, points), fix });
 
   if (arrangement === "overlap") {
-    return plain([clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy), clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy)]);
+    return plain([clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy), clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy)], null);
   }
   if (!r.elbow) {
-    // 直線。端の位置があれば、相手に向いた側の辺の上のその位置から（相手の向きが前と変わったら、自動に戻す）。
+    // 直線。端の位置があれば、相手に向いた側の辺の上のその位置から。
     // 無ければ、斜めなら中心どうしを結ぶ線、横か縦に並ぶなら重なる範囲の真ん中をまっすぐ
-    const facing = facingOf(a, b);
-    let { exitAt, enterAt } = r;
-    if (hasAt && r.prevFacing && r.prevFacing !== facing) {
-      fix.clearAt = true;
-      exitAt = enterAt = null;
-    }
     const [p0, q0] = arrangement === "diagonal"
       ? [clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy), clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy)]
       : alignedPoints(a, b, arrangement) as [Pt, Pt];
-    const p = exitAt != null ? pointAt(borderPath(a, b), exitAt) : p0;
-    const q = enterAt != null ? pointAt(borderPath(b, a), enterAt) : q0;
-    return plain([p, q], facing);
+    const ends = { frame: facingOf(a, b), exit: borderPath(a, b), enter: borderPath(b, a) };
+    const p = at.exitAt != null ? pointAt(ends.exit, at.exitAt) : p0;
+    const q = at.enterAt != null ? pointAt(ends.enter, at.enterAt) : q0;
+    return plain([p, q], ends);
   }
 
   // 横か縦に並ぶ箱どうしで、指定した両端の向きがそろわなくなったら（箱を動かした）、指定を両方とも自動に戻す
@@ -225,7 +229,7 @@ export function route(r: RouteInput): Route {
   if (r.via) {
     if (exit && enter) {
       const shape = { exit, enter, via: r.via };
-      const pts = shapePoints(a, b, shape);
+      const pts = shapePoints(a, b, shape, at);
       if (pts) return drawn(shape, pts);
     }
     fix.clearVia = true;
@@ -237,19 +241,26 @@ export function route(r: RouteInput): Route {
     const across: Axis = arrangement === "side" ? "vertical" : "horizontal"; // 並びと交わる向き。これに固定すると外を回るコの字
     if ((exit ?? enter) === across) {
       const shape = loopShape(a, b, arrangement);
-      return drawn(shape, shapePoints(a, b, shape) ?? alignedPoints(a, b, arrangement));
+      return drawn(shape, shapePoints(a, b, shape, at) ?? alignedPoints(a, b, arrangement));
     }
     if (r.bend != null) fix.clearBend = true;
-    if (hasAt) fix.clearAt = true;
-    return { points: alignedPoints(a, b, arrangement), arrangement, shape: null, segments: [], facing: null, fix };
+    const along = flip(across);
+    if (hasAt) {
+      // 端をずらしたら、向き合う辺の間の真ん中で折る Z 字（両端の高さがそろえば、まっすぐと同じ）
+      const shape: RouteShape = { exit: along, enter: along, via: [zMiddle(a, b, along)] };
+      const pts = shapePoints(a, b, shape, at);
+      if (pts) return drawn(shape, pts);
+    }
+    const pts = alignedPoints(a, b, arrangement);
+    return { points: pts, arrangement, shape: null, segments: [], ends: elbowEnds(a, b, along, along, pts), fix };
   }
 
-  const shape = elbowShape(a, b, exit, enter, r.bend, r.obstacles, r.margin);
+  const shape = elbowShape(a, b, exit, enter, r.bend, r.obstacles, r.margin, at);
   if (r.bend != null) {
     if (shape.via.length === 1) fix.migrate = shape;
     else fix.clearBend = true;
   }
-  return drawn(shape, shapePoints(a, b, shape) ?? [[acx, acy], [bcx, bcy]]);
+  return drawn(shape, shapePoints(a, b, shape, at) ?? [[acx, acy], [bcx, bcy]]);
 }
 
 // 横（縦）に並ぶ箱どうしをまっすぐ結ぶ。重なる範囲の真ん中で水平（垂直）に
@@ -281,7 +292,9 @@ function loopShape(a: Rect, b: Rect, arr: "side" | "stack"): RouteShape {
 // - 自動のある端は、もう一方に合う形から、箱と箱の間の隙間（横 gx、縦 gy）で選ぶ: 片方の隙間がもう片方の 1/3
 //   （ELBOW_Z_RATIO）より小さければ Z 字、それ以外は L 字（両方自動なら、隙間の大きい向きに先に出る）
 // Z 字の中棒は、bend（以前の持ち方）があればその割合、無ければ真ん中か、ほかの箱を避けた位置
-function elbowShape(a: Rect, b: Rect, exit: Axis | null, enter: Axis | null, bend: number | null, obstacles: Rect[], margin: number): RouteShape {
+function elbowShape(
+  a: Rect, b: Rect, exit: Axis | null, enter: Axis | null, bend: number | null, obstacles: Rect[], margin: number, at: EndsAt,
+): RouteShape {
   const [acx, acy] = center(a), [bcx, bcy] = center(b);
   // 向き合う辺（a の出る辺と b の入る辺）の位置
   const ax = bcx > acx ? a.x + a.w : a.x, bx = bcx > acx ? b.x : b.x + b.w;
@@ -290,7 +303,7 @@ function elbowShape(a: Rect, b: Rect, exit: Axis | null, enter: Axis | null, ben
   const z = (axis: Axis): RouteShape => {
     const [from, to] = axis === "horizontal" ? [ax, bx] : [ay, by];
     const make = (m: number): RouteShape => ({ exit: axis, enter: axis, via: [m] });
-    return make(bendAt(from, to, bend, m => shapePoints(a, b, make(m)), obstacles, margin));
+    return make(bendAt(from, to, bend, m => shapePoints(a, b, make(m), at), obstacles, margin));
   };
   const l = (first: Axis): RouteShape => ({ exit: first, enter: flip(first), via: [] });
   const nearlySide = gy < gx * ELBOW_Z_RATIO, nearlyStack = gx < gy * ELBOW_Z_RATIO;
@@ -382,4 +395,37 @@ export function nearestAt(path: Pt[], x: number, y: number): number {
     before += len;
   });
   return best;
+}
+
+// ---- 折れ線の端の位置（docs/EDGE-plan.md の段階 4） ----
+
+export interface EndsAt { exitAt: number | null; enterAt: number | null }
+const NO_AT: EndsAt = { exitAt: null, enterAt: null };
+
+// 箱 r から axis の向きに出入りするときの、辺の上の位置（横なら y、縦なら x）。at があれば辺の上の割合、無ければ真ん中
+function endCoord(r: Rect, axis: Axis, at: number | null): number {
+  return axis === "horizontal" ? r.y + r.h * (at ?? 0.5) : r.x + r.w * (at ?? 0.5);
+}
+
+// 辺を角から角までたどる道。左右の辺は上から下、上下の辺は左から右（割合 0 が上か左の角）
+export function sidePath(r: Rect, side: Side): Pt[] {
+  const tl: Pt = [r.x, r.y], tr: Pt = [r.x + r.w, r.y], br: Pt = [r.x + r.w, r.y + r.h], bl: Pt = [r.x, r.y + r.h];
+  return side === "t" ? [tl, tr] : side === "r" ? [tr, br] : side === "b" ? [bl, br] : [tl, bl];
+}
+
+// 点 p が、箱 r の axis の向きに出入りする辺のどちらにあるか（角にあっても向きで決まる）
+function sideAt(r: Rect, axis: Axis, p: Pt): Side {
+  return axis === "horizontal" ? (p[0] >= r.x + r.w ? "r" : "l") : (p[1] >= r.y + r.h ? "b" : "t");
+}
+
+// 折れ線の両端の基準: 出る辺・入る辺と、その辺の道
+function elbowEnds(a: Rect, b: Rect, exit: Axis, enter: Axis, pts: Pt[]): EndPaths {
+  const s = sideAt(a, exit, pts[0]!), t = sideAt(b, enter, pts[pts.length - 1]!);
+  return { frame: `elbow:${s}${t}`, exit: sidePath(a, s), enter: sidePath(b, t) };
+}
+
+// 横（縦）に並ぶ箱どうしの、向き合う辺の間の真ん中
+function zMiddle(a: Rect, b: Rect, along: Axis): number {
+  if (along === "horizontal") return a.x < b.x ? (a.x + a.w + b.x) / 2 : (b.x + b.w + a.x) / 2;
+  return a.y < b.y ? (a.y + a.h + b.y) / 2 : (b.y + b.h + a.y) / 2;
 }

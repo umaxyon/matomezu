@@ -43,7 +43,7 @@ export interface InteractionContext {
   edgeOfEl(el: Element): Edge | undefined;  // 途中の区間をつかむ要素の線
   setVia(e: Edge, index: number, at: number): void; // 途中の区間 index を座標 at へ動かして描き直す
   endVia(e: Edge): void;                    // 途中の区間のドラッグを終えた（折れ目をまとめて履歴に残す）
-  setAt(e: Edge, end: "exit" | "enter", x: number, y: number): void; // 直線の端を、ポインタに近い辺の上の位置へ動かす
+  setAt(e: Edge, end: "exit" | "enter", x: number, y: number): void; // 線の端を、ポインタに近い辺の上の位置へ動かす
   paste(copy: Subtree, parentId: string | null, at: { x: number; y: number }, from?: string): void; // ほかのブックの箱を移植する
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
@@ -70,7 +70,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   // 折れ線の途中の区間のドラッグ（選択モード）。index は区間の番号（via の何番目か）、moved は実際に動かしたか
   let bendDrag: { e: Edge; index: number; pointerId: number; moved: boolean } | null = null;
-  // 直線の端のドラッグ（選択モードで線を選んでいるとき）
+  // 線の端のドラッグ（選択モードで線を選んでいるとき）
   let endDrag: { e: Edge; end: "exit" | "enter"; moved: boolean } | null = null;
 
   // ドラッグ中のポインタの位置（ワールドの座標）へ、区間を動かす。動ける範囲は graph の側で収める
@@ -103,7 +103,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   function onPointerDown(e: PointerEvent) {
     const endEl = e.target instanceof Element ? e.target.closest<SVGElement>(".mz-end") : null;
     const endEdge = endEl && ctx.mode() === "move" ? ctx.edgeOfEl(endEl) : undefined;
-    if (endEdge?.facing) {
+    if (endEdge?.ends) {
       e.stopPropagation();
       endEl!.setPointerCapture(e.pointerId);
       endDrag = { e: endEdge, end: endEl!.dataset.end === "enter" ? "enter" : "exit", moved: false };

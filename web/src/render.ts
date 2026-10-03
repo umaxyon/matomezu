@@ -208,20 +208,20 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         obstacles, margin: BEND_MARGIN,
         exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
         enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
-        prevFacing: e.facing,
+        prevFrame: e.ends?.frame ?? null,
       });
       const pts = r.points;
       e.points = pts;
       e.shape = r.shape;
       e.segments = r.segments;
       e.arrangement = r.arrangement;
-      e.facing = r.facing;
+      e.ends = r.ends;
       // データに書き戻すこと（向きの指定や via を消す、以前の bend を移す）は graph に任せる
       if (Object.keys(r.fix).length) ctx.fixEdge(e, r.fix);
       renderHandles(e);
-      // 直線の両端をつかむ丸（線を選んでいるときだけ CSS で出す）
-      e.endsEl.style.display = r.facing ? "" : "none";
-      if (r.facing) {
+      // 線の両端をつかむ丸（線を選んでいるときだけ CSS で出す）
+      e.endsEl.style.display = r.ends ? "" : "none";
+      if (r.ends) {
         const [s, t] = [pts[0]!, pts[pts.length - 1]!];
         const [c1, c2] = e.endsEl.children as unknown as SVGCircleElement[];
         c1!.setAttribute("cx", String(s[0])); c1!.setAttribute("cy", String(s[1]));

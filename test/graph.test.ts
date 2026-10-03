@@ -1374,6 +1374,22 @@ describe("線のつなぎ方", () => {
     expect(pts(el)).toEqual([[160, 56], [400, 72]]);
   });
 
+  test("折れ線の端も、選んだ線の丸をドラッグすると出る辺に沿って動く", () => {
+    // 1: 40〜160 × 40〜104、2: 400〜520 × 300〜364（右下）。自動は L 字で、1 の右の辺の真ん中から出る
+    const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)[0]).toEqual([160, 72]);
+    expect((el.querySelector(".mz-ends") as SVGElement).style.display).toBe("");
+    graph.selectEdge("e1");
+    const end = el.querySelectorAll<SVGElement>(".mz-end")[0]!;
+    const fire = (type: string, x: number, y: number) =>
+      end.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    fire("pointerdown", 160, 72);
+    fire("pointermove", 170, 56); // 右の辺の上から 1/4
+    fire("pointerup", 170, 56);
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", exitAt: 0.25 });
+    expect(pts(el)).toEqual([[160, 56], [460, 56], [460, 300]]);
+  });
+
   test("exitAt / enterAt は 0 から 1 の数だけ", () => {
     expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, exitAt: 1.5 }] })).toThrow("exitAt は 0 から 1 の数");
   });

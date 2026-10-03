@@ -82,8 +82,9 @@
  *   - exit / enter は折れ線の向きの指定: 始点から出る向き・終点に入る向き。"horizontal"（左右の辺）/ "vertical"（上下の辺）。無ければ自動。
  *     横か縦に並ぶ箱どうしは、両端の向きがそろうときだけ素直に引ける（横に並ぶなら、左右ならまっすぐ、上下ならコの字）。
  *     そろわない指定は斜めのときだけ効き、箱を動かして横か縦に並んだら、指定を両方とも消して自動に戻す。直線には効かない
- *   - exitAt / enterAt は直線の両端の位置（相手に向いた側の辺を角から角までたどった割合 0〜1。横か縦に並ぶなら向いた 1 辺。routing.ts の borderPath）。
- *     選択モードで線を選ぶと両端に丸が出て、ドラッグで辺に沿って動かせる。相手の向きが変わるか、折れ線にするか、箱が重なったら消えて自動に戻る
+ *   - exitAt / enterAt は線の両端の位置（割合 0〜1）。直線は相手に向いた側の辺を角から角までたどった割合（横か縦に並ぶなら向いた 1 辺。routing.ts の borderPath）、
+ *     折れ線は出入りする辺の上の割合（左右の辺は上から、上下の辺は左から。routing.ts の sidePath）。
+ *     選択モードで線を選ぶと両端に丸が出て、ドラッグで辺に沿って動かせる。基準（直線は相手の向き、折れ線は出入りする辺）が変わるか、箱が重なったら消えて自動に戻る
  *   - via は手で直した折れ線の途中の区間の位置の並び（docs/ROUTE-plan.md、routing.ts）。選択モードで途中の区間をドラッグすると、
  *     そのときの形（exit / enter / via）を書き込む。引けるあいだはその形を保ち、引けなくなったら via と向きの指定を消して自動に戻す。
  *     無ければ自動（Z 字の中棒は真ん中か、ほかの箱を避けた位置）。以前の bend（中棒の割合）は、読み込むと via に移す。
@@ -115,7 +116,7 @@ import {
 import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
-import { type RouteFix, borderPath, nearestAt, simplifyVia } from "./routing";
+import { type RouteFix, nearestAt, simplifyVia } from "./routing";
 import type { Geometry } from "./report";
 import type { Arrow, Axis, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
 import { ARROWS, AXES, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
@@ -270,11 +271,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       renderEdges();
       if (currentEdge === e) notifySelect();
     },
-    // 直線の端を、ポインタ（ワールドの座標）に一番近い、相手に向いた側の辺の上の位置へ動かして描き直す
+    // 線の端を、ポインタ（ワールドの座標）に一番近い、端が動ける辺の上の位置へ動かして描き直す
     setAt: (e, end, x, y) => {
-      if (!e.facing) return;
-      const [own, other] = end === "exit" ? [e.a, e.b] : [e.b, e.a];
-      const t = nearestAt(borderPath(edgeRect(own), edgeRect(other)), x, y);
+      if (!e.ends) return;
+      const t = nearestAt(end === "exit" ? e.ends.exit : e.ends.enter, x, y);
       e.src[end === "exit" ? "exitAt" : "enterAt"] = Math.round(t * 1000) / 1000;
       renderEdges();
       if (currentEdge === e) notifySelect();
@@ -282,7 +282,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // ドラッグを終えたら、長さ 0 になった区間の折れ目をまとめて、1 件の履歴にする
     endVia: e => {
       if (e.shape && Array.isArray(e.src.via)) {
-        const via = simplifyVia(edgeRect(e.a), edgeRect(e.b), { ...e.shape, via: e.src.via as number[] });
+        const at = { exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null, enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null };
+        const via = simplifyVia(edgeRect(e.a), edgeRect(e.b), { ...e.shape, via: e.src.via as number[] }, at);
         e.src.via = via;
         renderEdges();
       }
@@ -412,7 +413,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     svg.appendChild(g);
     const e: Edge = {
       src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], handlesEl,
-      shape: null, segments: [], arrangement: "diagonal", facing: null, endsEl,
+      shape: null, segments: [], arrangement: "diagonal", ends: null, endsEl,
     };
     edgeOfEl.set(g, e);
     for (const el of [hit, handlesEl]) {
