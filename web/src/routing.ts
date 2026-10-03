@@ -26,7 +26,14 @@ export interface RouteInput {
   bend: number | null;    // 以前の持ち方（Z 字の中棒の割合）。via に移し替える
   obstacles: Rect[];      // 線が通ってほしくない箱（同じ親のほかの箱）
   margin: number;         // 途中の区間を、両端の箱の辺から最低これだけ離す（BEND_MARGIN）
+  exitAt?: number | null;  // 直線の始点の位置（相手に向いた側の辺の上の割合。null は自動。borderPath）
+  enterAt?: number | null; // 終点の位置
+  prevFacing?: Facing | null; // 前に描いたときの相手の向き（変わったら端の位置を自動に戻す）
 }
+
+// 直線でつなぐ相手のいる向き（始点から見て）。斜めなら "ne" は右上、"se" は右下、"sw" は左下、"nw" は左上。
+// 横か縦に並ぶなら "e" は右、"s" は下、"w" は左、"n" は上
+export type Facing = "ne" | "se" | "sw" | "nw" | "e" | "s" | "w" | "n";
 
 // データに書き戻すこと（描画の側ではデータを書き換えない。graph が受け取って直す）
 export interface RouteFix {
@@ -34,6 +41,7 @@ export interface RouteFix {
   clearVia?: boolean;        // 手で直した via を消す（もう引けない、直線になった）
   clearBend?: boolean;       // 以前の bend を消す
   migrate?: RouteShape;           // 以前の bend を、この形として書き込む（bend は消す）
+  clearAt?: boolean;         // 直線の端の位置（exitAt / enterAt）を消す（直線でなくなった、重なった、相手の向きが変わった）
 }
 
 export interface Route {
@@ -41,6 +49,7 @@ export interface Route {
   arrangement: Arrangement;
   shape: RouteShape | null;  // 折れ線の形（直線や、まっすぐに並ぶ箱どうしなら null）
   segments: Segment[];  // ドラッグで動かせる途中の区間
+  facing: Facing | null; // 直線のとき、相手のいる向き（端の位置をずらせる）。折れ線や、重なった箱どうしなら null
   fix: RouteFix;
 }
 
@@ -173,18 +182,37 @@ export function route(r: RouteInput): Route {
   const arrangement = arrangementOf(a, b);
   const fix: RouteFix = {};
   const [acx, acy] = center(a), [bcx, bcy] = center(b);
-  const plain = (points: Pt[]): Route => {
+  const hasAt = r.exitAt != null || r.enterAt != null;
+  const plain = (points: Pt[], facing: Facing | null = null): Route => {
     if (r.via) fix.clearVia = true;
     if (r.bend != null) fix.clearBend = true;
-    return { points, arrangement, shape: null, segments: [], fix };
+    if (hasAt && !facing) fix.clearAt = true;
+    return { points, arrangement, shape: null, segments: [], facing, fix };
   };
-  const drawn = (shape: RouteShape, points: Pt[]): Route =>
-    ({ points, arrangement, shape, segments: segmentsOf(a, b, shape, r.margin), fix });
+  const drawn = (shape: RouteShape, points: Pt[]): Route => {
+    if (hasAt) fix.clearAt = true;
+    return { points, arrangement, shape, segments: segmentsOf(a, b, shape, r.margin), facing: null, fix };
+  };
 
-  if (arrangement === "overlap" || (!r.elbow && arrangement === "diagonal")) {
+  if (arrangement === "overlap") {
     return plain([clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy), clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy)]);
   }
-  if (!r.elbow) return plain(alignedPoints(a, b, arrangement as "side" | "stack"));
+  if (!r.elbow) {
+    // 直線。端の位置があれば、相手に向いた側の辺の上のその位置から（相手の向きが前と変わったら、自動に戻す）。
+    // 無ければ、斜めなら中心どうしを結ぶ線、横か縦に並ぶなら重なる範囲の真ん中をまっすぐ
+    const facing = facingOf(a, b);
+    let { exitAt, enterAt } = r;
+    if (hasAt && r.prevFacing && r.prevFacing !== facing) {
+      fix.clearAt = true;
+      exitAt = enterAt = null;
+    }
+    const [p0, q0] = arrangement === "diagonal"
+      ? [clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy), clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy)]
+      : alignedPoints(a, b, arrangement) as [Pt, Pt];
+    const p = exitAt != null ? pointAt(borderPath(a, b), exitAt) : p0;
+    const q = enterAt != null ? pointAt(borderPath(b, a), enterAt) : q0;
+    return plain([p, q], facing);
+  }
 
   // 横か縦に並ぶ箱どうしで、指定した両端の向きがそろわなくなったら（箱を動かした）、指定を両方とも自動に戻す
   let { exit, enter } = r;
@@ -212,7 +240,8 @@ export function route(r: RouteInput): Route {
       return drawn(shape, shapePoints(a, b, shape) ?? alignedPoints(a, b, arrangement));
     }
     if (r.bend != null) fix.clearBend = true;
-    return { points: alignedPoints(a, b, arrangement), arrangement, shape: null, segments: [], fix };
+    if (hasAt) fix.clearAt = true;
+    return { points: alignedPoints(a, b, arrangement), arrangement, shape: null, segments: [], facing: null, fix };
   }
 
   const shape = elbowShape(a, b, exit, enter, r.bend, r.obstacles, r.margin);
@@ -291,4 +320,66 @@ function bendAt(from: number, to: number, bend: number | null, points: (m: numbe
     if (d && mid - d >= lo && clear(mid - d)) return mid - d;
   }
   return mid;
+}
+
+// ---- 直線の端の位置（docs/EDGE-plan.md の段階 9） ----
+
+// 始点 r から見た、相手 o のいる向き（横か縦に並ぶなら 4 方向、斜めなら 4 象限）
+export function facingOf(r: Rect, o: Rect): Facing {
+  const [rx, ry] = center(r), [ox, oy] = center(o);
+  const arr = arrangementOf(r, o);
+  if (arr === "side") return ox >= rx ? "e" : "w";
+  if (arr === "stack") return oy >= ry ? "s" : "n";
+  return ox >= rx ? (oy >= ry ? "se" : "ne") : (oy >= ry ? "sw" : "nw");
+}
+
+// 箱 r の、相手 o に向いた側の辺を角から角までたどる道。斜めなら 3 点（真ん中が相手に向いた角）。
+// 横か縦に並ぶなら、相手に向いた 1 辺の 2 点（横に並ぶなら上の角から下の角、縦に並ぶなら左の角から右の角。両端とも 0 なら上の角どうし
+// か左の角どうしを結ぶ線）。
+// 端の位置の割合 0 と 1 は、両方の箱で同じ側の角になる（相手が右上か左下なら、0 が左上の角、1 が右下の角。右下か左上なら、0 が右上、1 が左下）。
+// そのため、両端とも 0 なら左上の角どうし（か右上どうし）、両端とも 1 なら右下の角どうし（か左下どうし）を結ぶ線になる。これがずらせる範囲の両端
+export function borderPath(r: Rect, o: Rect): Pt[] {
+  const tl: Pt = [r.x, r.y], tr: Pt = [r.x + r.w, r.y], br: Pt = [r.x + r.w, r.y + r.h], bl: Pt = [r.x, r.y + r.h];
+  switch (facingOf(r, o)) {
+    case "sw": return [tl, bl, br];
+    case "ne": return [tl, tr, br];
+    case "se": return [tr, br, bl];
+    case "nw": return [tr, tl, bl];
+    case "e": return [tr, br];
+    case "w": return [tl, bl];
+    case "s": return [bl, br];
+    case "n": return [tl, tr];
+  }
+}
+
+// 道の上の、長さの割合 t の点
+export function pointAt(path: Pt[], t: number): Pt {
+  const lens = path.slice(1).map((p, i) => Math.hypot(p[0] - path[i]![0], p[1] - path[i]![1]));
+  let d = Math.min(1, Math.max(0, t)) * lens.reduce((s, l) => s + l, 0);
+  for (let i = 0; i < lens.length; i++) {
+    if (d <= lens[i]! || i === lens.length - 1) {
+      const k = lens[i]! ? Math.min(1, d / lens[i]!) : 0;
+      const [p, q] = [path[i]!, path[i + 1]!];
+      return [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
+    }
+    d -= lens[i]!;
+  }
+  return path[0]!;
+}
+
+// 点 (x, y) に一番近い、道の上の点の割合（ドラッグしたポインタから端の位置を求める）
+export function nearestAt(path: Pt[], x: number, y: number): number {
+  const lens = path.slice(1).map((p, i) => Math.hypot(p[0] - path[i]![0], p[1] - path[i]![1]));
+  const total = lens.reduce((s, l) => s + l, 0);
+  if (!total) return 0;
+  let best = 0, bestD = Infinity, before = 0;
+  lens.forEach((len, i) => {
+    const [p, q] = [path[i]!, path[i + 1]!];
+    const k = len ? Math.min(1, Math.max(0, ((x - p[0]) * (q[0] - p[0]) + (y - p[1]) * (q[1] - p[1])) / (len * len))) : 0;
+    const px = p[0] + (q[0] - p[0]) * k, py = p[1] + (q[1] - p[1]) * k;
+    const d = Math.hypot(x - px, y - py);
+    if (d < bestD) { bestD = d; best = (before + len * k) / total; }
+    before += len;
+  });
+  return best;
 }

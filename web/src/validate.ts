@@ -147,6 +147,10 @@ export function validate(data: unknown): asserts data is Diagram {
       const v = (e as EdgeData)[k];
       if (v != null && !includes(AXES, v)) throw new Error(`${k} の値が不正です: ${from} - ${to} (${v})`);
     }
+    for (const k of ["exitAt", "enterAt"] as const) {
+      const v = (e as EdgeData)[k];
+      if (v != null && !(typeof v === "number" && v >= 0 && v <= 1)) throw new Error(`${k} は 0 から 1 の数にしてください: ${from} - ${to} (${v})`);
+    }
     const via = (e as EdgeData).via;
     if (via != null && !(Array.isArray(via) && via.every(v => typeof v === "number" && Number.isFinite(v)))) {
       throw new Error(`via は数の並びにしてください: ${from} - ${to}`);

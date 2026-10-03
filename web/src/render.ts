@@ -206,15 +206,27 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         elbow: routeOf(e, ctx.world) === "elbow", exit: exitOf(e), enter: enterOf(e),
         via: viaOf(e), bend: typeof e.src.bend === "number" ? e.src.bend : null,
         obstacles, margin: BEND_MARGIN,
+        exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
+        enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
+        prevFacing: e.facing,
       });
       const pts = r.points;
       e.points = pts;
       e.shape = r.shape;
       e.segments = r.segments;
       e.arrangement = r.arrangement;
+      e.facing = r.facing;
       // データに書き戻すこと（向きの指定や via を消す、以前の bend を移す）は graph に任せる
       if (Object.keys(r.fix).length) ctx.fixEdge(e, r.fix);
       renderHandles(e);
+      // 直線の両端をつかむ丸（線を選んでいるときだけ CSS で出す）
+      e.endsEl.style.display = r.facing ? "" : "none";
+      if (r.facing) {
+        const [s, t] = [pts[0]!, pts[pts.length - 1]!];
+        const [c1, c2] = e.endsEl.children as unknown as SVGCircleElement[];
+        c1!.setAttribute("cx", String(s[0])); c1!.setAttribute("cy", String(s[1]));
+        c2!.setAttribute("cx", String(t[0])); c2!.setAttribute("cy", String(t[1]));
+      }
       const arrow = arrowOf(e);
       const atStart = arrow === "start" || arrow === "both", atEnd = arrow === "end" || arrow === "both";
       // 見える線は、矢印のある端では矢印の付け根で止める（線の太さで先端が四角く太って見えないように）。

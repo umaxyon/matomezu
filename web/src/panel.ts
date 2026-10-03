@@ -204,6 +204,9 @@ function edgeHtml(info: EdgeInfo): string {
       <div class="mzp-subhead">終点</div>
       ${segment("mzp-enter", info.enter ?? "auto", AXIS_OPTIONS, axisDisabled(info, info.exit))}
     </div>` : ""}
+    ${info.endsMoved ? `<div class="mzp-section">
+      <button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}">端の位置を自動に戻す</button>${helpIcon("線の両端を、ボックスの中心どうしを結ぶ位置に戻します")}
+    </div>` : ""}
     ${info.via ? `<div class="mzp-section">
       <button type="button" class="mzp-chip" data-via-reset="${esc(info.id)}">折れ線を自動に戻す</button>${helpIcon("途中の区間を動かした形と、向きの指定をやめて、ボックスの位置から自動で決めた形に戻します")}
     </div>` : ""}
@@ -440,6 +443,8 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     if (tabBtn) return tab(tabBtn.dataset.tab as PanelTab);
     const del = e.target.closest<HTMLElement>("[data-remove]");
     if (del) return void graph.remove(del.dataset.remove!);
+    const atReset = e.target.closest<HTMLElement>("[data-at-reset]");
+    if (atReset) return graph.updateEdge(atReset.dataset.atReset!, { exitAt: null, enterAt: null });
     const viaReset = e.target.closest<HTMLElement>("[data-via-reset]");
     if (viaReset) return graph.updateEdge(viaReset.dataset.viaReset!, { via: null, exit: null, enter: null });
     const delEdge = e.target.closest<HTMLElement>("[data-remove-edge]");

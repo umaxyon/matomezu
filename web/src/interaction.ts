@@ -43,6 +43,7 @@ export interface InteractionContext {
   edgeOfEl(el: Element): Edge | undefined;  // 途中の区間をつかむ要素の線
   setVia(e: Edge, index: number, at: number): void; // 途中の区間 index を座標 at へ動かして描き直す
   endVia(e: Edge): void;                    // 途中の区間のドラッグを終えた（折れ目をまとめて履歴に残す）
+  setAt(e: Edge, end: "exit" | "enter", x: number, y: number): void; // 直線の端を、ポインタに近い辺の上の位置へ動かす
   paste(copy: Subtree, parentId: string | null, at: { x: number; y: number }, from?: string): void; // ほかのブックの箱を移植する
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
@@ -69,6 +70,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   // 折れ線の途中の区間のドラッグ（選択モード）。index は区間の番号（via の何番目か）、moved は実際に動かしたか
   let bendDrag: { e: Edge; index: number; pointerId: number; moved: boolean } | null = null;
+  // 直線の端のドラッグ（選択モードで線を選んでいるとき）
+  let endDrag: { e: Edge; end: "exit" | "enter"; moved: boolean } | null = null;
 
   // ドラッグ中のポインタの位置（ワールドの座標）へ、区間を動かす。動ける範囲は graph の側で収める
   function moveBend(ev: PointerEvent) {
@@ -98,6 +101,14 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerDown(e: PointerEvent) {
+    const endEl = e.target instanceof Element ? e.target.closest<SVGElement>(".mz-end") : null;
+    const endEdge = endEl && ctx.mode() === "move" ? ctx.edgeOfEl(endEl) : undefined;
+    if (endEdge?.facing) {
+      e.stopPropagation();
+      endEl!.setPointerCapture(e.pointerId);
+      endDrag = { e: endEdge, end: endEl!.dataset.end === "enter" ? "enter" : "exit", moved: false };
+      return;
+    }
     const handle = e.target instanceof Element ? e.target.closest<SVGElement>(".mz-bend") : null;
     const bent = handle && ctx.mode() === "move" ? ctx.edgeOfEl(handle) : undefined;
     if (bent && handle!.dataset.index != null) {
@@ -148,6 +159,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   function onPointerMove(e: PointerEvent) {
     if (bendDrag) return moveBend(e);
+    if (endDrag) {
+      const r = world.el.getBoundingClientRect();
+      endDrag.moved = true;
+      ctx.setAt(endDrag.e, endDrag.end, e.clientX - r.left, e.clientY - r.top);
+      return;
+    }
     if (lift || !drag) return; // 付け替えのドラッグはページ全体で受け取っている
     const { n } = drag;
     if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
@@ -163,6 +180,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerUp() {
+    if (endDrag) {
+      const { moved } = endDrag;
+      endDrag = null;
+      if (moved) ctx.changed();
+      return;
+    }
     if (bendDrag) {
       const { e, moved } = bendDrag;
       bendDrag = null;
@@ -378,10 +401,10 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   document.addEventListener("keydown", onKeyDown, { signal });
 
   return {
-    dragging: () => drag != null || lift != null || bendDrag != null,
+    dragging: () => drag != null || lift != null || bendDrag != null || endDrag != null,
     endLift,
     // 描き直すときに、移動のドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
-    reset() { drag = null; bendDrag = null; removing = null; if (lift) lift.target = undefined; },
+    reset() { drag = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },
     unmarkRemove,
     destroy() { lift?.stop.abort(); listening.abort(); },
   };

@@ -126,3 +126,32 @@ test("Z 字の中棒をドラッグで動かせ、線を選ぶと自動に戻せ
   await expect.poll(midX).toBeCloseTo(before, 0);
   await expect(reset).toHaveCount(0);
 });
+
+test("斜めの直線を選ぶと両端に丸が出て、ドラッグで端を辺に沿ってずらせる。自動に戻せる", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 300 }],
+    edges: [{ id: "e1", from: 1, to: 2 }],
+  });
+  const edge = page.locator(".mz-edge").first();
+  const start = await edge.locator(".mz-hit").evaluate(l => {
+    const g = l as SVGPolylineElement;
+    const svg = g.ownerSVGElement!.getBoundingClientRect();
+    const [p, q] = (g.getAttribute("points") ?? "").trim().split(/\s+/).map(s => s.split(",").map(Number));
+    return { svgX: svg.left, svgY: svg.top, p: p!, q: q! };
+  });
+  const end = edge.locator('.mz-end[data-end="exit"]');
+  await expect(end).toBeHidden(); // 選ぶまでは出ない
+  await page.mouse.click(start.svgX + (start.p[0]! + start.q[0]!) / 2, start.svgY + (start.p[1]! + start.q[1]!) / 2);
+  await expect(end).toBeVisible();
+  // 始点の丸を、1 の下の辺の左寄り（x = 60）へ
+  await page.mouse.move(start.svgX + start.p[0]!, start.svgY + start.p[1]!);
+  await page.mouse.down();
+  await page.mouse.move(start.svgX + 60, start.svgY + 130, { steps: 8 });
+  await page.mouse.up();
+  const first = () => edge.locator(".mz-hit").evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/)[0]!.split(",").map(Number));
+  // 割合は小数 3 桁で持つので、0.2px ほどずれることがある
+  await expect.poll(async () => { const [x, y] = await first(); return Math.abs(x! - 60) < 0.5 && y === 104; }).toBe(true);
+  await page.locator("#sidebar [data-at-reset]").click();
+  // 自動の位置（中心どうしを結んだ線が縁と交わる点）は、下の辺の x = 144 あたり
+  await expect.poll(async () => Math.round((await first())[0]!)).toBe(144);
+});
