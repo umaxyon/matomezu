@@ -228,6 +228,9 @@ function html(info: Info): string {
 
   if (info.kind === "world") {
     parts.push(`<div class="mzp-head"><span class="mzp-title">${esc(info.caption)}</span></div>`);
+    parts.push(`<div class="mzp-section"><h3>図の題名${helpIcon("タブの見出しに出ます。空ならファイル名を出します（ファイル名は変わりません）")}</h3>
+      <input class="mzp-input" type="text" data-edit="title" value="${esc(info.title ?? "")}" placeholder="ファイル名" aria-label="図の題名">
+    </div>`);
     const bg = info.background;
     const hex = bg ? toHex(bg) : "#ffffff";
     parts.push(`<div class="mzp-section"><h3>背景</h3>
@@ -492,6 +495,7 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     }
     const edit = t.dataset.edit;
     if (edit === "caption") return graph.update(info.id, { caption: t.value });
+    if (edit === "title") return graph.update(null, { title: t.value });
     if (edit === "picker" || edit === "color" || edit === "bg-picker" || edit === "background") {
       const color = t.value.trim();
       // 解釈できない色の文字列は受け付けずに元へ戻す

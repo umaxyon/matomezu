@@ -178,3 +178,25 @@ test("他ブックも表示で、ほかのブックの箱を図へドラッグ�
   expect(out.edges.length).toBe(4);
   expect(readFileSync(join(dir, "a.json"), "utf8")).toBe(before);
 });
+
+test("図の題名（world.title）があればタブの見出しに出し、ポインタを乗せるとファイル名が出る。情報タブで書き換えられる", async ({ page }) => {
+  writeFileSync(join(dir, "c.json"), JSON.stringify({ world: { title: "残りの作業" }, nodes: [{ id: 1, caption: "A" }] }));
+  const url = run("open", "-no-browser", "c.json").trim();
+  await page.goto(url);
+  const tab = page.locator('.tab[aria-selected="true"]');
+  await expect(tab.locator(".tab-name")).toHaveText("残りの作業");
+  await expect(tab).toHaveAttribute("title", "c.json");
+  await expect(page).toHaveTitle("残りの作業 - matomezu");
+  // ワールドの情報タブで書き換える（空にするとファイル名に戻る）
+  await page.locator(".stage:visible").click({ position: { x: 600, y: 400 } });
+  const input = page.locator('.side-pane:visible [data-edit="title"]');
+  await input.fill("新しい題名");
+  await input.press("Enter");
+  await expect(tab.locator(".tab-name")).toHaveText("新しい題名");
+  await expect.poll(() => JSON.parse(readFileSync(join(dir, "c.json"), "utf8")).world?.title).toBe("新しい題名");
+  await input.fill("");
+  await input.press("Enter");
+  await expect(tab.locator(".tab-name")).toHaveText("c.json");
+  run("open", "-no-browser", "c.json");
+  await tab.locator(".tab-close").click();
+});

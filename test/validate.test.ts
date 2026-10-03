@@ -70,3 +70,8 @@ test("problems は親子の循環があっても止まる", () => {
       "ページの中の箱はページにできません: 1（2 のページの中）", "ページの中の箱はページにできません: 2（1 のページの中）",
     ]);
 });
+
+test("world の title は文字列だけ", () => {
+  expect(problems({ world: { title: 3 }, nodes: [] })).toEqual(["world の title は文字列にしてください"]);
+  expect(problems({ world: { title: "題名" }, nodes: [] })).toEqual([]);
+});

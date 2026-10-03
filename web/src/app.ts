@@ -181,8 +181,34 @@ export async function startApp(ui: AppUi) {
     return t;
   }
 
-  // ページの増減やキャプションの変更に、タブを合わせる。増えたページのタブは足し、無くなったページのタブは閉じる
+  // 見出しに出すブックの名前。図の題名（world.title）があればそれ、無ければファイル名
+  function titleOf(b: Book): string {
+    const data = (b.loaded ? b.graph.toJSON() : b.data) as Diagram | null;
+    const title = data?.world?.title;
+    return typeof title === "string" && title.trim() ? title.trim() : b.name;
+  }
+
+  // ブックのタブの見出しを、図の題名に合わせる。ポインタを乗せるとファイル名が出る
+  function refreshTitle(b: Book) {
+    const first = b.tabs.find(t => t.page == null);
+    if (first) {
+      first.label.textContent = titleOf(b);
+      first.button.title = b.name;
+    }
+    if (current?.book === b) updateDocumentTitle();
+  }
+
+  function updateDocumentTitle() {
+    if (!current) return;
+    const { book: b, page } = current;
+    const pageName = page == null ? "" : `${b.tabs.find(t => t.page === page)?.label.textContent} - `;
+    document.title = `${pageName}${titleOf(b)} - matomezu`;
+  }
+
+  // ページの増減やキャプションの変更に、タブを合わせる。増えたページのタブは足し、無くなったページのタブは閉じる。
+  // ブックのタブの見出し（図の題名）もここで合わせる
   function refreshPages(b: Book) {
+    refreshTitle(b);
     const pages = pagesOf(b);
     for (const p of pages) pageTab(b, p.id);
     for (const t of [...b.tabs]) {
@@ -241,8 +267,7 @@ export async function startApp(ui: AppUi) {
     b.sync.report();
     refreshButtons(b);
     markSelected();
-    const pageName = page == null ? "" : `${b.tabs.find(t => t.page === page)?.label.textContent} - `;
-    document.title = `${pageName}${b.name} - matomezu`;
+    updateDocumentTitle();
     updateUrl();
     remember();
   }
@@ -338,6 +363,7 @@ export async function startApp(ui: AppUi) {
       b.tabs.push(first);
       group.appendChild(first.button);
       for (const p of pagesOf(b)) pageTab(b, p.id);
+      refreshTitle(b);
       ui.tabs.appendChild(group);
       book = b;
       books.push(b);

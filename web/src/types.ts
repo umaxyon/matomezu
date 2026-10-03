@@ -13,6 +13,7 @@ export interface WorldData {
   overflow?: Exclude<Overflow, "grow">;
   background?: string; // 背景色。省略すると背景なし
   route?: Route;       // 線の通り方の既定（無ければ直線）
+  title?: string;      // 図（ブック）の題名。タブの見出しに使う（無ければファイル名）。ブック全体の world だけ（ページの world には書かない）
   [key: string]: unknown;
 }
 
@@ -83,6 +84,7 @@ export interface WorldInfo {
   overflows: Overflow[];
   background: string | null;
   route: Route; // 線の通り方の既定
+  title: string | null; // 図（ブック）の題名（どのページを見ていても、ブック全体の world のもの）
 }
 
 export interface BoxInfo {
@@ -158,8 +160,10 @@ export interface Items {
 }
 
 // update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）。
-// route はワールドだけ（線の通り方の既定。null か "straight" で直線）
+// route はワールドだけ（線の通り方の既定。null か "straight" で直線）。
+// title はワールドだけ（図の題名。どのページから変えても、ブック全体の world に書く。空で消す）
 export interface Patch {
+  title?: string | null;
   background?: string | null;
   caption?: string | null;
   color?: string | null;

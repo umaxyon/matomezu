@@ -361,3 +361,17 @@ test("ページの箱の中へは移植できない", () => {
   const { graph } = setup(book());
   expect(() => graph.paste(copySubtree(book(), 2), 1)).toThrow("ページの箱の中には移植できません");
 });
+
+test("図の題名は、ページを見ているときに変えても、ブック全体の world に書く（ページの world には書かない）", () => {
+  const { graph } = setup({ world: { route: "elbow" }, nodes: [{ id: 1, caption: "P", page: true }, { id: 2, parent: 1 }] });
+  graph.update(null, { title: "題名" });
+  expect(graph.toJSON().world).toEqual({ route: "elbow", title: "題名" });
+  graph.setPage(1);
+  expect(graph.info(null)).toMatchObject({ kind: "world", title: "題名" });
+  graph.update(null, { title: "  別の題名 " });
+  const data = graph.toJSON();
+  expect(data.world).toEqual({ route: "elbow", title: "別の題名" });
+  expect(data.nodes.find(n => n.id === 1)?.world).toBeUndefined();
+  graph.update(null, { title: "" });
+  expect(graph.toJSON().world).toEqual({ route: "elbow" });
+});

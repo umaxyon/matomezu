@@ -51,6 +51,7 @@
  *   }
  *   - world は省略できる。width, height が無ければ、表示領域と置かれているボックスの範囲の大きい方になる。
  *     background で背景色を付けられる（文字や線の色は、背景の明るさに合わせて切り替わる）。
+ *     title は図（ブック）の題名で、タブの見出しに使う（無ければファイル名）。ブック全体の world にだけ書く（ページを見ていても）。
  *   - ノードの項目はすべて省略できる。color の既定は白。
  *   - id は連番の数値を使う。省くと読み込み時に、既存の数値 id の続きから連番を振る。
  *   - parent に親ボックスの id を書くと、その子になる。x, y は親の左上からの位置（内包のときに使う）。
@@ -717,6 +718,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         overflows: ["wrap", "clip"],
         background: world.src.background || null,
         route: routeDefaultOf(world),
+        title: typeof source.world?.title === "string" && source.world.title ? source.world.title : null,
       };
     }
     const size = sizeOf(n);
@@ -815,6 +817,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         }
       }
       if (n.isWorld) {
+        if ("title" in next) {
+          // 題名はブック全体のもの。ページを見ていても、ブック全体の world に書く
+          const title = String(next.title ?? "").trim();
+          const top = pageBox() ? (source.world ??= {}) : world.src;
+          setOrDelete(top, "title", title, !title);
+          if (pageBox() && !Object.keys(top).length) delete source.world;
+        }
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
         if ("route" in next) {
           if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(`route の値が不正です: ${next.route}`);

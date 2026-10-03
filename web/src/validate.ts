@@ -96,6 +96,7 @@ function inspect(data: unknown, fail: (message: string) => void): void {
       if (data.world.overflow === "grow") fail("world に overflow: grow は使えません");
       if (data.world.route != null && !includes(ROUTES, data.world.route)) fail(`world の route の値が不正です: ${data.world.route}`);
       if (data.world.background != null && typeof data.world.background !== "string") fail("world の background は色の文字列にしてください");
+      if (data.world.title != null && typeof data.world.title !== "string") fail("world の title は文字列にしてください");
     }
   }
   const byId = new Map<string, Record<string, unknown>>();
