@@ -1,8 +1,11 @@
 export const GRAPH_STYLE_ID = "matomezu-graph-style";
 
+// 線の色（--mz-edge）は、半透明の色を背景（--mz-bg）と混ぜた不透明な色にする。半透明のままだと、線が重なった区間だけ
+// 2 回塗られて濃く見え、別の意味に見えるため（2026-10-03 ユーザーの指摘）。--mz-bg は画面の背景（index.html の --bg）か、ワールドの背景色
 export const GRAPH_CSS = `
 .mz-stage {
-  --mz-edge: rgba(180, 180, 190, 0.4);
+  --mz-bg: #1e1e1e;
+  --mz-edge: color-mix(in srgb, rgb(180, 180, 190) 40%, var(--mz-bg));
   --mz-edge-hi: rgba(200, 180, 255, 0.9);
   --mz-edge-del: #f87171;
   --mz-text: #e4e4e7;
@@ -17,7 +20,8 @@ export const GRAPH_CSS = `
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .mz-stage {
-    --mz-edge: rgba(90, 90, 110, 0.4);
+    --mz-bg: #f6f6f8;
+    --mz-edge: color-mix(in srgb, rgb(90, 90, 110) 40%, var(--mz-bg));
     --mz-edge-hi: rgba(120, 80, 220, 0.9);
     --mz-edge-del: #dc2626;
     --mz-text: #1b1b1f;
@@ -43,7 +47,7 @@ export const GRAPH_CSS = `
 
 /* 背景色を付けたワールドでは、背景の明るさに合わせてテーマと関係なく配色を切り替える */
 .mz-world.mz-on-light {
-  --mz-edge: rgba(90, 90, 110, 0.45);
+  --mz-edge: color-mix(in srgb, rgb(90, 90, 110) 45%, var(--mz-bg));
   --mz-edge-hi: rgba(120, 80, 220, 0.9);
   --mz-edge-del: #dc2626;
   --mz-text: #1b1b1f;
@@ -51,7 +55,7 @@ export const GRAPH_CSS = `
   --mz-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 .mz-world.mz-on-dark {
-  --mz-edge: rgba(180, 180, 190, 0.45);
+  --mz-edge: color-mix(in srgb, rgb(180, 180, 190) 45%, var(--mz-bg));
   --mz-edge-hi: rgba(200, 180, 255, 0.9);
   --mz-edge-del: #f87171;
   --mz-text: #e4e4e7;
@@ -80,6 +84,8 @@ export const GRAPH_CSS = `
 .mz-bend { stroke: transparent; stroke-width: 12; pointer-events: none; }
 .mz-mode-move .mz-bend { pointer-events: stroke; cursor: row-resize; }
 .mz-mode-move .mz-bend.mz-bend-x { cursor: col-resize; }
+/* 線の端をドラッグして、ほかの線の端に吸着したときの目印 */
+.mz-snap { fill: none; stroke: var(--mz-select); stroke-width: 2; pointer-events: none; }
 /* 線の両端をつかむ丸。選択モードで線を選んでいるときだけ出す */
 .mz-end { display: none; fill: var(--mz-select); stroke: #fff; stroke-width: 1.5; pointer-events: none; }
 .mz-mode-move .mz-edge.mz-selected .mz-end { display: inline; pointer-events: all; cursor: move; }

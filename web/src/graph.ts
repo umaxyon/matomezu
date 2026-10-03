@@ -117,7 +117,7 @@ import {
 import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
-import { type RouteFix, nearestAt, simplifyVia } from "./routing";
+import { type Pt, type RouteFix, nearestAt, pointAt, simplifyVia } from "./routing";
 import type { Geometry } from "./report";
 import type { Arrow, Axis, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
 import { ARROWS, AXES, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
@@ -275,11 +275,18 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 線の端を、ポインタ（ワールドの座標）に一番近い、端が動ける辺の上の位置へ動かして描き直す
     setAt: (e, end, x, y) => {
       if (!e.ends) return;
-      const t = nearestAt(end === "exit" ? e.ends.exit : e.ends.enter, x, y);
+      const path = end === "exit" ? e.ends.exit : e.ends.enter;
+      let t = nearestAt(path, x, y);
+      // 同じ箱の、この端が動ける辺の上にあるほかの線の端に SNAP_DISTANCE まで近づいたら、その点に合わせる（値をそろえるだけ。
+      // つながりは覚えない。docs/LAYOUT-plan.md の 2.3）
+      const target = snapTarget(e, end === "exit" ? e.a : e.b, path, pointAt(path, t));
+      if (target) t = nearestAt(path, target[0], target[1]);
+      showSnap(target);
       e.src[end === "exit" ? "exitAt" : "enterAt"] = Math.round(t * 1000) / 1000;
       renderEdges();
       if (currentEdge === e) notifySelect();
     },
+    endAt: () => showSnap(null),
     // ドラッグを終えたら、長さ 0 になった区間の折れ目をまとめて、1 件の履歴にする
     endVia: e => {
       if (e.shape && Array.isArray(e.src.via)) {
@@ -333,6 +340,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     currentEdge?.el.classList.remove("mz-selected");
     currentEdge = e;
     e?.el.classList.add("mz-selected");
+    if (e) R.toFront([e]); // 選んだ線は、重なったほかの線より手前に
   }
 
   // 線の道筋を決めたときに分かった、データに書き戻すこと（routing.ts の RouteFix）。描画の側ではデータを書き換えない
@@ -385,6 +393,42 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return "e" + i;
   }
 
+  // 線の端を吸着させる距離（ワールドの px）
+  const SNAP_DISTANCE = 8;
+  let snapMark: SVGCircleElement | null = null;
+
+  // 端をドラッグしている線 e の、箱 own の側の端（動ける道 path、今の点 p）が吸着するほかの線の端。
+  // 対象は、同じ箱につながるほかの線の端のうち、この端が動ける道の上にあるもの（同じ辺）。一番近いものを SNAP_DISTANCE まで
+  function snapTarget(e: Edge, own: Box, path: Pt[], p: Pt): Pt | null {
+    let best: Pt | null = null, bestD = SNAP_DISTANCE;
+    for (const o of edges) {
+      if (o === e || o.el.style.display === "none" || o.points.length < 2) continue;
+      const ends: Pt[] = [];
+      if (o.a === own) ends.push(o.points[0]!);
+      if (o.b === own) ends.push(o.points[o.points.length - 1]!);
+      for (const q of ends) {
+        const on = pointAt(path, nearestAt(path, q[0], q[1]));
+        if (Math.hypot(on[0] - q[0], on[1] - q[1]) > 0.5) continue; // この端が動ける辺の上に無い
+        const d = Math.hypot(q[0] - p[0], q[1] - p[1]);
+        if (d <= bestD) { best = q; bestD = d; }
+      }
+    }
+    return best;
+  }
+
+  // 吸着した相手の端に目印（輪）を出す。null で消す
+  function showSnap(at: Pt | null) {
+    if (!at) { snapMark?.remove(); snapMark = null; return; }
+    if (!snapMark) {
+      snapMark = document.createElementNS(SVGNS, "circle");
+      snapMark.setAttribute("class", "mz-snap");
+      snapMark.setAttribute("r", "9");
+    }
+    snapMark.setAttribute("cx", String(at[0]));
+    snapMark.setAttribute("cy", String(at[1]));
+    svg.appendChild(snapMark);
+  }
+
   function canLink(a: Box, b: Box) {
     if (a === b || a.parent !== b.parent || inTree(a)) return false;
     return !edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
@@ -393,6 +437,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function addEdge(src: EdgeData, a: Box, b: Box) {
     const g = document.createElementNS(SVGNS, "g");
     g.setAttribute("class", "mz-edge");
+    g.dataset.id = String(src.id); // 外から線を特定するため（線は手前に描き直すと並びが変わるので、順番では探さない）
     const line = document.createElementNS(SVGNS, "polyline");
     line.setAttribute("class", "mz-line");
     const arrowEl = document.createElementNS(SVGNS, "path");
@@ -416,6 +461,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], handlesEl,
       shape: null, segments: [], arrangement: "diagonal", ends: null, routeMemo: null, endsEl,
     };
+    // ポインタを乗せた線は、重なったほかの線より手前に描く（乗せたときの色が、重なった区間で隠れないように）
+    g.addEventListener("pointerenter", () => R.toFront([e]));
     edgeOfEl.set(g, e);
     for (const el of [hit, handlesEl]) {
       el.addEventListener("click", ev => {

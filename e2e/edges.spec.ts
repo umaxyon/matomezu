@@ -6,7 +6,7 @@ test("選択モードで線をクリックすると情報タブに線の情報�
   await openDiagram(page, example("nested"));
   await expect(page.locator("#mode-label")).toHaveText("選択モード");
   // e2（1-4、フロントエンドとバックエンド）の真ん中を押す
-  const edge = page.locator(".mz-edge").nth(1);
+  const edge = page.locator('.mz-edge[data-id="e2"]');
   const mid = await edge.locator(".mz-hit").evaluate(l => {
     const g = l as SVGPolylineElement;
     const svg = g.ownerSVGElement!.getBoundingClientRect();
@@ -42,7 +42,7 @@ test("選択モードで線をクリックすると情報タブに線の情報�
 test("斜めに離れた箱どうしの線を折れ線にすると Z 字になり、直線に戻せる", async ({ page }) => {
   await openDiagram(page, example("nested"));
   // e1（9 ユーザー - 1 フロントエンド）は、上下にも左右にも重ならない
-  const edge = page.locator(".mz-edge").nth(0);
+  const edge = page.locator('.mz-edge[data-id="e1"]');
   const mid = await edge.locator(".mz-hit").evaluate(l => {
     const g = l as SVGPolylineElement;
     const svg = g.ownerSVGElement!.getBoundingClientRect();
@@ -102,7 +102,7 @@ test("Z 字の中棒をドラッグで動かせ、線を選ぶと自動に戻せ
     nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 120 }],
     edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
   });
-  const edge = page.locator(".mz-edge").first();
+  const edge = page.locator('.mz-edge[data-id="e1"]');
   const midX = () => edge.locator(".mz-hit").evaluate(l => Number((l.getAttribute("points") ?? "").trim().split(/\s+/)[1]!.split(",")[0]));
   const before = await midX();
   const bar = await edge.locator(".mz-bend").evaluate(l => {
@@ -132,7 +132,7 @@ test("斜めの直線を選ぶと両端に丸が出て、ドラッグで端を�
     nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 300 }],
     edges: [{ id: "e1", from: 1, to: 2 }],
   });
-  const edge = page.locator(".mz-edge").first();
+  const edge = page.locator('.mz-edge[data-id="e1"]');
   const start = await edge.locator(".mz-hit").evaluate(l => {
     const g = l as SVGPolylineElement;
     const svg = g.ownerSVGElement!.getBoundingClientRect();

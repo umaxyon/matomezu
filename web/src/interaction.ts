@@ -43,7 +43,8 @@ export interface InteractionContext {
   edgeOfEl(el: Element): Edge | undefined;  // 途中の区間をつかむ要素の線
   setVia(e: Edge, index: number, at: number): void; // 途中の区間 index を座標 at へ動かして描き直す
   endVia(e: Edge): void;                    // 途中の区間のドラッグを終えた（折れ目をまとめて履歴に残す）
-  setAt(e: Edge, end: "exit" | "enter", x: number, y: number): void; // 線の端を、ポインタに近い辺の上の位置へ動かす
+  setAt(e: Edge, end: "exit" | "enter", x: number, y: number): void; // 線の端を、ポインタに近い辺の上の位置へ動かす（ほかの線の端に近ければ吸着する）
+  endAt(): void;                            // 線の端のドラッグを終えた（吸着の目印を消す）
   paste(copy: Subtree, parentId: string | null, at: { x: number; y: number }, from?: string): void; // ほかのブックの箱を移植する
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
@@ -183,6 +184,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (endDrag) {
       const { moved } = endDrag;
       endDrag = null;
+      ctx.endAt();
       if (moved) ctx.changed();
       return;
     }
@@ -404,7 +406,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     dragging: () => drag != null || lift != null || bendDrag != null || endDrag != null,
     endLift,
     // 描き直すときに、移動のドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
-    reset() { drag = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },
+    reset() { if (endDrag) ctx.endAt(); drag = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },
     unmarkRemove,
     destroy() { lift?.stop.abort(); listening.abort(); },
   };

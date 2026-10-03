@@ -1390,6 +1390,30 @@ describe("線のつなぎ方", () => {
     expect(pts(el)).toEqual([[160, 56], [460, 56], [460, 300]]);
   });
 
+  test("線の端をほかの線の端に 8px まで近づけると吸着し、同じ割合になる。離れていれば吸着しない", () => {
+    // 1: 40〜160 × 40〜104。e1 は右下の 2 へ（L 字で 1 の右の辺から）、e2 は右寄りの 3 へ（Z 字で右の辺から）。e2 の端は右の辺の上から 1/4（y = 56）
+    const { el, graph } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }, { id: 3, x: 600, y: 160 }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }, { id: "e2", from: 1, to: 3, route: "elbow", exitAt: 0.25 }],
+    });
+    graph.selectEdge("e1");
+    const end = el.querySelector<SVGElement>('.mz-edge.mz-selected .mz-end[data-end="exit"]')!;
+    const fire = (type: string, x: number, y: number) =>
+      end.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    fire("pointerdown", 160, 72);
+    fire("pointermove", 170, 61); // 右の辺の y = 61。e2 の端（y = 56）まで 5px
+    expect(el.querySelector(".mz-snap")).not.toBeNull();
+    fire("pointerup", 170, 61);
+    expect(el.querySelector(".mz-snap")).toBeNull();
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", exitAt: 0.25 });
+    // 9px 離れていれば吸着しない
+    fire("pointerdown", 160, 56);
+    fire("pointermove", 170, 65);
+    expect(el.querySelector(".mz-snap")).toBeNull();
+    fire("pointerup", 170, 65);
+    expect((graph.toJSON().edges![0] as EdgeData).exitAt).toBeCloseTo(25 / 64, 3);
+  });
+
   test("exitAt / enterAt は 0 から 1 の数だけ", () => {
     expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, exitAt: 1.5 }] })).toThrow("exitAt は 0 から 1 の数");
   });

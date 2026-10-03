@@ -43,9 +43,9 @@ export function lines(page: Page, id: number): Promise<number> {
   });
 }
 
-// 線の両端（図の中の順番。0 から）
-export function edgeEnds(page: Page, index = 0): Promise<[number, number, number, number]> {
-  return page.locator(".mz-edge .mz-line").nth(index).evaluate(l => {
+// 線の両端（線の id で。線はポインタを乗せたり選んだりすると手前に描き直すので、並びの順番では探さない）
+export function edgeEnds(page: Page, id: string): Promise<[number, number, number, number]> {
+  return page.locator(`.mz-edge[data-id="${id}"] .mz-line`).evaluate(l => {
     const p = (l.getAttribute("points") ?? "").trim().split(/\s+/).map(q => q.split(",").map(Number));
     return [p[0]![0]!, p[0]![1]!, p.at(-1)![0]!, p.at(-1)![1]!] as [number, number, number, number];
   });

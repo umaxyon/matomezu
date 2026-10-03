@@ -34,6 +34,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   function applyWorldStyle() {
     const bg = world.src.background;
     worldEl.style.background = bg || "";
+    // 線の色は背景と混ぜて作る（graph-style.ts の --mz-edge）
+    if (bg) worldEl.style.setProperty("--mz-bg", bg);
+    else worldEl.style.removeProperty("--mz-bg");
     const light = bg ? isLightColor(bg) : null;
     worldEl.classList.toggle("mz-on-light", light === true);
     worldEl.classList.toggle("mz-on-dark", light === false);
@@ -324,16 +327,30 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     setTimeout(() => n.el.classList.remove("mz-blocked"), 180);
   }
 
+  // 線を一番手前に描く（線は不透明なので、重なった区間では後に描いた線が上になる）。選んでいる線は、いつもその上
+  // 並びがもう望みどおりなら動かさない（ポインタを乗せている要素を動かすと、乗せ直したことになって pointerenter がまた来るため）
+  function toFront(list: Edge[]) {
+    const sel = ctx.edges().find(e => e.el.classList.contains("mz-selected"));
+    const order = [...list.filter(e => e !== sel), ...(sel ? [sel] : [])].map(e => e.el);
+    const parent = order[0]?.parentNode;
+    if (!parent) return;
+    const tail = [...parent.children].filter(c => c.classList.contains("mz-edge")).slice(-order.length);
+    if (tail.length === order.length && tail.every((c, i) => c === order[i])) return;
+    for (const el of order) parent.appendChild(el);
+  }
+
   // ---- フォーカス（Obsidian 風: 関係の無いものを薄くする） ----
 
   function focus(n: Box) {
     const near = new Set([n, ...descendants(n)]);
+    const hi: Edge[] = [];
     for (const e of ctx.edges()) {
       const on = e.a === n || e.b === n;
-      if (on) { near.add(e.a); near.add(e.b); }
+      if (on) { near.add(e.a); near.add(e.b); hi.push(e); }
       e.el.classList.toggle("mz-hi", on);
       e.el.classList.toggle("mz-dim", !on);
     }
+    toFront(hi);
     for (const m of [...near]) ancestors(m).forEach(p => near.add(p));
     for (const o of ctx.nodes()) o.el.classList.toggle("mz-dim", !near.has(o));
   }
@@ -343,5 +360,5 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const o of ctx.nodes()) o.el.classList.remove("mz-dim");
   }
 
-  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render, blocked, focus, unfocus };
+  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render, blocked, focus, unfocus, toFront };
 }
