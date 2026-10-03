@@ -1,7 +1,7 @@
 // ボックスと線の内部の形と、ボックスの設定を読む関数。DOM の操作はしない
 
 import { truncate } from "./dom";
-import type { Arrow, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
+import type { Arrangement, Arrow, Axis, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
 import { ARROWS, SIZES, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
@@ -62,6 +62,7 @@ export interface Edge {
   bendEl: SVGLineElement;     // Z 字の中棒をつかむ透明な線（Z 字のときだけ出す）
   // Z 字の中棒が動ける範囲。axis の向きの座標で、from が始点の箱の辺、to が終点の箱の辺（Z 字でなければ null）
   span: { axis: "x" | "y"; from: number; to: number } | null;
+  arrangement: Arrangement;   // 2 つの箱の並び（描いたときのもの）
 }
 
 // 値が既定（isDefault）なら項目ごと消し、そうでなければ書く（既定値は JSON に残さない）
@@ -69,6 +70,10 @@ export interface Edge {
 export const BEND_MARGIN = 12;
 
 export const arrowOf = (e: Edge): Arrow | null => (isArrow(e.src.arrow) ? e.src.arrow : null);
+const axis = (v: unknown): Axis | null => (v === "horizontal" || v === "vertical" ? v : null);
+// 折れ線の始点から出る向き・終点に入る向きの指定（null は自動）
+export const exitOf = (e: Edge): Axis | null => axis(e.src.exit);
+export const enterOf = (e: Edge): Axis | null => axis(e.src.enter);
 export const dashOf = (e: Edge): Dash => (e.src.dash === "dashed" ? "dashed" : "solid");
 // 図（ワールド）の線の通り方の既定と、線の実際の通り方（線に無ければ図の既定）
 export const routeDefaultOf = (w: World): Route => (isRoute(w.src.route) ? (w.src.route as Route) : "straight");

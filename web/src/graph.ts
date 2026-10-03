@@ -79,6 +79,9 @@
  *   - arrow は線の矢印: "end"（終点 to の側）/ "start"（始点 from の側）/ "both"。無ければ矢印なし。
  *   - dash は線の模様: "dashed"（破線）。無ければ（"solid"）実線。
  *   - route は線の通り方: "straight"（直線）/ "elbow"（90 度で折れる線）。無ければ world.route（図の既定）、それも無ければ直線。
+ *   - exit / enter は折れ線の向きの指定: 始点から出る向き・終点に入る向き。"horizontal"（左右の辺）/ "vertical"（上下の辺）。無ければ自動。
+ *     横か縦に並ぶ箱どうしは、両端の向きがそろうときだけ素直に引ける（横に並ぶなら、左右ならまっすぐ、上下ならコの字）。
+ *     そろわない指定は斜めのときだけ効き、箱を動かして横か縦に並んだら、指定を両方とも消して自動に戻す。直線には効かない
  *   - bend は Z 字の中棒の位置（向き合う 2 辺の間の割合。0 が始点の側）。選択モードで中棒をドラッグすると付く。
  *     無ければ真ん中（線がほかの箱を通るなら、近い空いた位置）。Z 字でなくなった線からは消える。
  *     ページの既定は、ページの箱の world.route。docs/EDGE-plan.md
@@ -103,15 +106,15 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, arrowOf, borderOf, dashOf, routeDefaultOf, routeOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
+  absPos, ancestors, arrowOf, borderOf, dashOf, enterOf, exitOf, routeDefaultOf, routeOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import type { Geometry } from "./report";
-import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
-import { ARROWS, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import type { Arrow, Axis, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
+import { ARROWS, AXES, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -121,6 +124,16 @@ export const DEFAULTS = {
   treeGapX: 24,  // ツリーで横に並ぶ子の間隔
   treeGapY: 40,  // ツリーの親と子の縦の間隔
 };
+
+// updateEdge で変えられる線の項目（null で消す）
+export interface EdgePatch {
+  arrow?: Arrow | null;
+  dash?: Dash | null;
+  route?: Route | null;
+  bend?: number | null;
+  exit?: Axis | null;
+  enter?: Axis | null;
+}
 
 export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onChange?: (data: Diagram) => void;
@@ -147,7 +160,7 @@ export interface Graph {
   select(id: Id | null): void;
   selected(): string | null;
   selectEdge(id: Id): void;
-  updateEdge(id: Id, patch: { arrow?: Arrow | null; dash?: Dash | null; route?: Route | null; bend?: number | null }): void;
+  updateEdge(id: Id, patch: EdgePatch): void;
   removeEdge(id: Id): void;
   info(id: Id | null): NodeInfo;
   update(id: Id | null, patch: Patch): void;
@@ -286,6 +299,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return {
       kind: "edge", id: e.id, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), route: routeOf(e, world),
       bend: typeof e.src.bend === "number" ? e.src.bend : null, zigzag: !!e.span,
+      exit: exitOf(e), enter: enterOf(e), arrangement: e.arrangement,
     };
   }
 
@@ -328,7 +342,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     bendEl.setAttribute("class", "mz-bend");
     g.append(line, arrowEl, hit, bendEl);
     svg.appendChild(g);
-    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], bendEl, span: null };
+    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], bendEl, span: null, arrangement: "diagonal" };
     edgeOfEl.set(bendEl, e);
     for (const el of [hit, bendEl]) {
       el.addEventListener("click", ev => {
@@ -350,7 +364,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     notifySelect();
   }
 
-  function updateEdge(e: Edge, patch: { arrow?: Arrow | null; dash?: Dash | null; route?: Route | null; bend?: number | null }) {
+  function updateEdge(e: Edge, patch: EdgePatch) {
+    for (const k of ["exit", "enter"] as const) {
+      if (!(k in patch)) continue;
+      const v = patch[k];
+      if (v != null && !(AXES as readonly string[]).includes(v)) throw new Error(`${k} の値が不正です: ${v}`);
+      setOrDelete(e.src, k, v ?? undefined, v == null);
+    }
     if ("bend" in patch) {
       if (patch.bend != null && !(patch.bend > 0 && patch.bend < 1)) throw new Error(`bend は 0 より大きく 1 より小さい数にしてください: ${patch.bend}`);
       setOrDelete(e.src, "bend", patch.bend ?? undefined, patch.bend == null);

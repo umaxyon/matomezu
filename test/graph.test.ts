@@ -126,7 +126,7 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(el.classList.contains("mz-mode-move")).toBe(true); // 開いた直後から、線はクリックを受ける
   graph.select(1);
   el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", route: "straight", bend: null, zigzag: false });
+  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", route: "straight", bend: null, zigzag: false, exit: null, enter: null, arrangement: "stack" });
   expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(true);
   expect(graph.selected()).toBeNull(); // ボックスの選択は外れる
 
@@ -1221,6 +1221,83 @@ describe("線のつなぎ方", () => {
     fire("pointermove", 900);
     fire("pointerup", 900);
     expect(pts(el)[1]![0]).toBe(388); // 400 - 12
+  });
+
+  // 斜めの位置（1: 40〜160 × 40〜104、2: 400〜520 × 300〜364）。自動なら L 字（1 の右から出て 2 の上へ）
+  const diagonal = (edge: Partial<EdgeData> = {}): Diagram =>
+    ({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow", ...edge }] });
+
+  test("向きの指定: 斜めならどの組み合わせも引ける（左右・左右は Z、上下・上下は Z、左右・上下と上下・左右は L）", () => {
+    const { el, graph } = setup(diagonal());
+    expect(pts(el)).toEqual([[160, 72], [460, 72], [460, 300]]);
+    graph.updateEdge("e1", { exit: "horizontal", enter: "horizontal" });
+    expect(pts(el)).toEqual([[160, 72], [280, 72], [280, 332], [400, 332]]);
+    expect(graph.toJSON().edges![0]).toMatchObject({ exit: "horizontal", enter: "horizontal" });
+    graph.updateEdge("e1", { exit: "vertical", enter: "vertical" });
+    expect(pts(el)).toEqual([[100, 104], [100, 202], [460, 202], [460, 300]]);
+    graph.updateEdge("e1", { exit: "vertical", enter: "horizontal" }); // 縦に出て横に入る L
+    expect(pts(el)).toEqual([[100, 104], [100, 332], [400, 332]]);
+    graph.updateEdge("e1", { exit: "horizontal", enter: "vertical" }); // 横に出て縦に入る L
+    expect(pts(el)).toEqual([[160, 72], [460, 72], [460, 300]]);
+    graph.updateEdge("e1", { exit: null, enter: null });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
+  });
+
+  test("向きの指定: 片方だけ固定したら、もう一方は固定した側に合う形から自動で選ぶ", () => {
+    // 始点を上下に固定: はっきり斜めなので L 字（縦に出て横に入る）
+    expect(pts(setup(diagonal({ exit: "vertical" })).el)).toEqual([[100, 104], [100, 332], [400, 332]]);
+    // 終点を左右に固定: L 字（縦に出て横に入る）
+    expect(pts(setup(diagonal({ enter: "horizontal" })).el)).toEqual([[100, 104], [100, 332], [400, 332]]);
+  });
+
+  test("向きの指定: 横に並ぶ箱どうしは、左右ならまっすぐ、上下なら下か上を回るコの字（回る道の短い方。同じなら下）。そろわない指定は自動に戻す", () => {
+    // 1: 40〜160 × 40〜104、2: 400〜520 × 60〜124（上下の範囲が重なる）
+    const side = (edge: Partial<EdgeData>): Diagram =>
+      ({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 60 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow", ...edge }] });
+    expect(pts(setup(side({ exit: "horizontal", enter: "horizontal" })).el)).toEqual([[160, 82], [400, 82]]);
+    expect(pts(setup(side({ exit: "vertical" })).el)).toEqual([[100, 104], [100, 148], [460, 148], [460, 124]]);
+    // そろわない指定は引けないので、両方とも自動に戻す（データからも消す）。線は自動の形（横に並ぶのでまっすぐ）
+    const { el, graph } = setup(side({ exit: "horizontal", enter: "vertical" }));
+    expect(pts(el)).toEqual([[160, 82], [400, 82]]);
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
+  });
+
+  test("向きの指定: 斜めで L 字に指定した線は、箱を動かして横に並ぶと、指定が自動に戻る", () => {
+    const { el, graph } = setup(diagonal({ exit: "vertical", enter: "horizontal" }));
+    expect(pts(el)).toEqual([[100, 104], [100, 332], [400, 332]]);
+    // 2 を 1 の真横（上下の範囲が重なる位置）へ動かす
+    dragBy(el, graph, 2, 0, -240, 48);
+    expect(graph.info(2).y).toBe(60);
+    const e = graph.toJSON().edges![0] as EdgeData;
+    expect([e.exit, e.enter]).toEqual([undefined, undefined]);
+    expect(pts(el).length).toBe(2); // 自動の形（横に並ぶのでまっすぐ）
+  });
+
+  test("向きの指定: 縦に並ぶ箱どうしは、左右なら外を回るコの字（回る道の短い方の側）", () => {
+    // 1: 40〜160 × 40〜104、2: 100〜220 × 300〜364（左右の範囲が重なる）。右の外は 244、左の外は 16。右の方が短い
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 100, y: 300 }], edges: [{ from: 1, to: 2, route: "elbow", exit: "horizontal" }] });
+    expect(pts(el)).toEqual([[160, 72], [244, 72], [244, 332], [220, 332]]);
+  });
+
+  test("コの字は、回る道の短い方の側を通る", () => {
+    // 1: 40〜160、2 は長いキャプションの L サイズで 100〜386（幅 286）。右を回ると 250 + 24、左を回ると 24 + 84 なので左
+    const caption = "あ".repeat(30);
+    const { el } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, caption, size: "L", x: 100, y: 300 }],
+      edges: [{ from: 1, to: 2, route: "elbow", exit: "horizontal" }],
+    });
+    const p = pts(el);
+    expect([p[0]![0], p[1]![0], p[2]![0], p[3]![0]]).toEqual([40, 16, 16, 100]);
+  });
+
+  test("向きの指定は直線には効かない", () => {
+    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ from: 1, to: 2, exit: "horizontal" }] });
+    expect(pts(el).length).toBe(2);
+  });
+
+  test("exit / enter は horizontal / vertical だけ", () => {
+    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, exit: "diagonal" as never }] })).toThrow("exit の値が不正です");
+    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, enter: "up" as never }] })).toThrow("enter の値が不正です");
   });
 
   test("bend は 0 より大きく 1 より小さい数だけ", () => {

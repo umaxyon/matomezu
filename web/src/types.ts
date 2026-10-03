@@ -44,6 +44,8 @@ export interface EdgeData {
   arrow?: Arrow; // 矢印（無ければなし）
   dash?: Dash;   // 線の模様（無ければ実線）
   route?: Route; // 線の通り方（無ければ図の既定。図にも無ければ直線）
+  exit?: Axis;   // 折れ線が始点（from）の箱から出る向き（無ければ自動）
+  enter?: Axis;  // 折れ線が終点（to）の箱に入る向き（無ければ自動）
   bend?: number; // Z 字の中棒の位置。向き合う 2 辺の間の割合（0 が始点の側、1 が終点の側）。無ければ自動（真ん中か、箱を避けた位置）
   [key: string]: unknown;
 }
@@ -110,6 +112,10 @@ export type Arrow = "start" | "end" | "both";
 export type Dash = "solid" | "dashed";
 // 線の通り方。直線か、90 度で折れる線（docs/EDGE-plan.md）
 export type Route = "straight" | "elbow";
+// 折れ線が箱のどの辺から出入りするか。左右の辺（"horizontal"）か、上下の辺（"vertical"）か。無ければ自動（箱の位置関係で決める）
+export type Axis = "horizontal" | "vertical";
+// 線でつなぐ 2 つの箱の並び。横に並ぶ（上下の範囲が重なる）、縦に並ぶ（左右の範囲が重なる）、斜め、重なっている
+export type Arrangement = "side" | "stack" | "diagonal" | "overlap";
 
 // 選んだ線の情報（サイドバーに出す）
 export interface EdgeInfo {
@@ -122,6 +128,9 @@ export interface EdgeInfo {
   route: Route;        // 実際の通り方（線に無ければ図の既定）
   bend: number | null; // Z 字の中棒の位置（ユーザーが動かした割合。動かしていなければ null）
   zigzag: boolean;     // 今 Z 字で描いているか（中棒がある）
+  exit: Axis | null;   // 始点から出る向きの指定（null は自動）
+  enter: Axis | null;  // 終点に入る向きの指定（null は自動）
+  arrangement: Arrangement; // 2 つの箱の並び（横か縦に並ぶときは、始点と終点の向きをそろえないと素直に引けない）
 }
 
 // ボックスかワールドの情報（graph.info が返す）。onSelect には線を選んだときの EdgeInfo も届く

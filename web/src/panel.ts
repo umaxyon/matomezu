@@ -12,8 +12,9 @@
 
 import { esc, injectStyle, keyOf, toHex } from "./dom";
 import { COPY_MIME, type Graph, REMOVED_MIME } from "./graph";
+import { helpIcon, setupHelp } from "./help";
 import { copySubtree, liveItems } from "./pages";
-import type { Brief, ChildView, Dash, Diagram, EdgeInfo, Route, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
+import type { Axis, Brief, ChildView, Dash, Diagram, EdgeInfo, Route, Info, Items, ListItem, Overflow, Shape, Size, TreeDirection } from "./types";
 
 const STYLE_ID = "matomezu-panel-style";
 const PANEL_CSS = `
@@ -118,6 +119,7 @@ const PANEL_CSS = `
 .mzp-subfold > summary h3 { font-size: 12px; }
 .mzp-here { margin-left: 6px; font-size: 11px; color: var(--mzp-hint); font-weight: normal; }
 .mzp-elsewhere { cursor: default; }
+.mzp-seg label.mzp-disabled { opacity: 0.35; cursor: not-allowed; }
 .mzp-danger { color: #fff; background: #dc2626; border-color: transparent; }
 .mzp-danger:hover { background: #b91c1c; }
 .mzp-row {
@@ -147,19 +149,14 @@ const OVERFLOW_LABELS: Record<Overflow, string> = {
 };
 const KIND_LABELS = { group: "グループ", box: "ボックス" };
 const ROUTE_OPTIONS: [string, string][] = [["straight", "直線"], ["elbow", "折れ線"]];
-const SIZE_HINTS = {
-  L: "幅は文字に合わせて 400 まで。越えると折り返す",
-  M: "幅は文字に合わせて 240 まで。越えると折り返す",
-  S: "10 文字まで表示。小さい文字で高さは固定",
-};
+const AXIS_OPTIONS: [string, string][] = [["auto", "自動"], ["horizontal", "左右"], ["vertical", "上下"]];
+const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\n" +
+  "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります";
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["hidden", "非表示"]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];
 const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"]];
-const VIEW_HINTS = {
-  nest: "子を親の中に入れて見せます",
-  tree: "子を親の上下左右にぶら下げて見せます（子は自動で並びます）",
-  hidden: "子を隠し、▼ で子がいることだけを示します",
-};
+const VIEW_HELP = "内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\n" +
+  "非表示: 子を隠し、▼ で子がいることだけを示します";
 const PRESETS = ["#ffffff", "#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#a855f7", "#64748b"];
 // ワールドの背景によく使う色（明るい色と暗い色）
 const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
@@ -171,10 +168,22 @@ function chips(list: Brief[]): string {
   ).join("") + "</div>";
 }
 
-function segment(name: string, value: string, options: [string, string][]): string {
-  return '<div class="mzp-seg">' + options.map(([v, label]) =>
-    `<label><input type="radio" name="${name}" value="${v}"${v === value ? " checked" : ""}>${label}</label>`
-  ).join("") + "</div>";
+// disabled は選べない値と、その理由（ポインタを乗せると出る）
+function segment(name: string, value: string, options: [string, string][], disabled: Map<string, string> = new Map()): string {
+  return '<div class="mzp-seg">' + options.map(([v, label]) => {
+    const why = disabled.get(v);
+    return `<label${why ? ` class="mzp-disabled" title="${esc(why)}"` : ""}><input type="radio" name="${name}" value="${v}"` +
+      `${v === value ? " checked" : ""}${why ? " disabled" : ""}>${label}</label>`;
+  }).join("") + "</div>";
+}
+
+// 向きの指定で選べない値。横か縦に並ぶ箱どうしは、始点と終点の向きをそろえないと素直に引けない（妙な線を引かせない）
+function axisDisabled(info: EdgeInfo, other: Axis | null): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!other || (info.arrangement !== "side" && info.arrangement !== "stack")) return out;
+  const why = `${info.arrangement === "side" ? "横" : "縦"}に並ぶボックスどうしは、始点と終点の向きをそろえます`;
+  for (const v of ["horizontal", "vertical"]) if (v !== other) out.set(v, why);
+  return out;
 }
 
 // 選んだ線の情報: ID とつなぐ箱（始点・終点。押すとその箱を選ぶ）、矢印、消すボタン
@@ -189,9 +198,14 @@ function edgeHtml(info: EdgeInfo): string {
     <div class="mzp-section"><h3>通り方</h3>
       ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
     </div>
+    ${info.route === "elbow" ? `<div class="mzp-section"><h3>向きの指定${helpIcon("左右・上下にすると、その端はその辺から出入りします。横や縦に並ぶボックスどうしは、両端の向きをそろえたときだけ選べます（ボックスを動かしてそろわなくなったら、自動に戻ります）")}</h3>
+      <div class="mzp-subhead">始点</div>
+      ${segment("mzp-exit", info.exit ?? "auto", AXIS_OPTIONS, axisDisabled(info, info.enter))}
+      <div class="mzp-subhead">終点</div>
+      ${segment("mzp-enter", info.enter ?? "auto", AXIS_OPTIONS, axisDisabled(info, info.exit))}
+    </div>` : ""}
     ${info.zigzag && info.bend != null ? `<div class="mzp-section">
-      <button type="button" class="mzp-chip" data-bend-reset="${esc(info.id)}">中棒を真ん中に戻す</button>
-      <p class="mzp-hint">真ん中に戻すと、ほかのボックスを通るときは自動で避けた位置になります</p>
+      <button type="button" class="mzp-chip" data-bend-reset="${esc(info.id)}">中棒を真ん中に戻す</button>${helpIcon("真ん中に戻すと、ほかのボックスを通るときは自動で避けた位置になります")}
     </div>` : ""}
     <div class="mzp-section"><h3>線の種類</h3>
       ${segment("mzp-dash", info.dash, [["solid", "実線"], ["dashed", "破線"]])}
@@ -224,9 +238,8 @@ function html(info: Info): string {
         `<button type="button" class="mzp-preset" data-bg="${c}" style="background:${c}" title="${c}" aria-pressed="${bg != null && c === hex}"></button>`
       ).join("")}<button type="button" class="mzp-chip" data-bg="" aria-pressed="${bg == null}">なし</button></div>
     </div>`);
-    parts.push(`<div class="mzp-section"><h3>線の通り方（既定）</h3>
+    parts.push(`<div class="mzp-section"><h3>線の通り方（既定）${helpIcon("通り方を決めていない線は、これに従います")}</h3>
       ${segment("mzp-world-route", info.route, ROUTE_OPTIONS)}
-      <p class="mzp-hint">通り方を決めていない線は、これに従います</p>
     </div>`);
   } else {
     parts.push(`<div class="mzp-head">
@@ -256,15 +269,13 @@ function html(info: Info): string {
       </div>`);
     }
 
-    parts.push(`<div class="mzp-section"><h3>サイズ</h3>
+    parts.push(`<div class="mzp-section"><h3>サイズ${helpIcon(SIZE_HELP)}</h3>
       ${segment("mzp-size", info.size, [["L", "L"], ["M", "M"], ["S", "S"]])}
-      <p class="mzp-hint">${SIZE_HINTS[info.size]}。押すと中身に合わせた大きさに戻ります</p>
     </div>`);
 
     if (info.children.length) {
-      parts.push(`<div class="mzp-section"><h3>子の見せ方</h3>
+      parts.push(`<div class="mzp-section"><h3>子の見せ方${helpIcon(VIEW_HELP)}</h3>
         ${segment("mzp-view", info.childView, VIEW_OPTIONS)}
-        <p class="mzp-hint">${VIEW_HINTS[info.childView]}</p>
         ${info.childView === "tree" ? `<div class="mzp-subhead">向き</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}
       </div>`);
     }
@@ -284,13 +295,12 @@ function html(info: Info): string {
 
   if (info.kind !== "world") {
     if (info.sizableChildren >= 2) {
-      parts.push(`<div class="mzp-section"><h3>子のサイズ</h3>
+      parts.push(`<div class="mzp-section"><h3>子のサイズ${helpIcon("一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません（S サイズ、スティックマン、ツリー・非表示の子は対象外）")}</h3>
         <div class="mzp-chips">
           <button type="button" class="mzp-chip" data-fit="width">幅をそろえる</button>
           <button type="button" class="mzp-chip" data-fit="height">高さをそろえる</button>
           <button type="button" class="mzp-chip" data-fit="both">両方</button>
         </div>
-        <p class="mzp-hint">一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません（S サイズ、スティックマン、ツリー・非表示の子は対象外）</p>
       </div>`);
     }
     parts.push(`<div class="mzp-section"><h3>見た目</h3>
@@ -358,18 +368,19 @@ function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: b
   const live = byPage(items, "", (i, current) => row(i, false, current));
   // ほかのブック。ブックごとの見出しの中を、ページごとに分ける
   const otherHtml = others == null ? "" :
-    `<label class="mzp-check mzp-others"><input type="checkbox" data-others${others.shown ? " checked" : ""}>他ブックも表示</label>` +
+    `<label class="mzp-check mzp-others"><input type="checkbox" data-others${others.shown ? " checked" : ""}>他ブックも表示` +
+      `${helpIcon("タブで開いているほかのブックのボックスも並べます。図へドラッグすると、子と中の線ごとこの図にコピーします（元のブックは変わりません）")}</label>` +
     (!others.shown ? "" : !others.books.length ? '<p class="mzp-hint">ほかに開いているブックはありません</p>' :
       others.books.map(b => {
         const l = liveItems(b.data.nodes ?? [], undefined, "#ffffff");
         return fold(`book:${b.id}`, `${esc(b.name)}（${l.live.length}）`,
-          byPage(l, `book:${b.id}:`, i => row(i, false, false, b.id)) +
-          '<p class="mzp-hint">図へドラッグすると、子と中の線ごとこの図にコピーします（元のブックは変わりません）</p>',
+          byPage(l, `book:${b.id}:`, i => row(i, false, false, b.id)),
           "mzp-section mzp-fold mzp-other-book");
       }).join(""));
   // 消したものを上に置く（表示中は数が多くなりやすく、下に置くと消したものに気づけないため）
-  return fold("removed", `消したもの（${items.removed.length}）`, list(items.removed.map(i => row(i, true))) +
-      '<p class="mzp-hint">消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません</p>') +
+  return fold("removed", `消したもの（${items.removed.length}）` +
+      helpIcon("消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません"),
+      list(items.removed.map(i => row(i, true)))) +
     fold("live", `表示中（${items.live.length}）`, live) + otherHtml;
 }
 
@@ -378,6 +389,7 @@ export type PanelTab = "info" | "list";
 export interface Panel {
   show(info: Info): void;
   tab(name: PanelTab): void;
+  destroy(): void; // 吹き出しなど、サイドバーの外に作ったものを片付ける
 }
 
 export interface PanelOptions {
@@ -387,6 +399,7 @@ export interface PanelOptions {
 export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {}): Panel {
   injectStyle(STYLE_ID, PANEL_CSS);
   el.classList.add("mzp");
+  const offHelp = setupHelp(el); // 見出しなどの「?」の吹き出し
   el.innerHTML = `<div class="mzp-tabs" role="tablist">
       <button type="button" class="mzp-tab" role="tab" data-tab="info">情報</button>
       <button type="button" class="mzp-tab" role="tab" data-tab="list">追加削除</button>
@@ -462,6 +475,9 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     }
     if (t.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: t.value as Dash });
     if (t.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: t.value as Route });
+    if ((t.name === "mzp-exit" || t.name === "mzp-enter") && info.kind === "edge") {
+      return graph.updateEdge(info.id, { [t.name === "mzp-exit" ? "exit" : "enter"]: t.value === "auto" ? null : t.value as Axis });
+    }
     if (t.name === "mzp-world-route") return graph.update(null, { route: t.value as Route });
     // 矢印は、始点と終点の 2 つの選択を合わせて 1 つの値にする
     if (t.dataset.arrow && info.kind === "edge") {
@@ -504,5 +520,5 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
 
   show(info);
   tab(current);
-  return { show, tab };
+  return { show, tab, destroy: offHelp };
 }

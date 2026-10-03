@@ -57,8 +57,44 @@ test("斜めに離れた箱どうしの線を折れ線にすると Z 字にな�
   // 線は塗らない（折れ線の点で囲まれた面が黒く塗られないように）
   expect(await edge.locator(".mz-line").evaluate(l => getComputedStyle(l).fill)).toBe("none");
   expect(await edge.locator(".mz-hit").evaluate(l => getComputedStyle(l).fill)).toBe("none");
+  // 向きの指定は折れ線のときだけ出る。始点・終点とも上下にすると、縦・横・縦の Z 字（点は 4 つのまま）
+  const pick = (name: string, value: string) => side.locator(`label:has(input[name="${name}"][value="${value}"])`).click();
+  await pick("mzp-exit", "vertical");
+  await pick("mzp-enter", "vertical");
+  await expect(side.locator('input[name="mzp-enter"][value="vertical"]')).toBeChecked();
+  await expect.poll(count).toBe(4);
+  await pick("mzp-exit", "auto");
+  await pick("mzp-enter", "auto");
   await side.locator("label", { hasText: "直線" }).click();
   await expect.poll(count).toBe(2);
+  await expect(side.locator('input[name="mzp-exit"]')).toHaveCount(0);
+});
+
+test("横に並ぶ箱どうしは、始点と終点の向きをそろえる組み合わせしか選べない", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 60 }],
+    edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
+  });
+  const hit = page.locator(".mz-edge .mz-hit").first();
+  const mid = await hit.evaluate(l => {
+    const g = l as SVGPolylineElement;
+    const svg = g.ownerSVGElement!.getBoundingClientRect();
+    const p = g.getPointAtLength(g.getTotalLength() / 2);
+    return { x: svg.left + p.x, y: svg.top + p.y };
+  });
+  await page.mouse.click(mid.x, mid.y);
+  const side = page.locator("#sidebar");
+  // 見出しの「?」に乗せると説明の吹き出しが出る
+  await side.locator("h3", { hasText: "向きの指定" }).locator(".mz-help").hover();
+  await expect(page.locator(".mz-help-tip")).toBeVisible();
+  await expect(page.locator(".mz-help-tip")).toContainText("両端の向きをそろえたときだけ選べます");
+  await side.locator('label:has(input[name="mzp-exit"][value="horizontal"])').click();
+  await expect(side.locator('input[name="mzp-enter"][value="vertical"]')).toBeDisabled();
+  await expect(side.locator('input[name="mzp-enter"][value="horizontal"]')).toBeEnabled();
+  // 始点を上下にすると、終点の左右が選べなくなり、線は下を回るコの字（点が 4 つ）
+  await side.locator('label:has(input[name="mzp-exit"][value="vertical"])').click();
+  await expect(side.locator('input[name="mzp-enter"][value="horizontal"]')).toBeDisabled();
+  await expect.poll(() => hit.evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/).length)).toBe(4);
 });
 
 test("Z 字の中棒をドラッグで動かせ、線を選ぶと真ん中に戻せる", async ({ page }) => {

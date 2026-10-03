@@ -258,6 +258,7 @@ export async function startApp(ui: AppUi) {
     if (i < 0) return;
     books.splice(i, 1);
     b.sync.close();
+    b.panel.destroy();
     b.graph.destroy();
     b.stage.remove();
     b.side.remove();
