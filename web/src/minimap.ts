@@ -9,7 +9,7 @@
 // 見えている範囲の四角がいつもミニマップの中に見えるよう、自動でスクロールする。ホイールでも動かせる）。
 // 描き直しは、図の要素の変化・スクロール・大きさの変化を見て、次の描画の前にまとめて 1 回
 
-import { SVGNS, injectStyle } from "./dom";
+import { SVGNS, injectStyle, isLightColor } from "./dom";
 import type { Graph } from "./graph";
 
 const WIDTH = 160;
@@ -31,6 +31,7 @@ const CSS = `
 .mz-minimap-body::-webkit-scrollbar { display: none; }
 .mz-minimap svg { display: block; cursor: pointer; touch-action: none; }
 .mz-minimap .mm-box { stroke: none; }
+.mz-minimap .mm-bg { stroke: none; }
 .mz-minimap .mm-group { fill: none; stroke-width: 1; }
 .mz-minimap .mm-edge { fill: none; stroke: var(--mm-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .mz-minimap .mm-view { fill: var(--mm-view); stroke: var(--mm-view-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; cursor: move; }
@@ -41,6 +42,10 @@ const CSS = `
     --mm-edge: rgba(90, 90, 110, 0.55); --mm-box: #d4d4d8; --mm-view: rgba(109, 75, 216, 0.15); --mm-view-line: #6d4bd8;
   }
 }
+/* ワールドに背景色があれば、ミニマップも同じ背景にし、その明るさに合わせて線や箱の色を切り替える（graph-style.ts の .mz-on-light / .mz-on-dark と同じ考え）。
+   アプリのテーマ（ライト）の指定より強くするため、最後に :root を付けて書く */
+:root .mz-minimap.mm-on-light { --mm-edge: rgba(90, 90, 110, 0.6); --mm-box: #d4d4d8; --mm-view: rgba(109, 75, 216, 0.15); --mm-view-line: #6d4bd8; }
+:root .mz-minimap.mm-on-dark { --mm-edge: rgba(200, 200, 210, 0.55); --mm-box: #ffffff; --mm-view: rgba(196, 181, 253, 0.25); --mm-view-line: #c4b5fd; }
 `;
 
 export interface Minimap { destroy(): void }
@@ -112,6 +117,16 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
       return x;
     };
     const items: Element[] = [];
+    // ワールドの背景色（ページを見ているなら、そのページの背景）
+    const info = graph.info(null);
+    const bg = info.kind === "world" ? info.background : null;
+    el.classList.toggle("mm-on-light", !!bg && isLightColor(bg));
+    el.classList.toggle("mm-on-dark", !!bg && !isLightColor(bg));
+    if (bg) {
+      const r = make("rect", "mm-bg", { x: 0, y: 0, width: fullW, height: fullH });
+      (r as SVGElement).style.setProperty("fill", bg);
+      items.push(r);
+    }
     for (const e of g.edges) items.push(make("polyline", "mm-edge", { points: e.points.map(p => p.join(",")).join(" ") }));
     // 子を持つ箱（内包・ツリー）は枠だけ、それ以外は塗る。親から先に描くので、子が上に来る
     for (const b of g.boxes) {
