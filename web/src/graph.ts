@@ -12,7 +12,8 @@
  *   const graph = createGraph(document.getElementById('stage'), data, { onChange, onSelect });
  *   graph.toJSON();              // 現在の状態を反映したデータ
  *   graph.load(data);            // 別のデータで描き直す（検証エラーなら例外を投げ、表示はそのまま残る）。履歴は空にする
- *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す（はみ出しの調整はしない）
+ *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す（はみ出しの調整はしない）。
+ *                                            // ただし、ユーザーがまだ図を変えていなければ（開いてから LLM が整えている間）、履歴に足さず、それを出発点にする
  *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
@@ -308,7 +309,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
   }, L, R, createDrag(opt, L));
 
+  // ユーザーが図を変えたか（読み込んでから、履歴に積む操作をしたか）。変える前の外部の変更は、履歴に積まずに出発点にする
+  // （LLM が open のあと check / set で整えている途中を、戻るボタンで巻き戻させないため。docs/HANDOFF.md の 9 章）
+  let touched = false;
+
   function changed() {
+    touched = true;
     const data = api.toJSON();
     H.record(data);
     opt.onChange?.(data);
@@ -975,7 +981,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function load(newData: unknown, o: { keepHistory?: boolean } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
     build(copy, !o.keepHistory);
-    if (o.keepHistory) H.record();
+    if (!o.keepHistory) touched = false;
+    if (o.keepHistory && touched) H.record();
     else H.reset();
   }
 

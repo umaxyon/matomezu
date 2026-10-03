@@ -99,6 +99,7 @@ describe("場面ごとの操作列", () => {
       return d;
     };
     expect(record(example("three-levels"), [
+      set(4, { caption: "ユーザーの変更" }), // ユーザーが触ったあとなので、外部の変更も履歴に積まれる
       ["外部の変更を読み直す", g => g.load(changed(), { keepHistory: true })],
       set(5, { caption: LONG }),
       ["Undo", g => g.undo()],

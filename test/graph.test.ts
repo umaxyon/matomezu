@@ -425,11 +425,19 @@ describe("履歴", () => {
     expect(graph.selected()).toBe("2");
   });
 
-  test("load は履歴を空にし、keepHistory なら1件足す", () => {
+  test("load は履歴を空にし、keepHistory なら1件足す。ただしユーザーがまだ図を変えていなければ足さずに出発点にする", () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: "a" }] });
+    // 開いてから LLM が整えている間（ユーザーはまだ触っていない）は積まない
+    graph.load({ nodes: [{ id: 1, caption: "整えた" }] }, { keepHistory: true });
+    expect(graph.history()).toEqual({ canUndo: false, canRedo: false });
+    // ユーザーが変えたあとの外部の変更は積む
+    graph.update(1, { caption: "ユーザー" });
     graph.load({ nodes: [{ id: 1, caption: "外部の変更" }] }, { keepHistory: true });
     graph.undo();
-    expect(graph.info(1).caption).toBe("a");
+    expect(graph.info(1).caption).toBe("ユーザー");
+    graph.undo();
+    expect(graph.info(1).caption).toBe("整えた");
+    expect(graph.history().canUndo).toBe(false);
 
     graph.load({ nodes: [{ id: 1, caption: "開き直し" }] });
     expect(graph.history()).toEqual({ canUndo: false, canRedo: false });

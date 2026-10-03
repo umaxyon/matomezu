@@ -188,15 +188,25 @@ test("不正なファイルのあいだは保存を止め、直ったら再開�
   expect(JSON.parse(file).nodes[0].caption).toBe("after");
 });
 
-test("外部の変更は Undo で取り消せ、取り消した状態が保存される", async () => {
+test("ユーザーが図を変えたあとの外部の変更は Undo で取り消せ、取り消した状態が保存される", async () => {
   const g = await setup();
-  external({ nodes: [{ id: 1, caption: "LLM" }, { id: 2 }] });
+  g.update(2, { caption: "ユーザー" });
+  await settle();
+  external({ nodes: [{ id: 1, caption: "LLM" }, { id: 2, caption: "ユーザー" }] });
   await wait(10);
   expect(captions(g)[0]).toBe("LLM");
   expect(g.undo()).toBe(true);
   await settle();
   expect(captions(g)[0]).toBeNull();
   expect(JSON.parse(file).nodes[0].caption).toBeUndefined();
+});
+
+test("ユーザーがまだ図を変えていなければ、外部の変更は履歴に積まない（開いた直後に LLM が整えている間）", async () => {
+  const g = await setup();
+  external({ nodes: [{ id: 1, caption: "LLM" }, { id: 2 }] });
+  await wait(10);
+  expect(captions(g)[0]).toBe("LLM");
+  expect(g.history().canUndo).toBe(false);
 });
 
 test("最初の読み込みは履歴に残さない", async () => {
