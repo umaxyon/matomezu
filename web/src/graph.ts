@@ -16,6 +16,7 @@
  *                                            // ただし、ユーザーがまだ図を変えていなければ（開いてから LLM が整えている間）、履歴に足さず、それを出発点にする
  *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
  *   graph.select(id);            // 選択する（null はワールド）
+ *   graph.reveal(id);            // 見えている範囲の外なら、図をスクロールして真ん中に持ってくる（非表示の親の中なら、見えている祖先）
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
  *   graph.updateEdge(id, patch); // 線を変更する（arrow は null で矢印なし、dash は null か "solid" で実線、
  *                                //   route は "straight" / "elbow"。図の既定と同じなら線の側からは消す。via は null で自動に戻す）
@@ -167,6 +168,7 @@ export interface Graph {
   redo(): boolean;
   history(): HistoryState;
   select(id: Id | null): void;
+  reveal(id: Id): void; // 図の見えている範囲の外なら、スクロールして真ん中に持ってくる
   selected(): string | null;
   selectEdge(id: Id): void;
   updateEdge(id: Id, patch: EdgePatch): void;
@@ -325,6 +327,23 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   // ---- 選択 ----
+
+  // n が図の見えている範囲（スクロールバーを除く）に収まっていなければ、図をスクロールして真ん中に持ってくる。
+  // 非表示の親の中にいて描かれていなければ、描かれている一番近い祖先を見せる
+  function reveal(n: Box) {
+    let m: Box | null = n;
+    while (m && !m.el.getClientRects().length) m = m.parent;
+    if (!m) return;
+    const r = m.el.getBoundingClientRect(), c = container.getBoundingClientRect();
+    const left = c.left + container.clientLeft, top = c.top + container.clientTop;
+    const right = left + container.clientWidth, bottom = top + container.clientHeight;
+    if (r.left >= left && r.top >= top && r.right <= right && r.bottom <= bottom) return;
+    container.scrollBy({
+      left: r.left + r.width / 2 - (left + right) / 2,
+      top: r.top + r.height / 2 - (top + bottom) / 2,
+      behavior: "smooth",
+    });
+  }
 
   function select(n: Box | null) {
     markEdge(null);
@@ -1070,6 +1089,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     redo: () => H.redo(),
     history: () => H.state(),
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
+    reveal(id) { const n = nodeOf(id); if (!n.isWorld) reveal(n); },
     selected: () => (current ? current.id : null),
     selectEdge: id => selectEdge(edgeOf(id)),
     updateEdge: (id, patch) => updateEdge(edgeOf(id), patch),

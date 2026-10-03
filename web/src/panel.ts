@@ -93,6 +93,11 @@ const PANEL_CSS = `
 .mzp-seg label:has(input:focus-visible) { outline: 2px solid var(--mzp-accent); outline-offset: -2px; }
 .mzp-hint { font-size: 11px; color: var(--mzp-muted); margin: 6px 0 0; }
 .mzp-subhead { font-size: 11px; color: var(--mzp-muted); margin: 10px 0 4px; }
+.mzp-search {
+  position: sticky; top: 0; z-index: 1; padding: 8px 12px; background: inherit; border-bottom: 1px solid var(--mzp-line);
+}
+.mzp-search input { width: 100%; }
+.mzp-row[hidden] { display: none; }
 .mzp-tabs {
   position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 8px 12px 0;
   background: inherit; border-bottom: 1px solid var(--mzp-line);
@@ -411,9 +416,15 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
       <button type="button" class="mzp-tab" role="tab" data-tab="list">追加削除</button>
     </div>
     <div class="mzp-pane" role="tabpanel" data-pane="info"></div>
-    <div class="mzp-pane" role="tabpanel" data-pane="list"></div>`;
+    <div class="mzp-pane" role="tabpanel" data-pane="list">
+      <div class="mzp-search"><input type="search" class="mzp-input" data-search placeholder="絞り込み（id やキャプション）" aria-label="一覧を絞り込む"></div>
+      <div data-list></div>
+    </div>`;
   const infoPane = el.querySelector<HTMLElement>('[data-pane="info"]')!;
   const listPane = el.querySelector<HTMLElement>('[data-pane="list"]')!;
+  // 検索欄は描き直しの外に置く（入力中に図が変わっても、フォーカスと文字を失わないように）
+  const searchBox = listPane.querySelector<HTMLInputElement>("[data-search]")!;
+  const listBody = listPane.querySelector<HTMLElement>("[data-list]")!;
   let info: Info = graph.info(graph.selected());
   let current: PanelTab = "info";
   const open: Record<Fold, boolean> = {}; // 描き直しても折りたたみを保つ（無ければ開いている）
@@ -424,17 +435,39 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     info = next;
     infoPane.innerHTML = html(info);
     const others = o.otherBooks && { shown: showOthers, books: showOthers ? o.otherBooks() : [] };
-    listPane.innerHTML = listHtml(graph.items(), open, others);
+    listBody.innerHTML = listHtml(graph.items(), open, others);
+    filter();
   }
 
-  // details の開け閉めを覚える（toggle は泡立たないので、捕捉で受け取る）
+  // 検索欄の文字（大文字小文字は区別しない）を「id_キャプション」に含む行だけを残す。
+  // 検索中は区画をすべて開いて見せ（閉じた区画の中の一致を見落とさないため）、検索をやめたら元の開け閉めに戻す
+  function filter() {
+    const q = searchBox.value.trim().toLowerCase();
+    for (const r of listBody.querySelectorAll<HTMLElement>(".mzp-row")) {
+      r.hidden = !!q && !(r.querySelector(".mzp-row-cap")?.textContent ?? "").toLowerCase().includes(q);
+    }
+    for (const d of listBody.querySelectorAll<HTMLDetailsElement>("details[data-fold]")) {
+      d.open = q ? true : open[d.dataset.fold!] ?? true;
+    }
+  }
+  searchBox.addEventListener("input", filter);
+  searchBox.addEventListener("keydown", e => {
+    if (e.key !== "Escape" || !searchBox.value) return;
+    e.stopPropagation(); // 線の 1 つ目の取り消しなど、図の Esc には渡さない
+    searchBox.value = "";
+    filter();
+  });
+
+  // details の開け閉めを覚える（toggle は泡立たないので、捕捉で受け取る）。検索中の開け閉めは覚えない
   el.addEventListener("toggle", e => {
-    if (!(e.target instanceof HTMLDetailsElement) || !e.target.dataset.fold) return;
+    if (!(e.target instanceof HTMLDetailsElement) || !e.target.dataset.fold || searchBox.value.trim()) return;
     open[e.target.dataset.fold] = e.target.open;
   }, true);
 
   function tab(name: PanelTab) {
     current = name;
+    // 検索欄はタブのすぐ下に貼り付ける（タブの高さは文字の大きさで変わるので測る）
+    if (name === "list") searchBox.parentElement!.style.top = el.querySelector<HTMLElement>(".mzp-tabs")!.offsetHeight + "px";
     for (const b of el.querySelectorAll<HTMLElement>("[data-tab]")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
     infoPane.hidden = name !== "info";
     listPane.hidden = name !== "list";
@@ -453,7 +486,12 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     const delEdge = e.target.closest<HTMLElement>("[data-remove-edge]");
     if (delEdge) return graph.removeEdge(delEdge.dataset.removeEdge!);
     const chip = e.target.closest<HTMLElement>("[data-select]");
-    if (chip) return graph.select(chip.dataset.select!);
+    if (chip) {
+      graph.select(chip.dataset.select!);
+      // 一覧の行から選んだら、図の見えている範囲の外にあれば見せる
+      if (chip.matches(".mzp-row")) graph.reveal(chip.dataset.select!);
+      return;
+    }
     const preset = e.target.closest<HTMLElement>("[data-color]");
     if (preset) return graph.update(info.id, { color: preset.dataset.color! });
     const bg = e.target.closest<HTMLElement>("[data-bg]");
@@ -469,7 +507,7 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
   // 文字入力は Enter で確定する（フォーカスが外れたときも確定する）
   el.addEventListener("keydown", e => {
     const t = e.target;
-    if (!(t instanceof HTMLInputElement) || !t.matches(".mzp-input")) return;
+    if (!(t instanceof HTMLInputElement) || !t.matches(".mzp-input") || t.dataset.search != null) return;
     if (e.key === "Enter") t.blur();
     if (e.key === "Escape") show(info);
   });

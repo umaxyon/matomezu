@@ -186,3 +186,30 @@ test("一覧の区画は折りたためて、描き直しても開け閉めを�
   g.remove(1); // 一覧が描き直される
   expect([fold("live").open, fold("removed").open]).toEqual([false, true]);
 });
+
+test("一覧の検索欄: 入力した文字を id_キャプションに含む行だけを残し、検索中は閉じた区画も開く。Esc で戻す", () => {
+  const { g, side, click } = setup({
+    nodes: [{ id: 1, caption: "東京のAさん" }, { id: 2, caption: "大阪のBさん" }, { id: 12, caption: "東京のCさん" }],
+  });
+  click('[data-tab="list"]');
+  const search = side.querySelector<HTMLInputElement>("[data-search]")!;
+  const shown = () => [...side.querySelectorAll<HTMLElement>('[data-fold="live"] .mzp-row')].filter(r => !r.hidden).map(r => r.dataset.select);
+  const live = () => side.querySelector<HTMLDetailsElement>('[data-fold="live"]')!;
+  live().open = false;
+  live().dispatchEvent(new Event("toggle"));
+  search.value = "東京";
+  search.dispatchEvent(new Event("input", { bubbles: true }));
+  expect(shown()).toEqual(["1", "12"]);
+  expect(live().open).toBe(true);
+  search.value = "12_";
+  search.dispatchEvent(new Event("input", { bubbles: true }));
+  expect(shown()).toEqual(["12"]);
+  // 図が変わって一覧が描き直されても、検索欄の文字と絞り込みは残る
+  g.update(2, { caption: "大阪のBさん（変更）" });
+  expect(search.value).toBe("12_");
+  expect(shown()).toEqual(["12"]);
+  search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  expect(search.value).toBe("");
+  expect(shown()).toEqual(["1", "2", "12"]);
+  expect(live().open).toBe(false); // 検索をやめたら元の開け閉めに戻る
+});
