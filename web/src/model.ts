@@ -2,7 +2,7 @@
 
 import { truncate } from "./dom";
 import type { Arrangement, Arrow, Axis, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
-import type { EndPaths, RouteShape, Segment } from "./routing";
+import type { EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
@@ -64,7 +64,10 @@ export interface Edge {
   shape: RouteShape | null;   // 折れ線の形（描いたときのもの。直線などは null）
   segments: Segment[];        // ドラッグで動かせる途中の区間（描いたときのもの）
   arrangement: Arrangement;   // 2 つの箱の並び（描いたときのもの）
-  ends: EndPaths | null;  // 両端の位置をずらせるとき、その基準（描いたときのもの。基準が変わったら端の位置を自動に戻す）
+  ends: EndPaths | null;
+  // 前に道筋を決めたときの入力（JSON）と結果。入力が同じなら使い回す（ドラッグ中に、動いていない線の避ける道を探し直さない）。
+  // データを書き換える結果（fix のあるもの）は覚えない
+  routeMemo: { key: string; route: Routed } | null;  // 両端の位置をずらせるとき、その基準（描いたときのもの。基準が変わったら端の位置を自動に戻す）
   endsEl: SVGGElement;        // 線の両端をつかむ丸（線を選んでいるときだけ出す）
 }
 

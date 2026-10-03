@@ -2,8 +2,8 @@
 
 import { SVGNS, isLightColor } from "./dom";
 import type { Layout } from "./layout/layout";
-import { route } from "./routing";
-import type { RouteFix } from "./routing";
+import { route, scopeObstacles } from "./routing";
+import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
   BEND_MARGIN, absPos, ancestors, arrowOf, borderOf, enterOf, exitOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
@@ -200,7 +200,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const [bx, by] = absPos(e.b);
       const ra = anchorRect(e.a), rb = anchorRect(e.b);
       const obstacles = siblingsOf(e.a.parent).filter(o => o.n !== e.a && o.n !== e.b).map(o => o.r);
-      const r = route({
+      const input: RouteInput = {
         a: { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
         b: { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
         elbow: routeOf(e, ctx.world) === "elbow", exit: exitOf(e), enter: enterOf(e),
@@ -209,7 +209,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
         enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
         prevFrame: e.ends?.frame ?? null,
-      });
+      };
+      // 道筋は入力だけで決まる（routing.ts は純粋な関数）ので、入力が前と同じなら前の結果を使い回す。
+      // ほかの箱は、道筋に関わりうるものだけに絞る（ドラッグ中に、離れた所で動いている箱のために探し直さない）
+      input.obstacles = scopeObstacles(input);
+      const key = JSON.stringify(input);
+      const r = e.routeMemo?.key === key ? e.routeMemo.route : route(input);
+      e.routeMemo = Object.keys(r.fix).length ? null : { key, route: r };
       const pts = r.points;
       e.points = pts;
       e.shape = r.shape;

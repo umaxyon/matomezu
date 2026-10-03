@@ -413,7 +413,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     svg.appendChild(g);
     const e: Edge = {
       src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], handlesEl,
-      shape: null, segments: [], arrangement: "diagonal", ends: null, endsEl,
+      shape: null, segments: [], arrangement: "diagonal", ends: null, routeMemo: null, endsEl,
     };
     edgeOfEl.set(g, e);
     for (const el of [hit, handlesEl]) {

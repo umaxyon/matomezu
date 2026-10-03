@@ -1,6 +1,6 @@
 // routing.ts のテスト。線の道筋を、画面を作らずに確かめる（docs/ROUTE-plan.md）
 import { expect, test } from "bun:test";
-import { type RouteInput, borderPath, sidePath, nearestAt, pointAt, route, segmentsOf, shapePoints, simplifyVia } from "../web/src/routing";
+import { type RouteInput, borderPath, passes, routeCandidates, scopeObstacles, sidePath, nearestAt, pointAt, route, segmentsOf, shapePoints, simplifyVia } from "../web/src/routing";
 
 // a: 40〜160 × 40〜104（中心 100, 72）、b: 400〜520 × 300〜364（中心 460, 332）
 const a = { x: 40, y: 40, w: 120, h: 64 }, b = { x: 400, y: 300, w: 120, h: 64 };
@@ -134,4 +134,76 @@ test("長さ 0 の区間をまとめるときも、ずらした端の位置で�
   const s = { exit: "horizontal" as const, enter: "horizontal" as const, via: [200, 56, 300] };
   expect(simplifyVia(a, b, s, { exitAt: 0.25, enterAt: null })).toEqual([300]);
   expect(simplifyVia(a, b, s)).toEqual([200, 56, 300]);
+});
+
+// ---- ほかの箱を避ける（段階 5） ----
+
+test("自動の L 字がほかの箱を通るなら、通らないもう一方の L 字にする", () => {
+  const o1 = { x: 420, y: 150, w: 80, h: 60 }; // 自動の L 字（右へ出て b の上へ入る）の縦の区間をふさぐ
+  const r = route(input({ obstacles: [o1] }));
+  expect([r.points, r.shape]).toEqual([[[100, 104], [100, 332], [400, 332]], { exit: "vertical", enter: "horizontal", via: [] }]);
+});
+
+test("L 字がどちらも通れなければ、折れ目の多い Z 字から探す", () => {
+  const o1 = { x: 420, y: 150, w: 80, h: 60 }, o2 = { x: 60, y: 200, w: 80, h: 60 };
+  const r = route(input({ obstacles: [o1, o2] }));
+  expect(r.shape?.via.length).toBe(1);
+  expect(r.points.length).toBe(4);
+  expect([o1, o2].some(o => passes(r.points, o))).toBe(false);
+});
+
+test("向きの指定は守って避ける", () => {
+  const o1 = { x: 420, y: 150, w: 80, h: 60 };
+  const r = route(input({ exit: "horizontal", obstacles: [o1] }));
+  expect(r.shape?.exit).toBe("horizontal");
+  expect(passes(r.points, o1)).toBe(false);
+});
+
+test("横に並ぶ箱どうしのまっすぐな線がほかの箱を通るなら、外を回る", () => {
+  const side = { x: 400, y: 40, w: 120, h: 64 };
+  const o = { x: 240, y: 50, w: 60, h: 40 };
+  const r = route(input({ b: side, obstacles: [o] }));
+  expect(r.shape?.via.length).toBe(1);
+  expect(passes(r.points, o)).toBe(false);
+});
+
+test("手で直した形（via）は、ほかの箱を通っても避けない", () => {
+  const o = { x: 260, y: 150, w: 40, h: 40 };
+  const r = route(input({ exit: "horizontal", enter: "horizontal", via: [280], obstacles: [o] }));
+  expect(r.points).toEqual([[160, 72], [280, 72], [280, 332], [400, 332]]);
+});
+
+test("候補の一覧: 折れ目の数・長さ・ほかの箱との距離を持つ（配置の戦略が選び直せるように）", () => {
+  const o1 = { x: 420, y: 150, w: 80, h: 60 };
+  const list = routeCandidates(input({ obstacles: [o1] }));
+  expect(list.length).toBeGreaterThan(1);
+  expect(list.every(c => !passes(c.points, o1))).toBe(true);
+  const l = list.find(c => c.bends === 1)!;
+  expect(l.length).toBe(528); // 228 + 300
+  expect(l.clearance).toBeCloseTo(Math.hypot(20, 122), 5); // 横の区間の右端 (400, 332) から o1 の左下の角 (420, 210) まで
+});
+
+test("同じ折れ目の数・長さなら、ほかの箱から離れた方を選ぶ", () => {
+  // C（a の右）が自動の L 字を、D（a の下）がもう一方の L 字をふさぐ。Z 字の中棒は a と b の間ならどこでも同じ長さ
+  const b2 = { x: 400, y: 260, w: 120, h: 64 };
+  const c = { x: 400, y: 40, w: 120, h: 64 }, d = { x: 40, y: 200, w: 120, h: 64 };
+  const r = route(input({ b: b2, obstacles: [c, d] }));
+  expect(r.points).toEqual([[160, 72], [280, 72], [280, 292], [400, 292]]); // 真ん中（C と D から 120 ずつ）
+});
+
+test("描いた線がほかの箱を通るかを返す（避ける道が見つからない、手で直した形、直線）", () => {
+  const o = { x: 260, y: 150, w: 40, h: 40 };
+  expect(route(input({ obstacles: [o] })).through).toBe(false); // 自動の L 字は通らない
+  expect(route(input({ exit: "horizontal", enter: "horizontal", via: [280], obstacles: [o] })).through).toBe(true);
+  // b を四方から囲む箱があると入れない
+  const ring = [{ x: 380, y: 280, w: 160, h: 10 }, { x: 380, y: 374, w: 160, h: 10 }, { x: 380, y: 290, w: 10, h: 84 }, { x: 530, y: 290, w: 10, h: 84 }];
+  expect(route(input({ obstacles: ring })).through).toBe(true);
+});
+
+test("道筋に関わらない遠くの箱は絞り込みで外れ、外しても結果は変わらない", () => {
+  const o1 = { x: 420, y: 150, w: 80, h: 60 }, o2 = { x: 60, y: 200, w: 80, h: 60 };
+  const far = { x: 1200, y: 900, w: 80, h: 60 };
+  const full = input({ obstacles: [o1, o2, far] });
+  expect(scopeObstacles(full)).toEqual([o1, o2]);
+  expect(route({ ...full, obstacles: scopeObstacles(full) }).points).toEqual(route(full).points);
 });
