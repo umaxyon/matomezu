@@ -30,9 +30,13 @@ import (
 // 画面が新しい版を配置し終えるのを待つ時間
 const layoutWait = 10 * time.Second
 
+// 要約のあとに、指定した箱の子の位置と大きさを出す（-in）
+const inUsage = "also list the position and size of the children of these boxes (comma separated ids), relative to the box"
+
 func check(args []string) error {
 	fs := newFlags("check")
 	page := fs.String("page", "", "summarize the page of this box instead of the first page")
+	in := fs.String("in", "", inUsage)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -43,12 +47,27 @@ func check(args []string) error {
 	if err := checkData(fs.Arg(0)); err != nil {
 		return err
 	}
-	summary, err := waitLayout(fs.Arg(0), *page)
+	l, err := waitLayout(fs.Arg(0), *page)
 	if err != nil {
 		return err
 	}
-	fmt.Println(summary)
+	printLayout(l, *in)
 	return nil
+}
+
+// printLayout は要約と、-in で指定された箱の子の行を出す
+func printLayout(l server.Layout, in string) {
+	fmt.Println(l.Summary)
+	for _, id := range strings.Split(in, ",") {
+		if id = strings.TrimSpace(id); id == "" {
+			continue
+		}
+		if line, ok := l.Details[id]; ok {
+			fmt.Println(line)
+		} else {
+			fmt.Printf("in #%s: no children shown (no such box on this page, or it has no children)\n", id)
+		}
+	}
 }
 
 // validateCmd は図のデータの誤りを 1 行ずつ出す。無ければ ok
@@ -87,6 +106,7 @@ func checkData(path string) error {
 func set(args []string) error {
 	fs := newFlags("set")
 	page := fs.String("page", "", "summarize the page of this box instead of the first page")
+	in := fs.String("in", "", inUsage)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -109,19 +129,19 @@ func set(args []string) error {
 	if err := checkData(path); err != nil {
 		return fmt.Errorf("written, but %w", err)
 	}
-	summary, err := waitLayout(path, *page)
+	l, err := waitLayout(path, *page)
 	if err != nil {
 		return fmt.Errorf("written, but %w", err)
 	}
-	fmt.Println(summary)
+	printLayout(l, *in)
 	return nil
 }
 
 // waitLayout は、開いている画面が今のファイルの版の page（"" は最初のページ）を配置した結果を待って返す
-func waitLayout(path, page string) (string, error) {
+func waitLayout(path, page string) (server.Layout, error) {
 	s := daemon.Running()
 	if s == nil {
-		return "", errors.New("not open in a browser; run: matomezu open " + path)
+		return server.Layout{}, errors.New("not open in a browser; run: matomezu open " + path)
 	}
 	// open の直後は、ブラウザがつながるまで少しかかる
 	deadline := time.Now().Add(layoutWait)
@@ -129,19 +149,19 @@ func waitLayout(path, page string) (string, error) {
 	for {
 		var err error
 		if res, err = daemon.Open(s, path, false, ""); err != nil {
-			return "", err
+			return server.Layout{}, err
 		}
 		if res.Connections > 0 {
 			break
 		}
 		if time.Now().After(deadline) {
-			return "", errors.New("not open in a browser; run: matomezu open " + path)
+			return server.Layout{}, errors.New("not open in a browser; run: matomezu open " + path)
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
 	// 見ていないタブには配置の結果が無いので、つながった画面に、その図のタブを前に出して配置させる（1 回だけ頼む）
 	if _, err := daemon.Open(s, path, true, page); err != nil {
-		return "", err
+		return server.Layout{}, err
 	}
 	url := s.URL("/d/" + res.ID + "/api/layout?page=" + neturl.QueryEscape(page))
 	for {
@@ -150,17 +170,17 @@ func waitLayout(path, page string) (string, error) {
 			Current string `json:"current"`
 		}
 		if err := getJSON(url, &l); err != nil {
-			return "", err
+			return server.Layout{}, err
 		}
 		if l.Version != "" && l.Version == l.Current {
-			return l.Summary, nil
+			return l.Layout, nil
 		}
 		if time.Now().After(deadline) {
 			if l.Version == "" {
 				// 入れ替わったサーバーに、前の版の画面がつながったままになっている
-				return "", errors.New("the open page has not reported its layout; ask the user to reload the page")
+				return server.Layout{}, errors.New("the open page has not reported its layout; ask the user to reload the page")
 			}
-			return "", errors.New("the browser did not lay out the current file (is it valid JSON for matomezu? check the browser)")
+			return server.Layout{}, errors.New("the browser did not lay out the current file (is it valid JSON for matomezu? check the browser)")
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

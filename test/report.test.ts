@@ -1,6 +1,6 @@
 // report.ts のテスト。配置の要約に、はみ出し・線の交差・線が通るボックス・切れた文字が出ること
 import { expect, test } from "bun:test";
-import { type GeoBox, type GeoEdge, summarize } from "../web/src/report";
+import { type GeoBox, type GeoEdge, details, summarize } from "../web/src/report";
 
 const box = (id: string, x: number, y: number, w = 100, h = 50, ancestors: string[] = [], caption = id): GeoBox =>
   ({ id, caption, ancestors, x, y, w, h, cut: false });
@@ -51,4 +51,22 @@ test("折れ線は区間ごとに、交差と箱を通る線を調べる", () =>
   const text = summarize({ viewport: { w: 800, h: 600 }, boxes: [a, b, mid, c, d], edges: [elbow, other] });
   expect(text).toContain("through 1: e1(1-2)>#3 3");
   expect(text).toContain("cross 1: e1(1-2)xe2(4-5)");
+});
+
+test("details: 子のある箱ごとに、子の位置（親の左上から）と大きさ。子がさらに子を持てば [見せ方 子の数]、非表示ならその旨", () => {
+  const box = (id: string, x: number, y: number, w: number, h: number, ancestors: string[] = [], more: Partial<GeoBox> = {}): GeoBox =>
+    ({ id, caption: `B${id}`, ancestors, x, y, w, h, cut: false, ...more });
+  const boxes = [
+    box("1", 100, 50, 300, 200, [], { view: "nest", kids: 2 }),
+    box("2", 112, 80, 120, 64, ["1"]),
+    box("3", 240, 80, 140, 150, ["1"], { view: "tree", kids: 2 }),
+    box("4", 250, 120, 120, 44, ["3", "1"]),
+    box("5", 250, 172, 120, 44, ["3", "1"]),
+    box("6", 500, 50, 120, 64, [], { view: "hidden", kids: 3 }),
+  ];
+  expect(details({ viewport: { w: 800, h: 600 }, boxes, edges: [] })).toEqual({
+    "1": "in #1 B1 (nest 2, 300x200): #2 B2 (12,30 120x64); #3 B3 (140,30 140x150) [tree 2]",
+    "3": "in #3 B3 (tree 2, 140x150): #4 B4 (10,40 120x44); #5 B5 (10,92 120x44)",
+    "6": "in #6 B6 (hidden 3, 120x64): children are hidden",
+  });
 });

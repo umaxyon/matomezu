@@ -25,7 +25,7 @@ const maxBody = 16 << 20
 //
 //	GET  api/data    ファイルの中身。ETag に版（中身のハッシュ）、X-Matomezu-Name にファイル名を入れる
 //	PUT  api/data    画面からの保存。If-Match の版が今のファイルと違えば 409 を返す
-//	POST api/layout  画面からの配置の要約 {"version", "page", "summary"}。ページごとに最新の1件だけを覚える
+//	POST api/layout  画面からの配置の要約 {"version", "page", "summary", "details"}。ページごとに最新の1件だけを覚える
 //	GET  api/layout  ?page=<id> のページ（無ければ最初のページ）の要約と、今のファイルの版 {"version", "page", "summary", "current"}
 //
 // 版の変更は Hub の通知（hub.go の /api/events）で画面へ知らせる。
@@ -41,11 +41,13 @@ type doc struct {
 	layout  map[string]Layout // 画面から届いた最新の配置の要約（ページの箱の id ごと。最初のページは ""）
 }
 
-// Layout は画面が配置した結果の要約。Version はそのとき画面が表示していたファイルの版、Page は描いていたページ
+// Layout は画面が配置した結果の要約。Version はそのとき画面が表示していたファイルの版、Page は描いていたページ。
+// Details は子のある箱ごとの、子の位置と大きさ（箱の id ごとに 1 行。matomezu check / set の -in で出す）
 type Layout struct {
-	Version string `json:"version"`
-	Page    string `json:"page"`
-	Summary string `json:"summary"`
+	Version string            `json:"version"`
+	Page    string            `json:"page"`
+	Summary string            `json:"summary"`
+	Details map[string]string `json:"details,omitempty"`
 }
 
 // ファイルの絶対パスから、URL に使う id を作る。同じファイルなら毎回同じ URL になる

@@ -9,6 +9,8 @@ export interface GeoBox extends Rect {
   caption: string;
   ancestors: string[]; // 親から順に
   cut: boolean;        // キャプションが … で切れている
+  view?: "nest" | "tree" | "hidden"; // 子の見せ方（子があるときだけ）
+  kids?: number;       // 子の数（非表示の子も数える）
 }
 
 // 見えている線（ツリーの線は含まない）。points は線の点の並び（折れ線なら折れ点を含む）
@@ -67,6 +69,23 @@ function segThrough([[ex1, ey1], [ex2, ey2]]: [Pt, Pt], r: Rect) {
     return true;
   };
   return clip(-dx, ex1 - x0) && clip(dx, x1 - ex1) && clip(-dy, ey1 - y0) && clip(dy, y1 - ey1) && t0 < t1;
+}
+
+// 子のある箱ごとに、子の位置と大きさを 1 行で（matomezu check / set の -in で出す）。位置は親の左上から（データの x, y と同じ）。
+// 普段の要約に全部の子を出すと長くなるので、指定された箱の分だけ CLI が出す。子がさらに子を持てば [見せ方 子の数] を添える
+export function details(g: Geometry): Record<string, string> {
+  const out: Record<string, string> = {};
+  const rect = (b: GeoBox, p: GeoBox) => `${Math.round(b.x - p.x)},${Math.round(b.y - p.y)} ${Math.round(b.w)}x${Math.round(b.h)}`;
+  const more = (b: GeoBox) => (b.kids ? ` [${b.view} ${b.kids}]` : "");
+  for (const p of g.boxes) {
+    if (!p.kids) continue;
+    const head = `in ${label(p)} (${p.view} ${p.kids}, ${Math.round(p.w)}x${Math.round(p.h)})`;
+    const kids = g.boxes.filter(b => b.ancestors[0] === p.id);
+    out[p.id] = kids.length
+      ? `${head}: ` + kids.map(b => `${label(b)} (${rect(b, p)})${more(b)}`).join("; ")
+      : `${head}: children are hidden`;
+  }
+  return out;
 }
 
 export function summarize(g: Geometry): string {

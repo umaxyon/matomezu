@@ -12,7 +12,7 @@
  */
 
 import type { Graph } from "./graph";
-import { summarize } from "./report";
+import { details, summarize } from "./report";
 import type { Diagram } from "./types";
 
 const SAVE_DELAY = 300;
@@ -79,16 +79,18 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
   // 表示している版の配置の要約を送る。届かなくても図の操作には関係しないので、失敗は知らせない
   function report() {
     if (!active || !version || blocked) return;
-    let summary: string;
+    let summary: string, inside: Record<string, string>;
     try {
-      summary = summarize(graph.geometry());
+      const g = graph.geometry();
+      summary = summarize(g);
+      inside = details(g);
     } catch {
       return;
     }
     fetch(base + "api/layout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: version.replace(/^W\//, "").replace(/"/g, ""), page: graph.page() ?? "", summary }),
+      body: JSON.stringify({ version: version.replace(/^W\//, "").replace(/"/g, ""), page: graph.page() ?? "", summary, details: inside }),
     }).catch(() => {});
   }
 

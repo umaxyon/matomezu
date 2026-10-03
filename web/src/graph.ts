@@ -1057,6 +1057,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         return {
           id: n.id, caption: captionOf(n), ancestors: ancestors(n).map(p => p.id),
           x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n),
+          ...(n.children.length ? { view: viewOf(n), kids: n.children.length } : {}),
         };
       });
       // 線の点の並びは、矢印の分を縮める前のもの（見える線は、矢印のある端で短くしている）
