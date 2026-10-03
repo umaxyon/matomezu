@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 )
 
 // 新しいファイルを作るときの中身
@@ -31,14 +29,12 @@ const maxBody = 16 << 20
 //	GET  api/layout  ?page=<id> のページ（無ければ最初のページ）の要約と、今のファイルの版 {"version", "page", "summary", "current"}
 //
 // 版の変更は Hub の通知（hub.go の /api/events）で画面へ知らせる。
-// ファイルの変更は、画面がつながっているあいだ一定間隔で読み直し、中身のハッシュを比べて見つける。
+// ファイルの変更は、画面が開いているあいだ Hub が一定間隔で読み直し（poll）、中身のハッシュを比べて見つける。
 // inotify は WSL の /mnt/c などで Windows 側からの変更を拾えないため使わない。
 type doc struct {
 	id        string
 	path      string
-	interval  time.Duration
 	onVersion func(id, version string) // 版が変わったときに Hub へ知らせる
-	active    func() bool              // 画面がつながっているか（つながっていなければ読み直さない）
 
 	mu      sync.Mutex
 	version string
@@ -58,14 +54,9 @@ func docID(path string) string {
 	return hex.EncodeToString(sum[:6])
 }
 
-// newDoc は path のファイルを扱う。ファイルが無ければ空の図で作る。
-func newDoc(path string, interval time.Duration, onVersion func(id, version string), active func() bool) (*doc, error) {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return nil, err
-	}
-	d := &doc{id: docID(abs), path: abs, interval: interval, onVersion: onVersion, active: active,
-		layout: map[string]Layout{}}
+// newDoc は abs（絶対パス）のファイルを扱う。ファイルが無ければ空の図で作る。
+func newDoc(abs string, onVersion func(id, version string)) (*doc, error) {
+	d := &doc{id: docID(abs), path: abs, onVersion: onVersion, layout: map[string]Layout{}}
 	b, err := os.ReadFile(abs)
 	if errors.Is(err, fs.ErrNotExist) {
 		b = []byte(emptyDiagram)
@@ -77,6 +68,21 @@ func newDoc(path string, interval time.Duration, onVersion func(id, version stri
 	}
 	d.version = hash(b)
 	return d, nil
+}
+
+// ensureFile は、ファイルが消えていれば空の図で作り直す（登録済みの図を開き直したとき）
+func (d *doc) ensureFile() error {
+	if _, err := os.Stat(d.path); !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	b := []byte(emptyDiagram)
+	if err := writeAtomic(d.path, b); err != nil {
+		return err
+	}
+	d.setVersion(hash(b))
+	return nil
 }
 
 func hash(b []byte) string {
@@ -208,28 +214,15 @@ func (d *doc) setVersion(v string) {
 	d.onVersion(d.id, v)
 }
 
-// watch はファイルを一定間隔で読み直し、外部での変更を知らせる。ctx が終わるまで戻らない。
-// 画面がつながっていないあいだは、知らせる相手がいないので読まない
-func (d *doc) watch(ctx context.Context) {
-	t := time.NewTicker(d.interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			if !d.active() {
-				continue
-			}
-			b, err := os.ReadFile(d.path)
-			if err != nil {
-				continue // 置き換えの途中などで一瞬読めないことがある
-			}
-			d.mu.Lock()
-			d.setVersion(hash(b))
-			d.mu.Unlock()
-		}
+// poll はファイルを読み直し、外部で変わっていれば知らせる（Hub の監視が一定間隔で呼ぶ）
+func (d *doc) poll() {
+	b, err := os.ReadFile(d.path)
+	if err != nil {
+		return // 置き換えの途中などで一瞬読めないことがある
 	}
+	d.mu.Lock()
+	d.setVersion(hash(b))
+	d.mu.Unlock()
 }
 
 func quote(v string) string   { return `"` + v + `"` }

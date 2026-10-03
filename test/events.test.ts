@@ -1,6 +1,6 @@
 // events.ts のテスト。EventSource を偽物に置き換え、サーバーの通知と接続の切断を起こす
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { connectEvents } from "../web/src/events";
+import { type EventConnection, connectEvents } from "../web/src/events";
 
 let sources: FakeEventSource[] = [];
 
@@ -15,7 +15,10 @@ class FakeEventSource extends EventTarget {
 }
 
 const realEventSource = globalThis.EventSource;
-let stop: (() => void) | null = null;
+let conn: EventConnection | null = null;
+let watched: string[] = [];
+let posts: unknown[] = [];
+const realFetch = globalThis.fetch;
 let log: string[] = [];
 let reloads = 0;
 
@@ -24,7 +27,14 @@ beforeEach(() => {
   log = [];
   reloads = 0;
   globalThis.EventSource = FakeEventSource as unknown as typeof EventSource;
-  stop = connectEvents({
+  watched = ["a"];
+  posts = [];
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    posts.push(JSON.parse(String(init.body)));
+    return new Response(null, { status: 204 });
+  }) as typeof fetch;
+  conn = connectEvents({
+    watched: () => watched,
     version: (doc, v) => log.push(`version ${doc} ${v}`),
     open: (doc, page) => log.push(`open ${doc} ${page}`),
     status: () => {},
@@ -32,8 +42,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  stop?.();
+  conn?.close();
   globalThis.EventSource = realEventSource;
+  globalThis.fetch = realFetch;
 });
 
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -62,4 +73,17 @@ test("接続を諦めたら、つなぎ直しを続ける", async () => {
   await wait(40);
   expect(sources.length).toBe(1);
   expect(sources[0]).not.toBe(first);
+});
+
+test("開いている図を、接続の id でサーバーに知らせる。変わったら知らせ直し、つなぎ直したら新しい id で知らせる", async () => {
+  conn!.watchChanged(); // id が届く前は知らせない
+  expect(posts).toEqual([]);
+  sources[0]!.send("hello", { client: "c1" });
+  watched = ["a", "b"];
+  conn!.watchChanged();
+  expect(posts).toEqual([{ client: "c1", docs: ["a"] }, { client: "c1", docs: ["a", "b"] }]);
+  sources[0]!.fail();
+  await wait(40);
+  sources[sources.length - 1]!.send("hello", { client: "c2" });
+  expect(posts.at(-1)).toEqual({ client: "c2", docs: ["a", "b"] });
 });

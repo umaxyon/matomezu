@@ -14,7 +14,7 @@
  * - サイドバーの一覧の「他ブックも表示」には、ほかに開いているブックの箱を出す（行を図へドラッグすると移植。docs/TABS-plan.md 4.3）。
  */
 
-import { connectEvents } from "./events";
+import { type EventConnection, connectEvents } from "./events";
 import { createGraph, type Graph } from "./graph";
 import { type OtherBook, createPanel, type Panel } from "./panel";
 import type { Diagram } from "./types";
@@ -87,6 +87,7 @@ function pagesInData(data: unknown): { id: string; caption: string }[] {
 
 export async function startApp(ui: AppUi) {
   const books: Book[] = [];
+  let events: EventConnection | null = null; // サーバーの通知（下でつなぐ）
   let current: { book: Book; page: PageId } | null = null;
   let unbind: (() => void)[] = [];
   const opening = new Map<string, Promise<Book | null>>(); // 読み込み中のブック（同じブックを二重に開かない）
@@ -121,10 +122,12 @@ export async function startApp(ui: AppUi) {
     });
   }
 
+  // 開いているブックを覚え、サーバーにも知らせる（サーバーは開いている図だけを監視する）
   function remember() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(books.map(b => b.id)));
     } catch { /* 覚えられなくても動く */ }
+    events?.watchChanged();
   }
 
   function refreshButtons(b: Book) {
@@ -349,7 +352,8 @@ export async function startApp(ui: AppUi) {
     }
   }
 
-  connectEvents({
+  events = connectEvents({
+    watched: () => books.map(b => b.id),
     version(doc, v) {
       const b = books.find(x => x.id === doc);
       if (!b) return;

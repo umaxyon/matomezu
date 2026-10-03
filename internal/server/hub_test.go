@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -164,5 +165,54 @@ func TestShutdown(t *testing.T) {
 	case <-stopped:
 	case <-time.After(time.Second):
 		t.Fatal("shutdown not called")
+	}
+}
+
+// 監視するのは、画面が開いている図（/api/watch で知らせたもの）だけ
+func TestWatchesOnlyOpenDocs(t *testing.T) {
+	_, ts, _ := setupHub(t)
+	dir := t.TempDir()
+	pa, pb := filepath.Join(dir, "a.json"), filepath.Join(dir, "b.json")
+	_, a := openVia(t, ts, "secret", pa)
+	_, b := openVia(t, ts, "secret", pb)
+	r := bufio.NewReader(do(t, "GET", ts.URL+"/api/events", "", nil).Body)
+	var hello struct{ Client string }
+	json.Unmarshal([]byte(nextEvent(t, r, "hello")), &hello)
+	nextEvent(t, r, "version") // つないだ時点の a と b の版
+	nextEvent(t, r, "version")
+	if res := do(t, "POST", ts.URL+"/api/watch", `{"client":"`+hello.Client+`","docs":["`+a.ID+`"]}`, nil); res.StatusCode != http.StatusNoContent {
+		t.Fatalf("watch: %d", res.StatusCode)
+	}
+	// 開いていない b を書き換えても知らせない。開いている a は知らせる（b の知らせが来るなら a より先に来る）
+	if err := os.WriteFile(pb, []byte(`{"nodes":[{"id":1}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(150 * time.Millisecond)
+	if err := os.WriteFile(pa, []byte(`{"nodes":[{"id":2}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var v struct{ Doc string }
+	json.Unmarshal([]byte(nextEvent(t, r, "version")), &v)
+	if v.Doc != a.ID {
+		t.Fatalf("version for %s (a=%s, b=%s)", v.Doc, a.ID, b.ID)
+	}
+	if res := do(t, "POST", ts.URL+"/api/watch", `{"client":"nobody","docs":[]}`, nil); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown client: %d", res.StatusCode)
+	}
+}
+
+// 登録済みの図を開き直しても読み直さない。ファイルが消えていれば空の図で作り直す
+func TestReopenRecreatesMissingFile(t *testing.T) {
+	_, ts, _ := setupHub(t)
+	path := filepath.Join(t.TempDir(), "a.json")
+	openVia(t, ts, "secret", path)
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if res, _ := openVia(t, ts, "secret", path); res.StatusCode != http.StatusOK {
+		t.Fatalf("reopen: %d", res.StatusCode)
+	}
+	if b, err := os.ReadFile(path); err != nil || string(b) != emptyDiagram {
+		t.Fatalf("file = %q, %v", b, err)
 	}
 }

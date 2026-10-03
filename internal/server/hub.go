@@ -8,6 +8,7 @@
 //	/d/<id>/api/...      図ごとの API（doc.go を参照）
 //	GET  /api/events     SSE。全部の図の通知を1本で送る（下を参照）
 //	GET  /api/info       {"server"} サーバーの版。画面が matomezu のサーバーから開かれたかを知るのに使う
+//	POST /api/watch      {"client", "docs"} その画面が開いている図（タブ）。監視するのは、どれかの画面が開いている図だけ
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
 //	POST /api/open       {"path", "show", "page"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
 //	                     show なら、つながっている画面にその図（page があればそのページ）を開くよう知らせる
@@ -16,10 +17,14 @@
 // /api/events のイベント（data は JSON）:
 //
 //	server   サーバーの版（文字列）。つないだときに送る。画面は読み込んだときの版と違えば読み直す
+//	hello    {"client"} この接続の id。画面は /api/watch で、開いている図をこの id で知らせる
 //	version  {"doc", "version"} 図のファイルの版が変わった。つないだときは登録済みの全部の図の分を送る
 //	open     {"doc", "page"} その図のページ（page が "" なら最初のページ）を開いて前に出す。つないだときも、少し前に頼まれていれば送る
 //
 // 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
+//
+// ファイルの監視（doc.go の poll）は Hub の 1 本の処理で、どれかの画面が開いている図だけを一定間隔で読み直す。
+// 開いている図をまだ知らせていない画面は、登録済みの全部の図を開いているとみなす（つないだ直後や、前の版の画面）。
 //
 // トークンは X-Matomezu-Token ヘッダーで渡す。/api/open は任意のファイルを読み書きさせられる入口なので、
 // 本人だけが読める state ファイルにあるトークンを持つプロセスにしか使わせない。
@@ -27,7 +32,9 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,6 +43,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -50,9 +58,9 @@ type Hub struct {
 
 	mu        sync.Mutex
 	docs      map[string]*doc
-	clients   map[chan event]struct{} // つながっている画面
-	idleSince time.Time               // 画面が 0 になった時刻
-	shown     string                  // 最後に開くよう頼まれた図とページ（open イベントの data）
+	clients   map[chan event]*client // つながっている画面
+	idleSince time.Time              // 画面が 0 になった時刻
+	shown     string                 // 最後に開くよう頼まれた図とページ（open イベントの data）
 	shownAt   time.Time
 }
 
@@ -63,6 +71,12 @@ const showReplay = 5 * time.Second
 type event struct {
 	name string
 	data string
+}
+
+// つながっている画面。docs はその画面が開いている図（nil ならまだ知らせが無いので、全部とみなす）
+type client struct {
+	id   string
+	docs map[string]bool
 }
 
 type Option func(*Hub)
@@ -82,13 +96,56 @@ func NewHub(ctx context.Context, web fs.FS, opts ...Option) *Hub {
 		web:       http.FileServerFS(web),
 		interval:  300 * time.Millisecond,
 		docs:      map[string]*doc{},
-		clients:   map[chan event]struct{}{},
+		clients:   map[chan event]*client{},
 		idleSince: time.Now(),
 	}
 	for _, o := range opts {
 		o(h)
 	}
+	go h.watch()
 	return h
+}
+
+// watch は、どれかの画面が開いている図のファイルを一定間隔で読み直し、外部での変更を知らせる。h.ctx が終わるまで戻らない。
+// 画面がつながっていないあいだは、知らせる相手がいないので読まない
+func (h *Hub) watch() {
+	t := time.NewTicker(h.interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-h.ctx.Done():
+			return
+		case <-t.C:
+			for _, d := range h.watched() {
+				d.poll()
+			}
+		}
+	}
+}
+
+// watched は、どれかの画面が開いている図
+func (h *Hub) watched() []*doc {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	open := map[string]bool{}
+	for _, c := range h.clients {
+		if c.docs == nil {
+			for id := range h.docs {
+				open[id] = true
+			}
+			break
+		}
+		for id := range c.docs {
+			open[id] = true
+		}
+	}
+	out := make([]*doc, 0, len(open))
+	for id := range open {
+		if d := h.docs[id]; d != nil {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // OpenResult は図を登録した結果。
@@ -101,17 +158,31 @@ type OpenResult struct {
 // Open は path の図を登録する。登録済みならそれを返す。ファイルが無ければ空の図で作る。
 // show なら、つながっている画面にその図を開くよう知らせる
 func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
-	d, err := newDoc(path, h.interval, h.versionChanged, h.connected)
+	abs, err := filepath.Abs(path)
 	if err != nil {
 		return OpenResult{}, err
 	}
+	// 登録済みなら読み直さない（版は監視と api/data が最新にする）。ファイルが消えていれば、初めて開くときと同じく空の図で作る
 	h.mu.Lock()
-	if cur, ok := h.docs[d.id]; ok {
-		d = cur
+	d := h.docs[docID(abs)]
+	h.mu.Unlock()
+	if d != nil {
+		if err := d.ensureFile(); err != nil {
+			return OpenResult{}, err
+		}
 	} else {
-		h.docs[d.id] = d
-		go d.watch(h.ctx)
+		nd, err := newDoc(abs, h.versionChanged)
+		if err != nil {
+			return OpenResult{}, err
+		}
+		h.mu.Lock()
+		if d = h.docs[nd.id]; d == nil {
+			d = nd
+			h.docs[d.id] = d
+		}
+		h.mu.Unlock()
 	}
+	h.mu.Lock()
 	h.idleSince = time.Now() // 開いた直後は、画面がつながるまで待つ
 	conns := len(h.clients)
 	opened := jsonString(map[string]string{"doc": d.id, "page": page})
@@ -123,12 +194,6 @@ func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
 		h.broadcast(event{"open", opened})
 	}
 	return OpenResult{ID: d.id, Path: d.path, Connections: conns}, nil
-}
-
-func (h *Hub) connected() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return len(h.clients) > 0
 }
 
 func (h *Hub) versionChanged(id, v string) {
@@ -178,8 +243,9 @@ func (h *Hub) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 
 	ch := make(chan event, 64)
+	c := &client{id: newClientID()}
 	h.mu.Lock()
-	h.clients[ch] = struct{}{}
+	h.clients[ch] = c
 	docs := make([]*doc, 0, len(h.docs))
 	for _, d := range h.docs {
 		docs = append(docs, d)
@@ -208,6 +274,9 @@ func (h *Hub) events(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !send(event{"server", jsonString(h.version)}) {
+		return
+	}
+	if !send(event{"hello", jsonString(map[string]string{"client": c.id})}) {
 		return
 	}
 	// つないだ時点の版を送る。再接続のあいだに変わっていれば、画面はこれで気づける
@@ -265,6 +334,7 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("GET /api/info", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]string{"server": h.version})
 	})
+	mux.HandleFunc("POST /api/watch", h.setWatch)
 	mux.Handle("GET /{$}", h.web)
 	mux.Handle("GET /dist/", h.web)
 
@@ -310,6 +380,38 @@ func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, res)
+}
+
+// setWatch は、画面が開いている図を受け取る（タブを開いたり閉じたりするたびに届く）
+func (h *Hub) setWatch(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Client string   `json:"client"`
+		Docs   []string `json:"docs"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.Client == "" {
+		http.Error(w, "client required", http.StatusBadRequest)
+		return
+	}
+	docs := map[string]bool{}
+	for _, id := range req.Docs {
+		docs[id] = true
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, c := range h.clients {
+		if c.id == req.Client {
+			c.docs = docs
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+	http.Error(w, "unknown client", http.StatusNotFound)
+}
+
+func newClientID() string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
