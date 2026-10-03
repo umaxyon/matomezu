@@ -3,7 +3,7 @@ package main
 // LLM が図の配置を調整するためのコマンド。
 //
 //	matomezu check [-page id] <file.json>             開いている画面が配置した結果の要約を出す
-//	matomezu set [-page id] <file.json> <id.key=value>...  ボックス（world は図全体）の項目だけを書き換え、要約を出す
+//	matomezu set [-page id] <file.json> <id.key=value>...  ボックスか線（id が線の id なら線、world は図全体）の項目だけを書き換え、要約を出す
 //
 // -page があれば、その箱のページ（page: true の箱の中身）の要約を出す。無ければ最初のページ。
 //
@@ -207,12 +207,15 @@ func (o *object) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// value は値の文字列を JSON にする。空なら nil（項目を消す）
+// value は値の文字列を JSON にする。空なら nil（項目を消す）。[ か { で始まる正しい JSON は、そのまま並びやオブジェクトにする
+// （例 e3.via=[280,140,400]）
 func value(s string) json.RawMessage {
 	switch {
 	case s == "":
 		return nil
 	case s == "true" || s == "false":
+		return json.RawMessage(s)
+	case (strings.HasPrefix(s, "[") || strings.HasPrefix(s, "{")) && json.Valid([]byte(s)):
 		return json.RawMessage(s)
 	}
 	if _, err := strconv.ParseFloat(s, 64); err == nil {
@@ -222,7 +225,8 @@ func value(s string) json.RawMessage {
 	return b
 }
 
-// applySets は "id.key=value" の並びを図に当てる。id が world なら図全体。value が空なら項目を消す
+// applySets は "id.key=value" の並びを図に当てる。id がボックスの id ならボックス、線の id（例 e3）なら線、world なら図全体。
+// value が空なら項目を消す。線は id を持つものだけ書ける（画面で一度保存すると、どの線にも id が付く）
 func applySets(b []byte, sets []string) ([]byte, error) {
 	doc, err := parseObject(b)
 	if err != nil {
@@ -240,6 +244,24 @@ func applySets(b []byte, sets []string) ([]byte, error) {
 		}
 		index[strings.Trim(string(nodes[i].vals["id"]), `"`)] = i
 	}
+	// 線。[from, to] の形のものは id が無いので書けない（そのまま残す）
+	var rawEdges []json.RawMessage
+	if e, ok := doc.vals["edges"]; ok {
+		if err := json.Unmarshal(e, &rawEdges); err != nil {
+			return nil, errors.New("edges is not an array")
+		}
+	}
+	edges := make([]*object, len(rawEdges))
+	edgeIndex := map[string]int{}
+	for i, r := range rawEdges {
+		if o, err := parseObject(r); err == nil {
+			edges[i] = o
+			if id, ok := o.vals["id"]; ok {
+				edgeIndex[strings.Trim(string(id), `"`)] = i
+			}
+		}
+	}
+	edgesChanged := false
 	var world *object
 	for _, a := range sets {
 		target, rest, ok1 := strings.Cut(a, ".")
@@ -259,12 +281,13 @@ func applySets(b []byte, sets []string) ([]byte, error) {
 				}
 			}
 			o = world
-		} else {
-			i, ok := index[target]
-			if !ok {
-				return nil, fmt.Errorf("no box with id %s", target)
-			}
+		} else if i, ok := index[target]; ok {
 			o = nodes[i]
+		} else if i, ok := edgeIndex[target]; ok {
+			o = edges[i]
+			edgesChanged = true
+		} else {
+			return nil, fmt.Errorf("no box or edge with id %s", target)
 		}
 		if v := value(val); v == nil {
 			o.del(key)
@@ -277,6 +300,23 @@ func applySets(b []byte, sets []string) ([]byte, error) {
 		return nil, err
 	}
 	doc.set("nodes", nb)
+	if edgesChanged {
+		out := make([]json.RawMessage, len(rawEdges))
+		for i, r := range rawEdges {
+			if edges[i] == nil {
+				out[i] = r
+				continue
+			}
+			if out[i], err = edges[i].MarshalJSON(); err != nil {
+				return nil, err
+			}
+		}
+		eb, err := json.Marshal(out)
+		if err != nil {
+			return nil, err
+		}
+		doc.set("edges", eb)
+	}
 	if world != nil {
 		wb, _ := world.MarshalJSON()
 		doc.set("world", wb)

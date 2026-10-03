@@ -3,7 +3,7 @@
 
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
-import { BEND_MARGIN, type Box, type Edge, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
+import { type Box, type Edge, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 
@@ -40,8 +40,9 @@ export interface InteractionContext {
   remove(n: Box): void;           // 子孫ごと消す
   restore(id: string, parentId: string | null, at: { x: number; y: number }): void; // 消したボックスを戻す
   boxById(id: string): Box | undefined; // 今のページにある箱（無ければ undefined）
-  edgeOfEl(el: Element): Edge | undefined;  // Z 字の中棒をつかむ要素の線
-  setBend(e: Edge, bend: number): void;     // Z 字の中棒の位置を変えて描き直す
+  edgeOfEl(el: Element): Edge | undefined;  // 途中の区間をつかむ要素の線
+  setVia(e: Edge, index: number, at: number): void; // 途中の区間 index を座標 at へ動かして描き直す
+  endVia(e: Edge): void;                    // 途中の区間のドラッグを終えた（折れ目をまとめて履歴に残す）
   paste(copy: Subtree, parentId: string | null, at: { x: number; y: number }, from?: string): void; // ほかのブックの箱を移植する
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
@@ -66,21 +67,17 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     ghost: HTMLElement | null; target: Box | null | undefined; stop: AbortController;
   } | null = null;
 
-  // Z 字の中棒のドラッグ（選択モード）。moved は実際に動かしたか
-  let bendDrag: { e: Edge; pointerId: number; moved: boolean } | null = null;
+  // 折れ線の途中の区間のドラッグ（選択モード）。index は区間の番号（via の何番目か）、moved は実際に動かしたか
+  let bendDrag: { e: Edge; index: number; pointerId: number; moved: boolean } | null = null;
 
-  // 中棒のドラッグ中のポインタから、中棒の位置（向き合う辺の間の割合）を求める。両端の余白（BEND_MARGIN）より内側に収める
+  // ドラッグ中のポインタの位置（ワールドの座標）へ、区間を動かす。動ける範囲は graph の側で収める
   function moveBend(ev: PointerEvent) {
     const b = bendDrag!;
-    const span = b.e.span;
-    if (!span || span.to === span.from) return;
+    const seg = b.e.segments.find(s => s.index === b.index);
+    if (!seg) return;
     const r = world.el.getBoundingClientRect();
-    const at = span.axis === "x" ? ev.clientX - r.left : ev.clientY - r.top;
-    const len = Math.abs(span.to - span.from);
-    const margin = Math.min(0.5, BEND_MARGIN / len);
-    const ratio = Math.min(1 - margin, Math.max(margin, (at - span.from) / (span.to - span.from)));
     b.moved = true;
-    ctx.setBend(b.e, Math.round(ratio * 1000) / 1000);
+    ctx.setVia(b.e, b.index, seg.axis === "x" ? ev.clientX - r.left : ev.clientY - r.top);
   }
 
   // ---- ポインタ操作 ----
@@ -101,12 +98,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerDown(e: PointerEvent) {
-    const handle = e.target instanceof Element ? e.target.closest(".mz-bend") : null;
+    const handle = e.target instanceof Element ? e.target.closest<SVGElement>(".mz-bend") : null;
     const bent = handle && ctx.mode() === "move" ? ctx.edgeOfEl(handle) : undefined;
-    if (bent?.span) {
+    if (bent && handle!.dataset.index != null) {
       e.stopPropagation();
       handle!.setPointerCapture(e.pointerId);
-      bendDrag = { e: bent, pointerId: e.pointerId, moved: false };
+      bendDrag = { e: bent, index: Number(handle!.dataset.index), pointerId: e.pointerId, moved: false };
       return;
     }
     const n = boxOf(e.target);
@@ -167,8 +164,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   function onPointerUp() {
     if (bendDrag) {
-      if (bendDrag.moved) ctx.changed();
+      const { e, moved } = bendDrag;
       bendDrag = null;
+      if (moved) ctx.endVia(e);
       return;
     }
     if (lift || !drag) return;

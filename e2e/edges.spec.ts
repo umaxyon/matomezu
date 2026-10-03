@@ -97,7 +97,7 @@ test("横に並ぶ箱どうしは、始点と終点の向きをそろえる組�
   await expect.poll(() => hit.evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/).length)).toBe(4);
 });
 
-test("Z 字の中棒をドラッグで動かせ、線を選ぶと真ん中に戻せる", async ({ page }) => {
+test("Z 字の中棒をドラッグで動かせ、線を選ぶと自動に戻せる", async ({ page }) => {
   await openDiagram(page, {
     nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 120 }],
     edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
@@ -118,9 +118,9 @@ test("Z 字の中棒をドラッグで動かせ、線を選ぶと真ん中に戻
   await page.mouse.up();
   expect(await midX()).toBeCloseTo(before + 60, 0);
 
-  // 線を選ぶと「中棒を真ん中に戻す」が出て、押すと戻る
+  // 線を選ぶと「折れ線を自動に戻す」が出て、押すと戻る
   await page.mouse.click(bar.x + 60, bar.y);
-  const reset = page.locator("#sidebar [data-bend-reset]");
+  const reset = page.locator("#sidebar [data-via-reset]");
   await expect(reset).toBeVisible();
   await reset.click();
   await expect.poll(midX).toBeCloseTo(before, 0);

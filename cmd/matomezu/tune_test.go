@@ -45,3 +45,45 @@ func TestApplySetsErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestApplySetsEdges(t *testing.T) {
+	in := `{"nodes":[{"id":1},{"id":2}],"edges":[[1,2],{"id":"e2","from":2,"to":1}]}`
+	out, err := applySets([]byte(in), []string{"e2.route=elbow", "e2.via=[280, 140]", "e2.arrow=end"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{
+  "nodes": [
+    {
+      "id": 1
+    },
+    {
+      "id": 2
+    }
+  ],
+  "edges": [
+    [
+      1,
+      2
+    ],
+    {
+      "id": "e2",
+      "from": 2,
+      "to": 1,
+      "route": "elbow",
+      "via": [
+        280,
+        140
+      ],
+      "arrow": "end"
+    }
+  ]
+}
+`
+	if string(out) != want {
+		t.Errorf("got\n%s", out)
+	}
+	if _, err := applySets([]byte(in), []string{"e9.arrow=end"}); err == nil {
+		t.Error("unknown edge: expected an error")
+	}
+}

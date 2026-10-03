@@ -28,8 +28,8 @@ const usageText = `usage:
   matomezu open [-no-browser] [-page id] <file.json>   show the diagram (or the page of box id) in the browser (starts the background server)
   matomezu serve [-addr host:port] <file.json>   run a server in the foreground for one diagram
   matomezu check [-page id] <file.json>      print a summary of how the open browser laid it out (the first page, or the page of box id)
-  matomezu set [-page id] <file.json> <id.key=value>... change fields of boxes (id "world" for the diagram), then print the summary
-                                             an empty value removes the field, e.g. 12.x=
+  matomezu set [-page id] <file.json> <id.key=value>... change fields of boxes or edges (an edge id such as e3; "world" for the diagram), then print the summary
+                                             an empty value removes the field, e.g. 12.x=; JSON values are allowed, e.g. e3.via=[280,140,400]
   matomezu stop                              stop the background server
   matomezu version
 `

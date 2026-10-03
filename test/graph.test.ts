@@ -126,7 +126,7 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(el.classList.contains("mz-mode-move")).toBe(true); // 開いた直後から、線はクリックを受ける
   graph.select(1);
   el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", route: "straight", bend: null, zigzag: false, exit: null, enter: null, arrangement: "stack" });
+  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", route: "straight", via: null, adjustable: false, exit: null, enter: null, arrangement: "stack" });
   expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(true);
   expect(graph.selected()).toBeNull(); // ボックスの選択は外れる
 
@@ -1167,7 +1167,7 @@ describe("線のつなぎ方", () => {
     expect(pts(el2)[1]![0]).toBe(300);
   });
 
-  test("bend があれば中棒はその割合の所。Z 字でなくなると bend は消える", () => {
+  test("以前の bend（中棒の割合）は、読み込むと via（座標）と向きの指定に移る", () => {
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }],
       edges: [{ id: "e1", from: 1, to: 2, route: "elbow", bend: 0.25 }],
@@ -1175,21 +1175,27 @@ describe("線のつなぎ方", () => {
     // 範囲は 160〜400 なので、0.25 は x = 220
     expect(pts(el)).toEqual([[160, 72], [220, 72], [220, 152], [400, 152]]);
     graph.selectEdge("e1");
-    expect(graph.toJSON().edges![0]).toMatchObject({ bend: 0.25 });
-    // 2 が下へ動いて L 字になると（外部の変更で読み直す）、bend は消える
-    graph.load({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 400 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow", bend: 0.25 }] },
-      { keepHistory: true });
-    expect(pts(el).length).toBe(3);
-    expect((graph.toJSON().edges![0] as EdgeData).bend).toBeUndefined();
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", exit: "horizontal", enter: "horizontal", via: [220] });
   });
 
-  test("選択モードで中棒をドラッグすると bend が付き、手を離すと 1 件の履歴になる。真ん中に戻せる", () => {
+  test("手で直した via は、引けるあいだは保ち、引けなくなったら via と向きの指定を消して自動に戻す", () => {
+    const edge = { id: "e1", from: 1, to: 2, route: "elbow" as const, exit: "horizontal" as const, enter: "horizontal" as const, via: [220] };
+    const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }], edges: [edge] });
+    // 2 を少し下げても、x = 220 の縦の区間はそのまま引ける
+    graph.load({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 200 }], edges: [edge] }, { keepHistory: true });
+    expect(pts(el)).toEqual([[160, 72], [220, 72], [220, 232], [400, 232]]);
+    // 2 を 1 の左下へ動かすと、x = 220 では 2 の左の辺へ入れない（2 の中を通る）ので、自動に戻る
+    graph.load({ nodes: [{ id: 1, x: 300, y: 40 }, { id: 2, x: 120, y: 200 }], edges: [edge] }, { keepHistory: true });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
+  });
+
+  test("選択モードで中棒をドラッグすると、その形（exit / enter / via）を書き込み、手を離すと 1 件の履歴になる。自動に戻せる", () => {
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }],
       edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
     });
-    const handle = el.querySelector(".mz-bend")!;
-    expect((handle as SVGElement).style.display).toBe("");
+    const handle = el.querySelector<SVGElement>(".mz-bend")!;
+    expect(handle.dataset.index).toBe("0");
     const fire = (type: string, x: number) =>
       handle.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 100, pointerId: 1 }));
     const before = graph.history().canUndo;
@@ -1197,16 +1203,55 @@ describe("線のつなぎ方", () => {
     fire("pointermove", 340);
     fire("pointermove", 370);
     fire("pointerup", 370);
-    // 範囲 160〜400 の 370 は 0.875
-    expect(graph.toJSON().edges![0]).toMatchObject({ bend: 0.875 });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", exit: "horizontal", enter: "horizontal", via: [370] });
     expect(pts(el)[1]![0]).toBe(370);
     graph.undo();
-    expect((graph.toJSON().edges![0] as EdgeData).bend).toBeUndefined();
+    expect((graph.toJSON().edges![0] as EdgeData).via).toBeUndefined();
     expect(before).toBe(false);
     graph.redo();
-    graph.updateEdge("e1", { bend: null });
-    expect((graph.toJSON().edges![0] as EdgeData).bend).toBeUndefined();
+    graph.updateEdge("e1", { via: null, exit: null, enter: null });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
     expect(pts(el)[1]![0]).toBe(280);
+  });
+
+  test("コの字の外を回る区間をドラッグすると、深さが変わる（箱の外側から 12 より内へは寄らない）", () => {
+    // 縦に並ぶ 2 つを左右で指定: 右を回るコの字（x = 244）
+    const { el, graph } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 100, y: 300 }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exit: "horizontal", enter: "horizontal" }],
+    });
+    expect(pts(el)[1]![0]).toBe(244);
+    const handle = el.querySelector<SVGElement>(".mz-bend")!;
+    const fire = (type: string, x: number) =>
+      handle.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 200, pointerId: 1 }));
+    fire("pointerdown", 244);
+    fire("pointermove", 320);
+    fire("pointerup", 320);
+    expect(pts(el)[1]![0]).toBe(320);
+    expect((graph.toJSON().edges![0] as EdgeData).via).toEqual([320]);
+    fire("pointerdown", 320);
+    fire("pointermove", 100); // 箱の中へは入らず、右の辺（220）+ 12 で止まる
+    fire("pointerup", 100);
+    expect(pts(el)[1]![0]).toBe(232);
+  });
+
+  test("S 字の via で、折れ目の多い線を引ける。真ん中の区間をつぶすと Z 字に戻る", () => {
+    // 1: 40〜160 × 40〜104（中心の高さ 72）、2: 400〜520 × 300〜364（中心の高さ 332）。横・縦・横・縦・横
+    const { el, graph } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exit: "horizontal", enter: "horizontal", via: [200, 180, 300] }],
+    });
+    expect(pts(el)).toEqual([[160, 72], [200, 72], [200, 180], [300, 180], [300, 332], [400, 332]]);
+    expect(el.querySelectorAll(".mz-bend").length).toBe(3);
+    // 3 つ目の区間（x = 300）を 1 つ目と同じ x = 200 へ動かすと、間の横の区間が 0 になるので、折れ目をまとめて Z 字に
+    const handle = el.querySelector<SVGElement>('.mz-bend[data-index="2"]')!;
+    const fire = (type: string, x: number) =>
+      handle.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 250, pointerId: 1 }));
+    fire("pointerdown", 300);
+    fire("pointermove", 200);
+    fire("pointerup", 200);
+    expect((graph.toJSON().edges![0] as EdgeData).via).toEqual([200]);
+    expect(pts(el)).toEqual([[160, 72], [200, 72], [200, 332], [400, 332]]);
   });
 
   test("中棒は両端の余白より外へは動かない", () => {

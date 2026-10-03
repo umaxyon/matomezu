@@ -1,11 +1,12 @@
 // 描画: ボックスの見た目、DB やツリーの線、ボックスどうしの線を DOM に反映する
 
-import { isLightColor } from "./dom";
+import { SVGNS, isLightColor } from "./dom";
 import type { Layout } from "./layout/layout";
-import type { Arrangement, Axis } from "./types";
+import { route } from "./routing";
+import type { RouteFix } from "./routing";
 import {
   type Box, type Edge, type World,
-  BEND_MARGIN, absPos, ancestors, arrowOf, borderOf, enterOf, exitOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  BEND_MARGIN, absPos, ancestors, arrowOf, borderOf, enterOf, exitOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -20,6 +21,7 @@ export interface RenderContext {
   worldEl: HTMLElement;
   nodes(): Box[];
   edges(): Edge[];
+  fixEdge(e: Edge, fix: RouteFix): void; // 線の道筋を決めたときに分かった、データに書き戻すこと（graph が直す）
 }
 
 export type Renderer = ReturnType<typeof createRenderer>;
@@ -172,145 +174,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     f.setAttribute("height", String(Math.max(0, n.h - 1.5)));
   }
 
-  // 中心 (cx, cy) から (dx, dy) 方向へ伸ばした線が矩形の縁と交わる点
-  function clipToRect(cx: number, cy: number, w: number, h: number, dx: number, dy: number): [number, number] {
-    const tx = dx ? (w / 2) / Math.abs(dx) : Infinity;
-    const ty = dy ? (h / 2) / Math.abs(dy) : Infinity;
-    const t = Math.min(tx, ty, 1);
-    return [cx + dx * t, cy + dy * t];
-  }
-
   type Abs = { x: number; y: number; w: number; h: number };
   type Pt = [number, number];
-  // Z 字の中棒が動ける範囲（axis の向きの座標。from が a の辺、to が b の辺）
-  type Span = { axis: "x" | "y"; from: number; to: number };
-
-  // 2 つの箱の並び。横に並ぶ（上下の範囲が重なり、左右に離れている）、縦に並ぶ、斜め、重なっている
-  function arrangementOf(a: Abs, b: Abs): Arrangement {
-    const yOverlap = Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
-    const xOverlap = Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x);
-    return yOverlap && xOverlap ? "overlap" : yOverlap ? "side" : xOverlap ? "stack" : "diagonal";
-  }
-
-  // 2つの矩形を結ぶ線の点の並びと、Z 字の中棒が動ける範囲（Z 字でなければ null）。
-  // 横に並んでいれば、上下の範囲が重なる所の真ん中の高さで水平に、縦に並んでいれば垂直に引く（箱が伸び縮みしても角度は変わらない）。
-  // 斜めなら、直線は中心どうしを結んだ線を縁で切り、折れ線は elbowPoints で決める。
-  // bend は Z 字の中棒の位置（範囲の中の割合。null なら自動）。obstacles は線が通ってほしくない箱（同じ親のほかの箱）。
-  // exit / enter は折れ線の向きの指定（null は自動。直線には効かない）
-  function edgePoints(a: Abs, b: Abs, elbow: boolean, bend: number | null, obstacles: Abs[], exit: Axis | null, enter: Axis | null) {
-    const arr = arrangementOf(a, b);
-    const plain = (pts: Pt[]) => ({ pts, span: null as Span | null, arrangement: arr });
-    const acx = a.x + a.w / 2, acy = a.y + a.h / 2, bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
-    if (arr === "overlap" || (!elbow && arr === "diagonal")) {
-      return plain([clipToRect(acx, acy, a.w, a.h, bcx - acx, bcy - acy), clipToRect(bcx, bcy, b.w, b.h, acx - bcx, acy - bcy)]);
-    }
-    if (arr === "side" || arr === "stack") {
-      // 横か縦に並ぶ箱どうしは、両端の向きがそろうときだけ素直に引ける。そろわない固定なら始点を優先する（終点は自動）
-      const fixed = elbow ? (exit ?? enter) : null;
-      const across = arr === "side" ? "vertical" : "horizontal"; // 並びと交わる向き。これに固定すると外を回るコの字
-      return fixed === across ? plain(loopPoints(a, b, arr)) : plain(alignedPoints(a, b, arr));
-    }
-    return { ...elbowPoints(a, b, bend, obstacles, exit, enter), arrangement: arr };
-  }
-
-  // 横（縦）に並ぶ箱どうしをまっすぐ結ぶ。重なる範囲の真ん中で水平（垂直）に
-  function alignedPoints(a: Abs, b: Abs, arr: "side" | "stack"): Pt[] {
-    if (arr === "side") {
-      const y = (Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2;
-      return a.x < b.x ? [[a.x + a.w, y], [b.x, y]] : [[a.x, y], [b.x + b.w, y]];
-    }
-    const x = (Math.max(a.x, b.x) + Math.min(a.x + a.w, b.x + b.w)) / 2;
-    return a.y < b.y ? [[x, a.y + a.h], [x, b.y]] : [[x, a.y], [x, b.y + b.h]];
-  }
-
-  // 横に並ぶ箱どうしを上下の辺から（縦に並ぶなら左右の辺から）結ぶコの字。両方の箱の同じ側から出て外を回る。
-  // 回る道の短い方の側（同じなら下か右）。深さは LOOP_DEPTH（調整は折れ目を配列で持つ段階で入れる。docs/EDGE-plan.md）
-  function loopPoints(a: Abs, b: Abs, arr: "side" | "stack"): Pt[] {
-    const acx = a.x + a.w / 2, acy = a.y + a.h / 2, bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
-    if (arr === "side") {
-      const low = Math.max(a.y + a.h, b.y + b.h) + LOOP_DEPTH, high = Math.min(a.y, b.y) - LOOP_DEPTH;
-      return (low - (a.y + a.h)) + (low - (b.y + b.h)) <= (a.y - high) + (b.y - high)
-        ? [[acx, a.y + a.h], [acx, low], [bcx, low], [bcx, b.y + b.h]]
-        : [[acx, a.y], [acx, high], [bcx, high], [bcx, b.y]];
-    }
-    const rx = Math.max(a.x + a.w, b.x + b.w) + LOOP_DEPTH, lx = Math.min(a.x, b.x) - LOOP_DEPTH;
-    return (rx - (a.x + a.w)) + (rx - (b.x + b.w)) <= (a.x - lx) + (b.x - lx)
-      ? [[a.x + a.w, acy], [rx, acy], [rx, bcy], [b.x + b.w, bcy]]
-      : [[a.x, acy], [lx, acy], [lx, bcy], [b.x, bcy]];
-  }
-
-  const LOOP_DEPTH = 24;
-
-  // 斜めに離れた箱どうしの折れ線。始点・終点の向き（exit / enter）で形を決める:
-  // - 左右・左右: 横・縦・横の Z 字、上下・上下: 縦・横・縦の Z 字
-  // - 左右・上下: 横に出て縦に入る L 字、上下・左右: 縦に出て横に入る L 字
-  // - 自動のある端は、もう一方に合う形から、箱と箱の間の隙間（横 gx、縦 gy）で選ぶ: 片方の隙間がもう片方の 1/3
-  //   （ELBOW_Z_RATIO）より小さければ Z 字、それ以外は L 字（両方自動なら、隙間の大きい向きに先に出る）
-  // Z 字の中棒は bend の位置か、自動（真ん中か、ほかの箱を避けた位置）。L 字の位置の調整、ほかの箱を避けることは、まだしない
-  function elbowPoints(a: Abs, b: Abs, bend: number | null, obstacles: Abs[], exit: Axis | null, enter: Axis | null) {
-    const acx = a.x + a.w / 2, acy = a.y + a.h / 2, bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
-    // 向き合う辺（a の出る辺と b の入る辺）の位置
-    const ax = bcx > acx ? a.x + a.w : a.x, bxSide = bcx > acx ? b.x : b.x + b.w;
-    const ay = bcy > acy ? a.y + a.h : a.y, bySide = bcy > acy ? b.y : b.y + b.h;
-    const gx = Math.abs(bxSide - ax), gy = Math.abs(bySide - ay);
-    const zH = () => {
-      const z = (m: number): Pt[] => [[ax, acy], [m, acy], [m, bcy], [bxSide, bcy]];
-      const span: Span = { axis: "x", from: ax, to: bxSide };
-      return { pts: z(bendAt(span, bend, z, obstacles)), span: span as Span | null };
-    };
-    const zV = () => {
-      const z = (m: number): Pt[] => [[acx, ay], [acx, m], [bcx, m], [bcx, bySide]];
-      const span: Span = { axis: "y", from: ay, to: bySide };
-      return { pts: z(bendAt(span, bend, z, obstacles)), span: span as Span | null };
-    };
-    const lH = () => ({ pts: [[ax, acy], [bcx, acy], [bcx, bySide]] as Pt[], span: null as Span | null });
-    const lV = () => ({ pts: [[acx, ay], [acx, bcy], [bxSide, bcy]] as Pt[], span: null as Span | null });
-    const nearlySide = gy < gx * ELBOW_Z_RATIO, nearlyStack = gx < gy * ELBOW_Z_RATIO;
-    if (exit && enter) return exit === "horizontal" ? (enter === "horizontal" ? zH() : lH()) : (enter === "vertical" ? zV() : lV());
-    if (exit === "horizontal") return nearlySide ? zH() : lH();
-    if (exit === "vertical") return nearlyStack ? zV() : lV();
-    if (enter === "horizontal") return nearlySide ? zH() : lV();
-    if (enter === "vertical") return nearlyStack ? zV() : lH();
-    if (nearlySide) return zH();
-    if (nearlyStack) return zV();
-    return gx >= gy ? lH() : lV();
-  }
-
-  // 折れ線で、片方の隙間がもう片方のこれだけより小さければ、L 字ではなく Z 字にする（見た目で調整する前提の仮の値）
-  const ELBOW_Z_RATIO = 1 / 3;
-
-  // Z 字の中棒を置く位置（span の向きの座標）。bend があればその割合（両端に余白を残す）。
-  // 無ければ真ん中。真ん中だと線がほかの箱を通るなら、真ん中から外へ BEND_STEP ずつ試し、通らない一番近い位置。どこも通るなら真ん中
-  function bendAt(span: Span, bend: number | null, shape: (m: number) => Pt[], obstacles: Abs[]): number {
-    const [lo, hi] = bendRange(span);
-    const mid = (span.from + span.to) / 2;
-    if (hi < lo) return mid;
-    if (bend != null) return Math.min(hi, Math.max(lo, span.from + (span.to - span.from) * bend));
-    const clear = (m: number) => !obstacles.some(o => passes(shape(m), o));
-    for (let d = 0; mid - d >= lo || mid + d <= hi; d += BEND_STEP) {
-      if (mid + d <= hi && clear(mid + d)) return mid + d;
-      if (d && mid - d >= lo && clear(mid - d)) return mid - d;
-    }
-    return mid;
-  }
-
-  // 中棒が動ける座標の範囲。両端は矢印が箱に食い込まないよう BEND_MARGIN 空ける
-  function bendRange(span: Span): [number, number] {
-    return [Math.min(span.from, span.to) + BEND_MARGIN, Math.max(span.from, span.to) - BEND_MARGIN];
-  }
-
-  // 点の並びのどこかの区間が、矩形の内側を通るか（縁に触れるだけのものは数えない）
-  function passes(pts: Pt[], r: Abs) {
-    const x0 = r.x + 1, y0 = r.y + 1, x1 = r.x + r.w - 1, y1 = r.y + r.h - 1;
-    // 中棒の線はどれも縦か横なので、区間の矩形と内側が重なるかで調べられる
-    return pts.slice(1).some(([qx, qy], i) => {
-      const [px, py] = pts[i]!;
-      return Math.max(px, qx) > x0 && Math.min(px, qx) < x1 && Math.max(py, qy) > y0 && Math.min(py, qy) < y1;
-    });
-  }
-
-  const BEND_STEP = 4;    // 中棒の位置を探すときの刻み
-
 
   // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
   function renderEdges() {
@@ -335,31 +200,21 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const [bx, by] = absPos(e.b);
       const ra = anchorRect(e.a), rb = anchorRect(e.b);
       const obstacles = siblingsOf(e.a.parent).filter(o => o.n !== e.a && o.n !== e.b).map(o => o.r);
-      const bend = typeof e.src.bend === "number" ? e.src.bend : null;
-      const { pts, span, arrangement } = edgePoints(
-        { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
-        { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
-        routeOf(e, ctx.world) === "elbow", bend, obstacles, exitOf(e), enterOf(e));
+      const r = route({
+        a: { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
+        b: { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
+        elbow: routeOf(e, ctx.world) === "elbow", exit: exitOf(e), enter: enterOf(e),
+        via: viaOf(e), bend: typeof e.src.bend === "number" ? e.src.bend : null,
+        obstacles, margin: BEND_MARGIN,
+      });
+      const pts = r.points;
       e.points = pts;
-      e.span = span;
-      e.arrangement = arrangement;
-      // 横か縦に並ぶ箱どうしで、指定した始点と終点の向きがそろわなくなったら（箱を動かした）、指定を両方とも自動に戻す
-      // （引けない指定を残さない。2026-10-03 ユーザー）
-      if ((arrangement === "side" || arrangement === "stack") && e.src.exit && e.src.enter && e.src.exit !== e.src.enter) {
-        delete e.src.exit;
-        delete e.src.enter;
-      }
-      // 中棒の位置は Z 字のときだけ意味がある。Z 字でなくなった線からは消す（データに効かない値を残さない。
-      // 次に Z 字に戻ったときは、そのときの位置関係で自動で決める。docs/EDGE-plan.md）
-      if (!span && e.src.bend != null) delete e.src.bend;
-      // Z 字の中棒をつかむ透明な線
-      e.bendEl.style.display = span ? "" : "none";
-      if (span) {
-        const [[x1, y1], [x2, y2]] = [pts[1]!, pts[2]!];
-        e.bendEl.setAttribute("x1", String(x1)); e.bendEl.setAttribute("y1", String(y1));
-        e.bendEl.setAttribute("x2", String(x2)); e.bendEl.setAttribute("y2", String(y2));
-        e.bendEl.classList.toggle("mz-bend-x", span.axis === "x");
-      }
+      e.shape = r.shape;
+      e.segments = r.segments;
+      e.arrangement = r.arrangement;
+      // データに書き戻すこと（向きの指定や via を消す、以前の bend を移す）は graph に任せる
+      if (Object.keys(r.fix).length) ctx.fixEdge(e, r.fix);
+      renderHandles(e);
       const arrow = arrowOf(e);
       const atStart = arrow === "start" || arrow === "both", atEnd = arrow === "end" || arrow === "both";
       // 見える線は、矢印のある端では矢印の付け根で止める（線の太さで先端が四角く太って見えないように）。
@@ -377,6 +232,27 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       if (atEnd) heads.push(arrowHead(pts[n - 2]!, pts[n - 1]!));
       e.arrowEl.setAttribute("d", heads.join(""));
     }
+  }
+
+  // 途中の区間をつかむ透明な線（選択モードでドラッグして動かす）。区間 i は、点の並びの i + 1 番目から i + 2 番目まで
+  function renderHandles(e: Edge) {
+    const g = e.handlesEl;
+    while (g.childElementCount > e.segments.length) g.lastElementChild!.remove();
+    while (g.childElementCount < e.segments.length) {
+      const l = document.createElementNS(SVGNS, "line");
+      l.setAttribute("class", "mz-bend");
+      g.appendChild(l);
+    }
+    e.segments.forEach((seg, i) => {
+      const l = g.children[i] as SVGLineElement;
+      const p = e.points[seg.index + 1], q = e.points[seg.index + 2];
+      l.style.display = p && q ? "" : "none";
+      if (!p || !q) return;
+      l.dataset.index = String(seg.index);
+      l.setAttribute("x1", String(p[0])); l.setAttribute("y1", String(p[1]));
+      l.setAttribute("x2", String(q[0])); l.setAttribute("y2", String(q[1]));
+      l.classList.toggle("mz-bend-x", seg.axis === "x");
+    });
   }
 
   const round = (v: number) => Math.round(v * 10) / 10;

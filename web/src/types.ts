@@ -46,7 +46,8 @@ export interface EdgeData {
   route?: Route; // 線の通り方（無ければ図の既定。図にも無ければ直線）
   exit?: Axis;   // 折れ線が始点（from）の箱から出る向き（無ければ自動）
   enter?: Axis;  // 折れ線が終点（to）の箱に入る向き（無ければ自動）
-  bend?: number; // Z 字の中棒の位置。向き合う 2 辺の間の割合（0 が始点の側、1 が終点の側）。無ければ自動（真ん中か、箱を避けた位置）
+  via?: number[]; // 手で直した折れ線の途中の区間の位置（docs/ROUTE-plan.md）。無ければ自動
+  bend?: number; // 以前の持ち方（Z 字の中棒の割合）。読み込むと via に移す。向き合う 2 辺の間の割合（0 が始点の側、1 が終点の側）。無ければ自動（真ん中か、箱を避けた位置）
   [key: string]: unknown;
 }
 
@@ -126,8 +127,8 @@ export interface EdgeInfo {
   arrow: Arrow | null;
   dash: Dash;
   route: Route;        // 実際の通り方（線に無ければ図の既定）
-  bend: number | null; // Z 字の中棒の位置（ユーザーが動かした割合。動かしていなければ null）
-  zigzag: boolean;     // 今 Z 字で描いているか（中棒がある）
+  via: number[] | null; // 手で直した途中の区間の位置（直していなければ null）
+  adjustable: boolean;  // ドラッグで動かせる途中の区間があるか
   exit: Axis | null;   // 始点から出る向きの指定（null は自動）
   enter: Axis | null;  // 終点に入る向きの指定（null は自動）
   arrangement: Arrangement; // 2 つの箱の並び（横か縦に並ぶときは、始点と終点の向きをそろえないと素直に引けない）

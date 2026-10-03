@@ -17,7 +17,7 @@
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
  *   graph.updateEdge(id, patch); // 線を変更する（arrow は null で矢印なし、dash は null か "solid" で実線、
- *                                //   route は "straight" / "elbow"。図の既定と同じなら線の側からは消す）
+ *                                //   route は "straight" / "elbow"。図の既定と同じなら線の側からは消す。via は null で自動に戻す）
  *   graph.removeEdge(id);        // 線を消す
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
@@ -82,8 +82,9 @@
  *   - exit / enter は折れ線の向きの指定: 始点から出る向き・終点に入る向き。"horizontal"（左右の辺）/ "vertical"（上下の辺）。無ければ自動。
  *     横か縦に並ぶ箱どうしは、両端の向きがそろうときだけ素直に引ける（横に並ぶなら、左右ならまっすぐ、上下ならコの字）。
  *     そろわない指定は斜めのときだけ効き、箱を動かして横か縦に並んだら、指定を両方とも消して自動に戻す。直線には効かない
- *   - bend は Z 字の中棒の位置（向き合う 2 辺の間の割合。0 が始点の側）。選択モードで中棒をドラッグすると付く。
- *     無ければ真ん中（線がほかの箱を通るなら、近い空いた位置）。Z 字でなくなった線からは消える。
+ *   - via は手で直した折れ線の途中の区間の位置の並び（docs/ROUTE-plan.md、routing.ts）。選択モードで途中の区間をドラッグすると、
+ *     そのときの形（exit / enter / via）を書き込む。引けるあいだはその形を保ち、引けなくなったら via と向きの指定を消して自動に戻す。
+ *     無ければ自動（Z 字の中棒は真ん中か、ほかの箱を避けた位置）。以前の bend（中棒の割合）は、読み込むと via に移す。
  *     ページの既定は、ページの箱の world.route。docs/EDGE-plan.md
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
@@ -106,12 +107,13 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, arrowOf, borderOf, dashOf, enterOf, exitOf, routeDefaultOf, routeOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
+  absPos, ancestors, arrowOf, borderOf, dashOf, enterOf, exitOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
+import { type RouteFix, simplifyVia } from "./routing";
 import type { Geometry } from "./report";
 import type { Arrow, Axis, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
 import { ARROWS, AXES, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
@@ -130,7 +132,7 @@ export interface EdgePatch {
   arrow?: Arrow | null;
   dash?: Dash | null;
   route?: Route | null;
-  bend?: number | null;
+  via?: number[] | null;
   exit?: Axis | null;
   enter?: Axis | null;
 }
@@ -204,7 +206,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let current: Box | null = null;      // 選択中（null はワールド）
   let currentEdge: Edge | null = null; // 選択中の線（選んでいればボックスは選んでいない）
   const boxOfEl = new WeakMap<Element, Box>();
-  const edgeOfEl = new WeakMap<Element, Edge>(); // Z 字の中棒をつかむ要素から線を引く
+  const edgeOfEl = new WeakMap<Element, Edge>(); // 線の要素（g）から線を引く（途中の区間をつかむ線から、その線を見つける）
 
   const world: World = {
     isWorld: true, id: null, el: worldEl, x: 0, y: 0, w: 0, h: 0, src: {},
@@ -213,7 +215,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const measurer = createTextMeasurer(options.measureText);
   const L = createLayout({ opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges });
-  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges }, L);
+  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX,
     settle, sizable, alignChildren,
@@ -244,11 +246,34 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     drop: n => { settle(SCENES.drop, n); render(); },
     remove: n => { remove(n.id); },
     boxById: id => byId.get(id),
-    edgeOfEl: el => edgeOfEl.get(el),
-    // 中棒をドラッグしている間、位置を変えて描き直す（手を離したら changed で 1 件の履歴にする）
-    setBend: (e, bend) => {
-      e.src.bend = bend;
+    edgeOfEl: el => {
+      const g = el.closest(".mz-edge");
+      return g ? edgeOfEl.get(g) : undefined;
+    },
+    // 途中の区間をドラッグしている間、位置を変えて描き直す（手を離したら endVia で 1 件の履歴にする）。
+    // 自動の形なら、まずそのときの形を書き込む（以後はその形を保つ）
+    setVia: (e, index, at) => {
+      if (!e.shape) return;
+      const seg = e.segments.find(s => s.index === index);
+      if (!seg) return;
+      if (!e.src.via) {
+        e.src.exit = e.shape.exit;
+        e.src.enter = e.shape.enter;
+      }
+      const via = [...(e.src.via as number[] | undefined ?? e.shape.via)];
+      via[index] = Math.round(Math.min(seg.hi, Math.max(seg.lo, at)));
+      e.src.via = via;
       renderEdges();
+      if (currentEdge === e) notifySelect();
+    },
+    // ドラッグを終えたら、長さ 0 になった区間の折れ目をまとめて、1 件の履歴にする
+    endVia: e => {
+      if (e.shape && Array.isArray(e.src.via)) {
+        const via = simplifyVia(edgeRect(e.a), edgeRect(e.b), { ...e.shape, via: e.src.via as number[] });
+        e.src.via = via;
+        renderEdges();
+      }
+      changed();
       if (currentEdge === e) notifySelect();
     },
     paste: (copy, parentId, at, from) => { paste(copy, parentId, at, from); },
@@ -295,10 +320,30 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     e?.el.classList.add("mz-selected");
   }
 
+  // 線の道筋を決めたときに分かった、データに書き戻すこと（routing.ts の RouteFix）。描画の側ではデータを書き換えない
+  function fixEdge(e: Edge, fix: RouteFix) {
+    if (fix.clearDirections) { delete e.src.exit; delete e.src.enter; }
+    if (fix.clearVia) delete e.src.via;
+    if (fix.clearBend) delete e.src.bend;
+    if (fix.migrate) {
+      e.src.exit = fix.migrate.exit;
+      e.src.enter = fix.migrate.enter;
+      e.src.via = fix.migrate.via.map(Math.round);
+      delete e.src.bend;
+    }
+  }
+
+  // 線がつながる範囲（ワールドの座標）
+  function edgeRect(n: Box) {
+    const [x, y] = absPos(n);
+    const r = L.anchorRect(n);
+    return { x: x + r.x, y: y + r.y, w: r.w, h: r.h };
+  }
+
   function edgeInfo(e: Edge): EdgeInfo {
     return {
       kind: "edge", id: e.id, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), route: routeOf(e, world),
-      bend: typeof e.src.bend === "number" ? e.src.bend : null, zigzag: !!e.span,
+      via: viaOf(e), adjustable: e.segments.length > 0,
       exit: exitOf(e), enter: enterOf(e), arrangement: e.arrangement,
     };
   }
@@ -338,13 +383,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     arrowEl.setAttribute("class", "mz-arrow");
     const hit = document.createElementNS(SVGNS, "polyline");
     hit.setAttribute("class", "mz-hit");
-    const bendEl = document.createElementNS(SVGNS, "line");
-    bendEl.setAttribute("class", "mz-bend");
-    g.append(line, arrowEl, hit, bendEl);
+    const handlesEl = document.createElementNS(SVGNS, "g");
+    handlesEl.setAttribute("class", "mz-bends");
+    g.append(line, arrowEl, hit, handlesEl);
     svg.appendChild(g);
-    const e: Edge = { src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], bendEl, span: null, arrangement: "diagonal" };
-    edgeOfEl.set(bendEl, e);
-    for (const el of [hit, bendEl]) {
+    const e: Edge = {
+      src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], handlesEl,
+      shape: null, segments: [], arrangement: "diagonal",
+    };
+    edgeOfEl.set(g, e);
+    for (const el of [hit, handlesEl]) {
       el.addEventListener("click", ev => {
         if (mode !== "move") return; // 選択モード以外では、線は CSS でもクリックを受けない
         ev.stopPropagation();
@@ -371,9 +419,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (v != null && !(AXES as readonly string[]).includes(v)) throw new Error(`${k} の値が不正です: ${v}`);
       setOrDelete(e.src, k, v ?? undefined, v == null);
     }
-    if ("bend" in patch) {
-      if (patch.bend != null && !(patch.bend > 0 && patch.bend < 1)) throw new Error(`bend は 0 より大きく 1 より小さい数にしてください: ${patch.bend}`);
-      setOrDelete(e.src, "bend", patch.bend ?? undefined, patch.bend == null);
+    if ("via" in patch) {
+      if (patch.via != null && !(Array.isArray(patch.via) && patch.via.every(Number.isFinite))) throw new Error("via は数の並びにしてください");
+      setOrDelete(e.src, "via", patch.via ?? undefined, patch.via == null);
     }
     if ("route" in patch) {
       if (patch.route != null && !(ROUTES as readonly string[]).includes(patch.route)) throw new Error(`route の値が不正です: ${patch.route}`);

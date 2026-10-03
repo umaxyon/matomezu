@@ -2,6 +2,7 @@
 
 import { truncate } from "./dom";
 import type { Arrangement, Arrow, Axis, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
+import type { RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
@@ -59,9 +60,9 @@ export interface Edge {
   lines: SVGPolylineElement[]; // [見える線, クリックを受ける透明な線]
   arrowEl: SVGPathElement; // 矢印の三角（始点・終点の両方を 1 つの path に描く）
   points: [number, number][]; // 線の点の並び（ワールドの座標。折れ点を含む。矢印の分は縮めていない）
-  bendEl: SVGLineElement;     // Z 字の中棒をつかむ透明な線（Z 字のときだけ出す）
-  // Z 字の中棒が動ける範囲。axis の向きの座標で、from が始点の箱の辺、to が終点の箱の辺（Z 字でなければ null）
-  span: { axis: "x" | "y"; from: number; to: number } | null;
+  handlesEl: SVGGElement;     // 途中の区間をつかむ透明な線（区間ごとに 1 本。render.ts が作る）
+  shape: RouteShape | null;   // 折れ線の形（描いたときのもの。直線などは null）
+  segments: Segment[];        // ドラッグで動かせる途中の区間（描いたときのもの）
   arrangement: Arrangement;   // 2 つの箱の並び（描いたときのもの）
 }
 
@@ -74,6 +75,9 @@ const axis = (v: unknown): Axis | null => (v === "horizontal" || v === "vertical
 // 折れ線の始点から出る向き・終点に入る向きの指定（null は自動）
 export const exitOf = (e: Edge): Axis | null => axis(e.src.exit);
 export const enterOf = (e: Edge): Axis | null => axis(e.src.enter);
+// 手で直した折れ線の途中の区間の位置（無ければ null。docs/ROUTE-plan.md）
+export const viaOf = (e: Edge): number[] | null =>
+  Array.isArray(e.src.via) && e.src.via.every(v => typeof v === "number" && Number.isFinite(v)) ? [...e.src.via] : null;
 export const dashOf = (e: Edge): Dash => (e.src.dash === "dashed" ? "dashed" : "solid");
 // 図（ワールド）の線の通り方の既定と、線の実際の通り方（線に無ければ図の既定）
 export const routeDefaultOf = (w: World): Route => (isRoute(w.src.route) ? (w.src.route as Route) : "straight");
