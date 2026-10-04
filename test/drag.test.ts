@@ -56,12 +56,15 @@ function grab(el: HTMLElement, graph: Graph, id: number) {
 // 文字の箱（fakeMeasure で 120×64。width を書けばその幅）
 const box = (id: number, x: number, y: number, width?: number) => ({ id, caption: `b${id}`, x, y, ...(width ? { width } : {}) });
 
-test("触れた瞬間に入れ替わり、そのまま通り過ぎても入れ替わったまま。戻れば元に戻る", () => {
+test("相手の大きさの 4 分の 1 まで食い込んだら入れ替わり、そのまま通り過ぎても入れ替わったまま。戻れば元に戻る", () => {
+  // 2 は高さ 64 なので、1 の下端が 2 の上端 120 から 16 食い込んだ（1 の y が 72 を超えた）ら入れ替わる
   const { el, graph } = setup({ world: { width: 1000 }, nodes: [box(1, 40, 40), box(2, 40, 120, 300)] });
   const d = grab(el, graph, 1);
-  d.move(0, 5); // 1 は y=45。まだ触れていない（間隔 8px の手前）
+  d.move(0, 10); // 1 は y=50。間隔の内側に入ったが、まだ食い込んでいない
   expect(at(graph, 2)).toEqual([40, 120]);
-  d.move(0, 10); // 1 は y=50。触れたので、2 は 1 の高さ + 8 だけ上へ
+  d.move(0, 30); // 1 は y=70。食い込みは 14 で、4 分の 1 に届かない（重なって通る）
+  expect(at(graph, 2)).toEqual([40, 120]);
+  d.move(0, 35); // 1 は y=75。食い込みが 19 になったので、2 は 1 の高さ + 8 だけ上へ
   expect(at(graph, 2)).toEqual([40, 120 - 72]);
   d.move(0, 160);
   expect(at(graph, 2)).toEqual([40, 48]);
@@ -73,11 +76,22 @@ test("触れた瞬間に入れ替わり、そのまま通り過ぎても入れ�
   expect(violations(el)).toEqual([]);
 });
 
-test("触れた直後に手を離すと、つかんだ箱が入れ替えた相手の向こう側へ寄って、入れ替えが完成する", () => {
+test("入れ替わった直後に手を離すと、つかんだ箱が入れ替えた相手の向こう側へ寄って、入れ替えが完成する", () => {
   const { el, graph } = setup({ world: { width: 1000 }, nodes: [box(1, 40, 40), box(2, 40, 120, 300)] });
-  dragBy(el, graph, 1, 0, 30, 6);
+  dragBy(el, graph, 1, 0, 40, 8);
   expect([at(graph, 1), at(graph, 2)]).toEqual([[40, 48 + 64 + 8], [40, 48]]);
   expect(violations(el)).toEqual([]);
+});
+
+test("4 分の 1 まで食い込む前に手を離すと、つかんだ箱が相手の手前へ戻る。相手は動かない", () => {
+  const { el, graph } = setup({ world: { width: 1000 }, nodes: [box(1, 40, 40), box(2, 40, 120, 300)] });
+  dragBy(el, graph, 1, 0, 25, 5); // 1 は y=65。2 と 9 重なる
+  expect([at(graph, 1), at(graph, 2)]).toEqual([[40, 120 - 8 - 64], [40, 120]]);
+  expect(violations(el)).toEqual([]);
+  // 横からでも同じ
+  const g2 = setup({ world: { width: 1000 }, nodes: [box(1, 40, 40), box(2, 200, 40)] });
+  dragBy(g2.el, g2.graph, 1, 40, 0, 8); // 1 の右端は 200。2 の左端 200 にちょうど接する（食い込みは 30 まで要る）
+  expect([at(g2.graph, 1), at(g2.graph, 2)]).toEqual([[200 - 8 - 120, 40], [200, 40]]);
 });
 
 test("大きい箱を小さい 3 つの上へ: 3 つとも同じだけ開始位置の側へずれる", () => {

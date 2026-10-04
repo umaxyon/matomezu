@@ -1,6 +1,7 @@
 // ドラッグ中の配置（設計は docs/DRAG-plan.md）。settle（場面の表）は使わず、ポインタが動くたびに compute で決め直す。決まり:
 //   - つかんだボックスはポインタに追従する（親の固定された枠に収める分だけ寄せる）。兄弟とぶつかっても止まらない
-//   - 進む向きの先にいた兄弟は、つかんだボックスが正面から触れた瞬間に入れ替わる: つかんだボックスの大きさ + opt.gap だけ
+//   - 進む向きの先にいた兄弟は、つかんだボックスの先端が正面からその兄弟の大きさ（進む向き）の 4 分の 1 まで食い込んだら
+//     入れ替わる（2026-10-04 ユーザー。触れた瞬間だと敏感すぎて、意図せず入れ替わったため）: つかんだボックスの大きさ + opt.gap だけ
 //     開始位置の側へずれる（並べ替えのリストで、通り過ぎた項目が空いた枠へずれるのと同じ）。ずれた先でほかの箱と
 //     ぶつかる、親の枠からはみ出すときはずらさず、重なったまま通す。正面とは、進む向きを横切る軸で、小さい方の箱の
 //     幅（か高さ）の半分以上重なっていること。角をかすめるだけでは入れ替えない（2026-10-03 ユーザー）。
@@ -8,8 +9,10 @@
 //     開始位置と今の位置だけで決めると、兄弟の上を回り込んで反対側へ出たときにも、通り抜けたのと同じに見えて入れ替わるため。
 //     進む向きは今の動き（前に置けた位置から）で決め、入れ替える向きは兄弟ごとに、先端が来たときの向きにする
 //     （縦に動いてから横からぶつけても、横に入れ替わるように）
+//   - 食い込みが 4 分の 1 に届くまでは、兄弟を押さずに重なって通る（ドラッグしている箱は、ほかの箱を押さない）
 //   - 手を離したとき、入れ替えた相手とまだ重なっていれば、つかんだボックスを相手の向こう側へ寄せる（入れ替えを
-//     完成させる）。それでも残った重なりは、場面の表の drop で直す
+//     完成させる）。入れ替えるほど食い込んでいない相手と重なっていれば、つかんだボックスを相手の手前へ戻す
+//     （相手は動かさない。2026-10-04 ユーザー）。それでも残った重なりは、場面の表の drop で直す
 //   - 中身を動かして広がった祖先は、前に下にいた相手を下へ、右にいた相手を右へ（無理なら下へ）押す
 //   - 毎回、ドラッグを始めたときの位置（写し）から計算し直す。押した結果を次の計算の起点にしないので、
 //     つかんだボックスが離れれば、どいた相手は元の位置へ戻る。手を離したら、そのときの位置で確定する
@@ -25,6 +28,8 @@ type Dir = "down" | "up" | "right" | "left";
 
 // 入れ替えるのは、進む向きを横切る軸で、小さい方の箱の幅（か高さ）のこの割合以上重なっているとき（正面から触れたとき）
 const FACE_RATIO = 0.5;
+// 入れ替えるのは、進む向きの先端が、兄弟の大きさ（進む向き）のこの割合まで食い込んだとき
+const DEPTH_RATIO = 0.25;
 
 const OPPOSITE: Record<Dir, Dir> = { down: "up", up: "down", right: "left", left: "right" };
 type Rect = { x: number; y: number; w: number; h: number };
@@ -110,20 +115,24 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
       return overlap >= (vertical ? Math.min(r.w, n.w) : Math.min(r.h, n.h)) * FACE_RATIO;
     }
 
-    // d の向きに進む n の先端が、兄弟のところ（手前の gap から、兄弟の向こうの端の手前まで）に来ているか
+    // d の向きに進む n の先端が、前に置けた位置（last）から今の位置までのあいだに、兄弟のところ（DEPTH_RATIO まで
+    // 食い込んだところから、兄弟の向こうの端の手前まで）を通ったか。今の位置だけで見ると、速く動かして 1 回で
+    // そこを飛び越えたときに入れ替わらない
     function arrived(r: Rect, d: Dir) {
-      return d === "down" ? n.y + n.h > r.y - g && n.y + n.h < r.y + r.h
-        : d === "up" ? n.y < r.y + r.h + g && n.y > r.y
-        : d === "right" ? n.x + n.w > r.x - g && n.x + n.w < r.x + r.w
-        : n.x < r.x + r.w + g && n.x > r.x;
+      const dh = r.h * DEPTH_RATIO, dw = r.w * DEPTH_RATIO;
+      const [px, py] = last;
+      return d === "down" ? n.y + n.h > r.y + dh && py + n.h < r.y + r.h
+        : d === "up" ? n.y < r.y + r.h - dh && py > r.y
+        : d === "right" ? n.x + n.w > r.x + dw && px + n.w < r.x + r.w
+        : n.x < r.x + r.w - dw && px > r.x;
     }
 
-    // d の向きから来た n の先端が、兄弟の手前の gap まで来ているか、もう越えているか
+    // d の向きから来た n の先端が、兄弟に DEPTH_RATIO まで食い込んでいるか、もう越えているか
     function engaged(r: Rect, d: Dir) {
-      return d === "down" ? n.y + n.h > r.y - g
-        : d === "up" ? n.y < r.y + r.h + g
-        : d === "right" ? n.x + n.w > r.x - g
-        : n.x < r.x + r.w + g;
+      return d === "down" ? n.y + n.h > r.y + r.h * DEPTH_RATIO
+        : d === "up" ? n.y < r.y + r.h * (1 - DEPTH_RATIO)
+        : d === "right" ? n.x + n.w > r.x + r.w * DEPTH_RATIO
+        : n.x < r.x + r.w * (1 - DEPTH_RATIO);
     }
 
     // 入れ替え: 今進んでいる向き（travel）で、先端が正面から来た兄弟を、その向きと一緒に覚える（met）。
@@ -164,14 +173,15 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
       swapped = [...moved];
     }
 
-    // 目標位置 (tx, ty) に置いて、全体を写しから決め直す
-    function place(tx: number, ty: number) {
+    // 目標位置 (tx, ty) に置いて、全体を写しから決め直す。keepTravel なら進む向きを決め直さない
+    // （手を離したときに手前へ戻すのを、引き返したと数えないように）
+    function place(tx: number, ty: number, keepTravel = false) {
       for (const [o, r] of snap) { o.x = r.x; o.y = r.y; }
       [n.x, n.y] = clamp(n, tx, ty);
       // 進む向きは、開始位置からではなく、前に置けた位置からの今の動きで決める（縦に動いてから横からぶつけたときに、
       // 縦の入れ替えにならないように）。止まっていれば前の向きのまま
       const dx = n.x - last[0], dy = n.y - last[1];
-      if (Math.hypot(dx, dy) >= 1) travel = Math.abs(dy) >= Math.abs(dx) ? (dy >= 0 ? "down" : "up") : (dx > 0 ? "right" : "left");
+      if (!keepTravel && Math.hypot(dx, dy) >= 1) travel = Math.abs(dy) >= Math.abs(dx) ? (dy >= 0 ? "down" : "up") : (dx > 0 ? "right" : "left");
       swap();
       // 広がった祖先は、前に下にいた相手を下へ、右にいた相手を右へ（無理なら下へ）押す
       for (const m of ancestors(n)) {
@@ -205,11 +215,12 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
         return false;
       },
       // 手を離したとき: 入れ替えた相手とまだ重なっていれば、n を相手の向こう側へ寄せる。
-      // 寄せた先でまた入れ替わる相手がいれば、それも越える（数回まで）。置けなければ寄せない
+      // 寄せた先でまた入れ替わる相手がいれば、それも越える（数回まで）。置けなければ寄せない。
+      // 最後に、入れ替えるほど食い込んでいない相手と重なっていれば、n を相手の手前へ戻す（retreat）
       finish() {
         for (let i = 0; i < 5; i++) {
           const all = swapped.filter(o => overlaps(n, n.x, n.y, o));
-          if (!all.length) return;
+          if (!all.length) return this.retreat();
           // 入れ替えた向き（来た向き）ごとに寄せる。向きの違う相手が混ざっていれば、最初の相手の向きにそろえる
           const d = met.get(all[0]!)!;
           const hits = all.filter(o => met.get(o) === d);
@@ -221,6 +232,25 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
           const [cx, cy] = clamp(n, tx, ty);
           if (Math.abs(cx - tx) > 0.5 || Math.abs(cy - ty) > 0.5 || !place(tx, ty)) { place(x, y); return; }
         }
+      },
+      // 入れ替えていない兄弟のうち、進む向きの先にいて、n が重なっている（間隔を含む）が入れ替えるほど食い込んでいない
+      // ものがあれば、n をその手前（間隔 gap を空けた所）へ戻す。相手は動かさない。戻した先でほかと重なる、枠に
+      // 収まらないなら戻さない。食い込んだのにずれた先がふさがっていて入れ替えなかった相手は、drop に任せる（相手が下へ）
+      retreat() {
+        const ahead = siblings(n).filter(o => o !== n && !swapped.includes(o) && overlaps(n, n.x, n.y, o) && !engaged(at(o), travel) && (() => {
+          const r = at(o);
+          return travel === "down" ? r.y > n.y : travel === "up" ? r.y + r.h < n.y + n.h
+            : travel === "right" ? r.x > n.x : r.x + r.w < n.x + n.w;
+        })());
+        if (!ahead.length) return;
+        const [x, y] = [n.x, n.y];
+        const tx = travel === "right" ? Math.min(...ahead.map(o => o.x - g - n.w))
+          : travel === "left" ? Math.max(...ahead.map(o => o.x + o.w + g)) : x;
+        const ty = travel === "down" ? Math.min(...ahead.map(o => o.y - g - n.h))
+          : travel === "up" ? Math.max(...ahead.map(o => o.y + o.h + g)) : y;
+        const [cx, cy] = clamp(n, tx, ty);
+        const ok = Math.abs(cx - tx) <= 0.5 && Math.abs(cy - ty) <= 0.5 && place(tx, ty, true) && !collides(n, n.x, n.y);
+        if (!ok) place(x, y, true);
       },
       // 重なりが残っているか（手を離したときに解決する）
       overlapping: () => [...snap.keys()].some(o => collides(o, o.x, o.y)),
