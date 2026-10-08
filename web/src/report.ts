@@ -9,7 +9,7 @@ export interface GeoBox extends Rect {
   caption: string;
   ancestors: string[]; // 親から順に
   cut: boolean;        // キャプションが … で切れている
-  view?: "nest" | "tree" | "hidden"; // 子の見せ方（子があるときだけ）
+  view?: "nest" | "tree" | "hidden" | "list"; // 子の見せ方（子があるときだけ）
   kids?: number;       // 子の数（非表示の子も数える）
   color?: string;      // 箱の色（ミニマップで使う）
 }

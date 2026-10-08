@@ -157,11 +157,15 @@ const ROUTE_OPTIONS: [string, string][] = [["straight", "直線"], ["elbow", "�
 const AXIS_OPTIONS: [string, string][] = [["auto", "自動"], ["horizontal", "左右"], ["vertical", "上下"]];
 const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\n" +
   "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります";
-const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["hidden", "非表示"]];
+const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["list", "リスト"], ["hidden", "非表示"]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];
 const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"]];
 const VIEW_HELP = "内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\n" +
+  "リスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n" +
   "非表示: 子を隠し、▼ で子がいることだけを示します";
+// リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
+const IN_LIST = "リストの中では使いません（リストから出すと元に戻ります）";
+const allDisabled = (options: [string, string][]) => new Map(options.map(([v]) => [v, IN_LIST]));
 const PRESETS = ["#ffffff", "#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#a855f7", "#64748b"];
 // ワールドの背景によく使う色（明るい色と暗い色）
 const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
@@ -281,12 +285,14 @@ function html(info: Info): string {
     }
 
     parts.push(`<div class="mzp-section"><h3>サイズ${helpIcon(SIZE_HELP)}</h3>
-      ${segment("mzp-size", info.size, [["L", "L"], ["M", "M"], ["S", "S"]])}
+      ${segment("mzp-size", info.size, [["L", "L"], ["M", "M"], ["S", "S"]], info.inList ? allDisabled([["L", ""], ["M", ""], ["S", ""]]) : undefined)}
+      ${info.inList ? `<p class="mzp-hint">${IN_LIST}。幅はリストがそろえます</p>` : ""}
     </div>`);
 
     if (info.children.length) {
       parts.push(`<div class="mzp-section"><h3>子の見せ方${helpIcon(VIEW_HELP)}</h3>
-        ${segment("mzp-view", info.childView, VIEW_OPTIONS)}
+        ${segment("mzp-view", info.childView, VIEW_OPTIONS, info.inList ? allDisabled(VIEW_OPTIONS) : undefined)}
+        ${info.inList ? `<p class="mzp-hint">リストの中では、子は非表示にします（リストから出すと元に戻ります）</p>` : ""}
         ${info.childView === "tree" ? `<div class="mzp-subhead">向き</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}
       </div>`);
     }

@@ -1,7 +1,7 @@
 // データ形式の型。仕様は graph.ts 冒頭のコメントを参照。
 
 export type Size = "L" | "M" | "S";
-export type ChildView = "nest" | "tree" | "hidden";
+export type ChildView = "nest" | "tree" | "hidden" | "list";
 export type Overflow = "wrap" | "grow" | "clip";
 export type Shape = "box" | "person" | "db";
 export type TreeDirection = "down" | "up" | "left" | "right";
@@ -97,6 +97,7 @@ export interface BoxInfo {
   size: Size;
   shape: Shape;
   canShape: boolean; // 形を選べるか（内包しているグループは枠なので選べない）
+  inList: boolean;   // リストの子か（サイズ・形・子の見せ方を使わない。docs/LIST-plan.md）
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: ChildView;
   treeDirection: TreeDirection;

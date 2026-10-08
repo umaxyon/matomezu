@@ -29,6 +29,8 @@ export interface Box {
   intendedCX: number;
   // 同じ段の兄弟にはみ出さないための、文字の幅の上限（0 なら無し）。配置を決め直すたびに計算し直す（保存しない）
   capW: number;
+  // リストの子のときの幅（親のリストがそろえた幅。node-kinds.ts の list が決める。保存しない）
+  listW: number;
   el: HTMLDivElement;
   head: HTMLDivElement;
   textEl: HTMLDivElement;
@@ -128,11 +130,15 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 
 // ---- 設定値 ----
 
-export const sizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "M");
-export const viewOf = (n: Box): ChildView => (isView(n.src.childView) ? n.src.childView : "nest");
+// リストの子か（docs/LIST-plan.md）。リストの子では、サイズ・形・子の見せ方を使わない（データは書き換えず、
+// 見せるときだけ無視する。リストから出すと元に戻る）。孫は非表示にする（子の中が大量にあり得るため）
+export const inList = (n: Box): boolean => !!n.parent && viewOf(n.parent) === "list";
+export const sizeOf = (n: Box): Size => (inList(n) ? "M" : isSize(n.src.size) ? n.src.size : "M");
+export const viewOf = (n: Box): ChildView =>
+  inList(n) ? "hidden" : isView(n.src.childView) ? n.src.childView : "nest";
 export const treeDirOf = (n: Box): TreeDirection => (isTreeDirection(n.src.treeDirection) ? n.src.treeDirection : "down");
-// 内包しているボックス（子を持ち、見せ方が内包）
-export const isNesting = (n: Box) => n.children.length > 0 && viewOf(n) === "nest";
+// 子を枠の中に入れて見せるボックス（子を持ち、見せ方が内包かリスト）。枠と見出しで描き、形は使わない
+export const isNesting = (n: Box) => n.children.length > 0 && (viewOf(n) === "nest" || viewOf(n) === "list");
 // 親の中に入っている（ドラッグで自由に動かせる）子か。最上位も含む
 export const inNest = (n: Box) => !n.parent || viewOf(n.parent) === "nest";
 // 非表示の親の下にいるか
@@ -141,7 +147,8 @@ export const isHidden = (n: Box) => ancestors(n).some(p => viewOf(p) === "hidden
 export const inTree = (n: Box) => !!n.parent && viewOf(n.parent) === "tree";
 // 子を内包しているボックスは枠なので、形は常にボックス
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
-export const shapeOf = (n: Box): Shape => (!isNesting(n) && n.src.page !== true && isShape(n.src.shape) ? n.src.shape : "box");
+export const shapeOf = (n: Box): Shape =>
+  (!isNesting(n) && !inList(n) && n.src.page !== true && isShape(n.src.shape) ? n.src.shape : "box");
 // ページの箱（中身は別のページ。docs/TABS-plan.md）。最初のページでは子を持たない箱として描く
 export const isPageBox = (n: Box) => n.src.page === true && !n.children.length;
 export const fillOf = (n: Box) => n.src.fill !== false;

@@ -3,7 +3,7 @@
 
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
-import { type Box, type Edge, type World, ancestors, inNest, isInside, overflowOf, setSpec } from "./model";
+import { type Box, type Edge, type World, ancestors, inList, inNest, isInside, overflowOf, setSpec } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 
@@ -48,6 +48,7 @@ export interface InteractionContext {
   paste(copy: Subtree, parentId: string | null, at: { x: number; y: number }, from?: string): void; // ほかのブックの箱を移植する
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
+  reorder(n: Box, index: number): void; // リストの子 n を、兄弟の中で index 番目へ移して並べ直す（データの並び順も）
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -61,6 +62,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     released: Released[] | null; // 動かし始めたときに外した、祖先の最小の大きさ
     session: DragSession | null; // 動かし始めたときの位置の写し
   } | null = null;
+  // リストの子の並べ替え（docs/LIST-plan.md）。つかんだ子はポインタに付いてくる（見た目だけずらす）。
+  // 中心がほかの子の中心を越えたら順番を入れ替えて並べ直す
+  let reorder: { n: Box; sy: number; oy: number; moved: boolean } | null = null;
   // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）。
   // 運んでいる箱は id で覚える。途中でタブを切り替えてページを描き直すと、箱の要素は作り直される（ほかのページなら無くなる）ため。
   // 同じ理由で、ポインタは図の要素で捕まえず、ページ全体（document）で受け取る
@@ -151,6 +155,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       document.addEventListener("pointercancel", ev => { if (mine(ev)) endLift(); }, { signal: stop.signal });
       return;
     }
+    if (inList(n)) {
+      n.head.setPointerCapture(e.pointerId);
+      reorder = { n, sy: e.clientY, oy: n.y, moved: false };
+      n.el.classList.add("mz-dragging");
+      return;
+    }
     const d = dragTarget(n);
     n.head.setPointerCapture(e.pointerId);
     drag = { n: d, sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, moved: false, released: null, session: null };
@@ -166,6 +176,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       ctx.setAt(endDrag.e, endDrag.end, e.clientX - r.left, e.clientY - r.top);
       return;
     }
+    if (reorder) return moveReorder(e);
     if (lift || !drag) return; // 付け替えのドラッグはページ全体で受け取っている
     const { n } = drag;
     if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
@@ -180,7 +191,31 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (!reached) blocked(n);
   }
 
+  // つかんだ子の上端がいたい位置（親の中）から入る順番を決め、変われば並べ直す。つかんだ子はその位置に描く
+  function moveReorder(e: PointerEvent) {
+    const r = reorder!, n = r.n, p = n.parent!;
+    const y = r.oy + e.clientY - r.sy;
+    const mid = y + n.h / 2;
+    const index = p.children.filter(k => k !== n && k.y + k.h / 2 < mid).length;
+    if (index !== p.children.indexOf(n)) {
+      ctx.reorder(n, index);
+      r.moved = true;
+    }
+    n.el.style.translate = `0 ${y - n.y}px`;
+  }
+
+  function endReorder() {
+    const { n, moved } = reorder!;
+    reorder = null;
+    n.el.style.translate = "";
+    n.el.classList.remove("mz-dragging");
+    if (!moved) return;
+    ctx.changed();
+    ctx.notifySelect();
+  }
+
   function onPointerUp() {
+    if (reorder) return endReorder();
     if (endDrag) {
       const { moved } = endDrag;
       endDrag = null;
@@ -406,7 +441,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     dragging: () => drag != null || lift != null || bendDrag != null || endDrag != null,
     endLift,
     // 描き直すときに、移動のドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
-    reset() { if (endDrag) ctx.endAt(); drag = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },
+    reset() { if (endDrag) ctx.endAt(); drag = null; reorder = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },
     unmarkRemove,
     destroy() { lift?.stop.abort(); listening.abort(); },
   };

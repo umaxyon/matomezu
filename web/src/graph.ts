@@ -65,7 +65,8 @@
  *       "M" … 既定。幅は文字に合わせて 120〜240。越えると折り返す
  *       "S" … 小さい文字。幅は 64〜96、高さは固定。10 文字まで（超えると … で切る）
  *     幅の範囲は validate.ts の SIZES で決めている。width を書けば、その幅で折り返す。
- *   - childView は子の見せ方: "nest"（内包、既定）/ "tree"（ツリー）/ "hidden"（非表示、▼ で子がいることを示す）
+ *   - childView は子の見せ方: "nest"（内包、既定）/ "tree"（ツリー）/ "hidden"（非表示、▼ で子がいることを示す）/
+ *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）
  *     treeDirection はツリーで子を置く向き: "down"（既定）/ "up" / "left" / "right"
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
  *   - overflow は中身（内包の子、または文字）の扱い:
@@ -113,7 +114,7 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, arrowOf, borderOf, dashOf, enterOf, exitOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
+  absPos, ancestors, arrowOf, inList, borderOf, dashOf, enterOf, exitOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
@@ -226,7 +227,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const L = createLayout({ opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges });
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge }, L);
   const {
-    incident, innerArea, syncWorld, clamp, centerX,
+    incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
     settle, sizable, alignChildren,
   } = L;
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
@@ -304,6 +305,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     paste: (copy, parentId, at, from) => { paste(copy, parentId, at, from); },
     liftOver: (x, y) => opt.onLiftOver?.(x, y),
     liftEnd: () => opt.onLiftEnd?.(),
+    reorder: (n, index) => { reorder(n, index); },
     // 一覧からドラッグして戻したら、線モードや削除モードのままだと戻した箱をすぐ動かせないので、移動モードにする
     restore: (id, parentId, at) => {
       restore(id, parentId, at);
@@ -455,7 +457,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function canLink(a: Box, b: Box) {
-    if (a === b || a.parent !== b.parent || inTree(a)) return false;
+    if (a === b || a.parent !== b.parent || inTree(a) || inList(a)) return false;
     return !edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
   }
 
@@ -628,6 +630,27 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const removedNotice = (key: string, kids: number, cut: number) =>
     `「${key}」を消しました` +
     (kids || cut ? `（${[kids ? `子 ${kids} 個` : "", cut ? `線 ${cut} 本` : ""].filter(Boolean).join("、")}も）` : "");
+
+  // ---- リストの並べ替え（docs/LIST-plan.md） ----
+
+  // リストの子 n を兄弟の中で index 番目へ移し、並べ直して描く。並び順はデータの並び順（nodes の順）なので、
+  // データでも、n を新しい次の兄弟の前（いなければ前の兄弟の後ろ）へ移す。nodes と source.nodes は同じ並びに保つ
+  function reorder(n: Box, index: number) {
+    const kids = n.parent!.children;
+    const from = kids.indexOf(n);
+    if (from < 0 || from === index) return;
+    kids.splice(from, 1);
+    kids.splice(index, 0, n);
+    const i = nodes.indexOf(n);
+    const [src] = source.nodes.splice(i, 1);
+    nodes.splice(i, 1);
+    const next = kids[index + 1], prev = kids[index - 1];
+    const j = next ? nodes.indexOf(next) : nodes.indexOf(prev!) + 1;
+    nodes.splice(j, 0, n);
+    source.nodes.splice(j, 0, src!);
+    refitAncestors(n);
+    render();
+  }
 
   // ---- 削除と復活（docs/DELETE-plan.md） ----
 
@@ -806,7 +829,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       border: borderOf(n),
       size,
       shape: shapeOf(n),
-      canShape: !isNesting(n) && n.src.page !== true,
+      canShape: !isNesting(n) && !inList(n) && n.src.page !== true,
+      inList: inList(n),
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
       treeDirection: treeDirOf(n),
@@ -989,6 +1013,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       intendedY: Number(src.y) || 0,
       intendedCX: NaN,
       capW: 0,
+      listW: 0,
       el, head, textEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };
     boxOfEl.set(el, n);

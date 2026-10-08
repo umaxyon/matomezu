@@ -6,7 +6,7 @@ import { route, scopeObstacles } from "./routing";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
-  BEND_MARGIN, absPos, ancestors, arrowOf, borderOf, enterOf, exitOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  BEND_MARGIN, absPos, ancestors, arrowOf, borderOf, enterOf, exitOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -196,7 +196,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       return list;
     };
     for (const e of ctx.edges()) {
-      const hidden = isHidden(e.a) || isHidden(e.b) || inTree(e.a);
+      const hidden = isHidden(e.a) || isHidden(e.b) || inTree(e.a) || inList(e.a);
       e.el.style.display = hidden ? "none" : "";
       if (hidden) continue;
       const [ax, ay] = absPos(e.a);

@@ -1,8 +1,8 @@
 // 節点の種類ごとの振る舞い: 自分の大きさの決め方と、同じ階層との線がつながる範囲。
-// 種類は子の有無と childView で決まる（文字の箱 / 非表示 / 内包 / ツリー）。
+// 種類は子の有無と childView で決まる（文字の箱 / 非表示 / 内包 / ツリー / リスト）。
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
-import { type Box, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
+import { type Box, inList, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
@@ -10,7 +10,7 @@ const PERSON_MIN_W = 64; // スティックマンの最小の幅
 export interface Rect { x: number; y: number; w: number; h: number }
 
 export interface NodeKind {
-  readonly name: "text" | "hidden" | "nest" | "tree";
+  readonly name: "text" | "hidden" | "nest" | "tree" | "list";
   // 子を自由に置けるか（内包だけ）。置いた子の位置で自分の大きさが決まる
   readonly holdsChildren: boolean;
   // 自分の大きさ（w, h）と本体の矩形（hx, hy, hw, hh）を決める。
@@ -33,6 +33,14 @@ export function createNodeKinds(ctx: KindContext) {
   // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す。
   // capW があれば（同じ段の兄弟にはみ出さないための上限。layout.ts の fitToRow）、それも上限にする
   function fitHead(n: Box, useSpec: boolean) {
+    if (inList(n)) {
+      // リストの子: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ。
+      // 大きさの指定や中身の扱いは使わない（docs/LIST-plan.md）
+      const w = n.listW || listItemWidth(n);
+      n.hw = w;
+      n.hh = Math.max(SIZES.M.h, measure(n, w)[1]);
+      return;
+    }
     const z = SIZES[sizeOf(n)];
     const specW = useSpec ? n.specW : 0;
     const specH = useSpec ? n.specH : 0;
@@ -132,12 +140,41 @@ export function createNodeKinds(ctx: KindContext) {
     anchorRect: n => ({ x: 0, y: 0, w: n.w, h: n.h }),
   };
 
+  // リストの子の、中身に合わせた幅（1 行の文字の幅。最小は M の最小、上限は L の最大）
+  const listItemWidth = (k: Box) => Math.max(SIZES.M.minW, Math.min(SIZES.L.maxW, measure(k, null)[0]));
+
+  // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は自分の幅の指定があればその中、無ければ一番広い子の中身の幅。
+  // 子の高さは中身に合わせる。並び順は children の順（データの並び順）
+  const list: NodeKind = {
+    name: "list",
+    holdsChildren: false,
+    measure(n) {
+      const P = opt.padding;
+      const inner = n.specW
+        ? Math.max(SIZES.M.minW, n.specW - 2 * P)
+        : Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(listItemWidth));
+      let y = opt.header;
+      for (const k of n.children) {
+        k.listW = inner;
+        kindOf(k).measure(k);
+        k.x = P;
+        k.y = y;
+        y += k.h + opt.gap;
+      }
+      n.w = inner + 2 * P;
+      n.h = Math.max(GROUP_MIN.h, y - opt.gap + P);
+      n.hx = 0; n.hy = 0;
+      n.hw = n.w; n.hh = n.h;
+    },
+    anchorRect: headRect,
+  };
+
   const text = headOnly("text"), hidden = headOnly("hidden");
 
   function kindOf(n: Box): NodeKind {
     if (!n.children.length) return text;
     const view = viewOf(n);
-    return view === "hidden" ? hidden : view === "tree" ? tree : nest;
+    return view === "hidden" ? hidden : view === "tree" ? tree : view === "list" ? list : nest;
   }
 
   return { kindOf };
