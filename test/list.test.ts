@@ -122,3 +122,14 @@ test("サイドバー: 見せ方にリストがあり、リストの子ではサ
   expect([disabled("mzp-size"), disabled("mzp-view")]).toEqual([true, true]);
   expect(side.querySelector('input[name="mzp-shape"]')).toBeNull();
 });
+
+test("見出しが子より長ければ、見出しが入る幅にそろえる（上限は 400）", () => {
+  const cap = "とても長い見出しのリストです。子より長い"; // 20 文字 → 9 * 20 + 16 = 196
+  const { graph } = setup({
+    nodes: [{ id: 1, caption: cap, childView: "list", x: 40, y: 40 }, { id: 2, caption: "短", parent: 1 }],
+  });
+  expect(graph.info(1).w).toBe(196);
+  expect(graph.info(2).w).toBe(196 - 24);
+  graph.update(1, { caption: "あ".repeat(60) }); // 上限で止める
+  expect(graph.info(1).w).toBe(400 + 24);
+});

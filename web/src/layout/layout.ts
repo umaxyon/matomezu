@@ -111,7 +111,7 @@ export function createLayout(ctx: LayoutContext) {
   // 文字の大きさを測る（width が null なら1行のまま）
   const measure = (n: Box, width: number | null) => ctx.measurer.measure(n, width);
   // 節点の種類（文字の箱、非表示、内包、ツリー）ごとの、大きさの決め方と線がつながる範囲
-  const { kindOf } = createNodeKinds({ opt, measure });
+  const { kindOf } = createNodeKinds({ opt, measure, caption: n => ctx.measurer.caption(n) });
 
   // 自分の大きさと本体の矩形を決める（子の大きさと、内包なら子の位置はもう決まっていること）
   const fit = (n: Box) => kindOf(n).measure(n);

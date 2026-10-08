@@ -39,3 +39,16 @@ test("ドラッグで並べ替えられる", async ({ page }) => {
   expect(order).toEqual(["3", "4", "2"]);
   expect((await rect(page, 1)).x).toBe(40);
 });
+
+test("見出しが子より長ければ、見出しが切れない幅になる", async ({ page }) => {
+  await openDiagram(page, {
+    world: { width: 1000 },
+    nodes: [
+      { id: 1, caption: "2. 編集力（言い直し: 構造ありき・自動配置）", x: 40, y: 40, childView: "list" },
+      { id: 2, caption: "線のキャプション", parent: 1 },
+    ],
+  });
+  const cut = await page.locator('.mz-node[data-id="1"] > .mz-head > .mz-caption')
+    .evaluate(el => el.scrollWidth > el.clientWidth);
+  expect(cut).toBe(false);
+});

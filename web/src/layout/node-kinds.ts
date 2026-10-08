@@ -23,10 +23,11 @@ export interface NodeKind {
 export interface KindContext {
   opt: LayoutOptions;
   measure(n: Box, width: number | null): [number, number]; // 文字の大きさ（width が null なら1行のまま）
+  caption(n: Box): number; // グループの見出しを 1 行で出すのに要る幅
 }
 
 export function createNodeKinds(ctx: KindContext) {
-  const { opt, measure } = ctx;
+  const { opt, measure, caption } = ctx;
   const headRect = (n: Box): Rect => ({ x: n.hx, y: n.hy, w: n.hw, h: n.hh });
 
   // ボックスとして見せるときの本体の大きさ。useSpec が false なら width, height, overflow を使わない。
@@ -143,7 +144,8 @@ export function createNodeKinds(ctx: KindContext) {
   // リストの子の、中身に合わせた幅（1 行の文字の幅。最小は M の最小、上限は L の最大）
   const listItemWidth = (k: Box) => Math.max(SIZES.M.minW, Math.min(SIZES.L.maxW, measure(k, null)[0]));
 
-  // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は自分の幅の指定があればその中、無ければ一番広い子の中身の幅。
+  // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は自分の幅の指定があればその中、無ければ一番広い子の中身の幅か、
+  // 自分の見出しが入る幅の広い方（どちらも上限は L の最大。見出しは長ければ … で切れる）。
   // 子の高さは中身に合わせる。並び順は children の順（データの並び順）
   const list: NodeKind = {
     name: "list",
@@ -152,7 +154,7 @@ export function createNodeKinds(ctx: KindContext) {
       const P = opt.padding;
       const inner = n.specW
         ? Math.max(SIZES.M.minW, n.specW - 2 * P)
-        : Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(listItemWidth));
+        : Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(listItemWidth), Math.min(SIZES.L.maxW, caption(n) - 2 * P));
       let y = opt.header;
       for (const k of n.children) {
         k.listW = inner;

@@ -24,6 +24,9 @@ export const browserMeasure: MeasureText = (head, width) => {
 
 export interface TextMeasurer {
   measure(n: Box, width: number | null): [number, number];
+  // グループの見出しを 1 行で出すのに要る幅（見出しの左右の余白を含む）。見出しは箱の中に位置を決めて置く
+  // （position: absolute）ので、本体を測っても箱の幅に表れない。見出しの要素そのものを測る
+  caption(n: Box): number;
   dispose(): void;
 }
 
@@ -44,6 +47,17 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
       if (cache.size > 2000) cache.clear();
       cache.set(key, r);
       return r;
+    },
+    caption(n) {
+      const t = n.textEl;
+      const key = `caption|${n.head.className}|${t.className}|${t.textContent}`;
+      const hit = cache.get(key);
+      if (hit) return hit[0];
+      layoutStats.measures++;
+      const r = measureText(t, null);
+      if (cache.size > 2000) cache.clear();
+      cache.set(key, r);
+      return r[0];
     },
     dispose() {
       if (typeof document !== "undefined") document.fonts?.removeEventListener?.("loadingdone", clear);
