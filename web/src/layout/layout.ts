@@ -1,18 +1,19 @@
 // 配置: 重なりの判定と直し方、読み込み時の配置。節点ごとの大きさの決め方とツリーの並べ方は node-kinds.ts。
 // 状態（ボックスや線の一覧）は ctx から読む。
 //
-// 読み込み・外部の変更の読み直し・設定変更・子のサイズをそろえるときは、settle が場面の方針（policy.ts の SCENES）に
-// 従って行う。場面ごとの違い（何を保つか、誰が動くか、大きい相手に譲るか、子を詰め直す向き、はみ出しを調整するか）は
-// SCENES の表を見る。設定を変える処理（子のサイズをそろえるときは alignChildren）は apply として settle に渡す。
-// どの場面でも、ぶつかった相手は同じ x のまま下へずらし（placeGroup + spotBelow + slide）、位置の無いボックスは
-// 空きを探す（findFreeSpot / findGridSpot）。押し下げられたボックスは、上が空いたら本来いたい高さ（intendedY）へ戻す。
-// 文字の箱が右の大きい兄弟にはみ出すときは、ずらさずにその手前まで狭めて折り返す（fitToRow）。
+// 読み込み・外部の変更の読み直し・設定変更・子のサイズをそろえる・ドラッグで手を離した・箱を消したときは、settle が
+// 場面ごとの設定値（policy.ts の SCENES）に従って決め直す。場面ごとの違い（何を保つか、誰が動くか、大きい相手に譲るか、
+// 子を詰め直す向き、はみ出しを調整するか、置いた位置を本来いたい位置にするか）は SCENES の 1 行の値の差。
+// 設定を変える処理（子のサイズをそろえるときは alignChildren）は apply として settle に渡す。
 //
-// 場面だけの追加の手順:
-//   最初に開いたとき          fitToViewport            右半分からはみ出した最上位を、線の相手の真下へ
-//                                                       （SCENES の fitViewport が true の場面だけ）
-// ドラッグ中は settle を使わず、drag.ts の DragSession が開始時の写しから毎回決め直す（場面の表では表せない）。
-// 手を離したときに重なりが残っていれば、settle(SCENES.drop) で直す
+// SCENES の外にある決まり（どの場面でも同じか、表の値では表せない手順のもの）:
+//   - ぶつかった相手は、同じ x のまま下へ、相手の端のちょうど gap 先へずらす（placeGroup + spotBelow + slide）
+//   - 位置の無い箱は、最上位なら円形に並べてから近くの空きへ（placeAutoRoots + findFreeSpot）、グループの中なら左上から格子状に空きを探す（findGridSpot）
+//   - 押し下げられた箱は、上が空いたら本来いたい高さ（intendedY）へ戻す
+//   - 文字の箱が右の大きい兄弟にはみ出すときは、ずらさずにその手前まで狭めて折り返す（fitToRow）
+//   - ツリーとリストの子の並べ方は node-kinds.ts（子の位置は自分では決めない）
+//   - ドラッグ中は settle を使わず、drag.ts の DragSession が開始時の写しから毎回決め直す（入れ替えは 4 分の 1 食い込んでから）。
+//     手を離したときに重なりが残っていれば、settle(SCENES.drop) で直す
 
 import {
   type Box, type Container, type Edge, type World,
@@ -231,7 +232,7 @@ export function createLayout(ctx: LayoutContext) {
   // first を指定すると、それを最初に置く（変更したボックスをその場に残し、相手の方をずらすため）。
   // 本来いたい高さより下にいるボックスは、ほかを置いたあとで、本来いたい高さから今の高さまでの一番上の空きへ戻す
   // （押し下げた相手が縮んだら戻るように）
-  function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box, restore = true) {
+  function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box) {
     for (const n of list) unplaced.add(n);
     const rest = list.filter(n => n !== first);
     const below = (n: Box) => n.hasPos && n.y > n.intendedY + 0.5;
@@ -240,7 +241,7 @@ export function createLayout(ctx: LayoutContext) {
       .concat(rest.filter(n => n.hasPos && !below(n)), pushed, rest.filter(n => !n.hasPos));
     for (const n of order) {
       // 押し下げは同じ x のまま下へずらすものなので、戻すときも今の x のまま上へ戻すだけにする
-      if (restore && n !== first && below(n)) {
+      if (n !== first && below(n)) {
         const back = slide(n, n.x, clamp(n, n.x, n.intendedY)[1], "down", n.y);
         if (back) [n.x, n.y] = back;
       }
@@ -258,19 +259,19 @@ export function createLayout(ctx: LayoutContext) {
   // 子から順に大きさと配置を決める
   // keep は変更したボックスとその祖先。重なったときはこれらをその場に残し、相手の方をずらす。
   // 位置のある子が重なったら同じ x のまま下へずらし、位置の無い子は左上から空きを探す
-  function settleNode(n: Box, keep?: Set<Box>, restore = true) {
-    n.children.forEach(c => settleNode(c, keep, restore));
+  function settleNode(n: Box, keep?: Set<Box>) {
+    n.children.forEach(c => settleNode(c, keep));
     if (kindOf(n).holdsChildren) {
       n.children.forEach(c => fitToRow(c));
-      placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)), restore);
+      placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)));
     }
     fit(n);
   }
 
   // 位置のあるボックスが重なったら、同じ x のまま下へずらす（周りを探すより元の並びが崩れにくい）。
   // 位置の無いボックスは、置こうとした場所の近くの空きを探す
-  function settleRoots(first?: Box, restore = true) {
-    placeGroup(roots(), n => (n.hasPos ? spotBelow(n) : findFreeSpot(n, n.x, n.y)), first, restore);
+  function settleRoots(first?: Box) {
+    placeGroup(roots(), n => (n.hasPos ? spotBelow(n) : findFreeSpot(n, n.x, n.y)), first);
   }
 
   // n を (x, y) から dir の向きへ、兄弟とぶつからなくなるまでずらした位置を返す。ぶつかった相手の端のちょうど
@@ -339,7 +340,7 @@ export function createLayout(ctx: LayoutContext) {
     let wantY = anchored?.y ?? 0; // 自分の設定を変えたとき、保とうとした高さ（押し戻しやずれの前）
     apply?.();
     if (anchored && keepAt) {
-      settleNode(anchored, undefined, scene.restore);
+      settleNode(anchored);
       const want = keepAt.x(anchored);
       wantY = keepAt.y(anchored);
       [anchored.x, anchored.y] = clamp(anchored, want, wantY);
@@ -349,11 +350,11 @@ export function createLayout(ctx: LayoutContext) {
     }
     // 変えた節点と祖先はその場に残し、ぶつかる相手の方を動かす（others）。later なら後から置くものが動く
     const keep = changed && scene.yieldTo === "others" ? new Set([changed, ...ancestors(changed)]) : undefined;
-    roots().forEach(r => settleNode(r, keep, scene.restore));
+    roots().forEach(r => settleNode(r, keep));
     roots().forEach(r => fitToRow(r));
     syncWorld();
     placeAutoRoots();
-    settleRoots(keep ? (ancestors(changed!).pop() ?? changed) : undefined, scene.restore);
+    settleRoots(keep ? (ancestors(changed!).pop() ?? changed) : undefined);
     syncWorld();
     if (scene.fitViewport) fitToViewport();
     if (scene.adoptPlaced) for (const b of roots().flatMap(r => [r, ...descendants(r)])) b.intendedY = b.y;

@@ -1,6 +1,7 @@
-// 配置の方針。判断の単位ごとのストラテジーを組み合わせて、場面の表（SCENES）にする。
-// この表が配置の決まりの仕様（docs/REFACTOR-layout.md の 3.2）。場面ごとの違いは、ここの1行の差として見る。
-// 表で書けない振る舞いを足したくなったら、まず表（と決まり）を見直す
+// 配置を決め直すとき（layout.ts の settle）の、場面ごとの設定値（SCENES）と、何を保つかの決まり（AnchorRule）。
+// settle は 1 つだけで、呼ぶ側が場面の行を渡し、settle はその値で振る舞いを切り替える。場面ごとの違いは 1 行の値の差になる。
+// 配置の決まりの全体ではない（2026-10-10 に位置付けを改めた）。表の外の決まり（ドラッグ中の入れ替え、文字の箱を隣の手前で
+// 折り返す fitToRow、位置の無い箱の置き方、リストやツリーの並べ方など）は layout.ts の冒頭と docs/HANDOFF.md の 8 章
 import type { Box } from "../model";
 import type { Rect } from "./node-kinds";
 
@@ -52,12 +53,8 @@ export interface Scene {
   yieldTo: "later" | "others";
   // 広がった節点が自分より大きい兄弟にぶつかったら、自分の方がずれる（大きい方を動かすと全体が崩れるため）
   giveWayToLarger: boolean;
-  // ぶつかった相手をずらす向き
-  direction: "down";
   // 子の中身を詰め直すときにずらす向き（幅を縮めるとき / 高さを縮めるとき）。null なら詰め直さない
   repack: { w: "down" | "right"; h: "down" | "right" } | null;
-  // 押し下げた相手を、空いたら元の位置へ戻すか
-  restore: boolean;
   // 表示領域の右にはみ出した最上位を下へ移すか（最初に開いたときだけ）
   fitViewport: boolean;
   // 置いた位置を、すべての箱の本来いたい位置にするか（データの位置が重なって押し下げられた箱も、押し下げられた
@@ -66,37 +63,34 @@ export interface Scene {
   adoptPlaced: boolean;
 }
 
+// 手を離したときと、箱を消したときの設定（同じ値。変えた節点と祖先はその場に残り、重なった相手が下へずれる）
+const AFTER_EDIT: Scene = {
+  anchor: null, yieldTo: "others", giveWayToLarger: false, repack: null, fitViewport: false, adoptPlaced: false,
+};
+
 export const SCENES = {
   // 開いたとき
   open: {
-    anchor: null, yieldTo: "later", giveWayToLarger: false,
-    direction: "down", repack: null, restore: true, fitViewport: true, adoptPlaced: true,
+    anchor: null, yieldTo: "later", giveWayToLarger: false, repack: null, fitViewport: true, adoptPlaced: true,
   },
   // 外部の変更の読み直し・Undo・Redo
   reload: {
-    anchor: null, yieldTo: "later", giveWayToLarger: false,
-    direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: true,
+    anchor: null, yieldTo: "later", giveWayToLarger: false, repack: null, fitViewport: false, adoptPlaced: true,
   },
   // サイドバーでの設定変更（キャプション、サイズ、形、見せ方など）
   settings: {
     anchor: { inGroup: "topLeft", topLevel: "topCenter" }, yieldTo: "others", giveWayToLarger: true,
-    direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: false,
+    repack: null, fitViewport: false, adoptPlaced: false,
   },
   // 子のサイズをそろえる（alignChildren で子の中身を詰め直してから、全体を決め直す）
   fitChildren: {
     anchor: null, yieldTo: "others", giveWayToLarger: false,
-    direction: "down", repack: { w: "down", h: "right" }, restore: true, fitViewport: false, adoptPlaced: false,
+    repack: { w: "down", h: "right" }, fitViewport: false, adoptPlaced: false,
   },
   // ドラッグして手を離したとき（ドラッグ中にどけられなかった兄弟が重なっていれば、相手を下へずらす。
   // ドラッグ中の配置は表では表せないので drag.ts の先頭に決まりがある）
-  drop: {
-    anchor: null, yieldTo: "others", giveWayToLarger: false,
-    direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: false,
-  },
+  drop: AFTER_EDIT,
   // ボックスを消したとき（親と祖先はその場に残して縮め、縮んだ分、押し下げていた相手は元の高さへ戻る。
   // 残った子は動かさない。docs/DELETE-plan.md）
-  remove: {
-    anchor: null, yieldTo: "others", giveWayToLarger: false,
-    direction: "down", repack: null, restore: true, fitViewport: false, adoptPlaced: false,
-  },
+  remove: AFTER_EDIT,
 } as const satisfies Record<string, Scene>;
