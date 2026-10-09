@@ -216,15 +216,20 @@ func (d *doc) setVersion(v string) {
 	d.onVersion(d.id, v)
 }
 
-// poll はファイルを読み直し、外部で変わっていれば知らせる（Hub の監視が一定間隔で呼ぶ）
+// readFile は監視（poll）がファイルを読む関数（テストで、読んでいる間に保存が入る状況を作るために差し替える）
+var readFile = os.ReadFile
+
+// poll はファイルを読み直し、外部で変わっていれば知らせる（Hub の監視が一定間隔で呼ぶ）。
+// 読むところから d.mu を持つ（読んでいる間に画面からの保存が入ると、読んだ古い中身の版で上書きして知らせてしまい、
+// 画面が自分の保存を外部の変更と取り違えて読み直すため）
 func (d *doc) poll() {
-	b, err := os.ReadFile(d.path)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	b, err := readFile(d.path)
 	if err != nil {
 		return // 置き換えの途中などで一瞬読めないことがある
 	}
-	d.mu.Lock()
 	d.setVersion(hash(b))
-	d.mu.Unlock()
 }
 
 func quote(v string) string   { return `"` + v + `"` }

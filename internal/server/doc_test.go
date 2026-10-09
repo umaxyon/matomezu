@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -206,5 +207,38 @@ func TestLayoutPerPage(t *testing.T) {
 		if got.Summary != want || got.Page != page || got.Current != v {
 			t.Fatalf("page %q: %+v", page, got)
 		}
+	}
+}
+
+// 監視がファイルを読んでいる間に画面からの保存が入っても、監視が古い版で上書きして知らせない（版が戻ると、画面が
+// 自分の保存を外部の変更と取り違えて読み直し、保存待ちの編集を捨てる）
+func TestPollDoesNotRollBackAConcurrentSave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "d.json")
+	old, next := []byte(`{"nodes":[{"id":1}]}`), []byte(`{"nodes":[{"id":2}]}`)
+	os.WriteFile(path, old, 0o644)
+	var mu sync.Mutex
+	var seen []string
+	d := &doc{id: "x", path: path, layout: map[string]Layout{}, version: hash(old),
+		onVersion: func(_, v string) { mu.Lock(); seen = append(seen, v); mu.Unlock() }}
+	done := make(chan struct{})
+	readFile = func(p string) ([]byte, error) {
+		b, err := os.ReadFile(p) // 古い中身を読んだところで、保存が入る
+		go func() {
+			d.putData(httptest.NewRecorder(), httptest.NewRequest("PUT", "/api/data", strings.NewReader(string(next))))
+			close(done)
+		}()
+		time.Sleep(50 * time.Millisecond)
+		return b, err
+	}
+	t.Cleanup(func() { readFile = os.ReadFile })
+	d.poll()
+	<-done
+	if d.version != hash(next) {
+		t.Fatalf("version rolled back to the old content")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(seen) != 1 || seen[0] != hash(next) {
+		t.Fatalf("notified versions: %v", seen)
 	}
 }
