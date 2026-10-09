@@ -1,4 +1,6 @@
-// ポインタ操作: 移動のドラッグ、付け替えのドラッグ（ゴースト）、クリックでの選択、Esc。
+// ポインタ操作: ドラッグ（箱の移動、リストの並べ替え、線のキャプション・途中の区間・端、付け替えのゴースト）、
+// クリックでの選択、Esc、一覧からのドロップ（戻す・移植）。
+// 進行中のドラッグは active の 1 つだけで持つ（種類ごとの中身は Gesture。docs/REFACTOR-2.md）。
 // 図の状態の変更（選択、線、付け替え）は ctx の関数を呼んで graph.ts に任せる
 
 import type { Drag, DragSession } from "./layout/drag";
@@ -58,16 +60,19 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   const { render, blocked, focus, unfocus } = R;
 
-  let drag: {
-    n: Box; sx: number; sy: number; ox: number; oy: number; moved: boolean;
-    released: Released[] | null; // 動かし始めたときに外した、祖先の最小の大きさ
-    session: DragSession | null; // 動かし始めたときの位置の写し
-  } | null = null;
-  // リストの子の並べ替え（docs/LIST-plan.md）。つかんだ子はポインタに付いてくる（見た目だけずらす）。
-  // 中心がほかの子の中心を越えたら順番を入れ替えて並べ直す
-  let reorder: { n: Box; sy: number; oy: number; moved: boolean } | null = null;
-  // 線のキャプションの札のドラッグ。少し動かしてから動かし始める（押してすぐ離すのは、線を選ぶクリック）
-  let captionDrag: { e: Edge; sx: number; sy: number; moved: boolean } | null = null;
+  // ---- 進行中のドラッグ ----
+  // どの種類も同じ形にする。押したときに種類ごとの関数が作って active に入れる。
+  // dragging() と reset() は active だけを見るので、種類を足しても数え上げの漏れが起きない
+  interface Gesture {
+    kind: "move" | "reorder" | "caption" | "lift" | "bend" | "end";
+    slop: number;                 // 遊び（px）。押した所から動いた量がこれ以上になるまで move を呼ばない
+    move(ev: PointerEvent): void;
+    end(ev: PointerEvent): void;  // 手を離した
+    cancel(): void;               // 描き直すときに打ち切る（付け替えは打ち切らず、落とし先だけ忘れる）
+  }
+  let active: { g: Gesture; sx: number; sy: number; started: boolean } | null = null;
+  const begin = (g: Gesture, ev: PointerEvent) => { active = { g, sx: ev.clientX, sy: ev.clientY, started: false }; };
+
   // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）。
   // 運んでいる箱は id で覚える。途中でタブを切り替えてページを描き直すと、箱の要素は作り直される（ほかのページなら無くなる）ため。
   // 同じ理由で、ポインタは図の要素で捕まえず、ページ全体（document）で受け取る
@@ -76,19 +81,59 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     ghost: HTMLElement | null; target: Box | null | undefined; stop: AbortController;
   } | null = null;
 
-  // 折れ線の途中の区間のドラッグ（選択モード）。index は区間の番号（via の何番目か）、moved は実際に動かしたか
-  let bendDrag: { e: Edge; index: number; pointerId: number; moved: boolean } | null = null;
-  // 線の端のドラッグ（選択モードで線を選んでいるとき）
-  let endDrag: { e: Edge; end: "exit" | "enter"; moved: boolean } | null = null;
-
-  // ドラッグ中のポインタの位置（ワールドの座標）へ、区間を動かす。動ける範囲は graph の側で収める
-  function moveBend(ev: PointerEvent) {
-    const b = bendDrag!;
-    const seg = b.e.segments.find(s => s.index === b.index);
-    if (!seg) return;
+  // ポインタの位置（ワールドの座標）
+  const worldAt = (ev: PointerEvent): [number, number] => {
     const r = world.el.getBoundingClientRect();
-    b.moved = true;
-    ctx.setVia(b.e, b.index, seg.axis === "x" ? ev.clientX - r.left : ev.clientY - r.top);
+    return [ev.clientX - r.left, ev.clientY - r.top];
+  };
+
+  // 折れ線の途中の区間のドラッグ（選択モード）。index は区間の番号（via の何番目か）。
+  // ポインタの位置へ区間を動かす。動ける範囲は graph の側で収める
+  function bendGesture(e: Edge, index: number): Gesture {
+    let moved = false;
+    return {
+      kind: "bend", slop: 0,
+      move(ev) {
+        const seg = e.segments.find(s => s.index === index);
+        if (!seg) return;
+        moved = true;
+        const [x, y] = worldAt(ev);
+        ctx.setVia(e, index, seg.axis === "x" ? x : y);
+      },
+      end() { if (moved) ctx.endVia(e); },
+      cancel() {},
+    };
+  }
+
+  // 線の端のドラッグ（選択モードで線を選んでいるとき）
+  function endGesture(e: Edge, end: "exit" | "enter"): Gesture {
+    let moved = false;
+    return {
+      kind: "end", slop: 0,
+      move(ev) {
+        moved = true;
+        ctx.setAt(e, end, ...worldAt(ev));
+      },
+      end() {
+        ctx.endAt();
+        if (moved) ctx.changed();
+      },
+      cancel() { ctx.endAt(); }, // 吸着の目印を消す
+    };
+  }
+
+  // 線のキャプションの札のドラッグ。少し動かしてから動かし始める（押してすぐ離すのは、線を選ぶクリック）
+  function captionGesture(e: Edge): Gesture {
+    let moved = false;
+    return {
+      kind: "caption", slop: 3,
+      move(ev) {
+        moved = true;
+        ctx.setCaptionAt(e, ...worldAt(ev));
+      },
+      end() { if (moved) ctx.changed(); },
+      cancel() {},
+    };
   }
 
   // ---- ポインタ操作 ----
@@ -116,7 +161,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       e.stopPropagation();
       // ポインタを捕まえる（図の外で離しても pointerup が届き、ドラッグが残らないように）
       (e.target as Element).setPointerCapture?.(e.pointerId);
-      captionDrag = { e: labelEdge, sx: e.clientX, sy: e.clientY, moved: false };
+      begin(captionGesture(labelEdge), e);
       return;
     }
     const endEl = e.target instanceof Element ? e.target.closest<SVGElement>(".mz-end") : null;
@@ -124,7 +169,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (endEdge?.ends) {
       e.stopPropagation();
       endEl!.setPointerCapture(e.pointerId);
-      endDrag = { e: endEdge, end: endEl!.dataset.end === "enter" ? "enter" : "exit", moved: false };
+      begin(endGesture(endEdge, endEl!.dataset.end === "enter" ? "enter" : "exit"), e);
       return;
     }
     const handle = e.target instanceof Element ? e.target.closest<SVGElement>(".mz-bend") : null;
@@ -132,7 +177,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (bent && handle!.dataset.index != null) {
       e.stopPropagation();
       handle!.setPointerCapture(e.pointerId);
-      bendDrag = { e: bent, index: Number(handle!.dataset.index), pointerId: e.pointerId, moved: false };
+      begin(bendGesture(bent, Number(handle!.dataset.index)), e);
       return;
     }
     const n = boxOf(e.target);
@@ -162,6 +207,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const stop = new AbortController();
       lift = { id: n.id, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY,
         offX: e.clientX - r.left, offY: e.clientY - r.top, ghost: null, target: undefined, stop };
+      // 付け替えは図の要素で捕まえず、ページ全体で受け取る（下）。active には「ドラッグ中」と数えるために入れる
+      begin({ kind: "lift", slop: 0, move() {}, end() {}, cancel() { if (lift) lift.target = undefined; } }, e);
       const mine = (ev: PointerEvent) => lift != null && ev.pointerId === lift.pointerId;
       document.addEventListener("pointermove", ev => { if (mine(ev)) moveLift(ev); }, { signal: stop.signal });
       document.addEventListener("pointerup", ev => { if (mine(ev)) dropLift(ev); }, { signal: stop.signal });
@@ -170,110 +217,103 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     }
     if (inList(n)) {
       n.head.setPointerCapture(e.pointerId);
-      reorder = { n, sy: e.clientY, oy: n.y, moved: false };
-      n.el.classList.add("mz-dragging");
+      begin(reorderGesture(n, e), e);
       return;
     }
     const d = dragTarget(n);
     n.head.setPointerCapture(e.pointerId);
-    drag = { n: d, sx: e.clientX, sy: e.clientY, ox: d.x, oy: d.y, moved: false, released: null, session: null };
-    d.el.classList.add("mz-dragging");
+    begin(moveGesture(d, e), e);
     focus(n);
   }
 
+  // リストの子の並べ替え（docs/LIST-plan.md）。つかんだ子はポインタに付いてくる（見た目だけずらす）。
+  // つかんだ子の上端がいたい位置（親の中）から入る順番を決め、変われば並べ直す（中心がほかの子の中心を越えたら入れ替わる）
+  function reorderGesture(n: Box, down: PointerEvent): Gesture {
+    const sy = down.clientY, oy = n.y;
+    let moved = false;
+    n.el.classList.add("mz-dragging");
+    return {
+      kind: "reorder", slop: 0,
+      move(ev) {
+        const p = n.parent!;
+        const y = oy + ev.clientY - sy;
+        const mid = y + n.h / 2;
+        const index = p.children.filter(k => k !== n && k.y + k.h / 2 < mid).length;
+        if (index !== p.children.indexOf(n)) {
+          ctx.reorder(n, index);
+          moved = true;
+        }
+        n.el.style.translate = `0 ${y - n.y}px`;
+      },
+      end() {
+        n.el.style.translate = "";
+        n.el.classList.remove("mz-dragging");
+        if (!moved) return;
+        ctx.changed();
+        ctx.notifySelect();
+      },
+      cancel() {},
+    };
+  }
+
+  // 箱の移動（選択モード）。n はつかんだ箱（ツリーの子なら、ツリー全体）
+  function moveGesture(n: Box, down: PointerEvent): Gesture {
+    const sx = down.clientX, sy = down.clientY, ox = n.x, oy = n.y;
+    let moved = false;
+    let released: Released[] | null = null; // 動かし始めたときに外した、祖先の最小の大きさ
+    let session: DragSession | null = null; // 動かし始めたときの位置の写し
+    n.el.classList.add("mz-dragging");
+    return {
+      kind: "move", slop: 0,
+      move(ev) {
+        if (ev.clientX === sx && ev.clientY === sy && !released) return; // まだ動いていない
+        released ??= releaseSizes(n);
+        session ??= D.begin(n);
+        // 置けない位置（広がった祖先が親の枠からはみ出す）なら、置ける所で止めて知らせる
+        const reached = session.compute(ox + ev.clientX - sx, oy + ev.clientY - sy);
+        if (n.x !== ox || n.y !== oy) moved = true;
+        n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
+        n.intendedCX = centerX(n);
+        render();
+        if (!reached) blocked(n);
+      },
+      end() {
+        n.el.classList.remove("mz-dragging");
+        if (!moved && released) restoreSizes(released, n);
+        unfocus();
+        if (!moved || !session) return;
+        // 手を離したときの位置で確定する。どいた箱は、どいた先が本来いたい位置になる
+        // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
+        session.finish();
+        n.intendedY = n.y;
+        n.intendedCX = centerX(n);
+        for (const b of session.displaced()) { b.intendedY = b.y; b.intendedCX = centerX(b); }
+        if (session.overlapping()) ctx.drop(n);
+        else render();
+        syncWorld();
+        ctx.changed();
+        ctx.notifySelect();
+      },
+      cancel() {},
+    };
+  }
+
+  // 付け替えはページ全体で受け取っているので、ここでは扱わない。遊びを越えるまでは move を呼ばない
   function onPointerMove(e: PointerEvent) {
-    if (bendDrag) return moveBend(e);
-    if (endDrag) {
-      const r = world.el.getBoundingClientRect();
-      endDrag.moved = true;
-      ctx.setAt(endDrag.e, endDrag.end, e.clientX - r.left, e.clientY - r.top);
-      return;
+    const a = active;
+    if (!a || a.g.kind === "lift") return;
+    if (!a.started) {
+      if (Math.hypot(e.clientX - a.sx, e.clientY - a.sy) < a.g.slop) return;
+      a.started = true;
     }
-    if (reorder) return moveReorder(e);
-    if (captionDrag) {
-      if (!captionDrag.moved && Math.hypot(e.clientX - captionDrag.sx, e.clientY - captionDrag.sy) < 3) return;
-      captionDrag.moved = true;
-      const r = world.el.getBoundingClientRect();
-      ctx.setCaptionAt(captionDrag.e, e.clientX - r.left, e.clientY - r.top);
-      return;
-    }
-    if (lift || !drag) return; // 付け替えのドラッグはページ全体で受け取っている
-    const { n } = drag;
-    if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
-    drag.released ??= releaseSizes(n);
-    drag.session ??= D.begin(n);
-    // 置けない位置（広がった祖先が親の枠からはみ出す）なら、置ける所で止めて知らせる
-    const reached = drag.session.compute(drag.ox + e.clientX - drag.sx, drag.oy + e.clientY - drag.sy);
-    if (n.x !== drag.ox || n.y !== drag.oy) drag.moved = true;
-    n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
-    n.intendedCX = centerX(n);
-    render();
-    if (!reached) blocked(n);
+    a.g.move(e);
   }
 
-  // つかんだ子の上端がいたい位置（親の中）から入る順番を決め、変われば並べ直す。つかんだ子はその位置に描く
-  function moveReorder(e: PointerEvent) {
-    const r = reorder!, n = r.n, p = n.parent!;
-    const y = r.oy + e.clientY - r.sy;
-    const mid = y + n.h / 2;
-    const index = p.children.filter(k => k !== n && k.y + k.h / 2 < mid).length;
-    if (index !== p.children.indexOf(n)) {
-      ctx.reorder(n, index);
-      r.moved = true;
-    }
-    n.el.style.translate = `0 ${y - n.y}px`;
-  }
-
-  function endReorder() {
-    const { n, moved } = reorder!;
-    reorder = null;
-    n.el.style.translate = "";
-    n.el.classList.remove("mz-dragging");
-    if (!moved) return;
-    ctx.changed();
-    ctx.notifySelect();
-  }
-
-  function onPointerUp() {
-    if (reorder) return endReorder();
-    if (captionDrag) {
-      const { moved } = captionDrag;
-      captionDrag = null;
-      if (moved) ctx.changed();
-      return;
-    }
-    if (endDrag) {
-      const { moved } = endDrag;
-      endDrag = null;
-      ctx.endAt();
-      if (moved) ctx.changed();
-      return;
-    }
-    if (bendDrag) {
-      const { e, moved } = bendDrag;
-      bendDrag = null;
-      if (moved) ctx.endVia(e);
-      return;
-    }
-    if (lift || !drag) return;
-    const { n, moved, session } = drag;
-    n.el.classList.remove("mz-dragging");
-    if (!moved && drag.released) restoreSizes(drag.released, n);
-    drag = null;
-    unfocus();
-    if (moved && session) {
-      // 手を離したときの位置で確定する。どいた箱は、どいた先が本来いたい位置になる
-      // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
-      session.finish();
-      n.intendedY = n.y;
-      n.intendedCX = centerX(n);
-      for (const b of session.displaced()) { b.intendedY = b.y; b.intendedCX = centerX(b); }
-      if (session.overlapping()) ctx.drop(n);
-      else render();
-      syncWorld();
-      ctx.changed();
-      ctx.notifySelect();
-    }
+  function onPointerUp(e: PointerEvent) {
+    const a = active;
+    if (!a || a.g.kind === "lift") return;
+    active = null;
+    a.g.end(e);
   }
 
   // 中身を手で動かしたら、中身に合わせて伸びる祖先の最小の大きさ（width, height）を外し、中身に追従させる。
@@ -304,7 +344,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerOver(e: PointerEvent) {
-    if (drag || lift) return;
+    if (active?.g.kind === "move" || active?.g.kind === "lift") return;
     const n = boxOf(e.target);
     if (ctx.mode() === "remove") return markRemove(n);
     if (n) focus(n);
@@ -385,6 +425,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     ctx.boxById(lift.id)?.el.classList.remove("mz-lifted");
     lift.stop.abort();
     lift = null;
+    if (active?.g.kind === "lift") active = null;
     ctx.liftEnd();
   }
 
@@ -455,7 +496,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   container.addEventListener("pointerup", onPointerUp, { signal });
   container.addEventListener("pointercancel", onPointerUp, { signal });
   container.addEventListener("pointerover", onPointerOver, { signal });
-  container.addEventListener("pointerleave", () => { if (!drag) unfocus(); unmarkRemove(); }, { signal });
+  container.addEventListener("pointerleave", () => { if (active?.g.kind !== "move") unfocus(); unmarkRemove(); }, { signal });
   container.addEventListener("dragover", onDragOver, { signal });
   container.addEventListener("dragleave", e => {
     if (!(e.relatedTarget instanceof Node && container.contains(e.relatedTarget))) markRestore(undefined);
@@ -464,10 +505,14 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   document.addEventListener("keydown", onKeyDown, { signal });
 
   return {
-    dragging: () => drag != null || lift != null || bendDrag != null || endDrag != null || reorder != null || captionDrag != null,
+    dragging: () => active != null,
     endLift,
-    // 描き直すときに、移動のドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
-    reset() { if (endDrag) ctx.endAt(); drag = null; reorder = null; captionDrag = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },
+    // 描き直すときに、ドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
+    reset() {
+      active?.g.cancel();
+      if (active?.g.kind !== "lift") active = null;
+      removing = null;
+    },
     unmarkRemove,
     destroy() { lift?.stop.abort(); listening.abort(); },
   };
