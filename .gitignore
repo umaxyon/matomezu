@@ -5,6 +5,7 @@
 /web/dist/
 /matomezu
 /matomezu.exe
+/dist/
 
 node_modules/
 .claude/settings.local.json
