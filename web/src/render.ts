@@ -31,6 +31,9 @@ export interface RenderContext {
 
 export type Renderer = ReturnType<typeof createRenderer>;
 
+// 付箋の折り返しの大きさ（px。graph-style.ts の .mz-style-sticky::after と合わせる）
+const FOLD = 12;
+
 // 線のキャプションを線から離せる量（px）
 export const CAPTION_OFFSET_MAX = 60;
 
@@ -91,16 +94,24 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     head.style.color = onFill && theme.text ? theme.text : "";
     const edge = theme.border ?? `color-mix(in srgb, ${color} 70%, #000)`;
     const shadowOf = () => (theme.shadow === "none" ? null : theme.shadow ?? "var(--mz-shadow)");
+    // 付箋（テーマのスタイル）: 右上の角を切り欠き、折り返しの三角を重ねる（graph-style.ts の .mz-style-sticky）。
+    // 影は切り欠きに沿うよう、box-shadow ではなく drop-shadow で付ける
+    const folded = theme.style === "sticky" && shape === "box" && !page && !group && fill;
+    head.classList.toggle("mz-style-sticky", folded);
+    head.style.filter = folded && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
+    if (folded) head.style.setProperty("--mz-fold", `color-mix(in srgb, ${color} 70%, #6b5a2a)`);
+    else head.style.removeProperty("--mz-fold");
     if (shape === "box" && !page) {
       head.style.background = !fill ? "transparent"
-        : group ? `color-mix(in srgb, ${color} 16%, transparent)` : color;
+        : group ? `color-mix(in srgb, ${color} 16%, transparent)`
+        : folded ? `linear-gradient(225deg, transparent ${FOLD}px, ${color} 0)` : color;
       const shadow: string[] = [];
       // 塗りの無い文字の箱の枠は、箱の色で引く（テーマが箱ごとの色を使わないなら、テーマの枠の色。白い箱の色だと見えないため）
       const frame = group ? color : !fill ? (own || !theme.border ? color : theme.border) : edge;
       if (borderOf(n)) shadow.push(`inset 0 0 0 2px ${frame}`);
       else if (theme.outline && !group && fill) shadow.push(`inset 0 0 0 1.5px ${edge}`);
       const s = shadowOf();
-      if (fill && s) shadow.push(s);
+      if (fill && s && !folded) shadow.push(s);
       head.style.boxShadow = shadow.join(", ") || "none";
       n.shapeSvg.replaceChildren();
     } else {

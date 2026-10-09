@@ -128,6 +128,12 @@ export const GRAPH_CSS = `
   overflow: hidden;
 }
 .mz-leaf.mz-size-S { font-size: 12px; padding: 2px 6px; border-radius: min(var(--mz-radius, 6px), 6px); }
+/* 付箋（テーマのスタイル。render.ts の folded）: 右上の角は背景で切り欠き、折り返しの三角をここで重ねる。大きさ（12px）は render.ts の FOLD */
+.mz-head.mz-style-sticky::after {
+  content: ""; position: absolute; right: 0; top: 0; width: 12px; height: 12px; pointer-events: none;
+  background: linear-gradient(to left bottom, transparent 50%, var(--mz-fold) 50%);
+  border-bottom-left-radius: 2px;
+}
 .mz-leaf.mz-light { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 .mz-leaf.mz-dark { color: #1b1b1f; }
 .mz-text { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }

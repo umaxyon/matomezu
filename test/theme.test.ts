@@ -34,7 +34,7 @@ test("図全体のテーマで箱の色が決まり、箱ごとの色は使わ�
     world: { theme: "sticky" },
     nodes: [{ id: 1, caption: "A", color: "#3b82f6", x: 40, y: 40 }],
   });
-  expect(head(1).style.background).toBe(sticky.box);
+  expect(head(1).style.background).toContain(sticky.box); // 付箋は角を折り返すのでグラデーションの中の色
   expect(head(1).classList.contains("mz-t-sticky")).toBe(true);
   // 背景はテーマの背景で固定する
   expect(stage.querySelector<HTMLElement>(".mz-world")!.style.background).toBe(sticky.background!);
@@ -107,4 +107,24 @@ test("モノクロでは、塗りのある文字の箱に枠線を引き、塗�
   });
   expect(head(1).style.boxShadow).toContain("inset 0 0 0 1.5px");
   expect(head(2).style.boxShadow).toContain(mono.border!);
+});
+
+test("付箋紙では、塗りのある文字の箱だけ角を折り返し、影は折り返しに沿って付ける", () => {
+  const { g, head } = setup({
+    world: { theme: "sticky" },
+    nodes: [
+      { id: 1, caption: "枠", x: 40, y: 40 },
+      { id: 2, caption: "付箋", parent: 1 },
+      { id: 3, caption: "塗り無し", fill: false, border: true, x: 600, y: 40 },
+    ],
+  });
+  expect(head(2).classList.contains("mz-style-sticky")).toBe(true);
+  expect(head(2).style.background).toContain("linear-gradient");
+  expect(head(2).style.filter).toContain("drop-shadow");
+  expect(head(2).style.boxShadow).not.toContain(sticky.shadow!);
+  expect(head(1).classList.contains("mz-style-sticky")).toBe(false); // グループの枠は付箋にしない
+  expect(head(3).classList.contains("mz-style-sticky")).toBe(false);
+  g.update(null, { theme: null });
+  expect(head(2).classList.contains("mz-style-sticky")).toBe(false);
+  expect(head(2).style.filter).toBe("");
 });

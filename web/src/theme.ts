@@ -12,6 +12,8 @@ export interface Theme {
   group?: string;      // 内包の枠の色（無ければ box）
   border?: string;     // 文字の箱の枠線の色（無ければ塗りを暗くした色）
   outline?: boolean;   // 塗りのある文字の箱に、枠線の指定が無くても細い枠線を引く（白い背景に白い箱が溶けないように）
+  style?: "sticky";    // 塗りのある文字の箱の見た目のスタイル（無ければ今の箱）。sticky: 右上の角を折り返した付箋。
+                       // 大きさと線のつなぎ方には響かない（箱の四角の中で描く。docs/THEME-plan.md 5 章）
   text?: string;       // 塗りの上の文字の色（無ければ塗りの明るさで白か黒）
   shadow?: string;     // 箱の影（無ければ画面の既定。"none" で影なし）
   background?: string; // 図の背景。あれば配色をこの背景で固定する（ブラウザのダーク・ライトによらない）。world.background が優先
@@ -30,7 +32,7 @@ export const THEMES: Theme[] = [
   {
     id: "sticky", label: "付箋紙", describe: "明るい紙の上に、淡い黄色の付箋を貼った見た目。角は小さく、影は薄い",
     useBoxColor: false, box: "#fff3a6", group: "#b9ad8f", border: "#d9c873", text: "#3b3524",
-    shadow: "0 3px 6px rgba(70, 55, 20, 0.22)", background: "#f4efe4", radius: 3, padding: [8, 12],
+    shadow: "0 3px 5px rgba(70, 55, 20, 0.28)", background: "#f4efe4", radius: 3, padding: [8, 12], style: "sticky",
   },
   {
     id: "mono", label: "モノクロ", describe: "白い背景に、白い箱と黒い枠線だけ。資料に貼る・印刷する向け",
