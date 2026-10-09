@@ -227,7 +227,12 @@ export function createLayout(ctx: LayoutContext) {
         if (!collides(n, cx, cy)) return [cx, cy];
       }
     }
-    return [x, y]; // 置き場が無いほど狭い場合は重なりを許容する
+    // 探す範囲（ワールドの幅か高さ）で見つからなければ、同じ x のまま下へずらす。ワールドは下へ伸ばせるので必ず空きがある
+    // （表示領域が狭いと、大きいボックスを縦に積む場所が範囲の外になり、重ねて置いていた）。
+    // 高さが指定されていて下にも入らないときだけ、重なりを許容する
+    const [sx, sy] = clamp(n, x, y);
+    const f = fixedSize(world);
+    return slide(n, sx, sy, "down", f.h != null ? f.h - opt.padding - n.h : Infinity) ?? [x, y];
   }
 
   // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす（押し下げる。本来いたい高さは変えない）。

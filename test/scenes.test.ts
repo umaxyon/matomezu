@@ -180,6 +180,24 @@ describe("場面の表の行のうち、テストが無かったもの", () => {
     }
   });
 
+  test("位置の無い大きいボックスは、表示領域が狭くて近くに空きが無くても、重ならないよう下に置く", () => {
+    // 表示領域 700 で 600x400 を 4 つ。近くを探す範囲（ワールドの幅か高さ）に入りきらず、以前は重ねて置いていた
+    const proto = HTMLElement.prototype;
+    Object.defineProperty(proto, "clientWidth", { configurable: true, get: () => 700 });
+    try {
+      const { graph } = setup({
+        nodes: [1, 2, 3, 4].map(id => ({ id, caption: `箱 ${id}`, width: 600, height: 400 })),
+      });
+      const r = [1, 2, 3, 4].map(id => graph.info(id));
+      for (const a of r) for (const b of r) {
+        if (a === b) continue;
+        expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true);
+      }
+    } finally {
+      Object.defineProperty(proto, "clientWidth", { configurable: true, get: () => 1000 });
+    }
+  });
+
   describe("はみ出しの調整で動かした箱は、ファイルの位置が変わらない限り、読み直しても画面の位置のまま", () => {
     // 2 は右端からはみ出すので、開いたときに 1 の真下へ移る（表示だけ。ファイルは x: 900 のまま）
     const d = (caption: string, x = 900): Diagram => ({
