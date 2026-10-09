@@ -11,6 +11,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 out="${1:-dist}"
 version="0.0.0-$(git describe --always --dirty)"
+# コミットしていない変更があれば、作り直すたびに版を変える（同じ版だと常駐サーバーが入れ替わらない）
+[[ "$version" == *-dirty ]] && version="$version.$(date +%Y%m%d%H%M%S)"
 
 targets=(
   windows/amd64
