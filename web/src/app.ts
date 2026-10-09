@@ -17,6 +17,7 @@
 import { type EventConnection, connectEvents } from "./events";
 import { createGraph, type Graph } from "./graph";
 import { type Minimap, createMinimap } from "./minimap";
+import { handleGraphEvent } from "./notices";
 import { type OtherBook, createPanel, type Panel } from "./panel";
 import type { Diagram } from "./types";
 import { docBase, fetchRemote, startSync, type Sync } from "./sync";
@@ -343,7 +344,7 @@ export async function startApp(ui: AppUi) {
         onSelect: info => book?.panel.show(info),
         onChange: data => { book?.sync.changed(data); if (book) refreshPages(book); },
         onHistory: () => { if (book && current?.book === book) refreshButtons(book); },
-        onNotice: text => { if (book && current?.book === book) ui.status(text); },
+        onEvent: ev => { if (book && current?.book === book) handleGraphEvent(graph, ev, ui.status); },
         onBuild: () => { if (book) refreshPages(book); },
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,

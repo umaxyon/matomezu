@@ -122,6 +122,7 @@ import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import type { RouteFix } from "./routing";
 import { createEdgeDrag } from "./edge-drag";
+import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { Arrow, Axis, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
 import { ARROWS, AXES, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
@@ -154,7 +155,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onChange?: (data: Diagram) => void;
   onSelect?: (info: Info) => void;
   onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
-  onNotice?: (text: string) => void;          // 利用者に知らせたいこと（付け替えで線を外したなど）
+  onEvent?: (ev: GraphEvent) => void;         // 図で起きたこと（付け替えた、消したなど）。文言と画面の方針は notices.ts
   onBuild?: () => void;                       // 図を組み立て直した（ページの増減やキャプションを見直すため）
   onLiftOver?: (x: number, y: number) => void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   onLiftEnd?: () => void;                     // 付け替えのドラッグが終わった
@@ -274,11 +275,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     liftOver: (x, y) => opt.onLiftOver?.(x, y),
     liftEnd: () => opt.onLiftEnd?.(),
     reorder: (n, index) => { reorder(n, index); },
-    // 一覧からドラッグして戻したら、線モードや削除モードのままだと戻した箱をすぐ動かせないので、移動モードにする
-    restore: (id, parentId, at) => {
-      restore(id, parentId, at);
-      if (mode === "link" || mode === "remove") setMode("move");
-    },
+    // 一覧からドラッグして戻した（選択モードへの切り替えは、知らせを受けた画面の側で決める。notices.ts）
+    restore: (id, parentId, at) => { restore(id, parentId, at, true); },
   }, L, R, createDrag(opt, L));
 
   // ユーザーが図を変えたか（読み込んでから、履歴に積む操作をしたか）。変える前の外部の変更は、履歴に積まずに出発点にする
@@ -535,7 +533,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       // ページは入れ子にしない（ページの箱を、ページの中へは移せない）
       const moving = subtreeIds(data.nodes, id);
       if (page != null && data.nodes.some(s => moving.has(String(s.id)) && s.page === true)) {
-        opt.onNotice?.("ページの中には、ページの箱を入れられません");
+        opt.onEvent?.({ kind: "pageInPage" });
         return null;
       }
       fromPage = pageOf(data.nodes, id);
@@ -546,8 +544,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return { select: String(id) };
     });
     if (!moved) return false;
-    const where = (t ? `「${keyOfBox(byId.get(t.id)!)}」の中` : "最上位") + (fromPage !== page ? `（${pageName(page)}）` : "");
-    opt.onNotice?.(`${where}へ移しました` + (cut ? `（階層が変わったため、線を ${cut} 本外しました）` : ""));
+    opt.onEvent?.({
+      kind: "moved", into: t ? keyOfBox(byId.get(t.id)!) : null, page: fromPage !== page ? pageName(page) : null, cutEdges: cut,
+    });
     return true;
   }
 
@@ -593,11 +592,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     changed();
     return n;
   }
-
-  // 消したときの知らせ
-  const removedNotice = (key: string, kids: number, cut: number) =>
-    `「${key}」を消しました` +
-    (kids || cut ? `（${[kids ? `子 ${kids} 個` : "", cut ? `線 ${cut} 本` : ""].filter(Boolean).join("、")}も）` : "");
 
   // ---- リストの並べ替え（docs/LIST-plan.md） ----
 
@@ -662,7 +656,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     render();
     changed();
     notifySelect();
-    opt.onNotice?.(removedNotice(keyOfBox(n), gone.size - 1, cut.length));
+    opt.onEvent?.({ kind: "removed", key: keyOfBox(n), kids: gone.size - 1, cutEdges: cut.length });
     return true;
   }
 
@@ -678,21 +672,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       [gone, cut] = [r.ids.size, r.cut];
       return {};
     });
-    opt.onNotice?.(removedNotice(keyOf(s.id, captionOfData(s)), gone - 1, cut));
+    opt.onEvent?.({ kind: "removed", key: keyOf(s.id, captionOfData(s)), kids: gone - 1, cutEdges: cut });
     return true;
   }
 
   // 消したボックス id を、removed の中の子孫ごと parentId（null は最上位）の子に戻す。付け替えと同じく作り直す。
   // 位置: 内包（か子の無いボックス）の中や最上位なら at（親の中での位置）。ツリー・非表示の中なら自動で並べる。
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
-  function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
+  function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }, byDrag = false) {
     const t = target(parentId, "戻せません（そのページのタブで戻してください）");
     const pos = dropPos(t, at);
     const n = rebuildWith(data => {
       restoreSubtree(data, id, parentIdOf(t), pos);
       return { select: String(id), drop: pos };
     })!;
-    opt.onNotice?.(`「${keyOfBox(n)}」を戻しました`);
+    opt.onEvent?.({ kind: "restored", key: keyOfBox(n), byDrag });
     return true;
   }
 
@@ -708,8 +702,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       r = pasteSubtree(data, copy, parentIdOf(t), pos, page != null);
       return { select: r.root, drop: pos };
     })!;
-    const notes = [from ? `${from} から` : "", r.nodes > 1 ? `子 ${r.nodes - 1} 個` : "", r.edges ? `線 ${r.edges} 本` : ""].filter(Boolean);
-    opt.onNotice?.(`「${keyOfBox(n)}」を移植しました` + (notes.length ? `（${notes.join("、")}）` : ""));
+    opt.onEvent?.({ kind: "pasted", key: keyOfBox(n), from: from ?? null, kids: r.nodes - 1, edges: r.edges });
     return r.root;
   }
 
@@ -743,8 +736,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     render();
     changed();
     notifySelect();
-    const label = what === "width" ? "幅" : what === "height" ? "高さ" : "幅と高さ";
-    opt.onNotice?.(`子 ${count} 個の${label}をそろえました` + (partial ? "（中身の都合で狭められない子があります）" : ""));
+    opt.onEvent?.({ kind: "aligned", count, what, partial });
     return count;
   }
 

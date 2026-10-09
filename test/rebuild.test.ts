@@ -1,6 +1,7 @@
 // 構造が変わる操作（付け替え・ほかのページの箱を消す・戻す・移植）は、どれも履歴に 1 件、知らせを 1 つ出し、
 // 動かした箱を選ぶ（graph.ts の rebuildWith。docs/REFACTOR-2.md）
 import { afterEach, expect, test } from "bun:test";
+import { noticeOf } from "../web/src/notices";
 import { createGraph, type Graph } from "../web/src/graph";
 import { copySubtree } from "../web/src/pages";
 import type { Diagram } from "../web/src/types";
@@ -27,7 +28,7 @@ function setup() {
   document.body.appendChild(el);
   let changes = 0;
   const notices: string[] = [];
-  const graph = createGraph(el, data(), { measureText: fakeMeasure, onChange: () => changes++, onNotice: t => notices.push(t) });
+  const graph = createGraph(el, data(), { measureText: fakeMeasure, onChange: () => changes++, onEvent: ev => notices.push(noticeOf(ev)) });
   graphs.push(graph);
   return { graph, count: () => [changes, notices.length], notices };
 }

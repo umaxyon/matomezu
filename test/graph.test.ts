@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { type GraphEvent, noticeOf } from "../web/src/notices";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { BoxData, BoxInfo, Diagram, EdgeData, Info } from "../web/src/types";
 import { dragBy, endsOf, fakeMeasure, pointsOf } from "./helpers";
@@ -482,7 +483,7 @@ describe("親子の付け替え", () => {
 
   test("子孫ごと移り、同じ階層でなくなった線だけ外す", () => {
     const notices: string[] = [];
-    const { graph } = setup(sample(), { onNotice: (t: string) => notices.push(t) });
+    const { graph } = setup(sample(), { onEvent: (ev: GraphEvent) => notices.push(noticeOf(ev)) });
     expect(graph.reparent(4, 2, { x: 900, y: 40 })).toBe(true); // 子を内包する先では at は使わない
     const out = graph.toJSON();
     expect(parentOf(out, 4)).toBe(2);
@@ -718,7 +719,7 @@ describe("子の大きさをそろえる", () => {
 
   test("幅を、全員がそろえられる一番小さい幅にそろえ、対象外（S）は変えない", () => {
     const notices: string[] = [];
-    const { graph } = setup(data(), { onNotice: (t: string) => notices.push(t) });
+    const { graph } = setup(data(), { onEvent: (ev: GraphEvent) => notices.push(noticeOf(ev)) });
     expect((graph.info(1) as import("../web/src/types").BoxInfo).sizableChildren).toBe(2);
     const s = graph.info(4).w;
     expect(graph.fitChildren(1, "width")).toBe(2);
@@ -819,7 +820,7 @@ test("子の大きさをそろえる: 縮められない子があっても、ほ
       { id: 4, caption: "バックエンド", parent: 1, x: 12, y: 120 },
       { id: 41, caption: "データ", parent: 4, x: 12, y: 30 }, { id: 42, caption: "API", parent: 4, x: 200, y: 30 },
     ],
-  }, { onNotice: (t: string) => notices.push(t) });
+  }, { onEvent: (ev: GraphEvent) => notices.push(noticeOf(ev)) });
   const before = [2, 3, 4].map(id => graph.info(id).w);
   graph.fitChildren(1, "width");
   const after = [2, 3, 4].map(id => graph.info(id).w);

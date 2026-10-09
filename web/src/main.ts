@@ -6,6 +6,7 @@ import { startApp } from "./app";
 import { download, readFile } from "./dom";
 import { createGraph } from "./graph";
 import { createMinimap, setupMinimapToggle } from "./minimap";
+import { handleGraphEvent } from "./notices";
 import { createPanel, type Panel } from "./panel";
 import { setupHistory, setupModes } from "./toolbar";
 
@@ -74,7 +75,7 @@ async function main() {
       undoBtn.disabled = !h.canUndo;
       redoBtn.disabled = !h.canRedo;
     },
-    onNotice: showStatus,
+    onEvent: ev => handleGraphEvent(graph, ev, showStatus),
   });
   panel = createPanel($("sidebar"), graph);
   createMinimap(stage, graph);

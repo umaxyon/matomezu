@@ -1,5 +1,6 @@
 // ブックとページ（docs/TABS-plan.md 3.2）。図はブック全体を持ち、描くのは 1 ページだけ
 import { afterEach, expect, test } from "bun:test";
+import { noticeOf } from "../web/src/notices";
 import { createGraph, type Graph } from "../web/src/graph";
 import { copySubtree, pageMembers, pageOf, subtreeIds } from "../web/src/pages";
 import type { BoxData, Diagram, EdgeData } from "../web/src/types";
@@ -207,7 +208,7 @@ test("ほかのページの箱を、今のページへ付け替えられる。�
   const notices: string[] = [];
   const el = document.createElement("div");
   document.body.appendChild(el);
-  const graph = createGraph(el, book(), { measureText: fakeMeasure, onNotice: t => notices.push(t) });
+  const graph = createGraph(el, book(), { measureText: fakeMeasure, onEvent: ev => notices.push(noticeOf(ev)) });
   graphs.push(graph);
   // 最初のページを描いたまま、ページ 1 の 3 を最上位へ
   expect(graph.reparent(3, null, { x: 40, y: 400 })).toBe(true);
@@ -222,7 +223,7 @@ test("ページの箱は、ページの中へは移せない", () => {
   const notices: string[] = [];
   const el = document.createElement("div");
   document.body.appendChild(el);
-  const graph = createGraph(el, book(), { measureText: fakeMeasure, onNotice: t => notices.push(t) });
+  const graph = createGraph(el, book(), { measureText: fakeMeasure, onEvent: ev => notices.push(noticeOf(ev)) });
   graphs.push(graph);
   graph.setPage(1);
   expect(graph.reparent(1, null, { x: 0, y: 0 })).toBe(false);
