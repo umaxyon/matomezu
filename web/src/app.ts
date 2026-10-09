@@ -9,19 +9,21 @@
  * - 見ていないブックは隠しておき、外部の変更は前に出たときに反映する（隠れた要素では文字の幅が測れないため）。
  * - ツールバー（Undo/Redo、モード）は、前に出ているブックの図に付け替える。
  * - サーバーの通知は events.ts の 1 本で受け、ブックごとに配る。matomezu open などで頼まれたページは、タブを開いて前に出す。
- * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているブックは localStorage に覚える（無くても動く）。
+ * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているブックは localStorage に覚える（無くても動く。app-location.ts）。
  * - 付け替えのドラッグで、箱を同じブックのページのタブの上に少し止めると、そのページに切り替わる（そのまま落とすと、そのページへ移る）。
  * - サイドバーの一覧の「他ブックも表示」には、ほかに開いているブックの箱を出す（行を図へドラッグすると移植。docs/TABS-plan.md 4.3）。
  */
 
+import { loadSavedBooks, saveBooks, wantedFromUrl, writeUrl } from "./app-location";
 import { type EventConnection, connectEvents } from "./events";
-import { createGraph, type Graph } from "./graph";
-import { type Minimap, createMinimap } from "./minimap";
+import type { Graph } from "./graph";
+import type { Minimap } from "./minimap";
 import { handleGraphEvent } from "./notices";
-import { type OtherBook, createPanel, type Panel } from "./panel";
+import type { OtherBook, Panel } from "./panel";
 import type { Diagram } from "./types";
 import { docBase, fetchRemote, startSync, type Sync } from "./sync";
 import { setupHistory, setupModes } from "./toolbar";
+import { mountDiagram } from "./view";
 
 export interface AppUi {
   tabs: HTMLElement;
@@ -62,23 +64,10 @@ interface Book {
   error: string | null;
 }
 
-
-const STORE_KEY = "matomezu.tabs";
 const HOVER_SWITCH = 500; // 付け替えのドラッグで、タブの上にこれだけ止めたらページを切り替える（ミリ秒）
 const EMPTY_HINT = "開いている図がありません。LLM に matomezu open で開くよう頼んでください";
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
-
-// 開いていたブックの id。ページのタブは、ブックを開けば全部並ぶので覚えない（以前の形 { d, p } も読める）
-function loadSaved(): string[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(STORE_KEY) ?? "[]");
-    if (!Array.isArray(v)) return [];
-    return v.flatMap((x): string[] => (typeof x === "string" ? [x] : x && typeof x.d === "string" ? [x.d] : []));
-  } catch {
-    return [];
-  }
-}
 
 // 取ってきたデータから、ページの箱の一覧を読む（図に読み込む前のタブの名前に使う）
 function pagesInData(data: unknown): { id: string; caption: string }[] {
@@ -129,9 +118,7 @@ export async function startApp(ui: AppUi) {
 
   // 開いているブックを覚え、サーバーにも知らせる（サーバーは開いている図だけを監視する）
   function remember() {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(books.map(b => b.id)));
-    } catch { /* 覚えられなくても動く */ }
+    saveBooks(books.map(b => b.id));
     events?.watchChanged();
   }
 
@@ -231,14 +218,7 @@ export async function startApp(ui: AppUi) {
   }
 
   function updateUrl() {
-    if (!current) return;
-    try {
-      const url = new URL(location.href);
-      url.searchParams.set("d", current.book.id);
-      if (current.page != null) url.searchParams.set("p", current.page);
-      else url.searchParams.delete("p");
-      history.replaceState(null, "", url);
-    } catch { /* URL を変えられなくても動く */ }
+    if (current) writeUrl(current.book.id, current.page);
   }
 
   function activate(b: Book, page: PageId) {
@@ -342,24 +322,17 @@ export async function startApp(ui: AppUi) {
       group.style.setProperty("--book", color);
 
       let book: Book | null = null;
-      const graph = createGraph(stage, { nodes: [] }, {
-        onSelect: info => book?.panel.show(info),
+      const { graph, panel, minimap } = mountDiagram(stage, side, { nodes: [] }, {
         onChange: data => { book?.sync.changed(data); if (book) { refreshPages(book); othersChanged(book); } },
         onHistory: () => { if (book && current?.book === book) refreshButtons(book); },
-        onEvent: ev => { if (book && current?.book === book) handleGraphEvent(graph, ev, ui.status); },
+        onEvent: ev => { if (book && current?.book === book) handleGraphEvent(book.graph, ev, ui.status); },
         onBuild: () => { if (book) { refreshPages(book); othersChanged(book); } },
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
-      });
-      const panel = createPanel(side, graph, { otherBooks: () => (book ? othersOf(book) : []) });
-      // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
-      stage.addEventListener("pointerdown", e => {
-        if (e.target instanceof Element && e.target.closest(".mz-head, .mz-hit") && graph.mode() !== "remove") panel.tab("info");
-      });
+      }, { otherBooks: () => (book ? othersOf(book) : []) });
       const b: Book = {
-        id, name: remote.name, color, group, tabs: [], stage, side, graph, panel,
+        id, name: remote.name, color, group, tabs: [], stage, side, graph, panel, minimap,
         sync: null as unknown as Sync, loaded: false, data: remote.data, error: null,
-        minimap: createMinimap(stage, graph),
       };
       b.sync = startSync(graph, base, remote, {
         status: text => { if (current?.book === b) ui.status(text); },
@@ -408,10 +381,8 @@ export async function startApp(ui: AppUi) {
   });
 
   // 前に開いていたタブと、URL で指定されたページを開く（サーバーが知らないブックは開かない）
-  const params = new URLSearchParams(location.search);
-  const wanted = params.get("d");
-  const wantedPage = params.get("p");
-  const saved = loadSaved();
+  const { book: wanted, page: wantedPage } = wantedFromUrl();
+  const saved = loadSavedBooks();
   if (wanted && !saved.includes(wanted)) saved.push(wanted);
   await Promise.all(saved.map(openBook));
   // 並びは覚えていた順にそろえる（読み込みの終わった順ではなく）

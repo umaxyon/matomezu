@@ -4,11 +4,10 @@
 
 import { startApp } from "./app";
 import { download, readFile } from "./dom";
-import { createGraph } from "./graph";
-import { createMinimap, setupMinimapToggle } from "./minimap";
+import { setupMinimapToggle } from "./minimap";
 import { handleGraphEvent } from "./notices";
-import { createPanel, type Panel } from "./panel";
 import { setupHistory, setupModes } from "./toolbar";
+import { mountDiagram } from "./view";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -67,21 +66,13 @@ async function main() {
     return;
   }
 
-  let panel: Panel | null = null;
   const initial = JSON.parse($("initial-data").textContent ?? "{}");
-  const graph = createGraph(stage, initial, {
-    onSelect: info => panel?.show(info),
+  const { graph } = mountDiagram(stage, $("sidebar"), initial, {
     onHistory: h => {
       undoBtn.disabled = !h.canUndo;
       redoBtn.disabled = !h.canRedo;
     },
     onEvent: ev => handleGraphEvent(graph, ev, showStatus),
-  });
-  panel = createPanel($("sidebar"), graph);
-  createMinimap(stage, graph);
-  // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
-  stage.addEventListener("pointerdown", e => {
-    if (e.target instanceof Element && e.target.closest(".mz-head, .mz-hit") && graph.mode() !== "remove") panel?.tab("info");
   });
   setupHistory(graph, undoBtn, redoBtn);
   setupModes(graph, modeButtons, $("mode-label"));
