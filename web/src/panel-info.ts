@@ -3,6 +3,7 @@
 import { esc, keyOf, toHex } from "./dom";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
+import { THEMES, themeById } from "./theme";
 import type { Axis, Brief, ChildView, Dash, EdgeInfo, Info, Overflow, Route, Shape, Size, TreeDirection } from "./types";
 
 const OVERFLOW_LABELS: Record<Overflow, string> = {
@@ -27,6 +28,18 @@ const allDisabled = (options: [string, string][]) => new Map(options.map(([v]) =
 const PRESETS = ["#ffffff", "#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#a855f7", "#64748b"];
 // ワールドの背景によく使う色（明るい色と暗い色）
 const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
+
+const THEME_OPTIONS: [string, string][] = THEMES.map(t => [t.id, t.label]);
+const THEME_HELP = THEMES.map(t => `${t.label}: ${t.describe}`).join("\n");
+
+// テーマの選択。箱では「受け継ぐ」（書かない）も選べ、今効いているテーマを添える
+function themeSection(own: string | null, used: string, inherit: boolean): string {
+  const options: [string, string][] = inherit ? [["", "受け継ぐ"], ...THEME_OPTIONS] : THEME_OPTIONS;
+  return `<div class="mzp-section"><h3>テーマ${helpIcon(THEME_HELP)}</h3>
+    ${segment("mzp-theme", own ?? (inherit ? "" : used), options)}
+    ${inherit && own == null ? `<p class="mzp-hint">今は「${esc(themeById(used).label)}」を受け継いでいます</p>` : ""}
+  </div>`;
+}
 
 function chips(list: Brief[]): string {
   if (!list.length) return '<span class="mzp-none">なし</span>';
@@ -116,6 +129,7 @@ function html(info: Info): string {
         `<button type="button" class="mzp-preset" data-bg="${c}" style="background:${c}" title="${c}" aria-pressed="${bg != null && c === hex}"></button>`
       ).join("")}<button type="button" class="mzp-chip" data-bg="" aria-pressed="${bg == null}">なし</button></div>
     </div>`);
+    parts.push(themeSection(info.theme, info.themeUsed, false));
     parts.push(`<div class="mzp-section"><h3>線の通り方（既定）${helpIcon("通り方を決めていない線は、これに従います")}</h3>
       ${segment("mzp-world-route", info.route, ROUTE_OPTIONS)}
     </div>`);
@@ -139,7 +153,9 @@ function html(info: Info): string {
       <div class="mzp-presets">${PRESETS.map(c =>
         `<button type="button" class="mzp-preset" data-color="${c}" style="background:${c}" title="${c}" aria-pressed="${c === hex}"></button>`
       ).join("")}</div>
+      ${info.usesColor ? "" : `<p class="mzp-hint">このテーマ（${esc(themeById(info.themeUsed).label)}）では、箱ごとの色は使いません。色はデータに残り、テーマを「標準」にすると効きます</p>`}
     </div>`);
+    parts.push(themeSection(info.theme, info.themeUsed, true));
 
     if (info.canShape) {
       parts.push(`<div class="mzp-section"><h3>形</h3>
@@ -270,6 +286,7 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
       return graph.updateEdge(info.id, { [t.name === "mzp-exit" ? "exit" : "enter"]: t.value === "auto" ? null : t.value as Axis });
     }
     if (t.name === "mzp-world-route") return graph.update(null, { route: t.value as Route });
+    if (t.name === "mzp-theme") return graph.update(info.kind === "world" ? null : info.id, { theme: t.value || null });
     // 矢印は、始点と終点の 2 つの選択を合わせて 1 つの値にする
     if (t.dataset.arrow && info.kind === "edge") {
       const on = (side: string) => !!pane.querySelector<HTMLInputElement>(`[data-arrow="${side}"]`)?.checked;

@@ -121,6 +121,7 @@ import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } fr
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import type { RouteFix } from "./routing";
+import { DEFAULT_THEME, isTheme, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
@@ -253,7 +254,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
     },
   });
-  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge }, L);
+  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, colorOf }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
     settle, sizable, alignChildren,
@@ -792,6 +793,24 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return n;
   }
 
+  // ---- テーマ（theme.ts、docs/THEME-plan.md） ----
+
+  // 箱（null はワールド）に効いているテーマ。近い祖先から順にたどって最初に書かれたもの。無ければ描いているワールド、
+  // ページならブック全体のワールド、それも無ければ default
+  function themeOf(n: Box | null): Theme {
+    for (let b: Box | null = n; b; b = b.parent) if (isTheme(b.src.theme)) return themeById(b.src.theme);
+    if (isTheme(world.src.theme)) return themeById(world.src.theme);
+    if (page != null && isTheme(source.world?.theme)) return themeById(source.world!.theme);
+    return themeById(DEFAULT_THEME);
+  }
+
+  // 箱を塗る色。箱ごとの color を使うのは default だけ（ほかはテーマが決める。データの color は残す。THEME-plan 11 章）
+  function colorOf(n: Box): string {
+    const t = themeOf(n);
+    if (t.useBoxColor) return n.src.color || opt.color;
+    return isNesting(n) ? t.group ?? t.box : t.box;
+  }
+
   const brief = (n: Box) => ({ id: n.id, caption: captionOf(n) });
   // 知らせに出す短いキー（長いキャプションでヘッダーが崩れないように）
   const keyOfBox = (n: Box) => keyOf(n.src.id, captionOf(n));
@@ -806,6 +825,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         overflow: overflowOf(world),
         overflows: ["wrap", "clip"],
         background: world.src.background || null,
+        theme: isTheme(world.src.theme) ? world.src.theme : null,
+        themeUsed: themeOf(null).id,
         route: routeDefaultOf(world),
         title: typeof source.world?.title === "string" && source.world.title ? source.world.title : null,
       };
@@ -819,6 +840,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       id: n.id,
       caption: captionOf(n),
       color: n.src.color || opt.color,
+      theme: isTheme(n.src.theme) ? n.src.theme : null,
+      themeUsed: themeOf(n).id,
+      usesColor: themeOf(n).useBoxColor,
       fill: fillOf(n),
       border: borderOf(n),
       size,
@@ -875,6 +899,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           setOrDelete(n.src, "caption", String(next.caption ?? ""), next.caption == null || String(next.caption) === "");
         }
         if ("color" in next) setOrDelete(n.src, "color", String(next.color ?? ""), !next.color);
+        if ("theme" in next) setOrDelete(n.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("fill" in next) n.src.fill = !!next.fill;
         if ("border" in next) n.src.border = !!next.border;
         if (next.size) {
@@ -915,6 +940,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           if (pageBox() && !Object.keys(top).length) delete source.world;
         }
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
+        if ("theme" in next) setOrDelete(world.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("route" in next) {
           if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(`route の値が不正です: ${next.route}`);
           setOrDelete(world.src, "route", next.route ?? undefined, next.route == null || next.route === "straight");
@@ -922,8 +948,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         storeWorld();
         syncWorld();
         applyWorldStyle();
+        // テーマは全部の箱に効く（書いていない箱は受け継ぐ）
+        if ("theme" in next) nodes.forEach(applyStyle);
       } else {
         applyStyle(n);
+        // テーマは子孫も受け継ぐ
+        if ("theme" in next) descendants(n).forEach(applyStyle);
       }
     };
     settle(SCENES.settings, n.isWorld ? undefined : n, apply);
@@ -1248,7 +1278,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         const [x, y] = absPos(n);
         return {
           id: n.id, caption: captionOf(n), ancestors: ancestors(n).map(p => p.id),
-          x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n), color: n.src.color || opt.color,
+          x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n), color: colorOf(n),
           ...(n.children.length ? { view: viewOf(n), kids: n.children.length } : {}),
         };
       });

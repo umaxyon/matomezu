@@ -114,7 +114,7 @@ export const GRAPH_CSS = `
 .mz-head {
   position: absolute;
   box-sizing: border-box;
-  border-radius: 8px;
+  border-radius: var(--mz-radius, 8px); /* テーマの角の丸み（theme.ts） */
   pointer-events: auto;
   cursor: grab; touch-action: none;
   color: var(--mz-text);
@@ -123,11 +123,11 @@ export const GRAPH_CSS = `
 }
 .mz-leaf {
   display: flex; align-items: center; justify-content: center;
-  padding: 4px 8px; text-align: center;
+  padding: var(--mz-pad-y, 4px) var(--mz-pad-x, 8px); text-align: center; /* テーマの箱の中の余白（theme.ts） */
   font-size: 14px; font-weight: 600; line-height: 1.3;
   overflow: hidden;
 }
-.mz-leaf.mz-size-S { font-size: 12px; padding: 2px 6px; border-radius: 6px; }
+.mz-leaf.mz-size-S { font-size: 12px; padding: 2px 6px; border-radius: min(var(--mz-radius, 6px), 6px); }
 .mz-leaf.mz-light { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 .mz-leaf.mz-dark { color: #1b1b1f; }
 .mz-text { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }

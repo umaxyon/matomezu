@@ -1,6 +1,7 @@
 // 描画: ボックスの見た目、DB やツリーの線、ボックスどうしの線を DOM に反映する
 
 import { SVGNS, isLightColor } from "./dom";
+import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
 import { leftNormalAt, pointAt, polylineLength } from "./geom";
 import { route, scopeObstacles } from "./routing";
@@ -24,6 +25,8 @@ export interface RenderContext {
   nodes(): Box[];
   edges(): Edge[];
   fixEdge(e: Edge, fix: RouteFix): void; // 線の道筋を決めたときに分かった、データに書き戻すこと（graph が直す）
+  themeOf(n: Box | null): Theme; // 箱（null はワールド）に効いているテーマ
+  colorOf(n: Box): string;       // 箱を塗る色（テーマと箱ごとの color から）
 }
 
 export type Renderer = ReturnType<typeof createRenderer>;
@@ -38,7 +41,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // 背景色。明るさに合わせて、ワールドの中の文字や線を見やすい配色にする（graph-style.ts の .mz-on-light / .mz-on-dark）
   function applyWorldStyle() {
-    const bg = world.src.background;
+    const theme = ctx.themeOf(null);
+    setThemeVars(worldEl, theme);
+    // 背景は world.background が優先。無ければテーマの背景（あれば配色をその背景で固定する）
+    const bg = world.src.background || theme.background;
     worldEl.style.background = bg || "";
     // 線の色は背景と混ぜて作る（graph-style.ts の --mz-edge）
     if (bg) worldEl.style.setProperty("--mz-bg", bg);
@@ -53,7 +59,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 見せ方に合わせて、本体の形・色・文字・子の表示を整える
   function applyStyle(n: Box) {
     const head = n.head;
-    const color = n.src.color || opt.color;
+    const theme = ctx.themeOf(n);
+    // テーマを書いた箱に、角の丸みと余白の変数を付ける（子孫へ受け継ぐ）。測った大きさを使い回す鍵にテーマを入れるため、
+    // 効いているテーマの印も付ける（measure.ts の鍵は本体のクラス）
+    setThemeVars(n.el, isTheme(n.src.theme) ? theme : null);
+    for (const t of THEMES) head.classList.toggle("mz-t-" + t.id, t === theme);
+    const color = ctx.colorOf(n);
+    const own = theme.useBoxColor && !!n.src.color; // 箱ごとの色で塗っているか
     const group = isNesting(n);
     const view = viewOf(n);
     const size = sizeOf(n);
@@ -76,13 +88,19 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const light = onFill && isLightColor(color);
     head.classList.toggle("mz-dark", onFill && light);
     head.classList.toggle("mz-light", onFill && !light);
-    const edge = `color-mix(in srgb, ${color} 70%, #000)`;
+    head.style.color = onFill && theme.text ? theme.text : "";
+    const edge = theme.border ?? `color-mix(in srgb, ${color} 70%, #000)`;
+    const shadowOf = () => (theme.shadow === "none" ? null : theme.shadow ?? "var(--mz-shadow)");
     if (shape === "box" && !page) {
       head.style.background = !fill ? "transparent"
         : group ? `color-mix(in srgb, ${color} 16%, transparent)` : color;
       const shadow: string[] = [];
-      if (borderOf(n)) shadow.push(`inset 0 0 0 2px ${group || !fill ? color : edge}`);
-      if (fill) shadow.push("var(--mz-shadow)");
+      // 塗りの無い文字の箱の枠は、箱の色で引く（テーマが箱ごとの色を使わないなら、テーマの枠の色。白い箱の色だと見えないため）
+      const frame = group ? color : !fill ? (own || !theme.border ? color : theme.border) : edge;
+      if (borderOf(n)) shadow.push(`inset 0 0 0 2px ${frame}`);
+      else if (theme.outline && !group && fill) shadow.push(`inset 0 0 0 1.5px ${edge}`);
+      const s = shadowOf();
+      if (fill && s) shadow.push(s);
       head.style.boxShadow = shadow.join(", ") || "none";
       n.shapeSvg.replaceChildren();
     } else {
@@ -94,7 +112,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.setAttribute("viewBox", "0 0 36 52");
         svg.innerHTML = PERSON_SVG;
         // 色の指定が無ければ文字の色で描く（白だと明るいテーマで見えないため）
-        svg.style.stroke = n.src.color ? color : "var(--mz-text)";
+        svg.style.stroke = own ? color : "var(--mz-text)";
         svg.style.fill = "";
         svg.style.filter = "";
       } else if (page) {
@@ -104,14 +122,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.fill = fill ? color : "none";
         svg.style.stroke = borderOf(n) || !fill ? (fill ? edge : color) : "none";
         svg.style.strokeWidth = "1.5";
-        svg.style.filter = fill ? "drop-shadow(var(--mz-shadow))" : "";
+        svg.style.filter = fill && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
       } else {
         svg.removeAttribute("viewBox");
         svg.innerHTML = '<path class="mz-db-body"/><path class="mz-db-rim" fill="none"/>';
         svg.style.fill = fill ? color : "none";
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.5";
-        svg.style.filter = fill ? "drop-shadow(var(--mz-shadow))" : "";
+        svg.style.filter = fill && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
       }
     }
 
@@ -126,7 +144,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.moreEl.title = `子 ${n.children.length} 件`;
     n.treeSvg.style.display = n.children.length && view === "tree" ? "" : "none";
     // 色の指定が無ければ線と同じ色にする（白だと明るいテーマで見えないため）
-    n.treeFrame.style.stroke = n.src.color ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";
+    n.treeFrame.style.stroke = own ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";
     n.treeFrame.style.fill = `color-mix(in srgb, ${color} 5%, transparent)`;
     for (const k of n.children) k.el.style.display = view === "hidden" ? "none" : "";
   }

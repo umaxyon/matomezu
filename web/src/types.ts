@@ -13,6 +13,7 @@ export interface WorldData {
   overflow?: Exclude<Overflow, "grow">;
   background?: string; // 背景色。省略すると背景なし
   route?: Route;       // 線の通り方の既定（無ければ直線）
+  theme?: string;      // テーマ（theme.ts）。ページの world に書けばそのページ。無ければ default（ページはブック全体の world のテーマ）
   title?: string;      // 図（ブック）の題名。タブの見出しに使う（無ければファイル名）。ブック全体の world だけ（ページの world には書かない）
   [key: string]: unknown;
 }
@@ -26,6 +27,7 @@ export interface BoxData {
   width?: number;
   height?: number;
   color?: string;
+  theme?: string;      // テーマ（theme.ts）。この箱と子孫に効く。無ければ親を受け継ぐ
   size?: Size;
   shape?: Shape;
   childView?: ChildView;
@@ -86,6 +88,8 @@ export interface WorldInfo {
   overflow: Overflow;
   overflows: Overflow[];
   background: string | null;
+  theme: string | null;  // このワールドに書いたテーマ（無ければ null）
+  themeUsed: string;     // 効いているテーマ（ページなら、ブック全体のテーマを受け継ぐ）
   route: Route; // 線の通り方の既定
   title: string | null; // 図（ブック）の題名（どのページを見ていても、ブック全体の world のもの）
 }
@@ -95,6 +99,9 @@ export interface BoxInfo {
   id: string;
   caption: string;
   color: string;
+  theme: string | null;    // この箱に書いたテーマ（無ければ null。親を受け継ぐ）
+  themeUsed: string;       // 効いているテーマ
+  usesColor: boolean;      // 効いているテーマが箱ごとの色を使うか（default だけ。docs/THEME-plan.md 11 章）
   fill: boolean;
   border: boolean;
   size: Size;
@@ -172,6 +179,7 @@ export interface Items {
 export interface Patch {
   title?: string | null;
   background?: string | null;
+  theme?: string | null; // 箱かワールドのテーマ。null で消す（親を受け継ぐ）
   caption?: string | null;
   color?: string | null;
   size?: Size;

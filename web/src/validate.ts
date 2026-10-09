@@ -1,5 +1,6 @@
 // データの検証と正規化。DOM に依存しない。
 
+import { THEMES, isTheme } from "./theme";
 import type { Diagram, EdgeData, Id, Size } from "./types";
 
 export interface SizeSpec {
@@ -54,6 +55,9 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown): st
   if (s.shape != null && !isShape(s.shape)) out.push(`shape の値が不正です: ${where} (${s.shape})`);
   if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(`treeDirection の値が不正です: ${where} (${s.treeDirection})`);
   if (s.childView != null && !isView(s.childView)) out.push(`childView の値が不正です: ${where} (${s.childView})`);
+  if (s.theme != null && !isTheme(s.theme)) {
+    out.push(`theme の値が不正です: ${where} (${s.theme})。使えるのは ${THEMES.map(t => t.id).join(" / ")}`);
+  }
   return out;
 }
 
