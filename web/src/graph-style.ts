@@ -183,4 +183,11 @@ export const GRAPH_CSS = `
 .mz-node.mz-linking > .mz-head { outline: 2px dashed var(--mz-select); }
 .mz-node.mz-blocked { animation: mz-shake 0.18s; }
 @keyframes mz-shake { 25% { translate: -2px 0; } 75% { translate: 2px 0; } }
+/* プレビュー（見るだけ）: 押すと選ぶだけ。背景はつかんで見る範囲を動かす。線の区間や端をつまむ印は出さない */
+.mz-preview { cursor: grab; }
+.mz-preview.mz-panning { cursor: grabbing; }
+.mz-preview .mz-head, .mz-preview .mz-label-box > span { cursor: pointer; }
+.mz-preview .mz-hit { pointer-events: stroke; cursor: pointer; }
+.mz-preview .mz-bend, .mz-preview .mz-end { pointer-events: none; }
+.mz-preview .mz-edge.mz-selected .mz-end { display: none; }
 `;

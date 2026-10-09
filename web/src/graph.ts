@@ -199,6 +199,11 @@ export interface Graph {
   page(): string | null;
   pages(): { id: string; caption: string }[];
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
+  // プレビュー（見るだけのモード）。倍率を渡すと入り、null で編集に戻る。プレビュー中は、押すと選ぶだけで、
+  // 背景のドラッグは見る範囲を動かす。図を直す操作（ドラッグ、Undo / Redo）は効かない
+  setPreview(zoom: number | null): void;
+  preview(): number | null;
+  contentSize(): { w: number; h: number }; // ボックスが占める範囲（ワールドの左上から、余白込み）
   destroy(): void;
 }
 
@@ -238,8 +243,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let fitted = new Map<string, { file: string; x: number; y: number }>();
   const posKey = (s: { x?: unknown; y?: unknown }) =>
     Number.isFinite(s.x) && Number.isFinite(s.y) ? `${s.x},${s.y}` : null;
+  // プレビューの倍率（null は編集中）と、今ワールドにかけている倍率（組み立て直す間は 1 に外す）
+  let preview: number | null = null;
+  let applied = 1;
   const L = createLayout({
-    opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges,
+    opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges, zoom: () => applied,
     fitted: n => {
       const file = posKey(n.src);
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
@@ -1053,6 +1061,62 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // keep は組み立て直したあとに選び直す箱か線の id（残っていれば。無ければワールドを選ぶ）。途中でワールドを選ばずに
   // 直接選ぶ（いったんワールドを選ぶと、サイドバーの情報タブが切り替わって、入力中の内容が消えるため）
   function build(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
+    unzoomed(() => buildAll(copy, fit, keep));
+  }
+
+  // ---- プレビュー ----
+
+  function applyZoom(z: number) {
+    applied = z;
+    worldEl.style.zoom = z === 1 ? "" : String(z);
+    syncWorld();
+  }
+
+  // 倍率を外して fn を動かす。文字の幅は画面で測るので、倍率がかかったまま組み立て直すと誤る
+  // （プレビュー中に外部の変更を読み直すとき、ページを切り替えるとき）
+  function unzoomed(fn: () => void) {
+    if (preview == null) return fn();
+    applyZoom(1);
+    try {
+      fn();
+    } finally {
+      applyZoom(preview);
+    }
+  }
+
+  function setPreview(z: number | null) {
+    preview = z;
+    container.classList.toggle("mz-preview", z != null);
+    applyZoom(z ?? 1);
+  }
+
+  // プレビュー中の押下。図の操作（interaction.ts）より先に受け取り、選ぶだけにする。
+  // 背景を押したらワールドを選び、そのままドラッグすると見る範囲を動かす
+  container.addEventListener("pointerdown", e => {
+    if (preview == null) return;
+    e.stopImmediatePropagation();
+    const t = e.target instanceof Element ? e.target : null;
+    const edgeEl = t?.closest(".mz-edge");
+    const edge = edgeEl ? edgeOfEl.get(edgeEl) : undefined;
+    if (edge) return selectEdge(edge);
+    const nodeEl = t?.closest(".mz-node");
+    const n = nodeEl ? boxOfEl.get(nodeEl) : undefined;
+    if (n) return select(n);
+    select(null);
+    if (e.button !== 0) return;
+    const start = { x: e.clientX, y: e.clientY, left: container.scrollLeft, top: container.scrollTop };
+    const stop = new AbortController();
+    container.classList.add("mz-panning");
+    document.addEventListener("pointermove", ev => {
+      container.scrollLeft = start.left - (ev.clientX - start.x);
+      container.scrollTop = start.top - (ev.clientY - start.y);
+    }, { signal: stop.signal });
+    const end = () => { stop.abort(); container.classList.remove("mz-panning"); };
+    document.addEventListener("pointerup", end, { signal: stop.signal });
+    document.addEventListener("pointercancel", end, { signal: stop.signal });
+  }, true);
+
+  function buildAll(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
     assignIds(copy);
     validate(copy);
     clear();
@@ -1116,8 +1180,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const api: Graph = {
     load,
-    undo: () => H.undo(),
-    redo: () => H.redo(),
+    undo: () => preview == null && H.undo(),
+    redo: () => preview == null && H.redo(),
     history: () => H.state(),
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
     reveal(id) { const n = nodeOf(id); if (!n.isWorld) reveal(n); },
@@ -1205,6 +1269,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           return out;
         }),
       };
+    },
+    setPreview,
+    preview: () => preview,
+    contentSize() {
+      let w = 0, h = 0;
+      for (const r of roots) {
+        w = Math.max(w, r.x + r.w + opt.padding);
+        h = Math.max(h, r.y + r.h + opt.padding);
+      }
+      return { w, h };
     },
     destroy() {
       measurer.dispose();

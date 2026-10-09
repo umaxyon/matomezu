@@ -20,6 +20,7 @@ import type { Graph } from "./graph";
 import type { Minimap } from "./minimap";
 import { handleGraphEvent } from "./notices";
 import type { OtherBook, Panel } from "./panel";
+import type { Preview } from "./preview";
 import type { Diagram } from "./types";
 import { docBase, fetchRemote, startSync, type Sync } from "./sync";
 import { setupHistory, setupModes } from "./toolbar";
@@ -33,6 +34,7 @@ export interface AppUi {
   redo: HTMLButtonElement;
   modeButtons: HTMLButtonElement[];
   modeLabel: HTMLElement;
+  preview: Preview;
   status(text: string): void;
   error(message: string): void;
   clearError(): void;
@@ -237,6 +239,7 @@ export async function startApp(ui: AppUi) {
       b.sync.setActive(true);
       b.loaded = true;
       unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButtons, ui.modeLabel));
+      ui.preview.attach(b.graph, b.stage);
       if (b.error) ui.error(b.error);
       else ui.clearError();
     }
@@ -289,6 +292,7 @@ export async function startApp(ui: AppUi) {
   }
 
   function empty() {
+    ui.preview.attach(null, null);
     document.title = "matomezu";
     ui.undo.disabled = ui.redo.disabled = true;
     ui.clearError();

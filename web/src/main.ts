@@ -6,6 +6,7 @@ import { startApp } from "./app";
 import { download, readFile } from "./dom";
 import { setupMinimapToggle } from "./minimap";
 import { handleGraphEvent } from "./notices";
+import { setupPreview } from "./preview";
 import { setupHistory, setupModes } from "./toolbar";
 import { mountDiagram } from "./view";
 
@@ -51,6 +52,9 @@ async function main() {
   const redoBtn = $<HTMLButtonElement>("redo");
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
   setupMinimapToggle($<HTMLButtonElement>("minimap-toggle"));
+  const preview = setupPreview({
+    toggle: $("preview-toggle"), zoomOut: $("zoom-out"), zoomIn: $("zoom-in"), fit: $("zoom-fit"), level: $("zoom-level"),
+  });
   if (await served()) {
     document.body.classList.add("served");
     const canvas = stage.parentElement ?? document.body;
@@ -59,7 +63,7 @@ async function main() {
     tabs.hidden = false;
     startApp({
       tabs, canvas, sidebar: $("sidebar"),
-      undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"),
+      undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
       status: showStatus, error: showError, clearError,
       hint: text => { hint.textContent = text; hint.classList.remove("error"); },
     });
@@ -75,6 +79,7 @@ async function main() {
     onEvent: ev => handleGraphEvent(graph, ev, showStatus),
   });
   setupHistory(graph, undoBtn, redoBtn);
+  preview.attach(graph, stage);
   setupModes(graph, modeButtons, $("mode-label"));
 
   let fileName = "matomezu.json";

@@ -43,6 +43,7 @@ export interface LayoutContext {
   measurer: TextMeasurer;
   roots(): Box[];
   edges(): Edge[];
+  zoom?(): number; // ワールドにかけている倍率（プレビュー。無ければ 1）
   // 開いたときのはみ出しの調整（fitToViewport）で移した（表示だけ。ファイルには無い位置）
   fitted?(n: Box): void;
 }
@@ -83,11 +84,13 @@ export function createLayout(ctx: LayoutContext) {
   // 表示領域の中身（スクロールバーを除く）の幅と高さ。clientWidth / clientHeight は小数を四捨五入するので、
   // 実際の幅が 836.6 のとき 837 になり、それに合わせたワールドが 0.4px はみ出して、動かせないスクロールバーが出る
   // （Windows の表示倍率などで幅に小数が出る）。小数まで測って切り捨てる
+  // ワールドに倍率をかけていれば（プレビュー）、ワールドの座標での広さにする（縮小しても、ワールドの背景が表示領域を埋めるように）
   function viewport() {
     const r = container.getBoundingClientRect();
+    const z = ctx.zoom?.() ?? 1;
     return {
-      w: Math.floor(r.width - (container.offsetWidth - container.clientWidth)),
-      h: Math.floor(r.height - (container.offsetHeight - container.clientHeight)),
+      w: Math.floor((r.width - (container.offsetWidth - container.clientWidth)) / z),
+      h: Math.floor((r.height - (container.offsetHeight - container.clientHeight)) / z),
     };
   }
 
