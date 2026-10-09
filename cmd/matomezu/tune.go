@@ -93,6 +93,11 @@ func checkData(path string) error {
 	if err != nil {
 		return err
 	}
+	return checkBytes(b, path)
+}
+
+// checkBytes は、データ b（path はエラーの文に出す名前）に誤りがあれば全部を並べたエラーを返す
+func checkBytes(b []byte, path string) error {
 	list, err := validate.Problems(b)
 	if err != nil {
 		return err
@@ -123,11 +128,12 @@ func set(args []string) error {
 	if err != nil {
 		return err
 	}
+	// 検査に通らない変更は書かない（画面は誤りのあるファイルを配置しないうえ、誤ったファイルが残ってしまうため）
+	if err := checkBytes(out, path); err != nil {
+		return fmt.Errorf("not written: %w", err)
+	}
 	if err := writeFile(path, out); err != nil {
 		return err
-	}
-	if err := checkData(path); err != nil {
-		return fmt.Errorf("written, but %w", err)
 	}
 	l, err := waitLayout(path, *page)
 	if err != nil {
@@ -267,18 +273,24 @@ func (o *object) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// value は値の文字列を JSON にする。空なら nil（項目を消す）。[ か { で始まる正しい JSON は、そのまま並びやオブジェクトにする
-// （例 e3.via=[280,140,400]）
-func value(s string) json.RawMessage {
+// textKeys は、値をいつも文字列として書く項目（数字や true に見えるキャプションや色を、数や真偽値にしないため）
+var textKeys = map[string]bool{"caption": true, "color": true, "title": true, "background": true}
+
+// value は項目 key の値の文字列を JSON にする。空なら nil（項目を消す）。[ か { で始まる正しい JSON は、そのまま並びや
+// オブジェクトにする（例 e3.via=[280,140,400]）。数は JSON の数として正しいものだけ（000 や 1e のようなものは文字列）
+func value(key, s string) json.RawMessage {
 	switch {
 	case s == "":
 		return nil
+	case textKeys[key]:
+		b, _ := json.Marshal(s)
+		return b
 	case s == "true" || s == "false":
 		return json.RawMessage(s)
 	case (strings.HasPrefix(s, "[") || strings.HasPrefix(s, "{")) && json.Valid([]byte(s)):
 		return json.RawMessage(s)
 	}
-	if _, err := strconv.ParseFloat(s, 64); err == nil {
+	if _, err := strconv.ParseFloat(s, 64); err == nil && json.Valid([]byte(s)) {
 		return json.RawMessage(s)
 	}
 	b, _ := json.Marshal(s)
@@ -349,7 +361,7 @@ func applySets(b []byte, sets []string) ([]byte, error) {
 		} else {
 			return nil, fmt.Errorf("no box or edge with id %s", target)
 		}
-		if v := value(val); v == nil {
+		if v := value(key, val); v == nil {
 			o.del(key)
 		} else {
 			o.set(key, v)

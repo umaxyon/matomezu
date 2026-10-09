@@ -106,3 +106,31 @@ func TestCheckDataListsAllProblems(t *testing.T) {
 		t.Fatalf("ok file: %v", err)
 	}
 }
+
+// 文字の項目（caption など）は、数字や true に見える値でも文字列として書く
+func TestApplySetsTextKeys(t *testing.T) {
+	out, err := applySets([]byte(`{"nodes":[{"id":1}],"edges":[{"id":"e1","from":1,"to":1}]}`),
+		[]string{"1.caption=42", "e1.caption=true", "world.title=2026", "1.color=000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"caption": "42"`, `"caption": "true"`, `"title": "2026"`, `"color": "000"`} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("missing %s in\n%s", want, out)
+		}
+	}
+}
+
+// 検査に通らない変更は、ファイルに書かない
+func TestSetDoesNotWriteInvalidData(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.json")
+	orig := `{"nodes":[{"id":1}]}`
+	os.WriteFile(path, []byte(orig), 0o644)
+	err := set([]string{path, "1.size=XL"})
+	if err == nil || !strings.Contains(err.Error(), "size の値が不正です") || !strings.HasPrefix(err.Error(), "not written") {
+		t.Fatalf("err = %v", err)
+	}
+	if b, _ := os.ReadFile(path); string(b) != orig {
+		t.Fatalf("file changed:\n%s", b)
+	}
+}
