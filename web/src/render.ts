@@ -203,7 +203,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     };
     const loops: Edge[] = []; // 自分に戻る線（ほかの線を描いてから、空いている角に描く）
     for (const e of ctx.edges()) {
-      const hidden = isHidden(e.a) || isHidden(e.b) || inTree(e.a) || inList(e.a);
+      const hidden = edgeHidden(e);
       e.el.style.display = hidden ? "none" : "";
       if (hidden) continue;
       if (e.a === e.b) { loops.push(e); continue; }
@@ -427,11 +427,18 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // ---- フォーカス（Obsidian 風: 関係の無いものを薄くする） ----
 
+  // 描かない線: 端の箱が隠れている（非表示の親の中）か、ツリー・リストの子どうし（子は自動で並ぶので、線を引くと形が崩れる）
+  function edgeHidden(e: Edge) {
+    return isHidden(e.a) || isHidden(e.b) || inTree(e.a) || inList(e.a);
+  }
+
+  // ポインタを乗せた箱と、線でつながった相手を明るくし、ほかを暗くする。描いていない線はたどらない
+  // （見えない線の相手まで明るくなると、なぜ明るいのか分からないため）
   function focus(n: Box) {
     const near = new Set([n, ...descendants(n)]);
     const hi: Edge[] = [];
     for (const e of ctx.edges()) {
-      const on = e.a === n || e.b === n;
+      const on = (e.a === n || e.b === n) && !edgeHidden(e);
       if (on) { near.add(e.a); near.add(e.b); hi.push(e); }
       e.el.classList.toggle("mz-hi", on);
       e.el.classList.toggle("mz-dim", !on);

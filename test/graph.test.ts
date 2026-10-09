@@ -1466,3 +1466,20 @@ describe("線のつなぎ方", () => {
     expect(y1).toBe(y2);
   });
 });
+
+test("ポインタを乗せたときの強調は、描いていない線（ツリーの子どうし）をたどらない", () => {
+  const { el } = setup({
+    nodes: [
+      { id: 1, caption: "親", childView: "tree", x: 40, y: 40 },
+      { id: 2, caption: "子A", parent: 1 }, { id: 3, caption: "子B", parent: 1 },
+      { id: 4, caption: "外", x: 600, y: 40 }, { id: 5, caption: "相手", x: 600, y: 300 },
+    ],
+    edges: [[2, 3], [4, 5]],
+  });
+  const node = (id: number) => el.querySelector<HTMLElement>(`.mz-node[data-id="${id}"]`)!;
+  const hover = (id: number) => node(id).querySelector(".mz-head")!.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+  hover(2);
+  expect(node(3).classList.contains("mz-dim")).toBe(true); // 子A と子B の線は描かないので、子B は明るくしない
+  hover(4);
+  expect(node(5).classList.contains("mz-dim")).toBe(false); // 見えている線の相手は明るくする
+});
