@@ -12,7 +12,7 @@
  *   const graph = createGraph(document.getElementById('stage'), data, { onChange, onSelect });
  *   graph.toJSON();              // 現在の状態を反映したデータ
  *   graph.load(data);            // 別のデータで描き直す（検証エラーなら例外を投げ、表示はそのまま残る）。履歴は空にする
- *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す（はみ出しの調整はしない）。
+ *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す（はみ出しの調整はしない。開いたときに移した箱は、位置が変わらなければ移した先のまま）。
  *                                            // ただし、ユーザーがまだ図を変えていなければ（開いてから LLM が整えている間）、履歴に足さず、それを出発点にする
  *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
  *   graph.select(id);            // 選択する（null はワールド）
@@ -232,7 +232,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   };
 
   const measurer = createTextMeasurer(options.measureText);
-  const L = createLayout({ opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges });
+  // 開いたときのはみ出しの調整で移した箱（id → 移したときのファイルの位置と、移した先）。画面にだけある位置なので、
+  // 外部の変更の読み直しで、LLM がその箱の位置を変えていなければ移した先に置く（keepShownPositions）。
+  // ユーザーが図を変えて保存すると位置はファイルに入るので、忘れる
+  let fitted = new Map<string, { file: string; x: number; y: number }>();
+  const posKey = (s: { x?: unknown; y?: unknown }) =>
+    Number.isFinite(s.x) && Number.isFinite(s.y) ? `${s.x},${s.y}` : null;
+  const L = createLayout({
+    opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges,
+    fitted: n => {
+      const file = posKey(n.src);
+      if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
+    },
+  });
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
@@ -246,6 +258,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const sel = current?.id ?? null;
       build(d, false);
       if (sel != null && byId.has(sel)) select(byId.get(sel)!);
+      fitted.clear();
       opt.onChange?.(api.toJSON());
     },
     onHistory: opt.onHistory,
@@ -293,6 +306,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function changed() {
     touched = true;
     dataChanged();
+    fitted.clear();
     const data = api.toJSON();
     H.record(data);
     opt.onChange?.(data);
@@ -997,6 +1011,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function load(newData: unknown, o: { keepHistory?: boolean } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
     if (o.keepHistory) keepShownPositions(copy);
+    else fitted = new Map();
     // 外部の変更の読み直しでは、選んでいる箱や線を保つ（残っていれば。Undo と同じ）。LLM が図を書き換えるたびに
     // 選択が外れると、サイドバーで入力中の内容も消えてしまうため（docs/REVIEW-2026-10-09.md の B10）
     const keep = o.keepHistory ? { box: current?.id ?? null, edge: currentEdge?.id ?? null } : undefined;
@@ -1006,16 +1021,26 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     else H.reset();
   }
 
-  // 外部の変更を読み直すとき、データに位置（x, y）の無い箱でも、直前まで同じ親の中に描いていた箱なら、その位置を使う。
-  // 位置の無い箱は画面が空いている所に置くが、その位置は保存されないので、読み直すたびに置き直されて動いてしまう
-  // （LLM が位置を書かずに箱を足したとき、見ている配置が変わらないように。2026-10-03 ユーザー）。
-  // 自由に置ける箱（最上位と内包の子）だけ。ツリーの子の位置は自動なので使わない（使うと内包に戻したときの位置になってしまう）
+  // 外部の変更を読み直すとき、画面にだけある位置（保存されない）を使う。使わないと読み直すたびに動いてしまう。
+  // - 開いたときのはみ出しの調整（fitToViewport）で移した箱は、ファイルの位置が移したときのままなら、移した先に置く
+  //   （ユーザーが触る前に LLM が set すると、関係の無い箱がデータの位置へ飛んでいた。docs/DIST-TRIAL.md。2026-10-10 ユーザー）。
+  //   今の位置ではなく移した先にするのは、そのあと押し下げられた分（データから計算し直せる）まで残さないため
+  // - 位置の無い箱は、直前まで同じ親の中に描いていた位置（LLM が位置を書かずに箱を足したとき、見ている配置が変わらないように。2026-10-03 ユーザー）。
+  //   自由に置ける箱（最上位と内包の子）だけ。ツリーの子の位置は自動なので使わない（使うと内包に戻したときの位置になってしまう）
   function keepShownPositions(data: unknown) {
     if (!data || typeof data !== "object" || !Array.isArray((data as Diagram).nodes)) return;
     const shown = new Map(nodes.filter(n => inNest(n)).map(n => [n.id, n]));
     for (const s of (data as Diagram).nodes) {
       if (!s || typeof s !== "object" || s.id == null) continue;
-      if (Number.isFinite(s.x) && Number.isFinite(s.y)) continue;
+      const k = posKey(s);
+      if (k) {
+        const f = fitted.get(String(s.id));
+        if (!f) continue;
+        if (f.file !== k || (s.parent == null ? null : String(s.parent)) !== page) { fitted.delete(String(s.id)); continue; }
+        s.x = f.x;
+        s.y = f.y;
+        continue;
+      }
       const n = shown.get(String(s.id));
       // ページを描いているときは、ページの箱の子が最上位に並ぶ（描いている親は null だが、データの親はページの箱）
       if (!n || (n.parent?.id ?? page) !== (s.parent == null ? null : String(s.parent))) continue;

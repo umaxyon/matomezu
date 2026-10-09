@@ -931,8 +931,9 @@ test("はみ出しの調整は最初に開いたときだけで、外部の変�
   });
   const { graph } = setup(data("右端"));
   expect(graph.info(2).x).not.toBe(900); // 最初に開いたときは下へ移す
-  graph.load(data("LLM が書き換えた"), { keepHistory: true });
-  expect([graph.info(2).x, graph.info(2).y]).toEqual([900, 40]); // ファイルの位置のまま
+  // LLM が位置を変えたら、はみ出していてもファイルの位置のまま（位置を変えていなければ、画面の位置を保つ。scenes.test.ts）
+  graph.load({ ...data("LLM が動かした"), nodes: [data("").nodes[0]!, { id: 2, caption: "右端", x: 950, y: 40 }] }, { keepHistory: true });
+  expect([graph.info(2).x, graph.info(2).y]).toEqual([950, 40]);
   graph.load(data("開き直し"));
   expect(graph.info(2).x).not.toBe(900);
 });

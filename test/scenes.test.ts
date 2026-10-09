@@ -180,6 +180,52 @@ describe("場面の表の行のうち、テストが無かったもの", () => {
     }
   });
 
+  describe("はみ出しの調整で動かした箱は、ファイルの位置が変わらない限り、読み直しても画面の位置のまま", () => {
+    // 2 は右端からはみ出すので、開いたときに 1 の真下へ移る（表示だけ。ファイルは x: 900 のまま）
+    const d = (caption: string, x = 900): Diagram => ({
+      nodes: [{ id: 1, caption, x: 40, y: 40 }, { id: 2, caption: "右端", x, y: 40 }],
+      edges: [[1, 2]],
+    });
+    const at = (g: Graph, id: number) => [g.info(id).x, g.info(id).y];
+
+    test("ユーザーが触る前に LLM がほかの箱を直しても、飛ばない", () => {
+      const { graph } = setup(d("A"));
+      const shown = at(graph, 2);
+      expect(shown[0]).toBeLessThan(900);
+      graph.load(d("A（LLM が直した）"), { keepHistory: true });
+      expect(at(graph, 2)).toEqual(shown);
+      graph.load(d("A（もう一度）"), { keepHistory: true });
+      expect(at(graph, 2)).toEqual(shown);
+    });
+
+    test("LLM がその箱の位置を変えたら、データの位置に置く", () => {
+      const { graph } = setup(d("A"));
+      graph.load(d("A", 600), { keepHistory: true });
+      expect(at(graph, 2)).toEqual([600, 40]);
+    });
+
+    test("ユーザーが図を変えて保存したあとは、保存した位置と比べる（元の位置に戻されたら、その位置に置く）", () => {
+      const { el, graph } = setup(d("A"));
+      dragBy(el, graph, 1, 0, 20);
+      graph.load(d("A"), { keepHistory: true });
+      expect(at(graph, 2)).toEqual([900, 40]);
+    });
+
+    test("押し下げられた分は残さない（ほかの箱を伸ばして戻すと、元の配置に戻る）", () => {
+      // docs/DIST-TRIAL.md の Windows での確認。17 外部サービスは開いたときに移り、3 をツリーにすると 10 と 17 が押し下げられる
+      const data = example("three-levels");
+      const { graph } = setup(data);
+      const before = [at(graph, 10), at(graph, 17)];
+      expect(before[1]![0]).toBeLessThan(860);
+      const tree = JSON.parse(JSON.stringify(data)) as Diagram;
+      tree.nodes.find(n => n.id === 3)!.childView = "tree";
+      graph.load(tree, { keepHistory: true });
+      expect(at(graph, 17)[0]).toBe(before[1]![0]);
+      graph.load(data, { keepHistory: true });
+      expect([at(graph, 10), at(graph, 17)]).toEqual(before);
+    });
+  });
+
   // 今の振る舞いを固定する（見直す候補: docs/REFACTOR-layout.md の 6 章）
   test("押し下げられた位置は保存されるので、読み直すとそれが本来いたい高さになる（そのあと縮んでも上がらない）", () => {
     const { graph } = setup(example("three-levels"));

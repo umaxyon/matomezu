@@ -43,6 +43,8 @@ export interface LayoutContext {
   measurer: TextMeasurer;
   roots(): Box[];
   edges(): Edge[];
+  // 開いたときのはみ出しの調整（fitToViewport）で移した（表示だけ。ファイルには無い位置）
+  fitted?(n: Box): void;
 }
 
 export type Layout = ReturnType<typeof createLayout>;
@@ -391,6 +393,7 @@ export function createLayout(ctx: LayoutContext) {
       [n.x, n.y] = slide(n, x, y)!;
       n.intendedY = n.y;
       n.intendedCX = centerX(n);
+      ctx.fitted?.(n);
     }
     syncWorld();
   }
