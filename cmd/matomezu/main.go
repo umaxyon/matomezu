@@ -184,7 +184,7 @@ func stop() error {
 func runDaemon(args []string) error {
 	fs := newFlags("daemon")
 	idle := fs.Duration("idle", 30*time.Minute, "stop after this long with no browser connected")
-	addr := fs.String("addr", "", "try this address first (the replaced server's), so open pages reconnect to the same URL")
+	addr := fs.String("addr", "", "try this address first (the replaced or last stopped server's), so open pages reconnect to the same URL")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -213,10 +213,17 @@ func runDaemon(args []string) error {
 	}
 	v := buildVersion(exe)
 	st := &daemon.State{PID: os.Getpid(), Addr: ln.Addr().String(), Token: daemon.NewToken(), Version: v}
-	hub := server.NewHub(ctx, web.FS, server.WithControl(st.Token, v, stopNow))
+	var hub *server.Hub
+	// stop で止めるときは、画面がつながっていたかを覚える（次の open で、その画面がつなぎ直すのを待つため）
+	shutdown := func() {
+		daemon.WriteLast(daemon.Last{Addr: st.Addr, Pages: hub.Idle() == 0})
+		stopNow()
+	}
+	hub = server.NewHub(ctx, web.FS, server.WithControl(st.Token, v, shutdown))
 	if err := daemon.WriteState(st); err != nil {
 		return err
 	}
+	daemon.WriteLast(daemon.Last{Addr: st.Addr})
 	defer daemon.RemoveState(st.PID)
 	log.Printf("listening on %s", st.Addr)
 

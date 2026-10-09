@@ -98,6 +98,51 @@ func RemoveState(pid int) {
 	}
 }
 
+// Last は最後に動いたサーバーのアドレスと、止まるときに画面がつながっていたか。止めたあとの次の起動で同じアドレスを使い、
+// 開いたままの画面がつなぎ直せるようにする（使い直さないと、前の画面は「再接続中…」のまま残り、新しいタブが増える）
+type Last struct {
+	Addr  string `json:"addr"`
+	Pages bool   `json:"pages"`
+}
+
+func lastPath() (string, error) {
+	d, err := Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, "last.json"), nil
+}
+
+// WriteLast は最後に動いたサーバーを書く（状態ファイルと違い、止まっても消さない）
+func WriteLast(l Last) error {
+	p, err := lastPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return err
+	}
+	b, _ := json.Marshal(l)
+	return os.WriteFile(p, b, 0o600)
+}
+
+// ReadLast は最後に動いたサーバーを読む。無いか壊れていれば nil
+func ReadLast() *Last {
+	p, err := lastPath()
+	if err != nil {
+		return nil
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return nil
+	}
+	var l Last
+	if json.Unmarshal(b, &l) != nil || l.Addr == "" {
+		return nil
+	}
+	return &l
+}
+
 func NewToken() string {
 	b := make([]byte, 24)
 	rand.Read(b)
@@ -178,7 +223,8 @@ func Running() *State {
 
 // Ensure は version のサーバーが動いていればそれを返し、無ければ exe daemon を切り離して起動する。
 // 違う版のサーバーが動いていれば止めてから起動し直す。そのときは同じアドレスで起動を試し、replaced を true で返す
-// （開いていた画面が同じ URL のままつなぎ直せるようにするため）
+// （開いていた画面が同じ URL のままつなぎ直せるようにするため）。
+// 止まっていれば、最後に動いたサーバーのアドレスで起動を試す。止まるときに画面がつながっていたら、replaced を true で返す
 func Ensure(ctx context.Context, exe, version string) (s *State, replaced bool, err error) {
 	var args []string
 	if s := Running(); s != nil {
@@ -189,6 +235,9 @@ func Ensure(ctx context.Context, exe, version string) (s *State, replaced bool, 
 		waitGone(s)
 		replaced = true
 		args = append(args, "-addr", s.Addr)
+	} else if l := ReadLast(); l != nil {
+		replaced = l.Pages
+		args = append(args, "-addr", l.Addr)
 	}
 	s, err = start(ctx, exe, version, args)
 	return s, replaced, err

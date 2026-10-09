@@ -118,3 +118,20 @@ func TestPingRejectsMismatchAndBadToken(t *testing.T) {
 		t.Fatal("running accepted a pid mismatch")
 	}
 }
+
+func TestLastRoundTripAndBroken(t *testing.T) {
+	d := home(t)
+	if l := ReadLast(); l != nil {
+		t.Fatalf("empty last = %+v", l)
+	}
+	if err := WriteLast(Last{Addr: "127.0.0.1:5", Pages: true}); err != nil {
+		t.Fatal(err)
+	}
+	if l := ReadLast(); l == nil || *l != (Last{Addr: "127.0.0.1:5", Pages: true}) {
+		t.Fatalf("last = %+v", l)
+	}
+	os.WriteFile(filepath.Join(d, "last.json"), []byte("{broken"), 0o600)
+	if l := ReadLast(); l != nil {
+		t.Fatalf("broken last = %+v", l)
+	}
+}
