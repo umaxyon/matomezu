@@ -5,10 +5,9 @@
 // 端の位置（exitAt / enterAt）は、箱のふちを左上から時計回りに一周した割合（0〜1）。2 つの端は、同じ辺か
 // 隣り合う辺に置く（向かいの辺だと円が箱を横切るため。その指定は使わず、角に描く）
 
-import { nearestAt, pointAt } from "./routing";
+import { type Pt, type Rect, nearestAt, pointAt, rectsOverlap } from "./geom";
 
-type Pt = [number, number];
-export interface Rect { x: number; y: number; w: number; h: number }
+export type { Rect };
 export type Corner = "topRight" | "topLeft" | "bottomRight" | "bottomLeft";
 type Side = "t" | "r" | "b" | "l";
 
@@ -80,8 +79,7 @@ function bounds(pts: Pt[]): Rect {
   return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
 }
 
-const hits = (a: Rect, b: Rect) =>
-  a.x < b.x + b.w + MARGIN && a.x + a.w + MARGIN > b.x && a.y < b.y + b.h + MARGIN && a.y + a.h + MARGIN > b.y;
+const hits = (a: Rect, b: Rect) => rectsOverlap(a, b, MARGIN);
 const inside = (b: Rect, [x, y]: Pt) => x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h;
 
 // 箱 r の自分に戻る線の点の並び（始点から終点へ）と、端が動ける範囲（ends。始点と終点それぞれ、もう一方の端の辺と

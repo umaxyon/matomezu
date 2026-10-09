@@ -8,8 +8,9 @@
 
 import type { Arrangement, Axis } from "./types";
 
-export type Rect = { x: number; y: number; w: number; h: number };
-export type Pt = [number, number];
+import { type Pt, type Rect, pointAt } from "./geom";
+
+export type { Pt, Rect };
 
 // 折れ線の形（描いているもの。手で直していなければ自動で決めたもの）
 export interface RouteShape { exit: Axis; enter: Axis; via: number[] }
@@ -382,37 +383,7 @@ export function borderPath(r: Rect, o: Rect): Pt[] {
   }
 }
 
-// 道の上の、長さの割合 t の点
-export function pointAt(path: Pt[], t: number): Pt {
-  const lens = path.slice(1).map((p, i) => Math.hypot(p[0] - path[i]![0], p[1] - path[i]![1]));
-  let d = Math.min(1, Math.max(0, t)) * lens.reduce((s, l) => s + l, 0);
-  for (let i = 0; i < lens.length; i++) {
-    if (d <= lens[i]! || i === lens.length - 1) {
-      const k = lens[i]! ? Math.min(1, d / lens[i]!) : 0;
-      const [p, q] = [path[i]!, path[i + 1]!];
-      return [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
-    }
-    d -= lens[i]!;
-  }
-  return path[0]!;
-}
 
-// 点 (x, y) に一番近い、道の上の点の割合（ドラッグしたポインタから端の位置を求める）
-export function nearestAt(path: Pt[], x: number, y: number): number {
-  const lens = path.slice(1).map((p, i) => Math.hypot(p[0] - path[i]![0], p[1] - path[i]![1]));
-  const total = lens.reduce((s, l) => s + l, 0);
-  if (!total) return 0;
-  let best = 0, bestD = Infinity, before = 0;
-  lens.forEach((len, i) => {
-    const [p, q] = [path[i]!, path[i + 1]!];
-    const k = len ? Math.min(1, Math.max(0, ((x - p[0]) * (q[0] - p[0]) + (y - p[1]) * (q[1] - p[1])) / (len * len))) : 0;
-    const px = p[0] + (q[0] - p[0]) * k, py = p[1] + (q[1] - p[1]) * k;
-    const d = Math.hypot(x - px, y - py);
-    if (d < bestD) { bestD = d; best = (before + len * k) / total; }
-    before += len;
-  });
-  return best;
-}
 
 // ---- 折れ線の端の位置（docs/EDGE-plan.md の段階 4） ----
 

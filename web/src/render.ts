@@ -2,7 +2,8 @@
 
 import { SVGNS, isLightColor } from "./dom";
 import type { Layout } from "./layout/layout";
-import { pointAt, route, scopeObstacles } from "./routing";
+import { leftNormalAt, pointAt, polylineLength } from "./geom";
+import { route, scopeObstacles } from "./routing";
 import { selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
@@ -30,20 +31,6 @@ export type Renderer = ReturnType<typeof createRenderer>;
 // 線のキャプションを線から離せる量（px）
 export const CAPTION_OFFSET_MAX = 60;
 
-// 点の並び pts の、長さに対する割合 at の所の、進む向きの左を指す長さ 1 の向き（画面の座標。右向きの線なら上 (0, -1)）
-export function leftNormalAt(pts: [number, number][], at: number): [number, number] {
-  const lens = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i]![0], p[1] - pts[i]![1]));
-  const total = lens.reduce((s, l) => s + l, 0);
-  let d = Math.min(1, Math.max(0, at)) * total;
-  for (let i = 0; i < lens.length; i++) {
-    if (d <= lens[i]! || i === lens.length - 1) {
-      const [p, q] = [pts[i]!, pts[i + 1]!], l = lens[i]! || 1;
-      return [(q[1] - p[1]) / l, -(q[0] - p[0]) / l];
-    }
-    d -= lens[i]!;
-  }
-  return [0, -1];
-}
 
 export function createRenderer(ctx: RenderContext, L: Layout) {
   const { opt, world, worldEl } = ctx;
@@ -337,7 +324,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       e.labelEl = fo;
     }
     const pts = e.points;
-    const len = pts.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - pts[i]![0], p[1] - pts[i]![1]), 0);
+    const len = polylineLength(pts);
     // 置く位置（手で動かしていれば captionAt と captionOffset、無ければ真ん中で線の上）と、そこの区間の向き
     const at = typeof e.src.captionAt === "number" ? e.src.captionAt : 0.5;
     const off = typeof e.src.captionOffset === "number" ? Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, e.src.captionOffset)) : 0;

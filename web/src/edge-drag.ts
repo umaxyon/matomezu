@@ -3,8 +3,9 @@
 
 import { SVGNS } from "./dom";
 import { type Box, type Edge, absPos } from "./model";
-import { CAPTION_OFFSET_MAX, leftNormalAt } from "./render";
-import { type Pt, nearestAt, pointAt, simplifyVia } from "./routing";
+import { type Pt, leftNormalAt, nearestAt, pointAt } from "./geom";
+import { CAPTION_OFFSET_MAX } from "./render";
+import { simplifyVia } from "./routing";
 import { perimeter } from "./selfloop";
 
 export interface EdgeDragContext {

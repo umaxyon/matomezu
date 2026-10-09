@@ -1,7 +1,9 @@
 // 配置の結果の要約。LLM が図を調整するために読む（matomezu check / set が表示する）。DOM に依存しない。
 // 読む量を抑えるため、問題のあるところだけを短い行で返す。
 
-export interface Rect { x: number; y: number; w: number; h: number }
+import { type Pt, type Rect, segmentThroughRect, segmentsCross, segmentsOf } from "./geom";
+
+export type { Pt, Rect };
 
 // 見えているボックス。位置はワールドの左上から
 export interface GeoBox extends Rect {
@@ -15,7 +17,6 @@ export interface GeoBox extends Rect {
 }
 
 // 見えている線（ツリーの線は含まない）。points は線の点の並び（折れ線なら折れ点を含む）
-export type Pt = [number, number];
 // caption と label は線のキャプションと、その札の範囲（ワールドの座標。キャプションがあって描かれているときだけ）
 export interface GeoEdge { id: string; a: string; b: string; points: Pt[]; caption?: string; label?: Rect }
 
@@ -35,43 +36,14 @@ function label(b: GeoBox) {
   return `#${b.id} ${c}`;
 }
 
-// 線分どうしが交わるか（端点が触れるだけのものは数えない）
 // 線の区間（隣り合う 2 点）の並び
-const segments = (e: GeoEdge): [Pt, Pt][] => e.points.slice(1).map((p, i) => [e.points[i]!, p]);
-
-function segCross([[ax1, ay1], [ax2, ay2]]: [Pt, Pt], [[bx1, by1], [bx2, by2]]: [Pt, Pt]) {
-  const d = (px: number, py: number, qx: number, qy: number, rx: number, ry: number) =>
-    (qx - px) * (ry - py) - (qy - py) * (rx - px);
-  const d1 = d(ax1, ay1, ax2, ay2, bx1, by1);
-  const d2 = d(ax1, ay1, ax2, ay2, bx2, by2);
-  const d3 = d(bx1, by1, bx2, by2, ax1, ay1);
-  const d4 = d(bx1, by1, bx2, by2, ax2, ay2);
-  return d1 * d2 < 0 && d3 * d4 < 0;
-}
+const segments = (e: GeoEdge) => segmentsOf(e.points);
 
 // 2 本の線のどこかの区間どうしが交わるか
-const cross = (a: GeoEdge, b: GeoEdge) => segments(a).some(s => segments(b).some(t => segCross(s, t)));
+const cross = (a: GeoEdge, b: GeoEdge) => segments(a).some(s => segments(b).some(t => segmentsCross(s, t)));
 
 // 線のどこかの区間が矩形の内側を通るか
-const through = (e: GeoEdge, r: Rect) => segments(e).some(s => segThrough(s, r));
-
-// 線分が矩形の内側を通るか（縁に触れるだけのものは数えない）
-function segThrough([[ex1, ey1], [ex2, ey2]]: [Pt, Pt], r: Rect) {
-  const m = 1;
-  const x0 = r.x + m, y0 = r.y + m, x1 = r.x + r.w - m, y1 = r.y + r.h - m;
-  if (x1 <= x0 || y1 <= y0) return false;
-  // Liang–Barsky で線分を矩形に切り取り、残れば通っている
-  const dx = ex2 - ex1, dy = ey2 - ey1;
-  let t0 = 0, t1 = 1;
-  const clip = (p: number, q: number) => {
-    if (p === 0) return q > 0;
-    const t = q / p;
-    if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
-    else { if (t < t0) return false; if (t < t1) t1 = t; }
-    return true;
-  };
-  return clip(-dx, ex1 - x0) && clip(dx, x1 - ex1) && clip(-dy, ey1 - y0) && clip(dy, y1 - ey1) && t0 < t1;
-}
+const through = (e: GeoEdge, r: Rect) => segments(e).some(s => segmentThroughRect(s, r));
 
 // 子のある箱ごとに、子の位置と大きさを 1 行で（matomezu check / set の -in で出す）。位置は親の左上から（データの x, y と同じ）。
 // 普段の要約に全部の子を出すと長くなるので、指定された箱の分だけ CLI が出す。子がさらに子を持てば [見せ方 子の数] を添える

@@ -1,6 +1,7 @@
 // routing.ts のテスト。線の道筋を、画面を作らずに確かめる（docs/ROUTE-plan.md）
 import { expect, test } from "bun:test";
-import { type RouteInput, borderPath, passes, routeCandidates, scopeObstacles, sidePath, nearestAt, pointAt, route, segmentsOf, shapePoints, simplifyVia } from "../web/src/routing";
+import { type RouteInput, borderPath, passes, routeCandidates, scopeObstacles, sidePath, route, segmentsOf, shapePoints, simplifyVia } from "../web/src/routing";
+import { nearestAt, pointAt } from "../web/src/geom";
 
 // a: 40〜160 × 40〜104（中心 100, 72）、b: 400〜520 × 300〜364（中心 460, 332）
 const a = { x: 40, y: 40, w: 120, h: 64 }, b = { x: 400, y: 300, w: 120, h: 64 };
