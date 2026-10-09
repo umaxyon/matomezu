@@ -234,3 +234,19 @@ test("一覧は、データが変わったときに作り直す。隠れてい�
   g.undo(); // 図の組み立て直し（Undo）でも作り直す
   expect(row("1")!.querySelector(".mzp-row-cap")!.textContent).toBe("1_A");
 });
+
+test("外部の変更を読み込んでも、選んでいる箱と、入力中の欄の打ちかけの文字とフォーカスを保つ（Esc なら元に戻す）", () => {
+  const data = { nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB" }] };
+  const { g, $ } = setup(data);
+  g.select(1);
+  const input = () => $<HTMLInputElement>('[data-edit="caption"]')!;
+  input().focus();
+  input().value = "API サーバー"; // 打ちかけ（まだ確定していない）
+  g.load({ nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB（外部で変更）" }] }, { keepHistory: true });
+  expect(g.selected()).toBe("1");
+  expect(input().value).toBe("API サーバー");
+  expect(document.activeElement).toBe(input());
+  // Esc は打ちかけを捨てて、元の値に戻す
+  input().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  expect(input().value).toBe("API");
+});

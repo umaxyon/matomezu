@@ -997,7 +997,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function load(newData: unknown, o: { keepHistory?: boolean } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
     if (o.keepHistory) keepShownPositions(copy);
-    build(copy, !o.keepHistory);
+    // 外部の変更の読み直しでは、選んでいる箱や線を保つ（残っていれば。Undo と同じ）。LLM が図を書き換えるたびに
+    // 選択が外れると、サイドバーで入力中の内容も消えてしまうため（docs/REVIEW-2026-10-09.md の B10）
+    const keep = o.keepHistory ? { box: current?.id ?? null, edge: currentEdge?.id ?? null } : undefined;
+    build(copy, !o.keepHistory, keep);
     if (!o.keepHistory) touched = false;
     if (o.keepHistory && touched) H.record();
     else H.reset();
@@ -1022,7 +1025,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   // データを検証して描き直す。fit は読み込み直後のはみ出しの調整をするか
-  function build(copy: unknown, fit: boolean) {
+  // keep は組み立て直したあとに選び直す箱か線の id（残っていれば。無ければワールドを選ぶ）。途中でワールドを選ばずに
+  // 直接選ぶ（いったんワールドを選ぶと、サイドバーの情報タブが切り替わって、入力中の内容が消えるため）
+  function build(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
     assignIds(copy);
     validate(copy);
     clear();
@@ -1067,7 +1072,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
     settle(fit ? SCENES.open : SCENES.reload);
     render();
-    select(null);
+    const keptEdge = keep?.edge != null ? edges.find(e => e.id === keep.edge) : undefined;
+    if (keep?.box != null && byId.has(keep.box)) select(byId.get(keep.box)!);
+    else if (keptEdge) selectEdge(keptEdge);
+    else select(null);
     opt.onBuild?.();
     dataChanged();
   }

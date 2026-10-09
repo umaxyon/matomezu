@@ -442,10 +442,22 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
   const open: Record<Fold, boolean> = {}; // 描き直しても折りたたみを保つ（無ければ開いている）
   let showOthers = false;                 // 「他ブックも表示」
 
-  // 情報タブは、選んでいるもの（info）の表示。選択の知らせ（onSelect）のたびに作り直す
-  function show(next: Info) {
+  // 情報タブは、選んでいるもの（info）の表示。選択の知らせ（onSelect）のたびに作り直す。
+  // 同じものを選んだまま作り直すとき（外部の変更の読み直しなど）は、入力中の欄の打ちかけの文字とフォーカスを引き継ぐ
+  // （確定前の入力を消さないため。docs/REVIEW-2026-10-09.md の B10）。keepTyping が false なら引き継がない（Esc の取り消し）
+  function show(next: Info, keepTyping = true) {
+    const a = document.activeElement;
+    const typing = keepTyping && a instanceof HTMLInputElement && infoPane.contains(a) && a.dataset.edit &&
+      next.kind === info.kind && next.id === info.id
+      ? { edit: a.dataset.edit, value: a.value, start: a.selectionStart, end: a.selectionEnd } : null;
     info = next;
     infoPane.innerHTML = html(info);
+    if (!typing) return;
+    const input = infoPane.querySelector<HTMLInputElement>(`[data-edit="${typing.edit}"]`);
+    if (!input) return;
+    input.value = typing.value;
+    input.focus();
+    if (typing.start != null) input.setSelectionRange(typing.start, typing.end ?? typing.start);
   }
 
   // 一覧は、自分でデータを持たず、いつも図（graph.items()）から作る。作り直すのはデータが変わったとき
@@ -537,7 +549,7 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     const t = e.target;
     if (!(t instanceof HTMLInputElement) || !t.matches(".mzp-input") || t.dataset.search != null) return;
     if (e.key === "Enter") t.blur();
-    if (e.key === "Escape") show(info);
+    if (e.key === "Escape") show(info, false); // 打ちかけを捨てて、元の値に戻す
   });
 
   el.addEventListener("change", e => {
