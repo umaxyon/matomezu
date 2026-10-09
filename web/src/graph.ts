@@ -117,7 +117,7 @@ import {
   absPos, ancestors, arrowOf, inList, borderOf, dashOf, enterOf, exitOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
-import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
+import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import type { RouteFix } from "./routing";
@@ -525,27 +525,27 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 位置: 最上位なら at。子を内包しているグループなら、今ある子の下の左端。
   // それ以外（子の無いボックスやツリー、非表示）は自動で並べる
   function reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
-    const data = api.toJSON();
-    const src = data.nodes.find(s => String(s.id) === String(id));
-    if (!src) throw new Error(`ボックスがありません: ${id}`);
     const t = target(parentId, "移せません（そのページのタブへ運んでください）");
     const to = parentIdOf(t);
-    if (String(src.parent ?? "") === String(to ?? "")) return false;
-    // ページは入れ子にしない（ページの箱を、ページの中へは移せない）
-    const moving = subtreeIds(data.nodes, id);
-    if (page != null && data.nodes.some(s => moving.has(String(s.id)) && s.page === true)) {
-      opt.onNotice?.("ページの中には、ページの箱を入れられません");
-      return false;
-    }
-    const fromPage = pageOf(data.nodes, id);
-    const pos = t == null && at ? { x: Math.max(0, at.x), y: Math.max(0, at.y) }
-      : t && isNesting(t) ? { x: innerArea(t).left, y: Math.max(...t.children.map(k => k.y + k.h)) + opt.gap * 2 }
-      : null;
-    const cut = moveSubtree(data, id, to, pos);
-
-    build(data, false);
-    select(byId.get(String(id))!);
-    changed();
+    let cut = 0, fromPage: string | null = null;
+    const moved = rebuildWith(data => {
+      const src = data.nodes.find(s => String(s.id) === String(id));
+      if (!src) throw new Error(`ボックスがありません: ${id}`);
+      if (String(src.parent ?? "") === String(to ?? "")) return null;
+      // ページは入れ子にしない（ページの箱を、ページの中へは移せない）
+      const moving = subtreeIds(data.nodes, id);
+      if (page != null && data.nodes.some(s => moving.has(String(s.id)) && s.page === true)) {
+        opt.onNotice?.("ページの中には、ページの箱を入れられません");
+        return null;
+      }
+      fromPage = pageOf(data.nodes, id);
+      const pos = t == null && at ? { x: Math.max(0, at.x), y: Math.max(0, at.y) }
+        : t && isNesting(t) ? { x: innerArea(t).left, y: Math.max(...t.children.map(k => k.y + k.h)) + opt.gap * 2 }
+        : null;
+      cut = moveSubtree(data, id, to, pos);
+      return { select: String(id) };
+    });
+    if (!moved) return false;
     const where = (t ? `「${keyOfBox(byId.get(t.id)!)}」の中` : "最上位") + (fromPage !== page ? `（${pageName(page)}）` : "");
     opt.onNotice?.(`${where}へ移しました` + (cut ? `（階層が変わったため、線を ${cut} 本外しました）` : ""));
     return true;
@@ -567,16 +567,28 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 落とした位置に置くか（内包か子の無い箱の中、または最上位）。ツリー・非表示の中なら自動で並べる（null）
   const dropPos = (t: Box | null, at?: { x: number; y: number }) => (at && (!t || viewOf(t) === "nest") ? at : null);
 
-  // 組み立て直したあと、落とした箱を落とした位置に置き直し、ぶつかった相手を下へずらして選ぶ（復活と移植）
-  function settleDropped(id: string, at: { x: number; y: number } | null) {
-    const n = byId.get(id)!;
-    if (at) {
-      [n.x, n.y] = clamp(n, at.x, at.y);
-      settle(SCENES.drop, n);
-      render();
+  // 構造が変わる操作（付け替え・ほかのページの箱を消す・戻す・移植）の入口（docs/REFACTOR-2.md）。
+  // 図の写しを edit で直して作り直し、選び直して、履歴に 1 件残す。順番（作り直す → 選ぶ → 履歴）はここで決める。
+  // edit は、選び直す箱の id（select。無ければワールド）と、落とした操作なら落とした位置（drop。null は位置を決めない）を返す。
+  // null を返したら何もしない（作り直さず、履歴にも残さない）。
+  // 落とした箱は、落とした位置に置き直し、ぶつかった相手を下へずらし、置いた位置を本来いたい位置にする。
+  // 選び直した箱（無ければ null）を返す。値を変える操作（update など）はその場で直すので、ここを通らない。
+  // 今のページの箱を消す remove も、押し下げられた箱の本来いたい高さを保つため、その場で外す（作り直すと忘れる）
+  function rebuildWith(edit: (data: Diagram) => { select?: string; drop?: Pos } | null): Box | null | undefined {
+    const data = api.toJSON();
+    const r = edit(data);
+    if (!r) return undefined;
+    build(data, false);
+    const n = r.select != null ? byId.get(r.select) ?? null : null;
+    if (n && r.drop !== undefined) {
+      if (r.drop) {
+        [n.x, n.y] = clamp(n, r.drop.x, r.drop.y);
+        settle(SCENES.drop, n);
+        render();
+      }
+      n.intendedY = n.y;
+      n.intendedCX = centerX(n);
     }
-    n.intendedY = n.y;
-    n.intendedCX = centerX(n);
     select(n);
     changed();
     return n;
@@ -659,13 +671,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function removeElsewhere(id: Id) {
     const s = source.nodes.find(x => String(x.id) === String(id));
     if (!s) throw new Error(`ボックスがありません: ${id}`);
-    const out = api.toJSON();
-    const { ids, cut } = removeSubtree(out, id);
-    if (page != null && ids.has(page)) page = null;
-    build(out, false);
-    changed();
-    notifySelect();
-    opt.onNotice?.(removedNotice(keyOf(s.id, captionOfData(s)), ids.size - 1, cut));
+    let gone = 0, cut = 0;
+    rebuildWith(data => {
+      const r = removeSubtree(data, id);
+      if (page != null && r.ids.has(page)) page = null;
+      [gone, cut] = [r.ids.size, r.cut];
+      return {};
+    });
+    opt.onNotice?.(removedNotice(keyOf(s.id, captionOfData(s)), gone - 1, cut));
     return true;
   }
 
@@ -673,12 +686,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 位置: 内包（か子の無いボックス）の中や最上位なら at（親の中での位置）。ツリー・非表示の中なら自動で並べる。
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
   function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
-    const data = api.toJSON();
     const t = target(parentId, "戻せません（そのページのタブで戻してください）");
     const pos = dropPos(t, at);
-    restoreSubtree(data, id, parentIdOf(t), pos);
-    build(data, false);
-    const n = settleDropped(String(id), pos);
+    const n = rebuildWith(data => {
+      restoreSubtree(data, id, parentIdOf(t), pos);
+      return { select: String(id), drop: pos };
+    })!;
     opt.onNotice?.(`「${keyOfBox(n)}」を戻しました`);
     return true;
   }
@@ -688,12 +701,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ページの中へ落としたら、ページは入れ子にしないので、写した箱の page を外す。位置の扱いは復活と同じ。
   // 写した箱の新しい id を返す
   function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string) {
-    const data = api.toJSON();
     const t = target(parentId, "移植できません（そのページのタブで落としてください）");
     const pos = dropPos(t, at);
-    const r = pasteSubtree(data, copy, parentIdOf(t), pos, page != null);
-    build(data, false);
-    const n = settleDropped(r.root, pos);
+    let r!: ReturnType<typeof pasteSubtree>;
+    const n = rebuildWith(data => {
+      r = pasteSubtree(data, copy, parentIdOf(t), pos, page != null);
+      return { select: r.root, drop: pos };
+    })!;
     const notes = [from ? `${from} から` : "", r.nodes > 1 ? `子 ${r.nodes - 1} 個` : "", r.edges ? `線 ${r.edges} 本` : ""].filter(Boolean);
     opt.onNotice?.(`「${keyOfBox(n)}」を移植しました` + (notes.length ? `（${notes.join("、")}）` : ""));
     return r.root;
