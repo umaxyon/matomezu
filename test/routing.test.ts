@@ -208,3 +208,12 @@ test("道筋に関わらない遠くの箱は絞り込みで外れ、外して�
   expect(scopeObstacles(full)).toEqual([o1, o2]);
   expect(route({ ...full, obstacles: scopeObstacles(full) }).points).toEqual(route(full).points);
 });
+
+test("passes: 斜めの区間は、囲む矩形ではなく線そのものが矩形を通るかで見る", () => {
+  // y = x の斜めの線。矩形は線の左上にあり、線を囲む矩形とは重なるが、線そのものは通らない
+  expect(passes([[0, 0], [100, 100]], { x: 60, y: 0, w: 30, h: 30 })).toBe(false);
+  expect(passes([[0, 0], [100, 100]], { x: 40, y: 40, w: 20, h: 20 })).toBe(true);
+  // 縦と横の区間は今までどおり
+  expect(passes([[0, 50], [100, 50]], { x: 40, y: 40, w: 20, h: 20 })).toBe(true);
+  expect(passes([[0, 40], [100, 40]], { x: 40, y: 40, w: 20, h: 20 })).toBe(false); // 縁に触れるだけ
+});

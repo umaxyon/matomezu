@@ -8,7 +8,7 @@
 
 import type { Arrangement, Axis } from "./types";
 
-import { type Pt, type Rect, pointAt } from "./geom";
+import { type Pt, type Rect, pointAt, segmentThroughRect } from "./geom";
 
 export type { Pt, Rect };
 
@@ -88,11 +88,14 @@ function clipToRect(cx: number, cy: number, w: number, h: number, dx: number, dy
   return [cx + dx * t, cy + dy * t];
 }
 
-// 点の並びのどこかの区間が、矩形の内側を通るか（縁に触れるだけのものは数えない）。区間はどれも縦か横か、両端の短い直線
+// 点の並びのどこかの区間が、矩形の内側を通るか（縁に触れるだけのものは数えない）。
+// 縦か横の区間は、区間を囲む矩形との重なりで見る。斜めの区間（直線や、形を作れなかったときの中心どうしの線）は、
+// 囲む矩形で見ると角の近くを通るだけで通ると数えてしまうので、線そのもので見る
 export function passes(pts: Pt[], r: Rect) {
   const x0 = r.x + 1, y0 = r.y + 1, x1 = r.x + r.w - 1, y1 = r.y + r.h - 1;
   return pts.slice(1).some(([qx, qy], i) => {
     const [px, py] = pts[i]!;
+    if (px !== qx && py !== qy) return segmentThroughRect([[px, py], [qx, qy]], r);
     return Math.max(px, qx) > x0 && Math.min(px, qx) < x1 && Math.max(py, qy) > y0 && Math.min(py, qy) < y1;
   });
 }
