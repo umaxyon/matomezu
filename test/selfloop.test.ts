@@ -117,3 +117,10 @@ test("選択モードで端をつまんで動かすと exitAt が変わり、箱
   const at = (graph.toJSON().edges![0] as { exitAt?: number }).exitAt!;
   expect(Math.round(at * 368)).toBe(30);
 });
+
+test("ほかの線が輪の範囲を横切るなら（折れ点が範囲の外でも）、その角は使わない", () => {
+  // 箱の上の辺のすぐ上を、横にまっすぐ通る線。折れ点（両端）は輪の範囲のずっと外
+  const line: [number, number][] = [[0, 85], [400, 85]];
+  const { corner } = selfLoop(box, [], 0, [line]);
+  expect(corner).toBe("bottomRight");
+});

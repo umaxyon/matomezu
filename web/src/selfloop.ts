@@ -5,7 +5,7 @@
 // 端の位置（exitAt / enterAt）は、箱のふちを左上から時計回りに一周した割合（0〜1）。2 つの端は、同じ辺か
 // 隣り合う辺に置く（向かいの辺だと円が箱を横切るため。その指定は使わず、角に描く）
 
-import { type Pt, type Rect, nearestAt, pointAt, rectsOverlap } from "./geom";
+import { type Pt, type Rect, nearestAt, pointAt, rectsOverlap, segmentThroughRect, segmentsOf } from "./geom";
 
 export type { Rect };
 export type Corner = "topRight" | "topLeft" | "bottomRight" | "bottomLeft";
@@ -80,7 +80,8 @@ function bounds(pts: Pt[]): Rect {
 }
 
 const hits = (a: Rect, b: Rect) => rectsOverlap(a, b, MARGIN);
-const inside = (b: Rect, [x, y]: Pt) => x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h;
+// 線（点の並び）のどこかの区間が、矩形を通るか（折れ点が矩形の外でも、横切っていれば通る）
+const crosses = (b: Rect, line: Pt[]) => segmentsOf(line).some(s => segmentThroughRect(s, b));
 
 // 箱 r の自分に戻る線の点の並び（始点から終点へ）と、端が動ける範囲（ends。始点と終点それぞれ、もう一方の端の辺と
 // その両隣をたどる道）。boxes はほかの箱（同じ親の兄弟。ワールドの座標）、lines はほかの線の点の並び。
@@ -94,7 +95,7 @@ export function selfLoop(
   for (const c of CORNERS) {
     const [p, q] = cornerEnds(r, c, index);
     const box = bounds(arc(r, p, q));
-    if (boxes.some(o => hits(box, o)) || lines.some(l => l.some(pt => inside(box, pt)))) continue;
+    if (boxes.some(o => hits(box, o)) || lines.some(l => crosses(box, l))) continue;
     [corner, a, b] = [c, p, q];
     break;
   }
