@@ -121,6 +121,7 @@ import { moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edit
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import { type Pt, type RouteFix, nearestAt, pointAt, simplifyVia } from "./routing";
+import { perimeter } from "./selfloop";
 import type { Geometry } from "./report";
 import type { Arrow, Axis, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
 import { ARROWS, AXES, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
@@ -281,6 +282,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (!e.ends) return;
       const path = end === "exit" ? e.ends.exit : e.ends.enter;
       let t = nearestAt(path, x, y);
+      if (e.a === e.b) {
+        // 自分に戻る線: 動ける範囲（もう一方の端の辺とその両隣）の上の点を、箱のふちを一周した割合にして持つ（selfloop.ts）
+        const target = snapTarget(e, e.a, path, pointAt(path, t));
+        const [px, py] = target ?? pointAt(path, t);
+        showSnap(target);
+        const r = edgeRect(e.a);
+        e.src[end === "exit" ? "exitAt" : "enterAt"] = Math.round(nearestAt(perimeter(r), px, py) * 1000) / 1000;
+        renderEdges();
+        if (currentEdge === e) notifySelect();
+        return;
+      }
       // 同じ箱の、この端が動ける辺の上にあるほかの線の端に SNAP_DISTANCE まで近づいたら、その点に合わせる（値をそろえるだけ。
       // つながりは覚えない。docs/LAYOUT-plan.md の 2.3）
       const target = snapTarget(e, end === "exit" ? e.a : e.b, path, pointAt(path, t));
@@ -393,7 +405,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   function edgeInfo(e: Edge): EdgeInfo {
     return {
-      kind: "edge", id: e.id, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), route: routeOf(e, world),
+      kind: "edge", id: e.id, self: e.a === e.b, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), route: routeOf(e, world),
       via: viaOf(e), adjustable: e.segments.length > 0, endsMoved: e.src.exitAt != null || e.src.enterAt != null,
       exit: exitOf(e), enter: enterOf(e), arrangement: e.arrangement,
     };
@@ -457,7 +469,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function canLink(a: Box, b: Box) {
-    if (a === b || a.parent !== b.parent || inTree(a) || inList(a)) return false;
+    if (a.parent !== b.parent || inTree(a) || inList(a)) return false;
+    // 自分に戻る線は、同じ箱に何本でも引ける（輪の大きさを変えて重ねない。docs/SELFLOOP-plan.md）
+    if (a === b) return true;
     return !edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
   }
 
@@ -549,7 +563,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   function ctrlClick(n: Box) {
     if (!linking) return setLinking(n);
-    if (linking === n) return setLinking(null);
+    // 同じ箱を 2 回押したら、自分に戻る線を引く（取り消しは Esc）
     if (!canLink(linking, n)) {
       blocked(n);
       return;

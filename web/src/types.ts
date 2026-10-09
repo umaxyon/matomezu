@@ -127,6 +127,7 @@ export type Arrangement = "side" | "stack" | "diagonal" | "overlap";
 export interface EdgeInfo {
   kind: "edge";
   id: string;
+  self: boolean; // 自分に戻る線か（通り方・向き・端や折れ線の指定は使わない。docs/SELFLOOP-plan.md）
   from: Brief; // 始点の箱
   to: Brief;   // 終点の箱
   arrow: Arrow | null;

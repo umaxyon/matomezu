@@ -204,10 +204,10 @@ function edgeHtml(info: EdgeInfo): string {
       <dt>始点</dt><dd>${chips([info.from])}</dd>
       <dt>終点</dt><dd>${chips([info.to])}</dd>
     </dl></div>
-    <div class="mzp-section"><h3>通り方</h3>
+    ${info.self ? `<div class="mzp-section"><p class="mzp-hint">自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）</p></div>` : `<div class="mzp-section"><h3>通り方</h3>
       ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
-    </div>
-    ${info.route === "elbow" ? `<div class="mzp-section"><h3>向きの指定${helpIcon("左右・上下にすると、その端はその辺から出入りします。横や縦に並ぶボックスどうしは、両端の向きをそろえたときだけ選べます（ボックスを動かしてそろわなくなったら、自動に戻ります）")}</h3>
+    </div>`}
+    ${!info.self && info.route === "elbow" ? `<div class="mzp-section"><h3>向きの指定${helpIcon("左右・上下にすると、その端はその辺から出入りします。横や縦に並ぶボックスどうしは、両端の向きをそろえたときだけ選べます（ボックスを動かしてそろわなくなったら、自動に戻ります）")}</h3>
       <div class="mzp-subhead">始点</div>
       ${segment("mzp-exit", info.exit ?? "auto", AXIS_OPTIONS, axisDisabled(info, info.enter))}
       <div class="mzp-subhead">終点</div>
@@ -216,7 +216,7 @@ function edgeHtml(info: EdgeInfo): string {
     ${info.endsMoved ? `<div class="mzp-section">
       <button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}">端の位置を自動に戻す</button>${helpIcon("線の両端を、ボックスの中心どうしを結ぶ位置に戻します")}
     </div>` : ""}
-    ${info.via ? `<div class="mzp-section">
+    ${!info.self && info.via ? `<div class="mzp-section">
       <button type="button" class="mzp-chip" data-via-reset="${esc(info.id)}">折れ線を自動に戻す</button>${helpIcon("途中の区間を動かした形と、向きの指定をやめて、ボックスの位置から自動で決めた形に戻します")}
     </div>` : ""}
     <div class="mzp-section"><h3>線の種類</h3>

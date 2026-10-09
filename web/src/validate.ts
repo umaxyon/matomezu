@@ -152,7 +152,6 @@ function inspect(data: unknown, fail: (message: string) => void): void {
     if (!isObject(e) && !Array.isArray(e)) { fail("空の線があります"); continue; }
     const { id, from, to } = normalizeEdge(e as EdgeData | [Id, Id]);
     if (!byId.has(String(from)) || !byId.has(String(to))) { fail(`存在しないノードへの線があります: ${from} - ${to}`); continue; }
-    if (String(from) === String(to)) { fail(`同じボックス同士の線があります: ${from}`); continue; }
     const arrow = (e as EdgeData).arrow;
     if (arrow != null && !includes(ARROWS, arrow)) fail(`arrow の値が不正です: ${from} - ${to} (${arrow})`);
     const route = (e as EdgeData).route;

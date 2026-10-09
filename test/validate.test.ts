@@ -10,6 +10,10 @@ describe("validate", () => {
     })).not.toThrow();
   });
 
+  test("自分に戻る線は通る（docs/SELFLOOP-plan.md）", () => {
+    expect(() => validate({ nodes: [{ id: 1 }], edges: [[1, 1]] })).not.toThrow();
+  });
+
   test.each([
     [{}, "nodes 配列がありません"],
     [{ nodes: [{ id: 1 }, { id: 1 }] }, "id が重複しています: 1"],
@@ -18,7 +22,6 @@ describe("validate", () => {
     [{ nodes: [{ id: 1, size: "XL" }] }, "size の値が不正です: 1 (XL)"],
     [{ nodes: [], world: { overflow: "grow" } }, "world に overflow: grow は使えません"],
     [{ nodes: [{ id: 1 }, { id: 2, parent: 1 }], edges: [[1, 2]] }, "階層の違うボックス同士の線があります: 1 - 2"],
-    [{ nodes: [{ id: 1 }], edges: [[1, 1]] }, "同じボックス同士の線があります: 1"],
     [{ nodes: [{ id: 1 }, { id: 2 }], edges: [{ id: "e1", from: 1, to: 2 }, { id: "e1", from: 2, to: 1 }] }, "線の id が重複しています: e1"],
   ])("不正なデータ %#", (data, message) => {
     expect(() => validate(data)).toThrow(message);

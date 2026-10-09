@@ -3,6 +3,7 @@
 import { SVGNS, isLightColor } from "./dom";
 import type { Layout } from "./layout/layout";
 import { route, scopeObstacles } from "./routing";
+import { selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
@@ -195,10 +196,12 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       }
       return list;
     };
+    const loops: Edge[] = []; // 自分に戻る線（ほかの線を描いてから、空いている角に描く）
     for (const e of ctx.edges()) {
       const hidden = isHidden(e.a) || isHidden(e.b) || inTree(e.a) || inList(e.a);
       e.el.style.display = hidden ? "none" : "";
       if (hidden) continue;
+      if (e.a === e.b) { loops.push(e); continue; }
       const [ax, ay] = absPos(e.a);
       const [bx, by] = absPos(e.b);
       const ra = anchorRect(e.a), rb = anchorRect(e.b);
@@ -236,23 +239,58 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         c1!.setAttribute("cx", String(s[0])); c1!.setAttribute("cy", String(s[1]));
         c2!.setAttribute("cx", String(t[0])); c2!.setAttribute("cy", String(t[1]));
       }
-      const arrow = arrowOf(e);
-      const atStart = arrow === "start" || arrow === "both", atEnd = arrow === "end" || arrow === "both";
-      // 見える線は、矢印のある端では矢印の付け根で止める（線の太さで先端が四角く太って見えないように）。
-      // クリックを受ける透明な線は端まで
-      const [line, hit] = e.lines as [SVGPolylineElement, SVGPolylineElement];
-      const shown = pts.map(p => [...p] as Pt);
-      const n = pts.length;
-      if (atStart) shown[0] = toward(pts[0]!, pts[1]!, ARROW_LEN - 1);
-      if (atEnd) shown[n - 1] = toward(pts[n - 1]!, pts[n - 2]!, ARROW_LEN - 1);
-      setPoints(line, shown);
-      setPoints(hit, pts);
-      line.classList.toggle("mz-dashed", dashOf(e) === "dashed");
-      const heads = [];
-      if (atStart) heads.push(arrowHead(pts[1]!, pts[0]!));
-      if (atEnd) heads.push(arrowHead(pts[n - 2]!, pts[n - 1]!));
-      e.arrowEl.setAttribute("d", heads.join(""));
+      paint(e);
     }
+    // 自分に戻る線（docs/SELFLOOP-plan.md）。道筋の計算は通さず、2 つの端を通る円の弧を箱の外に描く。端の位置の指定が
+    // 無ければ、ほかの箱やほかの線とぶつからない角に描く（同じ箱の 2 本目以降は輪を大きくする）。動かせる区間は無い
+    const count = new Map<Box, number>();
+    for (const e of loops) {
+      const index = count.get(e.a) ?? 0;
+      count.set(e.a, index + 1);
+      const [ax, ay] = absPos(e.a);
+      const ra = anchorRect(e.a);
+      const boxes = siblingsOf(e.a.parent).filter(o => o.n !== e.a).map(o => o.r);
+      const lines = ctx.edges().filter(o => o !== e && o.a.parent === e.a.parent && o.el.style.display !== "none").map(o => o.points);
+      const at = {
+        exit: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
+        enter: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
+      };
+      const loop = selfLoop({ x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h }, boxes, index, lines, at);
+      e.points = loop.points;
+      e.shape = null;
+      e.segments = [];
+      // 端は、もう一方の端の辺とその両隣の上を動かせる（端の位置は、箱のふちを一周した割合。selfloop.ts）
+      e.ends = { frame: "", exit: loop.ends.exit, enter: loop.ends.enter };
+      e.routeMemo = null;
+      renderHandles(e);
+      e.endsEl.style.display = "";
+      const [c1, c2] = e.endsEl.children as unknown as SVGCircleElement[];
+      const [s, t] = [e.points[0]!, e.points[e.points.length - 1]!];
+      c1!.setAttribute("cx", String(s[0])); c1!.setAttribute("cy", String(s[1]));
+      c2!.setAttribute("cx", String(t[0])); c2!.setAttribute("cy", String(t[1]));
+      paint(e);
+    }
+  }
+
+  // 線の見た目（点の並び e.points から、見える線・クリックを受ける線・矢印・破線）を整える
+  function paint(e: Edge) {
+    const pts = e.points;
+    const arrow = arrowOf(e);
+    const atStart = arrow === "start" || arrow === "both", atEnd = arrow === "end" || arrow === "both";
+    // 見える線は、矢印のある端では矢印の付け根で止める（線の太さで先端が四角く太って見えないように）。
+    // クリックを受ける透明な線は端まで
+    const [line, hit] = e.lines as [SVGPolylineElement, SVGPolylineElement];
+    const shown = pts.map(p => [...p] as Pt);
+    const n = pts.length;
+    if (atStart) shown[0] = toward(pts[0]!, pts[1]!, ARROW_LEN - 1);
+    if (atEnd) shown[n - 1] = toward(pts[n - 1]!, pts[n - 2]!, ARROW_LEN - 1);
+    setPoints(line, shown);
+    setPoints(hit, pts);
+    line.classList.toggle("mz-dashed", dashOf(e) === "dashed");
+    const heads = [];
+    if (atStart) heads.push(arrowHead(pts[1]!, pts[0]!));
+    if (atEnd) heads.push(arrowHead(pts[n - 2]!, pts[n - 1]!));
+    e.arrowEl.setAttribute("d", heads.join(""));
   }
 
   // 途中の区間をつかむ透明な線（選択モードでドラッグして動かす）。区間 i は、点の並びの i + 1 番目から i + 2 番目まで
