@@ -3,6 +3,7 @@
 // 進行中のドラッグは active の 1 つだけで持つ（種類ごとの中身は Gesture。docs/REFACTOR-2.md）。
 // 図の状態の変更（選択、線、付け替え）は ctx の関数を呼んで graph.ts に任せる
 
+import type { EdgeDrag } from "./edge-drag";
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
 import { type Box, type Edge, type World, ancestors, inList, inNest, isInside, overflowOf, setSpec } from "./model";
@@ -42,16 +43,12 @@ export interface InteractionContext {
   remove(n: Box): void;           // 子孫ごと消す
   restore(id: string, parentId: string | null, at: { x: number; y: number }): void; // 消したボックスを戻す
   boxById(id: string): Box | undefined; // 今のページにある箱（無ければ undefined）
-  edgeOfEl(el: Element): Edge | undefined;  // 途中の区間をつかむ要素の線
-  setVia(e: Edge, index: number, at: number): void; // 途中の区間 index を座標 at へ動かして描き直す
-  endVia(e: Edge): void;                    // 途中の区間のドラッグを終えた（折れ目をまとめて履歴に残す）
-  setAt(e: Edge, end: "exit" | "enter", x: number, y: number): void; // 線の端を、ポインタに近い辺の上の位置へ動かす（ほかの線の端に近ければ吸着する）
-  endAt(): void;                            // 線の端のドラッグを終えた（吸着の目印を消す）
+  edgeOfEl(el: Element): Edge | undefined;  // 線の部品（札・区間・端）の要素から、その線を引く
+  edgeDrag: EdgeDrag;                       // 線の区間・端・キャプションのドラッグの中身（edge-drag.ts）
   paste(copy: Subtree, parentId: string | null, at: { x: number; y: number }, from?: string): void; // ほかのブックの箱を移植する
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
   reorder(n: Box, index: number): void; // リストの子 n を、兄弟の中で index 番目へ移して並べ直す（データの並び順も）
-  setCaptionAt(e: Edge, x: number, y: number): void; // 線のキャプションを、ポインタ（ワールドの座標）に近い線の上の位置と、線から離す量へ動かす
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -98,9 +95,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         if (!seg) return;
         moved = true;
         const [x, y] = worldAt(ev);
-        ctx.setVia(e, index, seg.axis === "x" ? x : y);
+        ctx.edgeDrag.setVia(e, index, seg.axis === "x" ? x : y);
       },
-      end() { if (moved) ctx.endVia(e); },
+      end() { if (moved) ctx.edgeDrag.endVia(e); },
       cancel() {},
     };
   }
@@ -112,13 +109,13 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       kind: "end", slop: 0,
       move(ev) {
         moved = true;
-        ctx.setAt(e, end, ...worldAt(ev));
+        ctx.edgeDrag.setAt(e, end, ...worldAt(ev));
       },
       end() {
-        ctx.endAt();
+        ctx.edgeDrag.endAt();
         if (moved) ctx.changed();
       },
-      cancel() { ctx.endAt(); }, // 吸着の目印を消す
+      cancel() { ctx.edgeDrag.endAt(); }, // 吸着の目印を消す
     };
   }
 
@@ -129,7 +126,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       kind: "caption", slop: 3,
       move(ev) {
         moved = true;
-        ctx.setCaptionAt(e, ...worldAt(ev));
+        ctx.edgeDrag.setCaptionAt(e, ...worldAt(ev));
       },
       end() { if (moved) ctx.changed(); },
       cancel() {},
