@@ -686,20 +686,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ---- リストの並べ替え（docs/LIST-plan.md） ----
 
   // リストの子 n を兄弟の中で index 番目へ移し、並べ直して描く。並び順はデータの並び順（nodes の順）なので、
-  // データでも、n を新しい次の兄弟の前（いなければ前の兄弟の後ろ）へ移す。nodes と source.nodes は同じ並びに保つ
+  // データでも、n を新しい次の兄弟の前（いなければ前の兄弟の後ろ）へ移す。
+  // 図の箱（nodes）は今のページの箱だけで、データ（source.nodes）は全ページの箱なので、位置はそれぞれの配列で探す
   function reorder(n: Box, index: number) {
     const kids = n.parent!.children;
     const from = kids.indexOf(n);
     if (from < 0 || from === index) return;
     kids.splice(from, 1);
     kids.splice(index, 0, n);
-    const i = nodes.indexOf(n);
-    const [src] = source.nodes.splice(i, 1);
-    nodes.splice(i, 1);
     const next = kids[index + 1], prev = kids[index - 1];
-    const j = next ? nodes.indexOf(next) : nodes.indexOf(prev!) + 1;
-    nodes.splice(j, 0, n);
-    source.nodes.splice(j, 0, src!);
+    const move = <T>(list: T[], item: T, at: (list: T[]) => number) => {
+      list.splice(list.indexOf(item), 1);
+      list.splice(at(list), 0, item);
+    };
+    move(nodes, n, l => (next ? l.indexOf(next) : l.indexOf(prev!) + 1));
+    move(source.nodes, n.src, l => (next ? l.indexOf(next.src) : l.indexOf(prev!.src) + 1));
     refitAncestors(n);
     render();
   }
@@ -737,7 +738,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     for (const e of cut) e.el.remove();
     edges = edges.filter(e => !cut.includes(e));
 
-    if (current && gone.has(current)) select(null);
+    // 選んでいた箱や線が消えたら、ワールドを選び直す（消えた線の情報をサイドバーへ送らないように）
+    if ((current && gone.has(current)) || (currentEdge && cut.includes(currentEdge))) select(null);
     if (linking && gone.has(linking)) setLinking(null);
     unfocus();
     settle(SCENES.remove, parent ?? undefined);

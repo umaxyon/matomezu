@@ -114,6 +114,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     const labelEdge = labelEl && ctx.mode() === "move" ? ctx.edgeOfEl(labelEl) : undefined;
     if (labelEdge) {
       e.stopPropagation();
+      // ポインタを捕まえる（図の外で離しても pointerup が届き、ドラッグが残らないように）
+      (e.target as Element).setPointerCapture?.(e.pointerId);
       captionDrag = { e: labelEdge, sx: e.clientX, sy: e.clientY, moved: false };
       return;
     }
@@ -462,7 +464,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   document.addEventListener("keydown", onKeyDown, { signal });
 
   return {
-    dragging: () => drag != null || lift != null || bendDrag != null || endDrag != null,
+    dragging: () => drag != null || lift != null || bendDrag != null || endDrag != null || reorder != null || captionDrag != null,
     endLift,
     // 描き直すときに、移動のドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
     reset() { if (endDrag) ctx.endAt(); drag = null; reorder = null; captionDrag = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },

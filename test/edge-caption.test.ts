@@ -131,3 +131,26 @@ test("サイドバーの「キャプションの位置を自動に戻す」で�
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, caption: "申請" }]);
   expect(center(label(el)!)).toEqual([280, 72]);
 });
+
+test("札のドラッグ中は dragging() が true で、ポインタを捕まえる（図の外で離しても終わる）", () => {
+  const { el, graph } = setup(two(400, "申請"));
+  const span = label(el)!.querySelector("span")!;
+  let captured = false;
+  span.setPointerCapture = () => { captured = true; };
+  span.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 280, clientY: 72, pointerId: 1 }));
+  expect([graph.dragging(), captured]).toEqual([true, true]);
+  span.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 280, clientY: 72, pointerId: 1 }));
+  expect(graph.dragging()).toBe(false);
+});
+
+test("選んでいた線の箱を消すと、線の選択も外れる（消えた線の情報を送らない）", () => {
+  const infos: { kind: string }[] = [];
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const graph = createGraph(el, two(400, "申請"), { measureText: fakeMeasure, onSelect: i => infos.push(i) });
+  graphs.push(graph);
+  graph.selectEdge("e1");
+  graph.remove(2);
+  expect(infos.at(-1)!.kind).toBe("world");
+  expect(el.querySelector(".mz-edge.mz-selected")).toBeNull();
+});

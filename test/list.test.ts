@@ -133,3 +133,30 @@ test("見出しが子より長ければ、見出しが入る幅にそろえる�
   graph.update(1, { caption: "あ".repeat(60) }); // 上限で止める
   expect(graph.info(1).w).toBe(400 + 24);
 });
+
+test("ページのある図でも、並べ替えたとおりにデータの並び順が変わる（ほかの箱のデータは動かない）", () => {
+  // 1 はページの箱で、子の 2 はページの中（最初のページには描かれない）。3 はリスト
+  const { el, graph } = setup({
+    nodes: [
+      { id: 1, caption: "ページ", page: true, x: 400, y: 40 }, { id: 2, caption: "中", parent: 1 },
+      { id: 3, caption: "一覧", childView: "list", x: 40, y: 40 },
+      { id: 4, caption: "a", parent: 3 }, { id: 5, caption: "b", parent: 3 },
+    ],
+  });
+  const head = el.querySelector('[data-id="4"] > .mz-head')!;
+  const fire = (type: string, y: number) =>
+    head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: 0, clientY: y, pointerId: 1 }));
+  fire("pointerdown", 0);
+  for (let y = 10; y <= 90; y += 10) fire("pointermove", y);
+  fire("pointerup", 90);
+  expect(graph.toJSON().nodes.map(n => n.id)).toEqual([1, 2, 3, 5, 4]);
+});
+
+test("リストの並べ替えの最中は dragging() が true（外部の変更を手を離すまで待つ）", () => {
+  const { el, graph } = setup(data());
+  const head = el.querySelector('[data-id="2"] > .mz-head')!;
+  head.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 0, clientY: 0, pointerId: 1 }));
+  expect(graph.dragging()).toBe(true);
+  head.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 0, clientY: 0, pointerId: 1 }));
+  expect(graph.dragging()).toBe(false);
+});
