@@ -411,7 +411,8 @@ export type PanelTab = "info" | "list";
 export interface Panel {
   show(info: Info): void;
   tab(name: PanelTab): void;
-  destroy(): void; // 吹き出しなど、サイドバーの外に作ったものを片付ける
+  othersChanged(): void; // ほかのブックが変わった（「他ブックも表示」なら一覧を古いとし、見えていればすぐ作り直す）
+  destroy(): void; // 吹き出しなど、サイドバーの外に作ったものを片付け、図の知らせから外れる
 }
 
 export interface PanelOptions {
@@ -441,14 +442,27 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
   const open: Record<Fold, boolean> = {}; // 描き直しても折りたたみを保つ（無ければ開いている）
   let showOthers = false;                 // 「他ブックも表示」
 
-  // 選択や図の変更のたびに呼ばれるので、一覧もここで描き直す
+  // 情報タブは、選んでいるもの（info）の表示。選択の知らせ（onSelect）のたびに作り直す
   function show(next: Info) {
     info = next;
     infoPane.innerHTML = html(info);
+  }
+
+  // 一覧は、自分でデータを持たず、いつも図（graph.items()）から作る。作り直すのはデータが変わったとき
+  // （graph.onDataChange。呼び忘れの起きない、図の側の仕組み）。一覧が隠れている間は作らずに「古い」と印を付け、
+  // タブを開いたときに作る（隠れた一覧を毎回作らない。開けば必ず最新）。docs/REVIEW-2026-10-09.md の 5c
+  let stale = true;
+  function renderList() {
+    stale = false;
     const others = o.otherBooks && { shown: showOthers, books: showOthers ? o.otherBooks() : [] };
     listBody.innerHTML = listHtml(graph.items(), open, others);
     filter();
   }
+  function invalidate() {
+    stale = true;
+    if (current === "list") renderList();
+  }
+  const offData = graph.onDataChange(invalidate);
 
   // 検索欄の文字（大文字小文字は区別しない）を「id_キャプション」に含む行だけを残す。
   // 検索中は区画をすべて開いて見せ（閉じた区画の中の一致を見落とさないため）、検索をやめたら元の開け閉めに戻す
@@ -482,6 +496,7 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     for (const b of el.querySelectorAll<HTMLElement>("[data-tab]")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
     infoPane.hidden = name !== "info";
     listPane.hidden = name !== "list";
+    if (name === "list" && stale) renderList();
   }
 
   el.addEventListener("click", e => {
@@ -530,7 +545,7 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     if (!(t instanceof HTMLInputElement)) return;
     if (t.dataset.others != null) {
       showOthers = t.checked;
-      return show(info);
+      return renderList();
     }
     if (t.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: t.value as Dash });
     if (t.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: t.value as Route });
@@ -581,5 +596,9 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
 
   show(info);
   tab(current);
-  return { show, tab, destroy: offHelp };
+  return {
+    show, tab,
+    othersChanged() { if (showOthers) invalidate(); },
+    destroy() { offData(); offHelp(); },
+  };
 }

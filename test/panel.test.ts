@@ -178,8 +178,9 @@ test("一覧: 表示中の × で子ごと消え、消したものに並ぶ。�
 });
 
 test("一覧の区画は折りたためて、描き直しても開け閉めを保つ", () => {
-  const { g, side } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
+  const { g, side, click } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
   const fold = (name: string) => side.querySelector<HTMLDetailsElement>(`[data-fold="${name}"]`)!;
+  click('[data-tab="list"]'); // 一覧は、タブを開いたときに作る
   expect([fold("live").open, fold("removed").open]).toEqual([true, true]);
   const d = fold("live");
   d.open = false;
@@ -213,4 +214,23 @@ test("一覧の検索欄: 入力した文字を id_キャプションに含む�
   expect(search.value).toBe("");
   expect(shown()).toEqual(["1", "2", "12"]);
   expect(live().open).toBe(false); // 検索をやめたら元の開け閉めに戻る
+});
+
+test("一覧は、データが変わったときに作り直す。隠れている間は作らず、タブを開いたときに作る。選択だけでは作り直さない", () => {
+  const { g, side, click } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
+  const row = (id: string) => side.querySelector<HTMLElement>(`.mzp-row[data-select="${id}"]`);
+  click('[data-tab="list"]');
+  const first = row("1")!;
+  g.select(2); // 選んだだけ（データは変わらない）
+  expect(row("1")).toBe(first); // 一覧は作り直していない
+  g.update(1, { caption: "A" }); // データが変わった（一覧が見えている）
+  expect(row("1")!.querySelector(".mzp-row-cap")!.textContent).toBe("1_A");
+  click('[data-tab="info"]');
+  const before = row("1");
+  g.update(1, { caption: "B" }); // 一覧が隠れている間の変更
+  expect(row("1")).toBe(before); // まだ作り直さない
+  click('[data-tab="list"]');
+  expect(row("1")!.querySelector(".mzp-row-cap")!.textContent).toBe("1_B"); // 開いたら最新
+  g.undo(); // 図の組み立て直し（Undo）でも作り直す
+  expect(row("1")!.querySelector(".mzp-row-cap")!.textContent).toBe("1_A");
 });

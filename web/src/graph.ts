@@ -185,6 +185,9 @@ export interface Graph {
   dragging(): boolean;
   setMode(mode: Mode): void;
   onModeChange(listener: (mode: Mode) => void): () => void; // モードが変わったら知らせる（図の側で変えたときも）。外す関数を返す
+  // データが変わったら知らせる（組み立て直したとき: 読み込み・Undo・付け替えなど、と、履歴に残す変更をしたとき）。
+  // サイドバーの一覧は、これを受けて図から作り直す（一覧は自分でデータを持たない）。外す関数を返す
+  onDataChange(listener: () => void): () => void;
   mode(): Mode;
   reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean; // at は最上位へ移すときの位置
   fitChildren(id: Id, what: "width" | "height" | "both"): number;
@@ -283,8 +286,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // （LLM が open のあと check / set で整えている途中を、戻るボタンで巻き戻させないため。docs/HANDOFF.md の 9 章）
   let touched = false;
 
+  // データの変更を知らせる相手（onDataChange）
+  const dataListeners = new Set<() => void>();
+  const dataChanged = () => { for (const f of dataListeners) f(); };
+
   function changed() {
     touched = true;
+    dataChanged();
     const data = api.toJSON();
     H.record(data);
     opt.onChange?.(data);
@@ -1061,6 +1069,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     render();
     select(null);
     opt.onBuild?.();
+    dataChanged();
   }
 
 
@@ -1108,6 +1117,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     dragging: () => I.dragging(),
     setMode,
+    onDataChange(f) {
+      dataListeners.add(f);
+      return () => dataListeners.delete(f);
+    },
     onModeChange(f) {
       modeListeners.add(f);
       return () => modeListeners.delete(f);

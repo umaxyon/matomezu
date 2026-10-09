@@ -90,6 +90,8 @@ function pagesInData(data: unknown): { id: string; caption: string }[] {
 
 export async function startApp(ui: AppUi) {
   const books: Book[] = [];
+  // ブック b が変わったら、ほかのブックのサイドバー（「他ブックも表示」で b を並べているもの）の一覧を古いとする
+  const othersChanged = (b: Book) => { for (const o of books) if (o !== b) o.panel.othersChanged(); };
   let events: EventConnection | null = null; // サーバーの通知（下でつなぐ）
   let current: { book: Book; page: PageId } | null = null;
   let unbind: (() => void)[] = [];
@@ -342,10 +344,10 @@ export async function startApp(ui: AppUi) {
       let book: Book | null = null;
       const graph = createGraph(stage, { nodes: [] }, {
         onSelect: info => book?.panel.show(info),
-        onChange: data => { book?.sync.changed(data); if (book) refreshPages(book); },
+        onChange: data => { book?.sync.changed(data); if (book) { refreshPages(book); othersChanged(book); } },
         onHistory: () => { if (book && current?.book === book) refreshButtons(book); },
         onEvent: ev => { if (book && current?.book === book) handleGraphEvent(graph, ev, ui.status); },
-        onBuild: () => { if (book) refreshPages(book); },
+        onBuild: () => { if (book) { refreshPages(book); othersChanged(book); } },
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
       });
