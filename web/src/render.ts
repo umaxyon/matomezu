@@ -2,7 +2,7 @@
 
 import { SVGNS, isLightColor } from "./dom";
 import type { Layout } from "./layout/layout";
-import { route, scopeObstacles } from "./routing";
+import { pointAt, route, scopeObstacles } from "./routing";
 import { selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
@@ -26,6 +26,24 @@ export interface RenderContext {
 }
 
 export type Renderer = ReturnType<typeof createRenderer>;
+
+// 線のキャプションを線から離せる量（px）
+export const CAPTION_OFFSET_MAX = 60;
+
+// 点の並び pts の、長さに対する割合 at の所の、進む向きの左を指す長さ 1 の向き（画面の座標。右向きの線なら上 (0, -1)）
+export function leftNormalAt(pts: [number, number][], at: number): [number, number] {
+  const lens = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i]![0], p[1] - pts[i]![1]));
+  const total = lens.reduce((s, l) => s + l, 0);
+  let d = Math.min(1, Math.max(0, at)) * total;
+  for (let i = 0; i < lens.length; i++) {
+    if (d <= lens[i]! || i === lens.length - 1) {
+      const [p, q] = [pts[i]!, pts[i + 1]!], l = lens[i]! || 1;
+      return [(q[1] - p[1]) / l, -(q[0] - p[0]) / l];
+    }
+    d -= lens[i]!;
+  }
+  return [0, -1];
+}
 
 export function createRenderer(ctx: RenderContext, L: Layout) {
   const { opt, world, worldEl } = ctx;
@@ -291,6 +309,49 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (atStart) heads.push(arrowHead(pts[1]!, pts[0]!));
     if (atEnd) heads.push(arrowHead(pts[n - 2]!, pts[n - 1]!));
     e.arrowEl.setAttribute("d", heads.join(""));
+    paintLabel(e);
+  }
+
+  const LABEL_MAX_W = 160, LABEL_MIN_W = 48, LABEL_MARGIN = 16, LABEL_BOX_H = 200;
+
+  // 線のキャプションの札（docs/EDGE-CAPTION-plan.md）。線の長さの真ん中に置く。折り返す幅は、上限 160 と、
+  // 線の長さ（箱のふちからふちまで）から余白を引いた幅の狭い方（箱どうしが近ければ縦に折り返して、箱にかぶらないように）。
+  // ただし、真ん中の区間が縦向きの線と、自分に戻る線は狭めない（縦の線で箱とぶつかるのは札の高さなので、狭めると
+  // 行が増えてかえってぶつかる。2026-10-09 ユーザー）。
+  // foreignObject は幅を折り返しの幅にし、高さは十分に取って、中で札を真ん中にそろえる（札の大きさを測らずに済む）
+  function paintLabel(e: Edge) {
+    const caption = typeof e.src.caption === "string" ? e.src.caption.trim() : "";
+    if (!caption || e.points.length < 2) {
+      e.labelEl?.remove();
+      e.labelEl = null;
+      return;
+    }
+    if (!e.labelEl) {
+      const fo = document.createElementNS(SVGNS, "foreignObject");
+      fo.setAttribute("class", "mz-label");
+      const box = document.createElement("div");
+      box.className = "mz-label-box";
+      box.appendChild(document.createElement("span"));
+      fo.appendChild(box);
+      e.el.appendChild(fo);
+      e.labelEl = fo;
+    }
+    const pts = e.points;
+    const len = pts.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - pts[i]![0], p[1] - pts[i]![1]), 0);
+    // 置く位置（手で動かしていれば captionAt と captionOffset、無ければ真ん中で線の上）と、そこの区間の向き
+    const at = typeof e.src.captionAt === "number" ? e.src.captionAt : 0.5;
+    const off = typeof e.src.captionOffset === "number" ? Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, e.src.captionOffset)) : 0;
+    const [nx, ny] = leftNormalAt(pts, at);
+    const vertical = Math.abs(nx) > Math.abs(ny); // 左の向きが横なら、区間は縦向き
+    const w = e.a === e.b || vertical ? LABEL_MAX_W : Math.max(LABEL_MIN_W, Math.min(LABEL_MAX_W, len - LABEL_MARGIN));
+    const [bx, by] = pointAt(pts, at);
+    const [mx, my] = [bx + nx * off, by + ny * off];
+    const fo = e.labelEl;
+    fo.setAttribute("x", String(Math.round((mx - w / 2) * 10) / 10));
+    fo.setAttribute("y", String(Math.round((my - LABEL_BOX_H / 2) * 10) / 10));
+    fo.setAttribute("width", String(w));
+    fo.setAttribute("height", String(LABEL_BOX_H));
+    fo.querySelector("span")!.textContent = caption;
   }
 
   // 途中の区間をつかむ透明な線（選択モードでドラッグして動かす）。区間 i は、点の並びの i + 1 番目から i + 2 番目まで

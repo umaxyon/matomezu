@@ -152,6 +152,12 @@ function inspect(data: unknown, fail: (message: string) => void): void {
     if (!isObject(e) && !Array.isArray(e)) { fail("空の線があります"); continue; }
     const { id, from, to } = normalizeEdge(e as EdgeData | [Id, Id]);
     if (!byId.has(String(from)) || !byId.has(String(to))) { fail(`存在しないノードへの線があります: ${from} - ${to}`); continue; }
+    const caption = (e as EdgeData).caption;
+    if (caption != null && typeof caption !== "string") fail(`線の caption は文字列にしてください: ${from} - ${to}`);
+    const captionAt = (e as EdgeData).captionAt;
+    if (captionAt != null && !(typeof captionAt === "number" && captionAt >= 0 && captionAt <= 1)) fail(`captionAt は 0 から 1 の数にしてください: ${from} - ${to}`);
+    const captionOffset = (e as EdgeData).captionOffset;
+    if (captionOffset != null && !Number.isFinite(captionOffset)) fail(`captionOffset は数にしてください: ${from} - ${to}`);
     const arrow = (e as EdgeData).arrow;
     if (arrow != null && !includes(ARROWS, arrow)) fail(`arrow の値が不正です: ${from} - ${to} (${arrow})`);
     const route = (e as EdgeData).route;

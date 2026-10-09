@@ -76,6 +76,18 @@ export const GRAPH_CSS = `
 /* 線は polyline なので、塗らない（塗ると折れ線の点で囲まれた面が既定の黒で塗られる） */
 .mz-line, .mz-hit { fill: none; }
 .mz-arrow { fill: var(--mz-edge); stroke: none; pointer-events: none; }
+/* 線のキャプションの札（docs/EDGE-CAPTION-plan.md）。foreignObject の中で上下左右の真ん中にそろえる。
+   選んだ線・ポインタを乗せた線のキャプションは、線と同じ強調の色にする。
+   札だけがクリックを受ける（選択モードのとき。押すと線を選ぶ） */
+.mz-label { overflow: visible; pointer-events: none; }
+.mz-label-box { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.mz-label-box > span {
+  max-width: 100%; box-sizing: border-box; padding: 1px 5px; border-radius: 4px;
+  font-size: 11px; line-height: 1.35; text-align: center; overflow-wrap: anywhere;
+  color: var(--mz-text); /* 枠線も背景も無し（2026-10-09 ユーザー） */
+}
+.mz-mode-move .mz-label-box > span { pointer-events: auto; cursor: pointer; }
+.mz-edge.mz-hi .mz-label-box > span, .mz-edge.mz-selected .mz-label-box > span { color: var(--mz-edge-hi); }
 .mz-line.mz-dashed { stroke-dasharray: 6 4; }
 /* 線を消せるのは線モードだけ。それ以外では線はクリックを受けず、下のボックスや背景に届く */
 /* 線を選べるのは選択モード（"move"）だけ */

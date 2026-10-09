@@ -71,6 +71,7 @@ export interface Edge {
   // データを書き換える結果（fix のあるもの）は覚えない
   routeMemo: { key: string; route: Routed } | null;  // 両端の位置をずらせるとき、その基準（描いたときのもの。基準が変わったら端の位置を自動に戻す）
   endsEl: SVGGElement;        // 線の両端をつかむ丸（線を選んでいるときだけ出す）
+  labelEl: SVGForeignObjectElement | null; // キャプションの札（キャプションがあるときだけ。render.ts が作る）
 }
 
 // 値が既定（isDefault）なら項目ごと消し、そうでなければ書く（既定値は JSON に残さない）

@@ -18,7 +18,7 @@
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.reveal(id);            // 見えている範囲の外なら、図をスクロールして真ん中に持ってくる（非表示の親の中なら、見えている祖先）
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
- *   graph.updateEdge(id, patch); // 線を変更する（arrow は null で矢印なし、dash は null か "solid" で実線、
+ *   graph.updateEdge(id, patch); // 線を変更する（caption は空か null で消す、arrow は null で矢印なし、dash は null か "solid" で実線、
  *                                //   route は "straight" / "elbow"。図の既定と同じなら線の側からは消す。via は null で自動に戻す）
  *   graph.removeEdge(id);        // 線を消す
  *   graph.info(id);              // ボックス（null はワールド）の情報
@@ -122,7 +122,8 @@ import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf
 import { createRenderer } from "./render";
 import { type Pt, type RouteFix, nearestAt, pointAt, simplifyVia } from "./routing";
 import { perimeter } from "./selfloop";
-import type { Geometry } from "./report";
+import { CAPTION_OFFSET_MAX, leftNormalAt } from "./render";
+import type { GeoEdge, Geometry } from "./report";
 import type { Arrow, Axis, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
 import { ARROWS, AXES, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
@@ -137,6 +138,9 @@ export const DEFAULTS = {
 
 // updateEdge で変えられる線の項目（null で消す）
 export interface EdgePatch {
+  caption?: string | null; // 空か null で消す
+  captionAt?: number | null;     // null で真ん中に戻す
+  captionOffset?: number | null; // null で線の上に戻す
   arrow?: Arrow | null;
   dash?: Dash | null;
   route?: Route | null;
@@ -257,6 +261,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     drop: n => { settle(SCENES.drop, n); render(); },
     remove: n => { remove(n.id); },
     boxById: id => byId.get(id),
+    // キャプションの札をドラッグしている間、ポインタ（ワールドの座標）に近い線の上の位置と、線から離す量に置き直す
+    // （手を離したら changed で 1 件の履歴にする）。離す量は ±CAPTION_OFFSET_MAX まで
+    setCaptionAt: (e, x, y) => {
+      if (e.points.length < 2) return;
+      const at = nearestAt(e.points, x, y);
+      const [bx, by] = pointAt(e.points, at);
+      const [nx, ny] = leftNormalAt(e.points, at);
+      const off = Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, (x - bx) * nx + (y - by) * ny));
+      e.src.captionAt = Math.round(at * 1000) / 1000;
+      e.src.captionOffset = Math.round(off);
+      renderEdges();
+      if (currentEdge === e) notifySelect();
+    },
     edgeOfEl: el => {
       const g = el.closest(".mz-edge");
       return g ? edgeOfEl.get(g) : undefined;
@@ -405,7 +422,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   function edgeInfo(e: Edge): EdgeInfo {
     return {
-      kind: "edge", id: e.id, self: e.a === e.b, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), route: routeOf(e, world),
+      kind: "edge", id: e.id, self: e.a === e.b, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), caption: typeof e.src.caption === "string" && e.src.caption ? e.src.caption : null,
+      captionMoved: e.src.captionAt != null || e.src.captionOffset != null, route: routeOf(e, world),
       via: viaOf(e), adjustable: e.segments.length > 0, endsMoved: e.src.exitAt != null || e.src.enterAt != null,
       exit: exitOf(e), enter: enterOf(e), arrangement: e.arrangement,
     };
@@ -500,8 +518,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     svg.appendChild(g);
     const e: Edge = {
       src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], handlesEl,
-      shape: null, segments: [], arrangement: "diagonal", ends: null, routeMemo: null, endsEl,
+      shape: null, segments: [], arrangement: "diagonal", ends: null, routeMemo: null, endsEl, labelEl: null,
     };
+    // キャプションの札を押しても、線を選ぶ（札は render.ts が作ったり消したりするので、g で受け取る）
+    g.addEventListener("click", ev => {
+      if (mode !== "move" || !(ev.target instanceof Element) || !ev.target.closest(".mz-label")) return;
+      ev.stopPropagation();
+      selectEdge(e);
+    });
     // ポインタを乗せた線は、重なったほかの線より手前に描く（乗せたときの色が、重なった区間で隠れないように）
     g.addEventListener("pointerenter", () => R.toFront([e]));
     edgeOfEl.set(g, e);
@@ -550,6 +574,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if ("arrow" in patch) {
       if (patch.arrow != null && !(ARROWS as readonly string[]).includes(patch.arrow)) throw new Error(`arrow の値が不正です: ${patch.arrow}`);
       setOrDelete(e.src, "arrow", patch.arrow ?? undefined, patch.arrow == null);
+    }
+    if ("captionAt" in patch) {
+      const v = patch.captionAt;
+      if (v != null && !(v >= 0 && v <= 1)) throw new Error(`captionAt は 0 から 1 の数にしてください: ${v}`);
+      setOrDelete(e.src, "captionAt", v ?? undefined, v == null);
+    }
+    if ("captionOffset" in patch) {
+      const v = patch.captionOffset;
+      if (v != null && !Number.isFinite(v)) throw new Error(`captionOffset は数にしてください: ${v}`);
+      setOrDelete(e.src, "captionOffset", v == null ? undefined : Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, v)), v == null);
+    }
+    if ("caption" in patch) {
+      const v = patch.caption == null ? "" : String(patch.caption).trim();
+      setOrDelete(e.src, "caption", v, !v);
     }
     if ("dash" in patch) {
       if (patch.dash != null && !(DASHES as readonly string[]).includes(patch.dash)) throw new Error(`dash の値が不正です: ${patch.dash}`);
@@ -1197,7 +1235,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return {
         viewport: L.viewport(),
         boxes,
-        edges: shown.map(e => ({ id: e.id, a: e.a.id, b: e.b.id, points: e.points.map(p => [...p] as [number, number]) })),
+        edges: shown.map(e => {
+          const out: GeoEdge = { id: e.id, a: e.a.id, b: e.b.id, points: e.points.map(p => [...p] as [number, number]) };
+          // キャプションの札の範囲（ワールドの座標）。描かれていて大きさが分かるときだけ
+          const text = e.labelEl?.querySelector("span");
+          if (text && typeof e.src.caption === "string") {
+            const sr = text.getBoundingClientRect(), wr = worldEl.getBoundingClientRect();
+            out.caption = e.src.caption;
+            if (sr.width) out.label = { x: sr.left - wr.left, y: sr.top - wr.top, w: sr.width, h: sr.height };
+          }
+          return out;
+        }),
       };
     },
     destroy() {

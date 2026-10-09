@@ -50,6 +50,9 @@ export interface EdgeData {
   exitAt?: number;  // 始点の位置（直線は相手に向いた側の辺を角から角までたどった割合、折れ線は出る辺の上の割合。0〜1）。無ければ自動
   enterAt?: number; // 終点の位置
   via?: number[]; // 手で直した折れ線の途中の区間の位置（docs/ROUTE-plan.md）。無ければ自動
+  caption?: string; // 線のキャプション（線の真ん中に出す。docs/EDGE-CAPTION-plan.md）。無ければ無し
+  captionAt?: number;     // キャプションの位置: 線の長さに対する割合（0〜1）。無ければ真ん中（0.5）
+  captionOffset?: number; // キャプションを線から離す px（始点から終点へ進む向きの左が正。±60 まで）。無ければ線の上
   bend?: number; // 以前の持ち方（Z 字の中棒の割合）。読み込むと via に移す。向き合う 2 辺の間の割合（0 が始点の側、1 が終点の側）。無ければ自動（真ん中か、箱を避けた位置）
   [key: string]: unknown;
 }
@@ -132,6 +135,8 @@ export interface EdgeInfo {
   to: Brief;   // 終点の箱
   arrow: Arrow | null;
   dash: Dash;
+  caption: string | null; // 線のキャプション
+  captionMoved: boolean;   // キャプションの位置を手で動かしたか（captionAt か captionOffset がある）
   route: Route;        // 実際の通り方（線に無ければ図の既定）
   via: number[] | null; // 手で直した途中の区間の位置（直していなければ null）
   adjustable: boolean;  // ドラッグで動かせる途中の区間があるか

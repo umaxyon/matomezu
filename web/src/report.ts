@@ -16,7 +16,8 @@ export interface GeoBox extends Rect {
 
 // 見えている線（ツリーの線は含まない）。points は線の点の並び（折れ線なら折れ点を含む）
 export type Pt = [number, number];
-export interface GeoEdge { id: string; a: string; b: string; points: Pt[] }
+// caption と label は線のキャプションと、その札の範囲（ワールドの座標。キャプションがあって描かれているときだけ）
+export interface GeoEdge { id: string; a: string; b: string; points: Pt[]; caption?: string; label?: Rect }
 
 export interface Geometry {
   viewport: { w: number; h: number };
@@ -133,6 +134,22 @@ export function summarize(g: Geometry): string {
     }
   }
   if (passes.length) lines.push(`through ${passes.length}: ${passes.join("; ")}`);
+
+  // 線のキャプションの札が重なっている箱（線の両端の祖先は、札が中にあって当然なので除く。一番外側の箱だけ）
+  const covered: string[] = [];
+  for (const e of g.edges) {
+    const r = e.label;
+    if (!r) continue;
+    const ends = [byId.get(e.a), byId.get(e.b)];
+    const outer = new Set<string>(ends.flatMap(b => b?.ancestors ?? []));
+    const overlap = (b: GeoBox) => r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y;
+    const hit = g.boxes.filter(b => !outer.has(b.id) && overlap(b));
+    const hitIds = new Set(hit.map(b => b.id));
+    for (const b of hit) {
+      if (!b.ancestors.some(p => hitIds.has(p))) covered.push(`${edgeLabel(e)} ${e.caption ?? ""}>${label(b)}`);
+    }
+  }
+  if (covered.length) lines.push(`label ${covered.length}: ${covered.join("; ")}`);
 
   const cut = g.boxes.filter(b => b.cut);
   if (cut.length) lines.push(`cut ${cut.length}: ` + cut.map(b => `#${b.id} ${b.caption}`).join("; "));

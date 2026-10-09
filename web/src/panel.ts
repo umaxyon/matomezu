@@ -204,6 +204,11 @@ function edgeHtml(info: EdgeInfo): string {
       <dt>始点</dt><dd>${chips([info.from])}</dd>
       <dt>終点</dt><dd>${chips([info.to])}</dd>
     </dl></div>
+    <div class="mzp-section"><h3>編集</h3>
+      <label class="mzp-field"><span>キャプション</span>
+        <input class="mzp-input" type="text" data-edit="edge-caption" value="${esc(info.caption ?? "")}" placeholder="なし"></label>
+      ${info.caption && info.captionMoved ? `<button type="button" class="mzp-chip" data-caption-reset="${esc(info.id)}">キャプションの位置を自動に戻す</button>` : ""}
+    </div>
     ${info.self ? `<div class="mzp-section"><p class="mzp-hint">自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）</p></div>` : `<div class="mzp-section"><h3>通り方</h3>
       ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
     </div>`}
@@ -487,6 +492,8 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     if (del) return void graph.remove(del.dataset.remove!);
     const atReset = e.target.closest<HTMLElement>("[data-at-reset]");
     if (atReset) return graph.updateEdge(atReset.dataset.atReset!, { exitAt: null, enterAt: null });
+    const capReset = e.target.closest<HTMLElement>("[data-caption-reset]");
+    if (capReset) return graph.updateEdge(capReset.dataset.captionReset!, { captionAt: null, captionOffset: null });
     const viaReset = e.target.closest<HTMLElement>("[data-via-reset]");
     if (viaReset) return graph.updateEdge(viaReset.dataset.viaReset!, { via: null, exit: null, enter: null });
     const delEdge = e.target.closest<HTMLElement>("[data-remove-edge]");
@@ -538,6 +545,7 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
       return graph.updateEdge(info.id, { arrow: start && end ? "both" : start ? "start" : end ? "end" : null });
     }
     const edit = t.dataset.edit;
+    if (edit === "edge-caption" && info.kind === "edge") return graph.updateEdge(info.id, { caption: t.value });
     if (edit === "caption") return graph.update(info.id, { caption: t.value });
     if (edit === "title") return graph.update(null, { title: t.value });
     if (edit === "picker" || edit === "color" || edit === "bg-picker" || edit === "background") {

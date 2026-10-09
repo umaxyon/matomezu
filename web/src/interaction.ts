@@ -49,6 +49,7 @@ export interface InteractionContext {
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
   reorder(n: Box, index: number): void; // リストの子 n を、兄弟の中で index 番目へ移して並べ直す（データの並び順も）
+  setCaptionAt(e: Edge, x: number, y: number): void; // 線のキャプションを、ポインタ（ワールドの座標）に近い線の上の位置と、線から離す量へ動かす
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -65,6 +66,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // リストの子の並べ替え（docs/LIST-plan.md）。つかんだ子はポインタに付いてくる（見た目だけずらす）。
   // 中心がほかの子の中心を越えたら順番を入れ替えて並べ直す
   let reorder: { n: Box; sy: number; oy: number; moved: boolean } | null = null;
+  // 線のキャプションの札のドラッグ。少し動かしてから動かし始める（押してすぐ離すのは、線を選ぶクリック）
+  let captionDrag: { e: Edge; sx: number; sy: number; moved: boolean } | null = null;
   // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）。
   // 運んでいる箱は id で覚える。途中でタブを切り替えてページを描き直すと、箱の要素は作り直される（ほかのページなら無くなる）ため。
   // 同じ理由で、ポインタは図の要素で捕まえず、ページ全体（document）で受け取る
@@ -106,6 +109,14 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerDown(e: PointerEvent) {
+    // 線のキャプションの札をつまむと、線に沿って・線から離して動かす（選択モード。押してすぐ離せば、札のクリックで線を選ぶ）
+    const labelEl = e.target instanceof Element ? e.target.closest(".mz-label") : null;
+    const labelEdge = labelEl && ctx.mode() === "move" ? ctx.edgeOfEl(labelEl) : undefined;
+    if (labelEdge) {
+      e.stopPropagation();
+      captionDrag = { e: labelEdge, sx: e.clientX, sy: e.clientY, moved: false };
+      return;
+    }
     const endEl = e.target instanceof Element ? e.target.closest<SVGElement>(".mz-end") : null;
     const endEdge = endEl && ctx.mode() === "move" ? ctx.edgeOfEl(endEl) : undefined;
     if (endEdge?.ends) {
@@ -177,6 +188,13 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       return;
     }
     if (reorder) return moveReorder(e);
+    if (captionDrag) {
+      if (!captionDrag.moved && Math.hypot(e.clientX - captionDrag.sx, e.clientY - captionDrag.sy) < 3) return;
+      captionDrag.moved = true;
+      const r = world.el.getBoundingClientRect();
+      ctx.setCaptionAt(captionDrag.e, e.clientX - r.left, e.clientY - r.top);
+      return;
+    }
     if (lift || !drag) return; // 付け替えのドラッグはページ全体で受け取っている
     const { n } = drag;
     if (e.clientX === drag.sx && e.clientY === drag.sy && !drag.released) return; // まだ動いていない
@@ -216,6 +234,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   function onPointerUp() {
     if (reorder) return endReorder();
+    if (captionDrag) {
+      const { moved } = captionDrag;
+      captionDrag = null;
+      if (moved) ctx.changed();
+      return;
+    }
     if (endDrag) {
       const { moved } = endDrag;
       endDrag = null;
@@ -441,7 +465,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     dragging: () => drag != null || lift != null || bendDrag != null || endDrag != null,
     endLift,
     // 描き直すときに、移動のドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
-    reset() { if (endDrag) ctx.endAt(); drag = null; reorder = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },
+    reset() { if (endDrag) ctx.endAt(); drag = null; reorder = null; captionDrag = null; bendDrag = null; endDrag = null; removing = null; if (lift) lift.target = undefined; },
     unmarkRemove,
     destroy() { lift?.stop.abort(); listening.abort(); },
   };
