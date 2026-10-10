@@ -61,7 +61,7 @@ test("斜めに離れた箱どうしの線を折れ線にすると Z 字にな�
   await expect.poll(count).toBe(2);
 });
 
-test("線を選ぶと「整列」が出る。押すと両端が辺の真ん中（まっすぐ結べるならまっすぐ）に固定されて押せなくなり、「端を自由に戻す」で戻る", async ({ page }) => {
+test("線を選ぶと「整列」が出る。押すと両端が辺の真ん中（まっすぐ結べるならまっすぐ）に固定されて押せなくなり、「接辺の自動選択」で戻る（端が自動なら押せない）", async ({ page }) => {
   // 1 の右の辺の上の方（y = 44）に固定した線。2 は 1 の右で、上下の範囲が重なる
   await openDiagram(page, {
     nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 60 }],
@@ -85,8 +85,9 @@ test("線を選ぶと「整列」が出る。押すと両端が辺の真ん中�
   await side.locator("[data-align]").click();
   await expect.poll(points).toBe(2); // まっすぐ
   await expect(side.locator("[data-align]")).toBeDisabled(); // 整列済み
+  await expect(side.locator("[data-at-reset]")).toHaveText("接辺の自動選択");
   await side.locator("[data-at-reset]").click();
-  await expect(side.locator("[data-at-reset]")).toHaveCount(0);
+  await expect(side.locator("[data-at-reset]")).toBeDisabled(); // 端は自動で選んでいる
   await expect.poll(points).toBe(2); // 自由な端どうしも、横に並ぶのでまっすぐ
 });
 

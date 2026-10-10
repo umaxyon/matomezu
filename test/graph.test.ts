@@ -1397,7 +1397,7 @@ describe("線のつなぎ方", () => {
     const e = graph.toJSON().edges![0] as EdgeData;
     expect(e.exitAt).toBeCloseTo(P(box1, 160, 82), 3);
     expect(e.via).toBeUndefined();
-    // 自由に戻す（サイドバーの「端を自由に戻す」と同じ）。自由な端もまっすぐ結ぶ位置にあるので、整列済み
+    // 自由に戻す（サイドバーの「接辺の自動選択」と同じ）。自由な端もまっすぐ結ぶ位置にあるので、整列済み
     graph.updateEdge("e1", { exitAt: null, enterAt: null, via: null });
     expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
     expect(aligned()).toBe(true);
