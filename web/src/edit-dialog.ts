@@ -34,19 +34,21 @@ const CSS = `
 .mz-dlg h2 { margin: 0 0 12px; font-size: 15px; }
 .mz-dlg-field { display: block; margin-bottom: 12px; }
 .mz-dlg-field > span { display: block; margin-bottom: 4px; font-weight: 600; }
+/* 本文の欄と、その下の本文の設定（箱の幅に合わせる・最大行数）の行は詰めて、ひとまとまりに見せる */
+.mz-dlg-field.mz-dlg-body { margin-bottom: 4px; }
 .mz-dlg-input {
   width: 100%; box-sizing: border-box; font: inherit; color: inherit; background: var(--dlg-control);
   border: 1px solid var(--dlg-line); border-radius: 6px; padding: 6px 8px;
 }
 .mz-dlg-input:focus { outline: 2px solid var(--dlg-accent); outline-offset: -1px; }
-textarea.mz-dlg-input { min-height: 160px; resize: vertical; line-height: 1.5; }
+textarea.mz-dlg-input { display: block; min-height: 160px; resize: vertical; line-height: 1.5; }
 .mz-dlg-input:disabled { opacity: 0.5; }
 .mz-dlg-check { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
 .mz-dlg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .mz-dlg-row > span { font-weight: 600; }
 select.mz-dlg-input { width: auto; }
 .mz-dlg-note { margin: -6px 0 12px; color: var(--dlg-muted); font-size: 12px; }
-.mz-dlg-foot { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
+.mz-dlg-foot { display: flex; align-items: center; gap: 8px; margin-top: 28px; }
 .mz-dlg-hint { flex: 1; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-btn { font: inherit; color: inherit; background: var(--dlg-control); border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
 .mz-dlg-btn.mz-dlg-ok { color: #fff; background: var(--dlg-accent); }
@@ -97,7 +99,7 @@ export function openEditDialog(graph: Graph, id: string): void {
       <div class="mz-dlg-row"><span>区切り線</span>
         <button type="button" class="mz-dlg-switch" role="switch" name="rule" aria-checked="${b.bodyRule}" aria-label="区切り線"${off}></button>
         <span class="mz-dlg-onoff">${b.bodyRule ? "ON" : "OFF"}</span></div>
-      <label class="mz-dlg-field"><span>本文</span>
+      <label class="mz-dlg-field mz-dlg-body"><span>本文</span>
         <textarea class="mz-dlg-input" name="body" placeholder="なし"${off}>${esc(b.body)}</textarea></label>
       ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>`}
       <div class="mz-dlg-row">
