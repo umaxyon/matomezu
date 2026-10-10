@@ -148,8 +148,10 @@ export const GRAPH_CSS = `
 .mz-body { font-size: 13px; font-weight: 400; line-height: 1.5; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
 .mz-body[hidden] { display: none; }
 .mz-leaf.mz-has-body { flex-direction: column; align-items: stretch; justify-content: flex-start; }
-.mz-leaf.mz-has-body > .mz-body { margin-top: 4px; padding-top: 4px; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
-.mz-group > .mz-body { color: var(--mz-text); }
+/* キャプションと本文の仕切り（子の無い箱も内包する箱も同じ線。内包する箱は見出しの下から始めるので、上の間は取らない） */
+.mz-has-body > .mz-body { padding-top: 4px; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+.mz-leaf.mz-has-body > .mz-body { margin-top: 4px; }
+.mz-group > .mz-body { color: var(--mz-text); box-sizing: border-box; }
 /* 本文の幅のつまみ。選んでいる箱だけ、右の縁に出す（位置は render.ts。内包する箱は本文の右の縁） */
 .mz-body-grip { display: none; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: ew-resize; pointer-events: auto; z-index: 1; }
 .mz-body-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 3px; height: 22px; max-height: 100%; transform: translateY(-50%); border-radius: 2px; background: var(--mz-select); }
