@@ -116,7 +116,7 @@ import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
   absPos, ancestors, arrowOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
-  overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
+  canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
@@ -923,6 +923,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       shape: shapeOf(n),
       canShape: !isNesting(n) && !inList(n) && n.src.page !== true,
       body: typeof n.src.body === "string" ? n.src.body : "",
+      canBody: canBody(n),
+      bodyRule: n.src.bodyRule !== false,
       inList: inList(n),
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
@@ -974,6 +976,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           setOrDelete(n.src, "caption", String(next.caption ?? ""), next.caption == null || String(next.caption) === "");
         }
         if ("body" in next) setOrDelete(n.src, "body", String(next.body ?? ""), !next.body);
+        if ("bodyRule" in next) setOrDelete(n.src, "bodyRule", false, next.bodyRule !== false);
         if ("bodyWidth" in next) {
           const v = next.bodyWidth; // 値の誤りは checkSettings で断っている
           setOrDelete(n.src, "bodyWidth", v == null ? undefined : Math.round(v), v == null);

@@ -3,6 +3,7 @@
 
 import { createGraph, type Graph, type GraphOptions } from "./graph";
 import { createMinimap, type Minimap } from "./minimap";
+import { openEditDialog } from "./edit-dialog";
 import { createPanel, type Panel, type PanelOptions } from "./panel";
 
 export interface DiagramView {
@@ -24,6 +25,12 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
   stage.addEventListener("pointerdown", e => {
     if (e.target instanceof Element && e.target.closest(".mz-head, .mz-hit") && graph.mode() !== "remove") panel?.tab("info");
+  });
+  // 選択モードで箱をダブルクリックしたら、キャプションと本文の編集ダイアログを開く（見る用のモードでは開かない）
+  stage.addEventListener("dblclick", e => {
+    const node = e.target instanceof Element && e.target.closest(".mz-head") ? e.target.closest<HTMLElement>(".mz-node") : null;
+    if (!node?.dataset.id || graph.mode() !== "move" || graph.preview() != null) return;
+    openEditDialog(graph, node.dataset.id);
   });
   return { graph, panel, minimap };
 }

@@ -57,12 +57,13 @@ export async function select(page: Page, id: number) {
   await expect(node(page, id)).toHaveClass(/mz-current/);
 }
 
-// サイドバーでキャプションを変える（入力して確定する）
+// キャプションを変える（サイドバーの鉛筆のボタンで編集ダイアログを開き、入力して確定する）
 export async function setCaption(page: Page, id: number, text: string) {
   await select(page, id);
-  const input = page.locator('#sidebar [data-edit="caption"]');
-  await input.fill(text);
-  await input.dispatchEvent("change");
+  await page.locator("#sidebar [data-edit-box]").click();
+  await page.locator('.mz-dlg [name="caption"]').fill(text);
+  await page.locator(".mz-dlg [data-ok]").click();
+  await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
 }
 
 // サイドバーの切り替え（サイズ mzp-size、子の見せ方 mzp-view、ツリーの向き mzp-treedir、形 mzp-shape、中身の扱い mzp-overflow）

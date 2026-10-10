@@ -194,6 +194,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.bodyEl.textContent = body;
     n.gripEl.hidden = !body;
     head.classList.toggle("mz-has-body", !!body);
+    head.classList.toggle("mz-body-norule", n.src.bodyRule === false);
 
     n.moreEl.hidden = !(n.children.length && view === "hidden");
     n.moreEl.title = `子 ${n.children.length} 件`;

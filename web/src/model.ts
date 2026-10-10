@@ -164,9 +164,9 @@ export function overflowOf(c: Container): Overflow {
 }
 export const displayCaption = (n: Box) => truncate(captionOf(n), SIZES[sizeOf(n)].limit);
 // 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
-export const bodyOf = (n: Box): string =>
-  typeof n.src.body === "string" && n.src.body && shapeOf(n) === "box" && sizeOf(n) !== "S" && n.src.page !== true
-    && overflowOf(n) !== "clip" ? n.src.body : "";
+export const canBody = (n: Box): boolean =>
+  shapeOf(n) === "box" && sizeOf(n) !== "S" && n.src.page !== true && overflowOf(n) !== "clip";
+export const bodyOf = (n: Box): string => (typeof n.src.body === "string" && n.src.body && canBody(n) ? n.src.body : "");
 // 本文の幅の指定（無ければ 0）
 export const bodyWidthOf = (n: Box): number => (typeof n.src.bodyWidth === "number" && n.src.bodyWidth > 0 ? n.src.bodyWidth : 0);
 

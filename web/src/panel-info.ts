@@ -1,7 +1,8 @@
 // サイドバーの情報タブ。選んでいるもの（ボックス・ワールド・線）の情報と設定を出し、変更を図へ渡す（panel.ts から使う）
 
 import { closeColorPicker, openColorPicker } from "./color-picker";
-import { esc, keyOf } from "./dom";
+import { EMPTY_CAPTION, esc, keyOf } from "./dom";
+import { openEditDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
 import { THEMES, isPaletteName, themeById } from "./theme";
@@ -13,6 +14,8 @@ const OVERFLOW_LABELS: Record<Overflow, string> = {
   clip: "サイズで切り詰める",
 };
 const KIND_LABELS = { group: "グループ", box: "ボックス" };
+// 鉛筆の印（編集ダイアログを開くボタン）
+const PENCIL = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11.5 1.8l2.7 2.7-8.6 8.6-3.4.7.7-3.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.8 3.5l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></svg>';
 const ROUTE_OPTIONS: [string, string][] = [["straight", "直線"], ["elbow", "折れ線"]];
 const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\n" +
   "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります";
@@ -128,9 +131,14 @@ function html(info: Info): string {
       <span class="mzp-kind">${KIND_LABELS[info.kind]}</span>
     </div>`);
 
+    // キャプションと本文の編集は、鉛筆のボタンで開くダイアログにまとめる（箱のダブルクリックでも開く。edit-dialog.ts）
     parts.push(`<div class="mzp-section"><h3>編集</h3>
-      <label class="mzp-field"><span>キャプション</span>
-        <input class="mzp-input" type="text" data-edit="caption" data-target="${esc(info.id)}" value="${esc(info.caption)}"></label>
+      <div class="mzp-caption-row">
+        <span class="mzp-caption-label">キャプション</span>
+        <span class="mzp-caption-text${info.caption ? "" : " mzp-empty"}" title="${esc(info.caption)}">${esc(info.caption || EMPTY_CAPTION)}</span>
+        <button type="button" class="mzp-pencil" data-edit-box="${esc(info.id)}" title="キャプションと本文を編集（箱のダブルクリックでも開きます）" aria-label="キャプションと本文を編集">${PENCIL}</button>
+      </div>
+      ${info.body ? `<div class="mzp-body-preview" title="${esc(info.body)}">${esc(info.body)}</div>` : ""}
     </div>`);
     // 背景色（箱の塗り）はテーマの枠に置く（キャプションの下だと文字の色に見えるため。2026-10-10 ユーザー）
     const valued = !!info.color && !isPaletteName(info.color);
@@ -239,6 +247,8 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (!(e.target instanceof Element)) return;
     const atReset = e.target.closest<HTMLElement>("[data-at-reset]");
     if (atReset) return graph.updateEdge(atReset.dataset.atReset!, { exitAt: null, enterAt: null, via: null });
+    const editBox = e.target.closest<HTMLElement>("[data-edit-box]");
+    if (editBox) return openEditDialog(graph, editBox.dataset.editBox!);
     const align = e.target.closest<HTMLElement>("[data-align]");
     if (align) return graph.alignEdge(align.dataset.align!);
     const capReset = e.target.closest<HTMLElement>("[data-caption-reset]");
@@ -305,7 +315,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     // サイドバーを描き直したあとで確定（change）が届くため、今の info を宛先にすると別の箱に書いてしまう
     const edit = t.dataset.edit;
     if (edit === "edge-caption" && t.dataset.target) return graph.updateEdge(t.dataset.target, { caption: t.value });
-    if (edit === "caption" && t.dataset.target) return graph.update(t.dataset.target, { caption: t.value });
     if (edit === "title") return graph.update(null, { title: t.value });
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
     if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });

@@ -30,17 +30,25 @@ function setup(data: Diagram) {
     else if (value != null) input.value = value;
     input.dispatchEvent(new Event("change", { bubbles: true }));
   };
-  return { g: graph, side, $, click, change, notices };
+  // 鉛筆のボタンで編集ダイアログを開き、キャプションを書いて確定する
+  const editCaption = (text: string) => {
+    click("[data-edit-box]");
+    const input = document.querySelector<HTMLInputElement>('.mz-dlg-overlay [name="caption"]')!;
+    input.value = text;
+    document.querySelector<HTMLElement>(".mz-dlg-overlay [data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  };
+  return { g: graph, side, $, click, change, notices, editCaption };
 }
 
 const box = (g: Graph, id: number) => g.info(id) as BoxInfo;
 
 test("選んだボックスの情報を出し、キャプションと色を変える（色はボタンから開くポップアップの値の欄で）", () => {
-  const { g, $, click, change } = setup({ nodes: [{ id: 1, caption: "API" }] });
+  const { g, $, click, editCaption } = setup({ nodes: [{ id: 1, caption: "API" }] });
   g.select(1);
   expect($(".mzp-title")!.textContent).toBe("API");
-  change('[data-edit="caption"]', "API ゲートウェイ");
+  editCaption("API ゲートウェイ");
   expect(box(g, 1).caption).toBe("API ゲートウェイ");
+  expect($(".mzp-caption-text")!.textContent).toBe("API ゲートウェイ");
   click("[data-color-open]");
   const value = document.querySelector<HTMLInputElement>(".mz-cp-value")!;
   value.value = "#3b82f6";
@@ -51,14 +59,40 @@ test("選んだボックスの情報を出し、キャプションと色を変�
   expect(document.querySelector(".mz-cp")).toBeNull(); // 選ぶものが変わったら閉じる
 });
 
-test("Esc で入力を取り消す", () => {
-  const { g, $ } = setup({ nodes: [{ id: 1, caption: "API" }] });
+test("編集ダイアログ: 鉛筆で開き、キャプションと本文と仕切りの線を 1 件の変更として書く。Esc なら書かずに閉じる", () => {
+  const { g, click } = setup({ nodes: [{ id: 1, caption: "API" }] });
   g.select(1);
-  const input = $<HTMLInputElement>('[data-edit="caption"]')!;
-  input.value = "書きかけ";
-  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  expect($<HTMLInputElement>('[data-edit="caption"]')!.value).toBe("API");
+  click("[data-edit-box]");
+  const dlg = () => document.querySelector<HTMLElement>(".mz-dlg-overlay");
+  const field = <T extends HTMLElement>(name: string) => dlg()!.querySelector<T>(`[name="${name}"]`)!;
+  expect(dlg()).not.toBeNull();
+  expect(field<HTMLInputElement>("caption").value).toBe("API");
+  field<HTMLInputElement>("caption").value = "書きかけ";
+  field<HTMLInputElement>("caption").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  expect(dlg()).toBeNull();
   expect(box(g, 1).caption).toBe("API");
+  // 開き直して、本文と仕切りの線も変えて確定する（Ctrl+Enter）
+  click("[data-edit-box]");
+  field<HTMLInputElement>("caption").value = "API サーバー";
+  field<HTMLTextAreaElement>("body").value = "一行目\n二行目";
+  field<HTMLInputElement>("rule").checked = false;
+  const before = g.history().canUndo;
+  field<HTMLTextAreaElement>("body").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
+  expect(dlg()).toBeNull();
+  expect(g.toJSON().nodes[0]).toMatchObject({ caption: "API サーバー", body: "一行目\n二行目", bodyRule: false });
+  expect(before).toBe(false);
+  g.undo(); // 1 件の変更なので、1 回で全部戻る
+  const n = g.toJSON().nodes[0]!;
+  expect([n.caption, n.body, n.bodyRule]).toEqual(["API", undefined, undefined]);
+});
+
+test("編集ダイアログ: 本文を出せない箱（S・ほかの形）では、本文の欄を使えない", () => {
+  const { g, click } = setup({ nodes: [{ id: 1, caption: "S", size: "S" }] });
+  g.select(1);
+  click("[data-edit-box]");
+  const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
+  expect(dlg.querySelector<HTMLTextAreaElement>('[name="body"]')!.disabled).toBe(true);
+  expect(dlg.textContent).toContain("本文は、形がボックスで S 以外のサイズのときに出せます");
 });
 
 // 解釈できない色を受け付けない動き（panel.ts の CSS.supports での確認）は、ここでは確かめられない。
@@ -255,15 +289,27 @@ test("一覧は、データが変わったときに作り直す。隠れてい�
 test("外部の変更を読み込んでも、選んでいる箱と、入力中の欄の打ちかけの文字とフォーカスを保つ（Esc なら元に戻す）", () => {
   const data = { nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB" }] };
   const { g, $ } = setup(data);
-  g.select(1);
-  const input = () => $<HTMLInputElement>('[data-edit="caption"]')!;
+  g.select(null);
+  const input = () => $<HTMLInputElement>('[data-edit="title"]')!;
   input().focus();
-  input().value = "API サーバー"; // 打ちかけ（まだ確定していない）
+  input().value = "構成図"; // 打ちかけ（まだ確定していない）
   g.load({ nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB（外部で変更）" }] }, { keepHistory: true });
-  expect(g.selected()).toBe("1");
-  expect(input().value).toBe("API サーバー");
+  expect(input().value).toBe("構成図");
   expect(document.activeElement).toBe(input());
   // Esc は打ちかけを捨てて、元の値に戻す
   input().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  expect(input().value).toBe("API");
+  expect(input().value).toBe("");
+});
+
+test("編集ダイアログを開いている間に外部の変更を読み込んでも、打ちかけは残り、確定すると開いた箱に書く", () => {
+  const { g, click } = setup({ nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB" }] });
+  g.select(1);
+  click("[data-edit-box]");
+  const caption = () => document.querySelector<HTMLInputElement>('.mz-dlg-overlay [name="caption"]')!;
+  caption().value = "API サーバー";
+  g.load({ nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB（外部で変更）" }] }, { keepHistory: true });
+  expect(caption().value).toBe("API サーバー");
+  caption().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  expect(box(g, 1).caption).toBe("API サーバー");
+  expect(box(g, 2).caption).toBe("DB（外部で変更）");
 });

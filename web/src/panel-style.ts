@@ -24,6 +24,20 @@ export const PANEL_CSS = `
   }
 }
 .mzp-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; }
+/* キャプションの表示と、編集ダイアログを開く鉛筆のボタン */
+.mzp-caption-row { display: flex; align-items: center; gap: 8px; }
+.mzp-caption-label { flex: none; color: var(--mzp-muted); }
+.mzp-caption-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mzp-caption-text.mzp-empty { color: var(--mzp-muted); }
+.mzp-pencil {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  color: inherit; background: var(--mzp-control); border: 0; border-radius: 6px; cursor: pointer;
+}
+.mzp-pencil:hover { background: var(--mzp-control-hover); }
+.mzp-body-preview {
+  margin-top: 6px; color: var(--mzp-muted); font-size: 12px; white-space: pre-wrap; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+}
 .mzp-swatch {
   width: 14px; height: 14px; border-radius: 4px; flex: none;
   box-shadow: inset 0 0 0 1px var(--mzp-line);

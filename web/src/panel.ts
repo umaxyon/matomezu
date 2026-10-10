@@ -12,6 +12,7 @@
  */
 
 import { closeColorPicker } from "./color-picker";
+import { closeEditDialog } from "./edit-dialog";
 import { injectStyle } from "./dom";
 import type { Graph } from "./graph";
 import { setupHelp } from "./help";
@@ -70,6 +71,6 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     show: next => info.show(next),
     tab,
     othersChanged: list.othersChanged,
-    destroy() { list.destroy(); offHelp(); closeColorPicker(); },
+    destroy() { list.destroy(); offHelp(); closeColorPicker(); closeEditDialog(); },
   };
 }
