@@ -35,6 +35,15 @@ export type Renderer = ReturnType<typeof createRenderer>;
 // 付箋の折り返しの大きさ（px。graph-style.ts の .mz-style-sticky::after と合わせる）
 const FOLD = 12;
 
+// 影の CSS の値（"0 3px 5px rgba(...)"。複数あれば最初の 1 つ）を、SVG の feDropShadow の値にする。読めなければ null
+function parseShadow(css: string): { dx: number; dy: number; blur: number; color: string } | null {
+  const first = css.split(/,(?![^(]*\))/)[0]!.trim();
+  const color = first.match(/rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-f]{3,8}\b|\b[a-z]+\b(?!\()/i)?.[0];
+  const nums = first.replace(color ?? "", " ").match(/-?[\d.]+/g)?.map(Number) ?? [];
+  if (!color || nums.length < 2) return null;
+  return { dx: nums[0]!, dy: nums[1]!, blur: nums[2] ?? 0, color };
+}
+
 // 線のキャプションを線から離せる量（px）
 export const CAPTION_OFFSET_MAX = 60;
 
@@ -59,6 +68,25 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   }
 
   // ---- 描画 ----
+
+  // 形（ひし形・DB・ページの見出し）の影。CSS の drop-shadow を SVG にかけると、SVG の四角い範囲全体がうっすら灰色になる
+  // （Chrome。背景が透けず箱の縁が見える）ので、SVG の中の feDropShadow で本体の図形にだけかける。css は CSS の影の値（変数も可）、null で影なし
+  let shadowSeq = 0;
+  function setShadow(n: Box, css: string | null) {
+    const svg = n.shapeSvg;
+    const body = svg.firstElementChild as SVGElement | null;
+    svg.style.filter = "";
+    svg.querySelector(":scope > defs.mz-shadow-defs")?.remove();
+    if (!body) return;
+    const value = css?.startsWith("var(") ? getComputedStyle(n.head).getPropertyValue(css.slice(4, -1).trim()) : css;
+    const sh = value ? parseShadow(value) : null;
+    if (!sh) { body.removeAttribute("filter"); return; }
+    const id = `mz-shadow-${++shadowSeq}`;
+    // 図形の後ろに置く（本体と縁は先頭の子として扱われるので、順番を変えない）
+    svg.insertAdjacentHTML("beforeend", `<defs class="mz-shadow-defs"><filter id="${id}" x="-50%" y="-50%" width="200%" height="200%">` +
+      `<feDropShadow dx="${sh.dx}" dy="${sh.dy}" stdDeviation="${sh.blur / 2}" flood-color="${sh.color}"/></filter></defs>`);
+    body.setAttribute("filter", `url(#${id})`);
+  }
 
   // 見せ方に合わせて、本体の形・色・文字・子の表示を整える
   function applyStyle(n: Box) {
@@ -126,7 +154,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         // 色の指定が無ければ文字の色で描く（白だと明るいテーマで見えないため）
         svg.style.stroke = own ? color : "var(--mz-text)";
         svg.style.fill = "";
-        svg.style.filter = "";
+        setShadow(n, null);
       } else if (shape === "diamond") {
         // ひし形。頂点は renderDiamond で大きさに合わせて置く
         svg.removeAttribute("viewBox");
@@ -134,7 +162,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.fill = fill ? color : "none";
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.5";
-        svg.style.filter = fill && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
+        setShadow(n, fill ? shadowOf() : null);
       } else if (page) {
         // タブ付きの見出し（フォルダ）。輪郭は renderPage で大きさに合わせて描く
         svg.removeAttribute("viewBox");
@@ -142,14 +170,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.fill = fill ? color : "none";
         svg.style.stroke = borderOf(n) || !fill ? (fill ? edge : color) : "none";
         svg.style.strokeWidth = "1.5";
-        svg.style.filter = fill && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
+        setShadow(n, fill ? shadowOf() : null);
       } else {
         svg.removeAttribute("viewBox");
         svg.innerHTML = '<path class="mz-db-body"/><path class="mz-db-rim" fill="none"/>';
         svg.style.fill = fill ? color : "none";
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.5";
-        svg.style.filter = fill && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
+        setShadow(n, fill ? shadowOf() : null);
       }
     }
 

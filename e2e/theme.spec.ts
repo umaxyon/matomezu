@@ -21,3 +21,33 @@ test("付箋紙にすると余白の分だけ文字の箱が大きくなり、�
   await page.selectOption('select[name="mzp-theme"]', "default");
   expect(await rect(page, 1)).toEqual(before);
 });
+
+test("影のある形（DB・ひし形）は、形の外の四角い範囲に色が付かない（背景が透ける）。影は図形にだけかける", async ({ page }) => {
+  await openDiagram(page, {
+    world: { theme: "sticky", background: "#f8fafc" },
+    nodes: [
+      { id: 1, caption: "DB", shape: "db", color: "danger", x: 40, y: 40 },
+      { id: 2, caption: "分岐", shape: "diamond", x: 300, y: 40 },
+    ],
+  });
+  for (const id of [1, 2]) {
+    const b = (await page.locator(`.mz-node[data-id="${id}"] > .mz-head`).boundingBox())!;
+    const shot = await page.screenshot({ clip: { x: b.x - 10, y: b.y - 10, width: b.width + 20, height: b.height + 20 } });
+    const px = await page.evaluate(async ([src, w, h]) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${src}`;
+      await img.decode();
+      const c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      const x = c.getContext("2d")!;
+      x.drawImage(img, 0, 0);
+      const at = (u: number, v: number) => Array.from(x.getImageData(Math.round(u * img.width / w), Math.round(v * img.height / h), 1, 1).data.slice(0, 3));
+      // 外（範囲の外）、形の外の角（範囲の内側。左上の角から 3px）
+      return { out: at(2, 2), corner: at(13, 13) };
+    }, [shot.toString("base64"), b.width + 20, b.height + 20] as const);
+    // 影のぼかしが届く分の 1 段階は許す（以前は範囲全体が 3 段階暗かった）
+    expect(Math.max(...px.corner.map((v, i) => Math.abs(v - px.out[i]!)))).toBeLessThanOrEqual(1);
+    // 影は SVG の中のフィルターで、本体の図形にだけかける
+    expect(await page.locator(`.mz-node[data-id="${id}"] .mz-shape > :first-child`).getAttribute("filter")).toMatch(/^url\(#mz-shadow-/);
+  }
+});
