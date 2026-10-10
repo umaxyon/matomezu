@@ -65,12 +65,21 @@ export function dragBy(el: HTMLElement, graph: Graph, id: number, dx: number, dy
 }
 
 // 文字の測り方の偽物（happy-dom には配置の計算が無いため）。1 文字 9px、行の高さ 18px、左右の余白 16px、上下 8px。
-// 本体の文字（▼ の印を含む）を数える
-export const fakeMeasure: MeasureText = (head, width) => {
-  const tw = Array.from(head.textContent ?? "").length * 9;
-  const w = width ?? tw + 16;
+// 本体の文字（▼ の印を含む）を数える。本文（.mz-body）は改行ごとの行で数え、キャプションの下に足す（余白なし）
+const bodyLines = (text: string, width: number | null) =>
+  text.split("\n").reduce((s, l) => s + (width == null ? 1 : Math.max(1, Math.ceil(Array.from(l).length * 9 / Math.max(1, width)))), 0);
+const bodyWidth = (text: string) => Math.max(...text.split("\n").map(l => Array.from(l).length * 9));
+export const fakeMeasure: MeasureText = (el, width) => {
+  if (el.classList.contains("mz-body")) {
+    const t = el.textContent ?? "";
+    return [width ?? bodyWidth(t), bodyLines(t, width) * 18];
+  }
+  const bodyEl = el.querySelector<HTMLElement>(":scope > .mz-body");
+  const body = bodyEl && !bodyEl.hidden ? bodyEl.textContent ?? "" : "";
+  const tw = (Array.from(el.textContent ?? "").length - Array.from(bodyEl?.textContent ?? "").length) * 9;
+  const w = width ?? Math.max(tw, body ? bodyWidth(body) : 0) + 16;
   const lines = width == null ? 1 : Math.max(1, Math.ceil(tw / Math.max(1, width - 16)));
-  return [w, lines * 18 + 8];
+  return [w, lines * 18 + 8 + (body ? bodyLines(body, width == null ? null : width - 16) * 18 : 0)];
 };
 
 // 線（polyline）の点の並びと、両端の座標 [x1, y1, x2, y2]

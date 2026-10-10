@@ -23,7 +23,10 @@ export const browserMeasure: MeasureText = (head, width) => {
 };
 
 export interface TextMeasurer {
-  measure(n: Box, width: number | null): [number, number];
+  // 本体（本文があれば本文も含めて）の大きさ。captionOnly なら本文を隠して測る（キャプションだけの幅を知るため）
+  measure(n: Box, width: number | null, captionOnly?: boolean): [number, number];
+  // 本文だけの大きさ（width は本文の幅。内包する箱の見出しの下に置く本文を測る。docs/BODY-plan.md）
+  body(n: Box, width: number | null): [number, number];
   // グループの見出しを 1 行で出すのに要る幅（見出しの左右の余白を含む）。見出しは箱の中に位置を決めて置く
   // （position: absolute）ので、本体を測っても箱の幅に表れない。見出しの要素そのものを測る
   caption(n: Box): number;
@@ -37,13 +40,28 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
   const clear = () => cache.clear();
   if (typeof document !== "undefined") document.fonts?.addEventListener?.("loadingdone", clear);
   return {
-    measure(n, width) {
-      const t = n.textEl;
-      const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}`;
+    measure(n, width, captionOnly = false) {
+      const t = n.textEl, b = n.bodyEl;
+      const body = b && !b.hidden && !captionOnly ? b.textContent : "";
+      const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}|${body}`;
       const hit = cache.get(key);
       if (hit) return hit;
       layoutStats.measures++;
+      const hide = !!b && !b.hidden && captionOnly;
+      if (hide) b.hidden = true;
       const r = measureText(n.head, width);
+      if (hide) b.hidden = false;
+      if (cache.size > 2000) cache.clear();
+      cache.set(key, r);
+      return r;
+    },
+    body(n, width) {
+      const b = n.bodyEl;
+      const key = `body|${n.head.className}|${width}|${b.textContent}`;
+      const hit = cache.get(key);
+      if (hit) return hit;
+      layoutStats.measures++;
+      const r = measureText(b, width);
       if (cache.size > 2000) cache.clear();
       cache.set(key, r);
       return r;

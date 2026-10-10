@@ -51,6 +51,8 @@ export interface InteractionContext {
   reorder(n: Box, index: number): void; // リストの子 n を、兄弟の中で index 番目へ移して並べ直す（データの並び順も）
   resetRoutes(boxes: Box[], passive?: Box[], grabbed?: Box | null): void; // これらの箱につながる線の、自由な端を前に描いた辺の記憶を捨てる（一番よい形を追わせる）。passive は押し出された箱（grabbed との線は除く）
   settleRoutes(n: Box): void;           // 手を離した: つかんだ箱の線で、粘った形が一番よい形より明らかに悪ければ付け替える
+  // 本文の幅を変え始める。width は今の本文の幅（箱の幅として数えたもの）。set で変え、finish で 1 件の履歴に、cancel で元に戻す
+  resizeBody(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -63,7 +65,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // どの種類も同じ形にする。押したときに種類ごとの関数が作って active に入れる。
   // dragging() と reset() は active だけを見るので、種類を足しても数え上げの漏れが起きない
   interface Gesture {
-    kind: "move" | "reorder" | "caption" | "lift" | "bend" | "end";
+    kind: "move" | "reorder" | "caption" | "lift" | "bend" | "end" | "body";
     slop: number;                 // 遊び（px）。押した所から動いた量がこれ以上になるまで move を呼ばない
     move(ev: PointerEvent): void;
     end(ev: PointerEvent): void;  // 手を離した
@@ -179,6 +181,16 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       begin(bendGesture(bent, Number(handle!.dataset.index)), e);
       return;
     }
+    // 本文の幅のつまみ（docs/BODY-plan.md。選択モードで、選んでいる箱だけ出す）
+    const grip = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-body-grip") : null;
+    const gripBox = grip && ctx.mode() === "move" ? boxOf(grip) : undefined;
+    if (gripBox) {
+      e.stopPropagation();
+      e.preventDefault();
+      grip!.setPointerCapture?.(e.pointerId);
+      begin(bodyGesture(gripBox, e), e);
+      return;
+    }
     const n = boxOf(e.target);
     if (!n) {
       if (!onEdge(e.target)) {
@@ -223,6 +235,21 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     n.head.setPointerCapture(e.pointerId);
     begin(moveGesture(d, e), e);
     focus(n);
+  }
+
+  // 本文の幅を変える。つまみを動かした分だけ幅を変え、周りは押しのける（手を離したら確定）
+  function bodyGesture(n: Box, down: PointerEvent): Gesture {
+    const r = ctx.resizeBody(n);
+    let moved = false;
+    return {
+      kind: "body", slop: 0,
+      move(ev) {
+        moved = true;
+        r.set(r.width + ev.clientX - down.clientX);
+      },
+      end() { if (moved) r.finish(); },
+      cancel() { r.cancel(); },
+    };
   }
 
   // リストの子の並べ替え（docs/LIST-plan.md）。つかんだ子はポインタに付いてくる（見た目だけずらす）。

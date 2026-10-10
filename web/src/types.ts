@@ -21,6 +21,8 @@ export interface WorldData {
 export interface BoxData {
   id?: Id; // 省くと読み込み時に連番を振る
   caption?: string;
+  body?: string;       // 本文（キャプションの下に出す長文。改行はそのまま。docs/BODY-plan.md）。普通の箱だけ（S サイズは出さない）
+  bodyWidth?: number;  // 本文の幅（px。箱の幅として数える）。無ければ本文の中身に合わせる。サイズの最大幅は超えない
   parent?: Id;
   x?: number;
   y?: number;
@@ -111,6 +113,7 @@ export interface BoxInfo {
   size: Size;
   shape: Shape;
   canShape: boolean; // 形を選べるか（内包しているグループは枠なので選べない）
+  body: string;      // 本文（無ければ空）。本文を持つ間は、形と S サイズを選べない（docs/BODY-plan.md）
   inList: boolean;   // リストの子か（サイズ・形・子の見せ方を使わない。docs/LIST-plan.md）
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: ChildView;
@@ -184,6 +187,8 @@ export interface Patch {
   background?: string | null;
   theme?: string | null; // 箱かワールドのテーマ。null で消す（親を受け継ぐ）
   caption?: string | null;
+  body?: string | null;      // 空か null で消す
+  bodyWidth?: number | null; // null で中身に合わせる
   color?: string | null;
   size?: Size;
   shape?: Shape;

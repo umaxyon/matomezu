@@ -20,7 +20,7 @@ import {
   ancestors, descendants, inNest, other, overflowOf, setSpec, shapeOf, sizeOf,
 } from "../model";
 import type { TextMeasurer } from "./measure";
-import { createNodeKinds } from "./node-kinds";
+import { BODY_GAP, createNodeKinds } from "./node-kinds";
 import { type Scene, createAnchorRules } from "./policy";
 import { layoutStats } from "./stats";
 import { GROUP_MIN } from "../validate";
@@ -60,11 +60,15 @@ export function createLayout(ctx: LayoutContext) {
   // n につながる線
   const incident = (n: Box) => edges().filter(e => e.a === n || e.b === n);
 
+  // 見出しの下の本文の分（本文が無ければ 0）
+  const bodyTop = (n: Box) => { const b = kindOf(n).name === "nest" ? bodyBlock(n) : null; return b ? b.h + BODY_GAP : 0; };
+
   // 子を置ける領域の内側の余白
   function innerArea(c: Container) {
     return {
       left: opt.padding,
-      top: c.isWorld ? opt.padding : opt.header,
+      // 内包する箱に本文があれば、その下から（docs/BODY-plan.md）
+      top: c.isWorld ? opt.padding : opt.header + bodyTop(c),
       right: opt.padding,
       bottom: opt.padding,
     };
@@ -114,10 +118,11 @@ export function createLayout(ctx: LayoutContext) {
 
   // ---- 大きさ ----
 
-  // 文字の大きさを測る（width が null なら1行のまま）
-  const measure = (n: Box, width: number | null) => ctx.measurer.measure(n, width);
   // 節点の種類（文字の箱、非表示、内包、ツリー）ごとの、大きさの決め方と線がつながる範囲
-  const { kindOf } = createNodeKinds({ opt, measure, caption: n => ctx.measurer.caption(n) });
+  const { kindOf, bodyBlock } = createNodeKinds({
+    opt, measure: (n, w, captionOnly) => ctx.measurer.measure(n, w, captionOnly), body: (n, w) => ctx.measurer.body(n, w),
+    caption: n => ctx.measurer.caption(n),
+  });
 
   // 自分の大きさと本体の矩形を決める（子の大きさと、内包なら子の位置はもう決まっていること）
   const fit = (n: Box) => kindOf(n).measure(n);
@@ -486,7 +491,7 @@ export function createLayout(ctx: LayoutContext) {
 
   return {
     containerOf, siblings, incident, innerArea, fixedSize, syncWorld,
-    kindOf, anchorRect, centerX, fit, refitAncestors,
+    kindOf, bodyBlock, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
     settle, fitToViewport, viewport,

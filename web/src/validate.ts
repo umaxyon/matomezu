@@ -54,6 +54,8 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
   if (s.overflow != null && !isOverflow(s.overflow)) out.push(`overflow の値が不正です: ${where} (${s.overflow})`);
   if (s.size != null && !isSize(s.size)) out.push(`size の値が不正です: ${where} (${s.size})`);
   if (s.shape != null && !isShape(s.shape)) out.push(`shape の値が不正です: ${where} (${s.shape})`);
+  if (s.body != null && typeof s.body !== "string") out.push(`body は文字列にしてください: ${where}`);
+  if (s.bodyWidth != null && !(typeof s.bodyWidth === "number" && s.bodyWidth > 0)) out.push(`bodyWidth は正の数にしてください: ${where} (${s.bodyWidth})`);
   if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(`treeDirection の値が不正です: ${where} (${s.treeDirection})`);
   if (s.childView != null && !isView(s.childView)) out.push(`childView の値が不正です: ${where} (${s.childView})`);
   if (theme && s.theme != null && !isTheme(s.theme)) {

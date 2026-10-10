@@ -139,12 +139,14 @@ function html(info: Info): string {
 
     if (info.canShape) {
       parts.push(`<div class="mzp-section"><h3>形</h3>
-        ${segment("mzp-shape", info.shape, SHAPE_OPTIONS)}
+        ${segment("mzp-shape", info.shape, SHAPE_OPTIONS, info.body
+          ? new Map(SHAPE_OPTIONS.filter(([v]) => v !== "box").map(([v]) => [v, "本文があるので、ボックスのままです"])) : undefined)}
       </div>`);
     }
 
     parts.push(`<div class="mzp-section"><h3>サイズ${helpIcon(SIZE_HELP)}</h3>
-      ${segment("mzp-size", info.size, [["L", "L"], ["M", "M"], ["S", "S"]], info.inList ? allDisabled([["L", ""], ["M", ""], ["S", ""]]) : undefined)}
+      ${segment("mzp-size", info.size, [["L", "L"], ["M", "M"], ["S", "S"]], info.inList ? allDisabled([["L", ""], ["M", ""], ["S", ""]])
+        : info.body ? new Map([["S", "本文があるので S にはできません（S は高さが決まっています）"]]) : undefined)}
       ${info.inList ? `<p class="mzp-hint">${IN_LIST}。幅はリストがそろえます</p>` : ""}
     </div>`);
 

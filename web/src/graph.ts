@@ -127,7 +127,7 @@ import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
-import { ARROWS, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import { ARROWS, DASHES, GROUP_MIN, OVERFLOWS, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -308,6 +308,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     reorder: (n, index) => { reorder(n, index); },
     // 箱につながる線の、自由な端を前に描いた辺の記憶を捨てる（一番よい形を追わせる）。passive は押し出された箱で、つかんだ箱 grabbed との
     // 線は除く（つかんだ箱の線は粘る。docs/EDGE-SPEC.md の A2・A3・A5）
+    resizeBody: n => bodyResizer(n),
     resetRoutes: (boxes, passive = [], grabbed = null) => {
       const set = new Set(boxes), pushed = new Set(passive);
       for (const e of edges) {
@@ -545,6 +546,33 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     renderEdges();
     changed();
     notifySelect();
+  }
+
+  // 本文の幅をつまんで変える（docs/BODY-plan.md の段階 2）。開始時の位置を覚えておき、幅を変えるたびにそこから決め直す
+  // （押しのけた相手は、狭めれば戻る）。手を離したら 1 件の履歴にする
+  function bodyResizer(n: Box) {
+    const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
+    const before = typeof n.src.bodyWidth === "number" ? n.src.bodyWidth : undefined;
+    const group = L.kindOf(n).name === "nest" || L.kindOf(n).name === "list";
+    const width = group ? L.bodyBlock(n)?.w ?? n.hw : n.hw;
+    const z = SIZES[sizeOf(n)];
+    const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
+    const apply = (w: number | undefined) => {
+      restore();
+      setOrDelete(n.src, "bodyWidth", w, w == null);
+      settle(SCENES.resizeBody, n);
+      render();
+    };
+    return {
+      width,
+      set(w: number) { apply(Math.round(Math.max(group ? GROUP_MIN.w : z.minW, Math.min(z.maxW, w)))); },
+      finish() {
+        if (!n.parent) n.intendedCX = centerX(n);
+        changed();
+        notifySelect();
+      },
+      cancel() { apply(before); },
+    };
   }
 
   // 整列: 両端を、今の形での一番よい位置（辺の真ん中か、まっすぐ結べる位置）に固定し、手で直した区間は消す（docs/EDGE-SPEC.md の C1）
@@ -894,6 +922,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       size,
       shape: shapeOf(n),
       canShape: !isNesting(n) && !inList(n) && n.src.page !== true,
+      body: typeof n.src.body === "string" ? n.src.body : "",
       inList: inList(n),
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
@@ -943,6 +972,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         // キャプションが空なら空の箱にし、色が空なら既定色に戻す
         if ("caption" in next) {
           setOrDelete(n.src, "caption", String(next.caption ?? ""), next.caption == null || String(next.caption) === "");
+        }
+        if ("body" in next) setOrDelete(n.src, "body", String(next.body ?? ""), !next.body);
+        if ("bodyWidth" in next) {
+          const v = next.bodyWidth; // 値の誤りは checkSettings で断っている
+          setOrDelete(n.src, "bodyWidth", v == null ? undefined : Math.round(v), v == null);
         }
         if ("color" in next) setOrDelete(n.src, "color", String(next.color ?? ""), !next.color);
         if ("theme" in next) setOrDelete(n.src, "theme", String(next.theme ?? ""), !next.theme);
@@ -1057,7 +1091,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const shapeSvg = document.createElementNS(SVGNS, "svg");
     shapeSvg.setAttribute("class", "mz-shape");
     shapeSvg.setAttribute("aria-hidden", "true");
-    head.append(shapeSvg, textEl, moreEl);
+    const bodyEl = document.createElement("div");
+    bodyEl.className = "mz-body";
+    bodyEl.hidden = true;
+    const gripEl = document.createElement("div");
+    gripEl.className = "mz-body-grip";
+    gripEl.title = "ドラッグで本文の幅を変える";
+    gripEl.hidden = true;
+    head.append(shapeSvg, textEl, bodyEl, gripEl, moreEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
     treeSvg.setAttribute("class", "mz-tree");
     const treePath = document.createElementNS(SVGNS, "path");
@@ -1084,7 +1125,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       intendedCX: NaN,
       capW: 0,
       listW: 0,
-      el, head, textEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
+      el, head, textEl, bodyEl, gripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };
     boxOfEl.set(el, n);
     return n;

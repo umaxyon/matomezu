@@ -34,6 +34,8 @@ export interface Box {
   el: HTMLDivElement;
   head: HTMLDivElement;
   textEl: HTMLDivElement;
+  bodyEl: HTMLDivElement; // 本文（docs/BODY-plan.md。本文が無ければ隠す）
+  gripEl: HTMLDivElement; // 本文の幅を変えるつまみ（本文の右の縁。選んでいるときだけ CSS で出す）
   moreEl: HTMLSpanElement;
   shapeSvg: SVGSVGElement; // スティックマンや DB の絵
   treeSvg: SVGSVGElement;
@@ -159,6 +161,12 @@ export function overflowOf(c: Container): Overflow {
   return c.src.overflow || "grow";
 }
 export const displayCaption = (n: Box) => truncate(captionOf(n), SIZES[sizeOf(n)].limit);
+// 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
+export const bodyOf = (n: Box): string =>
+  typeof n.src.body === "string" && n.src.body && shapeOf(n) === "box" && sizeOf(n) !== "S" && n.src.page !== true
+    && overflowOf(n) !== "clip" ? n.src.body : "";
+// 本文の幅の指定（無ければ 0）
+export const bodyWidthOf = (n: Box): number => (typeof n.src.bodyWidth === "number" && n.src.bodyWidth > 0 ? n.src.bodyWidth : 0);
 
 // t が n 自身か、n の子孫か
 export function isInside(t: Box, n: Box) {

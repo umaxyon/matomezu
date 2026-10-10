@@ -9,7 +9,7 @@ import { selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
-  BEND_MARGIN, absPos, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  BEND_MARGIN, absPos, bodyOf, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -19,7 +19,7 @@ const PERSON_SVG =
   '<g class="mz-figure"><circle cx="18" cy="8" r="6.5"/><path d="M18 14.5V33M5 21.5H31M18 33 7 50M18 33 29 50"/></g>';
 
 export interface RenderContext {
-  opt: { color: string; header: number; treeGapY: number };
+  opt: { color: string; header: number; treeGapY: number; padding: number };
   world: World;
   worldEl: HTMLElement;
   nodes(): Box[];
@@ -188,6 +188,12 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.textEl.style.lineHeight = group ? opt.header + "px" : "";
     n.textEl.textContent = shown;
     head.title = shown !== caption ? caption : "";
+    // 本文（docs/BODY-plan.md）。子の無い箱は本体の中でキャプションの下に、内包する箱は見出しの下に置く（位置は render で）
+    const body = bodyOf(n);
+    n.bodyEl.hidden = !body;
+    n.bodyEl.textContent = body;
+    n.gripEl.hidden = !body;
+    head.classList.toggle("mz-has-body", !!body);
 
     n.moreEl.hidden = !(n.children.length && view === "hidden");
     n.moreEl.title = `子 ${n.children.length} 件`;
@@ -486,6 +492,19 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       h.top = n.hy + "px";
       h.width = n.hw + "px";
       h.height = n.hh + "px";
+      // 内包する箱・リストの親の本文は、見出しの下に幅を決めて置く（子の無い箱では本体の中の流れに任せる）
+      const block = !n.bodyEl.hidden && (isNesting(n) || (viewOf(n) === "list" && n.children.length > 0)) ? L.bodyBlock(n) : null;
+      const b = n.bodyEl.style;
+      b.position = block ? "absolute" : "";
+      b.left = block ? opt.padding + "px" : "";
+      b.top = block ? opt.header + "px" : "";
+      b.width = block ? block.w - 2 * opt.padding + "px" : "";
+      // つまみ: 子の無い箱は本体の右の縁（高さいっぱい）、内包する箱は本文の右の縁
+      const g = n.gripEl.style;
+      g.left = block ? opt.padding + block.w - 2 * opt.padding - 3 + "px" : "";
+      g.right = block ? "auto" : "";
+      g.top = block ? opt.header + "px" : "";
+      g.height = block ? block.h + "px" : "";
       if (shapeOf(n) === "db") renderDb(n);
       if (shapeOf(n) === "diamond") renderDiamond(n);
       if (isPageBox(n)) renderPage(n);

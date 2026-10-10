@@ -87,6 +87,12 @@ export const SCENES = {
     anchor: null, yieldTo: "others", giveWayToLarger: false,
     repack: { w: "down", h: "right" }, fitViewport: false, adoptPlaced: false,
   },
+  // 本文の幅をつまんで変えている間（docs/BODY-plan.md）。開始時の配置から毎回決め直すので、狭めれば押しのけた相手は戻る。
+  // つまみは右の縁にあるので、最上位でも左上を保って右へ伸び縮みする
+  resizeBody: {
+    anchor: { inGroup: "topLeft", topLevel: "topLeft" }, yieldTo: "others", giveWayToLarger: true,
+    repack: null, fitViewport: false, adoptPlaced: false,
+  },
   // ドラッグして手を離したとき（ドラッグ中にどけられなかった兄弟が重なっていれば、相手を下へずらす。
   // ドラッグ中の配置は表では表せないので drag.ts の先頭に決まりがある）
   drop: AFTER_EDIT,
