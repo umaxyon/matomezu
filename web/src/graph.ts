@@ -1038,8 +1038,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("theme" in next) nodes.forEach(applyStyle);
       } else {
         applyStyle(n);
-        // テーマは子孫も受け継ぐ
-        if ("theme" in next) descendants(n).forEach(applyStyle);
+        // テーマは子孫も受け継ぐ。子の見せ方を変えたら、子孫の見た目も変わる（リストの子は、子を持てば非表示の扱いで、
+        // 枠ではなく文字の箱として描き、その子は隠す。リストから戻せば元の見た目）
+        if ("theme" in next || next.childView) descendants(n).forEach(applyStyle);
       }
     };
     settle(SCENES.settings, n.isWorld ? undefined : n, apply);

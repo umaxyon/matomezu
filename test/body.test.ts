@@ -197,3 +197,23 @@ test("bodyLines は 1 以上の整数だけ", () => {
   expect(problems({ nodes: [{ id: 1, bodyLines: 2.5 }] })[0]).toContain("bodyLines は 1 以上の整数");
   expect(problems({ nodes: [{ id: 1, bodyLines: 3 }] })).toEqual([]);
 });
+
+test("子の見せ方をリストにすると、子を持つ子は文字の箱になり（枠ではない）、その子は隠れる。本文も箱に入る。内包に戻すと元に戻る", () => {
+  const { g, node, bodyEl } = setup({
+    nodes: [
+      { id: 1, caption: "根", x: 40, y: 40 },
+      { id: 2, parent: 1, caption: "子", body: "子の本文" },
+      { id: 3, parent: 2, caption: "孫" },
+    ],
+  });
+  const head = (id: number) => node(id).querySelector<HTMLElement>(":scope > .mz-head")!;
+  expect(head(2).classList.contains("mz-group")).toBe(true);
+  g.update(1, { childView: "list" });
+  expect(head(2).classList.contains("mz-group")).toBe(false);
+  expect(node(3).style.display).toBe("none");
+  expect(bodyEl(2).style.position).toBe(""); // 本体の中の流れに置く
+  g.update(1, { childView: "nest" });
+  expect(head(2).classList.contains("mz-group")).toBe(true);
+  expect(node(3).style.display).toBe("");
+  expect(bodyEl(2).style.position).toBe("absolute");
+});
