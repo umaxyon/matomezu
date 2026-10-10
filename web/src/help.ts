@@ -17,7 +17,7 @@ const CSS = `
 }
 .mz-help:hover, .mz-help:focus-visible { opacity: 1; outline: none; }
 .mz-help-tip {
-  position: fixed; z-index: 1000; max-width: 260px; padding: 7px 9px; border-radius: 6px;
+  position: fixed; z-index: 1100; max-width: 260px; padding: 7px 9px; border-radius: 6px;
   font-size: 11.5px; font-weight: normal; line-height: 1.55; white-space: pre-line; pointer-events: none;
   color: #f4f4f5; background: #2e2e34; border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);

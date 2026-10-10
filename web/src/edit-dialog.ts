@@ -9,6 +9,7 @@
  */
 
 import { esc, injectStyle } from "./dom";
+import { helpIcon, setupHelp } from "./help";
 import type { Graph } from "./graph";
 import type { BoxInfo, Patch } from "./types";
 
@@ -50,14 +51,17 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-btn { font: inherit; color: inherit; background: var(--dlg-control); border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
 .mz-dlg-btn.mz-dlg-ok { color: #fff; background: var(--dlg-accent); }
 .mz-dlg-btn:disabled { opacity: 0.45; cursor: default; }
+.mz-dlg-toggle[aria-pressed="true"] { color: #fff; background: var(--dlg-accent); }
+.mz-dlg-lines { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 `;
 
-let open: { overlay: HTMLElement; back: Element | null } | null = null;
+let open: { overlay: HTMLElement; back: Element | null; unhelp: () => void } | null = null;
 
 export function closeEditDialog(): void {
   if (!open) return;
-  const { overlay, back } = open;
+  const { overlay, back, unhelp } = open;
   open = null;
+  unhelp();
   overlay.remove();
   if (back instanceof HTMLElement) back.focus();
 }
@@ -71,32 +75,29 @@ export function openEditDialog(graph: Graph, id: string): void {
   const b = info as BoxInfo;
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   const off = b.canBody ? "" : " disabled";
-  // 本文の幅をつまみで変えていれば、元に戻すボタンを押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
+  // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするボタン
+  // 「箱の幅に合わせる」は、つまみで本文の幅を変えていれば押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
   // 子の無い箱では箱の幅が中身（キャプションと本文）に合わせて決まり直す
-  const group = b.children.length > 0 && (b.childView === "nest" || b.childView === "list");
-  const fitLabel = group ? "箱の幅に合わせる" : "中身に合わせる";
-  const fitHelp = group ? "つまみで狭めた本文を、箱の幅いっぱいに戻します" : "つまみで変えた幅をやめて、キャプションと本文に合わせた幅に戻します";
   const overlay = show("ボックスの編集", `
       <label class="mz-dlg-field"><span>キャプション</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
-      <label class="mz-dlg-field"><span>本文</span>
-        <textarea class="mz-dlg-input" name="body" placeholder="なし"${off}>${esc(b.body)}</textarea></label>
+      <div class="mz-dlg-row">
+        <button type="button" class="mz-dlg-btn mz-dlg-toggle" name="rule" aria-pressed="${b.bodyRule}"${off}>区切り線</button></div>
+      <div class="mz-dlg-field">
+        <textarea class="mz-dlg-input" name="body" placeholder="本文なし" aria-label="本文"${off}>${esc(b.body)}</textarea></div>
       ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>`}
-      <label class="mz-dlg-row"><span>最大行数</span>
-        <select class="mz-dlg-input" name="lines"${off}>
-          <option value=""${b.bodyLines ? "" : " selected"}>制限なし</option>
-          ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${v} 行</option>`).join("")}
-        </select>
-        <span class="mz-dlg-hint">超えた分は … で切ります</span></label>
-      <div class="mz-dlg-row"><span>本文の幅</span>
-        <button type="button" class="mz-dlg-btn" data-width-auto title="${fitHelp}"${b.bodyWidth && b.canBody ? "" : " disabled"}>${fitLabel}</button>
-        <span class="mz-dlg-hint">つまみで幅を変えたときに押せます</span>
-        <input type="hidden" name="width-auto" value=""></div>
-      <label class="mz-dlg-check"><input type="checkbox" name="rule"${b.bodyRule ? " checked" : ""}${off}>キャプションと本文の間に線を引く</label>`,
+      <div class="mz-dlg-row"><span>本文</span>
+        <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>箱の幅に合わせる</button>
+        <input type="hidden" name="width-auto" value="">
+        <label class="mz-dlg-lines">最大行数
+          <select class="mz-dlg-input" name="lines"${off}>
+            <option value=""${b.bodyLines ? "" : " selected"}>制限なし</option>
+            ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${v} 行</option>`).join("")}
+          </select></label>${helpIcon("超えた分は … で切ります")}</div>`,
   overlay => {
     const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
     const caption = field<HTMLInputElement>("caption").value, body = field<HTMLTextAreaElement>("body").value;
-    const rule = field<HTMLInputElement>("rule").checked, linesValue = field<HTMLSelectElement>("lines").value;
+    const rule = field("rule").getAttribute("aria-pressed") === "true", linesValue = field<HTMLSelectElement>("lines").value;
     const patch: Patch = {};
     if (caption !== b.caption) patch.caption = caption;
     if (b.canBody && body !== b.body) patch.body = body || null;
@@ -106,12 +107,12 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (b.bodyWidth && field<HTMLInputElement>("width-auto").value) patch.bodyWidth = null;
     if (Object.keys(patch).length) graph.update(id, patch);
   });
-  // 「箱の幅に合わせる」「中身に合わせる」は確定したときに書く（押したらボタンを押せなくして、押したことを示す）
+  const ruleButton = overlay.querySelector<HTMLElement>('[name="rule"]')!;
+  ruleButton.addEventListener("click", () => ruleButton.setAttribute("aria-pressed", String(ruleButton.getAttribute("aria-pressed") !== "true")));
+  // 「箱の幅に合わせる」は確定したときに書く（押したらボタンを押せなくして、押したことを示す）
   overlay.querySelector<HTMLElement>("[data-width-auto]")!.addEventListener("click", e => {
     overlay.querySelector<HTMLInputElement>('[name="width-auto"]')!.value = "1";
-    const button = e.currentTarget as HTMLButtonElement;
-    button.disabled = true;
-    button.nextElementSibling!.textContent = "確定すると合わせます";
+    (e.currentTarget as HTMLButtonElement).disabled = true;
   });
   // 選んでいる行数は値で決める（option の selected だけに頼らない）
   overlay.querySelector<HTMLSelectElement>('[name="lines"]')!.value = b.bodyLines ? String(b.bodyLines) : "";
@@ -175,7 +176,7 @@ function show(title: string, fields: string, commit: (overlay: HTMLElement) => v
     overlay.addEventListener(type, e => e.stopPropagation());
   }
 
-  open = { overlay, back: document.activeElement };
+  open = { overlay, back: document.activeElement, unhelp: setupHelp(overlay) };
   document.body.appendChild(overlay);
   caption?.focus();
   caption?.select();

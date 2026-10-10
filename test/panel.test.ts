@@ -75,7 +75,7 @@ test("編集ダイアログ: 鉛筆で開き、キャプションと本文と仕
   click("[data-edit-box]");
   field<HTMLInputElement>("caption").value = "API サーバー";
   field<HTMLTextAreaElement>("body").value = "一行目\n二行目";
-  field<HTMLInputElement>("rule").checked = false;
+  field<HTMLElement>("rule").click(); // 区切り線を切る
   const before = g.history().canUndo;
   field<HTMLTextAreaElement>("body").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
   expect(dlg()).toBeNull();
