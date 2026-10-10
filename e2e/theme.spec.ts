@@ -22,7 +22,7 @@ test("付箋紙にすると余白の分だけ文字の箱が大きくなり、�
   expect(await rect(page, 1)).toEqual(before);
 });
 
-test("影のある形（DB・ひし形）は、形の外の四角い範囲に色が付かない（背景が透ける）。影は図形にだけかける", async ({ page }) => {
+test("DB とひし形は、形の外の四角い範囲に色が付かない（背景が透ける）。影はひし形の図形にだけかけ、DB には付けない", async ({ page }) => {
   await openDiagram(page, {
     world: { theme: "sticky", background: "#f8fafc" },
     nodes: [
@@ -47,7 +47,9 @@ test("影のある形（DB・ひし形）は、形の外の四角い範囲に色
     }, [shot.toString("base64"), b.width + 20, b.height + 20] as const);
     // 影のぼかしが届く分の 1 段階は許す（以前は範囲全体が 3 段階暗かった）
     expect(Math.max(...px.corner.map((v, i) => Math.abs(v - px.out[i]!)))).toBeLessThanOrEqual(1);
-    // 影は SVG の中のフィルターで、本体の図形にだけかける
-    expect(await page.locator(`.mz-node[data-id="${id}"] .mz-shape > :first-child`).getAttribute("filter")).toMatch(/^url\(#mz-shadow-/);
+    // 影は SVG の中のフィルターで、本体の図形にだけかける。DB には付けない
+    const filter = await page.locator(`.mz-node[data-id="${id}"] .mz-shape > :first-child`).getAttribute("filter");
+    if (id === 1) expect(filter).toBeNull();
+    else expect(filter).toMatch(/^url\(#mz-shadow-/);
   }
 });

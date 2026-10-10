@@ -177,7 +177,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.fill = fill ? color : "none";
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.5";
-        setShadow(n, fill ? shadowOf() : null);
+        // DB には影を付けない（下の縁が箱の枠で切れて、輪郭に色が付いたように見えるため。2026-10-10 ユーザー）
+        setShadow(n, null);
       }
     }
 
