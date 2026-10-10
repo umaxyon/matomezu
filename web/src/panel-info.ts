@@ -199,18 +199,23 @@ function html(info: Info): string {
         </div>
       </div>`);
     }
+    // 文字のボックス（S・スティックマン以外）は、キャプションを 1 行にして … で切れる（データは overflow: "clip"。docs/SIZE-plan.md の段階 2）。
+    // 1 行の箱は本文を出せないので、本文があれば押せなくする
+    const oneLine = info.overflows.length
+      ? `<label class="mzp-check${info.body ? " mzp-disabled" : ""}"${info.body ? ` title="本文があるので 1 行にできません"` : ""}><input type="checkbox" data-one-line${info.overflow === "clip" ? " checked" : ""}${info.body ? " disabled" : ""}>キャプションを 1 行にする</label>${helpIcon("長いキャプションを折り返さず、… で切ります。幅はサイズの最大まで（幅の指定があればその幅まで）")}`
+      : "";
     parts.push(`<div class="mzp-section"><h3>見た目</h3>
       <label class="mzp-check"><input type="checkbox" data-field="fill"${info.fill ? " checked" : ""}>塗りつぶし</label>
       <label class="mzp-check"><input type="checkbox" data-field="border"${info.border ? " checked" : ""}>枠線</label>
+      ${oneLine}
     </div>`);
   }
 
-  // S サイズや、内包していない親では中身の扱いを使わない
-  if (!info.overflows.length) return parts.join("");
-  const target = info.kind === "box" ? "文字" : "子ボックス";
-  parts.push(`<div class="mzp-section"><h3>中身（${target}）の扱い</h3>${
-    // ワールドでは伸ばすを選べない理由を見せる。文字のボックスには伸ばすを出さない
-    (["wrap", "grow", "clip"] as const).filter(ov => info.kind === "world" || info.overflows.includes(ov)).map(ov => {
+  // 中身の扱いを選べるのはワールドだけ（ボックスは上の「1 行にする」と、子に合わせて伸びる決まり）
+  if (info.kind !== "world") return parts.join("");
+  parts.push(`<div class="mzp-section"><h3>中身（子ボックス）の扱い</h3>${
+    // ワールドでは伸ばすを選べない理由を見せる
+    (["wrap", "grow", "clip"] as const).map(ov => {
       const ok = info.overflows.includes(ov);
       return `<label class="mzp-radio${ok ? "" : " mzp-disabled"}">
         <input type="radio" name="mzp-overflow" value="${ov}"${ov === info.overflow ? " checked" : ""}${ok ? "" : " disabled"}>
@@ -328,6 +333,7 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     const edit = t.dataset.edit;
     if (edit === "title") return graph.update(null, { title: t.value });
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
+    if (t.hasAttribute("data-one-line")) return graph.update(info.id, { overflow: t.checked ? "clip" : "wrap" });
     if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });
     if (t.name === "mzp-shape") return graph.update(info.id, { shape: t.value as Shape });
     if (t.name === "mzp-treedir") return graph.update(info.id, { treeDirection: t.value as TreeDirection });

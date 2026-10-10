@@ -1018,11 +1018,12 @@ describe("サイズの段階", () => {
     expect(graph.info(1).w).toBe(150);
   });
 
-  test("切り詰めるにしたら、今の幅を上限に1行にする。文字を減らせば縮み、増やせば上限の幅で切る", () => {
+  test("キャプションを 1 行にしたら（clip）、サイズの最大の幅を上限に … で切る。文字を減らせば縮み、増やせば上限の幅で切る。幅の指定は書かない", () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: chars(100) }] });
     const before = graph.info(1); // 幅 240 で折り返して高い
     graph.update(1, { overflow: "clip" });
     expect([graph.info(1).w, graph.info(1).h]).toEqual([before.w, 64]);
+    expect("width" in byId(graph.toJSON(), 1)).toBe(false);
     graph.update(1, { caption: "API" });
     expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]); // 中身に合わせて縮む
     graph.update(1, { caption: chars(20) });
@@ -1033,12 +1034,26 @@ describe("サイズの段階", () => {
     expect(graph.info(1).w).toBe(before.w); // 上限の幅で切る
   });
 
-  test("切り詰めるから折り返すに戻すと、固定を外して中身に合わせる", () => {
+  test("1 行の上限は今の幅ではなくサイズの最大（L なら 400）。幅の指定があればその幅", () => {
+    const { graph } = setup({
+      nodes: [
+        { id: 1, caption: "短い", size: "L", x: 40, y: 40 },
+        { id: 2, caption: "短い", size: "L", width: 200, x: 40, y: 300 },
+      ],
+    });
+    graph.update(1, { overflow: "clip" });
+    graph.update(2, { overflow: "clip" });
+    graph.update(1, { caption: chars(100) });
+    graph.update(2, { caption: chars(100) });
+    expect([graph.info(1).w, graph.info(2).w]).toEqual([400, 200]);
+  });
+
+  test("1 行から折り返すに戻すと、データから overflow を消して中身に合わせる", () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: chars(40) }] });
     graph.update(1, { overflow: "clip" });
     graph.update(1, { overflow: "wrap" });
     const out = byId(graph.toJSON(), 1);
-    expect(["width" in out, "height" in out]).toEqual([false, false]);
+    expect(["width" in out, "height" in out, "overflow" in out]).toEqual([false, false, false]);
     graph.update(1, { caption: "API" }); // 文字を減らせば縮む
     expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]);
   });

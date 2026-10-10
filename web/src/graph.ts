@@ -1004,14 +1004,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if (n.isWorld) {
           n.src.overflow = next.overflow as Exclude<Overflow, "grow">;
         } else {
-          // 折り返すに戻したら、切り詰めるときに固定した大きさを外して中身に合わせる
-          if (next.overflow === "wrap") {
-            setSpec(n, "w", 0);
-            setSpec(n, "h", 0);
-          }
-          // 切り詰めるなら、今の幅を上限にする。1 行になるので高さは決めない
-          if (next.overflow === "clip" && !n.specW) setSpec(n, "w", Math.round(n.hw));
-          n.src.overflow = next.overflow;
+          // 文字のボックスのキャプションを 1 行にする（clip）か戻す（wrap）。幅の上限はサイズの最大（幅の指定があればその幅）なので、
+          // 大きさの指定は書かない（docs/SIZE-plan.md の 5 章）。既定の wrap はデータから消す
+          setOrDelete(n.src, "overflow", next.overflow, next.overflow === "wrap");
         }
       }
       if (n.isWorld) {

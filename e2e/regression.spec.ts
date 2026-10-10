@@ -44,10 +44,11 @@ test("押し下げた相手との間隔は、ちょうど 8px", async ({ page })
   }
 });
 
-test("切り詰めるにすると1行になり、文字を減らせば縮み、増やせば上限の幅で切る", async ({ page }) => {
+test("キャプションを 1 行にすると、文字を減らせば縮み、増やせば上限の幅で切る", async ({ page }) => {
   const before = await rect(page, 5);
   await setCaption(page, 5, LONG);
-  await choose(page, 5, "mzp-overflow", "clip");
+  await select(page, 5);
+  await page.locator("#sidebar input[data-one-line]").check();
   expect(await rect(page, 5)).toMatchObject({ w: 240, h: 64 });
   await setCaption(page, 5, "トップ画面");
   expect((await rect(page, 5)).w).toBe(before.w);

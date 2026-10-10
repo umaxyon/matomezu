@@ -92,7 +92,7 @@ test("編集ダイアログ: 本文を出せない箱（S・ほかの形）で�
   click("[data-edit-box]");
   const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
   expect(dlg.querySelector<HTMLTextAreaElement>('[name="body"]')!.disabled).toBe(true);
-  expect(dlg.textContent).toContain("本文は、形がボックスで S 以外のサイズのときに出せます");
+  expect(dlg.textContent).toContain("本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます");
 });
 
 // 解釈できない色を受け付けない動き（panel.ts の CSS.supports での確認）は、ここでは確かめられない。
@@ -161,13 +161,21 @@ test("中身の扱い: ワールドでは伸ばすを選べない", () => {
   expect(g.info(null).overflow).toBe("clip");
 });
 
-test("中身の扱い: 文字のボックスには伸ばすを出さない。グループには中身の扱いもサイズも出さない（docs/SIZE-plan.md）", () => {
-  const { g, $ } = setup({ nodes: [{ id: 1, caption: "グループ", size: "L" }, { id: 2, caption: "文字", parent: 1 }] });
+test("中身の扱い: 文字のボックスは「キャプションを 1 行にする」のチェック。グループには中身の扱いもサイズも出さない（docs/SIZE-plan.md）", () => {
+  const { g, $, change } = setup({ nodes: [{ id: 1, caption: "グループ", size: "L" }, { id: 2, caption: "文字", parent: 1 }, { id: 3, caption: "本文", body: "本文" }] });
   g.select(2);
-  expect($('input[name="mzp-overflow"][value="wrap"]')).not.toBeNull();
-  expect($('input[name="mzp-overflow"][value="grow"]')).toBeNull();
+  expect($('input[name="mzp-overflow"]')).toBeNull();
+  expect($<HTMLInputElement>("input[data-one-line]")!.checked).toBe(false);
+  change("input[data-one-line]", true);
+  expect(g.info(2).overflow).toBe("clip");
+  expect($<HTMLInputElement>("input[data-one-line]")!.checked).toBe(true);
+  change("input[data-one-line]", false);
+  expect(g.info(2).overflow).toBe("wrap");
+  g.select(3);
+  expect($<HTMLInputElement>("input[data-one-line]")!.disabled).toBe(true); // 本文があれば 1 行にできない
   g.select(1);
   expect($('input[name="mzp-overflow"]')).toBeNull();
+  expect($("input[data-one-line]")).toBeNull();
   const sizes = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
   expect(sizes.map(i => [i.disabled, i.checked])).toEqual([[true, false], [true, false], [true, false]]);
 });

@@ -66,7 +66,7 @@ export async function setCaption(page: Page, id: number, text: string) {
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
 }
 
-// サイドバーの切り替え（サイズ mzp-size、子の見せ方 mzp-view、ツリーの向き mzp-treedir、形 mzp-shape、中身の扱い mzp-overflow）
+// サイドバーの切り替え（サイズ mzp-size、子の見せ方 mzp-view、ツリーの向き mzp-treedir、形 mzp-shape、ワールドの中身の扱い mzp-overflow）
 export async function choose(page: Page, id: number, name: string, value: string) {
   await select(page, id);
   await page.locator(`#sidebar label:has(input[name="${name}"][value="${value}"])`).click();

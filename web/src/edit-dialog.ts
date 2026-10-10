@@ -76,7 +76,7 @@ export function openEditDialog(graph: Graph, id: string): void {
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
       <label class="mz-dlg-field"><span>本文</span>
         <textarea class="mz-dlg-input" name="body" placeholder="なし"${off}>${esc(b.body)}</textarea></label>
-      ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズのときに出せます</p>`}
+      ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>`}
       <label class="mz-dlg-row"><span>最大行数</span>
         <select class="mz-dlg-input" name="lines"${off}>
           <option value=""${b.bodyLines ? "" : " selected"}>制限なし</option>
