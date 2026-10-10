@@ -19,7 +19,7 @@ const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折�
   "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります";
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["list", "リスト"], ["hidden", "非表示"]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];
-const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"]];
+const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"], ["diamond", "ひし形"]];
 const VIEW_HELP = "内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\n" +
   "リスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n" +
   "非表示: 子を隠し、▼ で子がいることだけを示します";
@@ -71,15 +71,6 @@ function segment(name: string, value: string, options: [string, string][], disab
   }).join("") + "</div>";
 }
 
-// 向きの指定で選べない値。横か縦に並ぶ箱どうしは、始点と終点の向きをそろえないと素直に引けない（妙な線を引かせない）
-function axisDisabled(info: EdgeInfo, other: Axis | null): Map<string, string> {
-  const out = new Map<string, string>();
-  if (!other || (info.arrangement !== "side" && info.arrangement !== "stack")) return out;
-  const why = `${info.arrangement === "side" ? "横" : "縦"}に並ぶボックスどうしは、始点と終点の向きをそろえます`;
-  for (const v of ["horizontal", "vertical"]) if (v !== other) out.set(v, why);
-  return out;
-}
-
 // 選んだ線の情報: ID とつなぐ箱（始点・終点。押すとその箱を選ぶ）、矢印、消すボタン
 function edgeHtml(info: EdgeInfo): string {
   const has = (side: "start" | "end") => info.arrow === side || info.arrow === "both";
@@ -97,11 +88,11 @@ function edgeHtml(info: EdgeInfo): string {
     ${info.self ? `<div class="mzp-section"><p class="mzp-hint">自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）</p></div>` : `<div class="mzp-section"><h3>通り方</h3>
       ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
     </div>`}
-    ${!info.self && info.route === "elbow" ? `<div class="mzp-section"><h3>向きの指定${helpIcon("左右・上下にすると、その端はその辺から出入りします。横や縦に並ぶボックスどうしは、両端の向きをそろえたときだけ選べます（ボックスを動かしてそろわなくなったら、自動に戻ります）")}</h3>
+    ${!info.self && info.route === "elbow" ? `<div class="mzp-section"><h3>向きの指定${helpIcon("左右・上下にすると、その端はその辺から出入りします。自動の端は、一番折れ目の少ない形になる向きを選びます。指定した向きで引ける形が無ければ、自動に戻ります")}</h3>
       <div class="mzp-subhead">始点</div>
-      ${segment("mzp-exit", info.exit ?? "auto", AXIS_OPTIONS, axisDisabled(info, info.enter))}
+      ${segment("mzp-exit", info.exit ?? "auto", AXIS_OPTIONS)}
       <div class="mzp-subhead">終点</div>
-      ${segment("mzp-enter", info.enter ?? "auto", AXIS_OPTIONS, axisDisabled(info, info.exit))}
+      ${segment("mzp-enter", info.enter ?? "auto", AXIS_OPTIONS)}
     </div>` : ""}
     ${info.endsMoved ? `<div class="mzp-section">
       <button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}">端の位置を自動に戻す</button>${helpIcon("線の両端を、ボックスの中心どうしを結ぶ位置に戻します")}

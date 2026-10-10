@@ -9,6 +9,7 @@
 import type { Arrangement, Axis } from "./types";
 
 import { type Pt, type Rect, pointAt, segmentThroughRect } from "./geom";
+import { perimeter } from "./selfloop";
 
 export type { Pt, Rect };
 
@@ -31,6 +32,9 @@ export interface RouteInput {
   exitAt?: number | null;  // 始点の位置（出る辺の上の割合。null は自動。直線は borderPath、折れ線は sidePath）
   enterAt?: number | null; // 終点の位置
   prevFrame?: string | null; // 前に描いたときの端の位置の基準（EndPaths の frame。変わったら端の位置を自動に戻す）
+  aVertex?: boolean;      // 始点の端を、辺の真ん中（ひし形の頂点）に限る。exitAt は、箱のふちを左上から一周した割合で、
+                          // 一番近い頂点を選ぶのに使う（無ければ自動。自分に戻る線と同じ持ち方。selfloop.ts の perimeter）
+  bVertex?: boolean;      // 終点の端を、辺の真ん中に限る（enterAt は同じく頂点の選択）
 }
 
 // 直線でつなぐ相手のいる向き（始点から見て）。斜めなら "ne" は右上、"se" は右下、"sw" は左下、"nw" は左上。
@@ -183,17 +187,162 @@ export function simplifyVia(a: Rect, b: Rect, s: RouteShape, at: EndsAt = NO_AT)
   return via;
 }
 
-// 線の道筋を決める。端の位置（exitAt / enterAt）は、基準（EndPaths の frame）が前に描いたときと変わったら使わずに自動に戻す
-export function route(r: RouteInput): Route {
+// 線の道筋を決める。端の位置（exitAt / enterAt）は、基準（EndPaths の frame）が前に描いたときと変わったら使わずに自動に戻す。
+// 端を頂点に限る箱（ひし形）は、端の位置を使わず、辺の真ん中から出入りする（折れ線は自動でそうなる。直線は toVertices で寄せる）
+export function route(input: RouteInput): Route {
+  // 頂点に限る端は、辺の真ん中（頂点）に固定する。折れ線は端の位置を使わなければ辺の真ん中から出入りするので、普通の箱と同じ仕組みで引く
+  // （向きの指定・途中の区間・相手の端の位置がそのまま効く）。どの辺から出入りするかは形（exit / enter / via）で決まり、
+  // 端をつまんで別の頂点へ動かしたときは vertexShape の形を書き込む（edge-drag.ts）。
+  // 直線は、exitAt / enterAt を箱のふちを一周した割合として、一番近い頂点を選ぶのに使う（toVertices）
+  const choice = {
+    a: !input.elbow ? pickSide(input.aVertex, input.exitAt, input.a) : null,
+    b: !input.elbow ? pickSide(input.bVertex, input.enterAt, input.b) : null,
+  };
+  const r = { ...input, exitAt: input.aVertex ? null : input.exitAt, enterAt: input.bVertex ? null : input.enterAt };
   const hasAt = r.exitAt != null || r.enterAt != null;
-  const first = routeWith(r, { exitAt: r.exitAt ?? null, enterAt: r.enterAt ?? null });
+  const first = keepSides(routeWith(r, { exitAt: r.exitAt ?? null, enterAt: r.enterAt ?? null }), r, { exitAt: r.exitAt ?? null, enterAt: r.enterAt ?? null });
   let out = first;
   if (hasAt && !first.fix.clearAt && r.prevFrame && first.ends && first.ends.frame !== r.prevFrame) {
     out = routeWith(r, NO_AT);
     out.fix.clearAt = true;
   }
+  if (r.aVertex || r.bVertex) toVertices(out, r, choice);
   out.through = r.obstacles.some(o => passes(out.points, o));
   return out;
+}
+
+// 前に描いたときの出入りする辺を保つ形で引くときの、折れ目の数の上限
+export const STICKY_BENDS = 3;
+
+// 手で直していない折れ線は、前に描いたときに出入りした辺（prevFrame "elbow:<出る辺><入る辺>"）を保つ。その辺のまま、折れ目
+// STICKY_BENDS 以内で、ほかの箱を通らずに引ける形があればそれを使う（箱を動かしても、端を別の辺へ動かすより折れ目を増やす。
+// 2026-10-10 ユーザー）。無ければ一番よい形のまま（以後はその辺を保つ）。向きの指定と合わない辺なら保たない。
+// ドラッグで箱の入れ替えが起きたときは、描く側が prevFrame を消して一番よい形に選び直させる（graph.ts の resetRoutes）
+function keepSides(out: Route, r: RouteInput, at: EndsAt): Route {
+  const f = r.prevFrame;
+  if (!r.elbow || r.via || !f || !f.startsWith("elbow:") || f.length !== 8 || out.arrangement === "overlap") return out;
+  if (out.ends?.frame === f) return out;
+  const s = f[6] as Side, t = f[7] as Side;
+  const ax = axisOfSide(s), bx = axisOfSide(t);
+  if ((r.exit && r.exit !== ax) || (r.enter && r.enter !== bx)) return out;
+  const best = pickCandidate(candidatesWith(r, at, ax, bx, STICKY_BENDS)
+    .filter(c => sideOf(r.a, c.points[0]!) === s && sideOf(r.b, c.points[c.points.length - 1]!) === t));
+  if (!best) return out;
+  return {
+    ...out, points: best.points, shape: best.shape, segments: segmentsOf(r.a, r.b, best.shape, r.margin),
+    ends: elbowEnds(r.a, r.b, ax, bx, best.points),
+  };
+}
+
+// 頂点に限る端の、選んだ頂点の辺（exitAt / enterAt を箱のふちを一周した割合として読む。無ければ null）
+const pickSide = (vertex: boolean | undefined, at: number | null | undefined, rect: Rect): Side | null =>
+  vertex && at != null ? sideOf(rect, pointAt(perimeter(rect), at)) : null;
+
+// 箱 r の、点 p に一番近い辺
+export function sideOf(r: Rect, p: Pt): Side {
+  const d = [Math.abs(p[1] - r.y), Math.abs(p[0] - (r.x + r.w)), Math.abs(p[1] - (r.y + r.h)), Math.abs(p[0] - r.x)];
+  return (["t", "r", "b", "l"] as const)[d.indexOf(Math.min(...d))]!;
+}
+
+// 辺の真ん中（ひし形の頂点）
+function vertexAt(r: Rect, side: Side): Pt {
+  return side === "t" ? [r.x + r.w / 2, r.y] : side === "r" ? [r.x + r.w, r.y + r.h / 2]
+    : side === "b" ? [r.x + r.w / 2, r.y + r.h] : [r.x, r.y + r.h / 2];
+}
+
+// 箱 r の、点 p に一番近い辺の真ん中（ひし形の頂点）
+export function vertexOf(r: Rect, p: Pt): Pt {
+  return vertexAt(r, sideOf(r, p));
+}
+
+const axisOfSide = (side: Side): Axis => (side === "l" || side === "r" ? "horizontal" : "vertical");
+
+// 頂点に限る端の後始末。直線（2 点）は、頂点（選んでいればその頂点）に寄せ、相手が普通の箱で端の位置を決めていなければ、相手の端を合わせる
+// （横に並ぶなら同じ高さ、縦に並ぶなら同じ横位置でまっすぐ。斜めなら相手の中心から頂点へ向かう線が相手の縁と交わる点）。
+// 選んだ頂点で引くと両端の箱の中を通るなら、選ばなかったことにする。折れ線はもう辺の真ん中から出入りしている。
+// 端の基準（ends）は、頂点に限る端ではふち一周の道にする（端をつまんで別の頂点へ動かせる。離した所に一番近い頂点を選ぶ）
+function toVertices(out: Route, r: RouteInput, choice: { a: Side | null; b: Side | null }) {
+  const { a, b } = r;
+  if (out.points.length === 2) {
+    const place = (ca: Side | null, cb: Side | null): [Pt, Pt] => {
+      let [p, q] = out.points as [Pt, Pt];
+      if (r.aVertex) p = ca ? vertexAt(a, ca) : vertexOf(a, p);
+      if (r.bVertex) q = cb ? vertexAt(b, cb) : vertexOf(b, q);
+      // 相手が普通の箱で端の位置を決めていなければ: 折れ線は相手の辺の真ん中に固定する（ひし形を動かしても相手の端が動かないように。
+      // そろわなければ下で折れて結ぶ。2026-10-10 ユーザー）。直線は相手の端をこちらの頂点へ向ける
+      if (r.aVertex && !r.bVertex && r.enterAt == null) q = r.elbow ? vertexOf(b, q) : facePoint(b, q, p, out.arrangement);
+      if (r.bVertex && !r.aVertex && r.exitAt == null) p = r.elbow ? vertexOf(a, p) : facePoint(a, p, q, out.arrangement);
+      return [p, q];
+    };
+    let pts = place(choice.a, choice.b);
+    if ((choice.a || choice.b) && (passes(pts, a) || passes(pts, b))) pts = place(null, null);
+    out.points = pts;
+    // 折れ線なのに、頂点へ寄せたら両端がまっすぐにそろわない（相手の端を辺の真ん中に固定した、ずらしてある、など）なら、
+    // 向きの指定のまま折れて結ぶ形を、折れ目 STICKY_BENDS 以内で探す（斜めの線にしない）。見つからなければ（箱どうしが近くて
+    // 折る余白が無い、など）、相手の端をこちらの頂点にそろえてまっすぐにする（端を動かす。遠回りの線にしない）。
+    // 相手の端の位置をずらしてあって動かせないときだけ、折れ目の多い形も使う。重なっている箱どうし（ドラッグ中）は中心どうしの線のまま
+    const [p, q] = pts;
+    if (r.elbow && out.arrangement !== "overlap" && p[0] !== q[0] && p[1] !== q[1]) {
+      // 向きは箱の並び方で決める（縦に並ぶなら上下、横に並ぶなら左右。斜めなら離れている方）
+      const axis: Axis = out.arrangement === "stack" ? "vertical" : out.arrangement === "side" ? "horizontal"
+        : Math.abs(p[0] - q[0]) < Math.abs(p[1] - q[1]) ? "vertical" : "horizontal";
+      const at = { exitAt: r.exitAt ?? null, enterAt: r.enterAt ?? null };
+      const find = (obstacles: Rect[], maxBends: number) =>
+        pickCandidate(candidatesWith({ ...r, obstacles }, at, r.exit ?? axis, r.enter ?? axis, maxBends, true));
+      let best = find(r.obstacles, STICKY_BENDS) ?? find([], STICKY_BENDS);
+      if (!best) {
+        let [fp, fq] = pts;
+        if (r.aVertex && !r.bVertex && r.enterAt == null) fq = facePoint(b, fq, fp, out.arrangement);
+        if (r.bVertex && !r.aVertex && r.exitAt == null) fp = facePoint(a, fp, fq, out.arrangement);
+        if (fp[0] === fq[0] || fp[1] === fq[1]) {
+          out.points = [fp, fq];
+          best = null;
+        } else {
+          best = find(r.obstacles, MAX_BENDS) ?? find([], MAX_BENDS);
+        }
+      }
+      if (best) {
+        out.points = best.points;
+        out.shape = best.shape;
+        out.segments = segmentsOf(a, b, best.shape, r.margin);
+      }
+    }
+  }
+  if (out.ends) {
+    if (r.aVertex) out.ends = { ...out.ends, exit: perimeter(a) };
+    if (r.bVertex) out.ends = { ...out.ends, enter: perimeter(b) };
+  }
+}
+
+// 折れ線の端（頂点に限る箱の側）を、辺 side の頂点から出入りさせる形。もう一方の端の向きの指定と位置はそのまま使う。
+// ほかの箱を通らない形を、折れ目の少ない方から（無ければ通る形でも）。引けなければ null。端をつまんで別の頂点へ動かしたとき、
+// これを手で直した形として書き込む（以後は普通の線と同じく、向きの指定や途中の区間のドラッグが効く）
+// keep は、もう一方の端が今出入りしている辺（あればその辺を保つ形を先に探す。向きだけでなく左右・上下のどちら側かも変えないため）
+export function vertexShape(input: RouteInput, end: "exit" | "enter", side: Side, keep: Side | null = null): RouteShape | null {
+  const r = { ...input, exitAt: input.aVertex ? null : input.exitAt, enterAt: input.bVertex ? null : input.enterAt };
+  const at = { exitAt: r.exitAt ?? null, enterAt: r.enterAt ?? null };
+  // もう一方の端は、今の辺（keep）を保つ形を先に探す。無ければ向きの指定だけ保ち、それも無ければ向きも縛らずに探す
+  const ends = (pts: Pt[]) => end === "exit"
+    ? [sideOf(r.a, pts[0]!), sideOf(r.b, pts[pts.length - 1]!)] : [sideOf(r.b, pts[pts.length - 1]!), sideOf(r.a, pts[0]!)];
+  const find = (other: Axis | null, obstacles: Rect[], keepSide: Side | null) => {
+    const fixed: [Axis | null, Axis | null] = end === "exit" ? [axisOfSide(side), other] : [other, axisOfSide(side)];
+    return pickCandidate(candidatesWith({ ...r, obstacles }, at, fixed[0], fixed[1]).filter(c => {
+      const [mine, theirs] = ends(c.points);
+      return mine === side && (!keepSide || theirs === keepSide);
+    }));
+  };
+  const other = end === "exit" ? r.enter : r.exit;
+  const keepAxis = keep ? axisOfSide(keep) : other;
+  return (find(keepAxis, r.obstacles, keep) ?? find(keepAxis, [], keep) ??
+    find(other, r.obstacles, null) ?? find(other, [], null) ?? find(null, r.obstacles, null) ?? find(null, [], null))?.shape ?? null;
+}
+
+// 普通の箱 r の端 q を、相手の頂点 v に向けて置き直す
+function facePoint(r: Rect, q: Pt, v: Pt, arr: string): Pt {
+  if (arr === "side" && v[1] >= r.y && v[1] <= r.y + r.h) return [q[0], v[1]];
+  if (arr === "stack" && v[0] >= r.x && v[0] <= r.x + r.w) return [v[0], q[1]];
+  const [cx, cy] = center(r);
+  return clipToRect(cx, cy, r.w, r.h, v[0] - cx, v[1] - cy);
 }
 
 function routeWith(r: RouteInput, at: EndsAt): Route {
@@ -234,9 +383,16 @@ function routeWith(r: RouteInput, at: EndsAt): Route {
     return plain([p, q], ends);
   }
 
-  // 横か縦に並ぶ箱どうしで、指定した両端の向きがそろわなくなったら（箱を動かした）、指定を両方とも自動に戻す
+  // 横か縦に並ぶ箱どうしで、両端の向きの指定がそろわないときは、その組み合わせで引ける形を候補から探す（折れ目の少ない方。
+  // 手で直した形があればそちらが先）。引けなければ、指定を両方とも自動に戻す（2026-10-10 ユーザー。以前はそろわない指定を許さなかった）
   let { exit, enter } = r;
-  if ((arrangement === "side" || arrangement === "stack") && exit && enter && exit !== enter) {
+  if ((arrangement === "side" || arrangement === "stack") && exit && enter && exit !== enter && !r.via) {
+    const find = (obstacles: Rect[]) => pickCandidate(candidatesWith({ ...r, obstacles }, at, exit, enter, MAX_BENDS, true));
+    const best = find(r.obstacles) ?? find([]);
+    if (best) {
+      if (r.bend != null) fix.clearBend = true;
+      return drawn(best.shape, best.points);
+    }
     fix.clearDirections = true;
     exit = enter = null;
   }

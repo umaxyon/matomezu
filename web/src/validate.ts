@@ -24,7 +24,7 @@ export const GROUP_MIN = { w: 120, h: 64 };
 
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 export const VIEWS = ["nest", "tree", "hidden", "list"] as const;
-export const SHAPES = ["box", "person", "db"] as const;
+export const SHAPES = ["box", "person", "db", "diamond"] as const;
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;

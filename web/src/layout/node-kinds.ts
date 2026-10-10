@@ -6,6 +6,8 @@ import { type Box, inList, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from
 import { GROUP_MIN, SIZES } from "../validate";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
+const DIAMOND_TEXT = 0.6; // ひし形の文字を折り返す幅の上限（サイズの最大の幅に対する割合。ひし形はその 2 倍の幅になる）
+const DIAMOND_PAD = 12;   // ひし形の文字と縁の間の余白（内側に収まる四角の、文字のまわり。縦横それぞれ 2 倍して足す）
 
 export interface Rect { x: number; y: number; w: number; h: number }
 
@@ -47,6 +49,16 @@ export function createNodeKinds(ctx: KindContext) {
     const specH = useSpec ? n.specH : 0;
     const maxW = Math.min(z.maxW, n.capW || Infinity);
     const textW = () => Math.max(z.minW, Math.min(maxW, measure(n, null)[0]));
+    if (shapeOf(n) === "diamond") {
+      // ひし形（フローチャートの分岐）: 内側に収まる四角は縦横の半分なので、文字の大きさの 2 倍にする。文字はひし形の幅の半分で折り返す
+      // （graph-style.ts の .mz-shape-diamond > .mz-text の max-width: 50%）。幅の指定があれば、その半分で折り返す
+      // 測るときも文字は本体の幅の半分で折り返すので、本体の幅（文字の幅の 2 倍）で測る。測った高さが文字の高さ（余白は 0）
+      const tw = specW ? specW / 2 - DIAMOND_PAD : Math.min(measure(n, null)[0], maxW * DIAMOND_TEXT);
+      const w = specW || Math.max(z.minW, Math.ceil((tw + DIAMOND_PAD) * 2));
+      n.hw = w;
+      n.hh = Math.max(z.h, Math.ceil((measure(n, w)[1] + DIAMOND_PAD) * 2));
+      return;
+    }
     if (shapeOf(n) === "person") {
       // 人の形と足元の文字。背景が無いので、最小の幅は使わない
       const w = Math.max(PERSON_MIN_W, Math.min(specW || maxW, measure(n, null)[0]));

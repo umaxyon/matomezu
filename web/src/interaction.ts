@@ -49,6 +49,7 @@ export interface InteractionContext {
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
   reorder(n: Box, index: number): void; // リストの子 n を、兄弟の中で index 番目へ移して並べ直す（データの並び順も）
+  resetRoutes(boxes: Box[]): void;      // これらの箱につながる線の、前に描いたときの辺の記憶を捨てる（入れ替えが起きたとき。一番よい形に選び直す）
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -259,6 +260,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     let moved = false;
     let released: Released[] | null = null; // 動かし始めたときに外した、祖先の最小の大きさ
     let session: DragSession | null = null; // 動かし始めたときの位置の写し
+    let swapped: Box[] = [];                // 入れ替えた兄弟（変わったら、線を一番よい形に選び直させる）
     n.el.classList.add("mz-dragging");
     return {
       kind: "move", slop: 0,
@@ -268,6 +270,11 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         session ??= D.begin(n);
         // 置けない位置（広がった祖先が親の枠からはみ出す）なら、置ける所で止めて知らせる
         const reached = session.compute(ox + ev.clientX - sx, oy + ev.clientY - sy);
+        const now = session.swapped();
+        if (now.length !== swapped.length || now.some(o => !swapped.includes(o))) {
+          ctx.resetRoutes([n, ...now, ...swapped]);
+          swapped = [...now];
+        }
         if (n.x !== ox || n.y !== oy) moved = true;
         n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
         n.intendedCX = centerX(n);

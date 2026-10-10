@@ -127,6 +127,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.stroke = own ? color : "var(--mz-text)";
         svg.style.fill = "";
         svg.style.filter = "";
+      } else if (shape === "diamond") {
+        // ひし形。頂点は renderDiamond で大きさに合わせて置く
+        svg.removeAttribute("viewBox");
+        svg.innerHTML = '<polygon class="mz-diamond-body"/>';
+        svg.style.fill = fill ? color : "none";
+        svg.style.stroke = fill ? edge : color;
+        svg.style.strokeWidth = "1.5";
+        svg.style.filter = fill && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
       } else if (page) {
         // タブ付きの見出し（フォルダ）。輪郭は renderPage で大きさに合わせて描く
         svg.removeAttribute("viewBox");
@@ -170,6 +178,12 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     body?.setAttribute("d",
       `M${x0},${top}A${rx},${ry} 0 0 1 ${x1},${top}V${bottom}A${rx},${ry} 0 0 1 ${x0},${bottom}Z`);
     rim?.setAttribute("d", `M${x0},${top}A${rx},${ry} 0 0 0 ${x1},${top}`);
+  }
+
+  // ひし形: 上下左右の辺の真ん中を頂点にする（線は頂点にだけつながる。routing.ts の aVertex / bVertex）
+  function renderDiamond(n: Box) {
+    const x0 = 1, x1 = n.hw - 1, y0 = 1, y1 = n.hh - 1, cx = n.hw / 2, cy = n.hh / 2;
+    n.shapeSvg.firstElementChild?.setAttribute("points", `${cx},${y0} ${x1},${cy} ${cx},${y1} ${x0},${cy}`);
   }
 
   // ページの箱: 左上に耳（タブ）の付いた見出し。耳の高さは graph-style.ts の .mz-shape-page の上の余白と合わせる
@@ -216,11 +230,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   type Abs = { x: number; y: number; w: number; h: number };
   type Pt = [number, number];
 
-  // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
-  function renderEdges() {
-    // 線が通ってほしくない箱: 同じ親を持つ、見えている箱（枠ごと。子孫はその中に入っている）
+  // 線が通ってほしくない箱: 同じ親を持つ、見えている箱（枠ごと。子孫はその中に入っている）。親ごとに一度だけ作る
+  function siblingFrames() {
     const frames = new Map<Box | null, { n: Box; r: Abs }[]>();
-    const siblingsOf = (p: Box | null) => {
+    return (p: Box | null) => {
       let list = frames.get(p);
       if (!list) {
         list = ctx.nodes().filter(n => n.parent === p && !isHidden(n)).map(n => {
@@ -231,29 +244,41 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       }
       return list;
     };
+  }
+
+  // 線の道筋を決める入力（routing.ts）。ほかの箱は、道筋に関わりうるものだけに絞る（scopeObstacles）
+  function routeInputOf(e: Edge, siblingsOf = siblingFrames()): RouteInput {
+    const [ax, ay] = absPos(e.a);
+    const [bx, by] = absPos(e.b);
+    const ra = anchorRect(e.a), rb = anchorRect(e.b);
+    const obstacles = siblingsOf(e.a.parent).filter(o => o.n !== e.a && o.n !== e.b).map(o => o.r);
+    const input: RouteInput = {
+      a: { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
+      b: { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
+      elbow: routeOf(e, ctx.world) === "elbow", exit: exitOf(e), enter: enterOf(e),
+      via: viaOf(e), bend: typeof e.src.bend === "number" ? e.src.bend : null,
+      obstacles, margin: BEND_MARGIN,
+      exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
+      enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
+      prevFrame: e.ends?.frame ?? null,
+      aVertex: shapeOf(e.a) === "diamond", bVertex: shapeOf(e.b) === "diamond",
+    };
+    input.obstacles = scopeObstacles(input);
+    return input;
+  }
+
+  // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
+  function renderEdges() {
+    const siblingsOf = siblingFrames();
     const loops: Edge[] = []; // 自分に戻る線（ほかの線を描いてから、空いている角に描く）
     for (const e of ctx.edges()) {
       const hidden = edgeHidden(e);
       e.el.style.display = hidden ? "none" : "";
       if (hidden) continue;
       if (e.a === e.b) { loops.push(e); continue; }
-      const [ax, ay] = absPos(e.a);
-      const [bx, by] = absPos(e.b);
-      const ra = anchorRect(e.a), rb = anchorRect(e.b);
-      const obstacles = siblingsOf(e.a.parent).filter(o => o.n !== e.a && o.n !== e.b).map(o => o.r);
-      const input: RouteInput = {
-        a: { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
-        b: { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
-        elbow: routeOf(e, ctx.world) === "elbow", exit: exitOf(e), enter: enterOf(e),
-        via: viaOf(e), bend: typeof e.src.bend === "number" ? e.src.bend : null,
-        obstacles, margin: BEND_MARGIN,
-        exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
-        enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
-        prevFrame: e.ends?.frame ?? null,
-      };
       // 道筋は入力だけで決まる（routing.ts は純粋な関数）ので、入力が前と同じなら前の結果を使い回す。
-      // ほかの箱は、道筋に関わりうるものだけに絞る（ドラッグ中に、離れた所で動いている箱のために探し直さない）
-      input.obstacles = scopeObstacles(input);
+      // ほかの箱は、道筋に関わりうるものだけに絞ってある（ドラッグ中に、離れた所で動いている箱のために探し直さない）
+      const input = routeInputOf(e, siblingsOf);
       const key = JSON.stringify(input);
       const r = e.routeMemo?.key === key ? e.routeMemo.route : route(input);
       e.routeMemo = Object.keys(r.fix).length ? null : { key, route: r };
@@ -431,6 +456,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       h.width = n.hw + "px";
       h.height = n.hh + "px";
       if (shapeOf(n) === "db") renderDb(n);
+      if (shapeOf(n) === "diamond") renderDiamond(n);
       if (isPageBox(n)) renderPage(n);
       renderTree(n);
     }
@@ -483,5 +509,5 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const o of ctx.nodes()) o.el.classList.remove("mz-dim");
   }
 
-  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render, blocked, focus, unfocus, toFront };
+  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render, blocked, focus, unfocus, toFront, routeInputOf };
 }

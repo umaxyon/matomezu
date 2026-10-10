@@ -1319,27 +1319,32 @@ describe("線のつなぎ方", () => {
     expect(pts(setup(diagonal({ enter: "horizontal" })).el)).toEqual([[100, 104], [100, 332], [400, 332]]);
   });
 
-  test("向きの指定: 横に並ぶ箱どうしは、左右ならまっすぐ、上下なら下か上を回るコの字（回る道の短い方。同じなら下）。そろわない指定は自動に戻す", () => {
+  test("向きの指定: 横に並ぶ箱どうしは、左右ならまっすぐ、上下なら下か上を回るコの字（回る道の短い方。同じなら下）。そろわない指定も、引ける形があれば使う", () => {
     // 1: 40〜160 × 40〜104、2: 400〜520 × 60〜124（上下の範囲が重なる）
     const side = (edge: Partial<EdgeData>): Diagram =>
       ({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 60 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow", ...edge }] });
     expect(pts(setup(side({ exit: "horizontal", enter: "horizontal" })).el)).toEqual([[160, 82], [400, 82]]);
     expect(pts(setup(side({ exit: "vertical" })).el)).toEqual([[100, 104], [100, 148], [460, 148], [460, 124]]);
-    // そろわない指定は引けないので、両方とも自動に戻す（データからも消す）。線は自動の形（横に並ぶのでまっすぐ）
+    // そろわない指定（右から出て、2 の上か下から入る）も、引ける形があればその形で描き、指定は残す（2026-10-10 ユーザー）
     const { el, graph } = setup(side({ exit: "horizontal", enter: "vertical" }));
-    expect(pts(el)).toEqual([[160, 82], [400, 82]]);
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
+    const p = pts(el);
+    expect(p[0]![0]).toBe(160);
+    expect(p.at(-1)![0]).toBe(460);
+    expect([60, 124]).toContain(p.at(-1)![1]);
+    expect(graph.toJSON().edges![0]).toMatchObject({ exit: "horizontal", enter: "vertical" });
   });
 
-  test("向きの指定: 斜めで L 字に指定した線は、箱を動かして横に並ぶと、指定が自動に戻る", () => {
+  test("向きの指定: 斜めで L 字に指定した線は、箱を動かして横に並んでも、引ける形があれば指定を保つ", () => {
     const { el, graph } = setup(diagonal({ exit: "vertical", enter: "horizontal" }));
     expect(pts(el)).toEqual([[100, 104], [100, 332], [400, 332]]);
     // 2 を 1 の真横（上下の範囲が重なる位置）へ動かす
     dragBy(el, graph, 2, 0, -240, 48);
     expect(graph.info(2).y).toBe(60);
     const e = graph.toJSON().edges![0] as EdgeData;
-    expect([e.exit, e.enter]).toEqual([undefined, undefined]);
-    expect(pts(el).length).toBe(2); // 自動の形（横に並ぶのでまっすぐ）
+    expect([e.exit, e.enter]).toEqual(["vertical", "horizontal"]);
+    const p = pts(el);
+    expect(p[0]![0]).toBe(100); // 1 の上か下（縦）から出て
+    expect(p.at(-1)![0]).toBe(400); // 2 の左（横）から入る
   });
 
   test("向きの指定: 縦に並ぶ箱どうしは、左右なら外を回るコの字（回る道の短い方の側）", () => {

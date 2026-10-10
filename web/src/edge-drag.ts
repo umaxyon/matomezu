@@ -5,7 +5,7 @@ import { SVGNS } from "./dom";
 import { type Box, type Edge, absPos } from "./model";
 import { type Pt, leftNormalAt, nearestAt, pointAt } from "./geom";
 import { CAPTION_OFFSET_MAX } from "./render";
-import { simplifyVia } from "./routing";
+import { type RouteInput, sideOf, simplifyVia, vertexShape } from "./routing";
 import { perimeter } from "./selfloop";
 
 export interface EdgeDragContext {
@@ -15,6 +15,7 @@ export interface EdgeDragContext {
   redraw(): void;          // 線を描き直す
   edited(e: Edge): void;   // e.src を書き換えた（描き直し、選んでいる線ならサイドバーに知らせる）
   committed(e: Edge): void; // ドラッグを終えた（1 件の履歴に残し、選んでいる線ならサイドバーに知らせる）
+  routeInput(e: Edge): RouteInput; // 線の道筋を決める入力（render.ts。ひし形の端を別の頂点へ動かすときに形を探す）
 }
 
 export type EdgeDrag = ReturnType<typeof createEdgeDrag>;
@@ -103,6 +104,24 @@ export function createEdgeDrag(ctx: EdgeDragContext) {
         showSnap(target);
         e.src[end === "exit" ? "exitAt" : "enterAt"] = Math.round(nearestAt(perimeter(edgeRect(e.a)), px, py) * 1000) / 1000;
         ctx.edited(e);
+        return;
+      }
+      // ひし形（頂点に限る端）の折れ線: 離した所に一番近い頂点の辺から出入りする形を選び、手で直した形として書き込む
+      // （以後は普通の線と同じく、向きの指定や途中の区間のドラッグが効く）。直線は下の続きで、ふち一周の割合を持つ（routing.ts）
+      const input = ctx.routeInput(e);
+      if (input.elbow && (end === "exit" ? input.aVertex : input.bVertex)) {
+        const box = end === "exit" ? input.a : input.b;
+        // もう一方の端が今出入りしている辺は保つ（向きだけでなく、左右・上下のどちら側かも）
+        const keep = e.points.length >= 2
+          ? end === "exit" ? sideOf(input.b, e.points[e.points.length - 1]!) : sideOf(input.a, e.points[0]!) : null;
+        const shape = vertexShape(input, end, sideOf(box, pointAt(path, t)), keep);
+        if (shape) {
+          e.src.exit = shape.exit;
+          e.src.enter = shape.enter;
+          e.src.via = shape.via;
+          delete e.src[end === "exit" ? "exitAt" : "enterAt"];
+          ctx.edited(e);
+        }
         return;
       }
       // 同じ箱の、この端が動ける辺の上にあるほかの線の端に SNAP_DISTANCE まで近づいたら、その点に合わせる（値をそろえるだけ。

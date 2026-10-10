@@ -160,6 +160,10 @@ export const GRAPH_CSS = `
 .mz-leaf.mz-size-S.mz-shape-db { padding-top: 14px; padding-bottom: 7px; }
 .mz-shape-db > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .mz-shape-db > .mz-text { position: relative; }
+/* ひし形（フローチャートの分岐）: 形は SVG で描く。文字は幅の半分で折り返す（内側に収まる四角は縦横の半分。node-kinds.ts の DIAMOND_TEXT） */
+.mz-leaf.mz-shape-diamond { padding: 0; background: transparent; overflow: visible; } /* 影を本体の四角で切らない */
+.mz-shape-diamond > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mz-shape-diamond > .mz-text { position: relative; max-width: 50%; }
 /* ページの箱（タブ付きの見出し）。上の余白は耳の分（render.ts の renderPage と合わせる） */
 .mz-leaf.mz-shape-page { padding-top: 13px; background: transparent; }
 .mz-leaf.mz-size-S.mz-shape-page { padding-top: 8px; }

@@ -295,11 +295,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       svg, edges: () => edges, anchorRect: n => L.anchorRect(n), redraw: () => renderEdges(),
       edited: e => { renderEdges(); if (currentEdge === e) notifySelect(); },
       committed: e => { changed(); if (currentEdge === e) notifySelect(); },
+      routeInput: e => R.routeInputOf(e),
     }),
     paste: (copy, parentId, at, from) => { paste(copy, parentId, at, from); },
     liftOver: (x, y) => opt.onLiftOver?.(x, y),
     liftEnd: () => opt.onLiftEnd?.(),
     reorder: (n, index) => { reorder(n, index); },
+    resetRoutes: boxes => {
+      const set = new Set(boxes);
+      for (const e of edges) if (set.has(e.a) || set.has(e.b)) { e.ends = null; e.routeMemo = null; }
+    },
     // 一覧からドラッグして戻した（選択モードへの切り替えは、知らせを受けた画面の側で決める。notices.ts）
     restore: (id, parentId, at) => { restore(id, parentId, at, true); },
   }, L, R, createDrag(opt, L));
