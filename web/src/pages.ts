@@ -1,6 +1,7 @@
 // ブックの中のページ（docs/TABS-plan.md）。データ（BoxData の並び）だけを見る関数。DOM に依存しない。
 // page: true のボックスの中身が 1 枚のページになる。ページは入れ子にしない。それ以外の箱は最初のページ（null）にある
 
+import { keyOf } from "./dom";
 import { normalizeEdge } from "./validate";
 import type { BoxData, Diagram, EdgeData, Id, Items, ListItem } from "./types";
 
@@ -44,13 +45,14 @@ export function subtreeIds(nodes: BoxData[], id: Id): Set<string> {
 // ブックのページの箱（page: true）。データの並び順
 export const pageBoxes = (nodes: BoxData[]) => nodes.filter(s => s.page === true);
 
-// データの箱のキャプション（空なら id）
+// データの箱のキャプション（無ければ空）
 export const captionOfData = (s: BoxData | undefined) =>
-  s == null ? "" : s.caption != null && s.caption !== "" ? String(s.caption) : String(s.id);
+  s == null || s.caption == null ? "" : String(s.caption);
 
 // ページの名前（最初のページは決まった名前）
+// キャプションが空のページは「id_(空)」
 export const pageNameOf = (nodes: BoxData[], p: string | null) =>
-  p == null ? "最初のページ" : captionOfData(nodes.find(s => String(s.id) === p));
+  p == null ? "最初のページ" : captionOfData(nodes.find(s => String(s.id) === p)) || keyOf(p, "");
 
 // 一覧の「表示中」とページ（ブック全体）。表示中の箱は、載っているページを添える（ページの箱の直下の子は、親を出さない）。
 // current は今描いているページ（ほかのブックの一覧なら undefined で、どのページも current にしない）
@@ -61,7 +63,7 @@ export function liveItems(nodes: BoxData[], current: string | null | undefined, 
     return {
       id: String(s.id), caption: captionOfData(s),
       color: typeof s.color === "string" && s.color ? s.color : defaultColor,
-      parent: p && p.page !== true ? captionOfData(p) : null,
+      parent: p && p.page !== true ? captionOfData(p) || keyOf(p.id, "") : null,
       page: pageOf(nodes, s.id!),
     };
   });

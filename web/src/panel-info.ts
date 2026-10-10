@@ -81,7 +81,7 @@ function edgeHtml(info: EdgeInfo): string {
     </dl></div>
     <div class="mzp-section"><h3>編集</h3>
       <label class="mzp-field"><span>キャプション</span>
-        <input class="mzp-input" type="text" data-edit="edge-caption" value="${esc(info.caption ?? "")}" placeholder="なし"></label>
+        <input class="mzp-input" type="text" data-edit="edge-caption" data-target="${esc(info.id)}" value="${esc(info.caption ?? "")}" placeholder="なし"></label>
       ${info.caption && info.captionMoved ? `<button type="button" class="mzp-chip" data-caption-reset="${esc(info.id)}">キャプションの位置を自動に戻す</button>` : ""}
     </div>
     ${info.self ? `<div class="mzp-section"><p class="mzp-hint">自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）</p></div>` : `<div class="mzp-section"><h3>通り方</h3>
@@ -130,7 +130,7 @@ function html(info: Info): string {
 
     parts.push(`<div class="mzp-section"><h3>編集</h3>
       <label class="mzp-field"><span>キャプション</span>
-        <input class="mzp-input" type="text" data-edit="caption" value="${esc(info.caption)}"></label>
+        <input class="mzp-input" type="text" data-edit="caption" data-target="${esc(info.id)}" value="${esc(info.caption)}"></label>
     </div>`);
     // 背景色（箱の塗り）はテーマの枠に置く（キャプションの下だと文字の色に見えるため。2026-10-10 ユーザー）
     const valued = !!info.color && !isPaletteName(info.color);
@@ -299,9 +299,11 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
       const start = on("start"), end = on("end");
       return graph.updateEdge(info.id, { arrow: start && end ? "both" : start ? "start" : end ? "end" : null });
     }
+    // 文字入力は、打っていたときの箱・線へ書く（data-target）。別の箱をクリックしてフォーカスが外れると、選択が切り替わって
+    // サイドバーを描き直したあとで確定（change）が届くため、今の info を宛先にすると別の箱に書いてしまう
     const edit = t.dataset.edit;
-    if (edit === "edge-caption" && info.kind === "edge") return graph.updateEdge(info.id, { caption: t.value });
-    if (edit === "caption") return graph.update(info.id, { caption: t.value });
+    if (edit === "edge-caption" && t.dataset.target) return graph.updateEdge(t.dataset.target, { caption: t.value });
+    if (edit === "caption" && t.dataset.target) return graph.update(t.dataset.target, { caption: t.value });
     if (edit === "title") return graph.update(null, { title: t.value });
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
     if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });

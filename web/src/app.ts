@@ -14,6 +14,7 @@
  * - サイドバーの一覧の「他ブックも表示」には、ほかに開いているブックの箱を出す（行を図へドラッグすると移植。docs/TABS-plan.md 4.3）。
  */
 
+import { keyOf } from "./dom";
 import { loadSavedBooks, saveBooks, wantedFromUrl, writeUrl } from "./app-location";
 import { type EventConnection, connectEvents } from "./events";
 import type { Graph } from "./graph";
@@ -76,7 +77,7 @@ function pagesInData(data: unknown): { id: string; caption: string }[] {
   const nodes = (data as { nodes?: unknown })?.nodes;
   if (!Array.isArray(nodes)) return [];
   return nodes.filter(n => n && n.page === true && n.id != null)
-    .map(n => ({ id: String(n.id), caption: n.caption != null && n.caption !== "" ? String(n.caption) : String(n.id) }));
+    .map(n => ({ id: String(n.id), caption: n.caption != null && n.caption !== "" ? String(n.caption) : keyOf(n.id, "") }));
 }
 
 export async function startApp(ui: AppUi) {

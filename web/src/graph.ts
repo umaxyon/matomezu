@@ -940,7 +940,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // settle が保つ位置を覚えてから apply を呼ぶ
     const apply = () => {
       if (!n.isWorld) {
-        // キャプションが空なら id を表示し、色が空なら既定色に戻す
+        // キャプションが空なら空の箱にし、色が空なら既定色に戻す
         if ("caption" in next) {
           setOrDelete(n.src, "caption", String(next.caption ?? ""), next.caption == null || String(next.caption) === "");
         }

@@ -1,7 +1,7 @@
 // サイドバーの追加削除タブ。全ボックスの一覧（表示中と、消したもの）と、ほかのブックの箱（panel.ts から使う）。
 // 表示中の行の × で消し、消したものの行を図へドラッグすると戻る。ほかのブックの行を図へドラッグすると移植する
 
-import { esc } from "./dom";
+import { EMPTY_CAPTION, esc } from "./dom";
 import { COPY_MIME, type Graph, REMOVED_MIME } from "./graph";
 import { helpIcon } from "./help";
 import { copySubtree, liveItems } from "./pages";
@@ -12,7 +12,7 @@ import type { Diagram, Items, ListItem } from "./types";
 // キャプションは「id_」を付けて幅に入るだけ出し、はみ出た分は … にする（CSS）。全文はポインタを乗せると出る
 function row(item: ListItem, removed: boolean, selectable = true, copyFrom?: string): string {
   const parent = item.parent != null ? `<span class="mzp-row-parent">${esc(item.parent)} の中</span>` : "";
-  const caption = item.caption.replace(/\s+/g, " ").trim();
+  const caption = item.caption.replace(/\s+/g, " ").trim() || EMPTY_CAPTION;
   const attrs = copyFrom != null
     ? ` class="mzp-row mzp-copy" draggable="true" data-copy-book="${esc(copyFrom)}" data-copy="${esc(item.id)}" title="図へドラッグすると、この図にコピーします（子と、中の線も）"`
     : removed

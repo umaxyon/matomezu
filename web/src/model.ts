@@ -95,7 +95,8 @@ export function setOrDelete<T extends object, K extends keyof T>(obj: T, key: K,
 
 // ---- ボックスの関係 ----
 
-export const captionOf = (n: Box) => (n.src.caption != null ? String(n.src.caption) : String(n.src.id));
+// キャプション（無ければ空。空の箱も作れる。2026-10-10 ユーザー。以前は id を出していた）
+export const captionOf = (n: Box) => (n.src.caption != null ? String(n.src.caption) : "");
 
 export function ancestors(n: Box): Box[] {
   const out: Box[] = [];

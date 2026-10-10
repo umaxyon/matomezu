@@ -62,10 +62,13 @@ export function truncateWidth(text: string, limit: number): string {
   return out;
 }
 
+// キャプションが空の箱を、一覧などで示す文字
+export const EMPTY_CAPTION = "(空)";
+
 // ボックスを短く示すキー: 「id_キャプションの先頭（全角 8 文字分、半角なら 16 文字）」。超えたら … を付ける。
-// 同じ書き出しのボックスが並んでも見分けられるよう id を付ける。改行や続く空白は 1 つの空白にする
+// 同じ書き出しのボックスが並んでも見分けられるよう id を付ける。改行や続く空白は 1 つの空白にする。空なら「id_(空)」
 export const keyOf = (id: unknown, caption: string) =>
-  `${id}_${truncateWidth(caption.replace(/\s+/g, " ").trim(), 16)}`;
+  `${id}_${truncateWidth(caption.replace(/\s+/g, " ").trim(), 16) || EMPTY_CAPTION}`;
 
 export const esc = (s: unknown): string =>
   String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
