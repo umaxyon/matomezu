@@ -169,7 +169,8 @@ export const isPageBox = (n: Box) => n.src.page === true && !n.children.length;
 export const fillOf = (n: Box) => n.src.fill !== false;
 export const borderOf = (n: Box) => (n.src.border != null ? !!n.src.border : isNesting(n));
 export function overflowOf(c: Container): Overflow {
-  if (c.isWorld) return c.src.overflow === "clip" ? "clip" : "wrap";
+  // ワールドの大きさは表示領域と箱の範囲で決まり、はみ出すものがほとんど無いので、中身の扱いを使わない（データの overflow は無視する。2026-10-11）
+  if (c.isWorld) return "wrap";
   // 文字のボックスは伸ばさない（伸ばすと折り返しに戻せなくなる）。子を持つ箱はつねに子に合わせて伸ばす（データの overflow は無視する。
   // 図が幅を決め、文字は図の都合で折り返す。docs/SIZE-plan.md）
   if (!c.children.length) return c.src.overflow === "clip" ? "clip" : "wrap";

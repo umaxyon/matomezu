@@ -17,7 +17,7 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, descendants, inNest, other, overflowOf, setSpec, shapeOf, sizeOf,
+  ancestors, descendants, inNest, other, setSpec, shapeOf, sizeOf,
 } from "../model";
 import type { TextMeasurer } from "./measure";
 import { BODY_GAP, createNodeKinds } from "./node-kinds";
@@ -109,7 +109,6 @@ export function createLayout(ctx: LayoutContext) {
     world.h = Number(s.height) || Math.max(v.h, bottom);
     worldEl.style.width = world.w + "px";
     worldEl.style.height = world.h + "px";
-    worldEl.classList.toggle("mz-ov-clip", overflowOf(world) === "clip");
   }
 
   // ---- 大きさ ----

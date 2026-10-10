@@ -153,12 +153,14 @@ test("子のサイズのボタンは、そろえられる子が2つ以上ある�
   expect(notices.at(-1)).toBe("子 2 個の幅をそろえました");
 });
 
-test("中身の扱い: ワールドでは伸ばすを選べない", () => {
-  const { g, $, change } = setup({ nodes: [{ id: 1 }] });
+test("ワールドには中身の扱いを出さず、データの overflow は無視する（書き換えない）", () => {
+  const { g, $ } = setup({ world: { overflow: "clip" }, nodes: [{ id: 1 }] });
   g.select(null);
-  expect($<HTMLInputElement>('input[name="mzp-overflow"][value="grow"]')!.disabled).toBe(true);
-  change('input[name="mzp-overflow"][value="clip"]', true);
-  expect(g.info(null).overflow).toBe("clip");
+  expect($('input[name="mzp-overflow"]')).toBeNull();
+  expect(g.info(null).overflow).toBe("wrap");
+  expect(() => g.update(null, { overflow: "clip" })).toThrow();
+  expect(g.toJSON().world!.overflow).toBe("clip");
+  expect(document.querySelector(".mz-world")!.classList.contains("mz-ov-clip")).toBe(false);
 });
 
 test("中身の扱い: 文字のボックスは「キャプションを 1 行にする」のチェック。グループには中身の扱いもサイズも出さない（docs/SIZE-plan.md）", () => {

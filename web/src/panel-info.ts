@@ -6,13 +6,8 @@ import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
 import { THEMES, isPaletteName, themeById } from "./theme";
-import type { Brief, ChildView, Dash, EdgeInfo, Info, Overflow, Route, Shape, Size, TreeDirection } from "./types";
+import type { Brief, ChildView, Dash, EdgeInfo, Info, Route, Shape, Size, TreeDirection } from "./types";
 
-const OVERFLOW_LABELS: Record<Overflow, string> = {
-  wrap: "幅に合わせて折り返す",
-  grow: "中身に合わせて伸ばす",
-  clip: "サイズで切り詰める",
-};
 const KIND_LABELS = { group: "グループ", box: "ボックス" };
 // 鉛筆の印（編集ダイアログを開くボタン）
 const PENCIL = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11.5 1.8l2.7 2.7-8.6 8.6-3.4.7.7-3.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.8 3.5l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></svg>';
@@ -208,17 +203,6 @@ function html(info: Info): string {
     </div>`);
   }
 
-  // 中身の扱いを選べるのはワールドだけ（ボックスは上の「1 行にする」と、子に合わせて伸びる決まり）
-  if (info.kind !== "world") return parts.join("");
-  parts.push(`<div class="mzp-section"><h3>中身（子ボックス）の扱い</h3>${
-    // ワールドでは伸ばすを選べない理由を見せる
-    (["wrap", "grow", "clip"] as const).map(ov => {
-      const ok = info.overflows.includes(ov);
-      return `<label class="mzp-radio${ok ? "" : " mzp-disabled"}">
-        <input type="radio" name="mzp-overflow" value="${ov}"${ov === info.overflow ? " checked" : ""}${ok ? "" : " disabled"}>
-        ${OVERFLOW_LABELS[ov]}</label>${ok ? "" : '<div class="mzp-note">ワールドより外には伸ばせません</div>'}`;
-    }).join("")
-  }</div>`);
   return parts.join("");
 }
 
@@ -331,7 +315,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (edit === "title") return graph.update(null, { title: t.value });
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
     if (t.hasAttribute("data-one-line")) return graph.update(info.id, { overflow: t.checked ? "clip" : "wrap" });
-    if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });
     if (t.name === "mzp-shape") return graph.update(info.id, { shape: t.value as Shape });
     if (t.name === "mzp-treedir") return graph.update(info.id, { treeDirection: t.value as TreeDirection });
     if (t.name === "mzp-view") return graph.update(info.id, { childView: t.value as ChildView });

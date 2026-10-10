@@ -63,7 +63,6 @@ export const GRAPH_CSS = `
   --mz-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .mz-world { position: absolute; left: 0; top: 0; }
-.mz-world.mz-ov-clip { overflow: hidden; }
 .mz-world > svg {
   position: absolute; inset: 0; width: 100%; height: 100%;
   pointer-events: none; z-index: 5; overflow: visible;

@@ -41,7 +41,7 @@
  *
  * データ形式:
  *   {
- *     "world": { "width": 1600, "height": 900, "overflow": "wrap" },
+ *     "world": { "width": 1600, "height": 900 },
  *     "nodes": [
  *       { "id": 1, "caption": "グループ", "color": "#3b82f6", "childView": "tree" },
  *       { "id": 2, "caption": "A", "parent": 1, "size": "M" },
@@ -71,12 +71,11 @@
  *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）
  *     treeDirection はツリーで子を置く向き: "down"（既定）/ "up" / "left" / "right"
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
- *   - overflow は文字のボックスとワールドの中身の扱い:
+ *   - overflow は文字のボックスの中身の扱い:
  *       "wrap" … 幅に合わせて折り返す（既定）
- *       "clip" … 文字のボックスは 1 行にし、width を幅の上限にする（文字が少なければ縮み、多ければ … で切る）。
- *                ワールドは大きさで切り詰める
+ *       "clip" … 1 行にし、サイズの最大（width があればその幅）を幅の上限にする（文字が少なければ縮み、多ければ … で切る）
  *     S サイズでは使わない。子を持つボックスはつねに子に合わせて伸び、overflow・width・height を使わない
- *     （データにあっても無視する。図が幅を決め、文字は図の都合で折り返す。docs/SIZE-plan.md）。
+ *     （データにあっても無視する。図が幅を決め、文字は図の都合で折り返す。docs/SIZE-plan.md）。ワールドの overflow も使わない。
  *   - 線は同じ parent を持つボックス同士（最上位同士を含む）でだけ引ける。
  *     ツリーの子同士の線は描かない（データには残り、内包に戻すと表示される）。
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
@@ -126,7 +125,7 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isPaletteName, isTheme, themeBy
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
+import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Patch } from "./types";
 import { ARROWS, DASHES, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
@@ -894,7 +893,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         children: roots.map(brief),
         links: [],
         overflow: overflowOf(world),
-        overflows: ["wrap", "clip"],
+        overflows: [],
         background: world.src.background || null,
         backgroundPaint: backgroundOf(),
         theme: isTheme(world.src.theme) ? world.src.theme : null,
@@ -968,7 +967,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = nodeOf(id);
     const next = { ...patch };
     checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id);
-    if (n.isWorld && next.overflow === "grow") throw new Error("ワールドは伸ばせません");
+    if (n.isWorld && next.overflow) throw new Error("ワールドには中身の扱いがありません");
     if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error("文字のボックスは伸ばせません");
     if (!n.isWorld && n.children.length && next.overflow) throw new Error("子を持つボックスは、つねに子に合わせて伸びます");
 
@@ -1002,13 +1001,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if (next.treeDirection) setOrDelete(n.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
       }
       if (next.overflow && next.overflow !== overflowOf(n)) {
-        if (n.isWorld) {
-          n.src.overflow = next.overflow as Exclude<Overflow, "grow">;
-        } else {
-          // 文字のボックスのキャプションを 1 行にする（clip）か戻す（wrap）。幅の上限はサイズの最大（幅の指定があればその幅）なので、
-          // 大きさの指定は書かない（docs/SIZE-plan.md の 5 章）。既定の wrap はデータから消す
-          setOrDelete(n.src, "overflow", next.overflow, next.overflow === "wrap");
-        }
+        // 文字のボックスのキャプションを 1 行にする（clip）か戻す（wrap）。幅の上限はサイズの最大（幅の指定があればその幅）なので、
+        // 大きさの指定は書かない（docs/SIZE-plan.md の 5 章）。既定の wrap はデータから消す
+        setOrDelete(n.src, "overflow", next.overflow, next.overflow === "wrap");
       }
       if (n.isWorld) {
         if ("title" in next) {
