@@ -9,7 +9,7 @@ import { selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
-  BEND_MARGIN, absPos, bodyOf, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  BEND_MARGIN, absPos, bodyLinesOf, bodyOf, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -192,6 +192,12 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const body = bodyOf(n);
     n.bodyEl.hidden = !body;
     n.bodyEl.textContent = body;
+    // 最大行数（超えた分は … で切る。切ったときはポインタを乗せると全文が出る）。測るときの鍵にも使う（measure.ts）
+    const lines = body ? bodyLinesOf(n) : 0;
+    n.bodyEl.classList.toggle("mz-body-clamp", lines > 0);
+    n.bodyEl.style.setProperty("-webkit-line-clamp", lines ? String(lines) : "");
+    if (lines) n.bodyEl.dataset.lines = String(lines); else delete n.bodyEl.dataset.lines;
+    n.bodyEl.title = lines ? body : "";
     n.gripEl.hidden = !body;
     head.classList.toggle("mz-has-body", !!body);
     head.classList.toggle("mz-body-norule", n.src.bodyRule === false);

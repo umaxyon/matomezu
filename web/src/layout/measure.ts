@@ -42,7 +42,7 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
   return {
     measure(n, width, captionOnly = false) {
       const t = n.textEl, b = n.bodyEl;
-      const body = b && !b.hidden && !captionOnly ? b.textContent : "";
+      const body = b && !b.hidden && !captionOnly ? `${b.dataset.lines ?? ""}|${b.textContent}` : "";
       const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}|${body}`;
       const hit = cache.get(key);
       if (hit) return hit;
@@ -57,7 +57,7 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
     },
     body(n, width) {
       const b = n.bodyEl;
-      const key = `body|${n.head.className}|${width}|${b.textContent}`;
+      const key = `body|${n.head.className}|${width}|${b.dataset.lines ?? ""}|${b.textContent}`;
       const hit = cache.get(key);
       if (hit) return hit;
       layoutStats.measures++;

@@ -56,6 +56,7 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
   if (s.shape != null && !isShape(s.shape)) out.push(`shape の値が不正です: ${where} (${s.shape})`);
   if (s.body != null && typeof s.body !== "string") out.push(`body は文字列にしてください: ${where}`);
   if (s.bodyWidth != null && !(typeof s.bodyWidth === "number" && s.bodyWidth > 0)) out.push(`bodyWidth は正の数にしてください: ${where} (${s.bodyWidth})`);
+  if (s.bodyLines != null && !(Number.isInteger(s.bodyLines) && (s.bodyLines as number) > 0)) out.push(`bodyLines は 1 以上の整数にしてください: ${where} (${s.bodyLines})`);
   if (s.bodyRule != null && typeof s.bodyRule !== "boolean") out.push(`bodyRule は true か false にしてください: ${where} (${s.bodyRule})`);
   if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(`treeDirection の値が不正です: ${where} (${s.treeDirection})`);
   if (s.childView != null && !isView(s.childView)) out.push(`childView の値が不正です: ${where} (${s.childView})`);

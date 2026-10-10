@@ -1,10 +1,11 @@
 /*
- * ボックスの編集ダイアログ（キャプションと本文。docs/BODY-plan.md の段階 3）。
+ * 編集ダイアログ（箱はキャプションと本文、線はキャプション。docs/BODY-plan.md の段階 3）。
  * モーダル: 画面全体を覆い、閉じるまで図やサイドバーを触れなくする。入力中は図を動かさず、確定したときに 1 件の履歴として書く。
  * Ctrl+Enter（Mac は Cmd+Enter）か「確定」で確定、Esc か「取り消し」で閉じる。キャプションの欄では Enter でも確定する（1 行）。
  *
- *   openEditDialog(graph, id); // 箱のダブルクリックと、サイドバーの鉛筆ボタンから開く
- *   closeEditDialog();         // 開いていれば閉じる（図を作り直すときなど）
+ *   openEditDialog(graph, id);     // 箱。ダブルクリックと、サイドバーの鉛筆ボタンから開く
+ *   openEdgeEditDialog(graph, id); // 線。線（か札）のダブルクリックと、サイドバーの鉛筆ボタンから開く
+ *   closeEditDialog();             // 開いていれば閉じる（図を作り直すときなど）
  */
 
 import { esc, injectStyle } from "./dom";
@@ -40,6 +41,9 @@ const CSS = `
 textarea.mz-dlg-input { min-height: 160px; resize: vertical; line-height: 1.5; }
 .mz-dlg-input:disabled { opacity: 0.5; }
 .mz-dlg-check { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.mz-dlg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.mz-dlg-row > span { font-weight: 600; }
+select.mz-dlg-input { width: auto; }
 .mz-dlg-note { margin: -6px 0 12px; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-foot { display: flex; align-items: center; gap: 8px; }
 .mz-dlg-hint { flex: 1; color: var(--dlg-muted); font-size: 12px; }
@@ -57,72 +61,107 @@ export function closeEditDialog(): void {
   if (back instanceof HTMLElement) back.focus();
 }
 
+// 本文の最大行数の選択肢（超えた分は … で切る）。データにこれ以外の値があれば、それも選べるように足す
+const LINE_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
+
 export function openEditDialog(graph: Graph, id: string): void {
-  closeEditDialog();
   const info = graph.info(id);
   if (info.kind === "world") return;
-  injectStyle(STYLE_ID, CSS);
   const b = info as BoxInfo;
+  const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
+  const off = b.canBody ? "" : " disabled";
+  const overlay = show("ボックスの編集", `
+      <label class="mz-dlg-field"><span>キャプション</span>
+        <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
+      <label class="mz-dlg-field"><span>本文</span>
+        <textarea class="mz-dlg-input" name="body" placeholder="なし"${off}>${esc(b.body)}</textarea></label>
+      ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズのときに出せます</p>`}
+      <label class="mz-dlg-row"><span>最大行数</span>
+        <select class="mz-dlg-input" name="lines"${off}>
+          <option value=""${b.bodyLines ? "" : " selected"}>制限なし</option>
+          ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${v} 行</option>`).join("")}
+        </select>
+        <span class="mz-dlg-hint">超えた分は … で切ります</span></label>
+      <label class="mz-dlg-check"><input type="checkbox" name="rule"${b.bodyRule ? " checked" : ""}${off}>キャプションと本文の間に線を引く</label>`,
+  overlay => {
+    const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
+    const caption = field<HTMLInputElement>("caption").value, body = field<HTMLTextAreaElement>("body").value;
+    const rule = field<HTMLInputElement>("rule").checked, linesValue = field<HTMLSelectElement>("lines").value;
+    const patch: Patch = {};
+    if (caption !== b.caption) patch.caption = caption;
+    if (b.canBody && body !== b.body) patch.body = body || null;
+    if (b.canBody && rule !== b.bodyRule) patch.bodyRule = rule ? null : false;
+    const n = linesValue ? Number(linesValue) : null;
+    if (b.canBody && n !== b.bodyLines) patch.bodyLines = n;
+    if (Object.keys(patch).length) graph.update(id, patch);
+  });
+  // 選んでいる行数は値で決める（option の selected だけに頼らない）
+  overlay.querySelector<HTMLSelectElement>('[name="lines"]')!.value = b.bodyLines ? String(b.bodyLines) : "";
+}
+
+export function openEdgeEditDialog(graph: Graph, id: string): void {
+  const e = graph.edgeInfo(id);
+  if (!e) return;
+  show("線の編集", `
+      <label class="mz-dlg-field"><span>キャプション</span>
+        <input class="mz-dlg-input" type="text" name="caption" value="${esc(e.caption ?? "")}" placeholder="なし"></label>`,
+  overlay => {
+    const caption = overlay.querySelector<HTMLInputElement>('[name="caption"]')!.value;
+    if (caption.trim() !== (e.caption ?? "")) graph.updateEdge(id, { caption });
+  });
+}
+
+// ダイアログを出す。fields は項目の HTML、commit は確定したときに項目を読んで書く（変えた項目だけを 1 回の変更として書く。
+// 変えていなければ書かない。履歴に残さない）
+function show(title: string, fields: string, commit: (overlay: HTMLElement) => void): HTMLElement {
+  closeEditDialog();
+  injectStyle(STYLE_ID, CSS);
   const overlay = document.createElement("div");
   overlay.className = "mz-dlg-overlay";
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   overlay.innerHTML = `<div class="mz-dlg" role="dialog" aria-modal="true" aria-labelledby="mz-dlg-title">
-      <h2 id="mz-dlg-title">ボックスの編集</h2>
-      <label class="mz-dlg-field"><span>キャプション</span>
-        <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
-      <label class="mz-dlg-field"><span>本文</span>
-        <textarea class="mz-dlg-input" name="body" placeholder="なし"${b.canBody ? "" : " disabled"}>${esc(b.body)}</textarea></label>
-      ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズのときに出せます</p>`}
-      <label class="mz-dlg-check"><input type="checkbox" name="rule"${b.bodyRule ? " checked" : ""}${b.canBody ? "" : " disabled"}>キャプションと本文の間に線を引く</label>
+      <h2 id="mz-dlg-title">${esc(title)}</h2>
+      ${fields}
       <div class="mz-dlg-foot">
         <span class="mz-dlg-hint">${mac ? "⌘" : "Ctrl"}+Enter で確定 / Esc で取り消し</span>
         <button type="button" class="mz-dlg-btn" data-cancel>取り消し</button>
         <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>確定</button>
       </div>
     </div>`;
-  const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
-  const caption = field<HTMLInputElement>("caption"), body = field<HTMLTextAreaElement>("body"), rule = field<HTMLInputElement>("rule");
-
-  // 変えた項目だけを 1 回の変更として書く（変えていなければ書かない。履歴に残さない）
-  const commit = () => {
-    const patch: Patch = {};
-    if (caption.value !== b.caption) patch.caption = caption.value;
-    if (b.canBody && body.value !== b.body) patch.body = body.value || null;
-    if (b.canBody && rule.checked !== b.bodyRule) patch.bodyRule = rule.checked ? null : false;
-    closeEditDialog();
-    if (Object.keys(patch).length) graph.update(id, patch);
-  };
+  const caption = overlay.querySelector<HTMLInputElement>('[name="caption"]');
+  const ok = () => { closeEditDialog(); commit(overlay); };
 
   overlay.addEventListener("click", e => {
     const t = e.target instanceof Element ? e.target : null;
-    if (t?.closest("[data-ok]")) commit();
+    if (t?.closest("[data-ok]")) ok();
     else if (t?.closest("[data-cancel]")) closeEditDialog();
   });
   // キー操作はダイアログの中で止める（図の Undo や Esc の操作に届かないように）
   overlay.addEventListener("keydown", e => {
     e.stopPropagation();
     if (e.key === "Escape") { e.preventDefault(); closeEditDialog(); return; }
+    if (e.key === "Tab") {
+      // Tab で後ろの要素へ移らないよう、ダイアログの中を巡らせる
+      const items = [...overlay.querySelectorAll<HTMLElement>("input:not(:disabled), textarea:not(:disabled), select:not(:disabled), button")];
+      const i = items.indexOf(document.activeElement as HTMLElement);
+      const next = e.shiftKey ? (i <= 0 ? items.length - 1 : i - 1) : (i === items.length - 1 ? 0 : i + 1);
+      e.preventDefault();
+      items[next]?.focus();
+      return;
+    }
     if (e.key !== "Enter" || e.isComposing) return;
-    if (e.ctrlKey || e.metaKey || e.target === caption) { e.preventDefault(); commit(); }
+    if (e.ctrlKey || e.metaKey || e.target === caption) { e.preventDefault(); ok(); }
   });
   // 後ろの図やページへ、ポインタの操作も届かせない（オーバーレイの上で受け止める）
   for (const type of ["pointerdown", "pointerup", "dblclick", "wheel"] as const) {
     overlay.addEventListener(type, e => e.stopPropagation());
   }
-  // Tab で後ろの要素へ移らないよう、ダイアログの中を巡らせる
-  overlay.addEventListener("keydown", e => {
-    if (e.key !== "Tab") return;
-    const items = [...overlay.querySelectorAll<HTMLElement>("input:not(:disabled), textarea:not(:disabled), button")];
-    const i = items.indexOf(document.activeElement as HTMLElement);
-    const next = e.shiftKey ? (i <= 0 ? items.length - 1 : i - 1) : (i === items.length - 1 ? 0 : i + 1);
-    e.preventDefault();
-    items[next]?.focus();
-  });
 
   open = { overlay, back: document.activeElement };
   document.body.appendChild(overlay);
-  caption.focus();
-  caption.select();
+  caption?.focus();
+  caption?.select();
+  return overlay;
 }
 
 export const editDialogOpen = (): boolean => open != null;

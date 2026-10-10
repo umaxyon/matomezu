@@ -116,7 +116,7 @@ import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
   absPos, ancestors, arrowOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
-  canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
+  bodyLinesOf, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
@@ -184,6 +184,7 @@ export interface Graph {
   alignEdge(id: Id): void; // 線の両端を、今の形での一番よい位置に固定する（整列。docs/EDGE-SPEC.md の C1）
   removeEdge(id: Id): void;
   info(id: Id | null): NodeInfo;
+  edgeInfo(id: Id): EdgeInfo | null; // 線の情報（無ければ null）
   update(id: Id | null, patch: Patch): void;
   toJSON(): Diagram;
   dragging(): boolean;
@@ -925,6 +926,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       body: typeof n.src.body === "string" ? n.src.body : "",
       canBody: canBody(n),
       bodyRule: n.src.bodyRule !== false,
+      bodyLines: bodyLinesOf(n) || null,
       inList: inList(n),
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
@@ -977,6 +979,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         }
         if ("body" in next) setOrDelete(n.src, "body", String(next.body ?? ""), !next.body);
         if ("bodyRule" in next) setOrDelete(n.src, "bodyRule", false, next.bodyRule !== false);
+        if ("bodyLines" in next) setOrDelete(n.src, "bodyLines", next.bodyLines ?? undefined, next.bodyLines == null);
         if ("bodyWidth" in next) {
           const v = next.bodyWidth; // 値の誤りは checkSettings で断っている
           setOrDelete(n.src, "bodyWidth", v == null ? undefined : Math.round(v), v == null);
@@ -1311,6 +1314,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     selected: () => (current ? current.id : null),
     selectEdge: id => selectEdge(edgeOf(id)),
     updateEdge: (id, patch) => updateEdge(edgeOf(id), patch),
+    edgeInfo: id => { const e = edges.find(x => x.id === String(id)); return e ? edgeInfo(e) : null; },
     alignEdge: id => alignEdge(edgeOf(id)),
     removeEdge: id => removeEdge(edgeOf(id)),
     info: id => info(id == null ? null : nodeOf(id)),

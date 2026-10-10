@@ -157,3 +157,43 @@ test("内包する箱の本文は箱の幅いっぱいで折り返す。子の�
   // 本文は 1 行（18px）に収まるので、子は見出し 30 + 18 + 間 6 の高さ
   expect(info(2).y).toBe(30 + 18 + 6);
 });
+
+test("本文の最大行数（bodyLines）を超えた分は切り、箱はその行数の高さになる。全文はポインタを乗せると出る", () => {
+  const { info, bodyEl } = setup({
+    nodes: [
+      { id: 1, caption: "見出し", body: "一\n二\n三\n四\n五", x: 40, y: 40 },
+      { id: 2, caption: "見出し", body: "一\n二\n三\n四\n五", bodyLines: 2, x: 300, y: 40 },
+    ],
+  });
+  expect(info(1).h).toBe(18 + 8 + 5 * 18);
+  expect(info(2).h).toBe(Math.max(64, 18 + 8 + 2 * 18));
+  expect(bodyEl(2).classList.contains("mz-body-clamp")).toBe(true);
+  expect(bodyEl(2).title).toBe("一\n二\n三\n四\n五");
+  expect(bodyEl(1).title).toBe("");
+});
+
+test("編集ダイアログで最大行数を選べる（制限なしを含む）", () => {
+  const { g, side, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "一\n二\n三\n四\n五", x: 40, y: 40 }] });
+  g.select(1);
+  side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const select = document.querySelector<HTMLSelectElement>('.mz-dlg-overlay [name="lines"]')!;
+  expect(select.value).toBe("");
+  expect(select.options[0]!.textContent).toBe("制限なし");
+  select.value = "3";
+  document.querySelector<HTMLElement>(".mz-dlg-overlay [data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(g.toJSON().nodes[0]!.bodyLines).toBe(3);
+  expect(info(1).h).toBe(18 + 8 + 3 * 18);
+  // 制限なしに戻す
+  side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const again = document.querySelector<HTMLSelectElement>('.mz-dlg-overlay [name="lines"]')!;
+  expect(again.value).toBe("3");
+  again.value = "";
+  document.querySelector<HTMLElement>(".mz-dlg-overlay [data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(g.toJSON().nodes[0]!.bodyLines).toBeUndefined();
+});
+
+test("bodyLines は 1 以上の整数だけ", () => {
+  expect(problems({ nodes: [{ id: 1, bodyLines: 0 }] })[0]).toContain("bodyLines は 1 以上の整数");
+  expect(problems({ nodes: [{ id: 1, bodyLines: 2.5 }] })[0]).toContain("bodyLines は 1 以上の整数");
+  expect(problems({ nodes: [{ id: 1, bodyLines: 3 }] })).toEqual([]);
+});

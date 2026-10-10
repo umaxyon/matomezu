@@ -152,6 +152,8 @@ export const GRAPH_CSS = `
 .mz-has-body > .mz-body { padding-top: 4px; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
 .mz-leaf.mz-has-body > .mz-body { margin-top: 4px; }
 .mz-has-body.mz-body-norule > .mz-body { border-top-color: transparent; }
+/* 本文の最大行数（行数は render.ts が -webkit-line-clamp に入れる） */
+.mz-body.mz-body-clamp { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .mz-group > .mz-body { color: var(--mz-text); box-sizing: border-box; }
 /* 本文の幅のつまみ。選んでいる箱だけ、右の縁に出す（位置は render.ts。内包する箱は本文の右の縁） */
 .mz-body-grip { display: none; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: ew-resize; pointer-events: auto; z-index: 1; }

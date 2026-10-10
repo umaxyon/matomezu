@@ -3,7 +3,7 @@
 
 import { createGraph, type Graph, type GraphOptions } from "./graph";
 import { createMinimap, type Minimap } from "./minimap";
-import { openEditDialog } from "./edit-dialog";
+import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { createPanel, type Panel, type PanelOptions } from "./panel";
 
 export interface DiagramView {
@@ -26,11 +26,14 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   stage.addEventListener("pointerdown", e => {
     if (e.target instanceof Element && e.target.closest(".mz-head, .mz-hit") && graph.mode() !== "remove") panel?.tab("info");
   });
-  // 選択モードで箱をダブルクリックしたら、キャプションと本文の編集ダイアログを開く（見る用のモードでは開かない）
+  // 選択モードで箱をダブルクリックしたら、キャプションと本文の編集ダイアログを開く。線（かキャプションの札）なら線の編集ダイアログ
+  // （見る用のモードでは開かない）
   stage.addEventListener("dblclick", e => {
-    const node = e.target instanceof Element && e.target.closest(".mz-head") ? e.target.closest<HTMLElement>(".mz-node") : null;
-    if (!node?.dataset.id || graph.mode() !== "move" || graph.preview() != null) return;
-    openEditDialog(graph, node.dataset.id);
+    if (!(e.target instanceof Element) || graph.mode() !== "move" || graph.preview() != null) return;
+    const edge = e.target.closest(".mz-hit, .mz-label") ? e.target.closest<SVGElement>(".mz-edge") : null;
+    if (edge?.dataset.id) return openEdgeEditDialog(graph, edge.dataset.id);
+    const node = e.target.closest(".mz-head") ? e.target.closest<HTMLElement>(".mz-node") : null;
+    if (node?.dataset.id) openEditDialog(graph, node.dataset.id);
   });
   return { graph, panel, minimap };
 }

@@ -2,7 +2,7 @@
 
 import { closeColorPicker, openColorPicker } from "./color-picker";
 import { EMPTY_CAPTION, esc, keyOf } from "./dom";
-import { openEditDialog } from "./edit-dialog";
+import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
 import { THEMES, isPaletteName, themeById } from "./theme";
@@ -83,8 +83,11 @@ function edgeHtml(info: EdgeInfo): string {
       <dt>終点</dt><dd>${chips([info.to])}</dd>
     </dl></div>
     <div class="mzp-section"><h3>編集</h3>
-      <label class="mzp-field"><span>キャプション</span>
-        <input class="mzp-input" type="text" data-edit="edge-caption" data-target="${esc(info.id)}" value="${esc(info.caption ?? "")}" placeholder="なし"></label>
+      <div class="mzp-caption-row">
+        <span class="mzp-caption-label">キャプション</span>
+        <span class="mzp-caption-text${info.caption ? "" : " mzp-empty"}" title="${esc(info.caption ?? "")}">${esc(info.caption || "なし")}</span>
+        <button type="button" class="mzp-pencil" data-edit-edge="${esc(info.id)}" title="線のキャプションを編集（線のダブルクリックでも開きます）" aria-label="線のキャプションを編集">${PENCIL}</button>
+      </div>
       ${info.caption && info.captionMoved ? `<button type="button" class="mzp-chip" data-caption-reset="${esc(info.id)}">キャプションの位置を自動に戻す</button>` : ""}
     </div>
     ${info.self ? `<div class="mzp-section"><p class="mzp-hint">自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）</p></div>` : `<div class="mzp-section"><h3>通り方</h3>
@@ -249,6 +252,8 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (atReset) return graph.updateEdge(atReset.dataset.atReset!, { exitAt: null, enterAt: null, via: null });
     const editBox = e.target.closest<HTMLElement>("[data-edit-box]");
     if (editBox) return openEditDialog(graph, editBox.dataset.editBox!);
+    const editEdge = e.target.closest<HTMLElement>("[data-edit-edge]");
+    if (editEdge) return openEdgeEditDialog(graph, editEdge.dataset.editEdge!);
     const align = e.target.closest<HTMLElement>("[data-align]");
     if (align) return graph.alignEdge(align.dataset.align!);
     const capReset = e.target.closest<HTMLElement>("[data-caption-reset]");
@@ -314,7 +319,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     // 文字入力は、打っていたときの箱・線へ書く（data-target）。別の箱をクリックしてフォーカスが外れると、選択が切り替わって
     // サイドバーを描き直したあとで確定（change）が届くため、今の info を宛先にすると別の箱に書いてしまう
     const edit = t.dataset.edit;
-    if (edit === "edge-caption" && t.dataset.target) return graph.updateEdge(t.dataset.target, { caption: t.value });
     if (edit === "title") return graph.update(null, { title: t.value });
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
     if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });

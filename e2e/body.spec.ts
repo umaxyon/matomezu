@@ -51,3 +51,21 @@ test("子の見せ方を内包・リスト・ツリーと切り替えても、�
     await expect.poll(fits, { message: view }).toBe(true);
   }
 });
+
+test("最大行数を選ぶと、超えた分を切って箱が低くなる。制限なしに戻すと全部出る", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [{ id: 1, caption: "見出し", body: "一行目\n二行目\n三行目\n四行目\n五行目", x: 40, y: 40 }],
+  });
+  const full = await rect(page, 1);
+  await page.locator('.mz-node[data-id="1"] > .mz-head .mz-text').dblclick();
+  await page.locator('.mz-dlg [name="lines"]').selectOption("2");
+  await page.keyboard.press("Control+Enter");
+  await expect.poll(async () => (await rect(page, 1)).h).toBeLessThan(full.h);
+  const body = page.locator('.mz-node[data-id="1"] .mz-body');
+  // 2 行分の高さで、中身は切れている
+  expect(await body.evaluate(b => b.scrollHeight > b.clientHeight + 1)).toBe(true);
+  await page.locator('.mz-node[data-id="1"] > .mz-head .mz-text').dblclick();
+  await page.locator('.mz-dlg [name="lines"]').selectOption("");
+  await page.keyboard.press("Control+Enter");
+  await expect.poll(async () => (await rect(page, 1)).h).toBe(full.h);
+});

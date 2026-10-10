@@ -51,12 +51,16 @@ test("キャプションが無ければ札を出さない", () => {
   expect(label(el)).toBeNull();
 });
 
-test("サイドバーで書き換えられ、空にすると消える。札を押すと線を選ぶ", () => {
+test("サイドバーの鉛筆で編集ダイアログを開いて書き換えられ、空にすると消える。札を押すと線を選ぶ", () => {
   const { el, side, graph } = setup(two(400));
   graph.selectEdge("e1");
-  const input = side.querySelector<HTMLInputElement>('[data-edit="edge-caption"]')!;
+  side.querySelector<HTMLElement>("[data-edit-edge]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const input = document.querySelector<HTMLInputElement>('.mz-dlg-overlay [name="caption"]')!;
+  expect(document.querySelector(".mz-dlg h2")!.textContent).toBe("線の編集");
   input.value = "承認";
-  input.dispatchEvent(new Event("change", { bubbles: true }));
+  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  expect(document.querySelector(".mz-dlg-overlay")).toBeNull();
+  expect(side.querySelector(".mzp-caption-text")!.textContent).toBe("承認");
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, caption: "承認" }]);
   expect(label(el)!.textContent).toBe("承認");
   graph.select(1);

@@ -24,6 +24,7 @@ export interface BoxData {
   body?: string;       // 本文（キャプションの下に出す長文。改行はそのまま。docs/BODY-plan.md）。普通の箱だけ（S サイズは出さない）
   bodyWidth?: number;  // 本文の幅（px。箱の幅として数える）。無ければ本文の中身に合わせる。サイズの最大幅は超えない
   bodyRule?: boolean;  // false ならキャプションと本文の間の線を引かない（無ければ引く）
+  bodyLines?: number;  // 本文の最大行数（超えた分は … で切る）。無ければ制限なし
   parent?: Id;
   x?: number;
   y?: number;
@@ -117,6 +118,7 @@ export interface BoxInfo {
   body: string;      // 本文（無ければ空）。本文を持つ間は、形と S サイズを選べない（docs/BODY-plan.md）
   canBody: boolean;  // 本文を出せるか（形がボックスで、S でも切り詰めるでもなく、ページの箱でもない）
   bodyRule: boolean; // キャプションと本文の間に線を引くか
+  bodyLines: number | null; // 本文の最大行数（null は制限なし）
   inList: boolean;   // リストの子か（サイズ・形・子の見せ方を使わない。docs/LIST-plan.md）
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: ChildView;
@@ -193,6 +195,7 @@ export interface Patch {
   body?: string | null;      // 空か null で消す
   bodyWidth?: number | null; // null で中身に合わせる
   bodyRule?: boolean | null; // false で仕切りの線を引かない。null で引く（既定）
+  bodyLines?: number | null; // 本文の最大行数。null で制限なし
   color?: string | null;
   size?: Size;
   shape?: Shape;

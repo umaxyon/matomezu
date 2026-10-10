@@ -167,6 +167,8 @@ export const displayCaption = (n: Box) => truncate(captionOf(n), SIZES[sizeOf(n)
 export const canBody = (n: Box): boolean =>
   shapeOf(n) === "box" && sizeOf(n) !== "S" && n.src.page !== true && overflowOf(n) !== "clip";
 export const bodyOf = (n: Box): string => (typeof n.src.body === "string" && n.src.body && canBody(n) ? n.src.body : "");
+// 本文の最大行数（無ければ 0。制限なし）
+export const bodyLinesOf = (n: Box): number => (Number.isInteger(n.src.bodyLines) && (n.src.bodyLines as number) > 0 ? n.src.bodyLines as number : 0);
 // 本文の幅の指定（無ければ 0）
 export const bodyWidthOf = (n: Box): number => (typeof n.src.bodyWidth === "number" && n.src.bodyWidth > 0 ? n.src.bodyWidth : 0);
 
