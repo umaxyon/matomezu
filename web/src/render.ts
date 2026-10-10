@@ -195,6 +195,15 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.gripEl.hidden = !body;
     head.classList.toggle("mz-has-body", !!body);
     head.classList.toggle("mz-body-norule", n.src.bodyRule === false);
+    // 内包する箱・リストの親の本文は見出しの下に位置を決めて置き、それ以外は本体の中の流れに置く。大きさを測る前に切り替える
+    // （描くときに切り替えると、ツリーに変えた直後に位置を決めたまま測り、本文の分の高さが入らない。測った結果も使い回される）
+    const block = !!body && (group || (view === "list" && n.children.length > 0));
+    n.bodyEl.classList.toggle("mz-body-block", block);
+    const bs = n.bodyEl.style;
+    bs.position = block ? "absolute" : "";
+    bs.left = block ? opt.padding + "px" : "";
+    bs.top = block ? opt.header + "px" : "";
+    if (!block) bs.width = "";
 
     n.moreEl.hidden = !(n.children.length && view === "hidden");
     n.moreEl.title = `子 ${n.children.length} 件`;
@@ -495,12 +504,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       h.height = n.hh + "px";
       // 内包する箱・リストの親の本文は、見出しの下に幅を決めて置く（子の無い箱では本体の中の流れに任せる）
       // 内包する箱・リストの親の本文は、見出しの下に箱の幅いっぱいで置く（子の無い箱では本体の中の流れに任せる）
-      const block = !n.bodyEl.hidden && (isNesting(n) || (viewOf(n) === "list" && n.children.length > 0));
-      const b = n.bodyEl.style;
-      b.position = block ? "absolute" : "";
-      b.left = block ? opt.padding + "px" : "";
-      b.top = block ? opt.header + "px" : "";
-      b.width = block ? n.hw - 2 * opt.padding + "px" : "";
+      const block = n.bodyEl.classList.contains("mz-body-block") && !n.bodyEl.hidden;
+      if (block) n.bodyEl.style.width = n.hw - 2 * opt.padding + "px";
       // つまみ: 子の無い箱は本体の右の縁（高さいっぱい）、内包する箱は本文の右の縁
       const g = n.gripEl.style;
       g.left = block ? n.hw - opt.padding - 3 + "px" : "";

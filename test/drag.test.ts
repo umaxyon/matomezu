@@ -228,7 +228,7 @@ test("横から少しだけ重ねて、離す直前に少し縦に動いても�
   const g = grab(el, graph, 3);
   g.move(-40, 0);
   g.move(-40, 8);
-  g.up(-40, 8);
+  g.up();
   expect(at(graph, 2)).toEqual(left);                 // 左の箱は動かない
   expect(at(graph, 3)[0]).toBe(left[0]! + graph.info(2).w + 8); // 右の箱は来た側（右）の、左の箱の手前（間隔 8）へ戻る
   expect(violations(el)).toEqual([]);
