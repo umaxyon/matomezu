@@ -1,13 +1,21 @@
-// routing.ts のテスト。線の道筋を、画面を作らずに確かめる（docs/ROUTE-plan.md）
+// routing.ts のテスト。線の道筋を、画面を作らずに確かめる（docs/ROUTE-plan.md、docs/EDGE-SPEC.md）
 import { expect, test } from "bun:test";
-import { type RouteInput, borderPath, passes, routeCandidates, scopeObstacles, sidePath, route, segmentsOf, shapePoints, simplifyVia, vertexShape } from "../web/src/routing";
-import { type Pt, nearestAt, pointAt } from "../web/src/geom";
+import { type RouteInput, alignedEnds, passes, routeCandidates, scopeObstacles, route, segmentsOf, shapePoints, simplifyVia } from "../web/src/routing";
+import { type Pt, type Rect, nearestAt } from "../web/src/geom";
 import { perimeter } from "../web/src/selfloop";
 
 // a: 40〜160 × 40〜104（中心 100, 72）、b: 400〜520 × 300〜364（中心 460, 332）
 const a = { x: 40, y: 40, w: 120, h: 64 }, b = { x: 400, y: 300, w: 120, h: 64 };
 const input = (o: Partial<RouteInput> = {}): RouteInput =>
-  ({ a, b, elbow: true, exit: null, enter: null, via: null, bend: null, obstacles: [], margin: 12, ...o });
+  ({ a, b, elbow: true, via: null, obstacles: [], margin: 12, ...o });
+// 箱 r のふちの上の点 (x, y) の、ふち一周の割合（固定の端の値）
+const P = (r: Rect, x: number, y: number) => nearestAt(perimeter(r), x, y);
+// 割合から戻した点は小数の誤差を持つ（書く割合は小数 4 桁）ので、比べる前に小数 1 桁へ丸める
+const round = (pts: Pt[]) => pts.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+// 両端を、a の右の辺の真ん中と b の左の辺の真ん中に固定（手で直した via を持てる）
+const fixedZ = { exitAt: P(a, 160, 72), enterAt: P(b, 400, 332) };
+// 縦か横の区間だけでできているか（斜めの線が無いか）
+const orthogonal = (pts: Pt[]) => pts.slice(1).every((q, i) => q[0] === pts[i]![0] || q[1] === pts[i]![1]);
 
 test("形から点の並びを作る: L 字（via なし）、Z 字、コの字、S 字", () => {
   expect(shapePoints(a, b, { exit: "horizontal", enter: "vertical", via: [] })).toEqual([[160, 72], [460, 72], [460, 300]]);
@@ -44,102 +52,55 @@ test("長さ 0 の区間の折れ目をまとめる", () => {
   expect(simplifyVia(a, b, { exit: "horizontal", enter: "horizontal", via: [200, 180, 300] })).toEqual([200, 180, 300]);
 });
 
-test("route: 手で直した via は使い、引けなければ via と向きの指定を消すよう知らせる", () => {
-  const ok = route(input({ exit: "horizontal", enter: "horizontal", via: [300] }));
-  expect([ok.points[1], ok.fix]).toEqual([[300, 72], {}]);
-  const bad = route(input({ exit: "horizontal", enter: "horizontal", via: [100] }));
-  expect(bad.fix).toEqual({ clearVia: true, clearDirections: true });
-  expect(bad.shape).toEqual({ exit: "horizontal", enter: "vertical", via: [] }); // 自動の形（L 字）
-});
-
-test("route: 以前の bend は Z 字なら via に移すよう知らせ、Z 字でなければ消す", () => {
-  const z = route(input({ exit: "horizontal", enter: "horizontal", bend: 0.25 }));
-  expect(z.fix).toEqual({ migrate: { exit: "horizontal", enter: "horizontal", via: [220] } });
-  expect(route(input({ bend: 0.25 })).fix).toEqual({ clearBend: true }); // 自動なら L 字
+test("route: 手で直した via は、両端が固定のときだけ使う。引けなければ、または端が自由なら、消すよう知らせる", () => {
+  const r = route(input({ ...fixedZ, via: [280] }));
+  expect([round(r.points), r.fix]).toEqual([[[160, 72], [280, 72], [280, 332], [400, 332]], {}]);
+  expect(route(input({ ...fixedZ, via: [100] })).fix).toEqual({ clearVia: true }); // a の中を通る
+  expect(route(input({ via: [280] })).fix).toEqual({ clearVia: true });            // 端が自由
+  expect(route(input({ ...fixedZ, via: [560] })).fix).toEqual({ clearVia: true }); // 固定の辺（b の左）と違う辺から入る
 });
 
 test("route: 直線には via を使わず、消すよう知らせる", () => {
   const r = route(input({ elbow: false, via: [280] }));
-  expect(r.points.length).toBe(2);
-  expect(r.fix).toEqual({ clearVia: true });
+  expect([r.points.length, r.fix]).toEqual([2, { clearVia: true }]);
 });
 
-// ---- 斜めの直線の端の位置（段階 9） ----
-
-test("相手に向いた側の辺をたどる道と、割合の点。0 と 1 は両方の箱で同じ側の角", () => {
-  // b は a の右下。a の道は右上の角 → 右下の角 → 左下の角、b の道は右上 → 左上 → 左下
-  expect(borderPath(a, b)).toEqual([[160, 40], [160, 104], [40, 104]]);
-  expect(borderPath(b, a)).toEqual([[520, 300], [400, 300], [400, 364]]);
-  // 長さは 64 + 120 = 184。0.5 は 92 進んだ所（右下の角から 28 左）
-  expect(pointAt(borderPath(a, b), 0.5)).toEqual([132, 104]);
-  expect(nearestAt(borderPath(a, b), 132, 130)).toBeCloseTo(0.5, 5);
+test("直線: 固定の端はその点から。自由な端は相手の端へ向ける（横に並べばまっすぐ、斜めなら相手の中心から）", () => {
+  const r = route(input({ elbow: false, exitAt: P(a, 132, 104) }));
+  expect(round(r.points)[0]).toEqual([132, 104]);
+  // 自由な b の端は、b の中心から固定の点へ向かう線と b の縁の交点
+  const [qx, qy] = r.points[1]!;
+  expect((qy - 332) / (qx - 460)).toBeCloseTo((104 - 332) / (132 - 460), 5);
+  const side = { x: 400, y: 40, w: 120, h: 64 };
+  expect(round(route(input({ elbow: false, b: side, exitAt: P(a, 160, 56) })).points)).toEqual([[160, 56], [400, 56]]);
+  // 両方自由なら、斜めは中心どうし、横に並べば重なる範囲の真ん中
+  expect(route(input({ elbow: false, b: side })).points).toEqual([[160, 72], [400, 72]]);
 });
 
-test("route: 斜めの直線は、端の位置があればそこから引く。両端 0 なら右上の角どうし、両端 1 なら左下の角どうし", () => {
-  const top = route(input({ elbow: false, exitAt: 0, enterAt: 0 }));
-  expect([top.points, top.ends?.frame]).toEqual([[[160, 40], [520, 300]], "se"]);
-  expect(route(input({ elbow: false, exitAt: 1, enterAt: 1 })).points).toEqual([[40, 104], [400, 364]]);
+test("端の固定は、相手と反対の辺でも、箱が重なっても消さない（消すよう知らせない）", () => {
+  const over = { x: 100, y: 60, w: 120, h: 64 };
+  const r = route(input({ b: over, exitAt: P(a, 100, 40) }));
+  expect([r.arrangement, round(r.points)[0], r.fix]).toEqual(["overlap", [100, 40], {}]);
+  const far = route(input({ exitAt: P(a, 40, 72) })); // b は右下だが、左の辺に固定
+  expect([round(far.points)[0], far.fix, orthogonal(far.points)]).toEqual([[40, 72], {}, true]);
 });
 
-test("route: 端の位置の基準が前と変わる（相手の向き、直線と折れ線の切り替え）、箱が重なるときは、端の位置を消すよう知らせる", () => {
-  expect(route(input({ elbow: false, exitAt: 0.3, prevFrame: "nw" })).fix).toEqual({ clearAt: true });
-  expect(route(input({ elbow: false, exitAt: 0.3, prevFrame: "se" })).fix).toEqual({});
-  expect(route(input({ elbow: true, exitAt: 0.3, prevFrame: "se" })).fix).toEqual({ clearAt: true }); // 直線から折れ線へ
-  const side = { x: 400, y: 60, w: 120, h: 64 }; // a と横に並ぶ（右）
-  expect(route(input({ b: side, elbow: false, enterAt: 0.3, prevFrame: "se" })).fix).toEqual({ clearAt: true });
-  const over = { x: 100, y: 60, w: 120, h: 64 }; // a と重なる
-  expect(route(input({ b: over, elbow: false, exitAt: 0.3 })).fix).toEqual({ clearAt: true });
+test("折れ線: 固定の端は、その点から、その辺の向きに出入りする", () => {
+  // 右の辺の上から 1/4 に固定: 右へ出て b の上へ入る L 字
+  expect(round(route(input({ exitAt: P(a, 160, 56) })).points)).toEqual([[160, 56], [460, 56], [460, 300]]);
+  // 上の辺の真ん中に固定: 上へ出て回り込む（下にいる b へも上から出る）
+  const top = route(input({ exitAt: P(a, 100, 40) })).points;
+  expect([round(top)[0], top[1]![1] < 40, orthogonal(top)]).toEqual([[100, 40], true, true]);
+  // 終点を b の左の辺に固定し、始点は自由: 縦に出て横に入る L 字
+  expect(round(route(input({ enterAt: P(b, 400, 332) })).points)).toEqual([[100, 104], [100, 332], [400, 332]]);
 });
 
-test("route: 横か縦に並ぶ直線も、端の位置があれば向き合う辺の上のそこから引く", () => {
-  // a: 40〜160 × 40〜104。横に並ぶ相手（右）なら a の右の辺を上から下、相手の左の辺を上から下
-  const side = { x: 400, y: 60, w: 120, h: 64 };
-  const r = route(input({ b: side, elbow: false, exitAt: 0, enterAt: 1, prevFrame: "e" }));
-  expect([r.points, r.ends?.frame, r.fix]).toEqual([[[160, 40], [400, 124]], "e", {}]);
-  expect(route(input({ b: side, elbow: false })).points).toEqual([[160, 82], [400, 82]]); // 自動はまっすぐ
-  // 縦に並ぶ相手（下）なら a の下の辺を左から右
-  const below = { x: 100, y: 300, w: 120, h: 64 };
-  const s = route(input({ b: below, elbow: false, exitAt: 0.5 }));
-  expect([s.points[0], s.ends?.frame]).toEqual([[100, 104], "s"]);
-});
-
-// ---- 折れ線の端の位置（段階 4） ----
-
-test("折れ線の端は、出入りする辺の上の割合の位置から。左右の辺は上から、上下の辺は左から", () => {
-  expect(sidePath(a, "r")).toEqual([[160, 40], [160, 104]]);
-  expect(sidePath(b, "t")).toEqual([[400, 300], [520, 300]]);
-  // 自動は L 字（右から出て上に入る）。出る位置は右の辺の上から 1/4、入る位置は上の辺の左から 1/4
-  const auto = route(input());
-  expect([auto.points, auto.ends?.frame]).toEqual([[[160, 72], [460, 72], [460, 300]], "elbow:rt"]);
-  const moved = route(input({ exitAt: 0.25, enterAt: 0.25, prevFrame: "elbow:rt" }));
-  expect([moved.points, moved.fix]).toEqual([[[160, 56], [430, 56], [430, 300]], {}]);
-  // Z 字の中棒も、ずらした位置どうしをつなぐ
-  expect(route(input({ exit: "horizontal", enter: "horizontal", via: [280], exitAt: 0 })).points)
-    .toEqual([[160, 40], [280, 40], [280, 332], [400, 332]]);
-});
-
-test("折れ線の端の位置は、出る辺・入る辺が前と変わったら消すよう知らせる（前の辺を折れ目 3 つ以内で保てないとき）", () => {
-  // 左から出て右へ入る形は、折れ目が 4 つ要るので保たない。一番よい L 字に変わり、端の位置は消す
-  const r = route(input({ exitAt: 0.25, prevFrame: "elbow:lr" }));
-  expect([r.points, r.fix]).toEqual([[[160, 72], [460, 72], [460, 300]], { clearAt: true }]);
-});
-
-test("手で直していない折れ線は、前に描いたときの辺を、折れ目 3 つ以内なら保つ（端を動かすより折れ目を増やす）", () => {
-  // 一番よいのは右から出て上へ入る L 字。前に下から出て左へ入っていたなら、その辺のまま引く。端の位置も残る
-  const r = route(input({ exitAt: 0.25, prevFrame: "elbow:bl" }));
-  expect([r.ends?.frame, r.fix]).toEqual(["elbow:bl", {}]);
-  expect(r.points[0]).toEqual([70, 104]);
-  expect(r.points[r.points.length - 1]).toEqual([400, 332]);
-  // 前の辺の記憶が無ければ（入れ替えのあとなど）一番よい形
-  expect(route(input({})).ends?.frame).toBe("elbow:rt");
-});
-
-test("横に並ぶ箱どうしの折れ線は、端をずらすと真ん中で折る Z 字になる", () => {
-  const side = { x: 400, y: 60, w: 120, h: 64 }; // a の右。重なる範囲の真ん中は y = 82
-  const auto = route(input({ b: side }));
-  expect([auto.points, auto.ends?.frame, auto.segments]).toEqual([[[160, 82], [400, 82]], "elbow:rl", []]);
-  const z = route(input({ b: side, exitAt: 0, prevFrame: "elbow:rl" }));
-  expect([z.points, z.fix, z.segments.length]).toEqual([[[160, 40], [280, 40], [280, 92], [400, 92]], {}, 1]);
+test("横に並ぶ箱どうしの折れ線: 片方の端を固定し、もう一方が自由なら、自由な端をそろえてまっすぐ。そろえられなければ真ん中で折る Z 字", () => {
+  const side = { x: 400, y: 60, w: 120, h: 64 }; // a の右。重なる範囲は y = 60〜104、真ん中は 82
+  expect(route(input({ b: side })).points).toEqual([[160, 82], [400, 82]]);
+  expect(round(route(input({ b: side, exitAt: P(a, 160, 90) })).points)).toEqual([[160, 90], [400, 90]]);
+  const z = route(input({ b: side, exitAt: P(a, 160, 44) })); // y = 44 は b の高さ（60〜124）に無い
+  expect([round(z.points), z.segments.length]).toEqual([[[160, 44], [280, 44], [280, 92], [400, 92]], 1]);
 });
 
 test("長さ 0 の区間をまとめるときも、ずらした端の位置で測る", () => {
@@ -147,6 +108,49 @@ test("長さ 0 の区間をまとめるときも、ずらした端の位置で�
   const s = { exit: "horizontal" as const, enter: "horizontal" as const, via: [200, 56, 300] };
   expect(simplifyVia(a, b, s, { exitAt: 0.25, enterAt: null })).toEqual([300]);
   expect(simplifyVia(a, b, s)).toEqual([200, 56, 300]);
+});
+
+test("自由な端は、前に描いた辺と位置（memory）を折れ目 3 つまで保つ。保てなければ一番よい形", () => {
+  const first = route(input());
+  expect(first.points).toEqual([[160, 72], [460, 72], [460, 300]]); // 右から出て b の上へ
+  expect(first.memory).toEqual({ exit: { side: "r", at: 0.5 }, enter: { side: "t", at: 0.5 } });
+  // b を a の真下へ動かす。一番よい形はまっすぐだが、前の辺（a の右、b の上）を折れ目 3 つで保てるので保つ
+  const below = { x: 60, y: 300, w: 120, h: 64 };
+  const kept = route(input({ b: below, memory: first.memory }));
+  expect([kept.points[0], kept.points.at(-1), kept.bends]).toEqual([[160, 72], [120, 300], 3]);
+  expect(route(input({ b: below })).points).toEqual([[110, 104], [110, 300]]);
+  // b を a の左へ動かす。a の右から b の左へは折れ目 4 つ要るので保たず、一番よい形（まっすぐ）
+  const left = { x: -300, y: 40, w: 120, h: 64 };
+  const moved = route(input({ b: left, memory: { exit: { side: "r", at: 0.5 }, enter: { side: "l", at: 0.5 } } }));
+  expect(moved.points).toEqual([[40, 72], [-180, 72]]);
+  // 固定の端は記憶を持たない
+  expect(route(input({ exitAt: P(a, 160, 56) })).memory?.exit).toBeNull();
+});
+
+test("ひし形（端を頂点に限る箱）: 自由な端は頂点から。固定の位置は一番近い頂点として読む", () => {
+  // 直線: 中心どうしの線が縁と交わる点に一番近い頂点（下）。相手の端はその頂点へ向ける
+  const s = route(input({ elbow: false, aVertex: true }));
+  expect(s.points[0]).toEqual([100, 104]);
+  expect(route(input({ elbow: false, aVertex: true, exitAt: P(a, 160, 60) })).points[0]).toEqual([160, 72]);
+  // 折れ線: 真下の普通の箱は、頂点にそろえてまっすぐ
+  const below = { x: 60, y: 300, w: 120, h: 64 };
+  expect(route(input({ b: below, aVertex: true })).points).toEqual([[100, 104], [100, 300]]);
+  // そろえられなければ（頂点の x が相手の幅に無い）、相手の辺の真ん中から折れて結ぶ。斜めにしない
+  const off = { x: 120, y: 300, w: 120, h: 64 };
+  const z = route(input({ b: off, aVertex: true }));
+  expect([z.points[0], z.points.at(-1), orthogonal(z.points)]).toEqual([[100, 104], [180, 300], true]);
+});
+
+test("整列: 向き合う辺どうしでまっすぐ結べるなら、重なる範囲の真ん中でまっすぐ。そうでなければ辺の真ん中", () => {
+  const side = { x: 400, y: 60, w: 120, h: 64 };
+  const before = route(input({ b: side, exitAt: P(a, 160, 44) }));
+  const at = alignedEnds(input({ b: side }), before.points);
+  expect(round(route(input({ b: side, ...at })).points)).toEqual([[160, 82], [400, 82]]);
+  const l = route(input()).points; // 右から出て b の上へ入る L 字
+  const at2 = alignedEnds(input(), l);
+  expect(round(route(input(at2)).points)).toEqual([[160, 72], [460, 72], [460, 300]]);
+  expect(at2.exitAt).toBeCloseTo(P(a, 160, 72), 4);
+  expect(at2.enterAt).toBeCloseTo(P(b, 460, 300), 4);
 });
 
 // ---- ほかの箱を避ける（段階 5） ----
@@ -165,10 +169,10 @@ test("L 字がどちらも通れなければ、折れ目の多い Z 字から探
   expect([o1, o2].some(o => passes(r.points, o))).toBe(false);
 });
 
-test("向きの指定は守って避ける", () => {
+test("固定の端は守って避ける", () => {
   const o1 = { x: 420, y: 150, w: 80, h: 60 };
-  const r = route(input({ exit: "horizontal", obstacles: [o1] }));
-  expect(r.shape?.exit).toBe("horizontal");
+  const r = route(input({ exitAt: P(a, 160, 72), obstacles: [o1] }));
+  expect(r.points[0]).toEqual([160, 72]); // 右の辺の真ん中から出る
   expect(passes(r.points, o1)).toBe(false);
 });
 
@@ -182,8 +186,8 @@ test("横に並ぶ箱どうしのまっすぐな線がほかの箱を通るな�
 
 test("手で直した形（via）は、ほかの箱を通っても避けない", () => {
   const o = { x: 260, y: 150, w: 40, h: 40 };
-  const r = route(input({ exit: "horizontal", enter: "horizontal", via: [280], obstacles: [o] }));
-  expect(r.points).toEqual([[160, 72], [280, 72], [280, 332], [400, 332]]);
+  const r = route(input({ ...fixedZ, via: [280], obstacles: [o] }));
+  expect(round(r.points)).toEqual([[160, 72], [280, 72], [280, 332], [400, 332]]);
 });
 
 test("候補の一覧: 折れ目の数・長さ・ほかの箱との距離を持つ（配置の戦略が選び直せるように）", () => {
@@ -207,7 +211,7 @@ test("同じ折れ目の数・長さなら、ほかの箱から離れた方を�
 test("描いた線がほかの箱を通るかを返す（避ける道が見つからない、手で直した形、直線）", () => {
   const o = { x: 260, y: 150, w: 40, h: 40 };
   expect(route(input({ obstacles: [o] })).through).toBe(false); // 自動の L 字は通らない
-  expect(route(input({ exit: "horizontal", enter: "horizontal", via: [280], obstacles: [o] })).through).toBe(true);
+  expect(route(input({ ...fixedZ, via: [280], obstacles: [o] })).through).toBe(true);
   // b を四方から囲む箱があると入れない
   const ring = [{ x: 380, y: 280, w: 160, h: 10 }, { x: 380, y: 374, w: 160, h: 10 }, { x: 380, y: 290, w: 10, h: 84 }, { x: 530, y: 290, w: 10, h: 84 }];
   expect(route(input({ obstacles: ring })).through).toBe(true);
@@ -230,74 +234,3 @@ test("passes: 斜めの区間は、囲む矩形ではなく線そのものが矩
   expect(passes([[0, 40], [100, 40]], { x: 40, y: 40, w: 20, h: 20 })).toBe(false); // 縁に触れるだけ
 });
 
-test("ひし形（端を頂点に限る箱）: 線は辺の真ん中（頂点）から。直線は、ふち一周の割合で選んだ頂点（箱を通らなければ）", () => {
-  const vertsA: Pt[] = [[100, 40], [160, 72], [100, 104], [40, 72]];
-  const vertsB: Pt[] = [[460, 300], [520, 332], [460, 364], [400, 332]];
-  // 横に並ぶ: a（ひし形）の右の頂点（160, 72）から、相手の左の辺の同じ高さへまっすぐ
-  const side = { x: 300, y: 50, w: 120, h: 100 };
-  expect(route(input({ b: side, elbow: false, aVertex: true })).points).toEqual([[160, 72], [300, 72]]);
-  // 斜め: a の頂点から出る。端の基準はふち一周（つまんで別の頂点へ動かせる）
-  const d = route(input({ elbow: false, aVertex: true }));
-  expect(vertsA).toContainEqual(d.points[0]!);
-  expect(d.ends!.exit).toEqual(perimeter(a));
-  // 端の位置（ふちを左上から一周した割合）で頂点を選ぶ。0.65 は下の辺 → 下の頂点
-  expect(route(input({ elbow: false, aVertex: true, exitAt: 0.65 })).points[0]).toEqual([100, 104]);
-  // 選んだ頂点で引くと箱の中を通る（0.9 は左の辺。相手は右下）なら、選ばなかったことにする
-  expect(route(input({ elbow: false, aVertex: true, exitAt: 0.9 })).points[0]).toEqual(d.points[0]!);
-  // 折れ線は、端の位置を使わず辺の真ん中から出入りする（どの辺かは形で決まる。向きの指定や途中の区間が効く）
-  const e = route(input({ aVertex: true, bVertex: true, exitAt: 0.1, enterAt: 0.9 }));
-  expect(vertsA).toContainEqual(e.points[0]!);
-  expect(vertsB).toContainEqual(e.points[e.points.length - 1]!);
-  const fixed = route(input({ aVertex: true, exit: "vertical", enter: "vertical" }));
-  expect([[100, 40], [100, 104]]).toContainEqual(fixed.points[0]!);
-});
-
-test("ひし形の端を別の頂点へ動かすときの形（vertexShape）: その辺から出入りし、相手の端はそのまま", () => {
-  // a の上の頂点から出る形（b は右下）
-  const up = vertexShape(input({ aVertex: true }), "exit", "t")!;
-  expect(up.exit).toBe("vertical");
-  expect(shapePoints(a, b, up)![0]).toEqual([100, 40]);
-  // b の左の頂点に入る形
-  const left = vertexShape(input({ bVertex: true }), "enter", "l")!;
-  expect(left.enter).toBe("horizontal");
-  const pts = shapePoints(a, b, left)!;
-  expect(pts[pts.length - 1]).toEqual([400, 332]);
-});
-
-test("vertexShape: もう一方の端の向きの指定は保つ（縦に並ぶ箱どうしでも、そろわない形を使える）", () => {
-  // 上の箱 t（左右を指定）と、下のひし形 d（縦に並ぶ）。d の下の頂点に入る形は、t の左右から出て回り込む
-  const t = { x: 300, y: 40, w: 120, h: 64 }, dm = { x: 240, y: 220, w: 300, h: 64 };
-  const shape = vertexShape(input({ a: t, b: dm, bVertex: true, exit: "horizontal", enter: "horizontal", via: [200] }), "enter", "b")!;
-  expect([shape.exit, shape.enter]).toEqual(["horizontal", "vertical"]);
-  const drawn = route(input({ a: t, b: dm, bVertex: true, ...shape }));
-  expect(drawn.points[drawn.points.length - 1]).toEqual([390, 284]);
-});
-
-test("vertexShape: もう一方の端の今の辺（keep）を保つ（右から出ていた線は、右から出たまま）", () => {
-  // 上の箱 t、下のひし形 d。t の右から出て d の上の頂点に入る形を選ぶ（左から出る方が短くても）
-  const t = { x: 300, y: 40, w: 120, h: 64 }, dm = { x: 100, y: 220, w: 300, h: 64 };
-  const shape = vertexShape(input({ a: t, b: dm, bVertex: true, exit: "horizontal" }), "enter", "t", "r")!;
-  const pts = shapePoints(t, dm, shape)!;
-  expect(pts[0]).toEqual([420, 72]); // 右の辺から
-  expect(pts[pts.length - 1]).toEqual([250, 220]); // 上の頂点へ
-});
-
-test("ひし形: 折れ線は相手の端を辺の真ん中（か、ずらした位置）に固定し、そろわなければ斜めにせず折れて結ぶ", () => {
-  const t = { x: 120, y: 40, w: 150, h: 64 }, dm = { x: 20, y: 185, w: 315, h: 80 };
-  const base = { a: t, b: dm, bVertex: true, exit: "vertical" as const, enter: "vertical" as const };
-  // 相手の端は辺の真ん中（195）に固定。ひし形の頂点（177.5）とそろわないので折れて結ぶ。ひし形を動かしても相手の端は動かない
-  for (const dx of [0, 40, -60]) {
-    const pts = route(input({ ...base, b: { ...dm, x: dm.x + dx } })).points;
-    expect(pts[0]).toEqual([195, 104]);
-    expect(pts[pts.length - 1]).toEqual([177.5 + dx, 185]);
-  }
-  // 頂点とそろえば、まっすぐ
-  expect(route(input({ ...base, b: { ...dm, x: dm.x + 17.5 } })).points).toEqual([[195, 104], [195, 185]]);
-  const bent = route(input({ ...base, exitAt: 0.6 })).points;
-  expect(bent[0]).toEqual([210, 104]);
-  expect(bent[bent.length - 1]).toEqual([177.5, 185]); // 上の頂点
-  for (let i = 1; i < bent.length; i++) {
-    const [p, q] = [bent[i - 1]!, bent[i]!];
-    expect(p[0] === q[0] || p[1] === q[1]).toBe(true); // どの区間も縦か横
-  }
-});

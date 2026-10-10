@@ -1,8 +1,8 @@
 // ボックスと線の内部の形と、ボックスの設定を読む関数。DOM の操作はしない
 
 import { truncate } from "./dom";
-import type { Arrangement, Arrow, Axis, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
-import type { EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
+import type { Arrangement, Arrow, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
+import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
@@ -66,10 +66,11 @@ export interface Edge {
   shape: RouteShape | null;   // 折れ線の形（描いたときのもの。直線などは null）
   segments: Segment[];        // ドラッグで動かせる途中の区間（描いたときのもの）
   arrangement: Arrangement;   // 2 つの箱の並び（描いたときのもの）
-  ends: EndPaths | null;
+  ends: EndPaths | null;      // 線の端をつまんで動かせる道（描いたときのもの。重なった箱どうしなど、動かせなければ null）
+  memory: EndMemory | null;   // 自由な端を前に描いた辺と位置（次に描くときに保つ。入れ替えなどで捨てる。docs/EDGE-SPEC.md）
   // 前に道筋を決めたときの入力（JSON）と結果。入力が同じなら使い回す（ドラッグ中に、動いていない線の避ける道を探し直さない）。
   // データを書き換える結果（fix のあるもの）は覚えない
-  routeMemo: { key: string; route: Routed } | null;  // 両端の位置をずらせるとき、その基準（描いたときのもの。基準が変わったら端の位置を自動に戻す）
+  routeMemo: { key: string; route: Routed } | null;
   endsEl: SVGGElement;        // 線の両端をつかむ丸（線を選んでいるときだけ出す）
   labelEl: SVGForeignObjectElement | null; // キャプションの札（キャプションがあるときだけ。render.ts が作る）
 }
@@ -79,10 +80,6 @@ export interface Edge {
 export const BEND_MARGIN = 12;
 
 export const arrowOf = (e: Edge): Arrow | null => (isArrow(e.src.arrow) ? e.src.arrow : null);
-const axis = (v: unknown): Axis | null => (v === "horizontal" || v === "vertical" ? v : null);
-// 折れ線の始点から出る向き・終点に入る向きの指定（null は自動）
-export const exitOf = (e: Edge): Axis | null => axis(e.src.exit);
-export const enterOf = (e: Edge): Axis | null => axis(e.src.enter);
 // 手で直した折れ線の途中の区間の位置（無ければ null。docs/ROUTE-plan.md）
 export const viaOf = (e: Edge): number[] | null =>
   Array.isArray(e.src.via) && e.src.via.every(v => typeof v === "number" && Number.isFinite(v)) ? [...e.src.via] : null;

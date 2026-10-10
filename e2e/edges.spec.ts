@@ -57,25 +57,19 @@ test("斜めに離れた箱どうしの線を折れ線にすると Z 字にな�
   // 線は塗らない（折れ線の点で囲まれた面が黒く塗られないように）
   expect(await edge.locator(".mz-line").evaluate(l => getComputedStyle(l).fill)).toBe("none");
   expect(await edge.locator(".mz-hit").evaluate(l => getComputedStyle(l).fill)).toBe("none");
-  // 向きの指定は折れ線のときだけ出る。始点・終点とも上下にすると、縦・横・縦の Z 字（点は 4 つのまま）
-  const pick = (name: string, value: string) => side.locator(`label:has(input[name="${name}"][value="${value}"])`).click();
-  await pick("mzp-exit", "vertical");
-  await pick("mzp-enter", "vertical");
-  await expect(side.locator('input[name="mzp-enter"][value="vertical"]')).toBeChecked();
-  await expect.poll(count).toBe(4);
-  await pick("mzp-exit", "auto");
-  await pick("mzp-enter", "auto");
   await side.locator("label", { hasText: "直線" }).click();
   await expect.poll(count).toBe(2);
-  await expect(side.locator('input[name="mzp-exit"]')).toHaveCount(0);
 });
 
-test("横に並ぶ箱どうしでも、向きの組み合わせは自由に選べる。始点を上下にすると下を回るコの字（2026-10-10 に、そろえる決まりをゆるめた）", async ({ page }) => {
+test("線を選ぶと「整列」が出る。押すと両端が辺の真ん中（まっすぐ結べるならまっすぐ）に固定され、「端を自由に戻す」で戻る", async ({ page }) => {
+  // 1 の右の辺の上の方（y = 44）に固定した線。2 は 1 の右で、上下の範囲が重なる
   await openDiagram(page, {
     nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 60 }],
-    edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
+    edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exitAt: 124 / 368 }],
   });
   const hit = page.locator(".mz-edge .mz-hit").first();
+  const points = () => hit.evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/).length);
+  expect(await points()).toBe(4); // Z 字
   const mid = await hit.evaluate(l => {
     const g = l as SVGPolylineElement;
     const svg = g.ownerSVGElement!.getBoundingClientRect();
@@ -85,15 +79,13 @@ test("横に並ぶ箱どうしでも、向きの組み合わせは自由に選�
   await page.mouse.click(mid.x, mid.y);
   const side = page.locator("#sidebar");
   // 見出しの「?」に乗せると説明の吹き出しが出る
-  await side.locator("h3", { hasText: "向きの指定" }).locator(".mz-help").hover();
-  await expect(page.locator(".mz-help-tip")).toBeVisible();
-  await expect(page.locator(".mz-help-tip")).toContainText("自動の端は、一番折れ目の少ない形になる向きを選びます");
-  await side.locator('label:has(input[name="mzp-exit"][value="horizontal"])').click();
-  await expect(side.locator('input[name="mzp-enter"][value="vertical"]')).toBeEnabled();
-  // 始点を上下にすると、終点は自動のまま、折れ目の一番少ない下を回るコの字（点が 4 つ）。終点の左右も選べる
-  await side.locator('label:has(input[name="mzp-exit"][value="vertical"])').click();
-  await expect(side.locator('input[name="mzp-enter"][value="horizontal"]')).toBeEnabled();
-  await expect.poll(() => hit.evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/).length)).toBe(4);
+  await side.locator("h3", { hasText: "端の位置" }).locator(".mz-help").hover();
+  await expect(page.locator(".mz-help-tip")).toContainText("つまんで動かすとその位置に固定されます");
+  await side.locator("[data-align]").click();
+  await expect.poll(points).toBe(2); // まっすぐ
+  await side.locator("[data-at-reset]").click();
+  await expect(side.locator("[data-at-reset]")).toHaveCount(0);
+  await expect.poll(points).toBe(2); // 自由な端どうしも、横に並ぶのでまっすぐ
 });
 
 test("Z 字の中棒をドラッグで動かせ、線を選ぶと自動に戻せる", async ({ page }) => {

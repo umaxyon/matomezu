@@ -9,7 +9,7 @@ import { selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
-  BEND_MARGIN, absPos, ancestors, arrowOf, borderOf, enterOf, exitOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  BEND_MARGIN, absPos, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -255,13 +255,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const input: RouteInput = {
       a: { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
       b: { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
-      elbow: routeOf(e, ctx.world) === "elbow", exit: exitOf(e), enter: enterOf(e),
-      via: viaOf(e), bend: typeof e.src.bend === "number" ? e.src.bend : null,
+      elbow: routeOf(e, ctx.world) === "elbow",
+      via: viaOf(e),
       obstacles, margin: BEND_MARGIN,
       exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
       enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
-      prevFrame: e.ends?.frame ?? null,
       aVertex: shapeOf(e.a) === "diamond", bVertex: shapeOf(e.b) === "diamond",
+      memory: e.memory,
     };
     input.obstacles = scopeObstacles(input);
     return input;
@@ -287,13 +287,15 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       e.shape = r.shape;
       e.segments = r.segments;
       e.arrangement = r.arrangement;
-      e.ends = r.ends;
-      // データに書き戻すこと（向きの指定や via を消す、以前の bend を移す）は graph に任せる
-      if (Object.keys(r.fix).length) ctx.fixEdge(e, r.fix);
+      e.ends = r.arrangement === "overlap" ? null : r.ends;
+      e.memory = r.memory;
+      // データに書き戻すこと（引けなくなった via を消す、以前の持ち方を消す）は graph に任せる
+      const fix = "exit" in e.src || "enter" in e.src || "bend" in e.src ? { ...r.fix, clearLegacy: true } : r.fix;
+      if (Object.keys(fix).length) ctx.fixEdge(e, fix);
       renderHandles(e);
       // 線の両端をつかむ丸（線を選んでいるときだけ CSS で出す）
-      e.endsEl.style.display = r.ends ? "" : "none";
-      if (r.ends) {
+      e.endsEl.style.display = e.ends ? "" : "none";
+      if (e.ends) {
         const [s, t] = [pts[0]!, pts[pts.length - 1]!];
         const [c1, c2] = e.endsEl.children as unknown as SVGCircleElement[];
         c1!.setAttribute("cx", String(s[0])); c1!.setAttribute("cy", String(s[1]));
@@ -320,7 +322,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       e.shape = null;
       e.segments = [];
       // 端は、もう一方の端の辺とその両隣の上を動かせる（端の位置は、箱のふちを一周した割合。selfloop.ts）
-      e.ends = { frame: "", exit: loop.ends.exit, enter: loop.ends.enter };
+      e.ends = { exit: loop.ends.exit, enter: loop.ends.enter };
       e.routeMemo = null;
       renderHandles(e);
       e.endsEl.style.display = "";

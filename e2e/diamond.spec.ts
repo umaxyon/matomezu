@@ -117,10 +117,10 @@ test("ひし形の端を下の頂点へ動かしたあと、途中の区間や�
   expect(await points()).not.toEqual(before0);
   expect((await points()).at(-1)).toEqual(bottom);
   expect(through(await points())).toBe(false);
-  // 相手（トップ画面）の側の端をずらす
+  // 相手（トップ画面）の側の端を、下の辺の左寄りへ動かす
   const t = await rectOf(1);
   const before = (await points())[0]!;
-  await drag('.mz-edge[data-id="e1"] .mz-end[data-end="exit"]', before[0]! - 30, before[1]!);
+  await drag('.mz-edge[data-id="e1"] .mz-end[data-end="exit"]', t.x + 20, t.y + t.h + 3);
   const after = await points();
   expect(after[0]).not.toEqual(before);
   expect(after.at(-1)).toEqual(bottom);
@@ -128,33 +128,7 @@ test("ひし形の端を下の頂点へ動かしたあと、途中の区間や�
   expect(t.w).toBeGreaterThan(0);
 });
 
-test("向きを左右に直した線でも、ひし形の端を下の頂点へ動かせる（相手の向きは保ったまま回り込む）", async ({ page }) => {
-  await openDiagram(page, {
-    world: { route: "elbow" },
-    nodes: [
-      { id: 1, caption: "トップ画面", x: 300, y: 40 },
-      { id: 2, caption: "カートに商品がある？", shape: "diamond", x: 240, y: 220 },
-    ],
-    edges: [{ id: "e1", from: 1, to: 2, exit: "horizontal", enter: "horizontal", via: [200] }],
-  });
-  const points = () => page.locator('.mz-edge[data-id="e1"] .mz-line').evaluate(l =>
-    (l.getAttribute("points") ?? "").trim().split(/\s+/).map(q => q.split(",").map(Number)));
-  const d = await page.locator('.mz-node[data-id="2"] > .mz-head').evaluate(h => {
-    const s = (h as HTMLElement).style; const n = h.parentElement!.style;
-    return { x: parseFloat(n.left) + parseFloat(s.left), y: parseFloat(n.top) + parseFloat(s.top), w: parseFloat(s.width), h: parseFloat(s.height) };
-  });
-  const world = (await page.locator(".mz-world").boundingBox())!;
-  const [p0, p1] = await points();
-  await page.mouse.click(world.x + (p0![0]! + p1![0]!) / 2, world.y + p0![1]!); // 線の上を押して選ぶ
-  const end = (await page.locator('.mz-edge[data-id="e1"] .mz-end[data-end="enter"]').boundingBox())!;
-  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(world.x + d.x + d.w / 2 + 3, world.y + d.y + d.h - 3, { steps: 10 });
-  await page.mouse.up();
-  expect((await points()).at(-1)).toEqual([d.x + d.w / 2, d.y + d.h]);
-});
-
-test("始点を左右にして右から出た線は、終点を上の頂点へ動かしても右から出たまま", async ({ page }) => {
+test("始点を右の辺に固定した線は、終点をひし形の上や下の頂点へ動かしても右から出たまま（回り込む）", async ({ page }) => {
   await openDiagram(page, {
     world: { route: "elbow" },
     nodes: [
@@ -170,25 +144,28 @@ test("始点を左右にして右から出た線は、終点を上の頂点へ�
     return { x: parseFloat(n.left) + parseFloat(s.left), y: parseFloat(n.top) + parseFloat(s.top), w: parseFloat(s.width), h: parseFloat(s.height) };
   });
   const world = (await page.locator(".mz-world").boundingBox())!;
-  const select = async () => {
-    const p = await points();
-    await page.mouse.click(world.x + (p[0]![0]! + p[1]![0]!) / 2, world.y + (p[0]![1]! + p[1]![1]!) / 2);
-  };
-  await select();
-  await page.locator('#sidebar label:has(input[name="mzp-exit"][value="horizontal"])').click();
   const t = await rect(1), d = await rect(2);
-  const start = (await points())[0]!;
-  expect([t.x, t.x + t.w]).toContain(start[0]); // 左右のどちらかから出る
-  const startSide = start[0] === t.x + t.w ? "right" : "left";
-  await select();
-  const end = (await page.locator('.mz-edge[data-id="e1"] .mz-end[data-end="enter"]').boundingBox())!;
-  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(world.x + d.x + d.w / 2 + 3, world.y + d.y + 3, { steps: 10 });
-  await page.mouse.up();
-  const after = await points();
-  expect(after.at(-1)).toEqual([d.x + d.w / 2, d.y]); // 上の頂点
-  expect(after[0]![0]).toBe(startSide === "right" ? t.x + t.w : t.x); // 出る側は変わらない
+  const drag = async (end: "exit" | "enter", x: number, y: number) => {
+    await selectLine(page, "e1");
+    const b = (await page.locator(`.mz-edge[data-id="e1"] .mz-end[data-end="${end}"]`).boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(world.x + x, world.y + y, { steps: 10 });
+    await page.mouse.up();
+  };
+  // 始点をトップ画面の右の辺の真ん中あたりへ
+  await drag("exit", t.x + t.w + 3, t.y + t.h / 2);
+  expect(Math.round((await points())[0]![0]!)).toBe(t.x + t.w);
+  // 終点をひし形の上の頂点へ
+  await drag("enter", d.x + d.w / 2 + 3, d.y + 3);
+  let after = await points();
+  expect(after.at(-1)).toEqual([d.x + d.w / 2, d.y]);
+  expect(Math.round(after[0]![0]!)).toBe(t.x + t.w); // 右から出たまま
+  // 下の頂点へ
+  await drag("enter", d.x + d.w / 2 + 3, d.y + d.h - 3);
+  after = await points();
+  expect(after.at(-1)).toEqual([d.x + d.w / 2, d.y + d.h]);
+  expect(Math.round(after[0]![0]!)).toBe(t.x + t.w);
 });
 
 test("折れ線では、ひし形を動かしても相手（普通の箱）の側の端は動かない", async ({ page }) => {

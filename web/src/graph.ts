@@ -20,6 +20,7 @@
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
  *   graph.updateEdge(id, patch); // 線を変更する（caption は空か null で消す、arrow は null で矢印なし、dash は null か "solid" で実線、
  *                                //   route は "straight" / "elbow"。図の既定と同じなら線の側からは消す。via は null で自動に戻す）
+ *   graph.alignEdge(id);         // 線の両端を、今の形での一番よい位置に固定する（整列。辺の真ん中か、まっすぐ結べる位置）
  *   graph.removeEdge(id);        // 線を消す
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
@@ -114,19 +115,19 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, arrowOf, inList, borderOf, dashOf, enterOf, exitOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
+  absPos, ancestors, arrowOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
-import type { RouteFix } from "./routing";
+import { type RouteFix, alignedEnds, route } from "./routing";
 import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isPaletteName, isTheme, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, Axis, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
-import { ARROWS, AXES, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
+import { ARROWS, DASHES, OVERFLOWS, ROUTES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -148,8 +149,6 @@ export interface EdgePatch {
   via?: number[] | null;
   exitAt?: number | null;
   enterAt?: number | null;
-  exit?: Axis | null;
-  enter?: Axis | null;
 }
 
 export interface GraphOptions extends Partial<typeof DEFAULTS> {
@@ -168,6 +167,9 @@ export { COPY_MIME, REMOVED_MIME } from "./interaction";
 
 // 履歴に残す件数
 const HISTORY_LIMIT = 100;
+// 手を離したとき、粘った形が一番よい形よりこれだけ折れ目が多ければ一番よい形に付け替える（docs/EDGE-SPEC.md の問 2）。
+// 2 だと、相手の端を動かさずに Z 字で結んだ形（まっすぐより 2 つ多い）まで付け替えてしまう
+const SETTLE_BENDS = 3;
 
 export interface Graph {
   load(data: unknown, options?: { keepHistory?: boolean }): void;
@@ -179,6 +181,7 @@ export interface Graph {
   selected(): string | null;
   selectEdge(id: Id): void;
   updateEdge(id: Id, patch: EdgePatch): void;
+  alignEdge(id: Id): void; // 線の両端を、今の形での一番よい位置に固定する（整列。docs/EDGE-SPEC.md の C1）
   removeEdge(id: Id): void;
   info(id: Id | null): NodeInfo;
   update(id: Id | null, patch: Patch): void;
@@ -254,6 +257,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
     },
   });
+  // ドラッグ中か（線の道筋から分かったデータの直しを、手を離すまで待つ）。操作の仕組み（I）を作ったあとで差し替える
+  let dragging = () => false;
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
@@ -294,20 +299,34 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     edgeDrag: createEdgeDrag({
       svg, edges: () => edges, anchorRect: n => L.anchorRect(n), redraw: () => renderEdges(),
       edited: e => { renderEdges(); if (currentEdge === e) notifySelect(); },
-      committed: e => { changed(); if (currentEdge === e) notifySelect(); },
+      committed: e => { renderEdges(); changed(); if (currentEdge === e) notifySelect(); },
       routeInput: e => R.routeInputOf(e),
     }),
     paste: (copy, parentId, at, from) => { paste(copy, parentId, at, from); },
     liftOver: (x, y) => opt.onLiftOver?.(x, y),
     liftEnd: () => opt.onLiftEnd?.(),
     reorder: (n, index) => { reorder(n, index); },
-    resetRoutes: boxes => {
-      const set = new Set(boxes);
-      for (const e of edges) if (set.has(e.a) || set.has(e.b)) { e.ends = null; e.routeMemo = null; }
+    // 箱につながる線の、自由な端を前に描いた辺の記憶を捨てる（一番よい形を追わせる）。passive は押し出された箱で、つかんだ箱 grabbed との
+    // 線は除く（つかんだ箱の線は粘る。docs/EDGE-SPEC.md の A2・A3・A5）
+    resetRoutes: (boxes, passive = [], grabbed = null) => {
+      const set = new Set(boxes), pushed = new Set(passive);
+      for (const e of edges) {
+        const fresh = set.has(e.a) || set.has(e.b) || ((pushed.has(e.a) || pushed.has(e.b)) && e.a !== grabbed && e.b !== grabbed);
+        if (fresh && e.memory) { e.memory = null; e.routeMemo = null; }
+      }
+    },
+    // 手を離した: つかんだ箱の線で、粘った形が一番よい形より折れ目が SETTLE_BENDS 以上多ければ、記憶を捨てて一番よい形にする（A4）
+    settleRoutes: n => {
+      for (const e of edges) {
+        if ((e.a !== n && e.b !== n) || !e.memory || e.a === e.b) continue;
+        const best = route({ ...R.routeInputOf(e), memory: null });
+        if (e.points.length - 2 - best.bends >= SETTLE_BENDS) { e.memory = null; e.routeMemo = null; }
+      }
     },
     // 一覧からドラッグして戻した（選択モードへの切り替えは、知らせを受けた画面の側で決める。notices.ts）
     restore: (id, parentId, at) => { restore(id, parentId, at, true); },
   }, L, R, createDrag(opt, L));
+  dragging = () => I.dragging();
 
   // ユーザーが図を変えたか（読み込んでから、履歴に積む操作をしたか）。変える前の外部の変更は、履歴に積まずに出発点にする
   // （LLM が open のあと check / set で整えている途中を、戻るボタンで巻き戻させないため。docs/HANDOFF.md の 9 章）
@@ -373,17 +392,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   // 線の道筋を決めたときに分かった、データに書き戻すこと（routing.ts の RouteFix）。描画の側ではデータを書き換えない
+  // 箱や線をドラッグしている間は書き戻さず、手を離して描き直すときに書く（途中で一瞬引けなくなっただけで消さない。docs/EDGE-SPEC.md の P2）
   function fixEdge(e: Edge, fix: RouteFix) {
-    if (fix.clearDirections) { delete e.src.exit; delete e.src.enter; }
+    if (dragging()) return;
     if (fix.clearVia) delete e.src.via;
-    if (fix.clearBend) delete e.src.bend;
-    if (fix.clearAt) { delete e.src.exitAt; delete e.src.enterAt; }
-    if (fix.migrate) {
-      e.src.exit = fix.migrate.exit;
-      e.src.enter = fix.migrate.enter;
-      e.src.via = fix.migrate.via.map(Math.round);
-      delete e.src.bend;
-    }
+    if (fix.clearLegacy) { delete e.src.exit; delete e.src.enter; delete e.src.bend; }
   }
 
 
@@ -393,7 +406,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       kind: "edge", id: e.id, self: e.a === e.b, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), caption: typeof e.src.caption === "string" && e.src.caption ? e.src.caption : null,
       captionMoved: e.src.captionAt != null || e.src.captionOffset != null, route: routeOf(e, world),
       via: viaOf(e), adjustable: e.segments.length > 0, endsMoved: e.src.exitAt != null || e.src.enterAt != null,
-      exit: exitOf(e), enter: enterOf(e), arrangement: e.arrangement,
+      arrangement: e.arrangement,
     };
   }
 
@@ -456,7 +469,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     svg.appendChild(g);
     const e: Edge = {
       src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], handlesEl,
-      shape: null, segments: [], arrangement: "diagonal", ends: null, routeMemo: null, endsEl, labelEl: null,
+      shape: null, segments: [], arrangement: "diagonal", ends: null, memory: null, routeMemo: null, endsEl, labelEl: null,
     };
     // キャプションの札を押しても、線を選ぶ（札は render.ts が作ったり消したりするので、g で受け取る）
     g.addEventListener("click", ev => {
@@ -488,12 +501,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function updateEdge(e: Edge, patch: EdgePatch) {
-    for (const k of ["exit", "enter"] as const) {
-      if (!(k in patch)) continue;
-      const v = patch[k];
-      if (v != null && !(AXES as readonly string[]).includes(v)) throw new Error(`${k} の値が不正です: ${v}`);
-      setOrDelete(e.src, k, v ?? undefined, v == null);
-    }
     for (const k of ["exitAt", "enterAt"] as const) {
       if (!(k in patch)) continue;
       const v = patch[k];
@@ -532,9 +539,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       // 実線は既定なので、JSON には書かない
       setOrDelete(e.src, "dash", patch.dash ?? undefined, patch.dash == null || patch.dash === "solid");
     }
+    // 端や形を決め直したら、自由な端の前の辺の記憶は使わない（一番よい形から）
+    if ("exitAt" in patch || "enterAt" in patch || "via" in patch || "route" in patch) e.memory = null;
     renderEdges();
     changed();
     notifySelect();
+  }
+
+  // 整列: 両端を、今の形での一番よい位置（辺の真ん中か、まっすぐ結べる位置）に固定し、手で直した区間は消す（docs/EDGE-SPEC.md の C1）
+  function alignEdge(e: Edge) {
+    if (e.a === e.b || e.points.length < 2 || !e.ends) return;
+    updateEdge(e, { ...alignedEnds(R.routeInputOf(e), e.points), via: null });
   }
 
   function ctrlClick(n: Box) {
@@ -1250,6 +1265,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     selected: () => (current ? current.id : null),
     selectEdge: id => selectEdge(edgeOf(id)),
     updateEdge: (id, patch) => updateEdge(edgeOf(id), patch),
+    alignEdge: id => alignEdge(edgeOf(id)),
     removeEdge: id => removeEdge(edgeOf(id)),
     info: id => info(id == null ? null : nodeOf(id)),
     update,

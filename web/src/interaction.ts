@@ -49,7 +49,8 @@ export interface InteractionContext {
   liftOver(x: number, y: number): void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   liftEnd(): void;                      // 付け替えのドラッグが終わった
   reorder(n: Box, index: number): void; // リストの子 n を、兄弟の中で index 番目へ移して並べ直す（データの並び順も）
-  resetRoutes(boxes: Box[]): void;      // これらの箱につながる線の、前に描いたときの辺の記憶を捨てる（入れ替えが起きたとき。一番よい形に選び直す）
+  resetRoutes(boxes: Box[], passive?: Box[], grabbed?: Box | null): void; // これらの箱につながる線の、自由な端を前に描いた辺の記憶を捨てる（一番よい形を追わせる）。passive は押し出された箱（grabbed との線は除く）
+  settleRoutes(n: Box): void;           // 手を離した: つかんだ箱の線で、粘った形が一番よい形より明らかに悪ければ付け替える
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -260,7 +261,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     let moved = false;
     let released: Released[] | null = null; // 動かし始めたときに外した、祖先の最小の大きさ
     let session: DragSession | null = null; // 動かし始めたときの位置の写し
-    let swapped: Box[] = [];                // 入れ替えた兄弟（変わったら、線を一番よい形に選び直させる）
+    let swapped: Box[] = [];                // 入れ替えた兄弟
+    const fresh = new Set<Box>();           // 入れ替えが起きた箱（このドラッグの終わりまで、線は粘らずに一番よい形を追う。docs/EDGE-SPEC.md の A2・A3）
     n.el.classList.add("mz-dragging");
     return {
       kind: "move", slop: 0,
@@ -272,9 +274,11 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         const reached = session.compute(ox + ev.clientX - sx, oy + ev.clientY - sy);
         const now = session.swapped();
         if (now.length !== swapped.length || now.some(o => !swapped.includes(o))) {
-          ctx.resetRoutes([n, ...now, ...swapped]);
+          for (const o of [n, ...now, ...swapped]) fresh.add(o);
           swapped = [...now];
         }
+        // 押し出された箱の線も、粘らずに一番よい形を追う（A5）
+        ctx.resetRoutes([...fresh], session.displaced(), n);
         if (n.x !== ox || n.y !== oy) moved = true;
         n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
         n.intendedCX = centerX(n);
@@ -289,6 +293,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         // 手を離したときの位置で確定する。どいた箱は、どいた先が本来いたい位置になる
         // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
         session.finish();
+        ctx.settleRoutes(n);
         n.intendedY = n.y;
         n.intendedCX = centerX(n);
         for (const b of session.displaced()) { b.intendedY = b.y; b.intendedCX = centerX(b); }

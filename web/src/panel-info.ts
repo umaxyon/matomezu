@@ -5,7 +5,7 @@ import { esc, keyOf } from "./dom";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
 import { THEMES, isPaletteName, themeById } from "./theme";
-import type { Axis, Brief, ChildView, Dash, EdgeInfo, Info, Overflow, Route, Shape, Size, TreeDirection } from "./types";
+import type { Brief, ChildView, Dash, EdgeInfo, Info, Overflow, Route, Shape, Size, TreeDirection } from "./types";
 
 const OVERFLOW_LABELS: Record<Overflow, string> = {
   wrap: "幅に合わせて折り返す",
@@ -14,7 +14,6 @@ const OVERFLOW_LABELS: Record<Overflow, string> = {
 };
 const KIND_LABELS = { group: "グループ", box: "ボックス" };
 const ROUTE_OPTIONS: [string, string][] = [["straight", "直線"], ["elbow", "折れ線"]];
-const AXIS_OPTIONS: [string, string][] = [["auto", "自動"], ["horizontal", "左右"], ["vertical", "上下"]];
 const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\n" +
   "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります";
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["list", "リスト"], ["hidden", "非表示"]];
@@ -88,17 +87,12 @@ function edgeHtml(info: EdgeInfo): string {
     ${info.self ? `<div class="mzp-section"><p class="mzp-hint">自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）</p></div>` : `<div class="mzp-section"><h3>通り方</h3>
       ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
     </div>`}
-    ${!info.self && info.route === "elbow" ? `<div class="mzp-section"><h3>向きの指定${helpIcon("左右・上下にすると、その端はその辺から出入りします。自動の端は、一番折れ目の少ない形になる向きを選びます。指定した向きで引ける形が無ければ、自動に戻ります")}</h3>
-      <div class="mzp-subhead">始点</div>
-      ${segment("mzp-exit", info.exit ?? "auto", AXIS_OPTIONS)}
-      <div class="mzp-subhead">終点</div>
-      ${segment("mzp-enter", info.enter ?? "auto", AXIS_OPTIONS)}
-    </div>` : ""}
-    ${info.endsMoved ? `<div class="mzp-section">
-      <button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}">端の位置を自動に戻す</button>${helpIcon("線の両端を、ボックスの中心どうしを結ぶ位置に戻します")}
-    </div>` : ""}
+    ${info.self ? "" : `<div class="mzp-section"><h3>端の位置${helpIcon("線の端は、つまんで動かすとその位置に固定されます。固定していない端は、ボックスの位置から自動で決めます")}</h3>
+      <button type="button" class="mzp-chip" data-align="${esc(info.id)}">整列</button>${helpIcon("今の形のまま、両端を辺の真ん中（向き合う辺どうしで、まっすぐ結べるならまっすぐ結ぶ位置）に固定します。動かした途中の区間は自動に戻します")}
+      ${info.endsMoved ? `<button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}">端を自由に戻す</button>${helpIcon("両端の固定を外して、ボックスの位置から自動で決めます。動かした途中の区間も自動に戻します")}` : ""}
+    </div>`}
     ${!info.self && info.via ? `<div class="mzp-section">
-      <button type="button" class="mzp-chip" data-via-reset="${esc(info.id)}">折れ線を自動に戻す</button>${helpIcon("途中の区間を動かした形と、向きの指定をやめて、ボックスの位置から自動で決めた形に戻します")}
+      <button type="button" class="mzp-chip" data-via-reset="${esc(info.id)}">折れ線を自動に戻す</button>${helpIcon("途中の区間を動かした形をやめて、ボックスの位置から自動で決めた形に戻します（端の固定はそのまま）")}
     </div>` : ""}
     <div class="mzp-section"><h3>線の種類</h3>
       ${segment("mzp-dash", info.dash, [["solid", "実線"], ["dashed", "破線"]])}
@@ -242,11 +236,13 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
   pane.addEventListener("click", e => {
     if (!(e.target instanceof Element)) return;
     const atReset = e.target.closest<HTMLElement>("[data-at-reset]");
-    if (atReset) return graph.updateEdge(atReset.dataset.atReset!, { exitAt: null, enterAt: null });
+    if (atReset) return graph.updateEdge(atReset.dataset.atReset!, { exitAt: null, enterAt: null, via: null });
+    const align = e.target.closest<HTMLElement>("[data-align]");
+    if (align) return graph.alignEdge(align.dataset.align!);
     const capReset = e.target.closest<HTMLElement>("[data-caption-reset]");
     if (capReset) return graph.updateEdge(capReset.dataset.captionReset!, { captionAt: null, captionOffset: null });
     const viaReset = e.target.closest<HTMLElement>("[data-via-reset]");
-    if (viaReset) return graph.updateEdge(viaReset.dataset.viaReset!, { via: null, exit: null, enter: null });
+    if (viaReset) return graph.updateEdge(viaReset.dataset.viaReset!, { via: null });
     const delEdge = e.target.closest<HTMLElement>("[data-remove-edge]");
     if (delEdge) return graph.removeEdge(delEdge.dataset.removeEdge!);
     const chip = e.target.closest<HTMLElement>("[data-select]");
@@ -296,9 +292,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (!(t instanceof HTMLInputElement)) return;
     if (t.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: t.value as Dash });
     if (t.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: t.value as Route });
-    if ((t.name === "mzp-exit" || t.name === "mzp-enter") && info.kind === "edge") {
-      return graph.updateEdge(info.id, { [t.name === "mzp-exit" ? "exit" : "enter"]: t.value === "auto" ? null : t.value as Axis });
-    }
     if (t.name === "mzp-world-route") return graph.update(null, { route: t.value as Route });
     // 矢印は、始点と終点の 2 つの選択を合わせて 1 つの値にする
     if (t.dataset.arrow && info.kind === "edge") {

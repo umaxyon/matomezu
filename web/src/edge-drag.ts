@@ -5,7 +5,7 @@ import { SVGNS } from "./dom";
 import { type Box, type Edge, absPos } from "./model";
 import { type Pt, leftNormalAt, nearestAt, pointAt } from "./geom";
 import { CAPTION_OFFSET_MAX } from "./render";
-import { type RouteInput, sideOf, simplifyVia, vertexShape } from "./routing";
+import { type RouteInput, fixedAts, perimeterAt, simplifyVia, vertexOf } from "./routing";
 import { perimeter } from "./selfloop";
 
 export interface EdgeDragContext {
@@ -15,7 +15,7 @@ export interface EdgeDragContext {
   redraw(): void;          // 線を描き直す
   edited(e: Edge): void;   // e.src を書き換えた（描き直し、選んでいる線ならサイドバーに知らせる）
   committed(e: Edge): void; // ドラッグを終えた（1 件の履歴に残し、選んでいる線ならサイドバーに知らせる）
-  routeInput(e: Edge): RouteInput; // 線の道筋を決める入力（render.ts。ひし形の端を別の頂点へ動かすときに形を探す）
+  routeInput(e: Edge): RouteInput; // 線の道筋を決める入力（render.ts）
 }
 
 export type EdgeDrag = ReturnType<typeof createEdgeDrag>;
@@ -67,14 +67,14 @@ export function createEdgeDrag(ctx: EdgeDragContext) {
 
   return {
     // 途中の区間をドラッグしている間、位置を変えて描き直す（手を離したら endVia で 1 件の履歴にする）。
-    // 自動の形なら、まずそのときの形を書き込む（以後はその形を保つ）
+    // 自動の形なら、まず両端を今の位置に固定する（手で直した区間は、両端の辺から向きを決めるので、両端が固定のときだけ持つ）
     setVia(e: Edge, index: number, at: number) {
       if (!e.shape) return;
       const seg = e.segments.find(s => s.index === index);
       if (!seg) return;
       if (!e.src.via) {
-        e.src.exit = e.shape.exit;
-        e.src.enter = e.shape.enter;
+        if (typeof e.src.exitAt !== "number") e.src.exitAt = perimeterAt(edgeRect(e.a), e.points[0]!);
+        if (typeof e.src.enterAt !== "number") e.src.enterAt = perimeterAt(edgeRect(e.b), e.points[e.points.length - 1]!);
       }
       const via = [...(e.src.via as number[] | undefined ?? e.shape.via)];
       via[index] = Math.round(Math.min(seg.hi, Math.max(seg.lo, at)));
@@ -85,14 +85,13 @@ export function createEdgeDrag(ctx: EdgeDragContext) {
     // ドラッグを終えたら、長さ 0 になった区間の折れ目をまとめて、1 件の履歴にする
     endVia(e: Edge) {
       if (e.shape && Array.isArray(e.src.via)) {
-        const at = { exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null, enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null };
-        e.src.via = simplifyVia(edgeRect(e.a), edgeRect(e.b), { ...e.shape, via: e.src.via as number[] }, at);
+        e.src.via = simplifyVia(edgeRect(e.a), edgeRect(e.b), { ...e.shape, via: e.src.via as number[] }, fixedAts(ctx.routeInput(e)));
         ctx.redraw();
       }
       ctx.committed(e);
     },
 
-    // 線の端を、ポインタ（ワールドの座標）に一番近い、端が動ける辺の上の位置へ動かして描き直す
+    // 線の端を、ポインタ（ワールドの座標）に一番近い、箱のふちの上の位置へ動かして固定し、描き直す（ひし形は一番近い頂点）
     setAt(e: Edge, end: "exit" | "enter", x: number, y: number) {
       if (!e.ends) return;
       const path = end === "exit" ? e.ends.exit : e.ends.enter;
@@ -106,22 +105,12 @@ export function createEdgeDrag(ctx: EdgeDragContext) {
         ctx.edited(e);
         return;
       }
-      // ひし形（頂点に限る端）の折れ線: 離した所に一番近い頂点の辺から出入りする形を選び、手で直した形として書き込む
-      // （以後は普通の線と同じく、向きの指定や途中の区間のドラッグが効く）。直線は下の続きで、ふち一周の割合を持つ（routing.ts）
       const input = ctx.routeInput(e);
-      if (input.elbow && (end === "exit" ? input.aVertex : input.bVertex)) {
+      if (end === "exit" ? input.aVertex : input.bVertex) {
         const box = end === "exit" ? input.a : input.b;
-        // もう一方の端が今出入りしている辺は保つ（向きだけでなく、左右・上下のどちら側かも）
-        const keep = e.points.length >= 2
-          ? end === "exit" ? sideOf(input.b, e.points[e.points.length - 1]!) : sideOf(input.a, e.points[0]!) : null;
-        const shape = vertexShape(input, end, sideOf(box, pointAt(path, t)), keep);
-        if (shape) {
-          e.src.exit = shape.exit;
-          e.src.enter = shape.enter;
-          e.src.via = shape.via;
-          delete e.src[end === "exit" ? "exitAt" : "enterAt"];
-          ctx.edited(e);
-        }
+        e.src[end === "exit" ? "exitAt" : "enterAt"] = perimeterAt(box, vertexOf(box, pointAt(path, t)));
+        e.memory = null;
+        ctx.edited(e);
         return;
       }
       // 同じ箱の、この端が動ける辺の上にあるほかの線の端に SNAP_DISTANCE まで近づいたら、その点に合わせる（値をそろえるだけ。
@@ -129,7 +118,8 @@ export function createEdgeDrag(ctx: EdgeDragContext) {
       const target = snapTarget(e, end === "exit" ? e.a : e.b, path, pointAt(path, t));
       if (target) t = nearestAt(path, target[0], target[1]);
       showSnap(target);
-      e.src[end === "exit" ? "exitAt" : "enterAt"] = Math.round(t * 1000) / 1000;
+      e.src[end === "exit" ? "exitAt" : "enterAt"] = Math.round(t * 10000) / 10000; // perimeterAt と同じく小数 4 桁
+      e.memory = null;
       ctx.edited(e);
     },
 

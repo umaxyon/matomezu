@@ -3,6 +3,8 @@ import { type GraphEvent, noticeOf } from "../web/src/notices";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { BoxData, BoxInfo, Diagram, EdgeData, Info } from "../web/src/types";
 import { dragBy, endsOf, fakeMeasure, pointsOf } from "./helpers";
+import { nearestAt } from "../web/src/geom";
+import { perimeter } from "../web/src/selfloop";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -127,7 +129,7 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(el.classList.contains("mz-mode-move")).toBe(true); // 開いた直後から、線はクリックを受ける
   graph.select(1);
   el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", self: false, from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", caption: null, captionMoved: false, route: "straight", via: null, adjustable: false, endsMoved: false, exit: null, enter: null, arrangement: "stack" });
+  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", self: false, from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", caption: null, captionMoved: false, route: "straight", via: null, adjustable: false, endsMoved: false, arrangement: "stack" });
   expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(true);
   expect(graph.selected()).toBeNull(); // ボックスの選択は外れる
 
@@ -1191,29 +1193,41 @@ describe("線のつなぎ方", () => {
     expect(pts(el2)[1]![0]).toBe(300);
   });
 
-  test("以前の bend（中棒の割合）は、読み込むと via（座標）と向きの指定に移る", () => {
+  // 箱のふちの上の点の、ふち一周の割合（固定の端の値）。1: 40〜160 × 40〜104 なら一周 368
+  const P = (r: { x: number; y: number; w: number; h: number }, x: number, y: number) => nearestAt(perimeter(r), x, y);
+  const box1 = { x: 40, y: 40, w: 120, h: 64 };
+  const round = (p: number[][]) => p.map(([x, y]) => [Math.round(x! * 10) / 10, Math.round(y! * 10) / 10]);
+
+  test("以前の持ち方（向きの指定 exit / enter、中棒の割合 bend）は読み込むと消し、自動の形で描く。端が自由な via も消す", () => {
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }],
-      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", bend: 0.25 }],
+      edges: [
+        { id: "e1", from: 1, to: 2, route: "elbow", bend: 0.25 },
+        { id: "e2", from: 1, to: 2, route: "elbow", exit: "vertical", enter: "horizontal", via: [220] },
+      ],
     });
-    // 範囲は 160〜400 なので、0.25 は x = 220
-    expect(pts(el)).toEqual([[160, 72], [220, 72], [220, 152], [400, 152]]);
-    graph.selectEdge("e1");
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", exit: "horizontal", enter: "horizontal", via: [220] });
+    expect(pts(el)).toEqual([[160, 72], [280, 72], [280, 152], [400, 152]]); // ほぼ横に並ぶので Z 字
+    expect(graph.toJSON().edges).toEqual([
+      { id: "e1", from: 1, to: 2, route: "elbow" },
+      { id: "e2", from: 1, to: 2, route: "elbow" },
+    ]);
   });
 
-  test("手で直した via は、引けるあいだは保ち、引けなくなったら via と向きの指定を消して自動に戻す", () => {
-    const edge = { id: "e1", from: 1, to: 2, route: "elbow" as const, exit: "horizontal" as const, enter: "horizontal" as const, via: [220] };
+  test("手で直した via は、両端が固定なら引けるあいだは保ち、引けなくなったら via だけ消す（端の固定は保つ）", () => {
+    // 1 の右の辺の真ん中と、2 の左の辺の真ん中に固定（2: 400〜520 × 120〜184）
+    const fixed = { exitAt: P(box1, 160, 72), enterAt: P({ x: 400, y: 120, w: 120, h: 64 }, 400, 152) };
+    const edge = { id: "e1", from: 1, to: 2, route: "elbow" as const, ...fixed, via: [220] };
     const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }], edges: [edge] });
-    // 2 を少し下げても、x = 220 の縦の区間はそのまま引ける
+    expect(round(pts(el))).toEqual([[160, 72], [220, 72], [220, 152], [400, 152]]);
+    // 2 を下げても、x = 220 の縦の区間はそのまま引ける（端は 2 の左の辺の真ん中のまま）
     graph.load({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 200 }], edges: [edge] }, { keepHistory: true });
-    expect(pts(el)).toEqual([[160, 72], [220, 72], [220, 232], [400, 232]]);
-    // 2 を 1 の左下へ動かすと、x = 220 では 2 の左の辺へ入れない（2 の中を通る）ので、自動に戻る
+    expect(round(pts(el))).toEqual([[160, 72], [220, 72], [220, 232], [400, 232]]);
+    // 2 を 1 の左下へ動かすと、x = 220 では引けないので via を消す
     graph.load({ nodes: [{ id: 1, x: 300, y: 40 }, { id: 2, x: 120, y: 200 }], edges: [edge] }, { keepHistory: true });
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", ...fixed });
   });
 
-  test("選択モードで中棒をドラッグすると、その形（exit / enter / via）を書き込み、手を離すと 1 件の履歴になる。自動に戻せる", () => {
+  test("選択モードで中棒をドラッグすると、両端を今の位置に固定して via を書き込み、手を離すと 1 件の履歴になる。折れ線を自動に戻すと via だけ消す", () => {
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }],
       edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }],
@@ -1227,22 +1241,26 @@ describe("線のつなぎ方", () => {
     fire("pointermove", 340);
     fire("pointermove", 370);
     fire("pointerup", 370);
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", exit: "horizontal", enter: "horizontal", via: [370] });
-    expect(pts(el)[1]![0]).toBe(370);
+    const e = graph.toJSON().edges![0] as EdgeData;
+    expect(e.via).toEqual([370]);
+    expect(e.exitAt).toBeCloseTo(P(box1, 160, 72), 4);
+    expect(e.enterAt).toBeCloseTo(P({ x: 400, y: 120, w: 120, h: 64 }, 400, 152), 4);
+    expect(round(pts(el))).toEqual([[160, 72], [370, 72], [370, 152], [400, 152]]);
     graph.undo();
-    expect((graph.toJSON().edges![0] as EdgeData).via).toBeUndefined();
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
     expect(before).toBe(false);
     graph.redo();
-    graph.updateEdge("e1", { via: null, exit: null, enter: null });
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
-    expect(pts(el)[1]![0]).toBe(280);
+    graph.updateEdge("e1", { via: null });
+    expect((graph.toJSON().edges![0] as EdgeData).via).toBeUndefined();
+    expect(round(pts(el))[1]![0]).toBe(280);
   });
 
   test("コの字の外を回る区間をドラッグすると、深さが変わる（箱の外側から 12 より内へは寄らない）", () => {
-    // 縦に並ぶ 2 つを左右で指定: 右を回るコの字（x = 244）
+    // 縦に並ぶ 2 つを、両方とも右の辺の真ん中に固定: 右を回るコの字（x = 244）
+    const at = P(box1, 160, 72); // 同じ大きさの箱なので、2 の右の辺の真ん中も同じ割合
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 100, y: 300 }],
-      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exit: "horizontal", enter: "horizontal" }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exitAt: at, enterAt: at }],
     });
     expect(pts(el)[1]![0]).toBe(244);
     const handle = el.querySelector<SVGElement>(".mz-bend")!;
@@ -1260,12 +1278,13 @@ describe("線のつなぎ方", () => {
   });
 
   test("S 字の via で、折れ目の多い線を引ける。真ん中の区間をつぶすと Z 字に戻る", () => {
-    // 1: 40〜160 × 40〜104（中心の高さ 72）、2: 400〜520 × 300〜364（中心の高さ 332）。横・縦・横・縦・横
+    // 1: 40〜160 × 40〜104、2: 400〜520 × 300〜364。両端を 1 の右と 2 の左の真ん中に固定。横・縦・横・縦・横
+    const b2 = { x: 400, y: 300, w: 120, h: 64 };
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }],
-      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exit: "horizontal", enter: "horizontal", via: [200, 180, 300] }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exitAt: P(box1, 160, 72), enterAt: P(b2, 400, 332), via: [200, 180, 300] }],
     });
-    expect(pts(el)).toEqual([[160, 72], [200, 72], [200, 180], [300, 180], [300, 332], [400, 332]]);
+    expect(round(pts(el))).toEqual([[160, 72], [200, 72], [200, 180], [300, 180], [300, 332], [400, 332]]);
     expect(el.querySelectorAll(".mz-bend").length).toBe(3);
     // 3 つ目の区間（x = 300）を 1 つ目と同じ x = 200 へ動かすと、間の横の区間が 0 になるので、折れ目をまとめて Z 字に
     const handle = el.querySelector<SVGElement>('.mz-bend[data-index="2"]')!;
@@ -1275,7 +1294,7 @@ describe("線のつなぎ方", () => {
     fire("pointermove", 200);
     fire("pointerup", 200);
     expect((graph.toJSON().edges![0] as EdgeData).via).toEqual([200]);
-    expect(pts(el)).toEqual([[160, 72], [200, 72], [200, 332], [400, 332]]);
+    expect(round(pts(el))).toEqual([[160, 72], [200, 72], [200, 332], [400, 332]]);
   });
 
   test("中棒は両端の余白より外へは動かない", () => {
@@ -1292,155 +1311,129 @@ describe("線のつなぎ方", () => {
     expect(pts(el)[1]![0]).toBe(388); // 400 - 12
   });
 
-  // 斜めの位置（1: 40〜160 × 40〜104、2: 400〜520 × 300〜364）。自動なら L 字（1 の右から出て 2 の上へ）
-  const diagonal = (edge: Partial<EdgeData> = {}): Diagram =>
-    ({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow", ...edge }] });
+  // 端をつまむ丸を、(x0, y0) から (x, y) へドラッグする
+  const dragEnd = (el: HTMLElement, end: "exit" | "enter", x0: number, y0: number, x: number, y: number) => {
+    const dot = el.querySelector<SVGElement>(`.mz-edge.mz-selected .mz-end[data-end="${end}"]`)!;
+    const fire = (type: string, px: number, py: number) =>
+      dot.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: px, clientY: py, pointerId: 1 }));
+    fire("pointerdown", x0, y0);
+    fire("pointermove", x, y);
+    fire("pointerup", x, y);
+  };
 
-  test("向きの指定: 斜めならどの組み合わせも引ける（左右・左右は Z、上下・上下は Z、左右・上下と上下・左右は L）", () => {
-    const { el, graph } = setup(diagonal());
-    expect(pts(el)).toEqual([[160, 72], [460, 72], [460, 300]]);
-    graph.updateEdge("e1", { exit: "horizontal", enter: "horizontal" });
-    expect(pts(el)).toEqual([[160, 72], [280, 72], [280, 332], [400, 332]]);
-    expect(graph.toJSON().edges![0]).toMatchObject({ exit: "horizontal", enter: "horizontal" });
-    graph.updateEdge("e1", { exit: "vertical", enter: "vertical" });
-    expect(pts(el)).toEqual([[100, 104], [100, 202], [460, 202], [460, 300]]);
-    graph.updateEdge("e1", { exit: "vertical", enter: "horizontal" }); // 縦に出て横に入る L
-    expect(pts(el)).toEqual([[100, 104], [100, 332], [400, 332]]);
-    graph.updateEdge("e1", { exit: "horizontal", enter: "vertical" }); // 横に出て縦に入る L
-    expect(pts(el)).toEqual([[160, 72], [460, 72], [460, 300]]);
-    graph.updateEdge("e1", { exit: null, enter: null });
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
-  });
-
-  test("向きの指定: 片方だけ固定したら、もう一方は固定した側に合う形から自動で選ぶ", () => {
-    // 始点を上下に固定: はっきり斜めなので L 字（縦に出て横に入る）
-    expect(pts(setup(diagonal({ exit: "vertical" })).el)).toEqual([[100, 104], [100, 332], [400, 332]]);
-    // 終点を左右に固定: L 字（縦に出て横に入る）
-    expect(pts(setup(diagonal({ enter: "horizontal" })).el)).toEqual([[100, 104], [100, 332], [400, 332]]);
-  });
-
-  test("向きの指定: 横に並ぶ箱どうしは、左右ならまっすぐ、上下なら下か上を回るコの字（回る道の短い方。同じなら下）。そろわない指定も、引ける形があれば使う", () => {
-    // 1: 40〜160 × 40〜104、2: 400〜520 × 60〜124（上下の範囲が重なる）
-    const side = (edge: Partial<EdgeData>): Diagram =>
-      ({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 60 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow", ...edge }] });
-    expect(pts(setup(side({ exit: "horizontal", enter: "horizontal" })).el)).toEqual([[160, 82], [400, 82]]);
-    expect(pts(setup(side({ exit: "vertical" })).el)).toEqual([[100, 104], [100, 148], [460, 148], [460, 124]]);
-    // そろわない指定（右から出て、2 の上か下から入る）も、引ける形があればその形で描き、指定は残す（2026-10-10 ユーザー）
-    const { el, graph } = setup(side({ exit: "horizontal", enter: "vertical" }));
-    const p = pts(el);
-    expect(p[0]![0]).toBe(160);
-    expect(p.at(-1)![0]).toBe(460);
-    expect([60, 124]).toContain(p.at(-1)![1]);
-    expect(graph.toJSON().edges![0]).toMatchObject({ exit: "horizontal", enter: "vertical" });
-  });
-
-  test("向きの指定: 斜めで L 字に指定した線は、箱を動かして横に並んでも、引ける形があれば指定を保つ", () => {
-    const { el, graph } = setup(diagonal({ exit: "vertical", enter: "horizontal" }));
-    expect(pts(el)).toEqual([[100, 104], [100, 332], [400, 332]]);
-    // 2 を 1 の真横（上下の範囲が重なる位置）へ動かす
-    dragBy(el, graph, 2, 0, -240, 48);
-    expect(graph.info(2).y).toBe(60);
-    const e = graph.toJSON().edges![0] as EdgeData;
-    expect([e.exit, e.enter]).toEqual(["vertical", "horizontal"]);
-    const p = pts(el);
-    expect(p[0]![0]).toBe(100); // 1 の上か下（縦）から出て
-    expect(p.at(-1)![0]).toBe(400); // 2 の左（横）から入る
-  });
-
-  test("向きの指定: 縦に並ぶ箱どうしは、左右なら外を回るコの字（回る道の短い方の側）", () => {
-    // 1: 40〜160 × 40〜104、2: 100〜220 × 300〜364（左右の範囲が重なる）。右の外は 244、左の外は 16。右の方が短い
-    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 100, y: 300 }], edges: [{ from: 1, to: 2, route: "elbow", exit: "horizontal" }] });
-    expect(pts(el)).toEqual([[160, 72], [244, 72], [244, 332], [220, 332]]);
-  });
-
-  test("コの字は、回る道の短い方の側を通る", () => {
-    // 1: 40〜160、2 は長いキャプションの L サイズで 100〜386（幅 286）。右を回ると 250 + 24、左を回ると 24 + 84 なので左
-    const caption = "あ".repeat(30);
-    const { el } = setup({
-      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, caption, size: "L", x: 100, y: 300 }],
-      edges: [{ from: 1, to: 2, route: "elbow", exit: "horizontal" }],
-    });
-    const p = pts(el);
-    expect([p[0]![0], p[1]![0], p[2]![0], p[3]![0]]).toEqual([40, 16, 16, 100]);
-  });
-
-  test("向きの指定は直線には効かない", () => {
-    const { el } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ from: 1, to: 2, exit: "horizontal" }] });
-    expect(pts(el).length).toBe(2);
-  });
-
-  test("斜めの直線の端は、選んだ線の丸をドラッグすると辺に沿って動く。相手に向いた側だけで、自動に戻せる", () => {
-    // 1: 40〜160 × 40〜104、2: 400〜520 × 300〜364（右下）。1 の道は右上の角 → 右下の角 → 左下の角（長さ 184）
+  test("直線の端は、選んだ線の丸をドラッグすると箱のふちのどこへでも動き、そこに固定される。もう一方の自由な端はそちらへ向く。自由に戻せる", () => {
+    // 1: 40〜160 × 40〜104、2: 400〜520 × 300〜364（右下）
     const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ id: "e1", from: 1, to: 2 }] });
-    const ends = el.querySelectorAll<SVGElement>(".mz-end");
-    expect(ends.length).toBe(2);
-    expect((el.querySelector(".mz-ends") as SVGElement).style.display).toBe(""); // 斜めの直線なので出せる（見えるのは選んだときだけ、CSS）
+    expect(el.querySelectorAll(".mz-end").length).toBe(2);
     graph.selectEdge("e1");
-    const fire = (type: string, x: number, y: number) =>
-      ends[0]!.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
-    fire("pointerdown", 150, 80);
-    fire("pointermove", 132, 140); // 下の辺の、右下の角から 28 左（92 / 184 = 0.5）の真下
-    fire("pointerup", 132, 140);
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, exitAt: 0.5 });
-    expect(pts(el)[0]).toEqual([132, 104]);
+    dragEnd(el, "exit", 150, 80, 132, 140); // 下の辺の x = 132 の真下
+    expect((graph.toJSON().edges![0] as EdgeData).exitAt).toBeCloseTo(P(box1, 132, 104), 4);
+    expect(round(pts(el))[0]).toEqual([132, 104]);
+    // 相手と反対側（上の辺）へも動かせる
+    dragEnd(el, "exit", 132, 104, 100, 20);
+    expect(round(pts(el))[0]).toEqual([100, 40]);
     graph.updateEdge("e1", { exitAt: null, enterAt: null });
     expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2 });
   });
 
-  test("横に並ぶ箱どうしの直線も、端を向き合う辺に沿って動かせる", () => {
-    // 1: 40〜160 × 40〜104、2: 400〜520 × 40〜104（右）。1 の道は右上の角 → 右下の角（長さ 64）
+  test("横に並ぶ箱どうしの直線は、片方の端を動かすと、もう一方の自由な端がそろってまっすぐのまま", () => {
     const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 40 }], edges: [{ id: "e1", from: 1, to: 2 }] });
     expect(pts(el)).toEqual([[160, 72], [400, 72]]); // 自動は重なる範囲の真ん中をまっすぐ
-    expect((el.querySelector(".mz-ends") as SVGElement).style.display).toBe("");
     graph.selectEdge("e1");
-    const end = el.querySelectorAll<SVGElement>(".mz-end")[0]!;
-    const fire = (type: string, x: number, y: number) =>
-      end.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
-    fire("pointerdown", 160, 72);
-    fire("pointermove", 170, 56);
-    fire("pointerup", 170, 56);
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, exitAt: 0.25 });
-    expect(pts(el)).toEqual([[160, 56], [400, 72]]);
+    dragEnd(el, "exit", 160, 72, 170, 56);
+    expect(round(pts(el))).toEqual([[160, 56], [400, 56]]);
   });
 
-  test("折れ線の端も、選んだ線の丸をドラッグすると出る辺に沿って動く", () => {
-    // 1: 40〜160 × 40〜104、2: 400〜520 × 300〜364（右下）。自動は L 字で、1 の右の辺の真ん中から出る
+  test("折れ線の端も、ドラッグした辺から出る（右の辺なら右へ、下の辺なら下へ）", () => {
+    // 自動は L 字で、1 の右の辺の真ん中から出て 2 の上へ入る
     const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }] });
     expect(pts(el)[0]).toEqual([160, 72]);
-    expect((el.querySelector(".mz-ends") as SVGElement).style.display).toBe("");
     graph.selectEdge("e1");
-    const end = el.querySelectorAll<SVGElement>(".mz-end")[0]!;
-    const fire = (type: string, x: number, y: number) =>
-      end.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
-    fire("pointerdown", 160, 72);
-    fire("pointermove", 170, 56); // 右の辺の上から 1/4
-    fire("pointerup", 170, 56);
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", exitAt: 0.25 });
-    expect(pts(el)).toEqual([[160, 56], [460, 56], [460, 300]]);
+    dragEnd(el, "exit", 160, 72, 170, 56); // 右の辺の上から 1/4
+    expect(round(pts(el))).toEqual([[160, 56], [460, 56], [460, 300]]);
+    dragEnd(el, "exit", 160, 56, 100, 120); // 下の辺の真ん中: 下へ出て 2 の左へ入る L 字
+    expect(round(pts(el))).toEqual([[100, 104], [100, 332], [400, 332]]);
   });
 
-  test("線の端をほかの線の端に 8px まで近づけると吸着し、同じ割合になる。離れていれば吸着しない", () => {
-    // 1: 40〜160 × 40〜104。e1 は右下の 2 へ（L 字で 1 の右の辺から）、e2 は右寄りの 3 へ（Z 字で右の辺から）。e2 の端は右の辺の上から 1/4（y = 56）
+  test("線の端をほかの線の端に 8px まで近づけると吸着し、同じ位置になる。離れていれば吸着しない", () => {
+    // e2 の端は 1 の右の辺の y = 56 に固定
+    const at56 = P(box1, 160, 56);
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }, { id: 3, x: 600, y: 160 }],
-      edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }, { id: "e2", from: 1, to: 3, route: "elbow", exitAt: 0.25 }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }, { id: "e2", from: 1, to: 3, route: "elbow", exitAt: at56 }],
     });
     graph.selectEdge("e1");
-    const end = el.querySelector<SVGElement>('.mz-edge.mz-selected .mz-end[data-end="exit"]')!;
+    const dot = el.querySelector<SVGElement>('.mz-edge.mz-selected .mz-end[data-end="exit"]')!;
     const fire = (type: string, x: number, y: number) =>
-      end.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+      dot.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
     fire("pointerdown", 160, 72);
     fire("pointermove", 170, 61); // 右の辺の y = 61。e2 の端（y = 56）まで 5px
     expect(el.querySelector(".mz-snap")).not.toBeNull();
     fire("pointerup", 170, 61);
     expect(el.querySelector(".mz-snap")).toBeNull();
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow", exitAt: 0.25 });
+    expect((graph.toJSON().edges![0] as EdgeData).exitAt).toBeCloseTo(at56, 3);
     // 9px 離れていれば吸着しない
     fire("pointerdown", 160, 56);
     fire("pointermove", 170, 65);
     expect(el.querySelector(".mz-snap")).toBeNull();
     fire("pointerup", 170, 65);
-    expect((graph.toJSON().edges![0] as EdgeData).exitAt).toBeCloseTo(25 / 64, 3);
+    expect((graph.toJSON().edges![0] as EdgeData).exitAt).toBeCloseTo(P(box1, 160, 65), 3);
+  });
+
+  test("整列: 両端を今の形での一番よい位置（辺の真ん中か、まっすぐ結べる位置）に固定し、手で直した区間は消す", () => {
+    // 1 の右の辺の上の方に固定した線（2 は 1 の右、上下の範囲が 60〜104 で重なる）
+    const { el, graph } = setup({
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 60 }],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exitAt: P(box1, 160, 44) }],
+    });
+    expect(round(pts(el))[0]).toEqual([160, 44]);
+    graph.selectEdge("e1");
+    graph.alignEdge("e1");
+    expect(round(pts(el))).toEqual([[160, 82], [400, 82]]);
+    const e = graph.toJSON().edges![0] as EdgeData;
+    expect(e.exitAt).toBeCloseTo(P(box1, 160, 82), 3);
+    expect(e.via).toBeUndefined();
+    // 自由に戻す（サイドバーの「端を自由に戻す」と同じ）
+    graph.updateEdge("e1", { exitAt: null, enterAt: null, via: null });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
+  });
+
+  test("箱を動かしている間は、引けなくなった via もデータから消さない。手を離したときに引ければ残す（docs/EDGE-SPEC.md の P2）", () => {
+    const b2 = { x: 400, y: 120, w: 120, h: 64 };
+    const edge = { id: "e1", from: 1, to: 2, route: "elbow" as const, exitAt: P(box1, 160, 72), enterAt: P(b2, 400, 152), via: [220] };
+    const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }], edges: [edge] });
+    graph.select(2);
+    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
+    const fire = (type: string, x: number, y: number) =>
+      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    fire("pointerdown", 0, 0);
+    // 2 を 1 の左下（x = 220 では引けない位置）まで動かす
+    for (let i = 1; i <= 10; i++) fire("pointermove", -36 * i, 16 * i);
+    expect((graph.toJSON().edges![0] as EdgeData).via).toEqual([220]);
+    // 元の位置へ戻してから離す
+    for (let i = 9; i >= 0; i--) fire("pointermove", -36 * i, 16 * i);
+    fire("pointerup", 0, 0);
+    expect((graph.toJSON().edges![0] as EdgeData).via).toEqual([220]);
+    expect(round(pts(el))).toEqual([[160, 72], [220, 72], [220, 152], [400, 152]]);
+  });
+
+  test("箱を動かしている間、自由な端は前の辺を保つ。手を離したとき、一番よい形より折れ目が 3 つ以上多ければ付け替える", () => {
+    // 自動は L 字（1 の右から出て、2 の上へ）
+    const { el, graph } = setup({ nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }], edges: [{ id: "e1", from: 1, to: 2, route: "elbow" }] });
+    expect(pts(el)).toEqual([[160, 72], [460, 72], [460, 300]]);
+    graph.select(2);
+    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
+    const fire = (type: string, x: number, y: number) =>
+      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    fire("pointerdown", 0, 0);
+    // 2 を 1 の真下へ。動かしている間は、1 の右から 2 の上へ回り込む形（折れ目 3 つ）を保つ
+    for (let i = 1; i <= 10; i++) fire("pointermove", -34 * i, 0);
+    const during = pts(el);
+    expect([during[0], during.length - 2]).toEqual([[160, 72], 3]);
+    // 離すと、まっすぐ（折れ目 0）より 3 つ多いので付け替える
+    fire("pointerup", -340, 0);
+    expect(pts(el).length).toBe(2);
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" }); // データには書かない
   });
 
   test("exitAt / enterAt は 0 から 1 の数だけ", () => {
