@@ -6,13 +6,20 @@
 import type { EdgeDrag } from "./edge-drag";
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
-import { type Box, type Edge, type World, inList, inNest, isInside } from "./model";
+import { type Box, type Edge, type World, inList, inNest, isInside, viewOf } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 
 // ツールのモード。移動、親子の付け替え、線（線のクリックで削除、Ctrl+クリックで線を引く。ドラッグは移動）、
-// 削除（ボックスを押すと子孫ごと消える。ドラッグはしない）
-export type Mode = "move" | "reparent" | "link" | "remove";
+// 削除（ボックスを押すと子孫ごと消える。ドラッグはしない）、追加（押した所に新しい箱を足す。docs/ADD-plan.md）
+export type Mode = "move" | "reparent" | "link" | "remove" | "add";
+
+// 追加モードで押した所: 新しい箱の親（null はワールド）、親の中での位置、リストへの差し込みなら前に入れる兄弟（無ければ末尾）
+export interface AddRequest {
+  parentId: string | null;
+  at?: { x: number; y: number };
+  before?: string;
+}
 
 // サイドバーの一覧から、消したボックスを図へドラッグするときのデータの種類（中身は id）
 export const REMOVED_MIME = "application/x-matomezu-removed";
@@ -43,6 +50,8 @@ export interface InteractionContext {
   reorder(n: Box, index: number): void; // リストの子 n を、兄弟の中で index 番目へ移して並べ直す（データの並び順も）
   resetRoutes(boxes: Box[], passive?: Box[], grabbed?: Box | null): void; // これらの箱につながる線の、自由な端を前に描いた辺の記憶を捨てる（一番よい形を追わせる）。passive は押し出された箱（grabbed との線は除く）
   settleRoutes(n: Box): void;           // 手を離した: つかんだ箱の線で、粘った形が一番よい形より明らかに悪ければ付け替える
+  requestAdd(req: AddRequest): void;    // 追加モードで押した（新しい箱の中身を聞くのは画面の側。view.ts）
+  leaveAdd(): void;                     // 追加モードを Esc でやめる（選択モードに戻す）
   // 本文の幅を変え始める。width は今の本文の幅（箱の幅として数えたもの）。set で変え、finish で 1 件の履歴に、cancel で元に戻す
   resizeBody(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
 }
@@ -147,6 +156,14 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerDown(e: PointerEvent) {
+    // 追加モード: 押した所に新しい箱を足す（ほかの操作はしない）
+    if (ctx.mode() === "add") {
+      e.stopPropagation();
+      e.preventDefault();
+      const spot = addSpotAt(e.clientX, e.clientY);
+      if (spot) ctx.requestAdd(spot);
+      return;
+    }
     // 線のキャプションの札をつまむと、線に沿って・線から離して動かす（選択モード。押してすぐ離せば、札のクリックで線を選ぶ）
     const labelEl = e.target instanceof Element ? e.target.closest(".mz-label") : null;
     const labelEdge = labelEl && ctx.mode() === "move" ? ctx.edgeOfEl(labelEl) : undefined;
@@ -327,6 +344,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   // 付け替えはページ全体で受け取っているので、ここでは扱わない。遊びを越えるまでは move を呼ばない
   function onPointerMove(e: PointerEvent) {
+    if (ctx.mode() === "add") return showAdd(e.clientX, e.clientY);
     const a = active;
     if (!a || a.g.kind === "lift") return;
     if (!a.started) {
@@ -368,6 +386,77 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (e.key !== "Escape") return;
     ctx.cancelLinking();
     endLift();
+    if (ctx.mode() === "add") ctx.leaveAdd();
+  }
+
+  // ---- 箱の追加（追加モード。docs/ADD-plan.md） ----
+  // ポインタに新しい箱の影（半透明の箱）を付け、押すと足す所を強調する。足す所の決まりは一覧から戻すドラッグと同じ
+  // （箱の上ならその箱の子、何も無い所ならワールド。ページの箱の上には足せない）。リストの上（とリストの葉の子の上）では、
+  // ポインタに近い子と子の間に線を出し、そこへ差し込む
+
+  const ADD_OFFSET = { x: 16, y: 12 }; // 影の左上は、ポインタのこれだけ左上（一覧から戻すときと同じ）
+  let addGhost: HTMLElement | null = null;
+  let addLine: HTMLElement | null = null;
+  let addMarked: Box | null | undefined;
+
+  // 押すと足す所（足せない所なら undefined）。差し込みの線を出す位置（画面の座標）も返す
+  function addSpotAt(x: number, y: number): (AddRequest & { line?: { left: number; top: number; width: number } }) | undefined {
+    const t = dropTargetAt(x, y, null);
+    if (t === undefined) return undefined;
+    const leafLike = (b: Box) => !b.children.length || viewOf(b) === "hidden";
+    const list = t && viewOf(t) === "list" && t.children.length ? t : t && inList(t) && leafLike(t) ? t.parent! : null;
+    if (list) {
+      const kids = list.children.map(k => ({ k, r: k.el.getBoundingClientRect() }));
+      const next = kids.find(({ r }) => y < r.top + r.height / 2);
+      const lr = list.el.getBoundingClientRect(), last = kids.at(-1)!.r;
+      const gap = 4; // 子と子の間（8px）の真ん中
+      return {
+        parentId: list.id, before: next?.k.id,
+        line: { left: last.left, top: next ? next.r.top - gap : last.bottom + gap, width: Math.min(last.width, lr.width) },
+      };
+    }
+    const r = (t ?? world).el.getBoundingClientRect();
+    return { parentId: t ? t.id : null, at: { x: x - r.left - ADD_OFFSET.x, y: y - r.top - ADD_OFFSET.y } };
+  }
+
+  function showAdd(x: number, y: number) {
+    const spot = addSpotAt(x, y);
+    if (!addGhost) {
+      addGhost = document.createElement("div");
+      addGhost.className = "mz-add-ghost";
+      container.appendChild(addGhost);
+    }
+    addGhost.style.left = x - ADD_OFFSET.x + "px";
+    addGhost.style.top = y - ADD_OFFSET.y + "px";
+    addGhost.classList.toggle("mz-ghost-no", !spot);
+    if (spot?.line) {
+      if (!addLine) {
+        addLine = document.createElement("div");
+        addLine.className = "mz-add-line";
+        container.appendChild(addLine);
+      }
+      addLine.style.left = spot.line.left + "px";
+      addLine.style.top = spot.line.top - 1 + "px";
+      addLine.style.width = spot.line.width + "px";
+    } else {
+      addLine?.remove();
+      addLine = null;
+    }
+    // 箱の中へ足すときは、その箱（何も無い所ならワールド）を強調する。リストへの差し込みは線だけで示す
+    const mark = !spot || spot.line ? undefined : spot.parentId == null ? null : ctx.boxById(spot.parentId) ?? undefined;
+    if (mark === addMarked) return;
+    if (addMarked !== undefined) (addMarked ?? world).el.classList.remove("mz-drop");
+    addMarked = mark;
+    if (mark !== undefined) (mark ?? world).el.classList.add("mz-drop");
+  }
+
+  // 影と線と強調を消す（図の外へ出たとき、モードを変えたとき）
+  function endAdd() {
+    addGhost?.remove();
+    addLine?.remove();
+    addGhost = addLine = null;
+    if (addMarked !== undefined) (addMarked ?? world).el.classList.remove("mz-drop");
+    addMarked = undefined;
   }
 
   // ---- 付け替えのドラッグ ----
@@ -496,7 +585,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   container.addEventListener("pointerup", onPointerUp, { signal });
   container.addEventListener("pointercancel", onPointerUp, { signal });
   container.addEventListener("pointerover", onPointerOver, { signal });
-  container.addEventListener("pointerleave", () => { if (active?.g.kind !== "move") unfocus(); unmarkRemove(); }, { signal });
+  container.addEventListener("pointerleave", () => { if (active?.g.kind !== "move") unfocus(); unmarkRemove(); endAdd(); }, { signal });
   container.addEventListener("dragover", onDragOver, { signal });
   container.addEventListener("dragleave", e => {
     if (!(e.relatedTarget instanceof Node && container.contains(e.relatedTarget))) markRestore(undefined);
@@ -507,11 +596,15 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   return {
     dragging: () => active != null,
     endLift,
+    endAdd,
     // 描き直すときに、ドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
     reset() {
       active?.g.cancel();
       if (active?.g.kind !== "lift") active = null;
       removing = null;
+      // 描き直すと箱の要素が作り直されるので、強調は付け直す（次にポインタが動いたとき）
+      if (addMarked !== undefined) (addMarked ?? world).el.classList.remove("mz-drop");
+      addMarked = undefined;
     },
     unmarkRemove,
     destroy() { lift?.stop.abort(); listening.abort(); },

@@ -195,6 +195,14 @@ export const GRAPH_CSS = `
 .mz-ghost { position: fixed; z-index: 50; opacity: 0.8; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35)); }
 .mz-ghost .mz-head { pointer-events: none; }
 .mz-ghost.mz-ghost-no { opacity: 0.35; }
+/* 追加モード: ポインタに付く新しい箱の影と、リストの子と子の間に差し込む線（docs/ADD-plan.md） */
+.mz-mode-add, .mz-mode-add .mz-head { cursor: copy; }
+.mz-add-ghost {
+  position: fixed; z-index: 50; width: 120px; height: 64px; box-sizing: border-box; pointer-events: none;
+  border: 2px dashed var(--mz-select); border-radius: 6px; background: color-mix(in srgb, var(--mz-select) 18%, transparent);
+}
+.mz-add-ghost.mz-ghost-no { opacity: 0.35; }
+.mz-add-line { position: fixed; z-index: 51; height: 3px; border-radius: 2px; pointer-events: none; background: var(--mz-select); }
 .mz-node.mz-drop > .mz-head {
   outline: 3px solid var(--mz-select); outline-offset: 3px;
   box-shadow: 0 0 0 7px color-mix(in srgb, var(--mz-select) 25%, transparent) !important;

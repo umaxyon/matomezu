@@ -105,3 +105,18 @@ export function pasteSubtree(
   data.edges = [...edgesOf(data), ...edges];
   return { root: String(ids.get(copy.root)), nodes: nodes.length, edges: edges.length };
 }
+
+// 新しい箱を parent（undefined は最上位）の子として足し、位置を pos にする（画面からの追加。docs/ADD-plan.md）。
+// id はこのブックで空いている番号（消した箱の番号も使わない）。before があれば、データの並びでその箱の前に入れる
+// （リストの並び順はデータの並び順なので、リストの間への差し込みに使う）。無ければ末尾。新しい箱の id を返す
+export function addBox(data: Diagram, fields: Partial<BoxData>, parent: Id | undefined, pos: Pos, before?: Id): number {
+  const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
+  const id = Math.max(0, ...used) + 1;
+  const s: BoxData = { ...fields, id };
+  setParentId(s, parent);
+  place(s, pos);
+  const at = before == null ? -1 : data.nodes.findIndex(n => String(n.id) === String(before));
+  if (at < 0) data.nodes.push(s);
+  else data.nodes.splice(at, 0, s);
+  return id;
+}

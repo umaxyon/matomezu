@@ -1,9 +1,10 @@
 /*
- * 編集ダイアログ（箱はキャプションと本文、線はキャプション。docs/BODY-plan.md の段階 3）。
+ * 編集ダイアログ（箱はキャプションと本文、線はキャプション。docs/BODY-plan.md の段階 3）と、箱の追加のダイアログ（docs/ADD-plan.md）。
  * モーダル: 画面全体を覆い、閉じるまで図やサイドバーを触れなくする。入力中は図を動かさず、確定したときに 1 件の履歴として書く。
- * Ctrl+Enter（Mac は Cmd+Enter）か「確定」で確定、Esc か「取り消し」で閉じる。キャプションの欄では Enter でも確定する（1 行）。
+ * Ctrl+Enter（Mac は Cmd+Enter）か「確定」（追加は「追加」）で確定、Esc か「キャンセル」で閉じる。キャプションの欄では Enter でも確定する（1 行）。
  *
  *   openEditDialog(graph, id);     // 箱。ダブルクリックと、サイドバーの鉛筆ボタンから開く
+ *   openAddDialog(graph, req);     // 箱の追加。追加モードで図を押したときに開く（req は押した所）
  *   openEdgeEditDialog(graph, id); // 線。線（か札）のダブルクリックと、サイドバーの鉛筆ボタンから開く
  *   closeEditDialog();             // 開いていれば閉じる（図を作り直すときなど）
  */
@@ -11,7 +12,8 @@
 import { esc, injectStyle } from "./dom";
 import { helpIcon, setupHelp } from "./help";
 import type { Graph } from "./graph";
-import type { BoxInfo, Patch } from "./types";
+import type { AddRequest } from "./interaction";
+import type { BoxData, BoxInfo, Patch } from "./types";
 
 const STYLE_ID = "matomezu-edit-dialog-style";
 const CSS = `
@@ -84,16 +86,17 @@ export function closeEditDialog(): void {
 // 本文の最大行数の選択肢（超えた分は … で切る）。データにこれ以外の値があれば、それも選べるように足す
 const LINE_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 
-export function openEditDialog(graph: Graph, id: string): void {
-  const info = graph.info(id);
-  if (info.kind === "world") return;
-  const b = info as BoxInfo;
+// 箱の中身（キャプション・区切り線・本文・箱の幅に合わせる・最大行数）を聞くダイアログ。編集と追加で同じ並び
+interface BoxValues { caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean }
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody">;
+
+function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void) {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   const off = b.canBody ? "" : " disabled";
-  // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするボタン
+  // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするスイッチ
   // 「箱の幅に合わせる」は、つまみで本文の幅を変えていれば押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
   // 子の無い箱では箱の幅が中身（キャプションと本文）に合わせて決まり直す
-  const overlay = show("ボックスの編集", `
+  const overlay = show(title, okLabel, `
       <label class="mz-dlg-field"><span>キャプション</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
       <div class="mz-dlg-row"><span>区切り線</span>
@@ -112,16 +115,14 @@ export function openEditDialog(graph: Graph, id: string): void {
           </select></label></div>`,
   overlay => {
     const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
-    const caption = field<HTMLInputElement>("caption").value, body = field<HTMLTextAreaElement>("body").value;
-    const rule = field("rule").getAttribute("aria-checked") === "true", linesValue = field<HTMLSelectElement>("lines").value;
-    const patch: Patch = {};
-    if (caption !== b.caption) patch.caption = caption;
-    if (b.canBody && body !== b.body) patch.body = body || null;
-    if (b.canBody && rule !== b.bodyRule) patch.bodyRule = rule ? null : false;
-    const n = linesValue ? Number(linesValue) : null;
-    if (b.canBody && n !== b.bodyLines) patch.bodyLines = n;
-    if (b.bodyWidth && field<HTMLInputElement>("width-auto").value) patch.bodyWidth = null;
-    if (Object.keys(patch).length) graph.update(id, patch);
+    const linesValue = field<HTMLSelectElement>("lines").value;
+    commit({
+      caption: field<HTMLInputElement>("caption").value,
+      body: field<HTMLTextAreaElement>("body").value,
+      rule: field("rule").getAttribute("aria-checked") === "true",
+      lines: linesValue ? Number(linesValue) : null,
+      widthAuto: !!field<HTMLInputElement>("width-auto").value,
+    });
   });
   const ruleSwitch = overlay.querySelector<HTMLElement>('[name="rule"]')!;
   ruleSwitch.addEventListener("click", () => {
@@ -138,10 +139,40 @@ export function openEditDialog(graph: Graph, id: string): void {
   overlay.querySelector<HTMLSelectElement>('[name="lines"]')!.value = b.bodyLines ? String(b.bodyLines) : "";
 }
 
+export function openEditDialog(graph: Graph, id: string): void {
+  const info = graph.info(id);
+  if (info.kind === "world") return;
+  const b = info as BoxInfo;
+  boxDialog("ボックスの編集", "確定", b, v => {
+    const patch: Patch = {};
+    if (v.caption !== b.caption) patch.caption = v.caption;
+    if (b.canBody && v.body !== b.body) patch.body = v.body || null;
+    if (b.canBody && v.rule !== b.bodyRule) patch.bodyRule = v.rule ? null : false;
+    if (b.canBody && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
+    if (b.bodyWidth && v.widthAuto) patch.bodyWidth = null;
+    if (Object.keys(patch).length) graph.update(id, patch);
+  });
+}
+
+// 追加モードで押した所 req に、新しい箱を足すダイアログ（docs/ADD-plan.md）。「追加」で足して選択モードに戻る。
+// 「キャンセル」なら何もせず、追加モードのまま
+export function openAddDialog(graph: Graph, req: AddRequest): void {
+  const start: BoxStart = { caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true };
+  boxDialog("ボックスの追加", "追加", start, v => {
+    const fields: Partial<BoxData> = {};
+    if (v.caption) fields.caption = v.caption;
+    if (v.body) fields.body = v.body;
+    if (!v.rule) fields.bodyRule = false;
+    if (v.lines) fields.bodyLines = v.lines;
+    graph.add(req, fields);
+    graph.setMode("move");
+  });
+}
+
 export function openEdgeEditDialog(graph: Graph, id: string): void {
   const e = graph.edgeInfo(id);
   if (!e) return;
-  show("線の編集", `
+  show("線の編集", "確定", `
       <label class="mz-dlg-field"><span>キャプション</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(e.caption ?? "")}" placeholder="なし"></label>`,
   overlay => {
@@ -152,7 +183,7 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
 
 // ダイアログを出す。fields は項目の HTML、commit は確定したときに項目を読んで書く（変えた項目だけを 1 回の変更として書く。
 // 変えていなければ書かない。履歴に残さない）
-function show(title: string, fields: string, commit: (overlay: HTMLElement) => void): HTMLElement {
+function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
   const overlay = document.createElement("div");
@@ -162,9 +193,9 @@ function show(title: string, fields: string, commit: (overlay: HTMLElement) => v
       <h2 id="mz-dlg-title">${esc(title)}</h2>
       ${fields}
       <div class="mz-dlg-foot">
-        <span class="mz-dlg-hint">${mac ? "⌘" : "Ctrl"}+Enter で確定 / Esc で取り消し</span>
-        <button type="button" class="mz-dlg-btn" data-cancel>取り消し</button>
-        <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>確定</button>
+        <span class="mz-dlg-hint">${mac ? "⌘" : "Ctrl"}+Enter で${esc(okLabel)} / Esc でキャンセル</span>
+        <button type="button" class="mz-dlg-btn" data-cancel>キャンセル</button>
+        <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>${esc(okLabel)}</button>
       </div>
     </div>`;
   const caption = overlay.querySelector<HTMLInputElement>('[name="caption"]');

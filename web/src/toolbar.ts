@@ -25,7 +25,7 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   return () => listening.abort();
 }
 
-const MODE_LABELS: Record<Mode, string> = { move: "選択モード", reparent: "付け替えモード", link: "線モード", remove: "削除モード" };
+const MODE_LABELS: Record<Mode, string> = { move: "選択モード", reparent: "付け替えモード", link: "線モード", remove: "削除モード", add: "追加モード" };
 
 // Ctrl を押している間だけ入れ替わる相手（線モードでは Ctrl を線を引くのに使うので、入れ替えない）
 const FLIP: Partial<Record<Mode, Mode>> = { move: "reparent", reparent: "move" };

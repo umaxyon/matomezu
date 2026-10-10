@@ -3,7 +3,7 @@
 
 import { createGraph, type Graph, type GraphOptions } from "./graph";
 import { createMinimap, type Minimap } from "./minimap";
-import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
+import { openAddDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { createPanel, type Panel, type PanelOptions } from "./panel";
 
 export interface DiagramView {
@@ -19,6 +19,8 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   const graph = createGraph(stage, data, {
     ...options,
     onSelect: info => { panel?.show(info); options.onSelect?.(info); },
+    // 追加モードで図を押したら、新しい箱の中身を聞くダイアログを開く
+    onAddRequest: req => openAddDialog(graph, req),
   });
   panel = createPanel(sidebar, graph, panelOptions);
   const minimap = createMinimap(stage, graph);

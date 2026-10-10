@@ -25,7 +25,7 @@
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
- *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）/ "remove"（削除）
+ *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）/ "remove"（削除）/ "add"（追加）
  *   graph.onModeChange(fn);      // モードが変わったら知らせる（一覧から戻したときに移動モードへ切り替えるなど、図の側で変えたときも）
  *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
  *   graph.fitChildren(id, "width" | "height" | "both"); // 内包している子の大きさを、一番大きい子にそろえる
@@ -37,6 +37,7 @@
  *   graph.page();                // 描いているページ
  *   graph.pages();               // ブックのページ（ページの箱の id とキャプション）
  *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
+ *   graph.add(req, fields);      // 新しい箱を足す（req は追加モードで押した所。onAddRequest で届く。docs/ADD-plan.md）
  *   graph.destroy();
  *
  * データ形式:
@@ -106,7 +107,7 @@
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle, keyOf } from "./dom";
 import { createHistory, type HistoryState } from "./history";
-import { createInteraction, type Mode } from "./interaction";
+import { type AddRequest, createInteraction, type Mode } from "./interaction";
 import { createDrag } from "./layout/drag";
 import { createLayout } from "./layout/layout";
 import { BODY_MIN_W } from "./layout/node-kinds";
@@ -117,7 +118,7 @@ import {
   absPos, ancestors, arrowOf, dataSizeOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   bodyLinesOf, bodyWidthOf, bodyWrapW, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
-import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
+import { type Pos, addBox, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import { type RouteFix, alignedEnds, isAligned, route } from "./routing";
@@ -158,10 +159,11 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onBuild?: () => void;                       // 図を組み立て直した（ページの増減やキャプションを見直すため）
   onLiftOver?: (x: number, y: number) => void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   onLiftEnd?: () => void;                     // 付け替えのドラッグが終わった
+  onAddRequest?: (req: AddRequest) => void;   // 追加モードで図を押した（新しい箱の中身を聞いて add を呼ぶのは画面の側。view.ts）
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
-export type { HistoryState, Mode };
+export type { AddRequest, HistoryState, Mode };
 export { COPY_MIME, REMOVED_MIME } from "./interaction";
 
 // 履歴に残す件数
@@ -203,6 +205,8 @@ export interface Graph {
   page(): string | null;
   pages(): { id: string; caption: string }[];
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
+  // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
+  add(req: AddRequest, fields: Partial<BoxData>): string;
   // プレビュー（見るだけのモード）。倍率を渡すと入り、null で編集に戻る。プレビュー中は、押すと選ぶだけで、
   // 背景のドラッグは見る範囲を動かす。図を直す操作（ドラッグ、Undo / Redo）は効かない
   setPreview(zoom: number | null): void;
@@ -326,6 +330,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     // 一覧からドラッグして戻した（選択モードへの切り替えは、知らせを受けた画面の側で決める。notices.ts）
     restore: (id, parentId, at) => { restore(id, parentId, at, true); },
+    requestAdd: req => opt.onAddRequest?.(req),
+    leaveAdd: () => setMode("move"),
   }, L, R, createDrag(opt, L));
   dragging = () => I.dragging();
 
@@ -786,6 +792,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return r.root;
   }
 
+  // 新しい箱を足す（docs/ADD-plan.md）。足す所の決まりは復活と同じ（内包か子の無い箱の中、最上位なら押した位置、ツリー・非表示の中なら自動）。
+  // リストへの差し込みは、データの並びで before の箱の前に入れる（無ければ末尾）。テーマや色は書かず、親から受け継ぐ
+  function add(req: AddRequest, fields: Partial<BoxData>) {
+    const t = target(req.parentId, "追加できません（そのページのタブで追加してください）");
+    const pos = dropPos(t, req.at);
+    let id!: number;
+    const n = rebuildWith(data => {
+      id = addBox(data, fields, parentIdOf(t), pos, req.before);
+      return { select: String(id), drop: pos };
+    })!;
+    opt.onEvent?.({ kind: "added", key: keyOfBox(n) });
+    return String(id);
+  }
+
   // サイドバーの一覧（ブック全体）。表示中の箱は、載っているページを添える（ページの箱の直下の子は、親を出さない）。
   // 消したボックスの親は、表示中か消したものの中から名前を引く
   function items(): Items {
@@ -829,6 +849,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     container.classList.toggle("mz-mode-reparent", m === "reparent");
     container.classList.toggle("mz-mode-link", m === "link");
     container.classList.toggle("mz-mode-remove", m === "remove");
+    container.classList.toggle("mz-mode-add", m === "add");
+    if (m !== "add") I.endAdd();
     for (const f of modeListeners) f(m);
   }
   const modeListeners = new Set<(m: Mode) => void>();
@@ -1358,6 +1380,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     page: () => page,
     paste,
+    add,
     pages: () => source.nodes.filter(s => s.page === true)
       .map(s => ({ id: String(s.id), caption: s.caption != null && s.caption !== "" ? String(s.caption) : String(s.id) })),
     geometry() {
