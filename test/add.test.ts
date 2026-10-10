@@ -73,7 +73,9 @@ test("追加のダイアログ: 同じ並びで、ボタンは「キャンセル
   expect([dlg(), g.toJSON().nodes.length, g.mode()]).toEqual([null, 0, "add"]);
   openAddDialog(g, { parentId: null, at: { x: 100, y: 100 } });
   field<HTMLInputElement>("caption").value = "新しい箱";
+  expect(field<HTMLButtonElement>("rule").disabled).toBe(true); // 本文が空なら区切り線は押せない
   field<HTMLTextAreaElement>("body").value = "本文";
+  field<HTMLTextAreaElement>("body").dispatchEvent(new Event("input", { bubbles: true }));
   field<HTMLElement>("rule").click();
   field<HTMLSelectElement>("lines").value = "3";
   dlg()!.querySelector<HTMLElement>("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -94,4 +96,18 @@ test("編集ダイアログのボタンも「キャンセル」", async () => {
   const { g } = setup({ nodes: [{ id: 1, caption: "A" }] });
   openEditDialog(g, "1");
   expect(document.querySelector(".mz-dlg-overlay [data-cancel]")!.textContent).toBe("キャンセル");
+});
+
+test("区切り線: 本文を消すと切って押せなくし、データの区切り線は変えない。本文のある箱を開いたら、データのとおり", async () => {
+  const { openEditDialog } = await import("../web/src/edit-dialog");
+  const { g } = setup({ nodes: [{ id: 1, caption: "A", body: "本文", bodyRule: false }] });
+  openEditDialog(g, "1");
+  const field = <T extends HTMLElement>(name: string) => document.querySelector<T>(`.mz-dlg-overlay [name="${name}"]`)!;
+  expect([field<HTMLButtonElement>("rule").disabled, field("rule").getAttribute("aria-checked")]).toEqual([false, "false"]);
+  field<HTMLTextAreaElement>("body").value = "";
+  field<HTMLTextAreaElement>("body").dispatchEvent(new Event("input", { bubbles: true }));
+  expect(field<HTMLButtonElement>("rule").disabled).toBe(true);
+  document.querySelector<HTMLElement>(".mz-dlg-overlay [data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const n = g.toJSON().nodes[0]!;
+  expect([n.body, n.bodyRule]).toEqual([undefined, false]);
 });

@@ -93,15 +93,16 @@ type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "b
 function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void) {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   const off = b.canBody ? "" : " disabled";
-  // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするスイッチ
+  // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするスイッチ。本文が空のあいだは切って押せなくし、
+  // 本文を書き始めたら押せるようにして入れる
   // 「箱の幅に合わせる」は、つまみで本文の幅を変えていれば押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
   // 子の無い箱では箱の幅が中身（キャプションと本文）に合わせて決まり直す
   const overlay = show(title, okLabel, `
       <label class="mz-dlg-field"><span>キャプション</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
       <div class="mz-dlg-row"><span>区切り線</span>
-        <button type="button" class="mz-dlg-switch" role="switch" name="rule" aria-checked="${b.bodyRule}" aria-label="区切り線"${off}></button>
-        <span class="mz-dlg-onoff">${b.bodyRule ? "ON" : "OFF"}</span></div>
+        <button type="button" class="mz-dlg-switch" role="switch" name="rule" aria-checked="false" aria-label="区切り線" disabled></button>
+        <span class="mz-dlg-onoff">OFF</span></div>
       <label class="mz-dlg-field mz-dlg-body"><span>本文</span>
         <textarea class="mz-dlg-input" name="body" placeholder="なし"${off}>${esc(b.body)}</textarea></label>
       ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>`}
@@ -124,12 +125,21 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       widthAuto: !!field<HTMLInputElement>("width-auto").value,
     });
   });
-  const ruleSwitch = overlay.querySelector<HTMLElement>('[name="rule"]')!;
-  ruleSwitch.addEventListener("click", () => {
-    const on = ruleSwitch.getAttribute("aria-checked") !== "true";
+  const ruleSwitch = overlay.querySelector<HTMLButtonElement>('[name="rule"]')!;
+  const setRule = (on: boolean) => {
     ruleSwitch.setAttribute("aria-checked", String(on));
     ruleSwitch.nextElementSibling!.textContent = on ? "ON" : "OFF";
-  });
+  };
+  ruleSwitch.addEventListener("click", () => setRule(ruleSwitch.getAttribute("aria-checked") !== "true"));
+  const bodyField = overlay.querySelector<HTMLTextAreaElement>('[name="body"]')!;
+  const syncRule = (start: boolean) => {
+    const has = b.canBody && bodyField.value !== "";
+    if (has && ruleSwitch.disabled) setRule(start ? b.bodyRule : true);
+    if (!has) setRule(false);
+    ruleSwitch.disabled = !has;
+  };
+  syncRule(true);
+  bodyField.addEventListener("input", () => syncRule(false));
   // 「箱の幅に合わせる」は確定したときに書く（押したらボタンを押せなくして、押したことを示す）
   overlay.querySelector<HTMLElement>("[data-width-auto]")!.addEventListener("click", e => {
     overlay.querySelector<HTMLInputElement>('[name="width-auto"]')!.value = "1";
@@ -147,7 +157,7 @@ export function openEditDialog(graph: Graph, id: string): void {
     const patch: Patch = {};
     if (v.caption !== b.caption) patch.caption = v.caption;
     if (b.canBody && v.body !== b.body) patch.body = v.body || null;
-    if (b.canBody && v.rule !== b.bodyRule) patch.bodyRule = v.rule ? null : false;
+    if (b.canBody && v.body && v.rule !== b.bodyRule) patch.bodyRule = v.rule ? null : false; // 本文が無ければ区切り線は変えない
     if (b.canBody && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
     if (b.bodyWidth && v.widthAuto) patch.bodyWidth = null;
     if (Object.keys(patch).length) graph.update(id, patch);
@@ -162,7 +172,7 @@ export function openAddDialog(graph: Graph, req: AddRequest): void {
     const fields: Partial<BoxData> = {};
     if (v.caption) fields.caption = v.caption;
     if (v.body) fields.body = v.body;
-    if (!v.rule) fields.bodyRule = false;
+    if (v.body && !v.rule) fields.bodyRule = false;
     if (v.lines) fields.bodyLines = v.lines;
     graph.add(req, fields);
     graph.setMode("move");

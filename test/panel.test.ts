@@ -74,8 +74,11 @@ test("編集ダイアログ: 鉛筆で開き、キャプションと本文と仕
   // 開き直して、本文と仕切りの線も変えて確定する（Ctrl+Enter）
   click("[data-edit-box]");
   field<HTMLInputElement>("caption").value = "API サーバー";
+  // 本文が空のあいだ、区切り線は切って押せない。書き始めると押せるようになって入る
+  expect([field<HTMLButtonElement>("rule").disabled, document.querySelector(".mz-dlg-onoff")!.textContent]).toEqual([true, "OFF"]);
   field<HTMLTextAreaElement>("body").value = "一行目\n二行目";
-  expect(document.querySelector(".mz-dlg-onoff")!.textContent).toBe("ON");
+  field<HTMLTextAreaElement>("body").dispatchEvent(new Event("input", { bubbles: true }));
+  expect([field<HTMLButtonElement>("rule").disabled, document.querySelector(".mz-dlg-onoff")!.textContent]).toEqual([false, "ON"]);
   field<HTMLElement>("rule").click(); // 区切り線を切る
   expect([field<HTMLElement>("rule").getAttribute("aria-checked"), document.querySelector(".mz-dlg-onoff")!.textContent]).toEqual(["false", "OFF"]);
   const before = g.history().canUndo;
