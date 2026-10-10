@@ -61,7 +61,7 @@ export function createLayout(ctx: LayoutContext) {
   const incident = (n: Box) => edges().filter(e => e.a === n || e.b === n);
 
   // 見出しの下の本文の分（本文が無ければ 0）
-  const bodyTop = (n: Box) => { const b = kindOf(n).name === "nest" ? bodyBlock(n) : null; return b ? b.h + BODY_GAP : 0; };
+  const bodyTop = (n: Box) => { const h = kindOf(n).name === "nest" ? bodyHeightTop(n) : 0; return h ? h + BODY_GAP : 0; };
 
   // 子を置ける領域の内側の余白
   function innerArea(c: Container) {
@@ -119,7 +119,7 @@ export function createLayout(ctx: LayoutContext) {
   // ---- 大きさ ----
 
   // 節点の種類（文字の箱、非表示、内包、ツリー）ごとの、大きさの決め方と線がつながる範囲
-  const { kindOf, bodyBlock } = createNodeKinds({
+  const { kindOf, bodyTop: bodyHeightTop } = createNodeKinds({
     opt, measure: (n, w, captionOnly) => ctx.measurer.measure(n, w, captionOnly), body: (n, w) => ctx.measurer.body(n, w),
     caption: n => ctx.measurer.caption(n),
   });
@@ -491,7 +491,7 @@ export function createLayout(ctx: LayoutContext) {
 
   return {
     containerOf, siblings, incident, innerArea, fixedSize, syncWorld,
-    kindOf, bodyBlock, anchorRect, centerX, fit, refitAncestors,
+    kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
     settle, fitToViewport, viewport,

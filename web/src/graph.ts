@@ -554,7 +554,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
     const before = typeof n.src.bodyWidth === "number" ? n.src.bodyWidth : undefined;
     const group = L.kindOf(n).name === "nest" || L.kindOf(n).name === "list";
-    const width = group ? L.bodyBlock(n)?.w ?? n.hw : n.hw;
+    const width = n.hw;
     const z = SIZES[sizeOf(n)];
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
     const apply = (w: number | undefined) => {
@@ -1125,6 +1125,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       intendedCX: NaN,
       capW: 0,
       listW: 0,
+      bodyH: 0,
       el, head, textEl, bodyEl, gripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };
     boxOfEl.set(el, n);

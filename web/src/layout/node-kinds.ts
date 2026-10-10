@@ -41,14 +41,22 @@ export function createNodeKinds(ctx: KindContext) {
     return bw ? Math.max(measure(n, null, true)[0], bw) : measure(n, null)[0];
   };
 
-  // 内包する箱・リストの親の、見出しの下に置く本文の大きさ（w は箱の幅として数えた本文の幅、h は本文の高さ）。本文が無ければ null。
-  // 幅は本文の幅の指定か本文の中身の幅（サイズの最大幅まで）で、子の並びに合わせては伸びない（子の並びと互いに決め合わないように）
-  function bodyBlock(n: Box): { w: number; h: number } | null {
-    if (!bodyOf(n)) return null;
-    const P = opt.padding;
+  // 内包する箱・リストの親の、見出しの下に置く本文が求める箱の幅（本文の幅の指定か本文の中身の幅。サイズの最大幅まで）。本文が無ければ 0。
+  // 箱の幅の下限として効く。本文は箱の幅いっぱいで折り返す（子の並びで箱が広ければ、本文も広がる）
+  function bodyMinW(n: Box): number {
+    if (!bodyOf(n)) return 0;
     const z = SIZES[sizeOf(n)];
-    const w = Math.min(z.maxW, Math.max(GROUP_MIN.w, bodyWidthOf(n) || ctx.body(n, null)[0] + 2 * P));
-    return { w, h: ctx.body(n, w - 2 * P)[1] };
+    return Math.min(z.maxW, Math.max(GROUP_MIN.w, bodyWidthOf(n) || ctx.body(n, null)[0] + 2 * opt.padding));
+  }
+  // 箱の幅 w のときの本文の高さ（本文が無ければ 0）
+  const bodyHeight = (n: Box, w: number) => (bodyOf(n) ? ctx.body(n, w - 2 * opt.padding)[1] : 0);
+
+  // 子を置くときの、見出しの下の本文の高さ（子を置ける領域の上端を決める）。まだ大きさを決めていなければ（初めて置くとき）、
+  // 今の幅（無ければ本文が求める幅）で見込んで覚えておく。大きさを決めるとき（nest.measure）に本当の幅で測り直し、違えば子を動かす
+  function bodyTop(n: Box): number {
+    if (!bodyOf(n)) return (n.bodyH = 0);
+    if (!n.bodyH) n.bodyH = bodyHeight(n, Math.max(n.w, bodyMinW(n)));
+    return n.bodyH;
   }
 
   // ボックスとして見せるときの本体の大きさ。useSpec が false なら width, height, overflow を使わない。
@@ -115,15 +123,19 @@ export function createNodeKinds(ctx: KindContext) {
     holdsChildren: true,
     measure(n) {
       const ov = overflowOf(n);
-      const block = bodyBlock(n);
-      const minW = Math.max(n.specW || GROUP_MIN.w, block ? block.w : 0);
-      const minH = Math.max(n.specH || GROUP_MIN.h, block ? opt.header + block.h + BODY_GAP + opt.padding : 0);
-      let r = 0, b = 0;
-      for (const c of n.children) {
-        r = Math.max(r, c.x + c.w);
-        b = Math.max(b, c.y + c.h);
-      }
+      const minW = Math.max(n.specW || GROUP_MIN.w, bodyMinW(n));
+      let r = 0;
+      for (const c of n.children) r = Math.max(r, c.x + c.w);
       n.w = ov === "grow" ? Math.max(minW, r + opt.padding) : minW;
+      // 本文は決まった幅で折り返す。高さが前と変わったら（子は前の高さの下に置いてある）、その分だけ子を上下に動かす。
+      // 子の左右の位置は本文の高さに関わらないので、幅は先に決まる
+      const bh = bodyHeight(n, n.w);
+      const delta = (bh ? bh + BODY_GAP : 0) - (n.bodyH ? n.bodyH + BODY_GAP : 0);
+      if (delta) for (const c of n.children) { c.y += delta; c.intendedY += delta; }
+      n.bodyH = bh;
+      let b = 0;
+      for (const c of n.children) b = Math.max(b, c.y + c.h);
+      const minH = Math.max(n.specH || GROUP_MIN.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0);
       n.h = ov === "clip" ? minH : Math.max(minH, b + opt.padding);
       n.hx = 0; n.hy = 0;
       n.hw = n.w; n.hh = n.h;
@@ -184,11 +196,11 @@ export function createNodeKinds(ctx: KindContext) {
     holdsChildren: false,
     measure(n) {
       const P = opt.padding;
-      const block = bodyBlock(n);
       const inner = n.specW
         ? Math.max(SIZES.M.minW, n.specW - 2 * P)
-        : Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(listItemWidth), Math.min(SIZES.L.maxW, caption(n) - 2 * P), block ? block.w - 2 * P : 0);
-      let y = opt.header + (block ? block.h + BODY_GAP : 0);
+        : Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(listItemWidth), Math.min(SIZES.L.maxW, caption(n) - 2 * P), bodyMinW(n) - 2 * P);
+      n.bodyH = bodyHeight(n, inner + 2 * P);
+      let y = opt.header + (n.bodyH ? n.bodyH + BODY_GAP : 0);
       for (const k of n.children) {
         k.listW = inner;
         kindOf(k).measure(k);
@@ -212,5 +224,5 @@ export function createNodeKinds(ctx: KindContext) {
     return view === "hidden" ? hidden : view === "tree" ? tree : view === "list" ? list : nest;
   }
 
-  return { kindOf, bodyBlock };
+  return { kindOf, bodyTop };
 }

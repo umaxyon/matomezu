@@ -31,6 +31,8 @@ export interface Box {
   capW: number;
   // リストの子のときの幅（親のリストがそろえた幅。node-kinds.ts の list が決める。保存しない）
   listW: number;
+  // 内包する箱・リストの親の、見出しの下に置いた本文の高さ（0 なら本文なし）。子を置ける領域の上端を決める（node-kinds.ts。保存しない）
+  bodyH: number;
   el: HTMLDivElement;
   head: HTMLDivElement;
   textEl: HTMLDivElement;

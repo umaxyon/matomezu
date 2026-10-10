@@ -142,3 +142,18 @@ test("本文の幅はサイズの最大幅で止まる", () => {
   expect(info(1).w).toBe(240); // M の最大幅
   expect(g.toJSON().nodes[0]!.bodyWidth).toBe(240);
 });
+
+test("内包する箱の本文は箱の幅いっぱいで折り返す。子の並びで箱が広ければ、本文も広がって低くなり、子はその分上に来る", () => {
+  const { info, bodyEl } = setup({
+    nodes: [
+      { id: 1, caption: "枠", body: "あ".repeat(40), x: 40, y: 40 },        // 360px
+      { id: 2, parent: 1, caption: "とても長いキャプションの子です", x: 12, y: 30 },
+      { id: 3, parent: 1, caption: "とても長いキャプションの子です", x: 300, y: 30 },
+    ],
+  });
+  const w = info(1).w;
+  expect(w).toBeGreaterThan(400);
+  expect(bodyEl(1).style.width).toBe(`${w - 24}px`);
+  // 本文は 1 行（18px）に収まるので、子は見出し 30 + 18 + 間 6 の高さ
+  expect(info(2).y).toBe(30 + 18 + 6);
+});

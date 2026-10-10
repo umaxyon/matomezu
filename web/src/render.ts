@@ -493,18 +493,19 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       h.width = n.hw + "px";
       h.height = n.hh + "px";
       // 内包する箱・リストの親の本文は、見出しの下に幅を決めて置く（子の無い箱では本体の中の流れに任せる）
-      const block = !n.bodyEl.hidden && (isNesting(n) || (viewOf(n) === "list" && n.children.length > 0)) ? L.bodyBlock(n) : null;
+      // 内包する箱・リストの親の本文は、見出しの下に箱の幅いっぱいで置く（子の無い箱では本体の中の流れに任せる）
+      const block = !n.bodyEl.hidden && (isNesting(n) || (viewOf(n) === "list" && n.children.length > 0));
       const b = n.bodyEl.style;
       b.position = block ? "absolute" : "";
       b.left = block ? opt.padding + "px" : "";
       b.top = block ? opt.header + "px" : "";
-      b.width = block ? block.w - 2 * opt.padding + "px" : "";
+      b.width = block ? n.hw - 2 * opt.padding + "px" : "";
       // つまみ: 子の無い箱は本体の右の縁（高さいっぱい）、内包する箱は本文の右の縁
       const g = n.gripEl.style;
-      g.left = block ? opt.padding + block.w - 2 * opt.padding - 3 + "px" : "";
+      g.left = block ? n.hw - opt.padding - 3 + "px" : "";
       g.right = block ? "auto" : "";
       g.top = block ? opt.header + "px" : "";
-      g.height = block ? block.h + "px" : "";
+      g.height = block ? n.bodyH + "px" : "";
       if (shapeOf(n) === "db") renderDb(n);
       if (shapeOf(n) === "diamond") renderDiamond(n);
       if (isPageBox(n)) renderPage(n);
