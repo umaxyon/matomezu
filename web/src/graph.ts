@@ -37,6 +37,7 @@
  *   graph.page();                // 描いているページ
  *   graph.pages();               // ブックのページ（ページの箱の id とキャプション）
  *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
+ *   graph.purge(id);             // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱 userAdded だけ。docs/ADD-plan.md）
  *   graph.add(req, fields);      // 新しい箱を足す（req は追加モードで押した所。onAddRequest で届く。docs/ADD-plan.md）
  *   graph.destroy();
  *
@@ -118,7 +119,7 @@ import {
   absPos, ancestors, arrowOf, dataSizeOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   bodyLinesOf, bodyWidthOf, bodyWrapW, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
-import { type Pos, addBox, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
+import { type Pos, addBox, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import { type RouteFix, alignedEnds, isAligned, route } from "./routing";
@@ -205,6 +206,7 @@ export interface Graph {
   page(): string | null;
   pages(): { id: string; caption: string }[];
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
+  purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
   add(req: AddRequest, fields: Partial<BoxData>): string;
   // プレビュー（見るだけのモード）。倍率を渡すと入り、null で編集に戻る。プレビュー中は、押すと選ぶだけで、
@@ -806,6 +808,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return String(id);
   }
 
+  // 消したボックス id を、消した子孫ごと完全に削除する（ユーザーが足した箱だけ。docs/ADD-plan.md の 4 章）。描いていないので、
+  // データだけを直して組み立て直す（履歴に 1 件。Undo で戻せる）
+  function purge(id: Id) {
+    const s = (source.removed ?? []).find(x => String(x.id) === String(id));
+    if (!s) throw new Error(`消したボックスにありません: ${id}`);
+    let count = 0;
+    rebuildWith(data => {
+      count = purgeRemoved(data, id);
+      return current ? { select: current.id } : {};
+    });
+    opt.onEvent?.({ kind: "purged", key: keyOf(s.id, captionOfData(s)), kids: count - 1 });
+    return true;
+  }
+
   // サイドバーの一覧（ブック全体）。表示中の箱は、載っているページを添える（ページの箱の直下の子は、親を出さない）。
   // 消したボックスの親は、表示中か消したものの中から名前を引く
   function items(): Items {
@@ -820,7 +836,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     };
     return {
       ...liveItems(source.nodes, page, opt.color),
-      removed: removed.map(s => item(s.id!, removedCaption.get(String(s.id))!, s.color, nameOf(s.parent))),
+      removed: removed.map(s => ({ ...item(s.id!, removedCaption.get(String(s.id))!, s.color, nameOf(s.parent)), purgeable: canPurge(removed, s.id!) })),
     };
   }
 
@@ -1381,6 +1397,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     page: () => page,
     paste,
     add,
+    purge,
     pages: () => source.nodes.filter(s => s.page === true)
       .map(s => ({ id: String(s.id), caption: s.caption != null && s.caption !== "" ? String(s.caption) : String(s.id) })),
     geometry() {

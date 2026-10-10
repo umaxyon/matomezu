@@ -46,7 +46,7 @@ test("restoreSubtree は removed の中の子孫ごと戻し、空になった r
   expect(() => restoreSubtree(d, 2, undefined, null)).toThrow("消したボックスにありません");
 });
 
-test("pasteSubtree は id と線の id を空いている番号に振り直し、stripPages なら page と world を外す", () => {
+test("pasteSubtree は id と線の id を空いている番号に振り直し、stripPages なら page と world を外す。写した箱にはユーザーが足した印を付ける", () => {
   const d = data();
   removeSubtree(d, 5); // 消したものの id（5）も使わない
   const copy = {
@@ -57,9 +57,9 @@ test("pasteSubtree は id と線の id を空いている番号に振り直し�
   const r = pasteSubtree(d, copy, 3, { x: 1, y: 2 }, true);
   expect(r).toEqual({ root: "6", nodes: 3, edges: 1 });
   expect(d.nodes.slice(-3)).toEqual([
-    { id: 6, caption: "外", parent: 3, x: 1, y: 2 },
-    { id: 7, caption: "外の子", parent: 6 },
-    { id: 8, parent: 6 },
+    { id: 6, caption: "外", parent: 3, x: 1, y: 2, userAdded: true },
+    { id: 7, caption: "外の子", parent: 6, userAdded: true },
+    { id: 8, parent: 6, userAdded: true },
   ]);
   expect((d.edges as EdgeData[]).at(-1)).toEqual({ id: "e1", from: 7, to: 8 }); // e1 は 5 と一緒に消えて空いた
 });

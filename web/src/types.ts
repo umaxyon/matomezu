@@ -25,6 +25,8 @@ export interface BoxData {
   bodyWidth?: number;  // 本文の幅（px。箱の幅として数える）。無ければ本文の中身に合わせる。サイズの最大幅は超えない
   bodyRule?: boolean;  // false ならキャプションと本文の間の線を引かない（無ければ引く）
   bodyLines?: number;  // 本文の最大行数（超えた分は … で切る）。無ければ制限なし
+  userAdded?: boolean; // ユーザーが画面で足した（追加・移植）箱で、LLM がまだ持ち物として認識していない。消したあと完全に削除できる。
+                       // LLM が会話で認識したら消す（docs/ADD-plan.md の 4 章）
   parent?: Id;
   x?: number;
   y?: number;
@@ -176,6 +178,7 @@ export interface ListItem {
   color: string;
   parent: string | null;
   page: string | null; // 載っているページ（ページの箱の id。null は最初のページ）
+  purgeable?: boolean; // 消したものの行で、完全に削除できる（消した子孫まで全部がユーザーの足した箱）
 }
 
 // サイドバーの一覧（ブック全体）: 表示中のボックスと、消したボックス（どちらもデータの並び順）、ブックのページ

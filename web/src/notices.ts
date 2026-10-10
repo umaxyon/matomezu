@@ -16,6 +16,8 @@ export type GraphEvent =
   | { kind: "pasted"; key: string; from: string | null; kids: number; edges: number }
   // 箱を足した（追加モード）
   | { kind: "added"; key: string }
+  // 消したボックスを完全に削除した
+  | { kind: "purged"; key: string; kids: number }
   // 子のサイズをそろえた
   | { kind: "aligned"; count: number; what: "width" | "height" | "both"; partial: boolean }
   // 読み込んだデータに、知らないテーマの名前があった（標準として描いている）
@@ -38,6 +40,8 @@ export function noticeOf(ev: GraphEvent): string {
       return `「${ev.key}」を戻しました`;
     case "added":
       return `「${ev.key}」を追加しました`;
+    case "purged":
+      return `「${ev.key}」を完全に削除しました` + also([ev.kids ? `子 ${ev.kids} 個` : ""].filter(Boolean));
     case "pasted":
       return `「${ev.key}」を移植しました` +
         also([ev.from ? `${ev.from} から` : "", ev.kids ? `子 ${ev.kids} 個` : "", ev.edges ? `線 ${ev.edges} 本` : ""].filter(Boolean));

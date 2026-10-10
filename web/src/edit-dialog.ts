@@ -4,6 +4,7 @@
  * Ctrl+Enter（Mac は Cmd+Enter）か「確定」（追加は「追加」）で確定、Esc か「キャンセル」で閉じる。キャプションの欄では Enter でも確定する（1 行）。
  *
  *   openEditDialog(graph, id);     // 箱。ダブルクリックと、サイドバーの鉛筆ボタンから開く
+ *   openConfirmDialog(title, message, okLabel, onOk); // 取り返しのつかない操作の確認（消したものの完全な削除）
  *   openAddDialog(graph, req);     // 箱の追加。追加モードで図を押したときに開く（req は押した所）
  *   openEdgeEditDialog(graph, id); // 線。線（か札）のダブルクリックと、サイドバーの鉛筆ボタンから開く
  *   closeEditDialog();             // 開いていれば閉じる（図を作り直すときなど）
@@ -54,6 +55,8 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-hint { flex: 1; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-btn { font: inherit; color: inherit; background: var(--dlg-control); border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
 .mz-dlg-btn.mz-dlg-ok { color: #fff; background: var(--dlg-accent); }
+.mz-dlg-btn.mz-dlg-ok.mz-dlg-danger { background: #dc2626; }
+.mz-dlg-message { margin: 0 0 4px; white-space: pre-line; }
 .mz-dlg-btn:disabled { opacity: 0.45; cursor: default; }
 .mz-dlg-switch {
   position: relative; flex: none; width: 36px; height: 20px; padding: 0; border: 0; border-radius: 10px;
@@ -177,6 +180,14 @@ export function openAddDialog(graph: Graph, req: AddRequest): void {
     graph.add(req, fields);
     graph.setMode("move");
   });
+}
+
+// 取り返しのつかない操作の確認（消したものの完全な削除など）。okLabel のボタン（赤）で onOk を呼ぶ。キャンセルか Esc なら何もしない
+export function openConfirmDialog(title: string, message: string, okLabel: string, onOk: () => void): void {
+  const overlay = show(title, okLabel, `<p class="mz-dlg-message">${esc(message)}</p>`, () => onOk());
+  const ok = overlay.querySelector<HTMLElement>("[data-ok]")!;
+  ok.classList.add("mz-dlg-danger");
+  ok.focus();
 }
 
 export function openEdgeEditDialog(graph: Graph, id: string): void {

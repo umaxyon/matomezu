@@ -1,7 +1,8 @@
 // サイドバーの追加削除タブ。全ボックスの一覧（表示中と、消したもの）と、ほかのブックの箱（panel.ts から使う）。
-// 表示中の行の × で消し、消したものの行を図へドラッグすると戻る。ほかのブックの行を図へドラッグすると移植する
+// 表示中の行の × で消し、消したものの行を図へドラッグすると戻る（ユーザーが足した箱は × で完全に削除できる）。ほかのブックの行を図へドラッグすると移植する
 
 import { EMPTY_CAPTION, esc } from "./dom";
+import { openConfirmDialog } from "./edit-dialog";
 import { COPY_MIME, type Graph, REMOVED_MIME } from "./graph";
 import { helpIcon } from "./help";
 import { copySubtree, liveItems } from "./pages";
@@ -21,7 +22,11 @@ function row(item: ListItem, removed: boolean, selectable = true, copyFrom?: str
   return `<li${attrs}>
     <span class="mzp-swatch" style="background:${esc(item.color)}"></span>
     <span class="mzp-row-text"><span class="mzp-row-cap" title="${esc(item.caption)}">${esc(item.id)}_${esc(caption)}</span>${parent}</span>
-    ${removed || copyFrom != null ? "" : `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="消す（子も一緒に消えます）" aria-label="「${esc(item.caption)}」を消す">×</button>`}
+    ${copyFrom != null ? ""
+      : !removed ? `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="消す（子も一緒に消えます）" aria-label="「${esc(item.caption)}」を消す">×</button>`
+      // 消したもののうち、ユーザーが足した箱だけ完全に削除できる（LLM から来た箱は、不要と印を付けたものとして残す。docs/ADD-plan.md の 4 章）
+      : item.purgeable ? `<button type="button" class="mzp-del" data-purge="${esc(item.id)}" title="完全に削除する（子も一緒に。戻せなくなります）" aria-label="「${esc(item.caption)}」を完全に削除する">×</button>`
+      : ""}
   </li>`;
 }
 
@@ -129,6 +134,13 @@ export function createListTab(pane: HTMLElement, graph: Graph, otherBooks?: () =
     if (!(e.target instanceof Element)) return;
     const del = e.target.closest<HTMLElement>("[data-remove]");
     if (del) return void graph.remove(del.dataset.remove!);
+    const purge = e.target.closest<HTMLElement>("[data-purge]");
+    if (purge) {
+      const id = purge.dataset.purge!;
+      const caption = purge.closest(".mzp-row")?.querySelector(".mzp-row-cap")?.textContent ?? id;
+      return openConfirmDialog("完全に削除", `「${caption}」を完全に削除します（子も一緒に）。\n消したものの一覧からも消え、図へ戻せなくなります。`, "削除",
+        () => graph.purge(id));
+    }
     const r = e.target.closest<HTMLElement>("[data-select]");
     if (!r) return;
     graph.select(r.dataset.select!);

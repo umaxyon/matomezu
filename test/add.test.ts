@@ -111,3 +111,58 @@ test("区切り線: 本文を消すと切って押せなくし、データの区
   const n = g.toJSON().nodes[0]!;
   expect([n.body, n.bodyRule]).toEqual([undefined, false]);
 });
+
+// ---- 消したものの完全な削除（docs/ADD-plan.md の 4 章）----
+
+test("足した箱には userAdded が付き、消したあと完全に削除できる（子ごと。Undo で戻る）。LLM の箱が混ざっていれば削除できない", () => {
+  const { g, notices } = setup({ nodes: [{ id: 1, caption: "LLM の箱", x: 40, y: 40 }] });
+  const a = g.add({ parentId: null, at: { x: 300, y: 40 } }, { caption: "足した" });
+  g.add({ parentId: a, at: { x: 12, y: 30 } }, { caption: "足した子" });
+  expect(node(g, a).userAdded).toBe(true);
+  g.remove(a);
+  const removed = () => g.items().removed.map(i => [i.id, i.purgeable]);
+  expect(removed()).toEqual([[a, true], ["3", true]]);
+  const before = g.toJSON();
+  g.purge(a);
+  expect(g.toJSON().removed).toBeUndefined();
+  expect(notices.at(-1)).toBe("「2_足した」を完全に削除しました（子 1 個）");
+  g.undo();
+  expect(g.toJSON()).toEqual(before);
+  // LLM の箱（userAdded なし）は完全に削除できない。足した箱の中へ LLM の箱を入れて消しても同じ
+  g.restore(a, null, { x: 300, y: 40 });
+  g.reparent(1, a, { x: 12, y: 120 });
+  g.remove(a);
+  expect(g.items().removed.find(i => i.id === a)!.purgeable).toBe(false);
+  expect(() => g.purge(a)).toThrow("ユーザーが足した箱だけ");
+  expect(g.items().removed.find(i => i.id === "1")!.purgeable).toBe(false);
+});
+
+test("消したものの一覧: 完全に削除できる行だけに × が出て、押すと確認のダイアログ。「削除」で消え、キャンセルなら残る", async () => {
+  const { createPanel } = await import("../web/src/panel");
+  const { g, stage } = setup({ nodes: [{ id: 1, caption: "LLM の箱", x: 40, y: 40 }] });
+  const side = document.createElement("aside");
+  document.body.append(side);
+  createPanel(side, g).tab("list");
+  void stage;
+  const a = g.add({ parentId: null, at: { x: 300, y: 40 } }, { caption: "足した" });
+  g.remove(a);
+  g.remove("1");
+  const purgeButtons = () => [...side.querySelectorAll<HTMLElement>("[data-purge]")].map(b => b.dataset.purge);
+  expect(purgeButtons()).toEqual([a]);
+  const click = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  click(side.querySelector(`[data-purge="${a}"]`)!);
+  const dlg = () => document.querySelector<HTMLElement>(".mz-dlg-overlay");
+  expect(dlg()!.querySelector("[data-ok]")!.textContent).toBe("削除");
+  click(dlg()!.querySelector("[data-cancel]")!);
+  expect(g.toJSON().removed!.length).toBe(2);
+  click(side.querySelector(`[data-purge="${a}"]`)!);
+  click(dlg()!.querySelector("[data-ok]")!);
+  expect(g.toJSON().removed!.map(s => s.id)).toEqual([1]);
+  expect(purgeButtons()).toEqual([]);
+});
+
+test("userAdded は true か false だけ", async () => {
+  const { problems } = await import("../web/src/validate");
+  expect(problems({ nodes: [{ id: 1, userAdded: "yes" as never }] })[0]).toContain("userAdded は true か false");
+  expect(problems({ nodes: [{ id: 1, userAdded: true }] })).toEqual([]);
+});

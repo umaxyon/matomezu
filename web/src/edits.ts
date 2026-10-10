@@ -84,7 +84,8 @@ export function pasteSubtree(
   let next = Math.max(0, ...used) + 1;
   const ids = new Map(copy.nodes.map(s => [String(s.id), next++]));
   const nodes = copy.nodes.map(s => {
-    const c: BoxData = { ...JSON.parse(JSON.stringify(s)), id: ids.get(String(s.id))! };
+    // このブックの LLM はまだ知らない箱なので、ユーザーが足した印を付ける（docs/ADD-plan.md の 4 章）
+    const c: BoxData = { ...JSON.parse(JSON.stringify(s)), id: ids.get(String(s.id))!, userAdded: true };
     if (String(s.id) === copy.root) {
       setParentId(c, parent);
       place(c, pos);
@@ -112,11 +113,29 @@ export function pasteSubtree(
 export function addBox(data: Diagram, fields: Partial<BoxData>, parent: Id | undefined, pos: Pos, before?: Id): number {
   const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
   const id = Math.max(0, ...used) + 1;
-  const s: BoxData = { ...fields, id };
+  const s: BoxData = { ...fields, id, userAdded: true };
   setParentId(s, parent);
   place(s, pos);
   const at = before == null ? -1 : data.nodes.findIndex(n => String(n.id) === String(before));
   if (at < 0) data.nodes.push(s);
   else data.nodes.splice(at, 0, s);
   return id;
+}
+
+// 消した箱 id を、removed の中の子孫ごと完全に削除する（戻せなくする）。消した子孫まで全部がユーザーの足した箱（userAdded）のときだけ。
+// LLM から来た箱は「ユーザーが不要と印を付けたもの」として LLM に伝えるために残す（docs/ADD-plan.md の 4 章）。消した箱の数を返す
+export function purgeRemoved(data: Diagram, id: Id): number {
+  const list = data.removed ?? [];
+  if (!list.some(s => String(s.id) === String(id))) throw new Error(`消したボックスにありません: ${id}`);
+  const take = subtreeIds(list, id);
+  if (!canPurge(list, id)) throw new Error("ユーザーが足した箱だけ完全に削除できます");
+  data.removed = list.filter(s => !take.has(String(s.id)));
+  if (!data.removed.length) delete data.removed;
+  return take.size;
+}
+
+// 消した箱 id を完全に削除できるか（removed の中の子孫まで全部がユーザーの足した箱）
+export function canPurge(removed: BoxData[], id: Id): boolean {
+  const take = subtreeIds(removed, id);
+  return removed.filter(s => take.has(String(s.id))).every(s => s.userAdded === true);
 }
