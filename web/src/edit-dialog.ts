@@ -97,10 +97,10 @@ export function openEditDialog(graph: Graph, id: string): void {
       <div class="mz-dlg-row"><span>区切り線</span>
         <button type="button" class="mz-dlg-switch" role="switch" name="rule" aria-checked="${b.bodyRule}" aria-label="区切り線"${off}></button>
         <span class="mz-dlg-onoff">${b.bodyRule ? "ON" : "OFF"}</span></div>
-      <div class="mz-dlg-field">
-        <textarea class="mz-dlg-input" name="body" placeholder="本文なし" aria-label="本文"${off}>${esc(b.body)}</textarea></div>
+      <label class="mz-dlg-field"><span>本文</span>
+        <textarea class="mz-dlg-input" name="body" placeholder="なし"${off}>${esc(b.body)}</textarea></label>
       ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>`}
-      <div class="mz-dlg-row"><span>本文</span>
+      <div class="mz-dlg-row">
         <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>箱の幅に合わせる</button>
         <input type="hidden" name="width-auto" value="">
         <label class="mz-dlg-lines">最大行数${helpIcon("超えた分は … で切ります")}
