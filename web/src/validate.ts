@@ -47,15 +47,16 @@ export function normalizeEdge(e: EdgeData | [Id, Id]): EdgeData {
   return { ...e };
 }
 
-// 箱とワールドの設定の値。誤りの文を返す（無ければ空）
-export function settingsProblems(s: Record<string, unknown>, where: unknown): string[] {
+// 箱とワールドの設定の値。誤りの文を返す（無ければ空）。
+// theme が false なら、知らないテーマの名前は誤りにしない（画面で開くとき。標準として描き、知らせる。名前を変えたり減らしたりしても図が開けるように）
+export function settingsProblems(s: Record<string, unknown>, where: unknown, theme = true): string[] {
   const out: string[] = [];
   if (s.overflow != null && !isOverflow(s.overflow)) out.push(`overflow の値が不正です: ${where} (${s.overflow})`);
   if (s.size != null && !isSize(s.size)) out.push(`size の値が不正です: ${where} (${s.size})`);
   if (s.shape != null && !isShape(s.shape)) out.push(`shape の値が不正です: ${where} (${s.shape})`);
   if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(`treeDirection の値が不正です: ${where} (${s.treeDirection})`);
   if (s.childView != null && !isView(s.childView)) out.push(`childView の値が不正です: ${where} (${s.childView})`);
-  if (s.theme != null && !isTheme(s.theme)) {
+  if (theme && s.theme != null && !isTheme(s.theme)) {
     out.push(`theme の値が不正です: ${where} (${s.theme})。使えるのは ${THEMES.map(t => t.id).join(" / ")}`);
   }
   return out;
@@ -82,21 +83,23 @@ export function assignIds(data: unknown): void {
 // CLI（matomezu validate）も、ビルドしたこの関数を実行ファイルに埋め込んで使う（validate-cli.ts、internal/validate）
 export function problems(data: unknown): string[] {
   const out: string[] = [];
-  inspect(data, m => { out.push(m); });
+  inspect(data, m => { out.push(m); }, true);
   return out;
 }
 
+// 画面で開くときの検査。知らないテーマの名前は誤りにしない（標準として描く。graph.ts の unknownThemes で知らせる）
 export function validate(data: unknown): asserts data is Diagram {
-  inspect(data, m => { throw new Error(m); });
+  inspect(data, m => { throw new Error(m); }, false);
 }
 
-// 誤りを見つけるたびに fail を呼ぶ。fail が例外を投げれば最初の 1 つで止まる。投げなければ、続けられる所から調べ続ける
-function inspect(data: unknown, fail: (message: string) => void): void {
+// 誤りを見つけるたびに fail を呼ぶ。fail が例外を投げれば最初の 1 つで止まる。投げなければ、続けられる所から調べ続ける。
+// theme が false なら、知らないテーマの名前は誤りにしない
+function inspect(data: unknown, fail: (message: string) => void, theme: boolean): void {
   if (!isObject(data) || !Array.isArray(data.nodes)) return fail("nodes 配列がありません");
   if (data.world != null) {
     if (!isObject(data.world)) fail("world がオブジェクトではありません");
     else {
-      settingsProblems(data.world, "world").forEach(fail);
+      settingsProblems(data.world, "world", theme).forEach(fail);
       if (data.world.overflow === "grow") fail("world に overflow: grow は使えません");
       if (data.world.route != null && !includes(ROUTES, data.world.route)) fail(`world の route の値が不正です: ${data.world.route}`);
       if (data.world.background != null && typeof data.world.background !== "string") fail("world の background は色の文字列にしてください");
@@ -108,7 +111,7 @@ function inspect(data: unknown, fail: (message: string) => void): void {
     if (!isObject(n) || n.id == null) { fail("空のノードがあります"); continue; }
     if (byId.has(String(n.id))) { fail(`id が重複しています: ${n.id}`); continue; }
     byId.set(String(n.id), n);
-    settingsProblems(n, n.id).forEach(fail);
+    settingsProblems(n, n.id, theme).forEach(fail);
   }
   // 消したボックス。id は nodes と重ならないこと（parent は消したボックスや、もう無い id でもよい）
   if (data.removed != null && !Array.isArray(data.removed)) fail("removed が配列ではありません");

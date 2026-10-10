@@ -12,12 +12,12 @@ test("付箋紙にすると余白の分だけ文字の箱が大きくなり、�
   const before = await rect(page, 1);
   // ワールドを選んで、テーマを付箋紙にする
   await page.locator(".mz-world").click({ position: { x: 600, y: 400 } });
-  await page.locator('input[name="mzp-theme"][value="sticky"]').check({ force: true });
+  await page.selectOption('select[name="mzp-theme"]', "sticky");
   const sticky = await rect(page, 1);
   expect(sticky.h).toBeGreaterThan(before.h - 1); // 高さは最小の 64 のこともある
   expect(sticky.w).toBeGreaterThan(before.w);
   const pad = await page.locator('.mz-node[data-id="1"] > .mz-head').evaluate(h => getComputedStyle(h).paddingLeft);
   expect(pad).toBe("12px");
-  await page.locator('input[name="mzp-theme"][value="default"]').check({ force: true });
+  await page.selectOption('select[name="mzp-theme"]', "default");
   expect(await rect(page, 1)).toEqual(before);
 });

@@ -11,6 +11,7 @@
  *   panel.tab("info");           // タブを切り替える
  */
 
+import { closeColorPicker } from "./color-picker";
 import { injectStyle } from "./dom";
 import type { Graph } from "./graph";
 import { setupHelp } from "./help";
@@ -69,6 +70,6 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
     show: next => info.show(next),
     tab,
     othersChanged: list.othersChanged,
-    destroy() { list.destroy(); offHelp(); },
+    destroy() { list.destroy(); offHelp(); closeColorPicker(); },
   };
 }

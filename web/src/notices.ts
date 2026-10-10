@@ -15,7 +15,9 @@ export type GraphEvent =
   // ほかのブックの箱を移植した。from は元のブックの名前
   | { kind: "pasted"; key: string; from: string | null; kids: number; edges: number }
   // 子のサイズをそろえた
-  | { kind: "aligned"; count: number; what: "width" | "height" | "both"; partial: boolean };
+  | { kind: "aligned"; count: number; what: "width" | "height" | "both"; partial: boolean }
+  // 読み込んだデータに、知らないテーマの名前があった（標準として描いている）
+  | { kind: "unknownTheme"; names: string[] };
 
 // 知らせの文言
 export function noticeOf(ev: GraphEvent): string {
@@ -35,6 +37,8 @@ export function noticeOf(ev: GraphEvent): string {
     case "pasted":
       return `「${ev.key}」を移植しました` +
         also([ev.from ? `${ev.from} から` : "", ev.kids ? `子 ${ev.kids} 個` : "", ev.edges ? `線 ${ev.edges} 本` : ""].filter(Boolean));
+    case "unknownTheme":
+      return `知らないテーマ（${ev.names.join("、")}）があります。標準として描いています`;
     case "aligned": {
       const label = ev.what === "width" ? "幅" : ev.what === "height" ? "高さ" : "幅と高さ";
       return `子 ${ev.count} 個の${label}をそろえました` + (ev.partial ? "（中身の都合で狭められない子があります）" : "");

@@ -35,14 +35,20 @@ function setup(data: Diagram) {
 
 const box = (g: Graph, id: number) => g.info(id) as BoxInfo;
 
-test("選んだボックスの情報を出し、キャプションと色を変える", () => {
-  const { g, $, change } = setup({ nodes: [{ id: 1, caption: "API" }] });
+test("選んだボックスの情報を出し、キャプションと色を変える（色はボタンから開くポップアップの値の欄で）", () => {
+  const { g, $, click, change } = setup({ nodes: [{ id: 1, caption: "API" }] });
   g.select(1);
   expect($(".mzp-title")!.textContent).toBe("API");
   change('[data-edit="caption"]', "API ゲートウェイ");
   expect(box(g, 1).caption).toBe("API ゲートウェイ");
-  change('[data-edit="color"]', "#3b82f6");
+  click("[data-color-open]");
+  const value = document.querySelector<HTMLInputElement>(".mz-cp-value")!;
+  value.value = "#3b82f6";
+  value.dispatchEvent(new Event("change", { bubbles: true }));
   expect(box(g, 1).color).toBe("#3b82f6");
+  expect(document.querySelector(".mz-cp")).not.toBeNull(); // 決めても、同じ箱を選んでいる間は開いたまま
+  g.select(null);
+  expect(document.querySelector(".mz-cp")).toBeNull(); // 選ぶものが変わったら閉じる
 });
 
 test("Esc で入力を取り消す", () => {
@@ -58,11 +64,15 @@ test("Esc で入力を取り消す", () => {
 // 解釈できない色を受け付けない動き（panel.ts の CSS.supports での確認）は、ここでは確かめられない。
 // この DOM の CSS.supports は何でも true を返し、しかも置き換えられないため。実際のブラウザでのテストで確かめる
 
-test("色の候補と、塗りつぶし・枠線", () => {
+test("色の見本と「なし」、塗りつぶし・枠線", () => {
   const { g, click, change } = setup({ nodes: [{ id: 1 }] });
   g.select(1);
-  click('[data-color="#22c55e"]');
-  expect(box(g, 1).color).toBe("#22c55e");
+  expect(box(g, 1).color).toBe(""); // 色を書いていない
+  click("[data-color-open]");
+  document.querySelector<HTMLElement>('.mz-cp [data-name="success"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(box(g, 1).color).toBe("success");
+  document.querySelector<HTMLElement>(".mz-cp [data-none]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(box(g, 1).color).toBe("");
   change('[data-field="fill"]', false);
   change('[data-field="border"]', true);
   expect([box(g, 1).fill, box(g, 1).border]).toEqual([false, true]);
@@ -126,13 +136,20 @@ test("中身の扱い: 文字のボックスには伸ばすを出さない（グ
   expect($<HTMLInputElement>('input[name="mzp-overflow"][value="grow"]')!.disabled).toBe(false);
 });
 
-test("背景の候補と「なし」", () => {
+test("背景の色もボタンから開くポップアップで選ぶ（見本と「なし」）。外で閉じても、次に押すと開く", () => {
   const { g, click } = setup({ nodes: [{ id: 1 }] });
   g.select(null);
-  click('[data-bg="#0f172a"]');
+  const pickIn = (sel: string) => document.querySelector<HTMLElement>(`.mz-cp ${sel}`)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  click("[data-color-open]");
+  pickIn('[data-name="#0f172a"]');
   expect(g.toJSON().world?.background).toBe("#0f172a");
-  click('[data-bg=""]');
+  pickIn("[data-none]");
   expect(g.toJSON().world?.background).toBeUndefined();
+  // 外を押して閉じたあとも、ボタンを押せばまた開く（閉じたことをサイドバーが知る）
+  document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  expect(document.querySelector(".mz-cp")).toBeNull();
+  click("[data-color-open]");
+  expect(document.querySelector(".mz-cp")).not.toBeNull();
 });
 
 test("親・子・つながりのボタンで、そのボックスを選ぶ", () => {

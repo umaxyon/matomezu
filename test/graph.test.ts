@@ -364,7 +364,7 @@ describe("履歴", () => {
     expect(graph.history()).toEqual({ canUndo: true, canRedo: false });
 
     expect(graph.undo()).toBe(true);
-    expect(graph.info(1)).toMatchObject({ caption: "b", color: "#ffffff" });
+    expect(graph.info(1)).toMatchObject({ caption: "b", color: "", paint: "#ffffff" }); // 色を書いていない（見た目は既定の白）
     expect(graph.undo()).toBe(true);
     expect(graph.info(1).caption).toBe("a");
     expect(graph.undo()).toBe(false); // 最初より前には戻れない

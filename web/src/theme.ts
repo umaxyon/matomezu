@@ -1,13 +1,23 @@
 // テーマ: 名前の付いた見た目の組（docs/THEME-plan.md）。図全体（world.theme）か箱（theme）に名前で書き、
 // 書かれた箱とその子孫に効く。書かなければ親（無ければ図全体、それも無ければ default）を受け継ぐ。
-// 段階 1 は色・角の丸み・影・箱の中の余白。default は今の見た目そのままで、箱ごとの color を使う。
-// ほかのテーマは見た目をテーマが決め、箱ごとの color は使わない（データには残す。docs/THEME-plan.md 11 章）
+// テーマは色・角の丸み・影・箱の中の余白・見た目のスタイルを決める。default は今の見た目そのまま。
+// 箱の color は、テーマの上の上書き（docs/THEME-plan.md 11 章）:
+// - 役割の名前（PALETTE）は、どのテーマでもそのテーマの色で描く。役割は図を書くための枠で、意味を利用者に押し付けない（画面に名前は出さない）
+// - 色の値（#3b82f6 など）は、どのテーマでもその色で描く（灰色も、色を選ぶポップアップで選べる）
+// - 書かなければテーマの既定の色
+
+// 色の名前（役割）。LLM は意味で選ぶ（「問題の箱は danger」）。並びは画面に出す順
+export const PALETTE = ["primary", "secondary", "success", "warn", "danger", "muted"] as const;
+export type PaletteName = typeof PALETTE[number];
+export const PALETTE_LABELS: Record<PaletteName, string> = {
+  primary: "主役", secondary: "脇役", success: "完了・良い", warn: "注意", danger: "問題・危険", muted: "控えめ",
+};
+export const isPaletteName = (v: unknown): v is PaletteName => typeof v === "string" && (PALETTE as readonly string[]).includes(v);
 
 export interface Theme {
   id: string;
   label: string;       // 画面に出す名前
   describe: string;    // LLM が選ぶための短い説明
-  useBoxColor: boolean; // 箱ごとの color を使うか
   box: string;         // 箱の塗り（color を使わないとき、color が無いとき）
   group?: string;      // 内包の枠の色（無ければ box）
   border?: string;     // 文字の箱の枠線の色（無ければ塗りを暗くした色）
@@ -18,6 +28,7 @@ export interface Theme {
   shadow?: string;     // 箱の影（無ければ画面の既定。"none" で影なし）
   background?: string; // 図の背景。あれば配色をこの背景で固定する（ブラウザのダーク・ライトによらない）。world.background が優先
   // 図全体の CSS 変数として流す値（テーマを書いた要素から子孫へ受け継ぐ）
+  palette: Record<PaletteName, string>; // 色の名前ごとの色
   radius?: number;     // 箱の角の丸み（px）
   padding?: [number, number]; // 文字の箱の中の余白（上下, 左右。px）。S サイズと形（人・DB）は使わない
 }
@@ -26,18 +37,23 @@ export const DEFAULT_THEME = "default";
 
 export const THEMES: Theme[] = [
   {
-    id: "default", label: "標準", describe: "今までの見た目。箱ごとの色を使う。背景はブラウザのダーク・ライトに合わせる",
-    useBoxColor: true, box: "#ffffff",
+    id: "default", label: "標準", describe: "今までの見た目。背景はブラウザのダーク・ライトに合わせる",
+    box: "#ffffff",
+    palette: { primary: "#3b82f6", secondary: "#a855f7", success: "#22c55e", warn: "#eab308", danger: "#ef4444", muted: "#64748b" },
   },
   {
     id: "sticky", label: "付箋紙", describe: "明るい紙の上に、淡い黄色の付箋を貼った見た目。角は小さく、影は薄い",
-    useBoxColor: false, box: "#fff3a6", group: "#b9ad8f", border: "#d9c873", text: "#3b3524",
+    box: "#fff3a6", group: "#b9ad8f", border: "#d9c873", text: "#3b3524",
     shadow: "0 3px 5px rgba(70, 55, 20, 0.28)", background: "#f4efe4", radius: 3, padding: [8, 12], style: "sticky",
+    // 付箋の色違い（淡い色）
+    palette: { primary: "#cfe2ff", secondary: "#e4d5ff", success: "#d3f0c2", warn: "#fff3a6", danger: "#ffd0da", muted: "#e9e3d5" },
   },
   {
-    id: "mono", label: "モノクロ", describe: "白い背景に、白い箱と黒い枠線だけ。資料に貼る・印刷する向け",
-    useBoxColor: false, box: "#ffffff", group: "#6b6b6b", border: "#262626", outline: true, text: "#1a1a1a",
+    id: "simple", label: "シンプル", describe: "白い背景に、白い箱と黒い枠線。飾りの少ない見た目で、資料に貼る・印刷する向け",
+    box: "#ffffff", group: "#6b6b6b", border: "#262626", outline: true, text: "#1a1a1a",
     shadow: "none", background: "#ffffff", radius: 4,
+    // 白い箱と黒い文字に合う、淡めの色
+    palette: { primary: "#bfdbfe", secondary: "#e9d5ff", success: "#bbf7d0", warn: "#fde68a", danger: "#fecaca", muted: "#e5e7eb" },
   },
 ];
 

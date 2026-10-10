@@ -47,6 +47,10 @@ export const PANEL_CSS = `
   background: var(--mzp-control); border: 0; border-radius: 4px; padding: 1px 8px;
 }
 .mzp-chip:hover { background: var(--mzp-control-hover); }
+.mzp-hint + .mzp-field { margin-top: 10px; }
+.mzp-color-btn { display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; min-height: 30px; }
+.mzp-color-btn .mzp-swatch { width: 16px; height: 16px; border-radius: 4px; }
+.mzp-palette .mzp-chip[aria-pressed="true"] { outline: 2px solid var(--mzp-accent); outline-offset: 1px; }
 .mzp-none { color: var(--mzp-muted); }
 .mzp-check, .mzp-radio { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
 .mzp-radio.mzp-disabled { opacity: 0.45; cursor: not-allowed; }

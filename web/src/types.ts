@@ -88,7 +88,9 @@ export interface WorldInfo {
   overflow: Overflow;
   overflows: Overflow[];
   background: string | null;
+  backgroundPaint: string | null; // 実際の背景の色（無ければテーマの背景、それも無ければ null）
   theme: string | null;  // このワールドに書いたテーマ（無ければ null）
+  themeUnknown: string | null; // 書いてあるが知らないテーマの名前（標準として描いている）
   themeUsed: string;     // 効いているテーマ（ページなら、ブック全体のテーマを受け継ぐ）
   route: Route; // 線の通り方の既定
   title: string | null; // 図（ブック）の題名（どのページを見ていても、ブック全体の world のもの）
@@ -98,10 +100,12 @@ export interface BoxInfo {
   kind: "group" | "box";
   id: string;
   caption: string;
-  color: string;
+  color: string;           // データの色（名前か色の値。書いていなければ空）。見た目の色は paint
   theme: string | null;    // この箱に書いたテーマ（無ければ null。親を受け継ぐ）
+  themeUnknown: string | null; // 書いてあるが知らないテーマの名前（受け継いだテーマで描いている）
   themeUsed: string;       // 効いているテーマ
-  usesColor: boolean;      // 効いているテーマが箱ごとの色を使うか（default だけ。docs/THEME-plan.md 11 章）
+  paint: string;           // 実際に塗っている色（テーマと色の名前を解いたもの）
+  palette: { name: string; label: string; color: string }[]; // 色の名前と、効いているテーマでの色
   fill: boolean;
   border: boolean;
   size: Size;

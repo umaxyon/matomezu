@@ -26,7 +26,8 @@ export interface RenderContext {
   edges(): Edge[];
   fixEdge(e: Edge, fix: RouteFix): void; // 線の道筋を決めたときに分かった、データに書き戻すこと（graph が直す）
   themeOf(n: Box | null): Theme; // 箱（null はワールド）に効いているテーマ
-  colorOf(n: Box): string;       // 箱を塗る色（テーマと箱ごとの color から）
+  paintOf(n: Box): { color: string; own: boolean }; // 箱を塗る色と、それがデータの color から来たか（テーマと色の名前を解いたもの）
+  backgroundOf(): string | null; // 図の背景の色（world.background とテーマから。無ければ null）
 }
 
 export type Renderer = ReturnType<typeof createRenderer>;
@@ -39,7 +40,7 @@ export const CAPTION_OFFSET_MAX = 60;
 
 
 export function createRenderer(ctx: RenderContext, L: Layout) {
-  const { opt, world, worldEl } = ctx;
+  const { opt, worldEl } = ctx;
   const { anchorRect } = L;
 
   // 背景色。明るさに合わせて、ワールドの中の文字や線を見やすい配色にする（graph-style.ts の .mz-on-light / .mz-on-dark）
@@ -47,7 +48,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const theme = ctx.themeOf(null);
     setThemeVars(worldEl, theme);
     // 背景は world.background が優先。無ければテーマの背景（あれば配色をその背景で固定する）
-    const bg = world.src.background || theme.background;
+    const bg = ctx.backgroundOf();
     worldEl.style.background = bg || "";
     // 線の色は背景と混ぜて作る（graph-style.ts の --mz-edge）
     if (bg) worldEl.style.setProperty("--mz-bg", bg);
@@ -67,8 +68,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     // 効いているテーマの印も付ける（measure.ts の鍵は本体のクラス）
     setThemeVars(n.el, isTheme(n.src.theme) ? theme : null);
     for (const t of THEMES) head.classList.toggle("mz-t-" + t.id, t === theme);
-    const color = ctx.colorOf(n);
-    const own = theme.useBoxColor && !!n.src.color; // 箱ごとの色で塗っているか
+    const { color, own } = ctx.paintOf(n); // own: データの色（値か名前）で塗っているか
     const group = isNesting(n);
     const view = viewOf(n);
     const size = sizeOf(n);
@@ -91,7 +91,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const light = onFill && isLightColor(color);
     head.classList.toggle("mz-dark", onFill && light);
     head.classList.toggle("mz-light", onFill && !light);
-    head.style.color = onFill && theme.text ? theme.text : "";
+    // テーマの文字の色は明るい塗りの上だけ（色を書いた暗い箱は、塗りの明るさで白い文字にする）
+    head.style.color = onFill && theme.text && light ? theme.text : "";
     const edge = theme.border ?? `color-mix(in srgb, ${color} 70%, #000)`;
     const shadowOf = () => (theme.shadow === "none" ? null : theme.shadow ?? "var(--mz-shadow)");
     // 付箋（テーマのスタイル）: 右上の角を切り欠き、折り返しの三角を重ねる（graph-style.ts の .mz-style-sticky）。

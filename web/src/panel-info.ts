@@ -1,9 +1,10 @@
 // サイドバーの情報タブ。選んでいるもの（ボックス・ワールド・線）の情報と設定を出し、変更を図へ渡す（panel.ts から使う）
 
-import { esc, keyOf, toHex } from "./dom";
+import { closeColorPicker, openColorPicker } from "./color-picker";
+import { esc, keyOf } from "./dom";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
-import { THEMES, themeById } from "./theme";
+import { THEMES, isPaletteName, themeById } from "./theme";
 import type { Axis, Brief, ChildView, Dash, EdgeInfo, Info, Overflow, Route, Shape, Size, TreeDirection } from "./types";
 
 const OVERFLOW_LABELS: Record<Overflow, string> = {
@@ -25,19 +26,32 @@ const VIEW_HELP = "内包: 子を親の中に入れて見せます\nツリー: �
 // リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
 const IN_LIST = "リストの中では使いません（リストから出すと元に戻ります）";
 const allDisabled = (options: [string, string][]) => new Map(options.map(([v]) => [v, IN_LIST]));
-const PRESETS = ["#ffffff", "#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#a855f7", "#64748b"];
 // ワールドの背景によく使う色（明るい色と暗い色）
 const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
 
-const THEME_OPTIONS: [string, string][] = THEMES.map(t => [t.id, t.label]);
 const THEME_HELP = THEMES.map(t => `${t.label}: ${t.describe}`).join("\n");
 
-// テーマの選択。箱では「受け継ぐ」（書かない）も選べ、今効いているテーマを添える
-function themeSection(own: string | null, used: string, inherit: boolean): string {
-  const options: [string, string][] = inherit ? [["", "受け継ぐ"], ...THEME_OPTIONS] : THEME_OPTIONS;
+// テーマの選択（セレクトボックス。テーマが増えても幅が変わらないように）。箱では「受け継ぐ」（書かない）も選べ、
+// 今効いているテーマを添える。選んでいるテーマの説明も出す。背景色のボタン（color）も、テーマの上の上書きなのでこの枠に置く
+function themeSection(own: string | null, used: string, inherit: boolean, color: string, unknown: string | null): string {
+  const value = own ?? (inherit ? "" : used);
+  const options = (inherit ? [["", "受け継ぐ"]] : []).concat(THEMES.map(t => [t.id, t.label]));
+  const t = themeById(used);
   return `<div class="mzp-section"><h3>テーマ${helpIcon(THEME_HELP)}</h3>
-    ${segment("mzp-theme", own ?? (inherit ? "" : used), options)}
-    ${inherit && own == null ? `<p class="mzp-hint">今は「${esc(themeById(used).label)}」を受け継いでいます</p>` : ""}
+    <select class="mzp-input" name="mzp-theme" aria-label="テーマ">${options.map(([v, label]) =>
+      `<option value="${esc(v!)}"${v === value ? " selected" : ""}>${esc(label!)}</option>`).join("")}</select>
+    ${unknown ? `<p class="mzp-hint">「${esc(unknown)}」というテーマはありません。${inherit ? "受け継いだテーマ" : "標準"}で描いています</p>` : ""}
+    <p class="mzp-hint">${inherit && own == null ? `今は「${esc(t.label)}」を受け継いでいます。` : ""}${esc(t.describe)}</p>
+    ${color}
+  </div>`;
+}
+
+// 背景色のボタン。押すと色を選ぶポップアップ（color-picker.ts）を開く。今の色と、色の値を出す（名前は出さない）
+function colorButton(paint: string | null, text: string, help: string): string {
+  return `<div class="mzp-field"><span>背景色${helpIcon(help)}</span>
+    <button type="button" class="mzp-input mzp-color-btn" data-color-open aria-haspopup="dialog" aria-label="背景色を選ぶ">
+      <span class="mzp-swatch" style="background:${esc(paint ?? "transparent")}"></span><span>${esc(text)}</span>
+    </button>
   </div>`;
 }
 
@@ -116,46 +130,27 @@ function html(info: Info): string {
     parts.push(`<div class="mzp-section"><h3>図の題名${helpIcon("タブの見出しに出ます。空ならファイル名を出します（ファイル名は変わりません）")}</h3>
       <input class="mzp-input" type="text" data-edit="title" value="${esc(info.title ?? "")}" placeholder="ファイル名" aria-label="図の題名">
     </div>`);
-    const bg = info.background;
-    const hex = bg ? toHex(bg) : "#ffffff";
-    parts.push(`<div class="mzp-section"><h3>背景</h3>
-      <div class="mzp-field"><span>色</span>
-        <div class="mzp-color">
-          <input class="mzp-picker" type="color" data-edit="bg-picker" value="${hex}" aria-label="背景の色を選ぶ">
-          <input class="mzp-input" type="text" data-edit="background" value="${esc(bg ?? "")}" placeholder="なし" aria-label="背景の色の値">
-        </div>
-      </div>
-      <div class="mzp-presets">${BG_PRESETS.map(c =>
-        `<button type="button" class="mzp-preset" data-bg="${c}" style="background:${c}" title="${c}" aria-pressed="${bg != null && c === hex}"></button>`
-      ).join("")}<button type="button" class="mzp-chip" data-bg="" aria-pressed="${bg == null}">なし</button></div>
-    </div>`);
-    parts.push(themeSection(info.theme, info.themeUsed, false));
+    // 図の背景色も、箱と同じくボタンから色を選ぶポップアップを開く（見本は背景によく使う色）
+    parts.push(themeSection(info.theme, info.themeUsed, false, colorButton(info.backgroundPaint, info.background ?? "なし",
+      "図の背景の色。書けばテーマの背景より優先します"), info.themeUnknown));
     parts.push(`<div class="mzp-section"><h3>線の通り方（既定）${helpIcon("通り方を決めていない線は、これに従います")}</h3>
       ${segment("mzp-world-route", info.route, ROUTE_OPTIONS)}
     </div>`);
   } else {
     parts.push(`<div class="mzp-head">
-      <span class="mzp-swatch" style="background:${esc(info.color)}"></span>
+      <span class="mzp-swatch" style="background:${esc(info.paint)}"></span>
       <span class="mzp-title">${esc(info.caption)}</span>
       <span class="mzp-kind">${KIND_LABELS[info.kind]}</span>
     </div>`);
 
-    const hex = toHex(info.color);
     parts.push(`<div class="mzp-section"><h3>編集</h3>
       <label class="mzp-field"><span>キャプション</span>
         <input class="mzp-input" type="text" data-edit="caption" value="${esc(info.caption)}"></label>
-      <div class="mzp-field"><span>色</span>
-        <div class="mzp-color">
-          <input class="mzp-picker" type="color" data-edit="picker" value="${hex}" aria-label="色を選ぶ">
-          <input class="mzp-input" type="text" data-edit="color" value="${esc(info.color)}" aria-label="色の値">
-        </div>
-      </div>
-      <div class="mzp-presets">${PRESETS.map(c =>
-        `<button type="button" class="mzp-preset" data-color="${c}" style="background:${c}" title="${c}" aria-pressed="${c === hex}"></button>`
-      ).join("")}</div>
-      ${info.usesColor ? "" : `<p class="mzp-hint">このテーマ（${esc(themeById(info.themeUsed).label)}）では、箱ごとの色は使いません。色はデータに残り、テーマを「標準」にすると効きます</p>`}
     </div>`);
-    parts.push(themeSection(info.theme, info.themeUsed, true));
+    // 背景色（箱の塗り）はテーマの枠に置く（キャプションの下だと文字の色に見えるため。2026-10-10 ユーザー）
+    const valued = !!info.color && !isPaletteName(info.color);
+    parts.push(themeSection(info.theme, info.themeUsed, true, colorButton(info.paint, valued ? info.color : info.color ? "" : "なし",
+      "見本の色は、どのテーマでもそのテーマに合った色で描きます。好きな色（灰色も）を選ぶと、どのテーマでもその色で描きます"), info.themeUnknown));
 
     if (info.canShape) {
       parts.push(`<div class="mzp-section"><h3>形</h3>
@@ -230,7 +225,15 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
   // 選んでいるもの（info）の表示。選択の知らせ（onSelect）のたびに作り直す。
   // 同じものを選んだまま作り直すとき（外部の変更の読み直しなど）は、入力中の欄の打ちかけの文字とフォーカスを引き継ぐ
   // （確定前の入力を消さないため。docs/REVIEW-2026-10-09.md の B10）。keepTyping が false なら引き継がない（Esc の取り消し）
+  // 色を選ぶポップアップを開いている相手（箱の id か、ワールド）。選ぶものが変わったら閉じる。同じもののまま描き直すときは開いたまま
+  let pickerFor: string | null = null;
+  const pickerKey = (i: Info) => (i.kind === "world" ? "\u0000world" : i.kind === "edge" ? null : i.id);
+
   function show(next: Info, keepTyping = true) {
+    if (pickerFor != null && pickerKey(next) !== pickerFor) {
+      closeColorPicker();
+      pickerFor = null;
+    }
     const a = document.activeElement;
     const typing = keepTyping && a instanceof HTMLInputElement && pane.contains(a) && a.dataset.edit &&
       next.kind === info.kind && next.id === info.id
@@ -257,10 +260,27 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (delEdge) return graph.removeEdge(delEdge.dataset.removeEdge!);
     const chip = e.target.closest<HTMLElement>("[data-select]");
     if (chip) return graph.select(chip.dataset.select!);
-    const preset = e.target.closest<HTMLElement>("[data-color]");
-    if (preset) return graph.update(info.id, { color: preset.dataset.color! });
-    const bg = e.target.closest<HTMLElement>("[data-bg]");
-    if (bg) return graph.update(null, { background: bg.dataset.bg || null });
+    const colorBtn = e.target.closest<HTMLElement>("[data-color-open]");
+    const key = pickerKey(info);
+    if (colorBtn && key != null) {
+      if (pickerFor === key) return closeColorPicker(); // もう一度押したら閉じる
+      const onClose = () => { if (pickerFor === key) pickerFor = null; };
+      if (info.kind === "world") {
+        openColorPicker({
+          anchor: colorBtn, value: info.background ?? "", paint: info.backgroundPaint ?? "#ffffff",
+          palette: BG_PRESETS.map(c => ({ name: c, color: c })),
+          onPick: c => graph.update(null, { background: c }), onClose,
+        });
+      } else if (info.kind !== "edge") {
+        const id = info.id;
+        openColorPicker({
+          anchor: colorBtn, value: info.color, paint: info.paint, palette: info.palette,
+          onPick: c => graph.update(id, { color: c }), onClose,
+        });
+      }
+      pickerFor = key; // 開いたあとに覚える（開くと前のポップアップが閉じ、その onClose が先に走るため）
+      return;
+    }
     // サイズはクリックで受け取る（選んでいるサイズをもう一度押しても、大きさを戻せるように）
     if (e.target instanceof HTMLInputElement && e.target.name === "mzp-size") {
       return graph.update(info.id, { size: e.target.value as Size });
@@ -279,6 +299,9 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
 
   pane.addEventListener("change", e => {
     const t = e.target;
+    if (t instanceof HTMLSelectElement && t.name === "mzp-theme") {
+      return graph.update(info.kind === "world" ? null : info.id, { theme: t.value || null });
+    }
     if (!(t instanceof HTMLInputElement)) return;
     if (t.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: t.value as Dash });
     if (t.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: t.value as Route });
@@ -286,7 +309,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
       return graph.updateEdge(info.id, { [t.name === "mzp-exit" ? "exit" : "enter"]: t.value === "auto" ? null : t.value as Axis });
     }
     if (t.name === "mzp-world-route") return graph.update(null, { route: t.value as Route });
-    if (t.name === "mzp-theme") return graph.update(info.kind === "world" ? null : info.id, { theme: t.value || null });
     // 矢印は、始点と終点の 2 つの選択を合わせて 1 つの値にする
     if (t.dataset.arrow && info.kind === "edge") {
       const on = (side: string) => !!pane.querySelector<HTMLInputElement>(`[data-arrow="${side}"]`)?.checked;
@@ -297,13 +319,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (edit === "edge-caption" && info.kind === "edge") return graph.updateEdge(info.id, { caption: t.value });
     if (edit === "caption") return graph.update(info.id, { caption: t.value });
     if (edit === "title") return graph.update(null, { title: t.value });
-    if (edit === "picker" || edit === "color" || edit === "bg-picker" || edit === "background") {
-      const color = t.value.trim();
-      // 解釈できない色の文字列は受け付けずに元へ戻す
-      if (color && !CSS.supports("color", color)) return show(info);
-      if (edit.startsWith("bg") || edit === "background") return graph.update(null, { background: color || null });
-      return graph.update(info.id, { color });
-    }
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
     if (t.name === "mzp-overflow") return graph.update(info.id, { overflow: t.value as Overflow });
     if (t.name === "mzp-shape") return graph.update(info.id, { shape: t.value as Shape });

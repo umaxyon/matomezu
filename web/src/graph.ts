@@ -121,7 +121,7 @@ import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } fr
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import type { RouteFix } from "./routing";
-import { DEFAULT_THEME, isTheme, themeById, type Theme } from "./theme";
+import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isPaletteName, isTheme, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
@@ -254,7 +254,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
     },
   });
-  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, colorOf }, L);
+  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
     settle, sizable, alignChildren,
@@ -804,11 +804,32 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return themeById(DEFAULT_THEME);
   }
 
-  // 箱を塗る色。箱ごとの color を使うのは default だけ（ほかはテーマが決める。データの color は残す。THEME-plan 11 章）
-  function colorOf(n: Box): string {
+  // 箱を塗る色と、それがデータの color から来たか（own）。color はテーマの上の上書き（theme.ts の冒頭、THEME-plan 11 章）:
+  // 色の名前はそのテーマの色、色の値はその色、無ければテーマの既定の色
+  function paintOf(n: Box): { color: string; own: boolean } {
     const t = themeOf(n);
-    if (t.useBoxColor) return n.src.color || opt.color;
-    return isNesting(n) ? t.group ?? t.box : t.box;
+    const c = n.src.color;
+    if (isPaletteName(c)) return { color: t.palette[c], own: true };
+    if (c) return { color: c, own: true };
+    if (t.id === DEFAULT_THEME) return { color: opt.color, own: false };
+    return { color: isNesting(n) ? t.group ?? t.box : t.box, own: false };
+  }
+
+  // 実際の背景の色。world.background はテーマの上の上書き。無ければテーマの背景
+  function backgroundOf(): string | null {
+    return world.src.background || themeOf(null).background || null;
+  }
+
+  // 書いてあるが知らないテーマの名前（無ければ null）
+  const unknownTheme = (v: unknown) => (v != null && v !== "" && !isTheme(v) ? String(v) : null);
+
+  // データ全体（ブック）にある、知らないテーマの名前。読み込んだときに知らせる
+  function unknownThemes(): string[] {
+    const found = new Set<string>();
+    const add = (v: unknown) => { const u = unknownTheme(v); if (u) found.add(u); };
+    add(source.world?.theme);
+    for (const s of source.nodes) { add(s.theme); add(s.world?.theme); }
+    return [...found];
   }
 
   const brief = (n: Box) => ({ id: n.id, caption: captionOf(n) });
@@ -825,7 +846,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         overflow: overflowOf(world),
         overflows: ["wrap", "clip"],
         background: world.src.background || null,
+        backgroundPaint: backgroundOf(),
         theme: isTheme(world.src.theme) ? world.src.theme : null,
+        themeUnknown: unknownTheme(world.src.theme),
         themeUsed: themeOf(null).id,
         route: routeDefaultOf(world),
         title: typeof source.world?.title === "string" && source.world.title ? source.world.title : null,
@@ -839,10 +862,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       kind: n.children.length ? "group" : "box",
       id: n.id,
       caption: captionOf(n),
-      color: n.src.color || opt.color,
+      color: n.src.color ?? "",
       theme: isTheme(n.src.theme) ? n.src.theme : null,
+      themeUnknown: unknownTheme(n.src.theme),
       themeUsed: themeOf(n).id,
-      usesColor: themeOf(n).useBoxColor,
+      paint: paintOf(n).color,
+      palette: PALETTE.map(name => ({ name, label: PALETTE_LABELS[name], color: themeOf(n).palette[name] })),
       fill: fillOf(n),
       border: borderOf(n),
       size,
@@ -1054,6 +1079,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 選択が外れると、サイドバーで入力中の内容も消えてしまうため（docs/REVIEW-2026-10-09.md の B10）
     const keep = o.keepHistory ? { box: current?.id ?? null, edge: currentEdge?.id ?? null } : undefined;
     build(copy, !o.keepHistory, keep);
+    const unknown = unknownThemes();
+    if (unknown.length) opt.onEvent?.({ kind: "unknownTheme", names: unknown });
     if (!o.keepHistory) touched = false;
     if (o.keepHistory && touched) H.record();
     else H.reset();
@@ -1278,7 +1305,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         const [x, y] = absPos(n);
         return {
           id: n.id, caption: captionOf(n), ancestors: ancestors(n).map(p => p.id),
-          x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n), color: colorOf(n),
+          x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n), color: paintOf(n).color,
           ...(n.children.length ? { view: viewOf(n), kids: n.children.length } : {}),
         };
       });
