@@ -234,21 +234,32 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
           if (Math.abs(cx - tx) > 0.5 || Math.abs(cy - ty) > 0.5 || !place(tx, ty)) { place(x, y); return; }
         }
       },
-      // 入れ替えていない兄弟のうち、進む向きの先にいて、n が重なっている（間隔を含む）が入れ替えるほど食い込んでいない
-      // ものがあれば、n をその手前（間隔 gap を空けた所）へ戻す。相手は動かさない。戻した先でほかと重なる、枠に
-      // 収まらないなら戻さない。食い込んだのにずれた先がふさがっていて入れ替えなかった相手は、drop に任せる（相手が下へ）
+      // 入れ替えていない兄弟のうち、n が重なっている（間隔を含む）が入れ替えるほど食い込んでいないものがあれば、n をその手前
+      // （間隔 gap を空けた所）へ戻す。相手は動かさない。手前とは、相手ごとに n が近づいてきた側: このドラッグで先端が来た向き（met）、
+      // 無ければドラッグを始めた位置との位置関係（左にいたなら左へ）。最後の動きの向き（travel）では決めない（横から近づいて、
+      // 離す直前に少し縦に動くと、横の相手を手前へ戻さず、drop で相手を押し下げてしまっていた。2026-10-10）。
+      // 戻した先でほかと重なる、枠に収まらないなら戻さない。食い込んだのにずれた先がふさがっていて入れ替えなかった相手は、
+      // drop に任せる（相手が下へ）
       retreat() {
-        const ahead = siblings(n).filter(o => o !== n && !swapped.includes(o) && overlaps(n, n.x, n.y, o) && !engaged(at(o), travel) && (() => {
+        const s = at(n);
+        const cameFrom = (o: Box): Dir | null => {
+          const d = met.get(o);
+          if (d) return d;
           const r = at(o);
-          return travel === "down" ? r.y > n.y : travel === "up" ? r.y + r.h < n.y + n.h
-            : travel === "right" ? r.x > n.x : r.x + r.w < n.x + n.w;
-        })());
+          return s.x >= r.x + r.w ? "left" : s.x + s.w <= r.x ? "right" : s.y >= r.y + r.h ? "up" : s.y + s.h <= r.y ? "down" : null;
+        };
+        const ahead = siblings(n)
+          .filter(o => o !== n && !swapped.includes(o) && overlaps(n, n.x, n.y, o))
+          .map(o => ({ o, d: cameFrom(o) }))
+          .filter((a): a is { o: Box; d: Dir } => a.d != null && !engaged(at(a.o), a.d));
         if (!ahead.length) return;
+        const d = ahead[0]!.d;
+        const hits = ahead.filter(a => a.d === d).map(a => a.o);
         const [x, y] = [n.x, n.y];
-        const tx = travel === "right" ? Math.min(...ahead.map(o => o.x - g - n.w))
-          : travel === "left" ? Math.max(...ahead.map(o => o.x + o.w + g)) : x;
-        const ty = travel === "down" ? Math.min(...ahead.map(o => o.y - g - n.h))
-          : travel === "up" ? Math.max(...ahead.map(o => o.y + o.h + g)) : y;
+        const tx = d === "right" ? Math.min(...hits.map(o => o.x - g - n.w))
+          : d === "left" ? Math.max(...hits.map(o => o.x + o.w + g)) : x;
+        const ty = d === "down" ? Math.min(...hits.map(o => o.y - g - n.h))
+          : d === "up" ? Math.max(...hits.map(o => o.y + o.h + g)) : y;
         const [cx, cy] = clamp(n, tx, ty);
         const ok = Math.abs(cx - tx) <= 0.5 && Math.abs(cy - ty) <= 0.5 && place(tx, ty, true) && !collides(n, n.x, n.y);
         if (!ok) place(x, y, true);

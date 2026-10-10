@@ -214,3 +214,22 @@ test("縦に動いてから横からぶつけると、左右に入れ替わる�
   expect(at(graph, 2)).toEqual([200 + 128, 200]); // 1 の幅 120 + 8 だけ右（来た側）へ。上下には動かない
   g.up();
 });
+
+test("横から少しだけ重ねて、離す直前に少し縦に動いても、相手を押し下げず、つかんだ箱が相手の手前（来た側）へ戻る", () => {
+  // 枠の中に、背の高い左の箱と、右の箱。右の箱を左へ 40 動かして左の箱に少し重ね、最後に 8 だけ下へ動かしてから離す
+  const { el, graph } = setup({
+    nodes: [
+      { id: 1, caption: "枠", x: 40, y: 40 },
+      { id: 2, parent: 1, caption: "左の箱", body: "一\n二\n三\n四\n五\n六", x: 12, y: 30 },
+      { id: 3, parent: 1, caption: "右の箱", x: 160, y: 30 },
+    ],
+  });
+  const left = at(graph, 2);
+  const g = grab(el, graph, 3);
+  g.move(-40, 0);
+  g.move(-40, 8);
+  g.up(-40, 8);
+  expect(at(graph, 2)).toEqual(left);                 // 左の箱は動かない
+  expect(at(graph, 3)[0]).toBe(left[0]! + graph.info(2).w + 8); // 右の箱は来た側（右）の、左の箱の手前（間隔 8）へ戻る
+  expect(violations(el)).toEqual([]);
+});
