@@ -133,14 +133,24 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 
 // ---- 設定値 ----
 
-// リストの子か（docs/LIST-plan.md）。リストの子では、サイズ・形・子の見せ方を使わない（データは書き換えず、
-// 見せるときだけ無視する。リストから出すと元に戻る）。孫は非表示にする（子の中が大量にあり得るため）
+// リストの子か（docs/LIST-plan.md）。リストの子では形を使わない（データは書き換えず、見せるときだけ無視する。リストから出すと元に戻る）。
+// サイズは見た目だけリストの中でそろえ（listSizeOf）、子の見せ方は自分の設定に従う（docs/SIZE-plan.md）
 export const inList = (n: Box): boolean => !!n.parent && viewOf(n.parent) === "list";
+// データのサイズ（無ければ M）
+export const dataSizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "M");
+// 見た目が葉の箱か（子が無いか、子を隠して本体だけを見せる）
+const leafLike = (n: Box) => !n.children.length || viewOf(n) === "hidden";
+const SIZE_RANK: Record<Size, number> = { S: 0, M: 1, L: 2 };
+// リストの葉の子の見た目のサイズ: 葉の子のうち一番大きいサイズ（S, M, M なら M。S だけなら S）
+export function listSizeOf(list: Box): Size {
+  const sizes = list.children.filter(leafLike).map(dataSizeOf);
+  return sizes.length ? sizes.reduce((a, b) => (SIZE_RANK[b] > SIZE_RANK[a] ? b : a)) : "M";
+}
 // サイズ（L / M / S）が効くのは、見た目が葉の箱だけ（子の無い箱、ツリーの親の本体、非表示）。内包・リストの箱の大きさは子の並びで決まるので、
-// サイズを使わない（データは消さずに無視する。子を全部外せば効く。docs/SIZE-plan.md）
-export const sizeOf = (n: Box): Size => (inList(n) || isNesting(n) ? "M" : isSize(n.src.size) ? n.src.size : "M");
-export const viewOf = (n: Box): ChildView =>
-  inList(n) ? "hidden" : isView(n.src.childView) ? n.src.childView : "nest";
+// サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの葉の子は、リストの中で一番大きいサイズの見た目にそろえる（docs/SIZE-plan.md）
+export const sizeOf = (n: Box): Size =>
+  (inList(n) && leafLike(n) ? listSizeOf(n.parent!) : isNesting(n) ? "M" : dataSizeOf(n));
+export const viewOf = (n: Box): ChildView => (isView(n.src.childView) ? n.src.childView : "nest");
 export const treeDirOf = (n: Box): TreeDirection => (isTreeDirection(n.src.treeDirection) ? n.src.treeDirection : "down");
 // 子を枠の中に入れて見せるボックス（子を持ち、見せ方が内包かリスト）。枠と見出しで描き、形は使わない
 export const isNesting = (n: Box) => n.children.length > 0 && (viewOf(n) === "nest" || viewOf(n) === "list");
@@ -165,7 +175,8 @@ export function overflowOf(c: Container): Overflow {
   if (!c.children.length) return c.src.overflow === "clip" ? "clip" : "wrap";
   return "grow";
 }
-export const displayCaption = (n: Box) => truncate(captionOf(n), SIZES[sizeOf(n)].limit);
+// S は 10 文字で切る。リストの子は高さを中身に合わせるので切らない
+export const displayCaption = (n: Box) => (inList(n) ? captionOf(n) : truncate(captionOf(n), SIZES[sizeOf(n)].limit));
 // 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
 export const canBody = (n: Box): boolean =>
   shapeOf(n) === "box" && sizeOf(n) !== "S" && n.src.page !== true && overflowOf(n) !== "clip";

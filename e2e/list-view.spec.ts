@@ -1,7 +1,7 @@
 // 子の見せ方「リスト」を実際のブラウザで確かめる（docs/LIST-plan.md）
 import { expect, test } from "@playwright/test";
 import type { Diagram } from "../web/src/types";
-import { openDiagram, rect, violations } from "./helpers";
+import { choose, openDiagram, rect, violations } from "./helpers";
 
 const data = (): Diagram => ({
   world: { width: 1000 },
@@ -9,7 +9,7 @@ const data = (): Diagram => ({
     { id: 1, caption: "関係の形 → 使う表現", x: 40, y: 40, childView: "list" },
     { id: 2, caption: "階層 → 内包かツリー", parent: 1, size: "S" },
     { id: 3, caption: "順序 → 同じ階層に並べて矢印でつなぐ", parent: 1, shape: "db" },
-    { id: 4, caption: "量が多い → ページに分けるか、非表示で畳む", parent: 1 },
+    { id: 4, caption: "量が多い → ページに分けるか、非表示で畳む", parent: 1, childView: "hidden" },
     { id: 5, caption: "孫", parent: 4 },
   ],
 });
@@ -23,7 +23,15 @@ test("子が同じ幅で縦に並び、親の幅いっぱいに広がる", async
   expect(a.x).toBe(12);
   expect(a.w + 24).toBe(p.w);
   expect(a.y < b.y && b.y < c.y).toBe(true);
-  await expect(page.locator('.mz-node[data-id="5"]')).toBeHidden();
+  await expect(page.locator('.mz-node[data-id="5"]')).toBeHidden(); // 4 は子を非表示にしている
+});
+
+test("リストの子も自分の子の見せ方に従う。内包にすると孫を出し、全員がその幅にそろう（docs/SIZE-plan.md）", async ({ page }) => {
+  await choose(page, 4, "mzp-view", "nest");
+  await expect(page.locator('.mz-node[data-id="5"]')).toBeVisible();
+  const [p, a, c] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 4)]);
+  expect(a.w).toBe(c.w);
+  expect(c.w + 24).toBe(p.w);
 });
 
 test("ドラッグで並べ替えられる", async ({ page }) => {

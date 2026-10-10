@@ -115,7 +115,7 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, arrowOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
+  absPos, ancestors, arrowOf, dataSizeOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   bodyLinesOf, bodyWidthOf, bodyWrapW, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
@@ -907,7 +907,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const size = sizeOf(n);
     // 中身の扱いを選べるのは、文字を持つボックス（S 以外）だけ。子を持つ箱はつねに子に合わせて伸びる（docs/SIZE-plan.md）。
     // スティックマンは文字の置き方が決まっているので使わない
-    const usesOverflow = !n.children.length && size !== "S" && shapeOf(n) !== "person";
+    const usesOverflow = !n.children.length && size !== "S" && shapeOf(n) !== "person" && !inList(n);
     const out: BoxInfo = {
       kind: n.children.length ? "group" : "box",
       id: n.id,
@@ -920,7 +920,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       palette: PALETTE.map(name => ({ name, label: PALETTE_LABELS[name], color: themeOf(n).palette[name] })),
       fill: fillOf(n),
       border: borderOf(n),
-      size,
+      // リストの子は、見た目はリストの中でそろえたサイズで描くが、選ぶのは自分のサイズ（そろえる幅の候補になる）
+      size: inList(n) ? dataSizeOf(n) : size,
       shape: shapeOf(n),
       canShape: !isNesting(n) && !inList(n) && n.src.page !== true,
       body: typeof n.src.body === "string" ? n.src.body : "",

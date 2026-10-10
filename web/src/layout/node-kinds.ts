@@ -2,7 +2,7 @@
 // 種類は子の有無と childView で決まる（文字の箱 / 非表示 / 内包 / ツリー / リスト）。
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
-import { type Box, bodyOf, bodyWidthOf, bodyWrapW, inList, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
+import { type Box, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inList, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
@@ -60,12 +60,12 @@ export function createNodeKinds(ctx: KindContext) {
   // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す。
   // capW があれば（同じ段の兄弟にはみ出さないための上限。layout.ts の fitToRow）、それも上限にする
   function fitHead(n: Box, useSpec: boolean) {
-    if (inList(n)) {
-      // リストの子: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ。
-      // 大きさの指定や中身の扱いは使わない（docs/LIST-plan.md）
+    if (inList(n) && (!n.children.length || viewOf(n) === "hidden")) {
+      // リストの葉の子（と非表示の子）: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ
+      // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
       const w = n.listW || listItemWidth(n);
       n.hw = w;
-      n.hh = Math.max(SIZES.M.h, measure(n, w)[1]);
+      n.hh = Math.max(SIZES[sizeOf(n)].h, measure(n, w)[1]);
       return;
     }
     const z = SIZES[sizeOf(n)];
@@ -121,7 +121,8 @@ export function createNodeKinds(ctx: KindContext) {
     measure(n) {
       let r = 0;
       for (const c of n.children) r = Math.max(r, c.x + c.w);
-      n.w = Math.max(GROUP_MIN.w, bodyMinW(n), r + opt.padding);
+      // リストの子なら、リストがそろえた幅まで広げる（子の並びは左に寄ったまま）
+      n.w = Math.max(GROUP_MIN.w, bodyMinW(n), r + opt.padding, inList(n) ? n.listW : 0);
       // 本文は決まった幅で折り返す。高さが前と変わったら（子は前の高さの下に置いてある）、その分だけ子を上下に動かす。
       // 子の左右の位置は本文の高さに関わらないので、幅は先に決まる
       const bh = bodyHeight(n, n.w);
@@ -176,22 +177,41 @@ export function createNodeKinds(ctx: KindContext) {
       const main = P + headSize[0]! + DIST + kidsMain + P;
       const crossAll = P + cross + P;
       if (vertical) { n.w = crossAll; n.h = main; } else { n.w = main; n.h = crossAll; }
+      // リストの子なら、リストがそろえた幅まで枠を広げ、中身（親と子の並び）を真ん中に寄せる
+      const extra = inList(n) ? n.listW - n.w : 0;
+      if (extra > 0) {
+        n.w += extra;
+        n.hx += extra / 2;
+        for (const k of kids) k.x += extra / 2;
+      }
     },
     anchorRect: n => ({ x: 0, y: 0, w: n.w, h: n.h }),
   };
 
-  // リストの子の、中身に合わせた幅（1 行の文字の幅。最小は M の最小、上限は L の最大）
-  const listItemWidth = (k: Box) => Math.max(SIZES.M.minW, bodyMinW(k), Math.min(SIZES.L.maxW, contentW(k)));
+  // リストの葉の子の、中身に合わせた幅（1 行の文字の幅を、自分のデータのサイズの範囲に収める。本文があれば最小の幅も）
+  const listItemWidth = (k: Box) => {
+    const z = SIZES[dataSizeOf(k)];
+    return Math.max(z.minW, bodyMinW(k), Math.min(z.maxW, contentW(k)));
+  };
 
-  // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は一番広い子の中身の幅か、自分の見出しが入る幅の広い方
-  // （どちらも上限は L の最大。見出しは長ければ … で切れる）。大きさの指定は使わない（docs/SIZE-plan.md）。
+  // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は一番広い子の幅（docs/SIZE-plan.md の決めごと 5）か、自分の見出しが入る幅
+  // （上限は L の最大。見出しは長ければ … で切れる）の広い方。子の幅は、葉の子（と非表示の子）は自分のサイズの範囲で測った幅、
+  // 子を持つ子（内包・ツリー・リスト）は子の並びで決まった幅（上限なし）。大きさの指定は使わない。
   // 子の高さは中身に合わせる。並び順は children の順（データの並び順）
   const list: NodeKind = {
     name: "list",
     holdsChildren: false,
     measure(n) {
       const P = opt.padding;
-      const inner = Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(listItemWidth), Math.min(SIZES.L.maxW, caption(n) - 2 * P), bodyMinW(n) - 2 * P);
+      // 子を持つ子は、そろえる前の自分の幅（前にそろえた幅を外して測る）
+      const own = (k: Box) => {
+        if (kindOf(k).name === "text" || kindOf(k).name === "hidden") return listItemWidth(k);
+        k.listW = 0;
+        kindOf(k).measure(k);
+        return k.w;
+      };
+      const inner = Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(own), Math.min(SIZES.L.maxW, caption(n) - 2 * P),
+        bodyMinW(n) - 2 * P, inList(n) ? n.listW - 2 * P : 0);
       n.bodyH = bodyHeight(n, inner + 2 * P);
       let y = opt.header + (n.bodyH ? n.bodyH + BODY_GAP : 0);
       for (const k of n.children) {

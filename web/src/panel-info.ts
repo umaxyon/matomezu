@@ -28,8 +28,7 @@ const VIEW_HELP = "内包: 子を親の中に入れて見せます\nツリー: �
   "リスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n" +
   "非表示: 子を隠し、▼ で子がいることだけを示します";
 // リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
-const IN_LIST = "リストの中では使いません（リストから出すと元に戻ります）";
-const allDisabled = (options: [string, string][]) => new Map(options.map(([v]) => [v, IN_LIST]));
+const IN_LIST = "リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）";
 // ワールドの背景によく使う色（明るい色と暗い色）
 const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
 
@@ -161,17 +160,15 @@ function html(info: Info): string {
     const nesting = info.children.length > 0 && (info.childView === "nest" || info.childView === "list");
     const sizes: [string, string][] = [["L", "L"], ["M", "M"], ["S", "S"]];
     parts.push(`<div class="mzp-section"><h3>サイズ${helpIcon(SIZE_HELP)}</h3>
-      ${segment("mzp-size", nesting ? "" : info.size, sizes, info.inList ? allDisabled(sizes)
-        : nesting ? new Map(sizes.map(([v]) => [v, BY_CHILDREN]))
+      ${segment("mzp-size", nesting ? "" : info.size, sizes, nesting ? new Map(sizes.map(([v]) => [v, BY_CHILDREN]))
         : info.body ? new Map([["S", "本文があるので S にはできません（S は高さが決まっています）"]]) : undefined)}
-      ${info.inList ? `<p class="mzp-hint">${IN_LIST}。幅はリストがそろえます</p>` : ""}
+      ${info.inList && !nesting ? `<p class="mzp-hint">${IN_LIST}</p>` : ""}
       ${nesting ? `<p class="mzp-hint">${BY_CHILDREN}</p>` : ""}
     </div>`);
 
     if (info.children.length) {
       parts.push(`<div class="mzp-section"><h3>子の見せ方${helpIcon(VIEW_HELP)}</h3>
-        ${segment("mzp-view", info.childView, VIEW_OPTIONS, info.inList ? allDisabled(VIEW_OPTIONS) : undefined)}
-        ${info.inList ? `<p class="mzp-hint">リストの中では、子は非表示にします（リストから出すと元に戻ります）</p>` : ""}
+        ${segment("mzp-view", info.childView, VIEW_OPTIONS)}
         ${info.childView === "tree" ? `<div class="mzp-subhead">向き</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}
       </div>`);
     }
