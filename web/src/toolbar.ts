@@ -1,4 +1,4 @@
-// ヘッダーのツールバー: Undo / Redo と、ツールのモード（移動 / 親子の付け替え / 線）の切り替え
+// ヘッダーのツールバー: Undo / Redo（と選んだ線の Delete キー）と、ツールのモード（選択 / 親子の付け替え / 追加 / 削除）の切り替え
 
 import type { Graph, Mode } from "./graph";
 
@@ -6,7 +6,7 @@ import type { Graph, Mode } from "./graph";
 const typing = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.matches("input, textarea, select") || t.isContentEditable);
 
-// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）。
+// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）と、選んだ線を消す Delete キー（Mac の delete は Backspace）。
 // 登録を外す関数を返す（ページ全体のキー操作に登録するので、図を作り直すときに外せるように）
 export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: HTMLButtonElement): () => void {
   const listening = new AbortController();
@@ -14,6 +14,13 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   undoBtn.addEventListener("click", () => graph.undo(), { signal });
   redoBtn.addEventListener("click", () => graph.redo(), { signal });
   document.addEventListener("keydown", e => {
+    if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const edge = graph.selectedEdge();
+      if (!edge || typing(e.target) || graph.dragging() || graph.preview() != null) return;
+      e.preventDefault();
+      graph.removeEdge(edge);
+      return;
+    }
     if (!(e.ctrlKey || e.metaKey) || e.altKey || graph.dragging()) return;
     if (typing(e.target)) return; // 入力欄では、文字入力の取り消しに使う
     const key = e.key.toLowerCase();
@@ -25,12 +32,12 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   return () => listening.abort();
 }
 
-const MODE_LABELS: Record<Mode, string> = { move: "選択モード", reparent: "付け替えモード", link: "線モード", remove: "削除モード", add: "追加モード" };
+const MODE_LABELS: Record<Mode, string> = { move: "選択モード", reparent: "付け替えモード", remove: "削除モード", add: "追加モード" };
 
-// Ctrl を押している間だけ入れ替わる相手（線モードでは Ctrl を線を引くのに使うので、入れ替えない）
+// Ctrl を押している間だけ入れ替わる相手（追加・削除モードでは入れ替えない）
 const FLIP: Partial<Record<Mode, Mode>> = { move: "reparent", reparent: "move" };
 
-// ツールのモードの切り替え（移動 / 親子の付け替え / 線 / 削除）と、今のモードの表示。
+// ツールのモードの切り替え（移動 / 親子の付け替え / 追加 / 削除）と、今のモードの表示。
 // ボタンを押すと、そのモードになる（Ctrl を押しながらでも同じ。そのときは Ctrl による入れ替えを解く）。
 // 移動と付け替えのときは、Ctrl（Mac は Cmd）を押している間だけ、もう一方のモードになり、離すと戻る。
 // ドラッグ中は切り替えず、手を離してから切り替える（付け替えのドラッグの途中で Ctrl を離しても取り消さないため）。

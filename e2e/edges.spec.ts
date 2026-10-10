@@ -123,6 +123,7 @@ test("Z 字の中棒をドラッグで動かせ、線を選ぶと自動に戻せ
 
 test("斜めの直線を選ぶと両端に丸が出て、ドラッグで端を辺に沿ってずらせる。自動に戻せる", async ({ page }) => {
   await openDiagram(page, {
+    world: { route: "straight" }, // 何も書かなければ折れ線（2026-10-11 から）
     nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 300 }],
     edges: [{ id: "e1", from: 1, to: 2 }],
   });

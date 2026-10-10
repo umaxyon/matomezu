@@ -1,5 +1,5 @@
 /*
- * 編集ダイアログ（箱はキャプションと本文、線はキャプション。docs/BODY-plan.md の段階 3）と、箱の追加のダイアログ（docs/ADD-plan.md）。
+ * 編集ダイアログ（箱はキャプションと本文、線はキャプション・通り方・線の種類・矢印と、線を消すボタン。docs/BODY-plan.md の段階 3）と、箱の追加のダイアログ（docs/ADD-plan.md）。
  * モーダル: 画面全体を覆い、閉じるまで図やサイドバーを触れなくする。入力中は図を動かさず、確定したときに 1 件の履歴として書く。
  * Ctrl+Enter（Mac は Cmd+Enter）か「確定」（追加は「追加」）で確定、Esc か「キャンセル」で閉じる。キャプションの欄では Enter でも確定する（1 行）。
  *
@@ -12,7 +12,7 @@
 
 import { esc, injectStyle } from "./dom";
 import { helpIcon, setupHelp } from "./help";
-import type { Graph } from "./graph";
+import type { EdgePatch, Graph } from "./graph";
 import type { AddRequest } from "./interaction";
 import type { BoxData, BoxInfo, Patch } from "./types";
 
@@ -56,6 +56,9 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-btn { font: inherit; color: inherit; background: var(--dlg-control); border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
 .mz-dlg-btn.mz-dlg-ok { color: #fff; background: var(--dlg-accent); }
 .mz-dlg-btn.mz-dlg-ok.mz-dlg-danger { background: #dc2626; }
+.mz-dlg-btn.mz-dlg-delete { color: #f87171; background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .mz-dlg-btn.mz-dlg-delete { color: #dc2626; } }
+.mz-dlg-row > label { display: flex; align-items: center; gap: 4px; }
 .mz-dlg-message { margin: 0 0 4px; white-space: pre-line; }
 .mz-dlg-btn:disabled { opacity: 0.45; cursor: default; }
 .mz-dlg-switch {
@@ -190,21 +193,46 @@ export function openConfirmDialog(title: string, message: string, okLabel: strin
   ok.focus();
 }
 
+// 線のキャプション、通り方（折れ線・直線。自分に戻る線では出さない）、線の種類（実線・破線）、矢印（始点・終点）。
+// 「線を消す」は確定を待たずに消して閉じる
 export function openEdgeEditDialog(graph: Graph, id: string): void {
   const e = graph.edgeInfo(id);
   if (!e) return;
-  show("線の編集", "確定", `
+  const has = (side: "start" | "end") => e.arrow === side || e.arrow === "both";
+  const radios = (name: string, now: string, options: [string, string][]) =>
+    options.map(([v, label]) => `<label><input type="radio" name="${name}" value="${v}"${v === now ? " checked" : ""}>${label}</label>`).join("");
+  const overlay = show("線の編集", "確定", `
       <label class="mz-dlg-field"><span>キャプション</span>
-        <input class="mz-dlg-input" type="text" name="caption" value="${esc(e.caption ?? "")}" placeholder="なし"></label>`,
+        <input class="mz-dlg-input" type="text" name="caption" value="${esc(e.caption ?? "")}" placeholder="なし"></label>
+      ${e.self ? "" : `<div class="mz-dlg-row"><span>通り方</span>${radios("route", e.route, [["elbow", "折れ線"], ["straight", "直線"]])}</div>`}
+      <div class="mz-dlg-row"><span>線の種類</span>${radios("dash", e.dash, [["solid", "実線"], ["dashed", "破線"]])}</div>
+      <div class="mz-dlg-row"><span>矢印</span>
+        <label><input type="checkbox" name="arrow-start"${has("start") ? " checked" : ""}>始点</label>
+        <label><input type="checkbox" name="arrow-end"${has("end") ? " checked" : ""}>終点</label></div>`,
   overlay => {
-    const caption = overlay.querySelector<HTMLInputElement>('[name="caption"]')!.value;
-    if (caption.trim() !== (e.caption ?? "")) graph.updateEdge(id, { caption });
+    const field = (name: string) => overlay.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+    const caption = field("caption").value;
+    const start = field("arrow-start").checked, end = field("arrow-end").checked;
+    const arrow = start && end ? "both" : start ? "start" : end ? "end" : null;
+    const picked = (name: string) => overlay.querySelector<HTMLInputElement>(`[name="${name}"]:checked`)?.value;
+    const route = picked("route") as EdgePatch["route"] | undefined, dash = picked("dash");
+    const patch: EdgePatch = {};
+    if (caption.trim() !== (e.caption ?? "")) patch.caption = caption;
+    if (route && route !== e.route) patch.route = route;
+    if (dash && dash !== e.dash) patch.dash = dash === "dashed" ? "dashed" : null;
+    if (arrow !== e.arrow) patch.arrow = arrow;
+    if (Object.keys(patch).length) graph.updateEdge(id, patch); // まとめて 1 件の変更にする
+  }, `<button type="button" class="mz-dlg-btn mz-dlg-delete" data-delete>線を消す</button>`);
+  overlay.querySelector("[data-delete]")!.addEventListener("click", () => {
+    closeEditDialog();
+    graph.removeEdge(id);
   });
 }
 
 // ダイアログを出す。fields は項目の HTML、commit は確定したときに項目を読んで書く（変えた項目だけを 1 回の変更として書く。
 // 変えていなければ書かない。履歴に残さない）
-function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void): HTMLElement {
+// lead はフッターの左端に置くボタン（線を消すなど）
+function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = ""): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
   const overlay = document.createElement("div");
@@ -214,6 +242,7 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
       <h2 id="mz-dlg-title">${esc(title)}</h2>
       ${fields}
       <div class="mz-dlg-foot">
+        ${lead}
         <span class="mz-dlg-hint">${mac ? "⌘" : "Ctrl"}+Enter で${esc(okLabel)} / Esc でキャンセル</span>
         <button type="button" class="mz-dlg-btn" data-cancel>キャンセル</button>
         <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>${esc(okLabel)}</button>

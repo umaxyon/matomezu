@@ -55,8 +55,8 @@ export function noticeOf(ev: GraphEvent): string {
 }
 
 // 図の知らせを受けたときの画面の方針: 文言を出す（status）。
-// 一覧からドラッグして戻したら、線モードや削除モードのままだと戻した箱をすぐ動かせないので、選択モードにする
+// 一覧からドラッグして戻したら、削除モードのままだと戻した箱をすぐ動かせないので、選択モードにする
 export function handleGraphEvent(graph: Graph, ev: GraphEvent, status: (text: string) => void) {
   status(noticeOf(ev));
-  if (ev.kind === "restored" && ev.byDrag && (graph.mode() === "link" || graph.mode() === "remove")) graph.setMode("move");
+  if (ev.kind === "restored" && ev.byDrag && graph.mode() === "remove") graph.setMode("move");
 }

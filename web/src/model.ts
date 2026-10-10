@@ -89,7 +89,7 @@ export const viaOf = (e: Edge): number[] | null =>
   Array.isArray(e.src.via) && e.src.via.every(v => typeof v === "number" && Number.isFinite(v)) ? [...e.src.via] : null;
 export const dashOf = (e: Edge): Dash => (e.src.dash === "dashed" ? "dashed" : "solid");
 // 図（ワールド）の線の通り方の既定と、線の実際の通り方（線に無ければ図の既定）
-export const routeDefaultOf = (w: World): Route => (isRoute(w.src.route) ? (w.src.route as Route) : "straight");
+export const routeDefaultOf = (w: World): Route => (isRoute(w.src.route) ? (w.src.route as Route) : "elbow");
 export const routeOf = (e: Edge, w: World): Route => (isRoute(e.src.route) ? (e.src.route as Route) : routeDefaultOf(w));
 
 export function setOrDelete<T extends object, K extends keyof T>(obj: T, key: K, value: T[K] | undefined, isDefault: boolean) {

@@ -1,4 +1,4 @@
-// ポインタ操作: ドラッグ（箱の移動、リストの並べ替え、線のキャプション・途中の区間・端、付け替えのゴースト）、
+// ポインタ操作: ドラッグ（箱の移動、リストの並べ替え、線のキャプション・途中の区間・端、線を引く〇、付け替えのゴースト）、
 // クリックでの選択、Esc、一覧からのドロップ（戻す・移植）。
 // 進行中のドラッグは active の 1 つだけで持つ（種類ごとの中身は Gesture。docs/REFACTOR-2.md）。
 // 図の状態の変更（選択、線、付け替え）は ctx の関数を呼んで graph.ts に任せる
@@ -6,13 +6,14 @@
 import type { EdgeDrag } from "./edge-drag";
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
-import { type Box, type Edge, type World, inList, inNest, isInside, viewOf } from "./model";
+import { SVGNS } from "./dom";
+import { type Box, type Edge, type World, absPos, inList, inNest, inTree, isInside, viewOf } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 
-// ツールのモード。移動、親子の付け替え、線（線のクリックで削除、Ctrl+クリックで線を引く。ドラッグは移動）、
+// ツールのモード。選択（ドラッグで移動、箱の〇から線を引く。docs/EDGE-TOOL-plan.md）、親子の付け替え、
 // 削除（ボックスを押すと子孫ごと消える。ドラッグはしない）、追加（押した所に新しい箱を足す。docs/ADD-plan.md）
-export type Mode = "move" | "reparent" | "link" | "remove" | "add";
+export type Mode = "move" | "reparent" | "remove" | "add";
 
 // 追加モードで押した所: 新しい箱の親（null はワールド）、親の中での位置、リストへの差し込みなら前に入れる兄弟（無ければ末尾）
 export interface AddRequest {
@@ -33,8 +34,8 @@ export interface InteractionContext {
   current(): Box | null;          // 選択中（null はワールド）
   mode(): Mode;
   select(n: Box | null): void;
-  cancelLinking(): void;          // Ctrl+クリックで選んだ1つ目を取り消す
-  ctrlClick(n: Box): void;        // 線を引く
+  canLink(a: Box, b: Box): boolean; // a から b へ線を引けるか（同じ箱なら自分に戻る線）
+  link(a: Box, b: Box, at: [number, number] | undefined, from: [number, number]): boolean; // a から b へ線を引き、端を固定する。at は離した所（相手の子の上なら undefined）、from は引き始めた〇の辺の真ん中（ワールドの座標）
   changed(): void;
   notifySelect(): void;
   reparent(id: string, parentId: string | null, at?: { x: number; y: number }): void;
@@ -66,14 +67,17 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // どの種類も同じ形にする。押したときに種類ごとの関数が作って active に入れる。
   // dragging() と reset() は active だけを見るので、種類を足しても数え上げの漏れが起きない
   interface Gesture {
-    kind: "move" | "reorder" | "caption" | "lift" | "bend" | "end" | "body";
+    kind: "move" | "reorder" | "caption" | "lift" | "bend" | "end" | "body" | "link";
     slop: number;                 // 遊び（px）。押した所から動いた量がこれ以上になるまで move を呼ばない
     move(ev: PointerEvent): void;
     end(ev: PointerEvent): void;  // 手を離した
     cancel(): void;               // 描き直すときに打ち切る（付け替えは打ち切らず、落とし先だけ忘れる）
   }
   let active: { g: Gesture; sx: number; sy: number; started: boolean } | null = null;
-  const begin = (g: Gesture, ev: PointerEvent) => { active = { g, sx: ev.clientX, sy: ev.clientY, started: false }; };
+  const begin = (g: Gesture, ev: PointerEvent) => {
+    hidePorts();
+    active = { g, sx: ev.clientX, sy: ev.clientY, started: false };
+  };
 
   // 付け替えのドラッグ。target は落とす先（null はワールド、undefined は落とせない場所）。
   // 運んでいる箱は id で覚える。途中でタブを切り替えてページを描き直すと、箱の要素は作り直される（ほかのページなら無くなる）ため。
@@ -156,6 +160,18 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerDown(e: PointerEvent) {
+    // 線を引く〇（選択モードで、ポインタを乗せた箱に出す）
+    const port = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-port") : null;
+    if (port) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (portBox && ctx.mode() === "move") {
+        const from = portBox, side = port.dataset.side as Side;
+        port.setPointerCapture?.(e.pointerId); // 〇は出したまま（捕まえた要素を隠すと、ポインタを見失う）
+        begin(linkGesture(from, side, port), e);
+      }
+      return;
+    }
     // 追加モード: 押した所に新しい箱を足す（ほかの操作はしない）
     if (ctx.mode() === "add") {
       e.stopPropagation();
@@ -202,18 +218,11 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     }
     const n = boxOf(e.target);
     if (!n) {
-      if (!onEdge(e.target)) {
-        ctx.cancelLinking();
-        ctx.select(null);
-      }
+      if (!onEdge(e.target)) ctx.select(null);
       return;
     }
     e.stopPropagation();
-    if ((e.ctrlKey || e.metaKey) && ctx.mode() === "link") {
-      e.preventDefault();
-      ctx.ctrlClick(n);
-      return;
-    }
+    hidePorts(); // 選んだ箱には〇を出さない（右の縁の本文の幅のつまみと重なるため）
     if (ctx.mode() === "remove") {
       e.preventDefault();
       unmarkRemove();
@@ -362,8 +371,10 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerOver(e: PointerEvent) {
-    if (active?.g.kind === "move" || active?.g.kind === "lift") return;
+    if (active?.g.kind === "move" || active?.g.kind === "lift" || active?.g.kind === "link") return;
+    if (e.target instanceof Element && e.target.closest(".mz-port")) return; // 〇の上では、〇を出した箱のまま
     const n = boxOf(e.target);
+    if (!active) showPorts(n && portable(n) ? n : null);
     if (ctx.mode() === "remove") return markRemove(n);
     if (n) focus(n);
     else if (!onEdge(e.target)) unfocus();
@@ -384,9 +395,141 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   function onKeyDown(e: KeyboardEvent) {
     if (e.key !== "Escape") return;
-    ctx.cancelLinking();
+    if (active?.g.kind === "link") {
+      active.g.cancel();
+      active = null;
+    }
     endLift();
     if (ctx.mode() === "add") ctx.leaveAdd();
+  }
+
+  // ---- 線を引く〇（docs/EDGE-TOOL-plan.md） ----
+  // 選択モードで、選んでいない箱にポインタを乗せると、線がつながる範囲の四辺の真ん中に〇を出す（ひし形なら頂点と同じ位置）。
+  // 〇は図の枠に置いた 4 つの要素で、画面の座標で固定する。〇からドラッグすると仮の線を伸ばし、引ける相手の上で離すと線を引く
+
+  type Side = "t" | "r" | "b" | "l";
+  const SIDES: Side[] = ["t", "r", "b", "l"];
+  const PORT_OUT = 10; // 〇の中心を、辺からこれだけ外に置く
+  const ports = SIDES.map(side => {
+    const el = document.createElement("div");
+    el.className = "mz-port";
+    el.dataset.side = side;
+    el.hidden = true;
+    container.appendChild(el);
+    return el;
+  });
+  let portBox: Box | null = null;
+
+  // 〇を出す箱: 選択モードで、選んでいない箱。リストの子とツリーの子には出さない（線を引かない）
+  const portable = (n: Box) => ctx.mode() === "move" && ctx.current() !== n && !inList(n) && !inTree(n);
+
+  // 箱 n の side の辺の真ん中（ワールドの座標）。out だけ辺の外へずらす
+  function sidePoint(n: Box, side: Side, out = 0): [number, number] {
+    const [ax, ay] = absPos(n);
+    const a = L.anchorRect(n);
+    const x = ax + a.x, y = ay + a.y;
+    switch (side) {
+      case "t": return [x + a.w / 2, y - out];
+      case "r": return [x + a.w + out, y + a.h / 2];
+      case "b": return [x + a.w / 2, y + a.h + out];
+      case "l": return [x - out, y + a.h / 2];
+    }
+  }
+
+  // 箱 n の side の辺の〇の中心（画面の座標）
+  function portPoint(n: Box, side: Side): [number, number] {
+    const w = world.el.getBoundingClientRect();
+    const [x, y] = sidePoint(n, side, PORT_OUT);
+    return [w.left + x, w.top + y];
+  }
+
+  function showPorts(n: Box | null) {
+    if (n === portBox) return;
+    portBox = n;
+    ports.forEach((el, i) => {
+      el.hidden = !n;
+      if (!n) return;
+      const [x, y] = portPoint(n, SIDES[i]!);
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+    });
+  }
+  function hidePorts() { showPorts(null); }
+
+  // 線のドラッグ。from の side の〇から、ポインタまで仮の線を引く。ポインタの下の箱から外へたどり、最初に引ける箱を相手にする
+  // （引ける相手の子の上でも、その相手に引く）。引ける相手以外は薄くする。引いた線の端は、〇の辺の真ん中と離した所に固定する
+  // （相手の子の上で離したら終点は自由。自分に戻る線なら、離した所に近い角）
+  function linkGesture(from: Box, side: Side, port: HTMLElement): Gesture {
+    const [sx, sy] = portPoint(from, side);
+    const siblings = from.parent ? from.parent.children : world.children;
+    const can = new Set(siblings.filter(o => ctx.canLink(from, o)));
+    const overlay = document.createElementNS(SVGNS, "svg");
+    overlay.setAttribute("class", "mz-link-preview");
+    const line = document.createElementNS(SVGNS, "line");
+    line.setAttribute("x1", String(sx)); line.setAttribute("y1", String(sy));
+    line.setAttribute("x2", String(sx)); line.setAttribute("y2", String(sy));
+    overlay.appendChild(line);
+    container.appendChild(overlay);
+    for (const el of ports) el.hidden = el !== port;
+    port.classList.add("mz-port-on");
+    unfocus();
+    dimExcept(can);
+    let target: Box | null = null;
+    let direct = false; // 相手そのものの上か（相手の子の上なら false）
+    const mark = (t: Box | null) => {
+      if (t === target) return;
+      target?.el.classList.remove("mz-link-target");
+      target = t;
+      t?.el.classList.add("mz-link-target");
+    };
+    const targetAt = (x: number, y: number): Box | null => {
+      for (const el of document.elementsFromPoint(x, y)) {
+        if (!container.contains(el) || !el.closest(".mz-node")) continue;
+        const hit = boxOf(el);
+        for (let b: Box | null = hit; b; b = b.parent) {
+          if (!can.has(b)) continue;
+          direct = b === hit;
+          return b;
+        }
+        return null;
+      }
+      return null;
+    };
+    const finish = () => {
+      mark(null);
+      overlay.remove();
+      port.classList.remove("mz-port-on");
+      portBox = null;
+      for (const el of ports) el.hidden = true;
+      unfocus();
+    };
+    return {
+      kind: "link", slop: 3,
+      move(ev) {
+        line.setAttribute("x2", String(ev.clientX));
+        line.setAttribute("y2", String(ev.clientY));
+        mark(targetAt(ev.clientX, ev.clientY));
+      },
+      end(ev) {
+        const t = target; // 遊びの内で離したとき（動かしていない）は、相手が無いので引かない
+        finish();
+        // 相手の子の上で離したら、終点は自由にする（子を横切る位置に固定しないように）
+        if (t) ctx.link(from, t, direct ? worldAt(ev) : undefined, sidePoint(from, side));
+      },
+      cancel: finish,
+    };
+  }
+
+  // keep 以外の箱を薄くする（keep の子孫と祖先は薄くしない）
+  function dimExcept(keep: Set<Box>) {
+    const near = new Set<Box>();
+    const down = (b: Box) => { near.add(b); b.children.forEach(down); };
+    for (const k of keep) {
+      down(k);
+      for (let p = k.parent; p; p = p.parent) near.add(p);
+    }
+    const walk = (b: Box) => { b.el.classList.toggle("mz-dim", !near.has(b)); b.children.forEach(walk); };
+    world.children.forEach(walk);
   }
 
   // ---- 箱の追加（追加モード。docs/ADD-plan.md） ----
@@ -585,7 +728,13 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   container.addEventListener("pointerup", onPointerUp, { signal });
   container.addEventListener("pointercancel", onPointerUp, { signal });
   container.addEventListener("pointerover", onPointerOver, { signal });
-  container.addEventListener("pointerleave", () => { if (active?.g.kind !== "move") unfocus(); unmarkRemove(); endAdd(); }, { signal });
+  container.addEventListener("pointerleave", () => {
+    if (active?.g.kind !== "move" && active?.g.kind !== "link") unfocus();
+    if (!active) hidePorts();
+    unmarkRemove();
+    endAdd();
+  }, { signal });
+  container.addEventListener("scroll", hidePorts, { signal, capture: true }); // 〇は画面の座標に置いているので、スクロールしたら消す
   container.addEventListener("dragover", onDragOver, { signal });
   container.addEventListener("dragleave", e => {
     if (!(e.relatedTarget instanceof Node && container.contains(e.relatedTarget))) markRestore(undefined);
@@ -599,6 +748,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     endAdd,
     // 描き直すときに、ドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
     reset() {
+      hidePorts(); // 描き直すと箱が動くことがある（次にポインタを乗せたとき出し直す）
       active?.g.cancel();
       if (active?.g.kind !== "lift") active = null;
       removing = null;

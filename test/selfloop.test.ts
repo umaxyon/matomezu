@@ -52,13 +52,10 @@ test("自分に戻る線を読み込めて、描く。矢印は終点に付く",
   expect(el.querySelector(".mz-edge path")!.getAttribute("d")).not.toBe("");
 });
 
-test("線モードで同じ箱を 2 回 Ctrl+クリックすると、自分に戻る線を引く", () => {
-  const { el, graph } = setup({ nodes: [{ id: 1, x: 100, y: 100 }] });
-  graph.setMode("link");
-  const click = () => el.querySelector('[data-id="1"] > .mz-head')!
-    .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, ctrlKey: true, pointerId: 1 }));
-  click(); click();
-  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 1 }]);
+test("同じ箱から同じ箱へ線を引くと、自分に戻る線になる", () => {
+  const { graph } = setup({ nodes: [{ id: 1, x: 100, y: 100 }] });
+  expect(graph.link(1, 1)).toBe(true);
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 1, arrow: "end" }]);
 });
 
 test("サイドバー: 自分に戻る線では、通り方と向きの指定を出さない", () => {

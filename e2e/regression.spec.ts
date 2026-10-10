@@ -93,6 +93,9 @@ test("ユーザーに長い文字を入れても右の大きい隣へ飛ばず�
 });
 
 test("真横の相手への線は水平、真下の相手への線は垂直", async ({ page }) => {
+  // 直線のとき（折れ線の自由な端は、前に描いた辺と位置を保つので、大きさが変わると折れることがある。docs/EDGE-SPEC.md）
+  const d = example("three-levels");
+  await openDiagram(page, { ...d, world: { ...d.world, route: "straight" } });
   const [, y1, , y2] = await edgeEnds(page, "e1"); // ユーザー - フロントエンド
   expect(y1).toBe(y2);
   const [x1, , x2] = await edgeEnds(page, "e2"); // フロントエンド - バックエンド

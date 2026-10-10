@@ -78,22 +78,48 @@ test("ツリーから内包に戻すと、元の位置に戻る", () => {
   expect([byId(after, 3).x, byId(after, 3).y]).toEqual([byId(before, 3).x!, byId(before, 3).y!]);
 });
 
-test("線モードで、Ctrl+クリックで同じ階層の2つに線を引き、階層が違えば引かない", () => {
-  const { el, graph } = setup({ nodes: [{ id: 1 }, { id: 2 }, { id: 3, parent: 2 }] });
-  graph.setMode("link");
-  const click = (id: number) => {
-    graph.select(id);
-    const head = el.querySelector(".mz-node.mz-current > .mz-head")!;
-    head.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, ctrlKey: true, pointerId: 1 }));
-  };
-  click(1); click(3);
+test("同じ階層の2つに線を引き、階層が違えば引かない。同じ組に 2 本目は引かない", () => {
+  const { graph } = setup({ nodes: [{ id: 1 }, { id: 2 }, { id: 3, parent: 2 }] });
+  expect(graph.link(1, 3)).toBe(false);
   expect(graph.toJSON().edges).toEqual([]);
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-  click(1); click(2);
-  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+  expect(graph.link(1, 2)).toBe(true);
+  expect(graph.link(2, 1)).toBe(false);
+  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, arrow: "end" }]); // 引いた線は終点に矢印
 });
 
-test("線モード以外では Ctrl+クリックで線を引かない。線はどのモードでもクリックで消えない", () => {
+test("選択モードで、選んでいない箱にポインタを乗せると〇が出る。選んだ箱・リストの子・ツリーの子・ほかのモードでは出ない（docs/EDGE-TOOL-plan.md）", () => {
+  const { el, graph } = setup({ nodes: [
+    { id: 1, caption: "A" }, { id: 2, caption: "B" },
+    { id: 3, childView: "list" }, { id: 4, parent: 3 },
+    { id: 5, childView: "tree" }, { id: 6, parent: 5 },
+  ] });
+  const over = (id: number) => el.querySelector(`[data-id="${id}"] > .mz-head`)!
+    .dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerId: 1 }));
+  const shown = () => [...el.querySelectorAll<HTMLElement>(".mz-port")].filter(p => !p.hidden).length;
+  over(1);
+  expect(shown()).toBe(4);
+  over(4);
+  expect(shown()).toBe(0);
+  over(6);
+  expect(shown()).toBe(0);
+  over(3); // リストやツリーの親（全体の枠）には出す
+  expect(shown()).toBe(4);
+  over(5);
+  expect(shown()).toBe(4);
+  graph.select(2);
+  over(2);
+  expect(shown()).toBe(0);
+  // 押して選ぶと消える
+  over(1);
+  el.querySelector(`[data-id="1"] > .mz-head`)!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
+  expect(shown()).toBe(0);
+  // ほかのモードでは出さない（CSS でも隠すが、出す処理もしない）
+  graph.setMode("reparent");
+  over(2);
+  expect(shown()).toBe(0);
+});
+
+test("Ctrl+クリックでは線を引かない。線はどのモードでもクリックで消えない", () => {
   const { el, graph } = setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [[1, 2]] });
   const click = (id: number) => {
     graph.select(id);
@@ -106,20 +132,9 @@ test("線モード以外では Ctrl+クリックで線を引かない。線は�
     graph.setMode(mode);
     el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
-    graph.setMode("link");
-    click(1); // 1 つ目を選んだところでモードを変えると、選んだものは取り消す
-    graph.setMode(mode);
-    expect(el.querySelector(".mz-linking")).toBeNull();
+    click(2); click(1);
+    expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
   }
-  // 選択モードの Ctrl+クリックは、線を引く 1 つ目にならない
-  graph.setMode("move");
-  click(1); click(2);
-  expect(el.querySelector(".mz-linking")).toBeNull();
-  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
-  // 線モードでも、線のクリックでは消えない（消すのはサイドバーのボタン）
-  graph.setMode("link");
-  el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
 });
 
 test("選択モードで線をクリックすると線を選び、線の情報が届く。矢印を変えて、消せる", () => {
@@ -129,7 +144,7 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(el.classList.contains("mz-mode-move")).toBe(true); // 開いた直後から、線はクリックを受ける
   graph.select(1);
   el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", self: false, from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", caption: null, captionMoved: false, route: "straight", via: null, adjustable: false, endsMoved: false, aligned: true, arrangement: "stack" });
+  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", self: false, from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", caption: null, captionMoved: false, route: "elbow", via: null, adjustable: false, endsMoved: false, aligned: true, arrangement: "stack" });
   expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(true);
   expect(graph.selected()).toBeNull(); // ボックスの選択は外れる
 
@@ -404,17 +419,11 @@ describe("履歴", () => {
     graph.redo();
 
     // 線を引いて、消す
-    graph.setMode("link");
-    const click = (id: number) => {
-      graph.select(id);
-      el.querySelector(".mz-node.mz-current > .mz-head")!
-        .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, ctrlKey: true, pointerId: 1 }));
-    };
-    click(1); click(2);
+    graph.link(1, 2);
     graph.removeEdge("e1");
     expect(graph.toJSON().edges).toEqual([]);
     graph.undo();
-    expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
+    expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, arrow: "end" }]);
     graph.undo();
     expect(graph.toJSON().edges).toEqual([]);
     expect(byId(graph.toJSON(), 1).x).toBe(70);
@@ -1172,24 +1181,23 @@ describe("線のつなぎ方", () => {
 
   test("線の route が無ければ図の既定（world.route）に従い、線の route が優先する", () => {
     const { el, graph } = setup({
-      world: { route: "elbow" },
+      world: { route: "straight" },
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 300 }, { id: 3, x: 40, y: 500 }],
-      edges: [{ id: "e1", from: 1, to: 2 }, { id: "e2", from: 1, to: 3, route: "straight" }],
+      edges: [{ id: "e1", from: 1, to: 2 }, { id: "e2", from: 1, to: 3, route: "elbow" }],
     });
     const lines = el.querySelectorAll(".mz-edge .mz-hit");
-    expect(pointsOf(lines[0]!).length).toBe(3); // 斜めなので L 字
-    expect(pointsOf(lines[1]!).length).toBe(2);
+    expect(pointsOf(lines[0]!).length).toBe(2);
     graph.selectEdge("e1");
     // 既定と同じ通り方を選んだら、線の側には書かない。既定を変えると一緒に変わる
-    graph.updateEdge("e1", { route: "elbow" });
+    graph.updateEdge("e1", { route: "straight" });
     expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2 });
-    graph.update(null, { route: "straight" });
+    graph.update(null, { route: "elbow" }); // 何も書かなければ折れ線（2026-10-11 に直線から変えた）
     expect(graph.toJSON().world).toEqual({});
-    expect(pointsOf(el.querySelectorAll(".mz-edge .mz-hit")[0]!).length).toBe(2);
+    expect(pointsOf(el.querySelector('.mz-edge[data-id="e1"] .mz-hit')!).length).toBe(3); // 斜めなので L 字
     // 既定と違う通り方は、線の側に書く
-    graph.updateEdge("e1", { route: "elbow" });
-    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
-    expect(graph.info(null)).toMatchObject({ route: "straight" });
+    graph.updateEdge("e1", { route: "straight" });
+    expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "straight" });
+    expect(graph.info(null)).toMatchObject({ route: "elbow" });
   });
 
   test("Z 字の中棒は、真ん中だとほかの箱を通るなら、近い空いた位置へずれる", () => {
@@ -1475,6 +1483,7 @@ describe("線のつなぎ方", () => {
 
   test("箱が大きくなっても、真横の相手への線は水平のまま（つなぐ位置が滑る）", () => {
     const { el, graph } = setup({
+      world: { route: "straight" },
       nodes: [{ id: 1, caption: "相手", x: 40, y: 120 }, { id: 2, caption: "枠", x: 300, y: 88 }, { id: 3, parent: 2 }, { id: 4, parent: 2 }],
       edges: [[1, 2]],
     });

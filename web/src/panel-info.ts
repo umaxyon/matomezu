@@ -11,7 +11,7 @@ import type { Brief, ChildView, Dash, EdgeInfo, Info, Route, Shape, Size, TreeDi
 const KIND_LABELS = { group: "グループ", box: "ボックス" };
 // 鉛筆の印（編集ダイアログを開くボタン）
 const PENCIL = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11.5 1.8l2.7 2.7-8.6 8.6-3.4.7.7-3.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.8 3.5l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></svg>';
-const ROUTE_OPTIONS: [string, string][] = [["straight", "直線"], ["elbow", "折れ線"]];
+const ROUTE_OPTIONS: [string, string][] = [["elbow", "折れ線"], ["straight", "直線"]];
 const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\n" +
   "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります\n" +
   "サイズが効くのは子の無い箱と、ツリー・非表示の親の本体です。内包・リストの箱の大きさは子の並びで決まります";

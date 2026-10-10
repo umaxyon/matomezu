@@ -88,8 +88,7 @@ export const GRAPH_CSS = `
 .mz-mode-move .mz-label-box > span { pointer-events: auto; cursor: pointer; }
 .mz-edge.mz-hi .mz-label-box > span, .mz-edge.mz-selected .mz-label-box > span { color: var(--mz-edge-hi); }
 .mz-line.mz-dashed { stroke-dasharray: 6 4; }
-/* 線を消せるのは線モードだけ。それ以外では線はクリックを受けず、下のボックスや背景に届く */
-/* 線を選べるのは選択モード（"move"）だけ */
+/* 線を選べるのは選択モード（"move"）だけ。それ以外では線はクリックを受けず、下のボックスや背景に届く */
 .mz-mode-move .mz-hit { pointer-events: stroke; cursor: pointer; }
 /* Z 字の中棒をつかむ透明な線。横の Z 字（中棒が縦）は左右に、縦の Z 字（中棒が横）は上下に動かす */
 .mz-bend { stroke: transparent; stroke-width: 12; pointer-events: none; }
@@ -185,7 +184,6 @@ export const GRAPH_CSS = `
 .mz-shape-page > .mz-text { position: relative; }
 /* 付け替えのドラッグ */
 .mz-mode-reparent .mz-head { cursor: alias; }
-.mz-mode-link .mz-head { cursor: crosshair; }
 .mz-mode-remove .mz-head { cursor: pointer; }
 /* 削除モードでポインタを乗せたボックス: 一緒に消える範囲（子孫を含む）を赤い枠で示す */
 .mz-node.mz-removing > .mz-head, .mz-node.mz-removing .mz-head { outline: 2px solid var(--mz-edge-del); outline-offset: 1px; }
@@ -212,7 +210,17 @@ export const GRAPH_CSS = `
 .mz-node.mz-dragging { z-index: 10; opacity: 0.85; } /* 兄弟に重ねて通すので、下が透けて見えるように */
 .mz-node.mz-dragging > .mz-head { cursor: grabbing; outline-color: var(--mz-edge-hi); }
 .mz-node.mz-current > .mz-head { outline-color: var(--mz-select); }
-.mz-node.mz-linking > .mz-head { outline: 2px dashed var(--mz-select); }
+/* 線を引く〇（docs/EDGE-TOOL-plan.md）。選択モードで、ポインタを乗せた箱の四辺に出す。押せる範囲は見た目より広く、辺まで届かせる */
+.mz-port { position: fixed; z-index: 52; width: 20px; height: 20px; margin: -10px 0 0 -10px; cursor: crosshair; pointer-events: auto; }
+.mz-port[hidden], .mz-stage:not(.mz-mode-move) .mz-port, .mz-preview .mz-port { display: none; }
+.mz-port::after {
+  content: ""; position: absolute; left: 5px; top: 5px; width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%;
+  border: 2px solid var(--mz-select); background: var(--mz-bg, #fff);
+}
+.mz-port:hover::after, .mz-port.mz-port-on::after { background: var(--mz-select); }
+.mz-link-preview { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 51; pointer-events: none; overflow: visible; }
+.mz-link-preview line { stroke: var(--mz-select); stroke-width: 2; stroke-dasharray: 6 4; }
+.mz-node.mz-link-target > .mz-head { outline: 3px solid var(--mz-select); outline-offset: 3px; }
 .mz-node.mz-blocked { animation: mz-shake 0.18s; }
 @keyframes mz-shake { 25% { translate: -2px 0; } 75% { translate: 2px 0; } }
 /* プレビュー（見るだけ）: 押すと選ぶだけ。背景はつかんで見る範囲を動かす。線の区間や端をつまむ印は出さない */

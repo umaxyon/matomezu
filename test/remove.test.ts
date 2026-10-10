@@ -151,7 +151,7 @@ test("削除モードでボックスを押すと消える。ほかのモード�
   const { el, graph } = setup(data());
   const press = (id: number) => el.querySelector(`[data-id="${id}"] > .mz-head`)!
     .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
-  for (const mode of ["move", "reparent", "link"] as const) {
+  for (const mode of ["move", "reparent"] as const) {
     graph.setMode(mode);
     press(5);
     el.querySelector(`[data-id="5"] > .mz-head`)!.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1 }));

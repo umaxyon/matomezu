@@ -83,6 +83,12 @@ const hits = (a: Rect, b: Rect) => rectsOverlap(a, b, MARGIN);
 // 線（点の並び）のどこかの区間が、矩形を通るか（折れ点が矩形の外でも、横切っていれば通る）
 const crosses = (b: Rect, line: Pt[]) => segmentsOf(line).some(s => segmentThroughRect(s, b));
 
+// p から q への輪の範囲が、ほかの箱か線とぶつかるか
+function taken(r: Rect, p: Pt, q: Pt, boxes: Rect[], lines: Pt[][]): boolean {
+  const box = bounds(arc(r, p, q));
+  return boxes.some(o => hits(box, o)) || lines.some(l => crosses(box, l));
+}
+
 // 箱 r の自分に戻る線の点の並び（始点から終点へ）と、端が動ける範囲（ends。始点と終点それぞれ、もう一方の端の辺と
 // その両隣をたどる道）。boxes はほかの箱（同じ親の兄弟。ワールドの座標）、lines はほかの線の点の並び。
 // at は端の位置の指定（片方だけでもよい。無い方は角に描くときの位置）
@@ -94,8 +100,7 @@ export function selfLoop(
   let [a, b] = cornerEnds(r, corner, index);
   for (const c of CORNERS) {
     const [p, q] = cornerEnds(r, c, index);
-    const box = bounds(arc(r, p, q));
-    if (boxes.some(o => hits(box, o)) || lines.some(l => crosses(box, l))) continue;
+    if (taken(r, p, q, boxes, lines)) continue;
     [corner, a, b] = [c, p, q];
     break;
   }
@@ -108,4 +113,18 @@ export function selfLoop(
   }
   const fa = nearestAt(ring, a[0], a[1]), fb = nearestAt(ring, b[0], b[1]);
   return { points: arc(r, a, b), corner, ends: { exit: around(r, sideAt(r, fb)), enter: around(r, sideAt(r, fa)) } };
+}
+
+// 点 p に一番近い角
+export function nearestCorner(r: Rect, p: Pt): Corner {
+  const right = p[0] >= r.x + r.w / 2, top = p[1] < r.y + r.h / 2;
+  return top ? (right ? "topRight" : "topLeft") : (right ? "bottomRight" : "bottomLeft");
+}
+
+// corner の角に輪を描くときの端の位置（箱のふちを一周した割合）。その角がほかの箱や線とぶつかるなら null
+export function cornerAt(r: Rect, boxes: Rect[], index: number, lines: Pt[][], corner: Corner): { exit: number; enter: number } | null {
+  const [p, q] = cornerEnds(r, corner, index);
+  if (taken(r, p, q, boxes, lines)) return null;
+  const ring = perimeter(r);
+  return { exit: nearestAt(ring, p[0], p[1]), enter: nearestAt(ring, q[0], q[1]) };
 }

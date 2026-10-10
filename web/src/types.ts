@@ -189,7 +189,7 @@ export interface Items {
 }
 
 // update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）。
-// route はワールドだけ（線の通り方の既定。null か "straight" で直線）。
+// route はワールドだけ（線の通り方の既定。null か "elbow" で折れ線）。
 // title はワールドだけ（図の題名。どのページから変えても、ブック全体の world に書く。空で消す）
 export interface Patch {
   title?: string | null;

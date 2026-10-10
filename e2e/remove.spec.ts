@@ -68,8 +68,9 @@ test("一覧の見出しを押すと区画が折りたたまれ、箱を消し�
   await expect(page.locator('.mzp-row[data-select="3"]')).toBeVisible();
 });
 
-for (const mode of ["link", "remove"]) {
-  test(`${mode === "link" ? "線" : "削除"}モードで一覧から戻すと、選択モードに切り替わる`, async ({ page }) => {
+{
+  const mode = "remove";
+  test("削除モードで一覧から戻すと、選択モードに切り替わる", async ({ page }) => {
     await page.click('[data-tab="list"]');
     const row = page.locator('.mzp-row[data-select="2"]');
     await row.hover();

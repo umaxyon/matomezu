@@ -139,11 +139,8 @@ test("ドラッグで並べ替えると、データの並び順が変わる。Un
 });
 
 test("リストの子どうしは線を引けない", () => {
-  const { el, graph } = setup({ nodes: [{ id: 1, childView: "list" }, { id: 2, parent: 1 }, { id: 3, parent: 1 }] });
-  graph.setMode("link");
-  const click = (id: number) => el.querySelector(`[data-id="${id}"] > .mz-head`)!
-    .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, ctrlKey: true, pointerId: 1 }));
-  click(2); click(3);
+  const { graph } = setup({ nodes: [{ id: 1, childView: "list" }, { id: 2, parent: 1 }, { id: 3, parent: 1 }] });
+  expect(graph.link(2, 3)).toBe(false);
   expect(graph.toJSON().edges).toEqual([]);
 });
 

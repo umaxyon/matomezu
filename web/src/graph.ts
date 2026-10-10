@@ -4,7 +4,7 @@
  * - 子の見せ方は「内包」（親の中に入れる）「ツリー」（組織図のように下へぶら下げる）「非表示」から選ぶ。
  * - ボックスはドラッグで移動でき、同じ階層のボックス同士は重ならない。
  * - 線は同じ階層（同じ親を持つボックス同士）でだけ引ける。
- * - 線モードでは、Ctrl（Mac は Cmd）+クリックでボックスを2つ選ぶと線が引かれる。
+ * - 選択モードで、選んでいない箱にポインタを乗せると四辺に〇が出て、〇から引ける相手までドラッグすると線が引かれる（docs/EDGE-TOOL-plan.md）。
  * - 選択モード（モードの名前は "move"）では、クリックしたボックス（背景ならワールド）か線が選択され、onSelect で知らせる。
  *   ボックスはそのままドラッグで動かせる。線を消すのは removeEdge（サイドバーのボタン）。
  *
@@ -21,11 +21,12 @@
  *   graph.updateEdge(id, patch); // 線を変更する（caption は空か null で消す、arrow は null で矢印なし、dash は null か "solid" で実線、
  *                                //   route は "straight" / "elbow"。図の既定と同じなら線の側からは消す。via は null で自動に戻す）
  *   graph.alignEdge(id);         // 線の両端を、今の形での一番よい位置に固定する（整列。辺の真ん中か、まっすぐ結べる位置）
- *   graph.removeEdge(id);        // 線を消す
+ *   graph.removeEdge(id);        // 線を消す（選択モードで線を選んで Delete キーでも。toolbar.ts）
+ *   graph.link(from, to);        // 今のページの箱 from から to へ線を引く（終点に矢印。同じ箱なら自分に戻る線）。引けなければ false
  *   graph.info(id);              // ボックス（null はワールド）の情報
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
- *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "link"（線の追加・削除）/ "remove"（削除）/ "add"（追加）
+ *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "remove"（削除）/ "add"（追加）
  *   graph.onModeChange(fn);      // モードが変わったら知らせる（一覧から戻したときに移動モードへ切り替えるなど、図の側で変えたときも）
  *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
  *   graph.fitChildren(id, "width" | "height" | "both"); // 内包している子の大きさを、一番大きい子にそろえる
@@ -83,7 +84,7 @@
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
  *   - arrow は線の矢印: "end"（終点 to の側）/ "start"（始点 from の側）/ "both"。無ければ矢印なし。
  *   - dash は線の模様: "dashed"（破線）。無ければ（"solid"）実線。
- *   - route は線の通り方: "straight"（直線）/ "elbow"（90 度で折れる線）。無ければ world.route（図の既定）、それも無ければ直線。
+ *   - route は線の通り方: "straight"（直線）/ "elbow"（90 度で折れる線）。無ければ world.route（図の既定）、それも無ければ折れ線（2026-10-11 に直線から変えた）。
  *   - exit / enter は折れ線の向きの指定: 始点から出る向き・終点に入る向き。"horizontal"（左右の辺）/ "vertical"（上下の辺）。無ければ自動。
  *     横か縦に並ぶ箱どうしは、両端の向きがそろうときだけ素直に引ける（横に並ぶなら、左右ならまっすぐ、上下ならコの字）。
  *     そろわない指定は斜めのときだけ効き、箱を動かして横か縦に並んだら、指定を両方とも消して自動に戻す。直線には効かない
@@ -122,7 +123,9 @@ import {
 import { type Pos, addBox, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
-import { type RouteFix, alignedEnds, isAligned, route } from "./routing";
+import { type RouteFix, alignedEnds, isAligned, perimeterAt, route, vertexOf } from "./routing";
+import { nearestAt, pointAt } from "./geom";
+import { perimeter } from "./selfloop";
 import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isPaletteName, isTheme, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
@@ -181,10 +184,12 @@ export interface Graph {
   select(id: Id | null): void;
   reveal(id: Id): void; // 図の見えている範囲の外なら、スクロールして真ん中に持ってくる
   selected(): string | null;
+  selectedEdge(): string | null; // 選んでいる線の id（線を選んでいなければ null）
   selectEdge(id: Id): void;
   updateEdge(id: Id, patch: EdgePatch): void;
   alignEdge(id: Id): void; // 線の両端を、今の形での一番よい位置に固定する（整列。docs/EDGE-SPEC.md の C1）
   removeEdge(id: Id): void;
+  link(from: Id, to: Id): boolean;
   info(id: Id | null): NodeInfo;
   edgeInfo(id: Id): EdgeInfo | null; // 線の情報（無ければ null）
   update(id: Id | null, patch: Patch): void;
@@ -234,7 +239,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let roots: Box[] = [];
   let byId = new Map<string, Box>();
   let edges: Edge[] = [];
-  let linking: Box | null = null;      // Ctrl+クリックで選んだ1つ目
   let mode: Mode = "move";
   let current: Box | null = null;      // 選択中（null はワールド）
   let currentEdge: Edge | null = null; // 選択中の線（選んでいればボックスは選んでいない）
@@ -289,8 +293,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     current: () => current,
     mode: () => mode,
     select,
-    cancelLinking: () => setLinking(null),
-    ctrlClick,
+    canLink,
+    link,
     changed,
     notifySelect,
     reparent,
@@ -424,12 +428,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const e = edges.find(x => x.id === String(id));
     if (!e) throw new Error(`線がありません: ${id}`);
     return e;
-  }
-
-  function setLinking(n: Box | null) {
-    linking?.el.classList.remove("mz-linking");
-    linking = n;
-    n?.el.classList.add("mz-linking");
   }
 
   // ---- 線の追加・削除 ----
@@ -594,19 +592,35 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     updateEdge(e, { ...alignedEnds(R.routeInputOf(e), e.points), via: null });
   }
 
-  function ctrlClick(n: Box) {
-    if (!linking) return setLinking(n);
-    // 同じ箱を 2 回押したら、自分に戻る線を引く（取り消しは Esc）
-    if (!canLink(linking, n)) {
-      blocked(n);
-      return;
+  // a から b へ線を引く（引けなければ何もせず false）。from（引き始めた〇の辺の真ん中）と at（離した所）はワールドの座標。
+  // from があれば始点をそこに、at があれば終点を at に一番近いふちの点（ひし形は頂点）に固定する。
+  // 同じ箱なら自分に戻る線で、at に一番近い角が空いていれば、端をその角に固定する（docs/EDGE-TOOL-plan.md）
+  function link(a: Box, b: Box, at?: [number, number], from?: [number, number]): boolean {
+    if (!canLink(a, b)) {
+      blocked(b);
+      return false;
     }
-    const a = linking;
-    addEdge({ id: newEdgeId(), from: a.src.id!, to: n.src.id! }, a, n);
-    setLinking(null);
+    // 画面で引いた線は、終点に矢印を付けておく（2026-10-11 ユーザー。外せるのはサイドバーと編集ダイアログ）
+    const e = addEdge({ id: newEdgeId(), from: a.src.id!, to: b.src.id!, arrow: "end" }, a, b);
+    if (a !== b && (at || from)) {
+      const input = R.routeInputOf(e);
+      const onRim = (r: typeof input.a, p: [number, number], vertex: boolean) => {
+        const q = pointAt(perimeter(r), nearestAt(perimeter(r), p[0], p[1]));
+        return perimeterAt(r, vertex ? vertexOf(r, q) : q);
+      };
+      if (from) e.src.exitAt = onRim(input.a, from, !!input.aVertex);
+      if (at) e.src.enterAt = onRim(input.b, at, !!input.bVertex);
+    }
     renderEdges();
+    const corner = a === b && at ? R.loopCornerNear(e, at) : null;
+    if (corner) {
+      e.src.exitAt = Math.round(corner.exit * 1000) / 1000; // 端をつまんで動かしたときと同じ桁
+      e.src.enterAt = Math.round(corner.enter * 1000) / 1000;
+      renderEdges();
+    }
     changed();
     notifySelect();
+    return true;
   }
 
   // ---- 親子の付け替え ----
@@ -738,7 +752,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
     // 選んでいた箱や線が消えたら、ワールドを選び直す（消えた線の情報をサイドバーへ送らないように）
     if ((current && gone.has(current)) || (currentEdge && cut.includes(currentEdge))) select(null);
-    if (linking && gone.has(linking)) setLinking(null);
     unfocus();
     settle(SCENES.remove, parent ?? undefined);
     render();
@@ -859,11 +872,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function setMode(m: Mode) {
     I.endLift();
     I.unmarkRemove();
-    if (m !== "link") setLinking(null);
     mode = m;
     container.classList.toggle("mz-mode-move", m === "move");
     container.classList.toggle("mz-mode-reparent", m === "reparent");
-    container.classList.toggle("mz-mode-link", m === "link");
     container.classList.toggle("mz-mode-remove", m === "remove");
     container.classList.toggle("mz-mode-add", m === "add");
     if (m !== "add") I.endAdd();
@@ -1055,7 +1066,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("theme" in next) setOrDelete(world.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("route" in next) {
           if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(`route の値が不正です: ${next.route}`);
-          setOrDelete(world.src, "route", next.route ?? undefined, next.route == null || next.route === "straight");
+          setOrDelete(world.src, "route", next.route ?? undefined, next.route == null || next.route === "elbow");
         }
         storeWorld();
         syncWorld();
@@ -1073,7 +1084,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     render();
     // 選択中のボックスが非表示になったら、隠した親を選び直す
     if (current && isHidden(current)) select(n.isWorld ? null : n);
-    if (linking && isHidden(linking)) setLinking(null);
     changed();
     notifySelect();
   }
@@ -1105,7 +1115,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     byId = new Map();
     edges = [];
     I.reset();
-    linking = null;
     currentEdge = null;
     current?.el.classList.remove("mz-current");
     current = null;
@@ -1339,11 +1348,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
     reveal(id) { const n = nodeOf(id); if (!n.isWorld) reveal(n); },
     selected: () => (current ? current.id : null),
+    selectedEdge: () => currentEdge?.id ?? null,
     selectEdge: id => selectEdge(edgeOf(id)),
     updateEdge: (id, patch) => updateEdge(edgeOf(id), patch),
     edgeInfo: id => { const e = edges.find(x => x.id === String(id)); return e ? edgeInfo(e) : null; },
     alignEdge: id => alignEdge(edgeOf(id)),
     removeEdge: id => removeEdge(edgeOf(id)),
+    link: (from, to) => {
+      const a = byId.get(String(from)), b = byId.get(String(to));
+      return !!a && !!b && link(a, b);
+    },
     info: id => info(id == null ? null : nodeOf(id)),
     update,
     // 現在の状態を返す（元データにある他の項目はそのまま残す）

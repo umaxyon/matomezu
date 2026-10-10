@@ -39,3 +39,55 @@ test("線をダブルクリックすると線の編集ダイアログが開き�
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-label')).toHaveText("承認");
   await expect(page.locator("#sidebar .mzp-caption-text")).toHaveText("承認");
 });
+
+test("線の編集ダイアログで通り方・線の種類・矢印を選べ、「線を消す」で線を消す", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 40 }],
+    edges: [{ id: "e1", from: 1, to: 2, arrow: "end" }],
+  });
+  const dblclickEdge = async () => {
+    const mid = await page.locator('.mz-edge[data-id="e1"] .mz-hit').evaluate(l => {
+      const g = l as SVGPolylineElement;
+      const svg = g.ownerSVGElement!.getBoundingClientRect();
+      const p = g.getPointAtLength(g.getTotalLength() / 2);
+      return { x: svg.left + p.x, y: svg.top + p.y };
+    });
+    await page.mouse.dblclick(mid.x, mid.y);
+  };
+  await dblclickEdge();
+  await expect(page.locator('.mz-dlg [name="arrow-end"]')).toBeChecked();
+  await expect(page.locator('.mz-dlg [name="arrow-start"]')).not.toBeChecked();
+  await expect(page.locator('.mz-dlg [name="route"][value="elbow"]')).toBeChecked(); // 何も書かなければ折れ線
+  await expect(page.locator('.mz-dlg [name="dash"][value="solid"]')).toBeChecked();
+  await page.locator('.mz-dlg [name="arrow-start"]').check();
+  await page.locator('.mz-dlg [name="route"][value="straight"]').check();
+  await page.locator('.mz-dlg [name="dash"][value="dashed"]').check();
+  await page.locator(".mz-dlg [data-ok]").click();
+  await expect(page.locator("#sidebar [data-arrow=\"start\"]")).toBeChecked();
+  await expect(page.locator("#sidebar [data-arrow=\"end\"]")).toBeChecked();
+  await expect(page.locator('#sidebar [name="mzp-route"][value="straight"]')).toBeChecked();
+  await expect(page.locator('#sidebar [name="mzp-dash"][value="dashed"]')).toBeChecked();
+  await expect(page.locator('.mz-edge[data-id="e1"] .mz-line')).toHaveClass(/mz-dashed/);
+
+  await dblclickEdge();
+  await page.locator(".mz-dlg [data-delete]").click();
+  await expect(page.locator(".mz-dlg")).toHaveCount(0);
+  await expect(page.locator(".mz-edge")).toHaveCount(0);
+});
+
+test("線を選んで Delete キーで消す", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 40 }],
+    edges: [{ id: "e1", from: 1, to: 2 }],
+  });
+  const mid = await page.locator('.mz-edge[data-id="e1"] .mz-hit').evaluate(l => {
+    const g = l as SVGPolylineElement;
+    const svg = g.ownerSVGElement!.getBoundingClientRect();
+    const p = g.getPointAtLength(g.getTotalLength() / 2);
+    return { x: svg.left + p.x, y: svg.top + p.y };
+  });
+  await page.mouse.click(mid.x, mid.y);
+  await expect(page.locator(".mz-edge")).toHaveClass(/mz-selected/);
+  await page.keyboard.press("Delete");
+  await expect(page.locator(".mz-edge")).toHaveCount(0);
+});

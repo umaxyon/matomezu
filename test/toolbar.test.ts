@@ -18,7 +18,7 @@ function setup() {
   document.body.innerHTML = `
     <button id="undo"></button><button id="redo"></button>
     <button data-mode="move" aria-pressed="true"></button><button data-mode="reparent" aria-pressed="false"></button>
-    <button data-mode="link" aria-pressed="false"></button>
+    <button data-mode="remove" aria-pressed="false"></button>
     <span id="label"></span><input id="text"><div id="stage"></div>`;
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const undoBtn = $<HTMLButtonElement>("undo"), redoBtn = $<HTMLButtonElement>("redo");
@@ -92,7 +92,7 @@ test("モードの切り替えと表示", () => {
   expect($("label").textContent).toBe("付け替えモード");
   buttons[2]!.click();
   expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
-  expect([g.mode(), $("label").textContent]).toEqual(["link", "線モード"]);
+  expect([g.mode(), $("label").textContent]).toEqual(["remove", "削除モード"]);
   buttons[0]!.click();
   expect([g.mode(), $("label").textContent]).toEqual(["move", "選択モード"]);
 });
@@ -126,11 +126,11 @@ test("Ctrl を押しながらボタンを押すと、ふつうのクリックと
   expect(g.mode()).toBe("move");
 });
 
-test("線モードでは Ctrl で切り替わらない。入力欄や、ウィンドウから離れたときも", () => {
+test("削除モードでは Ctrl で切り替わらない。入力欄や、ウィンドウから離れたときも", () => {
   const { g, $, buttons } = setupWithModes();
   buttons[2]!.click();
   key("Control", { ctrlKey: true });
-  expect(g.mode()).toBe("link");
+  expect(g.mode()).toBe("remove");
   keyup("Control");
   buttons[0]!.click();
   key("Control", { ctrlKey: true }, $("text"));
@@ -144,7 +144,7 @@ test("線モードでは Ctrl で切り替わらない。入力欄や、ウィ�
 test("ドラッグ中は切り替えず、手を離してから切り替える", () => {
   document.body.innerHTML = `
     <button data-mode="move" aria-pressed="true"></button><button data-mode="reparent" aria-pressed="false"></button>
-    <button data-mode="link" aria-pressed="false"></button><span id="label"></span><div id="stage"></div>`;
+    <button data-mode="remove" aria-pressed="false"></button><span id="label"></span><div id="stage"></div>`;
   const stage = document.getElementById("stage")!;
   graph = createGraph(stage, { nodes: [{ id: 1, caption: "a", x: 40, y: 40 }] }, { measureText: fakeMeasure });
   dispose = setupModes(graph, [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")], document.getElementById("label")!);
@@ -164,7 +164,7 @@ test("ドラッグ中は切り替えず、手を離してから切り替える",
 
 test("図の側でモードが変わったら、ボタンとラベルもそれに合わせる", () => {
   const { g, $, buttons } = setupWithModes();
-  buttons[2]!.click(); // 線モード
+  buttons[2]!.click(); // 削除モード
   g.setMode("move");   // 図の側で変える（一覧から戻したときなど）
   expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
   expect($("label").textContent).toBe("選択モード");
@@ -172,4 +172,25 @@ test("図の側でモードが変わったら、ボタンとラベルもそれ�
   expect(g.mode()).toBe("reparent");
   keyup("Control");
   expect(g.mode()).toBe("move");
+});
+
+test("選んだ線は Delete（Mac の delete は Backspace）で消える。入力欄の中や、箱を選んでいるときは消さない", () => {
+  document.body.innerHTML = `<button id="undo"></button><button id="redo"></button><input id="text"><div id="stage"></div>`;
+  const $ = (id: string) => document.getElementById(id)!;
+  graph = createGraph($("stage"), { nodes: [{ id: 1 }, { id: 2 }, { id: 3 }], edges: [[1, 2], [2, 3]] }, { measureText: fakeMeasure });
+  dispose = setupHistory(graph, $("undo") as HTMLButtonElement, $("redo") as HTMLButtonElement);
+  const ids = () => graph!.toJSON().edges!.map(e => (e as { id: string }).id);
+  graph.select(1);
+  key("Delete");
+  expect(ids()).toEqual(["e1", "e2"]);
+  graph.selectEdge("e1");
+  key("Delete", {}, $("text"));
+  expect(ids()).toEqual(["e1", "e2"]);
+  key("Delete");
+  expect(ids()).toEqual(["e2"]);
+  graph.selectEdge("e2");
+  key("Backspace");
+  expect(ids()).toEqual([]);
+  key("z", { ctrlKey: true });
+  expect(ids()).toEqual(["e2"]);
 });

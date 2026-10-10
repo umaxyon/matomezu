@@ -110,13 +110,9 @@ test("ページの中で消して戻すと、戻した先はページの箱の�
 });
 
 test("新しい線の id は、ほかのページの線と重ならない", () => {
-  const { el, graph } = setup(book());
+  const { graph } = setup(book());
   // 最初のページには e1 だけが見えている。e2 はページ 1 の線
-  const click = (id: number) => el.querySelector<HTMLElement>(`.mz-node[data-id="${id}"] > .mz-head`)!
-    .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, ctrlKey: true, pointerId: 1 }));
-  graph.setMode("link");
-  click(2);
-  click(6);
+  graph.link(2, 6);
   // 空いている番号は e2 だが、ページ 1 の線が使っているので e3 になる
   expect(edgeIds(graph.toJSON())).toEqual(["e1", "e2", "e3"]);
 });

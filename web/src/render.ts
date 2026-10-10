@@ -5,7 +5,7 @@ import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
 import { leftNormalAt, pointAt, polylineLength } from "./geom";
 import { route, scopeObstacles } from "./routing";
-import { selfLoop } from "./selfloop";
+import { cornerAt, nearestCorner, selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
@@ -359,15 +359,12 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const e of loops) {
       const index = count.get(e.a) ?? 0;
       count.set(e.a, index + 1);
-      const [ax, ay] = absPos(e.a);
-      const ra = anchorRect(e.a);
-      const boxes = siblingsOf(e.a.parent).filter(o => o.n !== e.a).map(o => o.r);
-      const lines = ctx.edges().filter(o => o !== e && o.a.parent === e.a.parent && o.el.style.display !== "none").map(o => o.points);
+      const { r, boxes, lines } = loopInputOf(e, siblingsOf);
       const at = {
         exit: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
         enter: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
       };
-      const loop = selfLoop({ x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h }, boxes, index, lines, at);
+      const loop = selfLoop(r, boxes, index, lines, at);
       e.points = loop.points;
       e.shape = null;
       e.segments = [];
@@ -382,6 +379,26 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       c2!.setAttribute("cx", String(t[0])); c2!.setAttribute("cy", String(t[1]));
       paint(e);
     }
+  }
+
+  // 自分に戻る線の輪を描く箱（ワールドの座標）と、避けるほかの箱・線
+  function loopInputOf(e: Edge, siblingsOf = siblingFrames()) {
+    const [ax, ay] = absPos(e.a);
+    const ra = anchorRect(e.a);
+    const r = { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h };
+    const boxes = siblingsOf(e.a.parent).filter(o => o.n !== e.a).map(o => o.r);
+    const lines = ctx.edges().filter(o => o !== e && o.a.parent === e.a.parent && o.el.style.display !== "none").map(o => o.points);
+    return { r, boxes, lines };
+  }
+
+  // 描いたばかりの自分に戻る線を、点 p（ワールドの座標）に一番近い角に置くときの端の位置。
+  // その角が自動で選ぶ角と同じか、ふさがっていれば null（自動のままでよい。docs/EDGE-TOOL-plan.md）
+  function loopCornerNear(e: Edge, p: Pt): { exit: number; enter: number } | null {
+    const { r, boxes, lines } = loopInputOf(e);
+    const index = ctx.edges().filter(o => o.a === e.a && o.b === e.a && !edgeHidden(o)).indexOf(e);
+    const corner = nearestCorner(r, p);
+    if (index < 0 || selfLoop(r, boxes, index, lines).corner === corner) return null;
+    return cornerAt(r, boxes, index, lines, corner);
   }
 
   // 線の見た目（点の並び e.points から、見える線・クリックを受ける線・矢印・破線）を整える
@@ -572,5 +589,5 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const o of ctx.nodes()) o.el.classList.remove("mz-dim");
   }
 
-  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render, blocked, focus, unfocus, toFront, routeInputOf };
+  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render, blocked, focus, unfocus, toFront, routeInputOf, loopCornerNear };
 }
