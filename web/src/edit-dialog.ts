@@ -49,6 +49,7 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-hint { flex: 1; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-btn { font: inherit; color: inherit; background: var(--dlg-control); border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
 .mz-dlg-btn.mz-dlg-ok { color: #fff; background: var(--dlg-accent); }
+.mz-dlg-btn:disabled { opacity: 0.45; cursor: default; }
 `;
 
 let open: { overlay: HTMLElement; back: Element | null } | null = null;
@@ -82,6 +83,10 @@ export function openEditDialog(graph: Graph, id: string): void {
           ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${v} 行</option>`).join("")}
         </select>
         <span class="mz-dlg-hint">超えた分は … で切ります</span></label>
+      <div class="mz-dlg-row"><span>本文の幅</span>
+        <span class="mz-dlg-width">${b.bodyWidth ? `${b.bodyWidth}px（つまみで変えた幅）` : "自動"}</span>
+        <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>自動に戻す</button>
+        <input type="hidden" name="width-auto" value=""></div>
       <label class="mz-dlg-check"><input type="checkbox" name="rule"${b.bodyRule ? " checked" : ""}${off}>キャプションと本文の間に線を引く</label>`,
   overlay => {
     const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
@@ -93,7 +98,14 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (b.canBody && rule !== b.bodyRule) patch.bodyRule = rule ? null : false;
     const n = linesValue ? Number(linesValue) : null;
     if (b.canBody && n !== b.bodyLines) patch.bodyLines = n;
+    if (b.bodyWidth && field<HTMLInputElement>("width-auto").value) patch.bodyWidth = null;
     if (Object.keys(patch).length) graph.update(id, patch);
+  });
+  // 「自動に戻す」は確定したときに書く（押したら表示だけ自動にする）
+  overlay.querySelector<HTMLElement>("[data-width-auto]")!.addEventListener("click", e => {
+    overlay.querySelector<HTMLInputElement>('[name="width-auto"]')!.value = "1";
+    overlay.querySelector(".mz-dlg-width")!.textContent = "自動（確定で戻します）";
+    (e.currentTarget as HTMLButtonElement).disabled = true;
   });
   // 選んでいる行数は値で決める（option の selected だけに頼らない）
   overlay.querySelector<HTMLSelectElement>('[name="lines"]')!.value = b.bodyLines ? String(b.bodyLines) : "";
@@ -142,7 +154,7 @@ function show(title: string, fields: string, commit: (overlay: HTMLElement) => v
     if (e.key === "Escape") { e.preventDefault(); closeEditDialog(); return; }
     if (e.key === "Tab") {
       // Tab で後ろの要素へ移らないよう、ダイアログの中を巡らせる
-      const items = [...overlay.querySelectorAll<HTMLElement>("input:not(:disabled), textarea:not(:disabled), select:not(:disabled), button")];
+      const items = [...overlay.querySelectorAll<HTMLElement>("input:not(:disabled):not([type=hidden]), textarea:not(:disabled), select:not(:disabled), button:not(:disabled)")];
       const i = items.indexOf(document.activeElement as HTMLElement);
       const next = e.shiftKey ? (i <= 0 ? items.length - 1 : i - 1) : (i === items.length - 1 ? 0 : i + 1);
       e.preventDefault();

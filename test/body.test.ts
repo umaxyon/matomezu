@@ -217,3 +217,22 @@ test("子の見せ方をリストにすると、子を持つ子は文字の箱�
   expect(node(3).style.display).toBe("");
   expect(bodyEl(2).style.position).toBe("absolute");
 });
+
+test("編集ダイアログの「自動に戻す」で、つまみで変えた本文の幅を消す（確定したときに書く）", () => {
+  const { g, side, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "本文", bodyWidth: 220, x: 40, y: 40 }] });
+  expect(info(1).w).toBe(220);
+  g.select(1);
+  const open = () => side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  open();
+  const dlg = () => document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
+  expect(dlg().querySelector(".mz-dlg-width")!.textContent).toBe("220px（つまみで変えた幅）");
+  dlg().querySelector<HTMLElement>("[data-width-auto]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(g.toJSON().nodes[0]!.bodyWidth).toBe(220); // まだ書かない
+  dlg().querySelector<HTMLElement>("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(g.toJSON().nodes[0]!.bodyWidth).toBeUndefined();
+  expect(info(1).w).toBeLessThan(220);
+  // 自動のときは押せない
+  open();
+  expect(dlg().querySelector<HTMLButtonElement>("[data-width-auto]")!.disabled).toBe(true);
+  expect(dlg().querySelector(".mz-dlg-width")!.textContent).toBe("自動");
+});

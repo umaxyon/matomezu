@@ -30,6 +30,12 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   // （見る用のモードでは開かない）
   stage.addEventListener("dblclick", e => {
     if (!(e.target instanceof Element) || graph.mode() !== "move" || graph.preview() != null) return;
+    // 本文の幅のつまみなら、本文の幅を自動に戻す（箱の編集は開かない）
+    if (e.target.closest(".mz-body-grip")) {
+      const id = e.target.closest<HTMLElement>(".mz-node")?.dataset.id;
+      if (id) graph.update(id, { bodyWidth: null });
+      return;
+    }
     const edge = e.target.closest(".mz-hit, .mz-label") ? e.target.closest<SVGElement>(".mz-edge") : null;
     if (edge?.dataset.id) return openEdgeEditDialog(graph, edge.dataset.id);
     const node = e.target.closest(".mz-head") ? e.target.closest<HTMLElement>(".mz-node") : null;

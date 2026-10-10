@@ -98,3 +98,12 @@ test("リストの中で隠れていた子の中身も、ツリーに戻すと�
   expect(w1).toBe(w2);
   expect(w1).toBeGreaterThan(150);
 });
+
+test("本文の幅のつまみをダブルクリックすると、本文の幅を自動に戻す（編集ダイアログは開かない）", async ({ page }) => {
+  await openDiagram(page, { nodes: [{ id: 1, caption: "見出し", size: "L", bodyWidth: 300, body: "短い本文", x: 40, y: 40 }] });
+  expect(Math.round((await rect(page, 1)).w)).toBe(300);
+  await select(page, 1);
+  await page.locator('.mz-node[data-id="1"] .mz-body-grip').dblclick();
+  await expect.poll(async () => Math.round((await rect(page, 1)).w)).toBeLessThan(300);
+  await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
+});

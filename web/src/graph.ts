@@ -116,7 +116,7 @@ import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
   absPos, ancestors, arrowOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
-  bodyLinesOf, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
+  bodyLinesOf, bodyWidthOf, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
@@ -927,6 +927,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       canBody: canBody(n),
       bodyRule: n.src.bodyRule !== false,
       bodyLines: bodyLinesOf(n) || null,
+      bodyWidth: bodyWidthOf(n) || null,
       inList: inList(n),
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
@@ -1103,7 +1104,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     bodyEl.hidden = true;
     const gripEl = document.createElement("div");
     gripEl.className = "mz-body-grip";
-    gripEl.title = "ドラッグで本文の幅を変える";
+    gripEl.title = "ドラッグで本文の幅を変える（ダブルクリックで自動に戻す）";
     gripEl.hidden = true;
     head.append(shapeSvg, textEl, bodyEl, gripEl, moreEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");

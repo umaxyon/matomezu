@@ -119,6 +119,7 @@ export interface BoxInfo {
   canBody: boolean;  // 本文を出せるか（形がボックスで、S でも切り詰めるでもなく、ページの箱でもない）
   bodyRule: boolean; // キャプションと本文の間に線を引くか
   bodyLines: number | null; // 本文の最大行数（null は制限なし）
+  bodyWidth: number | null; // 本文の幅の指定（つまみで変えた幅。null は自動）
   inList: boolean;   // リストの子か（サイズ・形・子の見せ方を使わない。docs/LIST-plan.md）
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: ChildView;
