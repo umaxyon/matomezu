@@ -46,13 +46,26 @@ textarea.mz-dlg-input { min-height: 160px; resize: vertical; line-height: 1.5; }
 .mz-dlg-row > span { font-weight: 600; }
 select.mz-dlg-input { width: auto; }
 .mz-dlg-note { margin: -6px 0 12px; color: var(--dlg-muted); font-size: 12px; }
-.mz-dlg-foot { display: flex; align-items: center; gap: 8px; }
+.mz-dlg-foot { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
 .mz-dlg-hint { flex: 1; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-btn { font: inherit; color: inherit; background: var(--dlg-control); border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
 .mz-dlg-btn.mz-dlg-ok { color: #fff; background: var(--dlg-accent); }
 .mz-dlg-btn:disabled { opacity: 0.45; cursor: default; }
-.mz-dlg-toggle[aria-pressed="true"] { color: #fff; background: var(--dlg-accent); }
+.mz-dlg-switch {
+  position: relative; flex: none; width: 36px; height: 20px; padding: 0; border: 0; border-radius: 10px;
+  background: var(--dlg-control); box-shadow: inset 0 0 0 1px var(--dlg-line); cursor: pointer; transition: background 0.15s;
+}
+.mz-dlg-switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); transition: left 0.15s;
+}
+.mz-dlg-switch[aria-checked="true"] { background: var(--dlg-accent); box-shadow: none; }
+.mz-dlg-switch[aria-checked="true"]::after { left: 19px; }
+.mz-dlg-switch:disabled { opacity: 0.45; cursor: default; }
+.mz-dlg-switch:focus-visible { outline: 2px solid var(--dlg-accent); outline-offset: 2px; }
+.mz-dlg-onoff { min-width: 3em; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-lines { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.mz-dlg-lines .mz-help { margin-left: -2px; }
 `;
 
 let open: { overlay: HTMLElement; back: Element | null; unhelp: () => void } | null = null;
@@ -81,23 +94,24 @@ export function openEditDialog(graph: Graph, id: string): void {
   const overlay = show("ボックスの編集", `
       <label class="mz-dlg-field"><span>キャプション</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
-      <div class="mz-dlg-row">
-        <button type="button" class="mz-dlg-btn mz-dlg-toggle" name="rule" aria-pressed="${b.bodyRule}"${off}>区切り線</button></div>
+      <div class="mz-dlg-row"><span>区切り線</span>
+        <button type="button" class="mz-dlg-switch" role="switch" name="rule" aria-checked="${b.bodyRule}" aria-label="区切り線"${off}></button>
+        <span class="mz-dlg-onoff">${b.bodyRule ? "ON" : "OFF"}</span></div>
       <div class="mz-dlg-field">
         <textarea class="mz-dlg-input" name="body" placeholder="本文なし" aria-label="本文"${off}>${esc(b.body)}</textarea></div>
       ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>`}
       <div class="mz-dlg-row"><span>本文</span>
         <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>箱の幅に合わせる</button>
         <input type="hidden" name="width-auto" value="">
-        <label class="mz-dlg-lines">最大行数
+        <label class="mz-dlg-lines">最大行数${helpIcon("超えた分は … で切ります")}
           <select class="mz-dlg-input" name="lines"${off}>
             <option value=""${b.bodyLines ? "" : " selected"}>制限なし</option>
             ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${v} 行</option>`).join("")}
-          </select></label>${helpIcon("超えた分は … で切ります")}</div>`,
+          </select></label></div>`,
   overlay => {
     const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
     const caption = field<HTMLInputElement>("caption").value, body = field<HTMLTextAreaElement>("body").value;
-    const rule = field("rule").getAttribute("aria-pressed") === "true", linesValue = field<HTMLSelectElement>("lines").value;
+    const rule = field("rule").getAttribute("aria-checked") === "true", linesValue = field<HTMLSelectElement>("lines").value;
     const patch: Patch = {};
     if (caption !== b.caption) patch.caption = caption;
     if (b.canBody && body !== b.body) patch.body = body || null;
@@ -107,8 +121,12 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (b.bodyWidth && field<HTMLInputElement>("width-auto").value) patch.bodyWidth = null;
     if (Object.keys(patch).length) graph.update(id, patch);
   });
-  const ruleButton = overlay.querySelector<HTMLElement>('[name="rule"]')!;
-  ruleButton.addEventListener("click", () => ruleButton.setAttribute("aria-pressed", String(ruleButton.getAttribute("aria-pressed") !== "true")));
+  const ruleSwitch = overlay.querySelector<HTMLElement>('[name="rule"]')!;
+  ruleSwitch.addEventListener("click", () => {
+    const on = ruleSwitch.getAttribute("aria-checked") !== "true";
+    ruleSwitch.setAttribute("aria-checked", String(on));
+    ruleSwitch.nextElementSibling!.textContent = on ? "ON" : "OFF";
+  });
   // 「箱の幅に合わせる」は確定したときに書く（押したらボタンを押せなくして、押したことを示す）
   overlay.querySelector<HTMLElement>("[data-width-auto]")!.addEventListener("click", e => {
     overlay.querySelector<HTMLInputElement>('[name="width-auto"]')!.value = "1";
