@@ -325,3 +325,17 @@ test("編集ダイアログを開いている間に外部の変更を読み込�
   expect(box(g, 1).caption).toBe("API サーバー");
   expect(box(g, 2).caption).toBe("DB（外部で変更）");
 });
+
+test("見た目: 枠線はボックスだけ、塗りつぶしはスティックマン以外に出す（効かないチェックは出さない）", () => {
+  const { g, $ } = setup({
+    nodes: [
+      { id: 1, caption: "箱" }, { id: 2, caption: "DB", shape: "db" },
+      { id: 3, caption: "分岐", shape: "diamond" }, { id: 4, caption: "人", shape: "person" },
+    ],
+  });
+  const shown = (id: number) => {
+    g.select(id);
+    return [!!$('[data-field="fill"]'), !!$('[data-field="border"]')];
+  };
+  expect([shown(1), shown(2), shown(3), shown(4)]).toEqual([[true, true], [true, false], [true, false], [false, false]]);
+});

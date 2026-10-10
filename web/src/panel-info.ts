@@ -196,11 +196,14 @@ function html(info: Info): string {
     const oneLine = info.overflows.length
       ? `<label class="mzp-check${info.body ? " mzp-disabled" : ""}"${info.body ? ` title="本文があるので 1 行にできません"` : ""}><input type="checkbox" data-one-line${info.overflow === "clip" ? " checked" : ""}${info.body ? " disabled" : ""}>キャプションを 1 行にする</label>${helpIcon("長いキャプションを折り返さず、… で切ります。幅はサイズの最大まで（幅の指定があればその幅まで）")}`
       : "";
-    parts.push(`<div class="mzp-section"><h3>見た目</h3>
-      <label class="mzp-check"><input type="checkbox" data-field="fill"${info.fill ? " checked" : ""}>塗りつぶし</label>
-      <label class="mzp-check"><input type="checkbox" data-field="border"${info.border ? " checked" : ""}>枠線</label>
-      ${oneLine}
-    </div>`);
+    // 効かない形では出さない: 枠線はボックス（とページの箱）だけ（DB・ひし形は輪郭が形そのもの、スティックマンは線で描く）。
+    // 塗りつぶしはスティックマンでは使わない
+    const checks = [
+      info.shape !== "person" ? `<label class="mzp-check"><input type="checkbox" data-field="fill"${info.fill ? " checked" : ""}>塗りつぶし</label>` : "",
+      info.shape === "box" ? `<label class="mzp-check"><input type="checkbox" data-field="border"${info.border ? " checked" : ""}>枠線</label>` : "",
+      oneLine,
+    ].join("");
+    if (checks) parts.push(`<div class="mzp-section"><h3>見た目</h3>${checks}</div>`);
   }
 
   return parts.join("");
