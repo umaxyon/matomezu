@@ -6,7 +6,7 @@
 import type { EdgeDrag } from "./edge-drag";
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
-import { type Box, type Edge, type World, ancestors, inList, inNest, isInside, overflowOf, setSpec } from "./model";
+import { type Box, type Edge, type World, inList, inNest, isInside } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 
@@ -18,14 +18,6 @@ export type Mode = "move" | "reparent" | "link" | "remove";
 export const REMOVED_MIME = "application/x-matomezu-removed";
 // サイドバーの一覧から、ほかのブックの箱を図へドラッグして移植するときのデータの種類（中身は { copy: Subtree, from: ブック名 } の JSON）
 export const COPY_MIME = "application/x-matomezu-copy";
-
-// 動かし始めたときに外した、祖先の最小の大きさ（実際に動かさなければ戻す）
-interface Released {
-  m: Box;
-  specW: number;
-  specH: number;
-  src: Box["src"]; // 外す前のデータ（項目の順番も戻すため、丸ごと写す）
-}
 
 export interface InteractionContext {
   container: HTMLElement;
@@ -57,7 +49,7 @@ export interface InteractionContext {
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
   const { container, world } = ctx;
-  const { refitAncestors, syncWorld, centerX } = L;
+  const { syncWorld, centerX } = L;
 
   const { render, blocked, focus, unfocus } = R;
 
@@ -286,7 +278,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   function moveGesture(n: Box, down: PointerEvent): Gesture {
     const sx = down.clientX, sy = down.clientY, ox = n.x, oy = n.y;
     let moved = false;
-    let released: Released[] | null = null; // 動かし始めたときに外した、祖先の最小の大きさ
+    let started = false;
     let session: DragSession | null = null; // 動かし始めたときの位置の写し
     let swapped: Box[] = [];                // 入れ替えた兄弟
     const fresh = new Set<Box>();           // 入れ替えが起きた箱（このドラッグの終わりまで、線は粘らずに一番よい形を追う。docs/EDGE-SPEC.md の A2・A3）
@@ -294,8 +286,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     return {
       kind: "move", slop: 0,
       move(ev) {
-        if (ev.clientX === sx && ev.clientY === sy && !released) return; // まだ動いていない
-        released ??= releaseSizes(n);
+        if (ev.clientX === sx && ev.clientY === sy && !started) return; // まだ動いていない
+        started = true;
         session ??= D.begin(n);
         // 置けない位置（広がった祖先が親の枠からはみ出す）なら、置ける所で止めて知らせる
         const reached = session.compute(ox + ev.clientX - sx, oy + ev.clientY - sy);
@@ -314,7 +306,6 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       },
       end() {
         n.el.classList.remove("mz-dragging");
-        if (!moved && released) restoreSizes(released, n);
         unfocus();
         if (!moved || !session) return;
         // 手を離したときの位置で確定する。どいた箱は、どいた先が本来いたい位置になる
@@ -350,33 +341,6 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (!a || a.g.kind === "lift") return;
     active = null;
     a.g.end(e);
-  }
-
-  // 中身を手で動かしたら、中身に合わせて伸びる祖先の最小の大きさ（width, height）を外し、中身に追従させる。
-  // 「子のサイズをそろえる」で付いた大きさも、手で動かした方を優先する。
-  // 幅に合わせて折り返す・切り詰めるグループは、大きさを意図して決めているので外さない
-  function releaseSizes(n: Box): Released[] {
-    const out: Released[] = [];
-    for (const m of ancestors(n)) {
-      if (overflowOf(m) !== "grow" || !(m.specW || m.specH)) continue;
-      out.push({ m, specW: m.specW, specH: m.specH, src: { ...m.src } });
-      setSpec(m, "w", 0);
-      setSpec(m, "h", 0);
-    }
-    return out;
-  }
-
-  // 実際には動かさなかったときは、外した大きさを戻す
-  function restoreSizes(list: Released[], n: Box) {
-    for (const r of list) {
-      r.m.specW = r.specW;
-      r.m.specH = r.specH;
-      // データの入れ物は図全体から参照されているので、入れ替えずに中身を戻す
-      for (const k of Object.keys(r.m.src)) delete r.m.src[k as keyof Box["src"]];
-      Object.assign(r.m.src, r.src);
-    }
-    refitAncestors(n);
-    render();
   }
 
   function onPointerOver(e: PointerEvent) {

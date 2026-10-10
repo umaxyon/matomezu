@@ -106,8 +106,8 @@ test("body は文字列、bodyWidth は正の数だけ", () => {
 test("選んだ箱の本文の右の縁をドラッグすると本文の幅が変わり、右の箱を押しのける。狭めれば戻り、手を離すと 1 件の履歴になる", () => {
   const { g, node, info } = setup({
     nodes: [
-      { id: 1, caption: "本文の箱", body: "本文", x: 40, y: 40 },
-      { id: 2, caption: "右の箱", x: 200, y: 40 },
+      { id: 1, caption: "本文の箱", body: "本文", x: 40, y: 40 }, // 本文の最小の幅 160（40〜200）
+      { id: 2, caption: "右の箱", x: 240, y: 40 },
     ],
   });
   g.select(1);
@@ -235,4 +235,79 @@ test("編集ダイアログの「自動に戻す」で、つまみで変えた�
   open();
   expect(dlg().querySelector<HTMLButtonElement>("[data-width-auto]")!.disabled).toBe(true);
   expect(dlg().querySelector(".mz-dlg-width")!.textContent).toBe("自動");
+});
+
+// ---- 箱のサイズと幅の決まり（docs/SIZE-plan.md）----
+
+test("本文を持つ箱は最小の幅 160。子を持つ箱でも、子が細ければ 160 まで広がる", () => {
+  const { info } = setup({
+    nodes: [
+      { id: 1, caption: "あ", x: 40, y: 40 },
+      { id: 2, caption: "あ", body: "本", x: 300, y: 40 },
+      { id: 3, caption: "枠", body: "本", x: 40, y: 300 },
+      { id: 4, parent: 3, caption: "子", x: 12, y: 60 }, // 子の並びだけなら 12 + 120 + 12 = 144
+    ],
+  });
+  expect(info(1).w).toBe(120);
+  expect(info(2).w).toBe(160);
+  expect(info(3).w).toBe(160);
+});
+
+test("内包する箱の本文は箱を広げない。本文の幅を指定していても箱の幅は子の並びで決まり、指定が狭ければその幅で折り返す", () => {
+  const nodes = (bodyWidth?: number) => [
+    { id: 1, caption: "枠", body: "あ".repeat(80), x: 40, y: 40, ...(bodyWidth ? { bodyWidth } : {}) },
+    { id: 2, parent: 1, caption: "子", x: 12, y: 30 },
+    { id: 3, parent: 1, caption: "子", x: 200, y: 30 }, // 子の並びで 200 + 120 + 12 = 332
+  ];
+  const auto = setup({ nodes: nodes() });
+  expect(auto.info(1).w).toBe(332);
+  expect(auto.bodyEl(1).style.width).toBe(`${332 - 24}px`); // 自動は箱の幅いっぱい
+  graph?.destroy();
+  const wide = setup({ nodes: nodes(900) });
+  expect(wide.info(1).w).toBe(332);                          // 広い指定でも箱は広がらない
+  expect(wide.bodyEl(1).style.width).toBe(`${332 - 24}px`);  // 箱の幅で折り返す
+  expect(wide.g.toJSON().nodes[0]!.bodyWidth).toBe(900);     // 覚えた幅は消さない
+  graph?.destroy();
+  const narrow = setup({ nodes: nodes(200) });
+  expect(narrow.info(1).w).toBe(332);
+  expect(narrow.bodyEl(1).style.width).toBe(`${200 - 24}px`); // 狭い指定はその幅で折り返す（本文の右が空く）
+});
+
+test("内包する箱の本文のつまみは、本文の最小の幅〜子の並びで決まった箱の幅。箱の幅まで広げたら自動に戻す", () => {
+  const { g, node, info, bodyEl } = setup({
+    nodes: [
+      { id: 1, caption: "枠", body: "本文", x: 40, y: 40 },
+      { id: 2, parent: 1, caption: "子", x: 12, y: 30 },
+      { id: 3, parent: 1, caption: "子", x: 200, y: 30 },
+    ],
+  });
+  g.select(1);
+  const grip = node(1).querySelector<HTMLElement>(":scope > .mz-head > .mz-body-grip")!;
+  const fire = (type: string, x: number) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
+  fire("pointerdown", 0);
+  fire("pointermove", -100);
+  expect(info(1).w).toBe(332);                    // 箱は変わらない
+  expect(bodyEl(1).style.width).toBe(`${232 - 24}px`);
+  fire("pointermove", -400);
+  expect(bodyEl(1).style.width).toBe(`${160 - 24}px`); // 最小の幅で止まる
+  fire("pointerup", -400);
+  expect(g.toJSON().nodes[0]!.bodyWidth).toBe(160);
+  fire("pointerdown", 0);
+  fire("pointermove", 900);
+  fire("pointerup", 900);
+  expect(info(1).w).toBe(332);                    // 図を超えて広げられない
+  expect(g.toJSON().nodes[0]!.bodyWidth).toBeUndefined(); // 箱の幅まで広げたら自動
+});
+
+test("サイズは見た目が葉の箱だけに効く。内包する箱は S でも本文を持て、ツリーの親の本体は S なら持てない", () => {
+  const { bodyEl } = setup({
+    nodes: [
+      { id: 1, caption: "枠", size: "S", body: "本文", x: 40, y: 40 },
+      { id: 2, parent: 1, caption: "子" },
+      { id: 3, caption: "木", size: "S", body: "本文", childView: "tree", x: 400, y: 40 },
+      { id: 4, parent: 3, caption: "子" },
+    ],
+  });
+  expect(bodyEl(1).hidden).toBe(false);
+  expect(bodyEl(3).hidden).toBe(true);
 });

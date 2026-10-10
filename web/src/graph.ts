@@ -66,18 +66,17 @@
  *       "M" … 既定。幅は文字に合わせて 120〜240。越えると折り返す
  *       "S" … 小さい文字。幅は 64〜96、高さは固定。10 文字まで（超えると … で切る）
  *     幅の範囲は validate.ts の SIZES で決めている。width を書けば、その幅で折り返す。
+ *     サイズが効くのは見た目が葉の箱（子の無い箱、ツリーの親の本体、非表示）だけ。内包・リストの箱では使わない（docs/SIZE-plan.md）。
  *   - childView は子の見せ方: "nest"（内包、既定）/ "tree"（ツリー）/ "hidden"（非表示、▼ で子がいることを示す）/
  *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）
  *     treeDirection はツリーで子を置く向き: "down"（既定）/ "up" / "left" / "right"
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
- *   - overflow は中身（内包の子、または文字）の扱い:
- *       "wrap" … 幅に合わせて折り返す（幅は固定、高さは伸びる）
- *       "grow" … 子に合わせてボックスを伸ばす（子を持つボックスだけ。文字のボックスでは wrap として扱う）
- *       "clip" … ボックスの大きさで切り詰める
- *     既定は子を持つボックスが grow、持たないボックスとワールドが wrap。S サイズでは使わない。
- *     width, height は grow では最小サイズ、wrap では幅、clip では幅と高さになる。
- *     ただし文字のボックスの clip は1行にし、width を幅の上限にする（文字が少なければ縮み、多ければ … で切る）。
- *     文字のボックスで grow を使わないのは、伸ばしたあとで折り返しに戻せなくなるため。
+ *   - overflow は文字のボックスとワールドの中身の扱い:
+ *       "wrap" … 幅に合わせて折り返す（既定）
+ *       "clip" … 文字のボックスは 1 行にし、width を幅の上限にする（文字が少なければ縮み、多ければ … で切る）。
+ *                ワールドは大きさで切り詰める
+ *     S サイズでは使わない。子を持つボックスはつねに子に合わせて伸び、overflow・width・height を使わない
+ *     （データにあっても無視する。図が幅を決め、文字は図の都合で折り返す。docs/SIZE-plan.md）。
  *   - 線は同じ parent を持つボックス同士（最上位同士を含む）でだけ引ける。
  *     ツリーの子同士の線は描かない（データには残り、内包に戻すと表示される）。
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
@@ -111,12 +110,13 @@ import { createHistory, type HistoryState } from "./history";
 import { createInteraction, type Mode } from "./interaction";
 import { createDrag } from "./layout/drag";
 import { createLayout } from "./layout/layout";
+import { BODY_MIN_W } from "./layout/node-kinds";
 import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
   absPos, ancestors, arrowOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
-  bodyLinesOf, bodyWidthOf, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
+  bodyLinesOf, bodyWidthOf, bodyWrapW, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
@@ -127,7 +127,7 @@ import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Overflow, Patch } from "./types";
-import { ARROWS, DASHES, GROUP_MIN, OVERFLOWS, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import { ARROWS, DASHES, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -550,13 +550,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   // 本文の幅をつまんで変える（docs/BODY-plan.md の段階 2）。開始時の位置を覚えておき、幅を変えるたびにそこから決め直す
-  // （押しのけた相手は、狭めれば戻る）。手を離したら 1 件の履歴にする
+  // （押しのけた相手は、狭めれば戻る）。手を離したら 1 件の履歴にする。
+  // 変えられる幅は、葉の見た目の箱なら本文の最小の幅〜サイズの最大。内包する箱・リストの親なら本文の最小の幅〜子の並びで決まった箱の幅
+  // （本文で箱は広がらない。箱の幅まで広げたら自動に戻す。docs/SIZE-plan.md）
   function bodyResizer(n: Box) {
     const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
     const before = typeof n.src.bodyWidth === "number" ? n.src.bodyWidth : undefined;
     const group = L.kindOf(n).name === "nest" || L.kindOf(n).name === "list";
-    const width = n.hw;
-    const z = SIZES[sizeOf(n)];
+    const width = group ? bodyWrapW(n, n.hw) : n.hw;
+    const max = group ? n.hw : SIZES[sizeOf(n)].maxW;
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
     const apply = (w: number | undefined) => {
       restore();
@@ -566,7 +568,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     };
     return {
       width,
-      set(w: number) { apply(Math.round(Math.max(group ? GROUP_MIN.w : z.minW, Math.min(z.maxW, w)))); },
+      set(w: number) {
+        const v = Math.round(Math.max(BODY_MIN_W, Math.min(max, w)));
+        apply(group && v >= Math.floor(max) ? undefined : v);
+      },
       finish() {
         if (!n.parent) n.intendedCX = centerX(n);
         changed();
@@ -717,11 +722,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     for (const b of gone) byId.delete(b.id);
 
     const parent = n.parent;
-    for (const m of parent ? [parent, ...ancestors(parent)] : []) {
-      if (overflowOf(m) !== "grow" || !(m.specW || m.specH)) continue;
-      setSpec(m, "w", 0);
-      setSpec(m, "h", 0);
-    }
     if (parent) parent.children.splice(parent.children.indexOf(n), 1);
     else roots.splice(roots.indexOf(n), 1);
     n.el.remove();
@@ -905,9 +905,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       };
     }
     const size = sizeOf(n);
-    // 中身の扱いを選べるのは、文字を持つボックス（S 以外）か、内包しているボックス
+    // 中身の扱いを選べるのは、文字を持つボックス（S 以外）だけ。子を持つ箱はつねに子に合わせて伸びる（docs/SIZE-plan.md）。
     // スティックマンは文字の置き方が決まっているので使わない
-    const usesOverflow = n.children.length ? isNesting(n) : size !== "S" && shapeOf(n) !== "person";
+    const usesOverflow = !n.children.length && size !== "S" && shapeOf(n) !== "person";
     const out: BoxInfo = {
       kind: n.children.length ? "group" : "box",
       id: n.id,
@@ -937,7 +937,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       children: n.children.map(brief),
       links: incident(n).map(e => ({ edgeId: e.id, ...brief(other(e, n)) })),
       overflow: overflowOf(n),
-      overflows: !usesOverflow ? [] : n.children.length ? [...OVERFLOWS] : ["wrap", "clip"],
+      overflows: usesOverflow ? ["wrap", "clip"] : [],
     };
     return out;
   }
@@ -969,6 +969,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id);
     if (n.isWorld && next.overflow === "grow") throw new Error("ワールドは伸ばせません");
     if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error("文字のボックスは伸ばせません");
+    if (!n.isWorld && n.children.length && next.overflow) throw new Error("子を持つボックスは、つねに子に合わせて伸びます");
 
     // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ（設定変更の場面）。
     // settle が保つ位置を覚えてから apply を呼ぶ
@@ -1003,18 +1004,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if (n.isWorld) {
           n.src.overflow = next.overflow as Exclude<Overflow, "grow">;
         } else {
-          // 文字のボックスを折り返すに戻したら、切り詰めるときに固定した大きさを外して中身に合わせる
-          if (!n.children.length && next.overflow === "wrap") {
+          // 折り返すに戻したら、切り詰めるときに固定した大きさを外して中身に合わせる
+          if (next.overflow === "wrap") {
             setSpec(n, "w", 0);
             setSpec(n, "h", 0);
           }
-          // 大きさが固定される方向は、今の大きさを引き継ぐ
-          if (overflowOf(n) === "grow") setSpec(n, "w", Math.round(n.hw));
-          if (next.overflow === "clip") {
-            // 今の幅を上限にする。文字のボックスは1行になるので高さは決めず、グループは今の高さで切る
-            if (!n.specW) setSpec(n, "w", Math.round(n.hw));
-            if (n.children.length) setSpec(n, "h", Math.round(n.hh));
-          }
+          // 切り詰めるなら、今の幅を上限にする。1 行になるので高さは決めない
+          if (next.overflow === "clip" && !n.specW) setSpec(n, "w", Math.round(n.hw));
           n.src.overflow = next.overflow;
         }
       }

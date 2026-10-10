@@ -2,13 +2,14 @@
 // 種類は子の有無と childView で決まる（文字の箱 / 非表示 / 内包 / ツリー / リスト）。
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
-import { type Box, bodyOf, bodyWidthOf, inList, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
+import { type Box, bodyOf, bodyWidthOf, bodyWrapW, inList, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
 const DIAMOND_TEXT = 0.6; // ひし形の文字を折り返す幅の上限（サイズの最大の幅に対する割合。ひし形はその 2 倍の幅になる）
 const DIAMOND_PAD = 12;   // ひし形の文字と縁の間の余白（内側に収まる四角の、文字のまわり。縦横それぞれ 2 倍して足す）
 export const BODY_GAP = 6; // 内包する箱の本文と、その下の子の並びとの間（docs/BODY-plan.md）
+export const BODY_MIN_W = 160; // 本文を持つ箱の最小の幅。子を持つ箱でも効く（図が優先の唯一の例外。docs/SIZE-plan.md）
 
 export interface Rect { x: number; y: number; w: number; h: number }
 
@@ -41,15 +42,11 @@ export function createNodeKinds(ctx: KindContext) {
     return bw ? Math.max(measure(n, null, true)[0], bw) : measure(n, null)[0];
   };
 
-  // 内包する箱・リストの親の、見出しの下に置く本文が求める箱の幅（本文の幅の指定か本文の中身の幅。サイズの最大幅まで）。本文が無ければ 0。
-  // 箱の幅の下限として効く。本文は箱の幅いっぱいで折り返す（子の並びで箱が広ければ、本文も広がる）
-  function bodyMinW(n: Box): number {
-    if (!bodyOf(n)) return 0;
-    const z = SIZES[sizeOf(n)];
-    return Math.min(z.maxW, Math.max(GROUP_MIN.w, bodyWidthOf(n) || ctx.body(n, null)[0] + 2 * opt.padding));
-  }
-  // 箱の幅 w のときの本文の高さ（本文が無ければ 0）
-  const bodyHeight = (n: Box, w: number) => (bodyOf(n) ? ctx.body(n, w - 2 * opt.padding)[1] : 0);
+  // 本文を持つ箱の幅の下限（本文が無ければ 0）。内包する箱・リストの親では、本文はこれ以上箱を広げない（箱の幅は子の並びで決まり、
+  // 本文はその幅で折り返す。docs/SIZE-plan.md）
+  const bodyMinW = (n: Box): number => (bodyOf(n) ? BODY_MIN_W : 0);
+  // 内包する箱・リストの親が幅 w のときの、見出しの下の本文の高さ（本文が無ければ 0）。つまみで幅を変えていれば、その幅で折り返す
+  const bodyHeight = (n: Box, w: number) => (bodyOf(n) ? ctx.body(n, bodyWrapW(n, w) - 2 * opt.padding)[1] : 0);
 
   // 子を置くときの、見出しの下の本文の高さ（子を置ける領域の上端を決める）。まだ大きさを決めていなければ（初めて置くとき）、
   // 今の幅（無ければ本文が求める幅）で見込んで覚えておく。大きさを決めるとき（nest.measure）に本当の幅で測り直し、違えば子を動かす
@@ -75,7 +72,7 @@ export function createNodeKinds(ctx: KindContext) {
     const specW = useSpec ? n.specW : 0;
     const specH = useSpec ? n.specH : 0;
     const maxW = Math.min(z.maxW, n.capW || Infinity);
-    const textW = () => Math.max(z.minW, Math.min(maxW, contentW(n)));
+    const textW = () => Math.max(z.minW, bodyMinW(n), Math.min(maxW, contentW(n)));
     if (shapeOf(n) === "diamond") {
       // ひし形（フローチャートの分岐）: 内側に収まる四角は縦横の半分なので、文字の大きさの 2 倍にする。文字はひし形の幅の半分で折り返す
       // （graph-style.ts の .mz-shape-diamond > .mz-text の max-width: 50%）。幅の指定があれば、その半分で折り返す
@@ -100,7 +97,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = specH || z.h;
       return;
     }
-    const w = specW || textW();
+    const w = Math.max(bodyMinW(n), specW || textW());
     n.hw = w;
     n.hh = specH || (z.fixedH ? z.h : Math.max(z.h, measure(n, w)[1]));
   }
@@ -117,16 +114,14 @@ export function createNodeKinds(ctx: KindContext) {
     anchorRect: headRect,
   });
 
-  // 内包: 子に合わせる（指定サイズは最小値として扱う）
+  // 内包: 子の並びに合わせて伸びる（大きさの指定・中身の扱い・サイズは使わない。本文があれば最小の幅だけ効く。docs/SIZE-plan.md）
   const nest: NodeKind = {
     name: "nest",
     holdsChildren: true,
     measure(n) {
-      const ov = overflowOf(n);
-      const minW = Math.max(n.specW || GROUP_MIN.w, bodyMinW(n));
       let r = 0;
       for (const c of n.children) r = Math.max(r, c.x + c.w);
-      n.w = ov === "grow" ? Math.max(minW, r + opt.padding) : minW;
+      n.w = Math.max(GROUP_MIN.w, bodyMinW(n), r + opt.padding);
       // 本文は決まった幅で折り返す。高さが前と変わったら（子は前の高さの下に置いてある）、その分だけ子を上下に動かす。
       // 子の左右の位置は本文の高さに関わらないので、幅は先に決まる
       const bh = bodyHeight(n, n.w);
@@ -135,8 +130,8 @@ export function createNodeKinds(ctx: KindContext) {
       n.bodyH = bh;
       let b = 0;
       for (const c of n.children) b = Math.max(b, c.y + c.h);
-      const minH = Math.max(n.specH || GROUP_MIN.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0);
-      n.h = ov === "clip" ? minH : Math.max(minH, b + opt.padding);
+      const minH = Math.max(GROUP_MIN.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0);
+      n.h = Math.max(minH, b + opt.padding);
       n.hx = 0; n.hy = 0;
       n.hw = n.w; n.hh = n.h;
     },
@@ -186,19 +181,17 @@ export function createNodeKinds(ctx: KindContext) {
   };
 
   // リストの子の、中身に合わせた幅（1 行の文字の幅。最小は M の最小、上限は L の最大）
-  const listItemWidth = (k: Box) => Math.max(SIZES.M.minW, Math.min(SIZES.L.maxW, contentW(k)));
+  const listItemWidth = (k: Box) => Math.max(SIZES.M.minW, bodyMinW(k), Math.min(SIZES.L.maxW, contentW(k)));
 
-  // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は自分の幅の指定があればその中、無ければ一番広い子の中身の幅か、
-  // 自分の見出しが入る幅の広い方（どちらも上限は L の最大。見出しは長ければ … で切れる）。
+  // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は一番広い子の中身の幅か、自分の見出しが入る幅の広い方
+  // （どちらも上限は L の最大。見出しは長ければ … で切れる）。大きさの指定は使わない（docs/SIZE-plan.md）。
   // 子の高さは中身に合わせる。並び順は children の順（データの並び順）
   const list: NodeKind = {
     name: "list",
     holdsChildren: false,
     measure(n) {
       const P = opt.padding;
-      const inner = n.specW
-        ? Math.max(SIZES.M.minW, n.specW - 2 * P)
-        : Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(listItemWidth), Math.min(SIZES.L.maxW, caption(n) - 2 * P), bodyMinW(n) - 2 * P);
+      const inner = Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(listItemWidth), Math.min(SIZES.L.maxW, caption(n) - 2 * P), bodyMinW(n) - 2 * P);
       n.bodyH = bodyHeight(n, inner + 2 * P);
       let y = opt.header + (n.bodyH ? n.bodyH + BODY_GAP : 0);
       for (const k of n.children) {

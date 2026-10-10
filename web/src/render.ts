@@ -9,7 +9,7 @@ import { selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
-  BEND_MARGIN, absPos, bodyLinesOf, bodyOf, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  BEND_MARGIN, absPos, bodyLinesOf, bodyOf, bodyWrapW, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
   shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -108,7 +108,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     // 文字の扱いは子を持たないボックスだけが overflow に従う（S は固定の大きさの中で折り返す）
     const textOv = n.children.length || size === "S" || shapeOf(n) === "person" ? "wrap" : overflowOf(n);
     for (const ov of OVERFLOWS) head.classList.toggle("mz-ov-" + ov, !group && textOv === ov);
-    n.el.classList.toggle("mz-clip", group && overflowOf(n) === "clip");
 
     const shape = shapeOf(n);
     const page = isPageBox(n);
@@ -508,13 +507,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       h.top = n.hy + "px";
       h.width = n.hw + "px";
       h.height = n.hh + "px";
-      // 内包する箱・リストの親の本文は、見出しの下に幅を決めて置く（子の無い箱では本体の中の流れに任せる）
-      // 内包する箱・リストの親の本文は、見出しの下に箱の幅いっぱいで置く（子の無い箱では本体の中の流れに任せる）
+      // 内包する箱・リストの親の本文は、見出しの下に置く。幅は箱の幅いっぱいか、つまみで変えた幅（箱の幅まで）。
+      // 子の無い箱では本体の中の流れに任せる
       const block = n.bodyEl.classList.contains("mz-body-block") && !n.bodyEl.hidden;
-      if (block) n.bodyEl.style.width = n.hw - 2 * opt.padding + "px";
+      const bw = block ? bodyWrapW(n, n.hw) - 2 * opt.padding : 0;
+      if (block) n.bodyEl.style.width = bw + "px";
       // つまみ: 子の無い箱は本体の右の縁（高さいっぱい）、内包する箱は本文の右の縁
       const g = n.gripEl.style;
-      g.left = block ? n.hw - opt.padding - 3 + "px" : "";
+      g.left = block ? opt.padding + bw - 3 + "px" : "";
       g.right = block ? "auto" : "";
       g.top = block ? opt.header + "px" : "";
       g.height = block ? n.bodyH + "px" : "";

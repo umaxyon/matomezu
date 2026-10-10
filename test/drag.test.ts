@@ -221,7 +221,7 @@ test("横から少しだけ重ねて、離す直前に少し縦に動いても�
     nodes: [
       { id: 1, caption: "枠", x: 40, y: 40 },
       { id: 2, parent: 1, caption: "左の箱", body: "一\n二\n三\n四\n五\n六", x: 12, y: 30 },
-      { id: 3, parent: 1, caption: "右の箱", x: 160, y: 30 },
+      { id: 3, parent: 1, caption: "右の箱", x: 200, y: 30 }, // 左の箱は本文の最小の幅 160（12〜172）
     ],
   });
   const left = at(graph, 2);

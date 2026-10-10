@@ -86,15 +86,15 @@ test("親が縮むと、押し下げていた下の箱は元の高さへ戻る",
   expect(graph.info(5).y).toBe(160);
 });
 
-test("親の大きさの指定は、中身に合わせて伸びるグループなら外して縮める", () => {
+test("親の大きさは子の並びで決まり（大きさの指定は使わない）、子を消せば縮む", () => {
   const d = data();
   d.nodes[0]!.width = 400;
   d.nodes[0]!.height = 200;
   const { graph } = setup(d);
-  expect(graph.info(1).w).toBe(400);
+  expect(graph.info(1).w).toBe(272);
   graph.remove(3);
   expect(graph.info(1).w).toBe(144);
-  expect(graph.toJSON().nodes[0]!.width).toBeUndefined();
+  expect(graph.toJSON().nodes[0]!.width).toBe(400); // データは書き換えない（子を全部外して葉に戻れば効く）
 });
 
 test("消したボックスの id は再利用しない", () => {

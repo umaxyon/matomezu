@@ -74,15 +74,11 @@ export function createLayout(ctx: LayoutContext) {
     };
   }
 
-  // 大きさが固定されている方向（grow 以外は幅、clip は高さも）。
+  // 大きさが固定されている方向。子を持つ箱はつねに子に合わせて伸びるので、固定されるのはワールドだけ（docs/SIZE-plan.md）。
   // ワールドは幅を固定し、高さは指定が無ければ下へ伸ばせる（横スクロールより縦スクロールの方が見やすい）
   function fixedSize(c: Container): { w: number | null; h: number | null } {
     if (c.isWorld) return { w: world.w, h: world.src.height ? world.h : null };
-    const ov = overflowOf(c);
-    return {
-      w: ov === "grow" ? null : (c.specW || GROUP_MIN.w),
-      h: ov === "clip" ? (c.specH || GROUP_MIN.h) : null,
-    };
+    return { w: null, h: null };
   }
 
   // 表示領域の中身（スクロールバーを除く）の幅と高さ。clientWidth / clientHeight は小数を四捨五入するので、
@@ -476,11 +472,16 @@ export function createLayout(ctx: LayoutContext) {
       const cur = (k: Box) => (dim === "w" ? k.w : k.h);
       const target = Math.min(...kids.map(cur));
       for (const k of kids) {
+        // 両方そろえるとき、グループの高さは詰め直さない（横へ並べ直すと、そろえた幅が崩れる。グループは大きさの指定で幅を保てない）
+        if (dim === "h" && what === "both" && kindOf(k).holdsChildren) {
+          if (k.h > target + 0.5) partial = true;
+          continue;
+        }
         const t = Math.round(Math.max(target, minimumSize(k, dim)));
         if (t > target + 0.5) partial = true;
         compress(k, dim, t, scene.repack![dim]);
-        // グループは中身に合わせた大きさが目標に届かないときだけ指定を付け、文字のボックスは常に指定する
-        setSpec(k, dim, kindOf(k).holdsChildren && naturalSize(k, dim) >= t ? 0 : t);
+        // 文字のボックスには大きさを指定する。グループは大きさの指定を使わない（中身を詰め直した大きさになる。docs/SIZE-plan.md）
+        setSpec(k, dim, kindOf(k).holdsChildren ? 0 : t);
         fit(k);
       }
     };

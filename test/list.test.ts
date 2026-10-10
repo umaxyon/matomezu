@@ -45,10 +45,8 @@ test("子を縦に並べ、一番広い子の幅にそろえる。親は中身�
   expect(violations(el)).toEqual([]);
 });
 
-test("親に幅の指定があれば、その幅いっぱいにそろえる", () => {
-  const { graph } = setup(data({ width: 400 }));
-  expect(graph.info(2).w).toBe(400 - 24);
-  expect(graph.info(1).w).toBe(400);
+test("親の幅の指定は使わない（子を持つ箱は子に合わせる。docs/SIZE-plan.md）", () => {
+  expect(setup(data({ width: 400 })).graph.info(1).w).toBe(setup(data()).graph.info(1).w);
 });
 
 test("リストの子のサイズ・形・子の見せ方は使わず（データはそのまま）、孫は非表示", () => {

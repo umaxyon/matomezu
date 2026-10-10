@@ -725,20 +725,22 @@ describe("子の大きさをそろえる", () => {
     expect((graph.info(1) as import("../web/src/types").BoxInfo).sizableChildren).toBe(2);
     const s = graph.info(4).w;
     expect(graph.fitChildren(1, "width")).toBe(2);
-    // API は中の2つが横に並ぶので 12+120+8+120+12 = 272 より小さくできない。広げてあったデータ（400）も 272 に縮む
-    expect([graph.info(2).w, graph.info(3).w]).toEqual([272, 272]);
+    // データの幅は子を持つ箱では使わない（docs/SIZE-plan.md）ので、データは中身の DB に合わせた 12+120+12 = 144。
+    // API は中の 2 つを詰め直して（縦に並べて）144 にそろう
+    expect([graph.info(2).w, graph.info(3).w]).toEqual([144, 144]);
     expect(graph.info(4).w).toBe(s);
-    expect(byId(graph.toJSON(), 3).width).toBe(272); // 保存される
+    expect(byId(graph.toJSON(), 2).width).toBeUndefined(); // 子を持つ箱には大きさを指定しない
+    expect(byId(graph.toJSON(), 3).width).toBeUndefined();
     expect(notices.at(-1)).toBe("子 2 個の幅をそろえました");
   });
 
-  test("高さと両方。広がってぶつかる子はずらし、Undo 1回で戻る", () => {
+  test("両方。グループは幅だけそろえ、Undo 1回で戻る", () => {
     const { graph } = setup(data());
     const before = graph.toJSON();
     graph.fitChildren(1, "both");
     const a = graph.info(2), d = graph.info(3);
+    // グループは大きさの指定を使わないので、両方のときは幅だけをそろえ、高さは詰め直さない（横へ並べ直すと幅が崩れる）
     expect(a.w).toBe(d.w);
-    expect(a.h).toBe(d.h);
     const apart = a.y + a.h <= d.y || d.y + d.h <= a.y || a.x + a.w <= d.x || d.x + d.w <= a.x;
     expect(apart).toBe(true);
     graph.undo();
@@ -764,10 +766,10 @@ test("左から始まる大きなボックスが少しはみ出しただけな�
   expect([graph.info(2).x, graph.info(2).y]).toEqual([220, 100]);
 });
 
-describe("中身をドラッグしたら親が追従する", () => {
+describe("子を持つ箱は、大きさの指定と中身の扱いを使わず子に合わせる（docs/SIZE-plan.md）", () => {
   const data = (): Diagram => ({
     nodes: [
-      { id: 1, caption: "API", x: 40, y: 40, width: 400, height: 150 }, // そろえた後のように最小の大きさが付いている
+      { id: 1, caption: "API", x: 40, y: 40, width: 400, height: 150, overflow: "wrap" }, // 指定は無視する
       { id: 2, caption: "認証", parent: 1, x: 12, y: 30 },
       { id: 3, caption: "注文", parent: 1, x: 260, y: 30 },
     ],
@@ -783,32 +785,29 @@ describe("中身をドラッグしたら親が追従する", () => {
     fire("pointerup", last[0], last[1]);
   }
 
-  test("子を内側へ動かすと、最小の大きさを外して縮む。Undo で戻る", () => {
+  test("箱の大きさは子の並び（260 + 120 + 余白 12）で決まり、データの指定は残る", () => {
+    const { graph } = setup(data());
+    expect([graph.info(1).w, graph.info(1).h]).toEqual([392, 30 + 64 + 12]);
+    expect(graph.info(1).overflow).toBe("grow");
+    expect(graph.info(1).overflows).toEqual([]);
+    const out = byId(graph.toJSON(), 1);
+    expect([out.width, out.height, out.overflow]).toEqual([400, 150, "wrap"]);
+  });
+
+  test("子を内側へ動かすと縮み、外へ動かすと広がる。Undo で戻る", () => {
     const { el, graph } = setup(data());
-    expect(graph.info(1).w).toBe(400);
     press(el, graph, 3, [[-40, 0], [-80, 0], [-120, 0]]);
-    // 注文は x=140 まで動き、API は中身（140 + 120 + 余白 12）に合わせて縮む
     expect(byId(graph.toJSON(), 3).x).toBe(140);
     expect(graph.info(1).w).toBe(272);
-    expect(graph.info(1).h).toBe(30 + 64 + 12);
-    expect("width" in byId(graph.toJSON(), 1)).toBe(false);
     graph.undo();
-    expect([byId(graph.toJSON(), 1).width, graph.info(1).w]).toEqual([400, 400]);
+    expect(graph.info(1).w).toBe(392);
+    press(el, graph, 3, [[100, 0]]);
+    expect(graph.info(1).w).toBe(492);
   });
 
-  test("つかんだだけで動かさなければ、何も変えない", () => {
-    const { el, graph } = setup(data());
-    press(el, graph, 3, [[0, 0]]);
-    expect([byId(graph.toJSON(), 1).width, graph.info(1).w]).toEqual([400, 400]);
-    expect(graph.history().canUndo).toBe(false);
-  });
-
-  test("幅に合わせて折り返すグループの大きさは外さない", () => {
-    const d = data();
-    byId(d, 1).overflow = "wrap";
-    const { el, graph } = setup(d);
-    press(el, graph, 3, [[-40, 0], [-80, 0]]);
-    expect(graph.info(1).w).toBe(400);
+  test("子を持つ箱の中身の扱いは変えられない", () => {
+    const { graph } = setup(data());
+    expect(() => graph.update(1, { overflow: "clip" })).toThrow();
   });
 });
 
@@ -959,10 +958,10 @@ describe("文字のボックスは中身に合わせて伸ばさない", () => {
     expect(graph.toJSON().nodes[0]!.overflow).toBeUndefined();
   });
 
-  test("グループでは今まで通り grow を選べる", () => {
-    const { graph } = setup({ nodes: [{ id: 1, caption: "グループ" }, { id: 2, parent: 1 }] });
+  test("グループはつねに grow で、選べる扱いは無い（docs/SIZE-plan.md）", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "グループ", overflow: "clip" }, { id: 2, parent: 1 }] });
     expect(graph.info(1).overflow).toBe("grow");
-    expect(graph.info(1).overflows).toContain("grow");
+    expect(graph.info(1).overflows).toEqual([]);
   });
 });
 

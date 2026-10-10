@@ -110,7 +110,6 @@ export const GRAPH_CSS = `
 .mz-edge.mz-selected .mz-line { stroke: var(--mz-select); stroke-width: 3; opacity: 1; }
 .mz-edge.mz-selected .mz-arrow { fill: var(--mz-select); opacity: 1; }
 .mz-node { position: absolute; pointer-events: none; transition: opacity 0.15s; }
-.mz-node.mz-clip { overflow: hidden; }
 .mz-head {
   position: absolute;
   box-sizing: border-box;

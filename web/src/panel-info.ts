@@ -18,7 +18,9 @@ const KIND_LABELS = { group: "グループ", box: "ボックス" };
 const PENCIL = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11.5 1.8l2.7 2.7-8.6 8.6-3.4.7.7-3.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.8 3.5l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></svg>';
 const ROUTE_OPTIONS: [string, string][] = [["straight", "直線"], ["elbow", "折れ線"]];
 const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\n" +
-  "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります";
+  "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります\n" +
+  "サイズが効くのは子の無い箱と、ツリー・非表示の親の本体です。内包・リストの箱の大きさは子の並びで決まります";
+const BY_CHILDREN = "内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）";
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["list", "リスト"], ["hidden", "非表示"]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];
 const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"], ["diamond", "ひし形"]];
@@ -155,10 +157,15 @@ function html(info: Info): string {
       </div>`);
     }
 
+    // 内包・リストの箱ではサイズを使わない（docs/SIZE-plan.md）。どれも選んでいない形で、押せなくする
+    const nesting = info.children.length > 0 && (info.childView === "nest" || info.childView === "list");
+    const sizes: [string, string][] = [["L", "L"], ["M", "M"], ["S", "S"]];
     parts.push(`<div class="mzp-section"><h3>サイズ${helpIcon(SIZE_HELP)}</h3>
-      ${segment("mzp-size", info.size, [["L", "L"], ["M", "M"], ["S", "S"]], info.inList ? allDisabled([["L", ""], ["M", ""], ["S", ""]])
+      ${segment("mzp-size", nesting ? "" : info.size, sizes, info.inList ? allDisabled(sizes)
+        : nesting ? new Map(sizes.map(([v]) => [v, BY_CHILDREN]))
         : info.body ? new Map([["S", "本文があるので S にはできません（S は高さが決まっています）"]]) : undefined)}
       ${info.inList ? `<p class="mzp-hint">${IN_LIST}。幅はリストがそろえます</p>` : ""}
+      ${nesting ? `<p class="mzp-hint">${BY_CHILDREN}</p>` : ""}
     </div>`);
 
     if (info.children.length) {
@@ -184,7 +191,7 @@ function html(info: Info): string {
 
   if (info.kind !== "world") {
     if (info.sizableChildren >= 2) {
-      parts.push(`<div class="mzp-section"><h3>子のサイズ${helpIcon("一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません（S サイズ、スティックマン、ツリー・非表示の子は対象外）")}</h3>
+      parts.push(`<div class="mzp-section"><h3>子のサイズ${helpIcon("一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません。子を持つ子は中身を詰め直して縮めます（S サイズ、スティックマン、ツリー・非表示の子は対象外）")}</h3>
         <div class="mzp-chips">
           <button type="button" class="mzp-chip" data-fit="width">幅をそろえる</button>
           <button type="button" class="mzp-chip" data-fit="height">高さをそろえる</button>

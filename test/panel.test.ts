@@ -161,13 +161,15 @@ test("中身の扱い: ワールドでは伸ばすを選べない", () => {
   expect(g.info(null).overflow).toBe("clip");
 });
 
-test("中身の扱い: 文字のボックスには伸ばすを出さない（グループには出す）", () => {
-  const { g, $ } = setup({ nodes: [{ id: 1, caption: "グループ" }, { id: 2, caption: "文字", parent: 1 }] });
+test("中身の扱い: 文字のボックスには伸ばすを出さない。グループには中身の扱いもサイズも出さない（docs/SIZE-plan.md）", () => {
+  const { g, $ } = setup({ nodes: [{ id: 1, caption: "グループ", size: "L" }, { id: 2, caption: "文字", parent: 1 }] });
   g.select(2);
   expect($('input[name="mzp-overflow"][value="wrap"]')).not.toBeNull();
   expect($('input[name="mzp-overflow"][value="grow"]')).toBeNull();
   g.select(1);
-  expect($<HTMLInputElement>('input[name="mzp-overflow"][value="grow"]')!.disabled).toBe(false);
+  expect($('input[name="mzp-overflow"]')).toBeNull();
+  const sizes = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
+  expect(sizes.map(i => [i.disabled, i.checked])).toEqual([[true, false], [true, false], [true, false]]);
 });
 
 test("背景の色もボタンから開くポップアップで選ぶ（見本と「なし」）。外で閉じても、次に押すと開く", () => {

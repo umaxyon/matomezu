@@ -136,7 +136,9 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 // リストの子か（docs/LIST-plan.md）。リストの子では、サイズ・形・子の見せ方を使わない（データは書き換えず、
 // 見せるときだけ無視する。リストから出すと元に戻る）。孫は非表示にする（子の中が大量にあり得るため）
 export const inList = (n: Box): boolean => !!n.parent && viewOf(n.parent) === "list";
-export const sizeOf = (n: Box): Size => (inList(n) ? "M" : isSize(n.src.size) ? n.src.size : "M");
+// サイズ（L / M / S）が効くのは、見た目が葉の箱だけ（子の無い箱、ツリーの親の本体、非表示）。内包・リストの箱の大きさは子の並びで決まるので、
+// サイズを使わない（データは消さずに無視する。子を全部外せば効く。docs/SIZE-plan.md）
+export const sizeOf = (n: Box): Size => (inList(n) || isNesting(n) ? "M" : isSize(n.src.size) ? n.src.size : "M");
 export const viewOf = (n: Box): ChildView =>
   inList(n) ? "hidden" : isView(n.src.childView) ? n.src.childView : "nest";
 export const treeDirOf = (n: Box): TreeDirection => (isTreeDirection(n.src.treeDirection) ? n.src.treeDirection : "down");
@@ -158,9 +160,10 @@ export const fillOf = (n: Box) => n.src.fill !== false;
 export const borderOf = (n: Box) => (n.src.border != null ? !!n.src.border : isNesting(n));
 export function overflowOf(c: Container): Overflow {
   if (c.isWorld) return c.src.overflow === "clip" ? "clip" : "wrap";
-  // 文字のボックスは伸ばさない（伸ばすと折り返しに戻せなくなる）。grow はグループになったときに使う
+  // 文字のボックスは伸ばさない（伸ばすと折り返しに戻せなくなる）。子を持つ箱はつねに子に合わせて伸ばす（データの overflow は無視する。
+  // 図が幅を決め、文字は図の都合で折り返す。docs/SIZE-plan.md）
   if (!c.children.length) return c.src.overflow === "clip" ? "clip" : "wrap";
-  return c.src.overflow || "grow";
+  return "grow";
 }
 export const displayCaption = (n: Box) => truncate(captionOf(n), SIZES[sizeOf(n)].limit);
 // 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
@@ -171,6 +174,9 @@ export const bodyOf = (n: Box): string => (typeof n.src.body === "string" && n.s
 export const bodyLinesOf = (n: Box): number => (Number.isInteger(n.src.bodyLines) && (n.src.bodyLines as number) > 0 ? n.src.bodyLines as number : 0);
 // 本文の幅の指定（無ければ 0）
 export const bodyWidthOf = (n: Box): number => (typeof n.src.bodyWidth === "number" && n.src.bodyWidth > 0 ? n.src.bodyWidth : 0);
+// 内包する箱・リストの親の本文を折り返す幅（箱の幅として数える。余白を含む）。自動なら箱の幅いっぱい、つまみで変えていればその幅。
+// 箱の幅は子の並びで決まり、本文はそれを超えない（図が優先。子を詰めて狭くなれば箱の幅で折り返し、覚えた幅は消さない）
+export const bodyWrapW = (n: Box, w: number): number => Math.min(bodyWidthOf(n) || w, w);
 
 // t が n 自身か、n の子孫か
 export function isInside(t: Box, n: Box) {
