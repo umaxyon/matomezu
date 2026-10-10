@@ -152,6 +152,7 @@ export interface EdgeInfo {
   via: number[] | null; // 手で直した途中の区間の位置（直していなければ null）
   adjustable: boolean;  // ドラッグで動かせる途中の区間があるか
   endsMoved: boolean;   // 線の端の位置（exitAt / enterAt）を動かしてあるか
+  aligned: boolean;     // 整列しても変わらないか（両端が辺の真ん中か、まっすぐ結ぶ位置にあり、手で直した区間も無い）
   arrangement: Arrangement; // 2 つの箱の並び（横か縦に並ぶときは、始点と終点の向きをそろえないと素直に引けない）
 }
 

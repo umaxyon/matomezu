@@ -47,6 +47,7 @@ export const PANEL_CSS = `
   background: var(--mzp-control); border: 0; border-radius: 4px; padding: 1px 8px;
 }
 .mzp-chip:hover { background: var(--mzp-control-hover); }
+.mzp-chip:disabled { opacity: 0.45; cursor: not-allowed; background: var(--mzp-control); }
 .mzp-hint + .mzp-field { margin-top: 10px; }
 .mzp-color-btn { display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; min-height: 30px; }
 .mzp-color-btn .mzp-swatch { width: 16px; height: 16px; border-radius: 4px; }

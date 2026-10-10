@@ -121,7 +121,7 @@ import {
 import { type Pos, moveSubtree, pasteSubtree, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
-import { type RouteFix, alignedEnds, route } from "./routing";
+import { type RouteFix, alignedEnds, isAligned, route } from "./routing";
 import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isPaletteName, isTheme, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
@@ -406,6 +406,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       kind: "edge", id: e.id, self: e.a === e.b, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), caption: typeof e.src.caption === "string" && e.src.caption ? e.src.caption : null,
       captionMoved: e.src.captionAt != null || e.src.captionOffset != null, route: routeOf(e, world),
       via: viaOf(e), adjustable: e.segments.length > 0, endsMoved: e.src.exitAt != null || e.src.enterAt != null,
+      aligned: e.a === e.b || !e.ends || isAligned(R.routeInputOf(e), e.points),
       arrangement: e.arrangement,
     };
   }

@@ -255,6 +255,12 @@ export function fixedAts(r: RouteInput): EndsAt {
 // 整列: 今の点の並び pts の両端を、その辺のままで一番よい位置に置き直す（ふち一周の割合で返す）。向き合う辺どうしで
 // まっすぐ結べるなら重なる範囲の真ん中でまっすぐ、そうでなければ辺の真ん中（2026-10-10 ユーザー。線に 1 つの整列ボタン）
 export function alignedEnds(r: RouteInput, pts: Pt[]): { exitAt: number; enterAt: number } {
+  const [p, q] = alignTargets(r, pts);
+  return { exitAt: perimeterAt(r.a, p), enterAt: perimeterAt(r.b, q) };
+}
+
+// 整列したときの両端の点
+function alignTargets(r: RouteInput, pts: Pt[]): [Pt, Pt] {
   const { a, b } = r;
   const sa = endSide(a, pts, false), sb = endSide(b, pts, true);
   let p = vertexAt(a, sa), q = vertexAt(b, sb);
@@ -274,7 +280,15 @@ export function alignedEnds(r: RouteInput, pts: Pt[]): { exitAt: number; enterAt
     if (r.aVertex && !r.bVertex && p[k] > (k ? b.y : b.x) && p[k] < (k ? b.y + b.h : b.x + b.w)) q = k ? [q[0], p[1]] : [p[0], q[1]];
     if (r.bVertex && !r.aVertex && q[k] > (k ? a.y : a.x) && q[k] < (k ? a.y + a.h : a.x + a.w)) p = k ? [p[0], q[1]] : [q[0], p[1]];
   }
-  return { exitAt: perimeterAt(a, p), enterAt: perimeterAt(b, q) };
+  return [p, q];
+}
+
+// 整列しても変わらないか（両端がもう整列した位置にあり、手で直した区間も無い）。整列ボタンを押せなくするのに使う
+export function isAligned(r: RouteInput, pts: Pt[]): boolean {
+  if (r.via || pts.length < 2) return false;
+  const [p, q] = alignTargets(r, pts);
+  const near = (u: Pt, v: Pt) => Math.abs(u[0] - v[0]) < 0.5 && Math.abs(u[1] - v[1]) < 0.5;
+  return near(pts[0]!, p) && near(pts[pts.length - 1]!, q);
 }
 
 // ---- 道筋 ----

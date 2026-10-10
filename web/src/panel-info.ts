@@ -88,7 +88,7 @@ function edgeHtml(info: EdgeInfo): string {
       ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
     </div>`}
     ${info.self ? "" : `<div class="mzp-section"><h3>端の位置${helpIcon("線の端は、つまんで動かすとその位置に固定されます。固定していない端は、ボックスの位置から自動で決めます")}</h3>
-      <button type="button" class="mzp-chip" data-align="${esc(info.id)}">整列</button>${helpIcon("今の形のまま、両端を辺の真ん中（向き合う辺どうしで、まっすぐ結べるならまっすぐ結ぶ位置）に固定します。動かした途中の区間は自動に戻します")}
+      <button type="button" class="mzp-chip" data-align="${esc(info.id)}"${info.aligned ? ` disabled title="整列済みです"` : ""}>整列</button>${helpIcon("今の形のまま、両端を辺の真ん中（向き合う辺どうしで、まっすぐ結べるならまっすぐ結ぶ位置）に固定します。動かした途中の区間は自動に戻します")}
       ${info.endsMoved ? `<button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}">端を自由に戻す</button>${helpIcon("両端の固定を外して、ボックスの位置から自動で決めます。動かした途中の区間も自動に戻します")}` : ""}
     </div>`}
     ${!info.self && info.via ? `<div class="mzp-section">

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { type GraphEvent, noticeOf } from "../web/src/notices";
 import { createGraph, type Graph } from "../web/src/graph";
-import type { BoxData, BoxInfo, Diagram, EdgeData, Info } from "../web/src/types";
+import type { BoxData, BoxInfo, Diagram, EdgeData, EdgeInfo, Info } from "../web/src/types";
 import { dragBy, endsOf, fakeMeasure, pointsOf } from "./helpers";
 import { nearestAt } from "../web/src/geom";
 import { perimeter } from "../web/src/selfloop";
@@ -129,7 +129,7 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(el.classList.contains("mz-mode-move")).toBe(true); // 開いた直後から、線はクリックを受ける
   graph.select(1);
   el.querySelector(".mz-hit")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", self: false, from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", caption: null, captionMoved: false, route: "straight", via: null, adjustable: false, endsMoved: false, arrangement: "stack" });
+  expect(got.at(-1)).toEqual({ kind: "edge", id: "e1", self: false, from: { id: "1", caption: "A" }, to: { id: "2", caption: "B" }, arrow: null, dash: "solid", caption: null, captionMoved: false, route: "straight", via: null, adjustable: false, endsMoved: false, aligned: true, arrangement: "stack" });
   expect(el.querySelector(".mz-edge")!.classList.contains("mz-selected")).toBe(true);
   expect(graph.selected()).toBeNull(); // ボックスの選択は外れる
 
@@ -1380,22 +1380,27 @@ describe("線のつなぎ方", () => {
     expect((graph.toJSON().edges![0] as EdgeData).exitAt).toBeCloseTo(P(box1, 160, 65), 3);
   });
 
-  test("整列: 両端を今の形での一番よい位置（辺の真ん中か、まっすぐ結べる位置）に固定し、手で直した区間は消す", () => {
+  test("整列: 両端を今の形での一番よい位置（辺の真ん中か、まっすぐ結べる位置）に固定し、手で直した区間は消す。整列済みなら押せない", () => {
     // 1 の右の辺の上の方に固定した線（2 は 1 の右、上下の範囲が 60〜104 で重なる）
+    const infos: Info[] = [];
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 60 }],
       edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exitAt: P(box1, 160, 44) }],
-    });
+    }, { onSelect: (i: Info) => infos.push(i) });
+    const aligned = () => (infos.at(-1) as EdgeInfo).aligned;
     expect(round(pts(el))[0]).toEqual([160, 44]);
     graph.selectEdge("e1");
+    expect(aligned()).toBe(false);
     graph.alignEdge("e1");
     expect(round(pts(el))).toEqual([[160, 82], [400, 82]]);
+    expect(aligned()).toBe(true);
     const e = graph.toJSON().edges![0] as EdgeData;
     expect(e.exitAt).toBeCloseTo(P(box1, 160, 82), 3);
     expect(e.via).toBeUndefined();
-    // 自由に戻す（サイドバーの「端を自由に戻す」と同じ）
+    // 自由に戻す（サイドバーの「端を自由に戻す」と同じ）。自由な端もまっすぐ結ぶ位置にあるので、整列済み
     graph.updateEdge("e1", { exitAt: null, enterAt: null, via: null });
     expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" });
+    expect(aligned()).toBe(true);
   });
 
   test("箱を動かしている間は、引けなくなった via もデータから消さない。手を離したときに引ければ残す（docs/EDGE-SPEC.md の P2）", () => {
