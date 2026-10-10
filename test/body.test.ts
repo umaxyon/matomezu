@@ -222,14 +222,14 @@ test("子の見せ方をリストにしても、子を持つ子は枠のまま�
   expect(bodyEl(2).style.position).toBe("absolute");
 });
 
-test("編集ダイアログの「自動に戻す」で、つまみで変えた本文の幅を消す（確定したときに書く）", () => {
+test("編集ダイアログの「中身に合わせる」で、つまみで変えた本文の幅を消す（確定したときに書く）。内包する箱では「箱の幅に合わせる」", () => {
   const { g, side, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "本文", bodyWidth: 220, x: 40, y: 40 }] });
   expect(info(1).w).toBe(220);
   g.select(1);
   const open = () => side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   open();
   const dlg = () => document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
-  expect(dlg().querySelector(".mz-dlg-width")!.textContent).toBe("220px（つまみで変えた幅）");
+  expect(dlg().querySelector("[data-width-auto]")!.textContent).toBe("中身に合わせる");
   dlg().querySelector<HTMLElement>("[data-width-auto]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   expect(g.toJSON().nodes[0]!.bodyWidth).toBe(220); // まだ書かない
   dlg().querySelector<HTMLElement>("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -238,7 +238,13 @@ test("編集ダイアログの「自動に戻す」で、つまみで変えた�
   // 自動のときは押せない
   open();
   expect(dlg().querySelector<HTMLButtonElement>("[data-width-auto]")!.disabled).toBe(true);
-  expect(dlg().querySelector(".mz-dlg-width")!.textContent).toBe("自動");
+  dlg().querySelector<HTMLElement>("[data-cancel]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  // 内包する箱では「箱の幅に合わせる」
+  g.load({ nodes: [{ id: 1, caption: "枠", body: "本文", bodyWidth: 170, x: 40, y: 40 }, { id: 2, parent: 1, caption: "子", x: 200, y: 30 }] });
+  g.select(1);
+  open();
+  expect(dlg().querySelector("[data-width-auto]")!.textContent).toBe("箱の幅に合わせる");
+  expect(dlg().querySelector<HTMLButtonElement>("[data-width-auto]")!.disabled).toBe(false);
 });
 
 // ---- 箱のサイズと幅の決まり（docs/SIZE-plan.md）----

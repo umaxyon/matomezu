@@ -71,6 +71,11 @@ export function openEditDialog(graph: Graph, id: string): void {
   const b = info as BoxInfo;
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   const off = b.canBody ? "" : " disabled";
+  // 本文の幅をつまみで変えていれば、元に戻すボタンを押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
+  // 子の無い箱では箱の幅が中身（キャプションと本文）に合わせて決まり直す
+  const group = b.children.length > 0 && (b.childView === "nest" || b.childView === "list");
+  const fitLabel = group ? "箱の幅に合わせる" : "中身に合わせる";
+  const fitHelp = group ? "つまみで狭めた本文を、箱の幅いっぱいに戻します" : "つまみで変えた幅をやめて、キャプションと本文に合わせた幅に戻します";
   const overlay = show("ボックスの編集", `
       <label class="mz-dlg-field"><span>キャプション</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
@@ -84,8 +89,8 @@ export function openEditDialog(graph: Graph, id: string): void {
         </select>
         <span class="mz-dlg-hint">超えた分は … で切ります</span></label>
       <div class="mz-dlg-row"><span>本文の幅</span>
-        <span class="mz-dlg-width">${b.bodyWidth ? `${b.bodyWidth}px（つまみで変えた幅）` : "自動"}</span>
-        <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>自動に戻す</button>
+        <button type="button" class="mz-dlg-btn" data-width-auto title="${fitHelp}"${b.bodyWidth && b.canBody ? "" : " disabled"}>${fitLabel}</button>
+        <span class="mz-dlg-hint">つまみで幅を変えたときに押せます</span>
         <input type="hidden" name="width-auto" value=""></div>
       <label class="mz-dlg-check"><input type="checkbox" name="rule"${b.bodyRule ? " checked" : ""}${off}>キャプションと本文の間に線を引く</label>`,
   overlay => {
@@ -101,11 +106,12 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (b.bodyWidth && field<HTMLInputElement>("width-auto").value) patch.bodyWidth = null;
     if (Object.keys(patch).length) graph.update(id, patch);
   });
-  // 「自動に戻す」は確定したときに書く（押したら表示だけ自動にする）
+  // 「箱の幅に合わせる」「中身に合わせる」は確定したときに書く（押したらボタンを押せなくして、押したことを示す）
   overlay.querySelector<HTMLElement>("[data-width-auto]")!.addEventListener("click", e => {
     overlay.querySelector<HTMLInputElement>('[name="width-auto"]')!.value = "1";
-    overlay.querySelector(".mz-dlg-width")!.textContent = "自動（確定で戻します）";
-    (e.currentTarget as HTMLButtonElement).disabled = true;
+    const button = e.currentTarget as HTMLButtonElement;
+    button.disabled = true;
+    button.nextElementSibling!.textContent = "確定すると合わせます";
   });
   // 選んでいる行数は値で決める（option の selected だけに頼らない）
   overlay.querySelector<HTMLSelectElement>('[name="lines"]')!.value = b.bodyLines ? String(b.bodyLines) : "";

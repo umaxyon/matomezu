@@ -1091,7 +1091,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     bodyEl.hidden = true;
     const gripEl = document.createElement("div");
     gripEl.className = "mz-body-grip";
-    gripEl.title = "ドラッグで本文の幅を変える（ダブルクリックで自動に戻す）";
+    gripEl.title = "ドラッグで本文の幅を変える（ダブルクリックで元に戻す）";
     gripEl.hidden = true;
     head.append(shapeSvg, textEl, bodyEl, gripEl, moreEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
