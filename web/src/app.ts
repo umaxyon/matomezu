@@ -69,6 +69,7 @@ interface Book {
 }
 
 const HOVER_SWITCH = 500; // 付け替えのドラッグで、タブの上にこれだけ止めたらページを切り替える（ミリ秒）
+const BOOK_DRAG_START = 5; // ブックのタブをこれだけ横に動かしたら、並びの入れ替えのドラッグにする（px。それまではクリック）
 const EMPTY_HINT = t("開いている図がありません。LLM に matomezu open で開くよう頼んでください");
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
@@ -160,8 +161,38 @@ export async function startApp(ui: AppUi) {
       x.textContent = "×";
       x.addEventListener("click", e => { e.stopPropagation(); closeBook(b); });
       button.append(x);
+      button.addEventListener("pointerdown", e => dragBook(b, e));
     }
     return tab;
+  }
+
+  // ブックのタブ（先頭のタブ）をドラッグして、ブックの並びを入れ替える。ページのタブの順番は変えない（2026-10-11 ユーザー）。
+  // 動かしている間、ポインタがほかのブックの真ん中を越えたらその前後へ移し、離したら並びを覚える
+  function dragBook(b: Book, e: PointerEvent) {
+    if (e.button !== 0 || (e.target instanceof Element && e.target.closest(".tab-close"))) return;
+    const startX = e.clientX;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      if (!moved && Math.abs(ev.clientX - startX) < BOOK_DRAG_START) return;
+      if (!moved) { moved = true; b.group.classList.add("tab-group-dragging"); }
+      const others = books.filter(x => x !== b);
+      let i = others.findIndex(x => { const r = x.group.getBoundingClientRect(); return ev.clientX < r.left + r.width / 2; });
+      if (i < 0) i = others.length;
+      const before = others[i]?.group ?? null;
+      if (b.group.nextElementSibling !== before) ui.tabs.insertBefore(b.group, before);
+      books.splice(0, books.length, ...others.slice(0, i), b, ...others.slice(i));
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      if (!moved) return;
+      b.group.classList.remove("tab-group-dragging");
+      remember();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
   }
 
   // ページのタブを開く（無ければ作る）。ブックに無いページなら null

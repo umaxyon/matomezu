@@ -30,6 +30,11 @@ export const REMOVED_MIME = "application/x-matomezu-removed";
 // サイドバーの一覧から、ほかのブックの箱を図へドラッグして移植するときのデータの種類（中身は { copy: Subtree, from: ブック名 } の JSON）
 export const COPY_MIME = "application/x-matomezu-copy";
 
+// 箱をドラッグして図の端へ寄せたときのスクロール。端からこれだけの内側（px）に入ったら動き出し、端に近いほど速く、
+// 端を越えたら一番速く（1 コマあたり EDGE_SCROLL_MAX px）。図の外へ箱を運んで、図を広げられるように（残課題 E8）
+const EDGE_SCROLL_ZONE = 48;
+const EDGE_SCROLL_MAX = 24;
+
 export interface InteractionContext {
   container: HTMLElement;
   world: World;
@@ -308,6 +313,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // 箱の移動（選択モード）。n はつかんだ箱（ツリーの子なら、ツリー全体）
   function moveGesture(n: Box, down: PointerEvent): Gesture {
     const sx = down.clientX, sy = down.clientY, ox = n.x, oy = n.y;
+    const sl = container.scrollLeft, st = container.scrollTop; // 動かしている間に図をスクロールした分も、箱を動かす
     let moved = false;
     let started = false;
     let session: DragSession | null = null; // 動かし始めたときの位置の写し
@@ -321,7 +327,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         started = true;
         session ??= D.begin(n);
         // 置けない位置（広がった祖先が親の枠からはみ出す）なら、置ける所で止めて知らせる
-        const reached = session.compute(ox + ev.clientX - sx, oy + ev.clientY - sy);
+        const reached = session.compute(ox + ev.clientX - sx + container.scrollLeft - sl, oy + ev.clientY - sy + container.scrollTop - st);
         const now = session.swapped();
         if (now.length !== swapped.length || now.some(o => !swapped.includes(o))) {
           for (const o of [n, ...now, ...swapped]) fresh.add(o);
@@ -333,9 +339,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
         n.intendedCX = centerX(n);
         render();
+        syncWorld(); // 図の端へ寄せたら、図を広げてその先へスクロールできるようにする
         if (!reached) blocked(n);
+        edgeScroll.follow(ev, () => this.move(ev));
       },
       end() {
+        edgeScroll.stop();
         n.el.classList.remove("mz-dragging");
         unfocus();
         if (!moved || !session) return;
@@ -352,9 +361,45 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         ctx.changed();
         ctx.notifySelect();
       },
-      cancel() {},
+      cancel() { edgeScroll.stop(); },
     };
   }
+
+  // 箱を図の見えている範囲の端（EDGE_SCROLL_ZONE の内側か外）へ寄せている間、その向きへ図をスクロールし続ける。
+  // スクロールするたびに again を呼ぶ（箱をスクロールした分だけ動かし、図を広げる）。ポインタを動かさなくても続く
+  const edgeScroll = (() => {
+    let frame = 0;
+    let last: { x: number; y: number; again: () => void } | null = null;
+    const speed = (p: number, lo: number, hi: number) => {
+      if (p > hi - EDGE_SCROLL_ZONE) return Math.min(1, (p - (hi - EDGE_SCROLL_ZONE)) / EDGE_SCROLL_ZONE) * EDGE_SCROLL_MAX;
+      if (p < lo + EDGE_SCROLL_ZONE) return -Math.min(1, (lo + EDGE_SCROLL_ZONE - p) / EDGE_SCROLL_ZONE) * EDGE_SCROLL_MAX;
+      return 0;
+    };
+    const tick = () => {
+      frame = 0;
+      if (!last) return;
+      const c = container.getBoundingClientRect();
+      const left = c.left + container.clientLeft, top = c.top + container.clientTop;
+      const dx = speed(last.x, left, left + container.clientWidth), dy = speed(last.y, top, top + container.clientHeight);
+      if (!dx && !dy) return;
+      const before = [container.scrollLeft, container.scrollTop];
+      container.scrollLeft += dx;
+      container.scrollTop += dy;
+      if (container.scrollLeft === before[0] && container.scrollTop === before[1]) return; // もう進めない（上や左の端）
+      last.again();
+    };
+    return {
+      follow(ev: PointerEvent, again: () => void) {
+        last = { x: ev.clientX, y: ev.clientY, again };
+        if (!frame) frame = requestAnimationFrame(tick);
+      },
+      stop() {
+        last = null;
+        if (frame) cancelAnimationFrame(frame);
+        frame = 0;
+      },
+    };
+  })();
 
   // 付け替えはページ全体で受け取っているので、ここでは扱わない。遊びを越えるまでは move を呼ばない
   function onPointerMove(e: PointerEvent) {

@@ -231,3 +231,21 @@ test("図の題名（world.title）があればタブの見出しに出し、ポ
   run("open", "-no-browser", "c.json");
   await tab.locator(".tab-close").click();
 });
+
+test("ブックのタブをドラッグすると、ブックの並びが入れ替わり、開き直しても覚えている", async ({ page }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  run("open", "-no-browser", "b.json");
+  const books = page.locator(".tab-book .tab-name");
+  await expect(books).toHaveText(["a.json", "b.json"]);
+  const from = (await page.locator(".tab-book", { hasText: "b.json" }).boundingBox())!;
+  const to = (await page.locator(".tab-book", { hasText: "a.json" }).boundingBox())!;
+  await page.mouse.move(from.x + 10, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect(books).toHaveText(["b.json", "a.json"]);
+  await page.reload();
+  await expect(books).toHaveText(["b.json", "a.json"]);
+  await page.locator(".tab-book", { hasText: "b.json" }).locator(".tab-close").click();
+});

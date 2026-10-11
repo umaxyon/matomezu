@@ -1,13 +1,15 @@
 // ヘッダーのツールバー: Undo / Redo（と選んだ線の Delete キー）と、ツールのモード（選択 / 親子の付け替え / 追加 / 削除）の切り替え
 
 import type { Graph, Mode } from "./graph";
+import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { t } from "./i18n";
 
 // 入力欄の中か（キー操作を文字入力に譲る）
 const typing = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.matches("input, textarea, select") || t.isContentEditable);
 
-// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）と、選んだ線を消す Delete キー（Mac の delete は Backspace）。
+// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）と、選んだ線を消す Delete キー（Mac の delete は Backspace）、
+// 選んだ箱か線の編集ダイアログを開く Enter キー（ダブルクリックと同じ）。
 // 登録を外す関数を返す（ページ全体のキー操作に登録するので、図を作り直すときに外せるように）
 export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: HTMLButtonElement): () => void {
   const listening = new AbortController();
@@ -20,6 +22,16 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
       if (!edge || typing(e.target) || graph.dragging() || graph.preview() != null) return;
       e.preventDefault();
       graph.removeEdge(edge);
+      return;
+    }
+    if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.isComposing) {
+      // ボタンの上の Enter はボタンを押す。ダイアログが開いていればダイアログの Enter
+      if (typing(e.target) || (e.target instanceof Element && e.target.closest("button, a, .mz-dlg-overlay"))) return;
+      if (document.querySelector(".mz-dlg-overlay") || graph.mode() !== "move" || graph.preview() != null || graph.dragging()) return;
+      const edge = graph.selectedEdge(), box = graph.selected();
+      if (!edge && !box) return;
+      e.preventDefault();
+      if (edge) openEdgeEditDialog(graph, edge); else openEditDialog(graph, box!);
       return;
     }
     if (!(e.ctrlKey || e.metaKey) || e.altKey || graph.dragging()) return;
