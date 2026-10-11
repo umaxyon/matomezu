@@ -181,7 +181,11 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
     if (pending) {
       const r = pending;
       pending = null;
+      // 最初のデータを出しても、待っている間に知らされた新しい版は忘れない（apply は remote を出した版にするので戻す）。
+      // 忘れると、裏のタブのファイルが変わってから前に出したとき、古いデータのまま読み直さなかった（2026-10-11）
+      const latest = remote;
       apply(r, false);
+      if (latest !== r.version) remote = latest;
     } else {
       report();
     }

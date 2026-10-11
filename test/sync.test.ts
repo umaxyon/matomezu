@@ -242,3 +242,16 @@ test("最初から見ていなければ、前に出るまで読み込まない",
   sync.setActive(true);
   expect(graph.toJSON().nodes.length).toBe(2);
 });
+
+test("一度も前に出ていないあいだに外部で変わったら、前に出たとき最初のデータではなく新しい版を出す", async () => {
+  // 画面を読み込んだあと裏にあったタブ（最初のデータを持ったまま）のファイルが変わり、通知が届いてから前に出る
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const remote = (await fetchRemote(""))!;
+  graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure });
+  sync = startSync(graph, "", remote, { status() {}, error() {}, clearError() {} }, { active: false });
+  external({ nodes: [{ id: 1, caption: "新しい" }] });
+  sync.setActive(true);
+  await wait(20);
+  expect(captions(graph)).toEqual(["新しい"]);
+});

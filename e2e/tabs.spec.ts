@@ -88,6 +88,21 @@ test("サーバーを止めて別の図だけ open し直しても、前に開�
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"], { timeout: 10_000 });
 });
 
+test("読み直したあと一度も前に出していないタブの図が外部で変わったら、前に出したとき新しい内容を出す", async ({ page }) => {
+  writeFileSync(join(dir, "c.json"), JSON.stringify({ nodes: [{ id: 1, caption: "前の内容", x: 40, y: 40 }] }));
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  run("open", "-no-browser", "c.json");
+  await page.locator(".tab", { hasText: "a.json" }).click();
+  await page.waitForTimeout(5500); // open の知らせを送り直す時間（hub.go の showReplay）を過ぎてから読み直す
+  await page.reload(); // c は読み直したあと一度も前に出ていない（最初のデータを持ったまま待つ）
+  await expect(selected(page)).toHaveText("a.json");
+  writeFileSync(join(dir, "c.json"), JSON.stringify({ nodes: [{ id: 1, caption: "新しい内容", x: 40, y: 40 }] }));
+  await page.waitForTimeout(1000); // サーバーが変更を見つけて知らせるまで
+  await page.locator(".tab", { hasText: "c.json" }).click();
+  await expect(page.locator(".stage:visible .mz-head", { hasText: "新しい内容" })).toHaveCount(1);
+});
+
 // ページ（docs/TABS-plan.md の段階 4）。1 はページの箱で、中に 3 と 4
 const paged = {
   nodes: [
