@@ -141,7 +141,7 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 // 戦略ごとの決まりは STRATEGIES の 1 行にまとめ、判定（arrangeOf・placedBy・abilitiesOf など）はここから引く。
 // 戦略を足すときは、ここに 1 行と、layout/node-kinds.ts の並べ方（大きさと子の置き方）を足す。
 // 破ってはいけない決まりは CLAUDE.md の「並べ方の戦略」
-// 非表示（hidden）は戦略ではなく折りたたみの状態だが、データでは childView に入っているので、ここでは 1 行として扱う（6 章の C で分ける）
+// 非表示（hidden）は「子を描かずに ▼ だけを出す戦略」（折りたたみの項目には分けない。2026-10-11 ユーザー）
 
 export interface Strategy {
   framed: boolean;      // 子を枠の中に入れ、見出しを付けて見せる（内包・リスト）。自分の形とサイズは使わない（大きさは子の並びで決まる）
