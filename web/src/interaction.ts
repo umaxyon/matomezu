@@ -9,7 +9,7 @@ import type { Layout } from "./layout/layout";
 import { CLASS_HEAD, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
 import {
-  type Box, type Edge, type World, abilitiesOf, absPos, isInside, leafLike, strategyOf,
+  type Box, type Edge, type World, abilitiesOf, absPos, acceptsKid, isInside, leafLike, strategyOf,
 } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
@@ -709,10 +709,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       if (!head) continue;
       const b = boxOf(head);
       if (!b) continue;
-      if (!abilitiesOf(b).dropInto) return undefined; // ページの箱とクラスの箱（docs/CLASS-plan.md）の中へは落とせない
+      if (!abilitiesOf(b).dropInto) return undefined; // ページの箱とクラスの箱（docs/CLASS-plan.md）、フローチャートの要素の中へは落とせない
+      if (moving && !acceptsKid(b, moving.children.length > 0)) return undefined; // 子を持つ箱は、子が子を持てない戦略の中へ落とせない
       return moving && isInside(b, moving) ? undefined : b;
     }
-    return null;
+    // 図（ワールド）へ落とす。ワールドがフローチャートなら、子を持つ箱は落とせない
+    return moving && !acceptsKid(world, moving.children.length > 0) ? undefined : null;
   }
 
   function markTarget(t: Box | null | undefined) {

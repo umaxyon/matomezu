@@ -190,6 +190,21 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-leaf.mz-shape-diamond { padding: 0; background: transparent; overflow: visible; } /* 影を本体の四角で切らない */
 .mz-shape-diamond > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .mz-shape-diamond > .mz-text { position: relative; max-width: 50%; }
+/* 円・角丸・六角形・平行四辺形・台形（docs/PATTERN-plan.md の 3.7 章）: 輪郭は SVG で描く（render.ts の renderOutline）。
+   円の文字は内側に収まる四角（直径の 1/√2）の中で折り返す（node-kinds.ts の円）。角丸は両端の半円の分、斜めの辺を持つ形は
+   斜めの辺の食い込み（model.ts の slantOf。M・L は 14px、S は 10px）の分を、文字の左右の余白に足す */
+.mz-leaf.mz-shape-circle, .mz-leaf.mz-shape-stadium, .mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt {
+  background: transparent; overflow: visible; border-radius: 0;
+}
+.mz-leaf.mz-shape-circle { padding: 0; }
+.mz-leaf.mz-shape-stadium { padding-inline: calc(var(--mz-pad-x, 8px) + 12px); }
+.mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt { padding-inline: calc(var(--mz-pad-x, 8px) + 14px); }
+.mz-leaf.mz-size-S.mz-shape-hexagon, .mz-leaf.mz-size-S.mz-shape-parallelogram, .mz-leaf.mz-size-S.mz-shape-parallelogramAlt, .mz-leaf.mz-size-S.mz-shape-trapezoid, .mz-leaf.mz-size-S.mz-shape-trapezoidAlt { padding-inline: 16px; }
+.mz-shape-circle > .mz-shape, .mz-shape-stadium > .mz-shape, .mz-shape-hexagon > .mz-shape, .mz-shape-parallelogram > .mz-shape, .mz-shape-parallelogramAlt > .mz-shape, .mz-shape-trapezoid > .mz-shape, .mz-shape-trapezoidAlt > .mz-shape {
+  display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+}
+.mz-shape-circle > .mz-text, .mz-shape-stadium > .mz-text, .mz-shape-hexagon > .mz-text, .mz-shape-parallelogram > .mz-text, .mz-shape-parallelogramAlt > .mz-text, .mz-shape-trapezoid > .mz-text, .mz-shape-trapezoidAlt > .mz-text { position: relative; }
+.mz-shape-circle > .mz-text { max-width: 70%; }
 /* ページの箱（タブ付きの見出し）。上の余白は耳の分（render.ts の renderPage と合わせる） */
 .mz-leaf.mz-shape-page { padding-top: 13px; background: transparent; }
 .mz-leaf.mz-size-S.mz-shape-page { padding-top: 8px; }

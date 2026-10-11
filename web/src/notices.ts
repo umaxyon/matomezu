@@ -9,6 +9,8 @@ export type GraphEvent =
   | { kind: "moved"; into: string | null; page: string | null; cutEdges: number }
   // ページの箱を、ページの中へは移せない
   | { kind: "pageInPage" }
+  // 子を持つ箱を、子が子を持てない戦略（フローチャート）の中へ入れようとした（入れなかった）
+  | { kind: "leafKids" }
   // 子孫ごと消した
   | { kind: "removed"; key: string; kids: number; cutEdges: number }
   // 消したボックスを戻した。byDrag はサイドバーの一覧からドラッグして戻したか
@@ -41,6 +43,8 @@ export function noticeOf(ev: GraphEvent): string {
     }
     case "pageInPage":
       return t("ページの中には、ページの箱を入れられません");
+    case "leafKids":
+      return t("フローチャートの中の箱は子を持てないので、子を持つ箱は入れられません");
     case "removed": {
       const parts = list([kids(ev.kids), lines(ev.cutEdges)]);
       return t("「{key}」を消しました", { key: ev.key }) + (parts ? t("（{list}も）", { list: parts }) : "");

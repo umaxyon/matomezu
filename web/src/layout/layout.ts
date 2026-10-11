@@ -17,8 +17,10 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, descendants, inNest, isIconShape, other, setSpec, shapeOf, sizeOf,
+  ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, setSpec, shapeOf, sizeOf,
 } from "../model";
+import { alignFlow } from "./flow-align";
+import type { Size } from "../types";
 import type { TextMeasurer } from "./measure";
 import { BODY_GAP, createNodeKinds } from "./node-kinds";
 import { type Scene, createAnchorRules } from "./policy";
@@ -49,6 +51,10 @@ export interface LayoutContext {
 }
 
 export type Layout = ReturnType<typeof createLayout>;
+
+// フローチャートを整列するときの、列の間と段の間（線のキャプション Yes / No が入るくらい）。中の箱のサイズ（kidSize）で変える
+// （2026-10-12 ユーザー。触ってから調整する仮の値）
+const FLOW_GAPS: Record<Size, { x: number; y: number }> = { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } };
 
 export function createLayout(ctx: LayoutContext) {
   const { opt, world, worldEl, container } = ctx;
@@ -272,6 +278,8 @@ export function createLayout(ctx: LayoutContext) {
   function settleNode(n: Box, keep?: Set<Box>) {
     n.children.forEach(c => settleNode(c, keep));
     if (kindOf(n).holdsChildren) {
+      n.children.forEach(keepCenter);
+      if (unplacedAligned(n)) alignKids(n);
       n.children.forEach(c => fitToRow(c));
       placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)));
     }
@@ -330,6 +338,41 @@ export function createLayout(ctx: LayoutContext) {
     }
   }
 
+  // 大きさを変える前に覚えた横の中心（settle の間だけ）。測り直した箱を、その中心に戻す
+  let centers = new Map<Box, number>();
+  function keepCenter(b: Box) {
+    const c = centers.get(b);
+    if (c == null) return;
+    const a = anchorRect(b);
+    b.x = c - a.x - a.w / 2;
+  }
+
+  // 決まった並べ方で子を置く戦略（フローチャート）で、子のどれにも位置が無いか（LLM が位置を書かずに書き出したとき）
+  const unplacedAligned = (c: Container) => kidStrategyOf(c).autoAlign && c.children.length > 0 && c.children.every(k => !k.hasPos);
+
+  // 入れ物 c の子を、決まった並べ方で置き直す（layout/flow-align.ts。本筋を中央の縦の線にそろえる）。
+  // ワールドなら画面の幅の真ん中、箱なら箱の中の左の余白から。位置を覚えた子は、そこが本来いたい位置になる
+  function alignKids(c: Container) {
+    const kids = c.children;
+    const inside = new Set(kids);
+    const pos = alignFlow(
+      kids.map(k => ({ id: k.id, w: k.w, h: k.h, start: shapeOf(k) === "stadium" || shapeOf(k) === "circle" })),
+      edges().filter(e => inside.has(e.a) && inside.has(e.b)).map(e => ({ from: e.a.id, to: e.b.id })),
+      { centerX: 0, top: innerArea(c).top + (c.isWorld ? opt.gap : 0), gapX: FLOW_GAPS[kidSizeOf(c) ?? "M"].x, gapY: FLOW_GAPS[kidSizeOf(c) ?? "M"].y },
+    );
+    const minX = Math.min(...kids.map(k => pos.get(k.id)!.x));
+    const left = innerArea(c).left;
+    // 本筋の中心は x = 0。ワールドは画面の幅の真ん中へ（はみ出すなら左の余白から）、箱の中は左の余白から
+    const dx = c.isWorld ? Math.max(left - minX, viewport().w / 2) : left - minX;
+    for (const k of kids) {
+      const p = pos.get(k.id)!;
+      k.x = p.x + dx;
+      k.y = p.y;
+      k.hasPos = true;
+      k.intendedY = k.y;
+    }
+  }
+
   // 位置の無い最上位のボックスを円形に並べる（開いたときと、外部の変更で増えたとき）
   function placeAutoRoots() {
     const auto = roots().filter(n => !n.hasPos);
@@ -349,6 +392,12 @@ export function createLayout(ctx: LayoutContext) {
     const keepAt = anchored && anchors[anchored.parent ? scene.anchor!.inGroup : scene.anchor!.topLevel](anchored);
     let wantY = anchored?.y ?? 0; // 自分の設定を変えたとき、保とうとした高さ（押し戻しやずれの前）
     apply?.();
+    // 中心をそろえて並べる戦略（フローチャート）の子は、大きさが変わっても横の中心を保つ（テーマやサイズを変えると幅が変わり、
+    // 左上を保つと中心がずれて線が折れるため。2026-10-12 ユーザー）。測り直したあとで、覚えた中心に戻す（keepCenter）。
+    // 覚えるのは変更を当てたあと（設定の変更はまだ測り直していないので前の大きさの中心。整列のような位置の変更は、その位置の中心）
+    centers = new Map(roots().flatMap(r => [r, ...descendants(r)])
+      .filter(b => b.hasPos && b.w > 0 && inNest(b) && kidStrategyOf(containerOf(b)).keepCenters)
+      .map(b => [b, centerX(b)]));
     if (anchored && keepAt) {
       settleNode(anchored);
       const want = keepAt.x(anchored);
@@ -361,8 +410,11 @@ export function createLayout(ctx: LayoutContext) {
     // 変えた節点と祖先はその場に残し、ぶつかる相手の方を動かす（others）。later なら後から置くものが動く
     const keep = changed && scene.yieldTo === "others" ? new Set([changed, ...ancestors(changed)]) : undefined;
     roots().forEach(r => settleNode(r, keep));
+    roots().forEach(keepCenter);
+    centers = new Map();
     roots().forEach(r => fitToRow(r));
     syncWorld();
+    if (unplacedAligned(world)) alignKids(world);
     placeAutoRoots();
     settleRoots(keep ? (ancestors(changed!).pop() ?? changed) : undefined);
     syncWorld();
@@ -494,7 +546,7 @@ export function createLayout(ctx: LayoutContext) {
     kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
-    settle, fitToViewport, viewport,
+    settle, fitToViewport, viewport, alignKids,
     sizable, alignChildren,
   };
 }

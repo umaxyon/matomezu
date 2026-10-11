@@ -4,9 +4,10 @@ import type { ClassAttr, ClassOp } from "./classbox";
 import type { Head } from "./heads";
 
 export type Size = "L" | "M" | "S";
-export type ChildView = "nest" | "tree" | "hidden" | "list";
+export type ChildView = "nest" | "tree" | "hidden" | "list" | "flow";
 export type Overflow = "wrap" | "grow" | "clip";
-export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class";
+export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class" | "circle" | "stadium" | "hexagon"
+  | "parallelogram" | "parallelogramAlt" | "trapezoid" | "trapezoidAlt";
 export type TreeDirection = "down" | "up" | "left" | "right";
 export type Id = number | string;
 
@@ -17,6 +18,8 @@ export interface WorldData {
   background?: string; // 背景色。省略すると背景なし
   route?: Route;       // 線の通り方の既定（無ければ直線）
   theme?: string;      // テーマ（theme.ts）。ページの world に書けばそのページ。無ければ default（ページはブック全体の world のテーマ）
+  kidSize?: Size;        // 中の箱のサイズ（一括で変えたサイズ。整列の間隔と、道具入れから足す箱のサイズに使う。フローチャートのとき）
+  childView?: ChildView; // 最上位の箱の並べ方（ワールドに掛けられる戦略だけ: nest / flow。docs/PATTERN-plan.md の 3.7 章）
   title?: string;      // 図（ブック）の題名。タブの見出しに使う（無ければファイル名）。ブック全体の world だけ（ページの world には書かない）
   [key: string]: unknown;
 }
@@ -39,6 +42,7 @@ export interface BoxData {
   theme?: string;      // テーマ（theme.ts）。この箱と子孫に効く。無ければ親を受け継ぐ
   size?: Size;
   shape?: Shape;
+  kidSize?: Size;      // 中の箱のサイズ（一括で変えたサイズ。整列の間隔と、道具入れから足す箱のサイズに使う。フローチャートのとき）
   childView?: ChildView;
   treeDirection?: TreeDirection; // ツリーで子を置く向き（既定は down）
   fill?: boolean;
@@ -110,6 +114,12 @@ export interface WorldInfo {
   themeUsed: string;     // 効いているテーマ（ページなら、ブック全体のテーマを受け継ぐ）
   route: Route; // 線の通り方の既定
   title: string | null; // 図（ブック）の題名（どのページを見ていても、ブック全体の world のもの）
+  childView: ChildView;  // 最上位の箱の並べ方
+  views: ChildView[];    // ワールドに掛けられる見せ方
+  viewsOff: ChildView[]; // 選べない見せ方（子を持つ箱が最上位にあれば、フローチャートは選べない）
+  tools: { id: string | null; shapes: Shape[]; size: Size } | null; // 道具入れ（ワールドなら id は null。図の左上に出す）。size は足す箱のサイズ
+  canAlign: boolean;     // 自動で整列できるか（決まった並べ方を持つ戦略で、子がある）
+  kidSize: Size | null;  // 中の箱のサイズ（一括で変えたもの。無ければ null）。canAlign のときだけ選べる
 }
 
 export interface BoxInfo {
@@ -139,6 +149,11 @@ export interface BoxInfo {
   treeDirection: TreeDirection;
   framed: boolean; // 子を枠の中に入れて見せる箱か（内包・リスト。サイズは使わず、大きさは子の並びで決まる）
   canFlatten: boolean; // 線で描き直せるか（子孫全体に効く戦略（ツリー）にした一番外の箱。docs/PATTERN-plan.md の 3.6 章）
+  viewsOff: ChildView[]; // 選べない子の見せ方（子を持つ子があれば、子が子を持てないフローチャートは選べない）
+  canAlign: boolean; // 自動で整列できるか（決まった並べ方を持つ戦略（フローチャート）で、子がある）
+  kidSize: Size | null; // 中の箱のサイズ（一括で変えたもの。無ければ null）。canAlign のときだけ選べる
+  shapes: Shape[]; // 選べる形（フローチャートの形は、フローチャートの子のときだけ。docs/PATTERN-plan.md の 3.7 章）
+  tools: { id: string | null; shapes: Shape[]; size: Size } | null; // 道具入れを出す箱（自分か親。ワールドなら null）と、足せる形、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（子孫の見せ方はツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md の 3.6 章）
   parent: Brief | null;
   x: number;
@@ -184,6 +199,7 @@ export interface EdgeInfo {
   endsMoved: boolean;   // 線の端の位置（exitAt / enterAt）を動かしてあるか
   aligned: boolean;     // 整列しても変わらないか（両端が辺の真ん中か、まっすぐ結ぶ位置にあり、手で直した区間も無い）
   arrangement: Arrangement; // 2 つの箱の並び（横か縦に並ぶときは、始点と終点の向きをそろえないと素直に引けない）
+  captionHints: string[]; // キャプションの候補（フローチャートのひし形から出る線なら Yes / No。docs/PATTERN-plan.md の 3.7 章）
 }
 
 // ボックスかワールドの情報（graph.info が返す）。onSelect には線を選んだときの EdgeInfo も届く

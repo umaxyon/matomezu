@@ -29,4 +29,7 @@ export default {
   "ワールドはクラスにできません": "The diagram can't be a class",
   // 線の端の形
   "{k} の値が不正です: {v}": "Invalid {k}: {v}",
+  "フローチャートの中の箱は子を持てません": "A box in a flowchart can't have children",
+  "子を持つ子があるので、子が子を持てない見せ方（フローチャート）にはできません: {id}": "Some children have children, so this box can't use a view whose children can't have children (flowchart): {id}",
+  "ワールドに使える子の見せ方は、内包かフローチャートです: {v}": "The diagram can only use the nested or flowchart view: {v}",
 } satisfies Record<string, string>;

@@ -345,6 +345,53 @@ function toward(r: Rect, vertex: boolean | undefined, v: Pt, arr: string): Pt {
 // 端の条件。side が決まっていればその辺から（null は自由）、at が決まっていれば辺の上のその割合（null は自動）
 interface EndSpec { side: Side | null; at: number | null }
 
+// 端 end（始点 exit か終点 enter）を、sides のどれかの辺から出入りさせる折れ線のうち、折れ目の一番少ない形（同じなら短い方）。
+// もう片方の端の条件はそのまま。引けなければ null（直線や、重なった箱どうしも null）。
+// フローチャートで、ほかの線と同じ位置につながる線を、空いている辺へ逃がすときに使う（render.ts。docs/PATTERN-plan.md の 3.7 章）
+export function routeOnSides(r: RouteInput, end: "exit" | "enter", sides: Side[]): Route | null {
+  const arrangement = arrangementOf(r.a, r.b);
+  if (!r.elbow || arrangement === "overlap") return null;
+  const fixed = fixedPlaces(r);
+  const hard = (f: EndPlace | null, vertex: boolean | undefined): EndSpec => f ?? { side: null, at: vertex ? 0.5 : null };
+  const ha = hard(fixed.a, r.aVertex), hb = hard(fixed.b, r.bVertex);
+  let best: Route | null = null;
+  for (const side of sides) {
+    const spec: EndSpec = { side, at: (end === "exit" ? r.aVertex : r.bVertex) ? 0.5 : null };
+    const sa = end === "exit" ? spec : ha, sb = end === "enter" ? spec : hb;
+    // 自動の形が条件を満たしても、折れ目のもっと少ない形があればそちらにする（fit は自動の形を先に使うため、候補とも比べる）
+    const ok = (pts: Pt[]) => (!sa.side || endSide(r.a, pts, false) === sa.side) && (!sb.side || endSide(r.b, pts, true) === sb.side);
+    const fewest = pickCandidate(candidatesWith(r, { exitAt: sa.at, enterAt: sb.at },
+      sa.side ? axisOfSide(sa.side) : null, sb.side ? axisOfSide(sb.side) : null, MAX_BENDS).filter(c => ok(c.points)));
+    for (const out of [fit(r, arrangement, sa, sb, MAX_BENDS, r.obstacles), fewest && drawn(r, arrangement, fewest.shape, fewest.points)]) {
+      if (!out) continue;
+      if (!best || out.bends < best.bends || (out.bends === best.bends && lengthOf(out.points) < lengthOf(best.points) - 0.5)) best = out;
+    }
+  }
+  return best;
+}
+
+// 折れ目の一番少ない折れ線（同じなら短い方。両端の固定の位置は守る）。いつもの自動の形（route）より折れ目が少なければそれ、
+// 同じか多ければ自動の形のまま（null なら route を使う）。手で直した via がある線、直線、重なった箱どうしは null。フローチャートの線に使う（render.ts）
+export function fewestRoute(r: RouteInput): Route | null {
+  if (!r.elbow || r.via || arrangementOf(r.a, r.b) === "overlap") return null;
+  const base = route(r);
+  const best = pickCandidate(routeCandidates(r));
+  if (!best || best.bends >= base.bends) return base;
+  const out = drawn(r, base.arrangement, best.shape, best.points);
+  out.fix = base.fix;
+  return out;
+}
+
+// 線の端が、箱 r のどの辺にあるか（端の点 p が辺の上になければ null）
+export function sideAt(r: Rect, p: Pt): Side | null {
+  const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
+  if (near(p[1], r.y)) return "t";
+  if (near(p[1], r.y + r.h)) return "b";
+  if (near(p[0], r.x)) return "l";
+  if (near(p[0], r.x + r.w)) return "r";
+  return null;
+}
+
 function elbowRoute(r: RouteInput, arrangement: Arrangement, fix: RouteFix): Route {
   const { a, b } = r;
   const fixed = fixedPlaces(r);
@@ -428,7 +475,9 @@ function autoRoute(r: RouteInput, arrangement: Arrangement, sa: EndSpec, sb: End
     const across: Axis = arrangement === "side" ? "vertical" : "horizontal"; // 並びと交わる向き。これで出入りすると外を回るコの字
     const along = flip(across);
     if (exit === across || enter === across) {
-      if (exit && enter && exit !== enter) {
+      // 片方の端が並びと交わる向きで、もう片方が違う向きか自由なら、折れ目の少ない形（L 字）を先に探す（フローチャートの分岐の左右の頂点から、
+      // 下の箱の上へ入るなど）。両端とも交わる向きなら、外を回るコの字
+      if (exit !== enter) {
         const best = pickCandidate(candidatesWith(r, at, exit, enter, MAX_BENDS, true));
         if (best) return drawn(r, arrangement, best.shape, best.points);
       }

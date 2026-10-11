@@ -5,6 +5,12 @@ import { createGraph, type Graph, type GraphOptions } from "./graph";
 import { createMinimap, type Minimap } from "./minimap";
 import { openAddDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { createPanel, type Panel, type PanelOptions } from "./panel";
+import { createToolbox, type Tool } from "./toolbox";
+import type { Info, Shape, Size } from "./types";
+import { SHAPE_OPTIONS } from "./validate";
+import { SHAPE_ICONS } from "./shape-icons";
+
+const shapeLabel = (s: Shape) => SHAPE_OPTIONS.find(([v]) => v === s)?.[1] ?? s;
 
 export interface DiagramView {
   graph: Graph;
@@ -18,12 +24,29 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   let panel: Panel | null = null;
   const graph = createGraph(stage, data, {
     ...options,
-    onSelect: info => { panel?.show(info); options.onSelect?.(info); },
+    onSelect: info => { panel?.show(info); if (panel) showTools(info); options.onSelect?.(info); },
     // 追加モードで図を押したら、新しい箱の中身を聞くダイアログを開く
     onAddRequest: req => openAddDialog(graph, req),
   });
-  panel = createPanel(sidebar, graph, panelOptions);
   const minimap = createMinimap(stage, graph);
+  // 道具入れを出している入れ物（箱の id。ワールドなら null）。出していなければ undefined。toolSize は足す箱のサイズ
+  let toolHost: string | null | undefined;
+  let toolSize: Size = "M";
+  const hostEl = (id: string | null) => (id == null ? null : stage.querySelector<HTMLElement>(`.mz-node[data-id="${CSS.escape(id)}"]`));
+  const toolbox = createToolbox(stage, (key, at) => {
+    if (toolHost === undefined) return;
+    const el = hostEl(toolHost);
+    if (toolHost != null && !el) return;
+    if (!at) return openAddDialog(graph, { parentId: toolHost }, key as Shape, toolSize);
+    // 離した所が道具入れを出している箱（ワールドなら図）の中なら、そこ（入れ物の中での位置。ポインタの少し左上を新しい箱の左上に）
+    const r = (el ?? stage.querySelector<HTMLElement>(".mz-world")!).getBoundingClientRect();
+    const view = stage.getBoundingClientRect();
+    if (at.x < Math.max(r.left, view.left) || at.x > Math.min(r.right, view.right) || at.y < Math.max(r.top, view.top) || at.y > Math.min(r.bottom, view.bottom)) return;
+    openAddDialog(graph, { parentId: toolHost, at: { x: at.x - r.left - 16, y: at.y - r.top - 12 } }, key as Shape, toolSize);
+  });
+  panel = createPanel(sidebar, graph, panelOptions);
+  graph.onDataChange(() => showTools(graph.info(graph.selected())));
+  graph.onModeChange(() => showTools(graph.info(graph.selected())));
   // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
   stage.addEventListener("pointerdown", e => {
     if (e.target instanceof Element && e.target.closest(".mz-head, .mz-hit") && graph.mode() !== "remove") panel?.tab("info");
@@ -46,4 +69,16 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
     if (node?.dataset.id) openEditDialog(graph, node.dataset.id);
   });
   return { graph, panel, minimap };
+
+  // 道具入れ（docs/PATTERN-plan.md の 3.7 章）: 選んだ箱か、その親が道具を持つ戦略（フローチャート）なら、その箱の脇に出す。
+  // 道具を押すと、その形で新しい箱を足すダイアログを開く（足す所は自動）。図へドラッグして離したら、離した所に足す
+  // ワールド（ページ）がフローチャートなら、図の見えている範囲の左上に出す（2026-10-11 ユーザー）
+  function showTools(info: Info | null) {
+    const host = info && info.kind !== "edge" ? info.tools : null;
+    const el = host ? hostEl(host.id) : null;
+    if (!host || (host.id != null && !el) || graph.mode() !== "move" || graph.preview() != null) { toolbox.hide(); toolHost = undefined; return; }
+    toolHost = host.id;
+    toolSize = host.size;
+    toolbox.show(el, host.shapes.filter(s => SHAPE_ICONS[s]).map((s): Tool => ({ key: s, label: shapeLabel(s), icon: SHAPE_ICONS[s]! })));
+  }
 }

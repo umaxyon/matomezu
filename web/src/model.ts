@@ -10,6 +10,7 @@ const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).inclu
 // n.x, n.y, n.w, n.h は枠（子孫を含めた範囲）、n.hx, n.hy, n.hw, n.hh は枠内の本体（ヘッド）の位置と大きさ
 export interface Box {
   isWorld: false;
+  world: World; // 箱が置かれている図（最上位の箱を並べる戦略は、ワールドの子の見せ方）
   src: BoxData;
   id: string;
   parent: Box | null;
@@ -143,6 +144,9 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 // 破ってはいけない決まりは CLAUDE.md の「並べ方の戦略」
 // 非表示（hidden）は「子を描かずに ▼ だけを出す戦略」（折りたたみの項目には分けない。2026-10-11 ユーザー）
 
+// フローチャートの中だけで使える形（円とひし形はどこでも使える。2026-10-11 ユーザー）
+export const FLOW_SHAPES: readonly Shape[] = ["hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt"];
+
 export interface Strategy {
   framed: boolean;      // 子を枠の中に入れ、見出しを付けて見せる（内包・リスト）。自分の形とサイズは使わない（大きさは子の並びで決まる）
   free: boolean;        // 子を自由に置く（落とした位置に置き、子をドラッグで動かせる）
@@ -150,12 +154,29 @@ export interface Strategy {
   reorder: boolean;     // 並べた子を、兄弟の中で並べ替えられる（並べ替えの差し込みもできる）
   link: boolean;        // 並べた子どうしに線を引ける・〇を出す（自動で並べる戦略では、線を引くと形が崩れる）
   widthGrip: boolean;   // 自分の幅のつまみを出す
+  leafKids: boolean;    // 子は子を持てない（フローチャートの要素。子を持つ箱は入れられず、子の中へも落とせない）
+  kidShapes: readonly Shape[]; // この戦略の子だけが使える形（外へ出すとボックスで見せる。データは残す）
+  tools: readonly Shape[];     // 道具入れ（toolbox.ts）に並べる、子として足せる形。空なら道具入れを出さない
+  branchCaptions: readonly string[]; // 子のひし形（分岐）から出る線のキャプションの候補（線の編集ダイアログに出す）
+  onWorld: boolean;     // ワールド（ページ）にも掛けられる（最上位の箱を並べる。今は内包とフローチャート）
+  splitBranches: boolean; // 子のひし形（分岐）から出る線を、1 つの頂点から 2 本出さないように分けて出す（端を固定した線は除く）
+  autoAlign: boolean;   // 位置の無い子を、決まった並べ方（layout/flow-align.ts）で置く。ユーザーが押す「自動で整列」も出す
+  separateEnds: boolean; // 子に入る線が同じ位置につながるなら、折れ目の多い方を空いている近い辺へ逃がす（render.ts の separateEnds）
+  keepCenters: boolean; // 子の大きさが変わっても横の中心を保つ（中心をそろえた並びを崩さない。layout.ts の keepCenter）
 }
+const PLAIN = { leafKids: false, kidShapes: [], tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false, keepCenters: false } as const;
 export const STRATEGIES: Record<ChildView, Strategy> = {
-  nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false },
-  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false },
-  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true },
-  hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false },
+  nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true },
+  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN },
+  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN },
+  hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN },
+  // フローチャート（docs/PATTERN-plan.md の 3.7 章。2026-10-11 ユーザー）: 内包と同じく子を自由に置き、子はフローチャートの形を使える。
+  // 子は子を持てない
+  flow:   {
+    framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
+    leafKids: true, kidShapes: FLOW_SHAPES, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
+    branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true, keepCenters: true,
+  },
 };
 
 // 箱が、ある戦略の子として並んだときの自分の見せ方。並べる側ではなく、並べられる箱の側の決まり（リストは子の中身に関与しない。
@@ -163,14 +184,16 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
 export interface PlacedLook {
   plainShape: boolean;  // 形を使わず、ボックスで見せる
   sharedSize: boolean;  // 葉の箱の見た目のサイズを、兄弟の葉の箱のうち一番大きいサイズにそろえる。高さは中身に合わせる
-  fullCaption: boolean; // S サイズでもキャプションを切り詰めない
+  fullCaption: boolean; // S サイズでもキャプションを切り詰めない（高さは折り返した文字に合わせる）
 }
 const AS_IS: PlacedLook = { plainShape: false, sharedSize: false, fullCaption: false };
 const LOOKS: Record<ChildView, PlacedLook> = {
   nest: AS_IS, tree: AS_IS, hidden: AS_IS,
+  // フローチャートの子は、S でもキャプションを切り詰めずに折り返す（2026-10-12 ユーザー）
+  flow: { plainShape: false, sharedSize: false, fullCaption: true },
   list: { plainShape: true, sharedSize: true, fullCaption: true },
 };
-export const lookOf = (n: Box): PlacedLook => (n.parent ? LOOKS[placedBy(n)] : AS_IS);
+export const lookOf = (n: Box): PlacedLook => LOOKS[placedBy(n)]; // 最上位はワールドの並べ方（内包なら今のまま）
 
 // ツリーは子孫全体に効く（docs/PATTERN-plan.md の 3.6 章）: ツリーの箱の中では、子孫の見せ方（childView）を全部無視して何段でもツリーに並べる。
 // 混ぜたければ、ツリーを解除して（見せ方を内包に戻して）自分で組む
@@ -195,7 +218,16 @@ export function arrangeOf(n: Box): Arrange {
 export const strategyOf = (n: Box): Strategy | null => (n.children.length ? STRATEGIES[arrangeOf(n) as ChildView] : null);
 // 箱を並べている親の並べ方（最上位はワールドが自由に置くので nest）
 // （親は子を持つので leaf にはならない）
-export const placedBy = (n: Box): ChildView => (n.parent ? (arrangeOf(n.parent) as ChildView) : "nest");
+export const placedBy = (n: Box): ChildView => (n.parent ? (arrangeOf(n.parent) as ChildView) : worldViewOf(n.world));
+// 中の箱のサイズ（フローチャートで一括で変えたもの。無ければ null）
+export const kidSizeOf = (c: Container): Size | null => (isSize(c.src.kidSize) ? c.src.kidSize : null);
+// 子の見せ方の既定（書いていなければ内包）
+export const DEFAULT_VIEW: ChildView = "nest";
+// ワールド（ページ）の子の見せ方。ワールドに掛けられる戦略だけ（無ければ内包）
+export const worldViewOf = (w: World): ChildView => (isView(w.src.childView) && STRATEGIES[w.src.childView].onWorld ? w.src.childView : "nest");
+// 入れ物（箱かワールド）が子を並べる戦略。子の無い箱は、自分の見せ方（子を置けばそれで並ぶ）
+export const kidStrategyOf = (c: Container): Strategy =>
+  STRATEGIES[c.isWorld ? worldViewOf(c) : arrangeOf(c) === "leaf" ? viewOf(c) : arrangeOf(c) as ChildView];
 // 子を自由に置く箱か（落とした位置に置く。子が無くても、置けば自由に置く。ツリーの中の箱は、子を置けばツリーに並ぶ）
 export const placesFreely = (n: Box): boolean => STRATEGIES[viewOf(n)].free && !inTreeOf(n);
 
@@ -218,7 +250,7 @@ export interface Abilities {
   reorder: boolean;   // 兄弟の中で並べ替えられる（リストの子）
   link: boolean;      // 線を引ける・〇を出す（ツリー・リストの子は自動で並ぶので、線を引くと形が崩れる）
   widthGrip: boolean; // 幅のつまみを出す（子を持つリスト）
-  dropInto: boolean;  // 付け替えや追加で、中へ落とせる（ページの箱は中身が別のページ、クラスの箱は子を持てない）
+  dropInto: boolean;  // 付け替えや追加で、中へ落とせる（ページの箱は中身が別のページ、クラスの箱とフローチャートの要素は子を持てない）
 }
 export function abilitiesOf(n: Box): Abilities {
   const by = STRATEGIES[placedBy(n)];
@@ -227,7 +259,7 @@ export function abilitiesOf(n: Box): Abilities {
     reorder: by.reorder && !!n.parent,
     link: !n.parent || by.link,
     widthGrip: !!strategyOf(n)?.widthGrip,
-    dropInto: n.src.page !== true && shapeOf(n) !== "class",
+    dropInto: n.src.page !== true && shapeOf(n) !== "class" && !by.leafKids,
   };
 }
 
@@ -251,8 +283,60 @@ export function treeDirOf(n: Box): TreeDirection {
 }
 // 子を内包しているボックスは枠なので、形は常にボックス
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
-export const shapeOf = (n: Box): Shape =>
-  (!isNesting(n) && !lookOf(n).plainShape && n.src.page !== true && isShape(n.src.shape) ? n.src.shape : "box");
+// 線のキャプションの候補: 始点がひし形（分岐）で、それを並べる戦略が候補を持つとき（フローチャートの Yes / No）
+export const captionHintsOf = (e: Edge): string[] =>
+  (e.a !== e.b && shapeOf(e.a) === "diamond" ? [...STRATEGIES[placedBy(e.a)].branchCaptions] : []);
+// 分岐から出る線の頂点（2026-10-11 ユーザー。フローチャートの戦略）: 1 つの頂点から 2 本出さない（下と右のような組み合わせでもよい）。
+// targets は線ごとの、分岐の中心から相手の中心への向き。avoid は入ってくる線が使う頂点（空いていれば避ける）。
+// 頂点の向きと相手の向きのなす角の合計が一番小さい割り当てを選ぶ（4 本までは全部試す。5 本目からは割り当てない）
+export type Vertex = "t" | "r" | "b" | "l";
+const VERTEX_DIR: Record<Vertex, [number, number]> = { t: [0, -1], r: [1, 0], b: [0, 1], l: [-1, 0] };
+export function splitBranches(targets: [number, number][], avoid: Vertex[] = []): (Vertex | null)[] {
+  const misfit = (v: Vertex, [dx, dy]: [number, number]) => {
+    const [vx, vy] = VERTEX_DIR[v], len = Math.hypot(dx, dy) || 1;
+    return Math.acos(Math.max(-1, Math.min(1, (vx * dx + vy * dy) / len)));
+  };
+  if (targets.length > 4) return targets.map(() => null);
+  const all: Vertex[] = ["b", "r", "l", "t"];
+  const free = all.filter(v => !avoid.includes(v));
+  const pool = free.length >= targets.length ? free : all;
+  let best: Vertex[] = [], bestCost = Infinity;
+  const pick = (i: number, used: Vertex[], cost: number) => {
+    if (cost >= bestCost - 1e-9) return;
+    if (i === targets.length) { best = used; bestCost = cost; return; }
+    for (const v of pool) if (!used.includes(v)) pick(i + 1, [...used, v], cost + misfit(v, targets[i]!));
+  };
+  pick(0, [], 0);
+  return best;
+}
+
+// 戦略の子だけが使える形（フローチャートの六角形など）は、その戦略の子のときだけ使う（外へ出すとボックス。データは残す）
+export const shapeOf = (n: Box): Shape => {
+  if (isNesting(n) || lookOf(n).plainShape || n.src.page === true || !isShape(n.src.shape)) return "box";
+  return shapeAllowed(n.src.shape, n.parent ?? n.world) ? n.src.shape : "box";
+};
+// 入れ物 p（箱かワールド）の子として、形 s を使えるか（どこかの戦略の子だけが使える形なら、p がその戦略で子を並べるときだけ）
+export function shapeAllowed(s: Shape, p: Container): boolean {
+  if (!Object.values(STRATEGIES).some(g => g.kidShapes.includes(s))) return true;
+  return kidStrategyOf(p).kidShapes.includes(s);
+}
+// 入れ物 p の子にできるか（子を持てない戦略の子の中へは入れられず、子を持つ箱は子を持てない戦略の中へ入れられない）
+export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
+  if (!p.isWorld && STRATEGIES[placedBy(p)].leafKids) return false;
+  return !(kidHasKids && kidStrategyOf(p).leafKids);
+}
+// 線で描く形で、線の端を辺の真ん中（頂点）に限るもの。辺の途中は形の外になる（ひし形・円・六角形・平行四辺形・台形）
+export const vertexOnly = (s: Shape): boolean => OUTLINED_SHAPES.includes(s) || s === "diamond";
+// 輪郭を SVG で描く形（render.ts の renderOutline。円・角丸・六角形・平行四辺形・台形）
+export const OUTLINED_SHAPES: readonly Shape[] = ["circle", "stadium", "hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt"];
+// 斜めの辺を持つ形（六角形・平行四辺形・台形）の、斜めの辺が横に食い込む幅（S は小さく）。文字の左右の余白にもこの分を足す
+// （graph-style.ts の .mz-shape-hexagon などの padding-inline と合わせる）
+export const slantOf = (n: Box): number => (sizeOf(n) === "S" ? 10 : 14);
+// 線がつながる範囲を左右に縮める幅（平行四辺形と台形は、左右の辺の真ん中が本体の縁より内側にあるので、そこへつなぐ）
+export const anchorInsetOf = (n: Box): number => {
+  const s = shapeOf(n);
+  return s === "parallelogram" || s === "parallelogramAlt" || s === "trapezoid" || s === "trapezoidAlt" ? slantOf(n) / 2 : 0;
+};
 // 絵の形（スティックマン・DB・サーバー）: 決まった大きさの絵の足元に文字を置く。背景は無い
 export const isIconShape = (s: Shape): boolean => s === "person" || s === "db" || s === "server";
 // ページの箱（中身は別のページ。docs/TABS-plan.md）。最初のページでは子を持たない箱として描く

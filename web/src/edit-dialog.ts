@@ -20,7 +20,8 @@ import type { EdgePatch, Graph } from "./graph";
 import type { AddRequest } from "./interaction";
 import { THEMES } from "./theme";
 import type { BoxData, BoxInfo, Patch, Shape, Size } from "./types";
-import { SHAPE_OPTIONS } from "./validate";
+import { SHAPE_OPTIONS, SHAPE_VARIANTS, shapeFamily } from "./validate";
+import { shapeIcon } from "./shape-icons";
 
 const STYLE_ID = "matomezu-edit-dialog-style";
 const CSS = `/* i18n-ok（CSS のコメントの日本語） */
@@ -94,6 +95,11 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-side select.mz-dlg-input { width: 100%; }
 .mz-dlg-side .mz-dlg-note { margin: 6px 0 0; }
 .mz-dlg-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--dlg-control); }
+.mz-dlg-seg[hidden] { display: none; } /* 形の切り替えは、選んだ形のものだけ出す */
+.mz-dlg-input + .mz-dlg-seg, .mz-dlg-seg[data-shapevar] { margin-top: 6px; } /* 形の選択肢と、その下の切り替えの間 */
+/* 形の切り替えは絵で見せる（名前は読み上げとポインタを乗せたときだけ。shape-icons.ts） */
+.mz-dlg-shape-icon { display: block; width: 20px; height: 20px; margin: 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.mz-dlg-sr, .mzp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .mz-dlg-seg label { flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; font-size: 12px; }
 .mz-dlg-seg input { position: absolute; opacity: 0; pointer-events: none; }
 .mz-dlg-seg label:has(input:checked) { background: var(--dlg-accent); color: #fff; }
@@ -151,7 +157,7 @@ interface BoxValues {
   // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
   abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
 }
-type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops"> & {
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "shapes" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
   sizeFixed: boolean; // 内包・リストの箱（大きさは子の並びで決まり、サイズを使わない）
   kids: number;       // 子の数（クラスにすると消える）
@@ -214,11 +220,15 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const off = b.canBody ? "" : " disabled";
   const sizes: Size[] = ["L", "M", "S"];
   // 選べない形（子を内包している箱は、ボックスとクラスだけ）
+  // 切り替えのある形（円と角丸、平行四辺形と台形の向き）は、選択肢には家族の先頭を出し、下に切り替えを出す
+  const family = shapeFamily(b.shape);
   const shapeOff = new Set(b.canShape ? [] : SHAPE_OPTIONS.map(([v]) => v).filter(v => !(b.canClass && (v === "box" || v === "class"))));
   const side = `<div class="mz-dlg-side">
       <div class="mz-dlg-group"><h3>${t("形")}</h3>
-        <select class="mz-dlg-input" name="shape" aria-label="${t("形")}"${b.canShape || b.canClass ? "" : " disabled"}>${SHAPE_OPTIONS.map(([v, label]) =>
-          `<option value="${v}"${v === b.shape ? " selected" : ""}${shapeOff.has(v) ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
+        <select class="mz-dlg-input" name="shape" aria-label="${t("形")}"${b.canShape || b.canClass ? "" : " disabled"}>${SHAPE_OPTIONS.filter(([v]) => b.shapes.includes(v as Shape) || v === family).map(([v, label]) =>
+          `<option value="${v}"${v === family ? " selected" : ""}${shapeOff.has(v) ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
+        ${Object.entries(SHAPE_VARIANTS).map(([f, vars]) => `<div class="mz-dlg-seg" data-shapevar="${f}"${f === family ? "" : " hidden"}>${vars.map(([v, label]) =>
+          `<label title="${esc(label)}"><input type="radio" name="shapevar-${f}" value="${v}"${v === b.shape || (f !== family && v === vars[0]![0]) ? " checked" : ""}>${shapeIcon(v, "mz-dlg-shape-icon")}<span class="mz-dlg-sr">${esc(label)}</span></label>`).join("")}</div>`).join("")}
         ${b.canShape ? "" : `<p class="mz-dlg-note">${b.canClass ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
       <div class="mz-dlg-group"><h3>${t("サイズ")}</h3>
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
@@ -269,7 +279,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     const linesValue = field<HTMLSelectElement>("lines").value;
     const size = overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value as Size | undefined;
     commit({
-      shape: field<HTMLSelectElement>("shape").value as Shape,
+      shape: pickedShape(),
       size: size ?? b.size,
       theme: field<HTMLSelectElement>("theme").value,
       bodyAllowed: bodyAllowed(),
@@ -308,6 +318,12 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   bodyField.addEventListener("input", () => syncRule(false));
   // 形・サイズと本文の決まり: 形がボックス以外か S のあいだは本文を書けず、本文があるあいだは形と S を選べない
   const shapeField = overlay.querySelector<HTMLSelectElement>('[name="shape"]')!;
+  // 選んだ形（切り替えのある形なら、その切り替えで選んだもの）
+  const pickedShape = (): Shape =>
+    (overlay.querySelector<HTMLInputElement>(`[name="shapevar-${shapeField.value}"]:checked`)?.value ?? shapeField.value) as Shape;
+  shapeField.addEventListener("change", () => {
+    for (const g of overlay.querySelectorAll<HTMLElement>("[data-shapevar]")) g.hidden = g.dataset.shapevar !== shapeField.value;
+  });
   const sizeS = overlay.querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
   const pickedSize = () => overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value ?? b.size;
   const bodyAllowed = () => bodyBase && shapeField.value === "box" && (b.sizeFixed || pickedSize() !== "S");
@@ -431,12 +447,14 @@ export function confirmFlatten(graph: Graph, id: string): void {
     t("描き直す"), () => graph.flattenTree(id));
 }
 
-// 追加モードで押した所 req に、新しい箱を足すダイアログ（docs/ADD-plan.md）。「追加」で足して選択モードに戻る。
+// 追加モードで押した所か道具入れ（toolbox.ts）で選んだ所 req に、新しい箱を足すダイアログ（docs/ADD-plan.md）。「追加」で足して選択モードに戻る。
 // 「キャンセル」なら何もせず、追加モードのまま
-export function openAddDialog(graph: Graph, req: AddRequest): void {
+// shape は最初に選んでおく形（道具入れから足すとき。toolbox.ts）
+// size は最初に選んでおくサイズ（道具入れから足すときは、中の箱のサイズ）
+export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box", size: Size = "M"): void {
   const start: BoxStart = {
     caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
-    shape: "box", size: "M", canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
+    shape, shapes: graph.kidShapes(req.parentId), size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
     abstract: false, attrs: [], ops: [], kids: 0,
   };
   boxDialog(t("ボックスの追加"), t("追加"), start, v => {
@@ -476,6 +494,8 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
   const overlay = show(t("線の編集"), t("確定"), `
       <label class="mz-dlg-field"><span>${t("キャプション")}</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(e.caption ?? "")}" placeholder="${t("なし")}"></label>
+      ${e.captionHints.length ? `<div class="mz-dlg-row mz-dlg-hints"><span>${t("候補")}</span>${e.captionHints.map(h =>
+        `<button type="button" class="mz-dlg-btn" data-hint="${esc(h)}">${esc(h)}</button>`).join("")}</div>` : ""}
       ${e.self ? "" : `<div class="mz-dlg-row"><span>${t("通り方")}</span>${radios("route", e.route, [["elbow", t("折れ線")], ["straight", t("直線")]])}</div>`}
       <div class="mz-dlg-row"><span>${t("線の種類")}</span>${radios("dash", e.dash, [["solid", t("実線")], ["dashed", t("破線")]])}</div>
       <div class="mz-dlg-row"><span>${t("矢印")}</span>
@@ -501,6 +521,14 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
     closeEditDialog();
     graph.removeEdge(id);
   });
+  // キャプションの候補を押すと、キャプションの欄に入れる（確定で書く）
+  for (const b of overlay.querySelectorAll<HTMLElement>("[data-hint]")) {
+    b.addEventListener("click", () => {
+      const input = overlay.querySelector<HTMLInputElement>('[name="caption"]')!;
+      input.value = b.dataset.hint!;
+      input.focus();
+    });
+  }
 }
 
 // ダイアログを出す。fields は項目の HTML、commit は確定したときに項目を読んで書く（変えた項目だけを 1 回の変更として書く。

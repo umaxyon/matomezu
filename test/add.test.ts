@@ -208,7 +208,7 @@ test("箱のダイアログ: 形がボックス以外か S のあいだは本文
   body.value = "本文";
   fire(body, "input");
   const disabledShapes = [...field<HTMLSelectElement>("shape").options].filter(o => o.disabled).map(o => o.value);
-  expect(disabledShapes).toEqual(["person", "db", "diamond", "server", "class"]);
+  expect(disabledShapes).toEqual(["person", "db", "diamond", "server", "class", "circle"]);
   expect(sizeS.disabled).toBe(true);
   // テーマとサイズを変えて確定すると、まとめて 1 件の変更
   dialog().querySelector<HTMLInputElement>('[name="size"][value="L"]')!.checked = true;

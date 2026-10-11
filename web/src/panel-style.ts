@@ -55,7 +55,8 @@ export const PANEL_CSS = /* i18n-ok（CSS のコメントだけ） */ `
 .mzp-dl { display: grid; grid-template-columns: minmax(72px, max-content) 1fr; gap: 4px 8px; margin: 0; }
 .mzp-dl dt { color: var(--mzp-muted); }
 .mzp-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.mzp-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.mzp-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; } /* ボタンの横の ? は、ボタンと上下の真ん中をそろえる */
+.mzp-seg + .mzp-chips, .mzp-chips + .mzp-chips, [data-kid-size-of] + .mzp-chips { margin-top: 8px; } /* 子の見せ方の切り替えと、その下のボタン（自動で整列・線で描き直す）の間 */
 .mzp-chip {
   font: inherit; font-size: 12px; color: inherit; cursor: pointer;
   background: var(--mzp-control); border: 0; border-radius: 4px; padding: 1px 8px;
@@ -89,6 +90,10 @@ export const PANEL_CSS = /* i18n-ok（CSS のコメントだけ） */ `
 }
 .mzp-preset[aria-pressed="true"] { outline: 2px solid var(--mzp-accent); outline-offset: 2px; }
 .mzp-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--mzp-control); }
+.mzp-input + .mzp-shapevar { margin-top: 6px; } /* 形の選択肢と、その下の切り替え（円と角丸、向き）の間 */
+/* 形の切り替えは絵で見せる（名前は読み上げとポインタを乗せたときだけ。shape-icons.ts） */
+.mzp-shape-icon { display: block; width: 20px; height: 20px; margin: 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.mzp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .mzp-seg label { flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; white-space: nowrap; font-size: 12px; }
 .mzp-seg label:hover { background: var(--mzp-control-hover); }
 .mzp-seg input { position: absolute; opacity: 0; pointer-events: none; }

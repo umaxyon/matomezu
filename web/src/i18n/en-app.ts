@@ -87,4 +87,5 @@ export default {
   "（中身の都合で狭められない子があります）": " (some children cannot shrink because of their content)",
   // クラスの箱（docs/CLASS-plan.md）
   "「{key}」をクラスにして、子 {n} 個を消したものの一覧へ移しました": "Made \"{key}\" a class and moved {n} children to the removed list",
+  "フローチャートの中の箱は子を持てないので、子を持つ箱は入れられません": "Boxes in a flowchart cannot have children, so a box with children cannot go in",
 } satisfies Record<string, string>;

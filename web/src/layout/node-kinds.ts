@@ -3,7 +3,7 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inTreeOf, isIconShape, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inTreeOf, isIconShape, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
@@ -11,6 +11,8 @@ import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
 const DIAMOND_TEXT = 0.6; // ひし形の文字を折り返す幅の上限（サイズの最大の幅に対する割合。ひし形はその 2 倍の幅になる）
 const DIAMOND_PAD = 12;   // ひし形の文字と縁の間の余白（内側に収まる四角の、文字のまわり。縦横それぞれ 2 倍して足す）
+const CIRCLE_TEXT = 0.6;  // 円の文字を折り返す幅の上限（サイズの最大の幅に対する割合）
+const CIRCLE_PAD = 10;    // 円の文字と縁の間の余白（内側に収まる四角の、文字のまわり）
 export const BODY_GAP = 6; // 内包する箱の本文と、その下の子の並びとの間（docs/BODY-plan.md）
 export const BODY_MIN_W = 160; // 本文を持つ箱の最小の幅。子を持つ箱でも効く（図が優先の唯一の例外。docs/SIZE-plan.md）
 
@@ -92,6 +94,16 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = Math.max(z.h, Math.ceil((measure(n, w)[1] + DIAMOND_PAD) * 2));
       return;
     }
+    if (shapeOf(n) === "circle") {
+      // 円（接続）: 縦横が同じ。文字は内側に収まる四角（直径の 1/√2）の中で折り返す（graph-style.ts の .mz-shape-circle > .mz-text の
+      // max-width: 70%）。直径は、文字の幅と高さを囲む四角の対角線に余白を足したもの。幅の指定があればその直径
+      const tw = Math.min(measure(n, null)[0], maxW * CIRCLE_TEXT);
+      let d = specW || Math.max(z.h, Math.ceil((tw + CIRCLE_PAD) * Math.SQRT2));
+      if (!specW) d = Math.max(d, Math.ceil(Math.hypot(tw, measure(n, d)[1]) + CIRCLE_PAD * 2));
+      n.hw = d;
+      n.hh = d;
+      return;
+    }
     if (shapeOf(n) === "class") {
       // クラスの箱（docs/CLASS-plan.md）: 行は折り返さないので、幅は 1 行のまま測った幅（CLASS_MIN_W〜CLASS_MAX_W。越えた行は …）、
       // 高さは行の数で決まる。サイズは使わない。幅の指定があればその幅
@@ -119,7 +131,8 @@ export function createNodeKinds(ctx: KindContext) {
     }
     const w = Math.max(bodyMinW(n), specW || textW());
     n.hw = w;
-    n.hh = specH || (z.fixedH ? z.h : Math.max(z.h, measure(n, w)[1]));
+    // S は高さが決まっているが、キャプションを切り詰めない並べ方の子（フローチャート）は、折り返した文字に合わせて伸ばす
+    n.hh = specH || (z.fixedH && !lookOf(n).fullCaption ? z.h : Math.max(z.h, measure(n, w)[1]));
   }
 
   // lo〜hi のうち、文字の高さが h を超えない一番狭い幅（1px 刻みの二分探索。hi では h に収まる前提）
@@ -140,7 +153,8 @@ export function createNodeKinds(ctx: KindContext) {
       n.hx = 0; n.hy = 0;
       n.w = n.hw; n.h = n.hh;
     },
-    anchorRect: headRect,
+    // 平行四辺形と台形は、左右の辺の真ん中が本体の縁より内側にあるので、その分だけ縮める（線は辺の真ん中にだけつながる）
+    anchorRect: n => { const r = headRect(n), d = anchorInsetOf(n); return d ? { ...r, x: r.x + d, w: r.w - 2 * d } : r; },
   });
 
   // 内包: 子の並びに合わせて伸びる（大きさの指定・中身の扱い・サイズは使わない。本文があれば最小の幅だけ効く。docs/SIZE-plan.md）
@@ -280,7 +294,8 @@ export function createNodeKinds(ctx: KindContext) {
   const text = headOnly("text"), hidden = headOnly("hidden");
 
   // 並べ方ごとの種類（戦略の表は model.ts の STRATEGIES。戦略を足すときは、ここにも並べ方を足す）
-  const KINDS: Record<ReturnType<typeof arrangeOf>, NodeKind> = { leaf: text, hidden, nest, tree, list };
+  // フローチャートは子の置き方が内包と同じ（違うのは子の形と、子が子を持てないこと。model.ts の STRATEGIES）
+  const KINDS: Record<ReturnType<typeof arrangeOf>, NodeKind> = { leaf: text, hidden, nest, tree, list, flow: nest };
   const kindOf = (n: Box): NodeKind => KINDS[arrangeOf(n)];
 
   return { kindOf, bodyTop };

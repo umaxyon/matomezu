@@ -7,15 +7,18 @@ import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
 import { leftNormalAt, pointAt, polylineLength } from "./geom";
-import { perimeterAt, route, scopeObstacles } from "./routing";
+import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt } from "./routing";
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
-import type { RouteFix, RouteInput } from "./routing";
+import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, inTreeOf, isHidden, isIconShape, isNesting, isPageBox, overflowOf, routeOf, shapeOf,
-  sizeOf, treeDirOf, viaOf,
+  sizeOf, slantOf, treeDirOf, vertexOnly, viaOf, OUTLINED_SHAPES, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
+import type { Shape } from "./types";
+// 輪郭を path で描く形（renderOutline）
+const OUTLINED = new Set<Shape>(OUTLINED_SHAPES);
 
 // スティックマン（viewBox 0 0 36 52）
 const PERSON_SVG =
@@ -36,6 +39,7 @@ export interface RenderContext {
   nodes(): Box[];
   edges(): Edge[];
   fixEdge(e: Edge, fix: RouteFix): void; // 線の道筋を決めたときに分かった、データに書き戻すこと（graph が直す）
+  dragging(): boolean; // 箱か線をドラッグしている間か（フローチャートの線は、その間だけ前に描いた辺を保つ）
   themeOf(n: Box | null): Theme; // 箱（null はワールド）に効いているテーマ
   paintOf(n: Box): { color: string; own: boolean }; // 箱を塗る色と、それがデータの color から来たか（テーマと色の名前を解いたもの）
   backgroundOf(): string | null; // 図の背景の色（world.background とテーマから。無ければ null）
@@ -169,6 +173,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.stroke = own ? color : "var(--mz-text)";
         svg.style.fill = "";
         setShadow(n, null);
+      } else if (OUTLINED.has(shape)) {
+        // 円・六角形・平行四辺形・台形。輪郭は renderOutline で大きさに合わせて描く（ひし形と同じ塗り方）
+        svg.removeAttribute("viewBox");
+        svg.innerHTML = '<path class="mz-outline-body"/>';
+        svg.style.fill = fill ? color : "none";
+        svg.style.stroke = fill ? edge : color;
+        svg.style.strokeWidth = "1.5";
+        setShadow(n, fill ? shadowOf() : null);
       } else if (shape === "diamond") {
         // ひし形。頂点は renderDiamond で大きさに合わせて置く
         svg.removeAttribute("viewBox");
@@ -268,6 +280,22 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     return `<div class="mz-class-sec">${attrs}</div><div class="mz-class-sec">${ops}</div>`;
   }
 
+  // 円・角丸（スタジアム）・六角形・平行四辺形・台形の輪郭（大きさに合わせて描く。斜めの辺の食い込みは model.ts の slantOf）
+  function renderOutline(n: Box) {
+    const x0 = 1, x1 = n.hw - 1, y0 = 1, y1 = n.hh - 1, cy = n.hh / 2, k = slantOf(n);
+    const rx = (x1 - x0) / 2, ry = (y1 - y0) / 2, cx = n.hw / 2;
+    const d = {
+      circle: `M${cx},${y0}A${rx},${ry} 0 1 1 ${cx},${y1}A${rx},${ry} 0 1 1 ${cx},${y0}Z`,
+      hexagon: `M${x0 + k},${y0}H${x1 - k}L${x1},${cy}L${x1 - k},${y1}H${x0 + k}L${x0},${cy}Z`,
+      stadium: `M${x0 + ry},${y0}H${x1 - ry}A${ry},${ry} 0 0 1 ${x1 - ry},${y1}H${x0 + ry}A${ry},${ry} 0 0 1 ${x0 + ry},${y0}Z`,
+      parallelogram: `M${x0 + k},${y0}H${x1}L${x1 - k},${y1}H${x0}Z`,
+      parallelogramAlt: `M${x0},${y0}H${x1 - k}L${x1},${y1}H${x0 + k}Z`,
+      trapezoid: `M${x0 + k},${y0}H${x1 - k}L${x1},${y1}H${x0}Z`,
+      trapezoidAlt: `M${x0},${y0}H${x1}L${x1 - k},${y1}H${x0 + k}Z`,
+    }[shapeOf(n) as "circle"];
+    n.shapeSvg.firstElementChild?.setAttribute("d", d);
+  }
+
   // ひし形: 上下左右の辺の真ん中を頂点にする（線は頂点にだけつながる。routing.ts の aVertex / bVertex）
   function renderDiamond(n: Box) {
     const x0 = 1, x1 = n.hw - 1, y0 = 1, y1 = n.hh - 1, cx = n.hw / 2, cy = n.hh / 2;
@@ -349,9 +377,16 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       obstacles, margin: BEND_MARGIN,
       exitAt: typeof e.src.exitAt === "number" ? e.src.exitAt : null,
       enterAt: typeof e.src.enterAt === "number" ? e.src.enterAt : null,
-      aVertex: shapeOf(e.a) === "diamond", bVertex: shapeOf(e.b) === "diamond",
-      memory: e.memory,
+      aVertex: vertexOnly(shapeOf(e.a)), bVertex: vertexOnly(shapeOf(e.b)),
+      // 前に描いた辺の記憶（ちらつきを抑える）。フローチャートの線は、ドラッグしている間だけ使う（止まっているときは、いつも一番よい形。
+      // 開いたときに、配置が決まる前に描いた辺が残らないように）
+      memory: kidStrategyOf(e.a.parent ?? e.a.world).separateEnds && !ctx.dragging() ? null : e.memory,
     };
+    // フローチャートの分岐から出る線は、向かい合う頂点に分けて出す（端を固定していない線だけ。データは書き換えない）
+    if (input.exitAt == null) {
+      const v = branchVertexOf(e);
+      if (v) input.exitAt = perimeterAt(input.a, vertexPoint(input.a, v));
+    }
     // クラスの端は、決まった接点に固定する（docs/CLASS-plan.md）。データの固定の位置があれば、一番近い接点として読む
     const pin = (n: Box, r: Rect4, other: Rect4, at: number | null, member: unknown) => {
       const near = at == null ? null : pointAt(perimeter(r), at);
@@ -363,10 +398,78 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     return input;
   }
 
+  // フローチャートの線は、なるべく同じ位置につながない（2026-10-11 ユーザー。docs/PATTERN-plan.md の 3.7 章）。同じ箱の同じ点に入る線が
+  // 2 本以上あれば、折れ目の少ない線（同じなら短い線）がその辺を取り、負けた線は、空いている辺のうち相手に背を向けていない辺で、
+  // 折れ目の一番少ない道を探す（routing.ts の routeOnSides）。探せなければ、そのまま共有する。描くときだけ決め、端を固定した線は除く
+  function separateEnds(list: { e: Edge; input: RouteInput; r: Route }[]) {
+    const rimOf = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return { x: x + r.x, y: y + r.y, w: r.w, h: r.h }; };
+    // 同じ箱の同じ辺に入り、端どうしが SAME_END px より近い線を 1 つの組にする（丸めで 1px ずれることがある）
+    const SAME_END = 6;
+    const bySide = new Map<string, typeof list>();
+    for (const item of list) {
+      const { e, r } = item;
+      if (typeof e.src.enterAt === "number" || r.arrangement === "overlap" || !kidStrategyOf(e.b.parent ?? e.b.world).separateEnds) continue;
+      const side = sideAt(rimOf(e.b), r.points[r.points.length - 1]!);
+      if (!side) continue;
+      const key = `${e.b.id}|${side}`;
+      bySide.set(key, [...(bySide.get(key) ?? []), item]);
+    }
+    const groups: (typeof list)[] = [];
+    for (const items of bySide.values()) {
+      const endOf = (x: (typeof list)[number]) => x.r.points[x.r.points.length - 1]!;
+      for (const item of items) {
+        const g = groups.find(g => g[0]!.e.b === item.e.b && Math.hypot(endOf(g[0]!)[0] - endOf(item)[0], endOf(g[0]!)[1] - endOf(item)[1]) < SAME_END);
+        if (g) g.push(item); else groups.push([item]);
+      }
+    }
+    for (const group of groups) {
+      if (group.length < 2) continue;
+      const len = (r: Route) => r.points.slice(1).reduce((s, q, i) => s + Math.abs(q[0] - r.points[i]![0]) + Math.abs(q[1] - r.points[i]![1]), 0);
+      group.sort((x, y) => x.r.bends - y.r.bends || len(x.r) - len(y.r));
+      const box = group[0]!.e.b, rim = rimOf(box);
+      // この箱の辺のうち、もう線がつながっている辺
+      const used = new Set(list.flatMap(({ e, r }) => {
+        const out: (Side | null)[] = [];
+        if (e.b === box) out.push(sideAt(rim, r.points[r.points.length - 1]!));
+        if (e.a === box) out.push(sideAt(rim, r.points[0]!));
+        return out;
+      }));
+      for (const item of group.slice(1)) {
+        // 相手に背を向けていない辺（相手が右上なら上と右。真上なら上と左右）
+        const o = rimOf(item.e.a);
+        const dx = o.x + o.w / 2 - (rim.x + rim.w / 2), dy = o.y + o.h / 2 - (rim.y + rim.h / 2);
+        const facing = (["t", "r", "b", "l"] as Side[]).filter(s =>
+          (s === "t" ? -dy : s === "b" ? dy : s === "l" ? -dx : dx) >= -0.5 && !used.has(s));
+        const better = facing.length ? routeOnSides(item.input, "enter", facing) : null;
+        if (!better) continue;
+        item.r = better;
+        used.add(sideAt(rim, better.points[better.points.length - 1]!));
+      }
+    }
+  }
+
+  // 分岐（ひし形）から出る線 e の頂点。分岐を並べる戦略が分けるときで、端を固定していない線が 2 本以上あるときだけ（無ければ null）。
+  // 入ってくる線の頂点（相手の向きに一番近い頂点）は、空いていれば避ける
+  function branchVertexOf(e: Edge): Vertex | null {
+    const d = e.a;
+    if (d === e.b || shapeOf(d) !== "diamond" || !kidStrategyOf(d.parent ?? d.world).splitBranches) return null;
+    const out = ctx.edges().filter(x => x.a === d && x.b !== d && typeof x.src.exitAt !== "number" && !edgeHidden(x));
+    if (out.length < 2) return null;
+    const c = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return [x + r.x + r.w / 2, y + r.y + r.h / 2] as const; };
+    const [cx, cy] = c(d);
+    const facing = (dx: number, dy: number): Vertex => (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "r" : "l") : dy > 0 ? "b" : "t");
+    const avoid = ctx.edges().filter(x => x.b === d && x.a !== d && !edgeHidden(x)).map(x => { const [sx, sy] = c(x.a); return facing(sx - cx, sy - cy); });
+    const vs = splitBranches(out.map(x => { const [tx, ty] = c(x.b); return [tx - cx, ty - cy]; }), avoid);
+    return vs[out.indexOf(e)] ?? null;
+  }
+  const vertexPoint = (r: Rect4, v: Vertex): [number, number] =>
+    v === "t" ? [r.x + r.w / 2, r.y] : v === "b" ? [r.x + r.w / 2, r.y + r.h] : v === "l" ? [r.x, r.y + r.h / 2] : [r.x + r.w, r.y + r.h / 2];
+
   // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
   function renderEdges() {
     const siblingsOf = siblingFrames();
     const loops: Edge[] = []; // 自分に戻る線（ほかの線を描いてから、空いている角に描く）
+    const routed: { e: Edge; input: RouteInput; r: Route }[] = [];
     for (const e of ctx.edges()) {
       const hidden = edgeHidden(e);
       e.el.style.display = hidden ? "none" : "";
@@ -376,8 +479,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       // ほかの箱は、道筋に関わりうるものだけに絞ってある（ドラッグ中に、離れた所で動いている箱のために探し直さない）
       const input = routeInputOf(e, siblingsOf);
       const key = JSON.stringify(input);
-      const r = e.routeMemo?.key === key ? e.routeMemo.route : route(input);
+      // フローチャートの線は、折れ目の一番少ない形にする（いつもの自動の形は、斜めに並ぶ箱どうしを Z 字で結ぶため。2026-10-12 ユーザー）
+      const r = e.routeMemo?.key === key ? e.routeMemo.route
+        : kidStrategyOf(e.a.parent ?? e.a.world).separateEnds ? fewestRoute(input) ?? route(input) : route(input);
       e.routeMemo = Object.keys(r.fix).length ? null : { key, route: r };
+      routed.push({ e, input, r });
+    }
+    separateEnds(routed);
+    for (const { e, r } of routed) {
       const pts = r.points;
       e.points = pts;
       e.shape = r.shape;
@@ -568,6 +677,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       g.top = block ? opt.header + "px" : "";
       g.height = block ? n.bodyH + "px" : "";
       if (shapeOf(n) === "diamond") renderDiamond(n);
+      if (OUTLINED.has(shapeOf(n))) renderOutline(n);
       if (isPageBox(n)) renderPage(n);
       renderTree(n);
     }

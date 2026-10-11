@@ -62,7 +62,9 @@
  *   - id は連番の数値を使う。省くと読み込み時に、既存の数値 id の続きから連番を振る。
  *   - parent に親ボックスの id を書くと、その子になる。x, y は親の左上からの位置（内包のときに使う）。
  *   - 位置が無いボックスは自動で配置する。
- *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱の絵。キャプションは足元）/ "diamond"（ひし形）/ "server"（タワー型のサーバーの絵。キャプションは足元）。
+ *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱の絵。キャプションは足元）/ "diamond"（ひし形）/ "server"（タワー型のサーバーの絵。キャプションは足元）/
+ *     "circle"（円）/ "stadium"（角丸）。"hexagon"（六角形）/ "parallelogram"・"parallelogramAlt"（平行四辺形）/ "trapezoid"・"trapezoidAlt"（台形）は
+ *     フローチャートの子（world.childView が "flow" なら最上位の箱も）のときだけ使う（外ではボックスで見せる）。
  *     子を内包しているボックスは枠なので、形は使わない（ツリーや非表示で見せているときは使う）。
  *     "class"（UML のクラス。docs/CLASS-plan.md）は、キャプションがクラス名で、abstract（true で抽象クラス）、
  *     attrs（属性 [{ name, type?, access?, static? }]）、ops（操作 [{ name, params?, type?, access?, static?, abstract? }]）を持つ。
@@ -74,7 +76,9 @@
  *     幅の範囲は validate.ts の SIZES で決めている。width を書けば、その幅で折り返す。
  *     サイズが効くのは見た目が葉の箱（子の無い箱、ツリーの親の本体、非表示）だけ。内包・リストの箱では使わない（docs/SIZE-plan.md）。
  *   - childView は子の見せ方: "nest"（内包、既定）/ "tree"（ツリー）/ "hidden"（非表示、▼ で子がいることを示す）/
- *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）
+ *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）/
+ *     "flow"（フローチャート。内包と同じく子を自由に置き、子はフローチャートの形を使える。子は子を持てない。docs/PATTERN-plan.md の 3.7 章）。
+ *     子のどれにも位置が無ければ、本筋を中央にそろえて整列して置く（layout/flow-align.ts。graph.autoAlign(id) でも同じ並べ方）
  *     treeDirection はツリーで子を置く向き: "down"（既定）/ "up" / "left" / "right"
  *     ツリーは子孫全体に効く: 子孫の見せ方（childView・treeDirection）は無視して、孫より下も何段でもツリーに並べる。中の箱は手で動かせない。
  *     内包に戻す（解除）と、子孫は自分の見せ方と内包の位置に戻る（docs/PATTERN-plan.md の 3.6 章）
@@ -126,7 +130,7 @@ import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isIconShape, isNesting, other,
-  overflowOf, inTreeOf, lookOf, strategyOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, lookOf, strategyOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, kidSizeOf, captionHintsOf, shapeAllowed, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -140,8 +144,8 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isPaletteName, isTheme, themeBy
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Patch } from "./types";
-import { ARROWS, DASHES, GROUP_MIN, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Patch, Shape, Size } from "./types";
+import { ARROWS, DASHES, GROUP_MIN, ROUTES, SHAPES, SIZES, VIEWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -220,6 +224,11 @@ export interface Graph {
   mode(): Mode;
   reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean; // at は最上位へ移すときの位置
   fitChildren(id: Id, what: "width" | "height" | "both"): number;
+  // 決まった並べ方を持つ戦略（フローチャート）の入れ物 id（null はワールド）の子を、その並べ方で置き直す（自動で整列。docs/PATTERN-plan.md の 3.7 章）
+  autoAlign(id: Id | null): boolean;
+  // 決まった並べ方を持つ戦略の入れ物 id（null はワールド）の中の箱を、全部サイズ size にし、その間隔で整列し直す（中の箱のサイズ。
+  // 入れ物に kidSize として覚える。1 回の変更として履歴に残す。docs/PATTERN-plan.md の 3.7 章）
+  setKidSize(id: Id | null, size: Size): boolean;
   remove(id: Id): boolean;
   restore(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean;
   items(): Items;
@@ -231,6 +240,7 @@ export interface Graph {
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
   add(req: AddRequest, fields: Partial<BoxData>): string;
+  kidShapes(parentId: Id | null): Shape[]; // 親 parentId（null は最上位）の子として選べる形
   // プレビュー（見るだけのモード）。倍率を渡すと入り、null で編集に戻る。プレビュー中は、押すと選ぶだけで、
   // 背景のドラッグは見る範囲を動かす。図を直す操作（ドラッグ、Undo / Redo）は効かない
   setPreview(zoom: number | null): void;
@@ -286,7 +296,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   });
   // ドラッグ中か（線の道筋から分かったデータの直しを、手を離すまで待つ）。操作の仕組み（I）を作ったあとで差し替える
   let dragging = () => false;
-  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf }, L);
+  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging() }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
     settle, sizable, alignChildren,
@@ -440,6 +450,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       via: viaOf(e), adjustable: e.segments.length > 0, endsMoved: e.src.exitAt != null || e.src.enterAt != null,
       aligned: e.a === e.b || !e.ends || isAligned(R.routeInputOf(e), e.points),
       arrangement: e.arrangement,
+      captionHints: captionHintsOf(e),
     };
   }
 
@@ -686,6 +697,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // それ以外（子の無いボックスやツリー、非表示）は自動で並べる
   function reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
     const dest = target(parentId, t("ページの箱の中には移せません（そのページのタブへ運んでください）"));
+    if (refuseKids(dest, subtreeIds(api.toJSON().nodes, id).size - 1)) return false;
     const to = parentIdOf(dest);
     let cut = 0, fromPage: string | null = null;
     const moved = rebuildWith(data => {
@@ -720,8 +732,30 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const dest = parentId == null ? null : (nodeOf(parentId) as Box);
     if (dest?.src.page === true) throw new Error(what);
     if (dest && shapeOf(dest) === "class") throw new Error(t("クラスの箱は子を持てません"));
+    if (dest && !acceptsKid(dest, false)) throw new Error(t("フローチャートの中の箱は子を持てません"));
     return dest;
   }
+
+  // 子を持つ箱（子孫 kids 個）を、子が子を持てない戦略（フローチャート）の箱 dest へ入れようとしたら、知らせて断る（true）
+  function refuseKids(dest: Box | null, kids: number): boolean {
+    if (!kids || acceptsKid(dest ?? world, true)) return false;
+    opt.onEvent?.({ kind: "leafKids" });
+    return true;
+  }
+
+  // 道具入れ（toolbox.ts）を出す箱: 自分か親が、道具を持つ戦略で子を並べるならその箱と、足せる形。無ければ null
+  function toolHostOf(n: Container): { id: string | null; shapes: Shape[]; size: Size } | null {
+    for (const h of n.isWorld ? [n] : [n, n.parent ?? world]) {
+      if (!h.isWorld && inTreeOf(h)) continue;
+      const tools = h.isWorld ? STRATEGIES[worldViewOf(h)].tools : STRATEGIES[viewOf(h)].tools;
+      if (tools.length) return { id: h.isWorld ? null : h.id, shapes: [...tools], size: kidSizeOf(h) ?? "M" };
+    }
+    return null;
+  }
+
+  // 選べない子の見せ方（子を持つ子があるなら、子が子を持てない戦略は選べない）
+  const viewsOff = (n: Container): ChildView[] =>
+    n.children.some(k => k.children.length && k.src.page !== true) ? VIEWS.filter(v => STRATEGIES[v].leafKids) : [];
 
   // 落とし先の親の id。今のページの最上位なら、ページの中ではページの箱、最初のページでは無し
   const parentIdOf = (t: Box | null) => (t ? t.src.id : pageBox()?.id);
@@ -948,6 +982,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
   function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }, byDrag = false) {
     const dest = target(parentId, t("ページの箱の中には戻せません（そのページのタブで戻してください）"));
+    if (refuseKids(dest, subtreeIds(api.toJSON().removed ?? [], id).size - 1)) return false;
     const pos = dropPos(dest, at);
     const n = rebuildWith(data => {
       restoreSubtree(data, id, parentIdOf(dest), pos);
@@ -963,6 +998,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 写した箱の新しい id を返す
   function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string) {
     const dest = target(parentId, t("ページの箱の中には移植できません（そのページのタブで落としてください）"));
+    if (refuseKids(dest, copy.nodes.length - 1)) return "";
     const pos = dropPos(dest, at);
     let r!: ReturnType<typeof pasteSubtree>;
     const n = rebuildWith(data => {
@@ -1033,6 +1069,39 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     notifySelect();
     opt.onEvent?.({ kind: "aligned", count, what, partial });
     return count;
+  }
+
+  const aligns = (c: Container) => c.children.length > 0 && (c.isWorld ? STRATEGIES[worldViewOf(c)] : STRATEGIES[viewOf(c)]).autoAlign;
+
+  function setKidSize(id: Id | null, size: Size) {
+    const c = nodeOf(id);
+    if (!aligns(c)) return false;
+    if (!(SIZES as Record<string, unknown>)[size]) throw new Error(t("size の値が不正です: {where} ({value})", { where: id ?? "world", value: size }));
+    // 箱のサイズを変えて測り直してから（サイズを選んだときと同じく、付いていた大きさの指定は外す）、そのサイズの間隔で整列する
+    settle(SCENES.fitChildren, c.isWorld ? undefined : c, () => {
+      c.src.kidSize = size;
+      if (c.isWorld) storeWorld();
+      for (const k of c.children) {
+        k.src.size = size;
+        setSpec(k, "w", 0);
+        setSpec(k, "h", 0);
+        applyStyle(k);
+      }
+    });
+    return autoAlign(id);
+  }
+
+  function autoAlign(id: Id | null) {
+    const c = nodeOf(id);
+    if (!aligns(c)) return false;
+    settle(SCENES.fitChildren, c.isWorld ? undefined : c, () => L.alignKids(c));
+    // 中の線は、動かしていたときの辺の記憶を捨てて、並べ直した位置での一番よい形にする（端を手で固定した線はそのまま）
+    const kids = new Set(c.children);
+    for (const e of edges) if (kids.has(e.a) && kids.has(e.b)) { e.memory = null; e.routeMemo = null; }
+    render();
+    changed();
+    notifySelect();
+    return true;
   }
 
   function setMode(m: Mode) {
@@ -1116,6 +1185,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         themeUsed: themeOf(null).id,
         route: routeDefaultOf(world),
         title: typeof source.world?.title === "string" && source.world.title ? source.world.title : null,
+        childView: worldViewOf(world),
+        views: VIEWS.filter(v => STRATEGIES[v].onWorld),
+        viewsOff: viewsOff(world),
+        tools: toolHostOf(world),
+        canAlign: roots.length > 0 && STRATEGIES[worldViewOf(world)].autoAlign,
+        kidSize: kidSizeOf(world),
       };
     }
     const size = sizeOf(n);
@@ -1150,6 +1225,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       treeDirection: treeDirOf(n),
       framed: isNesting(n),
       canFlatten: canFlatten(n),
+      viewsOff: viewsOff(n),
+      canAlign: n.children.length > 0 && !inTreeOf(n) && STRATEGIES[viewOf(n)].autoAlign,
+      kidSize: kidSizeOf(n),
+      shapes: SHAPES.filter(v => shapeAllowed(v, n.parent ?? world)),
+      tools: toolHostOf(n),
       inTree: inTreeOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
@@ -1202,6 +1282,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (n.isWorld && next.overflow) throw new Error(t("ワールドには中身の扱いがありません"));
     if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error(t("文字のボックスは伸ばせません"));
     if (!n.isWorld && n.children.length && next.overflow) throw new Error(t("子を持つボックスは、つねに子に合わせて伸びます"));
+    if (next.childView && viewsOff(n).includes(next.childView)) {
+      throw new Error(t("子を持つ子があるので、子が子を持てない見せ方（フローチャート）にはできません: {id}", { id: n.id }));
+    }
 
     // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ（設定変更の場面）。
     // settle が保つ位置を覚えてから apply を呼ぶ
@@ -1247,6 +1330,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           if (pageBox() && !Object.keys(top).length) delete source.world;
         }
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
+        if (next.childView) {
+          if (!STRATEGIES[next.childView].onWorld) throw new Error(t("ワールドに使える子の見せ方は、内包かフローチャートです: {v}", { v: next.childView }));
+          setOrDelete(world.src, "childView", next.childView, next.childView === DEFAULT_VIEW); // 既定は書かない
+        }
         if ("theme" in next) setOrDelete(world.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("route" in next) {
           if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(t("route の値が不正です: {v}", { v: next.route }));
@@ -1255,8 +1342,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         storeWorld();
         syncWorld();
         applyWorldStyle();
-        // テーマは全部の箱に効く（書いていない箱は受け継ぐ）
-        if ("theme" in next) nodes.forEach(applyStyle);
+        // テーマは全部の箱に効く（書いていない箱は受け継ぐ）。最上位の並べ方が変われば、使える形が変わる
+        if ("theme" in next || next.childView) nodes.forEach(applyStyle);
       } else {
         applyStyle(n);
         // テーマは子孫も受け継ぐ。子の見せ方を変えたら、子孫の見た目も変わる（リストの子は、子を持てば非表示の扱いで、
@@ -1345,6 +1432,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     el.append(treeSvg, head);
     const n: Box = {
       isWorld: false,
+      world,
       src,
       id: String(src.id),
       parent: null,
@@ -1554,6 +1642,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     update,
     updateClass,
     flattenTree,
+    autoAlign,
+    setKidSize,
+    kidShapes: parentId => SHAPES.filter(v => shapeAllowed(v, nodeOf(parentId))),
     // 現在の状態を返す（元データにある他の項目はそのまま残す）
     toJSON() {
       const out: Diagram = JSON.parse(JSON.stringify(source));

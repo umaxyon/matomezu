@@ -71,4 +71,5 @@ export default {
   // 線の端の形（docs/HEADS-plan.md）
   "始点の形": "Start shape",
   "終点の形": "End shape",
+  "候補": "Suggestions",
 } satisfies Record<string, string>;

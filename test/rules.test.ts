@@ -16,8 +16,20 @@ const ALLOWED: Record<string, number> = {
   "minimap.ts": 1,               // 非表示の箱は塗る（折りたたみの描画）
   "layout/layout.ts": 4,         // 並べ方の種類（KINDS）の名前で、配置の細かい決まりを分ける
   "panel.ts": 2,                 // サイドバーのタブの名前 "list"（戦略とは関係が無い）
+  "validate.ts": 1,              // フローチャートの要素は子を持たない検査（DOM なしの CLI でも動かすので、表を読まない）
 };
-const COMPARE = /[!=]==\s*"(nest|tree|list|hidden)"/g;
+const COMPARE = /[!=]==\s*"(nest|tree|list|hidden|flow)"/g;
+
+// 配置と線の計算は、見た目（テーマ）の値を読まない（CLAUDE.md の 9）。読むのは測った大きさと線がつながる範囲だけ
+test("配置と線のファイルは、テーマを読み込まない", () => {
+  const geometry = files(SRC).filter(f => {
+    const name = relative(SRC, f).replaceAll("\\", "/");
+    return name.startsWith("layout/") || ["routing.ts", "selfloop.ts", "geom.ts"].includes(name);
+  });
+  const bad = geometry.filter(f => /from\s+"[./]+\/theme"/.test(readFileSync(f, "utf8"))).map(f => relative(SRC, f));
+  expect(geometry.length).toBeGreaterThan(5);
+  expect(bad).toEqual([]);
+});
 
 test("並べ方の名前を直接比べる判定を、戦略の表の外に増やさない", () => {
   const over: string[] = [];

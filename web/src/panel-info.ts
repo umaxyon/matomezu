@@ -9,7 +9,8 @@ import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { THEMES, isPaletteName, themeById } from "./theme";
 import type { Brief, ChildView, Dash, EdgeInfo, Info, Route, Shape, Size, TreeDirection } from "./types";
-import { SHAPE_OPTIONS } from "./validate";
+import { SHAPE_OPTIONS, SHAPE_VARIANTS, shapeFamily } from "./validate";
+import { shapeIcon } from "./shape-icons";
 
 const KIND_LABELS = { group: t("グループ"), box: t("ボックス") };
 // 鉛筆の印（編集ダイアログを開くボタン）
@@ -17,10 +18,21 @@ const PENCIL = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="tru
 const ROUTE_OPTIONS: [string, string][] = [["elbow", t("折れ線")], ["straight", t("直線")]];
 const SIZE_HELP = t("L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\nS: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります\nサイズが効くのは子の無い箱と、ツリー・非表示の親の本体です。内包・リストの箱の大きさは子の並びで決まります");
 const BY_CHILDREN = t("内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）");
-const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["tree", t("ツリー")], ["list", t("リスト")], ["hidden", t("非表示")]];
+// 中の箱のサイズ（フローチャート。押すと中の箱を全部そのサイズにし、その間隔で整列し直す。id は箱、ワールドなら空）
+const KID_SIZE_HELP = t("中の箱を全部このサイズにして、箱の間隔もサイズに合わせて整列し直します。そのあとも箱ごとにサイズを変えられます（元に戻すで戻せます）");
+const kidSizeSection = (can: boolean, size: string | null, id: string) => (can
+  ? `<div class="mzp-subhead">${t("中の箱のサイズ")}${helpIcon(KID_SIZE_HELP)}</div><div data-kid-size-of="${esc(id)}">${segment("mzp-kidsize", size ?? "", [["L", "L"], ["M", "M"], ["S", "S"]])}</div>` : "");
+// 自動で整列のボタン（id は箱。ワールドなら空）
+const ALIGN_HELP = t("本筋（開始の箱から線をたどった並び）を中央の縦の線にそろえ、分岐の枝を左右に置きます。そろえたあとも自由に動かせます（元に戻すで戻せます）");
+const alignButton = (can: boolean, id: string) => (can
+  ? `<div class="mzp-chips"><button type="button" class="mzp-chip" data-auto-align="${esc(id)}">${t("自動で整列")}</button>${helpIcon(ALIGN_HELP)}</div>` : "");
+const WORLD_VIEW_HELP = t("図（ページ）の一番上に置いた箱の並べ方です。\n内包: 自由に置きます\nフローチャート: 自由に置き、箱はフローチャートの形を使えます。図の左上に道具入れが出ます。一番上の箱は子を持てません");
+// 子を持つ子があるときに、フローチャートを選べない理由
+const KIDS_HAVE_KIDS = t("子を持つ子があるので選べません（フローチャートの要素は子を持てません）");
+const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["tree", t("ツリー")], ["list", t("リスト")], ["flow", t("フローチャート")], ["hidden", t("非表示")]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", t("↓ 下")], ["up", t("↑ 上")], ["left", t("← 左")], ["right", t("→ 右")]];
 const FLATTEN_HELP = t("ツリーを平らにして、親子のつながりを線で引き直します（見た目はそのまま。元のツリーには戻せません）。「内包」を選ぶ解除は、入れ子の枠に戻すだけで、何度でもツリーに戻せます");
-const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nツリー: 子孫を何段でも親の上下左右にぶら下げて見せます（子孫は自動で並び、子孫の見せ方は使いません）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します");
+const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nツリー: 子孫を何段でも親の上下左右にぶら下げて見せます（子孫は自動で並び、子孫の見せ方は使いません）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\nフローチャート: 内包と同じく子を自由に置きます。子はフローチャートの形（六角形・平行四辺形・台形）を使え、横に道具入れが出ます。子は子を持てません\n非表示: 子を隠し、▼ で子がいることだけを示します");
 // リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
 const IN_LIST = t("リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）");
 // ワールドの背景によく使う色（明るい色と暗い色）
@@ -60,10 +72,11 @@ function chips(list: Brief[]): string {
 }
 
 // disabled は選べない値と、その理由（ポインタを乗せると出る）
-function segment(name: string, value: string, options: [string, string][], disabled: Map<string, string> = new Map()): string {
+// titles は選択肢ごとのポインタを乗せたときの名前（絵だけの選択肢に付ける）
+function segment(name: string, value: string, options: [string, string][], disabled: Map<string, string> = new Map(), titles: Map<string, string> = new Map()): string {
   return '<div class="mzp-seg">' + options.map(([v, label]) => {
-    const why = disabled.get(v);
-    return `<label${why ? ` class="mzp-disabled" title="${esc(why)}"` : ""}><input type="radio" name="${name}" value="${v}"` +
+    const why = disabled.get(v), title = why ?? titles.get(v);
+    return `<label${why ? ' class="mzp-disabled"' : ""}${title ? ` title="${esc(title)}"` : ""}><input type="radio" name="${name}" value="${v}"` +
       `${v === value ? " checked" : ""}${why ? " disabled" : ""}>${label}</label>`;
   }).join("") + "</div>";
 }
@@ -122,6 +135,12 @@ function html(info: Info): string {
     parts.push(`<div class="mzp-section"><h3>${t("線の通り方（既定）")}${helpIcon(t("通り方を決めていない線は、これに従います"))}</h3>
       ${segment("mzp-world-route", info.route, ROUTE_OPTIONS)}
     </div>`);
+    // 最上位の箱の並べ方（ワールドに掛けられる戦略だけ。docs/PATTERN-plan.md の 3.7 章）
+    parts.push(`<div class="mzp-section"><h3>${t("子の見せ方")}${helpIcon(WORLD_VIEW_HELP)}</h3>
+      ${segment("mzp-view", info.childView, VIEW_OPTIONS.filter(([v]) => info.views.includes(v as ChildView)), new Map(info.viewsOff.map(v => [v, KIDS_HAVE_KIDS])))}
+      ${kidSizeSection(info.canAlign, info.kidSize, "")}
+      ${alignButton(info.canAlign, "")}
+    </div>`);
   } else {
     parts.push(`<div class="mzp-head">
       <span class="mzp-swatch" style="background:${esc(info.paint)}"></span>
@@ -147,9 +166,14 @@ function html(info: Info): string {
       // 形はセレクトボックス（形が増えても幅が変わらないように。2026-10-11 ユーザー）。本文があればボックス以外は選べない。
       // 子を内包している箱は、ボックスとクラスだけ（クラスにすると子は消える。docs/CLASS-plan.md）
       const off = (v: string) => (info.body && v !== "box") || (!info.canShape && v !== "box" && v !== "class");
+      // 切り替えのある形（円と角丸、平行四辺形と台形の向き）は、選択肢には家族の先頭を出し、下に切り替えを出す
+      const family = shapeFamily(info.shape);
       parts.push(`<div class="mzp-section"><h3>${t("形")}</h3>
-        <select class="mzp-input" name="mzp-shape" aria-label="${t("形")}">${SHAPE_OPTIONS.map(([v, label]) =>
-          `<option value="${v}"${v === info.shape ? " selected" : ""}${off(v) ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
+        <select class="mzp-input" name="mzp-shape" aria-label="${t("形")}">${SHAPE_OPTIONS.filter(([v]) => info.shapes.includes(v as Shape) || v === family).map(([v, label]) =>
+          `<option value="${v}"${v === family ? " selected" : ""}${off(v) ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
+        ${SHAPE_VARIANTS[family] ? `<div class="mzp-shapevar">${segment("mzp-shapevar", info.shape,
+          SHAPE_VARIANTS[family]!.map(([v, label]) => [v, `${shapeIcon(v, "mzp-shape-icon")}<span class="mzp-sr">${esc(label)}</span>`]),
+          undefined, new Map(SHAPE_VARIANTS[family]!.map(([v, label]) => [v, label])))}</div>` : ""}
         ${info.body ? `<p class="mzp-hint">${t("本文があるので、ボックスのままです")}</p>` : ""}
         ${info.shape === "class" ? `<p class="mzp-hint">${t("クラス名・属性・操作は、編集のダイアログで直せます")}</p>` : ""}
       </div>`);
@@ -170,8 +194,10 @@ function html(info: Info): string {
       parts.push(`<div class="mzp-section"><h3>${t("子の見せ方")}</h3><p class="mzp-hint">${t("ツリーの決まりで並びます（変えるときは、ツリーにした箱で見せ方を戻します）")}</p></div>`);
     } else if (info.children.length) {
       parts.push(`<div class="mzp-section"><h3>${t("子の見せ方")}${helpIcon(VIEW_HELP)}</h3>
-        ${segment("mzp-view", info.childView, VIEW_OPTIONS)}
+        ${segment("mzp-view", info.childView, VIEW_OPTIONS, new Map(info.viewsOff.map(v => [v, KIDS_HAVE_KIDS])))}
         ${info.childView === "tree" ? `<div class="mzp-subhead">${t("向き")}</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}
+        ${kidSizeSection(info.canAlign, info.kidSize, info.id)}
+        ${alignButton(info.canAlign, info.id)}
         ${info.canFlatten ? `<div class="mzp-chips"><button type="button" class="mzp-chip" data-flatten="${esc(info.id)}">${t("線で描き直す")}</button>${helpIcon(FLATTEN_HELP)}</div>` : ""}
       </div>`);
     }
@@ -266,6 +292,8 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (viaReset) return graph.updateEdge(viaReset.dataset.viaReset!, { via: null });
     const flatten = e.target.closest<HTMLElement>("[data-flatten]");
     if (flatten) return confirmFlatten(graph, flatten.dataset.flatten!);
+    const autoAlign = e.target.closest<HTMLElement>("[data-auto-align]");
+    if (autoAlign) return void graph.autoAlign(autoAlign.dataset.autoAlign || null);
     const delEdge = e.target.closest<HTMLElement>("[data-remove-edge]");
     if (delEdge) return graph.removeEdge(delEdge.dataset.removeEdge!);
     const chip = e.target.closest<HTMLElement>("[data-select]");
@@ -338,7 +366,12 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (el.dataset.field) return graph.update(info.id, { [el.dataset.field]: el.checked });
     if (el.hasAttribute("data-one-line")) return graph.update(info.id, { overflow: el.checked ? "clip" : "wrap" });
     if (el.name === "mzp-treedir") return graph.update(info.id, { treeDirection: el.value as TreeDirection });
-    if (el.name === "mzp-view") return graph.update(info.id, { childView: el.value as ChildView });
+    if (el.name === "mzp-kidsize") {
+      const of = el.closest<HTMLElement>("[data-kid-size-of]")?.dataset.kidSizeOf;
+      return void graph.setKidSize(of ? of : null, el.value as Size);
+    }
+    if (el.name === "mzp-shapevar" && info.kind !== "world" && info.kind !== "edge") return graph.update(info.id, { shape: el.value as Shape });
+    if (el.name === "mzp-view") return graph.update(info.kind === "world" ? null : info.id, { childView: el.value as ChildView });
   });
 
   show(info);

@@ -17,8 +17,8 @@ export default {
   "↑ 上": "↑ Up",
   "← 左": "← Left",
   "→ 右": "→ Right",
-  "内包: 子を親の中に入れて見せます\nツリー: 子孫を何段でも親の上下左右にぶら下げて見せます（子孫は自動で並び、子孫の見せ方は使いません）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します":
-    "Nested: shows children inside the parent\nTree: hangs all descendants, any number of levels deep, off a side of the parent (laid out automatically; their own views are ignored)\nList: stacks children vertically with equal widths (child sizes and shapes are ignored; what is inside each child follows that child's view)\nHidden: hides children and shows ▼ to mark that there are some",
+  "内包: 子を親の中に入れて見せます\nツリー: 子孫を何段でも親の上下左右にぶら下げて見せます（子孫は自動で並び、子孫の見せ方は使いません）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\nフローチャート: 内包と同じく子を自由に置きます。子はフローチャートの形（六角形・平行四辺形・台形）を使え、横に道具入れが出ます。子は子を持てません\n非表示: 子を隠し、▼ で子がいることだけを示します":
+    "Nested: shows children inside the parent\nTree: hangs all descendants, any number of levels deep, off a side of the parent (laid out automatically; their own views are ignored)\nList: stacks children vertically with equal widths (child sizes and shapes are ignored; what is inside each child follows that child's view)\nFlowchart: places children freely like Nested. Children can use the flowchart shapes (hexagon, parallelogram, trapezoid), and a toolbox appears beside it. Children cannot have children\nHidden: hides children and shows ▼ to mark that there are some",
   "リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）":
     "In a list, the width matches the widest child and the look matches the largest size among the children (this size is kept and returns when the box leaves the list)",
   "受け継ぐ": "Inherit",
@@ -148,4 +148,11 @@ export default {
   // 線の端の形（docs/HEADS-plan.md）
   "始点の形": "Start shape",
   "終点の形": "End shape",
+  "フローチャート": "Flowchart",
+  "子を持つ子があるので選べません（フローチャートの要素は子を持てません）": "Not available: some children have children (flowchart items cannot have children)",
+  "図（ページ）の一番上に置いた箱の並べ方です。\n内包: 自由に置きます\nフローチャート: 自由に置き、箱はフローチャートの形を使えます。図の左上に道具入れが出ます。一番上の箱は子を持てません": "How the top-level boxes of the diagram (page) are arranged.\nNested: place them freely\nFlowchart: place them freely; boxes can use the flowchart shapes, and a toolbox appears at the top left. Top-level boxes cannot have children",
+  "自動で整列": "Auto-align",
+  "本筋（開始の箱から線をたどった並び）を中央の縦の線にそろえ、分岐の枝を左右に置きます。そろえたあとも自由に動かせます（元に戻すで戻せます）": "Lines up the main path (following the lines from the start box) on a central vertical line and places branches to the left and right. You can still move boxes freely afterward (Undo restores the previous layout)",
+  "中の箱のサイズ": "Size of boxes inside",
+  "中の箱を全部このサイズにして、箱の間隔もサイズに合わせて整列し直します。そのあとも箱ごとにサイズを変えられます（元に戻すで戻せます）": "Sets every box inside to this size and re-aligns them with spacing to match. You can still change each box's size afterward (Undo restores the previous state)",
 } satisfies Record<string, string>;
