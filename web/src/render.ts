@@ -144,7 +144,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if ((shape === "box" || shape === "class") && !page) {
       head.style.background = !fill ? "transparent"
         : group ? `color-mix(in srgb, ${color} 16%, transparent)`
-        : folded ? `linear-gradient(225deg, transparent ${FOLD}px, ${color} 0)` : color;
+        // 斜めのグラデーションの長さは角からの距離なので、切り欠きの 1 辺を折り返しの三角（FOLD）にそろえるには FOLD / √2。
+        // FOLD のままだと切り欠きが 1 辺 17px になり、三角との間に背景が切れ込みのように見えていた（2026-10-11 ユーザー）
+        : folded ? `linear-gradient(225deg, transparent ${FOLD / Math.SQRT2}px, ${color} 0)` : color;
       const shadow: string[] = [];
       // 塗りの無い文字の箱の枠は、箱の色で引く（テーマが箱ごとの色を使わないなら、テーマの枠の色。白い箱の色だと見えないため）
       const frame = group ? color : !fill ? (own || !theme.border ? color : theme.border) : edge;
