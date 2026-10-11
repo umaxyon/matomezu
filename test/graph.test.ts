@@ -301,20 +301,23 @@ test("子をツリーにして大きくなったら、重なる相手を下へ�
     nodes: [
       // 外部サービスを先に書く（データの順では先に置かれる方）
       { id: 9, caption: "外部サービス", x: 300, y: 420 },
-      { id: 1, caption: "バックエンド", childView: "tree", x: 100, y: 100 },
-      { id: 2, caption: "API", parent: 1 },
-      { id: 3, caption: "認証", parent: 2 }, { id: 4, caption: "注文", parent: 2 },
-      { id: 5, caption: "データ", parent: 1 },
+      { id: 1, caption: "バックエンド", x: 100, y: 100 },
+      { id: 2, caption: "API", parent: 1, x: 12, y: 30 },
+      { id: 3, caption: "認証", parent: 2, x: 12, y: 30 }, { id: 4, caption: "注文", parent: 2, x: 140, y: 30 },
+      { id: 5, caption: "データ", parent: 1, x: 300, y: 30 },
     ],
     edges: [[1, 9]],
   });
   const before = graph.info(1);
   expect(graph.info(9).y).toBeGreaterThanOrEqual(before.y + before.h); // 最初は重なっていない
 
-  graph.update(2, { childView: "tree" }); // API をツリーにすると、バックエンド全体が縦に伸びる
+  // バックエンドをツリーにすると、子孫全体が何段ものツリーになって縦に伸びる（docs/PATTERN-plan.md の 3.6 章）
+  graph.update(1, { childView: "tree" });
   const after = graph.info(1);
   expect(after.h).toBeGreaterThan(before.h);
-  expect([after.x, after.y]).toEqual([before.x, before.y]); // 変えた側は動かない
+  // 変えた側は動かない（最上位は上辺と横の中心を保つ）
+  expect(after.y).toBe(before.y);
+  expect(Math.abs(after.x + after.w / 2 - (before.x + before.w / 2))).toBeLessThanOrEqual(1);
   noOverlap(graph, [1, 9]);
   expect(graph.info(9).x).toBe(300); // 相手はまっすぐ下へずれる
 });

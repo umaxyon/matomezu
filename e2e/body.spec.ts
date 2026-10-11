@@ -70,7 +70,7 @@ test("最大行数を選ぶと、超えた分を切って箱が低くなる。�
   await expect.poll(async () => (await rect(page, 1)).h).toBe(full.h);
 });
 
-test("リストの中で隠れていた子の中身も、ツリーに戻すと大きさを測り直し、本文が箱に収まる", async ({ page }) => {
+test("リストの中で隠れていた子の中身も、内包に戻すと大きさを測り直し、本文が箱に収まる", async ({ page }) => {
   await openDiagram(page, {
     nodes: [
       // 開いたときからリスト（中身は隠れた状態で初めて測る）
@@ -87,7 +87,8 @@ test("リストの中で隠れていた子の中身も、ツリーに戻すと�
     return b.height > 0 && b.bottom <= r.bottom + 0.5;
   });
   const widths = () => Promise.all([21, 23].map(async id => Math.round((await rect(page, id)).w)));
-  for (const view of ["tree"]) {
+  // ツリーは子孫全体に効き、画面一覧のリストまでツリーにしてしまうので、内包に戻して確かめる（docs/PATTERN-plan.md の 3.6 章）
+  for (const view of ["nest"]) {
     await page.locator('.mz-node[data-id="10"] > .mz-head').click({ position: { x: 8, y: 8 } });
     await page.locator(`#sidebar label:has(input[name="mzp-view"][value="${view}"])`).click();
   }

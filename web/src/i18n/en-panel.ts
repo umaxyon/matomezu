@@ -17,8 +17,8 @@ export default {
   "↑ 上": "↑ Up",
   "← 左": "← Left",
   "→ 右": "→ Right",
-  "内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n非表示: 子を隠し、▼ で子がいることだけを示します":
-    "Nested: shows children inside the parent\nTree: hangs children off a side of the parent (laid out automatically)\nList: stacks children vertically with equal widths (child sizes and shapes are ignored; grandchildren are hidden)\nHidden: hides children and shows ▼ to mark that there are some",
+  "内包: 子を親の中に入れて見せます\nツリー: 子孫を何段でも親の上下左右にぶら下げて見せます（子孫は自動で並び、子孫の見せ方は使いません）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します":
+    "Nested: shows children inside the parent\nTree: hangs all descendants, any number of levels deep, off a side of the parent (laid out automatically; their own views are ignored)\nList: stacks children vertically with equal widths (child sizes and shapes are ignored; what is inside each child follows that child's view)\nHidden: hides children and shows ▼ to mark that there are some",
   "リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）":
     "In a list, the width matches the widest child and the look matches the largest size among the children (this size is kept and returns when the box leaves the list)",
   "受け継ぐ": "Inherit",
@@ -76,6 +76,7 @@ export default {
   "サイズ": "Size",
   "本文があるので S にはできません（S は高さが決まっています）": "Cannot be S because it has a body (S has a fixed height)",
   "子の見せ方": "Child view",
+  "ツリーの決まりで並びます（変えるときは、ツリーにした箱で見せ方を戻します）": "Arranged by the tree (to change it, switch the view back on the box you made a tree)",
   "向き": "Direction",
   "親": "Parent",
   "ワールド": "Diagram",

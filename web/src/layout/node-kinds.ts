@@ -3,7 +3,7 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inList, isIconShape, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inList, inTreeOf, isIconShape, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
@@ -170,6 +170,8 @@ export function createNodeKinds(ctx: KindContext) {
 
   // ツリー: 子を組織図のように並べる。上下なら横一列、左右なら縦一列にして、親をその中央にそろえる。
   // 全体を薄い枠で囲むので、周りに余白を取る（同じ階層との線は、この枠のふちにつなぐ）。
+  // ツリーは子孫全体に効く（docs/PATTERN-plan.md の 3.6 章）。根の中の節は枠も余白も持たず（枠は根が描く）、子は自分の子孫を並べ終えた部分木なので、
+  // 同じ並べ方で何段にも伸びる。
   // 向きごとに書き分けず、子を置く向きを「主軸」、それに直交する向きを「副軸」として扱う
   const tree: NodeKind = {
     name: "tree",
@@ -180,20 +182,30 @@ export function createNodeKinds(ctx: KindContext) {
       const dir = treeDirOf(n);
       const vertical = dir === "down" || dir === "up";
       const forward = dir === "down" || dir === "right"; // 子が親より後ろ（下か右）に来るか
-      const P = opt.padding;
+      const P = inTreeOf(n) ? 0 : opt.padding;
       const GAP = opt.treeGapX; // 子どうしの間隔（副軸）
       const DIST = opt.treeGapY; // 親と子の間隔（主軸）
       // [主軸, 副軸] の大きさ
       const headSize = vertical ? [n.hh, n.hw] : [n.hw, n.hh];
       const kidSize = (k: Box) => (vertical ? [k.h, k.w] : [k.w, k.h]);
       const crossTotal = kids.reduce((s, k) => s + kidSize(k)[1]!, 0) + GAP * (kids.length - 1);
-      const cross = Math.max(headSize[1]!, crossTotal);
       const kidsMain = Math.max(...kids.map(k => kidSize(k)[0]!));
+      // 副軸での親の置き場所（子の並びの左端（上端）から）。子がみな葉なら、子の並び全体の真ん中（1 段のツリーの今までの形）。
+      // 子に部分木があれば、最初と最後の子の本体の真ん中（部分木で幅が違っても、親が子の見出しの真ん中に来る。組織図の形）
+      let headAt = (crossTotal - headSize[1]!) / 2;
+      if (kids.some(k => k.children.length)) {
+        const mid = (k: Box) => (vertical ? k.hx + k.hw / 2 : k.hy + k.hh / 2);
+        const last = kids.at(-1)!;
+        headAt = (mid(kids[0]!) + crossTotal - kidSize(last)[1]! + mid(last)) / 2 - headSize[1]! / 2;
+      }
+      // 親が子の並びからはみ出す分だけ、子の並びをずらす
+      const shift = Math.max(0, -headAt);
+      const cross = Math.max(crossTotal, headAt + headSize[1]!) + shift;
 
       // 主軸: 親、間隔、子の順（前向き）か、子、間隔、親の順（後ろ向き）。子は親に向いた側の端をそろえる
       const headMain = forward ? P : P + kidsMain + DIST;
-      const headCross = P + (cross - headSize[1]!) / 2;
-      let c = P + (cross - crossTotal) / 2;
+      const headCross = P + headAt + shift;
+      let c = P + shift;
       const place = (k: Box, main: number, crossPos: number) => {
         if (vertical) { k.x = crossPos; k.y = main; } else { k.x = main; k.y = crossPos; }
       };

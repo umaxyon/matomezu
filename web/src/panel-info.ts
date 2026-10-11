@@ -19,7 +19,7 @@ const SIZE_HELP = t("L: 幅は文字に合わせて 400 まで。越えると折
 const BY_CHILDREN = t("内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）");
 const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["tree", t("ツリー")], ["list", t("リスト")], ["hidden", t("非表示")]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", t("↓ 下")], ["up", t("↑ 上")], ["left", t("← 左")], ["right", t("→ 右")]];
-const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n非表示: 子を隠し、▼ で子がいることだけを示します");
+const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nツリー: 子孫を何段でも親の上下左右にぶら下げて見せます（子孫は自動で並び、子孫の見せ方は使いません）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します");
 // リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
 const IN_LIST = t("リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）");
 // ワールドの背景によく使う色（明るい色と暗い色）
@@ -164,7 +164,10 @@ function html(info: Info): string {
       ${nesting ? `<p class="mzp-hint">${BY_CHILDREN}</p>` : ""}
     </div>`);
 
-    if (info.children.length) {
+    // ツリーの中の箱は、子孫の並べ方をツリーが決めるので、子の見せ方を出さない（変えたければツリーを解除する。docs/PATTERN-plan.md の 3.6 章）
+    if (info.children.length && info.inTree) {
+      parts.push(`<div class="mzp-section"><h3>${t("子の見せ方")}</h3><p class="mzp-hint">${t("ツリーの決まりで並びます（変えるときは、ツリーにした箱で見せ方を戻します）")}</p></div>`);
+    } else if (info.children.length) {
       parts.push(`<div class="mzp-section"><h3>${t("子の見せ方")}${helpIcon(VIEW_HELP)}</h3>
         ${segment("mzp-view", info.childView, VIEW_OPTIONS)}
         ${info.childView === "tree" ? `<div class="mzp-subhead">${t("向き")}</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}

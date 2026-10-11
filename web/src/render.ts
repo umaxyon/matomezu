@@ -12,7 +12,7 @@ import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
-  captionOf, dashOf, descendants, displayCaption, fillOf, isHidden, isIconShape, isNesting, isPageBox, overflowOf, routeOf, shapeOf,
+  captionOf, dashOf, descendants, displayCaption, fillOf, inTreeOf, isHidden, isIconShape, isNesting, isPageBox, overflowOf, routeOf, shapeOf,
   sizeOf, treeDirOf, viaOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -251,6 +251,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.moreEl.hidden = arrange !== "hidden";
     n.moreEl.title = t("子 {n} 件", { n: n.children.length });
     n.treeSvg.style.display = arrange === "tree" ? "" : "none";
+    // 枠はツリーの根だけ（中の節は線だけ。docs/PATTERN-plan.md の 3.6 章）
+    n.treeFrame.style.display = arrange === "tree" && !inTreeOf(n) ? "" : "none";
     // 色の指定が無ければ線と同じ色にする（白だと明るいテーマで見えないため）
     n.treeFrame.style.stroke = own ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";
     n.treeFrame.style.fill = `color-mix(in srgb, ${color} 5%, transparent)`;

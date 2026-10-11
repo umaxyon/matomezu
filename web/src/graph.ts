@@ -76,6 +76,8 @@
  *   - childView は子の見せ方: "nest"（内包、既定）/ "tree"（ツリー）/ "hidden"（非表示、▼ で子がいることを示す）/
  *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）
  *     treeDirection はツリーで子を置く向き: "down"（既定）/ "up" / "left" / "right"
+ *     ツリーは子孫全体に効く: 子孫の見せ方（childView・treeDirection）は無視して、孫より下も何段でもツリーに並べる。中の箱は手で動かせない。
+ *     内包に戻す（解除）と、子孫は自分の見せ方と内包の位置に戻る（docs/PATTERN-plan.md の 3.6 章）
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
  *   - overflow は文字のボックスの中身の扱い:
  *       "wrap" … 幅に合わせて折り返す（既定）
@@ -124,7 +126,7 @@ import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isIconShape, isNesting, other,
-  overflowOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -1034,6 +1036,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
       treeDirection: treeDirOf(n),
+      inTree: inTreeOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
       children: n.children.map(brief),
@@ -1047,24 +1050,23 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return out;
   }
 
-  // 見せ方を切り替える。内包での子の位置はデータに残し、内包へ戻したときに使う
+  // 見せ方を切り替える。内包での子の位置はデータに残し、内包へ戻したときに使う。ツリーは子孫全体を並べるので（docs/PATTERN-plan.md の 3.6 章）、
+  // 子だけでなく、自由に置かれていた子孫の位置を残し、切り替えて自由に置かれるようになった子孫はデータの位置に戻す
   function setView(n: Box, view: ChildView) {
     const prev = viewOf(n);
     if (view === prev) return;
-    if (prev === "nest") {
-      for (const k of n.children) {
-        k.src.x = Math.round(k.x);
-        k.src.y = Math.round(k.y);
-      }
+    const free = new Set(descendants(n).filter(inNest));
+    for (const k of free) {
+      k.src.x = Math.round(k.x);
+      k.src.y = Math.round(k.y);
     }
     n.src.childView = view;
-    if (view === "nest") {
-      for (const k of n.children) {
-        k.hasPos = Number.isFinite(k.src.x) && Number.isFinite(k.src.y);
-        k.x = Number(k.src.x) || 0;
-        k.y = Number(k.src.y) || 0;
-        k.intendedY = k.y;
-      }
+    for (const k of descendants(n)) {
+      if (!inNest(k) || free.has(k)) continue;
+      k.hasPos = Number.isFinite(k.src.x) && Number.isFinite(k.src.y);
+      k.x = Number(k.src.x) || 0;
+      k.y = Number(k.src.y) || 0;
+      k.intendedY = k.y;
     }
   }
 
