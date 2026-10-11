@@ -62,4 +62,15 @@ export default {
   "{field} は true か false にしてください: {id} の {name}": "{field} must be true or false: {name} of {id}",
   "{field} は文字列にしてください: {id} の {name}": "{field} must be a string: {name} of {id}",
   "属性・操作の名前が重なっています: {id} の {name}": "duplicate attribute or operation name: {name} of {id}",
+  // 線の端の形（heads.ts の選択肢）
+  "{k} の値が不正です: {from} - {to} ({value})": "invalid {k}: {from} - {to} ({value})",
+  "▶ 塗りの三角": "▶ Filled triangle",
+  "> 開いた矢じり": "> Open arrow",
+  "▷ 白抜きの三角": "▷ Hollow triangle",
+  "◆ 塗りのひし形": "◆ Filled diamond",
+  "◇ 白抜きのひし形": "◇ Hollow diamond",
+  "ER: 多": "ER: many",
+  "ER: 0 か 1": "ER: zero or one",
+  "ER: 0 以上": "ER: zero or more",
+  "ER: 1 以上": "ER: one or more",
 } satisfies Record<string, string>;

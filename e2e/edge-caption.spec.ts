@@ -55,16 +55,16 @@ test("線の編集ダイアログで通り方・線の種類・矢印を選べ�
     await page.mouse.dblclick(mid.x, mid.y);
   };
   await dblclickEdge();
-  await expect(page.locator('.mz-dlg [name="arrow-end"]')).toBeChecked();
-  await expect(page.locator('.mz-dlg [name="arrow-start"]')).not.toBeChecked();
+  await expect(page.locator('.mz-dlg [name="head-end"]')).toHaveValue("arrow");
+  await expect(page.locator('.mz-dlg [name="head-start"]')).toHaveValue("");
   await expect(page.locator('.mz-dlg [name="route"][value="elbow"]')).toBeChecked(); // 何も書かなければ折れ線
   await expect(page.locator('.mz-dlg [name="dash"][value="solid"]')).toBeChecked();
-  await page.locator('.mz-dlg [name="arrow-start"]').check();
+  await page.locator('.mz-dlg [name="head-start"]').selectOption("arrow");
   await page.locator('.mz-dlg [name="route"][value="straight"]').check();
   await page.locator('.mz-dlg [name="dash"][value="dashed"]').check();
   await page.locator(".mz-dlg [data-ok]").click();
-  await expect(page.locator("#sidebar [data-arrow=\"start\"]")).toBeChecked();
-  await expect(page.locator("#sidebar [data-arrow=\"end\"]")).toBeChecked();
+  await expect(page.locator('#sidebar [data-head="start"]')).toHaveValue("arrow");
+  await expect(page.locator('#sidebar [data-head="end"]')).toHaveValue("arrow");
   await expect(page.locator('#sidebar [name="mzp-route"][value="straight"]')).toBeChecked();
   await expect(page.locator('#sidebar [name="mzp-dash"][value="dashed"]')).toBeChecked();
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-line')).toHaveClass(/mz-dashed/);

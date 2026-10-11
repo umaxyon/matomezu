@@ -1,6 +1,7 @@
 // 描画: ボックスの見た目、DB やツリーの線、ボックスどうしの線を DOM に反映する
 
 import { attrText, attrsOf, classEnd, opText, opsOf } from "./classbox";
+import { headDraw, headOf } from "./heads";
 import { SVGNS, esc, isLightColor } from "./dom";
 import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
@@ -11,7 +12,7 @@ import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
-  BEND_MARGIN, absPos, bodyLinesOf, bodyOf, bodyWrapW, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
+  BEND_MARGIN, absPos, bodyLinesOf, bodyOf, bodyWrapW, ancestors, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
   isIconShape, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -445,22 +446,21 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 線の見た目（点の並び e.points から、見える線・クリックを受ける線・矢印・破線）を整える
   function paint(e: Edge) {
     const pts = e.points;
-    const arrow = arrowOf(e);
-    const atStart = arrow === "start" || arrow === "both", atEnd = arrow === "end" || arrow === "both";
-    // 見える線は、矢印のある端では矢印の付け根で止める（線の太さで先端が四角く太って見えないように）。
+    // 端の形（heads.ts）。見える線は形の付け根で止める（線の太さで先端が四角く太って見えないように、白抜きの中を線が通らないように）。
     // クリックを受ける透明な線は端まで
     const [line, hit] = e.lines as [SVGPolylineElement, SVGPolylineElement];
     const shown = pts.map(p => [...p] as Pt);
     const n = pts.length;
-    if (atStart) shown[0] = toward(pts[0]!, pts[1]!, ARROW_LEN - 1);
-    if (atEnd) shown[n - 1] = toward(pts[n - 1]!, pts[n - 2]!, ARROW_LEN - 1);
+    const hs = headOf(e.src, "start"), he = headOf(e.src, "end");
+    const ds = hs && n >= 2 ? headDraw(hs, pts[1]!, pts[0]!) : null;
+    const de = he && n >= 2 ? headDraw(he, pts[n - 2]!, pts[n - 1]!) : null;
+    if (ds?.trim) shown[0] = toward(pts[0]!, pts[1]!, ds.trim);
+    if (de?.trim) shown[n - 1] = toward(pts[n - 1]!, pts[n - 2]!, de.trim);
     setPoints(line, shown);
     setPoints(hit, pts);
     line.classList.toggle("mz-dashed", dashOf(e) === "dashed");
-    const heads = [];
-    if (atStart) heads.push(arrowHead(pts[1]!, pts[0]!));
-    if (atEnd) heads.push(arrowHead(pts[n - 2]!, pts[n - 1]!));
-    e.arrowEl.setAttribute("d", heads.join(""));
+    e.arrowEl.setAttribute("d", (ds?.fill ?? "") + (de?.fill ?? ""));
+    e.headLineEl.setAttribute("d", (ds?.stroke ?? "") + (de?.stroke ?? ""));
     paintLabel(e);
   }
 
@@ -538,19 +538,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (len < 1) return [...p];
     const k = Math.min(d, len / 2) / len;
     return [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
-  }
-
-  const ARROW_LEN = 10; // 矢印の長さ
-
-  // f から t へ向かう区間の、t の側の矢印の三角（先端が t）。区間が短すぎれば描かない
-  function arrowHead([fx, fy]: Pt, [tx, ty]: Pt) {
-    const len = Math.hypot(tx - fx, ty - fy);
-    if (len < 1) return "";
-    const ux = (tx - fx) / len, uy = (ty - fy) / len;
-    const L = ARROW_LEN, W = 6; // 矢印の長さと、軸からの半分の幅（幅は 12px）
-    const bx = tx - ux * L, by = ty - uy * L;
-    const r = (n: number) => Math.round(n * 10) / 10;
-    return `M${r(tx)},${r(ty)}L${r(bx - uy * W)},${r(by + ux * W)}L${r(bx + uy * W)},${r(by - ux * W)}Z`;
   }
 
   function render() {

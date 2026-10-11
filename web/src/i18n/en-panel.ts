@@ -142,4 +142,7 @@ export default {
   "クラス名・属性・操作は、編集のダイアログで直せます": "Edit the class name, attributes and operations in the edit dialog",
   "形の変更": "Change the shape",
   "変更する": "Change",
+  // 線の端の形（docs/HEADS-plan.md）
+  "始点の形": "Start shape",
+  "終点の形": "End shape",
 } satisfies Record<string, string>;

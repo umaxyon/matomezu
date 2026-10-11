@@ -27,4 +27,6 @@ export default {
   // クラスの箱（docs/CLASS-plan.md）
   "クラスの箱は子を持てません": "A class box can't have children",
   "ワールドはクラスにできません": "The diagram can't be a class",
+  // 線の端の形
+  "{k} の値が不正です: {v}": "Invalid {k}: {v}",
 } satisfies Record<string, string>;

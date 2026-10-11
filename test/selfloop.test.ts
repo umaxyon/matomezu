@@ -69,7 +69,7 @@ test("サイドバー: 自分に戻る線では、通り方と向きの指定を
   graph.selectEdge("e1");
   expect(side.querySelector('input[name="mzp-route"]')).toBeNull();
   expect(side.querySelector('input[name="mzp-exit"]')).toBeNull();
-  expect(side.querySelector('input[data-arrow="end"]')).not.toBeNull();
+  expect(side.querySelector('select[data-head="end"]')).not.toBeNull();
 });
 
 // ---- 端の位置（exitAt / enterAt は箱のふちを左上から時計回りに一周した割合） ----

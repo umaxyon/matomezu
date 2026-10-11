@@ -4,6 +4,7 @@ import { closeColorPicker, openColorPicker } from "./color-picker";
 import { EMPTY_CAPTION, esc, keyOf } from "./dom";
 import { classChangeWarning, openConfirmDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
+import { type Head, type Side, headOptions, headPatch } from "./heads";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { THEMES, isPaletteName, themeById } from "./theme";
@@ -68,7 +69,6 @@ function segment(name: string, value: string, options: [string, string][], disab
 
 // 選んだ線の情報: ID とつなぐ箱（始点・終点。押すとその箱を選ぶ）、矢印、消すボタン
 function edgeHtml(info: EdgeInfo): string {
-  const has = (side: "start" | "end") => info.arrow === side || info.arrow === "both";
   return `<div class="mzp-head"><span class="mzp-title">${t("線")}</span></div>
     <div class="mzp-section"><h3>${t("情報")}</h3><dl class="mzp-dl">
       <dt>ID</dt><dd>${esc(info.id)}</dd>
@@ -97,8 +97,9 @@ function edgeHtml(info: EdgeInfo): string {
       ${segment("mzp-dash", info.dash, [["solid", t("実線")], ["dashed", t("破線")]])}
     </div>
     <div class="mzp-section"><h3>${t("矢印")}</h3>
-      <label class="mzp-check"><input type="checkbox" data-arrow="start"${has("start") ? " checked" : ""}>${t("始点")}</label>
-      <label class="mzp-check"><input type="checkbox" data-arrow="end"${has("end") ? " checked" : ""}>${t("終点")}</label>
+      ${(["start", "end"] as const).map(side => `<div class="mzp-field"><span>${side === "start" ? t("始点") : t("終点")}</span>
+        <select class="mzp-input" name="mzp-head-${side}" data-head="${side}" aria-label="${side === "start" ? t("始点の形") : t("終点の形")}">${headOptions().map(([v, label]) =>
+          `<option value="${v}"${v === ((side === "start" ? info.startHead : info.endHead) ?? "") ? " selected" : ""}>${esc(label)}</option>`).join("")}</select></div>`).join("")}
     </div>
     <div class="mzp-section">
       <button type="button" class="mzp-chip mzp-danger" data-remove-edge="${esc(info.id)}">${t("線を消す")}</button>
@@ -304,6 +305,10 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (el instanceof HTMLSelectElement && el.name === "mzp-theme") {
       return graph.update(info.kind === "world" ? null : info.id, { theme: el.value || null });
     }
+    // 端の形（heads.ts）。塗りの三角は arrow に、ほかは startHead / endHead に書く
+    if (el instanceof HTMLSelectElement && el.dataset.head && info.kind === "edge") {
+      return graph.updateEdge(info.id, headPatch(info, el.dataset.head as Side, (el.value || null) as Head | null));
+    }
     if (el instanceof HTMLSelectElement && el.name === "mzp-shape" && info.kind !== "world" && info.kind !== "edge") {
       const next = el.value as Shape;
       if (next !== "class" && info.shape !== "class") return graph.update(info.id, { shape: next });
@@ -319,12 +324,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (el.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: el.value as Dash });
     if (el.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: el.value as Route });
     if (el.name === "mzp-world-route") return graph.update(null, { route: el.value as Route });
-    // 矢印は、始点と終点の 2 つの選択を合わせて 1 つの値にする
-    if (el.dataset.arrow && info.kind === "edge") {
-      const on = (side: string) => !!pane.querySelector<HTMLInputElement>(`[data-arrow="${side}"]`)?.checked;
-      const start = on("start"), end = on("end");
-      return graph.updateEdge(info.id, { arrow: start && end ? "both" : start ? "start" : end ? "end" : null });
-    }
     // 文字入力は、打っていたときの箱・線へ書く（data-target）。別の箱をクリックしてフォーカスが外れると、選択が切り替わって
     // サイドバーを描き直したあとで確定（change）が届くため、今の info を宛先にすると別の箱に書いてしまう
     const edit = el.dataset.edit;

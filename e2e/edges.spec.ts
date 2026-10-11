@@ -20,12 +20,12 @@ test("選択モードで線をクリックすると情報タブに線の情報�
   await expect(side.locator(".mzp-dl dd")).toHaveText(["e2", "1_フロントエンド", "4_バックエンド"]);
   await expect(side.locator(".mzp-kind")).toHaveCount(0); // 種類は出さない
 
-  await side.locator('[data-arrow="end"]').check();
+  await side.locator('[data-head="end"]').selectOption("arrow");
   await expect(edge.locator(".mz-arrow")).toHaveAttribute("d", /^M.+Z$/);
-  await side.locator('[data-arrow="start"]').check();
+  await side.locator('[data-head="start"]').selectOption("arrow");
   await expect.poll(() => edge.locator(".mz-arrow").getAttribute("d")).toMatch(/Z.*Z$/); // 両端に 1 つずつ
-  await side.locator('[data-arrow="start"]').uncheck();
-  await side.locator('[data-arrow="end"]').uncheck();
+  await side.locator('[data-head="start"]').selectOption("");
+  await side.locator('[data-head="end"]').selectOption("");
   await expect(edge.locator(".mz-arrow")).toHaveAttribute("d", "");
 
   await side.locator("label", { hasText: "破線" }).click();

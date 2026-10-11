@@ -65,4 +65,7 @@ export default {
   "属性・操作の名前が重なっています: {name}": "Attribute and operation names must be unique: {name}",
   "クラス名": "Class name",
   "変更する": "Change",
+  // 線の端の形（docs/HEADS-plan.md）
+  "始点の形": "Start shape",
+  "終点の形": "End shape",
 } satisfies Record<string, string>;

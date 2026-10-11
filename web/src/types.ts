@@ -1,6 +1,7 @@
 // データ形式の型。仕様は graph.ts 冒頭のコメントを参照。
 
 import type { ClassAttr, ClassOp } from "./classbox";
+import type { Head } from "./heads";
 
 export type Size = "L" | "M" | "S";
 export type ChildView = "nest" | "tree" | "hidden" | "list";
@@ -55,7 +56,9 @@ export interface EdgeData {
   id?: Id;
   from: Id;
   to: Id;
-  arrow?: Arrow; // 矢印（無ければなし）
+  arrow?: Arrow; // 矢印（塗りの三角。無ければなし）
+  startHead?: Head; // 始点の端の形（heads.ts。書けばその端に付く。arrow より優先。docs/HEADS-plan.md）
+  endHead?: Head;   // 終点の端の形
   dash?: Dash;   // 線の模様（無ければ実線）
   route?: Route; // 線の通り方（無ければ図の既定。図にも無ければ直線）
   exit?: Axis;   // 以前の持ち方（折れ線の始点から出る向き）。読み込むと消す（2026-10-10、docs/EDGE-SPEC.md）
@@ -167,6 +170,8 @@ export interface EdgeInfo {
   from: Brief; // 始点の箱
   to: Brief;   // 終点の箱
   arrow: Arrow | null;
+  startHead: Head | null; // 始点の端の形（arrow の塗りの三角も含めた、実際に描く形。無ければ null）
+  endHead: Head | null;   // 終点の端の形
   dash: Dash;
   caption: string | null; // 線のキャプション
   captionMoved: boolean;   // キャプションの位置を手で動かしたか（captionAt か captionOffset がある）

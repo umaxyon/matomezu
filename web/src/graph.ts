@@ -91,6 +91,8 @@
  *   - exit / enter は折れ線の向きの指定: 始点から出る向き・終点に入る向き。"horizontal"（左右の辺）/ "vertical"（上下の辺）。無ければ自動。
  *     横か縦に並ぶ箱どうしは、両端の向きがそろうときだけ素直に引ける（横に並ぶなら、左右ならまっすぐ、上下ならコの字）。
  *     そろわない指定は斜めのときだけ効き、箱を動かして横か縦に並んだら、指定を両方とも消して自動に戻す。直線には効かない
+ *   - startHead / endHead は線の端の形（docs/HEADS-plan.md）: "arrow"（塗りの三角）/ "open" / "hollow" / "diamond" / "hollowDiamond" /
+ *     "one" / "many" / "zeroOne" / "zeroMany" / "oneMany"（ER 図）。書けばその端に付き、arrow より優先する。
  *   - exitAt / enterAt は線の両端の位置（割合 0〜1）。直線は相手に向いた側の辺を角から角までたどった割合（横か縦に並ぶなら向いた 1 辺。routing.ts の borderPath）、
  *     折れ線は出入りする辺の上の割合（左右の辺は上から、上下の辺は左から。routing.ts の sidePath）。
  *     選択モードで線を選ぶと両端に丸が出て、ドラッグで辺に沿って動かせる。基準（直線は相手の向き、折れ線は出入りする辺）が変わるか、箱が重なったら消えて自動に戻る
@@ -126,6 +128,7 @@ import {
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
+import { type Head, headOf, isHead } from "./heads";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import { type RouteFix, alignedEnds, isAligned, perimeterAt, route, vertexOf } from "./routing";
@@ -153,6 +156,8 @@ export interface EdgePatch {
   captionAt?: number | null;     // null で真ん中に戻す
   captionOffset?: number | null; // null で線の上に戻す
   arrow?: Arrow | null;
+  startHead?: Head | null; // 端の形（heads.ts。null で消す）
+  endHead?: Head | null;
   dash?: Dash | null;
   route?: Route | null;
   via?: number[] | null;
@@ -425,7 +430,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   function edgeInfo(e: Edge): EdgeInfo {
     return {
-      kind: "edge", id: e.id, self: e.a === e.b, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e), dash: dashOf(e), caption: typeof e.src.caption === "string" && e.src.caption ? e.src.caption : null,
+      kind: "edge", id: e.id, self: e.a === e.b, from: brief(e.a), to: brief(e.b), arrow: arrowOf(e),
+      startHead: headOf(e.src, "start"), endHead: headOf(e.src, "end"), dash: dashOf(e), caption: typeof e.src.caption === "string" && e.src.caption ? e.src.caption : null,
       captionMoved: e.src.captionAt != null || e.src.captionOffset != null, route: routeOf(e, world),
       via: viaOf(e), adjustable: e.segments.length > 0, endsMoved: e.src.exitAt != null || e.src.enterAt != null,
       aligned: e.a === e.b || !e.ends || isAligned(R.routeInputOf(e), e.points),
@@ -469,6 +475,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     line.setAttribute("class", "mz-line");
     const arrowEl = document.createElementNS(SVGNS, "path");
     arrowEl.setAttribute("class", "mz-arrow");
+    const headLineEl = document.createElementNS(SVGNS, "path");
+    headLineEl.setAttribute("class", "mz-arrow-line");
     const hit = document.createElementNS(SVGNS, "polyline");
     hit.setAttribute("class", "mz-hit");
     const handlesEl = document.createElementNS(SVGNS, "g");
@@ -482,10 +490,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       c.dataset.end = end;
       endsEl.appendChild(c);
     }
-    g.append(line, arrowEl, hit, handlesEl, endsEl);
+    g.append(line, arrowEl, headLineEl, hit, handlesEl, endsEl);
     svg.appendChild(g);
     const e: Edge = {
-      src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, points: [], handlesEl,
+      src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, headLineEl, points: [], handlesEl,
       shape: null, segments: [], arrangement: "diagonal", ends: null, memory: null, routeMemo: null, endsEl, labelEl: null,
     };
     // キャプションの札を押しても、線を選ぶ（札は render.ts が作ったり消したりするので、g で受け取る）
@@ -536,6 +544,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if ("arrow" in patch) {
       if (patch.arrow != null && !(ARROWS as readonly string[]).includes(patch.arrow)) throw new Error(t("arrow の値が不正です: {v}", { v: patch.arrow }));
       setOrDelete(e.src, "arrow", patch.arrow ?? undefined, patch.arrow == null);
+    }
+    for (const k of ["startHead", "endHead"] as const) {
+      if (!(k in patch)) continue;
+      const v = patch[k];
+      if (v != null && !isHead(v)) throw new Error(t("{k} の値が不正です: {v}", { k, v }));
+      setOrDelete(e.src, k, v ?? undefined, v == null);
     }
     if ("captionAt" in patch) {
       const v = patch.captionAt;

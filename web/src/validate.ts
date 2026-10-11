@@ -1,6 +1,7 @@
 // データの検証と正規化。DOM に依存しない。
 
 import { isAccess, isObject as isRecord, memberNames } from "./classbox";
+import { isHead } from "./heads";
 import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import type { Diagram, EdgeData, Id, Size } from "./types";
@@ -182,6 +183,10 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (captionOffset != null && !Number.isFinite(captionOffset)) fail(t("captionOffset は数にしてください: {from} - {to}", { from, to }));
     const arrow = (e as EdgeData).arrow;
     if (arrow != null && !includes(ARROWS, arrow)) fail(t("arrow の値が不正です: {from} - {to} ({value})", { from, to, value: arrow }));
+    for (const k of ["startHead", "endHead"] as const) {
+      const v = (e as EdgeData)[k];
+      if (v != null && !isHead(v)) fail(t("{k} の値が不正です: {from} - {to} ({value})", { k, from, to, value: v }));
+    }
     const route = (e as EdgeData).route;
     if (route != null && !includes(ROUTES, route)) fail(t("route の値が不正です: {from} - {to} ({value})", { from, to, value: route }));
     for (const k of ["exit", "enter"] as const) {

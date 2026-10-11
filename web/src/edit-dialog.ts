@@ -13,6 +13,7 @@
 
 import { ACCESSES, ACCESS_MARK, type ClassAttr, type ClassOp, cleanMembers } from "./classbox";
 import { esc, injectStyle } from "./dom";
+import { type Head, headOptions, headsPatch } from "./heads";
 import { helpIcon, setupHelp } from "./help";
 import { t } from "./i18n";
 import type { EdgePatch, Graph } from "./graph";
@@ -459,7 +460,6 @@ export function openConfirmDialog(title: string, message: string, okLabel: strin
 export function openEdgeEditDialog(graph: Graph, id: string): void {
   const e = graph.edgeInfo(id);
   if (!e) return;
-  const has = (side: "start" | "end") => e.arrow === side || e.arrow === "both";
   const radios = (name: string, now: string, options: [string, string][]) =>
     options.map(([v, label]) => `<label><input type="radio" name="${name}" value="${v}"${v === now ? " checked" : ""}>${label}</label>`).join("");
   const overlay = show(t("線の編集"), t("確定"), `
@@ -468,20 +468,22 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
       ${e.self ? "" : `<div class="mz-dlg-row"><span>${t("通り方")}</span>${radios("route", e.route, [["elbow", t("折れ線")], ["straight", t("直線")]])}</div>`}
       <div class="mz-dlg-row"><span>${t("線の種類")}</span>${radios("dash", e.dash, [["solid", t("実線")], ["dashed", t("破線")]])}</div>
       <div class="mz-dlg-row"><span>${t("矢印")}</span>
-        <label><input type="checkbox" name="arrow-start"${has("start") ? " checked" : ""}>${t("始点")}</label>
-        <label><input type="checkbox" name="arrow-end"${has("end") ? " checked" : ""}>${t("終点")}</label></div>`,
+        ${(["start", "end"] as const).map(side => `<label>${side === "start" ? t("始点") : t("終点")}
+          <select class="mz-dlg-input" name="head-${side}" aria-label="${side === "start" ? t("始点の形") : t("終点の形")}">${headOptions().map(([v, label]) =>
+            `<option value="${v}"${v === ((side === "start" ? e.startHead : e.endHead) ?? "") ? " selected" : ""}>${esc(label)}</option>`).join("")}</select></label>`).join("")}</div>`,
   overlay => {
     const field = (name: string) => overlay.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
     const caption = field("caption").value;
-    const start = field("arrow-start").checked, end = field("arrow-end").checked;
-    const arrow = start && end ? "both" : start ? "start" : end ? "end" : null;
+    const head = (side: "start" | "end") => (overlay.querySelector<HTMLSelectElement>(`[name="head-${side}"]`)!.value || null) as Head | null;
+    const heads = headsPatch(head("start"), head("end"));
     const picked = (name: string) => overlay.querySelector<HTMLInputElement>(`[name="${name}"]:checked`)?.value;
     const route = picked("route") as EdgePatch["route"] | undefined, dash = picked("dash");
     const patch: EdgePatch = {};
     if (caption.trim() !== (e.caption ?? "")) patch.caption = caption;
     if (route && route !== e.route) patch.route = route;
     if (dash && dash !== e.dash) patch.dash = dash === "dashed" ? "dashed" : null;
-    if (arrow !== e.arrow) patch.arrow = arrow;
+    // 端の形（heads.ts）。塗りの三角は arrow に、ほかは startHead / endHead に書く
+    if (head("start") !== e.startHead || head("end") !== e.endHead) Object.assign(patch, heads);
     if (Object.keys(patch).length) graph.updateEdge(id, patch); // まとめて 1 件の変更にする
   }, `<button type="button" class="mz-dlg-btn mz-dlg-delete" data-delete>${t("線を消す")}</button>`);
   overlay.querySelector("[data-delete]")!.addEventListener("click", () => {

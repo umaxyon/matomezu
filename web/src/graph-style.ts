@@ -75,6 +75,8 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 /* 線は polyline なので、塗らない（塗ると折れ線の点で囲まれた面が既定の黒で塗られる） */
 .mz-line, .mz-hit { fill: none; }
 .mz-arrow { fill: var(--mz-edge); stroke: none; pointer-events: none; }
+/* 端の形の線で描く部分（白抜き・開いた矢じり・ER 図の印。heads.ts）。線と同じ色と太さ */
+.mz-arrow-line { fill: none; stroke: var(--mz-edge); stroke-width: 1.5; stroke-linejoin: round; pointer-events: none; }
 /* 線のキャプションの札（docs/EDGE-CAPTION-plan.md）。foreignObject の中で上下左右の真ん中にそろえる。
    選んだ線・ポインタを乗せた線のキャプションは、線と同じ強調の色にする。
    札だけがクリックを受ける（選択モードのとき。押すと線を選ぶ） */
@@ -101,12 +103,15 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-mode-move .mz-edge.mz-selected .mz-end { display: inline; pointer-events: all; cursor: move; }
 .mz-edge.mz-hi .mz-line { stroke: var(--mz-edge-hi); stroke-width: 2.2; }
 .mz-edge.mz-hi .mz-arrow { fill: var(--mz-edge-hi); }
-.mz-edge.mz-dim .mz-line, .mz-edge.mz-dim .mz-arrow { opacity: 0.25; }
+.mz-edge.mz-hi .mz-arrow-line { stroke: var(--mz-edge-hi); }
+.mz-edge.mz-dim .mz-line, .mz-edge.mz-dim .mz-arrow, .mz-edge.mz-dim .mz-arrow-line { opacity: 0.25; }
 /* ポインタを乗せた線は、矢印も一緒に強調する（選んでいる線は選択の色のまま） */
 .mz-mode-move .mz-edge:not(.mz-selected):hover .mz-line { stroke: var(--mz-edge-hi); }
 .mz-mode-move .mz-edge:not(.mz-selected):hover .mz-arrow { fill: var(--mz-edge-hi); }
+.mz-mode-move .mz-edge:not(.mz-selected):hover .mz-arrow-line { stroke: var(--mz-edge-hi); }
 .mz-edge.mz-selected .mz-line { stroke: var(--mz-select); stroke-width: 3; opacity: 1; }
 .mz-edge.mz-selected .mz-arrow { fill: var(--mz-select); opacity: 1; }
+.mz-edge.mz-selected .mz-arrow-line { stroke: var(--mz-select); stroke-width: 2; opacity: 1; }
 .mz-node { position: absolute; pointer-events: none; transition: opacity 0.15s; }
 .mz-head {
   position: absolute;

@@ -66,7 +66,8 @@ export interface Edge {
   b: Box;
   el: SVGGElement;
   lines: SVGPolylineElement[]; // [見える線, クリックを受ける透明な線]
-  arrowEl: SVGPathElement; // 矢印の三角（始点・終点の両方を 1 つの path に描く）
+  arrowEl: SVGPathElement; // 端の形の塗る部分（始点・終点の両方を 1 つの path に描く。heads.ts）
+  headLineEl: SVGPathElement; // 端の形の線で描く部分（白抜き・開いた矢じり・ER 図の印）
   points: [number, number][]; // 線の点の並び（ワールドの座標。折れ点を含む。矢印の分は縮めていない）
   handlesEl: SVGGElement;     // 途中の区間をつかむ透明な線（区間ごとに 1 本。render.ts が作る）
   shape: RouteShape | null;   // 折れ線の形（描いたときのもの。直線などは null）
