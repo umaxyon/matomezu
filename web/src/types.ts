@@ -3,7 +3,7 @@
 export type Size = "L" | "M" | "S";
 export type ChildView = "nest" | "tree" | "hidden" | "list";
 export type Overflow = "wrap" | "grow" | "clip";
-export type Shape = "box" | "person" | "db" | "diamond";
+export type Shape = "box" | "person" | "db" | "diamond" | "server";
 export type TreeDirection = "down" | "up" | "left" | "right";
 export type Id = number | string;
 

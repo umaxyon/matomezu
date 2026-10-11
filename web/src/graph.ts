@@ -62,7 +62,7 @@
  *   - id は連番の数値を使う。省くと読み込み時に、既存の数値 id の続きから連番を振る。
  *   - parent に親ボックスの id を書くと、その子になる。x, y は親の左上からの位置（内包のときに使う）。
  *   - 位置が無いボックスは自動で配置する。
- *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱）。
+ *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱の絵。キャプションは足元）/ "diamond"（ひし形）/ "server"（タワー型のサーバーの絵。キャプションは足元）。
  *     子を内包しているボックスは枠なので、形は使わない（ツリーや非表示で見せているときは使う）。
  *   - size はボックスの大きさの段階:
  *       "L" … 幅は文字に合わせて 120〜400。越えると折り返す
@@ -118,7 +118,7 @@ import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World,
   absPos, ancestors, arrowOf, dataSizeOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
-  bodyLinesOf, bodyWidthOf, bodyWrapW, canBody, overflowOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viewOf,
+  bodyLinesOf, bodyWidthOf, bodyWrapW, canBody, overflowOf, setOrDelete, setSpec, isIconShape, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { type Pos, addBox, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
@@ -980,7 +980,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const size = sizeOf(n);
     // 中身の扱いを選べるのは、文字を持つボックス（S 以外）だけ。子を持つ箱はつねに子に合わせて伸びる（docs/SIZE-plan.md）。
     // スティックマンは文字の置き方が決まっているので使わない
-    const usesOverflow = !n.children.length && size !== "S" && shapeOf(n) !== "person" && !inList(n);
+    const usesOverflow = !n.children.length && size !== "S" && !isIconShape(shapeOf(n)) && !inList(n);
     const out: BoxInfo = {
       kind: n.children.length ? "group" : "box",
       id: n.id,

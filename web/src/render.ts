@@ -10,13 +10,21 @@ import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
   BEND_MARGIN, absPos, bodyLinesOf, bodyOf, bodyWrapW, ancestors, arrowOf, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
-  shapeOf, sizeOf, treeDirOf, viewOf,
+  isIconShape, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
 
 // スティックマン（viewBox 0 0 36 52）
 const PERSON_SVG =
   '<g class="mz-figure"><circle cx="18" cy="8" r="6.5"/><path d="M18 14.5V33M5 21.5H31M18 33 7 50M18 33 29 50"/></g>';
+// サーバー（タワー型の筐体を斜め上から見た立体）。前面・上面・側面と、前面のドライブの溝 2 本とランプ
+// DB（円柱を斜め上から見た立体。viewBox 0 0 40 52）。胴と上面（明るく）
+const DB_SVG =
+  '<path class="mz-db-body" d="M3 9V43A17 6 0 0 0 37 43V9"/><ellipse class="mz-db-top" cx="20" cy="9" rx="17" ry="6"/>';
+const SERVER_SVG =
+  '<path class="mz-server-top" d="M3 10 11 3H37L29 10Z"/><path class="mz-server-side" d="M29 10 37 3V43L29 50Z"/>' +
+  '<path class="mz-server-front" d="M3 10H29V50H3Z"/><path class="mz-server-bay" fill="none" d="M7 16H25M7 21H25"/>' +
+  '<circle class="mz-server-lamp" cx="23" cy="28" r="2"/>';
 
 export interface RenderContext {
   opt: { color: string; header: number; treeGapY: number; padding: number };
@@ -106,7 +114,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     head.classList.toggle("mz-leaf", !group);
     for (const s of Object.keys(SIZES)) head.classList.toggle("mz-size-" + s, s === size);
     // 文字の扱いは子を持たないボックスだけが overflow に従う（S は固定の大きさの中で折り返す）
-    const textOv = n.children.length || size === "S" || shapeOf(n) === "person" ? "wrap" : overflowOf(n);
+    const textOv = n.children.length || size === "S" || isIconShape(shapeOf(n)) ? "wrap" : overflowOf(n);
     for (const ov of OVERFLOWS) head.classList.toggle("mz-ov-" + ov, !group && textOv === ov);
 
     const shape = shapeOf(n);
@@ -114,7 +122,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape && !page);
     head.classList.toggle("mz-shape-page", page);
     // 文字を塗りの上に書くのは、ボックスと DB（塗りつぶしあり）だけ
-    const onFill = !group && fill && shape !== "person";
+    const onFill = !group && fill && !isIconShape(shape);
     const light = onFill && isLightColor(color);
     head.classList.toggle("mz-dark", onFill && light);
     head.classList.toggle("mz-light", onFill && !light);
@@ -162,6 +170,20 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.5";
         setShadow(n, fill ? shadowOf() : null);
+      } else if (shape === "server") {
+        // サーバー（タワー型の立体）。スティックマンと同じく絵の大きさは決まっていて、文字は足元に置く。
+        // 前面は箱の色、上面は明るく、側面は暗くして立体に見せる。塗りが無ければ輪郭だけ
+        svg.setAttribute("viewBox", "0 0 40 52");
+        svg.innerHTML = SERVER_SVG;
+        svg.style.fill = "";
+        svg.style.stroke = fill ? edge : color;
+        svg.style.strokeWidth = "1.3";
+        const face = (cls: string, paint: string) => { (svg.querySelector(cls) as SVGElement).style.fill = fill ? paint : "none"; };
+        face(".mz-server-front", color);
+        face(".mz-server-top", `color-mix(in srgb, ${color} 60%, #fff)`);
+        face(".mz-server-side", `color-mix(in srgb, ${color} 70%, #000)`);
+        (svg.querySelector(".mz-server-lamp") as SVGElement).style.fill = fill ? edge : color;
+        setShadow(n, null);
       } else if (page) {
         // タブ付きの見出し（フォルダ）。輪郭は renderPage で大きさに合わせて描く
         svg.removeAttribute("viewBox");
@@ -171,12 +193,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.strokeWidth = "1.5";
         setShadow(n, fill ? shadowOf() : null);
       } else {
-        svg.removeAttribute("viewBox");
-        svg.innerHTML = '<path class="mz-db-body"/><path class="mz-db-rim" fill="none"/>';
-        svg.style.fill = fill ? color : "none";
+        // DB（円柱の立体）。スティックマンと同じく絵の大きさは決まっていて、文字は足元に置く（2026-10-11 ユーザー）
+        svg.setAttribute("viewBox", "0 0 40 52");
+        svg.innerHTML = DB_SVG;
+        svg.style.fill = "";
         svg.style.stroke = fill ? edge : color;
-        svg.style.strokeWidth = "1.5";
-        // DB には影を付けない（下の縁が箱の枠で切れて、輪郭に色が付いたように見えるため。2026-10-10 ユーザー）
+        svg.style.strokeWidth = "1.3";
+        (svg.querySelector(".mz-db-body") as SVGElement).style.fill = fill ? color : "none";
+        (svg.querySelector(".mz-db-top") as SVGElement).style.fill = fill ? `color-mix(in srgb, ${color} 60%, #fff)` : "none";
         setShadow(n, null);
       }
     }
@@ -218,17 +242,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.treeFrame.style.stroke = own ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";
     n.treeFrame.style.fill = `color-mix(in srgb, ${color} 5%, transparent)`;
     for (const k of n.children) k.el.style.display = view === "hidden" ? "none" : "";
-  }
-
-  // DB の円柱。胴（上面の奥の縁から底の手前の縁まで）を塗り、上面の手前の縁を線で描く
-  function renderDb(n: Box) {
-    const ry = sizeOf(n) === "S" ? 6 : 8; // graph-style.ts の .mz-shape-db の上下の余白と合わせる
-    const x0 = 1, x1 = n.hw - 1, top = ry + 1, bottom = n.hh - ry - 1;
-    const rx = (x1 - x0) / 2;
-    const [body, rim] = n.shapeSvg.children;
-    body?.setAttribute("d",
-      `M${x0},${top}A${rx},${ry} 0 0 1 ${x1},${top}V${bottom}A${rx},${ry} 0 0 1 ${x0},${bottom}Z`);
-    rim?.setAttribute("d", `M${x0},${top}A${rx},${ry} 0 0 0 ${x1},${top}`);
   }
 
   // ひし形: 上下左右の辺の真ん中を頂点にする（線は頂点にだけつながる。routing.ts の aVertex / bVertex）
@@ -536,7 +549,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       g.right = block ? "auto" : "";
       g.top = block ? opt.header + "px" : "";
       g.height = block ? n.bodyH + "px" : "";
-      if (shapeOf(n) === "db") renderDb(n);
       if (shapeOf(n) === "diamond") renderDiamond(n);
       if (isPageBox(n)) renderPage(n);
       renderTree(n);
@@ -590,5 +602,5 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const o of ctx.nodes()) o.el.classList.remove("mz-dim");
   }
 
-  return { applyWorldStyle, applyStyle, renderDb, renderTree, renderEdges, render, blocked, focus, unfocus, toFront, routeInputOf, loopCornerNear };
+  return { applyWorldStyle, applyStyle, renderTree, renderEdges, render, blocked, focus, unfocus, toFront, routeInputOf, loopCornerNear };
 }

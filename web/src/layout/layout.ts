@@ -17,7 +17,7 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, descendants, inNest, other, setSpec, shapeOf, sizeOf,
+  ancestors, descendants, inNest, isIconShape, other, setSpec, shapeOf, sizeOf,
 } from "../model";
 import type { TextMeasurer } from "./measure";
 import { BODY_GAP, createNodeKinds } from "./node-kinds";
@@ -414,7 +414,7 @@ export function createLayout(ctx: LayoutContext) {
     if (!kindOf(n).holdsChildren) return [];
     return n.children.filter(k => {
       const kind = kindOf(k).name;
-      return (kind === "nest" || kind === "text") && sizeOf(k) !== "S" && shapeOf(k) !== "person";
+      return (kind === "nest" || kind === "text") && sizeOf(k) !== "S" && !isIconShape(shapeOf(k));
     });
   }
 

@@ -18,7 +18,7 @@ const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折�
 const BY_CHILDREN = "内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）";
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["list", "リスト"], ["hidden", "非表示"]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];
-const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"], ["diamond", "ひし形"]];
+const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"], ["diamond", "ひし形"], ["server", "サーバー"]];
 const VIEW_HELP = "内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\n" +
   "リスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n" +
   "非表示: 子を隠し、▼ で子がいることだけを示します";
@@ -145,9 +145,11 @@ function html(info: Info): string {
       "見本の色は、どのテーマでもそのテーマに合った色で描きます。好きな色（灰色も）を選ぶと、どのテーマでもその色で描きます"), info.themeUnknown));
 
     if (info.canShape) {
+      // 形はセレクトボックス（形が増えても幅が変わらないように。2026-10-11 ユーザー）。本文があればボックス以外は選べない
       parts.push(`<div class="mzp-section"><h3>形</h3>
-        ${segment("mzp-shape", info.shape, SHAPE_OPTIONS, info.body
-          ? new Map(SHAPE_OPTIONS.filter(([v]) => v !== "box").map(([v]) => [v, "本文があるので、ボックスのままです"])) : undefined)}
+        <select class="mzp-input" name="mzp-shape" aria-label="形">${SHAPE_OPTIONS.map(([v, label]) =>
+          `<option value="${v}"${v === info.shape ? " selected" : ""}${info.body && v !== "box" ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
+        ${info.body ? `<p class="mzp-hint">本文があるので、ボックスのままです</p>` : ""}
       </div>`);
     }
 
@@ -302,6 +304,7 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (t instanceof HTMLSelectElement && t.name === "mzp-theme") {
       return graph.update(info.kind === "world" ? null : info.id, { theme: t.value || null });
     }
+    if (t instanceof HTMLSelectElement && t.name === "mzp-shape" && info.kind === "box") return graph.update(info.id, { shape: t.value as Shape });
     if (!(t instanceof HTMLInputElement)) return;
     if (t.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: t.value as Dash });
     if (t.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: t.value as Route });
@@ -318,7 +321,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (edit === "title") return graph.update(null, { title: t.value });
     if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
     if (t.hasAttribute("data-one-line")) return graph.update(info.id, { overflow: t.checked ? "clip" : "wrap" });
-    if (t.name === "mzp-shape") return graph.update(info.id, { shape: t.value as Shape });
     if (t.name === "mzp-treedir") return graph.update(info.id, { treeDirection: t.value as TreeDirection });
     if (t.name === "mzp-view") return graph.update(info.id, { childView: t.value as ChildView });
   });

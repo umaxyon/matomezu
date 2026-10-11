@@ -165,6 +165,8 @@ export const inTree = (n: Box) => !!n.parent && viewOf(n.parent) === "tree";
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
 export const shapeOf = (n: Box): Shape =>
   (!isNesting(n) && !inList(n) && n.src.page !== true && isShape(n.src.shape) ? n.src.shape : "box");
+// 絵の形（スティックマン・DB・サーバー）: 決まった大きさの絵の足元に文字を置く。背景は無い
+export const isIconShape = (s: Shape): boolean => s === "person" || s === "db" || s === "server";
 // ページの箱（中身は別のページ。docs/TABS-plan.md）。最初のページでは子を持たない箱として描く
 export const isPageBox = (n: Box) => n.src.page === true && !n.children.length;
 export const fillOf = (n: Box) => n.src.fill !== false;

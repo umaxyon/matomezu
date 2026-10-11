@@ -130,11 +130,11 @@ test("サイズを押すと、今と同じサイズでも大きさの指定を�
 test("形と子の見せ方、ツリーのときだけ向きを選べる", () => {
   const { g, $, change } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3 }] });
   g.select(3);
-  change('input[name="mzp-shape"][value="db"]', true);
+  change('select[name="mzp-shape"]', "db"); // 形はセレクトボックス
   expect(box(g, 3).shape).toBe("db");
 
   g.select(1);
-  expect($('input[name="mzp-shape"]')).toBeNull(); // 内包しているグループは形を選べない
+  expect($('select[name="mzp-shape"]')).toBeNull(); // 内包しているグループは形を選べない
   expect($('input[name="mzp-treedir"]')).toBeNull();
   change('input[name="mzp-view"][value="tree"]', true);
   expect(box(g, 1).childView).toBe("tree");

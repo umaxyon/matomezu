@@ -176,7 +176,7 @@ test("サイドバー: 見せ方にリストがあり、リストの子でもサ
   graph.select(4);
   const disabled = (name: string) => [...side.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)].every(i => i.disabled);
   expect([disabled("mzp-size"), disabled("mzp-view")]).toEqual([false, false]);
-  expect(side.querySelector('input[name="mzp-shape"]')).toBeNull();
+  expect(side.querySelector('select[name="mzp-shape"]')).toBeNull();
 });
 
 test("見出しが子より長ければ、見出しが入る幅にそろえる（上限は 400）", () => {

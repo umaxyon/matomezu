@@ -241,10 +241,12 @@ test("形: スティックマンと DB に切り替え、ボックスに戻す�
   const person = heads.find(h => h.classList.contains("mz-shape-person"))!;
   const db = heads.find(h => h.classList.contains("mz-shape-db"))!;
   expect(person.querySelector(".mz-shape circle")).not.toBeNull();
-  expect(db.querySelector(".mz-db-body")!.getAttribute("d")).toMatch(/^M1,9A/);
-  expect(graph.info(2).h).toBe(64); // ボックスと同じ高さ
-  // スティックマンは文字の置き方が決まっているので、中身の扱いは選べない
+  expect(db.querySelector(".mz-shape")!.getAttribute("viewBox")).toBe("0 0 40 52"); // DB も決まった大きさの絵（文字は足元）
+  expect(db.querySelector(".mz-db-top")).not.toBeNull();
+  expect(graph.info(2).h).toBe(graph.info(1).h); // スティックマンと同じく、高さは絵と足元の文字で決まる
+  // 絵の形は文字の置き方が決まっているので、中身の扱いは選べない
   expect(graph.info(1).overflows).toEqual([]);
+  expect(graph.info(2).overflows).toEqual([]);
 
   graph.update(1, { shape: "box" });
   expect("shape" in byId(graph.toJSON(), 1)).toBe(false);
@@ -1508,4 +1510,30 @@ test("ポインタを乗せたときの強調は、描いていない線（ツ�
   expect(node(3).classList.contains("mz-dim")).toBe(true); // 子A と子B の線は描かないので、子B は明るくしない
   hover(4);
   expect(node(5).classList.contains("mz-dim")).toBe(false); // 見えている線の相手は明るくする
+});
+
+test("形のサーバーは、スティックマンと同じく決まった大きさの絵（立体のタワー）の足元に文字。文字が長くても絵は変わらない", () => {
+  const { el, graph } = setup({ nodes: [
+    { id: 1, caption: "Web", shape: "server", x: 40, y: 40 },
+    { id: 2, caption: "とても長い名前のアプリケーションサーバー", shape: "server", x: 300, y: 40 },
+  ] });
+  const svg = (id: number) => el.querySelector(`[data-id="${id}"] > .mz-head > .mz-shape`)!;
+  for (const id of [1, 2]) {
+    expect(svg(id).getAttribute("viewBox")).toBe("0 0 40 52");
+    for (const cls of ["front", "top", "side", "bay", "lamp"]) expect(svg(id).querySelector(".mz-server-" + cls)).not.toBeNull();
+  }
+  expect(graph.info(2).w).toBeGreaterThan(graph.info(1).w); // 文字の分だけ箱（足元の文字）が広がる
+  expect(el.querySelector('[data-id="1"] > .mz-head')!.classList.contains("mz-light")).toBe(false); // 文字は塗りの上に書かない
+  expect(graph.toJSON().nodes[0]!.shape).toBe("server");
+});
+
+test("絵の形（スティックマン・DB・サーバー）は、足元の文字が折り返したら、行の数が変わらない一番狭い幅まで詰める", () => {
+  const caption = "Web サーバー " + "a".repeat(20); // 1 行では上限（M は 240）を超え、空白で折り返す
+  for (const shape of ["person", "db", "server"] as const) {
+    const { graph } = setup({ nodes: [{ id: 1, caption, shape, x: 40, y: 40 }] });
+    const w = graph.info(1).w;
+    expect(w).toBeLessThan(240);                    // 上限の幅のまま残さない
+    expect(graph.info(1).h).toBe(2 * 18 + 8);      // 行の数（2 行）は上限の幅のときと同じ（テストの測り方は 1 行 18px + 余白 8px）
+    graph.destroy();
+  }
 });

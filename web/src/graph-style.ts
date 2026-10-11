@@ -173,11 +173,14 @@ export const GRAPH_CSS = `
 .mz-size-S.mz-shape-person > .mz-shape { width: 26px; height: 38px; }
 .mz-shape-person .mz-figure { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .mz-leaf.mz-shape-person .mz-text { color: var(--mz-text); text-shadow: none; line-height: 1.25; }
-/* 上は上面の楕円（縦の半径 8px、S は 6px）の分、下は底の楕円の手前半分の分をあける */
-.mz-leaf.mz-shape-db { padding-top: 18px; padding-bottom: 10px; }
-.mz-leaf.mz-size-S.mz-shape-db { padding-top: 14px; padding-bottom: 7px; }
-.mz-shape-db > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.mz-shape-db > .mz-text { position: relative; }
+/* DB（円柱の立体）とサーバー（タワー型の立体）: スティックマンと同じく、決まった大きさの絵の足元に文字
+   （render.ts の DB_SVG / SERVER_SVG） */
+.mz-leaf.mz-shape-db, .mz-leaf.mz-shape-server { flex-direction: column; justify-content: flex-start; gap: 2px; padding: 0 4px; }
+.mz-shape-db > .mz-shape, .mz-shape-server > .mz-shape { display: block; flex: none; width: 40px; height: 52px; overflow: visible; }
+.mz-size-S.mz-shape-db > .mz-shape, .mz-size-S.mz-shape-server > .mz-shape { width: 29px; height: 38px; }
+.mz-shape-db .mz-shape path, .mz-shape-server .mz-shape path { stroke-linejoin: round; }
+.mz-shape-server .mz-server-lamp { stroke: none; }
+.mz-leaf.mz-shape-db .mz-text, .mz-leaf.mz-shape-server .mz-text { color: var(--mz-text); text-shadow: none; line-height: 1.25; }
 /* ひし形（フローチャートの分岐）: 形は SVG で描く。文字は幅の半分で折り返す（内側に収まる四角は縦横の半分。node-kinds.ts の DIAMOND_TEXT） */
 .mz-leaf.mz-shape-diamond { padding: 0; background: transparent; overflow: visible; } /* 影を本体の四角で切らない */
 .mz-shape-diamond > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }

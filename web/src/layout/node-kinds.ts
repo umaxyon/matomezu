@@ -2,7 +2,7 @@
 // 種類は子の有無と childView で決まる（文字の箱 / 非表示 / 内包 / ツリー / リスト）。
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
-import { type Box, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inList, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
+import { type Box, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inList, isIconShape, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
@@ -34,6 +34,7 @@ export interface KindContext {
 export function createNodeKinds(ctx: KindContext) {
   const { opt, measure, caption } = ctx;
   const headRect = (n: Box): Rect => ({ x: n.hx, y: n.hy, w: n.hw, h: n.hh });
+
 
   // 本文の幅（箱の幅として数える）を加えた、中身に合わせた幅（1 行のまま測った幅）。本文の幅の指定があれば、キャプションの幅と
   // その指定の大きい方。無ければ本文の中身も含めて測った幅（docs/BODY-plan.md の 4 章）
@@ -83,9 +84,13 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = Math.max(z.h, Math.ceil((measure(n, w)[1] + DIAMOND_PAD) * 2));
       return;
     }
-    if (shapeOf(n) === "person") {
-      // 人の形と足元の文字。背景が無いので、最小の幅は使わない
-      const w = Math.max(PERSON_MIN_W, Math.min(specW || maxW, measure(n, null)[0]));
+    if (isIconShape(shapeOf(n))) {
+      // 絵の形（スティックマン・DB・サーバー）と足元の文字。背景が無いので、最小の幅は使わない。絵の大きさは決まっている。
+      // 折り返したら、行の数（高さ）が変わらない一番狭い幅まで詰める（上限の幅のままだと、折り返した行が短いとき左右が空く。
+      // 2026-10-11 ユーザー）。幅の指定があればその幅
+      let w = Math.max(PERSON_MIN_W, Math.min(specW || maxW, measure(n, null)[0]));
+      const h = measure(n, w)[1];
+      if (!specW && measure(n, null)[0] > w) w = narrowest(n, PERSON_MIN_W, w, h);
       n.hw = w;
       n.hh = measure(n, w)[1];
       return;
@@ -100,6 +105,15 @@ export function createNodeKinds(ctx: KindContext) {
     const w = Math.max(bodyMinW(n), specW || textW());
     n.hw = w;
     n.hh = specH || (z.fixedH ? z.h : Math.max(z.h, measure(n, w)[1]));
+  }
+
+  // lo〜hi のうち、文字の高さが h を超えない一番狭い幅（1px 刻みの二分探索。hi では h に収まる前提）
+  function narrowest(n: Box, lo: number, hi: number, h: number): number {
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (measure(n, mid)[1] <= h) hi = mid; else lo = mid;
+    }
+    return measure(n, lo)[1] <= h ? lo : hi;
   }
 
   // 本体だけを見せる（文字の箱と非表示）。非表示は子を持つので、大きさの指定（width, height, overflow）を使わない
