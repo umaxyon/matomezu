@@ -1,5 +1,7 @@
 // DOM まわりの小さな道具
 
+import { formatDiagram } from "./format";
+
 export const SVGNS = "http://www.w3.org/2000/svg";
 
 export function injectStyle(id: string, css: string): void {
@@ -75,7 +77,7 @@ export const esc = (s: unknown): string =>
 
 // データを JSON ファイルとしてダウンロードさせる
 export function download(data: unknown, filename = "matomezu.json"): void {
-  const blob = new Blob([JSON.stringify(data, null, 2) + "\n"], { type: "application/json" });
+  const blob = new Blob([formatDiagram(data)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = filename;

@@ -397,9 +397,76 @@ func applySets(b []byte, sets []string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out bytes.Buffer
-	if err := json.Indent(&out, compact, "", "  "); err != nil {
+	return formatDiagram(compact)
+}
+
+// 図のデータを保存する形にする（web/src/format.ts と同じ形）。最上位のキーを 1 行ずつ、
+// その値の配列（nodes・edges など）は要素 1 つを 1 行に書く。区切りの後ろと、中身のある {} の内側に空白を入れる
+func formatDiagram(b []byte) ([]byte, error) {
+	var c bytes.Buffer
+	if err := json.Compact(&c, b); err != nil {
 		return nil, err
+	}
+	in := c.Bytes()
+	var out bytes.Buffer
+	// 開いている括弧ごとに、要素を行に分けるか（最上位の {} と、その値の []）
+	var open []bool
+	inStr, esc := false, false
+	for i, ch := range in {
+		if inStr {
+			out.WriteByte(ch)
+			if esc {
+				esc = false
+			} else if ch == '\\' {
+				esc = true
+			} else if ch == '"' {
+				inStr = false
+			}
+			continue
+		}
+		next := byte(0)
+		if i+1 < len(in) {
+			next = in[i+1]
+		}
+		lines := len(open) > 0 && open[len(open)-1]
+		indent := "\n" + strings.Repeat("  ", len(open))
+		switch ch {
+		case '"':
+			inStr = true
+			out.WriteByte(ch)
+		case '{', '[':
+			split := len(open) == 0 || (len(open) == 1 && ch == '[')
+			open = append(open, split)
+			out.WriteByte(ch)
+			switch {
+			case next == '}' || next == ']':
+			case split:
+				out.WriteString(indent + "  ")
+			case ch == '{':
+				out.WriteByte(' ')
+			}
+		case '}', ']':
+			empty := i > 0 && (in[i-1] == '{' || in[i-1] == '[')
+			open = open[:len(open)-1]
+			switch {
+			case empty:
+			case lines:
+				out.WriteString("\n" + strings.Repeat("  ", len(open)))
+			case ch == '}':
+				out.WriteByte(' ')
+			}
+			out.WriteByte(ch)
+		case ',':
+			if lines {
+				out.WriteString("," + indent)
+			} else {
+				out.WriteString(", ")
+			}
+		case ':':
+			out.WriteString(": ")
+		default:
+			out.WriteByte(ch)
+		}
 	}
 	out.WriteByte('\n')
 	return out.Bytes(), nil

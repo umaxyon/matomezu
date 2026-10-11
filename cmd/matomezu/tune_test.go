@@ -14,24 +14,10 @@ func TestApplySets(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := `{
-  "world": {
-    "width": 800,
-    "background": "#fff"
-  },
+  "world": { "width": 800, "background": "#fff" },
   "nodes": [
-    {
-      "id": 1,
-      "caption": "A",
-      "childView": "tree",
-      "width": 200
-    },
-    {
-      "id": 2,
-      "caption": "B",
-      "parent": 1,
-      "size": "S",
-      "fill": false
-    }
+    { "id": 1, "caption": "A", "childView": "tree", "width": 200 },
+    { "id": 2, "caption": "B", "parent": 1, "size": "S", "fill": false }
   ],
   "edges": [],
   "extra": 1
@@ -59,29 +45,12 @@ func TestApplySetsEdges(t *testing.T) {
 	}
 	want := `{
   "nodes": [
-    {
-      "id": 1
-    },
-    {
-      "id": 2
-    }
+    { "id": 1 },
+    { "id": 2 }
   ],
   "edges": [
-    [
-      1,
-      2
-    ],
-    {
-      "id": "e2",
-      "from": 2,
-      "to": 1,
-      "route": "elbow",
-      "via": [
-        280,
-        140
-      ],
-      "arrow": "end"
-    }
+    [1, 2],
+    { "id": "e2", "from": 2, "to": 1, "route": "elbow", "via": [280, 140], "arrow": "end" }
   ]
 }
 `
@@ -132,5 +101,33 @@ func TestSetDoesNotWriteInvalidData(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(path); string(b) != orig {
 		t.Fatalf("file changed:\n%s", b)
+	}
+}
+
+// web の formatDiagram（test/format.test.ts）と同じ文字列になる
+func TestFormatDiagram(t *testing.T) {
+	in := `{"world":{"width":800,"background":"#fff"},"nodes":[{"id":1,"caption":"フロントエンド","x":40,"y":60,"body":"1 行目\n\"引用\""},
+		{"id":2,"caption":"Web","parent":1,"via":[[1,2],[3,4]],"style":{}}],"edges":[],"pages":[{"id":"p1","nodes":[1]}]}`
+	want := `{
+  "world": { "width": 800, "background": "#fff" },
+  "nodes": [
+    { "id": 1, "caption": "フロントエンド", "x": 40, "y": 60, "body": "1 行目\n\"引用\"" },
+    { "id": 2, "caption": "Web", "parent": 1, "via": [[1, 2], [3, 4]], "style": {} }
+  ],
+  "edges": [],
+  "pages": [
+    { "id": "p1", "nodes": [1] }
+  ]
+}
+`
+	got, err := formatDiagram([]byte(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if got, _ := formatDiagram([]byte(`{}`)); string(got) != "{}\n" {
+		t.Fatalf("empty: %q", got)
 	}
 }

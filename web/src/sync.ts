@@ -11,6 +11,7 @@
  *   LLM は matomezu check / set でそれを読み、図を調整する。
  */
 
+import { formatDiagram } from "./format";
 import type { Graph } from "./graph";
 import { details, summarize } from "./report";
 import type { Diagram } from "./types";
@@ -148,7 +149,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       const res = await fetch(base + "api/data", {
         method: "PUT",
         headers: { "Content-Type": "application/json", "If-Match": version },
-        body: JSON.stringify(graph.toJSON(), null, 2) + "\n",
+        body: formatDiagram(graph.toJSON()),
       });
       const etag = res.headers.get("ETag");
       if (res.ok && etag) {

@@ -167,6 +167,10 @@ test("付け替えのドラッグでタブの上に少し止めるとページ�
   expect(await visibleIds(page)).toEqual(["1", "2", "3"]);
   await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.find((n: { id: number }) => n.id === 3).parent)
     .toBeUndefined();
+  // 保存は箱 1 つを 1 行に書く
+  const saved = readFileSync(join(dir, "p.json"), "utf8");
+  expect(saved).toMatch(/^  "nodes": \[\n    \{ "id": 1, /m);
+  expect(saved).toMatch(/^    \{ "id": 3, "caption": "[^"]*", .*\},?$/m);
 });
 
 test("追加削除の一覧はページごとの見出しで分かれ、ほかのページの箱も × で消せる", async ({ page }) => {
