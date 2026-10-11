@@ -1,5 +1,5 @@
 // ボックスの削除と復活を実際のブラウザで確かめる（docs/DELETE-plan.md）。
-// examples/three-levels.json の id: 3 フロントエンド、10 バックエンド、17 外部サービス（ツリー。子は 18 決済、19 メール配信）
+// test/fixtures/three-levels.json の id: 3 フロントエンド、10 バックエンド、17 外部サービス（ツリー。子は 18 決済、19 メール配信）
 import { expect, test } from "@playwright/test";
 import { example, openDiagram, rect, violations } from "./helpers";
 

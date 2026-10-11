@@ -1,6 +1,7 @@
 // 配置の土台と見た目の補正値（docs/LAYOUT-BASE-plan.md）: テーマは補正値（定数）でだけ配置に入り、テーマを変えても中心は動かない
 import { afterEach, expect, test } from "bun:test";
-import { createGraph, type Graph } from "../web/src/graph";
+import { DEFAULTS, createGraph, type Graph } from "../web/src/graph";
+import { STRATEGIES } from "../web/src/model";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
 
@@ -52,7 +53,7 @@ test("箱どうしの最小間隔は組ごと: つながっていなければ 8p
     edges: [{ id: "e1", from: 3, to: 4 }, { id: "e2", from: 5, to: 6, caption: "はい" }],
   });
   const gap = (up: number, down: number) => info(g, down).y - (info(g, up).y + info(g, up).h);
-  expect([gap(1, 2), gap(3, 4), gap(5, 6), gap(11, 12)]).toEqual([8, 32, 40, 8]);
+  expect([gap(1, 2), gap(3, 4), gap(5, 6), gap(11, 12)]).toEqual([DEFAULTS.gap, DEFAULTS.linkGap, DEFAULTS.captionGap, STRATEGIES.list.kidGap!]);
 });
 
 test("ツリーの横の間隔も全世界の最小間隔に合わせてあるので、線で描き直しても箱は押しのけられず見た目の位置のまま", () => {
@@ -71,13 +72,13 @@ test("ツリーの横の間隔も全世界の最小間隔に合わせてある�
 test("近い箱どうしを線でつなぐと 32px まで離れ、その線にキャプションを付けると 40px まで離れる（始点の箱は動かない）", () => {
   const g = setup({ nodes: [{ id: 1, caption: "上", x: 100, y: 100 }, { id: 2, caption: "下", x: 100, y: 172 }] });
   const gap = () => info(g, 2).y - (info(g, 1).y + info(g, 1).h);
-  expect(gap()).toBe(8);
+  expect(gap()).toBe(DEFAULTS.gap);
   const top = info(g, 1).y;
   expect(g.link(1, 2)).toBe(true);
-  expect(gap()).toBe(32);
+  expect(gap()).toBe(DEFAULTS.linkGap);
   const id = String((g.toJSON().edges!.at(-1) as { id: string }).id);
   g.updateEdge(id, { caption: "はい" });
-  expect(gap()).toBe(40);
+  expect(gap()).toBe(DEFAULTS.captionGap);
   expect(info(g, 1).y).toBe(top);
 });
 
@@ -89,5 +90,15 @@ test("フローチャートの中は、組ごとの最小間隔を使わない�
     ],
     edges: [{ id: "e1", from: 2, to: 3, caption: "はい" }],
   });
-  expect(info(g, 3).y - (info(g, 2).y + info(g, 2).h)).toBe(8);
+  expect(info(g, 3).y - (info(g, 2).y + info(g, 2).h)).toBe(DEFAULTS.gap);
+});
+
+test("位置の無い子を格子に置くとき、線でつながった兄弟とは 32px で隣に並ぶ（1 つ先の目まで飛ばない）", () => {
+  const g = setup({
+    nodes: [{ id: 1, caption: "グループ", x: 40, y: 40 }, { id: 2, caption: "A", parent: 1 }, { id: 3, caption: "B", parent: 1 }],
+    edges: [{ id: "e1", from: 2, to: 3 }],
+  });
+  const [a, b] = [info(g, 2), info(g, 3)];
+  expect(b.y).toBe(a.y);
+  expect(b.x - (a.x + a.w)).toBe(DEFAULTS.linkGap);
 });

@@ -167,11 +167,13 @@ export interface Strategy {
   autoAlign: boolean;   // 位置の無い子を、決まった並べ方（layout/flow-align.ts）で置く。ユーザーが押す「自動で整列」も出す
   separateEnds: boolean; // 子に入る線が同じ位置につながるなら、折れ目の多い方を空いている近い辺へ逃がす（render.ts の separateEnds）
   kidGap: number | null; // 子どうしの間隔のローカルなルール（px）。null は全世界のルール（graph.ts の DEFAULTS.gap）。リストは詰めて並べる
+  // 決まった並べ方（autoAlign）で置くときの、列の間（x）と段の間（y）。中の箱のサイズ（kidSize）ごと。top はワールドに置くとき一番上の段を下げる量
+  align: { gaps: Record<Size, { x: number; y: number }>; top: number } | null;
   pairGaps: boolean;     // 子どうしに、組ごとの最小間隔（線でつながれば 32・キャプションがあれば 40px。layout.ts の gapBetween）を使うか。
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, kidShapes: [], tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true } as const;
+const PLAIN = { leafKids: false, kidShapes: [], tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true },
   tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN },
@@ -183,6 +185,8 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, kidShapes: FLOW_SHAPES, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
     branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
+    // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
+    align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, top: 8 },
   },
 };
 
@@ -336,7 +340,7 @@ export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
 export const vertexOnly = (s: Shape): boolean => shapeDef(s).vertexOnly;
 // 斜めの辺を持つ形（六角形・平行四辺形・台形）の、斜めの辺が横に食い込む幅（S は小さく）。文字の左右の余白にもこの分を足す
 // （graph-style.ts の .mz-shape-hexagon などの padding-inline と合わせる）
-export const slantOf = (n: Box): number => (sizeOf(n) === "S" ? 10 : 14);
+export const slantOf = (n: Box): number => shapeDef(shapeOf(n)).slant[sizeOf(n)];
 // 線がつながる範囲を左右に縮める幅（平行四辺形と台形は、左右の辺の真ん中が本体の縁より内側にあるので、そこへつなぐ）
 export const anchorInsetOf = (n: Box): number => {
   return shapeDef(shapeOf(n)).insetEnds ? slantOf(n) / 2 : 0;

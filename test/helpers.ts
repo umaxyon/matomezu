@@ -5,7 +5,7 @@ import type { MeasureText } from "../web/src/layout/measure";
 import type { Diagram } from "../web/src/types";
 
 export const example = (name: string) =>
-  JSON.parse(readFileSync(`${import.meta.dir}/../examples/${name}.json`, "utf8")) as Diagram;
+  JSON.parse(readFileSync(`${import.meta.dir}/fixtures/${name}.json`, "utf8")) as Diagram; // テストの土台に固定した写し（test/fixtures/README.md）
 
 export type R = { x: number; y: number; w: number; h: number };
 export const rectOf = (n: HTMLElement): R => ({

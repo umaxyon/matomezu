@@ -9,11 +9,6 @@ import { GROUP_MIN, SIZES } from "../validate";
 import { shapeDef } from "../shapes";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
 
-const PERSON_MIN_W = 64; // スティックマンの最小の幅
-const DIAMOND_TEXT = 0.6; // ひし形の文字を折り返す幅の上限（サイズの最大の幅に対する割合。ひし形はその 2 倍の幅になる）
-const DIAMOND_PAD = 12;   // ひし形の文字と縁の間の余白（内側に収まる四角の、文字のまわり。縦横それぞれ 2 倍して足す）
-const CIRCLE_TEXT = 0.6;  // 円の文字を折り返す幅の上限（サイズの最大の幅に対する割合）
-const CIRCLE_PAD = 10;    // 円の文字と縁の間の余白（内側に収まる四角の、文字のまわり）
 export const BODY_GAP = 6; // 内包する箱の本文と、その下の子の並びとの間（docs/BODY-plan.md）
 export const BODY_MIN_W = 160; // 本文を持つ箱の最小の幅。子を持つ箱でも効く（図が優先の唯一の例外。docs/SIZE-plan.md）
 
@@ -95,18 +90,21 @@ export function createNodeKinds(ctx: KindContext) {
       // ひし形（フローチャートの分岐）: 内側に収まる四角は縦横の半分なので、文字の大きさの 2 倍にする。文字はひし形の幅の半分で折り返す
       // （graph-style.ts の .mz-shape-diamond > .mz-text の max-width: 50%）。幅の指定があれば、その半分で折り返す
       // 測るときも文字は本体の幅の半分で折り返すので、本体の幅（文字の幅の 2 倍）で測る。測った高さが文字の高さ（余白は 0）
-      const tw = specW ? specW / 2 - DIAMOND_PAD : Math.min(measure(n, null)[0], maxW * DIAMOND_TEXT);
-      const w = specW || Math.max(z.minW, Math.ceil((tw + DIAMOND_PAD) * 2));
+      // 割合・余白・折り返しの上限は形の表（shapes.ts の fit）。文字は形の幅の ratio で折り返す（CSS の --mz-text-ratio。render.ts が付ける）
+      const { ratio, pad, wrap } = shapeDef(shapeOf(n)).fit!;
+      const tw = specW ? specW * ratio - pad : Math.min(measure(n, null)[0], maxW * wrap);
+      const w = specW || Math.max(z.minW, Math.ceil((tw + pad) / ratio));
       n.hw = w;
-      n.hh = Math.max(z.h, Math.ceil((measure(n, w)[1] + DIAMOND_PAD) * 2));
+      n.hh = Math.max(z.h, Math.ceil((measure(n, w)[1] + pad) / ratio));
       return;
     }
     if (base === "circle") {
       // 円（接続）: 縦横が同じ。文字は内側に収まる四角（直径の 1/√2）の中で折り返す（graph-style.ts の .mz-shape-circle > .mz-text の
       // max-width: 70%）。直径は、文字の幅と高さを囲む四角の対角線に余白を足したもの。幅の指定があればその直径
-      const tw = Math.min(measure(n, null)[0], maxW * CIRCLE_TEXT);
-      let d = specW || Math.max(z.h, Math.ceil((tw + CIRCLE_PAD) * Math.SQRT2));
-      if (!specW) d = Math.max(d, Math.ceil(Math.hypot(tw, measure(n, d)[1]) + CIRCLE_PAD * 2));
+      const { ratio, pad, wrap } = shapeDef(shapeOf(n)).fit!;
+      const tw = Math.min(measure(n, null)[0], maxW * wrap);
+      let d = specW || Math.max(z.h, Math.ceil((tw + pad) / ratio));
+      if (!specW) d = Math.max(d, Math.ceil(Math.hypot(tw, measure(n, d)[1]) + pad * 2));
       n.hw = d;
       n.hh = d;
       return;
@@ -122,9 +120,10 @@ export function createNodeKinds(ctx: KindContext) {
       // 絵の形（スティックマン・DB・サーバー）と足元の文字。背景が無いので、最小の幅は使わない。絵の大きさは決まっている。
       // 折り返したら、行の数（高さ）が変わらない一番狭い幅まで詰める（上限の幅のままだと、折り返した行が短いとき左右が空く。
       // 2026-10-11 ユーザー）。幅の指定があればその幅
-      let w = Math.max(PERSON_MIN_W, Math.min(specW || maxW, measure(n, null)[0]));
+      const minW = shapeDef(shapeOf(n)).minW;
+      let w = Math.max(minW, Math.min(specW || maxW, measure(n, null)[0]));
       const h = measure(n, w)[1];
-      if (!specW && measure(n, null)[0] > w) w = narrowest(n, PERSON_MIN_W, w, h);
+      if (!specW && measure(n, null)[0] > w) w = narrowest(n, minW, w, h);
       n.hw = w;
       n.hh = measure(n, w)[1];
       return;

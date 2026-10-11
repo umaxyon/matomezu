@@ -42,6 +42,31 @@ test("形の名前を直接比べる判定を、形の表の外に増やさな�
   expect(over).toEqual([]);
 });
 
+// 全世界のルールを変えられるのは、並べ方の戦略のローカルなルールだけ（CLAUDE.md の 12）。間隔のルールの名前を読んでよいファイルと数:
+// 置き場所（graph.ts の DEFAULTS）、戦略の表（model.ts）、入口（layout.ts の gapBetween）、リストの並べ方（node-kinds.ts。戦略が自分の子を並べる所）
+const GAP_RULES = /\b(linkGap|captionGap|kidGap|pairGaps)\b/g;
+const GAP_ALLOWED: Record<string, number> = { "graph.ts": 2, "model.ts": Infinity, "layout/layout.ts": 6, "layout/node-kinds.ts": 1 };
+// 全世界の間隔そのもの（opt.gap）を直接使ってよいのは、入口（gapBetween と、格子の目の最小）、リストの並べ方、付け替えのときの置き場所の見込み
+// （そのあと gapBetween で重なりを直す）だけ
+const BASE_GAP = /opt\.gap\b/g;
+const BASE_ALLOWED: Record<string, number> = { "layout/layout.ts": 4, "layout/node-kinds.ts": 1, "graph.ts": 1 };
+
+test("全世界のルール（間隔）を読むのは、置き場所・戦略の表・入口だけ。部品（形・テーマ）は間隔や配置の値を持たない", () => {
+  const over: string[] = [];
+  for (const f of files(SRC)) {
+    const name = relative(SRC, f).replaceAll("\\", "/");
+    const src = readFileSync(f, "utf8").split("\n").map(l => l.replace(/\/\/.*$/, "")).join("\n"); // コメントは数えない
+    const rules = (src.match(GAP_RULES) ?? []).length, base = (src.match(BASE_GAP) ?? []).length;
+    if (rules > (GAP_ALLOWED[name] ?? 0)) over.push(`${name}: 間隔のルール ${rules}（上限 ${GAP_ALLOWED[name] ?? 0}）`);
+    if (base > (BASE_ALLOWED[name] ?? 0)) over.push(`${name}: opt.gap ${base}（上限 ${BASE_ALLOWED[name] ?? 0}）`);
+  }
+  expect(over).toEqual([]);
+  // 部品の表（形・テーマ）は、間隔や配置の値を持たない（持つのは自分の見た目の数値だけ）
+  for (const part of ["shapes.ts", "theme.ts"]) {
+    expect(readFileSync(join(SRC, part), "utf8")).not.toMatch(/\b(gap|Gap|align|margin)\b\s*[:?]/);
+  }
+});
+
 // 配置と線の計算は、見た目（テーマ）の値を読まない（CLAUDE.md の 9）。読むのは測った大きさと線がつながる範囲だけ
 test("配置と線のファイルは、テーマを読み込まない", () => {
   const geometry = files(SRC).filter(f => {

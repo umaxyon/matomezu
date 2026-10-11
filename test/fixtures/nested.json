@@ -1,0 +1,20 @@
+{
+  "nodes": [
+    { "id": 1, "caption": "フロントエンド", "color": "#3b82f6" },
+    { "id": 2, "caption": "Web", "color": "#3b82f6", "parent": 1 },
+    { "id": 3, "caption": "App", "color": "#22c55e", "parent": 1 },
+    { "id": 4, "caption": "バックエンド", "color": "#f97316" },
+    { "id": 5, "caption": "API", "color": "#eab308", "parent": 4 },
+    { "id": 6, "caption": "ストレージ", "color": "#f97316", "parent": 4 },
+    { "id": 7, "caption": "DB", "color": "#ef4444", "parent": 6 },
+    { "id": 8, "caption": "Cache", "parent": 6 },
+    { "id": 9, "caption": "ユーザー" }
+  ],
+  "edges": [
+    { "id": "e1", "from": 9, "to": 1 },
+    { "id": "e2", "from": 1, "to": 4 },
+    { "id": "e3", "from": 2, "to": 3 },
+    { "id": "e4", "from": 5, "to": 6 },
+    { "id": "e5", "from": 7, "to": 8 }
+  ]
+}

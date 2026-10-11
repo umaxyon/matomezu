@@ -131,6 +131,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const [oy, ox] = !group && shapeDef(shape).kind === "normal" ? theme.outset?.[size] ?? [0, 0] : [0, 0];
     head.style.setProperty("--mz-out-y", oy + "px");
     head.style.setProperty("--mz-out-x", ox + "px");
+    // 形の数値（形の表 shapes.ts）を CSS へ渡す: 斜めの辺の食い込み（文字の左右の余白に足す）と、文字を折り返す幅の割合（ひし形・円）
+    head.style.setProperty("--mz-slant", slantOf(n) + "px");
+    const fit = shapeDef(shape).fit;
+    if (fit) head.style.setProperty("--mz-text-ratio", String(fit.ratio)); else head.style.removeProperty("--mz-text-ratio");
     const was = n.out;
     n.out = { x: ox, y: oy };
     if (was && n.hasPos && (was.x !== ox || was.y !== oy)) {

@@ -190,22 +190,22 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 /* ひし形（フローチャートの分岐）: 形は SVG で描く。文字は幅の半分で折り返す（内側に収まる四角は縦横の半分。node-kinds.ts の DIAMOND_TEXT） */
 .mz-leaf.mz-shape-diamond { padding: 0; background: transparent; overflow: visible; } /* 影を本体の四角で切らない */
 .mz-shape-diamond > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.mz-shape-diamond > .mz-text { position: relative; max-width: 50%; }
+.mz-shape-diamond > .mz-text { position: relative; max-width: calc(var(--mz-text-ratio, 1) * 100%); } /* 割合は形の表（shapes.ts の fit） */
 /* 円・角丸・六角形・平行四辺形・台形（docs/PATTERN-plan.md の 3.7 章）: 輪郭は SVG で描く（render.ts の renderOutline）。
    円の文字は内側に収まる四角（直径の 1/√2）の中で折り返す（node-kinds.ts の円）。角丸は両端の半円の分、斜めの辺を持つ形は
-   斜めの辺の食い込み（model.ts の slantOf。M・L は 14px、S は 10px）の分を、文字の左右の余白に足す */
+   斜めの辺の食い込み（形の表 shapes.ts の slant。render.ts が --mz-slant で渡す）の分を、文字の左右の余白に足す */
 .mz-leaf.mz-shape-circle, .mz-leaf.mz-shape-stadium, .mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt {
   background: transparent; overflow: visible; border-radius: 0;
 }
 .mz-leaf.mz-shape-circle { padding: 0; }
 .mz-leaf.mz-shape-stadium { padding-inline: calc(8px + var(--mz-out-x, 0px) + 12px); }
-.mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt { padding-inline: calc(8px + var(--mz-out-x, 0px) + 14px); }
-.mz-leaf.mz-size-S.mz-shape-hexagon, .mz-leaf.mz-size-S.mz-shape-parallelogram, .mz-leaf.mz-size-S.mz-shape-parallelogramAlt, .mz-leaf.mz-size-S.mz-shape-trapezoid, .mz-leaf.mz-size-S.mz-shape-trapezoidAlt { padding-inline: calc(16px + var(--mz-out-x, 0px)); }
+.mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt { padding-inline: calc(8px + var(--mz-out-x, 0px) + var(--mz-slant, 0px)); }
+.mz-leaf.mz-size-S.mz-shape-hexagon, .mz-leaf.mz-size-S.mz-shape-parallelogram, .mz-leaf.mz-size-S.mz-shape-parallelogramAlt, .mz-leaf.mz-size-S.mz-shape-trapezoid, .mz-leaf.mz-size-S.mz-shape-trapezoidAlt { padding-inline: calc(6px + var(--mz-out-x, 0px) + var(--mz-slant, 0px)); }
 .mz-shape-circle > .mz-shape, .mz-shape-stadium > .mz-shape, .mz-shape-hexagon > .mz-shape, .mz-shape-parallelogram > .mz-shape, .mz-shape-parallelogramAlt > .mz-shape, .mz-shape-trapezoid > .mz-shape, .mz-shape-trapezoidAlt > .mz-shape {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
 }
 .mz-shape-circle > .mz-text, .mz-shape-stadium > .mz-text, .mz-shape-hexagon > .mz-text, .mz-shape-parallelogram > .mz-text, .mz-shape-parallelogramAlt > .mz-text, .mz-shape-trapezoid > .mz-text, .mz-shape-trapezoidAlt > .mz-text { position: relative; }
-.mz-shape-circle > .mz-text { max-width: 70%; }
+.mz-shape-circle > .mz-text { max-width: calc(var(--mz-text-ratio, 1) * 100%); } /* 割合は形の表（shapes.ts の fit） */
 /* ページの箱（タブ付きの見出し）。上の余白は耳の分（render.ts の renderPage と合わせる） */
 .mz-leaf.mz-shape-page { padding-top: 13px; background: transparent; }
 .mz-leaf.mz-size-S.mz-shape-page { padding-top: 8px; }

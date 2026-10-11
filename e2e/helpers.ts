@@ -8,7 +8,7 @@ import type { Diagram } from "../web/src/types";
 const INDEX = pathToFileURL(resolve(import.meta.dirname, "../web/index.html")).href;
 
 export const example = (name: string) =>
-  JSON.parse(readFileSync(resolve(import.meta.dirname, `../examples/${name}.json`), "utf8")) as Diagram;
+  JSON.parse(readFileSync(resolve(import.meta.dirname, `../test/fixtures/${name}.json`), "utf8")) as Diagram; // テストの土台に固定した写し（test/fixtures/README.md）
 
 export type Rect = { x: number; y: number; w: number; h: number };
 

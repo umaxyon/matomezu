@@ -1,5 +1,5 @@
 // 2026-09-28 にユーザーが画面で確認した動きを、実際のブラウザで確かめる。
-// examples/three-levels.json の id: 1 タイトル、2 ユーザー、3 フロントエンド、5 トップ画面、10 バックエンド、17 外部サービス
+// test/fixtures/three-levels.json の id: 1 タイトル、2 ユーザー、3 フロントエンド、5 トップ画面、10 バックエンド、17 外部サービス
 import { expect, test } from "@playwright/test";
 import {
   choose, dragBy, edgeEnds, example, lines, openDiagram, rect, select, setCaption, violations,

@@ -1,5 +1,5 @@
 // プレビュー（見るだけのモード。残課題 D5）を実際のブラウザで確かめる。
-// examples/three-levels.json の id: 2 ユーザー、3 フロントエンド
+// test/fixtures/three-levels.json の id: 2 ユーザー、3 フロントエンド
 import { expect, test } from "@playwright/test";
 import { example, openDiagram, rect, violations } from "./helpers";
 

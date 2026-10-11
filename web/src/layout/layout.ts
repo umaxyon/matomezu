@@ -21,7 +21,6 @@ import {
 } from "../model";
 import { alignFlow } from "./flow-align";
 import { shapeDef } from "../shapes";
-import type { Size } from "../types";
 import type { TextMeasurer } from "./measure";
 import { BODY_GAP, createNodeKinds } from "./node-kinds";
 import { type Scene, createAnchorRules } from "./policy";
@@ -54,11 +53,6 @@ export interface LayoutContext {
 }
 
 export type Layout = ReturnType<typeof createLayout>;
-
-// フローチャートを整列するときの、列の間と段の間（線のキャプション Yes / No が入るくらい）。中の箱のサイズ（kidSize）で変える
-// （2026-10-12 ユーザー。触ってから調整する仮の値）
-const FLOW_TOP = 8; // ワールドに整列するとき、一番上の段を図の上の余白からさらに下げる量
-const FLOW_GAPS: Record<Size, { x: number; y: number }> = { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } };
 
 export function createLayout(ctx: LayoutContext) {
   const { opt, world, worldEl, container } = ctx;
@@ -231,11 +225,14 @@ export function createLayout(ctx: LayoutContext) {
     const c = containerOf(n);
     const sibs = siblings(n);
     const a = innerArea(c);
-    const cw = Math.max(...sibs.map(s => s.w)) + opt.gap;
-    const ch = Math.max(...sibs.map(s => s.h)) + opt.gap;
+    // 格子の目は、n が兄弟ととる一番広い間隔で切る（線でつながった兄弟がいれば 32・40px。gapBetween）。8px の目のままだと、
+    // つながった兄弟の隣の目に入れず、1 つ先の目まで飛んで間が空きすぎる
+    const g = Math.max(opt.gap, ...sibs.filter(s => s !== n).map(s => gapBetween(n, s)));
+    const cw = Math.max(...sibs.map(s => s.w)) + g;
+    const ch = Math.max(...sibs.map(s => s.h)) + g;
     const f = fixedSize(c);
     let cols = Math.max(1, Math.ceil(Math.sqrt(sibs.length)));
-    if (f.w != null) cols = Math.max(1, Math.min(cols, Math.floor((f.w - a.left - a.right + opt.gap) / cw)));
+    if (f.w != null) cols = Math.max(1, Math.min(cols, Math.floor((f.w - a.left - a.right + g) / cw)));
     for (let i = 0; i < 10000; i++) {
       const x = a.left + (i % cols) * cw;
       const y = a.top + Math.floor(i / cols) * ch;
@@ -364,10 +361,12 @@ export function createLayout(ctx: LayoutContext) {
   function alignKids(c: Container) {
     const kids = c.children;
     const inside = new Set(kids);
+    // 間隔は戦略の表（STRATEGIES の align。中の箱のサイズごと）
+    const align = kidStrategyOf(c).align!, gap = align.gaps[kidSizeOf(c) ?? "M"];
     const pos = alignFlow(
       kids.map(k => ({ id: k.id, w: k.w, h: k.h, start: shapeDef(shapeOf(k)).terminal })),
       edges().filter(e => inside.has(e.a) && inside.has(e.b)).map(e => ({ from: e.a.id, to: e.b.id })),
-      { centerX: 0, top: innerArea(c).top + (c.isWorld ? FLOW_TOP : 0), gapX: FLOW_GAPS[kidSizeOf(c) ?? "M"].x, gapY: FLOW_GAPS[kidSizeOf(c) ?? "M"].y },
+      { centerX: 0, top: innerArea(c).top + (c.isWorld ? align.top : 0), gapX: gap.x, gapY: gap.y },
     );
     const minX = Math.min(...kids.map(k => pos.get(k.id)!.x));
     const left = innerArea(c).left;
