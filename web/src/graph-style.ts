@@ -125,11 +125,12 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 }
 .mz-leaf {
   display: flex; align-items: center; justify-content: center;
-  padding: var(--mz-pad-y, 4px) var(--mz-pad-x, 8px); text-align: center; /* テーマの箱の中の余白（theme.ts） */
+  /* 箱の中の余白（標準）に、テーマの補正値（render.ts が付ける --mz-out-y / --mz-out-x。theme.ts の outset）を足す */
+  padding: calc(4px + var(--mz-out-y, 0px)) calc(8px + var(--mz-out-x, 0px)); text-align: center;
   font-size: 14px; font-weight: 600; line-height: 1.3;
   overflow: hidden;
 }
-.mz-leaf.mz-size-S { font-size: 12px; padding: 2px 6px; border-radius: min(var(--mz-radius, 6px), 6px); }
+.mz-leaf.mz-size-S { font-size: 12px; padding: calc(2px + var(--mz-out-y, 0px)) calc(6px + var(--mz-out-x, 0px)); border-radius: min(var(--mz-radius, 6px), 6px); }
 /* 付箋（テーマのスタイル。render.ts の folded）: 右上の角は背景で切り欠き、折り返しの三角をここで重ねる。大きさ（12px）は render.ts の FOLD */
 .mz-head.mz-style-sticky::after {
   content: ""; position: absolute; right: 0; top: 0; width: 12px; height: 12px; pointer-events: none;
@@ -197,9 +198,9 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   background: transparent; overflow: visible; border-radius: 0;
 }
 .mz-leaf.mz-shape-circle { padding: 0; }
-.mz-leaf.mz-shape-stadium { padding-inline: calc(var(--mz-pad-x, 8px) + 12px); }
-.mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt { padding-inline: calc(var(--mz-pad-x, 8px) + 14px); }
-.mz-leaf.mz-size-S.mz-shape-hexagon, .mz-leaf.mz-size-S.mz-shape-parallelogram, .mz-leaf.mz-size-S.mz-shape-parallelogramAlt, .mz-leaf.mz-size-S.mz-shape-trapezoid, .mz-leaf.mz-size-S.mz-shape-trapezoidAlt { padding-inline: 16px; }
+.mz-leaf.mz-shape-stadium { padding-inline: calc(8px + var(--mz-out-x, 0px) + 12px); }
+.mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt { padding-inline: calc(8px + var(--mz-out-x, 0px) + 14px); }
+.mz-leaf.mz-size-S.mz-shape-hexagon, .mz-leaf.mz-size-S.mz-shape-parallelogram, .mz-leaf.mz-size-S.mz-shape-parallelogramAlt, .mz-leaf.mz-size-S.mz-shape-trapezoid, .mz-leaf.mz-size-S.mz-shape-trapezoidAlt { padding-inline: calc(16px + var(--mz-out-x, 0px)); }
 .mz-shape-circle > .mz-shape, .mz-shape-stadium > .mz-shape, .mz-shape-hexagon > .mz-shape, .mz-shape-parallelogram > .mz-shape, .mz-shape-parallelogramAlt > .mz-shape, .mz-shape-trapezoid > .mz-shape, .mz-shape-trapezoidAlt > .mz-shape {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
 }

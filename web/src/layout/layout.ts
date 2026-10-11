@@ -279,7 +279,6 @@ export function createLayout(ctx: LayoutContext) {
   function settleNode(n: Box, keep?: Set<Box>) {
     n.children.forEach(c => settleNode(c, keep));
     if (kindOf(n).holdsChildren) {
-      n.children.forEach(keepCenter);
       if (unplacedAligned(n)) alignKids(n);
       n.children.forEach(c => fitToRow(c));
       placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)));
@@ -339,15 +338,6 @@ export function createLayout(ctx: LayoutContext) {
     }
   }
 
-  // 大きさを変える前に覚えた横の中心（settle の間だけ）。測り直した箱を、その中心に戻す
-  let centers = new Map<Box, number>();
-  function keepCenter(b: Box) {
-    const c = centers.get(b);
-    if (c == null) return;
-    const a = anchorRect(b);
-    b.x = c - a.x - a.w / 2;
-  }
-
   // 決まった並べ方で子を置く戦略（フローチャート）で、子のどれにも位置が無いか（LLM が位置を書かずに書き出したとき）
   const unplacedAligned = (c: Container) => kidStrategyOf(c).autoAlign && c.children.length > 0 && c.children.every(k => !k.hasPos);
 
@@ -393,12 +383,6 @@ export function createLayout(ctx: LayoutContext) {
     const keepAt = anchored && anchors[anchored.parent ? scene.anchor!.inGroup : scene.anchor!.topLevel](anchored);
     let wantY = anchored?.y ?? 0; // 自分の設定を変えたとき、保とうとした高さ（押し戻しやずれの前）
     apply?.();
-    // 中心をそろえて並べる戦略（フローチャート）の子は、大きさが変わっても横の中心を保つ（テーマやサイズを変えると幅が変わり、
-    // 左上を保つと中心がずれて線が折れるため。2026-10-12 ユーザー）。測り直したあとで、覚えた中心に戻す（keepCenter）。
-    // 覚えるのは変更を当てたあと（設定の変更はまだ測り直していないので前の大きさの中心。整列のような位置の変更は、その位置の中心）
-    centers = new Map(roots().flatMap(r => [r, ...descendants(r)])
-      .filter(b => b.hasPos && b.w > 0 && inNest(b) && kidStrategyOf(containerOf(b)).keepCenters)
-      .map(b => [b, centerX(b)]));
     if (anchored && keepAt) {
       settleNode(anchored);
       const want = keepAt.x(anchored);
@@ -411,8 +395,6 @@ export function createLayout(ctx: LayoutContext) {
     // 変えた節点と祖先はその場に残し、ぶつかる相手の方を動かす（others）。later なら後から置くものが動く
     const keep = changed && scene.yieldTo === "others" ? new Set([changed, ...ancestors(changed)]) : undefined;
     roots().forEach(r => settleNode(r, keep));
-    roots().forEach(keepCenter);
-    centers = new Map();
     roots().forEach(r => fitToRow(r));
     syncWorld();
     if (unplacedAligned(world)) alignKids(world);

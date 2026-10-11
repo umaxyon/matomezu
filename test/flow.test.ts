@@ -261,15 +261,3 @@ test("フローチャートの S の箱は、キャプションを切り詰め�
   expect(text(3)).not.toBe(long);
   expect(info(graph, 3).h).toBe(44);
 });
-
-test("フローチャートの箱は、大きさが変わっても横の中心を保つ（テーマやキャプションで幅が変わっても、そろえた中心の線が折れない）", () => {
-  const { graph } = setup({
-    nodes: [
-      { id: 1, childView: "flow", x: 0, y: 0 }, { id: 2, parent: 1, caption: "開始", shape: "stadium", x: 100, y: 20 },
-    ],
-  });
-  const cx = (id: number) => info(graph, id).x + info(graph, id).w / 2;
-  const before = cx(2);
-  graph.update(2, { caption: "とても長いキャプションに変えた開始" });
-  expect(cx(2)).toBeCloseTo(before, 0);
-});

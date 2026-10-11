@@ -1448,6 +1448,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       intendedCX: NaN,
       capW: 0,
       listW: 0,
+      out: null,
       bodyH: 0,
       el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };

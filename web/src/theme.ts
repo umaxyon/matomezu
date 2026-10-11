@@ -7,6 +7,7 @@
 // - 書かなければテーマの既定の色
 
 import { t } from "./i18n";
+import type { Size } from "./types";
 
 // 色の名前（役割）。LLM は意味で選ぶ（「問題の箱は danger」）。並びは画面に出す順
 export const PALETTE = ["primary", "secondary", "success", "warn", "danger", "muted"] as const;
@@ -32,7 +33,10 @@ export interface Theme {
   // 図全体の CSS 変数として流す値（テーマを書いた要素から子孫へ受け継ぐ）
   palette: Record<PaletteName, string>; // 色の名前ごとの色
   radius?: number;     // 箱の角の丸み（px）
-  padding?: [number, number]; // 文字の箱の中の余白（上下, 左右。px）。S サイズと形（人・DB）は使わない
+  // 見た目の補正値（docs/LAYOUT-BASE-plan.md）: 箱を土台から四方へ広げて描く量（上下, 左右。px）。サイズ L / M / S ごと。
+  // ノーマルの形（ボックス・角丸・六角形・平行四辺形・台形）だけに効き、特殊な形（ひし形・円・絵の形・クラス）は使わない。
+  // 配置はこの値を足した大きさ（足跡）で決まる。テーマが配置に入る入口はここだけ（CLAUDE.md の 9）
+  outset?: Partial<Record<Size, [number, number]>>;
 }
 
 export const DEFAULT_THEME = "default";
@@ -46,7 +50,7 @@ export const THEMES: Theme[] = [
   {
     id: "sticky", label: t("付箋紙"), describe: t("明るい紙の上に、淡い黄色の付箋を貼った見た目。角は小さく、影は薄い"),
     box: "#fff3a6", group: "#b9ad8f", border: "#d9c873", text: "#3b3524",
-    shadow: "0 3px 5px rgba(70, 55, 20, 0.28)", background: "#f4efe4", radius: 3, padding: [8, 12], style: "sticky",
+    shadow: "0 3px 5px rgba(70, 55, 20, 0.28)", background: "#f4efe4", radius: 3, outset: { L: [4, 4], M: [4, 4], S: [0, 0] }, style: "sticky",
     // 付箋の色違い（淡い色）
     palette: { primary: "#cfe2ff", secondary: "#e4d5ff", success: "#d3f0c2", warn: "#fff3a6", danger: "#ffd0da", muted: "#e9e3d5" },
   },
@@ -69,8 +73,6 @@ export const themeById = (id: string | undefined | null): Theme => byId.get(id ?
 export function themeVars(t: Theme): Record<string, string> {
   return {
     "--mz-radius": t.radius != null ? `${t.radius}px` : "initial",
-    "--mz-pad-y": t.padding ? `${t.padding[0]}px` : "initial",
-    "--mz-pad-x": t.padding ? `${t.padding[1]}px` : "initial",
   };
 }
 

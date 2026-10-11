@@ -125,6 +125,19 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const shape = shapeOf(n);
     const draw = shapeDef(shape).draw; // 描き方（形の表 shapes.ts）
     const page = isPageBox(n);
+    // 見た目の補正値（テーマとサイズから。ノーマルの形だけ。docs/LAYOUT-BASE-plan.md）。箱の中の余白に足して描き（graph-style.ts の
+    // --mz-out-x / --mz-out-y）、配置はこれを足した大きさ（足跡）で決まる。値が変わったら（テーマやサイズを変えた）、土台の位置を保つよう
+    // 足跡の左上を差の分だけずらす（四方に均等に膨らむので、中心は動かない）。位置を受け渡す入口はここだけ
+    const [oy, ox] = !group && shapeDef(shape).kind === "normal" ? theme.outset?.[size] ?? [0, 0] : [0, 0];
+    head.style.setProperty("--mz-out-y", oy + "px");
+    head.style.setProperty("--mz-out-x", ox + "px");
+    const was = n.out;
+    n.out = { x: ox, y: oy };
+    if (was && n.hasPos && (was.x !== ox || was.y !== oy)) {
+      n.x -= ox - was.x;
+      n.y -= oy - was.y;
+      n.intendedY -= oy - was.y;
+    }
     for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape && !page);
     head.classList.toggle("mz-shape-page", page);
     // 文字を塗りの上に書くのは、ボックスと DB（塗りつぶしあり）だけ

@@ -77,14 +77,18 @@ export function createNodeKinds(ctx: KindContext) {
       // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
       const w = assignedW(n) || listItemWidth(n);
       n.hw = w;
-      n.hh = Math.max(SIZES[sizeOf(n)].h, measure(n, w)[1]);
+      n.hh = Math.max(SIZES[sizeOf(n)].h + 2 * (n.out?.y ?? 0), measure(n, w)[1]);
       return;
     }
-    const z = SIZES[sizeOf(n)];
-    const specW = useSpec ? n.specW : 0;
-    const specH = useSpec ? n.specH : 0;
+    // 大きさの決まり（サイズの範囲・幅や高さの指定・本文の最小の幅）は土台のもの。見た目の補正値（n.out。テーマから）の分だけ広げて
+    // 足跡の大きさにする（文字を折り返す幅は、どのテーマでも同じ。docs/LAYOUT-BASE-plan.md）
+    const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
+    const z0 = SIZES[sizeOf(n)];
+    const z = { ...z0, minW: z0.minW + ox, maxW: z0.maxW + ox, h: z0.h + oy };
+    const specW = useSpec && n.specW ? n.specW + ox : 0;
+    const specH = useSpec && n.specH ? n.specH + oy : 0;
     const maxW = Math.min(z.maxW, n.capW || Infinity);
-    const textW = () => Math.max(z.minW, bodyMinW(n), Math.min(maxW, contentW(n)));
+    const textW = () => Math.max(z.minW, bodyMinW(n) + (bodyMinW(n) ? ox : 0), Math.min(maxW, contentW(n)));
     // 土台の決め方は形の表（shapes.ts の base）で分ける
     const base = shapeDef(shapeOf(n)).base;
     if (base === "diamond") {
@@ -132,7 +136,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = specH || z.h;
       return;
     }
-    const w = Math.max(bodyMinW(n), specW || textW());
+    const w = Math.max(bodyMinW(n) + (bodyMinW(n) ? ox : 0), specW || textW());
     n.hw = w;
     // S は高さが決まっているが、キャプションを切り詰めない並べ方の子（フローチャート）は、折り返した文字に合わせて伸ばす
     n.hh = specH || (z.fixedH && !lookOf(n).fullCaption ? z.h : Math.max(z.h, measure(n, w)[1]));

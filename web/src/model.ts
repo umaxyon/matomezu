@@ -31,6 +31,9 @@ export interface Box {
   intendedCX: number;
   // 同じ段の兄弟にはみ出さないための、文字の幅の上限（0 なら無し）。配置を決め直すたびに計算し直す（保存しない）
   capW: number;
+  // 見た目の補正値（テーマとサイズと形から。render.ts の applyStyle が決める。docs/LAYOUT-BASE-plan.md）。まだ決めていなければ null。
+  // 足跡（x, y, w, h）はこの分だけ土台より四方に広い。値が変わったら、土台の位置を保つよう x, y をずらす
+  out: { x: number; y: number } | null;
   // リストの子のときの幅（親のリストがそろえた幅。node-kinds.ts の list が決める。保存しない）
   listW: number;
   // 内包する箱・リストの親の、見出しの下に置いた本文の高さ（0 なら本文なし）。子を置ける領域の上端を決める（node-kinds.ts。保存しない）
@@ -163,9 +166,8 @@ export interface Strategy {
   splitBranches: boolean; // 子のひし形（分岐）から出る線を、1 つの頂点から 2 本出さないように分けて出す（端を固定した線は除く）
   autoAlign: boolean;   // 位置の無い子を、決まった並べ方（layout/flow-align.ts）で置く。ユーザーが押す「自動で整列」も出す
   separateEnds: boolean; // 子に入る線が同じ位置につながるなら、折れ目の多い方を空いている近い辺へ逃がす（render.ts の separateEnds）
-  keepCenters: boolean; // 子の大きさが変わっても横の中心を保つ（中心をそろえた並びを崩さない。layout.ts の keepCenter）
 }
-const PLAIN = { leafKids: false, kidShapes: [], tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false, keepCenters: false } as const;
+const PLAIN = { leafKids: false, kidShapes: [], tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false } as const;
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true },
   tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN },
@@ -176,7 +178,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, kidShapes: FLOW_SHAPES, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true, keepCenters: true,
+    branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true,
   },
 };
 
