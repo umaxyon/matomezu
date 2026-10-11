@@ -216,3 +216,44 @@ func TestReopenRecreatesMissingFile(t *testing.T) {
 		t.Fatalf("file = %q, %v", b, err)
 	}
 }
+
+// 登録した図は store に書き、次に起動した Hub が登録し直す。ファイルが消えた図は登録しない（空の図も作らない）
+func TestStoreRestoresDocs(t *testing.T) {
+	dir := t.TempDir()
+	store := filepath.Join(dir, "state", "docs.json")
+	a, b := filepath.Join(dir, "a.json"), filepath.Join(dir, "b.json")
+	for _, p := range []string{a, b} {
+		if err := os.WriteFile(p, []byte(`{"nodes":[]}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	web := fstest.MapFS{"index.html": {Data: []byte("<html>")}}
+	ctx, cancel := context.WithCancel(context.Background())
+	first := NewHub(ctx, web, WithStore(store))
+	for _, p := range []string{a, b, a} { // 開き直すと一番新しいものになる
+		if _, err := first.Open(p, false, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cancel()
+	var saved []string
+	raw, _ := os.ReadFile(store)
+	json.Unmarshal(raw, &saved)
+	if len(saved) != 2 || saved[0] != b || saved[1] != a {
+		t.Fatalf("store = %v", saved)
+	}
+
+	os.Remove(b)
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	t.Cleanup(cancel2)
+	second := NewHub(ctx2, web, WithStore(store))
+	if second.docs[docID(a)] == nil {
+		t.Fatal("a が登録し直されていない")
+	}
+	if second.docs[docID(b)] != nil {
+		t.Fatal("消えた b を登録した")
+	}
+	if _, err := os.Stat(b); err == nil {
+		t.Fatal("消えた b を空の図で作った")
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -219,7 +220,12 @@ func runDaemon(args []string) error {
 		daemon.WriteLast(daemon.Last{Addr: st.Addr, Pages: hub.Idle() == 0})
 		stopNow()
 	}
-	hub = server.NewHub(ctx, web.FS, server.WithControl(st.Token, v, shutdown))
+	opts := []server.Option{server.WithControl(st.Token, v, shutdown)}
+	// 登録した図を覚えておき、入れ替わったり止まったりしたあとも開き直せるようにする
+	if dir, err := daemon.Dir(); err == nil {
+		opts = append(opts, server.WithStore(filepath.Join(dir, "docs.json")))
+	}
+	hub = server.NewHub(ctx, web.FS, opts...)
 	if err := daemon.WriteState(st); err != nil {
 		return err
 	}

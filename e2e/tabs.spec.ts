@@ -76,6 +76,18 @@ test("開いていたタブは、読み直しても残る", async ({ page }) => 
   await expect(selected(page)).toHaveText("b.json");
 });
 
+test("サーバーを止めて別の図だけ open し直しても、前に開いていたタブは残る（登録した図はサーバーが覚えている）", async ({ page }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  run("open", "-no-browser", "b.json");
+  await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
+  run("stop");
+  run("open", "-no-browser", "a.json"); // 新しいサーバーは a だけを頼まれる
+  // 実行ファイルを作り直したとき（版が変わる）は画面が読み直し、覚えているタブをサーバーに問い合わせて開き直す
+  await page.reload();
+  await expect(tabNames(page)).toHaveText(["a.json", "b.json"], { timeout: 10_000 });
+});
+
 // ページ（docs/TABS-plan.md の段階 4）。1 はページの箱で、中に 3 と 4
 const paged = {
   nodes: [

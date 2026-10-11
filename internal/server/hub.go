@@ -28,6 +28,9 @@
 //
 // トークンは X-Matomezu-Token ヘッダーで渡す。/api/open は任意のファイルを読み書きさせられる入口なので、
 // 本人だけが読める state ファイルにあるトークンを持つプロセスにしか使わせない。
+//
+// 登録した図のパスは、WithStore のファイルに書いておき、次に起動したときに登録し直す（ファイルが消えた図は除く）。
+// サーバーが入れ替わったり止まったりしても、画面のタブ（localStorage に覚えている）を開き直せるように。
 package server
 
 import (
@@ -62,7 +65,12 @@ type Hub struct {
 	idleSince time.Time              // 画面が 0 になった時刻
 	shown     string                 // 最後に開くよう頼まれた図とページ（open イベントの data）
 	shownAt   time.Time
+	store     string   // 登録した図のパスを書いておくファイル（"" なら書かない）
+	recent    []string // 登録した図のパス（古い順。store に書く）
 }
+
+// storeLimit は store に覚えておく図の数（新しいものから）
+const storeLimit = 100
 
 // 開くよう頼まれた図を、少しあとにつながった画面にも知らせる時間。
 // サーバーを入れ替えた直後は、画面がつなぎ直して読み直すあいだに届いた知らせを取りこぼすため
@@ -89,6 +97,9 @@ func WithControl(token, version string, shutdown func()) Option {
 	return func(h *Hub) { h.token, h.version, h.shutdown = token, version, shutdown }
 }
 
+// WithStore は、登録した図のパスを path に書き、起動したときにそこから登録し直す。
+func WithStore(path string) Option { return func(h *Hub) { h.store = path } }
+
 // NewHub は ctx が終わるまでファイルの監視を続ける Hub を作る。
 func NewHub(ctx context.Context, web fs.FS, opts ...Option) *Hub {
 	h := &Hub{
@@ -102,8 +113,59 @@ func NewHub(ctx context.Context, web fs.FS, opts ...Option) *Hub {
 	for _, o := range opts {
 		o(h)
 	}
+	h.restore()
 	go h.watch()
 	return h
+}
+
+// restore は store に書いてある図を登録し直す。ファイルが消えた図は登録しない（空の図を作らない）
+func (h *Hub) restore() {
+	if h.store == "" {
+		return
+	}
+	b, err := os.ReadFile(h.store)
+	if err != nil {
+		return
+	}
+	var paths []string
+	if json.Unmarshal(b, &paths) != nil {
+		return
+	}
+	for _, p := range paths {
+		if st, err := os.Stat(p); err != nil || st.IsDir() {
+			continue
+		}
+		d, err := newDoc(p, h.versionChanged)
+		if err != nil {
+			continue
+		}
+		h.docs[d.id] = d
+		h.recent = append(h.recent, p)
+	}
+}
+
+// remember は登録した図のパスを、一番新しいものとして store に書く
+func (h *Hub) remember(path string) {
+	if h.store == "" {
+		return
+	}
+	h.mu.Lock()
+	out := make([]string, 0, len(h.recent)+1)
+	for _, p := range h.recent {
+		if p != path {
+			out = append(out, p)
+		}
+	}
+	out = append(out, path)
+	if len(out) > storeLimit {
+		out = out[len(out)-storeLimit:]
+	}
+	h.recent = out
+	b, _ := json.MarshalIndent(out, "", "  ")
+	h.mu.Unlock()
+	if err := os.MkdirAll(filepath.Dir(h.store), 0o700); err == nil {
+		_ = writeAtomic(h.store, b)
+	}
 }
 
 // watch は、どれかの画面が開いている図のファイルを一定間隔で読み直し、外部での変更を知らせる。h.ctx が終わるまで戻らない。
@@ -182,6 +244,7 @@ func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
 		}
 		h.mu.Unlock()
 	}
+	h.remember(d.path)
 	h.mu.Lock()
 	h.idleSince = time.Now() // 開いた直後は、画面がつながるまで待つ
 	conns := len(h.clients)
