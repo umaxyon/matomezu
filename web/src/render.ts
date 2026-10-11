@@ -11,9 +11,9 @@ import { perimeterAt, route, scopeObstacles } from "./routing";
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
-  type Box, type Edge, type World,
-  BEND_MARGIN, absPos, bodyLinesOf, bodyOf, bodyWrapW, ancestors, borderOf, viaOf, dashOf, routeOf, captionOf, descendants, displayCaption, fillOf, inList, inTree, isHidden, isNesting, isPageBox, overflowOf,
-  isIconShape, shapeOf, sizeOf, treeDirOf, viewOf,
+  type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
+  captionOf, dashOf, descendants, displayCaption, fillOf, isHidden, isIconShape, isNesting, isPageBox, overflowOf, routeOf, shapeOf,
+  sizeOf, treeDirOf, viaOf,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
 
@@ -109,7 +109,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const t of THEMES) head.classList.toggle("mz-t-" + t.id, t === theme);
     const { color, own } = ctx.paintOf(n); // own: データの色（値か名前）で塗っているか
     const group = isNesting(n);
-    const view = viewOf(n);
+    const arrange = arrangeOf(n);
     const size = sizeOf(n);
     const fill = fillOf(n);
 
@@ -233,12 +233,12 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (isClass) n.classEl.innerHTML = classHtml(n.src);
     else if (n.classEl.firstChild) n.classEl.replaceChildren();
     n.gripEl.hidden = !body;
-    n.widthGripEl.hidden = !(view === "list" && n.children.length > 0);
+    n.widthGripEl.hidden = !abilitiesOf(n).widthGrip;
     head.classList.toggle("mz-has-body", !!body);
     head.classList.toggle("mz-body-norule", n.src.bodyRule === false);
     // 内包する箱・リストの親の本文は見出しの下に位置を決めて置き、それ以外は本体の中の流れに置く。大きさを測る前に切り替える
     // （描くときに切り替えると、ツリーに変えた直後に位置を決めたまま測り、本文の分の高さが入らない。測った結果も使い回される）
-    const block = !!body && (group || (view === "list" && n.children.length > 0));
+    const block = !!body && (group || arrange === "list");
     n.bodyEl.classList.toggle("mz-body-block", block);
     const bs = n.bodyEl.style;
     bs.position = block ? "absolute" : "";
@@ -246,13 +246,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     bs.top = block ? opt.header + "px" : "";
     if (!block) bs.width = "";
 
-    n.moreEl.hidden = !(n.children.length && view === "hidden");
+    n.moreEl.hidden = arrange !== "hidden";
     n.moreEl.title = t("子 {n} 件", { n: n.children.length });
-    n.treeSvg.style.display = n.children.length && view === "tree" ? "" : "none";
+    n.treeSvg.style.display = arrange === "tree" ? "" : "none";
     // 色の指定が無ければ線と同じ色にする（白だと明るいテーマで見えないため）
     n.treeFrame.style.stroke = own ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";
     n.treeFrame.style.fill = `color-mix(in srgb, ${color} 5%, transparent)`;
-    for (const k of n.children) k.el.style.display = view === "hidden" ? "none" : "";
+    for (const k of n.children) k.el.style.display = arrange === "hidden" ? "none" : "";
   }
 
   // クラスの箱の属性と操作の区画。行は data-member に名前を持つ（〇を出す位置と、線を落とした行を見つけるため）
@@ -283,7 +283,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // ツリーの折れ線: 親から1本下ろし、横に分けて各子の上へつなぐ
   function renderTree(n: Box) {
-    if (!n.children.length || viewOf(n) !== "tree") return;
+    if (arrangeOf(n) !== "tree") return;
     n.treeSvg.setAttribute("width", String(n.w));
     n.treeSvg.setAttribute("height", String(n.h));
     // 親の子に向いた辺の中央から主軸方向へ半分進み、副軸方向に分けて、各子の親に向いた辺へつなぐ
@@ -592,7 +592,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // 描かない線: 端の箱が隠れている（非表示の親の中）か、ツリー・リストの子どうし（子は自動で並ぶので、線を引くと形が崩れる）
   function edgeHidden(e: Edge) {
-    return isHidden(e.a) || isHidden(e.b) || inTree(e.a) || inList(e.a);
+    return isHidden(e.a) || isHidden(e.b) || !abilitiesOf(e.a).link;
   }
 
   // ポインタを乗せた箱と、線でつながった相手を明るくし、ほかを暗くする。描いていない線はたどらない

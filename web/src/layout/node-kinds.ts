@@ -2,7 +2,9 @@
 // 種類は子の有無と childView で決まる（文字の箱 / 非表示 / 内包 / ツリー / リスト）。
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
-import { type Box, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inList, isIconShape, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
+import {
+  type Box, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inList, isIconShape, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+} from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
 
@@ -62,7 +64,7 @@ export function createNodeKinds(ctx: KindContext) {
   // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す。
   // capW があれば（同じ段の兄弟にはみ出さないための上限。layout.ts の fitToRow）、それも上限にする
   function fitHead(n: Box, useSpec: boolean) {
-    if (inList(n) && (!n.children.length || viewOf(n) === "hidden")) {
+    if (inList(n) && leafLike(n)) {
       // リストの葉の子（と非表示の子）: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ
       // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
       const w = n.listW || listItemWidth(n);
@@ -261,9 +263,8 @@ export function createNodeKinds(ctx: KindContext) {
   const text = headOnly("text"), hidden = headOnly("hidden");
 
   function kindOf(n: Box): NodeKind {
-    if (!n.children.length) return text;
-    const view = viewOf(n);
-    return view === "hidden" ? hidden : view === "tree" ? tree : view === "list" ? list : nest;
+    const a = arrangeOf(n);
+    return a === "leaf" ? text : a === "hidden" ? hidden : a === "tree" ? tree : a === "list" ? list : nest;
   }
 
   return { kindOf, bodyTop };

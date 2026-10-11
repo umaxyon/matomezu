@@ -8,7 +8,9 @@ import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
 import { CLASS_HEAD, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
-import { type Box, type Edge, type World, absPos, inList, inNest, inTree, isInside, viewOf } from "./model";
+import {
+  type Box, type Edge, type World, abilitiesOf, absPos, arrangeOf, inList, isInside, leafLike,
+} from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 
@@ -158,7 +160,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // ツリーの子は自分では動かず、ツリー全体（内包されている祖先）を動かす
   function dragTarget(n: Box): Box {
     let m = n;
-    while (!inNest(m) && m.parent) m = m.parent;
+    while (!abilitiesOf(m).drag && m.parent) m = m.parent;
     return m;
   }
 
@@ -248,7 +250,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       document.addEventListener("pointercancel", ev => { if (mine(ev)) endLift(); }, { signal: stop.signal });
       return;
     }
-    if (inList(n)) {
+    if (abilitiesOf(n).reorder) {
       n.head.setPointerCapture(e.pointerId);
       begin(reorderGesture(n, e), e);
       return;
@@ -428,7 +430,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   const isClass = (n: Box) => n.head.classList.contains("mz-shape-class");
 
   // 〇を出す箱: 選択モードで、選んでいない箱。リストの子とツリーの子には出さない（線を引かない）
-  const portable = (n: Box) => ctx.mode() === "move" && ctx.current() !== n && !inList(n) && !inTree(n);
+  const portable = (n: Box) => ctx.mode() === "move" && ctx.current() !== n && abilitiesOf(n).link;
 
   // 箱 n の side の辺の真ん中（ワールドの座標）。out だけ辺の外へずらす
   function sidePoint(n: Box, side: Side, out = 0): [number, number] {
@@ -591,8 +593,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   function addSpotAt(x: number, y: number): (AddRequest & { line?: { left: number; top: number; width: number } }) | undefined {
     const t = dropTargetAt(x, y, null);
     if (t === undefined) return undefined;
-    const leafLike = (b: Box) => !b.children.length || viewOf(b) === "hidden";
-    const list = t && viewOf(t) === "list" && t.children.length ? t : t && inList(t) && leafLike(t) ? t.parent! : null;
+    const list = t && arrangeOf(t) === "list" ? t : t && inList(t) && leafLike(t) ? t.parent! : null;
     if (list) {
       const kids = list.children.map(k => ({ k, r: k.el.getBoundingClientRect() }));
       const next = kids.find(({ r }) => y < r.top + r.height / 2);
@@ -661,8 +662,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       if (!head) continue;
       const b = boxOf(head);
       if (!b) continue;
-      if (b.src.page === true) return undefined;
-      if (b.head.classList.contains("mz-shape-class")) return undefined; // クラスの箱は子を持てない（docs/CLASS-plan.md）
+      if (!abilitiesOf(b).dropInto) return undefined; // ページの箱とクラスの箱（docs/CLASS-plan.md）の中へは落とせない
       return moving && isInside(b, moving) ? undefined : b;
     }
     return null;

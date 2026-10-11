@@ -122,9 +122,9 @@ import { BODY_MIN_W } from "./layout/node-kinds";
 import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
-  type Box, type Container, type Edge, type World,
-  absPos, ancestors, arrowOf, dataSizeOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
-  bodyLinesOf, bodyWidthOf, bodyWrapW, canBody, overflowOf, setOrDelete, setSpec, isIconShape, shapeOf, sizeOf, treeDirOf, viewOf,
+  type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
+  canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isIconShape, isNesting, other,
+  overflowOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -461,7 +461,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
 
   function canLink(a: Box, b: Box) {
-    if (a.parent !== b.parent || inTree(a) || inList(a)) return false;
+    if (a.parent !== b.parent || !abilitiesOf(a).link) return false;
     // 自分に戻る線は、同じ箱に何本でも引ける（輪の大きさを変えて重ねない。docs/SELFLOOP-plan.md）
     if (a === b) return true;
     return !edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
@@ -608,7 +608,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function bodyResizer(n: Box) {
     const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
     const before = typeof n.src.bodyWidth === "number" ? n.src.bodyWidth : undefined;
-    const group = L.kindOf(n).name === "nest" || L.kindOf(n).name === "list";
+    const group = isNesting(n);
     const width = group ? bodyWrapW(n, n.hw) : n.hw;
     const max = group ? n.hw : SIZES[sizeOf(n)].maxW;
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
@@ -723,7 +723,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const parentIdOf = (t: Box | null) => (t ? t.src.id : pageBox()?.id);
 
   // 落とした位置に置くか（内包か子の無い箱の中、または最上位）。ツリー・非表示の中なら自動で並べる（null）
-  const dropPos = (t: Box | null, at?: { x: number; y: number }) => (at && (!t || viewOf(t) === "nest") ? at : null);
+  const dropPos = (t: Box | null, at?: { x: number; y: number }) => (at && (!t || placesFreely(t)) ? at : null);
 
   // 構造が変わる操作（付け替え・ほかのページの箱を消す・戻す・移植）の入口（docs/REFACTOR-2.md）。
   // 図の写しを edit で直して作り直し、選び直して、履歴に 1 件残す。順番（作り直す → 選ぶ → 履歴）はここで決める。
