@@ -25,6 +25,9 @@ export interface NodeKind {
   measure(n: Box): void;
   // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）
   anchorRect(n: Box): Rect;
+  // この並べ方が子 child にそろえさせる幅（0 は決めない）。子は自分の大きさを決めるとき、親からこれを受け取る（assignedW）。
+  // 今はリストだけ（子の幅をそろえる）。D2 の配置パターンも、子の大きさを決めるときはここから渡す（docs/PATTERN-plan.md の 6 章 E）
+  childWidth?(child: Box): number;
 }
 
 export interface KindContext {
@@ -37,6 +40,8 @@ export interface KindContext {
 export function createNodeKinds(ctx: KindContext) {
   const { opt, measure, caption } = ctx;
   const headRect = (n: Box): Rect => ({ x: n.hx, y: n.hy, w: n.hw, h: n.hh });
+  // 親の並べ方がこの箱にそろえさせる幅（0 は決めていない。今は親がリストのときだけ）
+  const assignedW = (n: Box): number => (n.parent ? kindOf(n.parent).childWidth?.(n) ?? 0 : 0);
 
 
   // 本文の幅（箱の幅として数える）を加えた、中身に合わせた幅（1 行のまま測った幅）。本文の幅の指定があれば、キャプションの幅と
@@ -67,7 +72,7 @@ export function createNodeKinds(ctx: KindContext) {
     if (inList(n) && leafLike(n)) {
       // リストの葉の子（と非表示の子）: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ
       // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
-      const w = n.listW || listItemWidth(n);
+      const w = assignedW(n) || listItemWidth(n);
       n.hw = w;
       n.hh = Math.max(SIZES[sizeOf(n)].h, measure(n, w)[1]);
       return;
@@ -146,7 +151,7 @@ export function createNodeKinds(ctx: KindContext) {
       let r = 0;
       for (const c of n.children) r = Math.max(r, c.x + c.w);
       // リストの子なら、リストがそろえた幅まで広げる（子の並びは左に寄ったまま）
-      n.w = Math.max(GROUP_MIN.w, bodyMinW(n), r + opt.padding, inList(n) ? n.listW : 0);
+      n.w = Math.max(GROUP_MIN.w, bodyMinW(n), r + opt.padding, assignedW(n));
       // 本文は決まった幅で折り返す。高さが前と変わったら（子は前の高さの下に置いてある）、その分だけ子を上下に動かす。
       // 子の左右の位置は本文の高さに関わらないので、幅は先に決まる
       const bh = bodyHeight(n, n.w);
@@ -202,7 +207,7 @@ export function createNodeKinds(ctx: KindContext) {
       const crossAll = P + cross + P;
       if (vertical) { n.w = crossAll; n.h = main; } else { n.w = main; n.h = crossAll; }
       // リストの子なら、リストがそろえた幅まで枠を広げ、中身（親と子の並び）を真ん中に寄せる
-      const extra = inList(n) ? n.listW - n.w : 0;
+      const extra = assignedW(n) - n.w;
       if (extra > 0) {
         n.w += extra;
         n.hx += extra / 2;
@@ -231,15 +236,14 @@ export function createNodeKinds(ctx: KindContext) {
       const P = opt.padding;
       // 子を持つ子は、そろえる前の自分の幅（前にそろえた幅を外して測る）
       const own = (k: Box) => {
-        if (kindOf(k).name === "text" || kindOf(k).name === "hidden") return listItemWidth(k);
+        if (leafLike(k)) return listItemWidth(k);
         k.listW = 0;
         kindOf(k).measure(k);
         return k.w;
       };
-      const leafLike = (k: Box) => kindOf(k).name === "text" || kindOf(k).name === "hidden";
       const widths = n.children.map(k => ({ leaf: leafLike(k), w: own(k) }));
       // 指定があっても狭められない幅（子を持つ子は、下から決まった幅より狭くできない）
-      const floor = Math.max(GROUP_MIN.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, inList(n) ? n.listW - 2 * P : 0);
+      const floor = Math.max(GROUP_MIN.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, assignedW(n) - 2 * P);
       const inner = n.specW
         ? Math.max(floor, n.specW - 2 * P)
         : Math.max(floor, ...widths.map(c => c.w), Math.min(SIZES.L.maxW, caption(n) - 2 * P));
@@ -258,6 +262,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.hw = n.w; n.hh = n.h;
     },
     anchorRect: headRect,
+    childWidth: k => k.listW,
   };
 
   const text = headOnly("text"), hidden = headOnly("hidden");
