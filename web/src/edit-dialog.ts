@@ -1,5 +1,5 @@
 /*
- * 編集ダイアログ（箱はキャプションと本文、線はキャプション・通り方・線の種類・矢印と、線を消すボタン。docs/BODY-plan.md の段階 3）と、箱の追加のダイアログ（docs/ADD-plan.md）。
+ * 編集ダイアログ（箱は左に形・サイズ・テーマ、右にキャプションと本文、線はキャプション・通り方・線の種類・矢印と、線を消すボタン。docs/BODY-plan.md の段階 3）と、箱の追加のダイアログ（docs/ADD-plan.md）。
  * モーダル: 画面全体を覆い、閉じるまで図やサイドバーを触れなくする。入力中は図を動かさず、確定したときに 1 件の履歴として書く。
  * Ctrl+Enter（Mac は Cmd+Enter）か「確定」（追加は「追加」）で確定、Esc か「キャンセル」で閉じる。キャプションの欄では Enter でも確定する（1 行）。
  *
@@ -14,7 +14,9 @@ import { esc, injectStyle } from "./dom";
 import { helpIcon, setupHelp } from "./help";
 import type { EdgePatch, Graph } from "./graph";
 import type { AddRequest } from "./interaction";
-import type { BoxData, BoxInfo, Patch } from "./types";
+import { THEMES } from "./theme";
+import type { BoxData, BoxInfo, Patch, Shape, Size } from "./types";
+import { SHAPE_OPTIONS } from "./validate";
 
 const STYLE_ID = "matomezu-edit-dialog-style";
 const CSS = `
@@ -75,6 +77,28 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-switch:focus-visible { outline: 2px solid var(--dlg-accent); outline-offset: 2px; }
 .mz-dlg-onoff { min-width: 3em; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-lines { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+/* 箱のダイアログ: 左に見た目の設定、縦の線で区切って右に中身（背景の色は変えない。docs/ADD-plan.md の 4 章） */
+.mz-dlg.mz-dlg-wide { width: min(672px, 100%); } /* 右の列が約 434px（780px のときの 4/5） */
+.mz-dlg-split { display: flex; align-items: stretch; }
+.mz-dlg-side {
+  flex: none; width: 180px; box-sizing: border-box; padding: 4px 16px 4px 0; margin-right: 18px;
+  border-right: 1px solid var(--dlg-line);
+}
+.mz-dlg-main { flex: 1; min-width: 0; }
+.mz-dlg-side h3 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--dlg-muted); }
+.mz-dlg-side .mz-dlg-group { margin-bottom: 16px; }
+.mz-dlg-side select.mz-dlg-input { width: 100%; }
+.mz-dlg-side .mz-dlg-note { margin: 6px 0 0; }
+.mz-dlg-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--dlg-control); }
+.mz-dlg-seg label { flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; font-size: 12px; }
+.mz-dlg-seg input { position: absolute; opacity: 0; pointer-events: none; }
+.mz-dlg-seg label:has(input:checked) { background: var(--dlg-accent); color: #fff; }
+.mz-dlg-seg label:has(input:disabled) { opacity: 0.4; cursor: default; }
+.mz-dlg-seg label:has(input:focus-visible) { outline: 2px solid var(--dlg-accent); outline-offset: -2px; }
+@media (max-width: 600px) {
+  .mz-dlg-split { flex-direction: column; }
+  .mz-dlg-side { width: auto; padding: 0 0 4px; margin: 0 0 16px; border-right: 0; border-bottom: 1px solid var(--dlg-line); }
+}
 .mz-dlg-lines .mz-help { margin-left: -2px; }
 `;
 
@@ -92,18 +116,42 @@ export function closeEditDialog(): void {
 // 本文の最大行数の選択肢（超えた分は … で切る）。データにこれ以外の値があれば、それも選べるように足す
 const LINE_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 
-// 箱の中身（キャプション・区切り線・本文・箱の幅に合わせる・最大行数）を聞くダイアログ。編集と追加で同じ並び
-interface BoxValues { caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean }
-type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody">;
+// 箱を聞くダイアログ。左に見た目の設定（形・サイズ・テーマ）、右に中身（キャプション・区切り線・本文・箱の幅に合わせる・最大行数）。
+// 編集と追加で同じ並び。本文を持つ間は形と S を選べず、形がボックス以外か S のあいだは本文を書けない（サイドバーと同じ決まり）
+interface BoxValues {
+  caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean;
+  shape: Shape; size: Size; theme: string; bodyAllowed: boolean;
+}
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "overflow"> & {
+  theme: string;      // 書いたテーマ（"" は受け継ぐ）
+  sizeFixed: boolean; // 内包・リストの箱（大きさは子の並びで決まり、サイズを使わない）
+};
 
 function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void) {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
+  // 形やサイズのほかに本文を出せない理由（ページの箱、キャプションを 1 行にした箱）があるか
+  const bodyBase = b.overflow !== "clip" && (b.canBody || b.shape !== "box" || b.size === "S");
   const off = b.canBody ? "" : " disabled";
+  const sizes: Size[] = ["L", "M", "S"];
+  const side = `<div class="mz-dlg-side">
+      <div class="mz-dlg-group"><h3>形</h3>
+        <select class="mz-dlg-input" name="shape" aria-label="形"${b.canShape ? "" : " disabled"}>${SHAPE_OPTIONS.map(([v, label]) =>
+          `<option value="${v}"${v === b.shape ? " selected" : ""}>${esc(label)}</option>`).join("")}</select>
+        ${b.canShape ? "" : `<p class="mz-dlg-note">子を内包している箱は枠なので、形を選べません</p>`}</div>
+      <div class="mz-dlg-group"><h3>サイズ</h3>
+        <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
+        ${b.sizeFixed ? `<p class="mz-dlg-note">内包・リストの箱の大きさは、子の並びで決まります</p>` : ""}</div>
+      <div class="mz-dlg-group"><h3>テーマ</h3>
+        <select class="mz-dlg-input" name="theme" aria-label="テーマ">
+          <option value=""${b.theme ? "" : " selected"}>受け継ぐ</option>
+          ${THEMES.map(t => `<option value="${t.id}"${t.id === b.theme ? " selected" : ""}>${esc(t.label)}</option>`).join("")}
+        </select></div>
+    </div>`;
   // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするスイッチ。本文が空のあいだは切って押せなくし、
   // 本文を書き始めたら押せるようにして入れる
   // 「箱の幅に合わせる」は、つまみで本文の幅を変えていれば押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
   // 子の無い箱では箱の幅が中身（キャプションと本文）に合わせて決まり直す
-  const overlay = show(title, okLabel, `
+  const overlay = show(title, okLabel, `<div class="mz-dlg-split">${side}<div class="mz-dlg-main">
       <label class="mz-dlg-field"><span>キャプション</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
       <div class="mz-dlg-row"><span>区切り線</span>
@@ -111,7 +159,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
         <span class="mz-dlg-onoff">OFF</span></div>
       <label class="mz-dlg-field mz-dlg-body"><span>本文</span>
         <textarea class="mz-dlg-input" name="body" placeholder="なし"${off}>${esc(b.body)}</textarea></label>
-      ${b.canBody ? "" : `<p class="mz-dlg-note">本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>`}
+      <p class="mz-dlg-note" data-body-note${b.canBody ? " hidden" : ""}>本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>
       <div class="mz-dlg-row">
         <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>箱の幅に合わせる</button>
         <input type="hidden" name="width-auto" value="">
@@ -119,11 +167,17 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
           <select class="mz-dlg-input" name="lines"${off}>
             <option value=""${b.bodyLines ? "" : " selected"}>制限なし</option>
             ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${v} 行</option>`).join("")}
-          </select></label></div>`,
+          </select></label></div>
+    </div></div>`,
   overlay => {
     const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
     const linesValue = field<HTMLSelectElement>("lines").value;
+    const size = overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value as Size | undefined;
     commit({
+      shape: field<HTMLSelectElement>("shape").value as Shape,
+      size: size ?? b.size,
+      theme: field<HTMLSelectElement>("theme").value,
+      bodyAllowed: bodyAllowed(),
       caption: field<HTMLInputElement>("caption").value,
       body: field<HTMLTextAreaElement>("body").value,
       rule: field("rule").getAttribute("aria-checked") === "true",
@@ -131,6 +185,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       widthAuto: !!field<HTMLInputElement>("width-auto").value,
     });
   });
+  overlay.querySelector(".mz-dlg")!.classList.add("mz-dlg-wide");
   const ruleSwitch = overlay.querySelector<HTMLButtonElement>('[name="rule"]')!;
   const setRule = (on: boolean) => {
     ruleSwitch.setAttribute("aria-checked", String(on));
@@ -139,13 +194,31 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   ruleSwitch.addEventListener("click", () => setRule(ruleSwitch.getAttribute("aria-checked") !== "true"));
   const bodyField = overlay.querySelector<HTMLTextAreaElement>('[name="body"]')!;
   const syncRule = (start: boolean) => {
-    const has = b.canBody && bodyField.value !== "";
+    const has = !bodyField.disabled && bodyField.value !== "";
     if (has && ruleSwitch.disabled) setRule(start ? b.bodyRule : true);
     if (!has) setRule(false);
     ruleSwitch.disabled = !has;
   };
   syncRule(true);
   bodyField.addEventListener("input", () => syncRule(false));
+  // 形・サイズと本文の決まり: 形がボックス以外か S のあいだは本文を書けず、本文があるあいだは形と S を選べない
+  const shapeField = overlay.querySelector<HTMLSelectElement>('[name="shape"]')!;
+  const sizeS = overlay.querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
+  const pickedSize = () => overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value ?? b.size;
+  const bodyAllowed = () => bodyBase && shapeField.value === "box" && (b.sizeFixed || pickedSize() !== "S");
+  const syncBody = () => {
+    const allowed = bodyAllowed();
+    for (const el of overlay.querySelectorAll<HTMLTextAreaElement | HTMLSelectElement>('[name="body"], [name="lines"]')) el.disabled = !allowed;
+    overlay.querySelector<HTMLElement>("[data-body-note]")!.hidden = allowed;
+    const has = allowed && bodyField.value !== "";
+    for (const o of shapeField.options) o.disabled = has && o.value !== "box";
+    if (!b.sizeFixed) sizeS.disabled = has;
+    syncRule(false);
+  };
+  shapeField.addEventListener("change", syncBody);
+  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.addEventListener("change", syncBody);
+  bodyField.addEventListener("input", syncBody);
+  syncBody();
   // 「箱の幅に合わせる」は確定したときに書く（押したらボタンを押せなくして、押したことを示す）
   overlay.querySelector<HTMLElement>("[data-width-auto]")!.addEventListener("click", e => {
     overlay.querySelector<HTMLInputElement>('[name="width-auto"]')!.value = "1";
@@ -159,24 +232,36 @@ export function openEditDialog(graph: Graph, id: string): void {
   const info = graph.info(id);
   if (info.kind === "world") return;
   const b = info as BoxInfo;
-  boxDialog("ボックスの編集", "確定", b, v => {
+  const sizeFixed = b.children.length > 0 && (b.childView === "nest" || b.childView === "list");
+  const start: BoxStart = { ...b, theme: b.theme ?? "", sizeFixed };
+  boxDialog("ボックスの編集", "確定", start, v => {
     const patch: Patch = {};
     if (v.caption !== b.caption) patch.caption = v.caption;
-    if (b.canBody && v.body !== b.body) patch.body = v.body || null;
-    if (b.canBody && v.body && v.rule !== b.bodyRule) patch.bodyRule = v.rule ? null : false; // 本文が無ければ区切り線は変えない
-    if (b.canBody && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
+    if (b.canShape && v.shape !== b.shape) patch.shape = v.shape;
+    if (!sizeFixed && v.size !== b.size) patch.size = v.size; // サイズを変えたときだけ（変えると大きさの指定も外れる）
+    if (v.theme !== (b.theme ?? "")) patch.theme = v.theme || null;
+    if (v.bodyAllowed && v.body !== b.body) patch.body = v.body || null;
+    if (v.bodyAllowed && v.body && v.rule !== b.bodyRule) patch.bodyRule = v.rule ? null : false; // 本文が無ければ区切り線は変えない
+    if (v.bodyAllowed && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
     if (b.bodyWidth && v.widthAuto) patch.bodyWidth = null;
-    if (Object.keys(patch).length) graph.update(id, patch);
+    if (Object.keys(patch).length) graph.update(id, patch); // まとめて 1 件の変更
   });
 }
 
 // 追加モードで押した所 req に、新しい箱を足すダイアログ（docs/ADD-plan.md）。「追加」で足して選択モードに戻る。
 // 「キャンセル」なら何もせず、追加モードのまま
 export function openAddDialog(graph: Graph, req: AddRequest): void {
-  const start: BoxStart = { caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true };
+  const start: BoxStart = {
+    caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
+    shape: "box", size: "M", canShape: true, overflow: "wrap", theme: "", sizeFixed: false,
+  };
   boxDialog("ボックスの追加", "追加", start, v => {
     const fields: Partial<BoxData> = {};
     if (v.caption) fields.caption = v.caption;
+    // 既定（ボックス・M・受け継ぐ）は書かない
+    if (v.shape !== "box") fields.shape = v.shape;
+    if (v.size !== "M") fields.size = v.size;
+    if (v.theme) fields.theme = v.theme;
     if (v.body) fields.body = v.body;
     if (v.body && !v.rule) fields.bodyRule = false;
     if (v.lines) fields.bodyLines = v.lines;

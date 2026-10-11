@@ -25,6 +25,8 @@ export const GROUP_MIN = { w: 120, h: 64 };
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 export const VIEWS = ["nest", "tree", "hidden", "list"] as const;
 export const SHAPES = ["box", "person", "db", "diamond", "server"] as const;
+// 形の画面での名前（サイドバーと編集ダイアログの選択肢。SHAPES と同じ並び）
+export const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"], ["diamond", "ひし形"], ["server", "サーバー"]];
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;

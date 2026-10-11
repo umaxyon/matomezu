@@ -7,6 +7,7 @@ import type { Graph } from "./graph";
 import { helpIcon } from "./help";
 import { THEMES, isPaletteName, themeById } from "./theme";
 import type { Brief, ChildView, Dash, EdgeInfo, Info, Route, Shape, Size, TreeDirection } from "./types";
+import { SHAPE_OPTIONS } from "./validate";
 
 const KIND_LABELS = { group: "グループ", box: "ボックス" };
 // 鉛筆の印（編集ダイアログを開くボタン）
@@ -18,7 +19,6 @@ const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折�
 const BY_CHILDREN = "内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）";
 const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["list", "リスト"], ["hidden", "非表示"]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];
-const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"], ["diamond", "ひし形"], ["server", "サーバー"]];
 const VIEW_HELP = "内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\n" +
   "リスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n" +
   "非表示: 子を隠し、▼ で子がいることだけを示します";

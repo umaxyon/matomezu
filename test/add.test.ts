@@ -166,3 +166,64 @@ test("userAdded は true か false だけ", async () => {
   expect(problems({ nodes: [{ id: 1, userAdded: "yes" as never }] })[0]).toContain("userAdded は true か false");
   expect(problems({ nodes: [{ id: 1, userAdded: true }] })).toEqual([]);
 });
+
+// 箱のダイアログの左の列（形・サイズ・テーマ。docs/ADD-plan.md の 4 章）
+const dialog = () => document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
+const field = <T extends HTMLElement>(name: string) => dialog().querySelector<T>(`[name="${name}"]`)!;
+const fire = (el: HTMLElement, type: string) => el.dispatchEvent(new Event(type, { bubbles: true }));
+const ok = () => dialog().querySelector<HTMLElement>("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+test("追加のダイアログで形・サイズ・テーマを選ぶと、その箱を足す。既定（ボックス・M・受け継ぐ）は書かない", () => {
+  const { g } = setup({ nodes: [] });
+  openAddDialog(g, { parentId: null, at: { x: 100, y: 100 } });
+  expect(dialog().querySelector(".mz-dlg-side")).not.toBeNull();
+  field<HTMLSelectElement>("shape").value = "server";
+  fire(field("shape"), "change");
+  const s = dialog().querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
+  s.checked = true;
+  fire(s, "change");
+  field<HTMLSelectElement>("theme").value = "sticky";
+  ok();
+  const added = g.toJSON().nodes[0]!;
+  expect([added.shape, added.size, added.theme]).toEqual(["server", "S", "sticky"]);
+
+  openAddDialog(g, { parentId: null, at: { x: 300, y: 100 } });
+  ok();
+  const plain = g.toJSON().nodes[1]!;
+  expect(["shape" in plain, "size" in plain, "theme" in plain]).toEqual([false, false, false]);
+});
+
+test("箱のダイアログ: 形がボックス以外か S のあいだは本文を書けず、本文があるあいだは形と S を選べない", async () => {
+  const { openEditDialog } = await import("../web/src/edit-dialog");
+  const { g } = setup({ nodes: [{ id: 1, caption: "A", x: 40, y: 40 }] });
+  openEditDialog(g, "1");
+  const body = field<HTMLTextAreaElement>("body");
+  const sizeS = dialog().querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
+  field<HTMLSelectElement>("shape").value = "db";
+  fire(field("shape"), "change");
+  expect(body.disabled).toBe(true);
+  field<HTMLSelectElement>("shape").value = "box";
+  fire(field("shape"), "change");
+  expect(body.disabled).toBe(false);
+  body.value = "本文";
+  fire(body, "input");
+  const disabledShapes = [...field<HTMLSelectElement>("shape").options].filter(o => o.disabled).map(o => o.value);
+  expect(disabledShapes).toEqual(["person", "db", "diamond", "server"]);
+  expect(sizeS.disabled).toBe(true);
+  // テーマとサイズを変えて確定すると、まとめて 1 件の変更
+  dialog().querySelector<HTMLInputElement>('[name="size"][value="L"]')!.checked = true;
+  field<HTMLSelectElement>("theme").value = "simple";
+  ok();
+  const n = g.toJSON().nodes[0]!;
+  expect([n.body, n.size, n.theme]).toEqual(["本文", "L", "simple"]);
+  g.undo();
+  expect(g.toJSON().nodes[0]).toEqual({ id: 1, caption: "A", x: 40, y: 40 });
+});
+
+test("内包している箱の編集ダイアログでは、形とサイズを選べない", async () => {
+  const { openEditDialog } = await import("../web/src/edit-dialog");
+  const { g } = setup({ nodes: [{ id: 1, caption: "親", x: 40, y: 40 }, { id: 2, parent: 1 }] });
+  openEditDialog(g, "1");
+  expect(field<HTMLSelectElement>("shape").disabled).toBe(true);
+  expect([...dialog().querySelectorAll<HTMLInputElement>('[name="size"]')].every(r => r.disabled && !r.checked)).toBe(true);
+});
