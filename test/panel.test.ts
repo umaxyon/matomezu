@@ -346,3 +346,19 @@ test("見た目: 枠線はボックスだけ、塗りつぶしはスティック
   };
   expect([shown(1), shown(2), shown(3), shown(4)]).toEqual([[true, true], [true, false], [true, false], [false, false]]);
 });
+
+test("ツリーの中の子持ちの箱は、サイズを選べ、子の見せ方の代わりに案内を出す（見せ方のデータが内包のままでも）", () => {
+  const { g, $ } = setup({ nodes: [
+    { id: 1, caption: "根", childView: "tree" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
+  ] });
+  g.select(2);
+  const sizes = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
+  expect(sizes.map(i => [i.disabled, i.checked])).toEqual([[false, false], [false, true], [false, false]]);
+  expect($('input[name="mzp-view"]')).toBeNull();
+  // 解除すると、節は内包の枠になり、サイズは子の並びで決まる
+  g.update(1, { childView: "nest" });
+  g.select(2);
+  const after = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
+  expect(after.every(i => i.disabled)).toBe(true);
+  expect($('input[name="mzp-view"]')).not.toBeNull();
+});

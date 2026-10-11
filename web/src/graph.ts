@@ -126,7 +126,7 @@ import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isIconShape, isNesting, other,
-  overflowOf, inTreeOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, lookOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -1009,7 +1009,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const size = sizeOf(n);
     // 中身の扱いを選べるのは、文字を持つボックス（S 以外）だけ。子を持つ箱はつねに子に合わせて伸びる（docs/SIZE-plan.md）。
     // スティックマンは文字の置き方が決まっているので使わない
-    const usesOverflow = !n.children.length && size !== "S" && !isIconShape(shapeOf(n)) && shapeOf(n) !== "class" && !inList(n);
+    const usesOverflow = !n.children.length && size !== "S" && !isIconShape(shapeOf(n)) && shapeOf(n) !== "class" && !lookOf(n).sharedSize;
     const out: BoxInfo = {
       kind: n.children.length ? "group" : "box",
       id: n.id,
@@ -1023,10 +1023,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       fill: fillOf(n),
       border: borderOf(n),
       // リストの子は、見た目はリストの中でそろえたサイズで描くが、選ぶのは自分のサイズ（そろえる幅の候補になる）
-      size: inList(n) ? dataSizeOf(n) : size,
+      size: lookOf(n).sharedSize ? dataSizeOf(n) : size,
       shape: shapeOf(n),
-      canShape: !isNesting(n) && !inList(n) && n.src.page !== true,
-      canClass: !inList(n) && n.src.page !== true,
+      canShape: !isNesting(n) && !lookOf(n).plainShape && n.src.page !== true,
+      canClass: !lookOf(n).plainShape && n.src.page !== true,
       body: typeof n.src.body === "string" ? n.src.body : "",
       canBody: canBody(n),
       bodyRule: n.src.bodyRule !== false,
@@ -1036,6 +1036,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
       treeDirection: treeDirOf(n),
+      framed: isNesting(n),
       inTree: inTreeOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),

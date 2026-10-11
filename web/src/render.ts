@@ -240,7 +240,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     head.classList.toggle("mz-body-norule", n.src.bodyRule === false);
     // 内包する箱・リストの親の本文は見出しの下に位置を決めて置き、それ以外は本体の中の流れに置く。大きさを測る前に切り替える
     // （描くときに切り替えると、ツリーに変えた直後に位置を決めたまま測り、本文の分の高さが入らない。測った結果も使い回される）
-    const block = !!body && (group || arrange === "list");
+    const block = !!body && group;
     n.bodyEl.classList.toggle("mz-body-block", block);
     const bs = n.bodyEl.style;
     bs.position = block ? "absolute" : "";

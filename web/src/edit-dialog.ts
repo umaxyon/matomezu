@@ -396,7 +396,7 @@ export function openEditDialog(graph: Graph, id: string): void {
   const info = graph.info(id);
   if (info.kind === "world") return;
   const b = info as BoxInfo;
-  const sizeFixed = b.children.length > 0 && (b.childView === "nest" || b.childView === "list");
+  const sizeFixed = b.framed;
   const start: BoxStart = { ...b, theme: b.theme ?? "", sizeFixed, kids: b.children.length };
   boxDialog(t("ボックスの編集"), t("確定"), start, v => {
     // クラスにかかわる変更は、子や線を消すことがあるので別の入口（docs/CLASS-plan.md）

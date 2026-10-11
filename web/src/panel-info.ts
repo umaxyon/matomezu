@@ -155,7 +155,7 @@ function html(info: Info): string {
     }
 
     // 内包・リストの箱ではサイズを使わない（docs/SIZE-plan.md）。どれも選んでいない形で、押せなくする。クラスの箱は出さない（幅は中身で決まる）
-    const nesting = info.children.length > 0 && (info.childView === "nest" || info.childView === "list");
+    const nesting = info.framed;
     const sizes: [string, string][] = [["L", "L"], ["M", "M"], ["S", "S"]];
     if (info.shape !== "class") parts.push(`<div class="mzp-section"><h3>${t("サイズ")}${helpIcon(SIZE_HELP)}</h3>
       ${segment("mzp-size", nesting ? "" : info.size, sizes, nesting ? new Map(sizes.map(([v]) => [v, BY_CHILDREN]))

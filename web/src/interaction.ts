@@ -9,7 +9,7 @@ import type { Layout } from "./layout/layout";
 import { CLASS_HEAD, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
 import {
-  type Box, type Edge, type World, abilitiesOf, absPos, arrangeOf, inList, isInside, leafLike,
+  type Box, type Edge, type World, abilitiesOf, absPos, isInside, leafLike, strategyOf,
 } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
@@ -593,7 +593,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   function addSpotAt(x: number, y: number): (AddRequest & { line?: { left: number; top: number; width: number } }) | undefined {
     const t = dropTargetAt(x, y, null);
     if (t === undefined) return undefined;
-    const list = t && arrangeOf(t) === "list" ? t : t && inList(t) && leafLike(t) ? t.parent! : null;
+    // 並べ替えのできる戦略（リスト）の中なら、子と子の間に差し込む
+    const reorders = (b: Box) => !!strategyOf(b)?.reorder;
+    const list = t && reorders(t) ? t : t && t.parent && reorders(t.parent) && leafLike(t) ? t.parent : null;
     if (list) {
       const kids = list.children.map(k => ({ k, r: k.el.getBoundingClientRect() }));
       const next = kids.find(({ r }) => y < r.top + r.height / 2);

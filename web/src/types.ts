@@ -137,6 +137,7 @@ export interface BoxInfo {
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: ChildView;
   treeDirection: TreeDirection;
+  framed: boolean; // 子を枠の中に入れて見せる箱か（内包・リスト。サイズは使わず、大きさは子の並びで決まる）
   inTree: boolean; // ツリーの中の箱か（子孫の見せ方はツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md の 3.6 章）
   parent: Brief | null;
   x: number;

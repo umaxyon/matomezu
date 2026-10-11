@@ -136,46 +136,82 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 
 // ---- 設定値 ----
 
-// ---- 並べ方（docs/PATTERN-plan.md の 6 章 A・B） ----
-// 箱が子をどう並べるか（arrangeOf）と、箱がどう並べられているか（placedBy）と、そこから決まる操作の可否（abilitiesOf）を、ここだけで決める。
-// 直近の親の childView のほか、祖先のツリーも見る（ツリーは子孫全体に効く）
+// ---- 並べ方の戦略（docs/PATTERN-plan.md の 3.6 章と 6 章） ----
+// パターンは「子を持つ箱が、子をどう並べるかの戦略」で、子の見せ方（childView）がそのまま戦略の選択になる。
+// 戦略ごとの決まりは STRATEGIES の 1 行にまとめ、判定（arrangeOf・placedBy・abilitiesOf など）はここから引く。
+// 戦略を足すときは、ここに 1 行と、layout/node-kinds.ts の並べ方（大きさと子の置き方）を足す。
+// 非表示（hidden）は戦略ではなく折りたたみの状態だが、データでは childView に入っているので、ここでは 1 行として扱う（6 章の C で分ける）
+
+export interface Strategy {
+  framed: boolean;      // 子を枠の中に入れ、見出しを付けて見せる（内包・リスト）。自分の形とサイズは使わない（大きさは子の並びで決まる）
+  free: boolean;        // 子を自由に置く（落とした位置に置き、子をドラッグで動かせる）
+  descendants: boolean; // 子だけでなく子孫全体を並べる（子孫の見せ方は無視する）
+  reorder: boolean;     // 並べた子を、兄弟の中で並べ替えられる（並べ替えの差し込みもできる）
+  link: boolean;        // 並べた子どうしに線を引ける・〇を出す（自動で並べる戦略では、線を引くと形が崩れる）
+  widthGrip: boolean;   // 自分の幅のつまみを出す
+}
+export const STRATEGIES: Record<ChildView, Strategy> = {
+  nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false },
+  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false },
+  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true },
+  hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false },
+};
+
+// 箱が、ある戦略の子として並んだときの自分の見せ方。並べる側ではなく、並べられる箱の側の決まり（リストは子の中身に関与しない。
+// 子が「リストに入ったときの自分の見せ方」を知っている。docs/PATTERN-plan.md の 3.6 章）。データは書き換えず、見せるときだけ使う
+export interface PlacedLook {
+  plainShape: boolean;  // 形を使わず、ボックスで見せる
+  sharedSize: boolean;  // 葉の箱の見た目のサイズを、兄弟の葉の箱のうち一番大きいサイズにそろえる。高さは中身に合わせる
+  fullCaption: boolean; // S サイズでもキャプションを切り詰めない
+}
+const AS_IS: PlacedLook = { plainShape: false, sharedSize: false, fullCaption: false };
+const LOOKS: Record<ChildView, PlacedLook> = {
+  nest: AS_IS, tree: AS_IS, hidden: AS_IS,
+  list: { plainShape: true, sharedSize: true, fullCaption: true },
+};
+export const lookOf = (n: Box): PlacedLook => (n.parent ? LOOKS[placedBy(n)] : AS_IS);
 
 // ツリーは子孫全体に効く（docs/PATTERN-plan.md の 3.6 章）: ツリーの箱の中では、子孫の見せ方（childView）を全部無視して何段でもツリーに並べる。
 // 混ぜたければ、ツリーを解除して（見せ方を内包に戻して）自分で組む
-// n を並べているツリーの根（祖先のうち、見せ方がツリーの一番外の箱。無ければ null）
+// n を並べている、子孫全体に効く戦略の箱（祖先のうち一番外のもの。無ければ null）
 export function treeRootOf(n: Box): Box | null {
   let root: Box | null = null;
-  for (let p = n.parent; p; p = p.parent) if (viewOf(p) === "tree") root = p;
+  for (let p = n.parent; p; p = p.parent) if (STRATEGIES[viewOf(p)].descendants) root = p;
   return root;
 }
 // ツリーの中の箱か（根の子孫）
 export const inTreeOf = (n: Box): boolean => !!treeRootOf(n);
 
 // 箱が自分の子をどう並べるか。子が無ければ leaf（childView を書いていても、子が無ければ葉の箱として描く）。
-// ツリーの中の子を持つ箱は、自分の見せ方に関わらずツリーの節
+// 子孫全体に効く戦略の中の子を持つ箱は、自分の見せ方に関わらず、その戦略の節
 export type Arrange = "leaf" | ChildView;
-export const arrangeOf = (n: Box): Arrange => (!n.children.length ? "leaf" : inTreeOf(n) ? "tree" : viewOf(n));
+export function arrangeOf(n: Box): Arrange {
+  if (!n.children.length) return "leaf";
+  const root = treeRootOf(n);
+  return root ? viewOf(root) : viewOf(n);
+}
+// 箱が子を並べる戦略（子が無ければ null）
+export const strategyOf = (n: Box): Strategy | null => (n.children.length ? STRATEGIES[arrangeOf(n) as ChildView] : null);
 // 箱を並べている親の並べ方（最上位はワールドが自由に置くので nest）
 // （親は子を持つので leaf にはならない）
 export const placedBy = (n: Box): ChildView => (n.parent ? (arrangeOf(n.parent) as ChildView) : "nest");
 // 子を自由に置く箱か（落とした位置に置く。子が無くても、置けば自由に置く。ツリーの中の箱は、子を置けばツリーに並ぶ）
-export const placesFreely = (n: Box): boolean => viewOf(n) === "nest" && !inTreeOf(n);
+export const placesFreely = (n: Box): boolean => STRATEGIES[viewOf(n)].free && !inTreeOf(n);
 
-// リストの子か（docs/LIST-plan.md）。リストの子では形を使わない（データは書き換えず、見せるときだけ無視する。リストから出すと元に戻る）。
-// サイズは見た目だけリストの中でそろえ（listSizeOf）、子の見せ方は自分の設定に従う（docs/SIZE-plan.md）
+// リストの子か（docs/LIST-plan.md）。見せ方は lookOf（リストに入ったときの自分の見せ方）
 export const inList = (n: Box): boolean => placedBy(n) === "list" && !!n.parent;
 // ツリーで並んでいる子か（子同士の線は描かない）
 export const inTree = (n: Box): boolean => placedBy(n) === "tree" && !!n.parent;
 // 親の中に入っている（ドラッグで自由に動かせる）子か。最上位も含む
-export const inNest = (n: Box): boolean => placedBy(n) === "nest";
-// 子を枠の中に入れて見せるボックス（子を持ち、見せ方が内包かリスト）。枠と見出しで描き、形は使わない
-export const isNesting = (n: Box): boolean => arrangeOf(n) === "nest" || arrangeOf(n) === "list";
+export const inNest = (n: Box): boolean => STRATEGIES[placedBy(n)].free;
+// 子を枠の中に入れて見せるボックス（子を持ち、戦略が枠で見せるもの）。枠と見出しで描き、形とサイズは使わない
+export const isNesting = (n: Box): boolean => !!strategyOf(n)?.framed;
 // 見た目が葉の箱か（子が無いか、子を隠して本体だけを見せる）
 export const leafLike = (n: Box): boolean => arrangeOf(n) === "leaf" || arrangeOf(n) === "hidden";
 // 非表示の親の下にいるか（ツリーの中の非表示は無視するので、並べ方で見る）
 export const isHidden = (n: Box): boolean => ancestors(n).some(p => arrangeOf(p) === "hidden");
 
-// 箱にできる操作（並べ方から決まる）
+// 箱にできる操作（並べ方の戦略から決まる）
 export interface Abilities {
   drag: boolean;      // 自分をドラッグで動かせる（でなければ、動かせる祖先を動かす。ツリーの子はツリー全体）
   reorder: boolean;   // 兄弟の中で並べ替えられる（リストの子）
@@ -184,12 +220,12 @@ export interface Abilities {
   dropInto: boolean;  // 付け替えや追加で、中へ落とせる（ページの箱は中身が別のページ、クラスの箱は子を持てない）
 }
 export function abilitiesOf(n: Box): Abilities {
-  const by = placedBy(n);
+  const by = STRATEGIES[placedBy(n)];
   return {
-    drag: by === "nest",
-    reorder: by === "list" && !!n.parent,
-    link: !(n.parent && (by === "tree" || by === "list")),
-    widthGrip: arrangeOf(n) === "list",
+    drag: by.free,
+    reorder: by.reorder && !!n.parent,
+    link: !n.parent || by.link,
+    widthGrip: !!strategyOf(n)?.widthGrip,
     dropInto: n.src.page !== true && shapeOf(n) !== "class",
   };
 }
@@ -205,7 +241,7 @@ export function listSizeOf(list: Box): Size {
 // サイズ（L / M / S）が効くのは、見た目が葉の箱だけ（子の無い箱、ツリーの親の本体、非表示）。内包・リストの箱の大きさは子の並びで決まるので、
 // サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの葉の子は、リストの中で一番大きいサイズの見た目にそろえる（docs/SIZE-plan.md）
 export const sizeOf = (n: Box): Size =>
-  (inList(n) && leafLike(n) ? listSizeOf(n.parent!) : isNesting(n) ? "M" : dataSizeOf(n));
+  (lookOf(n).sharedSize && leafLike(n) ? listSizeOf(n.parent!) : isNesting(n) ? "M" : dataSizeOf(n));
 export const viewOf = (n: Box): ChildView => (isView(n.src.childView) ? n.src.childView : "nest");
 // ツリーの向き。ツリーの中の箱は根の向きに従う（自分の treeDirection は無視する）
 export function treeDirOf(n: Box): TreeDirection {
@@ -215,7 +251,7 @@ export function treeDirOf(n: Box): TreeDirection {
 // 子を内包しているボックスは枠なので、形は常にボックス
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
 export const shapeOf = (n: Box): Shape =>
-  (!isNesting(n) && !inList(n) && n.src.page !== true && isShape(n.src.shape) ? n.src.shape : "box");
+  (!isNesting(n) && !lookOf(n).plainShape && n.src.page !== true && isShape(n.src.shape) ? n.src.shape : "box");
 // 絵の形（スティックマン・DB・サーバー）: 決まった大きさの絵の足元に文字を置く。背景は無い
 export const isIconShape = (s: Shape): boolean => s === "person" || s === "db" || s === "server";
 // ページの箱（中身は別のページ。docs/TABS-plan.md）。最初のページでは子を持たない箱として描く
@@ -231,7 +267,7 @@ export function overflowOf(c: Container): Overflow {
   return "grow";
 }
 // S は 10 文字で切る。リストの子は高さを中身に合わせるので切らない
-export const displayCaption = (n: Box) => (inList(n) ? captionOf(n) : truncate(captionOf(n), SIZES[sizeOf(n)].limit));
+export const displayCaption = (n: Box) => (lookOf(n).fullCaption ? captionOf(n) : truncate(captionOf(n), SIZES[sizeOf(n)].limit));
 // 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
 export const canBody = (n: Box): boolean =>
   shapeOf(n) === "box" && sizeOf(n) !== "S" && n.src.page !== true && overflowOf(n) !== "clip";
