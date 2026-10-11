@@ -60,6 +60,8 @@ export default {
   "破線": "Dashed",
   "矢印": "Arrows",
   "線を消す": "Delete line",
+  "線で描き直す": "Redraw with lines",
+  "ツリーを平らにして、親子のつながりを線で引き直します（見た目はそのまま。元のツリーには戻せません）。「内包」を選ぶ解除は、入れ子の枠に戻すだけで、何度でもツリーに戻せます": "Flattens the tree and redraws each parent-child link as a line (it looks the same, but cannot be turned back into a tree). Choosing Nested only puts the boxes back into nested frames, and you can make it a tree again any time",
   "図の題名": "Diagram title",
   "タブの見出しに出ます。空ならファイル名を出します（ファイル名は変わりません）":
     "Shown on the tab. When empty, the file name is shown (the file name does not change)",

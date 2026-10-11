@@ -138,6 +138,7 @@ export interface BoxInfo {
   childView: ChildView;
   treeDirection: TreeDirection;
   framed: boolean; // 子を枠の中に入れて見せる箱か（内包・リスト。サイズは使わず、大きさは子の並びで決まる）
+  canFlatten: boolean; // 線で描き直せるか（子孫全体に効く戦略（ツリー）にした一番外の箱。docs/PATTERN-plan.md の 3.6 章）
   inTree: boolean; // ツリーの中の箱か（子孫の見せ方はツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md の 3.6 章）
   parent: Brief | null;
   x: number;

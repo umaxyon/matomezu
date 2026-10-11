@@ -126,15 +126,15 @@ import { type MeasureText, createTextMeasurer } from "./layout/measure";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isIconShape, isNesting, other,
-  overflowOf, inTreeOf, lookOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, lookOf, strategyOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
 import { type Head, headOf, isHead } from "./heads";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
-import { type RouteFix, alignedEnds, isAligned, perimeterAt, route, vertexOf } from "./routing";
-import { nearestAt, pointAt } from "./geom";
+import { type RouteFix, type RouteInput, alignedEnds, framedAround, isAligned, passes, perimeterAt, pickCandidate, route, routeCandidates, vertexOf } from "./routing";
+import { type Rect, nearestAt, pointAt } from "./geom";
 import { perimeter } from "./selfloop";
 import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isPaletteName, isTheme, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
@@ -208,6 +208,8 @@ export interface Graph {
   // クラスの箱にかかわる変更（クラスにする・クラスを直す・クラスでなくする。docs/CLASS-plan.md）。子や線を消すことがあるので、
   // 図を組み立て直して履歴に 1 件残す
   updateClass(id: Id, edit: ClassEdit): void;
+  // ツリーにした箱 id のツリーを平らにして、親子を線で引き直す（元のツリーには戻せない。Undo では戻る）。できなければ false
+  flattenTree(id: Id): boolean;
   toJSON(): Diagram;
   dragging(): boolean;
   setMode(mode: Mode): void;
@@ -754,6 +756,116 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return n;
   }
 
+  // ---- ツリーを平らにして線で引き直す（docs/PATTERN-plan.md の 3.6 章） ----
+
+  // ツリーの特殊な操作。解除（内包に戻す）とは別で、見た目を保ったまま普通の箱と線に変える（元のツリーには戻せない。Undo では戻る）。
+  // ツリーにした箱 root と子孫を、root の親の直下に今の見た目の位置で並べ、親から子へ 1 本ずつ折れ線を引く。端は辺の真ん中に固定し、
+  // 腹（親と子の間の区間）を兄弟でそろえるので、ツリーの線と同じ絵になる（親から出る区間は兄弟の線で重なる）。矢印は付けない
+  // 線で描き直せる箱か（子孫全体に効く戦略にした一番外の箱）
+  const canFlatten = (n: Box): boolean => !!strategyOf(n)?.descendants && !inTreeOf(n);
+
+  function flattenTree(id: Id): boolean {
+    const root = nodeOf(id);
+    if (root.isWorld || !canFlatten(root)) return false;
+    const dir = treeDirOf(root);
+    const subtree = [root, ...descendants(root)];
+    // root の親の左上からの、本体の位置と大きさ（平らにすると、どの箱も本体だけの箱になる）
+    const [rx, ry] = absPos(root);
+    const bx = rx - root.x, by = ry - root.y;
+    const head = new Map(subtree.map(n => {
+      const [x, y] = absPos(n);
+      return [n.id, { x: x - bx + n.hx, y: y - by + n.hy, w: n.hw, h: n.hh }];
+    }));
+    const half = opt.treeGapY / 2;
+    const used = new Set([...edges.map(e => e.id), ...offEdges.map(e => String(e.id))]);
+    let next = 1;
+    const newId = () => { while (used.has("e" + next)) next++; used.add("e" + next); return "e" + next; };
+    // 辺の真ん中の、ふち一周の割合（exitAt / enterAt に書く値）
+    const rimAt = (r: { w: number; h: number }, side: "t" | "r" | "b" | "l") => {
+      const box = { x: 0, y: 0, w: r.w, h: r.h };
+      const p: [number, number] = side === "t" ? [r.w / 2, 0] : side === "b" ? [r.w / 2, r.h] : side === "l" ? [0, r.h / 2] : [r.w, r.h / 2];
+      return perimeterAt(box, p);
+    };
+    const [exitSide, enterSide] = ({ down: ["b", "t"], up: ["t", "b"], right: ["r", "l"], left: ["l", "r"] } as const)[dir];
+    const links: EdgeData[] = [];
+    for (const p of subtree) {
+      const pr = head.get(p.id)!;
+      const belly = dir === "down" ? pr.y + pr.h + half : dir === "up" ? pr.y - half : dir === "right" ? pr.x + pr.w + half : pr.x - half;
+      for (const c of p.children) {
+        links.push({
+          id: newId(), from: p.src.id!, to: c.src.id!,
+          ...(routeDefaultOf(world) !== "elbow" ? { route: "elbow" as const } : {}),
+          exitAt: rimAt(pr, exitSide), enterAt: rimAt(head.get(c.id)!, enterSide), via: [Math.round(belly)],
+        });
+      }
+    }
+    const rerouted = rerouteAround(root, subtree, head, bx, by);
+    rebuildWith(data => {
+      for (const d of data.edges ?? []) {
+        if (Array.isArray(d) || !rerouted.has(String(d.id))) continue;
+        const p = rerouted.get(String(d.id))!;
+        for (const k of ["exitAt", "enterAt", "via"] as const) {
+          if (p[k] == null) delete d[k]; else (d as Record<string, unknown>)[k] = p[k];
+        }
+      }
+      for (const n of subtree) {
+        const s = data.nodes.find(x => String(x.id) === n.id);
+        if (!s) continue;
+        if (root.src.parent == null) delete s.parent; else s.parent = root.src.parent;
+        const r = head.get(n.id)!;
+        s.x = Math.round(r.x);
+        s.y = Math.round(r.y);
+        // ツリーの中で無視していた見せ方と向きは、平らにすると意味が無くなるので消す（子を持たない箱になる）
+        delete s.childView;
+        delete s.treeDirection;
+      }
+      data.edges = [...(data.edges ?? []), ...links];
+      return { select: root.id };
+    });
+    return true;
+  }
+
+  // 平らにすると、外から root につながっていた線は root の本体につながる。自動の道筋のままだと、元の枠の中（子孫の箱の間）を
+  // 通ることがあるので、そのときは枠の中を通らない道を探し、両端の位置と via を固定して書く（手で直した形と同じく保たれる）。
+  // 枠の中で通ってよいのは、root の本体から枠の外へまっすぐ出る通り道のうち、ほかの箱に掛からないものだけ。
+  // 返すのは、書き換える線の id と、その線の exitAt / enterAt / via（null は消す）
+  type EndsPatch = { exitAt: number | null; enterAt: number | null; via: number[] | null };
+  function rerouteAround(root: Box, subtree: Box[], head: Map<string, Rect>, bx: number, by: number): Map<string, EndsPatch> {
+    const out = new Map<string, EndsPatch>();
+    const [fx, fy] = absPos(root);
+    const F = { x: fx, y: fy, w: root.w, h: root.h };
+    const abs = (r: Rect) => ({ x: r.x + bx, y: r.y + by, w: r.w, h: r.h });
+    const H = abs(head.get(root.id)!);
+    const others = subtree.filter(n => n !== root).map(n => abs(head.get(n.id)!));
+    const region = framedAround(F, H, others);
+    const inside = new Set(subtree);
+    for (const e of edges) {
+      const atA = e.a === root && !inside.has(e.b), atB = e.b === root && !inside.has(e.a);
+      if (!atA && !atB) continue;
+      const base = R.routeInputOf(e);
+      if (!base.elbow) continue; // 直線は道を選べない
+      // 枠に対して決めてあった root の側の端の位置と via は、本体には当てはまらないので捨てる
+      const input: RouteInput = {
+        ...base, via: null, memory: null,
+        ...(atA ? { a: H, exitAt: null } : { b: H, enterAt: null }),
+        obstacles: [...base.obstacles, ...others],
+      };
+      const reset: EndsPatch = { exitAt: input.exitAt ?? null, enterAt: input.enterAt ?? null, via: null };
+      const drawn = route(input).points;
+      if (!region.some(o => passes(drawn, o))) {
+        if (base.via || (atA ? base.exitAt : base.enterAt) != null) out.set(e.id, reset);
+        continue;
+      }
+      const best = pickCandidate(routeCandidates({ ...input, obstacles: [...base.obstacles, ...region] }));
+      if (!best) { out.set(e.id, reset); continue; }
+      const pts = best.points;
+      out.set(e.id, {
+        exitAt: perimeterAt(input.a, pts[0]!), enterAt: perimeterAt(input.b, pts[pts.length - 1]!), via: best.shape.via.map(Math.round),
+      });
+    }
+    return out;
+  }
+
   // ---- リストの並べ替え（docs/LIST-plan.md） ----
 
   // リストの子 n を兄弟の中で index 番目へ移し、並べ直して描く。並び順はデータの並び順（nodes の順）なので、
@@ -1037,6 +1149,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       childView: viewOf(n),
       treeDirection: treeDirOf(n),
       framed: isNesting(n),
+      canFlatten: canFlatten(n),
       inTree: inTreeOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
@@ -1440,6 +1553,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     info: id => info(id == null ? null : nodeOf(id)),
     update,
     updateClass,
+    flattenTree,
     // 現在の状態を返す（元データにある他の項目はそのまま残す）
     toJSON() {
       const out: Diagram = JSON.parse(JSON.stringify(source));

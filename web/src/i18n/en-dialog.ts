@@ -40,6 +40,9 @@ export default {
   "始点": "Start",
   "終点": "End",
   "線を消す": "Delete line",
+  "線で描き直す": "Redraw with lines",
+  "ツリーを平らにして、親子のつながりを線で引き直します。見た目はそのままで、箱を自由に動かせるようになります。\n元のツリーには戻せません（すぐ後なら元に戻す（Undo）で戻せます）。": "Flattens the tree and redraws each parent-child link as a line. It looks the same, and you can move the boxes freely.\nIt cannot be turned back into a tree (right after, Undo brings it back).",
+  "描き直す": "Redraw",
 
   // データの書き換え（edits.ts）
   "ボックスがありません: {id}": "No box: {id}",

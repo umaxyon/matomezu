@@ -111,3 +111,59 @@ test("サイドバーの情報: ツリーの中の箱には印が付き、根の
   const { graph } = setup(data());
   expect([info(graph, 1).inTree, info(graph, 2).inTree, info(graph, 4).inTree, info(graph, 20).inTree]).toEqual([false, true, true, false]);
 });
+
+test("線で描き直す: ツリーを平らにして、見た目の位置のまま兄弟に並べ、親から子へ腹のそろった折れ線を引く", () => {
+  const { el, graph } = setup(data());
+  const before = new Map([1, 2, 3, 4, 5, 6].map(id => [id, headOf(el, id)]));
+  expect(graph.flattenTree(1)).toBe(true);
+  const json = graph.toJSON();
+  const node = (id: number) => json.nodes.find(n => n.id === id)!;
+  // 全員が根の親（最上位）の直下に、見た目の位置のまま並ぶ。ツリーで無視していた見せ方は消える
+  for (const id of [1, 2, 3, 4, 5, 6]) {
+    expect(node(id).parent).toBeUndefined();
+    expect(node(id).childView).toBeUndefined();
+    const h = headOf(el, id), b = before.get(id)!;
+    expect([h.x, h.y, h.w, h.h]).toEqual([b.x, b.y, b.w, b.h]);
+  }
+  // 親から子へ 1 本ずつ。端は辺の真ん中に固定し、兄弟の線は腹（横の区間の高さ）がそろう。矢印は付けない
+  const made = (json.edges ?? []).filter(e => !Array.isArray(e) && e.id !== "e1") as Exclude<NonNullable<Diagram["edges"]>[number], unknown[]>[];
+  expect(made.map(e => `${e.from}-${e.to}`).sort()).toEqual(["1-2", "1-3", "2-4", "2-5", "3-6"]);
+  const via = (from: number) => [...new Set(made.filter(e => e.from === from).map(e => JSON.stringify(e.via)))];
+  expect(via(1)).toHaveLength(1);
+  expect(via(2)).toHaveLength(1);
+  expect(made.every(e => e.arrow == null && e.exitAt != null && e.enterAt != null)).toBe(true);
+  // 線は描かれ、親の下の辺の真ん中から出る
+  const line = el.querySelector(`.mz-edge[data-id="${made.find(e => e.from === 1 && e.to === 2)!.id}"] polyline`);
+  expect(line).not.toBeNull();
+  // 外からの線は根の箱につながったまま。Undo で元のツリーに戻る
+  expect(info(graph, 1).links.map(l => l.id).sort()).toEqual(["2", "20", "3"]);
+  graph.undo();
+  expect(graph.toJSON().nodes.find(n => n.id === 2)!.parent).toBe(1);
+  expect(info(graph, 1).childView).toBe("tree");
+});
+
+test("線で描き直す: 外から根への線は、元の枠の中（子孫の箱の間）を通らない道に固定する", () => {
+  // 21 は枠の下にある外の箱。自動の道筋のままだと、子の箱の間（2 と 3 の間）を縦に通って根へ上がる
+  const base = data();
+  const { el, graph } = setup({
+    ...base, nodes: [...base.nodes, { id: 21, caption: "下", x: 268, y: 600 }], edges: [{ id: "e2", from: 21, to: 1 }],
+  });
+  const f = info(graph, 1);
+  const frame = { x: f.x, y: f.y, w: f.w, h: f.h };
+  const root = headOf(el, 1);
+  graph.flattenTree(1);
+  const e = graph.toJSON().edges!.find(x => !Array.isArray(x) && x.id === "e2") as { exitAt?: number; enterAt?: number; via?: number[] };
+  expect(e.enterAt).toBeDefined();
+  expect(e.via).toBeDefined();
+  // 折れ目は、根の本体の脇を除いて、どれも元の枠の外にある
+  const pts = el.querySelector(`.mz-edge[data-id="e2"] polyline`)!.getAttribute("points")!.trim().split(/\s+/).map(p => p.split(",").map(Number) as [number, number]);
+  const inFrame = ([x, y]: [number, number]) => x > frame.x && x < frame.x + frame.w && y > frame.y && y < frame.y + frame.h;
+  const byRoot = ([x, y]: [number, number]) => (x >= root.x && x <= root.x + root.w) || (y >= root.y && y <= root.y + root.h);
+  expect(pts.filter(p => inFrame(p) && !byRoot(p))).toEqual([]);
+});
+
+test("線で描き直せるのは、ツリーにした一番外の箱だけ", () => {
+  const { graph } = setup(data());
+  expect(graph.flattenTree(2)).toBe(false); // ツリーの中の箱
+  expect(graph.flattenTree(20)).toBe(false); // ツリーでない箱
+});

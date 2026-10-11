@@ -206,7 +206,8 @@ function confirmInside(overlay: HTMLElement, message: string, okLabel: string): 
   });
 }
 
-function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void) {
+// lead はフッターの左端に置くボタン（ツリーを線で描き直す、など）。作ったダイアログを返す
+function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void, lead = ""): HTMLElement {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   // 形やサイズのほかに本文を出せない理由（ページの箱、キャプションを 1 行にした箱）があるか
   const bodyBase = b.overflow !== "clip" && (b.canBody || b.shape !== "box" || b.size === "S");
@@ -279,7 +280,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       widthAuto: !!field<HTMLInputElement>("width-auto").value,
       ...classValues(),
     });
-  }, "", () => {
+  }, lead, () => {
     // 属性・操作の名前は重ねられない（線は名前でつなぐため）
     if (shapeField.value !== "class") return true;
     const names = [...overlay.querySelectorAll<HTMLInputElement>('[name="m-name"]')].map(i => i.value.trim()).filter(Boolean);
@@ -390,6 +391,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   });
   // 選んでいる行数は値で決める（option の selected だけに頼らない）
   overlay.querySelector<HTMLSelectElement>('[name="lines"]')!.value = b.bodyLines ? String(b.bodyLines) : "";
+  return overlay;
 }
 
 export function openEditDialog(graph: Graph, id: string): void {
@@ -398,7 +400,7 @@ export function openEditDialog(graph: Graph, id: string): void {
   const b = info as BoxInfo;
   const sizeFixed = b.framed;
   const start: BoxStart = { ...b, theme: b.theme ?? "", sizeFixed, kids: b.children.length };
-  boxDialog(t("ボックスの編集"), t("確定"), start, v => {
+  const overlay = boxDialog(t("ボックスの編集"), t("確定"), start, v => {
     // クラスにかかわる変更は、子や線を消すことがあるので別の入口（docs/CLASS-plan.md）
     if (v.shape === "class" || b.shape === "class") {
       graph.updateClass(id, {
@@ -417,7 +419,16 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (v.bodyAllowed && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
     if (b.bodyWidth && v.widthAuto) patch.bodyWidth = null;
     if (Object.keys(patch).length) graph.update(id, patch); // まとめて 1 件の変更
-  });
+  }, b.canFlatten ? `<button type="button" class="mz-dlg-btn" data-flatten>${t("線で描き直す")}</button>` : "");
+  // ツリーを線で描き直す（戻せないので確かめてから。ダイアログで直しかけた内容は捨てる。「線を消す」と同じ扱い）
+  overlay.querySelector("[data-flatten]")?.addEventListener("click", () => confirmFlatten(graph, id));
+}
+
+// ツリーを平らにして線で引き直す前に、戻せないことを確かめる（サイドバーと編集ダイアログから）
+export function confirmFlatten(graph: Graph, id: string): void {
+  openConfirmDialog(t("線で描き直す"),
+    t("ツリーを平らにして、親子のつながりを線で引き直します。見た目はそのままで、箱を自由に動かせるようになります。\n元のツリーには戻せません（すぐ後なら元に戻す（Undo）で戻せます）。"),
+    t("描き直す"), () => graph.flattenTree(id));
 }
 
 // 追加モードで押した所 req に、新しい箱を足すダイアログ（docs/ADD-plan.md）。「追加」で足して選択モードに戻る。

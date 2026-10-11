@@ -589,6 +589,24 @@ export function routeCandidates(r: RouteInput, maxBends = MAX_BENDS): Candidate[
     .filter(c => (!f.a || endSide(r.a, c.points, false) === f.a.side) && (!f.b || endSide(r.b, c.points, true) === f.b.side));
 }
 
+// 枠 f の中に箱 h とほかの箱 others があるとき、h へ外から来る線に通ってほしくない所（矩形の並び）。h から枠の外へまっすぐ出る
+// 4 本の通り道のうち、ほかの箱に掛からないものだけを空け、残り（4 隅と、掛かる通り道）をふさぐ（ツリーを線で描き直したとき。graph.ts）
+export function framedAround(f: Rect, h: Rect, others: Rect[]): Rect[] {
+  const xs = [f.x, h.x, h.x + h.w, f.x + f.w], ys = [f.y, h.y, h.y + h.h, f.y + f.h];
+  const out: Rect[] = [];
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      if (i === 1 && j === 1) continue; // h そのもの
+      const r = { x: xs[i]!, y: ys[j]!, w: xs[i + 1]! - xs[i]!, h: ys[j + 1]! - ys[j]! };
+      if (r.w <= 0 || r.h <= 0) continue;
+      const corner = i !== 1 && j !== 1;
+      const hit = others.some(o => o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y + r.h && o.y + o.h > r.y);
+      if (corner || hit) out.push(r);
+    }
+  }
+  return out;
+}
+
 // 線の側の選び方: 折れ目の少ない方、同じなら短い方、それも同じならほかの箱から離れた方（同じなら先に挙げた方）
 export function pickCandidate(list: Candidate[]): Candidate | null {
   let best: Candidate | null = null;

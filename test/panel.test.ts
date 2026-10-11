@@ -362,3 +362,20 @@ test("ツリーの中の子持ちの箱は、サイズを選べ、子の見せ�
   expect(after.every(i => i.disabled)).toBe(true);
   expect($('input[name="mzp-view"]')).not.toBeNull();
 });
+
+test("線で描き直すボタンは、ツリーにした一番外の箱だけに出し、確かめてから描き直す（キャンセルなら何もしない）", () => {
+  const { g, $, click } = setup({ nodes: [
+    { id: 1, caption: "根", childView: "tree" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
+  ] });
+  g.select(2);
+  expect($("[data-flatten]")).toBeNull();
+  g.select(1);
+  const dlg = (sel: string) => document.querySelector<HTMLElement>(`.mz-dlg-overlay ${sel}`);
+  click("[data-flatten]");
+  dlg("[data-cancel]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(g.toJSON().nodes.find(n => n.id === 2)!.parent).toBe(1);
+  click("[data-flatten]");
+  dlg("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(g.toJSON().nodes.find(n => n.id === 2)!.parent).toBeUndefined();
+  expect(g.toJSON().edges).toHaveLength(2);
+});

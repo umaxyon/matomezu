@@ -2,7 +2,7 @@
 
 import { closeColorPicker, openColorPicker } from "./color-picker";
 import { EMPTY_CAPTION, esc, keyOf } from "./dom";
-import { classChangeWarning, openConfirmDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
+import { classChangeWarning, confirmFlatten, openConfirmDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
 import { type Head, type Side, headOptions, headPatch } from "./heads";
 import { helpIcon } from "./help";
@@ -19,6 +19,7 @@ const SIZE_HELP = t("L: 幅は文字に合わせて 400 まで。越えると折
 const BY_CHILDREN = t("内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）");
 const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["tree", t("ツリー")], ["list", t("リスト")], ["hidden", t("非表示")]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", t("↓ 下")], ["up", t("↑ 上")], ["left", t("← 左")], ["right", t("→ 右")]];
+const FLATTEN_HELP = t("ツリーを平らにして、親子のつながりを線で引き直します（見た目はそのまま。元のツリーには戻せません）。「内包」を選ぶ解除は、入れ子の枠に戻すだけで、何度でもツリーに戻せます");
 const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nツリー: 子孫を何段でも親の上下左右にぶら下げて見せます（子孫は自動で並び、子孫の見せ方は使いません）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します");
 // リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
 const IN_LIST = t("リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）");
@@ -171,6 +172,7 @@ function html(info: Info): string {
       parts.push(`<div class="mzp-section"><h3>${t("子の見せ方")}${helpIcon(VIEW_HELP)}</h3>
         ${segment("mzp-view", info.childView, VIEW_OPTIONS)}
         ${info.childView === "tree" ? `<div class="mzp-subhead">${t("向き")}</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}
+        ${info.canFlatten ? `<div class="mzp-chips"><button type="button" class="mzp-chip" data-flatten="${esc(info.id)}">${t("線で描き直す")}</button>${helpIcon(FLATTEN_HELP)}</div>` : ""}
       </div>`);
     }
   }
@@ -262,6 +264,8 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (capReset) return graph.updateEdge(capReset.dataset.captionReset!, { captionAt: null, captionOffset: null });
     const viaReset = e.target.closest<HTMLElement>("[data-via-reset]");
     if (viaReset) return graph.updateEdge(viaReset.dataset.viaReset!, { via: null });
+    const flatten = e.target.closest<HTMLElement>("[data-flatten]");
+    if (flatten) return confirmFlatten(graph, flatten.dataset.flatten!);
     const delEdge = e.target.closest<HTMLElement>("[data-remove-edge]");
     if (delEdge) return graph.removeEdge(delEdge.dataset.removeEdge!);
     const chip = e.target.closest<HTMLElement>("[data-select]");
