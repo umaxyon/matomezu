@@ -55,6 +55,8 @@ export interface InteractionContext {
   leaveAdd(): void;                     // 追加モードを Esc でやめる（選択モードに戻す）
   // 本文の幅を変え始める。width は今の本文の幅（箱の幅として数えたもの）。set で変え、finish で 1 件の履歴に、cancel で元に戻す
   resizeBody(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
+  // リストの幅を変え始める（width は今のリストの幅。形は resizeBody と同じ。docs/SIZE-plan.md の 10 章）
+  resizeList(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -206,14 +208,15 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       begin(bendGesture(bent, Number(handle!.dataset.index)), e);
       return;
     }
-    // 本文の幅のつまみ（docs/BODY-plan.md。選択モードで、選んでいる箱だけ出す）
-    const grip = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-body-grip") : null;
+    // 本文の幅のつまみ（docs/BODY-plan.md）と、リストの幅のつまみ（docs/SIZE-plan.md の 10 章）。選択モードで、選んでいる箱だけ出す
+    const grip = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-body-grip, .mz-width-grip") : null;
     const gripBox = grip && ctx.mode() === "move" ? boxOf(grip) : undefined;
     if (gripBox) {
       e.stopPropagation();
       e.preventDefault();
       grip!.setPointerCapture?.(e.pointerId);
-      begin(bodyGesture(gripBox, e), e);
+      const r = grip!.classList.contains("mz-width-grip") ? ctx.resizeList(gripBox) : ctx.resizeBody(gripBox);
+      begin(resizeGesture(r, e), e);
       return;
     }
     const n = boxOf(e.target);
@@ -255,9 +258,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     focus(n);
   }
 
-  // 本文の幅を変える。つまみを動かした分だけ幅を変え、周りは押しのける（手を離したら確定）
-  function bodyGesture(n: Box, down: PointerEvent): Gesture {
-    const r = ctx.resizeBody(n);
+  // 本文の幅かリストの幅を、つまみを動かした分だけ変え、周りは押しのける（手を離したら確定。r は ctx.resizeBody か ctx.resizeList）
+  function resizeGesture(r: ReturnType<InteractionContext["resizeBody"]>, down: PointerEvent): Gesture {
     let moved = false;
     return {
       kind: "body", slop: 0,

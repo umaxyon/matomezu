@@ -48,8 +48,27 @@ test("子を縦に並べ、一番広い子の幅にそろえる。親は中身�
   expect(violations(el)).toEqual([]);
 });
 
-test("親の幅の指定は使わない（子を持つ箱は子に合わせる。docs/SIZE-plan.md）", () => {
-  expect(setup(data({ width: 400 })).graph.info(1).w).toBe(setup(data()).graph.info(1).w);
+test("リストの幅の指定（width）があれば、L の最大を超えてもその幅にし、葉の子はその幅で折り返す。null で中身に合わせる（docs/SIZE-plan.md の 10 章）", () => {
+  const long = LONG.repeat(6); // 1 行で 9 * 144 + 16 = 1312（L の最大 400 を超える）
+  const d = (extra = {}): Diagram => ({ nodes: [{ id: 1, childView: "list", x: 40, y: 40, ...extra }, { id: 2, caption: long, parent: 1, size: "L" }] });
+  const auto = setup(d()).graph;
+  expect(auto.info(2).w).toBe(400); // 指定が無ければ、葉の子はサイズの最大で折り返す
+  const { graph } = setup(d({ width: 1400 }));
+  expect([graph.info(1).w, graph.info(2).w]).toEqual([1400, 1400 - 24]);
+  expect(graph.info(2).h).toBeLessThan(auto.info(2).h); // 広い幅で折り返すので低くなる
+  graph.update(1, { width: null });
+  expect(graph.info(1).w).toBe(auto.info(1).w);
+  expect(graph.toJSON().nodes[0]!.width).toBeUndefined();
+  graph.update(1, { width: 700 });
+  expect([graph.info(1).w, graph.toJSON().nodes[0]!.width]).toEqual([700, 700]);
+});
+
+test("リストの幅の指定は、子を持つ子の幅より狭くできない。葉の子は狭めた幅で折り返す", () => {
+  const { graph } = setup(data({ width: 60 }));
+  expect(graph.info(1).w).toBe(graph.info(4).w + 24); // 子を持つ子（ツリー）の幅が下限
+  expect(graph.info(1).w).toBeLessThan(setup(data()).graph.info(1).w);
+  expect(graph.info(3).w).toBe(graph.info(1).w - 24); // 葉の子は狭めた幅にそろい、その幅で折り返す
+  expect(graph.toJSON().nodes[0]!.width).toBe(60);    // データはそのまま
 });
 
 test("リストの子は形を使わず（データはそのまま）、子の見せ方は自分の設定に従って孫を出す（docs/SIZE-plan.md）", () => {

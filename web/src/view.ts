@@ -32,10 +32,11 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   // （見る用のモードでは開かない）
   stage.addEventListener("dblclick", e => {
     if (!(e.target instanceof Element) || graph.mode() !== "move" || graph.preview() != null) return;
-    // 本文の幅のつまみなら、本文の幅を自動に戻す（箱の編集は開かない）
-    if (e.target.closest(".mz-body-grip")) {
-      const id = e.target.closest<HTMLElement>(".mz-node")?.dataset.id;
-      if (id) graph.update(id, { bodyWidth: null });
+    // 本文の幅のつまみなら本文の幅を、リストの幅のつまみならリストの幅を自動に戻す（箱の編集は開かない）
+    const grip = e.target.closest(".mz-body-grip, .mz-width-grip");
+    if (grip) {
+      const id = grip.closest<HTMLElement>(".mz-node")?.dataset.id;
+      if (id) graph.update(id, grip.classList.contains("mz-width-grip") ? { width: null } : { bodyWidth: null });
       return;
     }
     const edge = e.target.closest(".mz-hit, .mz-label") ? e.target.closest<SVGElement>(".mz-edge") : null;

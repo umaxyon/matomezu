@@ -196,7 +196,9 @@ export function createNodeKinds(ctx: KindContext) {
 
   // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は一番広い子の幅（docs/SIZE-plan.md の決めごと 5）か、自分の見出しが入る幅
   // （上限は L の最大。見出しは長ければ … で切れる）の広い方。子の幅は、葉の子（と非表示の子）は自分のサイズの範囲で測った幅、
-  // 子を持つ子（内包・ツリー・リスト）は子の並びで決まった幅（上限なし）。大きさの指定は使わない。
+  // 子を持つ子（内包・ツリー・リスト）は子の並びで決まった幅（上限なし）。
+  // 幅の指定（width）があれば、その幅にする（L の最大を超えても、狭くてもよい。葉の子はその幅で折り返す。2026-10-11 ユーザー）。
+  // ただし、子を持つ子の幅・本文の最小の幅・親のリストがそろえた幅より狭くはしない。高さの指定は使わない。
   // 子の高さは中身に合わせる。並び順は children の順（データの並び順）
   const list: NodeKind = {
     name: "list",
@@ -210,8 +212,13 @@ export function createNodeKinds(ctx: KindContext) {
         kindOf(k).measure(k);
         return k.w;
       };
-      const inner = Math.max(GROUP_MIN.w - 2 * P, ...n.children.map(own), Math.min(SIZES.L.maxW, caption(n) - 2 * P),
-        bodyMinW(n) - 2 * P, inList(n) ? n.listW - 2 * P : 0);
+      const leafLike = (k: Box) => kindOf(k).name === "text" || kindOf(k).name === "hidden";
+      const widths = n.children.map(k => ({ leaf: leafLike(k), w: own(k) }));
+      // 指定があっても狭められない幅（子を持つ子は、下から決まった幅より狭くできない）
+      const floor = Math.max(GROUP_MIN.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, inList(n) ? n.listW - 2 * P : 0);
+      const inner = n.specW
+        ? Math.max(floor, n.specW - 2 * P)
+        : Math.max(floor, ...widths.map(c => c.w), Math.min(SIZES.L.maxW, caption(n) - 2 * P));
       n.bodyH = bodyHeight(n, inner + 2 * P);
       let y = opt.header + (n.bodyH ? n.bodyH + BODY_GAP : 0);
       for (const k of n.children) {

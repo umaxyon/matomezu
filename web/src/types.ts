@@ -198,6 +198,7 @@ export interface Patch {
   caption?: string | null;
   body?: string | null;      // 空か null で消す
   bodyWidth?: number | null; // null で中身に合わせる
+  width?: number | null;     // 幅の指定（リストの幅など）。null で中身に合わせる
   bodyRule?: boolean | null; // false で仕切りの線を引かない。null で引く（既定）
   bodyLines?: number | null; // 本文の最大行数。null で制限なし
   color?: string | null;

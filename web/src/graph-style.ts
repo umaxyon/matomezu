@@ -157,6 +157,11 @@ export const GRAPH_CSS = `
 .mz-body-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 3px; height: 22px; max-height: 100%; transform: translateY(-50%); border-radius: 2px; background: var(--mz-select); }
 .mz-mode-move .mz-node.mz-current > .mz-head > .mz-body-grip:not([hidden]) { display: block; }
 .mz-preview .mz-body-grip { display: none !important; }
+/* リストの幅のつまみ（docs/SIZE-plan.md の 10 章）。選んでいるリストだけ、右の縁の高さいっぱいに出す */
+.mz-width-grip { display: none; position: absolute; right: -4px; top: 0; bottom: 0; width: 8px; cursor: ew-resize; pointer-events: auto; z-index: 1; }
+.mz-width-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 4px; height: 32px; max-height: 100%; transform: translateY(-50%); border-radius: 2px; background: var(--mz-select); }
+.mz-mode-move .mz-node.mz-current > .mz-head > .mz-width-grip:not([hidden]) { display: block; }
+.mz-preview .mz-width-grip { display: none !important; }
 .mz-more { position: absolute; right: 5px; bottom: 3px; font-size: 9px; line-height: 1; opacity: 0.8; }
 .mz-tree { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .mz-tree path { fill: none; stroke: var(--mz-edge); stroke-width: 1.5; }

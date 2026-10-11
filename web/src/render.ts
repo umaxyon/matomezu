@@ -198,6 +198,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (lines) n.bodyEl.dataset.lines = String(lines); else delete n.bodyEl.dataset.lines;
     n.bodyEl.title = lines ? body : "";
     n.gripEl.hidden = !body;
+    n.widthGripEl.hidden = !(view === "list" && n.children.length > 0);
     head.classList.toggle("mz-has-body", !!body);
     head.classList.toggle("mz-body-norule", n.src.bodyRule === false);
     // 内包する箱・リストの親の本文は見出しの下に位置を決めて置き、それ以外は本体の中の流れに置く。大きさを測る前に切り替える

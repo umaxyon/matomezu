@@ -38,6 +38,7 @@ export interface Box {
   textEl: HTMLDivElement;
   bodyEl: HTMLDivElement; // 本文（docs/BODY-plan.md。本文が無ければ隠す）
   gripEl: HTMLDivElement; // 本文の幅を変えるつまみ（本文の右の縁。選んでいるときだけ CSS で出す）
+  widthGripEl: HTMLDivElement; // リストの幅を変えるつまみ（リストの右の縁。選んでいるときだけ CSS で出す）
   moreEl: HTMLSpanElement;
   shapeSvg: SVGSVGElement; // スティックマンや DB の絵
   treeSvg: SVGSVGElement;

@@ -131,7 +131,7 @@ import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Patch } from "./types";
-import { ARROWS, DASHES, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import { ARROWS, DASHES, GROUP_MIN, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -319,6 +319,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 箱につながる線の、自由な端を前に描いた辺の記憶を捨てる（一番よい形を追わせる）。passive は押し出された箱で、つかんだ箱 grabbed との
     // 線は除く（つかんだ箱の線は粘る。docs/EDGE-SPEC.md の A2・A3・A5）
     resizeBody: n => bodyResizer(n),
+    resizeList: n => listResizer(n),
     resetRoutes: (boxes, passive = [], grabbed = null) => {
       const set = new Set(boxes), pushed = new Set(passive);
       for (const e of edges) {
@@ -558,6 +559,30 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // （押しのけた相手は、狭めれば戻る）。手を離したら 1 件の履歴にする。
   // 変えられる幅は、葉の見た目の箱なら本文の最小の幅〜サイズの最大。内包する箱・リストの親なら本文の最小の幅〜子の並びで決まった箱の幅
   // （本文で箱は広がらない。箱の幅まで広げたら自動に戻す。docs/SIZE-plan.md）
+  // リストの幅のつまみ（docs/SIZE-plan.md の 10 章）。ドラッグの間は開始時の位置の写しから毎回決め直し（本文の幅と同じ場面）、
+  // 手を離したら 1 件の履歴。幅は width に書く（狭める下限は layout が決める。node-kinds.ts の list）
+  function listResizer(n: Box) {
+    const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
+    const before = n.specW;
+    const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
+    const apply = (w: number) => {
+      restore();
+      setSpec(n, "w", w);
+      settle(SCENES.resizeBody, n);
+      render();
+    };
+    return {
+      width: n.w,
+      set(w: number) { apply(Math.round(Math.max(GROUP_MIN.w, w))); },
+      finish() {
+        if (!n.parent) n.intendedCX = centerX(n);
+        changed();
+        notifySelect();
+      },
+      cancel() { apply(before); },
+    };
+  }
+
   function bodyResizer(n: Box) {
     const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
     const before = typeof n.src.bodyWidth === "number" ? n.src.bodyWidth : undefined;
@@ -1035,6 +1060,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           const v = next.bodyWidth; // 値の誤りは checkSettings で断っている
           setOrDelete(n.src, "bodyWidth", v == null ? undefined : Math.round(v), v == null);
         }
+        if ("width" in next) setSpec(n, "w", next.width ? Math.round(next.width) : 0);
         if ("color" in next) setOrDelete(n.src, "color", String(next.color ?? ""), !next.color);
         if ("theme" in next) setOrDelete(n.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("fill" in next) n.src.fill = !!next.fill;
@@ -1140,7 +1166,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     gripEl.className = "mz-body-grip";
     gripEl.title = "ドラッグで本文の幅を変える（ダブルクリックで元に戻す）";
     gripEl.hidden = true;
-    head.append(shapeSvg, textEl, bodyEl, gripEl, moreEl);
+    // リストの幅のつまみ（リストの右の縁。docs/SIZE-plan.md の 10 章）
+    const widthGripEl = document.createElement("div");
+    widthGripEl.className = "mz-width-grip";
+    widthGripEl.title = "ドラッグでリストの幅を変える（ダブルクリックで元に戻す）";
+    widthGripEl.hidden = true;
+    head.append(shapeSvg, textEl, bodyEl, gripEl, widthGripEl, moreEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
     treeSvg.setAttribute("class", "mz-tree");
     const treePath = document.createElementNS(SVGNS, "path");
@@ -1168,7 +1199,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       capW: 0,
       listW: 0,
       bodyH: 0,
-      el, head, textEl, bodyEl, gripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
+      el, head, textEl, bodyEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };
     boxOfEl.set(el, n);
     return n;
