@@ -32,6 +32,8 @@ const usageText = `usage:
                                              -in 2,5 also lists the children of boxes 2 and 5 (position relative to the box, and size)
   matomezu set [-page id] [-in ids] <file.json> <id.key=value>... change fields of boxes or edges (an edge id such as e3; "world" for the diagram), then print the summary
                                              an empty value removes the field, e.g. 12.x=; JSON values are allowed, e.g. e3.via=[280,140,400]
+                                             link=1,4 adds an edge (its id is printed); link={"from":1,"to":4,"arrow":"end"} with fields
+                                             unlink=1,4 or unlink=e3 removes an edge; 12.parent=4 moves box 12 into box 4 (12.parent= to the top level)
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu stop                              stop the background server
   matomezu version

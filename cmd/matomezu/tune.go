@@ -124,7 +124,7 @@ func set(args []string) error {
 	if err != nil {
 		return err
 	}
-	out, err := applySets(b, fs.Args()[1:])
+	out, notes, err := applySets(b, fs.Args()[1:])
 	if err != nil {
 		return err
 	}
@@ -134,6 +134,9 @@ func set(args []string) error {
 	}
 	if err := writeFile(path, out); err != nil {
 		return err
+	}
+	for _, n := range notes {
+		fmt.Println(n)
 	}
 	l, err := waitLayout(path, *page)
 	if err != nil {
@@ -298,55 +301,105 @@ func value(key, s string) json.RawMessage {
 }
 
 // applySets は "id.key=value" の並びを図に当てる。id がボックスの id ならボックス、線の id（例 e3）なら線、world なら図全体。
-// value が空なら項目を消す。線は id を持つものだけ書ける（画面で一度保存すると、どの線にも id が付く）
-func applySets(b []byte, sets []string) ([]byte, error) {
+// value が空なら項目を消す。線の項目は id を持つものだけ書ける（画面で一度保存すると、どの線にも id が付く）。
+// 線を足すのは link=1,4（矢印なども付けるなら link={"from":1,"to":4,"arrow":"end"}）、消すのは unlink=1,4 か unlink=e3。
+// 区切りは , にする（> はシェルでリダイレクトになり、引用符を忘れると黙ってファイルができるため）。
+// 足した線の id はこちらで振る。足した・消した線は notes で返す（LLM に知らせる）。
+// 書き換えのあと、階層の違う箱どうしの線が残れば書かずに止め、消すための unlink を案内する
+func applySets(b []byte, sets []string) ([]byte, []string, error) {
 	doc, err := parseObject(b)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var rawNodes []json.RawMessage
 	if err := json.Unmarshal(doc.vals["nodes"], &rawNodes); err != nil {
-		return nil, errors.New("nodes array not found")
+		return nil, nil, errors.New("nodes array not found")
 	}
 	nodes := make([]*object, len(rawNodes))
 	index := map[string]int{}
 	for i, r := range rawNodes {
 		if nodes[i], err = parseObject(r); err != nil {
-			return nil, fmt.Errorf("node %d: %w", i, err)
+			return nil, nil, fmt.Errorf("node %d: %w", i, err)
 		}
-		index[strings.Trim(string(nodes[i].vals["id"]), `"`)] = i
+		index[plain(nodes[i].vals["id"])] = i
 	}
-	// 線。[from, to] の形のものは id が無いので書けない（そのまま残す）
 	var rawEdges []json.RawMessage
 	if e, ok := doc.vals["edges"]; ok {
 		if err := json.Unmarshal(e, &rawEdges); err != nil {
-			return nil, errors.New("edges is not an array")
+			return nil, nil, errors.New("edges is not an array")
 		}
 	}
-	edges := make([]*object, len(rawEdges))
-	edgeIndex := map[string]int{}
+	edges := make([]*edge, len(rawEdges))
 	for i, r := range rawEdges {
-		if o, err := parseObject(r); err == nil {
-			edges[i] = o
-			if id, ok := o.vals["id"]; ok {
-				edgeIndex[strings.Trim(string(id), `"`)] = i
+		edges[i] = parseEdge(r)
+	}
+	findEdge := func(id string) int {
+		for i, e := range edges {
+			if e.o != nil && e.id() == id {
+				return i
 			}
 		}
+		return -1
 	}
 	edgesChanged := false
+	var notes []string
+	// 同じ呼び出しで消した線の id は、足す線に振り直さない（消した線と足した線の取り違えを防ぐ）
+	retired := map[string]bool{}
 	var world *object
 	for _, a := range sets {
+		if v, ok := strings.CutPrefix(a, "link="); ok {
+			e, err := newEdge(v, index, nodes, edges, retired)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", a, err)
+			}
+			edges = append(edges, e)
+			edgesChanged = true
+			notes = append(notes, fmt.Sprintf("added edge %s (%s)", e.id(), e.pair()))
+			continue
+		}
+		if v, ok := strings.CutPrefix(a, "unlink="); ok {
+			i := findEdge(v)
+			if i < 0 {
+				from, to, ok := strings.Cut(v, ",")
+				if !ok {
+					return nil, nil, fmt.Errorf("%s: no edge with id %s (write unlink=e3 or unlink=1,4)", a, v)
+				}
+				from, to = strings.TrimSpace(from), strings.TrimSpace(to)
+				var hits []int
+				for j, e := range edges {
+					if f, t := e.ends(); (f == from && t == to) || (f == to && t == from) {
+						hits = append(hits, j)
+					}
+				}
+				if len(hits) == 0 {
+					return nil, nil, fmt.Errorf("%s: no edge between %s and %s", a, from, to)
+				}
+				if len(hits) > 1 {
+					var ids []string
+					for _, j := range hits {
+						ids = append(ids, edges[j].label())
+					}
+					return nil, nil, fmt.Errorf("%s: %d edges between %s and %s (%s); remove one by its id, e.g. unlink=%s", a, len(hits), from, to, strings.Join(ids, ", "), edges[hits[0]].id())
+				}
+				i = hits[0]
+			}
+			notes = append(notes, fmt.Sprintf("removed edge %s", edges[i].label()))
+			retired[edges[i].id()] = true
+			edges = append(edges[:i], edges[i+1:]...)
+			edgesChanged = true
+			continue
+		}
 		target, rest, ok1 := strings.Cut(a, ".")
 		key, val, ok2 := strings.Cut(rest, "=")
 		if !ok1 || !ok2 || key == "" {
-			return nil, fmt.Errorf("expected id.key=value: %s", a)
+			return nil, nil, fmt.Errorf("expected id.key=value, link=from,to or unlink=from,to: %s", a)
 		}
 		var o *object
 		if target == "world" {
 			if world == nil {
 				if w, ok := doc.vals["world"]; ok {
 					if world, err = parseObject(w); err != nil {
-						return nil, fmt.Errorf("world: %w", err)
+						return nil, nil, fmt.Errorf("world: %w", err)
 					}
 				} else {
 					world = &object{vals: map[string]json.RawMessage{}}
@@ -355,11 +408,11 @@ func applySets(b []byte, sets []string) ([]byte, error) {
 			o = world
 		} else if i, ok := index[target]; ok {
 			o = nodes[i]
-		} else if i, ok := edgeIndex[target]; ok {
-			o = edges[i]
+		} else if i := findEdge(target); i >= 0 {
+			o = edges[i].o
 			edgesChanged = true
 		} else {
-			return nil, fmt.Errorf("no box or edge with id %s", target)
+			return nil, nil, fmt.Errorf("no box or edge with id %s", target)
 		}
 		if v := value(key, val); v == nil {
 			o.del(key)
@@ -367,25 +420,41 @@ func applySets(b []byte, sets []string) ([]byte, error) {
 			o.set(key, v)
 		}
 	}
+	// 付け替えで階層をまたいだ線。画面の検査でも止まるが、ここで消し方まで示す
+	parentOf := func(id string) string {
+		if i, ok := index[id]; ok {
+			if p := plain(nodes[i].vals["parent"]); p != "null" {
+				return p
+			}
+		}
+		return ""
+	}
+	var crossing []string
+	for _, e := range edges {
+		f, t := e.ends()
+		if pf, pt := parentOf(f), parentOf(t); pf != pt {
+			crossing = append(crossing, fmt.Sprintf("edge %s joins boxes in different groups (%s is %s, %s is %s); add unlink=%s to remove it",
+				e.label(), f, where(pf), t, where(pt), e.pair()))
+		}
+	}
+	if len(crossing) > 0 {
+		return nil, nil, fmt.Errorf("not written: %s", strings.Join(crossing, "; "))
+	}
 	nb, err := json.Marshal(nodes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	doc.set("nodes", nb)
 	if edgesChanged {
-		out := make([]json.RawMessage, len(rawEdges))
-		for i, r := range rawEdges {
-			if edges[i] == nil {
-				out[i] = r
-				continue
-			}
-			if out[i], err = edges[i].MarshalJSON(); err != nil {
-				return nil, err
+		out := make([]json.RawMessage, len(edges))
+		for i, e := range edges {
+			if out[i], err = e.marshal(); err != nil {
+				return nil, nil, err
 			}
 		}
 		eb, err := json.Marshal(out)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		doc.set("edges", eb)
 	}
@@ -395,9 +464,139 @@ func applySets(b []byte, sets []string) ([]byte, error) {
 	}
 	compact, err := doc.MarshalJSON()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return formatDiagram(compact)
+	out, err := formatDiagram(compact)
+	return out, notes, err
+}
+
+// where は箱の居場所の説明（親の id か最上位）
+func where(parent string) string {
+	if parent == "" {
+		return "at the top level"
+	}
+	return "in " + parent
+}
+
+// plain は JSON の値（id など）を比べるための文字列にする。文字列は引用符を外す
+func plain(v json.RawMessage) string {
+	var s string
+	if json.Unmarshal(v, &s) == nil {
+		return s
+	}
+	if len(v) == 0 {
+		return "null"
+	}
+	return string(v)
+}
+
+// edge は線 1 本。オブジェクトの形なら o、[from, to] の形なら raw だけを持つ
+type edge struct {
+	raw json.RawMessage
+	o   *object
+}
+
+func parseEdge(r json.RawMessage) *edge {
+	e := &edge{raw: r}
+	if o, err := parseObject(r); err == nil {
+		e.o = o
+	}
+	return e
+}
+
+func (e *edge) id() string {
+	if e.o == nil {
+		return ""
+	}
+	if v, ok := e.o.vals["id"]; ok {
+		return plain(v)
+	}
+	return ""
+}
+
+func (e *edge) ends() (string, string) {
+	if e.o != nil {
+		return plain(e.o.vals["from"]), plain(e.o.vals["to"])
+	}
+	var pair []json.RawMessage
+	if json.Unmarshal(e.raw, &pair) == nil && len(pair) >= 2 {
+		return plain(pair[0]), plain(pair[1])
+	}
+	return "", ""
+}
+
+func (e *edge) pair() string {
+	f, t := e.ends()
+	return f + "," + t
+}
+
+// label は知らせに出す名前（例 e3 (1,4)。id が無ければ 1,4）
+func (e *edge) label() string {
+	if id := e.id(); id != "" {
+		return e.id() + " (" + e.pair() + ")"
+	}
+	return e.pair()
+}
+
+func (e *edge) marshal() (json.RawMessage, error) {
+	if e.o == nil {
+		return e.raw, nil
+	}
+	return e.o.MarshalJSON()
+}
+
+// newEdge は link= の値（1,4 か、from と to を持つ JSON のオブジェクト）から線を作る。id が無ければ空いている e<数> を振る。
+// 画面と同じく、同じ 2 つの箱の間に 2 本目は引かない（自分に戻る線は何本でも）
+func newEdge(v string, index map[string]int, nodes []*object, edges []*edge, retired map[string]bool) (*edge, error) {
+	var o *object
+	if strings.HasPrefix(v, "{") {
+		var err error
+		if o, err = parseObject([]byte(v)); err != nil {
+			return nil, fmt.Errorf("invalid JSON: %w", err)
+		}
+	} else {
+		from, to, ok := strings.Cut(v, ",")
+		if !ok {
+			return nil, errors.New("expected link=from,to, e.g. link=1,4")
+		}
+		o = &object{vals: map[string]json.RawMessage{}}
+		for k, id := range map[string]string{"from": strings.TrimSpace(from), "to": strings.TrimSpace(to)} {
+			if i, ok := index[id]; ok {
+				o.set(k, nodes[i].vals["id"])
+			} else {
+				o.set(k, json.RawMessage(strconv.Quote(id)))
+			}
+		}
+		o.keys = []string{"from", "to"}
+	}
+	e := &edge{o: o}
+	from, to := e.ends()
+	for _, id := range []string{from, to} {
+		if _, ok := index[id]; !ok {
+			return nil, fmt.Errorf("no box with id %s", id)
+		}
+	}
+	used := map[string]bool{}
+	for _, x := range edges {
+		used[x.id()] = true
+		if f, t := x.ends(); from != to && ((f == from && t == to) || (f == to && t == from)) {
+			return nil, fmt.Errorf("boxes %s and %s are already joined by edge %s", from, to, x.label())
+		}
+	}
+	if id := e.id(); id != "" {
+		if used[id] {
+			return nil, fmt.Errorf("edge id %s is already used", id)
+		}
+		return e, nil
+	}
+	n := 1
+	for used["e"+strconv.Itoa(n)] || retired["e"+strconv.Itoa(n)] {
+		n++
+	}
+	id, _ := json.Marshal("e" + strconv.Itoa(n))
+	o.keys = append([]string{"id"}, o.keys...)
+	o.vals["id"] = id
+	return e, nil
 }
 
 // 図のデータを保存する形にする（web/src/format.ts と同じ形）。最上位のキーを 1 行ずつ、
