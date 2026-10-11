@@ -138,3 +138,13 @@ test("表示領域の幅に小数があっても、中身が収まっていれ�
     expect(r.worldH, w).toBeLessThanOrEqual(r.h);
   }
 });
+
+test("窓が狭く低いとき（400x300）、下のヒントは図に重ならない（図の下の帯に置く。DIST-TRIAL の保留 5）", async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 300 });
+  const stage = (await page.locator("#stage").boundingBox())!;
+  const hint = (await page.locator("#hint").boundingBox())!;
+  expect(hint.y).toBeGreaterThanOrEqual(stage.y + stage.height);
+  await page.setViewportSize({ width: 1200, height: 800 }); // 広い窓では今までどおり図に重ねる
+  const wide = (await page.locator("#stage").boundingBox())!, wideHint = (await page.locator("#hint").boundingBox())!;
+  expect(wideHint.y + wideHint.height).toBeLessThanOrEqual(wide.y + wide.height);
+});

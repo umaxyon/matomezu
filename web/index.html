@@ -161,6 +161,12 @@
     pointer-events: none;
   }
   .hint.error { color: var(--error); }
+  /* 窓が狭いか低いときは、ヒントを図に重ねず、図の下に取った帯に置く（重ねると図の題名や箱に重なるため。
+     ヒントは空の画面の案内やエラーにも使うので隠さない） */
+  @media (max-width: 640px), (max-height: 480px) {
+    #stage, .canvas > .stage { bottom: 44px; }
+    .hint { bottom: 6px; max-height: 32px; overflow: hidden; line-height: 16px; }
+  }
   @media (max-width: 640px) {
     main { flex-direction: column-reverse; }
     #sidebar { width: auto; max-height: 40vh; border-right: 0; border-top: 1px solid var(--bar-border); }
