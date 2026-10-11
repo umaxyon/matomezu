@@ -13,12 +13,10 @@ import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, inTreeOf, isHidden, isIconShape, isNesting, isPageBox, overflowOf, routeOf, shapeOf,
-  sizeOf, slantOf, treeDirOf, vertexOnly, viaOf, OUTLINED_SHAPES, kidStrategyOf, splitBranches, type Vertex,
+  sizeOf, slantOf, treeDirOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
-import type { Shape } from "./types";
-// 輪郭を path で描く形（renderOutline）
-const OUTLINED = new Set<Shape>(OUTLINED_SHAPES);
+import { shapeDef } from "./shapes";
 
 // スティックマン（viewBox 0 0 36 52）
 const PERSON_SVG =
@@ -125,6 +123,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const ov of OVERFLOWS) head.classList.toggle("mz-ov-" + ov, !group && textOv === ov);
 
     const shape = shapeOf(n);
+    const draw = shapeDef(shape).draw; // 描き方（形の表 shapes.ts）
     const page = isPageBox(n);
     for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape && !page);
     head.classList.toggle("mz-shape-page", page);
@@ -139,13 +138,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const shadowOf = () => (theme.shadow === "none" ? null : theme.shadow ?? "var(--mz-shadow)");
     // 付箋（テーマのスタイル）: 右上の角を切り欠き、折り返しの三角を重ねる（graph-style.ts の .mz-style-sticky）。
     // 影は切り欠きに沿うよう、box-shadow ではなく drop-shadow で付ける
-    const folded = theme.style === "sticky" && shape === "box" && !page && !group && fill;
+    const folded = theme.style === "sticky" && draw === "box" && !page && !group && fill;
     head.classList.toggle("mz-style-sticky", folded);
     head.style.filter = folded && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
     if (folded) head.style.setProperty("--mz-fold", `color-mix(in srgb, ${color} 70%, #6b5a2a)`);
     else head.style.removeProperty("--mz-fold");
     // クラスの箱も、ボックスと同じ背景と影（枠はいつも引く。UML の区画を見せるため）
-    if ((shape === "box" || shape === "class") && !page) {
+    if ((draw === "box" || draw === "class") && !page) {
       head.style.background = !fill ? "transparent"
         : group ? `color-mix(in srgb, ${color} 16%, transparent)`
         // 斜めのグラデーションの長さは角からの距離なので、切り欠きの 1 辺を折り返しの三角（FOLD）にそろえるには FOLD / √2。
@@ -154,7 +153,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const shadow: string[] = [];
       // 塗りの無い文字の箱の枠は、箱の色で引く（テーマが箱ごとの色を使わないなら、テーマの枠の色。白い箱の色だと見えないため）
       const frame = group ? color : !fill ? (own || !theme.border ? color : theme.border) : edge;
-      if (shape === "class") shadow.push(`inset 0 0 0 1.5px ${fill ? edge : color}`);
+      if (draw === "class") shadow.push(`inset 0 0 0 1.5px ${fill ? edge : color}`);
       else if (borderOf(n)) shadow.push(`inset 0 0 0 2px ${frame}`);
       else if (theme.outline && !group && fill) shadow.push(`inset 0 0 0 1.5px ${edge}`);
       const s = shadowOf();
@@ -166,14 +165,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       head.style.background = "transparent";
       head.style.boxShadow = "none";
       const svg = n.shapeSvg;
-      if (shape === "person") {
+      if (draw === "person") {
         svg.setAttribute("viewBox", "0 0 36 52");
         svg.innerHTML = PERSON_SVG;
         // 色の指定が無ければ文字の色で描く（白だと明るいテーマで見えないため）
         svg.style.stroke = own ? color : "var(--mz-text)";
         svg.style.fill = "";
         setShadow(n, null);
-      } else if (OUTLINED.has(shape)) {
+      } else if (draw === "outline") {
         // 円・六角形・平行四辺形・台形。輪郭は renderOutline で大きさに合わせて描く（ひし形と同じ塗り方）
         svg.removeAttribute("viewBox");
         svg.innerHTML = '<path class="mz-outline-body"/>';
@@ -181,7 +180,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.5";
         setShadow(n, fill ? shadowOf() : null);
-      } else if (shape === "diamond") {
+      } else if (draw === "diamond") {
         // ひし形。頂点は renderDiamond で大きさに合わせて置く
         svg.removeAttribute("viewBox");
         svg.innerHTML = '<polygon class="mz-diamond-body"/>';
@@ -189,7 +188,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.5";
         setShadow(n, fill ? shadowOf() : null);
-      } else if (shape === "server") {
+      } else if (draw === "server") {
         // サーバー（タワー型の立体）。スティックマンと同じく絵の大きさは決まっていて、文字は足元に置く。
         // 前面は箱の色、上面は明るく、側面は暗くして立体に見せる。塗りが無ければ輪郭だけ
         svg.setAttribute("viewBox", "0 0 40 52");
@@ -241,7 +240,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (lines) n.bodyEl.dataset.lines = String(lines); else delete n.bodyEl.dataset.lines;
     n.bodyEl.title = lines ? body : "";
     // クラスの箱（docs/CLASS-plan.md）: キャプション（クラス名）の下に、属性と操作の区画
-    const isClass = shape === "class";
+    const isClass = draw === "class";
     n.classEl.hidden = !isClass;
     head.classList.toggle("mz-class-abstract", isClass && n.src.abstract === true);
     if (isClass) n.classEl.innerHTML = classHtml(n.src);
@@ -392,8 +391,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const near = at == null ? null : pointAt(perimeter(r), at);
       return perimeterAt(r, classEnd(r, n.src, typeof member === "string" ? member : undefined, other, near));
     };
-    if (shapeOf(e.a) === "class") input.exitAt = pin(e.a, input.a, input.b, input.exitAt ?? null, e.src.fromMember);
-    if (shapeOf(e.b) === "class") input.enterAt = pin(e.b, input.b, input.a, input.enterAt ?? null, e.src.toMember);
+    if (shapeDef(shapeOf(e.a)).draw === "class") input.exitAt = pin(e.a, input.a, input.b, input.exitAt ?? null, e.src.fromMember);
+    if (shapeDef(shapeOf(e.b)).draw === "class") input.enterAt = pin(e.b, input.b, input.a, input.enterAt ?? null, e.src.toMember);
     input.obstacles = scopeObstacles(input);
     return input;
   }
@@ -452,7 +451,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 入ってくる線の頂点（相手の向きに一番近い頂点）は、空いていれば避ける
   function branchVertexOf(e: Edge): Vertex | null {
     const d = e.a;
-    if (d === e.b || shapeOf(d) !== "diamond" || !kidStrategyOf(d.parent ?? d.world).splitBranches) return null;
+    if (d === e.b || !shapeDef(shapeOf(d)).branch || !kidStrategyOf(d.parent ?? d.world).splitBranches) return null;
     const out = ctx.edges().filter(x => x.a === d && x.b !== d && typeof x.src.exitAt !== "number" && !edgeHidden(x));
     if (out.length < 2) return null;
     const c = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return [x + r.x + r.w / 2, y + r.y + r.h / 2] as const; };
@@ -676,8 +675,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       g.right = block ? "auto" : "";
       g.top = block ? opt.header + "px" : "";
       g.height = block ? n.bodyH + "px" : "";
-      if (shapeOf(n) === "diamond") renderDiamond(n);
-      if (OUTLINED.has(shapeOf(n))) renderOutline(n);
+      const draw = shapeDef(shapeOf(n)).draw;
+      if (draw === "diamond") renderDiamond(n);
+      if (draw === "outline") renderOutline(n);
       if (isPageBox(n)) renderPage(n);
       renderTree(n);
     }

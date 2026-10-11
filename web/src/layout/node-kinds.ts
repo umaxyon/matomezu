@@ -3,9 +3,10 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inTreeOf, isIconShape, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inTreeOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
+import { shapeDef } from "../shapes";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
@@ -84,7 +85,9 @@ export function createNodeKinds(ctx: KindContext) {
     const specH = useSpec ? n.specH : 0;
     const maxW = Math.min(z.maxW, n.capW || Infinity);
     const textW = () => Math.max(z.minW, bodyMinW(n), Math.min(maxW, contentW(n)));
-    if (shapeOf(n) === "diamond") {
+    // 土台の決め方は形の表（shapes.ts の base）で分ける
+    const base = shapeDef(shapeOf(n)).base;
+    if (base === "diamond") {
       // ひし形（フローチャートの分岐）: 内側に収まる四角は縦横の半分なので、文字の大きさの 2 倍にする。文字はひし形の幅の半分で折り返す
       // （graph-style.ts の .mz-shape-diamond > .mz-text の max-width: 50%）。幅の指定があれば、その半分で折り返す
       // 測るときも文字は本体の幅の半分で折り返すので、本体の幅（文字の幅の 2 倍）で測る。測った高さが文字の高さ（余白は 0）
@@ -94,7 +97,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = Math.max(z.h, Math.ceil((measure(n, w)[1] + DIAMOND_PAD) * 2));
       return;
     }
-    if (shapeOf(n) === "circle") {
+    if (base === "circle") {
       // 円（接続）: 縦横が同じ。文字は内側に収まる四角（直径の 1/√2）の中で折り返す（graph-style.ts の .mz-shape-circle > .mz-text の
       // max-width: 70%）。直径は、文字の幅と高さを囲む四角の対角線に余白を足したもの。幅の指定があればその直径
       const tw = Math.min(measure(n, null)[0], maxW * CIRCLE_TEXT);
@@ -104,14 +107,14 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = d;
       return;
     }
-    if (shapeOf(n) === "class") {
+    if (base === "class") {
       // クラスの箱（docs/CLASS-plan.md）: 行は折り返さないので、幅は 1 行のまま測った幅（CLASS_MIN_W〜CLASS_MAX_W。越えた行は …）、
       // 高さは行の数で決まる。サイズは使わない。幅の指定があればその幅
       n.hw = specW || Math.max(CLASS_MIN_W, Math.min(CLASS_MAX_W, measure(n, null)[0]));
       n.hh = classHeight(n.src);
       return;
     }
-    if (isIconShape(shapeOf(n))) {
+    if (base === "icon") {
       // 絵の形（スティックマン・DB・サーバー）と足元の文字。背景が無いので、最小の幅は使わない。絵の大きさは決まっている。
       // 折り返したら、行の数（高さ）が変わらない一番狭い幅まで詰める（上限の幅のままだと、折り返した行が短いとき左右が空く。
       // 2026-10-11 ユーザー）。幅の指定があればその幅

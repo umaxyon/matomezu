@@ -22,6 +22,7 @@ import { THEMES } from "./theme";
 import type { BoxData, BoxInfo, Patch, Shape, Size } from "./types";
 import { SHAPE_OPTIONS, SHAPE_VARIANTS, shapeFamily } from "./validate";
 import { shapeIcon } from "./shape-icons";
+import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 
 const STYLE_ID = "matomezu-edit-dialog-style";
 const CSS = `/* i18n-ok（CSS のコメントの日本語） */
@@ -216,7 +217,7 @@ function confirmInside(overlay: HTMLElement, message: string, okLabel: string): 
 function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void, lead = ""): HTMLElement {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   // 形やサイズのほかに本文を出せない理由（ページの箱、キャプションを 1 行にした箱）があるか
-  const bodyBase = b.overflow !== "clip" && (b.canBody || b.shape !== "box" || b.size === "S");
+  const bodyBase = b.overflow !== "clip" && (b.canBody || !shapeDef(b.shape).body || b.size === "S");
   const off = b.canBody ? "" : " disabled";
   const sizes: Size[] = ["L", "M", "S"];
   // 選べない形（子を内包している箱は、ボックスとクラスだけ）
@@ -326,13 +327,13 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   });
   const sizeS = overlay.querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
   const pickedSize = () => overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value ?? b.size;
-  const bodyAllowed = () => bodyBase && shapeField.value === "box" && (b.sizeFixed || pickedSize() !== "S");
+  const bodyAllowed = () => bodyBase && shapeDef(pickedShape()).body && (b.sizeFixed || pickedSize() !== "S");
   const syncBody = () => {
     const allowed = bodyAllowed();
     for (const el of overlay.querySelectorAll<HTMLTextAreaElement | HTMLSelectElement>('[name="body"], [name="lines"]')) el.disabled = !allowed;
     overlay.querySelector<HTMLElement>("[data-body-note]")!.hidden = allowed;
     const has = allowed && bodyField.value !== "";
-    for (const o of shapeField.options) o.disabled = shapeOff.has(o.value) || (has && o.value !== "box");
+    for (const o of shapeField.options) o.disabled = shapeOff.has(o.value) || (has && !shapeDef(o.value as Shape).body);
     const cls = shapeField.value === "class";
     // クラスの箱はサイズを使わない（幅は中身で決まる）
     for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.disabled = b.sizeFixed || cls || (r === sizeS && has);
@@ -461,7 +462,7 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
     const fields: Partial<BoxData> = {};
     if (v.caption) fields.caption = v.caption;
     // 既定（ボックス・M・受け継ぐ）は書かない
-    if (v.shape !== "box") fields.shape = v.shape;
+    if (v.shape !== DEFAULT_SHAPE) fields.shape = v.shape;
     if (v.shape === "class") {
       if (v.abstract) fields.abstract = true;
       if (v.attrs.length) fields.attrs = v.attrs;

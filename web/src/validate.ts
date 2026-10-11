@@ -4,6 +4,7 @@ import { isAccess, isObject as isRecord, memberNames } from "./classbox";
 import { isHead } from "./heads";
 import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
+import { SHAPE_DEFS } from "./shapes";
 import type { Diagram, EdgeData, Id, Shape, Size } from "./types";
 
 export interface SizeSpec {
@@ -161,7 +162,7 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
   }
   // クラスの箱は子を持たない（docs/CLASS-plan.md）
   for (const n of byId.values()) {
-    if (n.parent != null && byId.get(String(n.parent))?.shape === "class") fail(t("クラスの箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
+    if (n.parent != null && SHAPE_DEFS[byId.get(String(n.parent))?.shape as Shape]?.kids === false) fail(t("クラスの箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
   }
   // フローチャートの要素は子を持たない（docs/PATTERN-plan.md の 3.7 章。model.ts の STRATEGIES の leafKids。
   // この検査は DOM なしの CLI でも動かすので、戦略の表は読まずに名前で見る）

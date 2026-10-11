@@ -127,9 +127,10 @@ import { createLayout } from "./layout/layout";
 import { BODY_MIN_W } from "./layout/node-kinds";
 import { SCENES } from "./layout/policy";
 import { type MeasureText, createTextMeasurer } from "./layout/measure";
+import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
-  canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isIconShape, isNesting, other,
+  canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, lookOf, strategyOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, kidSizeOf, captionHintsOf, shapeAllowed, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
@@ -731,7 +732,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function target(parentId: Id | null, what: string): Box | null {
     const dest = parentId == null ? null : (nodeOf(parentId) as Box);
     if (dest?.src.page === true) throw new Error(what);
-    if (dest && shapeOf(dest) === "class") throw new Error(t("クラスの箱は子を持てません"));
+    if (dest && !shapeDef(shapeOf(dest)).kids) throw new Error(t("クラスの箱は子を持てません"));
     if (dest && !acceptsKid(dest, false)) throw new Error(t("フローチャートの中の箱は子を持てません"));
     return dest;
   }
@@ -1196,7 +1197,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const size = sizeOf(n);
     // 中身の扱いを選べるのは、文字を持つボックス（S 以外）だけ。子を持つ箱はつねに子に合わせて伸びる（docs/SIZE-plan.md）。
     // スティックマンは文字の置き方が決まっているので使わない
-    const usesOverflow = !n.children.length && size !== "S" && !isIconShape(shapeOf(n)) && shapeOf(n) !== "class" && !lookOf(n).sharedSize;
+    const usesOverflow = !n.children.length && size !== "S" && shapeDef(shapeOf(n)).overflow && !lookOf(n).sharedSize;
     const out: BoxInfo = {
       kind: n.children.length ? "group" : "box",
       id: n.id,
@@ -1312,7 +1313,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           setSpec(n, "w", 0);
           setSpec(n, "h", 0);
         }
-        if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === "box");
+        if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === DEFAULT_SHAPE);
         if (next.childView) setView(n, next.childView);
         if (next.treeDirection) setOrDelete(n.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
       }

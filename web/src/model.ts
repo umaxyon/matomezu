@@ -1,6 +1,7 @@
 // ボックスと線の内部の形と、ボックスの設定を読む関数。DOM の操作はしない
 
 import { truncate } from "./dom";
+import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import type { Arrangement, Arrow, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
@@ -259,7 +260,7 @@ export function abilitiesOf(n: Box): Abilities {
     reorder: by.reorder && !!n.parent,
     link: !n.parent || by.link,
     widthGrip: !!strategyOf(n)?.widthGrip,
-    dropInto: n.src.page !== true && shapeOf(n) !== "class" && !by.leafKids,
+    dropInto: n.src.page !== true && shapeDef(shapeOf(n)).kids && !by.leafKids,
   };
 }
 
@@ -283,9 +284,9 @@ export function treeDirOf(n: Box): TreeDirection {
 }
 // 子を内包しているボックスは枠なので、形は常にボックス
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
-// 線のキャプションの候補: 始点がひし形（分岐）で、それを並べる戦略が候補を持つとき（フローチャートの Yes / No）
+// 線のキャプションの候補: 始点が分岐の形（ひし形）で、それを並べる戦略が候補を持つとき（フローチャートの Yes / No）
 export const captionHintsOf = (e: Edge): string[] =>
-  (e.a !== e.b && shapeOf(e.a) === "diamond" ? [...STRATEGIES[placedBy(e.a)].branchCaptions] : []);
+  (e.a !== e.b && shapeDef(shapeOf(e.a)).branch ? [...STRATEGIES[placedBy(e.a)].branchCaptions] : []);
 // 分岐から出る線の頂点（2026-10-11 ユーザー。フローチャートの戦略）: 1 つの頂点から 2 本出さない（下と右のような組み合わせでもよい）。
 // targets は線ごとの、分岐の中心から相手の中心への向き。avoid は入ってくる線が使う頂点（空いていれば避ける）。
 // 頂点の向きと相手の向きのなす角の合計が一番小さい割り当てを選ぶ（4 本までは全部試す。5 本目からは割り当てない）
@@ -312,8 +313,8 @@ export function splitBranches(targets: [number, number][], avoid: Vertex[] = [])
 
 // 戦略の子だけが使える形（フローチャートの六角形など）は、その戦略の子のときだけ使う（外へ出すとボックス。データは残す）
 export const shapeOf = (n: Box): Shape => {
-  if (isNesting(n) || lookOf(n).plainShape || n.src.page === true || !isShape(n.src.shape)) return "box";
-  return shapeAllowed(n.src.shape, n.parent ?? n.world) ? n.src.shape : "box";
+  if (isNesting(n) || lookOf(n).plainShape || n.src.page === true || !isShape(n.src.shape)) return DEFAULT_SHAPE;
+  return shapeAllowed(n.src.shape, n.parent ?? n.world) ? n.src.shape : DEFAULT_SHAPE;
 };
 // 入れ物 p（箱かワールド）の子として、形 s を使えるか（どこかの戦略の子だけが使える形なら、p がその戦略で子を並べるときだけ）
 export function shapeAllowed(s: Shape, p: Container): boolean {
@@ -325,20 +326,17 @@ export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
   if (!p.isWorld && STRATEGIES[placedBy(p)].leafKids) return false;
   return !(kidHasKids && kidStrategyOf(p).leafKids);
 }
-// 線で描く形で、線の端を辺の真ん中（頂点）に限るもの。辺の途中は形の外になる（ひし形・円・六角形・平行四辺形・台形）
-export const vertexOnly = (s: Shape): boolean => OUTLINED_SHAPES.includes(s) || s === "diamond";
-// 輪郭を SVG で描く形（render.ts の renderOutline。円・角丸・六角形・平行四辺形・台形）
-export const OUTLINED_SHAPES: readonly Shape[] = ["circle", "stadium", "hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt"];
+// 線の端を辺の真ん中（頂点）に限る形か（形の表 shapes.ts）
+export const vertexOnly = (s: Shape): boolean => shapeDef(s).vertexOnly;
 // 斜めの辺を持つ形（六角形・平行四辺形・台形）の、斜めの辺が横に食い込む幅（S は小さく）。文字の左右の余白にもこの分を足す
 // （graph-style.ts の .mz-shape-hexagon などの padding-inline と合わせる）
 export const slantOf = (n: Box): number => (sizeOf(n) === "S" ? 10 : 14);
 // 線がつながる範囲を左右に縮める幅（平行四辺形と台形は、左右の辺の真ん中が本体の縁より内側にあるので、そこへつなぐ）
 export const anchorInsetOf = (n: Box): number => {
-  const s = shapeOf(n);
-  return s === "parallelogram" || s === "parallelogramAlt" || s === "trapezoid" || s === "trapezoidAlt" ? slantOf(n) / 2 : 0;
+  return shapeDef(shapeOf(n)).insetEnds ? slantOf(n) / 2 : 0;
 };
 // 絵の形（スティックマン・DB・サーバー）: 決まった大きさの絵の足元に文字を置く。背景は無い
-export const isIconShape = (s: Shape): boolean => s === "person" || s === "db" || s === "server";
+export const isIconShape = (s: Shape): boolean => shapeDef(s).base === "icon";
 // ページの箱（中身は別のページ。docs/TABS-plan.md）。最初のページでは子を持たない箱として描く
 export const isPageBox = (n: Box) => n.src.page === true && !n.children.length;
 export const fillOf = (n: Box) => n.src.fill !== false;
@@ -355,7 +353,7 @@ export function overflowOf(c: Container): Overflow {
 export const displayCaption = (n: Box) => (lookOf(n).fullCaption ? captionOf(n) : truncate(captionOf(n), SIZES[sizeOf(n)].limit));
 // 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
 export const canBody = (n: Box): boolean =>
-  shapeOf(n) === "box" && sizeOf(n) !== "S" && n.src.page !== true && overflowOf(n) !== "clip";
+  shapeDef(shapeOf(n)).body && sizeOf(n) !== "S" && n.src.page !== true && overflowOf(n) !== "clip";
 export const bodyOf = (n: Box): string => (typeof n.src.body === "string" && n.src.body && canBody(n) ? n.src.body : "");
 // 本文の最大行数（無ければ 0。制限なし）
 export const bodyLinesOf = (n: Box): number => (Number.isInteger(n.src.bodyLines) && (n.src.bodyLines as number) > 0 ? n.src.bodyLines as number : 0);

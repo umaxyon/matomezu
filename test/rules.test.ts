@@ -20,6 +20,28 @@ const ALLOWED: Record<string, number> = {
 };
 const COMPARE = /[!=]==\s*"(nest|tree|list|hidden|flow)"/g;
 
+// 形の決まりは形の表（shapes.ts の SHAPE_DEFS）から引く。形の名前を直接比べてよいのは、クラスの行の操作と編集（属性・操作の編集、
+// クラスにする・やめるときの確かめ、行に線をつなぐ）だけ。ファイルごとの数は今の数が上限（増やすなら理由をここに書く）
+const SHAPE_ALLOWED: Record<string, number> = {
+  "shapes.ts": Infinity,  // 形の表そのもの
+  "edit-dialog.ts": 8,    // クラスの属性・操作の編集と、クラスにする・やめるときの確かめ
+  "panel-info.ts": 3,     // クラスの案内と、クラスにかかわる形の変更の確かめ
+  "edits.ts": 1,          // クラスにする・やめるときのデータの直し
+  "edge-drag.ts": 1,      // 線の端をクラスの行へつなぐ
+  "validate.ts": 1,       // fromMember / toMember はクラスの端にだけ書ける
+};
+const SHAPE_COMPARE = /shape\w*(\([^)]*\))?(\.\w+)?\s*[!=]==\s*"(box|person|db|diamond|server|class|circle|stadium|hexagon|parallelogram|parallelogramAlt|trapezoid|trapezoidAlt)"/g;
+
+test("形の名前を直接比べる判定を、形の表の外に増やさない", () => {
+  const over: string[] = [];
+  for (const f of files(SRC)) {
+    const name = relative(SRC, f).replaceAll("\\", "/");
+    const count = (readFileSync(f, "utf8").match(SHAPE_COMPARE) ?? []).length;
+    if (count > (SHAPE_ALLOWED[name] ?? 0)) over.push(`${name}: ${count}（上限 ${SHAPE_ALLOWED[name] ?? 0}）`);
+  }
+  expect(over).toEqual([]);
+});
+
 // 配置と線の計算は、見た目（テーマ）の値を読まない（CLAUDE.md の 9）。読むのは測った大きさと線がつながる範囲だけ
 test("配置と線のファイルは、テーマを読み込まない", () => {
   const geometry = files(SRC).filter(f => {

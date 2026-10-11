@@ -11,6 +11,7 @@ import { THEMES, isPaletteName, themeById } from "./theme";
 import type { Brief, ChildView, Dash, EdgeInfo, Info, Route, Shape, Size, TreeDirection } from "./types";
 import { SHAPE_OPTIONS, SHAPE_VARIANTS, shapeFamily } from "./validate";
 import { shapeIcon } from "./shape-icons";
+import { shapeDef } from "./shapes";
 
 const KIND_LABELS = { group: t("グループ"), box: t("ボックス") };
 // 鉛筆の印（編集ダイアログを開くボタン）
@@ -165,7 +166,7 @@ function html(info: Info): string {
     if (info.canShape || info.canClass) {
       // 形はセレクトボックス（形が増えても幅が変わらないように。2026-10-11 ユーザー）。本文があればボックス以外は選べない。
       // 子を内包している箱は、ボックスとクラスだけ（クラスにすると子は消える。docs/CLASS-plan.md）
-      const off = (v: string) => (info.body && v !== "box") || (!info.canShape && v !== "box" && v !== "class");
+      const off = (v: string) => (info.body && !shapeDef(v as Shape).body) || (!info.canShape && v !== "box" && v !== "class");
       // 切り替えのある形（円と角丸、平行四辺形と台形の向き）は、選択肢には家族の先頭を出し、下に切り替えを出す
       const family = shapeFamily(info.shape);
       parts.push(`<div class="mzp-section"><h3>${t("形")}</h3>
@@ -233,8 +234,8 @@ function html(info: Info): string {
     // 効かない形では出さない: 枠線はボックス（とページの箱）だけ（DB・ひし形は輪郭が形そのもの、スティックマンは線で描く）。
     // 塗りつぶしはスティックマンでは使わない
     const checks = [
-      info.shape !== "person" ? `<label class="mzp-check"><input type="checkbox" data-field="fill"${info.fill ? " checked" : ""}>${t("塗りつぶし")}</label>` : "",
-      info.shape === "box" ? `<label class="mzp-check"><input type="checkbox" data-field="border"${info.border ? " checked" : ""}>${t("枠線")}</label>` : "",
+      shapeDef(info.shape).fillToggle ? `<label class="mzp-check"><input type="checkbox" data-field="fill"${info.fill ? " checked" : ""}>${t("塗りつぶし")}</label>` : "",
+      shapeDef(info.shape).borderToggle ? `<label class="mzp-check"><input type="checkbox" data-field="border"${info.border ? " checked" : ""}>${t("枠線")}</label>` : "",
       oneLine,
     ].join("");
     if (checks) parts.push(`<div class="mzp-section"><h3>${t("見た目")}</h3>${checks}</div>`);

@@ -28,5 +28,9 @@
    テーマやデザインが変えてよいのは、箱の大きさ（余白・文字）と塗りまで。大きさが変わったときにどの点を保つかは、並べる戦略が決める（例: フローチャートは横の中心。`keepCenters`）。
    テーマに配置の補正値（余白など）を持たせる必要が出ても、ユーザーの指示があるまで作らない。作るときは、計算の順番（テーマ → 大きさ → 配置 → 線）を決めてから足す。
    `test/rules.test.ts` が、配置と線のファイル（`layout/`・`routing.ts`・`selfloop.ts`・`geom.ts`）がテーマを読み込んでいないことを見張る。
-10. **戦略を足すとき**は、PATTERN-plan に決めごとを書き、`STRATEGIES` と `KINDS` に足し、`validate.ts`・`tmp/action/view-api.md`（LLM 向けの説明）・
+10. **形の決まりは形の表に 1 か所**（`web/src/shapes.ts` の `SHAPE_DEFS`。2026-10-12 ユーザー。`docs/LAYOUT-BASE-plan.md`）。
+   形はノーマル（四角っぽい形。土台の決め方は共通）と特殊（土台を自分で決める）に分ける。土台の決め方は `layout/node-kinds.ts`、描き方は `render.ts` で、表の `base`・`draw` の名前で引く。
+   形の名前を直接比べる判定を、ほかのファイルに散らさない（`test/rules.test.ts` が見張る）。例外はクラスの行の操作と編集だけ。
+   形を足すときは、表に 1 行と、要るなら土台の決め方・描き方を足す。
+11. **戦略を足すとき**は、PATTERN-plan に決めごとを書き、`STRATEGIES` と `KINDS` に足し、`validate.ts`・`tmp/action/view-api.md`（LLM 向けの説明）・
    `graph.ts` の先頭のコメントを更新する。

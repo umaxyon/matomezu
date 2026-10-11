@@ -7,6 +7,7 @@ import { subtreeIds } from "./pages";
 import { type ClassAttr, type ClassOp, cleanMembers, memberNames } from "./classbox";
 import type { BoxData, Diagram, EdgeData, Id, Shape } from "./types";
 import { normalizeEdge } from "./validate";
+import { DEFAULT_SHAPE } from "./shapes";
 
 // 置く位置（親の左上から）。null は位置を消して自動で並べる
 export type Pos = { x: number; y: number } | null;
@@ -171,7 +172,7 @@ export function applyClassEdit(data: Diagram, id: Id, e: ClassEdit): { kids: num
     // クラスの箱は本文と子の見せ方を持たない。幅は中身で決まる
     for (const k of ["body", "bodyWidth", "bodyLines", "bodyRule", "childView", "treeDirection", "overflow", "width", "height"]) delete s[k];
   }
-  if (e.shape === "box") delete s.shape; else s.shape = e.shape;
+  if (e.shape === DEFAULT_SHAPE) delete s.shape; else s.shape = e.shape;
   if (e.caption != null) {
     if (e.caption.trim()) s.caption = e.caption.trim(); else delete s.caption;
   }

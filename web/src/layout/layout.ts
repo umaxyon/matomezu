@@ -20,6 +20,7 @@ import {
   ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, setSpec, shapeOf, sizeOf,
 } from "../model";
 import { alignFlow } from "./flow-align";
+import { shapeDef } from "../shapes";
 import type { Size } from "../types";
 import type { TextMeasurer } from "./measure";
 import { BODY_GAP, createNodeKinds } from "./node-kinds";
@@ -356,7 +357,7 @@ export function createLayout(ctx: LayoutContext) {
     const kids = c.children;
     const inside = new Set(kids);
     const pos = alignFlow(
-      kids.map(k => ({ id: k.id, w: k.w, h: k.h, start: shapeOf(k) === "stadium" || shapeOf(k) === "circle" })),
+      kids.map(k => ({ id: k.id, w: k.w, h: k.h, start: shapeDef(shapeOf(k)).terminal })),
       edges().filter(e => inside.has(e.a) && inside.has(e.b)).map(e => ({ from: e.a.id, to: e.b.id })),
       { centerX: 0, top: innerArea(c).top + (c.isWorld ? opt.gap : 0), gapX: FLOW_GAPS[kidSizeOf(c) ?? "M"].x, gapY: FLOW_GAPS[kidSizeOf(c) ?? "M"].y },
     );
