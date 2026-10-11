@@ -208,7 +208,7 @@ test("箱のダイアログ: 形がボックス以外か S のあいだは本文
   body.value = "本文";
   fire(body, "input");
   const disabledShapes = [...field<HTMLSelectElement>("shape").options].filter(o => o.disabled).map(o => o.value);
-  expect(disabledShapes).toEqual(["person", "db", "diamond", "server"]);
+  expect(disabledShapes).toEqual(["person", "db", "diamond", "server", "class"]);
   expect(sizeS.disabled).toBe(true);
   // テーマとサイズを変えて確定すると、まとめて 1 件の変更
   dialog().querySelector<HTMLInputElement>('[name="size"][value="L"]')!.checked = true;
@@ -220,10 +220,11 @@ test("箱のダイアログ: 形がボックス以外か S のあいだは本文
   expect(g.toJSON().nodes[0]).toEqual({ id: 1, caption: "A", x: 40, y: 40 });
 });
 
-test("内包している箱の編集ダイアログでは、形とサイズを選べない", async () => {
+test("内包している箱の編集ダイアログでは、形はボックスとクラスだけ選べ、サイズは選べない", async () => {
   const { openEditDialog } = await import("../web/src/edit-dialog");
   const { g } = setup({ nodes: [{ id: 1, caption: "親", x: 40, y: 40 }, { id: 2, parent: 1 }] });
   openEditDialog(g, "1");
-  expect(field<HTMLSelectElement>("shape").disabled).toBe(true);
+  const open = [...field<HTMLSelectElement>("shape").options].filter(o => !o.disabled).map(o => o.value);
+  expect(open).toEqual(["box", "class"]);
   expect([...dialog().querySelectorAll<HTMLInputElement>('[name="size"]')].every(r => r.disabled && !r.checked)).toBe(true);
 });

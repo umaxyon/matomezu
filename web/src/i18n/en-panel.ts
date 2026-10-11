@@ -138,4 +138,8 @@ export default {
   "色合い": "Hue",
   "灰色": "Gray",
   "色の値（#rrggbb）": "Color value (#rrggbb)",
+  // クラスの箱（docs/CLASS-plan.md）
+  "クラス名・属性・操作は、編集のダイアログで直せます": "Edit the class name, attributes and operations in the edit dialog",
+  "形の変更": "Change the shape",
+  "変更する": "Change",
 } satisfies Record<string, string>;

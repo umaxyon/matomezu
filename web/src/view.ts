@@ -39,7 +39,8 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
       if (id) graph.update(id, grip.classList.contains("mz-width-grip") ? { width: null } : { bodyWidth: null });
       return;
     }
-    const edge = e.target.closest(".mz-hit, .mz-label") ? e.target.closest<SVGElement>(".mz-edge") : null;
+    // 線の当たり・札・ドラッグできる途中の区間（腹）・端の丸のどれでも、線の編集を開く
+    const edge = e.target.closest(".mz-hit, .mz-label, .mz-bend, .mz-ends") ? e.target.closest<SVGElement>(".mz-edge") : null;
     if (edge?.dataset.id) return openEdgeEditDialog(graph, edge.dataset.id);
     const node = e.target.closest(".mz-head") ? e.target.closest<HTMLElement>(".mz-node") : null;
     if (node?.dataset.id) openEditDialog(graph, node.dataset.id);

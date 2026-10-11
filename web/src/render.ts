@@ -1,12 +1,13 @@
 // 描画: ボックスの見た目、DB やツリーの線、ボックスどうしの線を DOM に反映する
 
-import { SVGNS, isLightColor } from "./dom";
+import { attrText, attrsOf, classEnd, opText, opsOf } from "./classbox";
+import { SVGNS, esc, isLightColor } from "./dom";
 import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
 import { leftNormalAt, pointAt, polylineLength } from "./geom";
-import { route, scopeObstacles } from "./routing";
-import { cornerAt, nearestCorner, selfLoop } from "./selfloop";
+import { perimeterAt, route, scopeObstacles } from "./routing";
+import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { RouteFix, RouteInput } from "./routing";
 import {
   type Box, type Edge, type World,
@@ -138,14 +139,16 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     head.style.filter = folded && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
     if (folded) head.style.setProperty("--mz-fold", `color-mix(in srgb, ${color} 70%, #6b5a2a)`);
     else head.style.removeProperty("--mz-fold");
-    if (shape === "box" && !page) {
+    // クラスの箱も、ボックスと同じ背景と影（枠はいつも引く。UML の区画を見せるため）
+    if ((shape === "box" || shape === "class") && !page) {
       head.style.background = !fill ? "transparent"
         : group ? `color-mix(in srgb, ${color} 16%, transparent)`
         : folded ? `linear-gradient(225deg, transparent ${FOLD}px, ${color} 0)` : color;
       const shadow: string[] = [];
       // 塗りの無い文字の箱の枠は、箱の色で引く（テーマが箱ごとの色を使わないなら、テーマの枠の色。白い箱の色だと見えないため）
       const frame = group ? color : !fill ? (own || !theme.border ? color : theme.border) : edge;
-      if (borderOf(n)) shadow.push(`inset 0 0 0 2px ${frame}`);
+      if (shape === "class") shadow.push(`inset 0 0 0 1.5px ${fill ? edge : color}`);
+      else if (borderOf(n)) shadow.push(`inset 0 0 0 2px ${frame}`);
       else if (theme.outline && !group && fill) shadow.push(`inset 0 0 0 1.5px ${edge}`);
       const s = shadowOf();
       if (fill && s && !folded) shadow.push(s);
@@ -222,6 +225,12 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.bodyEl.style.setProperty("-webkit-line-clamp", lines ? String(lines) : "");
     if (lines) n.bodyEl.dataset.lines = String(lines); else delete n.bodyEl.dataset.lines;
     n.bodyEl.title = lines ? body : "";
+    // クラスの箱（docs/CLASS-plan.md）: キャプション（クラス名）の下に、属性と操作の区画
+    const isClass = shape === "class";
+    n.classEl.hidden = !isClass;
+    head.classList.toggle("mz-class-abstract", isClass && n.src.abstract === true);
+    if (isClass) n.classEl.innerHTML = classHtml(n.src);
+    else if (n.classEl.firstChild) n.classEl.replaceChildren();
     n.gripEl.hidden = !body;
     n.widthGripEl.hidden = !(view === "list" && n.children.length > 0);
     head.classList.toggle("mz-has-body", !!body);
@@ -243,6 +252,15 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.treeFrame.style.stroke = own ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";
     n.treeFrame.style.fill = `color-mix(in srgb, ${color} 5%, transparent)`;
     for (const k of n.children) k.el.style.display = view === "hidden" ? "none" : "";
+  }
+
+  // クラスの箱の属性と操作の区画。行は data-member に名前を持つ（〇を出す位置と、線を落とした行を見つけるため）
+  function classHtml(src: Box["src"]): string {
+    const row = (name: string, text: string, cls: string) =>
+      `<div class="mz-class-row${cls}" data-member="${esc(name)}">${esc(text)}</div>`;
+    const attrs = attrsOf(src).map(a => row(a.name, attrText(a), a.static ? " mz-static" : "")).join("");
+    const ops = opsOf(src).map(o => row(o.name, opText(o), (o.static ? " mz-static" : "") + (o.abstract ? " mz-abstract" : ""))).join("");
+    return `<div class="mz-class-sec">${attrs}</div><div class="mz-class-sec">${ops}</div>`;
   }
 
   // ひし形: 上下左右の辺の真ん中を頂点にする（線は頂点にだけつながる。routing.ts の aVertex / bVertex）
@@ -293,6 +311,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   }
 
   type Abs = { x: number; y: number; w: number; h: number };
+  type Rect4 = Abs;
   type Pt = [number, number];
 
   // 線が通ってほしくない箱: 同じ親を持つ、見えている箱（枠ごと。子孫はその中に入っている）。親ごとに一度だけ作る
@@ -328,6 +347,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       aVertex: shapeOf(e.a) === "diamond", bVertex: shapeOf(e.b) === "diamond",
       memory: e.memory,
     };
+    // クラスの端は、決まった接点に固定する（docs/CLASS-plan.md）。データの固定の位置があれば、一番近い接点として読む
+    const pin = (n: Box, r: Rect4, other: Rect4, at: number | null, member: unknown) => {
+      const near = at == null ? null : pointAt(perimeter(r), at);
+      return perimeterAt(r, classEnd(r, n.src, typeof member === "string" ? member : undefined, other, near));
+    };
+    if (shapeOf(e.a) === "class") input.exitAt = pin(e.a, input.a, input.b, input.exitAt ?? null, e.src.fromMember);
+    if (shapeOf(e.b) === "class") input.enterAt = pin(e.b, input.b, input.a, input.enterAt ?? null, e.src.toMember);
     input.obstacles = scopeObstacles(input);
     return input;
   }

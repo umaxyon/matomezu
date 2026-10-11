@@ -4,6 +4,7 @@
 import type { LayoutOptions } from "./layout";
 import { type Box, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inList, isIconShape, overflowOf, shapeOf, sizeOf, treeDirOf, viewOf } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
+import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
 
 const PERSON_MIN_W = 64; // スティックマンの最小の幅
 const DIAMOND_TEXT = 0.6; // ひし形の文字を折り返す幅の上限（サイズの最大の幅に対する割合。ひし形はその 2 倍の幅になる）
@@ -82,6 +83,13 @@ export function createNodeKinds(ctx: KindContext) {
       const w = specW || Math.max(z.minW, Math.ceil((tw + DIAMOND_PAD) * 2));
       n.hw = w;
       n.hh = Math.max(z.h, Math.ceil((measure(n, w)[1] + DIAMOND_PAD) * 2));
+      return;
+    }
+    if (shapeOf(n) === "class") {
+      // クラスの箱（docs/CLASS-plan.md）: 行は折り返さないので、幅は 1 行のまま測った幅（CLASS_MIN_W〜CLASS_MAX_W。越えた行は …）、
+      // 高さは行の数で決まる。サイズは使わない。幅の指定があればその幅
+      n.hw = specW || Math.max(CLASS_MIN_W, Math.min(CLASS_MAX_W, measure(n, null)[0]));
+      n.hh = classHeight(n.src);
       return;
     }
     if (isIconShape(shapeOf(n))) {

@@ -19,6 +19,8 @@ export type GraphEvent =
   | { kind: "added"; key: string }
   // 消したボックスを完全に削除した
   | { kind: "purged"; key: string; kids: number }
+  // 子を持つ箱をクラスにして、子孫を消した（消したものの一覧へ移した。docs/CLASS-plan.md）
+  | { kind: "classKids"; key: string; kids: number }
   // 子のサイズをそろえた
   | { kind: "aligned"; count: number; what: "width" | "height" | "both"; partial: boolean }
   // 読み込んだデータに、知らないテーマの名前があった（標準として描いている）
@@ -47,6 +49,8 @@ export function noticeOf(ev: GraphEvent): string {
       return t("「{key}」を戻しました", { key: ev.key });
     case "added":
       return t("「{key}」を追加しました", { key: ev.key });
+    case "classKids":
+      return t("「{key}」をクラスにして、子 {n} 個を消したものの一覧へ移しました", { key: ev.key, n: ev.kids });
     case "purged":
       return t("「{key}」を完全に削除しました", { key: ev.key }) + also([kids(ev.kids)]);
     case "pasted":

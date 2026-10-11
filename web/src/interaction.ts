@@ -6,6 +6,7 @@
 import type { EdgeDrag } from "./edge-drag";
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
+import { CLASS_HEAD, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
 import { type Box, type Edge, type World, absPos, inList, inNest, inTree, isInside, viewOf } from "./model";
 import type { Subtree } from "./pages";
@@ -35,7 +36,7 @@ export interface InteractionContext {
   mode(): Mode;
   select(n: Box | null): void;
   canLink(a: Box, b: Box): boolean; // a から b へ線を引けるか（同じ箱なら自分に戻る線）
-  link(a: Box, b: Box, at: [number, number] | undefined, from: [number, number]): boolean; // a から b へ線を引き、端を固定する。at は離した所（相手の子の上なら undefined）、from は引き始めた〇の辺の真ん中（ワールドの座標）
+  link(a: Box, b: Box, at: [number, number] | undefined, from: [number, number], members?: { from?: string; to?: string }): boolean; // a から b へ線を引き、端を固定する。at は離した所（相手の子の上なら undefined）、from は引き始めた〇の辺の真ん中（ワールドの座標）。members はクラスの箱の、つなぐ属性・操作の名前
   changed(): void;
   notifySelect(): void;
   reparent(id: string, parentId: string | null, at?: { x: number; y: number }): void;
@@ -170,7 +171,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       if (portBox && ctx.mode() === "move") {
         const from = portBox, side = port.dataset.side as Side;
         port.setPointerCapture?.(e.pointerId); // 〇は出したまま（捕まえた要素を隠すと、ポインタを見失う）
-        begin(linkGesture(from, side, port), e);
+        begin(linkGesture(from, side, port, port.dataset.member), e);
       }
       return;
     }
@@ -420,7 +421,11 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     container.appendChild(el);
     return el;
   });
+  // クラスの箱の属性・操作の行の左右に出す〇（docs/CLASS-plan.md）。要る数だけ作って使い回す
+  const memberPorts: HTMLElement[] = [];
+  const allPorts = () => [...ports, ...memberPorts];
   let portBox: Box | null = null;
+  const isClass = (n: Box) => n.head.classList.contains("mz-shape-class");
 
   // 〇を出す箱: 選択モードで、選んでいない箱。リストの子とツリーの子には出さない（線を引かない）
   const portable = (n: Box) => ctx.mode() === "move" && ctx.current() !== n && !inList(n) && !inTree(n);
@@ -430,13 +435,28 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     const [ax, ay] = absPos(n);
     const a = L.anchorRect(n);
     const x = ax + a.x, y = ay + a.y;
+    // クラスの箱の左右の接点は、クラス名の区画の真ん中
+    const cy = isClass(n) ? y + Math.min(CLASS_HEAD, a.h) / 2 : y + a.h / 2;
     switch (side) {
       case "t": return [x + a.w / 2, y - out];
-      case "r": return [x + a.w + out, y + a.h / 2];
+      case "r": return [x + a.w + out, cy];
       case "b": return [x + a.w / 2, y + a.h + out];
-      case "l": return [x - out, y + a.h / 2];
+      case "l": return [x - out, cy];
     }
   }
+
+  // クラスの箱 n の、属性・操作 member の行の side（左か右）の端（ワールドの座標）。out だけ外へずらす
+  function memberPoint(n: Box, member: string, side: Side, out = 0): [number, number] {
+    const [ax, ay] = absPos(n);
+    const a = L.anchorRect(n);
+    const y = ay + a.y + (memberY(n.src, member) ?? a.h / 2);
+    return side === "l" ? [ax + a.x - out, y] : [ax + a.x + a.w + out, y];
+  }
+
+  const toScreen = ([x, y]: [number, number]): [number, number] => {
+    const w = world.el.getBoundingClientRect();
+    return [w.left + x, w.top + y];
+  };
 
   // 箱 n の side の辺の〇の中心（画面の座標）
   function portPoint(n: Box, side: Side): [number, number] {
@@ -455,14 +475,34 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       el.style.left = x + "px";
       el.style.top = y + "px";
     });
+    // クラスの箱は、属性・操作の行ごとに左右の〇
+    const names = n && isClass(n) ? memberNames(n.src) : [];
+    while (memberPorts.length < names.length * 2) {
+      const el = document.createElement("div");
+      el.className = "mz-port mz-port-member";
+      el.hidden = true;
+      container.appendChild(el);
+      memberPorts.push(el);
+    }
+    memberPorts.forEach((el, i) => {
+      const name = names[i >> 1];
+      el.hidden = name == null;
+      if (name == null) return;
+      const side: Side = i % 2 ? "r" : "l";
+      el.dataset.side = side;
+      el.dataset.member = name;
+      const [x, y] = toScreen(memberPoint(n!, name, side, PORT_OUT));
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+    });
   }
   function hidePorts() { showPorts(null); }
 
   // 線のドラッグ。from の side の〇から、ポインタまで仮の線を引く。ポインタの下の箱から外へたどり、最初に引ける箱を相手にする
   // （引ける相手の子の上でも、その相手に引く）。引ける相手以外は薄くする。引いた線の端は、〇の辺の真ん中と離した所に固定する
   // （相手の子の上で離したら終点は自由。自分に戻る線なら、離した所に近い角）
-  function linkGesture(from: Box, side: Side, port: HTMLElement): Gesture {
-    const [sx, sy] = portPoint(from, side);
+  function linkGesture(from: Box, side: Side, port: HTMLElement, member?: string): Gesture {
+    const [sx, sy] = member != null ? toScreen(memberPoint(from, member, side, PORT_OUT)) : portPoint(from, side);
     const siblings = from.parent ? from.parent.children : world.children;
     const can = new Set(siblings.filter(o => ctx.canLink(from, o)));
     const overlay = document.createElementNS(SVGNS, "svg");
@@ -472,7 +512,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     line.setAttribute("x2", String(sx)); line.setAttribute("y2", String(sy));
     overlay.appendChild(line);
     container.appendChild(overlay);
-    for (const el of ports) el.hidden = el !== port;
+    for (const el of allPorts()) el.hidden = el !== port;
     port.classList.add("mz-port-on");
     unfocus();
     dimExcept(can);
@@ -484,6 +524,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       target = t;
       t?.el.classList.add("mz-link-target");
     };
+    let toMember: string | undefined; // 相手がクラスの箱で、属性・操作の行の上なら、その名前
     const targetAt = (x: number, y: number): Box | null => {
       for (const el of document.elementsFromPoint(x, y)) {
         if (!container.contains(el) || !el.closest(".mz-node")) continue;
@@ -491,6 +532,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         for (let b: Box | null = hit; b; b = b.parent) {
           if (!can.has(b)) continue;
           direct = b === hit;
+          toMember = direct && b !== from ? el.closest<HTMLElement>(".mz-class-row")?.dataset.member : undefined;
           return b;
         }
         return null;
@@ -502,7 +544,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       overlay.remove();
       port.classList.remove("mz-port-on");
       portBox = null;
-      for (const el of ports) el.hidden = true;
+      for (const el of allPorts()) el.hidden = true;
       unfocus();
     };
     return {
@@ -516,7 +558,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         const t = target; // 遊びの内で離したとき（動かしていない）は、相手が無いので引かない
         finish();
         // 相手の子の上で離したら、終点は自由にする（子を横切る位置に固定しないように）
-        if (t) ctx.link(from, t, direct ? worldAt(ev) : undefined, sidePoint(from, side));
+        const start = member != null ? memberPoint(from, member, side) : sidePoint(from, side);
+        if (t) ctx.link(from, t, direct ? worldAt(ev) : undefined, start, t === from ? undefined : { from: member, to: toMember });
       },
       cancel: finish,
     };
@@ -619,6 +662,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const b = boxOf(head);
       if (!b) continue;
       if (b.src.page === true) return undefined;
+      if (b.head.classList.contains("mz-shape-class")) return undefined; // クラスの箱は子を持てない（docs/CLASS-plan.md）
       return moving && isInside(b, moving) ? undefined : b;
     }
     return null;

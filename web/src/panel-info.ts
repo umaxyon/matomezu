@@ -2,7 +2,7 @@
 
 import { closeColorPicker, openColorPicker } from "./color-picker";
 import { EMPTY_CAPTION, esc, keyOf } from "./dom";
-import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
+import { classChangeWarning, openConfirmDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
@@ -141,19 +141,22 @@ function html(info: Info): string {
     parts.push(themeSection(info.theme, info.themeUsed, true, colorButton(info.paint, valued ? info.color : info.color ? "" : t("なし"),
       t("見本の色は、どのテーマでもそのテーマに合った色で描きます。好きな色（灰色も）を選ぶと、どのテーマでもその色で描きます")), info.themeUnknown));
 
-    if (info.canShape) {
-      // 形はセレクトボックス（形が増えても幅が変わらないように。2026-10-11 ユーザー）。本文があればボックス以外は選べない
+    if (info.canShape || info.canClass) {
+      // 形はセレクトボックス（形が増えても幅が変わらないように。2026-10-11 ユーザー）。本文があればボックス以外は選べない。
+      // 子を内包している箱は、ボックスとクラスだけ（クラスにすると子は消える。docs/CLASS-plan.md）
+      const off = (v: string) => (info.body && v !== "box") || (!info.canShape && v !== "box" && v !== "class");
       parts.push(`<div class="mzp-section"><h3>${t("形")}</h3>
         <select class="mzp-input" name="mzp-shape" aria-label="${t("形")}">${SHAPE_OPTIONS.map(([v, label]) =>
-          `<option value="${v}"${v === info.shape ? " selected" : ""}${info.body && v !== "box" ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
+          `<option value="${v}"${v === info.shape ? " selected" : ""}${off(v) ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
         ${info.body ? `<p class="mzp-hint">${t("本文があるので、ボックスのままです")}</p>` : ""}
+        ${info.shape === "class" ? `<p class="mzp-hint">${t("クラス名・属性・操作は、編集のダイアログで直せます")}</p>` : ""}
       </div>`);
     }
 
-    // 内包・リストの箱ではサイズを使わない（docs/SIZE-plan.md）。どれも選んでいない形で、押せなくする
+    // 内包・リストの箱ではサイズを使わない（docs/SIZE-plan.md）。どれも選んでいない形で、押せなくする。クラスの箱は出さない（幅は中身で決まる）
     const nesting = info.children.length > 0 && (info.childView === "nest" || info.childView === "list");
     const sizes: [string, string][] = [["L", "L"], ["M", "M"], ["S", "S"]];
-    parts.push(`<div class="mzp-section"><h3>${t("サイズ")}${helpIcon(SIZE_HELP)}</h3>
+    if (info.shape !== "class") parts.push(`<div class="mzp-section"><h3>${t("サイズ")}${helpIcon(SIZE_HELP)}</h3>
       ${segment("mzp-size", nesting ? "" : info.size, sizes, nesting ? new Map(sizes.map(([v]) => [v, BY_CHILDREN]))
         : info.body ? new Map([["S", t("本文があるので S にはできません（S は高さが決まっています）")]]) : undefined)}
       ${info.inList && !nesting ? `<p class="mzp-hint">${IN_LIST}</p>` : ""}
@@ -297,29 +300,39 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
   });
 
   pane.addEventListener("change", e => {
-    const t = e.target;
-    if (t instanceof HTMLSelectElement && t.name === "mzp-theme") {
-      return graph.update(info.kind === "world" ? null : info.id, { theme: t.value || null });
+    const el = e.target;
+    if (el instanceof HTMLSelectElement && el.name === "mzp-theme") {
+      return graph.update(info.kind === "world" ? null : info.id, { theme: el.value || null });
     }
-    if (t instanceof HTMLSelectElement && t.name === "mzp-shape" && info.kind === "box") return graph.update(info.id, { shape: t.value as Shape });
-    if (!(t instanceof HTMLInputElement)) return;
-    if (t.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: t.value as Dash });
-    if (t.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: t.value as Route });
-    if (t.name === "mzp-world-route") return graph.update(null, { route: t.value as Route });
+    if (el instanceof HTMLSelectElement && el.name === "mzp-shape" && info.kind !== "world" && info.kind !== "edge") {
+      const next = el.value as Shape;
+      if (next !== "class" && info.shape !== "class") return graph.update(info.id, { shape: next });
+      // クラスにかかわる変更は、子や abstract・属性・操作が消えることがあるので確かめる（docs/CLASS-plan.md）
+      const id = info.id;
+      const go = () => graph.updateClass(id, { shape: next });
+      const warn = classChangeWarning(info.shape, next, info.children.length, info.abstract || info.attrs.length > 0 || info.ops.length > 0);
+      if (!warn) return go();
+      el.value = info.shape; // 確かめてから変える（キャンセルなら元のまま）
+      return openConfirmDialog(t("形の変更"), warn, t("変更する"), go);
+    }
+    if (!(el instanceof HTMLInputElement)) return;
+    if (el.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: el.value as Dash });
+    if (el.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: el.value as Route });
+    if (el.name === "mzp-world-route") return graph.update(null, { route: el.value as Route });
     // 矢印は、始点と終点の 2 つの選択を合わせて 1 つの値にする
-    if (t.dataset.arrow && info.kind === "edge") {
+    if (el.dataset.arrow && info.kind === "edge") {
       const on = (side: string) => !!pane.querySelector<HTMLInputElement>(`[data-arrow="${side}"]`)?.checked;
       const start = on("start"), end = on("end");
       return graph.updateEdge(info.id, { arrow: start && end ? "both" : start ? "start" : end ? "end" : null });
     }
     // 文字入力は、打っていたときの箱・線へ書く（data-target）。別の箱をクリックしてフォーカスが外れると、選択が切り替わって
     // サイドバーを描き直したあとで確定（change）が届くため、今の info を宛先にすると別の箱に書いてしまう
-    const edit = t.dataset.edit;
-    if (edit === "title") return graph.update(null, { title: t.value });
-    if (t.dataset.field) return graph.update(info.id, { [t.dataset.field]: t.checked });
-    if (t.hasAttribute("data-one-line")) return graph.update(info.id, { overflow: t.checked ? "clip" : "wrap" });
-    if (t.name === "mzp-treedir") return graph.update(info.id, { treeDirection: t.value as TreeDirection });
-    if (t.name === "mzp-view") return graph.update(info.id, { childView: t.value as ChildView });
+    const edit = el.dataset.edit;
+    if (edit === "title") return graph.update(null, { title: el.value });
+    if (el.dataset.field) return graph.update(info.id, { [el.dataset.field]: el.checked });
+    if (el.hasAttribute("data-one-line")) return graph.update(info.id, { overflow: el.checked ? "clip" : "wrap" });
+    if (el.name === "mzp-treedir") return graph.update(info.id, { treeDirection: el.value as TreeDirection });
+    if (el.name === "mzp-view") return graph.update(info.id, { childView: el.value as ChildView });
   });
 
   show(info);

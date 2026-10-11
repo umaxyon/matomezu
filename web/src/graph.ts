@@ -64,6 +64,9 @@
  *   - 位置が無いボックスは自動で配置する。
  *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱の絵。キャプションは足元）/ "diamond"（ひし形）/ "server"（タワー型のサーバーの絵。キャプションは足元）。
  *     子を内包しているボックスは枠なので、形は使わない（ツリーや非表示で見せているときは使う）。
+ *     "class"（UML のクラス。docs/CLASS-plan.md）は、キャプションがクラス名で、abstract（true で抽象クラス）、
+ *     attrs（属性 [{ name, type?, access?, static? }]）、ops（操作 [{ name, params?, type?, access?, static?, abstract? }]）を持つ。
+ *     access は public / private / protected / package。クラスは子を持たない。線は fromMember / toMember（属性か操作の名前）で行につなげる。
  *   - size はボックスの大きさの段階:
  *       "L" … 幅は文字に合わせて 120〜400。越えると折り返す
  *       "M" … 既定。幅は文字に合わせて 120〜240。越えると折り返す
@@ -121,7 +124,8 @@ import {
   absPos, ancestors, arrowOf, dataSizeOf, inList, borderOf, dashOf, routeDefaultOf, routeOf, viaOf, captionOf, descendants, displayCaption, fillOf, inNest, inTree, isHidden, isNesting, other,
   bodyLinesOf, bodyWidthOf, bodyWrapW, canBody, overflowOf, setOrDelete, setSpec, isIconShape, shapeOf, sizeOf, treeDirOf, viewOf,
 } from "./model";
-import { type Pos, addBox, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
+import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
+import { attrsOf, opsOf } from "./classbox";
 import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import { type RouteFix, alignedEnds, isAligned, perimeterAt, route, vertexOf } from "./routing";
@@ -194,6 +198,9 @@ export interface Graph {
   info(id: Id | null): NodeInfo;
   edgeInfo(id: Id): EdgeInfo | null; // 線の情報（無ければ null）
   update(id: Id | null, patch: Patch): void;
+  // クラスの箱にかかわる変更（クラスにする・クラスを直す・クラスでなくする。docs/CLASS-plan.md）。子や線を消すことがあるので、
+  // 図を組み立て直して履歴に 1 件残す
+  updateClass(id: Id, edit: ClassEdit): void;
   toJSON(): Diagram;
   dragging(): boolean;
   setMode(mode: Mode): void;
@@ -621,13 +628,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // a から b へ線を引く（引けなければ何もせず false）。from（引き始めた〇の辺の真ん中）と at（離した所）はワールドの座標。
   // from があれば始点をそこに、at があれば終点を at に一番近いふちの点（ひし形は頂点）に固定する。
   // 同じ箱なら自分に戻る線で、at に一番近い角が空いていれば、端をその角に固定する（docs/EDGE-TOOL-plan.md）
-  function link(a: Box, b: Box, at?: [number, number], from?: [number, number]): boolean {
+  function link(a: Box, b: Box, at?: [number, number], from?: [number, number], members?: { from?: string; to?: string }): boolean {
     if (!canLink(a, b)) {
       blocked(b);
       return false;
     }
     // 画面で引いた線は、終点に矢印を付けておく（2026-10-11 ユーザー。外せるのはサイドバーと編集ダイアログ）
-    const e = addEdge({ id: newEdgeId(), from: a.src.id!, to: b.src.id!, arrow: "end" }, a, b);
+    const src: EdgeData = { id: newEdgeId(), from: a.src.id!, to: b.src.id!, arrow: "end" };
+    // クラスの箱の属性・操作につなぐ線は、行の左右の端（相手のいる側）に付くので、端の位置は書かない（docs/CLASS-plan.md）
+    if (a !== b && members?.from != null) { src.fromMember = members.from; from = undefined; }
+    if (a !== b && members?.to != null) { src.toMember = members.to; at = undefined; }
+    const e = addEdge(src, a, b);
     if (a !== b && (at || from)) {
       const input = R.routeInputOf(e);
       const onRim = (r: typeof input.a, p: [number, number], vertex: boolean) => {
@@ -690,6 +701,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function target(parentId: Id | null, what: string): Box | null {
     const dest = parentId == null ? null : (nodeOf(parentId) as Box);
     if (dest?.src.page === true) throw new Error(what);
+    if (dest && shapeOf(dest) === "class") throw new Error(t("クラスの箱は子を持てません"));
     return dest;
   }
 
@@ -981,7 +993,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const size = sizeOf(n);
     // 中身の扱いを選べるのは、文字を持つボックス（S 以外）だけ。子を持つ箱はつねに子に合わせて伸びる（docs/SIZE-plan.md）。
     // スティックマンは文字の置き方が決まっているので使わない
-    const usesOverflow = !n.children.length && size !== "S" && !isIconShape(shapeOf(n)) && !inList(n);
+    const usesOverflow = !n.children.length && size !== "S" && !isIconShape(shapeOf(n)) && shapeOf(n) !== "class" && !inList(n);
     const out: BoxInfo = {
       kind: n.children.length ? "group" : "box",
       id: n.id,
@@ -998,6 +1010,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       size: inList(n) ? dataSizeOf(n) : size,
       shape: shapeOf(n),
       canShape: !isNesting(n) && !inList(n) && n.src.page !== true,
+      canClass: !inList(n) && n.src.page !== true,
       body: typeof n.src.body === "string" ? n.src.body : "",
       canBody: canBody(n),
       bodyRule: n.src.bodyRule !== false,
@@ -1013,6 +1026,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       links: incident(n).map(e => ({ edgeId: e.id, ...brief(other(e, n)) })),
       overflow: overflowOf(n),
       overflows: usesOverflow ? ["wrap", "clip"] : [],
+      abstract: n.src.abstract === true,
+      attrs: attrsOf(n.src).map(a => ({ ...a })),
+      ops: opsOf(n.src).map(o => ({ ...o })),
     };
     return out;
   }
@@ -1036,6 +1052,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         k.intendedY = k.y;
       }
     }
+  }
+
+  function updateClass(id: Id, edit: ClassEdit) {
+    const n = nodeOf(id);
+    if (n.isWorld) throw new Error(t("ワールドはクラスにできません"));
+    let kids = 0;
+    rebuildWith(data => {
+      kids = applyClassEdit(data, n.id, edit).kids;
+      return { select: n.id };
+    });
+    if (kids) opt.onEvent?.({ kind: "classKids", key: keyOfBox(byId.get(n.id) ?? n), kids });
   }
 
   function update(id: Id | null, patch: Patch) {
@@ -1163,6 +1190,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const bodyEl = document.createElement("div");
     bodyEl.className = "mz-body";
     bodyEl.hidden = true;
+    const classEl = document.createElement("div");
+    classEl.className = "mz-class";
+    classEl.hidden = true;
     const gripEl = document.createElement("div");
     gripEl.className = "mz-body-grip";
     gripEl.title = t("ドラッグで本文の幅を変える（ダブルクリックで元に戻す）");
@@ -1172,7 +1202,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     widthGripEl.className = "mz-width-grip";
     widthGripEl.title = t("ドラッグでリストの幅を変える（ダブルクリックで元に戻す）");
     widthGripEl.hidden = true;
-    head.append(shapeSvg, textEl, bodyEl, gripEl, widthGripEl, moreEl);
+    head.append(shapeSvg, textEl, classEl, bodyEl, gripEl, widthGripEl, moreEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
     treeSvg.setAttribute("class", "mz-tree");
     const treePath = document.createElementNS(SVGNS, "path");
@@ -1200,7 +1230,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       capW: 0,
       listW: 0,
       bodyH: 0,
-      el, head, textEl, bodyEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
+      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
     };
     boxOfEl.set(el, n);
     return n;
@@ -1392,6 +1422,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     info: id => info(id == null ? null : nodeOf(id)),
     update,
+    updateClass,
     // 現在の状態を返す（元データにある他の項目はそのまま残す）
     toJSON() {
       const out: Diagram = JSON.parse(JSON.stringify(source));

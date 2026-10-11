@@ -4,7 +4,8 @@
 
 import { t } from "./i18n";
 import { subtreeIds } from "./pages";
-import type { BoxData, Diagram, EdgeData, Id } from "./types";
+import { type ClassAttr, type ClassOp, cleanMembers, memberNames } from "./classbox";
+import type { BoxData, Diagram, EdgeData, Id, Shape } from "./types";
 import { normalizeEdge } from "./validate";
 
 // 置く位置（親の左上から）。null は位置を消して自動で並べる
@@ -139,4 +140,73 @@ export function purgeRemoved(data: Diagram, id: Id): number {
 export function canPurge(removed: BoxData[], id: Id): boolean {
   const take = subtreeIds(removed, id);
   return removed.filter(s => take.has(String(s.id))).every(s => s.userAdded === true);
+}
+
+// クラスの箱にかかわる変更（docs/CLASS-plan.md）。形・キャプション・テーマと、クラスなら abstract・属性・操作。
+// renamed は名前を変えた属性・操作（前の名前 → 新しい名前）。線の fromMember / toMember も書き換える
+export interface ClassEdit {
+  shape: Shape;
+  caption?: string;
+  theme?: string | null;
+  abstract?: boolean;
+  attrs?: ClassAttr[];
+  ops?: ClassOp[];
+  renamed?: Record<string, string>;
+}
+
+// id の箱に e を当てる。クラスにするとき子があれば、子孫ごと消す（removed へ移す）。クラスでなくするときは abstract・属性・操作と、
+// 線の fromMember / toMember を捨てる。クラスのまま行を消したら、その行につながっていた線も消す。
+// 消した子の数と、消した線の数を返す
+export function applyClassEdit(data: Diagram, id: Id, e: ClassEdit): { kids: number; cut: number } {
+  const s = data.nodes.find(x => String(x.id) === String(id));
+  if (!s) throw new Error(t("ボックスがありません: {id}", { id }));
+  let kids = 0, cut = 0;
+  const isClass = e.shape === "class";
+  if (isClass) {
+    for (const c of data.nodes.filter(x => key(x.parent) === String(id))) {
+      const r = removeSubtree(data, c.id!);
+      kids += r.ids.size;
+      cut += r.cut;
+    }
+    // クラスの箱は本文と子の見せ方を持たない。幅は中身で決まる
+    for (const k of ["body", "bodyWidth", "bodyLines", "bodyRule", "childView", "treeDirection", "overflow", "width", "height"]) delete s[k];
+  }
+  if (e.shape === "box") delete s.shape; else s.shape = e.shape;
+  if (e.caption != null) {
+    if (e.caption.trim()) s.caption = e.caption.trim(); else delete s.caption;
+  }
+  if (e.theme !== undefined) {
+    if (e.theme) s.theme = e.theme; else delete s.theme;
+  }
+  if (isClass) {
+    // 渡さなかった項目は今のまま
+    if (e.abstract !== undefined) {
+      if (e.abstract) s.abstract = true; else delete s.abstract;
+    }
+    for (const k of ["attrs", "ops"] as const) {
+      if (e[k] === undefined) continue;
+      const list = cleanMembers<ClassAttr | ClassOp>(e[k]!);
+      if (list.length) s[k] = list; else delete s[k];
+    }
+  } else {
+    delete s.abstract;
+    delete s.attrs;
+    delete s.ops;
+  }
+  // 線の端の属性・操作。名前を変えたものは書き換え、無くなったものにつながる線は消す（クラスでなくしたなら、クラスそのものにつなぐ）
+  const names = new Set(isClass ? memberNames(s) : []);
+  const before = (data.edges ?? []).length;
+  data.edges = (data.edges ?? []).flatMap(raw => {
+    const x = normalizeEdge(raw);
+    for (const [end, k] of [[x.from, "fromMember"], [x.to, "toMember"]] as const) {
+      if (String(end) !== String(id) || x[k] == null) continue;
+      if (!isClass) { delete x[k]; continue; }
+      const name = e.renamed?.[x[k]!] ?? x[k]!;
+      if (!names.has(name)) return [];
+      x[k] = name;
+    }
+    return [Array.isArray(raw) ? raw : x];
+  });
+  cut += before - data.edges.length;
+  return { kids, cut };
 }

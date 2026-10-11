@@ -134,7 +134,9 @@ test("形と子の見せ方、ツリーのときだけ向きを選べる", () =>
   expect(box(g, 3).shape).toBe("db");
 
   g.select(1);
-  expect($('select[name="mzp-shape"]')).toBeNull(); // 内包しているグループは形を選べない
+  // 内包しているグループは、ボックスとクラスだけ選べる（クラスにすると子は消える。docs/CLASS-plan.md）
+  const open = [...($('select[name="mzp-shape"]') as HTMLSelectElement).options].filter(o => !o.disabled).map(o => o.value);
+  expect(open).toEqual(["box", "class"]);
   expect($('input[name="mzp-treedir"]')).toBeNull();
   change('input[name="mzp-view"][value="tree"]', true);
   expect(box(g, 1).childView).toBe("tree");

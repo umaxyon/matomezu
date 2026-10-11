@@ -190,6 +190,18 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-leaf.mz-size-S.mz-shape-page { padding-top: 8px; }
 .mz-shape-page > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .mz-shape-page > .mz-text { position: relative; }
+/* クラスの箱（docs/CLASS-plan.md）。高さは classbox.ts の CLASS_HEAD・CLASS_ROW・CLASS_PAD と合わせる。文字は小さめで折り返さない */
+.mz-class[hidden] { display: none; }
+.mz-leaf.mz-shape-class { display: block; padding: 0; text-align: left; font-size: 11px; font-weight: 400; line-height: 16px; }
+.mz-shape-class > .mz-text {
+  height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; font-weight: 700; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mz-class-abstract > .mz-text { font-style: italic; }
+.mz-class-sec { border-top: 1px solid color-mix(in srgb, currentColor 35%, transparent); padding: 3px 0; }
+.mz-class-row { height: 16px; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mz-class-row.mz-static { text-decoration: underline; }
+.mz-class-row.mz-abstract { font-style: italic; }
 /* 付け替えのドラッグ */
 .mz-mode-reparent .mz-head { cursor: alias; }
 .mz-mode-remove .mz-head { cursor: pointer; }

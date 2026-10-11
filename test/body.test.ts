@@ -70,7 +70,7 @@ test("S サイズ・ほかの形・切り詰める箱では本文を出さない
   g.select(3);
   const disabled = (name: string) => [...side.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)].filter(i => i.disabled).map(i => i.value);
   const shapes = [...side.querySelectorAll<HTMLOptionElement>('select[name="mzp-shape"] option')].filter(o => o.disabled).map(o => o.value);
-  expect(shapes).toEqual(["person", "db", "diamond", "server"]);
+  expect(shapes).toEqual(["person", "db", "diamond", "server", "class"]);
   expect(disabled("mzp-size")).toEqual(["S"]);
 });
 

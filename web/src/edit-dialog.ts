@@ -11,6 +11,7 @@
  *   openDialog(title, okLabel, fields, commit); // ほかの画面（設定など）から、同じ形のダイアログを出す
  */
 
+import { ACCESSES, ACCESS_MARK, type ClassAttr, type ClassOp, cleanMembers } from "./classbox";
 import { esc, injectStyle } from "./dom";
 import { helpIcon, setupHelp } from "./help";
 import { t } from "./i18n";
@@ -102,11 +103,34 @@ select.mz-dlg-input { width: auto; }
   .mz-dlg-side { width: auto; padding: 0 0 4px; margin: 0 0 16px; border-right: 0; border-bottom: 1px solid var(--dlg-line); }
 }
 .mz-dlg-lines .mz-help { margin-left: -2px; }
+/* クラスの入力（docs/CLASS-plan.md）。属性・操作の行の一覧は高さを決めてスクロールし（行を足してもダイアログは伸びない）、下に追加のボタン */
+.mz-dlg.mz-dlg-wide.mz-dlg-class { width: min(820px, 100%); }
+.mz-dlg-mhead { margin: 10px 0 4px; font-weight: 600; }
+.mz-dlg-members { height: 124px; box-sizing: border-box; overflow-y: auto; border: 1px solid var(--dlg-line); border-radius: 6px; padding: 4px; }
+.mz-dlg-members:empty::before { content: attr(data-empty); display: block; padding: 4px 6px; color: var(--dlg-muted); font-size: 12px; }
+.mz-dlg-mrow { display: flex; align-items: center; gap: 4px; padding: 2px 0; font-size: 12px; }
+.mz-dlg-mrow .mz-dlg-input { padding: 3px 6px; font-size: 12px; min-width: 0; }
+.mz-dlg-mrow select.mz-dlg-input { flex: none; width: 92px; }
+.mz-dlg-mrow [name="m-name"] { flex: 3; }
+.mz-dlg-mrow [name="m-params"] { flex: 3; }
+.mz-dlg-mrow [name="m-type"] { flex: 2; }
+.mz-dlg-mflag { display: flex; align-items: center; gap: 2px; flex: none; color: var(--dlg-muted); }
+.mz-dlg-mdel { flex: none; width: 24px; height: 24px; padding: 0; font: inherit; line-height: 1; color: var(--dlg-muted); background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
+.mz-dlg-mdel:hover { color: #f87171; background: var(--dlg-control); }
+.mz-dlg-add { margin-top: 4px; padding: 3px 10px; font-size: 12px; }
+.mz-dlg-error { margin: 8px 0 0; color: #f87171; font-size: 12px; }
+.mz-dlg-error[hidden], [data-pane][hidden] { display: none; }
+/* ダイアログの上に重ねる確認（形を変えると情報が消えるとき） */
+.mz-dlg-subwrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.3); padding: 16px; }
+.mz-dlg.mz-dlg-sub { width: min(420px, 100%); }
 `;
 
 let open: { overlay: HTMLElement; back: Element | null; unhelp: () => void } | null = null;
+// ダイアログの上に重ねた確認（confirmInside）。開いているあいだ、Esc はこれを閉じる
+let sub: { cancel: () => void; box: HTMLElement } | null = null;
 
 export function closeEditDialog(): void {
+  sub = null;
   if (!open) return;
   const { overlay, back, unhelp } = open;
   open = null;
@@ -123,11 +147,63 @@ const LINE_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 interface BoxValues {
   caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean;
   shape: Shape; size: Size; theme: string; bodyAllowed: boolean;
+  // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
+  abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
 }
-type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "overflow"> & {
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
   sizeFixed: boolean; // 内包・リストの箱（大きさは子の並びで決まり、サイズを使わない）
+  kids: number;       // 子の数（クラスにすると消える）
 };
+
+// 形を変えると消える情報があれば、その知らせ（無ければ null）。クラスにすると子が消え、クラスでなくすると abstract・属性・操作が消える
+export function classChangeWarning(from: Shape, to: Shape, kids: number, hasClassData: boolean): string | null {
+  if (to === "class" && from !== "class" && kids > 0) return t("クラスの箱は子を持てません。子 {n} 個（その子孫も）は、消したものの一覧へ移ります", { n: kids });
+  if (from === "class" && to !== "class" && hasClassData) return t("クラス名以外の情報（abstract・属性・操作）は捨てられます");
+  return null;
+}
+
+// 属性・操作の 1 行の入力
+function memberRow(kind: "attrs" | "ops", m: Partial<ClassOp>): string {
+  const access = `<select class="mz-dlg-input" name="m-access" aria-label="${t("アクセス修飾子")}">
+      <option value="">${t("なし")}</option>${ACCESSES.map(a => `<option value="${a}"${a === m.access ? " selected" : ""}>${ACCESS_MARK[a]} ${a}</option>`).join("")}</select>`;
+  const flag = (name: string, label: string, on?: boolean) =>
+    `<label class="mz-dlg-mflag"><input type="checkbox" name="m-${name}"${on ? " checked" : ""}>${label}</label>`;
+  const input = (name: string, value: string | undefined, placeholder: string) =>
+    `<input class="mz-dlg-input" type="text" name="m-${name}" value="${esc(value ?? "")}" placeholder="${placeholder}" aria-label="${placeholder}">`;
+  return `<div class="mz-dlg-mrow"${m.name ? ` data-orig="${esc(m.name)}"` : ""}>${access}${input("name", m.name, t("名前"))}${
+    kind === "ops" ? input("params", m.params, t("引数")) : ""}${input("type", m.type, kind === "ops" ? t("戻り値") : t("型"))}${
+    flag("static", "static", m.static)}${kind === "ops" ? flag("abstract", "abstract", m.abstract) : ""}
+    <button type="button" class="mz-dlg-mdel" data-del title="${t("行を消す")}" aria-label="${t("行を消す")}">×</button></div>`;
+}
+
+// ダイアログ overlay の上に確認を重ねる。okLabel（赤）で true、キャンセルか Esc で false
+function confirmInside(overlay: HTMLElement, message: string, okLabel: string): Promise<boolean> {
+  return new Promise(resolve => {
+    const box = document.createElement("div");
+    box.className = "mz-dlg-subwrap";
+    box.innerHTML = `<div class="mz-dlg mz-dlg-sub" role="alertdialog" aria-modal="true">
+        <p class="mz-dlg-message">${esc(message)}</p>
+        <div class="mz-dlg-foot"><span class="mz-dlg-hint"></span>
+          <button type="button" class="mz-dlg-btn" data-sub-cancel>${t("キャンセル")}</button>
+          <button type="button" class="mz-dlg-btn mz-dlg-ok mz-dlg-danger" data-sub-ok>${esc(okLabel)}</button></div></div>`;
+    const done = (v: boolean) => {
+      if (sub?.box !== box) return;
+      sub = null;
+      box.remove();
+      resolve(v);
+    };
+    sub = { box, cancel: () => done(false) };
+    box.addEventListener("click", e => {
+      e.stopPropagation();
+      const el = e.target instanceof Element ? e.target : null;
+      if (el?.closest("[data-sub-ok]")) done(true);
+      else if (el?.closest("[data-sub-cancel]")) done(false);
+    });
+    overlay.appendChild(box);
+    box.querySelector<HTMLElement>("[data-sub-ok]")!.focus();
+  });
+}
 
 function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void) {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
@@ -135,14 +211,17 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const bodyBase = b.overflow !== "clip" && (b.canBody || b.shape !== "box" || b.size === "S");
   const off = b.canBody ? "" : " disabled";
   const sizes: Size[] = ["L", "M", "S"];
+  // 選べない形（子を内包している箱は、ボックスとクラスだけ）
+  const shapeOff = new Set(b.canShape ? [] : SHAPE_OPTIONS.map(([v]) => v).filter(v => !(b.canClass && (v === "box" || v === "class"))));
   const side = `<div class="mz-dlg-side">
       <div class="mz-dlg-group"><h3>${t("形")}</h3>
-        <select class="mz-dlg-input" name="shape" aria-label="${t("形")}"${b.canShape ? "" : " disabled"}>${SHAPE_OPTIONS.map(([v, label]) =>
-          `<option value="${v}"${v === b.shape ? " selected" : ""}>${esc(label)}</option>`).join("")}</select>
-        ${b.canShape ? "" : `<p class="mz-dlg-note">${t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
+        <select class="mz-dlg-input" name="shape" aria-label="${t("形")}"${b.canShape || b.canClass ? "" : " disabled"}>${SHAPE_OPTIONS.map(([v, label]) =>
+          `<option value="${v}"${v === b.shape ? " selected" : ""}${shapeOff.has(v) ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
+        ${b.canShape ? "" : `<p class="mz-dlg-note">${b.canClass ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
       <div class="mz-dlg-group"><h3>${t("サイズ")}</h3>
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
-        ${b.sizeFixed ? `<p class="mz-dlg-note">${t("内包・リストの箱の大きさは、子の並びで決まります")}</p>` : ""}</div>
+        ${b.sizeFixed ? `<p class="mz-dlg-note">${t("内包・リストの箱の大きさは、子の並びで決まります")}</p>` : ""}
+        <p class="mz-dlg-note" data-class-size hidden>${t("クラスの箱の幅は、中身に合わせて決まります")}</p></div>
       <div class="mz-dlg-group"><h3>${t("テーマ")}</h3>
         <select class="mz-dlg-input" name="theme" aria-label="${t("テーマ")}">
           <option value=""${b.theme ? "" : " selected"}>${t("受け継ぐ")}</option>
@@ -154,8 +233,19 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   // 「箱の幅に合わせる」は、つまみで本文の幅を変えていれば押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
   // 子の無い箱では箱の幅が中身（キャプションと本文）に合わせて決まり直す
   const overlay = show(title, okLabel, `<div class="mz-dlg-split">${side}<div class="mz-dlg-main">
-      <label class="mz-dlg-field"><span>${t("キャプション")}</span>
+      <label class="mz-dlg-field"><span data-caption-label>${t("キャプション")}</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="${t("なし（空の箱）")}"></label>
+      <div data-pane="class" hidden>
+        <label class="mz-dlg-check"><input type="checkbox" name="abstract"${b.abstract ? " checked" : ""}>abstract</label>
+        <div class="mz-dlg-mhead">${t("属性")}</div>
+        <div class="mz-dlg-members" data-list="attrs" data-empty="${t("なし")}">${b.attrs.map(a => memberRow("attrs", a)).join("")}</div>
+        <button type="button" class="mz-dlg-btn mz-dlg-add" data-add="attrs">${t("＋ 属性を追加")}</button>
+        <div class="mz-dlg-mhead">${t("操作")}</div>
+        <div class="mz-dlg-members" data-list="ops" data-empty="${t("なし")}">${b.ops.map(o => memberRow("ops", o)).join("")}</div>
+        <button type="button" class="mz-dlg-btn mz-dlg-add" data-add="ops">${t("＋ 操作を追加")}</button>
+        <p class="mz-dlg-error" data-member-error hidden></p>
+      </div>
+      <div data-pane="box">
       <div class="mz-dlg-row"><span>${t("区切り線")}</span>
         <button type="button" class="mz-dlg-switch" role="switch" name="rule" aria-checked="false" aria-label="${t("区切り線")}" disabled></button>
         <span class="mz-dlg-onoff">OFF</span></div>
@@ -170,6 +260,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
             <option value=""${b.bodyLines ? "" : " selected"}>${t("制限なし")}</option>
             ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${t("{n} 行", { n: v })}</option>`).join("")}
           </select></label></div>
+      </div>
     </div></div>`,
   overlay => {
     const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
@@ -185,7 +276,17 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       rule: field("rule").getAttribute("aria-checked") === "true",
       lines: linesValue ? Number(linesValue) : null,
       widthAuto: !!field<HTMLInputElement>("width-auto").value,
+      ...classValues(),
     });
+  }, "", () => {
+    // 属性・操作の名前は重ねられない（線は名前でつなぐため）
+    if (shapeField.value !== "class") return true;
+    const names = [...overlay.querySelectorAll<HTMLInputElement>('[name="m-name"]')].map(i => i.value.trim()).filter(Boolean);
+    const dup = names.find((n, i) => names.indexOf(n) !== i);
+    const err = overlay.querySelector<HTMLElement>("[data-member-error]")!;
+    err.hidden = !dup;
+    if (dup) err.textContent = t("属性・操作の名前が重なっています: {name}", { name: dup });
+    return !dup;
   });
   overlay.querySelector(".mz-dlg")!.classList.add("mz-dlg-wide");
   const ruleSwitch = overlay.querySelector<HTMLButtonElement>('[name="rule"]')!;
@@ -213,11 +314,71 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     for (const el of overlay.querySelectorAll<HTMLTextAreaElement | HTMLSelectElement>('[name="body"], [name="lines"]')) el.disabled = !allowed;
     overlay.querySelector<HTMLElement>("[data-body-note]")!.hidden = allowed;
     const has = allowed && bodyField.value !== "";
-    for (const o of shapeField.options) o.disabled = has && o.value !== "box";
-    if (!b.sizeFixed) sizeS.disabled = has;
+    for (const o of shapeField.options) o.disabled = shapeOff.has(o.value) || (has && o.value !== "box");
+    const cls = shapeField.value === "class";
+    // クラスの箱はサイズを使わない（幅は中身で決まる）
+    for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.disabled = b.sizeFixed || cls || (r === sizeS && has);
+    overlay.querySelector<HTMLElement>("[data-class-size]")!.hidden = !cls;
     syncRule(false);
   };
-  shapeField.addEventListener("change", syncBody);
+  // 形でクラスを選ぶと、右側をクラスの入力に切り替える（キャプションはクラス名）
+  const syncPane = () => {
+    const cls = shapeField.value === "class";
+    overlay.querySelector<HTMLElement>('[data-pane="class"]')!.hidden = !cls;
+    overlay.querySelector<HTMLElement>('[data-pane="box"]')!.hidden = cls;
+    overlay.querySelector(".mz-dlg")!.classList.toggle("mz-dlg-class", cls);
+    overlay.querySelector("[data-caption-label]")!.textContent = cls ? t("クラス名") : t("キャプション");
+  };
+  const rowsOf = (kind: "attrs" | "ops") => [...overlay.querySelectorAll<HTMLElement>(`[data-list="${kind}"] > .mz-dlg-mrow`)];
+  const hasClassData = () => overlay.querySelector<HTMLInputElement>('[name="abstract"]')!.checked
+    || [...rowsOf("attrs"), ...rowsOf("ops")].some(r => r.querySelector<HTMLInputElement>('[name="m-name"]')!.value.trim());
+  // 確定したときのクラスの値
+  function classValues(): Pick<BoxValues, "abstract" | "attrs" | "ops" | "renamed"> {
+    const renamed: Record<string, string> = {};
+    const read = (kind: "attrs" | "ops") => rowsOf(kind).map(r => {
+      const v = (name: string) => r.querySelector<HTMLInputElement>(`[name="m-${name}"]`)?.value ?? "";
+      const on = (name: string) => !!r.querySelector<HTMLInputElement>(`[name="m-${name}"]`)?.checked;
+      const m: ClassOp = { name: v("name").trim(), access: (v("access") || undefined) as ClassOp["access"], type: v("type"), static: on("static") };
+      if (kind === "ops") { m.params = v("params"); m.abstract = on("abstract"); }
+      const orig = r.dataset.orig;
+      if (orig && m.name && orig !== m.name) renamed[orig] = m.name;
+      return m;
+    });
+    return { abstract: overlay.querySelector<HTMLInputElement>('[name="abstract"]')!.checked, attrs: cleanMembers(read("attrs")), ops: cleanMembers(read("ops")), renamed };
+  }
+  let shapeNow = shapeField.value;
+  shapeField.addEventListener("change", async () => {
+    const next = shapeField.value;
+    const warn = classChangeWarning(shapeNow as Shape, next as Shape, b.kids, hasClassData());
+    if (warn && !(await confirmInside(overlay, warn, t("変更する")))) {
+      shapeField.value = shapeNow;
+      shapeField.focus();
+      return;
+    }
+    // クラスでなくしたら、クラス名以外を捨てる（戻しても空から）
+    if (shapeNow === "class" && next !== "class") {
+      for (const r of [...rowsOf("attrs"), ...rowsOf("ops")]) r.remove();
+      overlay.querySelector<HTMLInputElement>('[name="abstract"]')!.checked = false;
+    }
+    shapeNow = next;
+    syncPane();
+    syncBody();
+  });
+  overlay.addEventListener("click", e => {
+    const el = e.target instanceof Element ? e.target : null;
+    const add = el?.closest<HTMLElement>("[data-add]");
+    if (add) {
+      const kind = add.dataset.add as "attrs" | "ops";
+      const list = overlay.querySelector<HTMLElement>(`[data-list="${kind}"]`)!;
+      list.insertAdjacentHTML("beforeend", memberRow(kind, {}));
+      const input = list.lastElementChild!.querySelector<HTMLInputElement>('[name="m-name"]')!;
+      input.scrollIntoView({ block: "nearest" });
+      input.focus();
+      return;
+    }
+    if (el?.closest("[data-del]")) el.closest(".mz-dlg-mrow")!.remove();
+  });
+  syncPane();
   for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.addEventListener("change", syncBody);
   bodyField.addEventListener("input", syncBody);
   syncBody();
@@ -235,8 +396,16 @@ export function openEditDialog(graph: Graph, id: string): void {
   if (info.kind === "world") return;
   const b = info as BoxInfo;
   const sizeFixed = b.children.length > 0 && (b.childView === "nest" || b.childView === "list");
-  const start: BoxStart = { ...b, theme: b.theme ?? "", sizeFixed };
+  const start: BoxStart = { ...b, theme: b.theme ?? "", sizeFixed, kids: b.children.length };
   boxDialog(t("ボックスの編集"), t("確定"), start, v => {
+    // クラスにかかわる変更は、子や線を消すことがあるので別の入口（docs/CLASS-plan.md）
+    if (v.shape === "class" || b.shape === "class") {
+      graph.updateClass(id, {
+        shape: v.shape, caption: v.caption, theme: v.theme || null,
+        ...(v.shape === "class" ? { abstract: v.abstract, attrs: v.attrs, ops: v.ops, renamed: v.renamed } : {}),
+      });
+      return;
+    }
     const patch: Patch = {};
     if (v.caption !== b.caption) patch.caption = v.caption;
     if (b.canShape && v.shape !== b.shape) patch.shape = v.shape;
@@ -255,16 +424,21 @@ export function openEditDialog(graph: Graph, id: string): void {
 export function openAddDialog(graph: Graph, req: AddRequest): void {
   const start: BoxStart = {
     caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
-    shape: "box", size: "M", canShape: true, overflow: "wrap", theme: "", sizeFixed: false,
+    shape: "box", size: "M", canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
+    abstract: false, attrs: [], ops: [], kids: 0,
   };
   boxDialog(t("ボックスの追加"), t("追加"), start, v => {
     const fields: Partial<BoxData> = {};
     if (v.caption) fields.caption = v.caption;
     // 既定（ボックス・M・受け継ぐ）は書かない
     if (v.shape !== "box") fields.shape = v.shape;
-    if (v.size !== "M") fields.size = v.size;
+    if (v.shape === "class") {
+      if (v.abstract) fields.abstract = true;
+      if (v.attrs.length) fields.attrs = v.attrs;
+      if (v.ops.length) fields.ops = v.ops;
+    } else if (v.size !== "M") fields.size = v.size;
     if (v.theme) fields.theme = v.theme;
-    if (v.body) fields.body = v.body;
+    if (v.bodyAllowed && v.body) fields.body = v.body;
     if (v.body && !v.rule) fields.bodyRule = false;
     if (v.lines) fields.bodyLines = v.lines;
     graph.add(req, fields);
@@ -323,7 +497,8 @@ export function openDialog(title: string, okLabel: string, fields: string, commi
   return show(title, okLabel, fields, commit, lead);
 }
 
-function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = ""): HTMLElement {
+// check は確定の前に呼ぶ（false なら閉じずに待つ。入力の誤りを示すのは check の側）
+function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = "", check?: () => boolean): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
   const overlay = document.createElement("div");
@@ -340,7 +515,11 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
       </div>
     </div>`;
   const caption = overlay.querySelector<HTMLInputElement>('[name="caption"]');
-  const ok = () => { closeEditDialog(); commit(overlay); };
+  const ok = () => {
+    if (check && !check()) return;
+    closeEditDialog();
+    commit(overlay);
+  };
 
   overlay.addEventListener("click", e => {
     const t = e.target instanceof Element ? e.target : null;
@@ -350,6 +529,17 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
   // キー操作はダイアログの中で止める（図の Undo や Esc の操作に届かないように）
   overlay.addEventListener("keydown", e => {
     e.stopPropagation();
+    // 重ねた確認が開いているあいだは、その中だけで操作する（Esc で確認だけ閉じる）
+    if (sub) {
+      if (e.key === "Escape") { e.preventDefault(); sub.cancel(); }
+      if (e.key === "Tab") {
+        const items = [...sub.box.querySelectorAll<HTMLElement>("button")];
+        const i = items.indexOf(document.activeElement as HTMLElement);
+        e.preventDefault();
+        items[(i + (e.shiftKey ? items.length - 1 : 1)) % items.length]?.focus();
+      }
+      return;
+    }
     if (e.key === "Escape") { e.preventDefault(); closeEditDialog(); return; }
     if (e.key === "Tab") {
       // Tab で後ろの要素へ移らないよう、ダイアログの中を巡らせる

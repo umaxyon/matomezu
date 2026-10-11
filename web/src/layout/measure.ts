@@ -50,7 +50,9 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
     measure(n, width, captionOnly = false) {
       const t = n.textEl, b = n.bodyEl;
       const body = b && !b.hidden && !captionOnly ? `${b.dataset.lines ?? ""}|${b.textContent}` : "";
-      const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}|${body}`;
+      const c = n.classEl;
+      const members = c && !c.hidden ? c.textContent : ""; // クラスの箱の属性と操作の行
+      const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}|${body}|${members}`;
       const hit = cache.get(key);
       if (hit) return hit;
       layoutStats.measures++;

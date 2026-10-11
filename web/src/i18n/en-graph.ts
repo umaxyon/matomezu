@@ -24,4 +24,7 @@ export default {
   "ドラッグでリストの幅を変える（ダブルクリックで元に戻す）": "Drag to change the list width (double-click to reset)",
   "ページの箱ではありません: {id}": "Not a page box: {id}",
   "子 {n} 件": "{n} child(ren)",
+  // クラスの箱（docs/CLASS-plan.md）
+  "クラスの箱は子を持てません": "A class box can't have children",
+  "ワールドはクラスにできません": "The diagram can't be a class",
 } satisfies Record<string, string>;

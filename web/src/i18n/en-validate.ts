@@ -49,4 +49,17 @@ export default {
   "dash の値が不正です: {from} - {to} ({value})": "invalid dash: {from} - {to} ({value})",
   "階層の違うボックス同士の線があります: {from} - {to}": "line between boxes in different groups: {from} - {to}",
   "線の id が重複しています: {id}": "duplicate line id: {id}",
+  // クラスの箱（docs/CLASS-plan.md）
+  "クラス": "Class",
+  "クラスの箱は子を持てません: {id} → {parent}": "a class box can't have children: {id} → {parent}",
+  "{key} は属性か操作の名前にしてください: {from} - {to}": "{key} must be an attribute or operation name: {from} - {to}",
+  "{key} はクラスの箱の端にだけ書けます: {from} - {to}": "{key} is only allowed on an end that is a class box: {from} - {to}",
+  "{key} の属性・操作がありません: {from} - {to} ({value})": "{key} names no attribute or operation: {from} - {to} ({value})",
+  "abstract は true か false にしてください: {id}": "abstract must be true or false: {id}",
+  "{key} は配列にしてください: {id}": "{key} must be an array: {id}",
+  "{key} に名前の無い行があります: {id}": "{key} has a row without a name: {id}",
+  "access の値が不正です: {id} の {name} ({value})": "invalid access: {name} of {id} ({value})",
+  "{field} は true か false にしてください: {id} の {name}": "{field} must be true or false: {name} of {id}",
+  "{field} は文字列にしてください: {id} の {name}": "{field} must be a string: {name} of {id}",
+  "属性・操作の名前が重なっています: {id} の {name}": "duplicate attribute or operation name: {name} of {id}",
 } satisfies Record<string, string>;

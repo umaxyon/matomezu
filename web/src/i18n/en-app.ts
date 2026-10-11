@@ -85,4 +85,6 @@ export default {
   "子 {n} 個の高さをそろえました": "Matched the height of {n} child(ren)",
   "子 {n} 個の幅と高さをそろえました": "Matched the width and height of {n} child(ren)",
   "（中身の都合で狭められない子があります）": " (some children cannot shrink because of their content)",
+  // クラスの箱（docs/CLASS-plan.md）
+  "「{key}」をクラスにして、子 {n} 個を消したものの一覧へ移しました": "Made \"{key}\" a class and moved {n} children to the removed list",
 } satisfies Record<string, string>;

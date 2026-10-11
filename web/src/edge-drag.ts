@@ -1,8 +1,9 @@
 // 線のドラッグの中身: 折れ線の途中の区間、線の端、線のキャプションの札（docs/REFACTOR-2.md）。
 // どれも線のデータ（e.src）を書き換えて、edited で描き直してもらう。ドラッグの状態（いつ始めて終えるか）は interaction.ts
 
+import { classAnchors, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
-import { type Box, type Edge, absPos } from "./model";
+import { type Box, type Edge, absPos, shapeOf } from "./model";
 import { type Pt, leftNormalAt, nearestAt, pointAt } from "./geom";
 import { CAPTION_OFFSET_MAX } from "./render";
 import { type RouteInput, fixedAts, perimeterAt, simplifyVia, vertexOf } from "./routing";
@@ -106,6 +107,25 @@ export function createEdgeDrag(ctx: EdgeDragContext) {
         return;
       }
       const input = ctx.routeInput(e);
+      const own = end === "exit" ? e.a : e.b;
+      if (shapeOf(own) === "class") {
+        // クラスの箱: ポインタに一番近い接点へつなぎ替える（docs/CLASS-plan.md）。行の左右ならその属性・操作に、クラス名の区画の左右と
+        // 上下の辺の真ん中ならクラスそのものにつなぐ。端の位置も書き、左右を覚える（行の線は、書いた位置に近い側に付く）
+        const box = end === "exit" ? input.a : input.b;
+        const spots: { p: Pt; member?: string }[] = Object.values(classAnchors(box)).map(p => ({ p }));
+        for (const name of memberNames(own.src)) {
+          const my = box.y + memberY(own.src, name)!;
+          spots.push({ p: [box.x, my], member: name }, { p: [box.x + box.w, my], member: name });
+        }
+        const best = spots.reduce((a, b) => (Math.hypot(b.p[0] - x, b.p[1] - y) < Math.hypot(a.p[0] - x, a.p[1] - y) ? b : a));
+        const key = end === "exit" ? "fromMember" : "toMember";
+        if (best.member != null) e.src[key] = best.member; else delete e.src[key];
+        e.src[end === "exit" ? "exitAt" : "enterAt"] = perimeterAt(box, best.p);
+        showSnap(best.p);
+        e.memory = null;
+        ctx.edited(e);
+        return;
+      }
       if (end === "exit" ? input.aVertex : input.bVertex) {
         const box = end === "exit" ? input.a : input.b;
         e.src[end === "exit" ? "exitAt" : "enterAt"] = perimeterAt(box, vertexOf(box, pointAt(path, t)));

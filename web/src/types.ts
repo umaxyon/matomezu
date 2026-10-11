@@ -1,9 +1,11 @@
 // データ形式の型。仕様は graph.ts 冒頭のコメントを参照。
 
+import type { ClassAttr, ClassOp } from "./classbox";
+
 export type Size = "L" | "M" | "S";
 export type ChildView = "nest" | "tree" | "hidden" | "list";
 export type Overflow = "wrap" | "grow" | "clip";
-export type Shape = "box" | "person" | "db" | "diamond" | "server";
+export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class";
 export type TreeDirection = "down" | "up" | "left" | "right";
 export type Id = number | string;
 
@@ -43,6 +45,9 @@ export interface BoxData {
   overflow?: Overflow;
   page?: boolean;        // 中身を別のページにする（docs/TABS-plan.md）。ページは入れ子にしない
   world?: WorldData;     // ページの箱のとき、そのページのワールドの設定
+  abstract?: boolean;    // クラスの箱（shape: "class"）が抽象クラスか（docs/CLASS-plan.md）
+  attrs?: ClassAttr[];   // クラスの箱の属性
+  ops?: ClassOp[];       // クラスの箱の操作
   [key: string]: unknown; // 未知の項目は保存時にそのまま残す
 }
 
@@ -62,6 +67,8 @@ export interface EdgeData {
   captionAt?: number;     // キャプションの位置: 線の長さに対する割合（0〜1）。無ければ真ん中（0.5）
   captionOffset?: number; // キャプションを線から離す px（始点から終点へ進む向きの左が正。±60 まで）。無ければ線の上
   bend?: number; // 以前の持ち方（Z 字の中棒の割合）。読み込むと消す
+  fromMember?: string; // 始点がクラスの箱のとき、つなぐ属性か操作の名前（docs/CLASS-plan.md）。無ければクラスそのもの
+  toMember?: string;   // 終点がクラスの箱のとき、つなぐ属性か操作の名前
   [key: string]: unknown;
 }
 
@@ -117,6 +124,7 @@ export interface BoxInfo {
   size: Size;
   shape: Shape;
   canShape: boolean; // 形を選べるか（内包しているグループは枠なので選べない）
+  canClass: boolean; // クラスにできるか（子を持つ箱も、子を消す確認のうえでできる。リストの子とページの箱はできない。docs/CLASS-plan.md）
   body: string;      // 本文（無ければ空）。本文を持つ間は、形と S サイズを選べない（docs/BODY-plan.md）
   canBody: boolean;  // 本文を出せるか（形がボックスで、S でも切り詰めるでもなく、ページの箱でもない）
   bodyRule: boolean; // キャプションと本文の間に線を引くか
@@ -135,6 +143,9 @@ export interface BoxInfo {
   links: (Brief & { edgeId: string })[];
   overflow: Overflow;
   overflows: Overflow[]; // 空なら中身の扱いを選べない
+  abstract: boolean;     // クラスの箱が抽象クラスか（docs/CLASS-plan.md）
+  attrs: ClassAttr[];    // クラスの箱の属性（クラスでなければ空）
+  ops: ClassOp[];        // クラスの箱の操作
 }
 
 // 線の矢印。始点（from）の側、終点（to）の側、両方。無ければ矢印なし

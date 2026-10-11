@@ -1,5 +1,6 @@
 // データの検証と正規化。DOM に依存しない。
 
+import { isAccess, isObject as isRecord, memberNames } from "./classbox";
 import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import type { Diagram, EdgeData, Id, Size } from "./types";
@@ -25,9 +26,9 @@ export const GROUP_MIN = { w: 120, h: 64 };
 
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 export const VIEWS = ["nest", "tree", "hidden", "list"] as const;
-export const SHAPES = ["box", "person", "db", "diamond", "server"] as const;
+export const SHAPES = ["box", "person", "db", "diamond", "server", "class"] as const;
 // 形の画面での名前（サイドバーと編集ダイアログの選択肢。SHAPES と同じ並び）
-export const SHAPE_OPTIONS: [string, string][] = [["box", t("ボックス")], ["person", t("スティックマン")], ["db", "DB"], ["diamond", t("ひし形")], ["server", t("サーバー")]];
+export const SHAPE_OPTIONS: [string, string][] = [["box", t("ボックス")], ["person", t("スティックマン")], ["db", "DB"], ["diamond", t("ひし形")], ["server", t("サーバー")], ["class", t("クラス")]];
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;
@@ -121,6 +122,7 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (byId.has(String(n.id))) { fail(t("id が重複しています: {id}", { id: n.id })); continue; }
     byId.set(String(n.id), n);
     settingsProblems(n, n.id, theme).forEach(fail);
+    classProblems(n).forEach(fail);
   }
   // 消したボックス。id は nodes と重ならないこと（parent は消したボックスや、もう無い id でもよい）
   if (data.removed != null && !Array.isArray(data.removed)) fail(t("removed が配列ではありません"));
@@ -138,6 +140,10 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
       if (seen.has(String(p))) { fail(t("親子関係が循環しています: {id}", { id: n.id })); break; }
       seen.add(String(p));
     }
+  }
+  // クラスの箱は子を持たない（docs/CLASS-plan.md）
+  for (const n of byId.values()) {
+    if (n.parent != null && byId.get(String(n.parent))?.shape === "class") fail(t("クラスの箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
   }
   // ページは入れ子にしない（page: true の箱の祖先に、page: true の箱があってはいけない）
   for (const n of byId.values()) {
@@ -194,10 +200,43 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (bend != null && !(typeof bend === "number" && bend > 0 && bend < 1)) fail(t("bend は 0 より大きく 1 より小さい数にしてください: {from} - {to} ({value})", { from, to, value: bend }));
     const dash = (e as EdgeData).dash;
     if (dash != null && !includes(DASHES, dash)) fail(t("dash の値が不正です: {from} - {to} ({value})", { from, to, value: dash }));
+    for (const [key, end] of [["fromMember", from], ["toMember", to]] as const) {
+      const m = (e as EdgeData)[key];
+      if (m == null) continue;
+      const box = byId.get(String(end))!;
+      if (typeof m !== "string") fail(t("{key} は属性か操作の名前にしてください: {from} - {to}", { key, from, to }));
+      else if (box.shape !== "class") fail(t("{key} はクラスの箱の端にだけ書けます: {from} - {to}", { key, from, to }));
+      else if (!memberNames(box).includes(m)) fail(t("{key} の属性・操作がありません: {from} - {to} ({value})", { key, from, to, value: m }));
+    }
     if (parentOf(from) !== parentOf(to)) fail(t("階層の違うボックス同士の線があります: {from} - {to}", { from, to }));
     if (id != null) {
       if (edgeIds.has(String(id))) fail(t("線の id が重複しています: {id}", { id }));
       edgeIds.add(String(id));
     }
   }
+}
+
+// クラスの箱の属性・操作の誤り（docs/CLASS-plan.md）。名前は属性と操作を通して重ねられない
+function classProblems(n: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const names = new Set<string>();
+  const id = n.id;
+  if (n.abstract != null && typeof n.abstract !== "boolean") out.push(t("abstract は true か false にしてください: {id}", { id }));
+  for (const key of ["attrs", "ops"] as const) {
+    if (n[key] == null) continue;
+    if (!Array.isArray(n[key])) { out.push(t("{key} は配列にしてください: {id}", { key, id })); continue; }
+    for (const m of n[key] as unknown[]) {
+      if (!isRecord(m) || typeof m.name !== "string" || !m.name) { out.push(t("{key} に名前の無い行があります: {id}", { key, id })); continue; }
+      if (m.access != null && !isAccess(m.access)) out.push(t("access の値が不正です: {id} の {name} ({value})", { id, name: m.name, value: m.access }));
+      for (const f of ["static", "abstract"]) {
+        if (m[f] != null && typeof m[f] !== "boolean") out.push(t("{field} は true か false にしてください: {id} の {name}", { field: f, id, name: m.name }));
+      }
+      for (const f of ["type", "params"]) {
+        if (m[f] != null && typeof m[f] !== "string") out.push(t("{field} は文字列にしてください: {id} の {name}", { field: f, id, name: m.name }));
+      }
+      if (names.has(m.name)) out.push(t("属性・操作の名前が重なっています: {id} の {name}", { id, name: m.name }));
+      names.add(m.name);
+    }
+  }
+  return out;
 }
