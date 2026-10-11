@@ -131,15 +131,18 @@
   /* スクロールバー: 細い角丸のつまみだけを見せ、通り道は透明にする。乗せると太く濃くなる。
      Chrome・Edge・Safari は ::-webkit-scrollbar で形を作る（scrollbar-width / scrollbar-color を指定すると
      Chrome はこちらを無視するので、それらは ::-webkit-scrollbar が使えない Firefox だけに当てる） */
-  #sidebar::-webkit-scrollbar { width: 12px; height: 12px; }
-  #sidebar::-webkit-scrollbar-track, #sidebar::-webkit-scrollbar-corner { background: transparent; }
-  #sidebar::-webkit-scrollbar-thumb {
+  /* タブ列（横スクロール）も同じ形にする（2026-10-11 ユーザー。既定の白い通り道と矢印が暗いテーマで浮いていた） */
+  #sidebar::-webkit-scrollbar, .tabs::-webkit-scrollbar { width: 12px; height: 12px; }
+  #sidebar::-webkit-scrollbar-track, #sidebar::-webkit-scrollbar-corner,
+  .tabs::-webkit-scrollbar-track, .tabs::-webkit-scrollbar-corner { background: transparent; }
+  #sidebar::-webkit-scrollbar-button, .tabs::-webkit-scrollbar-button { display: none; }
+  #sidebar::-webkit-scrollbar-thumb, .tabs::-webkit-scrollbar-thumb {
     background: var(--scroll); border-radius: 6px;
     border: 3px solid transparent; background-clip: padding-box;
   }
-  #sidebar::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-hover); border-width: 2px; }
+  #sidebar::-webkit-scrollbar-thumb:hover, .tabs::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-hover); border-width: 2px; }
   @supports not selector(::-webkit-scrollbar) {
-    #sidebar { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
+    #sidebar, .tabs { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
   }
   /* ワールドの列。タブはワールドの上だけに出す（サイドバーの上には出さない） */
   .work { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
