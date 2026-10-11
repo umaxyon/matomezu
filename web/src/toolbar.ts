@@ -1,6 +1,7 @@
 // ヘッダーのツールバー: Undo / Redo（と選んだ線の Delete キー）と、ツールのモード（選択 / 親子の付け替え / 追加 / 削除）の切り替え
 
 import type { Graph, Mode } from "./graph";
+import { t } from "./i18n";
 
 // 入力欄の中か（キー操作を文字入力に譲る）
 const typing = (t: EventTarget | null) =>
@@ -32,7 +33,7 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   return () => listening.abort();
 }
 
-const MODE_LABELS: Record<Mode, string> = { move: "選択モード", reparent: "付け替えモード", remove: "削除モード", add: "追加モード" };
+const MODE_LABELS: Record<Mode, string> = { move: t("選択モード"), reparent: t("付け替えモード"), remove: t("削除モード"), add: t("追加モード") };
 
 // Ctrl を押している間だけ入れ替わる相手（追加・削除モードでは入れ替えない）
 const FLIP: Partial<Record<Mode, Mode>> = { move: "reparent", reparent: "move" };

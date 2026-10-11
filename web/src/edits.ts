@@ -2,6 +2,7 @@
 // graph.ts は付け替え・ほかのページの箱の削除・復活・移植を、データ全体を取り出してこれで直し、図を組み立て直す。
 // 箱を描いていることに関わる判断（今のページ、落とし先の見せ方、位置の計算）は graph.ts の側で行い、結果だけを渡す
 
+import { t } from "./i18n";
 import { subtreeIds } from "./pages";
 import type { BoxData, Diagram, EdgeData, Id } from "./types";
 import { normalizeEdge } from "./validate";
@@ -41,8 +42,8 @@ function dropCrossEdges(data: Diagram): number {
 // 同じ親でなくなった線は外し、外した本数を返す
 export function moveSubtree(data: Diagram, id: Id, parent: Id | undefined, pos: Pos): number {
   const src = data.nodes.find(s => String(s.id) === String(id));
-  if (!src) throw new Error(`ボックスがありません: ${id}`);
-  if (parent != null && subtreeIds(data.nodes, id).has(String(parent))) throw new Error("自分や自分の子孫の中には移せません");
+  if (!src) throw new Error(t("ボックスがありません: {id}", { id }));
+  if (parent != null && subtreeIds(data.nodes, id).has(String(parent))) throw new Error(t("自分や自分の子孫の中には移せません"));
   setParentId(src, parent);
   place(src, pos);
   return dropCrossEdges(data);
@@ -50,7 +51,7 @@ export function moveSubtree(data: Diagram, id: Id, parent: Id | undefined, pos: 
 
 // id の箱を子孫ごと消す（removed の末尾へ移す）。つながっていた線も消す。消した箱の id と、消した線の本数を返す
 export function removeSubtree(data: Diagram, id: Id): { ids: Set<string>; cut: number } {
-  if (!data.nodes.some(s => String(s.id) === String(id))) throw new Error(`ボックスがありません: ${id}`);
+  if (!data.nodes.some(s => String(s.id) === String(id))) throw new Error(t("ボックスがありません: {id}", { id }));
   const ids = subtreeIds(data.nodes, id);
   data.removed = [...(data.removed ?? []), ...data.nodes.filter(s => ids.has(String(s.id)))];
   data.nodes = data.nodes.filter(s => !ids.has(String(s.id)));
@@ -63,7 +64,7 @@ export function removeSubtree(data: Diagram, id: Id): { ids: Set<string>; cut: n
 export function restoreSubtree(data: Diagram, id: Id, parent: Id | undefined, pos: Pos) {
   const list = data.removed ?? [];
   const root = list.find(s => String(s.id) === String(id));
-  if (!root) throw new Error(`消したボックスにありません: ${id}`);
+  if (!root) throw new Error(t("消したボックスにありません: {id}", { id }));
   const take = subtreeIds(list, id);
   data.removed = list.filter(s => !take.has(String(s.id)));
   if (!data.removed.length) delete data.removed;
@@ -79,7 +80,7 @@ export function pasteSubtree(
   data: Diagram, copy: { root: string; nodes: BoxData[]; edges: EdgeData[] },
   parent: Id | undefined, pos: Pos, stripPages: boolean,
 ): { root: string; nodes: number; edges: number } {
-  if (!copy.nodes.some(s => String(s.id) === copy.root)) throw new Error(`写した箱がありません: ${copy.root}`);
+  if (!copy.nodes.some(s => String(s.id) === copy.root)) throw new Error(t("写した箱がありません: {id}", { id: copy.root }));
   const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
   let next = Math.max(0, ...used) + 1;
   const ids = new Map(copy.nodes.map(s => [String(s.id), next++]));
@@ -126,9 +127,9 @@ export function addBox(data: Diagram, fields: Partial<BoxData>, parent: Id | und
 // LLM から来た箱は「ユーザーが不要と印を付けたもの」として LLM に伝えるために残す（docs/ADD-plan.md の 4 章）。消した箱の数を返す
 export function purgeRemoved(data: Diagram, id: Id): number {
   const list = data.removed ?? [];
-  if (!list.some(s => String(s.id) === String(id))) throw new Error(`消したボックスにありません: ${id}`);
+  if (!list.some(s => String(s.id) === String(id))) throw new Error(t("消したボックスにありません: {id}", { id }));
   const take = subtreeIds(list, id);
-  if (!canPurge(list, id)) throw new Error("ユーザーが足した箱だけ完全に削除できます");
+  if (!canPurge(list, id)) throw new Error(t("ユーザーが足した箱だけ完全に削除できます"));
   data.removed = list.filter(s => !take.has(String(s.id)));
   if (!data.removed.length) delete data.removed;
   return take.size;

@@ -6,11 +6,17 @@ import { startApp } from "./app";
 import { download, readFile } from "./dom";
 import { setupMinimapToggle } from "./minimap";
 import { handleGraphEvent } from "./notices";
+import { lang, t, translateDom } from "./i18n";
 import { setupPreview } from "./preview";
+import { setupSettings } from "./settings";
 import { setupHistory, setupModes } from "./toolbar";
 import { mountDiagram } from "./view";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+// HTML に書いた文言を、選んだ言語にする（ほかの部品が文言を読む前に）
+document.documentElement.lang = lang();
+translateDom(document.body);
 
 const stage = $("stage");
 const nameEl = $("name");
@@ -52,6 +58,7 @@ async function main() {
   const redoBtn = $<HTMLButtonElement>("redo");
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
   setupMinimapToggle($<HTMLButtonElement>("minimap-toggle"));
+  setupSettings($("settings"));
   const preview = setupPreview({
     toggle: $("preview-toggle"), zoomOut: $("zoom-out"), zoomIn: $("zoom-in"), fit: $("zoom-fit"), level: $("zoom-level"),
   });
@@ -94,7 +101,7 @@ async function main() {
       graph.load(await readFile(file));
       setLoaded(file.name);
     } catch (err) {
-      showError("読み込めませんでした: " + (err instanceof Error ? err.message : String(err)));
+      showError(t("読み込めませんでした: {error}", { error: err instanceof Error ? err.message : String(err) }));
     }
   }
 
@@ -125,7 +132,7 @@ async function main() {
     fetch(src)
       .then(r => { if (!r.ok) throw new Error(`${r.status} ${src}`); return r.json(); })
       .then(data => { graph.load(data); setLoaded(src.split("/").pop() ?? src); })
-      .catch(err => showError("読み込めませんでした: " + (err instanceof Error ? err.message : String(err))));
+      .catch(err => showError(t("読み込めませんでした: {error}", { error: err instanceof Error ? err.message : String(err) })));
   }
 }
 

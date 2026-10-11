@@ -1,5 +1,6 @@
 // データの検証と正規化。DOM に依存しない。
 
+import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import type { Diagram, EdgeData, Id, Size } from "./types";
 
@@ -26,7 +27,7 @@ export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 export const VIEWS = ["nest", "tree", "hidden", "list"] as const;
 export const SHAPES = ["box", "person", "db", "diamond", "server"] as const;
 // 形の画面での名前（サイドバーと編集ダイアログの選択肢。SHAPES と同じ並び）
-export const SHAPE_OPTIONS: [string, string][] = [["box", "ボックス"], ["person", "スティックマン"], ["db", "DB"], ["diamond", "ひし形"], ["server", "サーバー"]];
+export const SHAPE_OPTIONS: [string, string][] = [["box", t("ボックス")], ["person", t("スティックマン")], ["db", "DB"], ["diamond", t("ひし形")], ["server", t("サーバー")]];
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;
@@ -53,19 +54,19 @@ export function normalizeEdge(e: EdgeData | [Id, Id]): EdgeData {
 // theme が false なら、知らないテーマの名前は誤りにしない（画面で開くとき。標準として描き、知らせる。名前を変えたり減らしたりしても図が開けるように）
 export function settingsProblems(s: Record<string, unknown>, where: unknown, theme = true): string[] {
   const out: string[] = [];
-  if (s.overflow != null && !isOverflow(s.overflow)) out.push(`overflow の値が不正です: ${where} (${s.overflow})`);
-  if (s.size != null && !isSize(s.size)) out.push(`size の値が不正です: ${where} (${s.size})`);
-  if (s.shape != null && !isShape(s.shape)) out.push(`shape の値が不正です: ${where} (${s.shape})`);
-  if (s.body != null && typeof s.body !== "string") out.push(`body は文字列にしてください: ${where}`);
-  if (s.width != null && !(typeof s.width === "number" && s.width > 0)) out.push(`width は正の数にしてください: ${where} (${s.width})`);
-  if (s.bodyWidth != null && !(typeof s.bodyWidth === "number" && s.bodyWidth > 0)) out.push(`bodyWidth は正の数にしてください: ${where} (${s.bodyWidth})`);
-  if (s.bodyLines != null && !(Number.isInteger(s.bodyLines) && (s.bodyLines as number) > 0)) out.push(`bodyLines は 1 以上の整数にしてください: ${where} (${s.bodyLines})`);
-  if (s.userAdded != null && typeof s.userAdded !== "boolean") out.push(`userAdded は true か false にしてください: ${where} (${s.userAdded})`);
-  if (s.bodyRule != null && typeof s.bodyRule !== "boolean") out.push(`bodyRule は true か false にしてください: ${where} (${s.bodyRule})`);
-  if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(`treeDirection の値が不正です: ${where} (${s.treeDirection})`);
-  if (s.childView != null && !isView(s.childView)) out.push(`childView の値が不正です: ${where} (${s.childView})`);
+  if (s.overflow != null && !isOverflow(s.overflow)) out.push(t("overflow の値が不正です: {where} ({value})", { where, value: s.overflow }));
+  if (s.size != null && !isSize(s.size)) out.push(t("size の値が不正です: {where} ({value})", { where, value: s.size }));
+  if (s.shape != null && !isShape(s.shape)) out.push(t("shape の値が不正です: {where} ({value})", { where, value: s.shape }));
+  if (s.body != null && typeof s.body !== "string") out.push(t("body は文字列にしてください: {where}", { where }));
+  if (s.width != null && !(typeof s.width === "number" && s.width > 0)) out.push(t("width は正の数にしてください: {where} ({value})", { where, value: s.width }));
+  if (s.bodyWidth != null && !(typeof s.bodyWidth === "number" && s.bodyWidth > 0)) out.push(t("bodyWidth は正の数にしてください: {where} ({value})", { where, value: s.bodyWidth }));
+  if (s.bodyLines != null && !(Number.isInteger(s.bodyLines) && (s.bodyLines as number) > 0)) out.push(t("bodyLines は 1 以上の整数にしてください: {where} ({value})", { where, value: s.bodyLines }));
+  if (s.userAdded != null && typeof s.userAdded !== "boolean") out.push(t("userAdded は true か false にしてください: {where} ({value})", { where, value: s.userAdded }));
+  if (s.bodyRule != null && typeof s.bodyRule !== "boolean") out.push(t("bodyRule は true か false にしてください: {where} ({value})", { where, value: s.bodyRule }));
+  if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(t("treeDirection の値が不正です: {where} ({value})", { where, value: s.treeDirection }));
+  if (s.childView != null && !isView(s.childView)) out.push(t("childView の値が不正です: {where} ({value})", { where, value: s.childView }));
   if (theme && s.theme != null && !isTheme(s.theme)) {
-    out.push(`theme の値が不正です: ${where} (${s.theme})。使えるのは ${THEMES.map(t => t.id).join(" / ")}`);
+    out.push(t("theme の値が不正です: {where} ({value})。使えるのは {themes}", { where, value: s.theme, themes: THEMES.map(x => x.id).join(" / ") }));
   }
   return out;
 }
@@ -103,99 +104,99 @@ export function validate(data: unknown): asserts data is Diagram {
 // 誤りを見つけるたびに fail を呼ぶ。fail が例外を投げれば最初の 1 つで止まる。投げなければ、続けられる所から調べ続ける。
 // theme が false なら、知らないテーマの名前は誤りにしない
 function inspect(data: unknown, fail: (message: string) => void, theme: boolean): void {
-  if (!isObject(data) || !Array.isArray(data.nodes)) return fail("nodes 配列がありません");
+  if (!isObject(data) || !Array.isArray(data.nodes)) return fail(t("nodes 配列がありません"));
   if (data.world != null) {
-    if (!isObject(data.world)) fail("world がオブジェクトではありません");
+    if (!isObject(data.world)) fail(t("world がオブジェクトではありません"));
     else {
       settingsProblems(data.world, "world", theme).forEach(fail);
-      if (data.world.overflow === "grow") fail("world に overflow: grow は使えません");
-      if (data.world.route != null && !includes(ROUTES, data.world.route)) fail(`world の route の値が不正です: ${data.world.route}`);
-      if (data.world.background != null && typeof data.world.background !== "string") fail("world の background は色の文字列にしてください");
-      if (data.world.title != null && typeof data.world.title !== "string") fail("world の title は文字列にしてください");
+      if (data.world.overflow === "grow") fail(t("world に overflow: grow は使えません"));
+      if (data.world.route != null && !includes(ROUTES, data.world.route)) fail(t("world の route の値が不正です: {value}", { value: data.world.route }));
+      if (data.world.background != null && typeof data.world.background !== "string") fail(t("world の background は色の文字列にしてください"));
+      if (data.world.title != null && typeof data.world.title !== "string") fail(t("world の title は文字列にしてください"));
     }
   }
   const byId = new Map<string, Record<string, unknown>>();
   for (const n of data.nodes as unknown[]) {
-    if (!isObject(n) || n.id == null) { fail("空のノードがあります"); continue; }
-    if (byId.has(String(n.id))) { fail(`id が重複しています: ${n.id}`); continue; }
+    if (!isObject(n) || n.id == null) { fail(t("空のノードがあります")); continue; }
+    if (byId.has(String(n.id))) { fail(t("id が重複しています: {id}", { id: n.id })); continue; }
     byId.set(String(n.id), n);
     settingsProblems(n, n.id, theme).forEach(fail);
   }
   // 消したボックス。id は nodes と重ならないこと（parent は消したボックスや、もう無い id でもよい）
-  if (data.removed != null && !Array.isArray(data.removed)) fail("removed が配列ではありません");
+  if (data.removed != null && !Array.isArray(data.removed)) fail(t("removed が配列ではありません"));
   const removedIds = new Set<string>();
   for (const n of (Array.isArray(data.removed) ? data.removed : []) as unknown[]) {
-    if (!isObject(n) || n.id == null) { fail("removed に空のノードがあります"); continue; }
-    if (byId.has(String(n.id)) || removedIds.has(String(n.id))) { fail(`id が重複しています: ${n.id}`); continue; }
+    if (!isObject(n) || n.id == null) { fail(t("removed に空のノードがあります")); continue; }
+    if (byId.has(String(n.id)) || removedIds.has(String(n.id))) { fail(t("id が重複しています: {id}", { id: n.id })); continue; }
     removedIds.add(String(n.id));
   }
   for (const n of byId.values()) {
     if (n.parent == null) continue;
-    if (!byId.has(String(n.parent))) { fail(`存在しない親です: ${n.id} → ${n.parent}`); continue; }
+    if (!byId.has(String(n.parent))) { fail(t("存在しない親です: {id} → {parent}", { id: n.id, parent: n.parent })); continue; }
     const seen = new Set([String(n.id)]);
     for (let p: unknown = n.parent; p != null; p = byId.get(String(p))?.parent) {
-      if (seen.has(String(p))) { fail(`親子関係が循環しています: ${n.id}`); break; }
+      if (seen.has(String(p))) { fail(t("親子関係が循環しています: {id}", { id: n.id })); break; }
       seen.add(String(p));
     }
   }
   // ページは入れ子にしない（page: true の箱の祖先に、page: true の箱があってはいけない）
   for (const n of byId.values()) {
     if (n.page == null) continue;
-    if (typeof n.page !== "boolean") { fail(`page は true か false にしてください: ${n.id}`); continue; }
+    if (typeof n.page !== "boolean") { fail(t("page は true か false にしてください: {id}", { id: n.id })); continue; }
     if (n.world != null) {
-      if (!isObject(n.world)) fail(`world がオブジェクトではありません: ${n.id}`);
+      if (!isObject(n.world)) fail(t("world がオブジェクトではありません: {id}", { id: n.id }));
       else {
-        settingsProblems(n.world, `${n.id} の world`).forEach(fail);
-        if (n.world.overflow === "grow") fail(`world に overflow: grow は使えません: ${n.id}`);
-        if (n.world.route != null && !includes(ROUTES, n.world.route)) fail(`world の route の値が不正です: ${n.id} (${n.world.route})`);
+        settingsProblems(n.world, t("{id} の world", { id: n.id })).forEach(fail);
+        if (n.world.overflow === "grow") fail(t("world に overflow: grow は使えません: {id}", { id: n.id }));
+        if (n.world.route != null && !includes(ROUTES, n.world.route)) fail(t("world の route の値が不正です: {id} ({value})", { id: n.id, value: n.world.route }));
       }
     }
     if (n.page !== true) continue;
     const seen = new Set<unknown>();
     for (let p = byId.get(String(n.parent)); p && !seen.has(p); p = byId.get(String(p.parent))) {
       seen.add(p); // 親子の循環があっても止まるように
-      if (p.page === true) { fail(`ページの中の箱はページにできません: ${n.id}（${p.id} のページの中）`); break; }
+      if (p.page === true) { fail(t("ページの中の箱はページにできません: {id}（{page} のページの中）", { id: n.id, page: p.id })); break; }
     }
   }
   const parentOf = (id: unknown) => {
     const p = byId.get(String(id))?.parent;
     return p == null ? null : String(p);
   };
-  if (data.edges != null && !Array.isArray(data.edges)) fail("edges が配列ではありません");
+  if (data.edges != null && !Array.isArray(data.edges)) fail(t("edges が配列ではありません"));
   const edgeIds = new Set<string>();
   for (const e of (Array.isArray(data.edges) ? data.edges : []) as unknown[]) {
-    if (!isObject(e) && !Array.isArray(e)) { fail("空の線があります"); continue; }
+    if (!isObject(e) && !Array.isArray(e)) { fail(t("空の線があります")); continue; }
     const { id, from, to } = normalizeEdge(e as EdgeData | [Id, Id]);
-    if (!byId.has(String(from)) || !byId.has(String(to))) { fail(`存在しないノードへの線があります: ${from} - ${to}`); continue; }
+    if (!byId.has(String(from)) || !byId.has(String(to))) { fail(t("存在しないノードへの線があります: {from} - {to}", { from, to })); continue; }
     const caption = (e as EdgeData).caption;
-    if (caption != null && typeof caption !== "string") fail(`線の caption は文字列にしてください: ${from} - ${to}`);
+    if (caption != null && typeof caption !== "string") fail(t("線の caption は文字列にしてください: {from} - {to}", { from, to }));
     const captionAt = (e as EdgeData).captionAt;
-    if (captionAt != null && !(typeof captionAt === "number" && captionAt >= 0 && captionAt <= 1)) fail(`captionAt は 0 から 1 の数にしてください: ${from} - ${to}`);
+    if (captionAt != null && !(typeof captionAt === "number" && captionAt >= 0 && captionAt <= 1)) fail(t("captionAt は 0 から 1 の数にしてください: {from} - {to}", { from, to }));
     const captionOffset = (e as EdgeData).captionOffset;
-    if (captionOffset != null && !Number.isFinite(captionOffset)) fail(`captionOffset は数にしてください: ${from} - ${to}`);
+    if (captionOffset != null && !Number.isFinite(captionOffset)) fail(t("captionOffset は数にしてください: {from} - {to}", { from, to }));
     const arrow = (e as EdgeData).arrow;
-    if (arrow != null && !includes(ARROWS, arrow)) fail(`arrow の値が不正です: ${from} - ${to} (${arrow})`);
+    if (arrow != null && !includes(ARROWS, arrow)) fail(t("arrow の値が不正です: {from} - {to} ({value})", { from, to, value: arrow }));
     const route = (e as EdgeData).route;
-    if (route != null && !includes(ROUTES, route)) fail(`route の値が不正です: ${from} - ${to} (${route})`);
+    if (route != null && !includes(ROUTES, route)) fail(t("route の値が不正です: {from} - {to} ({value})", { from, to, value: route }));
     for (const k of ["exit", "enter"] as const) {
       const v = (e as EdgeData)[k];
-      if (v != null && !includes(AXES, v)) fail(`${k} の値が不正です: ${from} - ${to} (${v})`);
+      if (v != null && !includes(AXES, v)) fail(t("{key} の値が不正です: {from} - {to} ({value})", { key: k, from, to, value: v }));
     }
     for (const k of ["exitAt", "enterAt"] as const) {
       const v = (e as EdgeData)[k];
-      if (v != null && !(typeof v === "number" && v >= 0 && v <= 1)) fail(`${k} は 0 から 1 の数にしてください: ${from} - ${to} (${v})`);
+      if (v != null && !(typeof v === "number" && v >= 0 && v <= 1)) fail(t("{key} は 0 から 1 の数にしてください: {from} - {to} ({value})", { key: k, from, to, value: v }));
     }
     const via = (e as EdgeData).via;
     if (via != null && !(Array.isArray(via) && via.every(v => typeof v === "number" && Number.isFinite(v)))) {
-      fail(`via は数の並びにしてください: ${from} - ${to}`);
+      fail(t("via は数の並びにしてください: {from} - {to}", { from, to }));
     }
     const bend = (e as EdgeData).bend;
-    if (bend != null && !(typeof bend === "number" && bend > 0 && bend < 1)) fail(`bend は 0 より大きく 1 より小さい数にしてください: ${from} - ${to} (${bend})`);
+    if (bend != null && !(typeof bend === "number" && bend > 0 && bend < 1)) fail(t("bend は 0 より大きく 1 より小さい数にしてください: {from} - {to} ({value})", { from, to, value: bend }));
     const dash = (e as EdgeData).dash;
-    if (dash != null && !includes(DASHES, dash)) fail(`dash の値が不正です: ${from} - ${to} (${dash})`);
-    if (parentOf(from) !== parentOf(to)) fail(`階層の違うボックス同士の線があります: ${from} - ${to}`);
+    if (dash != null && !includes(DASHES, dash)) fail(t("dash の値が不正です: {from} - {to} ({value})", { from, to, value: dash }));
+    if (parentOf(from) !== parentOf(to)) fail(t("階層の違うボックス同士の線があります: {from} - {to}", { from, to }));
     if (id != null) {
-      if (edgeIds.has(String(id))) fail(`線の id が重複しています: ${id}`);
+      if (edgeIds.has(String(id))) fail(t("線の id が重複しています: {id}", { id }));
       edgeIds.add(String(id));
     }
   }

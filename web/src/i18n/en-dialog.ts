@@ -1,0 +1,50 @@
+// 英語の辞書（キーは日本語の文言。i18n.ts）。ダイアログ（edit-dialog.ts）と、データの書き換え（edits.ts）
+export default {
+  // 共通
+  "確定": "OK",
+  "キャンセル": "Cancel",
+  "追加": "Add",
+  "{key}+Enter で{ok} / Esc でキャンセル": "{key}+Enter: {ok} / Esc: Cancel",
+  "キャプション": "Caption",
+  "なし": "None",
+
+  // 箱のダイアログ
+  "ボックスの編集": "Edit box",
+  "ボックスの追加": "Add box",
+  "形": "Shape",
+  "子を内包している箱は枠なので、形を選べません": "A box that nests children is a frame, so its shape cannot be changed",
+  "サイズ": "Size",
+  "内包・リストの箱の大きさは、子の並びで決まります": "The size of a nested or list box is set by its children",
+  "テーマ": "Theme",
+  "受け継ぐ": "Inherit",
+  "なし（空の箱）": "None (empty box)",
+  "区切り線": "Divider",
+  "本文": "Body",
+  "本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます":
+    "A body is available when the shape is Box, the size is not S, and the caption is not limited to one line",
+  "箱の幅に合わせる": "Fit to box width",
+  "最大行数": "Max lines",
+  "超えた分は … で切ります": "Lines beyond this are cut with …",
+  "制限なし": "No limit",
+  "{n} 行": "{n} lines",
+
+  // 線のダイアログ
+  "線の編集": "Edit line",
+  "通り方": "Route",
+  "折れ線": "Elbow",
+  "直線": "Straight",
+  "線の種類": "Line style",
+  "実線": "Solid",
+  "破線": "Dashed",
+  "矢印": "Arrows",
+  "始点": "Start",
+  "終点": "End",
+  "線を消す": "Delete line",
+
+  // データの書き換え（edits.ts）
+  "ボックスがありません: {id}": "No box: {id}",
+  "自分や自分の子孫の中には移せません": "A box cannot be moved into itself or its descendants",
+  "消したボックスにありません: {id}": "Not among the deleted boxes: {id}",
+  "写した箱がありません: {id}": "The copied box is missing: {id}",
+  "ユーザーが足した箱だけ完全に削除できます": "Only boxes added by the user can be permanently deleted",
+} satisfies Record<string, string>;

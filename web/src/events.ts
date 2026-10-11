@@ -8,6 +8,8 @@
  * - 接続が切れても、つなぎ直しを続ける（入れ替わったサーバーが同じアドレスで起動するのを待つ）。
  */
 
+import { t } from "./i18n";
+
 export interface EventHandlers {
   version(doc: string, version: string): void;
   open(doc: string, page: string | null): void;
@@ -80,7 +82,7 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       if (v && typeof v.doc === "string") h.open(v.doc, typeof v.page === "string" && v.page ? v.page : null);
     });
     es.addEventListener("error", () => {
-      h.status("再接続中…");
+      h.status(t("再接続中…"));
       // EventSource は自分で再接続するが、諦めたら（サーバーが無い間の応答の失敗など）作り直して続ける
       if (es.readyState === EventSource.CLOSED && !closed) {
         es.close();

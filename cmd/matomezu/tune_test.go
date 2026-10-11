@@ -67,7 +67,7 @@ func TestCheckDataListsAllProblems(t *testing.T) {
 	os.WriteFile(path, []byte(`{"nodes":[{"id":1,"size":"XL"},{"id":2,"parent":9}]}`), 0o644)
 	err := checkData(path)
 	if err == nil || !strings.Contains(err.Error(), "2 problem(s)") ||
-		!strings.Contains(err.Error(), "size の値が不正です: 1 (XL)") || !strings.Contains(err.Error(), "存在しない親です: 2 → 9") {
+		!strings.Contains(err.Error(), "invalid size: 1 (XL)") || !strings.Contains(err.Error(), "parent does not exist: 2 → 9") {
 		t.Fatalf("err = %v", err)
 	}
 	os.WriteFile(path, []byte(`{"nodes":[{"id":1}]}`), 0o644)
@@ -96,7 +96,7 @@ func TestSetDoesNotWriteInvalidData(t *testing.T) {
 	orig := `{"nodes":[{"id":1}]}`
 	os.WriteFile(path, []byte(orig), 0o644)
 	err := set([]string{path, "1.size=XL"})
-	if err == nil || !strings.Contains(err.Error(), "size の値が不正です") || !strings.HasPrefix(err.Error(), "not written") {
+	if err == nil || !strings.Contains(err.Error(), "invalid size") || !strings.HasPrefix(err.Error(), "not written") {
 		t.Fatalf("err = %v", err)
 	}
 	if b, _ := os.ReadFile(path); string(b) != orig {

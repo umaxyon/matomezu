@@ -6,11 +6,13 @@
 // - 色の値（#3b82f6 など）は、どのテーマでもその色で描く（灰色も、色を選ぶポップアップで選べる）
 // - 書かなければテーマの既定の色
 
+import { t } from "./i18n";
+
 // 色の名前（役割）。LLM は意味で選ぶ（「問題の箱は danger」）。並びは画面に出す順
 export const PALETTE = ["primary", "secondary", "success", "warn", "danger", "muted"] as const;
 export type PaletteName = typeof PALETTE[number];
 export const PALETTE_LABELS: Record<PaletteName, string> = {
-  primary: "主役", secondary: "脇役", success: "完了・良い", warn: "注意", danger: "問題・危険", muted: "控えめ",
+  primary: t("主役"), secondary: t("脇役"), success: t("完了・良い"), warn: t("注意"), danger: t("問題・危険"), muted: t("控えめ"),
 };
 export const isPaletteName = (v: unknown): v is PaletteName => typeof v === "string" && (PALETTE as readonly string[]).includes(v);
 
@@ -37,19 +39,19 @@ export const DEFAULT_THEME = "default";
 
 export const THEMES: Theme[] = [
   {
-    id: "default", label: "標準", describe: "今までの見た目。背景はブラウザのダーク・ライトに合わせる",
+    id: "default", label: t("標準"), describe: t("今までの見た目。背景はブラウザのダーク・ライトに合わせる"),
     box: "#ffffff",
     palette: { primary: "#3b82f6", secondary: "#a855f7", success: "#22c55e", warn: "#eab308", danger: "#ef4444", muted: "#64748b" },
   },
   {
-    id: "sticky", label: "付箋紙", describe: "明るい紙の上に、淡い黄色の付箋を貼った見た目。角は小さく、影は薄い",
+    id: "sticky", label: t("付箋紙"), describe: t("明るい紙の上に、淡い黄色の付箋を貼った見た目。角は小さく、影は薄い"),
     box: "#fff3a6", group: "#b9ad8f", border: "#d9c873", text: "#3b3524",
     shadow: "0 3px 5px rgba(70, 55, 20, 0.28)", background: "#f4efe4", radius: 3, padding: [8, 12], style: "sticky",
     // 付箋の色違い（淡い色）
     palette: { primary: "#cfe2ff", secondary: "#e4d5ff", success: "#d3f0c2", warn: "#fff3a6", danger: "#ffd0da", muted: "#e9e3d5" },
   },
   {
-    id: "simple", label: "シンプル", describe: "白い背景に、白い箱と黒い枠線。飾りの少ない見た目で、資料に貼る・印刷する向け",
+    id: "simple", label: t("シンプル"), describe: t("白い背景に、白い箱と黒い枠線。飾りの少ない見た目で、資料に貼る・印刷する向け"),
     box: "#ffffff", group: "#6b6b6b", border: "#262626", outline: true, text: "#1a1a1a",
     shadow: "none", background: "#ffffff", radius: 4,
     // 白い箱と黒い文字に合う、淡めの色
@@ -57,7 +59,7 @@ export const THEMES: Theme[] = [
   },
 ];
 
-const byId = new Map(THEMES.map(t => [t.id, t]));
+const byId = new Map(THEMES.map(th => [th.id, th]));
 
 export const isTheme = (v: unknown): v is string => typeof v === "string" && byId.has(v);
 export const themeById = (id: string | undefined | null): Theme => byId.get(id ?? "") ?? byId.get(DEFAULT_THEME)!;

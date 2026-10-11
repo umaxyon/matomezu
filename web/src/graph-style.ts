@@ -2,7 +2,7 @@ export const GRAPH_STYLE_ID = "matomezu-graph-style";
 
 // 線の色（--mz-edge）は、半透明の色を背景（--mz-bg）と混ぜた不透明な色にする。半透明のままだと、線が重なった区間だけ
 // 2 回塗られて濃く見え、別の意味に見えるため（2026-10-03 ユーザーの指摘）。--mz-bg は画面の背景（index.html の --bg）か、ワールドの背景色
-export const GRAPH_CSS = `
+export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-stage {
   --mz-bg: #1e1e1e;
   --mz-edge: color-mix(in srgb, rgb(180, 180, 190) 40%, var(--mz-bg));

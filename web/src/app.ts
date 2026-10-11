@@ -15,6 +15,7 @@
  */
 
 import { keyOf } from "./dom";
+import { t } from "./i18n";
 import { loadSavedBooks, saveBooks, wantedFromUrl, writeUrl } from "./app-location";
 import { type EventConnection, connectEvents } from "./events";
 import type { Graph } from "./graph";
@@ -68,7 +69,7 @@ interface Book {
 }
 
 const HOVER_SWITCH = 500; // 付け替えのドラッグで、タブの上にこれだけ止めたらページを切り替える（ミリ秒）
-const EMPTY_HINT = "開いている図がありません。LLM に matomezu open で開くよう頼んでください";
+const EMPTY_HINT = t("開いている図がありません。LLM に matomezu open で開くよう頼んでください");
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
 
@@ -154,7 +155,7 @@ export async function startApp(ui: AppUi) {
       const x = document.createElement("button");
       x.type = "button";
       x.className = "tab-close";
-      x.title = "ブックを閉じる";
+      x.title = t("ブックを閉じる");
       x.setAttribute("aria-label", x.title);
       x.textContent = "×";
       x.addEventListener("click", e => { e.stopPropagation(); closeBook(b); });

@@ -8,10 +8,12 @@
  *   openAddDialog(graph, req);     // 箱の追加。追加モードで図を押したときに開く（req は押した所）
  *   openEdgeEditDialog(graph, id); // 線。線（か札）のダブルクリックと、サイドバーの鉛筆ボタンから開く
  *   closeEditDialog();             // 開いていれば閉じる（図を作り直すときなど）
+ *   openDialog(title, okLabel, fields, commit); // ほかの画面（設定など）から、同じ形のダイアログを出す
  */
 
 import { esc, injectStyle } from "./dom";
 import { helpIcon, setupHelp } from "./help";
+import { t } from "./i18n";
 import type { EdgePatch, Graph } from "./graph";
 import type { AddRequest } from "./interaction";
 import { THEMES } from "./theme";
@@ -19,7 +21,7 @@ import type { BoxData, BoxInfo, Patch, Shape, Size } from "./types";
 import { SHAPE_OPTIONS } from "./validate";
 
 const STYLE_ID = "matomezu-edit-dialog-style";
-const CSS = `
+const CSS = `/* i18n-ok（CSS のコメントの日本語） */
 .mz-dlg-overlay {
   position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.45); padding: 16px;
@@ -134,17 +136,17 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const off = b.canBody ? "" : " disabled";
   const sizes: Size[] = ["L", "M", "S"];
   const side = `<div class="mz-dlg-side">
-      <div class="mz-dlg-group"><h3>形</h3>
-        <select class="mz-dlg-input" name="shape" aria-label="形"${b.canShape ? "" : " disabled"}>${SHAPE_OPTIONS.map(([v, label]) =>
+      <div class="mz-dlg-group"><h3>${t("形")}</h3>
+        <select class="mz-dlg-input" name="shape" aria-label="${t("形")}"${b.canShape ? "" : " disabled"}>${SHAPE_OPTIONS.map(([v, label]) =>
           `<option value="${v}"${v === b.shape ? " selected" : ""}>${esc(label)}</option>`).join("")}</select>
-        ${b.canShape ? "" : `<p class="mz-dlg-note">子を内包している箱は枠なので、形を選べません</p>`}</div>
-      <div class="mz-dlg-group"><h3>サイズ</h3>
+        ${b.canShape ? "" : `<p class="mz-dlg-note">${t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
+      <div class="mz-dlg-group"><h3>${t("サイズ")}</h3>
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
-        ${b.sizeFixed ? `<p class="mz-dlg-note">内包・リストの箱の大きさは、子の並びで決まります</p>` : ""}</div>
-      <div class="mz-dlg-group"><h3>テーマ</h3>
-        <select class="mz-dlg-input" name="theme" aria-label="テーマ">
-          <option value=""${b.theme ? "" : " selected"}>受け継ぐ</option>
-          ${THEMES.map(t => `<option value="${t.id}"${t.id === b.theme ? " selected" : ""}>${esc(t.label)}</option>`).join("")}
+        ${b.sizeFixed ? `<p class="mz-dlg-note">${t("内包・リストの箱の大きさは、子の並びで決まります")}</p>` : ""}</div>
+      <div class="mz-dlg-group"><h3>${t("テーマ")}</h3>
+        <select class="mz-dlg-input" name="theme" aria-label="${t("テーマ")}">
+          <option value=""${b.theme ? "" : " selected"}>${t("受け継ぐ")}</option>
+          ${THEMES.map(th => `<option value="${th.id}"${th.id === b.theme ? " selected" : ""}>${esc(th.label)}</option>`).join("")}
         </select></div>
     </div>`;
   // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするスイッチ。本文が空のあいだは切って押せなくし、
@@ -152,21 +154,21 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   // 「箱の幅に合わせる」は、つまみで本文の幅を変えていれば押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
   // 子の無い箱では箱の幅が中身（キャプションと本文）に合わせて決まり直す
   const overlay = show(title, okLabel, `<div class="mz-dlg-split">${side}<div class="mz-dlg-main">
-      <label class="mz-dlg-field"><span>キャプション</span>
-        <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="なし（空の箱）"></label>
-      <div class="mz-dlg-row"><span>区切り線</span>
-        <button type="button" class="mz-dlg-switch" role="switch" name="rule" aria-checked="false" aria-label="区切り線" disabled></button>
+      <label class="mz-dlg-field"><span>${t("キャプション")}</span>
+        <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="${t("なし（空の箱）")}"></label>
+      <div class="mz-dlg-row"><span>${t("区切り線")}</span>
+        <button type="button" class="mz-dlg-switch" role="switch" name="rule" aria-checked="false" aria-label="${t("区切り線")}" disabled></button>
         <span class="mz-dlg-onoff">OFF</span></div>
-      <label class="mz-dlg-field mz-dlg-body"><span>本文</span>
-        <textarea class="mz-dlg-input" name="body" placeholder="なし"${off}>${esc(b.body)}</textarea></label>
-      <p class="mz-dlg-note" data-body-note${b.canBody ? " hidden" : ""}>本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます</p>
+      <label class="mz-dlg-field mz-dlg-body"><span>${t("本文")}</span>
+        <textarea class="mz-dlg-input" name="body" placeholder="${t("なし")}"${off}>${esc(b.body)}</textarea></label>
+      <p class="mz-dlg-note" data-body-note${b.canBody ? " hidden" : ""}>${t("本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます")}</p>
       <div class="mz-dlg-row">
-        <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>箱の幅に合わせる</button>
+        <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>${t("箱の幅に合わせる")}</button>
         <input type="hidden" name="width-auto" value="">
-        <label class="mz-dlg-lines">最大行数${helpIcon("超えた分は … で切ります")}
+        <label class="mz-dlg-lines">${t("最大行数")}${helpIcon(t("超えた分は … で切ります"))}
           <select class="mz-dlg-input" name="lines"${off}>
-            <option value=""${b.bodyLines ? "" : " selected"}>制限なし</option>
-            ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${v} 行</option>`).join("")}
+            <option value=""${b.bodyLines ? "" : " selected"}>${t("制限なし")}</option>
+            ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${t("{n} 行", { n: v })}</option>`).join("")}
           </select></label></div>
     </div></div>`,
   overlay => {
@@ -234,7 +236,7 @@ export function openEditDialog(graph: Graph, id: string): void {
   const b = info as BoxInfo;
   const sizeFixed = b.children.length > 0 && (b.childView === "nest" || b.childView === "list");
   const start: BoxStart = { ...b, theme: b.theme ?? "", sizeFixed };
-  boxDialog("ボックスの編集", "確定", start, v => {
+  boxDialog(t("ボックスの編集"), t("確定"), start, v => {
     const patch: Patch = {};
     if (v.caption !== b.caption) patch.caption = v.caption;
     if (b.canShape && v.shape !== b.shape) patch.shape = v.shape;
@@ -255,7 +257,7 @@ export function openAddDialog(graph: Graph, req: AddRequest): void {
     caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
     shape: "box", size: "M", canShape: true, overflow: "wrap", theme: "", sizeFixed: false,
   };
-  boxDialog("ボックスの追加", "追加", start, v => {
+  boxDialog(t("ボックスの追加"), t("追加"), start, v => {
     const fields: Partial<BoxData> = {};
     if (v.caption) fields.caption = v.caption;
     // 既定（ボックス・M・受け継ぐ）は書かない
@@ -286,14 +288,14 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
   const has = (side: "start" | "end") => e.arrow === side || e.arrow === "both";
   const radios = (name: string, now: string, options: [string, string][]) =>
     options.map(([v, label]) => `<label><input type="radio" name="${name}" value="${v}"${v === now ? " checked" : ""}>${label}</label>`).join("");
-  const overlay = show("線の編集", "確定", `
-      <label class="mz-dlg-field"><span>キャプション</span>
-        <input class="mz-dlg-input" type="text" name="caption" value="${esc(e.caption ?? "")}" placeholder="なし"></label>
-      ${e.self ? "" : `<div class="mz-dlg-row"><span>通り方</span>${radios("route", e.route, [["elbow", "折れ線"], ["straight", "直線"]])}</div>`}
-      <div class="mz-dlg-row"><span>線の種類</span>${radios("dash", e.dash, [["solid", "実線"], ["dashed", "破線"]])}</div>
-      <div class="mz-dlg-row"><span>矢印</span>
-        <label><input type="checkbox" name="arrow-start"${has("start") ? " checked" : ""}>始点</label>
-        <label><input type="checkbox" name="arrow-end"${has("end") ? " checked" : ""}>終点</label></div>`,
+  const overlay = show(t("線の編集"), t("確定"), `
+      <label class="mz-dlg-field"><span>${t("キャプション")}</span>
+        <input class="mz-dlg-input" type="text" name="caption" value="${esc(e.caption ?? "")}" placeholder="${t("なし")}"></label>
+      ${e.self ? "" : `<div class="mz-dlg-row"><span>${t("通り方")}</span>${radios("route", e.route, [["elbow", t("折れ線")], ["straight", t("直線")]])}</div>`}
+      <div class="mz-dlg-row"><span>${t("線の種類")}</span>${radios("dash", e.dash, [["solid", t("実線")], ["dashed", t("破線")]])}</div>
+      <div class="mz-dlg-row"><span>${t("矢印")}</span>
+        <label><input type="checkbox" name="arrow-start"${has("start") ? " checked" : ""}>${t("始点")}</label>
+        <label><input type="checkbox" name="arrow-end"${has("end") ? " checked" : ""}>${t("終点")}</label></div>`,
   overlay => {
     const field = (name: string) => overlay.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
     const caption = field("caption").value;
@@ -307,7 +309,7 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
     if (dash && dash !== e.dash) patch.dash = dash === "dashed" ? "dashed" : null;
     if (arrow !== e.arrow) patch.arrow = arrow;
     if (Object.keys(patch).length) graph.updateEdge(id, patch); // まとめて 1 件の変更にする
-  }, `<button type="button" class="mz-dlg-btn mz-dlg-delete" data-delete>線を消す</button>`);
+  }, `<button type="button" class="mz-dlg-btn mz-dlg-delete" data-delete>${t("線を消す")}</button>`);
   overlay.querySelector("[data-delete]")!.addEventListener("click", () => {
     closeEditDialog();
     graph.removeEdge(id);
@@ -317,6 +319,10 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
 // ダイアログを出す。fields は項目の HTML、commit は確定したときに項目を読んで書く（変えた項目だけを 1 回の変更として書く。
 // 変えていなければ書かない。履歴に残さない）
 // lead はフッターの左端に置くボタン（線を消すなど）
+export function openDialog(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = ""): HTMLElement {
+  return show(title, okLabel, fields, commit, lead);
+}
+
 function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = ""): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
@@ -328,8 +334,8 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
       ${fields}
       <div class="mz-dlg-foot">
         ${lead}
-        <span class="mz-dlg-hint">${mac ? "⌘" : "Ctrl"}+Enter で${esc(okLabel)} / Esc でキャンセル</span>
-        <button type="button" class="mz-dlg-btn" data-cancel>キャンセル</button>
+        <span class="mz-dlg-hint">${esc(t("{key}+Enter で{ok} / Esc でキャンセル", { key: mac ? "⌘" : "Ctrl", ok: okLabel }))}</span>
+        <button type="button" class="mz-dlg-btn" data-cancel>${t("キャンセル")}</button>
         <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>${esc(okLabel)}</button>
       </div>
     </div>`;

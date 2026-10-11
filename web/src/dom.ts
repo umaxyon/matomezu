@@ -2,6 +2,8 @@
 
 import { formatDiagram } from "./format";
 
+import { t } from "./i18n";
+
 export const SVGNS = "http://www.w3.org/2000/svg";
 
 export function injectStyle(id: string, css: string): void {
@@ -65,7 +67,7 @@ export function truncateWidth(text: string, limit: number): string {
 }
 
 // キャプションが空の箱を、一覧などで示す文字
-export const EMPTY_CAPTION = "(空)";
+export const EMPTY_CAPTION = t("(空)");
 
 // ボックスを短く示すキー: 「id_キャプションの先頭（全角 8 文字分、半角なら 16 文字）」。超えたら … を付ける。
 // 同じ書き出しのボックスが並んでも見分けられるよう id を付ける。改行や続く空白は 1 つの空白にする。空なら「id_(空)」

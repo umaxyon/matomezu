@@ -1,6 +1,7 @@
 // 描画: ボックスの見た目、DB やツリーの線、ボックスどうしの線を DOM に反映する
 
 import { SVGNS, isLightColor } from "./dom";
+import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
 import { leftNormalAt, pointAt, polylineLength } from "./geom";
@@ -236,7 +237,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (!block) bs.width = "";
 
     n.moreEl.hidden = !(n.children.length && view === "hidden");
-    n.moreEl.title = `子 ${n.children.length} 件`;
+    n.moreEl.title = t("子 {n} 件", { n: n.children.length });
     n.treeSvg.style.display = n.children.length && view === "tree" ? "" : "none";
     // 色の指定が無ければ線と同じ色にする（白だと明るいテーマで見えないため）
     n.treeFrame.style.stroke = own ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";

@@ -2,6 +2,7 @@
 // graph は何が起きたか（GraphEvent）だけを知らせ、文言とモードの切り替えはここで決める
 
 import type { Graph } from "./graph";
+import { t } from "./i18n";
 
 export type GraphEvent =
   // 付け替えた。into は落とし先の箱のキー（null は最上位）、page はほかのページから移したときの今のページの名前
@@ -23,33 +24,41 @@ export type GraphEvent =
   // 読み込んだデータに、知らないテーマの名前があった（標準として描いている）
   | { kind: "unknownTheme"; names: string[] };
 
-// 知らせの文言
+// 知らせの文言。添える項目（子の数、線の数など）は「、」でつないで括弧に入れる
 export function noticeOf(ev: GraphEvent): string {
-  const also = (parts: string[]) => (parts.length ? `（${parts.join("、")}）` : "");
+  const list = (parts: (string | false)[]) => parts.filter(Boolean).join(t("、"));
+  const also = (parts: (string | false)[]) => (list(parts) ? t("（{list}）", { list: list(parts) }) : "");
+  const kids = (n: number) => n > 0 && t("子 {n} 個", { n });
+  const lines = (n: number) => n > 0 && t("線 {n} 本", { n });
   switch (ev.kind) {
-    case "moved":
-      return (ev.into ? `「${ev.into}」の中` : "最上位") + (ev.page != null ? `（${ev.page}）` : "") + "へ移しました" +
-        (ev.cutEdges ? `（階層が変わったため、線を ${ev.cutEdges} 本外しました）` : "");
+    case "moved": {
+      const where = ev.page != null
+        ? (ev.into ? t("「{into}」の中（{page}）へ移しました", { into: ev.into, page: ev.page }) : t("最上位（{page}）へ移しました", { page: ev.page }))
+        : (ev.into ? t("「{into}」の中へ移しました", { into: ev.into }) : t("最上位へ移しました"));
+      return where + (ev.cutEdges ? t("（階層が変わったため、線を {n} 本外しました）", { n: ev.cutEdges }) : "");
+    }
     case "pageInPage":
-      return "ページの中には、ページの箱を入れられません";
+      return t("ページの中には、ページの箱を入れられません");
     case "removed": {
-      const parts = [ev.kids ? `子 ${ev.kids} 個` : "", ev.cutEdges ? `線 ${ev.cutEdges} 本` : ""].filter(Boolean);
-      return `「${ev.key}」を消しました` + (parts.length ? `（${parts.join("、")}も）` : "");
+      const parts = list([kids(ev.kids), lines(ev.cutEdges)]);
+      return t("「{key}」を消しました", { key: ev.key }) + (parts ? t("（{list}も）", { list: parts }) : "");
     }
     case "restored":
-      return `「${ev.key}」を戻しました`;
+      return t("「{key}」を戻しました", { key: ev.key });
     case "added":
-      return `「${ev.key}」を追加しました`;
+      return t("「{key}」を追加しました", { key: ev.key });
     case "purged":
-      return `「${ev.key}」を完全に削除しました` + also([ev.kids ? `子 ${ev.kids} 個` : ""].filter(Boolean));
+      return t("「{key}」を完全に削除しました", { key: ev.key }) + also([kids(ev.kids)]);
     case "pasted":
-      return `「${ev.key}」を移植しました` +
-        also([ev.from ? `${ev.from} から` : "", ev.kids ? `子 ${ev.kids} 個` : "", ev.edges ? `線 ${ev.edges} 本` : ""].filter(Boolean));
+      return t("「{key}」を移植しました", { key: ev.key }) +
+        also([ev.from ? t("{from} から", { from: ev.from }) : false, kids(ev.kids), lines(ev.edges)]);
     case "unknownTheme":
-      return `知らないテーマ（${ev.names.join("、")}）があります。標準として描いています`;
+      return t("知らないテーマ（{names}）があります。標準として描いています", { names: ev.names.join(t("、")) });
     case "aligned": {
-      const label = ev.what === "width" ? "幅" : ev.what === "height" ? "高さ" : "幅と高さ";
-      return `子 ${ev.count} 個の${label}をそろえました` + (ev.partial ? "（中身の都合で狭められない子があります）" : "");
+      const done = ev.what === "width" ? t("子 {n} 個の幅をそろえました", { n: ev.count })
+        : ev.what === "height" ? t("子 {n} 個の高さをそろえました", { n: ev.count })
+        : t("子 {n} 個の幅と高さをそろえました", { n: ev.count });
+      return done + (ev.partial ? t("（中身の都合で狭められない子があります）") : "");
     }
   }
 }

@@ -7,6 +7,7 @@
 // 画面の座標で置く（サイドバーのようにスクロールする枠の中でも切れないように。help.ts と同じ）
 
 import { esc, injectStyle, toHex } from "./dom";
+import { t } from "./i18n";
 import { isPaletteName } from "./theme";
 
 export interface ColorPickerOptions {
@@ -113,19 +114,19 @@ export function openColorPicker(o: ColorPickerOptions): { close(): void } {
   const el = document.createElement("div");
   el.className = "mz-cp";
   el.setAttribute("role", "dialog");
-  el.setAttribute("aria-label", "色を選ぶ");
+  el.setAttribute("aria-label", t("色を選ぶ"));
   const named = isPaletteName(o.value);
   const swatches = o.palette.map(p =>
     `<button type="button" class="mz-cp-swatch" data-name="${esc(p.name)}" style="background:${esc(p.color)}" title="${esc(p.name)}" aria-pressed="${o.value === p.name}"></button>`
-  ).join("") + `<button type="button" class="mz-cp-none" data-none aria-pressed="${!o.value}">なし</button>`;
+  ).join("") + `<button type="button" class="mz-cp-none" data-none aria-pressed="${!o.value}">${t("なし")}</button>`;
   el.innerHTML = `<div class="mz-cp-swatches">${swatches}</div>
-    <div class="mz-cp-sv" aria-label="濃さと明るさ"><div class="mz-cp-knob"></div></div>
+    <div class="mz-cp-sv" aria-label="${t("濃さと明るさ")}"><div class="mz-cp-knob"></div></div>
     <div class="mz-cp-row"><span class="mz-cp-current"></span>
       <div class="mz-cp-sliders">
-        <input class="mz-cp-range mz-cp-hue" type="range" min="0" max="360" aria-label="色合い" title="色合い">
-        <input class="mz-cp-range mz-cp-light" type="range" min="0" max="100" aria-label="灰色" title="灰色">
+        <input class="mz-cp-range mz-cp-hue" type="range" min="0" max="360" aria-label="${t("色合い")}" title="${t("色合い")}">
+        <input class="mz-cp-range mz-cp-light" type="range" min="0" max="100" aria-label="${t("灰色")}" title="${t("灰色")}">
       </div></div>
-    <div class="mz-cp-row"><input class="mz-cp-value" type="text" aria-label="色の値（#rrggbb）"></div>`;
+    <div class="mz-cp-row"><input class="mz-cp-value" type="text" aria-label="${t("色の値（#rrggbb）")}"></div>`;
   document.body.appendChild(el);
 
   const $ = <T extends Element>(sel: string) => el.querySelector<T>(sel);

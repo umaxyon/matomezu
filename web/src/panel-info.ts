@@ -5,56 +5,53 @@ import { EMPTY_CAPTION, esc, keyOf } from "./dom";
 import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
+import { t } from "./i18n";
 import { THEMES, isPaletteName, themeById } from "./theme";
 import type { Brief, ChildView, Dash, EdgeInfo, Info, Route, Shape, Size, TreeDirection } from "./types";
 import { SHAPE_OPTIONS } from "./validate";
 
-const KIND_LABELS = { group: "グループ", box: "ボックス" };
+const KIND_LABELS = { group: t("グループ"), box: t("ボックス") };
 // 鉛筆の印（編集ダイアログを開くボタン）
 const PENCIL = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11.5 1.8l2.7 2.7-8.6 8.6-3.4.7.7-3.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.8 3.5l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></svg>';
-const ROUTE_OPTIONS: [string, string][] = [["elbow", "折れ線"], ["straight", "直線"]];
-const SIZE_HELP = "L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\n" +
-  "S: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります\n" +
-  "サイズが効くのは子の無い箱と、ツリー・非表示の親の本体です。内包・リストの箱の大きさは子の並びで決まります";
-const BY_CHILDREN = "内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）";
-const VIEW_OPTIONS: [string, string][] = [["nest", "内包"], ["tree", "ツリー"], ["list", "リスト"], ["hidden", "非表示"]];
-const TREE_DIR_OPTIONS: [string, string][] = [["down", "↓ 下"], ["up", "↑ 上"], ["left", "← 左"], ["right", "→ 右"]];
-const VIEW_HELP = "内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\n" +
-  "リスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n" +
-  "非表示: 子を隠し、▼ で子がいることだけを示します";
+const ROUTE_OPTIONS: [string, string][] = [["elbow", t("折れ線")], ["straight", t("直線")]];
+const SIZE_HELP = t("L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\nS: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります\nサイズが効くのは子の無い箱と、ツリー・非表示の親の本体です。内包・リストの箱の大きさは子の並びで決まります");
+const BY_CHILDREN = t("内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）");
+const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["tree", t("ツリー")], ["list", t("リスト")], ["hidden", t("非表示")]];
+const TREE_DIR_OPTIONS: [string, string][] = [["down", t("↓ 下")], ["up", t("↑ 上")], ["left", t("← 左")], ["right", t("→ 右")]];
+const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nツリー: 子を親の上下左右にぶら下げて見せます（子は自動で並びます）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使わず、孫は非表示になります）\n非表示: 子を隠し、▼ で子がいることだけを示します");
 // リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
-const IN_LIST = "リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）";
+const IN_LIST = t("リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）");
 // ワールドの背景によく使う色（明るい色と暗い色）
 const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
 
-const THEME_HELP = THEMES.map(t => `${t.label}: ${t.describe}`).join("\n");
+const THEME_HELP = THEMES.map(th => `${th.label}: ${th.describe}`).join("\n");
 
 // テーマの選択（セレクトボックス。テーマが増えても幅が変わらないように）。箱では「受け継ぐ」（書かない）も選べ、
 // 今効いているテーマを添える。選んでいるテーマの説明も出す。背景色のボタン（color）も、テーマの上の上書きなのでこの枠に置く
 function themeSection(own: string | null, used: string, inherit: boolean, color: string, unknown: string | null): string {
   const value = own ?? (inherit ? "" : used);
-  const options = (inherit ? [["", "受け継ぐ"]] : []).concat(THEMES.map(t => [t.id, t.label]));
-  const t = themeById(used);
-  return `<div class="mzp-section"><h3>テーマ${helpIcon(THEME_HELP)}</h3>
-    <select class="mzp-input" name="mzp-theme" aria-label="テーマ">${options.map(([v, label]) =>
+  const options = (inherit ? [["", t("受け継ぐ")]] : []).concat(THEMES.map(th => [th.id, th.label]));
+  const theme = themeById(used);
+  return `<div class="mzp-section"><h3>${t("テーマ")}${helpIcon(THEME_HELP)}</h3>
+    <select class="mzp-input" name="mzp-theme" aria-label="${t("テーマ")}">${options.map(([v, label]) =>
       `<option value="${esc(v!)}"${v === value ? " selected" : ""}>${esc(label!)}</option>`).join("")}</select>
-    ${unknown ? `<p class="mzp-hint">「${esc(unknown)}」というテーマはありません。${inherit ? "受け継いだテーマ" : "標準"}で描いています</p>` : ""}
-    <p class="mzp-hint">${inherit && own == null ? `今は「${esc(t.label)}」を受け継いでいます。` : ""}${esc(t.describe)}</p>
+    ${unknown ? `<p class="mzp-hint">${esc(inherit ? t("「{name}」というテーマはありません。受け継いだテーマで描いています", { name: unknown }) : t("「{name}」というテーマはありません。標準で描いています", { name: unknown }))}</p>` : ""}
+    <p class="mzp-hint">${inherit && own == null ? esc(t("今は「{name}」を受け継いでいます。", { name: theme.label })) : ""}${esc(theme.describe)}</p>
     ${color}
   </div>`;
 }
 
 // 背景色のボタン。押すと色を選ぶポップアップ（color-picker.ts）を開く。今の色と、色の値を出す（名前は出さない）
 function colorButton(paint: string | null, text: string, help: string): string {
-  return `<div class="mzp-field"><span>背景色${helpIcon(help)}</span>
-    <button type="button" class="mzp-input mzp-color-btn" data-color-open aria-haspopup="dialog" aria-label="背景色を選ぶ">
+  return `<div class="mzp-field"><span>${t("背景色")}${helpIcon(help)}</span>
+    <button type="button" class="mzp-input mzp-color-btn" data-color-open aria-haspopup="dialog" aria-label="${t("背景色を選ぶ")}">
       <span class="mzp-swatch" style="background:${esc(paint ?? "transparent")}"></span><span>${esc(text)}</span>
     </button>
   </div>`;
 }
 
 function chips(list: Brief[]): string {
-  if (!list.length) return '<span class="mzp-none">なし</span>';
+  if (!list.length) return `<span class="mzp-none">${t("なし")}</span>`;
   return '<div class="mzp-chips">' + list.map(x =>
     `<button type="button" class="mzp-chip" data-select="${esc(x.id)}" title="${esc(x.caption)}">${esc(keyOf(x.id, x.caption))}</button>`
   ).join("") + "</div>";
@@ -72,39 +69,39 @@ function segment(name: string, value: string, options: [string, string][], disab
 // 選んだ線の情報: ID とつなぐ箱（始点・終点。押すとその箱を選ぶ）、矢印、消すボタン
 function edgeHtml(info: EdgeInfo): string {
   const has = (side: "start" | "end") => info.arrow === side || info.arrow === "both";
-  return `<div class="mzp-head"><span class="mzp-title">線</span></div>
-    <div class="mzp-section"><h3>情報</h3><dl class="mzp-dl">
+  return `<div class="mzp-head"><span class="mzp-title">${t("線")}</span></div>
+    <div class="mzp-section"><h3>${t("情報")}</h3><dl class="mzp-dl">
       <dt>ID</dt><dd>${esc(info.id)}</dd>
-      <dt>始点</dt><dd>${chips([info.from])}</dd>
-      <dt>終点</dt><dd>${chips([info.to])}</dd>
+      <dt>${t("始点")}</dt><dd>${chips([info.from])}</dd>
+      <dt>${t("終点")}</dt><dd>${chips([info.to])}</dd>
     </dl></div>
-    <div class="mzp-section"><h3>編集</h3>
+    <div class="mzp-section"><h3>${t("編集")}</h3>
       <div class="mzp-caption-row">
-        <span class="mzp-caption-label">キャプション</span>
-        <span class="mzp-caption-text${info.caption ? "" : " mzp-empty"}" title="${esc(info.caption ?? "")}">${esc(info.caption || "なし")}</span>
-        <button type="button" class="mzp-pencil" data-edit-edge="${esc(info.id)}" title="線のキャプションを編集（線のダブルクリックでも開きます）" aria-label="線のキャプションを編集">${PENCIL}</button>
+        <span class="mzp-caption-label">${t("キャプション")}</span>
+        <span class="mzp-caption-text${info.caption ? "" : " mzp-empty"}" title="${esc(info.caption ?? "")}">${esc(info.caption || t("なし"))}</span>
+        <button type="button" class="mzp-pencil" data-edit-edge="${esc(info.id)}" title="${t("線のキャプションを編集（線のダブルクリックでも開きます）")}" aria-label="${t("線のキャプションを編集")}">${PENCIL}</button>
       </div>
-      ${info.caption && info.captionMoved ? `<button type="button" class="mzp-chip" data-caption-reset="${esc(info.id)}">キャプションの位置を自動に戻す</button>` : ""}
+      ${info.caption && info.captionMoved ? `<button type="button" class="mzp-chip" data-caption-reset="${esc(info.id)}">${t("キャプションの位置を自動に戻す")}</button>` : ""}
     </div>
-    ${info.self ? `<div class="mzp-section"><p class="mzp-hint">自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）</p></div>` : `<div class="mzp-section"><h3>通り方</h3>
+    ${info.self ? `<div class="mzp-section"><p class="mzp-hint">${t("自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）")}</p></div>` : `<div class="mzp-section"><h3>${t("通り方")}</h3>
       ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
     </div>`}
-    ${info.self ? "" : `<div class="mzp-section"><h3>端の位置${helpIcon("線の端は、つまんで動かすとその位置に固定されます。固定していない端は、ボックスの位置から自動で決めます")}</h3>
-      <button type="button" class="mzp-chip" data-align="${esc(info.id)}"${info.aligned ? ` disabled title="整列済みです"` : ""}>整列</button>${helpIcon("今の形のまま、両端を辺の真ん中（向き合う辺どうしで、まっすぐ結べるならまっすぐ結ぶ位置）に固定します。動かした途中の区間は自動に戻します")}
-      <button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}"${info.endsMoved ? "" : ` disabled title="端は自動で選んでいます"`}>接辺の自動選択</button>${helpIcon("端を動かしたり整列したりすると、その位置に固定されます。押すと固定をやめて、ボックスの位置からつなぐ辺と位置を自動で選ぶようにします。動かした途中の区間も自動に戻します")}
+    ${info.self ? "" : `<div class="mzp-section"><h3>${t("端の位置")}${helpIcon(t("線の端は、つまんで動かすとその位置に固定されます。固定していない端は、ボックスの位置から自動で決めます"))}</h3>
+      <button type="button" class="mzp-chip" data-align="${esc(info.id)}"${info.aligned ? ` disabled title="${t("整列済みです")}"` : ""}>${t("整列")}</button>${helpIcon(t("今の形のまま、両端を辺の真ん中（向き合う辺どうしで、まっすぐ結べるならまっすぐ結ぶ位置）に固定します。動かした途中の区間は自動に戻します"))}
+      <button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}"${info.endsMoved ? "" : ` disabled title="${t("端は自動で選んでいます")}"`}>${t("接辺の自動選択")}</button>${helpIcon(t("端を動かしたり整列したりすると、その位置に固定されます。押すと固定をやめて、ボックスの位置からつなぐ辺と位置を自動で選ぶようにします。動かした途中の区間も自動に戻します"))}
     </div>`}
     ${!info.self && info.via ? `<div class="mzp-section">
-      <button type="button" class="mzp-chip" data-via-reset="${esc(info.id)}">折れ線を自動に戻す</button>${helpIcon("途中の区間を動かした形をやめて、ボックスの位置から自動で決めた形に戻します（端の固定はそのまま）")}
+      <button type="button" class="mzp-chip" data-via-reset="${esc(info.id)}">${t("折れ線を自動に戻す")}</button>${helpIcon(t("途中の区間を動かした形をやめて、ボックスの位置から自動で決めた形に戻します（端の固定はそのまま）"))}
     </div>` : ""}
-    <div class="mzp-section"><h3>線の種類</h3>
-      ${segment("mzp-dash", info.dash, [["solid", "実線"], ["dashed", "破線"]])}
+    <div class="mzp-section"><h3>${t("線の種類")}</h3>
+      ${segment("mzp-dash", info.dash, [["solid", t("実線")], ["dashed", t("破線")]])}
     </div>
-    <div class="mzp-section"><h3>矢印</h3>
-      <label class="mzp-check"><input type="checkbox" data-arrow="start"${has("start") ? " checked" : ""}>始点</label>
-      <label class="mzp-check"><input type="checkbox" data-arrow="end"${has("end") ? " checked" : ""}>終点</label>
+    <div class="mzp-section"><h3>${t("矢印")}</h3>
+      <label class="mzp-check"><input type="checkbox" data-arrow="start"${has("start") ? " checked" : ""}>${t("始点")}</label>
+      <label class="mzp-check"><input type="checkbox" data-arrow="end"${has("end") ? " checked" : ""}>${t("終点")}</label>
     </div>
     <div class="mzp-section">
-      <button type="button" class="mzp-chip mzp-danger" data-remove-edge="${esc(info.id)}">線を消す</button>
+      <button type="button" class="mzp-chip mzp-danger" data-remove-edge="${esc(info.id)}">${t("線を消す")}</button>
     </div>`;
 }
 
@@ -114,13 +111,13 @@ function html(info: Info): string {
 
   if (info.kind === "world") {
     parts.push(`<div class="mzp-head"><span class="mzp-title">${esc(info.caption)}</span></div>`);
-    parts.push(`<div class="mzp-section"><h3>図の題名${helpIcon("タブの見出しに出ます。空ならファイル名を出します（ファイル名は変わりません）")}</h3>
-      <input class="mzp-input" type="text" data-edit="title" value="${esc(info.title ?? "")}" placeholder="ファイル名" aria-label="図の題名">
+    parts.push(`<div class="mzp-section"><h3>${t("図の題名")}${helpIcon(t("タブの見出しに出ます。空ならファイル名を出します（ファイル名は変わりません）"))}</h3>
+      <input class="mzp-input" type="text" data-edit="title" value="${esc(info.title ?? "")}" placeholder="${t("ファイル名")}" aria-label="${t("図の題名")}">
     </div>`);
     // 図の背景色も、箱と同じくボタンから色を選ぶポップアップを開く（見本は背景によく使う色）
-    parts.push(themeSection(info.theme, info.themeUsed, false, colorButton(info.backgroundPaint, info.background ?? "なし",
-      "図の背景の色。書けばテーマの背景より優先します"), info.themeUnknown));
-    parts.push(`<div class="mzp-section"><h3>線の通り方（既定）${helpIcon("通り方を決めていない線は、これに従います")}</h3>
+    parts.push(themeSection(info.theme, info.themeUsed, false, colorButton(info.backgroundPaint, info.background ?? t("なし"),
+      t("図の背景の色。書けばテーマの背景より優先します")), info.themeUnknown));
+    parts.push(`<div class="mzp-section"><h3>${t("線の通り方（既定）")}${helpIcon(t("通り方を決めていない線は、これに従います"))}</h3>
       ${segment("mzp-world-route", info.route, ROUTE_OPTIONS)}
     </div>`);
   } else {
@@ -131,42 +128,42 @@ function html(info: Info): string {
     </div>`);
 
     // キャプションと本文の編集は、鉛筆のボタンで開くダイアログにまとめる（箱のダブルクリックでも開く。edit-dialog.ts）
-    parts.push(`<div class="mzp-section"><h3>編集</h3>
+    parts.push(`<div class="mzp-section"><h3>${t("編集")}</h3>
       <div class="mzp-caption-row">
-        <span class="mzp-caption-label">キャプション</span>
+        <span class="mzp-caption-label">${t("キャプション")}</span>
         <span class="mzp-caption-text${info.caption ? "" : " mzp-empty"}" title="${esc(info.caption)}">${esc(info.caption || EMPTY_CAPTION)}</span>
-        <button type="button" class="mzp-pencil" data-edit-box="${esc(info.id)}" title="キャプションと本文を編集（箱のダブルクリックでも開きます）" aria-label="キャプションと本文を編集">${PENCIL}</button>
+        <button type="button" class="mzp-pencil" data-edit-box="${esc(info.id)}" title="${t("キャプションと本文を編集（箱のダブルクリックでも開きます）")}" aria-label="${t("キャプションと本文を編集")}">${PENCIL}</button>
       </div>
       ${info.body ? `<div class="mzp-body-preview" title="${esc(info.body)}">${esc(info.body)}</div>` : ""}
     </div>`);
     // 背景色（箱の塗り）はテーマの枠に置く（キャプションの下だと文字の色に見えるため。2026-10-10 ユーザー）
     const valued = !!info.color && !isPaletteName(info.color);
-    parts.push(themeSection(info.theme, info.themeUsed, true, colorButton(info.paint, valued ? info.color : info.color ? "" : "なし",
-      "見本の色は、どのテーマでもそのテーマに合った色で描きます。好きな色（灰色も）を選ぶと、どのテーマでもその色で描きます"), info.themeUnknown));
+    parts.push(themeSection(info.theme, info.themeUsed, true, colorButton(info.paint, valued ? info.color : info.color ? "" : t("なし"),
+      t("見本の色は、どのテーマでもそのテーマに合った色で描きます。好きな色（灰色も）を選ぶと、どのテーマでもその色で描きます")), info.themeUnknown));
 
     if (info.canShape) {
       // 形はセレクトボックス（形が増えても幅が変わらないように。2026-10-11 ユーザー）。本文があればボックス以外は選べない
-      parts.push(`<div class="mzp-section"><h3>形</h3>
-        <select class="mzp-input" name="mzp-shape" aria-label="形">${SHAPE_OPTIONS.map(([v, label]) =>
+      parts.push(`<div class="mzp-section"><h3>${t("形")}</h3>
+        <select class="mzp-input" name="mzp-shape" aria-label="${t("形")}">${SHAPE_OPTIONS.map(([v, label]) =>
           `<option value="${v}"${v === info.shape ? " selected" : ""}${info.body && v !== "box" ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
-        ${info.body ? `<p class="mzp-hint">本文があるので、ボックスのままです</p>` : ""}
+        ${info.body ? `<p class="mzp-hint">${t("本文があるので、ボックスのままです")}</p>` : ""}
       </div>`);
     }
 
     // 内包・リストの箱ではサイズを使わない（docs/SIZE-plan.md）。どれも選んでいない形で、押せなくする
     const nesting = info.children.length > 0 && (info.childView === "nest" || info.childView === "list");
     const sizes: [string, string][] = [["L", "L"], ["M", "M"], ["S", "S"]];
-    parts.push(`<div class="mzp-section"><h3>サイズ${helpIcon(SIZE_HELP)}</h3>
+    parts.push(`<div class="mzp-section"><h3>${t("サイズ")}${helpIcon(SIZE_HELP)}</h3>
       ${segment("mzp-size", nesting ? "" : info.size, sizes, nesting ? new Map(sizes.map(([v]) => [v, BY_CHILDREN]))
-        : info.body ? new Map([["S", "本文があるので S にはできません（S は高さが決まっています）"]]) : undefined)}
+        : info.body ? new Map([["S", t("本文があるので S にはできません（S は高さが決まっています）")]]) : undefined)}
       ${info.inList && !nesting ? `<p class="mzp-hint">${IN_LIST}</p>` : ""}
       ${nesting ? `<p class="mzp-hint">${BY_CHILDREN}</p>` : ""}
     </div>`);
 
     if (info.children.length) {
-      parts.push(`<div class="mzp-section"><h3>子の見せ方${helpIcon(VIEW_HELP)}</h3>
+      parts.push(`<div class="mzp-section"><h3>${t("子の見せ方")}${helpIcon(VIEW_HELP)}</h3>
         ${segment("mzp-view", info.childView, VIEW_OPTIONS)}
-        ${info.childView === "tree" ? `<div class="mzp-subhead">向き</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}
+        ${info.childView === "tree" ? `<div class="mzp-subhead">${t("向き")}</div>${segment("mzp-treedir", info.treeDirection, TREE_DIR_OPTIONS)}` : ""}
       </div>`);
     }
   }
@@ -174,38 +171,38 @@ function html(info: Info): string {
   const rows: [string, string][] = [];
   if (info.kind !== "world") {
     rows.push(["ID", esc(info.id)]);
-    rows.push(["親", info.parent ? chips([info.parent]) : "ワールド"]);
-    rows.push(["位置", `${info.x}, ${info.y}`]);
+    rows.push([t("親"), info.parent ? chips([info.parent]) : t("ワールド")]);
+    rows.push([t("位置"), `${info.x}, ${info.y}`]);
   }
-  rows.push(["子", chips(info.children)]);
-  if (info.kind !== "world") rows.push(["つながり", chips(info.links)]);
-  parts.push(`<div class="mzp-section"><h3>情報</h3><dl class="mzp-dl">${
+  rows.push([t("子"), chips(info.children)]);
+  if (info.kind !== "world") rows.push([t("つながり"), chips(info.links)]);
+  parts.push(`<div class="mzp-section"><h3>${t("情報")}</h3><dl class="mzp-dl">${
     rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")
   }</dl></div>`);
 
   if (info.kind !== "world") {
     if (info.sizableChildren >= 2) {
-      parts.push(`<div class="mzp-section"><h3>子のサイズ${helpIcon("一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません。子を持つ子は中身を詰め直して縮めます（S サイズ、スティックマン、ツリー・非表示の子は対象外）")}</h3>
+      parts.push(`<div class="mzp-section"><h3>${t("子のサイズ")}${helpIcon(t("一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません。子を持つ子は中身を詰め直して縮めます（S サイズ、スティックマン、ツリー・非表示の子は対象外）"))}</h3>
         <div class="mzp-chips">
-          <button type="button" class="mzp-chip" data-fit="width">幅をそろえる</button>
-          <button type="button" class="mzp-chip" data-fit="height">高さをそろえる</button>
-          <button type="button" class="mzp-chip" data-fit="both">両方</button>
+          <button type="button" class="mzp-chip" data-fit="width">${t("幅をそろえる")}</button>
+          <button type="button" class="mzp-chip" data-fit="height">${t("高さをそろえる")}</button>
+          <button type="button" class="mzp-chip" data-fit="both">${t("両方")}</button>
         </div>
       </div>`);
     }
     // 文字のボックス（S・スティックマン以外）は、キャプションを 1 行にして … で切れる（データは overflow: "clip"。docs/SIZE-plan.md の段階 2）。
     // 1 行の箱は本文を出せないので、本文があれば押せなくする
     const oneLine = info.overflows.length
-      ? `<label class="mzp-check${info.body ? " mzp-disabled" : ""}"${info.body ? ` title="本文があるので 1 行にできません"` : ""}><input type="checkbox" data-one-line${info.overflow === "clip" ? " checked" : ""}${info.body ? " disabled" : ""}>キャプションを 1 行にする</label>${helpIcon("長いキャプションを折り返さず、… で切ります。幅はサイズの最大まで（幅の指定があればその幅まで）")}`
+      ? `<label class="mzp-check${info.body ? " mzp-disabled" : ""}"${info.body ? ` title="${t("本文があるので 1 行にできません")}"` : ""}><input type="checkbox" data-one-line${info.overflow === "clip" ? " checked" : ""}${info.body ? " disabled" : ""}>${t("キャプションを 1 行にする")}</label>${helpIcon(t("長いキャプションを折り返さず、… で切ります。幅はサイズの最大まで（幅の指定があればその幅まで）"))}`
       : "";
     // 効かない形では出さない: 枠線はボックス（とページの箱）だけ（DB・ひし形は輪郭が形そのもの、スティックマンは線で描く）。
     // 塗りつぶしはスティックマンでは使わない
     const checks = [
-      info.shape !== "person" ? `<label class="mzp-check"><input type="checkbox" data-field="fill"${info.fill ? " checked" : ""}>塗りつぶし</label>` : "",
-      info.shape === "box" ? `<label class="mzp-check"><input type="checkbox" data-field="border"${info.border ? " checked" : ""}>枠線</label>` : "",
+      info.shape !== "person" ? `<label class="mzp-check"><input type="checkbox" data-field="fill"${info.fill ? " checked" : ""}>${t("塗りつぶし")}</label>` : "",
+      info.shape === "box" ? `<label class="mzp-check"><input type="checkbox" data-field="border"${info.border ? " checked" : ""}>${t("枠線")}</label>` : "",
       oneLine,
     ].join("");
-    if (checks) parts.push(`<div class="mzp-section"><h3>見た目</h3>${checks}</div>`);
+    if (checks) parts.push(`<div class="mzp-section"><h3>${t("見た目")}</h3>${checks}</div>`);
   }
 
   return parts.join("");

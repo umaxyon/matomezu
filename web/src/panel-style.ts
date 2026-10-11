@@ -1,7 +1,7 @@
 // サイドバー（panel.ts）の見た目
 
 export const STYLE_ID = "matomezu-panel-style";
-export const PANEL_CSS = `
+export const PANEL_CSS = /* i18n-ok（CSS のコメントだけ） */ `
 .mzp {
   --mzp-text: #e4e4e7;
   --mzp-muted: rgba(228, 228, 231, 0.6);
@@ -52,7 +52,7 @@ export const PANEL_CSS = `
   margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
   color: var(--mzp-muted);
 }
-.mzp-dl { display: grid; grid-template-columns: 72px 1fr; gap: 4px 8px; margin: 0; }
+.mzp-dl { display: grid; grid-template-columns: minmax(72px, max-content) 1fr; gap: 4px 8px; margin: 0; }
 .mzp-dl dt { color: var(--mzp-muted); }
 .mzp-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .mzp-chips { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -70,7 +70,7 @@ export const PANEL_CSS = `
 .mzp-check, .mzp-radio { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
 .mzp-radio.mzp-disabled { opacity: 0.45; cursor: not-allowed; }
 .mzp-note { font-size: 11px; color: var(--mzp-muted); margin: 2px 0 0 24px; }
-.mzp-field { display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 8px; margin-bottom: 8px; }
+.mzp-field { display: grid; grid-template-columns: minmax(72px, max-content) 1fr; align-items: center; gap: 8px; margin-bottom: 8px; }
 .mzp-field > span { color: var(--mzp-muted); }
 .mzp-input {
   width: 100%; min-width: 0; box-sizing: border-box; font: inherit; color: inherit;

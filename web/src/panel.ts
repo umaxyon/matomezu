@@ -16,6 +16,7 @@ import { closeEditDialog } from "./edit-dialog";
 import { injectStyle } from "./dom";
 import type { Graph } from "./graph";
 import { setupHelp } from "./help";
+import { t } from "./i18n";
 import { createInfoTab } from "./panel-info";
 import { createListTab, type OtherBook } from "./panel-list";
 import { PANEL_CSS, STYLE_ID } from "./panel-style";
@@ -41,8 +42,8 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
   el.classList.add("mzp");
   const offHelp = setupHelp(el); // 見出しなどの「?」の吹き出し
   el.innerHTML = `<div class="mzp-tabs" role="tablist">
-      <button type="button" class="mzp-tab" role="tab" data-tab="info">情報</button>
-      <button type="button" class="mzp-tab" role="tab" data-tab="list">追加削除</button>
+      <button type="button" class="mzp-tab" role="tab" data-tab="info">${t("情報")}</button>
+      <button type="button" class="mzp-tab" role="tab" data-tab="list">${t("追加削除")}</button>
     </div>
     <div class="mzp-pane" role="tabpanel" data-pane="info"></div>
     <div class="mzp-pane" role="tabpanel" data-pane="list"></div>`;

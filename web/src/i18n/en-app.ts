@@ -1,0 +1,88 @@
+// 英語の辞書（キーは日本語の文言。i18n.ts）。ヘッダー・ツールバー・知らせ・設定
+export default {
+  // 設定
+  "設定": "Settings",
+  "確定": "OK",
+  "言語": "Language",
+  "ブラウザに合わせる": "Match the browser",
+  "言語を変えると、画面を読み直します": "Changing the language reloads the page",
+  "言語の切り替え": "Change the language",
+  "画面を読み直すので、保存していない変更は失われます": "The page will reload, so unsaved changes will be lost",
+  "読み直す": "Reload",
+
+  // index.html（ヘッダー・ツールバー・ヒント）
+  "ツールバー": "Toolbar",
+  "元に戻す (Ctrl+Z)": "Undo (Ctrl+Z)",
+  "元に戻す": "Undo",
+  "やり直す (Ctrl+Shift+Z)": "Redo (Ctrl+Shift+Z)",
+  "やり直す": "Redo",
+  "選択モード: クリックでボックスや線を選ぶ / ドラッグでボックスを動かす / ポインタを乗せた箱の〇から線を引く":
+    "Select mode: click to select a box or line / drag to move a box / drag from a box's circle to draw a line",
+  "選択モード": "Select mode",
+  "付け替えモード: ドラッグして落とした先のボックスの子にする": "Reparent mode: drag a box and drop it onto another box to make it a child",
+  "付け替えモード": "Reparent mode",
+  "追加モード: 押した所に箱を足す（箱の上ならその子、リストの上なら子と子の間。Esc で選択モードに戻る）":
+    "Add mode: click to add a box (on a box, as its child; on a list, between children. Esc returns to Select mode)",
+  "追加モード": "Add mode",
+  "削除モード: ボックスを押すと子も一緒に消える（消したものはサイドバーの「追加削除」から戻せる）":
+    "Delete mode: click a box to delete it with its children (restore it from \"Added / Removed\" in the sidebar)",
+  "削除モード": "Delete mode",
+  "サンプル": "Sample",
+  "JSONを開く": "Open JSON",
+  "保存": "Save",
+  "倍率": "Zoom",
+  "縮小（Ctrl+ホイールでも）": "Zoom out (or Ctrl+wheel)",
+  "縮小": "Zoom out",
+  "拡大（Ctrl+ホイールでも）": "Zoom in (or Ctrl+wheel)",
+  "拡大": "Zoom in",
+  "全体を収める": "Fit to screen",
+  "プレビュー: 拡大縮小して見る（見るだけ。押すと選べる。背景のドラッグで移動。Esc か、もう一度押すと編集に戻る）":
+    "Preview: zoom in and out to view (view only; click to select, drag the background to pan. Esc or click again to return to editing)",
+  "プレビュー": "Preview",
+  "全体像（ミニマップ）: 図の右上に全体を出す。四角をドラッグすると見る範囲が動く（図が画面に収まっているときは使えない）":
+    "Overview (minimap): shows the whole diagram at the top right. Drag the rectangle to move the view (unavailable when the diagram fits the screen)",
+  "全体像": "Overview",
+  "開いている図": "Open diagrams",
+  "クリックでボックスや線を選択 / ドラッグで移動 / 箱の〇から線を引く / JSON はドロップでも開けます":
+    "Click to select a box or line / drag to move / drag from a box's circle to draw a line / drop a JSON file to open it",
+
+  // 読み込み・保存・接続
+  "読み込めませんでした: {error}": "Could not load: {error}",
+  "開いている図がありません。LLM に matomezu open で開くよう頼んでください": "No diagram is open. Ask the LLM to open one with matomezu open",
+  "ブックを閉じる": "Close",
+  "ファイルを読み込めません（直るまで保存を止めています）: {error}": "Cannot read the file (saving is paused until it is fixed): {error}",
+  "サーバーに接続できません": "Cannot connect to the server",
+  "外部の変更を読み込みました": "Loaded external changes",
+  "保存中…": "Saving…",
+  "保存しました": "Saved",
+  "外部で変更されていたため、画面の変更を取り消して読み直します": "The file was changed elsewhere, so your changes were discarded and the file was reloaded",
+  "保存できませんでした: {error}": "Could not save: {error}",
+  "再接続中…": "Reconnecting…",
+  "JSON として読めません: {error}": "Not valid JSON: {error}",
+  "(空)": "(empty)",
+  "最初のページ": "First page",
+
+  // 図の知らせ（notices.ts）
+  "、": ", ",
+  "（{list}）": " ({list})",
+  "（{list}も）": " (and {list})",
+  "子 {n} 個": "{n} child(ren)",
+  "線 {n} 本": "{n} line(s)",
+  "「{into}」の中（{page}）へ移しました": "Moved into \"{into}\" ({page})",
+  "最上位（{page}）へ移しました": "Moved to the top level ({page})",
+  "「{into}」の中へ移しました": "Moved into \"{into}\"",
+  "最上位へ移しました": "Moved to the top level",
+  "（階層が変わったため、線を {n} 本外しました）": " (removed {n} line(s) because the level changed)",
+  "ページの中には、ページの箱を入れられません": "A page box cannot go inside a page",
+  "「{key}」を消しました": "Deleted \"{key}\"",
+  "「{key}」を戻しました": "Restored \"{key}\"",
+  "「{key}」を追加しました": "Added \"{key}\"",
+  "「{key}」を完全に削除しました": "Permanently deleted \"{key}\"",
+  "「{key}」を移植しました": "Copied in \"{key}\"",
+  "{from} から": "from {from}",
+  "知らないテーマ（{names}）があります。標準として描いています": "Unknown theme ({names}). Drawing with the standard theme",
+  "子 {n} 個の幅をそろえました": "Matched the width of {n} child(ren)",
+  "子 {n} 個の高さをそろえました": "Matched the height of {n} child(ren)",
+  "子 {n} 個の幅と高さをそろえました": "Matched the width and height of {n} child(ren)",
+  "（中身の都合で狭められない子があります）": " (some children cannot shrink because of their content)",
+} satisfies Record<string, string>;

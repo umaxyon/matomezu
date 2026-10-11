@@ -9,5 +9,6 @@ export default defineConfig({
   testDir: "e2e",
   outputDir: "e2e/.results",
   reporter: [["list"]],
-  use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
+  // 画面の文言は日本語で確かめる（ブラウザの言語で決まる。docs/I18N-plan.md）
+  use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 }, locale: "ja-JP" },
 });

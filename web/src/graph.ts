@@ -109,6 +109,7 @@
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle, keyOf } from "./dom";
 import { createHistory, type HistoryState } from "./history";
+import { t } from "./i18n";
 import { type AddRequest, createInteraction, type Mode } from "./interaction";
 import { createDrag } from "./layout/drag";
 import { createLayout } from "./layout/layout";
@@ -427,7 +428,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   function edgeOf(id: Id) {
     const e = edges.find(x => x.id === String(id));
-    if (!e) throw new Error(`線がありません: ${id}`);
+    if (!e) throw new Error(t("線がありません: {id}", { id }));
     return e;
   }
 
@@ -513,30 +514,30 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     for (const k of ["exitAt", "enterAt"] as const) {
       if (!(k in patch)) continue;
       const v = patch[k];
-      if (v != null && !(v >= 0 && v <= 1)) throw new Error(`${k} は 0 から 1 の数にしてください: ${v}`);
+      if (v != null && !(v >= 0 && v <= 1)) throw new Error(t("{k} は 0 から 1 の数にしてください: {v}", { k, v }));
       setOrDelete(e.src, k, v ?? undefined, v == null);
     }
     if ("via" in patch) {
-      if (patch.via != null && !(Array.isArray(patch.via) && patch.via.every(Number.isFinite))) throw new Error("via は数の並びにしてください");
+      if (patch.via != null && !(Array.isArray(patch.via) && patch.via.every(Number.isFinite))) throw new Error(t("via は数の並びにしてください"));
       setOrDelete(e.src, "via", patch.via ?? undefined, patch.via == null);
     }
     if ("route" in patch) {
-      if (patch.route != null && !(ROUTES as readonly string[]).includes(patch.route)) throw new Error(`route の値が不正です: ${patch.route}`);
+      if (patch.route != null && !(ROUTES as readonly string[]).includes(patch.route)) throw new Error(t("route の値が不正です: {v}", { v: patch.route }));
       // 図の既定と同じなら書かない（既定を変えたとき一緒に変わるように）
       setOrDelete(e.src, "route", patch.route ?? undefined, patch.route == null || patch.route === routeDefaultOf(world));
     }
     if ("arrow" in patch) {
-      if (patch.arrow != null && !(ARROWS as readonly string[]).includes(patch.arrow)) throw new Error(`arrow の値が不正です: ${patch.arrow}`);
+      if (patch.arrow != null && !(ARROWS as readonly string[]).includes(patch.arrow)) throw new Error(t("arrow の値が不正です: {v}", { v: patch.arrow }));
       setOrDelete(e.src, "arrow", patch.arrow ?? undefined, patch.arrow == null);
     }
     if ("captionAt" in patch) {
       const v = patch.captionAt;
-      if (v != null && !(v >= 0 && v <= 1)) throw new Error(`captionAt は 0 から 1 の数にしてください: ${v}`);
+      if (v != null && !(v >= 0 && v <= 1)) throw new Error(t("captionAt は 0 から 1 の数にしてください: {v}", { v }));
       setOrDelete(e.src, "captionAt", v ?? undefined, v == null);
     }
     if ("captionOffset" in patch) {
       const v = patch.captionOffset;
-      if (v != null && !Number.isFinite(v)) throw new Error(`captionOffset は数にしてください: ${v}`);
+      if (v != null && !Number.isFinite(v)) throw new Error(t("captionOffset は数にしてください: {v}", { v }));
       setOrDelete(e.src, "captionOffset", v == null ? undefined : Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, v)), v == null);
     }
     if ("caption" in patch) {
@@ -544,7 +545,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       setOrDelete(e.src, "caption", v, !v);
     }
     if ("dash" in patch) {
-      if (patch.dash != null && !(DASHES as readonly string[]).includes(patch.dash)) throw new Error(`dash の値が不正です: ${patch.dash}`);
+      if (patch.dash != null && !(DASHES as readonly string[]).includes(patch.dash)) throw new Error(t("dash の値が不正です: {v}", { v: patch.dash }));
       // 実線は既定なので、JSON には書かない
       setOrDelete(e.src, "dash", patch.dash ?? undefined, patch.dash == null || patch.dash === "solid");
     }
@@ -655,12 +656,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 位置: 最上位なら at。子を内包しているグループなら、今ある子の下の左端。
   // それ以外（子の無いボックスやツリー、非表示）は自動で並べる
   function reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
-    const t = target(parentId, "移せません（そのページのタブへ運んでください）");
-    const to = parentIdOf(t);
+    const dest = target(parentId, t("ページの箱の中には移せません（そのページのタブへ運んでください）"));
+    const to = parentIdOf(dest);
     let cut = 0, fromPage: string | null = null;
     const moved = rebuildWith(data => {
       const src = data.nodes.find(s => String(s.id) === String(id));
-      if (!src) throw new Error(`ボックスがありません: ${id}`);
+      if (!src) throw new Error(t("ボックスがありません: {id}", { id }));
       if (String(src.parent ?? "") === String(to ?? "")) return null;
       // ページは入れ子にしない（ページの箱を、ページの中へは移せない）
       const moving = subtreeIds(data.nodes, id);
@@ -669,15 +670,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         return null;
       }
       fromPage = pageOf(data.nodes, id);
-      const pos = t == null && at ? { x: Math.max(0, at.x), y: Math.max(0, at.y) }
-        : t && isNesting(t) ? { x: innerArea(t).left, y: Math.max(...t.children.map(k => k.y + k.h)) + opt.gap * 2 }
+      const pos = dest == null && at ? { x: Math.max(0, at.x), y: Math.max(0, at.y) }
+        : dest && isNesting(dest) ? { x: innerArea(dest).left, y: Math.max(...dest.children.map(k => k.y + k.h)) + opt.gap * 2 }
         : null;
       cut = moveSubtree(data, id, to, pos);
       return { select: String(id) };
     });
     if (!moved) return false;
     opt.onEvent?.({
-      kind: "moved", into: t ? keyOfBox(byId.get(t.id)!) : null, page: fromPage !== page ? pageName(page) : null, cutEdges: cut,
+      kind: "moved", into: dest ? keyOfBox(byId.get(dest.id)!) : null, page: fromPage !== page ? pageName(page) : null, cutEdges: cut,
     });
     return true;
   }
@@ -685,11 +686,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const pageName = (p: string | null) => pageNameOf(source.nodes, p);
 
   // 落とし先（parentId。null は今のページの最上位）の箱。ページの箱の中へは入れられない
-  // （中身は別のページにあり、入れると見えなくなるため）。what はそのときの知らせの後半
+  // （中身は別のページにあり、入れると見えなくなるため）。what は入れられないときの知らせ
   function target(parentId: Id | null, what: string): Box | null {
-    const t = parentId == null ? null : (nodeOf(parentId) as Box);
-    if (t?.src.page === true) throw new Error(`ページの箱の中には${what}`);
-    return t;
+    const dest = parentId == null ? null : (nodeOf(parentId) as Box);
+    if (dest?.src.page === true) throw new Error(what);
+    return dest;
   }
 
   // 落とし先の親の id。今のページの最上位なら、ページの中ではページの箱、最初のページでは無し
@@ -755,7 +756,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function remove(id: Id) {
     if (!byId.has(String(id))) return removeElsewhere(id);
     const n = nodeOf(id);
-    if (n.isWorld) throw new Error("ワールドは消せません");
+    if (n.isWorld) throw new Error(t("ワールドは消せません"));
     const gone = new Set([n, ...descendants(n)]);
     // データは今の位置を書いた写しで消し、消したものだけを移す（ほかのページにある子孫、つまりページの箱の中身も一緒に消える）。
     // 残る箱のデータは図の箱が参照しているので、入れ替えずに外すだけにする
@@ -790,7 +791,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 今描いているページの箱そのものを消したら、最初のページに戻る
   function removeElsewhere(id: Id) {
     const s = source.nodes.find(x => String(x.id) === String(id));
-    if (!s) throw new Error(`ボックスがありません: ${id}`);
+    if (!s) throw new Error(t("ボックスがありません: {id}", { id }));
     let gone = 0, cut = 0;
     rebuildWith(data => {
       const r = removeSubtree(data, id);
@@ -806,10 +807,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 位置: 内包（か子の無いボックス）の中や最上位なら at（親の中での位置）。ツリー・非表示の中なら自動で並べる。
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
   function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }, byDrag = false) {
-    const t = target(parentId, "戻せません（そのページのタブで戻してください）");
-    const pos = dropPos(t, at);
+    const dest = target(parentId, t("ページの箱の中には戻せません（そのページのタブで戻してください）"));
+    const pos = dropPos(dest, at);
     const n = rebuildWith(data => {
-      restoreSubtree(data, id, parentIdOf(t), pos);
+      restoreSubtree(data, id, parentIdOf(dest), pos);
       return { select: String(id), drop: pos };
     })!;
     opt.onEvent?.({ kind: "restored", key: keyOfBox(n), byDrag });
@@ -821,11 +822,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ページの中へ落としたら、ページは入れ子にしないので、写した箱の page を外す。位置の扱いは復活と同じ。
   // 写した箱の新しい id を返す
   function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string) {
-    const t = target(parentId, "移植できません（そのページのタブで落としてください）");
-    const pos = dropPos(t, at);
+    const dest = target(parentId, t("ページの箱の中には移植できません（そのページのタブで落としてください）"));
+    const pos = dropPos(dest, at);
     let r!: ReturnType<typeof pasteSubtree>;
     const n = rebuildWith(data => {
-      r = pasteSubtree(data, copy, parentIdOf(t), pos, page != null);
+      r = pasteSubtree(data, copy, parentIdOf(dest), pos, page != null);
       return { select: r.root, drop: pos };
     })!;
     opt.onEvent?.({ kind: "pasted", key: keyOfBox(n), from: from ?? null, kids: r.nodes - 1, edges: r.edges });
@@ -835,11 +836,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 新しい箱を足す（docs/ADD-plan.md）。足す所の決まりは復活と同じ（内包か子の無い箱の中、最上位なら押した位置、ツリー・非表示の中なら自動）。
   // リストへの差し込みは、データの並びで before の箱の前に入れる（無ければ末尾）。テーマや色は書かず、親から受け継ぐ
   function add(req: AddRequest, fields: Partial<BoxData>) {
-    const t = target(req.parentId, "追加できません（そのページのタブで追加してください）");
-    const pos = dropPos(t, req.at);
+    const dest = target(req.parentId, t("ページの箱の中には追加できません（そのページのタブで追加してください）"));
+    const pos = dropPos(dest, req.at);
     let id!: number;
     const n = rebuildWith(data => {
-      id = addBox(data, fields, parentIdOf(t), pos, req.before);
+      id = addBox(data, fields, parentIdOf(dest), pos, req.before);
       return { select: String(id), drop: pos };
     })!;
     opt.onEvent?.({ kind: "added", key: keyOfBox(n) });
@@ -850,7 +851,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // データだけを直して組み立て直す（履歴に 1 件。Undo で戻せる）
   function purge(id: Id) {
     const s = (source.removed ?? []).find(x => String(x.id) === String(id));
-    if (!s) throw new Error(`消したボックスにありません: ${id}`);
+    if (!s) throw new Error(t("消したボックスにありません: {id}", { id }));
     let count = 0;
     rebuildWith(data => {
       count = purgeRemoved(data, id);
@@ -882,7 +883,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // そろえた子の数を返す
   function fitChildren(id: Id, what: "width" | "height" | "both") {
     const n = nodeOf(id);
-    if (n.isWorld) throw new Error("ワールドの子はそろえられません");
+    if (n.isWorld) throw new Error(t("ワールドの子はそろえられません"));
     if (sizable(n).length < 2) return 0;
     let result = { count: 0, partial: false };
     settle(SCENES.fitChildren, n, () => { result = alignChildren(n, what, SCENES.fitChildren); });
@@ -912,7 +913,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function nodeOf(id: Id | null): Container {
     if (id == null) return world;
     const n = byId.get(String(id));
-    if (!n) throw new Error(`ボックスがありません: ${id}`);
+    if (!n) throw new Error(t("ボックスがありません: {id}", { id }));
     return n;
   }
 
@@ -962,7 +963,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function info(n: Container | null): NodeInfo {
     if (n == null || n.isWorld) {
       return {
-        kind: "world", id: null, caption: "ワールド",
+        kind: "world", id: null, caption: t("ワールド"),
         x: 0, y: 0, w: Math.round(world.w), h: Math.round(world.h),
         children: roots.map(brief),
         links: [],
@@ -1041,9 +1042,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = nodeOf(id);
     const next = { ...patch };
     checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id);
-    if (n.isWorld && next.overflow) throw new Error("ワールドには中身の扱いがありません");
-    if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error("文字のボックスは伸ばせません");
-    if (!n.isWorld && n.children.length && next.overflow) throw new Error("子を持つボックスは、つねに子に合わせて伸びます");
+    if (n.isWorld && next.overflow) throw new Error(t("ワールドには中身の扱いがありません"));
+    if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error(t("文字のボックスは伸ばせません"));
+    if (!n.isWorld && n.children.length && next.overflow) throw new Error(t("子を持つボックスは、つねに子に合わせて伸びます"));
 
     // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ（設定変更の場面）。
     // settle が保つ位置を覚えてから apply を呼ぶ
@@ -1091,7 +1092,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
         if ("theme" in next) setOrDelete(world.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("route" in next) {
-          if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(`route の値が不正です: ${next.route}`);
+          if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(t("route の値が不正です: {v}", { v: next.route }));
           setOrDelete(world.src, "route", next.route ?? undefined, next.route == null || next.route === "elbow");
         }
         storeWorld();
@@ -1164,12 +1165,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     bodyEl.hidden = true;
     const gripEl = document.createElement("div");
     gripEl.className = "mz-body-grip";
-    gripEl.title = "ドラッグで本文の幅を変える（ダブルクリックで元に戻す）";
+    gripEl.title = t("ドラッグで本文の幅を変える（ダブルクリックで元に戻す）");
     gripEl.hidden = true;
     // リストの幅のつまみ（リストの右の縁。docs/SIZE-plan.md の 10 章）
     const widthGripEl = document.createElement("div");
     widthGripEl.className = "mz-width-grip";
-    widthGripEl.title = "ドラッグでリストの幅を変える（ダブルクリックで元に戻す）";
+    widthGripEl.title = t("ドラッグでリストの幅を変える（ダブルクリックで元に戻す）");
     widthGripEl.hidden = true;
     head.append(shapeSvg, textEl, bodyEl, gripEl, widthGripEl, moreEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
@@ -1432,7 +1433,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const next = id == null ? null : String(id);
       if (next === page) return;
       if (next != null && !source.nodes.some(s => String(s.id) === next && s.page === true)) {
-        throw new Error(`ページの箱ではありません: ${id}`);
+        throw new Error(t("ページの箱ではありません: {id}", { id }));
       }
       const data = api.toJSON();
       page = next;

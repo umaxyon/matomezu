@@ -12,6 +12,7 @@
  */
 
 import { formatDiagram } from "./format";
+import { t } from "./i18n";
 import type { Graph } from "./graph";
 import { details, summarize } from "./report";
 import type { Diagram } from "./types";
@@ -111,7 +112,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       return true;
     } catch (err) {
       blocked = true;
-      ui.error("ファイルを読み込めません（直るまで保存を止めています）: " + (err instanceof Error ? err.message : String(err)));
+      ui.error(t("ファイルを読み込めません（直るまで保存を止めています）: {error}", { error: err instanceof Error ? err.message : String(err) }));
       return false;
     }
   }
@@ -122,10 +123,10 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
     try {
       const r = await fetchRemote(base);
       if (!r) {
-        ui.error("サーバーに接続できません");
+        ui.error(t("サーバーに接続できません"));
         return;
       }
-      if (apply(r, true)) ui.status("外部の変更を読み込みました");
+      if (apply(r, true)) ui.status(t("外部の変更を読み込みました"));
     } finally {
       loading = false;
     }
@@ -144,7 +145,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
     if (saving || loading) { schedule(); return; }
     saving = true;
     const prev = version;
-    ui.status("保存中…");
+    ui.status(t("保存中…"));
     try {
       const res = await fetch(base + "api/data", {
         method: "PUT",
@@ -157,16 +158,16 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
         // 保存中に新しい版が届いていなければ、自分の保存による版を最新とみなす。
         // 届いていれば、それは自分の保存か、そのあとの外部の変更なので、そのまま比べる
         if (remote === prev) remote = etag;
-        ui.status("保存しました");
+        ui.status(t("保存しました"));
         report();
       } else if (res.status === 409) {
         if (etag) remote = etag;
-        ui.status("外部で変更されていたため、画面の変更を取り消して読み直します");
+        ui.status(t("外部で変更されていたため、画面の変更を取り消して読み直します"));
       } else {
-        ui.error(`保存できませんでした: ${res.status} ${await res.text()}`);
+        ui.error(t("保存できませんでした: {error}", { error: `${res.status} ${await res.text()}` }));
       }
     } catch (err) {
-      ui.error("保存できませんでした: " + (err instanceof Error ? err.message : String(err)));
+      ui.error(t("保存できませんでした: {error}", { error: err instanceof Error ? err.message : String(err) }));
     } finally {
       saving = false;
       maybeReload();

@@ -18,7 +18,7 @@ const STORE_KEY = "matomezu.minimap";
 const STYLE_ID = "matomezu-minimap-style";
 const CSS = `
 .mz-minimap {
-  position: absolute; top: 8px; right: 20px; z-index: 20; width: ${WIDTH}px;
+  position: absolute; top: 8px; right: 20px; z-index: 20; width: ${WIDTH}px; /* i18n-ok（CSS のコメント） */
   border-radius: 6px; overflow: hidden; font-size: 11px;
   color: #d4d4d8; background: rgba(40, 40, 46, 0.88); border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); opacity: 0.85; transition: opacity 0.15s;

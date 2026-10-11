@@ -5,6 +5,7 @@ import { EMPTY_CAPTION, esc } from "./dom";
 import { openConfirmDialog } from "./edit-dialog";
 import { COPY_MIME, type Graph, REMOVED_MIME } from "./graph";
 import { helpIcon } from "./help";
+import { t } from "./i18n";
 import { copySubtree, liveItems } from "./pages";
 import type { Diagram, Items, ListItem } from "./types";
 
@@ -12,20 +13,20 @@ import type { Diagram, Items, ListItem } from "./types";
 // 消したものは図へドラッグすると戻る。
 // キャプションは「id_」を付けて幅に入るだけ出し、はみ出た分は … にする（CSS）。全文はポインタを乗せると出る
 function row(item: ListItem, removed: boolean, selectable = true, copyFrom?: string): string {
-  const parent = item.parent != null ? `<span class="mzp-row-parent">${esc(item.parent)} の中</span>` : "";
+  const parent = item.parent != null ? `<span class="mzp-row-parent">${esc(t("{id} の中", { id: item.parent }))}</span>` : "";
   const caption = item.caption.replace(/\s+/g, " ").trim() || EMPTY_CAPTION;
   const attrs = copyFrom != null
-    ? ` class="mzp-row mzp-copy" draggable="true" data-copy-book="${esc(copyFrom)}" data-copy="${esc(item.id)}" title="図へドラッグすると、この図にコピーします（子と、中の線も）"`
+    ? ` class="mzp-row mzp-copy" draggable="true" data-copy-book="${esc(copyFrom)}" data-copy="${esc(item.id)}" title="${t("図へドラッグすると、この図にコピーします（子と、中の線も）")}"`
     : removed
-    ? ` class="mzp-row mzp-removed" draggable="true" data-restore="${esc(item.id)}" title="図へドラッグすると戻ります"`
+    ? ` class="mzp-row mzp-removed" draggable="true" data-restore="${esc(item.id)}" title="${t("図へドラッグすると戻ります")}"`
     : selectable ? ` class="mzp-row" data-select="${esc(item.id)}"` : ` class="mzp-row mzp-elsewhere"`;
   return `<li${attrs}>
     <span class="mzp-swatch" style="background:${esc(item.color)}"></span>
     <span class="mzp-row-text"><span class="mzp-row-cap" title="${esc(item.caption)}">${esc(item.id)}_${esc(caption)}</span>${parent}</span>
     ${copyFrom != null ? ""
-      : !removed ? `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="消す（子も一緒に消えます）" aria-label="「${esc(item.caption)}」を消す">×</button>`
+      : !removed ? `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="${t("消す（子も一緒に消えます）")}" aria-label="${esc(t("「{caption}」を消す", { caption: item.caption }))}">×</button>`
       // 消したもののうち、ユーザーが足した箱だけ完全に削除できる（LLM から来た箱は、不要と印を付けたものとして残す。docs/ADD-plan.md の 4 章）
-      : item.purgeable ? `<button type="button" class="mzp-del" data-purge="${esc(item.id)}" title="完全に削除する（子も一緒に。戻せなくなります）" aria-label="「${esc(item.caption)}」を完全に削除する">×</button>`
+      : item.purgeable ? `<button type="button" class="mzp-del" data-purge="${esc(item.id)}" title="${t("完全に削除する（子も一緒に。戻せなくなります）")}" aria-label="${esc(t("「{caption}」を完全に削除する", { caption: item.caption }))}">×</button>`
       : ""}
   </li>`;
 }
@@ -39,7 +40,7 @@ export interface OtherBook { id: string; name: string; data: Diagram }
 
 // others は「他ブックも表示」の状態（無ければ、その欄を出さない。サーバーから開いていないとき）。books は shown のときだけ要る
 function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: boolean; books: OtherBook[] }): string {
-  const list = (rows: string[]) => rows.length ? `<ul class="mzp-list">${rows.join("")}</ul>` : '<span class="mzp-none">なし</span>';
+  const list = (rows: string[]) => rows.length ? `<ul class="mzp-list">${rows.join("")}</ul>` : `<span class="mzp-none">${t("なし")}</span>`;
   const fold = (name: Fold, title: string, body: string, cls = "mzp-section mzp-fold") =>
     `<details class="${cls}" data-fold="${esc(name)}"${open[name] ?? true ? " open" : ""}>
       <summary><h3>${title}</h3></summary>${body}
@@ -50,15 +51,15 @@ function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: b
       ? list(l.live.map(i => toRow(i, true)))
       : l.pages.map(p => {
         const rows = l.live.filter(i => i.page === p.id);
-        return fold(`${key}page:${p.id ?? ""}`, `${esc(p.caption)}（${rows.length}）${p.current ? '<span class="mzp-here">表示中のページ</span>' : ""}`,
+        return fold(`${key}page:${p.id ?? ""}`, `${esc(p.caption)}（${rows.length}）${p.current ? `<span class="mzp-here">${t("表示中のページ")}</span>` : ""}`,
           list(rows.map(i => toRow(i, p.current))), "mzp-fold mzp-subfold");
       }).join("");
   const live = byPage(items, "", (i, current) => row(i, false, current));
   // ほかのブック。ブックごとの見出しの中を、ページごとに分ける
   const otherHtml = others == null ? "" :
-    `<label class="mzp-check mzp-others"><input type="checkbox" data-others${others.shown ? " checked" : ""}>他ブックも表示` +
-      `${helpIcon("タブで開いているほかのブックのボックスも並べます。図へドラッグすると、子と中の線ごとこの図にコピーします（元のブックは変わりません）")}</label>` +
-    (!others.shown ? "" : !others.books.length ? '<p class="mzp-hint">ほかに開いているブックはありません</p>' :
+    `<label class="mzp-check mzp-others"><input type="checkbox" data-others${others.shown ? " checked" : ""}>${t("他ブックも表示")}` +
+      `${helpIcon(t("タブで開いているほかのブックのボックスも並べます。図へドラッグすると、子と中の線ごとこの図にコピーします（元のブックは変わりません）"))}</label>` +
+    (!others.shown ? "" : !others.books.length ? `<p class="mzp-hint">${t("ほかに開いているブックはありません")}</p>` :
       others.books.map(b => {
         const l = liveItems(b.data.nodes ?? [], undefined, "#ffffff");
         return fold(`book:${b.id}`, `${esc(b.name)}（${l.live.length}）`,
@@ -66,10 +67,10 @@ function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: b
           "mzp-section mzp-fold mzp-other-book");
       }).join(""));
   // 消したものを上に置く（表示中は数が多くなりやすく、下に置くと消したものに気づけないため）
-  return fold("removed", `消したもの（${items.removed.length}）` +
-      helpIcon("消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません"),
+  return fold("removed", t("消したもの（{n}）", { n: items.removed.length }) +
+      helpIcon(t("消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません")),
       list(items.removed.map(i => row(i, true)))) +
-    fold("live", `表示中（${items.live.length}）`, live) + otherHtml;
+    fold("live", t("表示中（{n}）", { n: items.live.length }), live) + otherHtml;
 }
 
 export interface ListTab {
@@ -80,7 +81,7 @@ export interface ListTab {
 }
 
 export function createListTab(pane: HTMLElement, graph: Graph, otherBooks?: () => OtherBook[]): ListTab {
-  pane.innerHTML = `<div class="mzp-search"><input type="search" class="mzp-input" data-search placeholder="絞り込み（id やキャプション）" aria-label="一覧を絞り込む"></div>
+  pane.innerHTML = `<div class="mzp-search"><input type="search" class="mzp-input" data-search placeholder="${t("絞り込み（id やキャプション）")}" aria-label="${t("一覧を絞り込む")}"></div>
     <div data-list></div>`;
   // 検索欄は描き直しの外に置く（入力中に図が変わっても、フォーカスと文字を失わないように）
   const searchBox = pane.querySelector<HTMLInputElement>("[data-search]")!;
@@ -138,7 +139,7 @@ export function createListTab(pane: HTMLElement, graph: Graph, otherBooks?: () =
     if (purge) {
       const id = purge.dataset.purge!;
       const caption = purge.closest(".mzp-row")?.querySelector(".mzp-row-cap")?.textContent ?? id;
-      return openConfirmDialog("完全に削除", `「${caption}」を完全に削除します（子も一緒に）。\n消したものの一覧からも消え、図へ戻せなくなります。`, "削除",
+      return openConfirmDialog(t("完全に削除"), t("「{caption}」を完全に削除します（子も一緒に）。\n消したものの一覧からも消え、図へ戻せなくなります。", { caption }), t("削除"),
         () => graph.purge(id));
     }
     const r = e.target.closest<HTMLElement>("[data-select]");
