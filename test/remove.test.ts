@@ -2,7 +2,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph, type GraphOptions } from "../web/src/graph";
 import type { BoxData, BoxInfo, Diagram } from "../web/src/types";
-import { fakeMeasure, violations } from "./helpers";
+import { fakeMeasure, PLAIN_GAPS, violations } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -13,7 +13,7 @@ afterEach(() => {
 function setup(data: Diagram, o: GraphOptions = {}) {
   const el = document.createElement("div");
   document.body.appendChild(el);
-  const graph = createGraph(el, data, { measureText: fakeMeasure, ...o });
+  const graph = createGraph(el, data, { measureText: fakeMeasure, ...PLAIN_GAPS, ...o });
   graphs.push(graph);
   return { el, graph };
 }

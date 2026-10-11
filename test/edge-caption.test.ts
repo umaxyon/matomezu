@@ -4,7 +4,7 @@ import { createGraph, type Graph } from "../web/src/graph";
 import { createPanel, type Panel } from "../web/src/panel";
 import { summarize } from "../web/src/report";
 import type { Diagram } from "../web/src/types";
-import { fakeMeasure } from "./helpers";
+import { fakeMeasure, PLAIN_GAPS } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -16,7 +16,7 @@ function setup(data: Diagram) {
   const el = document.createElement("div"), side = document.createElement("aside");
   document.body.append(side, el);
   let panel: Panel | null = null;
-  const graph = createGraph(el, data, { measureText: fakeMeasure, onSelect: i => panel?.show(i) });
+  const graph = createGraph(el, data, { measureText: fakeMeasure, ...PLAIN_GAPS, onSelect: i => panel?.show(i) });
   graphs.push(graph);
   panel = createPanel(side, graph);
   return { el, side, graph };

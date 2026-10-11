@@ -3,7 +3,7 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inTreeOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inTreeOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
 import { GROUP_MIN, SIZES } from "../validate";
 import { shapeDef } from "../shapes";
@@ -281,16 +281,17 @@ export function createNodeKinds(ctx: KindContext) {
         ? Math.max(floor, n.specW - 2 * P)
         : Math.max(floor, ...widths.map(c => c.w), Math.min(SIZES.L.maxW, caption(n) - 2 * P));
       n.bodyH = bodyHeight(n, inner + 2 * P);
+      const gap = STRATEGIES.list.kidGap ?? opt.gap; // リストの子どうしは詰める（リストのローカルなルール。2026-10-12 ユーザー）
       let y = opt.header + (n.bodyH ? n.bodyH + BODY_GAP : 0);
       for (const k of n.children) {
         k.listW = inner;
         kindOf(k).measure(k);
         k.x = P;
         k.y = y;
-        y += k.h + opt.gap;
+        y += k.h + gap;
       }
       n.w = inner + 2 * P;
-      n.h = Math.max(GROUP_MIN.h, y - opt.gap + P);
+      n.h = Math.max(GROUP_MIN.h, y - gap + P);
       n.hx = 0; n.hy = 0;
       n.hw = n.w; n.hh = n.h;
     },

@@ -6,6 +6,9 @@ import {
 } from "./helpers";
 
 const LONG = "トップ画面あいうえおかきくけこさしすせそたちつてとなにぬねの".repeat(2);
+// 線を除いた同じ図。線でつながった箱どうしは間隔が広がる（32・40px。layout.ts の gapBetween）ので、線と関係の無い動き
+// （押し下げの間隔・ドラッグで通り抜ける・ワールドの幅）を確かめるテストは、こちらで開き直す
+const withoutLines = () => ({ ...example("three-levels"), edges: [] });
 
 test.beforeEach(async ({ page }) => {
   await openDiagram(page, example("three-levels"));
@@ -37,6 +40,7 @@ test("文字を増やすと最大の幅まで広がって折り返し、減ら�
 });
 
 test("押し下げた相手との間隔は、ちょうど 8px", async ({ page }) => {
+  await openDiagram(page, withoutLines());
   for (const n of [1, 2, 3]) {
     await setCaption(page, 5, LONG.repeat(n)); // トップ画面が伸びて、カート画面を押し下げる
     const top = await rect(page, 5), cart = await rect(page, 6);
@@ -107,6 +111,7 @@ test("真横の相手への線は水平、真下の相手への線は垂直", as
 });
 
 test("タイトルを下へ動かすと、触れた箱と入れ替わりながら止まらずに通る（docs/DRAG-plan.md）", async ({ page }) => {
+  await openDiagram(page, withoutLines());
   const [title, user, front, back] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 3), rect(page, 10)]);
   // バックエンドの中ほどまで動かして離す
   await dragBy(page, 1, 0, back.y + 20 - title.y);
@@ -121,6 +126,7 @@ test("タイトルを下へ動かすと、触れた箱と入れ替わりなが�
 });
 
 test("表示領域の幅に小数があっても、中身が収まっていればワールドははみ出さない（スクロールバーを出さない）", async ({ page }) => {
+  await openDiagram(page, withoutLines());
   // Windows の表示倍率などで表示領域の幅に小数が出る状態を、サイドバーの幅で作る
   for (const w of ["280.2px", "280.4px", "280.6px", "280.8px"]) {
     await page.evaluate(w => { document.getElementById("sidebar")!.style.width = w; }, w);

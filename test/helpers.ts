@@ -90,3 +90,8 @@ export function endsOf(l: Element): [number, number, number, number] {
   const p = pointsOf(l);
   return [p[0]![0], p[0]![1], p.at(-1)![0], p.at(-1)![1]];
 }
+
+// 線でつながった箱どうしの間隔（linkGap 32・captionGap 40）を入れる前に、見本の図で座標を組んだ振る舞いのテスト（押しのけ・入れ替え・
+// 場面ごとの操作列など）で使う。仕組みを確かめるテストなので、つながった箱どうしの間隔も前の値（8）にしておく。
+// 組ごとの間隔そのものは test/outset.test.ts
+export const PLAIN_GAPS = { linkGap: 8, captionGap: 8 };

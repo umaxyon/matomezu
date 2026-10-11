@@ -37,7 +37,8 @@ test("箱を図の下の端へ寄せたままにすると、図がスクロー�
 
 test("ボタンやタブの文字は、ドラッグで選択されない", async ({ page }) => {
   await openDiagram(page, example("nested"));
-  await select(page, 1);
+  // 箱の見出しの真ん中は線が通ることがあるので、左上の角を押して選ぶ
+  await page.locator('.mz-node[data-id="1"] > .mz-head').click({ position: { x: 5, y: 5 } });
   const none = (sel: string) => page.locator(sel).first().evaluate(el => getComputedStyle(el).userSelect);
   expect(await none("header button")).toBe("none");
   expect(await none(".mzp-tab")).toBe("none");

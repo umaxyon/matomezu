@@ -150,7 +150,9 @@ import { ARROWS, DASHES, GROUP_MIN, ROUTES, SHAPES, SIZES, VIEWS, assignIds, che
 
 export const DEFAULTS = {
   color: "#ffffff",
-  gap: 8,        // 同じ階層のボックス同士の最小間隔
+  gap: 8,         // 同じ階層のボックス同士の最小間隔（全世界のルール）。並べ方の戦略がローカルなルールで上書きできる（model.ts の STRATEGIES の kidGap）
+  linkGap: 32,    // 線でつながった 2 つの箱の最小間隔（線が見えるように。2026-10-12 ユーザー）
+  captionGap: 40, // その線にキャプションがあるときの最小間隔（キャプション 1 行と上下の余白が入る）
   padding: 12,   // 内包するボックスの内側の余白
   header: 30,    // 内包するボックスのキャプション欄の高さ
   treeGapX: 24,  // ツリーで横に並ぶ子の間隔
@@ -588,7 +590,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     }
     // 端や形を決め直したら、自由な端の前の辺の記憶は使わない（一番よい形から）
     if ("exitAt" in patch || "enterAt" in patch || "via" in patch || "route" in patch) e.memory = null;
-    renderEdges();
+    // キャプションが付くと、つながった 2 つの箱の最小間隔が広がる（layout.ts の gapBetween）。近すぎれば終点の側をどける
+    if ("caption" in patch && e.a !== e.b) {
+      settle(SCENES.drop, e.a);
+      render();
+    } else renderEdges();
     changed();
     notifySelect();
   }
@@ -669,6 +675,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (a !== b && members?.from != null) { src.fromMember = members.from; from = undefined; }
     if (a !== b && members?.to != null) { src.toMember = members.to; at = undefined; }
     const e = addEdge(src, a, b);
+    // 線でつながると、2 つの箱の最小間隔が広がる（layout.ts の gapBetween）。近すぎれば、始点の箱はそのままで終点の側をどける
+    if (a !== b) settle(SCENES.drop, a);
     if (a !== b && (at || from)) {
       const input = R.routeInputOf(e);
       const onRim = (r: typeof input.a, p: [number, number], vertex: boolean) => {
@@ -678,7 +686,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (from) e.src.exitAt = onRim(input.a, from, !!input.aVertex);
       if (at) e.src.enterAt = onRim(input.b, at, !!input.bVertex);
     }
-    renderEdges();
+    if (a !== b) render(); else renderEdges();
     const corner = a === b && at ? R.loopCornerNear(e, at) : null;
     if (corner) {
       e.src.exitAt = Math.round(corner.exit * 1000) / 1000; // 端をつまんで動かしたときと同じ桁

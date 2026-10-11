@@ -32,6 +32,8 @@ export { layoutStats };
 
 export interface LayoutOptions {
   gap: number;
+  linkGap: number;
+  captionGap: number;
   padding: number;
   header: number;
   treeGapX: number;
@@ -55,6 +57,7 @@ export type Layout = ReturnType<typeof createLayout>;
 
 // フローチャートを整列するときの、列の間と段の間（線のキャプション Yes / No が入るくらい）。中の箱のサイズ（kidSize）で変える
 // （2026-10-12 ユーザー。触ってから調整する仮の値）
+const FLOW_TOP = 8; // ワールドに整列するとき、一番上の段を図の上の余白からさらに下げる量
 const FLOW_GAPS: Record<Size, { x: number; y: number }> = { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } };
 
 export function createLayout(ctx: LayoutContext) {
@@ -175,16 +178,17 @@ export function createLayout(ctx: LayoutContext) {
     const kind = kindOf(n).name;
     if (!n.hasPos || !inNest(n) || (kind !== "text" && kind !== "hidden") || (kind === "text" && n.specW)) return;
     if (n.capW) { n.capW = 0; fit(n); }
-    const g = opt.gap, c = containerOf(n);
+    const c = containerOf(n);
+    const g = (o: Box) => gapBetween(n, o);
     const cx = n.x + n.w / 2, top = n.y, bottom = n.y + n.h, area = n.w * n.h;
     const row = siblings(n).filter(o =>
-      o !== n && o.hasPos && o.w * o.h > area && o.y < bottom + g && o.y + o.h + g > top);
+      o !== n && o.hasPos && o.w * o.h > area && o.y < bottom + g(o) && o.y + o.h + g(o) > top);
     const ahead = row.filter(o => o.x + o.w / 2 >= cx);
     if (!ahead.length) return;
-    const right = Math.min(...ahead.map(o => o.x - g));
+    const right = Math.min(...ahead.map(o => o.x - g(o)));
     if (n.x + n.w <= right + 0.5) return;
     const left = Math.max(innerArea(c).left,
-      ...row.filter(o => o.x + o.w / 2 < cx).map(o => o.x + o.w + g));
+      ...row.filter(o => o.x + o.w / 2 < cx).map(o => o.x + o.w + g(o)));
     const x = center == null ? n.x : Math.max(left, 2 * center - right); // 中心を保つ幅の左端（足りなければ left）
     if (x >= right) return;
     n.capW = right - x;
@@ -193,9 +197,24 @@ export function createLayout(ctx: LayoutContext) {
     n.x = right - n.w;
   }
 
+  // 2 つの箱の間にとる最小間隔（2026-10-12 ユーザー）: 線でつながっていなければ gap（8）、つながっていれば linkGap（32）、
+  // その線にキャプションがあれば captionGap（40）。ユーザーがつながっていない箱をそばに寄せられるように、組ごとに決める
+  // 並べ方の戦略のローカルなルールが先: 子どうしの間隔を決めていればそれ（リスト）、組ごとの間隔を使わない戦略（フローチャート）なら
+  // 線があっても広げない（model.ts の STRATEGIES の kidGap・pairGaps）
+  function gapBetween(n: Box, o: Box): number {
+    const s = kidStrategyOf(containerOf(n));
+    let g = s.kidGap ?? opt.gap;
+    if (!s.pairGaps) return g;
+    for (const e of edges()) {
+      if (!((e.a === n && e.b === o) || (e.a === o && e.b === n))) continue;
+      g = Math.max(g, typeof e.src.caption === "string" && e.src.caption.trim() ? opt.captionGap : opt.linkGap);
+    }
+    return g;
+  }
+
   function overlaps(n: Box, x: number, y: number, o: Box) {
     layoutStats.overlapChecks++;
-    const g = opt.gap;
+    const g = gapBetween(n, o);
     return x < o.x + o.w + g && x + n.w + g > o.x &&
            y < o.y + o.h + g && y + n.h + g > o.y;
   }
@@ -298,13 +317,12 @@ export function createLayout(ctx: LayoutContext) {
   // その向きの位置が limit を越えたら null（呼び出し側で別の置き方をする）。
   // 読み込み・設定変更のあと（spotBelow）、子のサイズをそろえる（compress）、最初に開いたとき（fitToViewport）で使う
   function slide(n: Box, x: number, y: number, dir: "down" | "right" = "down", limit = Infinity): [number, number] | null {
-    const g = opt.gap;
     for (;;) {
       if ((dir === "down" ? y : x) > limit) return null;
       const hits = siblings(n).filter(o => o !== n && isPlaced(o) && overlaps(n, x, y, o));
       if (!inNest(n) || !hits.length) return [x, y];
-      if (dir === "down") y = Math.max(...hits.map(o => o.y + o.h + g));
-      else x = Math.max(...hits.map(o => o.x + o.w + g));
+      if (dir === "down") y = Math.max(...hits.map(o => o.y + o.h + gapBetween(n, o)));
+      else x = Math.max(...hits.map(o => o.x + o.w + gapBetween(n, o)));
     }
   }
 
@@ -321,10 +339,10 @@ export function createLayout(ctx: LayoutContext) {
   function stepAside(n: Box) {
     if (!inNest(n)) return;
     const area = (b: Box) => b.w * b.h;
-    const g = opt.gap;
     for (let i = 0; i < 8; i++) {
       const hit = siblings(n).find(o => o !== n && area(o) >= area(n) && overlaps(n, n.x, n.y, o));
       if (!hit) return;
+      const g = gapBetween(n, hit);
       const cands: [number, number][] = [
         [hit.x + hit.w + g, n.y], [hit.x - g - n.w, n.y], [n.x, hit.y + hit.h + g], [n.x, hit.y - g - n.h],
       ].map(([x, y]) => clamp(n, x!, y!));
@@ -349,7 +367,7 @@ export function createLayout(ctx: LayoutContext) {
     const pos = alignFlow(
       kids.map(k => ({ id: k.id, w: k.w, h: k.h, start: shapeDef(shapeOf(k)).terminal })),
       edges().filter(e => inside.has(e.a) && inside.has(e.b)).map(e => ({ from: e.a.id, to: e.b.id })),
-      { centerX: 0, top: innerArea(c).top + (c.isWorld ? opt.gap : 0), gapX: FLOW_GAPS[kidSizeOf(c) ?? "M"].x, gapY: FLOW_GAPS[kidSizeOf(c) ?? "M"].y },
+      { centerX: 0, top: innerArea(c).top + (c.isWorld ? FLOW_TOP : 0), gapX: FLOW_GAPS[kidSizeOf(c) ?? "M"].x, gapY: FLOW_GAPS[kidSizeOf(c) ?? "M"].y },
     );
     const minX = Math.min(...kids.map(k => pos.get(k.id)!.x));
     const left = innerArea(c).left;
@@ -525,7 +543,7 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   return {
-    containerOf, siblings, incident, innerArea, fixedSize, syncWorld,
+    containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld,
     kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,

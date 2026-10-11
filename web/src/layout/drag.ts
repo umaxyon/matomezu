@@ -34,9 +34,8 @@ const DEPTH_RATIO = 0.5;
 const OPPOSITE: Record<Dir, Dir> = { down: "up", up: "down", right: "left", left: "right" };
 type Rect = { x: number; y: number; w: number; h: number };
 
-export function createDrag(opt: LayoutOptions, L: Layout) {
-  const { siblings, clamp, overlaps, collides, fit } = L;
-  const g = opt.gap;
+export function createDrag(_opt: LayoutOptions, L: Layout) {
+  const { siblings, clamp, overlaps, collides, fit, gapBetween } = L;
 
   // 親の中に収まる位置にあるか
   const clamped = (m: Box) => {
@@ -63,6 +62,7 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
     function push(o: Box, dir: Dir, by: Box, mover: Box, undo: Map<Box, [number, number]>, depth: number): boolean {
       if (depth > 50) return false;
       if (!undo.has(o)) undo.set(o, [o.x, o.y]);
+      const g = gapBetween(o, by); // 組ごとの間隔（線でつながっていれば広い。layout.ts の gapBetween）
       if (dir === "down") o.y = by.y + by.h + g;
       else if (dir === "up") o.y = by.y - g - o.h;
       else if (dir === "right") o.x = by.x + by.w + g;
@@ -153,6 +153,7 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
         }
         const d = met.get(o);
         if (!d || !facing(r, d) || !engaged(r, d)) continue;
+        const g = gapBetween(o, n);
         if (d === "down") o.y = r.y - (n.h + g);
         else if (d === "up") o.y = r.y + n.h + g;
         else if (d === "right") o.x = r.x - (n.w + g);
@@ -226,10 +227,11 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
           const d = met.get(all[0]!)!;
           const hits = all.filter(o => met.get(o) === d);
           const [x, y] = [n.x, n.y];
-          const tx = d === "right" ? Math.max(...hits.map(o => o.x + o.w + g))
-            : d === "left" ? Math.min(...hits.map(o => o.x - g - n.w)) : x;
-          const ty = d === "down" ? Math.max(...hits.map(o => o.y + o.h + g))
-            : d === "up" ? Math.min(...hits.map(o => o.y - g - n.h)) : y;
+          const g = (o: Box) => gapBetween(n, o);
+          const tx = d === "right" ? Math.max(...hits.map(o => o.x + o.w + g(o)))
+            : d === "left" ? Math.min(...hits.map(o => o.x - g(o) - n.w)) : x;
+          const ty = d === "down" ? Math.max(...hits.map(o => o.y + o.h + g(o)))
+            : d === "up" ? Math.min(...hits.map(o => o.y - g(o) - n.h)) : y;
           const [cx, cy] = clamp(n, tx, ty);
           if (Math.abs(cx - tx) > 0.5 || Math.abs(cy - ty) > 0.5 || !place(tx, ty)) { place(x, y); return; }
         }
@@ -256,10 +258,11 @@ export function createDrag(opt: LayoutOptions, L: Layout) {
         const d = ahead[0]!.d;
         const hits = ahead.filter(a => a.d === d).map(a => a.o);
         const [x, y] = [n.x, n.y];
-        const tx = d === "right" ? Math.min(...hits.map(o => o.x - g - n.w))
-          : d === "left" ? Math.max(...hits.map(o => o.x + o.w + g)) : x;
-        const ty = d === "down" ? Math.min(...hits.map(o => o.y - g - n.h))
-          : d === "up" ? Math.max(...hits.map(o => o.y + o.h + g)) : y;
+        const g = (o: Box) => gapBetween(n, o);
+        const tx = d === "right" ? Math.min(...hits.map(o => o.x - g(o) - n.w))
+          : d === "left" ? Math.max(...hits.map(o => o.x + o.w + g(o))) : x;
+        const ty = d === "down" ? Math.min(...hits.map(o => o.y - g(o) - n.h))
+          : d === "up" ? Math.max(...hits.map(o => o.y + o.h + g(o))) : y;
         const [cx, cy] = clamp(n, tx, ty);
         const ok = Math.abs(cx - tx) <= 0.5 && Math.abs(cy - ty) <= 0.5 && place(tx, ty, true) && !collides(n, n.x, n.y);
         if (!ok) place(x, y, true);

@@ -166,19 +166,23 @@ export interface Strategy {
   splitBranches: boolean; // 子のひし形（分岐）から出る線を、1 つの頂点から 2 本出さないように分けて出す（端を固定した線は除く）
   autoAlign: boolean;   // 位置の無い子を、決まった並べ方（layout/flow-align.ts）で置く。ユーザーが押す「自動で整列」も出す
   separateEnds: boolean; // 子に入る線が同じ位置につながるなら、折れ目の多い方を空いている近い辺へ逃がす（render.ts の separateEnds）
+  kidGap: number | null; // 子どうしの間隔のローカルなルール（px）。null は全世界のルール（graph.ts の DEFAULTS.gap）。リストは詰めて並べる
+  pairGaps: boolean;     // 子どうしに、組ごとの最小間隔（線でつながれば 32・キャプションがあれば 40px。layout.ts の gapBetween）を使うか。
+                         // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
+                         // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, kidShapes: [], tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false } as const;
+const PLAIN = { leafKids: false, kidShapes: [], tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true } as const;
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true },
   tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN },
-  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN },
+  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, kidGap: 8 },
   hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN },
   // フローチャート（docs/PATTERN-plan.md の 3.7 章。2026-10-11 ユーザー）: 内包と同じく子を自由に置き、子はフローチャートの形を使える。
   // 子は子を持てない
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, kidShapes: FLOW_SHAPES, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true,
+    branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
   },
 };
 

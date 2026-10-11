@@ -40,8 +40,14 @@ test("選択モードで線をクリックすると情報タブに線の情報�
 });
 
 test("斜めに離れた箱どうしの線を折れ線にすると Z 字になり、直線に戻せる", async ({ page }) => {
-  await openDiagram(page, example("nested"));
-  // e1（9 ユーザー - 1 フロントエンド）は、上下にも左右にも重ならない
+  // e1（9 ユーザー - 1 フロントエンド）は、上下にも左右にも重ならない（位置を書いて斜めに離す）
+  const data = example("nested");
+  for (const n of data.nodes) {
+    if (n.id === 9) Object.assign(n, { x: 40, y: 40 });
+    if (n.id === 1) Object.assign(n, { x: 360, y: 130 }); // 縦の隙間を横の隙間の 1/3 より小さくする（Z 字になる。routing.ts の ELBOW_Z_RATIO）
+    if (n.id === 4) Object.assign(n, { x: 360, y: 460 });
+  }
+  await openDiagram(page, data);
   const edge = page.locator('.mz-edge[data-id="e1"]');
   const mid = await edge.locator(".mz-hit").evaluate(l => {
     const g = l as SVGPolylineElement;
