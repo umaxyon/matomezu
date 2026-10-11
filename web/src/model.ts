@@ -140,6 +140,7 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 // パターンは「子を持つ箱が、子をどう並べるかの戦略」で、子の見せ方（childView）がそのまま戦略の選択になる。
 // 戦略ごとの決まりは STRATEGIES の 1 行にまとめ、判定（arrangeOf・placedBy・abilitiesOf など）はここから引く。
 // 戦略を足すときは、ここに 1 行と、layout/node-kinds.ts の並べ方（大きさと子の置き方）を足す。
+// 破ってはいけない決まりは CLAUDE.md の「並べ方の戦略」
 // 非表示（hidden）は戦略ではなく折りたたみの状態だが、データでは childView に入っているので、ここでは 1 行として扱う（6 章の C で分ける）
 
 export interface Strategy {
