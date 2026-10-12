@@ -254,6 +254,26 @@ func Ensure(ctx context.Context, exe, version string) (s *State, replaced bool, 
 	return s, replaced, err
 }
 
+// logLimit はログの大きさの上限。起動するたびに、越えていれば新しい方の半分だけ残す（伸び続けないように）
+const logLimit = 64 << 10
+
+// trimLog は path のログが limit を越えていれば、末尾の limit/2 ほど（行の頭から）だけ残す
+func trimLog(path string, limit int64) {
+	st, err := os.Stat(path)
+	if err != nil || st.Size() <= limit {
+		return
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	tail := b[int64(len(b))-limit/2:]
+	if i := bytes.IndexByte(tail, '\n'); i >= 0 {
+		tail = tail[i+1:]
+	}
+	_ = os.WriteFile(path, tail, 0o600)
+}
+
 func start(ctx context.Context, exe, version string, args []string) (*State, error) {
 	dir, err := Dir()
 	if err != nil {
@@ -262,7 +282,9 @@ func start(ctx context.Context, exe, version string, args []string) (*State, err
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	log, err := os.OpenFile(filepath.Join(dir, "daemon.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	logPath := filepath.Join(dir, "daemon.log")
+	trimLog(logPath, logLimit)
+	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return nil, err
 	}

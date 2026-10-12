@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -133,5 +134,24 @@ func TestLastRoundTripAndBroken(t *testing.T) {
 	os.WriteFile(filepath.Join(d, "last.json"), []byte("{broken"), 0o600)
 	if l := ReadLast(); l != nil {
 		t.Fatalf("broken last = %+v", l)
+	}
+}
+
+// ログは上限を越えたら、新しい方の半分ほど（行の頭から）だけ残す
+func TestTrimLog(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "daemon.log")
+	var b strings.Builder
+	for i := 0; b.Len() < 300; i++ {
+		fmt.Fprintf(&b, "line %d\n", i)
+	}
+	os.WriteFile(path, []byte(b.String()), 0o600)
+	trimLog(path, 1000) // 越えていなければ触らない
+	if got, _ := os.ReadFile(path); string(got) != b.String() {
+		t.Fatal("trimmed under the limit")
+	}
+	trimLog(path, 100)
+	got, _ := os.ReadFile(path)
+	if len(got) > 50 || len(got) == 0 || !strings.HasPrefix(string(got), "line ") || !strings.HasSuffix(b.String(), string(got)) {
+		t.Fatalf("got %q", got)
 	}
 }

@@ -30,6 +30,8 @@
 // ファイルの監視（doc.go の poll）は Hub の 1 本の処理で、どれかの画面が開いている図だけを一定間隔で読み直す。
 // 開いている図をまだ知らせていない画面は、登録済みの全部の図を開いているとみなす（つないだ直後や、前の版の画面）。
 //
+// 画面からの書き込み（api/data の PUT、api/layout、api/watch、api/new）は、JSON の本文で、Origin が無いか localhost のものだけを受ける
+// （newbook.go の fromPage。ほかのサイトのページから送られたものを断る）。
 // トークンは X-Matomezu-Token ヘッダーで渡す。/api/open は任意のファイルを読み書きさせられる入口なので、
 // 本人だけが読める state ファイルにあるトークンを持つプロセスにしか使わせない。
 //
@@ -162,13 +164,37 @@ func (h *Hub) remember(path string) {
 		out = out[len(out)-storeLimit:]
 	}
 	h.recent = out
+	h.forget()
 	b, _ := json.MarshalIndent(out, "", "  ")
 	h.mu.Unlock()
 	if h.store == "" {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(h.store), 0o700); err == nil {
-		_ = writeAtomic(h.store, b)
+	// 開いた図のパスの一覧なので、本人だけが読めるようにする（同じフォルダの server.json・daemon.log と同じ）
+	if err := os.MkdirAll(filepath.Dir(h.store), 0o700); err == nil && writeAtomic(h.store, b) == nil {
+		_ = os.Chmod(h.store, 0o600)
+	}
+}
+
+// forget は、覚えている図（recent。新しい方から storeLimit 件）から落ちた図の登録を外す。どれかの画面が開いている図は外さない
+// （開いている図を知らせていない画面があれば、全部を開いているとみなして外さない）。h.mu を持って呼ぶ
+func (h *Hub) forget() {
+	keep := map[string]bool{}
+	for _, p := range h.recent {
+		keep[docID(p)] = true
+	}
+	for _, c := range h.clients {
+		if c.docs == nil {
+			return
+		}
+		for id := range c.docs {
+			keep[id] = true
+		}
+	}
+	for id := range h.docs {
+		if !keep[id] {
+			delete(h.docs, id)
+		}
 	}
 }
 
@@ -421,8 +447,8 @@ func (h *Hub) Handler() http.Handler {
 		}
 	}
 	mux.HandleFunc("GET /d/{id}/api/data", withDoc((*doc).getData))
-	mux.HandleFunc("PUT /d/{id}/api/data", withDoc((*doc).putData))
-	mux.HandleFunc("POST /d/{id}/api/layout", withDoc((*doc).putLayout))
+	mux.HandleFunc("PUT /d/{id}/api/data", fromPage(withDoc((*doc).putData)))
+	mux.HandleFunc("POST /d/{id}/api/layout", fromPage(withDoc((*doc).putLayout)))
 	mux.HandleFunc("GET /d/{id}/api/layout", withDoc((*doc).getLayout))
 	// 以前の図ごとの URL は、画面の URL へ転送する
 	toApp := func(w http.ResponseWriter, r *http.Request) {
@@ -434,8 +460,8 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("GET /api/info", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]string{"server": h.version})
 	})
-	mux.HandleFunc("POST /api/watch", h.setWatch)
-	mux.HandleFunc("POST /api/new", h.newBook)
+	mux.HandleFunc("POST /api/watch", fromPage(h.setWatch))
+	mux.HandleFunc("POST /api/new", fromPage(h.newBook))
 	mux.Handle("GET /{$}", h.web)
 	mux.Handle("GET /dist/", h.web)
 

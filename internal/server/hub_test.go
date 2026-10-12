@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -242,6 +243,10 @@ func TestStoreRestoresDocs(t *testing.T) {
 	if len(saved) != 2 || saved[0] != b || saved[1] != a {
 		t.Fatalf("store = %v", saved)
 	}
+	// 開いた図のパスの一覧なので、本人だけが読める
+	if st, err := os.Stat(store); err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("store mode = %v (%v)", st.Mode().Perm(), err)
+	}
 
 	os.Remove(b)
 	ctx2, cancel2 := context.WithCancel(context.Background())
@@ -255,5 +260,40 @@ func TestStoreRestoresDocs(t *testing.T) {
 	}
 	if _, err := os.Stat(b); err == nil {
 		t.Fatal("消えた b を空の図で作った")
+	}
+}
+
+// 覚えている図（新しい方から storeLimit 件）から落ちた図は、登録も外す。画面が開いている図は外さない
+func TestForgetsOldDocs(t *testing.T) {
+	dir := t.TempDir()
+	web := fstest.MapFS{"index.html": {Data: []byte("<html>")}}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	h := NewHub(ctx, web)
+	path := func(i int) string { return filepath.Join(dir, fmt.Sprintf("%d.json", i)) }
+	open := func(i int) {
+		if err := os.WriteFile(path(i), []byte(`{"nodes":[]}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.Open(path(i), false, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < storeLimit; i++ {
+		open(i)
+	}
+	// 0 を開いている画面がある
+	h.mu.Lock()
+	h.clients[make(chan event)] = &client{id: "c", docs: map[string]bool{docID(path(0)): true}}
+	h.mu.Unlock()
+	open(storeLimit)
+	open(storeLimit + 1)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.docs) != storeLimit+1 {
+		t.Fatalf("docs = %d", len(h.docs))
+	}
+	if h.docs[docID(path(0))] == nil || h.docs[docID(path(1))] != nil || h.docs[docID(path(storeLimit+1))] == nil {
+		t.Fatal("外す図が違う")
 	}
 }
