@@ -22,8 +22,8 @@ export interface LinkLookDef {
   textW: { min: number; max: number } | null; // 文字の列の幅の範囲（横に分ける。窓枠は箱の幅いっぱいで null）
 }
 export const LINK_LOOK_DEFS: Record<LinkLook, LinkLookDef> = {
-  // 窓のまわりの余白は狭く（2026-10-12 ユーザー）。箱の幅は 200
-  window: { handle: 22, win: { w: 188, h: 92 }, gap: 6, textW: null },
+  // 窓のまわりの余白は狭く（2026-10-12 ユーザー）。箱の幅は 200。余白は 4 の倍数にする（125% 表示でも画素に割り切れ、左右で 1px ずれない）
+  window: { handle: 22, win: { w: 192, h: 92 }, gap: 4, textW: null },
   side:   { handle: 10, win: { w: 112, h: 84 }, gap: 6, textW: { min: 80, max: 160 } },
 };
 // 窓枠の箱の幅（窓の幅 + 両側の余白）
