@@ -1,9 +1,9 @@
 package server
 
 import (
-	"encoding/json"
 	"bufio"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -41,6 +41,9 @@ func setup(t *testing.T, content string) (string, string) {
 func do(t *testing.T, method, url, body string, header map[string]string) *http.Response {
 	t.Helper()
 	req, _ := http.NewRequest(method, url, strings.NewReader(body))
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json") // 画面と同じ（書き込みは JSON の本文だけを受ける。fromPage）
+	}
 	for k, v := range header {
 		if k == "Host" {
 			req.Host = v // Host はヘッダーに入れても無視される
@@ -240,5 +243,26 @@ func TestPollDoesNotRollBackAConcurrentSave(t *testing.T) {
 	defer mu.Unlock()
 	if len(seen) != 1 || seen[0] != hash(next) {
 		t.Fatalf("notified versions: %v", seen)
+	}
+}
+
+// 画面からの書き込みは、JSON の本文で Origin が無いか localhost のものだけ（ほかのサイトのページから送られたものを断る。fromPage）
+func TestWritesOnlyFromPage(t *testing.T) {
+	base, _ := setup(t, `{"nodes":[]}`)
+	v := strings.Trim(do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag"), `"`)
+	l := `{"version":"` + v + `","page":"","summary":"x"}`
+	for name, h := range map[string]map[string]string{
+		"text/plain":   {"Content-Type": "text/plain"},
+		"other origin": {"Origin": "https://evil.example"},
+	} {
+		if res := do(t, "POST", base+"/api/layout", l, h); res.StatusCode != http.StatusForbidden {
+			t.Errorf("layout %s: %d", name, res.StatusCode)
+		}
+		if res := do(t, "PUT", base+"/api/data", `{"nodes":[]}`, h); res.StatusCode != http.StatusForbidden {
+			t.Errorf("data %s: %d", name, res.StatusCode)
+		}
+	}
+	if res := do(t, "POST", base+"/api/layout", l, map[string]string{"Origin": "http://localhost:4000"}); res.StatusCode != http.StatusNoContent {
+		t.Errorf("localhost origin: %d", res.StatusCode)
 	}
 }

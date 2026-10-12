@@ -39,10 +39,6 @@ type newBook struct {
 }
 
 func (h *Hub) newBook(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") || !localOrigin(r.Header.Get("Origin")) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
 	var req newBook
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -137,6 +133,18 @@ func createUnique(dir, base string, body []byte) (string, error) {
 		return path, nil
 	}
 	return "", errors.New("too many diagrams with the same name")
+}
+
+// fromPage は、画面からの書き込みだけを通す: JSON の本文で、Origin が無いか localhost のもの。
+// ほかのサイトのページは、確認無しで送れる形（text/plain の本文など）でしか送れないので、それを断る
+func fromPage(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") || !localOrigin(r.Header.Get("Origin")) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	}
 }
 
 // localOrigin は Origin が無いか、localhost のものか（ほかのサイトのページから送られたものを断る）
