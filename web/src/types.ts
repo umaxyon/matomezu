@@ -153,7 +153,6 @@ export interface BoxInfo {
   viewsOff: ChildView[]; // 選べない子の見せ方（子を持つ子があれば、子が子を持てないフローチャートは選べない）
   canAlign: boolean; // 自動で整列できるか（決まった並べ方を持つ戦略（フローチャート）で、子がある）
   kidSize: Size | null; // 中の箱のサイズ（一括で変えたもの。無ければ null）。canAlign のときだけ選べる
-  shapes: Shape[]; // 選べる形（フローチャートの形は、フローチャートの子のときだけ。docs/PATTERN-plan.md の 3.7 章）
   tools: { id: string | null; shapes: Shape[]; size: Size } | null; // 道具入れを出す箱（自分か親。ワールドなら null）と、足せる形、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（子孫の見せ方はツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md の 3.6 章）
   parent: Brief | null;

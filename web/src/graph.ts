@@ -63,8 +63,8 @@
  *   - parent に親ボックスの id を書くと、その子になる。x, y は親の左上からの位置（内包のときに使う）。
  *   - 位置が無いボックスは自動で配置する。
  *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱の絵。キャプションは足元）/ "diamond"（ひし形）/ "server"（タワー型のサーバーの絵。キャプションは足元）/ "pc"・"factory"・"document"・"trash"・"robot"・"cat"・"heart"・"bulb"・"dog"・"forest"・"house"・"family"（パソコン・工場・書類・ゴミ箱・ロボット・猫の顔・ハート・電球・犬の顔・森・家・家族の絵。キャプションは足元。絵は shape-art.ts）/
- *     "circle"（円）/ "stadium"（角丸）。"hexagon"（六角形）/ "parallelogram"・"parallelogramAlt"（平行四辺形）/ "trapezoid"・"trapezoidAlt"（台形）は
- *     フローチャートの子（world.childView が "flow" なら最上位の箱も）のときだけ使う（外ではボックスで見せる）。
+ *     "circle"（円）/ "stadium"（角丸）。"hexagon"（六角形）/ "parallelogram"・"parallelogramAlt"（平行四辺形）/ "trapezoid"・"trapezoidAlt"（台形）。
+ *     形はどこでも同じに使える（2026-10-12 ユーザー）。平行四辺形と台形はツリーの中ではボックスで見せる（形の表の placed。データは残す）。
  *     子を内包しているボックスは枠なので、形は使わない（ツリーや非表示で見せているときは使う）。
  *     "class"（UML のクラス。docs/CLASS-plan.md）は、キャプションがクラス名で、abstract（true で抽象クラス）、
  *     attrs（属性 [{ name, type?, access?, static? }]）、ops（操作 [{ name, params?, type?, access?, static?, abstract? }]）を持つ。
@@ -131,7 +131,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, lookOf, strategyOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, shapeAllowed, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, lookOf, strategyOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -146,7 +146,7 @@ import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Patch, Shape, Size } from "./types";
-import { ARROWS, DASHES, GROUP_MIN, ROUTES, SHAPES, SIZES, VIEWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import { ARROWS, DASHES, GROUP_MIN, ROUTES, SIZES, VIEWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -246,7 +246,6 @@ export interface Graph {
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
   add(req: AddRequest, fields: Partial<BoxData>): string;
-  kidShapes(parentId: Id | null): Shape[]; // 親 parentId（null は最上位）の子として選べる形
   // プレビュー（見るだけのモード）。倍率を渡すと入り、null で編集に戻る。プレビュー中は、押すと選ぶだけで、
   // 背景のドラッグは見る範囲を動かす。図を直す操作（ドラッグ、Undo / Redo）は効かない
   setPreview(zoom: number | null): void;
@@ -1308,7 +1307,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       viewsOff: viewsOff(n),
       canAlign: n.children.length > 0 && !inTreeOf(n) && STRATEGIES[viewOf(n)].autoAlign,
       kidSize: kidSizeOf(n),
-      shapes: SHAPES.filter(v => shapeAllowed(v, n.parent ?? world)),
       tools: toolHostOf(n),
       inTree: inTreeOf(n),
       parent: n.parent ? brief(n.parent) : null,
@@ -1725,7 +1723,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     flattenTree,
     autoAlign,
     setKidSize,
-    kidShapes: parentId => SHAPES.filter(v => shapeAllowed(v, nodeOf(parentId))),
     // 現在の状態を返す（元データにある他の項目はそのまま残す）
     toJSON() {
       const out: Diagram = JSON.parse(JSON.stringify(source));

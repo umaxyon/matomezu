@@ -391,16 +391,15 @@ test("形を選ぶ絵の並び: どの形もどれか 1 つのまとまりに入
   }
 });
 
-test("形を選ぶ絵の並び: フローチャートの外では、フローチャートの形のまとまりを出さない。中では出し、名前はポインタを乗せると出る", () => {
+test("形を選ぶ絵の並び: どの箱でも全部の形を並べ、名前はポインタを乗せると出る", () => {
   const { g } = setup({
     nodes: [{ id: 1, caption: "外", x: 40, y: 40 }, { id: 2, childView: "flow", x: 300, y: 40 }, { id: 3, parent: 2, caption: "中" }],
   });
   const values = () => [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')].map(i => i.value);
   g.select(1);
-  expect(values()).not.toContain("hexagon");
-  expect(values()).toContain("bulb");
+  expect([...values()].sort()).toEqual([...SHAPES].sort());
   g.select(3);
-  expect(values()).toContain("trapezoidAlt");
+  expect([...values()].sort()).toEqual([...SHAPES].sort());
   const label = document.querySelector<HTMLInputElement>('input[name="mzp-shape"][value="trapezoidAlt"]')!.closest("label")!;
   expect(label.title).toBe(SHAPE_LABELS.trapezoidAlt);
 });

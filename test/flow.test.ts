@@ -1,4 +1,4 @@
-// フローチャートの戦略（docs/PATTERN-plan.md の 3.7 章）: 子を自由に置き、子はフローチャートの形を使え、子は子を持てない
+// フローチャートの戦略（docs/PATTERN-plan.md の 3.7 章）: 子を自由に置き、子は子を持てない。形はどこでも同じに使える（2026-10-12 ユーザー）
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { BoxInfo, Diagram, EdgeData, EdgeInfo } from "../web/src/types";
@@ -39,18 +39,25 @@ const data = (): Diagram => ({
 });
 const info = (g: Graph, id: number) => g.info(id) as BoxInfo;
 
-test("フローチャートの形は、フローチャートの子のときだけ使い、外ではボックスで見せる（データは残す）。円はどこでも使える", () => {
+test("形はどこでも同じに使える: フローチャートの外でも六角形のまま描き、外へ出しても形は変わらない", () => {
   const { graph } = setup(data());
-  expect([2, 3, 4, 10, 11].map(id => info(graph, id).shape)).toEqual(["hexagon", "diamond", "circle", "box", "circle"]);
-  expect(info(graph, 2).shapes).toContain("trapezoid");
-  expect(info(graph, 10).shapes).not.toContain("hexagon");
-  expect(info(graph, 10).shapes).toContain("circle");
-  // 外へ出すとボックスで見せ、データの形は残る。戻せば形も戻る
+  expect([2, 3, 4, 10, 11].map(id => info(graph, id).shape)).toEqual(["hexagon", "diamond", "circle", "hexagon", "circle"]);
   graph.reparent(2, null, { x: 600, y: 600 });
-  expect(info(graph, 2).shape).toBe("box");
-  expect(graph.toJSON().nodes.find(n => n.id === 2)!.shape).toBe("hexagon");
-  graph.reparent(2, 1);
   expect(info(graph, 2).shape).toBe("hexagon");
+});
+
+test("形のローカルなルール: 平行四辺形と台形はツリーの中ではボックスで見せ（データは残す）、ツリーを外せば形に戻る。六角形とひし形は形のまま", () => {
+  const { graph } = setup({
+    nodes: [
+      { id: 1, caption: "根", childView: "tree", x: 40, y: 40 },
+      { id: 2, caption: "入力", parent: 1, shape: "parallelogram" }, { id: 3, caption: "手作業", parent: 1, shape: "trapezoidAlt" },
+      { id: 4, caption: "準備", parent: 1, shape: "hexagon" }, { id: 5, caption: "分岐", parent: 1, shape: "diamond" },
+    ],
+  });
+  expect([2, 3, 4, 5].map(id => info(graph, id).shape)).toEqual(["box", "box", "hexagon", "diamond"]);
+  expect(graph.toJSON().nodes.find(n => n.id === 2)!.shape).toBe("parallelogram");
+  graph.update(1, { childView: "nest" });
+  expect([2, 3, 4, 5].map(id => info(graph, id).shape)).toEqual(["parallelogram", "trapezoidAlt", "hexagon", "diamond"]);
 });
 
 test("フローチャートの子は子を持てない: 子の中へは入れられず、子を持つ箱はフローチャートへ入れられない", () => {
@@ -82,8 +89,6 @@ test("道具入れは、フローチャートの箱とその子を選んだと�
   expect(info(graph, 3).tools?.id).toBe("1");
   expect(info(graph, 3).tools?.shapes).toEqual(["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"]);
   expect(info(graph, 10).tools).toBeNull();
-  expect(graph.kidShapes("1")).toContain("parallelogram");
-  expect(graph.kidShapes(null)).not.toContain("parallelogram");
 });
 
 test("フローチャートのひし形から出る線には、キャプションの候補 Yes / No を出す", () => {
@@ -92,11 +97,10 @@ test("フローチャートのひし形から出る線には、キャプショ�
   expect((graph.edgeInfo("e2") as EdgeInfo).captionHints).toEqual([]);
 });
 
-test("ワールド（ページ）もフローチャートにでき、最上位の箱がフローチャートの形を使える。最上位の箱は子を持てない", () => {
+test("ワールド（ページ）もフローチャートにでき、図の左上に道具入れが出る。最上位の箱は子を持てない", () => {
   const { graph, events } = setup({
     nodes: [{ id: 1, caption: "準備", shape: "hexagon", x: 40, y: 40 }, { id: 2, caption: "外", x: 300, y: 40 }],
   });
-  expect(info(graph, 1).shape).toBe("box");
   expect((graph.info(null) as { views: string[] }).views).toEqual(["nest", "flow"]);
   graph.update(null, { childView: "flow" });
   expect(graph.toJSON().world?.childView).toBe("flow");

@@ -157,7 +157,7 @@ interface BoxValues {
   // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
   abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
 }
-type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "shapes" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops"> & {
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
   color: string;      // 書いた色（名前か色の値。"" は書いていない）
   inherited: string;  // 親から受け継ぐテーマ（テーマを「受け継ぐ」にしたときの色の見本と、見た目の色に使う）
@@ -227,7 +227,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     : v !== "box" && v !== "class" ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : null);
   const side = `<div class="mz-dlg-side">
       <div class="mz-dlg-group"><h3>${t("形")}</h3>
-        ${shapePicker({ name: "shape", value: b.shape, shapes: b.shapes, off: frameOff })}
+        ${shapePicker({ name: "shape", value: b.shape, off: frameOff })}
         ${b.canShape ? "" : `<p class="mz-dlg-note">${b.canClass ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
       <div class="mz-dlg-group"><h3>${t("サイズ")}</h3>
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
@@ -464,7 +464,7 @@ export function confirmFlatten(graph: Graph, id: string): void {
 export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box", size: Size = "M"): void {
   const start: BoxStart = {
     caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
-    shape, shapes: graph.kidShapes(req.parentId), size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
+    shape, size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
     color: "", inherited: graph.info(req.parentId).themeUsed,
     abstract: false, attrs: [], ops: [], kids: 0,
   };

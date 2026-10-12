@@ -168,7 +168,7 @@ function html(info: Info): string {
       const off = (v: Shape) => (info.body && !shapeDef(v).body ? t("本文があるあいだは選べません")
         : !info.canShape && v !== "box" && v !== "class" ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : null);
       parts.push(`<div class="mzp-section"><h3>${t("形")}</h3>
-        ${shapePicker({ name: "mzp-shape", value: info.shape, shapes: info.shapes, off })}
+        ${shapePicker({ name: "mzp-shape", value: info.shape, off })}
         ${info.body ? `<p class="mzp-hint">${t("本文があるので、ボックスのままです")}</p>` : ""}
         ${info.shape === "class" ? `<p class="mzp-hint">${t("クラス名・属性・操作は、編集のダイアログで直せます")}</p>` : ""}
       </div>`);

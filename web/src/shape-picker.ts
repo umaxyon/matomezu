@@ -1,7 +1,7 @@
 /*
  * 形を選ぶ絵の並び（残課題 E11。サイドバーと編集ダイアログで同じものを使う）。
  * 形をまとまり（validate.ts の SHAPE_GROUPS）ごとに絵で並べ、押せば決まる（ラジオボタン。名前はポインタを乗せたときと読み上げ）。
- * - 並べるのは、その箱に使える形（shapes）と、今の形。使える形が 1 つも無いまとまりは出さない（フローチャートの外のフローチャートの形）
+ * - 形はどこでも同じに使える（2026-10-12 ユーザー）ので、どの箱でも全部の形を並べる
  * - 選べない形（off が理由を返す）は薄くして押せなくし、理由はポインタを乗せたときに出す
  *
  *   shapePicker({ name, value, shapes, off })  // HTML
@@ -34,7 +34,6 @@ const CSS = `
 export interface ShapePickerOptions {
   name: string;               // ラジオボタンの name
   value: Shape;               // 今の形
-  shapes: readonly Shape[];   // その箱に使える形
   off: (s: Shape) => string | null; // 選べない理由（選べれば null）
 }
 
@@ -42,9 +41,7 @@ const titleOf = (s: Shape, why: string | null) => (why ? `${SHAPE_LABELS[s]}\n${
 
 export function shapePicker(o: ShapePickerOptions): string {
   injectStyle(STYLE_ID, CSS);
-  const groups = SHAPE_GROUPS.map(g => ({ ...g, shapes: g.shapes.filter(s => o.shapes.includes(s) || s === o.value) }))
-    .filter(g => g.shapes.length);
-  return `<div class="mz-sp" role="radiogroup" aria-label="${t("形")}">${groups.map(g =>
+  return `<div class="mz-sp" role="radiogroup" aria-label="${t("形")}">${SHAPE_GROUPS.map(g =>
     `<div class="mz-sp-group" role="group" aria-label="${esc(g.label)}">${g.shapes.map(s => {
       const why = o.off(s);
       return `<label class="mz-sp-item" title="${esc(titleOf(s, why))}"><input type="radio" name="${o.name}" value="${s}"` +

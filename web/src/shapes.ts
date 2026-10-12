@@ -6,7 +6,7 @@
 // 形の種類（2026-10-12 ユーザー）:
 //   normal  … 四角っぽい形。土台の決め方は共通（文字とサイズ L/M/S）。斜めの辺や丸い端は、描くときのはみ出し
 //   special … 土台を自分で決める形（文字を中に収めるため、または絵を持つため）
-import type { Shape, Size } from "./types";
+import type { ChildView, Shape, Size } from "./types";
 
 // 土台（配置に使う大きさのもと）の決め方
 export type Base = "box" | "diamond" | "circle" | "class" | "icon";
@@ -35,15 +35,21 @@ export interface ShapeDef {
   minW: number;          // 絵の形の最小の幅（px。絵と足元の文字。0 はサイズの最小の幅を使う）
   // 絵の形の絵の大きさ（px。SVG の viewBox と同じ。絵は shape-art.ts）と、サイズごとの倍率（S は縮める）。絵の無い形は null
   art: { w: number; h: number; scale: Record<Size, number> } | null;
+  // 形のローカルなルール: ある並べ方の子として置かれたときの、自分の見せ方の上書き（model.ts の lookOf が読む。CLAUDE.md のルール 4。
+  // 並べる側は変えない）。plainShape は、その中ではボックスで見せる（データの形は残す）
+  placed: Partial<Record<ChildView, { plainShape?: boolean }>>;
 }
 
 const NORMAL = {
   kind: "normal", base: "box", draw: "box", vertexOnly: false, insetEnds: false, slanted: false,
   body: false, overflow: true, kids: true, terminal: false, branch: false, borderToggle: false, fillToggle: true,
-  slant: { L: 0, M: 0, S: 0 }, fit: null, minW: 0, art: null,
+  slant: { L: 0, M: 0, S: 0 }, fit: null, minW: 0, art: null, placed: {},
 } as const;
 const OUTLINE = { ...NORMAL, draw: "outline", vertexOnly: true } as const;
 const SLANT = { ...OUTLINE, slanted: true, slant: { L: 14, M: 14, S: 10 } } as const;
+// 左右の辺の真ん中が四角より内側にある形（平行四辺形・台形）は、ツリーの中ではボックスで見せる。ツリーの線は箱の四角の辺の
+// 真ん中につなぐので、形のままだと左右向きのツリーで線と形の間が空くため（2026-10-12 ユーザー: ツリーの側は変えず、形の側のルールで）
+const INSET = { ...SLANT, insetEnds: true, placed: { tree: { plainShape: true } } } as const;
 const ICON = {
   ...NORMAL, kind: "special", base: "icon", draw: "art", vertexOnly: false, overflow: false, minW: 64,
 } as const;
@@ -54,10 +60,10 @@ export const SHAPE_DEFS: Record<Shape, ShapeDef> = {
   box:              { ...NORMAL, body: true, borderToggle: true },
   stadium:          { ...OUTLINE, terminal: true },
   hexagon:          { ...SLANT },
-  parallelogram:    { ...SLANT, insetEnds: true },
-  parallelogramAlt: { ...SLANT, insetEnds: true },
-  trapezoid:        { ...SLANT, insetEnds: true },
-  trapezoidAlt:     { ...SLANT, insetEnds: true },
+  parallelogram:    { ...INSET },
+  parallelogramAlt: { ...INSET },
+  trapezoid:        { ...INSET },
+  trapezoidAlt:     { ...INSET },
   // ひし形は、内側に収まる四角が縦横の半分なので、文字の 2 倍の大きさ（ratio 0.5）
   diamond:          { ...NORMAL, kind: "special", base: "diamond", draw: "diamond", vertexOnly: true, branch: true, fit: { ratio: 0.5, pad: 12, wrap: 0.6 } },
   // 円は、内側に収まる四角が直径の 1/√2（ratio）。文字を囲む四角の対角線に余白を足した直径にする
