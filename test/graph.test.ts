@@ -557,6 +557,7 @@ describe("親子の付け替え", () => {
     const web = [...el.querySelectorAll(".mz-head")].find(h => h.textContent?.startsWith("Web"))!;
     const rect = HTMLElement.prototype.getBoundingClientRect;
     const doc = document as unknown as { elementsFromPoint?: (x: number, y: number) => Element[] };
+    const was = doc.elementsFromPoint; // 終わったら元に戻す（setup.ts の代わりの関数）
     HTMLElement.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 700);
     doc.elementsFromPoint = () => [web];
     try {
@@ -575,7 +576,7 @@ describe("親子の付け替え", () => {
       fire("pointerup", 150);
     } finally {
       HTMLElement.prototype.getBoundingClientRect = rect;
-      delete doc.elementsFromPoint;
+      doc.elementsFromPoint = was;
     }
     expect(el.querySelector(".mz-ghost")).toBeNull();
     expect(parentOf(graph.toJSON(), 7)).toBe(2);

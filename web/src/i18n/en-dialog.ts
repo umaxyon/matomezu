@@ -12,6 +12,7 @@ export default {
   "ボックスの編集": "Edit box",
   "ボックスの追加": "Add box",
   "形": "Shape",
+  "色": "Color",
   "子を内包している箱は枠なので、形を選べません": "A box that nests children is a frame, so its shape cannot be changed",
   "サイズ": "Size",
   "内包・リストの箱の大きさは、子の並びで決まります": "The size of a nested or list box is set by its children",

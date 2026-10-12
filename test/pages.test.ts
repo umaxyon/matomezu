@@ -241,6 +241,7 @@ test("付け替えのドラッグは、途中でページを切り替えても�
   graph.setMode("reparent");
   const rect = HTMLElement.prototype.getBoundingClientRect;
   const doc = document as unknown as { elementsFromPoint?: (x: number, y: number) => Element[] };
+  const was = doc.elementsFromPoint; // 終わったら元に戻す（setup.ts の代わりの関数）
   HTMLElement.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 700);
   doc.elementsFromPoint = () => []; // ポインタの下は空き（ワールド）
   try {
@@ -258,7 +259,7 @@ test("付け替えのドラッグは、途中でページを切り替えても�
     fire(document, "pointerup", 200);
   } finally {
     HTMLElement.prototype.getBoundingClientRect = rect;
-    delete doc.elementsFromPoint;
+    doc.elementsFromPoint = was;
   }
   expect(over.length).toBe(2);
   expect(ended).toBe(1);
@@ -282,6 +283,7 @@ test("付け替えのドラッグで、ページの箱の上は落とし先に�
   const pageHead = el.querySelector('.mz-node[data-id="1"] > .mz-head')!;
   const rect = HTMLElement.prototype.getBoundingClientRect;
   const doc = document as unknown as { elementsFromPoint?: (x: number, y: number) => Element[] };
+  const was = doc.elementsFromPoint; // 終わったら元に戻す（setup.ts の代わりの関数）
   HTMLElement.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 700);
   doc.elementsFromPoint = () => [pageHead];
   try {
@@ -295,7 +297,7 @@ test("付け替えのドラッグで、ページの箱の上は落とし先に�
     fire(document, "pointerup", 150);
   } finally {
     HTMLElement.prototype.getBoundingClientRect = rect;
-    delete doc.elementsFromPoint;
+    doc.elementsFromPoint = was;
   }
   expect(node(graph.toJSON(), 2).parent).toBeUndefined();
 });

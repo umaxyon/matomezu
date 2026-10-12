@@ -156,3 +156,46 @@ test("斜めの直線を選ぶと両端に丸が出て、ドラッグで端を�
   // 自動の位置（中心どうしを結んだ線が縁と交わる点）は、下の辺の x = 144 あたり
   await expect.poll(async () => Math.round((await first())[0]!)).toBe(144);
 });
+
+test("選んだ線の端をほかの箱まで運ぶと、その箱を強調し、離すとつなぎ替える。付け替えられない箱へは付け替えない（E12）", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [
+      { id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 340, y: 40 }, { id: 3, caption: "C", x: 340, y: 240 },
+      { id: 4, caption: "D", x: 40, y: 240 },
+    ],
+    edges: [{ id: "e1", from: 1, to: 2, caption: "使う" }, { id: "e2", from: 1, to: 4 }],
+  });
+  const edge = page.locator('.mz-edge[data-id="e1"]');
+  const side = page.locator("#sidebar");
+  const center = async (id: number) => {
+    const b = (await page.locator(`.mz-node[data-id="${id}"] > .mz-head`).boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+  const dragEnd = async (to: { x: number; y: number }, check?: () => Promise<void>) => {
+    const b = (await edge.locator('.mz-end[data-end="enter"]').boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 10 });
+    await check?.();
+    await page.mouse.up();
+  };
+  await edge.locator(".mz-label").click();
+  await expect(edge).toHaveClass(/mz-selected/);
+  // 終点（B）を C へ運ぶ: C が強調され、離すと 1 → 3 になる（キャプションはそのまま）
+  await dragEnd(await center(3), async () => {
+    await expect(page.locator('.mz-node[data-id="3"]')).toHaveClass(/mz-link-target/);
+  });
+  await expect(side.locator(".mzp-dl dd")).toHaveText(["e1", "1_A", "3_C"]);
+  await expect(edge.locator(".mz-label")).toHaveText("使う");
+  await expect(page.locator(".mz-link-target")).toHaveCount(0);
+  // D へは、1 → 4 の線がもうあるので付け替えない（強調もしない）
+  await dragEnd(await center(4), async () => {
+    await expect(page.locator(".mz-link-target")).toHaveCount(0);
+  });
+  await expect(side.locator(".mzp-dl dd")).toHaveText(["e1", "1_A", "3_C"]);
+  // Undo で元に戻る
+  await page.keyboard.press("Control+z");
+  await page.keyboard.press("Control+z");
+  await edge.locator(".mz-label").click();
+  await expect(side.locator(".mzp-dl dd")).toHaveText(["e1", "1_A", "2_B"]);
+});

@@ -32,7 +32,7 @@ export const VIEWS = ["nest", "tree", "hidden", "list", "flow"] as const;
 export const WORLD_VIEWS = ["nest", "flow"] as const;
 export const SHAPES = [
   "box", "person", "db", "diamond", "server", "class", "circle", "stadium", "hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt",
-  "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb",
+  "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb", "dog", "forest", "house", "family",
 ] as const;
 // 形の画面での名前（形を選ぶ絵の並びの、ポインタを乗せたときと読み上げの名前。通知にも使う）
 export const SHAPE_LABELS: Record<Shape, string> = {
@@ -41,13 +41,14 @@ export const SHAPE_LABELS: Record<Shape, string> = {
   trapezoid: t("台形（手作業・上が狭い）"), trapezoidAlt: t("台形（下が狭い）"),
   person: t("スティックマン"), db: "DB", server: t("サーバー"), pc: t("パソコン"), factory: t("工場"), document: t("書類"),
   trash: t("ゴミ箱"), robot: t("ロボット"), cat: t("猫の顔"), heart: t("ハート"), bulb: t("電球（ひらめき）"),
+  dog: t("犬の顔"), forest: t("森"), house: t("家"), family: t("家族"),
 };
 // 形を選ぶ絵の並び（shape-picker.ts。サイドバーと編集ダイアログ）。まとまりごとに間を空けて並べる。どの形もどれか 1 つに入る（test が見張る）。
 // 向きや角の違う形（円と角丸、平行四辺形と台形の向き）も、それぞれ 1 つの絵として並べる（2026-10-12 ユーザー）
 export const SHAPE_GROUPS: { label: string; shapes: Shape[] }[] = [
   { label: t("基本の形"), shapes: ["box", "class", "circle", "stadium", "diamond"] },
   { label: t("フローチャートの形"), shapes: ["hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt"] },
-  { label: t("絵の形"), shapes: ["person", "db", "server", "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb"] },
+  { label: t("絵の形"), shapes: ["person", "db", "server", "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb", "dog", "forest", "house", "family"] },
 ];
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;

@@ -62,7 +62,7 @@
  *   - id は連番の数値を使う。省くと読み込み時に、既存の数値 id の続きから連番を振る。
  *   - parent に親ボックスの id を書くと、その子になる。x, y は親の左上からの位置（内包のときに使う）。
  *   - 位置が無いボックスは自動で配置する。
- *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱の絵。キャプションは足元）/ "diamond"（ひし形）/ "server"（タワー型のサーバーの絵。キャプションは足元）/ "pc"・"factory"・"document"・"trash"・"robot"・"cat"・"heart"・"bulb"（パソコン・工場・書類・ゴミ箱・ロボット・猫の顔・ハート・電球の絵。キャプションは足元。絵は shape-art.ts）/
+ *   - shape はボックスの形: "box"（既定）/ "person"（スティックマン。キャプションは足元）/ "db"（円柱の絵。キャプションは足元）/ "diamond"（ひし形）/ "server"（タワー型のサーバーの絵。キャプションは足元）/ "pc"・"factory"・"document"・"trash"・"robot"・"cat"・"heart"・"bulb"・"dog"・"forest"・"house"・"family"（パソコン・工場・書類・ゴミ箱・ロボット・猫の顔・ハート・電球・犬の顔・森・家・家族の絵。キャプションは足元。絵は shape-art.ts）/
  *     "circle"（円）/ "stadium"（角丸）。"hexagon"（六角形）/ "parallelogram"・"parallelogramAlt"（平行四辺形）/ "trapezoid"・"trapezoidAlt"（台形）は
  *     フローチャートの子（world.childView が "flow" なら最上位の箱も）のときだけ使う（外ではボックスで見せる）。
  *     子を内包しているボックスは枠なので、形は使わない（ツリーや非表示で見せているときは使う）。
@@ -325,6 +325,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     select,
     canLink,
     link,
+    canReconnect,
+    reconnect,
     changed,
     notifySelect,
     reparent,
@@ -678,13 +680,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 線でつながると、2 つの箱の最小間隔が広がる（layout.ts の gapBetween）。近すぎれば、始点の箱はそのままで終点の側をどける
     if (a !== b) settle(SCENES.drop, a);
     if (a !== b && (at || from)) {
-      const input = R.routeInputOf(e);
-      const onRim = (r: typeof input.a, p: [number, number], vertex: boolean) => {
-        const q = pointAt(perimeter(r), nearestAt(perimeter(r), p[0], p[1]));
-        return perimeterAt(r, vertex ? vertexOf(r, q) : q);
-      };
-      if (from) e.src.exitAt = onRim(input.a, from, !!input.aVertex);
-      if (at) e.src.enterAt = onRim(input.b, at, !!input.bVertex);
+      if (from) fixEnd(e, "exit", from);
+      if (at) fixEnd(e, "enter", at);
     }
     if (a !== b) render(); else renderEdges();
     const corner = a === b && at ? R.loopCornerNear(e, at) : null;
@@ -692,6 +689,59 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       e.src.exitAt = Math.round(corner.exit * 1000) / 1000; // 端をつまんで動かしたときと同じ桁
       e.src.enterAt = Math.round(corner.enter * 1000) / 1000;
       renderEdges();
+    }
+    changed();
+    notifySelect();
+    return true;
+  }
+
+  // 線 e の端（exit は始点、enter は終点）を、p（ワールドの座標）に一番近い箱の縁の位置に固定する（頂点にしかつなげない形は一番近い頂点）
+  function fixEnd(e: Edge, end: "exit" | "enter", p: [number, number]) {
+    const input = R.routeInputOf(e);
+    const r = end === "exit" ? input.a : input.b;
+    const q = pointAt(perimeter(r), nearestAt(perimeter(r), p[0], p[1]));
+    const vertex = end === "exit" ? input.aVertex : input.bVertex;
+    e.src[end === "exit" ? "exitAt" : "enterAt"] = perimeterAt(r, vertex ? vertexOf(r, q) : q);
+  }
+
+  // 線 e の端を、箱 to につなぎ替えられるか（残課題 E12）。線を引くときと同じ決まり: もう一方の端と同じ階層で、同じ組の線がほかに無いこと。
+  // もう一方の端と同じ箱なら、自分に戻る線になる（何本でもよい）。今つないでいる箱は付け替えにならない
+  function canReconnect(e: Edge, end: "exit" | "enter", to: Box): boolean {
+    const own = end === "exit" ? e.a : e.b, other = end === "exit" ? e.b : e.a;
+    if (to === own || to.parent !== other.parent || !abilitiesOf(to).link) return false;
+    if (to === other) return true;
+    return !edges.some(o => o !== e && ((o.a === to && o.b === other) || (o.a === other && o.b === to)));
+  }
+
+  // 線 e の端を箱 to につなぎ替え、端を離した所 at（ワールドの座標）に近い縁に固定する。キャプション・矢印・線の種類はそのまま。
+  // 道筋（折れ目 via）と、付け替えた端の位置・クラスの行は捨てる。自分に戻る線になる・でなくなるときは、両端の位置を捨てる（意味が変わるため）
+  function reconnect(e: Edge, end: "exit" | "enter", to: Box, at: [number, number]): boolean {
+    if (!canReconnect(e, end, to)) {
+      blocked(to);
+      return false;
+    }
+    const wasLoop = e.a === e.b;
+    if (end === "exit") { e.a = to; e.src.from = to.src.id!; delete e.src.fromMember; delete e.src.exitAt; }
+    else { e.b = to; e.src.to = to.src.id!; delete e.src.toMember; delete e.src.enterAt; }
+    const loop = e.a === e.b;
+    if (wasLoop || loop) { delete e.src.exitAt; delete e.src.enterAt; }
+    delete e.src.via;
+    e.memory = null;
+    e.routeMemo = null;
+    if (!loop) {
+      // 線でつながると最小間隔が広がる（layout.ts の gapBetween）。近すぎれば、つなぎ替えた先はそのままで、もう一方をどける
+      settle(SCENES.drop, to);
+      render();
+      fixEnd(e, end, at);
+      renderEdges();
+    } else {
+      renderEdges();
+      const corner = R.loopCornerNear(e, at);
+      if (corner) {
+        e.src.exitAt = Math.round(corner.exit * 1000) / 1000;
+        e.src.enterAt = Math.round(corner.enter * 1000) / 1000;
+        renderEdges();
+      }
     }
     changed();
     notifySelect();

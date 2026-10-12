@@ -73,6 +73,10 @@ export const SHAPE_DEFS: Record<Shape, ShapeDef> = {
   cat:              { ...ICON, art: art(48, 46) },
   heart:            { ...ICON, art: art(48, 44) },
   bulb:             { ...ICON, art: art(48, 52) },
+  dog:              { ...ICON, art: art(48, 46) },
+  forest:           { ...ICON, art: art(52, 46) },
+  house:            { ...ICON, art: art(48, 46) },
+  family:           { ...ICON, art: art(52, 46) },
   class:            { ...NORMAL, kind: "special", base: "class", draw: "class", overflow: false, kids: false },
 };
 

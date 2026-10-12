@@ -62,4 +62,28 @@ export const SHAPE_ART: Partial<Record<Shape, string>> = {
     '<path class="mz-art-line" d="M19 34V27L21 23 24 28 27 23 29 27V34"/>' +
     '<rect class="mz-art-dark" x="15" y="34" width="18" height="10" rx="2"/><path class="mz-art-line" d="M15 39H33"/>' +
     '<path class="mz-art-dark" d="M19 44H29L27 49H21Z"/>',
+  // 犬の顔（猫の顔と同じく正面。垂れ耳・目・口元・鼻・口。48×46）
+  dog:
+    '<ellipse class="mz-art-body" cx="24" cy="25" rx="16" ry="17"/>' +
+    '<path class="mz-art-dark" d="M12 8C4 9 1 20 4 31 6 34 10 32 12 27ZM36 8C44 9 47 20 44 31 42 34 38 32 36 27Z"/>' +
+    '<ellipse class="mz-art-light" cx="24" cy="34" rx="8.5" ry="6.5"/>' +
+    '<circle class="mz-art-dot" cx="17.5" cy="22" r="2.3"/><circle class="mz-art-dot" cx="30.5" cy="22" r="2.3"/>' +
+    '<ellipse class="mz-art-dot" cx="24" cy="30.5" rx="3" ry="2.2"/>' +
+    '<path class="mz-art-line" d="M24 32.7V35M24 35C22.5 37 20 37 19 35.5M24 35C25.5 37 28 37 29 35.5"/>',
+  // 森（大小の木が 3 本。52×46）
+  forest:
+    '<rect class="mz-art-dark" x="11" y="34" width="4" height="10"/><rect class="mz-art-dark" x="37" y="34" width="4" height="10"/>' +
+    '<rect class="mz-art-dark" x="24" y="32" width="4" height="12"/>' +
+    '<path class="mz-art-body" d="M13 8 23 36H3Z"/><path class="mz-art-body" d="M39 8 49 36H29Z"/>' +
+    '<path class="mz-art-light" d="M26 2 38 34H14Z"/>',
+  // 家（三角の屋根・煙突・窓・戸。48×46）
+  house:
+    '<rect class="mz-art-dark" x="33" y="6" width="6" height="12"/>' +
+    '<path class="mz-art-body" d="M7 22V44H41V22"/><path class="mz-art-dark" d="M2 24 24 4 46 24Z"/>' +
+    '<rect class="mz-art-light" x="11" y="27" width="9" height="8"/><rect class="mz-art-light" x="27" y="29" width="9" height="15"/>',
+  // 家族（大人ふたりと子ども。52×46）
+  family:
+    '<circle class="mz-art-body" cx="12" cy="8" r="6"/><path class="mz-art-body" d="M3 44V24C3 18 7 16 12 16S21 18 21 24V44Z"/>' +
+    '<circle class="mz-art-body" cx="40" cy="8" r="6"/><path class="mz-art-body" d="M31 44V24C31 18 35 16 40 16S49 18 49 24V44Z"/>' +
+    '<circle class="mz-art-light" cx="26" cy="22" r="4.5"/><path class="mz-art-light" d="M19 44V33C19 29 22 28 26 28S33 29 33 33V44Z"/>',
 };

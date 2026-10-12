@@ -195,6 +195,30 @@ test("追加のダイアログで形・サイズ・テーマを選ぶと、そ�
   expect(["shape" in plain, "size" in plain, "theme" in plain]).toEqual([false, false, false]);
 });
 
+test("箱のダイアログで色を選べる。見本はダイアログで選んだテーマの色で、確定したら書く。追加のダイアログでも選べる（E13）", async () => {
+  const { openEditDialog } = await import("../web/src/edit-dialog");
+  const { themeById } = await import("../web/src/theme");
+  const { g } = setup({ nodes: [{ id: 1, caption: "A", x: 40, y: 40 }] });
+  const click = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const swatch = (name: string) => document.querySelector<HTMLElement>(`.mz-cp-swatch[data-name="${name}"]`)!;
+  openEditDialog(g, "1");
+  field<HTMLSelectElement>("theme").value = "sticky";
+  fire(field("theme"), "change");
+  click(dialog().querySelector("[data-color-open]")!);
+  expect(swatch("primary").style.background).toBe(themeById("sticky").palette.primary);
+  click(swatch("danger"));
+  ok();
+  expect(g.toJSON().nodes[0]).toMatchObject({ theme: "sticky", color: "danger" });
+  await new Promise(r => setTimeout(r, 0)); // 閉じたことは MutationObserver で知る
+  expect(document.querySelector(".mz-cp")).toBeNull(); // ダイアログを閉じたらポップアップも閉じる
+
+  openAddDialog(g, { parentId: null, at: { x: 300, y: 100 } });
+  click(dialog().querySelector("[data-color-open]")!);
+  click(swatch("success"));
+  ok();
+  expect(g.toJSON().nodes[1]!.color).toBe("success");
+});
+
 test("箱のダイアログ: 形がボックス以外か S のあいだは本文を書けず、本文があるあいだは形と S を選べない", async () => {
   const { openEditDialog } = await import("../web/src/edit-dialog");
   const { g } = setup({ nodes: [{ id: 1, caption: "A", x: 40, y: 40 }] });

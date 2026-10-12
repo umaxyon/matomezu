@@ -7,6 +7,8 @@ const proto = HTMLElement.prototype;
 Object.defineProperty(proto, "clientWidth", { configurable: true, get: () => 1000 });
 Object.defineProperty(proto, "clientHeight", { configurable: true, get: () => 700 });
 proto.setPointerCapture = () => {};
+// 位置から要素を引く関数は happy-dom に無い。配置の計算が無いので、どの位置にも何も無いとする（ドラッグで相手の箱を探すときに使う）
+document.elementsFromPoint ??= () => [];
 
 // 画面の文言は日本語で確かめる（happy-dom のブラウザの言語は英語。i18n.ts は読み込んだときに言語を決める）
 localStorage.setItem("matomezu.lang", "ja");

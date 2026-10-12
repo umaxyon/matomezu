@@ -7,21 +7,14 @@
  *   openNewBookDialog(near, created, failed);
  */
 
-import { closeColorPicker, openColorPicker } from "./color-picker";
-import { esc, injectStyle } from "./dom";
-import { openDialog } from "./edit-dialog";
+import { esc } from "./dom";
+import { colorButtonHtml, openDialog, setupColorButton } from "./edit-dialog";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { DEFAULT_ROUTE, DEFAULT_VIEW, STRATEGIES } from "./model";
 import { BG_PRESETS, ROUTE_OPTIONS, THEME_HELP, VIEW_OPTIONS, WORLD_VIEW_HELP } from "./panel-info";
 import { DEFAULT_THEME, THEMES } from "./theme";
 import type { ChildView, WorldData } from "./types";
-
-const STYLE_ID = "matomezu-new-book-style";
-const CSS = `
-.mz-nb-color { display: flex; align-items: center; gap: 6px; }
-.mz-nb-swatch { width: 14px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.5); }
-`;
 
 // ワールドに掛けられる並べ方（内包・フローチャート）
 const WORLD_VIEWS = VIEW_OPTIONS.filter(([v]) => STRATEGIES[v as ChildView].onWorld);
@@ -33,16 +26,13 @@ function seg(name: string, value: string, options: [string, string][]): string {
 
 // near は今見ているブックの id（そのフォルダに作る）。作れたら created に新しいブックの id を、作れなければ failed に理由を渡す
 export function openNewBookDialog(near: string | null, created: (id: string) => void, failed: (message: string) => void): void {
-  injectStyle(STYLE_ID, CSS);
   let background: string | null = null;
   const fields = `<label class="mz-dlg-field"><span>${t("図の題名")}${helpIcon(t("タブの見出しと、ファイル名になります（空なら「無題」）"))}</span>
       <input class="mz-dlg-input" type="text" name="caption" value="" placeholder="${t("無題")}"></label>
     <div class="mz-dlg-row"><span>${t("テーマ")}${helpIcon(THEME_HELP)}</span>
       <select class="mz-dlg-input" name="theme" aria-label="${t("テーマ")}">${THEMES.map(th =>
         `<option value="${th.id}"${th.id === DEFAULT_THEME ? " selected" : ""}>${esc(th.label)}</option>`).join("")}</select></div>
-    <div class="mz-dlg-row"><span>${t("背景色")}</span>
-      <button type="button" class="mz-dlg-btn mz-nb-color" data-color-open aria-haspopup="dialog" aria-label="${t("背景色を選ぶ")}">
-        <span class="mz-nb-swatch"></span><span data-color-text>${t("なし")}</span></button></div>
+    <div class="mz-dlg-row"><span>${t("背景色")}</span>${colorButtonHtml(t("背景色を選ぶ"))}</div>
     <div class="mz-dlg-field"><span>${t("線の通り方（既定）")}</span>${seg("route", DEFAULT_ROUTE, ROUTE_OPTIONS)}</div>
     <div class="mz-dlg-field"><span>${t("子の見せ方")}${helpIcon(WORLD_VIEW_HELP)}</span>${seg("view", DEFAULT_VIEW, WORLD_VIEWS)}</div>
     <p class="mz-dlg-note">${t("今見ている図と同じフォルダに作ります")}</p>`;
@@ -60,28 +50,11 @@ export function openNewBookDialog(near: string | null, created: (id: string) => 
     createBook(near, title, world).then(created, (e: Error) => failed(e.message));
   });
 
-  // 背景色は、サイドバーと同じ色のポップアップで選ぶ（見本は背景によく使う色）。ダイアログを閉じたら閉じる
-  const btn = overlay.querySelector<HTMLElement>("[data-color-open]")!;
-  const show = () => {
-    btn.querySelector<HTMLElement>(".mz-nb-swatch")!.style.background = background ?? "transparent";
-    btn.querySelector<HTMLElement>("[data-color-text]")!.textContent = background ?? t("なし");
-  };
-  let picking = false;
-  btn.addEventListener("click", () => {
-    if (picking) { closeColorPicker(); return; }
-    openColorPicker({
-      anchor: btn, value: background ?? "", paint: background ?? "#ffffff",
-      palette: BG_PRESETS.map(c => ({ name: c, color: c })),
-      onPick: c => { background = c; show(); }, onClose: () => { picking = false; },
-    });
-    picking = true;
-  });
-  // ダイアログの中を押したら閉じる（ダイアログは押した操作を外へ届けないので、ポップアップが自分で気づけない）
-  overlay.querySelector(".mz-dlg")!.addEventListener("pointerdown", e => {
-    if (picking && !(e.target instanceof Element && e.target.closest("[data-color-open]"))) closeColorPicker();
-  });
-  const gone = new MutationObserver(() => { if (!overlay.isConnected) { closeColorPicker(); gone.disconnect(); } });
-  gone.observe(document.body, { childList: true });
+  // 背景色は、サイドバーと同じ色のポップアップで選ぶ（見本は背景によく使う色）
+  setupColorButton(overlay, () => ({
+    value: background ?? "", paint: background ?? "transparent", text: background ?? t("なし"),
+    palette: BG_PRESETS.map(c => ({ name: c, color: c })),
+  }), c => { background = c; });
 }
 
 async function createBook(near: string | null, title: string, world: WorldData): Promise<string> {

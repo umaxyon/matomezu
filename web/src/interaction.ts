@@ -44,6 +44,8 @@ export interface InteractionContext {
   select(n: Box | null): void;
   canLink(a: Box, b: Box): boolean; // a から b へ線を引けるか（同じ箱なら自分に戻る線）
   link(a: Box, b: Box, at: [number, number] | undefined, from: [number, number], members?: { from?: string; to?: string }): boolean; // a から b へ線を引き、端を固定する。at は離した所（相手の子の上なら undefined）、from は引き始めた〇の辺の真ん中（ワールドの座標）。members はクラスの箱の、つなぐ属性・操作の名前
+  canReconnect(e: Edge, end: "exit" | "enter", to: Box): boolean; // 線 e の端を箱 to につなぎ替えられるか（残課題 E12）
+  reconnect(e: Edge, end: "exit" | "enter", to: Box, at: [number, number]): boolean; // 線 e の端を箱 to につなぎ替え、離した所 at の近くに固定する
   changed(): void;
   notifySelect(): void;
   reparent(id: string, parentId: string | null, at?: { x: number; y: number }): void;
@@ -121,20 +123,51 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     };
   }
 
-  // 線の端のドラッグ（選択モードで線を選んでいるとき）
+  // 線の端のドラッグ（選択モードで線を選んでいるとき）。今の箱の上や何も無い所では、端を今の箱の縁に沿って動かす。
+  // ほかの箱の上へ運ぶと、その箱（から外へたどって最初に付け替えられる箱）を相手として強調し、離すとそこへつなぎ替える（残課題 E12）。
+  // 付け替えられる箱のほかは薄くする（線を引くときと同じ）
   function endGesture(e: Edge, end: "exit" | "enter"): Gesture {
     let moved = false;
+    const own = end === "exit" ? e.a : e.b, other = end === "exit" ? e.b : e.a;
+    const siblings = other.parent ? other.parent.children : world.children;
+    const can = new Set(siblings.filter(o => ctx.canReconnect(e, end, o)));
+    let target: Box | null = null;
+    const mark = (t: Box | null) => {
+      if (t === target) return;
+      target?.el.classList.remove("mz-link-target");
+      target = t;
+      t?.el.classList.add("mz-link-target");
+    };
+    // ポインタの下の、付け替えられる箱（今の箱の上なら null）。付け替えられる箱が無ければ探さない
+    const targetAt = (x: number, y: number): Box | null => {
+      if (!can.size) return null;
+      for (const el of document.elementsFromPoint(x, y)) {
+        if (!container.contains(el) || !el.closest(".mz-node")) continue;
+        for (let b: Box | null = boxOf(el); b; b = b.parent) {
+          if (b === own) return null;
+          if (can.has(b)) return b;
+        }
+        return null;
+      }
+      return null;
+    };
+    const finish = () => { mark(null); ctx.edgeDrag.endAt(); unfocus(); };
     return {
       kind: "end", slop: 0,
       move(ev) {
+        if (!moved && can.size) dimExcept(new Set([...can, own]));
         moved = true;
-        ctx.edgeDrag.setAt(e, end, ...worldAt(ev));
+        mark(targetAt(ev.clientX, ev.clientY));
+        if (!target) ctx.edgeDrag.setAt(e, end, ...worldAt(ev));
+        else ctx.edgeDrag.endAt(); // 吸着の目印を消す
       },
-      end() {
-        ctx.edgeDrag.endAt();
-        if (moved) ctx.changed();
+      end(ev) {
+        const t = target;
+        finish();
+        if (t) ctx.reconnect(e, end, t, worldAt(ev));
+        else if (moved) ctx.changed();
       },
-      cancel() { ctx.edgeDrag.endAt(); }, // 吸着の目印を消す
+      cancel: finish,
     };
   }
 

@@ -18,7 +18,9 @@ import { helpIcon, setupHelp } from "./help";
 import { t } from "./i18n";
 import type { EdgePatch, Graph } from "./graph";
 import type { AddRequest } from "./interaction";
-import { THEMES } from "./theme";
+import { closeColorPicker, openColorPicker } from "./color-picker";
+import { DEFAULTS } from "./graph";
+import { PALETTE, THEMES, isPaletteName, paintFor, themeById } from "./theme";
 import type { BoxData, BoxInfo, Patch, Shape, Size } from "./types";
 import { shapePicker, syncShapePicker } from "./shape-picker";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
@@ -68,6 +70,9 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-row > label { display: flex; align-items: center; gap: 4px; }
 .mz-dlg-message { margin: 0 0 4px; white-space: pre-line; }
 .mz-dlg-btn:disabled { opacity: 0.45; cursor: default; }
+/* 色のボタン（今の色の見本と色の値） */
+.mz-dlg-color { display: flex; align-items: center; gap: 6px; }
+.mz-dlg-swatch { flex: none; width: 14px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.5); }
 .mz-dlg-switch {
   position: relative; flex: none; width: 36px; height: 20px; padding: 0; border: 0; border-radius: 10px;
   background: var(--dlg-control); box-shadow: inset 0 0 0 1px var(--dlg-line); cursor: pointer; transition: background 0.15s;
@@ -148,12 +153,14 @@ const LINE_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 // 編集と追加で同じ並び。本文を持つ間は形と S を選べず、形がボックス以外か S のあいだは本文を書けない（サイドバーと同じ決まり）
 interface BoxValues {
   caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean;
-  shape: Shape; size: Size; theme: string; bodyAllowed: boolean;
+  shape: Shape; size: Size; theme: string; color: string; bodyAllowed: boolean;
   // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
   abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
 }
 type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "shapes" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
+  color: string;      // 書いた色（名前か色の値。"" は書いていない）
+  inherited: string;  // 親から受け継ぐテーマ（テーマを「受け継ぐ」にしたときの色の見本と、見た目の色に使う）
   sizeFixed: boolean; // 内包・リストの箱（大きさは子の並びで決まり、サイズを使わない）
   kids: number;       // 子の数（クラスにすると消える）
 };
@@ -231,6 +238,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
           <option value=""${b.theme ? "" : " selected"}>${t("受け継ぐ")}</option>
           ${THEMES.map(th => `<option value="${th.id}"${th.id === b.theme ? " selected" : ""}>${esc(th.label)}</option>`).join("")}
         </select></div>
+      <div class="mz-dlg-group"><h3>${t("色")}</h3>${colorButtonHtml(t("色を選ぶ"))}</div>
     </div>`;
   // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするスイッチ。本文が空のあいだは切って押せなくし、
   // 本文を書き始めたら押せるようにして入れる
@@ -274,6 +282,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       shape: pickedShape(),
       size: size ?? b.size,
       theme: field<HTMLSelectElement>("theme").value,
+      color,
       bodyAllowed: bodyAllowed(),
       caption: field<HTMLInputElement>("caption").value,
       body: field<HTMLTextAreaElement>("body").value,
@@ -393,6 +402,17 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     overlay.querySelector<HTMLInputElement>('[name="width-auto"]')!.value = "1";
     (e.currentTarget as HTMLButtonElement).disabled = true;
   });
+  // 色（サイドバーと同じ色のポップアップ。見本は、ダイアログで選んでいるテーマの色）
+  let color = b.color;
+  const themeField = overlay.querySelector<HTMLSelectElement>('[name="theme"]')!;
+  const themeNow = () => themeById(themeField.value || b.inherited);
+  const look = () => ({
+    value: color, paint: paintFor(themeNow(), color, b.sizeFixed, DEFAULTS.color).color,
+    text: color && !isPaletteName(color) ? color : color ? "" : t("なし"),
+    palette: PALETTE.map(name => ({ name, color: themeNow().palette[name] })),
+  });
+  const colorBtn = setupColorButton(overlay, look, c => { color = c ?? ""; });
+  themeField.addEventListener("change", colorBtn.refresh);
   // 選んでいる行数は値で決める（option の selected だけに頼らない）
   overlay.querySelector<HTMLSelectElement>('[name="lines"]')!.value = b.bodyLines ? String(b.bodyLines) : "";
   return overlay;
@@ -403,7 +423,8 @@ export function openEditDialog(graph: Graph, id: string): void {
   if (info.kind === "world") return;
   const b = info as BoxInfo;
   const sizeFixed = b.framed;
-  const start: BoxStart = { ...b, theme: b.theme ?? "", sizeFixed, kids: b.children.length };
+  const inherited = graph.info(b.parent?.id ?? null).themeUsed;
+  const start: BoxStart = { ...b, theme: b.theme ?? "", color: b.color, inherited, sizeFixed, kids: b.children.length };
   const overlay = boxDialog(t("ボックスの編集"), t("確定"), start, v => {
     // クラスにかかわる変更は、子や線を消すことがあるので別の入口（docs/CLASS-plan.md）
     if (v.shape === "class" || b.shape === "class") {
@@ -418,6 +439,7 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (b.canShape && v.shape !== b.shape) patch.shape = v.shape;
     if (!sizeFixed && v.size !== b.size) patch.size = v.size; // サイズを変えたときだけ（変えると大きさの指定も外れる）
     if (v.theme !== (b.theme ?? "")) patch.theme = v.theme || null;
+    if (v.color !== b.color) patch.color = v.color || null;
     if (v.bodyAllowed && v.body !== b.body) patch.body = v.body || null;
     if (v.bodyAllowed && v.body && v.rule !== b.bodyRule) patch.bodyRule = v.rule ? null : false; // 本文が無ければ区切り線は変えない
     if (v.bodyAllowed && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
@@ -443,6 +465,7 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
   const start: BoxStart = {
     caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
     shape, shapes: graph.kidShapes(req.parentId), size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
+    color: "", inherited: graph.info(req.parentId).themeUsed,
     abstract: false, attrs: [], ops: [], kids: 0,
   };
   boxDialog(t("ボックスの追加"), t("追加"), start, v => {
@@ -456,6 +479,7 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
       if (v.ops.length) fields.ops = v.ops;
     } else if (v.size !== "M") fields.size = v.size;
     if (v.theme) fields.theme = v.theme;
+    if (v.color) fields.color = v.color;
     if (v.bodyAllowed && v.body) fields.body = v.body;
     if (v.body && !v.rule) fields.bodyRule = false;
     if (v.lines) fields.bodyLines = v.lines;
@@ -595,3 +619,44 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
 }
 
 export const editDialogOpen = (): boolean => open != null;
+
+// ダイアログの中の色のボタン（押すとサイドバーと同じ色のポップアップ。color-picker.ts）。今の色の見本と、色の値を出す
+export function colorButtonHtml(label: string): string {
+  return `<button type="button" class="mz-dlg-btn mz-dlg-color" data-color-open aria-haspopup="dialog" aria-label="${esc(label)}">
+    <span class="mz-dlg-swatch"></span><span data-color-text></span></button>`;
+}
+
+export interface ColorLook {
+  value: string;   // 書いた色（"" は無し）
+  paint: string;   // 見本に塗る色
+  text: string;    // ボタンに出す文字
+  palette: { name: string; color: string }[];
+}
+
+// colorButtonHtml のボタンを動かす。look は今の見た目（選ぶたび・テーマを変えるたびに読み直す）、onPick は選んだ色（null は無し）。
+// ダイアログは押した操作を外へ届けないので、ポップアップの外を押したことはここで見て閉じる。ダイアログを閉じたら一緒に閉じる
+export function setupColorButton(overlay: HTMLElement, look: () => ColorLook, onPick: (c: string | null) => void): { refresh(): void } {
+  const btn = overlay.querySelector<HTMLElement>("[data-color-open]")!;
+  const refresh = () => {
+    const l = look();
+    btn.querySelector<HTMLElement>(".mz-dlg-swatch")!.style.background = l.paint;
+    btn.querySelector<HTMLElement>("[data-color-text]")!.textContent = l.text;
+  };
+  let picking = false;
+  btn.addEventListener("click", () => {
+    if (picking) { closeColorPicker(); return; }
+    const l = look();
+    openColorPicker({
+      anchor: btn, value: l.value, paint: l.paint, palette: l.palette,
+      onPick: c => { onPick(c); refresh(); }, onClose: () => { picking = false; },
+    });
+    picking = true;
+  });
+  overlay.querySelector(".mz-dlg")!.addEventListener("pointerdown", e => {
+    if (picking && !(e.target instanceof Element && e.target.closest("[data-color-open]"))) closeColorPicker();
+  });
+  const gone = new MutationObserver(() => { if (!overlay.isConnected) { closeColorPicker(); gone.disconnect(); } });
+  gone.observe(document.body, { childList: true });
+  refresh();
+  return { refresh };
+}
