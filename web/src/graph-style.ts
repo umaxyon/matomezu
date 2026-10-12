@@ -195,7 +195,8 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-link-art .mm-edge { fill: none; stroke: var(--mm-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .mz-link-go { position: absolute; right: 4px; bottom: 4px; font-size: 10px; font-weight: 500; line-height: 1; padding: 3px 5px; border-radius: 4px; background: var(--mz-select); color: #fff; opacity: 0; transition: opacity 0.15s; }
 .mz-link-win:hover .mz-link-go { opacity: 1; }
-.mz-link-window { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--mz-link-handle) auto auto auto; grid-template-areas: "bar" "text" "body" "win"; }
+/* 行の高さは中身で決める（帯の高さは帯の要素に持たせる。測るときは帯と窓を隠すので、決めた高さの行が残ると文字の高さに数えてしまう） */
+.mz-link-window { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; grid-template-areas: "bar" "text" "body" "win"; }
 .mz-link-window .mz-link-bar { height: var(--mz-link-handle); }
 .mz-link-window.mz-link-empty > .mz-text { display: none; }
 .mz-link-side { grid-template-columns: var(--mz-link-handle) minmax(0, 1fr) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)); grid-template-rows: auto 1fr; grid-template-areas: "bar text win" "bar body win"; }
