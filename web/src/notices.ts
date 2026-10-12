@@ -3,6 +3,7 @@
 
 import type { Graph } from "./graph";
 import { t } from "./i18n";
+import { toast } from "./toast";
 import type { PagePattern } from "./types";
 import { PATTERN_LABELS } from "./validate";
 
@@ -74,9 +75,14 @@ export function noticeOf(ev: GraphEvent): string {
   }
 }
 
-// 図の知らせを受けたときの画面の方針: 文言を出す（status）。
+// 断りや注意（操作しなかった、知らないものがあった）。ヘッダーの状態の文字では気づきにくいので、トーストで目立たせる（2026-10-12 ユーザー）
+const WARNINGS: GraphEvent["kind"][] = ["leafKids", "crossPattern", "unknownTheme"];
+export const isWarning = (ev: GraphEvent) => WARNINGS.includes(ev.kind);
+
+// 図の知らせを受けたときの画面の方針: 文言を出す（普通の知らせはヘッダーの状態の文字、断りや注意はトースト。toast.ts）。
 // 一覧からドラッグして戻したら、削除モードのままだと戻した箱をすぐ動かせないので、選択モードにする
 export function handleGraphEvent(graph: Graph, ev: GraphEvent, status: (text: string) => void) {
-  status(noticeOf(ev));
+  if (isWarning(ev)) toast(noticeOf(ev), { kind: "warn" });
+  else status(noticeOf(ev));
   if (ev.kind === "restored" && ev.byDrag && graph.mode() === "remove") graph.setMode("move");
 }
