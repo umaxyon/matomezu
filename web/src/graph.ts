@@ -371,7 +371,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     // 一覧からドラッグして戻した（選択モードへの切り替えは、知らせを受けた画面の側で決める。notices.ts）
     restore: (id, parentId, at) => { restore(id, parentId, at, true); },
-    requestAdd: req => opt.onAddRequest?.({ ...req, ...(adding ? { shape: adding.shape, size: adding.size } : {}) }),
+    // 追加モードで押したら、足すダイアログを開く前に選択モードに戻す（影の追従もここで終わる。キャンセルしても選択モードのまま。
+    // 2026-10-12 ユーザー）。足す形とサイズは、戻す前に取っておく
+    requestAdd: req => {
+      const full = { ...req, ...(adding ? { shape: adding.shape, size: adding.size } : {}) };
+      setMode("move");
+      opt.onAddRequest?.(full);
+    },
     addShape: () => adding?.shape ?? DEFAULT_SHAPE,
     leaveAdd: () => setMode("move"),
   }, L, R, createDrag(opt, L));

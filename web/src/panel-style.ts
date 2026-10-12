@@ -90,7 +90,9 @@ export const PANEL_CSS = /* i18n-ok（CSS のコメントだけ） */ `
 }
 .mzp-preset[aria-pressed="true"] { outline: 2px solid var(--mzp-accent); outline-offset: 2px; }
 .mzp-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--mzp-control); }
-.mzp-seg label { flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; white-space: nowrap; font-size: 12px; }
+/* label を、透明にして重ねたラジオボタンの基準にする（無いと、ラジオボタンがサイドバーのスクロールの外に置かれてページの高さを広げ、
+   押して焦点が移るとページ全体がスクロールしてアプリの枠ごとずれた。2026-10-12 ユーザー） */
+.mzp-seg label { position: relative; flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; white-space: nowrap; font-size: 12px; }
 .mzp-seg label:hover { background: var(--mzp-control-hover); }
 .mzp-seg input { position: absolute; opacity: 0; pointer-events: none; }
 .mzp-seg label:has(input:checked) { background: var(--mzp-accent); color: #fff; }

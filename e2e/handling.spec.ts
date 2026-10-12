@@ -139,3 +139,16 @@ test("追加モードでポインタを図の上の外（タブの列の上）�
   await page.waitForTimeout(300);
   expect(await stage.evaluate(el => el.scrollTop)).toBe(stopped);
 });
+
+test("サイドバーを下までスクロールして子の見せ方を押しても、ページ全体はスクロールしない（アプリの枠がずれない）", async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 660 });
+  await openDiagram(page, {
+    nodes: [{ id: 3, caption: "えええ", x: 300, y: 120 }, { id: 13, caption: "子", parent: 3 }],
+  });
+  await page.locator('.mz-node[data-id="3"] > .mz-head').click({ position: { x: 5, y: 5 } });
+  await page.locator("#sidebar").evaluate(el => { el.scrollTop = 10000; });
+  await page.locator('#sidebar label:has(input[name="mzp-view"][value="flow"])').click();
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => document.scrollingElement!.scrollTop)).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(660);
+});

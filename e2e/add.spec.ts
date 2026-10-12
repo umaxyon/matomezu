@@ -68,14 +68,21 @@ test("リストの上では子と子の間に線が出て、押すとそこへ�
   expect((await rect(page, 21)).w).toBe((await rect(page, 22)).w);
 });
 
-test("Esc で選択モードに戻り、影が消える。ダイアログをキャンセルしても追加モードのまま", async ({ page }) => {
+test("Esc で選択モードに戻り、影が消える。押してダイアログが出たら選択モードに戻り、影は付いてこない（キャンセルしても選択モードのまま）", async ({ page }) => {
   await page.locator("#mode-add").click();
   const world = (await page.locator(".mz-world").boundingBox())!;
-  await page.mouse.click(world.x + 300, world.y + 400);
-  await page.locator(".mz-dlg [data-cancel]").click();
-  await expect(page.locator("#mode-label")).toHaveText("追加モード");
   await page.mouse.move(world.x + 320, world.y + 420);
   await page.keyboard.press("Escape");
   await expect(page.locator("#mode-label")).toHaveText("選択モード");
+  await expect(page.locator(".mz-add-ghost")).toHaveCount(0);
+
+  await page.locator("#mode-add").click();
+  await page.mouse.click(world.x + 300, world.y + 400);
+  await expect(page.locator("#mode-label")).toHaveText("選択モード");
+  await page.mouse.move(world.x + 340, world.y + 440, { steps: 5 });
+  await expect(page.locator(".mz-add-ghost")).toHaveCount(0);
+  await page.locator(".mz-dlg [data-cancel]").click();
+  await expect(page.locator("#mode-label")).toHaveText("選択モード");
+  await page.mouse.move(world.x + 320, world.y + 420);
   await expect(page.locator(".mz-add-ghost")).toHaveCount(0);
 });

@@ -100,7 +100,7 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-side select.mz-dlg-input { width: 100%; }
 .mz-dlg-side .mz-dlg-note { margin: 6px 0 0; }
 .mz-dlg-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--dlg-control); }
-.mz-dlg-seg label { flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; font-size: 12px; }
+.mz-dlg-seg label { position: relative; flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; font-size: 12px; }
 .mz-dlg-seg input { position: absolute; opacity: 0; pointer-events: none; }
 .mz-dlg-seg label:has(input:checked) { background: var(--dlg-accent); color: #fff; }
 .mz-dlg-seg label:has(input:disabled) { opacity: 0.4; cursor: default; }
@@ -458,7 +458,7 @@ export function confirmFlatten(graph: Graph, id: string): void {
 }
 
 // 追加モードで押した所か道具入れ（toolbox.ts）で選んだ所 req に、新しい箱を足すダイアログ（docs/ADD-plan.md）。「追加」で足して選択モードに戻る。
-// 「キャンセル」なら何もせず、追加モードのまま
+// 「キャンセル」なら何もしない（追加モードで押したときは、開く前に graph が選択モードに戻している）
 // shape は最初に選んでおく形（道具入れから足すとき。toolbox.ts）
 // size は最初に選んでおくサイズ（道具入れから足すときは、中の箱のサイズ）
 export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box", size: Size = "M"): void {

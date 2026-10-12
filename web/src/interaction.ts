@@ -478,6 +478,10 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (ctx.mode() !== "add") return;
     const { clientX: x, clientY: y } = e;
     const r = container.getBoundingClientRect();
+    // 図が覆われている間（足すダイアログなどが開いている）は、影を出さず、スクロールもしない。
+    // 覆われているかは、図の真ん中の一番上の要素が図の中のものかで見る（ダイアログは画面全体を覆う）
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    if (top && !container.contains(top)) { endAdd(); return; }
     const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
     if (inside) showAdd(x, y); else hideAdd();
     // 図の外は、端の帯と同じ幅まで（タブの列の上など）。それより離れたら止める（ヘッダーのボタンやサイドバーへ動かしただけでスクロールしないように）

@@ -60,7 +60,7 @@ test("リストへの差し込みは、データの並びで before の箱の前
   expect(g.info(11).y).toBeGreaterThan(g.info(3).y);
 });
 
-test("追加のダイアログ: 同じ並びで、ボタンは「キャンセル」「追加」。追加すると中身を書いて選択モードに戻り、キャンセルなら追加モードのまま", () => {
+test("追加のダイアログ: 同じ並びで、ボタンは「キャンセル」「追加」。追加すると中身を書いて選択モードに戻り、キャンセルなら何も足さない", () => {
   const { g } = setup({ nodes: [] });
   g.setMode("add");
   openAddDialog(g, { parentId: null, at: { x: 100, y: 100 } });
@@ -70,7 +70,7 @@ test("追加のダイアログ: 同じ並びで、ボタンは「キャンセル
   expect(dlg()!.querySelector("[data-ok]")!.textContent).toBe("追加");
   expect(dlg()!.querySelector<HTMLButtonElement>("[data-width-auto]")!.disabled).toBe(true);
   dlg()!.querySelector<HTMLElement>("[data-cancel]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect([dlg(), g.toJSON().nodes.length, g.mode()]).toEqual([null, 0, "add"]);
+  expect([dlg(), g.toJSON().nodes.length]).toEqual([null, 0]);
   openAddDialog(g, { parentId: null, at: { x: 100, y: 100 } });
   field<HTMLInputElement>("caption").value = "新しい箱";
   expect(field<HTMLButtonElement>("rule").disabled).toBe(true); // 本文が空なら区切り線は押せない
