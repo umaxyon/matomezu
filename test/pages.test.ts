@@ -199,8 +199,8 @@ test("一覧はブック全体。表示中の箱に載っているページを�
     ["1", null, null], ["2", null, null], ["3", "p1", null], ["4", "p1", null], ["5", "p1", "中B"], ["6", null, null],
   ]);
   expect(items.pages).toEqual([
-    { id: null, caption: "最初のページ", current: true },
-    { id: "p1", caption: "詳細", current: false },
+    { id: null, caption: "最初のページ", current: true, pattern: "nest" },
+    { id: "p1", caption: "詳細", current: false, pattern: "nest" },
   ]);
   graph.setPage("p1");
   expect(graph.items().pages.map(p => p.current)).toEqual([false, true]);
@@ -337,4 +337,61 @@ test("一覧の色の印は、色の名前とテーマを図と同じ決まり�
   expect(Object.fromEntries(data.nodes.map(s => [String(s.id), paint(s)]))).toEqual(want);
   const { graph } = setup(data);
   expect(Object.fromEntries(graph.items().live.map(i => [i.id, i.color]))).toEqual(want);
+});
+
+// ---- D27 段階 5: パターンをまたぐ操作の禁止（docs/PATTERN-plan.md） ----
+
+// 最初のページは内包、p1 はフローチャート（2 が載る）、p2 はツリー（根 3、子 4）
+const patterned = (): Diagram => ({
+  pages: [{ id: "p1", title: "流れ", world: { childView: "flow" } }, { id: "p2", title: "木", world: { childView: "tree", root: 3 } }],
+  nodes: [
+    { id: 1, caption: "内包の箱", x: 40, y: 40 },
+    { id: 2, caption: "流れの箱", page: "p1", x: 40, y: 40 },
+    { id: 3, caption: "根", page: "p2", x: 40, y: 40 }, { id: 4, caption: "葉", parent: 3 },
+  ],
+});
+
+test("付け替え: パターンの違うページの箱は、今のページへ移せない（知らせる）。同じパターンのページどうしなら移せる", () => {
+  const notices: string[] = [];
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const graph = createGraph(el, patterned(), { measureText: fakeMeasure, onEvent: ev => notices.push(noticeOf(ev)) });
+  graphs.push(graph);
+  expect(graph.reparent(2, null, { x: 300, y: 40 })).toBe(false);
+  expect(notices.at(-1)).toContain("フローチャート → 内包");
+  expect(node(graph.toJSON(), 2).page).toBe("p1");
+  expect(graph.reparent(4, null, { x: 300, y: 40 })).toBe(false);
+  expect(notices.at(-1)).toContain("ツリー → 内包");
+  // 同じパターン（内包）のページを足せば、そこへは移せる
+  const p3 = graph.addPage({ title: "別の内包" });
+  graph.setPage(p3);
+  expect(graph.reparent(1, null, { x: 40, y: 40 })).toBe(true);
+  expect(node(graph.toJSON(), 1).page).toBe(p3);
+});
+
+test("戻す・移植も同じ決まり。消したものの一覧には、載っていたページのパターンを添える", () => {
+  const notices: string[] = [];
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const graph = createGraph(el, patterned(), { measureText: fakeMeasure, onEvent: ev => notices.push(noticeOf(ev)) });
+  graphs.push(graph);
+  graph.remove(2); // フローチャートのページの箱を消す
+  graph.remove(4); // ツリーの葉を消す（親 3 は残る）
+  expect(graph.items().removed.map(i => [i.id, i.pattern])).toEqual([["2", "flow"], ["4", "tree"]]);
+  expect(graph.items().pages.map(p => p.pattern)).toEqual(["nest", "flow", "tree"]);
+  expect(graph.restore(2, null, { x: 300, y: 40 })).toBe(false);
+  expect(notices.at(-1)).toContain("フローチャート → 内包");
+  expect(graph.restore(4, null, { x: 300, y: 40 })).toBe(false);
+  expect(graph.toJSON().removed?.length).toBe(2);
+  graph.setPage("p1");
+  expect(graph.restore(2, null, { x: 300, y: 40 })).toBe(true);
+  // 移植: 写したものが載っていたページのパターン（copySubtree が添える）が違えば断る。無ければ内包として扱う
+  const other = patterned();
+  expect(copySubtree(other, 2).pattern).toBe("flow");
+  expect(copySubtree(other, 4).pattern).toBe("tree");
+  graph.setPage(null);
+  expect(graph.paste(copySubtree(other, 2), null, { x: 300, y: 300 })).toBe("");
+  expect(notices.at(-1)).toContain("フローチャート → 内包");
+  expect(graph.paste(copySubtree(other, 1), null, { x: 300, y: 300 })).not.toBe("");
+  expect(graph.paste({ root: "9", nodes: [{ id: 9, caption: "古い写し" }], edges: [] }, null, { x: 300, y: 500 })).not.toBe("");
 });

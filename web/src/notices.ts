@@ -3,6 +3,9 @@
 
 import type { Graph } from "./graph";
 import { t } from "./i18n";
+import { toast } from "./toast";
+import type { PagePattern } from "./types";
+import { PATTERN_LABELS } from "./validate";
 
 export type GraphEvent =
   // 付け替えた。into は落とし先の箱のキー（null は最上位）、page はほかのページから移したときの今のページの名前
@@ -10,6 +13,8 @@ export type GraphEvent =
   // ページの箱を、ページの中へは移せない
   // 子を持つ箱を、子が子を持てない戦略（フローチャート）の中へ入れようとした（入れなかった）
   | { kind: "leafKids" }
+  // パターンの違うページへ箱を移そうとした（付け替え・戻す・移植。移さなかった。docs/PATTERN-plan.md: またぐ操作はしない）
+  | { kind: "crossPattern"; from: PagePattern; to: PagePattern }
   // 子孫ごと消した
   | { kind: "removed"; key: string; kids: number; cutEdges: number }
   // 消したボックスを戻した。byDrag はサイドバーの一覧からドラッグして戻したか
@@ -42,6 +47,8 @@ export function noticeOf(ev: GraphEvent): string {
     }
     case "leafKids":
       return t("フローチャートの中の箱は子を持てないので、子を持つ箱は入れられません");
+    case "crossPattern":
+      return t("パターンの違うページ（{from} → {to}）へは移せません。関連は、リンクの箱へ線を引いて示します", { from: PATTERN_LABELS[ev.from], to: PATTERN_LABELS[ev.to] });
     case "removed": {
       const parts = list([kids(ev.kids), lines(ev.cutEdges)]);
       return t("「{key}」を消しました", { key: ev.key }) + (parts ? t("（{list}も）", { list: parts }) : "");
@@ -68,9 +75,14 @@ export function noticeOf(ev: GraphEvent): string {
   }
 }
 
-// 図の知らせを受けたときの画面の方針: 文言を出す（status）。
+// 断りや注意（操作しなかった、知らないものがあった）。ヘッダーの状態の文字では気づきにくいので、トーストで目立たせる（2026-10-12 ユーザー）
+const WARNINGS: GraphEvent["kind"][] = ["leafKids", "crossPattern", "unknownTheme"];
+export const isWarning = (ev: GraphEvent) => WARNINGS.includes(ev.kind);
+
+// 図の知らせを受けたときの画面の方針: 文言を出す（普通の知らせはヘッダーの状態の文字、断りや注意はトースト。toast.ts）。
 // 一覧からドラッグして戻したら、削除モードのままだと戻した箱をすぐ動かせないので、選択モードにする
 export function handleGraphEvent(graph: Graph, ev: GraphEvent, status: (text: string) => void) {
-  status(noticeOf(ev));
+  if (isWarning(ev)) toast(noticeOf(ev), { kind: "warn" });
+  else status(noticeOf(ev));
   if (ev.kind === "restored" && ev.byDrag && graph.mode() === "remove") graph.setMode("move");
 }

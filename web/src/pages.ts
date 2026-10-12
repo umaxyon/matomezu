@@ -7,7 +7,7 @@ import { t } from "./i18n";
 import { DEFAULT_VIEW, STRATEGIES } from "./model";
 import { isTheme, paintFor, themeById } from "./theme";
 import { isPattern, isView, normalizeEdge } from "./validate";
-import type { BoxData, BoxView, Diagram, EdgeData, Id, Items, ListItem, PageData, WorldData } from "./types";
+import type { BoxData, BoxView, Diagram, EdgeData, Id, Items, ListItem, PageData, PagePattern, WorldData } from "./types";
 
 const key = (id: Id | undefined) => (id == null ? null : String(id));
 
@@ -37,6 +37,18 @@ export const pageData = (d: Diagram, page: string | null): PageData | undefined 
   (page == null ? undefined : pagesOf(d).find(p => String(p.id) === page));
 // ページ（null は最初のページ）のワールドの設定（無ければ空）
 export const pageWorld = (d: Diagram, page: string | null): WorldData => (page == null ? d.world : pageData(d, page)?.world) ?? {};
+
+// ページのパターン（そのページの world の childView。無ければ内包）
+export function patternOf(d: Diagram, page: string | null): PagePattern {
+  const v = pageWorld(d, page).childView;
+  return isPattern(v) ? v : DEFAULT_VIEW;
+}
+
+// 消した箱（removed の中）が載っていたページ。親をたどる（親は removed か nodes のどちらかにいる。最上位の箱は自分の page）
+export function removedPageOf(d: Diagram, id: Id): string | null {
+  const all = [...(d.removed ?? []), ...(d.nodes ?? [])];
+  return pageOf(all, id);
+}
 
 // id の箱と、その子孫の id（ページをまたいで全部）
 export function subtreeIds(nodes: BoxData[], id: Id): Set<string> {
@@ -81,19 +93,21 @@ export function liveItems(d: Diagram, current: string | null | undefined, paint:
     };
   });
   const pages = [null, ...pagesOf(d).map(p => String(p.id))]
-    .map(id => ({ id, caption: pageNameOf(d, id), current: id === current }));
+    .map(id => ({ id, caption: pageNameOf(d, id), current: id === current, pattern: patternOf(d, id) }));
   return { live, pages };
 }
 
-// id の箱を子孫ごと写す（ページをまたいで全部）。線は、写した箱どうしのものだけ。どちらもデータの並び順
-export interface Subtree { root: string; nodes: BoxData[]; edges: EdgeData[] }
+// id の箱を子孫ごと写す（ページをまたいで全部）。線は、写した箱どうしのものだけ。どちらもデータの並び順。
+// pattern は写した箱が載っていたページのパターン（パターンの違うページへは移植できない。docs/PATTERN-plan.md）
+export interface Subtree { root: string; nodes: BoxData[]; edges: EdgeData[]; pattern?: PagePattern }
 export function copySubtree(data: Diagram, id: Id): Subtree {
   const ids = subtreeIds(data.nodes, id);
+  const pattern = patternOf(data, pageOf(data.nodes, id));
   const nodes = data.nodes.filter(s => ids.has(String(s.id))).map(s => JSON.parse(JSON.stringify(s)) as BoxData);
   const edges = (data.edges ?? []).map(normalizeEdge)
     .filter(e => ids.has(String(e.from)) && ids.has(String(e.to)))
     .map(e => JSON.parse(JSON.stringify(e)) as EdgeData);
-  return { root: String(id), nodes, edges };
+  return { root: String(id), nodes, edges, pattern };
 }
 
 // データだけから求める箱の色（サイドバーの一覧の色の印。読み込んでいないブックと、消したボックス）。

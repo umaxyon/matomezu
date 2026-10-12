@@ -7,13 +7,17 @@ import { COPY_MIME, DEFAULTS, type Graph, REMOVED_MIME } from "./graph";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { copySubtree, dataPaint, liveItems } from "./pages";
-import type { Diagram, Items, ListItem } from "./types";
+import type { Diagram, Items, ListItem, PagePattern } from "./types";
+import { PATTERN_LABELS } from "./validate";
 
 // 一覧の 1 行。表示中は押すと選び（今のページの箱だけ）、右端の × で消す（どのページの箱でも）。
 // 消したものは図へドラッグすると戻る。
 // キャプションは「id_」を付けて幅に入るだけ出し、はみ出た分は … にする（CSS）。全文はポインタを乗せると出る
-function row(item: ListItem, removed: boolean, selectable = true, copyFrom?: string): string {
+function row(item: ListItem, removed: boolean, selectable = true, copyFrom?: string, current?: PagePattern): string {
   const parent = item.parent != null ? `<span class="mzp-row-parent">${esc(t("{id} の中", { id: item.parent }))}</span>` : "";
+  // 消したもののうち、載っていたページのパターンが今のページと違うものは、そのパターンを添える（戻せないため。docs/PATTERN-plan.md）
+  const pattern = removed && item.pattern && current && item.pattern !== current
+    ? `<span class="mzp-row-pattern" title="${esc(t("{pattern}のページにあった箱です。パターンの違うページへは戻せません", { pattern: PATTERN_LABELS[item.pattern] }))}">${esc(PATTERN_LABELS[item.pattern])}</span>` : "";
   const caption = item.caption.replace(/\s+/g, " ").trim() || EMPTY_CAPTION;
   const attrs = copyFrom != null
     ? ` class="mzp-row mzp-copy" draggable="true" data-copy-book="${esc(copyFrom)}" data-copy="${esc(item.id)}" title="${t("図へドラッグすると、この図にコピーします（子と、中の線も）")}"`
@@ -22,7 +26,7 @@ function row(item: ListItem, removed: boolean, selectable = true, copyFrom?: str
     : selectable ? ` class="mzp-row" data-select="${esc(item.id)}"` : ` class="mzp-row mzp-elsewhere"`;
   return `<li${attrs}>
     <span class="mzp-swatch" style="background:${esc(item.color)}"></span>
-    <span class="mzp-row-text"><span class="mzp-row-cap" title="${esc(item.caption)}">${esc(item.id)}_${esc(caption)}</span>${parent}</span>
+    <span class="mzp-row-text"><span class="mzp-row-cap" title="${esc(item.caption)}">${esc(item.id)}_${esc(caption)}</span>${parent}${pattern}</span>
     ${copyFrom != null ? ""
       : !removed ? `<button type="button" class="mzp-del" data-remove="${esc(item.id)}" title="${t("消す（子も一緒に消えます）")}" aria-label="${esc(t("「{caption}」を消す", { caption: item.caption }))}">×</button>`
       // 消したもののうち、ユーザーが足した箱だけ完全に削除できる（LLM から来た箱は、不要と印を付けたものとして残す。docs/ADD-plan.md の 4 章）
@@ -70,7 +74,7 @@ function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: b
   // 消したものを上に置く（表示中は数が多くなりやすく、下に置くと消したものに気づけないため）
   return fold("removed", t("消したもの（{n}）", { n: items.removed.length }) +
       helpIcon(t("消したボックスは図へドラッグすると戻ります（グループの上に落とすとその中へ）。消す前の線は戻りません")),
-      list(items.removed.map(i => row(i, true)))) +
+      list(items.removed.map(i => row(i, true, true, undefined, items.pages.find(p => p.current)?.pattern)))) +
     fold("live", t("表示中（{n}）", { n: items.live.length }), live) + otherHtml;
 }
 
