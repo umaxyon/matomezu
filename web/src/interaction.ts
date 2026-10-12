@@ -13,6 +13,9 @@ import {
 } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
+import { shapeIcon } from "./shape-icons";
+import type { Shape, Size } from "./types";
+import { DEFAULT_SHAPE } from "./shapes";
 
 // ツールのモード。選択（ドラッグで移動、箱の〇から線を引く。docs/EDGE-TOOL-plan.md）、親子の付け替え、
 // 削除（ボックスを押すと子孫ごと消える。ドラッグはしない）、追加（押した所に新しい箱を足す。docs/ADD-plan.md）
@@ -23,6 +26,8 @@ export interface AddRequest {
   parentId: string | null;
   at?: { x: number; y: number };
   before?: string;
+  shape?: Shape; // 追加モードに入ったときに選んだ形とサイズ（道具入れの道具。無ければボックス・M。graph.startAdd）
+  size?: Size;
 }
 
 // サイドバーの一覧から、消したボックスを図へドラッグするときのデータの種類（中身は id）
@@ -64,6 +69,7 @@ export interface InteractionContext {
   resetRoutes(boxes: Box[], passive?: Box[], grabbed?: Box | null): void; // これらの箱につながる線の、自由な端を前に描いた辺の記憶を捨てる（一番よい形を追わせる）。passive は押し出された箱（grabbed との線は除く）
   settleRoutes(n: Box): void;           // 手を離した: つかんだ箱の線で、粘った形が一番よい形より明らかに悪ければ付け替える
   requestAdd(req: AddRequest): void;    // 追加モードで押した（新しい箱の中身を聞くのは画面の側。view.ts）
+  addShape(): Shape;                    // 追加モードで足す形（影に絵を付ける）
   leaveAdd(): void;                     // 追加モードを Esc でやめる（選択モードに戻す）
   // 本文の幅を変え始める。width は今の本文の幅（箱の幅として数えたもの）。set で変え、finish で 1 件の履歴に、cancel で元に戻す
   resizeBody(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
@@ -73,7 +79,7 @@ export interface InteractionContext {
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
   const { container, world } = ctx;
-  const { syncWorld, holdWorld, centerX } = L;
+  const { syncWorld, holdWorld, stretchWorld, centerX } = L;
 
   const { render, blocked, focus, unfocus } = R;
 
@@ -436,7 +442,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       last.again();
     };
     return {
-      follow(ev: PointerEvent, again: () => void) {
+      follow(ev: { clientX: number; clientY: number }, again: () => void) {
         last = { x: ev.clientX, y: ev.clientY, again };
         if (!frame) frame = requestAnimationFrame(tick);
       },
@@ -450,9 +456,43 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     };
   })();
 
+  // 箱を足す所を探している間（追加モードの影、道具入れからのドラッグ）も、図の端へ寄せたらスクロールして図を広げる（2026-10-12 ユーザー）。
+  // ポインタ（画面の座標）の先まで図を広げる（端の帯の幅の 2 倍。帯の中でもスクロールが続くように）。足す前に縮めないよう、
+  // 広げた大きさは箱を足すかモードを変えるまで保つ（layout.ts の stretchWorld）。again はスクロールするたびに呼ぶ（影を置き直す）
+  function followEdge(x: number, y: number, again: () => void = () => {}) {
+    const c = container.getBoundingClientRect();
+    const right = c.left + container.clientLeft + container.clientWidth, bottom = c.top + container.clientTop + container.clientHeight;
+    // 広げるのは右や下の端の帯の中だけ（上や左の端へはスクロールするだけ）
+    if (x >= right - EDGE_SCROLL_ZONE || y >= bottom - EDGE_SCROLL_ZONE) {
+      const r = world.el.getBoundingClientRect();
+      stretchWorld(x - r.left + EDGE_SCROLL_ZONE * 2, y - r.top + EDGE_SCROLL_ZONE * 2);
+    }
+    edgeScroll.follow({ clientX: x, clientY: y }, () => { followEdge(x, y, again); again(); });
+  }
+
   // 付け替えはページ全体で受け取っているので、ここでは扱わない。遊びを越えるまでは move を呼ばない
+  // 追加モードのポインタ。ボタンを押していないので、図の外の動きは図に届かない。そのため画面全体（window）で受け取り、
+  // 図の外（タブの上など、端の帯と同じ幅まで）にいても端のスクロールを続ける（2026-10-12 ユーザー）。影は図の中にいるときだけ出す。
+  // ブラウザの外へ出たら動きが届かなくなるので、最後の位置でスクロールを続け、戻ってきたら今の位置で決め直す
+  function onAddMove(e: PointerEvent) {
+    if (ctx.mode() !== "add") return;
+    const { clientX: x, clientY: y } = e;
+    const r = container.getBoundingClientRect();
+    const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    if (inside) showAdd(x, y); else hideAdd();
+    // 図の外は、端の帯と同じ幅まで（タブの列の上など）。それより離れたら止める（ヘッダーのボタンやサイドバーへ動かしただけでスクロールしないように）
+    const out = Math.max(r.left - x, x - r.right, r.top - y, y - r.bottom);
+    if (out > EDGE_SCROLL_ZONE) { edgeScroll.stop(); return; }
+    // スクロールの間は、足す所の強調を時々だけ探し直す（毎コマ探すと重く、スクロールがなめらかでなくなるため。押したときは必ず探す）
+    let at = performance.now();
+    followEdge(x, y, () => {
+      const now = performance.now();
+      if (inside && now - at > ADD_RECHECK) { at = now; showAdd(x, y); }
+    });
+  }
+
   function onPointerMove(e: PointerEvent) {
-    if (ctx.mode() === "add") return showAdd(e.clientX, e.clientY);
+    if (ctx.mode() === "add") return; // 追加モードは onAddMove（画面全体で受け取る）
     const a = active;
     if (!a || a.g.kind === "lift") return;
     if (!a.started) {
@@ -679,6 +719,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // ポインタに近い子と子の間に線を出し、そこへ差し込む
 
   const ADD_OFFSET = { x: 16, y: 12 }; // 影の左上は、ポインタのこれだけ左上（一覧から戻すときと同じ）
+  const ADD_RECHECK = 150; // 端のスクロールの間に、足す所を探し直す間隔（ミリ秒）
   let addGhost: HTMLElement | null = null;
   let addLine: HTMLElement | null = null;
   let addMarked: Box | null | undefined;
@@ -713,6 +754,12 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     }
     addGhost.style.left = x - ADD_OFFSET.x + "px";
     addGhost.style.top = y - ADD_OFFSET.y + "px";
+    // 足す形の絵を影に付ける（ボックスなら影だけ）
+    const shape = ctx.addShape();
+    if (addGhost.dataset.shape !== shape) {
+      addGhost.dataset.shape = shape;
+      addGhost.innerHTML = shape === DEFAULT_SHAPE ? "" : shapeIcon(shape, "mz-add-ghost-icon");
+    }
     addGhost.classList.toggle("mz-ghost-no", !spot);
     if (spot?.line) {
       if (!addLine) {
@@ -735,8 +782,13 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (mark !== undefined) (mark ?? world).el.classList.add("mz-drop");
   }
 
-  // 影と線と強調を消す（図の外へ出たとき、モードを変えたとき）
+  // 影と線と強調を消し、端のスクロールを止める（モードを変えたとき）。広げた図は、箱を足すかモードを変えるまで保つ
   function endAdd() {
+    edgeScroll.stop();
+    hideAdd();
+  }
+  // 影と線と強調だけを消す（図の外へ出たとき。端のスクロールは続ける）
+  function hideAdd() {
     addGhost?.remove();
     addLine?.remove();
     addGhost = addLine = null;
@@ -869,6 +921,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   const signal = listening.signal;
   container.addEventListener("pointerdown", onPointerDown, { signal });
   container.addEventListener("pointermove", onPointerMove, { signal });
+  window.addEventListener("pointermove", onAddMove, { signal });
   container.addEventListener("pointerup", onPointerUp, { signal });
   container.addEventListener("pointercancel", onPointerUp, { signal });
   container.addEventListener("pointerover", onPointerOver, { signal });
@@ -876,7 +929,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (active?.g.kind !== "move" && active?.g.kind !== "link") unfocus();
     if (!active) hidePorts();
     unmarkRemove();
-    endAdd();
+    hideAdd(); // 追加モードの端のスクロールは、図の外でも続ける（onAddMove）
   }, { signal });
   container.addEventListener("scroll", hidePorts, { signal, capture: true }); // 〇は画面の座標に置いているので、スクロールしたら消す
   container.addEventListener("dragover", onDragOver, { signal });

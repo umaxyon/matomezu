@@ -102,10 +102,17 @@ export function createLayout(ctx: LayoutContext) {
   // 表示領域が狭くなってもボックスは動かさず、はみ出た分はスクロールで見る
   // 箱をドラッグしている間は、図を縮めない（holdWorld）。縮めるとスクロールの位置が押し戻され、スクロールした量も足して位置を決める
   // ドラッグ中の箱が、ポインタより余分に動いてしまうため（2026-10-12 ユーザー: 下へ広げたあと上へ戻すと速すぎた）。手を離したら縮める
+  // 箱を足す所を探している間（追加モードの影、道具入れからのドラッグ）も、端へ寄せたら図を (x, y) まで広げて縮めない（stretchWorld）。
+  // 縮めるのは、箱を足したときかモードを変えたとき（graph.ts）
   let held: { w: number; h: number } | null = null;
   function holdWorld(on: boolean) {
+    if (!on && !held) return;
     held = on ? { w: world.w, h: world.h } : null;
     if (!on) syncWorld();
+  }
+  function stretchWorld(x: number, y: number) {
+    held = { w: Math.max(held?.w ?? world.w, Math.ceil(x)), h: Math.max(held?.h ?? world.h, Math.ceil(y)) };
+    syncWorld();
   }
 
   function syncWorld() {
@@ -551,7 +558,7 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   return {
-    containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld, holdWorld,
+    containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld, holdWorld, stretchWorld,
     kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,

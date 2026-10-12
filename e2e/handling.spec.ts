@@ -72,3 +72,70 @@ test("ボタンやタブの文字は、ドラッグで選択されない", async
   expect(await none(".mzp-tab")).toBe("none");
   expect(await none(".mzp-seg label")).toBe("none");
 });
+
+test("追加モードで影を図の下の端へ寄せるとスクロールして図が広がり、見えていた範囲の外に箱を足せる。足したら図は中身に合わせる", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await openDiagram(page, example("nested"));
+  const stage = page.locator("#stage");
+  const view = (await stage.boundingBox())!;
+  await page.locator("#mode-add").click();
+  const x = view.x + 200;
+  await page.mouse.move(x, view.y + 200);
+  await page.mouse.move(x, view.y + view.height - 6, { steps: 20 });
+  await page.waitForTimeout(1200);
+  expect(await stage.evaluate(el => el.scrollTop)).toBeGreaterThan(200);
+  await page.mouse.move(x, view.y + view.height - 120, { steps: 5 }); // 帯の外へ戻すとスクロールは止まり、図は縮まない
+  const top = await stage.evaluate(el => el.scrollTop);
+  await page.waitForTimeout(300);
+  expect(await stage.evaluate(el => el.scrollTop)).toBe(top);
+  await page.mouse.click(x, view.y + view.height - 120);
+  await page.locator('.mz-dlg [name="caption"]').fill("下の箱");
+  await page.locator(".mz-dlg [data-ok]").click();
+  const added = page.locator(".mz-node > .mz-head", { hasText: "下の箱" });
+  await expect(added).toBeVisible();
+  const y = await added.evaluate(el => (el.parentElement as HTMLElement).offsetTop);
+  expect(y).toBeGreaterThan(view.height);
+});
+
+test("フローチャートの道具入れの道具を押して、影を図の下の端へ寄せると、スクロールして図が広がり、押した所に足せる", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await openDiagram(page, { world: { childView: "flow" }, nodes: [{ id: 1, caption: "開始", shape: "stadium", x: 200, y: 40 }] });
+  const stage = page.locator("#stage");
+  const view = (await stage.boundingBox())!;
+  await page.locator(".mz-world").click({ position: { x: 5, y: 300 } });
+  await page.locator('.mz-toolbox [data-tool="box"]').click();
+  const x = view.x + 300;
+  await page.mouse.move(x, view.y + 200);
+  await page.mouse.move(x, view.y + view.height - 6, { steps: 20 });
+  await page.waitForTimeout(1200);
+  expect(await stage.evaluate(el => el.scrollTop)).toBeGreaterThan(200);
+  await page.mouse.move(x, view.y + view.height - 120, { steps: 5 });
+  await page.mouse.click(x, view.y + view.height - 120);
+  await page.locator('.mz-dlg [name="caption"]').fill("運んだ箱");
+  await page.locator(".mz-dlg [data-ok]").click();
+  const added = page.locator(".mz-node > .mz-head", { hasText: "運んだ箱" });
+  await expect(added).toBeVisible();
+  expect(await added.evaluate(el => (el.parentElement as HTMLElement).offsetTop)).toBeGreaterThan(view.height);
+});
+
+test("追加モードでポインタを図の上の外（タブの列の上）へ出しても、上へのスクロールは続く。図から離れたら（サイドバーの上）止まる", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 700 });
+  // 縦に長い図を一番下までスクロールしておく
+  await openDiagram(page, { nodes: Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `箱${i + 1}`, x: 40, y: 40 + i * 160 })) });
+  const stage = page.locator("#stage");
+  const view = (await stage.boundingBox())!;
+  await stage.evaluate(el => { el.scrollTop = 1e6; });
+  const start = await stage.evaluate(el => el.scrollTop);
+  expect(start).toBeGreaterThan(500);
+  await page.locator("#mode-add").click();
+  const x = view.x + 200;
+  await page.mouse.move(x, view.y + 200);
+  await page.mouse.move(x, view.y - 20, { steps: 10 }); // 図の上の外
+  await page.waitForTimeout(400);
+  const mid = await stage.evaluate(el => el.scrollTop);
+  expect(mid).toBeLessThan(start);
+  await page.mouse.move(view.x - 150, view.y + 100, { steps: 5 }); // 図から離れる（サイドバーの上）
+  const stopped = await stage.evaluate(el => el.scrollTop);
+  await page.waitForTimeout(300);
+  expect(await stage.evaluate(el => el.scrollTop)).toBe(stopped);
+});

@@ -26,23 +26,19 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
     ...options,
     onSelect: info => { panel?.show(info); if (panel) showTools(info); options.onSelect?.(info); },
     // 追加モードで図を押したら、新しい箱の中身を聞くダイアログを開く
-    onAddRequest: req => openAddDialog(graph, req),
+    onAddRequest: ({ shape, size, ...req }) => openAddDialog(graph, req, shape, size),
   });
   const minimap = createMinimap(stage, graph);
   // 道具入れを出している入れ物（箱の id。ワールドなら null）。出していなければ undefined。toolSize は足す箱のサイズ
   let toolHost: string | null | undefined;
   let toolSize: Size = "M";
   const hostEl = (id: string | null) => (id == null ? null : stage.querySelector<HTMLElement>(`.mz-node[data-id="${CSS.escape(id)}"]`));
-  const toolbox = createToolbox(stage, (key, at) => {
+  // 道具を押したら、その形を足す追加モードに入る（影に形の絵が付き、置きたい所を押すとダイアログ。ヘッダーの追加ボタンと同じ足し方。
+  // 2026-10-12 ユーザー）。キーボードで押したときは置く所を指せないので、道具入れを出している入れ物に足すダイアログをすぐ開く
+  const toolbox = createToolbox(stage, (key, by) => {
     if (toolHost === undefined) return;
-    const el = hostEl(toolHost);
-    if (toolHost != null && !el) return;
-    if (!at) return openAddDialog(graph, { parentId: toolHost }, key as Shape, toolSize);
-    // 離した所が道具入れを出している箱（ワールドなら図）の中なら、そこ（入れ物の中での位置。ポインタの少し左上を新しい箱の左上に）
-    const r = (el ?? stage.querySelector<HTMLElement>(".mz-world")!).getBoundingClientRect();
-    const view = stage.getBoundingClientRect();
-    if (at.x < Math.max(r.left, view.left) || at.x > Math.min(r.right, view.right) || at.y < Math.max(r.top, view.top) || at.y > Math.min(r.bottom, view.bottom)) return;
-    openAddDialog(graph, { parentId: toolHost, at: { x: at.x - r.left - 16, y: at.y - r.top - 12 } }, key as Shape, toolSize);
+    if (by === "key") return openAddDialog(graph, { parentId: toolHost }, key as Shape, toolSize);
+    graph.startAdd(key as Shape, toolSize);
   });
   panel = createPanel(sidebar, graph, panelOptions);
   graph.onDataChange(() => showTools(graph.info(graph.selected())));
@@ -71,7 +67,7 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   return { graph, panel, minimap };
 
   // 道具入れ（docs/PATTERN-plan.md の 3.7 章）: 選んだ箱か、その親が道具を持つ戦略（フローチャート）なら、その箱の脇に出す。
-  // 道具を押すと、その形で新しい箱を足すダイアログを開く（足す所は自動）。図へドラッグして離したら、離した所に足す
+  // 道具を押すと、その形を足す追加モードに入る（上の createToolbox）
   // ワールド（ページ）がフローチャートなら、図の見えている範囲の左上に出す（2026-10-11 ユーザー）
   function showTools(info: Info | null) {
     const host = info && info.kind !== "edge" ? info.tools : null;

@@ -236,6 +236,10 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   border: 2px dashed var(--mz-select); border-radius: 6px; background: color-mix(in srgb, var(--mz-select) 18%, transparent);
 }
 .mz-add-ghost.mz-ghost-no { opacity: 0.35; }
+/* 道具入れの道具から入ったときは、足す形の絵を影の真ん中に出す（shape-icons.ts） */
+.mz-add-ghost-icon { position: absolute; inset: 0; margin: auto; width: 36px; height: 36px; fill: none; stroke: var(--mz-select); stroke-width: 1.6; stroke-linejoin: round; }
+.mz-add-ghost-icon.mz-art-icon * { vector-effect: non-scaling-stroke; stroke-width: 1.4px; }
+.mz-add-ghost-icon .mz-art-dot { fill: var(--mz-select); stroke: none; }
 .mz-add-line { position: fixed; z-index: 51; height: 3px; border-radius: 2px; pointer-events: none; background: var(--mz-select); }
 .mz-node.mz-drop > .mz-head {
   outline: 3px solid var(--mz-select); outline-offset: 3px;

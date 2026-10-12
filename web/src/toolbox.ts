@@ -1,8 +1,8 @@
 // 道具入れ: 図の上で、ある箱の脇に浮かせる小さな道具の棚（docs/PATTERN-plan.md の 3.7 章）。
 // どの戦略のものでもない部品で、並べる道具（tools）と、選んだときの動き（onPick）は呼ぶ側が渡す。今はフローチャートの形を並べている（view.ts）。
-// 道具は押すか、図へドラッグして選ぶ。押したら at は null、ドラッグして離したら離した所（画面の座標）
+// 道具は押して選ぶ。by はポインタで押したか（"pointer"）、キーボードで押したか（"key"）
 //
-//   const box = createToolbox(stage, (key, at) => ...);
+//   const box = createToolbox(stage, (key, by) => ...);
 //   box.show(anchorEl, [{ key: "circle", label: "円", icon: "<circle .../>" }]);  // anchorEl の右に出す。null なら見えている範囲の左上
 //   box.hide();
 
@@ -30,12 +30,10 @@ const CSS = `
 .mz-toolbox[hidden] { display: none; }
 .mz-toolbox button {
   display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px;
-  color: #f4f4f5; background: transparent; cursor: grab; touch-action: none;
+  color: #f4f4f5; background: transparent; cursor: pointer;
 }
 .mz-toolbox button:hover, .mz-toolbox button:focus-visible { background: rgba(255, 255, 255, 0.12); outline: none; }
 .mz-toolbox svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.mz-toolbox-ghost { position: fixed; z-index: 50; pointer-events: none; color: #8b6cf0; opacity: 0.85; }
-.mz-toolbox-ghost svg { width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .mz-toolbox { background: #ffffff; border-color: rgba(0, 0, 0, 0.12); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
   :root:not([data-theme="dark"]) .mz-toolbox button { color: #1b1b1f; }
@@ -43,13 +41,12 @@ const CSS = `
 }
 `;
 
-const GAP = 8;        // 箱の右の縁との間（左上に出すときは、見えている範囲の縁との間）
-const DRAG_START = 4; // これだけ動かしたらドラッグ（それまでは押しただけ）
+const GAP = 8; // 箱の右の縁との間（左上に出すときは、見えている範囲の縁との間）
 
 const svgOf = (icon: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`;
 
 // container は図をスクロールする要素（道具入れはその中に置き、図と一緒にスクロールする）
-export function createToolbox(container: HTMLElement, onPick: (key: string, at: { x: number; y: number } | null) => void): Toolbox {
+export function createToolbox(container: HTMLElement, onPick: (key: string, by: "pointer" | "key") => void): Toolbox {
   injectStyle(STYLE_ID, CSS);
   const el = document.createElement("div");
   el.className = "mz-toolbox";
@@ -66,46 +63,10 @@ export function createToolbox(container: HTMLElement, onPick: (key: string, at: 
   // 図の操作（選択、背景のドラッグ、ダブルクリック）に届けない（道具入れは図をスクロールする要素の中にある）
   for (const type of ["pointerdown", "click", "dblclick"] as const) el.addEventListener(type, e => e.stopPropagation());
 
-  // 押すかドラッグ。ドラッグ中は道具の絵をポインタに付けて動かす
-  el.addEventListener("pointerdown", e => {
-    const b = (e.target as Element).closest<HTMLButtonElement>("button[data-tool]");
-    if (!b || e.button !== 0) return;
-    e.preventDefault();
-    const key = b.dataset.tool!, sx = e.clientX, sy = e.clientY;
-    let ghost: HTMLElement | null = null;
-    const move = (ev: PointerEvent) => {
-      if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) < DRAG_START) return;
-      if (!ghost) {
-        ghost = document.createElement("div");
-        ghost.className = "mz-toolbox-ghost";
-        ghost.innerHTML = b.innerHTML;
-        document.body.appendChild(ghost);
-      }
-      ghost.style.left = ev.clientX - 18 + "px";
-      ghost.style.top = ev.clientY - 18 + "px";
-    };
-    const up = (ev: PointerEvent) => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", cancel);
-      const dragged = !!ghost;
-      ghost?.remove();
-      onPick(key, dragged ? { x: ev.clientX, y: ev.clientY } : null);
-    };
-    const cancel = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", cancel);
-      ghost?.remove();
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", cancel);
-  });
-  // キーボードで押したとき（ポインタで押したときは pointerup で選んでいる）
+  // 押したとき（detail が 0 ならキーボード）
   el.addEventListener("click", e => {
     const b = (e.target as Element).closest<HTMLButtonElement>("button[data-tool]");
-    if (b && e.detail === 0) onPick(b.dataset.tool!, null);
+    if (b) onPick(b.dataset.tool!, e.detail === 0 ? "key" : "pointer");
   });
 
   return {

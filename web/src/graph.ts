@@ -220,6 +220,9 @@ export interface Graph {
   toJSON(): Diagram;
   dragging(): boolean;
   setMode(mode: Mode): void;
+  // 決まった形とサイズを足す追加モードに入る（道具入れの道具。影にその形の絵が付き、押した所に足すダイアログを開く。2026-10-12 ユーザー:
+  // 道具入れもヘッダーの追加ボタンと同じ足し方にそろえた）
+  startAdd(shape: Shape, size: Size): void;
   onModeChange(listener: (mode: Mode) => void): () => void; // モードが変わったら知らせる（図の側で変えたときも）。外す関数を返す
   // データが変わったら知らせる（組み立て直したとき: 読み込み・Undo・付け替えなど、と、履歴に残す変更をしたとき）。
   // サイドバーの一覧は、これを受けて図から作り直す（一覧は自分でデータを持たない）。外す関数を返す
@@ -369,7 +372,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     // 一覧からドラッグして戻した（選択モードへの切り替えは、知らせを受けた画面の側で決める。notices.ts）
     restore: (id, parentId, at) => { restore(id, parentId, at, true); },
-    requestAdd: req => opt.onAddRequest?.(req),
+    requestAdd: req => opt.onAddRequest?.({ ...req, ...(adding ? { shape: adding.shape, size: adding.size } : {}) }),
+    addShape: () => adding?.shape ?? DEFAULT_SHAPE,
     leaveAdd: () => setMode("move"),
   }, L, R, createDrag(opt, L));
   dragging = () => I.dragging();
@@ -383,6 +387,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const dataChanged = () => { for (const f of dataListeners) f(); };
 
   function changed() {
+    L.holdWorld(false); // 箱を足す所を探す間に広げた図は、図が変わったら中身に合わせる（layout.ts の stretchWorld）
     touched = true;
     dataChanged();
     fitted.clear();
@@ -1165,7 +1170,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
+  // 追加モードで足す形とサイズ（道具入れの道具から入ったとき。startAdd。ヘッダーの追加ボタンなら null でボックス・M）
+  let adding: { shape: Shape; size: Size } | null = null;
+  function startAdd(shape: Shape, size: Size) {
+    setMode("add");
+    adding = { shape, size };
+  }
+
   function setMode(m: Mode) {
+    adding = null;
     I.endLift();
     I.unmarkRemove();
     mode = m;
@@ -1174,6 +1187,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     container.classList.toggle("mz-mode-remove", m === "remove");
     container.classList.toggle("mz-mode-add", m === "add");
     if (m !== "add") I.endAdd();
+    L.holdWorld(false); // 箱を足す所を探す間に広げた図を、中身に合わせる
     for (const f of modeListeners) f(m);
   }
   const modeListeners = new Set<(m: Mode) => void>();
@@ -1724,6 +1738,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     dragging: () => I.dragging(),
     setMode,
+    startAdd,
     onDataChange(f) {
       dataListeners.add(f);
       return () => dataListeners.delete(f);
