@@ -88,6 +88,8 @@ test("線を選んで Delete キーで消す", async ({ page }) => {
   });
   await page.mouse.click(mid.x, mid.y);
   await expect(page.locator(".mz-edge")).toHaveClass(/mz-selected/);
+  // サイドバーの選択肢を押して焦点がそこに残っていても、Delete で消える（文字を打つ欄ではないので）
+  await page.locator("#sidebar .mzp-seg label").first().click();
   await page.keyboard.press("Delete");
   await expect(page.locator(".mz-edge")).toHaveCount(0);
 });

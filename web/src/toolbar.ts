@@ -7,6 +7,10 @@ import { t } from "./i18n";
 // 入力欄の中か（キー操作を文字入力に譲る）
 const typing = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.matches("input, textarea, select") || t.isContentEditable);
+// 文字を打つ欄の中か（Delete・Backspace を文字の削除に譲る）。サイドバーの選択肢（ラジオボタン）やチェックボックス、セレクトボックスは
+// 文字を消さないので、そこに焦点が残っていても選んだ線を消す（2026-10-12 ユーザー: 選択肢を押したあと Delete で消えなかった）
+const textEntry = (t: EventTarget | null) =>
+  t instanceof HTMLElement && (t.matches("textarea, input:not([type=radio], [type=checkbox], [type=button], [type=range], [type=color])") || t.isContentEditable);
 
 // Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）と、選んだ線を消す Delete キー（Mac の delete は Backspace）、
 // 選んだ箱か線の編集ダイアログを開く Enter キー（ダブルクリックと同じ）。
@@ -19,7 +23,7 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   document.addEventListener("keydown", e => {
     if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const edge = graph.selectedEdge();
-      if (!edge || typing(e.target) || graph.dragging() || graph.preview() != null) return;
+      if (!edge || textEntry(e.target) || graph.dragging() || graph.preview() != null) return;
       e.preventDefault();
       graph.removeEdge(edge);
       return;
