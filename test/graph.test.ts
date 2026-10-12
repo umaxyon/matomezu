@@ -68,11 +68,11 @@ test("ドラッグでぶつかった相手は、つかんだ箱の開始位置�
   expect(changes.length).toBe(1);
 });
 
-test("ツリーから内包に戻すと、元の位置に戻る", () => {
+test("ページをツリーから内包に戻すと、元の位置に戻る", () => {
   const { graph } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1, x: 40, y: 50 }, { id: 3, parent: 1, x: 200, y: 50 }] });
   const before = graph.toJSON();
-  graph.update(1, { childView: "tree" });
-  graph.update(1, { childView: "nest" });
+  graph.update(null, { childView: "tree" });
+  graph.update(null, { childView: "nest" });
   const after = graph.toJSON();
   expect([byId(after, 2).x, byId(after, 2).y]).toEqual([byId(before, 2).x!, byId(before, 2).y!]);
   expect([byId(after, 3).x, byId(after, 3).y]).toEqual([byId(before, 3).x!, byId(before, 3).y!]);
@@ -91,7 +91,6 @@ test("選択モードで、選んでいない箱にポインタを乗せると�
   const { el, graph } = setup({ nodes: [
     { id: 1, caption: "A" }, { id: 2, caption: "B" },
     { id: 3, childView: "list" }, { id: 4, parent: 3 },
-    { id: 5, childView: "tree" }, { id: 6, parent: 5 },
   ] });
   const over = (id: number) => el.querySelector(`[data-id="${id}"] > .mz-head`)!
     .dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerId: 1 }));
@@ -100,12 +99,17 @@ test("選択モードで、選んでいない箱にポインタを乗せると�
   expect(shown()).toBe(4);
   over(4);
   expect(shown()).toBe(0);
-  over(6);
-  expect(shown()).toBe(0);
-  over(3); // リストやツリーの親（全体の枠）には出す
+  over(3); // リストの親（全体の枠）には出す
   expect(shown()).toBe(4);
-  over(5);
-  expect(shown()).toBe(4);
+  // ツリーのページ: 中の箱には出さず、根（全体の枠）には出す
+  const tree = setup({ world: { childView: "tree", root: 5 }, nodes: [{ id: 5 }, { id: 6, parent: 5 }] });
+  const overT = (id: number) => tree.el.querySelector(`[data-id="${id}"] > .mz-head`)!
+    .dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerId: 1 }));
+  const shownT = () => [...tree.el.querySelectorAll<HTMLElement>(".mz-port")].filter(p => !p.hidden).length;
+  overT(6);
+  expect(shownT()).toBe(0);
+  overT(5);
+  expect(shownT()).toBe(4);
   graph.select(2);
   over(2);
   expect(shown()).toBe(0);
@@ -252,18 +256,19 @@ test("形: スティックマンと DB に切り替え、ボックスに戻す�
   expect("shape" in byId(graph.toJSON(), 1)).toBe(false);
 });
 
-test("形: 内包しているグループは選べず、ツリーにすると選べる", () => {
+test("形: 内包しているグループは選べず、ページをツリーにすると（根の本体になるので）選べる", () => {
   const { graph } = setup({ nodes: [{ id: 1, shape: "db" }, { id: 2, parent: 1 }] });
   const info = () => graph.info(1) as import("../web/src/types").BoxInfo;
   expect([info().canShape, info().shape]).toEqual([false, "box"]);
-  graph.update(1, { childView: "tree" });
+  graph.update(null, { childView: "tree" });
   expect([info().canShape, info().shape]).toEqual([true, "db"]);
 });
 
 test("ツリーで見せると全体を枠で囲み、同じ階層との線は枠のふちにつなぐ", () => {
   const { el, graph } = setup({
+    world: { childView: "tree", root: 1 },
     nodes: [
-      { id: 1, caption: "バックエンド", childView: "tree", x: 40, y: 40 },
+      { id: 1, caption: "バックエンド", x: 40, y: 40 },
       { id: 2, caption: "API", parent: 1 }, { id: 3, caption: "データ", parent: 1 },
       { id: 4, caption: "外部", x: 40, y: 500 },
     ],
@@ -280,8 +285,8 @@ test("ツリーで見せると全体を枠で囲み、同じ階層との線は�
   const ys = [y1, y2];
   expect(Math.min(...ys)).toBeCloseTo(g.y + g.h);
 
-  // 内包に戻すと枠は隠れ、データも変わらない
-  graph.update(1, { childView: "nest" });
+  // ページを内包に戻すと枠は隠れ、線のデータも変わらない
+  graph.update(null, { childView: "nest" });
   expect((el.querySelector(".mz-tree") as HTMLElement).style.display).toBe("none");
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 4 }]);
 });
@@ -311,8 +316,8 @@ test("子をツリーにして大きくなったら、重なる相手を下へ�
   const before = graph.info(1);
   expect(graph.info(9).y).toBeGreaterThanOrEqual(before.y + before.h); // 最初は重なっていない
 
-  // バックエンドをツリーにすると、子孫全体が何段ものツリーになって縦に伸びる（docs/PATTERN-plan.md の 3.6 章）
-  graph.update(1, { childView: "tree" });
+  // ページをツリーにすると（根は子を持つバックエンド）、子孫全体が何段ものツリーになって縦に伸びる（docs/PATTERN-plan.md）
+  graph.update(null, { childView: "tree" });
   const after = graph.info(1);
   expect(after.h).toBeGreaterThan(before.h);
   // 変えた側は動かない（最上位は上辺と横の中心を保つ）
@@ -599,8 +604,9 @@ describe("ツリーの向き", () => {
     return { frame: r(node.style), head: r(head.style), kids };
   }
   const data = (dir?: string): Diagram => ({
+    world: { childView: "tree", root: 1, ...(dir ? { treeDirection: dir } : {}) },
     nodes: [
-      { id: 1, caption: "親", childView: "tree", ...(dir ? { treeDirection: dir } : {}), x: 40, y: 40 },
+      { id: 1, caption: "親", x: 40, y: 40 },
       { id: 2, caption: "子A", parent: 1 }, { id: 3, caption: "子B", parent: 1 }, { id: 4, caption: "子C", parent: 1 },
     ],
   } as Diagram);
@@ -630,13 +636,14 @@ describe("ツリーの向き", () => {
     }
   });
 
-  test("サイドバーから変え、下に戻すと項目を消す", () => {
+  test("向きはページの world に書き、下に戻すと項目を消す。箱には書けない", () => {
     const { graph } = setup(data());
-    expect((graph.info(1) as { treeDirection: string }).treeDirection).toBe("down");
-    graph.update(1, { treeDirection: "left" });
-    expect(byId(graph.toJSON(), 1).treeDirection).toBe("left");
-    graph.update(1, { treeDirection: "down" });
-    expect("treeDirection" in byId(graph.toJSON(), 1)).toBe(false);
+    expect((graph.info(null) as { treeDirection: string }).treeDirection).toBe("down");
+    graph.update(null, { treeDirection: "left" });
+    expect(graph.toJSON().world?.treeDirection).toBe("left");
+    graph.update(null, { treeDirection: "down" });
+    expect("treeDirection" in (graph.toJSON().world ?? {})).toBe(false);
+    expect(() => graph.update(1, { treeDirection: "left" })).toThrow("箱には書けません");
   });
 });
 
@@ -859,10 +866,11 @@ test("サイズを選ぶと、付いていた大きさの指定を外して中�
   expect(graph.info(1).w).toBe(312);
 });
 
-describe("子の見せ方を変えても、最上位は上辺と横の中心、グループの中は左上を保つ", () => {
+describe("ページのパターンや箱の見せ方を変えても、最上位は上辺と横の中心、グループの中は左上を保つ", () => {
   const data = (): Diagram => ({
+    world: { childView: "tree", root: 1, treeDirection: "right" },
     nodes: [
-      { id: 1, caption: "外部サービス", childView: "tree", treeDirection: "right", x: 300, y: 200 },
+      { id: 1, caption: "外部サービス", x: 300, y: 200 },
       { id: 2, caption: "決済", parent: 1 }, { id: 3, caption: "メール配信", parent: 1 },
       { id: 9, caption: "下の箱", x: 300, y: 420 },
     ],
@@ -872,25 +880,25 @@ describe("子の見せ方を変えても、最上位は上辺と横の中心、�
   const near = (a: number[], b: number[]) => a.every((v, k) => Math.abs(v - b[k]!) <= 1); // info は整数に丸める
 
   test.each([
-    ["ツリー → 非表示", { childView: "hidden" }],
-    ["ツリー → 内包", { childView: "nest" }],
-    ["ツリーの向き 右 → 下", { treeDirection: "down" }],
-    ["ツリーの向き 右 → 左", { treeDirection: "left" }],
-  ] as const)("%s", (_, patch) => {
+    ["ツリー → 内包", (g: Graph) => g.update(null, { childView: "nest" })],
+    ["ツリー → 内包 → 根を非表示", (g: Graph) => { g.update(null, { childView: "nest" }); g.update(1, { childView: "hidden" }); }],
+    ["ツリーの向き 右 → 下", (g: Graph) => g.update(null, { treeDirection: "down" })],
+    ["ツリーの向き 右 → 左", (g: Graph) => g.update(null, { treeDirection: "left" })],
+  ] as const)("%s", (_, change) => {
     const { graph } = setup(data());
     const before = at(graph, 1);
-    graph.update(1, patch);
+    change(graph);
     expect(near(at(graph, 1), before)).toBe(true);
     // 広がってもほかのボックスとは重ならない（相手の方がずれる）
     const a = graph.info(1), b = graph.info(9);
     expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true);
   });
 
-  test("非表示 → ツリーに戻しても上辺と横の中心を保つ", () => {
-    const { graph } = setup(data());
+  test("内包のページで非表示にした箱を、ページをツリーにして根にしても上辺と横の中心を保つ", () => {
+    const { graph } = setup({ ...data(), world: {} });
     graph.update(1, { childView: "hidden" });
     const before = at(graph, 1);
-    graph.update(1, { childView: "tree" });
+    graph.update(null, { childView: "tree" });
     expect(near(at(graph, 1), before)).toBe(true);
   });
 
@@ -903,7 +911,7 @@ describe("子の見せ方を変えても、最上位は上辺と横の中心、�
         { id: 3, caption: "兄弟", parent: 1, x: 200, y: 150 }, // 真下にいて、広がると重なる
       ],
     });
-    graph.update(2, { childView: "tree" });
+    graph.update(2, { childView: "nest" });
     expect([graph.info(2).x, graph.info(2).y]).toEqual([200, 60]);
     const a = graph.info(2), b = graph.info(3);
     expect(b.y).toBeGreaterThanOrEqual(a.y + a.h);
@@ -1493,7 +1501,7 @@ describe("線のつなぎ方", () => {
       nodes: [{ id: 1, caption: "相手", x: 40, y: 120 }, { id: 2, caption: "枠", x: 300, y: 88 }, { id: 3, parent: 2 }, { id: 4, parent: 2 }],
       edges: [[1, 2]],
     });
-    graph.update(2, { childView: "tree" });
+    graph.update(null, { childView: "tree" }); // 根は子を持つ 2
     const [, y1, , y2] = ends(el);
     expect(y1).toBe(y2);
   });
@@ -1501,8 +1509,9 @@ describe("線のつなぎ方", () => {
 
 test("ポインタを乗せたときの強調は、描いていない線（ツリーの子どうし）をたどらない", () => {
   const { el } = setup({
+    world: { childView: "tree", root: 1 },
     nodes: [
-      { id: 1, caption: "親", childView: "tree", x: 40, y: 40 },
+      { id: 1, caption: "親", x: 40, y: 40 },
       { id: 2, caption: "子A", parent: 1 }, { id: 3, caption: "子B", parent: 1 },
       { id: 4, caption: "外", x: 600, y: 40 }, { id: 5, caption: "相手", x: 600, y: 300 },
     ],

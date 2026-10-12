@@ -58,13 +58,14 @@ test("箱どうしの最小間隔は組ごと: つながっていなければ 8p
 
 test("ツリーの横の間隔も全世界の最小間隔に合わせてあるので、線で描き直しても箱は押しのけられず見た目の位置のまま", () => {
   const g = setup({
+    world: { childView: "tree", root: 1 },
     nodes: [
-      { id: 1, caption: "親", childView: "tree", x: 40, y: 40 },
+      { id: 1, caption: "親", x: 40, y: 40 },
       { id: 2, caption: "子A", parent: 1 }, { id: 3, caption: "子B", parent: 1 }, { id: 4, caption: "子C", parent: 1 },
     ],
   });
   const before = [2, 3, 4].map(id => info(g, 1).x + info(g, id).x); // 子の左端（ワールドの座標。子の位置は親の中）
-  g.flattenTree(1);
+  g.flattenTree();
   const after = [2, 3, 4].map(id => info(g, id).x);
   expect(after.map((x, i) => Math.abs(x - before[i]!) <= 1)).toEqual([true, true, true]);
 });
@@ -84,10 +85,8 @@ test("近い箱どうしを線でつなぐと 32px まで離れ、その線に�
 
 test("フローチャートの中は、組ごとの最小間隔を使わない（戦略が明示的に無視する）。つながっていても 8px まで寄せられる", () => {
   const g = setup({
-    nodes: [
-      { id: 1, childView: "flow", x: 0, y: 0 },
-      { id: 2, parent: 1, caption: "上", x: 20, y: 40 }, { id: 3, parent: 1, caption: "下", x: 20, y: 60 },
-    ],
+    world: { childView: "flow" },
+    nodes: [{ id: 2, caption: "上", x: 20, y: 40 }, { id: 3, caption: "下", x: 20, y: 60 }],
     edges: [{ id: "e1", from: 2, to: 3, caption: "はい" }],
   });
   expect(info(g, 3).y - (info(g, 2).y + info(g, 2).h)).toBe(DEFAULTS.gap);

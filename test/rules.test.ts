@@ -16,7 +16,7 @@ const ALLOWED: Record<string, number> = {
   "minimap.ts": 1,               // 非表示の箱は塗る（折りたたみの描画）
   "layout/layout.ts": 4,         // 並べ方の種類（KINDS）の名前で、配置の細かい決まりを分ける
   "panel.ts": 2,                 // サイドバーのタブの名前 "list"（戦略とは関係が無い）
-  "validate.ts": 1,              // フローチャートの要素は子を持たない検査（DOM なしの CLI でも動かすので、表を読まない）
+  "validate.ts": 3,              // ページのパターンの検査（フローチャートの箱は子を持たない、ツリーは根の子孫だけ、根の有無。DOM なしの CLI でも動かすので、表を読まない）
 };
 const COMPARE = /[!=]==\s*"(nest|tree|list|hidden|flow)"/g;
 

@@ -147,7 +147,7 @@ test("サイドバーを下までスクロールして子の見せ方を押し�
   });
   await page.locator('.mz-node[data-id="3"] > .mz-head').click({ position: { x: 5, y: 5 } });
   await page.locator("#sidebar").evaluate(el => { el.scrollTop = 10000; });
-  await page.locator('#sidebar label:has(input[name="mzp-view"][value="flow"])').click();
+  await page.locator('#sidebar label:has(input[name="mzp-view"][value="list"])').click();
   await page.waitForTimeout(200);
   expect(await page.evaluate(() => document.scrollingElement!.scrollTop)).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(660);

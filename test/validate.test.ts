@@ -44,9 +44,10 @@ test("world の background は文字列", () => {
   expect(() => validate({ world: { background: 123 }, nodes: [] })).toThrow("background");
 });
 
-test("treeDirection の値を検証する", () => {
-  expect(() => validate({ nodes: [{ id: 1, treeDirection: "left" }] })).not.toThrow();
-  expect(() => validate({ nodes: [{ id: 1, treeDirection: "diagonal" }] })).toThrow("treeDirection の値が不正です");
+test("treeDirection はページの world に書く。値を検証し、箱に書いたら誤り", () => {
+  expect(() => validate({ world: { treeDirection: "left" }, nodes: [] })).not.toThrow();
+  expect(() => validate({ world: { treeDirection: "diagonal" }, nodes: [] })).toThrow("treeDirection の値が不正です");
+  expect(() => validate({ nodes: [{ id: 1, treeDirection: "left" }] })).toThrow("箱には書けません");
 });
 
 test("problems は誤りを全部挙げる（validate は最初の 1 つで止める）", () => {

@@ -16,7 +16,7 @@
     { "id": 14, "caption": "データ", "color": "#ef4444", "parent": 10 },
     { "id": 15, "caption": "DB", "color": "#ef4444", "parent": 14 },
     { "id": 16, "caption": "キャッシュ", "parent": 14 },
-    { "id": 17, "caption": "外部サービス", "color": "#a855f7", "childView": "tree", "x": 860, "y": 300 },
+    { "id": 17, "caption": "外部サービス", "color": "#a855f7", "x": 860, "y": 300 },
     { "id": 18, "caption": "決済", "color": "#a855f7", "parent": 17 },
     { "id": 19, "caption": "メール配信", "color": "#a855f7", "fill": false, "border": true, "parent": 17 }
   ],

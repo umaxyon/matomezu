@@ -425,7 +425,7 @@ export function openEditDialog(graph: Graph, id: string): void {
   const sizeFixed = b.framed;
   const inherited = graph.info(b.parent?.id ?? null).themeUsed;
   const start: BoxStart = { ...b, theme: b.theme ?? "", color: b.color, inherited, sizeFixed, kids: b.children.length };
-  const overlay = boxDialog(t("ボックスの編集"), t("確定"), start, v => {
+  boxDialog(t("ボックスの編集"), t("確定"), start, v => {
     // クラスにかかわる変更は、子や線を消すことがあるので別の入口（docs/CLASS-plan.md）
     if (v.shape === "class" || b.shape === "class") {
       graph.updateClass(id, {
@@ -445,16 +445,14 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (v.bodyAllowed && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
     if (b.bodyWidth && v.widthAuto) patch.bodyWidth = null;
     if (Object.keys(patch).length) graph.update(id, patch); // まとめて 1 件の変更
-  }, b.canFlatten ? `<button type="button" class="mz-dlg-btn" data-flatten>${t("線で描き直す")}</button>` : "");
-  // ツリーを線で描き直す（戻せないので確かめてから。ダイアログで直しかけた内容は捨てる。「線を消す」と同じ扱い）
-  overlay.querySelector("[data-flatten]")?.addEventListener("click", () => confirmFlatten(graph, id));
+  });
 }
 
-// ツリーを平らにして線で引き直す前に、戻せないことを確かめる（サイドバーと編集ダイアログから）
-export function confirmFlatten(graph: Graph, id: string): void {
-  openConfirmDialog(t("線で描き直す"),
-    t("ツリーを平らにして、親子のつながりを線で引き直します。見た目はそのままで、箱を自由に動かせるようになります。\n元のツリーには戻せません（すぐ後なら元に戻す（Undo）で戻せます）。"),
-    t("描き直す"), () => graph.flattenTree(id));
+// ツリーのページを内包に変換する前に、戻せないことを確かめる（ワールドの欄から。docs/PATTERN-plan.md）
+export function confirmFlatten(graph: Graph): void {
+  openConfirmDialog(t("内包に変換"),
+    t("ツリーを平らにして、親子のつながりを線で引き直し、このページを内包のページにします。見た目はそのままで、箱を自由に動かせるようになります。\n元のツリーには戻せません（すぐ後なら元に戻す（Undo）で戻せます）。"),
+    t("変換する"), () => graph.flattenTree());
 }
 
 // 追加モードで押した所か道具入れ（toolbox.ts）で選んだ所 req に、新しい箱を足すダイアログ（docs/ADD-plan.md）。「追加」で足して選択モードに戻る。

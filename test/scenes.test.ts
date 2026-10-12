@@ -31,7 +31,7 @@ function record(data: Diagram, steps: Step[]) {
   }
   return out.join("\n\n");
 }
-const set = (id: Id, p: Patch): Step => [`${id} ${JSON.stringify(p)}`, g => g.update(id, p)];
+const set = (id: Id | null, p: Patch): Step => [`${id ?? "world"} ${JSON.stringify(p)}`, g => g.update(id, p)];
 
 // three-levels.json の id: 3 フロントエンド、4 Web、5 トップ画面、6 カート画面、7 モバイル、
 // 10 バックエンド、17 外部サービス（ツリー）
@@ -59,7 +59,7 @@ describe("場面ごとの操作列", () => {
       set(5, { size: "L" }), set(5, { size: "S" }), set(5, { size: "M" }),
       set(5, { caption: "トップ画面" }),
       set(5, { shape: "db" }), set(5, { shape: "person" }), set(5, { shape: "box" }),
-      set(4, { childView: "tree" }), set(4, { treeDirection: "right" }), set(4, { childView: "hidden" }),
+      set(4, { childView: "list" }), set(4, { childView: "hidden" }),
       set(4, { childView: "nest" }),
       set(6, { overflow: "clip" }), set(6, { overflow: "wrap" }),
       set(4, { fill: false }), set(4, { border: false }),
@@ -68,11 +68,12 @@ describe("場面ごとの操作列", () => {
 
   test("設定変更（最上位）", () => {
     expect(record(example("three-levels"), [
-      set(3, { childView: "tree" }), set(3, { childView: "nest" }),
-      set(3, { childView: "hidden" }), set(3, { childView: "tree" }), set(3, { treeDirection: "left" }),
-      set(3, { childView: "nest" }),
-      set(17, { treeDirection: "up" }), set(17, { childView: "nest" }), set(17, { childView: "hidden" }),
-      set(10, { childView: "tree" }), set(10, { childView: "nest" }),
+      // ページをツリーに（根は子を持つ最初の最上位の箱 = 3）、向きを変え、内包に戻す
+      set(null, { childView: "tree" }), set(null, { childView: "nest" }),
+      set(3, { childView: "hidden" }), set(null, { childView: "tree" }), set(null, { treeDirection: "left" }),
+      set(null, { childView: "nest" }),
+      set(17, { childView: "list" }), set(17, { childView: "nest" }), set(17, { childView: "hidden" }),
+      set(10, { childView: "hidden" }), set(10, { childView: "nest" }),
       set(2, { caption: "とても長い名前のユーザーのボックス" }), set(2, { size: "S" }),
     ])).toMatchSnapshot();
   });
@@ -230,14 +231,24 @@ describe("場面の表の行のうち、テストが無かったもの", () => {
     });
 
     test("押し下げられた分は残さない（ほかの箱を伸ばして戻すと、元の配置に戻る）", () => {
-      // docs/DIST-TRIAL.md の Windows での確認。17 外部サービスは開いたときに移り、3 をツリーにすると 10 と 17 が押し下げられる
-      const data = example("three-levels");
+      // docs/DIST-TRIAL.md の Windows での確認。17 外部サービスは開いたときに移り（右にはみ出す）、ページをツリー（根は 3）にすると
+      // 3 が伸びて 10 と 17 が押し下げられる。ツリーのページでは根の外の箱は葉なので、10 と 17 は子の無い箱にしてある
+      const base = example("three-levels");
+      const keep = new Set([1, 3, 4, 5, 6, 7, 8, 9]);
+      const data: Diagram = {
+        ...base,
+        nodes: [
+          ...base.nodes.filter(n => keep.has(n.id as number)),
+          { id: 10, caption: "バックエンド", x: 220, y: 280 }, { id: 17, caption: "外部サービス", x: 900, y: 300 },
+        ],
+        edges: [],
+      };
       const { graph } = setup(data);
       const before = [at(graph, 10), at(graph, 17)];
-      expect(before[1]![0]).toBeLessThan(860);
-      const tree = JSON.parse(JSON.stringify(data)) as Diagram;
-      tree.nodes.find(n => n.id === 3)!.childView = "tree";
-      graph.load(tree, { keepHistory: true });
+      expect(before[1]![0]).toBeLessThan(900);
+      const grown = JSON.parse(JSON.stringify(data)) as Diagram;
+      grown.world = { ...grown.world, childView: "tree", root: 3 };
+      graph.load(grown, { keepHistory: true });
       expect(at(graph, 17)[0]).toBe(before[1]![0]);
       graph.load(data, { keepHistory: true });
       expect([at(graph, 10), at(graph, 17)]).toEqual(before);

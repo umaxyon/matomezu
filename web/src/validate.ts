@@ -5,7 +5,7 @@ import { isHead } from "./heads";
 import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import { SHAPE_DEFS } from "./shapes";
-import type { Diagram, EdgeData, Id, Shape, Size } from "./types";
+import type { BoxView, Diagram, EdgeData, Id, PagePattern, Shape, Size } from "./types";
 
 export interface SizeSpec {
   minW: number;
@@ -27,9 +27,11 @@ export const SIZES: Record<Size, SizeSpec> = {
 export const GROUP_MIN = { w: 120, h: 64 };
 
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
+// 並べ方の戦略の名前（model.ts の STRATEGIES）。パターンはページ単位（2026-10-12 ユーザー）:
+// ページ（world.childView）に掛けられるのは PAGE_PATTERNS、箱（childView）に書けるのは BOX_VIEWS（内包パターンの持ち物）
 export const VIEWS = ["nest", "tree", "hidden", "list", "flow"] as const;
-// ワールド（ページ）に掛けられる見せ方（model.ts の STRATEGIES の onWorld と合わせる。test/flow.test.ts が見張る）
-export const WORLD_VIEWS = ["nest", "flow"] as const;
+export const PAGE_PATTERNS = ["nest", "tree", "flow"] as const satisfies readonly PagePattern[];
+export const BOX_VIEWS = ["nest", "hidden", "list"] as const satisfies readonly BoxView[];
 export const SHAPES = [
   "box", "person", "db", "diamond", "server", "class", "circle", "stadium", "hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt",
   "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb", "dog", "forest", "house", "family",
@@ -60,7 +62,8 @@ export const isRoute = (v: unknown) => includes(ROUTES, v);
 const includes = <T>(list: readonly T[], v: unknown): v is T => list.includes(v as T);
 export const isSize = (v: unknown): v is Size => typeof v === "string" && v in SIZES;
 export const isOverflow = (v: unknown) => includes(OVERFLOWS, v);
-export const isView = (v: unknown) => includes(VIEWS, v);
+export const isView = (v: unknown): v is BoxView => includes(BOX_VIEWS, v);
+export const isPattern = (v: unknown): v is PagePattern => includes(PAGE_PATTERNS, v);
 export const isShape = (v: unknown) => includes(SHAPES, v);
 export const isTreeDirection = (v: unknown) => includes(TREE_DIRECTIONS, v);
 
@@ -74,8 +77,13 @@ export function normalizeEdge(e: EdgeData | [Id, Id]): EdgeData {
 
 // 箱とワールドの設定の値。誤りの文を返す（無ければ空）。
 // theme が false なら、知らないテーマの名前は誤りにしない（画面で開くとき。標準として描き、知らせる。名前を変えたり減らしたりしても図が開けるように）
-export function settingsProblems(s: Record<string, unknown>, where: unknown, theme = true): string[] {
+// world が true なら、ワールド（ページ）の設定として調べる（childView はページのパターン、treeDirection と root を持てる）
+export function settingsProblems(s: Record<string, unknown>, where: unknown, theme = true, world = false): string[] {
   const out: string[] = [];
+  if (world) {
+    if (s.childView != null && !isPattern(s.childView)) out.push(t("world の childView に使えるのは nest / tree / flow です: {where} ({value})", { where, value: s.childView }));
+    if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(t("treeDirection の値が不正です: {where} ({value})", { where, value: s.treeDirection }));
+  }
   if (s.overflow != null && !isOverflow(s.overflow)) out.push(t("overflow の値が不正です: {where} ({value})", { where, value: s.overflow }));
   if (s.size != null && !isSize(s.size)) out.push(t("size の値が不正です: {where} ({value})", { where, value: s.size }));
   if (s.shape != null && !isShape(s.shape)) out.push(t("shape の値が不正です: {where} ({value})", { where, value: s.shape }));
@@ -85,17 +93,22 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
   if (s.bodyLines != null && !(Number.isInteger(s.bodyLines) && (s.bodyLines as number) > 0)) out.push(t("bodyLines は 1 以上の整数にしてください: {where} ({value})", { where, value: s.bodyLines }));
   if (s.userAdded != null && typeof s.userAdded !== "boolean") out.push(t("userAdded は true か false にしてください: {where} ({value})", { where, value: s.userAdded }));
   if (s.bodyRule != null && typeof s.bodyRule !== "boolean") out.push(t("bodyRule は true か false にしてください: {where} ({value})", { where, value: s.bodyRule }));
-  if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(t("treeDirection の値が不正です: {where} ({value})", { where, value: s.treeDirection }));
   if (s.kidSize != null && !isSize(s.kidSize)) out.push(t("kidSize の値が不正です: {where} ({value})", { where, value: s.kidSize }));
-  if (s.childView != null && !isView(s.childView)) out.push(t("childView の値が不正です: {where} ({value})", { where, value: s.childView }));
+  // 箱の childView は内包パターンの見せ方だけ。ツリーとフローチャートはページのパターン（world.childView）なので、箱に書いたら直し方を案内する
+  if (!world && s.childView != null && !isView(s.childView)) {
+    out.push(includes(PAGE_PATTERNS, s.childView)
+      ? t("childView の {value} は箱には書けません（ページのパターンなので world.childView に書きます）: {where}", { where, value: s.childView })
+      : t("childView の値が不正です: {where} ({value})", { where, value: s.childView }));
+  }
+  if (!world && s.treeDirection != null) out.push(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where }));
   if (theme && s.theme != null && !isTheme(s.theme)) {
     out.push(t("theme の値が不正です: {where} ({value})。使えるのは {themes}", { where, value: s.theme, themes: THEMES.map(x => x.id).join(" / ") }));
   }
   return out;
 }
 
-export function checkSettings(s: Record<string, unknown>, where: unknown): void {
-  const [first] = settingsProblems(s, where);
+export function checkSettings(s: Record<string, unknown>, where: unknown, world = false): void {
+  const [first] = settingsProblems(s, where, true, world);
   if (first) throw new Error(first);
 }
 
@@ -131,12 +144,11 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
   if (data.world != null) {
     if (!isObject(data.world)) fail(t("world がオブジェクトではありません"));
     else {
-      settingsProblems(data.world, "world", theme).forEach(fail);
+      settingsProblems(data.world, "world", theme, true).forEach(fail);
       if (data.world.overflow === "grow") fail(t("world に overflow: grow は使えません"));
       if (data.world.route != null && !includes(ROUTES, data.world.route)) fail(t("world の route の値が不正です: {value}", { value: data.world.route }));
       if (data.world.background != null && typeof data.world.background !== "string") fail(t("world の background は色の文字列にしてください"));
       if (data.world.title != null && typeof data.world.title !== "string") fail(t("world の title は文字列にしてください"));
-      if (data.world.childView != null && !includes(WORLD_VIEWS, data.world.childView)) fail(t("world の childView に使えるのは nest か flow です: {value}", { value: data.world.childView }));
     }
   }
   const byId = new Map<string, Record<string, unknown>>();
@@ -168,18 +180,43 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
   for (const n of byId.values()) {
     if (n.parent != null && SHAPE_DEFS[byId.get(String(n.parent))?.shape as Shape]?.kids === false) fail(t("クラスの箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
   }
-  // フローチャートの要素は子を持たない（docs/PATTERN-plan.md の 3.7 章。model.ts の STRATEGIES の leafKids。
-  // この検査は DOM なしの CLI でも動かすので、戦略の表は読まずに名前で見る）
-  // ワールド（ページ）をフローチャートにしたら、最上位の箱（ページの箱は除く）が子を持てない
-  const isFlow = (v: unknown) => v === "flow";
-  const worldOf = (w: unknown) => (isObject(w) ? w.childView : undefined);
+  // ページのパターンの決まり（docs/PATTERN-plan.md。model.ts の STRATEGIES の leafKids・rootOnly。
+  // この検査は DOM なしの CLI でも動かすので、戦略の表は読まずに名前で見る）。
+  // 箱が載っているページの world: 祖先にページの箱があればその world、無ければ data.world
+  const pageWorldOf = (n: Record<string, unknown>): Record<string, unknown> => {
+    const seen = new Set<unknown>();
+    for (let p = byId.get(String(n.parent)); p && !seen.has(p); p = byId.get(String(p.parent))) {
+      seen.add(p);
+      if (p.page === true) return isObject(p.world) ? p.world : {};
+    }
+    return isObject(data.world) ? data.world : {};
+  };
+  const topOf = (n: Record<string, unknown>) => { // そのページの最上位の祖先（自分かもしれない）
+    let top = n;
+    for (let p = byId.get(String(top.parent)); p && p.page !== true; p = byId.get(String(p.parent))) top = p;
+    return top;
+  };
   for (const n of byId.values()) {
+    if (n.page === true) continue;
+    const world = pageWorldOf(n);
     const p = n.parent != null ? byId.get(String(n.parent)) : undefined;
-    if (!p) continue;
-    const g = p.parent != null ? byId.get(String(p.parent)) : undefined;
-    const flowWorld = p.page !== true && (g ? g.page === true && isFlow(worldOf(g.world)) : isFlow(worldOf(data.world)));
-    if (isFlow(g?.childView) || flowWorld) fail(t("フローチャートの中の箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
+    const hasParent = !!p && p.page !== true;
+    // フローチャート: 最上位の箱が子を持てない
+    if (world.childView === "flow" && hasParent) fail(t("フローチャートの中の箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
+    // ツリー: 子を持てるのは根の子孫だけ（根は world.root で指す）
+    if (world.childView === "tree" && hasParent && String(topOf(n).id) !== String(world.root)) {
+      fail(t("ツリーのページで子を持てるのは根（world.root）の子孫だけです: {id} → {parent}", { id: n.id, parent: n.parent }));
+    }
   }
+  // ツリーのページは根（world.root）が要り、そのページの最上位の箱を指す
+  const checkRoot = (world: Record<string, unknown>, pageId: unknown) => {
+    if (world.childView !== "tree") return;
+    const root = world.root != null ? byId.get(String(world.root)) : undefined;
+    const parentOk = root && (pageId == null ? root.parent == null : String(root.parent) === String(pageId));
+    if (!root || !parentOk) fail(t("ツリーのページには根が要ります（world.root に、そのページの最上位の箱の id）: {where}", { where: pageId ?? "world" }));
+  };
+  if (isObject(data.world)) checkRoot(data.world, null);
+  for (const n of byId.values()) if (n.page === true && isObject(n.world)) checkRoot(n.world, n.id);
   // ページは入れ子にしない（page: true の箱の祖先に、page: true の箱があってはいけない）
   for (const n of byId.values()) {
     if (n.page == null) continue;
@@ -187,9 +224,8 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (n.world != null) {
       if (!isObject(n.world)) fail(t("world がオブジェクトではありません: {id}", { id: n.id }));
       else {
-        settingsProblems(n.world, t("{id} の world", { id: n.id })).forEach(fail);
+        settingsProblems(n.world, t("{id} の world", { id: n.id }), true, true).forEach(fail);
         if (n.world.overflow === "grow") fail(t("world に overflow: grow は使えません: {id}", { id: n.id }));
-        if (n.world.childView != null && !includes(WORLD_VIEWS, n.world.childView)) fail(t("world の childView に使えるのは nest か flow です: {value}", { value: n.world.childView }));
         if (n.world.route != null && !includes(ROUTES, n.world.route)) fail(t("world の route の値が不正です: {id} ({value})", { id: n.id, value: n.world.route }));
       }
     }

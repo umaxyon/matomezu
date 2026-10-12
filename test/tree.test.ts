@@ -1,7 +1,8 @@
-// ツリーは子孫全体に効く（docs/PATTERN-plan.md の 3.6 章）。子孫の見せ方は無視して何段でもツリーに並べ、解除（内包に戻す）と行き来できる
+// ツリーはページのパターン（docs/PATTERN-plan.md。2026-10-12 ユーザー: パターンはページ単位）。根（world.root）の子孫全体に効き、
+// 子孫の見せ方は無視して何段でもツリーに並べる。内包への変換（flattenTree）は戻せない
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import type { BoxInfo, Diagram } from "../web/src/types";
+import type { BoxInfo, Diagram, WorldInfo } from "../web/src/types";
 import { dragBy, fakeMeasure, rectOf } from "./helpers";
 
 const graphs: Graph[] = [];
@@ -18,12 +19,12 @@ function setup(data: Diagram) {
   return { el, graph };
 }
 
-// 1 が根（ツリー）。2・3 が子、4・5 が 2 の子（孫）。2 は自分ではリスト、3 は非表示と書いてあるが、ツリーの中では無視する。
-// 20 は外の箱で、根に線をつなぐ。孫は内包のときの位置をデータに持つ
+// ツリーのページ。1 が根（world.root）。2・3 が子、4・5 が 2 の子（孫）。2 は自分ではリスト、3 は非表示と書いてあるが、ツリーの中では無視する。
+// 20 は根の外の箱（葉）で、根に線をつなぐ。孫は内包のときの位置をデータに持つ
 const data = (extra: Record<string, unknown> = {}): Diagram => ({
-  world: { width: 1600 },
+  world: { width: 1600, childView: "tree", root: 1, ...extra },
   nodes: [
-    { id: 1, caption: "社長", childView: "tree", x: 40, y: 40, ...extra },
+    { id: 1, caption: "社長", x: 40, y: 40 },
     { id: 2, caption: "部長A", parent: 1, childView: "list" },
     { id: 3, caption: "部長B", parent: 1, childView: "hidden" },
     { id: 4, caption: "課長A1", parent: 2, x: 12, y: 30 },
@@ -34,6 +35,7 @@ const data = (extra: Record<string, unknown> = {}): Diagram => ({
   edges: [{ id: "e1", from: 1, to: 20 }],
 });
 const info = (g: Graph, id: number) => g.info(id) as BoxInfo;
+const worldInfo = (g: Graph) => g.info(null) as WorldInfo;
 // ワールドでの本体（見出し）の矩形（style の位置を祖先まで足す。happy-dom は配置を計算しないため）
 function headOf(el: HTMLElement, id: number) {
   const node = el.querySelector<HTMLElement>(`.mz-node[data-id="${id}"]`)!;
@@ -67,12 +69,12 @@ test("枠は根だけが描き、線はツリーの節がそれぞれ描く", ()
   expect(svg(2).querySelector("path")!.getAttribute("d")).not.toBe("");
 });
 
-test("向きは根の向きに従い、全部の段がその向きに並ぶ", () => {
+test("向きはページ（world.treeDirection）で決まり、全部の段がその向きに並ぶ", () => {
   const { el, graph } = setup(data({ treeDirection: "right" }));
   const [root, a, a1] = [1, 2, 4].map(id => headOf(el, id));
   expect(a!.x).toBeGreaterThan(root!.x + root!.w);
   expect(a1!.x).toBeGreaterThan(a!.x + a!.w);
-  expect(info(graph, 4).treeDirection).toBe("right");
+  expect(worldInfo(graph).treeDirection).toBe("right");
 });
 
 test("中の箱は手で動かせず、つかむとツリー全体が動く。外の箱との線は根につながる", () => {
@@ -93,30 +95,46 @@ test("中の箱に子を足すと、ツリーの決まりで並べ直す", () =>
   expect(added.cx).toBe(b1.cx);
 });
 
-test("解除（内包に戻す）と再適用を行き来でき、戻せば子孫の見せ方と内包の位置に戻る", () => {
+test("ページのパターンをデータで内包に戻せば子孫の見せ方と内包の位置に戻り、ツリーに戻せば同じ木になる（根は子を持つ最上位の箱から選ぶ）", () => {
   const { el, graph } = setup(data());
   const tree = JSON.stringify([1, 2, 3, 4, 5, 6].map(id => headOf(el, id)));
-  graph.update(1, { childView: "nest" });
-  // 解除すると、子孫は自分の見せ方に従う（2 はリスト、3 は非表示）
+  graph.update(null, { childView: "nest" });
+  // 内包のページでは、子孫は自分の見せ方に従う（2 はリスト、3 は非表示）
   expect(info(graph, 2).children.length).toBe(2);
   expect(shown(el, 6)).toBe(false);
+  expect(graph.toJSON().world?.root).toBeUndefined();
   const nest = JSON.stringify([1, 2, 3, 4].map(id => [info(graph, id).x, info(graph, id).y, info(graph, id).w, info(graph, id).h]));
-  graph.update(1, { childView: "tree" });
+  graph.update(null, { childView: "tree" });
+  expect(graph.toJSON().world?.root).toBe(1);
   expect(JSON.stringify([1, 2, 3, 4, 5, 6].map(id => headOf(el, id)))).toBe(tree);
-  graph.update(1, { childView: "nest" });
+  graph.update(null, { childView: "nest" });
   expect(JSON.stringify([1, 2, 3, 4].map(id => [info(graph, id).x, info(graph, id).y, info(graph, id).w, info(graph, id).h]))).toBe(nest);
 });
 
-test("サイドバーの情報: ツリーの中の箱には印が付き、根の箱には付かない", () => {
+test("サイドバーの情報: ツリーの中の箱には印が付き、根の箱には根の印。根の外の箱にはどちらも付かない", () => {
   const { graph } = setup(data());
   expect([info(graph, 1).inTree, info(graph, 2).inTree, info(graph, 4).inTree, info(graph, 20).inTree]).toEqual([false, true, true, false]);
+  expect([info(graph, 1).treeRoot, info(graph, 2).treeRoot, info(graph, 20).treeRoot]).toEqual([true, false, false]);
+  expect(worldInfo(graph).canFlatten).toBe(true);
 });
 
-test("線で描き直す: ツリーを平らにして、見た目の位置のまま兄弟に並べ、親から子へ腹のそろった折れ線を引く", () => {
+test("ツリーのページでは、根の外の箱は子を持てない（根の子孫の中へは入れられる）", () => {
+  const { graph, el } = setup(data());
+  expect(graph.reparent(20, 4)).toBe(true);
+  graph.undo();
+  // 根の外の葉（20）の中へは入れられない。最上位へ子を持つ箱を出すこともできない
+  expect(() => graph.reparent(4, 20)).toThrow();
+  expect(graph.reparent(2, null, { x: 600, y: 600 })).toBe(false);
+  expect(el.querySelector('.mz-node[data-id="2"]')).not.toBeNull();
+});
+
+test("内包に変換: ツリーを平らにして、見た目の位置のまま最上位に並べ、親から子へ腹のそろった折れ線を引き、ページは内包になる", () => {
   const { el, graph } = setup(data());
   const before = new Map([1, 2, 3, 4, 5, 6].map(id => [id, headOf(el, id)]));
-  expect(graph.flattenTree(1)).toBe(true);
+  expect(graph.flattenTree()).toBe(true);
   const json = graph.toJSON();
+  expect([json.world?.childView, json.world?.root]).toEqual([undefined, undefined]);
+  expect(worldInfo(graph).canFlatten).toBe(false);
   const node = (id: number) => json.nodes.find(n => n.id === id)!;
   // 全員が根の親（最上位）の直下に、見た目の位置のまま並ぶ。ツリーで無視していた見せ方は消える
   for (const id of [1, 2, 3, 4, 5, 6]) {
@@ -139,10 +157,10 @@ test("線で描き直す: ツリーを平らにして、見た目の位置のま
   expect(info(graph, 1).links.map(l => l.id).sort()).toEqual(["2", "20", "3"]);
   graph.undo();
   expect(graph.toJSON().nodes.find(n => n.id === 2)!.parent).toBe(1);
-  expect(info(graph, 1).childView).toBe("tree");
+  expect(worldInfo(graph).childView).toBe("tree");
 });
 
-test("線で描き直す: 外から根への線は、元の枠の中（子孫の箱の間）を通らない道に固定する", () => {
+test("内包に変換: 外から根への線は、元の枠の中（子孫の箱の間）を通らない道に固定する", () => {
   // 21 は枠の下にある外の箱。自動の道筋のままだと、子の箱の間（2 と 3 の間）を縦に通って根へ上がる
   const base = data();
   const { el, graph } = setup({
@@ -151,7 +169,7 @@ test("線で描き直す: 外から根への線は、元の枠の中（子孫の
   const f = info(graph, 1);
   const frame = { x: f.x, y: f.y, w: f.w, h: f.h };
   const root = headOf(el, 1);
-  graph.flattenTree(1);
+  graph.flattenTree();
   const e = graph.toJSON().edges!.find(x => !Array.isArray(x) && x.id === "e2") as { exitAt?: number; enterAt?: number; via?: number[] };
   expect(e.enterAt).toBeDefined();
   expect(e.via).toBeDefined();
@@ -162,8 +180,8 @@ test("線で描き直す: 外から根への線は、元の枠の中（子孫の
   expect(pts.filter(p => inFrame(p) && !byRoot(p))).toEqual([]);
 });
 
-test("線で描き直せるのは、ツリーにした一番外の箱だけ", () => {
-  const { graph } = setup(data());
-  expect(graph.flattenTree(2)).toBe(false); // ツリーの中の箱
-  expect(graph.flattenTree(20)).toBe(false); // ツリーでない箱
+test("内包に変換できるのはツリーのページだけ", () => {
+  const { graph } = setup({ ...data(), world: { width: 1600 } });
+  expect(worldInfo(graph).canFlatten).toBe(false);
+  expect(graph.flattenTree()).toBe(false);
 });

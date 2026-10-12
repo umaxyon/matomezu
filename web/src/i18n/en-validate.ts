@@ -97,6 +97,10 @@ export default {
   "フローチャートの形": "Flowchart shapes",
   "絵の形": "Picture shapes",
   "本文があるあいだは選べません": "Not available while the box has body text",
-  "world の childView に使えるのは nest か flow です: {value}": "world childView must be nest or flow: {value}",
+  "world の childView に使えるのは nest / tree / flow です: {where} ({value})": "world childView must be nest, tree or flow: {where} ({value})",
+  "childView の {value} は箱には書けません（ページのパターンなので world.childView に書きます）: {where}": "childView {value} can't be set on a box (it is a page pattern; set world.childView): {where}",
+  "treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}": "treeDirection can't be set on a box (set world.treeDirection of the tree page): {where}",
+  "ツリーのページで子を持てるのは根（world.root）の子孫だけです: {id} → {parent}": "On a tree page only descendants of the root (world.root) can have children: {id} → {parent}",
+  "ツリーのページには根が要ります（world.root に、そのページの最上位の箱の id）: {where}": "A tree page needs a root (world.root: the id of a top-level box of that page): {where}",
   "kidSize の値が不正です: {where} ({value})": "invalid kidSize: {where} ({value})",
 } satisfies Record<string, string>;

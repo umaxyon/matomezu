@@ -2,9 +2,9 @@
 
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
-import type { Arrangement, Arrow, BoxData, Dash, Route, ChildView, EdgeData, Overflow, Shape, Size, TreeDirection, WorldData } from "./types";
+import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, Overflow, PagePattern, Shape, Size, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
-import { ARROWS, SIZES, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
+import { ARROWS, SIZES, isPattern, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
 
@@ -144,7 +144,9 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 // ---- 設定値 ----
 
 // ---- 並べ方の戦略（docs/PATTERN-plan.md の 3.6 章と 6 章） ----
-// パターンは「子を持つ箱が、子をどう並べるかの戦略」で、子の見せ方（childView）がそのまま戦略の選択になる。
+// パターンはページ単位（2026-10-12 ユーザー）: ページ（ワールド）の childView がページのパターン（内包・ツリー・フローチャート）で、
+// 最上位の箱の並べ方を決める。箱の childView は内包パターンの持ち物（内包・リスト・非表示）で、子をどう並べるかの見せ方。
+// ツリーのページは、根（world.root の箱）の子孫全体をツリーに並べる。根以外の最上位の箱は葉（自由に置く）。
 // 戦略ごとの決まりは STRATEGIES の 1 行にまとめ、判定（arrangeOf・placedBy・abilitiesOf など）はここから引く。
 // 戦略を足すときは、ここに 1 行と、layout/node-kinds.ts の並べ方（大きさと子の置き方）を足す。
 // 破ってはいけない決まりは CLAUDE.md の「並べ方の戦略」
@@ -160,7 +162,10 @@ export interface Strategy {
   leafKids: boolean;    // 子は子を持てない（フローチャートの要素。子を持つ箱は入れられず、子の中へも落とせない）
   tools: readonly Shape[];     // 道具入れ（toolbox.ts）に並べる、子として足せる形。空なら道具入れを出さない
   branchCaptions: readonly string[]; // 子のひし形（分岐）から出る線のキャプションの候補（線の編集ダイアログに出す）
-  onWorld: boolean;     // ワールド（ページ）にも掛けられる（最上位の箱を並べる。今は内包とフローチャート）
+  onWorld: boolean;     // ページ（ワールド）に掛けられるパターンか（内包・ツリー・フローチャート）。箱の見せ方（内包・リスト・非表示）は onBox
+  onBox: boolean;       // 箱の childView に書けるか（内包パターンの持ち物）
+  tops: ChildView;      // ページのパターンのとき、最上位の箱をどの戦略で置くか（ツリーのページは根の子孫だけを木にし、最上位は自由に置く）
+  rootOnly: boolean;    // ページのパターンのとき、子を持てるのは根（world.root）の子孫だけ（ツリー）
   splitBranches: boolean; // 子のひし形（分岐）から出る線を、1 つの頂点から 2 本出さないように分けて出す（端を固定した線は除く）
   autoAlign: boolean;   // 位置の無い子を、決まった並べ方（layout/flow-align.ts）で置く。ユーザーが押す「自動で整列」も出す
   separateEnds: boolean; // 子に入る線が同じ位置につながるなら、折れ目の多い方を空いている近い辺へ逃がす（render.ts の separateEnds）
@@ -172,18 +177,19 @@ export interface Strategy {
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
+const PLAIN = { leafKids: false, tools: [], branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
 export const STRATEGIES: Record<ChildView, Strategy> = {
-  nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true },
-  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN },
-  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, kidGap: 8 },
-  hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN },
-  // フローチャート（docs/PATTERN-plan.md の 3.7 章。2026-10-11 ユーザー）: 内包と同じく子を自由に置き、子は子を持てない。
+  nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, tops: "nest" },
+  // ツリー（ページのパターン）: 根（world.root）の子孫全体を木に並べる。最上位の箱（根も、根でない葉も）は自由に置く
+  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, tops: "nest", rootOnly: true },
+  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, onBox: true, tops: "list", kidGap: 8 },
+  hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onBox: true, tops: "hidden" },
+  // フローチャート（ページのパターン。docs/PATTERN-plan.md の 3.7 章。2026-10-11 ユーザー）: 内包と同じく子を自由に置き、子は子を持てない。
   // 形はどこでも同じに使える（フローチャートだけの形は持たない。2026-10-12 ユーザー）
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
+    branchCaptions: ["Yes", "No"], onWorld: true, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
@@ -212,39 +218,43 @@ export const lookOf = (n: Box): PlacedLook => {
   return own ? { ...LOOKS[by], ...own } : LOOKS[by];
 };
 
-// ツリーは子孫全体に効く（docs/PATTERN-plan.md の 3.6 章）: ツリーの箱の中では、子孫の見せ方（childView）を全部無視して何段でもツリーに並べる。
-// 混ぜたければ、ツリーを解除して（見せ方を内包に戻して）自分で組む
-// n を並べている、子孫全体に効く戦略の箱（祖先のうち一番外のもの。無ければ null）
+// ツリーはページのパターンで、根（world.root）の子孫全体に効く（docs/PATTERN-plan.md）: 中では子孫の見せ方（childView）を全部無視して
+// 何段でもツリーに並べる。根はそのページの最上位の箱で、自由に置く（つかむと木全体が動く）
+// ページ（ワールド）のツリーの根の箱（ツリーのページでなければ null）
+export function rootBoxOf(w: World): Box | null {
+  if (!STRATEGIES[worldViewOf(w)].descendants || w.src.root == null) return null;
+  return w.children.find(b => b.id === String(w.src.root)) ?? null;
+}
+export const isTreeRoot = (n: Box): boolean => !n.parent && rootBoxOf(n.world) === n;
+// n を並べているツリーの根（n が根の子孫のとき。無ければ null）
 export function treeRootOf(n: Box): Box | null {
-  let root: Box | null = null;
-  for (let p = n.parent; p; p = p.parent) if (STRATEGIES[viewOf(p)].descendants) root = p;
-  return root;
+  const root = rootBoxOf(n.world);
+  return root && root !== n && ancestors(n).includes(root) ? root : null;
 }
 // ツリーの中の箱か（根の子孫）
 export const inTreeOf = (n: Box): boolean => !!treeRootOf(n);
 
 // 箱が自分の子をどう並べるか。子が無ければ leaf（childView を書いていても、子が無ければ葉の箱として描く）。
-// 子孫全体に効く戦略の中の子を持つ箱は、自分の見せ方に関わらず、その戦略の節
+// ツリーの根とその子孫（子を持つもの）は、自分の見せ方に関わらずツリーの節
 export type Arrange = "leaf" | ChildView;
 export function arrangeOf(n: Box): Arrange {
   if (!n.children.length) return "leaf";
-  const root = treeRootOf(n);
-  return root ? viewOf(root) : viewOf(n);
+  return isTreeRoot(n) || treeRootOf(n) ? worldViewOf(n.world) : viewOf(n);
 }
 // 箱が子を並べる戦略（子が無ければ null）
 export const strategyOf = (n: Box): Strategy | null => (n.children.length ? STRATEGIES[arrangeOf(n) as ChildView] : null);
-// 箱を並べている親の並べ方（最上位はワールドが自由に置くので nest）
+// 箱を並べている親の並べ方。最上位はページのパターンが最上位の箱を置く戦略（STRATEGIES の tops。ツリーのページでも最上位は自由に置く）
 // （親は子を持つので leaf にはならない）
-export const placedBy = (n: Box): ChildView => (n.parent ? (arrangeOf(n.parent) as ChildView) : worldViewOf(n.world));
+export const placedBy = (n: Box): ChildView => (n.parent ? (arrangeOf(n.parent) as ChildView) : STRATEGIES[worldViewOf(n.world)].tops);
 // 中の箱のサイズ（フローチャートで一括で変えたもの。無ければ null）
 export const kidSizeOf = (c: Container): Size | null => (isSize(c.src.kidSize) ? c.src.kidSize : null);
-// 子の見せ方の既定（書いていなければ内包）
-export const DEFAULT_VIEW: ChildView = "nest";
-// ワールド（ページ）の子の見せ方。ワールドに掛けられる戦略だけ（無ければ内包）
-export const worldViewOf = (w: World): ChildView => (isView(w.src.childView) && STRATEGIES[w.src.childView].onWorld ? w.src.childView : "nest");
-// 入れ物（箱かワールド）が子を並べる戦略。子の無い箱は、自分の見せ方（子を置けばそれで並ぶ）
+// 子の見せ方とページのパターンの既定（書いていなければ内包）
+export const DEFAULT_VIEW: BoxView & PagePattern = "nest";
+// ページ（ワールド）のパターン。ページに掛けられる戦略だけ（無ければ内包）
+export const worldViewOf = (w: World): PagePattern => (isPattern(w.src.childView) && STRATEGIES[w.src.childView].onWorld ? w.src.childView : "nest");
+// 入れ物（箱かワールド）が子を並べる戦略。ワールドは最上位の箱を置く戦略（tops）。子の無い箱は、自分の見せ方（子を置けばそれで並ぶ）
 export const kidStrategyOf = (c: Container): Strategy =>
-  STRATEGIES[c.isWorld ? worldViewOf(c) : arrangeOf(c) === "leaf" ? viewOf(c) : arrangeOf(c) as ChildView];
+  STRATEGIES[c.isWorld ? STRATEGIES[worldViewOf(c)].tops : arrangeOf(c) === "leaf" ? viewOf(c) : arrangeOf(c) as ChildView];
 // 子を自由に置く箱か（落とした位置に置く。子が無くても、置けば自由に置く。ツリーの中の箱は、子を置けばツリーに並ぶ）
 export const placesFreely = (n: Box): boolean => STRATEGIES[viewOf(n)].free && !inTreeOf(n);
 
@@ -292,11 +302,11 @@ export function listSizeOf(list: Box): Size {
 // サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの葉の子は、リストの中で一番大きいサイズの見た目にそろえる（docs/SIZE-plan.md）
 export const sizeOf = (n: Box): Size =>
   (lookOf(n).sharedSize && leafLike(n) ? listSizeOf(n.parent!) : isNesting(n) ? "M" : dataSizeOf(n));
-export const viewOf = (n: Box): ChildView => (isView(n.src.childView) ? n.src.childView : "nest");
-// ツリーの向き。ツリーの中の箱は根の向きに従う（自分の treeDirection は無視する）
-export function treeDirOf(n: Box): TreeDirection {
-  const s = (treeRootOf(n) ?? n).src;
-  return isTreeDirection(s.treeDirection) ? s.treeDirection : "down";
+export const viewOf = (n: Box): BoxView => (isView(n.src.childView) && STRATEGIES[n.src.childView].onBox ? n.src.childView : "nest");
+// ツリーの向き（ツリーのページの world.treeDirection。既定は下）。箱で呼んでも、そのページの向き
+export function treeDirOf(c: Container): TreeDirection {
+  const w = c.isWorld ? c : c.world;
+  return isTreeDirection(w.src.treeDirection) ? w.src.treeDirection : "down";
 }
 // 子を内包しているボックスは枠なので、形は常にボックス
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
@@ -332,10 +342,17 @@ export const shapeOf = (n: Box): Shape => {
   if (isNesting(n) || lookOf(n).plainShape || n.src.page === true || !isShape(n.src.shape)) return DEFAULT_SHAPE;
   return n.src.shape;
 };
-// 入れ物 p の子にできるか（子を持てない戦略の子の中へは入れられず、子を持つ箱は子を持てない戦略の中へ入れられない）
+// 入れ物 p の子にできるか（子を持てない戦略の子の中へは入れられず、子を持つ箱は子を持てない戦略の中へ入れられない。
+// ツリーのページで子を持てるのは根の子孫だけなので、根の外の最上位へは子を持つ箱を落とせず、根の外の葉の中へも落とせない）
 export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
   if (!p.isWorld && STRATEGIES[placedBy(p)].leafKids) return false;
-  return !(kidHasKids && kidStrategyOf(p).leafKids);
+  if (kidHasKids && kidStrategyOf(p).leafKids) return false;
+  const pattern = STRATEGIES[worldViewOf(p.isWorld ? p : p.world)];
+  if (pattern.rootOnly) {
+    if (p.isWorld) return !kidHasKids;
+    if (!isTreeRoot(p) && !treeRootOf(p)) return false;
+  }
+  return true;
 }
 // 線の端を辺の真ん中（頂点）に限る形か（形の表 shapes.ts）
 export const vertexOnly = (s: Shape): boolean => shapeDef(s).vertexOnly;

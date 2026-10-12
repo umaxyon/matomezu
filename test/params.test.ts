@@ -57,7 +57,8 @@ test("フローチャートの整列の間隔は、戦略の表（align）の値
   const align = STRATEGIES.flow.align!;
   withValue(align.gaps, "M", { x: 100, y: 100 }, () => {
     const { graph } = setup({
-      nodes: [{ id: 1, childView: "flow", x: 0, y: 0 }, { id: 2, parent: 1, caption: "a" }, { id: 3, parent: 1, caption: "b" }],
+      world: { childView: "flow" },
+      nodes: [{ id: 2, caption: "a" }, { id: 3, caption: "b" }],
       edges: [{ id: "e1", from: 2, to: 3 }],
     });
     expect(info(graph, 3).y - (info(graph, 2).y + info(graph, 2).h)).toBe(100);
@@ -67,9 +68,9 @@ test("フローチャートの整列の間隔は、戦略の表（align）の値
 test("フローチャートで横に置く分岐を下げる量は、戦略の表（align.sideDrop）の値だけで決まる", () => {
   withValue(STRATEGIES.flow.align!.sideDrop, "M", 50, () => {
     const { graph } = setup({
+      world: { childView: "flow" },
       nodes: [
-        { id: 1, childView: "flow", x: 0, y: 0 },
-        { id: 2, parent: 1, caption: "a", shape: "diamond" }, { id: 3, parent: 1, caption: "b", shape: "diamond" }, { id: 4, parent: 1, caption: "c" },
+        { id: 2, caption: "a", shape: "diamond" }, { id: 3, caption: "b", shape: "diamond" }, { id: 4, caption: "c" },
       ],
       edges: [{ id: "e1", from: 2, to: 3 }, { id: "e2", from: 2, to: 4 }],
     });
@@ -92,9 +93,9 @@ test("テーマの補正値は、テーマの outset の値だけで決まり、
 test("斜めの辺の食い込みは、形の表（slant）の値だけで決まる（輪郭・文字の余白の CSS 変数・線がつながる範囲）", () => {
   withValue(SHAPE_DEFS.parallelogram, "slant", { L: 30, M: 30, S: 30 }, () => {
     const { el, graph } = setup({
+      world: { childView: "flow" },
       nodes: [
-        { id: 1, childView: "flow", x: 0, y: 0 },
-        { id: 2, parent: 1, caption: "入力", shape: "parallelogram", x: 300, y: 40 }, { id: 3, parent: 1, caption: "左", x: 20, y: 40 },
+        { id: 2, caption: "入力", shape: "parallelogram", x: 300, y: 40 }, { id: 3, caption: "左", x: 20, y: 40 },
       ],
       edges: [{ id: "e1", from: 3, to: 2 }],
     });
@@ -102,8 +103,8 @@ test("斜めの辺の食い込みは、形の表（slant）の値だけで決ま
     expect(el.querySelector(`.mz-node[data-id="2"] .mz-outline-body`)!.getAttribute("d")).toStartWith("M31,");
     // 線は左の辺の真ん中（本体の左端から食い込みの半分）につながる
     const end = el.querySelector('.mz-edge[data-id="e1"] polyline')!.getAttribute("points")!.trim().split(/\s+/).at(-1)!;
-    const p = info(graph, 1), b = info(graph, 2);
-    expect(Number(end.split(",")[0])).toBe(p.x + b.x + 15);
+    const b = info(graph, 2);
+    expect(Number(end.split(",")[0])).toBe(b.x + 15);
   });
 });
 
