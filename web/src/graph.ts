@@ -24,7 +24,8 @@
  *   graph.removeEdge(id);        // 線を消す（選択モードで線を選んで Delete キーでも。toolbar.ts）
  *   graph.link(from, to);        // 今のページの箱 from から to へ線を引く（終点に矢印。同じ箱なら自分に戻る線）。引けなければ false
  *   graph.info(id);              // ボックス（null はワールド）の情報
- *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow, linkLook）。size は大きさの指定も外す
+ *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow, linkLook, clip）。size は大きさの指定も外す
+ *   graph.pageScene(page);       // ページの縮図のもと（preview-art.ts の Scene。描いたことのあるページはその配置、無ければデータの位置と既定の大きさで近似）
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
  *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "remove"（削除）/ "add"（追加）
  *   graph.onModeChange(fn);      // モードが変わったら知らせる（一覧から戻したときに移動モードへ切り替えるなど、図の側で変えたときも）
@@ -108,7 +109,9 @@
  *     無ければ自動（Z 字の中棒は真ん中か、ほかの箱を避けた位置）。以前の bend（中棒の割合）は、読み込むと via に移す。
  *     ページの既定は、ページの箱の world.route。docs/EDGE-plan.md
  *   - link はリンクの箱（link-box.ts。docs/PATTERN-plan.md）: のぞく（窓を押すと開く）ページの id。形・サイズ・子の見せ方は使わず、子を持てない。
- *     linkLook は見せ方: "window"（窓枠。上の帯が持ち手。既定）/ "side"（横に分ける。左の帯が持ち手）。窓の中身（縮小プレビュー）は段階 4 で入れる
+ *     linkLook は見せ方: "window"（窓枠。上の帯が持ち手。既定）/ "side"（横に分ける。左の帯が持ち手）。
+ *     窓にはそのページの縮図（四角と線だけ。preview-art.ts）が映る。ページ全体が収まる縮尺で、DEFAULTS.previewMinScale より縮めずに切り取る。
+ *     clip: { x, y, w, h }（そのページの座標の四角）を書けば、その範囲を映す（編集ダイアログで選ぶ）
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
  *   - ページ（docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）: 2 枚目からのページは pages: [{ id, title, world }] に並び、
@@ -135,7 +138,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, isLinkBox, isTreeRoot, linkLookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, isLinkBox, isTreeRoot, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -151,7 +154,8 @@ import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, Patch, Shape, Size, WorldData } from "./types";
 import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, isPattern, normalizeEdge, validate } from "./validate";
-import { DEFAULT_LINK_LOOK } from "./link-box";
+import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
+import { type Scene, sceneOf } from "./preview-art";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -163,6 +167,7 @@ export const DEFAULTS = {
   treeGapX: 24,  // ツリーで横に並ぶ子の間隔
   treeGapY: 40,  // ツリーの親と子の縦の間隔
   rootAt: { x: 40, y: 40 }, // ツリーのページを作るときに置く根の箱の位置（addPage）
+  previewMinScale: 0.15, // リンクの箱の窓に映すページの縮尺の下限（これより縮めず、収まらない分は切り取る。link-box.ts の previewRegion）
 };
 
 // updateEdge で変えられる線の項目（null で消す）
@@ -247,6 +252,7 @@ export interface Graph {
   restore(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean;
   items(): Items;
   geometry(): Geometry;
+  pageScene(page: string): Scene; // ページの縮図のもと（リンクの箱の窓と、その設定ダイアログに）
   setPage(id: Id | null): void;
   page(): string | null;
   pages(): { id: string; caption: string }[]; // ブックのページ（2 枚目から。最初のページは含まない）
@@ -311,7 +317,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   });
   // ドラッグ中か（線の道筋から分かったデータの直しを、手を離すまで待つ）。操作の仕組み（I）を作ったあとで差し替える
   let dragging = () => false;
-  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging(), linkOf }, L);
+  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging(), linkOf, sceneOf: pageScene }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
     settle, sizable, alignChildren,
@@ -801,11 +807,44 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const pageName = (p: string | null) => pageNameOf(source, p);
   // リンクの箱がのぞくページ（link-box.ts）: ページの名前とパターン（窓の札に出す）。リンクの箱でなければ null
-  function linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook } | null {
+  function linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: ClipRect | null } | null {
     const page = linkPageOf(n);
     if (page == null) return null;
     const view = pageWorld(source, page).childView;
-    return { page, pageName: pageName(page), pattern: isPattern(view) ? view : DEFAULT_VIEW, look: linkLookOf(n) };
+    return { page, pageName: pageName(page), pattern: isPattern(view) ? view : DEFAULT_VIEW, look: linkLookOf(n), clip: clipOf(n) };
+  }
+
+  // ページの縮図のもと（リンクの箱の窓に映す。preview-art.ts。D27 段階 4）。描いたページは、ページを離れるときに配置の結果を覚える（captureScene）。
+  // 覚えたものは、そのページのデータ（箱・線・world）が変わっていない間だけ使い、変わっていれば（外部の変更など）描き直すまで近似で映す。
+  // 近似は、そのページの最上位の箱をデータの位置（無ければ 0,0）と大きさの指定（無ければ M の最小）で置き、最上位どうしの線を中心で結ぶ
+  const scenes = new Map<string, { key: string; scene: Scene }>();
+  const sceneKey = (d: Diagram, p: string | null) => {
+    const members = new Set(pageMembers(d.nodes, p));
+    const edgesIn = (d.edges ?? []).map(normalizeEdge).filter(e => members.has(String(e.from)));
+    return JSON.stringify([pageWorld(d, p), d.nodes.filter(s => members.has(String(s.id))), edgesIn]);
+  };
+  // 今のページの縮図を覚える。data は今の状態を書き出したもの（toJSON。配置で決まった位置も書いてあるので、次に読むデータと鍵が合う）
+  function captureScene(data: Diagram) {
+    scenes.set(page ?? "", { key: sceneKey(data, page), scene: sceneOf(api.geometry(), backgroundOf()) });
+  }
+  function pageScene(p: string): Scene {
+    const hit = scenes.get(p);
+    if (hit && hit.key === sceneKey(source, p)) return hit.scene;
+    const tops = source.nodes.filter(s => s.parent == null && String(s.page ?? "") === p);
+    const hasKids = new Set(source.nodes.filter(s => s.parent != null).map(s => String(s.parent)));
+    const rectOf = (s: BoxData) => ({
+      x: Number(s.x) || 0, y: Number(s.y) || 0,
+      w: Number(s.width) || SIZES.M.minW, h: Number(s.height) || SIZES.M.h,
+    });
+    const byId = new Map(tops.map(s => [String(s.id), rectOf(s)]));
+    const boxes = tops.map(s => ({ ...byId.get(String(s.id))!, color: typeof s.color === "string" && /^#/.test(s.color) ? s.color : null, outline: hasKids.has(String(s.id)) }));
+    const edges = (source.edges ?? []).map(normalizeEdge).flatMap(e => {
+      const a = byId.get(String(e.from)), b = byId.get(String(e.to));
+      return a && b && a !== b ? [{ points: [[a.x + a.w / 2, a.y + a.h / 2], [b.x + b.w / 2, b.y + b.h / 2]] as [number, number][] }] : [];
+    });
+    const w = Math.max(1, ...boxes.map(b => b.x + b.w)), h = Math.max(1, ...boxes.map(b => b.y + b.h));
+    const bg = pageWorld(source, p).background;
+    return { w, h, bg: typeof bg === "string" && bg ? bg : null, boxes, edges };
   }
 
   // 落とし先（parentId。null は今のページの最上位）の箱。子を持てない箱（クラス・フローチャートの箱）の中へは入れられない
@@ -1428,7 +1467,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       throw new Error(t("子を持つ最上位の箱があるので、箱が子を持てないパターン（フローチャート）にはできません"));
     }
     if (!n.isWorld && next.treeDirection) throw new Error(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where: n.id }));
-    if (next.linkLook && (n.isWorld || !isLinkBox(n))) throw new Error(t("linkLook はリンクの箱（link のある箱）にだけ書けます: {where}", { where: n.isWorld ? "world" : n.id }));
+    if ((next.linkLook || next.clip) && (n.isWorld || !isLinkBox(n))) throw new Error(t("linkLook と clip はリンクの箱（link のある箱）にだけ書けます: {where}", { where: n.isWorld ? "world" : n.id }));
+    if (next.clip && !isRect(next.clip)) throw new Error(t("clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}", { where: n.isWorld ? "world" : n.id }));
 
     // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ（設定変更の場面）。
     // settle が保つ位置を覚えてから apply を呼ぶ
@@ -1458,6 +1498,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         }
         if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === DEFAULT_SHAPE);
         if (next.linkLook) setOrDelete(n.src, "linkLook", next.linkLook, next.linkLook === DEFAULT_LINK_LOOK); // 値は checkSettings で確かめている
+        if ("clip" in next) {
+          const c = next.clip;
+          setOrDelete(n.src, "clip", c ? { x: Math.round(c.x), y: Math.round(c.y), w: Math.round(c.w), h: Math.round(c.h) } : undefined, !c);
+        }
         if (next.childView) setView(n, next.childView as BoxView); // 値は checkSettings で確かめている
       }
       if (next.overflow && next.overflow !== overflowOf(n)) {
@@ -1571,9 +1615,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     linkBar.appendChild(linkBadge);
     const linkWin = document.createElement("div");
     linkWin.className = "mz-link-win";
+    const linkArt = document.createElementNS(SVGNS, "svg");
+    linkArt.setAttribute("class", "mz-link-art");
+    linkArt.setAttribute("aria-hidden", "true");
     const linkGo = document.createElement("span");
     linkGo.className = "mz-link-go";
-    linkWin.appendChild(linkGo);
+    linkWin.append(linkArt, linkGo);
     linkEl.append(linkBar, linkWin);
     head.append(shapeSvg, textEl, classEl, bodyEl, gripEl, widthGripEl, moreEl, linkEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
@@ -1605,7 +1652,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       listW: 0,
       out: null,
       bodyH: 0,
-      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin,
+      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,
     };
     boxOfEl.set(el, n);
     return n;
@@ -1844,11 +1891,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (next === page) return;
       if (next != null && !pageData(source, next)) throw new Error(t("ページがありません: {id}", { id }));
       const data = api.toJSON();
+      captureScene(data); // 離れるページの縮図を覚える（リンクの箱の窓に映す）
       page = next;
       build(data, true);
       notifySelect();
     },
     page: () => page,
+    pageScene,
     paste,
     add,
     purge,

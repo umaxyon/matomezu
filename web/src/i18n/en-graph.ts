@@ -39,4 +39,6 @@ export default {
   "押すと「{name}」のページを開きます": "Click to open the page \"{name}\"",
   "窓枠": "Window",
   "横に分ける": "Side by side",
+  "linkLook と clip はリンクの箱（link のある箱）にだけ書けます: {where}": "linkLook and clip can only be set on a link box (a box with link): {where}",
+  "clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}": "clip must be a rectangle { x, y, w, h } (w and h positive): {where}",
 } satisfies Record<string, string>;

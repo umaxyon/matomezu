@@ -5,7 +5,7 @@ import { isHead } from "./heads";
 import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import { SHAPE_DEFS } from "./shapes";
-import { isLinkLook } from "./link-box";
+import { isLinkLook, isRect } from "./link-box";
 import type { BoxView, Diagram, EdgeData, Id, PagePattern, Shape, Size } from "./types";
 
 export interface SizeSpec {
@@ -105,6 +105,7 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
   }
   if (!world && s.treeDirection != null) out.push(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where }));
   if (s.linkLook != null && !isLinkLook(s.linkLook)) out.push(t("linkLook に使えるのは window / side です: {where} ({value})", { where, value: s.linkLook }));
+  if (s.clip != null && !isRect(s.clip)) out.push(t("clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}", { where }));
   if (theme && s.theme != null && !isTheme(s.theme)) {
     out.push(t("theme の値が不正です: {where} ({value})。使えるのは {themes}", { where, value: s.theme, themes: THEMES.map(x => x.id).join(" / ") }));
   }

@@ -78,4 +78,7 @@ export default {
   "リンク": "Link",
   "「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます": "A window onto the page \"{name}\" ({pattern}). Click the window to open it",
   "形とサイズは使いません（大きさは見せ方と文字で決まります）": "Shape and size are not used (the box is sized by its look and text)",
+  "窓に映す範囲": "Area shown in the window",
+  "四角をドラッグして動かし、右下の角で大きさを変えます": "Drag the rectangle to move it, and its bottom-right corner to resize it",
+  "ページ全体": "Whole page",
 } satisfies Record<string, string>;

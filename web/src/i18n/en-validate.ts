@@ -117,4 +117,5 @@ export default {
   "内包": "Nested",
   "ツリー": "Tree",
   "フローチャート": "Flowchart",
+  "clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}": "clip must be a rectangle { x, y, w, h } (w and h positive): {where}",
 } satisfies Record<string, string>;

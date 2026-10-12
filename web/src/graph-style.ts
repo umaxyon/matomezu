@@ -186,8 +186,13 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   background: radial-gradient(circle, color-mix(in srgb, currentColor 35%, transparent) 2.2px, transparent 2.7px) 0 0 / 8px 6px repeat-x; }
 .mz-link-badge { font-size: 10px; font-weight: 500; line-height: 1; padding: 2px 6px; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); opacity: 0.85; white-space: nowrap; }
 .mz-link-win { grid-area: win; position: relative; box-sizing: border-box; margin: var(--mz-link-gap); height: var(--mz-link-win-h); cursor: pointer;
-  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; background: color-mix(in srgb, var(--mz-bg) 55%, transparent); overflow: hidden; }
-.mz-link-win:hover { border-color: var(--mz-select); }
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; background: color-mix(in srgb, var(--mz-bg) 55%, transparent); overflow: hidden; }
+.mz-link-win:hover { box-shadow: inset 0 0 0 1px var(--mz-select); }
+/* 窓の中の縮図（preview-art.ts。ミニマップと同じ描き方）。色は箱の文字の色から作る */
+.mz-link-art { display: block; width: 100%; height: 100%; --mm-edge: color-mix(in srgb, currentColor 45%, transparent); --mm-box: color-mix(in srgb, currentColor 22%, transparent); }
+.mz-link-art .mm-box, .mz-link-art .mm-bg { stroke: none; }
+.mz-link-art .mm-group { fill: none; stroke-width: 1; }
+.mz-link-art .mm-edge { fill: none; stroke: var(--mm-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .mz-link-go { position: absolute; right: 4px; bottom: 4px; font-size: 10px; font-weight: 500; line-height: 1; padding: 3px 5px; border-radius: 4px; background: var(--mz-select); color: #fff; opacity: 0; transition: opacity 0.15s; }
 .mz-link-win:hover .mz-link-go { opacity: 1; }
 .mz-link-window { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--mz-link-handle) auto auto auto; grid-template-areas: "bar" "text" "body" "win"; }
