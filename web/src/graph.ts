@@ -109,7 +109,8 @@
  *     ページの既定は、ページの箱の world.route。docs/EDGE-plan.md
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
- *   - page: true のボックスの中身は、別のページ（別のワールド）になる（docs/TABS-plan.md）。ページは入れ子にしない。
+ *   - ページ（docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）: 2 枚目からのページは pages: [{ id, title, world }] に並び、
+ *     最上位の箱は page: ページの id でそのページに載る（無ければ最初のページ）。中の箱は親と同じページ。ページの world がそのページのパターンを持つ。
  *     ページのワールドの設定は、そのボックスの world に持つ（ファイルの world と同じ形）。
  *
  * ブックとページ（docs/TABS-plan.md 3.2）:
@@ -134,10 +135,10 @@ import {
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isTreeRoot, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
-import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
+import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
 import { type Head, headOf, isHead } from "./heads";
-import { type Subtree, captionOfData, dataPaint, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
+import { type Subtree, captionOfData, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import { type RouteFix, type RouteInput, alignedEnds, framedAround, isAligned, passes, perimeterAt, pickCandidate, route, routeCandidates, vertexOf } from "./routing";
 import { type Rect, nearestAt, pointAt } from "./geom";
@@ -146,8 +147,8 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, t
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PagePattern, Patch, Shape, Size } from "./types";
-import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PageData, PagePattern, Patch, Shape, Size, WorldData } from "./types";
+import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, isPattern, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -158,6 +159,7 @@ export const DEFAULTS = {
   header: 30,    // 内包するボックスのキャプション欄の高さ
   treeGapX: 24,  // ツリーで横に並ぶ子の間隔
   treeGapY: 40,  // ツリーの親と子の縦の間隔
+  rootAt: { x: 40, y: 40 }, // ツリーのページを作るときに置く根の箱の位置（addPage）
 };
 
 // updateEdge で変えられる線の項目（null で消す）
@@ -243,7 +245,9 @@ export interface Graph {
   geometry(): Geometry;
   setPage(id: Id | null): void;
   page(): string | null;
-  pages(): { id: string; caption: string }[];
+  pages(): { id: string; caption: string }[]; // ブックのページ（2 枚目から。最初のページは含まない）
+  // ページを足す（2 枚目から）。world はそのページの設定（パターンなど）。ツリーなら根の箱を 1 つ置く。新しいページの id を返す
+  addPage(spec: { title?: string; world?: WorldData }): string;
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
@@ -767,21 +771,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 位置: 最上位なら at。子を内包しているグループなら、今ある子の下の左端。
   // それ以外（子の無いボックスやツリー、非表示）は自動で並べる
   function reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
-    const dest = target(parentId, t("ページの箱の中には移せません（そのページのタブへ運んでください）"));
+    const dest = target(parentId);
     if (refuseKids(dest, subtreeIds(api.toJSON().nodes, id).size - 1)) return false;
-    const to = parentIdOf(dest);
+    const to = placeOf(dest);
     let cut = 0, fromPage: string | null = null;
     const moved = rebuildWith(data => {
       const src = data.nodes.find(s => String(s.id) === String(id));
       if (!src) throw new Error(t("ボックスがありません: {id}", { id }));
-      if (String(src.parent ?? "") === String(to ?? "")) return null;
-      // ページは入れ子にしない（ページの箱を、ページの中へは移せない）
-      const moving = subtreeIds(data.nodes, id);
-      if (page != null && data.nodes.some(s => moving.has(String(s.id)) && s.page === true)) {
-        opt.onEvent?.({ kind: "pageInPage" });
-        return null;
-      }
       fromPage = pageOf(data.nodes, id);
+      // 同じ親の中（最上位なら同じページ）なら、動かすものが無い
+      if (String(src.parent ?? "") === String(to.parent ?? "") && (src.parent != null || fromPage === page)) return null;
       const pos = dest == null && at ? { x: Math.max(0, at.x), y: Math.max(0, at.y) }
         : dest && isNesting(dest) ? { x: innerArea(dest).left, y: Math.max(...dest.children.map(k => k.y + k.h)) + opt.gap * 2 }
         : null;
@@ -795,13 +794,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  const pageName = (p: string | null) => pageNameOf(source.nodes, p);
+  const pageName = (p: string | null) => pageNameOf(source, p);
 
-  // 落とし先（parentId。null は今のページの最上位）の箱。ページの箱の中へは入れられない
-  // （中身は別のページにあり、入れると見えなくなるため）。what は入れられないときの知らせ
-  function target(parentId: Id | null, what: string): Box | null {
+  // 落とし先（parentId。null は今のページの最上位）の箱。子を持てない箱（クラス・フローチャートの箱）の中へは入れられない
+  function target(parentId: Id | null): Box | null {
     const dest = parentId == null ? null : (nodeOf(parentId) as Box);
-    if (dest?.src.page === true) throw new Error(what);
     if (dest && !shapeDef(shapeOf(dest)).kids) throw new Error(t("クラスの箱は子を持てません"));
     if (dest && !acceptsKid(dest, false)) throw new Error(t("フローチャートの中の箱は子を持てません"));
     return dest;
@@ -822,10 +819,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // ページに掛けられないパターン（子を持つ最上位の箱があるなら、箱が子を持てないフローチャートは掛けられない）
   const patternsOff = (): PagePattern[] =>
-    roots.some(k => k.children.length && k.src.page !== true) ? PAGE_PATTERNS.filter(v => STRATEGIES[v].leafKids) : [];
+    roots.some(k => k.children.length) ? PAGE_PATTERNS.filter(v => STRATEGIES[v].leafKids) : [];
 
-  // 落とし先の親の id。今のページの最上位なら、ページの中ではページの箱、最初のページでは無し
-  const parentIdOf = (t: Box | null) => (t ? t.src.id : pageBox()?.id);
+  // 置き場所（edits.ts の Place）: 落とし先の箱の中か、今のページの最上位
+  const placeOf = (t: Box | null): Place => (t ? { parent: t.src.id, page: null } : { page });
 
   // 落とした位置に置くか（内包か子の無い箱の中、または最上位）。ツリー・非表示の中なら自動で並べる（null）
   const dropPos = (t: Box | null, at?: { x: number; y: number }) => (at && (!t || placesFreely(t)) ? at : null);
@@ -922,7 +919,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       }
       data.edges = [...(data.edges ?? []), ...links];
       // ページのパターンを内包に（根と向きも消す）
-      const w = (pageBox() ? data.nodes.find(x => String(x.id) === page)?.world : data.world) ?? {};
+      const w = pageWorld(data, page);
       delete w.childView;
       delete w.root;
       delete w.treeDirection;
@@ -1041,7 +1038,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     let gone = 0, cut = 0;
     rebuildWith(data => {
       const r = removeSubtree(data, id);
-      if (page != null && r.ids.has(page)) page = null;
       [gone, cut] = [r.ids.size, r.cut];
       return {};
     });
@@ -1053,11 +1049,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 位置: 内包（か子の無いボックス）の中や最上位なら at（親の中での位置）。ツリー・非表示の中なら自動で並べる。
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
   function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }, byDrag = false) {
-    const dest = target(parentId, t("ページの箱の中には戻せません（そのページのタブで戻してください）"));
+    const dest = target(parentId);
     if (refuseKids(dest, subtreeIds(api.toJSON().removed ?? [], id).size - 1)) return false;
     const pos = dropPos(dest, at);
     const n = rebuildWith(data => {
-      restoreSubtree(data, id, parentIdOf(dest), pos);
+      restoreSubtree(data, id, placeOf(dest), pos);
       return { select: String(id), drop: pos };
     })!;
     opt.onEvent?.({ kind: "restored", key: keyOfBox(n), byDrag });
@@ -1066,15 +1062,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // ほかのブックの箱を子孫ごと、parentId（null は今のページの最上位）の子にコピーする（移植。docs/TABS-plan.md 4.3）。
   // id はこのブックで空いている番号に振り直し、線は写した箱どうしのものだけ持ってくる（線の id も振り直す）。
-  // ページの中へ落としたら、ページは入れ子にしないので、写した箱の page を外す。位置の扱いは復活と同じ。
-  // 写した箱の新しい id を返す
+  // 位置の扱いは復活と同じ。写した箱の新しい id を返す
   function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string) {
-    const dest = target(parentId, t("ページの箱の中には移植できません（そのページのタブで落としてください）"));
+    const dest = target(parentId);
     if (refuseKids(dest, copy.nodes.length - 1)) return "";
     const pos = dropPos(dest, at);
     let r!: ReturnType<typeof pasteSubtree>;
     const n = rebuildWith(data => {
-      r = pasteSubtree(data, copy, parentIdOf(dest), pos, page != null);
+      r = pasteSubtree(data, copy, placeOf(dest), pos);
       return { select: r.root, drop: pos };
     })!;
     opt.onEvent?.({ kind: "pasted", key: keyOfBox(n), from: from ?? null, kids: r.nodes - 1, edges: r.edges });
@@ -1084,11 +1079,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 新しい箱を足す（docs/ADD-plan.md）。足す所の決まりは復活と同じ（内包か子の無い箱の中、最上位なら押した位置、ツリー・非表示の中なら自動）。
   // リストへの差し込みは、データの並びで before の箱の前に入れる（無ければ末尾）。テーマや色は書かず、親から受け継ぐ
   function add(req: AddRequest, fields: Partial<BoxData>) {
-    const dest = target(req.parentId, t("ページの箱の中には追加できません（そのページのタブで追加してください）"));
+    const dest = target(req.parentId);
     const pos = dropPos(dest, req.at);
     let id!: number;
     const n = rebuildWith(data => {
-      id = addBox(data, fields, parentIdOf(dest), pos, req.before);
+      id = addBox(data, fields, placeOf(dest), pos, req.before);
       return { select: String(id), drop: pos };
     })!;
     opt.onEvent?.({ kind: "added", key: keyOfBox(n) });
@@ -1124,7 +1119,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return live ? captionOf(live) : removedCaption.get(String(p)) ?? null;
     };
     return {
-      ...liveItems(source.nodes, page, s => { const n = byId.get(String(s.id)); return n ? paintOf(n).color : paint(s); }),
+      ...liveItems(source, page, s => { const n = byId.get(String(s.id)); return n ? paintOf(n).color : paint(s); }),
       removed: removed.map(s => ({ ...item(s.id!, removedCaption.get(String(s.id))!, s, nameOf(s.parent)), purgeable: canPurge(removed, s.id!) })),
     };
   }
@@ -1250,7 +1245,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const found = new Set<string>();
     const add = (v: unknown) => { const u = unknownTheme(v); if (u) found.add(u); };
     add(source.world?.theme);
-    for (const s of source.nodes) { add(s.theme); add(s.world?.theme); }
+    for (const p of pagesOf(source)) add(p.world?.theme);
+    for (const s of source.nodes) add(s.theme);
     return [...found];
   }
 
@@ -1303,8 +1299,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       // リストの子は、見た目はリストの中でそろえたサイズで描くが、選ぶのは自分のサイズ（そろえる幅の候補になる）
       size: lookOf(n).sharedSize ? dataSizeOf(n) : size,
       shape: shapeOf(n),
-      canShape: !isNesting(n) && !lookOf(n).plainShape && n.src.page !== true,
-      canClass: !lookOf(n).plainShape && n.src.page !== true,
+      canShape: !isNesting(n) && !lookOf(n).plainShape,
+      canClass: !lookOf(n).plainShape,
       body: typeof n.src.body === "string" ? n.src.body : "",
       canBody: canBody(n),
       bodyRule: n.src.bodyRule !== false,
@@ -1375,6 +1371,28 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     }
   }
 
+  // ページを足す（docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子で、パターンは作るときに決める）。
+  // id は "p" + 空いている番号。ツリーなら根の箱を 1 つ置き、world.root にする（根のキャプションはページの題名）。新しいページの id を返す
+  function addPage(spec: { title?: string; world?: WorldData }): string {
+    let id = "";
+    rebuildWith(data => {
+      const used = new Set(pagesOf(data).map(p => String(p.id)));
+      let n = pagesOf(data).length + 1;
+      while (used.has("p" + n)) n++;
+      id = "p" + n;
+      const world: WorldData = { ...(spec.world ?? {}) };
+      const title = spec.title?.trim() ?? "";
+      const pageEntry: PageData = { id, ...(title ? { title } : {}) };
+      if (STRATEGIES[isPattern(world.childView) ? world.childView : DEFAULT_VIEW].descendants) {
+        world.root = addBox(data, title ? { caption: title } : {}, { page: id }, DEFAULTS.rootAt);
+      }
+      if (Object.keys(world).length) pageEntry.world = world;
+      data.pages = [...pagesOf(data), pageEntry];
+      return {};
+    });
+    return id;
+  }
+
   function updateClass(id: Id, edit: ClassEdit) {
     const n = nodeOf(id);
     if (n.isWorld) throw new Error(t("ワールドはクラスにできません"));
@@ -1436,9 +1454,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("title" in next) {
           // 題名はブック全体のもの。ページを見ていても、ブック全体の world に書く
           const title = String(next.title ?? "").trim();
-          const top = pageBox() ? (source.world ??= {}) : world.src;
+          const top = page != null ? (source.world ??= {}) : world.src;
           setOrDelete(top, "title", title, !title);
-          if (pageBox() && !Object.keys(top).length) delete source.world;
+          if (page != null && !Object.keys(top).length) delete source.world;
         }
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
         if (next.childView) setPattern(next.childView as PagePattern); // 値は checkSettings で確かめている
@@ -1473,16 +1491,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // ---- ページ ----
 
-  // 描いているページの箱のデータ（最初のページなら null）
-  const pageBox = () => (page == null ? null : source.nodes.find(s => String(s.id) === page) ?? null);
-
-  // ワールドの設定を、今のページの持ち主（ファイルかページの箱）へ書き戻す。空なら項目ごと消す
+  // ワールドの設定を、今のページの持ち主（ファイルの world か、pages のページ）へ書き戻す。ページの world は空なら項目ごと消す
   function storeWorld() {
-    const box = pageBox();
-    const empty = !Object.keys(world.src).length;
-    if (box) {
-      if (empty) delete box.world;
-      else box.world = world.src;
+    const p = pageData(source, page);
+    if (p) {
+      if (!Object.keys(world.src).length) delete p.world;
+      else p.world = world.src;
     } else {
       source.world = world.src;
     }
@@ -1599,14 +1613,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (k) {
         const f = fitted.get(String(s.id));
         if (!f) continue;
-        if (f.file !== k || (s.parent == null ? null : String(s.parent)) !== page) { fitted.delete(String(s.id)); continue; }
+        if (f.file !== k || s.parent != null || (s.page == null ? null : String(s.page)) !== page) { fitted.delete(String(s.id)); continue; }
         s.x = f.x;
         s.y = f.y;
         continue;
       }
       const n = shown.get(String(s.id));
-      // ページを描いているときは、ページの箱の子が最上位に並ぶ（描いている親は null だが、データの親はページの箱）
-      if (!n || (n.parent?.id ?? page) !== (s.parent == null ? null : String(s.parent))) continue;
+      // 同じ所（同じ親の中か、同じページの最上位）に描いていた箱だけ
+      const samePlace = n && (n.parent ? n.parent.id === String(s.parent) : s.parent == null && (s.page == null ? null : String(s.page)) === page);
+      if (!samePlace) continue;
       s.x = Math.round(n.x);
       s.y = Math.round(n.y);
     }
@@ -1677,9 +1692,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     clear();
     source = copy;
     // 描いていたページが無くなっていたら（Undo や外部の変更で）、最初のページに戻る
-    if (page != null && !source.nodes.some(s => String(s.id) === page && s.page === true)) page = null;
-    const pageSrc = pageBox();
-    world.src = (pageSrc ? pageSrc.world : source.world) ?? {};
+    if (page != null && !pageData(source, page)) page = null;
+    world.src = pageWorld(source, page);
     syncWorld();
     applyWorldStyle();
 
@@ -1798,9 +1812,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     setPage(id) {
       const next = id == null ? null : String(id);
       if (next === page) return;
-      if (next != null && !source.nodes.some(s => String(s.id) === next && s.page === true)) {
-        throw new Error(t("ページの箱ではありません: {id}", { id }));
-      }
+      if (next != null && !pageData(source, next)) throw new Error(t("ページがありません: {id}", { id }));
       const data = api.toJSON();
       page = next;
       build(data, true);
@@ -1810,8 +1822,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     paste,
     add,
     purge,
-    pages: () => source.nodes.filter(s => s.page === true)
-      .map(s => ({ id: String(s.id), caption: s.caption != null && s.caption !== "" ? String(s.caption) : String(s.id) })),
+      pages: () => pagesOf(source).map(p => ({ id: String(p.id), caption: pageNameOf(source, String(p.id)) })),
+    addPage,
     geometry() {
       const boxes = nodes.filter(n => !isHidden(n)).map(n => {
         const [x, y] = absPos(n);

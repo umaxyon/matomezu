@@ -15,10 +15,11 @@ afterEach(() => {
 
 const data = (): Diagram => ({
   world: { width: 1000 },
+  pages: [{ id: "p1", title: "ページ" }],
   nodes: [
     { id: 1, caption: "親", x: 40, y: 40 }, { id: 2, caption: "子", parent: 1, x: 12, y: 30 },
     { id: 3, caption: "隣", x: 400, y: 40 },
-    { id: 4, caption: "ページ", page: true, x: 40, y: 300 }, { id: 5, caption: "中", parent: 4 },
+    { id: 4, caption: "ページの箱", page: "p1", x: 40, y: 300 }, { id: 5, caption: "中", parent: 4 },
   ],
   edges: [[1, 3]],
 });

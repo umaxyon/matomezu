@@ -286,7 +286,7 @@ export function abilitiesOf(n: Box): Abilities {
     reorder: by.reorder && !!n.parent,
     link: !n.parent || by.link,
     widthGrip: !!strategyOf(n)?.widthGrip,
-    dropInto: n.src.page !== true && shapeDef(shapeOf(n)).kids && !by.leafKids,
+    dropInto: shapeDef(shapeOf(n)).kids && !by.leafKids,
   };
 }
 
@@ -337,9 +337,9 @@ export function splitBranches(targets: [number, number][], avoid: Vertex[] = [])
   return best;
 }
 
-// 見せる形。子を内包する箱（枠）・ページの箱と、並べられた見せ方で形を使わない箱（リストの子など。lookOf）はボックス。データの形は残す
+// 見せる形。子を内包する箱（枠）と、並べられた見せ方で形を使わない箱（リストの子など。lookOf）はボックス。データの形は残す
 export const shapeOf = (n: Box): Shape => {
-  if (isNesting(n) || lookOf(n).plainShape || n.src.page === true || !isShape(n.src.shape)) return DEFAULT_SHAPE;
+  if (isNesting(n) || lookOf(n).plainShape || !isShape(n.src.shape)) return DEFAULT_SHAPE;
   return n.src.shape;
 };
 // 入れ物 p の子にできるか（子を持てない戦略の子の中へは入れられず、子を持つ箱は子を持てない戦略の中へ入れられない。
@@ -365,8 +365,6 @@ export const anchorInsetOf = (n: Box): number => {
 };
 // 絵の形（スティックマン・DB・サーバー）: 決まった大きさの絵の足元に文字を置く。背景は無い
 export const isIconShape = (s: Shape): boolean => shapeDef(s).base === "icon";
-// ページの箱（中身は別のページ。docs/TABS-plan.md）。最初のページでは子を持たない箱として描く
-export const isPageBox = (n: Box) => n.src.page === true && !n.children.length;
 export const fillOf = (n: Box) => n.src.fill !== false;
 export const borderOf = (n: Box) => (n.src.border != null ? !!n.src.border : isNesting(n));
 export function overflowOf(c: Container): Overflow {
@@ -381,7 +379,7 @@ export function overflowOf(c: Container): Overflow {
 export const displayCaption = (n: Box) => (lookOf(n).fullCaption ? captionOf(n) : truncate(captionOf(n), SIZES[sizeOf(n)].limit));
 // 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
 export const canBody = (n: Box): boolean =>
-  shapeDef(shapeOf(n)).body && sizeOf(n) !== "S" && n.src.page !== true && overflowOf(n) !== "clip";
+  shapeDef(shapeOf(n)).body && sizeOf(n) !== "S" && overflowOf(n) !== "clip";
 export const bodyOf = (n: Box): string => (typeof n.src.body === "string" && n.src.body && canBody(n) ? n.src.body : "");
 // 本文の最大行数（無ければ 0。制限なし）
 export const bodyLinesOf = (n: Box): number => (Number.isInteger(n.src.bodyLines) && (n.src.bodyLines as number) > 0 ? n.src.bodyLines as number : 0);

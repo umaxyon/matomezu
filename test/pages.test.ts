@@ -2,7 +2,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { noticeOf } from "../web/src/notices";
 import { createGraph, type Graph } from "../web/src/graph";
-import { copySubtree, dataPaint, pageMembers, pageOf, subtreeIds } from "../web/src/pages";
+import { copySubtree, dataPaint, pageMembers, pageNameOf, pageOf, subtreeIds } from "../web/src/pages";
 import { DEFAULTS } from "../web/src/graph";
 import { themeById } from "../web/src/theme";
 import type { BoxData, Diagram, EdgeData } from "../web/src/types";
@@ -23,14 +23,15 @@ function setup(data: Diagram) {
   return { el, graph };
 }
 
-// 最初のページ: 1（ページの箱）、2、6。1 のページ: 3、4（4 は 5 を内包）。線は 1-2（最初のページ）、3-4（1 のページ）
+// ブック。最初のページ: 1、2、6。ページ p1（「詳細」）: 3、4（4 は 5 を内包）。線は 1-2（最初のページ）、3-4（ページ p1）
 const book = (): Diagram => ({
   world: { width: 900, background: "#ffffff" },
+  pages: [{ id: "p1", title: "詳細", world: { background: "#101010" } }],
   nodes: [
-    { id: 1, caption: "詳細", page: true, x: 40, y: 40, world: { background: "#101010" } },
+    { id: 1, caption: "表", x: 40, y: 40 },
     { id: 2, caption: "隣", x: 400, y: 40 },
-    { id: 3, caption: "中A", parent: 1, x: 20, y: 20 },
-    { id: 4, caption: "中B", parent: 1, x: 300, y: 20 },
+    { id: 3, caption: "中A", page: "p1", x: 20, y: 20 },
+    { id: 4, caption: "中B", page: "p1", x: 300, y: 20 },
     { id: 5, caption: "孫", parent: 4, x: 12, y: 30 },
     { id: 6, caption: "下", x: 40, y: 300 },
   ],
@@ -44,29 +45,33 @@ const drawn = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>(".mz-nod
 const node = (d: Diagram, id: number) => d.nodes.find(n => n.id === id)!;
 const edgeIds = (d: Diagram) => (d.edges as EdgeData[]).map(e => e.id);
 
-test("ページの関数: 箱の載っているページ、ページの箱の中身、子孫", () => {
-  const n = book().nodes;
+test("ページの関数: 箱の載っているページ（最上位の祖先の page）、ページの中身、子孫、ページの名前", () => {
+  const d = book();
+  const n = d.nodes;
   expect(pageOf(n, 1)).toBeNull();
-  expect(pageOf(n, 3)).toBe("1");
-  expect(pageOf(n, 5)).toBe("1");
+  expect(pageOf(n, 3)).toBe("p1");
+  expect(pageOf(n, 5)).toBe("p1");
   expect(pageMembers(n, null)).toEqual(["1", "2", "6"]);
-  expect(pageMembers(n, "1")).toEqual(["3", "4", "5"]);
-  expect([...subtreeIds(n, 1)].sort()).toEqual(["1", "3", "4", "5"]);
+  expect(pageMembers(n, "p1")).toEqual(["3", "4", "5"]);
+  expect([...subtreeIds(n, 4)].sort()).toEqual(["4", "5"]);
+  expect([pageNameOf(d, null), pageNameOf(d, "p1")]).toEqual(["最初のページ", "詳細"]);
+  expect(pageNameOf({ pages: [{ id: "p9" }], nodes: [] }, "p9")).toBe("p9_(空)");
 });
 
-test("最初のページでは、ページの箱の中身を描かない。保存しても中身と線はそのまま残る", () => {
+test("最初のページでは、ほかのページの箱を描かない。保存しても中身と線はそのまま残る", () => {
   const { el, graph } = setup(book());
   expect(graph.page()).toBeNull();
   expect(drawn(el)).toEqual(["1", "2", "6"]);
   const out = graph.toJSON();
   expect(out.nodes).toEqual(book().nodes as BoxData[]);
+  expect(out.pages).toEqual(book().pages);
   expect(edgeIds(out)).toEqual(["e1", "e2"]);
 });
 
-test("ページを描くと、ページの箱の子が最上位に並び、ワールドの設定はページの箱のものになる", () => {
+test("ページを描くと、そのページの箱が最上位に並び、ワールドの設定はそのページのものになる", () => {
   const { el, graph } = setup(book());
-  graph.setPage(1);
-  expect(graph.page()).toBe("1");
+  graph.setPage("p1");
+  expect(graph.page()).toBe("p1");
   expect(drawn(el)).toEqual(["3", "4", "5"]);
   expect(graph.info(null).children.map(c => c.id)).toEqual(["3", "4"]);
   const w = graph.info(null);
@@ -76,7 +81,7 @@ test("ページを描くと、ページの箱の子が最上位に並び、ワ�
 
 test("ページの中で動かしても、ほかのページの箱と線は変わらない", () => {
   const { el, graph } = setup(book());
-  graph.setPage(1);
+  graph.setPage("p1");
   dragBy(el, graph, 3, 0, 200);
   const out = graph.toJSON();
   expect(node(out, 3).y).toBeGreaterThan(20);
@@ -84,53 +89,49 @@ test("ページの中で動かしても、ほかのページの箱と線は変�
   expect(edgeIds(out)).toEqual(["e1", "e2"]);
 });
 
-test("ページの背景を変えると、ページの箱の world に書き、ファイルの world は変えない", () => {
+test("ページの背景を変えると、そのページの world に書き、ファイルの world は変えない。空になれば項目ごと消す", () => {
   const { graph } = setup(book());
-  graph.setPage(1);
+  graph.setPage("p1");
   graph.update(null, { background: "#202020" });
   const out = graph.toJSON();
-  expect(node(out, 1).world).toEqual({ background: "#202020" });
+  expect(out.pages![0]!.world).toEqual({ background: "#202020" });
   expect(out.world).toEqual({ width: 900, background: "#ffffff" });
+  graph.update(null, { background: null });
+  expect(graph.toJSON().pages![0]).toEqual({ id: "p1", title: "詳細" });
 });
 
-test("ページの中で最上位へ付け替えると、ページの箱の子になる", () => {
+test("ページの中で最上位へ付け替えると、そのページに載る（page を書く）。最初のページなら page を消す", () => {
   const { graph } = setup(book());
-  graph.setPage(1);
+  graph.setPage("p1");
   graph.reparent(5, null, { x: 40, y: 200 });
-  expect(node(graph.toJSON(), 5).parent).toBe(1);
+  expect([node(graph.toJSON(), 5).parent, node(graph.toJSON(), 5).page]).toEqual([undefined, "p1"]);
   expect(graph.info(null).children.map(c => c.id)).toContain("5");
+  graph.setPage(null);
+  graph.reparent(5, null, { x: 40, y: 400 });
+  expect([node(graph.toJSON(), 5).parent, node(graph.toJSON(), 5).page]).toEqual([undefined, undefined]);
 });
 
-test("ページの中で消して戻すと、戻した先はページの箱の子", () => {
+test("ページの中で消して戻すと、戻した先はそのページの最上位", () => {
   const { graph } = setup(book());
-  graph.setPage(1);
+  graph.setPage("p1");
   graph.remove(3);
   graph.restore(3, null, { x: 20, y: 200 });
   const out = graph.toJSON();
-  expect(node(out, 3).parent).toBe(1);
+  expect([node(out, 3).parent, node(out, 3).page]).toEqual([undefined, "p1"]);
   expect(out.removed).toBeUndefined();
 });
 
 test("新しい線の id は、ほかのページの線と重ならない", () => {
   const { graph } = setup(book());
-  // 最初のページには e1 だけが見えている。e2 はページ 1 の線
+  // 最初のページには e1 だけが見えている。e2 はページ p1 の線
   graph.link(2, 6);
-  // 空いている番号は e2 だが、ページ 1 の線が使っているので e3 になる
+  // 空いている番号は e2 だが、ページ p1 の線が使っているので e3 になる
   expect(edgeIds(graph.toJSON())).toEqual(["e1", "e2", "e3"]);
-});
-
-test("最初のページでページの箱を消すと、中身も消え、中の線も消える", () => {
-  const { graph } = setup(book());
-  graph.remove(1);
-  const out = graph.toJSON();
-  expect(out.nodes.map(n => n.id)).toEqual([2, 6]);
-  expect((out.removed ?? []).map(n => n.id).sort()).toEqual([1, 3, 4, 5]);
-  expect(out.edges).toEqual([]);
 });
 
 test("ページを切り替えても Undo の履歴は 1 つ。戻すとページの中の変更も戻る", () => {
   const { graph } = setup(book());
-  graph.setPage(1);
+  graph.setPage("p1");
   graph.update(3, { caption: "変えた" });
   graph.setPage(null);
   expect(node(graph.toJSON(), 3).caption).toBe("変えた");
@@ -139,46 +140,69 @@ test("ページを切り替えても Undo の履歴は 1 つ。戻すとペー�
   expect(graph.page()).toBeNull();
 });
 
-test("描いていたページの箱が無くなったら、最初のページに戻る", () => {
+test("描いていたページが無くなったら、最初のページに戻る（ページに載っていた箱は最初のページに出る）", () => {
   const { el, graph } = setup(book());
-  graph.setPage(1);
+  graph.setPage("p1");
   const next = book();
-  delete node(next, 1).page;
+  delete next.pages;
+  for (const n of next.nodes) delete n.page;
   graph.load(next, { keepHistory: true });
   expect(graph.page()).toBeNull();
   expect(drawn(el)).toEqual(["1", "2", "3", "4", "5", "6"]);
 });
 
-test("ページでない箱はページとして描けない", () => {
+test("無いページは描けない", () => {
   const { graph } = setup(book());
-  expect(() => graph.setPage(2)).toThrow();
+  expect(() => graph.setPage("p9")).toThrow();
   expect(graph.page()).toBeNull();
 });
 
-test("ページは入れ子にできない（読み込みエラー）", () => {
+test("データの検査: ページの id の重複、無いページ、中の箱の page、昔の page: true と箱の world は誤り（直し方を案内）", () => {
   const d = book();
-  node(d, 4).page = true;
-  expect(() => validate(d)).toThrow(/ページの中の箱はページにできません/);
+  expect(() => validate({ ...d, pages: [...d.pages!, { id: "p1" }] })).toThrow(/重複/);
+  expect(() => validate({ ...d, nodes: [...d.nodes, { id: 7, page: "p9" }] })).toThrow(/存在しないページ/);
+  expect(() => validate({ ...d, nodes: [...d.nodes, { id: 7, parent: 4, page: "p1" }] })).toThrow(/最上位の箱にだけ/);
+  expect(() => validate({ nodes: [{ id: 1, page: true as never }] })).toThrow(/pages に書き/);
+  expect(() => validate({ nodes: [{ id: 1, world: {} as never }] })).toThrow(/pages の world/);
+  expect(() => validate({ pages: [{ id: "p1", world: { childView: "list" } }], nodes: [] })).toThrow(/nest \/ tree \/ flow/);
 });
 
-test("pages はブックのページの箱の一覧", () => {
+test("pages はブックのページ（2 枚目から）の一覧", () => {
   const { graph } = setup(book());
-  expect(graph.pages()).toEqual([{ id: "1", caption: "詳細" }]);
+  expect(graph.pages()).toEqual([{ id: "p1", caption: "詳細" }]);
+});
+
+test("ページを足す: 内包のページは空で、ツリーのページは根の箱を 1 つ置いて world.root にする。id は空いている p 番号", () => {
+  const { graph } = setup(book());
+  const nest = graph.addPage({ title: "次の話", world: {} });
+  expect(nest).toBe("p2");
+  expect(graph.toJSON().pages).toEqual([...book().pages!, { id: "p2", title: "次の話" }]);
+  const tree = graph.addPage({ title: "組織", world: { childView: "tree", theme: "sticky" } });
+  const out = graph.toJSON();
+  const root = out.nodes.at(-1)!;
+  expect([root.caption, root.page, root.parent, root.x, root.y]).toEqual(["組織", "p3", undefined, 40, 40]);
+  expect(out.pages!.at(-1)).toEqual({ id: tree, title: "組織", world: { childView: "tree", theme: "sticky", root: root.id } });
+  graph.setPage(tree);
+  expect((graph.info(root.id!) as { treeRoot: boolean }).treeRoot).toBe(true);
+  expect(graph.pages().map(p => p.caption)).toEqual(["詳細", "次の話", "組織"]);
+  graph.undo();
+  graph.undo();
+  expect(graph.toJSON().pages).toEqual(book().pages);
 });
 
 // ---- 段階 5: ブック単位の一覧、ほかのページの箱を消す、ページの間の移動 ----
 
-test("一覧はブック全体。表示中の箱に載っているページを添え、ページの箱の直下の子は親を出さない", () => {
+test("一覧はブック全体。表示中の箱に載っているページを添える", () => {
   const { graph } = setup(book());
   const items = graph.items();
   expect(items.live.map(i => [i.id, i.page, i.parent])).toEqual([
-    ["1", null, null], ["2", null, null], ["3", "1", null], ["4", "1", null], ["5", "1", "中B"], ["6", null, null],
+    ["1", null, null], ["2", null, null], ["3", "p1", null], ["4", "p1", null], ["5", "p1", "中B"], ["6", null, null],
   ]);
   expect(items.pages).toEqual([
     { id: null, caption: "最初のページ", current: true },
-    { id: "1", caption: "詳細", current: false },
+    { id: "p1", caption: "詳細", current: false },
   ]);
-  graph.setPage(1);
+  graph.setPage("p1");
   expect(graph.items().pages.map(p => p.current)).toEqual([false, true]);
 });
 
@@ -194,38 +218,19 @@ test("ほかのページの箱を消すと、子孫と中の線も消える。�
   expect(graph.toJSON().nodes.length).toBe(6);
 });
 
-test("描いているページの箱を一覧から消すと、最初のページに戻る", () => {
-  const { graph } = setup(book());
-  graph.setPage(1);
-  graph.remove(1);
-  expect(graph.page()).toBeNull();
-  expect(graph.toJSON().nodes.map(n => n.id)).toEqual([2, 6]);
-});
-
 test("ほかのページの箱を、今のページへ付け替えられる。階層が変わった線は外れる", () => {
   const notices: string[] = [];
   const el = document.createElement("div");
   document.body.appendChild(el);
   const graph = createGraph(el, book(), { measureText: fakeMeasure, onEvent: ev => notices.push(noticeOf(ev)) });
   graphs.push(graph);
-  // 最初のページを描いたまま、ページ 1 の 3 を最上位へ
+  // 最初のページを描いたまま、ページ p1 の 3 を最上位へ
   expect(graph.reparent(3, null, { x: 40, y: 400 })).toBe(true);
   const out = graph.toJSON();
-  expect(node(out, 3).parent).toBeUndefined();
+  expect([node(out, 3).parent, node(out, 3).page]).toEqual([undefined, undefined]);
   expect(edgeIds(out)).toEqual(["e1"]);
   expect(drawn(el)).toContain("3");
   expect(notices.at(-1)).toContain("最初のページ");
-});
-
-test("ページの箱は、ページの中へは移せない", () => {
-  const notices: string[] = [];
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  const graph = createGraph(el, book(), { measureText: fakeMeasure, onEvent: ev => notices.push(noticeOf(ev)) });
-  graphs.push(graph);
-  graph.setPage(1);
-  expect(graph.reparent(1, null, { x: 0, y: 0 })).toBe(false);
-  expect(notices.at(-1)).toContain("ページの箱を入れられません");
 });
 
 test("付け替えのドラッグは、途中でページを切り替えても続き、落としたページへ移る", () => {
@@ -237,7 +242,7 @@ test("付け替えのドラッグは、途中でページを切り替えても�
     measureText: fakeMeasure, onLiftOver: (x, y) => over.push([x, y]), onLiftEnd: () => { ended++; },
   });
   graphs.push(graph);
-  graph.setPage(1);
+  graph.setPage("p1");
   graph.setMode("reparent");
   const rect = HTMLElement.prototype.getBoundingClientRect;
   const doc = document as unknown as { elementsFromPoint?: (x: number, y: number) => Element[] };
@@ -265,68 +270,20 @@ test("付け替えのドラッグは、途中でページを切り替えても�
   expect(ended).toBe(1);
   expect(graph.dragging()).toBe(false);
   expect(el.querySelector(".mz-ghost")).toBeNull();
-  expect(node(graph.toJSON(), 3).parent).toBeUndefined();
+  expect([node(graph.toJSON(), 3).parent, node(graph.toJSON(), 3).page]).toEqual([undefined, undefined]);
   expect(drawn(el)).toContain("3");
-});
-
-test("ページの箱の中へは、付け替えも復活もできない（中身は別のページで、落とすと見えなくなるため）", () => {
-  const { graph } = setup(book());
-  expect(() => graph.reparent(2, 1)).toThrow("ページの箱の中には移せません");
-  graph.remove(6);
-  expect(() => graph.restore(6, 1, { x: 0, y: 0 })).toThrow("ページの箱の中には戻せません");
-  expect(node(graph.toJSON(), 2).parent).toBeUndefined();
-});
-
-test("付け替えのドラッグで、ページの箱の上は落とし先にならない", () => {
-  const { el, graph } = setup(book());
-  graph.setMode("reparent");
-  const pageHead = el.querySelector('.mz-node[data-id="1"] > .mz-head')!;
-  const rect = HTMLElement.prototype.getBoundingClientRect;
-  const doc = document as unknown as { elementsFromPoint?: (x: number, y: number) => Element[] };
-  const was = doc.elementsFromPoint; // 終わったら元に戻す（setup.ts の代わりの関数）
-  HTMLElement.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 700);
-  doc.elementsFromPoint = () => [pageHead];
-  try {
-    const head = el.querySelector('.mz-node[data-id="2"] > .mz-head')!;
-    const fire = (target: EventTarget, type: string, x: number) =>
-      target.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 100, pointerId: 1 }));
-    fire(head, "pointerdown", 100);
-    fire(document, "pointermove", 150);
-    expect(pageHead.parentElement!.classList.contains("mz-drop")).toBe(false);
-    expect(el.querySelector(".mz-ghost")!.classList.contains("mz-ghost-no")).toBe(true);
-    fire(document, "pointerup", 150);
-  } finally {
-    HTMLElement.prototype.getBoundingClientRect = rect;
-    doc.elementsFromPoint = was;
-  }
-  expect(node(graph.toJSON(), 2).parent).toBeUndefined();
-});
-
-test("最初のページのページの箱はタブ付きの見出しの形で描き、形の指定は効かない。ページを外すと普通の箱に戻る", () => {
-  const d = book();
-  node(d, 1).shape = "db";
-  const { el, graph } = setup(d);
-  const head = () => el.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head')!;
-  expect(head().classList.contains("mz-shape-page")).toBe(true);
-  expect(head().classList.contains("mz-shape-db")).toBe(false);
-  expect(head().querySelector(".mz-page-body")!.getAttribute("d")).toMatch(/^M/);
-  expect(graph.info(1)).toMatchObject({ shape: "box", canShape: false });
-  const next = book();
-  delete node(next, 1).page;
-  graph.load(next, { keepHistory: true });
-  expect(head().classList.contains("mz-shape-page")).toBe(false); // 子を内包するグループになる
 });
 
 // ---- 段階 6: ほかのブックからの移植（コピー） ----
 
 test("copySubtree は箱を子孫ごと写し、線は写した箱どうしのものだけ", () => {
-  const c = copySubtree(book(), 1);
-  expect(c.root).toBe("1");
-  expect(c.nodes.map(n => n.id)).toEqual([1, 3, 4, 5]);
-  expect(c.edges.map(e => e.id)).toEqual(["e2"]); // e1（1-2）は 2 を写さないので持っていかない
+  const c = copySubtree(book(), 4);
+  expect(c.root).toBe("4");
+  expect(c.nodes.map(n => n.id)).toEqual([4, 5]);
+  expect(c.edges).toEqual([]); // e2（3-4）は 3 を写さないので持っていかない
 });
 
-test("移植すると id と線の id を振り直し、親子と線を保つ。最初のページに落とせばページのまま", () => {
+test("移植すると id と線の id を振り直し、親子と線を保つ。落としたページに載る（page は根にだけ書く）", () => {
   const { graph } = setup(book());
   graph.remove(6); // 消したものの id（6）も使わない
   // ほかのブックの 7（子 8、孫 9）を写す。このブックの 7〜9 とは別の箱
@@ -335,44 +292,28 @@ test("移植すると id と線の id を振り直し、親子と線を保つ。
   const id = graph.paste(copy, null, { x: 40, y: 500 }, "other.json");
   const out = graph.toJSON();
   expect(id).toBe("7");
-  expect(out.nodes.slice(-3).map(n => [n.id, n.parent])).toEqual([[7, undefined], [8, 7], [9, 8]]);
-  const id2 = graph.paste(copySubtree(book(), 1), null, { x: 300, y: 500 });
+  expect(out.nodes.slice(-3).map(n => [n.id, n.parent, n.page])).toEqual([[7, undefined, undefined], [8, 7, undefined], [9, 8, undefined]]);
+  graph.setPage("p1");
+  const src = book();
+  const id2 = graph.paste({ root: "3", nodes: [node(src, 3), node(src, 4), node(src, 5)], edges: [{ id: "e2", from: 3, to: 4 }] }, null, { x: 300, y: 500 });
   const out2 = graph.toJSON();
   expect(id2).toBe("10");
-  expect(out2.nodes.slice(-4).map(n => [n.id, n.parent, n.page])).toEqual([[10, undefined, true], [11, 10, undefined], [12, 10, undefined], [13, 12, undefined]]);
-  // e2（3-4）は写した先で 11-12 の線になり、id は空いている番号になる
-  const added = (out2.edges as EdgeData[]).at(-1)!;
-  expect([added.from, added.to]).toEqual([11, 12]);
+  expect(out2.nodes.slice(-3).map(n => [n.id, n.parent, n.page])).toEqual([[10, undefined, "p1"], [11, undefined, undefined], [12, 11, undefined]]);
   expect(new Set(edgeIds(out2)).size).toBe(edgeIds(out2).length);
   graph.undo();
   expect(graph.toJSON().nodes.length).toBe(out.nodes.length);
 });
 
-test("ページの中へ移植すると、写したページの箱は普通のグループになる", () => {
-  const { graph } = setup(book());
-  graph.setPage(1);
-  const id = graph.paste(copySubtree(book(), 1), null, { x: 20, y: 300 });
-  const n = node(graph.toJSON(), Number(id));
-  expect(n.page).toBeUndefined();
-  expect(n.world).toBeUndefined();
-  expect(n.parent).toBe(1);
-});
-
-test("ページの箱の中へは移植できない", () => {
-  const { graph } = setup(book());
-  expect(() => graph.paste(copySubtree(book(), 2), 1)).toThrow("ページの箱の中には移植できません");
-});
-
 test("図の題名は、ページを見ているときに変えても、ブック全体の world に書く（ページの world には書かない）", () => {
-  const { graph } = setup({ world: { route: "elbow" }, nodes: [{ id: 1, caption: "P", page: true }, { id: 2, parent: 1 }] });
+  const { graph } = setup({ world: { route: "elbow" }, pages: [{ id: "p1", title: "P" }], nodes: [{ id: 2, page: "p1" }] });
   graph.update(null, { title: "題名" });
   expect(graph.toJSON().world).toEqual({ route: "elbow", title: "題名" });
-  graph.setPage(1);
+  graph.setPage("p1");
   expect(graph.info(null)).toMatchObject({ kind: "world", title: "題名" });
   graph.update(null, { title: "  別の題名 " });
   const data = graph.toJSON();
   expect(data.world).toEqual({ route: "elbow", title: "別の題名" });
-  expect(data.nodes.find(n => n.id === 1)?.world).toBeUndefined();
+  expect(data.pages![0]!.world).toBeUndefined();
   graph.update(null, { title: "" });
   expect(graph.toJSON().world).toEqual({ route: "elbow" });
 });

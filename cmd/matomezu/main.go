@@ -26,9 +26,9 @@ var version = "dev"
 const reconnectWait = 4 * time.Second
 
 const usageText = `usage:
-  matomezu open [-no-browser] [-page id] <file.json>   show the diagram (or the page of box id) in the browser (starts the background server)
+  matomezu open [-no-browser] [-page id] <file.json>   show the diagram (or the page with that id) in the browser (starts the background server)
   matomezu serve [-addr host:port] <file.json>   run a server in the foreground for one diagram
-  matomezu check [-page id] [-in ids] <file.json>   print a summary of how the open browser laid it out (the first page, or the page of box id)
+  matomezu check [-page id] [-in ids] <file.json>   print a summary of how the open browser laid it out (the first page, or the page with that id)
                                              -in 2,5 also lists the children of boxes 2 and 5 (position relative to the box, and size)
   matomezu set [-page id] [-in ids] <file.json> <id.key=value>... change fields of boxes or edges (an edge id such as e3; "world" for the diagram), then print the summary
                                              an empty value removes the field, e.g. 12.x=; JSON values are allowed, e.g. e3.via=[280,140,400]
@@ -84,7 +84,7 @@ func newFlags(name string) *flag.FlagSet {
 func open(args []string) error {
 	fs := newFlags("open")
 	noBrowser := fs.Bool("no-browser", false, "print the URL without opening a browser")
-	page := fs.String("page", "", "open the page of this box (a box with page: true) instead of the first page")
+	page := fs.String("page", "", "open this page (an id in pages) instead of the first page")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

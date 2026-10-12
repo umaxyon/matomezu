@@ -30,6 +30,7 @@ export default {
   // 線の端の形
   "{k} の値が不正です: {v}": "Invalid {k}: {v}",
   "フローチャートの中の箱は子を持てません": "A box in a flowchart can't have children",
+  "ページがありません: {id}": "No such page: {id}",
   "子を持つ最上位の箱があるので、箱が子を持てないパターン（フローチャート）にはできません": "A top-level box has children, so this page can't use a pattern whose boxes can't have children (flowchart)",
   "treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}": "treeDirection can't be set on a box (set world.treeDirection of the tree page): {where}",
   "ツリーのページには根が要ります（最上位の箱が 1 つも無いのでツリーにできません）": "A tree page needs a root (there is no top-level box, so it can't become a tree)",

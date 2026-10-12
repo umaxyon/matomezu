@@ -29,6 +29,7 @@ import { docBase, fetchRemote, startSync, type Sync } from "./sync";
 import { setupHistory, setupModes } from "./toolbar";
 import { mountDiagram } from "./view";
 import { openNewBookDialog } from "./new-book";
+import { openNewPageDialog } from "./new-page";
 
 export interface AppUi {
   tabs: HTMLElement;
@@ -59,6 +60,7 @@ interface Book {
   name: string;
   color: string;
   group: HTMLElement;       // タブグループ
+  addPage: HTMLElement;     // タブグループの右端の小さな＋（ページを足す。new-page.ts）
   tabs: PageTab[];          // 先頭は最初のページ
   stage: HTMLElement;
   side: HTMLElement;
@@ -77,12 +79,12 @@ const EMPTY_HINT = t("開いている図がありません。タブの列の左�
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
 
-// 取ってきたデータから、ページの箱の一覧を読む（図に読み込む前のタブの名前に使う）
+// 取ってきたデータから、ページの一覧（2 枚目から）を読む（図に読み込む前のタブの名前に使う）
 function pagesInData(data: unknown): { id: string; caption: string }[] {
-  const nodes = (data as { nodes?: unknown })?.nodes;
-  if (!Array.isArray(nodes)) return [];
-  return nodes.filter(n => n && n.page === true && n.id != null)
-    .map(n => ({ id: String(n.id), caption: n.caption != null && n.caption !== "" ? String(n.caption) : keyOf(n.id, "") }));
+  const pages = (data as { pages?: unknown })?.pages;
+  if (!Array.isArray(pages)) return [];
+  return pages.filter(p => p && p.id != null)
+    .map(p => ({ id: String(p.id), caption: typeof p.title === "string" && p.title.trim() ? p.title.trim() : keyOf(p.id, "") }));
 }
 
 export async function startApp(ui: AppUi) {
@@ -206,7 +208,7 @@ export async function startApp(ui: AppUi) {
     if (!info) return null;
     const t = makeTab(b, page, info.caption);
     b.tabs.push(t);
-    b.group.appendChild(t.button);
+    b.group.insertBefore(t.button, b.addPage); // ＋はいつも右端
     remember();
     return t;
   }
@@ -360,6 +362,14 @@ export async function startApp(ui: AppUi) {
       group.className = "tab-group";
       const color = BOOK_COLORS[books.length % BOOK_COLORS.length]!;
       group.style.setProperty("--book", color);
+      // ページを足す＋（D27 の段階 2）。押すとダイアログ。足したページのタブを前に出す
+      const addPage = document.createElement("button");
+      addPage.type = "button";
+      addPage.className = "tab-add";
+      addPage.title = t("ページを足す");
+      addPage.setAttribute("aria-label", addPage.title);
+      addPage.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>';
+      group.appendChild(addPage);
 
       let book: Book | null = null;
       const { graph, panel, minimap } = mountDiagram(stage, side, { nodes: [] }, {
@@ -371,7 +381,7 @@ export async function startApp(ui: AppUi) {
         onLiftEnd: endHover,
       }, { otherBooks: () => (book ? othersOf(book) : []) });
       const b: Book = {
-        id, name: remote.name, color, group, tabs: [], stage, side, graph, panel, minimap,
+        id, name: remote.name, color, group, addPage, tabs: [], stage, side, graph, panel, minimap,
         sync: null as unknown as Sync, loaded: false, data: remote.data, error: null,
       };
       b.sync = startSync(graph, base, remote, {
@@ -381,8 +391,12 @@ export async function startApp(ui: AppUi) {
       }, { active: false });
       const first = makeTab(b, null, remote.name);
       b.tabs.push(first);
-      group.appendChild(first.button);
+      group.insertBefore(first.button, addPage);
       for (const p of pagesOf(b)) pageTab(b, p.id);
+      addPage.addEventListener("click", () => {
+        if (current?.book !== b) activate(b, null); // 図に読み込んでから足す
+        openNewPageDialog(spec => activate(b, b.graph.addPage(spec)));
+      });
       refreshTitle(b);
       ui.tabs.appendChild(group);
       book = b;

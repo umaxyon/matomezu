@@ -195,10 +195,11 @@ test("見出しが子より長ければ、見出しが入る幅にそろえる�
 });
 
 test("ページのある図でも、並べ替えたとおりにデータの並び順が変わる（ほかの箱のデータは動かない）", () => {
-  // 1 はページの箱で、子の 2 はページの中（最初のページには描かれない）。3 はリスト
+  // 2 はページ p1 に載っている（最初のページには描かれない）。3 はリスト
   const { el, graph } = setup({
+    pages: [{ id: "p1" }],
     nodes: [
-      { id: 1, caption: "ページ", page: true, x: 400, y: 40 }, { id: 2, caption: "中", parent: 1 },
+      { id: 1, caption: "表", x: 400, y: 40 }, { id: 2, caption: "中", page: "p1" },
       { id: 3, caption: "一覧", childView: "list", x: 40, y: 40 },
       { id: 4, caption: "a", parent: 3 }, { id: 5, caption: "b", parent: 3 },
     ],
