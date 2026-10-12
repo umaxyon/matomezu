@@ -231,13 +231,14 @@ export interface ListItem {
   parent: string | null;
   page: string | null; // 載っているページ（ページの箱の id。null は最初のページ）
   purgeable?: boolean; // 消したものの行で、完全に削除できる（消した子孫まで全部がユーザーの足した箱）
+  pattern?: PagePattern; // 消したものの行で、載っていたページのパターン（パターンの違うページへは戻せない。docs/PATTERN-plan.md）
 }
 
 // サイドバーの一覧（ブック全体）: 表示中のボックスと、消したボックス（どちらもデータの並び順）、ブックのページ
 export interface Items {
   live: ListItem[];
   removed: ListItem[];
-  pages: { id: string | null; caption: string; current: boolean }[]; // 先頭は最初のページ
+  pages: { id: string | null; caption: string; current: boolean; pattern: PagePattern }[]; // 先頭は最初のページ
 }
 
 // update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）。

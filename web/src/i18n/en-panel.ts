@@ -164,4 +164,5 @@ export default {
   "リンク": "Link",
   "「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます": "A window onto the page \"{name}\" ({pattern}). Click the window to open it",
   "見せ方": "Look",
+  "{pattern}のページにあった箱です。パターンの違うページへは戻せません": "This box was on a {pattern} page. It can't be restored to a page with a different pattern",
 } satisfies Record<string, string>;

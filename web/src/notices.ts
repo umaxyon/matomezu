@@ -3,6 +3,8 @@
 
 import type { Graph } from "./graph";
 import { t } from "./i18n";
+import type { PagePattern } from "./types";
+import { PATTERN_LABELS } from "./validate";
 
 export type GraphEvent =
   // 付け替えた。into は落とし先の箱のキー（null は最上位）、page はほかのページから移したときの今のページの名前
@@ -10,6 +12,8 @@ export type GraphEvent =
   // ページの箱を、ページの中へは移せない
   // 子を持つ箱を、子が子を持てない戦略（フローチャート）の中へ入れようとした（入れなかった）
   | { kind: "leafKids" }
+  // パターンの違うページへ箱を移そうとした（付け替え・戻す・移植。移さなかった。docs/PATTERN-plan.md: またぐ操作はしない）
+  | { kind: "crossPattern"; from: PagePattern; to: PagePattern }
   // 子孫ごと消した
   | { kind: "removed"; key: string; kids: number; cutEdges: number }
   // 消したボックスを戻した。byDrag はサイドバーの一覧からドラッグして戻したか
@@ -42,6 +46,8 @@ export function noticeOf(ev: GraphEvent): string {
     }
     case "leafKids":
       return t("フローチャートの中の箱は子を持てないので、子を持つ箱は入れられません");
+    case "crossPattern":
+      return t("パターンの違うページ（{from} → {to}）へは移せません。関連は、リンクの箱へ線を引いて示します", { from: PATTERN_LABELS[ev.from], to: PATTERN_LABELS[ev.to] });
     case "removed": {
       const parts = list([kids(ev.kids), lines(ev.cutEdges)]);
       return t("「{key}」を消しました", { key: ev.key }) + (parts ? t("（{list}も）", { list: parts }) : "");

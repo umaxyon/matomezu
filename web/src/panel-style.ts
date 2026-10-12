@@ -143,6 +143,8 @@ export const PANEL_CSS = /* i18n-ok（CSS のコメントだけ） */ `
 .mzp-row-text { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.3; }
 .mzp-row-cap { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mzp-row-parent { font-size: 11px; color: var(--mzp-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 消したものの行の、載っていたページのパターン（今のページと違うときだけ。戻せない） */
+.mzp-row-pattern { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 999px; font-size: 10px; line-height: 15px; color: var(--mzp-muted); box-shadow: inset 0 0 0 1px currentColor; }
 .mzp-removed .mzp-row-cap { color: var(--mzp-muted); text-decoration: line-through; }
 .mzp-del {
   flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 4px; cursor: pointer;

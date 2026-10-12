@@ -143,7 +143,7 @@ import {
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
 import { type Head, headOf, isHead } from "./heads";
-import { type Subtree, captionOfData, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, subtreeIds } from "./pages";
+import { type Subtree, captionOfData, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import { type RouteFix, type RouteInput, alignedEnds, framedAround, isAligned, passes, perimeterAt, pickCandidate, route, routeCandidates, vertexOf } from "./routing";
 import { type Rect, nearestAt, pointAt } from "./geom";
@@ -783,6 +783,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // それ以外（子の無いボックスやツリー、非表示）は自動で並べる
   function reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
     const dest = target(parentId);
+    if (!source.nodes.some(s => String(s.id) === String(id))) throw new Error(t("ボックスがありません: {id}", { id }));
+    if (refusePattern(patternOf(source, pageOf(source.nodes, id)))) return false;
     if (refuseKids(dest, subtreeIds(api.toJSON().nodes, id).size - 1)) return false;
     const to = placeOf(dest);
     let cut = 0, fromPage: string | null = null;
@@ -853,6 +855,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (dest && !shapeDef(shapeOf(dest)).kids) throw new Error(t("クラスの箱は子を持てません"));
     if (dest && !acceptsKid(dest, false)) throw new Error(t("フローチャートの中の箱は子を持てません"));
     return dest;
+  }
+
+  // パターンの違うページから箱を移そうとしたら（付け替え・戻す・移植）、知らせて断る（true）。要素はパターンをまたがない（docs/PATTERN-plan.md）
+  function refusePattern(from: PagePattern): boolean {
+    const to = patternOf(source, page);
+    if (from === to) return false;
+    opt.onEvent?.({ kind: "crossPattern", from, to });
+    return true;
   }
 
   // 子を持つ箱（子孫 kids 個）を、子が子を持てない戦略（フローチャート）の箱 dest へ入れようとしたら、知らせて断る（true）
@@ -1101,6 +1111,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
   function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }, byDrag = false) {
     const dest = target(parentId);
+    if (!(source.removed ?? []).some(s => String(s.id) === String(id))) throw new Error(t("消したボックスにありません: {id}", { id }));
+    if (refusePattern(patternOf(source, removedPageOf(source, id)))) return false;
     if (refuseKids(dest, subtreeIds(api.toJSON().removed ?? [], id).size - 1)) return false;
     const pos = dropPos(dest, at);
     const n = rebuildWith(data => {
@@ -1116,6 +1128,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 位置の扱いは復活と同じ。写した箱の新しい id を返す
   function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string) {
     const dest = target(parentId);
+    if (refusePattern(copy.pattern ?? DEFAULT_VIEW)) return "";
     if (refuseKids(dest, copy.nodes.length - 1)) return "";
     const pos = dropPos(dest, at);
     let r!: ReturnType<typeof pasteSubtree>;
@@ -1171,7 +1184,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     };
     return {
       ...liveItems(source, page, s => { const n = byId.get(String(s.id)); return n ? paintOf(n).color : paint(s); }),
-      removed: removed.map(s => ({ ...item(s.id!, removedCaption.get(String(s.id))!, s, nameOf(s.parent)), purgeable: canPurge(removed, s.id!) })),
+      removed: removed.map(s => ({
+        ...item(s.id!, removedCaption.get(String(s.id))!, s, nameOf(s.parent)), purgeable: canPurge(removed, s.id!),
+        pattern: patternOf(source, removedPageOf(source, s.id!)),
+      })),
     };
   }
 
