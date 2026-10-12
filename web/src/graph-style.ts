@@ -175,8 +175,8 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-leaf.mz-link { display: grid; padding: var(--mz-out-y, 0px) var(--mz-out-x, 0px); text-align: left; align-items: start; }
 .mz-link-parts { display: contents; } /* 部品の親は display: contents の入れ物なので、.mz-head の子セレクタ（>）では引けない。子孫で引く */
 .mz-link-parts[hidden] { display: none; }
-.mz-link > .mz-text { grid-area: text; margin: 8px 10px 0; }
-.mz-link > .mz-body { grid-area: body; margin: 0 10px; }
+.mz-link > .mz-text { grid-area: text; margin: 8px var(--mz-link-gap) 0; } /* 文字の左右は窓にそろえる */
+.mz-link > .mz-body { grid-area: body; margin: 0 var(--mz-link-gap); }
 .mz-leaf.mz-link.mz-has-body > .mz-body { margin-top: 4px; }
 .mz-link.mz-link-empty > .mz-text { display: none; }
 .mz-link-bar { grid-area: bar; cursor: grab; background: color-mix(in srgb, currentColor 10%, transparent); border-bottom: 1px solid color-mix(in srgb, currentColor 25%, transparent);

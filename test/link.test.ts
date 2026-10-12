@@ -177,9 +177,10 @@ test("縮尺と切り取り: 窓の viewBox は previewRegion の四角。clip �
   const whole = previewRegion(scene, win, DEFAULTS.previewMinScale, null);
   expect(viewBox()).toBe(`${whole.x} ${whole.y} ${whole.w} ${whole.h}`);
   expect(whole.w).toBe(win.w / DEFAULTS.previewMinScale); // 収まらないので下限の縮尺
-  graph.update("1", { clip: { x: 2900, y: 1900, w: 360, h: 184 } });
-  expect(graph.toJSON().nodes.find(n => n.id === 1)!.clip).toEqual({ x: 2900, y: 1900, w: 360, h: 184 });
-  expect(viewBox()).toBe("2900 1900 360 184");
+  const clip = { x: 2900, y: 1900, w: win.w * 2, h: win.h * 2 }; // 窓と同じ縦横比なら、その四角がそのまま映る
+  graph.update("1", { clip });
+  expect(graph.toJSON().nodes.find(n => n.id === 1)!.clip).toEqual(clip);
+  expect(viewBox()).toBe(`${clip.x} ${clip.y} ${clip.w} ${clip.h}`);
   graph.update("1", { clip: null });
   expect(graph.toJSON().nodes.find(n => n.id === 1)!.clip).toBeUndefined();
   expect(viewBox()).toBe(`${whole.x} ${whole.y} ${whole.w} ${whole.h}`);
