@@ -166,6 +166,36 @@ test("窓には、のぞくページの縮図が映る: 描いたことのない
   expect(graph.pageScene("p1").boxes.map(b => b.x)).toEqual([900, 400]);
 });
 
+test("ツリーのページの縮図は木の形: 描いていなければ根の子孫を組んで近似し（根の本体の下に子が並び、ツリーの線で結ぶ）、描いたあとは各箱の本体とツリーの線で映す（部分木の枠ではない）", () => {
+  const { graph } = setup({
+    pages: [{ id: "p1", title: "組織", world: { childView: "tree", root: 2 } }],
+    nodes: [
+      { id: 1, caption: "窓", link: "p1", x: 40, y: 40 },
+      { id: 2, caption: "根", page: "p1", x: 40, y: 40 }, { id: 3, caption: "A", parent: 2 }, { id: 4, caption: "B", parent: 2 }, { id: 5, caption: "A1", parent: 3 },
+    ],
+  });
+  const check = (s: ReturnType<typeof graph.pageScene>) => {
+    expect(s.boxes.length).toBe(4);
+    expect(s.boxes.every(b => !b.outline)).toBe(true);
+    const [root, a, b, a1] = [...s.boxes].sort((p, q) => p.y - q.y || p.x - q.x);
+    expect(a!.y).toBeGreaterThan(root!.y + root!.h);       // 子は根の下
+    expect(a!.y).toBe(b!.y);
+    expect(a1!.y).toBeGreaterThan(a!.y + a!.h);           // 孫はさらに下
+    expect(root!.x + root!.w / 2).toBeGreaterThan(a!.x); // 根は子の並びの間
+    expect(root!.x + root!.w / 2).toBeLessThan(b!.x + b!.w);
+    expect(Math.min(...s.boxes.map(q => q.x))).toBeGreaterThanOrEqual(0); // 左にはみ出さない
+    expect(s.edges.length).toBeGreaterThan(0);
+  };
+  const approx = graph.pageScene("p1");
+  check(approx);
+  graph.setPage("p1");
+  graph.setPage(null);
+  check(graph.pageScene("p1"));
+  // 大きさがそろっていれば、近似は描いた配置と同じ位置になる（並べ方の数値 treeGapX・treeGapY と余白を同じに使う）
+  const at = (s: typeof approx) => s.boxes.map(b => [b.x, b.y]).sort((p, q) => p[1]! - q[1]! || p[0]! - q[0]!);
+  expect(at(approx)).toEqual(at(graph.pageScene("p1")));
+});
+
 test("縮尺と切り取り: 窓の viewBox は previewRegion の四角。clip を書けばその範囲、null で全体に戻る。縮尺の下限は DEFAULTS.previewMinScale", () => {
   const { el, graph } = setup({
     pages: [{ id: "p1" }],

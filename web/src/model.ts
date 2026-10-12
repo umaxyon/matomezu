@@ -321,6 +321,33 @@ export function treeDirOf(c: Container): TreeDirection {
   const w = c.isWorld ? c : c.world;
   return isTreeDirection(w.src.treeDirection) ? w.src.treeDirection : "down";
 }
+// ツリーの線の区間の並び: 親の本体 head の子に向いた辺の中央から主軸方向へ半分（gapY / 2）進み、副軸方向に分けて、各子の本体 kids の親に向いた辺へつなぐ。
+// 画面の線（render.ts）とページの縮図（graph.ts の geometry と、描いていないページの近似）が同じ形を使う
+type R4 = { x: number; y: number; w: number; h: number };
+export function treeLinesBetween(dir: TreeDirection, head: R4, kids: R4[], gapY: number): [number, number][][] {
+  const half = gapY / 2;
+  const out: [number, number][][] = [];
+  if (!kids.length) return out;
+  if (dir === "down" || dir === "up") {
+    const px = head.x + head.w / 2;
+    const from = dir === "down" ? head.y + head.h : head.y;
+    const mid = dir === "down" ? from + half : from - half;
+    const xs = kids.map(k => k.x + k.w / 2);
+    out.push([[px, from], [px, mid]], [[Math.min(px, ...xs), mid], [Math.max(px, ...xs), mid]]);
+    kids.forEach((k, i) => out.push([[xs[i]!, mid], [xs[i]!, dir === "down" ? k.y : k.y + k.h]]));
+  } else {
+    const py = head.y + head.h / 2;
+    const from = dir === "right" ? head.x + head.w : head.x;
+    const mid = dir === "right" ? from + half : from - half;
+    const ys = kids.map(k => k.y + k.h / 2);
+    out.push([[from, py], [mid, py]], [[mid, Math.min(py, ...ys)], [mid, Math.max(py, ...ys)]]);
+    kids.forEach((k, i) => out.push([[mid, ys[i]!], [dir === "right" ? k.x : k.x + k.w, ys[i]!]]));
+  }
+  return out;
+}
+// ツリーの節 n の線（n の左上からの座標）
+export const treeLinesOf = (n: Box, gapY: number): [number, number][][] =>
+  treeLinesBetween(treeDirOf(n), { x: n.hx, y: n.hy, w: n.hw, h: n.hh }, n.children.map(k => ({ x: k.x + k.hx, y: k.y + k.hy, w: k.hw, h: k.hh })), gapY);
 // 子を内包しているボックスは枠なので、形は常にボックス
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
 // 線のキャプションの候補: 始点が分岐の形（ひし形）で、それを並べる戦略が候補を持つとき（フローチャートの Yes / No）

@@ -17,6 +17,7 @@ export interface GeoBox extends Rect {
   color?: string;      // 箱の色（ミニマップで使う）
   fill?: boolean;      // 塗るか（ミニマップで使う。false の箱は塗らない）
   border?: boolean;    // 枠を引くか（ミニマップで使う。塗らず枠も無い箱は描かない）
+  head?: Rect;         // ツリーで並ぶ箱の本体（x, y, w, h は部分木の枠。縮図では本体を描く）
 }
 
 // 見えている線（ツリーの線は含まない）。points は線の点の並び（折れ線なら折れ点を含む）
@@ -27,6 +28,7 @@ export interface Geometry {
   viewport: { w: number; h: number };
   boxes: GeoBox[];
   edges: GeoEdge[];
+  treeLines?: Pt[][];  // ツリーの線の区間（ワールドの座標。縮図で使う）
 }
 
 const LABEL_MAX = 12;
