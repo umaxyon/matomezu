@@ -79,6 +79,22 @@ test("リンクの箱の窓を押すと、そのページのタブが前に出�
   await expect(page.locator(".stage:visible .mz-head", { hasText: "開始" })).toHaveCount(1);
 });
 
+test("matomezu close で、画面のタブが閉じる（タブの × と同じ。読み直しても戻らず、open すればまた開ける）", async ({ page }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  run("open", "-no-browser", "b.json");
+  await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
+  expect(run("close", "b.json")).toContain("closed b.json");
+  await expect(tabNames(page)).toHaveText(["a.json"]);
+  await expect(selected(page)).toHaveText("a.json");
+  await page.reload();
+  await expect(tabNames(page)).toHaveText(["a.json"]);
+  // 登録は残るので、open すればまた開ける。登録の無い図は誤り
+  run("open", "-no-browser", "b.json");
+  await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
+  expect(() => run("close", "nothing.json")).toThrow(/not registered/);
+});
+
 test("見ていないタブの図を set すると、そのタブが前に出て配置の要約が返る", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);

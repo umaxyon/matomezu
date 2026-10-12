@@ -13,6 +13,8 @@
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
 //	POST /api/open       {"path", "show", "page"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
 //	                     show なら、つながっている画面にその図（page があればそのページ）を開くよう知らせる
+//	POST /api/close      {"path"} の図のタブを閉じるよう、つながっている画面に知らせ、{"id", "connections"} を返す … 要トークン
+//	                     登録は残す（あとで open すればすぐ開ける。登録は新しい方から storeLimit 件まで）。登録の無い図は誤り
 //	POST /api/shutdown   サーバーを止める                                … 要トークン
 //
 // /api/events のイベント（data は JSON）:
@@ -21,6 +23,7 @@
 //	hello    {"client"} この接続の id。画面は /api/watch で、開いている図をこの id で知らせる
 //	version  {"doc", "version"} 図のファイルの版が変わった。つないだときは登録済みの全部の図の分を送る
 //	open     {"doc", "page"} その図のページ（page が "" なら最初のページ）を開いて前に出す。つないだときも、少し前に頼まれていれば送る
+//	close    {"doc"} その図のタブを閉じる（matomezu close）
 //
 // 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
 //
@@ -260,6 +263,39 @@ func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
 	return OpenResult{ID: d.id, Path: d.path, Connections: conns}, nil
 }
 
+// CloseResult は Close の結果。Connections は知らせた画面の数
+type CloseResult struct {
+	ID          string `json:"id"`
+	Connections int    `json:"connections"`
+}
+
+// Close は path の図のタブを閉じるよう、つながっている画面に知らせる。登録は残す（画面の × と同じ）。
+// 少し前に頼まれた open が残っていれば消す（つなぎ直した画面が、閉じた図を開き直さないように）
+func (h *Hub) Close(path string) (CloseResult, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return CloseResult{}, err
+	}
+	id := docID(abs)
+	h.mu.Lock()
+	d := h.docs[id]
+	if d != nil && h.shown != "" {
+		var shown struct {
+			Doc string `json:"doc"`
+		}
+		if json.Unmarshal([]byte(h.shown), &shown) == nil && shown.Doc == id {
+			h.shown = ""
+		}
+	}
+	conns := len(h.clients)
+	h.mu.Unlock()
+	if d == nil {
+		return CloseResult{}, fmt.Errorf("%s is not registered in matomezu (nothing to close)", abs)
+	}
+	h.broadcast(event{"close", jsonString(map[string]string{"doc": id})})
+	return CloseResult{ID: id, Connections: conns}, nil
+}
+
 func (h *Hub) versionChanged(id, v string) {
 	h.broadcast(event{"version", jsonString(map[string]string{"doc": id, "version": v})})
 }
@@ -406,6 +442,7 @@ func (h *Hub) Handler() http.Handler {
 	if h.token != "" {
 		mux.HandleFunc("GET /api/ping", h.control(h.ping))
 		mux.HandleFunc("POST /api/open", h.control(h.open))
+		mux.HandleFunc("POST /api/close", h.control(h.close))
 		mux.HandleFunc("POST /api/shutdown", h.control(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 			go h.shutdown()
@@ -442,6 +479,22 @@ func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 	res, err := h.Open(req.Path, req.Show, req.Page)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, res)
+}
+
+func (h *Hub) close(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.Path == "" {
+		http.Error(w, "path required", http.StatusBadRequest)
+		return
+	}
+	res, err := h.Close(req.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	writeJSON(w, res)

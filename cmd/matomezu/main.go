@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,6 +38,7 @@ const usageText = `usage:
                                              world.key=value changes the diagram's world, or with -page that page's world (its childView is the page pattern)
                                              12.page=p2 moves a top-level box to page p2, but never to a page of a different pattern
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
+  matomezu close <file.json>...              close the tabs of these diagrams in the browser (they stay registered; open shows them again)
   matomezu stop                              stop the background server
   matomezu version
 `
@@ -59,6 +61,8 @@ func main() {
 		err = set(args)
 	case "validate":
 		err = validateCmd(args)
+	case "close":
+		err = closeCmd(args)
 	case "stop":
 		err = stop()
 	case "daemon":
@@ -73,6 +77,49 @@ func main() {
 		fmt.Fprintln(os.Stderr, "matomezu:", err)
 		os.Exit(1)
 	}
+}
+
+// closeCmd は図のタブを画面で閉じる（タブの × と同じ。サーバーの登録は残る）。サーバーが動いていなければ、閉じるタブも無い
+func closeCmd(args []string) error {
+	fs := newFlags("close")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() == 0 {
+		fs.Usage()
+		os.Exit(2)
+	}
+	if daemon.Running() == nil {
+		fmt.Println("no matomezu server is running; nothing to close")
+		return nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	// 版の違うサーバーなら入れ替える（close を知らない古いサーバーのため）。そのときは画面がつなぎ直すのを少し待つ
+	s, replaced, err := daemon.Ensure(context.Background(), exe, buildVersion(exe))
+	if err != nil {
+		return err
+	}
+	var failed []string
+	for _, path := range fs.Args() {
+		res, err := daemon.Close(s, path)
+		// 入れ替えたばかりなら、画面がつなぎ直すまで知らせ直す（つながっていない間の知らせは届かない）
+		for deadline := time.Now().Add(reconnectWait); replaced && err == nil && res.Connections == 0 && time.Now().Before(deadline); {
+			time.Sleep(200 * time.Millisecond)
+			res, err = daemon.Close(s, path)
+		}
+		if err != nil {
+			failed = append(failed, err.Error())
+			continue
+		}
+		fmt.Printf("closed %s (%d browser connection(s))\n", path, res.Connections)
+	}
+	if len(failed) > 0 {
+		return errors.New(strings.Join(failed, "; "))
+	}
+	return nil
 }
 
 func newFlags(name string) *flag.FlagSet {
