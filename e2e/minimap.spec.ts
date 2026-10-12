@@ -80,3 +80,17 @@ test("全体像がミニマップの高さを超えても、右端は切れず�
     return v.y >= b.y - 1 && v.y + v.height <= b.y + b.height + 1 && v.x + v.width <= b.x + b.width + 0.01;
   }).toBe(true);
 });
+
+test("ミニマップでも、塗らない箱は枠だけ、塗らず枠も無い箱（見出しの文字だけの箱）は描かない", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [
+      { id: 1, caption: "見出しだけ", fill: false, border: false, x: 40, y: 20 },
+      { id: 2, caption: "枠だけ", fill: false, border: true, x: 40, y: 120 },
+      ...Array.from({ length: 10 }, (_, i) => ({ id: i + 3, caption: `箱 ${i + 3}`, x: 40 + (i % 2) * 300, y: 240 + i * 160 })),
+    ],
+  });
+  await page.locator("#minimap-toggle").click();
+  const map = page.locator(".mz-minimap");
+  await expect(map.locator(".mm-box")).toHaveCount(10);   // 塗る箱だけ
+  await expect(map.locator(".mm-group")).toHaveCount(1);  // 枠だけの箱（見出しだけの箱は描かない）
+});

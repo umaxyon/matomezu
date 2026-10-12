@@ -15,6 +15,8 @@ export interface GeoBox extends Rect {
   view?: ChildView; // 子の見せ方（子があるときだけ）
   kids?: number;       // 子の数（非表示の子も数える）
   color?: string;      // 箱の色（ミニマップで使う）
+  fill?: boolean;      // 塗るか（ミニマップで使う。false の箱は塗らない）
+  border?: boolean;    // 枠を引くか（ミニマップで使う。塗らず枠も無い箱は描かない）
 }
 
 // 見えている線（ツリーの線は含まない）。points は線の点の並び（折れ線なら折れ点を含む）

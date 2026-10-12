@@ -129,13 +129,15 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
     }
     for (const e of g.edges) items.push(make("polyline", "mm-edge", { points: e.points.map(p => p.join(",")).join(" ") }));
     // 子を持つ箱（内包・ツリー）は枠だけ、それ以外は塗る。親から先に描くので、子が上に来る
+    // 塗らない箱は枠だけにし、塗らず枠も無い箱（見出しの文字だけの箱など）は描かない（図と同じ見え方。2026-10-12 ユーザー）
     for (const b of g.boxes) {
-      const group = !!b.kids && b.view !== "hidden";
-      const r = make("rect", group ? "mm-group" : "mm-box", { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 });
+      const outline = (!!b.kids && b.view !== "hidden") || b.fill === false;
+      if (b.fill === false && b.border === false) continue;
+      const r = make("rect", outline ? "mm-group" : "mm-box", { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 });
       // 白（既定の色）は明るいテーマで背景に溶けるので、テーマに合わせた色にする
-      if (b.color && !/^#?f{3}(f{3})?$/i.test(b.color)) (r as SVGElement).style.setProperty(group ? "stroke" : "fill", b.color);
-      else (r as SVGElement).style.setProperty(group ? "stroke" : "fill", "var(--mm-box)");
-      if (group) r.setAttribute("vector-effect", "non-scaling-stroke");
+      if (b.color && !/^#?f{3}(f{3})?$/i.test(b.color)) (r as SVGElement).style.setProperty(outline ? "stroke" : "fill", b.color);
+      else (r as SVGElement).style.setProperty(outline ? "stroke" : "fill", "var(--mm-box)");
+      if (outline) r.setAttribute("vector-effect", "non-scaling-stroke");
       items.push(r);
     }
     // 見えている範囲の四角。図の端と重なる辺も線が半分切れないよう、線の太さの半分（画面で 1px）だけ内へ寄せる
