@@ -95,6 +95,8 @@ export default {
   "絵の形": "Picture shapes",
   "本文があるあいだは選べません": "Not available while the box has body text",
   "world の childView に使えるのは nest / tree / flow です: {where} ({value})": "world childView must be nest, tree or flow: {where} ({value})",
+  "childView の tree は箱には書けません（ページのパターンなので、world.childView に tree、world.root に根の箱の id を書きます）: {where}": "childView tree can't be set on a box (it is a page pattern; set world.childView to tree and world.root to the id of the root box): {where}",
+  "ページの違うボックス同士の線があります（ページをまたぐ関連は、そのページへのリンクの箱（link）を置いて線を引きます）: {from} - {to}": "An edge joins boxes on different pages (to relate pages, place a link box (link) to the other page and draw the edge to it): {from} - {to}",
   "childView の {value} は箱には書けません（ページのパターンなので world.childView に書きます）: {where}": "childView {value} can't be set on a box (it is a page pattern; set world.childView): {where}",
   "treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}": "treeDirection can't be set on a box (set world.treeDirection of the tree page): {where}",
   "ツリーのページで子を持てるのは根（world.root）の子孫だけです: {id} → {parent}": "On a tree page only descendants of the root (world.root) can have children: {id} → {parent}",

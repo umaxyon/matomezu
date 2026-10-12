@@ -222,3 +222,18 @@ func TestSetPageWorld(t *testing.T) {
 		t.Error("no error for a page that does not exist")
 	}
 }
+
+// 箱はパターンの違うページへは移さない（page の書き換えも、親の付け替えも）。同じパターンのページへは移せる
+func TestApplySetsRefusesCrossPattern(t *testing.T) {
+	in := `{"pages":[{"id":"p2","world":{"childView":"flow"}},{"id":"p3"}],"nodes":[{"id":1},{"id":2,"page":"p2"},{"id":3,"page":"p3"},{"id":4,"parent":3}]}`
+	_, _, err := applySets([]byte(in), "", []string{"1.page=p2"})
+	if err == nil || !strings.Contains(err.Error(), "box 1 would move from a nest page to a flow page") || !strings.Contains(err.Error(), "link box") {
+		t.Fatalf("got %v", err)
+	}
+	if _, _, err := applySets([]byte(in), "", []string{"4.parent=2"}); err == nil || !strings.Contains(err.Error(), "box 4 would move from a nest page to a flow page") {
+		t.Fatalf("got %v", err)
+	}
+	if _, _, err := applySets([]byte(in), "", []string{"1.page=p3", "4.parent="}); err != nil {
+		t.Fatal(err)
+	}
+}

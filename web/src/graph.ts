@@ -35,9 +35,9 @@
  *   graph.restore(id, parentId, at); // 消したボックスを子孫ごと parentId（null は最上位）の子に戻す。at は親の中での位置
  *   graph.items();               // サイドバーの一覧（表示中と、消したもの）
  *   graph.geometry();            // 見えているボックスと線の位置、表示領域の大きさ（配置の要約 report.ts に渡す）
- *   graph.setPage(id);           // 描くページを変える（ページの箱の id。null は最初のページ）。履歴はそのまま
+ *   graph.setPage(id);           // 描くページを変える（pages のページの id。null は最初のページ）。履歴はそのまま
  *   graph.page();                // 描いているページ
- *   graph.pages();               // ブックのページ（ページの箱の id とキャプション）
+ *   graph.pages();               // ブックのページ（2 枚目から。ページの id と名前）
  *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
  *   graph.purge(id);             // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱 userAdded だけ。docs/ADD-plan.md）
  *   graph.add(req, fields);      // 新しい箱を足す（req は追加モードで押した所。onAddRequest で届く。docs/ADD-plan.md）
@@ -90,8 +90,8 @@
  *       "clip" … 1 行にし、サイズの最大（width があればその幅）を幅の上限にする（文字が少なければ縮み、多ければ … で切る）
  *     S サイズでは使わない。子を持つボックスはつねに子に合わせて伸び、overflow・width・height を使わない
  *     （データにあっても無視する。図が幅を決め、文字は図の都合で折り返す。docs/SIZE-plan.md）。ワールドの overflow も使わない。
- *   - 線は同じ parent を持つボックス同士（最上位同士を含む）でだけ引ける。
- *     ツリーの子同士の線は描かない（データには残り、内包に戻すと表示される）。
+ *   - 線は同じ parent を持つボックス同士（同じページの最上位同士を含む）でだけ引ける。ページをまたぐ関連は、リンクの箱へ線を引く。
+ *     ツリーの中の箱どうしの線は描かない（データには残り、内包に変換すると表示される）。
  *   - 線の id が無ければ自動で振る。toJSON() は線を常に { id, from, to } の形で返す。
  *   - arrow は線の矢印: "end"（終点 to の側）/ "start"（始点 from の側）/ "both"。無ければ矢印なし。
  *   - dash は線の模様: "dashed"（破線）。無ければ（"solid"）実線。
@@ -107,7 +107,7 @@
  *   - via は手で直した折れ線の途中の区間の位置の並び（docs/ROUTE-plan.md、routing.ts）。選択モードで途中の区間をドラッグすると、
  *     そのときの形（exit / enter / via）を書き込む。引けるあいだはその形を保ち、引けなくなったら via と向きの指定を消して自動に戻す。
  *     無ければ自動（Z 字の中棒は真ん中か、ほかの箱を避けた位置）。以前の bend（中棒の割合）は、読み込むと via に移す。
- *     ページの既定は、ページの箱の world.route。docs/EDGE-plan.md
+ *     ページの既定は、そのページの world.route。docs/EDGE-plan.md
  *   - link はリンクの箱（link-box.ts。docs/PATTERN-plan.md）: のぞく（窓を押すと開く）ページの id。形・サイズ・子の見せ方は使わず、子を持てない。
  *     linkLook は見せ方: "window"（窓枠。上の帯が持ち手。既定）/ "side"（横に分ける。左の帯が持ち手）。
  *     窓にはそのページの縮図（四角と線だけ。preview-art.ts）が映る。ページ全体が収まる縮尺で、DEFAULTS.previewMinScale より縮めずに切り取る。
@@ -115,12 +115,13 @@
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
  *   - ページ（docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）: 2 枚目からのページは pages: [{ id, title, world }] に並び、
- *     最上位の箱は page: ページの id でそのページに載る（無ければ最初のページ）。中の箱は親と同じページ。ページの world がそのページのパターンを持つ。
- *     ページのワールドの設定は、そのボックスの world に持つ（ファイルの world と同じ形）。
+ *     最上位の箱は page: ページの id でそのページに載る（無ければ最初のページ）。中の箱は親と同じページ。
+ *     ページのワールドの設定（パターン・テーマ・背景など）は、そのページの world に持つ（ファイルの world と同じ形）。
+ *     箱はパターンの違うページへは移せない（付け替え・戻す・移植は断って onEvent の crossPattern で知らせる）
  *
  * ブックとページ（docs/TABS-plan.md 3.2）:
- *   ファイル全体（ブック）のデータを持ち、描くのは 1 ページだけ。描くページの箱だけを Box にするので、
- *   ページの箱の子は親の無い箱（最上位）として、ワールドに並ぶ。配置と描画は、今のページだけを見ている。
+ *   ファイル全体（ブック）のデータを持ち、描くのは 1 ページだけ。描くページの箱だけを Box にし、
+ *   そのページの最上位の箱がワールドに並ぶ。配置と描画は、今のページだけを見ている。
  *   ほかのページの箱と線はデータ（source）にそのまま残し、保存のときに書き戻す。
  */
 
@@ -281,7 +282,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const svg = document.createElementNS(SVGNS, "svg");
 
   let source: Diagram = { nodes: [] }; // 読み込んだデータ（ブック全体。保存時に未知の項目もそのまま残す）
-  let page: string | null = null;      // 描いているページ（ページの箱の id。null は最初のページ）
+  let page: string | null = null;      // 描いているページ（pages のページの id。null は最初のページ）
   let offEdges: EdgeData[] = [];       // ほかのページの線（描かずに残しておく）
   let nodes: Box[] = [];               // データの並び順
   let roots: Box[] = [];

@@ -295,10 +295,13 @@ test("移植すると id と線の id を振り直し、親子と線を保つ。
   expect(out.nodes.slice(-3).map(n => [n.id, n.parent, n.page])).toEqual([[7, undefined, undefined], [8, 7, undefined], [9, 8, undefined]]);
   graph.setPage("p1");
   const src = book();
-  const id2 = graph.paste({ root: "3", nodes: [node(src, 3), node(src, 4), node(src, 5)], edges: [{ id: "e2", from: 3, to: 4 }] }, null, { x: 300, y: 500 });
+  // 根 3 の子に 4・5 を並べた部分木（線 e2 は子どうし）。page は根にだけ書く
+  const kid = (id: number) => ({ ...node(src, id), parent: 3, page: undefined });
+  const id2 = graph.paste({ root: "3", nodes: [node(src, 3), kid(4), kid(5)], edges: [{ id: "e2", from: 4, to: 5 }] }, null, { x: 300, y: 500 });
   const out2 = graph.toJSON();
   expect(id2).toBe("10");
-  expect(out2.nodes.slice(-3).map(n => [n.id, n.parent, n.page])).toEqual([[10, undefined, "p1"], [11, undefined, undefined], [12, 11, undefined]]);
+  expect(out2.nodes.slice(-3).map(n => [n.id, n.parent, n.page])).toEqual([[10, undefined, "p1"], [11, 10, undefined], [12, 10, undefined]]);
+  expect(out2.edges!.at(-1)).toMatchObject({ from: 11, to: 12 });
   expect(new Set(edgeIds(out2)).size).toBe(edgeIds(out2).length);
   graph.undo();
   expect(graph.toJSON().nodes.length).toBe(out.nodes.length);

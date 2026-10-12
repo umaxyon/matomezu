@@ -99,7 +99,9 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
   if (s.kidSize != null && !isSize(s.kidSize)) out.push(t("kidSize の値が不正です: {where} ({value})", { where, value: s.kidSize }));
   // 箱の childView は内包パターンの見せ方だけ。ツリーとフローチャートはページのパターン（world.childView）なので、箱に書いたら直し方を案内する
   if (!world && s.childView != null && !isView(s.childView)) {
-    out.push(includes(PAGE_PATTERNS, s.childView)
+    out.push(s.childView === "tree"
+      ? t("childView の tree は箱には書けません（ページのパターンなので、world.childView に tree、world.root に根の箱の id を書きます）: {where}", { where })
+      : includes(PAGE_PATTERNS, s.childView)
       ? t("childView の {value} は箱には書けません（ページのパターンなので world.childView に書きます）: {where}", { where, value: s.childView })
       : t("childView の値が不正です: {where} ({value})", { where, value: s.childView }));
   }
@@ -302,6 +304,9 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
       else if (!memberNames(box).includes(m)) fail(t("{key} の属性・操作がありません: {from} - {to} ({value})", { key, from, to, value: m }));
     }
     if (parentOf(from) !== parentOf(to)) fail(t("階層の違うボックス同士の線があります: {from} - {to}", { from, to }));
+    else if (pageKeyOf(byId.get(String(from))!) !== pageKeyOf(byId.get(String(to))!)) {
+      fail(t("ページの違うボックス同士の線があります（ページをまたぐ関連は、そのページへのリンクの箱（link）を置いて線を引きます）: {from} - {to}", { from, to }));
+    }
     if (id != null) {
       if (edgeIds.has(String(id))) fail(t("線の id が重複しています: {id}", { id }));
       edgeIds.add(String(id));
