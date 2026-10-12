@@ -14,6 +14,8 @@ export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class" | "
   | "parallelogram" | "parallelogramAlt" | "trapezoid" | "trapezoidAlt"
   | "pc" | "factory" | "document" | "trash" | "robot" | "cat" | "heart" | "bulb" | "dog" | "forest" | "house" | "family";
 export type TreeDirection = "down" | "up" | "left" | "right";
+// リンクの箱の見せ方（link-box.ts）: 窓枠（上の帯が持ち手）/ 横に分ける（左の帯が持ち手）
+export type LinkLook = "window" | "side";
 export type Id = number | string;
 
 export interface WorldData {
@@ -55,6 +57,8 @@ export interface BoxData {
   border?: boolean;
   overflow?: Overflow;
   page?: Id;             // 載っているページ（pages の id。最上位の箱だけに書く。無ければ最初のページ。docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）
+  link?: Id;             // リンクの箱: のぞく（押すと開く）ページの id（pages の id。link-box.ts）。形・サイズ・子の見せ方は使わず、子を持てない
+  linkLook?: LinkLook;   // リンクの箱の見せ方（無ければ window）
   abstract?: boolean;    // クラスの箱（shape: "class"）が抽象クラスか（docs/CLASS-plan.md）
   attrs?: ClassAttr[];   // クラスの箱の属性
   ops?: ClassOp[];       // クラスの箱の操作
@@ -166,6 +170,7 @@ export interface BoxInfo {
   tools: { id: string | null; shapes: Shape[]; size: Size } | null; // 道具入れ（ページのパターンのもの。ワールドなので id は null）と、足せる形、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（ツリーのページの根の子孫。並びはツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md）
   treeRoot: boolean; // ツリーのページの根か（消せず、付け替えられない）
+  link: { page: string; pageName: string; pattern: PagePattern; look: LinkLook } | null; // リンクの箱なら、のぞくページと見せ方（link-box.ts）。形・サイズ・子の見せ方は使わない
   parent: Brief | null;
   x: number;
   y: number;
@@ -252,6 +257,7 @@ export interface Patch {
   shape?: Shape;
   childView?: ChildView;         // 箱なら子の見せ方（BoxView）、ワールドならページのパターン（PagePattern）
   treeDirection?: TreeDirection; // ワールドだけ（ツリーのページの向き）
+  linkLook?: LinkLook;           // リンクの箱の見せ方（link-box.ts）
   fill?: boolean;
   border?: boolean;
   overflow?: Overflow;

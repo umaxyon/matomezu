@@ -379,6 +379,7 @@ export async function startApp(ui: AppUi) {
         onBuild: () => { if (book) { refreshPages(book); othersChanged(book); } },
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
+        onOpenPage: page => { if (book) activate(book, page); }, // リンクの箱の窓（link-box.ts）
       }, { otherBooks: () => (book ? othersOf(book) : []) });
       const b: Book = {
         id, name: remote.name, color, group, addPage, tabs: [], stage, side, graph, panel, minimap,

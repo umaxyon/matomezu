@@ -21,7 +21,9 @@ import type { AddRequest } from "./interaction";
 import { closeColorPicker, openColorPicker } from "./color-picker";
 import { DEFAULTS } from "./graph";
 import { PALETTE, THEMES, isPaletteName, paintFor, themeById } from "./theme";
-import type { BoxData, BoxInfo, Patch, Shape, Size } from "./types";
+import type { BoxData, BoxInfo, LinkLook, Patch, Shape, Size } from "./types";
+import { LINK_LOOK_OPTIONS } from "./link-box";
+import { PATTERN_LABELS } from "./validate";
 import { shapePicker, syncShapePicker } from "./shape-picker";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 
@@ -154,10 +156,11 @@ const LINE_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 interface BoxValues {
   caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean;
   shape: Shape; size: Size; theme: string; color: string; bodyAllowed: boolean;
+  linkLook: LinkLook | null; // リンクの箱の見せ方（リンクの箱でなければ null。link-box.ts）
   // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
   abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
 }
-type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops"> & {
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops" | "link"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
   color: string;      // 書いた色（名前か色の値。"" は書いていない）
   inherited: string;  // 親から受け継ぐテーマ（テーマを「受け継ぐ」にしたときの色の見本と、見た目の色に使う）
@@ -225,11 +228,16 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const frameOff = (v: Shape): string | null => (b.canShape ? null
     : !b.canClass ? t("子を内包している箱は枠なので、形を選べません")
     : v !== "box" && v !== "class" ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : null);
-  const side = `<div class="mz-dlg-side">
-      <div class="mz-dlg-group"><h3>${t("形")}</h3>
+  // リンクの箱（link-box.ts）は形とサイズを使わないので、その欄の代わりにリンク先と見せ方を出す（形・サイズの欄は隠すだけ。下の決まりが読むため）
+  const linkGroup = b.link ? `<div class="mz-dlg-group"><h3>${t("リンク")}</h3>
+        <p class="mz-dlg-note">${esc(t("「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます", { name: b.link.pageName, pattern: PATTERN_LABELS[b.link.pattern] }))}</p>
+        <div class="mz-dlg-seg">${LINK_LOOK_OPTIONS.map(([v, label]) => `<label><input type="radio" name="linkLook" value="${v}"${v === b.link!.look ? " checked" : ""}>${esc(label)}</label>`).join("")}</div>
+        <p class="mz-dlg-note">${t("形とサイズは使いません（大きさは見せ方と文字で決まります）")}</p></div>` : "";
+  const side = `<div class="mz-dlg-side">${linkGroup}
+      <div class="mz-dlg-group"${b.link ? " hidden" : ""}><h3>${t("形")}</h3>
         ${shapePicker({ name: "shape", value: b.shape, off: frameOff })}
         ${b.canShape ? "" : `<p class="mz-dlg-note">${b.canClass ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
-      <div class="mz-dlg-group"><h3>${t("サイズ")}</h3>
+      <div class="mz-dlg-group"${b.link ? " hidden" : ""}><h3>${t("サイズ")}</h3>
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
         ${b.sizeFixed ? `<p class="mz-dlg-note">${t("内包・リストの箱の大きさは、子の並びで決まります")}</p>` : ""}
         <p class="mz-dlg-note" data-class-size hidden>${t("クラスの箱の幅は、中身に合わせて決まります")}</p></div>
@@ -289,6 +297,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       rule: field("rule").getAttribute("aria-checked") === "true",
       lines: linesValue ? Number(linesValue) : null,
       widthAuto: !!field<HTMLInputElement>("width-auto").value,
+      linkLook: b.link ? (overlay.querySelector<HTMLInputElement>('[name="linkLook"]:checked')?.value as LinkLook | undefined) ?? b.link.look : null,
       ...classValues(),
     });
   }, lead, () => {
@@ -422,7 +431,7 @@ export function openEditDialog(graph: Graph, id: string): void {
   const info = graph.info(id);
   if (info.kind === "world") return;
   const b = info as BoxInfo;
-  const sizeFixed = b.framed;
+  const sizeFixed = b.framed || !!b.link; // 内包・リストの箱と、リンクの箱（窓の大きさで決まる）はサイズを使わない
   const inherited = graph.info(b.parent?.id ?? null).themeUsed;
   const start: BoxStart = { ...b, theme: b.theme ?? "", color: b.color, inherited, sizeFixed, kids: b.children.length };
   boxDialog(t("ボックスの編集"), t("確定"), start, v => {
@@ -444,6 +453,7 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (v.bodyAllowed && v.body && v.rule !== b.bodyRule) patch.bodyRule = v.rule ? null : false; // 本文が無ければ区切り線は変えない
     if (v.bodyAllowed && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
     if (b.bodyWidth && v.widthAuto) patch.bodyWidth = null;
+    if (b.link && v.linkLook && v.linkLook !== b.link.look) patch.linkLook = v.linkLook;
     if (Object.keys(patch).length) graph.update(id, patch); // まとめて 1 件の変更
   });
 }
@@ -464,7 +474,7 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
     caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
     shape, size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
     color: "", inherited: graph.info(req.parentId).themeUsed,
-    abstract: false, attrs: [], ops: [], kids: 0,
+    abstract: false, attrs: [], ops: [], kids: 0, link: null,
   };
   boxDialog(t("ボックスの追加"), t("追加"), start, v => {
     const fields: Partial<BoxData> = {};

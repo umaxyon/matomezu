@@ -109,4 +109,12 @@ export default {
   "存在しないページです: {id} → {page}": "no such page: {id} → {page}",
   "page は最上位の箱にだけ書けます（中の箱は親と同じページに載ります）: {id}": "page can only be set on a top-level box (boxes inside follow their parent's page): {id}",
   "kidSize の値が不正です: {where} ({value})": "invalid kidSize: {where} ({value})",
+  "linkLook に使えるのは window / side です: {where} ({value})": "linkLook must be window or side: {where} ({value})",
+  "存在しないページへのリンクです: {id} → {page}": "link to a page that does not exist: {id} → {page}",
+  "リンクの箱は子を持てません: {id}": "a link box cannot have children: {id}",
+  "自分の載っているページへはリンクできません: {id}": "a box cannot link to the page it is on: {id}",
+  "ツリーの根はリンクの箱にできません: {id}": "the root of a tree page cannot be a link box: {id}",
+  "内包": "Nested",
+  "ツリー": "Tree",
+  "フローチャート": "Flowchart",
 } satisfies Record<string, string>;

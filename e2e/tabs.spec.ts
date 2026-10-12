@@ -53,6 +53,32 @@ test("別の図を open するとアプリ内のタブが増え、前に出る�
   await expect(tabNames(page)).toHaveText(["a.json"]);
 });
 
+test("リンクの箱の窓を押すと、そのページのタブが前に出る。持ち手でドラッグすると箱が動く（link-box.ts）", async ({ page }) => {
+  writeFileSync(join(dir, "link.json"), JSON.stringify({
+    pages: [{ id: "p1", title: "流れ", world: { childView: "flow" } }],
+    nodes: [{ id: 1, caption: "窓", body: "のぞく", link: "p1", x: 60, y: 60 }, { id: 2, caption: "開始", page: "p1", x: 40, y: 40 }],
+  }));
+  const url = run("open", "-no-browser", "link.json").trim();
+  await page.goto(url);
+  await expect(tabNames(page)).toHaveText(["link.json", "流れ"]);
+  await expect(selected(page)).toHaveText("link.json");
+  const head = page.locator('.stage:visible .mz-node[data-id="1"] > .mz-head');
+  await expect(head.locator(".mz-link-badge")).toHaveText("フローチャート");
+  // 持ち手（上の帯）でドラッグすると動く
+  const bar = (await head.locator(".mz-link-bar").boundingBox())!;
+  await page.mouse.move(bar.x + 10, bar.y + bar.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bar.x + 110, bar.y + 60, { steps: 8 });
+  await page.mouse.up();
+  const moved = () => JSON.parse(readFileSync(join(dir, "link.json"), "utf8")).nodes[0] as { x: number; y: number };
+  await expect.poll(() => moved().x).toBeGreaterThan(60);
+  expect(moved().y).toBeGreaterThan(60);
+  // 窓を押すと、ページのタブが前に出る
+  await head.locator(".mz-link-win").click();
+  await expect(selected(page)).toHaveText("流れ");
+  await expect(page.locator(".stage:visible .mz-head", { hasText: "開始" })).toHaveCount(1);
+});
+
 test("見ていないタブの図を set すると、そのタブが前に出て配置の要約が返る", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);

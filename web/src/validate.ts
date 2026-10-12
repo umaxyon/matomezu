@@ -5,6 +5,7 @@ import { isHead } from "./heads";
 import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import { SHAPE_DEFS } from "./shapes";
+import { isLinkLook } from "./link-box";
 import type { BoxView, Diagram, EdgeData, Id, PagePattern, Shape, Size } from "./types";
 
 export interface SizeSpec {
@@ -52,6 +53,8 @@ export const SHAPE_GROUPS: { label: string; shapes: Shape[] }[] = [
   { label: t("フローチャートの形"), shapes: ["hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt"] },
   { label: t("絵の形"), shapes: ["person", "db", "server", "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb", "dog", "forest", "house", "family"] },
 ];
+// ページのパターンの画面での名前（サイドバー・ダイアログ・リンクの箱の札）
+export const PATTERN_LABELS: Record<PagePattern, string> = { nest: t("内包"), tree: t("ツリー"), flow: t("フローチャート") };
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;
@@ -101,6 +104,7 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
       : t("childView の値が不正です: {where} ({value})", { where, value: s.childView }));
   }
   if (!world && s.treeDirection != null) out.push(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where }));
+  if (s.linkLook != null && !isLinkLook(s.linkLook)) out.push(t("linkLook に使えるのは window / side です: {where} ({value})", { where, value: s.linkLook }));
   if (theme && s.theme != null && !isTheme(s.theme)) {
     out.push(t("theme の値が不正です: {where} ({value})。使えるのは {themes}", { where, value: s.theme, themes: THEMES.map(x => x.id).join(" / ") }));
   }
@@ -205,6 +209,13 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (!pages.has(String(n.page))) { fail(t("存在しないページです: {id} → {page}", { id: n.id, page: n.page })); continue; }
     if (n.parent != null) fail(t("page は最上位の箱にだけ書けます（中の箱は親と同じページに載ります）: {id}", { id: n.id }));
   }
+  // リンクの箱（link-box.ts）: link は存在するページの id で、自分の載っているページではない。子を持てない
+  const hasKids = new Set([...byId.values()].filter(n => n.parent != null).map(n => String(n.parent)));
+  for (const n of byId.values()) {
+    if (n.link == null) continue;
+    if (!pages.has(String(n.link))) { fail(t("存在しないページへのリンクです: {id} → {page}", { id: n.id, page: n.link })); continue; }
+    if (hasKids.has(String(n.id))) fail(t("リンクの箱は子を持てません: {id}", { id: n.id }));
+  }
   // ページのパターンの決まり（docs/PATTERN-plan.md。model.ts の STRATEGIES の leafKids・rootOnly。
   // この検査は DOM なしの CLI でも動かすので、戦略の表は読まずに名前で見る）
   const topOf = (n: Record<string, unknown>) => { // そのページの最上位の祖先（自分かもしれない）
@@ -218,6 +229,9 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     const w = key == null ? data.world : pages.get(key)?.world;
     return isObject(w) ? w : {};
   };
+  for (const n of byId.values()) {
+    if (n.link != null && pages.has(String(n.link)) && String(n.link) === pageKeyOf(n)) fail(t("自分の載っているページへはリンクできません: {id}", { id: n.id }));
+  }
   for (const n of byId.values()) {
     if (n.parent == null) continue;
     const world = worldOfPage(pageKeyOf(n));
@@ -234,6 +248,7 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     const root = world.root != null ? byId.get(String(world.root)) : undefined;
     const ok = root && root.parent == null && (root.page == null ? null : String(root.page)) === pageId;
     if (!ok) fail(t("ツリーのページには根が要ります（world.root に、そのページの最上位の箱の id）: {where}", { where: pageId ?? "world" }));
+    else if (root.link != null) fail(t("ツリーの根はリンクの箱にできません: {id}", { id: root.id }));
   };
   checkRoot(worldOfPage(null), null);
   for (const [key, p] of pages) if (isObject(p.world)) checkRoot(p.world, key);

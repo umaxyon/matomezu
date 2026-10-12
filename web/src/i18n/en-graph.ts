@@ -34,4 +34,9 @@ export default {
   "子を持つ最上位の箱があるので、箱が子を持てないパターン（フローチャート）にはできません": "A top-level box has children, so this page can't use a pattern whose boxes can't have children (flowchart)",
   "treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}": "treeDirection can't be set on a box (set world.treeDirection of the tree page): {where}",
   "ツリーのページには根が要ります（最上位の箱が 1 つも無いのでツリーにできません）": "A tree page needs a root (there is no top-level box, so it can't become a tree)",
+  "linkLook はリンクの箱（link のある箱）にだけ書けます: {where}": "linkLook can only be set on a link box (a box with link): {where}",
+  "開く ↗": "Open ↗",
+  "押すと「{name}」のページを開きます": "Click to open the page \"{name}\"",
+  "窓枠": "Window",
+  "横に分ける": "Side by side",
 } satisfies Record<string, string>;

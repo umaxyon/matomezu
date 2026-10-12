@@ -58,6 +58,7 @@ export interface InteractionContext {
   reparent(id: string, parentId: string | null, at?: { x: number; y: number }): void;
   drop(n: Box): void;             // ドラッグ中に解決できなかった重なりを直す（場面の表の drop）
   remove(n: Box): void;           // 子孫ごと消す
+  openLink(n: Box): void;         // リンクの箱の窓を押した（そのページを開く。link-box.ts）
   restore(id: string, parentId: string | null, at: { x: number; y: number }): void; // 消したボックスを戻す
   boxById(id: string): Box | undefined; // 今のページにある箱（無ければ undefined）
   edgeOfEl(el: Element): Edge | undefined;  // 線の部品（札・区間・端）の要素から、その線を引く
@@ -87,7 +88,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // どの種類も同じ形にする。押したときに種類ごとの関数が作って active に入れる。
   // dragging() と reset() は active だけを見るので、種類を足しても数え上げの漏れが起きない
   interface Gesture {
-    kind: "move" | "reorder" | "caption" | "lift" | "bend" | "end" | "body" | "link";
+    kind: "move" | "reorder" | "caption" | "lift" | "bend" | "end" | "body" | "link" | "open";
     slop: number;                 // 遊び（px）。押した所から動いた量がこれ以上になるまで move を呼ばない
     move(ev: PointerEvent): void;
     end(ev: PointerEvent): void;  // 手を離した
@@ -296,6 +297,13 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       document.addEventListener("pointercancel", ev => { if (mine(ev)) endLift(); }, { signal: stop.signal });
       return;
     }
+    // リンクの箱の窓（link-box.ts）: 押してそのまま離せば、のぞいているページを開く。窓からはドラッグしない（持ち手と文字の所でつかむ）
+    if (e.target instanceof Element && e.target.closest(".mz-link-win")) {
+      e.preventDefault();
+      n.head.setPointerCapture(e.pointerId);
+      begin(openGesture(n), e);
+      return;
+    }
     if (abilitiesOf(n).reorder) {
       n.head.setPointerCapture(e.pointerId);
       begin(reorderGesture(n, e), e);
@@ -352,6 +360,17 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   // 箱の移動（選択モード）。n はつかんだ箱（ツリーの子なら、ツリー全体）
+  // リンクの箱の窓を押した。遊びの分より動かさずに離せば開く（動かしたら何もしない）
+  function openGesture(n: Box): Gesture {
+    let moved = false;
+    return {
+      kind: "open", slop: 4,
+      move() { moved = true; },
+      end() { if (!moved) ctx.openLink(n); },
+      cancel() { moved = true; },
+    };
+  }
+
   function moveGesture(n: Box, down: PointerEvent): Gesture {
     const sx = down.clientX, sy = down.clientY, ox = n.x, oy = n.y;
     const sl = container.scrollLeft, st = container.scrollTop; // 動かしている間に図をスクロールした分も、箱を動かす

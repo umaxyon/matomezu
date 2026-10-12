@@ -161,4 +161,7 @@ export default {
   "本筋（開始の箱から線をたどった並び）を中央の縦の線にそろえ、分岐の枝を左右に置きます。そろえたあとも自由に動かせます（元に戻すで戻せます）": "Lines up the main path (following the lines from the start box) on a central vertical line and places branches to the left and right. You can still move boxes freely afterward (Undo restores the previous layout)",
   "中の箱のサイズ": "Size of boxes inside",
   "中の箱を全部このサイズにして、箱の間隔もサイズに合わせて整列し直します。そのあとも箱ごとにサイズを変えられます（元に戻すで戻せます）": "Sets every box inside to this size and re-aligns them with spacing to match. You can still change each box's size afterward (Undo restores the previous state)",
+  "リンク": "Link",
+  "「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます": "A window onto the page \"{name}\" ({pattern}). Click the window to open it",
+  "見せ方": "Look",
 } satisfies Record<string, string>;
