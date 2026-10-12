@@ -69,8 +69,10 @@ test("S サイズ・ほかの形・切り詰める箱では本文を出さない
   expect(bodyEl(2).hidden).toBe(true);
   g.select(3);
   const disabled = (name: string) => [...side.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)].filter(i => i.disabled).map(i => i.value);
-  const shapes = [...side.querySelectorAll<HTMLOptionElement>('select[name="mzp-shape"] option')].filter(o => o.disabled).map(o => o.value);
-  expect(shapes).toEqual(["person", "db", "diamond", "server", "class", "circle"]);
+  // 形は絵の並び（shape-picker.ts）。本文があるあいだは、ボックスのほかは選べない
+  const shapes = [...side.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')];
+  expect(shapes.filter(i => !i.disabled).map(i => i.value)).toEqual(["box"]);
+  expect(shapes.length).toBeGreaterThan(10);
   expect(disabled("mzp-size")).toEqual(["S"]);
 });
 

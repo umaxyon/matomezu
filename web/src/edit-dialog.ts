@@ -20,8 +20,7 @@ import type { EdgePatch, Graph } from "./graph";
 import type { AddRequest } from "./interaction";
 import { THEMES } from "./theme";
 import type { BoxData, BoxInfo, Patch, Shape, Size } from "./types";
-import { SHAPE_OPTIONS, SHAPE_VARIANTS, shapeFamily } from "./validate";
-import { shapeIcon } from "./shape-icons";
+import { shapePicker, syncShapePicker } from "./shape-picker";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 
 const STYLE_ID = "matomezu-edit-dialog-style";
@@ -96,11 +95,6 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-side select.mz-dlg-input { width: 100%; }
 .mz-dlg-side .mz-dlg-note { margin: 6px 0 0; }
 .mz-dlg-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--dlg-control); }
-.mz-dlg-seg[hidden] { display: none; } /* 形の切り替えは、選んだ形のものだけ出す */
-.mz-dlg-input + .mz-dlg-seg, .mz-dlg-seg[data-shapevar] { margin-top: 6px; } /* 形の選択肢と、その下の切り替えの間 */
-/* 形の切り替えは絵で見せる（名前は読み上げとポインタを乗せたときだけ。shape-icons.ts） */
-.mz-dlg-shape-icon { display: block; width: 20px; height: 20px; margin: 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.mz-dlg-sr, .mzp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .mz-dlg-seg label { flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; font-size: 12px; }
 .mz-dlg-seg input { position: absolute; opacity: 0; pointer-events: none; }
 .mz-dlg-seg label:has(input:checked) { background: var(--dlg-accent); color: #fff; }
@@ -220,16 +214,13 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const bodyBase = b.overflow !== "clip" && (b.canBody || !shapeDef(b.shape).body || b.size === "S");
   const off = b.canBody ? "" : " disabled";
   const sizes: Size[] = ["L", "M", "S"];
-  // 選べない形（子を内包している箱は、ボックスとクラスだけ）
-  // 切り替えのある形（円と角丸、平行四辺形と台形の向き）は、選択肢には家族の先頭を出し、下に切り替えを出す
-  const family = shapeFamily(b.shape);
-  const shapeOff = new Set(b.canShape ? [] : SHAPE_OPTIONS.map(([v]) => v).filter(v => !(b.canClass && (v === "box" || v === "class"))));
+  // 選べない形（子を内包している箱は、ボックスとクラスだけ。形を選べない箱は全部）。本文があるあいだはボックスだけ（syncBody で付け直す）
+  const frameOff = (v: Shape): string | null => (b.canShape ? null
+    : !b.canClass ? t("子を内包している箱は枠なので、形を選べません")
+    : v !== "box" && v !== "class" ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : null);
   const side = `<div class="mz-dlg-side">
       <div class="mz-dlg-group"><h3>${t("形")}</h3>
-        <select class="mz-dlg-input" name="shape" aria-label="${t("形")}"${b.canShape || b.canClass ? "" : " disabled"}>${SHAPE_OPTIONS.filter(([v]) => b.shapes.includes(v as Shape) || v === family).map(([v, label]) =>
-          `<option value="${v}"${v === family ? " selected" : ""}${shapeOff.has(v) ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
-        ${Object.entries(SHAPE_VARIANTS).map(([f, vars]) => `<div class="mz-dlg-seg" data-shapevar="${f}"${f === family ? "" : " hidden"}>${vars.map(([v, label]) =>
-          `<label title="${esc(label)}"><input type="radio" name="shapevar-${f}" value="${v}"${v === b.shape || (f !== family && v === vars[0]![0]) ? " checked" : ""}>${shapeIcon(v, "mz-dlg-shape-icon")}<span class="mz-dlg-sr">${esc(label)}</span></label>`).join("")}</div>`).join("")}
+        ${shapePicker({ name: "shape", value: b.shape, shapes: b.shapes, off: frameOff })}
         ${b.canShape ? "" : `<p class="mz-dlg-note">${b.canClass ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
       <div class="mz-dlg-group"><h3>${t("サイズ")}</h3>
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
@@ -293,7 +284,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     });
   }, lead, () => {
     // 属性・操作の名前は重ねられない（線は名前でつなぐため）
-    if (shapeField.value !== "class") return true;
+    if (pickedShape() !== "class") return true;
     const names = [...overlay.querySelectorAll<HTMLInputElement>('[name="m-name"]')].map(i => i.value.trim()).filter(Boolean);
     const dup = names.find((n, i) => names.indexOf(n) !== i);
     const err = overlay.querySelector<HTMLElement>("[data-member-error]")!;
@@ -318,13 +309,9 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   syncRule(true);
   bodyField.addEventListener("input", () => syncRule(false));
   // 形・サイズと本文の決まり: 形がボックス以外か S のあいだは本文を書けず、本文があるあいだは形と S を選べない
-  const shapeField = overlay.querySelector<HTMLSelectElement>('[name="shape"]')!;
-  // 選んだ形（切り替えのある形なら、その切り替えで選んだもの）
-  const pickedShape = (): Shape =>
-    (overlay.querySelector<HTMLInputElement>(`[name="shapevar-${shapeField.value}"]:checked`)?.value ?? shapeField.value) as Shape;
-  shapeField.addEventListener("change", () => {
-    for (const g of overlay.querySelectorAll<HTMLElement>("[data-shapevar]")) g.hidden = g.dataset.shapevar !== shapeField.value;
-  });
+  // 選んだ形（形を選ぶ絵の並び。shape-picker.ts）
+  const pickedShape = (): Shape => (overlay.querySelector<HTMLInputElement>('[name="shape"]:checked')?.value ?? b.shape) as Shape;
+  const pick = (s: Shape) => { const r = overlay.querySelector<HTMLInputElement>(`[name="shape"][value="${s}"]`); if (r) r.checked = true; };
   const sizeS = overlay.querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
   const pickedSize = () => overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value ?? b.size;
   const bodyAllowed = () => bodyBase && shapeDef(pickedShape()).body && (b.sizeFixed || pickedSize() !== "S");
@@ -333,8 +320,8 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     for (const el of overlay.querySelectorAll<HTMLTextAreaElement | HTMLSelectElement>('[name="body"], [name="lines"]')) el.disabled = !allowed;
     overlay.querySelector<HTMLElement>("[data-body-note]")!.hidden = allowed;
     const has = allowed && bodyField.value !== "";
-    for (const o of shapeField.options) o.disabled = shapeOff.has(o.value) || (has && !shapeDef(o.value as Shape).body);
-    const cls = shapeField.value === "class";
+    syncShapePicker(overlay, "shape", v => frameOff(v) ?? (has && !shapeDef(v).body ? t("本文があるあいだは選べません") : null));
+    const cls = pickedShape() === "class";
     // クラスの箱はサイズを使わない（幅は中身で決まる）
     for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.disabled = b.sizeFixed || cls || (r === sizeS && has);
     overlay.querySelector<HTMLElement>("[data-class-size]")!.hidden = !cls;
@@ -342,7 +329,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   };
   // 形でクラスを選ぶと、右側をクラスの入力に切り替える（キャプションはクラス名）
   const syncPane = () => {
-    const cls = shapeField.value === "class";
+    const cls = pickedShape() === "class";
     overlay.querySelector<HTMLElement>('[data-pane="class"]')!.hidden = !cls;
     overlay.querySelector<HTMLElement>('[data-pane="box"]')!.hidden = cls;
     overlay.querySelector(".mz-dlg")!.classList.toggle("mz-dlg-class", cls);
@@ -365,13 +352,13 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     });
     return { abstract: overlay.querySelector<HTMLInputElement>('[name="abstract"]')!.checked, attrs: cleanMembers(read("attrs")), ops: cleanMembers(read("ops")), renamed };
   }
-  let shapeNow = shapeField.value;
-  shapeField.addEventListener("change", async () => {
-    const next = shapeField.value;
-    const warn = classChangeWarning(shapeNow as Shape, next as Shape, b.kids, hasClassData());
+  let shapeNow = pickedShape();
+  overlay.querySelector(".mz-sp")?.addEventListener("change", async () => {
+    const next = pickedShape();
+    const warn = classChangeWarning(shapeNow, next, b.kids, hasClassData());
     if (warn && !(await confirmInside(overlay, warn, t("変更する")))) {
-      shapeField.value = shapeNow;
-      shapeField.focus();
+      pick(shapeNow);
+      overlay.querySelector<HTMLInputElement>('[name="shape"]:checked')?.focus();
       return;
     }
     // クラスでなくしたら、クラス名以外を捨てる（戻しても空から）

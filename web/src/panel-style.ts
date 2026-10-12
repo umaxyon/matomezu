@@ -90,10 +90,6 @@ export const PANEL_CSS = /* i18n-ok（CSS のコメントだけ） */ `
 }
 .mzp-preset[aria-pressed="true"] { outline: 2px solid var(--mzp-accent); outline-offset: 2px; }
 .mzp-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--mzp-control); }
-.mzp-input + .mzp-shapevar { margin-top: 6px; } /* 形の選択肢と、その下の切り替え（円と角丸、向き）の間 */
-/* 形の切り替えは絵で見せる（名前は読み上げとポインタを乗せたときだけ。shape-icons.ts） */
-.mzp-shape-icon { display: block; width: 20px; height: 20px; margin: 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.mzp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .mzp-seg label { flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; white-space: nowrap; font-size: 12px; }
 .mzp-seg label:hover { background: var(--mzp-control-hover); }
 .mzp-seg input { position: absolute; opacity: 0; pointer-events: none; }

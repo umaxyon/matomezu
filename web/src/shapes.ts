@@ -11,7 +11,7 @@ import type { Shape, Size } from "./types";
 // 土台（配置に使う大きさのもと）の決め方
 export type Base = "box" | "diamond" | "circle" | "class" | "icon";
 // 描き方
-export type Draw = "box" | "class" | "diamond" | "outline" | "person" | "db" | "server";
+export type Draw = "box" | "class" | "diamond" | "outline" | "person" | "art";
 
 export interface ShapeDef {
   kind: "normal" | "special";
@@ -33,18 +33,22 @@ export interface ShapeDef {
   // 形の大きさは（文字 + pad）÷ ratio。wrap は文字を折り返す幅の上限の、サイズの最大の幅に対する割合
   fit: { ratio: number; pad: number; wrap: number } | null;
   minW: number;          // 絵の形の最小の幅（px。絵と足元の文字。0 はサイズの最小の幅を使う）
+  // 絵の形の絵の大きさ（px。SVG の viewBox と同じ。絵は shape-art.ts）と、サイズごとの倍率（S は縮める）。絵の無い形は null
+  art: { w: number; h: number; scale: Record<Size, number> } | null;
 }
 
 const NORMAL = {
   kind: "normal", base: "box", draw: "box", vertexOnly: false, insetEnds: false, slanted: false,
   body: false, overflow: true, kids: true, terminal: false, branch: false, borderToggle: false, fillToggle: true,
-  slant: { L: 0, M: 0, S: 0 }, fit: null, minW: 0,
+  slant: { L: 0, M: 0, S: 0 }, fit: null, minW: 0, art: null,
 } as const;
 const OUTLINE = { ...NORMAL, draw: "outline", vertexOnly: true } as const;
 const SLANT = { ...OUTLINE, slanted: true, slant: { L: 14, M: 14, S: 10 } } as const;
 const ICON = {
-  ...NORMAL, kind: "special", base: "icon", vertexOnly: false, overflow: false, minW: 64,
+  ...NORMAL, kind: "special", base: "icon", draw: "art", vertexOnly: false, overflow: false, minW: 64,
 } as const;
+// 絵の形の絵の大きさ。S は高さ 38px になる倍率
+const art = (w: number, h: number) => ({ w, h, scale: { L: 1, M: 1, S: 38 / 52 } });
 
 export const SHAPE_DEFS: Record<Shape, ShapeDef> = {
   box:              { ...NORMAL, body: true, borderToggle: true },
@@ -58,9 +62,17 @@ export const SHAPE_DEFS: Record<Shape, ShapeDef> = {
   diamond:          { ...NORMAL, kind: "special", base: "diamond", draw: "diamond", vertexOnly: true, branch: true, fit: { ratio: 0.5, pad: 12, wrap: 0.6 } },
   // 円は、内側に収まる四角が直径の 1/√2（ratio）。文字を囲む四角の対角線に余白を足した直径にする
   circle:           { ...NORMAL, kind: "special", base: "circle", draw: "outline", vertexOnly: true, terminal: true, fit: { ratio: Math.SQRT1_2, pad: 10, wrap: 0.6 } },
-  person:           { ...ICON, draw: "person", fillToggle: false },
-  db:               { ...ICON, draw: "db" },
-  server:           { ...ICON, draw: "server" },
+  person:           { ...ICON, draw: "person", fillToggle: false, art: art(36, 52) },
+  db:               { ...ICON, art: art(40, 52) },
+  server:           { ...ICON, art: art(40, 52) },
+  pc:               { ...ICON, art: art(52, 46) },
+  factory:          { ...ICON, art: art(52, 46) },
+  document:         { ...ICON, art: art(40, 52) },
+  trash:            { ...ICON, art: art(40, 52) },
+  robot:            { ...ICON, art: art(44, 52) },
+  cat:              { ...ICON, art: art(48, 46) },
+  heart:            { ...ICON, art: art(48, 44) },
+  bulb:             { ...ICON, art: art(48, 52) },
   class:            { ...NORMAL, kind: "special", base: "class", draw: "class", overflow: false, kids: false },
 };
 

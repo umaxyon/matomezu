@@ -7,10 +7,10 @@ import { openAddDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog
 import { createPanel, type Panel, type PanelOptions } from "./panel";
 import { createToolbox, type Tool } from "./toolbox";
 import type { Info, Shape, Size } from "./types";
-import { SHAPE_OPTIONS } from "./validate";
+import { SHAPE_LABELS } from "./validate";
 import { SHAPE_ICONS } from "./shape-icons";
 
-const shapeLabel = (s: Shape) => SHAPE_OPTIONS.find(([v]) => v === s)?.[1] ?? s;
+const shapeLabel = (s: Shape) => SHAPE_LABELS[s] ?? s;
 
 export interface DiagramView {
   graph: Graph;

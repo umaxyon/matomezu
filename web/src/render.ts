@@ -17,18 +17,7 @@ import {
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
-
-// スティックマン（viewBox 0 0 36 52）
-const PERSON_SVG =
-  '<g class="mz-figure"><circle cx="18" cy="8" r="6.5"/><path d="M18 14.5V33M5 21.5H31M18 33 7 50M18 33 29 50"/></g>';
-// サーバー（タワー型の筐体を斜め上から見た立体）。前面・上面・側面と、前面のドライブの溝 2 本とランプ
-// DB（円柱を斜め上から見た立体。viewBox 0 0 40 52）。胴と上面（明るく）
-const DB_SVG =
-  '<path class="mz-db-body" d="M3 9V43A17 6 0 0 0 37 43V9"/><ellipse class="mz-db-top" cx="20" cy="9" rx="17" ry="6"/>';
-const SERVER_SVG =
-  '<path class="mz-server-top" d="M3 10 11 3H37L29 10Z"/><path class="mz-server-side" d="M29 10 37 3V43L29 50Z"/>' +
-  '<path class="mz-server-front" d="M3 10H29V50H3Z"/><path class="mz-server-bay" fill="none" d="M7 16H25M7 21H25"/>' +
-  '<circle class="mz-server-lamp" cx="23" cy="28" r="2"/>';
+import { SHAPE_ART } from "./shape-art";
 
 export interface RenderContext {
   opt: { color: string; header: number; treeGapY: number; padding: number };
@@ -144,6 +133,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     }
     for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape && !page);
     head.classList.toggle("mz-shape-page", page);
+    // 絵の形は、形の表の大きさの絵（shape-art.ts）の足元に文字を置く（graph-style.ts の .mz-icon）
+    const art = page ? null : shapeDef(shape).art;
+    head.classList.toggle("mz-icon", !!art);
+    if (art) {
+      head.style.setProperty("--mz-art-w", art.w * art.scale[size] + "px");
+      head.style.setProperty("--mz-art-h", art.h * art.scale[size] + "px");
+    }
     // 文字を塗りの上に書くのは、ボックスと DB（塗りつぶしあり）だけ
     const onFill = !group && fill && !isIconShape(shape);
     const light = onFill && isLightColor(color);
@@ -182,9 +178,11 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       head.style.background = "transparent";
       head.style.boxShadow = "none";
       const svg = n.shapeSvg;
+      if (art) {
+        svg.setAttribute("viewBox", `0 0 ${art.w} ${art.h}`);
+        svg.innerHTML = SHAPE_ART[shape] ?? "";
+      }
       if (draw === "person") {
-        svg.setAttribute("viewBox", "0 0 36 52");
-        svg.innerHTML = PERSON_SVG;
         // 色の指定が無ければ文字の色で描く（白だと明るいテーマで見えないため）
         svg.style.stroke = own ? color : "var(--mz-text)";
         svg.style.fill = "";
@@ -205,20 +203,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.5";
         setShadow(n, fill ? shadowOf() : null);
-      } else if (draw === "server") {
-        // サーバー（タワー型の立体）。スティックマンと同じく絵の大きさは決まっていて、文字は足元に置く。
-        // 前面は箱の色、上面は明るく、側面は暗くして立体に見せる。塗りが無ければ輪郭だけ
-        svg.setAttribute("viewBox", "0 0 40 52");
-        svg.innerHTML = SERVER_SVG;
-        svg.style.fill = "";
-        svg.style.stroke = fill ? edge : color;
-        svg.style.strokeWidth = "1.3";
-        const face = (cls: string, paint: string) => { (svg.querySelector(cls) as SVGElement).style.fill = fill ? paint : "none"; };
-        face(".mz-server-front", color);
-        face(".mz-server-top", `color-mix(in srgb, ${color} 60%, #fff)`);
-        face(".mz-server-side", `color-mix(in srgb, ${color} 70%, #000)`);
-        (svg.querySelector(".mz-server-lamp") as SVGElement).style.fill = fill ? edge : color;
-        setShadow(n, null);
       } else if (page) {
         // タブ付きの見出し（フォルダ）。輪郭は renderPage で大きさに合わせて描く
         svg.removeAttribute("viewBox");
@@ -228,14 +212,20 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.style.strokeWidth = "1.5";
         setShadow(n, fill ? shadowOf() : null);
       } else {
-        // DB（円柱の立体）。スティックマンと同じく絵の大きさは決まっていて、文字は足元に置く（2026-10-11 ユーザー）
-        svg.setAttribute("viewBox", "0 0 40 52");
-        svg.innerHTML = DB_SVG;
+        // 絵の形（DB・サーバー・パソコンなど。shape-art.ts）。スティックマンと同じく絵の大きさは決まっていて、文字は足元に置く。
+        // 部品の役割で塗り分ける: 本体は箱の色、明るい所（上面・光）と暗い所（側面・台座）は箱の色から作り、印は線の色。
+        // 塗りが無ければ輪郭だけ（印は箱の色で塗る）
         svg.style.fill = "";
         svg.style.stroke = fill ? edge : color;
         svg.style.strokeWidth = "1.3";
-        (svg.querySelector(".mz-db-body") as SVGElement).style.fill = fill ? color : "none";
-        (svg.querySelector(".mz-db-top") as SVGElement).style.fill = fill ? `color-mix(in srgb, ${color} 60%, #fff)` : "none";
+        const paints: [string, string][] = [
+          ["mz-art-body", color], ["mz-art-light", `color-mix(in srgb, ${color} 60%, #fff)`],
+          ["mz-art-dark", `color-mix(in srgb, ${color} 70%, #000)`], ["mz-art-line", "none"],
+        ];
+        for (const [cls, paint] of paints) {
+          for (const el of svg.querySelectorAll<SVGElement>("." + cls)) el.style.fill = fill ? paint : "none";
+        }
+        for (const el of svg.querySelectorAll<SVGElement>(".mz-art-dot")) el.style.fill = fill ? edge : color;
         setShadow(n, null);
       }
     }

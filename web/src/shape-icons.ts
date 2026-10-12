@@ -1,4 +1,7 @@
-// 形の小さな絵（viewBox 0 0 24 24。線は currentColor で、塗りは無し）。道具入れ（toolbox.ts）と、形の切り替え（サイドバー・編集ダイアログ）で使う
+// 形の小さな絵（viewBox 0 0 24 24。線は currentColor で、塗りは無し）。道具入れ（toolbox.ts）と、形を選ぶ絵の並び（shape-picker.ts）で使う。
+// ここに無い絵の形（スティックマン・サーバーなど）は、図に描く絵（shape-art.ts）をそのまま線で描く（mz-art-icon。線の太さは使う側の CSS）
+import { SHAPE_ART } from "./shape-art";
+import { shapeDef } from "./shapes";
 import type { Shape } from "./types";
 
 export const SHAPE_ICONS: Partial<Record<Shape, string>> = {
@@ -11,9 +14,14 @@ export const SHAPE_ICONS: Partial<Record<Shape, string>> = {
   parallelogramAlt: '<path d="M2 6H17L22 18H7Z"/>',
   trapezoid: '<path d="M7 6H17L21.5 18H2.5Z"/>',
   trapezoidAlt: '<path d="M2.5 6H21.5L17 18H7Z"/>',
+  class: '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 8.5H20M4 14.5H20"/>',
   db: '<ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6V18C5 19.4 8.1 20.5 12 20.5S19 19.4 19 18V6"/>',
 };
 
 // 絵を SVG にする（class は大きさと線の太さを決める側で付ける）
-export const shapeIcon = (s: Shape, cls: string): string =>
-  `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${SHAPE_ICONS[s] ?? ""}</svg>`;
+export function shapeIcon(s: Shape, cls: string): string {
+  const own = SHAPE_ICONS[s];
+  const art = shapeDef(s).art;
+  if (own != null || !art) return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${own ?? ""}</svg>`;
+  return `<svg class="${cls} mz-art-icon" viewBox="0 0 ${art.w} ${art.h}" aria-hidden="true">${SHAPE_ART[s] ?? ""}</svg>`;
+}

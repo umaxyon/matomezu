@@ -6,6 +6,8 @@ import { readFileSync } from "node:fs";
 import { createGraph, type Graph, type GraphOptions } from "../web/src/graph";
 import { STRATEGIES } from "../web/src/model";
 import { SHAPE_DEFS } from "../web/src/shapes";
+import { SHAPE_ART } from "../web/src/shape-art";
+import { SHAPES } from "../web/src/validate";
 import { THEMES } from "../web/src/theme";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
@@ -103,10 +105,27 @@ test("文字を中に収める形（ひし形）の割合は、形の表（fit�
   });
 });
 
+test("絵の形の絵の大きさは、形の表（art）の値だけで決まる（viewBox と CSS 変数。S は倍率で縮める）", () => {
+  withValue(SHAPE_DEFS.pc, "art", { w: 60, h: 40, scale: { L: 1, M: 1, S: 0.5 } }, () => {
+    const { el } = setup({ nodes: [{ id: 1, caption: "PC", shape: "pc", x: 0, y: 0 }, { id: 2, caption: "PC", shape: "pc", size: "S", x: 200, y: 0 }] });
+    expect(head(el, 1).querySelector(".mz-shape")!.getAttribute("viewBox")).toBe("0 0 60 40");
+    expect([head(el, 1).style.getPropertyValue("--mz-art-w"), head(el, 1).style.getPropertyValue("--mz-art-h")]).toEqual(["60px", "40px"]);
+    expect([head(el, 2).style.getPropertyValue("--mz-art-w"), head(el, 2).style.getPropertyValue("--mz-art-h")]).toEqual(["30px", "20px"]);
+  });
+});
+
+test("絵の形はどれも、形の表に大きさと、shape-art.ts に絵を持つ（絵の無い形は大きさも持たない）", () => {
+  for (const s of SHAPES) {
+    const icon = SHAPE_DEFS[s].base === "icon";
+    expect([s, !!SHAPE_DEFS[s].art, !!SHAPE_ART[s]]).toEqual([s, icon, icon]);
+  }
+});
+
 test("CSS は形の数値を書き写さず、render.ts が渡す変数で読む", () => {
   const css = readFileSync(`${import.meta.dir}/../web/src/graph-style.ts`, "utf8");
   // 斜めの辺の余白と、文字を折り返す幅の割合
   expect(css).toContain("var(--mz-slant");
   expect(css).toContain("var(--mz-text-ratio");
+  expect(css).toContain("var(--mz-art-w)"); // 絵の形の絵の大きさ
   expect(css).not.toMatch(/\+ 14px|max-width: 50%|max-width: 70%/);
 });

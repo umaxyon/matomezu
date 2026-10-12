@@ -32,20 +32,23 @@ export const VIEWS = ["nest", "tree", "hidden", "list", "flow"] as const;
 export const WORLD_VIEWS = ["nest", "flow"] as const;
 export const SHAPES = [
   "box", "person", "db", "diamond", "server", "class", "circle", "stadium", "hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt",
+  "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb",
 ] as const;
-// 形の画面での名前（サイドバーと編集ダイアログの選択肢。SHAPES と同じ並び）
-export const SHAPE_OPTIONS: [string, string][] = [["box", t("ボックス")], ["person", t("スティックマン")], ["db", "DB"], ["diamond", t("ひし形")], ["server", t("サーバー")], ["class", t("クラス")],
-  ["circle", t("円")], ["hexagon", t("六角形（準備）")], ["parallelogram", t("平行四辺形（入出力）")], ["trapezoid", t("台形（手作業）")]];
-// 1 つの形の中の切り替え（データでは別の形の値。Mermaid の形と 1 対 1 に対応させるため。docs/PATTERN-plan.md の 3.7 章）。
-// 選択肢には先頭の形だけを出し、選んだあとに切り替えを出す
-export const SHAPE_VARIANTS: Record<string, [Shape, string][]> = {
-  circle: [["circle", t("円")], ["stadium", t("角丸")]],
-  parallelogram: [["parallelogram", "／"], ["parallelogramAlt", "＼"]],
-  trapezoid: [["trapezoid", t("上が狭い")], ["trapezoidAlt", t("下が狭い")]],
+// 形の画面での名前（形を選ぶ絵の並びの、ポインタを乗せたときと読み上げの名前。通知にも使う）
+export const SHAPE_LABELS: Record<Shape, string> = {
+  box: t("ボックス"), class: t("クラス"), circle: t("円"), stadium: t("角丸"), diamond: t("ひし形"),
+  hexagon: t("六角形（準備）"), parallelogram: t("平行四辺形（入出力）"), parallelogramAlt: t("平行四辺形（逆向き）"),
+  trapezoid: t("台形（手作業・上が狭い）"), trapezoidAlt: t("台形（下が狭い）"),
+  person: t("スティックマン"), db: "DB", server: t("サーバー"), pc: t("パソコン"), factory: t("工場"), document: t("書類"),
+  trash: t("ゴミ箱"), robot: t("ロボット"), cat: t("猫の顔"), heart: t("ハート"), bulb: t("電球（ひらめき）"),
 };
-// 形の家族（切り替えの先頭の形。切り替えの無い形はそのまま）
-export const shapeFamily = (s: string): string =>
-  Object.keys(SHAPE_VARIANTS).find(f => SHAPE_VARIANTS[f]!.some(([v]) => v === s)) ?? s;
+// 形を選ぶ絵の並び（shape-picker.ts。サイドバーと編集ダイアログ）。まとまりごとに間を空けて並べる。どの形もどれか 1 つに入る（test が見張る）。
+// 向きや角の違う形（円と角丸、平行四辺形と台形の向き）も、それぞれ 1 つの絵として並べる（2026-10-12 ユーザー）
+export const SHAPE_GROUPS: { label: string; shapes: Shape[] }[] = [
+  { label: t("基本の形"), shapes: ["box", "class", "circle", "stadium", "diamond"] },
+  { label: t("フローチャートの形"), shapes: ["hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt"] },
+  { label: t("絵の形"), shapes: ["person", "db", "server", "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb"] },
+];
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;

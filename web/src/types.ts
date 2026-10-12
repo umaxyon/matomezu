@@ -7,7 +7,8 @@ export type Size = "L" | "M" | "S";
 export type ChildView = "nest" | "tree" | "hidden" | "list" | "flow";
 export type Overflow = "wrap" | "grow" | "clip";
 export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class" | "circle" | "stadium" | "hexagon"
-  | "parallelogram" | "parallelogramAlt" | "trapezoid" | "trapezoidAlt";
+  | "parallelogram" | "parallelogramAlt" | "trapezoid" | "trapezoidAlt"
+  | "pc" | "factory" | "document" | "trash" | "robot" | "cat" | "heart" | "bulb";
 export type TreeDirection = "down" | "up" | "left" | "right";
 export type Id = number | string;
 

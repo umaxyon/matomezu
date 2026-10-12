@@ -171,14 +171,16 @@ test("userAdded は true か false だけ", async () => {
 const dialog = () => document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
 const field = <T extends HTMLElement>(name: string) => dialog().querySelector<T>(`[name="${name}"]`)!;
 const fire = (el: HTMLElement, type: string) => el.dispatchEvent(new Event(type, { bubbles: true }));
+// 形は絵の並び（shape-picker.ts）のラジオボタン
+const shapeRadios = () => [...dialog().querySelectorAll<HTMLInputElement>('[name="shape"]')];
+const pickShape = (s: string) => { const r = shapeRadios().find(x => x.value === s)!; r.checked = true; fire(r, "change"); };
 const ok = () => dialog().querySelector<HTMLElement>("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
 test("追加のダイアログで形・サイズ・テーマを選ぶと、その箱を足す。既定（ボックス・M・受け継ぐ）は書かない", () => {
   const { g } = setup({ nodes: [] });
   openAddDialog(g, { parentId: null, at: { x: 100, y: 100 } });
   expect(dialog().querySelector(".mz-dlg-side")).not.toBeNull();
-  field<HTMLSelectElement>("shape").value = "server";
-  fire(field("shape"), "change");
+  pickShape("server");
   const s = dialog().querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
   s.checked = true;
   fire(s, "change");
@@ -199,16 +201,15 @@ test("箱のダイアログ: 形がボックス以外か S のあいだは本文
   openEditDialog(g, "1");
   const body = field<HTMLTextAreaElement>("body");
   const sizeS = dialog().querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
-  field<HTMLSelectElement>("shape").value = "db";
-  fire(field("shape"), "change");
+  pickShape("db");
   expect(body.disabled).toBe(true);
-  field<HTMLSelectElement>("shape").value = "box";
-  fire(field("shape"), "change");
+  pickShape("box");
   expect(body.disabled).toBe(false);
   body.value = "本文";
   fire(body, "input");
-  const disabledShapes = [...field<HTMLSelectElement>("shape").options].filter(o => o.disabled).map(o => o.value);
-  expect(disabledShapes).toEqual(["person", "db", "diamond", "server", "class", "circle"]);
+  // 本文があるあいだは、ボックスのほかは全部選べない
+  expect(shapeRadios().filter(r => !r.disabled).map(r => r.value)).toEqual(["box"]);
+  expect(shapeRadios().length).toBeGreaterThan(10);
   expect(sizeS.disabled).toBe(true);
   // テーマとサイズを変えて確定すると、まとめて 1 件の変更
   dialog().querySelector<HTMLInputElement>('[name="size"][value="L"]')!.checked = true;
@@ -224,7 +225,7 @@ test("内包している箱の編集ダイアログでは、形はボックス�
   const { openEditDialog } = await import("../web/src/edit-dialog");
   const { g } = setup({ nodes: [{ id: 1, caption: "親", x: 40, y: 40 }, { id: 2, parent: 1 }] });
   openEditDialog(g, "1");
-  const open = [...field<HTMLSelectElement>("shape").options].filter(o => !o.disabled).map(o => o.value);
+  const open = shapeRadios().filter(r => !r.disabled).map(r => r.value);
   expect(open).toEqual(["box", "class"]);
   expect([...dialog().querySelectorAll<HTMLInputElement>('[name="size"]')].every(r => r.disabled && !r.checked)).toBe(true);
 });

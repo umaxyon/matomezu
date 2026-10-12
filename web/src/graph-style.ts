@@ -172,21 +172,16 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-tree { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .mz-tree path { fill: none; stroke: var(--mz-edge); stroke-width: 1.5; }
 .mz-tree .mz-tree-frame { stroke-width: 1.5; stroke-dasharray: 6 4; }
-/* 形: スティックマン（背景なし、人の形の足元に文字）と DB（円柱。胴の中央に文字） */
+/* 絵の形（スティックマン・DB・サーバー・パソコンなど）: 背景なしで、決まった大きさの絵の足元に文字。
+   絵は shape-art.ts、大きさは形の表（shapes.ts の art）を render.ts が --mz-art-w / --mz-art-h で渡す */
 .mz-shape { display: none; }
-.mz-leaf.mz-shape-person { flex-direction: column; justify-content: flex-start; gap: 2px; padding: 0 4px; }
-.mz-shape-person > .mz-shape { display: block; flex: none; width: 36px; height: 52px; overflow: visible; }
-.mz-size-S.mz-shape-person > .mz-shape { width: 26px; height: 38px; }
+.mz-leaf.mz-icon { flex-direction: column; justify-content: flex-start; gap: 2px; padding: 0 4px; }
+.mz-icon > .mz-shape { display: block; flex: none; width: var(--mz-art-w); height: var(--mz-art-h); overflow: visible; }
+.mz-icon .mz-shape path, .mz-icon .mz-shape rect { stroke-linejoin: round; }
+.mz-icon .mz-shape .mz-art-line { stroke-linecap: round; }
+.mz-icon .mz-art-dot { stroke: none; }
+.mz-leaf.mz-icon .mz-text { color: var(--mz-text); text-shadow: none; line-height: 1.25; }
 .mz-shape-person .mz-figure { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.mz-leaf.mz-shape-person .mz-text { color: var(--mz-text); text-shadow: none; line-height: 1.25; }
-/* DB（円柱の立体）とサーバー（タワー型の立体）: スティックマンと同じく、決まった大きさの絵の足元に文字
-   （render.ts の DB_SVG / SERVER_SVG） */
-.mz-leaf.mz-shape-db, .mz-leaf.mz-shape-server { flex-direction: column; justify-content: flex-start; gap: 2px; padding: 0 4px; }
-.mz-shape-db > .mz-shape, .mz-shape-server > .mz-shape { display: block; flex: none; width: 40px; height: 52px; overflow: visible; }
-.mz-size-S.mz-shape-db > .mz-shape, .mz-size-S.mz-shape-server > .mz-shape { width: 29px; height: 38px; }
-.mz-shape-db .mz-shape path, .mz-shape-server .mz-shape path { stroke-linejoin: round; }
-.mz-shape-server .mz-server-lamp { stroke: none; }
-.mz-leaf.mz-shape-db .mz-text, .mz-leaf.mz-shape-server .mz-text { color: var(--mz-text); text-shadow: none; line-height: 1.25; }
 /* ひし形（フローチャートの分岐）: 形は SVG で描く。文字は幅の半分で折り返す（内側に収まる四角は縦横の半分。node-kinds.ts の DIAMOND_TEXT） */
 .mz-leaf.mz-shape-diamond { padding: 0; background: transparent; overflow: visible; } /* 影を本体の四角で切らない */
 .mz-shape-diamond > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }

@@ -51,7 +51,7 @@ const dlg = (page: import("@playwright/test").Page) => page.locator(".mz-dlg-ove
 test("ダイアログで形をクラスにすると、右側がクラスの入力に変わる。行を足して確定すると描く", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "Order", x: 40, y: 60 }] });
   await head(page, 1).dblclick();
-  await dlg(page).locator('[name="shape"]').selectOption("class");
+  await dlg(page).locator('label:has(input[name="shape"][value="class"])').click();
   await expect(dlg(page).locator('[data-pane="class"]')).toBeVisible();
   await expect(dlg(page).locator('[data-pane="box"]')).toBeHidden();
   await expect(dlg(page).locator("[data-caption-label]")).toHaveText("クラス名");
@@ -83,19 +83,19 @@ test("名前が重なると確定できない。クラスを別の形にする�
   await expect(dlg(page).locator("[data-member-error]")).toHaveText("属性・操作の名前が重なっています: id");
   await dlg(page).locator('[data-list="attrs"] .mz-dlg-mrow').last().locator("[data-del]").click();
 
-  await dlg(page).locator('[name="shape"]').selectOption("box");
+  await dlg(page).locator('label:has(input[name="shape"][value="box"])').click();
   const sub = page.locator(".mz-dlg-sub");
   await expect(sub).toContainText("クラス名以外の情報");
   await sub.locator("[data-sub-cancel]").click();
-  await expect(dlg(page).locator('[name="shape"]')).toHaveValue("class");
+  await expect(dlg(page).locator('[name="shape"]:checked')).toHaveValue("class");
   await expect(dlg(page).locator('[data-list="attrs"] .mz-dlg-mrow')).toHaveCount(1);
   // Esc は重ねた確認だけ閉じる
-  await dlg(page).locator('[name="shape"]').selectOption("box");
+  await dlg(page).locator('label:has(input[name="shape"][value="box"])').click();
   await page.keyboard.press("Escape");
   await expect(sub).toHaveCount(0);
   await expect(dlg(page)).toBeVisible();
   // 変更すると、クラス名だけ残して捨てる。行につながっていた線は、クラスそのものではなく普通の箱の線になる
-  await dlg(page).locator('[name="shape"]').selectOption("box");
+  await dlg(page).locator('label:has(input[name="shape"][value="box"])').click();
   await sub.locator("[data-sub-ok]").click();
   await expect(dlg(page).locator('[data-pane="box"]')).toBeVisible();
   await dlg(page).locator("[data-ok]").click();
@@ -107,7 +107,7 @@ test("名前が重なると確定できない。クラスを別の形にする�
 test("子を持つ箱をクラスにするときは確認が出て、子は消したものの一覧へ移る", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "枠", x: 40, y: 60 }, { id: 2, caption: "子", parent: 1 }] });
   await head(page, 1).click({ position: { x: 10, y: 8 } });
-  await page.locator('select[name="mzp-shape"]').selectOption("class");
+  await page.locator('#sidebar label:has(input[name="mzp-shape"][value="class"])').click();
   const confirm = page.locator(".mz-dlg-overlay .mz-dlg");
   await expect(confirm).toContainText("子 1 個");
   await confirm.locator("[data-ok]").click();

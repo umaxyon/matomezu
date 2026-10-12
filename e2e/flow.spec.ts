@@ -22,7 +22,7 @@ test("フローチャートの子を選ぶと道具入れが出る。押すと�
   await expect(toolbox(page)).toBeVisible();
 
   await toolbox(page).locator('[data-tool="circle"]').click();
-  await expect(page.locator('.mz-dlg [name="shape"]')).toHaveValue("circle");
+  await expect(page.locator('.mz-dlg [name="shape"]:checked')).toHaveValue("circle");
   await page.locator('.mz-dlg [name="caption"]').fill("接続");
   await page.locator(".mz-dlg [data-ok]").click();
   // フローチャートの中に足される
@@ -36,7 +36,7 @@ test("フローチャートの子を選ぶと道具入れが出る。押すと�
   await page.mouse.down();
   await page.mouse.move(drop.x, drop.y, { steps: 10 });
   await page.mouse.up();
-  await expect(page.locator('.mz-dlg [name="shape"]')).toHaveValue("hexagon");
+  await expect(page.locator('.mz-dlg [name="shape"]:checked')).toHaveValue("hexagon");
   await page.locator('.mz-dlg [name="caption"]').fill("準備");
   await page.locator(".mz-dlg [data-ok]").click();
   const hex = (await page.locator('.mz-node[data-id="1"] .mz-node', { hasText: "準備" }).boundingBox())!;
@@ -52,7 +52,7 @@ test("フローチャートのひし形から出る線の編集ダイアログ�
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-label')).toHaveText("No");
 });
 
-test("ワールドをフローチャートにすると、図の左上に道具入れが出る。足すダイアログで形の切り替え（台形の向き）を選べる", async ({ page }) => {
+test("ワールドをフローチャートにすると、図の左上に道具入れが出る。足すダイアログで向きの違う形（台形の向き）を絵で選べる", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 200, y: 200 }] });
   await page.locator(".mz-world").click({ position: { x: 5, y: 5 } });
   await page.locator('#sidebar label:has(input[name="mzp-view"][value="flow"])').click();
@@ -63,15 +63,14 @@ test("ワールドをフローチャートにすると、図の左上に道具�
   expect(box.y - stage.y).toBeLessThan(20);
 
   await toolbox(page).locator('[data-tool="trapezoid"]').click();
-  // 切り替えは、選んだ形のものだけが見える
-  await expect(page.locator(".mz-dlg [data-shapevar]:visible")).toHaveCount(1);
-  await expect(page.locator('.mz-dlg [data-shapevar="trapezoid"]')).toBeVisible();
-  await page.locator('.mz-dlg label:has(input[value="trapezoidAlt"])').click();
+  // 向きの違う形も、それぞれ 1 つの絵として並ぶ（shape-picker.ts）
+  await expect(page.locator('.mz-dlg [name="shape"]:checked')).toHaveValue("trapezoid");
+  await page.locator('.mz-dlg label:has(input[name="shape"][value="trapezoidAlt"])').click();
   await page.locator('.mz-dlg [name="caption"]').fill("手作業");
   await page.locator(".mz-dlg [data-ok]").click();
   await expect(page.locator(".mz-node .mz-head", { hasText: "手作業" })).toHaveClass(/mz-shape-trapezoidAlt/);
-  // サイドバーでも、台形の下に向きの切り替えが出る
-  await expect(page.locator('#sidebar input[name="mzp-shapevar"][value="trapezoidAlt"]')).toBeChecked();
+  // サイドバーでも、その絵を選んでいる
+  await expect(page.locator('#sidebar input[name="mzp-shape"][value="trapezoidAlt"]')).toBeChecked();
 });
 
 test("箱を動かしたあとで自動で整列を押すと、箱だけでなく線も、整列したときの形に引き直す", async ({ page }) => {

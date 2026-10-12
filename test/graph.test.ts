@@ -242,7 +242,7 @@ test("形: スティックマンと DB に切り替え、ボックスに戻す�
   const db = heads.find(h => h.classList.contains("mz-shape-db"))!;
   expect(person.querySelector(".mz-shape circle")).not.toBeNull();
   expect(db.querySelector(".mz-shape")!.getAttribute("viewBox")).toBe("0 0 40 52"); // DB も決まった大きさの絵（文字は足元）
-  expect(db.querySelector(".mz-db-top")).not.toBeNull();
+  expect(db.querySelector(".mz-art-light")).not.toBeNull(); // 上面は明るく塗る
   expect(graph.info(2).h).toBe(graph.info(1).h); // スティックマンと同じく、高さは絵と足元の文字で決まる
   // 絵の形は文字の置き方が決まっているので、中身の扱いは選べない
   expect(graph.info(1).overflows).toEqual([]);
@@ -1523,7 +1523,7 @@ test("形のサーバーは、スティックマンと同じく決まった大�
   const svg = (id: number) => el.querySelector(`[data-id="${id}"] > .mz-head > .mz-shape`)!;
   for (const id of [1, 2]) {
     expect(svg(id).getAttribute("viewBox")).toBe("0 0 40 52");
-    for (const cls of ["front", "top", "side", "bay", "lamp"]) expect(svg(id).querySelector(".mz-server-" + cls)).not.toBeNull();
+    for (const cls of ["body", "light", "dark", "line", "dot"]) expect(svg(id).querySelector(".mz-art-" + cls)).not.toBeNull(); // 前面・上面・側面・溝・ランプ
   }
   expect(graph.info(2).w).toBeGreaterThan(graph.info(1).w); // 文字の分だけ箱（足元の文字）が広がる
   expect(el.querySelector('[data-id="1"] > .mz-head')!.classList.contains("mz-light")).toBe(false); // 文字は塗りの上に書かない

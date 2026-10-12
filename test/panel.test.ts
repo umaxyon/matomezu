@@ -5,6 +5,8 @@ import { createGraph, type Graph } from "../web/src/graph";
 import { createPanel, type Panel } from "../web/src/panel";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
+import { SHAPE_GROUPS, SHAPE_LABELS, SHAPES } from "../web/src/validate";
+import { shapeIcon } from "../web/src/shape-icons";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -130,12 +132,12 @@ test("サイズを押すと、今と同じサイズでも大きさの指定を�
 test("形と子の見せ方、ツリーのときだけ向きを選べる", () => {
   const { g, $, change } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3 }] });
   g.select(3);
-  change('select[name="mzp-shape"]', "db"); // 形はセレクトボックス
+  change('input[name="mzp-shape"][value="db"]', true); // 形は絵の並び（shape-picker.ts）
   expect(box(g, 3).shape).toBe("db");
 
   g.select(1);
   // 内包しているグループは、ボックスとクラスだけ選べる（クラスにすると子は消える。docs/CLASS-plan.md）
-  const open = [...($('select[name="mzp-shape"]') as HTMLSelectElement).options].filter(o => !o.disabled).map(o => o.value);
+  const open = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')].filter(o => !o.disabled).map(o => o.value);
   expect(open).toEqual(["box", "class"]);
   expect($('input[name="mzp-treedir"]')).toBeNull();
   change('input[name="mzp-view"][value="tree"]', true);
@@ -378,4 +380,27 @@ test("線で描き直すボタンは、ツリーにした一番外の箱だけ�
   dlg("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   expect(g.toJSON().nodes.find(n => n.id === 2)!.parent).toBeUndefined();
   expect(g.toJSON().edges).toHaveLength(2);
+});
+
+test("形を選ぶ絵の並び: どの形もどれか 1 つのまとまりに入り、名前と絵を持つ", () => {
+  const listed = SHAPE_GROUPS.flatMap(g => g.shapes);
+  expect([...listed].sort()).toEqual([...SHAPES].sort());
+  for (const s of SHAPES) {
+    expect([s, !!SHAPE_LABELS[s]]).toEqual([s, true]);
+    expect([s, /<(path|rect|circle|ellipse|g)\b/.test(shapeIcon(s, "x"))]).toEqual([s, true]);
+  }
+});
+
+test("形を選ぶ絵の並び: フローチャートの外では、フローチャートの形のまとまりを出さない。中では出し、名前はポインタを乗せると出る", () => {
+  const { g } = setup({
+    nodes: [{ id: 1, caption: "外", x: 40, y: 40 }, { id: 2, childView: "flow", x: 300, y: 40 }, { id: 3, parent: 2, caption: "中" }],
+  });
+  const values = () => [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')].map(i => i.value);
+  g.select(1);
+  expect(values()).not.toContain("hexagon");
+  expect(values()).toContain("bulb");
+  g.select(3);
+  expect(values()).toContain("trapezoidAlt");
+  const label = document.querySelector<HTMLInputElement>('input[name="mzp-shape"][value="trapezoidAlt"]')!.closest("label")!;
+  expect(label.title).toBe(SHAPE_LABELS.trapezoidAlt);
 });

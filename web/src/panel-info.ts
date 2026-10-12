@@ -9,9 +9,8 @@ import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { THEMES, isPaletteName, themeById } from "./theme";
 import type { Brief, ChildView, Dash, EdgeInfo, Info, Route, Shape, Size, TreeDirection } from "./types";
-import { SHAPE_OPTIONS, SHAPE_VARIANTS, shapeFamily } from "./validate";
-import { shapeIcon } from "./shape-icons";
 import { shapeDef } from "./shapes";
+import { shapePicker } from "./shape-picker";
 
 const KIND_LABELS = { group: t("グループ"), box: t("ボックス") };
 // 鉛筆の印（編集ダイアログを開くボタン）
@@ -164,17 +163,12 @@ function html(info: Info): string {
       t("見本の色は、どのテーマでもそのテーマに合った色で描きます。好きな色（灰色も）を選ぶと、どのテーマでもその色で描きます")), info.themeUnknown));
 
     if (info.canShape || info.canClass) {
-      // 形はセレクトボックス（形が増えても幅が変わらないように。2026-10-11 ユーザー）。本文があればボックス以外は選べない。
+      // 形は絵の並び（shape-picker.ts。2026-10-12 ユーザー。それまではセレクトボックス）。本文があればボックス以外は選べない。
       // 子を内包している箱は、ボックスとクラスだけ（クラスにすると子は消える。docs/CLASS-plan.md）
-      const off = (v: string) => (info.body && !shapeDef(v as Shape).body) || (!info.canShape && v !== "box" && v !== "class");
-      // 切り替えのある形（円と角丸、平行四辺形と台形の向き）は、選択肢には家族の先頭を出し、下に切り替えを出す
-      const family = shapeFamily(info.shape);
+      const off = (v: Shape) => (info.body && !shapeDef(v).body ? t("本文があるあいだは選べません")
+        : !info.canShape && v !== "box" && v !== "class" ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : null);
       parts.push(`<div class="mzp-section"><h3>${t("形")}</h3>
-        <select class="mzp-input" name="mzp-shape" aria-label="${t("形")}">${SHAPE_OPTIONS.filter(([v]) => info.shapes.includes(v as Shape) || v === family).map(([v, label]) =>
-          `<option value="${v}"${v === family ? " selected" : ""}${off(v) ? " disabled" : ""}>${esc(label)}</option>`).join("")}</select>
-        ${SHAPE_VARIANTS[family] ? `<div class="mzp-shapevar">${segment("mzp-shapevar", info.shape,
-          SHAPE_VARIANTS[family]!.map(([v, label]) => [v, `${shapeIcon(v, "mzp-shape-icon")}<span class="mzp-sr">${esc(label)}</span>`]),
-          undefined, new Map(SHAPE_VARIANTS[family]!.map(([v, label]) => [v, label])))}</div>` : ""}
+        ${shapePicker({ name: "mzp-shape", value: info.shape, shapes: info.shapes, off })}
         ${info.body ? `<p class="mzp-hint">${t("本文があるので、ボックスのままです")}</p>` : ""}
         ${info.shape === "class" ? `<p class="mzp-hint">${t("クラス名・属性・操作は、編集のダイアログで直せます")}</p>` : ""}
       </div>`);
@@ -345,7 +339,7 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (el instanceof HTMLSelectElement && el.dataset.head && info.kind === "edge") {
       return graph.updateEdge(info.id, headPatch(info, el.dataset.head as Side, (el.value || null) as Head | null));
     }
-    if (el instanceof HTMLSelectElement && el.name === "mzp-shape" && info.kind !== "world" && info.kind !== "edge") {
+    if (el instanceof HTMLInputElement && el.name === "mzp-shape" && info.kind !== "world" && info.kind !== "edge") {
       const next = el.value as Shape;
       if (next !== "class" && info.shape !== "class") return graph.update(info.id, { shape: next });
       // クラスにかかわる変更は、子や abstract・属性・操作が消えることがあるので確かめる（docs/CLASS-plan.md）
@@ -353,7 +347,9 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
       const go = () => graph.updateClass(id, { shape: next });
       const warn = classChangeWarning(info.shape, next, info.children.length, info.abstract || info.attrs.length > 0 || info.ops.length > 0);
       if (!warn) return go();
-      el.value = info.shape; // 確かめてから変える（キャンセルなら元のまま）
+      // 確かめてから変える（キャンセルなら元の形を選んだまま）
+      const was = el.closest(".mz-sp")?.querySelector<HTMLInputElement>(`input[value="${info.shape}"]`);
+      if (was) was.checked = true;
       return openConfirmDialog(t("形の変更"), warn, t("変更する"), go);
     }
     if (!(el instanceof HTMLInputElement)) return;
@@ -371,7 +367,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
       const of = el.closest<HTMLElement>("[data-kid-size-of]")?.dataset.kidSizeOf;
       return void graph.setKidSize(of ? of : null, el.value as Size);
     }
-    if (el.name === "mzp-shapevar" && info.kind !== "world" && info.kind !== "edge") return graph.update(info.id, { shape: el.value as Shape });
     if (el.name === "mzp-view") return graph.update(info.kind === "world" ? null : info.id, { childView: el.value as ChildView });
   });
 
