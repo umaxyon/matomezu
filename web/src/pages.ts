@@ -5,8 +5,8 @@ import { keyOf } from "./dom";
 import { t } from "./i18n";
 import { DEFAULT_VIEW, STRATEGIES } from "./model";
 import { isTheme, paintFor, themeById } from "./theme";
-import { isView, normalizeEdge } from "./validate";
-import type { BoxData, ChildView, Diagram, EdgeData, Id, Items, ListItem } from "./types";
+import { isPattern, isView, normalizeEdge } from "./validate";
+import type { BoxData, BoxView, Diagram, EdgeData, Id, Items, ListItem, WorldData } from "./types";
 
 const key = (id: Id | undefined) => (id == null ? null : String(id));
 
@@ -95,18 +95,30 @@ export function dataPaint(d: Diagram, plain: string): (s: BoxData) => string {
   const byKey = new Map(nodes.map(s => [String(s.id), s]));
   const parentOf = (s: BoxData) => (s.parent != null ? byKey.get(String(s.parent)) : undefined);
   const hasKids = new Set(nodes.filter(s => s.parent != null).map(s => String(s.parent)));
-  const viewOf = (s: BoxData): ChildView => (isView(s.childView) ? s.childView as ChildView : DEFAULT_VIEW);
+  const viewOf = (s: BoxData): BoxView => (isView(s.childView) ? s.childView : DEFAULT_VIEW);
+  // 箱が載っているページの world（祖先にページの箱があればその world、無ければ data.world）と、そのページの最上位の祖先
+  const pageWorldOf = (s: BoxData): WorldData => {
+    for (let b = parentOf(s); b; b = parentOf(b)) if (b.page === true) return b.world ?? {};
+    return d.world ?? {};
+  };
+  const topOf = (s: BoxData): BoxData => {
+    let top = s;
+    for (let p = parentOf(top); p && p.page !== true; p = parentOf(p)) top = p;
+    return top;
+  };
   const themeOfData = (s: BoxData) => {
     let b: BoxData | undefined = s;
     for (; b && b.page !== true; b = parentOf(b)) if (isTheme(b.theme)) return themeById(b.theme);
     if (b && isTheme(b.world?.theme)) return themeById(b.world!.theme);
     return themeById(d.world?.theme);
   };
+  // 枠で見せる箱か。ツリーのページの根の木の中（根を含む）はツリーの節（枠ではない）、それ以外は自分の見せ方で決まる
   const nesting = (s: BoxData) => {
     if (!hasKids.has(String(s.id))) return false;
-    let root: BoxData | undefined;
-    for (let p = parentOf(s); p && p.page !== true; p = parentOf(p)) if (STRATEGIES[viewOf(p)].descendants) root = p;
-    return STRATEGIES[viewOf(root ?? s)].framed;
+    const w = pageWorldOf(s);
+    const pattern = isPattern(w.childView) ? w.childView : DEFAULT_VIEW;
+    if (STRATEGIES[pattern].descendants && String(topOf(s).id) === String(w.root)) return STRATEGIES[pattern].framed;
+    return STRATEGIES[viewOf(s)].framed;
   };
   return s => paintFor(themeOfData(s), s.color, nesting(s), plain).color;
 }

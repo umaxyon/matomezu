@@ -311,15 +311,14 @@ test("内包する箱の本文のつまみは、本文の最小の幅〜子の�
   expect(g.toJSON().nodes[0]!.bodyWidth).toBeUndefined(); // 箱の幅まで広げたら自動
 });
 
-test("サイズは見た目が葉の箱だけに効く。内包する箱は S でも本文を持て、ツリーの親の本体は S なら持てない", () => {
-  const { bodyEl } = setup({
-    nodes: [
-      { id: 1, caption: "枠", size: "S", body: "本文", x: 40, y: 40 },
-      { id: 2, parent: 1, caption: "子" },
-      { id: 3, caption: "木", size: "S", body: "本文", childView: "tree", x: 400, y: 40 },
-      { id: 4, parent: 3, caption: "子" },
-    ],
+test("サイズは見た目が葉の箱だけに効く。内包する箱は S でも本文を持て、ツリーの根の本体は S なら持てない", () => {
+  const nest = setup({
+    nodes: [{ id: 1, caption: "枠", size: "S", body: "本文", x: 40, y: 40 }, { id: 2, parent: 1, caption: "子" }],
   });
-  expect(bodyEl(1).hidden).toBe(false);
-  expect(bodyEl(3).hidden).toBe(true);
+  expect(nest.bodyEl(1).hidden).toBe(false);
+  const tree = setup({
+    world: { childView: "tree", root: 3 },
+    nodes: [{ id: 3, caption: "木", size: "S", body: "本文", x: 400, y: 40 }, { id: 4, parent: 3, caption: "子" }],
+  });
+  expect(tree.bodyEl(3).hidden).toBe(true);
 });

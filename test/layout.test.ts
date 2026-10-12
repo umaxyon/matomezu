@@ -33,12 +33,17 @@ function randomOp(el: HTMLElement, g: Graph, rnd: () => number): string {
   const id = pick(ids);
   const op = pick(["view", "dir", "size", "shape", "caption", "fit", "reparent", "drag", "undo"] as const);
   const patches: Record<string, () => Patch> = {
-    view: () => ({ childView: pick(["nest", "tree", "hidden"] as const) }),
-    dir: () => ({ treeDirection: pick(["down", "up", "left", "right"] as const) }),
+    view: () => ({ childView: pick(["nest", "list", "hidden"] as const) }),
     size: () => ({ size: pick(["L", "M", "S"] as const) }),
     shape: () => ({ shape: pick(["box", "person", "db"] as const) }),
     caption: () => ({ caption: pick(["短", "少し長いキャプション", "とても長いキャプションが入ったボックスの例"]) }),
   };
+  if (op === "dir") {
+    // ツリーのページの向き（内包のページでも world に書くだけ）
+    const p: Patch = { treeDirection: pick(["down", "up", "left", "right"] as const) };
+    g.update(null, p);
+    return `dir world ${JSON.stringify(p)}`;
+  }
   if (patches[op]) {
     const p = patches[op]!();
     g.update(id, p);
@@ -109,8 +114,10 @@ describe("大きさや見せ方が変わっても、グループの中は左上�
     const at = (id: number) => [graph.info(id).x, graph.info(id).y];
     const center = () => graph.info(3).x + graph.info(3).w / 2;
     const title = at(1), front = at(3), user = at(2), back = at(10), c0 = center();
+    // ツリーはページのパターン（根は子を持つ最初の最上位の箱 = 3）、非表示と内包は箱の見せ方
     for (const v of ["tree", "nest", "hidden", "tree", "nest", "hidden", "nest"] as const) {
-      graph.update(3, { childView: v });
+      if (v === "tree") graph.update(null, { childView: "tree" });
+      else { graph.update(null, { childView: "nest" }); graph.update(3, { childView: v }); }
       expect(graph.info(3).y).toBe(front[1]!); // 上辺は動かない
       expect(Math.abs(center() - c0)).toBeLessThanOrEqual(1); // 横の中心も動かない（非表示でも左に寄らない）
       expect([at(1), at(2)]).toEqual([title, user]);
@@ -119,38 +126,39 @@ describe("大きさや見せ方が変わっても、グループの中は左上�
     expect(at(10)).toEqual(back); // ツリーのときに押し下げたバックエンドも戻る
   });
 
-  test("ツリーと内包を切り替えても、外枠の上辺と横の中心を保つ", () => {
+  test("ページをツリーと内包で切り替えても、根の外枠の上辺と横の中心を保つ", () => {
     const { graph } = setup({
+      world: { childView: "tree", root: 2 },
       nodes: [
         { id: 1, caption: "ユーザー", x: 40, y: 300 },
-        { id: 2, caption: "フロントエンド", childView: "tree", x: 400, y: 260 },
+        { id: 2, caption: "フロントエンド", x: 400, y: 260 },
         { id: 3, caption: "とても長い名前のグループ", parent: 2 }, { id: 4, caption: "モバイル", parent: 2 },
       ],
       edges: [[1, 2]],
     });
     const top = () => { const i = graph.info(2); return [i.x + i.w / 2, i.y]; };
     const before = top();
-    graph.update(2, { childView: "nest" });
+    graph.update(null, { childView: "nest" });
     expect(Math.abs(top()[0]! - before[0]!)).toBeLessThanOrEqual(1);
     expect(top()[1]).toBe(before[1]);
-    graph.update(2, { childView: "tree" });
+    graph.update(null, { childView: "tree" });
     expect(graph.info(2).x).toBe(400); // 往復すれば元どおり
   });
 
-  test("入れ子の中で内包からツリーにしても、下の相手との間で上に余白を作らない", () => {
+  test("入れ子の中で非表示から内包にして広がっても、下の相手との間で上に余白を作らない", () => {
     // データ枠の中で、DB（API を内包）の右下にキャッシュがつながっている
     const { graph } = setup({
       nodes: [
         { id: 1, caption: "データ", x: 40, y: 40 },
-        { id: 2, caption: "DB", parent: 1, x: 12, y: 36 },
-        { id: 3, caption: "API", parent: 2, childView: "tree", x: 12, y: 36 },
+        { id: 2, caption: "DB", parent: 1, childView: "hidden", x: 12, y: 36 },
+        { id: 3, caption: "API", parent: 2, x: 12, y: 36 },
         { id: 4, caption: "認証", parent: 3, size: "S" }, { id: 5, caption: "注文", parent: 3, size: "S" },
         { id: 6, caption: "キャッシュ", parent: 1, x: 150, y: 330 },
       ],
       edges: [[2, 6]],
     } as Diagram);
     const before = graph.info(2);
-    graph.update(2, { childView: "tree" });
+    graph.update(2, { childView: "nest" });
     const after = graph.info(2);
     expect(after.y).toBeLessThanOrEqual(before.y);
     const cache = graph.info(6);

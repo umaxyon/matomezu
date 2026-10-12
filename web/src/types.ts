@@ -4,7 +4,11 @@ import type { ClassAttr, ClassOp } from "./classbox";
 import type { Head } from "./heads";
 
 export type Size = "L" | "M" | "S";
+// 並べ方の戦略の名前（model.ts の STRATEGIES の鍵）。パターンはページ単位（2026-10-12 ユーザー。docs/PATTERN-plan.md）:
+// ページ（ワールド）に掛けるパターンは PagePattern、箱に書ける子の見せ方（内包パターンの持ち物）は BoxView
 export type ChildView = "nest" | "tree" | "hidden" | "list" | "flow";
+export type PagePattern = "nest" | "tree" | "flow";
+export type BoxView = "nest" | "list" | "hidden";
 export type Overflow = "wrap" | "grow" | "clip";
 export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class" | "circle" | "stadium" | "hexagon"
   | "parallelogram" | "parallelogramAlt" | "trapezoid" | "trapezoidAlt"
@@ -20,7 +24,9 @@ export interface WorldData {
   route?: Route;       // 線の通り方の既定（無ければ直線）
   theme?: string;      // テーマ（theme.ts）。ページの world に書けばそのページ。無ければ default（ページはブック全体の world のテーマ）
   kidSize?: Size;        // 中の箱のサイズ（一括で変えたサイズ。整列の間隔と、道具入れから足す箱のサイズに使う。フローチャートのとき）
-  childView?: ChildView; // 最上位の箱の並べ方（ワールドに掛けられる戦略だけ: nest / flow。docs/PATTERN-plan.md の 3.7 章）
+  childView?: PagePattern; // ページのパターン（最上位の箱の並べ方。nest（既定）/ tree / flow。docs/PATTERN-plan.md）
+  root?: Id;             // ツリーのページの根の箱（最上位の箱の id。childView が tree のとき必須）
+  treeDirection?: TreeDirection; // ツリーのページで子を置く向き（既定は down）
   title?: string;      // 図（ブック）の題名。タブの見出しに使う（無ければファイル名）。ブック全体の world だけ（ページの world には書かない）
   [key: string]: unknown;
 }
@@ -44,8 +50,7 @@ export interface BoxData {
   size?: Size;
   shape?: Shape;
   kidSize?: Size;      // 中の箱のサイズ（一括で変えたサイズ。整列の間隔と、道具入れから足す箱のサイズに使う。フローチャートのとき）
-  childView?: ChildView;
-  treeDirection?: TreeDirection; // ツリーで子を置く向き（既定は down）
+  childView?: BoxView;  // 子の見せ方（内包パターンの持ち物: nest（既定）/ list / hidden。tree と flow はページのパターン）
   fill?: boolean;
   border?: boolean;
   overflow?: Overflow;
@@ -115,9 +120,11 @@ export interface WorldInfo {
   themeUsed: string;     // 効いているテーマ（ページなら、ブック全体のテーマを受け継ぐ）
   route: Route; // 線の通り方の既定
   title: string | null; // 図（ブック）の題名（どのページを見ていても、ブック全体の world のもの）
-  childView: ChildView;  // 最上位の箱の並べ方
-  views: ChildView[];    // ワールドに掛けられる見せ方
-  viewsOff: ChildView[]; // 選べない見せ方（子を持つ箱が最上位にあれば、フローチャートは選べない）
+  childView: PagePattern;  // ページのパターン（最上位の箱の並べ方）
+  views: PagePattern[];    // ページに掛けられるパターン
+  viewsOff: PagePattern[]; // 掛けられないパターン（子を持つ箱が最上位にあれば、フローチャートは掛けられない）
+  treeDirection: TreeDirection; // ツリーのページの向き
+  canFlatten: boolean;     // 内包に変換できるか（ツリーのページ。戻せない。docs/PATTERN-plan.md）
   tools: { id: string | null; shapes: Shape[]; size: Size } | null; // 道具入れ（ワールドなら id は null。図の左上に出す）。size は足す箱のサイズ
   canAlign: boolean;     // 自動で整列できるか（決まった並べ方を持つ戦略で、子がある）
   kidSize: Size | null;  // 中の箱のサイズ（一括で変えたもの。無ければ null）。canAlign のときだけ選べる
@@ -146,15 +153,11 @@ export interface BoxInfo {
   bodyWidth: number | null; // 本文の幅の指定（つまみで変えた幅。null は自動）
   inList: boolean;   // リストの子か（サイズ・形・子の見せ方を使わない。docs/LIST-plan.md）
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
-  childView: ChildView;
-  treeDirection: TreeDirection;
+  childView: BoxView;
   framed: boolean; // 子を枠の中に入れて見せる箱か（内包・リスト。サイズは使わず、大きさは子の並びで決まる）
-  canFlatten: boolean; // 線で描き直せるか（子孫全体に効く戦略（ツリー）にした一番外の箱。docs/PATTERN-plan.md の 3.6 章）
-  viewsOff: ChildView[]; // 選べない子の見せ方（子を持つ子があれば、子が子を持てないフローチャートは選べない）
-  canAlign: boolean; // 自動で整列できるか（決まった並べ方を持つ戦略（フローチャート）で、子がある）
-  kidSize: Size | null; // 中の箱のサイズ（一括で変えたもの。無ければ null）。canAlign のときだけ選べる
-  tools: { id: string | null; shapes: Shape[]; size: Size } | null; // 道具入れを出す箱（自分か親。ワールドなら null）と、足せる形、足す箱のサイズ
-  inTree: boolean; // ツリーの中の箱か（子孫の見せ方はツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md の 3.6 章）
+  tools: { id: string | null; shapes: Shape[]; size: Size } | null; // 道具入れ（ページのパターンのもの。ワールドなので id は null）と、足せる形、足す箱のサイズ
+  inTree: boolean; // ツリーの中の箱か（ツリーのページの根の子孫。並びはツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md）
+  treeRoot: boolean; // ツリーのページの根か（消せず、付け替えられない）
   parent: Brief | null;
   x: number;
   y: number;
@@ -239,8 +242,8 @@ export interface Patch {
   color?: string | null;
   size?: Size;
   shape?: Shape;
-  childView?: ChildView;
-  treeDirection?: TreeDirection;
+  childView?: ChildView;         // 箱なら子の見せ方（BoxView）、ワールドならページのパターン（PagePattern）
+  treeDirection?: TreeDirection; // ワールドだけ（ツリーのページの向き）
   fill?: boolean;
   border?: boolean;
   overflow?: Overflow;

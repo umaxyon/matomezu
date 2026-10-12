@@ -1,9 +1,10 @@
-// フローチャートの戦略（docs/PATTERN-plan.md の 3.7 章）: 子を自由に置き、子は子を持てない。形はどこでも同じに使える（2026-10-12 ユーザー）
+// フローチャートはページのパターン（docs/PATTERN-plan.md の 3.7 章。2026-10-12 ユーザー: パターンはページ単位）: 箱を自由に置き、箱は子を持てない。
+// 形はどこでも同じに使える
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import type { BoxInfo, Diagram, EdgeData, EdgeInfo } from "../web/src/types";
+import type { BoxInfo, Diagram, EdgeData, EdgeInfo, WorldInfo } from "../web/src/types";
 import { STRATEGIES, splitBranches } from "../web/src/model";
-import { VIEWS, WORLD_VIEWS, problems } from "../web/src/validate";
+import { BOX_VIEWS, PAGE_PATTERNS, VIEWS, problems } from "../web/src/validate";
 import { fakeMeasure } from "./helpers";
 import { alignFlow } from "../web/src/layout/flow-align";
 import { fewestRoute, route } from "../web/src/routing";
@@ -23,72 +24,75 @@ function setup(data: Diagram) {
   return { el, graph, events };
 }
 
-// 1 がフローチャート。2〜4 がその子（六角形・ひし形・円）。10 は外の六角形、11 は外の円、12 は子を持つ外の箱
+// フローチャートのページ。2〜4 が六角形・ひし形・円、10 と 11 は離れた所の六角形と円
 const data = (): Diagram => ({
+  world: { childView: "flow" },
   nodes: [
-    { id: 1, caption: "流れ", childView: "flow", x: 40, y: 40 },
-    { id: 2, caption: "準備", parent: 1, shape: "hexagon", x: 20, y: 40 },
-    { id: 3, caption: "分岐", parent: 1, shape: "diamond", x: 20, y: 160 },
-    { id: 4, caption: "接続", parent: 1, shape: "circle", x: 220, y: 160 },
-    { id: 10, caption: "外の六角形", shape: "hexagon", x: 600, y: 40 },
-    { id: 11, caption: "外の円", shape: "circle", x: 600, y: 200 },
-    { id: 12, caption: "親", x: 600, y: 360 },
-    { id: 13, caption: "子", parent: 12 },
+    { id: 2, caption: "準備", shape: "hexagon", x: 60, y: 80 },
+    { id: 3, caption: "分岐", shape: "diamond", x: 60, y: 200 },
+    { id: 4, caption: "接続", shape: "circle", x: 260, y: 200 },
+    { id: 10, caption: "離れた六角形", shape: "hexagon", x: 600, y: 40 },
+    { id: 11, caption: "離れた円", shape: "circle", x: 600, y: 200 },
   ],
   edges: [{ id: "e1", from: 3, to: 4 }, { id: "e2", from: 2, to: 3 }],
 });
 const info = (g: Graph, id: number) => g.info(id) as BoxInfo;
+const worldInfo = (g: Graph) => g.info(null) as WorldInfo;
 
-test("形はどこでも同じに使える: フローチャートの外でも六角形のまま描き、外へ出しても形は変わらない", () => {
-  const { graph } = setup(data());
-  expect([2, 3, 4, 10, 11].map(id => info(graph, id).shape)).toEqual(["hexagon", "diamond", "circle", "hexagon", "circle"]);
-  graph.reparent(2, null, { x: 600, y: 600 });
-  expect(info(graph, 2).shape).toBe("hexagon");
+test("形はどこでも同じに使える: 内包のページでも六角形のまま描く", () => {
+  const flow = setup(data());
+  expect([2, 3, 4, 10, 11].map(id => info(flow.graph, id).shape)).toEqual(["hexagon", "diamond", "circle", "hexagon", "circle"]);
+  const nest = setup({ ...data(), world: {} });
+  expect([2, 3, 4, 10, 11].map(id => info(nest.graph, id).shape)).toEqual(["hexagon", "diamond", "circle", "hexagon", "circle"]);
 });
 
-test("形のローカルなルール: 平行四辺形と台形はツリーの中ではボックスで見せ（データは残す）、ツリーを外せば形に戻る。六角形とひし形は形のまま", () => {
+test("形のローカルなルール: 平行四辺形と台形はツリーの中ではボックスで見せ（データは残す）、ページを内包にすれば形に戻る。六角形とひし形は形のまま", () => {
   const { graph } = setup({
+    world: { childView: "tree", root: 1 },
     nodes: [
-      { id: 1, caption: "根", childView: "tree", x: 40, y: 40 },
+      { id: 1, caption: "根", x: 40, y: 40 },
       { id: 2, caption: "入力", parent: 1, shape: "parallelogram" }, { id: 3, caption: "手作業", parent: 1, shape: "trapezoidAlt" },
       { id: 4, caption: "準備", parent: 1, shape: "hexagon" }, { id: 5, caption: "分岐", parent: 1, shape: "diamond" },
     ],
   });
   expect([2, 3, 4, 5].map(id => info(graph, id).shape)).toEqual(["box", "box", "hexagon", "diamond"]);
   expect(graph.toJSON().nodes.find(n => n.id === 2)!.shape).toBe("parallelogram");
-  graph.update(1, { childView: "nest" });
+  graph.update(null, { childView: "nest" });
   expect([2, 3, 4, 5].map(id => info(graph, id).shape)).toEqual(["parallelogram", "trapezoidAlt", "hexagon", "diamond"]);
 });
 
-test("フローチャートの子は子を持てない: 子の中へは入れられず、子を持つ箱はフローチャートへ入れられない", () => {
+test("フローチャートのページの箱は子を持てない: 箱の中へは入れられず、最上位へは入れられる", () => {
   const { graph, events } = setup(data());
   expect(() => graph.reparent(11, 2)).toThrow();
-  expect(graph.reparent(12, 1)).toBe(false);
-  expect(events).toContain("leafKids");
-  expect(graph.toJSON().nodes.find(n => n.id === 12)!.parent).toBeUndefined();
-  // 子の無い箱なら入れられる
-  expect(graph.reparent(11, 1)).toBe(true);
+  expect(graph.toJSON().nodes.find(n => n.id === 11)!.parent).toBeUndefined();
+  expect(events).not.toContain("leafKids");
 });
 
-test("子を持つ子がある箱は、フローチャートにできない（選べない見せ方として知らせる）", () => {
+test("子を持つ最上位の箱があるページは、フローチャートにできない（掛けられないパターンとして知らせる）", () => {
   const { graph } = setup({ nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B", parent: 1 }, { id: 3, caption: "C", parent: 2 }] });
-  expect(info(graph, 1).viewsOff).toEqual(["flow"]);
-  expect(() => graph.update(1, { childView: "flow" })).toThrow();
-  expect(info(graph, 2).viewsOff).toEqual([]);
+  expect(worldInfo(graph).viewsOff).toEqual(["flow"]);
+  expect(() => graph.update(null, { childView: "flow" })).toThrow();
+  expect(() => graph.update(1, { childView: "flow" as never })).toThrow("箱には書けません");
+  const leaves = setup({ nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B" }] });
+  expect(worldInfo(leaves.graph).viewsOff).toEqual([]);
 });
 
-test("データの検査: フローチャートの子が子を持つと誤り", () => {
-  const bad = { nodes: [{ id: 1, childView: "flow" }, { id: 2, parent: 1 }, { id: 3, parent: 2 }] };
+test("データの検査: フローチャートのページの箱が子を持つと誤り。箱に flow / tree を書いても誤り（ページの world に書くよう案内）", () => {
+  const bad = { world: { childView: "flow" }, nodes: [{ id: 1 }, { id: 2, parent: 1 }] };
   expect(problems(bad).some(p => p.includes("フローチャート"))).toBe(true);
+  expect(problems({ nodes: [{ id: 1, childView: "flow" }] })).toEqual([expect.stringContaining("world.childView")]);
+  expect(problems({ nodes: [{ id: 1, childView: "tree" }] })).toEqual([expect.stringContaining("world.childView")]);
+  expect(problems({ nodes: [{ id: 1, treeDirection: "left" }] })).toEqual([expect.stringContaining("world.treeDirection")]);
   expect(problems(data())).toEqual([]);
 });
 
-test("道具入れは、フローチャートの箱とその子を選んだときに、フローチャートの箱に出す", () => {
+test("道具入れは、フローチャートのページでどの箱を選んでいても図の左上に出す。内包のページには出さない", () => {
   const { graph } = setup(data());
-  expect(info(graph, 1).tools?.id).toBe("1");
-  expect(info(graph, 3).tools?.id).toBe("1");
+  expect(worldInfo(graph).tools?.id).toBeNull();
+  expect(info(graph, 3).tools?.id).toBeNull();
   expect(info(graph, 3).tools?.shapes).toEqual(["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"]);
-  expect(info(graph, 10).tools).toBeNull();
+  const nest = setup({ ...data(), world: {} });
+  expect([worldInfo(nest.graph).tools, info(nest.graph, 10).tools]).toEqual([null, null]);
 });
 
 test("フローチャートのひし形から出る線には、キャプションの候補 Yes / No を出す", () => {
@@ -97,32 +101,41 @@ test("フローチャートのひし形から出る線には、キャプショ�
   expect((graph.edgeInfo("e2") as EdgeInfo).captionHints).toEqual([]);
 });
 
-test("ワールド（ページ）もフローチャートにでき、図の左上に道具入れが出る。最上位の箱は子を持てない", () => {
+test("ページのパターンをデータでフローチャートに変えられ、図の左上に道具入れが出る。箱の見せ方（list）はページには掛けられない", () => {
   const { graph, events } = setup({
     nodes: [{ id: 1, caption: "準備", shape: "hexagon", x: 40, y: 40 }, { id: 2, caption: "外", x: 300, y: 40 }],
   });
-  expect((graph.info(null) as { views: string[] }).views).toEqual(["nest", "flow"]);
+  expect(worldInfo(graph).views).toEqual(["nest", "tree", "flow"]);
   graph.update(null, { childView: "flow" });
   expect(graph.toJSON().world?.childView).toBe("flow");
   expect(info(graph, 1).shape).toBe("hexagon");
   expect(info(graph, 1).tools).toEqual({ id: null, shapes: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"], size: "M" });
   expect(() => graph.reparent(2, 1)).toThrow();
-  expect(() => graph.update(null, { childView: "tree" })).toThrow();
-  // 最上位に子を持つ箱があれば、フローチャートにできない
-  const other = setup({ nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B", parent: 1 }] });
-  expect((other.graph.info(null) as { viewsOff: string[] }).viewsOff).toEqual(["flow"]);
-  expect(problems({ world: { childView: "flow" }, nodes: [{ id: 1 }, { id: 2, parent: 1 }] }).length).toBeGreaterThan(0);
+  expect(() => graph.update(null, { childView: "list" as never })).toThrow();
   expect(problems({ world: { childView: "list" }, nodes: [] }).length).toBeGreaterThan(0);
   expect(events).toEqual([]);
 });
 
+test("ページのパターンをデータでツリーに変えると、根は子を持つ最上位の箱（無ければ最初の箱）。最上位の箱が無ければできない", () => {
+  const { graph } = setup({ nodes: [{ id: 1, caption: "葉", x: 40, y: 40 }, { id: 2, caption: "親", x: 300, y: 40 }, { id: 3, parent: 2 }] });
+  graph.update(null, { childView: "tree" });
+  expect(graph.toJSON().world).toEqual({ childView: "tree", root: 2 });
+  expect([info(graph, 2).treeRoot, info(graph, 3).inTree, info(graph, 1).treeRoot]).toEqual([true, true, false]);
+  const empty = setup({ nodes: [] });
+  expect(() => empty.graph.update(null, { childView: "tree" })).toThrow();
+  // 検査: 根が無い、根がそのページの最上位でない、根の外の箱が子を持つ
+  expect(problems({ world: { childView: "tree" }, nodes: [{ id: 1 }] })).toEqual([expect.stringContaining("world.root")]);
+  expect(problems({ world: { childView: "tree", root: 3 }, nodes: [{ id: 2 }, { id: 3, parent: 2 }] })).toHaveLength(2);
+  expect(problems({ world: { childView: "tree", root: 1 }, nodes: [{ id: 1 }, { id: 2 }, { id: 3, parent: 2 }] })).toEqual([expect.stringContaining("根")]);
+});
+
 test("形の切り替え: 円と角丸、平行四辺形と台形の向きは、データでは別の形の値", () => {
   const { graph } = setup({
+    world: { childView: "flow" },
     nodes: [
-      { id: 1, childView: "flow", x: 0, y: 0 },
-      { id: 2, parent: 1, shape: "stadium", caption: "開始" },
-      { id: 3, parent: 1, shape: "parallelogramAlt" },
-      { id: 4, parent: 1, shape: "trapezoidAlt" },
+      { id: 2, shape: "stadium", caption: "開始" },
+      { id: 3, shape: "parallelogramAlt" },
+      { id: 4, shape: "trapezoidAlt" },
       { id: 5, shape: "stadium", x: 600, y: 0 },
     ],
   });
@@ -131,8 +144,9 @@ test("形の切り替え: 円と角丸、平行四辺形と台形の向きは、
   expect(graph.toJSON().nodes.find(n => n.id === 2)!.shape).toBe("circle");
 });
 
-test("ワールドに掛けられる見せ方の一覧（validate.ts の WORLD_VIEWS）は、戦略の表の onWorld と同じ", () => {
-  expect<string[]>([...WORLD_VIEWS]).toEqual(VIEWS.filter(v => STRATEGIES[v].onWorld));
+test("ページに掛けられるパターン（validate.ts の PAGE_PATTERNS）と箱の見せ方（BOX_VIEWS）は、戦略の表の onWorld・onBox と同じ", () => {
+  expect<string[]>([...PAGE_PATTERNS]).toEqual(VIEWS.filter(v => STRATEGIES[v].onWorld));
+  expect<string[]>([...BOX_VIEWS]).toEqual(VIEWS.filter(v => STRATEGIES[v].onBox));
 });
 
 test("分岐の頂点の割り当て: 1 つの頂点から 2 本出さず、相手の向きに合う頂点を選ぶ（下と右の組み合わせもある）。入ってくる線の頂点は避ける", () => {
@@ -144,18 +158,17 @@ test("分岐の頂点の割り当て: 1 つの頂点から 2 本出さず、相�
 });
 
 test("フローチャートの分岐から出る線は、1 つの頂点から 2 本出さない。端を固定した線と、フローチャートの外の分岐は今までどおり", () => {
-  const nodes = (flow: boolean): Diagram["nodes"] => [
-    { id: 1, ...(flow ? { childView: "flow" as const } : {}), x: 0, y: 0 },
-    { id: 2, parent: 1, shape: "diamond", caption: "?", x: 200, y: 20 },
-    { id: 3, parent: 1, caption: "Yes", x: 20, y: 260 },
-    { id: 4, parent: 1, caption: "No", x: 400, y: 260 },
+  const nodes: Diagram["nodes"] = [
+    { id: 2, shape: "diamond", caption: "?", x: 200, y: 20 },
+    { id: 3, caption: "Yes", x: 20, y: 260 },
+    { id: 4, caption: "No", x: 400, y: 260 },
   ];
   const edges = [{ id: "e1", from: 2, to: 3 }, { id: "e2", from: 2, to: 4 }];
   const start = (el: HTMLElement, id: string) =>
     el.querySelector(`.mz-edge[data-id="${id}"] polyline`)!.getAttribute("points")!.trim().split(/\s+/)[0]!.split(",").map(Number);
-  const flow = setup({ nodes: nodes(true), edges });
+  const flow = setup({ world: { childView: "flow" }, nodes, edges });
   expect(start(flow.el, "e1")).not.toEqual(start(flow.el, "e2")); // 別の頂点から出る
-  const plain = setup({ nodes: nodes(false), edges });
+  const plain = setup({ nodes, edges });
   expect(start(plain.el, "e1")).toEqual(start(plain.el, "e2")); // フローチャートの外は一か所（下の頂点）から
 });
 
@@ -218,7 +231,7 @@ test("自動で整列: 中の線の端の固定と折れ目を外し、分岐の
       { id: "e3", from: 2, to: 4 },
     ],
   });
-  expect(graph.autoAlign(null)).toBe(true);
+  expect(graph.autoAlign()).toBe(true);
   const out = graph.toJSON().edges as EdgeData[];
   const e = (id: string) => out.find(x => x.id === id)!;
   expect([e("e1").exitAt, e("e2").exitAt, e("e2").via, e("e3").exitAt]).toEqual([undefined, undefined, undefined, undefined]);
@@ -237,20 +250,19 @@ test("自動で整列: 中の線の端の固定と折れ目を外し、分岐の
 
 test("LLM が位置を書かずにフローチャートを書き出したら整列して置く。位置のある箱が 1 つでもあれば使わない。自動で整列のボタンでも同じ並べ方", () => {
   const nodes = (pos: boolean): Diagram["nodes"] => [
-    { id: 1, childView: "flow", x: 0, y: 0 },
-    { id: 2, parent: 1, shape: "stadium", caption: "開始", ...(pos ? { x: 300, y: 20 } : {}) },
-    { id: 3, parent: 1, caption: "処理" },
-    { id: 4, parent: 1, caption: "終了", shape: "stadium" },
+    { id: 2, shape: "stadium", caption: "開始", ...(pos ? { x: 300, y: 20 } : {}) },
+    { id: 3, caption: "処理" },
+    { id: 4, caption: "終了", shape: "stadium" },
   ];
   const edges = [{ id: "e1", from: 2, to: 3 }, { id: "e2", from: 3, to: 4 }];
   const center = (g: Graph, id: number) => info(g, id).x + info(g, id).w / 2;
-  const auto = setup({ nodes: nodes(false), edges });
+  const auto = setup({ world: { childView: "flow" }, nodes: nodes(false), edges });
   expect(new Set([2, 3, 4].map(id => center(auto.graph, id))).size).toBe(1);
   expect(info(auto.graph, 2).y).toBeLessThan(info(auto.graph, 3).y);
-  const placed = setup({ nodes: nodes(true), edges });
+  const placed = setup({ world: { childView: "flow" }, nodes: nodes(true), edges });
   expect(info(placed.graph, 2).x).toBe(300);
-  expect(info(placed.graph, 1).canAlign).toBe(true);
-  expect(placed.graph.autoAlign(1)).toBe(true);
+  expect(worldInfo(placed.graph).canAlign).toBe(true);
+  expect(placed.graph.autoAlign()).toBe(true);
   expect(new Set([2, 3, 4].map(id => center(placed.graph, id))).size).toBe(1);
   placed.graph.undo();
   expect(info(placed.graph, 2).x).toBe(300);
@@ -258,50 +270,49 @@ test("LLM が位置を書かずにフローチャートを書き出したら整�
 
 test("フローチャートの線はなるべく同じ位置につながない: 折れ目の少ない線が辺を取り、負けた線は空いている近い辺へ。フローチャートの外は今までどおり", () => {
   // 3 の真下に 5、右上に 4。3→5 はまっすぐ（折れ目 0）、4→5 は 5 の上で合流しがち
-  const nodes = (flow: boolean): Diagram["nodes"] => [
-    { id: 1, ...(flow ? { childView: "flow" as const } : {}), x: 0, y: 0 },
-    { id: 3, parent: 1, caption: "上", x: 200, y: 20 },
-    { id: 4, parent: 1, caption: "右上", x: 420, y: 160 },
-    { id: 5, parent: 1, caption: "下", x: 200, y: 320 },
+  const nodes: Diagram["nodes"] = [
+    { id: 3, caption: "上", x: 200, y: 20 },
+    { id: 4, caption: "右上", x: 420, y: 160 },
+    { id: 5, caption: "下", x: 200, y: 320 },
   ];
   const edges = [{ id: "e1", from: 3, to: 5 }, { id: "e2", from: 4, to: 5 }];
   const end = (el: HTMLElement, id: string) => el.querySelector(`.mz-edge[data-id="${id}"] polyline`)!.getAttribute("points")!.trim().split(/\s+/).at(-1)!;
-  const flow = setup({ nodes: nodes(true), edges });
+  const flow = setup({ world: { childView: "flow" }, nodes, edges });
   expect(end(flow.el, "e1")).not.toBe(end(flow.el, "e2"));
   const [x2] = end(flow.el, "e2").split(",").map(Number);
-  const box = info(flow.graph, 5), parent = info(flow.graph, 1);
-  expect(x2).toBe(parent.x + box.x + box.w); // 右の辺に入る（遠い左の辺は使わない。位置は親の中なので親の位置を足す）
-  const plain = setup({ nodes: nodes(false), edges });
+  const box = info(flow.graph, 5);
+  expect(x2).toBe(box.x + box.w); // 右の辺に入る（遠い左の辺は使わない）
+  const plain = setup({ nodes, edges });
   expect(end(plain.el, "e1")).toBe(end(plain.el, "e2")); // フローチャートの外は、同じ位置で合流したまま
 });
 
 test("中の箱のサイズ: 全部を一度にそのサイズにし、サイズに合わせた間隔で整列し直す。1 回の Undo で戻り、そのあとも箱ごとに変えられる", () => {
   const data = (): Diagram => ({
+    world: { childView: "flow" },
     nodes: [
-      { id: 1, childView: "flow", x: 0, y: 0 },
-      { id: 2, parent: 1, shape: "stadium", caption: "開始", size: "L", x: 300, y: 20 },
-      { id: 3, parent: 1, caption: "処理", x: 40, y: 200 },
-      { id: 4, parent: 1, caption: "終了", shape: "stadium", x: 500, y: 400 },
+      { id: 2, shape: "stadium", caption: "開始", size: "L", x: 300, y: 20 },
+      { id: 3, caption: "処理", x: 40, y: 200 },
+      { id: 4, caption: "終了", shape: "stadium", x: 500, y: 400 },
     ],
     edges: [{ id: "e1", from: 2, to: 3 }, { id: "e2", from: 3, to: 4 }],
   });
   const { graph } = setup(data());
   const gap = (g: Graph) => info(g, 3).y - (info(g, 2).y + info(g, 2).h);
-  expect(info(graph, 1).kidSize).toBeNull();
-  expect(graph.setKidSize(1, "S")).toBe(true);
+  expect(worldInfo(graph).kidSize).toBeNull();
+  expect(graph.setKidSize("S")).toBe(true);
   expect([2, 3, 4].map(id => info(graph, id).size)).toEqual(["S", "S", "S"]);
-  expect(info(graph, 1).kidSize).toBe("S");
+  expect(worldInfo(graph).kidSize).toBe("S");
   const small = gap(graph);
-  graph.setKidSize(1, "L");
+  graph.setKidSize("L");
   expect(gap(graph)).toBeGreaterThan(small);                              // L は段の間が広い
   expect(new Set([2, 3, 4].map(id => info(graph, id).x + info(graph, id).w / 2)).size).toBe(1); // 整列し直してある
-  expect(info(graph, 1).tools?.size).toBe("L");                           // 道具入れから足す箱のサイズ
+  expect(worldInfo(graph).tools?.size).toBe("L");                         // 道具入れから足す箱のサイズ
   graph.update(3, { size: "M" });                                         // 箱ごとに変えられる
   expect(info(graph, 3).size).toBe("M");
   graph.undo();
   graph.undo();
   expect([2, 3, 4].map(id => info(graph, id).size)).toEqual(["S", "S", "S"]);
-  expect(problems({ ...data(), world: { kidSize: "XL" } }).length).toBeGreaterThan(0);
+  expect(problems({ ...data(), world: { childView: "flow", kidSize: "XL" } }).length).toBeGreaterThan(0);
 });
 
 test("フローチャートの線は折れ目の一番少ない形: 斜めに並ぶ箱どうしでも Z 字（2 回）ではなく L 字（1 回）", () => {
@@ -315,15 +326,11 @@ test("フローチャートの線は折れ目の一番少ない形: 斜めに並
 
 test("フローチャートの S の箱は、キャプションを切り詰めずに折り返し、高さを文字に合わせる（外の S は 10 文字で切って高さは決まったまま）", () => {
   const long = "とても長いキャプションを持つ処理の箱です";
-  const { el, graph } = setup({
-    nodes: [
-      { id: 1, childView: "flow", x: 0, y: 0 }, { id: 2, parent: 1, caption: long, size: "S", x: 20, y: 40 },
-      { id: 3, caption: long, size: "S", x: 600, y: 40 },
-    ],
-  });
-  const text = (id: number) => el.querySelector(`.mz-node[data-id="${id}"] > .mz-head .mz-text`)!.textContent;
-  expect(text(2)).toBe(long);
+  const { el, graph } = setup({ world: { childView: "flow" }, nodes: [{ id: 2, caption: long, size: "S", x: 20, y: 40 }] });
+  const text = (e: HTMLElement, id: number) => e.querySelector(`.mz-node[data-id="${id}"] > .mz-head .mz-text`)!.textContent;
+  expect(text(el, 2)).toBe(long);
   expect(info(graph, 2).h).toBeGreaterThan(44);
-  expect(text(3)).not.toBe(long);
-  expect(info(graph, 3).h).toBe(44);
+  const nest = setup({ nodes: [{ id: 3, caption: long, size: "S", x: 600, y: 40 }] });
+  expect(text(nest.el, 3)).not.toBe(long);
+  expect(info(nest.graph, 3).h).toBe(44);
 });

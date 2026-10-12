@@ -12,12 +12,12 @@ import { colorButtonHtml, openDialog, setupColorButton } from "./edit-dialog";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { DEFAULT_ROUTE, DEFAULT_VIEW, STRATEGIES } from "./model";
-import { BG_PRESETS, ROUTE_OPTIONS, THEME_HELP, VIEW_OPTIONS, WORLD_VIEW_HELP } from "./panel-info";
+import { BG_PRESETS, PATTERN_OPTIONS, ROUTE_OPTIONS, THEME_HELP, WORLD_VIEW_HELP } from "./panel-info";
 import { DEFAULT_THEME, THEMES } from "./theme";
-import type { ChildView, WorldData } from "./types";
+import type { PagePattern, WorldData } from "./types";
 
-// ワールドに掛けられる並べ方（内包・フローチャート）
-const WORLD_VIEWS = VIEW_OPTIONS.filter(([v]) => STRATEGIES[v as ChildView].onWorld);
+// 最初のページに掛けられるパターン。根の箱が要るパターン（ツリー）は、ページを足す画面（D27 の段階 2）で根を置けるようになるまで出さない
+const WORLD_VIEWS: [string, string][] = PATTERN_OPTIONS.filter(([v]) => STRATEGIES[v].onWorld && !STRATEGIES[v].descendants);
 
 function seg(name: string, value: string, options: [string, string][]): string {
   return `<div class="mz-dlg-seg">${options.map(([v, label]) =>
@@ -34,7 +34,7 @@ export function openNewBookDialog(near: string | null, created: (id: string) => 
         `<option value="${th.id}"${th.id === DEFAULT_THEME ? " selected" : ""}>${esc(th.label)}</option>`).join("")}</select></div>
     <div class="mz-dlg-row"><span>${t("背景色")}</span>${colorButtonHtml(t("背景色を選ぶ"))}</div>
     <div class="mz-dlg-field"><span>${t("線の通り方（既定）")}</span>${seg("route", DEFAULT_ROUTE, ROUTE_OPTIONS)}</div>
-    <div class="mz-dlg-field"><span>${t("子の見せ方")}${helpIcon(WORLD_VIEW_HELP)}</span>${seg("view", DEFAULT_VIEW, WORLD_VIEWS)}</div>
+    <div class="mz-dlg-field"><span>${t("ページのパターン")}${helpIcon(WORLD_VIEW_HELP)}</span>${seg("view", DEFAULT_VIEW, WORLD_VIEWS)}</div>
     <p class="mz-dlg-note">${t("今見ている図と同じフォルダに作ります")}</p>`;
 
   const overlay = openDialog(t("新しい図"), t("作成"), fields, o => {
@@ -46,7 +46,7 @@ export function openNewBookDialog(near: string | null, created: (id: string) => 
     if (field("theme") !== DEFAULT_THEME) world.theme = field("theme");
     if (background) world.background = background;
     if (picked("route") !== DEFAULT_ROUTE) world.route = picked("route") as WorldData["route"];
-    if (picked("view") !== DEFAULT_VIEW) world.childView = picked("view") as ChildView;
+    if (picked("view") !== DEFAULT_VIEW) world.childView = picked("view") as PagePattern;
     createBook(near, title, world).then(created, (e: Error) => failed(e.message));
   });
 

@@ -4,20 +4,18 @@ import { openDiagram, select } from "./helpers";
 import type { Diagram } from "../web/src/types";
 
 const data: Diagram = {
+  world: { childView: "flow" },
   nodes: [
-    { id: 1, caption: "流れ", childView: "flow", x: 40, y: 40 },
-    { id: 2, caption: "分岐", parent: 1, shape: "diamond", x: 20, y: 40 },
-    { id: 3, caption: "処理", parent: 1, x: 20, y: 200 },
-    { id: 9, caption: "外", x: 700, y: 40 },
+    { id: 2, caption: "分岐", shape: "diamond", x: 60, y: 80 },
+    { id: 3, caption: "処理", x: 60, y: 240 },
+    { id: 9, caption: "離れた箱", x: 700, y: 40 },
   ],
   edges: [{ id: "e1", from: 2, to: 3 }],
 };
 const toolbox = (page: import("@playwright/test").Page) => page.locator(".mz-toolbox");
 
-test("フローチャートの子を選ぶと道具入れが出る。道具を押すとその形の影が付く追加モードになり、押した所に足すダイアログが出る", async ({ page }) => {
+test("フローチャートのページで箱を選ぶと道具入れが出る。道具を押すとその形の影が付く追加モードになり、押した所に足すダイアログが出る", async ({ page }) => {
   await openDiagram(page, data);
-  await select(page, 9);
-  await expect(toolbox(page)).toBeHidden();
   await select(page, 3);
   await expect(toolbox(page)).toBeVisible();
 
@@ -35,7 +33,7 @@ test("フローチャートの子を選ぶと道具入れが出る。道具を�
   await page.locator('.mz-dlg [name="caption"]').fill("準備");
   await page.locator(".mz-dlg [data-ok]").click();
   await expect(page.locator("#mode-label")).toHaveText("選択モード");
-  const hex = page.locator('.mz-node[data-id="1"] .mz-node', { hasText: "準備" });
+  const hex = page.locator(".mz-node", { hasText: "準備" });
   await expect(hex.locator(":scope > .mz-head")).toHaveClass(/mz-shape-hexagon/);
   const b = (await hex.boundingBox())!;
   expect(Math.abs(b.x - (at.x - 16))).toBeLessThan(40);
@@ -49,7 +47,7 @@ test("道具入れの道具をキーボードで押すと、置く所を指さ�
   await expect(page.locator('.mz-dlg [name="shape"]:checked')).toHaveValue("circle");
   await page.locator('.mz-dlg [name="caption"]').fill("接続");
   await page.locator(".mz-dlg [data-ok]").click();
-  await expect(page.locator('.mz-node[data-id="1"] .mz-node .mz-head', { hasText: "接続" })).toHaveClass(/mz-shape-circle/);
+  await expect(page.locator(".mz-node .mz-head", { hasText: "接続" })).toHaveClass(/mz-shape-circle/);
 });
 
 test("フローチャートのひし形から出る線の編集ダイアログには Yes / No の候補が出て、押すとキャプションに入る", async ({ page }) => {
@@ -61,10 +59,9 @@ test("フローチャートのひし形から出る線の編集ダイアログ�
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-label')).toHaveText("No");
 });
 
-test("ワールドをフローチャートにすると、図の左上に道具入れが出る。足すダイアログで向きの違う形（台形の向き）を絵で選べる", async ({ page }) => {
-  await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 200, y: 200 }] });
+test("フローチャートのページでは、図の左上に道具入れが出る。足すダイアログで向きの違う形（台形の向き）を絵で選べる", async ({ page }) => {
+  await openDiagram(page, { world: { childView: "flow" }, nodes: [{ id: 1, caption: "A", x: 200, y: 200 }] });
   await page.locator(".mz-world").click({ position: { x: 5, y: 5 } });
-  await page.locator('#sidebar label:has(input[name="mzp-view"][value="flow"])').click();
   await expect(toolbox(page)).toBeVisible();
   const stage = (await page.locator("#stage").boundingBox())!;
   const box = (await toolbox(page).boundingBox())!;

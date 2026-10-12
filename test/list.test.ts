@@ -19,14 +19,14 @@ function setup(data: Diagram) {
 }
 
 const LONG = "とても長い説明の項目です。折り返しを確かめます"; // 24 文字 → 1 行の幅 9 * 24 + 16 = 232
-// 1 はリスト。2 は S の人、3 は長い文字、4 は子（5）をツリーで見せる箱。内包のときの位置をデータに持つ
+// 1 はリスト。2 は S の人、3 は長い文字、4 は子（5）を持つ箱（内包）。内包のときの位置をデータに持つ
 const data = (extra: Partial<Diagram["nodes"][number]> = {}): Diagram => ({
   world: { width: 1000 },
   nodes: [
     { id: 1, caption: "一覧", x: 40, y: 40, childView: "list", ...extra },
     { id: 2, caption: "短い", parent: 1, size: "S", shape: "person", x: 300, y: 30 },
     { id: 3, caption: LONG, parent: 1, x: 12, y: 30 },
-    { id: 4, caption: "孫あり", parent: 1, childView: "tree", x: 12, y: 200 },
+    { id: 4, caption: "孫あり", parent: 1, x: 12, y: 200 },
     { id: 5, caption: "孫", parent: 4 },
     { id: 6, caption: "隣", x: 400, y: 40 },
   ],
@@ -36,15 +36,16 @@ const box = (g: Graph, id: number) => g.info(id) as BoxInfo;
 const rect = (g: Graph, id: number) => { const i = g.info(id); return [i.x, i.y, i.w, i.h]; };
 const order = (g: Graph) => g.toJSON().nodes.map(n => n.id);
 
-test("子を縦に並べ、一番広い子の幅にそろえる。親は中身に合わせる。子を持つ子（ツリー）も中身を出して、そろえた幅に広げる", () => {
+test("子を縦に並べ、一番広い子の幅にそろえる。親は中身に合わせる。子を持つ子（内包）も中身を出して、そろえた幅に広げる", () => {
   const { el, graph } = setup(data());
   expect([rect(graph, 2), rect(graph, 3), rect(graph, 4)]).toEqual([
-    [12, 30, 232, 64], [12, 102, 232, 64], [12, 174, 232, 192],
+    [12, 30, 232, 64], [12, 102, 232, 64], [12, 174, 232, 106],
   ]);
-  expect(rect(graph, 1)).toEqual([40, 40, 232 + 24, 174 + 192 + 12]);
-  // ツリーの中身（親と孫）は、広げた枠の真ん中に寄せる
-  const tree = graph.info(4), grand = graph.info(5);
-  expect(grand.x + grand.w / 2).toBe(tree.w / 2);
+  expect(rect(graph, 1)).toEqual([40, 40, 232 + 24, 174 + 106 + 12]);
+  // 内包の中身（孫）は、広げた枠の中に収まる
+  const nest = graph.info(4), grand = graph.info(5);
+  expect(grand.x).toBeGreaterThanOrEqual(0);
+  expect(grand.x + grand.w).toBeLessThanOrEqual(nest.w);
   expect(violations(el)).toEqual([]);
 });
 
@@ -73,10 +74,10 @@ test("リストの幅の指定は、子を持つ子の幅より狭くできな�
 
 test("リストの子は形を使わず（データはそのまま）、子の見せ方は自分の設定に従って孫を出す（docs/SIZE-plan.md）", () => {
   const { el, graph } = setup(data());
-  expect([box(graph, 2).shape, box(graph, 2).size, box(graph, 4).childView]).toEqual(["box", "S", "tree"]);
+  expect([box(graph, 2).shape, box(graph, 2).size, box(graph, 4).childView]).toEqual(["box", "S", "nest"]);
   expect(box(graph, 2).inList).toBe(true);
   const src = (id: number) => graph.toJSON().nodes.find(n => n.id === id)!;
-  expect([src(2).shape, src(2).size, src(4).childView]).toEqual(["person", "S", "tree"]);
+  expect([src(2).shape, src(2).size, src(4).childView]).toEqual(["person", "S", undefined]);
   expect(el.querySelector<HTMLElement>('[data-id="5"]')!.style.display).toBe("");
 });
 
@@ -124,7 +125,7 @@ test("リストの外へ出すと、元のサイズ・形・子の見せ方に�
   graph.reparent(2, null, { x: 600, y: 300 });
   graph.reparent(4, null, { x: 600, y: 500 });
   expect([box(graph, 2).shape, box(graph, 2).size, box(graph, 4).childView, box(graph, 2).inList])
-    .toEqual(["person", "S", "tree", false]);
+    .toEqual(["person", "S", "nest", false]);
 });
 
 test("リストの子どうしの線は描かず、内包に戻すと描く。子は内包のときの位置に戻る", () => {
@@ -175,8 +176,11 @@ test("サイドバー: 見せ方にリストがあり、リストの子でもサ
   expect([...side.querySelectorAll<HTMLInputElement>('input[name="mzp-view"]')].map(i => i.value)).toContain("list");
   graph.select(4);
   const disabled = (name: string) => [...side.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)].every(i => i.disabled);
-  expect([disabled("mzp-size"), disabled("mzp-view")]).toEqual([false, false]);
+  // 子を内包している子はサイズを使わない（大きさは子の並びで決まる）が、子の見せ方は変えられる
+  expect([disabled("mzp-size"), disabled("mzp-view")]).toEqual([true, false]);
   expect(side.querySelector('input[name="mzp-shape"]')).toBeNull();
+  graph.select(3);
+  expect(disabled("mzp-size")).toBe(false); // 葉の子はサイズを変えられる
 });
 
 test("見出しが子より長ければ、見出しが入る幅にそろえる（上限は 400）", () => {

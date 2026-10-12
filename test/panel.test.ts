@@ -140,10 +140,13 @@ test("形と子の見せ方、ツリーのときだけ向きを選べる", () =>
   const open = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')].filter(o => !o.disabled).map(o => o.value);
   expect(open).toEqual(["box", "class"]);
   expect($('input[name="mzp-treedir"]')).toBeNull();
-  change('input[name="mzp-view"][value="tree"]', true);
-  expect(box(g, 1).childView).toBe("tree");
+  change('input[name="mzp-view"][value="list"]', true);
+  expect(box(g, 1).childView).toBe("list");
+  // ツリーの向きはワールドの欄（ツリーのページのときだけ出る）
+  g.update(null, { childView: "tree" });
+  g.select(null);
   change('input[name="mzp-treedir"][value="left"]', true);
-  expect(box(g, 1).treeDirection).toBe("left");
+  expect((g.info(null) as { treeDirection: string }).treeDirection).toBe("left");
 });
 
 test("子のサイズのボタンは、そろえられる子が2つ以上あるときだけ出る", () => {
@@ -350,28 +353,28 @@ test("見た目: 枠線はボックスだけ、塗りつぶしはスティック
 });
 
 test("ツリーの中の子持ちの箱は、サイズを選べ、子の見せ方の代わりに案内を出す（見せ方のデータが内包のままでも）", () => {
-  const { g, $ } = setup({ nodes: [
-    { id: 1, caption: "根", childView: "tree" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
+  const { g, $ } = setup({ world: { childView: "tree", root: 1 }, nodes: [
+    { id: 1, caption: "根" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
   ] });
   g.select(2);
   const sizes = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
   expect(sizes.map(i => [i.disabled, i.checked])).toEqual([[false, false], [false, true], [false, false]]);
   expect($('input[name="mzp-view"]')).toBeNull();
-  // 解除すると、節は内包の枠になり、サイズは子の並びで決まる
-  g.update(1, { childView: "nest" });
+  // ページを内包にすると、節は内包の枠になり、サイズは子の並びで決まる
+  g.update(null, { childView: "nest" });
   g.select(2);
   const after = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
   expect(after.every(i => i.disabled)).toBe(true);
   expect($('input[name="mzp-view"]')).not.toBeNull();
 });
 
-test("線で描き直すボタンは、ツリーにした一番外の箱だけに出し、確かめてから描き直す（キャンセルなら何もしない）", () => {
-  const { g, $, click } = setup({ nodes: [
-    { id: 1, caption: "根", childView: "tree" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
+test("内包に変換のボタンは、ツリーのページのワールドの欄だけに出し、確かめてから変換する（キャンセルなら何もしない）", () => {
+  const { g, $, click } = setup({ world: { childView: "tree", root: 1 }, nodes: [
+    { id: 1, caption: "根" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
   ] });
-  g.select(2);
-  expect($("[data-flatten]")).toBeNull();
   g.select(1);
+  expect($("[data-flatten]")).toBeNull();
+  g.select(null);
   const dlg = (sel: string) => document.querySelector<HTMLElement>(`.mz-dlg-overlay ${sel}`);
   click("[data-flatten]");
   dlg("[data-cancel]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -380,6 +383,7 @@ test("線で描き直すボタンは、ツリーにした一番外の箱だけ�
   dlg("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   expect(g.toJSON().nodes.find(n => n.id === 2)!.parent).toBeUndefined();
   expect(g.toJSON().edges).toHaveLength(2);
+  expect(g.toJSON().world?.childView).toBeUndefined();
 });
 
 test("形を選ぶ絵の並び: どの形もどれか 1 つのまとまりに入り、名前と絵を持つ", () => {
@@ -393,7 +397,8 @@ test("形を選ぶ絵の並び: どの形もどれか 1 つのまとまりに入
 
 test("形を選ぶ絵の並び: どの箱でも全部の形を並べ、名前はポインタを乗せると出る", () => {
   const { g } = setup({
-    nodes: [{ id: 1, caption: "外", x: 40, y: 40 }, { id: 2, childView: "flow", x: 300, y: 40 }, { id: 3, parent: 2, caption: "中" }],
+    world: { childView: "flow" },
+    nodes: [{ id: 1, caption: "外", x: 40, y: 40 }, { id: 3, caption: "中", x: 300, y: 40 }],
   });
   const values = () => [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')].map(i => i.value);
   g.select(1);

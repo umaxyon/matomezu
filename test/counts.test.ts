@@ -32,7 +32,7 @@ function big(): Diagram {
       nodes.push({ id: kid, caption: `計測${g}-${k}${"あ".repeat(k * 3)}`, parent: gid });
       if (k > 0) edges.push([kid - 1, kid]);
       if (k === 9) {
-        nodes.at(-1)!.childView = "tree";
+        nodes.at(-1)!.childView = "hidden";
         nodes.push({ id: id++, caption: `計測木${g}-a`, parent: kid }, { id: id++, caption: `計測木${g}-b`, parent: kid });
       }
     }
@@ -57,8 +57,8 @@ test("大きな図での処理の回数が、基準を超えない", () => {
     settings: count(() => {
       graph.update(kidId(0, 0), { caption: "計測で長くしたキャプション".repeat(4) });
       graph.update(kidId(0, 0), { size: "L" });
-      graph.update(groupId(0), { childView: "tree" });
-      graph.update(groupId(0), { childView: "nest" });
+      graph.update(null, { childView: "tree" }); // 根は子を持つ最初の最上位の箱
+      graph.update(null, { childView: "nest" });
       graph.update(kidId(1, 9), { childView: "hidden" });
     }),
     drag: count(() => {
@@ -76,8 +76,10 @@ test("大きな図での処理の回数が、基準を超えない", () => {
   // fit は、その前のドラッグの結果が入れ替えで変わったので 2080 → 2114
   const base = {
     load: { measures: 480, overlapChecks: 5289 },
-    settings: { measures: 6, overlapChecks: 10874 },
-    drag: { measures: 0, overlapChecks: 3426 },
+    // 2026-10-12 パターンをページ単位に: 設定の場面でページをツリーにして戻す（全部の箱の見た目を付け直す）ので測り直しが増え、
+    // グループ 0 の最後の子がツリーから非表示になって配置が変わり、ドラッグの重なりの判定も増えた
+    settings: { measures: 11, overlapChecks: 10874 },
+    drag: { measures: 0, overlapChecks: 5315 },
     fit: { measures: 0, overlapChecks: 2114 },
     reload: { measures: 0, overlapChecks: 1090 },
   };

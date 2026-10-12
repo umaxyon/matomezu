@@ -31,25 +31,27 @@ test("本文はキャプションの下に左寄せで出る。選んだ箱の�
   expect(after.x).toBe(before.x); // 左上を保って右へ伸びる
 });
 
-test("子の見せ方を内包・リスト・ツリーと切り替えても、本文は箱に収まる（ツリーの根では本体の中に入る）", async ({ page }) => {
-  await openDiagram(page, {
-    nodes: [
-      { id: 10, caption: "ログイン機能", body: "見出しの下に本文、その下に子が並びます。\n本文は箱の幅いっぱいで折り返します。", x: 40, y: 40 },
-      { id: 11, parent: 10, caption: "ログイン画面", body: "メールアドレスとパスワードで入る。" },
-      { id: 12, parent: 10, caption: "ロック", body: "失敗が 5 回続いたら 10 分ロックする。" },
-    ],
-  });
+test("子の見せ方を内包・リスト・非表示と切り替えても、本文は箱に収まる。ツリーのページの根では本体の中に入る", async ({ page }) => {
+  const nodes = [
+    { id: 10, caption: "ログイン機能", body: "見出しの下に本文、その下に子が並びます。\n本文は箱の幅いっぱいで折り返します。", x: 40, y: 40 },
+    { id: 11, parent: 10, caption: "ログイン画面", body: "メールアドレスとパスワードで入る。" },
+    { id: 12, parent: 10, caption: "ロック", body: "失敗が 5 回続いたら 10 分ロックする。" },
+  ];
+  await openDiagram(page, { nodes });
   const fits = () => page.locator('.mz-node[data-id="10"] > .mz-head').evaluate(h => {
     const b = h.querySelector(".mz-body")!.getBoundingClientRect(), r = h.getBoundingClientRect();
     return b.height > 0 && b.bottom <= r.bottom + 0.5 && b.right <= r.right + 0.5;
   });
   expect(await fits()).toBe(true);
-  for (const view of ["list", "tree", "nest", "tree"]) {
+  for (const view of ["list", "hidden", "nest", "list", "nest"]) {
     // 内包のときは本体の真ん中に子があるので、見出しの左上を押して選ぶ
     await page.locator('.mz-node[data-id="10"] > .mz-head').click({ position: { x: 8, y: 8 } });
     await page.locator(`#sidebar label:has(input[name="mzp-view"][value="${view}"])`).click();
     await expect.poll(fits, { message: view }).toBe(true);
   }
+  // ツリーのページ（パターンはページを作るときに決める。ここはデータで）: 根の本体に本文が入る
+  await openDiagram(page, { world: { childView: "tree", root: 10 }, nodes });
+  expect(await fits()).toBe(true);
 });
 
 test("最大行数を選ぶと、超えた分を切って箱が低くなる。制限なしに戻すと全部出る", async ({ page }) => {

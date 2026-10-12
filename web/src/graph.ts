@@ -46,7 +46,7 @@
  *   {
  *     "world": { "width": 1600, "height": 900 },
  *     "nodes": [
- *       { "id": 1, "caption": "グループ", "color": "#3b82f6", "childView": "tree" },
+ *       { "id": 1, "caption": "グループ", "color": "#3b82f6", "childView": "list" },
  *       { "id": 2, "caption": "A", "parent": 1, "size": "M" },
  *       { "id": 3, "caption": "B", "color": "#ef4444", "x": 300, "y": 80,
  *         "width": 120, "height": 64, "fill": false, "border": true, "overflow": "clip" }
@@ -75,13 +75,14 @@
  *       "S" … 小さい文字。幅は 64〜96、高さは固定。10 文字まで（超えると … で切る）
  *     幅の範囲は validate.ts の SIZES で決めている。width を書けば、その幅で折り返す。
  *     サイズが効くのは見た目が葉の箱（子の無い箱、ツリーの親の本体、非表示）だけ。内包・リストの箱では使わない（docs/SIZE-plan.md）。
- *   - childView は子の見せ方: "nest"（内包、既定）/ "tree"（ツリー）/ "hidden"（非表示、▼ で子がいることを示す）/
- *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）/
- *     "flow"（フローチャート。内包と同じく子を自由に置き、子はフローチャートの形を使える。子は子を持てない。docs/PATTERN-plan.md の 3.7 章）。
- *     子のどれにも位置が無ければ、本筋を中央にそろえて整列して置く（layout/flow-align.ts。graph.autoAlign(id) でも同じ並べ方）
- *     treeDirection はツリーで子を置く向き: "down"（既定）/ "up" / "left" / "right"
- *     ツリーは子孫全体に効く: 子孫の見せ方（childView・treeDirection）は無視して、孫より下も何段でもツリーに並べる。中の箱は手で動かせない。
- *     内包に戻す（解除）と、子孫は自分の見せ方と内包の位置に戻る（docs/PATTERN-plan.md の 3.6 章）
+ *   - 箱の childView は子の見せ方（内包パターンの持ち物）: "nest"（内包、既定）/ "hidden"（非表示、▼ で子がいることを示す）/
+ *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）
+ *   - ページのパターンは world.childView（2026-10-12 ユーザー。パターンはページ単位。docs/PATTERN-plan.md）:
+ *     "nest"（内包、既定）/ "tree"（ツリー。world.root の箱を根に、その子孫全体を何段でも木に並べる。中の箱は手で動かせず、根をつかむと木全体が動く。
+ *     根以外の最上位の箱は葉で、自由に置く。向きは world.treeDirection: "down"（既定）/ "up" / "left" / "right"）/
+ *     "flow"（フローチャート。内包と同じく自由に置く。箱は子を持てない。docs/PATTERN-plan.md の 3.7 章。
+ *     どの箱にも位置が無ければ、本筋を中央にそろえて整列して置く。layout/flow-align.ts。graph.autoAlign(null) でも同じ並べ方）。
+ *     ツリーを内包に変換（graph.flattenTree(null)）すると、親子のつながりを線で引き直す。戻せない
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
  *   - overflow は文字のボックスの中身の扱い:
  *       "wrap" … 幅に合わせて折り返す（既定）
@@ -131,7 +132,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, lookOf, strategyOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, isTreeRoot, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -145,8 +146,8 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, t
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, Dash, Route, BoxInfo, ChildView, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, Patch, Shape, Size } from "./types";
-import { ARROWS, DASHES, GROUP_MIN, ROUTES, SIZES, VIEWS, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
+import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PagePattern, Patch, Shape, Size } from "./types";
+import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, normalizeEdge, validate } from "./validate";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -215,8 +216,9 @@ export interface Graph {
   // クラスの箱にかかわる変更（クラスにする・クラスを直す・クラスでなくする。docs/CLASS-plan.md）。子や線を消すことがあるので、
   // 図を組み立て直して履歴に 1 件残す
   updateClass(id: Id, edit: ClassEdit): void;
-  // ツリーにした箱 id のツリーを平らにして、親子を線で引き直す（元のツリーには戻せない。Undo では戻る）。できなければ false
-  flattenTree(id: Id): boolean;
+  // ツリーのページを内包のページに変換する: 根の子孫を平らにして、親子を線で引き直す（元のツリーには戻せない。Undo では戻る）。
+  // ツリーのページでなければ false（docs/PATTERN-plan.md）
+  flattenTree(): boolean;
   toJSON(): Diagram;
   dragging(): boolean;
   setMode(mode: Mode): void;
@@ -230,11 +232,11 @@ export interface Graph {
   mode(): Mode;
   reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean; // at は最上位へ移すときの位置
   fitChildren(id: Id, what: "width" | "height" | "both"): number;
-  // 決まった並べ方を持つ戦略（フローチャート）の入れ物 id（null はワールド）の子を、その並べ方で置き直す（自動で整列。docs/PATTERN-plan.md の 3.7 章）
-  autoAlign(id: Id | null): boolean;
-  // 決まった並べ方を持つ戦略の入れ物 id（null はワールド）の中の箱を、全部サイズ size にし、その間隔で整列し直す（中の箱のサイズ。
-  // 入れ物に kidSize として覚える。1 回の変更として履歴に残す。docs/PATTERN-plan.md の 3.7 章）
-  setKidSize(id: Id | null, size: Size): boolean;
+  // 決まった並べ方を持つパターン（フローチャート）のページの箱を、その並べ方で置き直す（自動で整列。docs/PATTERN-plan.md の 3.7 章）
+  autoAlign(): boolean;
+  // フローチャートのページの箱を、全部サイズ size にし、その間隔で整列し直す（中の箱のサイズ。ページの world に kidSize として覚える。
+  // 1 回の変更として履歴に残す。docs/PATTERN-plan.md の 3.7 章）
+  setKidSize(size: Size): boolean;
   remove(id: Id): boolean;
   restore(id: Id, parentId: Id | null, at?: { x: number; y: number }): boolean;
   items(): Items;
@@ -812,19 +814,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  // 道具入れ（toolbox.ts）を出す箱: 自分か親が、道具を持つ戦略で子を並べるならその箱と、足せる形。無ければ null
-  function toolHostOf(n: Container): { id: string | null; shapes: Shape[]; size: Size } | null {
-    for (const h of n.isWorld ? [n] : [n, n.parent ?? world]) {
-      if (!h.isWorld && inTreeOf(h)) continue;
-      const tools = h.isWorld ? STRATEGIES[worldViewOf(h)].tools : STRATEGIES[viewOf(h)].tools;
-      if (tools.length) return { id: h.isWorld ? null : h.id, shapes: [...tools], size: kidSizeOf(h) ?? "M" };
-    }
-    return null;
+  // 道具入れ（toolbox.ts）: ページのパターンが道具を持つなら（フローチャート）、どの箱を選んでいても図の左上に出す。無ければ null
+  function toolHostOf(): { id: string | null; shapes: Shape[]; size: Size } | null {
+    const tools = STRATEGIES[worldViewOf(world)].tools;
+    return tools.length ? { id: null, shapes: [...tools], size: kidSizeOf(world) ?? "M" } : null;
   }
 
-  // 選べない子の見せ方（子を持つ子があるなら、子が子を持てない戦略は選べない）
-  const viewsOff = (n: Container): ChildView[] =>
-    n.children.some(k => k.children.length && k.src.page !== true) ? VIEWS.filter(v => STRATEGIES[v].leafKids) : [];
+  // ページに掛けられないパターン（子を持つ最上位の箱があるなら、箱が子を持てないフローチャートは掛けられない）
+  const patternsOff = (): PagePattern[] =>
+    roots.some(k => k.children.length && k.src.page !== true) ? PAGE_PATTERNS.filter(v => STRATEGIES[v].leafKids) : [];
 
   // 落とし先の親の id。今のページの最上位なら、ページの中ではページの箱、最初のページでは無し
   const parentIdOf = (t: Box | null) => (t ? t.src.id : pageBox()?.id);
@@ -864,13 +862,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ツリーの特殊な操作。解除（内包に戻す）とは別で、見た目を保ったまま普通の箱と線に変える（元のツリーには戻せない。Undo では戻る）。
   // ツリーにした箱 root と子孫を、root の親の直下に今の見た目の位置で並べ、親から子へ 1 本ずつ折れ線を引く。端は辺の真ん中に固定し、
   // 腹（親と子の間の区間）を兄弟でそろえるので、ツリーの線と同じ絵になる（親から出る区間は兄弟の線で重なる）。矢印は付けない
-  // 線で描き直せる箱か（子孫全体に効く戦略にした一番外の箱）
-  const canFlatten = (n: Box): boolean => !!strategyOf(n)?.descendants && !inTreeOf(n);
+  // ツリーのページを内包に変換できるか（根がある）
+  const canFlatten = (): boolean => !!rootBoxOf(world);
 
-  function flattenTree(id: Id): boolean {
-    const root = nodeOf(id);
-    if (root.isWorld || !canFlatten(root)) return false;
-    const dir = treeDirOf(root);
+  // ツリーのページを内包のページに変換する（戻せない）。根の子孫を平らにして線で結び、ページのパターンを内包にする
+  function flattenTree(): boolean {
+    const root = rootBoxOf(world);
+    if (!root) return false;
+    const dir = treeDirOf(world);
     const subtree = [root, ...descendants(root)];
     // root の親の左上からの、本体の位置と大きさ（平らにすると、どの箱も本体だけの箱になる）
     const [rx, ry] = absPos(root);
@@ -918,11 +917,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         const r = head.get(n.id)!;
         s.x = Math.round(r.x);
         s.y = Math.round(r.y);
-        // ツリーの中で無視していた見せ方と向きは、平らにすると意味が無くなるので消す（子を持たない箱になる）
+        // ツリーの中で無視していた見せ方は、平らにすると意味が無くなるので消す（子を持たない箱になる）
         delete s.childView;
-        delete s.treeDirection;
       }
       data.edges = [...(data.edges ?? []), ...links];
+      // ページのパターンを内包に（根と向きも消す）
+      const w = (pageBox() ? data.nodes.find(x => String(x.id) === page)?.world : data.world) ?? {};
+      delete w.childView;
+      delete w.root;
+      delete w.treeDirection;
       return { select: root.id };
     });
     return true;
@@ -1142,14 +1145,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return count;
   }
 
-  const aligns = (c: Container) => c.children.length > 0 && (c.isWorld ? STRATEGIES[worldViewOf(c)] : STRATEGIES[viewOf(c)]).autoAlign;
+  // 決まった並べ方で整列できるのはページ（パターンがフローチャート）だけ
+  const aligns = (c: Container) => c.isWorld && c.children.length > 0 && STRATEGIES[worldViewOf(c)].autoAlign;
 
-  function setKidSize(id: Id | null, size: Size) {
-    const c = nodeOf(id);
+  function setKidSize(size: Size) {
+    const c = world;
     if (!aligns(c)) return false;
-    if (!(SIZES as Record<string, unknown>)[size]) throw new Error(t("size の値が不正です: {where} ({value})", { where: id ?? "world", value: size }));
+    if (!(SIZES as Record<string, unknown>)[size]) throw new Error(t("size の値が不正です: {where} ({value})", { where: "world", value: size }));
     // 箱のサイズを変えて測り直してから（サイズを選んだときと同じく、付いていた大きさの指定は外す）、そのサイズの間隔で整列する
-    settle(SCENES.fitChildren, c.isWorld ? undefined : c, () => {
+    settle(SCENES.fitChildren, undefined, () => {
       c.src.kidSize = size;
       if (c.isWorld) storeWorld();
       for (const k of c.children) {
@@ -1159,13 +1163,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         applyStyle(k);
       }
     });
-    return autoAlign(id);
+    return autoAlign();
   }
 
-  function autoAlign(id: Id | null) {
-    const c = nodeOf(id);
+  function autoAlign() {
+    const c = world;
     if (!aligns(c)) return false;
-    settle(SCENES.fitChildren, c.isWorld ? undefined : c, () => L.alignKids(c));
+    settle(SCENES.fitChildren, undefined, () => L.alignKids(c));
     // 中の線は、端の固定と折れ目と、動かしていたときの辺の記憶を捨てて、並べ直した位置での一番よい形にする（2026-10-12 ユーザー:
     // 手で固定した端も外す）。分岐の形へ入る線は、上の頂点から入れる（layout/flow-align.ts の、横に置いた分岐へ上から入る形）
     const kids = new Set(c.children);
@@ -1271,10 +1275,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         route: routeDefaultOf(world),
         title: typeof source.world?.title === "string" && source.world.title ? source.world.title : null,
         childView: worldViewOf(world),
-        views: VIEWS.filter(v => STRATEGIES[v].onWorld),
-        viewsOff: viewsOff(world),
-        tools: toolHostOf(world),
-        canAlign: roots.length > 0 && STRATEGIES[worldViewOf(world)].autoAlign,
+        views: PAGE_PATTERNS.filter(v => STRATEGIES[v].onWorld),
+        viewsOff: patternsOff(),
+        treeDirection: treeDirOf(world),
+        canFlatten: canFlatten(),
+        tools: toolHostOf(),
+        canAlign: aligns(world),
         kidSize: kidSizeOf(world),
       };
     }
@@ -1307,14 +1313,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       inList: inList(n),
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
-      treeDirection: treeDirOf(n),
       framed: isNesting(n),
-      canFlatten: canFlatten(n),
-      viewsOff: viewsOff(n),
-      canAlign: n.children.length > 0 && !inTreeOf(n) && STRATEGIES[viewOf(n)].autoAlign,
-      kidSize: kidSizeOf(n),
-      tools: toolHostOf(n),
+      tools: toolHostOf(),
       inTree: inTreeOf(n),
+      treeRoot: isTreeRoot(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
       children: n.children.map(brief),
@@ -1330,7 +1332,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // 見せ方を切り替える。内包での子の位置はデータに残し、内包へ戻したときに使う。ツリーは子孫全体を並べるので（docs/PATTERN-plan.md の 3.6 章）、
   // 子だけでなく、自由に置かれていた子孫の位置を残し、切り替えて自由に置かれるようになった子孫はデータの位置に戻す
-  function setView(n: Box, view: ChildView) {
+  function setView(n: Box, view: BoxView) {
     const prev = viewOf(n);
     if (view === prev) return;
     const free = new Set(descendants(n).filter(inNest));
@@ -1338,8 +1340,33 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       k.src.x = Math.round(k.x);
       k.src.y = Math.round(k.y);
     }
-    n.src.childView = view;
+    setOrDelete(n.src, "childView", view, view === DEFAULT_VIEW);
     for (const k of descendants(n)) {
+      if (!inNest(k) || free.has(k)) continue;
+      k.hasPos = Number.isFinite(k.src.x) && Number.isFinite(k.src.y);
+      k.x = Number(k.src.x) || 0;
+      k.y = Number(k.src.y) || 0;
+      k.intendedY = k.y;
+    }
+  }
+
+  // ページのパターンを変える（データの道。画面はページを作るときに決める。docs/PATTERN-plan.md）。箱の見せ方の切り替え（setView）と同じく、
+  // 自由に置いていた箱の位置はデータに残し、内包に戻したときに使う。ツリーにするなら根が要る: 無ければ、子を持つ最上位の箱、無ければ最初の最上位の箱
+  function setPattern(pattern: PagePattern) {
+    const tree = STRATEGIES[pattern].descendants;
+    const free = new Set(nodes.filter(inNest));
+    for (const k of free) {
+      k.src.x = Math.round(k.x);
+      k.src.y = Math.round(k.y);
+    }
+    if (tree && !roots.some(r => r.id === String(world.src.root))) {
+      const root = roots.find(r => r.children.length) ?? roots[0];
+      if (!root) throw new Error(t("ツリーのページには根が要ります（最上位の箱が 1 つも無いのでツリーにできません）"));
+      world.src.root = root.src.id;
+    }
+    if (!tree) { delete world.src.root; delete world.src.treeDirection; }
+    setOrDelete(world.src, "childView", pattern, pattern === DEFAULT_VIEW); // 既定は書かない
+    for (const k of nodes) {
       if (!inNest(k) || free.has(k)) continue;
       k.hasPos = Number.isFinite(k.src.x) && Number.isFinite(k.src.y);
       k.x = Number(k.src.x) || 0;
@@ -1362,13 +1389,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function update(id: Id | null, patch: Patch) {
     const n = nodeOf(id);
     const next = { ...patch };
-    checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id);
+    checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id, n.isWorld);
     if (n.isWorld && next.overflow) throw new Error(t("ワールドには中身の扱いがありません"));
     if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error(t("文字のボックスは伸ばせません"));
     if (!n.isWorld && n.children.length && next.overflow) throw new Error(t("子を持つボックスは、つねに子に合わせて伸びます"));
-    if (next.childView && viewsOff(n).includes(next.childView)) {
-      throw new Error(t("子を持つ子があるので、子が子を持てない見せ方（フローチャート）にはできません: {id}", { id: n.id }));
+    if (n.isWorld && next.childView && (patternsOff() as string[]).includes(next.childView)) {
+      throw new Error(t("子を持つ最上位の箱があるので、箱が子を持てないパターン（フローチャート）にはできません"));
     }
+    if (!n.isWorld && next.treeDirection) throw new Error(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where: n.id }));
 
     // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ（設定変更の場面）。
     // settle が保つ位置を覚えてから apply を呼ぶ
@@ -1397,8 +1425,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           setSpec(n, "h", 0);
         }
         if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === DEFAULT_SHAPE);
-        if (next.childView) setView(n, next.childView);
-        if (next.treeDirection) setOrDelete(n.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
+        if (next.childView) setView(n, next.childView as BoxView); // 値は checkSettings で確かめている
       }
       if (next.overflow && next.overflow !== overflowOf(n)) {
         // 文字のボックスのキャプションを 1 行にする（clip）か戻す（wrap）。幅の上限はサイズの最大（幅の指定があればその幅）なので、
@@ -1414,10 +1441,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           if (pageBox() && !Object.keys(top).length) delete source.world;
         }
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
-        if (next.childView) {
-          if (!STRATEGIES[next.childView].onWorld) throw new Error(t("ワールドに使える子の見せ方は、内包かフローチャートです: {v}", { v: next.childView }));
-          setOrDelete(world.src, "childView", next.childView, next.childView === DEFAULT_VIEW); // 既定は書かない
-        }
+        if (next.childView) setPattern(next.childView as PagePattern); // 値は checkSettings で確かめている
+        if (next.treeDirection) setOrDelete(world.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
         if ("theme" in next) setOrDelete(world.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("route" in next) {
           if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(t("route の値が不正です: {v}", { v: next.route }));
@@ -1426,8 +1451,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         storeWorld();
         syncWorld();
         applyWorldStyle();
-        // テーマは全部の箱に効く（書いていない箱は受け継ぐ）。最上位の並べ方が変われば、使える形が変わる
-        if ("theme" in next || next.childView) nodes.forEach(applyStyle);
+        // テーマは全部の箱に効く（書いていない箱は受け継ぐ）。ページのパターンや向きが変われば、箱の見た目（ツリーの枠など）が変わる
+        if ("theme" in next || next.childView || next.treeDirection) nodes.forEach(applyStyle);
       } else {
         applyStyle(n);
         // テーマは子孫も受け継ぐ。子の見せ方を変えたら、子孫の見た目も変わる（リストの子は、子を持てば非表示の扱いで、
@@ -1435,7 +1460,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("theme" in next || next.childView) descendants(n).forEach(applyStyle);
       }
     };
-    settle(SCENES.settings, n.isWorld ? undefined : n, apply);
+    // ページのパターンや向きを変えると、大きさが変わるのはツリーの根（これからなる箱も含む）なので、根の位置を保つ
+    const treeRoot = () => rootBoxOf(world) ?? (next.childView && STRATEGIES[next.childView].descendants ? roots.find(r => r.children.length) ?? roots[0] : undefined);
+    const anchor = n.isWorld ? (next.childView || next.treeDirection ? treeRoot() : undefined) : n;
+    settle(SCENES.settings, anchor, apply);
     render();
     // 選択中のボックスが非表示になったら、隠した親を選び直す
     if (current && isHidden(current)) select(n.isWorld ? null : n);

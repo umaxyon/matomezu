@@ -30,7 +30,7 @@ test("タイトルを、途中の箱にぶつかっても止まらずにバッ�
   expect(at(graph, 1)).toEqual([24, 396]);
   // タイトルの高さ 64 + 8 だけ上へ
   expect([at(graph, 2), at(graph, 3), at(graph, 10)]).toEqual([[40, 120 - 72], [220, 88 - 72], [220, 280 - 72]]);
-  expect(at(graph, 17)).toEqual([364, 468]); // まだ触れていない
+  expect(at(graph, 17)).toEqual([372, 468]); // まだ触れていない（17 は内包の枠。ツリーだったときより狭い）
   expect(violations(el)).toEqual([]);
 });
 
