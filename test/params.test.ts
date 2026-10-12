@@ -64,6 +64,19 @@ test("フローチャートの整列の間隔は、戦略の表（align）の値
   });
 });
 
+test("フローチャートで横に置く分岐を下げる量は、戦略の表（align.sideDrop）の値だけで決まる", () => {
+  withValue(STRATEGIES.flow.align!.sideDrop, "M", 50, () => {
+    const { graph } = setup({
+      nodes: [
+        { id: 1, childView: "flow", x: 0, y: 0 },
+        { id: 2, parent: 1, caption: "a", shape: "diamond" }, { id: 3, parent: 1, caption: "b", shape: "diamond" }, { id: 4, parent: 1, caption: "c" },
+      ],
+      edges: [{ id: "e1", from: 2, to: 3 }, { id: "e2", from: 2, to: 4 }],
+    });
+    expect(info(graph, 3).y - (info(graph, 2).y + info(graph, 2).h / 2)).toBe(50);
+  });
+});
+
 test("テーマの補正値は、テーマの outset の値だけで決まり、中心は動かない", () => {
   const sticky = THEMES.find(t => t.id === "sticky")!;
   withValue(sticky, "outset", { M: [10, 6] }, () => {

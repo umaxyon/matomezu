@@ -1,7 +1,7 @@
 // フローチャートの戦略（docs/PATTERN-plan.md の 3.7 章）: 子を自由に置き、子はフローチャートの形を使え、子は子を持てない
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import type { BoxInfo, Diagram, EdgeInfo } from "../web/src/types";
+import type { BoxInfo, Diagram, EdgeData, EdgeInfo } from "../web/src/types";
 import { STRATEGIES, splitBranches } from "../web/src/model";
 import { VIEWS, WORLD_VIEWS, problems } from "../web/src/validate";
 import { fakeMeasure } from "./helpers";
@@ -155,18 +155,80 @@ test("フローチャートの分岐から出る線は、1 つの頂点から 2 
   expect(start(plain.el, "e1")).toEqual(start(plain.el, "e2")); // フローチャートの外は一か所（下の頂点）から
 });
 
-test("整列の決まり（flow-align.ts）: 本筋は中央の縦の線にそろい、分岐の枝は右、合流する箱は枝の後の段", () => {
-  const item = (id: string, w = 100, h = 60, start = false) => ({ id, w, h, start });
+test("整列の決まり（flow-align.ts）: 本筋は中央の縦の線にそろい、分岐の枝は右。合流する箱は枝と同じ段で、枝からの線は横から入る", () => {
+  const item = (id: string, w = 100, h = 60, start = false, branch = false) => ({ id, w, h, start, branch });
   const pos = alignFlow(
     [item("s", 120, 60, true), item("a"), item("d", 160, 80), item("y"), item("n", 140, 60)],
     [{ from: "s", to: "a" }, { from: "a", to: "d" }, { from: "d", to: "y" }, { from: "d", to: "n" }, { from: "n", to: "y" }],
-    { centerX: 500, top: 20, gapX: 60, gapY: 40 },
+    { centerX: 500, top: 20, gapX: 60, gapY: 40, sideDrop: 20 },
   );
   const cx = (id: string, w: number) => pos.get(id)!.x + w / 2;
   expect([cx("s", 120), cx("a", 100), cx("d", 160), cx("y", 100)]).toEqual([500, 500, 500, 500]);
   expect(cx("n", 140)).toBeGreaterThan(500);          // 枝は右の列
-  expect(pos.get("y")!.y).toBeGreaterThan(pos.get("n")!.y); // 合流する箱は枝の後
+  // 合流する箱 y は、下へ続ける親 d の下で、枝 n と同じ段（n からの線は横からまっすぐ入る。2026-10-12 ユーザー）
+  expect(pos.get("y")!.y + 30).toBe(pos.get("n")!.y + 30);
   expect(pos.get("s")!.y).toBe(20);
+});
+
+test("整列の決まり（flow-align.ts）: 分岐から分岐へは縦につながず、子の分岐を右に、親の中心から sideDrop 下げて置く。その下へ続ける子は同じ列", () => {
+  const item = (id: string, branch = false, start = false) => ({ id, w: 100, h: 60, start, branch });
+  // s → d1（分岐）→ a（下へ）, d2（分岐。横へ）。d2 → b（下へ）, c（横の列）
+  const pos = alignFlow(
+    [item("s", false, true), item("d1", true), item("a"), item("d2", true), item("b"), item("c")],
+    [{ from: "s", to: "d1" }, { from: "d1", to: "d2" }, { from: "d1", to: "a" }, { from: "d2", to: "b" }, { from: "d2", to: "c" }],
+    { centerX: 500, top: 20, gapX: 60, gapY: 40, sideDrop: 20 },
+  );
+  const p = (id: string) => pos.get(id)!;
+  expect(p("a").x).toBe(p("d1").x);                    // 分岐でない子が下へ続く
+  expect(p("d2").x).toBeGreaterThan(p("d1").x);        // 分岐の子は右
+  expect(p("d2").y).toBe(p("d1").y + 30 + 20);         // 親の中心から sideDrop 下
+  expect(p("b").x).toBe(p("d2").x);                    // 横に置いた分岐の下へ続ける子は同じ列
+  expect(p("c").x).toBeGreaterThan(p("d2").x);         // ほかの子はさらに外側
+  expect(p("a").y).toBeGreaterThanOrEqual(p("d2").y + 60 + 40); // 次の段は、下げた分岐の下から始まる
+});
+
+test("整列の決まり（flow-align.ts）: 合流する箱は、下へ続ける親の下で、ほかの親と同じ段まで上がり、その線は横からまっすぐ入る（チャートテストの loop）", () => {
+  const item = (id: string, branch = false, start = false) => ({ id, w: 100, h: 60, start, branch });
+  // s → d1（分岐）→ a1（下へ）→ a2、d1 → d2（分岐。横へ）→ loop（下へ）、d2 → u。a1 → loop（合流）
+  const pos = alignFlow(
+    [item("s", false, true), item("d1", true), item("a1"), item("a2"), item("d2", true), item("loop"), item("u")],
+    [{ from: "s", to: "d1" }, { from: "d1", to: "a1" }, { from: "d1", to: "d2" }, { from: "a1", to: "a2" },
+      { from: "d2", to: "loop" }, { from: "d2", to: "u" }, { from: "a1", to: "loop" }],
+    { centerX: 500, top: 20, gapX: 60, gapY: 40, sideDrop: 20 },
+  );
+  const p = (id: string) => pos.get(id)!;
+  expect(p("loop").y).toBe(p("a1").y);              // a1 と同じ段（a1 からまっすぐ横に入る）
+  expect(p("loop").x).toBe(p("d2").x);              // d2 の下へ続く
+  expect(p("a2").y).toBeGreaterThan(p("a1").y);     // a1 の下は a2
+});
+
+test("自動で整列: 中の線の端の固定と折れ目を外し、分岐の形へ入る線は上の頂点から入れる。ワールドなら全体の左右の真ん中を画面の真ん中に置く", () => {
+  const { graph, el } = setup({
+    world: { childView: "flow" },
+    nodes: [
+      { id: 1, caption: "開始", shape: "stadium", x: 10, y: 10 }, { id: 2, caption: "分岐1", shape: "diamond", x: 10, y: 100 },
+      { id: 3, caption: "分岐2", shape: "diamond", x: 300, y: 200 }, { id: 4, caption: "処理", x: 10, y: 300 },
+    ],
+    edges: [
+      { id: "e1", from: 1, to: 2, exitAt: 0.3, enterAt: 0.7 }, { id: "e2", from: 2, to: 3, exitAt: 0.5, enterAt: 0.9, via: [200] },
+      { id: "e3", from: 2, to: 4 },
+    ],
+  });
+  expect(graph.autoAlign(null)).toBe(true);
+  const out = graph.toJSON().edges as EdgeData[];
+  const e = (id: string) => out.find(x => x.id === id)!;
+  expect([e("e1").exitAt, e("e2").exitAt, e("e2").via, e("e3").exitAt]).toEqual([undefined, undefined, undefined, undefined]);
+  // 分岐（ひし形）へ入る線の終点は上の頂点。分岐でない箱へ入る線は固定しない
+  const last = (id: string) => el.querySelector(`.mz-edge[data-id="${id}"] polyline`)!.getAttribute("points")!.trim().split(/\s+/).at(-1)!.split(",").map(Number);
+  for (const [id, to] of [["e1", 2], ["e2", 3]] as const) {
+    const b = info(graph, to);
+    expect(last(id)).toEqual([b.x + b.w / 2, b.y]);
+  }
+  expect(e("e3").enterAt).toBeUndefined();
+  // 全体の左右の真ん中は、画面（幅 1000）の真ん中
+  const boxes = [1, 2, 3, 4].map(id => info(graph, id));
+  const left = Math.min(...boxes.map(b => b.x)), right = Math.max(...boxes.map(b => b.x + b.w));
+  expect(Math.abs((left + right) / 2 - 500)).toBeLessThanOrEqual(1);
 });
 
 test("LLM が位置を書かずにフローチャートを書き出したら整列して置く。位置のある箱が 1 つでもあれば使わない。自動で整列のボタンでも同じ並べ方", () => {

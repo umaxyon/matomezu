@@ -373,21 +373,22 @@ export function createLayout(ctx: LayoutContext) {
   const unplacedAligned = (c: Container) => kidStrategyOf(c).autoAlign && c.children.length > 0 && c.children.every(k => !k.hasPos);
 
   // 入れ物 c の子を、決まった並べ方で置き直す（layout/flow-align.ts。本筋を中央の縦の線にそろえる）。
-  // ワールドなら画面の幅の真ん中、箱なら箱の中の左の余白から。位置を覚えた子は、そこが本来いたい位置になる
+  // ワールドなら、並べた全体の左端から右端までの真ん中を画面の幅の真ん中に（2026-10-12 ユーザー。はみ出すなら左の余白から）、
+  // 箱なら箱の中の左の余白から。位置を覚えた子は、そこが本来いたい位置になる
   function alignKids(c: Container) {
     const kids = c.children;
     const inside = new Set(kids);
     // 間隔は戦略の表（STRATEGIES の align。中の箱のサイズごと）
-    const align = kidStrategyOf(c).align!, gap = align.gaps[kidSizeOf(c) ?? "M"];
+    const align = kidStrategyOf(c).align!, size = kidSizeOf(c) ?? "M", gap = align.gaps[size];
     const pos = alignFlow(
-      kids.map(k => ({ id: k.id, w: k.w, h: k.h, start: shapeDef(shapeOf(k)).terminal })),
+      kids.map(k => ({ id: k.id, w: k.w, h: k.h, start: shapeDef(shapeOf(k)).terminal, branch: shapeDef(shapeOf(k)).branch })),
       edges().filter(e => inside.has(e.a) && inside.has(e.b)).map(e => ({ from: e.a.id, to: e.b.id })),
-      { centerX: 0, top: innerArea(c).top + (c.isWorld ? align.top : 0), gapX: gap.x, gapY: gap.y },
+      { centerX: 0, top: innerArea(c).top + (c.isWorld ? align.top : 0), gapX: gap.x, gapY: gap.y, sideDrop: align.sideDrop[size] },
     );
     const minX = Math.min(...kids.map(k => pos.get(k.id)!.x));
+    const maxX = Math.max(...kids.map(k => pos.get(k.id)!.x + k.w));
     const left = innerArea(c).left;
-    // 本筋の中心は x = 0。ワールドは画面の幅の真ん中へ（はみ出すなら左の余白から）、箱の中は左の余白から
-    const dx = c.isWorld ? Math.max(left - minX, viewport().w / 2) : left - minX;
+    const dx = c.isWorld ? Math.max(left - minX, viewport().w / 2 - (minX + maxX) / 2) : left - minX;
     for (const k of kids) {
       const p = pos.get(k.id)!;
       k.x = p.x + dx;

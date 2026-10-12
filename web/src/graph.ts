@@ -1161,9 +1161,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const c = nodeOf(id);
     if (!aligns(c)) return false;
     settle(SCENES.fitChildren, c.isWorld ? undefined : c, () => L.alignKids(c));
-    // 中の線は、動かしていたときの辺の記憶を捨てて、並べ直した位置での一番よい形にする（端を手で固定した線はそのまま）
+    // 中の線は、端の固定と折れ目と、動かしていたときの辺の記憶を捨てて、並べ直した位置での一番よい形にする（2026-10-12 ユーザー:
+    // 手で固定した端も外す）。分岐の形へ入る線は、上の頂点から入れる（layout/flow-align.ts の、横に置いた分岐へ上から入る形）
     const kids = new Set(c.children);
-    for (const e of edges) if (kids.has(e.a) && kids.has(e.b)) { e.memory = null; e.routeMemo = null; }
+    const inner = edges.filter(e => kids.has(e.a) && kids.has(e.b));
+    for (const e of inner) {
+      delete e.src.exitAt; delete e.src.enterAt; delete e.src.via;
+      e.memory = null; e.routeMemo = null;
+    }
+    render();
+    for (const e of inner) {
+      if (e.a === e.b || !shapeDef(shapeOf(e.b)).branch) continue;
+      const b = R.routeInputOf(e).b;
+      e.src.enterAt = perimeterAt(b, [b.x + b.w / 2, b.y]);
+    }
     render();
     changed();
     notifySelect();

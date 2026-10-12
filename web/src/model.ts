@@ -170,7 +170,8 @@ export interface Strategy {
   separateEnds: boolean; // 子に入る線が同じ位置につながるなら、折れ目の多い方を空いている近い辺へ逃がす（render.ts の separateEnds）
   kidGap: number | null; // 子どうしの間隔のローカルなルール（px）。null は全世界のルール（graph.ts の DEFAULTS.gap）。リストは詰めて並べる
   // 決まった並べ方（autoAlign）で置くときの、列の間（x）と段の間（y）。中の箱のサイズ（kidSize）ごと。top はワールドに置くとき一番上の段を下げる量
-  align: { gaps: Record<Size, { x: number; y: number }>; top: number } | null;
+  // sideDrop は、分岐から分岐へ続くとき横に置く子の分岐を、親の中心から下げる量（layout/flow-align.ts）
+  align: { gaps: Record<Size, { x: number; y: number }>; sideDrop: Record<Size, number>; top: number } | null;
   pairGaps: boolean;     // 子どうしに、組ごとの最小間隔（線でつながれば 32・キャプションがあれば 40px。layout.ts の gapBetween）を使うか。
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
@@ -188,7 +189,8 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
     leafKids: true, kidShapes: FLOW_SHAPES, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
     branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
-    align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, top: 8 },
+    // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
+    align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
   },
 };
 
