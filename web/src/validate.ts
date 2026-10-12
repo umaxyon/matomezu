@@ -180,62 +180,63 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
   for (const n of byId.values()) {
     if (n.parent != null && SHAPE_DEFS[byId.get(String(n.parent))?.shape as Shape]?.kids === false) fail(t("クラスの箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
   }
-  // ページのパターンの決まり（docs/PATTERN-plan.md。model.ts の STRATEGIES の leafKids・rootOnly。
-  // この検査は DOM なしの CLI でも動かすので、戦略の表は読まずに名前で見る）。
-  // 箱が載っているページの world: 祖先にページの箱があればその world、無ければ data.world
-  const pageWorldOf = (n: Record<string, unknown>): Record<string, unknown> => {
-    const seen = new Set<unknown>();
-    for (let p = byId.get(String(n.parent)); p && !seen.has(p); p = byId.get(String(p.parent))) {
-      seen.add(p);
-      if (p.page === true) return isObject(p.world) ? p.world : {};
+  // ページ（pages。2026-10-12 ユーザー: ページはブックの子。docs/TABS-plan.md）: id が重ならず、world はワールドの設定。
+  // 箱の page はそのページの id で、最上位の箱にだけ書く。昔の page: true（箱の中身をページにする）と箱の world は誤りにし、直し方を案内する
+  const pages = new Map<string, Record<string, unknown>>();
+  if (data.pages != null && !Array.isArray(data.pages)) fail(t("pages が配列ではありません"));
+  for (const p of (Array.isArray(data.pages) ? data.pages : []) as unknown[]) {
+    if (!isObject(p) || p.id == null) { fail(t("pages に id の無いページがあります")); continue; }
+    if (pages.has(String(p.id))) { fail(t("ページの id が重複しています: {id}", { id: p.id })); continue; }
+    pages.set(String(p.id), p);
+    if (p.title != null && typeof p.title !== "string") fail(t("ページの title は文字列にしてください: {id}", { id: p.id }));
+    if (p.world != null) {
+      if (!isObject(p.world)) fail(t("world がオブジェクトではありません: {id}", { id: p.id }));
+      else {
+        settingsProblems(p.world, t("ページ {id} の world", { id: p.id }), theme, true).forEach(fail);
+        if (p.world.overflow === "grow") fail(t("world に overflow: grow は使えません: {id}", { id: p.id }));
+        if (p.world.route != null && !includes(ROUTES, p.world.route)) fail(t("world の route の値が不正です: {id} ({value})", { id: p.id, value: p.world.route }));
+      }
     }
-    return isObject(data.world) ? data.world : {};
-  };
+  }
+  for (const n of byId.values()) {
+    if (n.world != null) fail(t("箱に world は書けません（ページの設定は pages の world に書きます）: {id}", { id: n.id }));
+    if (n.page == null) continue;
+    if (n.page === true || n.page === false) { fail(t("page: true はもう使えません（ページは pages に書き、載せる箱に page: ページの id を書きます）: {id}", { id: n.id })); continue; }
+    if (!pages.has(String(n.page))) { fail(t("存在しないページです: {id} → {page}", { id: n.id, page: n.page })); continue; }
+    if (n.parent != null) fail(t("page は最上位の箱にだけ書けます（中の箱は親と同じページに載ります）: {id}", { id: n.id }));
+  }
+  // ページのパターンの決まり（docs/PATTERN-plan.md。model.ts の STRATEGIES の leafKids・rootOnly。
+  // この検査は DOM なしの CLI でも動かすので、戦略の表は読まずに名前で見る）
   const topOf = (n: Record<string, unknown>) => { // そのページの最上位の祖先（自分かもしれない）
     let top = n;
-    for (let p = byId.get(String(top.parent)); p && p.page !== true; p = byId.get(String(p.parent))) top = p;
+    const seen = new Set<unknown>();
+    for (let p = byId.get(String(top.parent)); p && !seen.has(p); p = byId.get(String(p.parent))) { seen.add(p); top = p; }
     return top;
   };
+  const pageKeyOf = (n: Record<string, unknown>) => { const t = topOf(n); return t.page == null ? null : String(t.page); };
+  const worldOfPage = (key: string | null): Record<string, unknown> => {
+    const w = key == null ? data.world : pages.get(key)?.world;
+    return isObject(w) ? w : {};
+  };
   for (const n of byId.values()) {
-    if (n.page === true) continue;
-    const world = pageWorldOf(n);
-    const p = n.parent != null ? byId.get(String(n.parent)) : undefined;
-    const hasParent = !!p && p.page !== true;
+    if (n.parent == null) continue;
+    const world = worldOfPage(pageKeyOf(n));
     // フローチャート: 最上位の箱が子を持てない
-    if (world.childView === "flow" && hasParent) fail(t("フローチャートの中の箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
+    if (world.childView === "flow") fail(t("フローチャートの中の箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
     // ツリー: 子を持てるのは根の子孫だけ（根は world.root で指す）
-    if (world.childView === "tree" && hasParent && String(topOf(n).id) !== String(world.root)) {
+    if (world.childView === "tree" && String(topOf(n).id) !== String(world.root)) {
       fail(t("ツリーのページで子を持てるのは根（world.root）の子孫だけです: {id} → {parent}", { id: n.id, parent: n.parent }));
     }
   }
   // ツリーのページは根（world.root）が要り、そのページの最上位の箱を指す
-  const checkRoot = (world: Record<string, unknown>, pageId: unknown) => {
+  const checkRoot = (world: Record<string, unknown>, pageId: string | null) => {
     if (world.childView !== "tree") return;
     const root = world.root != null ? byId.get(String(world.root)) : undefined;
-    const parentOk = root && (pageId == null ? root.parent == null : String(root.parent) === String(pageId));
-    if (!root || !parentOk) fail(t("ツリーのページには根が要ります（world.root に、そのページの最上位の箱の id）: {where}", { where: pageId ?? "world" }));
+    const ok = root && root.parent == null && (root.page == null ? null : String(root.page)) === pageId;
+    if (!ok) fail(t("ツリーのページには根が要ります（world.root に、そのページの最上位の箱の id）: {where}", { where: pageId ?? "world" }));
   };
-  if (isObject(data.world)) checkRoot(data.world, null);
-  for (const n of byId.values()) if (n.page === true && isObject(n.world)) checkRoot(n.world, n.id);
-  // ページは入れ子にしない（page: true の箱の祖先に、page: true の箱があってはいけない）
-  for (const n of byId.values()) {
-    if (n.page == null) continue;
-    if (typeof n.page !== "boolean") { fail(t("page は true か false にしてください: {id}", { id: n.id })); continue; }
-    if (n.world != null) {
-      if (!isObject(n.world)) fail(t("world がオブジェクトではありません: {id}", { id: n.id }));
-      else {
-        settingsProblems(n.world, t("{id} の world", { id: n.id }), true, true).forEach(fail);
-        if (n.world.overflow === "grow") fail(t("world に overflow: grow は使えません: {id}", { id: n.id }));
-        if (n.world.route != null && !includes(ROUTES, n.world.route)) fail(t("world の route の値が不正です: {id} ({value})", { id: n.id, value: n.world.route }));
-      }
-    }
-    if (n.page !== true) continue;
-    const seen = new Set<unknown>();
-    for (let p = byId.get(String(n.parent)); p && !seen.has(p); p = byId.get(String(p.parent))) {
-      seen.add(p); // 親子の循環があっても止まるように
-      if (p.page === true) { fail(t("ページの中の箱はページにできません: {id}（{page} のページの中）", { id: n.id, page: p.id })); break; }
-    }
-  }
+  checkRoot(worldOfPage(null), null);
+  for (const [key, p] of pages) if (isObject(p.world)) checkRoot(p.world, key);
   const parentOf = (id: unknown) => {
     const p = byId.get(String(id))?.parent;
     return p == null ? null : String(p);

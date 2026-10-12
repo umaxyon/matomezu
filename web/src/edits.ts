@@ -24,29 +24,32 @@ function place(s: BoxData, pos: Pos) {
   }
 }
 
-function setParentId(s: BoxData, parent: Id | undefined) {
-  if (parent == null) delete s.parent;
-  else s.parent = parent;
+// 置き場所: 親の箱か、ページの最上位（parent が無ければ page のページ。null は最初のページ）。
+// page は最上位の箱にだけ書く（中の箱は親と同じページ。docs/TABS-plan.md）
+export interface Place { parent?: Id; page: Id | null }
+function setPlace(s: BoxData, at: Place) {
+  if (at.parent == null) delete s.parent; else s.parent = at.parent;
+  if (at.parent == null && at.page != null) s.page = at.page; else delete s.page;
 }
 
 const edgesOf = (data: Diagram) => (data.edges ?? []).map(normalizeEdge);
 
-// 同じ親でなくなった線を外し、外した本数を返す
+// 同じ所（同じ親の中か、同じページの最上位）でなくなった線を外し、外した本数を返す
 function dropCrossEdges(data: Diagram): number {
-  const parentOf = new Map(data.nodes.map(s => [String(s.id), key(s.parent)]));
+  const placeOf = new Map(data.nodes.map(s => [String(s.id), s.parent != null ? `in:${String(s.parent)}` : `page:${key(s.page) ?? ""}`]));
   const all = edgesOf(data);
-  const kept = all.filter(e => parentOf.get(String(e.from)) === parentOf.get(String(e.to)));
+  const kept = all.filter(e => placeOf.get(String(e.from)) === placeOf.get(String(e.to)));
   data.edges = kept;
   return all.length - kept.length;
 }
 
-// id の箱を子孫ごと parent（undefined は最上位）の子へ移し、位置を pos にする。
+// id の箱を子孫ごと at（親の箱か、ページの最上位）へ移し、位置を pos にする。
 // 同じ親でなくなった線は外し、外した本数を返す
-export function moveSubtree(data: Diagram, id: Id, parent: Id | undefined, pos: Pos): number {
+export function moveSubtree(data: Diagram, id: Id, at: Place, pos: Pos): number {
   const src = data.nodes.find(s => String(s.id) === String(id));
   if (!src) throw new Error(t("ボックスがありません: {id}", { id }));
-  if (parent != null && subtreeIds(data.nodes, id).has(String(parent))) throw new Error(t("自分や自分の子孫の中には移せません"));
-  setParentId(src, parent);
+  if (at.parent != null && subtreeIds(data.nodes, id).has(String(at.parent))) throw new Error(t("自分や自分の子孫の中には移せません"));
+  setPlace(src, at);
   place(src, pos);
   return dropCrossEdges(data);
 }
@@ -62,25 +65,23 @@ export function removeSubtree(data: Diagram, id: Id): { ids: Set<string>; cut: n
   return { ids, cut: all.length - data.edges.length };
 }
 
-// 消した箱 id を、removed の中の子孫ごと parent（undefined は最上位）の子に戻し（nodes の末尾へ）、位置を pos にする。線は戻さない
-export function restoreSubtree(data: Diagram, id: Id, parent: Id | undefined, pos: Pos) {
+// 消した箱 id を、removed の中の子孫ごと at（親の箱か、ページの最上位）に戻し（nodes の末尾へ）、位置を pos にする。線は戻さない
+export function restoreSubtree(data: Diagram, id: Id, at: Place, pos: Pos) {
   const list = data.removed ?? [];
   const root = list.find(s => String(s.id) === String(id));
   if (!root) throw new Error(t("消したボックスにありません: {id}", { id }));
   const take = subtreeIds(list, id);
   data.removed = list.filter(s => !take.has(String(s.id)));
   if (!data.removed.length) delete data.removed;
-  setParentId(root, parent);
+  setPlace(root, at);
   place(root, pos);
   data.nodes.push(...list.filter(s => take.has(String(s.id))));
 }
 
-// 写した箱（pages.ts の copySubtree）を parent（undefined は最上位）の子にコピーし、位置を pos にする。
-// id はこのブックで空いている番号に、線の id も空いている番号に振り直す。stripPages なら page と world を外す（ページの中へ写すとき）。
-// 新しい根の id と、写した箱と線の数を返す
+// 写した箱（pages.ts の copySubtree）を at（親の箱か、ページの最上位）にコピーし、位置を pos にする。
+// id はこのブックで空いている番号に、線の id も空いている番号に振り直す。新しい根の id と、写した箱と線の数を返す
 export function pasteSubtree(
-  data: Diagram, copy: { root: string; nodes: BoxData[]; edges: EdgeData[] },
-  parent: Id | undefined, pos: Pos, stripPages: boolean,
+  data: Diagram, copy: { root: string; nodes: BoxData[]; edges: EdgeData[] }, at: Place, pos: Pos,
 ): { root: string; nodes: number; edges: number } {
   if (!copy.nodes.some(s => String(s.id) === copy.root)) throw new Error(t("写した箱がありません: {id}", { id: copy.root }));
   const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
@@ -90,12 +91,12 @@ export function pasteSubtree(
     // このブックの LLM はまだ知らない箱なので、ユーザーが足した印を付ける（docs/ADD-plan.md の 4 章）
     const c: BoxData = { ...JSON.parse(JSON.stringify(s)), id: ids.get(String(s.id))!, userAdded: true };
     if (String(s.id) === copy.root) {
-      setParentId(c, parent);
+      setPlace(c, at);
       place(c, pos);
     } else {
       c.parent = ids.get(String(s.parent));
+      delete c.page;
     }
-    if (stripPages) { delete c.page; delete c.world; }
     return c;
   });
   const usedEdges = new Set(edgesOf(data).map(e => String(e.id)));
@@ -110,18 +111,18 @@ export function pasteSubtree(
   return { root: String(ids.get(copy.root)), nodes: nodes.length, edges: edges.length };
 }
 
-// 新しい箱を parent（undefined は最上位）の子として足し、位置を pos にする（画面からの追加。docs/ADD-plan.md）。
+// 新しい箱を at（親の箱か、ページの最上位）に足し、位置を pos にする（画面からの追加。docs/ADD-plan.md）。
 // id はこのブックで空いている番号（消した箱の番号も使わない）。before があれば、データの並びでその箱の前に入れる
 // （リストの並び順はデータの並び順なので、リストの間への差し込みに使う）。無ければ末尾。新しい箱の id を返す
-export function addBox(data: Diagram, fields: Partial<BoxData>, parent: Id | undefined, pos: Pos, before?: Id): number {
+export function addBox(data: Diagram, fields: Partial<BoxData>, at: Place, pos: Pos, before?: Id): number {
   const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
   const id = Math.max(0, ...used) + 1;
   const s: BoxData = { ...fields, id, userAdded: true };
-  setParentId(s, parent);
+  setPlace(s, at);
   place(s, pos);
-  const at = before == null ? -1 : data.nodes.findIndex(n => String(n.id) === String(before));
-  if (at < 0) data.nodes.push(s);
-  else data.nodes.splice(at, 0, s);
+  const idx = before == null ? -1 : data.nodes.findIndex(n => String(n.id) === String(before));
+  if (idx < 0) data.nodes.push(s);
+  else data.nodes.splice(idx, 0, s);
   return id;
 }
 

@@ -12,7 +12,7 @@ import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
-  captionOf, dashOf, descendants, displayCaption, fillOf, inTreeOf, isHidden, isIconShape, isNesting, isPageBox, overflowOf, routeOf, shapeOf,
+  captionOf, dashOf, descendants, displayCaption, fillOf, inTreeOf, isHidden, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeOf, slantOf, treeDirOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, SHAPES, SIZES } from "./validate";
@@ -113,7 +113,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
     const shape = shapeOf(n);
     const draw = shapeDef(shape).draw; // 描き方（形の表 shapes.ts）
-    const page = isPageBox(n);
     // 見た目の補正値（テーマとサイズから。ノーマルの形だけ。docs/LAYOUT-BASE-plan.md）。箱の中の余白に足して描き（graph-style.ts の
     // --mz-out-x / --mz-out-y）、配置はこれを足した大きさ（足跡）で決まる。値が変わったら（テーマやサイズを変えた）、土台の位置を保つよう
     // 足跡の左上を差の分だけずらす（四方に均等に膨らむので、中心は動かない）。位置を受け渡す入口はここだけ
@@ -131,10 +130,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       n.y -= oy - was.y;
       n.intendedY -= oy - was.y;
     }
-    for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape && !page);
-    head.classList.toggle("mz-shape-page", page);
+    for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape);
     // 絵の形は、形の表の大きさの絵（shape-art.ts）の足元に文字を置く（graph-style.ts の .mz-icon）
-    const art = page ? null : shapeDef(shape).art;
+    const art = shapeDef(shape).art;
     head.classList.toggle("mz-icon", !!art);
     if (art) {
       head.style.setProperty("--mz-art-w", art.w * art.scale[size] + "px");
@@ -151,13 +149,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const shadowOf = () => (theme.shadow === "none" ? null : theme.shadow ?? "var(--mz-shadow)");
     // 付箋（テーマのスタイル）: 右上の角を切り欠き、折り返しの三角を重ねる（graph-style.ts の .mz-style-sticky）。
     // 影は切り欠きに沿うよう、box-shadow ではなく drop-shadow で付ける
-    const folded = theme.style === "sticky" && draw === "box" && !page && !group && fill;
+    const folded = theme.style === "sticky" && draw === "box" && !group && fill;
     head.classList.toggle("mz-style-sticky", folded);
     head.style.filter = folded && shadowOf() ? `drop-shadow(${shadowOf()})` : "";
     if (folded) head.style.setProperty("--mz-fold", `color-mix(in srgb, ${color} 70%, #6b5a2a)`);
     else head.style.removeProperty("--mz-fold");
     // クラスの箱も、ボックスと同じ背景と影（枠はいつも引く。UML の区画を見せるため）
-    if ((draw === "box" || draw === "class") && !page) {
+    if (draw === "box" || draw === "class") {
       head.style.background = !fill ? "transparent"
         : group ? `color-mix(in srgb, ${color} 16%, transparent)`
         // 斜めのグラデーションの長さは角からの距離なので、切り欠きの 1 辺を折り返しの三角（FOLD）にそろえるには FOLD / √2。
@@ -201,14 +199,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         svg.innerHTML = '<polygon class="mz-diamond-body"/>';
         svg.style.fill = fill ? color : "none";
         svg.style.stroke = fill ? edge : color;
-        svg.style.strokeWidth = "1.5";
-        setShadow(n, fill ? shadowOf() : null);
-      } else if (page) {
-        // タブ付きの見出し（フォルダ）。輪郭は renderPage で大きさに合わせて描く
-        svg.removeAttribute("viewBox");
-        svg.innerHTML = '<path class="mz-page-body"/>';
-        svg.style.fill = fill ? color : "none";
-        svg.style.stroke = borderOf(n) || !fill ? (fill ? edge : color) : "none";
         svg.style.strokeWidth = "1.5";
         setShadow(n, fill ? shadowOf() : null);
       } else {
@@ -306,17 +296,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   function renderDiamond(n: Box) {
     const x0 = 1, x1 = n.hw - 1, y0 = 1, y1 = n.hh - 1, cx = n.hw / 2, cy = n.hh / 2;
     n.shapeSvg.firstElementChild?.setAttribute("points", `${cx},${y0} ${x1},${cy} ${cx},${y1} ${x0},${cy}`);
-  }
-
-  // ページの箱: 左上に耳（タブ）の付いた見出し。耳の高さは graph-style.ts の .mz-shape-page の上の余白と合わせる
-  function renderPage(n: Box) {
-    const e = sizeOf(n) === "S" ? 6 : 9;
-    const r = 4;
-    const x0 = 1, x1 = n.hw - 1, y0 = 1, y1 = n.hh - 1, top = y0 + e;
-    const ear = Math.max(x0 + 2 * r, Math.min(x0 + Math.max(n.hw * 0.4, 36), x1 - e - 2 * r)); // 耳の右端
-    n.shapeSvg.firstElementChild?.setAttribute("d",
-      `M${x0},${y0 + r}Q${x0},${y0} ${x0 + r},${y0}H${ear}L${ear + e},${top}H${x1 - r}Q${x1},${top} ${x1},${top + r}` +
-      `V${y1 - r}Q${x1},${y1} ${x1 - r},${y1}H${x0 + r}Q${x0},${y1} ${x0},${y1 - r}Z`);
   }
 
   // ツリーの折れ線: 親から1本下ろし、横に分けて各子の上へつなぐ
@@ -685,7 +664,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const draw = shapeDef(shapeOf(n)).draw;
       if (draw === "diamond") renderDiamond(n);
       if (draw === "outline") renderOutline(n);
-      if (isPageBox(n)) renderPage(n);
       renderTree(n);
     }
     renderEdges();

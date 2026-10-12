@@ -109,6 +109,10 @@
   /* ブックごとのタブグループ。左端の色の印でブックを見分ける。先頭のタブ（ブックの名前）が最初のページ */
   .tab-group { display: flex; gap: 2px; padding-left: 6px; margin-right: 8px; border-left: 3px solid var(--book, var(--accent)); }
   .tab-book .tab-name { font-weight: 600; }
+  /* タブグループの右端の小さな＋（ページを足す。app.ts） */
+  .tab-add { align-self: center; margin-left: 2px; padding: 3px; border: 0; border-radius: 6px; background: transparent; color: var(--hint); line-height: 0; }
+  .tab-add svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+  .tab-add:hover { color: var(--text); background: var(--btn-hover); }
   /* 付け替えのドラッグで乗っているタブ（少し止めるとそのページに切り替わる） */
   .tab-group-dragging { opacity: 0.6; }
   .tab-group-dragging .tab { cursor: grabbing; }

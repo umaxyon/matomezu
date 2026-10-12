@@ -110,7 +110,7 @@ func checkBytes(b []byte, path string) error {
 
 func set(args []string) error {
 	fs := newFlags("set")
-	page := fs.String("page", "", "summarize the page of this box instead of the first page")
+	page := fs.String("page", "", "the page (an id in pages) to edit world.* of and to summarize, instead of the first page")
 	in := fs.String("in", "", inUsage)
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -124,7 +124,7 @@ func set(args []string) error {
 	if err != nil {
 		return err
 	}
-	out, notes, err := applySets(b, fs.Args()[1:])
+	out, notes, err := applySets(b, *page, fs.Args()[1:])
 	if err != nil {
 		return err
 	}
@@ -306,10 +306,34 @@ func value(key, s string) json.RawMessage {
 // 区切りは , にする（> はシェルでリダイレクトになり、引用符を忘れると黙ってファイルができるため）。
 // 足した線の id はこちらで振る。足した・消した線は notes で返す（LLM に知らせる）。
 // 書き換えのあと、階層の違う箱どうしの線が残れば書かずに止め、消すための unlink を案内する
-func applySets(b []byte, sets []string) ([]byte, []string, error) {
+// page が空でなければ、world.key はそのページ（pages の id）の world を直す（無ければ最初のページ = ファイルの world）
+func applySets(b []byte, page string, sets []string) ([]byte, []string, error) {
 	doc, err := parseObject(b)
 	if err != nil {
 		return nil, nil, err
+	}
+	// -page のページ。pages の並びを読み、そのページの world を書き戻せるようにしておく
+	var pages []*object
+	var pageObj *object
+	if page != "" {
+		if raw, ok := doc.vals["pages"]; ok {
+			var rawPages []json.RawMessage
+			if err := json.Unmarshal(raw, &rawPages); err != nil {
+				return nil, nil, errors.New("pages is not an array")
+			}
+			pages = make([]*object, len(rawPages))
+			for i, r := range rawPages {
+				if pages[i], err = parseObject(r); err != nil {
+					return nil, nil, fmt.Errorf("page %d: %w", i, err)
+				}
+				if plain(pages[i].vals["id"]) == page {
+					pageObj = pages[i]
+				}
+			}
+		}
+		if pageObj == nil {
+			return nil, nil, fmt.Errorf("no page with id %s (ids are in pages)", page)
+		}
 	}
 	var rawNodes []json.RawMessage
 	if err := json.Unmarshal(doc.vals["nodes"], &rawNodes); err != nil {
@@ -397,7 +421,11 @@ func applySets(b []byte, sets []string) ([]byte, []string, error) {
 		var o *object
 		if target == "world" {
 			if world == nil {
-				if w, ok := doc.vals["world"]; ok {
+				holder := doc
+				if pageObj != nil {
+					holder = pageObj
+				}
+				if w, ok := holder.vals["world"]; ok {
 					if world, err = parseObject(w); err != nil {
 						return nil, nil, fmt.Errorf("world: %w", err)
 					}
@@ -460,7 +488,16 @@ func applySets(b []byte, sets []string) ([]byte, []string, error) {
 	}
 	if world != nil {
 		wb, _ := world.MarshalJSON()
-		doc.set("world", wb)
+		if pageObj != nil {
+			pageObj.set("world", wb)
+			pb, err := json.Marshal(pages)
+			if err != nil {
+				return nil, nil, err
+			}
+			doc.set("pages", pb)
+		} else {
+			doc.set("world", wb)
+		}
 	}
 	compact, err := doc.MarshalJSON()
 	if err != nil {

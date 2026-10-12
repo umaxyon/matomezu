@@ -202,10 +202,6 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-shape-circle > .mz-text, .mz-shape-stadium > .mz-text, .mz-shape-hexagon > .mz-text, .mz-shape-parallelogram > .mz-text, .mz-shape-parallelogramAlt > .mz-text, .mz-shape-trapezoid > .mz-text, .mz-shape-trapezoidAlt > .mz-text { position: relative; }
 .mz-shape-circle > .mz-text { max-width: calc(var(--mz-text-ratio, 1) * 100%); } /* 割合は形の表（shapes.ts の fit） */
 /* ページの箱（タブ付きの見出し）。上の余白は耳の分（render.ts の renderPage と合わせる） */
-.mz-leaf.mz-shape-page { padding-top: 13px; background: transparent; }
-.mz-leaf.mz-size-S.mz-shape-page { padding-top: 8px; }
-.mz-shape-page > .mz-shape { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.mz-shape-page > .mz-text { position: relative; }
 /* クラスの箱（docs/CLASS-plan.md）。高さは classbox.ts の CLASS_HEAD・CLASS_ROW・CLASS_PAD と合わせる。文字は小さめで折り返さない */
 .mz-class[hidden] { display: none; }
 .mz-leaf.mz-shape-class { display: block; padding: 0; text-align: left; font-size: 11px; font-weight: 400; line-height: 16px; }

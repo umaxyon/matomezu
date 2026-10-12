@@ -103,13 +103,14 @@ test("読み直したあと一度も前に出していないタブの図が外�
   await expect(page.locator(".stage:visible .mz-head", { hasText: "新しい内容" })).toHaveCount(1);
 });
 
-// ページ（docs/TABS-plan.md の段階 4）。1 はページの箱で、中に 3 と 4
+// ページ（docs/TABS-plan.md。2026-10-12 から、ページはブックの子）。ページ p1「詳細」に 3 と 4 が載る
 const paged = {
+  pages: [{ id: "p1", title: "詳細" }],
   nodes: [
-    { id: 1, caption: "詳細", page: true, x: 40, y: 40 },
+    { id: 1, caption: "表", x: 40, y: 40 },
     { id: 2, caption: "隣", x: 400, y: 40 },
-    { id: 3, caption: "中A", parent: 1, x: 20, y: 20 },
-    { id: 4, caption: "中B", parent: 1, x: 300, y: 20 },
+    { id: 3, caption: "中A", page: "p1", x: 20, y: 20 },
+    { id: 4, caption: "中B", page: "p1", x: 300, y: 20 },
   ],
   edges: [{ id: "e1", from: 1, to: 2 }, { id: "e2", from: 3, to: 4 }],
 };
@@ -125,23 +126,26 @@ test("ブックを開くと全部のページのタブが並ぶ。ページの�
   expect(await visibleIds(page)).toEqual(["1", "2"]);
   await expect(group.locator(".tab", { hasText: "詳細" }).locator(".tab-close")).toHaveCount(0);
 
-  run("open", "-no-browser", "-page", "1", "p.json");
+  run("open", "-no-browser", "-page", "p1", "p.json");
   await expect(selected(page)).toHaveText("詳細");
   expect(await visibleIds(page)).toEqual(["3", "4"]);
-  expect(page.url()).toContain("p=1");
+  expect(page.url()).toContain("p=p1");
 
   await group.locator(".tab", { hasText: "p.json" }).click();
   expect(await visibleIds(page)).toEqual(["1", "2"]);
 });
 
-test("check -page はそのページのタブを前に出して要約を返し、page を外すとページのタブは閉じる", async ({ page }) => {
+test("check -page はそのページのタブを前に出して要約を返し、set -page はそのページの world を直す。ページを消すとタブは閉じる", async ({ page }) => {
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   await page.goto(run("open", "-no-browser", "p.json").trim());
-  const out = run("check", "-page", "1", "p.json");
+  const out = run("check", "-page", "p1", "p.json");
   expect(out).toContain("#3 中A");
   await expect(selected(page)).toHaveText("詳細");
+  run("set", "-page", "p1", "p.json", "world.background=#123456");
+  expect(JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).pages[0].world).toEqual({ background: "#123456" });
 
-  run("set", "p.json", "1.page=");
+  const gone = { ...paged, pages: [], nodes: paged.nodes.map(n => { const { page: _p, ...rest } = n as { page?: string }; return rest; }) };
+  writeFileSync(join(dir, "p.json"), JSON.stringify(gone));
   await expect(page.locator(".tab-group", { hasText: "p.json" }).locator(".tab-name")).toHaveText(["p.json"]);
   expect(await visibleIds(page)).toEqual(["1", "2", "3", "4"]);
 });
@@ -149,7 +153,7 @@ test("check -page はそのページのタブを前に出して要約を返し�
 test("付け替えのドラッグでタブの上に少し止めるとページが切り替わり、落としたページへ移る", async ({ page }) => {
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   await page.goto(run("open", "-no-browser", "p.json").trim());
-  run("open", "-no-browser", "-page", "1", "p.json");
+  run("open", "-no-browser", "-page", "p1", "p.json");
   await expect(selected(page)).toHaveText("詳細");
   await page.locator("#mode-reparent").click();
 
@@ -165,7 +169,7 @@ test("付け替えのドラッグでタブの上に少し止めるとページ�
   await page.mouse.up();
 
   expect(await visibleIds(page)).toEqual(["1", "2", "3"]);
-  await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.find((n: { id: number }) => n.id === 3).parent)
+  await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.find((n: { id: number }) => n.id === 3).page)
     .toBeUndefined();
   // 保存は箱 1 つを 1 行に書く
   const saved = readFileSync(join(dir, "p.json"), "utf8");
@@ -180,7 +184,7 @@ test("追加削除の一覧はページごとの見出しで分かれ、ほか�
   await side.locator('[data-tab="list"]').click();
   await expect(side.locator(".mzp-subfold > summary h3")).toHaveText([/最初のページ（2）\s*表示中のページ/, "詳細（2）"]);
   // × は行にポインタを乗せると出る
-  const row = side.locator('.mzp-subfold[data-fold="page:1"] .mzp-row', { hasText: "中B" });
+  const row = side.locator('.mzp-subfold[data-fold="page:p1"] .mzp-row', { hasText: "中B" });
   await row.hover();
   await row.locator('[data-remove="4"]').click();
   await expect(side.locator(".mzp-subfold > summary h3")).toHaveText([/最初のページ（2）/, "詳細（1）"]);

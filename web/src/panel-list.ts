@@ -62,7 +62,7 @@ function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: b
       `${helpIcon(t("タブで開いているほかのブックのボックスも並べます。図へドラッグすると、子と中の線ごとこの図にコピーします（元のブックは変わりません）"))}</label>` +
     (!others.shown ? "" : !others.books.length ? `<p class="mzp-hint">${t("ほかに開いているブックはありません")}</p>` :
       others.books.map(b => {
-        const l = liveItems(b.data.nodes ?? [], undefined, dataPaint(b.data, DEFAULTS.color));
+        const l = liveItems(b.data, undefined, dataPaint(b.data, DEFAULTS.color));
         return fold(`book:${b.id}`, `<span title="${esc(b.name)}">${esc(b.title)}</span>（${l.live.length}）`,
           byPage(l, `book:${b.id}:`, i => row(i, false, false, b.id)),
           "mzp-section mzp-fold mzp-other-book");

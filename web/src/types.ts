@@ -54,8 +54,7 @@ export interface BoxData {
   fill?: boolean;
   border?: boolean;
   overflow?: Overflow;
-  page?: boolean;        // 中身を別のページにする（docs/TABS-plan.md）。ページは入れ子にしない
-  world?: WorldData;     // ページの箱のとき、そのページのワールドの設定
+  page?: Id;             // 載っているページ（pages の id。最上位の箱だけに書く。無ければ最初のページ。docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）
   abstract?: boolean;    // クラスの箱（shape: "class"）が抽象クラスか（docs/CLASS-plan.md）
   attrs?: ClassAttr[];   // クラスの箱の属性
   ops?: ClassOp[];       // クラスの箱の操作
@@ -85,8 +84,17 @@ export interface EdgeData {
   [key: string]: unknown;
 }
 
+// ブックのページ（2 枚目から。最初のページはファイルの最上位の world と、page の無い箱）。パターンはページ単位（docs/PATTERN-plan.md）
+export interface PageData {
+  id: Id;
+  title?: string;     // ページの名前（タブの見出し。無ければ id）
+  world?: WorldData;  // そのページのワールドの設定（パターン・テーマ・背景・線の通り方・ツリーの根と向き）
+  [key: string]: unknown;
+}
+
 export interface Diagram {
   world?: WorldData;
+  pages?: PageData[]; // 2 枚目からのページ。箱は page: id でそのページに載る
   nodes: BoxData[];
   edges?: (EdgeData | [Id, Id])[]; // [from, to] の形でも読める
   // 人が消したボックス（nodes と同じ形。parent は消す直前の親）。サイドバーの一覧から戻せる

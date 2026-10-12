@@ -8,7 +8,6 @@ export type GraphEvent =
   // 付け替えた。into は落とし先の箱のキー（null は最上位）、page はほかのページから移したときの今のページの名前
   | { kind: "moved"; into: string | null; page: string | null; cutEdges: number }
   // ページの箱を、ページの中へは移せない
-  | { kind: "pageInPage" }
   // 子を持つ箱を、子が子を持てない戦略（フローチャート）の中へ入れようとした（入れなかった）
   | { kind: "leafKids" }
   // 子孫ごと消した
@@ -41,8 +40,6 @@ export function noticeOf(ev: GraphEvent): string {
         : (ev.into ? t("「{into}」の中へ移しました", { into: ev.into }) : t("最上位へ移しました"));
       return where + (ev.cutEdges ? t("（階層が変わったため、線を {n} 本外しました）", { n: ev.cutEdges }) : "");
     }
-    case "pageInPage":
-      return t("ページの中には、ページの箱を入れられません");
     case "leafKids":
       return t("フローチャートの中の箱は子を持てないので、子を持つ箱は入れられません");
     case "removed": {
