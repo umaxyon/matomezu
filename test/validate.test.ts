@@ -50,6 +50,19 @@ test("treeDirection はページの world に書く。値を検証し、箱に�
   expect(() => validate({ nodes: [{ id: 1, treeDirection: "left" }] })).toThrow("箱には書けません");
 });
 
+test("箱に tree を書くと、world.childView と world.root に書く直し方を案内する（flow は world.childView だけ）", () => {
+  expect(() => validate({ nodes: [{ id: 1, childView: "tree" }] })).toThrow("world.root に根の箱の id");
+  expect(() => validate({ nodes: [{ id: 1, childView: "flow" }] })).toThrow("world.childView に書きます");
+});
+
+test("ページの違う箱どうしの線は誤り。関連はリンクの箱へ線を引く、と案内する", () => {
+  const book = (edges: [number, number][]) => ({
+    pages: [{ id: "p2" }], nodes: [{ id: 1 }, { id: 2, page: "p2" }, { id: 3, page: "p2" }, { id: 4, link: "p2" }], edges,
+  });
+  expect(() => validate(book([[1, 2]]))).toThrow("リンクの箱（link）");
+  expect(() => validate(book([[2, 3], [1, 4]]))).not.toThrow();
+});
+
 test("problems は誤りを全部挙げる（validate は最初の 1 つで止める）", () => {
   const data = {
     nodes: [{ id: 1, size: "XL" }, { id: 2, parent: 9 }, { id: 1 }],

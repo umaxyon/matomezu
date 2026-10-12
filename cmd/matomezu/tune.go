@@ -18,6 +18,7 @@ import (
 	neturl "net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -365,6 +366,35 @@ func applySets(b []byte, page string, sets []string) ([]byte, []string, error) {
 		}
 		return -1
 	}
+	// 箱が載るページ（最上位の祖先の page。最初のページは ""）と、ページのパターン（world.childView。無ければ内包）。
+	// 箱はパターンの違うページへは移せない（docs/PATTERN-plan.md。画面と同じ）ので、書き換えの前後で比べる
+	pageOf := func(id string) string {
+		seen := map[string]bool{}
+		for i, ok := index[id]; ok && !seen[id]; i, ok = index[id] {
+			seen[id] = true
+			p := plain(nodes[i].vals["parent"])
+			if p == "null" {
+				if pg := plain(nodes[i].vals["page"]); pg != "null" {
+					return pg
+				}
+				return ""
+			}
+			id = p
+		}
+		return ""
+	}
+	patterns := map[string]string{"": patternIn(doc.vals["world"])}
+	var allPages []json.RawMessage
+	_ = json.Unmarshal(doc.vals["pages"], &allPages)
+	for _, r := range allPages {
+		if po, err := parseObject(r); err == nil {
+			patterns[plain(po.vals["id"])] = patternIn(po.vals["world"])
+		}
+	}
+	before := map[string]string{}
+	for id := range index {
+		before[id] = pageOf(id)
+	}
 	edgesChanged := false
 	var notes []string
 	// 同じ呼び出しで消した線の id は、足す線に振り直さない（消した線と足した線の取り違えを防ぐ）
@@ -448,6 +478,18 @@ func applySets(b []byte, page string, sets []string) ([]byte, []string, error) {
 			o.set(key, v)
 		}
 	}
+	var moved []string
+	for id, from := range before {
+		to := pageOf(id)
+		pf, pt := patternOf(patterns, from), patternOf(patterns, to)
+		if from != to && pf != pt {
+			moved = append(moved, fmt.Sprintf("box %s would move from a %s page to a %s page", id, pf, pt))
+		}
+	}
+	if len(moved) > 0 {
+		sort.Strings(moved)
+		return nil, nil, fmt.Errorf("not written: %s; boxes can't move between pages of different patterns (to relate them, put a link box (link) to the other page and draw an edge to it)", strings.Join(moved, "; "))
+	}
 	// 付け替えで階層をまたいだ線。画面の検査でも止まるが、ここで消し方まで示す
 	parentOf := func(id string) string {
 		if i, ok := index[id]; ok {
@@ -505,6 +547,25 @@ func applySets(b []byte, page string, sets []string) ([]byte, []string, error) {
 	}
 	out, err := formatDiagram(compact)
 	return out, notes, err
+}
+
+// patternIn はページの world の childView（ページのパターン）。無ければ内包（nest）
+func patternIn(world json.RawMessage) string {
+	var w struct {
+		ChildView string `json:"childView"`
+	}
+	if json.Unmarshal(world, &w) == nil && w.ChildView != "" {
+		return w.ChildView
+	}
+	return "nest"
+}
+
+// patternOf はページ（id）のパターン。無いページは内包として扱う（無いページは validate が知らせる）
+func patternOf(patterns map[string]string, page string) string {
+	if p, ok := patterns[page]; ok {
+		return p
+	}
+	return "nest"
 }
 
 // where は箱の居場所の説明（親の id か最上位）

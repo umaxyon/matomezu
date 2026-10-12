@@ -34,6 +34,8 @@ const usageText = `usage:
                                              an empty value removes the field, e.g. 12.x=; JSON values are allowed, e.g. e3.via=[280,140,400]
                                              link=1,4 adds an edge (its id is printed); link={"from":1,"to":4,"arrow":"end"} with fields
                                              unlink=1,4 or unlink=e3 removes an edge; 12.parent=4 moves box 12 into box 4 (12.parent= to the top level)
+                                             world.key=value changes the diagram's world, or with -page that page's world (its childView is the page pattern)
+                                             12.page=p2 moves a top-level box to page p2, but never to a page of a different pattern
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu stop                              stop the background server
   matomezu version
