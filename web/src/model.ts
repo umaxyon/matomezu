@@ -150,9 +150,6 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 // 破ってはいけない決まりは CLAUDE.md の「並べ方の戦略」
 // 非表示（hidden）は「子を描かずに ▼ だけを出す戦略」（折りたたみの項目には分けない。2026-10-11 ユーザー）
 
-// フローチャートの中だけで使える形（円とひし形はどこでも使える。2026-10-11 ユーザー）
-export const FLOW_SHAPES: readonly Shape[] = ["hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt"];
-
 export interface Strategy {
   framed: boolean;      // 子を枠の中に入れ、見出しを付けて見せる（内包・リスト）。自分の形とサイズは使わない（大きさは子の並びで決まる）
   free: boolean;        // 子を自由に置く（落とした位置に置き、子をドラッグで動かせる）
@@ -161,7 +158,6 @@ export interface Strategy {
   link: boolean;        // 並べた子どうしに線を引ける・〇を出す（自動で並べる戦略では、線を引くと形が崩れる）
   widthGrip: boolean;   // 自分の幅のつまみを出す
   leafKids: boolean;    // 子は子を持てない（フローチャートの要素。子を持つ箱は入れられず、子の中へも落とせない）
-  kidShapes: readonly Shape[]; // この戦略の子だけが使える形（外へ出すとボックスで見せる。データは残す）
   tools: readonly Shape[];     // 道具入れ（toolbox.ts）に並べる、子として足せる形。空なら道具入れを出さない
   branchCaptions: readonly string[]; // 子のひし形（分岐）から出る線のキャプションの候補（線の編集ダイアログに出す）
   onWorld: boolean;     // ワールド（ページ）にも掛けられる（最上位の箱を並べる。今は内包とフローチャート）
@@ -175,17 +171,17 @@ export interface Strategy {
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, kidShapes: [], tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
+const PLAIN = { leafKids: false, tools: [], branchCaptions: [], onWorld: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true },
   tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN },
   list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, kidGap: 8 },
   hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN },
-  // フローチャート（docs/PATTERN-plan.md の 3.7 章。2026-10-11 ユーザー）: 内包と同じく子を自由に置き、子はフローチャートの形を使える。
-  // 子は子を持てない
+  // フローチャート（docs/PATTERN-plan.md の 3.7 章。2026-10-11 ユーザー）: 内包と同じく子を自由に置き、子は子を持てない。
+  // 形はどこでも同じに使える（フローチャートだけの形は持たない。2026-10-12 ユーザー）
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
-    leafKids: true, kidShapes: FLOW_SHAPES, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
+    leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
     branchCaptions: ["Yes", "No"], onWorld: true, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, top: 8 },
@@ -206,7 +202,13 @@ const LOOKS: Record<ChildView, PlacedLook> = {
   flow: { plainShape: false, sharedSize: false, fullCaption: true },
   list: { plainShape: true, sharedSize: true, fullCaption: true },
 };
-export const lookOf = (n: Box): PlacedLook => LOOKS[placedBy(n)]; // 最上位はワールドの並べ方（内包なら今のまま）
+// 最上位はワールドの並べ方（内包なら今のまま）。形にその並べ方でのローカルなルール（形の表の placed）があれば、それで上書きする
+// （例: 平行四辺形と台形はツリーの中ではボックスで見せる）。形は、データに書いた形で引く（shapeOf がこれを使うため）
+export const lookOf = (n: Box): PlacedLook => {
+  const by = placedBy(n);
+  const own = isShape(n.src.shape) ? shapeDef(n.src.shape).placed[by] : undefined;
+  return own ? { ...LOOKS[by], ...own } : LOOKS[by];
+};
 
 // ツリーは子孫全体に効く（docs/PATTERN-plan.md の 3.6 章）: ツリーの箱の中では、子孫の見せ方（childView）を全部無視して何段でもツリーに並べる。
 // 混ぜたければ、ツリーを解除して（見せ方を内包に戻して）自分で組む
@@ -323,16 +325,11 @@ export function splitBranches(targets: [number, number][], avoid: Vertex[] = [])
   return best;
 }
 
-// 戦略の子だけが使える形（フローチャートの六角形など）は、その戦略の子のときだけ使う（外へ出すとボックス。データは残す）
+// 見せる形。子を内包する箱（枠）・ページの箱と、並べられた見せ方で形を使わない箱（リストの子など。lookOf）はボックス。データの形は残す
 export const shapeOf = (n: Box): Shape => {
   if (isNesting(n) || lookOf(n).plainShape || n.src.page === true || !isShape(n.src.shape)) return DEFAULT_SHAPE;
-  return shapeAllowed(n.src.shape, n.parent ?? n.world) ? n.src.shape : DEFAULT_SHAPE;
+  return n.src.shape;
 };
-// 入れ物 p（箱かワールド）の子として、形 s を使えるか（どこかの戦略の子だけが使える形なら、p がその戦略で子を並べるときだけ）
-export function shapeAllowed(s: Shape, p: Container): boolean {
-  if (!Object.values(STRATEGIES).some(g => g.kidShapes.includes(s))) return true;
-  return kidStrategyOf(p).kidShapes.includes(s);
-}
 // 入れ物 p の子にできるか（子を持てない戦略の子の中へは入れられず、子を持つ箱は子を持てない戦略の中へ入れられない）
 export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
   if (!p.isWorld && STRATEGIES[placedBy(p)].leafKids) return false;
