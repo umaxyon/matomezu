@@ -2,7 +2,7 @@
 
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
-import { DEFAULT_LINK_LOOK, isLinkLook } from "./link-box";
+import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isLinkLook, isRect } from "./link-box";
 import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, Shape, Size, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isPattern, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
@@ -55,6 +55,7 @@ export interface Box {
   linkEl: HTMLDivElement;
   linkBadge: HTMLSpanElement; // のぞくページのパターンの札
   linkWin: HTMLDivElement;    // 窓（押すとそのページへ）
+  linkArt: SVGSVGElement;     // 窓の中の絵（のぞくページの縮図。preview-art.ts）
 }
 
 // ワールドは親の無いボックスたちの入れ物。ノードと同じように扱える形にしておく
@@ -280,6 +281,8 @@ export const isHidden = (n: Box): boolean => ancestors(n).some(p => arrangeOf(p)
 export const isLinkBox = (n: Box): boolean => n.src.link != null;
 export const linkPageOf = (n: Box): string | null => (n.src.link == null ? null : String(n.src.link));
 export const linkLookOf = (n: Box): LinkLook => (isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
+// 窓に映す範囲（のぞくページの座標。無ければ null = ページ全体）
+export const clipOf = (n: Box): ClipRect | null => (isRect(n.src.clip) ? { ...n.src.clip } : null);
 
 // 箱にできる操作（並べ方の戦略から決まる）
 export interface Abilities {

@@ -143,3 +143,13 @@ test("CSS は形の数値を書き写さず、render.ts が渡す変数で読む
   expect(css).toContain("var(--mz-art-w)"); // 絵の形の絵の大きさ
   expect(css).not.toMatch(/\+ 14px|max-width: 50%|max-width: 70%/);
 });
+
+test("リンクの箱の窓の縮尺の下限は DEFAULTS.previewMinScale の値だけで決まる", () => {
+  const data: Diagram = { pages: [{ id: "p1" }], nodes: [{ id: 1, link: "p1", x: 0, y: 0 }, { id: 2, caption: "遠く", page: "p1", x: 3000, y: 2000 }] };
+  const widthAt = (min: number) => {
+    const { el } = setup(data, { previewMinScale: min });
+    return Number(el.querySelector<SVGSVGElement>('.mz-node[data-id="1"] .mz-link-art')!.getAttribute("viewBox")!.split(" ")[2]);
+  };
+  // 下限を 2 倍にすれば、映る範囲（viewBox の幅）は半分になる
+  expect(widthAt(0.2)).toBe(widthAt(0.1) / 2);
+});

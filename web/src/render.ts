@@ -17,12 +17,13 @@ import {
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
-import { LINK_LOOKS, LINK_LOOK_DEFS } from "./link-box";
+import { LINK_LOOKS, LINK_LOOK_DEFS, type Rect, previewRegion, windowOf } from "./link-box";
+import { type Scene, drawScene } from "./preview-art";
 import type { LinkLook, PagePattern } from "./types";
 import { SHAPE_ART } from "./shape-art";
 
 export interface RenderContext {
-  opt: { color: string; header: number; treeGapY: number; padding: number };
+  opt: { color: string; header: number; treeGapY: number; padding: number; previewMinScale: number };
   world: World;
   worldEl: HTMLElement;
   nodes(): Box[];
@@ -32,7 +33,8 @@ export interface RenderContext {
   themeOf(n: Box | null): Theme; // 箱（null はワールド）に効いているテーマ
   paintOf(n: Box): { color: string; own: boolean }; // 箱を塗る色と、それがデータの color から来たか（テーマと色の名前を解いたもの）
   backgroundOf(): string | null; // 図の背景の色（world.background とテーマから。無ければ null）
-  linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook } | null; // リンクの箱がのぞくページ（link-box.ts）。でなければ null
+  linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: Rect | null } | null; // リンクの箱がのぞくページ（link-box.ts）。でなければ null
+  sceneOf(page: string): Scene; // ページの縮図のもと（リンクの箱の窓に映す。preview-art.ts）
 }
 
 export type Renderer = ReturnType<typeof createRenderer>;
@@ -275,7 +277,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       head.style.setProperty("--mz-link-win-h", d.win.h + "px");
       head.style.setProperty("--mz-link-gap", d.gap + "px");
       n.linkWin.title = t("押すと「{name}」のページを開きます", { name: link.pageName });
-    }
+      // 窓にそのページの縮図を映す（縮尺と切り取りは link-box.ts の previewRegion。窓の幅は、窓枠なら箱の幅から余白を引いたもの）
+      const scene = ctx.sceneOf(link.page);
+      drawScene(n.linkArt, scene, previewRegion(scene, windowOf(d), opt.previewMinScale, link.clip));
+    } else if (n.linkArt.firstChild) n.linkArt.replaceChildren();
     n.moreEl.hidden = arrange !== "hidden";
     n.moreEl.title = t("子 {n} 件", { n: n.children.length });
     n.treeSvg.style.display = arrange === "tree" ? "" : "none";

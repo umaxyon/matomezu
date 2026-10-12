@@ -12,7 +12,7 @@
  */
 
 import { ACCESSES, ACCESS_MARK, type ClassAttr, type ClassOp, cleanMembers } from "./classbox";
-import { esc, injectStyle } from "./dom";
+import { SVGNS, esc, injectStyle } from "./dom";
 import { type Head, headOptions, headsPatch } from "./heads";
 import { helpIcon, setupHelp } from "./help";
 import { t } from "./i18n";
@@ -22,7 +22,8 @@ import { closeColorPicker, openColorPicker } from "./color-picker";
 import { DEFAULTS } from "./graph";
 import { PALETTE, THEMES, isPaletteName, paintFor, themeById } from "./theme";
 import type { BoxData, BoxInfo, LinkLook, Patch, Shape, Size } from "./types";
-import { LINK_LOOK_OPTIONS } from "./link-box";
+import { LINK_LOOK_DEFS, LINK_LOOK_OPTIONS, type Rect, previewRegion, windowOf } from "./link-box";
+import { type Scene, drawScene, make, union } from "./preview-art";
 import { PATTERN_LABELS } from "./validate";
 import { shapePicker, syncShapePicker } from "./shape-picker";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
@@ -112,6 +113,19 @@ select.mz-dlg-input { width: auto; }
   .mz-dlg-side { width: auto; padding: 0 0 4px; margin: 0 0 16px; border-right: 0; border-bottom: 1px solid var(--dlg-line); }
 }
 .mz-dlg-lines .mz-help { margin-left: -2px; }
+/* リンクの箱の窓に映す範囲（link-box.ts の clip）。ページの縮図（preview-art.ts）の上で、映す四角を動かし、右下の角で大きさを変える */
+.mz-dlg-clip { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--dlg-line); }
+.mz-dlg-clip-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.mz-dlg-clip-head > span { font-weight: 600; }
+.mz-dlg-clip-head .mz-dlg-note { margin: 0; flex: 1; }
+.mz-dlg-clip svg { display: block; max-width: 100%; border: 1px solid var(--dlg-line); border-radius: 6px; background: var(--dlg-control); touch-action: none;
+  --mm-edge: rgba(127, 127, 140, 0.7); --mm-box: rgba(127, 127, 140, 0.45); --mm-view: color-mix(in srgb, var(--dlg-accent) 18%, transparent); }
+.mz-dlg-clip .mm-box, .mz-dlg-clip .mm-bg { stroke: none; }
+.mz-dlg-clip .mm-group { fill: none; stroke-width: 1; }
+.mz-dlg-clip .mm-edge { fill: none; stroke: var(--mm-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.mz-dlg-clip .mm-view { fill: var(--mm-view); stroke: var(--dlg-accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; cursor: move; }
+.mz-dlg-clip .mm-handle { fill: var(--dlg-accent); cursor: nwse-resize; }
+.mz-dlg-clip .mm-page { fill: none; stroke: var(--mm-edge); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 /* クラスの入力（docs/CLASS-plan.md）。属性・操作の行の一覧は高さを決めてスクロールし（行を足してもダイアログは伸びない）、下に追加のボタン */
 .mz-dlg.mz-dlg-wide.mz-dlg-class { width: min(820px, 100%); }
 .mz-dlg-mhead { margin: 10px 0 4px; font-weight: 600; }
@@ -151,12 +165,77 @@ export function closeEditDialog(): void {
 // 本文の最大行数の選択肢（超えた分は … で切る）。データにこれ以外の値があれば、それも選べるように足す
 const LINE_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 
+// 窓に映す範囲を選ぶ絵（link-box.ts の clip。D27 の段階 4）。ページの縮図の上に、今映す範囲の四角（窓と同じ縦横比）を重ねる。
+// 四角をドラッグすると動き、右下の角をドラッグすると縦横比を保って大きさが変わる。動かしたらその四角を clip にする。
+// 「ページ全体」で clip を消す（ページ全体が収まる縮尺に戻る。収まらなければ左上から）。
+// 絵の大きさは決まっていて（CLIP_W × CLIP_H）、ページと四角の両方を囲む範囲を中央に収める（四角がページより広がっても角が見える）
+const CLIP_W = 420, CLIP_H = 220, HANDLE = 10;
+function setupClipPicker(host: HTMLElement, scene: Scene, start: Rect | null, win: () => { w: number; h: number }, minScale: number) {
+  let clip: Rect | null = start;
+  const svg = document.createElementNS(SVGNS, "svg");
+  svg.setAttribute("width", String(CLIP_W));
+  svg.setAttribute("height", String(CLIP_H));
+  host.appendChild(svg);
+  const pageRect: Rect = { x: 0, y: 0, w: scene.w, h: scene.h };
+  const frame = make("rect", "mm-page", { x: 0, y: 0, width: scene.w, height: scene.h });
+  const view = make("rect", "mm-view", {}), handle = make("rect", "mm-handle", {});
+  let region: Rect = previewRegion(scene, win(), minScale, clip);
+  let shown: Rect = pageRect, scale = 1, off = { x: 0, y: 0 };
+  const draw = () => {
+    region = previewRegion(scene, win(), minScale, clip);
+    shown = union(pageRect, region);
+    scale = Math.min(CLIP_W / shown.w, CLIP_H / shown.h);
+    off = { x: (CLIP_W - shown.w * scale) / 2, y: (CLIP_H - shown.h * scale) / 2 }; // 中央に置いたときの余白（画面の px）
+    for (const [k, v] of Object.entries({ x: region.x, y: region.y, width: region.w, height: region.h })) view.setAttribute(k, String(v));
+    const hs = HANDLE / scale;
+    for (const [k, v] of Object.entries({ x: region.x + region.w - hs, y: region.y + region.h - hs, width: hs, height: hs })) handle.setAttribute(k, String(v));
+    drawScene(svg, scene, shown, [frame, view, handle], pageRect);
+  };
+  draw();
+  // 絵の上の点（画面の座標）を、ページの座標にする
+  const toPage = (ev: PointerEvent): [number, number] => {
+    const r = svg.getBoundingClientRect();
+    return [(ev.clientX - r.left - off.x) / scale + shown.x, (ev.clientY - r.top - off.y) / scale + shown.y];
+  };
+  let grab: { kind: "move" | "size"; dx: number; dy: number; id: number } | null = null;
+  svg.addEventListener("pointerdown", ev => {
+    if (ev.button !== 0) return;
+    const [x, y] = toPage(ev);
+    const onHandle = ev.target === handle, onView = ev.target === view;
+    if (!onHandle && !onView) return;
+    ev.preventDefault();
+    grab = { kind: onHandle ? "size" : "move", dx: x - region.x, dy: y - region.y, id: ev.pointerId };
+    svg.setPointerCapture(ev.pointerId);
+  });
+  svg.addEventListener("pointermove", ev => {
+    if (!grab || ev.pointerId !== grab.id) return;
+    const [x, y] = toPage(ev);
+    const { w: ww, h: wh } = win();
+    if (grab.kind === "move") clip = { x: x - grab.dx, y: y - grab.dy, w: region.w, h: region.h };
+    else {
+      // 右下の角: 幅から縦横比で高さを決める（最小は窓の 1/4 ほど）
+      const w = Math.max(ww / 4, x - region.x);
+      clip = { x: region.x, y: region.y, w, h: w * wh / ww };
+    }
+    draw();
+  });
+  const release = (ev: PointerEvent) => { if (grab && ev.pointerId === grab.id) grab = null; };
+  svg.addEventListener("pointerup", release);
+  svg.addEventListener("pointercancel", release);
+  host.querySelector("[data-clip-all]")!.addEventListener("click", () => { clip = null; draw(); });
+  return {
+    clip: () => (clip ? { x: Math.round(clip.x), y: Math.round(clip.y), w: Math.round(clip.w), h: Math.round(clip.h) } : null),
+    refresh: draw,
+  };
+}
+
 // 箱を聞くダイアログ。左に見た目の設定（形・サイズ・テーマ）、右に中身（キャプション・区切り線・本文・箱の幅に合わせる・最大行数）。
 // 編集と追加で同じ並び。本文を持つ間は形と S を選べず、形がボックス以外か S のあいだは本文を書けない（サイドバーと同じ決まり）
 interface BoxValues {
   caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean;
   shape: Shape; size: Size; theme: string; color: string; bodyAllowed: boolean;
   linkLook: LinkLook | null; // リンクの箱の見せ方（リンクの箱でなければ null。link-box.ts）
+  clip: Rect | null;         // リンクの箱の窓に映す範囲（null はページ全体）
   // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
   abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
 }
@@ -166,6 +245,8 @@ type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "b
   inherited: string;  // 親から受け継ぐテーマ（テーマを「受け継ぐ」にしたときの色の見本と、見た目の色に使う）
   sizeFixed: boolean; // 内包・リストの箱（大きさは子の並びで決まり、サイズを使わない）
   kids: number;       // 子の数（クラスにすると消える）
+  scene: Scene | null;   // リンクの箱なら、のぞくページの縮図のもと（窓に映す範囲を選ぶ絵。preview-art.ts）
+  previewMinScale: number; // 窓に映す縮尺の下限（graph.ts の DEFAULTS）
 };
 
 // 形を変えると消える情報があれば、その知らせ（無ければ null）。クラスにすると子が消え、クラスでなくすると abstract・属性・操作が消える
@@ -281,10 +362,14 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
             ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${t("{n} 行", { n: v })}</option>`).join("")}
           </select></label></div>
       </div>
-    </div></div>`,
+    </div></div>${b.link ? `<div class="mz-dlg-clip" data-clip>
+      <div class="mz-dlg-clip-head"><span>${t("窓に映す範囲")}</span>
+        <p class="mz-dlg-note">${t("四角をドラッグして動かし、右下の角で大きさを変えます")}</p>
+        <button type="button" class="mz-dlg-btn" data-clip-all>${t("ページ全体")}</button></div></div>` : ""}`,
   overlay => {
     const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
     const linesValue = field<HTMLSelectElement>("lines").value;
+    const clipNow = clipPicker ? clipPicker.clip() : null;
     const size = overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value as Size | undefined;
     commit({
       shape: pickedShape(),
@@ -297,7 +382,8 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       rule: field("rule").getAttribute("aria-checked") === "true",
       lines: linesValue ? Number(linesValue) : null,
       widthAuto: !!field<HTMLInputElement>("width-auto").value,
-      linkLook: b.link ? (overlay.querySelector<HTMLInputElement>('[name="linkLook"]:checked')?.value as LinkLook | undefined) ?? b.link.look : null,
+      linkLook: pickedLook(),
+      clip: clipNow,
       ...classValues(),
     });
   }, lead, () => {
@@ -311,6 +397,13 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     return !dup;
   });
   overlay.querySelector(".mz-dlg")!.classList.add("mz-dlg-wide");
+  const pickedLook = (): LinkLook | null => (b.link
+    ? (overlay.querySelector<HTMLInputElement>('[name="linkLook"]:checked')?.value as LinkLook | undefined) ?? b.link.look : null);
+  // 窓に映す範囲（リンクの箱。見せ方を変えると窓の縦横比が変わるので、四角を引き直す）
+  const clipPicker = b.link && b.scene
+    ? setupClipPicker(overlay.querySelector<HTMLElement>("[data-clip]")!, b.scene, b.link.clip, () => windowOf(LINK_LOOK_DEFS[pickedLook()!]), b.previewMinScale)
+    : null;
+  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="linkLook"]')) r.addEventListener("change", () => clipPicker?.refresh());
   const ruleSwitch = overlay.querySelector<HTMLButtonElement>('[name="rule"]')!;
   const setRule = (on: boolean) => {
     ruleSwitch.setAttribute("aria-checked", String(on));
@@ -433,7 +526,10 @@ export function openEditDialog(graph: Graph, id: string): void {
   const b = info as BoxInfo;
   const sizeFixed = b.framed || !!b.link; // 内包・リストの箱と、リンクの箱（窓の大きさで決まる）はサイズを使わない
   const inherited = graph.info(b.parent?.id ?? null).themeUsed;
-  const start: BoxStart = { ...b, theme: b.theme ?? "", color: b.color, inherited, sizeFixed, kids: b.children.length };
+  const start: BoxStart = {
+    ...b, theme: b.theme ?? "", color: b.color, inherited, sizeFixed, kids: b.children.length,
+    scene: b.link ? graph.pageScene(b.link.page) : null, previewMinScale: DEFAULTS.previewMinScale,
+  };
   boxDialog(t("ボックスの編集"), t("確定"), start, v => {
     // クラスにかかわる変更は、子や線を消すことがあるので別の入口（docs/CLASS-plan.md）
     if (v.shape === "class" || b.shape === "class") {
@@ -454,6 +550,7 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (v.bodyAllowed && v.lines !== b.bodyLines) patch.bodyLines = v.lines;
     if (b.bodyWidth && v.widthAuto) patch.bodyWidth = null;
     if (b.link && v.linkLook && v.linkLook !== b.link.look) patch.linkLook = v.linkLook;
+    if (b.link && JSON.stringify(v.clip) !== JSON.stringify(b.link.clip)) patch.clip = v.clip;
     if (Object.keys(patch).length) graph.update(id, patch); // まとめて 1 件の変更
   });
 }
@@ -474,7 +571,7 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
     caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
     shape, size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
     color: "", inherited: graph.info(req.parentId).themeUsed,
-    abstract: false, attrs: [], ops: [], kids: 0, link: null,
+    abstract: false, attrs: [], ops: [], kids: 0, link: null, scene: null, previewMinScale: DEFAULTS.previewMinScale,
   };
   boxDialog(t("ボックスの追加"), t("追加"), start, v => {
     const fields: Partial<BoxData> = {};

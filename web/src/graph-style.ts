@@ -175,8 +175,8 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-leaf.mz-link { display: grid; padding: var(--mz-out-y, 0px) var(--mz-out-x, 0px); text-align: left; align-items: start; }
 .mz-link-parts { display: contents; } /* 部品の親は display: contents の入れ物なので、.mz-head の子セレクタ（>）では引けない。子孫で引く */
 .mz-link-parts[hidden] { display: none; }
-.mz-link > .mz-text { grid-area: text; margin: 8px 10px 0; }
-.mz-link > .mz-body { grid-area: body; margin: 0 10px; }
+.mz-link > .mz-text { grid-area: text; margin: 8px 8px 0; } /* 文字の余白は 8px、窓の余白（--mz-link-gap）は狭く（2026-10-12 ユーザー） */
+.mz-link > .mz-body { grid-area: body; margin: 0 8px; }
 .mz-leaf.mz-link.mz-has-body > .mz-body { margin-top: 4px; }
 .mz-link.mz-link-empty > .mz-text { display: none; }
 .mz-link-bar { grid-area: bar; cursor: grab; background: color-mix(in srgb, currentColor 10%, transparent); border-bottom: 1px solid color-mix(in srgb, currentColor 25%, transparent);
@@ -186,11 +186,17 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   background: radial-gradient(circle, color-mix(in srgb, currentColor 35%, transparent) 2.2px, transparent 2.7px) 0 0 / 8px 6px repeat-x; }
 .mz-link-badge { font-size: 10px; font-weight: 500; line-height: 1; padding: 2px 6px; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); opacity: 0.85; white-space: nowrap; }
 .mz-link-win { grid-area: win; position: relative; box-sizing: border-box; margin: var(--mz-link-gap); height: var(--mz-link-win-h); cursor: pointer;
-  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; background: color-mix(in srgb, var(--mz-bg) 55%, transparent); overflow: hidden; }
-.mz-link-win:hover { border-color: var(--mz-select); }
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; background: color-mix(in srgb, var(--mz-bg) 55%, transparent); overflow: hidden; }
+.mz-link-win:hover { box-shadow: inset 0 0 0 1px var(--mz-select); }
+/* 窓の中の縮図（preview-art.ts。ミニマップと同じ描き方）。色は箱の文字の色から作る */
+.mz-link-art { display: block; width: 100%; height: 100%; --mm-edge: color-mix(in srgb, currentColor 45%, transparent); --mm-box: color-mix(in srgb, currentColor 22%, transparent); }
+.mz-link-art .mm-box, .mz-link-art .mm-bg { stroke: none; }
+.mz-link-art .mm-group { fill: none; stroke-width: 1; }
+.mz-link-art .mm-edge { fill: none; stroke: var(--mm-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .mz-link-go { position: absolute; right: 4px; bottom: 4px; font-size: 10px; font-weight: 500; line-height: 1; padding: 3px 5px; border-radius: 4px; background: var(--mz-select); color: #fff; opacity: 0; transition: opacity 0.15s; }
 .mz-link-win:hover .mz-link-go { opacity: 1; }
-.mz-link-window { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--mz-link-handle) auto auto auto; grid-template-areas: "bar" "text" "body" "win"; }
+/* 行の高さは中身で決める（帯の高さは帯の要素に持たせる。測るときは帯と窓を隠すので、決めた高さの行が残ると文字の高さに数えてしまう） */
+.mz-link-window { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; grid-template-areas: "bar" "text" "body" "win"; }
 .mz-link-window .mz-link-bar { height: var(--mz-link-handle); }
 .mz-link-window.mz-link-empty > .mz-text { display: none; }
 .mz-link-side { grid-template-columns: var(--mz-link-handle) minmax(0, 1fr) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)); grid-template-rows: auto 1fr; grid-template-areas: "bar text win" "bar body win"; }

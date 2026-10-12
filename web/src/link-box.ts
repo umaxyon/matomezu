@@ -22,8 +22,31 @@ export interface LinkLookDef {
   textW: { min: number; max: number } | null; // 文字の列の幅の範囲（横に分ける。窓枠は箱の幅いっぱいで null）
 }
 export const LINK_LOOK_DEFS: Record<LinkLook, LinkLookDef> = {
-  window: { handle: 22, win: { w: 180, h: 92 }, gap: 10, textW: null },
-  side:   { handle: 10, win: { w: 112, h: 84 }, gap: 6, textW: { min: 80, max: 160 } },
+  // 窓のまわりの余白は狭く（2026-10-12 ユーザー）。箱の幅は 200。余白は 4 の倍数にする（125% 表示でも画素に割り切れ、左右で 1px ずれない）
+  window: { handle: 22, win: { w: 192, h: 92 }, gap: 4, textW: null },
+  side:   { handle: 10, win: { w: 116, h: 88 }, gap: 4, textW: { min: 80, max: 160 } },
 };
 // 窓枠の箱の幅（窓の幅 + 両側の余白）
 export const linkBoxWidth = (d: LinkLookDef) => d.win.w + 2 * d.gap;
+
+export interface Rect { x: number; y: number; w: number; h: number }
+// 窓の大きさ（絵を映す所。窓の線は内側に引く（graph-style.ts の .mz-link-win）ので、窓の大きさそのまま）
+export const windowOf = (d: LinkLookDef) => ({ w: d.win.w, h: d.win.h });
+// 窓に映すページの範囲（ページの座標。縦横比は窓と同じ）。段階 4（docs/PATTERN-plan.md の D27）:
+// ページ全体（scene の w × h）が窓に収まる縮尺で映す。縮尺は 1 を超えない（小さなページを拡大しない）。
+// 縮尺が minScale を下回るなら minScale にし、はみ出す分は切り取る（clip があればその四角が収まるように、無ければ左上から）。
+// clip（ユーザーが設定で選んだ四角）があれば、縮尺に関わらずその四角を映す
+export function previewRegion(scene: { w: number; h: number }, win: { w: number; h: number }, minScale: number, clip: Rect | null): Rect {
+  const around = (cx: number, cy: number, scale: number): Rect => {
+    const w = win.w / scale, h = win.h / scale;
+    return { x: cx - w / 2, y: cy - h / 2, w, h };
+  };
+  if (clip) return around(clip.x + clip.w / 2, clip.y + clip.h / 2, Math.min(win.w / Math.max(1, clip.w), win.h / Math.max(1, clip.h)));
+  const fit = Math.min(1, win.w / Math.max(1, scene.w), win.h / Math.max(1, scene.h));
+  if (fit >= minScale) return around(scene.w / 2, scene.h / 2, fit);
+  return { x: 0, y: 0, w: win.w / minScale, h: win.h / minScale };
+}
+// 切り取る四角の値が正しいか（ページの座標の四角。w, h は正）
+export const isRect = (v: unknown): v is Rect =>
+  typeof v === "object" && v !== null && ["x", "y", "w", "h"].every(k => Number.isFinite((v as Record<string, unknown>)[k]))
+  && (v as Rect).w > 0 && (v as Rect).h > 0;
