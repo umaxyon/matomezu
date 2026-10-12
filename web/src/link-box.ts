@@ -24,7 +24,7 @@ export interface LinkLookDef {
 export const LINK_LOOK_DEFS: Record<LinkLook, LinkLookDef> = {
   // 窓のまわりの余白は狭く（2026-10-12 ユーザー）。箱の幅は 200。余白は 4 の倍数にする（125% 表示でも画素に割り切れ、左右で 1px ずれない）
   window: { handle: 22, win: { w: 192, h: 92 }, gap: 4, textW: null },
-  side:   { handle: 10, win: { w: 112, h: 84 }, gap: 6, textW: { min: 80, max: 160 } },
+  side:   { handle: 10, win: { w: 116, h: 88 }, gap: 4, textW: { min: 80, max: 160 } },
 };
 // 窓枠の箱の幅（窓の幅 + 両側の余白）
 export const linkBoxWidth = (d: LinkLookDef) => d.win.w + 2 * d.gap;
