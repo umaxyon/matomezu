@@ -65,6 +65,16 @@ export const THEMES: Theme[] = [
 
 const byId = new Map(THEMES.map(th => [th.id, th]));
 
+// 箱を塗る色と、それがデータの color から来たか（own）。color はテーマの上の上書き（冒頭、THEME-plan 11 章）:
+// 色の名前はそのテーマの色、色の値はその色、無ければテーマの既定の色（標準のテーマは plain、内包の枠は group）。
+// 図（graph.ts の paintOf）とサイドバーの一覧の色の印（pages.ts の dataPaint）が、同じこの決まりで塗る
+export function paintFor(th: Theme, color: unknown, nesting: boolean, plain: string): { color: string; own: boolean } {
+  if (isPaletteName(color)) return { color: th.palette[color], own: true };
+  if (typeof color === "string" && color) return { color, own: true };
+  if (th.id === DEFAULT_THEME) return { color: plain, own: false };
+  return { color: nesting ? th.group ?? th.box : th.box, own: false };
+}
+
 export const isTheme = (v: unknown): v is string => typeof v === "string" && byId.has(v);
 export const themeById = (id: string | undefined | null): Theme => byId.get(id ?? "") ?? byId.get(DEFAULT_THEME)!;
 

@@ -2,7 +2,9 @@
 import { afterEach, expect, test } from "bun:test";
 import { noticeOf } from "../web/src/notices";
 import { createGraph, type Graph } from "../web/src/graph";
-import { copySubtree, pageMembers, pageOf, subtreeIds } from "../web/src/pages";
+import { copySubtree, dataPaint, pageMembers, pageOf, subtreeIds } from "../web/src/pages";
+import { DEFAULTS } from "../web/src/graph";
+import { themeById } from "../web/src/theme";
 import type { BoxData, Diagram, EdgeData } from "../web/src/types";
 import { validate } from "../web/src/validate";
 import { dragBy, fakeMeasure } from "./helpers";
@@ -371,4 +373,25 @@ test("図の題名は、ページを見ているときに変えても、ブッ�
   expect(data.nodes.find(n => n.id === 1)?.world).toBeUndefined();
   graph.update(null, { title: "" });
   expect(graph.toJSON().world).toEqual({ route: "elbow" });
+});
+
+// サイドバーの一覧の色の印は、図で塗っている色（色の名前はテーマの色、color が無ければテーマの既定の色）
+test("一覧の色の印は、色の名前とテーマを図と同じ決まりで塗る（読み込んだブックも、データだけのブックも）", () => {
+  const sticky = themeById("sticky");
+  const data: Diagram = {
+    world: { theme: "sticky" },
+    nodes: [
+      { id: 1, caption: "社長", color: "primary" }, { id: 2, caption: "部", color: "#123456" }, { id: 3, caption: "無色" },
+      { id: 4, caption: "枠" }, { id: 5, caption: "子", parent: 4 },
+      { id: 6, caption: "標準の枠", theme: "default" }, { id: 7, caption: "子", parent: 6, color: "danger" },
+    ],
+  };
+  const want = {
+    "1": sticky.palette.primary, "2": "#123456", "3": sticky.box, "4": sticky.group ?? sticky.box, "5": sticky.box,
+    "6": DEFAULTS.color, "7": themeById("default").palette.danger,
+  };
+  const paint = dataPaint(data, DEFAULTS.color);
+  expect(Object.fromEntries(data.nodes.map(s => [String(s.id), paint(s)]))).toEqual(want);
+  const { graph } = setup(data);
+  expect(Object.fromEntries(graph.items().live.map(i => [i.id, i.color]))).toEqual(want);
 });

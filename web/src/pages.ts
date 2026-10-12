@@ -3,8 +3,10 @@
 
 import { keyOf } from "./dom";
 import { t } from "./i18n";
-import { normalizeEdge } from "./validate";
-import type { BoxData, Diagram, EdgeData, Id, Items, ListItem } from "./types";
+import { DEFAULT_VIEW, STRATEGIES } from "./model";
+import { isTheme, paintFor, themeById } from "./theme";
+import { isView, normalizeEdge } from "./validate";
+import type { BoxData, ChildView, Diagram, EdgeData, Id, Items, ListItem } from "./types";
 
 const key = (id: Id | undefined) => (id == null ? null : String(id));
 
@@ -57,13 +59,14 @@ export const pageNameOf = (nodes: BoxData[], p: string | null) =>
 
 // 一覧の「表示中」とページ（ブック全体）。表示中の箱は、載っているページを添える（ページの箱の直下の子は、親を出さない）。
 // current は今描いているページ（ほかのブックの一覧なら undefined で、どのページも current にしない）
-export function liveItems(nodes: BoxData[], current: string | null | undefined, defaultColor: string): Pick<Items, "live" | "pages"> {
+// paint は箱の色の印（図で塗っている色。読み込んでいないブックは dataPaint で求める）
+export function liveItems(nodes: BoxData[], current: string | null | undefined, paint: (s: BoxData) => string): Pick<Items, "live" | "pages"> {
   const byKey = new Map(nodes.map(s => [String(s.id), s]));
   const live: ListItem[] = nodes.map(s => {
     const p = byKey.get(String(s.parent));
     return {
       id: String(s.id), caption: captionOfData(s),
-      color: typeof s.color === "string" && s.color ? s.color : defaultColor,
+      color: paint(s),
       parent: p && p.page !== true ? captionOfData(p) || keyOf(p.id, "") : null,
       page: pageOf(nodes, s.id!),
     };
@@ -82,4 +85,28 @@ export function copySubtree(data: Diagram, id: Id): Subtree {
     .filter(e => ids.has(String(e.from)) && ids.has(String(e.to)))
     .map(e => JSON.parse(JSON.stringify(e)) as EdgeData);
   return { root: String(id), nodes, edges };
+}
+
+// データだけから求める箱の色（サイドバーの一覧の色の印。読み込んでいないブックと、消したボックス）。
+// 図（graph.ts の paintOf）と同じく theme.ts の paintFor で塗る。テーマは近い祖先から、ページの中ならページの world、
+// ブック全体の world の順に探す。内包の枠かは、子があって並べ方（ツリーの中なら根の並べ方）が枠で見せるものか
+export function dataPaint(d: Diagram, plain: string): (s: BoxData) => string {
+  const nodes = d.nodes ?? [];
+  const byKey = new Map(nodes.map(s => [String(s.id), s]));
+  const parentOf = (s: BoxData) => (s.parent != null ? byKey.get(String(s.parent)) : undefined);
+  const hasKids = new Set(nodes.filter(s => s.parent != null).map(s => String(s.parent)));
+  const viewOf = (s: BoxData): ChildView => (isView(s.childView) ? s.childView as ChildView : DEFAULT_VIEW);
+  const themeOfData = (s: BoxData) => {
+    let b: BoxData | undefined = s;
+    for (; b && b.page !== true; b = parentOf(b)) if (isTheme(b.theme)) return themeById(b.theme);
+    if (b && isTheme(b.world?.theme)) return themeById(b.world!.theme);
+    return themeById(d.world?.theme);
+  };
+  const nesting = (s: BoxData) => {
+    if (!hasKids.has(String(s.id))) return false;
+    let root: BoxData | undefined;
+    for (let p = parentOf(s); p && p.page !== true; p = parentOf(p)) if (STRATEGIES[viewOf(p)].descendants) root = p;
+    return STRATEGIES[viewOf(root ?? s)].framed;
+  };
+  return s => paintFor(themeOfData(s), s.color, nesting(s), plain).color;
 }

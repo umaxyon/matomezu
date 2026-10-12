@@ -136,12 +136,12 @@ import {
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
 import { type Head, headOf, isHead } from "./heads";
-import { type Subtree, captionOfData, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
+import { type Subtree, captionOfData, dataPaint, liveItems, pageMembers, pageNameOf, pageOf, subtreeIds } from "./pages";
 import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
 import { type RouteFix, type RouteInput, alignedEnds, framedAround, isAligned, passes, perimeterAt, pickCandidate, route, routeCandidates, vertexOf } from "./routing";
 import { type Rect, nearestAt, pointAt } from "./geom";
 import { perimeter } from "./selfloop";
-import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isPaletteName, isTheme, themeById, type Theme } from "./theme";
+import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
@@ -1049,8 +1049,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // サイドバーの一覧（ブック全体）。表示中の箱は、載っているページを添える（ページの箱の直下の子は、親を出さない）。
   // 消したボックスの親は、表示中か消したものの中から名前を引く
   function items(): Items {
-    const item = (id: Id, caption: string, color: unknown, parent: string | null, p: string | null = null): ListItem =>
-      ({ id: String(id), caption, color: typeof color === "string" && color ? color : opt.color, parent, page: p });
+    // 色の印は図で塗っている色（消したボックスは図に無いので、データから同じ決まりで求める）
+    const paint = dataPaint(source, opt.color);
+    const item = (id: Id, caption: string, s: BoxData, parent: string | null, p: string | null = null): ListItem =>
+      ({ id: String(id), caption, color: paint(s), parent, page: p });
     const removed = source.removed ?? [];
     const removedCaption = new Map(removed.map(s => [String(s.id), s.caption != null ? String(s.caption) : String(s.id)]));
     const nameOf = (p: Id | undefined) => {
@@ -1059,8 +1061,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return live ? captionOf(live) : removedCaption.get(String(p)) ?? null;
     };
     return {
-      ...liveItems(source.nodes, page, opt.color),
-      removed: removed.map(s => ({ ...item(s.id!, removedCaption.get(String(s.id))!, s.color, nameOf(s.parent)), purgeable: canPurge(removed, s.id!) })),
+      ...liveItems(source.nodes, page, s => { const n = byId.get(String(s.id)); return n ? paintOf(n).color : paint(s); }),
+      removed: removed.map(s => ({ ...item(s.id!, removedCaption.get(String(s.id))!, s, nameOf(s.parent)), purgeable: canPurge(removed, s.id!) })),
     };
   }
 
@@ -1146,15 +1148,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return themeById(DEFAULT_THEME);
   }
 
-  // 箱を塗る色と、それがデータの color から来たか（own）。color はテーマの上の上書き（theme.ts の冒頭、THEME-plan 11 章）:
-  // 色の名前はそのテーマの色、色の値はその色、無ければテーマの既定の色
+  // 箱を塗る色と、それがデータの color から来たか（own）。決まりは theme.ts の paintFor
   function paintOf(n: Box): { color: string; own: boolean } {
-    const t = themeOf(n);
-    const c = n.src.color;
-    if (isPaletteName(c)) return { color: t.palette[c], own: true };
-    if (c) return { color: c, own: true };
-    if (t.id === DEFAULT_THEME) return { color: opt.color, own: false };
-    return { color: isNesting(n) ? t.group ?? t.box : t.box, own: false };
+    return paintFor(themeOf(n), n.src.color, isNesting(n), opt.color);
   }
 
   // 実際の背景の色。world.background はテーマの上の上書き。無ければテーマの背景

@@ -3,10 +3,10 @@
 
 import { EMPTY_CAPTION, esc } from "./dom";
 import { openConfirmDialog } from "./edit-dialog";
-import { COPY_MIME, type Graph, REMOVED_MIME } from "./graph";
+import { COPY_MIME, DEFAULTS, type Graph, REMOVED_MIME } from "./graph";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
-import { copySubtree, liveItems } from "./pages";
+import { copySubtree, dataPaint, liveItems } from "./pages";
 import type { Diagram, Items, ListItem } from "./types";
 
 // 一覧の 1 行。表示中は押すと選び（今のページの箱だけ）、右端の × で消す（どのページの箱でも）。
@@ -36,7 +36,8 @@ function row(item: ListItem, removed: boolean, selectable = true, copyFrom?: str
 export type Fold = string;
 
 // ほかのブック（タブで開いているもの）。一覧の「他ブックも表示」で出し、行を図へドラッグすると移植する（docs/TABS-plan.md 4.3）
-export interface OtherBook { id: string; name: string; data: Diagram }
+// title はタブの見出しと同じ名前（図の題名、無ければファイル名）、name はファイル名（見出しにポインタを乗せると出す。タブと同じ）
+export interface OtherBook { id: string; title: string; name: string; data: Diagram }
 
 // others は「他ブックも表示」の状態（無ければ、その欄を出さない。サーバーから開いていないとき）。books は shown のときだけ要る
 function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: boolean; books: OtherBook[] }): string {
@@ -61,8 +62,8 @@ function listHtml(items: Items, open: Record<Fold, boolean>, others?: { shown: b
       `${helpIcon(t("タブで開いているほかのブックのボックスも並べます。図へドラッグすると、子と中の線ごとこの図にコピーします（元のブックは変わりません）"))}</label>` +
     (!others.shown ? "" : !others.books.length ? `<p class="mzp-hint">${t("ほかに開いているブックはありません")}</p>` :
       others.books.map(b => {
-        const l = liveItems(b.data.nodes ?? [], undefined, "#ffffff");
-        return fold(`book:${b.id}`, `${esc(b.name)}（${l.live.length}）`,
+        const l = liveItems(b.data.nodes ?? [], undefined, dataPaint(b.data, DEFAULTS.color));
+        return fold(`book:${b.id}`, `<span title="${esc(b.name)}">${esc(b.title)}</span>（${l.live.length}）`,
           byPage(l, `book:${b.id}:`, i => row(i, false, false, b.id)),
           "mzp-section mzp-fold mzp-other-book");
       }).join(""));
@@ -167,7 +168,7 @@ export function createListTab(pane: HTMLElement, graph: Graph, otherBooks?: () =
     const book = c && otherBooks?.().find(b => b.id === c.dataset.copyBook);
     if (!c || !book) return;
     // 持っていく中身はドラッグを始めたときに写す（落とす側は、ほかのブックを知らない）
-    e.dataTransfer.setData(COPY_MIME, JSON.stringify({ copy: copySubtree(book.data, c.dataset.copy!), from: book.name }));
+    e.dataTransfer.setData(COPY_MIME, JSON.stringify({ copy: copySubtree(book.data, c.dataset.copy!), from: book.title }));
     e.dataTransfer.effectAllowed = "copy";
   });
 

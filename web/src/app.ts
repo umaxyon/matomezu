@@ -120,7 +120,7 @@ export async function startApp(ui: AppUi) {
   function othersOf(b: Book): OtherBook[] {
     return books.filter(x => x !== b).flatMap(x => {
       const data = x.loaded ? x.graph.toJSON() : x.data;
-      return data && Array.isArray((data as Diagram).nodes) ? [{ id: x.id, name: x.name, data: data as Diagram }] : [];
+      return data && Array.isArray((data as Diagram).nodes) ? [{ id: x.id, title: titleOf(x), name: x.name, data: data as Diagram }] : [];
     });
   }
 
