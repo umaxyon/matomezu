@@ -269,7 +269,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.linkEl.hidden = !link;
     // 文字は、リンクの箱のときだけ入れる（偽の測り方（テスト）は本体の文字を数えるため、リンクでない箱に残さない）
     n.linkBadge.textContent = link ? PATTERN_LABELS[link.pattern] : "";
-    n.linkWin.firstElementChild!.textContent = link ? t("開く ↗") : "";
+    n.linkWin.querySelector(".mz-link-go")!.textContent = link ? t("開く ↗") : "";
     if (link) {
       const d = LINK_LOOK_DEFS[link.look];
       head.style.setProperty("--mz-link-handle", d.handle + "px");

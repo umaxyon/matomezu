@@ -149,6 +149,8 @@ test("窓には、のぞくページの縮図が映る: 描いたことのない
   expect(art().querySelector<SVGElement>(".mm-bg")!.style.fill).toBe("#202020");
   const approx = graph.pageScene("p1");
   expect(approx.boxes.map(b => [b.x, b.y])).toEqual([[40, 40], [400, 40]]);
+  // 縮図を描いても、窓の右下の「開く」の札は残る（札の文字を縮図の svg に入れて消していた不具合があった）
+  expect(el.querySelector('.mz-node[data-id="1"] .mz-link-win .mz-link-go')!.textContent).toBe("開く ↗");
   // ページを描いて戻ると、配置の結果（子 4 も、折れ線の点も）で映る
   graph.setPage("p1");
   graph.setPage(null);
