@@ -13,7 +13,7 @@ import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, inTreeOf, isHidden, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
-  sizeOf, slantOf, treeDirOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
+  sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
@@ -269,7 +269,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.linkEl.hidden = !link;
     // 文字は、リンクの箱のときだけ入れる（偽の測り方（テスト）は本体の文字を数えるため、リンクでない箱に残さない）
     n.linkBadge.textContent = link ? PATTERN_LABELS[link.pattern] : "";
-    n.linkWin.firstElementChild!.textContent = link ? t("開く ↗") : "";
+    n.linkWin.querySelector(".mz-link-go")!.textContent = link ? t("開く ↗") : "";
     if (link) {
       const d = LINK_LOOK_DEFS[link.look];
       head.style.setProperty("--mz-link-handle", d.handle + "px");
@@ -328,25 +328,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (arrangeOf(n) !== "tree") return;
     n.treeSvg.setAttribute("width", String(n.w));
     n.treeSvg.setAttribute("height", String(n.h));
-    // 親の子に向いた辺の中央から主軸方向へ半分進み、副軸方向に分けて、各子の親に向いた辺へつなぐ
-    const dir = treeDirOf(n);
-    const half = opt.treeGapY / 2;
-    const d: string[] = [];
-    if (dir === "down" || dir === "up") {
-      const px = n.hx + n.hw / 2;
-      const from = dir === "down" ? n.hy + n.hh : n.hy;
-      const mid = dir === "down" ? from + half : from - half;
-      const xs = n.children.map(k => k.x + k.hx + k.hw / 2);
-      d.push(`M${px},${from}V${mid}`, `M${Math.min(px, ...xs)},${mid}H${Math.max(px, ...xs)}`);
-      n.children.forEach((k, i) => d.push(`M${xs[i]},${mid}V${dir === "down" ? k.y + k.hy : k.y + k.hy + k.hh}`));
-    } else {
-      const py = n.hy + n.hh / 2;
-      const from = dir === "right" ? n.hx + n.hw : n.hx;
-      const mid = dir === "right" ? from + half : from - half;
-      const ys = n.children.map(k => k.y + k.hy + k.hh / 2);
-      d.push(`M${from},${py}H${mid}`, `M${mid},${Math.min(py, ...ys)}V${Math.max(py, ...ys)}`);
-      n.children.forEach((k, i) => d.push(`M${mid},${ys[i]}H${dir === "right" ? k.x + k.hx : k.x + k.hx + k.hw}`));
-    }
+    const d = treeLinesOf(n, opt.treeGapY).map(([a, b]) => `M${a![0]},${a![1]}L${b![0]},${b![1]}`);
     n.treePath.setAttribute("d", d.join(""));
     const f = n.treeFrame;
     f.setAttribute("width", String(Math.max(0, n.w - 1.5)));
