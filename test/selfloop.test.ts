@@ -58,7 +58,7 @@ test("同じ箱から同じ箱へ線を引くと、自分に戻る線になる",
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 1, arrow: "end" }]);
 });
 
-test("サイドバー: 自分に戻る線では、通り方と向きの指定を出さない", () => {
+test("自分に戻る線では、線の編集ダイアログに通り方を出さない（サイドバーには通り方も矢印も出さない）", () => {
   const stage = document.createElement("div"), side = document.createElement("aside");
   document.body.append(side, stage);
   let panel: Panel | null = null;
@@ -68,8 +68,11 @@ test("サイドバー: 自分に戻る線では、通り方と向きの指定を
   panel = createPanel(side, graph);
   graph.selectEdge("e1");
   expect(side.querySelector('input[name="mzp-route"]')).toBeNull();
-  expect(side.querySelector('input[name="mzp-exit"]')).toBeNull();
-  expect(side.querySelector('select[data-head="end"]')).not.toBeNull();
+  expect(side.querySelector('select[data-head="end"]')).toBeNull();
+  side.querySelector<HTMLElement>("[data-edit-edge]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
+  expect(dlg.querySelector('input[name="route"]')).toBeNull();
+  expect(dlg.querySelector('select[name="head-end"]')).not.toBeNull();
 });
 
 // ---- 端の位置（exitAt / enterAt は箱のふちを左上から時計回りに一周した割合） ----

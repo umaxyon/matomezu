@@ -57,7 +57,7 @@ test("本文の幅（bodyWidth）は箱の幅の下限として効く。キャ�
   expect(info(3).w).toBe(240);
 });
 
-test("S サイズ・ほかの形・切り詰める箱では本文を出さない。本文があれば、サイドバーで形と S を選べない", () => {
+test("S サイズ・ほかの形・切り詰める箱では本文を出さない。本文があれば、編集ダイアログで形と S を選べない", () => {
   const { g, bodyEl, side } = setup({
     nodes: [
       { id: 1, caption: "S", size: "S", body: "本文", x: 40, y: 40 },
@@ -68,12 +68,14 @@ test("S サイズ・ほかの形・切り詰める箱では本文を出さない
   expect(bodyEl(1).hidden).toBe(true);
   expect(bodyEl(2).hidden).toBe(true);
   g.select(3);
-  const disabled = (name: string) => [...side.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)].filter(i => i.disabled).map(i => i.value);
+  side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
+  const disabled = (name: string) => [...dlg.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)].filter(i => i.disabled).map(i => i.value);
   // 形は絵の並び（shape-picker.ts）。本文があるあいだは、ボックスのほかは選べない
-  const shapes = [...side.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')];
+  const shapes = [...dlg.querySelectorAll<HTMLInputElement>('input[name="shape"]')];
   expect(shapes.filter(i => !i.disabled).map(i => i.value)).toEqual(["box"]);
   expect(shapes.length).toBeGreaterThan(10);
-  expect(disabled("mzp-size")).toEqual(["S"]);
+  expect(disabled("size")).toEqual(["S"]);
 });
 
 test("子を内包する箱の本文は見出しの下に置き、子はその下に並ぶ", () => {

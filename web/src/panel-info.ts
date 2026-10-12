@@ -2,24 +2,19 @@
 
 import { closeColorPicker, openColorPicker } from "./color-picker";
 import { EMPTY_CAPTION, esc, keyOf } from "./dom";
-import { classChangeWarning, confirmFlatten, openConfirmDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
+import { confirmFlatten, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
-import { type Head, type Side, headOptions, headPatch } from "./heads";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
-import { THEMES, isPaletteName, themeById } from "./theme";
-import type { Brief, ChildView, Dash, EdgeInfo, Info, LinkLook, PagePattern, Route, Shape, Size, TreeDirection } from "./types";
-import { LINK_LOOK_OPTIONS } from "./link-box";
+import { THEMES, themeById } from "./theme";
+import type { Brief, ChildView, EdgeInfo, Info, PagePattern, Route, Size, TreeDirection } from "./types";
 import { shapeDef } from "./shapes";
-import { shapePicker } from "./shape-picker";
 import { PATTERN_LABELS } from "./validate";
 
 const KIND_LABELS = { group: t("グループ"), box: t("ボックス") };
 // 鉛筆の印（編集ダイアログを開くボタン）
 const PENCIL = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11.5 1.8l2.7 2.7-8.6 8.6-3.4.7.7-3.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.8 3.5l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></svg>';
 export const ROUTE_OPTIONS: [string, string][] = [["elbow", t("折れ線")], ["straight", t("直線")]];
-const SIZE_HELP = t("L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\nS: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります\nサイズが効くのは子の無い箱と、ツリー・非表示の親の本体です。内包・リストの箱の大きさは子の並びで決まります");
-const BY_CHILDREN = t("内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）");
 // 中の箱のサイズ（フローチャート。押すと中の箱を全部そのサイズにし、その間隔で整列し直す。id は箱、ワールドなら空）
 const KID_SIZE_HELP = t("中の箱を全部このサイズにして、箱の間隔もサイズに合わせて整列し直します。そのあとも箱ごとにサイズを変えられます（元に戻すで戻せます）");
 const kidSizeSection = (can: boolean, size: string | null, id: string) => (can
@@ -37,8 +32,6 @@ export const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["list",
 const TREE_DIR_OPTIONS: [string, string][] = [["down", t("↓ 下")], ["up", t("↑ 上")], ["left", t("← 左")], ["right", t("→ 右")]];
 const FLATTEN_HELP = t("ツリーを平らにして、親子のつながりを線で引き直し、このページを内包のページにします（見た目はそのまま。元のツリーには戻せません）");
 const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します");
-// リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
-const IN_LIST = t("リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）");
 // ワールドの背景によく使う色（明るい色と暗い色）
 export const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
 
@@ -101,9 +94,7 @@ function edgeHtml(info: EdgeInfo): string {
       </div>
       ${info.caption && info.captionMoved ? `<button type="button" class="mzp-chip" data-caption-reset="${esc(info.id)}">${t("キャプションの位置を自動に戻す")}</button>` : ""}
     </div>
-    ${info.self ? `<div class="mzp-section"><p class="mzp-hint">${t("自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）")}</p></div>` : `<div class="mzp-section"><h3>${t("通り方")}</h3>
-      ${segment("mzp-route", info.route, ROUTE_OPTIONS)}
-    </div>`}
+    ${info.self ? `<div class="mzp-section"><p class="mzp-hint">${t("自分に戻る線です。箱の角の空いている所に輪を描きます（通り方や向きの指定は使いません）")}</p></div>` : ""}
     ${info.self ? "" : `<div class="mzp-section"><h3>${t("端の位置")}${helpIcon(t("線の端は、つまんで動かすとその位置に固定されます。固定していない端は、ボックスの位置から自動で決めます"))}</h3>
       <button type="button" class="mzp-chip" data-align="${esc(info.id)}"${info.aligned ? ` disabled title="${t("整列済みです")}"` : ""}>${t("整列")}</button>${helpIcon(t("今の形のまま、両端を辺の真ん中（向き合う辺どうしで、まっすぐ結べるならまっすぐ結ぶ位置）に固定します。動かした途中の区間は自動に戻します"))}
       <button type="button" class="mzp-chip" data-at-reset="${esc(info.id)}"${info.endsMoved ? "" : ` disabled title="${t("端は自動で選んでいます")}"`}>${t("接辺の自動選択")}</button>${helpIcon(t("端を動かしたり整列したりすると、その位置に固定されます。押すと固定をやめて、ボックスの位置からつなぐ辺と位置を自動で選ぶようにします。動かした途中の区間も自動に戻します"))}
@@ -111,17 +102,7 @@ function edgeHtml(info: EdgeInfo): string {
     ${!info.self && info.via ? `<div class="mzp-section">
       <button type="button" class="mzp-chip" data-via-reset="${esc(info.id)}">${t("折れ線を自動に戻す")}</button>${helpIcon(t("途中の区間を動かした形をやめて、ボックスの位置から自動で決めた形に戻します（端の固定はそのまま）"))}
     </div>` : ""}
-    <div class="mzp-section"><h3>${t("線の種類")}</h3>
-      ${segment("mzp-dash", info.dash, [["solid", t("実線")], ["dashed", t("破線")]])}
-    </div>
-    <div class="mzp-section"><h3>${t("矢印")}</h3>
-      ${(["start", "end"] as const).map(side => `<div class="mzp-field"><span>${side === "start" ? t("始点") : t("終点")}</span>
-        <select class="mzp-input" name="mzp-head-${side}" data-head="${side}" aria-label="${side === "start" ? t("始点の形") : t("終点の形")}">${headOptions().map(([v, label]) =>
-          `<option value="${v}"${v === ((side === "start" ? info.startHead : info.endHead) ?? "") ? " selected" : ""}>${esc(label)}</option>`).join("")}</select></div>`).join("")}
-    </div>
-    <div class="mzp-section">
-      <button type="button" class="mzp-chip mzp-danger" data-remove-edge="${esc(info.id)}">${t("線を消す")}</button>
-    </div>`;
+`;
 }
 
 function html(info: Info): string {
@@ -165,40 +146,12 @@ function html(info: Info): string {
       </div>
       ${info.body ? `<div class="mzp-body-preview" title="${esc(info.body)}">${esc(info.body)}</div>` : ""}
     </div>`);
-    // 背景色（箱の塗り）はテーマの枠に置く（キャプションの下だと文字の色に見えるため。2026-10-10 ユーザー）
-    const valued = !!info.color && !isPaletteName(info.color);
-    parts.push(themeSection(info.theme, info.themeUsed, true, colorButton(info.paint, valued ? info.color : info.color ? "" : t("なし"),
-      t("見本の色は、どのテーマでもそのテーマに合った色で描きます。好きな色（灰色も）を選ぶと、どのテーマでもその色で描きます")), info.themeUnknown));
-
-    // リンクの箱（link-box.ts）: 形とサイズの代わりに、リンク先と見せ方
+    // テーマ・背景色・形・サイズ・リンクの見せ方は、編集のダイアログで直す（2026-10-13 ユーザー。D26: ダイアログと重なるものはサイドバーから外す）
     if (info.link) {
       parts.push(`<div class="mzp-section"><h3>${t("リンク")}</h3>
         <p class="mzp-hint">${esc(t("「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます", { name: info.link.pageName, pattern: PATTERN_LABELS[info.link.pattern] }))}</p>
-        <div class="mzp-subhead">${t("見せ方")}</div>
-        ${segment("mzp-link-look", info.link.look, LINK_LOOK_OPTIONS)}
       </div>`);
     }
-    if (info.canShape || info.canClass) {
-      // 形は絵の並び（shape-picker.ts。2026-10-12 ユーザー。それまではセレクトボックス）。本文があればボックス以外は選べない。
-      // 子を内包している箱は、ボックスとクラスだけ（クラスにすると子は消える。docs/CLASS-plan.md）
-      const off = (v: Shape) => (info.body && !shapeDef(v).body ? t("本文があるあいだは選べません")
-        : !info.canShape && v !== "box" && v !== "class" ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : null);
-      parts.push(`<div class="mzp-section"><h3>${t("形")}</h3>
-        ${shapePicker({ name: "mzp-shape", value: info.shape, off })}
-        ${info.body ? `<p class="mzp-hint">${t("本文があるので、ボックスのままです")}</p>` : ""}
-        ${info.shape === "class" ? `<p class="mzp-hint">${t("クラス名・属性・操作は、編集のダイアログで直せます")}</p>` : ""}
-      </div>`);
-    }
-
-    // 内包・リストの箱ではサイズを使わない（docs/SIZE-plan.md）。どれも選んでいない形で、押せなくする。クラスの箱は出さない（幅は中身で決まる）
-    const nesting = info.framed;
-    const sizes: [string, string][] = [["L", "L"], ["M", "M"], ["S", "S"]];
-    if (info.shape !== "class" && !info.link) parts.push(`<div class="mzp-section"><h3>${t("サイズ")}${helpIcon(SIZE_HELP)}</h3>
-      ${segment("mzp-size", nesting ? "" : info.size, sizes, nesting ? new Map(sizes.map(([v]) => [v, BY_CHILDREN]))
-        : info.body ? new Map([["S", t("本文があるので S にはできません（S は高さが決まっています）")]]) : undefined)}
-      ${info.inList && !nesting ? `<p class="mzp-hint">${IN_LIST}</p>` : ""}
-      ${nesting ? `<p class="mzp-hint">${BY_CHILDREN}</p>` : ""}
-    </div>`);
 
     // ツリーの根とその中の箱は、子孫の並べ方をツリーが決めるので、子の見せ方を出さない（docs/PATTERN-plan.md）
     if (info.children.length && (info.inTree || info.treeRoot)) {
@@ -299,8 +252,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (viaReset) return graph.updateEdge(viaReset.dataset.viaReset!, { via: null });
     if (e.target.closest("[data-flatten]")) return confirmFlatten(graph);
     if (e.target.closest("[data-auto-align]")) return void graph.autoAlign();
-    const delEdge = e.target.closest<HTMLElement>("[data-remove-edge]");
-    if (delEdge) return graph.removeEdge(delEdge.dataset.removeEdge!);
     const chip = e.target.closest<HTMLElement>("[data-select]");
     if (chip) return graph.select(chip.dataset.select!);
     const colorBtn = e.target.closest<HTMLElement>("[data-color-open]");
@@ -314,19 +265,9 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
           palette: BG_PRESETS.map(c => ({ name: c, color: c })),
           onPick: c => graph.update(null, { background: c }), onClose,
         });
-      } else if (info.kind !== "edge") {
-        const id = info.id;
-        openColorPicker({
-          anchor: colorBtn, value: info.color, paint: info.paint, palette: info.palette,
-          onPick: c => graph.update(id, { color: c }), onClose,
-        });
       }
       pickerFor = key; // 開いたあとに覚える（開くと前のポップアップが閉じ、その onClose が先に走るため）
       return;
-    }
-    // サイズはクリックで受け取る（選んでいるサイズをもう一度押しても、大きさを戻せるように）
-    if (e.target instanceof HTMLInputElement && e.target.name === "mzp-size") {
-      return graph.update(info.id, { size: e.target.value as Size });
     }
     const fit = e.target.closest<HTMLElement>("[data-fit]");
     if (fit && info.id != null) graph.fitChildren(info.id, fit.dataset.fit as "width" | "height" | "both");
@@ -345,26 +286,7 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (el instanceof HTMLSelectElement && el.name === "mzp-theme") {
       return graph.update(info.kind === "world" ? null : info.id, { theme: el.value || null });
     }
-    // 端の形（heads.ts）。塗りの三角は arrow に、ほかは startHead / endHead に書く
-    if (el instanceof HTMLSelectElement && el.dataset.head && info.kind === "edge") {
-      return graph.updateEdge(info.id, headPatch(info, el.dataset.head as Side, (el.value || null) as Head | null));
-    }
-    if (el instanceof HTMLInputElement && el.name === "mzp-shape" && info.kind !== "world" && info.kind !== "edge") {
-      const next = el.value as Shape;
-      if (next !== "class" && info.shape !== "class") return graph.update(info.id, { shape: next });
-      // クラスにかかわる変更は、子や abstract・属性・操作が消えることがあるので確かめる（docs/CLASS-plan.md）
-      const id = info.id;
-      const go = () => graph.updateClass(id, { shape: next });
-      const warn = classChangeWarning(info.shape, next, info.children.length, info.abstract || info.attrs.length > 0 || info.ops.length > 0);
-      if (!warn) return go();
-      // 確かめてから変える（キャンセルなら元の形を選んだまま）
-      const was = el.closest(".mz-sp")?.querySelector<HTMLInputElement>(`input[value="${info.shape}"]`);
-      if (was) was.checked = true;
-      return openConfirmDialog(t("形の変更"), warn, t("変更する"), go);
-    }
     if (!(el instanceof HTMLInputElement)) return;
-    if (el.name === "mzp-dash" && info.kind === "edge") return graph.updateEdge(info.id, { dash: el.value as Dash });
-    if (el.name === "mzp-route" && info.kind === "edge") return graph.updateEdge(info.id, { route: el.value as Route });
     if (el.name === "mzp-world-route") return graph.update(null, { route: el.value as Route });
     // 文字入力は、打っていたときの箱・線へ書く（data-target）。別の箱をクリックしてフォーカスが外れると、選択が切り替わって
     // サイドバーを描き直したあとで確定（change）が届くため、今の info を宛先にすると別の箱に書いてしまう
@@ -373,7 +295,6 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (el.dataset.field) return graph.update(info.id, { [el.dataset.field]: el.checked });
     if (el.hasAttribute("data-one-line")) return graph.update(info.id, { overflow: el.checked ? "clip" : "wrap" });
     if (el.name === "mzp-treedir") return graph.update(null, { treeDirection: el.value as TreeDirection });
-    if (el.name === "mzp-link-look" && info.kind !== "world" && info.kind !== "edge") return graph.update(info.id, { linkLook: el.value as LinkLook });
     if (el.name === "mzp-kidsize") {
       return void graph.setKidSize(el.value as Size);
     }

@@ -164,7 +164,7 @@ test("リストの子どうしは線を引けない", () => {
   expect(graph.toJSON().edges).toEqual([]);
 });
 
-test("サイドバー: 見せ方にリストがあり、リストの子でもサイズと子の見せ方を変えられる。形は選べない", async () => {
+test("サイドバーの子の見せ方にリストがあり、リストの子でも子の見せ方を変えられる。サイズは編集ダイアログで、子を内包する子は選べない", async () => {
   const { createPanel } = await import("../web/src/panel");
   const stage = document.createElement("div"), side = document.createElement("aside");
   document.body.append(side, stage);
@@ -174,13 +174,18 @@ test("サイドバー: 見せ方にリストがあり、リストの子でもサ
   panel = createPanel(side, graph);
   graph.select(1);
   expect([...side.querySelectorAll<HTMLInputElement>('input[name="mzp-view"]')].map(i => i.value)).toContain("list");
-  graph.select(4);
-  const disabled = (name: string) => [...side.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)].every(i => i.disabled);
+  const sizesOff = (id: number) => {
+    graph.select(id);
+    side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const off = [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="size"]')].every(i => i.disabled);
+    document.querySelector<HTMLElement>(".mz-dlg-overlay [data-cancel]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    return off;
+  };
   // 子を内包している子はサイズを使わない（大きさは子の並びで決まる）が、子の見せ方は変えられる
-  expect([disabled("mzp-size"), disabled("mzp-view")]).toEqual([true, false]);
-  expect(side.querySelector('input[name="mzp-shape"]')).toBeNull();
-  graph.select(3);
-  expect(disabled("mzp-size")).toBe(false); // 葉の子はサイズを変えられる
+  expect(sizesOff(4)).toBe(true);
+  graph.select(4);
+  expect([...side.querySelectorAll<HTMLInputElement>('input[name="mzp-view"]')].every(i => i.disabled)).toBe(false);
+  expect(sizesOff(3)).toBe(false); // 葉の子はサイズを変えられる
 });
 
 test("見出しが子より長ければ、見出しが入る幅にそろえる（上限は 400）", () => {

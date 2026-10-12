@@ -2,7 +2,7 @@
 import { expect, test } from "@playwright/test";
 import { example, openDiagram } from "./helpers";
 
-test("選択モードで線をクリックすると情報タブに線の情報が出て、矢印を付けたり消したりできる", async ({ page }) => {
+test("選択モードで線をクリックすると情報タブに線の情報が出て、線の編集ダイアログで矢印を付けたり消したりできる", async ({ page }) => {
   await openDiagram(page, example("nested"));
   await expect(page.locator("#mode-label")).toHaveText("選択モード");
   // e2（1-4、フロントエンドとバックエンド）の真ん中を押す
@@ -20,21 +20,31 @@ test("選択モードで線をクリックすると情報タブに線の情報�
   await expect(side.locator(".mzp-dl dd")).toHaveText(["e2", "1_フロントエンド", "4_バックエンド"]);
   await expect(side.locator(".mzp-kind")).toHaveCount(0); // 種類は出さない
 
-  await side.locator('[data-head="end"]').selectOption("arrow");
+  // 矢印・線の種類・消すは、線の編集ダイアログで（線のダブルクリックで開く。サイドバーには出さない。2026-10-13 D26）
+  const dlg = page.locator(".mz-dlg-overlay > .mz-dlg");
+  const edit = async (fn: () => Promise<unknown>) => {
+    await page.mouse.dblclick(mid.x, mid.y);
+    await fn();
+    await dlg.locator("[data-ok]").click();
+  };
+  await edit(() => dlg.locator('[name="head-end"]').selectOption("arrow"));
   await expect(edge.locator(".mz-arrow")).toHaveAttribute("d", /^M.+Z$/);
-  await side.locator('[data-head="start"]').selectOption("arrow");
+  await edit(() => dlg.locator('[name="head-start"]').selectOption("arrow"));
   await expect.poll(() => edge.locator(".mz-arrow").getAttribute("d")).toMatch(/Z.*Z$/); // 両端に 1 つずつ
-  await side.locator('[data-head="start"]').selectOption("");
-  await side.locator('[data-head="end"]').selectOption("");
+  await edit(async () => {
+    await dlg.locator('[name="head-start"]').selectOption("");
+    await dlg.locator('[name="head-end"]').selectOption("");
+  });
   await expect(edge.locator(".mz-arrow")).toHaveAttribute("d", "");
 
-  await side.locator("label", { hasText: "破線" }).click();
+  await edit(() => dlg.locator('[name="dash"][value="dashed"]').check());
   await expect(edge.locator(".mz-line")).toHaveClass(/mz-dashed/);
-  await side.locator("label", { hasText: "実線" }).click();
+  await edit(() => dlg.locator('[name="dash"][value="solid"]').check());
   await expect(edge.locator(".mz-line")).not.toHaveClass(/mz-dashed/);
 
   const before = await page.locator(".mz-edge").count();
-  await side.locator("[data-remove-edge]").click();
+  await page.mouse.dblclick(mid.x, mid.y);
+  await dlg.locator("[data-delete]").click();
   await expect(page.locator(".mz-edge")).toHaveCount(before - 1);
   await expect(side.locator(".mzp-title")).toHaveText("ワールド");
 });
@@ -55,15 +65,19 @@ test("斜めに離れた箱どうしの線を折れ線にすると Z 字にな�
     const p = g.getPointAtLength(g.getTotalLength() / 2);
     return { x: svg.left + p.x, y: svg.top + p.y };
   });
-  await page.mouse.click(mid.x, mid.y);
-  const side = page.locator("#sidebar");
   const count = () => edge.locator(".mz-hit").evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/).length);
-  await side.locator("label", { hasText: "折れ線" }).click();
+  // 通り方は線の編集ダイアログで（線のダブルクリックで開く）
+  const route = async (value: string) => {
+    await page.mouse.dblclick(mid.x, mid.y);
+    await page.locator(`.mz-dlg [name="route"][value="${value}"]`).check();
+    await page.locator(".mz-dlg [data-ok]").click();
+  };
+  await route("elbow");
   await expect.poll(count).toBe(4);
   // 線は塗らない（折れ線の点で囲まれた面が黒く塗られないように）
   expect(await edge.locator(".mz-line").evaluate(l => getComputedStyle(l).fill)).toBe("none");
   expect(await edge.locator(".mz-hit").evaluate(l => getComputedStyle(l).fill)).toBe("none");
-  await side.locator("label", { hasText: "直線" }).click();
+  await route("straight");
   await expect.poll(count).toBe(2);
 });
 
