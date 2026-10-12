@@ -12,7 +12,7 @@ const typing = (t: EventTarget | null) =>
 const textEntry = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.matches("textarea, input:not([type=radio], [type=checkbox], [type=button], [type=range], [type=color])") || t.isContentEditable);
 
-// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）と、選んだ線を消す Delete キー（Mac の delete は Backspace）、
+// Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）と、選んだ線か箱を消す Delete キー（Mac の delete は Backspace）、
 // 選んだ箱か線の編集ダイアログを開く Enter キー（ダブルクリックと同じ）。
 // 登録を外す関数を返す（ページ全体のキー操作に登録するので、図を作り直すときに外せるように）
 export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: HTMLButtonElement): () => void {
@@ -22,10 +22,11 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   redoBtn.addEventListener("click", () => graph.redo(), { signal });
   document.addEventListener("keydown", e => {
     if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const edge = graph.selectedEdge();
-      if (!edge || textEntry(e.target) || graph.dragging() || graph.preview() != null) return;
+      // 選んだ線か箱を消す。箱は削除モードで押したときと同じく子孫ごと消し、消したものの一覧から戻せる（2026-10-12 ユーザー）
+      const edge = graph.selectedEdge(), box = graph.selected();
+      if ((!edge && box == null) || textEntry(e.target) || graph.dragging() || graph.preview() != null || graph.mode() !== "move") return;
       e.preventDefault();
-      graph.removeEdge(edge);
+      if (edge) graph.removeEdge(edge); else graph.remove(box!);
       return;
     }
     if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.isComposing) {

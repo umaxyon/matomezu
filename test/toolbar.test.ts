@@ -174,15 +174,12 @@ test("図の側でモードが変わったら、ボタンとラベルもそれ�
   expect(g.mode()).toBe("move");
 });
 
-test("選んだ線は Delete（Mac の delete は Backspace）で消える。入力欄の中や、箱を選んでいるときは消さない", () => {
+test("選んだ線は Delete（Mac の delete は Backspace）で消える。入力欄の中では消さない", () => {
   document.body.innerHTML = `<button id="undo"></button><button id="redo"></button><input id="text"><div id="stage"></div>`;
   const $ = (id: string) => document.getElementById(id)!;
   graph = createGraph($("stage"), { nodes: [{ id: 1 }, { id: 2 }, { id: 3 }], edges: [[1, 2], [2, 3]] }, { measureText: fakeMeasure });
   dispose = setupHistory(graph, $("undo") as HTMLButtonElement, $("redo") as HTMLButtonElement);
   const ids = () => graph!.toJSON().edges!.map(e => (e as { id: string }).id);
-  graph.select(1);
-  key("Delete");
-  expect(ids()).toEqual(["e1", "e2"]);
   graph.selectEdge("e1");
   key("Delete", {}, $("text"));
   expect(ids()).toEqual(["e1", "e2"]);
@@ -193,4 +190,25 @@ test("選んだ線は Delete（Mac の delete は Backspace）で消える。入
   expect(ids()).toEqual([]);
   key("z", { ctrlKey: true });
   expect(ids()).toEqual(["e2"]);
+});
+
+test("選んだ箱も Delete で消える（子孫ごと、消したものの一覧へ。Undo で戻る）。入力欄の中や、選択モード以外では消さない", () => {
+  document.body.innerHTML = `<button id="undo"></button><button id="redo"></button><input id="text"><div id="stage"></div>`;
+  const $ = (id: string) => document.getElementById(id)!;
+  graph = createGraph($("stage"), { nodes: [{ id: 1 }, { id: 2 }, { id: 3, parent: 2 }], edges: [[1, 2]] }, { measureText: fakeMeasure });
+  dispose = setupHistory(graph, $("undo") as HTMLButtonElement, $("redo") as HTMLButtonElement);
+  const live = () => graph!.toJSON().nodes.map(n => n.id);
+  graph.select(2);
+  key("Delete", {}, $("text"));
+  expect(live()).toEqual([1, 2, 3]);
+  graph.setMode("reparent");
+  key("Delete");
+  expect(live()).toEqual([1, 2, 3]);
+  graph.setMode("move");
+  graph.select(2);
+  key("Delete");
+  expect(live()).toEqual([1]);
+  expect(graph.toJSON().removed!.map(n => n.id)).toEqual([2, 3]);
+  key("z", { ctrlKey: true });
+  expect(live()).toEqual([1, 2, 3]);
 });
