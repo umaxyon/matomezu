@@ -185,3 +185,31 @@ test("内包に変換できるのはツリーのページだけ", () => {
   expect(worldInfo(graph).canFlatten).toBe(false);
   expect(graph.flattenTree()).toBe(false);
 });
+
+// ---- D27 段階 6: 変換はページ単位（docs/PATTERN-plan.md） ----
+
+test("内包に変換（2 枚目のページ）: そのページの world だけ内包になり（根と向きも消える）、根の外の箱（リンクの箱・メモ）はそのまま。ツリーの葉だったリンクの箱は線でつながる最上位の箱になる", () => {
+  const { graph } = setup({
+    pages: [{ id: "p1", title: "木", world: { childView: "tree", root: 1, treeDirection: "right" } }, { id: "p2", title: "別" }],
+    nodes: [
+      { id: 1, caption: "根", page: "p1", x: 40, y: 40 }, { id: 2, caption: "子", parent: 1 }, { id: 3, caption: "別のページへ", parent: 1, link: "p2" },
+      { id: 20, caption: "メモ", page: "p1", x: 500, y: 40 }, { id: 21, caption: "別のページへ", page: "p1", link: "p2", x: 500, y: 300 },
+      { id: 30, caption: "最初のページの箱", x: 40, y: 40 },
+    ],
+  });
+  graph.setPage("p1");
+  expect(worldInfo(graph).canFlatten).toBe(true);
+  expect(graph.flattenTree()).toBe(true);
+  const json = graph.toJSON();
+  const node = (id: number) => json.nodes.find(n => n.id === id)!;
+  expect(json.pages![0]!.world).toEqual({});
+  expect(json.world).toBeUndefined(); // 最初のページの world は触らない
+  expect(worldInfo(graph).childView).toBe("nest");
+  // 根の子孫は、そのページの最上位に。リンクの箱は link を保ったまま
+  expect([node(2).parent, node(2).page, node(3).parent, node(3).page, node(3).link]).toEqual([undefined, "p1", undefined, "p1", "p2"]);
+  // 根の外の箱と、ほかのページの箱はそのまま
+  expect([node(20).x, node(20).y, node(21).link, node(21).x, node(30).page]).toEqual([500, 40, "p2", 500, undefined]);
+  const made = (json.edges ?? []).map(e => (Array.isArray(e) ? `${e[0]}-${e[1]}` : `${e.from}-${e.to}`)).sort();
+  expect(made).toEqual(["1-2", "1-3"]);
+  expect(info(graph, 3).link?.page).toBe("p2");
+});

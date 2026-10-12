@@ -971,7 +971,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       for (const n of subtree) {
         const s = data.nodes.find(x => String(x.id) === n.id);
         if (!s) continue;
-        if (root.src.parent == null) delete s.parent; else s.parent = root.src.parent;
+        // 根はページの最上位なので、子孫も同じページの最上位に（page はこのページ。無ければ最初のページ）
+        delete s.parent;
+        if (page != null) s.page = page; else delete s.page;
         const r = head.get(n.id)!;
         s.x = Math.round(r.x);
         s.y = Math.round(r.y);
