@@ -77,7 +77,9 @@ export const fakeMeasure: MeasureText = (el, width) => {
   }
   const bodyEl = el.querySelector<HTMLElement>(":scope > .mz-body");
   const body = bodyEl && !bodyEl.hidden ? bodyEl.textContent ?? "" : "";
-  const tw = (Array.from(el.textContent ?? "").length - Array.from(bodyEl?.textContent ?? "").length) * 9;
+  // リンクの箱の部品（持ち手の札・窓の文字）は本体の文字ではない（本物の測り方は隠して測る。measure.ts）
+  const parts = el.querySelector<HTMLElement>(":scope > .mz-link-parts")?.textContent ?? "";
+  const tw = (Array.from(el.textContent ?? "").length - Array.from(bodyEl?.textContent ?? "").length - Array.from(parts).length) * 9;
   const w = width ?? Math.max(tw, body ? bodyWidth(body) : 0) + 16;
   const lines = width == null ? 1 : Math.max(1, Math.ceil(tw / Math.max(1, width - 16)));
   return [w, lines * 18 + 8 + (body ? bodyLines(body, width == null ? null : width - 16, maxLines(bodyEl)) * 18 : 0)];

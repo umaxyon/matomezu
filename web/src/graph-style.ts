@@ -169,6 +169,39 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-mode-move .mz-node.mz-current > .mz-head > .mz-width-grip:not([hidden]) { display: block; }
 .mz-preview .mz-width-grip { display: none !important; }
 .mz-more { position: absolute; right: 5px; bottom: 3px; font-size: 9px; line-height: 1; opacity: 0.8; }
+/* リンクの箱（link-box.ts。ほかのページへの窓）。数値は render.ts が --mz-link-handle / --mz-link-win-w / --mz-link-win-h / --mz-link-gap で渡す。
+   部品（持ち手の帯・窓）は display: contents の入れ物に入れ、文字（.mz-text / .mz-body）と同じ格子に並べる。測るときは入れ物を隠す（measure.ts）。
+   窓枠（window）: 上から帯・文字・本文・窓。横に分ける（side）: 左の帯、文字の列、右の窓 */
+.mz-leaf.mz-link { display: grid; padding: var(--mz-out-y, 0px) var(--mz-out-x, 0px); text-align: left; align-items: start; }
+.mz-link-parts { display: contents; } /* 部品の親は display: contents の入れ物なので、.mz-head の子セレクタ（>）では引けない。子孫で引く */
+.mz-link-parts[hidden] { display: none; }
+.mz-link > .mz-text { grid-area: text; margin: 8px 10px 0; }
+.mz-link > .mz-body { grid-area: body; margin: 0 10px; }
+.mz-leaf.mz-link.mz-has-body > .mz-body { margin-top: 4px; }
+.mz-link.mz-link-empty > .mz-text { display: none; }
+.mz-link-bar { grid-area: bar; cursor: grab; background: color-mix(in srgb, currentColor 10%, transparent); border-bottom: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; box-sizing: border-box; }
+/* 持ち手の印（3 つの点）。窓枠は帯の左、横に分けるは帯の真ん中に縦に */
+.mz-link-bar::before { content: ""; flex: none; width: 22px; height: 6px; margin-right: auto;
+  background: radial-gradient(circle, color-mix(in srgb, currentColor 35%, transparent) 2.2px, transparent 2.7px) 0 0 / 8px 6px repeat-x; }
+.mz-link-badge { font-size: 10px; font-weight: 500; line-height: 1; padding: 2px 6px; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); opacity: 0.85; white-space: nowrap; }
+.mz-link-win { grid-area: win; position: relative; box-sizing: border-box; margin: var(--mz-link-gap); height: var(--mz-link-win-h); cursor: pointer;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; background: color-mix(in srgb, var(--mz-bg) 55%, transparent); overflow: hidden; }
+.mz-link-win:hover { border-color: var(--mz-select); }
+.mz-link-go { position: absolute; right: 4px; bottom: 4px; font-size: 10px; font-weight: 500; line-height: 1; padding: 3px 5px; border-radius: 4px; background: var(--mz-select); color: #fff; opacity: 0; transition: opacity 0.15s; }
+.mz-link-win:hover .mz-link-go { opacity: 1; }
+.mz-link-window { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--mz-link-handle) auto auto auto; grid-template-areas: "bar" "text" "body" "win"; }
+.mz-link-window .mz-link-bar { height: var(--mz-link-handle); }
+.mz-link-window.mz-link-empty > .mz-text { display: none; }
+.mz-link-side { grid-template-columns: var(--mz-link-handle) minmax(0, 1fr) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)); grid-template-rows: auto 1fr; grid-template-areas: "bar text win" "bar body win"; }
+.mz-link-side .mz-link-bar { width: var(--mz-link-handle); align-self: stretch; padding: 0; border-bottom: 0; border-right: 1px solid color-mix(in srgb, currentColor 25%, transparent); justify-content: center; }
+.mz-link-side .mz-link-bar::before { width: 6px; height: 22px; margin: 0; background-size: 6px 8px; background-repeat: repeat-y; }
+.mz-link-side .mz-link-bar .mz-link-badge { display: none; }
+.mz-link-side .mz-link-win { width: var(--mz-link-win-w); align-self: start; }
+.mz-link-side.mz-link-empty { grid-template-columns: var(--mz-link-handle) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)); grid-template-areas: "bar win"; }
+.mz-link-side > .mz-text { margin: 8px 8px 0; }
+.mz-link-side > .mz-body { margin: 0 8px 8px; }
+.mz-preview .mz-link-win { cursor: pointer; }
 .mz-tree { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .mz-tree path { fill: none; stroke: var(--mz-edge); stroke-width: 1.5; }
 .mz-tree .mz-tree-frame { stroke-width: 1.5; stroke-dasharray: 6 4; }

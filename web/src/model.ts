@@ -2,7 +2,8 @@
 
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
-import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, Overflow, PagePattern, Shape, Size, TreeDirection, WorldData } from "./types";
+import { DEFAULT_LINK_LOOK, isLinkLook } from "./link-box";
+import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, Shape, Size, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isPattern, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
@@ -50,6 +51,10 @@ export interface Box {
   treeSvg: SVGSVGElement;
   treePath: SVGPathElement;
   treeFrame: SVGRectElement; // ツリーで見せているときに全体を囲む枠
+  // リンクの箱の部品（link-box.ts。持ち手の帯と札、窓。リンクの箱でなければ隠す。大きさを測るときも隠す）
+  linkEl: HTMLDivElement;
+  linkBadge: HTMLSpanElement; // のぞくページのパターンの札
+  linkWin: HTMLDivElement;    // 窓（押すとそのページへ）
 }
 
 // ワールドは親の無いボックスたちの入れ物。ノードと同じように扱える形にしておく
@@ -271,13 +276,18 @@ export const leafLike = (n: Box): boolean => arrangeOf(n) === "leaf" || arrangeO
 // 非表示の親の下にいるか（ツリーの中の非表示は無視するので、並べ方で見る）
 export const isHidden = (n: Box): boolean => ancestors(n).some(p => arrangeOf(p) === "hidden");
 
+// リンクの箱（link-box.ts。docs/PATTERN-plan.md）: link にページの id を書いた箱。ほかのページへの窓で、子を持てず、形・サイズ・子の見せ方は使わない
+export const isLinkBox = (n: Box): boolean => n.src.link != null;
+export const linkPageOf = (n: Box): string | null => (n.src.link == null ? null : String(n.src.link));
+export const linkLookOf = (n: Box): LinkLook => (isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
+
 // 箱にできる操作（並べ方の戦略から決まる）
 export interface Abilities {
   drag: boolean;      // 自分をドラッグで動かせる（でなければ、動かせる祖先を動かす。ツリーの子はツリー全体）
   reorder: boolean;   // 兄弟の中で並べ替えられる（リストの子）
   link: boolean;      // 線を引ける・〇を出す（ツリー・リストの子は自動で並ぶので、線を引くと形が崩れる）
   widthGrip: boolean; // 幅のつまみを出す（子を持つリスト）
-  dropInto: boolean;  // 付け替えや追加で、中へ落とせる（ページの箱は中身が別のページ、クラスの箱とフローチャートの要素は子を持てない）
+  dropInto: boolean;  // 付け替えや追加で、中へ落とせる（リンクの箱は窓なので中に入れられず、クラスの箱とフローチャートの要素は子を持てない）
 }
 export function abilitiesOf(n: Box): Abilities {
   const by = STRATEGIES[placedBy(n)];
@@ -286,7 +296,7 @@ export function abilitiesOf(n: Box): Abilities {
     reorder: by.reorder && !!n.parent,
     link: !n.parent || by.link,
     widthGrip: !!strategyOf(n)?.widthGrip,
-    dropInto: shapeDef(shapeOf(n)).kids && !by.leafKids,
+    dropInto: shapeDef(shapeOf(n)).kids && !by.leafKids && !isLinkBox(n),
   };
 }
 
@@ -301,7 +311,7 @@ export function listSizeOf(list: Box): Size {
 // サイズ（L / M / S）が効くのは、見た目が葉の箱だけ（子の無い箱、ツリーの親の本体、非表示）。内包・リストの箱の大きさは子の並びで決まるので、
 // サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの葉の子は、リストの中で一番大きいサイズの見た目にそろえる（docs/SIZE-plan.md）
 export const sizeOf = (n: Box): Size =>
-  (lookOf(n).sharedSize && leafLike(n) ? listSizeOf(n.parent!) : isNesting(n) ? "M" : dataSizeOf(n));
+  (lookOf(n).sharedSize && leafLike(n) ? listSizeOf(n.parent!) : isNesting(n) || isLinkBox(n) ? "M" : dataSizeOf(n));
 export const viewOf = (n: Box): BoxView => (isView(n.src.childView) && STRATEGIES[n.src.childView].onBox ? n.src.childView : "nest");
 // ツリーの向き（ツリーのページの world.treeDirection。既定は下）。箱で呼んでも、そのページの向き
 export function treeDirOf(c: Container): TreeDirection {
@@ -339,13 +349,13 @@ export function splitBranches(targets: [number, number][], avoid: Vertex[] = [])
 
 // 見せる形。子を内包する箱（枠）と、並べられた見せ方で形を使わない箱（リストの子など。lookOf）はボックス。データの形は残す
 export const shapeOf = (n: Box): Shape => {
-  if (isNesting(n) || lookOf(n).plainShape || !isShape(n.src.shape)) return DEFAULT_SHAPE;
+  if (isNesting(n) || isLinkBox(n) || lookOf(n).plainShape || !isShape(n.src.shape)) return DEFAULT_SHAPE;
   return n.src.shape;
 };
 // 入れ物 p の子にできるか（子を持てない戦略の子の中へは入れられず、子を持つ箱は子を持てない戦略の中へ入れられない。
 // ツリーのページで子を持てるのは根の子孫だけなので、根の外の最上位へは子を持つ箱を落とせず、根の外の葉の中へも落とせない）
 export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
-  if (!p.isWorld && STRATEGIES[placedBy(p)].leafKids) return false;
+  if (!p.isWorld && (STRATEGIES[placedBy(p)].leafKids || isLinkBox(p))) return false;
   if (kidHasKids && kidStrategyOf(p).leafKids) return false;
   const pattern = STRATEGIES[worldViewOf(p.isWorld ? p : p.world)];
   if (pattern.rootOnly) {
@@ -372,14 +382,14 @@ export function overflowOf(c: Container): Overflow {
   if (c.isWorld) return "wrap";
   // 文字のボックスは伸ばさない（伸ばすと折り返しに戻せなくなる）。子を持つ箱はつねに子に合わせて伸ばす（データの overflow は無視する。
   // 図が幅を決め、文字は図の都合で折り返す。docs/SIZE-plan.md）
-  if (!c.children.length) return c.src.overflow === "clip" ? "clip" : "wrap";
+  if (!c.children.length) return c.src.overflow === "clip" && !isLinkBox(c) ? "clip" : "wrap";
   return "grow";
 }
 // S は 10 文字で切る。リストの子は高さを中身に合わせるので切らない
 export const displayCaption = (n: Box) => (lookOf(n).fullCaption ? captionOf(n) : truncate(captionOf(n), SIZES[sizeOf(n)].limit));
 // 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
 export const canBody = (n: Box): boolean =>
-  shapeDef(shapeOf(n)).body && sizeOf(n) !== "S" && overflowOf(n) !== "clip";
+  isLinkBox(n) || (shapeDef(shapeOf(n)).body && sizeOf(n) !== "S" && overflowOf(n) !== "clip");
 export const bodyOf = (n: Box): string => (typeof n.src.body === "string" && n.src.body && canBody(n) ? n.src.body : "");
 // 本文の最大行数（無ければ 0。制限なし）
 export const bodyLinesOf = (n: Box): number => (Number.isInteger(n.src.bodyLines) && (n.src.bodyLines as number) > 0 ? n.src.bodyLines as number : 0);

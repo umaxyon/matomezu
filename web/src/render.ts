@@ -15,8 +15,10 @@ import {
   captionOf, dashOf, descendants, displayCaption, fillOf, inTreeOf, isHidden, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeOf, slantOf, treeDirOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
-import { OVERFLOWS, SHAPES, SIZES } from "./validate";
+import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
+import { LINK_LOOKS, LINK_LOOK_DEFS } from "./link-box";
+import type { LinkLook, PagePattern } from "./types";
 import { SHAPE_ART } from "./shape-art";
 
 export interface RenderContext {
@@ -30,6 +32,7 @@ export interface RenderContext {
   themeOf(n: Box | null): Theme; // 箱（null はワールド）に効いているテーマ
   paintOf(n: Box): { color: string; own: boolean }; // 箱を塗る色と、それがデータの color から来たか（テーマと色の名前を解いたもの）
   backgroundOf(): string | null; // 図の背景の色（world.background とテーマから。無ければ null）
+  linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook } | null; // リンクの箱がのぞくページ（link-box.ts）。でなければ null
 }
 
 export type Renderer = ReturnType<typeof createRenderer>;
@@ -256,6 +259,23 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     bs.top = block ? opt.header + "px" : "";
     if (!block) bs.width = "";
 
+    // リンクの箱（link-box.ts）: 持ち手の帯と窓を出し、見せ方の数値を CSS の変数で渡す。札はのぞくページのパターン、窓はそのページの名前
+    const link = ctx.linkOf(n);
+    head.classList.toggle("mz-link", !!link);
+    for (const look of LINK_LOOKS) head.classList.toggle("mz-link-" + look, link?.look === look);
+    head.classList.toggle("mz-link-empty", !!link && !caption && !body);
+    n.linkEl.hidden = !link;
+    // 文字は、リンクの箱のときだけ入れる（偽の測り方（テスト）は本体の文字を数えるため、リンクでない箱に残さない）
+    n.linkBadge.textContent = link ? PATTERN_LABELS[link.pattern] : "";
+    n.linkWin.firstElementChild!.textContent = link ? t("開く ↗") : "";
+    if (link) {
+      const d = LINK_LOOK_DEFS[link.look];
+      head.style.setProperty("--mz-link-handle", d.handle + "px");
+      head.style.setProperty("--mz-link-win-w", d.win.w + "px");
+      head.style.setProperty("--mz-link-win-h", d.win.h + "px");
+      head.style.setProperty("--mz-link-gap", d.gap + "px");
+      n.linkWin.title = t("押すと「{name}」のページを開きます", { name: link.pageName });
+    }
     n.moreEl.hidden = arrange !== "hidden";
     n.moreEl.title = t("子 {n} 件", { n: n.children.length });
     n.treeSvg.style.display = arrange === "tree" ? "" : "none";

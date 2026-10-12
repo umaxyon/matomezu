@@ -58,7 +58,11 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
       layoutStats.measures++;
       const hide = !!b && !b.hidden && captionOnly;
       if (hide) b.hidden = true;
+      // リンクの箱の持ち手と窓は、文字の大きさに数えない（大きさは link-box.ts の数値で足す。node-kinds.ts の fitLink）
+      const parts = n.linkEl && !n.linkEl.hidden ? n.linkEl : null;
+      if (parts) parts.hidden = true;
       const r = measureText(n.head, width);
+      if (parts) parts.hidden = false;
       if (hide) b.hidden = false;
       remember(key, r);
       return r;

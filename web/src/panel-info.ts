@@ -8,9 +8,11 @@ import { type Head, type Side, headOptions, headPatch } from "./heads";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { THEMES, isPaletteName, themeById } from "./theme";
-import type { Brief, ChildView, Dash, EdgeInfo, Info, PagePattern, Route, Shape, Size, TreeDirection } from "./types";
+import type { Brief, ChildView, Dash, EdgeInfo, Info, LinkLook, PagePattern, Route, Shape, Size, TreeDirection } from "./types";
+import { LINK_LOOK_OPTIONS } from "./link-box";
 import { shapeDef } from "./shapes";
 import { shapePicker } from "./shape-picker";
+import { PATTERN_LABELS } from "./validate";
 
 const KIND_LABELS = { group: t("グループ"), box: t("ボックス") };
 // 鉛筆の印（編集ダイアログを開くボタン）
@@ -28,7 +30,7 @@ const alignButton = (can: boolean, id: string) => (can
   ? `<div class="mzp-chips"><button type="button" class="mzp-chip" data-auto-align="${esc(id)}">${t("自動で整列")}</button>${helpIcon(ALIGN_HELP)}</div>` : "");
 // ページのパターン（docs/PATTERN-plan.md。2026-10-12 ユーザー: パターンはページ単位。作るときに決め、後から切り替えない）
 export const WORLD_VIEW_HELP = t("このページの一番上に置いた箱の並べ方です。ページを作るときに決めます。\n内包: 自由に置きます。箱の中に子を入れ、子の見せ方（内包・リスト・非表示）を選べます\nツリー: 根の箱の子孫を、何段でも木に並べます。根の外の箱は葉として自由に置けます\nフローチャート: 自由に置き、図の左上に道具入れが出ます。箱は子を持てません");
-export const PATTERN_LABELS: Record<PagePattern, string> = { nest: t("内包"), tree: t("ツリー"), flow: t("フローチャート") };
+export { PATTERN_LABELS };
 export const PATTERN_OPTIONS: [PagePattern, string][] = (["nest", "tree", "flow"] as const).map(v => [v, PATTERN_LABELS[v]]);
 // 箱の子の見せ方（内包パターンの持ち物）
 export const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["list", t("リスト")], ["hidden", t("非表示")]];
@@ -168,6 +170,14 @@ function html(info: Info): string {
     parts.push(themeSection(info.theme, info.themeUsed, true, colorButton(info.paint, valued ? info.color : info.color ? "" : t("なし"),
       t("見本の色は、どのテーマでもそのテーマに合った色で描きます。好きな色（灰色も）を選ぶと、どのテーマでもその色で描きます")), info.themeUnknown));
 
+    // リンクの箱（link-box.ts）: 形とサイズの代わりに、リンク先と見せ方
+    if (info.link) {
+      parts.push(`<div class="mzp-section"><h3>${t("リンク")}</h3>
+        <p class="mzp-hint">${esc(t("「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます", { name: info.link.pageName, pattern: PATTERN_LABELS[info.link.pattern] }))}</p>
+        <div class="mzp-subhead">${t("見せ方")}</div>
+        ${segment("mzp-link-look", info.link.look, LINK_LOOK_OPTIONS)}
+      </div>`);
+    }
     if (info.canShape || info.canClass) {
       // 形は絵の並び（shape-picker.ts。2026-10-12 ユーザー。それまではセレクトボックス）。本文があればボックス以外は選べない。
       // 子を内包している箱は、ボックスとクラスだけ（クラスにすると子は消える。docs/CLASS-plan.md）
@@ -183,7 +193,7 @@ function html(info: Info): string {
     // 内包・リストの箱ではサイズを使わない（docs/SIZE-plan.md）。どれも選んでいない形で、押せなくする。クラスの箱は出さない（幅は中身で決まる）
     const nesting = info.framed;
     const sizes: [string, string][] = [["L", "L"], ["M", "M"], ["S", "S"]];
-    if (info.shape !== "class") parts.push(`<div class="mzp-section"><h3>${t("サイズ")}${helpIcon(SIZE_HELP)}</h3>
+    if (info.shape !== "class" && !info.link) parts.push(`<div class="mzp-section"><h3>${t("サイズ")}${helpIcon(SIZE_HELP)}</h3>
       ${segment("mzp-size", nesting ? "" : info.size, sizes, nesting ? new Map(sizes.map(([v]) => [v, BY_CHILDREN]))
         : info.body ? new Map([["S", t("本文があるので S にはできません（S は高さが決まっています）")]]) : undefined)}
       ${info.inList && !nesting ? `<p class="mzp-hint">${IN_LIST}</p>` : ""}
@@ -363,6 +373,7 @@ export function createInfoTab(pane: HTMLElement, graph: Graph): InfoTab {
     if (el.dataset.field) return graph.update(info.id, { [el.dataset.field]: el.checked });
     if (el.hasAttribute("data-one-line")) return graph.update(info.id, { overflow: el.checked ? "clip" : "wrap" });
     if (el.name === "mzp-treedir") return graph.update(null, { treeDirection: el.value as TreeDirection });
+    if (el.name === "mzp-link-look" && info.kind !== "world" && info.kind !== "edge") return graph.update(info.id, { linkLook: el.value as LinkLook });
     if (el.name === "mzp-kidsize") {
       return void graph.setKidSize(el.value as Size);
     }

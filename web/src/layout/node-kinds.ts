@@ -3,8 +3,9 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, dataSizeOf, inTreeOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, dataSizeOf, inTreeOf, isLinkBox, linkLookOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
+import { LINK_LOOK_DEFS, linkBoxWidth } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
 import { shapeDef } from "../shapes";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
@@ -67,6 +68,7 @@ export function createNodeKinds(ctx: KindContext) {
   // 幅は width の指定か、文字に合わせてサイズの範囲（minW〜maxW）に収めたもの。長い文字はその幅で折り返す。
   // capW があれば（同じ段の兄弟にはみ出さないための上限。layout.ts の fitToRow）、それも上限にする
   function fitHead(n: Box, useSpec: boolean) {
+    if (isLinkBox(n)) return fitLink(n);
     if (lookOf(n).sharedSize && leafLike(n)) {
       // リストの葉の子（と非表示の子）: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ
       // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
@@ -139,6 +141,27 @@ export function createNodeKinds(ctx: KindContext) {
     n.hw = w;
     // S は高さが決まっているが、キャプションを切り詰めない並べ方の子（フローチャート）は、折り返した文字に合わせて伸ばす
     n.hh = specH || (z.fixedH && !lookOf(n).fullCaption ? z.h : Math.max(z.h, measure(n, w)[1]));
+  }
+
+  // リンクの箱（link-box.ts）: 形・サイズ・大きさの指定は使わず、見せ方の数値と文字の大きさで決まる。測るときは持ち手と窓を隠す（measure.ts）ので、
+  // 測った高さは文字（キャプションと本文。余白を含む）の分だけ。文字が無ければ文字の分は 0。
+  // 窓枠: 幅は決まっていて（窓の幅 + 余白。リストの中ならリストがそろえた幅）、上から持ち手・文字・窓を積む。
+  // 横に分ける: 左から持ち手・文字の列（幅は文字に合わせて min〜max。文字が無ければ無し）・窓を並べ、高さは窓と文字の高い方
+  function fitLink(n: Box) {
+    const look = linkLookOf(n), d = LINK_LOOK_DEFS[look];
+    const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
+    const hasText = !!captionOf(n) || !!bodyOf(n);
+    const winH = d.win.h + 2 * d.gap;
+    if (!d.textW) {
+      const w = Math.max(linkBoxWidth(d) + ox, assignedW(n));
+      n.hw = w;
+      n.hh = d.handle + (hasText ? measure(n, w)[1] : 0) + winH + oy;
+      return;
+    }
+    const fixed = d.handle + d.win.w + 2 * d.gap + ox;
+    const textW = hasText ? Math.max(d.textW.min, Math.min(d.textW.max, measure(n, null)[0] - fixed)) : 0;
+    n.hw = fixed + textW;
+    n.hh = Math.max(winH, hasText ? measure(n, n.hw)[1] : 0) + oy;
   }
 
   // lo〜hi のうち、文字の高さが h を超えない一番狭い幅（1px 刻みの二分探索。hi では h に収まる前提）

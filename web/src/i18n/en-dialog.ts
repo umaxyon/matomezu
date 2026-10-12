@@ -75,4 +75,7 @@ export default {
   "始点の形": "Start shape",
   "終点の形": "End shape",
   "候補": "Suggestions",
+  "リンク": "Link",
+  "「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます": "A window onto the page \"{name}\" ({pattern}). Click the window to open it",
+  "形とサイズは使いません（大きさは見せ方と文字で決まります）": "Shape and size are not used (the box is sized by its look and text)",
 } satisfies Record<string, string>;

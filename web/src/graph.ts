@@ -24,7 +24,7 @@
  *   graph.removeEdge(id);        // 線を消す（選択モードで線を選んで Delete キーでも。toolbar.ts）
  *   graph.link(from, to);        // 今のページの箱 from から to へ線を引く（終点に矢印。同じ箱なら自分に戻る線）。引けなければ false
  *   graph.info(id);              // ボックス（null はワールド）の情報
- *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow）。size は大きさの指定も外す
+ *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow, linkLook）。size は大きさの指定も外す
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
  *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "remove"（削除）/ "add"（追加）
  *   graph.onModeChange(fn);      // モードが変わったら知らせる（一覧から戻したときに移動モードへ切り替えるなど、図の側で変えたときも）
@@ -107,6 +107,8 @@
  *     そのときの形（exit / enter / via）を書き込む。引けるあいだはその形を保ち、引けなくなったら via と向きの指定を消して自動に戻す。
  *     無ければ自動（Z 字の中棒は真ん中か、ほかの箱を避けた位置）。以前の bend（中棒の割合）は、読み込むと via に移す。
  *     ページの既定は、ページの箱の world.route。docs/EDGE-plan.md
+ *   - link はリンクの箱（link-box.ts。docs/PATTERN-plan.md）: のぞく（窓を押すと開く）ページの id。形・サイズ・子の見せ方は使わず、子を持てない。
+ *     linkLook は見せ方: "window"（窓枠。上の帯が持ち手。既定）/ "side"（横に分ける。左の帯が持ち手）。窓の中身（縮小プレビュー）は段階 4 で入れる
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。
  *     消したボックスにつながっていた線は残さない（戻しても線は戻らない）。docs/DELETE-plan.md
  *   - ページ（docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）: 2 枚目からのページは pages: [{ id, title, world }] に並び、
@@ -133,7 +135,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, isTreeRoot, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, isLinkBox, isTreeRoot, linkLookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -147,8 +149,9 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, t
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PageData, PagePattern, Patch, Shape, Size, WorldData } from "./types";
+import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, Patch, Shape, Size, WorldData } from "./types";
 import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, isPattern, normalizeEdge, validate } from "./validate";
+import { DEFAULT_LINK_LOOK } from "./link-box";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -186,6 +189,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onLiftOver?: (x: number, y: number) => void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   onLiftEnd?: () => void;                     // 付け替えのドラッグが終わった
   onAddRequest?: (req: AddRequest) => void;   // 追加モードで図を押した（新しい箱の中身を聞いて add を呼ぶのは画面の側。view.ts）
+  onOpenPage?: (page: string) => void;        // リンクの箱の窓を押した（そのページのタブを前に出すのは画面の側。app.ts）
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
@@ -307,7 +311,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   });
   // ドラッグ中か（線の道筋から分かったデータの直しを、手を離すまで待つ）。操作の仕組み（I）を作ったあとで差し替える
   let dragging = () => false;
-  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging() }, L);
+  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging(), linkOf }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
     settle, sizable, alignChildren,
@@ -340,6 +344,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     reparent,
     drop: n => { settle(SCENES.drop, n); render(); },
     remove: n => { remove(n.id); },
+    openLink: n => { const p = linkPageOf(n); if (p != null) opt.onOpenPage?.(p); },
     boxById: id => byId.get(id),
     edgeOfEl: el => {
       const g = el.closest(".mz-edge");
@@ -795,6 +800,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   const pageName = (p: string | null) => pageNameOf(source, p);
+  // リンクの箱がのぞくページ（link-box.ts）: ページの名前とパターン（窓の札に出す）。リンクの箱でなければ null
+  function linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook } | null {
+    const page = linkPageOf(n);
+    if (page == null) return null;
+    const view = pageWorld(source, page).childView;
+    return { page, pageName: pageName(page), pattern: isPattern(view) ? view : DEFAULT_VIEW, look: linkLookOf(n) };
+  }
 
   // 落とし先（parentId。null は今のページの最上位）の箱。子を持てない箱（クラス・フローチャートの箱）の中へは入れられない
   function target(parentId: Id | null): Box | null {
@@ -1299,8 +1311,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       // リストの子は、見た目はリストの中でそろえたサイズで描くが、選ぶのは自分のサイズ（そろえる幅の候補になる）
       size: lookOf(n).sharedSize ? dataSizeOf(n) : size,
       shape: shapeOf(n),
-      canShape: !isNesting(n) && !lookOf(n).plainShape,
-      canClass: !lookOf(n).plainShape,
+      canShape: !isNesting(n) && !lookOf(n).plainShape && !isLinkBox(n),
+      canClass: !lookOf(n).plainShape && !isLinkBox(n),
       body: typeof n.src.body === "string" ? n.src.body : "",
       canBody: canBody(n),
       bodyRule: n.src.bodyRule !== false,
@@ -1313,6 +1325,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       tools: toolHostOf(),
       inTree: inTreeOf(n),
       treeRoot: isTreeRoot(n),
+      link: linkOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
       children: n.children.map(brief),
@@ -1415,6 +1428,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       throw new Error(t("子を持つ最上位の箱があるので、箱が子を持てないパターン（フローチャート）にはできません"));
     }
     if (!n.isWorld && next.treeDirection) throw new Error(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where: n.id }));
+    if (next.linkLook && (n.isWorld || !isLinkBox(n))) throw new Error(t("linkLook はリンクの箱（link のある箱）にだけ書けます: {where}", { where: n.isWorld ? "world" : n.id }));
 
     // 大きさや見せ方が変わっても、線の角度と長さが変わらないよう位置を保つ（設定変更の場面）。
     // settle が保つ位置を覚えてから apply を呼ぶ
@@ -1443,6 +1457,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           setSpec(n, "h", 0);
         }
         if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === DEFAULT_SHAPE);
+        if (next.linkLook) setOrDelete(n.src, "linkLook", next.linkLook, next.linkLook === DEFAULT_LINK_LOOK); // 値は checkSettings で確かめている
         if (next.childView) setView(n, next.childView as BoxView); // 値は checkSettings で確かめている
       }
       if (next.overflow && next.overflow !== overflowOf(n)) {
@@ -1545,7 +1560,22 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     widthGripEl.className = "mz-width-grip";
     widthGripEl.title = t("ドラッグでリストの幅を変える（ダブルクリックで元に戻す）");
     widthGripEl.hidden = true;
-    head.append(shapeSvg, textEl, classEl, bodyEl, gripEl, widthGripEl, moreEl);
+    // リンクの箱の部品（link-box.ts）: 持ち手の帯（パターンの札を持つ）と窓。リンクの箱のときだけ出す（render.ts）
+    const linkEl = document.createElement("div");
+    linkEl.className = "mz-link-parts";
+    linkEl.hidden = true;
+    const linkBar = document.createElement("div");
+    linkBar.className = "mz-link-bar";
+    const linkBadge = document.createElement("span");
+    linkBadge.className = "mz-link-badge";
+    linkBar.appendChild(linkBadge);
+    const linkWin = document.createElement("div");
+    linkWin.className = "mz-link-win";
+    const linkGo = document.createElement("span");
+    linkGo.className = "mz-link-go";
+    linkWin.appendChild(linkGo);
+    linkEl.append(linkBar, linkWin);
+    head.append(shapeSvg, textEl, classEl, bodyEl, gripEl, widthGripEl, moreEl, linkEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
     treeSvg.setAttribute("class", "mz-tree");
     const treePath = document.createElementNS(SVGNS, "path");
@@ -1575,7 +1605,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       listW: 0,
       out: null,
       bodyH: 0,
-      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame,
+      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin,
     };
     boxOfEl.set(el, n);
     return n;
