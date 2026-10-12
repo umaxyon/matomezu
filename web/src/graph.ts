@@ -131,7 +131,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, lookOf, strategyOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, kidSizeOf, captionHintsOf, shapeAllowed, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
+  overflowOf, inTreeOf, lookOf, strategyOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, shapeAllowed, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -1346,7 +1346,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("theme" in next) setOrDelete(world.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("route" in next) {
           if (next.route != null && !(ROUTES as readonly string[]).includes(next.route)) throw new Error(t("route の値が不正です: {v}", { v: next.route }));
-          setOrDelete(world.src, "route", next.route ?? undefined, next.route == null || next.route === "elbow");
+          setOrDelete(world.src, "route", next.route ?? undefined, next.route == null || next.route === DEFAULT_ROUTE);
         }
         storeWorld();
         syncWorld();

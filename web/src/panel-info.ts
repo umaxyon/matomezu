@@ -16,7 +16,7 @@ import { shapeDef } from "./shapes";
 const KIND_LABELS = { group: t("グループ"), box: t("ボックス") };
 // 鉛筆の印（編集ダイアログを開くボタン）
 const PENCIL = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11.5 1.8l2.7 2.7-8.6 8.6-3.4.7.7-3.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.8 3.5l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></svg>';
-const ROUTE_OPTIONS: [string, string][] = [["elbow", t("折れ線")], ["straight", t("直線")]];
+export const ROUTE_OPTIONS: [string, string][] = [["elbow", t("折れ線")], ["straight", t("直線")]];
 const SIZE_HELP = t("L: 幅は文字に合わせて 400 まで。越えると折り返す\nM: 幅は文字に合わせて 240 まで。越えると折り返す\nS: 10 文字まで表示。小さい文字で高さは固定\n押すと、中身に合わせた大きさに戻ります\nサイズが効くのは子の無い箱と、ツリー・非表示の親の本体です。内包・リストの箱の大きさは子の並びで決まります");
 const BY_CHILDREN = t("内包・リストの箱の大きさは、子の並びで決まります（子を全部外すと、このサイズに戻ります）");
 // 中の箱のサイズ（フローチャート。押すと中の箱を全部そのサイズにし、その間隔で整列し直す。id は箱、ワールドなら空）
@@ -27,19 +27,19 @@ const kidSizeSection = (can: boolean, size: string | null, id: string) => (can
 const ALIGN_HELP = t("本筋（開始の箱から線をたどった並び）を中央の縦の線にそろえ、分岐の枝を左右に置きます。そろえたあとも自由に動かせます（元に戻すで戻せます）");
 const alignButton = (can: boolean, id: string) => (can
   ? `<div class="mzp-chips"><button type="button" class="mzp-chip" data-auto-align="${esc(id)}">${t("自動で整列")}</button>${helpIcon(ALIGN_HELP)}</div>` : "");
-const WORLD_VIEW_HELP = t("図（ページ）の一番上に置いた箱の並べ方です。\n内包: 自由に置きます\nフローチャート: 自由に置き、箱はフローチャートの形を使えます。図の左上に道具入れが出ます。一番上の箱は子を持てません");
+export const WORLD_VIEW_HELP = t("図（ページ）の一番上に置いた箱の並べ方です。\n内包: 自由に置きます\nフローチャート: 自由に置き、箱はフローチャートの形を使えます。図の左上に道具入れが出ます。一番上の箱は子を持てません");
 // 子を持つ子があるときに、フローチャートを選べない理由
 const KIDS_HAVE_KIDS = t("子を持つ子があるので選べません（フローチャートの要素は子を持てません）");
-const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["tree", t("ツリー")], ["list", t("リスト")], ["flow", t("フローチャート")], ["hidden", t("非表示")]];
+export const VIEW_OPTIONS: [string, string][] = [["nest", t("内包")], ["tree", t("ツリー")], ["list", t("リスト")], ["flow", t("フローチャート")], ["hidden", t("非表示")]];
 const TREE_DIR_OPTIONS: [string, string][] = [["down", t("↓ 下")], ["up", t("↑ 上")], ["left", t("← 左")], ["right", t("→ 右")]];
 const FLATTEN_HELP = t("ツリーを平らにして、親子のつながりを線で引き直します（見た目はそのまま。元のツリーには戻せません）。「内包」を選ぶ解除は、入れ子の枠に戻すだけで、何度でもツリーに戻せます");
 const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nツリー: 子孫を何段でも親の上下左右にぶら下げて見せます（子孫は自動で並び、子孫の見せ方は使いません）\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\nフローチャート: 内包と同じく子を自由に置きます。子はフローチャートの形（六角形・平行四辺形・台形）を使え、横に道具入れが出ます。子は子を持てません\n非表示: 子を隠し、▼ で子がいることだけを示します");
 // リストの子では使わない設定（データはそのまま。リストから出すと元に戻る。docs/LIST-plan.md）
 const IN_LIST = t("リストの中では、幅は一番広い子にそろい、見た目は子のうち一番大きいサイズにそろいます（このサイズは書き換えません。リストから出すと元に戻ります）");
 // ワールドの背景によく使う色（明るい色と暗い色）
-const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
+export const BG_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"];
 
-const THEME_HELP = THEMES.map(th => `${th.label}: ${th.describe}`).join("\n");
+export const THEME_HELP = THEMES.map(th => `${th.label}: ${th.describe}`).join("\n");
 
 // テーマの選択（セレクトボックス。テーマが増えても幅が変わらないように）。箱では「受け継ぐ」（書かない）も選べ、
 // 今効いているテーマを添える。選んでいるテーマの説明も出す。背景色のボタン（color）も、テーマの上の上書きなのでこの枠に置く

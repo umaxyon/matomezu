@@ -66,10 +66,9 @@ async function main() {
     document.body.classList.add("served");
     const canvas = stage.parentElement ?? document.body;
     stage.remove(); // 描画領域はタブごとに作る
-    const tabs = $("tabs");
-    tabs.hidden = false;
+    $("tab-bar").hidden = false;
     startApp({
-      tabs, canvas, sidebar: $("sidebar"),
+      tabs: $("tabs"), newBook: $<HTMLButtonElement>("new-book"), canvas, sidebar: $("sidebar"),
       undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
       status: showStatus, error: showError, clearError,
       hint: text => { hint.textContent = text; hint.classList.remove("error"); },

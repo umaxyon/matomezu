@@ -12,6 +12,7 @@
  * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているブックは localStorage に覚える（無くても動く。app-location.ts）。
  * - 付け替えのドラッグで、箱を同じブックのページのタブの上に少し止めると、そのページに切り替わる（そのまま落とすと、そのページへ移る）。
  * - サイドバーの一覧の「他ブックも表示」には、ほかに開いているブックの箱を出す（行を図へドラッグすると移植。docs/TABS-plan.md 4.3）。
+ * - タブの列の左端の「＋」で新しいブックを作る（new-book.ts）。作ったブックは一番左に置いて前に出す（残課題 D20）。
  */
 
 import { keyOf } from "./dom";
@@ -27,9 +28,11 @@ import type { Diagram } from "./types";
 import { docBase, fetchRemote, startSync, type Sync } from "./sync";
 import { setupHistory, setupModes } from "./toolbar";
 import { mountDiagram } from "./view";
+import { openNewBookDialog } from "./new-book";
 
 export interface AppUi {
   tabs: HTMLElement;
+  newBook: HTMLButtonElement; // タブの列の左端の「＋」（新しい図を作る。new-book.ts）
   canvas: HTMLElement;
   sidebar: HTMLElement;
   undo: HTMLButtonElement;
@@ -70,7 +73,7 @@ interface Book {
 
 const HOVER_SWITCH = 500; // 付け替えのドラッグで、タブの上にこれだけ止めたらページを切り替える（ミリ秒）
 const BOOK_DRAG_START = 5; // ブックのタブをこれだけ横に動かしたら、並びの入れ替えのドラッグにする（px。それまではクリック）
-const EMPTY_HINT = t("開いている図がありません。LLM に matomezu open で開くよう頼んでください");
+const EMPTY_HINT = t("開いている図がありません。タブの列の左端の＋で新しい図を作るか、LLM に matomezu open で開くよう頼んでください");
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
 
@@ -394,6 +397,19 @@ export async function startApp(ui: AppUi) {
       opening.delete(id);
     }
   }
+
+  // 新しいブック: 今見ているブックと同じフォルダに作り、一番左のタブにして前に出す
+  ui.newBook.addEventListener("click", () => {
+    openNewBookDialog(current?.book.id ?? null, async id => {
+      const b = await openBook(id);
+      if (!b) return ui.error(t("作った図を開けませんでした"));
+      books.splice(books.indexOf(b), 1);
+      books.unshift(b);
+      ui.tabs.prepend(b.group);
+      ui.tabs.scrollLeft = 0;
+      activate(b, null);
+    }, ui.error);
+  });
 
   events = connectEvents({
     watched: () => books.map(b => b.id),

@@ -45,7 +45,7 @@
     font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
   }
   /* ボタンやタブの文字は、ドラッグしたときに選択されないようにする（入力欄はそのまま選べる） */
-  header, .tabs, button, .mzp-tabs, .mzp-seg label { user-select: none; -webkit-user-select: none; }
+  header, .tab-bar, button, .mzp-tabs, .mzp-seg label { user-select: none; -webkit-user-select: none; }
   header {
     display: flex;
     align-items: center;
@@ -66,16 +66,30 @@
   .zoom-level { min-width: 3.5em; text-align: center; font-size: 12px; color: var(--hint); }
   body.previewing #sidebar, body.previewing .toolbar, body.previewing #minimap-toggle, body.previewing .mz-minimap { display: none; }
   /* アプリ内のタブ（サーバーから開いたときだけ） */
+  /* タブの列。左端の「＋」（新しい図。new-book.ts）は、タブを横にスクロールしても動かない */
+  .tab-bar {
+    display: flex;
+    align-items: flex-end;
+    background: var(--bar);
+    border-bottom: 1px solid var(--bar-border);
+    font-size: 13px;
+  }
+  .tab-bar[hidden] { display: none; }
+  /* タブの列とは別の区画に見せる（地の色。上の角は丸める。スクロールバーはこの区画の右から始まる） */
+  .tab-new {
+    flex: none; align-self: stretch; margin: 4px 0 0 3px; padding: 0 10px; border: 0; border-radius: 6px 6px 0 0;
+    background: var(--btn); color: var(--accent); line-height: 0;
+  }
+  .tab-new svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+  .tab-new:hover { color: #fff; background: var(--accent); }
   .tabs {
+    flex: 1;
+    min-width: 0;
     display: flex;
     gap: 2px;
     padding: 4px 8px 0;
-    background: var(--bar);
-    border-bottom: 1px solid var(--bar-border);
     overflow-x: auto;
-    font-size: 13px;
   }
-  .tabs[hidden] { display: none; }
   .tab {
     display: flex;
     align-items: center;
@@ -238,7 +252,10 @@
 <main>
   <aside id="sidebar"></aside>
   <div class="work">
-    <nav class="tabs" id="tabs" role="tablist" aria-label="開いている図" hidden></nav>
+    <div class="tab-bar" id="tab-bar" hidden>
+      <button id="new-book" class="tab-new" type="button" title="新しい図" aria-label="新しい図"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+      <nav class="tabs" id="tabs" role="tablist" aria-label="開いている図"></nav>
+    </div>
     <div class="canvas">
       <div id="stage"></div>
       <div class="hint" id="hint">クリックでボックスや線を選択 / ドラッグで移動 / 箱の〇から線を引く / JSON はドロップでも開けます</div>

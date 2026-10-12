@@ -9,6 +9,7 @@
 //	GET  /api/events     SSE。全部の図の通知を1本で送る（下を参照）
 //	GET  /api/info       {"server"} サーバーの版。画面が matomezu のサーバーから開かれたかを知るのに使う
 //	POST /api/watch      {"client", "docs"} その画面が開いている図（タブ）。監視するのは、どれかの画面が開いている図だけ
+//	POST /api/new        {"near", "title", "world"} 画面から新しいブックを作って登録し、{"id", "path"} を返す（newbook.go）
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
 //	POST /api/open       {"path", "show", "page"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
 //	                     show なら、つながっている画面にその図（page があればそのページ）を開くよう知らせる
@@ -66,7 +67,7 @@ type Hub struct {
 	shown     string                 // 最後に開くよう頼まれた図とページ（open イベントの data）
 	shownAt   time.Time
 	store     string   // 登録した図のパスを書いておくファイル（"" なら書かない）
-	recent    []string // 登録した図のパス（古い順。store に書く）
+	recent    []string // 登録した図のパス（古い順。store があれば書く）
 }
 
 // storeLimit は store に覚えておく図の数（新しいものから）
@@ -144,11 +145,8 @@ func (h *Hub) restore() {
 	}
 }
 
-// remember は登録した図のパスを、一番新しいものとして store に書く
+// remember は登録した図のパスを、一番新しいものとして覚え、store に書く（新しいブックの置き場所にも使う。newbook.go）
 func (h *Hub) remember(path string) {
-	if h.store == "" {
-		return
-	}
 	h.mu.Lock()
 	out := make([]string, 0, len(h.recent)+1)
 	for _, p := range h.recent {
@@ -163,6 +161,9 @@ func (h *Hub) remember(path string) {
 	h.recent = out
 	b, _ := json.MarshalIndent(out, "", "  ")
 	h.mu.Unlock()
+	if h.store == "" {
+		return
+	}
 	if err := os.MkdirAll(filepath.Dir(h.store), 0o700); err == nil {
 		_ = writeAtomic(h.store, b)
 	}
@@ -398,6 +399,7 @@ func (h *Hub) Handler() http.Handler {
 		writeJSON(w, map[string]string{"server": h.version})
 	})
 	mux.HandleFunc("POST /api/watch", h.setWatch)
+	mux.HandleFunc("POST /api/new", h.newBook)
 	mux.Handle("GET /{$}", h.web)
 	mux.Handle("GET /dist/", h.web)
 

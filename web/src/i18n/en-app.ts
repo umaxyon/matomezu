@@ -48,7 +48,15 @@ export default {
 
   // 読み込み・保存・接続
   "読み込めませんでした: {error}": "Could not load: {error}",
-  "開いている図がありません。LLM に matomezu open で開くよう頼んでください": "No diagram is open. Ask the LLM to open one with matomezu open",
+  "開いている図がありません。タブの列の左端の＋で新しい図を作るか、LLM に matomezu open で開くよう頼んでください": "No diagram is open. Create one with + at the left end of the tabs, or ask the LLM to open one with matomezu open",
+  // 新しい図（new-book.ts）
+  "新しい図": "New diagram",
+  "作成": "Create",
+  "無題": "Untitled",
+  "タブの見出しと、ファイル名になります（空なら「無題」）": "Used for the tab title and the file name (\"Untitled\" if empty)",
+  "今見ている図と同じフォルダに作ります": "The file is created in the same folder as the diagram you are viewing",
+  "図を作れませんでした: {message}": "Could not create the diagram: {message}",
+  "作った図を開けませんでした": "Could not open the new diagram",
   "ブックを閉じる": "Close",
   "ファイルを読み込めません（直るまで保存を止めています）: {error}": "Cannot read the file (saving is paused until it is fixed): {error}",
   "サーバーに接続できません": "Cannot connect to the server",

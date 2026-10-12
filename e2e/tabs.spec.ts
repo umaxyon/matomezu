@@ -249,3 +249,26 @@ test("ブックのタブをドラッグすると、ブックの並びが入れ�
   await expect(books).toHaveText(["b.json", "a.json"]);
   await page.locator(".tab-book", { hasText: "b.json" }).locator(".tab-close").click();
 });
+
+test("タブの列の左端の＋で新しい図を作ると、同じフォルダにファイルができ、一番左のタブになって前に出る（D20）", async ({ page }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  const books = page.locator(".tab-book .tab-name");
+  await expect(books).toHaveText(["a.json"]);
+  await page.locator("#new-book").click();
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg.locator("h2")).toHaveText("新しい図");
+  await dlg.locator('[name="caption"]').fill("設計メモ");
+  await dlg.locator('[name="theme"]').selectOption("sticky");
+  await dlg.locator("label", { hasText: "フローチャート" }).click();
+  await dlg.locator("[data-ok]").click();
+  await expect(books).toHaveText(["設計メモ", "a.json"]);
+  await expect(selected(page)).toHaveText("設計メモ");
+  await expect(page.locator(".stage:visible .mz-node")).toHaveCount(0);
+  const saved = JSON.parse(readFileSync(join(dir, "設計メモ.json"), "utf8"));
+  expect(saved.world).toEqual({ title: "設計メモ", theme: "sticky", childView: "flow" });
+  // 開き直しても一番左にある
+  await page.reload();
+  await expect(books).toHaveText(["設計メモ", "a.json"]);
+  await page.locator(".tab-book", { hasText: "設計メモ" }).locator(".tab-close").click();
+});
