@@ -207,6 +207,17 @@ func Open(s *State, path string, show bool, page string) (server.OpenResult, err
 	return res, err
 }
 
+// Close は path の図のタブを閉じるよう、サーバーにつながっている画面に知らせる（登録は残る）
+func Close(s *State, path string) (server.CloseResult, error) {
+	var res server.CloseResult
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return res, err
+	}
+	err = call(s, "POST", "/api/close", map[string]any{"path": abs}, &res)
+	return res, err
+}
+
 func Shutdown(s *State) error { return call(s, "POST", "/api/shutdown", nil, nil) }
 
 // Running は応答するサーバーがあればその状態を返す。無ければ nil

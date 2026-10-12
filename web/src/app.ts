@@ -445,6 +445,11 @@ export async function startApp(ui: AppUi) {
       const b = await openBook(doc);
       if (b) activate(b, page);
     },
+    // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
+    close(doc) {
+      const b = books.find(x => x.id === doc);
+      if (b) closeBook(b);
+    },
     status: ui.status,
   });
 
