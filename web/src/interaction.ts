@@ -31,9 +31,11 @@ export const REMOVED_MIME = "application/x-matomezu-removed";
 export const COPY_MIME = "application/x-matomezu-copy";
 
 // 箱をドラッグして図の端へ寄せたときのスクロール。端からこれだけの内側（px）に入ったら動き出し、端に近いほど速く、
-// 端を越えたら一番速く（1 コマあたり EDGE_SCROLL_MAX px）。図の外へ箱を運んで、図を広げられるように（残課題 E8）
+// 端を越えたら一番速く（毎秒 EDGE_SCROLL_MAX px）。図の外へ箱を運んで、図を広げられるように（残課題 E8）。
+// 速さは時間で決める（画面の書き換えの回数によらない）。入り口では遅く、端へ寄せるほど速くなるよう、深さの 2 乗で上げる
+// （2026-10-12 ユーザー: 1 コマあたり 24px では速すぎた）
 const EDGE_SCROLL_ZONE = 48;
-const EDGE_SCROLL_MAX = 24;
+const EDGE_SCROLL_MAX = 600;
 
 export interface InteractionContext {
   container: HTMLElement;
@@ -71,7 +73,7 @@ export interface InteractionContext {
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
   const { container, world } = ctx;
-  const { syncWorld, centerX } = L;
+  const { syncWorld, holdWorld, centerX } = L;
 
   const { render, blocked, focus, unfocus } = R;
 
@@ -357,6 +359,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       kind: "move", slop: 0,
       move(ev) {
         if (ev.clientX === sx && ev.clientY === sy && !started) return; // まだ動いていない
+        if (!started) holdWorld(true); // 動かしている間は図を縮めない（手を離したら縮める）
         started = true;
         session ??= D.begin(n);
         // 置けない位置（広がった祖先が親の枠からはみ出す）なら、置ける所で止めて知らせる
@@ -380,6 +383,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         edgeScroll.stop();
         n.el.classList.remove("mz-dragging");
         unfocus();
+        if (started) holdWorld(false);
         if (!moved || !session) return;
         // 手を離したときの位置で確定する。どいた箱は、どいた先が本来いたい位置になる
         // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
@@ -394,7 +398,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         ctx.changed();
         ctx.notifySelect();
       },
-      cancel() { edgeScroll.stop(); },
+      cancel() { edgeScroll.stop(); if (started) holdWorld(false); },
     };
   }
 
@@ -403,18 +407,28 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   const edgeScroll = (() => {
     let frame = 0;
     let last: { x: number; y: number; again: () => void } | null = null;
+    let prev = 0;            // 前にスクロールした時刻（0 は止まっていた）
+    let carry = [0, 0];      // 1px に満たない分（スクロールの位置は整数に丸められるため、次のコマへ持ち越す）
+    // 端からの深さに応じた速さ（毎秒の px。向きは符号）
     const speed = (p: number, lo: number, hi: number) => {
-      if (p > hi - EDGE_SCROLL_ZONE) return Math.min(1, (p - (hi - EDGE_SCROLL_ZONE)) / EDGE_SCROLL_ZONE) * EDGE_SCROLL_MAX;
-      if (p < lo + EDGE_SCROLL_ZONE) return -Math.min(1, (lo + EDGE_SCROLL_ZONE - p) / EDGE_SCROLL_ZONE) * EDGE_SCROLL_MAX;
-      return 0;
+      const depth = p > hi - EDGE_SCROLL_ZONE ? p - (hi - EDGE_SCROLL_ZONE) : p < lo + EDGE_SCROLL_ZONE ? -(lo + EDGE_SCROLL_ZONE - p) : 0;
+      const f = Math.min(1, Math.abs(depth) / EDGE_SCROLL_ZONE);
+      return Math.sign(depth) * f * f * EDGE_SCROLL_MAX;
     };
-    const tick = () => {
+    const tick = (now: number) => {
       frame = 0;
       if (!last) return;
       const c = container.getBoundingClientRect();
       const left = c.left + container.clientLeft, top = c.top + container.clientTop;
-      const dx = speed(last.x, left, left + container.clientWidth), dy = speed(last.y, top, top + container.clientHeight);
-      if (!dx && !dy) return;
+      const vx = speed(last.x, left, left + container.clientWidth), vy = speed(last.y, top, top + container.clientHeight);
+      if (!vx && !vy) { prev = 0; carry = [0, 0]; return; }
+      // 前のコマからの時間（止まっていたら 1 コマ分。タブが裏に回っていたなどで間が空いても、一度に飛ばない）
+      const dt = Math.min(prev ? now - prev : 16, 50) / 1000;
+      prev = now;
+      const mx = carry[0]! + vx * dt, my = carry[1]! + vy * dt;
+      const dx = Math.trunc(mx), dy = Math.trunc(my);
+      carry = [mx - dx, my - dy];
+      if (!dx && !dy) { frame = requestAnimationFrame(tick); return; } // 1px に満たなければ、次のコマで足す
       const before = [container.scrollLeft, container.scrollTop];
       container.scrollLeft += dx;
       container.scrollTop += dy;
@@ -428,6 +442,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       },
       stop() {
         last = null;
+        prev = 0;
+        carry = [0, 0];
         if (frame) cancelAnimationFrame(frame);
         frame = 0;
       },

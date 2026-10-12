@@ -28,11 +28,39 @@ test("箱を図の下の端へ寄せたままにすると、図がスクロー�
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x, view.y + view.height - 4, { steps: 40 });
-  await page.waitForTimeout(800); // 端に止めている間も、スクロールして広がり続ける
+  await page.waitForTimeout(1600); // 端に止めている間も、スクロールして広がり続ける（端の近くで毎秒約 500px）
   await page.mouse.up();
   const after = await rect(page, 9);
   expect(after.y).toBeGreaterThan(before.y + view.height);
   expect(await stage.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+});
+
+test("下へ広げたあと、つかんだまま上へ戻すと、箱はポインタと同じだけ動く（図はドラッグの間は縮まず、離したら縮む）", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await openDiagram(page, example("nested"));
+  const stage = page.locator("#stage");
+  const view = (await stage.boundingBox())!;
+  const head = page.locator('.mz-node[data-id="9"] > .mz-head');
+  const box = (await head.boundingBox())!;
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, view.y + view.height - 4, { steps: 40 });
+  await page.waitForTimeout(1200);
+  // 端から離して止め（スクロールも止まる）、そこから上へ 30px ずつ 4 回動かす
+  const yStop = view.y + view.height - 120;
+  await page.mouse.move(x, yStop, { steps: 5 });
+  const screenY = async () => (await head.boundingBox())!.y;
+  const start = await screenY();
+  for (let i = 1; i <= 4; i++) {
+    await page.mouse.move(x, yStop - 30 * i, { steps: 3 });
+    expect(Math.abs((start - await screenY()) - 30 * i)).toBeLessThan(2);
+  }
+  await page.mouse.up();
+  // 離したら、図は中身に合わせて縮む
+  const worldH = await page.locator(".mz-world").evaluate(el => (el as HTMLElement).offsetHeight);
+  const bottom = await page.locator(".mz-node[data-id]").evaluateAll(els => Math.max(...els.map(e => (e as HTMLElement).offsetTop + (e as HTMLElement).offsetHeight)));
+  expect(worldH).toBeLessThan(bottom + 100);
 });
 
 test("ボタンやタブの文字は、ドラッグで選択されない", async ({ page }) => {

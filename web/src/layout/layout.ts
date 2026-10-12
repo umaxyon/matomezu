@@ -100,6 +100,14 @@ export function createLayout(ctx: LayoutContext) {
 
   // 指定が無ければ、表示領域と置かれているボックスの範囲の大きい方にする。
   // 表示領域が狭くなってもボックスは動かさず、はみ出た分はスクロールで見る
+  // 箱をドラッグしている間は、図を縮めない（holdWorld）。縮めるとスクロールの位置が押し戻され、スクロールした量も足して位置を決める
+  // ドラッグ中の箱が、ポインタより余分に動いてしまうため（2026-10-12 ユーザー: 下へ広げたあと上へ戻すと速すぎた）。手を離したら縮める
+  let held: { w: number; h: number } | null = null;
+  function holdWorld(on: boolean) {
+    held = on ? { w: world.w, h: world.h } : null;
+    if (!on) syncWorld();
+  }
+
   function syncWorld() {
     const s = world.src;
     let right = 0, bottom = 0;
@@ -109,8 +117,9 @@ export function createLayout(ctx: LayoutContext) {
       bottom = Math.max(bottom, n.y + n.h + opt.padding);
     }
     const v = viewport();
-    world.w = Number(s.width) || Math.max(v.w, right);
-    world.h = Number(s.height) || Math.max(v.h, bottom);
+    world.w = Number(s.width) || Math.max(v.w, right, held?.w ?? 0);
+    world.h = Number(s.height) || Math.max(v.h, bottom, held?.h ?? 0);
+    if (held) held = { w: world.w, h: world.h };
     worldEl.style.width = world.w + "px";
     worldEl.style.height = world.h + "px";
   }
@@ -542,7 +551,7 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   return {
-    containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld,
+    containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld, holdWorld,
     kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
