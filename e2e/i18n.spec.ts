@@ -14,7 +14,7 @@ test.describe("ブラウザの言語が英語", () => {
     await expect(page.locator("#mode-label")).toHaveText("Select mode");
     await expect(page.locator("#undo")).toHaveAttribute("title", "Undo (Ctrl+Z)");
     await page.locator('.mz-node[data-id="2"] > .mz-head').click();
-    await expect(page.locator("#sidebar")).toContainText("Theme");
+    await expect(page.locator("#sidebar")).toContainText("Caption");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/en-main.png` });
 
     await page.locator("#settings").click();

@@ -39,26 +39,32 @@ function setup(data: Diagram) {
     input.value = text;
     document.querySelector<HTMLElement>(".mz-dlg-overlay [data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   };
-  return { g: graph, side, $, click, change, notices, editCaption };
+  // 鉛筆のボタンで編集ダイアログを開く（テーマ・色・形・サイズはダイアログで直す。2026-10-13 D26）
+  const dlg = <T extends Element>(sel: string) => document.querySelector<T>(`.mz-dlg-overlay ${sel}`);
+  const dlgClick = (sel: string) => dlg<HTMLElement>(sel)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const openDlg = (id: number) => { graph!.select(id); click("[data-edit-box]"); };
+  const ok = () => dlgClick("[data-ok]");
+  return { g: graph, side, $, click, change, notices, editCaption, dlg, dlgClick, openDlg, ok };
 }
 
 const box = (g: Graph, id: number) => g.info(id) as BoxInfo;
 
-test("選んだボックスの情報を出し、キャプションと色を変える（色はボタンから開くポップアップの値の欄で）", () => {
-  const { g, $, click, editCaption } = setup({ nodes: [{ id: 1, caption: "API" }] });
+test("選んだボックスの情報を出し、キャプションと色を変える（色は編集ダイアログのボタンから開くポップアップの値の欄で）", () => {
+  const { g, $, editCaption, openDlg, dlgClick, ok } = setup({ nodes: [{ id: 1, caption: "API" }] });
   g.select(1);
   expect($(".mzp-title")!.textContent).toBe("API");
   editCaption("API ゲートウェイ");
   expect(box(g, 1).caption).toBe("API ゲートウェイ");
   expect($(".mzp-caption-text")!.textContent).toBe("API ゲートウェイ");
-  click("[data-color-open]");
+  // サイドバーには色・テーマ・形・サイズを出さない（ダイアログと重なるため）
+  expect([$("[data-color-open]"), $('[name="mzp-theme"]'), $('[name="mzp-shape"]'), $('[name="mzp-size"]')]).toEqual([null, null, null, null]);
+  openDlg(1);
+  dlgClick("[data-color-open]");
   const value = document.querySelector<HTMLInputElement>(".mz-cp-value")!;
   value.value = "#3b82f6";
   value.dispatchEvent(new Event("change", { bubbles: true }));
+  ok();
   expect(box(g, 1).color).toBe("#3b82f6");
-  expect(document.querySelector(".mz-cp")).not.toBeNull(); // 決めても、同じ箱を選んでいる間は開いたまま
-  g.select(null);
-  expect(document.querySelector(".mz-cp")).toBeNull(); // 選ぶものが変わったら閉じる
 });
 
 test("編集ダイアログ: 鉛筆で開き、キャプションと本文と仕切りの線を 1 件の変更として書く。Esc なら書かずに閉じる", () => {
@@ -105,40 +111,46 @@ test("編集ダイアログ: 本文を出せない箱（S・ほかの形）で�
 // 解釈できない色を受け付けない動き（panel.ts の CSS.supports での確認）は、ここでは確かめられない。
 // この DOM の CSS.supports は何でも true を返し、しかも置き換えられないため。実際のブラウザでのテストで確かめる
 
-test("色の見本と「なし」、塗りつぶし・枠線", () => {
-  const { g, click, change } = setup({ nodes: [{ id: 1 }] });
-  g.select(1);
+test("色の見本と「なし」（編集ダイアログ）、塗りつぶし・枠線（サイドバー）", () => {
+  const { g, change, openDlg, dlgClick, ok } = setup({ nodes: [{ id: 1 }] });
   expect(box(g, 1).color).toBe(""); // 色を書いていない
-  click("[data-color-open]");
-  document.querySelector<HTMLElement>('.mz-cp [data-name="success"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const pickIn = (sel: string) => document.querySelector<HTMLElement>(`.mz-cp ${sel}`)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  openDlg(1);
+  dlgClick("[data-color-open]");
+  pickIn('[data-name="success"]');
+  ok();
   expect(box(g, 1).color).toBe("success");
-  document.querySelector<HTMLElement>(".mz-cp [data-none]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  openDlg(1);
+  dlgClick("[data-color-open]");
+  pickIn("[data-none]");
+  ok();
   expect(box(g, 1).color).toBe("");
   change('[data-field="fill"]', false);
   change('[data-field="border"]', true);
   expect([box(g, 1).fill, box(g, 1).border]).toEqual([false, true]);
 });
 
-test("サイズを押すと、今と同じサイズでも大きさの指定を外す", () => {
-  const { g, click } = setup({ nodes: [{ id: 1, x: 40, y: 40, width: 312 }] });
-  g.select(1);
-  click('input[name="mzp-size"][value="M"]');
+test("サイズを書くと、今と同じサイズでも大きさの指定を外す", () => {
+  const { g } = setup({ nodes: [{ id: 1, x: 40, y: 40, width: 312 }] });
+  g.update(1, { size: "M" });
   expect(box(g, 1).w).toBe(120);
   expect("width" in g.toJSON().nodes[0]!).toBe(false);
-  click('input[name="mzp-size"][value="S"]');
+  g.update(1, { size: "S" });
   expect(box(g, 1).size).toBe("S");
 });
 
 test("形と子の見せ方、ツリーのときだけ向きを選べる", () => {
-  const { g, $, change } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3 }] });
-  g.select(3);
-  change('input[name="mzp-shape"][value="db"]', true); // 形は絵の並び（shape-picker.ts）
+  const { g, $, change, openDlg, dlg, dlgClick, ok } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3 }] });
+  openDlg(3);
+  dlg<HTMLInputElement>('input[name="shape"][value="db"]')!.checked = true; // 形は絵の並び（shape-picker.ts。編集ダイアログ）
+  ok();
   expect(box(g, 3).shape).toBe("db");
 
-  g.select(1);
+  openDlg(1);
   // 内包しているグループは、ボックスとクラスだけ選べる（クラスにすると子は消える。docs/CLASS-plan.md）
-  const open = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')].filter(o => !o.disabled).map(o => o.value);
+  const open = [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="shape"]')].filter(o => !o.disabled).map(o => o.value);
   expect(open).toEqual(["box", "class"]);
+  dlgClick("[data-cancel]");
   expect($('input[name="mzp-treedir"]')).toBeNull();
   change('input[name="mzp-view"][value="list"]', true);
   expect(box(g, 1).childView).toBe("list");
@@ -176,7 +188,7 @@ test("ワールドには中身の扱いを出さず、データの overflow は�
 });
 
 test("中身の扱い: 文字のボックスは「キャプションを 1 行にする」のチェック。グループには中身の扱いもサイズも出さない（docs/SIZE-plan.md）", () => {
-  const { g, $, change } = setup({ nodes: [{ id: 1, caption: "グループ", size: "L" }, { id: 2, caption: "文字", parent: 1 }, { id: 3, caption: "本文", body: "本文" }] });
+  const { g, $, change, openDlg } = setup({ nodes: [{ id: 1, caption: "グループ", size: "L" }, { id: 2, caption: "文字", parent: 1 }, { id: 3, caption: "本文", body: "本文" }] });
   g.select(2);
   expect($('input[name="mzp-overflow"]')).toBeNull();
   expect($<HTMLInputElement>("input[data-one-line]")!.checked).toBe(false);
@@ -190,7 +202,8 @@ test("中身の扱い: 文字のボックスは「キャプションを 1 行に
   g.select(1);
   expect($('input[name="mzp-overflow"]')).toBeNull();
   expect($("input[data-one-line]")).toBeNull();
-  const sizes = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
+  openDlg(1); // グループのサイズは子の並びで決まるので、ダイアログでも選べない
+  const sizes = [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="size"]')];
   expect(sizes.map(i => [i.disabled, i.checked])).toEqual([[true, false], [true, false], [true, false]]);
 });
 
@@ -353,18 +366,19 @@ test("見た目: 枠線はボックスだけ、塗りつぶしはスティック
 });
 
 test("ツリーの中の子持ちの箱は、サイズを選べ、子の見せ方の代わりに案内を出す（見せ方のデータが内包のままでも）", () => {
-  const { g, $ } = setup({ world: { childView: "tree", root: 1 }, nodes: [
+  const { g, $, openDlg, dlgClick } = setup({ world: { childView: "tree", root: 1 }, nodes: [
     { id: 1, caption: "根" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
   ] });
-  g.select(2);
-  const sizes = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
-  expect(sizes.map(i => [i.disabled, i.checked])).toEqual([[false, false], [false, true], [false, false]]);
+  const sizes = () => [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="size"]')];
+  openDlg(2); // サイズは編集ダイアログで選ぶ
+  expect(sizes().map(i => [i.disabled, i.checked])).toEqual([[false, false], [false, true], [false, false]]);
+  dlgClick("[data-cancel]");
   expect($('input[name="mzp-view"]')).toBeNull();
   // ページを内包にすると、節は内包の枠になり、サイズは子の並びで決まる
   g.update(null, { childView: "nest" });
-  g.select(2);
-  const after = [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-size"]')];
-  expect(after.every(i => i.disabled)).toBe(true);
+  openDlg(2);
+  expect(sizes().every(i => i.disabled)).toBe(true);
+  dlgClick("[data-cancel]");
   expect($('input[name="mzp-view"]')).not.toBeNull();
 });
 
@@ -396,15 +410,16 @@ test("形を選ぶ絵の並び: どの形もどれか 1 つのまとまりに入
 });
 
 test("形を選ぶ絵の並び: どの箱でも全部の形を並べ、名前はポインタを乗せると出る", () => {
-  const { g } = setup({
+  const { openDlg, dlgClick } = setup({
     world: { childView: "flow" },
     nodes: [{ id: 1, caption: "外", x: 40, y: 40 }, { id: 3, caption: "中", x: 300, y: 40 }],
   });
-  const values = () => [...document.querySelectorAll<HTMLInputElement>('input[name="mzp-shape"]')].map(i => i.value);
-  g.select(1);
+  const values = () => [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="shape"]')].map(i => i.value);
+  openDlg(1);
   expect([...values()].sort()).toEqual([...SHAPES].sort());
-  g.select(3);
+  dlgClick("[data-cancel]");
+  openDlg(3);
   expect([...values()].sort()).toEqual([...SHAPES].sort());
-  const label = document.querySelector<HTMLInputElement>('input[name="mzp-shape"][value="trapezoidAlt"]')!.closest("label")!;
+  const label = document.querySelector<HTMLInputElement>('.mz-dlg-overlay input[name="shape"][value="trapezoidAlt"]')!.closest("label")!;
   expect(label.title).toBe(SHAPE_LABELS.trapezoidAlt);
 });

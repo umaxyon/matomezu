@@ -107,10 +107,13 @@ test("名前が重なると確定できない。クラスを別の形にする�
 test("子を持つ箱をクラスにするときは確認が出て、子は消したものの一覧へ移る", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "枠", x: 40, y: 60 }, { id: 2, caption: "子", parent: 1 }] });
   await head(page, 1).click({ position: { x: 10, y: 8 } });
-  await page.locator('#sidebar label:has(input[name="mzp-shape"][value="class"])').click();
-  const confirm = page.locator(".mz-dlg-overlay .mz-dlg");
-  await expect(confirm).toContainText("子 1 個");
-  await confirm.locator("[data-ok]").click();
+  // 形は編集ダイアログで変える（サイドバーには出さない。2026-10-13 D26）。確認はダイアログの中に重ねて出る
+  const sub = page.locator(".mz-dlg-sub");
+  await page.locator("#sidebar [data-edit-box]").click();
+  await dlg(page).locator('label:has(input[name="shape"][value="class"])').click();
+  await expect(sub).toContainText("子 1 個");
+  await sub.locator("[data-sub-ok]").click();
+  await dlg(page).locator("[data-ok]").click();
   await expect(head(page, 1)).toHaveClass(/mz-shape-class/);
   await expect(page.locator('.mz-node[data-id="2"]')).toHaveCount(0);
 });

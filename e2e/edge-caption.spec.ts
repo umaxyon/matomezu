@@ -63,13 +63,15 @@ test("線の編集ダイアログで通り方・線の種類・矢印を選べ�
   await page.locator('.mz-dlg [name="route"][value="straight"]').check();
   await page.locator('.mz-dlg [name="dash"][value="dashed"]').check();
   await page.locator(".mz-dlg [data-ok]").click();
-  await expect(page.locator('#sidebar [data-head="start"]')).toHaveValue("arrow");
-  await expect(page.locator('#sidebar [data-head="end"]')).toHaveValue("arrow");
-  await expect(page.locator('#sidebar [name="mzp-route"][value="straight"]')).toBeChecked();
-  await expect(page.locator('#sidebar [name="mzp-dash"][value="dashed"]')).toBeChecked();
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-line')).toHaveClass(/mz-dashed/);
-
+  // 開き直すと、選んだ値が入っている（サイドバーには出さない。2026-10-13 D26）
   await dblclickEdge();
+  await expect(page.locator('.mz-dlg [name="head-start"]')).toHaveValue("arrow");
+  await expect(page.locator('.mz-dlg [name="head-end"]')).toHaveValue("arrow");
+  await expect(page.locator('.mz-dlg [name="route"][value="straight"]')).toBeChecked();
+  await expect(page.locator('.mz-dlg [name="dash"][value="dashed"]')).toBeChecked();
+  await expect(page.locator('#sidebar [name="mzp-route"]')).toHaveCount(0);
+
   await page.locator(".mz-dlg [data-delete]").click();
   await expect(page.locator(".mz-dlg")).toHaveCount(0);
   await expect(page.locator(".mz-edge")).toHaveCount(0);
@@ -88,8 +90,8 @@ test("線を選んで Delete キーで消す", async ({ page }) => {
   });
   await page.mouse.click(mid.x, mid.y);
   await expect(page.locator(".mz-edge")).toHaveClass(/mz-selected/);
-  // サイドバーの選択肢を押して焦点がそこに残っていても、Delete で消える（文字を打つ欄ではないので）
-  await page.locator("#sidebar .mzp-seg label").first().click();
+  // サイドバーの ? を押して焦点がそこに残っていても、Delete で消える（文字を打つ欄ではないので）
+  await page.locator("#sidebar .mz-help").first().click();
   await page.keyboard.press("Delete");
   await expect(page.locator(".mz-edge")).toHaveCount(0);
 });

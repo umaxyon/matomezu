@@ -91,32 +91,36 @@ test("知らないテーマの名前は、検査（matomezu validate）では誤
   expect(() => graph!.update(1, { theme: "neon" })).toThrow();
 });
 
-test("サイドバーでテーマを選ぶとデータに書き、受け継いでいるテーマを見せる。色のポップアップでは、どのテーマでも灰色も選べる", () => {
+test("ワールドのテーマはサイドバーで、箱のテーマは編集ダイアログで選ぶ。色のポップアップでは、どのテーマでも灰色も選べる", () => {
   const { g, side } = setup({ nodes: [{ id: 1, caption: "A", color: "#ef4444", x: 40, y: 40 }] });
-  const pick = (value: string) => {
-    const select = side.querySelector<HTMLSelectElement>('select[name="mzp-theme"]')!;
+  const dlg = <T extends Element>(sel: string) => document.querySelector<T>(`.mz-dlg-overlay ${sel}`)!;
+  const press = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const openDlg = () => { g.select(1); press(side.querySelector("[data-edit-box]")!); };
+  const pickTheme = (select: HTMLSelectElement, value: string) => {
     select.value = value;
     select.dispatchEvent(new Event("change", { bubbles: true }));
   };
   g.select(null);
-  pick("sticky");
+  pickTheme(side.querySelector<HTMLSelectElement>('select[name="mzp-theme"]')!, "sticky");
   expect(g.toJSON().world?.theme).toBe("sticky");
   g.select(1);
-  expect(side.textContent).toContain("「付箋紙」を受け継いでいます");
-  const open = () => side.querySelector<HTMLElement>("[data-color-open]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  open();
+  expect(side.querySelector('select[name="mzp-theme"]')).toBeNull(); // 箱のテーマはサイドバーに出さない
+  openDlg();
+  press(dlg("[data-color-open]"));
   expect(document.querySelector(".mz-cp-sv")).not.toBeNull(); // 好きな色を選ぶ四角は、付箋紙でも使える
-  open(); // もう一度押すと閉じる
-  expect(document.querySelector(".mz-cp")).toBeNull();
-  pick("simple");
+  pickTheme(dlg<HTMLSelectElement>('select[name="theme"]'), "simple");
+  press(dlg("[data-ok]"));
   expect(g.toJSON().nodes[0]!.theme).toBe("simple");
-  open();
-  expect(document.querySelector(".mz-cp-sv")).not.toBeNull();
+  openDlg();
+  press(dlg("[data-color-open]"));
   const range = document.querySelector<HTMLInputElement>(".mz-cp-light")!;
   range.value = "50";
   range.dispatchEvent(new Event("change", { bubbles: true }));
+  press(dlg("[data-ok]"));
   expect(g.toJSON().nodes[0]!.color).toMatch(/^#([0-9a-f]{2})\1\1$/);
-  pick("");
+  openDlg();
+  pickTheme(dlg<HTMLSelectElement>('select[name="theme"]'), "");
+  press(dlg("[data-ok]"));
   expect(g.toJSON().nodes[0]!.theme).toBeUndefined();
 });
 
@@ -154,7 +158,7 @@ test("付箋紙では、塗りのある文字の箱だけ角を折り返し、�
   expect(head(2).style.filter).toBe("");
 });
 
-test("色の名前はどのテーマでも、そのテーマの色で塗る。サイドバーで名前を選べる", () => {
+test("色の名前はどのテーマでも、そのテーマの色で塗る。編集ダイアログで名前を選べる", () => {
   const { g, head, side } = setup({ nodes: [{ id: 1, caption: "A", color: "danger", x: 40, y: 40 }] });
   expect(head(1).style.background).toBe(themeById("default").palette.danger);
   g.update(null, { theme: "simple" });
@@ -162,13 +166,19 @@ test("色の名前はどのテーマでも、そのテーマの色で塗る。�
   g.update(null, { theme: "sticky" });
   expect(head(1).style.background).toContain(sticky.palette.danger);
   expect(g.toJSON().nodes[0]!.color).toBe("danger");
-  // 名前の色を押すと名前を書き、「なし」で消す
-  g.select(1);
-  side.querySelector<HTMLElement>("[data-color-open]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  document.querySelector<HTMLElement>('.mz-cp [data-name="warn"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  // 名前の色を押すと名前を書き、「なし」で消す（編集ダイアログの色のボタンから）
+  const press = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const pickColor = (sel: string) => {
+    g.select(1);
+    press(side.querySelector("[data-edit-box]")!);
+    press(document.querySelector(".mz-dlg-overlay [data-color-open]")!);
+    press(document.querySelector(`.mz-cp ${sel}`)!);
+    press(document.querySelector(".mz-dlg-overlay [data-ok]")!);
+  };
+  pickColor('[data-name="warn"]');
   expect(g.toJSON().nodes[0]!.color).toBe("warn");
   expect(head(1).style.background).toContain(sticky.palette.warn);
-  document.querySelector<HTMLElement>(".mz-cp [data-none]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  pickColor("[data-none]");
   expect(g.toJSON().nodes[0]!.color).toBeUndefined();
 });
 

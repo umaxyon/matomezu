@@ -76,8 +76,9 @@ test("フローチャートのページでは、図の左上に道具入れが�
   await page.locator('.mz-dlg [name="caption"]').fill("手作業");
   await page.locator(".mz-dlg [data-ok]").click();
   await expect(page.locator(".mz-node .mz-head", { hasText: "手作業" })).toHaveClass(/mz-shape-trapezoidAlt/);
-  // サイドバーでも、その絵を選んでいる
-  await expect(page.locator('#sidebar input[name="mzp-shape"][value="trapezoidAlt"]')).toBeChecked();
+  // 開き直した編集ダイアログでも、その絵を選んでいる
+  await page.locator(".mz-node .mz-head", { hasText: "手作業" }).dblclick();
+  await expect(page.locator('.mz-dlg [name="shape"]:checked')).toHaveValue("trapezoidAlt");
 });
 
 test("箱を動かしたあとで自動で整列を押すと、箱だけでなく線も、整列したときの形に引き直す", async ({ page }) => {

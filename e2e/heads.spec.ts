@@ -22,7 +22,7 @@ test("どの種類も描ける（見本）", async ({ page }) => {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/heads.png` });
 });
 
-test("線の編集ダイアログとサイドバーで、始点・終点の形を選べる", async ({ page }) => {
+test("線の編集ダイアログで、始点・終点の形を選べる", async ({ page }) => {
   await openDiagram(page, {
     world: { route: "straight" },
     nodes: [{ id: 1, caption: "A", x: 40, y: 60 }, { id: 2, caption: "B", x: 400, y: 60 }],
@@ -37,12 +37,12 @@ test("線の編集ダイアログとサイドバーで、始点・終点の形�
   await dlg.locator("[data-ok]").click();
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-arrow-line')).not.toHaveAttribute("d", "");
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-arrow')).toHaveAttribute("d", "");
-  // サイドバー（線を選ぶと出る）
-  await hit.click({ force: true });
-  const side = page.locator("#sidebar");
-  await expect(side.locator('select[data-head="start"]')).toHaveValue("hollowDiamond");
-  await side.locator('select[data-head="end"]').selectOption("arrow");
+  // 開き直すと選んだ形が入っていて、変えられる
+  await hit.dblclick({ force: true });
+  await expect(dlg.locator('[name="head-start"]')).toHaveValue("hollowDiamond");
+  await dlg.locator('[name="head-end"]').selectOption("arrow");
+  await dlg.locator('[name="head-start"]').selectOption("");
+  await dlg.locator("[data-ok]").click();
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-arrow')).not.toHaveAttribute("d", "");
-  await side.locator('select[data-head="start"]').selectOption("");
-  await expect(side.locator('select[data-head="start"]')).toHaveValue("");
+  await expect(page.locator('.mz-edge[data-id="e1"] .mz-arrow-line')).toHaveAttribute("d", "");
 });
