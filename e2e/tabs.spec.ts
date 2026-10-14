@@ -33,15 +33,17 @@ test.afterAll(() => {
 const tabNames = (page: import("@playwright/test").Page) => page.locator(".tab .tab-name");
 const selected = (page: import("@playwright/test").Page) => page.locator('.tab[aria-selected="true"] .tab-name');
 const visibleTabs = (page: import("@playwright/test").Page) => page.locator(".tab .tab-name:visible");
-// LLM の matomezu open（-page も）。ほかを見ているときは「届いています」のダイアログが出るので、開くを押す（D26 の段階 3）。
-// 今見ているページなら何も出ないので、少し待って次へ進む
-async function arrive(page: import("@playwright/test").Page, file: string, pageId?: string) {
+// LLM の matomezu open（-page も）。ほかを見ているときは「届いています」のダイアログが出るので、出るのを待って開くを押す（D26 の段階 3）。
+// 今見ているページを開くとき（ダイアログが出ない）は shown: true（待たずに進む。並べて流すと遅れて出ることがあるので、出る場面では必ず待つ）
+async function arrive(page: import("@playwright/test").Page, file: string, pageId?: string, o: { shown?: boolean } = {}) {
+  // 画面が何かを前に出してから頼む（何も見ていないうちに届くと、ダイアログを出さずにそのまま開く）
+  await expect(page.locator('.tab[aria-selected="true"]')).toHaveCount(1);
   const out = run("open", "-no-browser", ...(pageId ? ["-page", pageId] : []), file);
+  if (o.shown) return out;
   const ok = page.locator(".mz-dlg [data-ok]");
-  try {
-    await ok.waitFor({ timeout: 3000 });
-    await ok.click();
-  } catch { /* ダイアログが出ない（今見ているページ、または何も見ていない） */ }
+  await ok.waitFor({ timeout: 10_000 });
+  await ok.click();
+  await expect(page.locator(".mz-dlg")).toHaveCount(0);
   return out;
 }
 // マスターを開いて、その名前の窓を押す（タブは今のブックだけなので、ほかのブックへはマスターから移る。D26）
@@ -389,7 +391,7 @@ test("図の題名（world.title）があればタブの見出しに出し、ポ
   await expect.poll(() => JSON.parse(readFileSync(join(dir, "c.json"), "utf8")).world?.title).toBe("新しい題名");
   await rename("");
   await expect(tab.locator(".tab-name")).toHaveText("c.json");
-  await arrive(page, "c.json");
+  await arrive(page, "c.json", undefined, { shown: true });
   await tab.locator(".tab-close").click();
 });
 
