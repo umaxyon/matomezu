@@ -21,7 +21,8 @@ import type { AddRequest } from "./interaction";
 import { closeColorPicker, openColorPicker } from "./color-picker";
 import { DEFAULTS } from "./graph";
 import { PALETTE, THEMES, isPaletteName, paintFor, themeById } from "./theme";
-import type { BoxData, BoxInfo, LinkLook, Patch, Shape, Size } from "./types";
+import type { BoxData, BoxInfo, BoxView, LinkLook, Patch, Shape, Size } from "./types";
+import { STRATEGIES } from "./model";
 import { LINK_LOOK_DEFS, LINK_LOOK_OPTIONS, type Rect, previewRegion, windowOf } from "./link-box";
 import { type Scene, drawScene, make, union } from "./preview-art";
 import { PATTERN_LABELS } from "./validate";
@@ -73,6 +74,17 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-row > label { display: flex; align-items: center; gap: 4px; }
 .mz-dlg-message { margin: 0 0 4px; white-space: pre-line; }
 .mz-dlg-btn:disabled { opacity: 0.45; cursor: default; }
+/* 確定のときに行う一回きりの操作（押すと印が付く。D26 の案 A） */
+.mz-dlg-once { display: flex; flex-wrap: wrap; gap: 4px; }
+.mz-dlg-once .mz-dlg-btn { padding: 4px 8px; font-size: 12px; }
+.mz-dlg-btn[aria-pressed="true"] { color: #fff; background: var(--dlg-accent); }
+.mz-dlg-check[hidden] { display: none; }
+/* 右の列の下の、サイドバーから移した項目（子の見せ方・見た目・子のサイズ。D26） */
+.mz-dlg-extras { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--dlg-line); }
+.mz-dlg-extras h3 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--dlg-muted); }
+.mz-dlg-extras .mz-dlg-check { margin-bottom: 4px; }
+.mz-dlg-extras .mz-dlg-note { margin: 4px 0 0; }
+.mz-dlg-extras .mz-dlg-seg { min-width: 180px; }
 /* 色のボタン（今の色の見本と色の値） */
 .mz-dlg-color { display: flex; align-items: center; gap: 6px; }
 .mz-dlg-swatch { flex: none; width: 14px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.5); }
@@ -162,6 +174,13 @@ export function closeEditDialog(): void {
   if (back instanceof HTMLElement) back.focus();
 }
 
+// 箱の子の見せ方（内包パターンの持ち物）
+export const VIEW_OPTIONS: [BoxView, string][] = [["nest", t("内包")], ["list", t("リスト")], ["hidden", t("非表示")]];
+const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します");
+const FIT_HELP = t("一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません。子を持つ子は中身を詰め直して縮めます（S サイズ、スティックマン、ツリー・非表示の子は対象外）");
+const ONE_LINE_HELP = t("長いキャプションを折り返さず、… で切ります。幅はサイズの最大まで（幅の指定があればその幅まで）");
+const ONCE_NOTE = t("押すと、確定したときに行います（もう一度押すと取りやめ）");
+
 // 本文の最大行数の選択肢（超えた分は … で切る）。データにこれ以外の値があれば、それも選べるように足す
 const LINE_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 
@@ -238,6 +257,8 @@ interface BoxValues {
   clip: Rect | null;         // リンクの箱の窓に映す範囲（null はページ全体）
   // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
   abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
+  // サイドバーから移した項目（D26。編集のときだけ）: 子の見せ方、塗りつぶし・枠線・1 行、子のサイズをそろえる（確定のときに一緒に行う一回きりの操作）
+  view: BoxView; fill: boolean; border: boolean; oneLine: boolean; fit: "width" | "height" | "both" | null;
 }
 type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops" | "link"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
@@ -247,6 +268,9 @@ type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "b
   kids: number;       // 子の数（クラスにすると消える）
   scene: Scene | null;   // リンクの箱なら、のぞくページの縮図のもと（窓に映す範囲を選ぶ絵。preview-art.ts）
   previewMinScale: number; // 窓に映す縮尺の下限（graph.ts の DEFAULTS）
+  // 編集のときだけ出す項目（追加のときは extras が false）。views は子の見せ方を選べるか（choose）、ページのパターンが決めるか（fixed。ツリーの中）、子が無いか（null）
+  extras: boolean; views: "choose" | "fixed" | null; childView: BoxView; framed: boolean;
+  fill: boolean; border: boolean; canOneLine: boolean; canFit: boolean;
 };
 
 // 形を変えると消える情報があれば、その知らせ（無ければ null）。クラスにすると子が消え、クラスでなくすると abstract・属性・操作が消える
@@ -302,14 +326,34 @@ function confirmInside(overlay: HTMLElement, message: string, okLabel: string): 
 function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void, lead = ""): HTMLElement {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   // 形やサイズのほかに本文を出せない理由（ページの箱、キャプションを 1 行にした箱）があるか
-  const bodyBase = b.overflow !== "clip" && (b.canBody || !shapeDef(b.shape).body || b.size === "S");
+  const bodyBase0 = b.canBody || !shapeDef(b.shape).body || b.size === "S";
+  const oneLineNow = () => overlay?.querySelector<HTMLInputElement>('[name="one-line"]')?.checked ?? b.overflow === "clip";
+  const bodyBase = () => !oneLineNow() && (b.overflow !== "clip" || !b.canOneLine ? bodyBase0 : true);
   const off = b.canBody ? "" : " disabled";
   const sizes: Size[] = ["L", "M", "S"];
   // 選べない形（子を内包している箱は、ボックスとクラスだけ。形を選べない箱は全部）。本文があるあいだはボックスだけ（syncBody で付け直す）
-  const frameOff = (v: Shape): string | null => (b.canShape ? null
+  const frameOff = (v: Shape): string | null => (canShapeNow() ? null
     : !b.canClass ? t("子を内包している箱は枠なので、形を選べません")
     : v !== "box" && v !== "class" ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : null);
   // リンクの箱（link-box.ts）は形とサイズを使わないので、その欄の代わりにリンク先と見せ方を出す（形・サイズの欄は隠すだけ。下の決まりが読むため）
+  // サイドバーから移した項目（D26）。子の見せ方を変えると、枠で見せるか（framed）が変わり、選べる形とサイズも変わる
+  const framedNow = () => (b.views === "choose" ? STRATEGIES[pickedView()].framed : b.framed);
+  const canShapeNow = () => (b.views === "choose" ? !framedNow() && b.canClass : b.canShape);
+  const sizeFixedNow = () => (b.views === "choose" ? framedNow() || !!b.link : b.sizeFixed);
+  const pickedView = (): BoxView => (overlay?.querySelector<HTMLInputElement>('[name="view"]:checked')?.value ?? b.childView) as BoxView;
+  const viewGroup = !b.extras || !b.views ? "" : b.views === "fixed"
+    ? `<div class="mz-dlg-group"><h3>${t("子の見せ方")}</h3><p class="mz-dlg-note">${t("ツリーのページの決まりで並びます（向きはページの設定で変えます）")}</p></div>`
+    : `<div class="mz-dlg-group"><h3>${t("子の見せ方")}${helpIcon(VIEW_HELP)}</h3>
+        <div class="mz-dlg-seg">${VIEW_OPTIONS.map(([v, label]) => `<label><input type="radio" name="view" value="${v}"${v === b.childView ? " checked" : ""}>${esc(label)}</label>`).join("")}</div></div>`;
+  const looksGroup = !b.extras ? "" : `<div class="mz-dlg-group"><h3>${t("見た目")}</h3>
+        <label class="mz-dlg-check" data-look="fill"><input type="checkbox" name="fill"${b.fill ? " checked" : ""}>${t("塗りつぶし")}</label>
+        <label class="mz-dlg-check" data-look="border"><input type="checkbox" name="border"${b.border ? " checked" : ""}>${t("枠線")}</label>
+        ${b.canOneLine ? `<label class="mz-dlg-check" data-look="one-line"><input type="checkbox" name="one-line"${b.overflow === "clip" ? " checked" : ""}>${t("キャプションを 1 行にする")}${helpIcon(ONE_LINE_HELP)}</label>` : ""}</div>`;
+  const fitGroup = !b.extras || !b.canFit ? "" : `<div class="mz-dlg-group"><h3>${t("子のサイズ")}${helpIcon(FIT_HELP)}</h3>
+        <div class="mz-dlg-once">${([["width", t("幅をそろえる")], ["height", t("高さをそろえる")], ["both", t("両方")]] as const).map(([v, label]) =>
+          `<button type="button" class="mz-dlg-btn" data-fit="${v}" aria-pressed="false">${label}</button>`).join("")}</div>
+        <p class="mz-dlg-note">${ONCE_NOTE}</p></div>`;
+  let overlay = undefined as unknown as HTMLElement; // 下の show で作る（それより前に呼ばれる決まりは、作る前の値を見る）
   const linkGroup = b.link ? `<div class="mz-dlg-group"><h3>${t("リンク")}</h3>
         <p class="mz-dlg-note">${esc(t("「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます", { name: b.link.pageName, pattern: PATTERN_LABELS[b.link.pattern] }))}</p>
         <div class="mz-dlg-seg">${LINK_LOOK_OPTIONS.map(([v, label]) => `<label><input type="radio" name="linkLook" value="${v}"${v === b.link!.look ? " checked" : ""}>${esc(label)}</label>`).join("")}</div>
@@ -320,7 +364,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
         ${b.canShape ? "" : `<p class="mz-dlg-note">${b.canClass ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
       <div class="mz-dlg-group"${b.link ? " hidden" : ""}><h3>${t("サイズ")}</h3>
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
-        ${b.sizeFixed ? `<p class="mz-dlg-note">${t("内包・リストの箱の大きさは、子の並びで決まります")}</p>` : ""}
+        <p class="mz-dlg-note" data-size-fixed${b.sizeFixed && !b.link ? "" : " hidden"}>${t("内包・リストの箱の大きさは、子の並びで決まります")}</p>
         <p class="mz-dlg-note" data-class-size hidden>${t("クラスの箱の幅は、中身に合わせて決まります")}</p></div>
       <div class="mz-dlg-group"><h3>${t("テーマ")}</h3>
         <select class="mz-dlg-input" name="theme" aria-label="${t("テーマ")}">
@@ -333,7 +377,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   // 本文を書き始めたら押せるようにして入れる
   // 「箱の幅に合わせる」は、つまみで本文の幅を変えていれば押せる。内包・リストの箱では本文が箱の幅いっぱいに戻り、
   // 子の無い箱では箱の幅が中身（キャプションと本文）に合わせて決まり直す
-  const overlay = show(title, okLabel, `<div class="mz-dlg-split">${side}<div class="mz-dlg-main">
+  overlay = show(title, okLabel, `<div class="mz-dlg-split">${side}<div class="mz-dlg-main">
       <label class="mz-dlg-field"><span data-caption-label>${t("キャプション")}</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="${t("なし（空の箱）")}"></label>
       <div data-pane="class" hidden>
@@ -362,18 +406,22 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
             ${lines.map(v => `<option value="${v}"${v === b.bodyLines ? " selected" : ""}>${t("{n} 行", { n: v })}</option>`).join("")}
           </select></label></div>
       </div>
+      ${viewGroup || looksGroup || fitGroup ? `<div class="mz-dlg-extras">${viewGroup}${looksGroup}${fitGroup}</div>` : ""}
     </div></div>${b.link ? `<div class="mz-dlg-clip" data-clip>
       <div class="mz-dlg-clip-head"><span>${t("窓に映す範囲")}</span>
         <p class="mz-dlg-note">${t("四角をドラッグして動かし、右下の角で大きさを変えます")}</p>
         <button type="button" class="mz-dlg-btn" data-clip-all>${t("ページ全体")}</button></div></div>` : ""}`,
-  overlay => {
-    const field = <T extends HTMLElement>(name: string) => overlay.querySelector<T>(`[name="${name}"]`)!;
+  ov => {
+    const field = <T extends HTMLElement>(name: string) => ov.querySelector<T>(`[name="${name}"]`)!;
+    const checked = (name: string, start: boolean) => ov.querySelector<HTMLInputElement>(`[name="${name}"]`)?.checked ?? start;
     const linesValue = field<HTMLSelectElement>("lines").value;
     const clipNow = clipPicker ? clipPicker.clip() : null;
-    const size = overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value as Size | undefined;
+    const size = ov.querySelector<HTMLInputElement>('[name="size"]:checked')?.value as Size | undefined;
     commit({
+      view: pickedView(), fill: checked("fill", b.fill), border: checked("border", b.border), oneLine: checked("one-line", b.overflow === "clip"),
+      fit: (ov.querySelector<HTMLElement>('[data-fit][aria-pressed="true"]')?.dataset.fit ?? null) as BoxValues["fit"],
       shape: pickedShape(),
-      size: size ?? b.size,
+      size: (sizeFixedNow() ? undefined : size) ?? b.size,
       theme: field<HTMLSelectElement>("theme").value,
       color,
       bodyAllowed: bodyAllowed(),
@@ -425,7 +473,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const pick = (s: Shape) => { const r = overlay.querySelector<HTMLInputElement>(`[name="shape"][value="${s}"]`); if (r) r.checked = true; };
   const sizeS = overlay.querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
   const pickedSize = () => overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value ?? b.size;
-  const bodyAllowed = () => bodyBase && shapeDef(pickedShape()).body && (b.sizeFixed || pickedSize() !== "S");
+  const bodyAllowed = () => bodyBase() && shapeDef(pickedShape()).body && (sizeFixedNow() || pickedSize() !== "S");
   const syncBody = () => {
     const allowed = bodyAllowed();
     for (const el of overlay.querySelectorAll<HTMLTextAreaElement | HTMLSelectElement>('[name="body"], [name="lines"]')) el.disabled = !allowed;
@@ -434,8 +482,19 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     syncShapePicker(overlay, "shape", v => frameOff(v) ?? (has && !shapeDef(v).body ? t("本文があるあいだは選べません") : null));
     const cls = pickedShape() === "class";
     // クラスの箱はサイズを使わない（幅は中身で決まる）
-    for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.disabled = b.sizeFixed || cls || (r === sizeS && has);
+    for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.disabled = sizeFixedNow() || cls || (r === sizeS && has);
     overlay.querySelector<HTMLElement>("[data-class-size]")!.hidden = !cls;
+    overlay.querySelector<HTMLElement>("[data-size-fixed]")!.hidden = !sizeFixedNow() || !!b.link;
+    // 見た目: 塗りつぶし・枠線は効く形でだけ出す。本文があるあいだは 1 行にできない
+    const def = shapeDef(pickedShape());
+    const look = (k: string) => overlay.querySelector<HTMLElement>(`[data-look="${k}"]`);
+    if (look("fill")) look("fill")!.hidden = !def.fillToggle;
+    if (look("border")) look("border")!.hidden = !def.borderToggle;
+    const one = overlay.querySelector<HTMLInputElement>('[name="one-line"]');
+    if (one) {
+      one.disabled = bodyField.value !== "";
+      look("one-line")!.title = one.disabled ? t("本文があるので 1 行にできません") : "";
+    }
     syncRule(false);
   };
   // 形でクラスを選ぶと、右側をクラスの入力に切り替える（キャプションはクラス名）
@@ -496,7 +555,14 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     if (el?.closest("[data-del]")) el.closest(".mz-dlg-mrow")!.remove();
   });
   syncPane();
-  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.addEventListener("change", syncBody);
+  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"], [name="view"], [name="one-line"]')) r.addEventListener("change", syncBody);
+  // 子のサイズをそろえる（一回きりの操作）: 押すと確定のときに行う印を付ける。もう一度押すと取りやめ。どれか 1 つ
+  for (const f of overlay.querySelectorAll<HTMLElement>("[data-fit]")) {
+    f.addEventListener("click", () => {
+      const on = f.getAttribute("aria-pressed") !== "true";
+      for (const x of overlay.querySelectorAll<HTMLElement>("[data-fit]")) x.setAttribute("aria-pressed", String(on && x === f));
+    });
+  }
   bodyField.addEventListener("input", syncBody);
   syncBody();
   // 「箱の幅に合わせる」は確定したときに書く（押したらボタンを押せなくして、押したことを示す）
@@ -529,6 +595,8 @@ export function openEditDialog(graph: Graph, id: string): void {
   const start: BoxStart = {
     ...b, theme: b.theme ?? "", color: b.color, inherited, sizeFixed, kids: b.children.length,
     scene: b.link ? graph.pageScene(b.link.page) : null, previewMinScale: DEFAULTS.previewMinScale,
+    extras: true, views: !b.children.length ? null : b.inTree || b.treeRoot ? "fixed" : "choose",
+    canOneLine: b.overflows.length > 0, canFit: b.sizableChildren >= 2,
   };
   boxDialog(t("ボックスの編集"), t("確定"), start, v => {
     // クラスにかかわる変更は、子や線を消すことがあるので別の入口（docs/CLASS-plan.md）
@@ -551,7 +619,16 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (b.bodyWidth && v.widthAuto) patch.bodyWidth = null;
     if (b.link && v.linkLook && v.linkLook !== b.link.look) patch.linkLook = v.linkLook;
     if (b.link && JSON.stringify(v.clip) !== JSON.stringify(b.link.clip)) patch.clip = v.clip;
-    if (Object.keys(patch).length) graph.update(id, patch); // まとめて 1 件の変更
+    if (start.views === "choose" && v.view !== b.childView) patch.childView = v.view;
+    const def = shapeDef(patch.shape ?? b.shape);
+    if (def.fillToggle && v.fill !== b.fill) patch.fill = v.fill;
+    if (def.borderToggle && v.border !== b.border) patch.border = v.border;
+    if (start.canOneLine && v.oneLine !== (b.overflow === "clip")) patch.overflow = v.oneLine ? "clip" : "wrap";
+    // 項目の変更と、子のサイズをそろえる（一回きりの操作）を、まとめて 1 件の変更にする（D26 の案 A）
+    graph.batch(() => {
+      if (Object.keys(patch).length) graph.update(id, patch);
+      if (v.fit) graph.fitChildren(id, v.fit);
+    });
   });
 }
 
@@ -572,6 +649,7 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
     shape, size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
     color: "", inherited: graph.info(req.parentId).themeUsed,
     abstract: false, attrs: [], ops: [], kids: 0, link: null, scene: null, previewMinScale: DEFAULTS.previewMinScale,
+    extras: false, views: null, childView: "nest", framed: false, fill: true, border: true, canOneLine: false, canFit: false,
   };
   boxDialog(t("ボックスの追加"), t("追加"), start, v => {
     const fields: Partial<BoxData> = {};
@@ -606,6 +684,15 @@ export function openConfirmDialog(title: string, message: string, okLabel: strin
 export function openEdgeEditDialog(graph: Graph, id: string): void {
   const e = graph.edgeInfo(id);
   if (!e) return;
+  // 一回きりの操作（サイドバーから移した。D26 の案 A: 押すと確定のときに行う印が付く）。整列と接辺の自動選択はどちらか 1 つ
+  const onceBtn = (key: string, label: string, help: string, off: string | null) =>
+    `<button type="button" class="mz-dlg-btn" data-once="${key}" aria-pressed="false"${off ? ` disabled title="${esc(off)}"` : ""}>${label}</button>${helpIcon(help)}`;
+  const once = [
+    e.self ? "" : onceBtn("align", t("整列"), t("今の形のまま、両端を辺の真ん中（向き合う辺どうしで、まっすぐ結べるならまっすぐ結ぶ位置）に固定します。動かした途中の区間は自動に戻します"), e.aligned ? t("整列済みです") : null),
+    e.self ? "" : onceBtn("free", t("接辺の自動選択"), t("端を動かしたり整列したりすると、その位置に固定されます。押すと固定をやめて、ボックスの位置からつなぐ辺と位置を自動で選ぶようにします。動かした途中の区間も自動に戻します"), e.endsMoved ? null : t("端は自動で選んでいます")),
+    !e.self && e.via ? onceBtn("via", t("折れ線を自動に戻す"), t("途中の区間を動かした形をやめて、ボックスの位置から自動で決めた形に戻します（端の固定はそのまま）"), null) : "",
+    e.caption && e.captionMoved ? onceBtn("caption", t("キャプションの位置を自動に戻す"), t("動かしたキャプションの札を、線の上の自動の位置に戻します"), null) : "",
+  ].filter(Boolean);
   const radios = (name: string, now: string, options: [string, string][]) =>
     options.map(([v, label]) => `<label><input type="radio" name="${name}" value="${v}"${v === now ? " checked" : ""}>${label}</label>`).join("");
   const overlay = show(t("線の編集"), t("確定"), `
@@ -618,7 +705,10 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
       <div class="mz-dlg-row"><span>${t("矢印")}</span>
         ${(["start", "end"] as const).map(side => `<label>${side === "start" ? t("始点") : t("終点")}
           <select class="mz-dlg-input" name="head-${side}" aria-label="${side === "start" ? t("始点の形") : t("終点の形")}">${headOptions().map(([v, label]) =>
-            `<option value="${v}"${v === ((side === "start" ? e.startHead : e.endHead) ?? "") ? " selected" : ""}>${esc(label)}</option>`).join("")}</select></label>`).join("")}</div>`,
+            `<option value="${v}"${v === ((side === "start" ? e.startHead : e.endHead) ?? "") ? " selected" : ""}>${esc(label)}</option>`).join("")}</select></label>`).join("")}</div>
+      ${once.length ? `<div class="mz-dlg-row mz-dlg-ends"><span>${t("端の位置")}${helpIcon(t("線の端は、つまんで動かすとその位置に固定されます。固定していない端は、ボックスの位置から自動で決めます"))}</span>
+        <div class="mz-dlg-once">${once.join("")}</div></div>
+      <p class="mz-dlg-note">${ONCE_NOTE}</p>` : ""}`,
   overlay => {
     const field = (name: string) => overlay.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
     const caption = field("caption").value;
@@ -632,12 +722,29 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
     if (dash && dash !== e.dash) patch.dash = dash === "dashed" ? "dashed" : null;
     // 端の形（heads.ts）。塗りの三角は arrow に、ほかは startHead / endHead に書く
     if (head("start") !== e.startHead || head("end") !== e.endHead) Object.assign(patch, heads);
-    if (Object.keys(patch).length) graph.updateEdge(id, patch); // まとめて 1 件の変更にする
+    // 一回きりの操作のうち、値を消すだけのもの（自動に戻す）は同じ変更に入れ、整列は書いたあとの形で行う
+    const marked = (k: string) => overlay.querySelector(`[data-once="${k}"][aria-pressed="true"]`) != null;
+    if (marked("free")) Object.assign(patch, { exitAt: null, enterAt: null, via: null });
+    if (marked("via")) patch.via = null;
+    if (marked("caption")) Object.assign(patch, { captionAt: null, captionOffset: null });
+    graph.batch(() => { // まとめて 1 件の変更にする
+      if (Object.keys(patch).length) graph.updateEdge(id, patch);
+      if (marked("align")) graph.alignEdge(id);
+    });
   }, `<button type="button" class="mz-dlg-btn mz-dlg-delete" data-delete>${t("線を消す")}</button>`);
   overlay.querySelector("[data-delete]")!.addEventListener("click", () => {
     closeEditDialog();
     graph.removeEdge(id);
   });
+  for (const b of overlay.querySelectorAll<HTMLElement>("[data-once]")) {
+    b.addEventListener("click", () => {
+      const on = b.getAttribute("aria-pressed") !== "true";
+      b.setAttribute("aria-pressed", String(on));
+      // 整列（端を固定する）と接辺の自動選択（固定をやめる）は、どちらか 1 つ
+      const other = b.dataset.once === "align" ? "free" : b.dataset.once === "free" ? "align" : null;
+      if (on && other) overlay.querySelector(`[data-once="${other}"]`)?.setAttribute("aria-pressed", "false");
+    });
+  }
   // キャプションの候補を押すと、キャプションの欄に入れる（確定で書く）
   for (const b of overlay.querySelectorAll<HTMLElement>("[data-hint]")) {
     b.addEventListener("click", () => {

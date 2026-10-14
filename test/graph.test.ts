@@ -1550,3 +1550,18 @@ test("絵の形（スティックマン・DB・サーバー）は、足元の文
     graph.destroy();
   }
 });
+
+test("batch の中の変更は履歴の 1 件にまとまり、Undo 1 回で両方戻る（ダイアログの確定。D26 の案 A）", () => {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const changes: unknown[] = [];
+  const g = createGraph(el, { nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B" }] }, { measureText: fakeMeasure, onChange: d => changes.push(d) });
+  g.batch(() => {
+    g.update(1, { caption: "A2" });
+    g.update(2, { caption: "B2" });
+  });
+  expect(changes.length).toBe(1);
+  g.undo();
+  expect(g.toJSON().nodes.map(n => n.caption)).toEqual(["A", "B"]);
+  g.destroy();
+});

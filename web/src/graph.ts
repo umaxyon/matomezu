@@ -225,6 +225,7 @@ export interface Graph {
   info(id: Id | null): NodeInfo;
   edgeInfo(id: Id): EdgeInfo | null; // 線の情報（無ければ null）
   update(id: Id | null, patch: Patch): void;
+  batch(fn: () => void): void; // fn の中の変更を履歴の 1 件にまとめる（ダイアログの確定で、項目と一回きりの操作を一緒に書く）
   // クラスの箱にかかわる変更（クラスにする・クラスを直す・クラスでなくする。docs/CLASS-plan.md）。子や線を消すことがあるので、
   // 図を組み立て直して履歴に 1 件残す
   updateClass(id: Id, edit: ClassEdit): void;
@@ -409,14 +410,33 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const dataListeners = new Set<() => void>();
   const dataChanged = () => { for (const f of dataListeners) f(); };
 
+  let batching = 0, batchDirty = false; // batch の中か・その中で変わったか
   function changed() {
     L.holdWorld(false); // 箱を足す所を探す間に広げた図は、図が変わったら中身に合わせる（layout.ts の stretchWorld）
     touched = true;
     dataChanged();
     fitted.clear();
+    if (batching) { batchDirty = true; return; } // まとめている間は、終わったときに 1 件だけ残す（batch）
     const data = api.toJSON();
     H.record(data);
     opt.onChange?.(data);
+  }
+
+  // fn の中の変更を、履歴の 1 件（と 1 回の変更の知らせ）にまとめる。ダイアログの確定で、項目の変更と一回きりの操作（子のサイズを
+  // そろえる・線の整列など）を一緒に書くときに使う（D26 の案 A。2026-10-14 ユーザー）
+  function batch(fn: () => void) {
+    batching++;
+    try {
+      fn();
+    } finally {
+      batching--;
+      if (!batching && batchDirty) {
+        batchDirty = false;
+        const data = api.toJSON();
+        H.record(data);
+        opt.onChange?.(data);
+      }
+    }
   }
 
   function notifySelect() {
@@ -1910,6 +1930,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     updateEdge: (id, patch) => updateEdge(edgeOf(id), patch),
     edgeInfo: id => { const e = edges.find(x => x.id === String(id)); return e ? edgeInfo(e) : null; },
     alignEdge: id => alignEdge(edgeOf(id)),
+    batch,
     removeEdge: id => removeEdge(edgeOf(id)),
     link: (from, to) => {
       const a = byId.get(String(from)), b = byId.get(String(to));

@@ -81,4 +81,8 @@ export default {
   "窓に映す範囲": "Area shown in the window",
   "四角をドラッグして動かし、右下の角で大きさを変えます": "Drag the rectangle to move it, and its bottom-right corner to resize it",
   "ページ全体": "Whole page",
+  // サイドバーから移した項目（D26）
+  "押すと、確定したときに行います（もう一度押すと取りやめ）": "Applied when you confirm (press again to cancel)",
+  "ツリーのページの決まりで並びます（向きはページの設定で変えます）": "Arranged by the tree page (change the direction in the page settings)",
+  "動かしたキャプションの札を、線の上の自動の位置に戻します": "Puts the moved caption label back at its automatic place on the line",
 } satisfies Record<string, string>;
