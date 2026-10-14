@@ -107,4 +107,6 @@ export default {
   "フローチャートの中の箱は子を持てないので、子を持つ箱は入れられません": "Boxes in a flowchart cannot have children, so a box with children cannot go in",
   "パターンの違うページ（{from} → {to}）へは移せません。関連は、リンクの箱へ線を引いて示します": "Boxes can't move to a page with a different pattern ({from} → {to}). Show the relation by drawing a line to a link box instead",
   "押すと閉じます": "Click to dismiss",
+  "ブック追加: 新しい図を作る": "Add book: create a new diagram",
+  "追加削除: ブックごとの箱の一覧を左に出す。窓へドラッグすると、そのブックの郵便箱へ送る": "Added / Removed: show the boxes of each book on the left. Drag one onto a window to send it to that book's mailbox",
 } satisfies Record<string, string>;

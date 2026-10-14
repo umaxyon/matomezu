@@ -90,10 +90,9 @@ test("道具箱は、どの箱を選んでいても図の左上に出す。フ�
   const { graph } = setup(data());
   expect(worldInfo(graph).tools?.id).toBeNull();
   expect(info(graph, 3).tools?.id).toBeNull();
-  expect(info(graph, 3).tools?.shapes).toEqual(["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"]);
-  expect(info(graph, 3).tools?.add).toBe(false);
+  expect(info(graph, 3).tools?.tools).toEqual(["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"]);
   const nest = setup({ ...data(), world: {} });
-  expect([worldInfo(nest.graph).tools, info(nest.graph, 10).tools]).toEqual([{ id: null, shapes: [], add: true, size: "M" }, { id: null, shapes: [], add: true, size: "M" }]);
+  expect([worldInfo(nest.graph).tools, info(nest.graph, 10).tools]).toEqual([{ id: null, tools: ["add"], size: "M" }, { id: null, tools: ["add"], size: "M" }]);
 });
 
 test("フローチャートのひし形から出る線には、キャプションの候補 Yes / No を出す", () => {
@@ -110,7 +109,7 @@ test("ページのパターンをデータでフローチャートに変えら�
   graph.update(null, { childView: "flow" });
   expect(graph.toJSON().world?.childView).toBe("flow");
   expect(info(graph, 1).shape).toBe("hexagon");
-  expect(info(graph, 1).tools).toEqual({ id: null, shapes: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"], add: false, size: "M" });
+  expect(info(graph, 1).tools).toEqual({ id: null, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"], size: "M" });
   expect(() => graph.reparent(2, 1)).toThrow();
   expect(() => graph.update(null, { childView: "list" as never })).toThrow();
   expect(problems({ world: { childView: "list" }, nodes: [] }).length).toBeGreaterThan(0);

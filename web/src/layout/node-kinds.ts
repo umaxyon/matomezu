@@ -325,7 +325,8 @@ export function createNodeKinds(ctx: KindContext) {
 
   // 並べ方ごとの種類（戦略の表は model.ts の STRATEGIES。戦略を足すときは、ここにも並べ方を足す）
   // フローチャートは子の置き方が内包と同じ（違うのは子の形と、子が子を持てないこと。model.ts の STRATEGIES）
-  const KINDS: Record<ReturnType<typeof arrangeOf>, NodeKind> = { leaf: text, hidden, nest, tree, list, flow: nest };
+  // マスターは内包と同じ（違うのは道具箱と窓。model.ts の STRATEGIES）
+  const KINDS: Record<ReturnType<typeof arrangeOf>, NodeKind> = { leaf: text, hidden, nest, tree, list, flow: nest, master: nest };
   const kindOf = (n: Box): NodeKind => KINDS[arrangeOf(n)];
 
   return { kindOf, bodyTop };

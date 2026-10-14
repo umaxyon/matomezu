@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { assignIds, problems, validate } from "../web/src/validate";
+import { assignIds, problems, validate, formatOf } from "../web/src/validate";
 
 describe("validate", () => {
   test("正しいデータは通る", () => {
@@ -92,4 +92,18 @@ test("problems は親子の循環があっても止まる", () => {
 test("world の title は文字列だけ", () => {
   expect(problems({ world: { title: 3 }, nodes: [] })).toEqual(["world の title は文字列にしてください"]);
   expect(problems({ world: { title: "題名" }, nodes: [] })).toEqual([]);
+});
+
+test("ファイルの形式: マスターのパターンはマスター用のファイルの最初のページにだけ書け、窓（book）はマスター用のファイルにだけ書ける（D26）", () => {
+  expect(formatOf({ world: { childView: "master" } })).toBe("master");
+  expect(formatOf({ world: { childView: "tree" } })).toBe("book");
+  expect(formatOf({})).toBe("book");
+  // マスター用のファイル: 窓を書け、2 枚目からのページは持てない。窓は子を持てない
+  expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: "abc" }] })).toEqual([]);
+  expect(problems({ world: { childView: "master" }, pages: [{ id: "p1" }], nodes: [] })[0]).toContain("2 枚目からのページを持てません");
+  expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: "abc" }, { id: 2, parent: 1 }] })[0]).toContain("ブックの窓は子を持てません");
+  expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: 3 }] })[0]).toContain("book はブックの id の文字列");
+  // ふつうのブック: 窓は書けず、ページにマスターのパターンは書けない
+  expect(problems({ nodes: [{ id: 1, book: "abc" }] })[0]).toContain("マスター用のファイルにだけ書けます");
+  expect(problems({ pages: [{ id: "p1", world: { childView: "master" } }], nodes: [] })[0]).toContain("ページには書けません");
 });

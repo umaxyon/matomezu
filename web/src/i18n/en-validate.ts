@@ -120,4 +120,11 @@ export default {
   "ツリー": "Tree",
   "フローチャート": "Flowchart",
   "clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}": "clip must be a rectangle { x, y, w, h } (w and h positive): {where}",
+  "マスター": "Master",
+  "{pattern} のパターンはページには書けません（マスター用のファイルの最初のページだけ）: {id}": "The {pattern} pattern can't be used on a page (only on the first page of the master file): {id}",
+  "マスター用のファイルは 2 枚目からのページを持てません": "The master file can't have additional pages",
+  "book（ブックの窓）はマスター用のファイルにだけ書けます: {id}": "book (a book window) can only be used in the master file: {id}",
+  "book はブックの id の文字列にしてください: {id}": "book must be a book id string: {id}",
+  "book と link は一緒に書けません: {id}": "book and link can't be used together: {id}",
+  "ブックの窓は子を持てません: {id}": "A book window can't have children: {id}",
 } satisfies Record<string, string>;

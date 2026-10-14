@@ -6,7 +6,7 @@ import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import { SHAPE_DEFS } from "./shapes";
 import { isLinkLook, isRect } from "./link-box";
-import type { BoxView, Diagram, EdgeData, Id, PagePattern, Shape, Size } from "./types";
+import type { BookFormat, BoxView, Diagram, EdgeData, Id, PagePattern, Shape, Size } from "./types";
 
 export interface SizeSpec {
   minW: number;
@@ -30,8 +30,8 @@ export const GROUP_MIN = { w: 120, h: 64 };
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 // 並べ方の戦略の名前（model.ts の STRATEGIES）。パターンはページ単位（2026-10-12 ユーザー）:
 // ページ（world.childView）に掛けられるのは PAGE_PATTERNS、箱（childView）に書けるのは BOX_VIEWS（内包パターンの持ち物）
-export const VIEWS = ["nest", "tree", "hidden", "list", "flow"] as const;
-export const PAGE_PATTERNS = ["nest", "tree", "flow"] as const satisfies readonly PagePattern[];
+export const VIEWS = ["nest", "tree", "hidden", "list", "flow", "master"] as const;
+export const PAGE_PATTERNS = ["nest", "tree", "flow", "master"] as const satisfies readonly PagePattern[];
 export const BOX_VIEWS = ["nest", "hidden", "list"] as const satisfies readonly BoxView[];
 export const SHAPES = [
   "box", "person", "db", "diamond", "server", "class", "circle", "stadium", "hexagon", "parallelogram", "parallelogramAlt", "trapezoid", "trapezoidAlt",
@@ -54,7 +54,17 @@ export const SHAPE_GROUPS: { label: string; shapes: Shape[] }[] = [
   { label: t("絵の形"), shapes: ["person", "db", "server", "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb", "dog", "forest", "house", "family"] },
 ];
 // ページのパターンの画面での名前（サイドバー・ダイアログ・リンクの箱の札）
-export const PATTERN_LABELS: Record<PagePattern, string> = { nest: t("内包"), tree: t("ツリー"), flow: t("フローチャート") };
+export const PATTERN_LABELS: Record<PagePattern, string> = { nest: t("内包"), tree: t("ツリー"), flow: t("フローチャート"), master: t("マスター") };
+// パターンごとのファイルの形式（D26 の段階 2。2026-10-14 ユーザー: 形式の切り替えもパターンの定義の項目で決める）。
+// データの検査は DOM の無い CLI でも使うので、パターンの名前と見出しと同じくここに置く。形式ごとの決まりは下の FORMAT_RULES
+export const PAGE_FORMATS: Record<PagePattern, BookFormat> = { nest: "book", tree: "book", flow: "book", master: "master" };
+// 形式ごとの決まり: bookLinks は窓（book）を書けるか、pages は 2 枚目からのページを持てるか
+export const FORMAT_RULES: Record<BookFormat, { bookLinks: boolean; pages: boolean }> = {
+  book: { bookLinks: false, pages: true },
+  master: { bookLinks: true, pages: false },
+};
+// ファイルの形式（最初のページのパターンで決まる。マスターのパターンはマスター用のファイルの最初のページにだけ書ける）
+export const formatOf = (d: { world?: { childView?: unknown } }): BookFormat => (isPattern(d.world?.childView) ? PAGE_FORMATS[d.world!.childView] : "book");
 export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;
@@ -212,9 +222,25 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (!pages.has(String(n.page))) { fail(t("存在しないページです: {id} → {page}", { id: n.id, page: n.page })); continue; }
     if (n.parent != null) fail(t("page は最上位の箱にだけ書けます（中の箱は親と同じページに載ります）: {id}", { id: n.id }));
   }
+  // ファイルの形式（PAGE_FORMATS。D26 の段階 2）: マスターのパターンは最初のページにだけ書け、マスター用のファイルにする。
+  // マスター用のファイルは 2 枚目からのページを持たず、窓（book）を書ける。ほかのファイルには book を書けない
+  const format = formatOf(data as { world?: { childView?: unknown } });
+  for (const p of pages.values()) {
+    if (isObject(p.world) && isPattern(p.world.childView) && PAGE_FORMATS[p.world.childView] !== "book") {
+      fail(t("{pattern} のパターンはページには書けません（マスター用のファイルの最初のページだけ）: {id}", { pattern: p.world.childView, id: p.id }));
+    }
+  }
+  if (!FORMAT_RULES[format].pages && pages.size) fail(t("マスター用のファイルは 2 枚目からのページを持てません"));
+  for (const n of byId.values()) {
+    if (n.book == null) continue;
+    if (!FORMAT_RULES[format].bookLinks) fail(t("book（ブックの窓）はマスター用のファイルにだけ書けます: {id}", { id: n.id }));
+    else if (typeof n.book !== "string" || !n.book) fail(t("book はブックの id の文字列にしてください: {id}", { id: n.id }));
+    if (n.link != null) fail(t("book と link は一緒に書けません: {id}", { id: n.id }));
+  }
   // リンクの箱（link-box.ts）: link は存在するページの id で、自分の載っているページではない。子を持てない
   const hasKids = new Set([...byId.values()].filter(n => n.parent != null).map(n => String(n.parent)));
   for (const n of byId.values()) {
+    if (n.book != null && hasKids.has(String(n.id))) fail(t("ブックの窓は子を持てません: {id}", { id: n.id }));
     if (n.link == null) continue;
     if (!pages.has(String(n.link))) { fail(t("存在しないページへのリンクです: {id} → {page}", { id: n.id, page: n.link })); continue; }
     if (hasKids.has(String(n.id))) fail(t("リンクの箱は子を持てません: {id}", { id: n.id }));

@@ -3,7 +3,7 @@
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isLinkLook, isRect } from "./link-box";
-import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, Shape, Size, TreeDirection, WorldData } from "./types";
+import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isPattern, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
@@ -166,10 +166,10 @@ export interface Strategy {
   link: boolean;        // 並べた子どうしに線を引ける・〇を出す（自動で並べる戦略では、線を引くと形が崩れる）
   widthGrip: boolean;   // 自分の幅のつまみを出す
   leafKids: boolean;    // 子は子を持てない（フローチャートの要素。子を持つ箱は入れられず、子の中へも落とせない）
-  tools: readonly Shape[];     // 道具箱（toolbox.ts。図の左上）に並べる、子として足せる形
-  addTool: boolean;     // ページのパターンのとき、道具箱に「追加」（押した所に箱を足す追加モード）を出す。形を並べる戦略（フローチャート）は出さない（D26）
+  tools: readonly ToolKey[]; // ページのパターンのとき、道具箱（toolbox.ts。図の左端）に並べる道具（形・追加・マスターの操作。D26）。空なら道具箱を出さない
   branchCaptions: readonly string[]; // 子のひし形（分岐）から出る線のキャプションの候補（線の編集ダイアログに出す）
-  onWorld: boolean;     // ページ（ワールド）に掛けられるパターンか（内包・ツリー・フローチャート）。箱の見せ方（内包・リスト・非表示）は onBox
+  onWorld: boolean;     // ページ（ワールド）に掛けられるパターンか（内包・ツリー・フローチャート・マスター）。箱の見せ方（内包・リスト・非表示）は onBox
+  pick: boolean;        // 新しい図・新しいページのダイアログで選べるか（マスターは選ばせない。ファイルの形式は validate.ts の PAGE_FORMATS）
   onBox: boolean;       // 箱の childView に書けるか（内包パターンの持ち物）
   tops: ChildView;      // ページのパターンのとき、最上位の箱をどの戦略で置くか（ツリーのページは根の子孫だけを木にし、最上位は自由に置く）
   rootOnly: boolean;    // ページのパターンのとき、子を持てるのは根（world.root）の子孫だけ（ツリー）
@@ -184,24 +184,29 @@ export interface Strategy {
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, tools: [], addTool: false, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
+const PLAIN = { leafKids: false, tools: [], pick: false, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
+const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"] };
 export const STRATEGIES: Record<ChildView, Strategy> = {
-  nest:   { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, tops: "nest", addTool: true },
+  nest:   NEST,
   // ツリー（ページのパターン）: 根（world.root）の子孫全体を木に並べる。最上位の箱（根も、根でない葉も）は自由に置く
   // 道具箱は追加だけ（ツリーは次の段階で作り込む。2026-10-14 ユーザー: それまでの暫定）
-  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, tops: "nest", rootOnly: true, addTool: true },
+  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, pick: true, tops: "nest", rootOnly: true, tools: ["add"] },
   list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, onBox: true, tops: "list", kidGap: 8 },
   hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onBox: true, tops: "hidden" },
   // フローチャート（ページのパターン。docs/PATTERN-plan.md の 3.7 章。2026-10-11 ユーザー）: 内包と同じく子を自由に置き、子は子を持てない。
   // 形はどこでも同じに使える（フローチャートだけの形は持たない。2026-10-12 ユーザー）
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
-    leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"], addTool: false,
-    branchCaptions: ["Yes", "No"], onWorld: true, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
+    leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
+    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
   },
+  // マスター（D26 の段階 2。docs/UI-plan.md。2026-10-14 ユーザー: パターンをプラグインして特別にした普通のページ）: 内包を土台に、
+  // 違う所だけを上書きする（内包に足した決まりは、そのままマスターにも効く）。新しいページの選択肢には出さず（pick）、箱の見せ方にも使わない。
+  // 道具箱はブック追加・ブックをまたぐ追加削除・設定。窓（book のある箱）でブックを並べる。ファイルの形式は validate.ts の PAGE_FORMATS
+  master: { ...NEST, onBox: false, pick: false, tools: ["newBook", "crossMove", "settings"] },
 };
 
 // 箱が、ある戦略の子として並んだときの自分の見せ方。並べる側ではなく、並べられる箱の側の決まり（リストは子の中身に関与しない。
@@ -213,7 +218,7 @@ export interface PlacedLook {
 }
 const AS_IS: PlacedLook = { plainShape: false, sharedSize: false, fullCaption: false };
 const LOOKS: Record<ChildView, PlacedLook> = {
-  nest: AS_IS, tree: AS_IS, hidden: AS_IS,
+  nest: AS_IS, tree: AS_IS, hidden: AS_IS, master: AS_IS,
   // フローチャートの子は、S でもキャプションを切り詰めずに折り返す（2026-10-12 ユーザー）
   flow: { plainShape: false, sharedSize: false, fullCaption: true },
   list: { plainShape: true, sharedSize: true, fullCaption: true },

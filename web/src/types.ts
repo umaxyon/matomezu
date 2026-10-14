@@ -6,8 +6,13 @@ import type { Head } from "./heads";
 export type Size = "L" | "M" | "S";
 // 並べ方の戦略の名前（model.ts の STRATEGIES の鍵）。パターンはページ単位（2026-10-12 ユーザー。docs/PATTERN-plan.md）:
 // ページ（ワールド）に掛けるパターンは PagePattern、箱に書ける子の見せ方（内包パターンの持ち物）は BoxView
-export type ChildView = "nest" | "tree" | "hidden" | "list" | "flow";
-export type PagePattern = "nest" | "tree" | "flow";
+// master はマスターページ（ブックの一覧。D26 の段階 2。docs/UI-plan.md）のパターン。マスター用のファイルにだけ書け、新しいページの選択肢には出さない
+export type ChildView = "nest" | "tree" | "hidden" | "list" | "flow" | "master";
+export type PagePattern = "nest" | "tree" | "flow" | "master";
+// ファイルの形式の種類（パターンごとに決まる。validate.ts の PAGE_FORMATS）。master はマスター用のファイル（窓が book でブックを指す）
+export type BookFormat = "book" | "master";
+// 道具箱（toolbox.ts）の道具: 形（その形を足す）、add（押した所に箱を足す追加モード）、マスターの操作（ブック追加・ブックをまたぐ追加削除・設定）
+export type ToolKey = Shape | "add" | "newBook" | "crossMove" | "settings";
 export type BoxView = "nest" | "list" | "hidden";
 export type Overflow = "wrap" | "grow" | "clip";
 export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class" | "circle" | "stadium" | "hexagon"
@@ -57,6 +62,7 @@ export interface BoxData {
   border?: boolean;
   overflow?: Overflow;
   page?: Id;             // 載っているページ（pages の id。最上位の箱だけに書く。無ければ最初のページ。docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）
+  book?: string;         // マスターの窓: のぞく（押すと開く）ブックの id（サーバーの図の id）。マスター用のファイルにだけ書ける（D26）
   link?: Id;             // リンクの箱: のぞく（押すと開く）ページの id（pages の id。link-box.ts）。形・サイズ・子の見せ方は使わず、子を持てない
   linkLook?: LinkLook;   // リンクの箱の見せ方（無ければ window）
   clip?: { x: number; y: number; w: number; h: number }; // リンクの箱の窓に映す範囲（のぞくページの座標の四角。無ければページ全体。収まらなければ左上から）
@@ -138,7 +144,7 @@ export interface WorldInfo {
   viewsOff: PagePattern[]; // 掛けられないパターン（子を持つ箱が最上位にあれば、フローチャートは掛けられない）
   treeDirection: TreeDirection; // ツリーのページの向き
   canFlatten: boolean;     // 内包に変換できるか（ツリーのページ。戻せない。docs/PATTERN-plan.md）
-  tools: { id: string | null; shapes: Shape[]; add: boolean; size: Size } | null; // 道具箱（ワールドなら id は null。図の左上に出す）。add は「追加」を出すか、size は足す箱のサイズ
+  tools: { id: string | null; tools: ToolKey[]; size: Size } | null; // 道具箱（ワールドなら id は null。図の左端に出す）の道具と、足す箱のサイズ
   canAlign: boolean;     // 自動で整列できるか（決まった並べ方を持つ戦略で、子がある）
   kidSize: Size | null;  // 中の箱のサイズ（一括で変えたもの。無ければ null）。canAlign のときだけ選べる
 }
@@ -168,7 +174,7 @@ export interface BoxInfo {
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: BoxView;
   framed: boolean; // 子を枠の中に入れて見せる箱か（内包・リスト。サイズは使わず、大きさは子の並びで決まる）
-  tools: { id: string | null; shapes: Shape[]; add: boolean; size: Size } | null; // 道具箱（ページのパターンのもの。ワールドなので id は null）と、足せる形、足す箱のサイズ
+  tools: { id: string | null; tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの。ワールドなので id は null）と、足せる形、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（ツリーのページの根の子孫。並びはツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md）
   treeRoot: boolean; // ツリーのページの根か（消せず、付け替えられない）
   link: { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: { x: number; y: number; w: number; h: number } | null } | null; // リンクの箱なら、のぞくページと見せ方・窓に映す範囲（link-box.ts）。形・サイズ・子の見せ方は使わない

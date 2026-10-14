@@ -16,7 +16,7 @@ import { BG_PRESETS, PATTERN_OPTIONS, ROUTE_OPTIONS, THEME_HELP, WORLD_VIEW_HELP
 import { DEFAULT_THEME, THEMES } from "./theme";
 import type { PagePattern, WorldData } from "./types";
 
-const PATTERNS: [string, string][] = PATTERN_OPTIONS.filter(([v]) => STRATEGIES[v].onWorld);
+const PATTERNS: [string, string][] = PATTERN_OPTIONS.filter(([v]) => STRATEGIES[v].pick);
 
 function seg(name: string, value: string, options: [string, string][]): string {
   return `<div class="mz-dlg-seg">${options.map(([v, label]) =>

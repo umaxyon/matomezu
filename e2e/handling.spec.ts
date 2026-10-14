@@ -77,7 +77,7 @@ test("追加モードで影を図の下の端へ寄せるとスクロールし�
   await openDiagram(page, example("nested"));
   const stage = page.locator("#stage");
   const view = (await stage.boundingBox())!;
-  await page.locator('.mz-toolbox [data-tool="+add"]').click();
+  await page.locator('.mz-toolbox [data-tool="add"]').click();
   const x = view.x + 200;
   await page.mouse.move(x, view.y + 200);
   await page.mouse.move(x, view.y + view.height - 6, { steps: 20 });
@@ -127,7 +127,7 @@ test("追加モードでポインタを図の上の外（タブの列の上）�
   await stage.evaluate(el => { el.scrollTop = 1e6; });
   const start = await stage.evaluate(el => el.scrollTop);
   expect(start).toBeGreaterThan(500);
-  await page.locator('.mz-toolbox [data-tool="+add"]').click();
+  await page.locator('.mz-toolbox [data-tool="add"]').click();
   const x = view.x + 200;
   await page.mouse.move(x, view.y + 200);
   await page.mouse.move(x, view.y - 20, { steps: 10 }); // 図の上の外

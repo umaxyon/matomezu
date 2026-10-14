@@ -6,15 +6,24 @@ import { createMinimap, type Minimap } from "./minimap";
 import { openAddDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { createPanel, type Panel, type PanelOptions } from "./panel";
 import { createToolbox, type Tool } from "./toolbox";
-import type { Info, Shape, Size } from "./types";
-import { SHAPE_LABELS } from "./validate";
+import type { Info, Shape, Size, ToolKey } from "./types";
+import { SHAPE_LABELS, isShape } from "./validate";
 import { SHAPE_ICONS } from "./shape-icons";
 import { t } from "./i18n";
 
 const shapeLabel = (s: Shape) => SHAPE_LABELS[s] ?? s;
-// 道具箱の「追加」（形の名前と重ならない鍵）と、その絵（追加モードの絵）
-const ADD_TOOL = "+add";
-const ADD_ICON = '<path d="M11.5 5.5H5A2.5 2.5 0 0 0 2.5 8v10.5A2.5 2.5 0 0 0 5 21h11a2.5 2.5 0 0 0 2.5-2.5v-6"/><path d="M18.5 1.5v8M14.5 5.5h8"/>';
+// 形でない道具（追加と、マスターの操作）の名前と絵。マスターの操作は、押すと呼ぶ側（app.ts）へ知らせる
+export type ToolCommand = Exclude<ToolKey, Shape | "add">;
+const OTHER_TOOLS: Record<Exclude<ToolKey, Shape>, { label: string; icon: string }> = {
+  add: { label: t("追加: 押した所に箱を足す（箱の上ならその子、リストの上なら子と子の間。Esc で選択モードに戻る）"),
+    icon: '<path d="M11.5 5.5H5A2.5 2.5 0 0 0 2.5 8v10.5A2.5 2.5 0 0 0 5 21h11a2.5 2.5 0 0 0 2.5-2.5v-6"/><path d="M18.5 1.5v8M14.5 5.5h8"/>' },
+  newBook: { label: t("ブック追加: 新しい図を作る"), icon: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M11.5 7v6M8.5 10h6"/>' },
+  crossMove: { label: t("追加削除: ブックごとの箱の一覧を左に出す。窓へドラッグすると、そのブックの郵便箱へ送る"), icon: '<path d="M3 7h18"/><path d="M5 7l1.5 13h11L19 7"/><path d="M12 11v6M9 14h6"/>' },
+  settings: { label: t("設定"), icon: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>' },
+};
+export interface ViewOptions extends PanelOptions {
+  onCommand?: (key: ToolCommand) => void; // マスターの道具（ブック追加・追加削除・設定）を押した
+}
 
 export interface DiagramView {
   graph: Graph;
@@ -24,7 +33,7 @@ export interface DiagramView {
 
 // options の onSelect は、道具箱を合わせたあとに呼ぶ
 export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unknown,
-  options: GraphOptions = {}, panelOptions: PanelOptions = {}): DiagramView {
+  options: GraphOptions = {}, panelOptions: ViewOptions = {}): DiagramView {
   let panel: Panel | null = null;
   const graph = createGraph(stage, data, {
     ...options,
@@ -43,10 +52,12 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   // キーボードで押したときは置く所を指せないので、道具箱を出している入れ物に足すダイアログをすぐ開く
   const toolbox = createToolbox(stage, (key, by) => {
     if (toolHost === undefined) return;
-    if (key === ADD_TOOL) {
+    if (key === "add") {
       if (by === "key") return openAddDialog(graph, { parentId: toolHost }, "box", toolSize);
       picked = key;
       graph.setMode(graph.mode() === "add" ? "move" : "add");
+    } else if (!isShape(key)) {
+      return panelOptions.onCommand?.(key as ToolCommand);
     } else {
       if (by === "key") return openAddDialog(graph, { parentId: toolHost }, key as Shape, toolSize);
       picked = key;
@@ -76,7 +87,7 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   });
   return { graph, panel, minimap };
 
-  // 道具箱（docs/PATTERN-plan.md の 3.7 章。D26）: ページのパターンの道具（追加か、フローチャートの形）を、図の見えている範囲の左上に出す。
+  // 道具箱（docs/PATTERN-plan.md の 3.7 章。D26）: ページのパターンの道具（STRATEGIES の tools）を、図の見えている範囲の左端に出す。
   // どのモードでも出し（押している道具を示す）、見る用のモードでは隠す。道具を押したときの動きは上の createToolbox
   function showTools(info: Info | null) {
     const host = info ? (info.kind === "edge" ? graph.info(null).tools : info.tools) : null;
@@ -84,9 +95,11 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
     if (!host || (host.id != null && !el) || graph.preview() != null) { toolbox.hide(); toolHost = undefined; return; }
     toolHost = host.id;
     toolSize = host.size;
-    const tools: Tool[] = host.add ? [{ key: ADD_TOOL, label: t("追加: 押した所に箱を足す（箱の上ならその子、リストの上なら子と子の間。Esc で選択モードに戻る）"), icon: ADD_ICON }] : [];
-    tools.push(...host.shapes.filter(s => SHAPE_ICONS[s]).map((s): Tool => ({ key: s, label: shapeLabel(s), icon: SHAPE_ICONS[s]! })));
+    const tools = host.tools.flatMap((k): Tool[] => isShape(k)
+      ? (SHAPE_ICONS[k] ? [{ key: k, label: shapeLabel(k), icon: SHAPE_ICONS[k]! }] : [])
+      : [{ key: k, ...OTHER_TOOLS[k] }]);
     toolbox.show(el, tools);
-    toolbox.press(graph.mode() === "add" ? (picked && tools.some(x => x.key === picked) ? picked : host.add ? ADD_TOOL : null) : null);
+    const hasAdd = host.tools.includes("add");
+    toolbox.press(graph.mode() === "add" ? (picked && tools.some(x => x.key === picked) ? picked : hasAdd ? "add" : null) : null);
   }
 }

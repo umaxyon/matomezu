@@ -25,7 +25,7 @@ async function addWith(page: Page, caption: string) {
 const captionOf = (page: Page, text: string) => page.locator(".mz-node > .mz-head", { hasText: text });
 
 test("追加ボタンを押すとポインタに影が付き、何も無い所を押してダイアログで追加すると、その位置に置いて選択モードに戻る", async ({ page }) => {
-  await page.locator('.mz-toolbox [data-tool="+add"]').click();
+  await page.locator('.mz-toolbox [data-tool="add"]').click();
   await expect(page.locator("#mode-label")).toHaveText("追加モード");
   const world = (await page.locator(".mz-world").boundingBox())!;
   await page.mouse.move(world.x + 300, world.y + 400);
@@ -43,14 +43,14 @@ test("追加ボタンを押すとポインタに影が付き、何も無い所�
 });
 
 test("子の無い箱の上で追加すると、その箱の子になる", async ({ page }) => {
-  await page.locator('.mz-toolbox [data-tool="+add"]').click();
+  await page.locator('.mz-toolbox [data-tool="add"]').click();
   await box(page, 1).click();
   await addWith(page, "子");
   await expect(page.locator('.mz-node[data-id="1"] > .mz-node > .mz-head', { hasText: "子" })).toBeVisible();
 });
 
 test("リストの上では子と子の間に線が出て、押すとそこへ差し込む", async ({ page }) => {
-  await page.locator('.mz-toolbox [data-tool="+add"]').click();
+  await page.locator('.mz-toolbox [data-tool="add"]').click();
   const a = (await box(page, 21).boundingBox())!, b = (await box(page, 22).boundingBox())!;
   const y = (a.y + a.height + b.y) / 2; // 一 と 二 の間
   await page.mouse.move(a.x + a.width / 2, y);
@@ -69,14 +69,14 @@ test("リストの上では子と子の間に線が出て、押すとそこへ�
 });
 
 test("Esc で選択モードに戻り、影が消える。押してダイアログが出たら選択モードに戻り、影は付いてこない（キャンセルしても選択モードのまま）", async ({ page }) => {
-  await page.locator('.mz-toolbox [data-tool="+add"]').click();
+  await page.locator('.mz-toolbox [data-tool="add"]').click();
   const world = (await page.locator(".mz-world").boundingBox())!;
   await page.mouse.move(world.x + 320, world.y + 420);
   await page.keyboard.press("Escape");
   await expect(page.locator("#mode-label")).toHaveText("選択モード");
   await expect(page.locator(".mz-add-ghost")).toHaveCount(0);
 
-  await page.locator('.mz-toolbox [data-tool="+add"]').click();
+  await page.locator('.mz-toolbox [data-tool="add"]').click();
   await page.mouse.click(world.x + 300, world.y + 400);
   await expect(page.locator("#mode-label")).toHaveText("選択モード");
   await page.mouse.move(world.x + 340, world.y + 440, { steps: 5 });

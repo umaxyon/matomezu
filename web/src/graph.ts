@@ -84,6 +84,8 @@
  *     "flow"（フローチャート。内包と同じく自由に置く。箱は子を持てない。docs/PATTERN-plan.md の 3.7 章。
  *     どの箱にも位置が無ければ、本筋を中央にそろえて整列して置く。layout/flow-align.ts。graph.autoAlign(null) でも同じ並べ方）。
  *     ツリーを内包に変換（graph.flattenTree(null)）すると、親子のつながりを線で引き直す。戻せない
+ *     "master"（マスター。ブックの一覧のページ。内包と同じに置き、窓（book: ブックの id）でブックを並べる。マスター用のファイルの最初のページにだけ書け、
+ *     新しいページの選択肢には出さない。ファイルの形式は validate.ts の PAGE_FORMATS。D26 の段階 2）
  *   - fill: false で塗りつぶし無し（透明）、border で枠線の有無（既定は内包で子を持つボックスだけ枠線あり）。
  *   - overflow は文字のボックスの中身の扱い:
  *       "wrap" … 幅に合わせて折り返す（既定）
@@ -153,7 +155,7 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, t
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, TreeDirection, WorldData } from "./types";
+import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
 import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, isPattern, isTreeDirection, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
@@ -951,10 +953,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  // 道具箱（toolbox.ts）: ページのパターンの道具（形と「追加」。STRATEGIES の tools・addTool）。どの箱を選んでいても図の左上に出す。無ければ null
-  function toolHostOf(): { id: string | null; shapes: Shape[]; add: boolean; size: Size } | null {
-    const { tools, addTool } = STRATEGIES[worldViewOf(world)];
-    return tools.length || addTool ? { id: null, shapes: [...tools], add: addTool, size: kidSizeOf(world) ?? "M" } : null;
+  // 道具箱（toolbox.ts）: ページのパターンの道具（形・追加・マスターの操作。STRATEGIES の tools）。どの箱を選んでいても図の左端に出す。無ければ null
+  function toolHostOf(): { id: string | null; tools: ToolKey[]; size: Size } | null {
+    const { tools } = STRATEGIES[worldViewOf(world)];
+    return tools.length ? { id: null, tools: [...tools], size: kidSizeOf(world) ?? "M" } : null;
   }
 
   // ページに掛けられないパターン（子を持つ最上位の箱があるなら、箱が子を持てないフローチャートは掛けられない）
@@ -1419,7 +1421,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         route: routeDefaultOf(world),
         title: typeof source.world?.title === "string" && source.world.title ? source.world.title : null,
         childView: worldViewOf(world),
-        views: PAGE_PATTERNS.filter(v => STRATEGIES[v].onWorld),
+        views: PAGE_PATTERNS.filter(v => STRATEGIES[v].pick),
         viewsOff: patternsOff(),
         treeDirection: treeDirOf(world),
         canFlatten: canFlatten(),
