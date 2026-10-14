@@ -1,5 +1,6 @@
 // トースト: 画面の下の真ん中に、しばらく出て消える知らせ（2026-10-12 ユーザー: 断りの知らせがヘッダーの状態の文字では目立たない）。
 // 何枚も重なれば下から順に積む。押すと消える。警告（warn）は目立つ色で長めに出す。
+// エラー（error）は時間では消えない（保存できない・接続できないなど、直るまで出しておく。呼ぶ側が返り値の関数で消す。D26）。
 //   toast(text, { kind: "warn" })
 import { injectStyle } from "./dom";
 import { t } from "./i18n";
@@ -19,6 +20,7 @@ const CSS = `/* i18n-ok（CSS のコメント） */
   animation: mz-toast-in 0.18s ease-out;
 }
 .mz-toast.mz-toast-warn { --toast-accent: #f59e0b; }
+.mz-toast.mz-toast-error { --toast-accent: #dc2626; }
 .mz-toast.mz-toast-out { animation: mz-toast-out 0.18s ease-in forwards; }
 .mz-toast-icon { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; display: grid; place-items: center;
   font-size: 12px; font-weight: 700; color: #fff; background: var(--toast-accent); }
@@ -31,12 +33,12 @@ const CSS = `/* i18n-ok（CSS のコメント） */
 @media (prefers-reduced-motion: reduce) { .mz-toast, .mz-toast.mz-toast-out { animation: none; } }
 `;
 
-export type ToastKind = "info" | "warn";
+export type ToastKind = "info" | "warn" | "error";
 export interface ToastOptions {
   kind?: ToastKind;
-  duration?: number; // 出しておく時間（ms）。既定は info 3500 / warn 7000
+  duration?: number; // 出しておく時間（ms）。既定は info 3500 / warn 7000 / error は消えない（Infinity）
 }
-const DURATION: Record<ToastKind, number> = { info: 3500, warn: 7000 };
+const DURATION: Record<ToastKind, number> = { info: 3500, warn: 7000, error: Infinity };
 
 let host: HTMLElement | null = null;
 function hostEl(): HTMLElement {
@@ -59,13 +61,14 @@ export function toast(text: string, o: ToastOptions = {}): () => void {
   const icon = document.createElement("span");
   icon.className = "mz-toast-icon";
   icon.setAttribute("aria-hidden", "true");
-  icon.textContent = kind === "warn" ? "!" : "i";
+  icon.textContent = kind === "info" ? "i" : "!";
   const body = document.createElement("span");
   body.className = "mz-toast-text";
   body.textContent = text;
   el.append(icon, body);
   hostEl().appendChild(el);
-  let timer: ReturnType<typeof setTimeout> | null = setTimeout(close, o.duration ?? DURATION[kind]);
+  const duration = o.duration ?? DURATION[kind];
+  let timer: ReturnType<typeof setTimeout> | null = Number.isFinite(duration) ? setTimeout(close, duration) : null;
   function close() {
     if (timer) clearTimeout(timer);
     timer = null;

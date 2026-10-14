@@ -1,6 +1,7 @@
-// 画面の組み立て。ヘッダー、サイドバー、描画領域をつなぐ。
+// 画面の組み立て。タブ行（道具・タブ・右端の群）、サイドバー、描画領域をつなぐ（D26 でヘッダーをやめた。docs/UI-plan.md）。
 // - matomezu のサーバーから開いたとき: 図をアプリ内のタブとして開き、自動で保存し、外部の変更を反映する（app.ts）。
-// - それ以外（file:// や静的配信）: 埋め込みのサンプルか ?src= の JSON を表示し、開く・保存のボタンで扱う。
+// - それ以外（file:// や静的配信）: 埋め込みのサンプルか ?src= の JSON を表示し、開く・保存のボタンで扱う（ボタンはタブ行の右に仮に置く。ファイルの扱いは別の課題）。
+// - 知らせ: エラーは直るまで消えないトースト、断りはトースト（notices.ts）。開いている図が無いときは図の真ん中に案内を出す
 
 import { startApp } from "./app";
 import { download, readFile } from "./dom";
@@ -10,6 +11,7 @@ import { lang, t, translateDom } from "./i18n";
 import { setupPreview } from "./preview";
 import { setupSettings } from "./settings";
 import { setupHistory, setupModes } from "./toolbar";
+import { toast } from "./toast";
 import { mountDiagram } from "./view";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -19,27 +21,26 @@ document.documentElement.lang = lang();
 translateDom(document.body);
 
 const stage = $("stage");
-const nameEl = $("name");
-const statusEl = $("status");
-const hint = $("hint");
+const nameEl = $("name").querySelector<HTMLElement>(".tab-name")!;
+const emptyEl = $("empty");
 const fileInput = $<HTMLInputElement>("file");
-const defaultHint = hint.textContent ?? "";
 
+// エラーは 1 枚だけ出し、直る（clearError）まで消さない
+let closeError: (() => void) | null = null;
 function showError(err: unknown) {
-  hint.textContent = err instanceof Error ? err.message : String(err);
-  hint.classList.add("error");
+  closeError?.();
+  closeError = toast(err instanceof Error ? err.message : String(err), { kind: "error" });
 }
 
 function clearError() {
-  hint.textContent = defaultHint;
-  hint.classList.remove("error");
+  closeError?.();
+  closeError = null;
 }
 
-let statusTimer: ReturnType<typeof setTimeout> | null = null;
-function showStatus(text: string) {
-  statusEl.textContent = text;
-  if (statusTimer) clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => { statusEl.textContent = ""; }, 3000);
+// 図の真ん中の案内（null で隠す）
+function showEmpty(text: string | null) {
+  emptyEl.textContent = text ?? "";
+  emptyEl.hidden = text == null;
 }
 
 // matomezu のサーバーから開かれたか
@@ -66,12 +67,12 @@ async function main() {
     document.body.classList.add("served");
     const canvas = stage.parentElement ?? document.body;
     stage.remove(); // 描画領域はタブごとに作る
-    $("tab-bar").hidden = false;
+    $("name").remove(); // 図の名前はブックのタブに出す
+    $("new-book").hidden = false;
     startApp({
       tabs: $("tabs"), newBook: $<HTMLButtonElement>("new-book"), canvas, sidebar: $("sidebar"),
       undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
-      status: showStatus, error: showError, clearError,
-      hint: text => { hint.textContent = text; hint.classList.remove("error"); },
+      notice: text => toast(text), error: showError, clearError, empty: showEmpty,
     });
     return;
   }
@@ -82,7 +83,7 @@ async function main() {
       undoBtn.disabled = !h.canUndo;
       redoBtn.disabled = !h.canRedo;
     },
-    onEvent: ev => handleGraphEvent(graph, ev, showStatus),
+    onEvent: ev => handleGraphEvent(graph, ev),
   });
   setupHistory(graph, undoBtn, redoBtn);
   preview.attach(graph, stage);

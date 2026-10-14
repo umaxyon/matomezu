@@ -41,10 +41,10 @@ export interface AppUi {
   modeButtons: HTMLButtonElement[];
   modeLabel: HTMLElement;
   preview: Preview;
-  status(text: string): void;
-  error(message: string): void;
+  notice(text: string): void;     // 気づいてほしい知らせ（トースト）
+  error(message: string): void;   // 直るまで出しておくエラー
   clearError(): void;
-  hint(text: string): void;
+  empty(text: string | null): void; // 図の真ん中の案内（開いている図が無いとき。null で隠す）
 }
 
 type PageId = string | null; // ページの箱の id。null は最初のページ
@@ -278,6 +278,7 @@ export async function startApp(ui: AppUi) {
       b.loaded = true;
       unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButtons, ui.modeLabel));
       ui.preview.attach(b.graph, b.stage);
+      ui.empty(null);
       if (b.error) ui.error(b.error);
       else ui.clearError();
     }
@@ -334,7 +335,7 @@ export async function startApp(ui: AppUi) {
     document.title = "matomezu";
     ui.undo.disabled = ui.redo.disabled = true;
     ui.clearError();
-    ui.hint(EMPTY_HINT);
+    ui.empty(EMPTY_HINT);
   }
 
   // ブックを読み込んでタブグループを作る。サーバーが知らないブックなら null
@@ -375,7 +376,7 @@ export async function startApp(ui: AppUi) {
       const { graph, panel, minimap } = mountDiagram(stage, side, { nodes: [] }, {
         onChange: data => { book?.sync.changed(data); if (book) { refreshPages(book); othersChanged(book); } },
         onHistory: () => { if (book && current?.book === book) refreshButtons(book); },
-        onEvent: ev => { if (book && current?.book === book) handleGraphEvent(book.graph, ev, ui.status); },
+        onEvent: ev => { if (book && current?.book === book) handleGraphEvent(book.graph, ev); },
         onBuild: () => { if (book) { refreshPages(book); othersChanged(book); } },
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
@@ -386,7 +387,8 @@ export async function startApp(ui: AppUi) {
         sync: null as unknown as Sync, loaded: false, data: remote.data, error: null,
       };
       b.sync = startSync(graph, base, remote, {
-        status: text => { if (current?.book === b) ui.status(text); },
+        status: () => {},
+        notice: text => { if (current?.book === b) ui.notice(text); },
         error: message => { b.error = message; if (current?.book === b) ui.error(message); },
         clearError: () => { b.error = null; if (current?.book === b) ui.clearError(); },
       }, { active: false });
@@ -450,7 +452,7 @@ export async function startApp(ui: AppUi) {
       const b = books.find(x => x.id === doc);
       if (b) closeBook(b);
     },
-    status: ui.status,
+    status: () => {}, // 再接続中の知らせは出さない（つながらなければ同期のエラーが出る）
   });
 
   // 前に開いていたタブと、URL で指定されたページを開く（サーバーが知らないブックは開かない）

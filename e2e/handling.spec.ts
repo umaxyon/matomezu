@@ -68,7 +68,7 @@ test("ボタンやタブの文字は、ドラッグで選択されない", async
   // 箱の見出しの真ん中は線が通ることがあるので、左上の角を押して選ぶ
   await page.locator('.mz-node[data-id="1"] > .mz-head').click({ position: { x: 5, y: 5 } });
   const none = (sel: string) => page.locator(sel).first().evaluate(el => getComputedStyle(el).userSelect);
-  expect(await none("header button")).toBe("none");
+  expect(await none(".tab-bar button")).toBe("none");
   expect(await none(".mzp-tab")).toBe("none");
   expect(await none(".mzp-seg label")).toBe("none");
 });

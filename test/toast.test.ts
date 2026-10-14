@@ -28,16 +28,25 @@ test("トーストは画面に積まれ、押すと消え、時間が来ても�
   close(); // 消えたあとに呼んでも何も起きない
 });
 
-test("断りの知らせ（パターンの違うページへ移せない、など）はトーストで出し、普通の知らせはヘッダーの状態の文字に出す", () => {
+test("エラーのトーストは時間では消えず、返り値の関数か押したときに消える", async () => {
+  const close = toast("保存できませんでした", { kind: "error" });
+  expect(shown()[0]!.classList.contains("mz-toast-error")).toBe(true);
+  expect(shown()[0]!.textContent).toBe("!保存できませんでした");
+  await wait(100);
+  expect(shown().length).toBe(1);
+  close();
+  await wait(300);
+  expect(shown()).toEqual([]);
+});
+
+test("断りの知らせ（パターンの違うページへ移せない、など）はトーストで出し、普通の知らせは出さない", () => {
   const el = document.createElement("div");
   document.body.appendChild(el);
   const graph = createGraph(el, { nodes: [{ id: 1 }] }, { measureText: fakeMeasure });
   graphs.push(graph);
-  const status: string[] = [];
-  handleGraphEvent(graph, { kind: "crossPattern", from: "flow", to: "nest" }, s => status.push(s));
-  handleGraphEvent(graph, { kind: "leafKids" }, s => status.push(s));
-  handleGraphEvent(graph, { kind: "added", key: "1_箱" }, s => status.push(s));
+  handleGraphEvent(graph, { kind: "crossPattern", from: "flow", to: "nest" });
+  handleGraphEvent(graph, { kind: "leafKids" });
+  handleGraphEvent(graph, { kind: "added", key: "1_箱" });
   expect(shown().length).toBe(2);
   expect(shown()[0]!.textContent).toContain("パターンの違うページ");
-  expect(status).toEqual(["「1_箱」を追加しました"]);
 });

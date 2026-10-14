@@ -1,4 +1,4 @@
-// ヘッダーのツールバー: Undo / Redo（と選んだ線の Delete キー）と、ツールのモード（選択 / 親子の付け替え / 追加 / 削除）の切り替え
+// タブ行の左の道具（D26 でヘッダーをやめた）: Undo / Redo（と選んだ線の Delete キー）と、ツールのモード（選択 / 親子の付け替え / 追加 / 削除）の切り替え
 
 import type { Graph, Mode } from "./graph";
 import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
@@ -71,6 +71,7 @@ export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HT
     if (graph.mode() !== m) graph.setMode(m);
     for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.mode === m));
     label.textContent = MODE_LABELS[m];
+    label.dataset.mode = m; // 選択モードのときは札を隠す（index.html の .mode-label）
   };
   const listening = new AbortController();
   const { signal } = listening;

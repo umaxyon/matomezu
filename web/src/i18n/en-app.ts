@@ -30,6 +30,8 @@ export default {
   "サンプル": "Sample",
   "JSONを開く": "Open JSON",
   "保存": "Save",
+  "JSONを開く（ドロップでも開けます）": "Open JSON (you can also drop a file)",
+  "保存（JSON をダウンロード）": "Save (download the JSON)",
   "倍率": "Zoom",
   "縮小（Ctrl+ホイールでも）": "Zoom out (or Ctrl+wheel)",
   "縮小": "Zoom out",

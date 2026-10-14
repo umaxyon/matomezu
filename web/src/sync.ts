@@ -21,7 +21,8 @@ const SAVE_DELAY = 300;
 const RESIZE_DELAY = 300;
 
 export interface SyncUi {
-  status(text: string): void;
+  status(text: string): void;   // 保存中・保存しました などの、出さなくてよい知らせ（D26 で画面には出していない）
+  notice?(text: string): void;  // 気づいてほしい知らせ（画面の変更を取り消して読み直す。トーストで出す）
   error(message: string): void;
   clearError(): void;
 }
@@ -162,7 +163,9 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
         report();
       } else if (res.status === 409) {
         if (etag) remote = etag;
-        ui.status(t("外部で変更されていたため、画面の変更を取り消して読み直します"));
+        const text = t("外部で変更されていたため、画面の変更を取り消して読み直します");
+        ui.status(text);
+        ui.notice?.(text);
       } else {
         ui.error(t("保存できませんでした: {error}", { error: `${res.status} ${await res.text()}` }));
       }
