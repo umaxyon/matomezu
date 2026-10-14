@@ -59,14 +59,14 @@ test("フローチャートのひし形から出る線の編集ダイアログ�
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-label')).toHaveText("No");
 });
 
-test("フローチャートのページでは、図の左上に道具入れが出る。足すダイアログで向きの違う形（台形の向き）を絵で選べる", async ({ page }) => {
+test("フローチャートのページでは、図の左端の上下の真ん中に道具箱が出る。足すダイアログで向きの違う形（台形の向き）を絵で選べる", async ({ page }) => {
   await openDiagram(page, { world: { childView: "flow" }, nodes: [{ id: 1, caption: "A", x: 200, y: 200 }] });
   await page.locator(".mz-world").click({ position: { x: 5, y: 5 } });
   await expect(toolbox(page)).toBeVisible();
   const stage = (await page.locator("#stage").boundingBox())!;
   const box = (await toolbox(page).boundingBox())!;
   expect(box.x - stage.x).toBeLessThan(20);
-  expect(box.y - stage.y).toBeLessThan(20);
+  expect(Math.abs(box.y + box.height / 2 - (stage.y + stage.height / 2))).toBeLessThan(10);
 
   await toolbox(page).locator('[data-tool="trapezoid"]').click();
   await page.mouse.click(stage.x + 500, stage.y + 400); // 置きたい所を押す
