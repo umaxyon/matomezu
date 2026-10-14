@@ -48,6 +48,22 @@ const CSS = `/* i18n-ok（CSS のコメントの日本語） */
   }
 }
 .mz-dlg h2 { margin: 0 0 12px; font-size: 15px; }
+/* スクロールバー: 細い角丸のつまみだけを見せ、通り道は透明にする（サイドバー・タブの列と同じ形。index.html。2026-10-14 ユーザー）。
+   Chrome・Edge・Safari は ::-webkit-scrollbar で形を作り、Firefox だけ scrollbar-width / scrollbar-color にする */
+.mz-dlg { --dlg-scroll: rgba(255, 255, 255, 0.2); --dlg-scroll-hover: rgba(255, 255, 255, 0.36); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .mz-dlg { --dlg-scroll: rgba(0, 0, 0, 0.2); --dlg-scroll-hover: rgba(0, 0, 0, 0.36); }
+}
+.mz-dlg ::-webkit-scrollbar, .mz-dlg::-webkit-scrollbar { width: 12px; height: 12px; }
+.mz-dlg ::-webkit-scrollbar-track, .mz-dlg::-webkit-scrollbar-track, .mz-dlg ::-webkit-scrollbar-corner, .mz-dlg::-webkit-scrollbar-corner { background: transparent; }
+.mz-dlg ::-webkit-scrollbar-button, .mz-dlg::-webkit-scrollbar-button { display: none; }
+.mz-dlg ::-webkit-scrollbar-thumb, .mz-dlg::-webkit-scrollbar-thumb {
+  background: var(--dlg-scroll); border-radius: 6px; border: 3px solid transparent; background-clip: padding-box;
+}
+.mz-dlg ::-webkit-scrollbar-thumb:hover, .mz-dlg::-webkit-scrollbar-thumb:hover { background-color: var(--dlg-scroll-hover); border-width: 2px; }
+@supports not selector(::-webkit-scrollbar) {
+  .mz-dlg, .mz-dlg * { scrollbar-width: thin; scrollbar-color: var(--dlg-scroll) transparent; }
+}
 .mz-dlg-field { display: block; margin-bottom: 12px; }
 .mz-dlg-field > span { display: block; margin-bottom: 4px; font-weight: 600; }
 /* 本文の欄と、その下の本文の設定（箱の幅に合わせる・最大行数）の行は詰めて、ひとまとまりに見せる */
@@ -210,13 +226,17 @@ function setupClipPicker(host: HTMLElement, scene: Scene, start: Rect | null, wi
   const pageRect: Rect = { x: 0, y: 0, w: scene.w, h: scene.h };
   const frame = make("rect", "mm-page", { x: 0, y: 0, width: scene.w, height: scene.h });
   const view = make("rect", "mm-view", {}), handle = make("rect", "mm-handle", {});
+  let grab: { kind: "move" | "size"; dx: number; dy: number; id: number } | null = null;
   let region: Rect = previewRegion(scene, win(), minScale, clip);
   let shown: Rect = pageRect, scale = 1, off = { x: 0, y: 0 };
   const draw = () => {
     region = previewRegion(scene, win(), minScale, clip);
-    shown = union(pageRect, region);
-    scale = Math.min(CLIP_W / shown.w, CLIP_H / shown.h);
-    off = { x: (CLIP_W - shown.w * scale) / 2, y: (CLIP_H - shown.h * scale) / 2 }; // 中央に置いたときの余白（画面の px）
+    // 見せる範囲と縮尺は、つかんでいる間は変えない（動かすたびに縮尺が変わると、四角がポインタより速く動いてしまう。2026-10-14 ユーザー）
+    if (!grab) {
+      shown = union(pageRect, region);
+      scale = Math.min(CLIP_W / shown.w, CLIP_H / shown.h);
+      off = { x: (CLIP_W - shown.w * scale) / 2, y: (CLIP_H - shown.h * scale) / 2 }; // 中央に置いたときの余白（画面の px）
+    }
     for (const [k, v] of Object.entries({ x: region.x, y: region.y, width: region.w, height: region.h })) view.setAttribute(k, String(v));
     const hs = HANDLE / scale;
     for (const [k, v] of Object.entries({ x: region.x + region.w - hs, y: region.y + region.h - hs, width: hs, height: hs })) handle.setAttribute(k, String(v));
@@ -228,7 +248,6 @@ function setupClipPicker(host: HTMLElement, scene: Scene, start: Rect | null, wi
     const r = svg.getBoundingClientRect();
     return [(ev.clientX - r.left - off.x) / scale + shown.x, (ev.clientY - r.top - off.y) / scale + shown.y];
   };
-  let grab: { kind: "move" | "size"; dx: number; dy: number; id: number } | null = null;
   svg.addEventListener("pointerdown", ev => {
     if (ev.button !== 0) return;
     const [x, y] = toPage(ev);
@@ -250,10 +269,11 @@ function setupClipPicker(host: HTMLElement, scene: Scene, start: Rect | null, wi
     }
     draw();
   });
-  const release = (ev: PointerEvent) => { if (grab && ev.pointerId === grab.id) grab = null; };
+  const release = (ev: PointerEvent) => { if (grab && ev.pointerId === grab.id) { grab = null; draw(); } };
   svg.addEventListener("pointerup", release);
   svg.addEventListener("pointercancel", release);
-  host.querySelector("[data-clip-all]")!.addEventListener("click", () => { clip = null; draw(); });
+  // ページ全体: 中身が全部収まる四角にする（縮尺の下限より小さくなっても、全体を映す。2026-10-14 ユーザー）
+  host.querySelector("[data-clip-all]")!.addEventListener("click", () => { clip = { ...pageRect }; draw(); });
   return {
     clip: () => (clip ? { x: Math.round(clip.x), y: Math.round(clip.y), w: Math.round(clip.w), h: Math.round(clip.h) } : null),
     refresh: draw,

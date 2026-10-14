@@ -468,9 +468,10 @@ export async function startApp(ui: AppUi) {
     }, ui.error);
   }
 
-  // マスターの窓に出すブック（開いたときの並び）と、読んだ縮図。マスターを開き直すたびに作り直す
+  // マスターの窓に出すブック（開いたときの並び）と、作った縮図。縮図はファイルの最終更新（mtime）ごとに覚え、
+  // マスターを開き直しても、変わっていないブックは並べ直さずに使い回す（2026-10-14 ユーザー）
   let rows = new Map<string, BookRow>();
-  const scenes = new Map<string, Scene | "loading">();
+  const scenes = new Map<string, { mtime: number; scene: Scene | "loading" }>();
   let masterBook: Book | null = null;
   let masterRows: BookRow[] = []; // 開いたときの並び（新しい順）
   // ブックのデータ（窓の縮図と、追加削除の一覧・パターンの確かめに使う）。開いているブックなら図から、無ければ取りに行く。マスターを開き直すたびに捨てる
@@ -538,12 +539,14 @@ export async function startApp(ui: AppUi) {
     const pattern = isPattern(row.pattern) ? row.pattern : "nest";
     // 開いているブックで最初のページを描いていれば、その配置から（隠れていても、前に出ていたときの配置が残っている）
     const open = books.find(b => b.id === id && b.loaded);
-    let scene = open && open.graph.page() == null ? sceneOf(open.graph.geometry(), (open.graph.info(null) as WorldInfo).backgroundPaint) : scenes.get(id);
+    const cached = scenes.get(id);
+    let scene = open && open.graph.page() == null ? sceneOf(open.graph.geometry(), (open.graph.info(null) as WorldInfo).backgroundPaint)
+      : cached && cached.mtime === row.mtime ? cached.scene : undefined;
     if (scene == null && visible) {
-      scenes.set(id, "loading");
+      scenes.set(id, { mtime: row.mtime, scene: "loading" });
       // データを取ってきて、画面の外で実際に並べて縮図を作る（offscreen-scene.ts。近似では線や子が合わないため）
       void loadBook(id).then(data => (data ? layoutScene(data) : { w: 1, h: 1, bg: null, boxes: [], edges: [] })).then(sc => {
-        scenes.set(id, sc);
+        scenes.set(id, { mtime: row.mtime, scene: sc });
         masterBook?.graph.redraw();
       });
     }
@@ -596,8 +599,7 @@ export async function startApp(ui: AppUi) {
     masterBook = b;
     rows = new Map(list.map(r => [r.id, r]));
     masterRows = list;
-    scenes.clear();
-    bookData.clear();
+    bookData.clear(); // 縮図（scenes）は最終更新ごとに覚えているので捨てない
     activate(b, null);
     b.graph.load(masterData(list));
     b.sync.changed(b.graph.toJSON());
