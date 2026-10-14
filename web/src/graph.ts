@@ -958,6 +958,23 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function captureScene(data: Diagram) {
     scenes.set(page ?? "", { key: sceneKey(data, page), scene: sceneOf(api.geometry(), backgroundOf()) });
   }
+  // Undo / Redo（2026-10-15 ユーザー）: 履歴はブック全体なので、戻した変更が見ていないページのものなら、そのページへ切り替える
+  // （今のページも変わっていれば、今のページのまま）
+  function step(move: () => boolean): boolean {
+    const before = api.toJSON();
+    if (!move()) return false;
+    const after = api.toJSON();
+    const changedOn = (p: string | null) => sceneKey(before, p) !== sceneKey(after, p);
+    if (!changedOn(page)) {
+      const target = [null, ...pagesOf(after).map(x => String(x.id))].find(changedOn);
+      if (target !== undefined) {
+        api.setPage(target);
+        opt.onChange?.(api.toJSON()); // 画面のタブを合わせる（app.ts の refreshPages）
+      }
+    }
+    return true;
+  }
+
   // 描いていないページは、画面の外で並べて作る（届くまでは空の絵。近似は線や子が合わないので出さない。2026-10-14 ユーザー）
   const layingOut = new Set<string>();
   let destroyed = false; // 壊したあとに届いた縮図は使わない
@@ -2044,8 +2061,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const api: Graph = {
     load,
-    undo: () => preview == null && H.undo(),
-    redo: () => preview == null && H.redo(),
+    undo: () => preview == null && step(H.undo),
+    redo: () => preview == null && step(H.redo),
     history: () => H.state(),
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
     reveal(id) { const n = nodeOf(id); if (!n.isWorld) reveal(n); },

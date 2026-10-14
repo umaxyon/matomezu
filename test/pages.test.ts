@@ -129,7 +129,7 @@ test("新しい線の id は、ほかのページの線と重ならない", () =
   expect(edgeIds(graph.toJSON())).toEqual(["e1", "e2", "e3"]);
 });
 
-test("ページを切り替えても Undo の履歴は 1 つ。戻すとページの中の変更も戻る", () => {
+test("ページを切り替えても Undo の履歴は 1 つ。戻すとページの中の変更も戻り、そのページへ切り替える", () => {
   const { graph } = setup(book());
   graph.setPage("p1");
   graph.update(3, { caption: "変えた" });
@@ -137,7 +137,7 @@ test("ページを切り替えても Undo の履歴は 1 つ。戻すとペー�
   expect(node(graph.toJSON(), 3).caption).toBe("変えた");
   graph.undo();
   expect(node(graph.toJSON(), 3).caption).toBe("中A");
-  expect(graph.page()).toBeNull();
+  expect(graph.page()).toBe("p1");
 });
 
 test("描いていたページが無くなったら、最初のページに戻る（ページに載っていた箱は最初のページに出る）", () => {
@@ -397,4 +397,20 @@ test("戻す・移植も同じ決まり。消したものの一覧には、載�
   expect(notices.at(-1)).toContain("フローチャート → 内包");
   expect(graph.paste(copySubtree(other, 1), null, { x: 300, y: 300 })).not.toBe("");
   expect(graph.paste({ root: "9", nodes: [{ id: 9, caption: "古い写し" }], edges: [] }, null, { x: 300, y: 500 })).not.toBe("");
+});
+
+test("Undo / Redo で戻した変更が見ていないページのものなら、そのページへ切り替える。今のページも変われば今のまま（2026-10-15 ユーザー）", () => {
+  const { graph } = setup(book());
+  graph.update(1, { caption: "最初のページで変えた" });
+  graph.setPage("p1");
+  expect(graph.undo()).toBe(true);
+  expect(graph.page()).toBeNull();
+  graph.setPage("p1");
+  expect(graph.redo()).toBe(true);
+  expect(graph.page()).toBeNull();
+  // 今のページの変更を戻すときは、ページを変えない
+  graph.setPage("p1");
+  graph.update(3, { caption: "詳細で変えた" });
+  graph.undo();
+  expect(graph.page()).toBe("p1");
 });
