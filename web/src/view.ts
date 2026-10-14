@@ -2,6 +2,7 @@
 // main.ts（サーバーなしで開いたとき）と app.ts（サーバーから開いたときのブックごと）で共通
 
 import { createGraph, type Graph, type GraphOptions } from "./graph";
+import { layoutScene } from "./offscreen-scene";
 import { createMinimap, type Minimap } from "./minimap";
 import { openAddDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { createPanel, type Panel } from "./panel";
@@ -37,6 +38,7 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   options: GraphOptions = {}, panelOptions: ViewOptions = {}): DiagramView {
   let panel: Panel | null = null;
   const graph = createGraph(stage, data, {
+    sceneLayout: layoutScene, // 描いていないページの窓の縮図は、画面の外で並べて作る
     ...options,
     onSelect: info => { if (panel) showTools(info); options.onSelect?.(info); },
     // 追加モードで図を押したら、新しい箱の中身を聞くダイアログを開く

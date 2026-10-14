@@ -95,4 +95,5 @@ export default {
   "ブック": "Book",
   "ブックの題名": "Book title",
   "ファイル": "File",
+  "ブック「{name}」の最初のページ（{pattern}）をのぞく窓です。窓を押すと、そのブックを開きます": "A window onto the first page ({pattern}) of the book \"{name}\". Click the window to open that book",
 } satisfies Record<string, string>;

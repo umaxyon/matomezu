@@ -279,6 +279,8 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   // （見えていない窓（その他のブックの中）の縮図は取りに行かない。D26）。持たなければ book の id を題名にして、縮図は空
   bookWindow?: (book: string, visible: boolean) => { title: string; pattern: PagePattern; scene: Scene | null } | null;
   onOpenBook?: (book: string) => void;        // マスターの窓を押した（そのブックを前に出すのは画面の側。app.ts）
+  // 描いていないページの縮図を、画面の外で実際に並べて作る（offscreen-scene.ts の layoutScene）。持たなければデータだけの近似（dataScene。テスト）
+  sceneLayout?: (data: Diagram, page: string | null) => Promise<Scene>;
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
@@ -338,7 +340,8 @@ export interface Graph {
   items(): Items;
   geometry(): Geometry;
   pageScene(page: string): Scene; // ページの縮図のもと（リンクの箱の窓と、その設定ダイアログに）
-  redraw(): void; // 描き直す（マスターの窓の縮図が届いたとき。データは変えない）
+  redraw(): void; // 描き直す（窓の縮図が届いたとき。データは変えない）
+  linkScene(id: Id): Scene; // 窓（リンクの箱・マスターの窓）に映す縮図のもと（窓に映す範囲の設定ダイアログに）
   setPage(id: Id | null): void;
   page(): string | null;
   pages(): { id: string; caption: string }[]; // ブックのページ（2 枚目から。最初のページは含まない）
@@ -949,10 +952,28 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function captureScene(data: Diagram) {
     scenes.set(page ?? "", { key: sceneKey(data, page), scene: sceneOf(api.geometry(), backgroundOf()) });
   }
+  // 描いていないページは、画面の外で並べて作る（届くまでは空の絵。近似は線や子が合わないので出さない。2026-10-14 ユーザー）
+  const layingOut = new Set<string>();
+  let destroyed = false; // 壊したあとに届いた縮図は使わない
   function pageScene(p: string): Scene {
     const hit = scenes.get(p);
     if (hit && hit.key === sceneKey(source, p)) return hit.scene;
-    return dataScene(source, p, opt);
+    if (!opt.sceneLayout) return dataScene(source, p, opt);
+    if (!layingOut.has(p)) {
+      layingOut.add(p);
+      // 組み立ての途中（描きながら呼ばれる）でデータを書き出さないよう、次の番で始める
+      setTimeout(() => {
+        if (destroyed) return;
+        const k = sceneKey(source, p);
+        void opt.sceneLayout!(api.toJSON(), p === "" ? null : p).then(scene => {
+          layingOut.delete(p);
+          if (destroyed) return;
+          scenes.set(p, { key: k, scene });
+          api.redraw();
+        }, () => layingOut.delete(p));
+      }, 0);
+    }
+    return hit?.scene ?? EMPTY_SCENE; // 変わる前の絵があれば、届くまでそれを出す
   }
 
 
@@ -2055,6 +2076,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     page: () => page,
     pageScene,
     redraw: () => { nodes.filter(isLinkBox).forEach(applyStyle); render(); }, // 窓の絵は applyStyle で描く
+    linkScene: id => windowScene(nodeOf(id) as Box),
     paste,
     add,
     purge,
@@ -2105,6 +2127,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return { w, h };
     },
     destroy() {
+      destroyed = true;
       measurer.dispose();
       I.endLift();
       ro.disconnect();

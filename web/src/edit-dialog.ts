@@ -387,7 +387,9 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
         <p class="mz-dlg-note">${ONCE_NOTE}</p></div>`;
   let overlay = undefined as unknown as HTMLElement; // 下の show で作る（それより前に呼ばれる決まりは、作る前の値を見る）
   const linkGroup = b.link ? `<div class="mz-dlg-group"><h3>${t("リンク")}</h3>
-        <p class="mz-dlg-note">${esc(t("「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます", { name: b.link.pageName, pattern: PATTERN_LABELS[b.link.pattern] }))}</p>
+        <p class="mz-dlg-note">${esc(b.link.book
+          ? t("ブック「{name}」の最初のページ（{pattern}）をのぞく窓です。窓を押すと、そのブックを開きます", { name: b.link.pageName, pattern: PATTERN_LABELS[b.link.pattern] })
+          : t("「{name}」のページ（{pattern}）をのぞく窓です。窓を押すと開きます", { name: b.link.pageName, pattern: PATTERN_LABELS[b.link.pattern] }))}</p>
         <div class="mz-dlg-seg">${LINK_LOOK_OPTIONS.map(([v, label]) => `<label><input type="radio" name="linkLook" value="${v}"${v === b.link!.look ? " checked" : ""}>${esc(label)}</label>`).join("")}</div>
         <p class="mz-dlg-note">${t("形とサイズは使いません（大きさは見せ方と文字で決まります）")}</p></div>` : "";
   const side = `<div class="mz-dlg-side">${linkGroup}
@@ -626,7 +628,7 @@ export function openEditDialog(graph: Graph, id: string): void {
   const inherited = graph.info(b.parent?.id ?? null).themeUsed;
   const start: BoxStart = {
     ...b, theme: b.theme ?? "", color: b.color, inherited, sizeFixed, kids: b.children.length,
-    scene: b.link ? graph.pageScene(b.link.page) : null, previewMinScale: DEFAULTS.previewMinScale,
+    scene: b.link ? graph.linkScene(id) : null, previewMinScale: DEFAULTS.previewMinScale, // マスターの窓なら、そのブックの絵
     extras: true, views: !b.children.length ? null : b.inTree || b.treeRoot ? "fixed" : "choose",
     canOneLine: b.overflows.length > 0, canFit: b.sizableChildren >= 2,
   };
