@@ -337,6 +337,8 @@ export async function startApp(ui: AppUi) {
     if (i < 0) return;
     books.splice(i, 1);
     for (const f of bookClosed) f(b);
+    // ブックを閉じたら、そのブックの LLM の履歴も消す（D31。2026-10-15 ユーザー: 見ていない変更もここで確定）
+    if (!b.master) void fetch(docBase(b.id) + "api/llm", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
     b.sync.close();
     b.minimap.destroy();
     b.panel.destroy();
@@ -411,6 +413,8 @@ export async function startApp(ui: AppUi) {
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
         onOpenPage: page => { if (book) activate(book, page); }, // リンクの箱の窓（link-box.ts）
+        // 見ていなかった LLM の変更を見た（D31）: サーバーの LLM の履歴に印を付ける
+        onLLMSeen: version => { void fetch(base + "api/llm/seen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version }) }).catch(() => {}); },
         bookWindow: (id, visible) => bookWindow(id, visible), // マスターの窓（D26 の段階 2）
         onOpenBook: id => { void openBook(id).then(x => (x ? activate(x, null) : ui.error(t("そのブックを開けませんでした")))); },
       }, { onCommand: masterCommand }); // ブックをまたぐ持ち込みはマスターの追加削除へ移した（前の「他ブックも表示」は出さない。D26 の段階 4）

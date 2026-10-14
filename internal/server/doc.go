@@ -39,6 +39,11 @@ type doc struct {
 	mu      sync.Mutex
 	version string
 	layout  map[string]Layout // 画面から届いた最新の配置の要約（ページの箱の id ごと。最初のページは ""）
+	last    []byte            // 最後に知っているファイルの中身（version の中身。LLM の履歴の差分のもと。D31）
+
+	// LLM の履歴（llmhist.go）へ知らせる。画面からの保存ではないファイルの変化（onExternal）と、画面からの保存（onUserSave）。nil なら知らせない
+	onExternal func(id string, before, after []byte, version, note string)
+	onUserSave func(id string, before, after []byte)
 }
 
 // Layout は画面が配置した結果の要約。Version はそのとき画面が表示していたファイルの版、Page は描いていたページ。
@@ -69,7 +74,51 @@ func newDoc(abs string, onVersion func(id, version string)) (*doc, error) {
 		return nil, err
 	}
 	d.version = hash(b)
+	d.last = b
 	return d, nil
+}
+
+// sawFile は読んだファイルの中身 b を受け取る。前に知っていた中身と違えば、画面からの保存ではない変化なので LLM の履歴に足し、版を知らせる。
+// d.mu を持った状態で呼ぶ
+func (d *doc) sawFile(b []byte, note string) {
+	v := hash(b)
+	if v == d.version {
+		return
+	}
+	if d.onExternal != nil && d.last != nil {
+		d.onExternal(d.id, d.last, b, v, note)
+	}
+	d.last = b
+	d.setVersion(v)
+}
+
+// refresh はファイルを読み直し、まだ見つけていない外部の変化があれば記録する（LLM の履歴を返す前と、取り消す前）
+func (d *doc) refresh() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if b, err := os.ReadFile(d.path); err == nil {
+		d.sawFile(b, "")
+	}
+}
+
+// rewrite は今のファイルの中身を fn で書き換えて書く（LLM の履歴の取り消し）。書いた変化は LLM の履歴に note を付けて残る
+func (d *doc) rewrite(fn func(cur []byte) ([]byte, error), note string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	cur, err := os.ReadFile(d.path)
+	if err != nil {
+		return err
+	}
+	d.sawFile(cur, "") // 書く前に入っていた外部の変化を、先に記録する
+	next, err := fn(cur)
+	if err != nil {
+		return err
+	}
+	if err := writeAtomic(d.path, next); err != nil {
+		return err
+	}
+	d.sawFile(next, note)
+	return nil
 }
 
 // ensureFile は、ファイルが消えていれば空の図で作り直す（登録済みの図を開き直したとき）
@@ -83,6 +132,7 @@ func (d *doc) ensureFile() error {
 	if err := writeAtomic(d.path, b); err != nil {
 		return err
 	}
+	d.last = b // 作り直しは変更として記録しない
 	d.setVersion(hash(b))
 	return nil
 }
@@ -127,7 +177,7 @@ func (d *doc) getData(w http.ResponseWriter, _ *http.Request) {
 	d.mu.Lock()
 	b, err := os.ReadFile(d.path)
 	if err == nil {
-		d.setVersion(hash(b))
+		d.sawFile(b, "")
 	}
 	v := d.version
 	d.mu.Unlock()
@@ -161,7 +211,7 @@ func (d *doc) putData(w http.ResponseWriter, r *http.Request) {
 	}
 	// 画面が読んだあとにファイルが書き換えられていたら、上書きせずに知らせる
 	if m := r.Header.Get("If-Match"); m != "" && unquote(m) != hash(cur) {
-		d.setVersion(hash(cur))
+		d.sawFile(cur, "")
 		w.Header().Set("ETag", quote(d.version))
 		http.Error(w, "file changed", http.StatusConflict)
 		return
@@ -170,6 +220,14 @@ func (d *doc) putData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// 保存の前にファイルが外部で変わっていたら（If-Match が無い保存）、その変化を先に記録する
+	if cur != nil {
+		d.sawFile(cur, "")
+	}
+	if d.onUserSave != nil && d.last != nil {
+		d.onUserSave(d.id, d.last, b)
+	}
+	d.last = b
 	d.setVersion(hash(b))
 	w.Header().Set("ETag", quote(d.version))
 	w.WriteHeader(http.StatusNoContent)
@@ -229,7 +287,7 @@ func (d *doc) poll() {
 	if err != nil {
 		return // 置き換えの途中などで一瞬読めないことがある
 	}
-	d.setVersion(hash(b))
+	d.sawFile(b, "")
 }
 
 func quote(v string) string   { return `"` + v + `"` }

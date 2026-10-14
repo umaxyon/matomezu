@@ -40,6 +40,10 @@ const usageText = `usage:
                                              12.page=p2 moves a top-level box to page p2, but never to a page of a different pattern
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu close <file.json>...              close these diagrams in the browser (they stay registered and listed on the master page; open shows them again)
+                                             closing a diagram in the browser also clears its LLM history
+  matomezu history <file.json> [n]           list the changes made outside the browser (set, edits of the file) since the diagram was opened, newest last;
+                                             with n, show change n in detail. "seen" means the user has seen it; "overwritten" means the user's undo replaced it before they saw it
+  matomezu revert <file.json> <n>            undo change n of the history on the current file (boxes it added are removed with their children)
   matomezu stop                              stop the background server
   matomezu version
 `
@@ -64,6 +68,10 @@ func main() {
 		err = validateCmd(args)
 	case "close":
 		err = closeCmd(args)
+	case "history":
+		err = historyCmd(args)
+	case "revert":
+		err = revertCmd(args)
 	case "stop":
 		err = stop()
 	case "daemon":

@@ -1,5 +1,9 @@
-// 履歴: 変更のたびに図全体の JSON を1件として残し、Undo / Redo のときはそれを読み込み直す
+// 履歴（D31。2026-10-15 ユーザー）: Undo / Redo はユーザーの操作だけを扱う。1 件は操作の差分（diff.ts）と時刻で、戻すときは今の状態に
+// その逆を当てる（ブック全体の写しに戻すと、ユーザーの履歴に入っていない LLM の変更まで消えるため）。
+// LLM の変更（外部の変更の読み直し）は、ユーザーの履歴に積まずに差分だけを返し（external）、ユーザーが見たら（認知）その時刻の位置に差し込む（adopt）。
+// 差し込む位置は、まだ戻していない操作の中で時刻の合う所（戻した操作（Redo の残り）より後の時刻なら、今の位置）。認知は操作ではないので Redo の残りは消さない
 
+import { type Change, applyChanges, diffData } from "./diff";
 import type { Diagram } from "./types";
 
 export interface HistoryState {
@@ -7,54 +11,77 @@ export interface HistoryState {
   canRedo: boolean;
 }
 
+// 履歴の 1 件（操作の差分と時刻）
+export interface Op {
+  at: number;
+  changes: Change[];
+}
+
 export interface HistoryContext {
   snapshot(): Diagram;              // 今の状態
-  apply(data: Diagram): void;       // 記録した状態を画面に戻す
+  apply(data: Diagram): void;       // 差分を当てた状態を画面に出す
   onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
   limit: number;                    // 残す件数
+  now?: () => number;               // 時刻（テストで差し替える）
 }
 
 export function createHistory(ctx: HistoryContext) {
-  let past: string[] = []; // 最後が今の状態
-  let future: string[] = [];
+  const now = ctx.now ?? (() => Date.now());
+  let base: Diagram = { nodes: [] }; // 最後に知っている状態（差分のもと）
+  let past: Op[] = [];   // 戻せる操作（古い順）
+  let future: Op[] = []; // 進められる操作（最後が次に進めるもの）
 
-  const state = (): HistoryState => ({ canUndo: past.length > 1, canRedo: future.length > 0 });
+  const state = (): HistoryState => ({ canUndo: past.length > 0, canRedo: future.length > 0 });
   const notify = () => ctx.onHistory?.(state());
 
+  // ユーザーの操作を 1 件積む（最後に知っている状態からの差分）
   function record(data = ctx.snapshot()) {
-    const s = JSON.stringify(data);
-    if (s === past[past.length - 1]) return;
-    past.push(s);
+    const changes = diffData(base, data);
+    base = data;
+    if (!changes.length) return;
+    past.push({ at: now(), changes });
     if (past.length > ctx.limit) past.shift();
     future = [];
     notify();
   }
 
+  // 出発点にする（読み込んだとき）
   function reset() {
-    past = [JSON.stringify(ctx.snapshot())];
+    base = ctx.snapshot();
+    past = [];
     future = [];
     notify();
   }
 
-  function restore(s: string) {
-    ctx.apply(JSON.parse(s));
+  // LLM の変更（外部の変更の読み直し）。積まずに差分を返す（変わっていなければ null）
+  function external(data = ctx.snapshot()): Op | null {
+    const changes = diffData(base, data);
+    base = data;
+    return changes.length ? { at: now(), changes } : null;
+  }
+
+  // 認知した LLM の変更を、時刻の位置に差し込む
+  function adopt(op: Op) {
+    let i = past.length;
+    while (i > 0 && past[i - 1]!.at > op.at) i--;
+    past.splice(i, 0, op);
+    if (past.length > ctx.limit) past.shift();
     notify();
   }
 
-  function undo() {
-    if (past.length <= 1) return false;
-    future.push(past.pop()!);
-    restore(past[past.length - 1]!);
+  function move(from: Op[], to: Op[], dir: "undo" | "redo"): boolean {
+    const op = from.pop();
+    if (!op) return false;
+    ctx.apply(applyChanges(ctx.snapshot(), op.changes, dir));
+    base = ctx.snapshot();
+    to.push(op);
+    notify();
     return true;
   }
 
-  function redo() {
-    const s = future.pop();
-    if (s == null) return false;
-    past.push(s);
-    restore(s);
-    return true;
-  }
-
-  return { state, record, reset, undo, redo };
+  return {
+    state, record, reset, external, adopt,
+    undo: () => move(past, future, "undo"),
+    redo: () => move(future, past, "redo"),
+  };
 }

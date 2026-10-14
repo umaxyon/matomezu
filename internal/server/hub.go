@@ -79,6 +79,7 @@ type Hub struct {
 	booksSig  string   // マスターを開いている画面があるあいだの、登録した図のファイルの様子（books.go の watchBooks）
 
 	mailMu sync.Mutex // 郵便箱のファイルの読み書き（mail.go）
+	llmMu  sync.Mutex // LLM の履歴のファイルの読み書き（llmhist.go）
 }
 
 // storeLimit は store に覚えておく図の数（新しいものから）
@@ -147,7 +148,7 @@ func (h *Hub) restore() {
 		if st, err := os.Stat(p); err != nil || st.IsDir() {
 			continue
 		}
-		d, err := newDoc(p, h.versionChanged)
+		d, err := h.newDoc(p)
 		if err != nil {
 			continue
 		}
@@ -277,7 +278,7 @@ func (h *Hub) openDoc(path string, show bool, page string, ask bool) (OpenResult
 			return OpenResult{}, err
 		}
 	} else {
-		nd, err := newDoc(abs, h.versionChanged)
+		nd, err := h.newDoc(abs)
 		if err != nil {
 			return OpenResult{}, err
 		}
@@ -338,6 +339,17 @@ func (h *Hub) Close(path string) (CloseResult, error) {
 	}
 	h.broadcast(event{"close", jsonString(map[string]string{"doc": id})})
 	return CloseResult{ID: id, Connections: conns}, nil
+}
+
+// newDoc は図を扱い始める。LLM の履歴（llmhist.go）へ知らせるようにつなぐ
+func (h *Hub) newDoc(p string) (*doc, error) {
+	d, err := newDoc(p, h.versionChanged)
+	if err != nil {
+		return nil, err
+	}
+	d.onExternal = h.recordExternal
+	d.onUserSave = h.recordUserSave
+	return d, nil
 }
 
 func (h *Hub) versionChanged(id, v string) {
@@ -473,6 +485,10 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("POST /d/{id}/api/mail", fromPage(h.withMail(h.postMail)))
 	mux.HandleFunc("POST /d/{id}/api/mail/read", fromPage(h.withMail(h.readAllMail)))
 	mux.HandleFunc("DELETE /d/{id}/api/mail/{item}", fromPage(h.withMail(h.deleteMail)))
+	// LLM の履歴（llmhist.go）。取り消しは CLI（matomezu revert）から（管理の鍵が要る）
+	mux.HandleFunc("GET /d/{id}/api/llm", h.withLLM(h.getLLM))
+	mux.HandleFunc("POST /d/{id}/api/llm/seen", fromPage(h.withLLM(h.seenLLM)))
+	mux.HandleFunc("DELETE /d/{id}/api/llm", fromPage(h.withLLM(h.deleteLLM)))
 	// 以前の図ごとの URL は、画面の URL へ転送する
 	toApp := func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/?d="+url.QueryEscape(r.PathValue("id")), http.StatusFound)
@@ -494,6 +510,7 @@ func (h *Hub) Handler() http.Handler {
 		mux.HandleFunc("GET /api/ping", h.control(h.ping))
 		mux.HandleFunc("POST /api/open", h.control(h.open))
 		mux.HandleFunc("POST /api/close", h.control(h.close))
+		mux.HandleFunc("POST /d/{id}/api/llm/{n}/revert", h.control(h.withLLM(h.revertLLM)))
 		mux.HandleFunc("POST /api/shutdown", h.control(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 			go h.shutdown()

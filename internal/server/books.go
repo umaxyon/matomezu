@@ -129,7 +129,7 @@ func (h *Hub) master(w http.ResponseWriter, _ *http.Request) {
 	id := docID(p)
 	h.mu.Lock()
 	if h.docs[id] == nil {
-		d, err := newDoc(p, h.versionChanged)
+		d, err := h.newDoc(p)
 		if err != nil {
 			h.mu.Unlock()
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -188,4 +188,3 @@ func booksSignature(paths []string) string {
 	}
 	return sig.String()
 }
-

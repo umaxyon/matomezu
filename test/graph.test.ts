@@ -447,19 +447,17 @@ describe("履歴", () => {
     expect(graph.selected()).toBe("2");
   });
 
-  test("load は履歴を空にし、keepHistory なら1件足す。ただしユーザーがまだ図を変えていなければ足さずに出発点にする", () => {
-    const { graph } = setup({ nodes: [{ id: 1, caption: "a" }] });
-    // 開いてから LLM が整えている間（ユーザーはまだ触っていない）は積まない
-    graph.load({ nodes: [{ id: 1, caption: "整えた" }] }, { keepHistory: true });
+  test("load は履歴を空にする。外部の変更（keepHistory）はユーザーの履歴に積まず、Undo はユーザーの操作だけを戻す（LLM の変更は残る。D31）", () => {
+    const { graph } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
+    graph.load({ nodes: [{ id: 1, caption: "整えた" }, { id: 2, caption: "b" }] }, { keepHistory: true });
     expect(graph.history()).toEqual({ canUndo: false, canRedo: false });
-    // ユーザーが変えたあとの外部の変更は積む
-    graph.update(1, { caption: "ユーザー" });
-    graph.load({ nodes: [{ id: 1, caption: "外部の変更" }] }, { keepHistory: true });
-    graph.undo();
-    expect(graph.info(1).caption).toBe("ユーザー");
-    graph.undo();
-    expect(graph.info(1).caption).toBe("整えた");
+    graph.update(2, { caption: "ユーザー" });
+    graph.load({ nodes: [{ id: 1, caption: "外部の変更" }, { id: 2, caption: "ユーザー" }] }, { keepHistory: true });
+    expect(graph.undo()).toBe(true);
+    expect([graph.info(1).caption, graph.info(2).caption]).toEqual(["外部の変更", "b"]);
     expect(graph.history().canUndo).toBe(false);
+    expect(graph.redo()).toBe(true);
+    expect([graph.info(1).caption, graph.info(2).caption]).toEqual(["外部の変更", "ユーザー"]);
 
     graph.load({ nodes: [{ id: 1, caption: "開き直し" }] });
     expect(graph.history()).toEqual({ canUndo: false, canRedo: false });
@@ -484,8 +482,8 @@ describe("履歴", () => {
     for (let i = 1; i <= 120; i++) graph.update(1, { caption: String(i) });
     let n = 0;
     while (graph.undo()) n++;
-    expect(n).toBe(99);
-    expect(graph.info(1).caption).toBe("21");
+    expect(n).toBe(100);
+    expect(graph.info(1).caption).toBe("20");
   });
 });
 

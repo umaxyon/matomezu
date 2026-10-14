@@ -12,9 +12,10 @@
  *   const graph = createGraph(document.getElementById('stage'), data, { onChange, onSelect });
  *   graph.toJSON();              // 現在の状態を反映したデータ
  *   graph.load(data);            // 別のデータで描き直す（検証エラーなら例外を投げ、表示はそのまま残る）。履歴は空にする
- *   graph.load(data, { keepHistory: true }); // 外部での変更として、履歴に1件足して描き直す（はみ出しの調整はしない。開いたときに移した箱は、位置が変わらなければ移した先のまま）。
- *                                            // ただし、ユーザーがまだ図を変えていなければ（開いてから LLM が整えている間）、履歴に足さず、それを出発点にする
- *   graph.undo(); graph.redo();  // 履歴を戻る・進む（戻したら onChange で知らせる）
+ *   graph.load(data, { keepHistory: true, version }); // 外部（LLM）の変更として描き直す（はみ出しの調整はしない。開いたときに移した箱は、位置が変わらなければ移した先のまま）。ユーザーの履歴には積まず、
+ *                                            // 変えた箱が見えたら（認知）その時刻の位置に差し込む（D31。history.ts）。見たら onLLMSeen で version を知らせる
+ *   graph.undo(); graph.redo();  // ユーザーの操作を、差分で今の状態に戻す・進める（LLM の変更は残る。戻したら onChange で知らせる）。
+ *                                // 戻した変更が見ていないページのものなら、そのページへ切り替える
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.reveal(id);            // 見えている範囲の外なら、図をスクロールして真ん中に持ってくる（非表示の親の中なら、見えている祖先）
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
@@ -134,7 +135,8 @@
 
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle, keyOf } from "./dom";
-import { createHistory, type HistoryState } from "./history";
+import { createHistory, type HistoryState, type Op } from "./history";
+import { touchedOf } from "./diff";
 import { t } from "./i18n";
 import { type AddRequest, createInteraction, type Mode } from "./interaction";
 import { createDrag } from "./layout/drag";
@@ -279,7 +281,8 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onLiftOver?: (x: number, y: number) => void; // 付け替えのドラッグ中のポインタの位置（画面の座標。タブへのドラッグに使う）
   onLiftEnd?: () => void;                     // 付け替えのドラッグが終わった
   onAddRequest?: (req: AddRequest) => void;   // 追加モードで図を押した（新しい箱の中身を聞いて add を呼ぶのは画面の側。view.ts）
-  onOpenPage?: (page: string) => void;        // リンクの箱の窓を押した（そのページのタブを前に出すのは画面の側。app.ts）
+  onOpenPage?: (page: string) => void;
+  onLLMSeen?: (version: string) => void;     // 見ていなかった LLM の変更（その版にした変更）をユーザーが見た（D31。サーバーの LLM の履歴に印を付けるのは画面の側。app.ts）        // リンクの箱の窓を押した（そのページのタブを前に出すのは画面の側。app.ts）
   // マスターの窓（book）がのぞくブックの題名・最初のページのパターン・縮図（まだ読んでいなければ scene は null）。visible は窓が見えているか
   // （見えていない窓（その他のブックの中）の縮図は取りに行かない。D26）。持たなければ book の id を題名にして、縮図は空
   bookWindow?: (book: string, visible: boolean) => { title: string; pattern: PagePattern; scene: Scene | null } | null;
@@ -299,7 +302,7 @@ const HISTORY_LIMIT = 100;
 const SETTLE_BENDS = 3;
 
 export interface Graph {
-  load(data: unknown, options?: { keepHistory?: boolean }): void;
+  load(data: unknown, options?: { keepHistory?: boolean; version?: string }): void; // version は外部の変更の版（見ていない LLM の変更を、見たときにサーバーへ伝える。D31）
   undo(): boolean;
   redo(): boolean;
   history(): HistoryState;
@@ -498,9 +501,18 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }, L, R, createDrag(opt, L));
   dragging = () => I.dragging();
 
-  // ユーザーが図を変えたか（読み込んでから、履歴に積む操作をしたか）。変える前の外部の変更は、履歴に積まずに出発点にする
-  // （LLM が open のあと check / set で整えている途中を、戻るボタンで巻き戻させないため。docs/HANDOFF.md の 9 章）
-  let touched = false;
+  // まだユーザーが見ていない LLM の変更（外部の変更の読み直し。D31。2026-10-15 ユーザー）。変えた箱が見えている範囲に入ったら（スクロールで
+  // 通っただけでも）認知し、ユーザーの履歴の時刻の位置に差し込む（history.ts の adopt）。1 つの変更が複数の箱を扱うときは、どれか 1 つが見えたら全体。
+  // 消した箱は消す前の場所、ページの設定（world・pages）は、そのページが出たら。非表示や縮図の行の中の箱は、▼ や縮図が見えても認知しない
+  interface Unseen {
+    op: Op;
+    version: string | null;
+    nodes: Set<string>;
+    removed: { page: string | null; rect: Rect }[];
+    pages: Set<string | null>;
+    whole: boolean;
+  }
+  let unseen: Unseen[] = [];
 
   // データの変更を知らせる相手（onDataChange）
   const dataListeners = new Set<() => void>();
@@ -509,7 +521,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let batching = 0, batchDirty = false; // batch の中か・その中で変わったか
   function changed() {
     L.holdWorld(false); // 箱を足す所を探す間に広げた図は、図が変わったら中身に合わせる（layout.ts の stretchWorld）
-    touched = true;
     dataChanged();
     fitted.clear();
     if (batching) { batchDirty = true; return; } // まとめている間は、終わったときに 1 件だけ残す（batch）
@@ -1895,20 +1906,64 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // 読み込み直後のはみ出しの調整（fitToViewport）は、最初に開いたときだけ行う。
   // 外部（LLM など）の変更の読み直しでは行わない。行うと、ファイルの位置と画面の位置がずれていくため
-  function load(newData: unknown, o: { keepHistory?: boolean } = {}) {
+  function load(newData: unknown, o: { keepHistory?: boolean; version?: string } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
     if (o.keepHistory) keepShownPositions(copy);
     else fitted = new Map();
+    // 消える箱の、今の場所（消した箱の認知は、消す前の場所が見えたとき）
+    const before = o.keepHistory ? new Map(nodes.map(n => { const [x, y] = absPos(n); return [n.id, { page, rect: { x, y, w: n.w, h: n.h } }]; })) : null;
     // 外部の変更の読み直しでは、選んでいる箱や線を保つ（残っていれば。Undo と同じ）。LLM が図を書き換えるたびに
     // 選択が外れると、サイドバーで入力中の内容も消えてしまうため（docs/REVIEW-2026-10-09.md の B10）
     const keep = o.keepHistory ? { box: current?.id ?? null, edge: currentEdge?.id ?? null } : undefined;
     build(copy, !o.keepHistory, keep);
     const unknown = unknownThemes();
     if (unknown.length) opt.onEvent?.({ kind: "unknownTheme", names: unknown });
-    if (!o.keepHistory) touched = false;
-    if (o.keepHistory && touched) H.record();
-    else H.reset();
+    // 外部の変更（LLM）はユーザーの履歴に積まず、見ていない変更として覚える。読み込み直しは出発点にする
+    if (o.keepHistory) {
+      const op = H.external();
+      if (op) {
+        const t = touchedOf(op.changes);
+        unseen.push({
+          op, version: o.version ? o.version.replace(/^W\//, "").replace(/"/g, "") : null, nodes: t.nodes, pages: t.pages, whole: t.whole,
+          removed: [...t.removed.keys()].flatMap(id => { const b = before?.get(id); return b ? [b] : []; }),
+        });
+        setTimeout(checkSeen, 0); // 描いてから
+      }
+    } else {
+      H.reset();
+      unseen = [];
+    }
   }
+
+  // 見ていない LLM の変更のうち、見えたものを認知する（読み込み・スクロール・大きさの変化・ページの切り替え・拡大縮小のあと）
+  function checkSeen() {
+    if (!unseen.length || destroyed || !container.getClientRects().length) return; // 裏のブック（隠れている）は見えていない
+    const c = container.getBoundingClientRect();
+    const view = { left: c.left + container.clientLeft, top: c.top + container.clientTop, right: 0, bottom: 0 };
+    view.right = view.left + container.clientWidth;
+    view.bottom = view.top + container.clientHeight;
+    const hits = (r: { left: number; top: number; right: number; bottom: number }) =>
+      r.right > view.left && r.left < view.right && r.bottom > view.top && r.top < view.bottom;
+    const w = worldEl.getBoundingClientRect();
+    const seen = (u: Unseen) => u.whole || u.pages.has(page)
+      || [...u.nodes].some(id => {
+        const n = byId.get(id);
+        return !!n && !isHidden(n) && n.el.getClientRects().length > 0 && hits(n.head.getBoundingClientRect());
+      })
+      || u.removed.some(r => r.page === page && hits({
+        left: w.left + r.rect.x * applied, top: w.top + r.rect.y * applied,
+        right: w.left + (r.rect.x + r.rect.w) * applied, bottom: w.top + (r.rect.y + r.rect.h) * applied,
+      }));
+    const now = unseen.filter(seen);
+    if (!now.length) return;
+    unseen = unseen.filter(u => !now.includes(u));
+    for (const u of now) {
+      H.adopt(u.op);
+      if (u.version) opt.onLLMSeen?.(u.version);
+    }
+  }
+  container.addEventListener("scroll", () => checkSeen(), { passive: true });
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => checkSeen()).observe(container);
 
   // 外部の変更を読み直すとき、画面にだけある位置（保存されない）を使う。使わないと読み直すたびに動いてしまう。
   // - 開いたときのはみ出しの調整（fitToViewport）で移した箱は、ファイルの位置が移したときのままなら、移した先に置く
@@ -1952,6 +2007,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     applied = z;
     worldEl.style.zoom = z === 1 ? "" : String(z);
     syncWorld();
+    if (unseen.length) setTimeout(checkSeen, 0); // 拡大縮小で見えた LLM の変更（D31）
   }
 
   // 倍率を外して fn を動かす。文字の幅は画面で測るので、倍率がかかったまま組み立て直すと誤る
@@ -1970,6 +2026,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     preview = z;
     container.classList.toggle("mz-preview", z != null);
     applyZoom(z ?? 1);
+    checkSeen();
   }
 
   // プレビュー中の押下。図の操作（interaction.ts）より先に受け取り、選ぶだけにする。
@@ -2131,6 +2188,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       page = next;
       build(data, true);
       notifySelect();
+      setTimeout(checkSeen, 0); // そのページの見ていない LLM の変更（D31）
     },
     page: () => page,
     pageScene,

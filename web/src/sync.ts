@@ -103,7 +103,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
     try {
       if (r.data instanceof Error) throw r.data;
       const sel = graph.selected();
-      graph.load(r.data, { keepHistory });
+      graph.load(r.data, { keepHistory, version: r.version });
       if (sel != null) {
         try { graph.select(sel); } catch { /* 消えたボックスは選び直さない */ }
       }

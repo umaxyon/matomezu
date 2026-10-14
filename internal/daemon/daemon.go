@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/server"
@@ -230,6 +231,20 @@ func Close(s *State, path string) (server.CloseResult, error) {
 }
 
 func Shutdown(s *State) error { return call(s, "POST", "/api/shutdown", nil, nil) }
+
+// LLMHistory は図 id の LLM の履歴（D31。server/llmhist.go）
+func LLMHistory(s *State, id string) ([]server.LLMEntry, error) {
+	var res struct {
+		Entries []server.LLMEntry `json:"entries"`
+	}
+	err := call(s, "GET", "/d/"+id+"/api/llm", nil, &res)
+	return res.Entries, err
+}
+
+// Revert は図 id の LLM の履歴の n 番を取り消す
+func Revert(s *State, id string, n int) error {
+	return call(s, "POST", "/d/"+id+"/api/llm/"+strconv.Itoa(n)+"/revert", map[string]any{}, nil)
+}
 
 // Running は応答するサーバーがあればその状態を返す。無ければ nil
 func Running() *State {

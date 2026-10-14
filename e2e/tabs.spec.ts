@@ -434,3 +434,34 @@ test("マスターの道具箱のブック追加で新しい図を作ると、�
   await switchTo(page, "設計メモ");
   await page.locator(".tab-group-current .tab-book .tab-close").click();
 });
+
+test("LLM の変更はユーザーの Undo に入らず、見えたら認知してユーザーの履歴に入る。画面の外の箱は、スクロールで見えるまで認知しない。matomezu history に残り、見たら seen（D31）", async ({ page }) => {
+  const file = join(dir, "hist.json");
+  writeFileSync(file, JSON.stringify({ nodes: [{ id: 1, caption: "見える", x: 40, y: 40 }, { id: 2, caption: "遠く", x: 40, y: 3000 }] }));
+  const url = run("open", "-no-browser", "hist.json").trim();
+  await page.goto(url);
+  const stage = page.locator(".stage:visible");
+  await expect(stage.locator('.mz-node[data-id="2"]')).toHaveCount(1);
+  const undo = page.locator("#undo");
+  await expect(undo).toBeDisabled();
+  const write = (caps: [string, string]) => {
+    const d = JSON.parse(readFileSync(file, "utf8"));
+    d.nodes[0].caption = caps[0];
+    d.nodes[1].caption = caps[1];
+    writeFileSync(file, JSON.stringify(d));
+  };
+  // 画面の外の箱だけを変える → 認知しない（Undo は押せないまま）
+  write(["見える", "遠くを変えた"]);
+  await expect(stage.locator('.mz-node[data-id="2"]')).toContainText("遠くを変えた");
+  await page.waitForTimeout(300);
+  await expect(undo).toBeDisabled();
+  expect(run("history", "hist.json")).not.toContain("seen");
+  // スクロールして見えたら認知 → ユーザーの履歴に入り、Undo で戻せる
+  await stage.locator('.mz-node[data-id="2"]').scrollIntoViewIfNeeded();
+  await expect(undo).toBeEnabled();
+  await expect.poll(() => run("history", "hist.json")).toContain("seen");
+  await undo.click();
+  await expect(stage.locator('.mz-node[data-id="2"]')).toContainText("遠く");
+  await expect(stage.locator('.mz-node[data-id="2"]')).not.toContainText("遠くを変えた");
+  expect(run("history", "hist.json", "1")).toContain("caption: \"遠く\" -> \"遠くを変えた\"");
+});
