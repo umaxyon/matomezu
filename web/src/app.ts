@@ -37,11 +37,11 @@ import { mountDiagram } from "./view";
 import { openNewBookDialog } from "./new-book";
 import { openNewPageDialog } from "./new-page";
 import { openBookDialog } from "./book-dialog";
-import { dataScene } from "./graph";
-import type { Scene } from "./preview-art";
+import { layoutScene } from "./offscreen-scene";
+import { type Scene, sceneOf } from "./preview-art";
 import { openSettings } from "./settings";
 import { toast } from "./toast";
-import type { Diagram as DiagramData, PagePattern } from "./types";
+import type { Diagram as DiagramData, PagePattern, WorldInfo } from "./types";
 import { PATTERN_LABELS, isPattern } from "./validate";
 import type { SideToggle } from "./main";
 import { createCrossList, CROSS_MIME, type CrossPayload } from "./cross-list";
@@ -536,13 +536,14 @@ export async function startApp(ui: AppUi) {
     const row = rows.get(id);
     if (!row) return null;
     const pattern = isPattern(row.pattern) ? row.pattern : "nest";
+    // 開いているブックで最初のページを描いていれば、その配置から（隠れていても、前に出ていたときの配置が残っている）
     const open = books.find(b => b.id === id && b.loaded);
-    let scene = open ? open.graph.pageScene("") : scenes.get(id);
+    let scene = open && open.graph.page() == null ? sceneOf(open.graph.geometry(), (open.graph.info(null) as WorldInfo).backgroundPaint) : scenes.get(id);
     if (scene == null && visible) {
       scenes.set(id, "loading");
-      void fetchRemote(docBase(id)).then(r => {
-        const data = r?.data as DiagramData | undefined;
-        scenes.set(id, data && Array.isArray(data.nodes) ? dataScene(data, "") : { w: 1, h: 1, bg: null, boxes: [], edges: [] });
+      // データを取ってきて、画面の外で実際に並べて縮図を作る（offscreen-scene.ts。近似では線や子が合わないため）
+      void loadBook(id).then(data => (data ? layoutScene(data) : { w: 1, h: 1, bg: null, boxes: [], edges: [] })).then(sc => {
+        scenes.set(id, sc);
         masterBook?.graph.redraw();
       });
     }
