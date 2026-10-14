@@ -107,3 +107,8 @@ test("ファイルの形式: マスターのパターンはマスター用のフ
   expect(problems({ nodes: [{ id: 1, book: "abc" }] })[0]).toContain("マスター用のファイルにだけ書けます");
   expect(problems({ pages: [{ id: "p1", world: { childView: "master" } }], nodes: [] })[0]).toContain("ページには書けません");
 });
+
+test("world.madeBy（画面で作ったブックの印）は user だけ", () => {
+  expect(problems({ world: { madeBy: "user" }, nodes: [] })).toEqual([]);
+  expect(problems({ world: { madeBy: "ai" }, nodes: [] })[0]).toContain("madeBy");
+});

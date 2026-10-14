@@ -10,6 +10,8 @@
 //	GET  /api/info       {"server"} サーバーの版。画面が matomezu のサーバーから開かれたかを知るのに使う
 //	POST /api/watch      {"client", "docs"} その画面が開いている図（タブ）。監視するのは、どれかの画面が開いている図だけ
 //	POST /api/new        {"near", "title", "world"} 画面から新しいブックを作って登録し、{"id", "path"} を返す（newbook.go）
+//	GET  /api/books      登録した図を最終更新の新しい順に返す（マスターの一覧。books.go）
+//	GET  /api/master     マスター用のファイルを登録して {"id"} を返す（books.go）
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
 //	POST /api/open       {"path", "show", "page"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
 //	                     show なら、つながっている画面にその図（page があればそのページ）を開くよう知らせる
@@ -462,6 +464,8 @@ func (h *Hub) Handler() http.Handler {
 	})
 	mux.HandleFunc("POST /api/watch", fromPage(h.setWatch))
 	mux.HandleFunc("POST /api/new", fromPage(h.newBook))
+	mux.HandleFunc("GET /api/books", h.books)   // マスターのブックの一覧（books.go）
+	mux.HandleFunc("GET /api/master", h.master) // マスター用のファイル（books.go）
 	mux.Handle("GET /{$}", h.web)
 	mux.Handle("GET /dist/", h.web)
 

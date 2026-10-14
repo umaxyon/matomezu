@@ -49,6 +49,8 @@ func (h *Hub) newBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "world must be an object", http.StatusBadRequest)
 		return
 	}
+	// 画面で作ったブックには作った人の印を付ける（マスターでユーザーのブックと LLM のブックを分ける。D26 の段階 2）
+	world["madeBy"] = "user"
 	dir := h.folderNear(req.Near)
 	if dir == "" {
 		http.Error(w, "no folder to create the diagram in", http.StatusBadRequest)

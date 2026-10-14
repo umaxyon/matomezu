@@ -166,6 +166,7 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
       if (data.world.route != null && !includes(ROUTES, data.world.route)) fail(t("world の route の値が不正です: {value}", { value: data.world.route }));
       if (data.world.background != null && typeof data.world.background !== "string") fail(t("world の background は色の文字列にしてください"));
       if (data.world.title != null && typeof data.world.title !== "string") fail(t("world の title は文字列にしてください"));
+      if (data.world.madeBy != null && data.world.madeBy !== "user") fail(t("world の madeBy に書けるのは user だけです（画面で作ったブックの印）: {value}", { value: data.world.madeBy }));
     }
   }
   const byId = new Map<string, Record<string, unknown>>();

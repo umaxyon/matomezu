@@ -34,6 +34,7 @@ export interface WorldData {
   childView?: PagePattern; // ページのパターン（最上位の箱の並べ方。nest（既定）/ tree / flow。docs/PATTERN-plan.md）
   root?: Id;             // ツリーのページの根の箱（最上位の箱の id。childView が tree のとき必須）
   treeDirection?: TreeDirection; // ツリーのページで子を置く向き（既定は down）
+  madeBy?: "user";     // 画面の「新しい図」で作ったブックの印（サーバーが書く。無ければ LLM が渡したもの。マスターで分けて並べる。D26）。ブック全体の world だけ
   title?: string;      // 図（ブック）の題名。タブの見出しに使う（無ければファイル名）。ブック全体の world だけ（ページの world には書かない）
   [key: string]: unknown;
 }
