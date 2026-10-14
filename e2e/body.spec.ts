@@ -91,7 +91,9 @@ test("リストの中で隠れていた子の中身も、内包に戻すと大�
   const widths = () => Promise.all([21, 23].map(async id => Math.round((await rect(page, id)).w)));
   // ツリーは子孫全体に効き、画面一覧のリストまでツリーにしてしまうので、内包に戻して確かめる（docs/PATTERN-plan.md の 3.6 章）
   for (const view of ["nest"]) {
-    await page.locator('.mz-node[data-id="10"] > .mz-head').click({ position: { x: 8, y: 8 } });
+    const head = page.locator('.mz-node[data-id="10"] > .mz-head');
+    const w = (await head.boundingBox())!.width;
+    await head.click({ position: { x: w - 8, y: 8 } }); // 左上の道具箱に重ならない所
     await page.locator(`#sidebar label:has(input[name="mzp-view"][value="${view}"])`).click();
   }
   await expect.poll(() => fits(21)).toBe(true);

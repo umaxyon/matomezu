@@ -1,9 +1,10 @@
-// 道具入れ: 図の上で、ある箱の脇に浮かせる小さな道具の棚（docs/PATTERN-plan.md の 3.7 章）。
-// どの戦略のものでもない部品で、並べる道具（tools）と、選んだときの動き（onPick）は呼ぶ側が渡す。今はフローチャートの形を並べている（view.ts）。
-// 道具は押して選ぶ。by はポインタで押したか（"pointer"）、キーボードで押したか（"key"）
+// 道具箱: 図の上に浮かせる小さな道具の棚（docs/PATTERN-plan.md の 3.7 章。D26 で、ページのパターンの道具を図の左上に固定で出す形にした）。
+// どの戦略のものでもない部品で、並べる道具（tools）と、選んだときの動き（onPick）は呼ぶ側が渡す（view.ts。追加と、フローチャートの形）。
+// 道具は押して選ぶ。by はポインタで押したか（"pointer"）、キーボードで押したか（"key"）。押している道具（今のモードの道具）は press で示す
 //
 //   const box = createToolbox(stage, (key, by) => ...);
 //   box.show(anchorEl, [{ key: "circle", label: "円", icon: "<circle .../>" }]);  // anchorEl の右に出す。null なら見えている範囲の左上
+//   box.press("circle");  // 押している道具（null なら無し）
 //   box.hide();
 
 import { esc, injectStyle } from "./dom";
@@ -16,6 +17,7 @@ export interface Tool {
 
 export interface Toolbox {
   show(anchor: HTMLElement | null, tools: Tool[]): void;
+  press(key: string | null): void;
   hide(): void;
   destroy(): void;
 }
@@ -33,11 +35,13 @@ const CSS = `
   color: #f4f4f5; background: transparent; cursor: pointer;
 }
 .mz-toolbox button:hover, .mz-toolbox button:focus-visible { background: rgba(255, 255, 255, 0.12); outline: none; }
+.mz-toolbox button[aria-pressed="true"] { color: #fff; background: #8b6cf0; }
 .mz-toolbox svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .mz-toolbox { background: #ffffff; border-color: rgba(0, 0, 0, 0.12); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
   :root:not([data-theme="dark"]) .mz-toolbox button { color: #1b1b1f; }
   :root:not([data-theme="dark"]) .mz-toolbox button:hover { background: rgba(0, 0, 0, 0.07); }
+  :root:not([data-theme="dark"]) .mz-toolbox button[aria-pressed="true"] { color: #fff; background: #6d4bd8; }
 }
 `;
 
@@ -54,6 +58,8 @@ export function createToolbox(container: HTMLElement, onPick: (key: string, by: 
   el.hidden = true;
   container.appendChild(el);
   let shown = "";
+  let pressed: string | null = null;
+  const markPressed = () => { for (const b of el.querySelectorAll<HTMLElement>("button[data-tool]")) b.setAttribute("aria-pressed", String(b.dataset.tool === pressed)); };
   let pinned = false; // 見えている範囲の左上に出している（スクロールしても動かない）
   const pin = () => {
     el.style.left = container.scrollLeft + GAP + "px";
@@ -75,6 +81,7 @@ export function createToolbox(container: HTMLElement, onPick: (key: string, by: 
       if (key !== shown) {
         el.innerHTML = tools.map(x => `<button type="button" data-tool="${x.key}" title="${esc(x.label)}" aria-label="${esc(x.label)}">${svgOf(x.icon)}</button>`).join("");
         shown = key;
+        markPressed();
       }
       pinned = !anchor;
       if (anchor) {
@@ -85,6 +92,7 @@ export function createToolbox(container: HTMLElement, onPick: (key: string, by: 
       } else pin();
       el.hidden = false;
     },
+    press(key) { pressed = key; markPressed(); },
     hide() { el.hidden = true; },
     destroy() { el.remove(); },
   };

@@ -199,10 +199,11 @@ test("付け替えのドラッグでタブの上に少し止めるとページ�
   await expect(selected(page)).toHaveText("詳細");
   await page.locator("#mode-reparent").click();
 
+  // 左上の道具箱に重ならないよう、見出しの右寄りをつかむ
   const box = (await page.locator('.stage:visible .mz-node[data-id="3"] > .mz-head').boundingBox())!;
-  await page.mouse.move(box.x + 20, box.y + 20);
+  await page.mouse.move(box.x + box.width - 20, box.y + 20);
   await page.mouse.down();
-  await page.mouse.move(box.x + 40, box.y + 40, { steps: 5 });
+  await page.mouse.move(box.x + box.width, box.y + 40, { steps: 5 });
   const tab = (await page.locator(".tab", { hasText: "p.json" }).boundingBox())!;
   await page.mouse.move(tab.x + 20, tab.y + tab.height / 2, { steps: 5 });
   await expect(selected(page)).toHaveText("p.json"); // 少し止まると最初のページに切り替わる

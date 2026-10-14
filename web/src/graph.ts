@@ -927,10 +927,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  // 道具入れ（toolbox.ts）: ページのパターンが道具を持つなら（フローチャート）、どの箱を選んでいても図の左上に出す。無ければ null
-  function toolHostOf(): { id: string | null; shapes: Shape[]; size: Size } | null {
-    const tools = STRATEGIES[worldViewOf(world)].tools;
-    return tools.length ? { id: null, shapes: [...tools], size: kidSizeOf(world) ?? "M" } : null;
+  // 道具箱（toolbox.ts）: ページのパターンの道具（形と「追加」。STRATEGIES の tools・addTool）。どの箱を選んでいても図の左上に出す。無ければ null
+  function toolHostOf(): { id: string | null; shapes: Shape[]; add: boolean; size: Size } | null {
+    const { tools, addTool } = STRATEGIES[worldViewOf(world)];
+    return tools.length || addTool ? { id: null, shapes: [...tools], add: addTool, size: kidSizeOf(world) ?? "M" } : null;
   }
 
   // ページに掛けられないパターン（子を持つ最上位の箱があるなら、箱が子を持てないフローチャートは掛けられない）

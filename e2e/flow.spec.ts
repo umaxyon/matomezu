@@ -21,7 +21,7 @@ test("フローチャートのページで箱を選ぶと道具入れが出る�
 
   await toolbox(page).locator('[data-tool="hexagon"]').click();
   await expect(page.locator("#mode-label")).toHaveText("追加モード");
-  await expect(toolbox(page)).toBeHidden();
+  await expect(toolbox(page).locator('[data-tool="hexagon"]')).toHaveAttribute("aria-pressed", "true"); // 道具箱は出たまま、押した形を示す
   // フローチャートの中の空いた所（子の 2 と 3 の間）に影を運ぶと、影に六角形の絵が付く。押すとその所に足すダイアログ
   const two = (await page.locator('.mz-node[data-id="2"]').boundingBox())!;
   const three = (await page.locator('.mz-node[data-id="3"]').boundingBox())!;
