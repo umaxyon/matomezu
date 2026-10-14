@@ -135,3 +135,57 @@ func TestNewBookMadeByUser(t *testing.T) {
 		t.Fatalf("file = %s", b)
 	}
 }
+
+// 郵便箱: 届けると古い順に並び、読んだことにでき、1 件ずつ取り除ける。状態のフォルダの mail/<id>.json に置き、SSE で知らせる
+func TestMailbox(t *testing.T) {
+	hub, ts, state := setupStoreHub(t)
+	dir := t.TempDir()
+	res, err := hub.Open(filepath.Join(dir, "a.json"), false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := ts.URL + "/d/" + res.ID + "/api/mail"
+	list := func() []MailItem {
+		var out struct {
+			Items []MailItem `json:"items"`
+		}
+		r := do(t, "GET", base, "", nil)
+		if r.StatusCode != http.StatusOK || json.NewDecoder(r.Body).Decode(&out) != nil {
+			t.Fatalf("status = %d", r.StatusCode)
+		}
+		return out.Items
+	}
+	if got := list(); len(got) != 0 {
+		t.Fatalf("items = %+v", got)
+	}
+	for _, body := range []string{`{"kind":"book","book":"x"}`, `{"kind":"box","copy":{}}`} {
+		if r := do(t, "POST", base, body, nil); r.StatusCode != http.StatusOK {
+			t.Fatalf("post = %d", r.StatusCode)
+		}
+	}
+	items := list()
+	if len(items) != 2 || items[0].Read || string(items[0].Body) != `{"kind":"book","book":"x"}` {
+		t.Fatalf("items = %+v", items)
+	}
+	if _, err := os.Stat(filepath.Join(state, "mail", res.ID+".json")); err != nil {
+		t.Fatal(err)
+	}
+	do(t, "POST", base+"/read", "{}", nil)
+	if items := list(); !items[0].Read || !items[1].Read {
+		t.Fatalf("read = %+v", items)
+	}
+	do(t, "DELETE", base+"/"+items[0].ID, "{}", nil)
+	if got := list(); len(got) != 1 || got[0].ID != items[1].ID {
+		t.Fatalf("after delete = %+v", got)
+	}
+	// オブジェクトでない本文は断り、ほかのサイトからの書き込みも断る
+	if r := do(t, "POST", base, `[1]`, nil); r.StatusCode != http.StatusBadRequest {
+		t.Fatalf("array = %d", r.StatusCode)
+	}
+	if r := do(t, "POST", base, `{"kind":"book"}`, map[string]string{"Origin": "https://evil.example"}); r.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross site = %d", r.StatusCode)
+	}
+	if r := do(t, "GET", ts.URL+"/d/nope/api/mail", "", nil); r.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown = %d", r.StatusCode)
+	}
+}

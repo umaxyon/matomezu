@@ -26,6 +26,7 @@
 //	version  {"doc", "version"} 図のファイルの版が変わった。つないだときは登録済みの全部の図の分を送る
 //	open     {"doc", "page"} その図のページ（page が "" なら最初のページ）を開いて前に出す。つないだときも、少し前に頼まれていれば送る
 //	close    {"doc"} その図のタブを閉じる（matomezu close）
+//	mail     {"doc"} その図の郵便箱が変わった（mail.go）
 //
 // 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
 //
@@ -75,6 +76,8 @@ type Hub struct {
 	shownAt   time.Time
 	store     string   // 登録した図のパスを書いておくファイル（"" なら書かない）
 	recent    []string // 登録した図のパス（古い順。store があれば書く）
+
+	mailMu sync.Mutex // 郵便箱のファイルの読み書き（mail.go）
 }
 
 // storeLimit は store に覚えておく図の数（新しいものから）
@@ -452,6 +455,11 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("PUT /d/{id}/api/data", fromPage(withDoc((*doc).putData)))
 	mux.HandleFunc("POST /d/{id}/api/layout", fromPage(withDoc((*doc).putLayout)))
 	mux.HandleFunc("GET /d/{id}/api/layout", withDoc((*doc).getLayout))
+	// 郵便箱（mail.go）。DELETE も本文に {} を付けて送る（画面からの書き込みは JSON の本文だけを受ける。fromPage）
+	mux.HandleFunc("GET /d/{id}/api/mail", h.withMail(h.getMail))
+	mux.HandleFunc("POST /d/{id}/api/mail", fromPage(h.withMail(h.postMail)))
+	mux.HandleFunc("POST /d/{id}/api/mail/read", fromPage(h.withMail(h.readAllMail)))
+	mux.HandleFunc("DELETE /d/{id}/api/mail/{item}", fromPage(h.withMail(h.deleteMail)))
 	// 以前の図ごとの URL は、画面の URL へ転送する
 	toApp := func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/?d="+url.QueryEscape(r.PathValue("id")), http.StatusFound)
