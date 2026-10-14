@@ -30,6 +30,7 @@ export default {
   "サンプル": "Sample",
   "JSONを開く": "Open JSON",
   "保存": "Save",
+  "ブック: ブックとページの設定": "Book: book and page settings",
   "追加: 押した所に箱を足す（箱の上ならその子、リストの上なら子と子の間。Esc で選択モードに戻る）": "Add: adds a box where you click (inside a box, it becomes a child; in a list, between children. Esc returns to select mode)",
   "JSONを開く（ドロップでも開けます）": "Open JSON (you can also drop a file)",
   "保存（JSON をダウンロード）": "Save (download the JSON)",

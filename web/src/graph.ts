@@ -153,7 +153,7 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, t
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, Patch, Shape, Size, TreeDirection, WorldData } from "./types";
+import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, TreeDirection, WorldData } from "./types";
 import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, isPattern, isTreeDirection, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
@@ -260,6 +260,10 @@ export interface Graph {
   pages(): { id: string; caption: string }[]; // ブックのページ（2 枚目から。最初のページは含まない）
   // ページを足す（2 枚目から）。world はそのページの設定（パターンなど）。ツリーなら根の箱を 1 つ置く。新しいページの id を返す
   addPage(spec: { title?: string; world?: WorldData }): string;
+  // ページ（null は最初のページ）の題名とワールドの設定（テーマ・背景色・線の通り方・ツリーの向き）を変える。履歴に 1 件残す。
+  // 今描いているページは update(null) と同じ書き方、ほかのページはデータを書き換えて組み直す（ブックのダイアログ。D26）。
+  // 最初のページの題名はブックの題名（world.title）なので、title は 2 枚目からのページだけ
+  updatePage(id: string | null, patch: PagePatch): void;
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
@@ -1538,6 +1542,36 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return id;
   }
 
+  function updatePage(id: string | null, patch: PagePatch) {
+    const { title, ...worldPatch } = patch;
+    if (id != null && !pageData(source, id)) throw new Error(t("そのページはありません: {id}", { id }));
+    checkSettings(worldPatch as Record<string, unknown>, "world", true);
+    batch(() => {
+      if (title !== undefined && id != null) {
+        rebuildWith(data => {
+          const p = pageData(data, id)!;
+          const v = String(title ?? "").trim();
+          if (v) p.title = v; else delete p.title;
+          return {};
+        });
+      }
+      if (!Object.keys(worldPatch).length) return;
+      if (id === page) return update(null, worldPatch);
+      rebuildWith(data => {
+        const p = pageData(data, id);
+        const w: WorldData = { ...(id == null ? data.world : p!.world) };
+        for (const [k, v] of Object.entries(worldPatch)) {
+          const dflt = (k === "route" && v === DEFAULT_ROUTE) || (k === "treeDirection" && v === "down");
+          if (v == null || v === "" || dflt) delete w[k]; else w[k] = v;
+        }
+        if (id == null) data.world = w;
+        else if (Object.keys(w).length) p!.world = w;
+        else delete p!.world;
+        return {};
+      });
+    });
+  }
+
   function updateClass(id: Id, edit: ClassEdit) {
     const n = nodeOf(id);
     if (n.isWorld) throw new Error(t("ワールドはクラスにできません"));
@@ -1997,6 +2031,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     purge,
       pages: () => pagesOf(source).map(p => ({ id: String(p.id), caption: pageNameOf(source, String(p.id)) })),
     addPage,
+    updatePage,
     geometry() {
       const boxes = nodes.filter(n => !isHidden(n)).map(n => {
         const [x, y] = absPos(n);

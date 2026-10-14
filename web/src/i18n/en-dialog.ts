@@ -85,4 +85,14 @@ export default {
   "押すと、確定したときに行います（もう一度押すと取りやめ）": "Applied when you confirm (press again to cancel)",
   "ツリーのページの決まりで並びます（向きはページの設定で変えます）": "Arranged by the tree page (change the direction in the page settings)",
   "動かしたキャプションの札を、線の上の自動の位置に戻します": "Puts the moved caption label back at its automatic place on the line",
+  // ブックのダイアログ（book-dialog.ts。D26）
+  "受け継ぐ（ブック全体）": "Inherit (whole book)",
+  "このページを開いているときに使えます": "Available while this page is open",
+  "整列する": "Align",
+  "最初のページの見出しは、ブックの題名です（ブックのタブで変えます）": "The first page is labeled with the book title (change it on the Book tab)",
+  "作るときに決めます（後から変えません）": "Chosen when the page is created (not changed later)",
+  "ツリーの向き": "Tree direction",
+  "ブック": "Book",
+  "ブックの題名": "Book title",
+  "ファイル": "File",
 } satisfies Record<string, string>;

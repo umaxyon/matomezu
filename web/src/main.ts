@@ -4,6 +4,7 @@
 // - 知らせ: エラーは直るまで消えないトースト、断りはトースト（notices.ts）。開いている図が無いときは図の真ん中に案内を出す
 
 import { startApp } from "./app";
+import { openBookDialog } from "./book-dialog";
 import { download, readFile } from "./dom";
 import { setupMinimapToggle } from "./minimap";
 import { handleGraphEvent } from "./notices";
@@ -70,7 +71,7 @@ async function main() {
     $("name").remove(); // 図の名前はブックのタブに出す
     $("new-book").hidden = false;
     startApp({
-      tabs: $("tabs"), newBook: $<HTMLButtonElement>("new-book"), canvas, sidebar: $("sidebar"),
+      tabs: $("tabs"), newBook: $<HTMLButtonElement>("new-book"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"),
       undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
       notice: text => toast(text), error: showError, clearError, empty: showEmpty,
     });
@@ -106,6 +107,7 @@ async function main() {
   }
 
   $("save").addEventListener("click", () => download(graph.toJSON(), fileName));
+  $("book").addEventListener("click", () => openBookDialog(graph, fileName));
 
   $("open").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {

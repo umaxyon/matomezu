@@ -79,6 +79,18 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-once .mz-dlg-btn { padding: 4px 8px; font-size: 12px; }
 .mz-dlg-btn[aria-pressed="true"] { color: #fff; background: var(--dlg-accent); }
 .mz-dlg-check[hidden] { display: none; }
+/* ブックのダイアログ（book-dialog.ts）: タブを切り替えても大きさが変わらないよう、幅と高さを決めて中をスクロールする */
+.mz-dlg.mz-dlg-book { width: min(720px, 100%); height: min(560px, calc(100vh - 32px)); display: flex; flex-direction: column; overflow: hidden; }
+.mz-dlg-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--dlg-line); margin: 0 -4px 12px; overflow-x: auto; flex: none; }
+.mz-dlg-tab { font: inherit; color: var(--dlg-muted); background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.mz-dlg-tab[aria-selected="true"] { color: inherit; border-bottom-color: var(--dlg-accent); }
+.mz-dlg-panes { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+.mz-dlg-pane[hidden] { display: none; }
+.mz-dlg-pane > .mz-dlg-note:first-child { margin-top: 0; }
+.mz-dlg-book .mz-dlg-foot { flex: none; margin-top: 16px; }
+.mz-dlg-value { font-weight: 400 !important; }
+.mz-dlg-note.mz-dlg-inline { margin: 0; }
+.mz-dlg-ops { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--dlg-line); }
 /* 右の列の下の、サイドバーから移した項目（子の見せ方・見た目・子のサイズ。D26） */
 .mz-dlg-extras { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--dlg-line); }
 .mz-dlg-extras h3 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--dlg-muted); }
@@ -295,7 +307,7 @@ function memberRow(kind: "attrs" | "ops", m: Partial<ClassOp>): string {
 }
 
 // ダイアログ overlay の上に確認を重ねる。okLabel（赤）で true、キャンセルか Esc で false
-function confirmInside(overlay: HTMLElement, message: string, okLabel: string): Promise<boolean> {
+export function confirmInside(overlay: HTMLElement, message: string, okLabel: string): Promise<boolean> {
   return new Promise(resolve => {
     const box = document.createElement("div");
     box.className = "mz-dlg-subwrap";
@@ -847,8 +859,9 @@ export interface ColorLook {
 
 // colorButtonHtml のボタンを動かす。look は今の見た目（選ぶたび・テーマを変えるたびに読み直す）、onPick は選んだ色（null は無し）。
 // ダイアログは押した操作を外へ届けないので、ポップアップの外を押したことはここで見て閉じる。ダイアログを閉じたら一緒に閉じる
-export function setupColorButton(overlay: HTMLElement, look: () => ColorLook, onPick: (c: string | null) => void): { refresh(): void } {
-  const btn = overlay.querySelector<HTMLElement>("[data-color-open]")!;
+// scope はボタンを探す範囲（1 つのダイアログに色のボタンが幾つもあるとき。ブックのダイアログのページごとの背景色）
+export function setupColorButton(overlay: HTMLElement, look: () => ColorLook, onPick: (c: string | null) => void, scope: HTMLElement = overlay): { refresh(): void } {
+  const btn = scope.querySelector<HTMLElement>("[data-color-open]")!;
   const refresh = () => {
     const l = look();
     btn.querySelector<HTMLElement>(".mz-dlg-swatch")!.style.background = l.paint;
@@ -865,7 +878,7 @@ export function setupColorButton(overlay: HTMLElement, look: () => ColorLook, on
     picking = true;
   });
   overlay.querySelector(".mz-dlg")!.addEventListener("pointerdown", e => {
-    if (picking && !(e.target instanceof Element && e.target.closest("[data-color-open]"))) closeColorPicker();
+    if (picking && !(e.target instanceof Element && e.target.closest("[data-color-open]") === btn)) closeColorPicker();
   });
   const gone = new MutationObserver(() => { if (!overlay.isConnected) { closeColorPicker(); gone.disconnect(); } });
   gone.observe(document.body, { childList: true });

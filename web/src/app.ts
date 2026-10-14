@@ -30,10 +30,12 @@ import { setupHistory, setupModes } from "./toolbar";
 import { mountDiagram } from "./view";
 import { openNewBookDialog } from "./new-book";
 import { openNewPageDialog } from "./new-page";
+import { openBookDialog } from "./book-dialog";
 
 export interface AppUi {
   tabs: HTMLElement;
   newBook: HTMLButtonElement; // タブの列の左端の「＋」（新しい図を作る。new-book.ts）
+  book: HTMLButtonElement;    // タブ行の左の「ブック」（前に出ているブックのダイアログ。book-dialog.ts）
   canvas: HTMLElement;
   sidebar: HTMLElement;
   undo: HTMLButtonElement;
@@ -279,6 +281,7 @@ export async function startApp(ui: AppUi) {
       unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButtons, ui.modeLabel));
       ui.preview.attach(b.graph, b.stage);
       ui.empty(null);
+      ui.book.disabled = false;
       if (b.error) ui.error(b.error);
       else ui.clearError();
     }
@@ -334,6 +337,7 @@ export async function startApp(ui: AppUi) {
     ui.preview.attach(null, null);
     document.title = "matomezu";
     ui.undo.disabled = ui.redo.disabled = true;
+    ui.book.disabled = true;
     ui.clearError();
     ui.empty(EMPTY_HINT);
   }
@@ -414,6 +418,8 @@ export async function startApp(ui: AppUi) {
       opening.delete(id);
     }
   }
+
+  ui.book.addEventListener("click", () => { if (current) openBookDialog(current.book.graph, current.book.name); });
 
   // 新しいブック: 今見ているブックと同じフォルダに作り、一番左のタブにして前に出す
   ui.newBook.addEventListener("click", () => {

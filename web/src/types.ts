@@ -244,6 +244,15 @@ export interface Items {
 // update() で変えられる項目。caption と color は空にすると既定に戻る。background はワールドだけ（空で背景なし）。
 // route はワールドだけ（線の通り方の既定。null か "elbow" で折れ線）。
 // title はワールドだけ（図の題名。どのページから変えても、ブック全体の world に書く。空で消す）
+// ページの題名と、ページのワールドの設定（graph.updatePage。ブックのダイアログ）
+export interface PagePatch {
+  title?: string | null;
+  theme?: string | null;
+  background?: string | null;
+  route?: Route | null;
+  treeDirection?: TreeDirection;
+}
+
 export interface Patch {
   title?: string | null;
   background?: string | null;

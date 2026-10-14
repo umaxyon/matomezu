@@ -12,7 +12,7 @@ import { colorButtonHtml, openDialog, setupColorButton } from "./edit-dialog";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { DEFAULT_ROUTE, DEFAULT_VIEW, STRATEGIES } from "./model";
-import { BG_PRESETS, PATTERN_OPTIONS, ROUTE_OPTIONS, THEME_HELP, WORLD_VIEW_HELP } from "./panel-info";
+import { BG_PRESETS, PATTERN_OPTIONS, ROUTE_OPTIONS, THEME_HELP, WORLD_VIEW_HELP } from "./world-options";
 import { DEFAULT_THEME, THEMES } from "./theme";
 import type { PagePattern, WorldData } from "./types";
 
