@@ -21,8 +21,8 @@ import type { AddRequest } from "./interaction";
 import { closeColorPicker, openColorPicker } from "./color-picker";
 import { DEFAULTS } from "./graph";
 import { PALETTE, THEMES, isPaletteName, paintFor, themeById } from "./theme";
-import type { BoxData, BoxInfo, BoxView, LinkLook, Patch, Shape, Size } from "./types";
-import { STRATEGIES } from "./model";
+import type { BoxData, BoxInfo, BoxView, LinkLook, Patch, PreviewSide, Shape, Size } from "./types";
+import { STRATEGIES, previewsKids } from "./model";
 import { LINK_LOOK_DEFS, LINK_LOOK_OPTIONS, type Rect, previewRegion, windowOf } from "./link-box";
 import { type Scene, drawScene, make, union } from "./preview-art";
 import { PATTERN_LABELS } from "./validate";
@@ -204,6 +204,9 @@ export function closeEditDialog(): void {
 
 // 箱の子の見せ方（内包パターンの持ち物）
 export const VIEW_OPTIONS: [BoxView, string][] = [["nest", t("内包")], ["list", t("リスト")], ["hidden", t("非表示")]];
+// リストの子の縮図の位置（D13）
+const PREVIEW_SIDE_OPTIONS: [PreviewSide, string][] = [["right", t("右")], ["left", t("左")], ["none", t("出さない")]];
+const PREVIEW_SIDE_HELP = t("子を持つ子は、子を描かずに中身の縮図を横に出します。窓（リンクの箱）の縮図もこの位置に出します（出さないにしても右）。縮図は押しても開きません");
 const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します");
 const FIT_HELP = t("一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません。子を持つ子は中身を詰め直して縮めます（S サイズ、スティックマン、ツリー・非表示の子は対象外）");
 const ONE_LINE_HELP = t("長いキャプションを折り返さず、… で切ります。幅はサイズの最大まで（幅の指定があればその幅まで）");
@@ -290,9 +293,9 @@ interface BoxValues {
   // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
   abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
   // サイドバーから移した項目（D26。編集のときだけ）: 子の見せ方、塗りつぶし・枠線・1 行、子のサイズをそろえる（確定のときに一緒に行う一回きりの操作）
-  view: BoxView; fill: boolean; border: boolean; oneLine: boolean; fit: "width" | "height" | "both" | null;
+  view: BoxView; previewSide: PreviewSide; fill: boolean; border: boolean; oneLine: boolean; fit: "width" | "height" | "both" | null;
 }
-type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops" | "link"> & {
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops" | "link" | "previewSide"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
   color: string;      // 書いた色（名前か色の値。"" は書いていない）
   inherited: string;  // 親から受け継ぐテーマ（テーマを「受け継ぐ」にしたときの色の見本と、見た目の色に使う）
@@ -376,7 +379,9 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const viewGroup = !b.extras || !b.views ? "" : b.views === "fixed"
     ? `<div class="mz-dlg-group"><h3>${t("子の見せ方")}</h3><p class="mz-dlg-note">${t("ツリーのページの決まりで並びます（向きはページの設定で変えます）")}</p></div>`
     : `<div class="mz-dlg-group"><h3>${t("子の見せ方")}${helpIcon(VIEW_HELP)}</h3>
-        <div class="mz-dlg-seg">${VIEW_OPTIONS.map(([v, label]) => `<label><input type="radio" name="view" value="${v}"${v === b.childView ? " checked" : ""}>${esc(label)}</label>`).join("")}</div></div>`;
+        <div class="mz-dlg-seg">${VIEW_OPTIONS.map(([v, label]) => `<label><input type="radio" name="view" value="${v}"${v === b.childView ? " checked" : ""}>${esc(label)}</label>`).join("")}</div>
+        <div data-preview-side${previewsKids(b.childView) ? "" : " hidden"}><p class="mz-dlg-note">${t("縮図の位置")}${helpIcon(PREVIEW_SIDE_HELP)}</p>
+        <div class="mz-dlg-seg">${PREVIEW_SIDE_OPTIONS.map(([v, label]) => `<label><input type="radio" name="previewSide" value="${v}"${v === b.previewSide ? " checked" : ""}>${esc(label)}</label>`).join("")}</div></div></div>`;
   const looksGroup = !b.extras ? "" : `<div class="mz-dlg-group"><h3>${t("見た目")}</h3>
         <label class="mz-dlg-check" data-look="fill"><input type="checkbox" name="fill"${b.fill ? " checked" : ""}>${t("塗りつぶし")}</label>
         <label class="mz-dlg-check" data-look="border"><input type="checkbox" name="border"${b.border ? " checked" : ""}>${t("枠線")}</label>
@@ -452,7 +457,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     const clipNow = clipPicker ? clipPicker.clip() : null;
     const size = ov.querySelector<HTMLInputElement>('[name="size"]:checked')?.value as Size | undefined;
     commit({
-      view: pickedView(), fill: checked("fill", b.fill), border: checked("border", b.border), oneLine: checked("one-line", b.overflow === "clip"),
+      view: pickedView(), previewSide: (ov.querySelector<HTMLInputElement>('[name="previewSide"]:checked')?.value ?? b.previewSide) as PreviewSide, fill: checked("fill", b.fill), border: checked("border", b.border), oneLine: checked("one-line", b.overflow === "clip"),
       fit: (ov.querySelector<HTMLElement>('[data-fit][aria-pressed="true"]')?.dataset.fit ?? null) as BoxValues["fit"],
       shape: pickedShape(),
       size: (sizeFixedNow() ? undefined : size) ?? b.size,
@@ -590,6 +595,9 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   });
   syncPane();
   for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"], [name="view"], [name="one-line"]')) r.addEventListener("change", syncBody);
+  // 縮図の位置は、子を縮図で見せる見せ方（リスト）のときだけ出す
+  const sideRow = overlay.querySelector<HTMLElement>("[data-preview-side]");
+  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="view"]')) r.addEventListener("change", () => { if (sideRow) sideRow.hidden = !previewsKids(pickedView()); });
   // 子のサイズをそろえる（一回きりの操作）: 押すと確定のときに行う印を付ける。もう一度押すと取りやめ。どれか 1 つ
   for (const f of overlay.querySelectorAll<HTMLElement>("[data-fit]")) {
     f.addEventListener("click", () => {
@@ -654,6 +662,7 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (b.link && v.linkLook && v.linkLook !== b.link.look) patch.linkLook = v.linkLook;
     if (b.link && JSON.stringify(v.clip) !== JSON.stringify(b.link.clip)) patch.clip = v.clip;
     if (start.views === "choose" && v.view !== b.childView) patch.childView = v.view;
+    if (start.views === "choose" && previewsKids(v.view) && v.previewSide !== b.previewSide) patch.previewSide = v.previewSide;
     const def = shapeDef(patch.shape ?? b.shape);
     if (def.fillToggle && v.fill !== b.fill) patch.fill = v.fill;
     if (def.borderToggle && v.border !== b.border) patch.border = v.border;
@@ -682,7 +691,7 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
     caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
     shape, size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
     color: "", inherited: graph.info(req.parentId).themeUsed,
-    abstract: false, attrs: [], ops: [], kids: 0, link: null, scene: null, previewMinScale: DEFAULTS.previewMinScale,
+    abstract: false, attrs: [], ops: [], kids: 0, link: null, previewSide: "right", scene: null, previewMinScale: DEFAULTS.previewMinScale,
     extras: false, views: null, childView: "nest", framed: false, fill: true, border: true, canOneLine: false, canFit: false,
   };
   boxDialog(t("ボックスの追加"), t("追加"), start, v => {

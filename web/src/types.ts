@@ -7,7 +7,8 @@ export type Size = "L" | "M" | "S";
 // 並べ方の戦略の名前（model.ts の STRATEGIES の鍵）。パターンはページ単位（2026-10-12 ユーザー。docs/PATTERN-plan.md）:
 // ページ（ワールド）に掛けるパターンは PagePattern、箱に書ける子の見せ方（内包パターンの持ち物）は BoxView
 // master はマスターページ（ブックの一覧。D26 の段階 2。docs/UI-plan.md）のパターン。マスター用のファイルにだけ書け、新しいページの選択肢には出さない
-export type ChildView = "nest" | "tree" | "hidden" | "list" | "flow" | "master";
+// preview はリストの子が子を持つときの見せ方（子を描かず、中身の縮図を横に出す。D13）。リストが決めるのでデータには書けない
+export type ChildView = "nest" | "tree" | "hidden" | "list" | "flow" | "master" | "preview";
 export type PagePattern = "nest" | "tree" | "flow" | "master";
 // ファイルの形式の種類（パターンごとに決まる。validate.ts の PAGE_FORMATS）。master はマスター用のファイル（窓が book でブックを指す）
 export type BookFormat = "book" | "master";
@@ -21,6 +22,8 @@ export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class" | "
 export type TreeDirection = "down" | "up" | "left" | "right";
 // リンクの箱の見せ方（link-box.ts）: 窓枠（上の帯が持ち手）/ 横に分ける（左の帯が持ち手）
 export type LinkLook = "window" | "side";
+// リストの子の縮図の位置（D13）: 右（既定）/ 左 / 出さない（子を持つ子は内包のまま描く。窓の行は右）
+export type PreviewSide = "right" | "left" | "none";
 export type Id = number | string;
 
 export interface WorldData {
@@ -65,7 +68,8 @@ export interface BoxData {
   page?: Id;             // 載っているページ（pages の id。最上位の箱だけに書く。無ければ最初のページ。docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）
   book?: string;         // マスターの窓: のぞく（押すと開く）ブックの id（サーバーの図の id）。マスター用のファイルにだけ書ける（D26）
   link?: Id;             // リンクの箱: のぞく（押すと開く）ページの id（pages の id。link-box.ts）。形・サイズ・子の見せ方は使わず、子を持てない
-  linkLook?: LinkLook;   // リンクの箱の見せ方（無ければ window）
+  linkLook?: LinkLook;   // リンクの箱の見せ方（無ければ window。リストの中では横に分ける）
+  previewSide?: PreviewSide; // リストの子の縮図の位置（childView が list の箱で効く。無ければ right。D13）
   clip?: { x: number; y: number; w: number; h: number }; // リンクの箱の窓に映す範囲（のぞくページの座標の四角。無ければページ全体。収まらなければ左上から）
   abstract?: boolean;    // クラスの箱（shape: "class"）が抽象クラスか（docs/CLASS-plan.md）
   attrs?: ClassAttr[];   // クラスの箱の属性
@@ -174,6 +178,7 @@ export interface BoxInfo {
   inList: boolean;   // リストの子か（サイズ・形・子の見せ方を使わない。docs/LIST-plan.md）
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: BoxView;
+  previewSide: PreviewSide; // リストの子の縮図の位置（childView が list のときに効く。D13）
   framed: boolean; // 子を枠の中に入れて見せる箱か（内包・リスト。サイズは使わず、大きさは子の並びで決まる）
   tools: { id: string | null; tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの。ワールドなので id は null）と、足せる形、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（ツリーのページの根の子孫。並びはツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md）
@@ -276,6 +281,7 @@ export interface Patch {
   childView?: ChildView;         // 箱なら子の見せ方（BoxView）、ワールドならページのパターン（PagePattern）
   treeDirection?: TreeDirection; // ワールドだけ（ツリーのページの向き）
   linkLook?: LinkLook;           // リンクの箱の見せ方（link-box.ts）
+  previewSide?: PreviewSide;     // リストの子の縮図の位置（D13。right は既定なのでデータから消す）
   clip?: { x: number; y: number; w: number; h: number } | null; // リンクの箱の窓に映す範囲（null でページ全体）
   fill?: boolean;
   border?: boolean;

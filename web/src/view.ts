@@ -71,15 +71,16 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   panel = createPanel(sidebar, graph);
   graph.onDataChange(() => showTools(graph.info(graph.selected())));
   graph.onModeChange(m => { if (m !== "add") picked = null; showTools(graph.info(graph.selected())); });
-  // ▼ を押すと子を見せる戦略（マスターの「その他のブック」。STRATEGIES の openMore）なら、非表示の箱を内包にする
+  // ▼ を押すと子を見せる戦略（マスターの「その他のブック」。STRATEGIES の openMore）なら、非表示の箱をその見せ方（マスターはリスト）にする
   // （箱を選ぶ・つかむ処理より先に受け取る）
   stage.addEventListener("pointerdown", e => {
     const more = e.target instanceof Element ? e.target.closest(".mz-more") : null;
     const id = more?.closest<HTMLElement>(".mz-node")?.dataset.id;
-    if (!id || e.button !== 0 || graph.preview() != null || !STRATEGIES[(graph.info(null) as { childView: keyof typeof STRATEGIES }).childView].openMore) return;
+    const to = STRATEGIES[(graph.info(null) as { childView: keyof typeof STRATEGIES }).childView].openMore;
+    if (!id || e.button !== 0 || graph.preview() != null || !to) return;
     e.stopPropagation();
     e.preventDefault();
-    graph.update(id, { childView: "nest" });
+    graph.update(id, { childView: to });
   }, true);
   // 選択モードで箱をダブルクリックしたら、キャプションと本文の編集ダイアログを開く。線（かキャプションの札）なら線の編集ダイアログ
   // （見る用のモードでは開かない）

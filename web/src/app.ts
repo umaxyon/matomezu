@@ -46,6 +46,7 @@ import { PATTERN_LABELS, isPattern } from "./validate";
 import type { SideToggle } from "./main";
 import { createCrossList, CROSS_MIME, type CrossPayload } from "./cross-list";
 import { type MailBook, createMailbox, badgeText, fetchMail, openArrivedDialog, removeMail, sendMail } from "./mailbox";
+import { LINK_LOOK_DEFS } from "./link-box";
 
 export interface AppUi {
   tabs: HTMLElement;
@@ -97,9 +98,11 @@ interface Book {
 
 // マスターの一覧の 1 行（サーバーの /api/books。internal/server/books.go）
 interface BookRow { id: string; name: string; title: string; mtime: number; madeBy: string; pattern: string }
-// マスターに窓を並べる数（新しい順。残りは「その他のブック」）と、窓の並べ方（列の数・窓の幅と高さの目安・箱の中の余白）
+// マスターに窓を並べる数（新しい順。残りは「その他のブック」）と、リストの置き方（リストの幅の目安・見出しの高さ・リストどうしの間）。
+// 窓はリストの行（縮図は右。D13）なので、行の高さは横に分ける窓の高さとリストの間隔で決まる。目安を外れても重なりは配置が直す
 const MASTER_TOP = 10;
-const MASTER_COLS = 2, WIN_W = 212, WIN_H = 150, GROUP_PAD = 12, GROUP_HEAD = 30, GROUP_GAP = 24;
+const LIST_W = 340, GROUP_HEAD = 30, GROUP_GAP = 24;
+const ROW_H = LINK_LOOK_DEFS.side.win.h + 2 * LINK_LOOK_DEFS.side.gap;
 // ユーザーが作ったブックと LLM が渡したブックの色（最初は色だけで分ける。専用の印は後で。2026-10-14 ユーザー）
 const MADE_BY_COLOR = { user: "#3b82f6", ai: "#f59e0b" };
 
@@ -553,29 +556,27 @@ export async function startApp(ui: AppUi) {
     return { title: row.title || row.name, pattern, scene: scene && scene !== "loading" ? scene : null };
   }
 
-  // マスターの中身: 「ユーザー」「AI」の箱に新しい MASTER_TOP 件の窓、残りは「その他のブック」（非表示の箱。▼ で開く）。
-  // 窓の位置は覚えず、開くたびにこの並びで作り直す（2026-10-14 ユーザー）
+  // マスターの中身: 「ユーザー」「AI」のリストに新しい MASTER_TOP 件の窓、残りは「その他のブック」（非表示の箱。▼ でリストに開く）。
+  // 窓の位置は覚えず、開くたびにこの並びで作り直す（2026-10-14 ユーザー）。窓はリストの行で、縮図は右（D13。細かい並べ方は後でユーザーが決める）
   function masterData(list: BookRow[]): DiagramData {
     const top = list.slice(0, MASTER_TOP), rest = list.slice(MASTER_TOP);
     const nodes: DiagramData["nodes"] = [];
-    const win = (r: BookRow, parent: string, i: number, by: "user" | "ai") => nodes.push({
+    const win = (r: BookRow, parent: string, by: "user" | "ai") => nodes.push({
       id: "b-" + r.id, parent, caption: r.title || r.name, book: r.id, color: MADE_BY_COLOR[by],
-      x: GROUP_PAD + (i % MASTER_COLS) * WIN_W, y: GROUP_HEAD + Math.floor(i / MASTER_COLS) * WIN_H,
     });
-    const groupW = GROUP_PAD * 2 + MASTER_COLS * WIN_W;
     const groups = [
       { id: "user", caption: t("ユーザー"), by: "user" as const, list: top.filter(r => r.madeBy === "user") },
       { id: "ai", caption: t("AI"), by: "ai" as const, list: top.filter(r => r.madeBy !== "user") },
     ];
     let bottom = 0;
     groups.forEach((g, gi) => {
-      nodes.push({ id: g.id, caption: g.caption, color: MADE_BY_COLOR[g.by], x: 24 + gi * (groupW + GROUP_GAP), y: 24 });
-      g.list.forEach((r, i) => win(r, g.id, i, g.by));
-      bottom = Math.max(bottom, Math.ceil(Math.max(1, g.list.length) / MASTER_COLS) * WIN_H);
+      nodes.push({ id: g.id, caption: g.caption, color: MADE_BY_COLOR[g.by], childView: "list", x: 24 + gi * (LIST_W + GROUP_GAP), y: 24 });
+      g.list.forEach(r => win(r, g.id, g.by));
+      bottom = Math.max(bottom, Math.max(1, g.list.length) * ROW_H);
     });
     if (rest.length) {
       nodes.push({ id: "others", caption: t("その他のブック（{n} 冊）", { n: rest.length }), childView: "hidden", x: 24, y: 24 + GROUP_HEAD + bottom + GROUP_GAP * 2 });
-      rest.forEach((r, i) => win(r, "others", i, r.madeBy === "user" ? "user" : "ai"));
+      rest.forEach(r => win(r, "others", r.madeBy === "user" ? "user" : "ai"));
     }
     return { world: { childView: "master", title: t("マスター") }, nodes, edges: [] };
   }

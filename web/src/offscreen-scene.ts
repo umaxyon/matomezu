@@ -7,7 +7,8 @@ import type { Diagram, WorldInfo } from "./types";
 
 let queue: Promise<unknown> = Promise.resolve();
 
-export function layoutScene(data: Diagram, page: string | null = null): Promise<Scene> {
+// without があれば、その箱を描かずに中身だけの縮図にする（リストの子の中身の縮図。D13）
+export function layoutScene(data: Diagram, page: string | null = null, without?: string): Promise<Scene> {
   const run = (): Scene => {
     const host = document.createElement("div");
     // 文字を測るので display: none にはしない（見えない所に置くだけ）。大きさは画面の図と同じくらいにする
@@ -17,7 +18,7 @@ export function layoutScene(data: Diagram, page: string | null = null): Promise<
       const g = createGraph(host, data, {});
       try {
         if (page != null) g.setPage(page);
-        return sceneOf(g.geometry(), (g.info(null) as WorldInfo).backgroundPaint);
+        return sceneOf(g.geometry(), (g.info(null) as WorldInfo).backgroundPaint, without);
       } finally {
         g.destroy();
       }

@@ -26,6 +26,8 @@ export const LINK_LOOK_DEFS: Record<LinkLook, LinkLookDef> = {
   window: { handle: 22, win: { w: 192, h: 92 }, gap: 4, textW: null },
   side:   { handle: 10, win: { w: 116, h: 88 }, gap: 4, textW: { min: 80, max: 160 } },
 };
+// リストの子が子を持つときに横に出す縮図（D13）。大きさは横に分ける窓と同じ（2026-10-14 ユーザー）。持ち手は無い（行の文字の所でつかむ）
+export const PREVIEW_ROW_DEF: LinkLookDef = { ...LINK_LOOK_DEFS.side, handle: 0 };
 // 窓枠の箱の幅（窓の幅 + 両側の余白）
 export const linkBoxWidth = (d: LinkLookDef) => d.win.w + 2 * d.gap;
 

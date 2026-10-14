@@ -208,7 +208,7 @@ test("子の見せ方をリストにしても、子を持つ子は枠のまま�
   });
   const head = (id: number) => node(id).querySelector<HTMLElement>(":scope > .mz-head")!;
   expect(head(2).classList.contains("mz-group")).toBe(true);
-  g.update(1, { childView: "list" });
+  g.update(1, { childView: "list", previewSide: "none" }); // 縮図を出さないリスト（D13）
   expect(head(2).classList.contains("mz-group")).toBe(true);
   expect(node(3).style.display).toBe("");
   expect(bodyEl(2).style.position).toBe("absolute"); // 見出しの下
@@ -317,4 +317,9 @@ test("サイズは見た目が葉の箱だけに効く。内包する箱は S �
     nodes: [{ id: 3, caption: "木", size: "S", body: "本文", x: 400, y: 40 }, { id: 4, parent: 3, caption: "子" }],
   });
   expect(tree.bodyEl(3).hidden).toBe(true);
+});
+
+test("previewSide は right / left / none だけ（D13）", () => {
+  expect(problems({ nodes: [{ id: 1, childView: "list", previewSide: "top" }] })[0]).toContain("previewSide");
+  expect(problems({ nodes: [{ id: 1, childView: "list", previewSide: "left" }] })).toEqual([]);
 });

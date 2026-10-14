@@ -9,7 +9,7 @@ import type { Layout } from "./layout/layout";
 import { CLASS_HEAD, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
 import {
-  type Box, type Edge, type World, abilitiesOf, absPos, acceptsKid, isInside, leafLike, strategyOf,
+  type Box, type Edge, type World, abilitiesOf, absPos, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
 } from "./model";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
@@ -298,7 +298,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       return;
     }
     // リンクの箱の窓（link-box.ts）: 押してそのまま離せば、のぞいているページを開く。窓からはドラッグしない（持ち手と文字の所でつかむ）
-    if (e.target instanceof Element && e.target.closest(".mz-link-win")) {
+    // 縮図だけの行（リストの子の中身の縮図。D13）は開く先が無いので、ふつうの箱と同じにつかむ
+    if (isLinkBox(n) && e.target instanceof Element && e.target.closest(".mz-link-win")) {
       e.preventDefault();
       n.head.setPointerCapture(e.pointerId);
       begin(openGesture(n), e);

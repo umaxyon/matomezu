@@ -24,7 +24,7 @@
  *   graph.removeEdge(id);        // 線を消す（選択モードで線を選んで Delete キーでも。toolbar.ts）
  *   graph.link(from, to);        // 今のページの箱 from から to へ線を引く（終点に矢印。同じ箱なら自分に戻る線）。引けなければ false
  *   graph.info(id);              // ボックス（null はワールド）の情報
- *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow, linkLook, clip）。size は大きさの指定も外す
+ *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow, linkLook, clip, previewSide）。size は大きさの指定も外す
  *   graph.pageScene(page);       // ページの縮図のもと（preview-art.ts の Scene。描いたことのあるページはその配置、無ければデータの位置と既定の大きさで近似）
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
  *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "remove"（削除）/ "add"（追加）
@@ -77,7 +77,9 @@
  *     幅の範囲は validate.ts の SIZES で決めている。width を書けば、その幅で折り返す。
  *     サイズが効くのは見た目が葉の箱（子の無い箱、ツリーの親の本体、非表示）だけ。内包・リストの箱では使わない（docs/SIZE-plan.md）。
  *   - 箱の childView は子の見せ方（内包パターンの持ち物）: "nest"（内包、既定）/ "hidden"（非表示、▼ で子がいることを示す）/
- *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形・子の見せ方は使わず、孫は非表示。docs/LIST-plan.md）
+ *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形は使わない。docs/LIST-plan.md）。
+ *     リストの子が子を持つと、孫は描かずに中身の縮図を横に出す（並べ方の名前は "preview"。データには書けない。D13）。
+ *     位置はリストの previewSide: "right"（既定）/ "left" / "none"（縮図にせず、子の見せ方に従って孫を描く）。リストの中の窓も横に分ける見せ方になる
  *   - ページのパターンは world.childView（2026-10-12 ユーザー。パターンはページ単位。docs/PATTERN-plan.md）:
  *     "nest"（内包、既定）/ "tree"（ツリー。world.root の箱を根に、その子孫全体を何段でも木に並べる。中の箱は手で動かせず、根をつかむと木全体が動く。
  *     根以外の最上位の箱は葉で、自由に置く。向きは world.treeDirection: "down"（既定）/ "up" / "left" / "right"）/
@@ -141,7 +143,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, isLinkBox, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesBetween, treeLinesOf, viaOf, viewOf,
+  overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesBetween, treeLinesOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -280,7 +282,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   bookWindow?: (book: string, visible: boolean) => { title: string; pattern: PagePattern; scene: Scene | null } | null;
   onOpenBook?: (book: string) => void;        // マスターの窓を押した（そのブックを前に出すのは画面の側。app.ts）
   // 描いていないページの縮図を、画面の外で実際に並べて作る（offscreen-scene.ts の layoutScene）。持たなければデータだけの近似（dataScene。テスト）
-  sceneLayout?: (data: Diagram, page: string | null) => Promise<Scene>;
+  sceneLayout?: (data: Diagram, page: string | null, without?: string) => Promise<Scene>; // without は中身だけを映す箱（リストの子の縮図。D13）
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
@@ -934,6 +936,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
   // 窓に映す縮図のもと。マスターの窓は、見えている窓だけ縮図を取りに行かせる（隠れた箱の中の窓は題名だけ）
   function windowScene(n: Box): Scene {
+    if (!isLinkBox(n)) return boxScene(n);
     const book = linkBookOf(n);
     if (book == null) return pageScene(linkPageOf(n) ?? "");
     return opt.bookWindow?.(book, !isHidden(n))?.scene ?? EMPTY_SCENE;
@@ -974,6 +977,37 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       }, 0);
     }
     return hit?.scene ?? EMPTY_SCENE; // 変わる前の絵があれば、届くまでそれを出す
+  }
+
+  // リストの子の中身の縮図（D13。2026-10-14 ユーザー）: その箱と子孫を 1 ページの図にして画面の外で並べ、箱自身の枠を除いて映す。
+  // 鍵はその図のデータで、中身が変わるまで使い回す。届くまでは前の絵（無ければ空の絵）
+  const boxScenes = new Map<string, { key: string; scene: Scene }>();
+  function boxData(id: string): Diagram {
+    const ids = subtreeIds(source.nodes, id);
+    const nodes = source.nodes.filter(s => ids.has(String(s.id)))
+      .map(s => (String(s.id) === id ? { ...s, parent: undefined, page: undefined, x: 0, y: 0 } : s));
+    const edges = (source.edges ?? []).map(normalizeEdge).filter(e => ids.has(String(e.from)) && ids.has(String(e.to)));
+    return { world: { ...pageWorld(source, pageOf(source.nodes, id)), childView: undefined, root: undefined }, nodes, edges };
+  }
+  function boxScene(n: Box): Scene {
+    const hit = boxScenes.get(n.id);
+    if (!opt.sceneLayout) return hit?.scene ?? EMPTY_SCENE;
+    const data = boxData(n.id), k = JSON.stringify(data);
+    if (hit && hit.key === k) return hit.scene;
+    const job = "box:" + n.id;
+    if (!layingOut.has(job)) {
+      layingOut.add(job);
+      setTimeout(() => {
+        if (destroyed) return;
+        void opt.sceneLayout!(data, null, n.id).then(scene => {
+          layingOut.delete(job);
+          if (destroyed) return;
+          boxScenes.set(n.id, { key: k, scene });
+          api.redraw();
+        }, () => layingOut.delete(job));
+      }, 0);
+    }
+    return hit?.scene ?? EMPTY_SCENE;
   }
 
 
@@ -1511,6 +1545,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       inTree: inTreeOf(n),
       treeRoot: isTreeRoot(n),
       link: linkOf(n),
+      previewSide: previewSideOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
       children: n.children.map(brief),
@@ -1674,6 +1709,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         }
         if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === DEFAULT_SHAPE);
         if (next.linkLook) setOrDelete(n.src, "linkLook", next.linkLook, next.linkLook === DEFAULT_LINK_LOOK); // 値は checkSettings で確かめている
+        if (next.previewSide) setOrDelete(n.src, "previewSide", next.previewSide, next.previewSide === "right");
         if ("clip" in next) {
           const c = next.clip;
           setOrDelete(n.src, "clip", c ? { x: Math.round(c.x), y: Math.round(c.y), w: Math.round(c.w), h: Math.round(c.h) } : undefined, !c);
@@ -1710,7 +1746,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         applyStyle(n);
         // テーマは子孫も受け継ぐ。子の見せ方を変えたら、子孫の見た目も変わる（リストの子は、子を持てば非表示の扱いで、
         // 枠ではなく文字の箱として描き、その子は隠す。リストから戻せば元の見た目）
-        if ("theme" in next || next.childView) descendants(n).forEach(applyStyle);
+        // 縮図の位置（リスト。D13）を変えると、子の見た目（縮図の左右、出さないなら枠に戻す）が変わる
+        if ("theme" in next || next.childView || next.previewSide) descendants(n).forEach(applyStyle);
       }
     };
     // ページのパターンや向きを変えると、大きさが変わるのはツリーの根（これからなる箱も含む）なので、根の位置を保つ
@@ -2075,7 +2112,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     page: () => page,
     pageScene,
-    redraw: () => { nodes.filter(isLinkBox).forEach(applyStyle); render(); }, // 窓の絵は applyStyle で描く
+    redraw: () => { nodes.filter(n => isLinkBox(n) || listPreviewOf(n)).forEach(applyStyle); render(); }, // 窓と縮図の行の絵は applyStyle で描く
     linkScene: id => windowScene(nodeOf(id) as Box),
     paste,
     add,

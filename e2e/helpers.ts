@@ -81,7 +81,7 @@ export async function setCaption(page: Page, id: number, text: string) {
 }
 
 // 選択肢を選んで確定する。子の見せ方（view）・サイズ（size）は箱の編集ダイアログ、ツリーの向き（dir）はブックのダイアログの今のページのタブ
-export async function choose(page: Page, id: number, name: "view" | "size" | "dir", value: string) {
+export async function choose(page: Page, id: number, name: "view" | "size" | "dir" | "previewSide", value: string) {
   if (name === "dir") {
     await page.locator("#book").click();
     await page.locator(`.mz-dlg [data-tab-pane]:not([hidden]) label:has(input[name^="dir-"][value="${value}"])`).click();

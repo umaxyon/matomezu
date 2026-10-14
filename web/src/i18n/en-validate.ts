@@ -128,4 +128,5 @@ export default {
   "book と link は一緒に書けません: {id}": "book and link can't be used together: {id}",
   "ブックの窓は子を持てません: {id}": "A book window can't have children: {id}",
   "world の madeBy に書けるのは user だけです（画面で作ったブックの印）: {value}": "world.madeBy can only be user (the mark of a book created on screen): {value}",
+  "previewSide に使えるのは right / left / none です: {where} ({value})": "previewSide must be right, left or none: {where} ({value})",
 } satisfies Record<string, string>;

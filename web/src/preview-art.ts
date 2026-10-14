@@ -19,23 +19,39 @@ const isWhite = (c: string) => /^#?f{3}(f{3})?$/i.test(c);
 
 // 配置の結果から絵のもとを作る。子を持つ箱（内包）は枠だけ、ツリーで並ぶ箱は本体とツリーの線、それ以外は塗る。塗らない箱は枠だけにし、
 // 塗らず枠も無い箱（見出しの文字だけの箱など）は描かない（図と同じ見え方。2026-10-12 ユーザー）。
-// 中身の範囲は、箱と線の右端・下端（表示領域の大きさではなく、中身の大きさ）
-export function sceneOf(g: Geometry, bg: string | null): Scene {
+// 中身の範囲は、箱と線の右端・下端（表示領域の大きさではなく、中身の大きさ）。
+// without があれば、その箱を描かず、残りの中身が左上に来るように寄せる（リストの子の中身の縮図。箱自身の枠は映さない。D13）
+export function sceneOf(g: Geometry, bg: string | null, without?: string): Scene {
   const boxes: SceneBox[] = [];
   let w = 0, h = 0;
   for (const b of g.boxes) {
+    if (without != null && b.id === without) continue;
     w = Math.max(w, b.x + b.w);
     h = Math.max(h, b.y + b.h);
     if (b.fill === false && b.border === false) continue;
     const color = b.color && !isWhite(b.color) ? b.color : null;
     // ツリーで並ぶ箱は、部分木の枠ではなく本体を描く（線はツリーの線で結ぶ）
     if (b.head) { boxes.push({ ...b.head, color, outline: b.fill === false }); continue; }
-    const outline = (!!b.kids && b.view !== "hidden") || b.fill === false;
+    const outline = (!!b.kids && b.view !== "hidden" && b.view !== "preview") || b.fill === false;
     boxes.push({ x: b.x, y: b.y, w: b.w, h: b.h, color, outline });
   }
   const edges = [...g.edges.map(e => e.points), ...(g.treeLines ?? [])].map(points => ({ points: points.map(p => [...p] as Pt) }));
   for (const e of edges) for (const [x, y] of e.points) { w = Math.max(w, x); h = Math.max(h, y); }
-  return { w: Math.max(1, w), h: Math.max(1, h), bg, boxes, edges };
+  const scene = { w: Math.max(1, w), h: Math.max(1, h), bg, boxes, edges };
+  return without != null ? trimScene(scene) : scene;
+}
+// 中身を左上（余白 TRIM_PAD）に寄せる
+const TRIM_PAD = 6;
+function trimScene(s: Scene): Scene {
+  const xs = [...s.boxes.map(b => b.x), ...s.edges.flatMap(e => e.points.map(p => p[0]))];
+  const ys = [...s.boxes.map(b => b.y), ...s.edges.flatMap(e => e.points.map(p => p[1]))];
+  if (!xs.length) return { ...s, w: 1, h: 1 };
+  const dx = TRIM_PAD - Math.min(...xs), dy = TRIM_PAD - Math.min(...ys);
+  return {
+    w: s.w + dx + TRIM_PAD, h: s.h + dy + TRIM_PAD, bg: s.bg,
+    boxes: s.boxes.map(b => ({ ...b, x: b.x + dx, y: b.y + dy })),
+    edges: s.edges.map(e => ({ points: e.points.map(([x, y]) => [x + dx, y + dy] as Pt) })),
+  };
 }
 
 export function make(tag: string, cls: string, attrs: Record<string, string | number>): SVGElement {

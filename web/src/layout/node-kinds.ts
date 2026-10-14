@@ -3,9 +3,9 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, dataSizeOf, inTreeOf, isLinkBox, linkLookOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, dataSizeOf, inTreeOf, isLinkBox, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
-import { LINK_LOOK_DEFS, linkBoxWidth } from "../link-box";
+import { LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
 import { shapeDef } from "../shapes";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
@@ -16,7 +16,7 @@ export const BODY_MIN_W = 160; // 本文を持つ箱の最小の幅。子を持�
 export interface Rect { x: number; y: number; w: number; h: number }
 
 export interface NodeKind {
-  readonly name: "text" | "hidden" | "nest" | "tree" | "list";
+  readonly name: "text" | "hidden" | "preview" | "nest" | "tree" | "list";
   // 子を自由に置けるか（内包だけ）。置いた子の位置で自分の大きさが決まる
   readonly holdsChildren: boolean;
   // 自分の大きさ（w, h）と本体の矩形（hx, hy, hw, hh）を決める。
@@ -69,6 +69,7 @@ export function createNodeKinds(ctx: KindContext) {
   // capW があれば（同じ段の兄弟にはみ出さないための上限。layout.ts の fitToRow）、それも上限にする
   function fitHead(n: Box, useSpec: boolean) {
     if (isLinkBox(n)) return fitLink(n);
+    if (listPreviewOf(n)) return fitSide(n, PREVIEW_ROW_DEF);
     if (lookOf(n).sharedSize && leafLike(n)) {
       // リストの葉の子（と非表示の子）: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ
       // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
@@ -146,7 +147,8 @@ export function createNodeKinds(ctx: KindContext) {
   // リンクの箱（link-box.ts）: 形・サイズ・大きさの指定は使わず、見せ方の数値と文字の大きさで決まる。測るときは持ち手と窓を隠す（measure.ts）ので、
   // 測った高さは文字（キャプションと本文。余白を含む）の分だけ。文字が無ければ文字の分は 0。
   // 窓枠: 幅は決まっていて（窓の幅 + 余白。リストの中ならリストがそろえた幅）、上から持ち手・文字・窓を積む。
-  // 横に分ける: 左から持ち手・文字の列（幅は文字に合わせて min〜max。文字が無ければ無し）・窓を並べ、高さは窓と文字の高い方
+  // 横に分ける: 左から持ち手・文字の列（幅は文字に合わせて min〜max。文字が無ければ無し）・窓を並べ、高さは窓と文字の高い方。
+  // リストの中なら、幅はリストがそろえた幅（文字の列が広がる）。縮図を左に出すときは窓と文字の列を入れ替えるだけで、大きさは同じ
   function fitLink(n: Box) {
     const look = linkLookOf(n), d = LINK_LOOK_DEFS[look];
     const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
@@ -158,10 +160,17 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = d.handle + (hasText ? measure(n, w)[1] : 0) + winH + oy;
       return;
     }
+    fitSide(n, d);
+  }
+  // 横に分ける形（窓の行と、リストの子の縮図の行。D13）
+  function fitSide(n: Box, d: LinkLookDef) {
+    const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
+    const hasText = !!captionOf(n) || !!bodyOf(n);
+    const tw = d.textW ?? { min: 0, max: 0 };
     const fixed = d.handle + d.win.w + 2 * d.gap + ox;
-    const textW = hasText ? Math.max(d.textW.min, Math.min(d.textW.max, measure(n, null)[0] - fixed)) : 0;
-    n.hw = fixed + textW;
-    n.hh = Math.max(winH, hasText ? measure(n, n.hw)[1] : 0) + oy;
+    const textW = hasText ? Math.max(tw.min, Math.min(tw.max, measure(n, null)[0] - fixed)) : 0;
+    n.hw = Math.max(fixed + textW, assignedW(n));
+    n.hh = Math.max(d.win.h + 2 * d.gap, hasText ? measure(n, n.hw)[1] : 0) + oy;
   }
 
   // lo〜hi のうち、文字の高さが h を超えない一番狭い幅（1px 刻みの二分探索。hi では h に収まる前提）
@@ -174,7 +183,7 @@ export function createNodeKinds(ctx: KindContext) {
   }
 
   // 本体だけを見せる（文字の箱と非表示）。非表示は子を持つので、大きさの指定（width, height, overflow）を使わない
-  const headOnly = (name: "text" | "hidden"): NodeKind => ({
+  const headOnly = (name: "text" | "hidden" | "preview"): NodeKind => ({
     name,
     holdsChildren: false,
     measure(n) {
@@ -290,13 +299,14 @@ export function createNodeKinds(ctx: KindContext) {
     measure(n) {
       const P = opt.padding;
       // 子を持つ子は、そろえる前の自分の幅（前にそろえた幅を外して測る）
+      // 横に縮図を出す子（窓と、子を持つ子。D13）は、縮図と文字の列の幅（葉の子と違い、そろえる幅の下限にもなる）
       const own = (k: Box) => {
-        if (leafLike(k)) return listItemWidth(k);
+        if (leafLike(k) && !listPreviewOf(k)) return listItemWidth(k);
         k.listW = 0;
         kindOf(k).measure(k);
         return k.w;
       };
-      const widths = n.children.map(k => ({ leaf: leafLike(k), w: own(k) }));
+      const widths = n.children.map(k => ({ leaf: leafLike(k) && !listPreviewOf(k), w: own(k) }));
       // 指定があっても狭められない幅（子を持つ子は、下から決まった幅より狭くできない）
       const floor = Math.max(GROUP_MIN.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, assignedW(n) - 2 * P);
       const inner = n.specW
@@ -321,12 +331,12 @@ export function createNodeKinds(ctx: KindContext) {
     childWidth: k => k.listW,
   };
 
-  const text = headOnly("text"), hidden = headOnly("hidden");
+  const text = headOnly("text"), hidden = headOnly("hidden"), preview = headOnly("preview");
 
   // 並べ方ごとの種類（戦略の表は model.ts の STRATEGIES。戦略を足すときは、ここにも並べ方を足す）
   // フローチャートは子の置き方が内包と同じ（違うのは子の形と、子が子を持てないこと。model.ts の STRATEGIES）
   // マスターは内包と同じ（違うのは道具箱と窓。model.ts の STRATEGIES）
-  const KINDS: Record<ReturnType<typeof arrangeOf>, NodeKind> = { leaf: text, hidden, nest, tree, list, flow: nest, master: nest };
+  const KINDS: Record<ReturnType<typeof arrangeOf>, NodeKind> = { leaf: text, hidden, nest, tree, list, preview, flow: nest, master: nest };
   const kindOf = (n: Box): NodeKind => KINDS[arrangeOf(n)];
 
   return { kindOf, bodyTop };

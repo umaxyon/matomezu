@@ -42,4 +42,5 @@ export default {
   "linkLook と clip はリンクの箱（link のある箱）にだけ書けます: {where}": "linkLook and clip can only be set on a link box (a box with link): {where}",
   "clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}": "clip must be a rectangle { x, y, w, h } (w and h positive): {where}",
   "そのページはありません: {id}": "No such page: {id}",
+  "中身の縮図": "Preview of the contents",
 } satisfies Record<string, string>;

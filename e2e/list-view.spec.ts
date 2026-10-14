@@ -26,10 +26,27 @@ test("子が同じ幅で縦に並び、親の幅いっぱいに広がる", async
   await expect(page.locator('.mz-node[data-id="5"]')).toBeHidden(); // 4 は子を非表示にしている
 });
 
-test("リストの子も自分の子の見せ方に従う。内包にすると孫を出し、全員がその幅にそろう（docs/SIZE-plan.md）", async ({ page }) => {
+test("リストの子を内包にすると、孫は描かずに中身の縮図を右に出し、全員がその幅にそろう。縮図の位置を「出さない」にすると孫を出す（D13）", async ({ page }) => {
   await choose(page, 4, "view", "nest");
+  const win = page.locator('.mz-node[data-id="4"] > .mz-head .mz-link-win');
+  await expect(win).toBeVisible();
+  await expect(win.locator(".mm-box")).toHaveCount(1); // 画面の外で並べた中身（孫 1 つ）
+  await expect(page.locator('.mz-node[data-id="5"]')).toBeHidden();
+  const head = (await page.locator('.mz-node[data-id="4"] > .mz-head').boundingBox())!, w = (await win.boundingBox())!;
+  expect(w.x + w.width).toBeGreaterThan(head.x + head.width - 12); // 右に出す
+  let [p, a, c] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 4)]);
+  expect(a.w).toBe(c.w);
+  expect(c.w + 24).toBe(p.w);
+  // 左にすると、縮図は左に寄る
+  await choose(page, 1, "previewSide", "left");
+  const h2 = (await page.locator('.mz-node[data-id="4"] > .mz-head').boundingBox())!, w2 = (await win.boundingBox())!;
+  expect(await page.locator('.mz-node[data-id="4"] > .mz-head').getAttribute("class")).toContain("mz-link-left");
+  expect(w2.x).toBeLessThan(h2.x + 12);
+  // 出さないにすると、孫を出す（子の見せ方に従う）
+  await choose(page, 1, "previewSide", "none");
   await expect(page.locator('.mz-node[data-id="5"]')).toBeVisible();
-  const [p, a, c] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 4)]);
+  await expect(win).toBeHidden();
+  [p, a, c] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 4)]);
   expect(a.w).toBe(c.w);
   expect(c.w + 24).toBe(p.w);
 });

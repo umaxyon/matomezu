@@ -96,4 +96,9 @@ export default {
   "ブックの題名": "Book title",
   "ファイル": "File",
   "ブック「{name}」の最初のページ（{pattern}）をのぞく窓です。窓を押すと、そのブックを開きます": "A window onto the first page ({pattern}) of the book \"{name}\". Click the window to open that book",
+  "右": "Right",
+  "左": "Left",
+  "出さない": "None",
+  "縮図の位置": "Preview position",
+  "子を持つ子は、子を描かずに中身の縮図を横に出します。窓（リンクの箱）の縮図もこの位置に出します（出さないにしても右）。縮図は押しても開きません": "Children that have children of their own are drawn as a preview of their contents beside the caption instead. Windows (link boxes) also show their preview on this side (on the right when set to none). Clicking a preview does not open anything",
 } satisfies Record<string, string>;

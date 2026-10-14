@@ -3,9 +3,9 @@
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isLinkLook, isRect } from "./link-box";
-import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
+import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, PreviewSide, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
-import { ARROWS, SIZES, isPattern, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
+import { ARROWS, SIZES, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
 
@@ -174,7 +174,7 @@ export interface Strategy {
   tops: ChildView;      // ページのパターンのとき、最上位の箱をどの戦略で置くか（ツリーのページは根の子孫だけを木にし、最上位は自由に置く）
   rootOnly: boolean;    // ページのパターンのとき、子を持てるのは根（world.root）の子孫だけ（ツリー）
   splitBranches: boolean; // 子のひし形（分岐）から出る線を、1 つの頂点から 2 本出さないように分けて出す（端を固定した線は除く）
-  openMore: boolean;    // 非表示の箱の ▼ を押すと子を見せる（内包にする）。マスターの「その他のブック」を開く（D26）
+  openMore: BoxView | null; // 非表示の箱の ▼ を押すと、この見せ方にして子を見せる（null なら ▼ は印だけ）。マスターの「その他のブック」をリストで開く（D26・D13）
   autoAlign: boolean;   // 位置の無い子を、決まった並べ方（layout/flow-align.ts）で置く。ユーザーが押す「自動で整列」も出す
   separateEnds: boolean; // 子に入る線が同じ位置につながるなら、折れ目の多い方を空いている近い辺へ逃がす（render.ts の separateEnds）
   kidGap: number | null; // 子どうしの間隔のローカルなルール（px）。null は全世界のルール（graph.ts の DEFAULTS.gap）。リストは詰めて並べる
@@ -185,7 +185,7 @@ export interface Strategy {
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, tools: [], pick: false, openMore: false, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
+const PLAIN = { leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
 const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"] };
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   NEST,
@@ -194,12 +194,15 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, pick: true, tops: "nest", rootOnly: true, tools: ["add"] },
   list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, onBox: true, tops: "list", kidGap: 8 },
   hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onBox: true, tops: "hidden" },
+  // 縮図（D13。2026-10-14 ユーザー）: リストの子が子を持つときの見せ方。非表示と同じく子を描かず、子の代わりに中身の縮図を横に出す。
+  // どの子がこれになるかはリストが決める（previewSide。データの childView には書けない）。縮図は押しても開かず、中身が見えるだけ
+  preview: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, tops: "nest" },
   // フローチャート（ページのパターン。docs/PATTERN-plan.md の 3.7 章。2026-10-11 ユーザー）: 内包と同じく子を自由に置き、子は子を持てない。
   // 形はどこでも同じに使える（フローチャートだけの形は持たない。2026-10-12 ユーザー）
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: false, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
+    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
@@ -207,7 +210,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   // マスター（D26 の段階 2。docs/UI-plan.md。2026-10-14 ユーザー: パターンをプラグインして特別にした普通のページ）: 内包を土台に、
   // 違う所だけを上書きする（内包に足した決まりは、そのままマスターにも効く）。新しいページの選択肢には出さず（pick）、箱の見せ方にも使わない。
   // 道具箱はブック追加・ブックをまたぐ追加削除・設定。窓（book のある箱）でブックを並べる。ファイルの形式は validate.ts の PAGE_FORMATS
-  master: { ...NEST, onBox: false, pick: false, openMore: true, tools: ["newBook", "crossMove", "settings"] },
+  master: { ...NEST, onBox: false, pick: false, openMore: "list", tools: ["newBook", "crossMove", "settings"] },
 };
 
 // 箱が、ある戦略の子として並んだときの自分の見せ方。並べる側ではなく、並べられる箱の側の決まり（リストは子の中身に関与しない。
@@ -216,14 +219,17 @@ export interface PlacedLook {
   plainShape: boolean;  // 形を使わず、ボックスで見せる
   sharedSize: boolean;  // 葉の箱の見た目のサイズを、兄弟の葉の箱のうち一番大きいサイズにそろえる。高さは中身に合わせる
   fullCaption: boolean; // S サイズでもキャプションを切り詰めない（高さは折り返した文字に合わせる）
+  preview: boolean;     // 縮図を横に出す（D13）: 子を持つ子は子を描かずに中身の縮図、窓（リンクの箱）は横に分ける見せ方。位置は親の previewSide
 }
-const AS_IS: PlacedLook = { plainShape: false, sharedSize: false, fullCaption: false };
+const AS_IS: PlacedLook = { plainShape: false, sharedSize: false, fullCaption: false, preview: false };
 const LOOKS: Record<ChildView, PlacedLook> = {
-  nest: AS_IS, tree: AS_IS, hidden: AS_IS, master: AS_IS,
+  nest: AS_IS, tree: AS_IS, hidden: AS_IS, master: AS_IS, preview: AS_IS,
   // フローチャートの子は、S でもキャプションを切り詰めずに折り返す（2026-10-12 ユーザー）
-  flow: { plainShape: false, sharedSize: false, fullCaption: true },
-  list: { plainShape: true, sharedSize: true, fullCaption: true },
+  flow: { ...AS_IS, fullCaption: true },
+  list: { plainShape: true, sharedSize: true, fullCaption: true, preview: true },
 };
+// その見せ方の子が、縮図を横に出すか（リスト。子の見せ方のダイアログで「縮図の位置」を出すかに使う。D13）
+export const previewsKids = (v: ChildView): boolean => LOOKS[v].preview;
 // 最上位はワールドの並べ方（内包なら今のまま）。形にその並べ方でのローカルなルール（形の表の placed）があれば、それで上書きする
 // （例: 平行四辺形と台形はツリーの中ではボックスで見せる）。形は、データに書いた形で引く（shapeOf がこれを使うため）
 export const lookOf = (n: Box): PlacedLook => {
@@ -251,10 +257,24 @@ export const inTreeOf = (n: Box): boolean => !!treeRootOf(n);
 // 箱が自分の子をどう並べるか。子が無ければ leaf（childView を書いていても、子が無ければ葉の箱として描く）。
 // ツリーの根とその子孫（子を持つもの）は、自分の見せ方に関わらずツリーの節
 export type Arrange = "leaf" | ChildView;
+// 縮図を横に出す並べ方（リスト）の子で、子を持つものは縮図（preview）。非表示にした箱は非表示のまま
 export function arrangeOf(n: Box): Arrange {
   if (!n.children.length) return "leaf";
-  return isTreeRoot(n) || treeRootOf(n) ? worldViewOf(n.world) : viewOf(n);
+  if (isTreeRoot(n) || treeRootOf(n)) return worldViewOf(n.world);
+  const own = viewOf(n);
+  return own !== "hidden" && n.parent && lookOf(n).preview && previewSideOf(n.parent) !== "none" ? "preview" : own;
 }
+// リストの子の縮図の位置（リストの previewSide。無ければ右）
+export const previewSideOf = (list: Box): PreviewSide => (isPreviewSide(list.src.previewSide) ? list.src.previewSide : "right");
+// 横に縮図を出す箱なら、その位置（右か左）。子を持って縮図になった子と、縮図を横に出す並べ方の中の窓（リンクの箱。出さないにしても右）。でなければ null
+export function listPreviewOf(n: Box): "right" | "left" | null {
+  if (!n.parent || !lookOf(n).preview) return null;
+  const side = previewSideOf(n.parent);
+  if (isLinkBox(n)) return side === "none" ? "right" : side;
+  return arrangeOf(n) === "preview" && side !== "none" ? side : null;
+}
+// 子を描かない並べ方か（非表示と縮図）
+export const hidesKids = (n: Box): boolean => arrangeOf(n) === "hidden" || arrangeOf(n) === "preview";
 // 箱が子を並べる戦略（子が無ければ null）
 export const strategyOf = (n: Box): Strategy | null => (n.children.length ? STRATEGIES[arrangeOf(n) as ChildView] : null);
 // 箱を並べている親の並べ方。最上位はページのパターンが最上位の箱を置く戦略（STRATEGIES の tops。ツリーのページでも最上位は自由に置く）
@@ -281,16 +301,17 @@ export const inNest = (n: Box): boolean => STRATEGIES[placedBy(n)].free;
 // 子を枠の中に入れて見せるボックス（子を持ち、戦略が枠で見せるもの）。枠と見出しで描き、形とサイズは使わない
 export const isNesting = (n: Box): boolean => !!strategyOf(n)?.framed;
 // 見た目が葉の箱か（子が無いか、子を隠して本体だけを見せる）
-export const leafLike = (n: Box): boolean => arrangeOf(n) === "leaf" || arrangeOf(n) === "hidden";
+export const leafLike = (n: Box): boolean => arrangeOf(n) === "leaf" || hidesKids(n);
 // 非表示の親の下にいるか（ツリーの中の非表示は無視するので、並べ方で見る）
-export const isHidden = (n: Box): boolean => ancestors(n).some(p => arrangeOf(p) === "hidden");
+export const isHidden = (n: Box): boolean => ancestors(n).some(hidesKids);
 
 // リンクの箱（link-box.ts。docs/PATTERN-plan.md）: link にページの id を書いた箱。ほかのページへの窓で、子を持てず、形・サイズ・子の見せ方は使わない
 // リンクの箱（ページの窓）と、マスターの窓（ブックの窓。book）。どちらも窓を持ち、子を持てない（link-box.ts）
 export const isLinkBox = (n: Box): boolean => n.src.link != null || n.src.book != null;
 export const linkPageOf = (n: Box): string | null => (n.src.link == null ? null : String(n.src.link));
 export const linkBookOf = (n: Box): string | null => (typeof n.src.book === "string" && n.src.book ? n.src.book : null);
-export const linkLookOf = (n: Box): LinkLook => (isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
+// 縮図を横に出す並べ方（リスト）の中では、いつも横に分ける（D13。2026-10-14 ユーザー）
+export const linkLookOf = (n: Box): LinkLook => (n.parent && lookOf(n).preview ? "side" : isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
 // 窓に映す範囲（のぞくページの座標。無ければ null = ページ全体）
 export const clipOf = (n: Box): ClipRect | null => (isRect(n.src.clip) ? { ...n.src.clip } : null);
 

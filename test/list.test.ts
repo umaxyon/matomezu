@@ -37,7 +37,7 @@ const rect = (g: Graph, id: number) => { const i = g.info(id); return [i.x, i.y,
 const order = (g: Graph) => g.toJSON().nodes.map(n => n.id);
 
 test("子を縦に並べ、一番広い子の幅にそろえる。親は中身に合わせる。子を持つ子（内包）も中身を出して、そろえた幅に広げる", () => {
-  const { el, graph } = setup(data());
+  const { el, graph } = setup(data({ previewSide: "none" }));
   expect([rect(graph, 2), rect(graph, 3), rect(graph, 4)]).toEqual([
     [12, 30, 232, 64], [12, 102, 232, 64], [12, 174, 232, 106],
   ]);
@@ -73,7 +73,7 @@ test("リストの幅の指定は、子を持つ子の幅より狭くできな�
 });
 
 test("リストの子は形を使わず（データはそのまま）、子の見せ方は自分の設定に従って孫を出す（docs/SIZE-plan.md）", () => {
-  const { el, graph } = setup(data());
+  const { el, graph } = setup(data({ previewSide: "none" }));
   expect([box(graph, 2).shape, box(graph, 2).size, box(graph, 4).childView]).toEqual(["box", "S", "nest"]);
   expect(box(graph, 2).inList).toBe(true);
   const src = (id: number) => graph.toJSON().nodes.find(n => n.id === id)!;
@@ -107,7 +107,7 @@ test("リストの葉の子の見た目は、葉の子のうち一番大きい�
 test("リストは一番広い子にそろえる。内包の子が広ければ、全員がその幅（S, M, 内包, L）", () => {
   const { graph } = setup({
     nodes: [
-      { id: 1, caption: "一覧", childView: "list", x: 40, y: 40 },
+      { id: 1, caption: "一覧", childView: "list", previewSide: "none", x: 40, y: 40 },
       { id: 2, caption: "小", parent: 1, size: "S" },
       { id: 3, caption: "中", parent: 1 },
       { id: 4, caption: "枠", parent: 1 },
@@ -232,7 +232,7 @@ test("リストの並べ替えの最中は dragging() が true（外部の変更
 test("リストの中の内包の子で孫をドラッグすると、内包の子が広がり、リストと兄弟もその幅にそろう", () => {
   const { el, graph } = setup({
     nodes: [
-      { id: 1, caption: "一覧", childView: "list", x: 40, y: 40 },
+      { id: 1, caption: "一覧", childView: "list", previewSide: "none", x: 40, y: 40 },
       { id: 2, caption: "中", parent: 1 },
       { id: 3, caption: "枠", parent: 1 },
       { id: 31, caption: "孫", parent: 3, x: 12, y: 30 },
@@ -251,4 +251,44 @@ test("リストの中の内包の子で孫をドラッグすると、内包の�
   expect([graph.info(2).w, graph.info(1).w]).toEqual([344, 344 + 24]);
   expect(before).toBeLessThan(344);
   expect(violations(el)).toEqual([]);
+});
+
+// リストの子の縮図（D13。2026-10-14 ユーザー）
+test("リストの子が子を持てば、孫を描かずに中身の縮図を右に出す（データの childView は変えない）。出さないにすると孫を出す", () => {
+  const { el, graph } = setup(data());
+  const head = (id: number) => el.querySelector<HTMLElement>(`.mz-node[data-id="${id}"] > .mz-head`)!;
+  const shown = (id: number) => el.querySelector<HTMLElement>(`.mz-node[data-id="${id}"]`)!.style.display !== "none";
+  expect(head(4).classList.contains("mz-link-row")).toBe(true);
+  expect(head(4).classList.contains("mz-link-left")).toBe(false);
+  expect(shown(5)).toBe(false);
+  expect(box(graph, 4).childView).toBe("nest");
+  expect(box(graph, 1).previewSide).toBe("right");
+  // 縮図の行も、ほかの子と同じ幅にそろう
+  expect(rect(graph, 4)[2]).toBe(rect(graph, 3)[2]);
+  graph.update(1, { previewSide: "left" });
+  expect(head(4).classList.contains("mz-link-left")).toBe(true);
+  graph.update(1, { previewSide: "none" });
+  expect(head(4).classList.contains("mz-link-row")).toBe(false);
+  expect(shown(5)).toBe(true);
+  expect(violations(el)).toEqual([]);
+  // 右は既定なのでデータから消す
+  graph.update(1, { previewSide: "right" });
+  expect(graph.toJSON().nodes.find(n => n.id === 1)!.previewSide).toBeUndefined();
+});
+
+test("非表示にした子は縮図にせず ▼ のまま。リストの中の窓（リンクの箱）は横に分ける見せ方になる", () => {
+  const { el } = setup({
+    pages: [{ id: "p1", title: "別のページ" }],
+    nodes: [
+      { id: 1, caption: "一覧", childView: "list", x: 40, y: 40 },
+      { id: 2, caption: "畳んだ", parent: 1, childView: "hidden" },
+      { id: 3, caption: "孫", parent: 2 },
+      { id: 4, caption: "窓", parent: 1, link: "p1" },
+      { id: 9, caption: "向こう", page: "p1", x: 0, y: 0 },
+    ],
+  });
+  const head = (id: number) => el.querySelector<HTMLElement>(`.mz-node[data-id="${id}"] > .mz-head`)!;
+  expect(head(2).classList.contains("mz-link-row")).toBe(false);
+  expect(head(4).classList.contains("mz-link-side")).toBe(true);
+  expect(head(4).classList.contains("mz-link-window")).toBe(false);
 });

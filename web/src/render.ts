@@ -12,12 +12,12 @@ import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
-  captionOf, dashOf, descendants, displayCaption, fillOf, inTreeOf, isHidden, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
+  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
-import { LINK_LOOKS, LINK_LOOK_DEFS, type Rect, previewRegion, windowOf } from "./link-box";
+import { LINK_LOOKS, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type Rect, previewRegion, windowOf } from "./link-box";
 import { type Scene, drawScene } from "./preview-art";
 import type { LinkLook, PagePattern } from "./types";
 import { SHAPE_ART } from "./shape-art";
@@ -261,25 +261,33 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     bs.top = block ? opt.header + "px" : "";
     if (!block) bs.width = "";
 
-    // リンクの箱（link-box.ts）: 持ち手の帯と窓を出し、見せ方の数値を CSS の変数で渡す。札はのぞくページのパターン、窓はそのページの名前
+    // リンクの箱（link-box.ts）: 持ち手の帯と窓を出し、見せ方の数値を CSS の変数で渡す。札はのぞくページのパターン、窓はそのページの名前。
+    // リストの子が子を持つときも、同じ部品で横に中身の縮図を出す（row。D13）。持ち手と札は無く、縮図は押しても開かない。
+    // リストの中の縮図は、文字が増えて行が高くなったら上下の真ん中に置く（mz-link-mid。2026-10-14 ユーザー）
     const link = ctx.linkOf(n);
-    head.classList.toggle("mz-link", !!link);
-    for (const look of LINK_LOOKS) head.classList.toggle("mz-link-" + look, link?.look === look);
-    head.classList.toggle("mz-link-empty", !!link && !caption && !body);
-    n.linkEl.hidden = !link;
+    const side = listPreviewOf(n);
+    const row = !link && side != null;
+    const look: LinkLook | null = link?.look ?? (row ? "side" : null);
+    head.classList.toggle("mz-link", !!look);
+    for (const l of LINK_LOOKS) head.classList.toggle("mz-link-" + l, look === l);
+    head.classList.toggle("mz-link-row", row);
+    head.classList.toggle("mz-link-left", side === "left");
+    head.classList.toggle("mz-link-mid", side != null);
+    head.classList.toggle("mz-link-empty", !!look && !caption && !body);
+    n.linkEl.hidden = !look;
     // 文字は、リンクの箱のときだけ入れる（偽の測り方（テスト）は本体の文字を数えるため、リンクでない箱に残さない）
     n.linkBadge.textContent = link ? PATTERN_LABELS[link.pattern] : "";
     n.linkWin.querySelector(".mz-link-go")!.textContent = link ? t("開く ↗") : "";
-    if (link) {
-      const d = LINK_LOOK_DEFS[link.look];
+    if (look) {
+      const d = row ? PREVIEW_ROW_DEF : LINK_LOOK_DEFS[look];
       head.style.setProperty("--mz-link-handle", d.handle + "px");
       head.style.setProperty("--mz-link-win-w", d.win.w + "px");
       head.style.setProperty("--mz-link-win-h", d.win.h + "px");
       head.style.setProperty("--mz-link-gap", d.gap + "px");
-      n.linkWin.title = link.book ? t("押すと「{name}」を開きます", { name: link.pageName }) : t("押すと「{name}」のページを開きます", { name: link.pageName });
+      n.linkWin.title = !link ? t("中身の縮図") : link.book ? t("押すと「{name}」を開きます", { name: link.pageName }) : t("押すと「{name}」のページを開きます", { name: link.pageName });
       // 窓にそのページの縮図を映す（縮尺と切り取りは link-box.ts の previewRegion。窓の幅は、窓枠なら箱の幅から余白を引いたもの）
       const scene = ctx.sceneOf(n);
-      drawScene(n.linkArt, scene, previewRegion(scene, windowOf(d), opt.previewMinScale, link.clip));
+      drawScene(n.linkArt, scene, previewRegion(scene, windowOf(d), opt.previewMinScale, link?.clip ?? null));
     } else if (n.linkArt.firstChild) n.linkArt.replaceChildren();
     n.moreEl.hidden = arrange !== "hidden";
     n.moreEl.title = t("子 {n} 件", { n: n.children.length });
@@ -289,7 +297,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     // 色の指定が無ければ線と同じ色にする（白だと明るいテーマで見えないため）
     n.treeFrame.style.stroke = own ? `color-mix(in srgb, ${color} 55%, transparent)` : "var(--mz-edge)";
     n.treeFrame.style.fill = `color-mix(in srgb, ${color} 5%, transparent)`;
-    for (const k of n.children) k.el.style.display = arrange === "hidden" ? "none" : "";
+    for (const k of n.children) k.el.style.display = hidesKids(n) ? "none" : "";
   }
 
   // クラスの箱の属性と操作の区画。行は data-member に名前を持つ（〇を出す位置と、線を落とした行を見つけるため）

@@ -207,6 +207,16 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-link-side.mz-link-empty { grid-template-columns: var(--mz-link-handle) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)); grid-template-areas: "bar win"; }
 .mz-link-side > .mz-text { margin: 8px 8px 0; }
 .mz-link-side > .mz-body { margin: 0 8px 8px; }
+/* 縮図を左に出す（リストの previewSide。D13）: 窓と文字の列を入れ替える */
+.mz-link-side.mz-link-left { grid-template-columns: var(--mz-link-handle) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)) minmax(0, 1fr); grid-template-areas: "bar win text" "bar win body"; }
+.mz-link-side.mz-link-left.mz-link-empty { grid-template-columns: var(--mz-link-handle) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)); grid-template-areas: "bar win"; }
+/* リストの中の縮図は、行が高くなったら上下の真ん中に置く */
+.mz-link-side.mz-link-mid .mz-link-win { align-self: center; }
+/* リストの子の中身の縮図（D13）: 持ち手は無く、押しても開かない（中身が見えるだけ） */
+.mz-link-row .mz-link-bar { display: none; }
+.mz-link-row .mz-link-win, .mz-preview .mz-link-row .mz-link-win { cursor: inherit; }
+.mz-link-row .mz-link-win:hover { box-shadow: none; }
+.mz-link-row .mz-link-go { display: none; }
 .mz-preview .mz-link-win { cursor: pointer; }
 .mz-tree { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .mz-tree path { fill: none; stroke: var(--mz-edge); stroke-width: 1.5; }

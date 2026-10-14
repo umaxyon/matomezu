@@ -6,7 +6,7 @@ import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import { SHAPE_DEFS } from "./shapes";
 import { isLinkLook, isRect } from "./link-box";
-import type { BookFormat, BoxView, Diagram, EdgeData, Id, PagePattern, Shape, Size } from "./types";
+import type { BookFormat, BoxView, Diagram, EdgeData, Id, PagePattern, PreviewSide, Shape, Size } from "./types";
 
 export interface SizeSpec {
   minW: number;
@@ -30,7 +30,10 @@ export const GROUP_MIN = { w: 120, h: 64 };
 export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
 // 並べ方の戦略の名前（model.ts の STRATEGIES）。パターンはページ単位（2026-10-12 ユーザー）:
 // ページ（world.childView）に掛けられるのは PAGE_PATTERNS、箱（childView）に書けるのは BOX_VIEWS（内包パターンの持ち物）
-export const VIEWS = ["nest", "tree", "hidden", "list", "flow", "master"] as const;
+export const VIEWS = ["nest", "tree", "hidden", "list", "flow", "master", "preview"] as const;
+// リストの子の縮図の位置（D13）
+export const PREVIEW_SIDES = ["right", "left", "none"] as const satisfies readonly PreviewSide[];
+export const isPreviewSide = (v: unknown): v is PreviewSide => includes(PREVIEW_SIDES, v);
 export const PAGE_PATTERNS = ["nest", "tree", "flow", "master"] as const satisfies readonly PagePattern[];
 export const BOX_VIEWS = ["nest", "hidden", "list"] as const satisfies readonly BoxView[];
 export const SHAPES = [
@@ -116,6 +119,7 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
       : t("childView の値が不正です: {where} ({value})", { where, value: s.childView }));
   }
   if (!world && s.treeDirection != null) out.push(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where }));
+  if (s.previewSide != null && !isPreviewSide(s.previewSide)) out.push(t("previewSide に使えるのは right / left / none です: {where} ({value})", { where, value: s.previewSide }));
   if (s.linkLook != null && !isLinkLook(s.linkLook)) out.push(t("linkLook に使えるのは window / side です: {where} ({value})", { where, value: s.linkLook }));
   if (s.clip != null && !isRect(s.clip)) out.push(t("clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}", { where }));
   if (theme && s.theme != null && !isTheme(s.theme)) {

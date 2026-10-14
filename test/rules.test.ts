@@ -13,12 +13,12 @@ const ALLOWED: Record<string, number> = {
   "model.ts": Infinity,          // 戦略の表そのもの
   "render.ts": 5,                // ツリーの線と枠、非表示の ▼ と子を隠す（戦略に固有の描画）
   "panel-info.ts": 1,            // ツリーの向きの操作（戦略に固有の操作）
-  "preview-art.ts": 1,           // 非表示の箱は塗る（折りたたみの描画。ミニマップとリンクの箱の窓の絵）
+  "preview-art.ts": 2,           // 非表示と縮図の箱は塗る（折りたたみの描画。ミニマップとリンクの箱の窓の絵）
   "layout/layout.ts": 4,         // 並べ方の種類（KINDS）の名前で、配置の細かい決まりを分ける
   "panel.ts": 2,                 // サイドバーのタブの名前 "list"（戦略とは関係が無い）
   "validate.ts": 4,              // ページのパターンの検査（フローチャートの箱は子を持たない、ツリーは根の子孫だけ、根の有無、箱に tree を書いたときの直し方。DOM なしの CLI でも動かすので、表を読まない）
 };
-const COMPARE = /[!=]==\s*"(nest|tree|list|hidden|flow|master)"/g;
+const COMPARE = /[!=]==\s*"(nest|tree|list|hidden|flow|master|preview)"/g;
 
 // 形の決まりは形の表（shapes.ts の SHAPE_DEFS）から引く。形の名前を直接比べてよいのは、クラスの行の操作と編集（属性・操作の編集、
 // クラスにする・やめるときの確かめ、行に線をつなぐ）だけ。ファイルごとの数は今の数が上限（増やすなら理由をここに書く）
