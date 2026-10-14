@@ -101,4 +101,6 @@ export default {
   "出さない": "None",
   "縮図の位置": "Preview position",
   "子を持つ子は、子を描かずに中身の縮図を横に出します。窓（リンクの箱）の縮図もこの位置に出します。縮図は押しても開きません。\n出さない: 縮図を出さず、文字だけの低い行にします（子を持つ子は ▼、窓は押すと開くアイコン）": "Children that have children of their own are drawn as a preview of their contents beside the caption instead. Windows (link boxes) also show their preview on this side. Clicking a preview does not open anything.\nNone: no previews; rows stay short with text only (children with children show ▼, windows show an icon that opens them)",
+  "リストの高さ": "Row height",
+  "子の高さの最小です。中身が収まる行はこの高さにそろい、収まらない行だけ高くなります。子のサイズ（L / M / S）は使いません。\nS: アイコンの窓の行の高さ / M: 普通の箱の高さ / L: 縮図のある行の高さ。縮図を出すときはいつも L で、選べるのは「出さない」のときだけです": "The minimum height of the children. Rows whose contents fit are this tall; only rows that need more space grow. The children's own sizes (L / M / S) are not used.\nS: a window row with an icon / M: a normal box / L: a row with a preview. With previews shown it is always L; you can choose only when previews are set to none",
 } satisfies Record<string, string>;

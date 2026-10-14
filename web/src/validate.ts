@@ -119,6 +119,7 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
       : t("childView の値が不正です: {where} ({value})", { where, value: s.childView }));
   }
   if (!world && s.treeDirection != null) out.push(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where }));
+  if (s.rowSize != null && !isSize(s.rowSize)) out.push(t("rowSize に使えるのは L / M / S です: {where} ({value})", { where, value: s.rowSize }));
   if (s.previewSide != null && !isPreviewSide(s.previewSide)) out.push(t("previewSide に使えるのは right / left / none です: {where} ({value})", { where, value: s.previewSide }));
   if (s.linkLook != null && !isLinkLook(s.linkLook)) out.push(t("linkLook に使えるのは window / side です: {where} ({value})", { where, value: s.linkLook }));
   if (s.clip != null && !isRect(s.clip)) out.push(t("clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}", { where }));

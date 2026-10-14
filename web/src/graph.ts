@@ -24,7 +24,7 @@
  *   graph.removeEdge(id);        // 線を消す（選択モードで線を選んで Delete キーでも。toolbar.ts）
  *   graph.link(from, to);        // 今のページの箱 from から to へ線を引く（終点に矢印。同じ箱なら自分に戻る線）。引けなければ false
  *   graph.info(id);              // ボックス（null はワールド）の情報
- *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow, linkLook, clip, previewSide）。size は大きさの指定も外す
+ *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow, linkLook, clip, previewSide, rowSize）。size は大きさの指定も外す
  *   graph.pageScene(page);       // ページの縮図のもと（preview-art.ts の Scene。描いたことのあるページはその配置、無ければデータの位置と既定の大きさで近似）
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
  *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "remove"（削除）/ "add"（追加）
@@ -80,7 +80,9 @@
  *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形は使わない。docs/LIST-plan.md）。
  *     リストの子が子を持つと、孫は描かずに中身の縮図を横に出す（並べ方の名前は "preview"。データには書けない。D13）。
  *     位置はリストの previewSide: "right"（既定）/ "left" / "none"（縮図を出さない。子を持つ子は非表示と同じく文字だけの行と ▼）。
- *     リストの中の窓も横に分ける見せ方になり、none なら縮図の代わりに開くアイコンを出す
+ *     リストの中の窓も横に分ける見せ方になり、none なら縮図の代わりに開くアイコンを出す。
+ *     リストの子は箱のサイズ（L / M / S）を使わず、高さはリストの rowSize（S: アイコンの行 / M: 普通 / L: 縮図の行。縮図を出すときはいつも L）に、
+ *     中身が収まる限り合わせる（収まらない行だけ高くなる）
  *   - ページのパターンは world.childView（2026-10-12 ユーザー。パターンはページ単位。docs/PATTERN-plan.md）:
  *     "nest"（内包、既定）/ "tree"（ツリー。world.root の箱を根に、その子孫全体を何段でも木に並べる。中の箱は手で動かせず、根をつかむと木全体が動く。
  *     根以外の最上位の箱は葉で、自由に置く。向きは world.treeDirection: "down"（既定）/ "up" / "left" / "right"）/
@@ -144,7 +146,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesBetween, treeLinesOf, viaOf, viewOf,
+  overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesBetween, treeLinesOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -1547,6 +1549,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       treeRoot: isTreeRoot(n),
       link: linkOf(n),
       previewSide: previewSideOf(n),
+      rowSize: rowSizeOf(n),
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
       children: n.children.map(brief),
@@ -1711,6 +1714,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === DEFAULT_SHAPE);
         if (next.linkLook) setOrDelete(n.src, "linkLook", next.linkLook, next.linkLook === DEFAULT_LINK_LOOK); // 値は checkSettings で確かめている
         if (next.previewSide) setOrDelete(n.src, "previewSide", next.previewSide, next.previewSide === "right");
+        if (next.rowSize) setOrDelete(n.src, "rowSize", next.rowSize, next.rowSize === "M");
         if ("clip" in next) {
           const c = next.clip;
           setOrDelete(n.src, "clip", c ? { x: Math.round(c.x), y: Math.round(c.y), w: Math.round(c.w), h: Math.round(c.h) } : undefined, !c);
@@ -1748,7 +1752,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         // テーマは子孫も受け継ぐ。子の見せ方を変えたら、子孫の見た目も変わる（リストの子は、子を持てば非表示の扱いで、
         // 枠ではなく文字の箱として描き、その子は隠す。リストから戻せば元の見た目）
         // 縮図の位置（リスト。D13）を変えると、子の見た目（縮図の左右、出さないなら枠に戻す）が変わる
-        if ("theme" in next || next.childView || next.previewSide) descendants(n).forEach(applyStyle);
+        if ("theme" in next || next.childView || next.previewSide || next.rowSize) descendants(n).forEach(applyStyle);
       }
     };
     // ページのパターンや向きを変えると、大きさが変わるのはツリーの根（これからなる箱も含む）なので、根の位置を保つ

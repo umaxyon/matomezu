@@ -59,7 +59,7 @@ test("ドラッグで並べ替えられる", async ({ page }) => {
   const box = (await head.boundingBox())!;
   await page.mouse.move(box.x + 30, box.y + 20);
   await page.mouse.down();
-  await page.mouse.move(box.x + 30, box.y + 20 + 160, { steps: 32 });
+  await page.mouse.move(box.x + 30, box.y + 20 + 260, { steps: 40 });
   await page.mouse.up();
   const order = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('.mz-node[data-id="1"] > .mz-node')]

@@ -3,7 +3,7 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, dataSizeOf, inTreeOf, isLinkBox, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, inTreeOf, isLinkBox, rowHeightOf, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
 import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
@@ -73,9 +73,10 @@ export function createNodeKinds(ctx: KindContext) {
     if (lookOf(n).sharedSize && leafLike(n)) {
       // リストの葉の子（と非表示の子）: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ
       // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
+      // 高さの最小はリストの高さ（D13。サイズの高さは使わない）
       const w = assignedW(n) || listItemWidth(n);
       n.hw = w;
-      n.hh = Math.max(SIZES[sizeOf(n)].h + 2 * (n.out?.y ?? 0), measure(n, w)[1]);
+      n.hh = Math.max(rowHeightOf(n.parent!) + 2 * (n.out?.y ?? 0), measure(n, w)[1]);
       return;
     }
     // 大きさの決まり（サイズの範囲・幅や高さの指定・本文の最小の幅）は土台のもの。見た目の補正値（n.out。テーマから）の分だけ広げて
@@ -171,7 +172,9 @@ export function createNodeKinds(ctx: KindContext) {
     const fixed = d.handle + d.win.w + 2 * d.gap + ox;
     const textW = hasText ? Math.max(tw.min, Math.min(tw.max, measure(n, null)[0] - fixed)) : 0;
     n.hw = Math.max(fixed + textW, assignedW(n));
-    n.hh = Math.max(d.win.h + 2 * d.gap, hasText ? measure(n, n.hw)[1] : 0) + oy;
+    // リストの中なら、リストの高さまで伸ばす（中身が高ければそのまま。D13）
+    const rowH = n.parent && lookOf(n).sharedSize ? rowHeightOf(n.parent) : 0;
+    n.hh = Math.max(d.win.h + 2 * d.gap, hasText ? measure(n, n.hw)[1] : 0, rowH) + oy;
   }
 
   // lo〜hi のうち、文字の高さが h を超えない一番狭い幅（1px 刻みの二分探索。hi では h に収まる前提）
@@ -283,8 +286,9 @@ export function createNodeKinds(ctx: KindContext) {
   };
 
   // リストの葉の子の、中身に合わせた幅（1 行の文字の幅を、自分のデータのサイズの範囲に収める。本文があれば最小の幅も）
+  // 箱のサイズは使わない（リストの子は普通の大きさ。D13）
   const listItemWidth = (k: Box) => {
-    const z = SIZES[dataSizeOf(k)];
+    const z = SIZES[sizeOf(k)];
     return Math.max(z.minW, bodyMinW(k), Math.min(z.maxW, contentW(k)));
   };
 

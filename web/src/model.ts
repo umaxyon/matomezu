@@ -2,7 +2,7 @@
 
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
-import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isLinkLook, isRect } from "./link-box";
+import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, type Rect as ClipRect, isLinkLook, isRect } from "./link-box";
 import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, PreviewSide, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
@@ -217,7 +217,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
 // 子が「リストに入ったときの自分の見せ方」を知っている。docs/PATTERN-plan.md の 3.6 章）。データは書き換えず、見せるときだけ使う
 export interface PlacedLook {
   plainShape: boolean;  // 形を使わず、ボックスで見せる
-  sharedSize: boolean;  // 葉の箱の見た目のサイズを、兄弟の葉の箱のうち一番大きいサイズにそろえる。高さは中身に合わせる
+  sharedSize: boolean;  // 箱のサイズ（L / M / S）を使わず普通の大きさ（M）で描き、高さは親の決めた最小の高さ（リストの高さ）に中身が収まる限り合わせる
   fullCaption: boolean; // S サイズでもキャプションを切り詰めない（高さは折り返した文字に合わせる）
   preview: boolean;     // 縮図を横に出す（D13）: 子を持つ子は子を描かずに中身の縮図、窓（リンクの箱）は横に分ける見せ方。位置は親の previewSide
 }
@@ -340,16 +340,20 @@ export function abilitiesOf(n: Box): Abilities {
 
 // データのサイズ（無ければ M）
 export const dataSizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "M");
-const SIZE_RANK: Record<Size, number> = { S: 0, M: 1, L: 2 };
-// リストの葉の子の見た目のサイズ: 葉の子のうち一番大きいサイズ（S, M, M なら M。S だけなら S）
-export function listSizeOf(list: Box): Size {
-  const sizes = list.children.filter(leafLike).map(dataSizeOf);
-  return sizes.length ? sizes.reduce((a, b) => (SIZE_RANK[b] > SIZE_RANK[a] ? b : a)) : "M";
-}
+// リストの高さ（子の最小の高さ。D13。2026-10-14 ユーザー）: S は縮図の代わりにアイコンを出した窓の行、M は普通の箱、L は縮図のある行の高さ。
+// 縮図を出すリストはいつも L（選べるのは縮図を出さないときだけ）。行は中身が収まる限りこの高さで、収まらない行だけ高くなる
+export const ROW_HEIGHTS: Record<Size, number> = {
+  S: LINK_ICON_DEF.win.h + 2 * LINK_ICON_DEF.gap,
+  M: SIZES.M.h,
+  L: PREVIEW_ROW_DEF.win.h + 2 * PREVIEW_ROW_DEF.gap,
+};
+export const rowSizeOf = (list: Box): Size => (isSize(list.src.rowSize) ? list.src.rowSize : "M");
+// リストの子の最小の高さ
+export const rowHeightOf = (list: Box): number => ROW_HEIGHTS[previewSideOf(list) === "none" ? rowSizeOf(list) : "L"];
 // サイズ（L / M / S）が効くのは、見た目が葉の箱だけ（子の無い箱、ツリーの親の本体、非表示）。内包・リストの箱の大きさは子の並びで決まるので、
-// サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの葉の子は、リストの中で一番大きいサイズの見た目にそろえる（docs/SIZE-plan.md）
+// サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの子もサイズを使わず普通の大きさ（高さはリストの高さ。D13）
 export const sizeOf = (n: Box): Size =>
-  (lookOf(n).sharedSize && leafLike(n) ? listSizeOf(n.parent!) : isNesting(n) || isLinkBox(n) ? "M" : dataSizeOf(n));
+  (lookOf(n).sharedSize && leafLike(n) || isNesting(n) || isLinkBox(n) ? "M" : dataSizeOf(n));
 export const viewOf = (n: Box): BoxView => (isView(n.src.childView) && STRATEGIES[n.src.childView].onBox ? n.src.childView : "nest");
 // ツリーの向き（ツリーのページの world.treeDirection。既定は下）。箱で呼んでも、そのページの向き
 export function treeDirOf(c: Container): TreeDirection {

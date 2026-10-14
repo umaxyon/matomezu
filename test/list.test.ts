@@ -4,6 +4,8 @@ import { createGraph, type Graph } from "../web/src/graph";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure, violations } from "./helpers";
 import { LINK_LOOK_DEFS } from "../web/src/link-box";
+import { ROW_HEIGHTS } from "../web/src/model";
+import { SIZES } from "../web/src/validate";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -52,7 +54,7 @@ test("リストの幅の指定（width）があれば、L の最大を超えて�
   const long = LONG.repeat(6); // 1 行で 9 * 144 + 16 = 1312（L の最大 400 を超える）
   const d = (extra = {}): Diagram => ({ nodes: [{ id: 1, childView: "list", x: 40, y: 40, ...extra }, { id: 2, caption: long, parent: 1, size: "L" }] });
   const auto = setup(d()).graph;
-  expect(auto.info(2).w).toBe(400); // 指定が無ければ、葉の子はサイズの最大で折り返す
+  expect(auto.info(2).w).toBe(SIZES.M.maxW); // 指定が無ければ、葉の子は普通の大きさの最大で折り返す（リストの子は箱のサイズを使わない。D13）
   const { graph } = setup(d({ width: 1400 }));
   expect([graph.info(1).w, graph.info(2).w]).toEqual([1400, 1400 - 24]);
   expect(graph.info(2).h).toBeLessThan(auto.info(2).h); // 広い幅で折り返すので低くなる
@@ -80,27 +82,27 @@ test("リストの子は形を使わず（データはそのまま）、子を�
   expect(el.querySelector<HTMLElement>('[data-id="5"]')!.style.display).toBe("none");
 });
 
-test("リストの葉の子の見た目は、葉の子のうち一番大きいサイズにそろう（S, M, M なら M。S だけなら S）。S の 10 文字の切り詰めはしない", () => {
+test("リストの子は箱のサイズ（L / M / S）を使わず普通の大きさで描き、高さはリストの高さ（中身が収まらない行だけ高い）。S の 10 文字の切り詰めはしない（D13）", () => {
   const head = (el: HTMLElement, id: number) => el.querySelector<HTMLElement>(`[data-id="${id}"] > .mz-head`)!;
-  const mixed = setup({
+  const { el, graph } = setup({
     nodes: [
-      { id: 1, caption: "一覧", childView: "list", x: 40, y: 40 },
-      { id: 2, caption: "小", parent: 1, size: "S" }, { id: 3, caption: "中", parent: 1 }, { id: 4, caption: "中", parent: 1 },
+      { id: 1, caption: "一覧", childView: "list", previewSide: "none", rowSize: "S", x: 40, y: 40 },
+      { id: 2, caption: "あ".repeat(20), parent: 1, size: "S" }, { id: 3, caption: "小", parent: 1, size: "S" }, { id: 4, caption: "大", parent: 1, size: "L" },
+      { id: 5, caption: "本文あり", body: "一行目\n二行目\n三行目\n四行目", parent: 1 },
     ],
   });
-  expect(head(mixed.el, 2).classList.contains("mz-size-M")).toBe(true);
-  const small = setup({
-    nodes: [
-      { id: 1, caption: "一覧", childView: "list", x: 40, y: 400 },
-      { id: 2, caption: "あ".repeat(20), parent: 1, size: "S" }, { id: 3, caption: "小", parent: 1, size: "S" },
-    ],
-  });
-  expect(head(small.el, 2).classList.contains("mz-size-S")).toBe(true);
-  expect(small.graph.info(3).h).toBe(44); // 最小は S の高さ
-  // 自分のサイズ（S）の範囲で測るので、幅は S の最大 96。20 文字は 3 行に折り返し、切り詰めない
-  expect(small.graph.info(2).w).toBe(96);
-  expect(head(small.el, 2).textContent).toContain("あ".repeat(20));
-  expect(small.graph.info(2).h).toBeGreaterThan(44);
+  expect([2, 3, 4].map(id => head(el, id).classList.contains("mz-size-M"))).toEqual([true, true, true]);
+  expect(head(el, 2).textContent).toContain("あ".repeat(20));
+  expect(graph.info(3).h).toBe(ROW_HEIGHTS.S);
+  expect(graph.info(4).h).toBe(ROW_HEIGHTS.S);
+  expect(graph.info(5).h).toBeGreaterThan(ROW_HEIGHTS.S); // 本文の分だけ高い（ほかの行は高くならない）
+  graph.update(1, { rowSize: "L" });
+  expect(graph.info(3).h).toBe(ROW_HEIGHTS.L);
+  graph.update(1, { previewSide: "right" }); // 縮図を出すときはいつも L
+  graph.update(1, { rowSize: "S" });
+  expect(graph.info(3).h).toBe(ROW_HEIGHTS.L);
+  graph.update(1, { rowSize: "M" });
+  expect(graph.toJSON().nodes[0]!.rowSize).toBeUndefined(); // M は既定なのでデータから消す
 });
 
 test("リストの外へ出すと、元のサイズ・形・子の見せ方に戻る", () => {
@@ -125,7 +127,7 @@ test("リストの子どうしの線は描かず、内包に戻すと描く。�
 });
 
 test("ドラッグで並べ替えると、データの並び順が変わる。Undo で戻る", () => {
-  const { el, graph } = setup(data());
+  const { el, graph } = setup(data({ previewSide: "none" }));
   expect(order(graph)).toEqual([1, 2, 3, 4, 5, 6]);
   graph.select(2);
   const head = el.querySelector('[data-id="2"] > .mz-head')!;
@@ -190,7 +192,7 @@ test("ページのある図でも、並べ替えたとおりにデータの並�
     pages: [{ id: "p1" }],
     nodes: [
       { id: 1, caption: "表", x: 400, y: 40 }, { id: 2, caption: "中", page: "p1" },
-      { id: 3, caption: "一覧", childView: "list", x: 40, y: 40 },
+      { id: 3, caption: "一覧", childView: "list", previewSide: "none", x: 40, y: 40 },
       { id: 4, caption: "a", parent: 3 }, { id: 5, caption: "b", parent: 3 },
     ],
   });
