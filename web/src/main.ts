@@ -40,9 +40,9 @@ function clearError() {
 
 // サイドバーの出し入れ。追加削除の一覧（boxes）と郵便箱（mail）のどちらか 1 つを出す。同じボタンをもう一度押すと隠す。
 // body の side-open と data-side を切り替え、変わったら知らせる
-export type SideKind = "boxes" | "mail";
+export type SideKind = "boxes" | "mail" | "cross"; // cross はマスターの追加削除（道具箱から出す。ボタンは無い）
 export interface SideToggle { open(): SideKind | null; show(kind: SideKind | null): void; onChange(fn: (kind: SideKind | null) => void): void }
-function setupSide(buttons: Record<SideKind, HTMLButtonElement>): SideToggle {
+function setupSide(buttons: Partial<Record<SideKind, HTMLButtonElement>>): SideToggle {
   const listeners: ((kind: SideKind | null) => void)[] = [];
   let now: SideKind | null = null;
   const show = (kind: SideKind | null) => {
@@ -50,7 +50,7 @@ function setupSide(buttons: Record<SideKind, HTMLButtonElement>): SideToggle {
     now = kind;
     document.body.classList.toggle("side-open", !!kind);
     if (kind) document.body.dataset.side = kind; else delete document.body.dataset.side;
-    for (const [k, b] of Object.entries(buttons)) b.setAttribute("aria-pressed", String(k === kind));
+    for (const [k, b] of Object.entries(buttons)) b!.setAttribute("aria-pressed", String(k === kind));
     for (const f of listeners) f(kind);
   };
   for (const [k, b] of Object.entries(buttons) as [SideKind, HTMLButtonElement][]) b.addEventListener("click", () => show(now === k ? null : k));
@@ -90,7 +90,7 @@ async function main() {
     stage.remove(); // 描画領域はタブごとに作る
     $("name").remove(); // 図の名前はブックのタブに出す
     startApp({
-      tabs: $("tabs"), master: $<HTMLButtonElement>("master"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side, mailbox: $("mailbox"), mailBadge: $("mail-badge"),
+      tabs: $("tabs"), master: $<HTMLButtonElement>("master"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side, mailbox: $("mailbox"), mailBadge: $("mail-badge"), crossList: $("crossmove"),
       undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
       notice: text => toast(text), error: showError, clearError, empty: showEmpty,
     });

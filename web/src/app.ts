@@ -28,7 +28,7 @@ import { type EventConnection, connectEvents } from "./events";
 import type { Graph } from "./graph";
 import type { Minimap } from "./minimap";
 import { handleGraphEvent } from "./notices";
-import type { OtherBook, Panel } from "./panel";
+import type { Panel } from "./panel";
 import type { Preview } from "./preview";
 import type { Diagram } from "./types";
 import { docBase, fetchRemote, startSync, type Sync } from "./sync";
@@ -42,8 +42,9 @@ import type { Scene } from "./preview-art";
 import { openSettings } from "./settings";
 import { toast } from "./toast";
 import type { Diagram as DiagramData, PagePattern } from "./types";
-import { isPattern } from "./validate";
+import { PATTERN_LABELS, isPattern } from "./validate";
 import type { SideToggle } from "./main";
+import { createCrossList, CROSS_MIME, type CrossPayload } from "./cross-list";
 import { type MailBook, createMailbox, badgeText, fetchMail, openArrivedDialog, removeMail, sendMail } from "./mailbox";
 
 export interface AppUi {
@@ -53,6 +54,7 @@ export interface AppUi {
   side: SideToggle;           // サイドバー（追加削除の一覧か郵便箱）の出し入れ。一覧なら、前に出ているブックの一覧を見せる
   mailbox: HTMLElement;       // サイドバーの郵便箱（mailbox.ts。D26 の段階 3）
   mailBadge: HTMLElement;     // タブ行の郵便箱のボタンの未読の数
+  crossList: HTMLElement;     // サイドバーの、マスターの追加削除（ブックをまたぐ一覧。cross-list.ts。D26 の段階 4）
   canvas: HTMLElement;
   sidebar: HTMLElement;
   undo: HTMLButtonElement;
@@ -118,7 +120,6 @@ function pagesInData(data: unknown): { id: string; caption: string }[] {
 export async function startApp(ui: AppUi) {
   const books: Book[] = [];
   // ブック b が変わったら、ほかのブックのサイドバー（「他ブックも表示」で b を並べているもの）の一覧を古いとする
-  const othersChanged = (b: Book) => { for (const o of books) if (o !== b) o.panel.othersChanged(); };
   let events: EventConnection | null = null; // サーバーの通知（下でつなぐ）
   let current: { book: Book; page: PageId } | null = null;
   let unbind: (() => void)[] = [];
@@ -169,14 +170,6 @@ export async function startApp(ui: AppUi) {
   }
 
   const pagesOf = (b: Book) => (b.loaded ? b.graph.pages() : pagesInData(b.data));
-
-  // b から見たほかのブック。読み込んだブックは図から、まだのブックは取ってきた最新のデータから
-  function othersOf(b: Book): OtherBook[] {
-    return books.filter(x => x !== b && !x.master).flatMap(x => {
-      const data = x.loaded ? x.graph.toJSON() : x.data;
-      return data && Array.isArray((data as Diagram).nodes) ? [{ id: x.id, title: titleOf(x), name: x.name, data: data as Diagram }] : [];
-    });
-  }
 
   // 開いているブックを覚え、サーバーにも知らせる（サーバーは開いている図だけを監視する）
   function remember() {
@@ -329,6 +322,7 @@ export async function startApp(ui: AppUi) {
         if (!on) { x.sync.setActive(false); x.panel.hidden(); }
       }
       if (ui.side.open() === "boxes") b.panel.shown();
+      if (ui.side.open() === "cross" && !b.master) ui.side.show(null); // ブックをまたぐ一覧はマスターのもの
       for (const f of bookOpened) f(b);
       // 見えるようにしてから前に出す（配置は見えている要素で文字を測る）
       b.sync.setActive(true);
@@ -434,20 +428,20 @@ export async function startApp(ui: AppUi) {
 
       let book: Book | null = null;
       const { graph, panel, minimap } = mountDiagram(stage, side, { nodes: [] }, {
-        onChange: data => { book?.sync.changed(data); if (book) { refreshPages(book); othersChanged(book); } },
+        onChange: data => { book?.sync.changed(data); if (book) refreshPages(book); },
         onHistory: () => { if (book && current?.book === book) refreshButtons(book); },
         onEvent: ev => {
           if (!book || current?.book !== book) return;
           handleGraphEvent(book.graph, ev);
           if (ev.kind === "pasted") mailbox.pasted(); // 郵便箱から運んだ箱を置けた
         },
-        onBuild: () => { if (book) { refreshPages(book); othersChanged(book); } },
+        onBuild: () => { if (book) refreshPages(book); },
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
         onOpenPage: page => { if (book) activate(book, page); }, // リンクの箱の窓（link-box.ts）
         bookWindow: (id, visible) => bookWindow(id, visible), // マスターの窓（D26 の段階 2）
         onOpenBook: id => { void openBook(id).then(x => (x ? activate(x, null) : ui.error(t("そのブックを開けませんでした")))); },
-      }, { otherBooks: () => (book ? othersOf(book) : []), onCommand: masterCommand });
+      }, { onCommand: masterCommand }); // ブックをまたぐ持ち込みはマスターの追加削除へ移した（前の「他ブックも表示」は出さない。D26 の段階 4）
       const b: Book = {
         id, name: remote.name, color, group, addPage, tabs: [], stage, side, graph, panel, minimap,
         sync: null as unknown as Sync, loaded: false, data: remote.data, error: null, master,
@@ -493,7 +487,10 @@ export async function startApp(ui: AppUi) {
   // マスターの道具箱の操作（view.ts の onCommand）
   function masterCommand(key: "newBook" | "crossMove" | "settings") {
     if (key === "settings") return openSettings();
-    if (key === "crossMove") return void toast(t("ブックをまたぐ追加削除は、これから作ります（D26 の段階 4）"));
+    if (key === "crossMove") {
+      ui.side.show(ui.side.open() === "cross" ? null : "cross");
+      return crossList.render();
+    }
     // 新しいブック: マスターには今見ている図が無いので、サーバーの決まり（最後に登録した図のフォルダ）に作る（置き場所は D22 で詰める）
     openNewBookDialog(null, async id => {
       const b = await openBook(id);
@@ -506,6 +503,64 @@ export async function startApp(ui: AppUi) {
   let rows = new Map<string, BookRow>();
   const scenes = new Map<string, Scene | "loading">();
   let masterBook: Book | null = null;
+  let masterRows: BookRow[] = []; // 開いたときの並び（新しい順）
+  // ブックのデータ（窓の縮図と、追加削除の一覧・パターンの確かめに使う）。開いているブックなら図から、無ければ取りに行く。マスターを開き直すたびに捨てる
+  const bookData = new Map<string, Promise<DiagramData | null>>();
+  function loadBook(id: string): Promise<DiagramData | null> {
+    const open = books.find(b => b.id === id && b.loaded);
+    if (open) return Promise.resolve(open.graph.toJSON());
+    let p = bookData.get(id);
+    if (!p) {
+      p = fetchRemote(docBase(id)).then(r => { const d = r?.data as DiagramData | undefined; return d && Array.isArray(d.nodes) ? d : null; });
+      bookData.set(id, p);
+    }
+    return p;
+  }
+  const crossList = createCrossList(ui.crossList, {
+    books: () => masterRows.map(r => ({ id: r.id, title: r.title || r.name })),
+    load: loadBook,
+  });
+
+  // 追加削除の行をマスターの窓へ落とすと、そのブックの郵便箱へ写しを送る。そのブックに同じパターンのページが無ければ、送らずに知らせる
+  // （落とす時点で確かめる。2026-10-14 ユーザー: 案 A）
+  function setupWindowDrops(b: Book) {
+    const windowAt = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes(CROSS_MIME)) return null;
+      const el = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-node[data-id^='b-']") : null;
+      return el && rows.has(el.dataset.id!.slice(2)) ? el : null;
+    };
+    let over: HTMLElement | null = null;
+    const mark = (el: HTMLElement | null) => { over?.classList.remove("mz-mail-drop"); over = el; el?.classList.add("mz-mail-drop"); };
+    b.stage.addEventListener("dragover", e => {
+      const el = windowAt(e);
+      mark(el);
+      if (!el) return;
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = "copy";
+    });
+    b.stage.addEventListener("dragleave", e => { if (!b.stage.contains(e.relatedTarget as Node)) mark(null); });
+    b.stage.addEventListener("drop", async e => {
+      const el = windowAt(e);
+      mark(null);
+      if (!el) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const target = rows.get(el.dataset.id!.slice(2))!;
+      const name = target.title || target.name;
+      let item: CrossPayload;
+      try { item = JSON.parse(e.dataTransfer!.getData(CROSS_MIME)); } catch { return; }
+      const d = await loadBook(target.id);
+      const patterns: string[] = d ? [d.world?.childView ?? "nest", ...(d.pages ?? []).map(p => p.world?.childView ?? "nest")] : [];
+      if (!patterns.includes(item.pattern)) {
+        const label = isPattern(item.pattern) ? PATTERN_LABELS[item.pattern] : item.pattern;
+        return void toast(t("「{book}」には{pattern}のページが無いので、「{caption}」を送れません", { book: name, pattern: label, caption: item.caption }), { kind: "warn" });
+      }
+      if (!(await sendMail(target.id, { kind: "box", from: item.from, pattern: item.pattern, caption: item.caption, copy: item.copy as unknown as DiagramData }))) {
+        return ui.error(t("「{book}」の郵便箱へ送れませんでした", { book: name }));
+      }
+      toast(t("「{caption}」を「{book}」の郵便箱へ送りました（コピー）", { caption: item.caption, book: name }));
+    });
+  }
 
   // 窓の題名・パターン・縮図（graph の bookWindow）。見えている窓で、まだ読んでいないブックなら取りに行き、届いたら描き直す
   function bookWindow(id: string, visible: boolean): { title: string; pattern: PagePattern; scene: Scene | null } | null {
@@ -567,9 +622,12 @@ export async function startApp(ui: AppUi) {
     }
     const b = await openBook(id, true);
     if (!b) return ui.error(t("マスターを開けませんでした: {error}", { error: id }));
+    if (masterBook !== b) setupWindowDrops(b);
     masterBook = b;
     rows = new Map(list.map(r => [r.id, r]));
+    masterRows = list;
     scenes.clear();
+    bookData.clear();
     activate(b, null);
     b.graph.load(masterData(list));
     b.sync.changed(b.graph.toJSON());

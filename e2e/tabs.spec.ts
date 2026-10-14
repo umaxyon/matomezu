@@ -332,28 +332,40 @@ test("追加削除の一覧はページごとの見出しで分かれ、ほか�
     .toEqual([1, 2, 3]);
 });
 
-test("他ブックも表示で、ほかのブックの箱を図へドラッグすると、子と中の線ごとコピーされる。元のブックは変わらない", async ({ page }) => {
+test("マスターの追加削除: 一覧の行を窓へ落とすと、そのブックの郵便箱へ写しを送り、開いて図へ置ける。同じパターンのページが無ければ送らない（D26）", async ({ page }) => {
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
-  // 見出しはタブと同じく図の題名を出し、ポインタを乗せるとファイル名が出る
+  writeFileSync(join(dir, "f.json"), JSON.stringify({ world: { childView: "flow" }, nodes: [{ id: 1, caption: "開始", x: 40, y: 40 }] }));
   writeFileSync(join(dir, "a.json"), JSON.stringify({ ...example("nested"), world: { title: "入れ子の例" } }));
   const before = readFileSync(join(dir, "a.json"), "utf8");
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await arrive(page, "p.json");
-  await expect(selected(page)).toHaveText("p.json");
-  const side = page.locator(".side-pane:visible");
-  await openSide(page);
-  await side.locator("[data-others]").check();
-  const book = side.locator(".mzp-other-book", { hasText: "入れ子の例" });
-  await expect(book.locator(".mzp-row")).toHaveCount(9);
-  await expect(book.locator('summary [title="a.json"]')).toHaveText("入れ子の例");
+  await arrive(page, "f.json");
+  await page.locator("#master").click();
+  const stage = page.locator(".stage:visible");
+  await stage.locator('.mz-toolbox [data-tool="crossMove"]').click();
+  const list = page.locator("#crossmove");
+  await expect(list).toBeVisible();
+  await list.locator("summary", { hasText: "入れ子の例" }).click();
   // nested の 4（バックエンド）は、子 5・6 と孫 7・8 を持ち、中に線 5-6 と 7-8 がある
-  await book.locator('[data-copy="4"]').dragTo(page.locator(".stage:visible"), { targetPosition: { x: 200, y: 400 } });
+  const row = list.locator('[data-cross="4"]');
+  await expect(row).toBeVisible();
+  // フローチャートだけのブックへは送れない
+  await row.dragTo(stage.locator(".mz-node[data-id^='b-']", { hasText: "f.json" }).locator(".mz-link-win"));
+  await expect(page.locator(".mz-toast-warn", { hasText: "フローチャート" }).or(page.locator(".mz-toast-warn", { hasText: "内包のページが無い" }))).toBeVisible();
+  await row.dragTo(stage.locator(".mz-node[data-id^='b-']", { hasText: "p.json" }).locator(".mz-link-win"));
+  await expect(page.locator(".mz-toast", { hasText: "郵便箱へ送りました" })).toBeVisible();
+  expect(readFileSync(join(dir, "a.json"), "utf8")).toBe(before); // 元のブックは変わらない
+  // p を開くと知らせが出て、郵便箱から図へ置ける
+  await switchTo(page, "p.json");
+  await expect(page.locator(".mz-toast", { hasText: "郵便箱にアイテムが届いています" })).toBeVisible();
+  await page.locator("#mail-toggle").click();
+  await page.locator("#mailbox .mz-mail-row", { hasText: "バックエンド" }).dragTo(page.locator(".stage:visible"), { targetPosition: { x: 200, y: 400 } });
   await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.length).toBe(9);
   const out = JSON.parse(readFileSync(join(dir, "p.json"), "utf8"));
   expect(out.nodes.slice(-5).map((n: { id: number; parent?: number }) => [n.id, n.parent ?? null]))
     .toEqual([[5, null], [6, 5], [7, 5], [8, 7], [9, 7]]);
   expect(out.edges.length).toBe(4);
-  expect(readFileSync(join(dir, "a.json"), "utf8")).toBe(before);
+  await page.locator("#mail-toggle").click();
   writeFileSync(join(dir, "a.json"), JSON.stringify(example("nested"))); // 後のテストはファイル名の見出しを使う
 });
 

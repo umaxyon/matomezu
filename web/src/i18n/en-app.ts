@@ -128,4 +128,12 @@ export default {
   "箱は好きなページ・箱へドラッグして置きます（同じパターンのページだけ）。ブックは押すと開けます": "Drag a box onto any page or box to place it (pages of the same pattern only). Click a book to open it",
   "郵便箱にアイテムが届いています（{n} 件）": "Items have arrived in the mailbox ({n})",
   "郵便箱: 届いた箱・ブックを左に出す・隠す": "Mailbox: show or hide the delivered boxes and books on the left",
+  "「{book}」には{pattern}のページが無いので、「{caption}」を送れません": "\"{book}\" has no {pattern} page, so \"{caption}\" can't be sent",
+  "「{book}」の郵便箱へ送れませんでした": "Could not send to the mailbox of \"{book}\"",
+  "「{caption}」を「{book}」の郵便箱へ送りました（コピー）": "Sent \"{caption}\" to the mailbox of \"{book}\" (a copy)",
+  "追加削除（ブックをまたぐ）": "Added / Removed (across books)",
+  "ブックの見出しを開くと箱が並びます。行をマスターの窓へドラッグすると、そのブックの郵便箱へ写しを送ります（元のブックは変わりません）": "Open a book's heading to list its boxes. Drag a row onto a window on the master to send a copy to that book's mailbox (the original book does not change)",
+  "読み込んでいます…": "Loading…",
+  "読み込めませんでした": "Could not load",
+  "マスターの窓へドラッグすると、そのブックの郵便箱へ送ります（子と、中の線も）": "Drag onto a window on the master to send it to that book's mailbox (with its children and the lines inside)",
 } satisfies Record<string, string>;

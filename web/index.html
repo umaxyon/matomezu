@@ -151,7 +151,10 @@
   #sidebar { display: none; }
   body.side-open:not(.previewing) #sidebar { display: block; }
   /* サイドバーは、追加削除の一覧（ブックごとの .side-pane）か郵便箱（#mailbox）のどちらか 1 つを見せる（body の data-side。D26 の段階 3） */
-  body[data-side="mail"] #sidebar > .side-pane, body:not([data-side="mail"]) #mailbox { display: none; }
+  body[data-side="mail"] #sidebar > .side-pane, body[data-side="cross"] #sidebar > .side-pane,
+  body:not([data-side="mail"]) #mailbox, body:not([data-side="cross"]) #crossmove { display: none; }
+  /* マスターの追加削除で、行を運んでいる窓（離すとそのブックの郵便箱へ送る） */
+  .mz-node.mz-mail-drop > .mz-head { outline: 2px dashed var(--accent); outline-offset: 2px; }
   /* 郵便箱の未読の数（99 を超えたら 99+） */
   .icon-btn { position: relative; }
   .badge { position: absolute; right: -3px; top: -3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #ef4444; color: #fff;
@@ -271,7 +274,7 @@
   </div>
 </div>
 <main>
-  <aside id="sidebar"><div id="mailbox"></div></aside>
+  <aside id="sidebar"><div id="mailbox"></div><div id="crossmove" class="mzp"></div></aside>
   <div class="canvas">
     <div id="stage"></div>
     <span class="mode-label" id="mode-label" data-mode="move" aria-live="polite">選択モード</span>
