@@ -207,9 +207,10 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-link-side.mz-link-empty { grid-template-columns: var(--mz-link-handle) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)); grid-template-areas: "bar win"; }
 .mz-link-side > .mz-text { margin: 8px 8px 0; }
 .mz-link-side > .mz-body { margin: 0 8px 8px; }
-/* 縮図を左に出す（リストの previewSide。D13）: 窓と文字の列を入れ替える */
-.mz-link-side.mz-link-left { grid-template-columns: var(--mz-link-handle) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)) minmax(0, 1fr); grid-template-areas: "bar win text" "bar win body"; }
-.mz-link-side.mz-link-left.mz-link-empty { grid-template-columns: var(--mz-link-handle) calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)); grid-template-areas: "bar win"; }
+/* 縮図を左に出す（リストの previewSide。D13）: 窓と文字の列を入れ替え、持ち手は右端へ（縮図の左端を、持ち手の無い行とそろえる。2026-10-14 ユーザー） */
+.mz-link-side.mz-link-left { grid-template-columns: calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)) minmax(0, 1fr) var(--mz-link-handle); grid-template-areas: "win text bar" "win body bar"; }
+.mz-link-side.mz-link-left.mz-link-empty { grid-template-columns: calc(var(--mz-link-win-w) + 2 * var(--mz-link-gap)) var(--mz-link-handle); grid-template-areas: "win bar"; }
+.mz-link-side.mz-link-left .mz-link-bar { border-right: 0; border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
 /* リストの中の縮図は、行が高くなったら上下の真ん中に置く */
 .mz-link-side.mz-link-mid .mz-link-win { align-self: center; }
 /* リストの子の中身の縮図（D13）: 持ち手は無く、押しても開かない（中身が見えるだけ） */
