@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -188,4 +189,42 @@ func TestMailbox(t *testing.T) {
 	if r := do(t, "GET", ts.URL+"/d/nope/api/mail", "", nil); r.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown = %d", r.StatusCode)
 	}
+}
+
+// ブックの一覧が変わったら books イベントで知らせる: 登録したとき。マスターを開いている画面があれば、登録した図のファイルが変わった・消えたときも。
+// マスターを開いていない画面しか無ければ、ファイルの変化では知らせない
+func TestBooksEvent(t *testing.T) {
+	hub, ts, _ := setupStoreHub(t)
+	dir := t.TempDir()
+	pa := filepath.Join(dir, "a.json")
+	if _, err := hub.Open(pa, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	r := bufio.NewReader(do(t, "GET", ts.URL+"/api/events", "", nil).Body)
+	var hello struct{ Client string }
+	json.Unmarshal([]byte(nextEvent(t, r, "hello")), &hello)
+	watch := func(ids ...string) {
+		b, _ := json.Marshal(map[string]any{"client": hello.Client, "docs": ids})
+		if res := do(t, "POST", ts.URL+"/api/watch", string(b), nil); res.StatusCode != http.StatusNoContent {
+			t.Fatalf("watch: %d", res.StatusCode)
+		}
+	}
+	// 登録すると知らせる
+	if _, err := hub.Open(filepath.Join(dir, "b.json"), false, ""); err != nil {
+		t.Fatal(err)
+	}
+	nextEvent(t, r, "books")
+	// マスターを開いていなければ、ファイルを消しても知らせない（次に来るのは、マスターを開いてから消した c の分）
+	watch(docID(pa))
+	time.Sleep(60 * time.Millisecond)
+	os.Remove(pa)
+	time.Sleep(100 * time.Millisecond)
+	var m struct{ ID string }
+	json.NewDecoder(do(t, "GET", ts.URL+"/api/master", "", nil).Body).Decode(&m)
+	watch(m.ID)
+	time.Sleep(100 * time.Millisecond) // 最初の様子を覚えるまで
+	if err := os.WriteFile(filepath.Join(dir, "b.json"), []byte(`{"world":{"title":"変えた"},"nodes":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nextEvent(t, r, "books")
 }

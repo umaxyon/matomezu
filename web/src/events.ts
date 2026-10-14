@@ -7,6 +7,7 @@
  * - open: その図（のページ）を開いて前に出すよう頼まれた（matomezu open / check / set）。
  * - close: その図のタブを閉じるよう頼まれた（matomezu close）。タブの × と同じに閉じる。
  * - mail: その図の郵便箱が変わった（届いた・読んだ・取り除いた。D26 の段階 3）。
+ * - books: 登録したブックの一覧が変わった（登録した・ファイルが変わった・消えた。マスターを作り直す）。
  * - 接続が切れても、つなぎ直しを続ける（入れ替わったサーバーが同じアドレスで起動するのを待つ）。
  */
 
@@ -17,6 +18,7 @@ export interface EventHandlers {
   open(doc: string, page: string | null, ask: boolean): void; // ask は matomezu open（すぐ切り替えず、郵便箱に入れて聞く。D26 の段階 3）
   close?(doc: string): void;
   mail?(doc: string): void;
+  books?(): void;
   status(text: string): void;
   watched?(): string[]; // 開いている図の id
 }
@@ -93,6 +95,7 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       const v = parse(e);
       if (v && typeof v.doc === "string") h.mail?.(v.doc);
     });
+    es.addEventListener("books", () => h.books?.());
     es.addEventListener("error", () => {
       h.status(t("再接続中…"));
       // EventSource は自分で再接続するが、諦めたら（サーバーが無い間の応答の失敗など）作り直して続ける

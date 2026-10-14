@@ -76,6 +76,7 @@ type Hub struct {
 	shownAt   time.Time
 	store     string   // 登録した図のパスを書いておくファイル（"" なら書かない）
 	recent    []string // 登録した図のパス（古い順。store があれば書く）
+	booksSig  string   // マスターを開いている画面があるあいだの、登録した図のファイルの様子（books.go の watchBooks）
 
 	mailMu sync.Mutex // 郵便箱のファイルの読み書き（mail.go）
 }
@@ -172,6 +173,7 @@ func (h *Hub) remember(path string) {
 	h.forget()
 	b, _ := json.MarshalIndent(out, "", "  ")
 	h.mu.Unlock()
+	h.booksChanged()
 	if h.store == "" {
 		return
 	}
@@ -216,6 +218,7 @@ func (h *Hub) watch() {
 			for _, d := range h.watched() {
 				d.poll()
 			}
+			h.watchBooks()
 		}
 	}
 }

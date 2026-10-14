@@ -91,6 +91,23 @@ test("マスター: 登録した図の窓が並び（作った人で分ける）
   await expect(page.locator("#master")).toHaveAttribute("aria-pressed", "false");
 });
 
+test("マスターを見ている最中に、登録した図のファイルが変わると、一覧をその場で作り直す（2026-10-15）", async ({ page }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  await page.locator("#master").click();
+  await expect(selected(page)).toHaveText("マスター");
+  const stage = page.locator(".stage:visible");
+  await expect(stage.locator('.mz-node[data-id^="b-"]', { hasText: "b.json" })).toHaveCount(1);
+  const before = readFileSync(join(dir, "b.json"), "utf8");
+  try {
+    writeFileSync(join(dir, "b.json"), JSON.stringify({ ...JSON.parse(before), world: { ...JSON.parse(before).world, title: "題を変えた" } }));
+    await expect(stage.locator('.mz-node[data-id^="b-"]', { hasText: "題を変えた" })).toHaveCount(1);
+  } finally {
+    writeFileSync(join(dir, "b.json"), before);
+  }
+  await expect(stage.locator('.mz-node[data-id^="b-"]', { hasText: "b.json" })).toHaveCount(1);
+});
+
 test("プレビューの間は、道具と道具箱、ページを足す＋と閉じる × が隠れる。戻ると元に戻る（D26）", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);

@@ -581,9 +581,10 @@ export async function startApp(ui: AppUi) {
     return { world: { childView: "master", title: t("マスター") }, nodes, edges: [] };
   }
 
-  // マスターを開く: master.json を開いて前に出し、今の並びで中身を作り直して保存する
+  // マスターを開く: master.json を開いて前に出し、今の並びで中身を作り直して保存する。
+  // マスターを見ているときは、取り直して作り直す（マスターのボタンを押したときと、ブックの一覧が変わった知らせ。2026-10-15 ユーザー）
   async function openMaster() {
-    if (current?.book.master) return;
+    if (current?.book.master) return refreshMaster();
     let id: string;
     let list: BookRow[];
     try {
@@ -604,6 +605,37 @@ export async function startApp(ui: AppUi) {
     activate(b, null);
     b.graph.load(masterData(list));
     b.sync.changed(b.graph.toJSON());
+  }
+  // 見ているマスターを、今の一覧で作り直す。「その他のブック」を開いていれば開いたまま
+  let refreshing: Promise<void> | null = null, again = false;
+  function refreshMaster(): Promise<void> {
+    if (refreshing) { again = true; return refreshing; } // 作り直している間に届いた知らせは、終わってから 1 回だけ
+    refreshing = (async () => {
+      do {
+        again = false;
+        const b = masterBook;
+        if (!b || current?.book !== b) return;
+        let list: BookRow[];
+        try {
+          const l = await fetch("api/books", { cache: "no-store" });
+          if (!l.ok) throw new Error(String(l.status));
+          list = (await l.json()).books;
+        } catch {
+          return; // 取れなければ今のまま（次の知らせで取り直す）
+        }
+        if (current?.book !== b) return;
+        const openOthers = b.graph.toJSON().nodes.find(n => n.id === "others")?.childView;
+        rows = new Map(list.map(r => [r.id, r]));
+        masterRows = list;
+        bookData.clear();
+        const data = masterData(list);
+        const others = data.nodes.find(n => n.id === "others");
+        if (others && openOthers) others.childView = openOthers;
+        b.graph.load(data);
+        b.sync.changed(b.graph.toJSON());
+      } while (again);
+    })().finally(() => { refreshing = null; });
+    return refreshing;
   }
   ui.master.addEventListener("click", () => void openMaster());
 
@@ -640,6 +672,7 @@ export async function startApp(ui: AppUi) {
       });
     },
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
+    books() { if (current?.book.master) void refreshMaster(); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
     close(doc) {
       const b = books.find(x => x.id === doc);
