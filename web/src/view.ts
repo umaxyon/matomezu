@@ -1,4 +1,4 @@
-// 図 1 つ分の画面の組み立て。描画領域に図と全体像（ミニマップ）を、サイドバーにパネルを置いてつなぐ。
+// 図 1 つ分の画面の組み立て。描画領域に図と全体像（ミニマップ）と道具箱を、サイドバーに追加削除の一覧を置いてつなぐ。
 // main.ts（サーバーなしで開いたとき）と app.ts（サーバーから開いたときのブックごと）で共通
 
 import { createGraph, type Graph, type GraphOptions } from "./graph";
@@ -22,13 +22,13 @@ export interface DiagramView {
   minimap: Minimap;
 }
 
-// options の onSelect は、パネルに選んだものを見せたあとに呼ぶ
+// options の onSelect は、道具箱を合わせたあとに呼ぶ
 export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unknown,
   options: GraphOptions = {}, panelOptions: PanelOptions = {}): DiagramView {
   let panel: Panel | null = null;
   const graph = createGraph(stage, data, {
     ...options,
-    onSelect: info => { panel?.show(info); if (panel) showTools(info); options.onSelect?.(info); },
+    onSelect: info => { if (panel) showTools(info); options.onSelect?.(info); },
     // 追加モードで図を押したら、新しい箱の中身を聞くダイアログを開く
     onAddRequest: ({ shape, size, ...req }) => openAddDialog(graph, req, shape, size),
   });
@@ -57,10 +57,6 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   panel = createPanel(sidebar, graph, panelOptions);
   graph.onDataChange(() => showTools(graph.info(graph.selected())));
   graph.onModeChange(m => { if (m !== "add") picked = null; showTools(graph.info(graph.selected())); });
-  // 図の上でボックスを押したら、その情報を見せる（削除モードでは押すと消えるので切り替えない）
-  stage.addEventListener("pointerdown", e => {
-    if (e.target instanceof Element && e.target.closest(".mz-head, .mz-hit") && graph.mode() !== "remove") panel?.tab("info");
-  });
   // 選択モードで箱をダブルクリックしたら、キャプションと本文の編集ダイアログを開く。線（かキャプションの札）なら線の編集ダイアログ
   // （見る用のモードでは開かない）
   stage.addEventListener("dblclick", e => {

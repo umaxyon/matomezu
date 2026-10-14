@@ -1,14 +1,13 @@
 /*
- * サイドバー。タブが 2 つ:
- *   情報     … 選択中のボックスの情報と設定（panel-info.ts）
- *   追加削除 … 全ボックスの一覧（表示中と、消したもの）。表示中の行の × で消し、消したものの行を図へドラッグすると戻る（panel-list.ts）
+ * サイドバー（D26 で、ふだんは隠れていて、タブ行の「追加削除」で左から出す形にした。docs/UI-plan.md）。
+ * 中身は全ボックスの一覧（表示中と、消したもの）。表示中の行の × で消し、消したものの行を図へドラッグすると戻る（panel-list.ts）。
+ * 選んだものの情報と設定（前の情報のタブ）は、編集ダイアログとブックのダイアログへ移した（情報の欄は保留。2026-10-14 ユーザー）。
  * 見た目は panel-style.ts。
  *
  * 使い方:
- *   let panel;
- *   const graph = createGraph(stage, data, { onSelect: info => panel?.show(info) });
- *   panel = createPanel(document.getElementById('sidebar'), graph);
- *   panel.tab("info");           // タブを切り替える
+ *   const panel = createPanel(document.getElementById('sidebar'), graph);
+ *   panel.shown();   // 見えるようにした（一覧が古ければ作り直す）
+ *   panel.hidden();  // 隠した（隠れている間は一覧を作らない）
  */
 
 import { closeColorPicker } from "./color-picker";
@@ -17,18 +16,14 @@ import { injectStyle } from "./dom";
 import type { Graph } from "./graph";
 import { setupHelp } from "./help";
 import { t } from "./i18n";
-import { createInfoTab } from "./panel-info";
 import { createListTab, type OtherBook } from "./panel-list";
 import { PANEL_CSS, STYLE_ID } from "./panel-style";
-import type { Info } from "./types";
 
 export type { Fold, OtherBook } from "./panel-list";
 
-export type PanelTab = "info" | "list";
-
 export interface Panel {
-  show(info: Info): void;
-  tab(name: PanelTab): void;
+  shown(): void;  // サイドバーを出した（一覧が古ければ作り直す）
+  hidden(): void; // サイドバーを隠した
   othersChanged(): void; // ほかのブックが変わった（「他ブックも表示」なら一覧を古いとし、見えていればすぐ作り直す）
   destroy(): void; // 吹き出しなど、サイドバーの外に作ったものを片付け、図の知らせから外れる
 }
@@ -41,36 +36,14 @@ export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {})
   injectStyle(STYLE_ID, PANEL_CSS);
   el.classList.add("mzp");
   const offHelp = setupHelp(el); // 見出しなどの「?」の吹き出し
-  el.innerHTML = `<div class="mzp-tabs" role="tablist">
-      <button type="button" class="mzp-tab" role="tab" data-tab="info">${t("情報")}</button>
-      <button type="button" class="mzp-tab" role="tab" data-tab="list">${t("追加削除")}</button>
-    </div>
-    <div class="mzp-pane" role="tabpanel" data-pane="info"></div>
-    <div class="mzp-pane" role="tabpanel" data-pane="list"></div>`;
-  const tabBar = el.querySelector<HTMLElement>(".mzp-tabs")!;
-  const infoPane = el.querySelector<HTMLElement>('[data-pane="info"]')!;
-  const listPane = el.querySelector<HTMLElement>('[data-pane="list"]')!;
-  const info = createInfoTab(infoPane, graph);
-  const list = createListTab(listPane, graph, o.otherBooks);
-
-  function tab(name: PanelTab) {
-    for (const b of tabBar.querySelectorAll<HTMLElement>("[data-tab]")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
-    infoPane.hidden = name !== "info";
-    listPane.hidden = name !== "list";
-    // 一覧の検索欄はタブのすぐ下に貼り付ける（タブの高さは文字の大きさで変わるので測る）
-    if (name === "list") list.shown(tabBar.offsetHeight);
-    else list.hidden();
-  }
-
-  tabBar.addEventListener("click", e => {
-    const b = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-tab]") : null;
-    if (b) tab(b.dataset.tab as PanelTab);
-  });
-
-  tab("info");
+  el.innerHTML = `<div class="mzp-tabs"><span class="mzp-tab" aria-selected="true">${t("追加削除")}</span></div>
+    <div class="mzp-pane" data-pane="list"></div>`;
+  const head = el.querySelector<HTMLElement>(".mzp-tabs")!;
+  const list = createListTab(el.querySelector<HTMLElement>('[data-pane="list"]')!, graph, o.otherBooks);
   return {
-    show: next => info.show(next),
-    tab,
+    // 一覧の検索欄は見出しのすぐ下に貼り付ける（見出しの高さは文字の大きさで変わるので測る）
+    shown: () => list.shown(head.offsetHeight),
+    hidden: list.hidden,
     othersChanged: list.othersChanged,
     destroy() { list.destroy(); offHelp(); closeColorPicker(); closeEditDialog(); },
   };

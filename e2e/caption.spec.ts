@@ -1,6 +1,6 @@
 // キャプションと本文の編集ダイアログ（edit-dialog.ts）を実際のブラウザで確かめる
 import { expect, test } from "@playwright/test";
-import { openDiagram, select } from "./helpers";
+import { openDiagram, openBoxDialog, openSide } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 300, y: 40 }] });
@@ -30,11 +30,8 @@ test("箱をダブルクリックすると編集ダイアログが開き、後�
   await expect(page.locator('.mz-node[data-id="1"] .mz-body')).toBeHidden();
 });
 
-test("Esc で閉じると何も変えない。サイドバーはキャプションの表示と鉛筆のボタン", async ({ page }) => {
-  await select(page, 1);
-  await expect(page.locator("#sidebar .mzp-caption-text")).toHaveText("A");
-  await expect(page.locator('#sidebar [data-edit="caption"]')).toHaveCount(0);
-  await page.locator("#sidebar [data-edit-box]").click();
+test("Esc で閉じると何も変えない", async ({ page }) => {
+  await openBoxDialog(page, 1);
   await page.locator('.mz-dlg [name="caption"]').fill("書きかけ");
   await page.keyboard.press("Escape");
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
@@ -42,12 +39,10 @@ test("Esc で閉じると何も変えない。サイドバーはキャプショ�
 });
 
 test("キャプションを空にすると空の箱になる（id を出さない）。一覧では「id_(空)」と出す", async ({ page }) => {
-  await select(page, 1);
-  await page.locator("#sidebar [data-edit-box]").click();
+  await openBoxDialog(page, 1);
   await page.locator('.mz-dlg [name="caption"]').fill("");
   await page.locator('.mz-dlg [name="caption"]').press("Enter");
   await expect(caption(page, 1)).toHaveText("");
-  await expect(page.locator("#sidebar .mzp-caption-text")).toHaveText("(空)");
-  await page.locator('#sidebar [data-tab="list"]').click();
+  await openSide(page);
   await expect(page.locator('.mzp-row[data-select="1"] .mzp-row-cap')).toHaveText("1_(空)");
 });

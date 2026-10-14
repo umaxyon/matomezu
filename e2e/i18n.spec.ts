@@ -13,9 +13,10 @@ test.describe("ブラウザの言語が英語", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.locator("#mode-label")).toHaveText("Select mode");
     await expect(page.locator("#undo")).toHaveAttribute("title", "Undo (Ctrl+Z)");
-    await page.locator('.mz-node[data-id="2"] > .mz-head').click();
-    await expect(page.locator("#sidebar")).toContainText("Caption");
+    await page.locator('.mz-node[data-id="2"] > .mz-head').dblclick();
+    await expect(page.locator(".mz-dlg")).toContainText("Caption");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/en-main.png` });
+    await page.keyboard.press("Escape");
 
     await page.locator("#settings").click();
     const dlg = page.locator(".mz-dlg");

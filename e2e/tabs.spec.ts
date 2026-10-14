@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import { example } from "./helpers";
+import { example, openSide } from "./helpers";
 
 const repo = resolve(import.meta.dirname, "..");
 let dir = "";
@@ -224,7 +224,7 @@ test("追加削除の一覧はページごとの見出しで分かれ、ほか�
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   await page.goto(run("open", "-no-browser", "p.json").trim());
   const side = page.locator(".side-pane:visible");
-  await side.locator('[data-tab="list"]').click();
+  await openSide(page);
   await expect(side.locator(".mzp-subfold > summary h3")).toHaveText([/最初のページ（2）\s*表示中のページ/, "詳細（2）"]);
   // × は行にポインタを乗せると出る
   const row = side.locator('.mzp-subfold[data-fold="page:p1"] .mzp-row', { hasText: "中B" });
@@ -244,7 +244,7 @@ test("他ブックも表示で、ほかのブックの箱を図へドラッグ�
   run("open", "-no-browser", "p.json");
   await expect(selected(page)).toHaveText("p.json");
   const side = page.locator(".side-pane:visible");
-  await side.locator('[data-tab="list"]').click();
+  await openSide(page);
   await side.locator("[data-others]").check();
   const book = side.locator(".mzp-other-book", { hasText: "入れ子の例" });
   await expect(book.locator(".mzp-row")).toHaveCount(9);
@@ -260,7 +260,7 @@ test("他ブックも表示で、ほかのブックの箱を図へドラッグ�
   writeFileSync(join(dir, "a.json"), JSON.stringify(example("nested"))); // 後のテストはファイル名の見出しを使う
 });
 
-test("図の題名（world.title）があればタブの見出しに出し、ポインタを乗せるとファイル名が出る。情報タブで書き換えられる", async ({ page }) => {
+test("図の題名（world.title）があればタブの見出しに出し、ポインタを乗せるとファイル名が出る。ブックのダイアログで書き換えられる", async ({ page }) => {
   writeFileSync(join(dir, "c.json"), JSON.stringify({ world: { title: "残りの作業" }, nodes: [{ id: 1, caption: "A" }] }));
   const url = run("open", "-no-browser", "c.json").trim();
   await page.goto(url);
@@ -268,15 +268,17 @@ test("図の題名（world.title）があればタブの見出しに出し、ポ
   await expect(tab.locator(".tab-name")).toHaveText("残りの作業");
   await expect(tab).toHaveAttribute("title", "c.json");
   await expect(page).toHaveTitle("残りの作業 - matomezu");
-  // ワールドの情報タブで書き換える（空にするとファイル名に戻る）
-  await page.locator(".stage:visible").click({ position: { x: 600, y: 400 } });
-  const input = page.locator('.side-pane:visible [data-edit="title"]');
-  await input.fill("新しい題名");
-  await input.press("Enter");
+  // ブックのダイアログのブックのタブで書き換える（空にするとファイル名に戻る）
+  const rename = async (text: string) => {
+    await page.locator("#book").click();
+    await page.locator('.mz-dlg [data-tab="\u0000book"]').click();
+    await page.locator('.mz-dlg [name="book-title"]').fill(text);
+    await page.locator(".mz-dlg [data-ok]").click();
+  };
+  await rename("新しい題名");
   await expect(tab.locator(".tab-name")).toHaveText("新しい題名");
   await expect.poll(() => JSON.parse(readFileSync(join(dir, "c.json"), "utf8")).world?.title).toBe("新しい題名");
-  await input.fill("");
-  await input.press("Enter");
+  await rename("");
   await expect(tab.locator(".tab-name")).toHaveText("c.json");
   run("open", "-no-browser", "c.json");
   await tab.locator(".tab-close").click();

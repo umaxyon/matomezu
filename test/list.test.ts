@@ -164,27 +164,29 @@ test("リストの子どうしは線を引けない", () => {
   expect(graph.toJSON().edges).toEqual([]);
 });
 
-test("サイドバーの子の見せ方にリストがあり、リストの子でも子の見せ方を変えられる。サイズは編集ダイアログで、子を内包する子は選べない", async () => {
-  const { createPanel } = await import("../web/src/panel");
-  const stage = document.createElement("div"), side = document.createElement("aside");
-  document.body.append(side, stage);
-  let panel: { show(i: unknown): void } | null = null;
-  const graph = createGraph(stage, data(), { measureText: fakeMeasure, onSelect: i => panel?.show(i) });
+test("編集ダイアログの子の見せ方にリストがあり、リストの子でも子の見せ方を変えられる。子を内包する子はサイズを選べない", async () => {
+  const { openEditDialog } = await import("../web/src/edit-dialog");
+  const stage = document.createElement("div");
+  document.body.append(stage);
+  const graph = createGraph(stage, data(), { measureText: fakeMeasure });
   graphs.push(graph);
-  panel = createPanel(side, graph);
-  graph.select(1);
-  expect([...side.querySelectorAll<HTMLInputElement>('input[name="mzp-view"]')].map(i => i.value)).toContain("list");
+  const inputs = (name: string) => [...document.querySelectorAll<HTMLInputElement>(`.mz-dlg-overlay input[name="${name}"]`)];
+  const cancel = () => document.querySelector<HTMLElement>(".mz-dlg-overlay [data-cancel]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  openEditDialog(graph, "1");
+  expect(inputs("view").map(i => i.value)).toContain("list");
+  cancel();
   const sizesOff = (id: number) => {
-    graph.select(id);
-    side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    const off = [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="size"]')].every(i => i.disabled);
-    document.querySelector<HTMLElement>(".mz-dlg-overlay [data-cancel]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    openEditDialog(graph, String(id));
+    const off = inputs("size").every(i => i.disabled);
+    cancel();
     return off;
   };
   // 子を内包している子はサイズを使わない（大きさは子の並びで決まる）が、子の見せ方は変えられる
   expect(sizesOff(4)).toBe(true);
-  graph.select(4);
-  expect([...side.querySelectorAll<HTMLInputElement>('input[name="mzp-view"]')].every(i => i.disabled)).toBe(false);
+  openEditDialog(graph, "4");
+  expect(inputs("view").length).toBe(3);
+  expect(inputs("view").every(i => i.disabled)).toBe(false);
+  cancel();
   expect(sizesOff(3)).toBe(false); // 葉の子はサイズを変えられる
 });
 

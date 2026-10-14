@@ -1,12 +1,10 @@
-// サイドバーの操作のテスト
+// サイドバー（追加削除の一覧。D26 で、ふだんは隠れていて、タブ行の「追加削除」で出す形にした）のテスト
 import { afterEach, expect, test } from "bun:test";
 import { noticeOf } from "../web/src/notices";
 import { createGraph, type Graph } from "../web/src/graph";
-import { createPanel, type Panel } from "../web/src/panel";
-import type { BoxInfo, Diagram } from "../web/src/types";
+import { createPanel } from "../web/src/panel";
+import type { Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
-import { SHAPE_GROUPS, SHAPE_LABELS, SHAPES } from "../web/src/validate";
-import { shapeIcon } from "../web/src/shape-icons";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -19,239 +17,28 @@ function setup(data: Diagram) {
   const stage = document.createElement("div");
   const side = document.createElement("aside");
   document.body.append(side, stage);
-  let panel: Panel | null = null;
   const notices: string[] = [];
-  graph = createGraph(stage, data, { measureText: fakeMeasure, onSelect: i => panel?.show(i), onEvent: ev => notices.push(noticeOf(ev)) });
-  panel = createPanel(side, graph);
-  const $ = <T extends Element>(sel: string) => side.querySelector<T>(sel);
-  const click = (sel: string) => $<HTMLElement>(sel)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  // 入力欄の値を変えて確定する（ブラウザでは Enter やフォーカスが外れたときに change が起きる）
-  const change = (sel: string, value?: string | boolean) => {
-    const input = $<HTMLInputElement>(sel)!;
-    if (typeof value === "boolean") input.checked = value;
-    else if (value != null) input.value = value;
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  };
-  // 鉛筆のボタンで編集ダイアログを開き、キャプションを書いて確定する
-  const editCaption = (text: string) => {
-    click("[data-edit-box]");
-    const input = document.querySelector<HTMLInputElement>('.mz-dlg-overlay [name="caption"]')!;
-    input.value = text;
-    document.querySelector<HTMLElement>(".mz-dlg-overlay [data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  };
-  // 鉛筆のボタンで編集ダイアログを開く（テーマ・色・形・サイズはダイアログで直す。2026-10-13 D26）
-  const dlg = <T extends Element>(sel: string) => document.querySelector<T>(`.mz-dlg-overlay ${sel}`);
-  const dlgClick = (sel: string) => dlg<HTMLElement>(sel)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  const openDlg = (id: number) => { graph!.select(id); click("[data-edit-box]"); };
-  const ok = () => dlgClick("[data-ok]");
-  return { g: graph, side, $, click, change, notices, editCaption, dlg, dlgClick, openDlg, ok };
+  graph = createGraph(stage, data, { measureText: fakeMeasure, onEvent: ev => notices.push(noticeOf(ev)) });
+  const panel = createPanel(side, graph);
+  const click = (sel: string) => side.querySelector<HTMLElement>(sel)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  return { g: graph, side, click, notices, panel };
 }
 
-const box = (g: Graph, id: number) => g.info(id) as BoxInfo;
-
-test("選んだボックスの情報を出し、キャプションと色を変える（色は編集ダイアログのボタンから開くポップアップの値の欄で）", () => {
-  const { g, $, editCaption, openDlg, dlgClick, ok } = setup({ nodes: [{ id: 1, caption: "API" }] });
-  g.select(1);
-  expect($(".mzp-title")!.textContent).toBe("API");
-  editCaption("API ゲートウェイ");
-  expect(box(g, 1).caption).toBe("API ゲートウェイ");
-  expect($(".mzp-caption-text")!.textContent).toBe("API ゲートウェイ");
-  // サイドバーには色・テーマ・形・サイズを出さない（ダイアログと重なるため）
-  expect([$("[data-color-open]"), $('[name="mzp-theme"]'), $('[name="mzp-shape"]'), $('[name="mzp-size"]')]).toEqual([null, null, null, null]);
-  openDlg(1);
-  dlgClick("[data-color-open]");
-  const value = document.querySelector<HTMLInputElement>(".mz-cp-value")!;
-  value.value = "#3b82f6";
-  value.dispatchEvent(new Event("change", { bubbles: true }));
-  ok();
-  expect(box(g, 1).color).toBe("#3b82f6");
-});
-
-test("編集ダイアログ: 鉛筆で開き、キャプションと本文と仕切りの線を 1 件の変更として書く。Esc なら書かずに閉じる", () => {
-  const { g, click } = setup({ nodes: [{ id: 1, caption: "API" }] });
-  g.select(1);
-  click("[data-edit-box]");
-  const dlg = () => document.querySelector<HTMLElement>(".mz-dlg-overlay");
-  const field = <T extends HTMLElement>(name: string) => dlg()!.querySelector<T>(`[name="${name}"]`)!;
-  expect(dlg()).not.toBeNull();
-  expect(field<HTMLInputElement>("caption").value).toBe("API");
-  field<HTMLInputElement>("caption").value = "書きかけ";
-  field<HTMLInputElement>("caption").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  expect(dlg()).toBeNull();
-  expect(box(g, 1).caption).toBe("API");
-  // 開き直して、本文と仕切りの線も変えて確定する（Ctrl+Enter）
-  click("[data-edit-box]");
-  field<HTMLInputElement>("caption").value = "API サーバー";
-  // 本文が空のあいだ、区切り線は切って押せない。書き始めると押せるようになって入る
-  expect([field<HTMLButtonElement>("rule").disabled, document.querySelector(".mz-dlg-onoff")!.textContent]).toEqual([true, "OFF"]);
-  field<HTMLTextAreaElement>("body").value = "一行目\n二行目";
-  field<HTMLTextAreaElement>("body").dispatchEvent(new Event("input", { bubbles: true }));
-  expect([field<HTMLButtonElement>("rule").disabled, document.querySelector(".mz-dlg-onoff")!.textContent]).toEqual([false, "ON"]);
-  field<HTMLElement>("rule").click(); // 区切り線を切る
-  expect([field<HTMLElement>("rule").getAttribute("aria-checked"), document.querySelector(".mz-dlg-onoff")!.textContent]).toEqual(["false", "OFF"]);
-  const before = g.history().canUndo;
-  field<HTMLTextAreaElement>("body").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
-  expect(dlg()).toBeNull();
-  expect(g.toJSON().nodes[0]).toMatchObject({ caption: "API サーバー", body: "一行目\n二行目", bodyRule: false });
-  expect(before).toBe(false);
-  g.undo(); // 1 件の変更なので、1 回で全部戻る
-  const n = g.toJSON().nodes[0]!;
-  expect([n.caption, n.body, n.bodyRule]).toEqual(["API", undefined, undefined]);
-});
-
-test("編集ダイアログ: 本文を出せない箱（S・ほかの形）では、本文の欄を使えない", () => {
-  const { g, click } = setup({ nodes: [{ id: 1, caption: "S", size: "S" }] });
-  g.select(1);
-  click("[data-edit-box]");
-  const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
-  expect(dlg.querySelector<HTMLTextAreaElement>('[name="body"]')!.disabled).toBe(true);
-  expect(dlg.textContent).toContain("本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます");
-});
-
-// 解釈できない色を受け付けない動き（panel.ts の CSS.supports での確認）は、ここでは確かめられない。
-// この DOM の CSS.supports は何でも true を返し、しかも置き換えられないため。実際のブラウザでのテストで確かめる
-
-test("色の見本と「なし」（編集ダイアログ）、塗りつぶし・枠線（サイドバー）", () => {
-  const { g, change, openDlg, dlgClick, ok } = setup({ nodes: [{ id: 1 }] });
-  expect(box(g, 1).color).toBe(""); // 色を書いていない
-  const pickIn = (sel: string) => document.querySelector<HTMLElement>(`.mz-cp ${sel}`)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  openDlg(1);
-  dlgClick("[data-color-open]");
-  pickIn('[data-name="success"]');
-  ok();
-  expect(box(g, 1).color).toBe("success");
-  openDlg(1);
-  dlgClick("[data-color-open]");
-  pickIn("[data-none]");
-  ok();
-  expect(box(g, 1).color).toBe("");
-  change('[data-field="fill"]', false);
-  change('[data-field="border"]', true);
-  expect([box(g, 1).fill, box(g, 1).border]).toEqual([false, true]);
-});
-
-test("サイズを書くと、今と同じサイズでも大きさの指定を外す", () => {
-  const { g } = setup({ nodes: [{ id: 1, x: 40, y: 40, width: 312 }] });
-  g.update(1, { size: "M" });
-  expect(box(g, 1).w).toBe(120);
-  expect("width" in g.toJSON().nodes[0]!).toBe(false);
-  g.update(1, { size: "S" });
-  expect(box(g, 1).size).toBe("S");
-});
-
-test("形と子の見せ方、ツリーのときだけ向きを選べる", () => {
-  const { g, $, change, openDlg, dlg, dlgClick, ok } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3 }] });
-  openDlg(3);
-  dlg<HTMLInputElement>('input[name="shape"][value="db"]')!.checked = true; // 形は絵の並び（shape-picker.ts。編集ダイアログ）
-  ok();
-  expect(box(g, 3).shape).toBe("db");
-
-  openDlg(1);
-  // 内包しているグループは、ボックスとクラスだけ選べる（クラスにすると子は消える。docs/CLASS-plan.md）
-  const open = [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="shape"]')].filter(o => !o.disabled).map(o => o.value);
-  expect(open).toEqual(["box", "class"]);
-  dlgClick("[data-cancel]");
-  expect($('input[name="mzp-treedir"]')).toBeNull();
-  change('input[name="mzp-view"][value="list"]', true);
-  expect(box(g, 1).childView).toBe("list");
-  // ツリーの向きはワールドの欄（ツリーのページのときだけ出る）
-  g.update(null, { childView: "tree" });
-  g.select(null);
-  change('input[name="mzp-treedir"][value="left"]', true);
-  expect((g.info(null) as { treeDirection: string }).treeDirection).toBe("left");
-});
-
-test("子のサイズのボタンは、そろえられる子が2つ以上あるときだけ出る", () => {
-  const { g, $, click, notices } = setup({
-    nodes: [
-      { id: 1, x: 40, y: 40 },
-      { id: 2, parent: 1, x: 12, y: 30, width: 300 }, { id: 3, parent: 1, x: 12, y: 110 },
-      { id: 4, x: 600, y: 40 }, { id: 5, parent: 4 },
-    ],
-  });
-  g.select(4);
-  expect($("[data-fit]")).toBeNull();
-  g.select(1);
-  click('[data-fit="width"]');
-  expect([box(g, 2).w, box(g, 3).w]).toEqual([120, 120]);
-  expect(notices.at(-1)).toBe("子 2 個の幅をそろえました");
-});
-
-test("ワールドには中身の扱いを出さず、データの overflow は無視する（書き換えない）", () => {
-  const { g, $ } = setup({ world: { overflow: "clip" }, nodes: [{ id: 1 }] });
-  g.select(null);
-  expect($('input[name="mzp-overflow"]')).toBeNull();
-  expect(g.info(null).overflow).toBe("wrap");
-  expect(() => g.update(null, { overflow: "clip" })).toThrow();
-  expect(g.toJSON().world!.overflow).toBe("clip");
-  expect(document.querySelector(".mz-world")!.classList.contains("mz-ov-clip")).toBe(false);
-});
-
-test("中身の扱い: 文字のボックスは「キャプションを 1 行にする」のチェック。グループには中身の扱いもサイズも出さない（docs/SIZE-plan.md）", () => {
-  const { g, $, change, openDlg } = setup({ nodes: [{ id: 1, caption: "グループ", size: "L" }, { id: 2, caption: "文字", parent: 1 }, { id: 3, caption: "本文", body: "本文" }] });
-  g.select(2);
-  expect($('input[name="mzp-overflow"]')).toBeNull();
-  expect($<HTMLInputElement>("input[data-one-line]")!.checked).toBe(false);
-  change("input[data-one-line]", true);
-  expect(g.info(2).overflow).toBe("clip");
-  expect($<HTMLInputElement>("input[data-one-line]")!.checked).toBe(true);
-  change("input[data-one-line]", false);
-  expect(g.info(2).overflow).toBe("wrap");
-  g.select(3);
-  expect($<HTMLInputElement>("input[data-one-line]")!.disabled).toBe(true); // 本文があれば 1 行にできない
-  g.select(1);
-  expect($('input[name="mzp-overflow"]')).toBeNull();
-  expect($("input[data-one-line]")).toBeNull();
-  openDlg(1); // グループのサイズは子の並びで決まるので、ダイアログでも選べない
-  const sizes = [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="size"]')];
-  expect(sizes.map(i => [i.disabled, i.checked])).toEqual([[true, false], [true, false], [true, false]]);
-});
-
-test("背景の色もボタンから開くポップアップで選ぶ（見本と「なし」）。外で閉じても、次に押すと開く", () => {
-  const { g, click } = setup({ nodes: [{ id: 1 }] });
-  g.select(null);
-  const pickIn = (sel: string) => document.querySelector<HTMLElement>(`.mz-cp ${sel}`)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  click("[data-color-open]");
-  pickIn('[data-name="#0f172a"]');
-  expect(g.toJSON().world?.background).toBe("#0f172a");
-  pickIn("[data-none]");
-  expect(g.toJSON().world?.background).toBeUndefined();
-  // 外を押して閉じたあとも、ボタンを押せばまた開く（閉じたことをサイドバーが知る）
-  document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-  expect(document.querySelector(".mz-cp")).toBeNull();
-  click("[data-color-open]");
-  expect(document.querySelector(".mz-cp")).not.toBeNull();
-});
-
-test("親・子・つながりのボタンで、そのボックスを選ぶ", () => {
-  const { g, click } = setup({ nodes: [{ id: 1, caption: "親" }, { id: 2, caption: "子", parent: 1 }, { id: 3 }], edges: [[1, 3]] });
-  g.select(2);
-  click('[data-select="1"]');
-  expect(g.selected()).toBe("1");
-  click('[data-select="3"]'); // つながり
-  expect(g.selected()).toBe("3");
-});
-
-test("タブで情報と追加削除を切り替える", () => {
-  const { $, click } = setup({ nodes: [{ id: 1, caption: "API" }] });
-  const hidden = () => [$<HTMLElement>('[data-pane="info"]')!.hidden, $<HTMLElement>('[data-pane="list"]')!.hidden];
-  expect(hidden()).toEqual([false, true]);
-  click('[data-tab="list"]');
-  expect(hidden()).toEqual([true, false]);
-  expect($('[data-tab="list"]')!.getAttribute("aria-selected")).toBe("true");
-  click('[data-tab="info"]');
-  expect(hidden()).toEqual([false, true]);
+test("見出しは「追加削除」だけで、情報の欄は無い（編集ダイアログとブックのダイアログへ移した）", () => {
+  const { side } = setup({ nodes: [{ id: 1, caption: "API" }] });
+  expect(side.querySelector(".mzp-tabs")!.textContent).toBe("追加削除");
+  expect(side.querySelector('[data-pane="info"]')).toBeNull();
 });
 
 test("一覧: 表示中の × で子ごと消え、消したものに並ぶ。表示中の行を押すと選ぶ", () => {
-  const { g, side, click, notices } = setup({
+  const { g, side, click, notices, panel } = setup({
     nodes: [{ id: 1, caption: "親" }, { id: 2, caption: "子", parent: 1 }, { id: 3, caption: "隣" }],
     edges: [[1, 3]],
   });
   // 行ごとに「キャプション / 親の欄 / × の有無」
   const rows = (sel: string) => [...side.querySelectorAll<HTMLElement>(sel)].map(r =>
     [r.querySelector(".mzp-row-cap")!.textContent, r.querySelector(".mzp-row-parent")?.textContent ?? "", !!r.querySelector(".mzp-del")].join("/"));
-  click('[data-tab="list"]');
+  panel.shown();
   expect(rows('.mzp-row:not(.mzp-removed)')).toEqual(["1_親//true", "2_子/親 の中/true", "3_隣//true"]);
   expect(rows(".mzp-removed")).toEqual([]);
   click('[data-select="3"]');
@@ -261,14 +48,12 @@ test("一覧: 表示中の × で子ごと消え、消したものに並ぶ。�
   expect(rows(".mzp-removed")).toEqual(["1_親//false", "2_子/親 の中/false"]);
   expect(side.querySelector('[data-restore="1"]')!.getAttribute("draggable")).toBe("true");
   expect(notices.at(-1)).toBe("「1_親」を消しました（子 1 個、線 1 本も）");
-  // タブは追加削除のまま
-  expect(side.querySelector<HTMLElement>('[data-pane="list"]')!.hidden).toBe(false);
 });
 
 test("一覧の区画は折りたためて、描き直しても開け閉めを保つ", () => {
-  const { g, side, click } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
+  const { g, side, panel } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
   const fold = (name: string) => side.querySelector<HTMLDetailsElement>(`[data-fold="${name}"]`)!;
-  click('[data-tab="list"]'); // 一覧は、タブを開いたときに作る
+  panel.shown(); // 一覧は、見えるようにしたときに作る
   expect([fold("live").open, fold("removed").open]).toEqual([true, true]);
   const d = fold("live");
   d.open = false;
@@ -278,10 +63,10 @@ test("一覧の区画は折りたためて、描き直しても開け閉めを�
 });
 
 test("一覧の検索欄: 入力した文字を id_キャプションに含む行だけを残し、検索中は閉じた区画も開く。Esc で戻す", () => {
-  const { g, side, click } = setup({
+  const { g, side, panel } = setup({
     nodes: [{ id: 1, caption: "東京のAさん" }, { id: 2, caption: "大阪のBさん" }, { id: 12, caption: "東京のCさん" }],
   });
-  click('[data-tab="list"]');
+  panel.shown();
   const search = side.querySelector<HTMLInputElement>("[data-search]")!;
   const shown = () => [...side.querySelectorAll<HTMLElement>('[data-fold="live"] .mzp-row')].filter(r => !r.hidden).map(r => r.dataset.select);
   const live = () => side.querySelector<HTMLDetailsElement>('[data-fold="live"]')!;
@@ -304,122 +89,21 @@ test("一覧の検索欄: 入力した文字を id_キャプションに含む�
   expect(live().open).toBe(false); // 検索をやめたら元の開け閉めに戻る
 });
 
-test("一覧は、データが変わったときに作り直す。隠れている間は作らず、タブを開いたときに作る。選択だけでは作り直さない", () => {
-  const { g, side, click } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
+test("一覧は、データが変わったときに作り直す。隠れている間は作らず、見えるようにしたときに作る。選択だけでは作り直さない", () => {
+  const { g, side, panel } = setup({ nodes: [{ id: 1, caption: "a" }, { id: 2, caption: "b" }] });
   const row = (id: string) => side.querySelector<HTMLElement>(`.mzp-row[data-select="${id}"]`);
-  click('[data-tab="list"]');
+  panel.shown();
   const first = row("1")!;
   g.select(2); // 選んだだけ（データは変わらない）
   expect(row("1")).toBe(first); // 一覧は作り直していない
   g.update(1, { caption: "A" }); // データが変わった（一覧が見えている）
   expect(row("1")!.querySelector(".mzp-row-cap")!.textContent).toBe("1_A");
-  click('[data-tab="info"]');
+  panel.hidden();
   const before = row("1");
   g.update(1, { caption: "B" }); // 一覧が隠れている間の変更
   expect(row("1")).toBe(before); // まだ作り直さない
-  click('[data-tab="list"]');
+  panel.shown();
   expect(row("1")!.querySelector(".mzp-row-cap")!.textContent).toBe("1_B"); // 開いたら最新
   g.undo(); // 図の組み立て直し（Undo）でも作り直す
   expect(row("1")!.querySelector(".mzp-row-cap")!.textContent).toBe("1_A");
-});
-
-test("外部の変更を読み込んでも、選んでいる箱と、入力中の欄の打ちかけの文字とフォーカスを保つ（Esc なら元に戻す）", () => {
-  const data = { nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB" }] };
-  const { g, $ } = setup(data);
-  g.select(null);
-  const input = () => $<HTMLInputElement>('[data-edit="title"]')!;
-  input().focus();
-  input().value = "構成図"; // 打ちかけ（まだ確定していない）
-  g.load({ nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB（外部で変更）" }] }, { keepHistory: true });
-  expect(input().value).toBe("構成図");
-  expect(document.activeElement).toBe(input());
-  // Esc は打ちかけを捨てて、元の値に戻す
-  input().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  expect(input().value).toBe("");
-});
-
-test("編集ダイアログを開いている間に外部の変更を読み込んでも、打ちかけは残り、確定すると開いた箱に書く", () => {
-  const { g, click } = setup({ nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB" }] });
-  g.select(1);
-  click("[data-edit-box]");
-  const caption = () => document.querySelector<HTMLInputElement>('.mz-dlg-overlay [name="caption"]')!;
-  caption().value = "API サーバー";
-  g.load({ nodes: [{ id: 1, caption: "API" }, { id: 2, caption: "DB（外部で変更）" }] }, { keepHistory: true });
-  expect(caption().value).toBe("API サーバー");
-  caption().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  expect(box(g, 1).caption).toBe("API サーバー");
-  expect(box(g, 2).caption).toBe("DB（外部で変更）");
-});
-
-test("見た目: 枠線はボックスだけ、塗りつぶしはスティックマン以外に出す（効かないチェックは出さない）", () => {
-  const { g, $ } = setup({
-    nodes: [
-      { id: 1, caption: "箱" }, { id: 2, caption: "DB", shape: "db" },
-      { id: 3, caption: "分岐", shape: "diamond" }, { id: 4, caption: "人", shape: "person" },
-    ],
-  });
-  const shown = (id: number) => {
-    g.select(id);
-    return [!!$('[data-field="fill"]'), !!$('[data-field="border"]')];
-  };
-  expect([shown(1), shown(2), shown(3), shown(4)]).toEqual([[true, true], [true, false], [true, false], [false, false]]);
-});
-
-test("ツリーの中の子持ちの箱は、サイズを選べ、子の見せ方の代わりに案内を出す（見せ方のデータが内包のままでも）", () => {
-  const { g, $, openDlg, dlgClick } = setup({ world: { childView: "tree", root: 1 }, nodes: [
-    { id: 1, caption: "根" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
-  ] });
-  const sizes = () => [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="size"]')];
-  openDlg(2); // サイズは編集ダイアログで選ぶ
-  expect(sizes().map(i => [i.disabled, i.checked])).toEqual([[false, false], [false, true], [false, false]]);
-  dlgClick("[data-cancel]");
-  expect($('input[name="mzp-view"]')).toBeNull();
-  // ページを内包にすると、節は内包の枠になり、サイズは子の並びで決まる
-  g.update(null, { childView: "nest" });
-  openDlg(2);
-  expect(sizes().every(i => i.disabled)).toBe(true);
-  dlgClick("[data-cancel]");
-  expect($('input[name="mzp-view"]')).not.toBeNull();
-});
-
-test("内包に変換のボタンは、ツリーのページのワールドの欄だけに出し、確かめてから変換する（キャンセルなら何もしない）", () => {
-  const { g, $, click } = setup({ world: { childView: "tree", root: 1 }, nodes: [
-    { id: 1, caption: "根" }, { id: 2, caption: "節", parent: 1 }, { id: 3, caption: "葉", parent: 2 },
-  ] });
-  g.select(1);
-  expect($("[data-flatten]")).toBeNull();
-  g.select(null);
-  const dlg = (sel: string) => document.querySelector<HTMLElement>(`.mz-dlg-overlay ${sel}`);
-  click("[data-flatten]");
-  dlg("[data-cancel]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(g.toJSON().nodes.find(n => n.id === 2)!.parent).toBe(1);
-  click("[data-flatten]");
-  dlg("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(g.toJSON().nodes.find(n => n.id === 2)!.parent).toBeUndefined();
-  expect(g.toJSON().edges).toHaveLength(2);
-  expect(g.toJSON().world?.childView).toBeUndefined();
-});
-
-test("形を選ぶ絵の並び: どの形もどれか 1 つのまとまりに入り、名前と絵を持つ", () => {
-  const listed = SHAPE_GROUPS.flatMap(g => g.shapes);
-  expect([...listed].sort()).toEqual([...SHAPES].sort());
-  for (const s of SHAPES) {
-    expect([s, !!SHAPE_LABELS[s]]).toEqual([s, true]);
-    expect([s, /<(path|rect|circle|ellipse|g)\b/.test(shapeIcon(s, "x"))]).toEqual([s, true]);
-  }
-});
-
-test("形を選ぶ絵の並び: どの箱でも全部の形を並べ、名前はポインタを乗せると出る", () => {
-  const { openDlg, dlgClick } = setup({
-    world: { childView: "flow" },
-    nodes: [{ id: 1, caption: "外", x: 40, y: 40 }, { id: 3, caption: "中", x: 300, y: 40 }],
-  });
-  const values = () => [...document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="shape"]')].map(i => i.value);
-  openDlg(1);
-  expect([...values()].sort()).toEqual([...SHAPES].sort());
-  dlgClick("[data-cancel]");
-  openDlg(3);
-  expect([...values()].sort()).toEqual([...SHAPES].sort());
-  const label = document.querySelector<HTMLInputElement>('.mz-dlg-overlay input[name="shape"][value="trapezoidAlt"]')!.closest("label")!;
-  expect(label.title).toBe(SHAPE_LABELS.trapezoidAlt);
 });

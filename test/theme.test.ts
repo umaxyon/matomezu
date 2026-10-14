@@ -1,7 +1,8 @@
 // テーマ（theme.ts、docs/THEME-plan.md 11 章）のテスト
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import { createPanel, type Panel } from "../web/src/panel";
+import { openEditDialog } from "../web/src/edit-dialog";
+import { openBookDialog } from "../web/src/book-dialog";
 import { themeById } from "../web/src/theme";
 import type { GraphEvent } from "../web/src/notices";
 import type { BoxInfo, Diagram } from "../web/src/types";
@@ -17,14 +18,11 @@ afterEach(() => {
 
 function setup(data: Diagram) {
   const stage = document.createElement("div");
-  const side = document.createElement("aside");
-  document.body.append(side, stage);
-  let panel: Panel | null = null;
-  graph = createGraph(stage, data, { measureText: fakeMeasure, onSelect: i => panel?.show(i) });
-  panel = createPanel(side, graph);
+  document.body.append(stage);
+  graph = createGraph(stage, data, { measureText: fakeMeasure });
   const head = (id: number) => stage.querySelector<HTMLElement>(`.mz-node[data-id="${id}"] > .mz-head`)!;
   const node = (id: number) => stage.querySelector<HTMLElement>(`.mz-node[data-id="${id}"]`)!;
-  return { g: graph, stage, side, head, node };
+  return { g: graph, stage, head, node };
 }
 
 const sticky = themeById("sticky");
@@ -77,34 +75,28 @@ test("知らないテーマの名前は、検査（matomezu validate）では誤
 
   const events: GraphEvent[] = [];
   const stage = document.createElement("div");
-  const side = document.createElement("aside");
-  document.body.append(side, stage);
-  let panel: Panel | null = null;
+  document.body.append(stage);
   graph = createGraph(stage, { world: { theme: "mono" }, nodes: [{ id: 1, caption: "A", x: 40, y: 40 }] },
-    { measureText: fakeMeasure, onSelect: i => panel?.show(i), onEvent: ev => events.push(ev) });
-  panel = createPanel(side, graph);
+    { measureText: fakeMeasure, onEvent: ev => events.push(ev) });
   expect(stage.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head')!.style.background).toBe("#ffffff");
   expect(events).toContainEqual({ kind: "unknownTheme", names: ["mono"] });
   expect(graph.toJSON().world?.theme).toBe("mono"); // データはそのまま
-  graph.select(null);
-  expect(side.textContent).toContain("「mono」というテーマはありません");
   expect(() => graph!.update(1, { theme: "neon" })).toThrow();
 });
 
-test("ワールドのテーマはサイドバーで、箱のテーマは編集ダイアログで選ぶ。色のポップアップでは、どのテーマでも灰色も選べる", () => {
-  const { g, side } = setup({ nodes: [{ id: 1, caption: "A", color: "#ef4444", x: 40, y: 40 }] });
+test("ページのテーマはブックのダイアログで、箱のテーマは編集ダイアログで選ぶ。色のポップアップでは、どのテーマでも灰色も選べる", () => {
+  const { g } = setup({ nodes: [{ id: 1, caption: "A", color: "#ef4444", x: 40, y: 40 }] });
   const dlg = <T extends Element>(sel: string) => document.querySelector<T>(`.mz-dlg-overlay ${sel}`)!;
   const press = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  const openDlg = () => { g.select(1); press(side.querySelector("[data-edit-box]")!); };
+  const openDlg = () => openEditDialog(g, "1");
   const pickTheme = (select: HTMLSelectElement, value: string) => {
     select.value = value;
     select.dispatchEvent(new Event("change", { bubbles: true }));
   };
-  g.select(null);
-  pickTheme(side.querySelector<HTMLSelectElement>('select[name="mzp-theme"]')!, "sticky");
+  openBookDialog(g, "e2e.json");
+  dlg<HTMLSelectElement>('[data-tab-pane=""] select[name="theme"]').value = "sticky";
+  press(dlg("[data-ok]"));
   expect(g.toJSON().world?.theme).toBe("sticky");
-  g.select(1);
-  expect(side.querySelector('select[name="mzp-theme"]')).toBeNull(); // 箱のテーマはサイドバーに出さない
   openDlg();
   press(dlg("[data-color-open]"));
   expect(document.querySelector(".mz-cp-sv")).not.toBeNull(); // 好きな色を選ぶ四角は、付箋紙でも使える
@@ -159,7 +151,7 @@ test("付箋紙では、塗りのある文字の箱だけ角を折り返し、�
 });
 
 test("色の名前はどのテーマでも、そのテーマの色で塗る。編集ダイアログで名前を選べる", () => {
-  const { g, head, side } = setup({ nodes: [{ id: 1, caption: "A", color: "danger", x: 40, y: 40 }] });
+  const { g, head } = setup({ nodes: [{ id: 1, caption: "A", color: "danger", x: 40, y: 40 }] });
   expect(head(1).style.background).toBe(themeById("default").palette.danger);
   g.update(null, { theme: "simple" });
   expect(head(1).style.background).toBe(simple.palette.danger);
@@ -169,8 +161,7 @@ test("色の名前はどのテーマでも、そのテーマの色で塗る。�
   // 名前の色を押すと名前を書き、「なし」で消す（編集ダイアログの色のボタンから）
   const press = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   const pickColor = (sel: string) => {
-    g.select(1);
-    press(side.querySelector("[data-edit-box]")!);
+    openEditDialog(g, "1");
     press(document.querySelector(".mz-dlg-overlay [data-color-open]")!);
     press(document.querySelector(`.mz-cp ${sel}`)!);
     press(document.querySelector(".mz-dlg-overlay [data-ok]")!);

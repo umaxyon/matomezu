@@ -1,7 +1,7 @@
 // 「追加削除」タブの一覧（検索欄、行から選んだ箱を見せる）を実際のブラウザで確かめる
 import { expect, test } from "@playwright/test";
 import type { Diagram } from "../web/src/types";
-import { openDiagram } from "./helpers";
+import { openDiagram, openSide } from "./helpers";
 
 // 表示領域より下と右に箱がある図（行が多く、サイドバーもスクロールする）
 const far = (): Diagram => ({
@@ -25,7 +25,7 @@ const inView = (page: import("@playwright/test").Page, id: number) => page.evalu
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 600 });
   await openDiagram(page, far());
-  await page.click('[data-tab="list"]');
+  await openSide(page);
 });
 
 test("一覧の行を押すと、見えている範囲の外の箱へ図をスクロールする。見えていればスクロールしない", async ({ page }) => {

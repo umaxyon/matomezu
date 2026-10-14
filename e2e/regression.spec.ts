@@ -1,9 +1,7 @@
 // 2026-09-28 にユーザーが画面で確認した動きを、実際のブラウザで確かめる。
 // test/fixtures/three-levels.json の id: 1 タイトル、2 ユーザー、3 フロントエンド、5 トップ画面、10 バックエンド、17 外部サービス
 import { expect, test } from "@playwright/test";
-import {
-  choose, dragBy, edgeEnds, example, lines, openDiagram, rect, select, setCaption, violations,
-} from "./helpers";
+import { choose, dragBy, edgeEnds, example, lines, openDiagram, rect, select, setCaption, violations, openBoxDialog, confirmDialog } from "./helpers";
 
 const LONG = "トップ画面あいうえおかきくけこさしすせそたちつてとなにぬねの".repeat(2);
 // 線を除いた同じ図。線でつながった箱どうしは間隔が広がる（32・40px。layout.ts の gapBetween）ので、線と関係の無い動き
@@ -51,8 +49,9 @@ test("押し下げた相手との間隔は、ちょうど 8px", async ({ page })
 test("キャプションを 1 行にすると、文字を減らせば縮み、増やせば上限の幅で切る", async ({ page }) => {
   const before = await rect(page, 5);
   await setCaption(page, 5, LONG);
-  await select(page, 5);
-  await page.locator("#sidebar input[data-one-line]").check();
+  await openBoxDialog(page, 5);
+  await page.locator('.mz-dlg [name="one-line"]').check();
+  await confirmDialog(page);
   expect(await rect(page, 5)).toMatchObject({ w: 240, h: 64 });
   await setCaption(page, 5, "トップ画面");
   expect((await rect(page, 5)).w).toBe(before.w);
@@ -65,7 +64,7 @@ test("最上位の見せ方を切り替えても元の位置に戻り、上辺�
   const top = (r: { x: number; y: number; w: number }) => [r.x + r.w / 2, r.y];
   // リストは最上位を下へ移してしまう（main でも同じ。残課題の F に記録）ので、ここでは内包と非表示だけ
   for (const v of ["hidden", "nest", "hidden", "nest"]) {
-    await choose(page, 3, "mzp-view", v);
+    await choose(page, 3, "view", v);
     const r = await rect(page, 3);
     expect(Math.abs(top(r)[0]! - top(front)[0]!), v).toBeLessThanOrEqual(1);
     expect(r.y, v).toBe(front.y);
@@ -77,11 +76,11 @@ test("最上位の見せ方を切り替えても元の位置に戻り、上辺�
 test("非表示にした最上位は、関係ない箱を変えても横へ動かず、内包に戻すと元の位置", async ({ page }) => {
   // フロントエンドは開いたときにタイトルとわずかに重なって押し下げられ、元の位置を覚えている
   const front = await rect(page, 3);
-  await choose(page, 3, "mzp-view", "hidden");
+  await choose(page, 3, "view", "hidden");
   const hidden = await rect(page, 3);
-  await choose(page, 17, "mzp-view", "nest"); // 関係ない外部サービスを変える
+  await choose(page, 17, "view", "nest"); // 関係ない外部サービスを変える
   expect(await rect(page, 3)).toEqual(hidden);
-  await choose(page, 3, "mzp-view", "nest");
+  await choose(page, 3, "view", "nest");
   expect(await rect(page, 3)).toEqual(front);
 });
 
@@ -105,7 +104,7 @@ test("真横の相手への線は水平、真下の相手への線は垂直", as
   expect(y1).toBe(y2);
   const [x1, , x2] = await edgeEnds(page, "e2"); // フロントエンド - バックエンド
   expect(x1).toBe(x2);
-  await choose(page, 3, "mzp-view", "hidden"); // 大きさが変わっても水平・垂直のまま
+  await choose(page, 3, "view", "hidden"); // 大きさが変わっても水平・垂直のまま
   expect((await edgeEnds(page, "e1"))[1]).toBe((await edgeEnds(page, "e1"))[3]);
   expect((await edgeEnds(page, "e2"))[0]).toBe((await edgeEnds(page, "e2"))[2]);
   await select(page, 3);

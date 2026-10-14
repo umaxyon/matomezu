@@ -13,7 +13,7 @@ const colorOf = (page: import("@playwright/test").Page) =>
 test("四角をドラッグして離すと色が決まり、見本で名前の色、Esc で閉じる。確定で図に付く", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "色", x: 40, y: 40 }] });
   await page.locator('.mz-node[data-id="1"] > .mz-head').click();
-  await page.locator("#sidebar [data-edit-box]").click();
+  await page.keyboard.press("Enter");
   const dlg = page.locator(".mz-dlg-overlay > .mz-dlg");
   await dlg.locator("[data-color-open]").click();
   const sv = page.locator(".mz-cp-sv");

@@ -1,7 +1,7 @@
 // 線のキャプション（docs/EDGE-CAPTION-plan.md）
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import { createPanel, type Panel } from "../web/src/panel";
+import { openEdgeEditDialog } from "../web/src/edit-dialog";
 import { summarize } from "../web/src/report";
 import type { Diagram } from "../web/src/types";
 import { fakeMeasure, PLAIN_GAPS } from "./helpers";
@@ -13,13 +13,11 @@ afterEach(() => {
 });
 
 function setup(data: Diagram) {
-  const el = document.createElement("div"), side = document.createElement("aside");
-  document.body.append(side, el);
-  let panel: Panel | null = null;
-  const graph = createGraph(el, data, { measureText: fakeMeasure, ...PLAIN_GAPS, onSelect: i => panel?.show(i) });
+  const el = document.createElement("div");
+  document.body.append(el);
+  const graph = createGraph(el, data, { measureText: fakeMeasure, ...PLAIN_GAPS });
   graphs.push(graph);
-  panel = createPanel(side, graph);
-  return { el, side, graph };
+  return { el, graph };
 }
 
 // 箱は 120×64。1 と 2 は横に並び、線は 160 から 400 までの 240
@@ -51,16 +49,15 @@ test("キャプションが無ければ札を出さない", () => {
   expect(label(el)).toBeNull();
 });
 
-test("サイドバーの鉛筆で編集ダイアログを開いて書き換えられ、空にすると消える。札を押すと線を選ぶ", () => {
-  const { el, side, graph } = setup(two(400));
+test("編集ダイアログで書き換えられ、空にすると消える。札を押すと線を選ぶ", () => {
+  const { el, graph } = setup(two(400));
   graph.selectEdge("e1");
-  side.querySelector<HTMLElement>("[data-edit-edge]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  openEdgeEditDialog(graph, "e1");
   const input = document.querySelector<HTMLInputElement>('.mz-dlg-overlay [name="caption"]')!;
   expect(document.querySelector(".mz-dlg h2")!.textContent).toBe("線の編集");
   input.value = "承認";
   input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   expect(document.querySelector(".mz-dlg-overlay")).toBeNull();
-  expect(side.querySelector(".mzp-caption-text")!.textContent).toBe("承認");
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, caption: "承認" }]);
   expect(label(el)!.textContent).toBe("承認");
   graph.select(1);
@@ -126,12 +123,15 @@ test("札をつまんで動かすと、線に沿った位置と線からの距�
   expect(e().captionOffset).toBe(22);
 });
 
-test("サイドバーの「キャプションの位置を自動に戻す」で真ん中に戻る", () => {
+test("編集ダイアログの「キャプションの位置を自動に戻す」で、確定すると真ん中に戻る", () => {
   const d = two(400, "申請");
   Object.assign(d.edges![0] as object, { captionAt: 0.25, captionOffset: 20 });
-  const { el, side, graph } = setup(d);
-  graph.selectEdge("e1");
-  side.querySelector<HTMLElement>("[data-caption-reset]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const { el, graph } = setup(d);
+  openEdgeEditDialog(graph, "e1");
+  const press = (sel: string) => document.querySelector<HTMLElement>(`.mz-dlg-overlay ${sel}`)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  press('[data-once="caption"]');
+  expect(graph.toJSON().edges![0]).toMatchObject({ captionAt: 0.25 }); // まだ書かない
+  press("[data-ok]");
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, caption: "申請" }]);
   expect(center(label(el)!)).toEqual([280, 72]);
 });

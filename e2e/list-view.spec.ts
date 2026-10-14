@@ -27,7 +27,7 @@ test("子が同じ幅で縦に並び、親の幅いっぱいに広がる", async
 });
 
 test("リストの子も自分の子の見せ方に従う。内包にすると孫を出し、全員がその幅にそろう（docs/SIZE-plan.md）", async ({ page }) => {
-  await choose(page, 4, "mzp-view", "nest");
+  await choose(page, 4, "view", "nest");
   await expect(page.locator('.mz-node[data-id="5"]')).toBeVisible();
   const [p, a, c] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 4)]);
   expect(a.w).toBe(c.w);

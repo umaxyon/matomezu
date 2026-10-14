@@ -30,6 +30,7 @@ export default {
   "サンプル": "Sample",
   "JSONを開く": "Open JSON",
   "保存": "Save",
+  "追加削除: 箱の一覧を左に出す・隠す（消したものを図へドラッグすると戻る）": "Added / Removed: show or hide the box list on the left (drag a removed box onto the diagram to bring it back)",
   "ブック: ブックとページの設定": "Book: book and page settings",
   "追加: 押した所に箱を足す（箱の上ならその子、リストの上なら子と子の間。Esc で選択モードに戻る）": "Add: adds a box where you click (inside a box, it becomes a child; in a list, between children. Esc returns to select mode)",
   "JSONを開く（ドロップでも開けます）": "Open JSON (you can also drop a file)",

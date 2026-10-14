@@ -1,8 +1,8 @@
-// 線の選択（選択モード）、矢印、サイドバーからの削除
+// 線の選択（選択モード）、矢印、線の編集ダイアログからの削除
 import { expect, test } from "@playwright/test";
-import { example, openDiagram } from "./helpers";
+import { example, openDiagram, confirmDialog } from "./helpers";
 
-test("選択モードで線をクリックすると情報タブに線の情報が出て、線の編集ダイアログで矢印を付けたり消したりできる", async ({ page }) => {
+test("選択モードで線をクリックすると選べ、線の編集ダイアログで矢印を付けたり消したりできる", async ({ page }) => {
   await openDiagram(page, example("nested"));
   await expect(page.locator("#mode-label")).toHaveText("選択モード");
   // e2（1-4、フロントエンドとバックエンド）の真ん中を押す
@@ -15,11 +15,6 @@ test("選択モードで線をクリックすると情報タブに線の情報�
   });
   await page.mouse.click(mid.x, mid.y);
   await expect(edge).toHaveClass(/mz-selected/);
-  const side = page.locator("#sidebar");
-  await expect(side.locator(".mzp-title")).toHaveText("線");
-  await expect(side.locator(".mzp-dl dd")).toHaveText(["e2", "1_フロントエンド", "4_バックエンド"]);
-  await expect(side.locator(".mzp-kind")).toHaveCount(0); // 種類は出さない
-
   // 矢印・線の種類・消すは、線の編集ダイアログで（線のダブルクリックで開く。サイドバーには出さない。2026-10-13 D26）
   const dlg = page.locator(".mz-dlg-overlay > .mz-dlg");
   const edit = async (fn: () => Promise<unknown>) => {
@@ -46,7 +41,6 @@ test("選択モードで線をクリックすると情報タブに線の情報�
   await page.mouse.dblclick(mid.x, mid.y);
   await dlg.locator("[data-delete]").click();
   await expect(page.locator(".mz-edge")).toHaveCount(before - 1);
-  await expect(side.locator(".mzp-title")).toHaveText("ワールド");
 });
 
 test("斜めに離れた箱どうしの線を折れ線にすると Z 字になり、直線に戻せる", async ({ page }) => {
@@ -96,18 +90,24 @@ test("線を選ぶと「整列」が出る。押すと両端が辺の真ん中�
     const p = g.getPointAtLength(g.getTotalLength() / 2);
     return { x: svg.left + p.x, y: svg.top + p.y };
   });
-  await page.mouse.click(mid.x, mid.y);
-  const side = page.locator("#sidebar");
+  // 端の位置の操作は線の編集ダイアログ（押すと印が付き、確定のときに行う。D26）
+  const dlg = page.locator(".mz-dlg");
+  await page.mouse.dblclick(mid.x, mid.y);
   // 見出しの「?」に乗せると説明の吹き出しが出る
-  await side.locator("h3", { hasText: "端の位置" }).locator(".mz-help").hover();
-  await expect(page.locator(".mz-help-tip")).toContainText("つまんで動かすとその位置に固定されます");
-  await expect(side.locator("[data-align]")).toBeEnabled();
-  await side.locator("[data-align]").click();
+  await dlg.locator(".mz-dlg-ends > span .mz-help").hover();
+  await expect(page.locator(".mz-help-tip:visible")).toContainText("つまんで動かすとその位置に固定されます");
+  await expect(dlg.locator('[data-once="align"]')).toBeEnabled();
+  await dlg.locator('[data-once="align"]').click();
+  await confirmDialog(page);
   await expect.poll(points).toBe(2); // まっすぐ
-  await expect(side.locator("[data-align]")).toBeDisabled(); // 整列済み
-  await expect(side.locator("[data-at-reset]")).toHaveText("接辺の自動選択");
-  await side.locator("[data-at-reset]").click();
-  await expect(side.locator("[data-at-reset]")).toBeDisabled(); // 端は自動で選んでいる
+  await hit.dblclick({ force: true }); // まっすぐになった線の真ん中
+  await expect(dlg.locator('[data-once="align"]')).toBeDisabled(); // 整列済み
+  await expect(dlg.locator('[data-once="free"]')).toHaveText("接辺の自動選択");
+  await dlg.locator('[data-once="free"]').click();
+  await confirmDialog(page);
+  await hit.dblclick({ force: true });
+  await expect(dlg.locator('[data-once="free"]')).toBeDisabled(); // 端は自動で選んでいる
+  await page.keyboard.press("Escape");
   await expect.poll(points).toBe(2); // 自由な端どうしも、横に並ぶのでまっすぐ
 });
 
@@ -132,13 +132,17 @@ test("Z 字の中棒をドラッグで動かせ、線を選ぶと自動に戻せ
   await page.mouse.up();
   expect(await midX()).toBeCloseTo(before + 60, 0);
 
-  // 線を選ぶと「折れ線を自動に戻す」が出て、押すと戻る
-  await page.mouse.click(bar.x + 60, bar.y);
-  const reset = page.locator("#sidebar [data-via-reset]");
+  // 線の編集ダイアログに「折れ線を自動に戻す」が出て、押して確定すると戻る
+  await page.mouse.dblclick(bar.x + 60, bar.y);
+  const reset = page.locator('.mz-dlg [data-once="via"]');
   await expect(reset).toBeVisible();
   await reset.click();
+  await confirmDialog(page);
   await expect.poll(midX).toBeCloseTo(before, 0);
+  await page.mouse.dblclick(bar.x, bar.y);
+  await expect(page.locator(".mz-dlg h2")).toHaveText("線の編集");
   await expect(reset).toHaveCount(0);
+  await page.keyboard.press("Escape");
 });
 
 test("斜めの直線を選ぶと両端に丸が出て、ドラッグで端を辺に沿ってずらせる。自動に戻せる", async ({ page }) => {
@@ -166,7 +170,9 @@ test("斜めの直線を選ぶと両端に丸が出て、ドラッグで端を�
   const first = () => edge.locator(".mz-hit").evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/)[0]!.split(",").map(Number));
   // 割合は小数 3 桁で持つので、0.2px ほどずれることがある
   await expect.poll(async () => { const [x, y] = await first(); return Math.abs(x! - 60) < 0.5 && y === 104; }).toBe(true);
-  await page.locator("#sidebar [data-at-reset]").click();
+  await edge.locator(".mz-hit").dblclick({ force: true });
+  await page.locator('.mz-dlg [data-once="free"]').click();
+  await confirmDialog(page);
   // 自動の位置（中心どうしを結んだ線が縁と交わる点）は、下の辺の x = 144 あたり
   await expect.poll(async () => Math.round((await first())[0]!)).toBe(144);
 });
@@ -180,7 +186,16 @@ test("選んだ線の端をほかの箱まで運ぶと、その箱を強調し�
     edges: [{ id: "e1", from: 1, to: 2, caption: "使う" }, { id: "e2", from: 1, to: 4 }],
   });
   const edge = page.locator('.mz-edge[data-id="e1"]');
-  const side = page.locator("#sidebar");
+  // 線の終点がどの箱の上にあるか（終点の座標を含む箱の id）
+  const endOn = () => edge.locator(".mz-hit").evaluate(l => {
+    const g = l as SVGPolylineElement, svg = g.ownerSVGElement!.getBoundingClientRect();
+    const [x, y] = (g.getAttribute("points") ?? "").trim().split(/\s+/).at(-1)!.split(",").map(Number);
+    const px = svg.left + x!, py = svg.top + y!;
+    return [...document.querySelectorAll<HTMLElement>(".mz-node[data-id] > .mz-head")].find(h => {
+      const r = h.getBoundingClientRect();
+      return px >= r.left - 2 && px <= r.right + 2 && py >= r.top - 2 && py <= r.bottom + 2;
+    })?.parentElement!.dataset.id;
+  });
   const center = async (id: number) => {
     const b = (await page.locator(`.mz-node[data-id="${id}"] > .mz-head`).boundingBox())!;
     return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
@@ -199,17 +214,17 @@ test("選んだ線の端をほかの箱まで運ぶと、その箱を強調し�
   await dragEnd(await center(3), async () => {
     await expect(page.locator('.mz-node[data-id="3"]')).toHaveClass(/mz-link-target/);
   });
-  await expect(side.locator(".mzp-dl dd")).toHaveText(["e1", "1_A", "3_C"]);
+  await expect.poll(endOn).toBe("3");
   await expect(edge.locator(".mz-label")).toHaveText("使う");
   await expect(page.locator(".mz-link-target")).toHaveCount(0);
   // D へは、1 → 4 の線がもうあるので付け替えない（強調もしない）
   await dragEnd(await center(4), async () => {
     await expect(page.locator(".mz-link-target")).toHaveCount(0);
   });
-  await expect(side.locator(".mzp-dl dd")).toHaveText(["e1", "1_A", "3_C"]);
+  await expect.poll(endOn).toBe("3");
   // Undo で元に戻る
   await page.keyboard.press("Control+z");
   await page.keyboard.press("Control+z");
   await edge.locator(".mz-label").click();
-  await expect(side.locator(".mzp-dl dd")).toHaveText(["e1", "1_A", "2_B"]);
+  await expect.poll(endOn).toBe("2");
 });

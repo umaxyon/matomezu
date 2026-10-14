@@ -37,7 +37,6 @@ test("線をダブルクリックすると線の編集ダイアログが開き�
   await page.locator('.mz-dlg [name="caption"]').fill("承認");
   await page.locator('.mz-dlg [name="caption"]').press("Enter");
   await expect(page.locator('.mz-edge[data-id="e1"] .mz-label')).toHaveText("承認");
-  await expect(page.locator("#sidebar .mzp-caption-text")).toHaveText("承認");
 });
 
 test("線の編集ダイアログで通り方・線の種類・矢印を選べ、「線を消す」で線を消す", async ({ page }) => {
@@ -70,7 +69,6 @@ test("線の編集ダイアログで通り方・線の種類・矢印を選べ�
   await expect(page.locator('.mz-dlg [name="head-end"]')).toHaveValue("arrow");
   await expect(page.locator('.mz-dlg [name="route"][value="straight"]')).toBeChecked();
   await expect(page.locator('.mz-dlg [name="dash"][value="dashed"]')).toBeChecked();
-  await expect(page.locator('#sidebar [name="mzp-route"]')).toHaveCount(0);
 
   await page.locator(".mz-dlg [data-delete]").click();
   await expect(page.locator(".mz-dlg")).toHaveCount(0);
@@ -90,8 +88,8 @@ test("線を選んで Delete キーで消す", async ({ page }) => {
   });
   await page.mouse.click(mid.x, mid.y);
   await expect(page.locator(".mz-edge")).toHaveClass(/mz-selected/);
-  // サイドバーの ? を押して焦点がそこに残っていても、Delete で消える（文字を打つ欄ではないので）
-  await page.locator("#sidebar .mz-help").first().click();
+  // タブ行のボタンに焦点が残っていても、Delete で消える（文字を打つ欄ではないので）
+  await page.locator("#mode-move").focus();
   await page.keyboard.press("Delete");
   await expect(page.locator(".mz-edge")).toHaveCount(0);
 });

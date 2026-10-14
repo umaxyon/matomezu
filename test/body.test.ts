@@ -1,7 +1,7 @@
 // 本文（長文）を入れられる箱（docs/BODY-plan.md）のテスト
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import { createPanel, type Panel } from "../web/src/panel";
+import { openEditDialog } from "../web/src/edit-dialog";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { problems } from "../web/src/validate";
 import { fakeMeasure } from "./helpers";
@@ -15,14 +15,11 @@ afterEach(() => {
 
 function setup(data: Diagram) {
   const stage = document.createElement("div");
-  const side = document.createElement("aside");
-  document.body.append(side, stage);
-  let panel: Panel | null = null;
-  graph = createGraph(stage, data, { measureText: fakeMeasure, onSelect: i => panel?.show(i) });
-  panel = createPanel(side, graph);
+  document.body.append(stage);
+  graph = createGraph(stage, data, { measureText: fakeMeasure });
   const node = (id: number) => stage.querySelector<HTMLElement>(`.mz-node[data-id="${id}"]`)!;
   const bodyEl = (id: number) => node(id).querySelector<HTMLElement>(":scope > .mz-head > .mz-body")!;
-  return { g: graph, side, node, bodyEl, info: (id: number) => graph!.info(id) as BoxInfo };
+  return { g: graph, node, bodyEl, info: (id: number) => graph!.info(id) as BoxInfo };
 }
 
 // 偽の測り方（test/helpers.ts の fakeMeasure）: 1 文字 9px、本文は 1 行 18px、本体の左右の余白 16px
@@ -58,7 +55,7 @@ test("本文の幅（bodyWidth）は箱の幅の下限として効く。キャ�
 });
 
 test("S サイズ・ほかの形・切り詰める箱では本文を出さない。本文があれば、編集ダイアログで形と S を選べない", () => {
-  const { g, bodyEl, side } = setup({
+  const { g, bodyEl } = setup({
     nodes: [
       { id: 1, caption: "S", size: "S", body: "本文", x: 40, y: 40 },
       { id: 2, caption: "DB", shape: "db", body: "本文", x: 300, y: 40 },
@@ -67,8 +64,7 @@ test("S サイズ・ほかの形・切り詰める箱では本文を出さない
   });
   expect(bodyEl(1).hidden).toBe(true);
   expect(bodyEl(2).hidden).toBe(true);
-  g.select(3);
-  side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  openEditDialog(g, "3");
   const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
   const disabled = (name: string) => [...dlg.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)].filter(i => i.disabled).map(i => i.value);
   // 形は絵の並び（shape-picker.ts）。本文があるあいだは、ボックスのほかは選べない
@@ -178,9 +174,8 @@ test("本文の最大行数（bodyLines）を超えた分は切り、箱はそ�
 });
 
 test("編集ダイアログで最大行数を選べる（制限なしを含む）", () => {
-  const { g, side, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "一\n二\n三\n四\n五", x: 40, y: 40 }] });
-  g.select(1);
-  side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const { g, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "一\n二\n三\n四\n五", x: 40, y: 40 }] });
+  openEditDialog(g, "1");
   const select = document.querySelector<HTMLSelectElement>('.mz-dlg-overlay [name="lines"]')!;
   expect(select.value).toBe("");
   expect(select.options[0]!.textContent).toBe("制限なし");
@@ -189,7 +184,7 @@ test("編集ダイアログで最大行数を選べる（制限なしを含む�
   expect(g.toJSON().nodes[0]!.bodyLines).toBe(3);
   expect(info(1).h).toBe(18 + 8 + 3 * 18);
   // 制限なしに戻す
-  side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  openEditDialog(g, "1");
   const again = document.querySelector<HTMLSelectElement>('.mz-dlg-overlay [name="lines"]')!;
   expect(again.value).toBe("3");
   again.value = "";
@@ -228,10 +223,9 @@ test("子の見せ方をリストにしても、子を持つ子は枠のまま�
 });
 
 test("編集ダイアログの「箱の幅に合わせる」で、つまみで変えた本文の幅を消す（確定したときに書く）。内包する箱でも押せる", () => {
-  const { g, side, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "本文", bodyWidth: 220, x: 40, y: 40 }] });
+  const { g, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "本文", bodyWidth: 220, x: 40, y: 40 }] });
   expect(info(1).w).toBe(220);
-  g.select(1);
-  const open = () => side.querySelector<HTMLElement>("[data-edit-box]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const open = () => openEditDialog(g, "1");
   open();
   const dlg = () => document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
   expect(dlg().querySelector("[data-width-auto]")!.textContent).toBe("箱の幅に合わせる");

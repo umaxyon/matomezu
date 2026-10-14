@@ -31,11 +31,13 @@ import { mountDiagram } from "./view";
 import { openNewBookDialog } from "./new-book";
 import { openNewPageDialog } from "./new-page";
 import { openBookDialog } from "./book-dialog";
+import type { SideToggle } from "./main";
 
 export interface AppUi {
   tabs: HTMLElement;
   newBook: HTMLButtonElement; // タブの列の左端の「＋」（新しい図を作る。new-book.ts）
   book: HTMLButtonElement;    // タブ行の左の「ブック」（前に出ているブックのダイアログ。book-dialog.ts）
+  side: SideToggle;           // サイドバー（追加削除の一覧）の出し入れ。出ていれば、前に出ているブックの一覧を見せる
   canvas: HTMLElement;
   sidebar: HTMLElement;
   undo: HTMLButtonElement;
@@ -273,8 +275,9 @@ export async function startApp(ui: AppUi) {
         const on = x === b;
         x.stage.hidden = !on;
         x.side.hidden = !on;
-        if (!on) x.sync.setActive(false);
+        if (!on) { x.sync.setActive(false); x.panel.hidden(); }
       }
+      if (ui.side.open()) b.panel.shown();
       // 見えるようにしてから前に出す（配置は見えている要素で文字を測る）
       b.sync.setActive(true);
       b.loaded = true;
@@ -420,6 +423,7 @@ export async function startApp(ui: AppUi) {
   }
 
   ui.book.addEventListener("click", () => { if (current) openBookDialog(current.book.graph, current.book.name); });
+  ui.side.onChange(on => { if (current) (on ? current.book.panel.shown() : current.book.panel.hidden()); });
 
   // 新しいブック: 今見ているブックと同じフォルダに作り、一番左のタブにして前に出す
   ui.newBook.addEventListener("click", () => {

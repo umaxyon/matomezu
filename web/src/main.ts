@@ -38,6 +38,20 @@ function clearError() {
   closeError = null;
 }
 
+// サイドバー（追加削除の一覧）の出し入れ。ボタンで body の side-open を切り替え、変わったら知らせる
+export interface SideToggle { open(): boolean; onChange(fn: (open: boolean) => void): void }
+function setupSide(btn: HTMLButtonElement): SideToggle {
+  const listeners: ((open: boolean) => void)[] = [];
+  const open = () => document.body.classList.contains("side-open");
+  btn.addEventListener("click", () => {
+    const on = !open();
+    document.body.classList.toggle("side-open", on);
+    btn.setAttribute("aria-pressed", String(on));
+    for (const f of listeners) f(on);
+  });
+  return { open, onChange: fn => { listeners.push(fn); } };
+}
+
 // 図の真ん中の案内（null で隠す）
 function showEmpty(text: string | null) {
   emptyEl.textContent = text ?? "";
@@ -60,6 +74,7 @@ async function main() {
   const redoBtn = $<HTMLButtonElement>("redo");
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
   setupMinimapToggle($<HTMLButtonElement>("minimap-toggle"));
+  const side = setupSide($<HTMLButtonElement>("side-toggle"));
   setupSettings($("settings"));
   const preview = setupPreview({
     toggle: $("preview-toggle"), zoomOut: $("zoom-out"), zoomIn: $("zoom-in"), fit: $("zoom-fit"), level: $("zoom-level"),
@@ -71,7 +86,7 @@ async function main() {
     $("name").remove(); // 図の名前はブックのタブに出す
     $("new-book").hidden = false;
     startApp({
-      tabs: $("tabs"), newBook: $<HTMLButtonElement>("new-book"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"),
+      tabs: $("tabs"), newBook: $<HTMLButtonElement>("new-book"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side,
       undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
       notice: text => toast(text), error: showError, clearError, empty: showEmpty,
     });
@@ -79,7 +94,7 @@ async function main() {
   }
 
   const initial = JSON.parse($("initial-data").textContent ?? "{}");
-  const { graph } = mountDiagram(stage, $("sidebar"), initial, {
+  const { graph, panel } = mountDiagram(stage, $("sidebar"), initial, {
     onHistory: h => {
       undoBtn.disabled = !h.canUndo;
       redoBtn.disabled = !h.canRedo;
@@ -108,6 +123,7 @@ async function main() {
 
   $("save").addEventListener("click", () => download(graph.toJSON(), fileName));
   $("book").addEventListener("click", () => openBookDialog(graph, fileName));
+  side.onChange(on => (on ? panel.shown() : panel.hidden()));
 
   $("open").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {

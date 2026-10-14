@@ -57,19 +57,45 @@ export async function select(page: Page, id: number) {
   await expect(node(page, id)).toHaveClass(/mz-current/);
 }
 
-// キャプションを変える（サイドバーの鉛筆のボタンで編集ダイアログを開き、入力して確定する）
-export async function setCaption(page: Page, id: number, text: string) {
-  await select(page, id);
-  await page.locator("#sidebar [data-edit-box]").click();
-  await page.locator('.mz-dlg [name="caption"]').fill(text);
+// 箱の編集ダイアログを開く（箱を選んで Enter。ダブルクリックと同じ）
+// 見出しの右上を押して選ぶ（内包の箱の真ん中には子があり、左上には道具箱が重なることがあるため）
+export async function openBoxDialog(page: Page, id: number) {
+  const w = (await head(page, id).boundingBox())!.width;
+  await head(page, id).click({ position: { x: w - 6, y: 6 } });
+  await expect(node(page, id)).toHaveClass(/mz-current/);
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".mz-dlg")).toBeVisible();
+}
+
+// ダイアログを確定して、閉じるのを待つ
+export async function confirmDialog(page: Page) {
   await page.locator(".mz-dlg [data-ok]").click();
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
 }
 
-// サイドバーの切り替え（サイズ mzp-size、子の見せ方 mzp-view、ツリーの向き mzp-treedir。形はセレクトボックス）
-export async function choose(page: Page, id: number, name: string, value: string) {
-  await select(page, id);
-  await page.locator(`#sidebar label:has(input[name="${name}"][value="${value}"])`).click();
+// キャプションを変える（編集ダイアログを開き、入力して確定する）
+export async function setCaption(page: Page, id: number, text: string) {
+  await openBoxDialog(page, id);
+  await page.locator('.mz-dlg [name="caption"]').fill(text);
+  await confirmDialog(page);
+}
+
+// 選択肢を選んで確定する。子の見せ方（view）・サイズ（size）は箱の編集ダイアログ、ツリーの向き（dir）はブックのダイアログの今のページのタブ
+export async function choose(page: Page, id: number, name: "view" | "size" | "dir", value: string) {
+  if (name === "dir") {
+    await page.locator("#book").click();
+    await page.locator(`.mz-dlg [data-tab-pane]:not([hidden]) label:has(input[name^="dir-"][value="${value}"])`).click();
+  } else {
+    await openBoxDialog(page, id);
+    await page.locator(`.mz-dlg label:has(input[name="${name}"][value="${value}"])`).click();
+  }
+  await confirmDialog(page);
+}
+
+// サイドバー（追加削除の一覧）を出す
+export async function openSide(page: Page) {
+  if (!(await page.locator("body.side-open").count())) await page.locator("#side-toggle").click();
+  await expect(page.locator("#sidebar")).toBeVisible();
 }
 
 // 箱の本体をつかんで (dx, dy) だけドラッグする。人がマウスで動かすのに近づけるため、5px ずつ動かす

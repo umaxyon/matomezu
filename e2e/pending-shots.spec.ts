@@ -19,8 +19,8 @@ const scenarios: { no: number; title: string; watch: Record<number, string>; ste
     watch: { 2: "ユーザー", 3: "フロントエンド" },
     steps: [
       ["ユーザーに長い文字", p => setCaption(p, 2, LONG)],
-      ["サイズを S", p => choose(p, 2, "mzp-size", "S")],
-      ["サイズを M に戻す", p => choose(p, 2, "mzp-size", "M")],
+      ["サイズを S", p => choose(p, 2, "size", "S")],
+      ["サイズを M に戻す", p => choose(p, 2, "size", "M")],
       ["文字を戻す", p => setCaption(p, 2, "ユーザー")],
     ],
   },
@@ -38,10 +38,10 @@ const scenarios: { no: number; title: string; watch: Record<number, string>; ste
     no: 3, title: "開いたときの押し下げでも元の位置を覚える（関係ない操作で上へ詰まる）",
     watch: { 1: "タイトル", 3: "フロントエンド", 10: "バックエンド" },
     steps: [
-      ["フロントエンドを非表示", p => choose(p, 3, "mzp-view", "hidden")],
-      ["外部サービスを内包", p => choose(p, 17, "mzp-view", "nest")],
-      ["フロントエンドを内包に戻す", p => choose(p, 3, "mzp-view", "nest")],
-      ["外部サービスを非表示", p => choose(p, 17, "mzp-view", "hidden")],
+      ["フロントエンドを非表示", p => choose(p, 3, "view", "hidden")],
+      ["外部サービスを内包", p => choose(p, 17, "view", "nest")],
+      ["フロントエンドを内包に戻す", p => choose(p, 3, "view", "nest")],
+      ["外部サービスを非表示", p => choose(p, 17, "view", "hidden")],
     ],
   },
   {

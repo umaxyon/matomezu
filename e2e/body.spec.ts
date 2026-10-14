@@ -1,6 +1,6 @@
 // 本文（長文）を入れられる箱（docs/BODY-plan.md）を実際のブラウザで確かめる
 import { expect, test } from "@playwright/test";
-import { openDiagram, rect, select, violations } from "./helpers";
+import { openDiagram, rect, select, violations, choose } from "./helpers";
 
 test.afterEach(async ({ page }) => {
   expect(await violations(page)).toEqual([]);
@@ -44,9 +44,7 @@ test("子の見せ方を内包・リスト・非表示と切り替えても、�
   });
   expect(await fits()).toBe(true);
   for (const view of ["list", "hidden", "nest", "list", "nest"]) {
-    // 内包のときは本体の真ん中に子があるので、見出しの左上を押して選ぶ
-    await page.locator('.mz-node[data-id="10"] > .mz-head').click({ position: { x: 8, y: 8 } });
-    await page.locator(`#sidebar label:has(input[name="mzp-view"][value="${view}"])`).click();
+    await choose(page, 10, "view", view);
     await expect.poll(fits, { message: view }).toBe(true);
   }
   // ツリーのページ（パターンはページを作るときに決める。ここはデータで）: 根の本体に本文が入る
@@ -91,10 +89,7 @@ test("リストの中で隠れていた子の中身も、内包に戻すと大�
   const widths = () => Promise.all([21, 23].map(async id => Math.round((await rect(page, id)).w)));
   // ツリーは子孫全体に効き、画面一覧のリストまでツリーにしてしまうので、内包に戻して確かめる（docs/PATTERN-plan.md の 3.6 章）
   for (const view of ["nest"]) {
-    const head = page.locator('.mz-node[data-id="10"] > .mz-head');
-    const w = (await head.boundingBox())!.width;
-    await head.click({ position: { x: w - 8, y: 8 } }); // 左上の道具箱に重ならない所
-    await page.locator(`#sidebar label:has(input[name="mzp-view"][value="${view}"])`).click();
+    await choose(page, 10, "view", view);
   }
   await expect.poll(() => fits(21)).toBe(true);
   await expect.poll(() => fits(23)).toBe(true);

@@ -1,7 +1,7 @@
 // 自分に戻る線（docs/SELFLOOP-plan.md）
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import { createPanel, type Panel } from "../web/src/panel";
+import { openEdgeEditDialog } from "../web/src/edit-dialog";
 import { selfLoop } from "../web/src/selfloop";
 import type { Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
@@ -58,20 +58,16 @@ test("同じ箱から同じ箱へ線を引くと、自分に戻る線になる",
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 1, arrow: "end" }]);
 });
 
-test("自分に戻る線では、線の編集ダイアログに通り方を出さない（サイドバーには通り方も矢印も出さない）", () => {
-  const stage = document.createElement("div"), side = document.createElement("aside");
-  document.body.append(side, stage);
-  let panel: Panel | null = null;
+test("自分に戻る線では、線の編集ダイアログに通り方も端の位置の操作も出さない", () => {
+  const stage = document.createElement("div");
+  document.body.append(stage);
   const graph = createGraph(stage, { world: { route: "elbow" }, nodes: [{ id: 1, x: 100, y: 100 }], edges: [{ id: "e1", from: 1, to: 1 }] },
-    { measureText: fakeMeasure, onSelect: i => panel?.show(i) });
+    { measureText: fakeMeasure });
   graphs.push(graph);
-  panel = createPanel(side, graph);
-  graph.selectEdge("e1");
-  expect(side.querySelector('input[name="mzp-route"]')).toBeNull();
-  expect(side.querySelector('select[data-head="end"]')).toBeNull();
-  side.querySelector<HTMLElement>("[data-edit-edge]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  openEdgeEditDialog(graph, "e1");
   const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
   expect(dlg.querySelector('input[name="route"]')).toBeNull();
+  expect(dlg.querySelector('[data-once="align"]')).toBeNull();
   expect(dlg.querySelector('select[name="head-end"]')).not.toBeNull();
 });
 

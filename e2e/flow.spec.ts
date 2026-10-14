@@ -1,6 +1,6 @@
 // フローチャートの戦略の道具入れと、ひし形から出る線のキャプションの候補（docs/PATTERN-plan.md の 3.7 章）
 import { expect, test } from "@playwright/test";
-import { openDiagram, select } from "./helpers";
+import { openDiagram, select, confirmDialog } from "./helpers";
 import type { Diagram } from "../web/src/types";
 
 const data: Diagram = {
@@ -103,7 +103,9 @@ test("箱を動かしたあとで自動で整列を押すと、箱だけでな�
     await page.mouse.up();
   }
   expect(await points()).not.toEqual(aligned);
-  await page.locator(".mz-world").click({ position: { x: 5, y: 5 } });
-  await page.locator("[data-auto-align]").click();
+  // 自動で整列はブックのダイアログのページのタブ（押すと印が付き、確定のときに行う。D26）
+  await page.locator("#book").click();
+  await page.locator(".mz-dlg [data-auto-align]").click();
+  await confirmDialog(page);
   await expect.poll(points).toEqual(aligned);
 });

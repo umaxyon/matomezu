@@ -15,6 +15,7 @@ const zoomOf = (page: import("@playwright/test").Page) =>
 
 test("入ると全体が収まる倍率になり、サイドバーと編集のツールバーが隠れる。Esc で編集に戻る", async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
+  await page.click("#side-toggle"); // サイドバーを出しておく（プレビューの間は隠れ、戻ると出る）
   await page.click("#preview-toggle");
   await expect(page.locator("body")).toHaveClass(/previewing/);
   await expect(page.locator("#sidebar")).toBeHidden();
@@ -49,6 +50,7 @@ test("押すと選べるが、ドラッグしても動かず、Undo も効かな
 
 test("＋で拡大し、全体で収まる倍率に戻る", async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
+  await page.click("#side-toggle"); // サイドバーを出しておく（プレビューの間は隠れ、戻ると出る）
   await page.click("#preview-toggle");
   const fit = await zoomOf(page);
   await page.click("#zoom-in");
@@ -70,6 +72,7 @@ test("プレビュー中に図を読み直しても、箱の大きさは編集�
   await other.close();
 
   await page.setViewportSize({ width: 700, height: 500 });
+  await page.click("#side-toggle"); // サイドバーを出しておく（プレビューの間は隠れ、戻ると出る）
   await page.click("#preview-toggle");
   expect(await zoomOf(page)).toBeLessThan(1);
   await page.setInputFiles("#file", {

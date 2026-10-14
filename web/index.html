@@ -146,6 +146,9 @@
   .empty { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; padding: 16px; color: var(--hint); text-align: center; pointer-events: none; }
   .empty[hidden] { display: none; }
   main { flex: 1; display: flex; min-height: 0; }
+  /* サイドバー（追加削除の一覧）はふだん隠し、タブ行の「追加削除」で左から出す。図は右へ押される（D26） */
+  #sidebar { display: none; }
+  body.side-open:not(.previewing) #sidebar { display: block; }
   #sidebar {
     width: 280px;
     flex: none;
@@ -207,6 +210,9 @@
     <span class="sep" aria-hidden="true"></span>
     <button id="book" class="icon-btn" title="ブック: ブックとページの設定" aria-label="ブック">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M8 7h7"/></svg>
+    </button>
+    <button id="side-toggle" class="icon-btn" title="追加削除: 箱の一覧を左に出す・隠す（消したものを図へドラッグすると戻る）" aria-label="追加削除" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18"/><path d="M5 7l1.5 13h11L19 7"/><path d="M12 11v6M9 14h6"/></svg>
     </button>
   </div>
   <button id="new-book" class="tab-new" type="button" title="新しい図" aria-label="新しい図" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>

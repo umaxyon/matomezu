@@ -1,7 +1,7 @@
 // ボックスの削除と復活を実際のブラウザで確かめる（docs/DELETE-plan.md）。
 // test/fixtures/three-levels.json の id: 3 フロントエンド、10 バックエンド、17 外部サービス（ツリー。子は 18 決済、19 メール配信）
 import { expect, test } from "@playwright/test";
-import { example, openDiagram, rect, violations } from "./helpers";
+import { example, openDiagram, rect, violations, openSide } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await openDiagram(page, example("three-levels"));
@@ -13,7 +13,7 @@ test.afterEach(async ({ page }) => {
 const node = (page: import("@playwright/test").Page, id: number) => page.locator(`.mz-node[data-id="${id}"]`);
 
 test("一覧の × で子ごと消え、消したものの行を図へドラッグすると、落とした位置に子ごと戻る", async ({ page }) => {
-  await page.click('[data-tab="list"]');
+  await openSide(page);
   const row = page.locator('.mzp-row[data-select="17"]');
   await row.hover();
   await row.locator(".mzp-del").click();
@@ -34,7 +34,7 @@ test("一覧の × で子ごと消え、消したものの行を図へドラッ�
 });
 
 test("グループの上に落とすと、その中へ戻る", async ({ page }) => {
-  await page.click('[data-tab="list"]');
+  await openSide(page);
   const row = page.locator('.mzp-row[data-select="2"]'); // ユーザー
   await row.hover();
   await row.locator(".mzp-del").click();
@@ -55,7 +55,7 @@ test("削除モードで箱を押すと消え、ほかのモードに戻せば�
 });
 
 test("一覧の見出しを押すと区画が折りたたまれ、箱を消して一覧が変わっても閉じたまま", async ({ page }) => {
-  await page.click('[data-tab="list"]');
+  await openSide(page);
   const live = page.locator('[data-fold="live"]');
   await live.locator("summary").click();
   await expect(live).not.toHaveAttribute("open");
@@ -71,7 +71,7 @@ test("一覧の見出しを押すと区画が折りたたまれ、箱を消し�
 {
   const mode = "remove";
   test("削除モードで一覧から戻すと、選択モードに切り替わる", async ({ page }) => {
-    await page.click('[data-tab="list"]');
+    await openSide(page);
     const row = page.locator('.mzp-row[data-select="2"]');
     await row.hover();
     await row.locator(".mzp-del").click();

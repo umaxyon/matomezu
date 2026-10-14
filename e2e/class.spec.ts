@@ -109,7 +109,7 @@ test("子を持つ箱をクラスにするときは確認が出て、子は消�
   await head(page, 1).click({ position: { x: 10, y: 8 } });
   // 形は編集ダイアログで変える（サイドバーには出さない。2026-10-13 D26）。確認はダイアログの中に重ねて出る
   const sub = page.locator(".mz-dlg-sub");
-  await page.locator("#sidebar [data-edit-box]").click();
+  await page.keyboard.press("Enter");
   await dlg(page).locator('label:has(input[name="shape"][value="class"])').click();
   await expect(sub).toContainText("子 1 個");
   await sub.locator("[data-sub-ok]").click();

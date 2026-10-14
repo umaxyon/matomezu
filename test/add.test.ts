@@ -142,7 +142,7 @@ test("消したものの一覧: 完全に削除できる行だけに × が出�
   const { g, stage } = setup({ nodes: [{ id: 1, caption: "LLM の箱", x: 40, y: 40 }] });
   const side = document.createElement("aside");
   document.body.append(side);
-  createPanel(side, g).tab("list");
+  createPanel(side, g).shown();
   void stage;
   const a = g.add({ parentId: null, at: { x: 300, y: 40 } }, { caption: "足した" });
   g.remove(a);
