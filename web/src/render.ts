@@ -12,12 +12,12 @@ import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
-  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
+  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
-import { LINK_LOOKS, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type Rect, previewRegion, windowOf } from "./link-box";
+import { LINK_ICON_DEF, LINK_LOOKS, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type Rect, previewRegion, windowOf } from "./link-box";
 import { type Scene, drawScene } from "./preview-art";
 import type { LinkLook, PagePattern } from "./types";
 import { SHAPE_ART } from "./shape-art";
@@ -272,22 +272,27 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     for (const l of LINK_LOOKS) head.classList.toggle("mz-link-" + l, look === l);
     head.classList.toggle("mz-link-row", row);
     head.classList.toggle("mz-link-left", side === "left");
-    head.classList.toggle("mz-link-mid", side != null);
+    const icon = !!link && linkIconOf(n); // 縮図を出さないリストの中の窓は、縮図の代わりに開くアイコン
+    head.classList.toggle("mz-link-icon", icon);
+    head.classList.toggle("mz-link-mid", side != null || icon);
     head.classList.toggle("mz-link-empty", !!look && !caption && !body);
     n.linkEl.hidden = !look;
     // 文字は、リンクの箱のときだけ入れる（偽の測り方（テスト）は本体の文字を数えるため、リンクでない箱に残さない）
     n.linkBadge.textContent = link ? PATTERN_LABELS[link.pattern] : "";
-    n.linkWin.querySelector(".mz-link-go")!.textContent = link ? t("開く ↗") : "";
+    n.linkWin.querySelector(".mz-link-go")!.textContent = link && !linkIconOf(n) ? t("開く ↗") : "";
     if (look) {
-      const d = row ? PREVIEW_ROW_DEF : LINK_LOOK_DEFS[look];
+      const d = row ? PREVIEW_ROW_DEF : icon ? LINK_ICON_DEF : LINK_LOOK_DEFS[look];
       head.style.setProperty("--mz-link-handle", d.handle + "px");
       head.style.setProperty("--mz-link-win-w", d.win.w + "px");
       head.style.setProperty("--mz-link-win-h", d.win.h + "px");
       head.style.setProperty("--mz-link-gap", d.gap + "px");
       n.linkWin.title = !link ? t("中身の縮図") : link.book ? t("押すと「{name}」を開きます", { name: link.pageName }) : t("押すと「{name}」のページを開きます", { name: link.pageName });
       // 窓にそのページの縮図を映す（縮尺と切り取りは link-box.ts の previewRegion。窓の幅は、窓枠なら箱の幅から余白を引いたもの）
-      const scene = ctx.sceneOf(n);
-      drawScene(n.linkArt, scene, previewRegion(scene, windowOf(d), opt.previewMinScale, link?.clip ?? null));
+      if (icon) n.linkArt.replaceChildren();
+      else {
+        const scene = ctx.sceneOf(n);
+        drawScene(n.linkArt, scene, previewRegion(scene, windowOf(d), opt.previewMinScale, link?.clip ?? null));
+      }
     } else if (n.linkArt.firstChild) n.linkArt.replaceChildren();
     n.moreEl.hidden = arrange !== "hidden";
     n.moreEl.title = t("子 {n} 件", { n: n.children.length });

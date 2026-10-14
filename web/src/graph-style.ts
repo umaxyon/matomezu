@@ -213,6 +213,13 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-link-side.mz-link-left .mz-link-bar { border-right: 0; border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
 /* リストの中の縮図は、行が高くなったら上下の真ん中に置く */
 .mz-link-side.mz-link-mid .mz-link-win { align-self: center; }
+/* 縮図を出さないリストの中の窓（D13）: 縮図の代わりに、押すと開くアイコン（外へ出る矢印）。線の色は文字と同じ */
+.mz-link-icon .mz-link-win { box-shadow: none; border: 0; background: none; border-radius: 4px; }
+.mz-link-icon .mz-link-win:hover { background: color-mix(in srgb, currentColor 12%, transparent); box-shadow: none; }
+.mz-link-icon .mz-link-art, .mz-link-icon .mz-link-go { display: none; }
+.mz-link-icon .mz-link-win::before { content: ""; position: absolute; inset: 2px; background: currentColor; opacity: 0.75;
+  -webkit-mask: var(--mz-open-icon) center / contain no-repeat; mask: var(--mz-open-icon) center / contain no-repeat;
+  --mz-open-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'/%3E%3C/svg%3E"); }
 /* リストの子の中身の縮図（D13）: 持ち手は無く、押しても開かない（中身が見えるだけ） */
 .mz-link-row .mz-link-bar { display: none; }
 .mz-link-row .mz-link-win, .mz-preview .mz-link-row .mz-link-win { cursor: inherit; }

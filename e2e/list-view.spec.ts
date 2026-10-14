@@ -26,7 +26,7 @@ test("子が同じ幅で縦に並び、親の幅いっぱいに広がる", async
   await expect(page.locator('.mz-node[data-id="5"]')).toBeHidden(); // 4 は子を非表示にしている
 });
 
-test("リストの子を内包にすると、孫は描かずに中身の縮図を右に出し、全員がその幅にそろう。縮図の位置を「出さない」にすると孫を出す（D13）", async ({ page }) => {
+test("リストの子を内包にすると、孫は描かずに中身の縮図を右に出し、全員がその幅にそろう。縮図の位置を「出さない」にすると低い行と ▼ になる（D13）", async ({ page }) => {
   await choose(page, 4, "view", "nest");
   const win = page.locator('.mz-node[data-id="4"] > .mz-head .mz-link-win');
   await expect(win).toBeVisible();
@@ -42,10 +42,13 @@ test("リストの子を内包にすると、孫は描かずに中身の縮図�
   const h2 = (await page.locator('.mz-node[data-id="4"] > .mz-head').boundingBox())!, w2 = (await win.boundingBox())!;
   expect(await page.locator('.mz-node[data-id="4"] > .mz-head').getAttribute("class")).toContain("mz-link-left");
   expect(w2.x).toBeLessThan(h2.x + 12);
-  // 出さないにすると、孫を出す（子の見せ方に従う）
+  // 出さないにすると、縮図の無い低い行になり、子がいることは ▼ で示す（孫は出さない。リストは一覧性を優先する）
+  const tall = (await page.locator('.mz-node[data-id="4"] > .mz-head').boundingBox())!.height;
   await choose(page, 1, "previewSide", "none");
-  await expect(page.locator('.mz-node[data-id="5"]')).toBeVisible();
   await expect(win).toBeHidden();
+  await expect(page.locator('.mz-node[data-id="5"]')).toBeHidden();
+  await expect(page.locator('.mz-node[data-id="4"] > .mz-head .mz-more')).toBeVisible();
+  expect((await page.locator('.mz-node[data-id="4"] > .mz-head').boundingBox())!.height).toBeLessThan(tall);
   [p, a, c] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 4)]);
   expect(a.w).toBe(c.w);
   expect(c.w + 24).toBe(p.w);

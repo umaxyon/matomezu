@@ -3,9 +3,9 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, dataSizeOf, inTreeOf, isLinkBox, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, dataSizeOf, inTreeOf, isLinkBox, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
-import { LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth } from "../link-box";
+import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
 import { shapeDef } from "../shapes";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
@@ -150,6 +150,7 @@ export function createNodeKinds(ctx: KindContext) {
   // 横に分ける: 左から持ち手・文字の列（幅は文字に合わせて min〜max。文字が無ければ無し）・窓を並べ、高さは窓と文字の高い方。
   // リストの中なら、幅はリストがそろえた幅（文字の列が広がる）。縮図を左に出すときは窓と文字の列を入れ替えるだけで、大きさは同じ
   function fitLink(n: Box) {
+    if (linkIconOf(n)) return fitSide(n, LINK_ICON_DEF); // 縮図を出さないリストの中（アイコンだけ）
     const look = linkLookOf(n), d = LINK_LOOK_DEFS[look];
     const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
     const hasText = !!captionOf(n) || !!bodyOf(n);
@@ -301,12 +302,12 @@ export function createNodeKinds(ctx: KindContext) {
       // 子を持つ子は、そろえる前の自分の幅（前にそろえた幅を外して測る）
       // 横に縮図を出す子（窓と、子を持つ子。D13）は、縮図と文字の列の幅（葉の子と違い、そろえる幅の下限にもなる）
       const own = (k: Box) => {
-        if (leafLike(k) && !listPreviewOf(k)) return listItemWidth(k);
+        if (leafLike(k) && !listPreviewOf(k) && !linkIconOf(k)) return listItemWidth(k);
         k.listW = 0;
         kindOf(k).measure(k);
         return k.w;
       };
-      const widths = n.children.map(k => ({ leaf: leafLike(k) && !listPreviewOf(k), w: own(k) }));
+      const widths = n.children.map(k => ({ leaf: leafLike(k) && !listPreviewOf(k) && !linkIconOf(k), w: own(k) }));
       // 指定があっても狭められない幅（子を持つ子は、下から決まった幅より狭くできない）
       const floor = Math.max(GROUP_MIN.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, assignedW(n) - 2 * P);
       const inner = n.specW

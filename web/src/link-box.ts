@@ -28,6 +28,8 @@ export const LINK_LOOK_DEFS: Record<LinkLook, LinkLookDef> = {
 };
 // リストの子が子を持つときに横に出す縮図（D13）。大きさは横に分ける窓と同じ（2026-10-14 ユーザー）。持ち手は無い（行の文字の所でつかむ）
 export const PREVIEW_ROW_DEF: LinkLookDef = { ...LINK_LOOK_DEFS.side, handle: 0 };
+// 縮図を出さないリストの中の窓（D13）: 縮図の代わりに、押すと開くアイコン。持ち手と文字の列は横に分ける見せ方と同じ
+export const LINK_ICON_DEF: LinkLookDef = { ...LINK_LOOK_DEFS.side, win: { w: 20, h: 20 }, gap: 8 };
 // 窓枠の箱の幅（窓の幅 + 両側の余白）
 export const linkBoxWidth = (d: LinkLookDef) => d.win.w + 2 * d.gap;
 

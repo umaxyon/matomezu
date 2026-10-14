@@ -257,22 +257,26 @@ export const inTreeOf = (n: Box): boolean => !!treeRootOf(n);
 // 箱が自分の子をどう並べるか。子が無ければ leaf（childView を書いていても、子が無ければ葉の箱として描く）。
 // ツリーの根とその子孫（子を持つもの）は、自分の見せ方に関わらずツリーの節
 export type Arrange = "leaf" | ChildView;
-// 縮図を横に出す並べ方（リスト）の子で、子を持つものは縮図（preview）。非表示にした箱は非表示のまま
+// 縮図を横に出す並べ方（リスト）の子で、子を持つものは縮図（preview）。リストの中で中身をそのまま出すことはしない（一覧性を優先する。
+// 2026-10-14 ユーザー）ので、縮図を出さない設定（none）なら非表示（文字だけの低い行と ▼）。非表示にした箱は非表示のまま
 export function arrangeOf(n: Box): Arrange {
   if (!n.children.length) return "leaf";
   if (isTreeRoot(n) || treeRootOf(n)) return worldViewOf(n.world);
   const own = viewOf(n);
-  return own !== "hidden" && n.parent && lookOf(n).preview && previewSideOf(n.parent) !== "none" ? "preview" : own;
+  if (!n.parent || !lookOf(n).preview) return own;
+  return own === "hidden" || previewSideOf(n.parent) === "none" ? "hidden" : "preview";
 }
 // リストの子の縮図の位置（リストの previewSide。無ければ右）
 export const previewSideOf = (list: Box): PreviewSide => (isPreviewSide(list.src.previewSide) ? list.src.previewSide : "right");
-// 横に縮図を出す箱なら、その位置（右か左）。子を持って縮図になった子と、縮図を横に出す並べ方の中の窓（リンクの箱。出さないにしても右）。でなければ null
+// 横に縮図を出す箱なら、その位置（右か左）。子を持って縮図になった子と、縮図を横に出す並べ方の中の窓（リンクの箱）。でなければ null
 export function listPreviewOf(n: Box): "right" | "left" | null {
   if (!n.parent || !lookOf(n).preview) return null;
   const side = previewSideOf(n.parent);
-  if (isLinkBox(n)) return side === "none" ? "right" : side;
-  return arrangeOf(n) === "preview" && side !== "none" ? side : null;
+  if (side === "none") return null;
+  return isLinkBox(n) || arrangeOf(n) === "preview" ? side : null;
 }
+// 縮図を出さない並べ方（リストの none）の中の窓か。縮図の代わりに、押すと開くアイコンを右に出す（2026-10-14 ユーザー）
+export const linkIconOf = (n: Box): boolean => isLinkBox(n) && !!n.parent && lookOf(n).preview && previewSideOf(n.parent) === "none";
 // 子を描かない並べ方か（非表示と縮図）
 export const hidesKids = (n: Box): boolean => arrangeOf(n) === "hidden" || arrangeOf(n) === "preview";
 // 箱が子を並べる戦略（子が無ければ null）
