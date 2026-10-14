@@ -178,7 +178,7 @@ export interface BoxInfo {
   tools: { id: string | null; tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの。ワールドなので id は null）と、足せる形、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（ツリーのページの根の子孫。並びはツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md）
   treeRoot: boolean; // ツリーのページの根か（消せず、付け替えられない）
-  link: { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: { x: number; y: number; w: number; h: number } | null } | null; // リンクの箱なら、のぞくページと見せ方・窓に映す範囲（link-box.ts）。形・サイズ・子の見せ方は使わない
+  link: { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: { x: number; y: number; w: number; h: number } | null; book: string | null } | null; // リンクの箱（マスターの窓なら book にブックの id）なら、のぞくページと見せ方・窓に映す範囲（link-box.ts）。形・サイズ・子の見せ方は使わない
   parent: Brief | null;
   x: number;
   y: number;

@@ -12,7 +12,10 @@
  * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているブックは localStorage に覚える（無くても動く。app-location.ts）。
  * - 付け替えのドラッグで、箱を同じブックのページのタブの上に少し止めると、そのページに切り替わる（そのまま落とすと、そのページへ移る）。
  * - サイドバーの一覧の「他ブックも表示」には、ほかに開いているブックの箱を出す（行を図へドラッグすると移植。docs/TABS-plan.md 4.3）。
- * - タブの列の左端の「＋」で新しいブックを作る（new-book.ts）。作ったブックは一番左に置いて前に出す（残課題 D20）。
+ * - マスターページ（D26 の段階 2。docs/UI-plan.md）: タブ行の左端のボタンで開く。サーバーの状態のフォルダの master.json を 1 冊のブックとして開き、
+ *   開くたびに、登録した図の並び（/api/books）から中身を作り直す（「ユーザー」「AI」の箱に新しい 10 件の窓、残りは「その他のブック」）。
+ *   窓の縮図は、見えている窓のブックだけ取りに行く。窓を押すとそのブックへ移る。新しい図・設定はマスターの道具箱から。
+ * - タブは今のブックだけを見せる（ほかに開いているブックは、マスターから移る）。
  */
 
 import { keyOf } from "./dom";
@@ -31,11 +34,17 @@ import { mountDiagram } from "./view";
 import { openNewBookDialog } from "./new-book";
 import { openNewPageDialog } from "./new-page";
 import { openBookDialog } from "./book-dialog";
+import { dataScene } from "./graph";
+import type { Scene } from "./preview-art";
+import { openSettings } from "./settings";
+import { toast } from "./toast";
+import type { Diagram as DiagramData, PagePattern } from "./types";
+import { isPattern } from "./validate";
 import type { SideToggle } from "./main";
 
 export interface AppUi {
   tabs: HTMLElement;
-  newBook: HTMLButtonElement; // タブの列の左端の「＋」（新しい図を作る。new-book.ts）
+  master: HTMLButtonElement;  // タブ行の左端の「マスター」（ブックの一覧。D26 の段階 2）
   book: HTMLButtonElement;    // タブ行の左の「ブック」（前に出ているブックのダイアログ。book-dialog.ts）
   side: SideToggle;           // サイドバー（追加削除の一覧）の出し入れ。出ていれば、前に出ているブックの一覧を見せる
   canvas: HTMLElement;
@@ -75,11 +84,20 @@ interface Book {
   minimap: Minimap;         // 右上の全体像（図の枠ごと。前に出ていない図の分は隠れる）
   data: unknown;            // 読み込む前の最新のデータ（ページのタブと、ほかのブックの一覧に使う。読み込んだら図から取る）
   error: string | null;
+  master: boolean;          // マスターページのブック（master.json）。開いているブックの覚えにも、URL にも入れない
 }
+
+// マスターの一覧の 1 行（サーバーの /api/books。internal/server/books.go）
+interface BookRow { id: string; name: string; title: string; mtime: number; madeBy: string; pattern: string }
+// マスターに窓を並べる数（新しい順。残りは「その他のブック」）と、窓の並べ方（列の数・窓の幅と高さの目安・箱の中の余白）
+const MASTER_TOP = 10;
+const MASTER_COLS = 2, WIN_W = 212, WIN_H = 150, GROUP_PAD = 12, GROUP_HEAD = 30, GROUP_GAP = 24;
+// ユーザーが作ったブックと LLM が渡したブックの色（最初は色だけで分ける。専用の印は後で。2026-10-14 ユーザー）
+const MADE_BY_COLOR = { user: "#3b82f6", ai: "#f59e0b" };
 
 const HOVER_SWITCH = 500; // 付け替えのドラッグで、タブの上にこれだけ止めたらページを切り替える（ミリ秒）
 const BOOK_DRAG_START = 5; // ブックのタブをこれだけ横に動かしたら、並びの入れ替えのドラッグにする（px。それまではクリック）
-const EMPTY_HINT = t("開いている図がありません。タブの列の左端の＋で新しい図を作るか、LLM に matomezu open で開くよう頼んでください");
+const EMPTY_HINT = t("開いている図がありません。左上のマスターから新しい図を作るか、LLM に matomezu open で開くよう頼んでください");
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
 
@@ -124,7 +142,7 @@ export async function startApp(ui: AppUi) {
 
   // b から見たほかのブック。読み込んだブックは図から、まだのブックは取ってきた最新のデータから
   function othersOf(b: Book): OtherBook[] {
-    return books.filter(x => x !== b).flatMap(x => {
+    return books.filter(x => x !== b && !x.master).flatMap(x => {
       const data = x.loaded ? x.graph.toJSON() : x.data;
       return data && Array.isArray((data as Diagram).nodes) ? [{ id: x.id, title: titleOf(x), name: x.name, data: data as Diagram }] : [];
     });
@@ -132,7 +150,7 @@ export async function startApp(ui: AppUi) {
 
   // 開いているブックを覚え、サーバーにも知らせる（サーバーは開いている図だけを監視する）
   function remember() {
-    saveBooks(books.map(b => b.id));
+    saveBooks(books.filter(b => !b.master).map(b => b.id));
     events?.watchChanged();
   }
 
@@ -143,8 +161,10 @@ export async function startApp(ui: AppUi) {
   }
 
   function markSelected() {
+    document.body.classList.toggle("master", !!current?.book.master); // マスターでは、ブックの道具（ブック・追加削除）を隠す（index.html）
+    ui.master.setAttribute("aria-pressed", String(!!current?.book.master));
     for (const b of books) {
-      b.group.classList.toggle("tab-group-current", current?.book === b); // プレビューでは、今のブックのタブだけを見せる（index.html）
+      b.group.classList.toggle("tab-group-current", current?.book === b); // タブは今のブックだけを見せる（index.html）
       for (const t of b.tabs) {
         t.button.setAttribute("aria-selected", String(current?.book === b && current.page === t.page));
       }
@@ -263,7 +283,7 @@ export async function startApp(ui: AppUi) {
   }
 
   function updateUrl() {
-    if (current) writeUrl(current.book.id, current.page);
+    if (current && !current.book.master) writeUrl(current.book.id, current.page);
   }
 
   function activate(b: Book, page: PageId) {
@@ -333,7 +353,7 @@ export async function startApp(ui: AppUi) {
       unbind = [];
       const next = books[Math.min(i, books.length - 1)];
       if (next) activate(next, next.graph.page());
-      else empty();
+      else void openMaster().then(() => { if (!current) empty(); });
     }
   }
 
@@ -347,7 +367,7 @@ export async function startApp(ui: AppUi) {
   }
 
   // ブックを読み込んでタブグループを作る。サーバーが知らないブックなら null
-  async function openBook(id: string): Promise<Book | null> {
+  async function openBook(id: string, master = false): Promise<Book | null> {
     const found = books.find(b => b.id === id);
     if (found) return found;
     const loading = opening.get(id);
@@ -389,11 +409,14 @@ export async function startApp(ui: AppUi) {
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
         onOpenPage: page => { if (book) activate(book, page); }, // リンクの箱の窓（link-box.ts）
-      }, { otherBooks: () => (book ? othersOf(book) : []) });
+        bookWindow: (id, visible) => bookWindow(id, visible), // マスターの窓（D26 の段階 2）
+        onOpenBook: id => { void openBook(id).then(x => (x ? activate(x, null) : ui.error(t("そのブックを開けませんでした")))); },
+      }, { otherBooks: () => (book ? othersOf(book) : []), onCommand: masterCommand });
       const b: Book = {
         id, name: remote.name, color, group, addPage, tabs: [], stage, side, graph, panel, minimap,
-        sync: null as unknown as Sync, loaded: false, data: remote.data, error: null,
+        sync: null as unknown as Sync, loaded: false, data: remote.data, error: null, master,
       };
+      if (master) group.classList.add("tab-group-master");
       b.sync = startSync(graph, base, remote, {
         status: () => {},
         notice: text => { if (current?.book === b) ui.notice(text); },
@@ -426,18 +449,93 @@ export async function startApp(ui: AppUi) {
   ui.book.addEventListener("click", () => { if (current) openBookDialog(current.book.graph, current.book.name); });
   ui.side.onChange(on => { if (current) (on ? current.book.panel.shown() : current.book.panel.hidden()); });
 
-  // 新しいブック: 今見ているブックと同じフォルダに作り、一番左のタブにして前に出す
-  ui.newBook.addEventListener("click", () => {
-    openNewBookDialog(current?.book.id ?? null, async id => {
+  // ---- マスター（D26 の段階 2） ----
+
+  // マスターの道具箱の操作（view.ts の onCommand）
+  function masterCommand(key: "newBook" | "crossMove" | "settings") {
+    if (key === "settings") return openSettings();
+    if (key === "crossMove") return void toast(t("ブックをまたぐ追加削除は、これから作ります（D26 の段階 4）"));
+    // 新しいブック: マスターには今見ている図が無いので、サーバーの決まり（最後に登録した図のフォルダ）に作る（置き場所は D22 で詰める）
+    openNewBookDialog(null, async id => {
       const b = await openBook(id);
       if (!b) return ui.error(t("作った図を開けませんでした"));
-      books.splice(books.indexOf(b), 1);
-      books.unshift(b);
-      ui.tabs.prepend(b.group);
-      ui.tabs.scrollLeft = 0;
       activate(b, null);
     }, ui.error);
-  });
+  }
+
+  // マスターの窓に出すブック（開いたときの並び）と、読んだ縮図。マスターを開き直すたびに作り直す
+  let rows = new Map<string, BookRow>();
+  const scenes = new Map<string, Scene | "loading">();
+  let masterBook: Book | null = null;
+
+  // 窓の題名・パターン・縮図（graph の bookWindow）。見えている窓で、まだ読んでいないブックなら取りに行き、届いたら描き直す
+  function bookWindow(id: string, visible: boolean): { title: string; pattern: PagePattern; scene: Scene | null } | null {
+    const row = rows.get(id);
+    if (!row) return null;
+    const pattern = isPattern(row.pattern) ? row.pattern : "nest";
+    const open = books.find(b => b.id === id && b.loaded);
+    let scene = open ? open.graph.pageScene("") : scenes.get(id);
+    if (scene == null && visible) {
+      scenes.set(id, "loading");
+      void fetchRemote(docBase(id)).then(r => {
+        const data = r?.data as DiagramData | undefined;
+        scenes.set(id, data && Array.isArray(data.nodes) ? dataScene(data, "") : { w: 1, h: 1, bg: null, boxes: [], edges: [] });
+        masterBook?.graph.redraw();
+      });
+    }
+    return { title: row.title || row.name, pattern, scene: scene && scene !== "loading" ? scene : null };
+  }
+
+  // マスターの中身: 「ユーザー」「AI」の箱に新しい MASTER_TOP 件の窓、残りは「その他のブック」（非表示の箱。▼ で開く）。
+  // 窓の位置は覚えず、開くたびにこの並びで作り直す（2026-10-14 ユーザー）
+  function masterData(list: BookRow[]): DiagramData {
+    const top = list.slice(0, MASTER_TOP), rest = list.slice(MASTER_TOP);
+    const nodes: DiagramData["nodes"] = [];
+    const win = (r: BookRow, parent: string, i: number, by: "user" | "ai") => nodes.push({
+      id: "b-" + r.id, parent, caption: r.title || r.name, book: r.id, color: MADE_BY_COLOR[by],
+      x: GROUP_PAD + (i % MASTER_COLS) * WIN_W, y: GROUP_HEAD + Math.floor(i / MASTER_COLS) * WIN_H,
+    });
+    const groupW = GROUP_PAD * 2 + MASTER_COLS * WIN_W;
+    const groups = [
+      { id: "user", caption: t("ユーザー"), by: "user" as const, list: top.filter(r => r.madeBy === "user") },
+      { id: "ai", caption: t("AI"), by: "ai" as const, list: top.filter(r => r.madeBy !== "user") },
+    ];
+    let bottom = 0;
+    groups.forEach((g, gi) => {
+      nodes.push({ id: g.id, caption: g.caption, color: MADE_BY_COLOR[g.by], x: 24 + gi * (groupW + GROUP_GAP), y: 24 });
+      g.list.forEach((r, i) => win(r, g.id, i, g.by));
+      bottom = Math.max(bottom, Math.ceil(Math.max(1, g.list.length) / MASTER_COLS) * WIN_H);
+    });
+    if (rest.length) {
+      nodes.push({ id: "others", caption: t("その他のブック（{n} 冊）", { n: rest.length }), childView: "hidden", x: 24, y: 24 + GROUP_HEAD + bottom + GROUP_GAP * 2 });
+      rest.forEach((r, i) => win(r, "others", i, r.madeBy === "user" ? "user" : "ai"));
+    }
+    return { world: { childView: "master", title: t("マスター") }, nodes, edges: [] };
+  }
+
+  // マスターを開く: master.json を開いて前に出し、今の並びで中身を作り直して保存する
+  async function openMaster() {
+    if (current?.book.master) return;
+    let id: string;
+    let list: BookRow[];
+    try {
+      const [m, l] = await Promise.all([fetch("api/master", { cache: "no-store" }), fetch("api/books", { cache: "no-store" })]);
+      if (!m.ok || !l.ok) throw new Error(`${m.status} / ${l.status}`);
+      id = (await m.json()).id;
+      list = (await l.json()).books;
+    } catch (err) {
+      return ui.error(t("マスターを開けませんでした: {error}", { error: err instanceof Error ? err.message : String(err) }));
+    }
+    const b = await openBook(id, true);
+    if (!b) return ui.error(t("マスターを開けませんでした: {error}", { error: id }));
+    masterBook = b;
+    rows = new Map(list.map(r => [r.id, r]));
+    scenes.clear();
+    activate(b, null);
+    b.graph.load(masterData(list));
+    b.sync.changed(b.graph.toJSON());
+  }
+  ui.master.addEventListener("click", () => void openMaster());
 
   events = connectEvents({
     watched: () => books.map(b => b.id),
@@ -470,7 +568,7 @@ export async function startApp(ui: AppUi) {
   const { book: wanted, page: wantedPage } = wantedFromUrl();
   const saved = loadSavedBooks();
   if (wanted && !saved.includes(wanted)) saved.push(wanted);
-  await Promise.all(saved.map(openBook));
+  await Promise.all(saved.map(id => openBook(id)));
   // 並びは覚えていた順にそろえる（読み込みの終わった順ではなく）
   books.sort((a, b) => saved.indexOf(a.id) - saved.indexOf(b.id));
   for (const b of books) ui.tabs.appendChild(b.group);
@@ -478,5 +576,5 @@ export async function startApp(ui: AppUi) {
   if (current) return; // 読み込みの間に open の知らせで前に出たものがある
   const first = books.find(b => b.id === wanted) ?? books[0];
   if (first) activate(first, first.id === wanted ? wantedPage : null);
-  else empty();
+  else await openMaster().then(() => { if (!current) empty(); }); // 開いているブックが無ければマスターを出す
 }

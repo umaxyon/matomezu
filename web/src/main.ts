@@ -84,9 +84,8 @@ async function main() {
     const canvas = stage.parentElement ?? document.body;
     stage.remove(); // 描画領域はタブごとに作る
     $("name").remove(); // 図の名前はブックのタブに出す
-    $("new-book").hidden = false;
     startApp({
-      tabs: $("tabs"), newBook: $<HTMLButtonElement>("new-book"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side,
+      tabs: $("tabs"), master: $<HTMLButtonElement>("master"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side,
       undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
       notice: text => toast(text), error: showError, clearError, empty: showEmpty,
     });

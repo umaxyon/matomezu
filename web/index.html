@@ -63,22 +63,20 @@
   .toolbar .sep, .tab-right .sep { width: 1px; height: 22px; margin: 0 4px; background: var(--bar-border); }
   /* サーバーから開いたときは自動で保存するので、開く・保存のボタンは使わない。図の名前はタブに出す */
   body.served #open, body.served #save, body.served #name, body.served .file-sep { display: none; }
+  /* マスター（D26 の段階 2）はサーバーから開いたときだけ。設定はマスターの道具箱から開くので、歯車はサーバーなしのときだけ */
+  body:not(.served) #master, body:not(.served) .master-sep, body.served #settings, body.served .settings-sep { display: none; }
+  /* タブは今のブックだけを見せる。マスターでは、ブックの道具（ブック・追加削除）を隠し、マスターのタブは閉じられない */
+  .tab-group:not(.tab-group-current) { display: none; }
+  body.master #book, body.master #side-toggle, .tab-group-master .tab-close, .tab-group-master .tab-add { display: none; }
   /* プレビュー（見るだけ。preview.ts）: 倍率の操作を出し、サイドバー・編集の道具・全体像は隠す */
   .zoom { display: none; align-items: center; gap: 2px; }
   body.previewing .zoom { display: flex; }
   .zoom-level { min-width: 3.5em; text-align: center; font-size: 12px; color: var(--hint); }
   body.previewing #sidebar, body.previewing .toolbar, body.previewing #minimap-toggle, body.previewing .mz-minimap,
   body.previewing .mz-toolbox { display: none; }
-  /* プレビューのタブは今のブックのページだけ（ほかのブック、新しい図・ページを足す＋、閉じる × は隠す。D26） */
-  body.previewing .tab-group:not(.tab-group-current), body.previewing .tab-new, body.previewing .tab-add, body.previewing .tab-close { display: none; }
-  /* タブの列。左端の「＋」（新しい図。new-book.ts）は、タブを横にスクロールしても動かない */
-  .tab-new {
-    flex: none; align-self: stretch; margin: 4px 0 0 6px; padding: 0 10px; border: 0; border-radius: 6px 6px 0 0;
-    background: var(--btn); color: var(--accent); line-height: 0;
-  }
-  .tab-new[hidden] { display: none; }
-  .tab-new svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
-  .tab-new:hover { color: #fff; background: var(--accent); }
+  /* プレビューでは、ページを足す＋と閉じる × を隠す（D26） */
+  body.previewing .tab-add, body.previewing .tab-close { display: none; }
+  /* タブの列 */
   .tabs {
     flex: 1;
     min-width: 0;
@@ -194,6 +192,10 @@
 <body>
 <div class="tab-bar" id="tab-bar">
   <div class="toolbar" role="toolbar" aria-label="ツールバー">
+    <button id="master" class="icon-btn" title="マスター: ブックの一覧（新しい図・設定もここから）" aria-label="マスター" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    </button>
+    <span class="sep master-sep" aria-hidden="true"></span>
     <button id="undo" class="icon-btn" title="元に戻す (Ctrl+Z)" aria-label="元に戻す" disabled>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
     </button>
@@ -218,7 +220,6 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18"/><path d="M5 7l1.5 13h11L19 7"/><path d="M12 11v6M9 14h6"/></svg>
     </button>
   </div>
-  <button id="new-book" class="tab-new" type="button" title="新しい図" aria-label="新しい図" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
   <nav class="tabs" id="tabs" role="tablist" aria-label="開いている図">
     <div class="tab tab-book" id="name" aria-selected="true"><span class="tab-name">サンプル</span></div>
   </nav>
@@ -251,7 +252,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
     </button>
     <input id="file" type="file" accept="application/json,.json" hidden>
-    <span class="sep" aria-hidden="true"></span>
+    <span class="sep settings-sep" aria-hidden="true"></span>
     <button id="settings" class="icon-btn" title="設定" aria-label="設定">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
     </button>

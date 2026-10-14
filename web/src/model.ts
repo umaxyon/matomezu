@@ -174,6 +174,7 @@ export interface Strategy {
   tops: ChildView;      // ページのパターンのとき、最上位の箱をどの戦略で置くか（ツリーのページは根の子孫だけを木にし、最上位は自由に置く）
   rootOnly: boolean;    // ページのパターンのとき、子を持てるのは根（world.root）の子孫だけ（ツリー）
   splitBranches: boolean; // 子のひし形（分岐）から出る線を、1 つの頂点から 2 本出さないように分けて出す（端を固定した線は除く）
+  openMore: boolean;    // 非表示の箱の ▼ を押すと子を見せる（内包にする）。マスターの「その他のブック」を開く（D26）
   autoAlign: boolean;   // 位置の無い子を、決まった並べ方（layout/flow-align.ts）で置く。ユーザーが押す「自動で整列」も出す
   separateEnds: boolean; // 子に入る線が同じ位置につながるなら、折れ目の多い方を空いている近い辺へ逃がす（render.ts の separateEnds）
   kidGap: number | null; // 子どうしの間隔のローカルなルール（px）。null は全世界のルール（graph.ts の DEFAULTS.gap）。リストは詰めて並べる
@@ -184,7 +185,7 @@ export interface Strategy {
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, tools: [], pick: false, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
+const PLAIN = { leafKids: false, tools: [], pick: false, openMore: false, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
 const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"] };
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   NEST,
@@ -198,7 +199,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
+    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: false, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
@@ -206,7 +207,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   // マスター（D26 の段階 2。docs/UI-plan.md。2026-10-14 ユーザー: パターンをプラグインして特別にした普通のページ）: 内包を土台に、
   // 違う所だけを上書きする（内包に足した決まりは、そのままマスターにも効く）。新しいページの選択肢には出さず（pick）、箱の見せ方にも使わない。
   // 道具箱はブック追加・ブックをまたぐ追加削除・設定。窓（book のある箱）でブックを並べる。ファイルの形式は validate.ts の PAGE_FORMATS
-  master: { ...NEST, onBox: false, pick: false, tools: ["newBook", "crossMove", "settings"] },
+  master: { ...NEST, onBox: false, pick: false, openMore: true, tools: ["newBook", "crossMove", "settings"] },
 };
 
 // 箱が、ある戦略の子として並んだときの自分の見せ方。並べる側ではなく、並べられる箱の側の決まり（リストは子の中身に関与しない。
@@ -285,8 +286,10 @@ export const leafLike = (n: Box): boolean => arrangeOf(n) === "leaf" || arrangeO
 export const isHidden = (n: Box): boolean => ancestors(n).some(p => arrangeOf(p) === "hidden");
 
 // リンクの箱（link-box.ts。docs/PATTERN-plan.md）: link にページの id を書いた箱。ほかのページへの窓で、子を持てず、形・サイズ・子の見せ方は使わない
-export const isLinkBox = (n: Box): boolean => n.src.link != null;
+// リンクの箱（ページの窓）と、マスターの窓（ブックの窓。book）。どちらも窓を持ち、子を持てない（link-box.ts）
+export const isLinkBox = (n: Box): boolean => n.src.link != null || n.src.book != null;
 export const linkPageOf = (n: Box): string | null => (n.src.link == null ? null : String(n.src.link));
+export const linkBookOf = (n: Box): string | null => (typeof n.src.book === "string" && n.src.book ? n.src.book : null);
 export const linkLookOf = (n: Box): LinkLook => (isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
 // 窓に映す範囲（のぞくページの座標。無ければ null = ページ全体）
 export const clipOf = (n: Box): ClipRect | null => (isRect(n.src.clip) ? { ...n.src.clip } : null);

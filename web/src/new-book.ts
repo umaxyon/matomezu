@@ -1,5 +1,5 @@
 /*
- * 新しいブックを作るダイアログ（残課題 D20）。タブの列の左端の「＋」から開く。
+ * 新しいブックを作るダイアログ（残課題 D20）。マスターの道具箱の「ブック追加」から開く（D26 の段階 2）。
  * ワールドの設定（題名・テーマ・背景色・線の通り方・子の見せ方）を選んで「作成」すると、サーバー（/api/new）が
  * 今見ているブックと同じフォルダに、題名の名前で空の図のファイルを作って登録する。置き場所と LLM の許可の決まりは D22 で詰める。
  * 選んだ値のうち既定と同じものは書かない（サイドバーで既定に戻したときと同じ形のデータにする）。
@@ -64,7 +64,7 @@ export function openNewBookDialog(near: string | null, created: (id: string) => 
   let background = () => null as string | null;
   const fields = worldFields({ label: t("図の題名"), help: t("タブの見出しと、ファイル名になります（空なら「無題」）"), placeholder: t("無題") },
     PATTERNS.filter(([v]) => !STRATEGIES[v as PagePattern].descendants)) +
-    `<p class="mz-dlg-note">${t("今見ている図と同じフォルダに作ります")}</p>`;
+    `<p class="mz-dlg-note">${near ? t("今見ている図と同じフォルダに作ります") : t("最後に開いた図と同じフォルダに作ります（置き場所は後で決めます）")}</p>`;
   const overlay = openDialog(t("新しい図"), t("作成"), fields, o => {
     const { title, world } = readWorldFields(o, background());
     if (title) world.title = title;

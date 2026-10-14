@@ -8,6 +8,7 @@ import { createPanel, type Panel, type PanelOptions } from "./panel";
 import { createToolbox, type Tool } from "./toolbox";
 import type { Info, Shape, Size, ToolKey } from "./types";
 import { SHAPE_LABELS, isShape } from "./validate";
+import { STRATEGIES } from "./model";
 import { SHAPE_ICONS } from "./shape-icons";
 import { t } from "./i18n";
 
@@ -68,6 +69,16 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   panel = createPanel(sidebar, graph, panelOptions);
   graph.onDataChange(() => showTools(graph.info(graph.selected())));
   graph.onModeChange(m => { if (m !== "add") picked = null; showTools(graph.info(graph.selected())); });
+  // ▼ を押すと子を見せる戦略（マスターの「その他のブック」。STRATEGIES の openMore）なら、非表示の箱を内包にする
+  // （箱を選ぶ・つかむ処理より先に受け取る）
+  stage.addEventListener("pointerdown", e => {
+    const more = e.target instanceof Element ? e.target.closest(".mz-more") : null;
+    const id = more?.closest<HTMLElement>(".mz-node")?.dataset.id;
+    if (!id || e.button !== 0 || graph.preview() != null || !STRATEGIES[(graph.info(null) as { childView: keyof typeof STRATEGIES }).childView].openMore) return;
+    e.stopPropagation();
+    e.preventDefault();
+    graph.update(id, { childView: "nest" });
+  }, true);
   // 選択モードで箱をダブルクリックしたら、キャプションと本文の編集ダイアログを開く。線（かキャプションの札）なら線の編集ダイアログ
   // （見る用のモードでは開かない）
   stage.addEventListener("dblclick", e => {

@@ -33,8 +33,8 @@ export interface RenderContext {
   themeOf(n: Box | null): Theme; // 箱（null はワールド）に効いているテーマ
   paintOf(n: Box): { color: string; own: boolean }; // 箱を塗る色と、それがデータの color から来たか（テーマと色の名前を解いたもの）
   backgroundOf(): string | null; // 図の背景の色（world.background とテーマから。無ければ null）
-  linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: Rect | null } | null; // リンクの箱がのぞくページ（link-box.ts）。でなければ null
-  sceneOf(page: string): Scene; // ページの縮図のもと（リンクの箱の窓に映す。preview-art.ts）
+  linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: Rect | null; book: string | null } | null; // リンクの箱がのぞくページ（link-box.ts）。マスターの窓なら book。でなければ null
+  sceneOf(n: Box): Scene; // 窓に映す縮図のもと（リンクの箱はのぞくページ、マスターの窓はそのブックの最初のページ。preview-art.ts）
 }
 
 export type Renderer = ReturnType<typeof createRenderer>;
@@ -276,9 +276,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       head.style.setProperty("--mz-link-win-w", d.win.w + "px");
       head.style.setProperty("--mz-link-win-h", d.win.h + "px");
       head.style.setProperty("--mz-link-gap", d.gap + "px");
-      n.linkWin.title = t("押すと「{name}」のページを開きます", { name: link.pageName });
+      n.linkWin.title = link.book ? t("押すと「{name}」を開きます", { name: link.pageName }) : t("押すと「{name}」のページを開きます", { name: link.pageName });
       // 窓にそのページの縮図を映す（縮尺と切り取りは link-box.ts の previewRegion。窓の幅は、窓枠なら箱の幅から余白を引いたもの）
-      const scene = ctx.sceneOf(link.page);
+      const scene = ctx.sceneOf(n);
       drawScene(n.linkArt, scene, previewRegion(scene, windowOf(d), opt.previewMinScale, link.clip));
     } else if (n.linkArt.firstChild) n.linkArt.replaceChildren();
     n.moreEl.hidden = arrange !== "hidden";

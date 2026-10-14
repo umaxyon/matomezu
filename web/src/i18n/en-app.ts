@@ -109,4 +109,13 @@ export default {
   "押すと閉じます": "Click to dismiss",
   "ブック追加: 新しい図を作る": "Add book: create a new diagram",
   "追加削除: ブックごとの箱の一覧を左に出す。窓へドラッグすると、そのブックの郵便箱へ送る": "Added / Removed: show the boxes of each book on the left. Drag one onto a window to send it to that book's mailbox",
+  "押すと「{name}」を開きます": "Click to open \"{name}\"",
+  "最後に開いた図と同じフォルダに作ります（置き場所は後で決めます）": "Created in the folder of the last opened diagram (the location will be decided later)",
+  "開いている図がありません。左上のマスターから新しい図を作るか、LLM に matomezu open で開くよう頼んでください": "No diagram is open. Create one from the master at the top left, or ask the LLM to open one with matomezu open",
+  "そのブックを開けませんでした": "Could not open that book",
+  "ブックをまたぐ追加削除は、これから作ります（D26 の段階 4）": "Moving boxes across books is not built yet (D26 stage 4)",
+  "ユーザー": "User",
+  "その他のブック（{n} 冊）": "Other books ({n})",
+  "マスターを開けませんでした: {error}": "Could not open the master: {error}",
+  "マスター: ブックの一覧（新しい図・設定もここから）": "Master: list of books (new diagrams and settings are here too)",
 } satisfies Record<string, string>;

@@ -32,41 +32,66 @@ test.afterAll(() => {
 
 const tabNames = (page: import("@playwright/test").Page) => page.locator(".tab .tab-name");
 const selected = (page: import("@playwright/test").Page) => page.locator('.tab[aria-selected="true"] .tab-name');
+const visibleTabs = (page: import("@playwright/test").Page) => page.locator(".tab .tab-name:visible");
+// マスターを開いて、その名前の窓を押す（タブは今のブックだけなので、ほかのブックへはマスターから移る。D26）
+async function switchTo(page: import("@playwright/test").Page, name: string) {
+  await page.locator("#master").click();
+  await expect(page.locator('.tab[aria-selected="true"] .tab-name')).toHaveText("マスター");
+  await page.locator(".stage:visible .mz-node[data-id^='b-']", { hasText: name }).first().locator(".mz-link-win").click();
+}
 
-test("別の図を open するとアプリ内のタブが増え、前に出る。タブで切り替え、閉じられる", async ({ page }) => {
+test("別の図を open すると前に出る。タブは今のブックだけで、ほかのブックへはマスターの窓から移る。閉じられる", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
-  await expect(tabNames(page)).toHaveText(["a.json"]);
+  await expect(visibleTabs(page)).toHaveText(["a.json"]);
   await expect(page.locator(".stage:visible .mz-node")).toHaveCount(9);
 
   const out = run("open", "-no-browser", "b.json");
-  await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
   await expect(selected(page)).toHaveText("b.json");
+  await expect(visibleTabs(page)).toHaveText(["b.json"]); // タブは今のブックだけ（D26）
   await expect(page.locator(".stage:visible")).toHaveCount(1);
   expect(page.url()).toContain("d=" + new URL(out.split("\n")[0]!).searchParams.get("d"));
 
-  await page.locator(".tab", { hasText: "a.json" }).click();
+  await switchTo(page, "a.json");
   await expect(selected(page)).toHaveText("a.json");
   await expect(page.locator(".stage:visible .mz-node")).toHaveCount(9);
 
-  await page.locator(".tab", { hasText: "b.json" }).locator(".tab-close").click();
-  await expect(tabNames(page)).toHaveText(["a.json"]);
+  await page.locator(".tab", { hasText: "a.json" }).locator(".tab-close").click();
+  await expect(selected(page)).toHaveText("b.json"); // 閉じると、開いているほかのブックが前に出る
 });
 
-test("プレビューの間は、タブは今のブックのページだけになり、道具と道具箱が隠れる。戻ると元に戻る（D26）", async ({ page }) => {
+test("マスター: 登録した図の窓が並び（作った人で分ける）、道具箱はブック追加・追加削除・設定。窓を押すとそのブックへ移る（D26）", async ({ page }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  await page.locator("#master").click();
+  await expect(selected(page)).toHaveText("マスター");
+  await expect(page.locator("#master")).toHaveAttribute("aria-pressed", "true");
+  const stage = page.locator(".stage:visible");
+  await expect(stage.locator('.mz-node[data-id="ai"] .mz-node[data-id^="b-"]')).toHaveCount(2); // a・b とも LLM が渡したもの
+  await expect(stage.locator('.mz-node[data-id="user"] .mz-node[data-id^="b-"]')).toHaveCount(0);
+  await expect(stage.locator(".mz-toolbox [data-tool]")).toHaveCount(3);
+  await expect(stage.locator('.mz-toolbox [data-tool="newBook"]')).toBeVisible();
+  await expect(page.locator("#book")).toBeHidden(); // マスターではブックの道具を隠す
+  await expect(page.locator(".tab-group-current .tab-close")).toBeHidden();
+  await stage.locator('.mz-node[data-id^="b-"]', { hasText: "b.json" }).locator(".mz-link-win").click();
+  await expect(selected(page)).toHaveText("b.json");
+  await expect(page.locator("#master")).toHaveAttribute("aria-pressed", "false");
+});
+
+test("プレビューの間は、道具と道具箱、ページを足す＋と閉じる × が隠れる。戻ると元に戻る（D26）", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   run("open", "-no-browser", "b.json");
-  await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
+  await expect(selected(page)).toHaveText("b.json");
   await expect(page.locator(".stage:visible .mz-toolbox")).toBeVisible();
   await page.locator("#preview-toggle").click();
-  await expect(page.locator(".tab-name:visible")).toHaveText(["b.json"]);
+  await expect(visibleTabs(page)).toHaveText(["b.json"]);
   await expect(page.locator(".toolbar")).toBeHidden();
   await expect(page.locator(".mz-toolbox:visible")).toHaveCount(0);
-  await expect(page.locator("#new-book")).toBeHidden();
+  await expect(page.locator(".tab-close:visible")).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await expect(page.locator(".tab-name:visible")).toHaveText(["a.json", "b.json"]);
   await expect(page.locator(".stage:visible .mz-toolbox")).toBeVisible();
+  await expect(page.locator(".tab-close:visible")).toHaveCount(1);
   await page.locator(".tab", { hasText: "b.json" }).locator(".tab-close").click();
 });
 
@@ -116,7 +141,7 @@ test("見ていないタブの図を set すると、そのタブが前に出て
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   run("open", "-no-browser", "b.json");
-  await page.locator(".tab", { hasText: "a.json" }).click();
+  await switchTo(page, "a.json");
   await expect(selected(page)).toHaveText("a.json");
 
   const out = run("set", "b.json", "5.caption=変えたトップ画面");
@@ -152,13 +177,13 @@ test("読み直したあと一度も前に出していないタブの図が外�
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   run("open", "-no-browser", "c.json");
-  await page.locator(".tab", { hasText: "a.json" }).click();
+  await switchTo(page, "a.json");
   await page.waitForTimeout(5500); // open の知らせを送り直す時間（hub.go の showReplay）を過ぎてから読み直す
   await page.reload(); // c は読み直したあと一度も前に出ていない（最初のデータを持ったまま待つ）
   await expect(selected(page)).toHaveText("a.json");
   writeFileSync(join(dir, "c.json"), JSON.stringify({ nodes: [{ id: 1, caption: "新しい内容", x: 40, y: 40 }] }));
   await page.waitForTimeout(1000); // サーバーが変更を見つけて知らせるまで
-  await page.locator(".tab", { hasText: "c.json" }).click();
+  await switchTo(page, "c.json");
   await expect(page.locator(".stage:visible .mz-head", { hasText: "新しい内容" })).toHaveCount(1);
 });
 
@@ -301,43 +326,25 @@ test("図の題名（world.title）があればタブの見出しに出し、ポ
   await tab.locator(".tab-close").click();
 });
 
-test("ブックのタブをドラッグすると、ブックの並びが入れ替わり、開き直しても覚えている", async ({ page }) => {
+test("マスターの道具箱のブック追加で新しい図を作ると、最後に開いた図と同じフォルダにファイルができ、前に出る（D20・D26）", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
-  run("open", "-no-browser", "b.json");
-  const books = page.locator(".tab-book .tab-name");
-  await expect(books).toHaveText(["a.json", "b.json"]);
-  const from = (await page.locator(".tab-book", { hasText: "b.json" }).boundingBox())!;
-  const to = (await page.locator(".tab-book", { hasText: "a.json" }).boundingBox())!;
-  await page.mouse.move(from.x + 10, from.y + from.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(to.x + 2, to.y + to.height / 2, { steps: 10 });
-  await page.mouse.up();
-  await expect(books).toHaveText(["b.json", "a.json"]);
-  await page.reload();
-  await expect(books).toHaveText(["b.json", "a.json"]);
-  await page.locator(".tab-book", { hasText: "b.json" }).locator(".tab-close").click();
-});
-
-test("タブの列の左端の＋で新しい図を作ると、同じフォルダにファイルができ、一番左のタブになって前に出る（D20）", async ({ page }) => {
-  const url = run("open", "-no-browser", "a.json").trim();
-  await page.goto(url);
-  const books = page.locator(".tab-book .tab-name");
-  await expect(books).toHaveText(["a.json"]);
-  await page.locator("#new-book").click();
+  await page.locator("#master").click();
+  await page.locator('.stage:visible .mz-toolbox [data-tool="newBook"]').click();
   const dlg = page.locator(".mz-dlg");
   await expect(dlg.locator("h2")).toHaveText("新しい図");
+  await expect(dlg).toContainText("最後に開いた図と同じフォルダに作ります");
   await dlg.locator('[name="caption"]').fill("設計メモ");
   await dlg.locator('[name="theme"]').selectOption("sticky");
   await dlg.locator("label", { hasText: "フローチャート" }).click();
   await dlg.locator("[data-ok]").click();
-  await expect(books).toHaveText(["設計メモ", "a.json"]);
   await expect(selected(page)).toHaveText("設計メモ");
   await expect(page.locator(".stage:visible .mz-node")).toHaveCount(0);
   const saved = JSON.parse(readFileSync(join(dir, "設計メモ.json"), "utf8"));
-  expect(saved.world).toEqual({ title: "設計メモ", theme: "sticky", childView: "flow" });
-  // 開き直しても一番左にある
-  await page.reload();
-  await expect(books).toHaveText(["設計メモ", "a.json"]);
-  await page.locator(".tab-book", { hasText: "設計メモ" }).locator(".tab-close").click();
+  expect(saved.world).toEqual({ title: "設計メモ", theme: "sticky", childView: "flow", madeBy: "user" });
+  // マスターでは「ユーザー」の箱に並ぶ
+  await page.locator("#master").click();
+  await expect(page.locator('.stage:visible .mz-node[data-id="user"] .mz-node[data-id^="b-"]', { hasText: "設計メモ" })).toHaveCount(1);
+  await switchTo(page, "設計メモ");
+  await page.locator(".tab-group-current .tab-book .tab-close").click();
 });

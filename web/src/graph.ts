@@ -141,7 +141,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, isLinkBox, isTreeRoot, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesBetween, treeLinesOf, viaOf, viewOf,
+  overflowOf, inTreeOf, isLinkBox, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesBetween, treeLinesOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -173,6 +173,83 @@ export const DEFAULTS = {
   previewMinScale: 0.15, // リンクの箱の窓に映すページの縮尺の下限（これより縮めず、収まらない分は切り取る。link-box.ts の previewRegion）
 };
 
+// ページの縮図のもとを、データだけから近似で作る（描いていないページ・ほかのブックの窓。graph.pageScene と、マスターの窓（app.ts）が使う）。
+// そのページの最上位の箱をデータの位置（無ければ 0,0）と大きさの指定（無ければ M の最小）で置き、最上位どうしの線を中心で結ぶ
+// 何も無い縮図（マスターの窓で、まだ読んでいないブック）
+const EMPTY_SCENE: Scene = { w: 1, h: 1, bg: null, boxes: [], edges: [] };
+export type SceneOptions = Pick<typeof DEFAULTS, "treeGapX" | "treeGapY" | "padding">;
+export function dataScene(source: Diagram, p: string, opt: SceneOptions = DEFAULTS): Scene {
+  const tops = source.nodes.filter(s => s.parent == null && String(s.page ?? "") === p);
+  const hasKids = new Set(source.nodes.filter(s => s.parent != null).map(s => String(s.parent)));
+  const rectOf = (s: BoxData) => ({
+    x: Number(s.x) || 0, y: Number(s.y) || 0,
+    w: Number(s.width) || SIZES.M.minW, h: Number(s.height) || SIZES.M.h,
+  });
+  const colorOf = (s: BoxData) => (typeof s.color === "string" && /^#/.test(s.color) ? s.color : null);
+  const byId = new Map(tops.map(s => [String(s.id), rectOf(s)]));
+  const boxes = tops.map(s => ({ ...byId.get(String(s.id))!, color: colorOf(s), outline: hasKids.has(String(s.id)) }));
+  const lines: [number, number][][] = [];
+  // ツリーのページは、根の子孫を木の形に組む（大きさは近似。根の左上をデータの位置に）
+  const pw = pageWorld(source, p);
+  const root = STRATEGIES[patternOf(source, p)].descendants && pw.root != null ? tops.find(s => String(s.id) === String(pw.root)) : undefined;
+  if (root) {
+    const tree = approxTree(source, opt, root, isTreeDirection(pw.treeDirection) ? pw.treeDirection : "down", rectOf);
+    boxes.splice(tops.indexOf(root), 1, ...tree.boxes.map(({ s, r }) => ({ ...r, color: colorOf(s), outline: false })));
+    byId.set(String(root.id), tree.boxes[0]!.r);
+    lines.push(...tree.lines);
+  }
+  const edges = [...(source.edges ?? []).map(normalizeEdge).flatMap(e => {
+    const a = byId.get(String(e.from)), b = byId.get(String(e.to));
+    return a && b && a !== b ? [{ points: [[a.x + a.w / 2, a.y + a.h / 2], [b.x + b.w / 2, b.y + b.h / 2]] as [number, number][] }] : [];
+  }), ...lines.map(points => ({ points }))];
+  const w = Math.max(1, ...boxes.map(b => b.x + b.w)), h = Math.max(1, ...boxes.map(b => b.y + b.h));
+  const bg = pw.background;
+  return { w, h, bg: typeof bg === "string" && bg ? bg : null, boxes, edges };
+}
+// 描いていないツリーの近似: 子を副軸に並べ（間隔 treeGapX）、親を子の並びの真ん中に置き、主軸に treeGapY 離す。最初が根
+function approxTree(source: Diagram, opt: SceneOptions, root: BoxData, dir: TreeDirection, rectOf: (s: BoxData) => Rect) {
+  const kidsOf = (s: BoxData) => source.nodes.filter(k => k.parent != null && String(k.parent) === String(s.id));
+  const vertical = dir === "down" || dir === "up";
+  const size = (s: BoxData) => { const r = rectOf(s); return vertical ? [r.h, r.w] as const : [r.w, r.h] as const; };
+  const spans = new Map<BoxData, number>();
+  const span = (s: BoxData): number => {
+    const kids = kidsOf(s);
+    const all = kids.reduce((t, k) => t + span(k), 0) + opt.treeGapX * Math.max(0, kids.length - 1);
+    const v = Math.max(size(s)[1], all);
+    spans.set(s, v);
+    return v;
+  };
+  span(root);
+  const placed: { s: BoxData; m: number; c: number; main: number; cross: number }[] = [];
+  const lines: { parent: number; kids: number[] }[] = [];
+  const place = (s: BoxData, m: number, c: number): number => {
+    const [main, cross] = size(s);
+    const at = placed.push({ s, m, c: c + (spans.get(s)! - cross) / 2, main, cross }) - 1;
+    const kids = kidsOf(s);
+    const total = kids.reduce((t, k) => t + spans.get(k)!, 0) + opt.treeGapX * Math.max(0, kids.length - 1);
+    let kc = c + (spans.get(s)! - total) / 2;
+    const ids: number[] = [];
+    for (const k of kids) { ids.push(place(k, m + main + opt.treeGapY, kc)); kc += spans.get(k)! + opt.treeGapX; }
+    if (ids.length) lines.push({ parent: at, kids: ids });
+    return at;
+  };
+  place(root, 0, 0);
+  // 上向き・左向きは主軸を裏返す。木の枠（周りに余白）の左上をデータの位置にそろえる（描いたときの根の位置と同じ）
+  const end = Math.max(...placed.map(q => q.m + q.main));
+  const forward = dir === "down" || dir === "right";
+  const rects = placed.map(q => {
+    const m = forward ? q.m : end - q.m - q.main;
+    return vertical ? { x: q.c, y: m, w: q.cross, h: q.main } : { x: m, y: q.c, w: q.main, h: q.cross };
+  });
+  const r0 = rectOf(root);
+  const dx = r0.x + opt.padding - Math.min(...rects.map(r => r.x)), dy = r0.y + opt.padding - Math.min(...rects.map(r => r.y));
+  for (const r of rects) { r.x += dx; r.y += dy; }
+  return {
+    boxes: placed.map((q, i) => ({ s: q.s, r: rects[i]! })),
+    lines: lines.flatMap(l => treeLinesBetween(dir, rects[l.parent]!, l.kids.map(i => rects[i]!), opt.treeGapY)),
+  };
+}
+
 // updateEdge で変えられる線の項目（null で消す）
 export interface EdgePatch {
   caption?: string | null; // 空か null で消す
@@ -198,6 +275,10 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onLiftEnd?: () => void;                     // 付け替えのドラッグが終わった
   onAddRequest?: (req: AddRequest) => void;   // 追加モードで図を押した（新しい箱の中身を聞いて add を呼ぶのは画面の側。view.ts）
   onOpenPage?: (page: string) => void;        // リンクの箱の窓を押した（そのページのタブを前に出すのは画面の側。app.ts）
+  // マスターの窓（book）がのぞくブックの題名・最初のページのパターン・縮図（まだ読んでいなければ scene は null）。visible は窓が見えているか
+  // （見えていない窓（その他のブックの中）の縮図は取りに行かない。D26）。持たなければ book の id を題名にして、縮図は空
+  bookWindow?: (book: string, visible: boolean) => { title: string; pattern: PagePattern; scene: Scene | null } | null;
+  onOpenBook?: (book: string) => void;        // マスターの窓を押した（そのブックを前に出すのは画面の側。app.ts）
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
@@ -257,6 +338,7 @@ export interface Graph {
   items(): Items;
   geometry(): Geometry;
   pageScene(page: string): Scene; // ページの縮図のもと（リンクの箱の窓と、その設定ダイアログに）
+  redraw(): void; // 描き直す（マスターの窓の縮図が届いたとき。データは変えない）
   setPage(id: Id | null): void;
   page(): string | null;
   pages(): { id: string; caption: string }[]; // ブックのページ（2 枚目から。最初のページは含まない）
@@ -325,7 +407,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   });
   // ドラッグ中か（線の道筋から分かったデータの直しを、手を離すまで待つ）。操作の仕組み（I）を作ったあとで差し替える
   let dragging = () => false;
-  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging(), linkOf, sceneOf: pageScene }, L);
+  const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging(), linkOf, sceneOf: windowScene }, L);
   const {
     incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
     settle, sizable, alignChildren,
@@ -358,7 +440,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     reparent,
     drop: n => { settle(SCENES.drop, n); render(); },
     remove: n => { remove(n.id); },
-    openLink: n => { const p = linkPageOf(n); if (p != null) opt.onOpenPage?.(p); },
+    openLink: n => { const p = linkPageOf(n), b = linkBookOf(n); if (p != null) opt.onOpenPage?.(p); else if (b != null) opt.onOpenBook?.(b); },
     boxById: id => byId.get(id),
     edgeOfEl: el => {
       const g = el.closest(".mz-edge");
@@ -836,11 +918,22 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const pageName = (p: string | null) => pageNameOf(source, p);
   // リンクの箱がのぞくページ（link-box.ts）: ページの名前とパターン（窓の札に出す）。リンクの箱でなければ null
-  function linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: ClipRect | null } | null {
+  function linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: ClipRect | null; book: string | null } | null {
+    const book = linkBookOf(n);
+    if (book != null) {
+      const w = opt.bookWindow?.(book, false);
+      return { page: "", pageName: w?.title ?? book, pattern: w?.pattern ?? DEFAULT_VIEW, look: linkLookOf(n), clip: clipOf(n), book };
+    }
     const page = linkPageOf(n);
     if (page == null) return null;
     const view = pageWorld(source, page).childView;
-    return { page, pageName: pageName(page), pattern: isPattern(view) ? view : DEFAULT_VIEW, look: linkLookOf(n), clip: clipOf(n) };
+    return { page, pageName: pageName(page), pattern: isPattern(view) ? view : DEFAULT_VIEW, look: linkLookOf(n), clip: clipOf(n), book: null };
+  }
+  // 窓に映す縮図のもと。マスターの窓は、見えている窓だけ縮図を取りに行かせる（隠れた箱の中の窓は題名だけ）
+  function windowScene(n: Box): Scene {
+    const book = linkBookOf(n);
+    if (book == null) return pageScene(linkPageOf(n) ?? "");
+    return opt.bookWindow?.(book, !isHidden(n))?.scene ?? EMPTY_SCENE;
   }
 
   // ページの縮図のもと（リンクの箱の窓に映す。preview-art.ts。D27 段階 4）。描いたページは、ページを離れるときに配置の結果を覚える（captureScene）。
@@ -856,79 +949,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function captureScene(data: Diagram) {
     scenes.set(page ?? "", { key: sceneKey(data, page), scene: sceneOf(api.geometry(), backgroundOf()) });
   }
-  // 描いていないツリーの近似: 子を副軸に並べ（間隔 treeGapX）、親を子の並びの真ん中に置き、主軸に treeGapY 離す。最初が根
-  function approxTree(root: BoxData, dir: TreeDirection, rectOf: (s: BoxData) => Rect) {
-    const kidsOf = (s: BoxData) => source.nodes.filter(k => k.parent != null && String(k.parent) === String(s.id));
-    const vertical = dir === "down" || dir === "up";
-    const size = (s: BoxData) => { const r = rectOf(s); return vertical ? [r.h, r.w] as const : [r.w, r.h] as const; };
-    const spans = new Map<BoxData, number>();
-    const span = (s: BoxData): number => {
-      const kids = kidsOf(s);
-      const all = kids.reduce((t, k) => t + span(k), 0) + opt.treeGapX * Math.max(0, kids.length - 1);
-      const v = Math.max(size(s)[1], all);
-      spans.set(s, v);
-      return v;
-    };
-    span(root);
-    const placed: { s: BoxData; m: number; c: number; main: number; cross: number }[] = [];
-    const lines: { parent: number; kids: number[] }[] = [];
-    const place = (s: BoxData, m: number, c: number): number => {
-      const [main, cross] = size(s);
-      const at = placed.push({ s, m, c: c + (spans.get(s)! - cross) / 2, main, cross }) - 1;
-      const kids = kidsOf(s);
-      const total = kids.reduce((t, k) => t + spans.get(k)!, 0) + opt.treeGapX * Math.max(0, kids.length - 1);
-      let kc = c + (spans.get(s)! - total) / 2;
-      const ids: number[] = [];
-      for (const k of kids) { ids.push(place(k, m + main + opt.treeGapY, kc)); kc += spans.get(k)! + opt.treeGapX; }
-      if (ids.length) lines.push({ parent: at, kids: ids });
-      return at;
-    };
-    place(root, 0, 0);
-    // 上向き・左向きは主軸を裏返す。木の枠（周りに余白）の左上をデータの位置にそろえる（描いたときの根の位置と同じ）
-    const end = Math.max(...placed.map(q => q.m + q.main));
-    const forward = dir === "down" || dir === "right";
-    const rects = placed.map(q => {
-      const m = forward ? q.m : end - q.m - q.main;
-      return vertical ? { x: q.c, y: m, w: q.cross, h: q.main } : { x: m, y: q.c, w: q.main, h: q.cross };
-    });
-    const r0 = rectOf(root);
-    const dx = r0.x + opt.padding - Math.min(...rects.map(r => r.x)), dy = r0.y + opt.padding - Math.min(...rects.map(r => r.y));
-    for (const r of rects) { r.x += dx; r.y += dy; }
-    return {
-      boxes: placed.map((q, i) => ({ s: q.s, r: rects[i]! })),
-      lines: lines.flatMap(l => treeLinesBetween(dir, rects[l.parent]!, l.kids.map(i => rects[i]!), opt.treeGapY)),
-    };
-  }
   function pageScene(p: string): Scene {
     const hit = scenes.get(p);
     if (hit && hit.key === sceneKey(source, p)) return hit.scene;
-    const tops = source.nodes.filter(s => s.parent == null && String(s.page ?? "") === p);
-    const hasKids = new Set(source.nodes.filter(s => s.parent != null).map(s => String(s.parent)));
-    const rectOf = (s: BoxData) => ({
-      x: Number(s.x) || 0, y: Number(s.y) || 0,
-      w: Number(s.width) || SIZES.M.minW, h: Number(s.height) || SIZES.M.h,
-    });
-    const colorOf = (s: BoxData) => (typeof s.color === "string" && /^#/.test(s.color) ? s.color : null);
-    const byId = new Map(tops.map(s => [String(s.id), rectOf(s)]));
-    const boxes = tops.map(s => ({ ...byId.get(String(s.id))!, color: colorOf(s), outline: hasKids.has(String(s.id)) }));
-    const lines: [number, number][][] = [];
-    // ツリーのページは、根の子孫を木の形に組む（大きさは近似。根の左上をデータの位置に）
-    const pw = pageWorld(source, p);
-    const root = STRATEGIES[patternOf(source, p)].descendants && pw.root != null ? tops.find(s => String(s.id) === String(pw.root)) : undefined;
-    if (root) {
-      const tree = approxTree(root, isTreeDirection(pw.treeDirection) ? pw.treeDirection : "down", rectOf);
-      boxes.splice(tops.indexOf(root), 1, ...tree.boxes.map(({ s, r }) => ({ ...r, color: colorOf(s), outline: false })));
-      byId.set(String(root.id), tree.boxes[0]!.r);
-      lines.push(...tree.lines);
-    }
-    const edges = [...(source.edges ?? []).map(normalizeEdge).flatMap(e => {
-      const a = byId.get(String(e.from)), b = byId.get(String(e.to));
-      return a && b && a !== b ? [{ points: [[a.x + a.w / 2, a.y + a.h / 2], [b.x + b.w / 2, b.y + b.h / 2]] as [number, number][] }] : [];
-    }), ...lines.map(points => ({ points }))];
-    const w = Math.max(1, ...boxes.map(b => b.x + b.w)), h = Math.max(1, ...boxes.map(b => b.y + b.h));
-    const bg = pw.background;
-    return { w, h, bg: typeof bg === "string" && bg ? bg : null, boxes, edges };
+    return dataScene(source, p, opt);
   }
+
 
   // 落とし先（parentId。null は今のページの最上位）の箱。子を持てない箱（クラス・フローチャートの箱）の中へは入れられない
   function target(parentId: Id | null): Box | null {
@@ -2028,6 +2054,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     page: () => page,
     pageScene,
+    redraw: () => { nodes.filter(isLinkBox).forEach(applyStyle); render(); }, // 窓の絵は applyStyle で描く
     paste,
     add,
     purge,

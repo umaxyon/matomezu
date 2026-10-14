@@ -46,7 +46,7 @@ test("データの検査: link は存在するページ、自分のページへ�
 test("リンクの箱の情報: のぞくページの名前とパターン、見せ方。形・サイズ・クラスは選べず、本文は出せる。中へは落とせない", () => {
   const { graph } = setup(book());
   const b = graph.info("2") as BoxInfo;
-  expect(b.link).toEqual({ page: "p1", pageName: "処理の流れ", pattern: "flow", look: "window", clip: null });
+  expect(b.link).toEqual({ page: "p1", pageName: "処理の流れ", pattern: "flow", look: "window", clip: null, book: null });
   expect(b.canShape).toBe(false);
   expect(b.canClass).toBe(false);
   expect(b.canBody).toBe(true);
@@ -217,4 +217,29 @@ test("縮尺と切り取り: 窓の viewBox は previewRegion の四角。clip �
   expect(graph.toJSON().nodes.find(n => n.id === 1)!.clip).toBeUndefined();
   expect(viewBox()).toBe(`${whole.x} ${whole.y} ${whole.w} ${whole.h}`);
   expect(() => graph.update("3", { clip: { x: 0, y: 0, w: 1, h: 1 } })).toThrow("リンクの箱");
+});
+
+test("マスターの窓（book）: 題名とパターンは bookWindow から。縮図は見えている窓だけ求め、非表示の箱の中では求めない（D26）", () => {
+  const calls: [string, boolean][] = [];
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const g = createGraph(el, {
+    world: { childView: "master" },
+    nodes: [
+      { id: "b-x", caption: "設計", book: "x", x: 40, y: 40 },
+      { id: "others", caption: "その他", childView: "hidden", x: 400, y: 40 },
+      { id: "b-y", parent: "others", caption: "古い", book: "y" },
+    ],
+  }, {
+    measureText: fakeMeasure,
+    bookWindow: (book, visible) => { calls.push([book, visible]); return { title: book === "x" ? "設計メモ" : "古い図", pattern: "flow", scene: null }; },
+  });
+  const info = g.info("b-x") as BoxInfo;
+  expect(info.link).toMatchObject({ book: "x", pageName: "設計メモ", pattern: "flow" });
+  expect(calls.some(([b, v]) => b === "x" && v)).toBe(true);
+  expect(calls.some(([b, v]) => b === "y" && v)).toBe(false); // 非表示の箱の中の窓は、縮図を求めない
+  calls.length = 0;
+  g.update("others", { childView: "nest" });
+  expect(calls.some(([b, v]) => b === "y" && v)).toBe(true);
+  g.destroy();
 });
