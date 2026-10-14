@@ -98,9 +98,9 @@ test("リストの子は箱のサイズ（L / M / S）を使わず普通の大�
   expect(graph.info(5).h).toBeGreaterThan(ROW_HEIGHTS.S); // 本文の分だけ高い（ほかの行は高くならない）
   graph.update(1, { rowSize: "L" });
   expect(graph.info(3).h).toBe(ROW_HEIGHTS.L);
-  graph.update(1, { previewSide: "right" }); // 縮図を出すときはいつも L
+  graph.update(1, { previewSide: "right" }); // 縮図を出すときも選べる。縮図の行だけが縮図の分だけ高い
   graph.update(1, { rowSize: "S" });
-  expect(graph.info(3).h).toBe(ROW_HEIGHTS.L);
+  expect(graph.info(3).h).toBe(ROW_HEIGHTS.S);
   graph.update(1, { rowSize: "M" });
   expect(graph.toJSON().nodes[0]!.rowSize).toBeUndefined(); // M は既定なのでデータから消す
 });

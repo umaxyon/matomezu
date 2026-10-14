@@ -341,7 +341,7 @@ export function abilitiesOf(n: Box): Abilities {
 // データのサイズ（無ければ M）
 export const dataSizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "M");
 // リストの高さ（子の最小の高さ。D13。2026-10-14 ユーザー）: S は縮図の代わりにアイコンを出した窓の行、M は普通の箱、L は縮図のある行の高さ。
-// 縮図を出すリストはいつも L（選べるのは縮図を出さないときだけ）。行は中身が収まる限りこの高さで、収まらない行だけ高くなる
+// 縮図を出すときも出さないときも選べる（2026-10-14 ユーザー）。行は中身が収まる限りこの高さで、収まらない行だけ高くなる
 export const ROW_HEIGHTS: Record<Size, number> = {
   S: LINK_ICON_DEF.win.h + 2 * LINK_ICON_DEF.gap,
   M: SIZES.M.h,
@@ -349,7 +349,7 @@ export const ROW_HEIGHTS: Record<Size, number> = {
 };
 export const rowSizeOf = (list: Box): Size => (isSize(list.src.rowSize) ? list.src.rowSize : "M");
 // リストの子の最小の高さ
-export const rowHeightOf = (list: Box): number => ROW_HEIGHTS[previewSideOf(list) === "none" ? rowSizeOf(list) : "L"];
+export const rowHeightOf = (list: Box): number => ROW_HEIGHTS[rowSizeOf(list)];
 // サイズ（L / M / S）が効くのは、見た目が葉の箱だけ（子の無い箱、ツリーの親の本体、非表示）。内包・リストの箱の大きさは子の並びで決まるので、
 // サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの子もサイズを使わず普通の大きさ（高さはリストの高さ。D13）
 export const sizeOf = (n: Box): Size =>

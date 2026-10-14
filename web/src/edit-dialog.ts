@@ -207,7 +207,7 @@ export const VIEW_OPTIONS: [BoxView, string][] = [["nest", t("内包")], ["list"
 // リストの子の縮図の位置（D13）
 const PREVIEW_SIDE_OPTIONS: [PreviewSide, string][] = [["right", t("右")], ["left", t("左")], ["none", t("出さない")]];
 const PREVIEW_SIDE_HELP = t("子を持つ子は、子を描かずに中身の縮図を横に出します。窓（リンクの箱）の縮図もこの位置に出します。縮図は押しても開きません。\n出さない: 縮図を出さず、文字だけの低い行にします（子を持つ子は ▼、窓は押すと開くアイコン）");
-const ROW_SIZE_HELP = t("子の高さの最小です。中身が収まる行はこの高さにそろい、収まらない行だけ高くなります。子のサイズ（L / M / S）は使いません。\nS: アイコンの窓の行の高さ / M: 普通の箱の高さ / L: 縮図のある行の高さ。縮図を出すときはいつも L で、選べるのは「出さない」のときだけです");
+const ROW_SIZE_HELP = t("子の高さの最小です。中身が収まる行はこの高さにそろい、収まらない行だけ高くなります。子のサイズ（L / M / S）は使いません。\nS: アイコンの窓の行の高さ / M: 普通の箱の高さ / L: 縮図のある行の高さ");
 const VIEW_HELP = t("内包: 子を親の中に入れて見せます\nリスト: 子を縦に並べ、幅をそろえます（子のサイズや形は使いません。子の中身は子の見せ方に従います）\n非表示: 子を隠し、▼ で子がいることだけを示します");
 const FIT_HELP = t("一番小さい子に合わせて縮めます。中身の都合で縮められない子はそのままで、大きくなる子はありません。子を持つ子は中身を詰め直して縮めます（S サイズ、スティックマン、ツリー・非表示の子は対象外）");
 const ONE_LINE_HELP = t("長いキャプションを折り返さず、… で切ります。幅はサイズの最大まで（幅の指定があればその幅まで）");
@@ -384,7 +384,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
         <div data-preview-side${previewsKids(b.childView) ? "" : " hidden"}><p class="mz-dlg-note">${t("縮図の位置")}${helpIcon(PREVIEW_SIDE_HELP)}</p>
         <div class="mz-dlg-seg">${PREVIEW_SIDE_OPTIONS.map(([v, label]) => `<label><input type="radio" name="previewSide" value="${v}"${v === b.previewSide ? " checked" : ""}>${esc(label)}</label>`).join("")}</div>
         <p class="mz-dlg-note">${t("リストの高さ")}${helpIcon(ROW_SIZE_HELP)}</p>
-        <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="rowSize" value="${v}"${v === b.rowSize ? " checked" : ""}${b.previewSide === "none" ? "" : " disabled"}>${v}</label>`).join("")}</div></div></div>`;
+        <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="rowSize" value="${v}"${v === b.rowSize ? " checked" : ""}>${v}</label>`).join("")}</div></div></div>`;
   const looksGroup = !b.extras ? "" : `<div class="mz-dlg-group"><h3>${t("見た目")}</h3>
         <label class="mz-dlg-check" data-look="fill"><input type="checkbox" name="fill"${b.fill ? " checked" : ""}>${t("塗りつぶし")}</label>
         <label class="mz-dlg-check" data-look="border"><input type="checkbox" name="border"${b.border ? " checked" : ""}>${t("枠線")}</label>
@@ -601,11 +601,6 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   // 縮図の位置は、子を縮図で見せる見せ方（リスト）のときだけ出す
   const sideRow = overlay.querySelector<HTMLElement>("[data-preview-side]");
   for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="view"]')) r.addEventListener("change", () => { if (sideRow) sideRow.hidden = !previewsKids(pickedView()); });
-  // リストの高さは、縮図を出さないときだけ選べる（出すときはいつも L）
-  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="previewSide"]')) r.addEventListener("change", () => {
-    const none = overlay.querySelector<HTMLInputElement>('[name="previewSide"]:checked')?.value === "none";
-    for (const s of overlay.querySelectorAll<HTMLInputElement>('[name="rowSize"]')) s.disabled = !none;
-  });
   // 子のサイズをそろえる（一回きりの操作）: 押すと確定のときに行う印を付ける。もう一度押すと取りやめ。どれか 1 つ
   for (const f of overlay.querySelectorAll<HTMLElement>("[data-fit]")) {
     f.addEventListener("click", () => {
@@ -671,7 +666,7 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (b.link && JSON.stringify(v.clip) !== JSON.stringify(b.link.clip)) patch.clip = v.clip;
     if (start.views === "choose" && v.view !== b.childView) patch.childView = v.view;
     if (start.views === "choose" && previewsKids(v.view) && v.previewSide !== b.previewSide) patch.previewSide = v.previewSide;
-    if (start.views === "choose" && previewsKids(v.view) && v.previewSide === "none" && v.rowSize !== b.rowSize) patch.rowSize = v.rowSize;
+    if (start.views === "choose" && previewsKids(v.view) && v.rowSize !== b.rowSize) patch.rowSize = v.rowSize;
     const def = shapeDef(patch.shape ?? b.shape);
     if (def.fillToggle && v.fill !== b.fill) patch.fill = v.fill;
     if (def.borderToggle && v.border !== b.border) patch.border = v.border;
