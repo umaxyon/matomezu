@@ -207,6 +207,17 @@ func Open(s *State, path string, show bool, page string) (server.OpenResult, err
 	return res, err
 }
 
+// Ask は path の図を登録し、画面には郵便箱に入れて「届いています」と聞くよう知らせる（matomezu open。D26 の段階 3）
+func Ask(s *State, path string, page string) (server.OpenResult, error) {
+	var res server.OpenResult
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return res, err
+	}
+	err = call(s, "POST", "/api/open", map[string]any{"path": abs, "show": true, "page": page, "ask": true}, &res)
+	return res, err
+}
+
 // Close は path の図のタブを閉じるよう、サーバーにつながっている画面に知らせる（登録は残る）
 func Close(s *State, path string) (server.CloseResult, error) {
 	var res server.CloseResult

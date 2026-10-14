@@ -150,7 +150,7 @@ func open(args []string) error {
 		return err
 	}
 	// 画面がつながっていれば、そのタブの中で図を開く（サーバーは、少しあとにつながった画面にも知らせる）
-	res, err := daemon.Open(s, fs.Arg(0), true, *page)
+	res, err := daemon.Ask(s, fs.Arg(0), *page)
 	if err != nil {
 		return err
 	}

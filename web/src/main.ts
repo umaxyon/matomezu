@@ -38,18 +38,23 @@ function clearError() {
   closeError = null;
 }
 
-// サイドバー（追加削除の一覧）の出し入れ。ボタンで body の side-open を切り替え、変わったら知らせる
-export interface SideToggle { open(): boolean; onChange(fn: (open: boolean) => void): void }
-function setupSide(btn: HTMLButtonElement): SideToggle {
-  const listeners: ((open: boolean) => void)[] = [];
-  const open = () => document.body.classList.contains("side-open");
-  btn.addEventListener("click", () => {
-    const on = !open();
-    document.body.classList.toggle("side-open", on);
-    btn.setAttribute("aria-pressed", String(on));
-    for (const f of listeners) f(on);
-  });
-  return { open, onChange: fn => { listeners.push(fn); } };
+// サイドバーの出し入れ。追加削除の一覧（boxes）と郵便箱（mail）のどちらか 1 つを出す。同じボタンをもう一度押すと隠す。
+// body の side-open と data-side を切り替え、変わったら知らせる
+export type SideKind = "boxes" | "mail";
+export interface SideToggle { open(): SideKind | null; show(kind: SideKind | null): void; onChange(fn: (kind: SideKind | null) => void): void }
+function setupSide(buttons: Record<SideKind, HTMLButtonElement>): SideToggle {
+  const listeners: ((kind: SideKind | null) => void)[] = [];
+  let now: SideKind | null = null;
+  const show = (kind: SideKind | null) => {
+    if (kind === now) return;
+    now = kind;
+    document.body.classList.toggle("side-open", !!kind);
+    if (kind) document.body.dataset.side = kind; else delete document.body.dataset.side;
+    for (const [k, b] of Object.entries(buttons)) b.setAttribute("aria-pressed", String(k === kind));
+    for (const f of listeners) f(kind);
+  };
+  for (const [k, b] of Object.entries(buttons) as [SideKind, HTMLButtonElement][]) b.addEventListener("click", () => show(now === k ? null : k));
+  return { open: () => now, show, onChange: fn => { listeners.push(fn); } };
 }
 
 // 図の真ん中の案内（null で隠す）
@@ -74,7 +79,7 @@ async function main() {
   const redoBtn = $<HTMLButtonElement>("redo");
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
   setupMinimapToggle($<HTMLButtonElement>("minimap-toggle"));
-  const side = setupSide($<HTMLButtonElement>("side-toggle"));
+  const side = setupSide({ boxes: $<HTMLButtonElement>("side-toggle"), mail: $<HTMLButtonElement>("mail-toggle") });
   setupSettings($("settings"));
   const preview = setupPreview({
     toggle: $("preview-toggle"), zoomOut: $("zoom-out"), zoomIn: $("zoom-in"), fit: $("zoom-fit"), level: $("zoom-level"),
@@ -85,7 +90,7 @@ async function main() {
     stage.remove(); // 描画領域はタブごとに作る
     $("name").remove(); // 図の名前はブックのタブに出す
     startApp({
-      tabs: $("tabs"), master: $<HTMLButtonElement>("master"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side,
+      tabs: $("tabs"), master: $<HTMLButtonElement>("master"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side, mailbox: $("mailbox"), mailBadge: $("mail-badge"),
       undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
       notice: text => toast(text), error: showError, clearError, empty: showEmpty,
     });
@@ -122,7 +127,7 @@ async function main() {
 
   $("save").addEventListener("click", () => download(graph.toJSON(), fileName));
   $("book").addEventListener("click", () => openBookDialog(graph, fileName));
-  side.onChange(on => (on ? panel.shown() : panel.hidden()));
+  side.onChange(kind => (kind === "boxes" ? panel.shown() : panel.hidden()));
 
   $("open").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {

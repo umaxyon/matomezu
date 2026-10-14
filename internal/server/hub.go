@@ -13,7 +13,7 @@
 //	GET  /api/books      登録した図を最終更新の新しい順に返す（マスターの一覧。books.go）
 //	GET  /api/master     マスター用のファイルを登録して {"id"} を返す（books.go）
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
-//	POST /api/open       {"path", "show", "page"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
+//	POST /api/open       {"path", "show", "page", "ask"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
 //	                     show なら、つながっている画面にその図（page があればそのページ）を開くよう知らせる
 //	POST /api/close      {"path"} の図のタブを閉じるよう、つながっている画面に知らせ、{"id", "connections"} を返す … 要トークン
 //	                     登録は残す（あとで open すればすぐ開ける。登録は新しい方から storeLimit 件まで）。登録の無い図は誤り
@@ -24,7 +24,7 @@
 //	server   サーバーの版（文字列）。つないだときに送る。画面は読み込んだときの版と違えば読み直す
 //	hello    {"client"} この接続の id。画面は /api/watch で、開いている図をこの id で知らせる
 //	version  {"doc", "version"} 図のファイルの版が変わった。つないだときは登録済みの全部の図の分を送る
-//	open     {"doc", "page"} その図のページ（page が "" なら最初のページ）を開いて前に出す。つないだときも、少し前に頼まれていれば送る
+//	open     {"doc", "page", "ask"} その図のページ（page が "" なら最初のページ）を開いて前に出す（ask なら郵便箱に入れて聞く）。つないだときも、少し前に頼まれていれば送る
 //	close    {"doc"} その図のタブを閉じる（matomezu close）
 //	mail     {"doc"} その図の郵便箱が変わった（mail.go）
 //
@@ -255,6 +255,12 @@ type OpenResult struct {
 // Open は path の図を登録する。登録済みならそれを返す。ファイルが無ければ空の図で作る。
 // show なら、つながっている画面にその図を開くよう知らせる
 func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
+	return h.openDoc(path, show, page, false)
+}
+
+// openDoc は Open と同じ。ask なら、画面はすぐ切り替えず、郵便箱に入れて「届いています」と聞く（matomezu open。D26 の段階 3）。
+// ask でない show（check・set）は、配置の結果を返すために、すぐ前に出して配置させる
+func (h *Hub) openDoc(path string, show bool, page string, ask bool) (OpenResult, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return OpenResult{}, err
@@ -283,7 +289,11 @@ func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
 	h.mu.Lock()
 	h.idleSince = time.Now() // 開いた直後は、画面がつながるまで待つ
 	conns := len(h.clients)
-	opened := jsonString(map[string]string{"doc": d.id, "page": page})
+	msg := map[string]string{"doc": d.id, "page": page}
+	if ask {
+		msg["ask"] = "true"
+	}
+	opened := jsonString(msg)
 	if show {
 		h.shown, h.shownAt = opened, time.Now()
 	}
@@ -509,12 +519,13 @@ func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 		Path string `json:"path"`
 		Show bool   `json:"show"`
 		Page string `json:"page"`
+		Ask  bool   `json:"ask"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.Path == "" {
 		http.Error(w, "path required", http.StatusBadRequest)
 		return
 	}
-	res, err := h.Open(req.Path, req.Show, req.Page)
+	res, err := h.openDoc(req.Path, req.Show, req.Page, req.Ask)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

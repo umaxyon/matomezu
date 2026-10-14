@@ -33,6 +33,17 @@ test.afterAll(() => {
 const tabNames = (page: import("@playwright/test").Page) => page.locator(".tab .tab-name");
 const selected = (page: import("@playwright/test").Page) => page.locator('.tab[aria-selected="true"] .tab-name');
 const visibleTabs = (page: import("@playwright/test").Page) => page.locator(".tab .tab-name:visible");
+// LLM の matomezu open（-page も）。ほかを見ているときは「届いています」のダイアログが出るので、開くを押す（D26 の段階 3）。
+// 今見ているページなら何も出ないので、少し待って次へ進む
+async function arrive(page: import("@playwright/test").Page, file: string, pageId?: string) {
+  const out = run("open", "-no-browser", ...(pageId ? ["-page", pageId] : []), file);
+  const ok = page.locator(".mz-dlg [data-ok]");
+  try {
+    await ok.waitFor({ timeout: 3000 });
+    await ok.click();
+  } catch { /* ダイアログが出ない（今見ているページ、または何も見ていない） */ }
+  return out;
+}
 // マスターを開いて、その名前の窓を押す（タブは今のブックだけなので、ほかのブックへはマスターから移る。D26）
 async function switchTo(page: import("@playwright/test").Page, name: string) {
   await page.locator("#master").click();
@@ -46,7 +57,7 @@ test("別の図を open すると前に出る。タブは今のブックだけ�
   await expect(visibleTabs(page)).toHaveText(["a.json"]);
   await expect(page.locator(".stage:visible .mz-node")).toHaveCount(9);
 
-  const out = run("open", "-no-browser", "b.json");
+  const out = await arrive(page, "b.json");
   await expect(selected(page)).toHaveText("b.json");
   await expect(visibleTabs(page)).toHaveText(["b.json"]); // タブは今のブックだけ（D26）
   await expect(page.locator(".stage:visible")).toHaveCount(1);
@@ -81,7 +92,7 @@ test("マスター: 登録した図の窓が並び（作った人で分ける）
 test("プレビューの間は、道具と道具箱、ページを足す＋と閉じる × が隠れる。戻ると元に戻る（D26）", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
-  run("open", "-no-browser", "b.json");
+  await arrive(page, "b.json");
   await expect(selected(page)).toHaveText("b.json");
   await expect(page.locator(".stage:visible .mz-toolbox")).toBeVisible();
   await page.locator("#preview-toggle").click();
@@ -93,6 +104,50 @@ test("プレビューの間は、道具と道具箱、ページを足す＋と�
   await expect(page.locator(".stage:visible .mz-toolbox")).toBeVisible();
   await expect(page.locator(".tab-close:visible")).toHaveCount(1);
   await page.locator(".tab", { hasText: "b.json" }).locator(".tab-close").click();
+});
+
+test("郵便箱: LLM の open は今のブックの郵便箱に入り、「届いています」と聞く。キャンセルしても残り、未読の数が出て、郵便箱から開ける（D26）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  run("open", "-no-browser", "b.json");
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg.locator("h2")).toHaveText("ブックが届きました");
+  await expect(dlg).toContainText("b.json");
+  await dlg.locator("[data-cancel]").click();
+  await expect(selected(page)).toHaveText("a.json"); // 切り替えない
+  await expect(page.locator("#mail-badge")).toHaveText("1");
+  await page.locator("#mail-toggle").click();
+  const box = page.locator("#mailbox");
+  await expect(box.locator(".mz-mail-row")).toHaveCount(1);
+  await expect(page.locator("#mail-badge")).toHaveText(""); // 開いたら読んだことにする
+  await box.locator(".mz-mail-row", { hasText: "b.json" }).click();
+  await dlg.locator("[data-ok]").click();
+  await expect(selected(page)).toHaveText("b.json");
+  await switchTo(page, "a.json"); // 郵便箱は出したまま、前に出したブックの郵便箱を見せる
+  await expect(page.locator("#mail-toggle")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#mailbox .mz-mail-row")).toHaveCount(0); // 開いたら郵便箱から取り除く
+  await page.locator("#mail-toggle").click();
+});
+
+test("郵便箱に届いた箱は、ブックを開いたときに知らせ、図へドラッグすると写して郵便箱から取り除く（D26）", async ({ page }) => {
+  const url = run("open", "-no-browser", "b.json").trim();
+  const doc = new URL(url).searchParams.get("d")!;
+  const copy = { root: "4", pattern: "nest", nodes: [{ id: 4, caption: "届いた箱" }, { id: 5, caption: "その子", parent: 4 }], edges: [] };
+  const res = await fetch(new URL(`d/${doc}/api/mail`, url), {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "box", from: "ほかのブック", pattern: "nest", caption: "4_届いた箱", copy }),
+  });
+  expect(res.ok).toBe(true);
+  await page.goto(url);
+  await expect(page.locator(".mz-toast", { hasText: "郵便箱にアイテムが届いています（1 件）" })).toBeVisible();
+  await expect(page.locator("#mail-badge")).toHaveText("1");
+  await page.locator("#mail-toggle").click();
+  const before = JSON.parse(readFileSync(join(dir, "b.json"), "utf8")).nodes.length;
+  await page.locator("#mailbox .mz-mail-row", { hasText: "4_届いた箱" }).dragTo(page.locator(".stage:visible"), { targetPosition: { x: 400, y: 400 } });
+  await expect.poll(() => JSON.parse(readFileSync(join(dir, "b.json"), "utf8")).nodes.length).toBe(before + 2);
+  await expect(page.locator("#mailbox .mz-mail-row")).toHaveCount(0);
+  await page.locator("#mail-toggle").click();
+  writeFileSync(join(dir, "b.json"), JSON.stringify(example("three-levels")));
 });
 
 test("リンクの箱の窓を押すと、そのページのタブが前に出る。持ち手でドラッグすると箱が動く（link-box.ts）", async ({ page }) => {
@@ -124,7 +179,7 @@ test("リンクの箱の窓を押すと、そのページのタブが前に出�
 test("matomezu close で、画面のタブが閉じる（タブの × と同じ。読み直しても戻らず、open すればまた開ける）", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
-  run("open", "-no-browser", "b.json");
+  await arrive(page, "b.json");
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
   expect(run("close", "b.json")).toContain("closed b.json");
   await expect(tabNames(page)).toHaveText(["a.json"]);
@@ -132,7 +187,7 @@ test("matomezu close で、画面のタブが閉じる（タブの × と同じ�
   await page.reload();
   await expect(tabNames(page)).toHaveText(["a.json"]);
   // 登録は残るので、open すればまた開ける。登録の無い図は誤り
-  run("open", "-no-browser", "b.json");
+  await arrive(page, "b.json");
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
   expect(() => run("close", "nothing.json")).toThrow(/not registered/);
 });
@@ -140,7 +195,7 @@ test("matomezu close で、画面のタブが閉じる（タブの × と同じ�
 test("見ていないタブの図を set すると、そのタブが前に出て配置の要約が返る", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
-  run("open", "-no-browser", "b.json");
+  await arrive(page, "b.json");
   await switchTo(page, "a.json");
   await expect(selected(page)).toHaveText("a.json");
 
@@ -153,7 +208,7 @@ test("見ていないタブの図を set すると、そのタブが前に出て
 test("開いていたタブは、読み直しても残る", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
-  run("open", "-no-browser", "b.json");
+  await arrive(page, "b.json");
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
   await page.reload();
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
@@ -163,7 +218,7 @@ test("開いていたタブは、読み直しても残る", async ({ page }) => 
 test("サーバーを止めて別の図だけ open し直しても、前に開いていたタブは残る（登録した図はサーバーが覚えている）", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
-  run("open", "-no-browser", "b.json");
+  await arrive(page, "b.json");
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
   run("stop");
   run("open", "-no-browser", "a.json"); // 新しいサーバーは a だけを頼まれる
@@ -176,7 +231,7 @@ test("読み直したあと一度も前に出していないタブの図が外�
   writeFileSync(join(dir, "c.json"), JSON.stringify({ nodes: [{ id: 1, caption: "前の内容", x: 40, y: 40 }] }));
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
-  run("open", "-no-browser", "c.json");
+  await arrive(page, "c.json");
   await switchTo(page, "a.json");
   await page.waitForTimeout(5500); // open の知らせを送り直す時間（hub.go の showReplay）を過ぎてから読み直す
   await page.reload(); // c は読み直したあと一度も前に出ていない（最初のデータを持ったまま待つ）
@@ -210,7 +265,7 @@ test("ブックを開くと全部のページのタブが並ぶ。ページの�
   expect(await visibleIds(page)).toEqual(["1", "2"]);
   await expect(group.locator(".tab", { hasText: "詳細" }).locator(".tab-close")).toHaveCount(0);
 
-  run("open", "-no-browser", "-page", "p1", "p.json");
+  await arrive(page, "p.json", "p1");
   await expect(selected(page)).toHaveText("詳細");
   expect(await visibleIds(page)).toEqual(["3", "4"]);
   expect(page.url()).toContain("p=p1");
@@ -237,7 +292,7 @@ test("check -page はそのページのタブを前に出して要約を返し�
 test("付け替えのドラッグでタブの上に少し止めるとページが切り替わり、落としたページへ移る", async ({ page }) => {
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   await page.goto(run("open", "-no-browser", "p.json").trim());
-  run("open", "-no-browser", "-page", "p1", "p.json");
+  await arrive(page, "p.json", "p1");
   await expect(selected(page)).toHaveText("詳細");
   await page.locator("#mode-reparent").click();
 
@@ -283,7 +338,7 @@ test("他ブックも表示で、ほかのブックの箱を図へドラッグ�
   writeFileSync(join(dir, "a.json"), JSON.stringify({ ...example("nested"), world: { title: "入れ子の例" } }));
   const before = readFileSync(join(dir, "a.json"), "utf8");
   await page.goto(run("open", "-no-browser", "a.json").trim());
-  run("open", "-no-browser", "p.json");
+  await arrive(page, "p.json");
   await expect(selected(page)).toHaveText("p.json");
   const side = page.locator(".side-pane:visible");
   await openSide(page);
@@ -322,7 +377,7 @@ test("図の題名（world.title）があればタブの見出しに出し、ポ
   await expect.poll(() => JSON.parse(readFileSync(join(dir, "c.json"), "utf8")).world?.title).toBe("新しい題名");
   await rename("");
   await expect(tab.locator(".tab-name")).toHaveText("c.json");
-  run("open", "-no-browser", "c.json");
+  await arrive(page, "c.json");
   await tab.locator(".tab-close").click();
 });
 

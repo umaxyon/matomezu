@@ -6,6 +6,7 @@
  * - version: 図のファイルの版が変わった。
  * - open: その図（のページ）を開いて前に出すよう頼まれた（matomezu open / check / set）。
  * - close: その図のタブを閉じるよう頼まれた（matomezu close）。タブの × と同じに閉じる。
+ * - mail: その図の郵便箱が変わった（届いた・読んだ・取り除いた。D26 の段階 3）。
  * - 接続が切れても、つなぎ直しを続ける（入れ替わったサーバーが同じアドレスで起動するのを待つ）。
  */
 
@@ -13,8 +14,9 @@ import { t } from "./i18n";
 
 export interface EventHandlers {
   version(doc: string, version: string): void;
-  open(doc: string, page: string | null): void;
+  open(doc: string, page: string | null, ask: boolean): void; // ask は matomezu open（すぐ切り替えず、郵便箱に入れて聞く。D26 の段階 3）
   close?(doc: string): void;
+  mail?(doc: string): void;
   status(text: string): void;
   watched?(): string[]; // 開いている図の id
 }
@@ -81,11 +83,15 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
     });
     es.addEventListener("open", e => {
       const v = parse(e);
-      if (v && typeof v.doc === "string") h.open(v.doc, typeof v.page === "string" && v.page ? v.page : null);
+      if (v && typeof v.doc === "string") h.open(v.doc, typeof v.page === "string" && v.page ? v.page : null, v.ask === "true");
     });
     es.addEventListener("close", e => {
       const v = parse(e);
       if (v && typeof v.doc === "string") h.close?.(v.doc);
+    });
+    es.addEventListener("mail", e => {
+      const v = parse(e);
+      if (v && typeof v.doc === "string") h.mail?.(v.doc);
     });
     es.addEventListener("error", () => {
       h.status(t("再接続中…"));

@@ -16,6 +16,9 @@
  *   開くたびに、登録した図の並び（/api/books）から中身を作り直す（「ユーザー」「AI」の箱に新しい 10 件の窓、残りは「その他のブック」）。
  *   窓の縮図は、見えている窓のブックだけ取りに行く。窓を押すとそのブックへ移る。新しい図・設定はマスターの道具箱から。
  * - タブは今のブックだけを見せる（ほかに開いているブックは、マスターから移る）。
+ * - 郵便箱（mailbox.ts。D26 の段階 3）: 前に出ているブックの郵便箱を、タブ行のボタン（未読の数）とサイドバーで見せる。
+ *   ブックを開いたとき（開閉の知らせ onBookOpen）に未読があればトーストで知らせる。matomezu open（ask）は、すぐ切り替えずに
+ *   今のブックの郵便箱に入れ、「届いています」のダイアログを出す（今見ているページなら何もしない。check・set はすぐ前に出す）。
  */
 
 import { keyOf } from "./dom";
@@ -41,12 +44,15 @@ import { toast } from "./toast";
 import type { Diagram as DiagramData, PagePattern } from "./types";
 import { isPattern } from "./validate";
 import type { SideToggle } from "./main";
+import { type MailBook, createMailbox, badgeText, fetchMail, openArrivedDialog, removeMail, sendMail } from "./mailbox";
 
 export interface AppUi {
   tabs: HTMLElement;
   master: HTMLButtonElement;  // タブ行の左端の「マスター」（ブックの一覧。D26 の段階 2）
   book: HTMLButtonElement;    // タブ行の左の「ブック」（前に出ているブックのダイアログ。book-dialog.ts）
-  side: SideToggle;           // サイドバー（追加削除の一覧）の出し入れ。出ていれば、前に出ているブックの一覧を見せる
+  side: SideToggle;           // サイドバー（追加削除の一覧か郵便箱）の出し入れ。一覧なら、前に出ているブックの一覧を見せる
+  mailbox: HTMLElement;       // サイドバーの郵便箱（mailbox.ts。D26 の段階 3）
+  mailBadge: HTMLElement;     // タブ行の郵便箱のボタンの未読の数
   canvas: HTMLElement;
   sidebar: HTMLElement;
   undo: HTMLButtonElement;
@@ -136,6 +142,30 @@ export async function startApp(ui: AppUi) {
     if (!tab || (current?.book === b && current.page === tab.page)) return;
     tab.button.classList.add("tab-drop");
     hover = { tab, timer: setTimeout(() => { const t = hover?.tab; endHover(); if (t) activate(b, t.page); }, HOVER_SWITCH) };
+  }
+
+  // ブックの開閉の知らせ（前に出した・閉じた。D26 の段階 3）。郵便箱の知らせがこれに登録する
+  const bookOpened: ((b: Book) => void)[] = [], bookClosed: ((b: Book) => void)[] = [];
+  const onBookOpen = (f: (b: Book) => void) => { bookOpened.push(f); };
+  const onBookClose = (f: (b: Book) => void) => { bookClosed.push(f); };
+
+  // 郵便箱。前に出したブックの郵便箱を読み、未読の数をボタンに出す。開いた直後に未読があればトーストで知らせる
+  let noticeFor: string | null = null;
+  const mailbox = createMailbox(ui.mailbox, {
+    openBook: item => openFromMail(item),
+    visible: () => ui.side.open() === "mail",
+    onCount: n => {
+      ui.mailBadge.textContent = badgeText(n);
+      if (noticeFor && noticeFor === mailbox.doc() && n > 0 && ui.side.open() !== "mail") toast(t("郵便箱にアイテムが届いています（{n} 件）", { n }));
+      noticeFor = null;
+    },
+  });
+  onBookOpen(b => { noticeFor = b.id; mailbox.show(b.id); });
+  onBookClose(b => { if (mailbox.doc() === b.id) mailbox.show(null); });
+  async function openFromMail(item: MailBook) {
+    const b = await openBook(item.book);
+    if (b) activate(b, item.page);
+    else ui.error(t("そのブックを開けませんでした"));
   }
 
   const pagesOf = (b: Book) => (b.loaded ? b.graph.pages() : pagesInData(b.data));
@@ -298,7 +328,8 @@ export async function startApp(ui: AppUi) {
         x.side.hidden = !on;
         if (!on) { x.sync.setActive(false); x.panel.hidden(); }
       }
-      if (ui.side.open()) b.panel.shown();
+      if (ui.side.open() === "boxes") b.panel.shown();
+      for (const f of bookOpened) f(b);
       // 見えるようにしてから前に出す（配置は見えている要素で文字を測る）
       b.sync.setActive(true);
       b.loaded = true;
@@ -339,6 +370,7 @@ export async function startApp(ui: AppUi) {
     const i = books.indexOf(b);
     if (i < 0) return;
     books.splice(i, 1);
+    for (const f of bookClosed) f(b);
     b.sync.close();
     b.minimap.destroy();
     b.panel.destroy();
@@ -404,7 +436,11 @@ export async function startApp(ui: AppUi) {
       const { graph, panel, minimap } = mountDiagram(stage, side, { nodes: [] }, {
         onChange: data => { book?.sync.changed(data); if (book) { refreshPages(book); othersChanged(book); } },
         onHistory: () => { if (book && current?.book === book) refreshButtons(book); },
-        onEvent: ev => { if (book && current?.book === book) handleGraphEvent(book.graph, ev); },
+        onEvent: ev => {
+          if (!book || current?.book !== book) return;
+          handleGraphEvent(book.graph, ev);
+          if (ev.kind === "pasted") mailbox.pasted(); // 郵便箱から運んだ箱を置けた
+        },
         onBuild: () => { if (book) { refreshPages(book); othersChanged(book); } },
         onLiftOver: (x, y) => { if (book) liftOver(book, x, y); },
         onLiftEnd: endHover,
@@ -447,7 +483,10 @@ export async function startApp(ui: AppUi) {
   }
 
   ui.book.addEventListener("click", () => { if (current) openBookDialog(current.book.graph, current.book.name); });
-  ui.side.onChange(on => { if (current) (on ? current.book.panel.shown() : current.book.panel.hidden()); });
+  ui.side.onChange(kind => {
+    if (current) (kind === "boxes" ? current.book.panel.shown() : current.book.panel.hidden());
+    if (kind === "mail") mailbox.refresh(); // 開いたら読んだことにする
+  });
 
   // ---- マスター（D26 の段階 2） ----
 
@@ -552,10 +591,24 @@ export async function startApp(ui: AppUi) {
         });
       }
     },
-    async open(doc, page) {
+    async open(doc, page, ask) {
       const b = await openBook(doc);
-      if (b) activate(b, page);
+      if (!b) return;
+      // matomezu open（ask）: 今見ているページなら何もしない。ほかを見ていれば、今のブックの郵便箱に入れて「届いています」と聞く
+      // （LLM は画面で今どれを見ているか分からないので、郵便箱だけでは伝わらない。2026-10-14 ユーザー）。何も見ていなければすぐ出す
+      if (!ask || !current) return activate(b, page);
+      if (current.book === b && current.page === page) return;
+      const item: MailBook = { kind: "book", book: doc, page, name: titleOf(b) + (page ? ` / ${b.tabs.find(x => x.page === page)?.label.textContent ?? page}` : "") };
+      const into = current.book.id;
+      if (!(await sendMail(into, item))) return activate(b, page); // 郵便箱が使えなければ（状態のフォルダが無い）、すぐ出す
+      openArrivedDialog(item, async () => {
+        // 開いたら、届けた行を郵便箱から取り除く（キャンセルなら郵便箱に残る）
+        const sent = (await fetchMail(into)).filter(m => m.body.kind === "book" && m.body.book === doc && m.body.page === page).pop();
+        if (sent) void removeMail(into, sent.id);
+        activate(b, page);
+      });
     },
+    mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
     close(doc) {
       const b = books.find(x => x.id === doc);
