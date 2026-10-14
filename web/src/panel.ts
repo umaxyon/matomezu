@@ -16,35 +16,29 @@ import { injectStyle } from "./dom";
 import type { Graph } from "./graph";
 import { setupHelp } from "./help";
 import { t } from "./i18n";
-import { createListTab, type OtherBook } from "./panel-list";
+import { createListTab } from "./panel-list";
 import { PANEL_CSS, STYLE_ID } from "./panel-style";
 
-export type { Fold, OtherBook } from "./panel-list";
+export type { Fold } from "./panel-list";
 
 export interface Panel {
   shown(): void;  // サイドバーを出した（一覧が古ければ作り直す）
   hidden(): void; // サイドバーを隠した
-  othersChanged(): void; // ほかのブックが変わった（「他ブックも表示」なら一覧を古いとし、見えていればすぐ作り直す）
   destroy(): void; // 吹き出しなど、サイドバーの外に作ったものを片付け、図の知らせから外れる
 }
 
-export interface PanelOptions {
-  otherBooks?: () => OtherBook[]; // ほかのブック（サーバーから開いたときだけ。無ければ「他ブックも表示」を出さない）
-}
-
-export function createPanel(el: HTMLElement, graph: Graph, o: PanelOptions = {}): Panel {
+export function createPanel(el: HTMLElement, graph: Graph): Panel {
   injectStyle(STYLE_ID, PANEL_CSS);
   el.classList.add("mzp");
   const offHelp = setupHelp(el); // 見出しなどの「?」の吹き出し
   el.innerHTML = `<div class="mzp-tabs"><span class="mzp-tab" aria-selected="true">${t("追加削除")}</span></div>
     <div class="mzp-pane" data-pane="list"></div>`;
   const head = el.querySelector<HTMLElement>(".mzp-tabs")!;
-  const list = createListTab(el.querySelector<HTMLElement>('[data-pane="list"]')!, graph, o.otherBooks);
+  const list = createListTab(el.querySelector<HTMLElement>('[data-pane="list"]')!, graph);
   return {
     // 一覧の検索欄は見出しのすぐ下に貼り付ける（見出しの高さは文字の大きさで変わるので測る）
     shown: () => list.shown(head.offsetHeight),
     hidden: list.hidden,
-    othersChanged: list.othersChanged,
     destroy() { list.destroy(); offHelp(); closeColorPicker(); closeEditDialog(); },
   };
 }

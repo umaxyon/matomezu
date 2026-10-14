@@ -4,7 +4,7 @@
 import { createGraph, type Graph, type GraphOptions } from "./graph";
 import { createMinimap, type Minimap } from "./minimap";
 import { openAddDialog, openEdgeEditDialog, openEditDialog } from "./edit-dialog";
-import { createPanel, type Panel, type PanelOptions } from "./panel";
+import { createPanel, type Panel } from "./panel";
 import { createToolbox, type Tool } from "./toolbox";
 import type { Info, Shape, Size, ToolKey } from "./types";
 import { SHAPE_LABELS, isShape } from "./validate";
@@ -22,7 +22,7 @@ const OTHER_TOOLS: Record<Exclude<ToolKey, Shape>, { label: string; icon: string
   crossMove: { label: t("追加削除: ブックごとの箱の一覧を左に出す。窓へドラッグすると、そのブックの郵便箱へ送る"), icon: '<path d="M3 7h18"/><path d="M5 7l1.5 13h11L19 7"/><path d="M12 11v6M9 14h6"/>' },
   settings: { label: t("設定"), icon: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>' },
 };
-export interface ViewOptions extends PanelOptions {
+export interface ViewOptions {
   onCommand?: (key: ToolCommand) => void; // マスターの道具（ブック追加・追加削除・設定）を押した
 }
 
@@ -66,7 +66,7 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
     }
     showTools(graph.info(graph.selected())); // 追加モードのまま別の道具に替えたとき（モードの知らせは来ない）
   });
-  panel = createPanel(sidebar, graph, panelOptions);
+  panel = createPanel(sidebar, graph);
   graph.onDataChange(() => showTools(graph.info(graph.selected())));
   graph.onModeChange(m => { if (m !== "add") picked = null; showTools(graph.info(graph.selected())); });
   // ▼ を押すと子を見せる戦略（マスターの「その他のブック」。STRATEGIES の openMore）なら、非表示の箱を内包にする

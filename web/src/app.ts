@@ -8,10 +8,10 @@
  *   ページが増えればタブも増え、無くなれば消える。
  * - 見ていないブックは隠しておき、外部の変更は前に出たときに反映する（隠れた要素では文字の幅が測れないため）。
  * - ツールバー（Undo/Redo、モード）は、前に出ているブックの図に付け替える。
- * - サーバーの通知は events.ts の 1 本で受け、ブックごとに配る。matomezu open などで頼まれたページは、タブを開いて前に出す。
+ * - サーバーの通知は events.ts の 1 本で受け、ブックごとに配る。check・set で頼まれたページは、タブを開いて前に出す（matomezu open は郵便箱。下）。
  * - 表示中のページは URL（?d=<ブックの id>&p=<ページの箱の id>）に、開いているブックは localStorage に覚える（無くても動く。app-location.ts）。
  * - 付け替えのドラッグで、箱を同じブックのページのタブの上に少し止めると、そのページに切り替わる（そのまま落とすと、そのページへ移る）。
- * - サイドバーの一覧の「他ブックも表示」には、ほかに開いているブックの箱を出す（行を図へドラッグすると移植。docs/TABS-plan.md 4.3）。
+ * - ブックをまたいで箱を持ち込むのは、マスターの追加削除（cross-list.ts。行を窓へ落とすと、そのブックの郵便箱へ写しを送る。D26 の段階 4）。
  * - マスターページ（D26 の段階 2。docs/UI-plan.md）: タブ行の左端のボタンで開く。サーバーの状態のフォルダの master.json を 1 冊のブックとして開き、
  *   開くたびに、登録した図の並び（/api/books）から中身を作り直す（「ユーザー」「AI」の箱に新しい 10 件の窓、残りは「その他のブック」）。
  *   窓の縮図は、見えている窓のブックだけ取りに行く。窓を押すとそのブックへ移る。新しい図・設定はマスターの道具箱から。
@@ -104,7 +104,6 @@ const MASTER_COLS = 2, WIN_W = 212, WIN_H = 150, GROUP_PAD = 12, GROUP_HEAD = 30
 const MADE_BY_COLOR = { user: "#3b82f6", ai: "#f59e0b" };
 
 const HOVER_SWITCH = 500; // 付け替えのドラッグで、タブの上にこれだけ止めたらページを切り替える（ミリ秒）
-const BOOK_DRAG_START = 5; // ブックのタブをこれだけ横に動かしたら、並びの入れ替えのドラッグにする（px。それまではクリック）
 const EMPTY_HINT = t("開いている図がありません。左上のマスターから新しい図を作るか、LLM に matomezu open で開くよう頼んでください");
 // ブックの色の印（タブグループの左端）
 const BOOK_COLORS = ["#8b6cf0", "#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
@@ -214,38 +213,8 @@ export async function startApp(ui: AppUi) {
       x.textContent = "×";
       x.addEventListener("click", e => { e.stopPropagation(); closeBook(b); });
       button.append(x);
-      button.addEventListener("pointerdown", e => dragBook(b, e));
     }
     return tab;
-  }
-
-  // ブックのタブ（先頭のタブ）をドラッグして、ブックの並びを入れ替える。ページのタブの順番は変えない（2026-10-11 ユーザー）。
-  // 動かしている間、ポインタがほかのブックの真ん中を越えたらその前後へ移し、離したら並びを覚える
-  function dragBook(b: Book, e: PointerEvent) {
-    if (e.button !== 0 || (e.target instanceof Element && e.target.closest(".tab-close"))) return;
-    const startX = e.clientX;
-    let moved = false;
-    const move = (ev: PointerEvent) => {
-      if (!moved && Math.abs(ev.clientX - startX) < BOOK_DRAG_START) return;
-      if (!moved) { moved = true; b.group.classList.add("tab-group-dragging"); }
-      const others = books.filter(x => x !== b);
-      let i = others.findIndex(x => { const r = x.group.getBoundingClientRect(); return ev.clientX < r.left + r.width / 2; });
-      if (i < 0) i = others.length;
-      const before = others[i]?.group ?? null;
-      if (b.group.nextElementSibling !== before) ui.tabs.insertBefore(b.group, before);
-      books.splice(0, books.length, ...others.slice(0, i), b, ...others.slice(i));
-    };
-    const end = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", end);
-      window.removeEventListener("pointercancel", end);
-      if (!moved) return;
-      b.group.classList.remove("tab-group-dragging");
-      remember();
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", end);
-    window.addEventListener("pointercancel", end);
   }
 
   // ページのタブを開く（無ければ作る）。ブックに無いページなら null

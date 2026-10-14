@@ -18,7 +18,7 @@ const ALLOWED: Record<string, number> = {
   "panel.ts": 2,                 // サイドバーのタブの名前 "list"（戦略とは関係が無い）
   "validate.ts": 4,              // ページのパターンの検査（フローチャートの箱は子を持たない、ツリーは根の子孫だけ、根の有無、箱に tree を書いたときの直し方。DOM なしの CLI でも動かすので、表を読まない）
 };
-const COMPARE = /[!=]==\s*"(nest|tree|list|hidden|flow)"/g;
+const COMPARE = /[!=]==\s*"(nest|tree|list|hidden|flow|master)"/g;
 
 // 形の決まりは形の表（shapes.ts の SHAPE_DEFS）から引く。形の名前を直接比べてよいのは、クラスの行の操作と編集（属性・操作の編集、
 // クラスにする・やめるときの確かめ、行に線をつなぐ）だけ。ファイルごとの数は今の数が上限（増やすなら理由をここに書く）

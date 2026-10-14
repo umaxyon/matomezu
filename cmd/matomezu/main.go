@@ -28,6 +28,7 @@ const reconnectWait = 4 * time.Second
 
 const usageText = `usage:
   matomezu open [-no-browser] [-page id] <file.json>   show the diagram (or the page with that id) in the browser (starts the background server)
+                                             if the user is looking at another diagram, it goes to their mailbox and they are asked whether to open it
   matomezu serve [-addr host:port] <file.json>   run a server in the foreground for one diagram
   matomezu check [-page id] [-in ids] <file.json>   print a summary of how the open browser laid it out (the first page, or the page with that id)
                                              -in 2,5 also lists the children of boxes 2 and 5 (position relative to the box, and size)
@@ -38,7 +39,7 @@ const usageText = `usage:
                                              world.key=value changes the diagram's world, or with -page that page's world (its childView is the page pattern)
                                              12.page=p2 moves a top-level box to page p2, but never to a page of a different pattern
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
-  matomezu close <file.json>...              close the tabs of these diagrams in the browser (they stay registered; open shows them again)
+  matomezu close <file.json>...              close these diagrams in the browser (they stay registered and listed on the master page; open shows them again)
   matomezu stop                              stop the background server
   matomezu version
 `
