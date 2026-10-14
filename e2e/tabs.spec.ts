@@ -53,6 +53,23 @@ test("別の図を open するとアプリ内のタブが増え、前に出る�
   await expect(tabNames(page)).toHaveText(["a.json"]);
 });
 
+test("プレビューの間は、タブは今のブックのページだけになり、道具と道具箱が隠れる。戻ると元に戻る（D26）", async ({ page }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  run("open", "-no-browser", "b.json");
+  await expect(tabNames(page)).toHaveText(["a.json", "b.json"]);
+  await expect(page.locator(".stage:visible .mz-toolbox")).toBeVisible();
+  await page.locator("#preview-toggle").click();
+  await expect(page.locator(".tab-name:visible")).toHaveText(["b.json"]);
+  await expect(page.locator(".toolbar")).toBeHidden();
+  await expect(page.locator(".mz-toolbox:visible")).toHaveCount(0);
+  await expect(page.locator("#new-book")).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".tab-name:visible")).toHaveText(["a.json", "b.json"]);
+  await expect(page.locator(".stage:visible .mz-toolbox")).toBeVisible();
+  await page.locator(".tab", { hasText: "b.json" }).locator(".tab-close").click();
+});
+
 test("リンクの箱の窓を押すと、そのページのタブが前に出る。持ち手でドラッグすると箱が動く（link-box.ts）", async ({ page }) => {
   writeFileSync(join(dir, "link.json"), JSON.stringify({
     pages: [{ id: "p1", title: "流れ", world: { childView: "flow" } }],

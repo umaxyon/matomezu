@@ -67,7 +67,10 @@
   .zoom { display: none; align-items: center; gap: 2px; }
   body.previewing .zoom { display: flex; }
   .zoom-level { min-width: 3.5em; text-align: center; font-size: 12px; color: var(--hint); }
-  body.previewing #sidebar, body.previewing .toolbar, body.previewing #minimap-toggle, body.previewing .mz-minimap { display: none; }
+  body.previewing #sidebar, body.previewing .toolbar, body.previewing #minimap-toggle, body.previewing .mz-minimap,
+  body.previewing .mz-toolbox { display: none; }
+  /* プレビューのタブは今のブックのページだけ（ほかのブック、新しい図・ページを足す＋、閉じる × は隠す。D26） */
+  body.previewing .tab-group:not(.tab-group-current), body.previewing .tab-new, body.previewing .tab-add, body.previewing .tab-close { display: none; }
   /* タブの列。左端の「＋」（新しい図。new-book.ts）は、タブを横にスクロールしても動かない */
   .tab-new {
     flex: none; align-self: stretch; margin: 4px 0 0 6px; padding: 0 10px; border: 0; border-radius: 6px 6px 0 0;

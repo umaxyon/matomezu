@@ -144,6 +144,7 @@ export async function startApp(ui: AppUi) {
 
   function markSelected() {
     for (const b of books) {
+      b.group.classList.toggle("tab-group-current", current?.book === b); // プレビューでは、今のブックのタブだけを見せる（index.html）
       for (const t of b.tabs) {
         t.button.setAttribute("aria-selected", String(current?.book === b && current.page === t.page));
       }
