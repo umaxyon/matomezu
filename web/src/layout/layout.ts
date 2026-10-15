@@ -46,6 +46,9 @@ export interface LayoutContext {
   worldEl: HTMLElement;
   container: HTMLElement;
   canvas?: HTMLElement; // スクロールできる広さを決める見えない入れ物（ワールド×倍率＋周りの余白。D32）
+  // ワールドの固定の大きさ（null の向きは、表示領域と中身に合わせて決める）。大きさの決まりはここ 1 か所から受け取る
+  // （今はデータの world.width / height。D33 で紙の型の大きさに差し替える。docs/PAPER-plan.md）。無ければ固定しない
+  worldFixed?(): { w: number | null; h: number | null };
   measurer: TextMeasurer;
   roots(): Box[];
   edges(): Edge[];
@@ -82,8 +85,10 @@ export function createLayout(ctx: LayoutContext) {
 
   // 大きさが固定されている方向。子を持つ箱はつねに子に合わせて伸びるので、固定されるのはワールドだけ（docs/SIZE-plan.md）。
   // ワールドは幅を固定し、高さは指定が無ければ下へ伸ばせる（横スクロールより縦スクロールの方が見やすい）
+  // 固定の大きさを決める口（LayoutContext.worldFixed）
+  const worldFixed = () => ctx.worldFixed?.() ?? { w: null, h: null };
   function fixedSize(c: Container): { w: number | null; h: number | null } {
-    if (c.isWorld) return { w: world.w, h: world.src.height ? world.h : null };
+    if (c.isWorld) return { w: world.w, h: worldFixed().h != null ? world.h : null };
     return { w: null, h: null };
   }
 
@@ -119,7 +124,6 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   function syncWorld() {
-    const s = world.src;
     let right = 0, bottom = 0;
     for (const n of roots()) {
       if (!n.hasPos || !n.w) continue;
@@ -127,8 +131,9 @@ export function createLayout(ctx: LayoutContext) {
       bottom = Math.max(bottom, n.y + n.h + opt.padding);
     }
     const v = viewport();
-    world.w = Number(s.width) || Math.max(v.w, right, held?.w ?? 0);
-    world.h = Number(s.height) || Math.max(v.h, bottom, held?.h ?? 0);
+    const f = worldFixed();
+    world.w = f.w ?? Math.max(v.w, right, held?.w ?? 0);
+    world.h = f.h ?? Math.max(v.h, bottom, held?.h ?? 0);
     if (held) held = { w: world.w, h: world.h };
     worldEl.style.width = world.w + "px";
     worldEl.style.height = world.h + "px";
@@ -464,7 +469,7 @@ export function createLayout(ctx: LayoutContext) {
   // （左から始まる大きなボックスが少しはみ出しただけなら、動かすと全体の並びが崩れる）
   function fitToViewport() {
     const limit = viewport().w - opt.padding;
-    if (world.src.width || limit <= 0) return;
+    if (worldFixed().w != null || limit <= 0) return;
     const inside = (n: Box) => n.x + n.w <= limit;
     const centerOffset = (n: Box) => { const r = anchorRect(n); return r.x + r.w / 2; };
     const over = roots()

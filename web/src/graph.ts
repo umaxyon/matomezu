@@ -423,8 +423,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // プレビューの倍率（null は編集中）と、今ワールドにかけている倍率
   let preview: number | null = null;
   let applied = 1;
+  // ワールドの固定の大きさ（null の向きは表示領域と中身に合わせる）。今はデータの world.width / height（D33 で紙の型の大きさにする）
+  const worldFixed = () => ({ w: Number(world.src.width) || null, h: Number(world.src.height) || null });
   const L = createLayout({
-    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => applied,
+    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => applied, worldFixed,
     fitted: n => {
       const file = posKey(n.src);
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
@@ -2147,7 +2149,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ワールドの大きさが指定されていなければ、表示領域に合わせて追従する。
   // ここでボックスを動かすと、スクロールバーの出入りで大きさが変わり続けるので動かさない
   const ro = new ResizeObserver(() => {
-    if (world.src.width && world.src.height) return;
+    const f = worldFixed();
+    if (f.w != null && f.h != null) return;
     syncWorld();
   });
   ro.observe(container);
