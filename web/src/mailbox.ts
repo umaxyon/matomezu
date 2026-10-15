@@ -16,7 +16,7 @@
  */
 import { esc, injectStyle } from "./dom";
 import { COPY_MIME } from "./graph";
-import { openDialog } from "./edit-dialog";
+import { openSimpleDialog } from "./edit-dialog";
 import { t } from "./i18n";
 import type { Diagram } from "./types";
 import { PATTERN_LABELS, isPattern } from "./validate";
@@ -58,14 +58,14 @@ export const removeMail = (doc: string, id: string) =>
 // 未読の数の印（99 を超えたら 99+。2026-10-14 ユーザー）
 export const badgeText = (n: number) => (n > 99 ? "99+" : n > 0 ? String(n) : "");
 
-// 通知のダイアログ。開く動きがあれば「開く / キャンセル」で、開くなら onOpen。説明だけなら「閉じる」だけ
+// 通知のダイアログ（単純なダイアログ。いずれ大きな中身を見せることがあれば、編集用の形も選べる。2026-10-15 ユーザー）。開く動きがあれば「開く / キャンセル」で、開くなら onOpen。説明だけなら「閉じる」だけ
 export function openNoteDialog(note: MailNote, onOpen?: () => void): void {
   const text = note.body ? `<p class="mz-dlg-message mz-note-body">${esc(note.body)}</p>` : "";
   if (note.book) {
-    openDialog(note.title, t("開く"), text + `<p class="mz-dlg-message mz-note-hint">${esc(t("キャンセルしても郵便箱に残ります"))}</p>`, () => onOpen?.());
+    openSimpleDialog(note.title, t("開く"), text + `<p class="mz-dlg-message mz-note-hint">${esc(t("キャンセルしても郵便箱に残ります"))}</p>`, () => onOpen?.());
     return;
   }
-  openDialog(note.title, t("閉じる"), text, () => {}).querySelector("[data-cancel]")?.remove();
+  openSimpleDialog(note.title, t("閉じる"), text, () => {}, { cancel: false });
 }
 
 const STYLE_ID = "matomezu-mailbox-style";

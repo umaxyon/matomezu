@@ -9,6 +9,11 @@
  *   openEdgeEditDialog(graph, id); // 線。線（か札）のダブルクリックと、サイドバーの鉛筆ボタンから開く
  *   closeEditDialog();             // 開いていれば閉じる（図を作り直すときなど）
  *   openDialog(title, okLabel, fields, commit); // ほかの画面（設定など）から、同じ形のダイアログを出す
+ *   openSimpleDialog(title, okLabel, html, onOk, { cancel }); // 単純な確認・お知らせ（郵便箱の通知など）
+ *
+ * ダイアログは 2 つの形がある（2026-10-15 ユーザー）。キー操作と、1 度に 1 つしか開かない決まりは共通（show）。
+ * - 編集用（openDialog と編集・追加のダイアログ）: 見出しの行（題名・キャンセル・確定）を固定し、中身だけをスクロールする
+ * - 単純なダイアログ（openSimpleDialog・openConfirmDialog）: 題名、本文、一番下にキーの案内・キャンセル・確定（今までの形）
  */
 
 import { ACCESSES, ACCESS_MARK, type ClassAttr, type ClassOp, cleanMembers } from "./classbox";
@@ -191,6 +196,10 @@ select.mz-dlg-input { width: auto; }
 /* ダイアログの上に重ねる確認（形を変えると情報が消えるとき） */
 .mz-dlg-subwrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.3); padding: 16px; }
 .mz-dlg.mz-dlg-sub { width: min(420px, 100%); display: block; padding: 18px 20px; } /* 重ねた確認は見出しの行を持たない */
+/* 単純なダイアログ（確認・お知らせ）: 見出しの行を固定せず、題名・本文・一番下のボタンを 1 つの流れで出す */
+.mz-dlg.mz-dlg-simple { display: block; overflow: auto; padding: 18px 20px; }
+.mz-dlg-simple h2 { margin: 0 0 12px; }
+.mz-dlg-simple .mz-dlg-foot { margin-top: 28px; }
 `;
 
 let open: { overlay: HTMLElement; back: Element | null; unhelp: () => void } | null = null;
@@ -725,10 +734,16 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
 
 // 取り返しのつかない操作の確認（消したものの完全な削除など）。okLabel のボタン（赤）で onOk を呼ぶ。キャンセルか Esc なら何もしない
 export function openConfirmDialog(title: string, message: string, okLabel: string, onOk: () => void): void {
-  const overlay = show(title, okLabel, `<p class="mz-dlg-message">${esc(message)}</p>`, () => onOk());
+  const overlay = openSimpleDialog(title, okLabel, `<p class="mz-dlg-message">${esc(message)}</p>`, onOk);
   const ok = overlay.querySelector<HTMLElement>("[data-ok]")!;
   ok.classList.add("mz-dlg-danger");
   ok.focus();
+}
+
+// 単純なダイアログ（確認・お知らせ）。html は本文（呼ぶ側でエスケープする）。okLabel のボタンで onOk を呼ぶ。
+// cancel: false ならキャンセルのボタンを出さない（お知らせ。Esc では閉じる）
+export function openSimpleDialog(title: string, okLabel: string, html: string, onOk: () => void, o: { cancel?: boolean } = {}): HTMLElement {
+  return show(title, okLabel, html, () => onOk(), "", undefined, { simple: true, cancel: o.cancel ?? true });
 }
 
 // 線のキャプション、通り方（折れ線・直線。自分に戻る線では出さない）、線の種類（実線・破線）、矢印（始点・終点）。
@@ -815,25 +830,35 @@ export function openDialog(title: string, okLabel: string, fields: string, commi
 }
 
 // check は確定の前に呼ぶ（false なら閉じずに待つ。入力の誤りを示すのは check の側）
-function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = "", check?: () => boolean): HTMLElement {
+function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = "", check?: () => boolean,
+  form: { simple?: boolean; cancel?: boolean } = {}): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
   const overlay = document.createElement("div");
   overlay.className = "mz-dlg-overlay";
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-  // 見出しの行（題名・キャンセル・確定）は固定し、中身（fields と、左端のボタン・キーの案内の行）だけがスクロールする
-  overlay.innerHTML = `<div class="mz-dlg" role="dialog" aria-modal="true" aria-labelledby="mz-dlg-title">
+  const key = mac ? "⌘" : "Ctrl";
+  const hint = `<span class="mz-dlg-hint">${esc(form.cancel === false
+    ? t("{key}+Enter / Esc で{ok}", { key, ok: okLabel }) // キャンセルの無いお知らせ（Esc でも閉じるだけ）
+    : t("{key}+Enter で{ok} / Esc でキャンセル", { key, ok: okLabel }))}</span>`;
+  const buttons = `${form.cancel === false ? "" : `<button type="button" class="mz-dlg-btn" data-cancel>${t("キャンセル")}</button>`}
+        <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>${esc(okLabel)}</button>`;
+  overlay.innerHTML = form.simple
+    // 単純なダイアログ: 題名・本文・一番下にキーの案内とボタン（今までの形）
+    ? `<div class="mz-dlg mz-dlg-simple" role="dialog" aria-modal="true" aria-labelledby="mz-dlg-title">
+      <h2 id="mz-dlg-title">${esc(title)}</h2>
+      ${fields}
+      <div class="mz-dlg-foot">${hint}${buttons}</div>
+    </div>`
+    // 編集用: 見出しの行（題名・キャンセル・確定）は固定し、中身（fields と、左端のボタン・キーの案内の行）だけがスクロールする
+    : `<div class="mz-dlg" role="dialog" aria-modal="true" aria-labelledby="mz-dlg-title">
       <div class="mz-dlg-head">
         <h2 id="mz-dlg-title">${esc(title)}</h2>
-        <button type="button" class="mz-dlg-btn" data-cancel>${t("キャンセル")}</button>
-        <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>${esc(okLabel)}</button>
+        ${buttons}
       </div>
       <div class="mz-dlg-scroll">
         ${fields}
-        <div class="mz-dlg-foot">
-          ${lead}
-          <span class="mz-dlg-hint">${esc(t("{key}+Enter で{ok} / Esc でキャンセル", { key: mac ? "⌘" : "Ctrl", ok: okLabel }))}</span>
-        </div>
+        <div class="mz-dlg-foot">${lead}${hint}</div>
       </div>
     </div>`;
   const caption = overlay.querySelector<HTMLInputElement>('[name="caption"]');

@@ -5,6 +5,7 @@ export default {
   "キャンセル": "Cancel",
   "追加": "Add",
   "{key}+Enter で{ok} / Esc でキャンセル": "{key}+Enter: {ok} / Esc: Cancel",
+  "{key}+Enter / Esc で{ok}": "{key}+Enter / Esc: {ok}",
   "キャプション": "Caption",
   "なし": "None",
 
