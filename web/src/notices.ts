@@ -20,7 +20,9 @@ export type GraphEvent =
   // 消したボックスを戻した。byDrag はサイドバーの一覧からドラッグして戻したか
   | { kind: "restored"; key: string; byDrag: boolean }
   // ほかのブックの箱を移植した。from は元のブックの名前
-  | { kind: "pasted"; key: string; from: string | null; kids: number; edges: number }
+  | { kind: "pasted"; key: string; from: string | null; kids: number; edges: number; clipboard?: true } // clipboard は Ctrl+V で貼った（D23）
+  // 箱を写した（Ctrl+C。D23）
+  | { kind: "copied"; key: string; kids: number }
   // 箱を足した（追加モード）
   | { kind: "added"; key: string }
   // 消したボックスを完全に削除した
@@ -63,7 +65,10 @@ export function noticeOf(ev: GraphEvent): string {
       return t("「{key}」をクラスにして、子 {n} 個を消したものの一覧へ移しました", { key: ev.key, n: ev.kids });
     case "purged":
       return t("「{key}」を完全に削除しました", { key: ev.key }) + also([kids(ev.kids)]);
+    case "copied":
+      return t("「{key}」をコピーしました", { key: ev.key }) + also([kids(ev.kids)]);
     case "pasted":
+      if (ev.clipboard) return t("「{key}」を貼り付けました", { key: ev.key }) + also([kids(ev.kids), lines(ev.edges)]);
       return t("「{key}」を移植しました", { key: ev.key }) +
         also([ev.from ? t("{from} から", { from: ev.from }) : false, kids(ev.kids), lines(ev.edges)]);
     case "overPaper":

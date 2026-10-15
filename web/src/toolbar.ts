@@ -13,7 +13,7 @@ const textEntry = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.matches("textarea, input:not([type=radio], [type=checkbox], [type=button], [type=range], [type=color])") || t.isContentEditable);
 
 // Undo / Redo のボタンとキーボード（Ctrl+Z、Ctrl+Shift+Z か Ctrl+Y。Mac は Cmd）と、選んだ線か箱を消す Delete キー（Mac の delete は Backspace）、
-// 選んだ箱か線の編集ダイアログを開く Enter キー（ダブルクリックと同じ）。
+// 選んだ箱か線の編集ダイアログを開く Enter キー（ダブルクリックと同じ）、選んだ箱を写して貼る Ctrl+C / Ctrl+V（D23）。
 // 登録を外す関数を返す（ページ全体のキー操作に登録するので、図を作り直すときに外せるように）
 export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: HTMLButtonElement): () => void {
   const listening = new AbortController();
@@ -42,6 +42,16 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
     if (!(e.ctrlKey || e.metaKey) || e.altKey || graph.dragging()) return;
     if (typing(e.target)) return; // 入力欄では、文字入力の取り消しに使う
     const key = e.key.toLowerCase();
+    if (key === "c" || key === "v") {
+      // コピー・貼り付け（D23）。Ctrl を押している間は付け替えモードに入れ替わるので、選択と付け替えのどちらでも受ける。
+      // 文字を選んでいれば、ブラウザの文字のコピーに任せる
+      if (e.shiftKey || graph.preview() != null || document.querySelector(".mz-dlg-overlay")) return;
+      if (graph.mode() !== "move" && graph.mode() !== "reparent") return;
+      if (key === "c" && !(window.getSelection()?.isCollapsed ?? true)) return;
+      if (!(key === "c" ? graph.copySelected() : graph.pasteClip())) return;
+      e.preventDefault();
+      return;
+    }
     if (key === "z" && !e.shiftKey) graph.undo();
     else if (key === "y" || (key === "z" && e.shiftKey)) graph.redo();
     else return;

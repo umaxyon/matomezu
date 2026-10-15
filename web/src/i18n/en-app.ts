@@ -99,6 +99,8 @@ export default {
   "「{key}」を追加しました": "Added \"{key}\"",
   "「{key}」を完全に削除しました": "Permanently deleted \"{key}\"",
   "「{key}」を移植しました": "Copied in \"{key}\"",
+  "「{key}」をコピーしました": "Copied \"{key}\"",
+  "「{key}」を貼り付けました": "Pasted \"{key}\"",
   "{from} から": "from {from}",
   "知らないテーマ（{names}）があります。標準として描いています": "Unknown theme ({names}). Drawing with the standard theme",
   "紙（{paper}）に収まらないので、しませんでした": "It would not fit on the paper ({paper}), so it was not done",

@@ -40,6 +40,7 @@
  *   graph.page();                // 描いているページ
  *   graph.pages();               // ブックのページ（2 枚目から。ページの id と名前）
  *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
+ *   graph.copySelected(); graph.pasteClip(); // Ctrl+C / Ctrl+V（D23）。選んだ箱を子孫ごと写し、選んでいる所に貼る（決まりはページのパターン。STRATEGIES の copy）
  *   graph.purge(id);             // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱 userAdded だけ。docs/ADD-plan.md）
  *   graph.add(req, fields);      // 新しい箱を足す（req は追加モードで押した所。onAddRequest で届く。docs/ADD-plan.md）
  *   graph.destroy();
@@ -151,7 +152,7 @@ import {
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
 import { headOf } from "./heads";
-import { type Subtree, captionOfData, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, subtreeIds } from "./pages";
+import { type Subtree, captionOfData, copySubtree, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import { type RouteFix, isAligned, perimeterAt, route } from "./routing";
 import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, type Theme } from "./theme";
@@ -272,6 +273,11 @@ export interface Graph {
   // 最初のページの題名はブックの題名（world.title）なので、title は 2 枚目からのページだけ
   updatePage(id: string | null, patch: PagePatch): void;
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
+  // コピー・貼り付け（D23）: 選んだ箱を子孫と中の線ごと写す（この図の中だけで覚える）。写せなければ false
+  copySelected(): boolean;
+  // 写したものを貼る: ワールドを選んでいればポインタの位置（図の外なら見えている範囲の真ん中）、箱を選んでいればその中の左上、
+  // 子を入れられない箱なら隣。パターンの違うページへは断る。貼れなければ false
+  pasteClip(): boolean;
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
   add(req: AddRequest, fields: Partial<BoxData>): string;
@@ -835,7 +841,44 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ほかのブックの箱を子孫ごと、parentId（null は今のページの最上位）の子にコピーする（移植。docs/TABS-plan.md 4.3）。
   // id はこのブックで空いている番号に振り直し、線は写した箱どうしのものだけ持ってくる（線の id も振り直す）。
   // 位置の扱いは復活と同じ。写した箱の新しい id を返す
-  function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string) {
+  // ---- コピー・貼り付け（D23。2026-10-15 ユーザー。決まりはページのパターンが持つ: STRATEGIES の copy） ----
+
+  let clip: Subtree | null = null; // 写したもの（この図、つまりこのブックの中だけで覚える。OS のクリップボードは使わない）
+  let pointer: { x: number; y: number } | null = null; // 図の上のポインタ（画面の座標）。外へ出たら null
+  container.addEventListener("pointermove", e => { pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
+  container.addEventListener("pointerleave", () => { pointer = null; });
+  const copyRule = () => STRATEGIES[worldViewOf(world)].copy;
+
+  function copySelected(): boolean {
+    if (copyRule() !== "boxes" || !current) return false;
+    clip = copySubtree(api.toJSON(), current.id);
+    opt.onEvent?.({ kind: "copied", key: keyOfBox(current), kids: clip.nodes.length - 1 });
+    return true;
+  }
+
+  function pasteClip(): boolean {
+    if (copyRule() !== "boxes" || !clip) return false;
+    const n = current;
+    let parentId: string | null = null, at: { x: number; y: number };
+    if (!n) {
+      // ワールドを選んでいる: ポインタの位置（落としたときと同じく、ポインタが箱の左上の少し内側に来る）。図の外なら見えている範囲の真ん中
+      const r = worldEl.getBoundingClientRect(), z = V.applied();
+      const p = pointer ?? (() => { const c = container.getBoundingClientRect(); return { x: c.left + container.clientWidth / 2, y: c.top + container.clientHeight / 2 }; })();
+      at = { x: (p.x - r.left) / z - 16, y: (p.y - r.top) / z - 12 };
+    } else if (shapeDef(shapeOf(n)).kids && acceptsKid(n, clip.nodes.length > 1)) {
+      // 箱を選んでいる: その中の左上（ぶつかる子は押しのける）
+      parentId = n.id;
+      const a = innerArea(n);
+      at = { x: a.left, y: a.top };
+    } else {
+      // 子を入れられない箱（フローチャートの箱・クラス・リンクの箱など）: 同じ親の中の、すぐ右
+      parentId = n.parent?.id ?? null;
+      at = { x: n.x + n.w + opt.gap, y: n.y };
+    }
+    return paste(clip, parentId, at, undefined, true) !== "";
+  }
+
+  function paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string, clipboard = false) {
     const dest = target(parentId);
     if (refusePattern(copy.pattern ?? DEFAULT_VIEW)) return "";
     if (refuseKids(dest, copy.nodes.length - 1)) return "";
@@ -845,7 +888,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       r = pasteSubtree(data, copy, placeOf(dest), pos);
       return { select: r.root, drop: pos };
     })!;
-    opt.onEvent?.({ kind: "pasted", key: keyOfBox(n), from: from ?? null, kids: r.nodes - 1, edges: r.edges });
+    opt.onEvent?.({ kind: "pasted", key: keyOfBox(n), from: from ?? null, kids: r.nodes - 1, edges: r.edges, ...(clipboard ? { clipboard: true } : {}) });
     return r.root;
   }
 
@@ -1627,7 +1670,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     pageScene: P.pageScene,
     redraw: () => { nodes.filter(n => isLinkBox(n) || listPreviewOf(n)).forEach(applyStyle); render(); }, // 窓と縮図の行の絵は applyStyle で描く
     linkScene: id => windowScene(nodeOf(id) as Box),
-    paste,
+    paste: (copy, parentId, at, from) => paste(copy, parentId, at, from),
+    copySelected,
+    pasteClip,
     add,
     purge,
       pages: () => pagesOf(source).map(p => ({ id: String(p.id), caption: pageNameOf(source, String(p.id)) })),

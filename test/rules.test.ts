@@ -46,10 +46,10 @@ test("形の名前を直接比べる判定を、形の表の外に増やさな�
 // 置き場所（graph.ts の DEFAULTS）、戦略の表（model.ts）、入口（layout.ts の gapBetween）、リストの並べ方（node-kinds.ts。戦略が自分の子を並べる所）
 const GAP_RULES = /\b(linkGap|captionGap|kidGap|pairGaps)\b/g;
 const GAP_ALLOWED: Record<string, number> = { "graph.ts": 2, "model.ts": Infinity, "layout/layout.ts": 6, "layout/node-kinds.ts": 1 };
-// 全世界の間隔そのもの（opt.gap）を直接使ってよいのは、入口（gapBetween と、格子の目の最小）、リストの並べ方、付け替えのときの置き場所の見込み
-// （そのあと gapBetween で重なりを直す）だけ
+// 全世界の間隔そのもの（opt.gap）を直接使ってよいのは、入口（gapBetween と、格子の目の最小）、リストの並べ方、付け替えのときと
+// 貼り付けで隣に置くとき（D23）の置き場所の見込み（そのあと gapBetween で重なりを直す）だけ
 const BASE_GAP = /opt\.gap\b/g;
-const BASE_ALLOWED: Record<string, number> = { "layout/layout.ts": 4, "layout/node-kinds.ts": 1, "graph.ts": 1 };
+const BASE_ALLOWED: Record<string, number> = { "layout/layout.ts": 4, "layout/node-kinds.ts": 1, "graph.ts": 2 };
 
 test("全世界のルール（間隔）を読むのは、置き場所・戦略の表・入口だけ。部品（形・テーマ）は間隔や配置の値を持たない", () => {
   const over: string[] = [];

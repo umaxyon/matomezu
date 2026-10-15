@@ -12,7 +12,7 @@
    箱の `childView` は内包パターンの持ち物で、子の見せ方（内包 / リスト / 非表示）だけ。箱に `tree`・`flow` を書くのは誤り（`validate.ts`）。
    パターンは後から変えない（ページを作るときに選ぶ）。見た目の無い箱で中身を包む形（`pattern: "tree"` のような別の箱）は作らない。
 2. **戦略ごとの決まりは 1 か所に書く**: `web/src/model.ts` の `STRATEGIES` に 1 行と、`web/src/layout/node-kinds.ts` の `KINDS` に 1 つ。
-   ページに掛けられるか（`onWorld`）・箱に書けるか（`onBox`）・最上位をどう置くか（`tops`）・子を持てるのは根の子孫だけか（`rootOnly`）も表に書く。
+   ページに掛けられるか（`onWorld`）・箱に書けるか（`onBox`）・最上位をどう置くか（`tops`）・子を持てるのは根の子孫だけか（`rootOnly`）・コピー・貼り付けの決まり（`copy`。D23）も表に書く。
    操作の可否・枠で見せるか・自由に置けるかなどの判定は、この表から引く（`arrangeOf` / `placedBy` / `strategyOf` / `abilitiesOf` / `lookOf` / `worldViewOf`）。
    並べ方の名前を直接比べる判定（`=== "list"` など）を、ほかのファイルに散らさない（`test/rules.test.ts` が見張る）。
    例外は、戦略に固有の描画（ツリーの線と枠、非表示の ▼）と、DOM なしの CLI でも動くデータの検査（`validate.ts`）だけ。
