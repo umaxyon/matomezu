@@ -339,15 +339,30 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   // リストの子の並べ替え（docs/LIST-plan.md）。つかんだ子はポインタに付いてくる（見た目だけずらす）。
   // つかんだ子の上端がいたい位置（親の中）から入る順番を決め、変われば並べ直す（中心がほかの子の中心を越えたら入れ替わる）
+  // スクロールにしたリスト（D33）では、上下の端へ寄せると中をスクロールし、スクロールした分だけつかんだ子も進む
   function reorderGesture(n: Box, down: PointerEvent): Gesture {
     const sy = down.clientY, oy = n.y;
+    const scroller = () => n.parent?.kidsEl ?? null;
+    const s0 = scroller()?.scrollTop ?? 0;
+    const listScroll = edgeScroller(scroller);
     let moved = false;
     n.el.classList.add("mz-dragging");
     return {
       kind: "reorder", slop: 0,
       move(ev) {
         const p = n.parent!;
-        const y = oy + unscale(ev.clientY - sy);
+        if (p.kidsEl) {
+          // 縦だけ（横は、リストの真ん中にいることにする）
+          const r = p.kidsEl.getBoundingClientRect();
+          listScroll.follow({ clientX: r.left + r.width / 2, clientY: ev.clientY }, () => this.move(ev));
+        }
+        let y = oy + unscale(ev.clientY - sy) + ((p.kidsEl?.scrollTop ?? 0) - s0);
+        // スクロールするリストでは、つかんだ子の真ん中を中身の範囲から出さない（ずらした分だけ中身が伸びて、スクロールが止まらなくなるため。
+        // 真ん中が端まで行ければ、先頭にも末尾にも入れられる）
+        if (p.kidsEl) {
+          const others = p.children.filter(k => k !== n);
+          if (others.length) y = Math.max(Math.min(...others.map(k => k.y)) - n.h / 2, Math.min(y, Math.max(...others.map(k => k.y + k.h)) - n.h / 2));
+        }
         const mid = y + n.h / 2;
         const index = p.children.filter(k => k !== n && k.y + k.h / 2 < mid).length;
         if (index !== p.children.indexOf(n)) {
@@ -357,13 +372,14 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         n.el.style.translate = `0 ${y - n.y}px`;
       },
       end() {
+        listScroll.stop();
         n.el.style.translate = "";
         n.el.classList.remove("mz-dragging");
         if (!moved) return;
         ctx.changed();
         ctx.notifySelect();
       },
-      cancel() {},
+      cancel() { listScroll.stop(); },
     };
   }
 
@@ -437,23 +453,31 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   // 箱を図の見えている範囲の端（EDGE_SCROLL_ZONE の内側か外）へ寄せている間、その向きへ図をスクロールし続ける。
   // スクロールするたびに again を呼ぶ（箱をスクロールした分だけ動かし、図を広げる）。ポインタを動かさなくても続く
-  const edgeScroll = (() => {
+  const edgeScroll = edgeScroller(() => container);
+
+  // el の見えている範囲の端へ寄せている間、その向きへ el をスクロールし続ける（図の枠と、スクロールにしたリストの中。D33）。
+  // 帯の幅は EDGE_SCROLL_ZONE（el が低ければ、高さの 4 分の 1 まで狭める。リストの真ん中でスクロールしないように）
+  function edgeScroller(target: () => HTMLElement | null) {
     let frame = 0;
     let last: { x: number; y: number; again: () => void } | null = null;
     let prev = 0;            // 前にスクロールした時刻（0 は止まっていた）
     let carry = [0, 0];      // 1px に満たない分（スクロールの位置は整数に丸められるため、次のコマへ持ち越す）
     // 端からの深さに応じた速さ（毎秒の px。向きは符号）
-    const speed = (p: number, lo: number, hi: number) => {
-      const depth = p > hi - EDGE_SCROLL_ZONE ? p - (hi - EDGE_SCROLL_ZONE) : p < lo + EDGE_SCROLL_ZONE ? -(lo + EDGE_SCROLL_ZONE - p) : 0;
-      const f = Math.min(1, Math.abs(depth) / EDGE_SCROLL_ZONE);
+    const zoneOf = (size: number) => Math.max(8, Math.min(EDGE_SCROLL_ZONE, size / 4));
+    const speed = (p: number, lo: number, hi: number, zone: number) => {
+      const depth = p > hi - zone ? p - (hi - zone) : p < lo + zone ? -(lo + zone - p) : 0;
+      const f = Math.min(1, Math.abs(depth) / zone);
       return Math.sign(depth) * f * f * EDGE_SCROLL_MAX;
     };
     const tick = (now: number) => {
       frame = 0;
-      if (!last) return;
-      const c = container.getBoundingClientRect();
-      const left = c.left + container.clientLeft, top = c.top + container.clientTop;
-      const vx = speed(last.x, left, left + container.clientWidth), vy = speed(last.y, top, top + container.clientHeight);
+      const el = target();
+      if (!last || !el) return;
+      // el の見えている範囲（画面の座標）。倍率がかかっていれば（リストの中）、見た目の大きさで
+      const c = el.getBoundingClientRect();
+      const z = el.offsetWidth ? c.width / el.offsetWidth : 1;
+      const left = c.left + el.clientLeft * z, top = c.top + el.clientTop * z;
+      const vx = speed(last.x, left, left + el.clientWidth * z, zoneOf(el.clientWidth * z)), vy = speed(last.y, top, top + el.clientHeight * z, zoneOf(el.clientHeight * z));
       if (!vx && !vy) { prev = 0; carry = [0, 0]; return; }
       // 前のコマからの時間（止まっていたら 1 コマ分。タブが裏に回っていたなどで間が空いても、一度に飛ばない）
       const dt = Math.min(prev ? now - prev : 16, 50) / 1000;
@@ -462,10 +486,10 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const dx = Math.trunc(mx), dy = Math.trunc(my);
       carry = [mx - dx, my - dy];
       if (!dx && !dy) { frame = requestAnimationFrame(tick); return; } // 1px に満たなければ、次のコマで足す
-      const before = [container.scrollLeft, container.scrollTop];
-      container.scrollLeft += dx;
-      container.scrollTop += dy;
-      if (container.scrollLeft === before[0] && container.scrollTop === before[1]) return; // もう進めない（上や左の端）
+      const before = [el.scrollLeft, el.scrollTop];
+      el.scrollLeft += dx;
+      el.scrollTop += dy;
+      if (el.scrollLeft === before[0] && el.scrollTop === before[1]) return; // もう進めない（上や左の端）
       last.again();
     };
     return {
@@ -481,7 +505,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         frame = 0;
       },
     };
-  })();
+  }
 
   // 箱を足す所を探している間（追加モードの影、道具入れからのドラッグ）も、図の端へ寄せたらスクロールして図を広げる（2026-10-12 ユーザー）。
   // ポインタ（画面の座標）の先まで図を広げる（端の帯の幅の 2 倍。帯の中でもスクロールが続くように）。足す前に縮めないよう、

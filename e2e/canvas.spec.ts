@@ -226,6 +226,35 @@ test("紙の型: ブックのダイアログで今のページを小さな紙に
   await expect(page.locator("#stage .mz-world")).toHaveCSS("width", "1123px");
 });
 
+test("スクロールするリストの並べ替え: 上下の端へ寄せたまま止めると中がスクロールし、隠れていた行の先へ移せる（E18。D33）", async ({ page }) => {
+  const kids = Array.from({ length: 12 }, (_, i) => ({ id: 10 + i, caption: `項目 ${i + 1}`, parent: 1 }));
+  await openDiagram(page, { nodes: [{ id: 1, caption: "リスト", childView: "list", listHeight: 200, x: 40, y: 40 }, ...kids], edges: [] } as never);
+  const kidsBox = page.locator('.mz-node[data-id="1"] > .mz-list-kids');
+  await expect(kidsBox).toHaveCount(1);
+  const list = (await kidsBox.boundingBox())!;
+  const first = (await head(page, 10).boundingBox())!;
+  // 一番上の行をつかみ、リストの下の縁の少し内側まで運んで止める
+  await page.mouse.move(first.x + 20, first.y + first.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(first.x + 20, list.y + list.height - 4, { steps: 10 });
+  await expect.poll(() => kidsBox.evaluate(el => el.scrollTop + el.clientHeight >= el.scrollHeight - 1), { timeout: 5000 }).toBe(true);
+  await page.mouse.up();
+  // 一番上にいた行（10）が、一番下まで移った
+  const ys = await Promise.all(kids.map(async k => ({ id: k.id, y: (await head(page, k.id).boundingBox())!.y })));
+  ys.sort((a, b) => a.y - b.y);
+  expect(ys[ys.length - 1]!.id).toBe(10);
+  // 上へも: 一番下へ移した行を、上の縁の少し内側まで運んで止めると、先頭まで戻る
+  const last = (await head(page, 10).boundingBox())!;
+  await page.mouse.move(last.x + 20, last.y + last.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(last.x + 20, list.y + 4, { steps: 10 });
+  await expect.poll(() => kidsBox.evaluate(el => el.scrollTop), { timeout: 5000 }).toBe(0);
+  await page.mouse.up();
+  const ys2 = await Promise.all(kids.map(async k => ({ id: k.id, y: (await head(page, k.id).boundingBox())!.y })));
+  ys2.sort((a, b) => a.y - b.y);
+  expect(ys2[0]!.id).toBe(10);
+});
+
 test("リストのスクロール: ダイアログで入れると今の高さが上限になり、下の縁のつまみで縮めると、リストの中だけスクロールする。Undo で戻る（D33）", async ({ page }) => {
   // 下の縁のつまみが画面（900 × 600）の中に来る数
   const kids = Array.from({ length: 5 }, (_, i) => ({ id: 10 + i, caption: `項目 ${i + 1}`, parent: 1 }));
