@@ -282,6 +282,7 @@ export async function startApp(ui: AppUi) {
   }
 
   function activate(b: Book, page: PageId) {
+    if (!books.includes(b)) return; // 読み込みや郵便箱を待つ間に閉じたブック（matomezu close・タブの ×）は出さない
     const tab = pageTab(b, page) ?? b.tabs[0]!;
     page = tab.page;
     if (current?.book !== b) {
@@ -669,10 +670,11 @@ export async function startApp(ui: AppUi) {
       const into = current.book.id;
       if (!(await sendMail(into, item))) return activate(b, page); // 郵便箱が使えなければ（状態のフォルダが無い）、すぐ出す
       openArrivedDialog(item, async () => {
-        // 開いたら、届けた行を郵便箱から取り除く（キャンセルなら郵便箱に残る）
+        // 開いたら、すぐ前に出してから、届けた行を郵便箱から取り除く（キャンセルなら郵便箱に残る）。
+        // 郵便箱を待ってから出すと、その間に matomezu close で閉じたブックを前に出してしまう
+        activate(b, page);
         const sent = (await fetchMail(into)).filter(m => m.body.kind === "book" && m.body.book === doc && m.body.page === page).pop();
         if (sent) void removeMail(into, sent.id);
-        activate(b, page);
       });
     },
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },

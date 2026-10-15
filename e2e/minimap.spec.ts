@@ -76,7 +76,9 @@ test("全体像がミニマップの高さを超えても、右端は切れず�
   await page.locator("#stage").evaluate(s => { s.scrollTop = s.scrollHeight; });
   const view = map.locator(".mm-view");
   await expect.poll(async () => {
-    const [b, v] = [(await body.boundingBox())!, (await view.boundingBox())!];
+    // ミニマップは描き直すたびに中身を作り直す（replaceChildren）ので、入れ替わる瞬間は測れない。測れなければ待ち直す
+    const [b, v] = [await body.boundingBox(), await view.boundingBox()];
+    if (!b || !v) return false;
     return v.y >= b.y - 1 && v.y + v.height <= b.y + b.height + 1 && v.x + v.width <= b.x + b.width + 0.01;
   }).toBe(true);
 });
