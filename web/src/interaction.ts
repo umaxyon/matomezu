@@ -76,6 +76,7 @@ export interface InteractionContext {
   resizeBody(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
   // リストの幅を変え始める（width は今のリストの幅。形は resizeBody と同じ。docs/SIZE-plan.md の 10 章）
   resizeList(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
+  zoom(): number; // ワールドにかけている倍率（transform: scale。D32）。画面の上の差分を、これで割るとワールドの座標の差分になる
 }
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
@@ -83,6 +84,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   const { syncWorld, holdWorld, stretchWorld, centerX } = L;
 
   const { render, blocked, focus, unfocus } = R;
+  // 画面の上の長さ（px）を、ワールドの座標の長さにする（倍率をかけていれば割り戻す。D32）
+  const unscale = (v: number) => v / ctx.zoom();
 
   // ---- 進行中のドラッグ ----
   // どの種類も同じ形にする。押したときに種類ごとの関数が作って active に入れる。
@@ -111,7 +114,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // ポインタの位置（ワールドの座標）
   const worldAt = (ev: PointerEvent): [number, number] => {
     const r = world.el.getBoundingClientRect();
-    return [ev.clientX - r.left, ev.clientY - r.top];
+    return [unscale(ev.clientX - r.left), unscale(ev.clientY - r.top)];
   };
 
   // 折れ線の途中の区間のドラッグ（選択モード）。index は区間の番号（via の何番目か）。
@@ -323,7 +326,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       kind: "body", slop: 0,
       move(ev) {
         moved = true;
-        r.set(r.width + ev.clientX - down.clientX);
+        r.set(r.width + unscale(ev.clientX - down.clientX));
       },
       end() { if (moved) r.finish(); },
       cancel() { r.cancel(); },
@@ -340,7 +343,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       kind: "reorder", slop: 0,
       move(ev) {
         const p = n.parent!;
-        const y = oy + ev.clientY - sy;
+        const y = oy + unscale(ev.clientY - sy);
         const mid = y + n.h / 2;
         const index = p.children.filter(k => k !== n && k.y + k.h / 2 < mid).length;
         if (index !== p.children.indexOf(n)) {
@@ -389,7 +392,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         started = true;
         session ??= D.begin(n);
         // 置けない位置（広がった祖先が親の枠からはみ出す）なら、置ける所で止めて知らせる
-        const reached = session.compute(ox + ev.clientX - sx + container.scrollLeft - sl, oy + ev.clientY - sy + container.scrollTop - st);
+        const reached = session.compute(ox + unscale(ev.clientX - sx + container.scrollLeft - sl), oy + unscale(ev.clientY - sy + container.scrollTop - st));
         const now = session.swapped();
         if (now.length !== swapped.length || now.some(o => !swapped.includes(o))) {
           for (const o of [n, ...now, ...swapped]) fresh.add(o);
@@ -485,7 +488,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     // 広げるのは右や下の端の帯の中だけ（上や左の端へはスクロールするだけ）
     if (x >= right - EDGE_SCROLL_ZONE || y >= bottom - EDGE_SCROLL_ZONE) {
       const r = world.el.getBoundingClientRect();
-      stretchWorld(x - r.left + EDGE_SCROLL_ZONE * 2, y - r.top + EDGE_SCROLL_ZONE * 2);
+      stretchWorld(unscale(x - r.left + EDGE_SCROLL_ZONE * 2), unscale(y - r.top + EDGE_SCROLL_ZONE * 2));
     }
     edgeScroll.follow({ clientX: x, clientY: y }, () => { followEdge(x, y, again); again(); });
   }
@@ -614,15 +617,15 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   const toScreen = ([x, y]: [number, number]): [number, number] => {
-    const w = world.el.getBoundingClientRect();
-    return [w.left + x, w.top + y];
+    const w = world.el.getBoundingClientRect(), z = ctx.zoom();
+    return [w.left + x * z, w.top + y * z];
   };
 
   // 箱 n の side の辺の〇の中心（画面の座標）
   function portPoint(n: Box, side: Side): [number, number] {
-    const w = world.el.getBoundingClientRect();
-    const [x, y] = sidePoint(n, side, PORT_OUT);
-    return [w.left + x, w.top + y];
+    const w = world.el.getBoundingClientRect(), z = ctx.zoom();
+    const [x, y] = sidePoint(n, side, PORT_OUT / z); // 〇は画面の上で同じだけ離す
+    return [w.left + x * z, w.top + y * z];
   }
 
   function showPorts(n: Box | null) {
@@ -651,7 +654,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const side: Side = i % 2 ? "r" : "l";
       el.dataset.side = side;
       el.dataset.member = name;
-      const [x, y] = toScreen(memberPoint(n!, name, side, PORT_OUT));
+      const [x, y] = toScreen(memberPoint(n!, name, side, PORT_OUT / ctx.zoom()));
       el.style.left = x + "px";
       el.style.top = y + "px";
     });
@@ -662,7 +665,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // （引ける相手の子の上でも、その相手に引く）。引ける相手以外は薄くする。引いた線の端は、〇の辺の真ん中と離した所に固定する
   // （相手の子の上で離したら終点は自由。自分に戻る線なら、離した所に近い角）
   function linkGesture(from: Box, side: Side, port: HTMLElement, member?: string): Gesture {
-    const [sx, sy] = member != null ? toScreen(memberPoint(from, member, side, PORT_OUT)) : portPoint(from, side);
+    const [sx, sy] = member != null ? toScreen(memberPoint(from, member, side, PORT_OUT / ctx.zoom())) : portPoint(from, side);
     const siblings = from.parent ? from.parent.children : world.children;
     const can = new Set(siblings.filter(o => ctx.canLink(from, o)));
     const overlay = document.createElementNS(SVGNS, "svg");
@@ -766,7 +769,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       };
     }
     const r = (t ?? world).el.getBoundingClientRect();
-    return { parentId: t ? t.id : null, at: { x: x - r.left - ADD_OFFSET.x, y: y - r.top - ADD_OFFSET.y } };
+    return { parentId: t ? t.id : null, at: { x: unscale(x - r.left - ADD_OFFSET.x), y: unscale(y - r.top - ADD_OFFSET.y) } };
   }
 
   function showAdd(x: number, y: number) {
@@ -858,6 +861,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       if (!n) return;
       const g = n.el.cloneNode(true) as HTMLElement;
       g.classList.add("mz-ghost");
+      const z = ctx.zoom();
+      if (z !== 1) { g.style.transform = `scale(${z})`; g.style.transformOrigin = "0 0"; } // 図と同じ大きさに見せる（D32）
       g.classList.remove("mz-current", "mz-dim");
       container.appendChild(g);
       l.ghost = g;
@@ -889,7 +894,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     let at: { x: number; y: number } | undefined;
     if (t !== undefined) {
       const r = (t ?? world).el.getBoundingClientRect();
-      at = { x: e.clientX - l.offX - r.left, y: e.clientY - l.offY - r.top };
+      at = { x: unscale(e.clientX - l.offX - r.left), y: unscale(e.clientY - l.offY - r.top) };
     }
     const id = l.id;
     endLift();
@@ -924,7 +929,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     markRestore(undefined);
     if (t === undefined) return;
     const r = (t ?? world).el.getBoundingClientRect();
-    const at = { x: e.clientX - r.left - 16, y: e.clientY - r.top - 12 };
+    const at = { x: unscale(e.clientX - r.left - 16), y: unscale(e.clientY - r.top - 12) };
     if (carriesCopy(e)) {
       let payload: { copy: Subtree; from?: string };
       try {

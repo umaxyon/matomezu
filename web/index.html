@@ -69,8 +69,8 @@
   .tab-group:not(.tab-group-current) { display: none; }
   body.master #book, body.master #side-toggle, .tab-group-master .tab-close, .tab-group-master .tab-add { display: none; }
   /* プレビュー（見るだけ。preview.ts）: 倍率の操作を出し、サイドバー・編集の道具・全体像は隠す */
-  .zoom { display: none; align-items: center; gap: 2px; }
-  body.previewing .zoom { display: flex; }
+  .zoom { display: flex; align-items: center; gap: 2px; }
+  body:not(.previewing) #zoom-fit { display: none; } /* 編集中の倍率は 75% / 100% / 125% の段だけ（D32）。「全体」はプレビューだけ */
   .zoom-level { min-width: 3.5em; text-align: center; font-size: 12px; color: var(--hint); }
   body.previewing #sidebar, body.previewing .toolbar, body.previewing #minimap-toggle, body.previewing .mz-minimap,
   body.previewing .mz-toolbox { display: none; }

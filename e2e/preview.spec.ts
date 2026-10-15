@@ -55,7 +55,7 @@ test("＋で拡大し、全体で収まる倍率に戻る", async ({ page }) => 
   await page.click("#preview-toggle");
   const fit = await zoomOf(page);
   await page.click("#zoom-in");
-  expect(await zoomOf(page)).toBeCloseTo(fit * 1.25, 5);
+  await expect.poll(() => zoomOf(page)).toBeCloseTo(fit * 1.25, 5); // なめらかに変わるので、行き先に着くまで待つ（D32）
   await page.click("#zoom-fit");
   expect(await zoomOf(page)).toBeCloseTo(fit, 5);
 });

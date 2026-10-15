@@ -367,6 +367,9 @@ export interface Graph {
   // プレビュー（見るだけのモード）。倍率を渡すと入り、null で編集に戻る。プレビュー中は、押すと選ぶだけで、
   // 背景のドラッグは見る範囲を動かす。図を直す操作（ドラッグ、Undo / Redo）は効かない
   setPreview(zoom: number | null): void;
+  // 編集中の倍率（D32。preview.ts が 75% / 100% / 125% から選ぶ）。プレビューの間は効かず、抜けるとこの倍率に戻る
+  setZoom(zoom: number): void;
+  zoom(): number;
   preview(): number | null;
   // 画面の見え方（D32）: 今の倍率と、図の周りの余白。スクロールの位置 = 余白 + ワールドの座標 × 倍率
   view(): { zoom: number; margin: number };
@@ -447,7 +450,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     limit: HISTORY_LIMIT,
   });
   const I = createInteraction({
-    container, world, boxOfEl,
+    container, world, boxOfEl, zoom: () => applied,
     current: () => current,
     mode: () => mode,
     select,
@@ -2025,8 +2028,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function setPreview(z: number | null) {
     preview = z;
     container.classList.toggle("mz-preview", z != null);
-    applyZoom(z ?? 1);
+    applyZoom(z ?? editZoom);
     checkSeen();
+  }
+
+  // 編集中の倍率（D32）
+  let editZoom = 1;
+  function setZoom(z: number) {
+    editZoom = z;
+    if (preview == null) applyZoom(z);
   }
 
   // 見る範囲を動かす（つかんだ所がポインタに付いてくる）。プレビューの背景のドラッグと、手のひら（D32）
@@ -2248,6 +2258,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       };
     },
     setPreview,
+    setZoom,
+    zoom: () => editZoom,
     preview: () => preview,
     view: () => ({ zoom: applied, margin: opt.margin }),
     contentSize() {
