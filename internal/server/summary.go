@@ -18,6 +18,15 @@ import (
 	"time"
 )
 
+// Layout はカレントの画面が配置した結果の要約。Version はそのとき画面が並べたファイルの版、Page は並べたページ。
+// Details は子のある箱ごとの、子の位置と大きさ（箱の id ごとに 1 行。matomezu check の -in で出す）
+type Layout struct {
+	Version string            `json:"version"`
+	Page    string            `json:"page"`
+	Summary string            `json:"summary"`
+	Details map[string]string `json:"details,omitempty"`
+}
+
 // summaryWait は要約を待つ長さ。画面がボタンを離すのを待つ長さ（app.ts の SUMMARY_BUSY）より長く
 const summaryWait = 15 * time.Second
 

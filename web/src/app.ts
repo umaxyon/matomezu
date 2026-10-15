@@ -320,7 +320,6 @@ export async function startApp(ui: AppUi) {
       }
     }
     current = { book: b, page };
-    b.sync.report();
     refreshButtons(b);
     markSelected();
     updateDocumentTitle();

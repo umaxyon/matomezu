@@ -40,7 +40,7 @@
 // ファイルの監視（doc.go の poll）は Hub の 1 本の処理で、どれかの画面が開いている図だけを一定間隔で読み直す。
 // 開いている図をまだ知らせていない画面は、登録済みの全部の図を開いているとみなす（つないだ直後や、前の版の画面）。
 //
-// 画面からの書き込み（api/data の PUT、api/layout、api/watch、api/new）は、JSON の本文で、Origin が無いか localhost のものだけを受ける
+// 画面からの書き込み（api/data の PUT、api/watch、api/new など）は、JSON の本文で、Origin が無いか localhost のものだけを受ける
 // （newbook.go の fromPage。ほかのサイトのページから送られたものを断る）。
 // トークンは X-Matomezu-Token ヘッダーで渡す。/api/open は任意のファイルを読み書きさせられる入口なので、
 // 本人だけが読める state ファイルにあるトークンを持つプロセスにしか使わせない。
@@ -520,8 +520,6 @@ func (h *Hub) Handler() http.Handler {
 	}
 	mux.HandleFunc("GET /d/{id}/api/data", withDoc((*doc).getData))
 	mux.HandleFunc("PUT /d/{id}/api/data", fromPage(withDoc((*doc).putData)))
-	mux.HandleFunc("POST /d/{id}/api/layout", fromPage(withDoc((*doc).putLayout)))
-	mux.HandleFunc("GET /d/{id}/api/layout", withDoc((*doc).getLayout))
 	// 郵便箱（mail.go）。DELETE も本文に {} を付けて送る（画面からの書き込みは JSON の本文だけを受ける。fromPage）
 	mux.HandleFunc("GET /d/{id}/api/mail", h.withMail(h.getMail))
 	mux.HandleFunc("POST /d/{id}/api/mail", fromPage(h.withMail(h.postMail)))

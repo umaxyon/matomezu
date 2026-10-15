@@ -5,20 +5,17 @@
  *   外部の変更を優先する。
  * - ドラッグ中や保存中に届いた変更は、それが終わってから読み直す。
  * - 読み直したデータが不正なときは表示を残し、直るまで保存を止める（書きかけのファイルを上書きしないため）。
- * - 外部の変更は履歴に1件として残す（Undo で取り消せる）。最初の読み込みでは履歴を空にする。
+ * - 外部の変更はユーザーの Undo の履歴には積まない。ユーザーが見たときにユーザーの履歴へ差し込む（D31。graph.ts の load の version）。
  * - 見ていないタブ（active でない）では読み直さず、前に出たときに読み直す。隠れた画面では文字の幅を測れず、配置が壊れるため。
- * - 見ているタブは、読み込みと保存のたび、表示領域の大きさが変わるたびに、配置の要約（report.ts）をその版と一緒に送る。
- *   （以前は matomezu check がこれを読んだ。今の check はカレントの画面に直接頼む。internal/server/summary.go。D30）
+ * - 配置の要約（matomezu check）は送らない。check はカレントの画面に直接頼む（app.ts の answerSummary、internal/server/summary.go。D30）
  */
 
 import { formatDiagram } from "./format";
 import { t } from "./i18n";
 import type { Graph } from "./graph";
-import { details, summarize } from "./report";
 import type { Diagram } from "./types";
 
 const SAVE_DELAY = 300;
-const RESIZE_DELAY = 300;
 
 export interface SyncUi {
   status(text: string): void;   // 保存中・保存しました などの、出さなくてよい知らせ（D26 で画面には出していない）
@@ -64,8 +61,6 @@ export interface Sync {
   notify(version: string): void;
   // 見ているタブか。前に出たら、届いていた変更を読み直し、配置の要約を送る
   setActive(active: boolean): void;
-  // 配置の要約を送り直す（描くページを変えたときなど）
-  report(): void;
   // 画面が表示している版（引用符なし。まだ表示していなければ ""）
   shown(): string;
   close(): void;
@@ -81,23 +76,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
   let loading = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
-  // 表示している版の配置の要約を送る。届かなくても図の操作には関係しないので、失敗は知らせない
-  function report() {
-    if (!active || !version || blocked) return;
-    let summary: string, inside: Record<string, string>;
-    try {
-      const g = graph.geometry();
-      summary = summarize(g);
-      inside = details(g);
-    } catch {
-      return;
-    }
-    fetch(base + "api/layout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: version.replace(/^W\//, "").replace(/"/g, ""), page: graph.page() ?? "", summary, details: inside }),
-    }).catch(() => {});
-  }
+
 
   function apply(r: Remote, keepHistory: boolean) {
     version = r.version;
@@ -111,7 +90,6 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       }
       blocked = false;
       ui.clearError();
-      report();
       return true;
     } catch (err) {
       blocked = true;
@@ -162,7 +140,6 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
         // 届いていれば、それは自分の保存か、そのあとの外部の変更なので、そのまま比べる
         if (remote === prev) remote = etag;
         ui.status(t("保存しました"));
-        report();
       } else if (res.status === 409) {
         if (etag) remote = etag;
         const text = t("外部で変更されていたため、画面の変更を取り消して読み直します");
@@ -193,8 +170,6 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       const latest = remote;
       apply(r, false);
       if (latest !== r.version) remote = latest;
-    } else {
-      report();
     }
     maybeReload();
   }
@@ -204,13 +179,6 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
   window.addEventListener("pointerup", onUp);
   window.addEventListener("pointercancel", onUp);
 
-  // 表示領域の大きさが変わると収まるかどうかも変わるので、落ち着いてから送り直す
-  let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-  const onResize = () => {
-    if (resizeTimer) clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { resizeTimer = null; report(); }, RESIZE_DELAY);
-  };
-  window.addEventListener("resize", onResize);
 
   if (active) show();
 
@@ -228,14 +196,11 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       active = next;
       if (active) show();
     },
-    report,
     shown: () => version.replace(/^W\//, "").replace(/"/g, ""),
     close() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
-      window.removeEventListener("resize", onResize);
       if (timer) clearTimeout(timer);
-      if (resizeTimer) clearTimeout(resizeTimer);
     },
   };
 }

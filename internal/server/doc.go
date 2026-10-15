@@ -25,8 +25,6 @@ const maxBody = 16 << 20
 //
 //	GET  api/data    ファイルの中身。ETag に版（中身のハッシュ）、X-Matomezu-Name にファイル名を入れる
 //	PUT  api/data    画面からの保存。If-Match の版が今のファイルと違えば 409 を返す
-//	POST api/layout  画面からの配置の要約 {"version", "page", "summary", "details"}。ページごとに最新の1件だけを覚える
-//	GET  api/layout  ?page=<id> のページ（無ければ最初のページ）の要約と、今のファイルの版 {"version", "page", "summary", "current"}
 //
 // 版の変更は Hub の通知（hub.go の /api/events）で画面へ知らせる。
 // ファイルの変更は、画面が開いているあいだ Hub が一定間隔で読み直し（poll）、中身のハッシュを比べて見つける。
@@ -38,21 +36,11 @@ type doc struct {
 
 	mu      sync.Mutex
 	version string
-	layout  map[string]Layout // 画面から届いた最新の配置の要約（ページの箱の id ごと。最初のページは ""）
-	last    []byte            // 最後に知っているファイルの中身（version の中身。LLM の履歴の差分のもと。D31）
+	last    []byte // 最後に知っているファイルの中身（version の中身。LLM の履歴の差分のもと。D31）
 
 	// LLM の履歴（llmhist.go）へ知らせる。画面からの保存ではないファイルの変化（onExternal）と、画面からの保存（onUserSave）。nil なら知らせない
 	onExternal func(id string, before, after []byte, version, note string)
 	onUserSave func(id string, before, after []byte)
-}
-
-// Layout は画面が配置した結果の要約。Version はそのとき画面が表示していたファイルの版、Page は描いていたページ。
-// Details は子のある箱ごとの、子の位置と大きさ（箱の id ごとに 1 行。matomezu check の -in で出す）
-type Layout struct {
-	Version string            `json:"version"`
-	Page    string            `json:"page"`
-	Summary string            `json:"summary"`
-	Details map[string]string `json:"details,omitempty"`
 }
 
 // ファイルの絶対パスから、URL に使う id を作る。同じファイルなら毎回同じ URL になる
@@ -63,7 +51,7 @@ func docID(path string) string {
 
 // newDoc は abs（絶対パス）のファイルを扱う。ファイルが無ければ空の図で作る。
 func newDoc(abs string, onVersion func(id, version string)) (*doc, error) {
-	d := &doc{id: docID(abs), path: abs, onVersion: onVersion, layout: map[string]Layout{}}
+	d := &doc{id: docID(abs), path: abs, onVersion: onVersion}
 	b, err := os.ReadFile(abs)
 	if errors.Is(err, fs.ErrNotExist) {
 		b = []byte(emptyDiagram)
@@ -231,38 +219,6 @@ func (d *doc) putData(w http.ResponseWriter, r *http.Request) {
 	d.setVersion(hash(b))
 	w.Header().Set("ETag", quote(d.version))
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (d *doc) putLayout(w http.ResponseWriter, r *http.Request) {
-	var l Layout
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&l); err != nil || l.Version == "" {
-		http.Error(w, "version required", http.StatusBadRequest)
-		return
-	}
-	d.mu.Lock()
-	d.layout[l.Page] = l
-	d.mu.Unlock()
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (d *doc) getLayout(w http.ResponseWriter, r *http.Request) {
-	b, err := os.ReadFile(d.path)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	page := r.URL.Query().Get("page")
-	d.mu.Lock()
-	l, ok := d.layout[page]
-	d.mu.Unlock()
-	if !ok {
-		l = Layout{Page: page}
-	}
-	w.Header().Set("Cache-Control", "no-store")
-	writeJSON(w, struct {
-		Layout
-		Current string `json:"current"`
-	}{l, hash(b)})
 }
 
 // setVersion は版を更新し、変わっていれば Hub へ知らせる。d.mu を持った状態で呼ぶ

@@ -195,24 +195,6 @@ func TestEventsOnExternalChangeOnly(t *testing.T) {
 	}
 }
 
-// 配置の要約はページごとに覚える
-func TestLayoutPerPage(t *testing.T) {
-	base, _ := setup(t, `{"nodes":[]}`)
-	v := strings.Trim(do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag"), `"`)
-	for _, l := range []string{`{"version":"` + v + `","page":"","summary":"first"}`, `{"version":"` + v + `","page":"3","summary":"third"}`} {
-		if res := do(t, "POST", base+"/api/layout", l, nil); res.StatusCode != http.StatusNoContent {
-			t.Fatalf("post: %d", res.StatusCode)
-		}
-	}
-	for page, want := range map[string]string{"": "first", "3": "third", "9": ""} {
-		var got struct{ Version, Page, Summary, Current string }
-		json.NewDecoder(do(t, "GET", base+"/api/layout?page="+page, "", nil).Body).Decode(&got)
-		if got.Summary != want || got.Page != page || got.Current != v {
-			t.Fatalf("page %q: %+v", page, got)
-		}
-	}
-}
-
 // 監視がファイルを読んでいる間に画面からの保存が入っても、監視が古い版で上書きして知らせない（版が戻ると、画面が
 // 自分の保存を外部の変更と取り違えて読み直し、保存待ちの編集を捨てる）
 func TestPollDoesNotRollBackAConcurrentSave(t *testing.T) {
@@ -221,7 +203,7 @@ func TestPollDoesNotRollBackAConcurrentSave(t *testing.T) {
 	os.WriteFile(path, old, 0o644)
 	var mu sync.Mutex
 	var seen []string
-	d := &doc{id: "x", path: path, layout: map[string]Layout{}, version: hash(old),
+	d := &doc{id: "x", path: path, version: hash(old),
 		onVersion: func(_, v string) { mu.Lock(); seen = append(seen, v); mu.Unlock() }}
 	done := make(chan struct{})
 	readFile = func(p string) ([]byte, error) {
@@ -249,20 +231,15 @@ func TestPollDoesNotRollBackAConcurrentSave(t *testing.T) {
 // 画面からの書き込みは、JSON の本文で Origin が無いか localhost のものだけ（ほかのサイトのページから送られたものを断る。fromPage）
 func TestWritesOnlyFromPage(t *testing.T) {
 	base, _ := setup(t, `{"nodes":[]}`)
-	v := strings.Trim(do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag"), `"`)
-	l := `{"version":"` + v + `","page":"","summary":"x"}`
 	for name, h := range map[string]map[string]string{
 		"text/plain":   {"Content-Type": "text/plain"},
 		"other origin": {"Origin": "https://evil.example"},
 	} {
-		if res := do(t, "POST", base+"/api/layout", l, h); res.StatusCode != http.StatusForbidden {
-			t.Errorf("layout %s: %d", name, res.StatusCode)
-		}
 		if res := do(t, "PUT", base+"/api/data", `{"nodes":[]}`, h); res.StatusCode != http.StatusForbidden {
 			t.Errorf("data %s: %d", name, res.StatusCode)
 		}
 	}
-	if res := do(t, "POST", base+"/api/layout", l, map[string]string{"Origin": "http://localhost:4000"}); res.StatusCode != http.StatusNoContent {
+	if res := do(t, "PUT", base+"/api/data", `{"nodes":[]}`, map[string]string{"Origin": "http://localhost:4000"}); res.StatusCode != http.StatusNoContent {
 		t.Errorf("localhost origin: %d", res.StatusCode)
 	}
 }
