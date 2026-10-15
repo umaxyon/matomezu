@@ -145,30 +145,29 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, browserMeasure, createTextMeasurer } from "./layout/measure";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
-  type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
+  type Box, type Container, type Edge, type World, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
-import { type Head, headOf, isHead } from "./heads";
+import { headOf } from "./heads";
 import { type Subtree, captionOfData, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, subtreeIds } from "./pages";
-import { CAPTION_OFFSET_MAX, createRenderer } from "./render";
-import { type RouteFix, alignedEnds, isAligned, perimeterAt, route, vertexOf } from "./routing";
-import { nearestAt, pointAt } from "./geom";
-import { perimeter } from "./selfloop";
+import { createRenderer } from "./render";
+import { type RouteFix, isAligned, perimeterAt, route } from "./routing";
 import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
-import { ARROWS, DASHES, DEFAULT_PAPER, GROUP_MIN, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, normalizeEdge, validate } from "./validate";
+import type { BoxData, BoxView, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
+import { DEFAULT_PAPER, GROUP_MIN, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
 import { EMPTY_SCENE, dataScene } from "./data-scene";
 import { createView } from "./graph-view";
 import { createUnseen } from "./unseen";
 import { applyFlatten, planFlatten } from "./tree-flatten";
+import { type EdgePatch, createEdges } from "./graph-edges";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -184,21 +183,6 @@ export const DEFAULTS = {
   margin: 88, // 図の周りの余白（ワールドの外。物は置けない。道具箱の幅 42 の 2 つ分くらい。2026-10-15 ユーザー。D32）
   paper: true as boolean, // 紙の制限を使うか（D33。単体テストは配置の計算を確かめるので test/setup.ts で切る。紙を確かめるテストは createGraph に渡す）
 };
-
-// updateEdge で変えられる線の項目（null で消す）
-export interface EdgePatch {
-  caption?: string | null; // 空か null で消す
-  captionAt?: number | null;     // null で真ん中に戻す
-  captionOffset?: number | null; // null で線の上に戻す
-  arrow?: Arrow | null;
-  startHead?: Head | null; // 端の形（heads.ts。null で消す）
-  endHead?: Head | null;
-  dash?: Dash | null;
-  route?: Route | null;
-  via?: number[] | null;
-  exitAt?: number | null;
-  enterAt?: number | null;
-}
 
 export interface GraphOptions extends Partial<typeof DEFAULTS> {
   onChange?: (data: Diagram) => void;
@@ -220,7 +204,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
 }
 
-export type { AddRequest, HistoryState, Mode };
+export type { AddRequest, EdgePatch, HistoryState, Mode };
 export { COPY_MIME, REMOVED_MIME } from "./interaction";
 
 // 履歴に残す件数
@@ -394,6 +378,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     settle, sizable, alignChildren,
   } = L;
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
+  // 線の追加・削除・変更・つなぎ直し（graph-edges.ts）
+  const E = createEdges({
+    svg, world, edges: () => edges, setEdges: list => { edges = list; }, offEdgeIds: () => offEdges.map(e => String(e.id)), edgeOfEl,
+    mode: () => mode, currentEdge: () => currentEdge, select, selectEdge, toFront: e => R.toFront([e]),
+    routeInputOf: e => R.routeInputOf(e), loopCornerNear: (e, at) => R.loopCornerNear(e, at), settleDrop: n => settle(SCENES.drop, n),
+    render, renderEdges, unfocus, blocked, changed, notifySelect,
+  });
+  const { canLink, addEdge, removeEdge, updateEdge, alignEdge, link, canReconnect, reconnect } = E;
   const H = createHistory({
     snapshot: () => api.toJSON(),
     // 記録した状態に戻す。選択は保ち、読み込み直後のはみ出しの調整はしない（記録どおりに戻すため）
@@ -600,142 +592,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return e;
   }
 
-  // ---- 線の追加・削除 ----
-
-  function newEdgeId() {
-    const used = new Set([...edges.map(e => e.id), ...offEdges.map(e => String(e.id))]);
-    let i = edges.length + 1;
-    while (used.has("e" + i)) i++;
-    return "e" + i;
-  }
-
-  // 線の端を吸着させる距離（ワールドの px）
-
-
-
-
-
-  function canLink(a: Box, b: Box) {
-    if (a.parent !== b.parent || !abilitiesOf(a).link) return false;
-    // 自分に戻る線は、同じ箱に何本でも引ける（輪の大きさを変えて重ねない。docs/SELFLOOP-plan.md）
-    if (a === b) return true;
-    return !edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
-  }
-
-  function addEdge(src: EdgeData, a: Box, b: Box) {
-    const g = document.createElementNS(SVGNS, "g");
-    g.setAttribute("class", "mz-edge");
-    g.dataset.id = String(src.id); // 外から線を特定するため（線は手前に描き直すと並びが変わるので、順番では探さない）
-    const line = document.createElementNS(SVGNS, "polyline");
-    line.setAttribute("class", "mz-line");
-    const arrowEl = document.createElementNS(SVGNS, "path");
-    arrowEl.setAttribute("class", "mz-arrow");
-    const headLineEl = document.createElementNS(SVGNS, "path");
-    headLineEl.setAttribute("class", "mz-arrow-line");
-    const hit = document.createElementNS(SVGNS, "polyline");
-    hit.setAttribute("class", "mz-hit");
-    const handlesEl = document.createElementNS(SVGNS, "g");
-    handlesEl.setAttribute("class", "mz-bends");
-    const endsEl = document.createElementNS(SVGNS, "g");
-    endsEl.setAttribute("class", "mz-ends");
-    for (const end of ["exit", "enter"]) {
-      const c = document.createElementNS(SVGNS, "circle");
-      c.setAttribute("class", "mz-end");
-      c.setAttribute("r", "5");
-      c.dataset.end = end;
-      endsEl.appendChild(c);
-    }
-    g.append(line, arrowEl, headLineEl, hit, handlesEl, endsEl);
-    svg.appendChild(g);
-    const e: Edge = {
-      src, id: String(src.id), a, b, el: g, lines: [line, hit], arrowEl, headLineEl, points: [], handlesEl,
-      shape: null, segments: [], arrangement: "diagonal", ends: null, memory: null, routeMemo: null, endsEl, labelEl: null,
-    };
-    // キャプションの札を押しても、線を選ぶ（札は render.ts が作ったり消したりするので、g で受け取る）
-    g.addEventListener("click", ev => {
-      if (mode !== "move" || !(ev.target instanceof Element) || !ev.target.closest(".mz-label")) return;
-      ev.stopPropagation();
-      selectEdge(e);
-    });
-    // ポインタを乗せた線は、重なったほかの線より手前に描く（乗せたときの色が、重なった区間で隠れないように）
-    g.addEventListener("pointerenter", () => R.toFront([e]));
-    edgeOfEl.set(g, e);
-    for (const el of [hit, handlesEl]) {
-      el.addEventListener("click", ev => {
-        if (mode !== "move") return; // 選択モード以外では、線は CSS でもクリックを受けない
-        ev.stopPropagation();
-        selectEdge(e);
-      });
-    }
-    edges.push(e);
-    return e;
-  }
-
-  function removeEdge(e: Edge) {
-    e.el.remove();
-    edges = edges.filter(x => x !== e);
-    if (currentEdge === e) select(null);
-    unfocus();
-    changed();
-    notifySelect();
-  }
-
-  function updateEdge(e: Edge, patch: EdgePatch) {
-    for (const k of ["exitAt", "enterAt"] as const) {
-      if (!(k in patch)) continue;
-      const v = patch[k];
-      if (v != null && !(v >= 0 && v <= 1)) throw new Error(t("{k} は 0 から 1 の数にしてください: {v}", { k, v }));
-      setOrDelete(e.src, k, v ?? undefined, v == null);
-    }
-    if ("via" in patch) {
-      if (patch.via != null && !(Array.isArray(patch.via) && patch.via.every(Number.isFinite))) throw new Error(t("via は数の並びにしてください"));
-      setOrDelete(e.src, "via", patch.via ?? undefined, patch.via == null);
-    }
-    if ("route" in patch) {
-      if (patch.route != null && !(ROUTES as readonly string[]).includes(patch.route)) throw new Error(t("route の値が不正です: {v}", { v: patch.route }));
-      // 図の既定と同じなら書かない（既定を変えたとき一緒に変わるように）
-      setOrDelete(e.src, "route", patch.route ?? undefined, patch.route == null || patch.route === routeDefaultOf(world));
-    }
-    if ("arrow" in patch) {
-      if (patch.arrow != null && !(ARROWS as readonly string[]).includes(patch.arrow)) throw new Error(t("arrow の値が不正です: {v}", { v: patch.arrow }));
-      setOrDelete(e.src, "arrow", patch.arrow ?? undefined, patch.arrow == null);
-    }
-    for (const k of ["startHead", "endHead"] as const) {
-      if (!(k in patch)) continue;
-      const v = patch[k];
-      if (v != null && !isHead(v)) throw new Error(t("{k} の値が不正です: {v}", { k, v }));
-      setOrDelete(e.src, k, v ?? undefined, v == null);
-    }
-    if ("captionAt" in patch) {
-      const v = patch.captionAt;
-      if (v != null && !(v >= 0 && v <= 1)) throw new Error(t("captionAt は 0 から 1 の数にしてください: {v}", { v }));
-      setOrDelete(e.src, "captionAt", v ?? undefined, v == null);
-    }
-    if ("captionOffset" in patch) {
-      const v = patch.captionOffset;
-      if (v != null && !Number.isFinite(v)) throw new Error(t("captionOffset は数にしてください: {v}", { v }));
-      setOrDelete(e.src, "captionOffset", v == null ? undefined : Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, v)), v == null);
-    }
-    if ("caption" in patch) {
-      const v = patch.caption == null ? "" : String(patch.caption).trim();
-      setOrDelete(e.src, "caption", v, !v);
-    }
-    if ("dash" in patch) {
-      if (patch.dash != null && !(DASHES as readonly string[]).includes(patch.dash)) throw new Error(t("dash の値が不正です: {v}", { v: patch.dash }));
-      // 実線は既定なので、JSON には書かない
-      setOrDelete(e.src, "dash", patch.dash ?? undefined, patch.dash == null || patch.dash === "solid");
-    }
-    // 端や形を決め直したら、自由な端の前の辺の記憶は使わない（一番よい形から）
-    if ("exitAt" in patch || "enterAt" in patch || "via" in patch || "route" in patch) e.memory = null;
-    // キャプションが付くと、つながった 2 つの箱の最小間隔が広がる（layout.ts の gapBetween）。近すぎれば終点の側をどける
-    if ("caption" in patch && e.a !== e.b) {
-      settle(SCENES.drop, e.a);
-      render();
-    } else renderEdges();
-    changed();
-    notifySelect();
-  }
-
   // 本文の幅をつまんで変える（docs/BODY-plan.md の段階 2）。開始時の位置を覚えておき、幅を変えるたびにそこから決め直す
   // （押しのけた相手は、狭めれば戻る）。手を離したら 1 件の履歴にする。
   // 変えられる幅は、葉の見た目の箱なら本文の最小の幅〜サイズの最大。内包する箱・リストの親なら本文の最小の幅〜子の並びで決まった箱の幅
@@ -809,97 +665,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       },
       cancel() { apply(before); },
     };
-  }
-
-  // 整列: 両端を、今の形での一番よい位置（辺の真ん中か、まっすぐ結べる位置）に固定し、手で直した区間は消す（docs/EDGE-SPEC.md の C1）
-  function alignEdge(e: Edge) {
-    if (e.a === e.b || e.points.length < 2 || !e.ends) return;
-    updateEdge(e, { ...alignedEnds(R.routeInputOf(e), e.points), via: null });
-  }
-
-  // a から b へ線を引く（引けなければ何もせず false）。from（引き始めた〇の辺の真ん中）と at（離した所）はワールドの座標。
-  // from があれば始点をそこに、at があれば終点を at に一番近いふちの点（ひし形は頂点）に固定する。
-  // 同じ箱なら自分に戻る線で、at に一番近い角が空いていれば、端をその角に固定する（docs/EDGE-TOOL-plan.md）
-  function link(a: Box, b: Box, at?: [number, number], from?: [number, number], members?: { from?: string; to?: string }): boolean {
-    if (!canLink(a, b)) {
-      blocked(b);
-      return false;
-    }
-    // 画面で引いた線は、終点に矢印を付けておく（2026-10-11 ユーザー。外せるのはサイドバーと編集ダイアログ）
-    const src: EdgeData = { id: newEdgeId(), from: a.src.id!, to: b.src.id!, arrow: "end" };
-    // クラスの箱の属性・操作につなぐ線は、行の左右の端（相手のいる側）に付くので、端の位置は書かない（docs/CLASS-plan.md）
-    if (a !== b && members?.from != null) { src.fromMember = members.from; from = undefined; }
-    if (a !== b && members?.to != null) { src.toMember = members.to; at = undefined; }
-    const e = addEdge(src, a, b);
-    // 線でつながると、2 つの箱の最小間隔が広がる（layout.ts の gapBetween）。近すぎれば、始点の箱はそのままで終点の側をどける
-    if (a !== b) settle(SCENES.drop, a);
-    if (a !== b && (at || from)) {
-      if (from) fixEnd(e, "exit", from);
-      if (at) fixEnd(e, "enter", at);
-    }
-    if (a !== b) render(); else renderEdges();
-    const corner = a === b && at ? R.loopCornerNear(e, at) : null;
-    if (corner) {
-      e.src.exitAt = Math.round(corner.exit * 1000) / 1000; // 端をつまんで動かしたときと同じ桁
-      e.src.enterAt = Math.round(corner.enter * 1000) / 1000;
-      renderEdges();
-    }
-    changed();
-    notifySelect();
-    return true;
-  }
-
-  // 線 e の端（exit は始点、enter は終点）を、p（ワールドの座標）に一番近い箱の縁の位置に固定する（頂点にしかつなげない形は一番近い頂点）
-  function fixEnd(e: Edge, end: "exit" | "enter", p: [number, number]) {
-    const input = R.routeInputOf(e);
-    const r = end === "exit" ? input.a : input.b;
-    const q = pointAt(perimeter(r), nearestAt(perimeter(r), p[0], p[1]));
-    const vertex = end === "exit" ? input.aVertex : input.bVertex;
-    e.src[end === "exit" ? "exitAt" : "enterAt"] = perimeterAt(r, vertex ? vertexOf(r, q) : q);
-  }
-
-  // 線 e の端を、箱 to につなぎ替えられるか（残課題 E12）。線を引くときと同じ決まり: もう一方の端と同じ階層で、同じ組の線がほかに無いこと。
-  // もう一方の端と同じ箱なら、自分に戻る線になる（何本でもよい）。今つないでいる箱は付け替えにならない
-  function canReconnect(e: Edge, end: "exit" | "enter", to: Box): boolean {
-    const own = end === "exit" ? e.a : e.b, other = end === "exit" ? e.b : e.a;
-    if (to === own || to.parent !== other.parent || !abilitiesOf(to).link) return false;
-    if (to === other) return true;
-    return !edges.some(o => o !== e && ((o.a === to && o.b === other) || (o.a === other && o.b === to)));
-  }
-
-  // 線 e の端を箱 to につなぎ替え、端を離した所 at（ワールドの座標）に近い縁に固定する。キャプション・矢印・線の種類はそのまま。
-  // 道筋（折れ目 via）と、付け替えた端の位置・クラスの行は捨てる。自分に戻る線になる・でなくなるときは、両端の位置を捨てる（意味が変わるため）
-  function reconnect(e: Edge, end: "exit" | "enter", to: Box, at: [number, number]): boolean {
-    if (!canReconnect(e, end, to)) {
-      blocked(to);
-      return false;
-    }
-    const wasLoop = e.a === e.b;
-    if (end === "exit") { e.a = to; e.src.from = to.src.id!; delete e.src.fromMember; delete e.src.exitAt; }
-    else { e.b = to; e.src.to = to.src.id!; delete e.src.toMember; delete e.src.enterAt; }
-    const loop = e.a === e.b;
-    if (wasLoop || loop) { delete e.src.exitAt; delete e.src.enterAt; }
-    delete e.src.via;
-    e.memory = null;
-    e.routeMemo = null;
-    if (!loop) {
-      // 線でつながると最小間隔が広がる（layout.ts の gapBetween）。近すぎれば、つなぎ替えた先はそのままで、もう一方をどける
-      settle(SCENES.drop, to);
-      render();
-      fixEnd(e, end, at);
-      renderEdges();
-    } else {
-      renderEdges();
-      const corner = R.loopCornerNear(e, at);
-      if (corner) {
-        e.src.exitAt = Math.round(corner.exit * 1000) / 1000;
-        e.src.enterAt = Math.round(corner.enter * 1000) / 1000;
-        renderEdges();
-      }
-    }
-    changed();
-    notifySelect();
-    return true;
   }
 
   // ---- 親子の付け替え ----
