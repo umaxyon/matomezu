@@ -167,6 +167,7 @@ import { ARROWS, DASHES, DEFAULT_PAPER, GROUP_MIN, PAGE_PATTERNS, PAPERS, type P
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
 import { EMPTY_SCENE, dataScene } from "./data-scene";
+import { createView } from "./graph-view";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -337,16 +338,29 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   };
 
   // 文字はワールドの中で測るので、倍率をかけていれば割り戻す（transform は文字の並び方を変えない。D32）
-  const measurer = createTextMeasurer(options.measureText ?? ((head, width) => browserMeasure(head, width, applied)));
+  const measurer = createTextMeasurer(options.measureText ?? ((head, width) => browserMeasure(head, width, V.applied())));
   // 開いたときのはみ出しの調整で移した箱（id → 移したときのファイルの位置と、移した先）。画面にだけある位置なので、
   // 外部の変更の読み直しで、LLM がその箱の位置を変えていなければ移した先に置く（keepShownPositions）。
   // ユーザーが図を変えて保存すると位置はファイルに入るので、忘れる
   let fitted = new Map<string, { file: string; x: number; y: number }>();
   const posKey = (s: { x?: unknown; y?: unknown }) =>
     Number.isFinite(s.x) && Number.isFinite(s.y) ? `${s.x},${s.y}` : null;
-  // プレビューの倍率（null は編集中）と、今ワールドにかけている倍率
-  let preview: number | null = null;
-  let applied = 1;
+  // 画面の見え方（倍率・プレビュー・home・手のひら。graph-view.ts）
+  const V = createView({
+    container, worldEl, world, margin: opt.margin, offset: () => L.offset(), syncWorld: () => L.syncWorld(), mode: () => mode,
+    zoomed: () => { if (unseen.length) setTimeout(checkSeen, 0); }, // 拡大縮小で見えた LLM の変更（D31）
+    previewChanged: () => checkSeen(),
+    pick(t) {
+      const edgeEl = t?.closest(".mz-edge");
+      const edge = edgeEl ? edgeOfEl.get(edgeEl) : undefined;
+      if (edge) { selectEdge(edge); return true; }
+      const nodeEl = t?.closest(".mz-node");
+      const n = nodeEl ? boxOfEl.get(nodeEl) : undefined;
+      if (n) { select(n); return true; }
+      select(null);
+      return false;
+    },
+  });
   // 紙（D33。docs/PAPER-plan.md）: 紙の制限を受けるパターン（STRATEGIES の paper）のページは、紙の型（world.paper。無ければ DEFAULT_PAPER）の大きさ。
   // 受けないページ（マスター）は null
   const paperOf = (): { name: PaperName; w: number; h: number } | null => {
@@ -360,7 +374,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return p ? { w: p.w, h: p.h } : { w: Number(world.src.width) || null, h: Number(world.src.height) || null };
   };
   const L = createLayout({
-    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => applied, worldFixed, canvasSized: () => rehome(),
+    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => V.applied(), worldFixed, canvasSized: () => V.rehome(),
     fitted: n => {
       const file = posKey(n.src);
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
@@ -388,7 +402,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     limit: HISTORY_LIMIT,
   });
   const I = createInteraction({
-    container, world, boxOfEl, zoom: () => applied,
+    container, world, boxOfEl, zoom: () => V.applied(),
     current: () => current,
     mode: () => mode,
     select,
@@ -1956,8 +1970,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           && ancestors(n).every(a => !a.kidsEl || (() => { const k = a.kidsEl!.getBoundingClientRect(); return r.bottom > k.top && r.top < k.bottom; })());
       })
       || u.removed.some(r => r.page === page && hits({
-        left: w.left + r.rect.x * applied, top: w.top + r.rect.y * applied,
-        right: w.left + (r.rect.x + r.rect.w) * applied, bottom: w.top + (r.rect.y + r.rect.h) * applied,
+        left: w.left + r.rect.x * V.applied(), top: w.top + r.rect.y * V.applied(),
+        right: w.left + (r.rect.x + r.rect.w) * V.applied(), bottom: w.top + (r.rect.y + r.rect.h) * V.applied(),
       }));
     const now = unseen.filter(seen);
     if (!now.length) return;
@@ -2007,92 +2021,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     worldEl.classList.toggle("mz-paper", !!paperOf()); // 紙の見た目（graph-style.ts。D33）
     outsideKnown = outsideNow(); // 読み込んだときから紙の外にある箱（LLM の書いた位置）は、操作を断る理由にしない
   }
-
-  // ---- プレビュー ----
-
-  // 倍率は transform: scale でかける（文字の並び方を変えないので、組み直すときに外さなくてよい。D32）。
-  // スクロールできる広さは、見えない入れ物（canvasEl）を syncWorld が倍率に合わせて決める
-  function applyZoom(z: number) {
-    applied = z;
-    worldEl.style.transform = z === 1 ? "" : `scale(${z})`;
-    syncWorld();
-    if (unseen.length) setTimeout(checkSeen, 0); // 拡大縮小で見えた LLM の変更（D31）
-  }
-
-  function setPreview(z: number | null) {
-    preview = z;
-    container.classList.toggle("mz-preview", z != null);
-    applyZoom(z ?? editZoom);
-    checkSeen();
-  }
-
-  // ワールドの左上を表示領域の左上に合わせる（スクロールの位置 = 余白。D32）。隠れている図（裏のブック）はスクロールできないので、
-  // 見えるようになったときに合わせる（下の ResizeObserver）
-  let homed = false;
-  let homeAt: { left: number; top: number } | null = null; // 合わせたスクロールの位置（そのまま動いていなければ、紙の大きさが変わったとき合わせ直す）
-  function home() {
-    homed = container.clientWidth > 0;
-    if (!homed) return;
-    // 紙が表示領域より大きければワールドの左上を表示領域の左上に、小さければ真ん中に（ずらす量が真ん中の分を含むので、その分戻す）
-    const v = api.view();
-    container.scrollLeft = Math.max(0, v.ox - Math.max(0, (container.clientWidth - world.w * v.zoom) / 2));
-    container.scrollTop = Math.max(0, v.oy - Math.max(0, (container.clientHeight - world.h * v.zoom) / 2));
-    homeAt = { left: container.scrollLeft, top: container.scrollTop };
-  }
-  // 開いた直後に紙の型が決まる（既定の紙で合わせたあと、データの紙に替わる）ときのため、合わせたまま動いていなければ合わせ直す
-  function rehome() {
-    if (!homeAt) return;
-    if (container.scrollLeft !== homeAt.left || container.scrollTop !== homeAt.top) { homeAt = null; return; }
-    home();
-  }
-  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (!homed) home(); }).observe(container);
-
-  // 編集中の倍率（D32）
-  let editZoom = 1;
-  function setZoom(z: number) {
-    editZoom = z;
-    if (preview == null) applyZoom(z);
-  }
-
-  // 見る範囲を動かす（つかんだ所がポインタに付いてくる）。プレビューの背景のドラッグと、手のひら（D32）
-  function pan(e: PointerEvent) {
-    const start = { x: e.clientX, y: e.clientY, left: container.scrollLeft, top: container.scrollTop };
-    const stop = new AbortController();
-    container.classList.add("mz-panning");
-    document.addEventListener("pointermove", ev => {
-      container.scrollLeft = start.left - (ev.clientX - start.x);
-      container.scrollTop = start.top - (ev.clientY - start.y);
-    }, { signal: stop.signal });
-    const end = () => { stop.abort(); container.classList.remove("mz-panning"); };
-    document.addEventListener("pointerup", end, { signal: stop.signal });
-    document.addEventListener("pointercancel", end, { signal: stop.signal });
-  }
-
-  // 手のひらのモードの押下（D32）。図の操作（interaction.ts）より先に受け取り、どこを押しても見る範囲を動かすだけにする
-  // （箱を選んだり動かしたりしない）。道具箱は押せる
-  container.addEventListener("pointerdown", e => {
-    if (mode !== "pan" || preview != null) return;
-    if (e.target instanceof Element && e.target.closest(".mz-toolbox")) return;
-    e.stopImmediatePropagation();
-    e.preventDefault(); // 文字を選ばない
-    if (e.button === 0) pan(e);
-  }, true);
-
-  // プレビュー中の押下。図の操作（interaction.ts）より先に受け取り、選ぶだけにする。
-  // 背景を押したらワールドを選び、そのままドラッグすると見る範囲を動かす
-  container.addEventListener("pointerdown", e => {
-    if (preview == null) return;
-    e.stopImmediatePropagation();
-    const t = e.target instanceof Element ? e.target : null;
-    const edgeEl = t?.closest(".mz-edge");
-    const edge = edgeEl ? edgeOfEl.get(edgeEl) : undefined;
-    if (edge) return selectEdge(edge);
-    const nodeEl = t?.closest(".mz-node");
-    const n = nodeEl ? boxOfEl.get(nodeEl) : undefined;
-    if (n) return select(n);
-    select(null);
-    if (e.button === 0) pan(e);
-  }, true);
 
   function buildAll(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
     assignIds(copy);
@@ -2154,8 +2082,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   const api: Graph = {
     load,
-    undo: () => preview == null && step(H.undo),
-    redo: () => preview == null && step(H.redo),
+    undo: () => V.preview() == null && step(H.undo),
+    redo: () => V.preview() == null && step(H.redo),
     history: () => H.state(),
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
     reveal(id) { const n = nodeOf(id); if (!n.isWorld) reveal(n); },
@@ -2223,7 +2151,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       captureScene(data); // 離れるページの縮図を覚える（リンクの箱の窓に映す）
       page = next;
       build(data, true);
-      home(); // 新しいページは、ワールドの左上から見せる（D32）
+      V.home(); // 新しいページは、ワールドの左上から見せる（D32）
       notifySelect();
       setTimeout(checkSeen, 0); // そのページの見ていない LLM の変更（D31）
     },
@@ -2280,7 +2208,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           // キャプションの札の範囲（ワールドの座標）。描かれていて大きさが分かるときだけ
           const text = e.labelEl?.querySelector("span");
           if (text && typeof e.src.caption === "string") {
-            const sr = text.getBoundingClientRect(), wr = worldEl.getBoundingClientRect(), z = applied;
+            const sr = text.getBoundingClientRect(), wr = worldEl.getBoundingClientRect(), z = V.applied();
             out.caption = e.src.caption;
             if (sr.width) out.label = { x: (sr.left - wr.left) / z, y: (sr.top - wr.top) / z, w: sr.width / z, h: sr.height / z };
           }
@@ -2288,13 +2216,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         }),
       };
     },
-    setPreview,
-    setZoom,
-    zoom: () => editZoom,
-    preview: () => preview,
-    view: () => ({ zoom: applied, margin: opt.margin, ox: L.offset().x, oy: L.offset().y }),
+    setPreview: V.setPreview,
+    setZoom: V.setZoom,
+    zoom: V.editZoom,
+    preview: V.preview,
+    view: V.view,
     paper: paperOf,
-    home,
+    home: V.home,
     contentSize() {
       let w = 0, h = 0;
       for (const r of roots) {
