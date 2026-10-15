@@ -28,7 +28,7 @@ type Layout struct {
 	Outside []string          `json:"outside,omitempty"` // 紙からはみ出している最上位の箱の id（D33。あれば check はエラーで終わる）
 }
 
-// summaryWait は要約を待つ長さ。画面がボタンを離すのを待つ長さ（app.ts の SUMMARY_BUSY）より長く
+// summaryWait は要約を待つ長さ。画面がボタンを離すのを待つ長さ（web/src/app-answers.ts の SUMMARY_BUSY）より長く
 const summaryWait = 15 * time.Second
 
 // summaryAnswer は画面からの答え
