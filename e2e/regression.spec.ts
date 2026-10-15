@@ -126,7 +126,9 @@ test("タイトルを下へ動かすと、触れた箱と入れ替わりなが�
 });
 
 test("表示領域の幅に小数があっても、中身が収まっていればワールドははみ出さない（スクロールバーを出さない）", async ({ page }) => {
-  await openDiagram(page, withoutLines());
+  // ワールドが表示領域の幅に合わせて決まるのは、紙の制限を受けないページだけ（マスター。D33）
+  const d = withoutLines();
+  await openDiagram(page, { ...d, world: { ...(d.world ?? {}), childView: "master" } } as never);
   // Windows の表示倍率などで表示領域の幅に小数が出る状態を、サイドバーの幅で作る
   for (const w of ["280.2px", "280.4px", "280.6px", "280.8px"]) {
     await page.evaluate(w => { document.getElementById("sidebar")!.style.width = w; }, w);

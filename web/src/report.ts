@@ -26,6 +26,7 @@ export interface GeoEdge { id: string; a: string; b: string; points: Pt[]; capti
 
 export interface Geometry {
   viewport: { w: number; h: number };
+  paper?: { name: string; w: number; h: number } | null; // 紙（D33）。あれば、はみ出しは表示領域ではなく紙に対して数える
   boxes: GeoBox[];
   edges: GeoEdge[];
   treeLines?: Pt[][];  // ツリーの線の区間（ワールドの座標。縮図で使う）
@@ -72,13 +73,15 @@ export function summarize(g: Geometry): string {
   const top = g.boxes.filter(b => b.ancestors.length === 0);
   const right = Math.max(0, ...top.map(b => b.x + b.w));
   const bottom = Math.max(0, ...top.map(b => b.y + b.h));
-  const { w: vw, h: vh } = g.viewport;
+  // 紙のページは紙に対して、紙の制限を受けないページ（マスター）は表示領域に対して、はみ出しを数える（D33）
+  const { w: vw, h: vh } = g.paper ?? g.viewport;
   const lines: string[] = [];
 
   const over: string[] = [];
   if (right > vw) over.push(`right ${Math.round(right - vw)}`);
   if (bottom > vh) over.push(`bottom ${Math.round(bottom - vh)}`);
-  lines.push(`viewport ${vw}x${vh}, content ${Math.round(right)}x${Math.round(bottom)}` + (over.length ? ` → over ${over.join(", ")}` : " → fits"));
+  const frame = g.paper ? `paper ${g.paper.name} ${vw}x${vh}` : `viewport ${vw}x${vh}`;
+  lines.push(`${frame}, content ${Math.round(right)}x${Math.round(bottom)}` + (over.length ? ` → over ${over.join(", ")}` : " → fits"));
 
   // 最上位のボックスは、動かす判断に要るので常に出す。はみ出しているものに ! を付ける
   const rect = (b: GeoBox) => `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}`;

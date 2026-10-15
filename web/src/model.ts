@@ -181,17 +181,18 @@ export interface Strategy {
   // 決まった並べ方（autoAlign）で置くときの、列の間（x）と段の間（y）。中の箱のサイズ（kidSize）ごと。top はワールドに置くとき一番上の段を下げる量
   // sideDrop は、分岐から分岐へ続くとき横に置く子の分岐を、親の中心から下げる量（layout/flow-align.ts）
   align: { gaps: Record<Size, { x: number; y: number }>; sideDrop: Record<Size, number>; top: number } | null;
+  paper: boolean;        // ページに掛けたとき、固定サイズの紙の制限を受けるか（D33。docs/PAPER-plan.md）。マスターのような特別なページは受けない（中身に合わせて伸びる）
   pairGaps: boolean;     // 子どうしに、組ごとの最小間隔（線でつながれば 32・キャプションがあれば 40px。layout.ts の gapBetween）を使うか。
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null } as const;
-const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"] };
+const PLAIN = { leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false } as const;
+const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"], paper: true };
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   NEST,
   // ツリー（ページのパターン）: 根（world.root）の子孫全体を木に並べる。最上位の箱（根も、根でない葉も）は自由に置く
   // 道具箱は追加だけ（ツリーは次の段階で作り込む。2026-10-14 ユーザー: それまでの暫定）
-  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, pick: true, tops: "nest", rootOnly: true, tools: ["add"] },
+  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, pick: true, tops: "nest", rootOnly: true, tools: ["add"], paper: true },
   list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, onBox: true, tops: "list", kidGap: 8 },
   hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onBox: true, tops: "hidden" },
   // 縮図（D13。2026-10-14 ユーザー）: リストの子が子を持つときの見せ方。非表示と同じく子を描かず、子の代わりに中身の縮図を横に出す。
@@ -202,7 +203,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false,
+    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false, paper: true,
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
@@ -210,7 +211,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   // マスター（D26 の段階 2。docs/UI-plan.md。2026-10-14 ユーザー: パターンをプラグインして特別にした普通のページ）: 内包を土台に、
   // 違う所だけを上書きする（内包に足した決まりは、そのままマスターにも効く）。新しいページの選択肢には出さず（pick）、箱の見せ方にも使わない。
   // 道具箱はブック追加・ブックをまたぐ追加削除・設定。窓（book のある箱）でブックを並べる。ファイルの形式は validate.ts の PAGE_FORMATS
-  master: { ...NEST, onBox: false, pick: false, openMore: "list", tools: ["newBook", "crossMove", "settings"] },
+  master: { ...NEST, onBox: false, pick: false, openMore: "list", tools: ["newBook", "crossMove", "settings"], paper: false }, // 紙の制限を受けない（ブックの数で伸びる）
 };
 
 // 箱が、ある戦略の子として並んだときの自分の見せ方。並べる側ではなく、並べられる箱の側の決まり（リストは子の中身に関与しない。

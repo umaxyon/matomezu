@@ -87,6 +87,12 @@ export function createLayout(ctx: LayoutContext) {
   // ワールドは幅を固定し、高さは指定が無ければ下へ伸ばせる（横スクロールより縦スクロールの方が見やすい）
   // 固定の大きさを決める口（LayoutContext.worldFixed）
   const worldFixed = () => ctx.worldFixed?.() ?? { w: null, h: null };
+  // 最上位の箱が、固定の大きさ（紙）の外にはみ出しているか（D33）
+  const outsideFixed = (n: Box) => {
+    if (n.parent || !n.hasPos) return false;
+    const f = worldFixed();
+    return (f.w != null && n.x + n.w > f.w - opt.padding) || (f.h != null && n.y + n.h > f.h - opt.padding);
+  };
   function fixedSize(c: Container): { w: number | null; h: number | null } {
     if (c.isWorld) return { w: world.w, h: worldFixed().h != null ? world.h : null };
     return { w: null, h: null };
@@ -313,7 +319,9 @@ export function createLayout(ctx: LayoutContext) {
         const back = slide(n, n.x, clamp(n, n.x, n.intendedY)[1], "down", n.y);
         if (back) [n.x, n.y] = back;
       }
-      [n.x, n.y] = clamp(n, n.x, n.y);
+      // 紙の外にある最上位の箱（LLM がファイルに書いた位置）は、紙の中へ寄せずにそのまま見せる（D33。check が直すまでエラーを返す）。
+      // ユーザーがつかんで動かせば、ドラッグの clamp で紙の中に収まる
+      if (!outsideFixed(n)) [n.x, n.y] = clamp(n, n.x, n.y);
       if (!n.hasPos || collides(n, n.x, n.y)) {
         const wasPlaced = n.hasPos;
         [n.x, n.y] = spot(n);

@@ -46,16 +46,17 @@ test("ミニマップは最初は閉じていて図の上に何も無い。ボ�
 });
 
 test("図が画面に収まっていればボタンは押せない。開いたあとスクロールが無くなると、ボタンはオフに戻る", async ({ page }) => {
-  await openDiagram(page, { nodes: [{ id: 1, caption: "A" }] });
+  // 紙（D33）が画面に収まるか（A5 横は収まる、A3 縦は縦に収まらない）
+  await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "A" }] } as never);
   const toggle = page.locator("#minimap-toggle");
   await expect(toggle).toBeDisabled();
-  // 下の方に置いた箱があればスクロールするので開ける
-  await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 40, y: 1400 }] });
+  // 紙が画面より大きければスクロールするので開ける
+  await openDiagram(page, { world: { paper: "a3-portrait" }, nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 40, y: 1400 }] } as never);
   await expect(toggle).toBeEnabled();
   await toggle.click();
   await expect(page.locator(".mz-minimap")).toBeVisible();
   // 収まる図に変わると（箱を動かしてスクロールが無くなったのと同じ）、オフに戻って押せなくなる
-  await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 40, y: 200 }] });
+  await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 40, y: 200 }] } as never);
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
   await expect(toggle).toBeDisabled();
   await expect(page.locator(".mz-minimap")).toBeHidden();

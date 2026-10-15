@@ -54,7 +54,13 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   --mz-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .mz-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; } /* left・top は周りの余白（graph.ts が DEFAULTS.margin から書く。D32） */
-.mz-canvas { position: absolute; left: 0; top: 0; pointer-events: none; } /* スクロールできる広さを決める見えない入れ物（layout.ts の sizeCanvas） */
+.mz-canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
+/* 紙（D33）: 白（暗い画面では少し明るい灰色）に、縁の細い線と薄い影。ページに背景色があればその色（render.ts が style の background に書く）。紙の外は点の格子 */
+.mz-stage { --mz-paper: #2a2a30; --mz-paper-line: rgba(255, 255, 255, 0.14); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .mz-stage { --mz-paper: #ffffff; --mz-paper-line: rgba(0, 0, 0, 0.12); }
+}
+.mz-world.mz-paper { background-color: var(--mz-paper); box-shadow: 0 0 0 1px var(--mz-paper-line), 0 6px 24px rgba(0, 0, 0, 0.18); } /* スクロールできる広さを決める見えない入れ物（layout.ts の sizeCanvas） */
 .mz-world > svg {
   position: absolute; inset: 0; width: 100%; height: 100%;
   pointer-events: none; z-index: 5; overflow: visible;

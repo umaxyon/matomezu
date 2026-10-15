@@ -16,13 +16,20 @@ test("箱を選んで Enter を押すと、ダブルクリックと同じ編集�
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
 });
 
-test("箱を図の下の端へ寄せたままにすると、図がスクロールして広がり、箱は見えていた範囲の外まで運べる", async ({ page }) => {
+// 紙（D33）は広がらないので、画面より縦に長い紙（A3 縦）で、端へ寄せると見る範囲がスクロールし、紙の下の端までは運べることを確かめる
+const tallPaper = () => { const d = example("nested"); return { ...d, world: { ...(d.world ?? {}), paper: "a3-portrait" } }; };
+// 開いたときに見えている最上位の箱のうち、一番上のもの（画面の外の箱はつかめない）
+const topBoxId = (page: import("@playwright/test").Page) =>
+  page.locator("#stage .mz-world > .mz-node").evaluateAll(els => Number(els.reduce((a, b) => (parseFloat((a as HTMLElement).style.top) <= parseFloat((b as HTMLElement).style.top) ? a : b)).getAttribute("data-id")));
+
+test("箱を図の下の端へ寄せたままにすると、図がスクロールし、箱は見えていた範囲の外まで運べる（紙の下の端まで）", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
-  await openDiagram(page, example("nested"));
+  await openDiagram(page, tallPaper());
   const stage = page.locator("#stage");
   const view = (await stage.boundingBox())!;
-  const before = await rect(page, 9);
-  const head = page.locator('.mz-node[data-id="9"] > .mz-head');
+  const id = await topBoxId(page);
+  const before = await rect(page, id);
+  const head = page.locator(`.mz-node[data-id="${id}"] > .mz-head`);
   const box = (await head.boundingBox())!;
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
   await page.mouse.move(x, y);
@@ -30,17 +37,18 @@ test("箱を図の下の端へ寄せたままにすると、図がスクロー�
   await page.mouse.move(x, view.y + view.height - 4, { steps: 40 });
   await page.waitForTimeout(1600); // 端に止めている間も、スクロールして広がり続ける（端の近くで毎秒約 500px）
   await page.mouse.up();
-  const after = await rect(page, 9);
+  const after = await rect(page, id);
   expect(after.y).toBeGreaterThan(before.y + view.height);
+  expect(after.y + after.h).toBeLessThanOrEqual(1587); // A3 縦の紙の高さを超えない
   expect(await stage.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
 });
 
-test("下へ広げたあと、つかんだまま上へ戻すと、箱はポインタと同じだけ動く（図はドラッグの間は縮まず、離したら縮む）", async ({ page }) => {
+test("下の端でスクロールしたあと、つかんだまま上へ戻すと、箱はポインタと同じだけ動く", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
-  await openDiagram(page, example("nested"));
+  await openDiagram(page, tallPaper());
   const stage = page.locator("#stage");
   const view = (await stage.boundingBox())!;
-  const head = page.locator('.mz-node[data-id="9"] > .mz-head');
+  const head = page.locator(`.mz-node[data-id="${await topBoxId(page)}"] > .mz-head`);
   const box = (await head.boundingBox())!;
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
   await page.mouse.move(x, y);
@@ -57,10 +65,8 @@ test("下へ広げたあと、つかんだまま上へ戻すと、箱はポイ�
     expect(Math.abs((start - await screenY()) - 30 * i)).toBeLessThan(2);
   }
   await page.mouse.up();
-  // 離したら、図は中身に合わせて縮む
-  const worldH = await page.locator(".mz-world").evaluate(el => (el as HTMLElement).offsetHeight);
-  const bottom = await page.locator(".mz-node[data-id]").evaluateAll(els => Math.max(...els.map(e => (e as HTMLElement).offsetTop + (e as HTMLElement).offsetHeight)));
-  expect(worldH).toBeLessThan(bottom + 100);
+  // 紙の大きさは変わらない（D33）
+  expect(await page.locator(".mz-world").evaluate(el => (el as HTMLElement).offsetHeight)).toBe(1587);
 });
 
 test("ボタンやタブの文字は、ドラッグで選択されない", async ({ page }) => {

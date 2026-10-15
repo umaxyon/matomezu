@@ -57,6 +57,21 @@ export const SHAPE_GROUPS: { label: string; shapes: Shape[] }[] = [
   { label: t("絵の形"), shapes: ["person", "db", "server", "pc", "factory", "document", "trash", "robot", "cat", "heart", "bulb", "dog", "forest", "house", "family"] },
 ];
 // ページのパターンの画面での名前（サイドバー・ダイアログ・リンクの箱の札）
+// 紙の型（D33。docs/PAPER-plan.md。2026-10-15 ユーザー）: ページの編集領域は伸ばさず、この大きさの紙にする。印刷の大きさ（96dpi）。
+// 暫定で、1 行ずつ足していける（足せば新しいページのダイアログの選択肢と、LLM が選べる名前に出る）。紙の制限を受けるかはパターンの定義（STRATEGIES の paper）
+export const PAPERS = {
+  "a5-portrait": { w: 559, h: 794, label: t("A5 縦") },
+  "a5-landscape": { w: 794, h: 559, label: t("A5 横") },
+  "a4-portrait": { w: 794, h: 1123, label: t("A4 縦") },
+  "a4-landscape": { w: 1123, h: 794, label: t("A4 横") },
+  "a3-portrait": { w: 1123, h: 1587, label: t("A3 縦") },
+  "a3-landscape": { w: 1587, h: 1123, label: t("A3 横") },
+} as const satisfies Record<string, { w: number; h: number; label: string }>;
+export type PaperName = keyof typeof PAPERS;
+export const PAPER_NAMES = Object.keys(PAPERS) as PaperName[];
+export const DEFAULT_PAPER: PaperName = "a4-landscape";
+export const isPaper = (v: unknown): v is PaperName => typeof v === "string" && Object.hasOwn(PAPERS, v);
+
 export const PATTERN_LABELS: Record<PagePattern, string> = { nest: t("内包"), tree: t("ツリー"), flow: t("フローチャート"), master: t("マスター") };
 // パターンごとのファイルの形式（D26 の段階 2。2026-10-14 ユーザー: 形式の切り替えもパターンの定義の項目で決める）。
 // データの検査は DOM の無い CLI でも使うので、パターンの名前と見出しと同じくここに置く。形式ごとの決まりは下の FORMAT_RULES
@@ -99,6 +114,7 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
   if (world) {
     if (s.childView != null && !isPattern(s.childView)) out.push(t("world の childView に使えるのは nest / tree / flow です: {where} ({value})", { where, value: s.childView }));
     if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(t("treeDirection の値が不正です: {where} ({value})", { where, value: s.treeDirection }));
+    if (s.paper != null && !isPaper(s.paper)) out.push(t("paper（紙の型）の値が不正です: {where} ({value})。使えるのは {papers}", { where, value: s.paper, papers: PAPER_NAMES.join(" / ") }));
   }
   if (s.overflow != null && !isOverflow(s.overflow)) out.push(t("overflow の値が不正です: {where} ({value})", { where, value: s.overflow }));
   if (s.size != null && !isSize(s.size)) out.push(t("size の値が不正です: {where} ({value})", { where, value: s.size }));

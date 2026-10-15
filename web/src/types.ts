@@ -38,6 +38,7 @@ export interface WorldData {
   root?: Id;             // ツリーのページの根の箱（最上位の箱の id。childView が tree のとき必須）
   treeDirection?: TreeDirection; // ツリーのページで子を置く向き（既定は down）
   madeBy?: "user";     // 画面の「新しい図」で作ったブックの印（サーバーが書く。無ければ LLM が渡したもの。マスターで分けて並べる。D26）。ブック全体の world だけ
+  paper?: string;      // 紙の型（validate.ts の PAPERS の名前。無ければ DEFAULT_PAPER。D33）。紙の制限を受けるパターン（STRATEGIES の paper）のページだけ効く
   title?: string;      // 図（ブック）の題名。タブの見出しに使う（無ければファイル名）。ブック全体の world だけ（ページの world には書かない）
   [key: string]: unknown;
 }

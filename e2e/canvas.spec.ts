@@ -87,7 +87,7 @@ const homeView = (page: import("@playwright/test").Page) =>
 const zoomOf = (page: import("@playwright/test").Page) =>
   page.locator("#stage .mz-world").evaluate(el => Number(/scale\(([\d.]+)\)/.exec((el as HTMLElement).style.transform)?.[1] ?? 1));
 
-test("編集中も倍率のボタンが出て、75% / 100% / 125% の段で切り替わる（なめらかに変わる）。端の段ではボタンを押せない。「全体」はプレビューだけ", async ({ page }) => {
+test("編集中も倍率のボタンが出て、50% / 75% / 100% / 125% の段で切り替わる（なめらかに変わる）。端の段ではボタンを押せない。「全体」はプレビューだけ", async ({ page }) => {
   await expect(page.locator("#zoom-level")).toHaveText("100%");
   await expect(page.locator("#zoom-fit")).toBeHidden();
   await page.click("#zoom-in");
@@ -98,13 +98,16 @@ test("編集中も倍率のボタンが出て、75% / 100% / 125% の段で切�
   await page.click("#zoom-out");
   await expect(page.locator("#zoom-level")).toHaveText("75%");
   await expect.poll(() => zoomOf(page)).toBe(0.75);
+  await page.click("#zoom-out");
+  await expect(page.locator("#zoom-level")).toHaveText("50%"); // A3 の紙を見るための段（D33）
+  await expect.poll(() => zoomOf(page)).toBe(0.5);
   await expect(page.locator("#zoom-out")).toBeDisabled();
   // プレビューに入って抜けると、編集中の倍率に戻る
   await page.click("#preview-toggle");
   await expect(page.locator("#zoom-fit")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect.poll(() => zoomOf(page)).toBe(0.75);
-  await expect(page.locator("#zoom-level")).toHaveText("75%");
+  await expect.poll(() => zoomOf(page)).toBe(0.5);
+  await expect(page.locator("#zoom-level")).toHaveText("50%");
 });
 
 test("125% でも、箱はポインタに付いて動き（画面で 125 動かすと図で 100）、箱の大きさは 100% のときと同じ", async ({ page }) => {

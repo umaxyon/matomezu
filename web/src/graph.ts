@@ -163,7 +163,7 @@ import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
-import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, isPattern, isTreeDirection, normalizeEdge, validate } from "./validate";
+import { ARROWS, DASHES, DEFAULT_PAPER, GROUP_MIN, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, isTreeDirection, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
 import { scrollWorldTo } from "./viewport";
@@ -180,6 +180,7 @@ export const DEFAULTS = {
   rootAt: { x: 40, y: 40 }, // ツリーのページを作るときに置く根の箱の位置（addPage）
   previewMinScale: 0.15, // リンクの箱の窓に映すページの縮尺の下限（これより縮めず、収まらない分は切り取る。link-box.ts の previewRegion）
   margin: 88, // 図の周りの余白（ワールドの外。物は置けない。道具箱の幅 42 の 2 つ分くらい。2026-10-15 ユーザー。D32）
+  paper: true as boolean, // 紙の制限を使うか（D33。単体テストは配置の計算を確かめるので test/setup.ts で切る。紙を確かめるテストは createGraph に渡す）
 };
 
 // ページの縮図のもとを、データだけから近似で作る（描いていないページ・ほかのブックの窓。graph.pageScene と、マスターの窓（app.ts）が使う）。
@@ -374,6 +375,7 @@ export interface Graph {
   preview(): number | null;
   // 画面の見え方（D32）: 今の倍率と、図の周りの余白。スクロールの位置 = 余白 + ワールドの座標 × 倍率
   view(): { zoom: number; margin: number };
+  paper(): { name: PaperName; w: number; h: number } | null; // 今のページの紙（紙の制限を受けないページは null。D33）
   home(): void; // ワールドの左上を表示領域の左上に合わせる（開いたとき・ページを切り替えたとき。D32）
   contentSize(): { w: number; h: number }; // ボックスが占める範囲（ワールドの左上から、余白込み）
   destroy(): void;
@@ -423,8 +425,18 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // プレビューの倍率（null は編集中）と、今ワールドにかけている倍率
   let preview: number | null = null;
   let applied = 1;
-  // ワールドの固定の大きさ（null の向きは表示領域と中身に合わせる）。今はデータの world.width / height（D33 で紙の型の大きさにする）
-  const worldFixed = () => ({ w: Number(world.src.width) || null, h: Number(world.src.height) || null });
+  // 紙（D33。docs/PAPER-plan.md）: 紙の制限を受けるパターン（STRATEGIES の paper）のページは、紙の型（world.paper。無ければ DEFAULT_PAPER）の大きさ。
+  // 受けないページ（マスター）は null
+  const paperOf = (): { name: PaperName; w: number; h: number } | null => {
+    if (!opt.paper || !STRATEGIES[worldViewOf(world)].paper) return null;
+    const name = isPaper(world.src.paper) ? world.src.paper : DEFAULT_PAPER;
+    return { name, w: PAPERS[name].w, h: PAPERS[name].h };
+  };
+  // ワールドの固定の大きさ（null の向きは表示領域と中身に合わせる）。紙があれば紙の大きさ、無ければデータの world.width / height
+  const worldFixed = () => {
+    const p = paperOf();
+    return p ? { w: p.w, h: p.h } : { w: Number(world.src.width) || null, h: Number(world.src.height) || null };
+  };
   const L = createLayout({
     opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => applied, worldFixed,
     fitted: n => {
@@ -2016,6 +2028,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 直接選ぶ（いったんワールドを選ぶと、サイドバーの情報タブが切り替わって、入力中の内容が消えるため）
   function build(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
     buildAll(copy, fit, keep);
+    worldEl.classList.toggle("mz-paper", !!paperOf()); // 紙の見た目（graph-style.ts。D33）
   }
 
   // ---- プレビュー ----
@@ -2258,6 +2271,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const shown = edges.filter(e => e.el.style.display !== "none");
       return {
         viewport: L.viewport(), // 倍率をかけないときの広さ（LLM への配置の要約。D32・D33）
+        paper: paperOf(),
         boxes,
         treeLines,
         edges: shown.map(e => {
@@ -2278,6 +2292,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     zoom: () => editZoom,
     preview: () => preview,
     view: () => ({ zoom: applied, margin: opt.margin }),
+    paper: paperOf,
     home,
     contentSize() {
       let w = 0, h = 0;

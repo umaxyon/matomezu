@@ -219,9 +219,9 @@ test("set は書き換えだけ: 見ていないブックを set しても前に
 
   const out = run("set", "b.json", "5.caption=変えたトップ画面");
   expect(out).toContain("written");
-  expect(out).not.toContain("viewport");
+  expect(out).not.toContain("paper");
   await expect(selected(page)).toHaveText("a.json");
-  expect(run("check", "b.json")).toContain("viewport");
+  expect(run("check", "b.json")).toContain("paper a4-landscape"); // 要約は紙に対して（D33）
   await expect(selected(page)).toHaveText("a.json");
   await switchTo(page, "b.json");
   await expect(page.locator(".stage:visible .mz-head", { hasText: "変えたトップ画面" })).toHaveCount(1);
@@ -509,7 +509,7 @@ test("見ていないブックを check しても前に出さず、見えない�
   run("open", "-no-browser", "b.json");
   await page.locator(".mz-dlg [data-cancel]").click(); // 届いた b は開かない
   const unseen = run("check", "b.json");
-  expect(unseen).toContain("viewport");
+  expect(unseen).toContain("paper");
   await expect(selected(page)).toHaveText("a.json");
   expect(run("check", "a.json")).not.toBe(unseen); // 表示している a は a の要約
   // b を開いてから問い合わせると、表示中の図から作る。見えない所で並べたものと同じになる
@@ -529,7 +529,7 @@ test("ユーザーがボタンを押している間は、要約を作らずに�
   await page.waitForTimeout(800);
   expect(done).toBe(false);
   await page.mouse.up();
-  expect(await out).toContain("viewport");
+  expect(await out).toContain("paper");
 });
 
 test("通知: ほかのブックを開く通知は題名と本文のダイアログを出す。キャンセルなら郵便箱に残り、行を押すとダイアログを挟んで開ける（D30）", async ({ page }) => {
