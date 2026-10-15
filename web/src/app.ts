@@ -41,7 +41,8 @@ import { toast } from "./toast";
 import type { SideToggle } from "./main";
 import { createMaster } from "./app-master";
 import { createAnswers } from "./app-answers";
-import { type MailNote, arrivedNote, createMailbox, badgeText, fetchMail, openNoteDialog, readMail, removeMail, sendMail } from "./mailbox";
+import { createNoteQueue } from "./app-notes";
+import { type MailNote, arrivedNote, createMailbox, badgeText, sendMail } from "./mailbox";
 
 export interface AppUi {
   tabs: HTMLElement;
@@ -453,6 +454,9 @@ export async function startApp(ui: AppUi) {
 
   ui.master.addEventListener("click", () => void M.open());
 
+  // 通知のダイアログの順番待ち（app-notes.ts）
+  const queueNote = createNoteQueue();
+
   // 通知を届ける（matomezu notify と、matomezu open の「届いています」。D30。docs/NOTIFY-plan.md）。この画面がカレントなので届いた。
   // 今見ているブックの郵便箱に入れ、dialog ならダイアログも出す（LLM は画面で今どれを見ているか分からないので、郵便箱だけでは伝わらない。2026-10-14 ユーザー）。
   // - 開く動き（book）: 「開く」ならすぐ前に出してから届けた行を取り除く（郵便箱を待つ間に matomezu close で閉じたブックを出さないように）。キャンセルなら残る。
@@ -479,46 +483,6 @@ export async function startApp(ui: AppUi) {
     if (!n.dialog) return;
     queueNote({ note, into, sent, open: () => { if (b) activate(b, n.page); } });
   }
-
-  // 通知のダイアログの順番待ち（2026-10-15 ユーザー）。ほかのダイアログ（編集ダイアログや前の通知）が開いていれば押しのけず、閉じたら届いた順に出す
-  // （押しのけると、前の通知や編集中の入力が失われるため）。待っている間は郵便箱に未読の行として残り、その間に郵便箱から中身を見た分は出さない
-  interface QueuedNote { note: MailNote; into: string | null; sent: string | null; open: () => void }
-  const noteQueue: QueuedNote[] = [];
-  let showingNote = false;
-  const dialogOpen = () => !!document.querySelector(".mz-dlg-overlay");
-  function queueNote(q: QueuedNote) {
-    noteQueue.push(q);
-    void showNextNote();
-  }
-  async function showNextNote() {
-    if (showingNote || dialogOpen()) return;
-    const q = noteQueue.shift();
-    if (!q) return;
-    showingNote = true;
-    try {
-      if (q.into && q.sent) {
-        const still = (await fetchMail(q.into)).find(m => m.id === q.sent);
-        if (!still || still.read) return; // 待っている間に郵便箱から見た・消した
-        if (dialogOpen()) { noteQueue.unshift(q); return; } // 確かめている間に別のダイアログが開いた
-      }
-      const { note, into, sent } = q;
-      // ダイアログで中身を見せるので、読んだことにする（説明だけなら取り除く。開く動きがあればキャンセルでも残る）
-      if (into && sent) void (note.book ? readMail(into, sent) : removeMail(into, sent));
-      openNoteDialog(note, () => {
-        q.open();
-        if (into && sent) void removeMail(into, sent);
-      });
-    } finally {
-      showingNote = false;
-      if (!dialogOpen()) void showNextNote(); // 出さなかった（見た・消した）なら次へ
-    }
-  }
-  // ダイアログが閉じたら、待っている通知を出す（閉じたときの処理がさらにダイアログを開くこともあるので、次の番に回してから見る）
-  new MutationObserver(list => {
-    if (noteQueue.length && list.some(m => [...m.removedNodes].some(x => x instanceof Element && x.classList.contains("mz-dlg-overlay")))) {
-      setTimeout(() => void showNextNote(), 0);
-    }
-  }).observe(document.body, { childList: true });
 
   // サーバーからの問い合わせへの答え（matomezu check の要約・set の前の確かめ。app-answers.ts）
   const answers = createAnswers({
