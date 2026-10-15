@@ -373,6 +373,7 @@ export interface Graph {
   preview(): number | null;
   // 画面の見え方（D32）: 今の倍率と、図の周りの余白。スクロールの位置 = 余白 + ワールドの座標 × 倍率
   view(): { zoom: number; margin: number };
+  home(): void; // ワールドの左上を表示領域の左上に合わせる（開いたとき・ページを切り替えたとき。D32）
   contentSize(): { w: number; h: number }; // ボックスが占める範囲（ワールドの左上から、余白込み）
   destroy(): void;
 }
@@ -2032,6 +2033,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     checkSeen();
   }
 
+  // ワールドの左上を表示領域の左上に合わせる（スクロールの位置 = 余白。D32）。隠れている図（裏のブック）はスクロールできないので、
+  // 見えるようになったときに合わせる（下の ResizeObserver）
+  let homed = false;
+  function home() {
+    homed = container.clientWidth > 0;
+    if (!homed) return;
+    container.scrollLeft = opt.margin;
+    container.scrollTop = opt.margin;
+  }
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (!homed) home(); }).observe(container);
+
   // 編集中の倍率（D32）
   let editZoom = 1;
   function setZoom(z: number) {
@@ -2211,6 +2223,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       captureScene(data); // 離れるページの縮図を覚える（リンクの箱の窓に映す）
       page = next;
       build(data, true);
+      home(); // 新しいページは、ワールドの左上から見せる（D32）
       notifySelect();
       setTimeout(checkSeen, 0); // そのページの見ていない LLM の変更（D31）
     },
@@ -2262,6 +2275,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     zoom: () => editZoom,
     preview: () => preview,
     view: () => ({ zoom: applied, margin: opt.margin }),
+    home,
     contentSize() {
       let w = 0, h = 0;
       for (const r of roots) {

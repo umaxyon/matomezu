@@ -26,7 +26,8 @@ test("ミニマップは最初は閉じていて図の上に何も無い。ボ�
 
   const stage = page.locator("#stage");
   const top = () => stage.evaluate(s => s.scrollTop);
-  expect(await top()).toBe(0);
+  const top0 = await top(); // 開いたときは、ワールドの左上から見せる（周りの余白の分だけスクロールしている。D32）
+  expect(top0).toBeGreaterThan(0);
   // 四角を下へ 40px ドラッグ（ミニマップの倍率で割った分だけスクロールする）
   const v = (await view.boundingBox())!;
   await page.mouse.move(v.x + v.width / 2, v.y + 5);
@@ -34,7 +35,7 @@ test("ミニマップは最初は閉じていて図の上に何も無い。ボ�
   await page.mouse.move(v.x + v.width / 2, v.y + 45, { steps: 5 });
   await page.mouse.up();
   const scale = await map.locator("svg").evaluate(s => (s as SVGSVGElement).width.baseVal.value / document.getElementById("stage")!.scrollWidth);
-  expect(Math.abs(await top() - 40 / scale)).toBeLessThan(4);
+  expect(Math.abs(await top() - top0 - 40 / scale)).toBeLessThan(4);
   // 一番上を押すと、そこが真ん中に来るように飛ぶ（上端なので 0）
   const svg = (await map.locator("svg").boundingBox())!;
   await page.mouse.click(svg.x + 10, svg.y + 1);

@@ -24,9 +24,12 @@ test("入ると全体が収まる倍率になり、サイドバーと編集の�
   const z = await zoomOf(page);
   expect(z).toBeLessThan(1);
   await expect(page.locator("#zoom-level")).toHaveText(`${Math.round(z * 100)}%`);
-  // 全体が表示領域に収まる（スクロールしない）
-  const fits = await page.locator("#stage").evaluate(s => s.scrollWidth <= s.clientWidth + 1 && s.scrollHeight <= s.clientHeight + 1);
-  expect(fits).toBe(true);
+  // 全体（ワールド）が表示領域に収まる（周りの余白の分はいつもずらせる。D32）
+  const frame = (await page.locator("#stage").boundingBox())!, world = (await page.locator("#stage .mz-world").boundingBox())!;
+  expect(world.x).toBeGreaterThanOrEqual(frame.x - 1);
+  expect(world.y).toBeGreaterThanOrEqual(frame.y - 1);
+  expect(world.x + world.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
+  expect(world.y + world.height).toBeLessThanOrEqual(frame.y + frame.height + 1);
 
   await page.keyboard.press("Escape");
   await expect(page.locator("body")).not.toHaveClass(/previewing/);

@@ -31,19 +31,10 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
     --mz-scroll-hover: rgba(0, 0, 0, 0.36);
   }
 }
-/* スクロールバー: 細い角丸のつまみだけを見せ、通り道は透明にする。乗せると太く濃くなる。
-   Chrome・Edge・Safari は ::-webkit-scrollbar で形を作る（scrollbar-width / scrollbar-color を指定すると
-   Chrome はこちらを無視するので、それらは ::-webkit-scrollbar が使えない Firefox だけに当てる） */
-.mz-stage::-webkit-scrollbar { width: 12px; height: 12px; }
-.mz-stage::-webkit-scrollbar-track, .mz-stage::-webkit-scrollbar-corner { background: transparent; }
-.mz-stage::-webkit-scrollbar-thumb {
-  background: var(--mz-scroll); border-radius: 6px;
-  border: 3px solid transparent; background-clip: padding-box;
-}
-.mz-stage::-webkit-scrollbar-thumb:hover { background-color: var(--mz-scroll-hover); border-width: 2px; }
-@supports not selector(::-webkit-scrollbar) {
-  .mz-stage { scrollbar-width: thin; scrollbar-color: var(--mz-scroll) transparent; }
-}
+/* スクロールバーは出さない（D32。2026-10-15 ユーザー）。見る範囲は手のひら・ホイール・ミニマップで動かす。
+   スクロールできる範囲は、編集領域（ワールド）の外側に上下左右とも余白の分だけ（graph.ts の DEFAULTS.margin） */
+.mz-stage { scrollbar-width: none; }
+.mz-stage::-webkit-scrollbar { display: none; }
 
 /* 背景色を付けたワールドでは、背景の明るさに合わせてテーマと関係なく配色を切り替える */
 .mz-world.mz-on-light {

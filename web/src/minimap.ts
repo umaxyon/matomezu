@@ -99,7 +99,9 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
   function draw() {
     const fullW = stage.scrollWidth, fullH = stage.scrollHeight;
     const viewW = stage.clientWidth, viewH = stage.clientHeight;
-    const scrolls = fullW > viewW + 1 || fullH > viewH + 1;
+    // 図が表示領域に収まっていないか。周りの余白（D32）の分はいつもずらせるので、数えない
+    const pad = 2 * graph.view().margin;
+    const scrolls = fullW - pad > viewW + 1 || fullH - pad > viewH + 1;
     if (!stage.hidden) setAvailable(scrolls);
     el.hidden = stage.hidden || !open || !scrolls;
     if (el.hidden) return;

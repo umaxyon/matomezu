@@ -14,10 +14,31 @@ const stage = (page: import("@playwright/test").Page) => page.locator("#stage");
 const scrollOf = (page: import("@playwright/test").Page) => stage(page).evaluate(s => [s.scrollLeft, s.scrollTop]);
 const head = (page: import("@playwright/test").Page, id: number) => page.locator(`.mz-node[data-id="${id}"] > .mz-head`);
 
-test("開いたとき、道具箱は図の周りの余白の上にあり、箱に重ならない", async ({ page }) => {
-  const box = await page.locator(".mz-toolbox").boundingBox();
-  const world = await page.locator("#stage .mz-world").boundingBox();
-  expect(box!.x + box!.width).toBeLessThanOrEqual(world!.x); // ワールドは道具箱の右から始まる
+test("開いたとき、ワールドの左上が図の枠の左上に合い、スクロールバーは出ない。手のひらで、上下左右とも余白の分だけ外へずらせる", async ({ page }) => {
+  const frame = (await stage(page).boundingBox())!;
+  const world = () => page.locator("#stage .mz-world").boundingBox().then(b => b!);
+  expect(Math.round((await world()).x)).toBe(Math.round(frame.x));
+  expect(Math.round((await world()).y)).toBe(Math.round(frame.y));
+  expect(await stage(page).evaluate(s => [s.offsetWidth - s.clientWidth, s.offsetHeight - s.clientHeight])).toEqual([0, 0]);
+  // 右下へ大きくずらしても、余白（DEFAULTS.margin）の分で止まる
+  const margin = await stage(page).evaluate(s => s.scrollLeft);
+  expect(margin).toBeGreaterThan(0);
+  await page.click("#mode-pan");
+  const drag = async (dx: number, dy: number) => {
+    await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(frame.x + frame.width / 2 + dx, frame.y + frame.height / 2 + dy, { steps: 5 });
+    await page.mouse.up();
+  };
+  await drag(400, 400);
+  expect(Math.round((await world()).x - frame.x)).toBe(margin);
+  expect(Math.round((await world()).y - frame.y)).toBe(margin);
+  // 左上へ大きくずらすと、ワールドの右下の角の外に余白の分だけ見える所で止まる
+  await drag(-3000, -3000);
+  await drag(-3000, -3000);
+  const w = await world();
+  expect(Math.round(frame.x + frame.width - (w.x + w.width))).toBe(margin);
+  expect(Math.round(frame.y + frame.height - (w.y + w.height))).toBe(margin);
 });
 
 test("手のひらのモードでは、箱をドラッグしても箱は動かず、見る範囲が動く。選びもしない", async ({ page }) => {
@@ -25,6 +46,7 @@ test("手のひらのモードでは、箱をドラッグしても箱は動か�
   await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#mode-label")).toHaveText("手のひらモード");
   const before = await rect(page, 3);
+  const [sl0, st0] = await scrollOf(page);
   const b = (await head(page, 3).boundingBox())!;
   await page.mouse.move(b.x + 10, b.y + 10);
   await page.mouse.down();
@@ -32,8 +54,8 @@ test("手のひらのモードでは、箱をドラッグしても箱は動か�
   await page.mouse.up();
   expect(await rect(page, 3)).toEqual(before);
   const [sl, st] = await scrollOf(page);
-  expect(sl).toBeGreaterThan(0);
-  expect(st).toBeGreaterThan(0);
+  expect(sl).toBeGreaterThan(sl0);
+  expect(st).toBeGreaterThan(st0);
   await expect(page.locator(".mz-node.mz-current")).toHaveCount(0);
 });
 
@@ -42,16 +64,25 @@ test("Space を押している間は手のひらになり、離すと前のモ�
   await page.keyboard.down(" ");
   await expect(page.locator("#mode-label")).toHaveText("手のひらモード");
   const before = await rect(page, 3);
+  const [sl0] = await scrollOf(page);
   const b = (await head(page, 3).boundingBox())!;
   await page.mouse.move(b.x + 10, b.y + 10);
   await page.mouse.down();
   await page.mouse.move(b.x - 60, b.y - 40, { steps: 5 });
   await page.mouse.up();
   expect(await rect(page, 3)).toEqual(before);
-  expect((await scrollOf(page))[0]).toBeGreaterThan(0);
+  expect((await scrollOf(page))[0]).toBeGreaterThan(sl0);
   await page.keyboard.up(" ");
   await expect(page.locator("#mode-move")).toHaveAttribute("aria-pressed", "true");
 });
+
+// ワールドの左上を図の枠の左上に合わせる（拡大縮小は画面の真ん中を中心に広がるので、確かめる前に見る範囲をそろえる）
+const homeView = (page: import("@playwright/test").Page) =>
+  stage(page).evaluate(s => {
+    const w = s.querySelector(".mz-world")!.getBoundingClientRect(), f = s.getBoundingClientRect();
+    s.scrollLeft += w.left - f.left;
+    s.scrollTop += w.top - f.top;
+  });
 
 const zoomOf = (page: import("@playwright/test").Page) =>
   page.locator("#stage .mz-world").evaluate(el => Number(/scale\(([\d.]+)\)/.exec((el as HTMLElement).style.transform)?.[1] ?? 1));
@@ -80,6 +111,7 @@ test("125% でも、箱はポインタに付いて動き（画面で 125 動か�
   const at100 = await rect(page, 2);
   await page.click("#zoom-in");
   await expect.poll(() => zoomOf(page)).toBe(1.25);
+  await homeView(page);
   expect(await rect(page, 2)).toEqual(at100); // 文字は倍率で割り戻して測る
   const b = (await head(page, 2).boundingBox())!;
   expect(Math.round(b.width)).toBe(Math.round(at100.w * 1.25)); // 見た目は 125%
@@ -95,19 +127,21 @@ test("125% でも、箱はポインタに付いて動き（画面で 125 動か�
 test("75% で追加モードを使うと、押した所（影の左上）に箱ができる", async ({ page }) => {
   await page.click("#zoom-out");
   await expect.poll(() => zoomOf(page)).toBe(0.75);
+  await homeView(page);
   await page.locator('.mz-toolbox [data-tool="add"]').click();
   const world = (await page.locator("#stage .mz-world").boundingBox())!;
-  await page.mouse.move(world.x + 300, world.y + 420);
-  await page.mouse.click(world.x + 300, world.y + 420);
+  // 何も無い所（図の中身の右。三階層の見本は図の座標で幅 830 くらい）
+  await page.mouse.move(world.x + 712, world.y + 420);
+  await page.mouse.click(world.x + 712, world.y + 420);
   await expect(page.locator(".mz-dlg h2")).toHaveText("ボックスの追加");
   await page.locator('.mz-dlg [name="caption"]').fill("新しい箱");
   await page.locator(".mz-dlg [data-ok]").click();
-  const added = page.locator(".mz-node", { hasText: "新しい箱" });
+  const added = page.locator(".mz-node:not(:has(.mz-node))", { hasText: "新しい箱" });
   await expect(added).toHaveCount(1);
   const id = Number(await added.getAttribute("data-id"));
   const r = await rect(page, id);
   // 影の左上はポインタの (16, 12) 左上（画面の上）。図の座標では 75% で割り戻す
-  expect(Math.abs(r.x - (300 - 16) / 0.75)).toBeLessThanOrEqual(1);
+  expect(Math.abs(r.x - (712 - 16) / 0.75)).toBeLessThanOrEqual(1);
   expect(Math.abs(r.y - (420 - 12) / 0.75)).toBeLessThanOrEqual(1);
 });
 
@@ -115,6 +149,7 @@ test("125% でも、線を引く〇は箱の辺のすぐ外（画面で同じだ
   await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 40 }], edges: [] } as never);
   await page.click("#zoom-in");
   await expect.poll(() => zoomOf(page)).toBe(1.25);
+  await homeView(page);
   await head(page, 1).hover();
   const a = (await head(page, 1).boundingBox())!;
   const p = (await page.locator('.mz-port[data-side="r"]').boundingBox())!;
