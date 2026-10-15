@@ -1,10 +1,11 @@
-// ほかのブック・描いていないページを、画面の外で実際に並べる。データだけの近似（graph.ts の dataScene）では、
+// ほかのブック・描いていないページを、画面の外で実際に並べる。データだけの近似（data-scene.ts の dataScene）では、
 // 線が中心どうしの直線になり、子（リストの行など）も描けないため、見えない所に図を 1 つ作って並べ、その配置を読んで捨てる。
 // - 縮図（マスターの窓とリンクの箱の窓。D26）: layoutScene。読めなければ近似に戻す
 // - 配置の要約（matomezu check で、カレントの画面が表示していないページ。D30。docs/NOTIFY-plan.md）: layoutGeometry
 // 作る図には保存・同期・認知（D31）・履歴のつなぎ先を渡さない（並べて読むだけで、ファイルにも画面にも何も起こさない）。
 // 並べるのは 1 冊ずつ順に（同時に幾つも作らない）
-import { createGraph, dataScene } from "./graph";
+import { DEFAULTS, createGraph } from "./graph";
+import { dataScene } from "./data-scene";
 import { type Scene, sceneOf } from "./preview-art";
 import type { Geometry } from "./report";
 import type { Diagram, WorldInfo } from "./types";
@@ -43,7 +44,7 @@ function offscreen<T>(data: Diagram, page: string | null, size: { w: number; h: 
 // without があれば、その箱を描かずに中身だけの縮図にする（リストの子の中身の縮図。D13）
 export function layoutScene(data: Diagram, page: string | null = null, without?: string): Promise<Scene> {
   return offscreen(data, page, SCENE_SIZE, g => sceneOf(g.geometry(), (g.info(null) as WorldInfo).backgroundPaint, without))
-    .catch(() => dataScene(data, page ?? ""));
+    .catch(() => dataScene(data, page ?? "", DEFAULTS));
 }
 
 // 表示領域が size の画面で page を開いたときの配置（要約の元）。開いたときと同じ配置になるよう、画面の図と同じ大きさで並べる

@@ -148,7 +148,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesBetween, treeLinesOf, viaOf, viewOf,
+  overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -162,10 +162,11 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, t
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
-import { ARROWS, DASHES, DEFAULT_PAPER, GROUP_MIN, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, isTreeDirection, normalizeEdge, validate } from "./validate";
+import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
+import { ARROWS, DASHES, DEFAULT_PAPER, GROUP_MIN, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
+import { EMPTY_SCENE, dataScene } from "./data-scene";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -181,83 +182,6 @@ export const DEFAULTS = {
   margin: 88, // 図の周りの余白（ワールドの外。物は置けない。道具箱の幅 42 の 2 つ分くらい。2026-10-15 ユーザー。D32）
   paper: true as boolean, // 紙の制限を使うか（D33。単体テストは配置の計算を確かめるので test/setup.ts で切る。紙を確かめるテストは createGraph に渡す）
 };
-
-// ページの縮図のもとを、データだけから近似で作る（描いていないページ・ほかのブックの窓。graph.pageScene と、マスターの窓（app.ts）が使う）。
-// そのページの最上位の箱をデータの位置（無ければ 0,0）と大きさの指定（無ければ M の最小）で置き、最上位どうしの線を中心で結ぶ
-// 何も無い縮図（マスターの窓で、まだ読んでいないブック）
-const EMPTY_SCENE: Scene = { w: 1, h: 1, bg: null, boxes: [], edges: [] };
-export type SceneOptions = Pick<typeof DEFAULTS, "treeGapX" | "treeGapY" | "padding">;
-export function dataScene(source: Diagram, p: string, opt: SceneOptions = DEFAULTS): Scene {
-  const tops = source.nodes.filter(s => s.parent == null && String(s.page ?? "") === p);
-  const hasKids = new Set(source.nodes.filter(s => s.parent != null).map(s => String(s.parent)));
-  const rectOf = (s: BoxData) => ({
-    x: Number(s.x) || 0, y: Number(s.y) || 0,
-    w: Number(s.width) || SIZES.M.minW, h: Number(s.height) || SIZES.M.h,
-  });
-  const colorOf = (s: BoxData) => (typeof s.color === "string" && /^#/.test(s.color) ? s.color : null);
-  const byId = new Map(tops.map(s => [String(s.id), rectOf(s)]));
-  const boxes = tops.map(s => ({ ...byId.get(String(s.id))!, color: colorOf(s), outline: hasKids.has(String(s.id)) }));
-  const lines: [number, number][][] = [];
-  // ツリーのページは、根の子孫を木の形に組む（大きさは近似。根の左上をデータの位置に）
-  const pw = pageWorld(source, p);
-  const root = STRATEGIES[patternOf(source, p)].descendants && pw.root != null ? tops.find(s => String(s.id) === String(pw.root)) : undefined;
-  if (root) {
-    const tree = approxTree(source, opt, root, isTreeDirection(pw.treeDirection) ? pw.treeDirection : "down", rectOf);
-    boxes.splice(tops.indexOf(root), 1, ...tree.boxes.map(({ s, r }) => ({ ...r, color: colorOf(s), outline: false })));
-    byId.set(String(root.id), tree.boxes[0]!.r);
-    lines.push(...tree.lines);
-  }
-  const edges = [...(source.edges ?? []).map(normalizeEdge).flatMap(e => {
-    const a = byId.get(String(e.from)), b = byId.get(String(e.to));
-    return a && b && a !== b ? [{ points: [[a.x + a.w / 2, a.y + a.h / 2], [b.x + b.w / 2, b.y + b.h / 2]] as [number, number][] }] : [];
-  }), ...lines.map(points => ({ points }))];
-  const w = Math.max(1, ...boxes.map(b => b.x + b.w)), h = Math.max(1, ...boxes.map(b => b.y + b.h));
-  const bg = pw.background;
-  return { w, h, bg: typeof bg === "string" && bg ? bg : null, boxes, edges };
-}
-// 描いていないツリーの近似: 子を副軸に並べ（間隔 treeGapX）、親を子の並びの真ん中に置き、主軸に treeGapY 離す。最初が根
-function approxTree(source: Diagram, opt: SceneOptions, root: BoxData, dir: TreeDirection, rectOf: (s: BoxData) => Rect) {
-  const kidsOf = (s: BoxData) => source.nodes.filter(k => k.parent != null && String(k.parent) === String(s.id));
-  const vertical = dir === "down" || dir === "up";
-  const size = (s: BoxData) => { const r = rectOf(s); return vertical ? [r.h, r.w] as const : [r.w, r.h] as const; };
-  const spans = new Map<BoxData, number>();
-  const span = (s: BoxData): number => {
-    const kids = kidsOf(s);
-    const all = kids.reduce((t, k) => t + span(k), 0) + opt.treeGapX * Math.max(0, kids.length - 1);
-    const v = Math.max(size(s)[1], all);
-    spans.set(s, v);
-    return v;
-  };
-  span(root);
-  const placed: { s: BoxData; m: number; c: number; main: number; cross: number }[] = [];
-  const lines: { parent: number; kids: number[] }[] = [];
-  const place = (s: BoxData, m: number, c: number): number => {
-    const [main, cross] = size(s);
-    const at = placed.push({ s, m, c: c + (spans.get(s)! - cross) / 2, main, cross }) - 1;
-    const kids = kidsOf(s);
-    const total = kids.reduce((t, k) => t + spans.get(k)!, 0) + opt.treeGapX * Math.max(0, kids.length - 1);
-    let kc = c + (spans.get(s)! - total) / 2;
-    const ids: number[] = [];
-    for (const k of kids) { ids.push(place(k, m + main + opt.treeGapY, kc)); kc += spans.get(k)! + opt.treeGapX; }
-    if (ids.length) lines.push({ parent: at, kids: ids });
-    return at;
-  };
-  place(root, 0, 0);
-  // 上向き・左向きは主軸を裏返す。木の枠（周りに余白）の左上をデータの位置にそろえる（描いたときの根の位置と同じ）
-  const end = Math.max(...placed.map(q => q.m + q.main));
-  const forward = dir === "down" || dir === "right";
-  const rects = placed.map(q => {
-    const m = forward ? q.m : end - q.m - q.main;
-    return vertical ? { x: q.c, y: m, w: q.cross, h: q.main } : { x: m, y: q.c, w: q.main, h: q.cross };
-  });
-  const r0 = rectOf(root);
-  const dx = r0.x + opt.padding - Math.min(...rects.map(r => r.x)), dy = r0.y + opt.padding - Math.min(...rects.map(r => r.y));
-  for (const r of rects) { r.x += dx; r.y += dy; }
-  return {
-    boxes: placed.map((q, i) => ({ s: q.s, r: rects[i]! })),
-    lines: lines.flatMap(l => treeLinesBetween(dir, rects[l.parent]!, l.kids.map(i => rects[i]!), opt.treeGapY)),
-  };
-}
 
 // updateEdge で変えられる線の項目（null で消す）
 export interface EdgePatch {
