@@ -3,6 +3,17 @@ export default {
   // 共通
   "確定": "OK",
   "キャンセル": "Cancel",
+  // 箱のタイプ（D29）
+  "タイプ": "Type",
+  "通常": "Plain",
+  "ページリンク": "Page link",
+  "ブックリンク": "Book link",
+  "ページを探す": "Search pages",
+  "ブックを探す": "Search books",
+  "リンクできるページがありません": "No pages to link to",
+  "リンクできるブックがありません": "No books to link to",
+  "リンク先のページを選んでください": "Choose the page to link to",
+  "リンク先のブックを選んでください": "Choose the book to link to",
   "追加": "Add",
   "{key}+Enter で{ok} / Esc でキャンセル": "{key}+Enter: {ok} / Esc: Cancel",
   "{key}+Enter / Esc で{ok}": "{key}+Enter / Esc: {ok}",

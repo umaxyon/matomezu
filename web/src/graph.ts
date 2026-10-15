@@ -201,6 +201,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   bookWindow?: (book: string, visible: boolean) => { title: string; pattern: PagePattern; scene: Scene | null } | null;
   onOpenBook?: (book: string) => void;        // マスターの窓を押した（そのブックを前に出すのは画面の側。app.ts）
   onDuplicateBook?: (book: string) => void;   // マスターで写したブックの窓を貼った（複製のダイアログを出すのは画面の側。app-master.ts。D23）
+  bookChoices?: () => { id: string; title: string }[]; // ブックリンクを作るときに選べるブック（今のブック以外の登録した図。D29）。持たなければ無し
   // 描いていないページの縮図を、画面の外で実際に並べて作る（offscreen-scene.ts の layoutScene）。持たなければデータだけの近似（dataScene。テスト）
   sceneLayout?: (data: Diagram, page: string | null, without?: string) => Promise<Scene>; // without は中身だけを映す箱（リストの子の縮図。D13）
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
@@ -267,6 +268,7 @@ export interface Graph {
   setPage(id: Id | null): void;
   page(): string | null;
   pages(): { id: string; caption: string }[]; // ブックのページ（2 枚目から。最初のページは含まない）
+  bookChoices(): { id: string; title: string }[]; // ブックリンクを作るときに選べるブック（D29。画面の側が渡す。GraphOptions の bookChoices）
   // ページを足す（2 枚目から）。world はそのページの設定（パターンなど）。ツリーなら根の箱を 1 つ置く。新しいページの id を返す
   addPage(spec: { title?: string; world?: WorldData }): string;
   // ページ（null は最初のページ）の題名とワールドの設定（テーマ・背景色・線の通り方・ツリーの向き）を変える。履歴に 1 件残す。
@@ -1687,6 +1689,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     paste: (copy, parentId, at, from) => paste(copy, parentId, at, from),
     copySelected,
     pasteClip,
+    bookChoices: () => opt.bookChoices?.() ?? [],
     add,
     purge,
       pages: () => pagesOf(source).map(p => ({ id: String(p.id), caption: pageNameOf(source, String(p.id)) })),

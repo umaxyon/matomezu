@@ -28,10 +28,11 @@ import { DEFAULTS } from "./graph";
 import { PALETTE, THEMES, isPaletteName, paintFor, themeById } from "./theme";
 import type { BoxData, BoxInfo, BoxView, LinkLook, Patch, PreviewSide, Shape, Size } from "./types";
 import { STRATEGIES, previewsKids } from "./model";
-import { LINK_LOOK_DEFS, LINK_LOOK_OPTIONS, type Rect, previewRegion, windowOf } from "./link-box";
+import { DEFAULT_LINK_LOOK, LINK_LOOK_DEFS, LINK_LOOK_OPTIONS, type Rect, previewRegion, windowOf } from "./link-box";
 import { type Scene, drawScene, make, union } from "./preview-art";
 import { PATTERN_LABELS } from "./validate";
 import { shapePicker, syncShapePicker } from "./shape-picker";
+import { type SearchOption, createSearchSelect } from "./search-select";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 
 const STYLE_ID = "matomezu-edit-dialog-style";
@@ -153,6 +154,9 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-side select.mz-dlg-input { width: 100%; }
 .mz-dlg-side .mz-dlg-note { margin: 6px 0 0; }
 .mz-dlg-seg { display: flex; border-radius: 6px; overflow: hidden; background: var(--dlg-control); }
+/* 狭い左の列で選択肢が折り返さないよう、縦に並べる（箱のタイプとリンクの見せ方。D29） */
+.mz-dlg-seg.mz-dlg-seg-col { flex-direction: column; }
+.mz-dlg-seg.mz-dlg-seg-col label { text-align: left; padding: 4px 10px; }
 .mz-dlg-seg label { position: relative; flex: 1; text-align: center; padding: 4px 2px; cursor: pointer; font-size: 12px; }
 .mz-dlg-seg input { position: absolute; opacity: 0; pointer-events: none; }
 .mz-dlg-seg label:has(input:checked) { background: var(--dlg-accent); color: #fff; }
@@ -221,6 +225,8 @@ export function closeEditDialog(): void {
 
 // 箱の子の見せ方（内包パターンの持ち物）
 export const VIEW_OPTIONS: [BoxView, string][] = [["nest", t("内包")], ["list", t("リスト")], ["hidden", t("非表示")]];
+// 箱のタイプ（追加のときに選ぶ。作ったあとは変えない。D29）
+const LINK_TYPES: ["plain" | "page" | "book", string][] = [["plain", t("通常")], ["page", t("ページリンク")], ["book", t("ブックリンク")]];
 // リストの子の縮図の位置（D13）
 const PREVIEW_SIDE_OPTIONS: [PreviewSide, string][] = [["right", t("右")], ["left", t("左")], ["none", t("出さない")]];
 const PREVIEW_SIDE_HELP = t("子を持つ子は、子を描かずに中身の縮図を横に出します。窓（リンクの箱）の縮図もこの位置に出します。縮図は押しても開きません。\n出さない: 縮図を出さず、文字だけの低い行にします（子を持つ子は ▼、窓は押すと開くアイコン）");
@@ -309,6 +315,8 @@ interface BoxValues {
   shape: Shape; size: Size; theme: string; color: string; bodyAllowed: boolean;
   linkLook: LinkLook | null; // リンクの箱の見せ方（リンクの箱でなければ null。link-box.ts）
   clip: Rect | null;         // リンクの箱の窓に映す範囲（null はページ全体）
+  // 追加のときに選んだタイプがリンクなら、その種類・リンク先・見せ方（通常の箱なら null。D29）
+  newLink: { type: "page" | "book"; target: string | null; look: LinkLook } | null;
   // クラスの箱（docs/CLASS-plan.md）。renamed は名前を変えた行（前の名前 → 新しい名前）
   abstract: boolean; attrs: ClassAttr[]; ops: ClassOp[]; renamed: Record<string, string>;
   // サイドバーから移した項目（D26。編集のときだけ）: 子の見せ方、塗りつぶし・枠線・1 行、子のサイズをそろえる（確定のときに一緒に行う一回きりの操作）
@@ -325,6 +333,8 @@ type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "b
   // 編集のときだけ出す項目（追加のときは extras が false）。views は子の見せ方を選べるか（choose）、ページのパターンが決めるか（fixed。ツリーの中）、子が無いか（null）
   extras: boolean; views: "choose" | "fixed" | null; childView: BoxView; framed: boolean;
   fill: boolean; border: boolean; canOneLine: boolean; canFit: boolean;
+  // 追加のときだけ: タイプ（通常 / ページリンク / ブックリンク。D29）で選べるリンク先。編集では null（タイプは作ったあと変えない）
+  targets: { pages: SearchOption[]; books: SearchOption[] } | null;
 };
 
 // 形を変えると消える情報があれば、その知らせ（無ければ null）。クラスにすると子が消え、クラスでなくすると abstract・属性・操作が消える
@@ -413,6 +423,13 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
           `<button type="button" class="mz-dlg-btn" data-fit="${v}" aria-pressed="false">${label}</button>`).join("")}</div>
         <p class="mz-dlg-note">${ONCE_NOTE}</p></div>`;
   let overlay = undefined as unknown as HTMLElement; // 下の show で作る（それより前に呼ばれる決まりは、作る前の値を見る）
+  // タイプ（追加のときだけ。D29）: 通常 / ページリンク / ブックリンク。ノーマルの形のときだけ出す。リンクを選ぶと、リンク先（文字で絞り込んで選ぶ）と
+  // 見せ方を出し、形とサイズの欄を隠す（リンクの箱は形とサイズを使わない）
+  const typeGroup = !b.targets ? "" : `<div class="mz-dlg-group" data-type-group><h3>${t("タイプ")}</h3>
+        <div class="mz-dlg-seg mz-dlg-seg-col">${LINK_TYPES.map(([v, label]) => `<label><input type="radio" name="linkType" value="${v}"${v === "plain" ? " checked" : ""}>${esc(label)}</label>`).join("")}</div>
+        <div data-target="page" hidden></div><div data-target="book" hidden></div>
+        <div data-new-look hidden><p class="mz-dlg-note">${t("見せ方")}</p>
+          <div class="mz-dlg-seg mz-dlg-seg-col">${LINK_LOOK_OPTIONS.map(([v, label]) => `<label><input type="radio" name="newLook" value="${v}"${v === DEFAULT_LINK_LOOK ? " checked" : ""}>${esc(label)}</label>`).join("")}</div></div></div>`;
   const linkGroup = b.link ? `<div class="mz-dlg-group"><h3>${t("リンク")}</h3>
         <p class="mz-dlg-note">${esc(b.link.book
           ? t("ブック「{name}」の最初のページ（{pattern}）をのぞく窓です。窓を押すと、そのブックを開きます", { name: b.link.pageName, pattern: PATTERN_LABELS[b.link.pattern] })
@@ -420,10 +437,10 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
         <div class="mz-dlg-seg">${LINK_LOOK_OPTIONS.map(([v, label]) => `<label><input type="radio" name="linkLook" value="${v}"${v === b.link!.look ? " checked" : ""}>${esc(label)}</label>`).join("")}</div>
         <p class="mz-dlg-note">${t("形とサイズは使いません（大きさは見せ方と文字で決まります）")}</p></div>` : "";
   const side = `<div class="mz-dlg-side">${linkGroup}
-      <div class="mz-dlg-group"${b.link ? " hidden" : ""}><h3>${t("形")}</h3>
+      <div class="mz-dlg-group" data-group="shape"${b.link ? " hidden" : ""}><h3>${t("形")}</h3>
         ${shapePicker({ name: "shape", value: b.shape, off: frameOff })}
         ${b.canShape ? "" : `<p class="mz-dlg-note">${b.canClass ? t("子を内包している箱は枠なので、選べる形はボックスとクラスだけです") : t("子を内包している箱は枠なので、形を選べません")}</p>`}</div>
-      <div class="mz-dlg-group"${b.link ? " hidden" : ""}><h3>${t("サイズ")}</h3>
+      <div class="mz-dlg-group" data-group="size"${b.link ? " hidden" : ""}><h3>${t("サイズ")}</h3>
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
         <p class="mz-dlg-note" data-size-fixed${b.sizeFixed && !b.link ? "" : " hidden"}>${t("内包・リストの箱の大きさは、子の並びで決まります")}</p>
         <p class="mz-dlg-note" data-class-size hidden>${t("クラスの箱の幅は、中身に合わせて決まります")}</p></div>
@@ -433,6 +450,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
           ${THEMES.map(th => `<option value="${th.id}"${th.id === b.theme ? " selected" : ""}>${esc(th.label)}</option>`).join("")}
         </select></div>
       <div class="mz-dlg-group"><h3>${t("色")}</h3>${colorButtonHtml(t("色を選ぶ"))}</div>
+      ${typeGroup}
     </div>`;
   // 区切り線（キャプションと本文の間の線）は、押すたびに入り切りするスイッチ。本文が空のあいだは切って押せなくし、
   // 本文を書き始めたら押せるようにして入れる
@@ -494,11 +512,17 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       widthAuto: !!field<HTMLInputElement>("width-auto").value,
       linkLook: pickedLook(),
       clip: clipNow,
+      newLink: pickedNewLink(),
       ...classValues(),
     });
   }, lead, () => {
+    const fresh = pickedNewLink();
+    if (fresh && fresh.target == null) {
+      refusedNote(overlay, fresh.type === "page" ? t("リンク先のページを選んでください") : t("リンク先のブックを選んでください"));
+      return false;
+    }
     // 縮図を出さないリンクの箱は、文字だけがリンク先を示すので、キャプションが要る（D29）
-    if (pickedLook() === "icon" && !overlay.querySelector<HTMLInputElement>('[name="caption"]')!.value.trim()) {
+    if ((pickedLook() ?? fresh?.look) === "icon" && !overlay.querySelector<HTMLInputElement>('[name="caption"]')!.value.trim()) {
       refusedNote(overlay, t("縮図を出さないときは、キャプションを入れてください"));
       return false;
     }
@@ -518,6 +542,47 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const clipPicker = b.link && b.scene
     ? setupClipPicker(overlay.querySelector<HTMLElement>("[data-clip]")!, b.scene, b.link.clip, () => windowOf(LINK_LOOK_DEFS[pickedLook()!]), b.previewMinScale)
     : null;
+  // タイプの選択（追加のときだけ。D29）。リンク先は文字で絞り込んで選ぶ部品（search-select.ts）。選んだとき、キャプションが空ならリンク先の名前を入れる
+  const fillCaption = (label: string) => {
+    const c = overlay.querySelector<HTMLInputElement>('[name="caption"]')!;
+    if (!c.value.trim()) c.value = label;
+  };
+  const targetSelect = (kind: "page" | "book") => {
+    const host = overlay.querySelector<HTMLElement>(`[data-target="${kind}"]`);
+    if (!host || !b.targets) return null;
+    const options = kind === "page" ? b.targets.pages : b.targets.books;
+    const s = createSearchSelect({
+      options, value: null, placeholder: kind === "page" ? t("ページを探す") : t("ブックを探す"),
+      empty: kind === "page" ? t("リンクできるページがありません") : t("リンクできるブックがありません"),
+      onChange: v => fillCaption(options.find(x => x.value === v)?.label ?? ""),
+    });
+    host.appendChild(s.el);
+    return s;
+  };
+  const targetSelects = { page: targetSelect("page"), book: targetSelect("book") };
+  const pickedType = () => (overlay.querySelector<HTMLInputElement>('[name="linkType"]:checked')?.value ?? "plain") as "plain" | "page" | "book";
+  function pickedNewLink(): BoxValues["newLink"] {
+    const type = pickedType();
+    if (!b.targets || type === "plain" || shapeDef(pickedShape()).kind !== "normal") return null;
+    const look = (overlay.querySelector<HTMLInputElement>('[name="newLook"]:checked')?.value ?? DEFAULT_LINK_LOOK) as LinkLook;
+    return { type, target: targetSelects[type]?.value() ?? null, look };
+  }
+  const syncType = () => {
+    const group = overlay.querySelector<HTMLElement>("[data-type-group]");
+    if (!group) return;
+    const normal = shapeDef(pickedShape()).kind === "normal";
+    group.hidden = !normal;
+    const type = normal ? pickedType() : "plain";
+    for (const k of ["page", "book"] as const) overlay.querySelector<HTMLElement>(`[data-target="${k}"]`)!.hidden = type !== k;
+    overlay.querySelector<HTMLElement>("[data-new-look]")!.hidden = type === "plain";
+    for (const g of ["shape", "size"]) overlay.querySelector<HTMLElement>(`[data-group="${g}"]`)!.hidden = type !== "plain";
+  };
+  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="linkType"]')) r.addEventListener("change", () => {
+    syncType();
+    const s = targetSelects[pickedType() as "page" | "book"];
+    if (s) s.focus();
+  });
+  overlay.querySelector(".mz-sp")?.addEventListener("change", syncType);
   // 縮図を出さない見せ方（D29）では、映す範囲を選ぶ欄は使わないので隠す
   const clipBox = overlay.querySelector<HTMLElement>("[data-clip]");
   const syncClip = () => { if (clipBox) clipBox.hidden = pickedLook() === "icon"; };
@@ -626,6 +691,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     if (el?.closest("[data-del]")) el.closest(".mz-dlg-mrow")!.remove();
   });
   syncPane();
+  syncType();
   for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"], [name="view"], [name="one-line"]')) r.addEventListener("change", syncBody);
   // 縮図の位置は、子を縮図で見せる見せ方（リスト）のときだけ出す
   const sideRow = overlay.querySelector<HTMLElement>("[data-preview-side]");
@@ -669,6 +735,7 @@ export function openEditDialog(graph: Graph, id: string): void {
   const start: BoxStart = {
     ...b, theme: b.theme ?? "", color: b.color, inherited, sizeFixed, kids: b.children.length,
     scene: b.link ? graph.linkScene(id) : null, previewMinScale: DEFAULTS.previewMinScale, // マスターの窓なら、そのブックの絵
+    targets: null, // タイプは作ったあと変えない（D29）
     extras: true, views: !b.children.length ? null : b.inTree || b.treeRoot ? "fixed" : "choose",
     canOneLine: b.overflows.length > 0, canFit: b.sizableChildren >= 2,
   };
@@ -728,10 +795,21 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
     color: "", inherited: graph.info(req.parentId).themeUsed,
     abstract: false, attrs: [], ops: [], kids: 0, link: null, previewSide: "right", rowSize: "M", listHeight: null, scene: null, previewMinScale: DEFAULTS.previewMinScale,
     extras: false, views: null, childView: "nest", framed: false, fill: true, border: true, canOneLine: false, canFit: false,
+    // タイプで選べるリンク先（D29）: 今のページ以外のページ（最初のページへはリンクできない）と、今のブック以外のブック
+    targets: {
+      pages: graph.pages().filter(p => p.id !== graph.page()).map(p => ({ value: p.id, label: p.caption })),
+      books: graph.bookChoices().map(x => ({ value: x.id, label: x.title })),
+    },
   };
   boxDialog(t("ボックスの追加"), t("追加"), start, v => {
     const fields: Partial<BoxData> = {};
     if (v.caption) fields.caption = v.caption;
+    // リンクの箱（D29）: 形とサイズは使わないので書かない
+    if (v.newLink?.target != null) {
+      if (v.newLink.type === "page") fields.link = v.newLink.target; else fields.book = v.newLink.target;
+      if (v.newLink.look !== DEFAULT_LINK_LOOK) fields.linkLook = v.newLink.look;
+      v = { ...v, shape: DEFAULT_SHAPE, size: "M" };
+    }
     // 既定（ボックス・M・受け継ぐ）は書かない
     if (v.shape !== DEFAULT_SHAPE) fields.shape = v.shape;
     if (v.shape === "class") {

@@ -279,5 +279,8 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
     // 並びはサーバーの一覧が変わった知らせ（books）で作り直す
   }
 
-  return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow, duplicate, catalog };
+  // ブックリンクを作るときに選べるブック（D29）: 登録した図の一覧（新しい順）。except は今のブック
+  const choices = (except: string | null) => masterRows.filter(r => r.id !== except).map(r => ({ id: r.id, title: r.title || r.name }));
+
+  return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow, duplicate, catalog, choices };
 }

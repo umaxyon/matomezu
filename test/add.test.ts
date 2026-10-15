@@ -253,3 +253,27 @@ test("内包している箱の編集ダイアログでは、形はボックス�
   expect(open).toEqual(["box", "class"]);
   expect([...dialog().querySelectorAll<HTMLInputElement>('[name="size"]')].every(r => r.disabled && !r.checked)).toBe(true);
 });
+
+test("追加のダイアログのタイプ（D29）: ページリンクを選ぶと形とサイズの欄を隠し、選んだページの名前をキャプションに入れ、リンクの箱を足す。特殊な形ではタイプを出さない", () => {
+  const { g } = setup({ pages: [{ id: "p2", title: "処理の流れ" }, { id: "p3", title: "画面" }], nodes: [] });
+  openAddDialog(g, { parentId: null, at: { x: 100, y: 100 } });
+  const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
+  const q = <T extends HTMLElement>(sel: string) => dlg.querySelector<T>(sel)!;
+  expect(q("[data-type-group]").hidden).toBe(false);
+  // リンク先を選ばずに追加すると、閉じずに知らせる
+  const page = q<HTMLInputElement>('[name="linkType"][value="page"]');
+  page.checked = true;
+  page.dispatchEvent(new Event("change", { bubbles: true }));
+  expect([q('[data-group="shape"]').hidden, q('[data-group="size"]').hidden, q('[data-target="page"]').hidden]).toEqual([true, true, false]);
+  q("[data-ok]").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(q(".mz-dlg-refused").textContent).toBe("リンク先のページを選んでください");
+  q<HTMLElement>('[data-target="page"] [data-value="p3"]').click();
+  expect(q<HTMLInputElement>('[name="caption"]').value).toBe("画面");
+  q("[data-ok]").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(document.querySelector(".mz-dlg-overlay")).toBeNull();
+  const added = g.toJSON().nodes.at(-1)!;
+  expect([added.caption, added.link, "shape" in added, "size" in added]).toEqual(["画面", "p3", false, false]);
+  // ブックリンクの選択肢は画面の側が渡す（ここでは無し）。特殊な形（ひし形）ではタイプを出さない
+  openAddDialog(g, { parentId: null, at: { x: 300, y: 100 } }, "diamond");
+  expect(document.querySelector<HTMLElement>("[data-type-group]")!.hidden).toBe(true);
+});
