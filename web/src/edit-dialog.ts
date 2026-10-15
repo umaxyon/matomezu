@@ -37,17 +37,21 @@ const CSS = `/* i18n-ok（CSS のコメントの日本語） */
 }
 .mz-dlg {
   --dlg-control: #3a3a3f; --dlg-line: rgba(255, 255, 255, 0.14); --dlg-accent: #8b6cf0; --dlg-muted: rgba(244, 244, 245, 0.6);
-  width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box;
+  width: min(560px, 100%); max-height: calc(100vh - 32px); box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
   color: #f4f4f5; background: #2e2e34; border: 1px solid var(--dlg-line); border-radius: 10px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); padding: 18px 20px; font-size: 13px; line-height: 1.5;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); font-size: 13px; line-height: 1.5;
 }
+/* 見出しの行（題名・キャンセル・確定）は固定し、中身だけをスクロールする（スクロールしないと閉じられないため。2026-10-15 ユーザー） */
+.mz-dlg-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 14px 20px 12px; border-bottom: 1px solid var(--dlg-line); }
+.mz-dlg-head h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.mz-dlg-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 20px 18px; }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .mz-dlg {
     --dlg-control: #ececf0; --dlg-line: rgba(0, 0, 0, 0.12); --dlg-accent: #6d4bd8; --dlg-muted: rgba(27, 27, 31, 0.6);
     color: #1b1b1f; background: #ffffff;
   }
 }
-.mz-dlg h2 { margin: 0 0 12px; font-size: 15px; }
+.mz-dlg h2 { margin: 0; font-size: 15px; }
 /* スクロールバー: 細い角丸のつまみだけを見せ、通り道は透明にする（サイドバー・タブの列と同じ形。index.html。2026-10-14 ユーザー）。
    Chrome・Edge・Safari は ::-webkit-scrollbar で形を作り、Firefox だけ scrollbar-width / scrollbar-color にする */
 .mz-dlg { --dlg-scroll: rgba(255, 255, 255, 0.2); --dlg-scroll-hover: rgba(255, 255, 255, 0.36); }
@@ -80,7 +84,7 @@ textarea.mz-dlg-input { display: block; min-height: 160px; resize: vertical; lin
 .mz-dlg-row > span { font-weight: 600; }
 select.mz-dlg-input { width: auto; }
 .mz-dlg-note { margin: -6px 0 12px; color: var(--dlg-muted); font-size: 12px; }
-.mz-dlg-foot { display: flex; align-items: center; gap: 8px; margin-top: 28px; }
+.mz-dlg-foot { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
 .mz-dlg-hint { flex: 1; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-btn { font: inherit; color: inherit; background: var(--dlg-control); border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
 .mz-dlg-btn.mz-dlg-ok { color: #fff; background: var(--dlg-accent); }
@@ -96,7 +100,8 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-btn[aria-pressed="true"] { color: #fff; background: var(--dlg-accent); }
 .mz-dlg-check[hidden] { display: none; }
 /* ブックのダイアログ（book-dialog.ts）: タブを切り替えても大きさが変わらないよう、幅と高さを決めて中をスクロールする */
-.mz-dlg.mz-dlg-book { width: min(720px, 100%); height: min(560px, calc(100vh - 32px)); display: flex; flex-direction: column; overflow: hidden; }
+.mz-dlg.mz-dlg-book { width: min(720px, 100%); height: min(560px, calc(100vh - 32px)); }
+.mz-dlg-book .mz-dlg-scroll { display: flex; flex-direction: column; overflow: hidden; }
 .mz-dlg-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--dlg-line); margin: 0 -4px 12px; overflow-x: auto; flex: none; }
 .mz-dlg-tab { font: inherit; color: var(--dlg-muted); background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
 .mz-dlg-tab[aria-selected="true"] { color: inherit; border-bottom-color: var(--dlg-accent); }
@@ -185,7 +190,7 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-error[hidden], [data-pane][hidden] { display: none; }
 /* ダイアログの上に重ねる確認（形を変えると情報が消えるとき） */
 .mz-dlg-subwrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.3); padding: 16px; }
-.mz-dlg.mz-dlg-sub { width: min(420px, 100%); }
+.mz-dlg.mz-dlg-sub { width: min(420px, 100%); display: block; padding: 18px 20px; } /* 重ねた確認は見出しの行を持たない */
 `;
 
 let open: { overlay: HTMLElement; back: Element | null; unhelp: () => void } | null = null;
@@ -816,14 +821,19 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
   const overlay = document.createElement("div");
   overlay.className = "mz-dlg-overlay";
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+  // 見出しの行（題名・キャンセル・確定）は固定し、中身（fields と、左端のボタン・キーの案内の行）だけがスクロールする
   overlay.innerHTML = `<div class="mz-dlg" role="dialog" aria-modal="true" aria-labelledby="mz-dlg-title">
-      <h2 id="mz-dlg-title">${esc(title)}</h2>
-      ${fields}
-      <div class="mz-dlg-foot">
-        ${lead}
-        <span class="mz-dlg-hint">${esc(t("{key}+Enter で{ok} / Esc でキャンセル", { key: mac ? "⌘" : "Ctrl", ok: okLabel }))}</span>
+      <div class="mz-dlg-head">
+        <h2 id="mz-dlg-title">${esc(title)}</h2>
         <button type="button" class="mz-dlg-btn" data-cancel>${t("キャンセル")}</button>
         <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>${esc(okLabel)}</button>
+      </div>
+      <div class="mz-dlg-scroll">
+        ${fields}
+        <div class="mz-dlg-foot">
+          ${lead}
+          <span class="mz-dlg-hint">${esc(t("{key}+Enter で{ok} / Esc でキャンセル", { key: mac ? "⌘" : "Ctrl", ok: okLabel }))}</span>
+        </div>
       </div>
     </div>`;
   const caption = overlay.querySelector<HTMLInputElement>('[name="caption"]');
