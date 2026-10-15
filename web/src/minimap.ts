@@ -12,6 +12,7 @@
 import { SVGNS, injectStyle, isLightColor } from "./dom";
 import type { Graph } from "./graph";
 import { make, sceneItems, sceneOf } from "./preview-art";
+import { fromScroll, scrollWorldTo, visibleWorld } from "./viewport";
 
 const WIDTH = 160;
 const MAX_HEIGHT_RATIO = 0.5;
@@ -106,8 +107,8 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
     el.hidden = stage.hidden || !open || !scrolls;
     if (el.hidden) return;
     // 絵はワールドの座標で描く。スクロールできる広さ全体（周りの余白と倍率を含む。D32）を、ワールドの座標に直して映す
-    const { zoom: z, margin: m } = graph.view();
-    origin = -m / z;
+    const v = graph.view(), z = v.zoom, m = v.margin;
+    origin = fromScroll(v, 0);
     const spanW = fullW / z, spanH = fullH / z;
     // 幅は中に使える幅（枠線の分を除く）。図全体がちょうど収まる倍率にする
     const width = body.clientWidth || WIDTH;
@@ -125,9 +126,9 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
     const items: Element[] = sceneItems(sceneOf(graph.geometry(), bg), { x: 0, y: 0, w: (fullW - 2 * m) / z, h: (fullH - 2 * m) / z });
     // 見えている範囲の四角（ワールドの座標）。図の端と重なる辺も線が半分切れないよう、線の太さの半分（画面で 1px）だけ内へ寄せる
     const inset = 1 / scale;
-    const vx = (stage.scrollLeft - m) / z, vy = (stage.scrollTop - m) / z;
-    const x0 = Math.max(vx, origin + inset), y0 = Math.max(vy, origin + inset);
-    const x1 = Math.min(vx + viewW / z, origin + spanW - inset), y1 = Math.min(vy + viewH / z, origin + spanH - inset);
+    const seen = visibleWorld(stage, v);
+    const x0 = Math.max(seen.x, origin + inset), y0 = Math.max(seen.y, origin + inset);
+    const x1 = Math.min(seen.x + seen.w, origin + spanW - inset), y1 = Math.min(seen.y + seen.h, origin + spanH - inset);
     items.push(make("rect", "mm-view", { x: x0, y: y0, width: Math.max(0, x1 - x0), height: Math.max(0, y1 - y0) }));
     svg.replaceChildren(...items);
     // 見えている範囲の四角が、ミニマップの中で見えるようにする
@@ -141,16 +142,9 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
     const r = svg.getBoundingClientRect();
     return [origin + (ev.clientX - r.left) / scale, origin + (ev.clientY - r.top) / scale];
   };
-  // 見えている範囲（ワールドの座標）
-  const viewRect = () => {
-    const { zoom: z, margin: m } = graph.view();
-    return { x: (stage.scrollLeft - m) / z, y: (stage.scrollTop - m) / z, w: stage.clientWidth / z, h: stage.clientHeight / z };
-  };
-  // 表示する範囲の左上を (x, y)（ワールドの座標）にする（はみ出さないようにブラウザが収める）
-  const scrollTo = (x: number, y: number) => {
-    const { zoom: z, margin: m } = graph.view();
-    stage.scrollTo({ left: m + x * z, top: m + y * z });
-  };
+  // 見えている範囲（ワールドの座標）と、表示する範囲の左上を (x, y)（ワールドの座標）にする（viewport.ts）
+  const viewRect = () => visibleWorld(stage, graph.view());
+  const scrollTo = (x: number, y: number) => scrollWorldTo(stage, graph.view(), x, y);
 
   let grab: { dx: number; dy: number; id: number } | null = null;
   svg.addEventListener("pointerdown", ev => {

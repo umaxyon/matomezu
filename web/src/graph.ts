@@ -166,6 +166,7 @@ import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, 
 import { ARROWS, DASHES, GROUP_MIN, PAGE_PATTERNS, ROUTES, SIZES, assignIds, checkSettings, isPattern, isTreeDirection, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
+import { scrollWorldTo } from "./viewport";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -2039,8 +2040,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function home() {
     homed = container.clientWidth > 0;
     if (!homed) return;
-    container.scrollLeft = opt.margin;
-    container.scrollTop = opt.margin;
+    scrollWorldTo(container, api.view(), 0, 0);
   }
   if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (!homed) home(); }).observe(container);
 

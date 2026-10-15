@@ -7,6 +7,7 @@
 // 前に出ている図が変わったら attach で付け替える（app.ts はブックを切り替えたとき）。プレビュー中なら、新しい図もプレビューにする
 
 import type { Graph } from "./graph";
+import { anchorAt, keepAnchor } from "./viewport";
 
 const MIN = 0.1;
 const MAX = 4;
@@ -67,16 +68,10 @@ export function setupPreview(ui: PreviewUi): Preview {
     frame = 0;
     z = clampZoom(z);
     const from = g.view().zoom; // 今かかっている倍率（アニメーションの途中ならその途中の値）
-    const r = s.getBoundingClientRect();
-    const px = at ? at.x - r.left : s.clientWidth / 2;
-    const py = at ? at.y - r.top : s.clientHeight / 2;
-    const m = g.view().margin; // スクロールの位置 = 余白 + ワールドの座標 × 倍率（D32）
-    const wx = (s.scrollLeft + px - m) / from;
-    const wy = (s.scrollTop + py - m) / from;
+    const a = anchorAt(s, g.view(), at);
     const put = (k: number) => {
       apply(k);
-      s.scrollLeft = m + wx * k - px;
-      s.scrollTop = m + wy * k - py;
+      keepAnchor(s, g.view(), a);
     };
     const reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!animate || reduced || from === z) {
