@@ -298,6 +298,9 @@ export function createNodeKinds(ctx: KindContext) {
   // 幅の指定（width）があれば、その幅にする（L の最大を超えても、狭くてもよい。葉の子はその幅で折り返す。2026-10-11 ユーザー）。
   // ただし、子を持つ子の幅・本文の最小の幅・親のリストがそろえた幅より狭くはしない。高さの指定は使わない。
   // 子の高さは中身に合わせる。並び順は children の順（データの並び順）
+  // スクロールするリストの高さの下限のうち、子が見える分（見出しと本文の下に、これだけは見せる。D33）
+  const LIST_SCROLL_MIN = 32;
+
   const list: NodeKind = {
     name: "list",
     holdsChildren: false,
@@ -320,6 +323,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.bodyH = bodyHeight(n, inner + 2 * P);
       const gap = STRATEGIES.list.kidGap ?? opt.gap; // リストの子どうしは詰める（リストのローカルなルール。2026-10-12 ユーザー）
       let y = opt.header + (n.bodyH ? n.bodyH + BODY_GAP : 0);
+      n.kidsTop = y;
       for (const k of n.children) {
         k.listW = inner;
         kindOf(k).measure(k);
@@ -328,7 +332,10 @@ export function createNodeKinds(ctx: KindContext) {
         y += k.h + gap;
       }
       n.w = inner + 2 * P;
-      n.h = Math.max(GROUP_MIN.h, y - gap + P);
+      n.fullH = Math.max(GROUP_MIN.h, y - gap + P);
+      // 高さの上限（listHeight。D33）があれば、そこで止める（超えた分はリストの中だけスクロールする。render.ts）。子が 1 行は見える高さより低くはしない
+      const cap = Number(n.src.listHeight) || 0;
+      n.h = cap ? Math.min(n.fullH, Math.max(cap, n.kidsTop + LIST_SCROLL_MIN)) : n.fullH;
       n.hx = 0; n.hy = 0;
       n.hw = n.w; n.hh = n.h;
     },

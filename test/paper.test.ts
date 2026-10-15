@@ -92,3 +92,19 @@ test("紙の型を変える: 大きくするのはできる。小さくして箱
   expect(graph.toJSON().world?.paper).toBeUndefined();
   expect(sizeOf(world)).toEqual([PAPERS[DEFAULT_PAPER].w, PAPERS[DEFAULT_PAPER].h]);
 });
+
+test("リストの高さの上限（listHeight）: そこで止まり、隠れた子は配置の結果に入らず、要約に何件中何件が見えているかが出る。消すと中身の高さに戻る", () => {
+  const kids = Array.from({ length: 8 }, (_, i) => ({ id: 10 + i, caption: `項目${i + 1}`, parent: 1 })); // 全部見せても紙（A4 横）に収まる数
+  const { graph } = setup({ nodes: [{ id: 1, caption: "リスト", childView: "list", listHeight: 200, x: 40, y: 40 }, ...kids] } as Diagram);
+  expect(graph.info(1).h).toBe(200);
+  expect((graph.info(1) as import("../web/src/types").BoxInfo).listHeight).toBe(200);
+  const g = graph.geometry();
+  const list = g.boxes.find(b => b.id === "1")!;
+  expect(list.scroll!.total).toBe(8);
+  expect(list.scroll!.shown).toBeLessThan(8);
+  expect(g.boxes.filter(b => b.ancestors[0] === "1")).toHaveLength(list.scroll!.shown);
+  expect(summarize(g)).toMatch(/^scroll 1: #1 リスト \(shown \d+ of 8\)$/m);
+  graph.update(1, { listHeight: null });
+  expect(graph.info(1).h).toBeGreaterThan(200);
+  expect(graph.toJSON().nodes.find(n => n.id === 1)!.listHeight).toBeUndefined();
+});

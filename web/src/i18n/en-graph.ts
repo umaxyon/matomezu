@@ -22,6 +22,7 @@ export default {
   "子を持つボックスは、つねに子に合わせて伸びます": "A box with children always grows to fit them",
   "ドラッグで本文の幅を変える（ダブルクリックで元に戻す）": "Drag to change the body width (double-click to reset)",
   "ドラッグでリストの幅を変える（ダブルクリックで元に戻す）": "Drag to change the list width (double-click to reset)",
+  "ドラッグでリストの高さの上限を変える（超えた分はリストの中でスクロール）": "Drag to change the list's maximum height (the rest scrolls inside the list)",
   "ページの箱ではありません: {id}": "Not a page box: {id}",
   "子 {n} 件": "{n} child(ren)",
   // クラスの箱（docs/CLASS-plan.md）

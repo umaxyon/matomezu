@@ -37,6 +37,12 @@ export interface Box {
   out: { x: number; y: number } | null;
   // リストの子のときの幅（親のリストがそろえた幅。node-kinds.ts の list が決める。保存しない）
   listW: number;
+  // スクロールするリスト（D33。listHeight）: 子が始まる高さ（見出しと本文の下）と、中身の全体の高さ（node-kinds.ts の list が決める。保存しない）。
+  // 中身が箱の高さを超えたら、子は見出しの下のスクロールする入れ物（kidsEl。render.ts が作る）に入る
+  kidsTop: number;
+  fullH: number;
+  kidsEl: HTMLDivElement | null;
+  heightGripEl: HTMLDivElement; // スクロールにしたリストの高さの上限を変えるつまみ（下の縁。選んでいるときだけ CSS で出す。D33）
   // 内包する箱・リストの親の、見出しの下に置いた本文の高さ（0 なら本文なし）。子を置ける領域の上端を決める（node-kinds.ts。保存しない）
   bodyH: number;
   el: HTMLDivElement;
@@ -165,6 +171,7 @@ export interface Strategy {
   reorder: boolean;     // 並べた子を、兄弟の中で並べ替えられる（並べ替えの差し込みもできる）
   link: boolean;        // 並べた子どうしに線を引ける・〇を出す（自動で並べる戦略では、線を引くと形が崩れる）
   widthGrip: boolean;   // 自分の幅のつまみを出す
+  scroll: boolean;      // 高さの上限（listHeight）を持ち、超えた分を中だけスクロールできる（D33。下の縁のつまみと、ダイアログの「スクロール」）
   leafKids: boolean;    // 子は子を持てない（フローチャートの要素。子を持つ箱は入れられず、子の中へも落とせない）
   tools: readonly ToolKey[]; // ページのパターンのとき、道具箱（toolbox.ts。図の左端）に並べる道具（形・追加・マスターの操作。D26）。空なら道具箱を出さない
   branchCaptions: readonly string[]; // 子のひし形（分岐）から出る線のキャプションの候補（線の編集ダイアログに出す）
@@ -186,14 +193,14 @@ export interface Strategy {
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
 }
-const PLAIN = { leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false } as const;
+const PLAIN = { scroll: false, leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false } as const;
 const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"], paper: true };
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   NEST,
   // ツリー（ページのパターン）: 根（world.root）の子孫全体を木に並べる。最上位の箱（根も、根でない葉も）は自由に置く
   // 道具箱は追加だけ（ツリーは次の段階で作り込む。2026-10-14 ユーザー: それまでの暫定）
   tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, pick: true, tops: "nest", rootOnly: true, tools: ["add"], paper: true },
-  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, onBox: true, tops: "list", kidGap: 8 },
+  list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, onBox: true, tops: "list", kidGap: 8, scroll: true },
   hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onBox: true, tops: "hidden" },
   // 縮図（D13。2026-10-14 ユーザー）: リストの子が子を持つときの見せ方。非表示と同じく子を描かず、子の代わりに中身の縮図を横に出す。
   // どの子がこれになるかはリストが決める（previewSide。データの childView には書けない）。縮図は押しても開かず、中身が見えるだけ
@@ -203,7 +210,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false, paper: true,
+    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false, paper: true, scroll: false,
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
@@ -326,6 +333,7 @@ export interface Abilities {
   reorder: boolean;   // 兄弟の中で並べ替えられる（リストの子）
   link: boolean;      // 線を引ける・〇を出す（ツリー・リストの子は自動で並ぶので、線を引くと形が崩れる）
   widthGrip: boolean; // 幅のつまみを出す（子を持つリスト）
+  heightGrip: boolean; // 高さの上限のつまみを出す（スクロールにしたリスト。D33）
   dropInto: boolean;  // 付け替えや追加で、中へ落とせる（リンクの箱は窓なので中に入れられず、クラスの箱とフローチャートの要素は子を持てない）
 }
 export function abilitiesOf(n: Box): Abilities {
@@ -335,6 +343,7 @@ export function abilitiesOf(n: Box): Abilities {
     reorder: by.reorder && !!n.parent,
     link: !n.parent || by.link,
     widthGrip: !!strategyOf(n)?.widthGrip,
+    heightGrip: !!strategyOf(n)?.scroll && Number(n.src.listHeight) > 0,
     dropInto: shapeDef(shapeOf(n)).kids && !by.leafKids && !isLinkBox(n),
   };
 }

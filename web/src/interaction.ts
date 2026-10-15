@@ -76,6 +76,8 @@ export interface InteractionContext {
   resizeBody(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
   // リストの幅を変え始める（width は今のリストの幅。形は resizeBody と同じ。docs/SIZE-plan.md の 10 章）
   resizeList(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
+  // スクロールにしたリストの高さの上限を変え始める（width は今の高さ。D33）
+  resizeListHeight(n: Box): { width: number; set(h: number): void; finish(): void; cancel(): void };
   zoom(): number; // ワールドにかけている倍率（transform: scale。D32）。画面の上の差分を、これで割るとワールドの座標の差分になる
 }
 
@@ -262,14 +264,16 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       return;
     }
     // 本文の幅のつまみ（docs/BODY-plan.md）と、リストの幅のつまみ（docs/SIZE-plan.md の 10 章）。選択モードで、選んでいる箱だけ出す
-    const grip = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-body-grip, .mz-width-grip") : null;
+    // スクロールにしたリストの高さの上限のつまみ（下の縁。D33）は縦に動かす
+    const grip = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-body-grip, .mz-width-grip, .mz-height-grip") : null;
     const gripBox = grip && ctx.mode() === "move" ? boxOf(grip) : undefined;
     if (gripBox) {
       e.stopPropagation();
       e.preventDefault();
       grip!.setPointerCapture?.(e.pointerId);
-      const r = grip!.classList.contains("mz-width-grip") ? ctx.resizeList(gripBox) : ctx.resizeBody(gripBox);
-      begin(resizeGesture(r, e), e);
+      const tall = grip!.classList.contains("mz-height-grip");
+      const r = tall ? ctx.resizeListHeight(gripBox) : grip!.classList.contains("mz-width-grip") ? ctx.resizeList(gripBox) : ctx.resizeBody(gripBox);
+      begin(resizeGesture(r, e, tall ? "y" : "x"), e);
       return;
     }
     const n = boxOf(e.target);
@@ -320,13 +324,13 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   // 本文の幅かリストの幅を、つまみを動かした分だけ変え、周りは押しのける（手を離したら確定。r は ctx.resizeBody か ctx.resizeList）
-  function resizeGesture(r: ReturnType<InteractionContext["resizeBody"]>, down: PointerEvent): Gesture {
+  function resizeGesture(r: ReturnType<InteractionContext["resizeBody"]>, down: PointerEvent, axis: "x" | "y" = "x"): Gesture {
     let moved = false;
     return {
       kind: "body", slop: 0,
       move(ev) {
         moved = true;
-        r.set(r.width + unscale(ev.clientX - down.clientX));
+        r.set(r.width + unscale(axis === "x" ? ev.clientX - down.clientX : ev.clientY - down.clientY));
       },
       end() { if (moved) r.finish(); },
       cancel() { r.cancel(); },

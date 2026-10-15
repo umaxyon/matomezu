@@ -72,6 +72,7 @@ export interface BoxData {
   linkLook?: LinkLook;   // リンクの箱の見せ方（無ければ window。リストの中では横に分ける）
   previewSide?: PreviewSide; // リストの子の縮図の位置（childView が list の箱で効く。無ければ right。D13）
   rowSize?: Size;        // リストの高さ（子の最小の高さ。S / M / L。無ければ M。D13）
+  listHeight?: number;   // リストの高さの上限（px。D33）。あれば、超えた分はリストの中だけスクロールする（無ければ中身に合わせて伸びる）
   clip?: { x: number; y: number; w: number; h: number }; // リンクの箱の窓に映す範囲（のぞくページの座標の四角。無ければページ全体。収まらなければ左上から）
   abstract?: boolean;    // クラスの箱（shape: "class"）が抽象クラスか（docs/CLASS-plan.md）
   attrs?: ClassAttr[];   // クラスの箱の属性
@@ -182,6 +183,7 @@ export interface BoxInfo {
   childView: BoxView;
   previewSide: PreviewSide; // リストの子の縮図の位置（childView が list のときに効く。D13）
   rowSize: Size;            // リストの高さ（子の最小の高さ。D13）
+  listHeight: number | null; // リストの高さの上限（スクロールにしたリスト。無ければ null。D33）
   framed: boolean; // 子を枠の中に入れて見せる箱か（内包・リスト。サイズは使わず、大きさは子の並びで決まる）
   tools: { id: string | null; tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの。ワールドなので id は null）と、足せる形、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（ツリーのページの根の子孫。並びはツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md）
@@ -288,6 +290,7 @@ export interface Patch {
   linkLook?: LinkLook;           // リンクの箱の見せ方（link-box.ts）
   previewSide?: PreviewSide;     // リストの子の縮図の位置（D13。right は既定なのでデータから消す）
   rowSize?: Size;                // リストの高さ（D13。M は既定なのでデータから消す）
+  listHeight?: number | null;    // リストの高さの上限（D33。null で消して、中身に合わせて伸ばす）
   clip?: { x: number; y: number; w: number; h: number } | null; // リンクの箱の窓に映す範囲（null でページ全体）
   fill?: boolean;
   border?: boolean;

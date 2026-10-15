@@ -162,6 +162,13 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-mode-move .mz-node.mz-current > .mz-head > .mz-body-grip:not([hidden]) { display: block; }
 .mz-preview .mz-body-grip { display: none !important; }
 /* リストの幅のつまみ（docs/SIZE-plan.md の 10 章）。選んでいるリストだけ、右の縁の高さいっぱいに出す */
+/* スクロールするリスト（D33。listHeight）: 見出しの下の入れ物だけがスクロールする。細いスクロールバーを出す */
+.mz-list-kids { position: absolute; left: 0; right: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; }
+.mz-list-space { position: absolute; left: 0; top: 0; width: 1px; pointer-events: none; }
+.mz-height-grip { display: none; position: absolute; left: 0; right: 0; bottom: -4px; height: 8px; cursor: ns-resize; pointer-events: auto; z-index: 2; }
+.mz-height-grip::after { content: ""; position: absolute; top: 2px; left: 50%; height: 4px; width: 32px; max-width: 100%; transform: translateX(-50%); border-radius: 2px; background: var(--mz-select); }
+.mz-mode-move .mz-node.mz-current > .mz-head > .mz-height-grip:not([hidden]) { display: block; }
+.mz-preview .mz-height-grip { display: none !important; }
 .mz-width-grip { display: none; position: absolute; right: -4px; top: 0; bottom: 0; width: 8px; cursor: ew-resize; pointer-events: auto; z-index: 1; }
 .mz-width-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 4px; height: 32px; max-height: 100%; transform: translateY(-50%); border-radius: 2px; background: var(--mz-select); }
 .mz-mode-move .mz-node.mz-current > .mz-head > .mz-width-grip:not([hidden]) { display: block; }

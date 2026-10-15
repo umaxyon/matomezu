@@ -249,6 +249,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     else if (n.classEl.firstChild) n.classEl.replaceChildren();
     n.gripEl.hidden = !body;
     n.widthGripEl.hidden = !abilitiesOf(n).widthGrip;
+    n.heightGripEl.hidden = !abilitiesOf(n).heightGrip;
     head.classList.toggle("mz-has-body", !!body);
     head.classList.toggle("mz-body-norule", n.src.bodyRule === false);
     // 内包する箱・リストの親の本文は見出しの下に位置を決めて置き、それ以外は本体の中の流れに置く。大きさを測る前に切り替える
@@ -658,11 +659,37 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     return [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
   }
 
+  // スクロールするリスト（D33。listHeight）: 中身が箱の高さを超えたリストだけ、見出しの下にスクロールする入れ物（kidsEl）を作り、
+  // 子の要素をその中へ移す（子の位置は入れ物の上端から）。超えなくなったら子を箱へ戻して入れ物を外す
+  function scrollKids() {
+    for (const n of ctx.nodes()) {
+      const scrolls = n.children.length > 0 && n.h < n.fullH - 0.5 && Number(n.src.listHeight) > 0;
+      if (scrolls && !n.kidsEl) {
+        n.kidsEl = document.createElement("div");
+        n.kidsEl.className = "mz-list-kids";
+        n.el.appendChild(n.kidsEl);
+      }
+      if (!n.kidsEl) continue;
+      if (!scrolls) {
+        for (const k of n.children) n.el.appendChild(k.el);
+        n.kidsEl.remove();
+        n.kidsEl = null;
+        continue;
+      }
+      n.kidsEl.style.top = n.kidsTop + "px";
+      n.kidsEl.style.height = Math.max(0, n.h - n.kidsTop) + "px";
+      const space = n.kidsEl.querySelector<HTMLElement>(":scope > .mz-list-space") ?? n.kidsEl.appendChild(Object.assign(document.createElement("div"), { className: "mz-list-space" }));
+      space.style.height = Math.max(0, n.fullH - n.kidsTop) + "px"; // スクロールできる高さ（子は絶対位置なので、広さは別に持たせる）
+      for (const k of n.children) if (k.el.parentElement !== n.kidsEl) n.kidsEl.appendChild(k.el);
+    }
+  }
+
   function render() {
+    scrollKids();
     for (const n of ctx.nodes()) {
       const s = n.el.style;
       s.left = n.x + "px";
-      s.top = n.y + "px";
+      s.top = (n.parent?.kidsEl ? n.y - n.parent.kidsTop : n.y) + "px"; // スクロールするリストの子は、入れ物の上端から
       s.width = n.w + "px";
       s.height = n.h + "px";
       const h = n.head.style;

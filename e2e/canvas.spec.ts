@@ -220,3 +220,37 @@ test("紙の型: ブックのダイアログで今のページを小さな紙に
   await page.keyboard.press("Escape");
   await expect(page.locator("#stage .mz-world")).toHaveCSS("width", "1123px");
 });
+
+test("リストのスクロール: ダイアログで入れると今の高さが上限になり、下の縁のつまみで縮めると、リストの中だけスクロールする。Undo で戻る（D33）", async ({ page }) => {
+  // 下の縁のつまみが画面（900 × 600）の中に来る数
+  const kids = Array.from({ length: 5 }, (_, i) => ({ id: 10 + i, caption: `項目 ${i + 1}`, parent: 1 }));
+  await openDiagram(page, { nodes: [{ id: 1, caption: "リスト", childView: "list", x: 40, y: 40 }, ...kids], edges: [] } as never);
+  const full = (await rect(page, 1)).h;
+  await head(page, 1).dblclick({ position: { x: 20, y: 8 } });
+  await expect(page.locator(".mz-dlg h2")).toHaveText("ボックスの編集");
+  await page.locator('.mz-dlg [name="list-scroll"]').check();
+  await page.locator(".mz-dlg [data-ok]").click();
+  await expect(page.locator(".mz-dlg")).toHaveCount(0);
+  expect((await rect(page, 1)).h).toBe(full); // 入れただけでは隠れない
+  // 選んで、下の縁のつまみを上へドラッグして縮める
+  await head(page, 1).click({ position: { x: 20, y: 8 } });
+  const grip = page.locator('.mz-node[data-id="1"] > .mz-head > .mz-height-grip');
+  await expect(grip).toBeVisible();
+  const g = (await grip.boundingBox())!;
+  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2 - 150, { steps: 8 });
+  await page.mouse.up();
+  const small = (await rect(page, 1)).h;
+  expect(Math.abs(small - (full - 150))).toBeLessThanOrEqual(2);
+  // 中だけスクロールする（見出しは動かない）
+  const kidsBox = page.locator('.mz-node[data-id="1"] > .mz-list-kids');
+  await expect(kidsBox).toHaveCount(1);
+  const capY = (await page.locator('.mz-node[data-id="1"] > .mz-head').boundingBox())!.y;
+  await kidsBox.evaluate(el => { el.scrollTop = 100; });
+  expect((await page.locator('.mz-node[data-id="1"] > .mz-head').boundingBox())!.y).toBe(capY);
+  expect(await kidsBox.evaluate(el => el.scrollTop)).toBe(100);
+  // Undo でつまみの前に戻る
+  await page.keyboard.press("Control+z");
+  expect((await rect(page, 1)).h).toBe(full);
+});

@@ -500,6 +500,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 線は除く（つかんだ箱の線は粘る。docs/EDGE-SPEC.md の A2・A3・A5）
     resizeBody: n => bodyResizer(n),
     resizeList: n => listResizer(n),
+    resizeListHeight: n => listHeightResizer(n),
     resetRoutes: (boxes, passive = [], grabbed = null) => {
       const set = new Set(boxes), pushed = new Set(passive);
       for (const e of edges) {
@@ -830,6 +831,25 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         changed();
         notifySelect();
       },
+      cancel() { apply(before); },
+    };
+  }
+
+  // スクロールにしたリストの高さの上限（D33）。つまみを動かした分だけ変え、周りは押しのける（手を離したら確定）
+  function listHeightResizer(n: Box) {
+    const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
+    const before = Number(n.src.listHeight) || n.h;
+    const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
+    const apply = (h: number) => {
+      restore();
+      n.src.listHeight = h;
+      settle(SCENES.resizeBody, n);
+      render();
+    };
+    return {
+      width: n.h, // 今の高さ（resizeGesture は width という名前で受け取る）
+      set(h: number) { apply(Math.round(Math.max(n.kidsTop + 32, Math.min(n.fullH, h)))); },
+      finish() { changed(); notifySelect(); },
       cancel() { apply(before); },
     };
   }
@@ -1629,6 +1649,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       link: linkOf(n),
       previewSide: previewSideOf(n),
       rowSize: rowSizeOf(n),
+      listHeight: Number(n.src.listHeight) > 0 ? Number(n.src.listHeight) : null,
       parent: n.parent ? brief(n.parent) : null,
       x: Math.round(n.x), y: Math.round(n.y), w: Math.round(n.w), h: Math.round(n.h),
       children: n.children.map(brief),
@@ -1794,6 +1815,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if (next.linkLook) setOrDelete(n.src, "linkLook", next.linkLook, next.linkLook === DEFAULT_LINK_LOOK); // 値は checkSettings で確かめている
         if (next.previewSide) setOrDelete(n.src, "previewSide", next.previewSide, next.previewSide === "right");
         if (next.rowSize) setOrDelete(n.src, "rowSize", next.rowSize, next.rowSize === "M");
+        if ("listHeight" in next) setOrDelete(n.src, "listHeight", next.listHeight == null ? undefined : Math.round(next.listHeight), next.listHeight == null); // D33
         if ("clip" in next) {
           const c = next.clip;
           setOrDelete(n.src, "clip", c ? { x: Math.round(c.x), y: Math.round(c.y), w: Math.round(c.w), h: Math.round(c.h) } : undefined, !c);
@@ -1903,6 +1925,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     widthGripEl.className = "mz-width-grip";
     widthGripEl.title = t("ドラッグでリストの幅を変える（ダブルクリックで元に戻す）");
     widthGripEl.hidden = true;
+    // スクロールにしたリストの高さの上限のつまみ（下の縁。D33）
+    const heightGripEl = document.createElement("div");
+    heightGripEl.className = "mz-height-grip";
+    heightGripEl.title = t("ドラッグでリストの高さの上限を変える（超えた分はリストの中でスクロール）");
+    heightGripEl.hidden = true;
     // リンクの箱の部品（link-box.ts）: 持ち手の帯（パターンの札を持つ）と窓。リンクの箱のときだけ出す（render.ts）
     const linkEl = document.createElement("div");
     linkEl.className = "mz-link-parts";
@@ -1921,7 +1948,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     linkGo.className = "mz-link-go";
     linkWin.append(linkArt, linkGo);
     linkEl.append(linkBar, linkWin);
-    head.append(shapeSvg, textEl, classEl, bodyEl, gripEl, widthGripEl, moreEl, linkEl);
+    head.append(shapeSvg, textEl, classEl, bodyEl, gripEl, widthGripEl, heightGripEl, moreEl, linkEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
     treeSvg.setAttribute("class", "mz-tree");
     const treePath = document.createElementNS(SVGNS, "path");
@@ -1948,10 +1975,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       intendedY: Number(src.y) || 0,
       intendedCX: NaN,
       capW: 0,
-      listW: 0,
+      listW: 0, kidsTop: 0, fullH: 0, kidsEl: null,
       out: null,
       bodyH: 0,
-      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,
+      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, heightGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,
     };
     boxOfEl.set(el, n);
     return n;
@@ -2001,7 +2028,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const seen = (u: Unseen) => u.whole || u.pages.has(page)
       || [...u.nodes].some(id => {
         const n = byId.get(id);
-        return !!n && !isHidden(n) && n.el.getClientRects().length > 0 && hits(n.head.getBoundingClientRect());
+        // スクロールしているリスト（D33）の中の子は、リストの枠の中に見えているときだけ（隠れた所は画面の上でも枠の外）
+        const r = n?.head.getBoundingClientRect();
+        return !!n && !!r && !isHidden(n) && n.el.getClientRects().length > 0 && hits(r)
+          && ancestors(n).every(a => !a.kidsEl || (() => { const k = a.kidsEl!.getBoundingClientRect(); return r.bottom > k.top && r.top < k.bottom; })());
       })
       || u.removed.some(r => r.page === page && hits({
         left: w.left + r.rect.x * applied, top: w.top + r.rect.y * applied,
@@ -2275,9 +2305,25 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     addPage,
     updatePage,
     geometry() {
-      const boxes = nodes.filter(n => !isHidden(n)).map(n => {
-        const [x, y] = absPos(n);
+      // スクロールしているリスト（D33）の子は、リストの枠の中に見えている分だけ入れ、スクロールした分だけ上にずらす
+      const shownInLists = (n: Box): { dy: number; shown: boolean } => {
+        let dy = 0, c = n;
+        for (const a of ancestors(n)) {
+          if (a.kidsEl) {
+            const top = a.kidsTop + a.kidsEl.scrollTop, bottom = top + (a.h - a.kidsTop);
+            if (c.y + c.h <= top || c.y >= bottom) return { dy, shown: false };
+            dy -= a.kidsEl.scrollTop;
+          }
+          c = a;
+        }
+        return { dy, shown: true };
+      };
+      const boxes = nodes.filter(n => !isHidden(n) && shownInLists(n).shown).map(n => {
+        const [x, y0] = absPos(n);
+        const y = y0 + shownInLists(n).dy;
+        const scroll = n.kidsEl ? { shown: n.children.filter(k => shownInLists(k).shown).length, total: n.children.length } : null;
         return {
+          ...(scroll ? { scroll } : {}),
           id: n.id, caption: captionOf(n), ancestors: ancestors(n).map(p => p.id),
           x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n), color: paintOf(n).color, fill: fillOf(n), border: borderOf(n),
           ...(n.children.length ? { view: viewOf(n), kids: n.children.length } : {}),

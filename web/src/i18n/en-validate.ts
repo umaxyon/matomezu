@@ -27,6 +27,7 @@ export default {
   "bodyRule は true か false にしてください: {where} ({value})": "bodyRule must be true or false: {where} ({value})",
   "treeDirection の値が不正です: {where} ({value})": "invalid treeDirection: {where} ({value})",
   "paper（紙の型）の値が不正です: {where} ({value})。使えるのは {papers}": "invalid paper (paper size): {where} ({value}). Use one of {papers}",
+  "listHeight（リストの高さの上限）は正の数にしてください: {where} ({value})": "listHeight (the list's maximum height) must be a positive number: {where} ({value})",
   "childView の値が不正です: {where} ({value})": "invalid childView: {where} ({value})",
   "theme の値が不正です: {where} ({value})。使えるのは {themes}": "invalid theme: {where} ({value}). Available: {themes}",
   "nodes 配列がありません": "nodes array not found",

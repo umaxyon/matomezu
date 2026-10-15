@@ -14,6 +14,7 @@ export interface GeoBox extends Rect {
   cut: boolean;        // キャプションが … で切れている
   view?: ChildView; // 子の見せ方（子があるときだけ）
   kids?: number;       // 子の数（非表示の子も数える）
+  scroll?: { shown: number; total: number }; // スクロールしているリスト（D33）: 見えている子の数と、子の数
   color?: string;      // 箱の色（ミニマップで使う）
   fill?: boolean;      // 塗るか（ミニマップで使う。false の箱は塗らない）
   border?: boolean;    // 枠を引くか（ミニマップで使う。塗らず枠も無い箱は描かない）
@@ -134,6 +135,10 @@ export function summarize(g: Geometry): string {
 
   const cut = g.boxes.filter(b => b.cut);
   if (cut.length) lines.push(`cut ${cut.length}: ` + cut.map(b => `#${b.id} ${b.caption}`).join("; "));
+
+  // スクロールしているリスト（D33）。隠れている子は上の行に出てこないので、何件中何件が見えているかを伝える
+  const scrolled = g.boxes.filter(b => b.scroll);
+  if (scrolled.length) lines.push(`scroll ${scrolled.length}: ` + scrolled.map(b => `${label(b)} (shown ${b.scroll!.shown} of ${b.scroll!.total})`).join("; "));
 
   return lines.join("\n");
 }
