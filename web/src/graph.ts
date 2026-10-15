@@ -1472,6 +1472,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     container.classList.toggle("mz-mode-reparent", m === "reparent");
     container.classList.toggle("mz-mode-remove", m === "remove");
     container.classList.toggle("mz-mode-add", m === "add");
+    container.classList.toggle("mz-mode-pan", m === "pan");
     if (m !== "add") I.endAdd();
     L.holdWorld(false); // 箱を足す所を探す間に広げた図を、中身に合わせる
     for (const f of modeListeners) f(m);
@@ -2028,6 +2029,30 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     checkSeen();
   }
 
+  // 見る範囲を動かす（つかんだ所がポインタに付いてくる）。プレビューの背景のドラッグと、手のひら（D32）
+  function pan(e: PointerEvent) {
+    const start = { x: e.clientX, y: e.clientY, left: container.scrollLeft, top: container.scrollTop };
+    const stop = new AbortController();
+    container.classList.add("mz-panning");
+    document.addEventListener("pointermove", ev => {
+      container.scrollLeft = start.left - (ev.clientX - start.x);
+      container.scrollTop = start.top - (ev.clientY - start.y);
+    }, { signal: stop.signal });
+    const end = () => { stop.abort(); container.classList.remove("mz-panning"); };
+    document.addEventListener("pointerup", end, { signal: stop.signal });
+    document.addEventListener("pointercancel", end, { signal: stop.signal });
+  }
+
+  // 手のひらのモードの押下（D32）。図の操作（interaction.ts）より先に受け取り、どこを押しても見る範囲を動かすだけにする
+  // （箱を選んだり動かしたりしない）。道具箱は押せる
+  container.addEventListener("pointerdown", e => {
+    if (mode !== "pan" || preview != null) return;
+    if (e.target instanceof Element && e.target.closest(".mz-toolbox")) return;
+    e.stopImmediatePropagation();
+    e.preventDefault(); // 文字を選ばない
+    if (e.button === 0) pan(e);
+  }, true);
+
   // プレビュー中の押下。図の操作（interaction.ts）より先に受け取り、選ぶだけにする。
   // 背景を押したらワールドを選び、そのままドラッグすると見る範囲を動かす
   container.addEventListener("pointerdown", e => {
@@ -2041,17 +2066,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = nodeEl ? boxOfEl.get(nodeEl) : undefined;
     if (n) return select(n);
     select(null);
-    if (e.button !== 0) return;
-    const start = { x: e.clientX, y: e.clientY, left: container.scrollLeft, top: container.scrollTop };
-    const stop = new AbortController();
-    container.classList.add("mz-panning");
-    document.addEventListener("pointermove", ev => {
-      container.scrollLeft = start.left - (ev.clientX - start.x);
-      container.scrollTop = start.top - (ev.clientY - start.y);
-    }, { signal: stop.signal });
-    const end = () => { stop.abort(); container.classList.remove("mz-panning"); };
-    document.addEventListener("pointerup", end, { signal: stop.signal });
-    document.addEventListener("pointercancel", end, { signal: stop.signal });
+    if (e.button === 0) pan(e);
   }, true);
 
   function buildAll(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {

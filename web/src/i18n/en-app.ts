@@ -27,6 +27,9 @@ export default {
   "削除モード: ボックスを押すと子も一緒に消える（消したものはサイドバーの「追加削除」から戻せる）":
     "Delete mode: click a box to delete it with its children (restore it from \"Added / Removed\" in the sidebar)",
   "削除モード": "Delete mode",
+  "手のひらモード: ドラッグで見る範囲を動かす（どのモードでも Space を押している間は手のひら）":
+    "Hand mode: drag to move the view (in any mode, hold Space for the hand)",
+  "手のひらモード": "Hand mode",
   "サンプル": "Sample",
   "JSONを開く": "Open JSON",
   "保存": "Save",

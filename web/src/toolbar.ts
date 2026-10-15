@@ -50,7 +50,7 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   return () => listening.abort();
 }
 
-const MODE_LABELS: Record<Mode, string> = { move: t("選択モード"), reparent: t("付け替えモード"), remove: t("削除モード"), add: t("追加モード") };
+const MODE_LABELS: Record<Mode, string> = { move: t("選択モード"), reparent: t("付け替えモード"), remove: t("削除モード"), add: t("追加モード"), pan: t("手のひらモード") };
 
 // Ctrl を押している間だけ入れ替わる相手（追加・削除モードでは入れ替えない）
 const FLIP: Partial<Record<Mode, Mode>> = { move: "reparent", reparent: "move" };
@@ -61,10 +61,12 @@ const FLIP: Partial<Record<Mode, Mode>> = { move: "reparent", reparent: "move" }
 // ドラッグ中は切り替えず、手を離してから切り替える（付け替えのドラッグの途中で Ctrl を離しても取り消さないため）。
 // ボタンとラベルには、今効いているモードを出す。図の側でモードが変わったとき（一覧から戻したときなど）は、
 // それをボタンで選んだのと同じに扱う。登録を外す関数を返す
+// Space を押している間は、どのモードでも手のひらになり、離すと戻る（Miro と同じ。D32）
 export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HTMLElement): () => void {
   let base: Mode = graph.mode(); // ボタンで選んだモード
   let held = false;              // Ctrl で入れ替えているか
-  const effective = () => (held && FLIP[base]) || base;
+  let space = false;             // Space で手のひらにしているか
+  const effective = (): Mode => (space ? "pan" : (held && FLIP[base]) || base);
   const show = () => {
     const m = effective();
     if (graph.dragging()) return; // 手を離してから
@@ -93,13 +95,31 @@ export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HT
     held = false;
     show();
   }, { signal });
-  // Ctrl を押したままほかのウィンドウへ移ると、離したことが届かないので解く
-  window.addEventListener("blur", () => { held = false; show(); }, { signal });
+  // Space: 入力欄・ボタンの上（Space で押す）・ダイアログの中では手のひらにしない。押している間の Space で図がスクロールしないよう止める
+  const spaceTarget = (e: KeyboardEvent) =>
+    e.key === " " && !typing(e.target) && !(e.target instanceof Element && e.target.closest("button, a, select, .mz-dlg-overlay"))
+    && !document.querySelector(".mz-dlg-overlay") && graph.preview() == null;
+  document.addEventListener("keydown", e => {
+    if (!spaceTarget(e)) return;
+    e.preventDefault();
+    if (e.repeat || space) return;
+    space = true;
+    show();
+  }, { signal });
+  document.addEventListener("keyup", e => {
+    if (e.key !== " " || !space) return;
+    e.preventDefault();
+    space = false;
+    show();
+  }, { signal });
+  // Ctrl や Space を押したままほかのウィンドウへ移ると、離したことが届かないので解く
+  window.addEventListener("blur", () => { held = false; space = false; show(); }, { signal });
   // 図の側で変わったモード（ここで切り替えた分は、今効いているモードと同じなので何もしない）
   const unsubscribe = graph.onModeChange(m => {
     if (m === effective()) return;
     base = m;
     held = false;
+    space = false;
     show();
   });
   signal.addEventListener("abort", unsubscribe);

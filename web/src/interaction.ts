@@ -19,7 +19,7 @@ import { DEFAULT_SHAPE } from "./shapes";
 
 // ツールのモード。選択（ドラッグで移動、箱の〇から線を引く。docs/EDGE-TOOL-plan.md）、親子の付け替え、
 // 削除（ボックスを押すと子孫ごと消える。ドラッグはしない）、追加（押した所に新しい箱を足す。docs/ADD-plan.md）
-export type Mode = "move" | "reparent" | "remove" | "add";
+export type Mode = "move" | "reparent" | "remove" | "add" | "pan"; // pan は手のひら（見る範囲を動かすだけ。D32）
 
 // 追加モードで押した所: 新しい箱の親（null はワールド）、親の中での位置、リストへの差し込みなら前に入れる兄弟（無ければ末尾）
 export interface AddRequest {

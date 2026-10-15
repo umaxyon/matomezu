@@ -324,6 +324,10 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 @keyframes mz-shake { 25% { translate: -2px 0; } 75% { translate: 2px 0; } }
 /* プレビュー（見るだけ）: 押すと選ぶだけ。背景はつかんで見る範囲を動かす。線の区間や端をつまむ印は出さない */
 .mz-preview { cursor: grab; }
+/* 手のひら（D32）: どこでもつかめる（箱や線の上の指のカーソルも上書きする） */
+.mz-mode-pan, .mz-mode-pan * { cursor: grab !important; }
+.mz-mode-pan.mz-panning, .mz-mode-pan.mz-panning * { cursor: grabbing !important; }
+.mz-mode-pan .mz-toolbox, .mz-mode-pan .mz-toolbox * { cursor: pointer !important; }
 .mz-preview.mz-panning { cursor: grabbing; }
 .mz-preview .mz-head, .mz-preview .mz-label-box > span { cursor: pointer; }
 .mz-preview .mz-hit { pointer-events: stroke; cursor: pointer; }
