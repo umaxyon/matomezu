@@ -297,3 +297,57 @@ func TestForgetsOldDocs(t *testing.T) {
 		t.Fatal("外す図が違う")
 	}
 }
+
+// カレントの画面は、つながっている画面のうち最後にフォーカスされたもの。どれもフォーカスされていなければ最後につながったもの。
+// 切れた画面は残らない（D30。docs/NOTIFY-plan.md）
+func TestCurrentScreen(t *testing.T) {
+	_, ts, _ := setupHub(t)
+	current := func() string {
+		var v struct{ Client string }
+		res := do(t, "GET", ts.URL+"/api/current", "", nil)
+		defer res.Body.Close()
+		json.NewDecoder(res.Body).Decode(&v)
+		return v.Client
+	}
+	if c := current(); c != "" {
+		t.Fatalf("no screens: %q", c)
+	}
+	join := func() (string, *http.Response) {
+		res := do(t, "GET", ts.URL+"/api/events", "", nil)
+		var hello struct{ Client string }
+		json.Unmarshal([]byte(nextEvent(t, bufio.NewReader(res.Body), "hello")), &hello)
+		return hello.Client, res
+	}
+	focus := func(id string) int {
+		return do(t, "POST", ts.URL+"/api/focus", `{"client":"`+id+`"}`, nil).StatusCode
+	}
+	a, ra := join()
+	b, rb := join()
+	if c := current(); c != b {
+		t.Fatalf("before any focus, the last joined: %q (a=%s b=%s)", c, a, b)
+	}
+	if s := focus(a); s != http.StatusNoContent {
+		t.Fatalf("focus: %d", s)
+	}
+	if c := current(); c != a {
+		t.Fatalf("focused a: %q", c)
+	}
+	focus(b)
+	focus(a)
+	if c := current(); c != a {
+		t.Fatalf("focused a last: %q", c)
+	}
+	// a が切れたら、つながっている b
+	ra.Body.Close()
+	deadline := time.Now().Add(2 * time.Second)
+	for current() != b {
+		if time.Now().After(deadline) {
+			t.Fatalf("after a left: %q", current())
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if s := focus(a); s != http.StatusNotFound {
+		t.Fatalf("focus of a gone screen: %d", s)
+	}
+	rb.Body.Close()
+}

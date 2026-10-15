@@ -3,6 +3,8 @@
  * - server: 最初につないだときの版を覚え、つなぎ直したときに違えば画面ごと読み直す（作り直したサーバーの新しい JS にするため）。
  * - hello: この接続の id。開いている図（watched）を api/watch で知らせる。サーバーは開いている図だけを監視する。
  *   タブを開いたり閉じたりしたら watchChanged で知らせ直す（つなぎ直したときも、新しい id で知らせ直す）。
+ *   画面がフォーカスされたとき（前に出たとき）も、この id で api/focus に知らせる。サーバーは最後にフォーカスされた画面をカレントとする
+ *   （D30。docs/NOTIFY-plan.md）。つないだときに前にあれば、そのときも知らせる。
  * - version: 図のファイルの版が変わった。
  * - open: その図（のページ）を開いて前に出すよう頼まれた（matomezu open / check / set）。
  * - close: その図のタブを閉じるよう頼まれた（matomezu close）。タブの × と同じに閉じる。
@@ -31,6 +33,7 @@ export interface EventConnection {
 export interface EventOptions {
   url?: string;
   watchUrl?: string;
+  focusUrl?: string;
   reload?: () => void;   // サーバーの版が変わったときに画面を読み直す（テストで差し替える）
   retryDelay?: number;   // 接続を諦めたときに、つなぎ直すまでの時間
 }
@@ -38,6 +41,7 @@ export interface EventOptions {
 export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConnection {
   const url = o.url ?? "api/events";
   const watchUrl = o.watchUrl ?? "api/watch";
+  const focusUrl = o.focusUrl ?? "api/focus";
   let client: string | null = null; // 今の接続の id
   const reloadPage = o.reload ?? (() => location.reload());
   const retryDelay = o.retryDelay ?? 1000;
@@ -64,6 +68,20 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
     }).catch(() => {});
   }
 
+  // この画面がフォーカスされた（前に出た）ことを知らせる。届かなくてもよい（次にフォーカスされたときに知らせ直す）
+  function sendFocus() {
+    if (!client) return;
+    fetch(focusUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client }),
+    }).catch(() => {});
+  }
+  const front = () => document.visibilityState === "visible" && document.hasFocus();
+  const onVisible = () => { if (document.visibilityState === "visible") sendFocus(); };
+  window.addEventListener("focus", sendFocus);
+  document.addEventListener("visibilitychange", onVisible);
+
   function connect() {
     client = null;
     es = new EventSource(url);
@@ -77,6 +95,7 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       if (v && typeof v.client === "string") {
         client = v.client;
         sendWatched();
+        if (front()) sendFocus();
       }
     });
     es.addEventListener("version", e => {
@@ -110,6 +129,8 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
   return {
     close() {
       closed = true;
+      window.removeEventListener("focus", sendFocus);
+      document.removeEventListener("visibilitychange", onVisible);
       es.close();
       if (retryTimer) clearTimeout(retryTimer);
     },

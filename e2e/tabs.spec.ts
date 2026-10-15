@@ -465,3 +465,36 @@ test("LLM の変更はユーザーの Undo に入らず、見えたら認知し�
   await expect(stage.locator('.mz-node[data-id="2"]')).not.toContainText("遠くを変えた");
   expect(run("history", "hist.json", "1")).toContain("caption: \"遠く\" -> \"遠くを変えた\"");
 });
+
+test("2 つの画面を開いているとき、最後にフォーカスされた画面がカレントになる。閉じた画面は残らない（D30）", async ({ page, context }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  const current = async (p: import("@playwright/test").Page) =>
+    (await (await p.request.get(new URL("/api/current", url).href)).json()).client as string;
+  // 画面の接続の id（hello）は画面の中にしか無いので、フォーカスを送る要求から読む。
+  // ヘッドレスのブラウザではウィンドウのフォーカスが動かないので、focus のイベントを起こしてフォーカスされたことにする
+  const idOf = (p: import("@playwright/test").Page) =>
+    p.waitForRequest(r => r.url().endsWith("/api/focus")).then(r => (JSON.parse(r.postData() ?? "{}") as { client: string }).client);
+  const first = idOf(page);
+  await page.goto(url);
+  await expect(selected(page)).toHaveText("a.json");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  const a = await first;
+  await expect.poll(() => current(page)).toBe(a);
+
+  const other = await context.newPage();
+  const second = idOf(other);
+  await other.goto(url);
+  await expect(selected(other)).toHaveText("a.json");
+  await other.evaluate(() => window.dispatchEvent(new Event("focus")));
+  const b = await second;
+  expect(b).not.toBe(a);
+  await expect.poll(() => current(page)).toBe(b);
+
+  // 前の画面にフォーカスが戻れば、そちらがカレント
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect.poll(() => current(page)).toBe(a);
+  // その画面を閉じたら、残った画面
+  await page.close();
+  await expect.poll(() => current(other)).toBe(b);
+  await other.close();
+});

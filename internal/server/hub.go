@@ -9,6 +9,8 @@
 //	GET  /api/events     SSE。全部の図の通知を1本で送る（下を参照）
 //	GET  /api/info       {"server"} サーバーの版。画面が matomezu のサーバーから開かれたかを知るのに使う
 //	POST /api/watch      {"client", "docs"} その画面が開いている図（タブ）。監視するのは、どれかの画面が開いている図だけ
+//	POST /api/focus      {"client"} その画面がフォーカスされた（前に出た）。最後にフォーカスされた画面がカレント（D30。docs/NOTIFY-plan.md）
+//	GET  /api/current    {"client"} カレントの画面の id（つながっている画面が無ければ ""）
 //	POST /api/new        {"near", "title", "world"} 画面から新しいブックを作って登録し、{"id", "path"} を返す（newbook.go）
 //	GET  /api/books      登録した図を最終更新の新しい順に返す（マスターの一覧。books.go）
 //	GET  /api/master     マスター用のファイルを登録して {"id"} を返す（books.go）
@@ -71,6 +73,7 @@ type Hub struct {
 	mu        sync.Mutex
 	docs      map[string]*doc
 	clients   map[chan event]*client // つながっている画面
+	seq       uint64                 // 画面がつながった・フォーカスされた順番（client の joined・focused）
 	idleSince time.Time              // 画面が 0 になった時刻
 	shown     string                 // 最後に開くよう頼まれた図とページ（open イベントの data）
 	shownAt   time.Time
@@ -94,10 +97,13 @@ type event struct {
 	data string
 }
 
-// つながっている画面。docs はその画面が開いている図（nil ならまだ知らせが無いので、全部とみなす）
+// つながっている画面。docs はその画面が開いている図（nil ならまだ知らせが無いので、全部とみなす）。
+// joined と focused はつながった・最後にフォーカスされた順番（Hub の seq。focused が 0 ならまだフォーカスされていない）
 type client struct {
-	id   string
-	docs map[string]bool
+	id      string
+	docs    map[string]bool
+	joined  uint64
+	focused uint64
 }
 
 type Option func(*Hub)
@@ -401,6 +407,8 @@ func (h *Hub) events(w http.ResponseWriter, r *http.Request) {
 	ch := make(chan event, 64)
 	c := &client{id: newClientID()}
 	h.mu.Lock()
+	h.seq++
+	c.joined = h.seq
 	h.clients[ch] = c
 	docs := make([]*doc, 0, len(h.docs))
 	for _, d := range h.docs {
@@ -500,6 +508,16 @@ func (h *Hub) Handler() http.Handler {
 		writeJSON(w, map[string]string{"server": h.version})
 	})
 	mux.HandleFunc("POST /api/watch", fromPage(h.setWatch))
+	mux.HandleFunc("POST /api/focus", fromPage(h.setFocus))
+	mux.HandleFunc("GET /api/current", func(w http.ResponseWriter, _ *http.Request) {
+		id := ""
+		h.mu.Lock()
+		if c := h.current(); c != nil {
+			id = c.id
+		}
+		h.mu.Unlock()
+		writeJSON(w, map[string]string{"client": id})
+	})
 	mux.HandleFunc("POST /api/new", fromPage(h.newBook))
 	mux.HandleFunc("GET /api/books", h.books)   // マスターのブックの一覧（books.go）
 	mux.HandleFunc("GET /api/master", h.master) // マスター用のファイル（books.go）
@@ -594,6 +612,44 @@ func (h *Hub) setWatch(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Error(w, "unknown client", http.StatusNotFound)
 }
+
+// setFocus はその画面がフォーカスされた（前に出た）ことを覚える（D30）
+func (h *Hub) setFocus(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Client string `json:"client"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil || req.Client == "" {
+		http.Error(w, "client required", http.StatusBadRequest)
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, c := range h.clients {
+		if c.id == req.Client {
+			h.seq++
+			c.focused = h.seq
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+	http.Error(w, "unknown client", http.StatusNotFound)
+}
+
+// current はカレントの画面（h.mu を持って呼ぶ）。つながっている画面のうち最後にフォーカスされたもの。
+// どれもフォーカスされていなければ最後につながったもの。画面が無ければ nil。
+// 切れた画面は clients から消えるので、古い画面がカレントに残ることはない
+func (h *Hub) current() *client {
+	var best *client
+	key := func(c *client) [2]uint64 { return [2]uint64{c.focused, c.joined} }
+	for _, c := range h.clients {
+		if best == nil || less(key(best), key(c)) {
+			best = c
+		}
+	}
+	return best
+}
+
+func less(a, b [2]uint64) bool { return a[0] < b[0] || a[0] == b[0] && a[1] < b[1] }
 
 func newClientID() string {
 	b := make([]byte, 8)

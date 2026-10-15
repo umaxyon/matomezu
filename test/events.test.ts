@@ -17,7 +17,8 @@ class FakeEventSource extends EventTarget {
 const realEventSource = globalThis.EventSource;
 let conn: EventConnection | null = null;
 let watched: string[] = [];
-let posts: unknown[] = [];
+let posts: unknown[] = [];  // api/watch に送ったもの
+let focuses: unknown[] = []; // api/focus に送ったもの（D30）
 const realFetch = globalThis.fetch;
 let log: string[] = [];
 let reloads = 0;
@@ -29,8 +30,9 @@ beforeEach(() => {
   globalThis.EventSource = FakeEventSource as unknown as typeof EventSource;
   watched = ["a"];
   posts = [];
-  globalThis.fetch = (async (_url: string, init: RequestInit) => {
-    posts.push(JSON.parse(String(init.body)));
+  focuses = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    (url === "api/focus" ? focuses : posts).push(JSON.parse(String(init.body)));
     return new Response(null, { status: 204 });
   }) as typeof fetch;
   conn = connectEvents({
@@ -86,4 +88,28 @@ test("開いている図を、接続の id でサーバーに知らせる。変�
   await wait(40);
   sources[sources.length - 1]!.send("hello", { client: "c2" });
   expect(posts.at(-1)).toEqual({ client: "c2", docs: ["a", "b"] });
+});
+
+test("フォーカスされたとき（前に出たとき）、接続の id で api/focus に知らせる。つないだときに前にあれば、そのときも知らせる（D30）", () => {
+  const hasFocus = document.hasFocus;
+  try {
+    document.hasFocus = () => true;
+    sources[0]!.send("hello", { client: "c1" });
+    expect(focuses).toEqual([{ client: "c1" }]);
+    window.dispatchEvent(new Event("focus"));
+    expect(focuses).toEqual([{ client: "c1" }, { client: "c1" }]);
+    // つなぎ直したら新しい id。前に無ければ、つないだだけでは知らせない
+    document.hasFocus = () => false;
+    sources[0]!.send("hello", { client: "c2" });
+    expect(focuses.length).toBe(2);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(focuses.at(-1)).toEqual({ client: "c2" });
+    // 閉じたら知らせない
+    conn!.close();
+    conn = null;
+    window.dispatchEvent(new Event("focus"));
+    expect(focuses.length).toBe(3);
+  } finally {
+    document.hasFocus = hasFocus;
+  }
 });
