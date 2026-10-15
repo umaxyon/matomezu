@@ -2,6 +2,7 @@
 // 描いたページは離れるときに配置の結果を覚え、描いていないページ・箱の中身は画面の外で並べて作る（offscreen-scene.ts）。
 // 持たなければ（テスト）データだけの近似（data-scene.ts）
 import { EMPTY_SCENE, dataScene } from "./data-scene";
+import { t } from "./i18n";
 import type { DEFAULTS, GraphOptions } from "./graph";
 import type { Rect as ClipRect } from "./link-box";
 import { type Box, DEFAULT_VIEW, clipOf, dataLinkLookOf, isHidden, isLinkBox, linkBookOf, linkPageOf } from "./model";
@@ -36,7 +37,7 @@ export function createPageScenes(ctx: PageScenesContext) {
     const book = linkBookOf(n);
     if (book != null) {
       const w = ctx.opt.bookWindow?.(book, false);
-      return { page: "", pageName: w?.title ?? book, pattern: w?.pattern ?? DEFAULT_VIEW, look: dataLinkLookOf(n), clip: clipOf(n), book };
+      return { page: "", pageName: w?.title ?? t("見つからないブック（{id}）", { id: book }), pattern: w?.pattern ?? DEFAULT_VIEW, look: dataLinkLookOf(n), clip: clipOf(n), book };
     }
     const page = linkPageOf(n);
     if (page == null) return null;

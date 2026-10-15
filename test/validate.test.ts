@@ -94,7 +94,7 @@ test("world の title は文字列だけ", () => {
   expect(problems({ world: { title: "題名" }, nodes: [] })).toEqual([]);
 });
 
-test("ファイルの形式: マスターのパターンはマスター用のファイルの最初のページにだけ書け、窓（book）はマスター用のファイルにだけ書ける（D26）", () => {
+test("ファイルの形式: マスターのパターンはマスター用のファイルの最初のページにだけ書け、窓（book）はどちらのファイルにも書ける（D26・D29）", () => {
   expect(formatOf({ world: { childView: "master" } })).toBe("master");
   expect(formatOf({ world: { childView: "tree" } })).toBe("book");
   expect(formatOf({})).toBe("book");
@@ -103,8 +103,8 @@ test("ファイルの形式: マスターのパターンはマスター用のフ
   expect(problems({ world: { childView: "master" }, pages: [{ id: "p1" }], nodes: [] })[0]).toContain("2 枚目からのページを持てません");
   expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: "abc" }, { id: 2, parent: 1 }] })[0]).toContain("ブックの窓は子を持てません");
   expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: 3 }] })[0]).toContain("book はブックの id の文字列");
-  // ふつうのブック: 窓は書けず、ページにマスターのパターンは書けない
-  expect(problems({ nodes: [{ id: 1, book: "abc" }] })[0]).toContain("マスター用のファイルにだけ書けます");
+  // ふつうのブック: ブックへの窓（ブックリンク）も書ける（D29）。ページにマスターのパターンは書けない
+  expect(problems({ nodes: [{ id: 1, book: "abc" }] })).toEqual([]);
   expect(problems({ pages: [{ id: "p1", world: { childView: "master" } }], nodes: [] })[0]).toContain("ページには書けません");
 });
 

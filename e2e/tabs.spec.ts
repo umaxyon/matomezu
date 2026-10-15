@@ -475,6 +475,25 @@ test("マスターでブックの窓を Ctrl+C、Ctrl+V すると複製のダイ
   await page.keyboard.press("Escape");
 });
 
+test("ふつうのページのブックリンク: 窓にブックの題名を出し、押すと移動してよいかを確かめてから移る。キャンセルなら移らない（D29）", async ({ page }) => {
+  const idB = new URL(run("open", "-no-browser", "b.json").trim()).searchParams.get("d")!;
+  writeFileSync(join(dir, "booklink.json"), JSON.stringify({ nodes: [{ id: 1, caption: "B へ", book: idB, x: 40, y: 40 }], edges: [] }));
+  const url = run("open", "-no-browser", "booklink.json").trim();
+  await page.goto(url);
+  await expect(selected(page)).toHaveText("booklink.json");
+  const win = page.locator('.stage:visible .mz-node[data-id="1"] .mz-link-win');
+  await expect(win).toHaveAttribute("title", "押すと「b.json」を開きます");
+  await win.click();
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg).toContainText("ブック「b.json」に移動してよいですか？");
+  await dlg.locator("[data-cancel]").click();
+  await expect(dlg).toHaveCount(0);
+  await expect(selected(page)).toHaveText("booklink.json");
+  await win.click();
+  await dlg.locator("[data-ok]").click();
+  await expect(selected(page)).toHaveText("b.json");
+});
+
 test("LLM の変更はユーザーの Undo に入らず、見えたら認知してユーザーの履歴に入る。画面の外の箱は、スクロールで見えるまで認知しない。matomezu history に残り、見たら seen（D31）", async ({ page }) => {
   const file = join(dir, "hist.json");
   writeFileSync(file, JSON.stringify({ nodes: [{ id: 1, caption: "見える", x: 40, y: 40 }, { id: 2, caption: "遠く", x: 40, y: 3000 }] }));

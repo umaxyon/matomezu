@@ -76,9 +76,9 @@ export const PATTERN_LABELS: Record<PagePattern, string> = { nest: t("内包"), 
 // パターンごとのファイルの形式（D26 の段階 2。2026-10-14 ユーザー: 形式の切り替えもパターンの定義の項目で決める）。
 // データの検査は DOM の無い CLI でも使うので、パターンの名前と見出しと同じくここに置く。形式ごとの決まりは下の FORMAT_RULES
 export const PAGE_FORMATS: Record<PagePattern, BookFormat> = { nest: "book", tree: "book", flow: "book", master: "master" };
-// 形式ごとの決まり: bookLinks は窓（book）を書けるか、pages は 2 枚目からのページを持てるか
+// 形式ごとの決まり: bookLinks はブックへの窓（book）を書けるか（2026-10-16 にふつうのブックでも書けるようにした。D29）、pages は 2 枚目からのページを持てるか
 export const FORMAT_RULES: Record<BookFormat, { bookLinks: boolean; pages: boolean }> = {
-  book: { bookLinks: false, pages: true },
+  book: { bookLinks: true, pages: true },
   master: { bookLinks: true, pages: false },
 };
 // ファイルの形式（最初のページのパターンで決まる。マスターのパターンはマスター用のファイルの最初のページにだけ書ける）

@@ -49,6 +49,7 @@ export interface MasterContext<B extends MasterBook> {
   current(): B | null;        // 前に出ているブック
   openBook(id: string, master?: boolean): Promise<B | null>;
   activate(b: B, page: string | null): void;
+  redraw(): void;             // 前に出ているブックの窓を描き直す（ブックの一覧が届いた）
 }
 
 export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
@@ -150,6 +151,21 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
       });
     }
     return { title: row.title || row.name, pattern, scene: scene && scene !== "loading" ? scene : null };
+  }
+
+  // ブックの一覧（窓の題名・パターン・縮図のもと）を取り直す。マスターを開いていなくても、ふつうのページのブックリンク（D29）のために持つ。
+  // 開いたときと、登録した図の一覧が変わった知らせ（books）で呼ぶ
+  async function catalog() {
+    try {
+      const l = await fetch("api/books", { cache: "no-store" });
+      if (!l.ok) return;
+      const list: BookRow[] = (await l.json()).books;
+      rows = new Map(list.map(r => [r.id, r]));
+      masterRows = list;
+      ctx.redraw();
+    } catch {
+      // 取れなければ今のまま（次の知らせで取り直す）
+    }
   }
 
   // マスターの中身: 「ユーザー」「AI」のリストに新しい MASTER_TOP 件の窓、残りは「その他のブック」（非表示の箱。▼ でリストに開く）。
@@ -263,5 +279,5 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
     // 並びはサーバーの一覧が変わった知らせ（books）で作り直す
   }
 
-  return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow, duplicate };
+  return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow, duplicate, catalog };
 }

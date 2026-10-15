@@ -22,7 +22,8 @@
  *   今のブックの郵便箱に入れ、「届いています」のダイアログを出す（今見ているページなら何もしない）。
  */
 
-import { keyOf } from "./dom";
+import { esc, keyOf } from "./dom";
+import { openSimpleDialog } from "./edit-dialog";
 import { t } from "./i18n";
 import { loadSavedBooks, saveBooks, wantedFromUrl, writeUrl } from "./app-location";
 import { type EventConnection, type Notice, connectEvents } from "./events";
@@ -404,7 +405,13 @@ export async function startApp(ui: AppUi) {
         onLLMSeen: version => { void fetch(base + "api/llm/seen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version }) }).catch(() => {}); },
         bookWindow: (id, visible) => M.bookWindow(id, visible), // マスターの窓（D26 の段階 2）
         onDuplicateBook: id => M.duplicate(id), // マスターでブックの窓を写して貼った（D23）
-        onOpenBook: id => { void openBook(id).then(x => (x ? activate(x, null) : ui.error(t("そのブックを開けませんでした")))); },
+        // ブックの窓を押した。マスターの窓はすぐ移る。ふつうのページのブックリンク（D29）は、移ると戻るのがマスター経由になるので、確かめてから
+        onOpenBook: id => {
+          const go = () => void openBook(id).then(x => (x ? activate(x, null) : ui.error(t("そのブックを開けませんでした"))));
+          if (book?.master) return go();
+          const name = M.bookWindow(id, false)?.title ?? id;
+          openSimpleDialog(t("ブックへ移動"), t("移動"), `<p class="mz-dlg-message">${esc(t("ブック「{name}」に移動してよいですか？", { name }))}</p>`, go);
+        },
       }, { onCommand: key => M.command(key) }); // ブックをまたぐ持ち込みはマスターの追加削除へ移した（前の「他ブックも表示」は出さない。D26 の段階 4）
       const b: Book = {
         id, name: remote.name, color, group, addPage, tabs: [], stage, side, graph, panel, minimap,
@@ -450,6 +457,7 @@ export async function startApp(ui: AppUi) {
   const M = createMaster<Book>({
     side: ui.side, crossList: ui.crossList, error: m => ui.error(m),
     books: () => books, current: () => current?.book ?? null, openBook: (id, m) => openBook(id, m), activate: (b, page) => activate(b, page),
+    redraw: () => current?.book.graph.redraw(),
   });
   const openMaster = M.open;
 
@@ -515,7 +523,7 @@ export async function startApp(ui: AppUi) {
     },
     notify(n) { void deliver(n); },
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
-    books() { if (current?.book.master) void M.refresh(); },
+    books() { void M.catalog(); if (current?.book.master) void M.refresh(); },
     summary(req, doc, page, version) { void answers.summary(req, doc, page, version); },
     fit(req, doc) { void answers.fit(req, doc); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
@@ -525,6 +533,8 @@ export async function startApp(ui: AppUi) {
     },
     status: () => {}, // 再接続中の知らせは出さない（つながらなければ同期のエラーが出る）
   });
+
+  void M.catalog(); // ブックの一覧（ブックリンクの窓の題名と縮図。D29）
 
   // 前に開いていたタブと、URL で指定されたページを開く（サーバーが知らないブックは開かない）
   const { book: wanted, page: wantedPage } = wantedFromUrl();
