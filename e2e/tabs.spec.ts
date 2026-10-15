@@ -594,3 +594,22 @@ test("通知はカレントの画面にだけ届く。画面が無ければ断�
   await page.locator(".mz-dlg [data-ok]").click();
   await other.close();
 });
+
+test("郵便箱の欄が開いていても、ダイアログが覆っている間に届いた物は未読のまま数に出る。ダイアログを閉じたら読んだことにする（2026-10-15）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  await page.locator("#mail-toggle").click();
+  await expect(page.locator("#mail-toggle")).toHaveAttribute("aria-pressed", "true");
+  run("notify", "-title", "覆うダイアログ");
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg.locator("h2")).toHaveText("覆うダイアログ");
+  run("notify", "-mail", "-title", "裏で届いた");
+  await expect(page.locator("#mail-badge")).toHaveText("1");
+  await dlg.locator("[data-ok]").click();
+  await expect(page.locator("#mail-badge")).toHaveText("");
+  // 欄が開いていて、ダイアログが無ければ、届いたらすぐ読んだことにする（今までどおり）
+  run("notify", "-mail", "-title", "見えている所に届いた");
+  await expect(page.locator("#mailbox .mz-mail-row", { hasText: "見えている所に届いた" })).toHaveCount(1);
+  await expect(page.locator("#mail-badge")).toHaveText("");
+  await page.locator("#mail-toggle").click();
+});
