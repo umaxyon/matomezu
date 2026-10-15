@@ -274,6 +274,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     head.classList.toggle("mz-link", !!look);
     for (const l of LINK_LOOKS) head.classList.toggle("mz-link-" + l, look === l);
     head.classList.toggle("mz-link-row", row);
+    head.classList.toggle("mz-link-book", !!link?.book); // ブックリンクは持ち手を縞にして、ページリンクと見分ける（D29。テーマに左右されない所）
     head.classList.toggle("mz-link-left", side === "left");
     const icon = !!link && linkIconOf(n); // 縮図を出さないリストの中の窓は、縮図の代わりに開くアイコン
     head.classList.toggle("mz-link-icon", icon);

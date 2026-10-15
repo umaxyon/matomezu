@@ -13,6 +13,7 @@ test("縮図を出さない見せ方は、縮図の代わりに開くアイコ�
   const head = page.locator('.mz-node[data-id="1"] > .mz-head');
   await expect(head).toHaveClass(/mz-link-icon/);
   await expect(head).toHaveClass(/mz-link-side/);
+  await expect(head).not.toHaveClass(/mz-link-book/); // ページリンクの持ち手は縞にしない
   const win = head.locator(".mz-link-win");
   const r = (await win.boundingBox())!;
   expect(Math.round(r.width)).toBe(20);

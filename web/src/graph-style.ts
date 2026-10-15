@@ -189,6 +189,8 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 /* 持ち手の印（3 つの点）。窓枠は帯の左、横に分けるは帯の真ん中に縦に */
 .mz-link-bar::before { content: ""; flex: none; width: 22px; height: 6px; margin-right: auto;
   background: radial-gradient(circle, color-mix(in srgb, currentColor 35%, transparent) 2.2px, transparent 2.7px) 0 0 / 8px 6px repeat-x; }
+/* ブックリンク（book。D29）: 持ち手の帯を斜めの縞にして、ページリンクと見分ける。色は文字の色から作るので、テーマに左右されない */
+.mz-link-book .mz-link-bar { background: repeating-linear-gradient(135deg, color-mix(in srgb, currentColor 24%, transparent) 0 3px, color-mix(in srgb, currentColor 8%, transparent) 3px 7px); }
 .mz-link-badge { font-size: 10px; font-weight: 500; line-height: 1; padding: 2px 6px; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); opacity: 0.85; white-space: nowrap; }
 .mz-link-win { grid-area: win; position: relative; box-sizing: border-box; margin: var(--mz-link-gap); height: var(--mz-link-win-h); cursor: pointer;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; background: color-mix(in srgb, var(--mz-bg) 55%, transparent); overflow: hidden; }

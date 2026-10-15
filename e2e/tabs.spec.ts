@@ -483,6 +483,7 @@ test("ふつうのページのブックリンク: 窓にブックの題名を出
   await expect(selected(page)).toHaveText("booklink.json");
   const win = page.locator('.stage:visible .mz-node[data-id="1"] .mz-link-win');
   await expect(win).toHaveAttribute("title", "押すと「b.json」を開きます");
+  await expect(page.locator('.stage:visible .mz-node[data-id="1"] > .mz-head')).toHaveClass(/mz-link-book/); // 持ち手が縞（ページリンクと見分ける）
   await win.click();
   const dlg = page.locator(".mz-dlg");
   await expect(dlg).toContainText("ブック「b.json」に移動してよいですか？");
