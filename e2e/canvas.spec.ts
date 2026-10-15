@@ -284,6 +284,10 @@ test("リストのスクロール: ダイアログで入れると今の高さが
   await kidsBox.evaluate(el => { el.scrollTop = 100; });
   expect((await page.locator('.mz-node[data-id="1"] > .mz-head').boundingBox())!.y).toBe(capY);
   expect(await kidsBox.evaluate(el => el.scrollTop)).toBe(100);
+  // 中身は枠の線（2px）の内側まで（下の枠に行が重なって、境目があいまいにならないように。2026-10-15 ユーザー）
+  const kb = (await kidsBox.boundingBox())!, lb = (await page.locator('.mz-node[data-id="1"] > .mz-head').boundingBox())!;
+  expect(kb.y + kb.height).toBeLessThanOrEqual(lb.y + lb.height - 2 + 0.5);
+  expect(kb.x + kb.width).toBeLessThanOrEqual(lb.x + lb.width - 2 + 0.5);
   // Undo でつまみの前に戻る
   await page.keyboard.press("Control+z");
   expect((await rect(page, 1)).h).toBe(full);

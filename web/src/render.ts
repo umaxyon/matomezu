@@ -41,6 +41,8 @@ export type Renderer = ReturnType<typeof createRenderer>;
 
 // 付箋の折り返しの大きさ（px。graph-style.ts の .mz-style-sticky::after と合わせる）
 const FOLD = 12;
+// 枠を引く箱（border）の枠の線の太さ（px）。スクロールするリストの中身は、この内側に収める（scrollKids）
+const FRAME_W = 2;
 
 // 影の CSS の値（"0 3px 5px rgba(...)"。複数あれば最初の 1 つ）を、SVG の feDropShadow の値にする。読めなければ null
 function parseShadow(css: string): { dx: number; dy: number; blur: number; color: string } | null {
@@ -170,7 +172,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       // 塗りの無い文字の箱の枠は、箱の色で引く（テーマが箱ごとの色を使わないなら、テーマの枠の色。白い箱の色だと見えないため）
       const frame = group ? color : !fill ? (own || !theme.border ? color : theme.border) : edge;
       if (draw === "class") shadow.push(`inset 0 0 0 1.5px ${fill ? edge : color}`);
-      else if (borderOf(n)) shadow.push(`inset 0 0 0 2px ${frame}`);
+      else if (borderOf(n)) shadow.push(`inset 0 0 0 ${FRAME_W}px ${frame}`);
       else if (theme.outline && !group && fill) shadow.push(`inset 0 0 0 1.5px ${edge}`);
       const s = shadowOf();
       if (fill && s && !folded) shadow.push(s);
@@ -676,8 +678,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
         n.kidsEl = null;
         continue;
       }
+      // 枠の線（FRAME_W）の上に中身が重ならないよう、下と右（スクロールバー）を枠の内側までにする
       n.kidsEl.style.top = n.kidsTop + "px";
-      n.kidsEl.style.height = Math.max(0, n.h - n.kidsTop) + "px";
+      n.kidsEl.style.right = FRAME_W + "px";
+      n.kidsEl.style.height = Math.max(0, n.h - n.kidsTop - FRAME_W) + "px";
       const space = n.kidsEl.querySelector<HTMLElement>(":scope > .mz-list-space") ?? n.kidsEl.appendChild(Object.assign(document.createElement("div"), { className: "mz-list-space" }));
       space.style.height = Math.max(0, n.fullH - n.kidsTop) + "px"; // スクロールできる高さ（子は絶対位置なので、広さは別に持たせる）
       for (const k of n.children) if (k.el.parentElement !== n.kidsEl) n.kidsEl.appendChild(k.el);
