@@ -24,8 +24,12 @@ const isWhite = (c: string) => /^#?f{3}(f{3})?$/i.test(c);
 export function sceneOf(g: Geometry, bg: string | null, without?: string): Scene {
   const boxes: SceneBox[] = [];
   let w = 0, h = 0;
-  for (const b of g.boxes) {
-    if (without != null && b.id === without) continue;
+  const byId = new Map(g.boxes.map(b => [b.id, b]));
+  for (const raw of g.boxes) {
+    if (without != null && raw.id === without) continue;
+    // スクロールしているリスト（D33）の中の箱は、リストの枠で切る（一部だけ見えている行がリストの外へはみ出さない）
+    const b = clipToLists(raw, byId);
+    if (!b) continue;
     w = Math.max(w, b.x + b.w);
     h = Math.max(h, b.y + b.h);
     if (b.fill === false && b.border === false) continue;
@@ -39,6 +43,18 @@ export function sceneOf(g: Geometry, bg: string | null, without?: string): Scene
   for (const e of edges) for (const [x, y] of e.points) { w = Math.max(w, x); h = Math.max(h, y); }
   const scene = { w: Math.max(1, w), h: Math.max(1, h), bg, boxes, edges };
   return without != null ? trimScene(scene) : scene;
+}
+type GeoBox = Geometry["boxes"][number];
+function clipToLists(b: GeoBox, byId: Map<GeoBox["id"], GeoBox>): GeoBox | null {
+  let x0 = b.x, y0 = b.y, x1 = b.x + b.w, y1 = b.y + b.h;
+  for (const id of b.ancestors) {
+    const a = byId.get(id);
+    if (!a?.scroll) continue;
+    x0 = Math.max(x0, a.x); y0 = Math.max(y0, a.y);
+    x1 = Math.min(x1, a.x + a.w); y1 = Math.min(y1, a.y + a.h);
+  }
+  if (x1 <= x0 || y1 <= y0) return null;
+  return x0 === b.x && y0 === b.y && x1 === b.x + b.w && y1 === b.y + b.h ? b : { ...b, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 // 中身を左上（余白 TRIM_PAD）に寄せる
 const TRIM_PAD = 6;
