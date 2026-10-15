@@ -11,7 +11,7 @@ test.afterEach(async ({ page }) => {
 });
 
 const stage = (page: import("@playwright/test").Page) => page.locator("#stage");
-const scrollOf = (page: import("@playwright/test").Page) => stage(page).evaluate(s => [s.scrollLeft, s.scrollTop]);
+const scrollOf = (page: import("@playwright/test").Page) => stage(page).evaluate(s => [s.scrollLeft, s.scrollTop] as [number, number]);
 const head = (page: import("@playwright/test").Page, id: number) => page.locator(`.mz-node[data-id="${id}"] > .mz-head`);
 
 test("開いたとき、ワールドの左上が図の枠の左上に合い、スクロールバーは出ない。手のひらで、上下左右とも余白の分だけ外へずらせる", async ({ page }) => {
@@ -19,7 +19,7 @@ test("開いたとき、ワールドの左上が図の枠の左上に合い、�
   const world = () => page.locator("#stage .mz-world").boundingBox().then(b => b!);
   expect(Math.round((await world()).x)).toBe(Math.round(frame.x));
   expect(Math.round((await world()).y)).toBe(Math.round(frame.y));
-  expect(await stage(page).evaluate(s => [s.offsetWidth - s.clientWidth, s.offsetHeight - s.clientHeight])).toEqual([0, 0]);
+  expect(await stage(page).evaluate(s => { const e = s as HTMLElement; return [e.offsetWidth - e.clientWidth, e.offsetHeight - e.clientHeight]; })).toEqual([0, 0]);
   // 右下へ大きくずらしても、余白（DEFAULTS.margin）の分で止まる
   const margin = await stage(page).evaluate(s => s.scrollLeft);
   expect(margin).toBeGreaterThan(0);
@@ -124,15 +124,17 @@ test("125% でも、箱はポインタに付いて動き（画面で 125 動か�
   expect(Math.abs(after.y - (at100.y + 100))).toBeLessThanOrEqual(1);
 });
 
-test("75% で追加モードを使うと、押した所（影の左上）に箱ができる", async ({ page }) => {
+test("75% で追加モードを使うと、押した所（影の左上）に箱ができる。縮めても紙の大きさは変わらない", async ({ page }) => {
+  await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 40, y: 40 }], edges: [] } as never);
+  const paper = await page.locator("#stage .mz-world").evaluate(el => [(el as HTMLElement).style.width, (el as HTMLElement).style.height]);
   await page.click("#zoom-out");
   await expect.poll(() => zoomOf(page)).toBe(0.75);
+  expect(await page.locator("#stage .mz-world").evaluate(el => [(el as HTMLElement).style.width, (el as HTMLElement).style.height])).toEqual(paper);
   await homeView(page);
   await page.locator('.mz-toolbox [data-tool="add"]').click();
   const world = (await page.locator("#stage .mz-world").boundingBox())!;
-  // 何も無い所（図の中身の右。三階層の見本は図の座標で幅 830 くらい）
-  await page.mouse.move(world.x + 712, world.y + 420);
-  await page.mouse.click(world.x + 712, world.y + 420);
+  await page.mouse.move(world.x + 300, world.y + 240);
+  await page.mouse.click(world.x + 300, world.y + 240);
   await expect(page.locator(".mz-dlg h2")).toHaveText("ボックスの追加");
   await page.locator('.mz-dlg [name="caption"]').fill("新しい箱");
   await page.locator(".mz-dlg [data-ok]").click();
@@ -141,8 +143,8 @@ test("75% で追加モードを使うと、押した所（影の左上）に箱�
   const id = Number(await added.getAttribute("data-id"));
   const r = await rect(page, id);
   // 影の左上はポインタの (16, 12) 左上（画面の上）。図の座標では 75% で割り戻す
-  expect(Math.abs(r.x - (712 - 16) / 0.75)).toBeLessThanOrEqual(1);
-  expect(Math.abs(r.y - (420 - 12) / 0.75)).toBeLessThanOrEqual(1);
+  expect(Math.abs(r.x - (300 - 16) / 0.75)).toBeLessThanOrEqual(1);
+  expect(Math.abs(r.y - (240 - 12) / 0.75)).toBeLessThanOrEqual(1);
 });
 
 test("125% でも、線を引く〇は箱の辺のすぐ外（画面で同じだけ離れた所）に出て、〇から引くと線が引ける", async ({ page }) => {

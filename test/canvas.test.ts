@@ -30,11 +30,17 @@ test("ワールドは表示領域いっぱいの広さで、余白は外側に�
   expect([el.scrollLeft, el.scrollTop]).toEqual([m, m]);
 });
 
-test("倍率をかけると、ワールドは transform で拡大縮小し、スクロールできる広さは見た目の大きさ ＋ 余白になる。要約の広さは 100% のまま", () => {
+test("倍率をかけると、ワールドは transform で拡大縮小し（紙の大きさは変えない）、スクロールできる広さは見た目の大きさ ＋ 余白になる。要約の広さは 100% のまま", () => {
   const m = 50;
   const { graph, world, canvas } = setup(m);
+  const w0 = world.style.width, h0 = world.style.height;
   graph.setPreview(2);
   expect(world.style.transform).toBe("scale(2)");
+  // 拡大縮小で紙の大きさは変えない（D33）
+  expect([world.style.width, world.style.height]).toEqual([w0, h0]);
+  graph.setPreview(0.5);
+  expect([world.style.width, world.style.height]).toEqual([w0, h0]);
+  graph.setPreview(2);
   const w = Number.parseFloat(world.style.width), h = Number.parseFloat(world.style.height);
   expect(canvas.style.width).toBe(`${Math.ceil(w * 2 + 2 * m)}px`);
   expect(canvas.style.height).toBe(`${Math.ceil(h * 2 + 2 * m)}px`);

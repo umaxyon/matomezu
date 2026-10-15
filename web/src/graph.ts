@@ -2254,7 +2254,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       // 線の点の並びは、矢印の分を縮める前のもの（見える線は、矢印のある端で短くしている）
       const shown = edges.filter(e => e.el.style.display !== "none");
       return {
-        viewport: L.viewport(true), // LLM への配置の要約は 100% のときの広さ（D32）
+        viewport: L.viewport(), // 倍率をかけないときの広さ（LLM への配置の要約。D32・D33）
         boxes,
         treeLines,
         edges: shown.map(e => {
