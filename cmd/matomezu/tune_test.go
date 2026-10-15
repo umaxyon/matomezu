@@ -205,20 +205,20 @@ func TestApplySetsReparentCrossing(t *testing.T) {
 // -page のとき、world.key はそのページ（pages の id）の world を直す。無いページは断る
 func TestSetPageWorld(t *testing.T) {
 	in := `{"world":{"theme":"simple"},"pages":[{"id":"p1","title":"流れ"},{"id":"p2"}],"nodes":[{"id":1,"page":"p1"}]}`
-	out, _, err := applySets([]byte(in), "p1", []string{"world.childView=flow", "world.kidSize=S", "1.caption=開始"})
+	out, _, err := applySets([]byte(in), "p1", []string{"world.theme=sticky", "world.kidSize=S", "1.caption=開始"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := string(out)
-	for _, want := range []string{`"id": "p1"`, `"childView": "flow"`, `"kidSize": "S"`, `"caption": "開始"`} {
+	for _, want := range []string{`"id": "p1"`, `"theme": "sticky"`, `"kidSize": "S"`, `"caption": "開始"`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("missing %s in %s", want, s)
 		}
 	}
-	if strings.Contains(s, `"world": { "theme": "simple", "childView"`) {
+	if !strings.Contains(s, "\"world\": { \"theme\": \"simple\" },\n") {
 		t.Errorf("book world was edited: %s", s)
 	}
-	if _, _, err := applySets([]byte(in), "p9", []string{"world.childView=flow"}); err == nil {
+	if _, _, err := applySets([]byte(in), "p9", []string{"world.theme=sticky"}); err == nil {
 		t.Error("no error for a page that does not exist")
 	}
 }
@@ -235,5 +235,25 @@ func TestApplySetsRefusesCrossPattern(t *testing.T) {
 	}
 	if _, _, err := applySets([]byte(in), "", []string{"1.page=p3", "4.parent="}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// 作ったあとは変えない: ページのパターンと根、箱のタイプ（通常 / link / book）は set で書き換えない。リンク先を同じタイプの中で替えるのはよい（2026-10-16）
+func TestApplySetsKeepsPatternAndBoxType(t *testing.T) {
+	in := `{"world":{"childView":"tree","root":1},"pages":[{"id":"p2","title":"二"},{"id":"p3","title":"三"}],"nodes":[{"id":1,"caption":"根"},{"id":2,"caption":"窓","link":"p2"},{"id":3,"caption":"箱","page":"p2"},{"id":4,"caption":"本","book":"x"}],"edges":[]}`
+	for _, c := range []struct {
+		page string
+		set  string
+	}{
+		{"", "world.childView=nest"}, {"", "world.root=2"}, {"p2", "world.childView=flow"},
+		{"", "3.link=p3"}, {"", "2.link="}, {"", "2.book=x"}, {"", "4.link=p2"}, {"", "4.book="},
+	} {
+		if _, _, err := applySets([]byte(in), c.page, []string{c.set}); err == nil || !strings.Contains(err.Error(), "can't be changed") {
+			t.Errorf("%s %s: err = %v", c.page, c.set, err)
+		}
+	}
+	out, _, err := applySets([]byte(in), "", []string{"2.link=p3", "world.title=題"})
+	if err != nil || !strings.Contains(string(out), `"link": "p3"`) {
+		t.Fatalf("retarget: %v\n%s", err, out)
 	}
 }

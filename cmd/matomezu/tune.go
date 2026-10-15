@@ -416,6 +416,17 @@ func applySets(b []byte, page string, sets []string) ([]byte, []string, error) {
 		if !ok1 || !ok2 || key == "" {
 			return nil, nil, fmt.Errorf("expected id.key=value, link=from,to or unlink=from,to: %s", a)
 		}
+		// 作ったあとは変えない決まり（2026-10-16 ユーザー）: ページのパターンと根（後から変えない。docs/PATTERN-plan.md）と、
+		// 箱のタイプ（通常 / ページへのリンク link / ブックへのリンク book。意味が違うので入れ替えない。リンク先を同じタイプの中で替えるのはよい）
+		if target == "world" && (key == "childView" || key == "root") {
+			return nil, nil, fmt.Errorf("%s: the page pattern (world.childView) and the tree root (world.root) can't be changed after the page is made; for another pattern, make a new page", a)
+		}
+		if i, ok := index[target]; ok && (key == "link" || key == "book") {
+			has := func(k string) bool { return plain(nodes[i].vals[k]) != "null" }
+			if !has(key) || value(key, val) == nil {
+				return nil, nil, fmt.Errorf("%s: a box's type (plain box, page link (link) or book link (book)) is set when it is made and can't be changed; to change the link target, set it to another page", a)
+			}
+		}
 		var o *object
 		if target == "world" {
 			if world == nil {
