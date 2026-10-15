@@ -8,7 +8,7 @@ package server
 //	POST /api/fit/{req}    画面からの答え {"over": [...]} か {"busy": true} か {"error"}
 //
 // 画面は、今のファイルと預けた中身を、ページごとに見えない所で並べて比べ、書き換えで新しく紙からはみ出す最上位の箱を返す
-// （web/src/app.ts の answerFit）。前から紙の外にある箱は数えない（ユーザーの操作の決まりと同じ。graph.ts の refuseOverPaper）。
+// （web/src/app-answers.ts の answerFit）。前から紙の外にある箱は数えない（ユーザーの操作の決まりと同じ。graph.ts の refuseOverPaper）。
 
 import (
 	"encoding/json"

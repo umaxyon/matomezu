@@ -6,7 +6,7 @@ package server
 //	                         画面が無ければ 409、ユーザーが操作中で並べられなければ 409（busy）、画面が読めなければ 422
 //	POST /api/summary/{req}  画面からの答え {"version", "page", "summary", "details"} か {"busy": true} か {"error"}
 //
-// 頼むのはカレントの画面（hub.go の current）だけで、画面は前に出さない（見ていないページは見えない所で並べる。web/src/app.ts の answerSummary）。
+// 頼むのはカレントの画面（hub.go の current）だけで、画面は前に出さない（見ていないページは見えない所で並べる。web/src/app-answers.ts の answerSummary）。
 // 要約はファイルの今の版のものに限る。頼むときにファイルを読み直して版を決め（set の直後でも古い版を返さない）、
 // 答えの版が違えば（その間にファイルが変わった、画面がまだ読み直していない）頼み直す。
 

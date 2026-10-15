@@ -7,7 +7,7 @@
  * - 読み直したデータが不正なときは表示を残し、直るまで保存を止める（書きかけのファイルを上書きしないため）。
  * - 外部の変更はユーザーの Undo の履歴には積まない。ユーザーが見たときにユーザーの履歴へ差し込む（D31。graph.ts の load の version）。
  * - 見ていないタブ（active でない）では読み直さず、前に出たときに読み直す。隠れた画面では文字の幅を測れず、配置が壊れるため。
- * - 配置の要約（matomezu check）は送らない。check はカレントの画面に直接頼む（app.ts の answerSummary、internal/server/summary.go。D30）
+ * - 配置の要約（matomezu check）は送らない。check はカレントの画面に直接頼む（app-answers.ts の answerSummary、internal/server/summary.go。D30）
  */
 
 import { formatDiagram } from "./format";
