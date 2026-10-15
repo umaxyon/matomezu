@@ -166,7 +166,6 @@ import type { Arrow, BoxData, BoxView, Dash, Route, BoxInfo, Diagram, EdgeData, 
 import { ARROWS, DASHES, DEFAULT_PAPER, GROUP_MIN, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, isTreeDirection, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
-import { scrollWorldTo } from "./viewport";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -373,10 +372,10 @@ export interface Graph {
   setZoom(zoom: number): void;
   zoom(): number;
   preview(): number | null;
-  // 画面の見え方（D32）: 今の倍率と、図の周りの余白。スクロールの位置 = 余白 + ワールドの座標 × 倍率
-  view(): { zoom: number; margin: number };
+  // 画面の見え方（D32）: 今の倍率、図の周りの余白、ワールドをずらす量（ox・oy）。スクロールの位置 = ずらす量 + ワールドの座標 × 倍率（viewport.ts）
+  view(): { zoom: number; margin: number; ox: number; oy: number };
   paper(): { name: PaperName; w: number; h: number } | null; // 今のページの紙（紙の制限を受けないページは null。D33）
-  home(): void; // ワールドの左上を表示領域の左上に合わせる（開いたとき・ページを切り替えたとき。D32）
+  home(): void; // ワールドの左上を表示領域の左上に合わせる。紙が表示領域より小さい向きは真ん中に（開いたとき・ページを切り替えたとき。D32）
   contentSize(): { w: number; h: number }; // ボックスが占める範囲（ワールドの左上から、余白込み）
   destroy(): void;
 }
@@ -392,7 +391,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   container.appendChild(canvasEl);
   const worldEl = document.createElement("div");
   worldEl.className = "mz-world";
-  worldEl.style.left = worldEl.style.top = opt.margin + "px";
   container.appendChild(worldEl);
   const svg = document.createElementNS(SVGNS, "svg");
 
@@ -438,7 +436,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return p ? { w: p.w, h: p.h } : { w: Number(world.src.width) || null, h: Number(world.src.height) || null };
   };
   const L = createLayout({
-    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => applied, worldFixed,
+    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => applied, worldFixed, canvasSized: () => rehome(),
     fitted: n => {
       const file = posKey(n.src);
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
@@ -2107,10 +2105,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ワールドの左上を表示領域の左上に合わせる（スクロールの位置 = 余白。D32）。隠れている図（裏のブック）はスクロールできないので、
   // 見えるようになったときに合わせる（下の ResizeObserver）
   let homed = false;
+  let homeAt: { left: number; top: number } | null = null; // 合わせたスクロールの位置（そのまま動いていなければ、紙の大きさが変わったとき合わせ直す）
   function home() {
     homed = container.clientWidth > 0;
     if (!homed) return;
-    scrollWorldTo(container, api.view(), 0, 0);
+    // 紙が表示領域より大きければワールドの左上を表示領域の左上に、小さければ真ん中に（ずらす量が真ん中の分を含むので、その分戻す）
+    const v = api.view();
+    container.scrollLeft = Math.max(0, v.ox - Math.max(0, (container.clientWidth - world.w * v.zoom) / 2));
+    container.scrollTop = Math.max(0, v.oy - Math.max(0, (container.clientHeight - world.h * v.zoom) / 2));
+    homeAt = { left: container.scrollLeft, top: container.scrollTop };
+  }
+  // 開いた直後に紙の型が決まる（既定の紙で合わせたあと、データの紙に替わる）ときのため、合わせたまま動いていなければ合わせ直す
+  function rehome() {
+    if (!homeAt) return;
+    if (container.scrollLeft !== homeAt.left || container.scrollTop !== homeAt.top) { homeAt = null; return; }
+    home();
   }
   if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (!homed) home(); }).observe(container);
 
@@ -2359,7 +2368,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     setZoom,
     zoom: () => editZoom,
     preview: () => preview,
-    view: () => ({ zoom: applied, margin: opt.margin }),
+    view: () => ({ zoom: applied, margin: opt.margin, ox: L.offset().x, oy: L.offset().y }),
     paper: paperOf,
     home,
     contentSize() {

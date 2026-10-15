@@ -53,7 +53,7 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   --mz-select: #c4b5fd;
   --mz-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
-.mz-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; } /* left・top は周りの余白（graph.ts が DEFAULTS.margin から書く。D32） */
+.mz-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; } /* left・top は周りの余白か、紙が小さければ真ん中に来る量（layout.ts の sizeCanvas。D32） */
 .mz-canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
 /* 紙（D33）: 白（暗い画面では少し明るい灰色）に、縁の細い線と薄い影。ページに背景色があればその色（render.ts が style の background に書く）。紙の外は点の格子 */
 .mz-stage { --mz-paper: #2a2a30; --mz-paper-line: rgba(255, 255, 255, 0.14); }

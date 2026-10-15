@@ -195,13 +195,18 @@ test("追加モードで紙の外（周りの余白の上）を押しても、�
   await expect(page.locator("#stage .mz-node")).toHaveCount(1);
 });
 
-test("紙が画面より小さくても、開いたときは紙の左上が図の枠の左上に合う（D33）", async ({ page }) => {
+test("紙が画面より小さければ紙を図の枠の真ん中に置き、大きければ紙の左上を図の枠の左上に合わせる（D33。2026-10-15 ユーザー）", async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
   const frame = (await stage(page).boundingBox())!, paper = (await page.locator("#stage .mz-world").boundingBox())!;
-  expect(Math.round(paper.x)).toBe(Math.round(frame.x));
-  expect(Math.round(paper.y)).toBe(Math.round(frame.y));
   expect(paper.width).toBeLessThan(frame.width);
+  expect(Math.abs(paper.x + paper.width / 2 - (frame.x + frame.width / 2))).toBeLessThan(1.5);
+  expect(Math.abs(paper.y + paper.height / 2 - (frame.y + frame.height / 2))).toBeLessThan(1.5);
+  // A3 縦（1123 × 1587）は横は収まるので真ん中、縦は収まらないので上を合わせる
+  await openDiagram(page, { world: { paper: "a3-portrait" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
+  const f2 = (await stage(page).boundingBox())!, p2 = (await page.locator("#stage .mz-world").boundingBox())!;
+  expect(Math.abs(p2.x + p2.width / 2 - (f2.x + f2.width / 2))).toBeLessThan(1.5);
+  expect(Math.round(p2.y)).toBe(Math.round(f2.y));
 });
 
 test("紙の型: ブックのダイアログで今のページを小さな紙にして収まらなければ閉じずに知らせ、見ていないページは大きな紙だけ選べる（D33）", async ({ page }) => {

@@ -90,7 +90,7 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
   el.append(body);
   host.appendChild(el);
   let scale = 1;
-  let origin = 0; // 絵の左上（ワールドの座標。周りの余白の分だけ負になる。D32）
+  let origin = { x: 0, y: 0 }; // 絵の左上（ワールドの座標。ワールドをずらしている量の分だけ負になる。D32）
 
   let frame = 0;
   function schedule() {
@@ -100,22 +100,22 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
   function draw() {
     const fullW = stage.scrollWidth, fullH = stage.scrollHeight;
     const viewW = stage.clientWidth, viewH = stage.clientHeight;
-    // 図が表示領域に収まっていないか。周りの余白（D32）の分はいつもずらせるので、数えない
-    const pad = 2 * graph.view().margin;
-    const scrolls = fullW - pad > viewW + 1 || fullH - pad > viewH + 1;
+    // 図が表示領域に収まっていないか。ワールドの周り（余白か、紙が小さいときに真ん中へ寄せた分。D32）は数えない
+    const { ox, oy } = graph.view();
+    const scrolls = fullW - 2 * ox > viewW + 1 || fullH - 2 * oy > viewH + 1;
     if (!stage.hidden) setAvailable(scrolls);
     el.hidden = stage.hidden || !open || !scrolls;
     if (el.hidden) return;
     // 絵はワールドの座標で描く。スクロールできる広さ全体（周りの余白と倍率を含む。D32）を、ワールドの座標に直して映す
-    const v = graph.view(), z = v.zoom, m = v.margin;
-    origin = fromScroll(v, 0);
+    const v = graph.view(), z = v.zoom;
+    origin = { x: fromScroll(v, 0, "x"), y: fromScroll(v, 0, "y") };
     const spanW = fullW / z, spanH = fullH / z;
     // 幅は中に使える幅（枠線の分を除く）。図全体がちょうど収まる倍率にする
     const width = body.clientWidth || WIDTH;
     scale = width / Math.max(1, spanW);
     svg.setAttribute("width", String(width));
     svg.setAttribute("height", String(Math.max(1, Math.round(spanH * scale))));
-    svg.setAttribute("viewBox", `${origin} ${origin} ${spanW} ${spanH}`);
+    svg.setAttribute("viewBox", `${origin.x} ${origin.y} ${spanW} ${spanH}`);
     body.style.setProperty("--mm-max", `${Math.round(host.clientHeight * MAX_HEIGHT_RATIO)}px`);
     // ワールドの背景色（ページを見ているなら、そのページの背景）。絵の描き方は preview-art.ts（リンクの箱の窓と同じ）
     const info = graph.info(null);
@@ -123,16 +123,16 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
     el.classList.toggle("mm-on-light", !!bg && isLightColor(bg));
     el.classList.toggle("mm-on-dark", !!bg && !isLightColor(bg));
     // 背景はワールドの範囲だけ（周りの余白には塗らない）
-    const items: Element[] = sceneItems(sceneOf(graph.geometry(), bg), { x: 0, y: 0, w: (fullW - 2 * m) / z, h: (fullH - 2 * m) / z });
+    const items: Element[] = sceneItems(sceneOf(graph.geometry(), bg), { x: 0, y: 0, w: (fullW - 2 * v.ox) / z, h: (fullH - 2 * v.oy) / z });
     // 見えている範囲の四角（ワールドの座標）。図の端と重なる辺も線が半分切れないよう、線の太さの半分（画面で 1px）だけ内へ寄せる
     const inset = 1 / scale;
     const seen = visibleWorld(stage, v);
-    const x0 = Math.max(seen.x, origin + inset), y0 = Math.max(seen.y, origin + inset);
-    const x1 = Math.min(seen.x + seen.w, origin + spanW - inset), y1 = Math.min(seen.y + seen.h, origin + spanH - inset);
+    const x0 = Math.max(seen.x, origin.x + inset), y0 = Math.max(seen.y, origin.y + inset);
+    const x1 = Math.min(seen.x + seen.w, origin.x + spanW - inset), y1 = Math.min(seen.y + seen.h, origin.y + spanH - inset);
     items.push(make("rect", "mm-view", { x: x0, y: y0, width: Math.max(0, x1 - x0), height: Math.max(0, y1 - y0) }));
     svg.replaceChildren(...items);
     // 見えている範囲の四角が、ミニマップの中で見えるようにする
-    const vy0 = (y0 - origin) * scale, vy1 = (y1 - origin) * scale;
+    const vy0 = (y0 - origin.y) * scale, vy1 = (y1 - origin.y) * scale;
     if (vy0 < body.scrollTop) body.scrollTop = vy0;
     else if (vy1 > body.scrollTop + body.clientHeight) body.scrollTop = vy1 - body.clientHeight;
   }
@@ -140,7 +140,7 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
   // ミニマップの上の点（画面の座標）を、ワールドの座標にする
   const toWorld = (ev: PointerEvent): [number, number] => {
     const r = svg.getBoundingClientRect();
-    return [origin + (ev.clientX - r.left) / scale, origin + (ev.clientY - r.top) / scale];
+    return [origin.x + (ev.clientX - r.left) / scale, origin.y + (ev.clientY - r.top) / scale];
   };
   // 見えている範囲（ワールドの座標）と、表示する範囲の左上を (x, y)（ワールドの座標）にする（viewport.ts）
   const viewRect = () => visibleWorld(stage, graph.view());

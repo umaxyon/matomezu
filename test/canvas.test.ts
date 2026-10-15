@@ -21,7 +21,7 @@ test("ワールドは表示領域いっぱいの広さで、余白は外側に�
   const m = 50;
   const { el, graph, world, canvas } = setup(m);
   expect([world.style.left, world.style.top]).toEqual([`${m}px`, `${m}px`]);
-  expect(graph.view()).toEqual({ zoom: 1, margin: m });
+  expect(graph.view()).toEqual({ zoom: 1, margin: m, ox: m, oy: m });
   // 表示領域は 1000 × 700（test/setup.ts）。ワールドはその広さで、要約もその広さで答える
   expect(graph.geometry().viewport).toEqual({ w: 1000, h: 700 });
   expect(world.style.width).toBe("1000px");
@@ -47,4 +47,15 @@ test("倍率をかけると、ワールドは transform で拡大縮小し（紙
   expect(graph.geometry().viewport).toEqual({ w: 1000, h: 700 }); // LLM への要約は 100% の広さ
   graph.setPreview(null);
   expect(world.style.transform).toBe("");
+});
+
+test("縮めて紙が表示領域より小さくなれば、紙は表示領域の真ん中に来て、スクロールしない（2026-10-15 ユーザー）", () => {
+  const m = 50;
+  const { el, graph, world, canvas } = setup(m);
+  graph.setPreview(0.5); // ワールドは 1000 × 700 → 見た目 500 × 350（表示領域は 1000 × 700）
+  expect([world.style.left, world.style.top]).toEqual(["250px", "175px"]);
+  expect(graph.view()).toEqual({ zoom: 0.5, margin: m, ox: 250, oy: 175 });
+  expect([canvas.style.width, canvas.style.height]).toEqual(["1000px", "700px"]);
+  graph.home();
+  expect([el.scrollLeft, el.scrollTop]).toEqual([0, 0]);
 });

@@ -77,7 +77,7 @@ test("一覧の見出しを押すと区画が折りたたまれ、箱を消し�
     await row.hover();
     await row.locator(".mzp-del").click();
     await page.click(`#mode-${mode}`);
-    await page.locator('.mzp-removed[data-restore="2"]').dragTo(page.locator("#stage"), { targetPosition: { x: 60, y: 560 } });
+    await page.locator('.mzp-removed[data-restore="2"]').dragTo(page.locator("#stage .mz-world"), { targetPosition: { x: 60, y: 560 } }); // 紙の中（広い画面では紙が真ん中に来る）
     await expect(node(page, 2)).toHaveCount(1);
     await expect(page.locator("#mode-move")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(`#mode-${mode}`)).toHaveAttribute("aria-pressed", "false");

@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { anchorAt, fromScroll, keepAnchor, scrollWorldTo, toScroll, visibleWorld } from "../web/src/viewport";
 
-const v = { zoom: 2, margin: 50 };
+const v = { zoom: 2, margin: 50, ox: 50, oy: 50 };
 
 test("スクロールの位置とワールドの座標を行き来する", () => {
   expect(toScroll(v, 100)).toBe(250);
@@ -28,6 +28,12 @@ test("ワールドの点へスクロールし、倍率を変えても覚えた�
   stage.scrollTop = 50;
   const a = anchorAt(stage, v);
   expect(a).toEqual({ px: 500, py: 350, wx: 350, wy: 175 });
-  keepAnchor(stage, { zoom: 4, margin: 50 }, a);
+  keepAnchor(stage, { ...v, zoom: 4 }, a);
   expect([stage.scrollLeft, stage.scrollTop]).toEqual([50 + 350 * 4 - 500, 50 + 175 * 4 - 350]);
+});
+
+test("ずらす量は縦横別（紙が小さく真ん中に寄せたとき）", () => {
+  const c = { zoom: 0.5, margin: 50, ox: 200, oy: 80 };
+  expect([toScroll(c, 100, "x"), toScroll(c, 100, "y")]).toEqual([250, 130]);
+  expect([fromScroll(c, 250, "x"), fromScroll(c, 130, "y")]).toEqual([100, 100]);
 });

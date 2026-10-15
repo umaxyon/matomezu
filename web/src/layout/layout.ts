@@ -53,6 +53,7 @@ export interface LayoutContext {
   roots(): Box[];
   edges(): Edge[];
   zoom?(): number; // ワールドにかけている倍率（transform: scale。無ければ 1）
+  canvasSized?(): void; // スクロールの広さとワールドをずらす量を決め直したあと（graph.ts が開いたときの見え方を合わせ直す）
   // 開いたときのはみ出しの調整（fitToViewport）で移した（表示だけ。ファイルには無い位置）
   fitted?(n: Box): void;
 }
@@ -149,13 +150,19 @@ export function createLayout(ctx: LayoutContext) {
   // スクロールできる広さ: ワールドの見た目の大きさ（倍率をかけた分）と、周りの余白。ワールドは transform で拡大縮小するので、
   // スクロールの広さは見た目に追従しない。それをこの入れ物で決める（D32）。ワールドは表示領域より狭くならないので、
   // 上下左右とも、余白の分だけワールドを外へずらせる
-  // 紙（D33）が表示領域より小さいときも、ワールドの左上を表示領域の左上に合わせられる（スクロールの位置 = 余白）よう、
-  // 少なくとも「表示領域 + 余白」の広さを持たせる（紙の右と下の外は、余白より広く見えるだけ）
+  // ワールドをずらす量（縦横別）は、周りの余白と、紙が表示領域より小さいときに真ん中に来る量の大きい方（2026-10-15 ユーザー:
+  // 縮めたとき紙を真ん中に。広い画面で右と下ばかり空かないように）。スクロールの広さは、ワールドの見た目の大きさ ＋ 両側のずらす量
+  let offset = { x: opt.margin, y: opt.margin };
   function sizeCanvas() {
     if (!ctx.canvas) return;
     const z = ctx.zoom?.() ?? 1, m = opt.margin;
-    ctx.canvas.style.width = Math.ceil(Math.max(world.w * z + 2 * m, container.clientWidth + m)) + "px";
-    ctx.canvas.style.height = Math.ceil(Math.max(world.h * z + 2 * m, container.clientHeight + m)) + "px";
+    const ww = world.w * z, wh = world.h * z;
+    offset = { x: Math.max(m, (container.clientWidth - ww) / 2), y: Math.max(m, (container.clientHeight - wh) / 2) };
+    worldEl.style.left = offset.x + "px";
+    worldEl.style.top = offset.y + "px";
+    ctx.canvas.style.width = Math.ceil(ww + 2 * offset.x) + "px";
+    ctx.canvas.style.height = Math.ceil(wh + 2 * offset.y) + "px";
+    ctx.canvasSized?.();
   }
 
   // ---- 大きさ ----
@@ -589,6 +596,7 @@ export function createLayout(ctx: LayoutContext) {
 
   return {
     containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld, holdWorld, stretchWorld, outsideFixed,
+    offset: () => offset, // ワールドを図の枠の中でずらしている量（sizeCanvas）
     kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
