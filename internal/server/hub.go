@@ -11,6 +11,7 @@
 //	POST /api/watch      {"client", "docs"} その画面が開いている図（タブ）。監視するのは、どれかの画面が開いている図だけ
 //	POST /api/focus      {"client"} その画面がフォーカスされた（前に出た）。最後にフォーカスされた画面がカレント（D30。docs/NOTIFY-plan.md）
 //	GET  /api/current    {"client"} カレントの画面の id（つながっている画面が無ければ ""）
+//	POST /api/summary    {"path", "page"} 配置の要約をカレントの画面に頼んで返す（summary.go。matomezu check） … 要トークン
 //	POST /api/new        {"near", "title", "world"} 画面から新しいブックを作って登録し、{"id", "path"} を返す（newbook.go）
 //	GET  /api/books      登録した図を最終更新の新しい順に返す（マスターの一覧。books.go）
 //	GET  /api/master     マスター用のファイルを登録して {"id"} を返す（books.go）
@@ -29,6 +30,7 @@
 //	open     {"doc", "page", "ask"} その図のページ（page が "" なら最初のページ）を開いて前に出す（ask なら郵便箱に入れて聞く）。つないだときも、少し前に頼まれていれば送る
 //	close    {"doc"} その図のタブを閉じる（matomezu close）
 //	mail     {"doc"} その図の郵便箱が変わった（mail.go）
+//	summary  {"req", "doc", "page", "version"} その図のページの要約を api/summary/{req} へ答える（カレントの画面にだけ送る。summary.go）
 //
 // 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
 //
@@ -72,10 +74,11 @@ type Hub struct {
 
 	mu        sync.Mutex
 	docs      map[string]*doc
-	clients   map[chan event]*client // つながっている画面
-	seq       uint64                 // 画面がつながった・フォーカスされた順番（client の joined・focused）
-	idleSince time.Time              // 画面が 0 になった時刻
-	shown     string                 // 最後に開くよう頼まれた図とページ（open イベントの data）
+	clients   map[chan event]*client        // つながっている画面
+	seq       uint64                        // 画面がつながった・フォーカスされた順番（client の joined・focused）
+	summaries map[string]chan summaryAnswer // 画面に頼んでいる要約（summary.go）
+	idleSince time.Time                     // 画面が 0 になった時刻
+	shown     string                        // 最後に開くよう頼まれた図とページ（open イベントの data）
 	shownAt   time.Time
 	store     string   // 登録した図のパスを書いておくファイル（"" なら書かない）
 	recent    []string // 登録した図のパス（古い順。store があれば書く）
@@ -509,6 +512,7 @@ func (h *Hub) Handler() http.Handler {
 	})
 	mux.HandleFunc("POST /api/watch", fromPage(h.setWatch))
 	mux.HandleFunc("POST /api/focus", fromPage(h.setFocus))
+	mux.HandleFunc("POST /api/summary/{req}", fromPage(h.summaryAnswer))
 	mux.HandleFunc("GET /api/current", func(w http.ResponseWriter, _ *http.Request) {
 		id := ""
 		h.mu.Lock()
@@ -528,6 +532,7 @@ func (h *Hub) Handler() http.Handler {
 		mux.HandleFunc("GET /api/ping", h.control(h.ping))
 		mux.HandleFunc("POST /api/open", h.control(h.open))
 		mux.HandleFunc("POST /api/close", h.control(h.close))
+		mux.HandleFunc("POST /api/summary", h.control(h.summary))
 		mux.HandleFunc("POST /d/{id}/api/llm/{n}/revert", h.control(h.withLLM(h.revertLLM)))
 		mux.HandleFunc("POST /api/shutdown", h.control(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)

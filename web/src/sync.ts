@@ -66,6 +66,8 @@ export interface Sync {
   setActive(active: boolean): void;
   // 配置の要約を送り直す（描くページを変えたときなど）
   report(): void;
+  // 画面が表示している版（引用符なし。まだ表示していなければ ""）
+  shown(): string;
   close(): void;
 }
 
@@ -227,6 +229,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       if (active) show();
     },
     report,
+    shown: () => version.replace(/^W\//, "").replace(/"/g, ""),
     close() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);

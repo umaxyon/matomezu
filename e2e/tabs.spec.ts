@@ -1,7 +1,7 @@
 // サーバーから開いたときのアプリ内のタブ（docs/TABS-plan.md の段階 1・2）。
 // 実行ファイルを作り、テスト用のフォルダ（MATOMEZU_HOME）で常駐サーバーを動かして、matomezu open / set で図を渡す。
 // ブラウザは開かせず（-no-browser）、Playwright のページで表示された URL を開く
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -293,12 +293,13 @@ test("ブックを開くと全部のページのタブが並ぶ。ページの�
   expect(await visibleIds(page)).toEqual(["1", "2"]);
 });
 
-test("check -page はそのページのタブを前に出して要約を返し、set -page はそのページの world を直す。ページを消すとタブは閉じる", async ({ page }) => {
+test("check -page はそのページの要約を返す（前に出さない。D30）。set -page はそのページの world を直す。ページを消すとタブは閉じる", async ({ page }) => {
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   await page.goto(run("open", "-no-browser", "p.json").trim());
+  await expect(selected(page)).toHaveText("p.json");
   const out = run("check", "-page", "p1", "p.json");
   expect(out).toContain("#3 中A");
-  await expect(selected(page)).toHaveText("詳細");
+  await expect(selected(page)).toHaveText("p.json");
   run("set", "-page", "p1", "p.json", "world.background=#123456");
   expect(JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).pages[0].world).toEqual({ background: "#123456" });
 
@@ -497,4 +498,33 @@ test("2 つの画面を開いているとき、最後にフォーカスされた
   await page.close();
   await expect.poll(() => current(other)).toBe(b);
   await other.close();
+});
+
+test("見ていないブックを check しても前に出さず、見えない所で並べた要約を返す。開いて表示中の図から作った要約と同じ（D30）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  run("open", "-no-browser", "b.json");
+  await page.locator(".mz-dlg [data-cancel]").click(); // 届いた b は開かない
+  const unseen = run("check", "b.json");
+  expect(unseen).toContain("viewport");
+  await expect(selected(page)).toHaveText("a.json");
+  expect(run("check", "a.json")).not.toBe(unseen); // 表示している a は a の要約
+  // b を開いてから問い合わせると、表示中の図から作る。見えない所で並べたものと同じになる
+  await arrive(page, "b.json");
+  await expect(selected(page)).toHaveText("b.json");
+  expect(run("check", "b.json")).toBe(unseen);
+});
+
+test("ユーザーがボタンを押している間は、要約を作らずに待つ。離すと答える（D30）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  await page.mouse.move(5, 300);
+  await page.mouse.down();
+  let done = false;
+  const out = new Promise<string>((ok, ng) => execFile(bin, ["check", "a.json"], { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8" },
+    (err, stdout) => { done = true; if (err) ng(err); else ok(stdout); }));
+  await page.waitForTimeout(800);
+  expect(done).toBe(false);
+  await page.mouse.up();
+  expect(await out).toContain("viewport");
 });

@@ -2,7 +2,7 @@ package main
 
 // LLM が図の配置を調整するためのコマンド。
 //
-//	matomezu check [-page id] <file.json>             開いている画面が配置した結果の要約を出す
+//	matomezu check [-page id] <file.json>             カレントの画面が配置した結果の要約を出す（前に出さない。D30）
 //	matomezu set [-page id] <file.json> <id.key=value>...  ボックスか線（id が線の id なら線、world は図全体）の項目だけを書き換え、要約を出す
 //
 // -page があれば、その箱のページ（page: true の箱の中身）の要約を出す。無ければ最初のページ。
@@ -48,7 +48,12 @@ func check(args []string) error {
 	if err := checkData(fs.Arg(0)); err != nil {
 		return err
 	}
-	l, err := waitLayout(fs.Arg(0), *page)
+	// 要約の問い合わせだけ。画面は前に出さず、カレントの画面が見ていないページは見えない所で並べる（D30。docs/NOTIFY-plan.md）
+	s := daemon.Running()
+	if s == nil {
+		return errors.New("not open in a browser; run: matomezu open " + fs.Arg(0))
+	}
+	l, err := daemon.Summary(s, fs.Arg(0), *page)
 	if err != nil {
 		return err
 	}

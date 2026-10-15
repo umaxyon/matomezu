@@ -154,7 +154,14 @@ func NewToken() string {
 
 var client = &http.Client{Timeout: 3 * time.Second}
 
+// slowClient は画面の答えを待つ頼みごと（要約。サーバーの summaryWait より長く）
+var slowClient = &http.Client{Timeout: 20 * time.Second}
+
 func call(s *State, method, path string, body any, out any) error {
+	return callWith(client, s, method, path, body, out)
+}
+
+func callWith(client *http.Client, s *State, method, path string, body any, out any) error {
 	var r io.Reader
 	if body != nil {
 		b, _ := json.Marshal(body)
@@ -173,13 +180,18 @@ func call(s *State, method, path string, body any, out any) error {
 	defer res.Body.Close()
 	if res.StatusCode >= 300 {
 		msg, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("%s %s: %s", method, path, bytes.TrimSpace(msg))
+		return &serverError{fmt.Sprintf("%s %s: %s", method, path, bytes.TrimSpace(msg)), string(bytes.TrimSpace(msg))}
 	}
 	if out != nil {
 		return json.NewDecoder(res.Body).Decode(out)
 	}
 	return nil
 }
+
+// serverError はサーバーが断った頼みごと（msg はサーバーの言葉だけ）
+type serverError struct{ full, msg string }
+
+func (e *serverError) Error() string { return e.full }
 
 // Ping は起動中のサーバーの版を返す。応答が無ければエラー
 func Ping(s *State) (string, error) {
@@ -217,6 +229,22 @@ func Ask(s *State, path string, page string) (server.OpenResult, error) {
 	}
 	err = call(s, "POST", "/api/open", map[string]any{"path": abs, "show": true, "page": page, "ask": true}, &res)
 	return res, err
+}
+
+// Summary は path の図の page（"" は最初のページ）の配置の要約を、カレントの画面に頼んで返す（matomezu check。D30）。
+// 画面は前に出さない。誤りはサーバーの言葉だけを返す
+func Summary(s *State, path, page string) (server.Layout, error) {
+	var l server.Layout
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return l, err
+	}
+	err = callWith(slowClient, s, "POST", "/api/summary", map[string]any{"path": abs, "page": page}, &l)
+	var se *serverError
+	if errors.As(err, &se) {
+		return l, errors.New(se.msg)
+	}
+	return l, err
 }
 
 // Close は path の図のタブを閉じるよう、サーバーにつながっている画面に知らせる（登録は残る）

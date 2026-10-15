@@ -37,7 +37,8 @@ import { mountDiagram } from "./view";
 import { openNewBookDialog } from "./new-book";
 import { openNewPageDialog } from "./new-page";
 import { openBookDialog } from "./book-dialog";
-import { layoutScene } from "./offscreen-scene";
+import { layoutGeometry, layoutScene } from "./offscreen-scene";
+import { type Geometry, details, summarize } from "./report";
 import { type Scene, sceneOf } from "./preview-art";
 import { openSettings } from "./settings";
 import { toast } from "./toast";
@@ -100,6 +101,8 @@ interface Book {
 interface BookRow { id: string; name: string; title: string; mtime: number; madeBy: string; pattern: string }
 // マスターに窓を並べる数（新しい順。残りは「その他のブック」）と、リストの置き方（リストの幅の目安・見出しの高さ・リストどうしの間）。
 // 窓はリストの行（縮図は右。D13）なので、行の高さは横に分ける窓の高さとリストの間隔で決まる。目安を外れても重なりは配置が直す
+// 要約を頼まれたとき、ユーザーがボタンを離すのを待つ長さ（これを過ぎたら busy と答える。サーバーの待ち時間 summaryWait より短く。D30）
+const SUMMARY_BUSY = 5000;
 const MASTER_TOP = 10;
 const LIST_W = 340, GROUP_HEAD = 30, GROUP_GAP = 24;
 const ROW_H = LINK_LOOK_DEFS.side.win.h + 2 * LINK_LOOK_DEFS.side.gap;
@@ -644,6 +647,44 @@ export async function startApp(ui: AppUi) {
   }
   ui.master.addEventListener("click", () => void openMaster());
 
+  // matomezu check の配置の要約（D30。docs/NOTIFY-plan.md）。この画面がカレントなので頼まれた。前に出さず、ファイルも書き換えない。
+  // そのページをその版で表示していれば表示中の図から、していなければ見えない所に同じ大きさで並べて作る（offscreen-scene.ts）。
+  // ユーザーがボタンを押している間（ドラッグなど）は、並べると操作が引っかかるので待つ。長く離さなければ busy と答える（LLM はあとで頼み直す）
+  async function answerSummary(req: string, doc: string, page: string, version: string) {
+    const send = (body: object) => fetch(`api/summary/${encodeURIComponent(req)}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }).catch(() => {});
+    const until = Date.now() + SUMMARY_BUSY;
+    while (pressing) {
+      if (Date.now() > until) return send({ busy: true });
+      await new Promise(r => setTimeout(r, 100));
+    }
+    try {
+      const b = books.find(x => x.id === doc && x.loaded);
+      let g: Geometry;
+      let shown: string;
+      if (b && current?.book === b && (b.graph.page() ?? "") === page && b.sync.shown() === version) {
+        g = b.graph.geometry();
+        shown = version;
+      } else {
+        const r = await fetchRemote(docBase(doc));
+        if (!r) return send({ error: "the diagram could not be read" });
+        if (r.data instanceof Error) return send({ error: r.data.message });
+        const rect = ui.canvas.getBoundingClientRect();
+        g = await layoutGeometry(r.data as Diagram, page || null, { w: Math.floor(rect.width) || 1200, h: Math.floor(rect.height) || 800 });
+        shown = r.version.replace(/^W\//, "").replace(/"/g, "");
+      }
+      return send({ version: shown, page, summary: summarize(g), details: details(g) });
+    } catch (err) {
+      return send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  // ユーザーがボタンを押しているか（要約のために裏で並べるのを待つ。D30）
+  let pressing = false;
+  window.addEventListener("pointerdown", () => { pressing = true; }, true);
+  for (const type of ["pointerup", "pointercancel"]) window.addEventListener(type, () => { pressing = false; }, true);
+  window.addEventListener("blur", () => { pressing = false; }); // 押したままほかのウィンドウへ移ったときに残らないように
+
   events = connectEvents({
     watched: () => books.map(b => b.id),
     version(doc, v) {
@@ -679,6 +720,7 @@ export async function startApp(ui: AppUi) {
     },
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
     books() { if (current?.book.master) void refreshMaster(); },
+    summary(req, doc, page, version) { void answerSummary(req, doc, page, version); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
     close(doc) {
       const b = books.find(x => x.id === doc);
