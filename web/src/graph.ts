@@ -140,12 +140,11 @@ import { t } from "./i18n";
 import { type AddRequest, createInteraction, type Mode } from "./interaction";
 import { createDrag } from "./layout/drag";
 import { createLayout } from "./layout/layout";
-import { BODY_MIN_W } from "./layout/node-kinds";
 import { SCENES } from "./layout/policy";
 import { type MeasureText, browserMeasure, createTextMeasurer } from "./layout/measure";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
-  type Box, type Container, type Edge, type World, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
+  type Box, type Container, type Edge, type World, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
@@ -160,7 +159,7 @@ import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { BoxData, BoxView, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
-import { DEFAULT_PAPER, GROUP_MIN, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, normalizeEdge, validate } from "./validate";
+import { DEFAULT_PAPER, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
 import { EMPTY_SCENE, dataScene } from "./data-scene";
@@ -168,6 +167,7 @@ import { createView } from "./graph-view";
 import { createUnseen } from "./unseen";
 import { applyFlatten, planFlatten } from "./tree-flatten";
 import { type EdgePatch, createEdges } from "./graph-edges";
+import { createResizers } from "./resizers";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -378,6 +378,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     settle, sizable, alignChildren,
   } = L;
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
+  // つまみで大きさを変える（本文の幅・リストの幅・リストの高さ。resizers.ts）
+  const Z = createResizers({
+    nodes: () => nodes, settle: n => { settle(SCENES.resizeBody, n); render(); }, centerX: n => centerX(n), changed, notifySelect,
+  });
   // 線の追加・削除・変更・つなぎ直し（graph-edges.ts）
   const E = createEdges({
     svg, world, edges: () => edges, setEdges: list => { edges = list; }, offEdgeIds: () => offEdges.map(e => String(e.id)), edgeOfEl,
@@ -432,9 +436,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     reorder: (n, index) => { reorder(n, index); },
     // 箱につながる線の、自由な端を前に描いた辺の記憶を捨てる（一番よい形を追わせる）。passive は押し出された箱で、つかんだ箱 grabbed との
     // 線は除く（つかんだ箱の線は粘る。docs/EDGE-SPEC.md の A2・A3・A5）
-    resizeBody: n => bodyResizer(n),
-    resizeList: n => listResizer(n),
-    resizeListHeight: n => listHeightResizer(n),
+    resizeBody: n => Z.body(n),
+    resizeList: n => Z.list(n),
+    resizeListHeight: n => Z.listHeight(n),
     resetRoutes: (boxes, passive = [], grabbed = null) => {
       const set = new Set(boxes), pushed = new Set(passive);
       for (const e of edges) {
@@ -590,81 +594,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const e = edges.find(x => x.id === String(id));
     if (!e) throw new Error(t("線がありません: {id}", { id }));
     return e;
-  }
-
-  // 本文の幅をつまんで変える（docs/BODY-plan.md の段階 2）。開始時の位置を覚えておき、幅を変えるたびにそこから決め直す
-  // （押しのけた相手は、狭めれば戻る）。手を離したら 1 件の履歴にする。
-  // 変えられる幅は、葉の見た目の箱なら本文の最小の幅〜サイズの最大。内包する箱・リストの親なら本文の最小の幅〜子の並びで決まった箱の幅
-  // （本文で箱は広がらない。箱の幅まで広げたら自動に戻す。docs/SIZE-plan.md）
-  // リストの幅のつまみ（docs/SIZE-plan.md の 10 章）。ドラッグの間は開始時の位置の写しから毎回決め直し（本文の幅と同じ場面）、
-  // 手を離したら 1 件の履歴。幅は width に書く（狭める下限は layout が決める。node-kinds.ts の list）
-  function listResizer(n: Box) {
-    const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
-    const before = n.specW;
-    const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
-    const apply = (w: number) => {
-      restore();
-      setSpec(n, "w", w);
-      settle(SCENES.resizeBody, n);
-      render();
-    };
-    return {
-      width: n.w,
-      set(w: number) { apply(Math.round(Math.max(GROUP_MIN.w, w))); },
-      finish() {
-        if (!n.parent) n.intendedCX = centerX(n);
-        changed();
-        notifySelect();
-      },
-      cancel() { apply(before); },
-    };
-  }
-
-  // スクロールにしたリストの高さの上限（D33）。つまみを動かした分だけ変え、周りは押しのける（手を離したら確定）
-  function listHeightResizer(n: Box) {
-    const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
-    const before = Number(n.src.listHeight) || n.h;
-    const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
-    const apply = (h: number) => {
-      restore();
-      n.src.listHeight = h;
-      settle(SCENES.resizeBody, n);
-      render();
-    };
-    return {
-      width: n.h, // 今の高さ（resizeGesture は width という名前で受け取る）
-      set(h: number) { apply(Math.round(Math.max(n.kidsTop + 32, Math.min(n.fullH, h)))); },
-      finish() { changed(); notifySelect(); },
-      cancel() { apply(before); },
-    };
-  }
-
-  function bodyResizer(n: Box) {
-    const snap = new Map(nodes.map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
-    const before = typeof n.src.bodyWidth === "number" ? n.src.bodyWidth : undefined;
-    const group = isNesting(n);
-    const width = group ? bodyWrapW(n, n.hw) : n.hw;
-    const max = group ? n.hw : SIZES[sizeOf(n)].maxW;
-    const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
-    const apply = (w: number | undefined) => {
-      restore();
-      setOrDelete(n.src, "bodyWidth", w, w == null);
-      settle(SCENES.resizeBody, n);
-      render();
-    };
-    return {
-      width,
-      set(w: number) {
-        const v = Math.round(Math.max(BODY_MIN_W, Math.min(max, w)));
-        apply(group && v >= Math.floor(max) ? undefined : v);
-      },
-      finish() {
-        if (!n.parent) n.intendedCX = centerX(n);
-        changed();
-        notifySelect();
-      },
-      cancel() { apply(before); },
-    };
   }
 
   // ---- 親子の付け替え ----
