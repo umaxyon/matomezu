@@ -262,6 +262,7 @@ export interface Items {
 // ページの題名と、ページのワールドの設定（graph.updatePage。ブックのダイアログ）
 export interface PagePatch {
   title?: string | null;
+  paper?: string | null; // 紙の型（validate.ts の PAPERS の名前。null か既定で消す。D33）
   theme?: string | null;
   background?: string | null;
   route?: Route | null;
@@ -270,6 +271,7 @@ export interface PagePatch {
 
 export interface Patch {
   title?: string | null;
+  paper?: string | null; // ワールドの紙の型（D33。null か既定で消す）
   background?: string | null;
   theme?: string | null; // 箱かワールドのテーマ。null で消す（親を受け継ぐ）
   caption?: string | null;

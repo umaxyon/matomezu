@@ -15,8 +15,16 @@ import { DEFAULT_ROUTE, DEFAULT_VIEW, STRATEGIES } from "./model";
 import { BG_PRESETS, PATTERN_OPTIONS, ROUTE_OPTIONS, THEME_HELP, WORLD_VIEW_HELP } from "./world-options";
 import { DEFAULT_THEME, THEMES } from "./theme";
 import type { PagePattern, WorldData } from "./types";
+import { DEFAULT_PAPER, PAPERS, PAPER_NAMES, type PaperName } from "./validate";
 
 const PATTERNS: [string, string][] = PATTERN_OPTIONS.filter(([v]) => STRATEGIES[v].pick);
+
+// 紙の型（D33）の選択。choices が無ければ全部の型（validate.ts の PAPERS。足せば選択肢に出る）
+export const PAPER_HELP = t("ページの大きさ（印刷の大きさ）。この中にまとめます。収まらないときは、まとめる・リストのスクロール・大きな紙・ページに分ける、の順で考えます");
+export function paperSelect(value: string, choices: PaperName[] = PAPER_NAMES): string {
+  return `<select class="mz-dlg-input" name="paper" aria-label="${t("紙")}">${choices.map(n =>
+    `<option value="${n}"${n === value ? " selected" : ""}>${esc(PAPERS[n].label)}（${PAPERS[n].w}×${PAPERS[n].h}）</option>`).join("")}</select>`;
+}
 
 function seg(name: string, value: string, options: [string, string][]): string {
   return `<div class="mz-dlg-seg">${options.map(([v, label]) =>
@@ -33,7 +41,8 @@ export function worldFields(title: { label: string; help: string; placeholder: s
         `<option value="${th.id}"${th.id === DEFAULT_THEME ? " selected" : ""}>${esc(th.label)}</option>`).join("")}</select></div>
     <div class="mz-dlg-row"><span>${t("背景色")}</span>${colorButtonHtml(t("背景色を選ぶ"))}</div>
     <div class="mz-dlg-field"><span>${t("線の通り方（既定）")}</span>${seg("route", DEFAULT_ROUTE, ROUTE_OPTIONS)}</div>
-    <div class="mz-dlg-field"><span>${t("ページのパターン")}${helpIcon(WORLD_VIEW_HELP)}</span>${seg("view", DEFAULT_VIEW, patterns)}</div>`;
+    <div class="mz-dlg-field"><span>${t("ページのパターン")}${helpIcon(WORLD_VIEW_HELP)}</span>${seg("view", DEFAULT_VIEW, patterns)}</div>
+    <div class="mz-dlg-row"><span>${t("紙")}${helpIcon(PAPER_HELP)}</span>${paperSelect(DEFAULT_PAPER)}</div>`;
 }
 
 // 背景色のボタンを動かす（サイドバーと同じ色のポップアップ。見本は背景によく使う色）。選んだ色を返す関数を返す
@@ -55,6 +64,7 @@ export function readWorldFields(o: HTMLElement, background: string | null): { ti
   if (background) world.background = background;
   if (picked("route") !== DEFAULT_ROUTE) world.route = picked("route") as WorldData["route"];
   if (picked("view") !== DEFAULT_VIEW) world.childView = picked("view") as PagePattern;
+  if (field("paper") !== DEFAULT_PAPER) world.paper = field("paper");
   return { title: field("caption").trim(), world };
 }
 

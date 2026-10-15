@@ -1728,7 +1728,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         const p = pageData(data, id);
         const w: WorldData = { ...(id == null ? data.world : p!.world) };
         for (const [k, v] of Object.entries(worldPatch)) {
-          const dflt = (k === "route" && v === DEFAULT_ROUTE) || (k === "treeDirection" && v === "down");
+          const dflt = (k === "route" && v === DEFAULT_ROUTE) || (k === "treeDirection" && v === "down") || (k === "paper" && v === DEFAULT_PAPER);
           if (v == null || v === "" || dflt) delete w[k]; else w[k] = v;
         }
         if (id == null) data.world = w;
@@ -1814,6 +1814,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           if (page != null && !Object.keys(top).length) delete source.world;
         }
         if ("background" in next) setOrDelete(world.src, "background", String(next.background ?? ""), !next.background);
+        // 紙の型（D33）。大きさが変わるので、このあとの syncWorld で測り直す。小さくして箱がはみ出すなら、changed の refuseOverPaper が断る
+        if ("paper" in next) setOrDelete(world.src, "paper", String(next.paper ?? ""), !next.paper || next.paper === DEFAULT_PAPER);
         if (next.childView) setPattern(next.childView as PagePattern); // 値は checkSettings で確かめている
         if (next.treeDirection) setOrDelete(world.src, "treeDirection", next.treeDirection, next.treeDirection === "down");
         if ("theme" in next) setOrDelete(world.src, "theme", String(next.theme ?? ""), !next.theme);

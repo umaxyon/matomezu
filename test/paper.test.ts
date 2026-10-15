@@ -78,3 +78,17 @@ test("LLM が書いたまま紙の外にある箱があっても、ほかの箱�
   expect(graph.info(1).caption).toBe("直した");
   expect(events.filter(e => e.kind === "overPaper")).toHaveLength(0);
 });
+
+test("紙の型を変える: 大きくするのはできる。小さくして箱がはみ出すなら断る。既定の型を選べばデータから消す", () => {
+  const { graph, world } = setup({ nodes: [{ id: 1, caption: "右の箱", x: 900, y: 40 }] }); // A4 横（1123 幅）の中
+  graph.update(null, { paper: "a3-landscape" });
+  expect(sizeOf(world)).toEqual([PAPERS["a3-landscape"].w, PAPERS["a3-landscape"].h]);
+  expect(graph.toJSON().world?.paper).toBe("a3-landscape");
+  // A5 横（794 幅）にすると x 900 の箱がはみ出すので断る
+  expect(graph.batch(() => graph.update(null, { paper: "a5-landscape" }))).toBe(false);
+  expect(graph.toJSON().world?.paper).toBe("a3-landscape");
+  // 既定（A4 横）に戻すと、データから消す
+  graph.update(null, { paper: DEFAULT_PAPER });
+  expect(graph.toJSON().world?.paper).toBeUndefined();
+  expect(sizeOf(world)).toEqual([PAPERS[DEFAULT_PAPER].w, PAPERS[DEFAULT_PAPER].h]);
+});

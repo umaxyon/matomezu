@@ -19,7 +19,8 @@ import { DEFAULT_ROUTE, STRATEGIES } from "./model";
 import { pageWorld } from "./pages";
 import { DEFAULT_THEME, THEMES } from "./theme";
 import type { PagePatch, PagePattern, Route, Size, TreeDirection, WorldInfo } from "./types";
-import { PATTERN_LABELS } from "./validate";
+import { DEFAULT_PAPER, PAPERS, PAPER_NAMES, PATTERN_LABELS, type PaperName, isPaper } from "./validate";
+import { PAPER_HELP, paperSelect } from "./new-book";
 import { ALIGN_HELP, BG_PRESETS, FLATTEN_HELP, KID_SIZE_HELP, ROUTE_OPTIONS, THEME_HELP, TREE_DIR_OPTIONS, WORLD_VIEW_HELP } from "./world-options";
 
 const ONCE_NOTE = t("押すと、確定したときに行います（もう一度押すと取りやめ）");
@@ -36,6 +37,7 @@ interface PageState {
   background: string | null;
   route: Route;
   treeDirection: TreeDirection;
+  paper: PaperName;       // 紙の型（D33）
   current: WorldInfo | null; // 今描いているページなら、その情報（一回きりの操作に使う）
 }
 
@@ -57,9 +59,18 @@ function pageStates(graph: Graph): PageState[] {
       background: typeof w.background === "string" ? w.background : null,
       route: w.route === "straight" ? "straight" : DEFAULT_ROUTE,
       treeDirection: (["up", "left", "right"] as const).find(d => d === w.treeDirection) ?? "down",
+      paper: isPaper(w.paper) ? w.paper : DEFAULT_PAPER,
       current: p.id === now ? graph.info(null) as WorldInfo : null,
     };
   });
+}
+
+// 選べる紙の型（D33）: 今描いているページは全部（小さくして収まらなければ確定のときに断る）。
+// 描いていないページは、その場で収まるかを確かめられないので、縦横とも今以上の大きさだけ（大きくするのはいつでもできる）
+function paperChoices(p: PageState): PaperName[] {
+  if (p.current) return PAPER_NAMES;
+  const now = PAPERS[p.paper];
+  return PAPER_NAMES.filter(n => PAPERS[n].w >= now.w && PAPERS[n].h >= now.h);
 }
 
 function pagePane(p: PageState): string {
@@ -88,6 +99,8 @@ function pagePane(p: PageState): string {
           `<option value="${esc(v!)}"${v === p.theme ? " selected" : ""}>${esc(label!)}</option>`).join("")}</select></div>
       <div class="mz-dlg-row"><span>${t("背景色")}${helpIcon(t("図の背景の色。書けばテーマの背景より優先します"))}</span>${colorButtonHtml(t("背景色を選ぶ"))}</div>
       <div class="mz-dlg-field"><span>${t("線の通り方（既定）")}${helpIcon(t("通り方を決めていない線は、これに従います"))}</span>${seg(`route-${k}`, p.route, ROUTE_OPTIONS)}</div>
+      ${own.paper ? `<div class="mz-dlg-row"><span>${t("紙")}${helpIcon(PAPER_HELP)}</span>${paperSelect(p.paper, paperChoices(p))}</div>
+        ${cur ? "" : `<p class="mz-dlg-note">${t("小さな紙にするときは、このページを開いてから変えます（収まるかを確かめるため）")}</p>`}` : ""}
       ${own.descendants ? `<div class="mz-dlg-field"><span>${t("ツリーの向き")}</span>${seg(`dir-${k}`, p.treeDirection, TREE_DIR_OPTIONS)}</div>` : ""}
       ${ops ? `<div class="mz-dlg-ops">${ops}${cur ? `<p class="mz-dlg-note">${ONCE_NOTE}</p>` : away}</div>` : ""}
     </div>`;
@@ -159,6 +172,8 @@ export function openBookDialog(graph: Graph, fileName: string): void {
         if (route && route !== p.route) patch.route = route;
         const dir = picked(`dir-${p.key}`) as TreeDirection | undefined;
         if (dir && dir !== p.treeDirection) patch.treeDirection = dir;
+        const paper = el.querySelector<HTMLSelectElement>('[name="paper"]')?.value;
+        if (paper && paper !== p.paper) patch.paper = paper;
         if (Object.keys(patch).length) graph.updatePage(p.id, patch);
         if (p.current) {
           once = {
