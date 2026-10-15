@@ -135,8 +135,7 @@
 
 import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle, keyOf } from "./dom";
-import { createHistory, type HistoryState, type Op } from "./history";
-import { touchedOf } from "./diff";
+import { createHistory, type HistoryState } from "./history";
 import { t } from "./i18n";
 import { type AddRequest, createInteraction, type Mode } from "./interaction";
 import { createDrag } from "./layout/drag";
@@ -168,6 +167,7 @@ import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
 import { type Scene, sceneOf } from "./preview-art";
 import { EMPTY_SCENE, dataScene } from "./data-scene";
 import { createView } from "./graph-view";
+import { createUnseen } from "./unseen";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -345,11 +345,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let fitted = new Map<string, { file: string; x: number; y: number }>();
   const posKey = (s: { x?: unknown; y?: unknown }) =>
     Number.isFinite(s.x) && Number.isFinite(s.y) ? `${s.x},${s.y}` : null;
+  // まだユーザーが見ていない LLM の変更の認知（D31。unseen.ts）
+  const U = createUnseen({
+    container, worldEl, page: () => page, boxById: id => byId.get(id), zoom: () => V.applied(), alive: () => !destroyed,
+    adopt: op => H.adopt(op), seen: version => opt.onLLMSeen?.(version),
+  });
   // 画面の見え方（倍率・プレビュー・home・手のひら。graph-view.ts）
   const V = createView({
     container, worldEl, world, margin: opt.margin, offset: () => L.offset(), syncWorld: () => L.syncWorld(), mode: () => mode,
-    zoomed: () => { if (unseen.length) setTimeout(checkSeen, 0); }, // 拡大縮小で見えた LLM の変更（D31）
-    previewChanged: () => checkSeen(),
+    zoomed: () => { if (U.any()) setTimeout(U.check, 0); }, // 拡大縮小で見えた LLM の変更（D31）
+    previewChanged: () => U.check(),
     pick(t) {
       const edgeEl = t?.closest(".mz-edge");
       const edge = edgeEl ? edgeOfEl.get(edgeEl) : undefined;
@@ -465,19 +470,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     leaveAdd: () => setMode("move"),
   }, L, R, createDrag(opt, L));
   dragging = () => I.dragging();
-
-  // まだユーザーが見ていない LLM の変更（外部の変更の読み直し。D31。2026-10-15 ユーザー）。変えた箱が見えている範囲に入ったら（スクロールで
-  // 通っただけでも）認知し、ユーザーの履歴の時刻の位置に差し込む（history.ts の adopt）。1 つの変更が複数の箱を扱うときは、どれか 1 つが見えたら全体。
-  // 消した箱は消す前の場所、ページの設定（world・pages）は、そのページが出たら。非表示や縮図の行の中の箱は、▼ や縮図が見えても認知しない
-  interface Unseen {
-    op: Op;
-    version: string | null;
-    nodes: Set<string>;
-    removed: { page: string | null; rect: Rect }[];
-    pages: Set<string | null>;
-    whole: boolean;
-  }
-  let unseen: Unseen[] = [];
 
   // データの変更を知らせる相手（onDataChange）
   const dataListeners = new Set<() => void>();
@@ -1937,52 +1929,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 外部の変更（LLM）はユーザーの履歴に積まず、見ていない変更として覚える。読み込み直しは出発点にする
     if (o.keepHistory) {
       const op = H.external();
-      if (op) {
-        const t = touchedOf(op.changes);
-        unseen.push({
-          op, version: o.version ? o.version.replace(/^W\//, "").replace(/"/g, "") : null, nodes: t.nodes, pages: t.pages, whole: t.whole,
-          removed: [...t.removed.keys()].flatMap(id => { const b = before?.get(id); return b ? [b] : []; }),
-        });
-        setTimeout(checkSeen, 0); // 描いてから
-      }
+      if (op) U.add(op, o.version, before);
     } else {
       H.reset();
-      unseen = [];
+      U.clear();
     }
   }
-
-  // 見ていない LLM の変更のうち、見えたものを認知する（読み込み・スクロール・大きさの変化・ページの切り替え・拡大縮小のあと）
-  function checkSeen() {
-    if (!unseen.length || destroyed || !container.getClientRects().length) return; // 裏のブック（隠れている）は見えていない
-    const c = container.getBoundingClientRect();
-    const view = { left: c.left + container.clientLeft, top: c.top + container.clientTop, right: 0, bottom: 0 };
-    view.right = view.left + container.clientWidth;
-    view.bottom = view.top + container.clientHeight;
-    const hits = (r: { left: number; top: number; right: number; bottom: number }) =>
-      r.right > view.left && r.left < view.right && r.bottom > view.top && r.top < view.bottom;
-    const w = worldEl.getBoundingClientRect();
-    const seen = (u: Unseen) => u.whole || u.pages.has(page)
-      || [...u.nodes].some(id => {
-        const n = byId.get(id);
-        // スクロールしているリスト（D33）の中の子は、リストの枠の中に見えているときだけ（隠れた所は画面の上でも枠の外）
-        const r = n?.head.getBoundingClientRect();
-        return !!n && !!r && !isHidden(n) && n.el.getClientRects().length > 0 && hits(r)
-          && ancestors(n).every(a => !a.kidsEl || (() => { const k = a.kidsEl!.getBoundingClientRect(); return r.bottom > k.top && r.top < k.bottom; })());
-      })
-      || u.removed.some(r => r.page === page && hits({
-        left: w.left + r.rect.x * V.applied(), top: w.top + r.rect.y * V.applied(),
-        right: w.left + (r.rect.x + r.rect.w) * V.applied(), bottom: w.top + (r.rect.y + r.rect.h) * V.applied(),
-      }));
-    const now = unseen.filter(seen);
-    if (!now.length) return;
-    unseen = unseen.filter(u => !now.includes(u));
-    for (const u of now) {
-      H.adopt(u.op);
-      if (u.version) opt.onLLMSeen?.(u.version);
-    }
-  }
-  container.addEventListener("scroll", () => checkSeen(), { passive: true });
-  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => checkSeen()).observe(container);
 
   // 外部の変更を読み直すとき、画面にだけある位置（保存されない）を使う。使わないと読み直すたびに動いてしまう。
   // - 開いたときのはみ出しの調整（fitToViewport）で移した箱は、ファイルの位置が移したときのままなら、移した先に置く
@@ -2153,7 +2105,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       build(data, true);
       V.home(); // 新しいページは、ワールドの左上から見せる（D32）
       notifySelect();
-      setTimeout(checkSeen, 0); // そのページの見ていない LLM の変更（D31）
+      setTimeout(U.check, 0); // そのページの見ていない LLM の変更（D31）
     },
     page: () => page,
     pageScene,
