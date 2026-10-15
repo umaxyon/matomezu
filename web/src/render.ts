@@ -12,7 +12,7 @@ import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
-  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
+  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
@@ -270,7 +270,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const link = ctx.linkOf(n);
     const side = listPreviewOf(n);
     const row = !link && side != null;
-    const look: LinkLook | null = link?.look ?? (row ? "side" : null);
+    const look: LinkLook | null = link ? linkLookOf(n) : row ? "side" : null; // 描く形（縮図を出さない見せ方も、横に分ける形で描く）
     head.classList.toggle("mz-link", !!look);
     for (const l of LINK_LOOKS) head.classList.toggle("mz-link-" + l, look === l);
     head.classList.toggle("mz-link-row", row);

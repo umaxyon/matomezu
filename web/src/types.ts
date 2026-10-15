@@ -21,7 +21,7 @@ export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class" | "
   | "pc" | "factory" | "document" | "trash" | "robot" | "cat" | "heart" | "bulb" | "dog" | "forest" | "house" | "family";
 export type TreeDirection = "down" | "up" | "left" | "right";
 // リンクの箱の見せ方（link-box.ts）: 窓枠（上の帯が持ち手）/ 横に分ける（左の帯が持ち手）
-export type LinkLook = "window" | "side";
+export type LinkLook = "window" | "side" | "icon"; // icon は縮図を出さない（開くアイコンだけ。D29）
 // リストの子の縮図の位置（D13）: 右（既定）/ 左 / 出さない（子を持つ子は内包のまま描く。窓の行は右）
 export type PreviewSide = "right" | "left" | "none";
 export type Id = number | string;

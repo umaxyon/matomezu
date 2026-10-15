@@ -497,6 +497,11 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       ...classValues(),
     });
   }, lead, () => {
+    // 縮図を出さないリンクの箱は、文字だけがリンク先を示すので、キャプションが要る（D29）
+    if (pickedLook() === "icon" && !overlay.querySelector<HTMLInputElement>('[name="caption"]')!.value.trim()) {
+      refusedNote(overlay, t("縮図を出さないときは、キャプションを入れてください"));
+      return false;
+    }
     // 属性・操作の名前は重ねられない（線は名前でつなぐため）
     if (pickedShape() !== "class") return true;
     const names = [...overlay.querySelectorAll<HTMLInputElement>('[name="m-name"]')].map(i => i.value.trim()).filter(Boolean);
@@ -513,7 +518,11 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   const clipPicker = b.link && b.scene
     ? setupClipPicker(overlay.querySelector<HTMLElement>("[data-clip]")!, b.scene, b.link.clip, () => windowOf(LINK_LOOK_DEFS[pickedLook()!]), b.previewMinScale)
     : null;
-  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="linkLook"]')) r.addEventListener("change", () => clipPicker?.refresh());
+  // 縮図を出さない見せ方（D29）では、映す範囲を選ぶ欄は使わないので隠す
+  const clipBox = overlay.querySelector<HTMLElement>("[data-clip]");
+  const syncClip = () => { if (clipBox) clipBox.hidden = pickedLook() === "icon"; };
+  syncClip();
+  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="linkLook"]')) r.addEventListener("change", () => { syncClip(); clipPicker?.refresh(); });
   const ruleSwitch = overlay.querySelector<HTMLButtonElement>('[name="rule"]')!;
   const setRule = (on: boolean) => {
     ruleSwitch.setAttribute("aria-checked", String(on));
@@ -878,14 +887,7 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
     if (commit(overlay) === false) {
       document.body.appendChild(overlay);
       open = { overlay, back: document.activeElement, unhelp: setupHelp(overlay) };
-      let note = overlay.querySelector<HTMLElement>(".mz-dlg-refused");
-      if (!note) {
-        note = document.createElement("p");
-        note.className = "mz-dlg-refused";
-        note.setAttribute("role", "alert");
-        (overlay.querySelector(".mz-dlg-scroll") ?? overlay.querySelector(".mz-dlg"))!.prepend(note);
-      }
-      note.textContent = t("紙に収まらないので確定できません。文字を減らす・ほかの箱を詰めるなどしてから、もう一度確定してください");
+      refusedNote(overlay, t("紙に収まらないので確定できません。文字を減らす・ほかの箱を詰めるなどしてから、もう一度確定してください"));
     }
   };
 
@@ -934,6 +936,18 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
 }
 
 export const editDialogOpen = (): boolean => open != null;
+
+// ダイアログの上に、確定できない理由を出す（閉じずに知らせる。D33・D29）
+export function refusedNote(overlay: HTMLElement, text: string): void {
+  let note = overlay.querySelector<HTMLElement>(".mz-dlg-refused");
+  if (!note) {
+    note = document.createElement("p");
+    note.className = "mz-dlg-refused";
+    note.setAttribute("role", "alert");
+    (overlay.querySelector(".mz-dlg-scroll") ?? overlay.querySelector(".mz-dlg"))!.prepend(note);
+  }
+  note.textContent = text;
+}
 
 // ダイアログの中の色のボタン（押すとサイドバーと同じ色のポップアップ。color-picker.ts）。今の色の見本と、色の値を出す
 export function colorButtonHtml(label: string): string {

@@ -2,17 +2,18 @@
 // 箱に link: ページの id を書くと、そのページをのぞく窓を持つ箱になる。形・サイズ・子の見せ方は使わず、子を持てない。
 // 文字の所（キャプション・本文）と持ち手は普通の箱と同じ操作（選ぶ・動かす・線・編集）で、窓を押すとそのページのタブへ移る。
 // 窓の中身（縮小プレビュー）は段階 4 で入れる（まずは空の枠）。
-// 見せ方（linkLook）は窓枠（window。上の帯が持ち手）と横に分ける（side。左の縦の帯が持ち手）の 2 つ。
+// 見せ方（linkLook）は窓枠（window。上の帯が持ち手）と横に分ける（side。左の縦の帯が持ち手）と、縮図を出さない（icon。横に分ける形で、
+// 窓の代わりに押すと開くアイコン。キャプションは必須。D29。2026-10-16 ユーザー）の 3 つ。
 // 見せ方ごとの数値はここにだけ書く（CSS は render.ts が変数で渡し、大きさの計算は layout/node-kinds.ts が読む。CLAUDE.md のルール 11）。
 // DOM に依存しない
 import { t } from "./i18n";
 import type { LinkLook } from "./types";
 
-export const LINK_LOOKS = ["window", "side"] as const satisfies readonly LinkLook[];
+export const LINK_LOOKS = ["window", "side", "icon"] as const satisfies readonly LinkLook[];
 export const DEFAULT_LINK_LOOK: LinkLook = "window";
 export const isLinkLook = (v: unknown): v is LinkLook => (LINK_LOOKS as readonly unknown[]).includes(v);
 // 画面での名前（サイドバーと編集ダイアログの選択肢）
-export const LINK_LOOK_LABELS: Record<LinkLook, string> = { window: t("窓枠"), side: t("横に分ける") };
+export const LINK_LOOK_LABELS: Record<LinkLook, string> = { window: t("窓枠"), side: t("横に分ける"), icon: t("縮図を出さない") };
 export const LINK_LOOK_OPTIONS: [LinkLook, string][] = LINK_LOOKS.map(v => [v, LINK_LOOK_LABELS[v]]);
 
 export interface LinkLookDef {
@@ -25,11 +26,13 @@ export const LINK_LOOK_DEFS: Record<LinkLook, LinkLookDef> = {
   // 窓のまわりの余白は狭く（2026-10-12 ユーザー）。箱の幅は 200。余白は 4 の倍数にする（125% 表示でも画素に割り切れ、左右で 1px ずれない）
   window: { handle: 22, win: { w: 192, h: 92 }, gap: 4, textW: null },
   side:   { handle: 10, win: { w: 116, h: 88 }, gap: 4, textW: { min: 80, max: 160 } },
+  // 縮図を出さない（D29）: 横に分ける形で、窓の代わりに押すと開くアイコン（縮図を出さないリストの中の窓（D13）と同じ）
+  icon:   { handle: 10, win: { w: 20, h: 20 }, gap: 8, textW: { min: 80, max: 160 } },
 };
 // リストの子が子を持つときに横に出す縮図（D13）。大きさは横に分ける窓と同じ（2026-10-14 ユーザー）。持ち手は無い（行の文字の所でつかむ）
 export const PREVIEW_ROW_DEF: LinkLookDef = { ...LINK_LOOK_DEFS.side, handle: 0 };
-// 縮図を出さないリストの中の窓（D13）: 縮図の代わりに、押すと開くアイコン。持ち手と文字の列は横に分ける見せ方と同じ
-export const LINK_ICON_DEF: LinkLookDef = { ...LINK_LOOK_DEFS.side, win: { w: 20, h: 20 }, gap: 8 };
+// 縮図を出さないリストの中の窓（D13）と、縮図を出さない見せ方（D29）: 縮図の代わりに、押すと開くアイコン
+export const LINK_ICON_DEF: LinkLookDef = LINK_LOOK_DEFS.icon;
 // 窓枠の箱の幅（窓の幅 + 両側の余白）
 export const linkBoxWidth = (d: LinkLookDef) => d.win.w + 2 * d.gap;
 

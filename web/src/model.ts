@@ -288,7 +288,8 @@ export function listPreviewOf(n: Box): "right" | "left" | null {
   return isLinkBox(n) || arrangeOf(n) === "preview" ? side : null;
 }
 // 縮図を出さない並べ方（リストの none）の中の窓か。縮図の代わりに、押すと開くアイコンを右に出す（2026-10-14 ユーザー）
-export const linkIconOf = (n: Box): boolean => isLinkBox(n) && !!n.parent && lookOf(n).preview && previewSideOf(n.parent) === "none";
+// 縮図の代わりに開くアイコンを出すか: 縮図を出さない見せ方（linkLook の icon。D29）か、縮図を出さないリストの中（D13）
+export const linkIconOf = (n: Box): boolean => isLinkBox(n) && (n.src.linkLook === "icon" || (!!n.parent && lookOf(n).preview && previewSideOf(n.parent) === "none"));
 // 子を描かない並べ方か（非表示と縮図）
 export const hidesKids = (n: Box): boolean => arrangeOf(n) === "hidden" || arrangeOf(n) === "preview";
 // 箱が子を並べる戦略（子が無ければ null）
@@ -327,7 +328,10 @@ export const isLinkBox = (n: Box): boolean => n.src.link != null || n.src.book !
 export const linkPageOf = (n: Box): string | null => (n.src.link == null ? null : String(n.src.link));
 export const linkBookOf = (n: Box): string | null => (typeof n.src.book === "string" && n.src.book ? n.src.book : null);
 // 縮図を横に出す並べ方（リスト）の中では、いつも横に分ける（D13。2026-10-14 ユーザー）
-export const linkLookOf = (n: Box): LinkLook => (n.parent && lookOf(n).preview ? "side" : isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
+// 描くときの見せ方（リストの中は横に分ける。縮図を出さない（icon）も横に分ける形で描き、アイコンかは linkIconOf）
+export const linkLookOf = (n: Box): LinkLook => (n.parent && lookOf(n).preview ? "side" : n.src.linkLook === "icon" ? "side" : isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
+// データに書いた見せ方（編集ダイアログの選択。無ければ既定）
+export const dataLinkLookOf = (n: Box): LinkLook => (isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
 // 窓に映す範囲（のぞくページの座標。無ければ null = ページ全体）
 export const clipOf = (n: Box): ClipRect | null => (isRect(n.src.clip) ? { ...n.src.clip } : null);
 

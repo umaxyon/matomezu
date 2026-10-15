@@ -118,7 +118,7 @@
  *     無ければ自動（Z 字の中棒は真ん中か、ほかの箱を避けた位置）。以前の bend（中棒の割合）は、読み込むと via に移す。
  *     ページの既定は、そのページの world.route。docs/EDGE-plan.md
  *   - link はリンクの箱（link-box.ts。docs/PATTERN-plan.md）: のぞく（窓を押すと開く）ページの id。形・サイズ・子の見せ方は使わず、子を持てない。
- *     linkLook は見せ方: "window"（窓枠。上の帯が持ち手。既定）/ "side"（横に分ける。左の帯が持ち手）。
+ *     linkLook は見せ方: "window"（窓枠。上の帯が持ち手。既定）/ "side"（横に分ける。左の帯が持ち手）/ "icon"（縮図を出さず開くアイコンだけ。キャプションが要る。D29）。
  *     窓にはそのページの縮図（四角と線だけ。preview-art.ts）が映る。ページ全体が収まる縮尺で、DEFAULTS.previewMinScale より縮めずに切り取る。
  *     clip: { x, y, w, h }（そのページの座標の四角）を書けば、その範囲を映す（編集ダイアログで選ぶ）
  *   - removed は人が消したボックス（nodes と同じ形。parent は消す直前の親）。id は nodes と重ねない。

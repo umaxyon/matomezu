@@ -4,7 +4,7 @@
 import { EMPTY_SCENE, dataScene } from "./data-scene";
 import type { DEFAULTS, GraphOptions } from "./graph";
 import type { Rect as ClipRect } from "./link-box";
-import { type Box, DEFAULT_VIEW, clipOf, isHidden, isLinkBox, linkBookOf, linkLookOf, linkPageOf } from "./model";
+import { type Box, DEFAULT_VIEW, clipOf, dataLinkLookOf, isHidden, isLinkBox, linkBookOf, linkPageOf } from "./model";
 import { pageMembers, pageNameOf, pageOf, pageWorld, subtreeIds } from "./pages";
 import { type Scene, sceneOf } from "./preview-art";
 import type { Geometry } from "./report";
@@ -36,12 +36,12 @@ export function createPageScenes(ctx: PageScenesContext) {
     const book = linkBookOf(n);
     if (book != null) {
       const w = ctx.opt.bookWindow?.(book, false);
-      return { page: "", pageName: w?.title ?? book, pattern: w?.pattern ?? DEFAULT_VIEW, look: linkLookOf(n), clip: clipOf(n), book };
+      return { page: "", pageName: w?.title ?? book, pattern: w?.pattern ?? DEFAULT_VIEW, look: dataLinkLookOf(n), clip: clipOf(n), book };
     }
     const page = linkPageOf(n);
     if (page == null) return null;
     const view = pageWorld(ctx.source(), page).childView;
-    return { page, pageName: pageName(page), pattern: isPattern(view) ? view : DEFAULT_VIEW, look: linkLookOf(n), clip: clipOf(n), book: null };
+    return { page, pageName: pageName(page), pattern: isPattern(view) ? view : DEFAULT_VIEW, look: dataLinkLookOf(n), clip: clipOf(n), book: null };
   }
   // 窓に映す縮図のもと。マスターの窓は、見えている窓だけ縮図を取りに行かせる（隠れた箱の中の窓は題名だけ）
   function windowScene(n: Box): Scene {

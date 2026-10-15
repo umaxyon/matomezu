@@ -138,7 +138,7 @@ export function settingsProblems(s: Record<string, unknown>, where: unknown, the
   if (s.listHeight != null && !(typeof s.listHeight === "number" && s.listHeight > 0)) out.push(t("listHeight（リストの高さの上限）は正の数にしてください: {where} ({value})", { where, value: s.listHeight }));
   if (s.rowSize != null && !isSize(s.rowSize)) out.push(t("rowSize に使えるのは L / M / S です: {where} ({value})", { where, value: s.rowSize }));
   if (s.previewSide != null && !isPreviewSide(s.previewSide)) out.push(t("previewSide に使えるのは right / left / none です: {where} ({value})", { where, value: s.previewSide }));
-  if (s.linkLook != null && !isLinkLook(s.linkLook)) out.push(t("linkLook に使えるのは window / side です: {where} ({value})", { where, value: s.linkLook }));
+  if (s.linkLook != null && !isLinkLook(s.linkLook)) out.push(t("linkLook に使えるのは window / side / icon です: {where} ({value})", { where, value: s.linkLook }));
   if (s.clip != null && !isRect(s.clip)) out.push(t("clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}", { where }));
   if (theme && s.theme != null && !isTheme(s.theme)) {
     out.push(t("theme の値が不正です: {where} ({value})。使えるのは {themes}", { where, value: s.theme, themes: THEMES.map(x => x.id).join(" / ") }));
@@ -264,6 +264,10 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
   const hasKids = new Set([...byId.values()].filter(n => n.parent != null).map(n => String(n.parent)));
   for (const n of byId.values()) {
     if (n.book != null && hasKids.has(String(n.id))) fail(t("ブックの窓は子を持てません: {id}", { id: n.id }));
+    // 縮図を出さない見せ方（icon。D29）は、文字だけがリンク先を示すので、キャプションが要る
+    if ((n.link != null || n.book != null) && n.linkLook === "icon" && !(typeof n.caption === "string" && n.caption.trim())) {
+      fail(t("縮図を出さないリンクの箱には、キャプションを書いてください: {id}", { id: n.id }));
+    }
     if (n.link == null) continue;
     if (!pages.has(String(n.link))) { fail(t("存在しないページへのリンクです: {id} → {page}", { id: n.id, page: n.link })); continue; }
     if (hasKids.has(String(n.id))) fail(t("リンクの箱は子を持てません: {id}", { id: n.id }));
