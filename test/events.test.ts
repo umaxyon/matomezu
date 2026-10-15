@@ -24,6 +24,7 @@ let log: string[] = [];
 let reloads = 0;
 
 beforeEach(() => {
+  sessionStorage.clear(); // 最後にフォーカスされた時刻をテストの間で持ち越さない
   sources = [];
   log = [];
   reloads = 0;
@@ -90,25 +91,66 @@ test("開いている図を、接続の id でサーバーに知らせる。変�
   expect(posts.at(-1)).toEqual({ client: "c2", docs: ["a", "b"] });
 });
 
-test("フォーカスされたとき（前に出たとき）、接続の id で api/focus に知らせる。つないだときに前にあれば、そのときも知らせる（D30）", () => {
+test("フォーカスされたとき（前に出たとき）、接続の id と時刻を api/focus に知らせる。つなぎ直したら、前にフォーカスされた時刻を新しい id で送る（D30）", async () => {
   const hasFocus = document.hasFocus;
+  const sent = () => focuses as { client: string; at: number }[];
   try {
-    document.hasFocus = () => true;
+    // 前にある画面は、つないだときに知らせる（テストの画面は最初からフォーカスがある）
     sources[0]!.send("hello", { client: "c1" });
-    expect(focuses).toEqual([{ client: "c1" }]);
-    window.dispatchEvent(new Event("focus"));
-    expect(focuses).toEqual([{ client: "c1" }, { client: "c1" }]);
-    // つなぎ直したら新しい id。前に無ければ、つないだだけでは知らせない
+    expect(sent().map(f => f.client)).toEqual(["c1"]);
     document.hasFocus = () => false;
+    await wait(5);
+    window.dispatchEvent(new Event("focus"));
+    expect(sent().map(f => f.client)).toEqual(["c1", "c1"]);
+    const at = sent()[1]!.at;
+    expect(at).toBeGreaterThan(sent()[0]!.at);
+    expect(at).toBeGreaterThan(0);
+    // つなぎ直したら（サーバーの入れ替えなど）、前にフォーカスされた時刻を新しい id で送る（そのときフォーカスが無くても）
+    await wait(5);
     sources[0]!.send("hello", { client: "c2" });
-    expect(focuses.length).toBe(2);
+    expect(sent().at(-1)).toEqual({ client: "c2", at });
+    // 前に出たら、新しい時刻で知らせる
     document.dispatchEvent(new Event("visibilitychange"));
-    expect(focuses.at(-1)).toEqual({ client: "c2" });
+    expect(sent().at(-1)!.client).toBe("c2");
+    expect(sent().at(-1)!.at).toBeGreaterThan(at);
     // 閉じたら知らせない
+    const n = sent().length;
     conn!.close();
     conn = null;
     window.dispatchEvent(new Event("focus"));
-    expect(focuses.length).toBe(3);
+    expect(sent().length).toBe(n);
+  } finally {
+    document.hasFocus = hasFocus;
+  }
+});
+
+test("一度もフォーカスされていない画面は、つないだだけでは知らせない（D30）", () => {
+  const hasFocus = document.hasFocus;
+  try {
+    conn?.close();
+    sessionStorage.clear();
+    document.hasFocus = () => false;
+    focuses = [];
+    conn = connectEvents({ watched: () => watched, version: () => {}, open: () => {}, status: () => {} }, { reload: () => {}, retryDelay: 20 });
+    sources.at(-1)!.send("hello", { client: "c9" });
+    expect(focuses).toEqual([]);
+  } finally {
+    document.hasFocus = hasFocus;
+  }
+});
+
+test("最後にフォーカスされた時刻は、読み直しても残る（sessionStorage。サーバーの版が変わると画面は読み直すため。D30）", () => {
+  const hasFocus = document.hasFocus;
+  try {
+    window.dispatchEvent(new Event("focus"));
+    const at = Number(sessionStorage.getItem("matomezu-focused-at"));
+    expect(at).toBeGreaterThan(0);
+    conn?.close();
+    document.hasFocus = () => false;
+    focuses = [];
+    conn = connectEvents({ watched: () => watched, version: () => {}, open: () => {}, status: () => {} }, { reload: () => {}, retryDelay: 20 });
+    sources.at(-1)!.send("hello", { client: "c7" });
+    expect(focuses).toEqual([{ client: "c7", at }]);
   } finally {
     document.hasFocus = hasFocus;
   }

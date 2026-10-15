@@ -661,3 +661,31 @@ test("マスターを見ている最中に check・history で問い合わせて
   expect(await ai.evaluate(el => (el as HTMLElement).style.cssText)).toBe(before);
   await expect(selected(page)).toHaveText("マスター");
 });
+
+test("サーバーを入れ替えても、最後にフォーカスされた画面がカレントのまま（あとからつながった画面にならない。D30）", async ({ page, context }) => {
+  // ヘッドレスではどの画面も「フォーカスがある」と答えるので、無いことにして、フォーカスは focus のイベントでだけ起こす
+  await context.addInitScript(() => { document.hasFocus = () => false; });
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  await expect(selected(page)).toHaveText("a.json");
+  const other = await context.newPage();
+  await other.goto(url);
+  await expect(selected(other)).toHaveText("a.json");
+  const idOf = (p: import("@playwright/test").Page) =>
+    p.waitForRequest(r => r.url().endsWith("/api/focus")).then(r => (JSON.parse(r.postData() ?? "{}") as { client: string }).client);
+  const first = idOf(page);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await first;
+  // サーバーを止めて起こし直す。つなぎ直した page は、前にフォーカスされた時刻を新しい id で送る
+  const again = idOf(page);
+  run("stop");
+  run("open", "-no-browser", "a.json");
+  const id = await again;
+  // other は確実にあとからつながらせる（読み直す）。一度もフォーカスされていないので、カレントにはならない
+  await other.reload();
+  await expect(selected(other)).toHaveText("a.json");
+  const current = async () => (await (await page.request.get(new URL("/api/current", url).href)).json()).client as string;
+  await page.waitForTimeout(500);
+  expect(await current()).toBe(id);
+  await other.close();
+});

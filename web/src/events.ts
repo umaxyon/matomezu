@@ -76,18 +76,27 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
     }).catch(() => {});
   }
 
-  // この画面がフォーカスされた（前に出た）ことを知らせる。届かなくてもよい（次にフォーカスされたときに知らせ直す）
+  // この画面がフォーカスされた（前に出た）ことを、その時刻と一緒に知らせる。届かなくてもよい（次にフォーカスされたときに知らせ直す）。
+  // 時刻は覚えておき、つなぎ直したとき（サーバーの入れ替えなど）にも送る。サーバーは時刻の一番新しい画面をカレントにするので、
+  // つなぎ直しの瞬間にどの画面もフォーカスを持っていなくても、最後にフォーカスされた画面がカレントのまま残る（2026-10-15）
+  // 時刻はタブごとの sessionStorage にも書く（サーバーの版が変わると画面は読み直すので、読み直しても残るように）
+  const front = () => document.visibilityState === "visible" && document.hasFocus();
+  const FOCUS_KEY = "matomezu-focused-at";
+  const stored = (() => { try { return Number(sessionStorage.getItem(FOCUS_KEY)) || 0; } catch { return 0; } })();
+  let focusedAt = front() ? Date.now() : stored; // 最後にフォーカスされた時刻（0 ならまだ）
+  const remember = () => { try { sessionStorage.setItem(FOCUS_KEY, String(focusedAt)); } catch { /* 覚えられなくても動く */ } };
+  remember();
   function sendFocus() {
-    if (!client) return;
+    if (!client || !focusedAt) return;
     fetch(focusUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client }),
+      body: JSON.stringify({ client, at: focusedAt }),
     }).catch(() => {});
   }
-  const front = () => document.visibilityState === "visible" && document.hasFocus();
-  const onVisible = () => { if (document.visibilityState === "visible") sendFocus(); };
-  window.addEventListener("focus", sendFocus);
+  const onFocus = () => { focusedAt = Date.now(); remember(); sendFocus(); };
+  const onVisible = () => { if (document.visibilityState === "visible") onFocus(); };
+  window.addEventListener("focus", onFocus);
   document.addEventListener("visibilitychange", onVisible);
 
   function connect() {
@@ -103,7 +112,8 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       if (v && typeof v.client === "string") {
         client = v.client;
         sendWatched();
-        if (front()) sendFocus();
+        if (front()) { focusedAt = Date.now(); remember(); }
+        sendFocus();
       }
     });
     es.addEventListener("version", e => {
@@ -150,7 +160,7 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
   return {
     close() {
       closed = true;
-      window.removeEventListener("focus", sendFocus);
+      window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
       es.close();
       if (retryTimer) clearTimeout(retryTimer);

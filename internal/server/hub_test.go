@@ -341,6 +341,24 @@ func TestCurrentScreen(t *testing.T) {
 	if c := current(); c != a {
 		t.Fatalf("focused a last: %q", c)
 	}
+	// つなぎ直した画面は、前の接続でフォーカスされた時刻を送ってくる。時刻の新しい方がカレント（あとから知らせても、古い時刻なら負ける）
+	c, rc := join()
+	at := func(id string, ms int64) {
+		do(t, "POST", ts.URL+"/api/focus", fmt.Sprintf(`{"client":%q,"at":%d}`, id, ms), nil).Body.Close()
+	}
+	now := time.Now().UnixMilli()
+	at(b, now-9000)
+	at(a, now-1000)
+	at(c, now-5000)
+	if cur := current(); cur != a {
+		t.Fatalf("older focus time must not win: %q (a=%s c=%s)", cur, a, c)
+	}
+	at(c, now-500)
+	if cur := current(); cur != c {
+		t.Fatalf("newer focus time wins: %q (c=%s)", cur, c)
+	}
+	rc.Body.Close()
+	focus(a)
 	// a が切れたら、つながっている b
 	ra.Body.Close()
 	deadline := time.Now().Add(2 * time.Second)

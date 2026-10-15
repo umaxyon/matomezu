@@ -9,7 +9,7 @@
 //	GET  /api/events     SSE。全部の図の通知を1本で送る（下を参照）
 //	GET  /api/info       {"server"} サーバーの版。画面が matomezu のサーバーから開かれたかを知るのに使う
 //	POST /api/watch      {"client", "docs"} その画面が開いている図（タブ）。監視するのは、どれかの画面が開いている図だけ
-//	POST /api/focus      {"client"} その画面がフォーカスされた（前に出た）。最後にフォーカスされた画面がカレント（D30。docs/NOTIFY-plan.md）
+//	POST /api/focus      {"client", "at"} その画面がフォーカスされた（前に出た）時刻。最後にフォーカスされた画面がカレント（D30。docs/NOTIFY-plan.md）
 //	GET  /api/current    {"client"} カレントの画面の id（つながっている画面が無ければ ""）
 //	POST /api/summary    {"path", "page"} 配置の要約をカレントの画面に頼んで返す（summary.go。matomezu check） … 要トークン
 //	POST /api/notify     {"title", "body", "path", "page", "mail"} カレントの画面に通知を送る（notify.go。matomezu notify） … 要トークン
@@ -104,12 +104,14 @@ type event struct {
 }
 
 // つながっている画面。docs はその画面が開いている図（nil ならまだ知らせが無いので、全部とみなす）。
-// joined と focused はつながった・最後にフォーカスされた順番（Hub の seq。focused が 0 ならまだフォーカスされていない）
+// joined と focused はつながった・最後にフォーカスされた順番（Hub の seq。focused が 0 ならまだフォーカスされていない）。
+// focusedAt は画面が知らせた、最後にフォーカスされた時刻（ミリ秒）。つなぎ直した画面も、前の接続でフォーカスされた時刻を送ってくる
 type client struct {
-	id      string
-	docs    map[string]bool
-	joined  uint64
-	focused uint64
+	id        string
+	docs      map[string]bool
+	joined    uint64
+	focused   uint64
+	focusedAt int64
 }
 
 type Option func(*Hub)
@@ -653,6 +655,7 @@ func (h *Hub) setWatch(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) setFocus(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Client string `json:"client"`
+		At     int64  `json:"at"` // 画面がフォーカスされた時刻（ミリ秒。無ければ今）
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil || req.Client == "" {
 		http.Error(w, "client required", http.StatusBadRequest)
@@ -662,8 +665,12 @@ func (h *Hub) setFocus(w http.ResponseWriter, r *http.Request) {
 	defer h.mu.Unlock()
 	for _, c := range h.clients {
 		if c.id == req.Client {
+			now := time.Now().UnixMilli()
+			if req.At <= 0 || req.At > now {
+				req.At = now
+			}
 			h.seq++
-			c.focused = h.seq
+			c.focused, c.focusedAt = h.seq, req.At
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -671,12 +678,12 @@ func (h *Hub) setFocus(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "unknown client", http.StatusNotFound)
 }
 
-// current はカレントの画面（h.mu を持って呼ぶ）。つながっている画面のうち最後にフォーカスされたもの。
-// どれもフォーカスされていなければ最後につながったもの。画面が無ければ nil。
+// current はカレントの画面（h.mu を持って呼ぶ）。つながっている画面のうち、最後にフォーカスされた時刻の一番新しいもの
+// （同じ時刻なら、あとから知らせた方）。どれもフォーカスされていなければ最後につながったもの。画面が無ければ nil。
 // 切れた画面は clients から消えるので、古い画面がカレントに残ることはない
 func (h *Hub) current() *client {
 	var best *client
-	key := func(c *client) [2]uint64 { return [2]uint64{c.focused, c.joined} }
+	key := func(c *client) [3]int64 { return [3]int64{c.focusedAt, int64(c.focused), int64(c.joined)} }
 	for _, c := range h.clients {
 		if best == nil || less(key(best), key(c)) {
 			best = c
@@ -685,7 +692,14 @@ func (h *Hub) current() *client {
 	return best
 }
 
-func less(a, b [2]uint64) bool { return a[0] < b[0] || a[0] == b[0] && a[1] < b[1] }
+func less(a, b [3]int64) bool {
+	for i := range a {
+		if a[i] != b[i] {
+			return a[i] < b[i]
+		}
+	}
+	return false
+}
 
 func newClientID() string {
 	b := make([]byte, 8)
