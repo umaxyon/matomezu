@@ -1,10 +1,13 @@
 /*
- * 郵便箱（D26 の段階 3。docs/UI-plan.md）。ブックごとに、ほかのブックから送られた箱と、LLM が開くよう頼んだブックの知らせが届く。
+ * 郵便箱（D26 の段階 3。docs/UI-plan.md）。ブックごとに、ほかのブックから送られた箱と、LLM からの通知が届く。
  * 置き場所はサーバーの状態のフォルダ（internal/server/mail.go）。画面はタブ行の「郵便箱」のボタン（未読の数。99 を超えたら 99+）と、
  * 左のサイドバーの一覧（今の追加削除と同じリスト）で見せる。開いたら読んだことにする。
  * - 箱（kind: "box"）: 好きなページ・箱へドラッグして置く（ほかのブックからの移植と同じ写し。置いた箱は userAdded。パターンの違うページへは置けない）。
  *   置いたら郵便箱から取り除く
- * - ブック（kind: "book"）: 押すと「届いています」のダイアログ（開く・キャンセル）。開くと郵便箱から取り除いて、そのブックへ移る
+ * - 通知（kind: "note"。D30。docs/NOTIFY-plan.md）: LLM の matomezu notify と、matomezu open の「届いています」。題名と本文を持ち、
+ *   ブック（ページ）を開く動きを持てる。押すとダイアログを挟む（いきなり移ると今の作業が止まるため。2026-10-15 ユーザー）。
+ *   開く動きがあれば「開く / キャンセル」（開いたら取り除く。キャンセルなら残る）、説明だけなら見たら取り除く。
+ *   以前の「ブック」（kind: "book"）の行は、読むときに通知に直す
  *
  *   const box = createMailbox(pane, { openBook });
  *   box.show(docId);   // そのブックの郵便箱を出す（null で隠す）
@@ -17,9 +20,16 @@ import { t } from "./i18n";
 import type { Diagram } from "./types";
 import { PATTERN_LABELS, isPattern } from "./validate";
 
-export interface MailBook { kind: "book"; book: string; page: string | null; name: string }
+// book があれば、そのブック（page があればそのページ）を開く動きを持つ。name はその名前（郵便箱の行に添える）
+export interface MailNote { kind: "note"; title: string; body: string; book: string | null; page: string | null; name?: string }
 export interface MailBox { kind: "box"; from: string; pattern: string; caption: string; copy: Diagram }
-export type MailBody = MailBook | MailBox;
+export type MailBody = MailNote | MailBox;
+interface MailBook { kind: "book"; book: string; page: string | null; name: string } // 以前の行（読むときに通知に直す）
+
+// matomezu open の「届いています」の通知（name はブックの題名。ページならページの名前も）
+export const arrivedNote = (book: string, page: string | null, name: string): MailNote =>
+  ({ kind: "note", title: t("ブックが届きました"), body: t("LLM から「{name}」が届きました。開きますか", { name }), book, page, name });
+
 export interface MailItem { id: string; at: number; read: boolean; body: MailBody }
 
 const base = (doc: string) => `d/${encodeURIComponent(doc)}/api/mail`;
@@ -30,12 +40,16 @@ export async function fetchMail(doc: string): Promise<MailItem[]> {
     const res = await fetch(base(doc), { cache: "no-store" });
     if (!res.ok) return [];
     const items = (await res.json()).items;
-    return Array.isArray(items) ? items.filter(i => i && i.body && (i.body.kind === "book" || i.body.kind === "box")) : [];
+    if (!Array.isArray(items)) return [];
+    return items.filter(i => i && i.body && (i.body.kind === "note" || i.body.kind === "box" || i.body.kind === "book"))
+      .map(i => (i.body.kind === "book" ? { ...i, body: arrivedNote((i.body as MailBook).book, (i.body as MailBook).page, (i.body as MailBook).name) } : i));
   } catch {
     return [];
   }
 }
-export const sendMail = (doc: string, body: MailBody) => post(base(doc), body).then(r => r.ok);
+// 届けた行の id を返す（届けられなければ null）
+export const sendMail = (doc: string, body: MailBody): Promise<string | null> =>
+  post(base(doc), body).then(async r => (r.ok ? String((await r.json()).id) : null)).catch(() => null);
 export const readAllMail = (doc: string) => post(base(doc) + "/read").catch(() => {});
 export const removeMail = (doc: string, id: string) =>
   fetch(`${base(doc)}/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
@@ -43,11 +57,14 @@ export const removeMail = (doc: string, id: string) =>
 // 未読の数の印（99 を超えたら 99+。2026-10-14 ユーザー）
 export const badgeText = (n: number) => (n > 99 ? "99+" : n > 0 ? String(n) : "");
 
-// 「届いています」のダイアログ。開くなら onOpen
-export function openArrivedDialog(item: MailBook, onOpen: () => void): void {
-  openDialog(t("ブックが届きました"), t("開く"),
-    `<p class="mz-dlg-message">${esc(t("LLM から「{name}」が届きました。開きますか（キャンセルしても郵便箱に残ります）", { name: item.name }))}</p>`,
-    () => onOpen());
+// 通知のダイアログ。開く動きがあれば「開く / キャンセル」で、開くなら onOpen。説明だけなら「閉じる」だけ
+export function openNoteDialog(note: MailNote, onOpen?: () => void): void {
+  const text = note.body ? `<p class="mz-dlg-message mz-note-body">${esc(note.body)}</p>` : "";
+  if (note.book) {
+    openDialog(note.title, t("開く"), text + `<p class="mz-dlg-message mz-note-hint">${esc(t("キャンセルしても郵便箱に残ります"))}</p>`, () => onOpen?.());
+    return;
+  }
+  openDialog(note.title, t("閉じる"), text, () => {}).querySelector("[data-cancel]")?.remove();
 }
 
 const STYLE_ID = "matomezu-mailbox-style";
@@ -64,6 +81,8 @@ const CSS = `/* i18n-ok（CSS のコメント） */
 .mz-mail-del { flex: none; border: 0; background: transparent; color: inherit; opacity: .5; cursor: pointer; padding: 0 4px; }
 .mz-mail-del:hover { opacity: 1; }
 .mz-mail-empty, .mz-mail-note { margin: 8px 12px; font-size: 12px; opacity: .6; }
+.mz-note-body { white-space: pre-wrap; }
+.mz-note-hint { font-size: 12px; opacity: .7; }
 `;
 
 export interface Mailbox {
@@ -73,7 +92,7 @@ export interface Mailbox {
   pasted(): void; // 図に箱を写した（運んでいた箱を郵便箱から取り除く）
 }
 
-export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailBook) => void; onCount?: (unread: number) => void; visible: () => boolean }): Mailbox {
+export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote) => void; onCount?: (unread: number) => void; visible: () => boolean }): Mailbox {
   injectStyle(STYLE_ID, CSS);
   pane.classList.add("mz-mail");
   let doc: string | null = null;
@@ -99,14 +118,14 @@ export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailBook)
       const b = i.body;
       const unread = i.read ? "" : " mz-unread";
       const del = `<button type="button" class="mz-mail-del" data-del="${esc(i.id)}" title="${t("郵便箱から消す")}" aria-label="${t("郵便箱から消す")}">×</button>`;
-      if (b.kind === "book") {
-        return `<div class="mz-mail-row${unread}" data-open="${esc(i.id)}"><span class="mz-mail-chip">${t("ブック")}</span><span class="mz-mail-cap">${esc(b.name)}</span><span class="mz-mail-from">${t("LLM から")}</span>${del}</div>`;
+      if (b.kind === "note") {
+        return `<div class="mz-mail-row${unread}" data-open="${esc(i.id)}"><span class="mz-mail-chip">${b.book ? t("ブック") : t("お知らせ")}</span><span class="mz-mail-cap">${esc(b.book && b.name ? t("{title}（{name}）", { title: b.title, name: b.name }) : b.title)}</span><span class="mz-mail-from">${t("LLM から")}</span>${del}</div>`;
       }
       const pattern = isPattern(b.pattern) ? PATTERN_LABELS[b.pattern] : b.pattern;
       return `<div class="mz-mail-row${unread}" draggable="true" data-copy="${esc(i.id)}"><span class="mz-mail-chip">${esc(pattern)}</span><span class="mz-mail-cap">${esc(b.caption)}</span><span class="mz-mail-from">${esc(t("{from} から", { from: b.from }))}</span>${del}</div>`;
     };
     pane.innerHTML = `<h3>${t("郵便箱")}</h3><div class="mz-mail-list">${items.length ? items.map(row).join("") : `<p class="mz-mail-empty">${t("届いている物はありません")}</p>`}</div>
-      <p class="mz-mail-note">${t("箱は好きなページ・箱へドラッグして置きます（同じパターンのページだけ）。ブックは押すと開けます")}</p>`;
+      <p class="mz-mail-note">${t("箱は好きなページ・箱へドラッグして置きます（同じパターンのページだけ）。お知らせとブックは押すと読めます")}</p>`;
   }
 
   pane.addEventListener("click", e => {
@@ -115,9 +134,10 @@ export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailBook)
     if (del && doc) { e.stopPropagation(); void removeMail(doc, del.dataset.del!); return; }
     const open = el?.closest<HTMLElement>("[data-open]");
     const item = open && items.find(i => i.id === open.dataset.open);
-    if (item && item.body.kind === "book" && doc) {
+    if (item && item.body.kind === "note" && doc) {
       const d = doc, body = item.body;
-      openArrivedDialog(body, () => { void removeMail(d, item.id); o.openBook(body); });
+      if (!body.book) void removeMail(d, item.id); // 説明だけの通知は、見たら取り除く
+      openNoteDialog(body, () => { void removeMail(d, item.id); o.openBook(body); });
     }
   });
   // 箱は、ほかのブックからの移植と同じ写しを持ってドラッグする（落とす側は graph。interaction.ts の COPY_MIME）。置けたら郵便箱から取り除く

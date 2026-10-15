@@ -247,6 +247,23 @@ func Summary(s *State, path, page string) (server.Layout, error) {
 	return l, err
 }
 
+// Notify はカレントの画面に通知を送る（matomezu notify。D30）。path があればその図を開く動きを持つ。誤りはサーバーの言葉だけを返す
+func Notify(s *State, n server.NotifyRequest) error {
+	if n.Path != "" {
+		abs, err := filepath.Abs(n.Path)
+		if err != nil {
+			return err
+		}
+		n.Path = abs
+	}
+	err := call(s, "POST", "/api/notify", n, nil)
+	var se *serverError
+	if errors.As(err, &se) {
+		return errors.New(se.msg)
+	}
+	return err
+}
+
 // Close は path の図のタブを閉じるよう、サーバーにつながっている画面に知らせる（登録は残る）
 func Close(s *State, path string) (server.CloseResult, error) {
 	var res server.CloseResult

@@ -25,7 +25,7 @@
 import { keyOf } from "./dom";
 import { t } from "./i18n";
 import { loadSavedBooks, saveBooks, wantedFromUrl, writeUrl } from "./app-location";
-import { type EventConnection, connectEvents } from "./events";
+import { type EventConnection, type Notice, connectEvents } from "./events";
 import type { Graph } from "./graph";
 import type { Minimap } from "./minimap";
 import { handleGraphEvent } from "./notices";
@@ -47,7 +47,7 @@ import type { Diagram as DiagramData, PagePattern, WorldInfo } from "./types";
 import { PATTERN_LABELS, isPattern } from "./validate";
 import type { SideToggle } from "./main";
 import { createCrossList, CROSS_MIME, type CrossPayload } from "./cross-list";
-import { type MailBook, createMailbox, badgeText, fetchMail, openArrivedDialog, removeMail, sendMail } from "./mailbox";
+import { type MailNote, arrivedNote, createMailbox, badgeText, openNoteDialog, removeMail, sendMail } from "./mailbox";
 import { LINK_LOOK_DEFS } from "./link-box";
 
 export interface AppUi {
@@ -169,7 +169,8 @@ export async function startApp(ui: AppUi) {
   });
   onBookOpen(b => { noticeFor = b.id; mailbox.show(b.id); });
   onBookClose(b => { if (mailbox.doc() === b.id) mailbox.show(null); });
-  async function openFromMail(item: MailBook) {
+  async function openFromMail(item: MailNote) {
+    if (!item.book) return;
     const b = await openBook(item.book);
     if (b) activate(b, item.page);
     else ui.error(t("そのブックを開けませんでした"));
@@ -648,6 +649,36 @@ export async function startApp(ui: AppUi) {
   }
   ui.master.addEventListener("click", () => void openMaster());
 
+  // 通知を届ける（matomezu notify と、matomezu open の「届いています」。D30。docs/NOTIFY-plan.md）。この画面がカレントなので届いた。
+  // 今見ているブックの郵便箱に入れ、dialog ならダイアログも出す（LLM は画面で今どれを見ているか分からないので、郵便箱だけでは伝わらない。2026-10-14 ユーザー）。
+  // - 開く動き（book）: 「開く」ならすぐ前に出してから届けた行を取り除く（郵便箱を待つ間に matomezu close で閉じたブックを出さないように）。キャンセルなら残る。
+  //   今見ているページを開く動きは要らないので、説明だけの通知にする（見ているタブでのアピール）
+  // - 説明だけ: ダイアログを出したら行を取り除く（事実上ダイアログだけ）
+  // - 「届いています」（arrive）: 今見ているページなら何もしない。何も見ていなければすぐ出す
+  // - 何も見ていない・郵便箱が使えない（状態のフォルダが無い）: 開く動きならすぐ出し、説明だけならダイアログだけ出す
+  async function deliver(n: Notice) {
+    const b = n.book ? await openBook(n.book) : null;
+    if (n.book && !b) return;
+    const viewing = !!b && current?.book === b && current.page === n.page;
+    if (n.arrive && b && (!current || viewing)) return viewing ? undefined : activate(b, n.page);
+    const name = b ? titleOf(b) + (n.page ? ` / ${b.tabs.find(x => x.page === n.page)?.label.textContent ?? n.page}` : "") : "";
+    const base: MailNote = n.arrive && b ? arrivedNote(b.id, n.page, name) : { kind: "note", title: n.title, body: n.body, book: n.book, page: n.page, name };
+    const note: MailNote = viewing ? { ...base, book: null, page: null } : base;
+    const into = current?.book.id;
+    const sent = into ? await sendMail(into, note) : null;
+    if (!sent || !into) {
+      if (b && note.book) return activate(b, n.page);
+      if (n.dialog) openNoteDialog(note);
+      return;
+    }
+    if (!n.dialog) return;
+    if (!note.book) void removeMail(into, sent);
+    openNoteDialog(note, () => {
+      if (b) activate(b, n.page);
+      void removeMail(into, sent);
+    });
+  }
+
   // matomezu check の配置の要約（D30。docs/NOTIFY-plan.md）。この画面がカレントなので頼まれた。前に出さず、ファイルも書き換えない。
   // そのページをその版で表示していれば表示中の図から、していなければ見えない所に同じ大きさで並べて作る（offscreen-scene.ts）。
   // ユーザーがボタンを押している間（ドラッグなど）は、並べると操作が引っかかるので待つ。長く離さなければ busy と答える（LLM はあとで頼み直す）
@@ -701,24 +732,11 @@ export async function startApp(ui: AppUi) {
         });
       }
     },
-    async open(doc, page, ask) {
+    async open(doc, page) {
       const b = await openBook(doc);
-      if (!b) return;
-      // matomezu open（ask）: 今見ているページなら何もしない。ほかを見ていれば、今のブックの郵便箱に入れて「届いています」と聞く
-      // （LLM は画面で今どれを見ているか分からないので、郵便箱だけでは伝わらない。2026-10-14 ユーザー）。何も見ていなければすぐ出す
-      if (!ask || !current) return activate(b, page);
-      if (current.book === b && current.page === page) return;
-      const item: MailBook = { kind: "book", book: doc, page, name: titleOf(b) + (page ? ` / ${b.tabs.find(x => x.page === page)?.label.textContent ?? page}` : "") };
-      const into = current.book.id;
-      if (!(await sendMail(into, item))) return activate(b, page); // 郵便箱が使えなければ（状態のフォルダが無い）、すぐ出す
-      openArrivedDialog(item, async () => {
-        // 開いたら、すぐ前に出してから、届けた行を郵便箱から取り除く（キャンセルなら郵便箱に残る）。
-        // 郵便箱を待ってから出すと、その間に matomezu close で閉じたブックを前に出してしまう
-        activate(b, page);
-        const sent = (await fetchMail(into)).filter(m => m.body.kind === "book" && m.body.book === doc && m.body.page === page).pop();
-        if (sent) void removeMail(into, sent.id);
-      });
+      if (b) activate(b, page);
     },
+    notify(n) { void deliver(n); },
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
     books() { if (current?.book.master) void refreshMaster(); },
     summary(req, doc, page, version) { void answerSummary(req, doc, page, version); },

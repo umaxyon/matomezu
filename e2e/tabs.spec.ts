@@ -532,3 +532,65 @@ test("ユーザーがボタンを押している間は、要約を作らずに�
   await page.mouse.up();
   expect(await out).toContain("viewport");
 });
+
+test("通知: ほかのブックを開く通知は題名と本文のダイアログを出す。キャンセルなら郵便箱に残り、行を押すとダイアログを挟んで開ける（D30）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  expect(run("notify", "-title", "図を直しました", "-body", "箱 5 の名前を変えました", "b.json")).toContain("notified");
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg.locator("h2")).toHaveText("図を直しました");
+  await expect(dlg).toContainText("箱 5 の名前を変えました");
+  await dlg.locator("[data-cancel]").click();
+  await expect(selected(page)).toHaveText("a.json"); // 切り替えない
+  await page.locator("#mail-toggle").click();
+  const row = page.locator("#mailbox .mz-mail-row", { hasText: "図を直しました（b.json）" });
+  await expect(row).toHaveCount(1);
+  await row.click(); // 押しただけでは移らず、ダイアログを挟む
+  await expect(dlg.locator("h2")).toHaveText("図を直しました");
+  await expect(selected(page)).toHaveText("a.json");
+  await dlg.locator("[data-ok]").click();
+  await expect(selected(page)).toHaveText("b.json");
+  await switchTo(page, "a.json");
+  await expect(page.locator("#mailbox .mz-mail-row")).toHaveCount(0); // 開いたら取り除く
+  await page.locator("#mail-toggle").click();
+});
+
+test("通知: 説明だけの通知は「閉じる」だけのダイアログで、見たら郵便箱に残らない。-mail はダイアログを出さず未読の数だけ増える（D30）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  run("notify", "-title", "作業が終わりました", "-body", "1 行目\n2 行目");
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg.locator("h2")).toHaveText("作業が終わりました");
+  await expect(dlg.locator("[data-cancel]")).toHaveCount(0);
+  await dlg.locator("[data-ok]").click();
+  await expect(page.locator("#mail-badge")).toHaveText("");
+  run("notify", "-mail", "-title", "あとで見てください");
+  await expect(page.locator("#mail-badge")).toHaveText("1");
+  await expect(dlg).toHaveCount(0);
+  await page.locator("#mail-toggle").click();
+  const row = page.locator("#mailbox .mz-mail-row", { hasText: "あとで見てください" });
+  await expect(row.locator(".mz-mail-chip")).toHaveText("お知らせ");
+  await expect(page.locator("#mailbox .mz-mail-row", { hasText: "作業が終わりました" })).toHaveCount(0); // ダイアログで見たものは残らない
+  await row.click();
+  await dlg.locator("[data-ok]").click();
+  await expect(row).toHaveCount(0);
+  await page.locator("#mail-toggle").click();
+});
+
+test("通知はカレントの画面にだけ届く。画面が無ければ断る（D30）", async ({ page, context }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  const other = await context.newPage();
+  await other.goto(page.url());
+  await expect(selected(other)).toHaveText("a.json");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus"))); // ヘッドレスではフォーカスが動かないので起こす
+  await expect.poll(async () => (await (await page.request.get(new URL("/api/current", page.url()).href)).json()).client).not.toBe("");
+  // focus の知らせが届いてから送る
+  await page.waitForTimeout(200);
+  run("notify", "-title", "こちらにだけ");
+  await expect(page.locator(".mz-dlg h2")).toHaveText("こちらにだけ");
+  await other.waitForTimeout(300);
+  await expect(other.locator(".mz-dlg")).toHaveCount(0);
+  await page.locator(".mz-dlg [data-ok]").click();
+  await other.close();
+});

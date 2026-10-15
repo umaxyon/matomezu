@@ -30,14 +30,19 @@ const usageText = `usage:
   matomezu open [-no-browser] [-page id] <file.json>   show the diagram (or the page with that id) in the browser (starts the background server)
                                              if the user is looking at another diagram, it goes to their mailbox and they are asked whether to open it
   matomezu serve [-addr host:port] <file.json>   run a server in the foreground for one diagram
-  matomezu check [-page id] [-in ids] <file.json>   print a summary of how the open browser laid it out (the first page, or the page with that id)
+  matomezu check [-page id] [-in ids] <file.json>   print a summary of how the user's screen lays it out (the first page, or the page with that id)
+                                             it does not switch the user's screen; a page the user is not looking at is laid out off screen at the same size
                                              -in 2,5 also lists the children of boxes 2 and 5 (position relative to the box, and size)
-  matomezu set [-page id] [-in ids] <file.json> <id.key=value>... change fields of boxes or edges (an edge id such as e3; "world" for the diagram), then print the summary
+  matomezu set [-page id] <file.json> <id.key=value>... change fields of boxes or edges (an edge id such as e3; "world" for the diagram)
+                                             it only writes the file: run check for the layout, and notify to tell the user when the work is done
                                              an empty value removes the field, e.g. 12.x=; JSON values are allowed, e.g. e3.via=[280,140,400]
                                              link=1,4 adds an edge (its id is printed); link={"from":1,"to":4,"arrow":"end"} with fields
                                              unlink=1,4 or unlink=e3 removes an edge; 12.parent=4 moves box 12 into box 4 (12.parent= to the top level)
                                              world.key=value changes the diagram's world, or with -page that page's world (its childView is the page pattern)
                                              12.page=p2 moves a top-level box to page p2, but never to a page of a different pattern
+  matomezu notify -title text [-body text] [-page id] [-mail] [file.json]   tell the user something (once, when a piece of work is done)
+                                             with a file, the notice offers to open that diagram (or page); -body can explain what changed
+                                             it goes to the mailbox of the diagram the user is looking at and also shows a dialog; -mail only puts it in the mailbox
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu close <file.json>...              close these diagrams in the browser (they stay registered and listed on the master page; open shows them again)
                                              closing a diagram in the browser also clears its LLM history
@@ -68,6 +73,8 @@ func main() {
 		err = validateCmd(args)
 	case "close":
 		err = closeCmd(args)
+	case "notify":
+		err = notifyCmd(args)
 	case "history":
 		err = historyCmd(args)
 	case "revert":

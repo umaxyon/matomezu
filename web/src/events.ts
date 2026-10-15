@@ -6,7 +6,8 @@
  *   画面がフォーカスされたとき（前に出たとき）も、この id で api/focus に知らせる。サーバーは最後にフォーカスされた画面をカレントとする
  *   （D30。docs/NOTIFY-plan.md）。つないだときに前にあれば、そのときも知らせる。
  * - version: 図のファイルの版が変わった。
- * - open: その図（のページ）を開いて前に出すよう頼まれた（matomezu open。ask なら郵便箱に入れて聞く）。
+ * - open: その図（のページ）を開いて前に出すよう頼まれた。
+ * - notify: 通知（matomezu notify と、matomezu open の「届いています」の arrive。カレントの画面にだけ届く。D30。internal/server/notify.go）。
  * - close: その図のタブを閉じるよう頼まれた（matomezu close）。タブの × と同じに閉じる。
  * - mail: その図の郵便箱が変わった（届いた・読んだ・取り除いた。D26 の段階 3）。
  * - books: 登録したブックの一覧が変わった（登録した・ファイルが変わった・消えた。マスターを作り直す）。
@@ -18,7 +19,8 @@ import { t } from "./i18n";
 
 export interface EventHandlers {
   version(doc: string, version: string): void;
-  open(doc: string, page: string | null, ask: boolean): void; // ask は matomezu open（すぐ切り替えず、郵便箱に入れて聞く。D26 の段階 3）
+  open(doc: string, page: string | null): void;
+  notify?(n: Notice): void;
   close?(doc: string): void;
   mail?(doc: string): void;
   books?(): void;
@@ -26,6 +28,10 @@ export interface EventHandlers {
   status(text: string): void;
   watched?(): string[]; // 開いている図の id
 }
+
+// 通知（D30）。book があればそのブック（page はページ、null は最初のページ）を開く動きを持つ。dialog ならダイアログも出す。
+// arrive は matomezu open の「届いています」（題名と本文は画面が作る）
+export interface Notice { title: string; body: string; book: string | null; page: string | null; dialog: boolean; arrive: boolean }
 
 export interface EventConnection {
   close(): void;
@@ -106,7 +112,16 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
     });
     es.addEventListener("open", e => {
       const v = parse(e);
-      if (v && typeof v.doc === "string") h.open(v.doc, typeof v.page === "string" && v.page ? v.page : null, v.ask === "true");
+      if (v && typeof v.doc === "string") h.open(v.doc, typeof v.page === "string" && v.page ? v.page : null);
+    });
+    es.addEventListener("notify", e => {
+      const v = parse(e);
+      if (!v || typeof v !== "object") return;
+      const str = (x: unknown) => (typeof x === "string" ? x : "");
+      h.notify?.({
+        title: str(v.title), body: str(v.body), book: str(v.book) || null, page: str(v.page) || null,
+        dialog: v.dialog === "true", arrive: v.arrive === "true",
+      });
     });
     es.addEventListener("close", e => {
       const v = parse(e);
