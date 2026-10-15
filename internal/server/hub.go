@@ -272,7 +272,7 @@ func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
 }
 
 // openDoc は Open と同じ。ask なら、画面はすぐ切り替えず、郵便箱に入れて「届いています」と聞く（matomezu open。D26 の段階 3）。
-// ask でない show（check・set）は、配置の結果を返すために、すぐ前に出して配置させる
+// ask でない show は、すぐ前に出す（CLI からは使っていない。check・set は前に出さない。D30）
 func (h *Hub) openDoc(path string, show bool, page string, ask bool) (OpenResult, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {

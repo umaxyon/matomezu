@@ -1,4 +1,4 @@
-// 配置の結果の要約。LLM が図を調整するために読む（matomezu check / set が表示する）。DOM に依存しない。
+// 配置の結果の要約。LLM が図を調整するために読む（matomezu check が表示する）。DOM に依存しない。
 // 読む量を抑えるため、問題のあるところだけを短い行で返す。
 
 import { type Pt, type Rect, segmentThroughRect, segmentsCross, segmentsOf } from "./geom";
@@ -50,7 +50,7 @@ const cross = (a: GeoEdge, b: GeoEdge) => segments(a).some(s => segments(b).some
 // 線のどこかの区間が矩形の内側を通るか
 const through = (e: GeoEdge, r: Rect) => segments(e).some(s => segmentThroughRect(s, r));
 
-// 子のある箱ごとに、子の位置と大きさを 1 行で（matomezu check / set の -in で出す）。位置は親の左上から（データの x, y と同じ）。
+// 子のある箱ごとに、子の位置と大きさを 1 行で（matomezu check の -in で出す）。位置は親の左上から（データの x, y と同じ）。
 // 普段の要約に全部の子を出すと長くなるので、指定された箱の分だけ CLI が出す。子がさらに子を持てば [見せ方 子の数] を添える
 export function details(g: Geometry): Record<string, string> {
   const out: Record<string, string> = {};

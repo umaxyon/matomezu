@@ -211,7 +211,7 @@ test("matomezu close で、画面のタブが閉じる（タブの × と同じ�
   expect(() => run("close", "nothing.json")).toThrow(/not registered/);
 });
 
-test("見ていないタブの図を set すると、そのタブが前に出て配置の要約が返る", async ({ page }) => {
+test("set は書き換えだけ: 見ていないブックを set しても前に出さず、要約も返さない。書き換えは check と、開いたときに見える（D30）", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   await arrive(page, "b.json");
@@ -219,8 +219,12 @@ test("見ていないタブの図を set すると、そのタブが前に出て
   await expect(selected(page)).toHaveText("a.json");
 
   const out = run("set", "b.json", "5.caption=変えたトップ画面");
-  expect(out).toContain("viewport");
-  await expect(selected(page)).toHaveText("b.json");
+  expect(out).toContain("written");
+  expect(out).not.toContain("viewport");
+  await expect(selected(page)).toHaveText("a.json");
+  expect(run("check", "b.json")).toContain("viewport");
+  await expect(selected(page)).toHaveText("a.json");
+  await switchTo(page, "b.json");
   await expect(page.locator(".stage:visible .mz-head", { hasText: "変えたトップ画面" })).toHaveCount(1);
 });
 

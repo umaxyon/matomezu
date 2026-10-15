@@ -47,7 +47,7 @@ type doc struct {
 }
 
 // Layout は画面が配置した結果の要約。Version はそのとき画面が表示していたファイルの版、Page は描いていたページ。
-// Details は子のある箱ごとの、子の位置と大きさ（箱の id ごとに 1 行。matomezu check / set の -in で出す）
+// Details は子のある箱ごとの、子の位置と大きさ（箱の id ごとに 1 行。matomezu check の -in で出す）
 type Layout struct {
 	Version string            `json:"version"`
 	Page    string            `json:"page"`

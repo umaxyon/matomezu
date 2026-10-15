@@ -8,7 +8,7 @@
  * - 外部の変更は履歴に1件として残す（Undo で取り消せる）。最初の読み込みでは履歴を空にする。
  * - 見ていないタブ（active でない）では読み直さず、前に出たときに読み直す。隠れた画面では文字の幅を測れず、配置が壊れるため。
  * - 見ているタブは、読み込みと保存のたび、表示領域の大きさが変わるたびに、配置の要約（report.ts）をその版と一緒に送る。
- *   LLM は matomezu check / set でそれを読み、図を調整する。
+ *   （以前は matomezu check がこれを読んだ。今の check はカレントの画面に直接頼む。internal/server/summary.go。D30）
  */
 
 import { formatDiagram } from "./format";
