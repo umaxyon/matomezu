@@ -38,7 +38,7 @@ const usageText = `usage:
                                              an empty value removes the field, e.g. 12.x=; JSON values are allowed, e.g. e3.via=[280,140,400]
                                              link=1,4 adds an edge (its id is printed); link={"from":1,"to":4,"arrow":"end"} with fields
                                              unlink=1,4 or unlink=e3 removes an edge; 12.parent=4 moves box 12 into box 4 (12.parent= to the top level)
-                                             world.key=value changes the diagram's world, or with -page that page's world (its childView is the page pattern)
+                                             world.key=value changes the diagram's world, or with -page that page's world (the page pattern childView and the tree root can't be changed, nor a box's type: link / book)
                                              12.page=p2 moves a top-level box to page p2, but never to a page of a different pattern
   matomezu notify -title text [-body text] [-page id] [-mail] [file.json]   tell the user something (once, when a piece of work is done)
                                              with a file, the notice offers to open that diagram (or page); -body can explain what changed
