@@ -403,6 +403,7 @@ export async function startApp(ui: AppUi) {
         // 見ていなかった LLM の変更を見た（D31）: サーバーの LLM の履歴に印を付ける
         onLLMSeen: version => { void fetch(base + "api/llm/seen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version }) }).catch(() => {}); },
         bookWindow: (id, visible) => M.bookWindow(id, visible), // マスターの窓（D26 の段階 2）
+        onDuplicateBook: id => M.duplicate(id), // マスターでブックの窓を写して貼った（D23）
         onOpenBook: id => { void openBook(id).then(x => (x ? activate(x, null) : ui.error(t("そのブックを開けませんでした")))); },
       }, { onCommand: key => M.command(key) }); // ブックをまたぐ持ち込みはマスターの追加削除へ移した（前の「他ブックも表示」は出さない。D26 の段階 4）
       const b: Book = {

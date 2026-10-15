@@ -14,6 +14,7 @@
 //	POST /api/summary    {"path", "page"} 配置の要約をカレントの画面に頼んで返す（summary.go。matomezu check） … 要トークン
 //	POST /api/notify     {"title", "body", "path", "page", "mail"} カレントの画面に通知を送る（notify.go。matomezu notify） … 要トークン
 //	POST /api/new        {"near", "title", "world"} 画面から新しいブックを作って登録し、{"id", "path"} を返す（newbook.go）
+//	POST /api/copy       {"from", "title"} 画面からブックを複製して登録し、{"id", "path"} を返す（newbook.go。D23）
 //	GET  /api/books      登録した図を最終更新の新しい順に返す（マスターの一覧。books.go）
 //	GET  /api/master     マスター用のファイルを登録して {"id"} を返す（books.go）
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
@@ -557,6 +558,7 @@ func (h *Hub) Handler() http.Handler {
 		writeJSON(w, map[string]string{"client": id})
 	})
 	mux.HandleFunc("POST /api/new", fromPage(h.newBook))
+	mux.HandleFunc("POST /api/copy", fromPage(h.copyBook))
 	mux.HandleFunc("GET /api/books", h.books)   // マスターのブックの一覧（books.go）
 	mux.HandleFunc("GET /api/master", h.master) // マスター用のファイル（books.go）
 	mux.Handle("GET /{$}", h.web)

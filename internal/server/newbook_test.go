@@ -96,3 +96,45 @@ func TestNewBookRejectsCrossSite(t *testing.T) {
 		t.Fatal("file was created")
 	}
 }
+
+// ブックの複製（D23 の段階 2）: 元と同じフォルダに題名の名前で写し、題名を書き換え、作った人をユーザーにして登録する。元は変えない
+func TestCopyBook(t *testing.T) {
+	_, ts, _ := setupHub(t)
+	dir := t.TempDir()
+	src := filepath.Join(dir, "a.json")
+	os.WriteFile(src, []byte(`{"world":{"title":"設計","madeBy":"ai","theme":"sticky"},"nodes":[{"id":1,"caption":"箱"}],"edges":[]}`), 0o644)
+	_, a := openVia(t, ts, "secret", src)
+	post := func(body string) (*http.Response, map[string]string) {
+		res := do(t, "POST", ts.URL+"/api/copy", body, map[string]string{"Content-Type": "application/json"})
+		var out map[string]string
+		if res.StatusCode == http.StatusOK {
+			json.NewDecoder(res.Body).Decode(&out)
+		}
+		return res, out
+	}
+	res, got := post(`{"from":"` + a.ID + `","title":"設計 (2)"}`)
+	if res.StatusCode != http.StatusOK || got["path"] != filepath.Join(dir, "設計 (2).json") {
+		t.Fatalf("status = %d, path = %q", res.StatusCode, got["path"])
+	}
+	var data struct {
+		World map[string]any   `json:"world"`
+		Nodes []map[string]any `json:"nodes"`
+	}
+	b, _ := os.ReadFile(got["path"])
+	if err := json.Unmarshal(b, &data); err != nil || data.World["title"] != "設計 (2)" || data.World["madeBy"] != "user" || data.World["theme"] != "sticky" || len(data.Nodes) != 1 {
+		t.Fatalf("file = %s", b)
+	}
+	if b, _ := os.ReadFile(src); string(b) != `{"world":{"title":"設計","madeBy":"ai","theme":"sticky"},"nodes":[{"id":1,"caption":"箱"}],"edges":[]}` {
+		t.Fatalf("source changed: %s", b)
+	}
+	if res := do(t, "GET", ts.URL+"/d/"+got["id"]+"/api/data", "", nil); res.StatusCode != http.StatusOK {
+		t.Fatalf("not registered: %d", res.StatusCode)
+	}
+	// 知らないブック・ほかのサイトからは断る
+	if res, _ := post(`{"from":"nope","title":"x"}`); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown: %d", res.StatusCode)
+	}
+	if res := do(t, "POST", ts.URL+"/api/copy", `{"from":"`+a.ID+`"}`, map[string]string{"Content-Type": "application/json", "Origin": "https://example.com"}); res.StatusCode != http.StatusForbidden {
+		t.Fatalf("foreign origin: %d", res.StatusCode)
+	}
+}

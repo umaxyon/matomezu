@@ -200,6 +200,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   // （見えていない窓（その他のブックの中）の縮図は取りに行かない。D26）。持たなければ book の id を題名にして、縮図は空
   bookWindow?: (book: string, visible: boolean) => { title: string; pattern: PagePattern; scene: Scene | null } | null;
   onOpenBook?: (book: string) => void;        // マスターの窓を押した（そのブックを前に出すのは画面の側。app.ts）
+  onDuplicateBook?: (book: string) => void;   // マスターで写したブックの窓を貼った（複製のダイアログを出すのは画面の側。app-master.ts。D23）
   // 描いていないページの縮図を、画面の外で実際に並べて作る（offscreen-scene.ts の layoutScene）。持たなければデータだけの近似（dataScene。テスト）
   sceneLayout?: (data: Diagram, page: string | null, without?: string) => Promise<Scene>; // without は中身だけを映す箱（リストの子の縮図。D13）
   measureText?: MeasureText;                  // 文字の測り方（テストで偽物に差し替える。既定はブラウザで測る）
@@ -844,12 +845,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // ---- コピー・貼り付け（D23。2026-10-15 ユーザー。決まりはページのパターンが持つ: STRATEGIES の copy） ----
 
   let clip: Subtree | null = null; // 写したもの（この図、つまりこのブックの中だけで覚える。OS のクリップボードは使わない）
+  let bookClip: string | null = null; // マスターで写したブックの窓（book の id）
   let pointer: { x: number; y: number } | null = null; // 図の上のポインタ（画面の座標）。外へ出たら null
   container.addEventListener("pointermove", e => { pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
   container.addEventListener("pointerleave", () => { pointer = null; });
   const copyRule = () => STRATEGIES[worldViewOf(world)].copy;
 
   function copySelected(): boolean {
+    // マスター（copy が books）: 写せるのはブックの窓だけ（リストの箱は写さない）。貼るとブックの複製になる
+    if (copyRule() === "books") {
+      const book = current ? linkBookOf(current) : null;
+      if (book == null) return false;
+      bookClip = book;
+      return true;
+    }
     if (copyRule() !== "boxes" || !current) return false;
     clip = copySubtree(api.toJSON(), current.id);
     opt.onEvent?.({ kind: "copied", key: keyOfBox(current), kids: clip.nodes.length - 1 });
@@ -857,6 +866,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   function pasteClip(): boolean {
+    if (copyRule() === "books") {
+      if (bookClip == null || !opt.onDuplicateBook) return false;
+      opt.onDuplicateBook(bookClip);
+      return true;
+    }
     if (copyRule() !== "boxes" || !clip) return false;
     const n = current;
     let parentId: string | null = null, at: { x: number; y: number };

@@ -443,6 +443,38 @@ test("マスターの道具箱のブック追加で新しい図を作ると、�
   await page.locator(".tab-group-current .tab-book .tab-close").click();
 });
 
+test("マスターでブックの窓を Ctrl+C、Ctrl+V すると複製のダイアログが出て、番号付きの名前で同じフォルダに写す。キャンセルなら作らない。リストは写せない（D23）", async ({ page }) => {
+  const url = run("open", "-no-browser", "a.json").trim();
+  await page.goto(url);
+  await page.locator("#master").click();
+  await expect(selected(page)).toHaveText("マスター");
+  const stage = page.locator(".stage:visible");
+  const win = stage.locator('.mz-node[data-id^="b-"]', { hasText: "設計メモ" }).first();
+  await win.locator(":scope > .mz-head").click({ position: { x: 6, y: 6 } });
+  await page.keyboard.press("Control+c");
+  await page.keyboard.press("Control+v");
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg.locator("h2")).toHaveText("ブックの複製");
+  await expect(dlg.locator('[name="caption"]')).toHaveValue("設計メモ (2)");
+  // キャンセルなら作らない
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(0);
+  expect(() => readFileSync(join(dir, "設計メモ (2).json"), "utf8")).toThrow();
+  // もう一度貼って作る: 中身は元のまま、題名と作った人が変わり、マスターのユーザーの箱に並ぶ
+  await page.keyboard.press("Control+v");
+  await expect(dlg.locator('[name="caption"]')).toHaveValue("設計メモ (2)");
+  await dlg.locator("[data-ok]").click();
+  await expect(stage.locator('.mz-node[data-id="user"] .mz-node[data-id^="b-"]', { hasText: "設計メモ (2)" })).toHaveCount(1);
+  const saved = JSON.parse(readFileSync(join(dir, "設計メモ (2).json"), "utf8"));
+  expect(saved.world).toEqual({ title: "設計メモ (2)", theme: "sticky", childView: "flow", madeBy: "user" });
+  // リストの箱は写せない（前に写したブックの窓のまま）
+  await stage.locator('.mz-node[data-id="user"] > .mz-head').click({ position: { x: 6, y: 6 } });
+  await page.keyboard.press("Control+c");
+  await page.keyboard.press("Control+v");
+  await expect(dlg.locator('[name="caption"]')).toHaveValue("設計メモ (3)");
+  await page.keyboard.press("Escape");
+});
+
 test("LLM の変更はユーザーの Undo に入らず、見えたら認知してユーザーの履歴に入る。画面の外の箱は、スクロールで見えるまで認知しない。matomezu history に残り、見たら seen（D31）", async ({ page }) => {
   const file = join(dir, "hist.json");
   writeFileSync(file, JSON.stringify({ nodes: [{ id: 1, caption: "見える", x: 40, y: 40 }, { id: 2, caption: "遠く", x: 40, y: 3000 }] }));

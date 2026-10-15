@@ -70,6 +70,63 @@ func (h *Hub) newBook(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"id": res.ID, "path": res.Path})
 }
 
+// ブックを複製する（D23 の段階 2。マスターでブックの窓を写して貼ったとき）。
+//
+//	POST /api/copy  {"from", "title"} → {"id", "path"}
+//
+// from のブック（登録済み）のファイルを、同じフォルダに題名の名前で写して登録する。中身はそのままで、題名（world.title）を title にし、
+// 作った人の印をユーザーにする（マスターでユーザーのブックに並ぶ）。置き場所と名前の決まりは /api/new と同じ（上書きしない）
+type copyBook struct {
+	From  string `json:"from"`
+	Title string `json:"title"`
+}
+
+func (h *Hub) copyBook(w http.ResponseWriter, r *http.Request) {
+	var req copyBook
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.From == "" {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	d := h.doc(req.From)
+	if d == nil {
+		http.Error(w, "unknown book", http.StatusNotFound)
+		return
+	}
+	b, err := os.ReadFile(d.path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var data map[string]any
+	if err := json.Unmarshal(b, &data); err != nil {
+		http.Error(w, "the book is not valid JSON: "+err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	world, _ := data["world"].(map[string]any)
+	if world == nil {
+		world = map[string]any{}
+	}
+	if title := strings.TrimSpace(req.Title); title != "" {
+		world["title"] = title
+	} else {
+		delete(world, "title")
+	}
+	world["madeBy"] = "user"
+	data["world"] = world
+	body, _ := json.MarshalIndent(data, "", "  ")
+	path, err := createUnique(filepath.Dir(d.path), fileBase(req.Title), append(body, '\n'))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res, err := h.Open(path, false, "")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"id": res.ID, "path": res.Path})
+}
+
 // folderNear は新しいブックを置くフォルダ。near の図のフォルダ、無ければ最後に登録した図のフォルダ（どちらも今あるもの）
 func (h *Hub) folderNear(near string) string {
 	h.mu.Lock()

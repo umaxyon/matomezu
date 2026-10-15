@@ -1,7 +1,11 @@
 // マスターページ（D26 の段階 2。docs/UI-plan.md）: サーバーの状態のフォルダの master.json を 1 冊のブックとして開き、
 // 開くたびに、登録した図の並び（/api/books）から中身を作り直す（「ユーザー」「AI」の箱に新しい 10 件の窓、残りは「その他のブック」）。
 // 窓の縮図は、見えている窓のブックだけ取りに行く。マスターの追加削除（cross-list.ts）の行を窓へ落とすと、そのブックの郵便箱へ写しを送る（段階 4）。
+// ブックの窓を写して貼る（Ctrl+C / Ctrl+V）と、ブックを複製する（D23 の段階 2。duplicate）。
 // ブックのタブ・前に出す・開くのは app.ts
+import { esc } from "./dom";
+import { openDialog } from "./edit-dialog";
+import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { CROSS_MIME, type CrossPayload, createCrossList } from "./cross-list";
 import type { Graph } from "./graph";
@@ -236,5 +240,28 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
     return refreshing;
   }
 
-  return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow };
+  // ブックの複製（D23 の段階 2。2026-10-15 ユーザー）: マスターでブックの窓を写して貼ると、新しい図と同じダイアログで名前を聞く。
+  // 名前は元の題名に (2)、(3) … と、登録したブックの題名・名前にかぶらない番号を付けて入れておく（ファイル名も同じ名前になる）。キャンセルなら作らない
+  function duplicate(id: string) {
+    const row = rows.get(id);
+    if (!row) return;
+    const base = (row.title || row.name).replace(/ \(\d+\)$/, "");
+    const taken = new Set(masterRows.flatMap(r => [r.title, r.name]));
+    let n = 2;
+    while (taken.has(`${base} (${n})`)) n++;
+    const fields = `<label class="mz-dlg-field"><span>${t("図の題名")}${helpIcon(t("タブの見出しと、ファイル名になります（空なら「無題」）"))}</span>
+      <input class="mz-dlg-input" type="text" name="caption" value="${esc(`${base} (${n})`)}"></label>
+      <p class="mz-dlg-note">${t("「{book}」の中身を写して、同じフォルダに作ります", { book: row.title || row.name })}</p>`;
+    openDialog(t("ブックの複製"), t("作成"), fields, o => {
+      const title = o.querySelector<HTMLInputElement>('[name="caption"]')!.value.trim();
+      void copyBook(id, title).catch((e: Error) => ctx.error(e.message));
+    });
+  }
+  async function copyBook(from: string, title: string) {
+    const res = await fetch("api/copy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from, title }) });
+    if (!res.ok) throw new Error(t("ブックを複製できませんでした: {message}", { message: (await res.text()).trim() }));
+    // 並びはサーバーの一覧が変わった知らせ（books）で作り直す
+  }
+
+  return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow, duplicate };
 }
