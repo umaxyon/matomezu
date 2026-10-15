@@ -231,10 +231,14 @@ func TestStoreRestoresDocs(t *testing.T) {
 	web := fstest.MapFS{"index.html": {Data: []byte("<html>")}}
 	ctx, cancel := context.WithCancel(context.Background())
 	first := NewHub(ctx, web, WithStore(store))
-	for _, p := range []string{a, b, a} { // 開き直すと一番新しいものになる
-		if _, err := first.Open(p, false, ""); err != nil {
+	for _, p := range []string{a, b, a} { // 開き直す（ユーザーに見せる）と一番新しいものになる
+		if _, err := first.Open(p, true, ""); err != nil {
 			t.Fatal(err)
 		}
+	}
+	// 問い合わせ（show なし。check・history など）は、登録済みの図の順番を変えない
+	if _, err := first.Open(b, false, ""); err != nil {
+		t.Fatal(err)
 	}
 	cancel()
 	var saved []string

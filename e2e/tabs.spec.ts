@@ -643,3 +643,21 @@ test("通知のダイアログは順番待ち: 開いているダイアログを
   await expect(dlg).toHaveCount(0);
   await expect(page.locator("#mail-badge")).toHaveText("");
 });
+
+test("マスターを見ている最中に check・history で問い合わせても、マスターは作り直さず、箱が動かない（2026-10-15）", async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 800 });
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await page.locator("#master").click();
+  await expect(selected(page)).toHaveText("マスター");
+  const ai = page.locator('.stage:visible .mz-node[data-id="ai"]');
+  await expect(ai).toBeVisible();
+  const before = await ai.evaluate(el => (el as HTMLElement).style.cssText);
+  const books = new Set<string>();
+  page.on("request", r => { if (r.url().endsWith("/api/books")) books.add(r.url()); });
+  run("check", "b.json");
+  run("history", "a.json");
+  await page.waitForTimeout(500);
+  expect(books.size).toBe(0); // 一覧を取り直していない（ブックの一覧が変わった知らせが出ていない）
+  expect(await ai.evaluate(el => (el as HTMLElement).style.cssText)).toBe(before);
+  await expect(selected(page)).toHaveText("マスター");
+});

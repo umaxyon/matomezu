@@ -285,6 +285,7 @@ func (h *Hub) openDoc(path string, show bool, page string, ask bool) (OpenResult
 	h.mu.Lock()
 	d := h.docs[docID(abs)]
 	h.mu.Unlock()
+	known := d != nil
 	if d != nil {
 		if err := d.ensureFile(); err != nil {
 			return OpenResult{}, err
@@ -301,7 +302,11 @@ func (h *Hub) openDoc(path string, show bool, page string, ask bool) (OpenResult
 		}
 		h.mu.Unlock()
 	}
-	h.remember(d.path)
+	// 一番新しい図として覚え直すのは、新しく登録したときと、ユーザーに見せるときだけ。問い合わせ（check・history・notify など）は
+	// 登録済みの図の順番を変えない（覚え直すとブックの一覧が変わった知らせが出て、マスターを見ている画面が作り直す。2026-10-15）
+	if !known || show {
+		h.remember(d.path)
+	}
 	h.mu.Lock()
 	h.idleSince = time.Now() // 開いた直後は、画面がつながるまで待つ
 	conns := len(h.clients)

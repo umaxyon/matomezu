@@ -614,9 +614,13 @@ export async function startApp(ui: AppUi) {
     activate(b, null);
     b.graph.load(masterData(list));
     b.sync.changed(b.graph.toJSON());
+    builtFrom = JSON.stringify(list);
   }
-  // 見ているマスターを、今の一覧で作り直す。「その他のブック」を開いていれば開いたまま
+  // 見ているマスターを、今の一覧で作り直す。「その他のブック」を開いていれば開いたまま。
+  // 一覧（並び・題名・最終更新など）が前に作ったときと同じなら作り直さない（読み込み直すと、開いたときのはみ出しの調整がもう一度かかり、
+  // 狭い画面では箱が寄せられて飛ぶ。2026-10-15）
   let refreshing: Promise<void> | null = null, again = false;
+  let builtFrom = "";
   function refreshMaster(): Promise<void> {
     if (refreshing) { again = true; return refreshing; } // 作り直している間に届いた知らせは、終わってから 1 回だけ
     refreshing = (async () => {
@@ -633,6 +637,8 @@ export async function startApp(ui: AppUi) {
           return; // 取れなければ今のまま（次の知らせで取り直す）
         }
         if (current?.book !== b) return;
+        if (JSON.stringify(list) === builtFrom) continue;
+        builtFrom = JSON.stringify(list);
         const openOthers = b.graph.toJSON().nodes.find(n => n.id === "others")?.childView;
         rows = new Map(list.map(r => [r.id, r]));
         masterRows = list;
