@@ -10,10 +10,12 @@ import { fakeMeasure } from "./helpers";
 let graph: Graph | null = null;
 afterEach(() => { graph?.destroy(); graph = null; document.body.innerHTML = ""; });
 
+const events: { kind: string }[] = [];
 function setup(data: Diagram) {
   const el = document.createElement("div");
   document.body.appendChild(el);
-  graph = createGraph(el, data, { measureText: fakeMeasure, paper: true });
+  events.length = 0;
+  graph = createGraph(el, data, { measureText: fakeMeasure, paper: true, onEvent: ev => events.push(ev) });
   const world = el.querySelector<HTMLElement>(".mz-world")!;
   return { graph, world };
 }
@@ -47,4 +49,32 @@ test("要約のはみ出しは紙に対して数え、開いたときに紙の�
   expect(graph.info(2).x).toBe(w + 100); // 寄せない
   const s = summarize(graph.geometry());
   expect(s.split("\n")[0]).toMatch(new RegExp(`^paper a4-landscape ${w}x${PAPERS["a4-landscape"].h}, content \\d+x\\d+ → over right \\d+`));
+});
+
+test("操作で箱が紙からはみ出すなら、しなかったことにする。ダイアログの確定（batch）は false を返し、ほかの操作は知らせる", () => {
+  const h = PAPERS["a5-landscape"].h;
+  const { graph } = setup({ world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "下の箱", x: 40, y: h - 120 }] });
+  const before = graph.toJSON();
+  // 紙の高さより高くなる本文（どこへ動かしても収まらない。収まる所があれば、並べ方が紙の中の空きへ動かして収める）
+  const long = "続き\n".repeat(60);
+  // ダイアログの確定と同じ入口: しなかったことにして false。知らせはダイアログが出すので、ここでは出さない
+  expect(graph.batch(() => graph.update(1, { body: long }))).toBe(false);
+  expect(graph.toJSON()).toEqual(before);
+  expect(graph.history().canUndo).toBe(false);
+  expect(events.filter(e => e.kind === "overPaper")).toHaveLength(0);
+  // ダイアログ以外の操作: しなかったことにして知らせる
+  graph.update(1, { body: long });
+  expect(graph.toJSON()).toEqual(before);
+  expect(events.filter(e => e.kind === "overPaper")).toHaveLength(1);
+  // 収まる変更はできる
+  expect(graph.batch(() => graph.update(1, { caption: "直した" }))).toBe(true);
+  expect(graph.history().canUndo).toBe(true);
+});
+
+test("LLM が書いたまま紙の外にある箱があっても、ほかの箱の操作は断らない", () => {
+  const w = PAPERS["a4-landscape"].w;
+  const { graph } = setup({ nodes: [{ id: 1, caption: "中", x: 40, y: 40 }, { id: 2, caption: "外", x: w + 100, y: 40 }] });
+  graph.update(1, { caption: "直した" });
+  expect(graph.info(1).caption).toBe("直した");
+  expect(events.filter(e => e.kind === "overPaper")).toHaveLength(0);
 });

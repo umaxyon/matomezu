@@ -5,7 +5,7 @@ import type { Graph } from "./graph";
 import { t } from "./i18n";
 import { toast } from "./toast";
 import type { PagePattern } from "./types";
-import { PATTERN_LABELS } from "./validate";
+import { PAPERS, PATTERN_LABELS, isPaper } from "./validate";
 
 export type GraphEvent =
   // 付け替えた。into は落とし先の箱のキー（null は最上位）、page はほかのページから移したときの今のページの名前
@@ -30,7 +30,9 @@ export type GraphEvent =
   // 子のサイズをそろえた
   | { kind: "aligned"; count: number; what: "width" | "height" | "both"; partial: boolean }
   // 読み込んだデータに、知らないテーマの名前があった（標準として描いている）
-  | { kind: "unknownTheme"; names: string[] };
+  | { kind: "unknownTheme"; names: string[] }
+  // 操作で箱が紙からはみ出すので、しなかった（D33。paper は紙の型の名前）
+  | { kind: "overPaper"; paper: string };
 
 // 知らせの文言。添える項目（子の数、線の数など）は「、」でつないで括弧に入れる
 export function noticeOf(ev: GraphEvent): string {
@@ -64,6 +66,8 @@ export function noticeOf(ev: GraphEvent): string {
     case "pasted":
       return t("「{key}」を移植しました", { key: ev.key }) +
         also([ev.from ? t("{from} から", { from: ev.from }) : false, kids(ev.kids), lines(ev.edges)]);
+    case "overPaper":
+      return t("紙（{paper}）に収まらないので、しませんでした", { paper: isPaper(ev.paper) ? PAPERS[ev.paper].label : ev.paper });
     case "unknownTheme":
       return t("知らないテーマ（{names}）があります。標準として描いています", { names: ev.names.join(t("、")) });
     case "aligned": {
@@ -76,7 +80,7 @@ export function noticeOf(ev: GraphEvent): string {
 }
 
 // 断りや注意（操作しなかった、知らないものがあった）。ヘッダーの状態の文字では気づきにくいので、トーストで目立たせる（2026-10-12 ユーザー）
-const WARNINGS: GraphEvent["kind"][] = ["leafKids", "crossPattern", "unknownTheme"];
+const WARNINGS: GraphEvent["kind"][] = ["leafKids", "crossPattern", "unknownTheme", "overPaper"];
 export const isWarning = (ev: GraphEvent) => WARNINGS.includes(ev.kind);
 
 // 図の知らせを受けたときの画面の方針: 断りや注意はトーストで出す（toast.ts）。普通の知らせ（移した・消したなど）は出さない

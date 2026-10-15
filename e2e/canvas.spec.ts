@@ -168,3 +168,38 @@ test("125% でも、線を引く〇は箱の辺のすぐ外（画面で同じだ
   await page.mouse.up();
   await expect(page.locator(".mz-edge")).toHaveCount(1);
 });
+
+test("紙に収まらない本文を箱の編集ダイアログで確定すると、閉じずに知らせ、図は変わらない（D33）", async ({ page }) => {
+  await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
+  const before = await rect(page, 1);
+  await head(page, 1).dblclick();
+  await expect(page.locator(".mz-dlg h2")).toHaveText("ボックスの編集");
+  await page.locator('.mz-dlg [name="body"]').fill("続き\n".repeat(60));
+  await page.locator(".mz-dlg [data-ok]").click();
+  await expect(page.locator(".mz-dlg-refused")).toContainText("紙に収まらない");
+  await expect(page.locator('.mz-dlg [name="body"]')).toHaveValue("続き\n".repeat(60)); // 入力したまま
+  await page.locator(".mz-dlg [data-cancel]").click();
+  expect(await rect(page, 1)).toEqual(before);
+  await expect(page.locator("#undo")).toBeDisabled();
+});
+
+test("追加モードで紙の外（周りの余白の上）を押しても、箱は足せない（D33）", async ({ page }) => {
+  await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
+  await page.locator('.mz-toolbox [data-tool="add"]').click();
+  const paper = (await page.locator("#stage .mz-world").boundingBox())!;
+  // 紙（A5 横 794 × 559）の右の外
+  await page.mouse.move(paper.x + paper.width + 40, paper.y + 100);
+  await expect(page.locator(".mz-add-ghost")).toHaveClass(/mz-ghost-no/);
+  await page.mouse.click(paper.x + paper.width + 40, paper.y + 100);
+  await expect(page.locator(".mz-dlg")).toHaveCount(0);
+  await expect(page.locator("#stage .mz-node")).toHaveCount(1);
+});
+
+test("紙が画面より小さくても、開いたときは紙の左上が図の枠の左上に合う（D33）", async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
+  const frame = (await stage(page).boundingBox())!, paper = (await page.locator("#stage .mz-world").boundingBox())!;
+  expect(Math.round(paper.x)).toBe(Math.round(frame.x));
+  expect(Math.round(paper.y)).toBe(Math.round(frame.y));
+  expect(paper.width).toBeLessThan(frame.width);
+});

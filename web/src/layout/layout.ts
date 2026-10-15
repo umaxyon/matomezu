@@ -149,11 +149,13 @@ export function createLayout(ctx: LayoutContext) {
   // スクロールできる広さ: ワールドの見た目の大きさ（倍率をかけた分）と、周りの余白。ワールドは transform で拡大縮小するので、
   // スクロールの広さは見た目に追従しない。それをこの入れ物で決める（D32）。ワールドは表示領域より狭くならないので、
   // 上下左右とも、余白の分だけワールドを外へずらせる
+  // 紙（D33）が表示領域より小さいときも、ワールドの左上を表示領域の左上に合わせられる（スクロールの位置 = 余白）よう、
+  // 少なくとも「表示領域 + 余白」の広さを持たせる（紙の右と下の外は、余白より広く見えるだけ）
   function sizeCanvas() {
     if (!ctx.canvas) return;
-    const z = ctx.zoom?.() ?? 1;
-    ctx.canvas.style.width = Math.ceil(world.w * z + 2 * opt.margin) + "px";
-    ctx.canvas.style.height = Math.ceil(world.h * z + 2 * opt.margin) + "px";
+    const z = ctx.zoom?.() ?? 1, m = opt.margin;
+    ctx.canvas.style.width = Math.ceil(Math.max(world.w * z + 2 * m, container.clientWidth + m)) + "px";
+    ctx.canvas.style.height = Math.ceil(Math.max(world.h * z + 2 * m, container.clientHeight + m)) + "px";
   }
 
   // ---- 大きさ ----
@@ -586,7 +588,7 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   return {
-    containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld, holdWorld, stretchWorld,
+    containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld, holdWorld, stretchWorld, outsideFixed,
     kindOf, anchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,

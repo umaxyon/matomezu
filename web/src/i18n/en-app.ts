@@ -101,6 +101,8 @@ export default {
   "「{key}」を移植しました": "Copied in \"{key}\"",
   "{from} から": "from {from}",
   "知らないテーマ（{names}）があります。標準として描いています": "Unknown theme ({names}). Drawing with the standard theme",
+  "紙（{paper}）に収まらないので、しませんでした": "It would not fit on the paper ({paper}), so it was not done",
+  "紙に収まらないので確定できません。文字を減らす・ほかの箱を詰めるなどしてから、もう一度確定してください": "This does not fit on the paper. Shorten the text or make room, then confirm again",
   "子 {n} 個の幅をそろえました": "Matched the width of {n} child(ren)",
   "子 {n} 個の高さをそろえました": "Matched the height of {n} child(ren)",
   "子 {n} 個の幅と高さをそろえました": "Matched the width and height of {n} child(ren)",

@@ -841,7 +841,10 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       if (moving && !acceptsKid(b, moving.children.length > 0)) return undefined; // 子を持つ箱は、子が子を持てない戦略の中へ落とせない
       return moving && isInside(b, moving) ? undefined : b;
     }
-    // 図（ワールド）へ落とす。ワールドがフローチャートなら、子を持つ箱は落とせない
+    // 図（ワールド）へ落とす。ワールドの外（周りの余白。紙のページなら紙の外。D32・D33）には落とせない。
+    // ワールドがフローチャートなら、子を持つ箱は落とせない
+    const w = world.el.getBoundingClientRect();
+    if (x < w.left || x > w.right || y < w.top || y > w.bottom) return undefined;
     return moving && !acceptsKid(world, moving.children.length > 0) ? undefined : null;
   }
 

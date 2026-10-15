@@ -140,9 +140,9 @@ export function openBookDialog(graph: Graph, fileName: string): void {
   });
   show(start);
 
-  function commit(o: HTMLElement) {
+  function commit(o: HTMLElement): boolean {
     const bookTitle = o.querySelector<HTMLInputElement>('[name="book-title"]')!.value.trim();
-    graph.batch(() => {
+    return graph.batch(() => {
       if (bookTitle !== (info.title ?? "")) graph.update(null, { title: bookTitle || null });
       let once: { kidSize: Size | null; align: boolean; flatten: boolean } | null = null;
       for (const p of pages) {

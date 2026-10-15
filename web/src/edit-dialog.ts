@@ -196,6 +196,9 @@ select.mz-dlg-input { width: auto; }
 /* ダイアログの上に重ねる確認（形を変えると情報が消えるとき） */
 .mz-dlg-subwrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.3); padding: 16px; }
 .mz-dlg.mz-dlg-sub { width: min(420px, 100%); display: block; padding: 18px 20px; } /* 重ねた確認は見出しの行を持たない */
+/* 確定できなかったときの知らせ（紙に収まらない。D33） */
+.mz-dlg-refused { margin: 0 0 12px; padding: 8px 10px; border-radius: 6px; color: #fecaca; background: rgba(220, 38, 38, 0.18); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .mz-dlg-refused { color: #991b1b; background: #fee2e2; } }
 /* 単純なダイアログ（確認・お知らせ）: 見出しの行を固定せず、題名・本文・一番下のボタンを 1 つの流れで出す */
 .mz-dlg.mz-dlg-simple { display: block; overflow: auto; padding: 18px 20px; }
 .mz-dlg-simple h2 { margin: 0 0 12px; }
@@ -373,7 +376,7 @@ export function confirmInside(overlay: HTMLElement, message: string, okLabel: st
 }
 
 // lead はフッターの左端に置くボタン（ツリーを線で描き直す、など）。作ったダイアログを返す
-function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void, lead = ""): HTMLElement {
+function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void | boolean, lead = ""): HTMLElement {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   // 形やサイズのほかに本文を出せない理由（ページの箱、キャプションを 1 行にした箱）があるか
   const bodyBase0 = b.canBody || !shapeDef(b.shape).body || b.size === "S";
@@ -473,7 +476,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     const linesValue = field<HTMLSelectElement>("lines").value;
     const clipNow = clipPicker ? clipPicker.clip() : null;
     const size = ov.querySelector<HTMLInputElement>('[name="size"]:checked')?.value as Size | undefined;
-    commit({
+    return commit({
       view: pickedView(), rowSize: (ov.querySelector<HTMLInputElement>('[name="rowSize"]:checked')?.value ?? b.rowSize) as Size, previewSide: (ov.querySelector<HTMLInputElement>('[name="previewSide"]:checked')?.value ?? b.previewSide) as PreviewSide, fill: checked("fill", b.fill), border: checked("border", b.border), oneLine: checked("one-line", b.overflow === "clip"),
       fit: (ov.querySelector<HTMLElement>('[data-fit][aria-pressed="true"]')?.dataset.fit ?? null) as BoxValues["fit"],
       shape: pickedShape(),
@@ -685,8 +688,8 @@ export function openEditDialog(graph: Graph, id: string): void {
     if (def.fillToggle && v.fill !== b.fill) patch.fill = v.fill;
     if (def.borderToggle && v.border !== b.border) patch.border = v.border;
     if (start.canOneLine && v.oneLine !== (b.overflow === "clip")) patch.overflow = v.oneLine ? "clip" : "wrap";
-    // 項目の変更と、子のサイズをそろえる（一回きりの操作）を、まとめて 1 件の変更にする（D26 の案 A）
-    graph.batch(() => {
+    // 項目の変更と、子のサイズをそろえる（一回きりの操作）を、まとめて 1 件の変更にする（D26 の案 A）。紙に収まらなければ閉じずに知らせる（D33）
+    return graph.batch(() => {
       if (Object.keys(patch).length) graph.update(id, patch);
       if (v.fit) graph.fitChildren(id, v.fit);
     });
@@ -727,7 +730,8 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
     if (v.bodyAllowed && v.body) fields.body = v.body;
     if (v.body && !v.rule) fields.bodyRule = false;
     if (v.lines) fields.bodyLines = v.lines;
-    graph.add(req, fields);
+    // 紙に収まらなければ足さず、閉じずに知らせる（D33）
+    if (!graph.batch(() => graph.add(req, fields))) return false;
     graph.setMode("move");
   });
 }
@@ -794,7 +798,7 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
     if (marked("free")) Object.assign(patch, { exitAt: null, enterAt: null, via: null });
     if (marked("via")) patch.via = null;
     if (marked("caption")) Object.assign(patch, { captionAt: null, captionOffset: null });
-    graph.batch(() => { // まとめて 1 件の変更にする
+    return graph.batch(() => { // まとめて 1 件の変更にする（紙に収まらなければ閉じずに知らせる。D33）
       if (Object.keys(patch).length) graph.updateEdge(id, patch);
       if (marked("align")) graph.alignEdge(id);
     });
@@ -825,12 +829,12 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
 // ダイアログを出す。fields は項目の HTML、commit は確定したときに項目を読んで書く（変えた項目だけを 1 回の変更として書く。
 // 変えていなければ書かない。履歴に残さない）
 // lead はフッターの左端に置くボタン（線を消すなど）
-export function openDialog(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = ""): HTMLElement {
+export function openDialog(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void | boolean, lead = ""): HTMLElement {
   return show(title, okLabel, fields, commit, lead);
 }
 
 // check は確定の前に呼ぶ（false なら閉じずに待つ。入力の誤りを示すのは check の側）
-function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void, lead = "", check?: () => boolean,
+function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void | boolean, lead = "", check?: () => boolean,
   form: { simple?: boolean; cancel?: boolean } = {}): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
@@ -865,7 +869,19 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
   const ok = () => {
     if (check && !check()) return;
     closeEditDialog();
-    commit(overlay);
+    // 確定できなかったら（紙に収まらない。D33）、入力したまま開き直して知らせる
+    if (commit(overlay) === false) {
+      document.body.appendChild(overlay);
+      open = { overlay, back: document.activeElement, unhelp: setupHelp(overlay) };
+      let note = overlay.querySelector<HTMLElement>(".mz-dlg-refused");
+      if (!note) {
+        note = document.createElement("p");
+        note.className = "mz-dlg-refused";
+        note.setAttribute("role", "alert");
+        (overlay.querySelector(".mz-dlg-scroll") ?? overlay.querySelector(".mz-dlg"))!.prepend(note);
+      }
+      note.textContent = t("紙に収まらないので確定できません。文字を減らす・ほかの箱を詰めるなどしてから、もう一度確定してください");
+    }
   };
 
   overlay.addEventListener("click", e => {

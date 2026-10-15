@@ -81,6 +81,7 @@ export function createHistory(ctx: HistoryContext) {
 
   return {
     state, record, reset, external, adopt,
+    last: () => base, // 最後に知っている状態（直前の操作のあと。紙からはみ出す操作を戻すときに使う。D33）
     undo: () => move(past, future, "undo"),
     redo: () => move(future, past, "redo"),
   };

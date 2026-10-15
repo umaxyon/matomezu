@@ -321,7 +321,7 @@ export interface Graph {
   info(id: Id | null): NodeInfo;
   edgeInfo(id: Id): EdgeInfo | null; // 線の情報（無ければ null）
   update(id: Id | null, patch: Patch): void;
-  batch(fn: () => void): void; // fn の中の変更を履歴の 1 件にまとめる（ダイアログの確定で、項目と一回きりの操作を一緒に書く）
+  batch(fn: () => void): boolean; // fn の中の変更を履歴の 1 件にまとめる（ダイアログの確定で、項目と一回きりの操作を一緒に書く）。紙からはみ出すならしないで false（D33）
   // クラスの箱にかかわる変更（クラスにする・クラスを直す・クラスでなくする。docs/CLASS-plan.md）。子や線を消すことがあるので、
   // 図を組み立て直して履歴に 1 件残す
   updateClass(id: Id, edit: ClassEdit): void;
@@ -552,26 +552,48 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     dataChanged();
     fitted.clear();
     if (batching) { batchDirty = true; return; } // まとめている間は、終わったときに 1 件だけ残す（batch）
+    if (refuseOverPaper(true)) return;
     const data = api.toJSON();
     H.record(data);
     opt.onChange?.(data);
   }
 
+  // 紙（D33）: 紙からはみ出している最上位の箱。操作のたびに、前から出ていた箱（LLM がファイルに書いた位置など）を覚えておき、
+  // 操作で新しくはみ出す箱ができたら、その操作はしない（直前の状態に戻し、履歴に積まない）。warn なら知らせる（ダイアログは自分で知らせる）
+  let outsideKnown = new Set<string>();
+  const outsideNow = () => new Set(roots.filter(L.outsideFixed).map(n => n.id));
+  function refuseOverPaper(warn: boolean): boolean {
+    const p = paperOf();
+    const now = outsideNow();
+    if (!p || [...now].every(id => outsideKnown.has(id))) {
+      outsideKnown = now;
+      return false;
+    }
+    const sel = current?.id ?? null;
+    build(JSON.parse(JSON.stringify(H.last())), false); // 写しを読む（読んだデータはこのあとの編集で書き換わるので、履歴の状態を渡さない）
+    if (sel != null && byId.has(sel)) select(byId.get(sel)!);
+    dataChanged();
+    if (warn) opt.onEvent?.({ kind: "overPaper", paper: p.name });
+    return true;
+  }
+
   // fn の中の変更を、履歴の 1 件（と 1 回の変更の知らせ）にまとめる。ダイアログの確定で、項目の変更と一回きりの操作（子のサイズを
-  // そろえる・線の整列など）を一緒に書くときに使う（D26 の案 A。2026-10-14 ユーザー）
-  function batch(fn: () => void) {
+  // そろえる・線の整列など）を一緒に書くときに使う（D26 の案 A。2026-10-14 ユーザー）。
+  // 紙からはみ出すなら、まとめてしなかったことにして false を返す（知らせるのは呼んだ側。ダイアログは閉じずに知らせる。D33）
+  function batch(fn: () => void): boolean {
     batching++;
     try {
       fn();
     } finally {
       batching--;
-      if (!batching && batchDirty) {
-        batchDirty = false;
-        const data = api.toJSON();
-        H.record(data);
-        opt.onChange?.(data);
-      }
     }
+    if (batching || !batchDirty) return true;
+    batchDirty = false;
+    if (refuseOverPaper(false)) return false;
+    const data = api.toJSON();
+    H.record(data);
+    opt.onChange?.(data);
+    return true;
   }
 
   function notifySelect() {
@@ -2029,6 +2051,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function build(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
     buildAll(copy, fit, keep);
     worldEl.classList.toggle("mz-paper", !!paperOf()); // 紙の見た目（graph-style.ts。D33）
+    outsideKnown = outsideNow(); // 読み込んだときから紙の外にある箱（LLM の書いた位置）は、操作を断る理由にしない
   }
 
   // ---- プレビュー ----
@@ -2159,13 +2182,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
 
-  // ワールドの大きさが指定されていなければ、表示領域に合わせて追従する。
+  // ワールドの大きさが指定されていなければ、表示領域に合わせて追従する。紙（D33）のページも、スクロールできる広さは表示領域で変わるので測り直す。
   // ここでボックスを動かすと、スクロールバーの出入りで大きさが変わり続けるので動かさない
-  const ro = new ResizeObserver(() => {
-    const f = worldFixed();
-    if (f.w != null && f.h != null) return;
-    syncWorld();
-  });
+  const ro = new ResizeObserver(() => syncWorld());
   ro.observe(container);
 
   const api: Graph = {
