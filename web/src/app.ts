@@ -747,7 +747,48 @@ export async function startApp(ui: AppUi) {
         g = await layoutGeometry(r.data as Diagram, page || null, { w: Math.floor(rect.width) || 1200, h: Math.floor(rect.height) || 800 });
         shown = r.version.replace(/^W\//, "").replace(/"/g, "");
       }
-      return send({ version: shown, page, summary: summarize(g), details: details(g) });
+      return send({ version: shown, page, summary: summarize(g), details: details(g), outside: g.outside ?? [] });
+    } catch (err) {
+      return send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  // matomezu set の前の確かめ（D33。docs/PAPER-plan.md）: 書き換えたあとの中身（サーバーに預けたもの）が紙に収まるか。
+  // 今のファイルと預けた中身を、ページごとに見えない所で並べて比べ、書き換えで新しく紙からはみ出す最上位の箱を答える
+  // （前から紙の外にある箱は数えない。ユーザーの操作の決まりと同じ）。ボタンを押している間は待つ（answerSummary と同じ）
+  async function answerFit(req: string, doc: string) {
+    const url = `api/fit/${encodeURIComponent(req)}`;
+    const send = (body: object) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
+    const until = Date.now() + SUMMARY_BUSY;
+    while (pressing) {
+      if (Date.now() > until) return send({ busy: true });
+      await new Promise(r => setTimeout(r, 100));
+    }
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) return send({ error: `${res.status}` });
+      const next = await res.json() as Diagram;
+      const now = await fetchRemote(docBase(doc));
+      const before = now && !(now.data instanceof Error) ? now.data as Diagram : null;
+      const rect = ui.canvas.getBoundingClientRect();
+      const size = { w: Math.floor(rect.width) || 1200, h: Math.floor(rect.height) || 800 };
+      const pageIds = (d: Diagram | null) => (d ? ["", ...(Array.isArray(d.pages) ? d.pages.map(p => String(p.id)) : [])] : []);
+      const over = [];
+      for (const page of pageIds(next)) {
+        const g = await layoutGeometry(next, page || null, size);
+        if (!g.paper || !g.outside?.length) continue;
+        const was = before && pageIds(before).includes(page) ? new Set((await layoutGeometry(before, page || null, size)).outside ?? []) : new Set<string>();
+        const fresh = g.outside.filter(id => !was.has(id));
+        if (!fresh.length) continue;
+        const p = g.paper;
+        over.push({
+          page, paper: `${p.name} ${p.w}x${p.h}`,
+          boxes: fresh.map(id => {
+            const b = g.boxes.find(x => x.id === id)!;
+            return { id, caption: b.caption, right: Math.max(0, Math.round(b.x + b.w - p.w)), bottom: Math.max(0, Math.round(b.y + b.h - p.h)) };
+          }),
+        });
+      }
+      return send({ over });
     } catch (err) {
       return send({ error: err instanceof Error ? err.message : String(err) });
     }
@@ -781,6 +822,7 @@ export async function startApp(ui: AppUi) {
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
     books() { if (current?.book.master) void refreshMaster(); },
     summary(req, doc, page, version) { void answerSummary(req, doc, page, version); },
+    fit(req, doc) { void answerFit(req, doc); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
     close(doc) {
       const b = books.find(x => x.id === doc);

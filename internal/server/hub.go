@@ -34,6 +34,7 @@
 //	close    {"doc"} その図のタブを閉じる（matomezu close）
 //	mail     {"doc"} その図の郵便箱が変わった（mail.go）
 //	summary  {"req", "doc", "page", "version"} その図のページの要約を api/summary/{req} へ答える（カレントの画面にだけ送る。summary.go）
+//	fit      {"req", "doc"} 預けた中身（api/fit/{req}）が紙に収まるかを api/fit/{req} へ答える（カレントの画面にだけ送る。fit.go。D33）
 //
 // 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
 //
@@ -80,6 +81,7 @@ type Hub struct {
 	clients   map[chan event]*client        // つながっている画面
 	seq       uint64                        // 画面がつながった・フォーカスされた順番（client の joined・focused）
 	summaries map[string]chan summaryAnswer // 画面に頼んでいる要約（summary.go）
+	fits      map[string]*fitRequest        // 画面に頼んでいる、紙に収まるかの確かめ（fit.go。D33）
 	idleSince time.Time                     // 画面が 0 になった時刻
 	shown     event                         // 最後に開くよう頼まれた図とページ（open か、ask なら notify のイベント）
 	shownAt   time.Time
@@ -543,6 +545,8 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("POST /api/watch", fromPage(h.setWatch))
 	mux.HandleFunc("POST /api/focus", fromPage(h.setFocus))
 	mux.HandleFunc("POST /api/summary/{req}", fromPage(h.summaryAnswer))
+	mux.HandleFunc("GET /api/fit/{req}", h.fitData)
+	mux.HandleFunc("POST /api/fit/{req}", fromPage(h.fitAnswer))
 	mux.HandleFunc("GET /api/current", func(w http.ResponseWriter, _ *http.Request) {
 		id := ""
 		h.mu.Lock()
@@ -563,6 +567,7 @@ func (h *Hub) Handler() http.Handler {
 		mux.HandleFunc("POST /api/open", h.control(h.open))
 		mux.HandleFunc("POST /api/close", h.control(h.close))
 		mux.HandleFunc("POST /api/summary", h.control(h.summary))
+		mux.HandleFunc("POST /api/fit", h.control(h.fit))
 		mux.HandleFunc("POST /api/notify", h.control(h.notify))
 		mux.HandleFunc("POST /d/{id}/api/llm/{n}/revert", h.control(h.withLLM(h.revertLLM)))
 		mux.HandleFunc("POST /api/shutdown", h.control(func(w http.ResponseWriter, _ *http.Request) {

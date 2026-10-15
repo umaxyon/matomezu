@@ -27,6 +27,7 @@ export interface GeoEdge { id: string; a: string; b: string; points: Pt[]; capti
 export interface Geometry {
   viewport: { w: number; h: number };
   paper?: { name: string; w: number; h: number } | null; // 紙（D33）。あれば、はみ出しは表示領域ではなく紙に対して数える
+  outside?: string[]; // 紙からはみ出している最上位の箱の id（D33。graph.ts の refuseOverPaper と同じ決まり）
   boxes: GeoBox[];
   edges: GeoEdge[];
   treeLines?: Pt[][];  // ツリーの線の区間（ワールドの座標。縮図で使う）

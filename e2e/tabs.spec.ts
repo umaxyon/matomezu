@@ -12,6 +12,10 @@ const repo = resolve(import.meta.dirname, "..");
 let dir = "";
 let bin = "";
 
+// タブとサーバーを確かめるテストなので、紙（D33）からはみ出さないよう大きな紙（A3 横）で開く
+// （見本の図は、開いたときの並べ方が箱を A4 横の紙の外へ押し出すことがある。残課題図の F24）
+const onA3 = (d: ReturnType<typeof example>) => ({ ...d, world: { ...(d.world ?? {}), paper: "a3-landscape" } });
+
 const run = (...args: string[]) =>
   execFileSync(bin, args, { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8", timeout: 20_000 });
 
@@ -21,8 +25,8 @@ test.beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"));
   bin = join(dir, "matomezu");
   execFileSync("go", ["build", "-o", bin, "./cmd/matomezu"], { cwd: repo, timeout: 120_000 });
-  writeFileSync(join(dir, "a.json"), JSON.stringify(example("nested")));
-  writeFileSync(join(dir, "b.json"), JSON.stringify(example("three-levels")));
+  writeFileSync(join(dir, "a.json"), JSON.stringify(onA3(example("nested"))));
+  writeFileSync(join(dir, "b.json"), JSON.stringify(onA3(example("three-levels"))));
 });
 
 test.afterAll(() => {
@@ -165,7 +169,7 @@ test("郵便箱に届いた箱は、ブックを開いたときに知らせ、�
   await expect.poll(() => JSON.parse(readFileSync(join(dir, "b.json"), "utf8")).nodes.length).toBe(before + 2);
   await expect(page.locator("#mailbox .mz-mail-row")).toHaveCount(0);
   await page.locator("#mail-toggle").click();
-  writeFileSync(join(dir, "b.json"), JSON.stringify(example("three-levels")));
+  writeFileSync(join(dir, "b.json"), JSON.stringify(onA3(example("three-levels"))));
 });
 
 test("リンクの箱の窓を押すと、そのページのタブが前に出る。持ち手でドラッグすると箱が動く（link-box.ts）", async ({ page }) => {
@@ -221,7 +225,7 @@ test("set は書き換えだけ: 見ていないブックを set しても前に
   expect(out).toContain("written");
   expect(out).not.toContain("paper");
   await expect(selected(page)).toHaveText("a.json");
-  expect(run("check", "b.json")).toContain("paper a4-landscape"); // 要約は紙に対して（D33）
+  expect(run("check", "b.json")).toContain("paper a3-landscape"); // 要約は紙に対して（D33）
   await expect(selected(page)).toHaveText("a.json");
   await switchTo(page, "b.json");
   await expect(page.locator(".stage:visible .mz-head", { hasText: "変えたトップ画面" })).toHaveCount(1);
@@ -358,7 +362,7 @@ test("追加削除の一覧はページごとの見出しで分かれ、ほか�
 test("マスターの追加削除: 一覧の行を窓へ落とすと、そのブックの郵便箱へ写しを送り、開いて図へ置ける。同じパターンのページが無ければ送らない（D26）", async ({ page }) => {
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   writeFileSync(join(dir, "f.json"), JSON.stringify({ world: { childView: "flow" }, nodes: [{ id: 1, caption: "開始", x: 40, y: 40 }] }));
-  writeFileSync(join(dir, "a.json"), JSON.stringify({ ...example("nested"), world: { title: "入れ子の例" } }));
+  writeFileSync(join(dir, "a.json"), JSON.stringify({ ...onA3(example("nested")), world: { title: "入れ子の例", paper: "a3-landscape" } }));
   const before = readFileSync(join(dir, "a.json"), "utf8");
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await arrive(page, "p.json");
@@ -389,7 +393,7 @@ test("マスターの追加削除: 一覧の行を窓へ落とすと、そのブ
     .toEqual([[5, null], [6, 5], [7, 5], [8, 7], [9, 7]]);
   expect(out.edges.length).toBe(4);
   await page.locator("#mail-toggle").click();
-  writeFileSync(join(dir, "a.json"), JSON.stringify(example("nested"))); // 後のテストはファイル名の見出しを使う
+  writeFileSync(join(dir, "a.json"), JSON.stringify(onA3(example("nested")))); // 後のテストはファイル名の見出しを使う
 });
 
 test("図の題名（world.title）があればタブの見出しに出し、ポインタを乗せるとファイル名が出る。ブックのダイアログで書き換えられる", async ({ page }) => {
@@ -688,4 +692,33 @@ test("サーバーを入れ替えても、最後にフォーカスされた画�
   await page.waitForTimeout(500);
   expect(await current()).toBe(id);
   await other.close();
+});
+
+test("紙からはみ出す set は書かずにエラー（どの箱がどれだけはみ出すかと手段）。紙の外に箱があれば check はエラーで終わる。画面が無ければ set は断る（D33）", async ({ page }) => {
+  writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] }));
+  await page.goto(run("open", "-no-browser", "p.json").trim());
+  await expect(selected(page)).toHaveText("p.json");
+  const before = readFileSync(join(dir, "p.json"), "utf8");
+  // 紙（A5 横 794 × 559）の右の外へ動かす
+  let err = "";
+  try { run("set", "p.json", "1.x=900"); } catch (e) { err = String((e as { stderr?: string }).stderr ?? e); }
+  expect(err).toContain("not written");
+  expect(err).toContain("off the paper");
+  expect(err).toContain("#1 箱");
+  expect(err).toContain("larger paper");
+  expect(readFileSync(join(dir, "p.json"), "utf8")).toBe(before);
+  // 収まる set は書ける
+  expect(run("set", "p.json", "1.x=200")).toContain("written");
+  // ファイルを直接書かれて紙の外に箱があると、check は要約を出したうえでエラー
+  writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 900, y: 40 }], edges: [] }));
+  await expect.poll(() => page.locator('.stage:visible .mz-node[data-id="1"]').evaluate(el => (el as HTMLElement).style.left)).toBe("900px");
+  let out = "";
+  try { run("check", "p.json"); } catch (e) { out = String((e as { stdout?: string }).stdout ?? "") + String((e as { stderr?: string }).stderr ?? ""); }
+  expect(out).toContain("paper a5-landscape 794x559");
+  expect(out).toContain("off the paper");
+  // 画面が無ければ set は断る
+  run("stop");
+  err = "";
+  try { run("set", "p.json", "1.x=100"); } catch (e) { err = String((e as { stderr?: string }).stderr ?? e); }
+  expect(err).toContain("matomezu open");
 });

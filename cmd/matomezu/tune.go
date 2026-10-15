@@ -52,6 +52,10 @@ func check(args []string) error {
 		return err
 	}
 	printLayout(l, *in)
+	// 紙からはみ出している間はエラーで終わる（D33。LLM が直すまで返し続ける）
+	if len(l.Outside) > 0 {
+		return fmt.Errorf("%d box(es) are off the paper (marked ! in top): move them inside, summarize or cut, use a scrolling list, a larger paper (world.paper), or a page", len(l.Outside))
+	}
 	return nil
 }
 
@@ -131,6 +135,19 @@ func set(args []string) error {
 	if err := checkBytes(out, path); err != nil {
 		return fmt.Errorf("not written: %w", err)
 	}
+	// 紙に収まらない変更は書かない（D33。docs/PAPER-plan.md）。収まるかは画面で文字を測って並べないと分からないので、
+	// 画面が 1 つも無ければ確かめられず、書かずに断る（open は開く、set は編集）
+	s := daemon.Running()
+	if s == nil {
+		return errors.New("not written: no browser is open to check that the change fits on the paper; run: matomezu open " + path)
+	}
+	over, err := daemon.Fit(s, path, out)
+	if err != nil {
+		return fmt.Errorf("not written: %w", err)
+	}
+	if len(over) > 0 {
+		return errors.New("not written: " + overText(over))
+	}
 	if err := writeFile(path, out); err != nil {
 		return err
 	}
@@ -140,6 +157,24 @@ func set(args []string) error {
 	}
 	fmt.Println("written (run matomezu check to see the layout)")
 	return nil
+}
+
+// overText は、紙からはみ出す箱と、取れる手段を並べる（set が断ったとき）
+func overText(over []server.FitOver) string {
+	var b strings.Builder
+	b.WriteString("the change makes boxes go off the paper:")
+	for _, o := range over {
+		page := "first page"
+		if o.Page != "" {
+			page = "page " + o.Page
+		}
+		fmt.Fprintf(&b, "\n  %s (paper %s):", page, o.Paper)
+		for _, x := range o.Boxes {
+			fmt.Fprintf(&b, " #%s %s (right %d, bottom %d);", x.ID, x.Caption, x.Right, x.Bottom)
+		}
+	}
+	b.WriteString("\nto make it fit: summarize or cut content, turn a long list into a scrolling list, use a larger paper (world.paper), or move a detail that deserves its own page to a page")
+	return b.String()
 }
 
 // ---- 項目の書き換え ----

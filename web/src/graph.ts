@@ -2291,6 +2291,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return {
         viewport: L.viewport(), // 倍率をかけないときの広さ（LLM への配置の要約。D32・D33）
         paper: paperOf(),
+        outside: [...outsideNow()],
         boxes,
         treeLines,
         edges: shown.map(e => {

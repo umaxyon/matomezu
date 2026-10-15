@@ -247,6 +247,23 @@ func Summary(s *State, path, page string) (server.Layout, error) {
 	return l, err
 }
 
+// Fit は path の図を data に書き換えたら紙に収まるかを、カレントの画面に頼んで返す（新しくはみ出す箱。D33）。誤りはサーバーの言葉だけを返す
+func Fit(s *State, path string, data []byte) ([]server.FitOver, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	var out struct {
+		Over []server.FitOver `json:"over"`
+	}
+	err = callWith(slowClient, s, "POST", "/api/fit", map[string]any{"path": abs, "data": json.RawMessage(data)}, &out)
+	var se *serverError
+	if errors.As(err, &se) {
+		return nil, errors.New(se.msg)
+	}
+	return out.Over, err
+}
+
 // Notify はカレントの画面に通知を送る（matomezu notify。D30）。path があればその図を開く動きを持つ。誤りはサーバーの言葉だけを返す
 func Notify(s *State, n server.NotifyRequest) error {
 	if n.Path != "" {

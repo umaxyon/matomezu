@@ -25,6 +25,7 @@ type Layout struct {
 	Page    string            `json:"page"`
 	Summary string            `json:"summary"`
 	Details map[string]string `json:"details,omitempty"`
+	Outside []string          `json:"outside,omitempty"` // 紙からはみ出している最上位の箱の id（D33。あれば check はエラーで終わる）
 }
 
 // summaryWait は要約を待つ長さ。画面がボタンを離すのを待つ長さ（app.ts の SUMMARY_BUSY）より長く

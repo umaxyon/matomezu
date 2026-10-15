@@ -11,6 +11,7 @@
  * - close: その図のタブを閉じるよう頼まれた（matomezu close）。タブの × と同じに閉じる。
  * - mail: その図の郵便箱が変わった（届いた・読んだ・取り除いた。D26 の段階 3）。
  * - books: 登録したブックの一覧が変わった（登録した・ファイルが変わった・消えた。マスターを作り直す）。
+ * - fit: 預けた中身が紙に収まるかを求められた（matomezu set。カレントの画面にだけ届く。D33）。答えは api/fit/<req> へ送る。
  * - summary: その図のページの配置の要約を求められた（matomezu check。カレントの画面にだけ届く。D30）。答えは api/summary/<req> へ送る。
  * - 接続が切れても、つなぎ直しを続ける（入れ替わったサーバーが同じアドレスで起動するのを待つ）。
  */
@@ -25,6 +26,7 @@ export interface EventHandlers {
   mail?(doc: string): void;
   books?(): void;
   summary?(req: string, doc: string, page: string, version: string): void; // page は "" なら最初のページ、version はそのときのファイルの版
+  fit?(req: string, doc: string): void; // 預けた中身（api/fit/{req}）が紙に収まるかを答える（matomezu set。D33）
   status(text: string): void;
   watched?(): string[]; // 開いている図の id
 }
@@ -142,6 +144,10 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       if (v && typeof v.doc === "string") h.mail?.(v.doc);
     });
     es.addEventListener("books", () => h.books?.());
+    es.addEventListener("fit", e => {
+      const v = parse(e);
+      if (v && typeof v.req === "string" && typeof v.doc === "string") h.fit?.(v.req, v.doc);
+    });
     es.addEventListener("summary", e => {
       const v = parse(e);
       if (v && typeof v.req === "string" && typeof v.doc === "string") h.summary?.(v.req, v.doc, String(v.page ?? ""), String(v.version ?? ""));
