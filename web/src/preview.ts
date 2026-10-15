@@ -38,7 +38,8 @@ export function setupPreview(ui: PreviewUi): Preview {
     if (!graph || !stage) return 1;
     const c = graph.contentSize();
     if (!c.w || !c.h) return 1;
-    return clampZoom(Math.min(stage.clientWidth / c.w, stage.clientHeight / c.h, 1));
+    const m = 2 * graph.view().margin; // 周りの余白の分を除いた広さに収める（D32）
+    return clampZoom(Math.min((stage.clientWidth - m) / c.w, (stage.clientHeight - m) / c.h, 1));
   }
 
   function showLevel() {
@@ -54,11 +55,12 @@ export function setupPreview(ui: PreviewUi): Preview {
     const r = stage.getBoundingClientRect();
     const px = at ? at.x - r.left : stage.clientWidth / 2;
     const py = at ? at.y - r.top : stage.clientHeight / 2;
-    const wx = (stage.scrollLeft + px) / old;
-    const wy = (stage.scrollTop + py) / old;
+    const m = graph.view().margin; // スクロールの位置 = 余白 + ワールドの座標 × 倍率（D32）
+    const wx = (stage.scrollLeft + px - m) / old;
+    const wy = (stage.scrollTop + py - m) / old;
     graph.setPreview(z);
-    stage.scrollLeft = wx * z - px;
-    stage.scrollTop = wy * z - py;
+    stage.scrollLeft = m + wx * z - px;
+    stage.scrollTop = m + wy * z - py;
     showLevel();
   }
 

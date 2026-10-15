@@ -143,7 +143,7 @@ import { createDrag } from "./layout/drag";
 import { createLayout } from "./layout/layout";
 import { BODY_MIN_W } from "./layout/node-kinds";
 import { SCENES } from "./layout/policy";
-import { type MeasureText, createTextMeasurer } from "./layout/measure";
+import { type MeasureText, browserMeasure, createTextMeasurer } from "./layout/measure";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, abilitiesOf, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, bodyWrapW, borderOf,
@@ -178,6 +178,7 @@ export const DEFAULTS = {
   treeGapY: 40,  // ツリーの親と子の縦の間隔
   rootAt: { x: 40, y: 40 }, // ツリーのページを作るときに置く根の箱の位置（addPage）
   previewMinScale: 0.15, // リンクの箱の窓に映すページの縮尺の下限（これより縮めず、収まらない分は切り取る。link-box.ts の previewRegion）
+  margin: 88, // 図の周りの余白（ワールドの外。物は置けない。道具箱の幅 42 の 2 つ分くらい。2026-10-15 ユーザー。D32）
 };
 
 // ページの縮図のもとを、データだけから近似で作る（描いていないページ・ほかのブックの窓。graph.pageScene と、マスターの窓（app.ts）が使う）。
@@ -367,6 +368,8 @@ export interface Graph {
   // 背景のドラッグは見る範囲を動かす。図を直す操作（ドラッグ、Undo / Redo）は効かない
   setPreview(zoom: number | null): void;
   preview(): number | null;
+  // 画面の見え方（D32）: 今の倍率と、図の周りの余白。スクロールの位置 = 余白 + ワールドの座標 × 倍率
+  view(): { zoom: number; margin: number };
   contentSize(): { w: number; h: number }; // ボックスが占める範囲（ワールドの左上から、余白込み）
   destroy(): void;
 }
@@ -376,8 +379,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const opt = { ...DEFAULTS, ...options };
   container.classList.add("mz-stage", "mz-mode-move"); // 最初は選択モード（setMode と同じ印を付けておく）
 
+  // スクロールできる広さを決める見えない入れ物と、その中で周りの余白の分だけずらして置くワールド（D32）
+  const canvasEl = document.createElement("div");
+  canvasEl.className = "mz-canvas";
+  container.appendChild(canvasEl);
   const worldEl = document.createElement("div");
   worldEl.className = "mz-world";
+  worldEl.style.left = worldEl.style.top = opt.margin + "px";
   container.appendChild(worldEl);
   const svg = document.createElementNS(SVGNS, "svg");
 
@@ -399,18 +407,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     get children() { return roots; },
   };
 
-  const measurer = createTextMeasurer(options.measureText);
+  // 文字はワールドの中で測るので、倍率をかけていれば割り戻す（transform は文字の並び方を変えない。D32）
+  const measurer = createTextMeasurer(options.measureText ?? ((head, width) => browserMeasure(head, width, applied)));
   // 開いたときのはみ出しの調整で移した箱（id → 移したときのファイルの位置と、移した先）。画面にだけある位置なので、
   // 外部の変更の読み直しで、LLM がその箱の位置を変えていなければ移した先に置く（keepShownPositions）。
   // ユーザーが図を変えて保存すると位置はファイルに入るので、忘れる
   let fitted = new Map<string, { file: string; x: number; y: number }>();
   const posKey = (s: { x?: unknown; y?: unknown }) =>
     Number.isFinite(s.x) && Number.isFinite(s.y) ? `${s.x},${s.y}` : null;
-  // プレビューの倍率（null は編集中）と、今ワールドにかけている倍率（組み立て直す間は 1 に外す）
+  // プレビューの倍率（null は編集中）と、今ワールドにかけている倍率
   let preview: number | null = null;
   let applied = 1;
   const L = createLayout({
-    opt, world, worldEl, container, measurer, roots: () => roots, edges: () => edges, zoom: () => applied,
+    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => applied,
     fitted: n => {
       const file = posKey(n.src);
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
@@ -1998,28 +2007,18 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // keep は組み立て直したあとに選び直す箱か線の id（残っていれば。無ければワールドを選ぶ）。途中でワールドを選ばずに
   // 直接選ぶ（いったんワールドを選ぶと、サイドバーの情報タブが切り替わって、入力中の内容が消えるため）
   function build(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
-    unzoomed(() => buildAll(copy, fit, keep));
+    buildAll(copy, fit, keep);
   }
 
   // ---- プレビュー ----
 
+  // 倍率は transform: scale でかける（文字の並び方を変えないので、組み直すときに外さなくてよい。D32）。
+  // スクロールできる広さは、見えない入れ物（canvasEl）を syncWorld が倍率に合わせて決める
   function applyZoom(z: number) {
     applied = z;
-    worldEl.style.zoom = z === 1 ? "" : String(z);
+    worldEl.style.transform = z === 1 ? "" : `scale(${z})`;
     syncWorld();
     if (unseen.length) setTimeout(checkSeen, 0); // 拡大縮小で見えた LLM の変更（D31）
-  }
-
-  // 倍率を外して fn を動かす。文字の幅は画面で測るので、倍率がかかったまま組み立て直すと誤る
-  // （プレビュー中に外部の変更を読み直すとき、ページを切り替えるとき）
-  function unzoomed(fn: () => void) {
-    if (preview == null) return fn();
-    applyZoom(1);
-    try {
-      fn();
-    } finally {
-      applyZoom(preview);
-    }
   }
 
   function setPreview(z: number | null) {
@@ -2217,7 +2216,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       // 線の点の並びは、矢印の分を縮める前のもの（見える線は、矢印のある端で短くしている）
       const shown = edges.filter(e => e.el.style.display !== "none");
       return {
-        viewport: L.viewport(),
+        viewport: L.viewport(true), // LLM への配置の要約は 100% のときの広さ（D32）
         boxes,
         treeLines,
         edges: shown.map(e => {
@@ -2225,9 +2224,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           // キャプションの札の範囲（ワールドの座標）。描かれていて大きさが分かるときだけ
           const text = e.labelEl?.querySelector("span");
           if (text && typeof e.src.caption === "string") {
-            const sr = text.getBoundingClientRect(), wr = worldEl.getBoundingClientRect();
+            const sr = text.getBoundingClientRect(), wr = worldEl.getBoundingClientRect(), z = applied;
             out.caption = e.src.caption;
-            if (sr.width) out.label = { x: sr.left - wr.left, y: sr.top - wr.top, w: sr.width, h: sr.height };
+            if (sr.width) out.label = { x: (sr.left - wr.left) / z, y: (sr.top - wr.top) / z, w: sr.width / z, h: sr.height / z };
           }
           return out;
         }),
@@ -2235,6 +2234,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     setPreview,
     preview: () => preview,
+    view: () => ({ zoom: applied, margin: opt.margin }),
     contentSize() {
       let w = 0, h = 0;
       for (const r of roots) {

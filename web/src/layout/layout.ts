@@ -37,6 +37,7 @@ export interface LayoutOptions {
   header: number;
   treeGapX: number;
   treeGapY: number;
+  margin: number; // 図の周りの余白（ワールドの外。物は置けない。D32）
 }
 
 export interface LayoutContext {
@@ -44,10 +45,11 @@ export interface LayoutContext {
   world: World;
   worldEl: HTMLElement;
   container: HTMLElement;
+  canvas?: HTMLElement; // スクロールできる広さを決める見えない入れ物（ワールド×倍率＋周りの余白。D32）
   measurer: TextMeasurer;
   roots(): Box[];
   edges(): Edge[];
-  zoom?(): number; // ワールドにかけている倍率（プレビュー。無ければ 1）
+  zoom?(): number; // ワールドにかけている倍率（transform: scale。無ければ 1）
   // 開いたときのはみ出しの調整（fitToViewport）で移した（表示だけ。ファイルには無い位置）
   fitted?(n: Box): void;
 }
@@ -88,13 +90,15 @@ export function createLayout(ctx: LayoutContext) {
   // 表示領域の中身（スクロールバーを除く）の幅と高さ。clientWidth / clientHeight は小数を四捨五入するので、
   // 実際の幅が 836.6 のとき 837 になり、それに合わせたワールドが 0.4px はみ出して、動かせないスクロールバーが出る
   // （Windows の表示倍率などで幅に小数が出る）。小数まで測って切り捨てる
-  // ワールドに倍率をかけていれば（プレビュー）、ワールドの座標での広さにする（縮小しても、ワールドの背景が表示領域を埋めるように）
-  function viewport() {
+  // 周りの余白（D32）を除いた広さ。ワールドに倍率をかけていれば、ワールドの座標での広さにする（縮小しても、ワールドの背景が表示領域を埋めるように）。
+  // unzoomed なら倍率をかけない広さ（LLM への配置の要約は 100% のときの広さで答える。D32）
+  function viewport(unzoomed = false) {
     const r = container.getBoundingClientRect();
-    const z = ctx.zoom?.() ?? 1;
+    const z = unzoomed ? 1 : ctx.zoom?.() ?? 1;
+    const m = 2 * opt.margin;
     return {
-      w: Math.floor((r.width - (container.offsetWidth - container.clientWidth)) / z),
-      h: Math.floor((r.height - (container.offsetHeight - container.clientHeight)) / z),
+      w: Math.max(0, Math.floor((r.width - (container.offsetWidth - container.clientWidth) - m) / z)),
+      h: Math.max(0, Math.floor((r.height - (container.offsetHeight - container.clientHeight) - m) / z)),
     };
   }
 
@@ -129,6 +133,16 @@ export function createLayout(ctx: LayoutContext) {
     if (held) held = { w: world.w, h: world.h };
     worldEl.style.width = world.w + "px";
     worldEl.style.height = world.h + "px";
+    sizeCanvas();
+  }
+
+  // スクロールできる広さ: ワールドの見た目の大きさ（倍率をかけた分）と、周りの余白。ワールドは transform で拡大縮小するので、
+  // スクロールの広さは見た目に追従しない。それをこの入れ物で決める（D32）
+  function sizeCanvas() {
+    if (!ctx.canvas) return;
+    const z = ctx.zoom?.() ?? 1;
+    ctx.canvas.style.width = Math.ceil(world.w * z + 2 * opt.margin) + "px";
+    ctx.canvas.style.height = Math.ceil(world.h * z + 2 * opt.margin) + "px";
   }
 
   // ---- 大きさ ----

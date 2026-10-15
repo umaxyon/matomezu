@@ -12,3 +12,8 @@ document.elementsFromPoint ??= () => [];
 
 // 画面の文言は日本語で確かめる（happy-dom のブラウザの言語は英語。i18n.ts は読み込んだときに言語を決める）
 localStorage.setItem("matomezu.lang", "ja");
+
+// 図の周りの余白（D32）は 0 にして測る（配置の計算を確かめるテストは、ワールドが表示領域の左上にある前提）。
+// 余白を確かめるテストは createGraph に margin を渡す。graph を読み込むと画面の言語が決まるので、言語を日本語にしたあとで読み込む
+const { DEFAULTS } = await import("../web/src/graph");
+DEFAULTS.margin = 0;

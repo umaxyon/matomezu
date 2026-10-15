@@ -5,18 +5,21 @@ import { layoutStats } from "./stats";
 // ボックスの本体（head）を幅 width（null なら1行のまま）にしたときの大きさを返す
 export type MeasureText = (head: HTMLElement, width: number | null) => [number, number];
 
-// 測るたびにブラウザが配置を計算し直す（一番重い処理）
-export const browserMeasure: MeasureText = (head, width) => {
+// 測るたびにブラウザが配置を計算し直す（一番重い処理）。scale はワールドにかけている倍率（transform: scale。D32）。
+// transform は文字の並び方を変えないので、画面の上の大きさを倍率で割れば、倍率をかけない大きさになる
+export const browserMeasure = (head: HTMLElement, width: number | null, scale = 1): [number, number] => {
   const s = head.style;
   const prev = [s.width, s.height] as const;
   s.width = width == null ? "max-content" : width + "px";
   s.height = "auto";
   // offsetWidth は整数に丸めるので、実際の幅より小さいとその幅で最後の文字が折り返される。小数まで測って切り上げる
   // （配置の計算が無い環境では 0 が返るので offsetWidth を使う）
+  // 倍率で割ると、ちょうど整数の大きさが 100.00000000001 のようになって 1 つ大きく切り上がるので、わずかに引いてから切り上げる
+  const unscale = (v: number) => (scale === 1 ? v : v / scale - 1e-6);
   const rect = head.getBoundingClientRect();
   const r: [number, number] = [
-    rect.width ? Math.ceil(rect.width) : head.offsetWidth,
-    rect.height ? Math.ceil(rect.height) : head.offsetHeight,
+    rect.width ? Math.ceil(unscale(rect.width)) : head.offsetWidth,
+    rect.height ? Math.ceil(unscale(rect.height)) : head.offsetHeight,
   ];
   [s.width, s.height] = prev;
   return r;

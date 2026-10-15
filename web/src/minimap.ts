@@ -89,6 +89,7 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
   el.append(body);
   host.appendChild(el);
   let scale = 1;
+  let origin = 0; // 絵の左上（ワールドの座標。周りの余白の分だけ負になる。D32）
 
   let frame = 0;
   function schedule() {
@@ -102,49 +103,63 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
     if (!stage.hidden) setAvailable(scrolls);
     el.hidden = stage.hidden || !open || !scrolls;
     if (el.hidden) return;
+    // 絵はワールドの座標で描く。スクロールできる広さ全体（周りの余白と倍率を含む。D32）を、ワールドの座標に直して映す
+    const { zoom: z, margin: m } = graph.view();
+    origin = -m / z;
+    const spanW = fullW / z, spanH = fullH / z;
     // 幅は中に使える幅（枠線の分を除く）。図全体がちょうど収まる倍率にする
     const width = body.clientWidth || WIDTH;
-    scale = width / Math.max(1, fullW);
+    scale = width / Math.max(1, spanW);
     svg.setAttribute("width", String(width));
-    svg.setAttribute("height", String(Math.max(1, Math.round(fullH * scale))));
-    svg.setAttribute("viewBox", `0 0 ${fullW} ${fullH}`);
+    svg.setAttribute("height", String(Math.max(1, Math.round(spanH * scale))));
+    svg.setAttribute("viewBox", `${origin} ${origin} ${spanW} ${spanH}`);
     body.style.setProperty("--mm-max", `${Math.round(host.clientHeight * MAX_HEIGHT_RATIO)}px`);
     // ワールドの背景色（ページを見ているなら、そのページの背景）。絵の描き方は preview-art.ts（リンクの箱の窓と同じ）
     const info = graph.info(null);
     const bg = info.kind === "world" ? info.background : null;
     el.classList.toggle("mm-on-light", !!bg && isLightColor(bg));
     el.classList.toggle("mm-on-dark", !!bg && !isLightColor(bg));
-    const items: Element[] = sceneItems(sceneOf(graph.geometry(), bg), { x: 0, y: 0, w: fullW, h: fullH });
-    // 見えている範囲の四角。図の端と重なる辺も線が半分切れないよう、線の太さの半分（画面で 1px）だけ内へ寄せる
+    // 背景はワールドの範囲だけ（周りの余白には塗らない）
+    const items: Element[] = sceneItems(sceneOf(graph.geometry(), bg), { x: 0, y: 0, w: (fullW - 2 * m) / z, h: (fullH - 2 * m) / z });
+    // 見えている範囲の四角（ワールドの座標）。図の端と重なる辺も線が半分切れないよう、線の太さの半分（画面で 1px）だけ内へ寄せる
     const inset = 1 / scale;
-    const x0 = Math.max(stage.scrollLeft, inset), y0 = Math.max(stage.scrollTop, inset);
-    const x1 = Math.min(stage.scrollLeft + viewW, fullW - inset), y1 = Math.min(stage.scrollTop + viewH, fullH - inset);
+    const vx = (stage.scrollLeft - m) / z, vy = (stage.scrollTop - m) / z;
+    const x0 = Math.max(vx, origin + inset), y0 = Math.max(vy, origin + inset);
+    const x1 = Math.min(vx + viewW / z, origin + spanW - inset), y1 = Math.min(vy + viewH / z, origin + spanH - inset);
     items.push(make("rect", "mm-view", { x: x0, y: y0, width: Math.max(0, x1 - x0), height: Math.max(0, y1 - y0) }));
     svg.replaceChildren(...items);
     // 見えている範囲の四角が、ミニマップの中で見えるようにする
-    const vy0 = y0 * scale, vy1 = y1 * scale;
+    const vy0 = (y0 - origin) * scale, vy1 = (y1 - origin) * scale;
     if (vy0 < body.scrollTop) body.scrollTop = vy0;
     else if (vy1 > body.scrollTop + body.clientHeight) body.scrollTop = vy1 - body.clientHeight;
   }
 
-  // ミニマップの上の点（画面の座標）を、図の座標にする
+  // ミニマップの上の点（画面の座標）を、ワールドの座標にする
   const toWorld = (ev: PointerEvent): [number, number] => {
     const r = svg.getBoundingClientRect();
-    return [(ev.clientX - r.left) / scale, (ev.clientY - r.top) / scale];
+    return [origin + (ev.clientX - r.left) / scale, origin + (ev.clientY - r.top) / scale];
   };
-  // 表示する範囲の左上を (x, y) にする（はみ出さないようにブラウザが収める）
-  const scrollTo = (x: number, y: number) => stage.scrollTo({ left: x, top: y });
+  // 見えている範囲（ワールドの座標）
+  const viewRect = () => {
+    const { zoom: z, margin: m } = graph.view();
+    return { x: (stage.scrollLeft - m) / z, y: (stage.scrollTop - m) / z, w: stage.clientWidth / z, h: stage.clientHeight / z };
+  };
+  // 表示する範囲の左上を (x, y)（ワールドの座標）にする（はみ出さないようにブラウザが収める）
+  const scrollTo = (x: number, y: number) => {
+    const { zoom: z, margin: m } = graph.view();
+    stage.scrollTo({ left: m + x * z, top: m + y * z });
+  };
 
   let grab: { dx: number; dy: number; id: number } | null = null;
   svg.addEventListener("pointerdown", ev => {
     if (ev.button !== 0) return;
     ev.preventDefault();
     const [x, y] = toWorld(ev);
-    const inView = x >= stage.scrollLeft && x <= stage.scrollLeft + stage.clientWidth &&
-      y >= stage.scrollTop && y <= stage.scrollTop + stage.clientHeight;
+    let v = viewRect();
+    const inView = x >= v.x && x <= v.x + v.w && y >= v.y && y <= v.y + v.h;
     // 見えている範囲の外を押したら、その点が真ん中に来るように飛んでから、そのままドラッグできる
-    if (!inView) scrollTo(x - stage.clientWidth / 2, y - stage.clientHeight / 2);
-    grab = { dx: x - stage.scrollLeft, dy: y - stage.scrollTop, id: ev.pointerId };
+    if (!inView) { scrollTo(x - v.w / 2, y - v.h / 2); v = viewRect(); }
+    grab = { dx: x - v.x, dy: y - v.y, id: ev.pointerId };
     svg.setPointerCapture(ev.pointerId);
   });
   svg.addEventListener("pointermove", ev => {

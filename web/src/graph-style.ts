@@ -62,7 +62,8 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   --mz-select: #c4b5fd;
   --mz-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
-.mz-world { position: absolute; left: 0; top: 0; }
+.mz-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; } /* left・top は周りの余白（graph.ts が DEFAULTS.margin から書く。D32） */
+.mz-canvas { position: absolute; left: 0; top: 0; pointer-events: none; } /* スクロールできる広さを決める見えない入れ物（layout.ts の sizeCanvas） */
 .mz-world > svg {
   position: absolute; inset: 0; width: 100%; height: 100%;
   pointer-events: none; z-index: 5; overflow: visible;

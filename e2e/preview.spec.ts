@@ -10,8 +10,9 @@ test.afterEach(async ({ page }) => {
   expect(await violations(page)).toEqual([]);
 });
 
+// 倍率は transform: scale でかけている（D32）
 const zoomOf = (page: import("@playwright/test").Page) =>
-  page.locator(".mz-world").evaluate(el => Number((el as HTMLElement).style.zoom || 1));
+  page.locator(".mz-world").evaluate(el => Number(/scale\(([\d.]+)\)/.exec((el as HTMLElement).style.transform)?.[1] ?? 1));
 
 test("入ると全体が収まる倍率になり、サイドバーと編集のツールバーが隠れる。Esc で編集に戻る", async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
@@ -59,7 +60,7 @@ test("＋で拡大し、全体で収まる倍率に戻る", async ({ page }) => 
   expect(await zoomOf(page)).toBeCloseTo(fit, 5);
 });
 
-test("プレビュー中に図を読み直しても、箱の大きさは編集のときと同じ（倍率を外して文字を測る）", async ({ page, browser }) => {
+test("プレビュー中に図を読み直しても、箱の大きさは編集のときと同じ（倍率で割り戻して文字を測る。D32）", async ({ page, browser }) => {
   // まだ測っていない文字にする（同じ文字は前に測った幅を使い回すので、測り方の誤りが出ない）
   const changed = example("three-levels");
   // 周りに何も無い所に、文字だけの箱を足す（幅が文字で決まる。グループは子の並びで、隣に箱があればその手前までで幅が決まるので、
