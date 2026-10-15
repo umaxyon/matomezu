@@ -494,6 +494,49 @@ test("ふつうのページのブックリンク: 窓にブックの題名を出
   await expect(selected(page)).toHaveText("b.json");
 });
 
+test("ページのタブを図へドラッグすると点線の影が付き、落とすとダイアログでリンク先のページと見せ方を選んで、リンクの箱を作る。今見ているタブは出ない（D29）", async ({ page }) => {
+  writeFileSync(join(dir, "tabdrag.json"), JSON.stringify({ pages: [{ id: "p2", title: "流れ" }, { id: "p3", title: "画面" }], nodes: [{ id: 1, caption: "表紙", x: 40, y: 40 }, { id: 2, caption: "中", page: "p2" }], edges: [] }));
+  await page.goto(run("open", "-no-browser", "tabdrag.json").trim());
+  await expect(selected(page)).toHaveText("tabdrag.json");
+  const stage = page.locator(".stage:visible");
+  const world = (await stage.locator(".mz-world").boundingBox())!;
+  const drag = async (name: string, x: number, y: number) => {
+    const tab = (await page.locator(".tab-group-current .tab", { hasText: name }).boundingBox())!;
+    await page.mouse.move(tab.x + tab.width / 2, tab.y + tab.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(world.x + x - 40, world.y + y - 40, { steps: 4 });
+    await page.mouse.move(world.x + x, world.y + y, { steps: 4 });
+  };
+  // 今見ているタブ（最初のページ）は出ない
+  await drag("tabdrag.json", 400, 300);
+  await expect(page.locator(".mz-add-ghost")).toHaveCount(0);
+  await page.mouse.up();
+  // 「流れ」のタブを図へ運ぶと点線の影。落とすとダイアログ（初めは流れを選んでいる）
+  await drag("流れ", 400, 300);
+  await expect(page.locator(".mz-add-ghost")).toHaveCount(1);
+  await page.mouse.up();
+  await expect(page.locator(".mz-add-ghost")).toHaveCount(0);
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg.locator("h2")).toHaveText("ページへのリンク");
+  await expect(dlg.locator('[aria-selected="true"] .mz-ss-label')).toHaveText("流れ");
+  await expect(selected(page)).toHaveText("tabdrag.json"); // ドラッグしたタブへは切り替えない
+  // 画面に選び直し、縮図を出さないにして作る
+  await dlg.locator(".mz-ss-input").fill("画");
+  await dlg.locator(".mz-ss-item", { hasText: "画面" }).click();
+  await dlg.locator("label", { hasText: "縮図を出さない" }).click();
+  await dlg.locator("[data-ok]").click();
+  await expect(dlg).toHaveCount(0);
+  const box = stage.locator(".mz-node", { hasText: "画面" });
+  await expect(box.locator(":scope > .mz-head")).toHaveClass(/mz-link-icon/);
+  await expect.poll(() => JSON.parse(readFileSync(join(dir, "tabdrag.json"), "utf8")).nodes.find((n: { link?: string }) => n.link === "p3")?.linkLook).toBe("icon");
+  // キャンセルなら作らない
+  await drag("流れ", 600, 300);
+  await page.mouse.up();
+  await dlg.locator("[data-cancel]").click();
+  await expect(stage.locator(".mz-node")).toHaveCount(2);
+  await page.locator(".tab-group-current .tab-book .tab-close").click();
+});
+
 test("LLM の変更はユーザーの Undo に入らず、見えたら認知してユーザーの履歴に入る。画面の外の箱は、スクロールで見えるまで認知しない。matomezu history に残り、見たら seen（D31）", async ({ page }) => {
   const file = join(dir, "hist.json");
   writeFileSync(file, JSON.stringify({ nodes: [{ id: 1, caption: "見える", x: 40, y: 40 }, { id: 2, caption: "遠く", x: 40, y: 3000 }] }));

@@ -800,7 +800,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     return { parentId: t ? t.id : null, at: { x: unscale(x - r.left - ADD_OFFSET.x), y: unscale(y - r.top - ADD_OFFSET.y) } };
   }
 
-  function showAdd(x: number, y: number) {
+  // shape は影に付ける形の絵（無ければ追加モードで足す形）
+  function showAdd(x: number, y: number, shape: Shape = ctx.addShape()) {
     const spot = addSpotAt(x, y);
     if (!addGhost) {
       addGhost = document.createElement("div");
@@ -810,7 +811,6 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     addGhost.style.left = x - ADD_OFFSET.x + "px";
     addGhost.style.top = y - ADD_OFFSET.y + "px";
     // 足す形の絵を影に付ける（ボックスなら影だけ）
-    const shape = ctx.addShape();
     if (addGhost.dataset.shape !== shape) {
       addGhost.dataset.shape = shape;
       addGhost.innerHTML = shape === DEFAULT_SHAPE ? "" : shapeIcon(shape, "mz-add-ghost-icon");
@@ -1014,6 +1014,14 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       addMarked = undefined;
     },
     unmarkRemove,
+    // タブを図へドラッグしてリンクの箱を作るとき（D29）: 画面の座標 at に追加モードと同じ影を出し、落とせば足す所を返す（足せない所なら null）。
+    // at が null なら影を消す
+    ghost(at: { x: number; y: number } | null): AddRequest | null {
+      if (!at) { hideAdd(); return null; }
+      showAdd(at.x, at.y, DEFAULT_SHAPE);
+      const spot = addSpotAt(at.x, at.y);
+      return spot ? { parentId: spot.parentId, ...(spot.at ? { at: spot.at } : {}), ...(spot.before != null ? { before: spot.before } : {}) } : null;
+    },
     destroy() { lift?.stop.abort(); listening.abort(); },
   };
 }

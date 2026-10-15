@@ -269,6 +269,8 @@ export interface Graph {
   page(): string | null;
   pages(): { id: string; caption: string }[]; // ブックのページ（2 枚目から。最初のページは含まない）
   bookChoices(): { id: string; title: string }[]; // ブックリンクを作るときに選べるブック（D29。画面の側が渡す。GraphOptions の bookChoices）
+  // タブを図へドラッグしてリンクの箱を作るとき（D29）: 画面の座標 at に追加モードと同じ点線の影を出し、落とせば足す所を返す（足せない所なら null）。null で影を消す
+  addGhost(at: { x: number; y: number } | null): AddRequest | null;
   // ページを足す（2 枚目から）。world はそのページの設定（パターンなど）。ツリーなら根の箱を 1 つ置く。新しいページの id を返す
   addPage(spec: { title?: string; world?: WorldData }): string;
   // ページ（null は最初のページ）の題名とワールドの設定（テーマ・背景色・線の通り方・ツリーの向き）を変える。履歴に 1 件残す。
@@ -1690,6 +1692,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     copySelected,
     pasteClip,
     bookChoices: () => opt.bookChoices?.() ?? [],
+    addGhost: at => I.ghost(at),
     add,
     purge,
       pages: () => pagesOf(source).map(p => ({ id: String(p.id), caption: pageNameOf(source, String(p.id)) })),

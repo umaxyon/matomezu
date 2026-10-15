@@ -43,6 +43,7 @@ import type { SideToggle } from "./main";
 import { createMaster } from "./app-master";
 import { createAnswers } from "./app-answers";
 import { createNoteQueue } from "./app-notes";
+import { openPageLinkDialog } from "./link-dialog";
 import { type MailNote, arrivedNote, createMailbox, badgeText, sendMail } from "./mailbox";
 
 export interface AppUi {
@@ -193,7 +194,9 @@ export async function startApp(ui: AppUi) {
     label.textContent = name;
     button.append(label);
     const tab: PageTab = { page, button, label };
-    button.addEventListener("click", () => activate(b, page));
+    button.addEventListener("click", () => { if (!tabDragged) activate(b, page); });
+    // 2 枚目からのページのタブは、図へドラッグするとそのページへのリンクの箱を作れる（D29。最初のページへはリンクできない）
+    if (page != null) button.addEventListener("pointerdown", e => dragTab(b, page, e));
     // 閉じられるのはブック（先頭のタブ）だけ
     if (page == null) {
       const x = document.createElement("button");
@@ -206,6 +209,40 @@ export async function startApp(ui: AppUi) {
       button.append(x);
     }
     return tab;
+  }
+
+  // ページのタブを図へドラッグして、そのページへのリンクの箱を作る（D29。2026-10-16 ユーザー）。今見ているページのタブは出さない。
+  // 少し動かしたら、図の上ではポインタに追加モードと同じ点線の影を付け、落とした所（追加と同じ決まり）でダイアログを開く（link-dialog.ts）。
+  // Esc か図の外で離せば何もしない
+  let tabDragged = false; // ドラッグしたあとのタブのクリックで、ページを切り替えない
+  function dragTab(b: Book, page: string, down: PointerEvent) {
+    if (down.button !== 0 || current?.book !== b || current.page === page || b.master) return;
+    const stop = new AbortController();
+    let started = false;
+    const over = (e: { clientX: number; clientY: number }) => {
+      const r = b.stage.getBoundingClientRect();
+      return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom ? { x: e.clientX, y: e.clientY } : null;
+    };
+    const end = () => {
+      stop.abort();
+      b.graph.addGhost(null);
+      document.body.classList.remove("tab-dragging");
+      if (started) { tabDragged = true; setTimeout(() => { tabDragged = false; }, 0); }
+    };
+    document.addEventListener("pointermove", e => {
+      if (!started && Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < 5) return;
+      started = true;
+      document.body.classList.add("tab-dragging");
+      b.graph.addGhost(over(e));
+    }, { signal: stop.signal });
+    document.addEventListener("pointerup", e => {
+      const at = started ? over(e) : null;
+      const req = at ? b.graph.addGhost(at) : null;
+      end();
+      if (req) openPageLinkDialog(b.graph, req, page);
+    }, { signal: stop.signal });
+    document.addEventListener("pointercancel", end, { signal: stop.signal });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") end(); }, { signal: stop.signal });
   }
 
   // ページのタブを開く（無ければ作る）。ブックに無いページなら null
