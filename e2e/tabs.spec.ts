@@ -619,3 +619,27 @@ test("郵便箱は、欄を開いて題名が見えただけでは読んだこ�
   await book.locator(".mz-mail-del").click();
   await page.locator("#mail-toggle").click();
 });
+
+test("通知のダイアログは順番待ち: 開いているダイアログを押しのけず、閉じたら次を出す。待っている間に郵便箱で見た分は出さない（2026-10-15）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  const dlg = page.locator(".mz-dlg");
+  run("notify", "-title", "1 つ目");
+  await expect(dlg.locator("h2")).toHaveText("1 つ目");
+  run("notify", "-title", "2 つ目");
+  run("notify", "-title", "3 つ目");
+  await expect(page.locator("#mail-badge")).toHaveText("2"); // 待っている間は未読
+  await page.waitForTimeout(300);
+  await expect(dlg.locator("h2")).toHaveText("1 つ目"); // 押しのけない
+  await dlg.locator("[data-ok]").click();
+  await expect(dlg.locator("h2")).toHaveText("2 つ目");
+  // 3 つ目は、待っている間にほかから読まれた（ダイアログは画面を覆うので、別の画面などから。ここではサーバーに直接）。2 つ目を閉じても出さない
+  const base = new URL(`d/${new URL(page.url()).searchParams.get("d")}/api/mail`, page.url()).href;
+  const items = (await (await page.request.get(base)).json()).items as { id: string; body: { title?: string } }[];
+  const third = items.find(i => i.body.title === "3 つ目")!;
+  await page.request.post(`${base}/${third.id}/read`, { data: {} });
+  await dlg.locator("[data-ok]").click();
+  await page.waitForTimeout(300);
+  await expect(dlg).toHaveCount(0);
+  await expect(page.locator("#mail-badge")).toHaveText("");
+});

@@ -47,7 +47,7 @@ import type { Diagram as DiagramData, PagePattern, WorldInfo } from "./types";
 import { PATTERN_LABELS, isPattern } from "./validate";
 import type { SideToggle } from "./main";
 import { createCrossList, CROSS_MIME, type CrossPayload } from "./cross-list";
-import { type MailNote, arrivedNote, createMailbox, badgeText, openNoteDialog, readMail, removeMail, sendMail } from "./mailbox";
+import { type MailNote, arrivedNote, createMailbox, badgeText, fetchMail, openNoteDialog, readMail, removeMail, sendMail } from "./mailbox";
 import { LINK_LOOK_DEFS } from "./link-box";
 
 export interface AppUi {
@@ -655,6 +655,7 @@ export async function startApp(ui: AppUi) {
   // - 説明だけ: ダイアログを出したら行を取り除く（事実上ダイアログだけ）
   // - 「届いています」（arrive）: 今見ているページなら何もしない。何も見ていなければすぐ出す
   // - 何も見ていない・郵便箱が使えない（状態のフォルダが無い）: 開く動きならすぐ出し、説明だけならダイアログだけ出す
+  // - ほかのダイアログが開いていれば押しのけず、閉じるまで待つ（queueNote）
   async function deliver(n: Notice) {
     const b = n.book ? await openBook(n.book) : null;
     if (n.book && !b) return;
@@ -663,21 +664,56 @@ export async function startApp(ui: AppUi) {
     const name = b ? titleOf(b) + (n.page ? ` / ${b.tabs.find(x => x.page === n.page)?.label.textContent ?? n.page}` : "") : "";
     const base: MailNote = n.arrive && b ? arrivedNote(b.id, n.page, name) : { kind: "note", title: n.title, body: n.body, book: n.book, page: n.page, name };
     const note: MailNote = viewing ? { ...base, book: null, page: null } : base;
-    const into = current?.book.id;
+    const into = current?.book.id ?? null;
     const sent = into ? await sendMail(into, note) : null;
     if (!sent || !into) {
       if (b && note.book) return activate(b, n.page);
-      if (n.dialog) openNoteDialog(note);
+      if (n.dialog) queueNote({ note, into: null, sent: null, open: () => {} });
       return;
     }
     if (!n.dialog) return;
-    // ダイアログで中身を見せるので、読んだことにする（説明だけなら取り除く。開く動きがあればキャンセルでも残る）
-    void (note.book ? readMail(into, sent) : removeMail(into, sent));
-    openNoteDialog(note, () => {
-      if (b) activate(b, n.page);
-      void removeMail(into, sent);
-    });
+    queueNote({ note, into, sent, open: () => { if (b) activate(b, n.page); } });
   }
+
+  // 通知のダイアログの順番待ち（2026-10-15 ユーザー）。ほかのダイアログ（編集ダイアログや前の通知）が開いていれば押しのけず、閉じたら届いた順に出す
+  // （押しのけると、前の通知や編集中の入力が失われるため）。待っている間は郵便箱に未読の行として残り、その間に郵便箱から中身を見た分は出さない
+  interface QueuedNote { note: MailNote; into: string | null; sent: string | null; open: () => void }
+  const noteQueue: QueuedNote[] = [];
+  let showingNote = false;
+  const dialogOpen = () => !!document.querySelector(".mz-dlg-overlay");
+  function queueNote(q: QueuedNote) {
+    noteQueue.push(q);
+    void showNextNote();
+  }
+  async function showNextNote() {
+    if (showingNote || dialogOpen()) return;
+    const q = noteQueue.shift();
+    if (!q) return;
+    showingNote = true;
+    try {
+      if (q.into && q.sent) {
+        const still = (await fetchMail(q.into)).find(m => m.id === q.sent);
+        if (!still || still.read) return; // 待っている間に郵便箱から見た・消した
+        if (dialogOpen()) { noteQueue.unshift(q); return; } // 確かめている間に別のダイアログが開いた
+      }
+      const { note, into, sent } = q;
+      // ダイアログで中身を見せるので、読んだことにする（説明だけなら取り除く。開く動きがあればキャンセルでも残る）
+      if (into && sent) void (note.book ? readMail(into, sent) : removeMail(into, sent));
+      openNoteDialog(note, () => {
+        q.open();
+        if (into && sent) void removeMail(into, sent);
+      });
+    } finally {
+      showingNote = false;
+      if (!dialogOpen()) void showNextNote(); // 出さなかった（見た・消した）なら次へ
+    }
+  }
+  // ダイアログが閉じたら、待っている通知を出す（閉じたときの処理がさらにダイアログを開くこともあるので、次の番に回してから見る）
+  new MutationObserver(list => {
+    if (noteQueue.length && list.some(m => [...m.removedNodes].some(x => x instanceof Element && x.classList.contains("mz-dlg-overlay")))) {
+      setTimeout(() => void showNextNote(), 0);
+    }
+  }).observe(document.body, { childList: true });
 
   // matomezu check の配置の要約（D30。docs/NOTIFY-plan.md）。この画面がカレントなので頼まれた。前に出さず、ファイルも書き換えない。
   // そのページをその版で表示していれば表示中の図から、していなければ見えない所に同じ大きさで並べて作る（offscreen-scene.ts）。
