@@ -146,7 +146,7 @@ import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
-  overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkLookOf, linkPageOf, clipOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
+  overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
@@ -158,16 +158,16 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, t
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
-import type { BoxData, BoxView, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, LinkLook, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
+import type { BoxData, BoxView, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
 import { DEFAULT_PAPER, PAGE_PATTERNS, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, normalizeEdge, validate } from "./validate";
-import { DEFAULT_LINK_LOOK, type Rect as ClipRect, isRect } from "./link-box";
-import { type Scene, sceneOf } from "./preview-art";
-import { EMPTY_SCENE, dataScene } from "./data-scene";
+import { DEFAULT_LINK_LOOK, isRect } from "./link-box";
+import type { Scene } from "./preview-art";
 import { createView } from "./graph-view";
 import { createUnseen } from "./unseen";
 import { applyFlatten, planFlatten } from "./tree-flatten";
 import { type EdgePatch, createEdges } from "./graph-edges";
 import { createResizers } from "./resizers";
+import { createPageScenes, sceneKey } from "./page-scenes";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -330,6 +330,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let fitted = new Map<string, { file: string; x: number; y: number }>();
   const posKey = (s: { x?: unknown; y?: unknown }) =>
     Number.isFinite(s.x) && Number.isFinite(s.y) ? `${s.x},${s.y}` : null;
+  // ページの縮図（リンクの箱の窓・リストの子の中身。page-scenes.ts）
+  let destroyed = false; // 壊したあとに届いた縮図は使わない
+  const P = createPageScenes({
+    opt, source: () => source, page: () => page, toJSON: () => api.toJSON(), geometry: () => api.geometry(), background: () => backgroundOf(),
+    redraw: () => api.redraw(), alive: () => !destroyed,
+  });
+  const { linkOf, windowScene, captureScene } = P;
   // まだユーザーが見ていない LLM の変更の認知（D31。unseen.ts）
   const U = createUnseen({
     container, worldEl, page: () => page, boxById: id => byId.get(id), zoom: () => V.applied(), alive: () => !destroyed,
@@ -629,39 +636,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   const pageName = (p: string | null) => pageNameOf(source, p);
-  // リンクの箱がのぞくページ（link-box.ts）: ページの名前とパターン（窓の札に出す）。リンクの箱でなければ null
-  function linkOf(n: Box): { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: ClipRect | null; book: string | null } | null {
-    const book = linkBookOf(n);
-    if (book != null) {
-      const w = opt.bookWindow?.(book, false);
-      return { page: "", pageName: w?.title ?? book, pattern: w?.pattern ?? DEFAULT_VIEW, look: linkLookOf(n), clip: clipOf(n), book };
-    }
-    const page = linkPageOf(n);
-    if (page == null) return null;
-    const view = pageWorld(source, page).childView;
-    return { page, pageName: pageName(page), pattern: isPattern(view) ? view : DEFAULT_VIEW, look: linkLookOf(n), clip: clipOf(n), book: null };
-  }
-  // 窓に映す縮図のもと。マスターの窓は、見えている窓だけ縮図を取りに行かせる（隠れた箱の中の窓は題名だけ）
-  function windowScene(n: Box): Scene {
-    if (!isLinkBox(n)) return boxScene(n);
-    const book = linkBookOf(n);
-    if (book == null) return pageScene(linkPageOf(n) ?? "");
-    return opt.bookWindow?.(book, !isHidden(n))?.scene ?? EMPTY_SCENE;
-  }
-
-  // ページの縮図のもと（リンクの箱の窓に映す。preview-art.ts。D27 段階 4）。描いたページは、ページを離れるときに配置の結果を覚える（captureScene）。
-  // 覚えたものは、そのページのデータ（箱・線・world）が変わっていない間だけ使い、変わっていれば（外部の変更など）描き直すまで近似で映す。
-  // 近似は、そのページの最上位の箱をデータの位置（無ければ 0,0）と大きさの指定（無ければ M の最小）で置き、最上位どうしの線を中心で結ぶ
-  const scenes = new Map<string, { key: string; scene: Scene }>();
-  const sceneKey = (d: Diagram, p: string | null) => {
-    const members = new Set(pageMembers(d.nodes, p));
-    const edgesIn = (d.edges ?? []).map(normalizeEdge).filter(e => members.has(String(e.from)));
-    return JSON.stringify([pageWorld(d, p), d.nodes.filter(s => members.has(String(s.id))), edgesIn]);
-  };
-  // 今のページの縮図を覚える。data は今の状態を書き出したもの（toJSON。配置で決まった位置も書いてあるので、次に読むデータと鍵が合う）
-  function captureScene(data: Diagram) {
-    scenes.set(page ?? "", { key: sceneKey(data, page), scene: sceneOf(api.geometry(), backgroundOf()) });
-  }
   // Undo / Redo（2026-10-15 ユーザー）: 履歴はブック全体なので、戻した変更が見ていないページのものなら、そのページへ切り替える
   // （今のページも変わっていれば、今のページのまま）
   function step(move: () => boolean): boolean {
@@ -678,62 +652,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     }
     return true;
   }
-
-  // 描いていないページは、画面の外で並べて作る（届くまでは空の絵。近似は線や子が合わないので出さない。2026-10-14 ユーザー）
-  const layingOut = new Set<string>();
-  let destroyed = false; // 壊したあとに届いた縮図は使わない
-  function pageScene(p: string): Scene {
-    const hit = scenes.get(p);
-    if (hit && hit.key === sceneKey(source, p)) return hit.scene;
-    if (!opt.sceneLayout) return dataScene(source, p, opt);
-    if (!layingOut.has(p)) {
-      layingOut.add(p);
-      // 組み立ての途中（描きながら呼ばれる）でデータを書き出さないよう、次の番で始める
-      setTimeout(() => {
-        if (destroyed) return;
-        const k = sceneKey(source, p);
-        void opt.sceneLayout!(api.toJSON(), p === "" ? null : p).then(scene => {
-          layingOut.delete(p);
-          if (destroyed) return;
-          scenes.set(p, { key: k, scene });
-          api.redraw();
-        }, () => layingOut.delete(p));
-      }, 0);
-    }
-    return hit?.scene ?? EMPTY_SCENE; // 変わる前の絵があれば、届くまでそれを出す
-  }
-
-  // リストの子の中身の縮図（D13。2026-10-14 ユーザー）: その箱と子孫を 1 ページの図にして画面の外で並べ、箱自身の枠を除いて映す。
-  // 鍵はその図のデータで、中身が変わるまで使い回す。届くまでは前の絵（無ければ空の絵）
-  const boxScenes = new Map<string, { key: string; scene: Scene }>();
-  function boxData(id: string): Diagram {
-    const ids = subtreeIds(source.nodes, id);
-    const nodes = source.nodes.filter(s => ids.has(String(s.id)))
-      .map(s => (String(s.id) === id ? { ...s, parent: undefined, page: undefined, x: 0, y: 0 } : s));
-    const edges = (source.edges ?? []).map(normalizeEdge).filter(e => ids.has(String(e.from)) && ids.has(String(e.to)));
-    return { world: { ...pageWorld(source, pageOf(source.nodes, id)), childView: undefined, root: undefined }, nodes, edges };
-  }
-  function boxScene(n: Box): Scene {
-    const hit = boxScenes.get(n.id);
-    if (!opt.sceneLayout) return hit?.scene ?? EMPTY_SCENE;
-    const data = boxData(n.id), k = JSON.stringify(data);
-    if (hit && hit.key === k) return hit.scene;
-    const job = "box:" + n.id;
-    if (!layingOut.has(job)) {
-      layingOut.add(job);
-      setTimeout(() => {
-        if (destroyed) return;
-        void opt.sceneLayout!(data, null, n.id).then(scene => {
-          layingOut.delete(job);
-          if (destroyed) return;
-          boxScenes.set(n.id, { key: k, scene });
-          api.redraw();
-        }, () => layingOut.delete(job));
-      }, 0);
-    }
-    return hit?.scene ?? EMPTY_SCENE;
-  }
-
 
   // 落とし先（parentId。null は今のページの最上位）の箱。子を持てない箱（クラス・フローチャートの箱）の中へは入れられない
   function target(parentId: Id | null): Box | null {
@@ -1706,7 +1624,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       setTimeout(U.check, 0); // そのページの見ていない LLM の変更（D31）
     },
     page: () => page,
-    pageScene,
+    pageScene: P.pageScene,
     redraw: () => { nodes.filter(n => isLinkBox(n) || listPreviewOf(n)).forEach(applyStyle); render(); }, // 窓と縮図の行の絵は applyStyle で描く
     linkScene: id => windowScene(nodeOf(id) as Box),
     paste,
