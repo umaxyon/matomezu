@@ -6,6 +6,7 @@ package server
 //	GET    /d/<id>/api/mail          {"items": [...]} 届いている物（古い順）
 //	POST   /d/<id>/api/mail          届ける。本文は 1 件の中身（JSON のオブジェクト。kind などは画面が決める）。{"id"} を返す
 //	POST   /d/<id>/api/mail/read     全部を読んだことにする
+//	POST   /d/<id>/api/mail/<item>/read  1 件を読んだことにする（通知の中身をダイアログで見た。欄を開いただけでは読んだことにしない。2026-10-15 ユーザー）
 //	DELETE /d/<id>/api/mail/<item>   1 件を取り除く（置いた・開いた・消した）
 //
 // 変わったら SSE の mail イベント {"doc"} で画面に知らせる。書き込みは画面からだけ（fromPage）。状態のフォルダが無ければ使えない
@@ -113,13 +114,14 @@ func (h *Hub) postMail(id string, w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"id": item.ID})
 }
 
-func (h *Hub) readAllMail(id string, w http.ResponseWriter, _ *http.Request) {
+func (h *Hub) readAllMail(id string, w http.ResponseWriter, r *http.Request) {
 	h.mailMu.Lock()
 	defer h.mailMu.Unlock()
 	items := h.readMail(id)
 	changed := false
+	one := r.PathValue("item") // 1 件だけ（無ければ全部）
 	for i := range items {
-		if !items[i].Read {
+		if !items[i].Read && (one == "" || items[i].ID == one) {
 			items[i].Read, changed = true, true
 		}
 	}

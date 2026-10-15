@@ -519,6 +519,7 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("GET /d/{id}/api/mail", h.withMail(h.getMail))
 	mux.HandleFunc("POST /d/{id}/api/mail", fromPage(h.withMail(h.postMail)))
 	mux.HandleFunc("POST /d/{id}/api/mail/read", fromPage(h.withMail(h.readAllMail)))
+	mux.HandleFunc("POST /d/{id}/api/mail/{item}/read", fromPage(h.withMail(h.readAllMail)))
 	mux.HandleFunc("DELETE /d/{id}/api/mail/{item}", fromPage(h.withMail(h.deleteMail)))
 	// LLM の履歴（llmhist.go）。取り消しは CLI（matomezu revert）から（管理の鍵が要る）
 	mux.HandleFunc("GET /d/{id}/api/llm", h.withLLM(h.getLLM))

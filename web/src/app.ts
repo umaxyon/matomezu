@@ -47,7 +47,7 @@ import type { Diagram as DiagramData, PagePattern, WorldInfo } from "./types";
 import { PATTERN_LABELS, isPattern } from "./validate";
 import type { SideToggle } from "./main";
 import { createCrossList, CROSS_MIME, type CrossPayload } from "./cross-list";
-import { type MailNote, arrivedNote, createMailbox, badgeText, openNoteDialog, removeMail, sendMail } from "./mailbox";
+import { type MailNote, arrivedNote, createMailbox, badgeText, openNoteDialog, readMail, removeMail, sendMail } from "./mailbox";
 import { LINK_LOOK_DEFS } from "./link-box";
 
 export interface AppUi {
@@ -160,19 +160,12 @@ export async function startApp(ui: AppUi) {
   let noticeFor: string | null = null;
   const mailbox = createMailbox(ui.mailbox, {
     openBook: item => openFromMail(item),
-    // 欄が開いていても、ダイアログが前を覆っている間は見えていないので、届いた物は未読のまま（閉じたら読んだことにする。下）。2026-10-15 ユーザー
-    visible: () => ui.side.open() === "mail" && !document.querySelector(".mz-dlg-overlay"),
     onCount: n => {
       ui.mailBadge.textContent = badgeText(n);
       if (noticeFor && noticeFor === mailbox.doc() && n > 0 && ui.side.open() !== "mail") toast(t("郵便箱にアイテムが届いています（{n} 件）", { n }));
       noticeFor = null;
     },
   });
-  // ダイアログを閉じたとき、郵便箱の欄が開いていれば、その間に届いて未読のままの物を読んだことにする
-  new MutationObserver(list => {
-    const closed = list.some(m => [...m.removedNodes].some(n => n instanceof Element && n.classList.contains("mz-dlg-overlay")));
-    if (closed && ui.side.open() === "mail") mailbox.refresh();
-  }).observe(document.body, { childList: true });
   onBookOpen(b => { noticeFor = b.id; mailbox.show(b.id); });
   onBookClose(b => { if (mailbox.doc() === b.id) mailbox.show(null); });
   async function openFromMail(item: MailNote) {
@@ -678,7 +671,8 @@ export async function startApp(ui: AppUi) {
       return;
     }
     if (!n.dialog) return;
-    if (!note.book) void removeMail(into, sent);
+    // ダイアログで中身を見せるので、読んだことにする（説明だけなら取り除く。開く動きがあればキャンセルでも残る）
+    void (note.book ? readMail(into, sent) : removeMail(into, sent));
     openNoteDialog(note, () => {
       if (b) activate(b, n.page);
       void removeMail(into, sent);

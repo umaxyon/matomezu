@@ -125,7 +125,7 @@ test("プレビューの間は、道具と道具箱、ページを足す＋と�
   await page.locator(".tab", { hasText: "b.json" }).locator(".tab-close").click();
 });
 
-test("郵便箱: LLM の open は今のブックの郵便箱に入り、「届いています」と聞く。キャンセルしても残り、未読の数が出て、郵便箱から開ける（D26）", async ({ page }) => {
+test("郵便箱: LLM の open は今のブックの郵便箱に入り、「届いています」と聞く。キャンセルしても残り（中身は見たので読んだことになる）、郵便箱から開ける（D26）", async ({ page }) => {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
   run("open", "-no-browser", "b.json");
@@ -134,11 +134,10 @@ test("郵便箱: LLM の open は今のブックの郵便箱に入り、「届�
   await expect(dlg).toContainText("b.json");
   await dlg.locator("[data-cancel]").click();
   await expect(selected(page)).toHaveText("a.json"); // 切り替えない
-  await expect(page.locator("#mail-badge")).toHaveText("1");
+  await expect(page.locator("#mail-badge")).toHaveText(""); // ダイアログで中身を見たので読んだことになる（2026-10-15）
   await page.locator("#mail-toggle").click();
   const box = page.locator("#mailbox");
   await expect(box.locator(".mz-mail-row")).toHaveCount(1);
-  await expect(page.locator("#mail-badge")).toHaveText(""); // 開いたら読んだことにする
   await box.locator(".mz-mail-row", { hasText: "b.json" }).click();
   await dlg.locator("[data-ok]").click();
   await expect(selected(page)).toHaveText("b.json");
@@ -595,21 +594,28 @@ test("通知はカレントの画面にだけ届く。画面が無ければ断�
   await other.close();
 });
 
-test("郵便箱の欄が開いていても、ダイアログが覆っている間に届いた物は未読のまま数に出る。ダイアログを閉じたら読んだことにする（2026-10-15）", async ({ page }) => {
+test("郵便箱は、欄を開いて題名が見えただけでは読んだことにしない。行を押して中身を見たら読んだことになる（2026-10-15）", async ({ page }) => {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
   await page.locator("#mail-toggle").click();
   await expect(page.locator("#mail-toggle")).toHaveAttribute("aria-pressed", "true");
-  run("notify", "-title", "覆うダイアログ");
-  const dlg = page.locator(".mz-dlg");
-  await expect(dlg.locator("h2")).toHaveText("覆うダイアログ");
-  run("notify", "-mail", "-title", "裏で届いた");
+  run("notify", "-mail", "-title", "欄が開いている所に届いた");
+  run("notify", "-mail", "-title", "b を開ける知らせ", "b.json");
+  const info = page.locator("#mailbox .mz-mail-row", { hasText: "欄が開いている所に届いた" });
+  const book = page.locator("#mailbox .mz-mail-row", { hasText: "b を開ける知らせ" });
+  await expect(info).toHaveClass(/mz-unread/);
+  await expect(book).toHaveClass(/mz-unread/);
+  await expect(page.locator("#mail-badge")).toHaveText("2");
+  // 開く動きのある通知: 中身を見たら読んだことになり、キャンセルなら残る
+  await book.click();
+  await page.locator(".mz-dlg [data-cancel]").click();
+  await expect(book).not.toHaveClass(/mz-unread/);
   await expect(page.locator("#mail-badge")).toHaveText("1");
-  await dlg.locator("[data-ok]").click();
+  // 説明だけの通知: 中身を見たら取り除く
+  await info.click();
+  await page.locator(".mz-dlg [data-ok]").click();
+  await expect(info).toHaveCount(0);
   await expect(page.locator("#mail-badge")).toHaveText("");
-  // 欄が開いていて、ダイアログが無ければ、届いたらすぐ読んだことにする（今までどおり）
-  run("notify", "-mail", "-title", "見えている所に届いた");
-  await expect(page.locator("#mailbox .mz-mail-row", { hasText: "見えている所に届いた" })).toHaveCount(1);
-  await expect(page.locator("#mail-badge")).toHaveText("");
+  await book.locator(".mz-mail-del").click();
   await page.locator("#mail-toggle").click();
 });

@@ -171,6 +171,11 @@ func TestMailbox(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(state, "mail", res.ID+".json")); err != nil {
 		t.Fatal(err)
 	}
+	// 1 件だけ読んだことにする（通知の中身を見た）
+	do(t, "POST", base+"/"+items[1].ID+"/read", "{}", nil)
+	if items := list(); items[0].Read || !items[1].Read {
+		t.Fatalf("read one = %+v", items)
+	}
 	do(t, "POST", base+"/read", "{}", nil)
 	if items := list(); !items[0].Read || !items[1].Read {
 		t.Fatalf("read = %+v", items)

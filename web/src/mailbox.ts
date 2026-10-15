@@ -1,12 +1,13 @@
 /*
  * 郵便箱（D26 の段階 3。docs/UI-plan.md）。ブックごとに、ほかのブックから送られた箱と、LLM からの通知が届く。
  * 置き場所はサーバーの状態のフォルダ（internal/server/mail.go）。画面はタブ行の「郵便箱」のボタン（未読の数。99 を超えたら 99+）と、
- * 左のサイドバーの一覧（今の追加削除と同じリスト）で見せる。開いたら読んだことにする。
+ * 左のサイドバーの一覧（今の追加削除と同じリスト）で見せる。欄を開いて題名が見えただけでは読んだことにしない（2026-10-15 ユーザー。
+ * D31 の認知（見える所に出たら見た）とは別の決まり）。通知は中身（ダイアログ）を見たら、箱は図に置いたら（行ごと取り除く）読んだことになる。
  * - 箱（kind: "box"）: 好きなページ・箱へドラッグして置く（ほかのブックからの移植と同じ写し。置いた箱は userAdded。パターンの違うページへは置けない）。
  *   置いたら郵便箱から取り除く
  * - 通知（kind: "note"。D30。docs/NOTIFY-plan.md）: LLM の matomezu notify と、matomezu open の「届いています」。題名と本文を持ち、
  *   ブック（ページ）を開く動きを持てる。押すとダイアログを挟む（いきなり移ると今の作業が止まるため。2026-10-15 ユーザー）。
- *   開く動きがあれば「開く / キャンセル」（開いたら取り除く。キャンセルなら残る）、説明だけなら見たら取り除く。
+ *   開く動きがあれば「開く / キャンセル」（開いたら取り除く。キャンセルなら読んだことにして残る）、説明だけなら見たら取り除く。
  *   以前の「ブック」（kind: "book"）の行は、読むときに通知に直す
  *
  *   const box = createMailbox(pane, { openBook });
@@ -50,7 +51,7 @@ export async function fetchMail(doc: string): Promise<MailItem[]> {
 // 届けた行の id を返す（届けられなければ null）
 export const sendMail = (doc: string, body: MailBody): Promise<string | null> =>
   post(base(doc), body).then(async r => (r.ok ? String((await r.json()).id) : null)).catch(() => null);
-export const readAllMail = (doc: string) => post(base(doc) + "/read").catch(() => {});
+export const readMail = (doc: string, id: string) => post(`${base(doc)}/${encodeURIComponent(id)}/read`).catch(() => {});
 export const removeMail = (doc: string, id: string) =>
   fetch(`${base(doc)}/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
 
@@ -92,7 +93,7 @@ export interface Mailbox {
   pasted(): void; // 図に箱を写した（運んでいた箱を郵便箱から取り除く）
 }
 
-export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote) => void; onCount?: (unread: number) => void; visible: () => boolean }): Mailbox {
+export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote) => void; onCount?: (unread: number) => void }): Mailbox {
   injectStyle(STYLE_ID, CSS);
   pane.classList.add("mz-mail");
   let doc: string | null = null;
@@ -104,11 +105,6 @@ export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote)
     const got = await fetchMail(d);
     if (doc !== d) return;
     items = got;
-    // 見えていれば、届いた物を読んだことにする
-    if (o.visible() && items.some(i => !i.read)) {
-      items = items.map(i => ({ ...i, read: true }));
-      void readAllMail(d);
-    }
     render();
   }
 
@@ -137,6 +133,7 @@ export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote)
     if (item && item.body.kind === "note" && doc) {
       const d = doc, body = item.body;
       if (!body.book) void removeMail(d, item.id); // 説明だけの通知は、見たら取り除く
+      else if (!item.read) void readMail(d, item.id); // 開く動きのある通知は、中身を見たら読んだことにする（キャンセルなら残る）
       openNoteDialog(body, () => { void removeMail(d, item.id); o.openBook(body); });
     }
   });
