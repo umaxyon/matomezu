@@ -1131,6 +1131,11 @@ test("説明ツアー: 案内で開始すると幕で操作を止め、段をブ
   const dlg = page.locator(".mz-dlg");
   await expect(dlg).toContainText("「流れ」の説明ツアーを開始してもいいですか？（2 ステップ）");
   expect(run("tour", "-status")).toContain("waiting");
+  // ダイアログで届いた案内はキャンセルが無く、Esc でも閉じない（郵便箱にも入れない）
+  await expect(dlg.locator("[data-cancel]")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(1);
+  await expect(page.locator("#mail-badge")).toHaveText("");
   await dlg.locator("[data-ok]").click();
   const bubble = page.locator(".mz-tour-bubble");
   await expect(bubble).toContainText("ここが入口です");

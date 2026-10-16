@@ -178,6 +178,7 @@ export default {
   "読み込めませんでした": "Could not load",
   "マスターの窓へドラッグすると、そのブックの郵便箱へ送ります（子と、中の線も）": "Drag onto a window on the master to send it to that book's mailbox (with its children and the lines inside)",
   // 説明ツアー（D38）
+  "{key}+Enter で{ok}": "{key}+Enter: {ok}",
   "説明ツアー": "Guided tour",
   "ツアーを終える": "End the tour",
   "← 前へ": "← Back",

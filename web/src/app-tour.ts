@@ -1,6 +1,6 @@
 // 説明ツアー（D38。matomezu tour。internal/server/tour.go。docs/TOUR-plan.md）の、画面の側の判断。2026-10-16 ユーザーと決めた決まり:
-// - 開始の案内は郵便かダイアログ（notify と同じ。-mail なら郵便だけ）。「「{title}」の説明ツアーを開始してもいいですか？（n ステップ）」に
-//   ［拒否］［キャンセル］［開始］。拒否は interrupt を返して終わり、キャンセルは郵便に残る（あとで開いて開始できる）
+// - 開始の案内は郵便（-mail）かダイアログ。「「{title}」の説明ツアーを開始してもいいですか？（n ステップ）」に［拒否］［開始］。拒否は interrupt を返して終わる。
+//   郵便から開いたときだけ［キャンセル］もあり、郵便に残る（あとで開いて開始できる）。ダイアログで届いたものは郵便箱に入れず、Esc でも閉じない
 // - 案内を出す決まりはフォーカスと同じ: 手すきでなければ断る（busy）、フォーカスの反応待ちなら断る（pending）。段の箱が無ければ誤り
 // - ツアー中は幕をかけてすべての操作を止める（tour-view.ts）。段はページもブックもまたぐ。倍率は今のまま、箱が収まらなければ収まる段まで下げる
 // - × と Esc で「ツアーを終えますか？」（［開始前の場所に戻る］［ここに留まる］・キャンセルで続ける）。最後の段の［終わる］で complete を返し、
@@ -67,10 +67,12 @@ export function createTourer<B extends TourBook>(ctx: TourContext<B>) {
       if (!b) return send("error", `step ${i + 1}: the diagram could not be opened in the browser`);
       if (!nodesOf(b).some(n => String(n.id) === s.box)) return send("error", `step ${i + 1}: no box ${s.box} in that diagram (removed boxes can't be shown)`);
     }
-    const into = ctx.current()?.book.id ?? null;
+    // 郵便（-mail）なら今見ているブックの郵便箱にだけ入れる（開くとキャンセルもある）。ダイアログなら郵便箱には入れず、
+    // 拒否か開始を選ぶまで閉じない（2026-10-16 ユーザー: 郵便で受け取ったのでなければキャンセルは要らない）
     const note: MailNote = { kind: "note", title: t("説明ツアー: {title}", { title: tour.title }), body: "", book: null, page: null, tour: tour.id };
+    const into = mail ? ctx.current()?.book.id ?? null : null;
     const sent = into ? await sendMail(into, note) : null;
-    if (!mail || !sent) ctx.queue(note, into, sent, () => void offer(tour.id, into, sent));
+    if (!sent) ctx.queue(note, null, null, () => void offer(tour.id, null, null));
     send("offered");
   }
 
@@ -86,7 +88,7 @@ export function createTourer<B extends TourBook>(ctx: TourContext<B>) {
     openSimpleDialog(t("説明ツアー"), t("開始"),
       `<p class="mz-dlg-message">${esc(t("「{title}」の説明ツアーを開始してもいいですか？（{n} ステップ）", { title: tour.title, n: tour.steps.length }))}</p>`,
       () => { drop(); void begin(tour); },
-      { extra: [{ label: t("拒否"), onClick: () => { drop(); post(tour.id, "interrupt"); } }] });
+      { cancel: !!sent, escape: !!sent, extra: [{ label: t("拒否"), onClick: () => { drop(); post(tour.id, "interrupt"); } }] });
   }
 
   async function begin(tour: Tour) {

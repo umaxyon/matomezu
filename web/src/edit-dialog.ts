@@ -840,9 +840,10 @@ export function openConfirmDialog(title: string, message: string, okLabel: strin
 // 単純なダイアログ（確認・お知らせ）。html は本文（呼ぶ側でエスケープする）。okLabel のボタンで onOk を呼ぶ。
 // cancel: false ならキャンセルのボタンを出さない（お知らせ。Esc では閉じる）
 // extra は確定とキャンセルのほかのボタン（押すと閉じてから onClick。説明ツアーの拒否・開始前の場所に戻るなど。D38）
+// escape: false なら Esc で閉じない（選ばずに閉じられないダイアログ。ダイアログで届いた説明ツアーの案内。D38）
 export function openSimpleDialog(title: string, okLabel: string, html: string, onOk: () => void,
-  o: { cancel?: boolean; extra?: { label: string; onClick: () => void }[] } = {}): HTMLElement {
-  return show(title, okLabel, html, () => onOk(), "", undefined, { simple: true, cancel: o.cancel ?? true, extra: o.extra });
+  o: { cancel?: boolean; escape?: boolean; extra?: { label: string; onClick: () => void }[] } = {}): HTMLElement {
+  return show(title, okLabel, html, () => onOk(), "", undefined, { simple: true, cancel: o.cancel ?? true, escape: o.escape, extra: o.extra });
 }
 
 // 線のキャプション、通り方（折れ線・直線。自分に戻る線では出さない）、線の種類（実線・破線）、矢印（始点・終点）。
@@ -930,14 +931,14 @@ export function openDialog(title: string, okLabel: string, fields: string, commi
 
 // check は確定の前に呼ぶ（false なら閉じずに待つ。入力の誤りを示すのは check の側）
 function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void | boolean, lead = "", check?: () => boolean,
-  form: { simple?: boolean; cancel?: boolean; extra?: { label: string; onClick: () => void }[] } = {}): HTMLElement {
+  form: { simple?: boolean; cancel?: boolean; escape?: boolean; extra?: { label: string; onClick: () => void }[] } = {}): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
   const overlay = document.createElement("div");
   overlay.className = "mz-dlg-overlay";
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   const key = mac ? "⌘" : "Ctrl";
-  const hint = `<span class="mz-dlg-hint">${esc(form.cancel === false
+  const hint = `<span class="mz-dlg-hint">${esc(form.escape === false ? t("{key}+Enter で{ok}", { key, ok: okLabel }) : form.cancel === false
     ? t("{key}+Enter / Esc で{ok}", { key, ok: okLabel }) // キャンセルの無いお知らせ（Esc でも閉じるだけ）
     : t("{key}+Enter で{ok} / Esc でキャンセル", { key, ok: okLabel }))}</span>`;
   const buttons = `${(form.extra ?? []).map((x, i) => `<button type="button" class="mz-dlg-btn" data-extra="${i}">${esc(x.label)}</button>`).join("")}${form.cancel === false ? "" : `<button type="button" class="mz-dlg-btn" data-cancel>${t("キャンセル")}</button>`}
@@ -993,7 +994,7 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
       }
       return;
     }
-    if (e.key === "Escape") { e.preventDefault(); closeEditDialog(); return; }
+    if (e.key === "Escape") { e.preventDefault(); if (form.escape !== false) closeEditDialog(); return; }
     if (e.key === "Tab") {
       // Tab で後ろの要素へ移らないよう、ダイアログの中を巡らせる
       const items = [...overlay.querySelectorAll<HTMLElement>("input:not(:disabled):not([type=hidden]), textarea:not(:disabled), select:not(:disabled), button:not(:disabled)")];
