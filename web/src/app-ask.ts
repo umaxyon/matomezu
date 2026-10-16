@@ -5,7 +5,8 @@
 // - 話題の箱は 1 ページに限る（パレットからページをまたがない）
 // - 吹き出しと印は graph.askBubbles（ask-bubbles.ts）。タブ行の真ん中にパレット「AI の問い 0 / 5 [A][B]…」（押すとその問いへスクロールし、隠していれば開く）
 // - 吹き出しに収まらない問いはドロワー（ask-drawer.ts）。印かパレットで開く
-// - ユーザーの操作（答えた・見た・隠した・開いた・答えない）はサーバーへ送る。話題を終わらせるのはいつも AI
+// - ユーザーの操作（答えた・見た・隠した・開いた・答えない）はサーバーへ送る。話題を終わらせるのは AI（ask -end）。
+//   例外として、ユーザーもパレットの「終える」で終えられる（AI の -end を待たずに次を出せる。答えは ask -status で読める）
 import { esc } from "./dom";
 import { openSimpleDialog } from "./edit-dialog";
 import type { Graph } from "./graph";
@@ -123,11 +124,20 @@ export function createAsker<B extends AskBook>(ctx: AskContext<B>) {
     const count = live.items.filter(done).length;
     ctx.palette.innerHTML = `<span class="ask-label">${esc(t("AI の問い"))}</span><span class="ask-count">${count} / ${live.items.length}</span>` +
       live.items.map(it => `<button type="button" data-ask="${esc(it.id)}" class="${done(it) ? "ask-done" : ""}${it.view === "drawer" ? " ask-drawer" : ""}"
-        title="${esc(it.text || (it.choices ?? []).join(" / "))}">${esc(it.letter ?? t("見る"))}</button>`).join("");
+        title="${esc(it.text || (it.choices ?? []).join(" / "))}">${esc(it.letter ?? t("見る"))}</button>`).join("") +
+      `<button type="button" class="ask-end" data-ask-end title="${esc(t("この話題を終えて、吹き出しを消します（答えた分は AI に届きます）"))}">${esc(t("終える"))}</button>`;
   }
 
   // パレットを押した: その問いのページへ移ってスクロールし、隠していれば開く（ドロワーの問いはドロワーを開く）
   ctx.palette.addEventListener("click", e => {
+    // 「終える」: ユーザーが話題を終える（2026-10-16 ユーザー。答えるほどでもない問いが残ったとき）。答えはサーバーに残り、AI が読める
+    if (e.target instanceof Element && e.target.closest("[data-ask-end]") && topic) {
+      topic = null;
+      drawer.close();
+      render();
+      void post({ state: "ended" });
+      return;
+    }
     const id = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-ask]")?.dataset.ask : undefined;
     const it = id ? topic?.items.find(x => x.id === id) : undefined;
     const b = topic ? ctx.books().find(x => x.id === topic!.doc) : undefined;

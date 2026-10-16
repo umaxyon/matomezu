@@ -152,7 +152,7 @@ func printTopic(t *server.Topic) {
 	if t == nil {
 		return
 	}
-	state := map[string]string{"asking": "waiting for the user to move to the diagram", "open": "open", "declined": "the user declined to move to the diagram", "closed": "the user closed the diagram"}[t.State]
+	state := map[string]string{"asking": "waiting for the user to move to the diagram", "open": "open", "declined": "the user declined to move to the diagram", "closed": "the user closed the diagram", "ended": "the user ended the topic (you can ask again)"}[t.State]
 	fmt.Printf("topic on %s: %s\n", t.Path, state)
 	for _, it := range t.Items {
 		name := it.ID

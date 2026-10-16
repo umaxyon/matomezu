@@ -322,7 +322,7 @@ func AskTopic(s *State, c *server.AskControl) (*server.Topic, error) {
 	var t server.Topic
 	var err error
 	if c == nil {
-		err = call(s, "GET", "/api/ask", nil, &t)
+		err = call(s, "GET", "/api/ask?last=1", nil, &t)
 	} else {
 		err = call(s, "POST", "/api/ask/control", c, &t)
 	}

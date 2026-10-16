@@ -128,6 +128,8 @@ export default {
   "答えを書いてください": "Write your answer",
   "答えない": "Don't answer",
   "答える": "Answer",
+  "終える": "End",
+  "この話題を終えて、吹き出しを消します（答えた分は AI に届きます）": "End this topic and remove the bubbles (your answers so far reach the AI)",
   "AI の問い（押すと開く）": "AI question (click to open)",
   "AI の問い（押すと吹き出しを開く）": "AI question (click to open the bubble)",
   "ブック「{book}」の「{box}」を示しています。移動しますか？": "It is pointing at \"{box}\" in the book \"{book}\". Go there?",

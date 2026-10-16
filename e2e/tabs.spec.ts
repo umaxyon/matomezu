@@ -1099,3 +1099,21 @@ test("AI の問い: ドロワーを開くと、その問いの印がドロワー
   await expect(drawer).toBeHidden();
   run("ask", "-end");
 });
+
+test("AI の問い: パレットの「終える」でユーザーが話題を終えられる。吹き出しは消え、答えは -status と check に残り、AI は -end なしで次を出せる（D36）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  run("ask", "a.json", JSON.stringify({ items: [{ box: "2", text: "残す？", choices: ["はい", "いいえ"] }, { box: "5", choices: ["了承する"] }] }));
+  const bubbles = page.locator(".stage:visible .mz-ask-bubble:visible");
+  await bubbles.filter({ hasText: "残す？" }).locator("[data-choice='はい']").click();
+  await page.locator("#ask-palette [data-ask-end]").click();
+  await expect(bubbles).toHaveCount(0);
+  await expect(page.locator("#ask-palette")).toBeHidden();
+  const status = run("ask", "-status");
+  expect(status).toContain("the user ended the topic");
+  expect(status).toContain(`1 (A) box 2, bubble: answered ["はい"]`);
+  expect(run("check", "a.json")).toContain("ask: the user ended the topic (1 of 2 questions responded)");
+  expect(run("ask", "a.json", JSON.stringify({ items: [{ box: "2", text: "次の問い" }] }))).toContain("shown");
+  expect(run("ask", "-status")).not.toContain("ended");
+  run("ask", "-end");
+});

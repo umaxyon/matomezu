@@ -5,14 +5,16 @@ package server
 //
 //	POST /api/ask           {"path", "items"} 話題を出す。カレントの画面に頼み（イベント ask）、答え {"state", "items"} を返す … 要トークン
 //	                        話題が残っている・フォーカスの反応待ち・ユーザーが操作中なら 409、項目の誤り・箱が無いなどは 400 / 422
-//	GET  /api/ask           今の話題（無ければ {}）。画面がつないだとき・変わったと知らされたときに読む
+//	GET  /api/ask           今の話題（無ければ {}）。画面がつないだとき・変わったと知らされたときに読む。?last=1 はユーザーが終えた話題も（ask -status）
 //	POST /api/ask/control   {"end"} 話題を終わらせる・{"hide": id} / {"show": id} 吹き出しを閉じる・開く。今の話題を返す … 要トークン
-//	POST /api/ask/screen    画面から: {"state": "open" | "declined" | "closed"}（ほかのブックへ移る確かめの答え・ブックを閉じた）か
+//	POST /api/ask/screen    画面から: {"state": "open" | "declined" | "closed" | "ended"}（ほかのブックへ移る確かめの答え・ブックを閉じた・
+//	                        ユーザーがパレットの「終える」で終えた）か
 //	                        {"item", "state": "open" | "hidden" | "answered" | "seen" | "declined", "answer", "note"}（ユーザーの操作）
 //
 // 吹き出しかドロワーかは、文字の量でここが決める（AI は選ばない。2026-10-16 ユーザー）。
 // 吹き出し: 本文は全角 20 文字まで（半角は 0.5）、ボタン 2 つまでで文言の合計 6 文字まで、複数選択・文字の入力なし。超えればドロワー（本文 150 文字まで）。
 // 変わるたびに、つながっている画面へ askchanged を送る（画面は GET /api/ask で読み直す）。
+// ユーザーが終えた話題は、その場で終わる（AI の -end を待たずに次を出せる）。答えは次の話題を出すまで ask -status と check で読める（lastTopic）。
 
 import (
 	"encoding/json"
@@ -52,7 +54,7 @@ type AskItem struct {
 type Topic struct {
 	Doc   string    `json:"doc"`
 	Path  string    `json:"path"`
-	State string    `json:"state"` // asking（ほかのブックへ移る確かめ中）/ open / declined（移るのを断られた）/ closed（ユーザーがブックを閉じた）
+	State string    `json:"state"` // asking（ほかのブックへ移る確かめ中）/ open / declined（移るのを断られた）/ closed（ユーザーがブックを閉じた）/ ended（ユーザーが終えた）
 	Items []AskItem `json:"items"`
 	At    int64     `json:"at"`
 }
@@ -146,6 +148,7 @@ func (h *Hub) ask(path string, items []AskItem, focus bool) (string, *Topic, err
 	}
 	t := &Topic{Doc: res.ID, Path: path, State: "asking", Items: items, At: time.Now().UnixMilli()}
 	h.topic = t
+	h.lastTopic = nil
 	h.mu.Unlock()
 	msg := map[string]string{"doc": res.ID}
 	if focus {
@@ -198,7 +201,13 @@ func (h *Hub) Topic() *Topic {
 // askLine は matomezu check に添える 1 行（その図の話題があるとき）
 func (h *Hub) askLine(doc string) string {
 	t := h.Topic()
-	if t == nil || t.Doc != doc {
+	if t == nil {
+		if l := h.LastTopic(); l != nil && l.Doc == doc {
+			return fmt.Sprintf("ask: the user ended the topic (%d of %d questions responded); matomezu ask -status shows the answers", responded(l), len(l.Items))
+		}
+		return ""
+	}
+	if t.Doc != doc {
 		return ""
 	}
 	switch t.State {
@@ -209,13 +218,30 @@ func (h *Hub) askLine(doc string) string {
 	case "closed":
 		return "ask: the user closed this diagram; end the topic: matomezu ask -end"
 	}
-	done := 0
+	return fmt.Sprintf("ask: %d of %d questions responded (matomezu ask -status for the answers; matomezu ask -end when you have enough)", responded(t), len(t.Items))
+}
+
+// responded は答えた（見た・答えないも）問いの数
+func responded(t *Topic) int {
+	n := 0
 	for _, it := range t.Items {
 		if it.State == "answered" || it.State == "seen" || it.State == "declined" {
-			done++
+			n++
 		}
 	}
-	return fmt.Sprintf("ask: %d of %d questions responded (matomezu ask -status for the answers; matomezu ask -end when you have enough)", done, len(t.Items))
+	return n
+}
+
+// LastTopic はユーザーが終えた話題の写し（次の話題を出すまで。無ければ nil）
+func (h *Hub) LastTopic() *Topic {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.lastTopic == nil {
+		return nil
+	}
+	t := *h.lastTopic
+	t.Items = append([]AskItem(nil), h.lastTopic.Items...)
+	return &t
 }
 
 // AskControl は話題を終わらせる・吹き出しを開閉する
@@ -288,10 +314,17 @@ func (h *Hub) askHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Hub) getAsk(w http.ResponseWriter, _ *http.Request) {
+// getAsk は今の話題。?last=1 なら、話題が無いときユーザーが終えた話題を返す（ask -status。画面は今の話題だけを描く）
+func (h *Hub) getAsk(w http.ResponseWriter, r *http.Request) {
 	if t := h.Topic(); t != nil {
 		writeJSON(w, t)
 		return
+	}
+	if r.URL.Query().Get("last") != "" {
+		if l := h.LastTopic(); l != nil {
+			writeJSON(w, l)
+			return
+		}
 	}
 	writeJSON(w, map[string]any{})
 }
@@ -304,7 +337,12 @@ func (h *Hub) askControl(w http.ResponseWriter, r *http.Request) {
 	}
 	if c.End {
 		if t := h.Topic(); t == nil {
-			writeJSON(w, map[string]any{}) // 終わらせる話題が無いのは誤りにしない（何度呼んでもよい）
+			// 終わらせる話題が無いのは誤りにしない（何度呼んでもよい）。ユーザーが終えた話題があれば、それを返す
+			if l := h.LastTopic(); l != nil {
+				writeJSON(w, l)
+				return
+			}
+			writeJSON(w, map[string]any{})
 			return
 		}
 	}
@@ -339,6 +377,9 @@ func (h *Hub) askScreenUpdate(w http.ResponseWriter, r *http.Request) {
 		switch u.State {
 		case "open", "declined", "closed":
 			t.State = u.State
+		case "ended":
+			t.State = u.State
+			h.lastTopic, h.topic = t, nil
 		default:
 			h.mu.Unlock()
 			http.Error(w, "unknown state", http.StatusBadRequest)

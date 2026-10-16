@@ -91,6 +91,7 @@ type Hub struct {
 	fits      map[string]*fitRequest        // 画面に頼んでいる、紙に収まるかの確かめ（fit.go。D33）
 	points    map[string]chan PointAnswer   // 画面に頼んでいるフォーカス枠・話題（point.go。D37・D36）
 	topic     *Topic                        // AI の問いの話題（ask.go。D36。同時に 1 つ）
+	lastTopic *Topic                        // ユーザーが終えた話題（次の話題を出すまで、答えを読めるように）
 	idleSince time.Time                     // 画面が 0 になった時刻
 	shown     event                         // 最後に開くよう頼まれた図とページ（open か、ask なら notify のイベント）
 	shownAt   time.Time
