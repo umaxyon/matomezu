@@ -44,6 +44,8 @@ export default {
   "拡大（Ctrl+ホイールでも）": "Zoom in (or Ctrl+wheel)",
   "拡大": "Zoom in",
   "全体を収める": "Fit to screen",
+  "初めの位置に戻す（倍率も 100% に。Home キーでも）": "Back to the start (also zoom 100%; or the Home key)",
+  "初めの位置に戻す": "Back to the start",
   "プレビュー: 拡大縮小して見る（見るだけ。押すと選べる。背景のドラッグで移動。Esc か、もう一度押すと編集に戻る）":
     "Preview: zoom in and out to view (view only; click to select, drag the background to pan. Esc or click again to return to editing)",
   "プレビュー": "Preview",

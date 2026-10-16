@@ -110,6 +110,22 @@ test("編集中も倍率のボタンが出て、50% / 75% / 100% / 125% の段�
   await expect(page.locator("#zoom-level")).toHaveText("50%");
 });
 
+test("「初めの位置に戻す」と Home キーで、倍率 100% の開いたときの見え方に戻る。プレビューでは出さない（E20）", async ({ page }) => {
+  const start = await scrollOf(page);
+  await page.click("#zoom-in");
+  await expect(page.locator("#zoom-level")).toHaveText("125%");
+  await stage(page).evaluate(s => { s.scrollLeft += 120; s.scrollTop += 80; });
+  await page.click("#zoom-home");
+  await expect(page.locator("#zoom-level")).toHaveText("100%");
+  await expect.poll(() => scrollOf(page)).toEqual(start);
+  await stage(page).evaluate(s => { s.scrollLeft += 120; s.scrollTop += 80; });
+  await page.locator("#stage").click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press("Home");
+  await expect.poll(() => scrollOf(page)).toEqual(start);
+  await page.click("#preview-toggle");
+  await expect(page.locator("#zoom-home")).toBeHidden();
+});
+
 test("125% でも、箱はポインタに付いて動き（画面で 125 動かすと図で 100）、箱の大きさは 100% のときと同じ", async ({ page }) => {
   const at100 = await rect(page, 2);
   await page.click("#zoom-in");

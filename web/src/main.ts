@@ -82,7 +82,7 @@ async function main() {
   const side = setupSide({ boxes: $<HTMLButtonElement>("side-toggle"), mail: $<HTMLButtonElement>("mail-toggle") });
   setupSettings($("settings"));
   const preview = setupPreview({
-    toggle: $("preview-toggle"), zoomOut: $("zoom-out"), zoomIn: $("zoom-in"), fit: $("zoom-fit"), level: $("zoom-level"),
+    toggle: $("preview-toggle"), zoomOut: $("zoom-out"), zoomIn: $("zoom-in"), fit: $("zoom-fit"), home: $("zoom-home"), level: $("zoom-level"),
   });
   if (await served()) {
     document.body.classList.add("served");

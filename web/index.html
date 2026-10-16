@@ -71,6 +71,7 @@
   body.master #book, body.master #side-toggle, .tab-group-master .tab-close, .tab-group-master .tab-add { display: none; }
   /* プレビュー（見るだけ。preview.ts）: 倍率の操作を出し、サイドバー・編集の道具・全体像は隠す */
   .zoom { display: flex; align-items: center; gap: 2px; }
+  body.previewing #zoom-home { display: none; } /* プレビューは「全体」で戻す */
   body:not(.previewing) #zoom-fit { display: none; } /* 編集中の倍率は 75% / 100% / 125% の段だけ（D32）。「全体」はプレビューだけ */
   .zoom-level { min-width: 3.5em; text-align: center; font-size: 12px; color: var(--hint); }
   body.previewing #sidebar, body.previewing .toolbar, body.previewing #minimap-toggle, body.previewing .mz-minimap,
@@ -264,6 +265,9 @@
       <span class="zoom-level" id="zoom-level"></span>
       <button id="zoom-in" class="icon-btn" title="拡大（Ctrl+ホイールでも）" aria-label="拡大">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button id="zoom-home" class="icon-btn" title="初めの位置に戻す（倍率も 100% に。Home キーでも）" aria-label="初めの位置に戻す">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7M6 9.5V20h12V9.5"/></svg>
       </button>
       <button id="zoom-fit" class="icon-btn" title="全体を収める" aria-label="全体を収める">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>

@@ -3,6 +3,7 @@
 // - ＋／－のボタンと Ctrl+ホイール（Mac は Cmd も）で拡大縮小し、「全体」で収まる倍率に戻る。背景のドラッグで見る範囲を動かす（graph.ts）
 // - プレビュー中は、押すと選ぶだけで、図を直す操作は効かない。サイドバー・タブ行の道具・道具箱は隠し、タブは今のブックだけにする（index.html の body.previewing）
 // - 編集中も同じボタン（－・倍率・＋）と Ctrl+ホイールで、EDIT_ZOOMS の段から倍率を選ぶ（D32。2026-10-15 ユーザー）。「全体」はプレビューだけ
+// - 編集中は「初めの位置に戻す」（と Home キー）で、倍率 100% の開いたときの見え方に戻る（E20）
 // - ボタンと編集中の段の切り替えは、なめらかに変える（ANIMATE_MS）。ポインタ（ボタンなら表示領域の真ん中）の下の点が動かないようにスクロールを合わせる
 // 前に出ている図が変わったら attach で付け替える（app.ts はブックを切り替えたとき）。プレビュー中なら、新しい図もプレビューにする
 
@@ -21,6 +22,7 @@ export interface PreviewUi {
   zoomOut: HTMLButtonElement;
   zoomIn: HTMLButtonElement;
   fit: HTMLButtonElement;
+  home: HTMLButtonElement; // 編集中に、開いたときの見え方（倍率 100%・紙の左上）へ戻す（E20。Home キーでも）
   level: HTMLElement; // 今の倍率（%）
 }
 
@@ -115,6 +117,17 @@ export function setupPreview(ui: PreviewUi): Preview {
     showLevel();
   }
 
+  // 開いたときの見え方に戻す（E20。2026-10-16 ユーザー: 倍率も 100% に、Home キーでも）。編集中だけ（プレビューは「全体」）
+  function home() {
+    if (!graph || on) return;
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+    target = 1;
+    graph.setZoom(1);
+    graph.home();
+    showLevel();
+  }
+
   function setOn(next: boolean) {
     if (frame) cancelAnimationFrame(frame);
     frame = 0;
@@ -130,8 +143,14 @@ export function setupPreview(ui: PreviewUi): Preview {
   ui.zoomIn.addEventListener("click", () => { if (on) zoomTo(current() * STEP, undefined, true); else editStep(1); });
   ui.zoomOut.addEventListener("click", () => { if (on) zoomTo(current() / STEP, undefined, true); else editStep(-1); });
   ui.fit.addEventListener("click", fit);
+  ui.home.addEventListener("click", home);
   document.addEventListener("keydown", e => {
     if (on && e.key === "Escape" && !typing(e.target)) setOn(false);
+    if (e.key === "Home" && !on && graph && !typing(e.target) && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
+      && !document.querySelector(".mz-dlg-overlay") && !graph.dragging()) {
+      e.preventDefault();
+      home();
+    }
   });
 
   function attach(g: Graph | null, s: HTMLElement | null) {
