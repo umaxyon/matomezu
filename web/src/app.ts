@@ -39,6 +39,7 @@ import { mountDiagram } from "./view";
 import { openNewPageDialog } from "./new-page";
 import { openBookDialog } from "./book-dialog";
 import { toast } from "./toast";
+import { createTourer } from "./app-tour";
 import type { SideToggle } from "./main";
 import { createMaster } from "./app-master";
 import { createAnswers } from "./app-answers";
@@ -149,6 +150,7 @@ export async function startApp(ui: AppUi) {
   let noticeFor: string | null = null;
   const mailbox = createMailbox(ui.mailbox, {
     openBook: item => openFromMail(item),
+    openTour: (tour, doc, item) => void tourer.offer(tour, doc, item),
     onCount: n => {
       ui.mailBadge.textContent = badgeText(n);
       if (noticeFor && noticeFor === mailbox.doc() && n > 0 && ui.side.open() !== "mail") toast(t("郵便箱にアイテムが届いています（{n} 件）", { n }));
@@ -524,6 +526,13 @@ export async function startApp(ui: AppUi) {
   // 通知のダイアログの順番待ち（app-notes.ts）
   const queueNote = createNoteQueue();
 
+  // 説明ツアー（matomezu tour。D38。app-tour.ts）。案内は通知と同じ順番待ちで出す
+  const tourer = createTourer<Book>({
+    books: () => books, current: () => current, openBook: id => openBook(id), activate: (b, page) => activate(b, page), title: b => titleOf(b),
+    busy: () => pointer.busy(), focusWaiting: () => pointer.waiting(), setZoom: z => ui.preview.setEditZoom(z),
+    queue: (note, into, sent, show) => queueNote({ note, into, sent, open: () => {}, show }),
+  });
+
   // 通知を届ける（matomezu notify と、matomezu open の「届いています」。D30。docs/NOTIFY-plan.md）。この画面がカレントなので届いた。
   // 今見ているブックの郵便箱に入れ、dialog ならダイアログも出す（LLM は画面で今どれを見ているか分からないので、郵便箱だけでは伝わらない。2026-10-14 ユーザー）。
   // - 開く動き（book）: 「開く」ならすぐ前に出してから届けた行を取り除く（郵便箱を待つ間に matomezu close で閉じたブックを出さないように）。キャンセルなら残る。
@@ -581,6 +590,7 @@ export async function startApp(ui: AppUi) {
       }
     },
     async open(doc, page) {
+      if (tourer.running()) return; // 説明ツアーの間は、ほかのブックへ移さない（D38）
       const b = await openBook(doc);
       if (b) activate(b, page);
     },
@@ -591,6 +601,8 @@ export async function startApp(ui: AppUi) {
     point(req, doc, box, say) { void pointer.answer(req, doc, box, say); },
     ask(req, doc, focus) { void asker.answer(req, doc, focus); },
     askChanged() { void asker.refresh(); },
+    tour(req, id, mail) { void tourer.answer(req, id, mail); },
+    tourChanged() { void tourer.refresh(); },
     fit(req, doc) { void answers.fit(req, doc); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
     close(doc) {

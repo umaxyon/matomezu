@@ -230,6 +230,8 @@ export interface Graph {
   // AI が示す箱にフォーカス枠を出す（D37）。今のページに無い箱なら false。ユーザーが反応したら（図を押す・Esc・箱が見えなくなる）消して onReact。null で消す
   point(id: Id | null, onReact?: () => void): boolean;
   pointed(): string | null; // フォーカス枠を出している箱
+  tourTarget(id: Id): { el: HTMLElement; color: string } | null; // 説明ツアー（D38）の段の箱の要素（描かれていなければ描かれている祖先）と枠の色。無い箱は null
+  center(id: Id): void; // 箱を図の枠の真ん中へスクロールする（説明ツアー。D38）
   // AI の問いの吹き出しと印（D36。ask-bubbles.ts）を出す。空で消す。データ・選択・履歴には入れない。
   // owner は出す側（"ask" は話題、"focus" はフォーカスに付けた簡易メッセージ）。出す側ごとに置き換える
   askBubbles(owner: string, items: BubbleItem[], handlers: BubbleHandlers): void;
@@ -1653,6 +1655,23 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return true;
     },
     pointed: () => F.pointed(),
+    tourTarget(id) {
+      const n = byId.get(String(id));
+      let m: Box | null = n ?? null;
+      while (m && !m.el.getClientRects().length) m = m.parent;
+      return n && m ? { el: m.el, color: pointColor(themeOf(n.parent)) } : null;
+    },
+    center(id) {
+      const n = byId.get(String(id));
+      if (!n) return;
+      reveal(n); // リストの中なら、その行までリストをスクロールする
+      let m: Box | null = n;
+      while (m && !m.el.getClientRects().length) m = m.parent;
+      if (!m) return;
+      const r = m.el.getBoundingClientRect(), c = container.getBoundingClientRect();
+      container.scrollLeft += r.left + r.width / 2 - (c.left + container.clientWidth / 2);
+      container.scrollTop += r.top + r.height / 2 - (c.top + container.clientHeight / 2);
+    },
     askReveal: (owner, id) => A.reveal(`${owner}:${id}`),
     askInset: (right, bottom) => A.setInset(right, bottom),
     askBubbles(owner, items, handlers) {

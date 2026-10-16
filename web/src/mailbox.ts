@@ -23,7 +23,8 @@ import { PATTERN_LABELS, isPattern } from "./validate";
 
 // book があれば、そのブック（page があればそのページ）を開く動きを持つ。name はその名前（郵便箱の行に添える）
 // box は開いたらフォーカス枠で示す箱（matomezu focus -mail。D37）
-export interface MailNote { kind: "note"; title: string; body: string; book: string | null; page: string | null; box?: string | null; name?: string }
+// tour は説明ツアーの開始の案内（D38。押すと開始・拒否・キャンセルのダイアログ）
+export interface MailNote { kind: "note"; title: string; body: string; book: string | null; page: string | null; box?: string | null; name?: string; tour?: string }
 export interface MailBox { kind: "box"; from: string; pattern: string; caption: string; copy: Diagram }
 export type MailBody = MailNote | MailBox;
 interface MailBook { kind: "book"; book: string; page: string | null; name: string } // 以前の行（読むときに通知に直す）
@@ -94,7 +95,7 @@ export interface Mailbox {
   pasted(): void; // 図に箱を写した（運んでいた箱を郵便箱から取り除く）
 }
 
-export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote) => void; onCount?: (unread: number) => void }): Mailbox {
+export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote) => void; openTour?: (tour: string, doc: string, item: string) => void; onCount?: (unread: number) => void }): Mailbox {
   injectStyle(STYLE_ID, CSS);
   pane.classList.add("mz-mail");
   let doc: string | null = null;
@@ -116,7 +117,7 @@ export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote)
       const unread = i.read ? "" : " mz-unread";
       const del = `<button type="button" class="mz-mail-del" data-del="${esc(i.id)}" title="${t("郵便箱から消す")}" aria-label="${t("郵便箱から消す")}">×</button>`;
       if (b.kind === "note") {
-        return `<div class="mz-mail-row${unread}" data-open="${esc(i.id)}"><span class="mz-mail-chip">${b.book ? t("ブック") : t("お知らせ")}</span><span class="mz-mail-cap">${esc(b.book && b.name ? t("{title}（{name}）", { title: b.title, name: b.name }) : b.title)}</span><span class="mz-mail-from">${t("LLM から")}</span>${del}</div>`;
+        return `<div class="mz-mail-row${unread}" data-open="${esc(i.id)}"><span class="mz-mail-chip">${b.tour ? t("ツアー") : b.book ? t("ブック") : t("お知らせ")}</span><span class="mz-mail-cap">${esc(b.book && b.name ? t("{title}（{name}）", { title: b.title, name: b.name }) : b.title)}</span><span class="mz-mail-from">${t("LLM から")}</span>${del}</div>`;
       }
       const pattern = isPattern(b.pattern) ? PATTERN_LABELS[b.pattern] : b.pattern;
       return `<div class="mz-mail-row${unread}" draggable="true" data-copy="${esc(i.id)}"><span class="mz-mail-chip">${esc(pattern)}</span><span class="mz-mail-cap">${esc(b.caption)}</span><span class="mz-mail-from">${esc(t("{from} から", { from: b.from }))}</span>${del}</div>`;
@@ -131,6 +132,11 @@ export function createMailbox(pane: HTMLElement, o: { openBook: (item: MailNote)
     if (del && doc) { e.stopPropagation(); void removeMail(doc, del.dataset.del!); return; }
     const open = el?.closest<HTMLElement>("[data-open]");
     const item = open && items.find(i => i.id === open.dataset.open);
+    if (item && item.body.kind === "note" && item.body.tour && doc) {
+      if (!item.read) void readMail(doc, item.id);
+      o.openTour?.(item.body.tour, doc, item.id); // 説明ツアーの案内（D38）。開始・拒否なら取り除き、キャンセルなら残る
+      return;
+    }
     if (item && item.body.kind === "note" && doc) {
       const d = doc, body = item.body;
       if (!body.book) void removeMail(d, item.id); // 説明だけの通知は、見たら取り除く

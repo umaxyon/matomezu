@@ -27,6 +27,7 @@ type Layout struct {
 	Details map[string]string `json:"details,omitempty"`
 	Outside []string          `json:"outside,omitempty"` // 紙からはみ出している最上位の箱の id（D33。あれば check はエラーで終わる）
 	Focus   string            `json:"focus,omitempty"`
+	Tour    string            `json:"tour,omitempty"` // この図を段に持つ説明ツアーの様子（D38。tour.go の tourLine）
 	Ask     string            `json:"ask,omitempty"` // この図の AI の問いの話題の様子（D36。ask.go の askLine）   // この図の箱を示したフォーカス枠の様子（D37。反応待ち・断られたなど。無ければ ""）
 }
 
@@ -82,6 +83,7 @@ func (h *Hub) Summary(path, page string) (Layout, error) {
 		}
 		if now, err := d.freshVersion(); err == nil && a.Version == now {
 			a.Layout.Ask = h.askLine(d.id)
+			a.Layout.Tour = h.tourLine(d.id)
 			return a.Layout, nil
 		}
 		if time.Now().After(deadline) {

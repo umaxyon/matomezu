@@ -55,6 +55,9 @@ func check(args []string) error {
 	if l.Focus != "" {
 		fmt.Println(l.Focus)
 	}
+	if l.Tour != "" {
+		fmt.Println(l.Tour)
+	}
 	if l.Ask != "" {
 		fmt.Println(l.Ask)
 	}

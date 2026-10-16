@@ -839,8 +839,10 @@ export function openConfirmDialog(title: string, message: string, okLabel: strin
 
 // 単純なダイアログ（確認・お知らせ）。html は本文（呼ぶ側でエスケープする）。okLabel のボタンで onOk を呼ぶ。
 // cancel: false ならキャンセルのボタンを出さない（お知らせ。Esc では閉じる）
-export function openSimpleDialog(title: string, okLabel: string, html: string, onOk: () => void, o: { cancel?: boolean } = {}): HTMLElement {
-  return show(title, okLabel, html, () => onOk(), "", undefined, { simple: true, cancel: o.cancel ?? true });
+// extra は確定とキャンセルのほかのボタン（押すと閉じてから onClick。説明ツアーの拒否・開始前の場所に戻るなど。D38）
+export function openSimpleDialog(title: string, okLabel: string, html: string, onOk: () => void,
+  o: { cancel?: boolean; extra?: { label: string; onClick: () => void }[] } = {}): HTMLElement {
+  return show(title, okLabel, html, () => onOk(), "", undefined, { simple: true, cancel: o.cancel ?? true, extra: o.extra });
 }
 
 // 線のキャプション、通り方（折れ線・直線。自分に戻る線では出さない）、線の種類（実線・破線）、矢印（始点・終点）。
@@ -928,7 +930,7 @@ export function openDialog(title: string, okLabel: string, fields: string, commi
 
 // check は確定の前に呼ぶ（false なら閉じずに待つ。入力の誤りを示すのは check の側）
 function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void | boolean, lead = "", check?: () => boolean,
-  form: { simple?: boolean; cancel?: boolean } = {}): HTMLElement {
+  form: { simple?: boolean; cancel?: boolean; extra?: { label: string; onClick: () => void }[] } = {}): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
   const overlay = document.createElement("div");
@@ -938,7 +940,7 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
   const hint = `<span class="mz-dlg-hint">${esc(form.cancel === false
     ? t("{key}+Enter / Esc で{ok}", { key, ok: okLabel }) // キャンセルの無いお知らせ（Esc でも閉じるだけ）
     : t("{key}+Enter で{ok} / Esc でキャンセル", { key, ok: okLabel }))}</span>`;
-  const buttons = `${form.cancel === false ? "" : `<button type="button" class="mz-dlg-btn" data-cancel>${t("キャンセル")}</button>`}
+  const buttons = `${(form.extra ?? []).map((x, i) => `<button type="button" class="mz-dlg-btn" data-extra="${i}">${esc(x.label)}</button>`).join("")}${form.cancel === false ? "" : `<button type="button" class="mz-dlg-btn" data-cancel>${t("キャンセル")}</button>`}
         <button type="button" class="mz-dlg-btn mz-dlg-ok" data-ok>${esc(okLabel)}</button>`;
   overlay.innerHTML = form.simple
     // 単純なダイアログ: 題名・本文・一番下にキーの案内とボタン（今までの形）
@@ -972,8 +974,10 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
 
   overlay.addEventListener("click", e => {
     const t = e.target instanceof Element ? e.target : null;
+    const extra = t?.closest<HTMLElement>("[data-extra]");
     if (t?.closest("[data-ok]")) ok();
     else if (t?.closest("[data-cancel]")) closeEditDialog();
+    else if (extra) { closeEditDialog(); form.extra?.[Number(extra.dataset.extra)]?.onClick(); }
   });
   // キー操作はダイアログの中で止める（図の Undo や Esc の操作に届かないように）
   overlay.addEventListener("keydown", e => {

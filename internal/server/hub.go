@@ -40,6 +40,8 @@
 //	summary  {"req", "doc", "page", "version"} その図のページの要約を api/summary/{req} へ答える（カレントの画面にだけ送る。summary.go）
 //	ask      {"req", "doc", "focus"} 今の話題（GET /api/ask）をその図に出し、api/point/{req} へ答える（カレントの画面にだけ送る。ask.go。D36）
 //	askchanged {} 話題が変わった（画面は GET /api/ask で読み直す）
+//	tour     {"req", "id", "mail"} 説明ツアーの開始の案内を出し、api/point/{req} へ答える（カレントの画面にだけ。tour.go。D38）
+//	tourchanged {} ツアーが変わった（画面は GET /api/tour で読み直す）
 //	point    {"req", "doc", "box", "clear", "say"} その図の箱を示し、api/point/{req} へ答える（カレントの画面にだけ送る。point.go。D37）
 //	fit      {"req", "doc"} 預けた中身（api/fit/{req}）が紙に収まるかを api/fit/{req} へ答える（カレントの画面にだけ送る。fit.go。D33）
 //
@@ -93,6 +95,7 @@ type Hub struct {
 	topic     *Topic                        // AI の問いの話題（ask.go。D36。同時に 1 つ）
 	lastTopic *Topic                        // ユーザーが終えた話題（次の話題を出すまで、答えを読めるように）
 	askSig    chan struct{}                 // 話題が変わったら閉じる（待っている ask -wait を起こす。ask.go）
+	tour      *Tour                         // 説明ツアー（tour.go。D38。同時に 1 つ。終わったものは次を出すまで残る）
 	idleSince time.Time                     // 画面が 0 になった時刻
 	shown     event                         // 最後に開くよう頼まれた図とページ（open か、ask なら notify のイベント）
 	shownAt   time.Time
@@ -561,6 +564,9 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("POST /api/point/{req}", fromPage(h.pointAnswer))
 	mux.HandleFunc("GET /api/ask", h.getAsk)
 	mux.HandleFunc("GET /api/ask/wait", h.askWait)
+	mux.HandleFunc("GET /api/tour", h.getTour)
+	mux.HandleFunc("GET /api/tour/wait", h.tourWait)
+	mux.HandleFunc("POST /api/tour/screen", fromPage(h.tourScreen))
 	mux.HandleFunc("POST /api/ask/screen", fromPage(h.askScreenUpdate))
 	mux.HandleFunc("GET /api/current", func(w http.ResponseWriter, _ *http.Request) {
 		id := ""
@@ -588,6 +594,8 @@ func (h *Hub) Handler() http.Handler {
 		mux.HandleFunc("POST /api/point", h.control(h.point))
 		mux.HandleFunc("POST /api/ask", h.control(h.askHTTP))
 		mux.HandleFunc("POST /api/ask/control", h.control(h.askControl))
+		mux.HandleFunc("POST /api/tour", h.control(h.tourHTTP))
+		mux.HandleFunc("POST /api/tour/control", h.control(h.tourControl))
 		mux.HandleFunc("POST /d/{id}/api/llm/{n}/revert", h.control(h.withLLM(h.revertLLM)))
 		mux.HandleFunc("POST /api/shutdown", h.control(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)

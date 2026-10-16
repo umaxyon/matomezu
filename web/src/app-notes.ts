@@ -3,11 +3,13 @@ import { type MailNote, fetchMail, openNoteDialog, readMail, removeMail } from "
 
 // 通知のダイアログの順番待ち（2026-10-15 ユーザー）。ほかのダイアログ（編集ダイアログや前の通知）が開いていれば押しのけず、閉じたら届いた順に出す
 // （押しのけると、前の通知や編集中の入力が失われるため）。待っている間は郵便箱に未読の行として残り、その間に郵便箱から中身を見た分は出さない
-export interface QueuedNote { note: MailNote; into: string | null; sent: string | null; open: () => void }
+// show があれば、通知のダイアログの代わりにそれを出す（説明ツアーの開始の案内。D38）
+export interface QueuedNote { note: MailNote; into: string | null; sent: string | null; open: () => void; show?: () => void }
 export function createNoteQueue() {
   const noteQueue: QueuedNote[] = [];
   let showingNote = false;
-  const dialogOpen = () => !!document.querySelector(".mz-dlg-overlay");
+  // ダイアログか説明ツアー（D38）が出ている間は待つ
+  const dialogOpen = () => !!document.querySelector(".mz-dlg-overlay") || document.body.classList.contains("touring");
   function queueNote(q: QueuedNote) {
     noteQueue.push(q);
     void showNextNote();
@@ -23,6 +25,7 @@ export function createNoteQueue() {
         if (!still || still.read) return; // 待っている間に郵便箱から見た・消した
         if (dialogOpen()) { noteQueue.unshift(q); return; } // 確かめている間に別のダイアログが開いた
       }
+      if (q.show) { if (q.into && q.sent) void readMail(q.into, q.sent); q.show(); return; }
       const { note, into, sent } = q;
       // ダイアログで中身を見せるので、読んだことにする（説明だけなら取り除く。開く動きがあればキャンセルでも残る）
       if (into && sent) void (note.book ? readMail(into, sent) : removeMail(into, sent));
@@ -37,7 +40,7 @@ export function createNoteQueue() {
   }
   // ダイアログが閉じたら、待っている通知を出す（閉じたときの処理がさらにダイアログを開くこともあるので、次の番に回してから見る）
   new MutationObserver(list => {
-    if (noteQueue.length && list.some(m => [...m.removedNodes].some(x => x instanceof Element && x.classList.contains("mz-dlg-overlay")))) {
+    if (noteQueue.length && list.some(m => [...m.removedNodes].some(x => x instanceof Element && (x.classList.contains("mz-dlg-overlay") || x.classList.contains("mz-tour"))))) {
       setTimeout(() => void showNextNote(), 0);
     }
   }).observe(document.body, { childList: true });

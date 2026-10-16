@@ -336,6 +336,54 @@ func AskTopic(s *State, c *server.AskControl) (*server.Topic, error) {
 	return &t, nil
 }
 
+// Tour は説明ツアーの開始の案内を出す（D38）。段の path は絶対パスに直す
+func Tour(s *State, path, title string, steps []server.TourStep, mail bool) (*server.Tour, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	for i := range steps {
+		if steps[i].Path != "" {
+			if steps[i].Path, err = filepath.Abs(steps[i].Path); err != nil {
+				return nil, err
+			}
+		}
+	}
+	var t server.Tour
+	err = callWith(slowClient, s, "POST", "/api/tour", server.TourRequest{Path: abs, Title: title, Steps: steps, Mail: mail}, &t)
+	var se *serverError
+	if errors.As(err, &se) {
+		return nil, errors.New(se.msg)
+	}
+	return &t, err
+}
+
+// TourState は今のツアー（無ければ nil）。q は "status=1" か "new=1"
+func TourState(s *State, q string) (*server.Tour, error) {
+	var t server.Tour
+	if err := call(s, "GET", "/api/tour?"+q, nil, &t); err != nil || t.ID == "" {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// TourEnd はツアーを取り下げる
+func TourEnd(s *State) (bool, error) {
+	var out struct {
+		Ended bool `json:"ended"`
+	}
+	err := call(s, "POST", "/api/tour/control", map[string]bool{"end": true}, &out)
+	return out.Ended, err
+}
+
+// TourWait はツアーが終わるまで待つ（tour -wait）
+func TourWait(s *State, wait time.Duration) (server.TourWait, error) {
+	var res server.TourWait
+	c := &http.Client{Timeout: wait + 30*time.Second}
+	err := callWith(c, s, "GET", fmt.Sprintf("/api/tour/wait?sec=%d", int(wait/time.Second)), nil, &res)
+	return res, err
+}
+
 // AskNew は前に読んだあとにユーザーの側で変わった話題（無ければ nil。ask -new）
 func AskNew(s *State) (*server.Topic, error) {
 	var t server.Topic

@@ -13,7 +13,7 @@ import { anchorAt, keepAnchor } from "./viewport";
 const MIN = 0.1;
 const MAX = 4;
 const STEP = 1.25; // プレビューのボタン 1 回の倍率の変わり方
-const EDIT_ZOOMS = [0.5, 0.75, 1, 1.25]; // 編集中の倍率の段（D32。50% は A3 の紙を見るため。D33。2026-10-15 ユーザー）
+export const EDIT_ZOOMS = [0.5, 0.75, 1, 1.25]; // 編集中の倍率の段（D32。50% は A3 の紙を見るため。D33。2026-10-15 ユーザー）
 const ANIMATE_MS = 200; // 倍率を切り替えるアニメーションの長さ
 const WHEEL_STEP = 50;  // 編集中に Ctrl+ホイールで 1 段変えるまでの回した量（ホイールの 1 目盛りくらい）
 
@@ -28,6 +28,8 @@ export interface PreviewUi {
 
 export interface Preview {
   attach(graph: Graph | null, stage: HTMLElement | null): void;
+  setEditZoom(z: number): void; // 編集中の倍率を変える（説明ツアーが箱を収める・戻す。D38）
+
 }
 
 const typing = (t: EventTarget | null) =>
@@ -182,5 +184,14 @@ export function setupPreview(ui: PreviewUi): Preview {
   }
 
   ui.toggle.disabled = true;
-  return { attach };
+  function setEditZoom(z: number) {
+    if (!graph || on) return;
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+    target = z;
+    graph.setZoom(z);
+    showLevel();
+  }
+
+  return { attach, setEditZoom };
 }

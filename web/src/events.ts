@@ -30,6 +30,8 @@ export interface EventHandlers {
   summary?(req: string, doc: string, page: string, version: string): void; // page は "" なら最初のページ、version はそのときのファイルの版
   point?(req: string, doc: string | null, box: string | null, say: string): void; // say は枠と一緒に出す簡易メッセージ（D36）
   ask?(req: string, doc: string, focus: boolean): void; // AI の問いの話題を出す（matomezu ask。D36）。focus なら 1 つ目の箱に枠も出す（focus -button）
+  tour?(req: string, id: string, mail: boolean): void; // 説明ツアーの開始の案内を出す（matomezu tour。D38）
+  tourChanged?(): void; // ツアーが変わった（GET api/tour で読み直す）
   askChanged?(): void;                  // 話題が変わった（GET api/ask で読み直す） // 箱を示す（doc・box が null なら出している枠を消す。matomezu focus。D37）
   fit?(req: string, doc: string): void; // 預けた中身（api/fit/{req}）が紙に収まるかを答える（matomezu set。D33）
   status(text: string): void;
@@ -163,6 +165,11 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       if (v && typeof v.req === "string" && typeof v.doc === "string") h.ask?.(v.req, v.doc, v.focus === "true");
     });
     es.addEventListener("askchanged", () => h.askChanged?.());
+    es.addEventListener("tour", e => {
+      const v = parse(e);
+      if (v && typeof v.req === "string" && typeof v.id === "string") h.tour?.(v.req, v.id, v.mail === "true");
+    });
+    es.addEventListener("tourchanged", () => h.tourChanged?.());
     es.addEventListener("summary", e => {
       const v = parse(e);
       if (v && typeof v.req === "string" && typeof v.doc === "string") h.summary?.(v.req, v.doc, String(v.page ?? ""), String(v.version ?? ""));

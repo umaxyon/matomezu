@@ -50,6 +50,9 @@ func (h *Hub) Point(p PointRequest) (PointAnswer, error) {
 		if h.Topic() != nil {
 			return PointAnswer{}, errTopicOpen // 同時に追うのは 1 つ（D36）
 		}
+		if t := h.copyTour(); t != nil && !t.done() {
+			return PointAnswer{}, errTourOpen // ツアーとも同時に出さない（D38）
+		}
 		if p.Say != "" || p.Button != "" {
 			// 吹き出しに収まる長さだけ（収まらない問いは matomezu ask のドロワーで）
 			it := AskItem{ID: "1", Box: p.Box, Text: p.Say}
@@ -142,7 +145,7 @@ func (h *Hub) point(w http.ResponseWriter, r *http.Request) {
 	}
 	a, err := h.Point(p)
 	switch {
-	case errors.Is(err, errNoScreen), errors.Is(err, errBusy), errors.Is(err, errPending), errors.Is(err, errTopicOpen):
+	case errors.Is(err, errNoScreen), errors.Is(err, errBusy), errors.Is(err, errPending), errors.Is(err, errTopicOpen), errors.Is(err, errTourOpen):
 		http.Error(w, err.Error(), http.StatusConflict)
 	case err != nil:
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)

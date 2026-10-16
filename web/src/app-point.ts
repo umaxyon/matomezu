@@ -44,7 +44,7 @@ export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
 
   // 手すきでない: ダイアログが開いている・ドラッグの最中・文字を入力している（2026-10-16 ユーザー）
   function busy(): boolean {
-    if (document.querySelector(".mz-dlg-overlay")) return true;
+    if (document.querySelector(".mz-dlg-overlay") || document.body.classList.contains("touring")) return true; // ダイアログ・説明ツアー（D38）の間
     if (pressing || ctx.books().some(b => b.loaded && b.graph.dragging())) return true;
     const a = document.activeElement;
     return !!a && a !== document.body && (a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement || a instanceof HTMLSelectElement || (a as HTMLElement).isContentEditable);

@@ -1123,3 +1123,67 @@ test("AI の問い: パレットの「終える」でユーザーが話題を終
   expect(run("ask", "-status")).not.toContain("ended");
   run("ask", "-end");
 });
+
+test("説明ツアー: 案内で開始すると幕で操作を止め、段をブックをまたいでたどる。最後の［終わる］で complete、終了のダイアログで開始前の場所に戻れる（D38）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  run("tour", "-title", "流れ", "a.json", JSON.stringify({ steps: [{ box: "2", say: "ここが入口です" }, { box: "3", say: "別のブックの箱です", path: "b.json" }] }));
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg).toContainText("「流れ」の説明ツアーを開始してもいいですか？（2 ステップ）");
+  expect(run("tour", "-status")).toContain("waiting");
+  await dlg.locator("[data-ok]").click();
+  const bubble = page.locator(".mz-tour-bubble");
+  await expect(bubble).toContainText("ここが入口です");
+  await expect(bubble.locator(".mz-tour-count")).toHaveText("1 / 2");
+  await expect.poll(() => run("tour", "-status")).toContain("running");
+  // ほかの AI の頼みは断る。幕の上の操作は図や道具へ届かない
+  expect(() => run("focus", "a.json", "5")).toThrow();
+  const remove = (await page.locator("#mode-remove").boundingBox())!;
+  await page.mouse.click(remove.x + remove.width / 2, remove.y + remove.height / 2);
+  await expect(page.locator("#mode-remove")).toHaveAttribute("aria-pressed", "false");
+  await page.keyboard.press("ArrowRight"); // 次へ
+  await expect(selected(page)).toHaveText("b.json");
+  await expect(bubble).toContainText("別のブックの箱です");
+  await expect(bubble.locator("[data-next]")).toHaveText("終わる");
+  await bubble.locator("[data-next]").click();
+  await expect(page.locator(".mz-tour")).toHaveCount(0);
+  await expect(dlg).toContainText("ツアーが終わりました");
+  await expect.poll(() => run("tour", "-new")).toContain("complete"); // 読んでいなければ一度だけ出る
+  expect(run("tour", "-new")).toBe("");
+  expect(run("tour", "-status")).toContain("complete");
+  await dlg.locator('[data-extra="0"]').click(); // 開始前の場所に戻る
+  await expect(selected(page)).toHaveText("a.json");
+});
+
+test("説明ツアー: -mail は郵便箱だけ。キャンセルしても残り、開き直して開始できる。Esc で終えるかを確かめ、キャンセルなら続く。拒否は interrupt（D38）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  run("tour", "-mail", "-title", "構成", "a.json", JSON.stringify({ steps: [{ box: "2", say: "一つ目" }, { box: "5", say: "二つ目" }] }));
+  const dlg = page.locator(".mz-dlg");
+  await expect(page.locator("#mail-badge")).toHaveText("1");
+  await expect(dlg).toHaveCount(0);
+  await page.click("#mail-toggle");
+  const row = page.locator(".mz-mail-row", { hasText: "説明ツアー: 構成" });
+  await expect(row.locator(".mz-mail-chip")).toHaveText("ツアー");
+  await row.click();
+  await dlg.locator("[data-cancel]").click();
+  await expect(row).toHaveCount(1); // キャンセルなら残る
+  await row.click();
+  await dlg.locator("[data-ok]").click();
+  await expect(row).toHaveCount(0);
+  const bubble = page.locator(".mz-tour-bubble");
+  await expect(bubble).toContainText("一つ目");
+  await page.keyboard.press("Escape");
+  await expect(dlg).toContainText("ツアーを終えますか？");
+  await dlg.locator("[data-cancel]").click(); // 続ける
+  await expect(bubble).toContainText("一つ目");
+  await page.keyboard.press("Escape");
+  await dlg.locator("[data-ok]").click(); // ここに留まる
+  await expect(page.locator(".mz-tour")).toHaveCount(0);
+  await expect.poll(() => run("tour", "-status")).toContain("interrupt");
+  // 拒否
+  run("tour", "-title", "もう一度", "a.json", JSON.stringify({ steps: [{ box: "2", say: "一つ目" }] }));
+  await dlg.locator('[data-extra="0"]').click();
+  await expect.poll(() => run("tour", "-status")).toContain("interrupt");
+  expect(run("check", "a.json")).toContain("tour: interrupt");
+});

@@ -2,8 +2,10 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -160,5 +162,83 @@ func TestAskWait(t *testing.T) {
 	open()
 	if w := got(wait("1")); w.Reason != "timeout" || w.Topic == nil {
 		t.Fatalf("timeout: %+v", w)
+	}
+}
+
+// 説明ツアー: 段の確かめ（箱 1 つ・40 字・題名）、話題と同時に出さない、画面の答え（拒否・最後まで）と tour -new・-wait（D38。tour.go）
+func TestTourStates(t *testing.T) {
+	hub, ts, _ := setupHub(t)
+	path := t.TempDir() + "/a.json"
+	if err := os.WriteFile(path, []byte(`{"nodes":[{"id":1},{"id":2}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []TourRequest{
+		{Path: path, Steps: []TourStep{{Box: "1", Say: "x"}}},
+		{Path: path, Title: "t"},
+		{Path: path, Title: "t", Steps: []TourStep{{Say: "x"}}},
+		{Path: path, Title: "t", Steps: []TourStep{{Box: "1"}}},
+		{Path: path, Title: "t", Steps: []TourStep{{Box: "1", Say: strings.Repeat("長", 41)}}},
+	} {
+		if _, err := hub.StartTour(bad); err == nil || errors.Is(err, errNoScreen) {
+			t.Errorf("accepted %+v: %v", bad, err)
+		}
+	}
+	// 画面が無ければ出せない（案内を頼めない）
+	if _, err := hub.StartTour(TourRequest{Path: path, Title: "t", Steps: []TourStep{{Box: "1", Say: "x"}}}); !errors.Is(err, errNoScreen) {
+		t.Fatalf("no screen: %v", err)
+	}
+	// 画面が案内を出したことにして、状態の知らせを受ける
+	hub.mu.Lock()
+	hub.tour = &Tour{ID: "t1", Title: "流れ", Steps: []TourStep{{Doc: "d", Box: "1", Say: "x"}}, State: "waiting"}
+	hub.mu.Unlock()
+	if _, _, err := hub.Ask(path, []AskItem{{Box: "1", Text: "x"}}); !errors.Is(err, errTourOpen) {
+		t.Fatalf("ask during a tour: %v", err)
+	}
+	get := func(q string) string {
+		res := do(t, "GET", ts.URL+"/api/tour"+q, "", nil)
+		defer res.Body.Close()
+		out, _ := io.ReadAll(res.Body)
+		return strings.TrimSpace(string(out))
+	}
+	screen := func(b string) int {
+		res := do(t, "POST", ts.URL+"/api/tour/screen", b, nil)
+		res.Body.Close()
+		return res.StatusCode
+	}
+	if got := get("?new=1"); got != "{}" {
+		t.Fatalf("not ended yet: %s", got)
+	}
+	ch := make(chan TourWait, 1)
+	go func() {
+		res := do(t, "GET", ts.URL+"/api/tour/wait?sec=5", "", nil)
+		defer res.Body.Close()
+		var w TourWait
+		json.NewDecoder(res.Body).Decode(&w)
+		ch <- w
+	}()
+	time.Sleep(50 * time.Millisecond)
+	if s := screen(`{"id":"t1","state":"running"}`); s != http.StatusNoContent {
+		t.Fatalf("running: %d", s)
+	}
+	if s := screen(`{"id":"other","state":"complete"}`); s != http.StatusNotFound {
+		t.Fatalf("another tour: %d", s)
+	}
+	screen(`{"id":"t1","state":"complete"}`)
+	select {
+	case w := <-ch:
+		if w.Reason != "complete" {
+			t.Fatalf("wait: %+v", w)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("wait did not return")
+	}
+	if got := get("?new=1"); got != "{}" {
+		t.Fatalf("-wait already told it: %s", got)
+	}
+	if s := screen(`{"id":"t1","state":"interrupt"}`); s != http.StatusNotFound {
+		t.Fatalf("an ended tour does not change: %d", s)
+	}
+	if !strings.Contains(hub.tourLine("d"), "complete") || hub.tourLine("x") != "" {
+		t.Fatalf("check line: %q", hub.tourLine("d"))
 	}
 }

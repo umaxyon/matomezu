@@ -60,6 +60,13 @@ const usageText = `usage:
   matomezu ask -new                          print the answers only if the user responded since you last read them; otherwise print nothing
                                              while a topic is open, run it first on every user message (or set it as a hook on each message, e.g. Claude Code's
                                              UserPromptSubmit); print and say nothing more if it prints nothing
+  matomezu tour -title text [-mail] <file.json> '{"steps":[{"box":"5","say":"the entrance"},{"box":"8","say":"it splits here"}]}'
+                                             a guided tour: the user is asked to start it (start / decline / later from the mailbox; -mail: mailbox only),
+                                             then each step frames one box (one box per step; never several) with say (40 full-width characters at most)
+                                             a step can be in another page or book: add "path":"other.json". while it runs, the screen is locked
+                                             it fails while a focus, a topic of questions or another tour is open, or while the user is busy
+  matomezu tour -status | -end | -wait | -new   waiting / running / complete / interrupt; -end withdraws it; -wait and -new as for ask
+                                             complete means the user saw every step; interrupt (declined or stopped) means treat it as not understood
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu close <file.json>...              close these diagrams in the browser (they stay registered and listed on the master page; open shows them again)
                                              closing a diagram in the browser also clears its LLM history
@@ -94,6 +101,8 @@ func main() {
 		err = notifyCmd(args)
 	case "focus":
 		err = focusCmd(args)
+	case "tour":
+		err = tourCmd(args)
 	case "ask":
 		err = askCmd(args)
 	case "history":

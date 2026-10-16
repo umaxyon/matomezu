@@ -152,6 +152,10 @@ func (h *Hub) ask(path string, items []AskItem, focus bool) (string, *Topic, err
 		h.mu.Unlock()
 		return "", nil, errTopicOpen
 	}
+	if h.tour != nil && !h.tour.done() {
+		h.mu.Unlock()
+		return "", nil, errTourOpen
+	}
 	t := &Topic{Doc: res.ID, Path: path, State: "asking", Items: items, At: time.Now().UnixMilli()}
 	h.topic = t
 	h.lastTopic = nil
@@ -322,7 +326,7 @@ func (h *Hub) askHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	state, t, err := h.Ask(req.Path, req.Items)
 	switch {
-	case errors.Is(err, errNoScreen), errors.Is(err, errBusy), errors.Is(err, errPending), errors.Is(err, errTopicOpen):
+	case errors.Is(err, errNoScreen), errors.Is(err, errBusy), errors.Is(err, errPending), errors.Is(err, errTopicOpen), errors.Is(err, errTourOpen):
 		http.Error(w, err.Error(), http.StatusConflict)
 	case err != nil:
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
