@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/daemon"
 	"github.com/umaxyon/matomezu/internal/server"
@@ -95,10 +96,22 @@ func askCmd(args []string) error {
 	end := fs.Bool("end", false, "end the open topic (its bubbles disappear); also to withdraw it before asking again")
 	hide := fs.String("hide", "", "fold the bubble of this question into a small mark")
 	show := fs.String("show", "", "open the bubble of this question again")
+	news := fs.Bool("new", false, "print the topic only if the user answered or ended it since you last read it; otherwise print nothing (for a hook on every message)")
+	wait := fs.Bool("wait", false, "wait until every question is responded or the topic ends (10 minutes at most); run it in the background")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	control := *status || *end || *hide != "" || *show != ""
+	if *news {
+		// フックで会話のたびに動くので、サーバーが無い・誤りでも何も出さない
+		if s := daemon.Running(); s != nil {
+			if t, err := daemon.AskNew(s); err == nil && t != nil {
+				fmt.Println("matomezu: the user responded to your questions")
+				printTopic(t)
+			}
+		}
+		return nil
+	}
+	control := *status || *end || *hide != "" || *show != "" || *wait
 	if (control && fs.NArg() != 0) || (!control && fs.NArg() != 2) {
 		fs.Usage()
 		os.Exit(2)
@@ -106,6 +119,9 @@ func askCmd(args []string) error {
 	s := daemon.Running()
 	if s == nil {
 		return errors.New("not open in a browser; run: matomezu open <file>")
+	}
+	if *wait {
+		return askWait(s)
 	}
 	if control {
 		var c *server.AskControl
@@ -144,6 +160,39 @@ func askCmd(args []string) error {
 		fmt.Println("shown; read the answers with matomezu ask -status, and end the topic with matomezu ask -end before asking anything else")
 	}
 	printTopic(t)
+	return nil
+}
+
+// askWaitFor は ask -wait が待つ長さ（2026-10-16 ユーザー）
+const askWaitFor = 10 * time.Minute
+
+// askWait は話題が片付くまで待ち、片付き方と話題の様子を出す
+func askWait(s *daemon.State) error {
+	res, err := daemon.AskWait(s, askWaitFor)
+	if err != nil {
+		if daemon.Running() == nil {
+			return errors.New("the server stopped; the topic of questions is gone")
+		}
+		return err
+	}
+	switch res.Reason {
+	case "none":
+		fmt.Println("no topic of questions is open")
+		return nil
+	case "withdrawn":
+		fmt.Println("the topic was ended (matomezu ask -end)")
+		return nil
+	case "timeout":
+		fmt.Printf("still waiting after %d minutes: the topic is open. wait again (matomezu ask -wait) or end it (matomezu ask -end)\n", int(askWaitFor/time.Minute))
+	case "answered":
+		fmt.Println("every question is responded")
+	case "declined", "closed":
+		fmt.Println("the questions could not be shown; end the topic: matomezu ask -end")
+	}
+	printTopic(res.Topic)
+	if res.Reason == "answered" || res.Reason == "ended" {
+		fmt.Println("the user may be looking at the browser, not at you: tell them on the screen that you read the answers (matomezu notify -title ...)")
+	}
 	return nil
 }
 

@@ -54,6 +54,12 @@ const usageText = `usage:
                                              short ones (20 full-width characters, up to 2 buttons of 6 characters in all) are bubbles; longer ones (150 at most) open in a drawer
                                              only one topic at a time, and not while a focus waits; it fails while the user is busy. it returns at once
   matomezu ask -status | -end | -hide id | -show id   the answers so far / end the topic (do it when you have enough, or to withdraw and ask again) / fold or open a bubble
+  matomezu ask -wait                         wait until every question is responded or the topic ends (10 minutes at most), then print the answers
+                                             only run it in the background (it wakes you when it ends); if you can't, don't use it and read -status instead
+                                             when it ends with answers, the user may be watching the browser: tell them there that you read them (notify)
+  matomezu ask -new                          print the answers only if the user responded since you last read them; otherwise print nothing
+                                             while a topic is open, run it first on every user message (or set it as a hook on each message, e.g. Claude Code's
+                                             UserPromptSubmit); print and say nothing more if it prints nothing
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu close <file.json>...              close these diagrams in the browser (they stay registered and listed on the master page; open shows them again)
                                              closing a diagram in the browser also clears its LLM history

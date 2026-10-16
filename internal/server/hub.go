@@ -15,7 +15,7 @@
 //	POST /api/notify     {"title", "body", "path", "page", "box", "mail"} カレントの画面に通知を送る（notify.go。matomezu notify） … 要トークン
 //	POST /api/point      {"path", "box", "clear"} カレントの画面に箱を示すフォーカス枠を頼み、答えを返す（point.go。matomezu focus。D37） … 要トークン
 //	POST /api/ask        {"path", "items"} AI の問いの話題を出す（ask.go。matomezu ask。D36） … 要トークン
-//	GET  /api/ask        今の話題。POST /api/ask/control {"end" | "hide" | "show"} … 要トークン。POST /api/ask/screen 画面からのユーザーの操作
+//	GET  /api/ask        今の話題（?new=1 は読んだあとに変わったときだけ）。GET /api/ask/wait は話題が片付くまで待つ（ask -wait）。POST /api/ask/control {"end" | "hide" | "show"} … 要トークン。POST /api/ask/screen 画面からのユーザーの操作
 //	POST /api/new        {"near", "title", "world"} 画面から新しいブックを作って登録し、{"id", "path"} を返す（newbook.go）
 //	POST /api/copy       {"from", "title"} 画面からブックを複製して登録し、{"id", "path"} を返す（newbook.go。D23）
 //	GET  /api/books      登録した図を最終更新の新しい順に返す（マスターの一覧。books.go）
@@ -92,6 +92,7 @@ type Hub struct {
 	points    map[string]chan PointAnswer   // 画面に頼んでいるフォーカス枠・話題（point.go。D37・D36）
 	topic     *Topic                        // AI の問いの話題（ask.go。D36。同時に 1 つ）
 	lastTopic *Topic                        // ユーザーが終えた話題（次の話題を出すまで、答えを読めるように）
+	askSig    chan struct{}                 // 話題が変わったら閉じる（待っている ask -wait を起こす。ask.go）
 	idleSince time.Time                     // 画面が 0 になった時刻
 	shown     event                         // 最後に開くよう頼まれた図とページ（open か、ask なら notify のイベント）
 	shownAt   time.Time
@@ -559,6 +560,7 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("POST /api/fit/{req}", fromPage(h.fitAnswer))
 	mux.HandleFunc("POST /api/point/{req}", fromPage(h.pointAnswer))
 	mux.HandleFunc("GET /api/ask", h.getAsk)
+	mux.HandleFunc("GET /api/ask/wait", h.askWait)
 	mux.HandleFunc("POST /api/ask/screen", fromPage(h.askScreenUpdate))
 	mux.HandleFunc("GET /api/current", func(w http.ResponseWriter, _ *http.Request) {
 		id := ""

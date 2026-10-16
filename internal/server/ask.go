@@ -6,6 +6,9 @@ package server
 //	POST /api/ask           {"path", "items"} 話題を出す。カレントの画面に頼み（イベント ask）、答え {"state", "items"} を返す … 要トークン
 //	                        話題が残っている・フォーカスの反応待ち・ユーザーが操作中なら 409、項目の誤り・箱が無いなどは 400 / 422
 //	GET  /api/ask           今の話題（無ければ {}）。画面がつないだとき・変わったと知らされたときに読む。?last=1 はユーザーが終えた話題も（ask -status）
+//	GET  /api/ask?new=1     前に読んだあとにユーザーが答えた・終えたなどがあれば話題を、無ければ {}（ask -new。フックで会話のたびに見る）
+//	GET  /api/ask/wait?sec= 話題が片付くまで待つ（ask -wait）: 全部の問いに答えた・ユーザーが終えた・終わらせた・移るのを断られた・ブックを閉じた・時間切れで
+//	                        {"reason", "topic"} を返す。サーバーが止まる・コマンドが切れると待ちも消える（何も残らない）
 //	POST /api/ask/control   {"end"} 話題を終わらせる・{"hide": id} / {"show": id} 吹き出しを閉じる・開く。今の話題を返す … 要トークン
 //	POST /api/ask/screen    画面から: {"state": "open" | "declined" | "closed" | "ended"}（ほかのブックへ移る確かめの答え・ブックを閉じた・
 //	                        ユーザーがパレットの「終える」で終えた）か
@@ -21,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -57,6 +61,8 @@ type Topic struct {
 	State string    `json:"state"` // asking（ほかのブックへ移る確かめ中）/ open / declined（移るのを断られた）/ closed（ユーザーがブックを閉じた）/ ended（ユーザーが終えた）
 	Items []AskItem `json:"items"`
 	At    int64     `json:"at"`
+	rev   int       // ユーザーの答え・話題の様子が変わった回数（hidden の開閉は数えない）
+	told  int       // AI が読んだときの rev（ask -status・-new・-wait。-new はこれより新しいときだけ出す）
 }
 
 // width は文字の幅（全角 1・半角 0.5）
@@ -182,8 +188,19 @@ func (h *Hub) ask(path string, items []AskItem, focus bool) (string, *Topic, err
 		drop()
 		return "", nil, err
 	}
-	h.broadcast(event{"askchanged", "{}"})
+	h.askChanged()
 	return a.State, h.Topic(), nil
+}
+
+// askChanged は話題が変わったことを、画面（askchanged）と待っている ask -wait に知らせる
+func (h *Hub) askChanged() {
+	h.mu.Lock()
+	if h.askSig != nil {
+		close(h.askSig)
+		h.askSig = nil
+	}
+	h.mu.Unlock()
+	h.broadcast(event{"askchanged", "{}"})
 }
 
 // Topic は今の話題の写し（無ければ nil）
@@ -281,7 +298,7 @@ func (h *Hub) Control(c AskControl) (*Topic, error) {
 		last.Items[i].State = to
 	}
 	h.mu.Unlock()
-	h.broadcast(event{"askchanged", "{}"})
+	h.askChanged()
 	return &last, nil
 }
 
@@ -314,19 +331,113 @@ func (h *Hub) askHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getAsk は今の話題。?last=1 なら、話題が無いときユーザーが終えた話題を返す（ask -status。画面は今の話題だけを描く）
+// getAsk は今の話題。?last=1 なら、話題が無いときユーザーが終えた話題を返す（ask -status。画面は今の話題だけを描く）。
+// ?new=1 は、前に読んだあとにユーザーの側で変わったときだけ返す（ask -new）。AI が読んだ（last・new）なら、読んだ印を付ける
 func (h *Hub) getAsk(w http.ResponseWriter, r *http.Request) {
-	if t := h.Topic(); t != nil {
-		writeJSON(w, t)
-		return
+	q := r.URL.Query()
+	news, last := q.Get("new") != "", q.Get("last") != ""
+	h.mu.Lock()
+	t := h.topic
+	if t == nil && (last || news) {
+		t = h.lastTopic
 	}
-	if r.URL.Query().Get("last") != "" {
-		if l := h.LastTopic(); l != nil {
-			writeJSON(w, l)
+	if t != nil && news && t.rev <= t.told {
+		t = nil
+	}
+	var out any = map[string]any{}
+	if t != nil {
+		if last || news {
+			t.told = t.rev
+		}
+		c := *t
+		c.Items = append([]AskItem(nil), t.Items...)
+		out = &c
+	}
+	h.mu.Unlock()
+	writeJSON(w, out)
+}
+
+// AskWait は ask -wait の答え。reason は answered（全部の問いに答えた）/ ended（ユーザーが終えた）/ withdrawn（-end で終わった）/
+// declined（移るのを断られた）/ closed（ブックを閉じた）/ timeout / none（話題が無い）
+type AskWait struct {
+	Reason string `json:"reason"`
+	Topic  *Topic `json:"topic"`
+}
+
+// askWait は話題が片付くまで待つ。時間は ?sec=（既定 600 秒・上限 3600 秒）
+func (h *Hub) askWait(w http.ResponseWriter, r *http.Request) {
+	sec, _ := strconv.Atoi(r.URL.Query().Get("sec"))
+	if sec <= 0 {
+		sec = 600
+	}
+	sec = min(sec, 3600)
+	timer := time.NewTimer(time.Duration(sec) * time.Second)
+	defer timer.Stop()
+	h.mu.Lock()
+	start := h.topic
+	h.mu.Unlock()
+	for {
+		h.mu.Lock()
+		res, sig := h.waitState(start), (chan struct{})(nil)
+		if res.Reason == "" {
+			if h.askSig == nil {
+				h.askSig = make(chan struct{})
+			}
+			sig = h.askSig
+		}
+		h.mu.Unlock()
+		if sig == nil {
+			writeJSON(w, res)
+			return
+		}
+		select {
+		case <-sig:
+		case <-timer.C:
+			h.mu.Lock()
+			res = AskWait{Reason: "timeout", Topic: h.copyTopic(h.topic)}
+			h.mu.Unlock()
+			writeJSON(w, res)
+			return
+		case <-r.Context().Done(): // コマンドが切れた・サーバーが止まる
 			return
 		}
 	}
-	writeJSON(w, map[string]any{})
+}
+
+// waitState は待ち始めた話題 start が片付いたか（片付いていなければ Reason が空）。h.mu を持って呼ぶ。片付いたなら読んだ印を付ける
+func (h *Hub) waitState(start *Topic) AskWait {
+	t := h.topic
+	reason := ""
+	switch {
+	case start == nil:
+		reason = "none"
+	case t != start:
+		reason, t = "withdrawn", nil
+		if h.lastTopic == start {
+			reason, t = "ended", start
+		}
+	case t.State == "declined" || t.State == "closed":
+		reason = t.State
+	case responded(t) == len(t.Items):
+		reason = "answered"
+	}
+	if reason == "" {
+		return AskWait{}
+	}
+	if t != nil {
+		t.told = t.rev
+	}
+	return AskWait{Reason: reason, Topic: h.copyTopic(t)}
+}
+
+// copyTopic は話題の写し（nil なら nil）。h.mu を持って呼ぶ
+func (h *Hub) copyTopic(t *Topic) *Topic {
+	if t == nil {
+		return nil
+	}
+	c := *t
+	c.Items = append([]AskItem(nil), t.Items...)
+	return &c
 }
 
 func (h *Hub) askControl(w http.ResponseWriter, r *http.Request) {
@@ -375,10 +486,14 @@ func (h *Hub) askScreenUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if u.Item == "" {
 		switch u.State {
-		case "open", "declined", "closed":
+		case "open":
 			t.State = u.State
+		case "declined", "closed":
+			t.State = u.State
+			t.rev++
 		case "ended":
 			t.State = u.State
+			t.rev++
 			h.lastTopic, h.topic = t, nil
 		default:
 			h.mu.Unlock()
@@ -394,6 +509,9 @@ func (h *Hub) askScreenUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		it := &t.Items[i]
+		if u.State != "open" && u.State != "hidden" && (u.State != it.State || u.State == "answered") {
+			t.rev++
+		}
 		it.State = u.State
 		if u.State == "answered" {
 			it.Answer = u.Answer
@@ -404,6 +522,6 @@ func (h *Hub) askScreenUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.mu.Unlock()
-	h.broadcast(event{"askchanged", "{}"})
+	h.askChanged()
 	w.WriteHeader(http.StatusNoContent)
 }

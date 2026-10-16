@@ -336,6 +336,26 @@ func AskTopic(s *State, c *server.AskControl) (*server.Topic, error) {
 	return &t, nil
 }
 
+// AskNew は前に読んだあとにユーザーの側で変わった話題（無ければ nil。ask -new）
+func AskNew(s *State) (*server.Topic, error) {
+	var t server.Topic
+	if err := call(s, "GET", "/api/ask?new=1", nil, &t); err != nil || t.Doc == "" {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// AskWait は話題が片付くまで待つ（ask -wait）。サーバーが止まると誤りで返る
+func AskWait(s *State, wait time.Duration) (server.AskWait, error) {
+	var res server.AskWait
+	c := &http.Client{Timeout: wait + 30*time.Second}
+	err := callWith(c, s, "GET", fmt.Sprintf("/api/ask/wait?sec=%d", int(wait/time.Second)), nil, &res)
+	if res.Topic != nil && res.Topic.Doc == "" {
+		res.Topic = nil
+	}
+	return res, err
+}
+
 // Close は path の図のタブを閉じるよう、サーバーにつながっている画面に知らせる（登録は残る）
 func Close(s *State, path string) (server.CloseResult, error) {
 	var res server.CloseResult
