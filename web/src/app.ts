@@ -40,6 +40,7 @@ import { openNewPageDialog } from "./new-page";
 import { openBookDialog } from "./book-dialog";
 import { toast } from "./toast";
 import { createTourer } from "./app-tour";
+import { setupTabScroll } from "./tab-scroll";
 import type { SideToggle } from "./main";
 import { createMaster } from "./app-master";
 import { createAnswers } from "./app-answers";
@@ -113,6 +114,7 @@ function pagesInData(data: unknown): { id: string; caption: string }[] {
 }
 
 export async function startApp(ui: AppUi) {
+  setupTabScroll(ui.tabs);
   const books: Book[] = [];
   // ブック b が変わったら、ほかのブックのサイドバー（「他ブックも表示」で b を並べているもの）の一覧を古いとする
   let events: EventConnection | null = null; // サーバーの通知（下でつなぐ）

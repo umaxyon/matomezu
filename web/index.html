@@ -88,6 +88,10 @@
     padding: 4px 8px 0;
     overflow-x: auto;
   }
+  /* はみ出したタブがある側の端をぼかす（tab-scroll.ts。G5） */
+  .tabs.fade-left { mask-image: linear-gradient(to right, transparent 0, #000 28px); }
+  .tabs.fade-right { mask-image: linear-gradient(to left, transparent 0, #000 28px); }
+  .tabs.fade-left.fade-right { mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
   .tab {
     display: flex;
     align-items: center;
@@ -187,7 +191,8 @@
      Chrome・Edge・Safari は ::-webkit-scrollbar で形を作る（scrollbar-width / scrollbar-color を指定すると
      Chrome はこちらを無視するので、それらは ::-webkit-scrollbar が使えない Firefox だけに当てる） */
   /* タブ列（横スクロール）も同じ形にする（2026-10-11 ユーザー。既定の白い通り道と矢印が暗いテーマで浮いていた） */
-  #sidebar::-webkit-scrollbar, .tabs::-webkit-scrollbar { width: 12px; height: 12px; }
+  #sidebar::-webkit-scrollbar { width: 12px; height: 12px; }
+  .tabs::-webkit-scrollbar { height: 8px; } /* タブ列は細め（サイドバーの 2/3。2026-10-17 ユーザー） */
   #sidebar::-webkit-scrollbar-track, #sidebar::-webkit-scrollbar-corner,
   .tabs::-webkit-scrollbar-track, .tabs::-webkit-scrollbar-corner { background: transparent; }
   #sidebar::-webkit-scrollbar-button, .tabs::-webkit-scrollbar-button { display: none; }
@@ -196,6 +201,8 @@
     border: 3px solid transparent; background-clip: padding-box;
   }
   #sidebar::-webkit-scrollbar-thumb:hover, .tabs::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-hover); border-width: 2px; }
+  .tabs::-webkit-scrollbar-thumb { border-width: 2px; }
+  .tabs::-webkit-scrollbar-thumb:hover { border-width: 1px; }
   @supports not selector(::-webkit-scrollbar) {
     #sidebar, .tabs { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
   }
