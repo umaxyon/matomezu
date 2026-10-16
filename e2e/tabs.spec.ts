@@ -1075,3 +1075,27 @@ test("AI の問い: リストをスクロールすると、付け根が隠れた
   expect(await kids.evaluate(el => el.scrollTop)).toBe(0);
   run("ask", "-end");
 });
+
+test("AI の問い: ドロワーを開くと、その問いの印がドロワーに隠れない所に来る。パレットでほかの問いを押すとドロワーは閉じる（D36）", async ({ page }) => {
+  writeFileSync(join(dir, "w.json"), JSON.stringify({
+    world: { paper: "a3-landscape" },
+    nodes: [{ id: 1, caption: "幅の広い箱", width: 1000, height: 120, x: 200, y: 300 }, { id: 2, caption: "小さな箱", x: 200, y: 100 }],
+  }));
+  await page.goto(run("open", "-no-browser", "w.json").trim());
+  await expect(selected(page)).toHaveText("w.json");
+  run("ask", "w.json", JSON.stringify({ items: [
+    { box: "1", text: "この箱の中身を、もっと短くまとめてもよいですか？ 長い説明は別のページに移します。", choices: ["はい", "いいえ"] },
+    { box: "2", text: "小さい？", choices: ["はい"] },
+  ] }));
+  await page.locator("#ask-palette button", { hasText: "A" }).click();
+  const drawer = page.locator(".mz-ask-drawer");
+  await expect(drawer).toBeVisible();
+  const markA = page.locator(".stage:visible .mz-ask-mark", { hasText: "A" });
+  await expect(async () => {
+    const m = (await markA.boundingBox())!, d = (await drawer.boundingBox())!;
+    expect(m.x + m.width).toBeLessThanOrEqual(d.x);
+  }).toPass();
+  await page.locator("#ask-palette button", { hasText: "B" }).click();
+  await expect(drawer).toBeHidden();
+  run("ask", "-end");
+});

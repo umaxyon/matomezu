@@ -58,6 +58,8 @@ export function createAskBubbles(ctx: AskBubblesContext) {
   const els = new Map<string, { bubble: HTMLElement | null; mark: HTMLElement; side: Side | null; key: string }>();
   let raf = 0;
   let first: string | null = null; // 最後に見せた問い（先に置く）
+  // 図の上に重なっているもの（開いたドロワー）の幅・高さ。その分を見えない範囲として扱う（印を寄せる・見せるときのスクロール）
+  let inset = { right: 0, bottom: 0 };
 
   // 押した操作は図に届けない（箱の選択・ドラッグ・フォーカス枠の反応を起こさない）
   layer.addEventListener("pointerdown", e => e.stopPropagation());
@@ -184,7 +186,13 @@ export function createAskBubbles(ctx: AskBubblesContext) {
       if (showMark) {
         const m = vis ?? { x: (v.left - w.left) / z, y: (v.top - w.top) / z, w: (v.right - v.left) / z, h: 0 };
         let x = m.x + m.w - 4;
-        const y = m.y - 12;
+        let y = m.y - 12;
+        // ドロワーに隠れる所なら、見えている範囲の端へ寄せる（箱の左の端・上の端より先へは寄せない）
+        const c = ctx.container.getBoundingClientRect();
+        const right = (c.left + ctx.container.clientWidth - inset.right - w.left) / z - 20;
+        const bottom = (c.top + ctx.container.clientHeight - inset.bottom - w.top) / z - 20;
+        if (inset.right && x > right) x = Math.max(m.x, right);
+        if (inset.bottom && y > bottom) y = Math.max(m.y - 12, bottom);
         while (marks.some(p => Math.abs(p.x - x) < 18 && Math.abs(p.y - y) < 18)) x -= 20;
         marks.push({ x, y });
         e.mark.style.left = `${x}px`;
@@ -207,7 +215,13 @@ export function createAskBubbles(ctx: AskBubblesContext) {
       const e = els.get(id);
       const target = e?.bubble && !e.bubble.hidden ? e.bubble : e?.mark;
       if (!target || target.hidden) return;
-      target.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+      // 見えている範囲（ドロワーに隠れる分を除く）に、札や点滅の輪の分（M）まで入るようにスクロールする
+      const M = 14;
+      const c = ctx.container.getBoundingClientRect(), r = target.getBoundingClientRect();
+      const view = { left: c.left, top: c.top, right: c.left + ctx.container.clientWidth - inset.right, bottom: c.top + ctx.container.clientHeight - inset.bottom };
+      const dx = r.left - M < view.left ? r.left - M - view.left : r.right + M > view.right ? Math.min(r.right + M - view.right, r.left - M - view.left) : 0;
+      const dy = r.top - M < view.top ? r.top - M - view.top : r.bottom + M > view.bottom ? Math.min(r.bottom + M - view.bottom, r.top - M - view.top) : 0;
+      if (dx || dy) ctx.container.scrollBy({ left: dx, top: dy, behavior: "smooth" });
       target.classList.remove("mz-ask-flash");
       void target.offsetWidth;
       target.classList.add("mz-ask-flash");
@@ -224,5 +238,5 @@ export function createAskBubbles(ctx: AskBubblesContext) {
     if (!raf) place();
   }
 
-  return { set, reveal, destroy: () => set([], handlers ?? ({} as BubbleHandlers)) };
+  return { set, reveal, setInset: (right: number, bottom: number) => { inset = { right, bottom }; }, destroy: () => set([], handlers ?? ({} as BubbleHandlers)) };
 }

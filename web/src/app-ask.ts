@@ -54,11 +54,15 @@ export function createAsker<B extends AskBook>(ctx: AskContext<B>) {
     decline: id => setItem(id, { state: "declined" }),
     seen: id => setItem(id, { state: "seen" }),
     reveal: box => { const b = topic ? ctx.books().find(x => x.id === topic!.doc) : undefined; try { b?.graph.reveal(box); } catch { /* 箱が消えた */ } },
+    shown: (right, bottom) => { const b = topicBook(); b?.graph.askInset(right, bottom); },
   });
+  const topicBook = () => (topic ? ctx.books().find(x => x.id === topic!.doc) : undefined);
+  // ドロワーを開き、その問いの箱の印がドロワーに隠れないようにスクロールする
   function openDrawer(it: AskItem) {
-    const b = topic ? ctx.books().find(x => x.id === topic!.doc) : undefined;
+    const b = topicBook();
     const node = b ? nodesOf(b).find(n => String(n.id) === it.box) : undefined;
     drawer.open(it, { caption: String(node?.caption ?? it.box) });
+    b?.graph.askReveal("ask", it.id);
   }
 
   const post = (body: object) => fetch("api/ask/screen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
@@ -95,6 +99,7 @@ export function createAsker<B extends AskBook>(ctx: AskContext<B>) {
       const it = topic?.items.find(x => x.id === id);
       if (!it || !topic) return;
       if (it.view === "drawer") return openDrawer(it);
+      drawer.close();
       setItem(id, { state: "open" });
     },
   };
@@ -128,9 +133,10 @@ export function createAsker<B extends AskBook>(ctx: AskContext<B>) {
     const b = topic ? ctx.books().find(x => x.id === topic!.doc) : undefined;
     if (!it || !b || !topic) return;
     ctx.activate(b, page);
+    if (it.view !== "drawer" || done(it)) drawer.close(); // ドロワーの問いのほかを押したら、開いていたドロワーは閉じる
     if (done(it)) { try { b.graph.reveal(it.box); } catch { /* 箱が消えた */ } return; }
-    if (it.view === "drawer") openDrawer(it);
-    else if (folded(it)) setItem(it.id, { state: "open" });
+    if (it.view === "drawer") return openDrawer(it);
+    if (folded(it)) setItem(it.id, { state: "open" });
     b.graph.askReveal("ask", it.id);
   });
 

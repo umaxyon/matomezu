@@ -17,6 +17,7 @@ export interface DrawerHandlers {
   decline(id: string): void; // 答えない
   seen(id: string): void;    // 選択肢も入力も無い問いを閉じた
   reveal(box: string): void; // 対象の箱を押した（その箱を見せる）
+  shown(right: number, bottom: number): void; // 開いた（図の右・下に重なる大きさ）・閉じた（0, 0）
 }
 
 const STYLE_ID = "matomezu-ask-drawer-style";
@@ -54,7 +55,11 @@ export function createAskDrawer(host: HTMLElement, h: DrawerHandlers) {
   host.appendChild(el);
   let item: DrawerItem | null = null;
 
-  const close = () => { el.hidden = true; el.innerHTML = ""; item = null; };
+  const close = () => {
+    const was = !el.hidden;
+    el.hidden = true; el.innerHTML = ""; item = null;
+    if (was) h.shown(0, 0);
+  };
 
   function open(it: DrawerItem, o: { caption: string }) {
     item = it;
@@ -74,6 +79,10 @@ export function createAskDrawer(host: HTMLElement, h: DrawerHandlers) {
         ? `<button type="button" data-decline>${esc(t("答えない"))}</button><button type="button" data-ok disabled>${esc(t("答える"))}</button>`
         : `<button type="button" data-seen style="margin-left:auto">${esc(t("閉じる"))}</button>`}</footer>`;
     el.hidden = false;
+    // 横長なら右に、縦長なら下に重なる（CSS）。重なる大きさを知らせる
+    const r = el.getBoundingClientRect(), hr = host.getBoundingClientRect();
+    if (r.left > hr.left + 1) h.shown(r.width, 0);
+    else h.shown(0, r.height);
     const ok = el.querySelector<HTMLButtonElement>("[data-ok]");
     const picked = () => [...el.querySelectorAll<HTMLInputElement>('[name="mz-ask-choice"]:checked')].map(x => x.value);
     const note = () => el.querySelector<HTMLTextAreaElement>("#mz-ask-note")?.value.trim() ?? "";

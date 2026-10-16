@@ -234,6 +234,7 @@ export interface Graph {
   // owner は出す側（"ask" は話題、"focus" はフォーカスに付けた簡易メッセージ）。出す側ごとに置き換える
   askBubbles(owner: string, items: BubbleItem[], handlers: BubbleHandlers): void;
   askReveal(owner: string, id: string): void; // その問いの箱と吹き出し（か印）を見せて光らせる（パレットを押した）
+  askInset(right: number, bottom: number): void; // 図の右・下に重なっているもの（開いたドロワー）の大きさ。印をその手前に寄せ、見せるときもその手前へスクロールする
   selected(): string | null;
   selectedEdge(): string | null; // 選んでいる線の id（線を選んでいなければ null）
   selectEdge(id: Id): void;
@@ -1653,6 +1654,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     pointed: () => F.pointed(),
     askReveal: (owner, id) => A.reveal(`${owner}:${id}`),
+    askInset: (right, bottom) => A.setInset(right, bottom),
     askBubbles(owner, items, handlers) {
       worldEl.style.setProperty("--mz-ask", askColor(themeOf(null)));
       bubbleSets.set(owner, { items, handlers });
