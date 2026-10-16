@@ -2,7 +2,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { openEdgeEditDialog } from "../web/src/edit-dialog";
-import { selfLoop } from "../web/src/selfloop";
+import { type Corner, cornerAt, nearestCorner, selfLoop } from "../web/src/selfloop";
 import type { Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
 
@@ -119,4 +119,82 @@ test("ほかの線が輪の範囲を横切るなら（折れ点が範囲の外�
   const line: [number, number][] = [[0, 85], [400, 85]];
   const { corner } = selfLoop(box, [], 0, [line]);
   expect(corner).toBe("bottomRight");
+});
+
+// ---- 辺の境目・角の選び方・角の端の位置（純粋な関数） ----
+// 辺は box のふち一周 368 の上で: 上 [0, 120)、右 [120, 184)、下 [184, 304)、左 [304, 368)。角の点は、そこから時計回りに進む辺に入る
+
+// 途中の点が、箱の内側（縁から 0.5 より内）に入っていない
+const outsideBox = (pts: [number, number][]) => pts.slice(1, -1).every(([x, y]) =>
+  x <= box.x + 0.5 || x >= box.x + box.w - 0.5 || y <= box.y + 0.5 || y >= box.y + box.h - 0.5);
+
+test("角の点は時計回りに進む辺に入る: 左下の角（304）は左の辺なので、上の辺と組めば使う。その手前（303）は下の辺なので使わない", () => {
+  const auto = selfLoop(box, [], 0).points;
+  const leftCorner = selfLoop(box, [], 0, [], { exit: 60 / 368, enter: 304 / 368 }).points;
+  expect(leftCorner).not.toEqual(auto);
+  expect(leftCorner.at(-1)!.map(v => Math.round(v))).toEqual([100, 164]);
+  expect(selfLoop(box, [], 0, [], { exit: 60 / 368, enter: 303 / 368 }).points).toEqual(auto);
+  // 右上の角（120）は右の辺なので、下の辺と組めば使う
+  const rightCorner = selfLoop(box, [], 0, [], { exit: 120 / 368, enter: 240 / 368 }).points;
+  expect(rightCorner[0]!.map(v => Math.round(v))).toEqual([220, 100]);
+  // 割合が小数の誤差なしに表せる正方形（一周 256、角は 0・0.25・0.5・0.75）で、境目そのものを確かめる
+  const sq = { x: 0, y: 0, w: 64, h: 64 };
+  const sqAuto = selfLoop(sq, [], 0).points;
+  expect(selfLoop(sq, [], 0, [], { exit: 0.125, enter: 0.75 }).points).not.toEqual(sqAuto); // 左下の角は左の辺（上と隣）
+  expect(selfLoop(sq, [], 0, [], { exit: 0.125, enter: 0.5 }).points).toEqual(sqAuto);      // 右下の角は下の辺（上と向かい）なので使わない
+});
+
+test("隣り合う辺・同じ辺のどの組でも（向きを入れ替えても）、輪は箱の中に入らない", () => {
+  const mid = { t: 60, r: 152, b: 244, l: 336 }; // 各辺の真ん中（一周 368 の上）
+  const pairs: [keyof typeof mid, keyof typeof mid][] = [["t", "r"], ["r", "b"], ["b", "l"], ["l", "t"], ["t", "t"], ["r", "r"]];
+  for (const [p, q] of pairs) {
+    const [e, n] = [mid[p], mid[q] + (p === q ? 20 : 0)];
+    for (const [s, t] of [[e, n], [n, e]]) {
+      const { points } = selfLoop(box, [], 0, [], { exit: s! / 368, enter: t! / 368 });
+      expect([p, q, outsideBox(points)]).toEqual([p, q, true]);
+    }
+  }
+});
+
+test("4 つの角のどれを選んでも、端は箱のふちの上にあり、輪は箱の外を回る。ふさがった角を順に飛ばす（右上 → 左上 → 右下 → 左下）", () => {
+  const tr = { x: 210, y: 60, w: 60, h: 50 }, tl = { x: 50, y: 60, w: 60, h: 50 };
+  const br = { x: 210, y: 154, w: 60, h: 50 };
+  const cases: [typeof box[], Corner][] = [[[], "topRight"], [[tr], "topLeft"], [[tr, tl], "bottomRight"], [[tr, tl, br], "bottomLeft"]];
+  for (const [blockers, want] of cases) {
+    const { points, corner } = selfLoop(box, blockers, 0);
+    expect(corner).toBe(want);
+    expect(outsideBox(points)).toBe(true);
+    for (const p of [points[0]!, points.at(-1)!]) {
+      const onEdge = p[0] === box.x || p[0] === box.x + box.w || p[1] === box.y || p[1] === box.y + box.h;
+      expect(onEdge).toBe(true);
+    }
+  }
+});
+
+test("4 つの角がどれもふさがっていれば、既定の右上に描く", () => {
+  const all = [{ x: 0, y: 0, w: 400, h: 90 }, { x: 0, y: 174, w: 400, h: 90 }];
+  expect(selfLoop(box, all, 0).corner).toBe("topRight");
+});
+
+test("小さい箱でも、角の端は辺の上（辺の長さの半分まで）に収める", () => {
+  const small = { x: 0, y: 0, w: 20, h: 10 };
+  const { points } = selfLoop(small, [], 0);
+  expect(points[0]).toEqual([15, 0]);     // 上の辺。角から高さの半分（5）
+  expect(points.at(-1)).toEqual([20, 5]); // 右の辺
+});
+
+test("nearestCorner: 点が真ん中より右なら右、上半分なら上（真ん中の点は右下）", () => {
+  expect(nearestCorner(box, [105, 105])).toBe("topLeft");
+  expect(nearestCorner(box, [215, 105])).toBe("topRight");
+  expect(nearestCorner(box, [105, 160])).toBe("bottomLeft");
+  expect(nearestCorner(box, [160, 132])).toBe("bottomRight");
+});
+
+test("cornerAt: 角に描くときの端の位置（一周の割合）。その角がふさがっていれば null。返した位置で描けば箱の外を回る", () => {
+  expect(cornerAt(box, [], 0, [], "topRight")).toEqual({ exit: (120 - 16) / 368, enter: (120 + 16) / 368 });
+  expect(cornerAt(box, [{ x: 200, y: 20, w: 120, h: 70 }], 0, [], "topRight")).toBeNull();
+  for (const c of ["topRight", "topLeft", "bottomRight", "bottomLeft"] as const) {
+    const at = cornerAt(box, [], 1, [], c)!;
+    expect(outsideBox(selfLoop(box, [], 1, [], at).points)).toBe(true);
+  }
 });

@@ -255,3 +255,47 @@ test("一度も前に出ていないあいだに外部で変わったら、前�
   await wait(20);
   expect(captions(graph)).toEqual(["新しい"]);
 });
+
+test("通知より先に保存がぶつかった（409）ら、画面の変更を取り消して外部の版を読み直し、気づいてほしい知らせを出す", async () => {
+  const notices: string[] = [];
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const remote = (await fetchRemote(""))!;
+  graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d) });
+  sync = startSync(graph, "", remote, { status() {}, notice: t => notices.push(t), error() {}, clearError() {} });
+  writeFile(JSON.stringify({ nodes: [{ id: 1, caption: "theirs" }, { id: 2 }] })); // 外部の書き換え（通知はまだ届かない）
+  graph.update(1, { caption: "mine" });
+  await settle();
+  expect(puts).toEqual([]); // 上書きしない
+  expect(captions(graph)[0]).toBe("theirs");
+  expect(notices).toEqual(["外部で変更されていたため、画面の変更を取り消して読み直します"]);
+  expect(sync.shown()).toBe(fileVersion.replace(/"/g, ""));
+});
+
+test("保存に失敗したら（サーバーの誤り・つながらない）エラーとして知らせる", async () => {
+  const g = await setup();
+  const fake = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init?: RequestInit) =>
+    (init?.method === "PUT" ? new Response("disk full", { status: 500 }) : fake(url, init))) as typeof fetch;
+  g.update(1, { caption: "a" });
+  await settle();
+  expect(messages.at(-1)).toBe("ERROR 保存できませんでした: 500 disk full");
+  globalThis.fetch = (async () => { throw new TypeError("offline"); }) as unknown as typeof fetch;
+  g.update(1, { caption: "b" });
+  await settle();
+  expect(messages.at(-1)).toBe("ERROR 保存できませんでした: offline");
+});
+
+test("外部の変更を読みに行けなければ、サーバーにつながらないと知らせ、表示は残す", async () => {
+  const g = await setup();
+  globalThis.fetch = (async () => { throw new TypeError("offline"); }) as unknown as typeof fetch;
+  sync!.notify("v99");
+  await wait(10);
+  expect(messages.at(-1)).toBe("ERROR サーバーに接続できません");
+  expect(g.toJSON().nodes.length).toBe(2);
+});
+
+test("画面が表示している版は、引用符を除いて返す（matomezu check の版と比べる）", async () => {
+  await setup();
+  expect(sync!.shown()).toBe(fileVersion.replace(/"/g, ""));
+});

@@ -1,7 +1,7 @@
 // 線の端の形（heads.ts、docs/HEADS-plan.md）
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import { HEADS, headDraw, headOf, headsPatch } from "../web/src/heads";
+import { HEADS, headDraw, headOf, headPatch, headsPatch } from "../web/src/heads";
 import type { Diagram, EdgeData, EdgeInfo } from "../web/src/types";
 import { problems } from "../web/src/validate";
 import { fakeMeasure, pointsOf } from "./helpers";
@@ -36,6 +36,43 @@ test("どの種類も何か描き、線を形の付け根で止める長さは 0
     const d = headDraw(h, [0, 0], [100, 0]);
     expect(d.fill + d.stroke).not.toBe("");
     expect(d.trim).toBeGreaterThanOrEqual(0);
+  }
+});
+
+test("headsPatch と headOf は行き来できる: どの組（無しを含む）も、書いた変更を読めば同じ両端の形", () => {
+  const kinds = [null, ...HEADS];
+  for (const s of kinds) for (const e of kinds) {
+    const p = headsPatch(s, e);
+    const src: EdgeData = { from: 1, to: 2 };
+    for (const [k, v] of Object.entries(p)) if (v != null) (src as Record<string, unknown>)[k] = v;
+    expect([s, e, headOf(src, "start"), headOf(src, "end")]).toEqual([s, e, s, e]);
+  }
+});
+
+test("headPatch: 片方の端だけを変え、もう一方の端の形は保つ。無し（null）にもできる", () => {
+  const now = { startHead: "diamond", endHead: "arrow" } as const;
+  expect(headPatch(now, "end", "many")).toEqual(headsPatch("diamond", "many"));
+  expect(headPatch(now, "start", null)).toEqual({ arrow: "end", startHead: null, endHead: null });
+  expect(headPatch(now, "start", "arrow")).toEqual({ arrow: "both", startHead: null, endHead: null });
+});
+
+test("headDraw: 長さ 1 未満の区間には何も描かず、線も縮めない。向きを変えても、形の付け根で止める長さは同じ", () => {
+  for (const h of HEADS) {
+    expect(headDraw(h, [0, 0], [0.5, 0.5])).toEqual({ fill: "", stroke: "", trim: 0 });
+    const trims = [[100, 0], [0, 100], [-100, 0], [0, -100], [60, 80]].map(([x, y]) => headDraw(h, [0, 0], [x!, y!]).trim);
+    expect(new Set(trims).size).toBe(1);
+  }
+});
+
+test("headDraw: 形は先端（tip）から出て、区間の長さを越えない範囲に描く（横向きの線なら x は先端から 21 以内、y は軸から ±7 以内。輪の半径の指定は点ではない）", () => {
+  for (const h of HEADS) {
+    const d = headDraw(h, [0, 50], [100, 50]);
+    const nums = (d.fill + d.stroke).replace(/A4,4 0 1 1 /g, "L").match(/-?\d+(\.\d+)?,-?\d+(\.\d+)?/g)!.map(p => p.split(",").map(Number) as [number, number]);
+    for (const [x, y] of nums) {
+      expect(x).toBeGreaterThanOrEqual(100 - 21);
+      expect(x).toBeLessThanOrEqual(100);
+      expect(Math.abs(y - 50)).toBeLessThanOrEqual(7);
+    }
   }
 });
 

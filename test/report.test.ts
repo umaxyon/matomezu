@@ -53,6 +53,51 @@ test("折れ線は区間ごとに、交差と箱を通る線を調べる", () =>
   expect(text).toContain("cross 1: e1(1-2)xe2(4-5)");
 });
 
+test("はみ出しの境目: 右端・下端がちょうど表示領域の端なら収まり、越えれば右と下の両方を挙げる", () => {
+  expect(summarize({ viewport: { w: 800, h: 600 }, boxes: [box("1", 700, 550)], edges: [] }).split("\n")[0])
+    .toBe("viewport 800x600, content 800x600 → fits");
+  expect(summarize({ viewport: { w: 800, h: 600 }, boxes: [box("1", 701, 551)], edges: [] }).split("\n")[0])
+    .toBe("viewport 800x600, content 801x601 → over right 1, bottom 1");
+});
+
+test("子の箱は content の広さにも top の行にも数えない（最上位だけ）", () => {
+  const p = box("1", 0, 0, 300, 200), kid = box("2", 250, 150, 900, 900, ["1"]);
+  const lines = summarize({ viewport: { w: 800, h: 600 }, boxes: [p, kid], edges: [] }).split("\n");
+  expect(lines).toEqual(["viewport 800x600, content 300x200 → fits", "top 1: #1 1 (0,0 300x200)"]);
+});
+
+test("キャプションは 12 文字までそのまま、13 文字から切って … を付ける", () => {
+  const top = (caption: string) => summarize({ viewport: { w: 800, h: 600 }, boxes: [box("1", 0, 0, 100, 50, [], caption)], edges: [] }).split("\n")[1];
+  expect(top("あいうえおかきくけこさし")).toBe("top 1: #1 あいうえおかきくけこさし (0,0 100x50)");
+  expect(top("あいうえおかきくけこさしす")).toBe("top 1: #1 あいうえおかきくけこさし… (0,0 100x50)");
+});
+
+test("同じ箱につながる線どうしは、交わって見えても交差に数えない", () => {
+  const a = box("1", 0, 0), b = box("2", 400, 200), c = box("3", 400, 0);
+  // e1: 1 → 2、e2: 3 → 1 は 1 を共有する。わざと交わる道筋にする
+  const e1: GeoEdge = { id: "e1", a: "1", b: "2", points: [[50, 25], [450, 225]] };
+  const e2: GeoEdge = { id: "e2", a: "3", b: "1", points: [[450, 25], [50, 225]] };
+  expect(summarize({ viewport: { w: 800, h: 600 }, boxes: [a, b, c], edges: [e1, e2] })).not.toContain("cross");
+});
+
+test("線のキャプションの札が重なる箱を挙げる（一番外側だけ。線の両端の祖先は除く）", () => {
+  const p = box("1", 0, 0, 600, 300), a = box("2", 10, 40, 100, 50, ["1"]), b = box("3", 400, 40, 100, 50, ["1"]);
+  const g = box("4", 200, 30, 100, 100, ["1"]), inner = box("5", 210, 40, 40, 40, ["4", "1"]);
+  const e: GeoEdge = { ...edge("e1", a, b), caption: "はい", label: { x: 220, y: 55, w: 30, h: 20 } };
+  expect(summarize({ viewport: { w: 800, h: 600 }, boxes: [p, a, b, g, inner], edges: [e] })).toContain("label 1: e1(2-3) はい>#4 4");
+  // 札がどの箱にもかからなければ出さない
+  const free: GeoEdge = { ...e, label: { x: 150, y: 140, w: 30, h: 20 } };
+  expect(summarize({ viewport: { w: 800, h: 600 }, boxes: [p, a, b, g, inner], edges: [free] })).not.toContain("label");
+});
+
+test("紙のページは、表示領域ではなく紙の大きさに対してはみ出しを数える（見出しも paper）", () => {
+  const g = { viewport: { w: 2000, h: 2000 }, paper: { name: "a5-landscape", w: 794, h: 559 }, boxes: [box("1", 700, 0)], edges: [] };
+  expect(summarize(g).split("\n")).toEqual([
+    "paper a5-landscape 794x559, content 800x50 → over right 6",
+    "top 1: !#1 1 (700,0 100x50)",
+  ]);
+});
+
 test("details: 子のある箱ごとに、子の位置（親の左上から）と大きさ。子がさらに子を持てば [見せ方 子の数]、非表示ならその旨", () => {
   const box = (id: string, x: number, y: number, w: number, h: number, ancestors: string[] = [], more: Partial<GeoBox> = {}): GeoBox =>
     ({ id, caption: `B${id}`, ancestors, x, y, w, h, cut: false, ...more });

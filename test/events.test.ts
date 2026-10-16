@@ -155,3 +155,81 @@ test("最後にフォーカスされた時刻は、読み直しても残る（se
     document.hasFocus = hasFocus;
   }
 });
+
+// サーバーからの頼み（通知・郵便・フォーカス・問い・ツアー・要約・紙）を、形を確かめてから配る
+function connectAll() {
+  conn?.close();
+  const got: string[] = [];
+  const rec = (name: string) => (...a: unknown[]) => { got.push(`${name} ${JSON.stringify(a)}`); };
+  conn = connectEvents({
+    version: rec("version"), open: rec("open"), status: () => {},
+    notify: rec("notify"), close: rec("close"), mail: rec("mail"), books: rec("books"), summary: rec("summary"),
+    point: rec("point"), ask: rec("ask"), tour: rec("tour"), tourChanged: rec("tourChanged"), askChanged: rec("askChanged"), fit: rec("fit"),
+  }, { reload: () => {}, retryDelay: 20 });
+  return { es: sources.at(-1)!, got };
+}
+
+test("通知は文字でない項目を空にし、空の book・page・box は null、dialog・arrive は \"true\" のときだけ真にする（D30）", () => {
+  const { es, got } = connectAll();
+  es.send("notify", { title: "題", body: 3, book: "b", page: "", box: "7", dialog: "true", arrive: true });
+  es.send("notify", "文字だけ");
+  es.send("notify", { title: "題", dialog: true, arrive: "true" });
+  expect(got).toEqual([
+    `notify ${JSON.stringify([{ title: "題", body: "", book: "b", page: null, box: "7", dialog: true, arrive: false }])}`,
+    `notify ${JSON.stringify([{ title: "題", body: "", book: null, page: null, box: null, dialog: false, arrive: true }])}`,
+  ]);
+});
+
+test("閉じる・郵便・一覧・紙の頼みは doc（と req）が文字のときだけ配る", () => {
+  const { es, got } = connectAll();
+  es.send("close", { doc: "a" });
+  es.send("close", { doc: 1 });
+  es.send("mail", { doc: "a" });
+  es.send("mail", {});
+  es.send("books", null);
+  es.send("fit", { req: "r1", doc: "a" });
+  es.send("fit", { req: "r2" });
+  expect(got).toEqual(['close ["a"]', 'mail ["a"]', "books []", 'fit ["r1","a"]']);
+});
+
+test("フォーカスは doc・box が無ければ null（枠を消す頼み）、say が無ければ空。req が無ければ配らない（D37）", () => {
+  const { es, got } = connectAll();
+  es.send("point", { req: "r1", doc: "a", box: "3", say: "ここ" });
+  es.send("point", { req: "r2" });
+  es.send("point", { doc: "a", box: "3" });
+  expect(got).toEqual(['point ["r1","a","3","ここ"]', 'point ["r2",null,null,""]']);
+});
+
+test("問い・ツアーの頼みは focus・mail が \"true\" のときだけ真。変わった知らせはそのまま配る（D36・D38）", () => {
+  const { es, got } = connectAll();
+  es.send("ask", { req: "r1", doc: "a", focus: "true" });
+  es.send("ask", { req: "r2", doc: "a", focus: true });
+  es.send("ask", { req: "r3" });
+  es.send("askchanged", null);
+  es.send("tour", { req: "r4", id: "t1", mail: "true" });
+  es.send("tour", { req: "r5", id: "t1" });
+  es.send("tour", { req: "r6" });
+  es.send("tourchanged", null);
+  expect(got).toEqual(['ask ["r1","a",true]', 'ask ["r2","a",false]', "askChanged []", 'tour ["r4","t1",true]', 'tour ["r5","t1",false]', "tourChanged []"]);
+});
+
+test("要約の頼みは page・version が無ければ空の文字で配る（D30）", () => {
+  const { es, got } = connectAll();
+  es.send("summary", { req: "r1", doc: "a", page: "7", version: "v1" });
+  es.send("summary", { req: "r2", doc: "a" });
+  expect(got).toEqual(['summary ["r1","a","7","v1"]', 'summary ["r2","a","",""]']);
+});
+
+test("JSON でない知らせは捨てる（落ちない）", () => {
+  const { es, got } = connectAll();
+  for (const name of ["version", "open", "notify", "point", "ask", "summary"]) es.dispatchEvent(new MessageEvent(name, { data: "{ broken" }));
+  expect(got).toEqual([]);
+});
+
+test("閉じたあとは、つなぎ直しの待ちも取り消す", async () => {
+  sources[0]!.fail();
+  conn!.close();
+  conn = null;
+  await wait(40);
+  expect(sources).toEqual([]);
+});

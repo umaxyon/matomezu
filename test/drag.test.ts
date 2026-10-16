@@ -2,7 +2,7 @@
 // つかんだ箱の大きさ + 8px だけ開始位置の側へずれる（入れ替わる）。ドラッグ中は開始時の写しから毎回計算し直すので、
 // 戻れば入れ替えも戻る。手を離したら確定する
 import { afterEach, expect, test } from "bun:test";
-import { createGraph, type Graph } from "../web/src/graph";
+import { DEFAULTS, createGraph, type Graph } from "../web/src/graph";
 import type { Diagram } from "../web/src/types";
 import { dragBy, example, fakeMeasure, PLAIN_GAPS, violations } from "./helpers";
 
@@ -231,5 +231,55 @@ test("横から少しだけ重ねて、離す直前に少し縦に動いても�
   g.up();
   expect(at(graph, 2)).toEqual(left);                 // 左の箱は動かない
   expect(at(graph, 3)[0]).toBe(left[0]! + graph.info(2).w + 8); // 右の箱は来た側（右）の、左の箱の手前（間隔 8）へ戻る
+  expect(violations(el)).toEqual([]);
+});
+
+// ---- 組ごとの間隔（gapBetween）とドラッグ。ここだけは PLAIN_GAPS を使わず、本来の間隔で確かめる ----
+
+function setupGaps(data: Diagram) {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const graph = createGraph(el, data, { measureText: fakeMeasure });
+  graphs.push(graph);
+  return { el, graph };
+}
+
+test("線でつながった相手へ半分まで食い込む前に手を離すと、つかんだ箱は相手の linkGap 手前へ戻る（キャプションがあれば captionGap）", () => {
+  for (const [caption, want] of [[undefined, DEFAULTS.linkGap], ["はい", DEFAULTS.captionGap]] as const) {
+    const { el, graph } = setupGaps({
+      world: { width: 1000 }, nodes: [box(1, 40, 40), box(2, 40, 200, 300)],
+      edges: [{ id: "e1", from: 1, to: 2, ...(caption ? { caption } : {}) }],
+    });
+    const h = graph.info(1).h;
+    dragBy(el, graph, 1, 0, 200 - 40 - h + 10, 10); // 2 に 10 食い込む
+    expect([caption, graph.info(2).y - (graph.info(1).y + h)]).toEqual([caption, want]);
+    expect(at(graph, 2)).toEqual([40, 200]);
+  }
+});
+
+test("中身を動かして広がった祖先は、線でつながった下の相手を、ドラッグ中から linkGap 先へ押す（離したあとも同じ）", () => {
+  const { el, graph } = setupGaps({
+    world: { width: 1000 },
+    nodes: [box(1, 40, 40), { id: 2, caption: "k", parent: 1 }, box(3, 40, 300)],
+    edges: [{ id: "e1", from: 1, to: 3 }],
+  });
+  const g = grab(el, graph, 2);
+  g.move(0, 250);
+  const during = graph.info(1);
+  expect(graph.info(3).y).toBe(during.y + during.h + DEFAULTS.linkGap);
+  g.up();
+  const after = graph.info(1);
+  expect(graph.info(3).y).toBe(after.y + after.h + DEFAULTS.linkGap);
+  expect(violations(el)).toEqual([]);
+});
+
+test("線でつながった相手と入れ替えると、相手は開始位置の側へ、つかんだ箱の大きさ + linkGap だけずれる", () => {
+  const { el, graph } = setupGaps({
+    world: { width: 1000 }, nodes: [box(1, 40, 40), box(2, 40, 200, 300)], edges: [{ id: "e1", from: 1, to: 2 }],
+  });
+  const h1 = graph.info(1).h, h2 = graph.info(2).h;
+  dragBy(el, graph, 1, 0, 200 - 40 + h2, 20); // 2 を通り過ぎる
+  expect(graph.info(2).y).toBe(200 - h1 - DEFAULTS.linkGap);
+  expect(graph.info(1).y - (graph.info(2).y + h2)).toBeGreaterThanOrEqual(DEFAULTS.linkGap);
   expect(violations(el)).toEqual([]);
 });

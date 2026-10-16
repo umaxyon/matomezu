@@ -1,11 +1,11 @@
 // 紙（D33。docs/PAPER-plan.md）: 紙の制限を受けるパターンのページは、紙の型（world.paper。無ければ A4 横）の大きさに固定する。
 // マスターは受けない。LLM への要約のはみ出しは紙に対して数え、開いたときに箱を表示領域へ寄せる調整（fitToViewport）はしない
 import { afterEach, expect, test } from "bun:test";
-import { type Graph, createGraph } from "../web/src/graph";
+import { DEFAULTS, type Graph, createGraph } from "../web/src/graph";
 import { summarize } from "../web/src/report";
 import { DEFAULT_PAPER, PAPERS, problems } from "../web/src/validate";
 import type { Diagram } from "../web/src/types";
-import { fakeMeasure } from "./helpers";
+import { dragBy, fakeMeasure } from "./helpers";
 
 let graph: Graph | null = null;
 afterEach(() => { graph?.destroy(); graph = null; document.body.innerHTML = ""; });
@@ -91,6 +91,29 @@ test("紙の型を変える: 大きくするのはできる。小さくして箱
   graph.update(null, { paper: DEFAULT_PAPER });
   expect(graph.toJSON().world?.paper).toBeUndefined();
   expect(sizeOf(world)).toEqual([PAPERS[DEFAULT_PAPER].w, PAPERS[DEFAULT_PAPER].h]);
+});
+
+test("紙の端: つかんで紙の右下の外へ動かすと、紙の内側の余白（padding）の手前で止まる。左上の外へは余白の内側で止まる", () => {
+  const { w, h } = PAPERS["a4-landscape"];
+  const { graph } = setup({ nodes: [{ id: 1, caption: "箱", x: 400, y: 300 }] });
+  const b = graph.info(1);
+  dragBy(document.body, graph, 1, w * 2, h * 2);
+  expect([graph.info(1).x, graph.info(1).y]).toEqual([w - DEFAULTS.padding - b.w, h - DEFAULTS.padding - b.h]);
+  dragBy(document.body, graph, 1, -w * 2, -h * 2);
+  expect([graph.info(1).x, graph.info(1).y]).toEqual([DEFAULTS.padding, DEFAULTS.padding]);
+  expect(events.filter(e => e.kind === "overPaper")).toHaveLength(0);
+});
+
+test("紙の端の境目: 右の余白にちょうど接する箱は紙の中、1px 越えれば紙の外として要約に出る", () => {
+  const { w } = PAPERS["a4-landscape"];
+  const bw = setup({ nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }] }).graph.info(1).w;
+  graph!.destroy();
+  const inside = setup({ nodes: [{ id: 1, caption: "箱", x: w - DEFAULTS.padding - bw, y: 40 }] }).graph;
+  expect(inside.geometry().outside ?? []).toEqual([]);
+  graph!.destroy();
+  const over = setup({ nodes: [{ id: 1, caption: "箱", x: w - DEFAULTS.padding - bw + 1, y: 40 }] }).graph;
+  expect(over.geometry().outside).toEqual(["1"]);
+  expect(over.info(1).x).toBe(w - DEFAULTS.padding - bw + 1); // 寄せずにそのまま見せる
 });
 
 test("リストの高さの上限（listHeight）: そこで止まり、隠れた子は配置の結果に入らず、要約に何件中何件が見えているかが出る。消すと中身の高さに戻る", () => {

@@ -1,7 +1,7 @@
 // routing.ts のテスト。線の道筋を、画面を作らずに確かめる（docs/ROUTE-plan.md、docs/EDGE-SPEC.md）
 import { expect, test } from "bun:test";
-import { type RouteInput, alignedEnds, passes, routeCandidates, scopeObstacles, route, segmentsOf, shapePoints, simplifyVia } from "../web/src/routing";
-import { type Pt, type Rect, nearestAt } from "../web/src/geom";
+import { type RouteInput, type RouteShape, alignedEnds, passes, routeCandidates, scopeObstacles, route, segmentsOf, shapePoints, sideAt, simplifyVia } from "../web/src/routing";
+import { type Pt, type Rect, nearestAt, pointAt } from "../web/src/geom";
 import { perimeter } from "../web/src/selfloop";
 
 // a: 40〜160 × 40〜104（中心 100, 72）、b: 400〜520 × 300〜364（中心 460, 332）
@@ -223,6 +223,65 @@ test("道筋に関わらない遠くの箱は絞り込みで外れ、外して�
   const full = input({ obstacles: [o1, o2, far] });
   expect(scopeObstacles(full)).toEqual([o1, o2]);
   expect(route({ ...full, obstacles: scopeObstacles(full) }).points).toEqual(route(full).points);
+});
+
+// ---- 性質: via の個数の偶奇、端の位置の境目（角）、ひし形の頂点 ----
+
+test("via の個数の偶奇: 出る向きと入る向きが同じなら奇数、違えば偶数でないと引けない（どの組でも）", () => {
+  const axes = ["horizontal", "vertical"] as const;
+  for (const exit of axes) for (const enter of axes) for (const n of [0, 1, 2, 3, 4]) {
+    if ((exit === enter) === (n % 2 === 1)) continue;
+    const via = [280, 200, 300, 180].slice(0, n);
+    expect([exit, enter, n, shapePoints(a, b, { exit, enter, via })]).toEqual([exit, enter, n, null]);
+  }
+});
+
+test("偶奇の合った via は、縦か横の区間だけで、a の辺から出て b の辺へ入る（via の個数 + 1 回折れる）", () => {
+  const ok: [RouteShape, number][] = [
+    [{ exit: "vertical", enter: "vertical", via: [200] }, 2],
+    [{ exit: "vertical", enter: "horizontal", via: [] }, 1],
+    [{ exit: "vertical", enter: "horizontal", via: [180, 280] }, 3],
+    [{ exit: "horizontal", enter: "vertical", via: [280, 180] }, 3],
+  ];
+  for (const [s, bends] of ok) {
+    const pts = shapePoints(a, b, s)!;
+    expect(pts).not.toBeNull();
+    expect(orthogonal(pts)).toBe(true);
+    expect(pts.length - 2).toBe(bends);
+    expect(sideAt(a, pts[0]!)).not.toBeNull();
+    expect(sideAt(b, pts.at(-1)!)).not.toBeNull();
+    expect(passes(pts, a) || passes(pts, b)).toBe(false);
+  }
+});
+
+// a の一周（368）の上を、角（0, 120, 184, 304）とその前後を含めて回す
+const AROUND = [0, 1, 60, 119, 120, 121, 152, 183, 184, 185, 244, 303, 304, 305, 336, 367].map(d => d / 368);
+
+test("固定の端がどこでも（角の上でも）、折れ線はその点から出て、縦横の区間だけで b の辺に入り、両端の箱を通らない", () => {
+  for (const exitAt of AROUND) {
+    const r = route(input({ exitAt }));
+    const start = pointAt(perimeter(a), exitAt);
+    expect([exitAt, round([r.points[0]!])[0]]).toEqual([exitAt, round([start])[0]]);
+    expect([exitAt, orthogonal(r.points)]).toEqual([exitAt, true]);
+    expect([exitAt, sideAt(b, r.points.at(-1)!) != null]).toEqual([exitAt, true]);
+    expect([exitAt, passes(r.points, a) || passes(r.points, b)]).toEqual([exitAt, false]);
+    expect(r.fix).toEqual({});
+  }
+});
+
+test("直線でも、固定の端はどこでも（角の上でも）その点から出る", () => {
+  for (const exitAt of AROUND) {
+    const p = route(input({ elbow: false, exitAt })).points[0]!;
+    expect(round([p])[0]).toEqual(round([pointAt(perimeter(a), exitAt)])[0]);
+  }
+});
+
+test("ひし形の端は、固定の位置がどこでも（角の上でも）4 つの頂点のどれか。直線でも折れ線でも", () => {
+  const vertices = [[100, 40], [160, 72], [100, 104], [40, 72]].map(String);
+  for (const exitAt of AROUND) for (const elbow of [true, false]) {
+    const p = route(input({ elbow, aVertex: true, exitAt })).points[0]!;
+    expect([exitAt, elbow, vertices.includes(String(p))]).toEqual([exitAt, elbow, true]);
+  }
 });
 
 test("passes: 斜めの区間は、囲む矩形ではなく線そのものが矩形を通るかで見る", () => {

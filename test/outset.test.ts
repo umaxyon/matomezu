@@ -2,6 +2,9 @@
 import { afterEach, expect, test } from "bun:test";
 import { DEFAULTS, createGraph, type Graph } from "../web/src/graph";
 import { STRATEGIES } from "../web/src/model";
+import { SHAPE_DEFS } from "../web/src/shapes";
+import { THEMES } from "../web/src/theme";
+import { SHAPES } from "../web/src/validate";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
 
@@ -39,6 +42,29 @@ test("テーマを付箋紙にすると、ノーマルの形は補正値の分�
   g.update(null, { theme: null });
   expect(info(g, 1).x).toBe(100);
   expect(info(g, 1).w).toBe(before[0]!.w);
+});
+
+test("形 × サイズの全組: 補正値はノーマルの形にだけ、サイズごとの値（上下, 左右）で四方に効き、中心は動かない", () => {
+  const sticky = THEMES.find(t => t.id === "sticky")!;
+  const was = sticky.outset;
+  // 上下と左右・サイズごとに違う値にする（取り違えれば失敗する）
+  sticky.outset = { L: [2, 6], M: [3, 5], S: [1, 7] };
+  try {
+    const sizes = ["L", "M", "S"] as const;
+    const nodes = SHAPES.flatMap((shape, i) => sizes.map((size, j) => ({ id: i * 3 + j + 1, caption: "形", shape, size, x: 40 + j * 300, y: 40 + i * 200 })));
+    const g = setup({ nodes });
+    const before = nodes.map(n => ({ c: center(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h }));
+    g.update(null, { theme: "sticky" });
+    nodes.forEach((n, k) => {
+      const normal = SHAPE_DEFS[n.shape].kind === "normal";
+      const [v, hz] = normal ? sticky.outset![n.size]! : [0, 0];
+      const now = { c: center(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h };
+      expect([n.shape, n.size, now.w - before[k]!.w, now.h - before[k]!.h]).toEqual([n.shape, n.size, 2 * hz, 2 * v]);
+      expect([n.shape, n.size, now.c]).toEqual([n.shape, n.size, before[k]!.c]);
+    });
+  } finally {
+    sticky.outset = was;
+  }
 });
 
 test("箱どうしの最小間隔は組ごと: つながっていなければ 8px、線でつながれば 32px、その線にキャプションがあれば 40px。リストの子は 8px", () => {

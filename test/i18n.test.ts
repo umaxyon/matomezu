@@ -4,7 +4,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { setLang, t, translateDom } from "../web/src/i18n";
+import { browserLang, langSetting, setLang, setLangSetting, t, translateDom } from "../web/src/i18n";
 import { EN, PARTS } from "../web/src/i18n/en";
 
 const SRC = join(import.meta.dir, "../web/src");
@@ -141,5 +141,48 @@ describe("多言語対応", () => {
     }
     expect(t("設定")).toBe("設定");
     expect(t("{n} 個", { n: 3 })).toBe("3 個");
+  });
+
+  test("t は渡されていない値の {name} をそのまま残し、辞書に無いキーは英語でもキーを返す", () => {
+    expect(t("{a} と {b}", { a: 1 })).toBe("1 と {b}");
+    setLang("en");
+    try {
+      expect(t("辞書に無い文言")).toBe("辞書に無い文言"); // i18n-ok（テストのキー）
+    } finally {
+      setLang("ja");
+    }
+  });
+});
+
+describe("言語の設定（設定画面。D8）", () => {
+  const KEY = "matomezu.lang";
+  const saved = localStorage.getItem(KEY);
+  const restore = () => { if (saved == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved); };
+
+  test("選んだ言語を覚え、「ブラウザに合わせる」なら覚えを消す。知らない値は auto として読む", () => {
+    try {
+      setLangSetting("en");
+      expect([localStorage.getItem(KEY), langSetting()]).toEqual(["en", "en"]);
+      setLangSetting("auto");
+      expect([localStorage.getItem(KEY), langSetting()]).toEqual([null, "auto"]);
+      localStorage.setItem(KEY, "fr");
+      expect(langSetting()).toBe("auto");
+    } finally {
+      restore();
+    }
+  });
+
+  test("ブラウザの言語は好みの順に見て、最初に当たった日本語か英語。どれにも当たらなければ英語", () => {
+    const desc = Object.getOwnPropertyDescriptor(navigator, "languages");
+    const as = (langs: string[]) => { Object.defineProperty(navigator, "languages", { configurable: true, get: () => langs }); return browserLang(); };
+    try {
+      expect(as(["fr-FR", "ja-JP", "en-US"])).toBe("ja");
+      expect(as(["de", "en-GB", "ja"])).toBe("en");
+      expect(as(["JA"])).toBe("ja");
+      expect(as(["jav", "fr"])).toBe("en"); // ja で始まる別の言語（ジャワ語）は日本語にしない
+    } finally {
+      if (desc) Object.defineProperty(navigator, "languages", desc);
+      else delete (navigator as { languages?: unknown }).languages;
+    }
   });
 });
