@@ -12,6 +12,7 @@
  * - mail: その図の郵便箱が変わった（届いた・読んだ・取り除いた。D26 の段階 3）。
  * - books: 登録したブックの一覧が変わった（登録した・ファイルが変わった・消えた。マスターを作り直す）。
  * - fit: 預けた中身が紙に収まるかを求められた（matomezu set。カレントの画面にだけ届く。D33）。答えは api/fit/<req> へ送る。
+ * - ask / askchanged: AI の問いの話題を出すよう求められた・話題が変わった（matomezu ask。D36）。ask の答えは api/point/<req> へ送る。
  * - point: その図の箱を示すフォーカス枠を求められた（matomezu focus。カレントの画面にだけ届く。D37）。答えは api/point/<req> へ送る。
  * - summary: その図のページの配置の要約を求められた（matomezu check。カレントの画面にだけ届く。D30）。答えは api/summary/<req> へ送る。
  * - 接続が切れても、つなぎ直しを続ける（入れ替わったサーバーが同じアドレスで起動するのを待つ）。
@@ -27,7 +28,9 @@ export interface EventHandlers {
   mail?(doc: string): void;
   books?(): void;
   summary?(req: string, doc: string, page: string, version: string): void; // page は "" なら最初のページ、version はそのときのファイルの版
-  point?(req: string, doc: string | null, box: string | null): void; // 箱を示す（doc・box が null なら出している枠を消す。matomezu focus。D37）
+  point?(req: string, doc: string | null, box: string | null, say: string): void; // say は枠と一緒に出す簡易メッセージ（D36）
+  ask?(req: string, doc: string, focus: boolean): void; // AI の問いの話題を出す（matomezu ask。D36）。focus なら 1 つ目の箱に枠も出す（focus -button）
+  askChanged?(): void;                  // 話題が変わった（GET api/ask で読み直す） // 箱を示す（doc・box が null なら出している枠を消す。matomezu focus。D37）
   fit?(req: string, doc: string): void; // 預けた中身（api/fit/{req}）が紙に収まるかを答える（matomezu set。D33）
   status(text: string): void;
   watched?(): string[]; // 開いている図の id
@@ -116,6 +119,7 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       if (v && typeof v.client === "string") {
         client = v.client;
         sendWatched();
+        h.askChanged?.(); // つないだ・つなぎ直した: 話題を読み直す（画面の読み直しで消えない）
         if (front()) { focusedAt = Date.now(); remember(); }
         sendFocus();
       }
@@ -152,8 +156,13 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
     });
     es.addEventListener("point", e => {
       const v = parse(e);
-      if (v && typeof v.req === "string") h.point?.(v.req, typeof v.doc === "string" ? v.doc : null, typeof v.box === "string" ? v.box : null);
+      if (v && typeof v.req === "string") h.point?.(v.req, typeof v.doc === "string" ? v.doc : null, typeof v.box === "string" ? v.box : null, typeof v.say === "string" ? v.say : "");
     });
+    es.addEventListener("ask", e => {
+      const v = parse(e);
+      if (v && typeof v.req === "string" && typeof v.doc === "string") h.ask?.(v.req, v.doc, v.focus === "true");
+    });
+    es.addEventListener("askchanged", () => h.askChanged?.());
     es.addEventListener("summary", e => {
       const v = parse(e);
       if (v && typeof v.req === "string" && typeof v.doc === "string") h.summary?.(v.req, v.doc, String(v.page ?? ""), String(v.version ?? ""));

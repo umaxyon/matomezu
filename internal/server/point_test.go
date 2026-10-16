@@ -54,8 +54,8 @@ func TestPointAsksTheCurrentScreen(t *testing.T) {
 		t.Fatalf("request: %+v", p)
 	}
 	for answer, want := range map[string]int{
-		`{"state":"pending"}`:                 http.StatusConflict,
-		`{"state":"busy"}`:                    http.StatusConflict,
+		`{"state":"pending"}`:                http.StatusConflict,
+		`{"state":"busy"}`:                   http.StatusConflict,
 		`{"state":"error","error":"no box"}`: http.StatusUnprocessableEntity,
 	} {
 		ch := answerWith(answer)

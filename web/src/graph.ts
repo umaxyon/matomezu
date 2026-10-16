@@ -18,6 +18,7 @@
  *                                // 戻した変更が見ていないページのものなら、そのページへ切り替える
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.reveal(id);            // 見えている範囲の外なら、図をスクロールして真ん中に持ってくる（非表示の親の中なら、見えている祖先）
+ *   graph.askBubbles(owner, items, handlers); // AI の問いの吹き出しと印を出す（D36。ask-bubbles.ts）。空で消す
  *   graph.point(id, onReact);    // AI が示す箱にフォーカス枠を出す（D37。point-frame.ts。データ・選択・履歴には入れない）。ユーザーが反応したら onReact。null で消す
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
  *   graph.updateEdge(id, patch); // 線を変更する（caption は空か null で消す、arrow は null で矢印なし、dash は null か "solid" で実線、
@@ -156,7 +157,7 @@ import { headOf } from "./heads";
 import { type Subtree, captionOfData, copySubtree, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import { type RouteFix, isAligned, perimeterAt, route } from "./routing";
-import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, pointColor, themeById, type Theme } from "./theme";
+import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, askColor, isTheme, paintFor, pointColor, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
@@ -171,6 +172,7 @@ import { type EdgePatch, createEdges } from "./graph-edges";
 import { createResizers } from "./resizers";
 import { createPageScenes, sceneKey } from "./page-scenes";
 import { createPointFrame } from "./point-frame";
+import { type BubbleHandlers, type BubbleItem, createAskBubbles } from "./ask-bubbles";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -228,6 +230,9 @@ export interface Graph {
   // AI が示す箱にフォーカス枠を出す（D37）。今のページに無い箱なら false。ユーザーが反応したら（図を押す・Esc・箱が見えなくなる）消して onReact。null で消す
   point(id: Id | null, onReact?: () => void): boolean;
   pointed(): string | null; // フォーカス枠を出している箱
+  // AI の問いの吹き出しと印（D36。ask-bubbles.ts）を出す。空で消す。データ・選択・履歴には入れない。
+  // owner は出す側（"ask" は話題、"focus" はフォーカスに付けた簡易メッセージ）。出す側ごとに置き換える
+  askBubbles(owner: string, items: BubbleItem[], handlers: BubbleHandlers): void;
   selected(): string | null;
   selectedEdge(): string | null; // 選んでいる線の id（線を選んでいなければ null）
   selectEdge(id: Id): void;
@@ -362,6 +367,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const F = createPointFrame({
     container, worldEl, zoom: () => V.applied(),
     drawnEl: id => { let m = byId.get(id) ?? null; while (m && !m.el.getClientRects().length) m = m.parent; return m?.el ?? null; },
+  });
+  // AI の問いの吹き出しと印（D36。ask-bubbles.ts）。出す側（話題・フォーカス）ごとの吹き出し
+  const bubbleSets = new Map<string, { items: BubbleItem[]; handlers: BubbleHandlers }>();
+  const A = createAskBubbles({
+    container, worldEl, canvasEl, zoom: () => V.applied(),
+    drawnEl: id => { let m = byId.get(id) ?? null; while (m && !m.el.getClientRects().length) m = m.parent; return m?.el ?? null; },
+    obstacles: id => {
+      const skip = new Set<Box>();
+      for (let m = byId.get(id) ?? null; m; m = m.parent) skip.add(m);
+      return nodes.filter(n => !skip.has(n) && n.el.getClientRects().length).map(n => n.el);
+    },
   });
   // 画面の見え方（倍率・プレビュー・home・手のひら。graph-view.ts）
   const V = createView({
@@ -1635,6 +1651,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return true;
     },
     pointed: () => F.pointed(),
+    askBubbles(owner, items, handlers) {
+      worldEl.style.setProperty("--mz-ask", askColor(themeOf(null)));
+      bubbleSets.set(owner, { items, handlers });
+      // 出す側ごとの吹き出しを 1 つの層にまとめる（id は出す側を頭に付けて分け、押した知らせは出す側へ戻す）
+      const all: BubbleItem[] = [];
+      for (const [o, set] of bubbleSets) for (const it of set.items) all.push({ ...it, id: `${o}:${it.id}` });
+      const route = (f: keyof BubbleHandlers) => (id: string, ...rest: string[]) => {
+        const i = id.indexOf(":");
+        const set = bubbleSets.get(id.slice(0, i));
+        (set?.handlers[f] as ((id: string, ...r: string[]) => void) | undefined)?.(id.slice(i + 1), ...rest);
+      };
+      A.set(all, { answer: route("answer"), seen: route("seen"), hide: route("hide"), open: route("open") });
+    },
     selected: () => (current ? current.id : null),
     selectedEdge: () => currentEdge?.id ?? null,
     selectEdge: id => selectEdge(edgeOf(id)),
@@ -1786,6 +1815,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     destroy() {
       destroyed = true;
       F.clear();
+      A.destroy();
       measurer.dispose();
       I.endLift();
       ro.disconnect();

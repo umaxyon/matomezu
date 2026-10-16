@@ -44,6 +44,7 @@ import { createMaster } from "./app-master";
 import { createAnswers } from "./app-answers";
 import { createNoteQueue } from "./app-notes";
 import { createPointer } from "./app-point";
+import { createAsker } from "./app-ask";
 import { openPageLinkDialog } from "./link-dialog";
 import { type MailNote, arrivedNote, createMailbox, badgeText, sendMail } from "./mailbox";
 
@@ -54,6 +55,7 @@ export interface AppUi {
   side: SideToggle;           // サイドバー（追加削除の一覧か郵便箱）の出し入れ。一覧なら、前に出ているブックの一覧を見せる
   mailbox: HTMLElement;       // サイドバーの郵便箱（mailbox.ts。D26 の段階 3）
   mailBadge: HTMLElement;     // タブ行の郵便箱のボタンの未読の数
+  askPalette: HTMLElement;    // タブ行の真ん中の、AI の問いのパレット（app-ask.ts。D36）
   crossList: HTMLElement;     // サイドバーの、マスターの追加削除（ブックをまたぐ一覧。cross-list.ts。D26 の段階 4）
   canvas: HTMLElement;
   sidebar: HTMLElement;
@@ -141,6 +143,7 @@ export async function startApp(ui: AppUi) {
   const bookOpened: ((b: Book) => void)[] = [], bookClosed: ((b: Book) => void)[] = [];
   const onBookOpen = (f: (b: Book) => void) => { bookOpened.push(f); };
   const onBookClose = (f: (b: Book) => void) => { bookClosed.push(f); };
+  let onActivated = () => {}; // 前に出したブック・ページが変わった（AI の問いが描き直す。下で決める）
 
   // 郵便箱。前に出したブックの郵便箱を読み、未読の数をボタンに出す。開いた直後に未読があればトーストで知らせる
   let noticeFor: string | null = null;
@@ -348,6 +351,7 @@ export async function startApp(ui: AppUi) {
     updateDocumentTitle();
     updateUrl();
     remember();
+    onActivated(); // AI の問いのパレットと吹き出し（D36）
   }
 
   function closePage(b: Book, t: PageTab) {
@@ -508,6 +512,15 @@ export async function startApp(ui: AppUi) {
     books: () => books, current: () => current, openBook: id => openBook(id), activate: (b, page) => activate(b, page), title: b => titleOf(b),
   });
 
+  // AI の問いの話題（matomezu ask。D36。app-ask.ts）
+  const asker = createAsker<Book>({
+    books: () => books, current: () => current, openBook: id => openBook(id), activate: (b, page) => activate(b, page), title: b => titleOf(b),
+    busy: () => pointer.busy(), focusWaiting: () => pointer.waiting(), palette: ui.askPalette, drawerHost: ui.canvas,
+    frame: (b, box) => pointer.frame(b, box),
+  });
+  onBookClose(b => asker.bookClosed(b.id));
+  onActivated = () => asker.render();
+
   // 通知のダイアログの順番待ち（app-notes.ts）
   const queueNote = createNoteQueue();
 
@@ -575,7 +588,9 @@ export async function startApp(ui: AppUi) {
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
     books() { void M.catalog(); if (current?.book.master) void M.refresh(); },
     summary(req, doc, page, version) { void answers.summary(req, doc, page, version); },
-    point(req, doc, box) { void pointer.answer(req, doc, box); },
+    point(req, doc, box, say) { void pointer.answer(req, doc, box, say); },
+    ask(req, doc, focus) { void asker.answer(req, doc, focus); },
+    askChanged() { void asker.refresh(); },
     fit(req, doc) { void answers.fit(req, doc); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
     close(doc) {

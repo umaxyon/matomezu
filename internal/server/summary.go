@@ -26,7 +26,8 @@ type Layout struct {
 	Summary string            `json:"summary"`
 	Details map[string]string `json:"details,omitempty"`
 	Outside []string          `json:"outside,omitempty"` // 紙からはみ出している最上位の箱の id（D33。あれば check はエラーで終わる）
-	Focus   string            `json:"focus,omitempty"`   // この図の箱を示したフォーカス枠の様子（D37。反応待ち・断られたなど。無ければ ""）
+	Focus   string            `json:"focus,omitempty"`
+	Ask     string            `json:"ask,omitempty"` // この図の AI の問いの話題の様子（D36。ask.go の askLine）   // この図の箱を示したフォーカス枠の様子（D37。反応待ち・断られたなど。無ければ ""）
 }
 
 // summaryWait は要約を待つ長さ。画面がボタンを離すのを待つ長さ（web/src/app-answers.ts の SUMMARY_BUSY）より長く
@@ -80,6 +81,7 @@ func (h *Hub) Summary(path, page string) (Layout, error) {
 			return Layout{}, errors.New("the screen could not lay out the file: " + a.Error)
 		}
 		if now, err := d.freshVersion(); err == nil && a.Version == now {
+			a.Layout.Ask = h.askLine(d.id)
 			return a.Layout, nil
 		}
 		if time.Now().After(deadline) {

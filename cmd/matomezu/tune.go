@@ -55,6 +55,9 @@ func check(args []string) error {
 	if l.Focus != "" {
 		fmt.Println(l.Focus)
 	}
+	if l.Ask != "" {
+		fmt.Println(l.Ask)
+	}
 	// 紙からはみ出している間はエラーで終わる（D33。LLM が直すまで返し続ける）
 	if len(l.Outside) > 0 {
 		return fmt.Errorf("%d box(es) are off the paper (marked ! in top): move them inside, summarize or cut, use a scrolling list, a larger paper (world.paper), or a page", len(l.Outside))

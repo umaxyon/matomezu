@@ -898,3 +898,128 @@ test("フォーカス枠: ほかのブックの箱は移るかを確かめる。
   await page.keyboard.press("Escape");
   await expect(frame).toHaveCount(0);
 });
+
+test("AI の問い: 吹き出しを A・B で出し（データにも箱の大きさにも触らない）、答え・隠す・開くはサーバーに残る。話題が残る間は次の問いもフォーカスも断り、-end で消える（D36）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  const web = page.locator(".stage:visible .mz-node[data-id='2']");
+  const before = await web.boundingBox();
+  const file = readFileSync(join(dir, "a.json"), "utf8");
+  const spec = JSON.stringify({ items: [
+    { box: "2", text: "Webは残す？", choices: ["はい", "いいえ"] },
+    { box: "5", choices: ["了承する"] },
+    { box: "9", text: "あとで名前を直します" },
+  ] });
+  expect(run("ask", "a.json", spec)).toContain("shown");
+  const bubbles = page.locator(".stage:visible .mz-ask-bubble:visible");
+  await expect(bubbles).toHaveCount(3);
+  await expect(bubbles.locator(".mz-ask-id")).toHaveText(["A", "B", "C"]);
+  expect(await web.boundingBox()).toEqual(before);
+  expect(readFileSync(join(dir, "a.json"), "utf8")).toBe(file);
+  const palette = page.locator("#ask-palette");
+  await expect(palette).toBeVisible();
+  await expect(palette.locator(".ask-count")).toHaveText("0 / 3");
+  // 話題が残る間は、次の問いもフォーカスも断る
+  expect(fails("ask", "a.json", spec)).toContain("still open");
+  expect(fails("focus", "a.json", "1")).toContain("still open");
+  // A に答える
+  await bubbles.filter({ hasText: "Webは残す？" }).locator("[data-choice='はい']").click();
+  await expect(palette.locator(".ask-count")).toHaveText("1 / 3");
+  await expect(palette.locator("button.ask-done")).toHaveText("A");
+  expect(run("ask", "-status")).toMatch(/1 \(A\) box 2, bubble: answered \["はい"\]/);
+  // B を隠すと印に縮み、印を押すと戻る。AI からも閉じられる
+  const b = bubbles.filter({ hasText: "了承する" });
+  await b.locator("[data-hide]").click();
+  const markB = page.locator(".stage:visible .mz-ask-mark:visible", { hasText: "B" });
+  await expect(markB).toHaveCount(1);
+  expect(run("ask", "-status")).toContain("2 (B) box 5, bubble: hidden");
+  await markB.click();
+  await expect(bubbles).toHaveCount(2);
+  run("ask", "-hide", "B");
+  await expect(markB).toHaveCount(1);
+  run("ask", "-show", "2");
+  await expect(bubbles).toHaveCount(2);
+  // ボタンの無い C は × で見た
+  await bubbles.filter({ hasText: "あとで名前を直します" }).locator("[data-seen]").click();
+  expect(run("ask", "-status")).toContain("3 (C) box 9, bubble: seen");
+  expect(run("check", "a.json")).toContain("ask: 2 of 3 questions responded");
+  // 図を押しても消えない
+  await page.locator(".stage:visible").click({ position: { x: 5, y: 5 } });
+  await expect(bubbles).toHaveCount(1);
+  expect(run("ask", "-end")).toContain("ended");
+  await expect(bubbles).toHaveCount(0);
+  await expect(palette).toBeHidden();
+  expect(run("ask", "-status")).toContain("no topic");
+});
+
+test("AI の問い: 長いものはドロワーの印になる。ほかのブックは移るかを確かめ、キャンセルは -status に出る。ページをまたぐ問い・無い箱は断る（D36）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  const long = JSON.stringify({ items: [{ box: "5", text: "トップ画面は残しますか？ほかの画面とまとめますか？", choices: ["残す", "まとめる"] }] });
+  expect(run("ask", "b.json", long)).toContain("asked the user");
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg).toContainText("1 件の問い");
+  await dlg.locator("[data-cancel]").click();
+  await expect(selected(page)).toHaveText("a.json");
+  expect(run("ask", "-status")).toContain("the user declined to move");
+  run("ask", "-end");
+  // 今のブックの長い問いはドロワー行き: 吹き出しは出さず、印（1 つなので ≡）
+  expect(run("ask", "a.json", JSON.stringify({ items: [{ box: "2", text: "Webの画面はスマホでも同じ並びで見せますか？それとも縦に積みますか？" }] }))).toContain("drawer");
+  await expect(page.locator(".stage:visible .mz-ask-bubble:visible")).toHaveCount(0);
+  await expect(page.locator(".stage:visible .mz-ask-mark:visible")).toHaveText("≡");
+  run("ask", "-end");
+  expect(fails("ask", "a.json", JSON.stringify({ items: [{ box: "99", text: "これは？" }] }))).toContain("no box 99");
+  expect(run("ask", "-status")).toContain("no topic"); // 断った話題は残らない
+});
+
+test("AI の問い: ドロワーは複数選択と文字で答えられ、答えないも選べる。答えたら閉じてパレットで線が引かれる（D36）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  run("ask", "a.json", JSON.stringify({ items: [
+    { box: "2", text: "Webで使う画面を選んでください", choices: ["一覧", "詳細", "設定"], multi: true, input: true },
+    { box: "5", text: "APIの公開範囲について、社内だけにするか外部にも出すかを決めたいです。どちらにしますか？", choices: ["社内", "外部"] },
+  ] }));
+  const palette = page.locator("#ask-palette");
+  await expect(palette.locator("button.ask-drawer")).toHaveCount(2);
+  await page.locator(".stage:visible .mz-ask-mark", { hasText: "A" }).click();
+  const drawer = page.locator(".mz-ask-drawer");
+  await expect(drawer).toBeVisible();
+  await expect(drawer.locator("[data-ok]")).toBeDisabled();
+  await drawer.getByLabel("一覧").check();
+  await drawer.getByLabel("設定").check();
+  await drawer.locator("textarea").fill("詳細はあとで");
+  await drawer.locator("[data-ok]").click();
+  await expect(drawer).toBeHidden();
+  expect(run("ask", "-status")).toContain(`1 (A) box 2, drawer: answered ["一覧","設定"] note "詳細はあとで"`);
+  await palette.locator("button", { hasText: "B" }).click();
+  await expect(drawer).toContainText("APIの公開範囲");
+  await drawer.locator("[data-decline]").click();
+  expect(run("ask", "-status")).toContain("2 (B) box 5, drawer: declined");
+  await expect(palette.locator(".ask-count")).toHaveText("2 / 2");
+  run("ask", "-end");
+  await expect(palette).toBeHidden();
+});
+
+test("フォーカスの簡易メッセージ: -say は枠と吹き出しを出し、図を押すと一緒に消える。-button は 1 問の話題になり、押した答えが -status に出る。長すぎれば断る（D36）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  run("focus", "-say", "ここを直しました", "a.json", "5");
+  const frame = page.locator(".stage:visible .mz-point");
+  const bubbles = page.locator(".stage:visible .mz-ask-bubble:visible");
+  await expect(frame).toHaveCount(1);
+  await expect(bubbles).toHaveText(/ここを直しました/);
+  await page.locator(".stage:visible").click({ position: { x: 5, y: 5 } });
+  await expect(frame).toHaveCount(0);
+  await expect(bubbles).toHaveCount(0);
+  expect(run("check", "a.json")).toContain("focus: the user responded to box 5");
+  expect(fails("focus", "-say", "この箱の名前は長すぎるので短くしてもよいですか", "a.json", "5")).toContain("too long for a bubble");
+  expect(run("focus", "-say", "名前を変えます", "-button", "了承する", "a.json", "5")).toContain("ask -status");
+  await expect(frame).toHaveCount(1);
+  await expect(page.locator("#ask-palette")).toBeVisible();
+  expect(fails("focus", "a.json", "1")).toContain("still open");
+  await bubbles.locator("[data-choice='了承する']").click();
+  expect(run("ask", "-status")).toContain(`1 box 5, bubble: answered ["了承する"]`);
+  run("ask", "-end");
+  await expect(frame).toHaveCount(0);
+  await expect(bubbles).toHaveCount(0);
+});

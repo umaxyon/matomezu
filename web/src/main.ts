@@ -90,7 +90,7 @@ async function main() {
     stage.remove(); // 描画領域はタブごとに作る
     $("name").remove(); // 図の名前はブックのタブに出す
     startApp({
-      tabs: $("tabs"), master: $<HTMLButtonElement>("master"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side, mailbox: $("mailbox"), mailBadge: $("mail-badge"), crossList: $("crossmove"),
+      tabs: $("tabs"), master: $<HTMLButtonElement>("master"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side, mailbox: $("mailbox"), mailBadge: $("mail-badge"), crossList: $("crossmove"), askPalette: $("ask-palette"),
       undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
       notice: text => toast(text), error: showError, clearError, empty: showEmpty,
     });

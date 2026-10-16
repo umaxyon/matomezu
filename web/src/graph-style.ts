@@ -315,6 +315,37 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 @keyframes mz-point-pulse {
   50% { box-shadow: 0 0 0 5px var(--mz-point), 0 0 0 7px #ffffff, 0 0 18px 8px color-mix(in srgb, var(--mz-point) 55%, transparent); }
 }
+/* AI の問いの吹き出しと印（D36。ask-bubbles.ts）。色はテーマの ask（--mz-ask）、地は紙の色 */
+.mz-ask-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 7; }
+.mz-ask-bubble {
+  position: absolute; box-sizing: border-box; width: max-content; max-width: calc(10em + 40px); padding: 7px 26px 8px 9px;
+  background: var(--mz-paper); color: inherit; border: 1.5px solid var(--mz-ask); border-radius: 10px;
+  font-size: 13px; font-weight: 400; line-height: 1.45; text-align: left; box-shadow: 0 4px 14px rgba(20, 40, 90, 0.18); cursor: default;
+}
+.mz-ask-bubble.mz-ask-only { padding-right: 26px; }
+.mz-ask-text { margin: 0; overflow-wrap: anywhere; }
+.mz-ask-btns { display: flex; gap: 6px; margin-top: 6px; }
+.mz-ask-only .mz-ask-btns { margin-top: 0; }
+.mz-ask-btn { font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--mz-ask); color: inherit; white-space: nowrap; cursor: pointer;
+  background: color-mix(in srgb, var(--mz-ask) 12%, var(--mz-paper)); }
+.mz-ask-btn.mz-ask-primary { background: var(--mz-ask); color: #fff; }
+.mz-ask-ctl { position: absolute; top: 3px; right: 4px; width: 18px; height: 18px; padding: 0; border: 0; background: transparent; color: inherit; opacity: 0.55; font-size: 14px; line-height: 18px; cursor: pointer; }
+.mz-ask-ctl:hover { opacity: 1; }
+.mz-ask-id { position: absolute; top: -9px; left: -9px; width: 18px; height: 18px; border-radius: 50%; background: var(--mz-ask); color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--mz-paper); }
+.mz-ask-tail { position: absolute; width: 10px; height: 10px; background: var(--mz-paper); border: 1.5px solid var(--mz-ask); transform: rotate(45deg); }
+.mz-ask-bubble[data-side="right"] .mz-ask-tail { left: -6.5px; top: 12px; border-right: 0; border-top: 0; }
+.mz-ask-bubble[data-side="left"] .mz-ask-tail { right: -6.5px; top: 12px; border-left: 0; border-bottom: 0; }
+.mz-ask-bubble[data-side="bottom"] .mz-ask-tail { top: -6.5px; left: 16px; border-right: 0; border-bottom: 0; }
+.mz-ask-bubble[data-side="top"] .mz-ask-tail { bottom: -6.5px; left: 16px; border-left: 0; border-top: 0; }
+.mz-ask-mark {
+  position: absolute; width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%; background: var(--mz-ask); color: #fff;
+  font: 700 10px/16px system-ui, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--mz-paper); cursor: pointer;
+}
+.mz-ask-mark::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--mz-ask); opacity: 0; animation: mz-ask-ping 1.6s ease-out infinite; }
+@keyframes mz-ask-ping { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mz-ask-mark::after { animation: none; opacity: 0.5; } .mz-point { animation: none; } }
+.mz-ask-bubble.mz-ask-flash { animation: mz-point-pulse 0.7s ease-in-out 2; }
 .mz-add-line { position: fixed; z-index: 51; height: 3px; border-radius: 2px; pointer-events: none; background: var(--mz-select); }
 .mz-node.mz-drop > .mz-head {
   outline: 3px solid var(--mz-select); outline-offset: 3px;

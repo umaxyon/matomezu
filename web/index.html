@@ -50,6 +50,7 @@
   .tab-bar, button, .mzp-tabs, .mzp-seg label { user-select: none; -webkit-user-select: none; }
   /* ヘッダーは無い（D26。docs/UI-plan.md）。一番上のタブ行に、左から道具・タブ・右端の群を置く。道具と右端の群はタブと背景の色で分ける */
   .tab-bar {
+    position: relative;
     display: flex;
     align-items: stretch;
     background: var(--bar);
@@ -163,6 +164,16 @@
     font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; pointer-events: none; }
   .badge:empty { display: none; }
   body:not(.served) #mail-toggle { display: none; }
+  /* AI の問いのパレット（D36。app-ask.ts）: タブ行の真ん中に重ねる。押すとその問いへスクロール。答えたものは線で消す、ドロワーの問いは点線 */
+  .ask-palette { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex; align-items: center; gap: 4px;
+    padding: 3px 4px 3px 10px; border-radius: 16px; border: 1px solid var(--ask); background: color-mix(in srgb, var(--ask) 12%, var(--bar)); font-size: 12px; white-space: nowrap; }
+  .ask-palette[hidden] { display: none; }
+  .ask-palette .ask-label { font-weight: 600; margin-right: 2px; }
+  .ask-palette .ask-count { opacity: 0.7; margin-right: 4px; font-variant-numeric: tabular-nums; }
+  .ask-palette button { font: inherit; font-weight: 700; min-width: 26px; height: 24px; padding: 0 6px; border-radius: 12px; border: 1px solid var(--ask);
+    background: var(--bar); color: var(--ask); cursor: pointer; }
+  .ask-palette button.ask-done { border-color: var(--bar-border); color: var(--hint); background: transparent; text-decoration: line-through; }
+  .ask-palette button.ask-drawer { border-style: dashed; }
   #sidebar {
     width: 280px;
     flex: none;
@@ -240,6 +251,7 @@
       <span class="badge" id="mail-badge"></span>
     </button>
   </div>
+  <div class="ask-palette" id="ask-palette" role="toolbar" aria-label="AI の問い" hidden></div>
   <nav class="tabs" id="tabs" role="tablist" aria-label="開いている図">
     <div class="tab tab-book" id="name" aria-selected="true"><span class="tab-name">サンプル</span></div>
   </nav>

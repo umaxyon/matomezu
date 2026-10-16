@@ -9,6 +9,7 @@
 // 枠そのもの（データ・選択・履歴に入れない）は graph.point（point-frame.ts）。
 import { esc } from "./dom";
 import { openSimpleDialog } from "./edit-dialog";
+import type { BubbleHandlers } from "./ask-bubbles";
 import type { Graph } from "./graph";
 import { t } from "./i18n";
 import { pageOf } from "./pages";
@@ -23,6 +24,8 @@ export interface PointContext<B extends PointBook> {
   activate(b: B, page: string | null): void;
   title(b: B): string; // ブックの題名
 }
+
+const NO_BUBBLE: BubbleHandlers = { answer() {}, seen() {}, hide() {}, open() {} };
 
 type State =
   | { phase: "shown"; doc: string; box: string }
@@ -49,21 +52,31 @@ export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
 
   const nodesOf = (b: B) => ((b.loaded ? b.graph.toJSON() : b.data) as Diagram | null)?.nodes ?? [];
 
-  // b の箱 box のページへ移って枠を出す
-  function show(b: B, box: string, page: string | null) {
+  // b の箱 box のページへ移って枠を出す。say があれば、枠と一緒に簡易メッセージの吹き出しを出す（D36。× か枠への反応で一緒に消える）
+  function show(b: B, box: string, page: string | null, say = "") {
     ctx.activate(b, page);
     const s: State = { phase: "shown", doc: b.id, box };
     state = s;
-    if (!b.graph.point(box, () => { if (state === s) state = { phase: "responded", doc: b.id, box }; })) state = null;
+    const react = () => {
+      b.graph.askBubbles("focus", [], NO_BUBBLE);
+      if (state === s) state = { phase: "responded", doc: b.id, box };
+    };
+    if (!b.graph.point(box, react)) { state = null; return; }
+    if (say) b.graph.askBubbles("focus", [{ id: "say", box, text: say, view: "bubble", state: "open" }], { ...NO_BUBBLE, seen: () => { b.graph.point(null); react(); } });
   }
 
-  async function answer(req: string, doc: string | null, box: string | null) {
+  // 枠だけを出す（focus -button。反応待ちは 1 問の話題が持つので、ここでは覚えない）
+  function frame(b: B, box: string) {
+    b.graph.point(box, () => {});
+  }
+
+  async function answer(req: string, doc: string | null, box: string | null, say = "") {
     const send = (state: string, error?: string) => void fetch(`api/point/${encodeURIComponent(req)}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state, error }),
     }).catch(() => {});
     if (doc == null || box == null) { // matomezu focus -clear
       if (state?.phase === "asking") state.cancel();
-      for (const b of ctx.books()) if (b.loaded && b.graph.pointed() != null) b.graph.point(null);
+      for (const b of ctx.books()) if (b.loaded) { if (b.graph.pointed() != null) b.graph.point(null); b.graph.askBubbles("focus", [], NO_BUBBLE); }
       state = null;
       return send("cleared");
     }
@@ -75,7 +88,7 @@ export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
     if (!nodes.some(n => String(n.id) === box)) return send("error", `no box ${box} in this diagram (removed boxes can't be shown)`);
     const page = pageOf(nodes, box);
     if (ctx.current()?.book === b) {
-      show(b, box, page);
+      show(b, box, page, say);
       return send("shown");
     }
     // ほかのブック: 移るかを確かめる。ダイアログに答えるまでは反応待ち
@@ -83,7 +96,7 @@ export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
     let moved = false;
     const overlay = openSimpleDialog(t("AI が箱を示しています"), t("移動"),
       `<p class="mz-dlg-message">${esc(t("ブック「{book}」の「{box}」を示しています。移動しますか？", { book: ctx.title(b), box: caption }))}</p>`,
-      () => { moved = true; show(b, box, page); });
+      () => { moved = true; show(b, box, page, say); });
     const s: State = { phase: "asking", doc, box, cancel: () => overlay.querySelector<HTMLElement>("[data-cancel]")?.click() };
     state = s;
     const watch = new MutationObserver(() => {
@@ -116,5 +129,8 @@ export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
     }
   }
 
-  return { answer, fromMail, status };
+  // フォーカスの反応待ち（ほかのブックへ移る確かめ中も）。AI の問いの話題を出さない（同時に追うのは 1 つ。D36）
+  const waiting = () => state?.phase === "shown" || state?.phase === "asking";
+
+  return { answer, fromMail, status, busy, waiting, frame };
 }

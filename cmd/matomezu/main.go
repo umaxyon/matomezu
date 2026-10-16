@@ -43,11 +43,17 @@ const usageText = `usage:
   matomezu notify -title text [-body text] [-page id] [-mail] [file.json]   tell the user something (once, when a piece of work is done)
                                              with a file, the notice offers to open that diagram (or page); -body can explain what changed
                                              it goes to the mailbox of the diagram the user is looking at and also shows a dialog; -mail only puts it in the mailbox
-  matomezu focus [-mail] <file.json> <box id>   point at one box on the user's screen with a frame (not written to the file; the user closes it)
+  matomezu focus [-mail] [-say text] [-button label] <file.json> <box id>   point at one box on the user's screen with a frame (not written to the file; the user closes it)
                                              in the diagram the user is looking at, it moves to the box's page; in another diagram, the user is asked first
                                              it fails while the user is busy (a dialog, dragging, typing) or has not responded to the previous focus
                                              check on that file then ends with a focus: line (not responded yet / asked / declined / responded)
+                                             -say adds a short message in a bubble; -button adds a button to it, which makes it a one-question topic (see ask)
                                              -mail puts it in the mailbox instead (the box is shown when the user opens it); matomezu focus -clear removes your focus
+  matomezu ask <file.json> '{"items":[{"box":"5","text":"OK?","choices":["yes","no"]}]}'   ask the user about boxes on one page, with bubbles on the screen (not written to the file)
+                                             each item: box, text, choices (buttons), and optional id (default 1, 2, …), multi (pick several), input (also answer in words)
+                                             short ones (20 full-width characters, up to 2 buttons of 6 characters in all) are bubbles; longer ones (150 at most) open in a drawer
+                                             only one topic at a time, and not while a focus waits; it fails while the user is busy. it returns at once
+  matomezu ask -status | -end | -hide id | -show id   the answers so far / end the topic (do it when you have enough, or to withdraw and ask again) / fold or open a bubble
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu close <file.json>...              close these diagrams in the browser (they stay registered and listed on the master page; open shows them again)
                                              closing a diagram in the browser also clears its LLM history
@@ -82,6 +88,8 @@ func main() {
 		err = notifyCmd(args)
 	case "focus":
 		err = focusCmd(args)
+	case "ask":
+		err = askCmd(args)
 	case "history":
 		err = historyCmd(args)
 	case "revert":

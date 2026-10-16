@@ -281,12 +281,11 @@ func Notify(s *State, n server.NotifyRequest) error {
 	return err
 }
 
-// Point はカレントの画面に、path の図の箱 box を示すフォーカス枠を頼む（clear なら出している枠を消す。D37）。誤りはサーバーの言葉だけを返す
-func Point(s *State, path, box string, clear bool) (server.PointAnswer, error) {
+// Point はカレントの画面に、p.Path の図の箱 p.Box を示すフォーカス枠を頼む（Clear なら出している枠を消す。D37。Say・Button は吹き出し。D36）。誤りはサーバーの言葉だけを返す
+func Point(s *State, p server.PointRequest) (server.PointAnswer, error) {
 	var a server.PointAnswer
-	p := server.PointRequest{Box: box, Clear: clear}
-	if path != "" {
-		abs, err := filepath.Abs(path)
+	if p.Path != "" {
+		abs, err := filepath.Abs(p.Path)
 		if err != nil {
 			return a, err
 		}
@@ -298,6 +297,43 @@ func Point(s *State, path, box string, clear bool) (server.PointAnswer, error) {
 		return a, errors.New(se.msg)
 	}
 	return a, err
+}
+
+// Question は AI の問いの話題を出す（D36）。答えは画面の様子（shown / asked）と話題。誤りはサーバーの言葉だけを返す
+func Question(s *State, path string, items []server.AskItem) (string, *server.Topic, error) {
+	var out struct {
+		State string        `json:"state"`
+		Topic *server.Topic `json:"topic"`
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", nil, err
+	}
+	err = call(s, "POST", "/api/ask", map[string]any{"path": abs, "items": items}, &out)
+	var se *serverError
+	if errors.As(err, &se) {
+		return "", nil, errors.New(se.msg)
+	}
+	return out.State, out.Topic, err
+}
+
+// AskTopic は今の話題（無ければ nil）。c が空でなければ、話題を終わらせる・開閉してから、その前の様子を返す
+func AskTopic(s *State, c *server.AskControl) (*server.Topic, error) {
+	var t server.Topic
+	var err error
+	if c == nil {
+		err = call(s, "GET", "/api/ask", nil, &t)
+	} else {
+		err = call(s, "POST", "/api/ask/control", c, &t)
+	}
+	var se *serverError
+	if errors.As(err, &se) {
+		return nil, errors.New(se.msg)
+	}
+	if err != nil || t.Doc == "" {
+		return nil, err
+	}
+	return &t, nil
 }
 
 // Close は path の図のタブを閉じるよう、サーバーにつながっている画面に知らせる（登録は残る）
