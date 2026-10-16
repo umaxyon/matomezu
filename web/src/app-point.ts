@@ -27,7 +27,8 @@ export interface PointContext<B extends PointBook> {
 type State =
   | { phase: "shown"; doc: string; box: string }
   | { phase: "asking"; doc: string; box: string; cancel: () => void }
-  | { phase: "declined"; doc: string; box: string }; // 移る確かめを断られた（次のフォーカスまで check に出す）
+  | { phase: "declined"; doc: string; box: string }   // 移る確かめを断られた（次のフォーカスまで check に出す）
+  | { phase: "responded"; doc: string; box: string }; // ユーザーが反応して枠が消えた（次のフォーカスまで check に出す。示していないのと区別するため）
 
 export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
   let state: State | null = null;
@@ -53,7 +54,7 @@ export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
     ctx.activate(b, page);
     const s: State = { phase: "shown", doc: b.id, box };
     state = s;
-    if (!b.graph.point(box, () => { if (state === s) state = null; })) state = null;
+    if (!b.graph.point(box, () => { if (state === s) state = { phase: "responded", doc: b.id, box }; })) state = null;
   }
 
   async function answer(req: string, doc: string | null, box: string | null) {
@@ -66,7 +67,7 @@ export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
       state = null;
       return send("cleared");
     }
-    if (state && state.phase !== "declined") return send("pending");
+    if (state?.phase === "shown" || state?.phase === "asking") return send("pending");
     if (busy()) return send("busy");
     const b = await ctx.openBook(doc);
     if (!b) return send("error", "the diagram could not be opened in the browser");
@@ -104,13 +105,14 @@ export function createPointer<B extends PointBook>(ctx: PointContext<B>) {
     show(b, box, pageOf(nodes, box));
   }
 
-  // matomezu check に添える 1 行（この図の箱を示しているとき）
+  // matomezu check に添える 1 行（この図の箱を最後に示したときの様子。示していなければ ""）
   function status(doc: string): string {
     if (state?.doc !== doc) return "";
     switch (state.phase) {
       case "shown": return `focus: box ${state.box} is shown; the user has not responded yet`;
       case "asking": return `focus: asked the user whether to move to this diagram to see box ${state.box}; no answer yet`;
       case "declined": return `focus: the user declined to move to box ${state.box}`;
+      case "responded": return `focus: the user responded to box ${state.box} (the frame is closed); you can focus again`;
     }
   }
 

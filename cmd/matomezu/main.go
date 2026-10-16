@@ -46,6 +46,7 @@ const usageText = `usage:
   matomezu focus [-mail] <file.json> <box id>   point at one box on the user's screen with a frame (not written to the file; the user closes it)
                                              in the diagram the user is looking at, it moves to the box's page; in another diagram, the user is asked first
                                              it fails while the user is busy (a dialog, dragging, typing) or has not responded to the previous focus
+                                             check on that file then ends with a focus: line (not responded yet / asked / declined / responded)
                                              -mail puts it in the mailbox instead (the box is shown when the user opens it); matomezu focus -clear removes your focus
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu close <file.json>...              close these diagrams in the browser (they stay registered and listed on the master page; open shows them again)

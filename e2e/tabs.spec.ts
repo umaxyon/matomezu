@@ -846,7 +846,7 @@ test("フォーカス枠: 今のブックの箱をデータに書かずに枠で
   expect(fails("focus", "c.json", "2")).toContain("has not responded to the previous focus");
   await page.keyboard.press("Escape");
   await expect(frame).toHaveCount(0);
-  expect(run("check", "c.json")).not.toContain("focus:");
+  expect(run("check", "c.json")).toContain("focus: the user responded to box 1 (the frame is closed)");
   // 別のページの箱: そのページへ移って示す。図を押すと消える
   run("focus", "c.json", "2");
   await expect(selected(page)).toHaveText("2枚目");
