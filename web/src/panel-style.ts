@@ -100,13 +100,13 @@ export const PANEL_CSS = /* i18n-ok（CSS のコメントだけ） */ `
 .mzp-hint { font-size: 11px; color: var(--mzp-muted); margin: 6px 0 0; }
 .mzp-subhead { font-size: 11px; color: var(--mzp-muted); margin: 10px 0 4px; }
 .mzp-search {
-  position: sticky; top: 0; z-index: 1; padding: 8px 12px; background: inherit; border-bottom: 1px solid var(--mzp-line);
+  position: sticky; top: 0; z-index: 1; padding: 8px 12px; background: var(--bar, inherit); border-bottom: 1px solid var(--mzp-line);
 }
 .mzp-search input { width: 100%; }
 .mzp-row[hidden] { display: none; }
 .mzp-tabs {
   position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 8px 12px 0;
-  background: inherit; border-bottom: 1px solid var(--mzp-line);
+  background: var(--bar, inherit); border-bottom: 1px solid var(--mzp-line);
 }
 .mzp-tab {
   font: inherit; font-size: 12px; color: var(--mzp-muted); cursor: pointer;
