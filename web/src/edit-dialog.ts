@@ -41,6 +41,7 @@ const CSS = `/* i18n-ok（CSS のコメントの日本語） */
   position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.45); padding: 16px;
 }
+.mz-dlg:focus { outline: none; }
 .mz-dlg {
   --dlg-control: #3a3a3f; --dlg-line: rgba(255, 255, 255, 0.14); --dlg-accent: #8b6cf0; --dlg-muted: rgba(244, 244, 245, 0.6);
   width: min(560px, 100%); max-height: calc(100vh - 32px); box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
@@ -1008,8 +1009,15 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
 
   open = { overlay, back: document.activeElement, unhelp: setupHelp(overlay) };
   document.body.appendChild(overlay);
-  caption?.focus();
-  caption?.select();
+  if (caption) {
+    caption.focus();
+    caption.select();
+  } else {
+    // 入力欄の無いダイアログ（確認・お知らせなど）も、フォーカスを中へ移す（外に残ると Esc・Ctrl+Enter が届かない。F27）
+    const box = overlay.querySelector<HTMLElement>(".mz-dlg")!;
+    box.tabIndex = -1;
+    box.focus();
+  }
   return overlay;
 }
 

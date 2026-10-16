@@ -490,6 +490,12 @@ test("ふつうのページのブックリンク: 窓にブックの題名を出
   await dlg.locator("[data-cancel]").click();
   await expect(dlg).toHaveCount(0);
   await expect(selected(page)).toHaveText("booklink.json");
+  // 入力欄の無いダイアログも Esc で閉じる（F27）
+  await win.click();
+  await expect(dlg).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(0);
+  await expect(selected(page)).toHaveText("booklink.json");
   await win.click();
   await dlg.locator("[data-ok]").click();
   await expect(selected(page)).toHaveText("b.json");
