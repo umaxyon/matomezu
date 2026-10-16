@@ -26,6 +26,7 @@ type Layout struct {
 	Summary string            `json:"summary"`
 	Details map[string]string `json:"details,omitempty"`
 	Outside []string          `json:"outside,omitempty"` // 紙からはみ出している最上位の箱の id（D33。あれば check はエラーで終わる）
+	Focus   string            `json:"focus,omitempty"`   // この図の箱を示したフォーカス枠の様子（D37。反応待ち・断られたなど。無ければ ""）
 }
 
 // summaryWait は要約を待つ長さ。画面がボタンを離すのを待つ長さ（web/src/app-answers.ts の SUMMARY_BUSY）より長く

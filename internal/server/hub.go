@@ -12,7 +12,8 @@
 //	POST /api/focus      {"client", "at"} その画面がフォーカスされた（前に出た）時刻。最後にフォーカスされた画面がカレント（D30。docs/NOTIFY-plan.md）
 //	GET  /api/current    {"client"} カレントの画面の id（つながっている画面が無ければ ""）
 //	POST /api/summary    {"path", "page"} 配置の要約をカレントの画面に頼んで返す（summary.go。matomezu check） … 要トークン
-//	POST /api/notify     {"title", "body", "path", "page", "mail"} カレントの画面に通知を送る（notify.go。matomezu notify） … 要トークン
+//	POST /api/notify     {"title", "body", "path", "page", "box", "mail"} カレントの画面に通知を送る（notify.go。matomezu notify） … 要トークン
+//	POST /api/point      {"path", "box", "clear"} カレントの画面に箱を示すフォーカス枠を頼み、答えを返す（point.go。matomezu focus。D37） … 要トークン
 //	POST /api/new        {"near", "title", "world"} 画面から新しいブックを作って登録し、{"id", "path"} を返す（newbook.go）
 //	POST /api/copy       {"from", "title"} 画面からブックを複製して登録し、{"id", "path"} を返す（newbook.go。D23）
 //	GET  /api/books      登録した図を最終更新の新しい順に返す（マスターの一覧。books.go）
@@ -30,11 +31,12 @@
 //	hello    {"client"} この接続の id。画面は /api/watch で、開いている図をこの id で知らせる
 //	version  {"doc", "version"} 図のファイルの版が変わった。つないだときは登録済みの全部の図の分を送る
 //	open     {"doc", "page"} その図のページ（page が "" なら最初のページ）を開いて前に出す。つないだときも、少し前に頼まれていれば送る
-//	notify   {"title", "body", "book", "page", "dialog", "arrive"} 通知（notify.go）。カレントの画面にだけ送る。
+//	notify   {"title", "body", "book", "page", "box", "dialog", "arrive"} 通知（notify.go）。カレントの画面にだけ送る。
 //	         matomezu open の「届いています」は arrive（題名と本文は画面が作る）。つないだときも、少し前に頼まれていれば送る
 //	close    {"doc"} その図のタブを閉じる（matomezu close）
 //	mail     {"doc"} その図の郵便箱が変わった（mail.go）
 //	summary  {"req", "doc", "page", "version"} その図のページの要約を api/summary/{req} へ答える（カレントの画面にだけ送る。summary.go）
+//	point    {"req", "doc", "box", "clear"} その図の箱を示し、api/point/{req} へ答える（カレントの画面にだけ送る。point.go。D37）
 //	fit      {"req", "doc"} 預けた中身（api/fit/{req}）が紙に収まるかを api/fit/{req} へ答える（カレントの画面にだけ送る。fit.go。D33）
 //
 // 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
@@ -83,6 +85,7 @@ type Hub struct {
 	seq       uint64                        // 画面がつながった・フォーカスされた順番（client の joined・focused）
 	summaries map[string]chan summaryAnswer // 画面に頼んでいる要約（summary.go）
 	fits      map[string]*fitRequest        // 画面に頼んでいる、紙に収まるかの確かめ（fit.go。D33）
+	points    map[string]chan PointAnswer   // 画面に頼んでいるフォーカス枠（point.go。D37）
 	idleSince time.Time                     // 画面が 0 になった時刻
 	shown     event                         // 最後に開くよう頼まれた図とページ（open か、ask なら notify のイベント）
 	shownAt   time.Time
@@ -548,6 +551,7 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("POST /api/summary/{req}", fromPage(h.summaryAnswer))
 	mux.HandleFunc("GET /api/fit/{req}", h.fitData)
 	mux.HandleFunc("POST /api/fit/{req}", fromPage(h.fitAnswer))
+	mux.HandleFunc("POST /api/point/{req}", fromPage(h.pointAnswer))
 	mux.HandleFunc("GET /api/current", func(w http.ResponseWriter, _ *http.Request) {
 		id := ""
 		h.mu.Lock()
@@ -571,6 +575,7 @@ func (h *Hub) Handler() http.Handler {
 		mux.HandleFunc("POST /api/summary", h.control(h.summary))
 		mux.HandleFunc("POST /api/fit", h.control(h.fit))
 		mux.HandleFunc("POST /api/notify", h.control(h.notify))
+		mux.HandleFunc("POST /api/point", h.control(h.point))
 		mux.HandleFunc("POST /d/{id}/api/llm/{n}/revert", h.control(h.withLLM(h.revertLLM)))
 		mux.HandleFunc("POST /api/shutdown", h.control(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)

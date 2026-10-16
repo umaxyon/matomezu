@@ -28,6 +28,7 @@ export interface Theme {
   style?: "sticky";    // 塗りのある文字の箱の見た目のスタイル（無ければ今の箱）。sticky: 右上の角を折り返した付箋。
                        // 大きさと線のつなぎ方には響かない（箱の四角の中で描く。docs/THEME-plan.md 5 章）
   text?: string;       // 塗りの上の文字の色（無ければ塗りの明るさで白か黒）
+  focus?: string;      // AI が箱を示すフォーカス枠の色（D37。無ければ POINT_COLOR。箱の外側に描くので、図の背景の上で目立つ色）
   shadow?: string;     // 箱の影（無ければ画面の既定。"none" で影なし）
   background?: string; // 図の背景。あれば配色をこの背景で固定する（ブラウザのダーク・ライトによらない）。world.background が優先
   // 図全体の CSS 変数として流す値（テーマを書いた要素から子孫へ受け継ぐ）
@@ -40,6 +41,9 @@ export interface Theme {
 }
 
 export const DEFAULT_THEME = "default";
+// フォーカス枠（D37）の既定の色。選択の色（紫）や色の名前の色と紛れない橙
+export const POINT_COLOR = "#f97316";
+export const pointColor = (th: Theme): string => th.focus ?? POINT_COLOR;
 
 export const THEMES: Theme[] = [
   {

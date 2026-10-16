@@ -113,6 +113,9 @@ export default {
   "移動": "Go",
   "ブック「{name}」に移動してよいですか？": "Go to the book \"{name}\"?",
   "見つからないブック（{id}）": "Missing book ({id})",
+  // AI が箱を示すフォーカス枠（D37。app-point.ts）
+  "AI が箱を示しています": "The AI is pointing at a box",
+  "ブック「{book}」の「{box}」を示しています。移動しますか？": "It is pointing at \"{box}\" in the book \"{book}\". Go there?",
   "子 {n} 個の幅をそろえました": "Matched the width of {n} child(ren)",
   "子 {n} 個の高さをそろえました": "Matched the height of {n} child(ren)",
   "子 {n} 個の幅と高さをそろえました": "Matched the width and height of {n} child(ren)",

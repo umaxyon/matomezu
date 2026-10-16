@@ -18,6 +18,7 @@
  *                                // 戻した変更が見ていないページのものなら、そのページへ切り替える
  *   graph.select(id);            // 選択する（null はワールド）
  *   graph.reveal(id);            // 見えている範囲の外なら、図をスクロールして真ん中に持ってくる（非表示の親の中なら、見えている祖先）
+ *   graph.point(id, onReact);    // AI が示す箱にフォーカス枠を出す（D37。point-frame.ts。データ・選択・履歴には入れない）。ユーザーが反応したら onReact。null で消す
  *   graph.selectEdge(id);        // 線を選択する（onSelect には線の情報 EdgeInfo が届く）
  *   graph.updateEdge(id, patch); // 線を変更する（caption は空か null で消す、arrow は null で矢印なし、dash は null か "solid" で実線、
  *                                //   route は "straight" / "elbow"。図の既定と同じなら線の側からは消す。via は null で自動に戻す）
@@ -155,7 +156,7 @@ import { headOf } from "./heads";
 import { type Subtree, captionOfData, copySubtree, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import { type RouteFix, isAligned, perimeterAt, route } from "./routing";
-import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, themeById, type Theme } from "./theme";
+import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, isTheme, paintFor, pointColor, themeById, type Theme } from "./theme";
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
@@ -169,6 +170,7 @@ import { applyFlatten, planFlatten } from "./tree-flatten";
 import { type EdgePatch, createEdges } from "./graph-edges";
 import { createResizers } from "./resizers";
 import { createPageScenes, sceneKey } from "./page-scenes";
+import { createPointFrame } from "./point-frame";
 
 export const DEFAULTS = {
   color: "#ffffff",
@@ -223,6 +225,9 @@ export interface Graph {
   history(): HistoryState;
   select(id: Id | null): void;
   reveal(id: Id): void; // 図の見えている範囲の外なら、スクロールして真ん中に持ってくる
+  // AI が示す箱にフォーカス枠を出す（D37）。今のページに無い箱なら false。ユーザーが反応したら（図を押す・Esc・箱が見えなくなる）消して onReact。null で消す
+  point(id: Id | null, onReact?: () => void): boolean;
+  pointed(): string | null; // フォーカス枠を出している箱
   selected(): string | null;
   selectedEdge(): string | null; // 選んでいる線の id（線を選んでいなければ null）
   selectEdge(id: Id): void;
@@ -352,6 +357,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const U = createUnseen({
     container, worldEl, page: () => page, boxById: id => byId.get(id), zoom: () => V.applied(), alive: () => !destroyed,
     adopt: op => H.adopt(op), seen: version => opt.onLLMSeen?.(version),
+  });
+  // AI が示すフォーカス枠（D37。point-frame.ts）
+  const F = createPointFrame({
+    container, worldEl, zoom: () => V.applied(),
+    drawnEl: id => { let m = byId.get(id) ?? null; while (m && !m.el.getClientRects().length) m = m.parent; return m?.el ?? null; },
   });
   // 画面の見え方（倍率・プレビュー・home・手のひら。graph-view.ts）
   const V = createView({
@@ -1616,6 +1626,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     history: () => H.state(),
     select(id) { select(id == null ? null : nodeOf(id) as Box); },
     reveal(id) { const n = nodeOf(id); if (!n.isWorld) reveal(n); },
+    point(id, onReact) {
+      if (id == null) { F.clear(); return true; }
+      const n = byId.get(String(id));
+      if (!n) return false;
+      reveal(n);
+      F.show(n.id, pointColor(themeOf(n.parent)), () => onReact?.());
+      return true;
+    },
+    pointed: () => F.pointed(),
     selected: () => (current ? current.id : null),
     selectedEdge: () => currentEdge?.id ?? null,
     selectEdge: id => selectEdge(edgeOf(id)),
@@ -1766,6 +1785,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     destroy() {
       destroyed = true;
+      F.clear();
       measurer.dispose();
       I.endLift();
       ro.disconnect();

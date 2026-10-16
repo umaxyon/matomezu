@@ -12,6 +12,7 @@
  * - mail: その図の郵便箱が変わった（届いた・読んだ・取り除いた。D26 の段階 3）。
  * - books: 登録したブックの一覧が変わった（登録した・ファイルが変わった・消えた。マスターを作り直す）。
  * - fit: 預けた中身が紙に収まるかを求められた（matomezu set。カレントの画面にだけ届く。D33）。答えは api/fit/<req> へ送る。
+ * - point: その図の箱を示すフォーカス枠を求められた（matomezu focus。カレントの画面にだけ届く。D37）。答えは api/point/<req> へ送る。
  * - summary: その図のページの配置の要約を求められた（matomezu check。カレントの画面にだけ届く。D30）。答えは api/summary/<req> へ送る。
  * - 接続が切れても、つなぎ直しを続ける（入れ替わったサーバーが同じアドレスで起動するのを待つ）。
  */
@@ -26,14 +27,15 @@ export interface EventHandlers {
   mail?(doc: string): void;
   books?(): void;
   summary?(req: string, doc: string, page: string, version: string): void; // page は "" なら最初のページ、version はそのときのファイルの版
+  point?(req: string, doc: string | null, box: string | null): void; // 箱を示す（doc・box が null なら出している枠を消す。matomezu focus。D37）
   fit?(req: string, doc: string): void; // 預けた中身（api/fit/{req}）が紙に収まるかを答える（matomezu set。D33）
   status(text: string): void;
   watched?(): string[]; // 開いている図の id
 }
 
 // 通知（D30）。book があればそのブック（page はページ、null は最初のページ）を開く動きを持つ。dialog ならダイアログも出す。
-// arrive は matomezu open の「届いています」（題名と本文は画面が作る）
-export interface Notice { title: string; body: string; book: string | null; page: string | null; dialog: boolean; arrive: boolean }
+// arrive は matomezu open の「届いています」（題名と本文は画面が作る）。box は開いたらフォーカス枠で示す箱（matomezu focus -mail。D37）
+export interface Notice { title: string; body: string; book: string | null; page: string | null; box: string | null; dialog: boolean; arrive: boolean }
 
 export interface EventConnection {
   close(): void;
@@ -131,7 +133,7 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       if (!v || typeof v !== "object") return;
       const str = (x: unknown) => (typeof x === "string" ? x : "");
       h.notify?.({
-        title: str(v.title), body: str(v.body), book: str(v.book) || null, page: str(v.page) || null,
+        title: str(v.title), body: str(v.body), book: str(v.book) || null, page: str(v.page) || null, box: str(v.box) || null,
         dialog: v.dialog === "true", arrive: v.arrive === "true",
       });
     });
@@ -147,6 +149,10 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
     es.addEventListener("fit", e => {
       const v = parse(e);
       if (v && typeof v.req === "string" && typeof v.doc === "string") h.fit?.(v.req, v.doc);
+    });
+    es.addEventListener("point", e => {
+      const v = parse(e);
+      if (v && typeof v.req === "string") h.point?.(v.req, typeof v.doc === "string" ? v.doc : null, typeof v.box === "string" ? v.box : null);
     });
     es.addEventListener("summary", e => {
       const v = parse(e);

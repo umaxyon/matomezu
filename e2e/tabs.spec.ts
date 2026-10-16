@@ -817,3 +817,84 @@ test("紙からはみ出す set は書かずにエラー（どの箱がどれだ
   try { run("set", "p.json", "1.x=100"); } catch (e) { err = String((e as { stderr?: string }).stderr ?? e); }
   expect(err).toContain("matomezu open");
 });
+
+// matomezu が誤りで終わったときの出力（run は誤りで例外を投げる）
+const fails = (...args: string[]) => {
+  try { run(...args); } catch (e) { return String((e as { stderr?: string }).stderr ?? e); }
+  throw new Error(`matomezu ${args.join(" ")} did not fail`);
+};
+
+test("フォーカス枠: 今のブックの箱をデータに書かずに枠で示し、箱の大きさは変えない。反応（Esc・図を押す）までは次を断り、手すきでなければ断る。別のページへは移る（D37）", async ({ page }) => {
+  writeFileSync(join(dir, "c.json"), JSON.stringify({
+    world: { paper: "a3-landscape" }, pages: [{ id: "p2", title: "2枚目" }],
+    nodes: [{ id: 1, caption: "表の箱" }, { id: 2, caption: "裏の箱", page: "p2" }],
+  }));
+  await page.goto(run("open", "-no-browser", "c.json").trim());
+  await expect(selected(page)).toHaveText("c.json");
+  const box = page.locator(".stage:visible .mz-node[data-id='1']");
+  const before = await box.boundingBox();
+  const file = readFileSync(join(dir, "c.json"), "utf8");
+  expect(run("focus", "c.json", "1")).toContain("shown");
+  const frame = page.locator(".stage:visible .mz-point");
+  await expect(frame).toHaveCount(1);
+  const f = (await frame.boundingBox())!, b = (await box.boundingBox())!;
+  expect(f.x).toBeLessThan(b.x);
+  expect(f.x + f.width).toBeGreaterThan(b.x + b.width);
+  expect(b).toEqual(before); // 箱の大きさ・位置は変わらない
+  expect(readFileSync(join(dir, "c.json"), "utf8")).toBe(file); // データにも書かない
+  expect(run("check", "c.json")).toContain("focus: box 1 is shown; the user has not responded yet");
+  expect(fails("focus", "c.json", "2")).toContain("has not responded to the previous focus");
+  await page.keyboard.press("Escape");
+  await expect(frame).toHaveCount(0);
+  expect(run("check", "c.json")).not.toContain("focus:");
+  // 別のページの箱: そのページへ移って示す。図を押すと消える
+  run("focus", "c.json", "2");
+  await expect(selected(page)).toHaveText("2枚目");
+  await expect(frame).toHaveCount(1);
+  await page.locator(".stage:visible").click({ position: { x: 5, y: 5 } });
+  await expect(frame).toHaveCount(0);
+  // 手すきでない（ダイアログが開いている）なら断る。消えた箱は示せない
+  await page.locator("#book").click();
+  await expect(page.locator(".mz-dlg")).toHaveCount(1);
+  expect(fails("focus", "c.json", "1")).toContain("the user is operating the screen");
+  await page.locator(".mz-dlg [data-cancel]").click(); // Esc は F27（ダイアログの中にフォーカスが移らないことがある）
+  await expect(page.locator(".mz-dlg")).toHaveCount(0);
+  expect(fails("focus", "c.json", "99")).toContain("no box 99");
+  // -clear で AI が自分で消す
+  run("focus", "c.json", "1");
+  await expect(selected(page)).toHaveText("c.json");
+  await expect(frame).toHaveCount(1);
+  expect(run("focus", "-clear")).toContain("cleared");
+  await expect(frame).toHaveCount(0);
+});
+
+test("フォーカス枠: ほかのブックの箱は移るかを確かめる。答えるまでは次を断り、キャンセルは check に出る。移動を押すと移って示す。-mail は郵便箱から開くと示す（D37）", async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  expect(run("focus", "b.json", "5")).toContain("asked the user");
+  const dlg = page.locator(".mz-dlg");
+  await expect(dlg).toContainText(/ブック「b.json」の「.*トップ画面」を示しています/); // 前のテストが名前を変えていることがある
+  expect(fails("focus", "a.json", "1")).toMatch(/has not responded|operating the screen/);
+  await dlg.locator("[data-cancel]").click();
+  await expect(selected(page)).toHaveText("a.json");
+  expect(run("check", "b.json")).toContain("focus: the user declined to move to box 5");
+  run("focus", "b.json", "5");
+  await dlg.locator("[data-ok]").click();
+  await expect(selected(page)).toHaveText("b.json");
+  const frame = page.locator(".stage:visible .mz-point");
+  await expect(frame).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(frame).toHaveCount(0);
+  // 郵便: 入れるだけで、開くと示す（反応待ちの枠があっても入れられる）
+  run("focus", "b.json", "12");
+  expect(run("focus", "-mail", "-title", "ここを見てください", "a.json", "7")).toContain("mailbox");
+  await expect(page.locator("#mail-badge")).toHaveText("1");
+  await page.locator("#mail-toggle").click();
+  await page.locator("#mailbox .mz-mail-row", { hasText: "ここを見てください" }).click();
+  await dlg.locator("[data-ok]").click();
+  await expect(selected(page)).toHaveText("a.json");
+  await expect(frame).toHaveCount(1);
+  await page.locator("#mail-toggle").click();
+  await page.keyboard.press("Escape");
+  await expect(frame).toHaveCount(0);
+});

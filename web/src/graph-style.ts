@@ -305,6 +305,16 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-add-ghost-icon { position: absolute; inset: 0; margin: auto; width: 36px; height: 36px; fill: none; stroke: var(--mz-select); stroke-width: 1.6; stroke-linejoin: round; }
 .mz-add-ghost-icon.mz-art-icon * { vector-effect: non-scaling-stroke; stroke-width: 1.4px; }
 .mz-add-ghost-icon .mz-art-dot { fill: var(--mz-select); stroke: none; }
+/* AI が箱を示すフォーカス枠（D37。point-frame.ts）: 箱の外側に重ねる 2 色の枠（どの背景でも溶けないよう、テーマの focus の色と白の縁）。
+   出たときに数回ふくらんで止まる */
+.mz-point {
+  position: absolute; z-index: 6; box-sizing: border-box; pointer-events: none; border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--mz-point), 0 0 0 5px #ffffff;
+  animation: mz-point-pulse 0.7s ease-in-out 3;
+}
+@keyframes mz-point-pulse {
+  50% { box-shadow: 0 0 0 5px var(--mz-point), 0 0 0 7px #ffffff, 0 0 18px 8px color-mix(in srgb, var(--mz-point) 55%, transparent); }
+}
 .mz-add-line { position: fixed; z-index: 51; height: 3px; border-radius: 2px; pointer-events: none; background: var(--mz-select); }
 .mz-node.mz-drop > .mz-head {
   outline: 3px solid var(--mz-select); outline-offset: 3px;

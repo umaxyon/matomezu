@@ -281,6 +281,25 @@ func Notify(s *State, n server.NotifyRequest) error {
 	return err
 }
 
+// Point はカレントの画面に、path の図の箱 box を示すフォーカス枠を頼む（clear なら出している枠を消す。D37）。誤りはサーバーの言葉だけを返す
+func Point(s *State, path, box string, clear bool) (server.PointAnswer, error) {
+	var a server.PointAnswer
+	p := server.PointRequest{Box: box, Clear: clear}
+	if path != "" {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return a, err
+		}
+		p.Path = abs
+	}
+	err := call(s, "POST", "/api/point", p, &a)
+	var se *serverError
+	if errors.As(err, &se) {
+		return a, errors.New(se.msg)
+	}
+	return a, err
+}
+
 // Close は path の図のタブを閉じるよう、サーバーにつながっている画面に知らせる（登録は残る）
 func Close(s *State, path string) (server.CloseResult, error) {
 	var res server.CloseResult

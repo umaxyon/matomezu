@@ -43,6 +43,10 @@ const usageText = `usage:
   matomezu notify -title text [-body text] [-page id] [-mail] [file.json]   tell the user something (once, when a piece of work is done)
                                              with a file, the notice offers to open that diagram (or page); -body can explain what changed
                                              it goes to the mailbox of the diagram the user is looking at and also shows a dialog; -mail only puts it in the mailbox
+  matomezu focus [-mail] <file.json> <box id>   point at one box on the user's screen with a frame (not written to the file; the user closes it)
+                                             in the diagram the user is looking at, it moves to the box's page; in another diagram, the user is asked first
+                                             it fails while the user is busy (a dialog, dragging, typing) or has not responded to the previous focus
+                                             -mail puts it in the mailbox instead (the box is shown when the user opens it); matomezu focus -clear removes your focus
   matomezu validate <file.json>              list the problems in the diagram data (same rules as the browser); exit status 1 if any
   matomezu close <file.json>...              close these diagrams in the browser (they stay registered and listed on the master page; open shows them again)
                                              closing a diagram in the browser also clears its LLM history
@@ -75,6 +79,8 @@ func main() {
 		err = closeCmd(args)
 	case "notify":
 		err = notifyCmd(args)
+	case "focus":
+		err = focusCmd(args)
 	case "history":
 		err = historyCmd(args)
 	case "revert":

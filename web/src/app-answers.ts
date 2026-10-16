@@ -11,6 +11,7 @@ const SUMMARY_BUSY = 5000;
 
 export interface AnswersContext {
   canvas: HTMLElement; // 図の枠（見えない所で並べるときの大きさ）
+  focus(doc: string): string; // その図の箱を示したフォーカス枠の様子（D37。app-point.ts。無ければ ""）
   // doc のページ page を版 version で表示していれば、その配置の結果（していなければ null で、見えない所で並べる）
   shown(doc: string, page: string, version: string): Geometry | null;
 }
@@ -45,7 +46,7 @@ export function createAnswers(ctx: AnswersContext) {
         g = await layoutGeometry(r.data as Diagram, page || null, { w: Math.floor(rect.width) || 1200, h: Math.floor(rect.height) || 800 });
         shown = r.version.replace(/^W\//, "").replace(/"/g, "");
       }
-      return send({ version: shown, page, summary: summarize(g), details: details(g), outside: g.outside ?? [] });
+      return send({ version: shown, page, summary: summarize(g), details: details(g), outside: g.outside ?? [], focus: ctx.focus(doc) });
     } catch (err) {
       return send({ error: err instanceof Error ? err.message : String(err) });
     }

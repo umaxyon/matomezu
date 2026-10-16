@@ -43,6 +43,7 @@ import type { SideToggle } from "./main";
 import { createMaster } from "./app-master";
 import { createAnswers } from "./app-answers";
 import { createNoteQueue } from "./app-notes";
+import { createPointer } from "./app-point";
 import { openPageLinkDialog } from "./link-dialog";
 import { type MailNote, arrivedNote, createMailbox, badgeText, sendMail } from "./mailbox";
 
@@ -155,6 +156,7 @@ export async function startApp(ui: AppUi) {
   onBookClose(b => { if (mailbox.doc() === b.id) mailbox.show(null); });
   async function openFromMail(item: MailNote) {
     if (!item.book) return;
+    if (item.box) return pointer.fromMail(item.book, item.box); // AI が示した箱（matomezu focus -mail。D37）
     const b = await openBook(item.book);
     if (b) activate(b, item.page);
     else ui.error(t("そのブックを開けませんでした"));
@@ -501,6 +503,11 @@ export async function startApp(ui: AppUi) {
 
   ui.master.addEventListener("click", () => void M.open());
 
+  // AI が箱を示すフォーカス枠（matomezu focus。D37。app-point.ts）
+  const pointer = createPointer<Book>({
+    books: () => books, current: () => current, openBook: id => openBook(id), activate: (b, page) => activate(b, page), title: b => titleOf(b),
+  });
+
   // 通知のダイアログの順番待ち（app-notes.ts）
   const queueNote = createNoteQueue();
 
@@ -509,31 +516,36 @@ export async function startApp(ui: AppUi) {
   // - 開く動き（book）: 「開く」ならすぐ前に出してから届けた行を取り除く（郵便箱を待つ間に matomezu close で閉じたブックを出さないように）。キャンセルなら残る。
   //   今見ているページを開く動きは要らないので、説明だけの通知にする（見ているタブでのアピール）
   // - 説明だけ: ダイアログを出したら行を取り除く（事実上ダイアログだけ）
+  // - 箱を示す（box。matomezu focus -mail。D37）: 「開く」でその箱のページへ移ってフォーカス枠を出す。題名が無ければ画面が付ける
   // - 「届いています」（arrive）: 今見ているページなら何もしない。何も見ていなければすぐ出す
   // - 何も見ていない・郵便箱が使えない（状態のフォルダが無い）: 開く動きならすぐ出し、説明だけならダイアログだけ出す
   // - ほかのダイアログが開いていれば押しのけず、閉じるまで待つ（queueNote）
   async function deliver(n: Notice) {
     const b = n.book ? await openBook(n.book) : null;
     if (n.book && !b) return;
-    const viewing = !!b && current?.book === b && current.page === n.page;
+    const viewing = !!b && !n.box && current?.book === b && current.page === n.page;
     if (n.arrive && b && (!current || viewing)) return viewing ? undefined : activate(b, n.page);
     const name = b ? titleOf(b) + (n.page ? ` / ${b.tabs.find(x => x.page === n.page)?.label.textContent ?? n.page}` : "") : "";
-    const base: MailNote = n.arrive && b ? arrivedNote(b.id, n.page, name) : { kind: "note", title: n.title, body: n.body, book: n.book, page: n.page, name };
+    const base: MailNote = n.arrive && b ? arrivedNote(b.id, n.page, name)
+      : n.box ? { kind: "note", title: n.title || t("AI が箱を示しています"), body: n.body, book: n.book, page: null, box: n.box, name }
+      : { kind: "note", title: n.title, body: n.body, book: n.book, page: n.page, name };
     const note: MailNote = viewing ? { ...base, book: null, page: null } : base;
     const into = current?.book.id ?? null;
     const sent = into ? await sendMail(into, note) : null;
+    const open = () => { if (b && n.box) void pointer.fromMail(b.id, n.box); else if (b) activate(b, n.page); };
     if (!sent || !into) {
-      if (b && note.book) return activate(b, n.page);
+      if (b && note.book) return open();
       if (n.dialog) queueNote({ note, into: null, sent: null, open: () => {} });
       return;
     }
     if (!n.dialog) return;
-    queueNote({ note, into, sent, open: () => { if (b) activate(b, n.page); } });
+    queueNote({ note, into, sent, open });
   }
 
   // サーバーからの問い合わせへの答え（matomezu check の要約・set の前の確かめ。app-answers.ts）
   const answers = createAnswers({
     canvas: ui.canvas,
+    focus: doc => pointer.status(doc),
     shown(doc, page, version) {
       const b = books.find(x => x.id === doc && x.loaded);
       return b && current?.book === b && (b.graph.page() ?? "") === page && b.sync.shown() === version ? b.graph.geometry() : null;
@@ -563,6 +575,7 @@ export async function startApp(ui: AppUi) {
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
     books() { void M.catalog(); if (current?.book.master) void M.refresh(); },
     summary(req, doc, page, version) { void answers.summary(req, doc, page, version); },
+    point(req, doc, box) { void pointer.answer(req, doc, box); },
     fit(req, doc) { void answers.fit(req, doc); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
     close(doc) {

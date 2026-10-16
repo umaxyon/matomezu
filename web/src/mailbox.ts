@@ -22,7 +22,8 @@ import type { Diagram } from "./types";
 import { PATTERN_LABELS, isPattern } from "./validate";
 
 // book があれば、そのブック（page があればそのページ）を開く動きを持つ。name はその名前（郵便箱の行に添える）
-export interface MailNote { kind: "note"; title: string; body: string; book: string | null; page: string | null; name?: string }
+// box は開いたらフォーカス枠で示す箱（matomezu focus -mail。D37）
+export interface MailNote { kind: "note"; title: string; body: string; book: string | null; page: string | null; box?: string | null; name?: string }
 export interface MailBox { kind: "box"; from: string; pattern: string; caption: string; copy: Diagram }
 export type MailBody = MailNote | MailBox;
 interface MailBook { kind: "book"; book: string; page: string | null; name: string } // 以前の行（読むときに通知に直す）
