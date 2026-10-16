@@ -6,10 +6,12 @@
  * - 印: 箱の右上の角の外の小さな点滅。隠した吹き出しと、ドロワーの問い。押すと吹き出しに戻す・ドロワーを開く（呼ぶ側が決める）。
  * - 問いが 2 つ以上なら、吹き出しの左上と印に A・B… の文字を出す（項目の letter）。
  * 位置は出ている間、毎フレーム箱の要素から読み直す。押した操作は図に届けない（選択やドラッグを始めない）。
+ * リストの中でスクロールして見えなくなった行の問いは、吹き出しを出さず、印をリストの端（行がある側）に寄せる（リストの外へ飛ばない）。
  *
  *   const B = createAskBubbles({ container, worldEl, canvasEl, zoom, drawnEl, obstacles });
  *   B.set(items, handlers); B.set([], handlers) で消す
  */
+import { visibleRect } from "./clip-rect";
 import { esc } from "./dom";
 import { t } from "./i18n";
 
@@ -120,8 +122,9 @@ export function createAskBubbles(ctx: AskBubblesContext) {
       const e = els.get(it.id)!;
       const boxEl = ctx.drawnEl(it.box);
       if (!boxEl) { e.mark.hidden = true; if (e.bubble) e.bubble.hidden = true; continue; }
-      const b = rectOf(boxEl, w, z);
-      let showBubble = !!e.bubble && it.state === "open";
+      const v = visibleRect(boxEl, ctx.worldEl);
+      const b: Rect = { x: (v.left - w.left) / z, y: (v.top - w.top) / z, w: (v.right - v.left) / z, h: (v.bottom - v.top) / z };
+      let showBubble = !!e.bubble && it.state === "open" && !v.hidden;
       if (e.bubble && showBubble) {
         if (e.bubble.parentElement !== layer) layer.appendChild(e.bubble);
         e.bubble.hidden = false;
@@ -132,7 +135,9 @@ export function createAskBubbles(ctx: AskBubblesContext) {
           bottom: { x: b.x, y: b.y + b.h + GAP, w: bw, h: bh },
           top: { x: b.x, y: b.y - GAP - bh, w: bw, h: bh },
         };
-        const boxes = ctx.obstacles(it.box).map(o => rectOf(o, w, z));
+        // 避ける箱も見えている分だけ（リストの中でスクロールして見えない行は避けない）
+        const boxes = ctx.obstacles(it.box).map(o => visibleRect(o, ctx.worldEl)).filter(o => !o.hidden)
+          .map(o => ({ x: (o.left - w.left) / z, y: (o.top - w.top) / z, w: (o.right - o.left) / z, h: (o.bottom - o.top) / z }));
         const cost = (r: Rect) => {
           const outside = r.w * r.h - overlap(r, bounds); // 置いてよい範囲の外は大きく嫌う
           return outside * 100 + boxes.reduce((s, o) => s + overlap(r, o), 0) + placed.reduce((s, o) => s + overlap(r, o) * 10, 0);
@@ -163,6 +168,24 @@ export function createAskBubbles(ctx: AskBubblesContext) {
     }
   }
 
+  // その問いを見せる: 箱を（リストの中のスクロールも含めて）見せてから、吹き出しか印が見えるようにスクロールし、少し光らせる
+  function reveal(id: string) {
+    const it = items.find(x => x.id === id);
+    const boxEl = it ? ctx.drawnEl(it.box) : null;
+    if (!it || !boxEl) return;
+    boxEl.scrollIntoView({ block: "nearest", inline: "nearest" });
+    // 箱が動いたあとの位置に置き直してから（次のフレーム）、吹き出しか印を見せる
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const e = els.get(id);
+      const target = e?.bubble && !e.bubble.hidden ? e.bubble : e?.mark;
+      if (!target || target.hidden) return;
+      target.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+      target.classList.remove("mz-ask-flash");
+      void target.offsetWidth;
+      target.classList.add("mz-ask-flash");
+    }));
+  }
+
   function set(next: BubbleItem[], h: BubbleHandlers) {
     items = next;
     handlers = h;
@@ -173,5 +196,5 @@ export function createAskBubbles(ctx: AskBubblesContext) {
     if (!raf) place();
   }
 
-  return { set, destroy: () => set([], handlers ?? ({} as BubbleHandlers)) };
+  return { set, reveal, destroy: () => set([], handlers ?? ({} as BubbleHandlers)) };
 }

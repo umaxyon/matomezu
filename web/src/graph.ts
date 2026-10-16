@@ -233,6 +233,7 @@ export interface Graph {
   // AI の問いの吹き出しと印（D36。ask-bubbles.ts）を出す。空で消す。データ・選択・履歴には入れない。
   // owner は出す側（"ask" は話題、"focus" はフォーカスに付けた簡易メッセージ）。出す側ごとに置き換える
   askBubbles(owner: string, items: BubbleItem[], handlers: BubbleHandlers): void;
+  askReveal(owner: string, id: string): void; // その問いの箱と吹き出し（か印）を見せて光らせる（パレットを押した）
   selected(): string | null;
   selectedEdge(): string | null; // 選んでいる線の id（線を選んでいなければ null）
   selectEdge(id: Id): void;
@@ -1651,6 +1652,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return true;
     },
     pointed: () => F.pointed(),
+    askReveal: (owner, id) => A.reveal(`${owner}:${id}`),
     askBubbles(owner, items, handlers) {
       worldEl.style.setProperty("--mz-ask", askColor(themeOf(null)));
       bubbleSets.set(owner, { items, handlers });

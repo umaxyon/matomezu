@@ -345,7 +345,7 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-ask-mark::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--mz-ask); opacity: 0; animation: mz-ask-ping 1.6s ease-out infinite; }
 @keyframes mz-ask-ping { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(1.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .mz-ask-mark::after { animation: none; opacity: 0.5; } .mz-point { animation: none; } }
-.mz-ask-bubble.mz-ask-flash { animation: mz-point-pulse 0.7s ease-in-out 2; }
+.mz-ask-bubble.mz-ask-flash, .mz-ask-mark.mz-ask-flash { --mz-point: var(--mz-ask); animation: mz-point-pulse 0.7s ease-in-out 2; }
 .mz-add-line { position: fixed; z-index: 51; height: 3px; border-radius: 2px; pointer-events: none; background: var(--mz-select); }
 .mz-node.mz-drop > .mz-head {
   outline: 3px solid var(--mz-select); outline-offset: 3px;

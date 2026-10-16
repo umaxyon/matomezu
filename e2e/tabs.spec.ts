@@ -1023,3 +1023,26 @@ test("フォーカスの簡易メッセージ: -say は枠と吹き出しを出�
   await expect(frame).toHaveCount(0);
   await expect(bubbles).toHaveCount(0);
 });
+
+test("AI の問い: リストの中でスクロールして見えなくなった行の吹き出しは、リストの外へ飛ばずに印になってリストの端に寄る。パレットを押すとその行までスクロールして吹き出しを見せる（D36）", async ({ page }) => {
+  const rows = Array.from({ length: 12 }, (_, i) => ({ id: 20 + i, parent: 1, caption: `行 ${i + 1}` }));
+  writeFileSync(join(dir, "d.json"), JSON.stringify({
+    world: { paper: "a3-landscape" },
+    nodes: [{ id: 1, caption: "リスト", childView: "list", listHeight: 200, width: 200, x: 300, y: 200 }, ...rows],
+  }));
+  await page.goto(run("open", "-no-browser", "d.json").trim());
+  await expect(selected(page)).toHaveText("d.json");
+  run("ask", "d.json", JSON.stringify({ items: [{ box: "20", text: "1行目？", choices: ["はい"] }, { box: "31", text: "最後の行？", choices: ["はい"] }] }));
+  const list = page.locator(".stage:visible .mz-node[data-id='1']");
+  const lb = (await list.boundingBox())!;
+  const bubble = (text: string) => page.locator(".stage:visible .mz-ask-bubble:visible", { hasText: text });
+  await expect(bubble("1行目？")).toHaveCount(1);
+  await expect(bubble("最後の行？")).toHaveCount(0); // 最後の行はリストの中で見えていない
+  const markB = page.locator(".stage:visible .mz-ask-mark:visible", { hasText: "B" });
+  const mb = (await markB.boundingBox())!;
+  expect(mb.y).toBeLessThan(lb.y + lb.height + 12); // リストの下の端に寄る（下へ飛ばない）
+  await page.locator("#ask-palette button", { hasText: "B" }).click();
+  await expect(bubble("最後の行？")).toHaveCount(1);
+  await expect(bubble("1行目？")).toHaveCount(0); // 1 行目はスクロールで隠れた
+  run("ask", "-end");
+});

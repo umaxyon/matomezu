@@ -128,10 +128,10 @@ export function createAsker<B extends AskBook>(ctx: AskContext<B>) {
     const b = topic ? ctx.books().find(x => x.id === topic!.doc) : undefined;
     if (!it || !b || !topic) return;
     ctx.activate(b, page);
-    try { b.graph.reveal(it.box); } catch { /* 箱が消えた */ }
-    if (done(it)) return;
+    if (done(it)) { try { b.graph.reveal(it.box); } catch { /* 箱が消えた */ } return; }
     if (it.view === "drawer") openDrawer(it);
     else if (folded(it)) setItem(it.id, { state: "open" });
+    b.graph.askReveal("ask", it.id);
   });
 
   // matomezu ask: 話題を出す
