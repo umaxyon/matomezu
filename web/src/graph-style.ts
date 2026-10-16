@@ -334,8 +334,8 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-ask-id { position: absolute; top: -9px; left: -9px; width: 18px; height: 18px; border-radius: 50%; background: var(--mz-ask); color: #fff; font-size: 11px; font-weight: 700;
   display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--mz-paper); }
 .mz-ask-tail { position: absolute; width: 10px; height: 10px; background: var(--mz-paper); border: 1.5px solid var(--mz-ask); transform: rotate(45deg); }
-.mz-ask-bubble[data-side="right"] .mz-ask-tail { left: -6.5px; top: 12px; border-right: 0; border-top: 0; }
-.mz-ask-bubble[data-side="left"] .mz-ask-tail { right: -6.5px; top: 12px; border-left: 0; border-bottom: 0; }
+.mz-ask-bubble[data-side="right"] .mz-ask-tail { left: -6.5px; top: var(--mz-ask-tail); border-right: 0; border-top: 0; }
+.mz-ask-bubble[data-side="left"] .mz-ask-tail { right: -6.5px; top: var(--mz-ask-tail); border-left: 0; border-bottom: 0; }
 .mz-ask-bubble[data-side="bottom"] .mz-ask-tail { top: -6.5px; left: 16px; border-right: 0; border-bottom: 0; }
 .mz-ask-bubble[data-side="top"] .mz-ask-tail { bottom: -6.5px; left: 16px; border-left: 0; border-top: 0; }
 .mz-ask-mark {

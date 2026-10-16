@@ -1046,3 +1046,32 @@ test("AI の問い: リストの中でスクロールして見えなくなった
   await expect(bubble("1行目？")).toHaveCount(0); // 1 行目はスクロールで隠れた
   run("ask", "-end");
 });
+
+test("AI の問い: リストをスクロールすると、付け根が隠れた行の吹き出しは印に縮み（リストの外に取り残さない）、印を押すとその行まで戻して吹き出しを出す（D36）", async ({ page }) => {
+  const rows = Array.from({ length: 12 }, (_, i) => ({ id: 20 + i, parent: 1, caption: `行 ${i + 1}` }));
+  writeFileSync(join(dir, "d.json"), JSON.stringify({
+    world: { paper: "a3-landscape" },
+    nodes: [{ id: 1, caption: "リスト", childView: "list", listHeight: 200, width: 200, x: 300, y: 200 }, ...rows],
+  }));
+  await page.goto(run("open", "-no-browser", "d.json").trim());
+  await expect(selected(page)).toHaveText("d.json");
+  run("ask", "d.json", JSON.stringify({ items: [{ box: "21", text: "2行目？", choices: ["はい"] }, { box: "20", text: "1行目？", choices: ["はい"] }] }));
+  const bubble = (text: string) => page.locator(".stage:visible .mz-ask-bubble:visible", { hasText: text });
+  await expect(bubble("1行目？")).toHaveCount(1);
+  await expect(bubble("2行目？")).toHaveCount(1);
+  const kids = page.locator(".stage:visible .mz-node[data-id='1'] .mz-list-kids").first();
+  const lb = (await kids.boundingBox())!;
+  // 1 行目が隠れるまでスクロール（付け根の辺がどれも見えない）
+  const row1 = (await page.locator(".stage:visible .mz-node[data-id='20']").boundingBox())!;
+  await kids.evaluate((el, h) => { el.scrollTop = h + 4; }, row1.height);
+  await expect(bubble("1行目？")).toHaveCount(0);
+  const markB = page.locator(".stage:visible .mz-ask-mark:visible", { hasText: "B" });
+  await expect(markB).toHaveCount(1);
+  const mb = (await markB.boundingBox())!;
+  expect(mb.y + mb.height).toBeGreaterThan(lb.y - 16); // リストの上の端に寄っている（取り残されない）
+  expect(mb.y).toBeLessThan(lb.y + 16);
+  await markB.click();
+  await expect(bubble("1行目？")).toHaveCount(1);
+  expect(await kids.evaluate(el => el.scrollTop)).toBe(0);
+  run("ask", "-end");
+});

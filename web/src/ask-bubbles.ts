@@ -42,7 +42,7 @@ export interface AskBubblesContext {
 }
 
 const GAP = 10;   // 箱と吹き出しの間（ワールドの座標）
-const STICK = 40; // 前の側を、これくらいまでの重なりの差なら保つ（ちらつかないように）
+const TAIL = 18;  // 左右に置いた吹き出しの付け根（しっぽ）の真ん中の、箱の上の端からの高さ（CSS へは --mz-ask-tail で渡す）
 
 type Side = "right" | "left" | "bottom" | "top";
 interface Rect { x: number; y: number; w: number; h: number }
@@ -54,8 +54,10 @@ export function createAskBubbles(ctx: AskBubblesContext) {
   let handlers: BubbleHandlers | null = null;
   const layer = document.createElement("div");
   layer.className = "mz-ask-layer";
+  layer.style.setProperty("--mz-ask-tail", `${TAIL - 6}px`); // しっぽ（10px の四角を 45 度回したもの）の上の端
   const els = new Map<string, { bubble: HTMLElement | null; mark: HTMLElement; side: Side | null; key: string }>();
   let raf = 0;
+  let first: string | null = null; // 最後に見せた問い（先に置く）
 
   // 押した操作は図に届けない（箱の選択・ドラッグ・フォーカス枠の反応を起こさない）
   layer.addEventListener("pointerdown", e => e.stopPropagation());
@@ -68,7 +70,13 @@ export function createAskBubbles(ctx: AskBubblesContext) {
     if (choice != null) return handlers.answer(id, choice);
     if (el?.closest("[data-hide]")) return handlers.hide(id);
     if (el?.closest("[data-seen]")) return handlers.seen(id);
-    if (el?.closest(".mz-ask-mark")) return handlers.open(id);
+    if (el?.closest(".mz-ask-mark")) {
+      // 開いたままの吹き出しが印に縮んでいた（付け根が見えない・ほかと重なる）なら、その問いを見せる。隠していれば開く
+      const it = items.find(x => x.id === id);
+      if (it?.view === "bubble" && it.state === "open") return reveal(id);
+      handlers.open(id);
+      if (it?.view === "bubble") reveal(id);
+    }
   });
 
   function build(it: BubbleItem) {
@@ -118,36 +126,48 @@ export function createAskBubbles(ctx: AskBubblesContext) {
     const w = ctx.worldEl.getBoundingClientRect(), z = ctx.zoom() || 1;
     const bounds = rectOf(ctx.canvasEl, w, z);
     const placed: Rect[] = []; // 置いた吹き出し（後の吹き出しが避ける）
-    for (const it of items) {
+    const marks: { x: number; y: number }[] = []; // 置いた印（重なる印は左へずらす。リストの端に寄った印どうしなど）
+    // 最後に見せた問い（パレット・印を押した）を先に置く（ほかの吹き出しに押されて印に縮まないように）
+    const order = first ? [...items].sort((a, b) => (a.id === first ? -1 : b.id === first ? 1 : 0)) : items;
+    for (const it of order) {
       const e = els.get(it.id)!;
       const boxEl = ctx.drawnEl(it.box);
       if (!boxEl) { e.mark.hidden = true; if (e.bubble) e.bubble.hidden = true; continue; }
+      // 吹き出しは箱そのもの（切り取らない位置）に付けて一緒に動かす。ただし付け根の辺が見えている側だけに置く
+      // （リストの中でスクロールして、付け根が隠れたら印に縮めて、リストの外に取り残さない）
+      const full = rectOf(boxEl, w, z);
       const v = visibleRect(boxEl, ctx.worldEl);
-      const b: Rect = { x: (v.left - w.left) / z, y: (v.top - w.top) / z, w: (v.right - v.left) / z, h: (v.bottom - v.top) / z };
-      let showBubble = !!e.bubble && it.state === "open" && !v.hidden;
-      if (e.bubble && showBubble) {
+      const vis: Rect | null = v.hidden ? null : { x: (v.left - w.left) / z, y: (v.top - w.top) / z, w: (v.right - v.left) / z, h: (v.bottom - v.top) / z };
+      let showBubble = !!e.bubble && it.state === "open" && !!vis;
+      if (e.bubble && showBubble && vis) {
         if (e.bubble.parentElement !== layer) layer.appendChild(e.bubble);
         e.bubble.hidden = false;
         const bw = e.bubble.offsetWidth, bh = e.bubble.offsetHeight;
-        const at: Record<Side, Rect> = {
-          right: { x: b.x + b.w + GAP, y: b.y, w: bw, h: bh },
-          left: { x: b.x - GAP - bw, y: b.y, w: bw, h: bh },
-          bottom: { x: b.x, y: b.y + b.h + GAP, w: bw, h: bh },
-          top: { x: b.x, y: b.y - GAP - bh, w: bw, h: bh },
-        };
+        const EDGE = 1;
+        // 左右に置くときは、付け根（しっぽ。箱の上の端から TAIL）が見えている高さにあるときだけ。吹き出しは箱と一緒に動き、ずらさない
+        const tailIn = full.y + TAIL >= vis.y && full.y + TAIL <= vis.y + vis.h;
+        const at: Partial<Record<Side, Rect>> = {};
+        if (tailIn && full.x + full.w <= vis.x + vis.w + EDGE) at.right = { x: full.x + full.w + GAP, y: full.y, w: bw, h: bh };
+        if (tailIn && full.x >= vis.x - EDGE) at.left = { x: full.x - GAP - bw, y: full.y, w: bw, h: bh };
+        if (full.y + full.h <= vis.y + vis.h + EDGE) at.bottom = { x: full.x, y: full.y + full.h + GAP, w: bw, h: bh };
+        if (full.y >= vis.y - EDGE) at.top = { x: full.x, y: full.y - GAP - bh, w: bw, h: bh };
         // 避ける箱も見えている分だけ（リストの中でスクロールして見えない行は避けない）
         const boxes = ctx.obstacles(it.box).map(o => visibleRect(o, ctx.worldEl)).filter(o => !o.hidden)
           .map(o => ({ x: (o.left - w.left) / z, y: (o.top - w.top) / z, w: (o.right - o.left) / z, h: (o.bottom - o.top) / z }));
         const cost = (r: Rect) => {
-          const outside = r.w * r.h - overlap(r, bounds); // 置いてよい範囲の外は大きく嫌う
+          const o = { x: r.x - 10, y: r.y - 10, w: r.w + 20, h: r.h + 20 }; // 左上の A・B の札もはみ出さないよう、少し広げて測る
+          const outside = o.w * o.h - overlap(o, bounds); // 置いてよい範囲の外は大きく嫌う
           return outside * 100 + boxes.reduce((s, o) => s + overlap(r, o), 0) + placed.reduce((s, o) => s + overlap(r, o) * 10, 0);
         };
-        const sides: Side[] = ["right", "left", "bottom", "top"];
-        let best = sides.reduce((a, s) => (cost(at[s]) < cost(at[a]) ? s : a));
-        if (e.side && cost(at[e.side]) <= cost(at[best]) + STICK) best = e.side;
-        const r = at[best];
-        if (placed.some(o => overlap(r, o) > 0)) {
-          showBubble = false; // ほかの吹き出しに重ならずに置けない: 印に縮めて見せる
+        const sides = (["right", "left", "bottom", "top"] as Side[]).filter(x => at[x]);
+        let best: Side | null = sides.length ? sides.reduce((a, x) => (cost(at[x]!) < cost(at[a]!) ? x : a)) : null;
+        if (e.side && at[e.side]) best = e.side; // 一度置いた側は変えない（スクロールで飛び移らない）
+        // 置いていた側の付け根が（リストのスクロールで）隠れたら、ほかの側へ飛ばさずに印に縮める（ちらつかないように）。
+        // 付け根がまた見えれば同じ側に戻る。見せ直したとき（reveal）は選び直す
+        if (e.side && !at[e.side]) best = null;
+        const r = best ? at[best]! : null;
+        if (!r || !best || placed.some(o => overlap(r, o) > 0)) {
+          showBubble = false; // 付け根が見えない・ほかの吹き出しに重ならずに置けない: 印に縮めて見せる
         } else {
           e.side = best;
           placed.push(r);
@@ -157,13 +177,18 @@ export function createAskBubbles(ctx: AskBubblesContext) {
         }
       }
       if (e.bubble && !showBubble) e.bubble.hidden = true;
-      // 印は隠した吹き出し・ドロワーの問い・置けなかった吹き出し
+      // 印は隠した吹き出し・ドロワーの問い・置けなかった吹き出し。見えている部分の右上（見えなければリストの端）
       const showMark = !showBubble;
       if (e.mark.parentElement !== layer) layer.appendChild(e.mark);
       e.mark.hidden = !showMark;
       if (showMark) {
-        e.mark.style.left = `${b.x + b.w - 4}px`;
-        e.mark.style.top = `${b.y - 12}px`;
+        const m = vis ?? { x: (v.left - w.left) / z, y: (v.top - w.top) / z, w: (v.right - v.left) / z, h: 0 };
+        let x = m.x + m.w - 4;
+        const y = m.y - 12;
+        while (marks.some(p => Math.abs(p.x - x) < 18 && Math.abs(p.y - y) < 18)) x -= 20;
+        marks.push({ x, y });
+        e.mark.style.left = `${x}px`;
+        e.mark.style.top = `${y}px`;
       }
     }
   }
@@ -173,6 +198,9 @@ export function createAskBubbles(ctx: AskBubblesContext) {
     const it = items.find(x => x.id === id);
     const boxEl = it ? ctx.drawnEl(it.box) : null;
     if (!it || !boxEl) return;
+    first = id;
+    const e0 = els.get(id);
+    if (e0) e0.side = null; // 見せ直すときは置く側を選び直す
     boxEl.scrollIntoView({ block: "nearest", inline: "nearest" });
     // 箱が動いたあとの位置に置き直してから（次のフレーム）、吹き出しか印を見せる
     requestAnimationFrame(() => requestAnimationFrame(() => {
