@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { closeEditDialog } from "../web/src/edit-dialog";
 import { COPY_MIME } from "../web/src/graph";
-import { type MailItem, type MailNote, arrivedNote, badgeText, createMailbox, fetchMail, sendMail } from "../web/src/mailbox";
+import { type MailItem, type MailNote, badgeText, createMailbox, fetchMail, sendMail } from "../web/src/mailbox";
 
 test("未読の数の印は 0 なら出さず、99 を超えたら 99+", () => {
   expect([badgeText(0), badgeText(1), badgeText(99), badgeText(100), badgeText(120)]).toEqual(["", "1", "99", "99+", "99+"]);
@@ -41,16 +41,13 @@ const note = (o: Partial<MailNote> = {}): MailNote => ({ kind: "note", title: "�
 const item = (id: string, body: MailItem["body"], read = false): MailItem => ({ id, at: 1, read, body });
 const dialog = () => document.querySelector<HTMLElement>(".mz-dlg-overlay");
 
-test("fetchMail は知らない種類の行を捨て、以前の「ブック」の行は「届いています」の通知に直す", async () => {
+test("fetchMail は知らない種類の行と、中身の無い行を捨てる", async () => {
   mail.a = [
     item("1", note()),
-    { id: "2", at: 1, read: false, body: { kind: "book", book: "b", page: "7", name: "設計" } } as unknown as MailItem,
-    { id: "3", at: 1, read: false, body: { kind: "unknown" } } as unknown as MailItem,
-    { id: "4", at: 1, read: false } as unknown as MailItem,
+    { id: "2", at: 1, read: false, body: { kind: "unknown" } } as unknown as MailItem,
+    { id: "3", at: 1, read: false } as unknown as MailItem,
   ];
-  const got = await fetchMail("a");
-  expect(got.map(i => i.id)).toEqual(["1", "2"]);
-  expect(got[1]!.body).toEqual(arrivedNote("b", "7", "設計"));
+  expect((await fetchMail("a")).map(i => i.id)).toEqual(["1"]);
 });
 
 test("fetchMail は読めない（サーバーの誤り・つながらない・形が違う）ときは空にする", async () => {

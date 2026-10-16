@@ -8,7 +8,6 @@
  * - 通知（kind: "note"。D30。docs/NOTIFY-plan.md）: LLM の matomezu notify と、matomezu open の「届いています」。題名と本文を持ち、
  *   ブック（ページ）を開く動きを持てる。押すとダイアログを挟む（いきなり移ると今の作業が止まるため。2026-10-15 ユーザー）。
  *   開く動きがあれば「開く / キャンセル」（開いたら取り除く。キャンセルなら読んだことにして残る）、説明だけなら見たら取り除く。
- *   以前の「ブック」（kind: "book"）の行は、読むときに通知に直す
  *
  *   const box = createMailbox(pane, { openBook });
  *   box.show(docId);   // そのブックの郵便箱を出す（null で隠す）
@@ -27,7 +26,6 @@ import { PATTERN_LABELS, isPattern } from "./validate";
 export interface MailNote { kind: "note"; title: string; body: string; book: string | null; page: string | null; box?: string | null; name?: string; tour?: string }
 export interface MailBox { kind: "box"; from: string; pattern: string; caption: string; copy: Diagram }
 export type MailBody = MailNote | MailBox;
-interface MailBook { kind: "book"; book: string; page: string | null; name: string } // 以前の行（読むときに通知に直す）
 
 // matomezu open の「届いています」の通知（name はブックの題名。ページならページの名前も）
 export const arrivedNote = (book: string, page: string | null, name: string): MailNote =>
@@ -44,8 +42,7 @@ export async function fetchMail(doc: string): Promise<MailItem[]> {
     if (!res.ok) return [];
     const items = (await res.json()).items;
     if (!Array.isArray(items)) return [];
-    return items.filter(i => i && i.body && (i.body.kind === "note" || i.body.kind === "box" || i.body.kind === "book"))
-      .map(i => (i.body.kind === "book" ? { ...i, body: arrivedNote((i.body as MailBook).book, (i.body as MailBook).page, (i.body as MailBook).name) } : i));
+    return items.filter(i => i && i.body && (i.body.kind === "note" || i.body.kind === "box"));
   } catch {
     return [];
   }

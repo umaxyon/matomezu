@@ -4,12 +4,12 @@
 
 const STORE_KEY = "matomezu.tabs";
 
-// 開いていたブックの id。ページのタブは、ブックを開けば全部並ぶので覚えない（以前の形 { d, p } も読める）
+// 開いていたブックの id。ページのタブは、ブックを開けば全部並ぶので覚えない
 export function loadSavedBooks(): string[] {
   try {
     const v = JSON.parse(localStorage.getItem(STORE_KEY) ?? "[]");
     if (!Array.isArray(v)) return [];
-    return v.flatMap((x): string[] => (typeof x === "string" ? [x] : x && typeof x.d === "string" ? [x.d] : []));
+    return v.filter((x): x is string => typeof x === "string");
   } catch {
     return [];
   }

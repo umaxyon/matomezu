@@ -503,9 +503,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       e.arrangement = r.arrangement;
       e.ends = r.arrangement === "overlap" ? null : r.ends;
       e.memory = r.memory;
-      // データに書き戻すこと（引けなくなった via を消す、以前の持ち方を消す）は graph に任せる
-      const fix = "exit" in e.src || "enter" in e.src || "bend" in e.src ? { ...r.fix, clearLegacy: true } : r.fix;
-      if (Object.keys(fix).length) ctx.fixEdge(e, fix);
+      // データに書き戻すこと（引けなくなった via を消す）は graph に任せる
+      if (Object.keys(r.fix).length) ctx.fixEdge(e, r.fix);
       renderHandles(e);
       // 線の両端をつかむ丸（線を選んでいるときだけ CSS で出す）
       e.endsEl.style.display = e.ends ? "" : "none";

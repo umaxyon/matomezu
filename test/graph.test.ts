@@ -964,19 +964,10 @@ describe("文字のボックスは中身に合わせて伸ばさない", () => {
   // 伸ばしたあとで折り返しに戻せなくなるので、文字のボックスでは grow を使わない
   const long = "とても長いキャプションの入ったボックス";
 
-  test("データに grow があっても、折り返して既定の幅に収める", () => {
-    const { graph } = setup({ nodes: [{ id: 1, caption: long, overflow: "grow" }, { id: 2, caption: long }] });
-    const a = graph.info(1), b = graph.info(2);
-    expect(a.overflow).toBe("wrap");
-    expect([a.w, a.h]).toEqual([b.w, b.h]);
-    expect(graph.toJSON().nodes[0]!.overflow).toBe("grow"); // データは書き換えない（子が入ればグループとして使う）
-  });
-
-  test("選べる扱いに grow は無く、update で指定するとエラー", () => {
+  test("選べる扱いは折り返す・切り詰めるだけ。データの grow は検査で誤り", () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: long }] });
     expect(graph.info(1).overflows).toEqual(["wrap", "clip"]);
-    expect(() => graph.update(1, { overflow: "grow" })).toThrow("文字のボックスは伸ばせません");
-    expect(graph.toJSON().nodes[0]!.overflow).toBeUndefined();
+    expect(() => setup({ nodes: [{ id: 1, caption: long, overflow: "grow" as never }] })).toThrow("overflow の値が不正です");
   });
 
   test("グループはつねに grow で、選べる扱いは無い（docs/SIZE-plan.md）", () => {
@@ -1232,19 +1223,13 @@ describe("線のつなぎ方", () => {
   const box1 = { x: 40, y: 40, w: 120, h: 64 };
   const round = (p: number[][]) => p.map(([x, y]) => [Math.round(x! * 10) / 10, Math.round(y! * 10) / 10]);
 
-  test("以前の持ち方（向きの指定 exit / enter、中棒の割合 bend）は読み込むと消し、自動の形で描く。端が自由な via も消す", () => {
+  test("端が自由な via は読み込むと消し、自動の形で描く", () => {
     const { el, graph } = setup({
       nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }],
-      edges: [
-        { id: "e1", from: 1, to: 2, route: "elbow", bend: 0.25 },
-        { id: "e2", from: 1, to: 2, route: "elbow", exit: "vertical", enter: "horizontal", via: [220] },
-      ],
+      edges: [{ id: "e1", from: 1, to: 2, route: "elbow", via: [220] }],
     });
     expect(pts(el)).toEqual([[160, 72], [280, 72], [280, 152], [400, 152]]); // ほぼ横に並ぶので Z 字
-    expect(graph.toJSON().edges).toEqual([
-      { id: "e1", from: 1, to: 2, route: "elbow" },
-      { id: "e2", from: 1, to: 2, route: "elbow" },
-    ]);
+    expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2, route: "elbow" }]);
   });
 
   test("手で直した via は、両端が固定なら引けるあいだは保ち、引けなくなったら via だけ消す（端の固定は保つ）", () => {
@@ -1477,15 +1462,6 @@ describe("線のつなぎ方", () => {
 
   test("exitAt / enterAt は 0 から 1 の数だけ", () => {
     expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, exitAt: 1.5 }] })).toThrow("exitAt は 0 から 1 の数");
-  });
-
-  test("exit / enter は horizontal / vertical だけ", () => {
-    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, exit: "diagonal" as never }] })).toThrow("exit の値が不正です");
-    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, enter: "up" as never }] })).toThrow("enter の値が不正です");
-  });
-
-  test("bend は 0 より大きく 1 より小さい数だけ", () => {
-    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, bend: 1.5 }] })).toThrow("bend は");
   });
 
   test("route は straight / elbow だけ（線と図の既定）", () => {

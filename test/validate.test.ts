@@ -20,7 +20,6 @@ describe("validate", () => {
     [{ nodes: [{ id: 1, parent: 5 }] }, "存在しない親です: 1 → 5"],
     [{ nodes: [{ id: 1, parent: 2 }, { id: 2, parent: 1 }] }, "親子関係が循環しています: 1"],
     [{ nodes: [{ id: 1, size: "XL" }] }, "size の値が不正です: 1 (XL)"],
-    [{ nodes: [], world: { overflow: "grow" } }, "world に overflow: grow は使えません"],
     [{ nodes: [{ id: 1 }, { id: 2, parent: 1 }], edges: [[1, 2]] }, "階層の違うボックス同士の線があります: 1 - 2"],
     [{ nodes: [{ id: 1 }, { id: 2 }], edges: [{ id: "e1", from: 1, to: 2 }, { id: "e1", from: 2, to: 1 }] }, "線の id が重複しています: e1"],
   ])("不正なデータ %#", (data, message) => {
@@ -81,11 +80,10 @@ test("problems は誤りを全部挙げる（validate は最初の 1 つで止�
 });
 
 test("problems は親子の循環があっても止まる", () => {
-  expect(problems({ nodes: [{ id: 1, parent: 2, page: true }, { id: 2, parent: 1, page: true }] }))
+  expect(problems({ nodes: [{ id: 1, parent: 2, page: "p9" }, { id: 2, parent: 1, page: "p9" }] }))
     .toEqual([
       "親子関係が循環しています: 1", "親子関係が循環しています: 2",
-      "page: true はもう使えません（ページは pages に書き、載せる箱に page: ページの id を書きます）: 1",
-      "page: true はもう使えません（ページは pages に書き、載せる箱に page: ページの id を書きます）: 2",
+      "存在しないページです: 1 → p9", "存在しないページです: 2 → p9",
     ]);
 });
 

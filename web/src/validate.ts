@@ -27,7 +27,7 @@ export const SIZES: Record<Size, SizeSpec> = {
 // 子を内包するボックスとワールドの最小の大きさ（サイズによらない）
 export const GROUP_MIN = { w: 120, h: 64 };
 
-export const OVERFLOWS = ["wrap", "grow", "clip"] as const;
+export const OVERFLOWS = ["wrap", "clip"] as const; // データに書ける文字の箱の中身の扱い（子を持つ箱はつねに子に合わせて伸びる。docs/SIZE-plan.md）
 // 並べ方の戦略の名前（model.ts の STRATEGIES）。パターンはページ単位（2026-10-12 ユーザー）:
 // ページ（world.childView）に掛けられるのは PAGE_PATTERNS、箱（childView）に書けるのは BOX_VIEWS（内包パターンの持ち物）
 export const VIEWS = ["nest", "tree", "hidden", "list", "flow", "master", "preview"] as const;
@@ -87,7 +87,6 @@ export const TREE_DIRECTIONS = ["down", "up", "left", "right"] as const;
 export const ARROWS = ["start", "end", "both"] as const;
 export const DASHES = ["solid", "dashed"] as const;
 export const ROUTES = ["straight", "elbow"] as const;
-export const AXES = ["horizontal", "vertical"] as const;
 export const isRoute = (v: unknown) => includes(ROUTES, v);
 
 const includes = <T>(list: readonly T[], v: unknown): v is T => list.includes(v as T);
@@ -184,7 +183,6 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (!isObject(data.world)) fail(t("world がオブジェクトではありません"));
     else {
       settingsProblems(data.world, "world", theme, true).forEach(fail);
-      if (data.world.overflow === "grow") fail(t("world に overflow: grow は使えません"));
       if (data.world.route != null && !includes(ROUTES, data.world.route)) fail(t("world の route の値が不正です: {value}", { value: data.world.route }));
       if (data.world.background != null && typeof data.world.background !== "string") fail(t("world の background は色の文字列にしてください"));
       if (data.world.title != null && typeof data.world.title !== "string") fail(t("world の title は文字列にしてください"));
@@ -221,7 +219,7 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (n.parent != null && SHAPE_DEFS[byId.get(String(n.parent))?.shape as Shape]?.kids === false) fail(t("クラスの箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
   }
   // ページ（pages。2026-10-12 ユーザー: ページはブックの子。docs/TABS-plan.md）: id が重ならず、world はワールドの設定。
-  // 箱の page はそのページの id で、最上位の箱にだけ書く。昔の page: true（箱の中身をページにする）と箱の world は誤りにし、直し方を案内する
+  // 箱の page はそのページの id で、最上位の箱にだけ書く。ページの設定は pages の world に書き、箱には world を書けない
   const pages = new Map<string, Record<string, unknown>>();
   if (data.pages != null && !Array.isArray(data.pages)) fail(t("pages が配列ではありません"));
   for (const p of (Array.isArray(data.pages) ? data.pages : []) as unknown[]) {
@@ -233,7 +231,6 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
       if (!isObject(p.world)) fail(t("world がオブジェクトではありません: {id}", { id: p.id }));
       else {
         settingsProblems(p.world, t("ページ {id} の world", { id: p.id }), theme, true).forEach(fail);
-        if (p.world.overflow === "grow") fail(t("world に overflow: grow は使えません: {id}", { id: p.id }));
         if (p.world.route != null && !includes(ROUTES, p.world.route)) fail(t("world の route の値が不正です: {id} ({value})", { id: p.id, value: p.world.route }));
       }
     }
@@ -241,7 +238,6 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
   for (const n of byId.values()) {
     if (n.world != null) fail(t("箱に world は書けません（ページの設定は pages の world に書きます）: {id}", { id: n.id }));
     if (n.page == null) continue;
-    if (n.page === true || n.page === false) { fail(t("page: true はもう使えません（ページは pages に書き、載せる箱に page: ページの id を書きます）: {id}", { id: n.id })); continue; }
     if (!pages.has(String(n.page))) { fail(t("存在しないページです: {id} → {page}", { id: n.id, page: n.page })); continue; }
     if (n.parent != null) fail(t("page は最上位の箱にだけ書けます（中の箱は親と同じページに載ります）: {id}", { id: n.id }));
   }
@@ -332,10 +328,6 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     }
     const route = (e as EdgeData).route;
     if (route != null && !includes(ROUTES, route)) fail(t("route の値が不正です: {from} - {to} ({value})", { from, to, value: route }));
-    for (const k of ["exit", "enter"] as const) {
-      const v = (e as EdgeData)[k];
-      if (v != null && !includes(AXES, v)) fail(t("{key} の値が不正です: {from} - {to} ({value})", { key: k, from, to, value: v }));
-    }
     for (const k of ["exitAt", "enterAt"] as const) {
       const v = (e as EdgeData)[k];
       if (v != null && !(typeof v === "number" && v >= 0 && v <= 1)) fail(t("{key} は 0 から 1 の数にしてください: {from} - {to} ({value})", { key: k, from, to, value: v }));
@@ -344,8 +336,6 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     if (via != null && !(Array.isArray(via) && via.every(v => typeof v === "number" && Number.isFinite(v)))) {
       fail(t("via は数の並びにしてください: {from} - {to}", { from, to }));
     }
-    const bend = (e as EdgeData).bend;
-    if (bend != null && !(typeof bend === "number" && bend > 0 && bend < 1)) fail(t("bend は 0 より大きく 1 より小さい数にしてください: {from} - {to} ({value})", { from, to, value: bend }));
     const dash = (e as EdgeData).dash;
     if (dash != null && !includes(DASHES, dash)) fail(t("dash の値が不正です: {from} - {to} ({value})", { from, to, value: dash }));
     for (const [key, end] of [["fromMember", from], ["toMember", to]] as const) {

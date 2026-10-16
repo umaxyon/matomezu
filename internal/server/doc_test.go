@@ -123,7 +123,7 @@ func TestRejectsForeignHost(t *testing.T) {
 
 func TestServesWeb(t *testing.T) {
 	base, _ := setup(t, `{"nodes":[]}`)
-	res := do(t, "GET", base+"/", "", nil)
+	res := do(t, "GET", rootOf(base)+"/", "", nil)
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != "<html>" {
 		t.Fatalf("body = %q", body)

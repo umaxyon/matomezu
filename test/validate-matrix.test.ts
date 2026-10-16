@@ -23,7 +23,7 @@ describe("箱の設定の値の境目（通る値 / 通らない値と、誤り�
     ["size", ["L", "M", "S"], ["XL", "m", 1], "size の値が不正"],
     ["kidSize", ["L", "M", "S"], ["XS"], "kidSize の値が不正"],
     ["rowSize", ["L", "M", "S"], ["XL"], "rowSize に使えるのは"],
-    ["overflow", ["wrap", "grow", "clip"], ["scroll"], "overflow の値が不正"],
+    ["overflow", ["wrap", "clip"], ["scroll", "grow"], "overflow の値が不正"],
     ["previewSide", ["right", "left", "none"], ["top", true], "previewSide に使えるのは"],
     ["linkLook", ["window", "side"], ["frame"], "linkLook に使えるのは"],
     ["userAdded", [true, false], ["true", 1], "userAdded は true か false"],
@@ -60,12 +60,11 @@ describe("ページ（world）の設定の値の境目。最初のページと 2
     for (const p of PAPER_NAMES) expect(worldProblems({ paper: p })).toEqual([]);
     for (const v of ["b5", "A4-landscape", 1]) expect(worldProblems({ paper: v })[0]).toContain("paper（紙の型）の値が不正");
   });
-  test("treeDirection・route・overflow: grow", () => {
+  test("treeDirection・route", () => {
     for (const d of ["down", "up", "left", "right"]) expect(worldProblems({ treeDirection: d })).toEqual([]);
     expect(worldProblems({ treeDirection: "diagonal" })[0]).toContain("treeDirection の値が不正");
     for (const r of ["straight", "elbow"]) expect(worldProblems({ route: r })).toEqual([]);
     expect(worldProblems({ route: "curve" })[0]).toContain("route の値が不正");
-    expect(worldProblems({ overflow: "grow" })[0]).toContain("overflow: grow は使えません");
   });
   test("world とページの world がオブジェクトでなければ誤り", () => {
     expect(problems({ world: [], nodes: [] })).toEqual(["world がオブジェクトではありません"]);
@@ -151,7 +150,7 @@ describe("ページ（pages）と箱の page", () => {
     [{ pages: [{ id: "p2" }, { id: "p2" }], nodes: [] }, "ページの id が重複しています: p2"],
     [{ pages: [{ id: "p2", title: 1 }], nodes: [] }, "ページの title は文字列にしてください: p2"],
     [{ nodes: [{ id: 1, page: "p9" }] }, "存在しないページです: 1 → p9"],
-    [{ nodes: [{ id: 1, page: false }] }, "page: true はもう使えません"],
+    [{ nodes: [{ id: 1, page: false }] }, "存在しないページです: 1 → false"],
     [{ nodes: [{ id: 1, world: {} }] }, "箱に world は書けません"],
     [{ pages: [{ id: "p2" }], nodes: [{ id: 1, page: "p2" }, { id: 2, parent: 1, page: "p2" }] }, "page は最上位の箱にだけ書けます"],
   ])("誤り %#", (data, message) => {
@@ -194,14 +193,12 @@ describe("線の項目の値の境目", () => {
     ["captionAt", [0, 0.5, 1], [-0.01, 1.01, "0.5"], "captionAt は 0 から 1"],
     ["exitAt", [0, 1], [-1, 2], "exitAt は 0 から 1"],
     ["enterAt", [0, 1], [1.5], "enterAt は 0 から 1"],
-    ["bend", [0.01, 0.5, 0.99], [0, 1, -0.5], "bend は 0 より大きく 1 より小さい"],
     ["captionOffset", [0, -12.5, 30], [Infinity, Number.NaN, "3"], "captionOffset は数"],
     ["caption", ["", "はい"], [1], "線の caption は文字列"],
     ["via", [[], [10], [1, 2, 3]], [[1, "2"], [Number.NaN], 5], "via は数の並び"],
     ["arrow", ["start", "end", "both"], ["none"], "arrow の値が不正"],
     ["dash", ["solid", "dashed"], ["dotted"], "dash の値が不正"],
     ["route", ["straight", "elbow"], ["curve"], "route の値が不正"],
-    ["exit", ["horizontal", "vertical"], ["up"], "exit の値が不正"],
     ["startHead", [], ["bogus"], "startHead の値が不正"],
   ] as [string, unknown[], unknown[], string][])("%s", (key, ok, ng, message) => {
     for (const v of ok) expect([v, edgeProblems({ [key]: v })]).toEqual([v, []]);

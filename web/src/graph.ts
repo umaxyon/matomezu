@@ -116,8 +116,8 @@
  *     折れ線は出入りする辺の上の割合（左右の辺は上から、上下の辺は左から。routing.ts の sidePath）。
  *     選択モードで線を選ぶと両端に丸が出て、ドラッグで辺に沿って動かせる。基準（直線は相手の向き、折れ線は出入りする辺）が変わるか、箱が重なったら消えて自動に戻る
  *   - via は手で直した折れ線の途中の区間の位置の並び（docs/ROUTE-plan.md、routing.ts）。選択モードで途中の区間をドラッグすると、
- *     そのときの形（exit / enter / via）を書き込む。引けるあいだはその形を保ち、引けなくなったら via と向きの指定を消して自動に戻す。
- *     無ければ自動（Z 字の中棒は真ん中か、ほかの箱を避けた位置）。以前の bend（中棒の割合）は、読み込むと via に移す。
+ *     そのときの形（via）を書き込む。引けるあいだはその形を保ち、引けなくなったら via を消して自動に戻す。
+ *     無ければ自動（Z 字の中棒は真ん中か、ほかの箱を避けた位置）。
  *     ページの既定は、そのページの world.route。docs/EDGE-plan.md
  *   - link はリンクの箱（link-box.ts。docs/PATTERN-plan.md）: のぞく（窓を押すと開く）ページの id。形・サイズ・子の見せ方は使わず、子を持てない。
  *     linkLook は見せ方: "window"（窓枠。上の帯が持ち手。既定）/ "side"（横に分ける。左の帯が持ち手）/ "icon"（縮図を出さず開くアイコンだけ。キャプションが要る。D29）。
@@ -621,7 +621,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function fixEdge(e: Edge, fix: RouteFix) {
     if (dragging()) return;
     if (fix.clearVia) delete e.src.via;
-    if (fix.clearLegacy) { delete e.src.exit; delete e.src.enter; delete e.src.bend; }
   }
 
 
@@ -1311,7 +1310,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const next = { ...patch };
     checkSettings(next as Record<string, unknown>, n.isWorld ? "world" : n.id, n.isWorld);
     if (n.isWorld && next.overflow) throw new Error(t("ワールドには中身の扱いがありません"));
-    if (!n.isWorld && !n.children.length && next.overflow === "grow") throw new Error(t("文字のボックスは伸ばせません"));
     if (!n.isWorld && n.children.length && next.overflow) throw new Error(t("子を持つボックスは、つねに子に合わせて伸びます"));
     if (n.isWorld && next.childView && (patternsOff() as string[]).includes(next.childView)) {
       throw new Error(t("子を持つ最上位の箱があるので、箱が子を持てないパターン（フローチャート）にはできません"));

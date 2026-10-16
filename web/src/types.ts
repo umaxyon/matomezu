@@ -65,7 +65,7 @@ export interface BoxData {
   childView?: BoxView;  // 子の見せ方（内包パターンの持ち物: nest（既定）/ list / hidden。tree と flow はページのパターン）
   fill?: boolean;
   border?: boolean;
-  overflow?: Overflow;
+  overflow?: Exclude<Overflow, "grow">;
   page?: Id;             // 載っているページ（pages の id。最上位の箱だけに書く。無ければ最初のページ。docs/TABS-plan.md。2026-10-12 ユーザー: ページはブックの子）
   book?: string;         // マスターの窓: のぞく（押すと開く）ブックの id（サーバーの図の id）。マスター用のファイルにだけ書ける（D26）
   link?: Id;             // リンクの箱: のぞく（押すと開く）ページの id（pages の id。link-box.ts）。形・サイズ・子の見せ方は使わず、子を持てない
@@ -89,15 +89,12 @@ export interface EdgeData {
   endHead?: Head;   // 終点の端の形
   dash?: Dash;   // 線の模様（無ければ実線）
   route?: Route; // 線の通り方（無ければ図の既定。図にも無ければ直線）
-  exit?: Axis;   // 以前の持ち方（折れ線の始点から出る向き）。読み込むと消す（2026-10-10、docs/EDGE-SPEC.md）
-  enter?: Axis;  // 以前の持ち方（終点に入る向き）。読み込むと消す
   exitAt?: number;  // 始点の固定の位置（箱のふちを左上から時計回りに一周した割合。0〜1）。無ければ自由（自動）
   enterAt?: number; // 終点の固定の位置
   via?: number[]; // 手で直した折れ線の途中の区間の位置（両端が固定のときだけ使う。docs/ROUTE-plan.md）。無ければ自動
   caption?: string; // 線のキャプション（線の真ん中に出す。docs/EDGE-CAPTION-plan.md）。無ければ無し
   captionAt?: number;     // キャプションの位置: 線の長さに対する割合（0〜1）。無ければ真ん中（0.5）
   captionOffset?: number; // キャプションを線から離す px（始点から終点へ進む向きの左が正。±60 まで）。無ければ線の上
-  bend?: number; // 以前の持ち方（Z 字の中棒の割合）。読み込むと消す
   fromMember?: string; // 始点がクラスの箱のとき、つなぐ属性か操作の名前（docs/CLASS-plan.md）。無ければクラスそのもの
   toMember?: string;   // 終点がクラスの箱のとき、つなぐ属性か操作の名前
   [key: string]: unknown;
@@ -294,6 +291,6 @@ export interface Patch {
   clip?: { x: number; y: number; w: number; h: number } | null; // リンクの箱の窓に映す範囲（null でページ全体）
   fill?: boolean;
   border?: boolean;
-  overflow?: Overflow;
+  overflow?: Exclude<Overflow, "grow">;
   route?: Route | null;
 }

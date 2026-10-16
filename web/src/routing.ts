@@ -50,7 +50,6 @@ export interface EndPaths { exit: Pt[]; enter: Pt[] }
 // データに書き戻すこと（描画の側ではデータを書き換えない。graph が受け取って直す。箱や線をドラッグしている間は、離すまで待つ）
 export interface RouteFix {
   clearVia?: boolean;        // 手で直した via を消す（もう引けない、端が自由になった）
-  clearLegacy?: boolean;     // 以前の持ち方（向きの指定 exit / enter、Z 字の中棒の割合 bend）を消す（描く側が見つけて付ける）
 }
 
 export interface Route {

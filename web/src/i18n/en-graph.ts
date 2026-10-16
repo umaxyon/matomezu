@@ -18,7 +18,6 @@ export default {
   "ワールドの子はそろえられません": "Top-level boxes cannot be matched",
   "ワールド": "Diagram",
   "ワールドには中身の扱いがありません": "The diagram has no content overflow setting",
-  "文字のボックスは伸ばせません": "A text box cannot grow",
   "子を持つボックスは、つねに子に合わせて伸びます": "A box with children always grows to fit them",
   "ドラッグで本文の幅を変える（ダブルクリックで元に戻す）": "Drag to change the body width (double-click to reset)",
   "ドラッグでリストの幅を変える（ダブルクリックで元に戻す）": "Drag to change the list width (double-click to reset)",

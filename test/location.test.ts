@@ -11,11 +11,11 @@ afterEach(() => {
   happyDOM.setURL(start);
 });
 
-test("開いていたブックの id を覚えて読む。以前の形 { d, p } も読み、形の違う行は捨てる", () => {
+test("開いていたブックの id を覚えて読む。形の違う行は捨てる", () => {
   saveBooks(["a", "b"]);
   expect(loadSavedBooks()).toEqual(["a", "b"]);
-  localStorage.setItem(KEY, JSON.stringify([{ d: "x", p: "7" }, "y", 3, null, { p: "1" }]));
-  expect(loadSavedBooks()).toEqual(["x", "y"]);
+  localStorage.setItem(KEY, JSON.stringify([{ d: "x", p: "7" }, "y", 3, null]));
+  expect(loadSavedBooks()).toEqual(["y"]);
 });
 
 test("覚えが無い・壊れている・配列でないときは空", () => {

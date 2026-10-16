@@ -81,22 +81,6 @@ func TestOpenIsStablePerFile(t *testing.T) {
 	}
 }
 
-func TestOldURLRedirectsToApp(t *testing.T) {
-	_, ts, _ := setupHub(t)
-	_, a := openVia(t, ts, "secret", filepath.Join(t.TempDir(), "a.json"))
-	c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	for _, p := range []string{"/d/" + a.ID, "/d/" + a.ID + "/"} {
-		res, err := c.Get(ts.URL + p)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res.Body.Close()
-		if loc := res.Header.Get("Location"); loc != "/?d="+a.ID {
-			t.Fatalf("%s: location = %q", p, loc)
-		}
-	}
-}
-
 // open の show は、つながっている画面と、少しあとにつながった画面に届く
 func TestShowIsSentAndReplayed(t *testing.T) {
 	_, ts, _ := setupHub(t)

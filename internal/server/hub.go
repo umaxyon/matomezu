@@ -4,7 +4,6 @@
 // 図の id はファイルの絶対パスから作る。
 //
 //	/                    画面（埋め込みの web）。?d=<id> で開く図を指定する
-//	/d/<id>/             /?d=<id> へ転送する（以前の URL）
 //	/d/<id>/api/...      図ごとの API（doc.go を参照）
 //	GET  /api/events     SSE。全部の図の通知を1本で送る（下を参照）
 //	GET  /api/info       {"server"} サーバーの版。画面が matomezu のサーバーから開かれたかを知るのに使う
@@ -70,7 +69,6 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -546,12 +544,6 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("GET /d/{id}/api/llm", h.withLLM(h.getLLM))
 	mux.HandleFunc("POST /d/{id}/api/llm/seen", fromPage(h.withLLM(h.seenLLM)))
 	mux.HandleFunc("DELETE /d/{id}/api/llm", fromPage(h.withLLM(h.deleteLLM)))
-	// 以前の図ごとの URL は、画面の URL へ転送する
-	toApp := func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/?d="+url.QueryEscape(r.PathValue("id")), http.StatusFound)
-	}
-	mux.HandleFunc("GET /d/{id}", toApp)
-	mux.HandleFunc("GET /d/{id}/{$}", toApp)
 	mux.HandleFunc("GET /api/events", h.events)
 	mux.HandleFunc("GET /api/info", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]string{"server": h.version})
