@@ -97,48 +97,16 @@ test("モードの切り替えと表示", () => {
   expect([g.mode(), $("label").textContent]).toEqual(["move", "選択モード"]);
 });
 
-test("Ctrl を押している間だけ、移動と付け替えが入れ替わる。離すと戻る", () => {
-  const { g, $, buttons } = setupWithModes();
-  const pressed = () => buttons.map(b => b.getAttribute("aria-pressed"));
+test("Ctrl（Mac は Cmd）を押してもモードは入れ替わらない（E19）", () => {
+  const { g, buttons } = setupWithModes();
   key("Control", { ctrlKey: true });
-  expect([g.mode(), $("label").textContent]).toEqual(["reparent", "付け替えモード"]);
-  expect(pressed()).toEqual(["false", "true", "false"]);
-  keyup("Control");
-  expect([g.mode(), $("label").textContent]).toEqual(["move", "選択モード"]);
-  buttons[1]!.click();
-  key("Meta", { metaKey: true }); // Mac の Cmd
   expect(g.mode()).toBe("move");
+  keyup("Control");
+  buttons[1]!.click();
+  key("Meta", { metaKey: true });
+  expect(g.mode()).toBe("reparent");
   keyup("Meta");
   expect(g.mode()).toBe("reparent");
-});
-
-test("Ctrl を押しながらボタンを押すと、ふつうのクリックと同じくそのモードになる", () => {
-  const { g, buttons } = setupWithModes();
-  key("Control", { ctrlKey: true }); // 一時的に付け替え
-  buttons[1]!.click();               // 付け替えを押す
-  expect(g.mode()).toBe("reparent");
-  keyup("Control");
-  expect(g.mode()).toBe("reparent"); // 離しても付け替えのまま
-  key("Control", { ctrlKey: true });
-  buttons[0]!.click();               // Ctrl を押したまま移動を押す
-  expect(g.mode()).toBe("move");
-  keyup("Control");
-  expect(g.mode()).toBe("move");
-});
-
-test("削除モードでは Ctrl で切り替わらない。入力欄や、ウィンドウから離れたときも", () => {
-  const { g, $, buttons } = setupWithModes();
-  buttons[2]!.click();
-  key("Control", { ctrlKey: true });
-  expect(g.mode()).toBe("remove");
-  keyup("Control");
-  buttons[0]!.click();
-  key("Control", { ctrlKey: true }, $("text"));
-  expect(g.mode()).toBe("move");
-  keyup("Control", {}, $("text"));
-  key("Control", { ctrlKey: true });
-  window.dispatchEvent(new Event("blur"));
-  expect(g.mode()).toBe("move");
 });
 
 test("ドラッグ中は切り替えず、手を離してから切り替える", () => {
@@ -154,11 +122,11 @@ test("ドラッグ中は切り替えず、手を離してから切り替える",
     head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
   fire("pointerdown", 0);
   fire("pointermove", 10);
-  key("Control", { ctrlKey: true });
+  key(" ");
   expect(graph.mode()).toBe("move");
   fire("pointermove", 20);
   fire("pointerup", 20);
-  expect(graph.mode()).toBe("reparent");
+  expect(graph.mode()).toBe("pan");
   expect(graph.info(1).x).toBe(60); // 移動のドラッグはそのまま終わる
 });
 
@@ -168,10 +136,6 @@ test("図の側でモードが変わったら、ボタンとラベルもそれ�
   g.setMode("move");   // 図の側で変える（一覧から戻したときなど）
   expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
   expect($("label").textContent).toBe("選択モード");
-  key("Control", { ctrlKey: true }); // 以後は移動モードを元に Ctrl で入れ替わる
-  expect(g.mode()).toBe("reparent");
-  keyup("Control");
-  expect(g.mode()).toBe("move");
 });
 
 test("選んだ線は Delete（Mac の delete は Backspace）で消える。入力欄の中では消さない", () => {

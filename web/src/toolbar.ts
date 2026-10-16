@@ -43,7 +43,7 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
     if (typing(e.target)) return; // 入力欄では、文字入力の取り消しに使う
     const key = e.key.toLowerCase();
     if (key === "c" || key === "v") {
-      // コピー・貼り付け（D23）。Ctrl を押している間は付け替えモードに入れ替わるので、選択と付け替えのどちらでも受ける。
+      // コピー・貼り付け（D23）。選択と付け替えのどちらのモードでも受ける。
       // 文字を選んでいれば、ブラウザの文字のコピーに任せる
       if (e.shiftKey || graph.preview() != null || document.querySelector(".mz-dlg-overlay")) return;
       if (graph.mode() !== "move" && graph.mode() !== "reparent") return;
@@ -62,21 +62,16 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
 
 const MODE_LABELS: Record<Mode, string> = { move: t("選択モード"), reparent: t("付け替えモード"), remove: t("削除モード"), add: t("追加モード"), pan: t("手のひらモード") };
 
-// Ctrl を押している間だけ入れ替わる相手（追加・削除モードでは入れ替えない）
-const FLIP: Partial<Record<Mode, Mode>> = { move: "reparent", reparent: "move" };
-
 // ツールのモードの切り替え（移動 / 親子の付け替え / 追加 / 削除）と、今のモードの表示。
-// ボタンを押すと、そのモードになる（Ctrl を押しながらでも同じ。そのときは Ctrl による入れ替えを解く）。
-// 移動と付け替えのときは、Ctrl（Mac は Cmd）を押している間だけ、もう一方のモードになり、離すと戻る。
-// ドラッグ中は切り替えず、手を離してから切り替える（付け替えのドラッグの途中で Ctrl を離しても取り消さないため）。
+// ボタンを押すと、そのモードになる。Ctrl（Mac は Cmd）を押している間の入れ替えはやめた（Ctrl+C / Ctrl+V とぶつかる。E19。切り替え方は D39 で見直す）。
+// ドラッグ中は切り替えず、手を離してから切り替える（ドラッグの途中で Space を離しても取り消さないため）。
 // ボタンとラベルには、今効いているモードを出す。図の側でモードが変わったとき（一覧から戻したときなど）は、
 // それをボタンで選んだのと同じに扱う。登録を外す関数を返す
 // Space を押している間は、どのモードでも手のひらになり、離すと戻る（Miro と同じ。D32）
 export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HTMLElement): () => void {
   let base: Mode = graph.mode(); // ボタンで選んだモード
-  let held = false;              // Ctrl で入れ替えているか
   let space = false;             // Space で手のひらにしているか
-  const effective = (): Mode => (space ? "pan" : (held && FLIP[base]) || base);
+  const effective = (): Mode => (space ? "pan" : base);
   const show = () => {
     const m = effective();
     if (graph.dragging()) return; // 手を離してから
@@ -90,21 +85,9 @@ export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HT
   for (const b of buttons) {
     b.addEventListener("click", () => {
       base = b.dataset.mode as Mode;
-      held = false;
       show();
     }, { signal });
   }
-  const isModifier = (e: KeyboardEvent) => e.key === "Control" || e.key === "Meta";
-  document.addEventListener("keydown", e => {
-    if (!isModifier(e) || e.repeat || held || typing(e.target)) return;
-    held = true;
-    show();
-  }, { signal });
-  document.addEventListener("keyup", e => {
-    if (!isModifier(e) || !held) return;
-    held = false;
-    show();
-  }, { signal });
   // Space: 入力欄・ボタンの上（Space で押す）・ダイアログの中では手のひらにしない。押している間の Space で図がスクロールしないよう止める
   const spaceTarget = (e: KeyboardEvent) =>
     e.key === " " && !typing(e.target) && !(e.target instanceof Element && e.target.closest("button, a, select, .mz-dlg-overlay"))
@@ -122,13 +105,12 @@ export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HT
     space = false;
     show();
   }, { signal });
-  // Ctrl や Space を押したままほかのウィンドウへ移ると、離したことが届かないので解く
-  window.addEventListener("blur", () => { held = false; space = false; show(); }, { signal });
+  // Space を押したままほかのウィンドウへ移ると、離したことが届かないので解く
+  window.addEventListener("blur", () => { space = false; show(); }, { signal });
   // 図の側で変わったモード（ここで切り替えた分は、今効いているモードと同じなので何もしない）
   const unsubscribe = graph.onModeChange(m => {
     if (m === effective()) return;
     base = m;
-    held = false;
     space = false;
     show();
   });
