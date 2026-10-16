@@ -529,7 +529,7 @@ export async function startApp(ui: AppUi) {
   // 説明ツアー（matomezu tour。D38。app-tour.ts）。案内は通知と同じ順番待ちで出す
   const tourer = createTourer<Book>({
     books: () => books, current: () => current, openBook: id => openBook(id), activate: (b, page) => activate(b, page), title: b => titleOf(b),
-    busy: () => pointer.busy(), focusWaiting: () => pointer.waiting(), setZoom: z => ui.preview.setEditZoom(z),
+    busy: () => pointer.busy(), focusWaiting: () => pointer.waiting(), setZoom: z => ui.preview.setEditZoom(z), closeSide: () => ui.side.show(null),
     queue: (note, into, sent, show) => queueNote({ note, into, sent, open: () => {}, show }),
   });
 

@@ -26,8 +26,10 @@ const GAP = 12;    // 枠から吹き出しまでの間
 const MARGIN = 8;  // 吹き出しを画面の端から離す
 
 const STYLE_ID = "matomezu-tour-style";
-const CSS = `
+const CSS = `/* i18n-ok（CSS のコメント） */
 .mz-tour { position: fixed; inset: 0; z-index: 900; cursor: default; touch-action: none; }
+/* ツアー中は使えない道具箱を隠す（段を移るスクロールで位置を合わせ直してちらつく。2026-10-17 ユーザー） */
+body.touring .mz-toolbox { display: none; }
 .mz-tour-hole { position: fixed; border-radius: 8px; border: 3px solid var(--mz-tour); box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.68); pointer-events: none; }
 .mz-tour-bubble { position: fixed; width: max-content; max-width: 280px; box-sizing: border-box; padding: 10px 12px 8px; border-radius: 10px;
   background: var(--bar, #fff); color: var(--text, inherit); border: 2px solid var(--mz-tour); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); font-size: 14px; }

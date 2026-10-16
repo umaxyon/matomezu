@@ -1175,7 +1175,8 @@ test("説明ツアー: -mail は郵便箱だけ。キャンセルしても残り
   await expect(row).toHaveCount(1); // キャンセルなら残る
   await row.click();
   await dlg.locator("[data-ok]").click();
-  await expect(row).toHaveCount(0);
+  await expect(page.locator("#sidebar")).toBeHidden(); // 始めたら郵便箱は閉じる（図を狭めない）
+  await expect(page.locator(".mz-toolbox")).toBeHidden(); // ツアー中は道具箱を隠す
   const bubble = page.locator(".mz-tour-bubble");
   await expect(bubble).toContainText("一つ目");
   await page.keyboard.press("Escape");

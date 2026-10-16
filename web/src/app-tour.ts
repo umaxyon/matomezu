@@ -32,6 +32,7 @@ export interface TourContext<B extends TourBook> {
   busy(): boolean;         // ユーザーが手すきでない（app-point.ts と同じ決まり）
   focusWaiting(): boolean; // フォーカスの反応待ち（同時に出すのは 1 つ）
   setZoom(z: number): void; // 編集中の倍率（preview.ts の setEditZoom）
+  closeSide(): void;        // 左のサイドバー（郵便箱・追加削除）を閉じる（ツアー中は図を広く見せる）
   queue(note: MailNote, into: string | null, sent: string | null, show: () => void): void; // 通知と同じ順番待ちでダイアログを出す（app-notes.ts）
 }
 
@@ -101,6 +102,7 @@ export function createTourer<B extends TourBook>(ctx: TourContext<B>) {
       lost: () => stop(t("示す箱が無くなったので、ツアーを終えました")),
     });
     running = { tour, index: 0, view, origin, asking: false };
+    ctx.closeSide(); // 郵便箱から始めたときも、図を狭めない（2026-10-17 ユーザー）
     post(tour.id, "running");
     await go(0);
   }
