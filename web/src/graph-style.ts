@@ -316,6 +316,8 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   50% { box-shadow: 0 0 0 5px var(--mz-point), 0 0 0 7px #ffffff, 0 0 18px 8px color-mix(in srgb, var(--mz-point) 55%, transparent); }
 }
 /* AI の問いの吹き出しと印（D36。ask-bubbles.ts）。色はテーマの ask（--mz-ask）、地は紙の色 */
+/* scroll-margin: パレットから見せるとき、左上の A・B の札と印の点滅まで入るように */
+.mz-ask-bubble, .mz-ask-mark { scroll-margin: 14px; }
 .mz-ask-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 7; }
 .mz-ask-bubble {
   position: absolute; box-sizing: border-box; width: max-content; max-width: calc(10em + 40px); padding: 7px 26px 8px 9px;
