@@ -11,7 +11,7 @@ import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt, 
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
-  type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
+  type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
@@ -59,7 +59,7 @@ export const CAPTION_OFFSET_MAX = 60;
 
 export function createRenderer(ctx: RenderContext, L: Layout) {
   const { opt, worldEl } = ctx;
-  const { anchorRect } = L;
+  const { absAnchorRect } = L;
 
   // 背景色。明るさに合わせて、ワールドの中の文字や線を見やすい配色にする（graph-style.ts の .mz-on-light / .mz-on-dark）
   function applyWorldStyle() {
@@ -362,10 +362,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     return (p: Box | null) => {
       let list = frames.get(p);
       if (!list) {
-        list = ctx.nodes().filter(n => n.parent === p && !isHidden(n)).map(n => {
-          const [x, y] = absPos(n);
-          return { n, r: { x, y, w: n.w, h: n.h } };
-        });
+        list = ctx.nodes().filter(n => n.parent === p && !isHidden(n)).map(n => ({ n, r: absRect(n) }));
         frames.set(p, list);
       }
       return list;
@@ -374,13 +371,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // 線の道筋を決める入力（routing.ts）。ほかの箱は、道筋に関わりうるものだけに絞る（scopeObstacles）
   function routeInputOf(e: Edge, siblingsOf = siblingFrames()): RouteInput {
-    const [ax, ay] = absPos(e.a);
-    const [bx, by] = absPos(e.b);
-    const ra = anchorRect(e.a), rb = anchorRect(e.b);
     const obstacles = siblingsOf(e.a.parent).filter(o => o.n !== e.a && o.n !== e.b).map(o => o.r);
     const input: RouteInput = {
-      a: { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
-      b: { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
+      a: absAnchorRect(e.a),
+      b: absAnchorRect(e.b),
       elbow: routeOf(e, ctx.world) === "elbow",
       via: viaOf(e),
       obstacles, margin: BEND_MARGIN,
@@ -411,7 +405,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 2 本以上あれば、折れ目の少ない線（同じなら短い線）がその辺を取り、負けた線は、空いている辺のうち相手に背を向けていない辺で、
   // 折れ目の一番少ない道を探す（routing.ts の routeOnSides）。探せなければ、そのまま共有する。描くときだけ決め、端を固定した線は除く
   function separateEnds(list: { e: Edge; input: RouteInput; r: Route }[]) {
-    const rimOf = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return { x: x + r.x, y: y + r.y, w: r.w, h: r.h }; };
+    const rimOf = absAnchorRect;
     // 同じ箱の同じ辺に入り、端どうしが SAME_END px より近い線を 1 つの組にする（丸めで 1px ずれることがある）
     const SAME_END = 6;
     const bySide = new Map<string, typeof list>();
@@ -464,7 +458,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (d === e.b || !shapeDef(shapeOf(d)).branch || !kidStrategyOf(d.parent ?? d.world).splitBranches) return null;
     const out = ctx.edges().filter(x => x.a === d && x.b !== d && typeof x.src.exitAt !== "number" && !edgeHidden(x));
     if (out.length < 2) return null;
-    const c = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return [x + r.x + r.w / 2, y + r.y + r.h / 2] as const; };
+    const c = (n: Box) => { const r = absAnchorRect(n); return [r.x + r.w / 2, r.y + r.h / 2] as const; };
     const [cx, cy] = c(d);
     const facing = (dx: number, dy: number): Vertex => (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "r" : "l") : dy > 0 ? "b" : "t");
     const avoid = ctx.edges().filter(x => x.b === d && x.a !== d && !edgeHidden(x)).map(x => { const [sx, sy] = c(x.a); return facing(sx - cx, sy - cy); });
@@ -544,9 +538,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // 自分に戻る線の輪を描く箱（ワールドの座標）と、避けるほかの箱・線
   function loopInputOf(e: Edge, siblingsOf = siblingFrames()) {
-    const [ax, ay] = absPos(e.a);
-    const ra = anchorRect(e.a);
-    const r = { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h };
+    const r = absAnchorRect(e.a);
     const boxes = siblingsOf(e.a.parent).filter(o => o.n !== e.a).map(o => o.r);
     const lines = ctx.edges().filter(o => o !== e && o.a.parent === e.a.parent && o.el.style.display !== "none").map(o => o.points);
     return { r, boxes, lines };

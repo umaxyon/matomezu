@@ -17,7 +17,7 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, setSpec, shapeOf, sizeOf,
+  absPos, ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, setSpec, shapeOf, sizeOf,
 } from "../model";
 import { alignFlow } from "./flow-align";
 import { shapeDef } from "../shapes";
@@ -178,6 +178,8 @@ export function createLayout(ctx: LayoutContext) {
   const fit = (n: Box) => kindOf(n).measure(n);
   // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）。ツリーで見せていれば枠全体、それ以外は本体
   const anchorRect = (n: Box) => kindOf(n).anchorRect(n);
+  // 線がつながる範囲（ワールドの座標）
+  const absAnchorRect = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return { x: x + r.x, y: y + r.y, w: r.w, h: r.h }; };
   // 大きさが変わったとき、どこを保つか（policy.ts）
   const anchors = createAnchorRules({ anchorRect });
   // 線がつながる範囲の横の中心（親の中での位置）
@@ -599,7 +601,7 @@ export function createLayout(ctx: LayoutContext) {
   return {
     containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld, holdWorld, stretchWorld, outsideFixed,
     offset: () => offset, // ワールドを図の枠の中でずらしている量（sizeCanvas）
-    kindOf, anchorRect, centerX, fit, refitAncestors,
+    kindOf, anchorRect, absAnchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
     settle, fitToViewport, viewport, alignKids,

@@ -139,6 +139,11 @@ export function absPos(n: Box): [number, number] {
   for (let m: Box | null = n; m; m = m.parent) { x += m.x; y += m.y; }
   return [x, y];
 }
+// 箱の枠（子孫を含めた範囲）の、ワールドの座標の矩形
+export function absRect(n: Box): R4 {
+  const [x, y] = absPos(n);
+  return { x, y, w: n.w, h: n.h };
+}
 
 export const other = (e: Edge, n: Box) => (e.a === n ? e.b : e.a);
 

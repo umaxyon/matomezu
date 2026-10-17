@@ -9,7 +9,7 @@ import type { Layout } from "./layout/layout";
 import { CLASS_HEAD, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
 import {
-  type Box, type Edge, type World, abilitiesOf, absPos, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
+  type Box, type Edge, type World, abilitiesOf, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
 } from "./model";
 import { clientToIn, inToClient, toWorldLength } from "./viewport";
 import type { Subtree } from "./pages";
@@ -620,9 +620,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   // 箱 n の side の辺の真ん中（ワールドの座標）。out だけ辺の外へずらす
   function sidePoint(n: Box, side: Side, out = 0): [number, number] {
-    const [ax, ay] = absPos(n);
-    const a = L.anchorRect(n);
-    const x = ax + a.x, y = ay + a.y;
+    const a = L.absAnchorRect(n);
+    const x = a.x, y = a.y;
     // クラスの箱の左右の接点は、クラス名の区画の真ん中
     const cy = isClass(n) ? y + Math.min(CLASS_HEAD, a.h) / 2 : y + a.h / 2;
     switch (side) {
@@ -635,10 +634,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   // クラスの箱 n の、属性・操作 member の行の side（左か右）の端（ワールドの座標）。out だけ外へずらす
   function memberPoint(n: Box, member: string, side: Side, out = 0): [number, number] {
-    const [ax, ay] = absPos(n);
-    const a = L.anchorRect(n);
-    const y = ay + a.y + (memberY(n.src, member) ?? a.h / 2);
-    return side === "l" ? [ax + a.x - out, y] : [ax + a.x + a.w + out, y];
+    const a = L.absAnchorRect(n);
+    const y = a.y + (memberY(n.src, member) ?? a.h / 2);
+    return side === "l" ? [a.x - out, y] : [a.x + a.w + out, y];
   }
 
   const toScreen = ([x, y]: [number, number]): [number, number] => inToClient(world.el, ctx.zoom(), x, y);

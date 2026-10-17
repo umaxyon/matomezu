@@ -147,7 +147,7 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, browserMeasure, createTextMeasurer } from "./layout/measure";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
-  type Box, type Container, type Edge, type World, absPos, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, borderOf,
+  type Box, type Container, type Edge, type World, absPos, absRect, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
@@ -473,7 +473,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     },
     // 線の区間・端・キャプションのドラッグの中身（edge-drag.ts）
     edgeDrag: createEdgeDrag({
-      svg, edges: () => edges, anchorRect: n => L.anchorRect(n), redraw: () => renderEdges(),
+      svg, edges: () => edges, absAnchorRect: n => L.absAnchorRect(n), redraw: () => renderEdges(),
       edited: e => { renderEdges(); if (currentEdge === e) notifySelect(); },
       committed: e => { renderEdges(); changed(); if (currentEdge === e) notifySelect(); },
       routeInput: e => R.routeInputOf(e),
@@ -1512,7 +1512,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (o.keepHistory) keepShownPositions(copy);
     else fitted = new Map();
     // 消える箱の、今の場所（消した箱の認知は、消す前の場所が見えたとき）
-    const before = o.keepHistory ? new Map(nodes.map(n => { const [x, y] = absPos(n); return [n.id, { page, rect: { x, y, w: n.w, h: n.h } }]; })) : null;
+    const before = o.keepHistory ? new Map(nodes.map(n => [n.id, { page, rect: absRect(n) }])) : null;
     // 外部の変更の読み直しでは、選んでいる箱や線を保つ（残っていれば。Undo と同じ）。LLM が図を書き換えるたびに
     // 選択が外れると、サイドバーで入力中の内容も消えてしまうため（docs/REVIEW-2026-10-09.md の B10）
     const keep = o.keepHistory ? { box: current?.id ?? null, edge: currentEdge?.id ?? null } : undefined;
