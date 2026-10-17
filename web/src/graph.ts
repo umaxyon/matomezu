@@ -43,6 +43,7 @@
  *   graph.pages();               // ブックのページ（2 枚目から。ページの id と名前）
  *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
  *   graph.copySelected(); graph.pasteClip(); // Ctrl+C / Ctrl+V（D23）。選んだ箱を子孫ごと写し、選んでいる所に貼る（決まりはページのパターン。STRATEGIES の copy）
+ *   graph.clipState(); graph.pickForMenu(target); // 右クリックのメニュー（D42。context-menu.ts）: 使える項目と、右クリックした所を選ぶ
  *   graph.purge(id);             // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱 userAdded だけ。docs/ADD-plan.md）
  *   graph.add(req, fields);      // 新しい箱を足す（req は追加モードで押した所。onAddRequest で届く。docs/ADD-plan.md）
  *   graph.destroy();
@@ -295,9 +296,13 @@ export interface Graph {
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
   // コピー・貼り付け（D23）: 選んだ箱を子孫と中の線ごと写す（この図の中だけで覚える）。写せなければ false
   copySelected(): boolean;
-  // 写したものを貼る: ワールドを選んでいればポインタの位置（図の外なら見えている範囲の真ん中）、箱を選んでいればその中の左上、
-  // 子を入れられない箱なら隣。パターンの違うページへは断る。貼れなければ false
-  pasteClip(): boolean;
+  // 写したものを貼る: ワールドを選んでいればポインタの位置（図の外なら見えている範囲の真ん中。at を渡せばその画面の座標）、
+  // 箱を選んでいればその中の左上、子を入れられない箱なら隣。パターンの違うページへは断る。貼れなければ false
+  pasteClip(at?: { x: number; y: number }): boolean;
+  // 今コピー・貼り付けができるか（右クリックのメニューで使えない項目を灰色にする。D42）
+  clipState(): { copy: boolean; paste: boolean };
+  // 右クリックの所を選ぶ（D42）。箱の上ならその箱、背景ならワールド。線の上や図の外（ミニマップなど）は選ばず false
+  pickForMenu(target: EventTarget | null): boolean;
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
   add(req: AddRequest, fields: Partial<BoxData>): string;
@@ -904,7 +909,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  function pasteClip(): boolean {
+  function clipState(): { copy: boolean; paste: boolean } {
+    if (copyRule() === "books") return { copy: !!current && linkBookOf(current) != null, paste: bookClip != null && !!opt.onDuplicateBook };
+    if (copyRule() !== "boxes") return { copy: false, paste: false };
+    return { copy: !!current, paste: !!clip };
+  }
+
+  function pickForMenu(t: EventTarget | null): boolean {
+    if (!(t instanceof Element) || !(t === container || canvasEl.contains(t) || worldEl.contains(t)) || t.closest(".mz-edge")) return false;
+    const el = t.closest(".mz-node");
+    select((el ? boxOfEl.get(el) : undefined) ?? null);
+    return true;
+  }
+
+  function pasteClip(at0?: { x: number; y: number }): boolean {
     if (copyRule() === "books") {
       if (bookClip == null || !opt.onDuplicateBook) return false;
       opt.onDuplicateBook(bookClip);
@@ -915,7 +933,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     let parentId: string | null = null, at: { x: number; y: number };
     if (!n) {
       // ワールドを選んでいる: ポインタの位置（落としたときと同じく、ポインタが箱の左上の少し内側に来る）。図の外なら見えている範囲の真ん中
-      const p = pointer ?? (() => { const v = viewRectOf(container); return { x: (v.left + v.right) / 2, y: (v.top + v.bottom) / 2 }; })();
+      const p = at0 ?? pointer ?? (() => { const v = viewRectOf(container); return { x: (v.left + v.right) / 2, y: (v.top + v.bottom) / 2 }; })();
       const [x, y] = clientToIn(worldEl, V.applied(), p.x, p.y);
       at = { x: x - ADD_OFFSET.x, y: y - ADD_OFFSET.y };
     } else if (shapeDef(shapeOf(n)).kids && acceptsKid(n, clip.nodes.length > 1)) {
@@ -1731,6 +1749,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     paste: (copy, parentId, at, from) => paste(copy, parentId, at, from),
     copySelected,
     pasteClip,
+    clipState,
+    pickForMenu,
     bookChoices: () => opt.bookChoices?.() ?? [],
     addGhost: at => I.ghost(at),
     add,

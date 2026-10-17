@@ -219,6 +219,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerDown(e: PointerEvent) {
+    // 左ボタン（タッチ・ペンも 0）だけ。右ボタンは右クリックのメニュー（D42。context-menu.ts）に任せ、ドラッグ・追加・削除を始めない
+    if (e.button !== 0) return;
     // 線を引く〇（選択モードで、ポインタを乗せた箱に出す）
     const port = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-port") : null;
     if (port) {

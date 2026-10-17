@@ -94,6 +94,8 @@ export default {
   "「{key}」を移植しました": "Copied in \"{key}\"",
   "「{key}」をコピーしました": "Copied \"{key}\"",
   "「{key}」を貼り付けました": "Pasted \"{key}\"",
+  "コピー": "Copy",
+  "貼り付け": "Paste",
   "ブックの複製": "Duplicate book",
   "「{book}」の中身を写して、同じフォルダに作ります": "Copies the contents of \"{book}\" into a new file in the same folder",
   "ブックを複製できませんでした: {message}": "Could not duplicate the book: {message}",
