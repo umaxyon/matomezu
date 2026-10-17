@@ -11,7 +11,7 @@ import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt }
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
-  type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
+  type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
 } from "./model";
@@ -704,7 +704,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       // 内包する箱・リストの親の本文は、見出しの下に置く。幅は箱の幅いっぱいか、つまみで変えた幅（箱の幅まで）。
       // 子の無い箱では本体の中の流れに任せる
       const block = n.bodyEl.classList.contains("mz-body-block") && !n.bodyEl.hidden;
-      const bw = block ? bodyWrapW(n, n.hw) - 2 * opt.padding : 0;
+      const bw = block ? bodyTextW(n, n.hw, opt.padding) : 0;
       if (block) n.bodyEl.style.width = bw + "px";
       // つまみ: 子の無い箱は本体の右の縁（高さいっぱい）、内包する箱は本文の右の縁
       const g = n.gripEl.style;

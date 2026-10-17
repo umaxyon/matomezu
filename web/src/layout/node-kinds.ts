@@ -3,7 +3,7 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, inTreeOf, isLinkBox, kidStrategyOf, rowHeightOf, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, anchorInsetOf, arrangeOf, bodyOf, bodyTextW, bodyWidthOf, captionOf, inTreeOf, isLinkBox, kidStrategyOf, rowHeightOf, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
 import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth, linkRowHeight } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
@@ -54,7 +54,7 @@ export function createNodeKinds(ctx: KindContext) {
   // 本文はその幅で折り返す。docs/SIZE-plan.md）
   const bodyMinW = (n: Box): number => (bodyOf(n) ? BODY_MIN_W : 0);
   // 内包する箱・リストの親が幅 w のときの、見出しの下の本文の高さ（本文が無ければ 0）。つまみで幅を変えていれば、その幅で折り返す
-  const bodyHeight = (n: Box, w: number) => (bodyOf(n) ? ctx.body(n, bodyWrapW(n, w) - 2 * opt.padding)[1] : 0);
+  const bodyHeight = (n: Box, w: number) => (bodyOf(n) ? ctx.body(n, bodyTextW(n, w, opt.padding))[1] : 0);
 
   // 子を置くときの、見出しの下の本文の高さ（子を置ける領域の上端を決める）。まだ大きさを決めていなければ（初めて置くとき）、
   // 今の幅（無ければ本文が求める幅）で見込んで覚えておく。大きさを決めるとき（nest.measure）に本当の幅で測り直し、違えば子を動かす

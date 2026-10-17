@@ -485,6 +485,8 @@ export const bodyWidthOf = (n: Box): number => (typeof n.src.bodyWidth === "numb
 // 内包する箱・リストの親の本文を折り返す幅（箱の幅として数える。余白を含む）。自動なら箱の幅いっぱい、つまみで変えていればその幅。
 // 箱の幅は子の並びで決まり、本文はそれを超えない（図が優先。子を詰めて狭くなれば箱の幅で折り返し、覚えた幅は消さない）
 export const bodyWrapW = (n: Box, w: number): number => Math.min(bodyWidthOf(n) || w, w);
+// 本文の文字を折り返す幅（左右の余白 padding を除く）。配置で測る幅（layout/node-kinds.ts）と描く幅（render.ts）は、どちらもこれを使う
+export const bodyTextW = (n: Box, w: number, padding: number): number => bodyWrapW(n, w) - 2 * padding;
 
 // t が n 自身か、n の子孫か
 export function isInside(t: Box, n: Box) {
