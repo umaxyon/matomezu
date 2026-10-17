@@ -7,9 +7,10 @@
 //   種類の違う操作の間は区切り線で分ける
 // - 使えない項目は消さずに灰色で出す。ショートカットを横に添える
 // - 文字の入力欄の中と、文字を選んでいるときはブラウザの既定のメニューを残す
-// - 出さないとき（Ctrl+C / Ctrl+V と同じ条件）: プレビュー中・ダイアログが開いている・ドラッグ中・選択と付け替え以外のモード。
+// - 手のひらのモードでは 設定 だけ（2026-10-18 ユーザー）。タブ行ではブラウザのメニューも出さない（setupBarContextMenu）
+// - 出さないとき（Ctrl+C / Ctrl+V と同じ条件）: プレビュー中・ダイアログが開いている・ドラッグ中・選択・付け替え・手のひら以外のモード。
 //   説明ツアー中は幕が右クリックを止める（tour-view.ts）
-// - 右の長押しはモードの切り替え（mode-picker.ts。setupContextMenu が押し続けを見る）
+// - 右の長押しと Space はモードの切り替え（mode-picker.ts。setupContextMenu が押し続けと Space を見る）
 // 項目は menuFor に足せばよい形にしておく（タブなどへ広げるのと、パターンごとの出し分けは後で。D39・D25）
 import type { Graph, MenuTarget } from "./graph";
 import { type Head, headOptions, headPatch } from "./heads";
@@ -54,6 +55,12 @@ type Entry = Item | "hr";
 
 // 右クリックした所に出す項目。at は右クリックした所（画面の座標）
 function menuFor(graph: Graph, target: MenuTarget, at: { x: number; y: number }, mac: boolean, openBook: () => void): Entry[] {
+  const entries = fullMenu(graph, target, at, mac, openBook);
+  // 手のひらのモードは見るだけなので、一番上の設定だけ
+  return graph.mode() === "pan" ? entries.slice(0, 1) : entries;
+}
+
+function fullMenu(graph: Graph, target: MenuTarget, at: { x: number; y: number }, mac: boolean, openBook: () => void): Entry[] {
   const del = mac ? "⌫" : "Delete";
   if (target.kind === "edge") {
     const id = graph.selectedEdge()!;
@@ -118,7 +125,7 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () 
   const show = (target: EventTarget | null, at: { x: number; y: number }): boolean => {
     close?.();
     if (typing(target) || !(window.getSelection()?.isCollapsed ?? true) || blocked()) return false;
-    if (graph.mode() !== "move" && graph.mode() !== "reparent") return false;
+    if (graph.mode() !== "move" && graph.mode() !== "reparent" && graph.mode() !== "pan") return false;
     const picked = graph.pickForMenu(target, at);
     if (!picked) return false;
     close = open(menuFor(graph, picked, at, mac, openBook), at, () => { close = null; });
@@ -169,6 +176,22 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () 
     if (d) show(d.target, d.at);
   }, { signal });
   window.addEventListener("blur", endPress, { signal });
+  // Space でも、最後のポインタの位置（図の外なら図の真ん中）にモードのアイコンを出す（2026-10-18 ユーザー。前は押している間だけ手のひら）。
+  // 入力欄・ボタンの上（Space で押す）・ダイアログ・プレビューでは出さない。Space で図がスクロールしないよう止める
+  let last: { x: number; y: number } | null = null;
+  window.addEventListener("pointermove", e => { last = { x: e.clientX, y: e.clientY }; }, { signal, passive: true });
+  document.addEventListener("keydown", e => {
+    if (e.key !== " " || e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
+    if (e.target instanceof Element && e.target.closest("button, a, select, .mz-dlg-overlay")) return;
+    if (blocked() || closePicker || !stage.isConnected || stage.offsetParent === null) return;
+    e.preventDefault();
+    if (e.repeat) return;
+    const r = stage.getBoundingClientRect();
+    const inside = last && last.x >= r.left && last.x <= r.right && last.y >= r.top && last.y <= r.bottom;
+    endPress();
+    close?.();
+    closePicker = openModePicker(graph, inside ? last! : { x: r.left + r.width / 2, y: r.top + r.height / 2 }, byRight => { closePicker = null; if (byRight) swallow = true; });
+  }, { signal });
   window.addEventListener("contextmenu", e => {
     if (!swallow) return;
     swallow = false;
@@ -193,6 +216,11 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () 
     close?.();
     closePicker?.();
   };
+}
+
+// タブ行（ヘッダー）の右クリックでは何もしない（ブラウザのメニューも出さない。2026-10-18 ユーザー）。文字の入力欄の中はブラウザのまま
+export function setupBarContextMenu(bar: HTMLElement): void {
+  bar.addEventListener("contextmenu", e => { if (!typing(e.target)) e.preventDefault(); });
 }
 
 // メニューを出す。閉じる関数を返す

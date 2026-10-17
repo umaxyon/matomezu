@@ -66,26 +66,22 @@ const MODE_LABELS: Record<Mode, string> = { move: t("選択モード"), reparent
 const MODE_TIPS: Record<Mode, string> = {
   move: t("選択モード: クリックでボックスや線を選ぶ / ドラッグでボックスを動かす / ポインタを乗せた箱の〇から線を引く"),
   reparent: t("付け替えモード: ドラッグして落とした先のボックスの子にする"),
-  pan: t("手のひらモード: ドラッグで見る範囲を動かす（どのモードでも Space を押している間は手のひら）"),
+  pan: t("手のひらモード: ドラッグで見る範囲を動かす"),
   add: t("追加モード"),
 };
 // ボタンを押したときの次のモード（選択 → 付け替え → 手のひら → 選択。D39）。追加のモードからは選択へ
 const NEXT: Record<Mode, Mode> = { move: "reparent", reparent: "pan", pan: "move", add: "move" };
 
 // ツールのモードの切り替え（選択 / 親子の付け替え / 手のひら。追加は道具箱から）と、今のモードの表示。
-// タブ行のボタンは 1 つで、押すたびに次のモードへ回す（D39。削除のモードはやめ、右クリックと Delete キーで消す）。右の長押しでも選べる（mode-picker.ts）。
+// タブ行のボタンは 1 つで、押すたびに次のモードへ回す（D39。削除のモードはやめ、右クリックと Delete キーで消す）。右の長押しと Space でも選べる（mode-picker.ts）。
 // Ctrl（Mac は Cmd）を押している間の入れ替えはやめた（Ctrl+C / Ctrl+V とぶつかる。E19）。
-// ドラッグ中は切り替えず、手を離してから切り替える（ドラッグの途中で Space を離しても取り消さないため）。
 // ボタン（絵と説明）とラベルには、今効いているモードを出す。図の側でモードが変わったとき（一覧から戻したときなど）は、
 // それをボタンで選んだのと同じに扱う。登録を外す関数を返す
-// Space を押している間は、どのモードでも手のひらになり、離すと戻る（Miro と同じ。D32）
+// Space を押している間だけ手のひらにする形（D32）は、2026-10-18 に Space でモードのアイコンを出す形に替えた（context-menu.ts）
 export function setupModes(graph: Graph, button: HTMLButtonElement, label: HTMLElement): () => void {
-  let base: Mode = graph.mode(); // ボタンで選んだモード
-  let space = false;             // Space で手のひらにしているか
-  const effective = (): Mode => (space ? "pan" : base);
+  let base: Mode = graph.mode(); // 今のモード
   const show = () => {
-    const m = effective();
-    if (graph.dragging()) return; // 手を離してから
+    const m = base;
     if (graph.mode() !== m) graph.setMode(m);
     showModeWheel(button, m, button.dataset.mode !== m); // 変わったら輪を回す
     button.dataset.mode = m;
@@ -100,36 +96,13 @@ export function setupModes(graph: Graph, button: HTMLButtonElement, label: HTMLE
     base = NEXT[base];
     show();
   }, { signal });
-  // Space: 入力欄・ボタンの上（Space で押す）・ダイアログの中では手のひらにしない。押している間の Space で図がスクロールしないよう止める
-  const spaceTarget = (e: KeyboardEvent) =>
-    e.key === " " && !typing(e.target) && !(e.target instanceof Element && e.target.closest("button, a, select, .mz-dlg-overlay"))
-    && !document.querySelector(".mz-dlg-overlay") && graph.preview() == null;
-  document.addEventListener("keydown", e => {
-    if (!spaceTarget(e)) return;
-    e.preventDefault();
-    if (e.repeat || space) return;
-    space = true;
-    show();
-  }, { signal });
-  document.addEventListener("keyup", e => {
-    if (e.key !== " " || !space) return;
-    e.preventDefault();
-    space = false;
-    show();
-  }, { signal });
-  // Space を押したままほかのウィンドウへ移ると、離したことが届かないので解く
-  window.addEventListener("blur", () => { space = false; show(); }, { signal });
   // 図の側で変わったモード（ここで切り替えた分は、今効いているモードと同じなので何もしない）
   const unsubscribe = graph.onModeChange(m => {
-    if (m === effective()) return;
+    if (m === base) return;
     base = m;
-    space = false;
     show();
   });
   signal.addEventListener("abort", unsubscribe);
-  // ドラッグ中に押したり離したりした分は、手を離したあとで反映する（図の側の処理が済んでから届く）
-  document.addEventListener("pointerup", show, { signal });
-  document.addEventListener("pointercancel", show, { signal });
   show();
   return () => listening.abort();
 }

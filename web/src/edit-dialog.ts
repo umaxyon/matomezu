@@ -968,7 +968,18 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
     }
   };
 
+  // ダイアログの外（幕）を押したら Esc と同じ: キャンセル（お知らせは閉じる。escape: false なら閉じない。重ねた確認が開いていれば確認だけ閉じる）。
+  // 押し始めと離した所がどちらも幕のときだけ（ダイアログの中で文字を選んで外で離したときは閉じない。2026-10-18 ユーザー）
+  let downOnOverlay = false;
+  overlay.addEventListener("pointerdown", e => { downOnOverlay = e.target === overlay && e.button === 0; });
   overlay.addEventListener("click", e => {
+    if (e.target === overlay) {
+      if (!downOnOverlay) return;
+      downOnOverlay = false;
+      if (sub) sub.cancel();
+      else if (form.escape !== false) closeEditDialog();
+      return;
+    }
     const t = e.target instanceof Element ? e.target : null;
     const extra = t?.closest<HTMLElement>("[data-extra]");
     if (t?.closest("[data-ok]")) ok();

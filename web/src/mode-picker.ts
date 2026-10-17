@@ -1,5 +1,5 @@
 // 右の長押しで出すモードの切り替え（D39 の試し。2026-10-17 ユーザーと決めた形）:
-// - 図の中で右ボタンを LONG_PRESS_MS 押し続けると、ポインタのすぐ近くにモードのアイコン（選択・手のひら・付け替え）を並べて出す。
+// - 図の中で右ボタンを LONG_PRESS_MS 押し続けるか Space を押すと、ポインタのすぐ近くにモードのアイコン（選択・手のひら・付け替え）を並べて出す。
 //   マウスのまま、今の位置からすぐ押せることが大事（リングはやめ、単純な並びにした）
 // - 置き方: 基本はポインタの上に横並び。上端で入らなければ下。右端で入らなければ縦並びにしてポインタの左、左端なら縦並びで右
 // - 押している間はポインタの周りに輪が満ちていく。MOVE_SLOP より動いたら取り消す（出す位置は最後のポインタの位置）
@@ -161,7 +161,7 @@ export function openModePicker(graph: Graph, at: { x: number; y: number }, close
   window.addEventListener("keydown", e => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.key === "Escape") close();
+    if (e.key === "Escape" || (e.key === " " && !e.repeat)) close(); // Space で出したら、もう一度 Space で閉じる
   }, { signal, capture: true });
   window.addEventListener("wheel", e => e.preventDefault(), { signal, capture: true, passive: false });
   window.addEventListener("resize", () => close(), { signal });
