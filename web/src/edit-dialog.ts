@@ -778,13 +778,6 @@ export function openEditDialog(graph: Graph, id: string): void {
   });
 }
 
-// ツリーのページを内包に変換する前に、戻せないことを確かめる（ワールドの欄から。docs/PATTERN-plan.md）
-export function confirmFlatten(graph: Graph): void {
-  openConfirmDialog(t("内包に変換"),
-    t("ツリーを平らにして、親子のつながりを線で引き直し、このページを内包のページにします。見た目はそのままで、箱を自由に動かせるようになります。\n元のツリーには戻せません（すぐ後なら元に戻す（Undo）で戻せます）。"),
-    t("変換する"), () => graph.flattenTree());
-}
-
 // 追加モードで押した所か道具入れ（toolbox.ts）で選んだ所 req に、新しい箱を足すダイアログ（docs/ADD-plan.md）。「追加」で足して選択モードに戻る。
 // 「キャンセル」なら何もしない（追加モードで押したときは、開く前に graph が選択モードに戻している）
 // shape は最初に選んでおく形（道具入れから足すとき。toolbox.ts）
