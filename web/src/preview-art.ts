@@ -99,8 +99,3 @@ export function drawScene(svg: SVGSVGElement, s: Scene, view: Rect, extra: SVGEl
   svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
   svg.replaceChildren(...sceneItems(s, bgRect), ...extra);
 }
-// 2 つの四角を囲む四角
-export function union(a: Rect, b: Rect): Rect {
-  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
-  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
-}

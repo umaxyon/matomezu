@@ -9,7 +9,7 @@
 
 import type { Arrangement, Axis } from "./types";
 
-import { type Pt, type Rect, nearestAt, pointAt, segmentThroughRect } from "./geom";
+import { type Pt, type Rect, nearestAt, overlapSpan, pointAt, rectsOverlap, segmentThroughRect } from "./geom";
 import { perimeter } from "./selfloop";
 
 export type { Pt, Rect };
@@ -79,8 +79,8 @@ const axisOfSide = (side: Side): Axis => (side === "l" || side === "r" ? "horizo
 
 // 2 つの箱の並び。横に並ぶ（上下の範囲が重なり、左右に離れている）、縦に並ぶ、斜め、重なっている
 export function arrangementOf(a: Rect, b: Rect): Arrangement {
-  const yOverlap = Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
-  const xOverlap = Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x);
+  const [y0, y1] = overlapSpan(a, b, "y"), [x0, x1] = overlapSpan(a, b, "x");
+  const yOverlap = y1 > y0, xOverlap = x1 > x0;
   return yOverlap && xOverlap ? "overlap" : yOverlap ? "side" : xOverlap ? "stack" : "diagonal";
 }
 
@@ -267,10 +267,10 @@ function alignTargets(r: RouteInput, pts: Pt[]): [Pt, Pt] {
     || (sa === "b" && sb === "t" && a.y + a.h <= b.y) || (sa === "t" && sb === "b" && b.y + b.h <= a.y);
   if (facing && !r.aVertex && !r.bVertex) {
     if (axisOfSide(sa) === "horizontal") {
-      const lo = Math.max(a.y, b.y), hi = Math.min(a.y + a.h, b.y + b.h);
+      const [lo, hi] = overlapSpan(a, b, "y");
       if (hi > lo) { p = [p[0], (lo + hi) / 2]; q = [q[0], (lo + hi) / 2]; }
     } else {
-      const lo = Math.max(a.x, b.x), hi = Math.min(a.x + a.w, b.x + b.w);
+      const [lo, hi] = overlapSpan(a, b, "x");
       if (hi > lo) { p = [(lo + hi) / 2, p[1]]; q = [(lo + hi) / 2, q[1]]; }
     }
   } else if (facing) {
@@ -534,10 +534,10 @@ function collapse(pts: Pt[]): Pt[] {
 // 横（縦）に並ぶ箱どうしをまっすぐ結ぶ。重なる範囲の真ん中で水平（垂直）に
 function alignedPoints(a: Rect, b: Rect, arr: "side" | "stack"): Pt[] {
   if (arr === "side") {
-    const y = (Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2;
+    const [lo, hi] = overlapSpan(a, b, "y"), y = (lo + hi) / 2;
     return a.x < b.x ? [[a.x + a.w, y], [b.x, y]] : [[a.x, y], [b.x + b.w, y]];
   }
-  const x = (Math.max(a.x, b.x) + Math.min(a.x + a.w, b.x + b.w)) / 2;
+  const [lo, hi] = overlapSpan(a, b, "x"), x = (lo + hi) / 2;
   return a.y < b.y ? [[x, a.y + a.h], [x, b.y]] : [[x, a.y], [x, b.y + b.h]];
 }
 
@@ -648,7 +648,7 @@ export function framedAround(f: Rect, h: Rect, others: Rect[]): Rect[] {
       const r = { x: xs[i]!, y: ys[j]!, w: xs[i + 1]! - xs[i]!, h: ys[j + 1]! - ys[j]! };
       if (r.w <= 0 || r.h <= 0) continue;
       const corner = i !== 1 && j !== 1;
-      const hit = others.some(o => o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y + r.h && o.y + o.h > r.y);
+      const hit = others.some(o => rectsOverlap(o, r));
       if (corner || hit) out.push(r);
     }
   }

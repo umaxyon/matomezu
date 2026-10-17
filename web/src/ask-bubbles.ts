@@ -13,7 +13,7 @@
  */
 import { visibleRect } from "./clip-rect";
 import { esc } from "./dom";
-import type { Rect } from "./geom";
+import { type Rect, overlapSpan } from "./geom";
 import { t } from "./i18n";
 import { clientRectToIn, viewRectOf } from "./viewport";
 
@@ -47,8 +47,10 @@ const GAP = 10;   // 箱と吹き出しの間（ワールドの座標）
 const TAIL = 18;  // 左右に置いた吹き出しの付け根（しっぽ）の真ん中の、箱の上の端からの高さ（CSS へは --mz-ask-tail で渡す）
 
 type Side = "right" | "left" | "bottom" | "top";
-const overlap = (a: Rect, b: Rect) =>
-  Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+const overlap = (a: Rect, b: Rect) => {
+  const [x0, x1] = overlapSpan(a, b, "x"), [y0, y1] = overlapSpan(a, b, "y");
+  return Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+};
 
 export function createAskBubbles(ctx: AskBubblesContext) {
   let items: BubbleItem[] = [];

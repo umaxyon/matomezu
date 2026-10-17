@@ -29,8 +29,8 @@ import { PALETTE, THEMES, isPaletteName, paintFor, themeById } from "./theme";
 import type { BoxData, BoxInfo, BoxView, LinkLook, Patch, PreviewSide, Shape, Size } from "./types";
 import { STRATEGIES, previewsKids } from "./model";
 import { DEFAULT_LINK_LOOK, LINK_LOOK_DEFS, LINK_LOOK_OPTIONS, previewRegion, windowOf } from "./link-box";
-import type { Rect } from "./geom";
-import { type Scene, drawScene, make, union } from "./preview-art";
+import { type Rect, unionRect } from "./geom";
+import { type Scene, drawScene, make } from "./preview-art";
 import { PATTERN_LABELS } from "./validate";
 import { shapePicker, syncShapePicker } from "./shape-picker";
 import { type SearchOption, createSearchSelect } from "./search-select";
@@ -263,7 +263,7 @@ function setupClipPicker(host: HTMLElement, scene: Scene, start: Rect | null, wi
     region = previewRegion(scene, win(), minScale, clip);
     // 見せる範囲と縮尺は、つかんでいる間は変えない（動かすたびに縮尺が変わると、四角がポインタより速く動いてしまう。2026-10-14 ユーザー）
     if (!grab) {
-      shown = union(pageRect, region);
+      shown = unionRect(pageRect, region);
       scale = Math.min(CLIP_W / shown.w, CLIP_H / shown.h);
       off = { x: (CLIP_W - shown.w * scale) / 2, y: (CLIP_H - shown.h * scale) / 2 }; // 中央に置いたときの余白（画面の px）
     }

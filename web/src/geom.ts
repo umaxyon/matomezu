@@ -89,6 +89,18 @@ export function segmentThroughRect([[ex1, ey1], [ex2, ey2]]: [Pt, Pt], r: Rect) 
   return clip(-dx, ex1 - x0) && clip(dx, x1 - ex1) && clip(-dy, ey1 - y0) && clip(dy, y1 - ey1) && t0 < t1;
 }
 
+// 2 つの矩形の、x（y）の向きの範囲が重なる所 [lo, hi]（hi <= lo なら重ならない）
+export function overlapSpan(a: Rect, b: Rect, k: "x" | "y"): [number, number] {
+  const s = k === "x" ? "w" : "h";
+  return [Math.max(a[k], b[k]), Math.min(a[k] + a[s], b[k] + b[s])];
+}
+
+// 2 つの矩形を囲む矩形
+export function unionRect(a: Rect, b: Rect): Rect {
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+}
+
 // 矩形どうしが重なるか（margin だけ離れていないと重なるとみなす）
 export const rectsOverlap = (a: Rect, b: Rect, margin = 0) =>
   a.x < b.x + b.w + margin && a.x + a.w + margin > b.x && a.y < b.y + b.h + margin && a.y + a.h + margin > b.y;

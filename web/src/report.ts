@@ -1,7 +1,7 @@
 // 配置の結果の要約。LLM が図を調整するために読む（matomezu check が表示する）。DOM に依存しない。
 // 読む量を抑えるため、問題のあるところだけを短い行で返す。
 
-import { type Pt, type Rect, segmentThroughRect, segmentsCross, segmentsOf } from "./geom";
+import { type Pt, type Rect, rectsOverlap, segmentThroughRect, segmentsCross, segmentsOf } from "./geom";
 import type { ChildView } from "./types";
 
 export type { Pt, Rect };
@@ -128,8 +128,7 @@ export function summarize(g: Geometry): string {
     if (!r) continue;
     const ends = [byId.get(e.a), byId.get(e.b)];
     const outer = new Set<string>(ends.flatMap(b => b?.ancestors ?? []));
-    const overlap = (b: GeoBox) => r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y;
-    const hit = g.boxes.filter(b => !outer.has(b.id) && overlap(b));
+    const hit = g.boxes.filter(b => !outer.has(b.id) && rectsOverlap(r, b));
     const hitIds = new Set(hit.map(b => b.id));
     for (const b of hit) {
       if (!b.ancestors.some(p => hitIds.has(p))) covered.push(`${edgeLabel(e)} ${e.caption ?? ""}>${label(b)}`);

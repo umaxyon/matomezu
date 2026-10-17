@@ -20,7 +20,7 @@
 //   - つかんだボックス自身が祖先を枠からはみ出させるときだけは、その位置へ動かさない（はみ出さない所で止める）
 import type { Layout, LayoutOptions } from "./layout";
 import { type Box, ancestors } from "../model";
-import type { Rect } from "../geom";
+import { type Rect, overlapSpan } from "../geom";
 
 export type Drag = ReturnType<typeof createDrag>;
 export type DragSession = ReturnType<Drag["begin"]>;
@@ -109,9 +109,8 @@ export function createDrag(_opt: LayoutOptions, L: Layout) {
     // 斜めにかすめるだけなら入れ替えない）
     function facing(r: Rect, d: Dir) {
       const vertical = d === "down" || d === "up";
-      const overlap = vertical
-        ? Math.min(r.x + r.w, n.x + n.w) - Math.max(r.x, n.x)
-        : Math.min(r.y + r.h, n.y + n.h) - Math.max(r.y, n.y);
+      const [lo, hi] = overlapSpan(r, n, vertical ? "x" : "y");
+      const overlap = hi - lo;
       return overlap >= (vertical ? Math.min(r.w, n.w) : Math.min(r.h, n.h)) * FACE_RATIO;
     }
 
