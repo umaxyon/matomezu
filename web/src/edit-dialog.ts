@@ -1026,8 +1026,6 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
   return overlay;
 }
 
-export const editDialogOpen = (): boolean => open != null;
-
 // ダイアログの上に、確定できない理由を出す（閉じずに知らせる。D33・D29）
 export function refusedNote(overlay: HTMLElement, text: string): void {
   let note = overlay.querySelector<HTMLElement>(".mz-dlg-refused");

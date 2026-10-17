@@ -152,7 +152,7 @@ func closeCmd(args []string) error {
 	for _, path := range fs.Args() {
 		res, err := daemon.Close(s, path)
 		// 入れ替えたばかりなら、画面がつなぎ直すまで知らせ直す（つながっていない間の知らせは届かない）
-		for deadline := time.Now().Add(reconnectWait); replaced && err == nil && res.Connections == 0 && time.Now().Before(deadline); {
+		for deadline := time.Now().Add(reconnectWait); replaced && (err != nil && strings.Contains(err.Error(), "not open") || err == nil && res.Connections == 0) && time.Now().Before(deadline); {
 			time.Sleep(200 * time.Millisecond)
 			res, err = daemon.Close(s, path)
 		}
@@ -203,7 +203,7 @@ func open(args []string) error {
 	// サーバーを入れ替えたときは、開いていた画面が同じ URL でつなぎ直すのを少し待つ（つながればブラウザを開かない）
 	if replaced && res.Connections == 0 {
 		for deadline := time.Now().Add(reconnectWait); time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
-			if res, err = daemon.Open(s, fs.Arg(0), false, ""); err != nil {
+			if res, err = daemon.Open(s, fs.Arg(0)); err != nil {
 				return err
 			}
 			if res.Connections > 0 {
@@ -256,7 +256,7 @@ func serve(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	hub := server.NewHub(ctx, web.FS)
-	res, err := hub.Open(fs.Arg(0), false, "")
+	res, err := hub.Open(fs.Arg(0))
 	if err != nil {
 		return err
 	}

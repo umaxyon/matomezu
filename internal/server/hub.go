@@ -71,6 +71,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 )
@@ -95,7 +96,7 @@ type Hub struct {
 	askSig    chan struct{}                 // 話題が変わったら閉じる（待っている ask -wait を起こす。ask.go）
 	tour      *Tour                         // 説明ツアー（tour.go。D38。同時に 1 つ。終わったものは次を出すまで残る）
 	idleSince time.Time                     // 画面が 0 になった時刻
-	shown     event                         // 最後に開くよう頼まれた図とページ（open か、ask なら notify のイベント）
+	shown     event                         // 最後に「届いています」と聞いた図とページ（notify のイベント）
 	shownAt   time.Time
 	store     string   // 登録した図のパスを書いておくファイル（"" なら書かない）
 	recent    []string // 登録した図のパス（古い順。store があれば書く）
@@ -284,15 +285,27 @@ type OpenResult struct {
 	Connections int    `json:"connections"` // つながっている画面の数（0 ならブラウザを開く）
 }
 
-// Open は path の図を登録する。登録済みならそれを返す。ファイルが無ければ空の図で作る。
-// show なら、つながっている画面にその図を開くよう知らせる
-func (h *Hub) Open(path string, show bool, page string) (OpenResult, error) {
-	return h.openDoc(path, show, page, false)
+// Open は path の図を登録する。登録済みならそれを返す。ファイルが無ければ空の図で作る（画面には知らせない）
+func (h *Hub) Open(path string) (OpenResult, error) {
+	return h.openDoc(path, "", false)
 }
 
-// openDoc は Open と同じ。ask なら、画面はすぐ切り替えず、郵便箱に入れて「届いています」と聞く（matomezu open。D26 の段階 3）。
-// ask でない show は、すぐ前に出す（CLI からは使っていない。check・set は前に出さない。D30）
-func (h *Hub) openDoc(path string, show bool, page string, ask bool) (OpenResult, error) {
+// existingDoc は、ファイルがあるときだけ openDoc（登録だけ。前に出さない）。問い合わせ・知らせのコマンド（notify・focus・ask・tour・history・revert）が使う。
+// 図のファイルを作るのは open と画面の新しいブックだけで、パスを打ち間違えても空の図を作らない（2026-10-17 ユーザー）
+func (h *Hub) existingDoc(path string) (OpenResult, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return OpenResult{}, err
+	}
+	if _, err := os.Stat(abs); err != nil {
+		return OpenResult{}, fmt.Errorf("%s: not found (only matomezu open creates a diagram)", abs)
+	}
+	return h.openDoc(abs, "", false)
+}
+
+// openDoc は Open と同じ。ask なら、カレントの画面に「届いています」と聞く（画面はすぐ切り替えず、郵便箱に入れる。matomezu open。
+// D26 の段階 3・D30）。page はそのとき開くページ
+func (h *Hub) openDoc(path string, page string, ask bool) (OpenResult, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return OpenResult{}, err
@@ -320,26 +333,21 @@ func (h *Hub) openDoc(path string, show bool, page string, ask bool) (OpenResult
 	}
 	// 一番新しい図として覚え直すのは、新しく登録したときと、ユーザーに見せるときだけ。問い合わせ（check・history・notify など）は
 	// 登録済みの図の順番を変えない（覚え直すとブックの一覧が変わった知らせが出て、マスターを見ている画面が作り直す。2026-10-15）
-	if !known || show {
+	if !known || ask {
 		h.remember(d.path)
 	}
 	h.mu.Lock()
 	h.idleSince = time.Now() // 開いた直後は、画面がつながるまで待つ
 	conns := len(h.clients)
 	// ask（matomezu open）は通知の 1 つの使い方で、カレントの画面にだけ届ける（notify.go。D30）
-	e := event{"open", jsonString(map[string]string{"doc": d.id, "page": page})}
+	var e event
 	if ask {
 		e = event{"notify", jsonString(map[string]string{"book": d.id, "page": page, "arrive": "true", "dialog": "true"})}
-	}
-	if show {
 		h.shown, h.shownAt = e, time.Now()
 	}
 	h.mu.Unlock()
-	switch {
-	case show && ask:
+	if ask {
 		h.sendCurrent(e)
-	case show:
-		h.broadcast(e)
 	}
 	return OpenResult{ID: d.id, Path: d.path, Connections: conns}, nil
 }
@@ -362,10 +370,9 @@ func (h *Hub) Close(path string) (CloseResult, error) {
 	d := h.docs[id]
 	if d != nil && h.shown.name != "" {
 		var shown struct {
-			Doc  string `json:"doc"`
 			Book string `json:"book"`
 		}
-		if json.Unmarshal([]byte(h.shown.data), &shown) == nil && (shown.Doc == id || shown.Book == id) {
+		if json.Unmarshal([]byte(h.shown.data), &shown) == nil && shown.Book == id {
 			h.shown = event{}
 		}
 	}
@@ -373,6 +380,10 @@ func (h *Hub) Close(path string) (CloseResult, error) {
 	h.mu.Unlock()
 	if d == nil {
 		return CloseResult{}, fmt.Errorf("%s is not registered in matomezu (nothing to close)", abs)
+	}
+	// どの画面のタブでも開いていなければ、閉じるものが無い（成功のように見せない。2026-10-17 ユーザー）
+	if !slices.Contains(h.watched(), d) {
+		return CloseResult{}, fmt.Errorf("%s: not open in the browser (nothing to close)", abs)
 	}
 	h.broadcast(event{"close", jsonString(map[string]string{"doc": id})})
 	return CloseResult{ID: id, Connections: conns}, nil
@@ -537,8 +548,7 @@ func (h *Hub) Handler() http.Handler {
 	// 郵便箱（mail.go）。DELETE も本文に {} を付けて送る（画面からの書き込みは JSON の本文だけを受ける。fromPage）
 	mux.HandleFunc("GET /d/{id}/api/mail", h.withMail(h.getMail))
 	mux.HandleFunc("POST /d/{id}/api/mail", fromPage(h.withMail(h.postMail)))
-	mux.HandleFunc("POST /d/{id}/api/mail/read", fromPage(h.withMail(h.readAllMail)))
-	mux.HandleFunc("POST /d/{id}/api/mail/{item}/read", fromPage(h.withMail(h.readAllMail)))
+	mux.HandleFunc("POST /d/{id}/api/mail/{item}/read", fromPage(h.withMail(h.readMailItem)))
 	mux.HandleFunc("DELETE /d/{id}/api/mail/{item}", fromPage(h.withMail(h.deleteMail)))
 	// LLM の履歴（llmhist.go）。取り消しは CLI（matomezu revert）から（管理の鍵が要る）
 	mux.HandleFunc("GET /d/{id}/api/llm", h.withLLM(h.getLLM))
@@ -554,10 +564,11 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("GET /api/fit/{req}", h.fitData)
 	mux.HandleFunc("POST /api/fit/{req}", fromPage(h.fitAnswer))
 	mux.HandleFunc("POST /api/point/{req}", fromPage(h.pointAnswer))
-	mux.HandleFunc("GET /api/ask", h.getAsk)
-	mux.HandleFunc("GET /api/ask/wait", h.askWait)
-	mux.HandleFunc("GET /api/tour", h.getTour)
-	mux.HandleFunc("GET /api/tour/wait", h.tourWait)
+	// 画面は話題・ツアーを読むだけ（鍵なし）。AI の読み方（new・last・status・wait）は「読んだ」印を付けるので、CLI の鍵が要る（2026-10-17 ユーザー）
+	mux.HandleFunc("GET /api/ask", h.aiRead(h.getAsk, "new", "last"))
+	mux.HandleFunc("GET /api/ask/wait", h.control(h.askWait))
+	mux.HandleFunc("GET /api/tour", h.aiRead(h.getTour, "new", "status"))
+	mux.HandleFunc("GET /api/tour/wait", h.control(h.tourWait))
 	mux.HandleFunc("POST /api/tour/screen", fromPage(h.tourScreen))
 	mux.HandleFunc("POST /api/ask/screen", fromPage(h.askScreenUpdate))
 	mux.HandleFunc("GET /api/current", func(w http.ResponseWriter, _ *http.Request) {
@@ -608,6 +619,21 @@ func (h *Hub) control(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// aiRead は、問い合わせに keys のどれかがあれば（AI の読み方）鍵を確かめてから next を呼ぶ。無ければ画面の読み方としてそのまま呼ぶ
+func (h *Hub) aiRead(next http.HandlerFunc, keys ...string) http.HandlerFunc {
+	guarded := h.control(next)
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		for _, k := range keys {
+			if q.Has(k) {
+				guarded(w, r)
+				return
+			}
+		}
+		next(w, r)
+	}
+}
+
 func (h *Hub) ping(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"version": h.version, "pid": os.Getpid()})
 }
@@ -615,7 +641,6 @@ func (h *Hub) ping(w http.ResponseWriter, _ *http.Request) {
 func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Path string `json:"path"`
-		Show bool   `json:"show"`
 		Page string `json:"page"`
 		Ask  bool   `json:"ask"`
 	}
@@ -623,7 +648,7 @@ func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "path required", http.StatusBadRequest)
 		return
 	}
-	res, err := h.openDoc(req.Path, req.Show, req.Page, req.Ask)
+	res, err := h.openDoc(req.Path, req.Page, req.Ask)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

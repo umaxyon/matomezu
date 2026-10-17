@@ -98,6 +98,18 @@ test("紙のページは、表示領域ではなく紙の大きさに対して�
   ]);
 });
 
+test("紙のはみ出しは、ふちの余白（inset）を除いた内側で数え、! は set を断る決まり（outside）と同じ箱に付く", () => {
+  // 紙のふちから余白の内側には収まらない箱（右端が 794 − 12 を 4 越える）は、紙の中でもはみ出し。余白ちょうどまでなら fits
+  const inset = 12;
+  const out = { viewport: { w: 2000, h: 2000 }, paper: { name: "a5-landscape", w: 794, h: 559 }, inset, outside: ["1"], boxes: [box("1", 794 - inset - 96, 0)], edges: [] };
+  expect(summarize(out).split("\n")).toEqual([
+    "paper a5-landscape 794x559, content 786x50 → over right 4",
+    "top 1: !#1 1 (686,0 100x50)",
+  ]);
+  const fits = { ...out, outside: [], boxes: [box("1", 794 - inset - 100, 0)] };
+  expect(summarize(fits).split("\n")[0]).toBe("paper a5-landscape 794x559, content 782x50 → fits");
+});
+
 test("details: 子のある箱ごとに、子の位置（親の左上から）と大きさ。子がさらに子を持てば [見せ方 子の数]、非表示ならその旨", () => {
   const box = (id: string, x: number, y: number, w: number, h: number, ancestors: string[] = [], more: Partial<GeoBox> = {}): GeoBox =>
     ({ id, caption: `B${id}`, ancestors, x, y, w, h, cut: false, ...more });

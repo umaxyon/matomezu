@@ -42,27 +42,21 @@ describe("diffData と applyChanges: 種類ごとに、進めると後の状態�
   test("最上位の項目（world・nodes などの外）を足して戻す", () => {
     const after = edit(d => { (d as Record<string, unknown>).version = 2; });
     const ops = diffData(base(), after);
-    expect(kinds(ops)).toEqual(["top:change:"]);
+    expect(kinds(ops)).toEqual(["top:change:", "keys:order:"]); // 項目の並びも 1 件（並びを当てる側にそろえる）
     expect(applyChanges(base(), ops, "redo")).toEqual(after);
     expect(JSON.stringify(applyChanges(after, ops, "undo"))).toBe(JSON.stringify(base()));
   });
 
-  // 起点 AI（2026-10-17 のテストの見直し）。判断待ち（直すかはユーザーと仕分ける）。
-  // 再現: 最上位に項目（例 version）を足した操作を Undo してから Redo する（diffData(base, after) を redo で当てる）。
-  // 今の動き: 足した項目がファイルの先頭（world より前）に来る。setFields が最上位の項目の並び（keys）を、world・nodes などを除いた
-  //   項目だけで持っているため、それ以外を後ろへ回す。formatDiagram は項目の並びどおりに書くので、Redo のたびにファイルの行が動く。
-  // 期待: 進めた後の状態と項目の並びも同じ（箱・world の項目は並びもそろう）
-  test.skip("最上位の項目を足す操作を Redo しても、ファイルの項目の並びが変わらない", () => {
+  // 最上位の項目の並びも、進めた後の状態と同じにする（formatDiagram は並びどおりに書くので、Redo のたびにファイルの行が動いていた。
+  // 2026-10-17 のテストの見直しで見つけた X8）
+  test("最上位の項目を足す操作を Redo しても、ファイルの項目の並びが変わらない", () => {
     const after = edit(d => { (d as Record<string, unknown>).version = 2; });
     expect(JSON.stringify(applyChanges(base(), diffData(base(), after), "redo"))).toBe(JSON.stringify(after));
   });
 
-  // 起点 AI（2026-10-17 のテストの見直し）。判断待ち。
-  // 再現: 消した箱の最後の 1 つを戻して removed が項目ごと無くなる操作（edits.ts の restoreSubtree・purgeRemoved は空なら項目を消す）を
-  //   Undo してから Redo する。線の無い図に最初の線を足して Undo するのも同じ（edges が無かった所に edges: [] が残る）。
-  // 今の動き: removed: [] が残る（applyChanges は、元に項目があったか中身があれば配列を書く）。検査は通るが、保存したファイルに空の行が出る。
-  // 期待: 進めた後・戻した後の状態と同じ（項目ごと無い）
-  test.skip("空になった一覧は、Redo / Undo のあとも項目ごと無い", () => {
+  // 空になった一覧は項目ごと無くす（edits.ts の restoreSubtree・purgeRemoved は空なら項目を消す）。Undo / Redo のあとに removed: [] や
+  // edges: [] が残っていた（2026-10-17 のテストの見直しで見つけた X8）
+  test("空になった一覧は、Redo / Undo のあとも項目ごと無い", () => {
     const after = edit(d => { delete d.removed; });
     expect(applyChanges(base(), diffData(base(), after), "redo")).toEqual(after);
     const noEdges: Diagram = { nodes: [{ id: 1 }] };

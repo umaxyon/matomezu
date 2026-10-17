@@ -6,7 +6,6 @@
  *   画面がフォーカスされたとき（前に出たとき）も、この id で api/focus に知らせる。サーバーは最後にフォーカスされた画面をカレントとする
  *   （D30。docs/NOTIFY-plan.md）。つないだときに前にあれば、そのときも知らせる。
  * - version: 図のファイルの版が変わった。
- * - open: その図（のページ）を開いて前に出すよう頼まれた。
  * - notify: 通知（matomezu notify と、matomezu open の「届いています」の arrive。カレントの画面にだけ届く。D30。internal/server/notify.go）。
  * - close: その図のタブを閉じるよう頼まれた（matomezu close）。タブの × と同じに閉じる。
  * - mail: その図の郵便箱が変わった（届いた・読んだ・取り除いた。D26 の段階 3）。
@@ -18,11 +17,9 @@
  * - 接続が切れても、つなぎ直しを続ける（入れ替わったサーバーが同じアドレスで起動するのを待つ）。
  */
 
-import { t } from "./i18n";
 
 export interface EventHandlers {
   version(doc: string, version: string): void;
-  open(doc: string, page: string | null): void;
   notify?(n: Notice): void;
   close?(doc: string): void;
   mail?(doc: string): void;
@@ -34,7 +31,6 @@ export interface EventHandlers {
   tourChanged?(): void; // ツアーが変わった（GET api/tour で読み直す）
   askChanged?(): void;                  // 話題が変わった（GET api/ask で読み直す） // 箱を示す（doc・box が null なら出している枠を消す。matomezu focus。D37）
   fit?(req: string, doc: string): void; // 預けた中身（api/fit/{req}）が紙に収まるかを答える（matomezu set。D33）
-  status(text: string): void;
   watched?(): string[]; // 開いている図の id
 }
 
@@ -130,10 +126,6 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       const v = parse(e);
       if (v && typeof v.doc === "string") h.version(v.doc, String(v.version));
     });
-    es.addEventListener("open", e => {
-      const v = parse(e);
-      if (v && typeof v.doc === "string") h.open(v.doc, typeof v.page === "string" && v.page ? v.page : null);
-    });
     es.addEventListener("notify", e => {
       const v = parse(e);
       if (!v || typeof v !== "object") return;
@@ -175,7 +167,6 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
       if (v && typeof v.req === "string" && typeof v.doc === "string") h.summary?.(v.req, v.doc, String(v.page ?? ""), String(v.version ?? ""));
     });
     es.addEventListener("error", () => {
-      h.status(t("再接続中…"));
       // EventSource は自分で再接続するが、諦めたら（サーバーが無い間の応答の失敗など）作り直して続ける
       if (es.readyState === EventSource.CLOSED && !closed) {
         es.close();

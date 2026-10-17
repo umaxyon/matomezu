@@ -526,7 +526,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     dataChanged();
     fitted.clear();
     if (batching) { batchDirty = true; return; } // まとめている間は、終わったときに 1 件だけ残す（batch）
-    if (refuseOverPaper(true)) return;
+    if (refuseOverPaper(!quietPaper)) return;
     const data = api.toJSON();
     H.record(data);
     opt.onChange?.(data);
@@ -535,6 +535,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 紙（D33）: 紙からはみ出している最上位の箱。操作のたびに、前から出ていた箱（LLM がファイルに書いた位置など）を覚えておき、
   // 操作で新しくはみ出す箱ができたら、その操作はしない（直前の状態に戻し、履歴に積まない）。warn なら知らせる（ダイアログは自分で知らせる）
   let outsideKnown = new Set<string>();
+  let quietPaper = false; // 断るとき知らせない（貼り付け。収まらないものは黙って貼らない。2026-10-17 ユーザー）
+  let paperRefused = false; // 直前に紙からはみ出すので断ったか（呼んだ側が、した後の知らせを出さないために見る）
   const outsideNow = () => new Set(roots.filter(L.outsideFixed).map(n => n.id));
   function refuseOverPaper(warn: boolean): boolean {
     const p = paperOf();
@@ -548,6 +550,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (sel != null && byId.has(sel)) select(byId.get(sel)!);
     dataChanged();
     if (warn) opt.onEvent?.({ kind: "overPaper", paper: p.name });
+    paperRefused = true;
     return true;
   }
 
@@ -717,9 +720,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   }
 
   // 道具箱（toolbox.ts）: ページのパターンの道具（形・追加・マスターの操作。STRATEGIES の tools）。どの箱を選んでいても図の左端に出す。無ければ null
-  function toolHostOf(): { id: string | null; tools: ToolKey[]; size: Size } | null {
+  function toolsOf(): { tools: ToolKey[]; size: Size } | null {
     const { tools } = STRATEGIES[worldViewOf(world)];
-    return tools.length ? { id: null, tools: [...tools], size: kidSizeOf(world) ?? "M" } : null;
+    return tools.length ? { tools: [...tools], size: kidSizeOf(world) ?? "M" } : null;
   }
 
   // ページに掛けられないパターン（子を持つ最上位の箱があるなら、箱が子を持てないフローチャートは掛けられない）
@@ -743,7 +746,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const data = api.toJSON();
     const r = edit(data);
     if (!r) return undefined;
+    // 組み立て直しても、前から紙の外にあった箱だけを覚えておく（作り直しで覚え直すと、この操作ではみ出した箱を断れない。D33）
+    const known = outsideKnown;
     build(data, false);
+    outsideKnown = new Set([...known].filter(id => byId.has(id)));
     const n = r.select != null ? byId.get(r.select) ?? null : null;
     if (n && r.drop !== undefined) {
       if (r.drop) {
@@ -810,6 +816,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (!byId.has(String(id))) return removeElsewhere(id);
     const n = nodeOf(id);
     if (n.isWorld) throw new Error(t("ワールドは消せません"));
+    if (isTreeRoot(n)) { opt.onEvent?.({ kind: "rootKept" }); return false; } // ツリーの根は消せない（docs/PATTERN-plan.md 8.2）
     const gone = new Set([n, ...descendants(n)]);
     // データは今の位置を書いた写しで消し、消したものだけを移す（ほかのページにある子孫、つまりページの箱の中身も一緒に消える）。
     // 残る箱のデータは図の箱が参照しているので、入れ替えずに外すだけにする
@@ -845,6 +852,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function removeElsewhere(id: Id) {
     const s = source.nodes.find(x => String(x.id) === String(id));
     if (!s) throw new Error(t("ボックスがありません: {id}", { id }));
+    const p = pageOf(source.nodes, id);
+    if (STRATEGIES[patternOf(source, p)].rootOnly && String(pageWorld(source, p).root) === String(id)) { opt.onEvent?.({ kind: "rootKept" }); return false; }
     let gone = 0, cut = 0;
     rebuildWith(data => {
       const r = removeSubtree(data, id);
@@ -931,10 +940,18 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (refuseKids(dest, copy.nodes.length - 1)) return "";
     const pos = dropPos(dest, at);
     let r!: ReturnType<typeof pasteSubtree>;
-    const n = rebuildWith(data => {
-      r = pasteSubtree(data, copy, placeOf(dest), pos);
-      return { select: r.root, drop: pos };
-    })!;
+    paperRefused = false;
+    quietPaper = clipboard;
+    let n: Box;
+    try {
+      n = rebuildWith(data => {
+        r = pasteSubtree(data, copy, placeOf(dest), pos);
+        return { select: r.root, drop: pos };
+      })!;
+    } finally {
+      quietPaper = false;
+    }
+    if (paperRefused) return ""; // 紙に収まらないので貼らなかった（changed が直前の状態に戻した）
     opt.onEvent?.({ kind: "pasted", key: keyOfBox(n), from: from ?? null, kids: r.nodes - 1, edges: r.edges, ...(clipboard ? { clipboard: true } : {}) });
     return r.root;
   }
@@ -945,10 +962,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const dest = target(req.parentId);
     const pos = dropPos(dest, req.at);
     let id!: number;
+    paperRefused = false;
     const n = rebuildWith(data => {
       id = addBox(data, fields, placeOf(dest), pos, req.before);
       return { select: String(id), drop: pos };
     })!;
+    if (paperRefused) return ""; // 紙に収まらないので足さなかった（changed が知らせて直前の状態に戻した）
     opt.onEvent?.({ kind: "added", key: keyOfBox(n) });
     return String(id);
   }
@@ -1142,7 +1161,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         viewsOff: patternsOff(),
         treeDirection: treeDirOf(world),
         canFlatten: canFlatten(),
-        tools: toolHostOf(),
+        tools: toolsOf(),
         canAlign: aligns(world),
         kidSize: kidSizeOf(world),
       };
@@ -1177,7 +1196,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
       framed: isNesting(n),
-      tools: toolHostOf(),
+      tools: toolsOf(),
       inTree: inTreeOf(n),
       treeRoot: isTreeRoot(n),
       link: linkOf(n),
@@ -1802,6 +1821,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return {
         viewport: L.viewport(), // 倍率をかけないときの広さ（LLM への配置の要約。D32・D33）
         paper: paperOf(),
+        inset: opt.padding,
         outside: [...outsideNow()],
         boxes,
         treeLines,

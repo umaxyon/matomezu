@@ -206,8 +206,8 @@ export function createAsker<B extends AskBook>(ctx: AskContext<B>) {
     render();
   }
 
-  // 話題が開いているか（フォーカスを出さない）
+  // 話題が開いているか（終えた・閉じた・断られた話題は開いていない）
   const open = () => !!topic && topic.state !== "declined" && topic.state !== "closed";
 
-  return { refresh, answer, render, bookClosed, open, topic: () => topic, setItem };
+  return { refresh, answer, render, bookClosed, open, topic: () => topic };
 }

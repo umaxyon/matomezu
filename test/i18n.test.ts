@@ -97,6 +97,23 @@ describe("多言語対応", () => {
     expect(Object.values(EN).filter(v => JA.test(v))).toEqual([]);
   });
 
+  test("英語の辞書のキーは、どれも t のキーか index.html の文言として使っている（使わなくなった訳を残さない）", () => {
+    const used = new Set(all.flatMap(({ list }) => list.filter(s => s.key).map(s => s.text)));
+    const html = new DOMParser().parseFromString(readFileSync(join(import.meta.dir, "../web/index.html"), "utf8"), "text/html");
+    const walk = (n: Node) => {
+      if (n instanceof Element) {
+        if (n.tagName === "SCRIPT" || n.tagName === "STYLE") return;
+        for (const a of ["title", "aria-label", "placeholder"]) { const v = n.getAttribute(a); if (v) used.add(v); }
+      } else if (n.nodeType === Node.TEXT_NODE && n.nodeValue?.trim()) used.add(n.nodeValue.trim());
+      n.childNodes.forEach(walk);
+    };
+    walk(html.body);
+    // 日本語の文字（漢字・かな）を含まないキー（「、」など）は strings で拾わないので、t("…") の書き方をそのまま探す
+    const src = sources().map(f => readFileSync(f, "utf8")).join("\n");
+    const literal = (k: string) => !JA.test(k) && src.includes(`t(${JSON.stringify(k)}`);
+    expect(Object.keys(EN).filter(k => !used.has(k) && !literal(k))).toEqual([]);
+  });
+
   test("同じキーが 2 つの辞書にあれば、同じ訳", () => {
     const seen = new Map<string, string>(), diff: string[] = [];
     for (const part of Object.values(PARTS)) {

@@ -98,3 +98,14 @@ test("ミニマップでも、塗らない箱は枠だけ、塗らず枠も無�
   await expect(map.locator(".mm-box")).toHaveCount(10);   // 塗る箱だけ
   await expect(map.locator(".mm-group")).toHaveCount(1);  // 枠だけの箱（見出しだけの箱は描かない）
 });
+
+test("ミニマップの背景は、テーマの背景（付箋紙・シンプル）も塗る。world.background があればそちら（リンクの箱の窓と同じ）", async ({ page }) => {
+  await openDiagram(page, { ...tall, world: { theme: "sticky" } });
+  await page.locator("#minimap-toggle").click();
+  const bg = page.locator(".mz-minimap .mm-bg");
+  await expect(bg).toHaveCount(1);
+  expect(await bg.evaluate(r => (r as SVGElement).style.fill)).toBe("rgb(244, 239, 228)"); // theme.ts の sticky の background（#f4efe4）
+  await openDiagram(page, { ...tall, world: { theme: "sticky", background: "#1e1e1e" } });
+  await page.locator("#minimap-toggle").click();
+  expect(await page.locator(".mz-minimap .mm-bg").evaluate(r => (r as SVGElement).style.fill)).toBe("rgb(30, 30, 30)");
+});

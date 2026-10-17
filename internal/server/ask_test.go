@@ -64,7 +64,7 @@ func TestAskNewOnlyAfterUserChanges(t *testing.T) {
 	hub.topic = &Topic{Doc: "d", Path: "a.json", State: "open", Items: items}
 	hub.mu.Unlock()
 	get := func(q string) string {
-		res := do(t, "GET", ts.URL+"/api/ask"+q, "", nil)
+		res := do(t, "GET", ts.URL+"/api/ask"+q, "", map[string]string{"X-Matomezu-Token": "secret"})
 		defer res.Body.Close()
 		out, _ := io.ReadAll(res.Body)
 		return strings.TrimSpace(string(out))
@@ -113,7 +113,7 @@ func TestAskWait(t *testing.T) {
 	wait := func(sec string) <-chan AskWait {
 		ch := make(chan AskWait, 1)
 		go func() {
-			res := do(t, "GET", ts.URL+"/api/ask/wait?sec="+sec, "", nil)
+			res := do(t, "GET", ts.URL+"/api/ask/wait?sec="+sec, "", map[string]string{"X-Matomezu-Token": "secret"})
 			defer res.Body.Close()
 			var w AskWait
 			json.NewDecoder(res.Body).Decode(&w)
@@ -195,7 +195,7 @@ func TestTourStates(t *testing.T) {
 		t.Fatalf("ask during a tour: %v", err)
 	}
 	get := func(q string) string {
-		res := do(t, "GET", ts.URL+"/api/tour"+q, "", nil)
+		res := do(t, "GET", ts.URL+"/api/tour"+q, "", map[string]string{"X-Matomezu-Token": "secret"})
 		defer res.Body.Close()
 		out, _ := io.ReadAll(res.Body)
 		return strings.TrimSpace(string(out))
@@ -210,7 +210,7 @@ func TestTourStates(t *testing.T) {
 	}
 	ch := make(chan TourWait, 1)
 	go func() {
-		res := do(t, "GET", ts.URL+"/api/tour/wait?sec=5", "", nil)
+		res := do(t, "GET", ts.URL+"/api/tour/wait?sec=5", "", map[string]string{"X-Matomezu-Token": "secret"})
 		defer res.Body.Close()
 		var w TourWait
 		json.NewDecoder(res.Body).Decode(&w)
@@ -238,7 +238,35 @@ func TestTourStates(t *testing.T) {
 	if s := screen(`{"id":"t1","state":"interrupt"}`); s != http.StatusNotFound {
 		t.Fatalf("an ended tour does not change: %d", s)
 	}
+	// 終わったのを AI がもう読んだツアーを、次の -wait が新しい結果として返さない（すぐ none。2026-10-17 X10）
+	res := do(t, "GET", ts.URL+"/api/tour/wait?sec=5", "", map[string]string{"X-Matomezu-Token": "secret"})
+	var again TourWait
+	json.NewDecoder(res.Body).Decode(&again)
+	res.Body.Close()
+	if again.Reason != "none" || again.Tour != nil {
+		t.Fatalf("wait after it was told: %+v", again)
+	}
 	if !strings.Contains(hub.tourLine("d"), "complete") || hub.tourLine("x") != "" {
 		t.Fatalf("check line: %q", hub.tourLine("d"))
+	}
+}
+
+// AI の読み方（ask の new・last・wait、tour の new・status・wait）は「読んだ」印を付けるので、CLI の鍵が無ければ断る。
+// 画面の読み方（問い合わせの無い GET）は鍵なしで読める（2026-10-17 ユーザー）
+func TestAIReadsNeedTheToken(t *testing.T) {
+	_, ts, _ := setupHub(t)
+	for _, p := range []string{"/api/ask?new=1", "/api/ask?last=1", "/api/ask/wait?sec=1", "/api/tour?new=1", "/api/tour?status=1", "/api/tour/wait?sec=1"} {
+		res := do(t, "GET", ts.URL+p, "", nil)
+		res.Body.Close()
+		if res.StatusCode != http.StatusForbidden {
+			t.Errorf("%s without the token: %d", p, res.StatusCode)
+		}
+	}
+	for _, p := range []string{"/api/ask", "/api/tour"} {
+		res := do(t, "GET", ts.URL+p, "", nil)
+		res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("%s from the screen: %d", p, res.StatusCode)
+		}
 	}
 }

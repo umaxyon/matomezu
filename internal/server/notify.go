@@ -39,7 +39,7 @@ func (h *Hub) Notify(n NotifyRequest) error {
 		msg["box"] = n.Box
 	}
 	if n.Path != "" {
-		res, err := h.openDoc(n.Path, false, "", false)
+		res, err := h.existingDoc(n.Path)
 		if err != nil {
 			return err
 		}

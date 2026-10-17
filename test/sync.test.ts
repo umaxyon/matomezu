@@ -68,7 +68,6 @@ async function setup() {
   const remote = (await fetchRemote(""))!;
   graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d) });
   sync = startSync(graph, "", remote, {
-    status: t => messages.push(t),
     error: t => messages.push("ERROR " + t),
     clearError: () => {},
   });
@@ -237,7 +236,7 @@ test("最初から見ていなければ、前に出るまで読み込まない",
   document.body.appendChild(el);
   const remote = (await fetchRemote(""))!;
   graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure });
-  sync = startSync(graph, "", remote, { status() {}, error() {}, clearError() {} }, { active: false });
+  sync = startSync(graph, "", remote, { error() {}, clearError() {} }, { active: false });
   expect(graph.toJSON().nodes).toEqual([]);
   sync.setActive(true);
   expect(graph.toJSON().nodes.length).toBe(2);
@@ -249,7 +248,7 @@ test("一度も前に出ていないあいだに外部で変わったら、前�
   document.body.appendChild(el);
   const remote = (await fetchRemote(""))!;
   graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure });
-  sync = startSync(graph, "", remote, { status() {}, error() {}, clearError() {} }, { active: false });
+  sync = startSync(graph, "", remote, { error() {}, clearError() {} }, { active: false });
   external({ nodes: [{ id: 1, caption: "新しい" }] });
   sync.setActive(true);
   await wait(20);
@@ -262,7 +261,7 @@ test("通知より先に保存がぶつかった（409）ら、画面の変更�
   document.body.appendChild(el);
   const remote = (await fetchRemote(""))!;
   graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d) });
-  sync = startSync(graph, "", remote, { status() {}, notice: t => notices.push(t), error() {}, clearError() {} });
+  sync = startSync(graph, "", remote, { notice: t => notices.push(t), error() {}, clearError() {} });
   writeFile(JSON.stringify({ nodes: [{ id: 1, caption: "theirs" }, { id: 2 }] })); // 外部の書き換え（通知はまだ届かない）
   graph.update(1, { caption: "mine" });
   await settle();

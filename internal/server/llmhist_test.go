@@ -63,7 +63,7 @@ func TestLLMHistory(t *testing.T) {
 	hub, ts, _ := setupStoreHub(t)
 	p := filepath.Join(t.TempDir(), "a.json")
 	os.WriteFile(p, []byte(`{"nodes":[{"id":1,"caption":"A","x":0}]}`), 0o644)
-	res, err := hub.Open(p, false, "")
+	res, err := hub.Open(p)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -149,7 +149,7 @@ export interface WorldInfo {
   viewsOff: PagePattern[]; // 掛けられないパターン（子を持つ箱が最上位にあれば、フローチャートは掛けられない）
   treeDirection: TreeDirection; // ツリーのページの向き
   canFlatten: boolean;     // 内包に変換できるか（ツリーのページ。戻せない。docs/PATTERN-plan.md）
-  tools: { id: string | null; tools: ToolKey[]; size: Size } | null; // 道具箱（ワールドなら id は null。図の左端に出す）の道具と、足す箱のサイズ
+  tools: { tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの。図の左端に出す）の道具と、足す箱のサイズ
   canAlign: boolean;     // 自動で整列できるか（決まった並べ方を持つ戦略で、子がある）
   kidSize: Size | null;  // 中の箱のサイズ（一括で変えたもの。無ければ null）。canAlign のときだけ選べる
 }
@@ -182,7 +182,7 @@ export interface BoxInfo {
   rowSize: Size;            // リストの高さ（子の最小の高さ。D13）
   listHeight: number | null; // リストの高さの上限（スクロールにしたリスト。無ければ null。D33）
   framed: boolean; // 子を枠の中に入れて見せる箱か（内包・リスト。サイズは使わず、大きさは子の並びで決まる）
-  tools: { id: string | null; tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの。ワールドなので id は null）と、足せる形、足す箱のサイズ
+  tools: { tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの）の道具と、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（ツリーのページの根の子孫。並びはツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md）
   treeRoot: boolean; // ツリーのページの根か（消せず、付け替えられない）
   link: { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: { x: number; y: number; w: number; h: number } | null; book: string | null } | null; // リンクの箱（マスターの窓なら book にブックの id）なら、のぞくページと見せ方・窓に映す範囲（link-box.ts）。形・サイズ・子の見せ方は使わない

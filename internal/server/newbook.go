@@ -36,6 +36,7 @@ type newBook struct {
 	Near  string          `json:"near"`
 	Title string          `json:"title"`
 	World json.RawMessage `json:"world"`
+	Nodes []any           `json:"nodes"` // 最初の箱（ツリーの根など。画面が作る。無ければ空）
 }
 
 func (h *Hub) newBook(w http.ResponseWriter, r *http.Request) {
@@ -56,13 +57,17 @@ func (h *Hub) newBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no folder to create the diagram in", http.StatusBadRequest)
 		return
 	}
-	body, _ := json.MarshalIndent(map[string]any{"world": world, "nodes": []any{}, "edges": []any{}}, "", "  ")
+	nodes := req.Nodes
+	if nodes == nil {
+		nodes = []any{}
+	}
+	body, _ := json.MarshalIndent(map[string]any{"world": world, "nodes": nodes, "edges": []any{}}, "", "  ")
 	path, err := createUnique(dir, fileBase(req.Title), append(body, '\n'))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	res, err := h.Open(path, false, "")
+	res, err := h.Open(path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -119,7 +124,7 @@ func (h *Hub) copyBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	res, err := h.Open(path, false, "")
+	res, err := h.Open(path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

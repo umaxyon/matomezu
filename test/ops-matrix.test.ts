@@ -169,8 +169,6 @@ describe("操作のあとの Undo で操作の前のデータに、Redo で操�
     return d;
   };
   const cases = OPS.flatMap(o => PICKABLE.filter(o.on).map(p => [o.name, p, o] as const));
-  // 空の removed は無いのと同じに見る（Undo / Redo が removed: [] を残す件は、下の test.skip で別に挙げる）
-  const norm = (d: Diagram) => { if (d.removed && !d.removed.length) delete d.removed; return d; };
   test.each(cases)("%s（%s のページ）", (_name, p, o) => {
     const { graph } = setup(withPartner());
     graph.setPage(pageId(p, 1));
@@ -180,18 +178,14 @@ describe("操作のあとの Undo で操作の前のデータに、Redo で操�
     const after = graph.toJSON();
     expect(after).not.toEqual(before);
     expect(graph.undo()).toBe(true);
-    expect(norm(graph.toJSON())).toEqual(norm(before));
+    expect(graph.toJSON()).toEqual(before);
     expect(graph.page()).toBe(pageId(p, 1));
     expect(graph.redo()).toBe(true);
-    expect(norm(graph.toJSON())).toEqual(norm(after));
+    expect(graph.toJSON()).toEqual(after);
   });
 
-  // 起点 AI（2026-10-17、テストの見直し）。不具合の候補なのでソースは直さず skip にしている。
-  // 再現: 箱を 1 つ消す（removed ができる）→ Undo。
-  // 今の動き: データに removed: []（空の配列）が残り、保存するファイルにも出る。消す前のデータには removed が無い。
-  // 期待: edits.ts の restoreSubtree・purgeRemoved は空になった removed を消している（if (!data.removed.length) delete data.removed）ので、
-  // Undo / Redo でも同じく項目ごと無くなる（操作の前のデータと同じになる）
-  test.skip("箱を消して Undo すると、removed の項目ごと消える（空の配列を残さない）", () => {
+  // edits.ts の restoreSubtree・purgeRemoved と同じく、空になった removed は項目ごと無くす（Undo のあとに removed: [] が残っていた。X8）
+  test("箱を消して Undo すると、removed の項目ごと消える（空の配列を残さない）", () => {
     const { graph } = setup(withPartner());
     const before = graph.toJSON();
     graph.remove(1);
@@ -371,45 +365,65 @@ describe("紙のページ: 操作で箱が紙からはみ出すなら断る", ()
     expect(i.y + i.h).toBeLessThanOrEqual(h);
   });
 
-  // 起点 AI（2026-10-17、テストの見直し）。不具合の候補なのでソースは直さず skip にしている。
-  // 再現: 紙（A5 横、高さ 559）のページで、本文 60 行（高さ 1124）の箱を add か paste で足す。
-  // 今の動き: そのまま足され（紙からはみ出す）、履歴にも積まれ、「追加しました」「貼り付けました」の知らせが出る。update で同じ本文を書けば断られる（paper.test.ts）。
-  // 原因の見立て: 構造が変わる操作は rebuildWith → build で作り直し、build が outsideKnown = outsideNow() で「前から紙の外にあった箱」を覚え直すため、
-  // 操作で新しくはみ出した箱も前からあった箱として扱われ、changed の refuseOverPaper が断らない（add・paste・restore・reparent・flattenTree が同じ道）。
-  // 期待: CLAUDE.md 15（紙からはみ出す操作を断るのは refuseOverPaper 1 か所で、画面の操作は changed を通る）のとおり、断って overPaper を知らせ、データと履歴は変わらない
-  const OVER: [string, (g: Graph) => unknown][] = [
-    ["足す", g => g.add({ parentId: null, at: { x: 40, y: 40 } }, { caption: "長い", body: LONG })],
-    ["移植する", g => g.paste({ root: "a", nodes: [{ id: "a", caption: "長い", body: LONG }], edges: [], pattern: "nest" }, null, { x: 40, y: 40 })],
+  // 構造が変わる操作（add・paste・restore・reparent など）は rebuildWith で作り直す。作り直しても「前から紙の外にあった箱」を覚え直さず、
+  // 操作で新しくはみ出す箱ができたら changed の refuseOverPaper が断る（CLAUDE.md 15。2026-10-17、テストの見直しで見つけた X2）。
+  // Ctrl+V の貼り付けは、収まらなければ黙って貼らない（2026-10-17 ユーザー）。ほかの操作は知らせる
+  const OVER: [string, (g: Graph) => unknown, boolean][] = [
+    ["足す", g => g.add({ parentId: null, at: { x: 40, y: 40 } }, { caption: "長い", body: LONG }), true],
+    ["移植する", g => g.paste({ root: "a", nodes: [{ id: "a", caption: "長い", body: LONG }], edges: [], pattern: "nest" }, null, { x: 40, y: 40 }), true],
   ];
-  test.skip.each(OVER)("本文の長い箱を%sと紙からはみ出すので、断って知らせる", (_name, op) => {
+  test.each(OVER)("本文の長い箱を%sと紙からはみ出すので、しない", (_name, op, warn) => {
     const { graph, events } = make();
     const before = graph.toJSON();
     op(graph);
     expect(graph.toJSON()).toEqual(before);
-    expect(kinds(events)).toContain("overPaper");
+    expect(kinds(events).includes("overPaper")).toBe(warn);
+    expect(kinds(events).some(k => k === "added" || k === "pasted")).toBe(false);
     expect(graph.history().canUndo).toBe(false);
+  });
+  test("Ctrl+V で、紙に収まらない箱は黙って貼らない（大きい紙のページで写して、小さい紙のページへ貼る）", () => {
+    const { graph, events } = setup({
+      world: { paper: "a3-portrait" }, pages: [{ id: "s", world: { paper } }],
+      nodes: [{ id: 1, caption: "長い", body: LONG, x: 40, y: 40 }, { id: 2, caption: "中", page: "s", x: 40, y: 40 }],
+    }, { paper: true });
+    graph.select(1);
+    expect(graph.copySelected()).toBe(true);
+    graph.setPage("s");
+    graph.select(null);
+    const before = graph.toJSON();
+    expect(graph.pasteClip()).toBe(false);
+    expect(graph.toJSON()).toEqual(before);
+    expect(kinds(events).some(k => k === "overPaper" || k === "pasted")).toBe(false);
   });
 });
 
 // ---- ツリーの根（world.root）は消せない ----
-// 起点 AI（2026-10-17、テストの見直し）。不具合の候補なのでソースは直さず skip にしている。
-// 再現: ツリーのページで根の箱を選んで Delete（toolbar.ts → graph.remove）か、削除モードで根を押す。
-// 今の動き: 根が子孫ごと removed へ移り、world.root は消えた箱を指したまま残る。そのデータは検査で
-// 「ツリーのページには根が要ります」になり、保存したファイルを開き直せない（graph.load が例外を投げる）。
-// 期待: docs/PATTERN-plan.md 8.2 の 2（根は消せず、付け替えられない）と types.ts の BoxInfo.treeRoot のとおり、根は消さない（断る）。
-// 根の子孫（根以外）は消せる
+// ツリーのページの根は消せない（docs/PATTERN-plan.md 8.2 の 2、types.ts の BoxInfo.treeRoot）。消すと world.root が消えた箱を指し、
+// 保存したファイルを開き直せなくなっていた（2026-10-17、テストの見直しで見つけた X1）。根の子孫（根以外）は消せる
 describe("ツリーのページの根", () => {
   const tree = PICKABLE.find(p => STRATEGIES[p].rootOnly)!;
   const data = (): Diagram => ({
     world: { childView: tree, root: 20 },
     nodes: [{ id: 20, caption: "根" }, { id: 21, caption: "根の子", parent: 20 }, { id: 22, caption: "外", x: 400, y: 40 }],
   });
-  test.skip("根は消せず、データは開き直せるまま", () => {
-    const { graph } = setup(data());
+  test("根は消せず、知らせて断る。データは開き直せるまま", () => {
+    const { graph, events } = setup(data());
     const before = graph.toJSON();
-    try { graph.remove(20); } catch { /* 例外で断ってもよい */ }
+    expect(graph.remove(20)).toBe(false);
+    expect(events.at(-1)).toEqual({ kind: "rootKept" });
     expect(graph.toJSON()).toEqual(before);
     expect(() => graph.load(graph.toJSON())).not.toThrow();
+  });
+  test("ほかのページ（描いていないツリーのページ）の根も、一覧の × から消せない", () => {
+    const { graph, events } = setup({
+      pages: [{ id: "t", world: { childView: tree, root: 20 } }],
+      nodes: [{ id: 1, caption: "表" }, { id: 20, caption: "根", page: "t" }, { id: 21, caption: "根の子", parent: 20 }],
+    });
+    const before = graph.toJSON();
+    expect(graph.remove(20)).toBe(false);
+    expect(events.at(-1)).toEqual({ kind: "rootKept" });
+    expect(graph.toJSON()).toEqual(before);
+    expect(graph.remove(21)).toBe(true);
   });
   test("根の子は消せ、Undo で戻る。根の外の葉も消せる", () => {
     const { graph } = setup(data());

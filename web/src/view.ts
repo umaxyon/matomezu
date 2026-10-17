@@ -45,24 +45,23 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
     onAddRequest: ({ shape, size, ...req }) => openAddDialog(graph, req, shape, size),
   });
   const minimap = createMinimap(stage, graph);
-  // 道具箱を出している入れ物（箱の id。ワールドなら null）。出していなければ undefined。toolSize は足す箱のサイズ
-  let toolHost: string | null | undefined;
+  // 道具箱を出しているか。toolSize は足す箱のサイズ
+  let toolsShown = false;
   let toolSize: Size = "M";
   let picked: string | null = null; // 追加モードに入った道具（追加か形）
-  const hostEl = (id: string | null) => (id == null ? null : stage.querySelector<HTMLElement>(`.mz-node[data-id="${CSS.escape(id)}"]`));
   // 「追加」を押したら追加モード（押した所に箱を足す。もう一度押すと選択モードに戻る）。
   // 形を押したら、その形を足す追加モードに入る（影に形の絵が付き、置きたい所を押すとダイアログ。2026-10-12 ユーザー）。
-  // キーボードで押したときは置く所を指せないので、道具箱を出している入れ物に足すダイアログをすぐ開く
+  // キーボードで押したときは置く所を指せないので、ページの最上位に足すダイアログをすぐ開く
   const toolbox = createToolbox(stage, (key, by) => {
-    if (toolHost === undefined) return;
+    if (!toolsShown) return;
     if (key === "add") {
-      if (by === "key") return openAddDialog(graph, { parentId: toolHost }, "box", toolSize);
+      if (by === "key") return openAddDialog(graph, { parentId: null }, "box", toolSize);
       picked = key;
       graph.setMode(graph.mode() === "add" ? "move" : "add");
     } else if (!isShape(key)) {
       return panelOptions.onCommand?.(key as ToolCommand);
     } else {
-      if (by === "key") return openAddDialog(graph, { parentId: toolHost }, key as Shape, toolSize);
+      if (by === "key") return openAddDialog(graph, { parentId: null }, key as Shape, toolSize);
       picked = key;
       graph.startAdd(key as Shape, toolSize);
     }
@@ -105,14 +104,13 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   // どのモードでも出し（押している道具を示す）、見る用のモードでは隠す。道具を押したときの動きは上の createToolbox
   function showTools(info: Info | null) {
     const host = info ? (info.kind === "edge" ? graph.info(null).tools : info.tools) : null;
-    const el = host ? hostEl(host.id) : null;
-    if (!host || (host.id != null && !el) || graph.preview() != null) { toolbox.hide(); toolHost = undefined; return; }
-    toolHost = host.id;
+    if (!host || graph.preview() != null) { toolbox.hide(); toolsShown = false; return; }
+    toolsShown = true;
     toolSize = host.size;
     const tools = host.tools.flatMap((k): Tool[] => isShape(k)
       ? (SHAPE_ICONS[k] ? [{ key: k, label: shapeLabel(k), icon: SHAPE_ICONS[k]! }] : [])
       : [{ key: k, ...OTHER_TOOLS[k] }]);
-    toolbox.show(el, tools);
+    toolbox.show(tools);
     const hasAdd = host.tools.includes("add");
     toolbox.press(graph.mode() === "add" ? (picked && tools.some(x => x.key === picked) ? picked : hasAdd ? "add" : null) : null);
   }

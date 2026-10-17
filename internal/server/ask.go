@@ -143,7 +143,7 @@ func (h *Hub) Ask(path string, items []AskItem) (string, *Topic, error) {
 
 // ask は確かめた項目で話題を出す。focus なら、画面は 1 つ目の箱にフォーカスの枠も出す（matomezu focus -button）
 func (h *Hub) ask(path string, items []AskItem, focus bool) (string, *Topic, error) {
-	res, err := h.openDoc(path, false, "", false)
+	res, err := h.existingDoc(path)
 	if err != nil {
 		return "", nil, err
 	}

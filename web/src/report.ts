@@ -28,6 +28,7 @@ export interface GeoEdge { id: string; a: string; b: string; points: Pt[]; capti
 export interface Geometry {
   viewport: { w: number; h: number };
   paper?: { name: string; w: number; h: number } | null; // 紙（D33）。あれば、はみ出しは表示領域ではなく紙に対して数える
+  inset?: number;     // 紙のふちに残す余白（layout.ts の clamp と outsideFixed の padding）。紙のはみ出しは、紙からこの分だけ内側で数える
   outside?: string[]; // 紙からはみ出している最上位の箱の id（D33。graph.ts の refuseOverPaper と同じ決まり）
   boxes: GeoBox[];
   edges: GeoEdge[];
@@ -76,18 +77,21 @@ export function summarize(g: Geometry): string {
   const right = Math.max(0, ...top.map(b => b.x + b.w));
   const bottom = Math.max(0, ...top.map(b => b.y + b.h));
   // 紙のページは紙に対して、紙の制限を受けないページ（マスター）は表示領域に対して、はみ出しを数える（D33）
-  const { w: vw, h: vh } = g.paper ?? g.viewport;
+  // 紙は、ふちの余白（inset）を除いた内側に収まっているかで数える（set を断る・check をエラーにする決まりと同じ）
+  const inset = g.paper ? g.inset ?? 0 : 0;
+  const { w: vw0, h: vh0 } = g.paper ?? g.viewport;
+  const [vw, vh] = [vw0 - inset, vh0 - inset];
   const lines: string[] = [];
 
   const over: string[] = [];
   if (right > vw) over.push(`right ${Math.round(right - vw)}`);
   if (bottom > vh) over.push(`bottom ${Math.round(bottom - vh)}`);
-  const frame = g.paper ? `paper ${g.paper.name} ${vw}x${vh}` : `viewport ${vw}x${vh}`;
+  const frame = g.paper ? `paper ${g.paper.name} ${vw0}x${vh0}` : `viewport ${vw0}x${vh0}`;
   lines.push(`${frame}, content ${Math.round(right)}x${Math.round(bottom)}` + (over.length ? ` → over ${over.join(", ")}` : " → fits"));
 
   // 最上位のボックスは、動かす判断に要るので常に出す。はみ出しているものに ! を付ける
   const rect = (b: GeoBox) => `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}`;
-  const isOut = (b: GeoBox) => b.x + b.w > vw || b.y + b.h > vh;
+  const isOut = (b: GeoBox) => (g.paper && g.outside ? g.outside.includes(b.id) : b.x + b.w > vw || b.y + b.h > vh);
   lines.push(`top ${top.length}: ` + top.map(b => `${isOut(b) ? "!" : ""}${label(b)} (${rect(b)})`).join("; "));
 
   // 同じボックスにつながる線どうしは、端で触れるだけなので比べない

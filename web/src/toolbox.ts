@@ -1,9 +1,9 @@
-// 道具箱: 図の上に浮かせる小さな道具の棚（docs/PATTERN-plan.md の 3.7 章。D26 で、ページのパターンの道具を図の左上に固定で出す形にした）。
+// 道具箱: 図の上に浮かせる小さな道具の棚（docs/PATTERN-plan.md の 3.7 章。D26 で、ページのパターンの道具を図の左端に固定で出す形にした）。
 // どの戦略のものでもない部品で、並べる道具（tools）と、選んだときの動き（onPick）は呼ぶ側が渡す（view.ts。追加と、フローチャートの形）。
 // 道具は押して選ぶ。by はポインタで押したか（"pointer"）、キーボードで押したか（"key"）。押している道具（今のモードの道具）は press で示す
 //
 //   const box = createToolbox(stage, (key, by) => ...);
-//   box.show(anchorEl, [{ key: "circle", label: "円", icon: "<circle .../>" }]);  // anchorEl の右に出す。null なら見えている範囲の左端の上下の真ん中
+//   box.show([{ key: "circle", label: "円", icon: "<circle .../>" }]);  // 見えている範囲の左端の上下の真ん中に出す
 //   box.press("circle");  // 押している道具（null なら無し）
 //   box.hide();
 
@@ -16,7 +16,7 @@ export interface Tool {
 }
 
 export interface Toolbox {
-  show(anchor: HTMLElement | null, tools: Tool[]): void;
+  show(tools: Tool[]): void;
   press(key: string | null): void;
   hide(): void;
   destroy(): void;
@@ -45,7 +45,7 @@ const CSS = `
 }
 `;
 
-const GAP = 8; // 箱の右の縁との間（左端に出すときは、見えている範囲の縁との間）
+const GAP = 8; // 見えている範囲の縁との間
 
 const svgOf = (icon: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`;
 
@@ -60,15 +60,14 @@ export function createToolbox(container: HTMLElement, onPick: (key: string, by: 
   let shown = "";
   let pressed: string | null = null;
   const markPressed = () => { for (const b of el.querySelectorAll<HTMLElement>("button[data-tool]")) b.setAttribute("aria-pressed", String(b.dataset.tool === pressed)); };
-  let pinned = false; // 見えている範囲の左上に出している（スクロールしても動かない）
   // 見えている範囲の左端の、上下の真ん中に置く（2026-10-14 ユーザー）
   const pin = () => {
     el.style.left = container.scrollLeft + GAP + "px";
     el.style.top = container.scrollTop + Math.max(GAP, (container.clientHeight - el.offsetHeight) / 2) + "px";
   };
-  container.addEventListener("scroll", () => { if (pinned && !el.hidden) pin(); });
+  container.addEventListener("scroll", () => { if (!el.hidden) pin(); });
   // 窓の大きさが変わったら置き直す（上下の真ん中が変わる）
-  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (pinned && !el.hidden) pin(); }).observe(container);
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (!el.hidden) pin(); }).observe(container);
   // 図の操作（選択、背景のドラッグ、ダブルクリック）に届けない（道具入れは図をスクロールする要素の中にある）
   for (const type of ["pointerdown", "click", "dblclick"] as const) el.addEventListener(type, e => e.stopPropagation());
 
@@ -79,21 +78,15 @@ export function createToolbox(container: HTMLElement, onPick: (key: string, by: 
   });
 
   return {
-    show(anchor, tools) {
+    show(tools) {
       const key = tools.map(x => x.key).join(",");
       if (key !== shown) {
         el.innerHTML = tools.map(x => `<button type="button" data-tool="${x.key}" title="${esc(x.label)}" aria-label="${esc(x.label)}">${svgOf(x.icon)}</button>`).join("");
         shown = key;
         markPressed();
       }
-      pinned = !anchor;
       el.hidden = false; // 高さを測って真ん中に置くため、先に見せる
-      if (anchor) {
-        // 図の中の座標（スクロールした分を足す）で、anchor の右の縁の脇に置く
-        const r = anchor.getBoundingClientRect(), c = container.getBoundingClientRect();
-        el.style.left = r.right - c.left + container.scrollLeft + GAP + "px";
-        el.style.top = r.top - c.top + container.scrollTop + "px";
-      } else pin();
+      pin();
     },
     press(key) { pressed = key; markPressed(); },
     hide() { el.hidden = true; },

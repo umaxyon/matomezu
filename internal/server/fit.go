@@ -46,7 +46,7 @@ type fitRequest struct {
 
 // Fit は path の図を data に書き換えたら紙に収まるかを、カレントの画面に頼んで返す（新しくはみ出す箱。収まれば空）
 func (h *Hub) Fit(path string, data []byte) ([]FitOver, error) {
-	res, err := h.openDoc(path, false, "", false)
+	res, err := h.openDoc(path, "", false)
 	if err != nil {
 		return nil, err
 	}

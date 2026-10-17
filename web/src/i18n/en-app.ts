@@ -21,8 +21,6 @@ export default {
   "選択モード": "Select mode",
   "付け替えモード: ドラッグして落とした先のボックスの子にする": "Reparent mode: drag a box and drop it onto another box to make it a child",
   "付け替えモード": "Reparent mode",
-  "追加モード: 押した所に箱を足す（箱の上ならその子、リストの上なら子と子の間。Esc で選択モードに戻る）":
-    "Add mode: click to add a box (on a box, as its child; on a list, between children. Esc returns to Select mode)",
   "追加モード": "Add mode",
   "削除モード: ボックスを押すと子も一緒に消える（消したものはサイドバーの「追加削除」から戻せる）":
     "Delete mode: click a box to delete it with its children (restore it from \"Added / Removed\" in the sidebar)",
@@ -53,12 +51,9 @@ export default {
     "Overview (minimap): shows the whole diagram at the top right. Drag the rectangle to move the view (unavailable when the diagram fits the screen)",
   "全体像": "Overview",
   "開いている図": "Open diagrams",
-  "クリックでボックスや線を選択 / ドラッグで移動 / 箱の〇から線を引く / JSON はドロップでも開けます":
-    "Click to select a box or line / drag to move / drag from a box's circle to draw a line / drop a JSON file to open it",
 
   // 読み込み・保存・接続
   "読み込めませんでした: {error}": "Could not load: {error}",
-  "開いている図がありません。タブの列の左端の＋で新しい図を作るか、LLM に matomezu open で開くよう頼んでください": "No diagram is open. Create one with + at the left end of the tabs, or ask the LLM to open one with matomezu open",
   // 新しい図（new-book.ts）
   "新しい図": "New diagram",
   "ページを足す": "Add a page",
@@ -75,12 +70,8 @@ export default {
   "ブックを閉じる": "Close",
   "ファイルを読み込めません（直るまで保存を止めています）: {error}": "Cannot read the file (saving is paused until it is fixed): {error}",
   "サーバーに接続できません": "Cannot connect to the server",
-  "外部の変更を読み込みました": "Loaded external changes",
-  "保存中…": "Saving…",
-  "保存しました": "Saved",
   "外部で変更されていたため、画面の変更を取り消して読み直します": "The file was changed elsewhere, so your changes were discarded and the file was reloaded",
   "保存できませんでした: {error}": "Could not save: {error}",
-  "再接続中…": "Reconnecting…",
   "JSON として読めません: {error}": "Not valid JSON: {error}",
   "(空)": "(empty)",
   "最初のページ": "First page",
@@ -143,6 +134,7 @@ export default {
   "「{key}」をクラスにして、子 {n} 個を消したものの一覧へ移しました": "Made \"{key}\" a class and moved {n} children to the removed list",
   "フローチャートの中の箱は子を持てないので、子を持つ箱は入れられません": "Boxes in a flowchart cannot have children, so a box with children cannot go in",
   "パターンの違うページ（{from} → {to}）へは移せません。関連は、リンクの箱へ線を引いて示します": "Boxes can't move to a page with a different pattern ({from} → {to}). Show the relation by drawing a line to a link box instead",
+  "ツリーの根は消せません": "The root of a tree cannot be removed",
   "押すと閉じます": "Click to dismiss",
   "ブック追加: 新しい図を作る": "Add book: create a new diagram",
   "追加削除: ブックごとの箱の一覧を左に出す。窓へドラッグすると、そのブックの郵便箱へ送る": "Added / Removed: show the boxes of each book on the left. Drag one onto a window to send it to that book's mailbox",
@@ -150,7 +142,6 @@ export default {
   "最後に開いた図と同じフォルダに作ります（置き場所は後で決めます）": "Created in the folder of the last opened diagram (the location will be decided later)",
   "開いている図がありません。左上のマスターから新しい図を作るか、LLM に matomezu open で開くよう頼んでください": "No diagram is open. Create one from the master at the top left, or ask the LLM to open one with matomezu open",
   "そのブックを開けませんでした": "Could not open that book",
-  "ブックをまたぐ追加削除は、これから作ります（D26 の段階 4）": "Moving boxes across books is not built yet (D26 stage 4)",
   "ユーザー": "User",
   "その他のブック（{n} 冊）": "Other books ({n})",
   "マスターを開けませんでした: {error}": "Could not open the master: {error}",

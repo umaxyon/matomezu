@@ -47,6 +47,25 @@ func TestNewBookBesideNear(t *testing.T) {
 	}
 }
 
+// 画面が最初の箱（ツリーの根）を添えたら、そのまま書く
+func TestNewBookWithRoot(t *testing.T) {
+	_, ts, _ := setupHub(t)
+	dir := t.TempDir()
+	_, a := openVia(t, ts, "secret", filepath.Join(dir, "a.json"))
+	res, got := postNew(t, ts.URL, `{"near":"`+a.ID+`","title":"組織","world":{"childView":"tree","root":1},"nodes":[{"id":1,"caption":"組織","x":40,"y":40}]}`, nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", res.StatusCode)
+	}
+	var data struct {
+		World map[string]any   `json:"world"`
+		Nodes []map[string]any `json:"nodes"`
+	}
+	b, _ := os.ReadFile(got["path"])
+	if err := json.Unmarshal(b, &data); err != nil || data.World["root"] != float64(1) || len(data.Nodes) != 1 || data.Nodes[0]["caption"] != "組織" {
+		t.Fatalf("file = %s", b)
+	}
+}
+
 // 同じ名前があれば番号を足し（上書きしない）、空の題名は「無題」、区切りの文字は除く
 func TestNewBookNames(t *testing.T) {
 	_, ts, _ := setupHub(t)

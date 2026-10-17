@@ -79,11 +79,11 @@ func TestCheckDataListsAllProblems(t *testing.T) {
 // 文字の項目（caption など）は、数字や true に見える値でも文字列として書く
 func TestApplySetsTextKeys(t *testing.T) {
 	out, _, err := applySets([]byte(`{"nodes":[{"id":1}],"edges":[{"id":"e1","from":1,"to":1}]}`), "",
-		[]string{"1.caption=42", "e1.caption=true", "world.title=2026", "1.color=000"})
+		[]string{"1.caption=42", "e1.caption=true", "world.title=2026", "1.color=000", "1.body=2026"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"caption": "42"`, `"caption": "true"`, `"title": "2026"`, `"color": "000"`} {
+	for _, want := range []string{`"caption": "42"`, `"caption": "true"`, `"title": "2026"`, `"color": "000"`, `"body": "2026"`} {
 		if !strings.Contains(string(out), want) {
 			t.Errorf("missing %s in\n%s", want, out)
 		}

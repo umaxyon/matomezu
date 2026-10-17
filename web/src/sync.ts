@@ -18,7 +18,6 @@ import type { Diagram } from "./types";
 const SAVE_DELAY = 300;
 
 export interface SyncUi {
-  status(text: string): void;   // 保存中・保存しました などの、出さなくてよい知らせ（D26 で画面には出していない）
   notice?(text: string): void;  // 気づいてほしい知らせ（画面の変更を取り消して読み直す。トーストで出す）
   error(message: string): void;
   clearError(): void;
@@ -107,7 +106,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
         ui.error(t("サーバーに接続できません"));
         return;
       }
-      if (apply(r, true)) ui.status(t("外部の変更を読み込みました"));
+      apply(r, true);
     } finally {
       loading = false;
     }
@@ -126,7 +125,6 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
     if (saving || loading) { schedule(); return; }
     saving = true;
     const prev = version;
-    ui.status(t("保存中…"));
     try {
       const res = await fetch(base + "api/data", {
         method: "PUT",
@@ -139,12 +137,9 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
         // 保存中に新しい版が届いていなければ、自分の保存による版を最新とみなす。
         // 届いていれば、それは自分の保存か、そのあとの外部の変更なので、そのまま比べる
         if (remote === prev) remote = etag;
-        ui.status(t("保存しました"));
       } else if (res.status === 409) {
         if (etag) remote = etag;
-        const text = t("外部で変更されていたため、画面の変更を取り消して読み直します");
-        ui.status(text);
-        ui.notice?.(text);
+        ui.notice?.(t("外部で変更されていたため、画面の変更を取り消して読み直します"));
       } else {
         ui.error(t("保存できませんでした: {error}", { error: `${res.status} ${await res.text()}` }));
       }

@@ -72,7 +72,7 @@ func (h *Hub) Point(p PointRequest) (PointAnswer, error) {
 			}
 			msg["say"] = p.Say
 		}
-		res, err := h.openDoc(p.Path, false, "", false)
+		res, err := h.existingDoc(p.Path)
 		if err != nil {
 			return PointAnswer{}, err
 		}

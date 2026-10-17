@@ -256,6 +256,3 @@ export function openColorPicker(o: ColorPickerOptions): { close(): void } {
   current = handle;
   return handle;
 }
-
-// 開いているか（テスト用）
-export const colorPickerOpen = () => current != null;

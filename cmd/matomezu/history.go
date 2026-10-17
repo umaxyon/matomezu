@@ -22,7 +22,10 @@ func historyDoc(path string) (*daemon.State, string, error) {
 	if s == nil {
 		return nil, "", errors.New("no matomezu server is running; the LLM history is kept while the diagram is open in the browser")
 	}
-	res, err := daemon.Open(s, path, false, "")
+	if _, err := os.Stat(path); err != nil { // 図を作るのは open だけ（打ち間違えたパスで空の図を作らない）
+		return nil, "", fmt.Errorf("%s: not found", path)
+	}
+	res, err := daemon.Open(s, path)
 	if err != nil {
 		return nil, "", err
 	}

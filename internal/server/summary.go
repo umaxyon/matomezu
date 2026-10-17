@@ -60,7 +60,7 @@ func (d *doc) freshVersion() (string, error) {
 
 // Summary は path の図の page（"" は最初のページ）の要約を、カレントの画面に頼んで返す
 func (h *Hub) Summary(path, page string) (Layout, error) {
-	res, err := h.openDoc(path, false, "", false)
+	res, err := h.openDoc(path, "", false)
 	if err != nil {
 		return Layout{}, err
 	}

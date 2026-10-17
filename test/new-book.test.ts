@@ -1,11 +1,12 @@
 // 新しいブック・新しいページのダイアログ（new-book.ts・new-page.ts。D20・D27）
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { closeEditDialog } from "../web/src/edit-dialog";
-import { DEFAULT_ROUTE, DEFAULT_VIEW } from "../web/src/model";
+import { DEFAULTS } from "../web/src/graph";
+import { DEFAULT_ROUTE, DEFAULT_VIEW, STRATEGIES } from "../web/src/model";
 import { openNewBookDialog } from "../web/src/new-book";
 import { openNewPageDialog } from "../web/src/new-page";
 import { DEFAULT_THEME, THEMES } from "../web/src/theme";
-import type { WorldData } from "../web/src/types";
+import type { PagePattern, WorldData } from "../web/src/types";
 import { DEFAULT_PAPER, PAPER_NAMES } from "../web/src/validate";
 
 const realFetch = globalThis.fetch;
@@ -60,7 +61,7 @@ test("新しいブック: 既定と違う値（テーマ・線の通り方・パ
   expect(dlg().textContent).toContain("最後に開いた図と同じフォルダに作ります");
   const theme = THEMES.find(th => th.id !== DEFAULT_THEME)!.id;
   const route = [...dlg().querySelectorAll<HTMLInputElement>('[name="route"]')].map(i => i.value).find(v => v !== DEFAULT_ROUTE)!;
-  const view = views().find(v => v !== DEFAULT_VIEW)!;
+  const view = views().find(v => v !== DEFAULT_VIEW && !STRATEGIES[v as PagePattern].descendants)!;
   const paper = PAPER_NAMES.find(p => p !== DEFAULT_PAPER)!;
   set("theme", theme);
   pick("route", route);
@@ -72,13 +73,20 @@ test("新しいブック: 既定と違う値（テーマ・線の通り方・パ
   expect(body).toEqual({ near: "", title: "", world: { theme, route: route as WorldData["route"], childView: view as WorldData["childView"], paper } });
 });
 
-test("新しいブックの最初のページにツリーは選べない（根の箱を置けないため）。ページを足すときは選べる", () => {
+test("新しいブックでもツリーを選べ、根の箱を 1 つ置いて送る（ページを足すときと同じ）", async () => {
   openNewBookDialog("a", () => {}, () => {});
-  expect(views()).not.toContain("tree");
-  expect(views()).toContain(DEFAULT_VIEW);
+  const desc = views().find(v => STRATEGIES[v as PagePattern].descendants)!;
+  expect(desc).toBeDefined();
+  set("caption", "組織");
+  pick("view", desc);
+  ok();
+  await tick();
+  const body = (posted[0] as { body: { world: WorldData; nodes: unknown[] } }).body;
+  expect(body.world).toEqual({ title: "組織", childView: desc as PagePattern, root: 1 });
+  expect(body.nodes).toEqual([{ id: 1, caption: "組織", userAdded: true, x: DEFAULTS.rootAt.x, y: DEFAULTS.rootAt.y }]);
   closeEditDialog();
   openNewPageDialog(() => {});
-  expect(views()).toContain("tree");
+  expect(views()).toContain(desc);
 });
 
 test("新しいブックを作れなければ、サーバーの理由を添えて failed に渡す", async () => {

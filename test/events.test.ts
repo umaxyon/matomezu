@@ -39,8 +39,6 @@ beforeEach(() => {
   conn = connectEvents({
     watched: () => watched,
     version: (doc, v) => log.push(`version ${doc} ${v}`),
-    open: (doc, page) => log.push(`open ${doc} ${page}`),
-    status: () => {},
   }, { reload: () => { reloads++; }, retryDelay: 20 });
 });
 
@@ -52,13 +50,11 @@ afterEach(() => {
 
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-test("1 本の接続で、図ごとの版と開く知らせを配る", () => {
+test("1 本の接続で、図ごとの版を配る", () => {
   expect(sources.length).toBe(1);
   sources[0]!.send("version", { doc: "a", version: "v1" });
   sources[0]!.send("version", { doc: "b", version: "v2" });
-  sources[0]!.send("open", { doc: "b", page: "" });
-  sources[0]!.send("open", { doc: "b", page: "7" });
-  expect(log).toEqual(["version a v1", "version b v2", "open b null", "open b 7"]);
+  expect(log).toEqual(["version a v1", "version b v2"]);
 });
 
 test("つなぎ直したサーバーの版が違えば画面を読み直す（同じなら読み直さない）", () => {
@@ -131,7 +127,7 @@ test("一度もフォーカスされていない画面は、つないだだけ�
     sessionStorage.clear();
     document.hasFocus = () => false;
     focuses = [];
-    conn = connectEvents({ watched: () => watched, version: () => {}, open: () => {}, status: () => {} }, { reload: () => {}, retryDelay: 20 });
+    conn = connectEvents({ watched: () => watched, version: () => {} }, { reload: () => {}, retryDelay: 20 });
     sources.at(-1)!.send("hello", { client: "c9" });
     expect(focuses).toEqual([]);
   } finally {
@@ -148,7 +144,7 @@ test("最後にフォーカスされた時刻は、読み直しても残る（se
     conn?.close();
     document.hasFocus = () => false;
     focuses = [];
-    conn = connectEvents({ watched: () => watched, version: () => {}, open: () => {}, status: () => {} }, { reload: () => {}, retryDelay: 20 });
+    conn = connectEvents({ watched: () => watched, version: () => {} }, { reload: () => {}, retryDelay: 20 });
     sources.at(-1)!.send("hello", { client: "c7" });
     expect(focuses).toEqual([{ client: "c7", at }]);
   } finally {
@@ -162,7 +158,7 @@ function connectAll() {
   const got: string[] = [];
   const rec = (name: string) => (...a: unknown[]) => { got.push(`${name} ${JSON.stringify(a)}`); };
   conn = connectEvents({
-    version: rec("version"), open: rec("open"), status: () => {},
+    version: rec("version"),
     notify: rec("notify"), close: rec("close"), mail: rec("mail"), books: rec("books"), summary: rec("summary"),
     point: rec("point"), ask: rec("ask"), tour: rec("tour"), tourChanged: rec("tourChanged"), askChanged: rec("askChanged"), fit: rec("fit"),
   }, { reload: () => {}, retryDelay: 20 });
@@ -222,7 +218,7 @@ test("要約の頼みは page・version が無ければ空の文字で配る（D
 
 test("JSON でない知らせは捨てる（落ちない）", () => {
   const { es, got } = connectAll();
-  for (const name of ["version", "open", "notify", "point", "ask", "summary"]) es.dispatchEvent(new MessageEvent(name, { data: "{ broken" }));
+  for (const name of ["version", "notify", "point", "ask", "summary"]) es.dispatchEvent(new MessageEvent(name, { data: "{ broken" }));
   expect(got).toEqual([]);
 });
 

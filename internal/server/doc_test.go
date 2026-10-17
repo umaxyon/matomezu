@@ -29,7 +29,7 @@ func setup(t *testing.T, content string) (string, string) {
 	t.Cleanup(cancel)
 	web := fstest.MapFS{"index.html": {Data: []byte("<html>")}}
 	hub := NewHub(ctx, web, WithInterval(20*time.Millisecond))
-	res, err := hub.Open(path, false, "")
+	res, err := hub.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}

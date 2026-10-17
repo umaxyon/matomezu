@@ -89,7 +89,7 @@ func (h *Hub) StartTour(r TourRequest) (*Tour, error) {
 		if s.Path == "" {
 			s.Path = r.Path
 		}
-		res, err := h.openDoc(s.Path, false, "", false)
+		res, err := h.existingDoc(s.Path)
 		if err != nil {
 			return nil, fmt.Errorf("step %d: %v", i+1, err)
 		}
@@ -291,6 +291,9 @@ func (h *Hub) tourWait(w http.ResponseWriter, r *http.Request) {
 	defer timer.Stop()
 	h.mu.Lock()
 	start := h.tour
+	if start != nil && start.done() && start.told {
+		start = nil // 終わったのを AI がもう読んだツアーは、待つ相手ではない（前のツアーの結果を新しい結果として返さない。2026-10-17 X10）
+	}
 	h.mu.Unlock()
 	for {
 		h.mu.Lock()

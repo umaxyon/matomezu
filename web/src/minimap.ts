@@ -119,7 +119,7 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
     body.style.setProperty("--mm-max", `${Math.round(host.clientHeight * MAX_HEIGHT_RATIO)}px`);
     // ワールドの背景色（ページを見ているなら、そのページの背景）。絵の描き方は preview-art.ts（リンクの箱の窓と同じ）
     const info = graph.info(null);
-    const bg = info.kind === "world" ? info.background : null;
+    const bg = info.kind === "world" ? info.backgroundPaint : null; // テーマの背景も（リンクの箱の窓と同じ。付箋紙・シンプル）
     el.classList.toggle("mm-on-light", !!bg && isLightColor(bg));
     el.classList.toggle("mm-on-dark", !!bg && !isLightColor(bg));
     // 背景はワールドの範囲だけ（周りの余白には塗らない）

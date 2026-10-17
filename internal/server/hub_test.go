@@ -81,27 +81,27 @@ func TestOpenIsStablePerFile(t *testing.T) {
 	}
 }
 
-// open の show は、つながっている画面と、少しあとにつながった画面に届く
-func TestShowIsSentAndReplayed(t *testing.T) {
+// open の「届いています」（ask）は、つながっている画面と、少しあとにつながった画面に届く
+func TestArrivalIsSentAndReplayed(t *testing.T) {
 	_, ts, _ := setupHub(t)
 	res := do(t, "GET", ts.URL+"/api/events", "", nil)
 	r := bufio.NewReader(res.Body)
 	if v := nextEvent(t, r, "server"); v != `"v1"` {
 		t.Fatalf("server = %s", v)
 	}
-	body, _ := json.Marshal(map[string]any{"path": filepath.Join(t.TempDir(), "a.json"), "show": true})
+	body, _ := json.Marshal(map[string]any{"path": filepath.Join(t.TempDir(), "a.json"), "ask": true})
 	var a OpenResult
 	json.NewDecoder(do(t, "POST", ts.URL+"/api/open", string(body), map[string]string{"X-Matomezu-Token": "secret"}).Body).Decode(&a)
 	if a.Connections != 1 {
 		t.Fatalf("connections = %d", a.Connections)
 	}
-	want := `{"doc":"` + a.ID + `","page":""}`
-	if v := nextEvent(t, r, "open"); v != want {
-		t.Fatalf("open = %s", v)
+	want := `{"arrive":"true","book":"` + a.ID + `","dialog":"true","page":""}`
+	if v := nextEvent(t, r, "notify"); v != want {
+		t.Fatalf("notify = %s", v)
 	}
 	late := bufio.NewReader(do(t, "GET", ts.URL+"/api/events", "", nil).Body)
-	if v := nextEvent(t, late, "open"); v != want {
-		t.Fatalf("replayed open = %s", v)
+	if v := nextEvent(t, late, "notify"); v != want {
+		t.Fatalf("replayed notify = %s", v)
 	}
 }
 
@@ -216,12 +216,12 @@ func TestStoreRestoresDocs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	first := NewHub(ctx, web, WithStore(store))
 	for _, p := range []string{a, b, a} { // 開き直す（ユーザーに見せる）と一番新しいものになる
-		if _, err := first.Open(p, true, ""); err != nil {
+		if _, err := first.openDoc(p, "", true); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// 問い合わせ（show なし。check・history など）は、登録済みの図の順番を変えない
-	if _, err := first.Open(b, false, ""); err != nil {
+	// 問い合わせ（届いていますを聞かない。check・history など）は、登録済みの図の順番を変えない
+	if _, err := first.Open(b); err != nil {
 		t.Fatal(err)
 	}
 	cancel()
@@ -263,7 +263,7 @@ func TestForgetsOldDocs(t *testing.T) {
 		if err := os.WriteFile(path(i), []byte(`{"nodes":[]}`), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := h.Open(path(i), false, ""); err != nil {
+		if _, err := h.Open(path(i)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -356,4 +356,50 @@ func TestCurrentScreen(t *testing.T) {
 		t.Fatalf("focus of a gone screen: %d", s)
 	}
 	rb.Body.Close()
+}
+
+// 問い合わせ・知らせのコマンド（notify・focus・ask・tour）は、無いファイルを空の図で作らずに断る。作るのは open だけ（2026-10-17 ユーザー）
+func TestQueriesDoNotCreateMissingFiles(t *testing.T) {
+	h, _, _ := setupHub(t)
+	missing := filepath.Join(t.TempDir(), "typo.json")
+	checks := map[string]error{}
+	_, checks["existingDoc"] = h.existingDoc(missing)
+	_, _, checks["ask"] = h.Ask(missing, []AskItem{{Box: "1", Text: "x", Choices: []string{"a"}}})
+	_, checks["focus"] = h.Point(PointRequest{Path: missing, Box: "1"})
+	_, checks["tour"] = h.StartTour(TourRequest{Path: missing, Title: "t", Steps: []TourStep{{Box: "1", Say: "x"}}})
+	for name, err := range checks {
+		if err == nil || !strings.Contains(err.Error(), "not found") {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+	if _, err := os.Stat(missing); !os.IsNotExist(err) {
+		t.Fatalf("the file was created: %v", err)
+	}
+	if len(h.docs) != 0 {
+		t.Fatalf("registered: %d", len(h.docs))
+	}
+}
+
+// close は、どの画面のタブでも開いていない図には「not open」を返す（何もしていないのに成功に見せない。2026-10-17 ユーザー）
+func TestCloseNeedsAnOpenTab(t *testing.T) {
+	h, ts, _ := setupHub(t)
+	dir := t.TempDir()
+	pa, pb := filepath.Join(dir, "a.json"), filepath.Join(dir, "b.json")
+	_, a := openVia(t, ts, "secret", pa)
+	openVia(t, ts, "secret", pb)
+	if _, err := h.Close(pa); err == nil || !strings.Contains(err.Error(), "not open") {
+		t.Fatalf("no screen: err = %v", err)
+	}
+	r := bufio.NewReader(do(t, "GET", ts.URL+"/api/events", "", nil).Body)
+	var hello struct{ Client string }
+	json.Unmarshal([]byte(nextEvent(t, r, "hello")), &hello)
+	if res := do(t, "POST", ts.URL+"/api/watch", `{"client":"`+hello.Client+`","docs":["`+a.ID+`"]}`, nil); res.StatusCode != http.StatusNoContent {
+		t.Fatalf("watch: %d", res.StatusCode)
+	}
+	if res, err := h.Close(pa); err != nil || res.Connections != 1 {
+		t.Fatalf("open tab: %+v %v", res, err)
+	}
+	if _, err := h.Close(pb); err == nil || !strings.Contains(err.Error(), "not open") {
+		t.Fatalf("not in a tab: err = %v", err)
+	}
 }

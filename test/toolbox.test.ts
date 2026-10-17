@@ -26,7 +26,7 @@ const buttons = (el: HTMLElement) => [...el.querySelectorAll<HTMLButtonElement>(
 test("渡された道具を並べ、名前は title と読み上げに文字として使う。出すまでは隠す", () => {
   const { box, el } = toolSetup();
   expect(el.hidden).toBe(true);
-  box.show(null, TOOLS);
+  box.show(TOOLS);
   expect(el.hidden).toBe(false);
   expect(buttons(el).map(b => [b.dataset.tool, b.title, b.getAttribute("aria-label")])).toEqual([["add", "追加 <箱>", "追加 <箱>"], ["circle", "円", "円"]]);
   expect(buttons(el)[0]!.querySelector("svg rect")).not.toBeNull();
@@ -36,7 +36,7 @@ test("渡された道具を並べ、名前は title と読み上げに文字と�
 
 test("押した道具を、ポインタかキーボードかと一緒に知らせる（detail が 0 ならキーボード）", () => {
   const { box, el, picks } = toolSetup();
-  box.show(null, TOOLS);
+  box.show(TOOLS);
   buttons(el)[1]!.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
   buttons(el)[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
   expect(picks).toEqual(["circle pointer", "add key"]);
@@ -44,14 +44,14 @@ test("押した道具を、ポインタかキーボードかと一緒に知ら�
 
 test("押している道具を示し、同じ道具で出し直しても、違う道具に並べ替えても印を保つ", () => {
   const { box, el } = toolSetup();
-  box.show(null, TOOLS);
+  box.show(TOOLS);
   box.press("circle");
   const pressed = () => buttons(el).map(b => b.getAttribute("aria-pressed"));
   expect(pressed()).toEqual(["false", "true"]);
   const first = buttons(el)[0];
-  box.show(null, TOOLS);
+  box.show(TOOLS);
   expect(buttons(el)[0]).toBe(first); // 同じ道具なら作り直さない
-  box.show(null, [TOOLS[1]!]);
+  box.show([TOOLS[1]!]);
   expect(pressed()).toEqual(["true"]);
   box.press(null);
   expect(pressed()).toEqual(["false"]);
@@ -59,22 +59,17 @@ test("押している道具を示し、同じ道具で出し直しても、違�
 
 test("道具箱の上の操作は図（スクロールする要素）に届けない", () => {
   const { container, box, el } = toolSetup();
-  box.show(null, TOOLS);
+  box.show(TOOLS);
   let reached = 0;
   for (const type of ["pointerdown", "click", "dblclick"]) container.addEventListener(type, () => { reached++; });
   for (const type of ["pointerdown", "click", "dblclick"]) buttons(el)[0]!.dispatchEvent(new MouseEvent(type, { bubbles: true }));
   expect(reached).toBe(0);
 });
 
-test("箱を渡せば箱の右の縁の 8px 右に、渡さなければ見えている範囲の左端の上下の真ん中に置き、スクロールについていく", () => {
+test("見えている範囲の左端の上下の真ん中に置き、スクロールについていく", () => {
   const { container, box, el } = toolSetup();
   place(container, 10, 20, 1000, 700);
-  const anchor = document.createElement("div");
-  place(anchor, 110, 70, 50, 30);
-  container.scrollLeft = 0;
-  box.show(anchor, TOOLS);
-  expect([el.style.left, el.style.top]).toEqual(["158px", "50px"]);
-  box.show(null, TOOLS);
+  box.show(TOOLS);
   expect(el.style.left).toBe(`${container.scrollLeft + 8}px`);
   expect(el.style.top).toBe(`${container.scrollTop + 350}px`); // (700 - 道具箱の高さ 0) / 2
 });

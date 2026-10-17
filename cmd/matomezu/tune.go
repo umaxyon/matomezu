@@ -254,8 +254,8 @@ func (o *object) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// textKeys は、値をいつも文字列として書く項目（数字や true に見えるキャプションや色を、数や真偽値にしないため）
-var textKeys = map[string]bool{"caption": true, "color": true, "title": true, "background": true}
+// textKeys は、値をいつも文字列として書く項目（数字や true に見えるキャプション・本文・色・ブックの id を、数や真偽値にしないため）
+var textKeys = map[string]bool{"caption": true, "body": true, "color": true, "title": true, "background": true, "book": true}
 
 // value は項目 key の値の文字列を JSON にする。空なら nil（項目を消す）。[ か { で始まる正しい JSON は、そのまま並びや
 // オブジェクトにする（例 e3.via=[280,140,400]）。数は JSON の数として正しいものだけ（000 や 1e のようなものは文字列）

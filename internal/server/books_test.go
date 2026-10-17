@@ -58,7 +58,7 @@ func TestBooksNewestFirst(t *testing.T) {
 	}
 	// 開いた順（recent）とは違う順にしておく
 	for _, name := range []string{"new.json", "old.json", "mid.json"} {
-		if _, err := hub.Open(filepath.Join(dir, name), false, ""); err != nil {
+		if _, err := hub.Open(filepath.Join(dir, name)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -141,7 +141,7 @@ func TestNewBookMadeByUser(t *testing.T) {
 func TestMailbox(t *testing.T) {
 	hub, ts, state := setupStoreHub(t)
 	dir := t.TempDir()
-	res, err := hub.Open(filepath.Join(dir, "a.json"), false, "")
+	res, err := hub.Open(filepath.Join(dir, "a.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,9 +176,12 @@ func TestMailbox(t *testing.T) {
 	if items := list(); items[0].Read || !items[1].Read {
 		t.Fatalf("read one = %+v", items)
 	}
-	do(t, "POST", base+"/read", "{}", nil)
-	if items := list(); !items[0].Read || !items[1].Read {
-		t.Fatalf("read = %+v", items)
+	// 全部を読んだことにする口は無い（郵便箱を開いただけでは読んだことにしない。decision-mailbox-read）
+	if r := do(t, "POST", base+"/read", "{}", nil); r.StatusCode == http.StatusNoContent {
+		t.Fatalf("read all = %d", r.StatusCode)
+	}
+	if items := list(); items[0].Read || !items[1].Read {
+		t.Fatalf("after read all = %+v", items)
 	}
 	do(t, "DELETE", base+"/"+items[0].ID, "{}", nil)
 	if got := list(); len(got) != 1 || got[0].ID != items[1].ID {
@@ -202,7 +205,7 @@ func TestBooksEvent(t *testing.T) {
 	hub, ts, _ := setupStoreHub(t)
 	dir := t.TempDir()
 	pa := filepath.Join(dir, "a.json")
-	if _, err := hub.Open(pa, false, ""); err != nil {
+	if _, err := hub.Open(pa); err != nil {
 		t.Fatal(err)
 	}
 	r := bufio.NewReader(do(t, "GET", ts.URL+"/api/events", "", nil).Body)
@@ -215,7 +218,7 @@ func TestBooksEvent(t *testing.T) {
 		}
 	}
 	// 登録すると知らせる
-	if _, err := hub.Open(filepath.Join(dir, "b.json"), false, ""); err != nil {
+	if _, err := hub.Open(filepath.Join(dir, "b.json")); err != nil {
 		t.Fatal(err)
 	}
 	nextEvent(t, r, "books")

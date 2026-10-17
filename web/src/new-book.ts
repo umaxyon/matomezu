@@ -1,7 +1,7 @@
 /*
  * 新しいブックを作るダイアログ（残課題 D20）。マスターの道具箱の「ブック追加」から開く（D26 の段階 2）。
- * ワールドの設定（題名・テーマ・背景色・線の通り方・子の見せ方）を選んで「作成」すると、サーバー（/api/new）が
- * 今見ているブックと同じフォルダに、題名の名前で空の図のファイルを作って登録する。置き場所と LLM の許可の決まりは D22 で詰める。
+ * ワールドの設定（題名・テーマ・背景色・線の通り方・ページのパターン・紙）を選んで「作成」すると、サーバー（/api/new）が
+ * 今見ているブックと同じフォルダに、題名の名前で図のファイルを作って登録する（ツリーなら根の箱を 1 つ置く）。置き場所と LLM の許可の決まりは D22 で詰める。
  * 選んだ値のうち既定と同じものは書かない（サイドバーで既定に戻したときと同じ形のデータにする）。
  *
  *   openNewBookDialog(near, created, failed);
@@ -11,10 +11,12 @@ import { esc } from "./dom";
 import { colorButtonHtml, openDialog, setupColorButton } from "./edit-dialog";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
+import { addBox } from "./edits";
+import { DEFAULTS } from "./graph";
 import { DEFAULT_ROUTE, DEFAULT_VIEW, STRATEGIES } from "./model";
 import { BG_PRESETS, PATTERN_OPTIONS, ROUTE_OPTIONS, THEME_HELP, WORLD_VIEW_HELP } from "./world-options";
 import { DEFAULT_THEME, THEMES } from "./theme";
-import type { PagePattern, WorldData } from "./types";
+import type { BoxData, PagePattern, WorldData } from "./types";
 import { DEFAULT_PAPER, PAPERS, PAPER_NAMES, type PaperName } from "./validate";
 
 const PATTERNS: [string, string][] = PATTERN_OPTIONS.filter(([v]) => STRATEGIES[v].pick);
@@ -69,25 +71,28 @@ export function readWorldFields(o: HTMLElement, background: string | null): { ti
 }
 
 // near は今見ているブックの id（そのフォルダに作る）。作れたら created に新しいブックの id を、作れなければ failed に理由を渡す。
-// 最初のページのパターンにツリーは選べない（根の箱を置けるのは図を作ったあと。ツリーはページを足す画面で）
+// ツリーを選んだら、ページを足すとき（graph.ts の addPage）と同じく根の箱を 1 つ置いて作る
 export function openNewBookDialog(near: string | null, created: (id: string) => void, failed: (message: string) => void): void {
   let background = () => null as string | null;
-  const fields = worldFields({ label: t("図の題名"), help: t("タブの見出しと、ファイル名になります（空なら「無題」）"), placeholder: t("無題") },
-    PATTERNS.filter(([v]) => !STRATEGIES[v as PagePattern].descendants)) +
+  const fields = worldFields({ label: t("図の題名"), help: t("タブの見出しと、ファイル名になります（空なら「無題」）"), placeholder: t("無題") }) +
     `<p class="mz-dlg-note">${near ? t("今見ている図と同じフォルダに作ります") : t("最後に開いた図と同じフォルダに作ります（置き場所は後で決めます）")}</p>`;
   const overlay = openDialog(t("新しい図"), t("作成"), fields, o => {
     const { title, world } = readWorldFields(o, background());
     if (title) world.title = title;
-    createBook(near, title, world).then(created, (e: Error) => failed(e.message));
+    const data = { world, nodes: [] as BoxData[] };
+    if (STRATEGIES[(world.childView ?? DEFAULT_VIEW) as PagePattern].descendants) {
+      world.root = addBox(data, title ? { caption: title } : {}, { page: null }, DEFAULTS.rootAt);
+    }
+    createBook(near, title, world, data.nodes).then(created, (e: Error) => failed(e.message));
   });
   background = setupBackground(overlay);
 }
 
-async function createBook(near: string | null, title: string, world: WorldData): Promise<string> {
+async function createBook(near: string | null, title: string, world: WorldData, nodes: BoxData[]): Promise<string> {
   const res = await fetch("api/new", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ near: near ?? "", title, world }),
+    body: JSON.stringify({ near: near ?? "", title, world, ...(nodes.length ? { nodes } : {}) }),
   });
   if (!res.ok) throw new Error(t("図を作れませんでした: {message}", { message: (await res.text()).trim() }));
   const { id } = await res.json() as { id: string };

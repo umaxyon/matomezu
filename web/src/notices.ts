@@ -15,6 +15,8 @@ export type GraphEvent =
   | { kind: "leafKids" }
   // パターンの違うページへ箱を移そうとした（付け替え・戻す・移植。移さなかった。docs/PATTERN-plan.md: またぐ操作はしない）
   | { kind: "crossPattern"; from: PagePattern; to: PagePattern }
+  // ツリーのページの根を消そうとした（消さなかった。根は 1 ページに 1 つで、消せない）
+  | { kind: "rootKept" }
   // 子孫ごと消した
   | { kind: "removed"; key: string; kids: number; cutEdges: number }
   // 消したボックスを戻した。byDrag はサイドバーの一覧からドラッグして戻したか
@@ -53,6 +55,8 @@ export function noticeOf(ev: GraphEvent): string {
       return t("フローチャートの中の箱は子を持てないので、子を持つ箱は入れられません");
     case "crossPattern":
       return t("パターンの違うページ（{from} → {to}）へは移せません。関連は、リンクの箱へ線を引いて示します", { from: PATTERN_LABELS[ev.from], to: PATTERN_LABELS[ev.to] });
+    case "rootKept":
+      return t("ツリーの根は消せません");
     case "removed": {
       const parts = list([kids(ev.kids), lines(ev.cutEdges)]);
       return t("「{key}」を消しました", { key: ev.key }) + (parts ? t("（{list}も）", { list: parts }) : "");
@@ -85,7 +89,7 @@ export function noticeOf(ev: GraphEvent): string {
 }
 
 // 断りや注意（操作しなかった、知らないものがあった）。ヘッダーの状態の文字では気づきにくいので、トーストで目立たせる（2026-10-12 ユーザー）
-const WARNINGS: GraphEvent["kind"][] = ["leafKids", "crossPattern", "unknownTheme", "overPaper"];
+const WARNINGS: GraphEvent["kind"][] = ["leafKids", "crossPattern", "rootKept", "unknownTheme", "overPaper"];
 export const isWarning = (ev: GraphEvent) => WARNINGS.includes(ev.kind);
 
 // 図の知らせを受けたときの画面の方針: 断りや注意はトーストで出す（toast.ts）。普通の知らせ（移した・消したなど）は出さない

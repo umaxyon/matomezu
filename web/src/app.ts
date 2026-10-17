@@ -83,7 +83,6 @@ interface PageTab {
 interface Book {
   id: string;
   name: string;
-  color: string;
   group: HTMLElement;       // タブグループ
   addPage: HTMLElement;     // タブグループの右端の小さな＋（ページを足す。new-page.ts）
   tabs: PageTab[];          // 先頭は最初のページ
@@ -462,12 +461,11 @@ export async function startApp(ui: AppUi) {
         },
       }, { onCommand: key => M.command(key) }); // ブックをまたぐ持ち込みはマスターの追加削除へ移した（前の「他ブックも表示」は出さない。D26 の段階 4）
       const b: Book = {
-        id, name: remote.name, color, group, addPage, tabs: [], stage, side, graph, panel, minimap,
+        id, name: remote.name, group, addPage, tabs: [], stage, side, graph, panel, minimap,
         sync: null as unknown as Sync, loaded: false, data: remote.data, error: null, master,
       };
       if (master) group.classList.add("tab-group-master");
       b.sync = startSync(graph, base, remote, {
-        status: () => {},
         notice: text => { if (current?.book === b) ui.notice(text); },
         error: message => { b.error = message; if (current?.book === b) ui.error(message); },
         clearError: () => { b.error = null; if (current?.book === b) ui.clearError(); },
@@ -591,11 +589,6 @@ export async function startApp(ui: AppUi) {
         });
       }
     },
-    async open(doc, page) {
-      if (tourer.running()) return; // 説明ツアーの間は、ほかのブックへ移さない（D38）
-      const b = await openBook(doc);
-      if (b) activate(b, page);
-    },
     notify(n) { void deliver(n); },
     mail(doc) { if (mailbox.doc() === doc) mailbox.refresh(); },
     books() { void M.catalog(); if (current?.book.master) void M.refresh(); },
@@ -611,7 +604,6 @@ export async function startApp(ui: AppUi) {
       const b = books.find(x => x.id === doc);
       if (b) closeBook(b);
     },
-    status: () => {}, // 再接続中の知らせは出さない（つながらなければ同期のエラーが出る）
   });
 
   void M.catalog(); // ブックの一覧（ブックリンクの窓の題名と縮図。D29）
