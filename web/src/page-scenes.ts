@@ -4,7 +4,7 @@
 import { EMPTY_SCENE, dataScene } from "./data-scene";
 import { t } from "./i18n";
 import type { DEFAULTS, GraphOptions } from "./graph";
-import type { Rect as ClipRect } from "./link-box";
+import type { Rect as ClipRect } from "./geom";
 import { type Box, DEFAULT_VIEW, clipOf, dataLinkLookOf, isHidden, isLinkBox, linkBookOf, linkPageOf } from "./model";
 import { pageMembers, pageNameOf, pageOf, pageWorld, subtreeIds } from "./pages";
 import { type Scene, sceneOf } from "./preview-art";

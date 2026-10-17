@@ -2,7 +2,7 @@
 // 絵のもと（Scene）は配置の結果（report.ts の Geometry）から作る。描くのは SVG で、見せる範囲は viewBox で切り取る。
 // 色はデータの値なので、文字列の HTML にせず要素の属性として入れる
 import { SVGNS } from "./dom";
-import type { Pt } from "./geom";
+import type { Pt, Rect } from "./geom";
 import type { Geometry } from "./report";
 
 export interface SceneBox { x: number; y: number; w: number; h: number; color: string | null; outline: boolean }
@@ -12,7 +12,6 @@ export interface Scene {
   boxes: SceneBox[];           // 親から先（子が上に来る）
   edges: { points: Pt[] }[];
 }
-export interface Rect { x: number; y: number; w: number; h: number }
 
 // 白（既定の色）は明るいテーマで背景に溶けるので、テーマに合わせた色（CSS の --mm-box）にする
 const isWhite = (c: string) => /^#?f{3}(f{3})?$/i.test(c);

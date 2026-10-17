@@ -13,6 +13,7 @@
  */
 import { visibleRect } from "./clip-rect";
 import { esc } from "./dom";
+import type { Rect } from "./geom";
 import { t } from "./i18n";
 import { clientRectToIn, viewRectOf } from "./viewport";
 
@@ -46,7 +47,6 @@ const GAP = 10;   // 箱と吹き出しの間（ワールドの座標）
 const TAIL = 18;  // 左右に置いた吹き出しの付け根（しっぽ）の真ん中の、箱の上の端からの高さ（CSS へは --mz-ask-tail で渡す）
 
 type Side = "right" | "left" | "bottom" | "top";
-interface Rect { x: number; y: number; w: number; h: number }
 const overlap = (a: Rect, b: Rect) =>
   Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 

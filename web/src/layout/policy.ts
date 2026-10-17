@@ -3,7 +3,7 @@
 // 配置の決まりの全体ではない（2026-10-10 に位置付けを改めた）。表の外の決まり（ドラッグ中の入れ替え、文字の箱を隣の手前で
 // 折り返す fitToRow、位置の無い箱の置き方、リストやツリーの並べ方など）は layout.ts の冒頭と docs/HANDOFF.md の 8 章
 import type { Box } from "../model";
-import type { Rect } from "./node-kinds";
+import type { Rect } from "../geom";
 
 // ---- 何を保つか（AnchorRule） ----
 

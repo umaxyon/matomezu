@@ -20,6 +20,7 @@
 //   - つかんだボックス自身が祖先を枠からはみ出させるときだけは、その位置へ動かさない（はみ出さない所で止める）
 import type { Layout, LayoutOptions } from "./layout";
 import { type Box, ancestors } from "../model";
+import type { Rect } from "../geom";
 
 export type Drag = ReturnType<typeof createDrag>;
 export type DragSession = ReturnType<Drag["begin"]>;
@@ -32,7 +33,6 @@ const FACE_RATIO = 0.5;
 const DEPTH_RATIO = 0.5;
 
 const OPPOSITE: Record<Dir, Dir> = { down: "up", up: "down", right: "left", left: "right" };
-type Rect = { x: number; y: number; w: number; h: number };
 
 export function createDrag(_opt: LayoutOptions, L: Layout) {
   const { siblings, clamp, overlaps, collides, fit, gapBetween } = L;

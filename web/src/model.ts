@@ -2,8 +2,9 @@
 
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
-import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, type Rect as ClipRect, isLinkLook, isRect, linkRowHeight } from "./link-box";
+import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, isLinkLook, isRect, linkRowHeight } from "./link-box";
 import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, PreviewSide, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
+import type { Rect } from "./geom";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
@@ -140,9 +141,9 @@ export function absPos(n: Box): [number, number] {
   return [x, y];
 }
 // 箱の本体（ヘッド）の矩形。(x, y) は箱の左上の位置（無ければ箱の左上からの位置）
-export const headRectOf = (n: Box, x = 0, y = 0): R4 => ({ x: x + n.hx, y: y + n.hy, w: n.hw, h: n.hh });
+export const headRectOf = (n: Box, x = 0, y = 0): Rect => ({ x: x + n.hx, y: y + n.hy, w: n.hw, h: n.hh });
 // 箱の枠（子孫を含めた範囲）の、ワールドの座標の矩形
-export function absRect(n: Box): R4 {
+export function absRect(n: Box): Rect {
   const [x, y] = absPos(n);
   return { x, y, w: n.w, h: n.h };
 }
@@ -344,7 +345,7 @@ export const linkLookOf = (n: Box): LinkLook => (previewSlotOf(n) != null ? "sid
 // データに書いた見せ方（編集ダイアログの選択。無ければ既定）
 export const dataLinkLookOf = (n: Box): LinkLook => (isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
 // 窓に映す範囲（のぞくページの座標。無ければ null = ページ全体）
-export const clipOf = (n: Box): ClipRect | null => (isRect(n.src.clip) ? { ...n.src.clip } : null);
+export const clipOf = (n: Box): Rect | null => (isRect(n.src.clip) ? { ...n.src.clip } : null);
 
 // 箱にできる操作（並べ方の戦略から決まる）
 export interface Abilities {
@@ -395,8 +396,7 @@ export function treeDirOf(c: Container): TreeDirection {
 }
 // ツリーの線の区間の並び: 親の本体 head の子に向いた辺の中央から主軸方向へ半分（gapY / 2）進み、副軸方向に分けて、各子の本体 kids の親に向いた辺へつなぐ。
 // 画面の線（render.ts）とページの縮図（graph.ts の geometry と、描いていないページの近似）が同じ形を使う
-type R4 = { x: number; y: number; w: number; h: number };
-export function treeLinesBetween(dir: TreeDirection, head: R4, kids: R4[], gapY: number): [number, number][][] {
+export function treeLinesBetween(dir: TreeDirection, head: Rect, kids: Rect[], gapY: number): [number, number][][] {
   const half = gapY / 2;
   const out: [number, number][][] = [];
   if (!kids.length) return out;

@@ -4,7 +4,7 @@
 import { classAnchors, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
 import { type Box, type Edge, shapeOf } from "./model";
-import { type Pt, leftNormalAt, nearestAt, pointAt } from "./geom";
+import { type Pt, type Rect, leftNormalAt, nearestAt, pointAt } from "./geom";
 import { clampCaptionOffset } from "./render";
 import { type RouteInput, fixedAts, perimeterAt, simplifyVia, vertexOf } from "./routing";
 import { perimeter } from "./selfloop";
@@ -12,7 +12,7 @@ import { perimeter } from "./selfloop";
 export interface EdgeDragContext {
   svg: SVGSVGElement;      // 吸着の目印を描く所
   edges(): Edge[];
-  absAnchorRect(n: Box): { x: number; y: number; w: number; h: number }; // 線がつながる範囲（ワールドの座標。layout.ts）
+  absAnchorRect(n: Box): Rect; // 線がつながる範囲（ワールドの座標。layout.ts）
   redraw(): void;          // 線を描き直す
   edited(e: Edge): void;   // e.src を書き換えた（描き直し、選んでいる線ならサイドバーに知らせる）
   committed(e: Edge): void; // ドラッグを終えた（1 件の履歴に残し、選んでいる線ならサイドバーに知らせる）

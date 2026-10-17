@@ -17,6 +17,8 @@
 //   scrollToCenter(stage, r, behavior);     // 画面の矩形 r の真ん中が、見えている範囲の真ん中に来るようにスクロールする
 //   toWorldLength(zoom, px);                // 画面の上の長さを、ワールドの長さに
 
+import type { Rect } from "./geom";
+
 export interface View {
   zoom: number;   // ワールドにかけている倍率
   margin: number; // 図の周りの余白（px。倍率をかけない）
@@ -25,8 +27,6 @@ export interface View {
 }
 type Axis = "x" | "y";
 const offset = (v: View, axis: Axis) => (axis === "x" ? v.ox : v.oy);
-
-export interface Rect { x: number; y: number; w: number; h: number }
 
 // スクロールの位置（px）とワールドの座標
 export const toScroll = (v: View, world: number, axis: Axis = "x"): number => offset(v, axis) + world * v.zoom;

@@ -2,6 +2,7 @@
 
 import type { ClassAttr, ClassOp } from "./classbox";
 import type { Head } from "./heads";
+import type { Rect } from "./geom";
 
 export type Size = "L" | "M" | "S";
 // 並べ方の戦略の名前（model.ts の STRATEGIES の鍵）。パターンはページ単位（2026-10-12 ユーザー。docs/PATTERN-plan.md）:
@@ -70,7 +71,7 @@ export interface BoxData {
   previewSide?: PreviewSide; // リストの子の縮図の位置（childView が list の箱で効く。無ければ right。D13）
   rowSize?: Size;        // リストの高さ（子の最小の高さ。S / M / L。無ければ M。D13）
   listHeight?: number;   // リストの高さの上限（px。D33）。あれば、超えた分はリストの中だけスクロールする（無ければ中身に合わせて伸びる）
-  clip?: { x: number; y: number; w: number; h: number }; // リンクの箱の窓に映す範囲（のぞくページの座標の四角。無ければページ全体。収まらなければ左上から）
+  clip?: Rect; // リンクの箱の窓に映す範囲（のぞくページの座標の四角。無ければページ全体。収まらなければ左上から）
   abstract?: boolean;    // クラスの箱（shape: "class"）が抽象クラスか（docs/CLASS-plan.md）
   attrs?: ClassAttr[];   // クラスの箱の属性
   ops?: ClassOp[];       // クラスの箱の操作
@@ -176,7 +177,7 @@ export interface BoxInfo {
   tools: { tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの）の道具と、足す箱のサイズ
   inTree: boolean; // ツリーの中の箱か（ツリーのページの根の子孫。並びはツリーが決めるので、子の見せ方を使わない。docs/PATTERN-plan.md）
   treeRoot: boolean; // ツリーのページの根か（消せず、付け替えられない）
-  link: { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: { x: number; y: number; w: number; h: number } | null; book: string | null } | null; // リンクの箱（マスターの窓なら book にブックの id）なら、のぞくページと見せ方・窓に映す範囲（link-box.ts）。形・サイズ・子の見せ方は使わない
+  link: { page: string; pageName: string; pattern: PagePattern; look: LinkLook; clip: Rect | null; book: string | null } | null; // リンクの箱（マスターの窓なら book にブックの id）なら、のぞくページと見せ方・窓に映す範囲（link-box.ts）。形・サイズ・子の見せ方は使わない
   parent: Brief | null;
   x: number;
   y: number;
@@ -279,7 +280,7 @@ export interface Patch {
   previewSide?: PreviewSide;     // リストの子の縮図の位置（D13。right は既定なのでデータから消す）
   rowSize?: Size;                // リストの高さ（D13。M は既定なのでデータから消す）
   listHeight?: number | null;    // リストの高さの上限（D33。null で消して、中身に合わせて伸ばす）
-  clip?: { x: number; y: number; w: number; h: number } | null; // リンクの箱の窓に映す範囲（null でページ全体）
+  clip?: Rect | null; // リンクの箱の窓に映す範囲（null でページ全体）
   fill?: boolean;
   border?: boolean;
   overflow?: Exclude<Overflow, "grow">;

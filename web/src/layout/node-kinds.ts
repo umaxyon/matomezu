@@ -8,6 +8,7 @@ import {
 import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth, linkRowHeight } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
 import { shapeDef } from "../shapes";
+import type { Rect } from "../geom";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
 
 export const BODY_GAP = 6; // 内包する箱の本文と、その下の子の並びとの間（docs/BODY-plan.md）
@@ -16,8 +17,6 @@ export const BODY_MIN_W = 160; // 本文を持つ箱の最小の幅。子を持�
 export const bodyBand = (h: number): number => (h ? h + BODY_GAP : 0);
 // 見た目の補正値（n.out。テーマから）で、足跡が土台より広がる幅と高さ（四方に広げるので 2 倍）
 const outsetOf = (n: Box) => ({ ox: 2 * (n.out?.x ?? 0), oy: 2 * (n.out?.y ?? 0) });
-
-export interface Rect { x: number; y: number; w: number; h: number }
 
 export interface NodeKind {
   readonly name: "text" | "hidden" | "preview" | "nest" | "tree" | "list";

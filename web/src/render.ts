@@ -6,7 +6,7 @@ import { SVGNS, esc, isLightColor } from "./dom";
 import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
-import { leftNormalAt, pointAt, polylineLength } from "./geom";
+import { type Pt, type Rect, leftNormalAt, pointAt, polylineLength } from "./geom";
 import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt, vertexAt } from "./routing";
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
@@ -17,7 +17,7 @@ import {
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
-import { LINK_ICON_DEF, LINK_LOOKS, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type Rect, previewRegion, windowOf } from "./link-box";
+import { LINK_ICON_DEF, LINK_LOOKS, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, previewRegion, windowOf } from "./link-box";
 import { type Scene, drawScene } from "./preview-art";
 import type { LinkLook, PagePattern } from "./types";
 import { SHAPE_ART } from "./shape-art";
@@ -354,13 +354,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     f.setAttribute("height", String(Math.max(0, n.h - 1.5)));
   }
 
-  type Abs = { x: number; y: number; w: number; h: number };
-  type Rect4 = Abs;
-  type Pt = [number, number];
-
   // 線が通ってほしくない箱: 同じ親を持つ、見えている箱（枠ごと。子孫はその中に入っている）。親ごとに一度だけ作る
   function siblingFrames() {
-    const frames = new Map<Box | null, { n: Box; r: Abs }[]>();
+    const frames = new Map<Box | null, { n: Box; r: Rect }[]>();
     return (p: Box | null) => {
       let list = frames.get(p);
       if (!list) {
@@ -393,7 +389,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       if (v) input.exitAt = perimeterAt(input.a, vertexAt(input.a, v));
     }
     // クラスの端は、決まった接点に固定する（docs/CLASS-plan.md）。データの固定の位置があれば、一番近い接点として読む
-    const pin = (n: Box, r: Rect4, other: Rect4, at: number | null, member: unknown) => {
+    const pin = (n: Box, r: Rect, other: Rect, at: number | null, member: unknown) => {
       const near = at == null ? null : pointAt(perimeter(r), at);
       return perimeterAt(r, classEnd(r, n.src, typeof member === "string" ? member : undefined, other, near));
     };
