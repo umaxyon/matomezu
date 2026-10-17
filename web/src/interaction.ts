@@ -11,7 +11,7 @@ import { SVGNS } from "./dom";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
 } from "./model";
-import { clientToIn, inToClient, toWorldLength } from "./viewport";
+import { clientToIn, inToClient, toWorldLength, viewRectOf } from "./viewport";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 import { shapeIcon } from "./shape-icons";
@@ -472,10 +472,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const el = target();
       if (!last || !el) return;
       // el の見えている範囲（画面の座標）。倍率がかかっていれば（リストの中）、見た目の大きさで
-      const c = el.getBoundingClientRect();
-      const z = el.offsetWidth ? c.width / el.offsetWidth : 1;
-      const left = c.left + el.clientLeft * z, top = c.top + el.clientTop * z;
-      const vx = speed(last.x, left, left + el.clientWidth * z, zoneOf(el.clientWidth * z)), vy = speed(last.y, top, top + el.clientHeight * z, zoneOf(el.clientHeight * z));
+      const z = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+      const v = viewRectOf(el, z);
+      const vx = speed(last.x, v.left, v.right, zoneOf(v.right - v.left)), vy = speed(last.y, v.top, v.bottom, zoneOf(v.bottom - v.top));
       if (!vx && !vy) { prev = 0; carry = [0, 0]; return; }
       // 前のコマからの時間（止まっていたら 1 コマ分。タブが裏に回っていたなどで間が空いても、一度に飛ばない）
       const dt = Math.min(prev ? now - prev : 16, 50) / 1000;
@@ -509,8 +508,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // ポインタ（画面の座標）の先まで図を広げる（端の帯の幅の 2 倍。帯の中でもスクロールが続くように）。足す前に縮めないよう、
   // 広げた大きさは箱を足すかモードを変えるまで保つ（layout.ts の stretchWorld）。again はスクロールするたびに呼ぶ（影を置き直す）
   function followEdge(x: number, y: number, again: () => void = () => {}) {
-    const c = container.getBoundingClientRect();
-    const right = c.left + container.clientLeft + container.clientWidth, bottom = c.top + container.clientTop + container.clientHeight;
+    const { right, bottom } = viewRectOf(container);
     // 広げるのは右や下の端の帯の中だけ（上や左の端へはスクロールするだけ）
     if (x >= right - EDGE_SCROLL_ZONE || y >= bottom - EDGE_SCROLL_ZONE) {
       stretchWorld(...clientToIn(world.el, ctx.zoom(), x + EDGE_SCROLL_ZONE * 2, y + EDGE_SCROLL_ZONE * 2));

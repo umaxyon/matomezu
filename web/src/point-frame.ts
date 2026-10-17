@@ -10,6 +10,7 @@
  */
 
 import { visibleRect } from "./clip-rect";
+import { clientRectToIn } from "./viewport";
 
 const GAP = 4; // 箱の外周から枠までの隙間（px。ワールドの座標）
 
@@ -31,12 +32,12 @@ export function createPointFrame(ctx: PointFrameContext) {
     if (!box) return react();
     if (s.el.parentElement !== ctx.worldEl) ctx.worldEl.appendChild(s.el); // 組み立て直しで外れた
     // リストの中でスクロールして見えなくなった行は囲まない（リストの外へ飛ばない。見える分だけ囲む）
-    const r = visibleRect(box, ctx.worldEl), w = ctx.worldEl.getBoundingClientRect(), z = ctx.zoom() || 1;
+    const r = visibleRect(box, ctx.worldEl), b = clientRectToIn(ctx.worldEl, ctx.zoom() || 1, r);
     s.el.hidden = r.hidden;
-    s.el.style.left = `${(r.left - w.left) / z - GAP}px`;
-    s.el.style.top = `${(r.top - w.top) / z - GAP}px`;
-    s.el.style.width = `${(r.right - r.left) / z + GAP * 2}px`;
-    s.el.style.height = `${(r.bottom - r.top) / z + GAP * 2}px`;
+    s.el.style.left = `${b.x - GAP}px`;
+    s.el.style.top = `${b.y - GAP}px`;
+    s.el.style.width = `${b.w + GAP * 2}px`;
+    s.el.style.height = `${b.h + GAP * 2}px`;
   }
 
   function react() {

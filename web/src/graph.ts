@@ -166,6 +166,7 @@ import { DEFAULT_PAPER, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkS
 import { DEFAULT_LINK_LOOK, isRect } from "./link-box";
 import type { Scene } from "./preview-art";
 import { createView } from "./graph-view";
+import { clientRectToIn, clientToIn, scrollToCenter, viewRectOf } from "./viewport";
 import { createUnseen } from "./unseen";
 import { applyFlatten, planFlatten } from "./tree-flatten";
 import { type EdgePatch, createEdges } from "./graph-edges";
@@ -370,13 +371,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // AI が示すフォーカス枠（D37。point-frame.ts）
   const F = createPointFrame({
     container, worldEl, zoom: () => V.applied(),
-    drawnEl: id => { let m = byId.get(id) ?? null; while (m && !m.el.getClientRects().length) m = m.parent; return m?.el ?? null; },
+    drawnEl: id => drawnBox(byId.get(id))?.el ?? null,
   });
   // AI の問いの吹き出しと印（D36。ask-bubbles.ts）。出す側（話題・フォーカス）ごとの吹き出し
   const bubbleSets = new Map<string, { items: BubbleItem[]; handlers: BubbleHandlers }>();
   const A = createAskBubbles({
     container, worldEl, canvasEl, zoom: () => V.applied(),
-    drawnEl: id => { let m = byId.get(id) ?? null; while (m && !m.el.getClientRects().length) m = m.parent; return m?.el ?? null; },
+    drawnEl: id => drawnBox(byId.get(id))?.el ?? null,
     obstacles: id => {
       const skip = new Set<Box>();
       for (let m = byId.get(id) ?? null; m; m = m.parent) skip.add(m);
@@ -579,21 +580,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // ---- 選択 ----
 
+  // n か、描かれていなければ（非表示の親の中）描かれている一番近い祖先
+  function drawnBox(n: Box | null | undefined): Box | null {
+    let m = n ?? null;
+    while (m && !m.el.getClientRects().length) m = m.parent;
+    return m;
+  }
+
   // n が図の見えている範囲（スクロールバーを除く）に収まっていなければ、図をスクロールして真ん中に持ってくる。
   // 非表示の親の中にいて描かれていなければ、描かれている一番近い祖先を見せる
   function reveal(n: Box) {
-    let m: Box | null = n;
-    while (m && !m.el.getClientRects().length) m = m.parent;
+    const m = drawnBox(n);
     if (!m) return;
-    const r = m.el.getBoundingClientRect(), c = container.getBoundingClientRect();
-    const left = c.left + container.clientLeft, top = c.top + container.clientTop;
-    const right = left + container.clientWidth, bottom = top + container.clientHeight;
-    if (r.left >= left && r.top >= top && r.right <= right && r.bottom <= bottom) return;
-    container.scrollBy({
-      left: r.left + r.width / 2 - (left + right) / 2,
-      top: r.top + r.height / 2 - (top + bottom) / 2,
-      behavior: "smooth",
-    });
+    const r = m.el.getBoundingClientRect(), v = viewRectOf(container);
+    if (r.left >= v.left && r.top >= v.top && r.right <= v.right && r.bottom <= v.bottom) return;
+    scrollToCenter(container, r, "smooth");
   }
 
   function select(n: Box | null) {
@@ -914,9 +915,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     let parentId: string | null = null, at: { x: number; y: number };
     if (!n) {
       // ワールドを選んでいる: ポインタの位置（落としたときと同じく、ポインタが箱の左上の少し内側に来る）。図の外なら見えている範囲の真ん中
-      const r = worldEl.getBoundingClientRect(), z = V.applied();
-      const p = pointer ?? (() => { const c = container.getBoundingClientRect(); return { x: c.left + container.clientWidth / 2, y: c.top + container.clientHeight / 2 }; })();
-      at = { x: (p.x - r.left) / z - 16, y: (p.y - r.top) / z - 12 };
+      const p = pointer ?? (() => { const v = viewRectOf(container); return { x: (v.left + v.right) / 2, y: (v.top + v.bottom) / 2 }; })();
+      const [x, y] = clientToIn(worldEl, V.applied(), p.x, p.y);
+      at = { x: x - 16, y: y - 12 };
     } else if (shapeDef(shapeOf(n)).kids && acceptsKid(n, clip.nodes.length > 1)) {
       // 箱を選んでいる: その中の左上（ぶつかる子は押しのける）
       parentId = n.id;
@@ -1643,20 +1644,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     pointed: () => F.pointed(),
     tourTarget(id) {
       const n = byId.get(String(id));
-      let m: Box | null = n ?? null;
-      while (m && !m.el.getClientRects().length) m = m.parent;
+      const m = drawnBox(n);
       return n && m ? { el: m.el, color: pointColor(themeOf(n.parent)) } : null;
     },
     center(id) {
       const n = byId.get(String(id));
       if (!n) return;
       reveal(n); // リストの中なら、その行までリストをスクロールする
-      let m: Box | null = n;
-      while (m && !m.el.getClientRects().length) m = m.parent;
-      if (!m) return;
-      const r = m.el.getBoundingClientRect(), c = container.getBoundingClientRect();
-      container.scrollLeft += r.left + r.width / 2 - (c.left + container.clientWidth / 2);
-      container.scrollTop += r.top + r.height / 2 - (c.top + container.clientHeight / 2);
+      const m = drawnBox(n);
+      if (m) scrollToCenter(container, m.el.getBoundingClientRect());
     },
     askReveal: (owner, id) => A.reveal(`${owner}:${id}`),
     askInset: (right, bottom) => A.setInset(right, bottom),
@@ -1799,9 +1795,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           // キャプションの札の範囲（ワールドの座標）。描かれていて大きさが分かるときだけ
           const text = e.labelEl?.querySelector("span");
           if (text && typeof e.src.caption === "string") {
-            const sr = text.getBoundingClientRect(), wr = worldEl.getBoundingClientRect(), z = V.applied();
+            const sr = text.getBoundingClientRect();
             out.caption = e.src.caption;
-            if (sr.width) out.label = { x: (sr.left - wr.left) / z, y: (sr.top - wr.top) / z, w: sr.width / z, h: sr.height / z };
+            if (sr.width) out.label = clientRectToIn(worldEl, V.applied(), sr);
           }
           return out;
         }),
