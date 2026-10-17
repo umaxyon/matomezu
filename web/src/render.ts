@@ -7,7 +7,7 @@ import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
 import { leftNormalAt, pointAt, polylineLength } from "./geom";
-import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt } from "./routing";
+import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt, vertexAt } from "./routing";
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
@@ -394,7 +394,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     // フローチャートの分岐から出る線は、向かい合う頂点に分けて出す（端を固定していない線だけ。データは書き換えない）
     if (input.exitAt == null) {
       const v = branchVertexOf(e);
-      if (v) input.exitAt = perimeterAt(input.a, vertexPoint(input.a, v));
+      if (v) input.exitAt = perimeterAt(input.a, vertexAt(input.a, v));
     }
     // クラスの端は、決まった接点に固定する（docs/CLASS-plan.md）。データの固定の位置があれば、一番近い接点として読む
     const pin = (n: Box, r: Rect4, other: Rect4, at: number | null, member: unknown) => {
@@ -471,8 +471,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const vs = splitBranches(out.map(x => { const [tx, ty] = c(x.b); return [tx - cx, ty - cy]; }), avoid);
     return vs[out.indexOf(e)] ?? null;
   }
-  const vertexPoint = (r: Rect4, v: Vertex): [number, number] =>
-    v === "t" ? [r.x + r.w / 2, r.y] : v === "b" ? [r.x + r.w / 2, r.y + r.h] : v === "l" ? [r.x, r.y + r.h / 2] : [r.x + r.w, r.y + r.h / 2];
 
   // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
   function renderEdges() {
