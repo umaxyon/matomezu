@@ -446,7 +446,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
   // つまみで大きさを変える（本文の幅・リストの幅・リストの高さ。resizers.ts）
   const Z = createResizers({
-    nodes: () => nodes, settle: n => { settle(SCENES.resizeBody, n); render(); }, changed, notifySelect,
+    nodes: () => nodes, snapshot: () => L.snapshot(), changed, notifySelect,
+    regrow: (n, prior) => { const ok = L.regrow(() => {}, n, { prior }) !== "refused"; render(); return ok; },
   });
   // 線の追加・削除・変更・つなぎ直し（graph-edges.ts）
   const E = createEdges({
@@ -721,7 +722,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         : null;
       cut = moveSubtree(data, id, to, pos);
       return { select: String(id) };
-    });
+    }, true);
     if (!moved) return false;
     opt.onEvent?.({
       kind: "moved", into: dest ? keyOfBox(byId.get(dest.id)!) : null, page: fromPage !== page ? pageName(page) : null, cutEdges: cut,
@@ -789,8 +790,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 落とした箱は、落とした位置に置き直し、ぶつかった相手を下へずらし、置いた位置を本来いたい位置にする。
   // 選び直した箱（無ければ null）を返す。値を変える操作（update など）はその場で直すので、ここを通らない。
   // 今のページの箱を消す remove も、押し下げられた箱の本来いたい高さを保つため、その場で外す（作り直すと忘れる）
-  function rebuildWith(edit: (data: Diagram) => { select?: string; drop?: Pos } | null): Box | null | undefined {
+  // regrow なら、作り直したあとの育ち方を統一した決まりにする（docs/PAPER-plan.md の 4.6。追加・貼り付け・付け替え・戻す・クラスの変更）:
+  // 同じ親のまま残った箱は作り直す前の位置に戻し、置いた箱（select）の置き方は今のまま（drop の位置、ぶつかった兄弟は下へ）、
+  // 親が育った分は layout.ts の regrow で同じ向きにだけ押す（作り直しの並べ方に任せると、データの並びで後ろの箱が跳んでいた。F26）
+  function rebuildWith(edit: (data: Diagram) => { select?: string; drop?: Pos } | null, regrow = false): Box | null | undefined {
     const data = api.toJSON();
+    const prior = regrow ? L.snapshot() : null;
     const r = edit(data);
     if (!r) return undefined;
     // 組み立て直しても、前から紙の外にあった箱だけを覚えておく（作り直しで覚え直すと、この操作ではみ出した箱を断れない。D33）
@@ -798,7 +803,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     build(data, false);
     outsideKnown = new Set([...known].filter(id => byId.has(id)));
     const n = r.select != null ? byId.get(r.select) ?? null : null;
-    if (n && r.drop !== undefined) {
+    if (prior) {
+      L.restoreFrom(prior);
+      if (n && r.drop) [n.x, n.y] = clamp(n, r.drop.x, r.drop.y);
+      if (n && r.drop !== undefined) [n.intendedX, n.intendedY] = [n.x, n.y];
+      if (n && r.drop) L.placeAmong(n);
+      // 箱を置いた先（足した・貼った・戻した・付け替えた先）は、置いた子を詰めずに中身から決まる大きさから始める
+      const put = n?.parent && (r.drop !== undefined || prior.get(n.id)?.parent !== n.parent.id) ? [n.parent] : [];
+      if (L.regrow(() => {}, undefined, { prior, placed: put }) === "refused") notFitting = true;
+      render();
+    } else if (n && r.drop !== undefined) {
       if (r.drop) {
         [n.x, n.y] = clamp(n, r.drop.x, r.drop.y);
         settle(SCENES.drop, n);
@@ -865,6 +879,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (n.isWorld) throw new Error(t("ワールドは消せません"));
     if (isTreeRoot(n)) { opt.onEvent?.({ kind: "rootKept" }); return false; } // ツリーの根は消せない（docs/PATTERN-plan.md 8.2）
     const gone = new Set([n, ...descendants(n)]);
+    const prior = L.snapshot(); // 消す前の様子（親が縮んだ分、押されていた箱を戻す。docs/PAPER-plan.md の 4.6 の 8）
     // データは今の位置を書いた写しで消し、消したものだけを移す（ほかのページにある子孫、つまりページの箱の中身も一緒に消える）。
     // 残る箱のデータは図の箱が参照しているので、入れ替えずに外すだけにする
     const out = api.toJSON();
@@ -886,7 +901,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 選んでいた箱や線が消えたら、ワールドを選び直す（消えた線の情報をサイドバーへ送らないように）
     if ((current && gone.has(current)) || (currentEdge && cut.includes(currentEdge))) select(null);
     unfocus();
-    settle(SCENES.remove, parent ?? undefined);
+    L.regrow(() => {}, undefined, { prior }); // 縮むだけなので、紙に収まらないことは無い
     render();
     changed();
     notifySelect();
@@ -923,7 +938,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = rebuildWith(data => {
       restoreSubtree(data, id, placeOf(dest), pos);
       return { select: String(id), drop: pos };
-    })!;
+    }, true)!;
     opt.onEvent?.({ kind: "restored", key: keyOfBox(n), byDrag });
     return true;
   }
@@ -1051,7 +1066,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       n = rebuildWith(data => {
         r = pasteSubtree(data, copy, placeOf(dest), pos);
         return { select: r.root, drop: pos };
-      })!;
+      }, true)!;
     } finally {
       quietPaper = false;
     }
@@ -1070,7 +1085,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = rebuildWith(data => {
       id = addBox(data, fields, placeOf(dest), pos, req.before);
       return { select: String(id), drop: pos };
-    })!;
+    }, true)!;
     if (paperRefused) return ""; // 紙に収まらないので足さなかった（changed が知らせて直前の状態に戻した）
     opt.onEvent?.({ kind: "added", key: keyOfBox(n) });
     return String(id);
@@ -1399,7 +1414,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     rebuildWith(data => {
       kids = applyClassEdit(data, n.id, edit).kids;
       return { select: n.id };
-    });
+    }, true);
     if (kids) opt.onEvent?.({ kind: "classKids", key: keyOfBox(byId.get(n.id) ?? n), kids });
   }
 

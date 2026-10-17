@@ -115,7 +115,8 @@ test("選んだ箱の本文の右の縁をドラッグすると本文の幅が�
   fire("pointerdown", 0);
   fire("pointermove", 80);
   expect(info(1).w).toBe(w0 + 80);
-  expect([info(2).x, info(2).y]).not.toEqual(at2); // 押しのけた（最上位は下へずらす）
+  expect(info(2).y).toBe(at2[1]!); // 押しのけた（横に並ぶ相手は横へ。下へはずらさない。docs/PAPER-plan.md の 4.6）
+  expect(info(2).x).toBe(info(1).x + info(1).w + 8);
   fire("pointermove", 0);
   expect([info(2).x, info(2).y]).toEqual(at2);     // 狭めれば戻る
   fire("pointermove", 60);

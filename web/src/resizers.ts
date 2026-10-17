@@ -1,13 +1,18 @@
 // つまみで大きさを変える: 本文の幅（docs/BODY-plan.md）、リストの幅（docs/SIZE-plan.md の 10 章）、スクロールにしたリストの高さ（D33）。
 // どれも、ドラッグの間は開始時の位置の写しから毎回決め直し（押しのけた相手は、戻せば戻る）、手を離したら 1 件の履歴にする。
+// 押しのけ方は大きさが変わったときの統一した決まり（layout.ts の regrow。docs/PAPER-plan.md の 4.6）。紙に収まらない大きさにはせず、収まった最後の大きさで止める
 // ドラッグの状態（いつ始めて終えるか）は interaction.ts
+import type { Layout } from "./layout/layout";
 import { BODY_MIN_W } from "./layout/node-kinds";
 import { type Box, bodyWrapW, isNesting, listHeightOf, setOrDelete, setSpec, sizeOf } from "./model";
 import { GROUP_MIN, SIZES } from "./validate";
 
+type Prior = ReturnType<Layout["snapshot"]>;
+
 export interface ResizersContext {
   nodes(): Box[];
-  settle(n: Box): void;     // n の大きさが変わった（押しのけて描き直す。layout の resizeBody の場面）
+  snapshot(): Prior;                     // つまみを握ったときの様子（regrow に渡す）
+  regrow(n: Box, prior: Prior): boolean; // n の大きさが変わった（押しのけて描き直す）。紙に収まらなければ false（位置は書き換えない）
   changed(): void;          // 1 件の履歴に残す
   notifySelect(): void;
 }
@@ -23,17 +28,20 @@ export function createResizers(ctx: ResizersContext) {
     const group = isNesting(n);
     const width = group ? bodyWrapW(n, n.hw) : n.hw;
     const max = group ? n.hw : SIZES[sizeOf(n)].maxW;
+    const prior = ctx.snapshot();
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
+    let last = before;
     const apply = (w: number | undefined) => {
       restore();
       setOrDelete(n.src, "bodyWidth", w, w == null);
-      ctx.settle(n);
+      return ctx.regrow(n, prior);
     };
     return {
       width,
       set(w: number) {
         const v = Math.round(Math.max(BODY_MIN_W, Math.min(max, w)));
-        apply(group && v >= Math.floor(max) ? undefined : v);
+        const next = group && v >= Math.floor(max) ? undefined : v;
+        if (apply(next)) last = next; else apply(last);
       },
       finish() {
         n.intendedX = n.x;
@@ -49,15 +57,17 @@ export function createResizers(ctx: ResizersContext) {
   function listResizer(n: Box) {
     const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedX: b.intendedX }]));
     const before = n.specW;
+    const prior = ctx.snapshot();
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
+    let last = before;
     const apply = (w: number) => {
       restore();
       setSpec(n, "w", w);
-      ctx.settle(n);
+      return ctx.regrow(n, prior);
     };
     return {
       width: n.w - n.listOx, // 書くのは土台の幅（足跡は葉の子の補正値の分だけ広い。node-kinds.ts の list）
-      set(w: number) { apply(Math.round(Math.max(GROUP_MIN.w, w))); },
+      set(w: number) { const v = Math.round(Math.max(GROUP_MIN.w, w)); if (apply(v)) last = v; else apply(last); },
       finish() {
         n.intendedX = n.x;
         ctx.changed();
@@ -71,15 +81,17 @@ export function createResizers(ctx: ResizersContext) {
   function listHeightResizer(n: Box) {
     const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedX: b.intendedX }]));
     const before = listHeightOf(n) || n.h;
+    const prior = ctx.snapshot();
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
+    let last = before;
     const apply = (h: number) => {
       restore();
       n.src.listHeight = h;
-      ctx.settle(n);
+      return ctx.regrow(n, prior);
     };
     return {
       width: n.h, // 今の高さ（resizeGesture は width という名前で受け取る）
-      set(h: number) { apply(Math.round(Math.max(n.kidsTop + 32, Math.min(n.fullH, h)))); },
+      set(h: number) { const v = Math.round(Math.max(n.kidsTop + 32, Math.min(n.fullH, h))); if (apply(v)) last = v; else apply(last); },
       finish() { ctx.changed(); ctx.notifySelect(); },
       cancel() { apply(before); },
     };

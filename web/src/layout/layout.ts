@@ -1,12 +1,13 @@
 // 配置: 重なりの判定と直し方、読み込み時の配置。節点ごとの大きさの決め方とツリーの並べ方は node-kinds.ts。
 // 状態（ボックスや線の一覧）は ctx から読む。
 //
-// 設定変更（キャプション・サイズ・形・見せ方・テーマなど）で大きさが変わったときは、regrow が統一した決まり（docs/PAPER-plan.md の 4.6）で
-// 並べ直す: ページの起点から広がり、ぶつかる相手は同じ向きにだけ押し（折り返さない）、紙に収まらなければ断る。判定は squeeze.ts の canSqueeze。
+// 大きさが変わったとき（設定変更、追加・貼り付け・付け替え・戻す、箱を消す、本文の幅・リストのつまみ）は、regrow が統一した決まり
+// （docs/PAPER-plan.md の 4.6）で並べ直す: ページの起点から広がり、ぶつかる相手は同じ向きにだけ押し（折り返さない）、縮めば押した相手は
+// 本来いたい位置（intendedX・intendedY）へ戻り、紙に収まらなければ断る。判定は squeeze.ts の canSqueeze。
 //
-// 読み込み・外部の変更の読み直し・子のサイズをそろえる・ドラッグで手を離した・箱を消したときは、settle が
-// 場面ごとの設定値（policy.ts の SCENES）に従って決め直す。場面ごとの違い（何を保つか、誰が動くか、大きい相手に譲るか、
-// 子を詰め直す向き、はみ出しを調整するか、置いた位置を本来いたい位置にするか）は SCENES の 1 行の値の差。
+// 読み込み・外部の変更の読み直し・子のサイズをそろえる・ドラッグで手を離したときは、settle が
+// 場面ごとの設定値（policy.ts の SCENES）に従って決め直す。場面ごとの違い（誰が動くか、子を詰め直す向き、
+// はみ出しを調整するか、置いた位置を本来いたい位置にするか）は SCENES の 1 行の値の差。
 // 設定を変える処理（子のサイズをそろえるときは alignChildren）は apply として settle に渡す。
 //
 // SCENES の外にある決まり（どの場面でも同じか、表の値では表せない手順のもの）:
@@ -26,7 +27,7 @@ import { alignFlow } from "./flow-align";
 import { shapeDef } from "../shapes";
 import type { TextMeasurer } from "./measure";
 import { bodyBand, createNodeKinds } from "./node-kinds";
-import { type Scene, createAnchorRules } from "./policy";
+import type { Scene } from "./policy";
 import { type SqBox, canSqueeze } from "./squeeze";
 import { layoutStats } from "./stats";
 import { GROUP_MIN } from "../validate";
@@ -184,8 +185,6 @@ export function createLayout(ctx: LayoutContext) {
   const anchorRect = (n: Box) => kindOf(n).anchorRect(n);
   // 線がつながる範囲（ワールドの座標）
   const absAnchorRect = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return { x: x + r.x, y: y + r.y, w: r.w, h: r.h }; };
-  // 大きさが変わったとき、どこを保つか（policy.ts）
-  const anchors = createAnchorRules({ anchorRect });
   // 線がつながる範囲の横の中心（親の中での位置）
   const centerX = (n: Box) => { const a = anchorRect(n); return n.x + a.x + a.w / 2; };
 
@@ -219,17 +218,13 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   // 文字の箱（と、本体だけを見せる非表示）が、同じ段の右にいる自分より大きい兄弟にはみ出すなら、その手前まで
-  // 狭めて折り返す（大きい相手には自分がずれる決まり（stepAside）だと、空きを探して離れた所へ飛んでしまうため）。
-  // 右端を相手の手前にそろえる。center を渡すと（設定を変えた最上位の箱を置き直すとき）、その中心を保つ幅にする
-  // （文字を戻すと同じ中心から縮んで元の位置に戻る。左に空きが足りなければ左端に寄せる）。渡さなければ左端を保つ。
-  // 右端が相手の手前にそろっているので、左端を保って何度計算し直しても（Undo や読み直しを含む）同じ幅になる。
-  // 自分以下の大きさの兄弟は今までどおり押し下げ、左の大きい相手とぶつかるときは stepAside に任せる。
-  // 幅の指定がある箱、位置の無い箱は変えない。最小の幅でも収まらなければ狭めない
-  function fitToRow(n: Box, center?: number) {
+  // 狭めて折り返す。左端を保ち、右端を相手の手前にそろえるので、何度計算し直しても（Undo や読み直しを含む）同じ幅になる。
+  // 自分以下の大きさの兄弟は今までどおり押し下げる。幅の指定がある箱、位置の無い箱は変えない。最小の幅でも収まらなければ狭めない。
+  // 開いたとき・読み直し・手を離したときの settle だけが使う（大きさが変わったときは regrow で隣を押す。段階 6 で開いたときの判定に置き換える）
+  function fitToRow(n: Box) {
     const kind = kindOf(n).name;
     if (!n.hasPos || !inNest(n) || (kind !== "text" && kind !== "hidden") || (kind === "text" && n.specW)) return;
     if (n.capW) { n.capW = 0; fit(n); }
-    const c = containerOf(n);
     const g = (o: Box) => gapBetween(n, o);
     const cx = n.x + n.w / 2, top = n.y, bottom = n.y + n.h, area = n.w * n.h;
     const row = siblings(n).filter(o =>
@@ -238,11 +233,8 @@ export function createLayout(ctx: LayoutContext) {
     if (!ahead.length) return;
     const right = Math.min(...ahead.map(o => o.x - g(o)));
     if (n.x + n.w <= right + 0.5) return;
-    const left = Math.max(innerArea(c).left,
-      ...row.filter(o => o.x + o.w / 2 < cx).map(o => o.x + o.w + g(o)));
-    const x = center == null ? n.x : Math.max(left, 2 * center - right); // 中心を保つ幅の左端（足りなければ left）
-    if (x >= right) return;
-    n.capW = right - x;
+    if (n.x >= right) return;
+    n.capW = right - n.x;
     fit(n);
     if (n.w > n.capW + 0.5) { n.capW = 0; fit(n); return; } // 最小の幅でも収まらない
     n.x = right - n.w;
@@ -393,28 +385,6 @@ export function createLayout(ctx: LayoutContext) {
     return slide(n, n.x, n.y, "down", maxY) ?? (c.isWorld ? findFreeSpot(n, n.x, n.y) : findGridSpot(n));
   }
 
-  // 広がった n が、自分より大きい兄弟にぶつかったら、n の方が動く量の一番少ない向きへずれる
-  // （大きい方を動かすと全体が崩れるため）。自分より小さい兄弟は、このあと settle の中で下へずらされる
-  function stepAside(n: Box) {
-    if (!inNest(n)) return;
-    const area = (b: Box) => b.w * b.h;
-    for (let i = 0; i < 8; i++) {
-      const hit = siblings(n).find(o => o !== n && area(o) >= area(n) && overlaps(n, n.x, n.y, o));
-      if (!hit) return;
-      const g = gapBetween(n, hit);
-      const cands: [number, number][] = [
-        [hit.x + hit.w + g, n.y], [hit.x - g - n.w, n.y], [n.x, hit.y + hit.h + g], [n.x, hit.y - g - n.h],
-      ].map(([x, y]) => clamp(n, x!, y!));
-      const dist = ([x, y]: [number, number]) => Math.hypot(x - n.x, y - n.y);
-      // 大きい兄弟とは重ならない位置のうち、一番近いもの
-      const ok = cands
-        .filter(([x, y]) => !siblings(n).some(o => o !== n && area(o) >= area(n) && overlaps(n, x, y, o)))
-        .sort((a, b) => dist(a) - dist(b))[0];
-      if (!ok) return;
-      [n.x, n.y] = ok;
-    }
-  }
-
   // 決まった並べ方で子を置く戦略（フローチャート）で、子のどれにも位置が無いか（LLM が位置を書かずに書き出したとき）
   const unplacedAligned = (c: Container) => kidStrategyOf(c).autoAlign && c.children.length > 0 && c.children.every(k => !k.hasPos);
 
@@ -460,19 +430,7 @@ export function createLayout(ctx: LayoutContext) {
   // changed は変えた節点、apply はその変更。変える前に保つ位置を覚えてから apply を呼ぶ
   // （先に変えると、変わったあとの大きさで覚えてしまう）
   function settle(scene: Scene, changed?: Box, apply?: () => void) {
-    const anchored = changed && scene.anchor && inNest(changed) ? changed : undefined;
-    const keepAt = anchored && anchors[anchored.parent ? scene.anchor!.inGroup : scene.anchor!.topLevel](anchored);
-    let wantY = anchored?.y ?? 0; // 自分の設定を変えたとき、保とうとした高さ（押し戻しやずれの前）
     apply?.();
-    if (anchored && keepAt) {
-      settleNode(anchored);
-      const want = keepAt.x(anchored);
-      wantY = keepAt.y(anchored);
-      [anchored.x, anchored.y] = clamp(anchored, want, wantY);
-      // 最上位は、押し戻される前の本来の中心を保って狭める（グループの中は左上を保つので左端を保つ）
-      fitToRow(anchored, anchored.parent ? undefined : want + anchored.w / 2);
-      if (scene.giveWayToLarger) stepAside(anchored);
-    }
     // 変えた節点と祖先はその場に残し、ぶつかる相手の方を動かす（others）。later なら後から置くものが動く
     const keep = changed && scene.yieldTo === "others" ? new Set([changed, ...ancestors(changed)]) : undefined;
     roots().forEach(r => settleNode(r, keep));
@@ -484,23 +442,54 @@ export function createLayout(ctx: LayoutContext) {
     syncWorld();
     if (scene.fitViewport) fitToViewport();
     if (scene.adoptPlaced) for (const b of roots().flatMap(r => [r, ...descendants(r)])) [b.intendedX, b.intendedY] = [b.x, b.y];
-    // 自分の設定を変えたボックスは、保とうとした高さが本来いたい高さになる（押し下げられていれば、その位置）
-    if (anchored) anchored.intendedY = wantY;
   }
 
-  // 大きさが変わったときの並べ直し（docs/PAPER-plan.md の 4.6）。ダイアログ・サイドバーの設定変更（graph.ts の update）が通る。
+  // 並べ直しの前の、箱ごとの位置と大きさ（id で引く。作り直し（graph.ts の rebuildWith）で箱が作り直されても引けるように）
+  type Snapshot = Map<string, { x: number; y: number; w: number; h: number; ix: number; iy: number; parent: string | null; free: boolean; holds: boolean }>;
+  const allBoxes = () => roots().flatMap(r => [r, ...descendants(r)]);
+  function snapshot(): Snapshot {
+    return new Map(allBoxes().map(b => [b.id, {
+      x: b.x, y: b.y, w: b.w, h: b.h, ix: b.intendedX, iy: b.intendedY, parent: b.parent?.id ?? null,
+      free: inNest(b) && b.hasPos, holds: kindOf(b).holdsChildren,
+    }]));
+  }
+  // 作り直したあと、同じ親のまま残った箱を、作り直す前の位置（と本来いたい位置）に戻す（作り直しの並べ方で動いた分を取り消し、regrow に任せる）
+  function restoreFrom(prior: Snapshot) {
+    for (const b of allBoxes()) {
+      const p = prior.get(b.id);
+      if (!p || !p.free || p.parent !== (b.parent?.id ?? null) || !inNest(b)) continue;
+      [b.x, b.y, b.intendedX, b.intendedY] = [p.x, p.y, p.ix, p.iy];
+    }
+  }
+  // 置いた箱 n と重なる兄弟をずらす（置き方は今のまま: ぶつかった相手は同じ x のまま下へ。追加・貼り付け・付け替え・戻す。docs/PAPER-plan.md の 4.6）
+  function placeAmong(n: Box) {
+    if (!inNest(n)) return;
+    if (n.parent) placeGroup(n.parent.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n);
+    else settleRoots(n);
+  }
+
+  // 大きさが変わったときの並べ直し（docs/PAPER-plan.md の 4.6）。設定変更（graph.ts の update）、作り直し（rebuildWith。追加・貼り付け・
+  // 付け替え・戻す）、箱を消したとき、本文の幅・リストの幅と高さのつまみが通る。
   // 変わる前の大きさを覚えてから apply を呼び、新しい大きさを測って、試しに並べずに canSqueeze（squeeze.ts）で
   // ページの起点（growFrom）から押し込む。押すのは同じ向きだけで、段は変えない（折り返さない）。グループは中で詰めてから広がる。
   // 紙を越えるなら "refused"（位置は書き換えない。呼んだ側が断って、操作の前に戻す）。
   // 自由に置く箱に位置の無いものがあれば（見せ方を内包に戻した子に位置が無かった）、何もせず "unplaced"（呼んだ側が settle で空きに置く）
-  // changed は設定を変えた箱。押されていた箱でも、今の位置が本来いたい位置になる（自分で変えたので、上や左が空いても戻らない）
-  function regrow(apply: () => void, changed?: Box): "fits" | "refused" | "unplaced" {
-    const all = () => roots().flatMap(r => [r, ...descendants(r)]);
-    // 前から自由に置かれていた箱だけ、前の大きさを覚える（内包に戻した子など、新しく自由に置かれる箱は、今の位置と大きさから始める）。
-    // 子を自由に置く箱になったばかりの箱（非表示・リストから内包に戻した）も、前の大きさは使わず、子の位置から決まる大きさから始める
-    const before = new Map<Box, { w: number; h: number; right: number; bottom: number; holds: boolean }>(); // holds: 子を自由に置く箱だったか
-    for (const b of all()) if (inNest(b) && b.hasPos) before.set(b, { w: b.w, h: b.h, right: b.x + b.w, bottom: b.y + b.h, holds: kindOf(b).holdsChildren });
+  // changed は設定を変えた箱。押されていた箱でも、今の位置が本来いたい位置になる（自分で変えたので、上や左が空いても戻らない）。
+  // o.prior は変わる前の様子（無ければ apply の前に覚える。作り直しやつまみのように、呼ぶ側が先に覚えておくとき）。
+  // o.placed は子を置いたばかりの入れ物（追加・貼り付けの先）: 置いた子を詰めずに、中身から決まる大きさから始める
+  function regrow(apply: () => void, changed?: Box, o: { prior?: Snapshot; placed?: Box[] } = {}): "fits" | "refused" | "unplaced" {
+    const all = allBoxes;
+    const prior = o.prior ?? snapshot();
     apply();
+    // 前から自由に置かれていた箱（同じ親のまま）だけ、前の大きさを使う（新しく自由に置かれる箱は、今の位置と大きさから始める）。
+    // 子を自由に置く箱になったばかりの箱（非表示・リストから内包に戻した）と、子を置いたばかりの入れ物も、子の位置から決まる大きさから始める
+    const before = new Map<Box, { w: number; h: number; right: number; bottom: number; holds: boolean }>(); // holds: 子を自由に置く箱だったか
+    const placed = new Set(o.placed ?? []);
+    for (const b of all()) {
+      const p = prior.get(b.id);
+      if (!p || !p.free || p.parent !== (b.parent?.id ?? null)) continue;
+      before.set(b, { w: p.w, h: p.h, right: p.x + p.w, bottom: p.y + p.h, holds: p.holds && !placed.has(b) });
+    }
     if (all().some(b => inNest(b) && !b.hasPos)) return "unplaced";
     if (changed) [changed.intendedX, changed.intendedY] = [changed.x, changed.y];
     // 子から順に測る（子を自由に置く箱は、本文の高さが変わった分だけ子を上下に動かす。node-kinds.ts の nest）
@@ -667,8 +656,8 @@ export function createLayout(ctx: LayoutContext) {
     offset: () => offset, // ワールドを図の枠の中でずらしている量（sizeCanvas）
     kindOf, anchorRect, absAnchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
-    findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
-    settle, regrow, fitToViewport, viewport, alignKids,
+    findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow,
+    settle, regrow, snapshot, restoreFrom, placeAmong, fitToViewport, viewport, alignKids,
     sizable, alignChildren,
   };
 }

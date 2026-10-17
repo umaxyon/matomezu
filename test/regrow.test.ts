@@ -112,3 +112,89 @@ test("断った設定変更の原因は、1 つずつ当てて確かめた項目
   expect(graph!.batch(() => graph!.update(2, { color: "danger" }))).toBe(true);
   expect(graph!.refusedBy()).toEqual([]);
 });
+
+// ---- 段階 5: 作り直しの入口（追加・付け替え・貼り付け）、箱を消す、つまみ ----
+
+test("箱の中へ付け替えて育った箱は、データの並びで後ろにあっても跳ばずに、下の兄弟を押し下げる（F26）", () => {
+  setup({
+    nodes: [
+      { id: 1, caption: "外", x: 40, y: 40 },
+      // B（下）がデータで先、A（上）が後ろ
+      { id: 3, caption: "B", parent: 1, x: 12, y: 144 },
+      { id: 2, caption: "A", parent: 1, x: 12, y: 30 },
+      { id: 4, caption: "A の子", parent: 2, x: 12, y: 30 },
+      { id: 9, caption: "入れる箱", x: 600, y: 40 },
+    ],
+  });
+  const a = info(2), b = info(3);
+  graph!.reparent(9, 2);
+  expect([info(2).x, info(2).y]).toEqual([a.x, a.y]); // A は動かない
+  expect(info(2).h).toBeGreaterThan(a.h);
+  expect(info(3).x).toBe(b.x); // B は真下へ押される
+  expect(info(3).y).toBe(info(2).y + info(2).h + DEFAULTS.gap);
+});
+
+test("グループに箱を足して横に広がると、右隣を右へ押し（下へはずらさない）、足した箱を消すと右隣は元の位置へ戻る", () => {
+  setup({
+    nodes: [
+      { id: 1, caption: "グループ", x: 40, y: 40 },
+      { id: 2, caption: "子", parent: 1, x: 12, y: 30 },
+      { id: 3, caption: "右隣", x: 40 + 144 + DEFAULTS.gap, y: 40 },
+    ],
+  });
+  const right = info(3);
+  expect(info(1).x + info(1).w + DEFAULTS.gap).toBe(right.x); // 隙間は下限ちょうど
+  const id = graph!.add({ parentId: "1", at: { x: 140, y: 30 } }, { caption: "足した" });
+  expect(id).not.toBe("");
+  expect(info(3).y).toBe(right.y);
+  expect(info(3).x).toBe(info(1).x + info(1).w + DEFAULTS.gap);
+  graph!.remove(id);
+  expect([info(3).x, info(3).y]).toEqual([right.x, right.y]);
+});
+
+test("グループの中で育った子が左の余裕へ詰めたら、元の大きさに戻すと元の位置へ戻る（詰めた間隔も戻る。4.6 の 8）", () => {
+  setup({
+    nodes: [
+      { id: 1, caption: "グループ", x: 40, y: 40 },
+      { id: 2, caption: "子", parent: 1, x: 52, y: 30 },
+      { id: 3, caption: "子", parent: 1, x: 52 + 120 + DEFAULTS.gap, y: 30 },
+    ],
+  });
+  const [b2, b3, g] = [info(2), info(3), info(1)];
+  graph!.update(3, { theme: "sticky" });
+  expect(info(1).w).toBe(g.w); // グループは広がらない（左の余裕を使う）
+  expect(info(2).x).toBeLessThan(b2.x);
+  graph!.update(3, { theme: null });
+  expect([info(2).x, info(3).x, info(1).w]).toEqual([b2.x, b3.x, g.w]);
+});
+
+test("本文の幅のつまみは、紙に収まる幅で止まる（列に余裕が無ければ、それ以上は広げない）", () => {
+  // 本文の箱（160）と右の箱で、紙の幅いっぱい
+  setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: PAD, y: 40 }, { id: 2, caption: "右の箱", width: A4.w - 2 * PAD - 160 - DEFAULTS.gap, x: PAD + 160 + DEFAULTS.gap, y: 40 }] });
+  const at2 = [info(2).x, info(2).w];
+  graph!.select(1);
+  const grip = document.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head > .mz-body-grip')!;
+  const fire = (type: string, x: number) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
+  fire("pointerdown", 0);
+  fire("pointermove", 60);
+  expect(info(1).w).toBe(160);
+  expect([info(2).x, info(2).w]).toEqual(at2);
+  fire("pointerup", 60);
+  expect(events.filter(e => e.kind === "overPaper")).toHaveLength(0);
+});
+
+test("本文の幅のつまみで広げたとき、左に余裕があれば、箱ごと左の余裕へ寄って収まる（4.6 の 4。手触りは画面で確かめる）", () => {
+  const right = A4.w - PAD - 120;
+  setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: right - 8 - 160, y: 40 }, { id: 2, caption: "右の箱", width: 120, x: right, y: 40 }] });
+  graph!.select(1);
+  const grip = document.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head > .mz-body-grip')!;
+  const fire = (type: string, x: number) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
+  fire("pointerdown", 0);
+  fire("pointermove", 60);
+  expect(info(1).w).toBe(220);
+  expect(info(1).x + info(1).w).toBe(right - 8);
+  expect(info(2).x).toBe(right);
+  fire("pointermove", 0);
+  expect([info(1).x, info(1).w]).toEqual([right - 8 - 160, 160]); // 戻せば元の位置
+  fire("pointerup", 0);
+});
