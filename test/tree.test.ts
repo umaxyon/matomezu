@@ -95,22 +95,6 @@ test("中の箱に子を足すと、ツリーの決まりで並べ直す", () =>
   expect(added.cx).toBe(b1.cx);
 });
 
-test("ページのパターンをデータで内包に戻せば子孫の見せ方と内包の位置に戻り、ツリーに戻せば同じ木になる（根は子を持つ最上位の箱から選ぶ）", () => {
-  const { el, graph } = setup(data());
-  const tree = JSON.stringify([1, 2, 3, 4, 5, 6].map(id => headOf(el, id)));
-  graph.update(null, { childView: "nest" });
-  // 内包のページでは、子孫は自分の見せ方に従う（2 はリスト、3 は非表示）
-  expect(info(graph, 2).children.length).toBe(2);
-  expect(shown(el, 6)).toBe(false);
-  expect(graph.toJSON().world?.root).toBeUndefined();
-  const nest = JSON.stringify([1, 2, 3, 4].map(id => [info(graph, id).x, info(graph, id).y, info(graph, id).w, info(graph, id).h]));
-  graph.update(null, { childView: "tree" });
-  expect(graph.toJSON().world?.root).toBe(1);
-  expect(JSON.stringify([1, 2, 3, 4, 5, 6].map(id => headOf(el, id)))).toBe(tree);
-  graph.update(null, { childView: "nest" });
-  expect(JSON.stringify([1, 2, 3, 4].map(id => [info(graph, id).x, info(graph, id).y, info(graph, id).w, info(graph, id).h]))).toBe(nest);
-});
-
 test("サイドバーの情報: ツリーの中の箱には印が付き、根の箱には根の印。根の外の箱にはどちらも付かない", () => {
   const { graph } = setup(data());
   expect([info(graph, 1).inTree, info(graph, 2).inTree, info(graph, 4).inTree, info(graph, 20).inTree]).toEqual([false, true, true, false]);

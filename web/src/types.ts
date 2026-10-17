@@ -145,8 +145,6 @@ export interface WorldInfo {
   route: Route; // 線の通り方の既定
   title: string | null; // 図（ブック）の題名（どのページを見ていても、ブック全体の world のもの）
   childView: PagePattern;  // ページのパターン（最上位の箱の並べ方）
-  views: PagePattern[];    // ページに掛けられるパターン
-  viewsOff: PagePattern[]; // 掛けられないパターン（子を持つ箱が最上位にあれば、フローチャートは掛けられない）
   treeDirection: TreeDirection; // ツリーのページの向き
   canFlatten: boolean;     // 内包に変換できるか（ツリーのページ。戻せない。docs/PATTERN-plan.md）
   tools: { tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの。図の左端に出す）の道具と、足す箱のサイズ
@@ -282,7 +280,7 @@ export interface Patch {
   color?: string | null;
   size?: Size;
   shape?: Shape;
-  childView?: ChildView;         // 箱なら子の見せ方（BoxView）、ワールドならページのパターン（PagePattern）
+  childView?: BoxView;           // 箱の子の見せ方（ページのパターンは作るときに決め、update では変えない）
   treeDirection?: TreeDirection; // ワールドだけ（ツリーのページの向き）
   linkLook?: LinkLook;           // リンクの箱の見せ方（link-box.ts）
   previewSide?: PreviewSide;     // リストの子の縮図の位置（D13。right は既定なのでデータから消す）

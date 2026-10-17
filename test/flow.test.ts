@@ -46,7 +46,7 @@ test("形はどこでも同じに使える: 内包のページでも六角形の
   expect([2, 3, 4, 10, 11].map(id => info(nest.graph, id).shape)).toEqual(["hexagon", "diamond", "circle", "hexagon", "circle"]);
 });
 
-test("形のローカルなルール: 平行四辺形と台形はツリーの中ではボックスで見せ（データは残す）、ページを内包にすれば形に戻る。六角形とひし形は形のまま", () => {
+test("形のローカルなルール: 平行四辺形と台形はツリーの中ではボックスで見せ（データは残す）、内包のページでは形のまま。六角形とひし形はどちらでも形のまま", () => {
   const { graph } = setup({
     world: { childView: "tree", root: 1 },
     nodes: [
@@ -57,8 +57,8 @@ test("形のローカルなルール: 平行四辺形と台形はツリーの中
   });
   expect([2, 3, 4, 5].map(id => info(graph, id).shape)).toEqual(["box", "box", "hexagon", "diamond"]);
   expect(graph.toJSON().nodes.find(n => n.id === 2)!.shape).toBe("parallelogram");
-  graph.update(null, { childView: "nest" });
-  expect([2, 3, 4, 5].map(id => info(graph, id).shape)).toEqual(["parallelogram", "trapezoidAlt", "hexagon", "diamond"]);
+  const nest = setup({ ...graph.toJSON(), world: {} }).graph; // 同じ箱を内包のページで開けば形のまま
+  expect([2, 3, 4, 5].map(id => info(nest, id).shape)).toEqual(["parallelogram", "trapezoidAlt", "hexagon", "diamond"]);
 });
 
 test("フローチャートのページの箱は子を持てない: 箱の中へは入れられず、最上位へは入れられる", () => {
@@ -68,13 +68,14 @@ test("フローチャートのページの箱は子を持てない: 箱の中へ
   expect(events).not.toContain("leafKids");
 });
 
-test("子を持つ最上位の箱があるページは、フローチャートにできない（掛けられないパターンとして知らせる）", () => {
-  const { graph } = setup({ nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B", parent: 1 }, { id: 3, caption: "C", parent: 2 }] });
-  expect(worldInfo(graph).viewsOff).toEqual(["flow"]);
-  expect(() => graph.update(null, { childView: "flow" })).toThrow();
+test("ページのパターンは作るときに決め、後から変えない（update で world.childView を変えると断る）。箱に flow は書けない", () => {
+  const { graph } = setup({ nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B" }] });
+  const before = graph.toJSON();
+  for (const p of ["flow", "tree", "nest"] as const) {
+    expect(() => graph.update(null, { childView: p as never })).toThrow("後から変えません");
+  }
+  expect(graph.toJSON()).toEqual(before);
   expect(() => graph.update(1, { childView: "flow" as never })).toThrow("箱には書けません");
-  const leaves = setup({ nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B" }] });
-  expect(worldInfo(leaves.graph).viewsOff).toEqual([]);
 });
 
 test("データの検査: フローチャートのページの箱が子を持つと誤り。箱に flow / tree を書いても誤り（ページの world に書くよう案内）", () => {
@@ -100,28 +101,22 @@ test("フローチャートのひし形から出る線には、キャプショ�
   expect((graph.edgeInfo("e2") as EdgeInfo).captionHints).toEqual([]);
 });
 
-test("ページのパターンをデータでフローチャートに変えられ、図の左上に道具入れが出る。箱の見せ方（list）はページには掛けられない", () => {
+test("フローチャートのページには形の道具が出る。箱の見せ方（list）はページには掛けられない", () => {
   const { graph, events } = setup({
+    world: { childView: "flow" },
     nodes: [{ id: 1, caption: "準備", shape: "hexagon", x: 40, y: 40 }, { id: 2, caption: "外", x: 300, y: 40 }],
   });
-  expect(worldInfo(graph).views).toEqual(["nest", "tree", "flow"]);
-  graph.update(null, { childView: "flow" });
-  expect(graph.toJSON().world?.childView).toBe("flow");
   expect(info(graph, 1).shape).toBe("hexagon");
   expect(info(graph, 1).tools).toEqual({ tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"], size: "M" });
   expect(() => graph.reparent(2, 1)).toThrow();
-  expect(() => graph.update(null, { childView: "list" as never })).toThrow();
+  expect(() => setup({ world: { childView: "list" as never }, nodes: [] })).toThrow();
   expect(problems({ world: { childView: "list" }, nodes: [] }).length).toBeGreaterThan(0);
   expect(events).toEqual([]);
 });
 
-test("ページのパターンをデータでツリーに変えると、根は子を持つ最上位の箱（無ければ最初の箱）。最上位の箱が無ければできない", () => {
-  const { graph } = setup({ nodes: [{ id: 1, caption: "葉", x: 40, y: 40 }, { id: 2, caption: "親", x: 300, y: 40 }, { id: 3, parent: 2 }] });
-  graph.update(null, { childView: "tree" });
-  expect(graph.toJSON().world).toEqual({ childView: "tree", root: 2 });
+test("ツリーのページの根は world.root の箱。根の子孫はツリーの中、根の外の箱は葉", () => {
+  const { graph } = setup({ world: { childView: "tree", root: 2 }, nodes: [{ id: 1, caption: "葉", x: 40, y: 40 }, { id: 2, caption: "親", x: 300, y: 40 }, { id: 3, parent: 2 }] });
   expect([info(graph, 2).treeRoot, info(graph, 3).inTree, info(graph, 1).treeRoot]).toEqual([true, true, false]);
-  const empty = setup({ nodes: [] });
-  expect(() => empty.graph.update(null, { childView: "tree" })).toThrow();
   // 検査: 根が無い、根がそのページの最上位でない、根の外の箱が子を持つ
   expect(problems({ world: { childView: "tree" }, nodes: [{ id: 1 }] })).toEqual([expect.stringContaining("world.root")]);
   expect(problems({ world: { childView: "tree", root: 3 }, nodes: [{ id: 2 }, { id: 3, parent: 2 }] })).toHaveLength(2);

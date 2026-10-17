@@ -114,39 +114,19 @@ test("決まった操作の結果（全ボックスの位置と大きさ）が�
 describe("大きさや見せ方が変わっても、グループの中は左上、最上位は上辺の中央を保つ", () => {
   // 線は、真横や真下の相手とは水平・垂直のまま保たれる（graph.test.ts の「線のつなぎ方」）
   test("最上位は上辺の中央を保つ。見せ方を何度切り替えても元に戻り、上の相手も押し下げない", () => {
+    // 見せ方（箱の childView）を内包・非表示・リストで切り替える（ページのパターンは後から変えない）
     const { graph } = setup(sample());
     const at = (id: number) => [graph.info(id).x, graph.info(id).y];
     const center = () => graph.info(3).x + graph.info(3).w / 2;
     const title = at(1), front = at(3), user = at(2), back = at(10), c0 = center();
-    // ツリーはページのパターン（根は子を持つ最初の最上位の箱 = 3）、非表示と内包は箱の見せ方
-    for (const v of ["tree", "nest", "hidden", "tree", "nest", "hidden", "nest"] as const) {
-      if (v === "tree") graph.update(null, { childView: "tree" });
-      else { graph.update(null, { childView: "nest" }); graph.update(3, { childView: v }); }
+    for (const v of ["hidden", "nest", "hidden", "nest"] as const) {
+      graph.update(3, { childView: v });
       expect(graph.info(3).y).toBe(front[1]!); // 上辺は動かない
       expect(Math.abs(center() - c0)).toBeLessThanOrEqual(1); // 横の中心も動かない（非表示でも左に寄らない）
       expect([at(1), at(2)]).toEqual([title, user]);
     }
     expect(at(3)).toEqual(front);
-    expect(at(10)).toEqual(back); // ツリーのときに押し下げたバックエンドも戻る
-  });
-
-  test("ページをツリーと内包で切り替えても、根の外枠の上辺と横の中心を保つ", () => {
-    const { graph } = setup({
-      world: { childView: "tree", root: 2 },
-      nodes: [
-        { id: 1, caption: "ユーザー", x: 40, y: 300 },
-        { id: 2, caption: "フロントエンド", x: 400, y: 260 },
-        { id: 3, caption: "とても長い名前のグループ", parent: 2 }, { id: 4, caption: "モバイル", parent: 2 },
-      ],
-      edges: [[1, 2]],
-    });
-    const top = () => { const i = graph.info(2); return [i.x + i.w / 2, i.y]; };
-    const before = top();
-    graph.update(null, { childView: "nest" });
-    expect(Math.abs(top()[0]! - before[0]!)).toBeLessThanOrEqual(1);
-    expect(top()[1]).toBe(before[1]);
-    graph.update(null, { childView: "tree" });
-    expect(graph.info(2).x).toBe(400); // 往復すれば元どおり
+    expect(at(10)).toEqual(back); // 広がったときに押し下げたバックエンドも戻る
   });
 
   test("入れ子の中で非表示から内包にして広がっても、下の相手との間で上に余白を作らない", () => {

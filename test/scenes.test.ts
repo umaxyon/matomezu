@@ -68,10 +68,7 @@ describe("場面ごとの操作列", () => {
 
   test("設定変更（最上位）", () => {
     expect(record(example("three-levels"), [
-      // ページをツリーに（根は子を持つ最初の最上位の箱 = 3）、向きを変え、内包に戻す
-      set(null, { childView: "tree" }), set(null, { childView: "nest" }),
-      set(3, { childView: "hidden" }), set(null, { childView: "tree" }), set(null, { treeDirection: "left" }),
-      set(null, { childView: "nest" }),
+      set(3, { childView: "hidden" }), set(3, { childView: "list" }), set(3, { childView: "nest" }),
       set(17, { childView: "list" }), set(17, { childView: "nest" }), set(17, { childView: "hidden" }),
       set(10, { childView: "hidden" }), set(10, { childView: "nest" }),
       set(2, { caption: "とても長い名前のユーザーのボックス" }), set(2, { size: "S" }),

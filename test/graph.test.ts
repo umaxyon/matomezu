@@ -69,16 +69,6 @@ test("ドラッグでぶつかった相手は、つかんだ箱の開始位置�
   expect(changes.length).toBe(1);
 });
 
-test("ページをツリーから内包に戻すと、元の位置に戻る", () => {
-  const { graph } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1, x: 40, y: 50 }, { id: 3, parent: 1, x: 200, y: 50 }] });
-  const before = graph.toJSON();
-  graph.update(null, { childView: "tree" });
-  graph.update(null, { childView: "nest" });
-  const after = graph.toJSON();
-  expect([byId(after, 2).x, byId(after, 2).y]).toEqual([byId(before, 2).x!, byId(before, 2).y!]);
-  expect([byId(after, 3).x, byId(after, 3).y]).toEqual([byId(before, 3).x!, byId(before, 3).y!]);
-});
-
 test("同じ階層の2つに線を引き、階層が違えば引かない。同じ組に 2 本目は引かない", () => {
   const { graph } = setup({ nodes: [{ id: 1 }, { id: 2 }, { id: 3, parent: 2 }] });
   expect(graph.link(1, 3)).toBe(false);
@@ -258,12 +248,12 @@ test("形: スティックマンと DB に切り替え、ボックスに戻す�
   expect("shape" in byId(graph.toJSON(), 1)).toBe(false);
 });
 
-test("形: 内包しているグループは選べず、ページをツリーにすると（根の本体になるので）選べる", () => {
-  const { graph } = setup({ nodes: [{ id: 1, shape: "db" }, { id: 2, parent: 1 }] });
-  const info = () => graph.info(1) as import("../web/src/types").BoxInfo;
-  expect([info().canShape, info().shape]).toEqual([false, "box"]);
-  graph.update(null, { childView: "tree" });
-  expect([info().canShape, info().shape]).toEqual([true, "db"]);
+test("形: 内包しているグループは選べず、ツリーのページの根は（根の本体なので）選べる", () => {
+  const nodes = [{ id: 1, shape: "db" as const }, { id: 2, parent: 1 }];
+  const nest = setup({ nodes }).graph.info(1) as import("../web/src/types").BoxInfo;
+  expect([nest.canShape, nest.shape]).toEqual([false, "box"]);
+  const tree = setup({ world: { childView: "tree", root: 1 }, nodes }).graph.info(1) as import("../web/src/types").BoxInfo;
+  expect([tree.canShape, tree.shape]).toEqual([true, "db"]);
 });
 
 test("ツリーで見せると全体を枠で囲み、同じ階層との線は枠のふちにつなぐ", () => {
@@ -287,10 +277,10 @@ test("ツリーで見せると全体を枠で囲み、同じ階層との線は�
   const ys = [y1, y2];
   expect(Math.min(...ys)).toBeCloseTo(g.y + g.h);
 
-  // ページを内包に戻すと枠は隠れ、線のデータも変わらない
-  graph.update(null, { childView: "nest" });
-  expect((el.querySelector(".mz-tree") as HTMLElement).style.display).toBe("none");
-  expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 4 }]);
+  // 同じ箱を内包のページで開けば枠は無く、線のデータも同じ
+  const nest = setup({ ...graph.toJSON(), world: {} });
+  expect((nest.el.querySelector(".mz-tree") as HTMLElement).style.display).toBe("none");
+  expect(nest.graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 4 }]);
 });
 
 // 最上位のボックスどうしが重なっていないか
@@ -303,12 +293,12 @@ function noOverlap(graph: Graph, ids: number[]) {
   }
 }
 
-test("子をツリーにして大きくなったら、重なる相手を下へずらす（変えた方はその場に残す）", () => {
+test("見せ方を変えて大きくなったら、重なる相手を下へずらす（変えた方はその場に残す）", () => {
   const { graph } = setup({
     nodes: [
       // 外部サービスを先に書く（データの順では先に置かれる方）
-      { id: 9, caption: "外部サービス", x: 300, y: 420 },
-      { id: 1, caption: "バックエンド", x: 100, y: 100 },
+      { id: 9, caption: "外部サービス", x: 500, y: 220 },
+      { id: 1, caption: "バックエンド", x: 400, y: 100, childView: "hidden" },
       { id: 2, caption: "API", parent: 1, x: 12, y: 30 },
       { id: 3, caption: "認証", parent: 2, x: 12, y: 30 }, { id: 4, caption: "注文", parent: 2, x: 140, y: 30 },
       { id: 5, caption: "データ", parent: 1, x: 300, y: 30 },
@@ -318,15 +308,15 @@ test("子をツリーにして大きくなったら、重なる相手を下へ�
   const before = graph.info(1);
   expect(graph.info(9).y).toBeGreaterThanOrEqual(before.y + before.h); // 最初は重なっていない
 
-  // ページをツリーにすると（根は子を持つバックエンド）、子孫全体が何段ものツリーになって縦に伸びる（docs/PATTERN-plan.md）
-  graph.update(null, { childView: "tree" });
+  // 非表示から内包にすると、子を中に並べて大きくなる
+  graph.update(1, { childView: "nest" });
   const after = graph.info(1);
   expect(after.h).toBeGreaterThan(before.h);
   // 変えた側は動かない（最上位は上辺と横の中心を保つ）
   expect(after.y).toBe(before.y);
   expect(Math.abs(after.x + after.w / 2 - (before.x + before.w / 2))).toBeLessThanOrEqual(1);
   noOverlap(graph, [1, 9]);
-  expect(graph.info(9).x).toBe(300); // 相手はまっすぐ下へずれる
+  expect(graph.info(9).x).toBe(500); // 相手はまっすぐ下へずれる
 });
 
 test("ワールドの高さが指定されていなければ、下へ広がる", () => {
@@ -872,7 +862,7 @@ test("サイズを選ぶと、付いていた大きさの指定を外して中�
   expect(graph.info(1).w).toBe(312);
 });
 
-describe("ページのパターンや箱の見せ方を変えても、最上位は上辺と横の中心、グループの中は左上を保つ", () => {
+describe("ツリーの向きや箱の見せ方を変えても、最上位は上辺と横の中心、グループの中は左上を保つ", () => {
   const data = (): Diagram => ({
     world: { childView: "tree", root: 1, treeDirection: "right" },
     nodes: [
@@ -886,8 +876,6 @@ describe("ページのパターンや箱の見せ方を変えても、最上位�
   const near = (a: number[], b: number[]) => a.every((v, k) => Math.abs(v - b[k]!) <= 1); // info は整数に丸める
 
   test.each([
-    ["ツリー → 内包", (g: Graph) => g.update(null, { childView: "nest" })],
-    ["ツリー → 内包 → 根を非表示", (g: Graph) => { g.update(null, { childView: "nest" }); g.update(1, { childView: "hidden" }); }],
     ["ツリーの向き 右 → 下", (g: Graph) => g.update(null, { treeDirection: "down" })],
     ["ツリーの向き 右 → 左", (g: Graph) => g.update(null, { treeDirection: "left" })],
   ] as const)("%s", (_, change) => {
@@ -898,14 +886,6 @@ describe("ページのパターンや箱の見せ方を変えても、最上位�
     // 広がってもほかのボックスとは重ならない（相手の方がずれる）
     const a = graph.info(1), b = graph.info(9);
     expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(true);
-  });
-
-  test("内包のページで非表示にした箱を、ページをツリーにして根にしても上辺と横の中心を保つ", () => {
-    const { graph } = setup({ ...data(), world: {} });
-    graph.update(1, { childView: "hidden" });
-    const before = at(graph, 1);
-    graph.update(null, { childView: "tree" });
-    expect(near(at(graph, 1), before)).toBe(true);
   });
 
   test("入れ子の中では左上を保ち、ぶつかる兄弟が下へずれる", () => {
@@ -1480,10 +1460,10 @@ describe("線のつなぎ方", () => {
   test("箱が大きくなっても、真横の相手への線は水平のまま（つなぐ位置が滑る）", () => {
     const { el, graph } = setup({
       world: { route: "straight" },
-      nodes: [{ id: 1, caption: "相手", x: 40, y: 120 }, { id: 2, caption: "枠", x: 300, y: 88 }, { id: 3, parent: 2 }, { id: 4, parent: 2 }],
+      nodes: [{ id: 1, caption: "相手", x: 40, y: 120 }, { id: 2, caption: "枠", x: 300, y: 88, childView: "hidden" }, { id: 3, parent: 2 }, { id: 4, parent: 2 }],
       edges: [[1, 2]],
     });
-    graph.update(null, { childView: "tree" }); // 根は子を持つ 2
+    graph.update(2, { childView: "nest" }); // 非表示から内包にして大きくする
     const [, y1, , y2] = ends(el);
     expect(y1).toBe(y2);
   });

@@ -205,9 +205,9 @@ test("ツリーの中の子持ちの箱は、サイズを選べ、子の見せ�
   expect(dlg('input[name="view"]')).toBeNull();
   expect(document.querySelector(".mz-dlg-overlay")!.textContent).toContain("ツリーのページの決まりで並びます");
   cancel();
-  // ページを内包にすると、節は内包の枠になり、サイズは子の並びで決まる
-  g.update(null, { childView: "nest" });
-  openDlg(2);
+  // 同じ箱を内包のページで開けば、節は内包の枠になり、サイズは子の並びで決まる
+  const nest = setup({ nodes: g.toJSON().nodes });
+  nest.openDlg(2);
   expect(sizes().every(i => i.disabled)).toBe(true);
   expect(dlg('input[name="view"]')).not.toBeNull();
 });

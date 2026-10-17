@@ -60,8 +60,6 @@ test.each([true, false])("大きな図での処理の回数が、基準を超え
     settings: count(() => {
       graph.update(kidId(0, 0), { caption: "計測で長くしたキャプション".repeat(4) });
       graph.update(kidId(0, 0), { size: "L" });
-      graph.update(null, { childView: "tree" }); // 根は子を持つ最初の最上位の箱
-      graph.update(null, { childView: "nest" });
       graph.update(kidId(1, 9), { childView: "hidden" });
     }),
     drag: count(() => {
@@ -84,7 +82,8 @@ test.each([true, false])("大きな図での処理の回数が、基準を超え
     settings: { measures: 11, overlapChecks: 10874 },
     // 2026-10-15 D33: 固定の幅（この図の world.width: 3600）の外にはみ出した最上位のグループを、置き直しで中へ寄せなくなった
     // （紙の外はそのまま見せる）。右端のグループが外に残るので、ドラッグの重なりの判定が 5315 → 5637
-    drag: { measures: 0, overlapChecks: 5637 },
+    // 2026-10-17 Q1: 設定の場面からページのパターンの切り替え（ツリー → 内包）を外したので、ドラッグの前の配置が変わり 5637 → 5654
+    drag: { measures: 0, overlapChecks: 5654 },
     fit: { measures: 0, overlapChecks: 2114 },
     reload: { measures: 0, overlapChecks: 1090 },
   };
