@@ -335,7 +335,7 @@ export async function startApp(ui: AppUi) {
       // 見えるようにしてから前に出す（配置は見えている要素で文字を測る）
       b.sync.setActive(true);
       b.loaded = true;
-      unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButtons, ui.modeLabel), setupContextMenu(b.graph, b.stage));
+      unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButtons, ui.modeLabel), setupContextMenu(b.graph, b.stage, () => openBookDialog(b.graph, b.name)));
       ui.preview.attach(b.graph, b.stage);
       ui.empty(null);
       ui.book.disabled = false;

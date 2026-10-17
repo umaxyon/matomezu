@@ -1,9 +1,10 @@
 // 右クリックのコンテキストメニュー（D42。2026-10-17 ユーザーと決めた形）:
 // - 箱・背景（ワールド）・線に出す。右クリックした箱か線を選んでから出す。図の外（ミニマップなど）はブラウザの既定のまま
-// - 箱と背景: 切り取り・コピー・貼り付け（Ctrl+X / Ctrl+C / Ctrl+V と同じ graph.cutSelected / copySelected / pasteClip）、区切り線、削除。
+// - 一番上は設定。箱と背景: 切り取り・コピー・貼り付け（Ctrl+X / Ctrl+C / Ctrl+V と同じ graph.cutSelected / copySelected / pasteClip）、区切り線、削除。
 //   背景で開いたら、右クリックした所に貼る。切り取りは写してから削除と同じく消す（消したものの一覧から戻せる）
 // - 線: 矢印（端の〇か端の近くを右クリックしたときだけ。2 段目でその端の形）、通り方（2 段目で折れ線・直線。自分に戻る線には無い）、区切り線、削除
-// - 削除はいつも一番下。種類の違う操作の間は区切り線で分ける
+// - 設定はいつも一番上（箱はダブルクリックと同じ編集ダイアログ、線は線の編集ダイアログ、背景はブックのダイアログ）、削除はいつも一番下。
+//   種類の違う操作の間は区切り線で分ける
 // - 使えない項目は消さずに灰色で出す。ショートカットを横に添える
 // - 文字の入力欄の中と、文字を選んでいるときはブラウザの既定のメニューを残す
 // - 出さないとき（Ctrl+C / Ctrl+V と同じ条件）: プレビュー中・ダイアログが開いている・ドラッグ中・選択と付け替え以外のモード。
@@ -13,6 +14,7 @@ import type { Graph, MenuTarget } from "./graph";
 import { type Head, headOptions, headPatch } from "./heads";
 import type { BoxInfo } from "./types";
 import { injectStyle } from "./dom";
+import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { t } from "./i18n";
 
 const STYLE_ID = "matomezu-context-menu-style";
@@ -49,7 +51,7 @@ interface Item {
 type Entry = Item | "hr";
 
 // 右クリックした所に出す項目。at は右クリックした所（画面の座標）
-function menuFor(graph: Graph, target: MenuTarget, at: { x: number; y: number }, mac: boolean): Entry[] {
+function menuFor(graph: Graph, target: MenuTarget, at: { x: number; y: number }, mac: boolean, openBook: () => void): Entry[] {
   const del = mac ? "⌫" : "Delete";
   if (target.kind === "edge") {
     const id = graph.selectedEdge()!;
@@ -64,6 +66,8 @@ function menuFor(graph: Graph, target: MenuTarget, at: { x: number; y: number },
         run: () => { if ((now ?? "") !== v) graph.updateEdge(id, headPatch(e, side, (v || null) as Head | null)); } })),
     }];
     return [
+      { label: t("設定"), key: "Enter", enabled: true, run: () => openEdgeEditDialog(graph, id) },
+      "hr",
       ...heads,
       ...(e.self ? [] : [{ label: t("通り方"), enabled: true, sub: [route("elbow", t("折れ線")), route("straight", t("直線"))] }]),
       ...(heads.length || !e.self ? ["hr" as const] : []),
@@ -73,6 +77,11 @@ function menuFor(graph: Graph, target: MenuTarget, at: { x: number; y: number },
   const clip = graph.clipState(), mod = mac ? "⌘" : "Ctrl+";
   const box = target.kind === "box" ? graph.selected() : null;
   return [
+    // 箱はダブルクリックと同じ編集ダイアログ、背景（ワールド）はブックのダイアログ
+    box != null
+      ? { label: t("設定"), key: "Enter", enabled: true, run: () => openEditDialog(graph, box) }
+      : { label: t("設定"), enabled: true, run: openBook },
+    "hr",
     { label: t("切り取り"), key: `${mod}X`, enabled: clip.cut, run: () => { graph.cutSelected(); } },
     { label: t("コピー"), key: `${mod}C`, enabled: clip.copy, run: () => { graph.copySelected(); } },
     { label: t("貼り付け"), key: `${mod}V`, enabled: clip.paste, run: () => { graph.pasteClip(at); } },
@@ -87,7 +96,8 @@ const typing = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.matches("input, textarea, select") || t.isContentEditable);
 
 // 図（stage）の右クリックにメニューを出す。登録を外す関数を返す（ブックを切り替えるときに外す）
-export function setupContextMenu(graph: Graph, stage: HTMLElement): () => void {
+// openBook はブックのダイアログを開く（背景の「設定」。タブ行の「ブック」ボタンと同じ）
+export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () => void): () => void {
   const listening = new AbortController();
   let close: (() => void) | null = null;
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -101,7 +111,7 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement): () => void {
     const target = graph.pickForMenu(e.target, at);
     if (!target) return;
     e.preventDefault();
-    close = open(menuFor(graph, target, at, mac), at, () => { close = null; });
+    close = open(menuFor(graph, target, at, mac, openBook), at, () => { close = null; });
   }, { signal: listening.signal });
 
   return () => {
