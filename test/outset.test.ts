@@ -1,4 +1,5 @@
-// 配置の土台と見た目の補正値（docs/LAYOUT-BASE-plan.md）: テーマは補正値（定数）でだけ配置に入り、テーマを変えても中心は動かない
+// 配置の土台と見た目の補正値（docs/LAYOUT-BASE-plan.md）: テーマは補正値（定数）でだけ配置に入る。テーマを変えたとき、箱はページの起点
+// （STRATEGIES の growFrom。内包は左上、ツリー・フローチャートは横の真ん中と上）から広がる（docs/PAPER-plan.md の 4.6）
 import { afterEach, expect, test } from "bun:test";
 import { DEFAULTS, createGraph, type Graph } from "../web/src/graph";
 import { STRATEGIES } from "../web/src/model";
@@ -21,18 +22,18 @@ const setup = (data: Diagram) => {
   return graph;
 };
 const info = (g: Graph, id: number) => g.info(id) as BoxInfo;
-const center = (g: Graph, id: number) => [info(g, id).x + info(g, id).w / 2, info(g, id).y + info(g, id).h / 2];
+const topLeft = (g: Graph, id: number) => [info(g, id).x, info(g, id).y];
 
-test("テーマを付箋紙にすると、ノーマルの形は補正値の分だけ四方に広がり、中心は動かない。特殊な形と S は広がらない", () => {
+test("テーマを付箋紙にすると、ノーマルの形は補正値の分だけ広がり、内包のページでは左上を保つ。特殊な形と S は広がらない", () => {
   const g = setup({
     nodes: [
       { id: 1, caption: "箱", x: 100, y: 100 }, { id: 2, caption: "分岐", shape: "diamond", x: 400, y: 100 },
       { id: 3, caption: "小", size: "S", x: 100, y: 300 }, { id: 4, caption: "端", shape: "stadium", x: 400, y: 300 },
     ],
   });
-  const before = [1, 2, 3, 4].map(id => ({ c: center(g, id), w: info(g, id).w, h: info(g, id).h }));
+  const before = [1, 2, 3, 4].map(id => ({ c: topLeft(g, id), w: info(g, id).w, h: info(g, id).h }));
   g.update(null, { theme: "sticky" });
-  const after = [1, 2, 3, 4].map(id => ({ c: center(g, id), w: info(g, id).w, h: info(g, id).h }));
+  const after = [1, 2, 3, 4].map(id => ({ c: topLeft(g, id), w: info(g, id).w, h: info(g, id).h }));
   for (const i of [0, 1, 2, 3]) expect(after[i]!.c).toEqual(before[i]!.c);
   expect([after[0]!.w - before[0]!.w, after[0]!.h - before[0]!.h]).toEqual([8, 8]); // ボックス: 上下左右 +4
   expect([after[3]!.w - before[3]!.w, after[3]!.h - before[3]!.h]).toEqual([8, 8]); // 角丸もノーマル
@@ -44,7 +45,7 @@ test("テーマを付箋紙にすると、ノーマルの形は補正値の分�
   expect(info(g, 1).w).toBe(before[0]!.w);
 });
 
-test("形 × サイズの全組: 補正値はノーマルの形にだけ、サイズごとの値（上下, 左右）で四方に効き、中心は動かない", () => {
+test("形 × サイズの全組: 補正値はノーマルの形にだけ、サイズごとの値（上下, 左右）で効き、内包のページでは左上を保つ", () => {
   const sticky = THEMES.find(t => t.id === "sticky")!;
   const was = sticky.outset;
   // 上下と左右・サイズごとに違う値にする（取り違えれば失敗する）
@@ -53,12 +54,12 @@ test("形 × サイズの全組: 補正値はノーマルの形にだけ、サ�
     const sizes = ["L", "M", "S"] as const;
     const nodes = SHAPES.flatMap((shape, i) => sizes.map((size, j) => ({ id: i * 3 + j + 1, caption: "形", shape, size, x: 40 + j * 300, y: 40 + i * 200 })));
     const g = setup({ nodes });
-    const before = nodes.map(n => ({ c: center(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h }));
+    const before = nodes.map(n => ({ c: topLeft(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h }));
     g.update(null, { theme: "sticky" });
     nodes.forEach((n, k) => {
       const normal = SHAPE_DEFS[n.shape].kind === "normal";
       const [v, hz] = normal ? sticky.outset![n.size]! : [0, 0];
-      const now = { c: center(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h };
+      const now = { c: topLeft(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h };
       expect([n.shape, n.size, now.w - before[k]!.w, now.h - before[k]!.h]).toEqual([n.shape, n.size, 2 * hz, 2 * v]);
       expect([n.shape, n.size, now.c]).toEqual([n.shape, n.size, before[k]!.c]);
     });

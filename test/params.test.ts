@@ -78,7 +78,7 @@ test("フローチャートで横に置く分岐を下げる量は、戦略の�
   });
 });
 
-test("テーマの補正値は、テーマの outset の値だけで決まり、中心は動かない", () => {
+test("テーマの補正値は、テーマの outset の値だけで決まり、内包のページでは左上を保つ（ページの起点。PAPER-plan の 4.6）", () => {
   const sticky = THEMES.find(t => t.id === "sticky")!;
   withValue(sticky, "outset", { M: [10, 6] }, () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: "箱", x: 100, y: 100 }] });
@@ -86,7 +86,7 @@ test("テーマの補正値は、テーマの outset の値だけで決まり、
     graph.update(null, { theme: "sticky" });
     const after = info(graph, 1);
     expect([after.w - before.w, after.h - before.h]).toEqual([12, 20]);
-    expect([after.x + after.w / 2, after.y + after.h / 2]).toEqual([before.x + before.w / 2, before.y + before.h / 2]);
+    expect([after.x, after.y]).toEqual([before.x, before.y]);
   });
 });
 

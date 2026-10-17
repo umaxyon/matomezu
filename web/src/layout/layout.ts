@@ -17,13 +17,14 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, placerOf, setSpec, shapeOf, sizeOf,
+  absPos, ancestors, descendants, growFromOf, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, placerOf, setSpec, shapeOf, sizeOf,
 } from "../model";
 import { alignFlow } from "./flow-align";
 import { shapeDef } from "../shapes";
 import type { TextMeasurer } from "./measure";
 import { bodyBand, createNodeKinds } from "./node-kinds";
 import { type Scene, createAnchorRules } from "./policy";
+import { type SqBox, canSqueeze } from "./squeeze";
 import { layoutStats } from "./stats";
 import { GROUP_MIN } from "../validate";
 
@@ -483,6 +484,47 @@ export function createLayout(ctx: LayoutContext) {
     for (const r of roots()) if (!Number.isFinite(r.intendedCX)) r.intendedCX = centerX(r);
   }
 
+  // 大きさが変わったときの並べ直し（docs/PAPER-plan.md の 4.6。今はテーマの変更だけがここを通る。段階 3）。
+  // 変わる前の位置と大きさを覚えてから apply を呼び、新しい大きさを測って、試しに並べずに canSqueeze（squeeze.ts）で
+  // ページの起点（growFrom）から押し込む。押すのは同じ向きだけで、段は変えない（折り返さない）。グループは中で詰めてから広がる。
+  // 紙を越えるなら false（位置は書き換えない。呼んだ側が断って、操作の前に戻す）
+  function regrow(apply: () => void): boolean {
+    const before = new Map<Box, { x: number; y: number; w: number; h: number }>();
+    for (const b of roots().flatMap(r => [r, ...descendants(r)])) before.set(b, { x: b.x, y: b.y, w: b.w, h: b.h });
+    apply();
+    // 子を自由に置く箱の大きさは中身の位置から決まるので、位置を決めてから測る。ほかの箱（文字・リスト・ツリーなど）は今測る
+    const measure = (n: Box) => { n.children.forEach(measure); if (!kindOf(n).holdsChildren) fit(n); };
+    roots().forEach(measure);
+    const byId = new Map<string, Box>();
+    const toSq = (n: Box): SqBox => {
+      byId.set(n.id, n);
+      const o = before.get(n) ?? { x: n.x, y: n.y, w: n.w, h: n.h };
+      if (!kindOf(n).holdsChildren) return { id: n.id, ...o, nw: n.w, nh: n.h };
+      const a = innerArea(n);
+      return { id: n.id, ...o, kids: n.children.map(toSq), inner: { left: a.left, top: a.top, right: o.w - a.right, bottom: o.h - a.bottom } };
+    };
+    // 紙の決まっていない向きは、ワールドが中身に合わせて伸びるので限りが無い。前から紙の外にある箱（LLM がファイルに書いた位置）は、
+    // 開くときの判定（4.6 の 7。段階 6）ができるまで、今いる所までを限りにして許す（outsideFixed と同じ扱い）
+    const f = worldFixed(), a = innerArea(world);
+    const reach = (ax: "x" | "y") => Math.max(0, ...roots().map(n => { const o = before.get(n)!; return ax === "x" ? o.x + o.w : o.y + o.h; }));
+    const limit = (fixed: number | null, pad: number, ax: "x" | "y") => (fixed != null ? Math.max(fixed - pad, reach(ax)) : Infinity);
+    const r = canSqueeze(
+      { kids: roots().map(toSq), inner: { left: a.left, top: a.top, right: limit(f.w, a.right, "x"), bottom: limit(f.h, a.bottom, "y") }, fixed: true },
+      { from: growFromOf(world), gapOf: (p, q) => gapBetween(byId.get(String(p))!, byId.get(String(q))!) },
+    );
+    if (!r.fits) return false;
+    for (const [id, p] of r.boxes) {
+      const b = byId.get(String(id))!;
+      [b.x, b.y] = [p.x, p.y];
+      b.intendedY = p.y;
+    }
+    const refit = (n: Box) => { n.children.forEach(refit); if (kindOf(n).holdsChildren) fit(n); };
+    roots().forEach(refit);
+    syncWorld();
+    for (const n of roots()) n.intendedCX = centerX(n);
+    return true;
+  }
+
   // 読み込んだ直後だけ、表示領域の右にはみ出した最上位のボックスを下へ移す（横スクロールより縦の方が見やすい）。
   // つながる相手が表示領域に収まっていれば、その真下に中心をそろえて置く。無ければ全体の一番下の左端に置く。
   // 表示の上だけで動かし、ファイルには次に編集したときに保存される。
@@ -604,7 +646,7 @@ export function createLayout(ctx: LayoutContext) {
     kindOf, anchorRect, absAnchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
-    settle, fitToViewport, viewport, alignKids,
+    settle, regrow, fitToViewport, viewport, alignKids,
     sizable, alignChildren,
   };
 }

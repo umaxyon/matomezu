@@ -552,11 +552,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let outsideKnown = new Set<string>();
   let quietPaper = false; // 断るとき知らせない（貼り付け。収まらないものは黙って貼らない。2026-10-17 ユーザー）
   let paperRefused = false; // 直前に紙からはみ出すので断ったか（呼んだ側が、した後の知らせを出さないために見る）
+  let notFitting = false; // 大きさが変わって、形を変えずには紙に収まらなかった（layout.ts の regrow）
   const outsideNow = () => new Set(roots.filter(L.outsideFixed).map(n => n.id));
   function refuseOverPaper(warn: boolean): boolean {
     const p = paperOf();
     const now = outsideNow();
-    if (!p || [...now].every(id => outsideKnown.has(id))) {
+    const squeezed = notFitting;
+    notFitting = false;
+    if (!p || (!squeezed && [...now].every(id => outsideKnown.has(id)))) {
       outsideKnown = now;
       return false;
     }
@@ -1451,7 +1454,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     };
     // ツリーの向きを変えると、大きさが変わるのはツリーの根なので、根の位置を保つ
     const anchor = n.isWorld ? (next.treeDirection ? rootBoxOf(world) ?? undefined : undefined) : n;
-    settle(SCENES.settings, anchor, apply);
+    // テーマだけを変えたときは、大きさが変わったときの統一した決まりで並べ直す（docs/PAPER-plan.md の 4.6。段階 3）。
+    // 形を変えずに紙に収まらなければ断る（changed の refuseOverPaper）
+    if (Object.keys(next).length === 1 && "theme" in next) { if (!L.regrow(apply)) notFitting = true; }
+    else settle(SCENES.settings, anchor, apply);
     render();
     // 選択中のボックスが非表示になったら、隠した親を選び直す
     if (current && isHidden(current)) select(n.isWorld ? null : n);
