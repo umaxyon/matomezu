@@ -35,6 +35,8 @@ export interface AddRequest {
 export const REMOVED_MIME = "application/x-matomezu-removed";
 // サイドバーの一覧から、ほかのブックの箱を図へドラッグして移植するときのデータの種類（中身は { copy: Subtree, from: ブック名 } の JSON）
 export const COPY_MIME = "application/x-matomezu-copy";
+// 足す箱の左上は、ポインタのこれだけ左上（追加モードの影・一覧から戻すとき・ワールドを選んで貼り付けるとき。graph.ts）
+export const ADD_OFFSET = { x: 16, y: 12 };
 
 // 箱をドラッグして図の端へ寄せたときのスクロール。端からこれだけの内側（px）に入ったら動き出し、端に近いほど速く、
 // 端を越えたら一番速く（毎秒 EDGE_SCROLL_MAX px）。図の外へ箱を運んで、図を広げられるように（残課題 E8）。
@@ -763,7 +765,6 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // （箱の上ならその箱の子、何も無い所ならワールド。ページの箱の上には足せない）。リストの上（とリストの葉の子の上）では、
   // ポインタに近い子と子の間に線を出し、そこへ差し込む
 
-  const ADD_OFFSET = { x: 16, y: 12 }; // 影の左上は、ポインタのこれだけ左上（一覧から戻すときと同じ）
   const ADD_RECHECK = 150; // 端のスクロールの間に、足す所を探し直す間隔（ミリ秒）
   let addGhost: HTMLElement | null = null;
   let addLine: HTMLElement | null = null;

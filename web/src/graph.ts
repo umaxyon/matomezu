@@ -140,7 +140,7 @@ import { GRAPH_CSS, GRAPH_STYLE_ID } from "./graph-style";
 import { SVGNS, injectStyle, keyOf } from "./dom";
 import { createHistory, type HistoryState } from "./history";
 import { t } from "./i18n";
-import { type AddRequest, createInteraction, type Mode } from "./interaction";
+import { ADD_OFFSET, type AddRequest, createInteraction, type Mode } from "./interaction";
 import { createDrag } from "./layout/drag";
 import { createLayout } from "./layout/layout";
 import { SCENES } from "./layout/policy";
@@ -917,7 +917,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       // ワールドを選んでいる: ポインタの位置（落としたときと同じく、ポインタが箱の左上の少し内側に来る）。図の外なら見えている範囲の真ん中
       const p = pointer ?? (() => { const v = viewRectOf(container); return { x: (v.left + v.right) / 2, y: (v.top + v.bottom) / 2 }; })();
       const [x, y] = clientToIn(worldEl, V.applied(), p.x, p.y);
-      at = { x: x - 16, y: y - 12 };
+      at = { x: x - ADD_OFFSET.x, y: y - ADD_OFFSET.y };
     } else if (shapeDef(shapeOf(n)).kids && acceptsKid(n, clip.nodes.length > 1)) {
       // 箱を選んでいる: その中の左上（ぶつかる子は押しのける）
       parentId = n.id;
