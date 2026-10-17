@@ -42,7 +42,8 @@
  *   graph.page();                // 描いているページ
  *   graph.pages();               // ブックのページ（2 枚目から。ページの id と名前）
  *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
- *   graph.copySelected(); graph.pasteClip(); // Ctrl+C / Ctrl+V（D23）。選んだ箱を子孫ごと写し、選んでいる所に貼る（決まりはページのパターン。STRATEGIES の copy）
+ *   graph.copySelected(); graph.cutSelected(); graph.pasteClip(); // Ctrl+C / Ctrl+X / Ctrl+V（D23）。選んだ箱を子孫ごと写し、選んでいる所に貼る（決まりはページのパターン。STRATEGIES の copy）
+ *   graph.clipState(); graph.pickForMenu(target); // 右クリックのメニュー（D42。context-menu.ts）: 使える項目と、右クリックした所を選ぶ
  *   graph.purge(id);             // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱 userAdded だけ。docs/ADD-plan.md）
  *   graph.add(req, fields);      // 新しい箱を足す（req は追加モードで押した所。onAddRequest で届く。docs/ADD-plan.md）
  *   graph.destroy();
@@ -153,7 +154,7 @@ import {
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, removedBox, restoreSubtree, seedRoot } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
-import { headOf } from "./heads";
+import { type Side as HeadSide, headOf } from "./heads";
 import { type Subtree, captionOfData, copySubtree, dataPaint, liveItems, pageData, pageKeys, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, setPageWorld, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import { type RouteFix, isAligned, perimeterAt, route } from "./routing";
@@ -213,6 +214,11 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
 }
 
 export type { AddRequest, EdgePatch, HistoryState, Mode };
+
+// 右クリックした所（D42。context-menu.ts）。線は、端の近くならその端（end。start は from の側）
+export type MenuTarget = { kind: "edge"; end: HeadSide | null } | { kind: "box" | "world" };
+// 線の端の近くとみなす距離（画面の px）。この中を右クリックすると、その端の形を選べる
+export const MENU_END_NEAR = 24;
 export { COPY_MIME, REMOVED_MIME } from "./interaction";
 
 // 履歴に残す件数
@@ -295,9 +301,17 @@ export interface Graph {
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
   // コピー・貼り付け（D23）: 選んだ箱を子孫と中の線ごと写す（この図の中だけで覚える）。写せなければ false
   copySelected(): boolean;
-  // 写したものを貼る: ワールドを選んでいればポインタの位置（図の外なら見えている範囲の真ん中）、箱を選んでいればその中の左上、
-  // 子を入れられない箱なら隣。パターンの違うページへは断る。貼れなければ false
-  pasteClip(): boolean;
+  // 切り取り（Ctrl+X）: 写してから、Delete と同じく子孫ごと消す（消したものの一覧から戻せる）。ツリーの根・マスターは切り取れない。できなければ false
+  cutSelected(): boolean;
+  // 写したものを貼る: ワールドを選んでいればポインタの位置（図の外なら見えている範囲の真ん中。at を渡せばその画面の座標）、
+  // 箱を選んでいればその中の左上、子を入れられない箱なら隣。パターンの違うページへは断る。貼れなければ false
+  pasteClip(at?: { x: number; y: number }): boolean;
+  // 今切り取り・コピー・貼り付けができるか（右クリックのメニューで使えない項目を灰色にする。D42）
+  clipState(): { cut: boolean; copy: boolean; paste: boolean };
+  // 右クリックの所を選ぶ（D42）。線の上ならその線、箱の上ならその箱、背景ならワールドを選び、どれかを返す。図の外（ミニマップなど）は選ばず null。
+  // 線は、端の〇か端の近く（画面で MENU_END_NEAR px の中。at は右クリックした画面の座標）なら、その端（start は from の側）も返す。
+  // 箱の〇は箱として扱うが、その箱につながる線の端が近くにあれば線の端を選ぶ
+  pickForMenu(target: EventTarget | null, at: { x: number; y: number }): MenuTarget | null;
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
   add(req: AddRequest, fields: Partial<BoxData>): string;
@@ -809,7 +823,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // n を子孫ごと消す。図は作り直さずにその場で外す（作り直すと、押し下げられた箱が本来いたい高さを忘れる）。
   // 今の位置を書いて removed の末尾へ移し、つながっていた線は捨てる。親は縮み（中身に合わせて伸びる祖先の
   // 大きさの指定は外す）、残った子は動かさない
-  function remove(id: Id) {
+  function remove(id: Id, cutting = false) { // cutting は切り取り（知らせの文言だけが変わる）
     if (!byId.has(String(id))) return removeElsewhere(id);
     const n = nodeOf(id);
     if (n.isWorld) throw new Error(t("ワールドは消せません"));
@@ -840,7 +854,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     render();
     changed();
     notifySelect();
-    opt.onEvent?.({ kind: "removed", key: keyOfBox(n), kids: gone.size - 1, cutEdges: cut.length });
+    opt.onEvent?.({ kind: "removed", key: keyOfBox(n), kids: gone.size - 1, cutEdges: cut.length, ...(cutting ? { cut: true as const } : {}) });
     return true;
   }
 
@@ -904,7 +918,64 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  function pasteClip(): boolean {
+  function clipState(): { cut: boolean; copy: boolean; paste: boolean } {
+    if (copyRule() === "books") return { cut: false, copy: !!current && linkBookOf(current) != null, paste: bookClip != null && !!opt.onDuplicateBook };
+    if (copyRule() !== "boxes") return { cut: false, copy: false, paste: false };
+    return { cut: !!current && !isTreeRoot(current), copy: !!current, paste: !!clip };
+  }
+
+  function cutSelected(): boolean {
+    if (!clipState().cut) return false;
+    const n = current!;
+    clip = copySubtree(api.toJSON(), n.id);
+    return remove(n.id, true);
+  }
+
+  function pickForMenu(t: EventTarget | null, at: { x: number; y: number }): MenuTarget | null {
+    if (!(t instanceof Element) || !(t === container || canvasEl.contains(t) || worldEl.contains(t) || (container.contains(t) && t.closest(".mz-port")))) return null;
+    // 線を引く〇は図の枠に置いてあり、〇を出した箱のもの。ただしその箱につながる線の端が近くにあれば、端の形を変えたいことが多いので線の端を選ぶ
+    const owner = t.closest(".mz-port") ? I.portOwner() : null;
+    if (owner) {
+      const hit = nearestEnd(edges.filter(e => e.a === owner || e.b === owner), at, e => [...(e.a === owner ? ["start" as const] : []), ...(e.b === owner ? ["end" as const] : [])]);
+      if (hit) { selectEdge(hit.edge); return { kind: "edge", end: hit.end }; }
+      select(owner);
+      return { kind: "box" };
+    }
+    const edgeEl = t.closest(".mz-edge");
+    const edge = edgeEl ? edgeOfEl.get(edgeEl) : undefined;
+    if (edge) {
+      selectEdge(edge);
+      return { kind: "edge", end: menuEndOf(edge, t, at) };
+    }
+    const el = t.closest(".mz-node");
+    const n = el ? boxOfEl.get(el) : undefined;
+    select(n ?? null);
+    return { kind: n ? "box" : "world" };
+  }
+
+  // 右クリックした所が線のどちらかの端か。端の〇ならその端、ほかは近い方の端が MENU_END_NEAR px（画面の単位）の中なら、その端
+  function menuEndOf(e: Edge, t: Element, at: { x: number; y: number }): HeadSide | null {
+    const ring = t.closest<SVGElement>(".mz-end");
+    if (ring) return ring.dataset.end === "enter" ? "end" : "start";
+    return nearestEnd([e], at, () => ["start", "end"])?.end ?? null;
+  }
+
+  // 線 list の端（sides が返す側だけ）のうち、at（画面の座標）に一番近く、MENU_END_NEAR px の中にあるもの
+  function nearestEnd(list: Edge[], at: { x: number; y: number }, sides: (e: Edge) => HeadSide[]): { edge: Edge; end: HeadSide } | null {
+    const [x, y] = clientToIn(worldEl, V.applied(), at.x, at.y);
+    let best: { edge: Edge; end: HeadSide; d: number } | null = null;
+    for (const e of list) {
+      for (const end of sides(e)) {
+        const p = end === "start" ? e.points[0] : e.points.at(-1);
+        if (!p) continue;
+        const d = Math.hypot(p[0] - x, p[1] - y);
+        if (d <= MENU_END_NEAR / V.applied() && (!best || d < best.d)) best = { edge: e, end, d };
+      }
+    }
+    return best && { edge: best.edge, end: best.end };
+  }
+
+  function pasteClip(at0?: { x: number; y: number }): boolean {
     if (copyRule() === "books") {
       if (bookClip == null || !opt.onDuplicateBook) return false;
       opt.onDuplicateBook(bookClip);
@@ -915,7 +986,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     let parentId: string | null = null, at: { x: number; y: number };
     if (!n) {
       // ワールドを選んでいる: ポインタの位置（落としたときと同じく、ポインタが箱の左上の少し内側に来る）。図の外なら見えている範囲の真ん中
-      const p = pointer ?? (() => { const v = viewRectOf(container); return { x: (v.left + v.right) / 2, y: (v.top + v.bottom) / 2 }; })();
+      const p = at0 ?? pointer ?? (() => { const v = viewRectOf(container); return { x: (v.left + v.right) / 2, y: (v.top + v.bottom) / 2 }; })();
       const [x, y] = clientToIn(worldEl, V.applied(), p.x, p.y);
       at = { x: x - ADD_OFFSET.x, y: y - ADD_OFFSET.y };
     } else if (shapeDef(shapeOf(n)).kids && acceptsKid(n, clip.nodes.length > 1)) {
@@ -1730,7 +1801,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     linkScene: id => windowScene(nodeOf(id) as Box),
     paste: (copy, parentId, at, from) => paste(copy, parentId, at, from),
     copySelected,
+    cutSelected,
     pasteClip,
+    clipState,
+    pickForMenu,
     bookChoices: () => opt.bookChoices?.() ?? [],
     addGhost: at => I.ghost(at),
     add,

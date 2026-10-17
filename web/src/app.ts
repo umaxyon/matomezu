@@ -36,6 +36,7 @@ import type { Preview } from "./preview";
 import type { Diagram } from "./types";
 import { docBase, fetchRemote, startSync, type Sync } from "./sync";
 import { setupHistory, setupModes } from "./toolbar";
+import { setupContextMenu } from "./context-menu";
 import { mountDiagram } from "./view";
 import { openNewPageDialog } from "./new-page";
 import { openBookDialog } from "./book-dialog";
@@ -334,7 +335,7 @@ export async function startApp(ui: AppUi) {
       // 見えるようにしてから前に出す（配置は見えている要素で文字を測る）
       b.sync.setActive(true);
       b.loaded = true;
-      unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButtons, ui.modeLabel));
+      unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButtons, ui.modeLabel), setupContextMenu(b.graph, b.stage));
       ui.preview.attach(b.graph, b.stage);
       ui.empty(null);
       ui.book.disabled = false;

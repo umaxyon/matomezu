@@ -219,6 +219,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   }
 
   function onPointerDown(e: PointerEvent) {
+    // 左ボタン（タッチ・ペンも 0）だけ。右ボタンは右クリックのメニュー（D42。context-menu.ts）に任せ、ドラッグ・追加・削除を始めない
+    if (e.button !== 0) return;
     // 線を引く〇（選択モードで、ポインタを乗せた箱に出す）
     const port = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-port") : null;
     if (port) {
@@ -989,6 +991,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   return {
     dragging: () => active != null,
+    portOwner: () => portBox, // 今〇を出している箱（右クリックのメニューで、〇はその箱として扱う。D42）
     endLift,
     endAdd,
     // 描き直すときに、ドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）

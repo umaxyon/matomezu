@@ -12,6 +12,7 @@ import { lang, t, translateDom } from "./i18n";
 import { setupPreview } from "./preview";
 import { setupSettings } from "./settings";
 import { setupHistory, setupModes } from "./toolbar";
+import { setupContextMenu } from "./context-menu";
 import { toast } from "./toast";
 import { mountDiagram } from "./view";
 
@@ -108,6 +109,7 @@ async function main() {
   setupHistory(graph, undoBtn, redoBtn);
   preview.attach(graph, stage);
   setupModes(graph, modeButtons, $("mode-label"));
+  setupContextMenu(graph, stage);
 
   let fileName = "matomezu.json";
   function setLoaded(name: string) {
