@@ -2,7 +2,7 @@
 // どれも、ドラッグの間は開始時の位置の写しから毎回決め直し（押しのけた相手は、戻せば戻る）、手を離したら 1 件の履歴にする。
 // ドラッグの状態（いつ始めて終えるか）は interaction.ts
 import { BODY_MIN_W } from "./layout/node-kinds";
-import { type Box, bodyWrapW, isNesting, setOrDelete, setSpec, sizeOf } from "./model";
+import { type Box, bodyWrapW, isNesting, listHeightOf, setOrDelete, setSpec, sizeOf } from "./model";
 import { GROUP_MIN, SIZES } from "./validate";
 
 export interface ResizersContext {
@@ -71,7 +71,7 @@ export function createResizers(ctx: ResizersContext) {
   // スクロールにしたリストの高さの上限（D33）。つまみを動かした分だけ変え、周りは押しのける（手を離したら確定）
   function listHeightResizer(n: Box) {
     const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
-    const before = Number(n.src.listHeight) || n.h;
+    const before = listHeightOf(n) || n.h;
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
     const apply = (h: number) => {
       restore();

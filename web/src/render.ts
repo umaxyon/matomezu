@@ -12,7 +12,7 @@ import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
-  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
+  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listHeightOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
@@ -657,7 +657,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 子の要素をその中へ移す（子の位置は入れ物の上端から）。超えなくなったら子を箱へ戻して入れ物を外す
   function scrollKids() {
     for (const n of ctx.nodes()) {
-      const scrolls = n.children.length > 0 && n.h < n.fullH - 0.5 && Number(n.src.listHeight) > 0;
+      const scrolls = n.children.length > 0 && n.h < n.fullH - 0.5 && listHeightOf(n) > 0;
       if (scrolls && !n.kidsEl) {
         n.kidsEl = document.createElement("div");
         n.kidsEl.className = "mz-list-kids";

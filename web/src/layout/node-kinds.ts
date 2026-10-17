@@ -3,7 +3,7 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, anchorInsetOf, headRectOf, arrangeOf, bodyOf, bodyTextW, bodyWidthOf, captionOf, inTreeOf, isLinkBox, kidStrategyOf, rowHeightOf, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, anchorInsetOf, headRectOf, arrangeOf, bodyOf, bodyTextW, bodyWidthOf, captionOf, inTreeOf, isLinkBox, kidStrategyOf, listHeightOf, rowHeightOf, takesRowSize, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
 import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth, linkRowHeight } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
@@ -74,7 +74,7 @@ export function createNodeKinds(ctx: KindContext) {
   function fitHead(n: Box, useSpec: boolean) {
     if (isLinkBox(n)) return fitLink(n);
     if (listPreviewOf(n)) return fitSide(n, PREVIEW_ROW_DEF);
-    if (lookOf(n).sharedSize && leafLike(n)) {
+    if (takesRowSize(n) && leafLike(n)) {
       // リストの葉の子（と非表示の子）: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ
       // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
       // 高さの最小はリストの高さ（D13。サイズの高さは使わない）
@@ -176,7 +176,7 @@ export function createNodeKinds(ctx: KindContext) {
     const textW = hasText ? Math.max(tw.min, Math.min(tw.max, measure(n, null)[0] - fixed)) : 0;
     n.hw = Math.max(fixed + textW, assignedW(n));
     // リストの中なら、リストの高さまで伸ばす（中身が高ければそのまま。D13）
-    const rowH = n.parent && lookOf(n).sharedSize ? rowHeightOf(n.parent) : 0;
+    const rowH = takesRowSize(n) ? rowHeightOf(n.parent!) : 0;
     n.hh = Math.max(linkRowHeight(d), hasText ? measure(n, n.hw)[1] : 0, rowH) + oy;
   }
 
@@ -337,7 +337,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.w = inner + 2 * P;
       n.fullH = Math.max(GROUP_MIN.h, y - gap + P);
       // 高さの上限（listHeight。D33）があれば、そこで止める（超えた分はリストの中だけスクロールする。render.ts）。子が 1 行は見える高さより低くはしない
-      const cap = Number(n.src.listHeight) || 0;
+      const cap = listHeightOf(n);
       n.h = cap ? Math.min(n.fullH, Math.max(cap, n.kidsTop + LIST_SCROLL_MIN)) : n.fullH;
       n.hx = 0; n.hy = 0;
       n.hw = n.w; n.hh = n.h;

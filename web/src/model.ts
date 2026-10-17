@@ -282,21 +282,23 @@ export function arrangeOf(n: Box): Arrange {
   if (!n.children.length) return "leaf";
   if (isTreeRoot(n) || treeRootOf(n)) return worldViewOf(n.world);
   const own = viewOf(n);
-  if (!n.parent || !lookOf(n).preview) return own;
-  return own === "hidden" || previewSideOf(n.parent) === "none" ? "hidden" : "preview";
+  const slot = previewSlotOf(n);
+  if (!slot) return own;
+  return own === "hidden" || slot === "none" ? "hidden" : "preview";
 }
 // リストの子の縮図の位置（リストの previewSide。無ければ右）
 export const previewSideOf = (list: Box): PreviewSide => (isPreviewSide(list.src.previewSide) ? list.src.previewSide : "right");
+// 縮図を横に出す並べ方（リスト）の子なら、親が決めた縮図の位置（右・左・出さない）。でなければ null
+export const previewSlotOf = (n: Box): PreviewSide | null => (n.parent && lookOf(n).preview ? previewSideOf(n.parent) : null);
 // 横に縮図を出す箱なら、その位置（右か左）。子を持って縮図になった子と、縮図を横に出す並べ方の中の窓（リンクの箱）。でなければ null
 export function listPreviewOf(n: Box): "right" | "left" | null {
-  if (!n.parent || !lookOf(n).preview) return null;
-  const side = previewSideOf(n.parent);
-  if (side === "none") return null;
+  const side = previewSlotOf(n);
+  if (side == null || side === "none") return null;
   return isLinkBox(n) || arrangeOf(n) === "preview" ? side : null;
 }
 // 縮図を出さない並べ方（リストの none）の中の窓か。縮図の代わりに、押すと開くアイコンを右に出す（2026-10-14 ユーザー）
 // 縮図の代わりに開くアイコンを出すか: 縮図を出さない見せ方（linkLook の icon。D29）か、縮図を出さないリストの中（D13）
-export const linkIconOf = (n: Box): boolean => isLinkBox(n) && (n.src.linkLook === "icon" || (!!n.parent && lookOf(n).preview && previewSideOf(n.parent) === "none"));
+export const linkIconOf = (n: Box): boolean => isLinkBox(n) && (n.src.linkLook === "icon" || previewSlotOf(n) === "none");
 // 子を描かない並べ方か（非表示と縮図）
 export const hidesKids = (n: Box): boolean => arrangeOf(n) === "hidden" || arrangeOf(n) === "preview";
 // 箱が子を並べる戦略（子が無ければ null）
@@ -338,7 +340,7 @@ export const linkPageOf = (n: Box): string | null => (n.src.link == null ? null 
 export const linkBookOf = (n: Box): string | null => (typeof n.src.book === "string" && n.src.book ? n.src.book : null);
 // 縮図を横に出す並べ方（リスト）の中では、いつも横に分ける（D13。2026-10-14 ユーザー）
 // 描くときの見せ方（リストの中は横に分ける。縮図を出さない（icon）も横に分ける形で描き、アイコンかは linkIconOf）
-export const linkLookOf = (n: Box): LinkLook => (n.parent && lookOf(n).preview ? "side" : n.src.linkLook === "icon" ? "side" : isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
+export const linkLookOf = (n: Box): LinkLook => (previewSlotOf(n) != null ? "side" : n.src.linkLook === "icon" ? "side" : isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
 // データに書いた見せ方（編集ダイアログの選択。無ければ既定）
 export const dataLinkLookOf = (n: Box): LinkLook => (isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
 // 窓に映す範囲（のぞくページの座標。無ければ null = ページ全体）
@@ -360,7 +362,7 @@ export function abilitiesOf(n: Box): Abilities {
     reorder: by.reorder && !!n.parent,
     link: !n.parent || by.link,
     widthGrip: !!strategyOf(n)?.widthGrip,
-    heightGrip: !!strategyOf(n)?.scroll && Number(n.src.listHeight) > 0,
+    heightGrip: !!strategyOf(n)?.scroll && listHeightOf(n) > 0,
     dropInto: shapeDef(shapeOf(n)).kids && !by.leafKids && !isLinkBox(n),
   };
 }
@@ -377,6 +379,10 @@ export const ROW_HEIGHTS: Record<Size, number> = {
 export const rowSizeOf = (list: Box): Size => (isSize(list.src.rowSize) ? list.src.rowSize : "M");
 // リストの子の最小の高さ
 export const rowHeightOf = (list: Box): number => ROW_HEIGHTS[rowSizeOf(list)];
+// 親のリストの高さ（rowSize）を最小の高さに使う箱か（リストの子）
+export const takesRowSize = (n: Box): boolean => !!n.parent && lookOf(n).sharedSize;
+// リストの高さの上限（listHeight。D33。無ければ 0 = 中身に合わせて伸びる）
+export const listHeightOf = (list: Box): number => (Number(list.src.listHeight) > 0 ? Number(list.src.listHeight) : 0);
 // サイズ（L / M / S）が効くのは、見た目が葉の箱だけ（子の無い箱、ツリーの親の本体、非表示）。内包・リストの箱の大きさは子の並びで決まるので、
 // サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの子もサイズを使わず普通の大きさ（高さはリストの高さ。D13）
 export const sizeOf = (n: Box): Size =>
