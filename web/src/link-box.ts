@@ -35,6 +35,8 @@ export const PREVIEW_ROW_DEF: LinkLookDef = { ...LINK_LOOK_DEFS.side, handle: 0 
 export const LINK_ICON_DEF: LinkLookDef = LINK_LOOK_DEFS.icon;
 // 窓枠の箱の幅（窓の幅 + 両側の余白）
 export const linkBoxWidth = (d: LinkLookDef) => d.win.w + 2 * d.gap;
+// 窓の行の高さ（窓の高さ + 上下の余白）
+export const linkRowHeight = (d: LinkLookDef) => d.win.h + 2 * d.gap;
 
 export interface Rect { x: number; y: number; w: number; h: number }
 // 窓の大きさ（絵を映す所。窓の線は内側に引く（graph-style.ts の .mz-link-win）ので、窓の大きさそのまま）

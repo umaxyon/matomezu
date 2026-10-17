@@ -2,7 +2,7 @@
 
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
-import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, type Rect as ClipRect, isLinkLook, isRect } from "./link-box";
+import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, type Rect as ClipRect, isLinkLook, isRect, linkRowHeight } from "./link-box";
 import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, PreviewSide, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
@@ -361,9 +361,9 @@ export const dataSizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "
 // リストの高さ（子の最小の高さ。D13。2026-10-14 ユーザー）: S は縮図の代わりにアイコンを出した窓の行、M は普通の箱、L は縮図のある行の高さ。
 // 縮図を出すときも出さないときも選べる（2026-10-14 ユーザー）。行は中身が収まる限りこの高さで、収まらない行だけ高くなる
 export const ROW_HEIGHTS: Record<Size, number> = {
-  S: LINK_ICON_DEF.win.h + 2 * LINK_ICON_DEF.gap,
+  S: linkRowHeight(LINK_ICON_DEF),
   M: SIZES.M.h,
-  L: PREVIEW_ROW_DEF.win.h + 2 * PREVIEW_ROW_DEF.gap,
+  L: linkRowHeight(PREVIEW_ROW_DEF),
 };
 export const rowSizeOf = (list: Box): Size => (isSize(list.src.rowSize) ? list.src.rowSize : "M");
 // リストの子の最小の高さ

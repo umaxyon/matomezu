@@ -9,7 +9,7 @@ import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { CROSS_MIME, type CrossPayload, createCrossList } from "./cross-list";
 import type { Graph } from "./graph";
-import { LINK_LOOK_DEFS } from "./link-box";
+import { LINK_LOOK_DEFS, linkRowHeight } from "./link-box";
 import type { SideToggle } from "./main";
 import { sendMail } from "./mailbox";
 import { openNewBookDialog } from "./new-book";
@@ -27,7 +27,7 @@ interface BookRow { id: string; name: string; title: string; mtime: number; made
 // 窓はリストの行（縮図は右。D13）なので、行の高さは横に分ける窓の高さとリストの間隔で決まる。目安を外れても重なりは配置が直す
 const MASTER_TOP = 10;
 const LIST_W = 340, GROUP_HEAD = 30, GROUP_GAP = 24;
-const ROW_H = LINK_LOOK_DEFS.side.win.h + 2 * LINK_LOOK_DEFS.side.gap;
+const ROW_H = linkRowHeight(LINK_LOOK_DEFS.side);
 // ユーザーが作ったブックと LLM が渡したブックの色（最初は色だけで分ける。専用の印は後で。2026-10-14 ユーザー）
 const MADE_BY_COLOR = { user: "#3b82f6", ai: "#f59e0b" };
 

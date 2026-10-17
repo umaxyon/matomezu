@@ -5,7 +5,7 @@ import type { LayoutOptions } from "./layout";
 import {
   type Box, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, inTreeOf, isLinkBox, kidStrategyOf, rowHeightOf, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
-import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth } from "../link-box";
+import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth, linkRowHeight } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
 import { shapeDef } from "../shapes";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
@@ -155,11 +155,10 @@ export function createNodeKinds(ctx: KindContext) {
     const look = linkLookOf(n), d = LINK_LOOK_DEFS[look];
     const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
     const hasText = !!captionOf(n) || !!bodyOf(n);
-    const winH = d.win.h + 2 * d.gap;
     if (!d.textW) {
       const w = Math.max(linkBoxWidth(d) + ox, assignedW(n));
       n.hw = w;
-      n.hh = d.handle + (hasText ? measure(n, w)[1] : 0) + winH + oy;
+      n.hh = d.handle + (hasText ? measure(n, w)[1] : 0) + linkRowHeight(d) + oy;
       return;
     }
     fitSide(n, d);
@@ -169,12 +168,12 @@ export function createNodeKinds(ctx: KindContext) {
     const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
     const hasText = !!captionOf(n) || !!bodyOf(n);
     const tw = d.textW ?? { min: 0, max: 0 };
-    const fixed = d.handle + d.win.w + 2 * d.gap + ox;
+    const fixed = d.handle + linkBoxWidth(d) + ox;
     const textW = hasText ? Math.max(tw.min, Math.min(tw.max, measure(n, null)[0] - fixed)) : 0;
     n.hw = Math.max(fixed + textW, assignedW(n));
     // リストの中なら、リストの高さまで伸ばす（中身が高ければそのまま。D13）
     const rowH = n.parent && lookOf(n).sharedSize ? rowHeightOf(n.parent) : 0;
-    n.hh = Math.max(d.win.h + 2 * d.gap, hasText ? measure(n, n.hw)[1] : 0, rowH) + oy;
+    n.hh = Math.max(linkRowHeight(d), hasText ? measure(n, n.hw)[1] : 0, rowH) + oy;
   }
 
   // lo〜hi のうち、文字の高さが h を超えない一番狭い幅（1px 刻みの二分探索。hi では h に収まる前提）
