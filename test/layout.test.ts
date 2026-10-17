@@ -77,12 +77,10 @@ function randomOp(el: HTMLElement, g: Graph, rnd: () => number): string {
 }
 
 describe("ランダムな操作でも崩れない", () => {
-  // 紙あり（ふつうのページ）と紙なし（マスターと同じ広がるワールド）の両方で流す。
-  // 起点 AI（2026-10-17、単体テストを紙ありにしたとき）: 紙ありの種 1 で、ドラッグのあと兄弟が重なる（「size 1 S / view 1 nest / drag 6 99,130」の
-  // あとでバックエンドと外部サービスが重なる）。不具合の候補なので skip にし、仕分けは tmp/review-2026-10-17.json の「紙ありで見えた候補」
-  const cases: [number, boolean][] = [[1, false], [2, false], [3, false], [2, true], [3, true]];
+  // 紙あり（ふつうのページ）と紙なし（マスターと同じ広がるワールド）の両方で流す。紙ありの種 1 では、紙に空きが無いときの置き場所探しが
+  // 重なりを許して、ドラッグのあと兄弟が重なっていた（2026-10-17、単体テストを紙ありにして見つけた P1。原因は P3 と同じ findFreeSpot）
+  const cases: [number, boolean][] = [[1, false], [2, false], [3, false], [1, true], [2, true], [3, true]];
   test.each(cases)("種 %i（紙あり: %p）", (seed, paper) => run(seed, paper), 60000);
-  test.skip("種 1（紙あり: true）", () => run(1, true), 60000);
   function run(seed: number, paper: boolean) {
     const rnd = random(seed * 7919);
     const { el, graph } = setup(sample(), paper);

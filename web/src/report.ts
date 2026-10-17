@@ -84,8 +84,8 @@ export function summarize(g: Geometry): string {
   const lines: string[] = [];
 
   const over: string[] = [];
-  if (right > vw) over.push(`right ${Math.round(right - vw)}`);
-  if (bottom > vh) over.push(`bottom ${Math.round(bottom - vh)}`);
+  if (right > vw + 0.5) over.push(`right ${Math.round(right - vw)}`); // 1px 未満は数えない（layout.ts の outsideFixed と同じ）
+  if (bottom > vh + 0.5) over.push(`bottom ${Math.round(bottom - vh)}`);
   const frame = g.paper ? `paper ${g.paper.name} ${vw0}x${vh0}` : `viewport ${vw0}x${vh0}`;
   lines.push(`${frame}, content ${Math.round(right)}x${Math.round(bottom)}` + (over.length ? ` → over ${over.join(", ")}` : " → fits"));
 

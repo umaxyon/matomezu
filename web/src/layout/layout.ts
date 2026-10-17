@@ -88,11 +88,12 @@ export function createLayout(ctx: LayoutContext) {
   // ワールドは幅を固定し、高さは指定が無ければ下へ伸ばせる（横スクロールより縦スクロールの方が見やすい）
   // 固定の大きさを決める口（LayoutContext.worldFixed）
   const worldFixed = () => ctx.worldFixed?.() ?? { w: null, h: null };
-  // 最上位の箱が、固定の大きさ（紙）の外にはみ出しているか（D33）
+  // 最上位の箱が、固定の大きさ（紙）の外にはみ出しているか（D33）。1px 未満のずれは数えない（ドラッグの clamped と同じ。
+  // 二分探索で紙の端まで寄せた箱が 0.3px はみ出したことにされ、操作ごと断られていた。2026-10-17 P2）
   const outsideFixed = (n: Box) => {
     if (n.parent || !n.hasPos) return false;
     const f = worldFixed();
-    return (f.w != null && n.x + n.w > f.w - opt.padding) || (f.h != null && n.y + n.h > f.h - opt.padding);
+    return (f.w != null && n.x + n.w > f.w - opt.padding + 0.5) || (f.h != null && n.y + n.h > f.h - opt.padding + 0.5);
   };
   function fixedSize(c: Container): { w: number | null; h: number | null } {
     if (c.isWorld) return { w: world.w, h: worldFixed().h != null ? world.h : null };
@@ -303,12 +304,11 @@ export function createLayout(ctx: LayoutContext) {
         if (!collides(n, cx, cy)) return [cx, cy];
       }
     }
-    // 探す範囲（ワールドの幅か高さ）で見つからなければ、同じ x のまま下へずらす。ワールドは下へ伸ばせるので必ず空きがある
-    // （表示領域が狭いと、大きいボックスを縦に積む場所が範囲の外になり、重ねて置いていた）。
-    // 高さが指定されていて下にも入らないときだけ、重なりを許容する
+    // 探す範囲（ワールドの幅か高さ）で見つからなければ、同じ x のまま下へずらす（表示領域が狭いと、大きいボックスを縦に積む場所が
+    // 範囲の外になり、重ねて置いていた）。紙（高さが決まっている）に入りきらなくても重ねず、紙の下の外へ置く（紙の外の箱はそのまま見せ、
+    // check が直すまでエラーを返す。D33。以前は重ねて置いていた。2026-10-17 P3）
     const [sx, sy] = clamp(n, x, y);
-    const f = fixedSize(world);
-    return slide(n, sx, sy, "down", f.h != null ? f.h - opt.padding - n.h : Infinity) ?? [x, y];
+    return slide(n, sx, sy, "down", Infinity) ?? [x, y];
   }
 
   // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす（押し下げる。本来いたい高さは変えない）。
@@ -376,10 +376,12 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   function spotBelow(n: Box): [number, number] {
-    // 親の高さが決まっていれば（ワールドの高さの指定や、切り詰める枠）、下にも限りがある
+    // 親の高さが決まっていれば（ワールドの高さの指定や、切り詰める枠）、下にも限りがある。
+    // ただし紙の外にある最上位の箱（LLM がファイルに書いた位置）は紙の中へ寄せないので、そのまま下へずらす（D33）。
+    // 紙の中で空きを探すと、紙が埋まっているときに探し尽くして重くなっていた（2026-10-17 P4）
     const c = containerOf(n);
     const f = fixedSize(c);
-    const maxY = f.h != null ? f.h - opt.padding - n.h : Infinity;
+    const maxY = f.h != null && !outsideFixed(n) ? f.h - opt.padding - n.h : Infinity;
     return slide(n, n.x, n.y, "down", maxY) ?? (c.isWorld ? findFreeSpot(n, n.x, n.y) : findGridSpot(n));
   }
 
