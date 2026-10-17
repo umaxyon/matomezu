@@ -109,7 +109,7 @@ async function main() {
   setupHistory(graph, undoBtn, redoBtn);
   preview.attach(graph, stage);
   setupModes(graph, modeButtons, $("mode-label"));
-  setupContextMenu(graph, stage);
+  setupContextMenu(graph, stage, () => openBookDialog(graph, fileName));
 
   let fileName = "matomezu.json";
   function setLoaded(name: string) {
