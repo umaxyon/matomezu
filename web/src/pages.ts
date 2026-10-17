@@ -15,19 +15,28 @@ function parents(nodes: BoxData[]) {
   return new Map(nodes.map(s => [String(s.id), key(s.parent)]));
 }
 
-// 箱が載っているページ（最上位の祖先の page。無ければ null = 最初のページ）
-export function pageOf(nodes: BoxData[], id: Id): string | null {
+// 箱が載っているページを引く関数（最上位の祖先の page。無ければ null = 最初のページ）。
+// 親の表を 1 回だけ作って覚えるので、たくさんの箱を引くときはこれを 1 回作って使う（箱の載るページの求め方はここ 1 か所）
+export function pageIndex(nodes: BoxData[]): (id: Id) => string | null {
   const parent = parents(nodes);
   const byId = new Map(nodes.map(s => [String(s.id), s]));
-  let top = String(id);
-  const seen = new Set<string>();
-  for (let p = parent.get(top); p != null && !seen.has(p); p = parent.get(p) ?? null) { seen.add(p); top = p; }
-  return key(byId.get(top)?.page);
+  return id => {
+    let top = String(id);
+    const seen = new Set<string>();
+    for (let p = parent.get(top); p != null && !seen.has(p); p = parent.get(p) ?? null) { seen.add(p); top = p; }
+    return key(byId.get(top)?.page);
+  };
+}
+
+// 箱が載っているページ（1 つだけ引くとき）
+export function pageOf(nodes: BoxData[], id: Id): string | null {
+  return pageIndex(nodes)(id);
 }
 
 // ページ（null は最初のページ）に載っている箱の id を、データの並び順で返す
 export function pageMembers(nodes: BoxData[], page: string | null): string[] {
-  return nodes.filter(s => pageOf(nodes, s.id!) === page).map(s => String(s.id));
+  const pageAt = pageIndex(nodes);
+  return nodes.filter(s => pageAt(s.id!) === page).map(s => String(s.id));
 }
 
 // ブックのページの一覧（2 枚目から。データの並び順）
@@ -83,13 +92,14 @@ export const pageNameOf = (d: Diagram, p: string | null) => {
 export function liveItems(d: Diagram, current: string | null | undefined, paint: (s: BoxData) => string): Pick<Items, "live" | "pages"> {
   const nodes = d.nodes ?? [];
   const byKey = new Map(nodes.map(s => [String(s.id), s]));
+  const pageAt = pageIndex(nodes);
   const live: ListItem[] = nodes.map(s => {
     const p = byKey.get(String(s.parent));
     return {
       id: String(s.id), caption: captionOfData(s),
       color: paint(s),
       parent: p ? captionOfData(p) || keyOf(p.id, "") : null,
-      page: pageOf(nodes, s.id!),
+      page: pageAt(s.id!),
     };
   });
   const pages = [null, ...pagesOf(d).map(p => String(p.id))]
