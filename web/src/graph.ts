@@ -1025,6 +1025,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 決まった並べ方で整列できるのはページ（パターンがフローチャート）だけ
   const aligns = (c: Container) => c.isWorld && c.children.length > 0 && STRATEGIES[worldViewOf(c)].autoAlign;
 
+  // サイズを選んだら、そのサイズで中身に合わせた大きさに戻す（付いていた大きさの指定を外す）
+  function setSize(n: Box, size: Size) {
+    n.src.size = size;
+    setSpec(n, "w", 0);
+    setSpec(n, "h", 0);
+  }
+
   function setKidSize(size: Size) {
     const c = world;
     if (!aligns(c)) return false;
@@ -1034,9 +1041,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       c.src.kidSize = size;
       if (c.isWorld) storeWorld();
       for (const k of c.children) {
-        k.src.size = size;
-        setSpec(k, "w", 0);
-        setSpec(k, "h", 0);
+        setSize(k, size);
         applyStyle(k);
       }
     });
@@ -1330,10 +1335,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("fill" in next) n.src.fill = !!next.fill;
         if ("border" in next) n.src.border = !!next.border;
         if (next.size) {
-          // サイズを選んだら、そのサイズで中身に合わせた大きさに戻す（付いていた大きさの指定を外す）
-          n.src.size = next.size;
-          setSpec(n, "w", 0);
-          setSpec(n, "h", 0);
+          setSize(n, next.size);
         }
         if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === DEFAULT_SHAPE);
         if (next.linkLook) setOrDelete(n.src, "linkLook", next.linkLook, next.linkLook === DEFAULT_LINK_LOOK); // 値は checkSettings で確かめている
