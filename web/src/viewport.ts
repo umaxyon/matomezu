@@ -1,7 +1,7 @@
 // 画面の見え方（D32）: 図の枠のスクロールの位置と、ワールドの座標の行き来。
 // ワールドは図の枠の中で ox・oy だけずらして置き（周りの余白か、紙が表示領域より小さければ真ん中に来る量。layout.ts の sizeCanvas）、
 // 倍率（zoom）は transform: scale でかける（graph-view.ts）。なので、スクロールの位置 = ずらす量 + ワールドの座標 × 倍率。
-// この行き来はここだけに書く（preview.ts・minimap.ts・graph.ts・graph-view.ts・interaction.ts が使う）
+// この行き来はここだけに書く（preview.ts・minimap.ts・graph.ts・graph-view.ts・interaction.ts・ask-bubbles.ts・point-frame.ts・unseen.ts が使う）
 //
 //   const v = graph.view();                 // { zoom, margin, ox, oy }
 //   visibleWorld(stage, v);                 // 見えている範囲（ワールドの座標）
