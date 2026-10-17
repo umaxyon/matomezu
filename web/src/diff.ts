@@ -8,7 +8,8 @@
 //   const ops = diffData(before, after);
 //   const back = applyChanges(now, ops, "undo");
 
-import type { Diagram } from "./types";
+import type { Diagram, EdgeData, Id } from "./types";
+import { normalizeEdge } from "./validate";
 
 type Obj = Record<string, unknown>;
 
@@ -41,6 +42,12 @@ function keyOf(kind: Kind, v: unknown, i: number): string {
   } else if (kind === "edge" && Array.isArray(v) && v.length >= 2) return `${String(v[0])}>${String(v[1])}`;
   return `#${i}`;
 }
+// 線の両端（normalizeEdge で [from, to] の形もそろえる）。線でない物は端なし
+const endsOf = (e: unknown): unknown[] => {
+  if (!isObj(e) && !Array.isArray(e)) return [];
+  const n = normalizeEdge(e as EdgeData | [Id, Id]);
+  return [n.from, n.to];
+};
 const listOf = (d: Obj, name: string): unknown[] => (Array.isArray(d[name]) ? (d[name] as unknown[]) : []);
 
 function fieldDiff(a: Obj, b: Obj): { fields: string[]; before: Obj; after: Obj; keys: [string[], string[]] } | null {
@@ -96,8 +103,7 @@ export function touchedOf(changes: Change[]): { nodes: Set<string>; removed: Map
       else nodes.add(c.key);
     } else if (c.kind === "edge") {
       const e = (c.op === "change" ? { ...c.before, ...c.after } : c.item) as Obj | unknown[] | undefined;
-      const ends = Array.isArray(e) ? [e[0], e[1]] : isObj(e) ? [e.from, e.to] : [];
-      for (const x of ends) if (x != null) nodes.add(String(x));
+      for (const x of endsOf(e)) if (x != null) nodes.add(String(x));
       if (c.op === "change") { const [f, t] = c.key.split(">"); if (t != null) { nodes.add(f!); nodes.add(t); } }
     } else if (c.kind === "world") pages.add(null);
     else if (c.kind === "page") pages.add(c.key);
@@ -120,10 +126,7 @@ export function applyChanges(data: Diagram, changes: Change[], dir: "undo" | "re
       for (const n of nodes) if (isObj(n) && n.parent != null && !gone.has(String(n.id)) && gone.has(String(n.parent))) { gone.add(String(n.id)); grew = true; }
     }
     lists.set("node", nodes.filter((n, i) => !gone.has(keyOf("node", n, i))));
-    lists.set("edge", lists.get("edge")!.filter(e => {
-      const ends = Array.isArray(e) ? [e[0], e[1]] : isObj(e) ? [e.from, e.to] : [];
-      return !ends.some(x => gone.has(String(x)));
-    }));
+    lists.set("edge", lists.get("edge")!.filter(e => !endsOf(e).some(x => gone.has(String(x)))));
   };
   // 項目を当て、項目の並びも当てる側にそろえる（並びに無い項目は後ろのまま）
   const setFields = (o: Obj, c: Change, side: Obj | undefined) => {
