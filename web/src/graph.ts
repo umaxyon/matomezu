@@ -301,8 +301,8 @@ export interface Graph {
   pasteClip(at?: { x: number; y: number }): boolean;
   // 今コピー・貼り付けができるか（右クリックのメニューで使えない項目を灰色にする。D42）
   clipState(): { copy: boolean; paste: boolean };
-  // 右クリックの所を選ぶ（D42）。箱の上ならその箱、背景ならワールド。線の上や図の外（ミニマップなど）は選ばず false
-  pickForMenu(target: EventTarget | null): boolean;
+  // 右クリックの所を選ぶ（D42）。線の上ならその線、箱の上ならその箱、背景ならワールドを選び、どれかを返す。図の外（ミニマップなど）は選ばず null
+  pickForMenu(target: EventTarget | null): "edge" | "box" | "world" | null;
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
   add(req: AddRequest, fields: Partial<BoxData>): string;
@@ -915,11 +915,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return { copy: !!current, paste: !!clip };
   }
 
-  function pickForMenu(t: EventTarget | null): boolean {
-    if (!(t instanceof Element) || !(t === container || canvasEl.contains(t) || worldEl.contains(t)) || t.closest(".mz-edge")) return false;
+  function pickForMenu(t: EventTarget | null): "edge" | "box" | "world" | null {
+    if (!(t instanceof Element) || !(t === container || canvasEl.contains(t) || worldEl.contains(t))) return null;
+    const edgeEl = t.closest(".mz-edge");
+    const edge = edgeEl ? edgeOfEl.get(edgeEl) : undefined;
+    if (edge) { selectEdge(edge); return "edge"; }
     const el = t.closest(".mz-node");
-    select((el ? boxOfEl.get(el) : undefined) ?? null);
-    return true;
+    const n = el ? boxOfEl.get(el) : undefined;
+    select(n ?? null);
+    return n ? "box" : "world";
   }
 
   function pasteClip(at0?: { x: number; y: number }): boolean {
