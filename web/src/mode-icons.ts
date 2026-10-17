@@ -2,9 +2,9 @@
 import type { Mode } from "./graph";
 
 const PATHS: Record<Mode, string> = {
-  // 矢印は左に寄って見えるので、絵の 1px 分（24 の枠を 18px で描くので 1.33）右へずらす
-  move: '<path transform="translate(1.33 0)" d="M6.35 3v16l4.5-4.2 3 6.7 2.6-1.2-3-6.6h5.9z"/>',
-  add: '<path transform="translate(1.33 0)" d="M6.35 3v16l4.5-4.2 3 6.7 2.6-1.2-3-6.6h5.9z"/>',
+  // 矢印は左に寄って見えるので、絵の 0.5px 分（24 の枠を 18px で描くので 0.67）右へずらす
+  move: '<path transform="translate(0.67 0)" d="M6.35 3v16l4.5-4.2 3 6.7 2.6-1.2-3-6.6h5.9z"/>',
+  add: '<path transform="translate(0.67 0)" d="M6.35 3v16l4.5-4.2 3 6.7 2.6-1.2-3-6.6h5.9z"/>',
   // 付け替えは右に寄って見えるので、1px 分左へ
   reparent: '<g transform="translate(-1.33 0)"><path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/><path d="M3 12h12"/><path d="m11 8 4 4-4 4"/></g>',
   // 手のひらは上に寄って見えるので、1px 分下へ
