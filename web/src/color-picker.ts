@@ -6,7 +6,7 @@
 // （動かすたびに図を直すと、Undo の履歴が大量に積まれるため）。外を押すか Esc で閉じる。開けるのは 1 つだけ
 // 画面の座標で置く（サイドバーのようにスクロールする枠の中でも切れないように。help.ts と同じ）
 
-import { esc, injectStyle, toHex } from "./dom";
+import { esc, injectStyle, placeBelow, toHex } from "./dom";
 import { t } from "./i18n";
 import { isPaletteName } from "./theme";
 
@@ -226,17 +226,7 @@ export function openColorPicker(o: ColorPickerOptions): { close(): void } {
   });
   valueBox.addEventListener("change", commitValue);
 
-  // ボタンの下に出す。画面の右や下からはみ出すなら内側へ寄せる（下が足りなければ上に出す）
-  function place() {
-    const r = o.anchor.getBoundingClientRect();
-    const p = el.getBoundingClientRect();
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - p.width - 8));
-    const below = r.bottom + 6;
-    const top = below + p.height > window.innerHeight - 8 ? Math.max(8, r.top - p.height - 6) : below;
-    el.style.left = `${left}px`;
-    el.style.top = `${top}px`;
-  }
-  place();
+  placeBelow(el, o.anchor); // ボタンの下に出す
 
   const listening = new AbortController();
   // 外を押したら閉じる（開いたボタンを押し直したときは、ボタンの側で閉じる）

@@ -4,7 +4,7 @@
 //   setupHelp(root)  … root の中のマークに吹き出しを付ける（root ごとに 1 回。外す関数を返す）
 // 吹き出しは画面の座標で置く（サイドバーのようにスクロールする枠の中でも切れないように）
 
-import { esc, injectStyle } from "./dom";
+import { esc, injectStyle, placeBelow } from "./dom";
 
 const STYLE_ID = "matomezu-help-style";
 const CSS = `
@@ -47,14 +47,7 @@ export function setupHelp(root: HTMLElement): () => void {
     shown = mark;
     tip.textContent = mark.dataset.help ?? "";
     tip.hidden = false;
-    // マークの下に、左端をそろえて出す。画面の右や下からはみ出すなら内側へ寄せる（下が足りなければ上に出す）
-    const r = mark.getBoundingClientRect();
-    const t = tip.getBoundingClientRect();
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - t.width - 8));
-    const below = r.bottom + 6;
-    const top = below + t.height > window.innerHeight - 8 ? Math.max(8, r.top - t.height - 6) : below;
-    tip.style.left = `${left}px`;
-    tip.style.top = `${top}px`;
+    placeBelow(tip, mark); // マークの下に出す
   }
 
   function hide() {
