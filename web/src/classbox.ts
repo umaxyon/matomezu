@@ -5,7 +5,7 @@
  * 属性・操作の行の左右にだけつながる（ひし形の頂点と同じく、決まった所だけ）。
  */
 
-import type { Pt, Rect } from "./geom";
+import { type Pt, type Rect, centerOf } from "./geom";
 
 export const ACCESSES = ["public", "private", "protected", "package"] as const;
 export type Access = typeof ACCESSES[number];
@@ -74,7 +74,7 @@ const dist2 = (p: Pt, q: Pt) => (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2;
 // member があれば、その行の左右のうち相手のいる側。無ければ 4 つの接点から相手の向きで選ぶ。
 // near（データの exitAt / enterAt が指す点）があれば、それに一番近い接点（行なら近い側）
 export function classEnd(r: Rect, src: Members, member: string | undefined, other: Rect, near: Pt | null): Pt {
-  const [ox, oy] = [other.x + other.w / 2, other.y + other.h / 2];
+  const [ox, oy] = centerOf(other);
   const y = member == null ? null : memberY(src, member);
   if (y != null) {
     const left: Pt = [r.x, r.y + y], right: Pt = [r.x + r.w, r.y + y];

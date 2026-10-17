@@ -9,7 +9,7 @@
 
 import type { Arrangement, Axis } from "./types";
 
-import { type Pt, type Rect, nearestAt, overlapSpan, pointAt, rectsOverlap, segmentThroughRect } from "./geom";
+import { type Pt, type Rect, centerOf, nearestAt, overlapSpan, pointAt, rectsOverlap, segmentThroughRect } from "./geom";
 import { perimeter } from "./selfloop";
 
 export type { Pt, Rect };
@@ -74,7 +74,6 @@ const BEND_STEP = 4;
 export const STICKY_BENDS = 3;
 
 const flip = (a: Axis): Axis => (a === "horizontal" ? "vertical" : "horizontal");
-const center = (r: Rect): Pt => [r.x + r.w / 2, r.y + r.h / 2];
 const axisOfSide = (side: Side): Axis => (side === "l" || side === "r" ? "horizontal" : "vertical");
 
 // 2 つの箱の並び。横に並ぶ（上下の範囲が重なり、左右に離れている）、縦に並ぶ、斜め、重なっている
@@ -94,7 +93,7 @@ function clipToRect(cx: number, cy: number, w: number, h: number, dx: number, dy
 
 // 箱 r の縁の、中心から点 v へ向かう線が交わる点
 const clipToward = (r: Rect, v: Pt): Pt => {
-  const [cx, cy] = center(r);
+  const [cx, cy] = centerOf(r);
   return clipToRect(cx, cy, r.w, r.h, v[0] - cx, v[1] - cy);
 };
 
@@ -305,7 +304,7 @@ export function route(r: RouteInput): Route {
   let out: Route;
   if (arrangement === "overlap" || !r.elbow) {
     const points = arrangement === "overlap"
-      ? [fa ?? clipToward(a, center(b)), fb ?? clipToward(b, center(a))]
+      ? [fa ?? clipToward(a, centerOf(b)), fb ?? clipToward(b, centerOf(a))]
       : straightPoints(r, arrangement, fa, fb);
     if (r.via) fix.clearVia = true;
     out = { points, arrangement, shape: null, segments: [], ends, memory: null, bends: 0, through: false, fix };
@@ -322,7 +321,7 @@ function straightPoints(r: RouteInput, arr: "side" | "stack" | "diagonal", fa: P
   if (fa && fb) return [fa, fb];
   if (fa) return [fa, toward(b, r.bVertex, fa, arr)];
   if (fb) return [toward(a, r.aVertex, fb, arr), fb];
-  let [p, q] = arr === "diagonal" ? [clipToward(a, center(b)), clipToward(b, center(a))] : alignedPoints(a, b, arr) as [Pt, Pt];
+  let [p, q] = arr === "diagonal" ? [clipToward(a, centerOf(b)), clipToward(b, centerOf(a))] : alignedPoints(a, b, arr) as [Pt, Pt];
   if (r.aVertex) p = vertexOf(a, p);
   if (r.bVertex) q = vertexOf(b, q);
   // 片方だけひし形なら、もう一方（普通の箱）の端を頂点へ向ける
@@ -506,7 +505,7 @@ function autoRoute(r: RouteInput, arrangement: Arrangement, sa: EndSpec, sb: End
   }
 
   const shape = elbowShape(a, b, exit, enter, r.obstacles, r.margin, at);
-  const pts = shapePoints(a, b, shape, at) ?? [center(a), center(b)];
+  const pts = shapePoints(a, b, shape, at) ?? [centerOf(a), centerOf(b)];
   return avoided(pts) ?? drawn(r, arrangement, shape, pts);
 }
 
@@ -563,7 +562,7 @@ function loopShape(a: Rect, b: Rect, arr: "side" | "stack"): RouteShape {
 function elbowShape(
   a: Rect, b: Rect, exit: Axis | null, enter: Axis | null, obstacles: Rect[], margin: number, at: EndsAt,
 ): RouteShape {
-  const [acx, acy] = center(a), [bcx, bcy] = center(b);
+  const [acx, acy] = centerOf(a), [bcx, bcy] = centerOf(b);
   // 向き合う辺（a の出る辺と b の入る辺）の位置
   const ax = bcx > acx ? a.x + a.w : a.x, bx = bcx > acx ? b.x : b.x + b.w;
   const ay = bcy > acy ? a.y + a.h : a.y, by = bcy > acy ? b.y : b.y + b.h;

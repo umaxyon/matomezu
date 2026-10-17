@@ -1,7 +1,7 @@
 // データだけから作るページの縮図（描いていないページ・ほかのブックの窓）。描いて並べた縮図は offscreen-scene.ts
 import { STRATEGIES, treeLinesBetween } from "./model";
 import { pageWorld, patternOf } from "./pages";
-import type { Rect } from "./geom";
+import { type Rect, centerOf } from "./geom";
 import type { Scene } from "./preview-art";
 import type { BoxData, Diagram, TreeDirection } from "./types";
 import { SIZES, isTreeDirection, normalizeEdge } from "./validate";
@@ -35,7 +35,7 @@ export function dataScene(source: Diagram, p: string, opt: SceneOptions): Scene 
   }
   const edges = [...(source.edges ?? []).map(normalizeEdge).flatMap(e => {
     const a = byId.get(String(e.from)), b = byId.get(String(e.to));
-    return a && b && a !== b ? [{ points: [[a.x + a.w / 2, a.y + a.h / 2], [b.x + b.w / 2, b.y + b.h / 2]] as [number, number][] }] : [];
+    return a && b && a !== b ? [{ points: [centerOf(a), centerOf(b)] }] : [];
   }), ...lines.map(points => ({ points }))];
   const w = Math.max(1, ...boxes.map(b => b.x + b.w)), h = Math.max(1, ...boxes.map(b => b.y + b.h));
   const bg = pw.background;

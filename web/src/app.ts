@@ -23,6 +23,7 @@
  */
 
 import { esc, keyOf } from "./dom";
+import { containsClientPoint } from "./geom";
 import { openSimpleDialog } from "./edit-dialog";
 import { t } from "./i18n";
 import { loadSavedBooks, saveBooks, wantedFromUrl, writeUrl } from "./app-location";
@@ -229,7 +230,7 @@ export async function startApp(ui: AppUi) {
     let started = false;
     const over = (e: { clientX: number; clientY: number }) => {
       const r = b.stage.getBoundingClientRect();
-      return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom ? { x: e.clientX, y: e.clientY } : null;
+      return containsClientPoint(r, e.clientX, e.clientY) ? { x: e.clientX, y: e.clientY } : null;
     };
     const end = () => {
       stop.abort();

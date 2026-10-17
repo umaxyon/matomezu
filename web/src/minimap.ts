@@ -13,6 +13,7 @@ import { SVGNS, injectStyle, isLightColor } from "./dom";
 import type { Graph } from "./graph";
 import { make, sceneItems, sceneOf } from "./preview-art";
 import { fromScroll, scrollWorldTo, visibleWorld } from "./viewport";
+import { containsPoint } from "./geom";
 
 const WIDTH = 160;
 const MAX_HEIGHT_RATIO = 0.5;
@@ -152,7 +153,7 @@ export function createMinimap(stage: HTMLElement, graph: Graph): Minimap {
     ev.preventDefault();
     const [x, y] = toWorld(ev);
     let v = viewRect();
-    const inView = x >= v.x && x <= v.x + v.w && y >= v.y && y <= v.y + v.h;
+    const inView = containsPoint(v, x, y);
     // 見えている範囲の外を押したら、その点が真ん中に来るように飛んでから、そのままドラッグできる
     if (!inView) { scrollTo(x - v.w / 2, y - v.h / 2); v = viewRect(); }
     grab = { dx: x - v.x, dy: y - v.y, id: ev.pointerId };

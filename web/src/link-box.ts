@@ -8,7 +8,7 @@
 // DOM に依存しない
 import { t } from "./i18n";
 import type { LinkLook } from "./types";
-import type { Rect } from "./geom";
+import { type Rect, centerOf } from "./geom";
 
 export const LINK_LOOKS = ["window", "side", "icon"] as const satisfies readonly LinkLook[];
 export const DEFAULT_LINK_LOOK: LinkLook = "window";
@@ -50,7 +50,7 @@ export function previewRegion(scene: { w: number; h: number }, win: { w: number;
     const w = win.w / scale, h = win.h / scale;
     return { x: cx - w / 2, y: cy - h / 2, w, h };
   };
-  if (clip) return around(clip.x + clip.w / 2, clip.y + clip.h / 2, Math.min(win.w / Math.max(1, clip.w), win.h / Math.max(1, clip.h)));
+  if (clip) return around(...centerOf(clip), Math.min(win.w / Math.max(1, clip.w), win.h / Math.max(1, clip.h)));
   const fit = Math.min(1, win.w / Math.max(1, scene.w), win.h / Math.max(1, scene.h));
   if (fit >= minScale) return around(scene.w / 2, scene.h / 2, fit);
   return { x: 0, y: 0, w: win.w / minScale, h: win.h / minScale };

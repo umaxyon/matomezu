@@ -89,6 +89,15 @@ export function segmentThroughRect([[ex1, ey1], [ex2, ey2]]: [Pt, Pt], r: Rect) 
   return clip(-dx, ex1 - x0) && clip(dx, x1 - ex1) && clip(-dy, ey1 - y0) && clip(dy, y1 - ey1) && t0 < t1;
 }
 
+// 矩形の真ん中
+export const centerOf = (r: Rect): Pt => [r.x + r.w / 2, r.y + r.h / 2];
+
+// 点 (x, y) が矩形の中にあるか（縁の上も中とみなす）
+export const containsPoint = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+// 点 (x, y) が画面の矩形（getBoundingClientRect の形）の中にあるか（縁の上も中とみなす）
+export const containsClientPoint = (r: { left: number; top: number; right: number; bottom: number }, x: number, y: number) =>
+  x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+
 // 2 つの矩形の、x（y）の向きの範囲が重なる所 [lo, hi]（hi <= lo なら重ならない）
 export function overlapSpan(a: Rect, b: Rect, k: "x" | "y"): [number, number] {
   const s = k === "x" ? "w" : "h";

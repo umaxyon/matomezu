@@ -5,7 +5,7 @@
 // 端の位置（exitAt / enterAt）は、箱のふちを左上から時計回りに一周した割合（0〜1）。2 つの端は、同じ辺か
 // 隣り合う辺に置く（向かいの辺だと円が箱を横切るため。その指定は使わず、角に描く）
 
-import { type Pt, type Rect, nearestAt, pointAt, rectsOverlap, segmentThroughRect, segmentsOf } from "./geom";
+import { type Pt, type Rect, centerOf, nearestAt, pointAt, rectsOverlap, segmentThroughRect, segmentsOf } from "./geom";
 
 export type { Rect };
 export type Corner = "topRight" | "topLeft" | "bottomRight" | "bottomLeft";
@@ -41,7 +41,8 @@ function arc(r: Rect, a: Pt, b: Pt): Pt[] {
   const len = Math.hypot(bx - a[0], by - a[1]);
   const m: Pt = [(a[0] + bx) / 2, (a[1] + by) / 2];
   let n: Pt = [(by - a[1]) / len, -(bx - a[0]) / len];
-  const out: Pt = [m[0] - (r.x + r.w / 2), m[1] - (r.y + r.h / 2)];
+  const [cx, cy] = centerOf(r);
+  const out: Pt = [m[0] - cx, m[1] - cy];
   if (n[0] * out[0] + n[1] * out[1] < 0) n = [-n[0], -n[1]];
   const c: Pt = [m[0] + n[0] * len, m[1] + n[1] * len];
   const R = Math.hypot(a[0] - c[0], a[1] - c[1]);

@@ -6,7 +6,7 @@ import { SVGNS, esc, isLightColor } from "./dom";
 import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
-import { type Pt, type Rect, leftNormalAt, pointAt, polylineLength } from "./geom";
+import { type Pt, type Rect, centerOf, leftNormalAt, pointAt, polylineLength } from "./geom";
 import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt, vertexAt } from "./routing";
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
@@ -438,7 +438,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       for (const item of group.slice(1)) {
         // 相手に背を向けていない辺（相手が右上なら上と右。真上なら上と左右）
         const o = rimOf(item.e.a);
-        const dx = o.x + o.w / 2 - (rim.x + rim.w / 2), dy = o.y + o.h / 2 - (rim.y + rim.h / 2);
+        const [ox, oy] = centerOf(o), [rx, ry] = centerOf(rim);
+        const dx = ox - rx, dy = oy - ry;
         const facing = (["t", "r", "b", "l"] as Side[]).filter(s =>
           (s === "t" ? -dy : s === "b" ? dy : s === "l" ? -dx : dx) >= -0.5 && !used.has(s));
         const better = facing.length ? routeOnSides(item.input, "enter", facing) : null;
@@ -456,7 +457,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (d === e.b || !shapeDef(shapeOf(d)).branch || !placerOf(d).splitBranches) return null;
     const out = ctx.edges().filter(x => x.a === d && x.b !== d && typeof x.src.exitAt !== "number" && !edgeHidden(x));
     if (out.length < 2) return null;
-    const c = (n: Box) => { const r = absAnchorRect(n); return [r.x + r.w / 2, r.y + r.h / 2] as const; };
+    const c = (n: Box) => centerOf(absAnchorRect(n));
     const [cx, cy] = c(d);
     const facing = (dx: number, dy: number): Vertex => (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "r" : "l") : dy > 0 ? "b" : "t");
     const avoid = ctx.edges().filter(x => x.b === d && x.a !== d && !edgeHidden(x)).map(x => { const [sx, sy] = c(x.a); return facing(sx - cx, sy - cy); });

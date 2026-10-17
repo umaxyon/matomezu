@@ -12,6 +12,7 @@ import {
   type Box, type Edge, type World, abilitiesOf, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
 } from "./model";
 import { clientToIn, inToClient, toWorldLength, viewRectOf } from "./viewport";
+import { containsClientPoint } from "./geom";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 import { vertexAt } from "./routing";
@@ -531,7 +532,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     // 覆われているかは、図の真ん中の一番上の要素が図の中のものかで見る（ダイアログは画面全体を覆う）
     const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     if (top && !container.contains(top)) { endAdd(); return; }
-    const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    const inside = containsClientPoint(r, x, y);
     if (inside) showAdd(x, y); else hideAdd();
     // 図の外は、端の帯と同じ幅まで（タブの列の上など）。それより離れたら止める（ヘッダーのボタンやサイドバーへ動かしただけでスクロールしないように）
     const out = Math.max(r.left - x, x - r.right, r.top - y, y - r.bottom);
