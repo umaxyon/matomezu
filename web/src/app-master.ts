@@ -12,8 +12,10 @@ import type { Graph } from "./graph";
 import { LINK_LOOK_DEFS } from "./link-box";
 import type { SideToggle } from "./main";
 import { sendMail } from "./mailbox";
+import { DEFAULT_VIEW } from "./model";
 import { openNewBookDialog } from "./new-book";
 import { layoutScene } from "./offscreen-scene";
+import { pageKeys, patternOf } from "./pages";
 import { type Scene, sceneOf } from "./preview-art";
 import { openSettings } from "./settings";
 import { docBase, fetchRemote, type Sync } from "./sync";
@@ -120,7 +122,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
       let item: CrossPayload;
       try { item = JSON.parse(e.dataTransfer!.getData(CROSS_MIME)); } catch { return; }
       const d = await loadBook(target.id);
-      const patterns: string[] = d ? [d.world?.childView ?? "nest", ...(d.pages ?? []).map(p => p.world?.childView ?? "nest")] : [];
+      const patterns: string[] = d ? pageKeys(d).map(p => patternOf(d, p)) : [];
       if (!patterns.includes(item.pattern)) {
         const label = isPattern(item.pattern) ? PATTERN_LABELS[item.pattern] : item.pattern;
         return void toast(t("「{book}」には{pattern}のページが無いので、「{caption}」を送れません", { book: name, pattern: label, caption: item.caption }), { kind: "warn" });
@@ -136,7 +138,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
   function bookWindow(id: string, visible: boolean): { title: string; pattern: PagePattern; scene: Scene | null } | null {
     const row = rows.get(id);
     if (!row) return null;
-    const pattern = isPattern(row.pattern) ? row.pattern : "nest";
+    const pattern = isPattern(row.pattern) ? row.pattern : DEFAULT_VIEW;
     // 開いているブックで最初のページを描いていれば、その配置から（隠れていても、前に出ていたときの配置が残っている）
     const open = ctx.books().find(b => b.id === id && b.loaded);
     const cached = scenes.get(id);

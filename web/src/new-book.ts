@@ -11,7 +11,7 @@ import { esc } from "./dom";
 import { colorButtonHtml, openDialog, setupColorButton } from "./edit-dialog";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
-import { addBox } from "./edits";
+import { seedRoot } from "./edits";
 import { DEFAULTS } from "./graph";
 import { DEFAULT_ROUTE, DEFAULT_VIEW, STRATEGIES } from "./model";
 import { BG_PRESETS, PATTERN_OPTIONS, ROUTE_OPTIONS, THEME_HELP, WORLD_VIEW_HELP } from "./world-options";
@@ -80,9 +80,7 @@ export function openNewBookDialog(near: string | null, created: (id: string) => 
     const { title, world } = readWorldFields(o, background());
     if (title) world.title = title;
     const data = { world, nodes: [] as BoxData[] };
-    if (STRATEGIES[(world.childView ?? DEFAULT_VIEW) as PagePattern].descendants) {
-      world.root = addBox(data, title ? { caption: title } : {}, { page: null }, DEFAULTS.rootAt);
-    }
+    seedRoot(data, world, title, null, DEFAULTS.rootAt);
     createBook(near, title, world, data.nodes).then(created, (e: Error) => failed(e.message));
   });
   background = setupBackground(overlay);

@@ -5,8 +5,9 @@
 import { t } from "./i18n";
 import { subtreeIds } from "./pages";
 import { type ClassAttr, type ClassOp, cleanMembers, memberNames } from "./classbox";
-import type { BoxData, Diagram, EdgeData, Id, Shape } from "./types";
-import { edgeIdMaker, nextBoxId, normalizeEdge } from "./validate";
+import { DEFAULT_VIEW, STRATEGIES } from "./model";
+import type { BoxData, Diagram, EdgeData, Id, Shape, WorldData } from "./types";
+import { edgeIdMaker, isPattern, nextBoxId, normalizeEdge } from "./validate";
 import { DEFAULT_SHAPE } from "./shapes";
 
 // 置く位置（親の左上から）。null は位置を消して自動で並べる
@@ -14,7 +15,7 @@ export type Pos = { x: number; y: number } | null;
 
 const key = (id: Id | undefined) => (id == null ? null : String(id));
 
-function place(s: BoxData, pos: Pos) {
+export function place(s: BoxData, pos: Pos) {
   if (pos) {
     s.x = Math.round(pos.x);
     s.y = Math.round(pos.y);
@@ -27,9 +28,16 @@ function place(s: BoxData, pos: Pos) {
 // 置き場所: 親の箱か、ページの最上位（parent が無ければ page のページ。null は最初のページ）。
 // page は最上位の箱にだけ書く（中の箱は親と同じページ。docs/TABS-plan.md）
 export interface Place { parent?: Id; page: Id | null }
-function setPlace(s: BoxData, at: Place) {
+export function setPlace(s: BoxData, at: Place) {
   if (at.parent == null) delete s.parent; else s.parent = at.parent;
   if (at.parent == null && at.page != null) s.page = at.page; else delete s.page;
+}
+
+// 消した箱（removed の中）の id の箱。無ければ誤り
+export function removedBox(data: Diagram, id: Id): BoxData {
+  const s = (data.removed ?? []).find(x => String(x.id) === String(id));
+  if (!s) throw new Error(t("消したボックスにありません: {id}", { id }));
+  return s;
 }
 
 const edgesOf = (data: Diagram) => (data.edges ?? []).map(normalizeEdge);
@@ -67,9 +75,8 @@ export function removeSubtree(data: Diagram, id: Id): { ids: Set<string>; cut: n
 
 // 消した箱 id を、removed の中の子孫ごと at（親の箱か、ページの最上位）に戻し（nodes の末尾へ）、位置を pos にする。線は戻さない
 export function restoreSubtree(data: Diagram, id: Id, at: Place, pos: Pos) {
-  const list = data.removed ?? [];
-  const root = list.find(s => String(s.id) === String(id));
-  if (!root) throw new Error(t("消したボックスにありません: {id}", { id }));
+  const root = removedBox(data, id);
+  const list = data.removed!;
   const take = subtreeIds(list, id);
   data.removed = list.filter(s => !take.has(String(s.id)));
   if (!data.removed.length) delete data.removed;
@@ -119,11 +126,18 @@ export function addBox(data: Diagram, fields: Partial<BoxData>, at: Place, pos: 
   return id;
 }
 
+// ページ（page。null は最初のページ）を作るときの根の箱の種まき: 子孫全体を並べるパターン（ツリー）なら、
+// 根の箱を 1 つ at に置いて world.root にする（根のキャプションはページの題名 title）。ページを足すときと新しいブックで使う
+export function seedRoot(data: Diagram, world: WorldData, title: string, page: Id | null, at: Pos): void {
+  if (!STRATEGIES[isPattern(world.childView) ? world.childView : DEFAULT_VIEW].descendants) return;
+  world.root = addBox(data, title ? { caption: title } : {}, { page }, at);
+}
+
 // 消した箱 id を、removed の中の子孫ごと完全に削除する（戻せなくする）。消した子孫まで全部がユーザーの足した箱（userAdded）のときだけ。
 // LLM から来た箱は「ユーザーが不要と印を付けたもの」として LLM に伝えるために残す（docs/ADD-plan.md の 4 章）。消した箱の数を返す
 export function purgeRemoved(data: Diagram, id: Id): number {
-  const list = data.removed ?? [];
-  if (!list.some(s => String(s.id) === String(id))) throw new Error(t("消したボックスにありません: {id}", { id }));
+  removedBox(data, id);
+  const list = data.removed!;
   const take = subtreeIds(list, id);
   if (!canPurge(list, id)) throw new Error(t("ユーザーが足した箱だけ完全に削除できます"));
   data.removed = list.filter(s => !take.has(String(s.id)));

@@ -5,6 +5,7 @@
 // 今の見た目から決める所（planFlatten）と、データの写しを直す所（applyFlatten）に分ける。作り直すのは graph.ts の rebuildWith
 import type { Rect } from "./geom";
 import { type Box, type Edge, type World, absPos, descendants, routeDefaultOf, treeDirOf } from "./model";
+import { place, setPlace } from "./edits";
 import { pageWorld } from "./pages";
 import { type RouteInput, framedAround, passes, perimeterAt, pickCandidate, route, routeCandidates } from "./routing";
 import type { Diagram, EdgeData } from "./types";
@@ -79,11 +80,8 @@ export function applyFlatten(data: Diagram, plan: FlattenPlan, page: string | nu
     const s = data.nodes.find(x => String(x.id) === n.id);
     if (!s) continue;
     // 根はページの最上位なので、子孫も同じページの最上位に（page はこのページ。無ければ最初のページ）
-    delete s.parent;
-    if (page != null) s.page = page; else delete s.page;
-    const r = head.get(n.id)!;
-    s.x = Math.round(r.x);
-    s.y = Math.round(r.y);
+    setPlace(s, { page });
+    place(s, head.get(n.id)!);
     // ツリーの中で無視していた見せ方は、平らにすると意味が無くなるので消す（子を持たない箱になる）
     delete s.childView;
   }

@@ -151,10 +151,10 @@ import {
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
-import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, restoreSubtree } from "./edits";
+import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, removedBox, restoreSubtree, seedRoot } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
 import { headOf } from "./heads";
-import { type Subtree, captionOfData, copySubtree, dataPaint, liveItems, pageData, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, subtreeIds } from "./pages";
+import { type Subtree, captionOfData, copySubtree, dataPaint, liveItems, pageData, pageKeys, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, setPageWorld, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import { type RouteFix, isAligned, perimeterAt, route } from "./routing";
 import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, askColor, isTheme, paintFor, pointColor, themeById, type Theme } from "./theme";
@@ -162,7 +162,7 @@ import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { BoxData, BoxView, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
-import { DEFAULT_PAPER, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, edgeIdMaker, isPaper, isPattern, normalizeEdge, validate } from "./validate";
+import { DEFAULT_PAPER, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, edgeIdMaker, isPaper, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, isRect } from "./link-box";
 import type { Scene } from "./preview-art";
 import { createView } from "./graph-view";
@@ -687,7 +687,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const after = api.toJSON();
     const changedOn = (p: string | null) => sceneKey(before, p) !== sceneKey(after, p);
     if (!changedOn(page)) {
-      const target = [null, ...pagesOf(after).map(x => String(x.id))].find(changedOn);
+      const target = pageKeys(after).find(changedOn);
       if (target !== undefined) {
         api.setPage(target);
         opt.onChange?.(api.toJSON()); // 画面のタブを合わせる（app.ts の refreshPages）
@@ -865,7 +865,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // at に置いてぶつかった相手は、ドラッグで手を離したときと同じく下へずらす。線は戻さない
   function restore(id: Id, parentId: Id | null, at?: { x: number; y: number }, byDrag = false) {
     const dest = target(parentId);
-    if (!(source.removed ?? []).some(s => String(s.id) === String(id))) throw new Error(t("消したボックスにありません: {id}", { id }));
+    removedBox(source, id);
     if (refusePattern(patternOf(source, removedPageOf(source, id)))) return false;
     if (refuseKids(dest, subtreeIds(api.toJSON().removed ?? [], id).size - 1)) return false;
     const pos = dropPos(dest, at);
@@ -971,8 +971,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 消したボックス id を、消した子孫ごと完全に削除する（ユーザーが足した箱だけ。docs/ADD-plan.md の 4 章）。描いていないので、
   // データだけを直して組み立て直す（履歴に 1 件。Undo で戻せる）
   function purge(id: Id) {
-    const s = (source.removed ?? []).find(x => String(x.id) === String(id));
-    if (!s) throw new Error(t("消したボックスにありません: {id}", { id }));
+    const s = removedBox(source, id);
     let count = 0;
     rebuildWith(data => {
       count = purgeRemoved(data, id);
@@ -1244,9 +1243,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const world: WorldData = { ...(spec.world ?? {}) };
       const title = spec.title?.trim() ?? "";
       const pageEntry: PageData = { id, ...(title ? { title } : {}) };
-      if (STRATEGIES[isPattern(world.childView) ? world.childView : DEFAULT_VIEW].descendants) {
-        world.root = addBox(data, title ? { caption: title } : {}, { page: id }, DEFAULTS.rootAt);
-      }
+      seedRoot(data, world, title, id, DEFAULTS.rootAt);
       if (Object.keys(world).length) pageEntry.world = world;
       data.pages = [...pagesOf(data), pageEntry];
       return {};
@@ -1277,9 +1274,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           const key = k as keyof WorldData; // 値は checkSettings で確かめている
           if (v == null || v === "" || dflt) delete w[key]; else (w as Record<string, unknown>)[key] = v;
         }
-        if (id == null) data.world = w;
-        else if (Object.keys(w).length) p!.world = w;
-        else delete p!.world;
+        setPageWorld(data, id, w);
         return {};
       });
     });
@@ -1394,13 +1389,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // ワールドの設定を、今のページの持ち主（ファイルの world か、pages のページ）へ書き戻す。ページの world は空なら項目ごと消す
   function storeWorld() {
-    const p = pageData(source, page);
-    if (p) {
-      if (!Object.keys(world.src).length) delete p.world;
-      else p.world = world.src;
-    } else {
-      source.world = world.src;
-    }
+    setPageWorld(source, page, world.src);
   }
 
   // ---- 読み込み ----

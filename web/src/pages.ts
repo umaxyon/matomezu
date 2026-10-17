@@ -44,8 +44,18 @@ export const pagesOf = (d: Diagram): PageData[] => (Array.isArray(d.pages) ? d.p
 // ページのデータ（null は最初のページなので undefined）
 export const pageData = (d: Diagram, page: string | null): PageData | undefined =>
   (page == null ? undefined : pagesOf(d).find(p => String(p.id) === page));
+// ブックの全部のページの鍵（最初のページの null から、データの並び順）
+export const pageKeys = (d: Diagram): (string | null)[] => [null, ...pagesOf(d).map(p => String(p.id))];
 // ページ（null は最初のページ）のワールドの設定（無ければ空）
 export const pageWorld = (d: Diagram, page: string | null): WorldData => (page == null ? d.world : pageData(d, page)?.world) ?? {};
+
+// ページ（null は最初のページ）のワールドの設定を書き戻す。ページの world は空なら項目ごと消す（無いページなら最初のページへ）
+export function setPageWorld(d: Diagram, page: string | null, w: WorldData): void {
+  const p = pageData(d, page);
+  if (!p) d.world = w;
+  else if (Object.keys(w).length) p.world = w;
+  else delete p.world;
+}
 
 // ページのパターン（そのページの world の childView。無ければ内包）
 export function patternOf(d: Diagram, page: string | null): PagePattern {
@@ -102,7 +112,7 @@ export function liveItems(d: Diagram, current: string | null | undefined, paint:
       page: pageAt(s.id!),
     };
   });
-  const pages = [null, ...pagesOf(d).map(p => String(p.id))]
+  const pages = pageKeys(d)
     .map(id => ({ id, caption: pageNameOf(d, id), current: id === current, pattern: patternOf(d, id) }));
   return { live, pages };
 }
