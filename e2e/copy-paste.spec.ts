@@ -24,5 +24,5 @@ test("箱を選んで Ctrl+C、背景を押してポインタを置いて Ctrl+V
   await page.keyboard.press("Control+v");
   await expect(page.locator('.mz-node[data-id="2"] .mz-node')).toHaveCount(1);
   // Ctrl を離したら選択モードに戻っている
-  await expect(page.locator("#mode-move")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move");
 });

@@ -1,6 +1,6 @@
 // 右の長押しのモードの切り替え（D39 の試し）: 0.3 秒押し続けるとポインタの近くにアイコンを並べ、押すとそのモードにする。動いたら取り消す
 import { expect, test } from "@playwright/test";
-import { openDiagram } from "./helpers";
+import { openDiagram, setMode } from "./helpers";
 
 // 広がるアニメーションが終わるのを待つ
 const settled = (page: import("@playwright/test").Page) =>
@@ -32,7 +32,7 @@ test("右の長押しでモードのアイコンを出し、押すとそのモ�
   // 手のひらを押すと手のひらモードになって閉じる
   await btns.nth(1).click();
   await expect(picker).toHaveCount(0);
-  await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "pan");
 
   // 手のひらモードでも出る。外を押すと何もせずに閉じる
   await page.mouse.down({ button: "right" });
@@ -40,7 +40,7 @@ test("右の長押しでモードのアイコンを出し、押すとそのモ�
   await page.mouse.up({ button: "right" });
   await page.mouse.click(at.x, at.y + 40);
   await expect(picker).toHaveCount(0);
-  await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "pan");
   // Esc でも閉じる
   await page.mouse.down({ button: "right" });
   await expect(picker).toBeVisible({ timeout: 2000 });
@@ -48,7 +48,7 @@ test("右の長押しでモードのアイコンを出し、押すとそのモ�
   await page.keyboard.press("Escape");
   await expect(picker).toHaveCount(0);
   // 右ボタンで閉じても、コンテキストメニューは出ない
-  await page.locator("#mode-move").click();
+  await setMode(page, "move");
   await page.mouse.move(at.x, at.y);
   await page.mouse.down({ button: "right" });
   await expect(picker).toBeVisible({ timeout: 2000 });
@@ -135,7 +135,7 @@ test("アイコンに乗ると名前を出す。押さずに遠くへ動かす�
   await expect(btns).toHaveCount(3);
   await page.mouse.move(at.x, at.y + 300, { steps: 5 });
   await expect(page.locator(".mz-mpick-overlay")).toHaveCount(0);
-  await expect(page.locator("#mode-move")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move");
   // アイコンの向こう側（上）へ通り過ぎたら、近くても閉じる
   await page.mouse.move(at.x, at.y);
   await page.mouse.down({ button: "right" });

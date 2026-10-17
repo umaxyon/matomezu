@@ -78,7 +78,7 @@ async function served() {
 async function main() {
   const undoBtn = $<HTMLButtonElement>("undo");
   const redoBtn = $<HTMLButtonElement>("redo");
-  const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
+  const modeButton = $<HTMLButtonElement>("mode-tool");
   setupMinimapToggle($<HTMLButtonElement>("minimap-toggle"));
   const side = setupSide({ boxes: $<HTMLButtonElement>("side-toggle"), mail: $<HTMLButtonElement>("mail-toggle") });
   setupSettings($("settings"));
@@ -92,7 +92,7 @@ async function main() {
     $("name").remove(); // 図の名前はブックのタブに出す
     startApp({
       tabs: $("tabs"), master: $<HTMLButtonElement>("master"), book: $<HTMLButtonElement>("book"), canvas, sidebar: $("sidebar"), side, mailbox: $("mailbox"), mailBadge: $("mail-badge"), crossList: $("crossmove"), askPalette: $("ask-palette"),
-      undo: undoBtn, redo: redoBtn, modeButtons, modeLabel: $("mode-label"), preview,
+      undo: undoBtn, redo: redoBtn, modeButton, modeLabel: $("mode-label"), preview,
       notice: text => toast(text), error: showError, clearError, empty: showEmpty,
     });
     return;
@@ -108,7 +108,7 @@ async function main() {
   });
   setupHistory(graph, undoBtn, redoBtn);
   preview.attach(graph, stage);
-  setupModes(graph, modeButtons, $("mode-label"));
+  setupModes(graph, modeButton, $("mode-label"));
   setupContextMenu(graph, stage, () => openBookDialog(graph, fileName));
 
   let fileName = "matomezu.json";

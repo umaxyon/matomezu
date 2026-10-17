@@ -3,6 +3,7 @@
 import type { Graph, Mode } from "./graph";
 import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { t } from "./i18n";
+import { modeIcon } from "./mode-icons";
 
 // 入力欄の中か（キー操作を文字入力に譲る）
 const typing = (t: EventTarget | null) =>
@@ -60,15 +61,25 @@ export function setupHistory(graph: Graph, undoBtn: HTMLButtonElement, redoBtn: 
   return () => listening.abort();
 }
 
-const MODE_LABELS: Record<Mode, string> = { move: t("選択モード"), reparent: t("付け替えモード"), remove: t("削除モード"), add: t("追加モード"), pan: t("手のひらモード") };
+const MODE_LABELS: Record<Mode, string> = { move: t("選択モード"), reparent: t("付け替えモード"), add: t("追加モード"), pan: t("手のひらモード") };
+// ボタンに乗せたときの説明（今のモードの使い方）
+const MODE_TIPS: Record<Mode, string> = {
+  move: t("選択モード: クリックでボックスや線を選ぶ / ドラッグでボックスを動かす / ポインタを乗せた箱の〇から線を引く"),
+  reparent: t("付け替えモード: ドラッグして落とした先のボックスの子にする"),
+  pan: t("手のひらモード: ドラッグで見る範囲を動かす（どのモードでも Space を押している間は手のひら）"),
+  add: t("追加モード"),
+};
+// ボタンを押したときの次のモード（選択 → 付け替え → 手のひら → 選択。D39）。追加のモードからは選択へ
+const NEXT: Record<Mode, Mode> = { move: "reparent", reparent: "pan", pan: "move", add: "move" };
 
-// ツールのモードの切り替え（移動 / 親子の付け替え / 追加 / 削除）と、今のモードの表示。
-// ボタンを押すと、そのモードになる。Ctrl（Mac は Cmd）を押している間の入れ替えはやめた（Ctrl+C / Ctrl+V とぶつかる。E19。切り替え方は D39 で見直す）。
+// ツールのモードの切り替え（選択 / 親子の付け替え / 手のひら。追加は道具箱から）と、今のモードの表示。
+// タブ行のボタンは 1 つで、押すたびに次のモードへ回す（D39。削除のモードはやめ、右クリックと Delete キーで消す）。右の長押しでも選べる（mode-picker.ts）。
+// Ctrl（Mac は Cmd）を押している間の入れ替えはやめた（Ctrl+C / Ctrl+V とぶつかる。E19）。
 // ドラッグ中は切り替えず、手を離してから切り替える（ドラッグの途中で Space を離しても取り消さないため）。
-// ボタンとラベルには、今効いているモードを出す。図の側でモードが変わったとき（一覧から戻したときなど）は、
+// ボタン（絵と説明）とラベルには、今効いているモードを出す。図の側でモードが変わったとき（一覧から戻したときなど）は、
 // それをボタンで選んだのと同じに扱う。登録を外す関数を返す
 // Space を押している間は、どのモードでも手のひらになり、離すと戻る（Miro と同じ。D32）
-export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HTMLElement): () => void {
+export function setupModes(graph: Graph, button: HTMLButtonElement, label: HTMLElement): () => void {
   let base: Mode = graph.mode(); // ボタンで選んだモード
   let space = false;             // Space で手のひらにしているか
   const effective = (): Mode => (space ? "pan" : base);
@@ -76,18 +87,21 @@ export function setupModes(graph: Graph, buttons: HTMLButtonElement[], label: HT
     const m = effective();
     if (graph.dragging()) return; // 手を離してから
     if (graph.mode() !== m) graph.setMode(m);
-    for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.mode === m));
+    if (button.dataset.mode !== m || !button.firstElementChild) {
+      button.dataset.mode = m;
+      button.innerHTML = modeIcon(m);
+    }
+    button.title = t("{mode}（押すと{next}）", { mode: MODE_TIPS[m], next: MODE_LABELS[NEXT[base]] });
+    button.setAttribute("aria-label", MODE_LABELS[m]);
     label.textContent = MODE_LABELS[m];
     label.dataset.mode = m; // 選択モードのときは札を隠す（index.html の .mode-label）
   };
   const listening = new AbortController();
   const { signal } = listening;
-  for (const b of buttons) {
-    b.addEventListener("click", () => {
-      base = b.dataset.mode as Mode;
-      show();
-    }, { signal });
-  }
+  button.addEventListener("click", () => {
+    base = NEXT[base];
+    show();
+  }, { signal });
   // Space: 入力欄・ボタンの上（Space で押す）・ダイアログの中では手のひらにしない。押している間の Space で図がスクロールしないよう止める
   const spaceTarget = (e: KeyboardEvent) =>
     e.key === " " && !typing(e.target) && !(e.target instanceof Element && e.target.closest("button, a, select, .mz-dlg-overlay"))

@@ -89,7 +89,7 @@ test("線を選んで Delete キーで消す", async ({ page }) => {
   await page.mouse.click(mid.x, mid.y);
   await expect(page.locator(".mz-edge")).toHaveClass(/mz-selected/);
   // タブ行のボタンに焦点が残っていても、Delete で消える（文字を打つ欄ではないので）
-  await page.locator("#mode-move").focus();
+  await page.locator("#mode-tool").focus();
   await page.keyboard.press("Delete");
   await expect(page.locator(".mz-edge")).toHaveCount(0);
 });

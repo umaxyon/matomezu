@@ -22,9 +22,6 @@ export default {
   "付け替えモード: ドラッグして落とした先のボックスの子にする": "Reparent mode: drag a box and drop it onto another box to make it a child",
   "付け替えモード": "Reparent mode",
   "追加モード": "Add mode",
-  "削除モード: ボックスを押すと子も一緒に消える（消したものはサイドバーの「追加削除」から戻せる）":
-    "Delete mode: click a box to delete it with its children (restore it from \"Added / Removed\" in the sidebar)",
-  "削除モード": "Delete mode",
   "手のひらモード: ドラッグで見る範囲を動かす（どのモードでも Space を押している間は手のひら）":
     "Hand mode: drag to move the view (in any mode, hold Space for the hand)",
   "手のひらモード": "Hand mode",
@@ -98,6 +95,7 @@ export default {
   "切り取り": "Cut",
   "矢印（{side}）": "Arrow ({side})",
   "モードの切り替え": "Switch mode",
+  "{mode}（押すと{next}）": "{mode} (click for {next})",
   "選択ツール": "Select tool",
   "ハンドツール": "Hand tool",
   "付け替えツール": "Reparent tool",

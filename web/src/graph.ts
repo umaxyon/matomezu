@@ -30,7 +30,7 @@
  *   graph.update(id, patch);     // 変更する（caption, color, size, childView, fill, border, overflow, linkLook, clip, previewSide, rowSize）。size は大きさの指定も外す
  *   graph.pageScene(page);       // ページの縮図のもと（preview-art.ts の Scene。描いたことのあるページはその配置、無ければデータの位置と既定の大きさで近似）
  *   graph.dragging();            // ドラッグ中か（外部からの変更を、手を離すまで待つのに使う）
- *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "remove"（削除）/ "add"（追加）
+ *   graph.setMode(mode);         // ツールのモード: "move"（選択。ドラッグで移動）/ "reparent"（親子の付け替え）/ "add"（追加）/ "pan"（手のひら）
  *   graph.onModeChange(fn);      // モードが変わったら知らせる（一覧から戻したときに移動モードへ切り替えるなど、図の側で変えたときも）
  *   graph.reparent(id, parentId, at); // id を parentId（null は最上位）の子にする。at は最上位へ移すときの位置
  *   graph.fitChildren(id, "width" | "height" | "both"); // 内包している子の大きさを、一番大きい子にそろえる
@@ -1152,11 +1152,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function setMode(m: Mode) {
     adding = null;
     I.endLift();
-    I.unmarkRemove();
     mode = m;
     container.classList.toggle("mz-mode-move", m === "move");
     container.classList.toggle("mz-mode-reparent", m === "reparent");
-    container.classList.toggle("mz-mode-remove", m === "remove");
     container.classList.toggle("mz-mode-add", m === "add");
     container.classList.toggle("mz-mode-pan", m === "pan");
     if (m !== "add") I.endAdd();

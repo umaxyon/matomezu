@@ -10,6 +10,7 @@
 import type { Graph, Mode } from "./graph";
 import { injectStyle } from "./dom";
 import { t } from "./i18n";
+import { modeIcon } from "./mode-icons";
 
 export const LONG_PRESS_MS = 300; // 長押しの時間（後で全体設定から変えられるようにする）
 export const MOVE_SLOP = 5;       // 長押しを取り消さない動きの遊び（px）
@@ -126,9 +127,7 @@ export function openModePicker(graph: Graph, at: { x: number; y: number }, close
     b.dataset.mode = m;
     b.setAttribute("aria-label", LABELS[m]);
     b.setAttribute("aria-pressed", String(graph.mode() === m));
-    // アイコンはタブ行のモードのボタンと同じ絵
-    const icon = document.querySelector(`#mode-${m} svg`);
-    if (icon) b.appendChild(icon.cloneNode(true)); else b.textContent = LABELS[m].slice(0, 1);
+    b.innerHTML = modeIcon(m); // タブ行のモードのボタンと同じ絵
     Object.assign(b.style, { left: `${slot.x}px`, top: `${slot.y}px`, width: `${ICON}px`, height: `${ICON}px` });
     b.addEventListener("click", e => {
       e.stopPropagation();

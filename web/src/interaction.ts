@@ -22,7 +22,7 @@ import { DEFAULT_SHAPE } from "./shapes";
 
 // ツールのモード。選択（ドラッグで移動、箱の〇から線を引く。docs/EDGE-TOOL-plan.md）、親子の付け替え、
 // 削除（ボックスを押すと子孫ごと消える。ドラッグはしない）、追加（押した所に新しい箱を足す。docs/ADD-plan.md）
-export type Mode = "move" | "reparent" | "remove" | "add" | "pan"; // pan は手のひら（見る範囲を動かすだけ。D32）
+export type Mode = "move" | "reparent" | "add" | "pan"; // pan は手のひら（見る範囲を動かすだけ。D32）。削除のモードはやめた（右クリックと Delete キーで消す。D39）
 
 // 追加モードで押した所: 新しい箱の親（null はワールド）、親の中での位置、リストへの差し込みなら前に入れる兄弟（無ければ末尾）
 export interface AddRequest {
@@ -287,12 +287,6 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     }
     e.stopPropagation();
     hidePorts(); // 選んだ箱には〇を出さない（右の縁の本文の幅のつまみと重なるため）
-    if (ctx.mode() === "remove") {
-      e.preventDefault();
-      unmarkRemove();
-      ctx.remove(n);
-      return;
-    }
     if (ctx.current() !== n) ctx.select(n);
     if (ctx.mode() === "reparent") {
       const r = n.el.getBoundingClientRect();
@@ -570,22 +564,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     if (e.target instanceof Element && e.target.closest(".mz-port")) return; // 〇の上では、〇を出した箱のまま
     const n = boxOf(e.target);
     if (!active) showPorts(n && portable(n) ? n : null);
-    if (ctx.mode() === "remove") return markRemove(n);
     if (n) focus(n);
     else if (!onEdge(e.target)) unfocus();
-  }
-
-  // 削除モードでポインタを乗せたボックスに、一緒に消える範囲（子孫を含む）を示す印を付ける
-  let removing: Box | null = null;
-  function markRemove(n: Box | null) {
-    if (removing === n) return;
-    unmarkRemove();
-    removing = n;
-    n?.el.classList.add("mz-removing");
-  }
-  function unmarkRemove() {
-    removing?.el.classList.remove("mz-removing");
-    removing = null;
   }
 
   function onKeyDown(e: KeyboardEvent) {
@@ -978,7 +958,6 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   container.addEventListener("pointerleave", () => {
     if (active?.g.kind !== "move" && active?.g.kind !== "link") unfocus();
     if (!active) hidePorts();
-    unmarkRemove();
     hideAdd(); // 追加モードの端のスクロールは、図の外でも続ける（onAddMove）
   }, { signal });
   container.addEventListener("scroll", hidePorts, { signal, capture: true }); // 〇は画面の座標に置いているので、スクロールしたら消す
@@ -994,17 +973,15 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     portOwner: () => portBox, // 今〇を出している箱（右クリックのメニューで、〇はその箱として扱う。D42）
     endLift,
     endAdd,
-    // 描き直すときに、ドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
+    // 描き直すときに、ドラッグを忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）
     reset() {
       hidePorts(); // 描き直すと箱が動くことがある（次にポインタを乗せたとき出し直す）
       active?.g.cancel();
       if (active?.g.kind !== "lift") active = null;
-      removing = null;
       // 描き直すと箱の要素が作り直されるので、強調は付け直す（次にポインタが動いたとき）
       if (addMarked !== undefined) (addMarked ?? world).el.classList.remove("mz-drop");
       addMarked = undefined;
     },
-    unmarkRemove,
     // タブを図へドラッグしてリンクの箱を作るとき（D29）: 画面の座標 at に追加モードと同じ影を出し、落とせば足す所を返す（足せない所なら null）。
     // at が null なら影を消す
     ghost(at: { x: number; y: number } | null): AddRequest | null {

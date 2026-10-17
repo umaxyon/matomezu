@@ -38,7 +38,7 @@ test("追加ボタンを押すとポインタに影が付き、何も無い所�
   const r = (await added.boundingBox())!;
   expect(Math.round(r.x - world.x)).toBe(300 - 16);
   expect(Math.round(r.y - world.y)).toBe(400 - 12);
-  await expect(page.locator("#mode-move")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move");
   await expect(page.locator(".mz-add-ghost")).toHaveCount(0);
 });
 

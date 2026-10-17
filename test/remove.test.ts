@@ -147,23 +147,6 @@ test("戻した位置でぶつかったら、相手を下へずらす", () => {
   expect(at(graph, 4)).toEqual([400, 40]);
 });
 
-test("削除モードでボックスを押すと消える。ほかのモードでは消えない", () => {
-  const { el, graph } = setup(data());
-  const press = (id: number) => el.querySelector(`[data-id="${id}"] > .mz-head`)!
-    .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1 }));
-  for (const mode of ["move", "reparent"] as const) {
-    graph.setMode(mode);
-    press(5);
-    el.querySelector(`[data-id="5"] > .mz-head`)!.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1 }));
-  }
-  expect(ids(graph.toJSON().nodes)).toEqual([1, 2, 3, 4, 5]);
-  graph.setMode("remove");
-  press(3); // 子だけ
-  expect(ids(graph.toJSON().nodes)).toEqual([1, 2, 4, 5]);
-  press(1);
-  expect(ids(graph.toJSON().nodes)).toEqual([4, 5]);
-});
-
 test("選択中のボックスを消すと、ワールドの選択に戻る", () => {
   const { graph } = setup(data());
   graph.select(2);

@@ -17,8 +17,7 @@ afterEach(() => {
 function setup() {
   document.body.innerHTML = `
     <button id="undo"></button><button id="redo"></button>
-    <button data-mode="move" aria-pressed="true"></button><button data-mode="reparent" aria-pressed="false"></button>
-    <button data-mode="remove" aria-pressed="false"></button>
+    <button id="mode-tool" data-mode="move"></button>
     <span id="label"></span><input id="text"><div id="stage"></div>`;
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const undoBtn = $<HTMLButtonElement>("undo"), redoBtn = $<HTMLButtonElement>("redo");
@@ -74,35 +73,39 @@ test("登録を外すと、キーもボタンも効かない", () => {
 
 function setupWithModes() {
   const r = setup();
-  const buttons = [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")];
-  const disposeModes = setupModes(r.g, buttons, r.$("label"));
+  const button = r.$<HTMLButtonElement>("mode-tool");
+  const disposeModes = setupModes(r.g, button, r.$("label"));
   const disposeHistory = dispose;
   dispose = () => { disposeHistory?.(); disposeModes(); };
-  return { ...r, buttons };
+  return { ...r, button };
 }
 
 const keyup = (k: string, opts: KeyboardEventInit = {}, target: EventTarget = document.body) =>
   target.dispatchEvent(new KeyboardEvent("keyup", { key: k, bubbles: true, cancelable: true, ...opts }));
 
-test("モードの切り替えと表示", () => {
-  const { g, $, buttons } = setupWithModes();
-  buttons[1]!.click();
-  expect(g.mode()).toBe("reparent");
-  expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["false", "true", "false"]);
-  expect($("label").textContent).toBe("付け替えモード");
-  buttons[2]!.click();
-  expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
-  expect([g.mode(), $("label").textContent]).toEqual(["remove", "削除モード"]);
-  buttons[0]!.click();
+test("モードのボタンは押すたびに 選択 → 付け替え → 手のひら → 選択 と回し、絵と説明は今のモード（D39）", () => {
+  const { g, $, button } = setupWithModes();
+  expect([button.dataset.mode, button.getAttribute("aria-label"), button.title]).toEqual(["move", "選択モード", "選択モード: クリックでボックスや線を選ぶ / ドラッグでボックスを動かす / ポインタを乗せた箱の〇から線を引く（押すと付け替えモード）"]);
+  expect(button.querySelector("svg")).not.toBeNull();
+  button.click();
+  expect([g.mode(), button.dataset.mode, $("label").textContent]).toEqual(["reparent", "reparent", "付け替えモード"]);
+  expect(button.title).toBe("付け替えモード: ドラッグして落とした先のボックスの子にする（押すと手のひらモード）");
+  button.click();
+  expect([g.mode(), button.dataset.mode, $("label").textContent]).toEqual(["pan", "pan", "手のひらモード"]);
+  button.click();
   expect([g.mode(), $("label").textContent]).toEqual(["move", "選択モード"]);
+  // 追加のモードからは選択へ
+  g.setMode("add");
+  button.click();
+  expect(g.mode()).toBe("move");
 });
 
 test("Ctrl（Mac は Cmd）を押してもモードは入れ替わらない（E19）", () => {
-  const { g, buttons } = setupWithModes();
+  const { g, button } = setupWithModes();
   key("Control", { ctrlKey: true });
   expect(g.mode()).toBe("move");
   keyup("Control");
-  buttons[1]!.click();
+  button.click();
   key("Meta", { metaKey: true });
   expect(g.mode()).toBe("reparent");
   keyup("Meta");
@@ -111,11 +114,10 @@ test("Ctrl（Mac は Cmd）を押してもモードは入れ替わらない（E1
 
 test("ドラッグ中は切り替えず、手を離してから切り替える", () => {
   document.body.innerHTML = `
-    <button data-mode="move" aria-pressed="true"></button><button data-mode="reparent" aria-pressed="false"></button>
-    <button data-mode="remove" aria-pressed="false"></button><span id="label"></span><div id="stage"></div>`;
+    <button id="mode-tool" data-mode="move"></button><span id="label"></span><div id="stage"></div>`;
   const stage = document.getElementById("stage")!;
   graph = createGraph(stage, { nodes: [{ id: 1, caption: "a", x: 40, y: 40 }] }, { measureText: fakeMeasure });
-  dispose = setupModes(graph, [...document.querySelectorAll<HTMLButtonElement>("[data-mode]")], document.getElementById("label")!);
+  dispose = setupModes(graph, document.getElementById("mode-tool") as HTMLButtonElement, document.getElementById("label")!);
   graph.select(1);
   const head = stage.querySelector(".mz-node.mz-current > .mz-head")!;
   const fire = (type: string, x: number) =>
@@ -131,11 +133,12 @@ test("ドラッグ中は切り替えず、手を離してから切り替える",
 });
 
 test("図の側でモードが変わったら、ボタンとラベルもそれに合わせる", () => {
-  const { g, $, buttons } = setupWithModes();
-  buttons[2]!.click(); // 削除モード
-  g.setMode("move");   // 図の側で変える（一覧から戻したときなど）
-  expect(buttons.map(b => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
-  expect($("label").textContent).toBe("選択モード");
+  const { g, $, button } = setupWithModes();
+  button.click();    // 付け替えモード
+  g.setMode("pan");  // 図の側で変える（右の長押しで選んだときなど）
+  expect([button.dataset.mode, $("label").textContent]).toEqual(["pan", "手のひらモード"]);
+  button.click();    // 図の側で変わったモードから回す
+  expect(g.mode()).toBe("move");
 });
 
 test("選んだ線は Delete（Mac の delete は Backspace）で消える。入力欄の中では消さない", () => {
