@@ -30,6 +30,8 @@ export interface NodeKind {
   // この並べ方が子 child にそろえさせる幅（0 は決めない）。子は自分の大きさを決めるとき、親からこれを受け取る（assignedW）。
   // 今はリストだけ（子の幅をそろえる）。D2 の配置パターンも、子の大きさを決めるときはここから渡す（docs/PATTERN-plan.md の 6 章 E）
   childWidth?(child: Box): number;
+  // 子を自由に置く箱の、中身によらない最小の大きさ（本文の幅など）。大きさが変わったときの並べ直し（layout.ts の regrow）が使う
+  floor?(n: Box): { w: number; h: number };
 }
 
 export interface KindContext {
@@ -209,7 +211,7 @@ export function createNodeKinds(ctx: KindContext) {
       let r = 0;
       for (const c of n.children) r = Math.max(r, c.x + c.w);
       // リストの子なら、リストがそろえた幅まで広げる（子の並びは左に寄ったまま）
-      n.w = Math.max(GROUP_MIN.w, bodyMinW(n), r + opt.padding, assignedW(n));
+      n.w = Math.max(nest.floor!(n).w, r + opt.padding);
       // 本文は決まった幅で折り返す。高さが前と変わったら（子は前の高さの下に置いてある）、その分だけ子を上下に動かす。
       // 子の左右の位置は本文の高さに関わらないので、幅は先に決まる
       const bh = bodyHeight(n, n.w);
@@ -218,10 +220,13 @@ export function createNodeKinds(ctx: KindContext) {
       n.bodyH = bh;
       let b = 0;
       for (const c of n.children) b = Math.max(b, c.y + c.h);
-      const minH = Math.max(GROUP_MIN.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0);
-      n.h = Math.max(minH, b + opt.padding);
+      n.h = Math.max(nest.floor!(n).h, b + opt.padding);
       n.hx = 0; n.hy = 0;
       n.hw = n.w; n.hh = n.h;
+    },
+    floor(n) {
+      const bh = bodyHeight(n, n.w);
+      return { w: Math.max(GROUP_MIN.w, bodyMinW(n), assignedW(n)), h: Math.max(GROUP_MIN.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0) };
     },
     anchorRect: headRect,
   };

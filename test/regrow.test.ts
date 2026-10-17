@@ -94,3 +94,21 @@ test("付箋紙から戻すと、広がった箱は元の大きさに戻り、�
   graph!.update(null, { theme: null });
   expect([info(1).x, info(1).y, info(1).w, info(1).h]).toEqual([b.x, b.y, b.w, b.h]);
 });
+
+test("断った設定変更の原因は、1 つずつ当てて確かめた項目（大きさに関わらない色は入らない）。確かめたあとも断ったあとの状態のまま", () => {
+  const width = Math.floor((A4.w - 2 * PAD - 3 * DEFAULTS.gap) / 4);
+  const w = setup({ nodes: [{ id: 1, caption: "箱", width, x: 40, y: 40 }] }).info(1).w;
+  graph!.destroy();
+  setup({ nodes: Array.from({ length: 4 }, (_, i) => ({ id: i + 1, caption: "箱", width, x: PAD + i * (w + DEFAULTS.gap), y: 40 })) });
+  const slack = A4.w - 2 * PAD - (4 * w + 3 * DEFAULTS.gap);
+  expect(slack).toBeLessThan(2 * OX); // 1 つの箱が付箋紙になるだけで入らない
+  const before = graph!.toJSON();
+  graph!.select(2);
+  expect(graph!.batch(() => graph!.update(2, { theme: "sticky", color: "danger" }))).toBe(false);
+  expect(graph!.refusedBy()).toEqual(["theme"]);
+  expect(graph!.toJSON()).toEqual(before);
+  expect(graph!.selected()).toBe("2");
+  // 収まる変更のあとは空
+  expect(graph!.batch(() => graph!.update(2, { color: "danger" }))).toBe(true);
+  expect(graph!.refusedBy()).toEqual([]);
+});

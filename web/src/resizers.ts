@@ -8,7 +8,6 @@ import { GROUP_MIN, SIZES } from "./validate";
 export interface ResizersContext {
   nodes(): Box[];
   settle(n: Box): void;     // n の大きさが変わった（押しのけて描き直す。layout の resizeBody の場面）
-  centerX(n: Box): number;  // 最上位の箱の、本来いたい横の真ん中
   changed(): void;          // 1 件の履歴に残す
   notifySelect(): void;
 }
@@ -19,7 +18,7 @@ export function createResizers(ctx: ResizersContext) {
   // 変えられる幅は、葉の見た目の箱なら本文の最小の幅〜サイズの最大。内包する箱・リストの親なら本文の最小の幅〜子の並びで決まった箱の幅
   // （本文で箱は広がらない。箱の幅まで広げたら自動に戻す。docs/SIZE-plan.md）
   function bodyResizer(n: Box) {
-    const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
+    const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedX: b.intendedX }]));
     const before = typeof n.src.bodyWidth === "number" ? n.src.bodyWidth : undefined;
     const group = isNesting(n);
     const width = group ? bodyWrapW(n, n.hw) : n.hw;
@@ -37,7 +36,7 @@ export function createResizers(ctx: ResizersContext) {
         apply(group && v >= Math.floor(max) ? undefined : v);
       },
       finish() {
-        if (!n.parent) n.intendedCX = ctx.centerX(n);
+        n.intendedX = n.x;
         ctx.changed();
         ctx.notifySelect();
       },
@@ -48,7 +47,7 @@ export function createResizers(ctx: ResizersContext) {
   // リストの幅のつまみ（docs/SIZE-plan.md の 10 章）。ドラッグの間は開始時の位置の写しから毎回決め直し（本文の幅と同じ場面）、
   // 手を離したら 1 件の履歴。幅は width に書く（狭める下限は layout が決める。node-kinds.ts の list）
   function listResizer(n: Box) {
-    const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
+    const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedX: b.intendedX }]));
     const before = n.specW;
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
     const apply = (w: number) => {
@@ -60,7 +59,7 @@ export function createResizers(ctx: ResizersContext) {
       width: n.w - n.listOx, // 書くのは土台の幅（足跡は葉の子の補正値の分だけ広い。node-kinds.ts の list）
       set(w: number) { apply(Math.round(Math.max(GROUP_MIN.w, w))); },
       finish() {
-        if (!n.parent) n.intendedCX = ctx.centerX(n);
+        n.intendedX = n.x;
         ctx.changed();
         ctx.notifySelect();
       },
@@ -70,7 +69,7 @@ export function createResizers(ctx: ResizersContext) {
 
   // スクロールにしたリストの高さの上限（D33）。つまみを動かした分だけ変え、周りは押しのける（手を離したら確定）
   function listHeightResizer(n: Box) {
-    const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedCX: b.intendedCX }]));
+    const snap = new Map(ctx.nodes().map(b => [b, { x: b.x, y: b.y, intendedY: b.intendedY, intendedX: b.intendedX }]));
     const before = listHeightOf(n) || n.h;
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
     const apply = (h: number) => {

@@ -280,7 +280,7 @@ function noOverlap(graph: Graph, ids: number[]) {
   }
 }
 
-test("見せ方を変えて大きくなったら、重なる相手を下へずらす（変えた方はその場に残す）", () => {
+test("見せ方を変えて大きくなったら、重なる相手を同じ向き（下）へ押す（変えた方は左上を保つ。内包のページの起点）", () => {
   const { graph } = setup({
     nodes: [
       // 外部サービスを先に書く（データの順では先に置かれる方）
@@ -299,9 +299,8 @@ test("見せ方を変えて大きくなったら、重なる相手を下へず�
   graph.update(1, { childView: "nest" });
   const after = graph.info(1);
   expect(after.h).toBeGreaterThan(before.h);
-  // 変えた側は動かない（最上位は上辺と横の中心を保つ）
-  expect(after.y).toBe(before.y);
-  expect(Math.abs(after.x + after.w / 2 - (before.x + before.w / 2))).toBeLessThanOrEqual(1);
+  // 変えた側は動かない（内包のページは左上を保つ。docs/PAPER-plan.md の 4.6）
+  expect([after.x, after.y]).toEqual([before.x, before.y]);
   noOverlap(graph, [1, 9]);
   expect(graph.info(9).x).toBe(500); // 相手はまっすぐ下へずれる
 });
@@ -892,7 +891,7 @@ describe("ツリーの向きや箱の見せ方を変えても、最上位は上�
   });
 });
 
-test("見せ方を変えて広がったボックスが大きい隣にぶつかったら、自分の方がずれる", () => {
+test("見せ方を変えて広がったボックスが大きい隣にぶつかっても、相手を同じ向きに押す（自分はずれない。PAPER-plan の 4.6）", () => {
   const { graph } = setup({
     nodes: [
       { id: 2, caption: "外部サービス", childView: "hidden", x: 40, y: 40 },
@@ -903,22 +902,19 @@ test("見せ方を変えて広がったボックスが大きい隣にぶつか�
   const big = graph.info(1);
   graph.update(2, { childView: "nest" }); // 左上を保って下へ伸び、真下の大きい隣に重なる
   const after = graph.info(1), ext = graph.info(2);
-  expect([after.x, after.y]).toEqual([big.x, big.y]); // 大きい隣は動かない
-  expect(ext.x + ext.w <= after.x || after.x + after.w <= ext.x || ext.y + ext.h <= after.y || after.y + after.h <= ext.y)
-    .toBe(true); // 自分がずれて重ならない
+  expect([ext.x, ext.y]).toEqual([40, 40]); // 自分は動かない
+  expect(after.x).toBe(big.x); // 大きい隣は真下へ押される
+  expect(after.y).toBe(ext.y + ext.h + 8);
 });
 
 test.each([
   ["サイズ L → S", { size: "S" }],
   ["形をスティックマンに", { shape: "person" }],
   ["キャプションを長く", { caption: "とても長いキャプションに書き換えて大きさが変わる" }],
-] as const)("最上位は設定を変えて大きさが変わっても、上辺と横の中心を保つ: %s", (_, patch) => {
+] as const)("最上位は設定を変えて大きさが変わっても、内包のページでは左上を保つ（ページの起点。PAPER-plan の 4.6）: %s", (_, patch) => {
   const { graph } = setup({ nodes: [{ id: 1, caption: "外部サービス", x: 300, y: 200 }, { id: 2, x: 40, y: 40 }] });
-  const cx = () => graph.info(1).x + graph.info(1).w / 2;
-  const before = cx();
   graph.update(1, patch);
-  expect(graph.info(1).y).toBe(200);
-  expect(Math.abs(cx() - before)).toBeLessThanOrEqual(1);
+  expect([graph.info(1).x, graph.info(1).y]).toEqual([300, 200]);
 });
 
 test("はみ出しの調整は最初に開いたときだけで、外部の変更の読み直しでは行わない（紙なし。マスターの動き。D34 で見直す）", () => {

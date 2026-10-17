@@ -255,6 +255,9 @@ export interface Graph {
   edgeInfo(id: Id): EdgeInfo | null; // 線の情報（無ければ null）
   update(id: Id | null, patch: Patch): void;
   batch(fn: () => void): boolean; // fn の中の変更を履歴の 1 件にまとめる（ダイアログの確定で、項目と一回きりの操作を一緒に書く）。紙からはみ出すならしないで false（D33）
+  // 直前に紙に収まらないので断った設定変更の、原因の項目（update の patch の鍵。1 つずつ当てて確かめ、どれも 1 つでは入るなら全部）。
+  // 断ったのが設定変更でなければ空。ダイアログが原因を出すのに使う（docs/PAPER-plan.md の 4.6 の 5）
+  refusedBy(): string[];
   // クラスの箱にかかわる変更（クラスにする・クラスを直す・クラスでなくする。docs/CLASS-plan.md）。子や線を消すことがあるので、
   // 図を組み立て直して履歴に 1 件残す
   updateClass(id: Id, edit: ClassEdit): void;
@@ -437,13 +440,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let dragging = () => false;
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging(), linkOf, sceneOf: windowScene }, L);
   const {
-    incident, innerArea, syncWorld, clamp, centerX, refitAncestors,
+    incident, innerArea, syncWorld, clamp, refitAncestors,
     settle, sizable, alignChildren,
   } = L;
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
   // つまみで大きさを変える（本文の幅・リストの幅・リストの高さ。resizers.ts）
   const Z = createResizers({
-    nodes: () => nodes, settle: n => { settle(SCENES.resizeBody, n); render(); }, centerX: n => centerX(n), changed, notifySelect,
+    nodes: () => nodes, settle: n => { settle(SCENES.resizeBody, n); render(); }, changed, notifySelect,
   });
   // 線の追加・削除・変更・つなぎ直し（graph-edges.ts）
   const E = createEdges({
@@ -553,14 +556,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   let quietPaper = false; // 断るとき知らせない（貼り付け。収まらないものは黙って貼らない。2026-10-17 ユーザー）
   let paperRefused = false; // 直前に紙からはみ出すので断ったか（呼んだ側が、した後の知らせを出さないために見る）
   let notFitting = false; // 大きさが変わって、形を変えずには紙に収まらなかった（layout.ts の regrow）
+  // 今の操作の中で、紙に収まらなかった設定変更（refusedBy が原因の項目を確かめる）。断ったあとは lastRefused に移す
+  let refusedPatches: { id: Id | null; patch: Patch }[] = [];
+  let lastRefused: { id: Id | null; patch: Patch }[] = [];
   const outsideNow = () => new Set(roots.filter(L.outsideFixed).map(n => n.id));
   function refuseOverPaper(warn: boolean): boolean {
     const p = paperOf();
     const now = outsideNow();
     const squeezed = notFitting;
     notFitting = false;
+    lastRefused = refusedPatches;
+    refusedPatches = [];
     if (!p || (!squeezed && [...now].every(id => outsideKnown.has(id)))) {
       outsideKnown = now;
+      lastRefused = [];
       return false;
     }
     const sel = current?.id ?? null;
@@ -570,6 +579,30 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     if (warn) opt.onEvent?.({ kind: "overPaper", paper: p.name });
     paperRefused = true;
     return true;
+  }
+
+  // 断った設定変更の項目を 1 つずつ当て直し、それだけで紙に収まらない項目を返す（どれも 1 つでは入るなら、変えた項目を全部）。
+  // 当てたら、断ったあとの状態（履歴の最後）に読み直す。試しに当てる間は履歴にも知らせにも残さない
+  function refusedBy(): string[] {
+    const list = lastRefused;
+    if (!list.length) return [];
+    const base = JSON.stringify(H.last());
+    const sel = current?.id ?? null;
+    const keys: string[] = [], fails: string[] = [];
+    for (const { id, patch } of list) {
+      for (const [k, v] of Object.entries(patch)) {
+        if (!keys.includes(k)) keys.push(k);
+        batching++;
+        try { update(id, { [k]: v } as Patch); } catch { /* 1 つだけでは当てられない項目は、原因に数えない */ } finally { batching--; batchDirty = false; }
+        const over = notFitting || [...outsideNow()].some(o => !outsideKnown.has(o));
+        notFitting = false;
+        refusedPatches = [];
+        build(JSON.parse(base), false);
+        if (over && !fails.includes(k)) fails.push(k);
+      }
+    }
+    if (sel != null && byId.has(sel)) select(byId.get(sel)!);
+    return fails.length ? fails : keys;
   }
 
   // fn の中の変更を、履歴の 1 件（と 1 回の変更の知らせ）にまとめる。ダイアログの確定で、項目の変更と一回きりの操作（子のサイズを
@@ -772,7 +805,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         render();
       }
       n.intendedY = n.y;
-      n.intendedCX = centerX(n);
+      n.intendedX = n.x;
     }
     select(n);
     changed();
@@ -1304,6 +1337,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       k.x = Number(k.src.x) || 0;
       k.y = Number(k.src.y) || 0;
       k.intendedY = k.y;
+      k.intendedX = k.x;
     }
   }
 
@@ -1450,12 +1484,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("theme" in next || next.childView || next.previewSide || next.rowSize) descendants(n).forEach(applyStyle);
       }
     };
-    // ツリーの向きを変えると、大きさが変わるのはツリーの根なので、根の位置を保つ
-    const anchor = n.isWorld ? (next.treeDirection ? rootBoxOf(world) ?? undefined : undefined) : n;
-    // テーマだけを変えたときは、大きさが変わったときの統一した決まりで並べ直す（docs/PAPER-plan.md の 4.6。段階 3）。
-    // 形を変えずに紙に収まらなければ断る（changed の refuseOverPaper）
-    if (Object.keys(next).length === 1 && "theme" in next) { if (!L.regrow(apply)) notFitting = true; }
-    else settle(SCENES.settings, anchor, apply);
+    // 大きさが変わったときの統一した決まりで並べ直す（docs/PAPER-plan.md の 4.6）。形を変えずに紙に収まらなければ断る
+    // （changed の refuseOverPaper。ダイアログは原因の項目を refusedBy で引く）。位置の無い子があれば、空きに置く（SCENES.settings）
+    const r = L.regrow(apply, n.isWorld ? undefined : n);
+    if (r === "refused") { notFitting = true; refusedPatches.push({ id: n.isWorld ? null : n.id, patch: next }); }
+    if (r === "unplaced") settle(SCENES.settings, n.isWorld ? undefined : n);
     render();
     // 選択中のボックスが非表示になったら、隠した親を選び直す
     if (current && isHidden(current)) select(n.isWorld ? null : n);
@@ -1561,7 +1594,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       w: 0, h: 0, hx: 0, hy: 0, hw: 0, hh: 0,
       hasPos: Number.isFinite(src.x) && Number.isFinite(src.y),
       intendedY: Number(src.y) || 0,
-      intendedCX: NaN,
+      intendedX: Number(src.x) || 0,
       capW: 0,
       listW: 0, listOx: 0, kidsTop: 0, fullH: 0, kidsEl: null,
       out: null,
@@ -1738,6 +1771,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     edgeInfo: id => { const e = edges.find(x => x.id === String(id)); return e ? edgeInfo(e) : null; },
     alignEdge: id => alignEdge(edgeOf(id)),
     batch,
+    refusedBy,
     removeEdge: id => removeEdge(edgeOf(id)),
     link: (from, to) => {
       const a = byId.get(String(from)), b = byId.get(String(to));

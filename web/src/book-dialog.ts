@@ -11,7 +11,7 @@
  */
 
 import { esc } from "./dom";
-import { colorButtonHtml, confirmInside, openDialog, setupColorButton } from "./edit-dialog";
+import { type Committed, colorButtonHtml, confirmInside, openDialog, overPaperNote, setupColorButton } from "./edit-dialog";
 import type { Graph } from "./graph";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
@@ -153,7 +153,7 @@ export function openBookDialog(graph: Graph, fileName: string): void {
   });
   show(start);
 
-  function commit(o: HTMLElement): boolean {
+  function commit(o: HTMLElement): Committed {
     const bookTitle = o.querySelector<HTMLInputElement>('[name="book-title"]')!.value.trim();
     return graph.batch(() => {
       if (bookTitle !== (info.title ?? "")) graph.update(null, { title: bookTitle || null });
@@ -187,6 +187,6 @@ export function openBookDialog(graph: Graph, fileName: string): void {
       if (once?.kidSize) graph.setKidSize(once.kidSize);
       if (once?.align) graph.autoAlign();
       if (once?.flatten) graph.flattenTree();
-    });
+    }) || overPaperNote(graph);
   }
 }

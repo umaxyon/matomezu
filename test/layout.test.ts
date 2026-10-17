@@ -111,18 +111,16 @@ test("決まった操作の結果（全ボックスの位置と大きさ）が�
   expect(steps.join("\n\n")).toMatchSnapshot();
 }, 60000);
 
-describe("大きさや見せ方が変わっても、グループの中は左上、最上位は上辺の中央を保つ", () => {
+describe("大きさや見せ方が変わっても、内包のページでは左上を保つ（ページの起点。docs/PAPER-plan.md の 4.6）", () => {
   // 線は、真横や真下の相手とは水平・垂直のまま保たれる（graph.test.ts の「線のつなぎ方」）
-  test("最上位は上辺の中央を保つ。見せ方を何度切り替えても元に戻り、上の相手も押し下げない", () => {
+  test("最上位も左上を保つ。見せ方を何度切り替えても元に戻り、上の相手も押し下げない", () => {
     // 見せ方（箱の childView）を内包・非表示・リストで切り替える（ページのパターンは後から変えない）
     const { graph } = setup(sample());
     const at = (id: number) => [graph.info(id).x, graph.info(id).y];
-    const center = () => graph.info(3).x + graph.info(3).w / 2;
-    const title = at(1), front = at(3), user = at(2), back = at(10), c0 = center();
+    const title = at(1), front = at(3), user = at(2), back = at(10);
     for (const v of ["hidden", "nest", "hidden", "nest"] as const) {
       graph.update(3, { childView: v });
-      expect(graph.info(3).y).toBe(front[1]!); // 上辺は動かない
-      expect(Math.abs(center() - c0)).toBeLessThanOrEqual(1); // 横の中心も動かない（非表示でも左に寄らない）
+      expect(at(3)).toEqual(front); // 左上は動かない
       expect([at(1), at(2)]).toEqual([title, user]);
     }
     expect(at(3)).toEqual(front);
@@ -213,11 +211,12 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
   });
   const at = (graph: Graph, id: number) => [graph.info(id).x, graph.info(id).y];
 
-  test("文字を長くして押し下げた兄弟は、文字を戻すと元の位置へ戻り、親も元の大きさに戻る", () => {
+  test("文字を長くして押した兄弟は（横に並んでいれば右へ）、文字を戻すと元の位置へ戻り、親も元の大きさに戻る", () => {
     const { graph } = setup(data());
     const cart = at(graph, 3), web = graph.info(1);
     graph.update(2, { caption: long });
-    expect(at(graph, 3)[1]).toBeGreaterThan(cart[1]!); // 押し下げられる
+    expect(at(graph, 3)[0]).toBeGreaterThan(cart[0]!); // 右へ押される
+    expect(at(graph, 3)[1]).toBe(cart[1]!); // 下へはずれない（折り返さない）
     graph.update(2, { caption: "トップ画面" });
     expect(at(graph, 3)).toEqual(cart);
     expect([graph.info(1).w, graph.info(1).h]).toEqual([web.w, web.h]);
@@ -233,13 +232,14 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
   });
 
   test("縮んでも元の位置が空かなければ、空いたところまで上がる", () => {
-    const { graph } = setup(data());
+    // 縦に並べる（カート画面はトップ画面の下）
+    const { graph } = setup({ ...data(), nodes: data().nodes.map(n => (n.id === 3 ? { ...n, x: 12, y: 110 } : n)) });
     graph.update(2, { caption: long.repeat(8) }); // 高く伸びて大きく押し下げる
     const pushed = at(graph, 3)[1]!;
     graph.update(2, { caption: long.repeat(5) }); // 少し低くなる（まだ元の位置とは重なる）
     const y = at(graph, 3)[1]!;
     expect(y).toBeLessThan(pushed);
-    expect(y).toBeGreaterThan(30);
+    expect(y).toBeGreaterThan(110);
   });
 
   test("最上位でも、広がって押し下げた相手は縮むと戻る", () => {
@@ -289,29 +289,30 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
   });
 });
 
-describe("文字の箱は、同じ段の兄弟にはみ出すなら空いている幅まで狭めて折り返す", () => {
+// 以前は、隣の手前まで狭めて折り返した（fitToRow）。設定変更では使わず、統一した決まりで押す（docs/PAPER-plan.md の 4.6。開いたとき・読み直しは段階 6 まで今のまま）
+describe("文字の箱が育つと、同じ段の隣を同じ向きに押し、文字を戻せば元の位置へ戻る", () => {
   const LONG = "ユーザーあいうえおかきくけこさしすせそたちつてと".repeat(3);
   const rect = (graph: Graph, id: number) => { const i = graph.info(id); return [i.x, i.y, i.w, i.h]; };
 
-  test("長い文字を入れても右の大きい隣へ飛ばず、左に残って折り返す。文字を戻せば元の大きさと位置", () => {
+  test("長い文字を入れると左上を保って広がり、右の大きい隣を右へ押す（下へはずらさない）。文字を戻せば元の大きさと位置", () => {
     const { graph } = setup(sample());
-    const user = rect(graph, 2), front = graph.info(3);
+    const user = rect(graph, 2), front = rect(graph, 3);
     graph.update(2, { caption: LONG });
-    const u = graph.info(2);
-    expect(u.x + u.w).toBeLessThanOrEqual(front.x - 8); // フロントエンドの手前まで
-    expect(u.y).toBe(user[1]!);
-    expect(u.h).toBeGreaterThan(user[3]!); // 折り返して高くなる
-    expect([front.x, front.y]).toEqual([graph.info(3).x, graph.info(3).y]); // フロントエンドは動かない
+    const u = graph.info(2), f = graph.info(3);
+    expect([u.x, u.y]).toEqual([user[0]!, user[1]!]);
+    expect(u.w).toBeGreaterThan(user[2]!);
+    expect(f.x).toBeGreaterThan(front[0]!); // フロントエンドは右へ
+    expect(f.y).toBe(front[1]!);
+    expect(f.x).toBeGreaterThanOrEqual(u.x + u.w + 8);
     graph.update(2, { caption: "ユーザー" });
-    // 広がったときにワールドの左端で寄せられても、本来いたい中心は変わらないので、元の位置に戻る
-    expect(rect(graph, 2)).toEqual(user);
+    expect([rect(graph, 2), rect(graph, 3)]).toEqual([user, front]);
     graph.update(2, { caption: LONG });
     graph.update(2, { caption: "ユーザー" });
     expect(rect(graph, 2)).toEqual(user);
   });
 
-  test("大きい隣にぶつかって自分がずれても、縮めば元の位置に戻る", () => {
-    // 左の大きい隣には狭めずに自分がずれる（stepAside）。ずれるのは今の位置だけで、本来いたい中心は変わらない
+  test("左の大きい隣とは重ならず、縮めば元の位置に戻る", () => {
+    // 左上を保って右と下へ広がるので、左の大きい隣にはぶつからない
     const { graph } = setup({
       nodes: [{ id: 1, caption: "大きい相手", x: 40, y: 100, width: 250, height: 200 }, { id: 2, caption: "箱", x: 300, y: 150 }],
     });
@@ -322,25 +323,18 @@ describe("文字の箱は、同じ段の兄弟にはみ出すなら空いてい�
     expect(rect(graph, 2)).toEqual(before);
   });
 
-  test("左に空きがあれば、中心を保って狭めるので、文字を戻すと元の位置に戻る", () => {
+  test("線でつながった大きい隣は、線の間隔（linkGap）を残して右へ押し、文字を戻すと両方とも元の位置に戻る", () => {
     const { graph } = setup({
       nodes: [{ id: 1, caption: "ユーザー", x: 200, y: 100 }, { id: 2, caption: "大きい相手", x: 350, y: 60, width: 400, height: 200 }],
       edges: [[1, 2]],
     });
-    const user = rect(graph, 1);
+    const user = rect(graph, 1), big = rect(graph, 2);
     graph.update(1, { caption: LONG });
     const u = graph.info(1);
-    expect(u.x + u.w).toBe(350 - 8);
-    expect(u.x + u.w / 2).toBeCloseTo(260, 0); // 中心 (200 + 60) を保つ
+    expect([u.x, u.y]).toEqual([200, 100]);
+    expect(graph.info(2).x).toBe(Math.max(350, u.x + u.w + PLAIN_GAPS.linkGap));
     graph.update(1, { caption: "ユーザー" });
-    expect(rect(graph, 1)).toEqual(user);
-  });
-
-  test("ワールドの左端にも、グループと同じ余白（12）を残す", () => {
-    const { graph } = setup(sample());
-    graph.update(2, { caption: LONG });
-    expect(graph.info(2).x).toBe(12);
-    expect(graph.info(2).x + graph.info(2).w).toBe(graph.info(3).x - 8);
+    expect([rect(graph, 1), rect(graph, 2)]).toEqual([user, big]);
   });
 
   test("Undo・Redo（データからの作り直し）でも同じ幅になる", () => {

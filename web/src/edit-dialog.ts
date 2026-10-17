@@ -389,7 +389,7 @@ export function confirmInside(overlay: HTMLElement, message: string, okLabel: st
 }
 
 // lead はフッターの左端に置くボタン（ツリーを線で描き直す、など）。作ったダイアログを返す
-function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => void | boolean, lead = ""): HTMLElement {
+function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => Committed, lead = ""): HTMLElement {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   // 形やサイズのほかに本文を出せない理由（ページの箱、キャプションを 1 行にした箱）があるか
   const bodyBase0 = b.canBody || !shapeDef(b.shape).body || b.size === "S";
@@ -775,7 +775,7 @@ export function openEditDialog(graph: Graph, id: string): void {
     return graph.batch(() => {
       if (Object.keys(patch).length) graph.update(id, patch);
       if (v.fit) graph.fitChildren(id, v.fit);
-    });
+    }) || overPaperNote(graph);
   });
 }
 
@@ -917,14 +917,14 @@ export function openEdgeEditDialog(graph: Graph, id: string): void {
 }
 
 // ダイアログを出す。fields は項目の HTML、commit は確定したときに項目を読んで書く（変えた項目だけを 1 回の変更として書く。
-// 変えていなければ書かない。履歴に残さない）
+// 変えていなければ書かない。履歴に残さない）。commit が false か文字列を返したら、確定できなかった（入力したまま開き直し、文字列ならそれを知らせる）
 // lead はフッターの左端に置くボタン（線を消すなど）
-export function openDialog(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void | boolean, lead = ""): HTMLElement {
+export function openDialog(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => Committed, lead = ""): HTMLElement {
   return show(title, okLabel, fields, commit, lead);
 }
 
 // check は確定の前に呼ぶ（false なら閉じずに待つ。入力の誤りを示すのは check の側）
-function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => void | boolean, lead = "", check?: () => boolean,
+function show(title: string, okLabel: string, fields: string, commit: (overlay: HTMLElement) => Committed, lead = "", check?: () => boolean,
   form: { simple?: boolean; cancel?: boolean; escape?: boolean; extra?: { label: string; onClick: () => void }[] } = {}): HTMLElement {
   closeEditDialog();
   injectStyle(STYLE_ID, CSS);
@@ -960,10 +960,11 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
     if (check && !check()) return;
     closeEditDialog();
     // 確定できなかったら（紙に収まらない。D33）、入力したまま開き直して知らせる
-    if (commit(overlay) === false) {
+    const done = commit(overlay);
+    if (done === false || typeof done === "string") {
       document.body.appendChild(overlay);
       open = { overlay, back: document.activeElement, unhelp: setupHelp(overlay) };
-      refusedNote(overlay, t("紙に収まらないので確定できません。文字を減らす・ほかの箱を詰めるなどしてから、もう一度確定してください"));
+      refusedNote(overlay, typeof done === "string" ? done : OVER_PAPER);
     }
   };
 
@@ -1018,6 +1019,25 @@ function show(title: string, okLabel: string, fields: string, commit: (overlay: 
     box.focus();
   }
   return overlay;
+}
+
+// 確定したときの答え: false か文字列なら確定できなかった（文字列は知らせる理由）
+export type Committed = void | boolean | string;
+
+const OVER_PAPER = t("紙に収まらないので確定できません。文字を減らす・ほかの箱を詰めるなどしてから、もう一度確定してください");
+// 断った原因として出す項目の名前（graph.update の patch の鍵）。大きさに関わらない項目（色など）は出さない
+const CAUSE_LABELS: Partial<Record<string, string>> = {
+  theme: t("テーマ（余白増）"), caption: t("キャプション（文字数）"), body: t("本文（文字数）"), bodyLines: t("本文の行数"),
+  bodyRule: t("区切り線"), bodyWidth: t("本文の幅"), width: t("幅"), size: t("サイズ"), shape: t("形"), childView: t("子の見せ方"),
+  previewSide: t("縮図の位置"), rowSize: t("行の高さ"), listHeight: t("スクロール"), overflow: t("1 行にする"), linkLook: t("窓の見せ方"),
+  clip: t("映す範囲"), treeDirection: t("ツリーの向き"), paper: t("紙の大きさ"),
+};
+// 紙に収まらないので断ったときの知らせ。原因の項目を短く並べる（多ければ「他」。行を増やさない。docs/PAPER-plan.md の 4.6 の 5）
+export function overPaperNote(graph: Graph): string {
+  const names = graph.refusedBy().map(k => CAUSE_LABELS[k]).filter((v): v is string => !!v);
+  if (!names.length) return OVER_PAPER;
+  const shown = names.length > 3 ? [...names.slice(0, 2), t("他")] : names;
+  return t("紙に収まらないので確定できません。原因: {causes}", { causes: shown.join(t("、")) });
 }
 
 // ダイアログの上に、確定できない理由を出す（閉じずに知らせる。D33・D29）

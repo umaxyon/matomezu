@@ -88,7 +88,7 @@ export interface InteractionContext {
 
 export function createInteraction(ctx: InteractionContext, L: Layout, R: Renderer, D: Drag) {
   const { container, world } = ctx;
-  const { syncWorld, holdWorld, stretchWorld, centerX } = L;
+  const { syncWorld, holdWorld, stretchWorld } = L;
 
   const { render, blocked, focus, unfocus } = R;
   // 画面の上の長さ（px）を、ワールドの座標の長さにする（倍率をかけていれば割り戻す。D32）
@@ -420,7 +420,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         ctx.resetRoutes([...fresh], session.displaced(), n);
         if (n.x !== ox || n.y !== oy) moved = true;
         n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
-        n.intendedCX = centerX(n);
+        n.intendedX = n.x;
         render();
         syncWorld(); // 図の端へ寄せたら、図を広げてその先へスクロールできるようにする
         if (!reached) blocked(n);
@@ -437,8 +437,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         session.finish();
         ctx.settleRoutes(n);
         n.intendedY = n.y;
-        n.intendedCX = centerX(n);
-        for (const b of session.displaced()) { b.intendedY = b.y; b.intendedCX = centerX(b); }
+        n.intendedX = n.x;
+        for (const b of session.displaced()) { b.intendedY = b.y; b.intendedX = b.x; }
         if (session.overlapping()) ctx.drop(n);
         else render();
         syncWorld();

@@ -59,15 +59,12 @@ test("キャプションを 1 行にすると、文字を減らせば縮み、�
   expect((await rect(page, 5)).w).toBe(240);
 });
 
-test("最上位の見せ方を切り替えても元の位置に戻り、上辺と横の中心は動かず、タイトルも動かない", async ({ page }) => {
+test("最上位の見せ方を切り替えても元の位置に戻り、左上は動かず（内包のページの起点。docs/PAPER-plan.md の 4.6）、タイトルも動かない", async ({ page }) => {
   const title = await rect(page, 1), front = await rect(page, 3);
-  const top = (r: { x: number; y: number; w: number }) => [r.x + r.w / 2, r.y];
-  // リストは最上位を下へ移してしまう（main でも同じ。残課題の F に記録）ので、ここでは内包と非表示だけ
-  for (const v of ["hidden", "nest", "hidden", "nest"]) {
+  for (const v of ["hidden", "nest", "list", "nest", "hidden", "nest"]) {
     await choose(page, 3, "view", v);
     const r = await rect(page, 3);
-    expect(Math.abs(top(r)[0]! - top(front)[0]!), v).toBeLessThanOrEqual(1);
-    expect(r.y, v).toBe(front.y);
+    expect([r.x, r.y], v).toEqual([front.x, front.y]);
     expect(await rect(page, 1), v).toEqual(title);
   }
   expect(await rect(page, 3)).toEqual(front);
@@ -84,16 +81,16 @@ test("非表示にした最上位は、関係ない箱を変えても横へ動�
   expect(await rect(page, 3)).toEqual(front);
 });
 
-test("ユーザーに長い文字を入れても右の大きい隣へ飛ばず、ワールドの余白を残して手前で折り返す", async ({ page }) => {
+test("ユーザーに長い文字を入れると、左上を保って広がり、右の大きい隣を右へ押す（下へはずらさない）。文字を戻せば両方とも元の位置", async ({ page }) => {
   const front = await rect(page, 3), user = await rect(page, 2);
   await setCaption(page, 2, "ユーザー" + LONG);
-  const u = await rect(page, 2);
-  expect(u.x).toBe(12);
-  expect(u.x + u.w).toBeLessThanOrEqual(front.x - 8);
-  expect(await lines(page, 2)).toBeGreaterThan(1);
-  expect(await rect(page, 3)).toEqual(front);
-  await setCaption(page, 2, "ユーザー"); // 左端で寄せられても、文字を戻せば元の位置
-  expect(await rect(page, 2)).toEqual(user);
+  const u = await rect(page, 2), f = await rect(page, 3);
+  expect([u.x, u.y]).toEqual([user.x, user.y]);
+  expect(f.y).toBe(front.y);
+  expect(f.x).toBeGreaterThan(front.x);
+  expect(f.x).toBeGreaterThanOrEqual(u.x + u.w + 8);
+  await setCaption(page, 2, "ユーザー");
+  expect([await rect(page, 2), await rect(page, 3)]).toEqual([user, front]);
 });
 
 test("真横の相手への線は水平、真下の相手への線は垂直", async ({ page }) => {

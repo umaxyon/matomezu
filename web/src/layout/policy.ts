@@ -13,29 +13,19 @@ export interface Keep {
   y(m: Box): number;
 }
 export type AnchorRule = (n: Box) => Keep;
-export type AnchorName = "topLeft" | "topCenter";
+export type AnchorName = "topLeft";
 
 export interface AnchorContext {
   anchorRect(n: Box): Rect; // 線がつながる範囲（ツリーなら外枠、それ以外は本体）
 }
 
-export function createAnchorRules(ctx: AnchorContext): Record<AnchorName, AnchorRule> {
-  const { anchorRect } = ctx;
+// 設定変更の起点はページの起点（STRATEGIES の growFrom。layout.ts の regrow。docs/PAPER-plan.md の 4.6）。ここは本文の幅のつまみだけが使う（段階 5 で移す）
+export function createAnchorRules(_ctx: AnchorContext): Record<AnchorName, AnchorRule> {
   return {
-    // 左上を保ち、右と下へ伸び縮みする。グループの中で使う。位置がずれないので、切り替えを繰り返しても元に戻り、
-    // 上の相手にもぶつからない
+    // 左上を保ち、右と下へ伸び縮みする。位置がずれないので、切り替えを繰り返しても元に戻り、上の相手にもぶつからない
     topLeft: n => {
       const { x, y } = n;
       return { x: () => x, y: () => y };
-    },
-    // 上辺と、線がつながる範囲の横の中心を保つ。左右と下へ伸び縮みする。最上位で使う
-    // （左上を保つと、非表示にしたとき元の枠の左上に寄ってしまう）。上へは伸びないので、上の相手にぶつからない。
-    // 保つのは今の中心ではなく本来いたい中心（intendedCX）なので、端で押し戻されたり大きい隣にぶつかってずれたり
-    // した分は、縮めば元に戻る
-    topCenter: n => {
-      const a = anchorRect(n);
-      const cx = Number.isFinite(n.intendedCX) ? n.intendedCX : n.x + a.x + a.w / 2, { y } = n;
-      return { x: m => { const b = anchorRect(m); return cx - b.x - b.w / 2; }, y: () => y };
     },
   };
 }
@@ -77,11 +67,9 @@ export const SCENES = {
   reload: {
     anchor: null, yieldTo: "later", giveWayToLarger: false, repack: null, fitViewport: false, adoptPlaced: true,
   },
-  // サイドバーでの設定変更（キャプション、サイズ、形、見せ方など）
-  settings: {
-    anchor: { inGroup: "topLeft", topLevel: "topCenter" }, yieldTo: "others", giveWayToLarger: true,
-    repack: null, fitViewport: false, adoptPlaced: false,
-  },
+  // 設定変更（キャプション、サイズ、形、見せ方など）で、見せ方を内包に戻した子に位置が無かったとき（空きに置く）。
+  // 大きさが変わった分の並べ直しは layout.ts の regrow（docs/PAPER-plan.md の 4.6）
+  settings: AFTER_EDIT,
   // 子のサイズをそろえる（alignChildren で子の中身を詰め直してから、全体を決め直す）
   fitChildren: {
     anchor: null, yieldTo: "others", giveWayToLarger: false,

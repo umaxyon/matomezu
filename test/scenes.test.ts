@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { Diagram, Id, Patch } from "../web/src/types";
-import { dragBy, example, fakeMeasure, PLAIN_GAPS, frames } from "./helpers";
+import { dragBy, example, fakeMeasure, PLAIN_GAPS, frames, violations } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -27,6 +27,7 @@ function record(data: Diagram, steps: Step[], paper = true) {
   const out = [`# 開いた直後\n${frames(el).join("\n")}`];
   for (const [name, run] of steps) {
     run(graph, el);
+    const v = violations(el); if (v.length) throw new Error(`${name}: ${v.join(", ")}`);
     out.push(`# ${name}\n${frames(el).join("\n")}`);
   }
   return out.join("\n\n");

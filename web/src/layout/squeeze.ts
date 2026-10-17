@@ -10,9 +10,11 @@
 // - 親の中に余裕があれば、起点と反対側の余裕も使って内側へ詰める。それでも入らなければ、グループは起点に従って広がる。
 //   紙（固定の大きさのワールド）は広がれないので、入らなければ fits: false
 // - 一番内側の入れ物から順に決め、広がったグループは、親の中で育った箱として同じように押し込む
+// - 押される前にいた位置（home）があれば、そこから押す。相手が縮めば、押された分だけ戻る（4.6 の 8）
 //
 //   canSqueeze(root, opt)
-//   // → { fits: true, boxes: Map<id, { x, y, w, h }> }  箱ごとの新しい足跡（親の左上から）。大きさの変わらない入れ物の中の箱も含む
+//   // → { fits: true, boxes: Map<id, { x, y, w, h }> }  箱ごとの新しい足跡（親の左上から）。大きさの変わらない入れ物の中の箱も含む。
+//   //   子を自由に置く箱の大きさは、置いた子の右下に余白を足した大きさ（中身から決まる。D7）
 //   // → { fits: false, axis, chain, short }             入らなかった向き・端から端へつながった箱の列・足りない px
 
 export type SqId = string | number;
@@ -24,7 +26,10 @@ export interface SqBox {
   x: number; y: number; w: number; h: number; // 今の足跡（親の左上から）
   nw?: number; nh?: number;                    // 新しい足跡の大きさ（子を自由に置く箱は書かない。子から決まる）
   kids?: SqBox[];                              // 子を自由に置く箱（内包・フローチャート）の子。並べ方が決まる箱（リスト・ツリーなど）は nw・nh で渡す
-  inner?: SqInner;                             // kids があるとき、子を置ける範囲（自分の左上から。right・bottom は今の大きさでの値）
+  inner?: SqInner;                             // kids があるとき、子を置ける範囲（自分の左上から。right・bottom は room の大きさでの値）
+  room?: { w: number; h: number };             // kids があるとき、子を置き始める大きさ（無ければ w・h）。子を自由に置く箱になったばかりなら、子の位置から決まる大きさ
+  minW?: number; minH?: number;                // kids があるとき、中身によらない最小の大きさ（本文の幅など）。今より大きければ、その分は起点に従って広がる
+  home?: { x?: number; y?: number };           // 押される前にいた位置（無ければ今の位置）。ここから押すので、相手が縮めば押された分だけ戻り、ここより先へは動かない
 }
 
 export interface SqRoot {
@@ -148,36 +153,43 @@ type Placed = { w: number; h: number; shift: { x: number; y: number } } | { fail
 
 // 入れ物の子を決める。返すのは入れ物の新しい大きさと、広がった分だけ起点からずらす量（親の中で育った箱として使う）
 function place(kids: SqBox[], inner: SqInner, size: { w: number; h: number }, grows: boolean, opt: SqOptions,
-  out: Map<SqId, { x: number; y: number; w: number; h: number }>): Placed {
+  out: Map<SqId, { x: number; y: number; w: number; h: number }>, min?: { w?: number; h?: number }): Placed {
   const items: Item[] = [];
   for (const k of kids) {
     let w = k.nw ?? k.w, h = k.nh ?? k.h, shift = { x: 0, y: 0 };
     if (k.kids) {
-      const r = place(k.kids, k.inner ?? { left: 0, top: 0, right: k.w, bottom: k.h }, { w: k.w, h: k.h }, true, opt, out);
+      const room = k.room ?? { w: k.w, h: k.h };
+      const r = place(k.kids, k.inner ?? { left: 0, top: 0, right: room.w, bottom: room.h }, room, true, opt, out, { w: k.minW, h: k.minH });
       if ("fail" in r) return r;
       ({ w, h, shift } = r);
     }
     // 起点から大きさを変えた位置。グループは、広がった向きの分（shift）だけ前へずれる。ほかの箱は起点が center なら半分前へ
     const grown = (ax: Axis, d: number) => (opt.from[ax] === "center" ? d / 2 : 0);
+    const at = { x: k.home?.x ?? k.x, y: k.home?.y ?? k.y };
     const want = k.kids
-      ? { x: k.x - shift.x, y: k.y - shift.y }
-      : { x: k.x - grown("x", w - k.w), y: k.y - grown("y", h - k.h) };
+      ? { x: at.x - shift.x, y: at.y - shift.y }
+      : { x: at.x - grown("x", w - k.w), y: at.y - grown("y", h - k.h) };
     items.push({ id: k.id, old: { x: k.x, y: k.y, w: k.w, h: k.h }, w, h, want, x: want.x, y: want.y });
   }
   const pairs = pairsOf(items, opt.gapOf);
   const range = { ...inner };
-  const grew = { x: 0, y: 0 }; // 広がった分（起点が center なら、その半分だけ前へも広がる）
+  // 起点に従って d だけ広がる（start は後ろへだけ、center は両側へ半分ずつ）
+  const grow = (ax: Axis, d: number) => {
+    if (opt.from[ax] === "center") range[LO[ax]] -= d / 2;
+    range[HI[ax]] += opt.from[ax] === "center" ? d / 2 : d;
+  };
+  for (const ax of ["x", "y"] as const) {
+    const d = (min?.[SIZE[ax]] ?? 0) - size[SIZE[ax]];
+    if (grows && d > EPS) grow(ax, d);
+  }
   let settled = false;
   for (let round = 0; round < ROUNDS && !settled; round++) {
     const was = items.map(it => [it.x, it.y]);
     for (const ax of ["x", "y"] as const) {
       let r = solveAxis(items, pairs, ax, opt.from[ax], range[LO[ax]], range[HI[ax]]);
       if (!r.ok && grows) {
-        // 詰めても入らない: 起点に従って広がる（start は後ろへだけ、center は両側へ半分ずつ）
-        const d = r.short;
-        grew[ax] += d;
-        if (opt.from[ax] === "center") range[LO[ax]] -= d / 2;
-        range[HI[ax]] += opt.from[ax] === "center" ? d / 2 : d;
+        // 詰めても入らない: 起点に従って広がる
+        grow(ax, r.short);
         r = solveAxis(items, pairs, ax, opt.from[ax], range[LO[ax]], range[HI[ax]]);
       }
       if (!r.ok) return { fail: { axis: ax, chain: r.chain, short: r.short } };
@@ -191,7 +203,12 @@ function place(kids: SqBox[], inner: SqInner, size: { w: number; h: number }, gr
   // 前へ広がった分は、入れ物の左上がずれるので、子の位置を戻して入れ物を前へずらす
   const shift = { x: inner.left - range.left, y: inner.top - range.top };
   for (const it of items) out.set(it.id, { x: it.x + shift.x, y: it.y + shift.y, w: it.w, h: it.h });
-  return { w: size.w + grew.x, h: size.h + grew.y, shift };
+  // 大きさは中身から決まる（D7）: 置いた子の右下に余白を足した大きさと、最小の大きさの大きい方。中身が縮めば入れ物も縮む
+  if (!items.length) return { w: Math.max(min?.w ?? 0, size.w), h: Math.max(min?.h ?? 0, size.h), shift };
+  const padR = size.w - inner.right, padB = size.h - inner.bottom;
+  const w = Math.max(min?.w ?? 0, ...items.map(it => it.x + shift.x + it.w + padR));
+  const h = Math.max(min?.h ?? 0, ...items.map(it => it.y + shift.y + it.h + padB));
+  return { w, h, shift };
 }
 
 export function canSqueeze(root: SqRoot, opt: SqOptions): SqResult {
