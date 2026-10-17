@@ -285,10 +285,6 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-class-row.mz-abstract { font-style: italic; }
 /* 付け替えのドラッグ */
 .mz-mode-reparent .mz-head { cursor: alias; }
-.mz-mode-remove .mz-head { cursor: pointer; }
-/* 削除モードでポインタを乗せたボックス: 一緒に消える範囲（子孫を含む）を赤い枠で示す */
-.mz-node.mz-removing > .mz-head, .mz-node.mz-removing .mz-head { outline: 2px solid var(--mz-edge-del); outline-offset: 1px; }
-.mz-node.mz-removing { opacity: 0.7; }
 .mz-node.mz-lifted { opacity: 0.3; }
 /* 画面の座標で置く（図の外のタブの上へ持っていっても、図の端で切れないように） */
 .mz-ghost { position: fixed; z-index: 50; opacity: 0.8; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35)); }

@@ -9,6 +9,7 @@
 // - 文字の入力欄の中と、文字を選んでいるときはブラウザの既定のメニューを残す
 // - 出さないとき（Ctrl+C / Ctrl+V と同じ条件）: プレビュー中・ダイアログが開いている・ドラッグ中・選択と付け替え以外のモード。
 //   説明ツアー中は幕が右クリックを止める（tour-view.ts）
+// - 右の長押しはモードの切り替え（mode-picker.ts。setupContextMenu が押し続けを見る）
 // 項目は menuFor に足せばよい形にしておく（タブなどへ広げるのと、パターンごとの出し分けは後で。D39・D25）
 import type { Graph, MenuTarget } from "./graph";
 import { type Head, headOptions, headPatch } from "./heads";
@@ -16,6 +17,7 @@ import type { BoxInfo } from "./types";
 import { injectStyle } from "./dom";
 import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { t } from "./i18n";
+import { LONG_PRESS_MS, MOVE_SLOP, openModePicker, pressRing } from "./mode-picker";
 
 const STYLE_ID = "matomezu-context-menu-style";
 const CSS = `/* i18n-ok（CSS のコメント） */
@@ -97,26 +99,99 @@ const typing = (t: EventTarget | null) =>
 
 // 図（stage）の右クリックにメニューを出す。登録を外す関数を返す（ブックを切り替えるときに外す）
 // openBook はブックのダイアログを開く（背景の「設定」。タブ行の「ブック」ボタンと同じ）
+// 右の長押し（LONG_PRESS_MS）はモードの切り替え（mode-picker.ts）。どのモードでも出す。
+// ブラウザの contextmenu は、Windows では離したとき、Mac・Linux では押したときに届く。押している間に届いたものは止めておき、
+// 長押しにならずに離したら、そこでメニューを出す（Mac・Linux ではメニューが離したときに出る）。長押しで出したあとの contextmenu は捨てる
 export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () => void): () => void {
   const listening = new AbortController();
+  const { signal } = listening;
   let close: (() => void) | null = null;
+  let closePicker: (() => void) | null = null;
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+  // 右ボタンを押している間の様子。deferred は押している間に届いた contextmenu（離したら出す）
+  let press: { x0: number; y0: number; at: { x: number; y: number }; timer: number; ring: { move(at: { x: number; y: number }): void; close(): void } | null;
+    deferred: { target: EventTarget | null; at: { x: number; y: number } } | null } | null = null;
+  let swallow = false; // 次の contextmenu を捨てる（長押しで出したあとと、右ボタンで閉じたあと）
+  const blocked = () => graph.preview() != null || graph.dragging() || !!document.querySelector(".mz-dlg-overlay");
+
+  // メニューを出す（出せたら true）
+  const show = (target: EventTarget | null, at: { x: number; y: number }): boolean => {
+    close?.();
+    if (typing(target) || !(window.getSelection()?.isCollapsed ?? true) || blocked()) return false;
+    if (graph.mode() !== "move" && graph.mode() !== "reparent") return false;
+    const picked = graph.pickForMenu(target, at);
+    if (!picked) return false;
+    close = open(menuFor(graph, picked, at, mac, openBook), at, () => { close = null; });
+    return true;
+  };
+  const endPress = () => {
+    if (!press) return;
+    clearTimeout(press.timer);
+    press.ring?.close();
+    press = null;
+  };
+
+  stage.addEventListener("pointerdown", e => {
+    if (e.button !== 2 || e.pointerType !== "mouse") return;
+    swallow = false;
+    endPress();
+    if (typing(e.target) || blocked() || closePicker) return;
+    const at = { x: e.clientX, y: e.clientY };
+    const p = {
+      x0: at.x, y0: at.y, at, deferred: null, ring: pressRing(at),
+      timer: window.setTimeout(() => {
+        // 長押しになった: 最後のポインタの位置にモードのアイコンを出す。押している間に届いた contextmenu は出さない
+        if (press !== p) return;
+        endPress();
+        if (blocked()) return;
+        close?.();
+        swallow = true; // Windows では、このあと離したときに contextmenu が届く
+        closePicker = openModePicker(graph, p.at, byRight => { closePicker = null; if (byRight) swallow = true; });
+      }, LONG_PRESS_MS),
+    };
+    press = p;
+  }, { signal });
+  window.addEventListener("pointermove", e => {
+    if (!press) return;
+    press.at = { x: e.clientX, y: e.clientY };
+    // 遊びより動いたら長押しを取り消す（押している間に届いた contextmenu は、離したときに出す）
+    if (Math.hypot(e.clientX - press.x0, e.clientY - press.y0) > MOVE_SLOP) {
+      clearTimeout(press.timer);
+      press.ring?.close();
+      press.ring = null;
+    } else press.ring?.move(press.at);
+  }, { signal });
+  // 右ボタンを離した（ほかのボタンを押したままでも届くよう mouseup で見る）
+  window.addEventListener("mouseup", e => {
+    if (e.button !== 2 || !press) return;
+    const d = press.deferred;
+    endPress();
+    if (d) show(d.target, d.at);
+  }, { signal });
+  window.addEventListener("blur", endPress, { signal });
+  window.addEventListener("contextmenu", e => {
+    if (!swallow) return;
+    swallow = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }, { signal, capture: true });
 
   stage.addEventListener("contextmenu", e => {
-    close?.();
-    if (typing(e.target) || !(window.getSelection()?.isCollapsed ?? true)) return;
-    if (graph.preview() != null || graph.dragging() || document.querySelector(".mz-dlg-overlay")) return;
-    if (graph.mode() !== "move" && graph.mode() !== "reparent") return;
     const at = { x: e.clientX, y: e.clientY };
-    const target = graph.pickForMenu(e.target, at);
-    if (!target) return;
-    e.preventDefault();
-    close = open(menuFor(graph, target, at, mac, openBook), at, () => { close = null; });
-  }, { signal: listening.signal });
+    if (press) {
+      // 押している間（Mac・Linux）: 長押しになるかは離すまで分からないので、ブラウザのメニューも止めておく。入力欄と文字の選択中はそもそも押し続けを見ない
+      e.preventDefault();
+      press.deferred = { target: e.target, at };
+      return;
+    }
+    if (show(e.target, at)) e.preventDefault();
+  }, { signal });
 
   return () => {
     listening.abort();
+    endPress();
     close?.();
+    closePicker?.();
   };
 }
 

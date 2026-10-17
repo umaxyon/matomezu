@@ -1,6 +1,6 @@
 // 右クリックのコンテキストメニュー（D42）: 一番上に設定、箱と背景には切り取り・コピー・貼り付け・削除、線には矢印・通り方（2 段目）と削除。右クリックした箱か線を選んでから出し、背景なら右クリックした所に貼る
 import { expect, test } from "@playwright/test";
-import { openDiagram } from "./helpers";
+import { openDiagram, setMode } from "./helpers";
 
 const head = (page: import("@playwright/test").Page, id: number | string) => page.locator(`.mz-node[data-id="${id}"] > .mz-head`);
 
@@ -46,14 +46,18 @@ test("右クリックのメニューで写して貼る。使えない項目は�
   await expect(page.locator('.mz-node[data-id="2"] .mz-node')).toHaveCount(1);
 });
 
-test("右クリックではドラッグ・削除を始めない。手のひらモードではメニューを出さない", async ({ page }) => {
+test("右ボタンではドラッグを始めない。手のひらモードではメニューを出さない", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  // 削除モードで右クリックしても消えない
-  await page.locator("#mode-remove").click();
-  await head(page, 1).click({ position: { x: 10, y: 8 }, button: "right" });
-  await expect(page.locator('.mz-node[data-id="1"]')).toHaveCount(1);
-  await expect(page.locator(".mz-cmenu")).toHaveCount(0);
-  await page.locator("#mode-pan").click();
+  // 右ボタンで押したまま動かしても、箱は動かない
+  const before = (await head(page, 1).boundingBox())!;
+  await page.mouse.move(before.x + 10, before.y + 8);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(before.x + 80, before.y + 60, { steps: 4 });
+  await page.mouse.up({ button: "right" });
+  await page.keyboard.press("Escape");
+  const after = (await head(page, 1).boundingBox())!;
+  expect([after.x, after.y]).toEqual([before.x, before.y]);
+  await setMode(page, "pan");
   await head(page, 1).click({ position: { x: 10, y: 8 }, button: "right" });
   await expect(page.locator(".mz-cmenu")).toHaveCount(0);
 });

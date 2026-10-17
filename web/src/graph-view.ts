@@ -84,11 +84,12 @@ export function createView(ctx: ViewContext) {
   // 手のひらのモードの押下（D32）。図の操作（interaction.ts）より先に受け取り、どこを押しても見る範囲を動かすだけにする
   // （箱を選んだり動かしたりしない）。道具箱は押せる
   container.addEventListener("pointerdown", e => {
-    if (ctx.mode() !== "pan" || preview != null) return;
+    // 右ボタンは止めない（長押しのモードの切り替え。context-menu.ts。図の操作は左ボタンしか受けない）
+    if (ctx.mode() !== "pan" || preview != null || e.button !== 0) return;
     if (e.target instanceof Element && e.target.closest(".mz-toolbox")) return;
     e.stopImmediatePropagation();
     e.preventDefault(); // 文字を選ばない
-    if (e.button === 0) pan(e);
+    pan(e);
   }, true);
 
   // プレビュー中の押下。図の操作（interaction.ts）より先に受け取り、選ぶだけにする。

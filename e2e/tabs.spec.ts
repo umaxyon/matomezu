@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import { example, openSide } from "./helpers";
+import { example, openSide, setMode } from "./helpers";
 
 const repo = resolve(import.meta.dirname, "..");
 let dir = "";
@@ -321,7 +321,7 @@ test("付け替えのドラッグでタブの上に少し止めるとページ�
   await page.goto(run("open", "-no-browser", "p.json").trim());
   await arrive(page, "p.json", "p1");
   await expect(selected(page)).toHaveText("詳細");
-  await page.locator("#mode-reparent").click();
+  await setMode(page, "reparent");
 
   // 左上の道具箱に重ならないよう、見出しの右寄りをつかむ
   const box = (await page.locator('.stage:visible .mz-node[data-id="3"] > .mz-head').boundingBox())!;
@@ -1143,9 +1143,9 @@ test("説明ツアー: 案内で開始すると幕で操作を止め、段をブ
   await expect.poll(() => run("tour", "-status")).toContain("running");
   // ほかの AI の頼みは断る。幕の上の操作は図や道具へ届かない
   expect(() => run("focus", "a.json", "5")).toThrow();
-  const remove = (await page.locator("#mode-remove").boundingBox())!;
-  await page.mouse.click(remove.x + remove.width / 2, remove.y + remove.height / 2);
-  await expect(page.locator("#mode-remove")).toHaveAttribute("aria-pressed", "false");
+  const tool = (await page.locator("#mode-tool").boundingBox())!;
+  await page.mouse.click(tool.x + tool.width / 2, tool.y + tool.height / 2);
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move");
   await page.keyboard.press("ArrowRight"); // 次へ
   await expect(selected(page)).toHaveText("b.json");
   await expect(bubble).toContainText("別のブックの箱です");

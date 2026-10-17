@@ -94,8 +94,6 @@ export const isWarning = (ev: GraphEvent) => WARNINGS.includes(ev.kind);
 
 // 図の知らせを受けたときの画面の方針: 断りや注意はトーストで出す（toast.ts）。普通の知らせ（移した・消したなど）は出さない
 // （D26 でヘッダーの状態の文字をやめた。2026-10-14 ユーザー: 困るのはエラーと断りだけ。文言は noticeOf に残す）。
-// 一覧からドラッグして戻したら、削除モードのままだと戻した箱をすぐ動かせないので、選択モードにする
-export function handleGraphEvent(graph: Graph, ev: GraphEvent) {
+export function handleGraphEvent(_graph: Graph, ev: GraphEvent) {
   if (isWarning(ev)) toast(noticeOf(ev), { kind: "warn" });
-  if (ev.kind === "restored" && ev.byDrag && graph.mode() === "remove") graph.setMode("move");
 }

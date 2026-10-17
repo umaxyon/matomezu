@@ -65,7 +65,7 @@ export interface AppUi {
   sidebar: HTMLElement;
   undo: HTMLButtonElement;
   redo: HTMLButtonElement;
-  modeButtons: HTMLButtonElement[];
+  modeButton: HTMLButtonElement;
   modeLabel: HTMLElement;
   preview: Preview;
   notice(text: string): void;     // 気づいてほしい知らせ（トースト）
@@ -335,7 +335,7 @@ export async function startApp(ui: AppUi) {
       // 見えるようにしてから前に出す（配置は見えている要素で文字を測る）
       b.sync.setActive(true);
       b.loaded = true;
-      unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButtons, ui.modeLabel), setupContextMenu(b.graph, b.stage, () => openBookDialog(b.graph, b.name)));
+      unbind.push(setupHistory(b.graph, ui.undo, ui.redo), setupModes(b.graph, ui.modeButton, ui.modeLabel), setupContextMenu(b.graph, b.stage, () => openBookDialog(b.graph, b.name)));
       ui.preview.attach(b.graph, b.stage);
       ui.empty(null);
       ui.book.disabled = false;

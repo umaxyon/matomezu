@@ -46,41 +46,16 @@ test("グループの上に落とすと、その中へ戻る", async ({ page }) 
   expect(parent).toBe("10");
 });
 
-test("削除モードで箱を押すと消え、ほかのモードに戻せば押しても消えない", async ({ page }) => {
-  await page.click("#mode-remove");
-  await node(page, 3).locator(":scope > .mz-head").click({ position: { x: 20, y: 10 } });
-  await expect(node(page, 3)).toHaveCount(0);
-  await page.click("#mode-move");
-  await node(page, 10).locator(":scope > .mz-head").click({ position: { x: 20, y: 10 } });
-  await expect(node(page, 10)).toHaveCount(1);
-});
-
 test("一覧の見出しを押すと区画が折りたたまれ、箱を消して一覧が変わっても閉じたまま", async ({ page }) => {
   await openSide(page);
   const live = page.locator('[data-fold="live"]');
   await live.locator("summary").click();
   await expect(live).not.toHaveAttribute("open");
   await expect(page.locator('.mzp-row[data-select="2"]')).toBeHidden();
-  await page.click("#mode-remove");
   await node(page, 2).locator(":scope > .mz-head").click({ position: { x: 20, y: 10 } });
+  await page.keyboard.press("Delete");
   await expect(page.locator(".mzp-removed")).toHaveCount(1);
   await expect(live).not.toHaveAttribute("open");
   await live.locator("summary").click();
   await expect(page.locator('.mzp-row[data-select="3"]')).toBeVisible();
 });
-
-{
-  const mode = "remove";
-  test("削除モードで一覧から戻すと、選択モードに切り替わる", async ({ page }) => {
-    await openSide(page);
-    const row = page.locator('.mzp-row[data-select="2"]');
-    await row.hover();
-    await row.locator(".mzp-del").click();
-    await page.click(`#mode-${mode}`);
-    await page.locator('.mzp-removed[data-restore="2"]').dragTo(page.locator("#stage .mz-world"), { targetPosition: { x: 60, y: 560 } }); // 紙の中（広い画面では紙が真ん中に来る）
-    await expect(node(page, 2)).toHaveCount(1);
-    await expect(page.locator("#mode-move")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator(`#mode-${mode}`)).toHaveAttribute("aria-pressed", "false");
-    await expect(page.locator("#mode-label")).toHaveText("選択モード");
-  });
-}

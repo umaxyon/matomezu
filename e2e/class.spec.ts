@@ -1,6 +1,6 @@
 // クラス図の形（docs/CLASS-plan.md）を実際のブラウザで確かめる
 import { expect, test } from "@playwright/test";
-import { openDiagram, violations } from "./helpers";
+import { openDiagram, violations, setMode } from "./helpers";
 import type { Diagram } from "../web/src/types";
 
 const SHOTS = process.env.SHOTS_DIR;
@@ -141,7 +141,7 @@ test("クラスにポインタを乗せると、4 つの接点と行の左右に
 
 test("クラスの上には付け替えで落とせない", async ({ page }) => {
   await openDiagram(page, data());
-  await page.locator("#mode-reparent").click();
+  await setMode(page, "reparent");
   const box = (await head(page, 3).boundingBox())!;
   const cls = (await head(page, 2).boundingBox())!;
   await page.mouse.move(box.x + 20, box.y + 20);

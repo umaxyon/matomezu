@@ -64,15 +64,3 @@ test("知らせの文言: 添える項目は 0 のものを出さず「、」で
   expect(noticeOf({ kind: "unknownTheme", names: ["a", "b"] })).toBe("知らないテーマ（a、b）があります。標準として描いています");
 });
 
-test("一覧からドラッグして戻したら、削除モードのままにせず選択モードにする（ボタンで戻したときは変えない）", () => {
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  const graph = createGraph(el, { nodes: [{ id: 1 }] }, { measureText: fakeMeasure });
-  graphs.push(graph);
-  graph.setMode("remove");
-  handleGraphEvent(graph, { kind: "restored", key: "1_箱", byDrag: false });
-  expect(graph.mode()).toBe("remove");
-  handleGraphEvent(graph, { kind: "restored", key: "1_箱", byDrag: true });
-  expect(graph.mode()).toBe("move");
-  expect(shown()).toEqual([]);
-});

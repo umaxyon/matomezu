@@ -1,6 +1,6 @@
 // 画面の操作（D32）: 図の周りの余白、手のひら（モードと Space）、編集中の拡大縮小
 import { expect, test } from "@playwright/test";
-import { example, openDiagram, rect, violations } from "./helpers";
+import { example, openDiagram, rect, violations, setMode } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 }); // 図がはみ出してスクロールできる大きさ
@@ -23,7 +23,7 @@ test("開いたとき、ワールドの左上が図の枠の左上に合い、�
   // 右下へ大きくずらしても、余白（DEFAULTS.margin）の分で止まる
   const margin = await stage(page).evaluate(s => s.scrollLeft);
   expect(margin).toBeGreaterThan(0);
-  await page.click("#mode-pan");
+  await setMode(page, "pan");
   const drag = async (dx: number, dy: number) => {
     await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height / 2);
     await page.mouse.down();
@@ -42,8 +42,8 @@ test("開いたとき、ワールドの左上が図の枠の左上に合い、�
 });
 
 test("手のひらのモードでは、箱をドラッグしても箱は動かず、見る範囲が動く。選びもしない", async ({ page }) => {
-  await page.click("#mode-pan");
-  await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
+  await setMode(page, "pan");
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "pan");
   await expect(page.locator("#mode-label")).toHaveText("手のひらモード");
   const before = await rect(page, 3);
   const [sl0, st0] = await scrollOf(page);
@@ -73,7 +73,7 @@ test("Space を押している間は手のひらになり、離すと前のモ�
   expect(await rect(page, 3)).toEqual(before);
   expect((await scrollOf(page))[0]).toBeGreaterThan(sl0);
   await page.keyboard.up(" ");
-  await expect(page.locator("#mode-move")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move");
 });
 
 // ワールドの左上を図の枠の左上に合わせる（拡大縮小は画面の真ん中を中心に広がるので、確かめる前に見る範囲をそろえる）

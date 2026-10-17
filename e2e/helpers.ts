@@ -139,3 +139,10 @@ export function violations(page: Page): Promise<string[]> {
     return out;
   });
 }
+
+// ツールのモードにする（タブ行のボタンは押すたびに 選択 → 付け替え → 手のひら と回す。D39）
+export async function setMode(page: Page, mode: "move" | "reparent" | "pan") {
+  const btn = page.locator("#mode-tool");
+  for (let i = 0; i < 3 && (await btn.getAttribute("data-mode")) !== mode; i++) await btn.click();
+  await expect(btn).toHaveAttribute("data-mode", mode);
+}
