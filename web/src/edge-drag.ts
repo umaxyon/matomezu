@@ -5,7 +5,7 @@ import { classAnchors, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
 import { type Box, type Edge, shapeOf } from "./model";
 import { type Pt, leftNormalAt, nearestAt, pointAt } from "./geom";
-import { CAPTION_OFFSET_MAX } from "./render";
+import { clampCaptionOffset } from "./render";
 import { type RouteInput, fixedAts, perimeterAt, simplifyVia, vertexOf } from "./routing";
 import { perimeter } from "./selfloop";
 
@@ -148,7 +148,7 @@ export function createEdgeDrag(ctx: EdgeDragContext) {
       const at = nearestAt(e.points, x, y);
       const [bx, by] = pointAt(e.points, at);
       const [nx, ny] = leftNormalAt(e.points, at);
-      const off = Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, (x - bx) * nx + (y - by) * ny));
+      const off = clampCaptionOffset((x - bx) * nx + (y - by) * ny);
       e.src.captionAt = Math.round(at * 1000) / 1000;
       e.src.captionOffset = Math.round(off);
       ctx.edited(e);

@@ -55,6 +55,8 @@ function parseShadow(css: string): { dx: number; dy: number; blur: number; color
 
 // 線のキャプションを線から離せる量（px）
 export const CAPTION_OFFSET_MAX = 60;
+// 線のキャプションを線から離す量を、離せる範囲（±CAPTION_OFFSET_MAX）に収める
+export const clampCaptionOffset = (v: number): number => Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, v));
 
 
 export function createRenderer(ctx: RenderContext, L: Layout) {
@@ -603,7 +605,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const len = polylineLength(pts);
     // 置く位置（手で動かしていれば captionAt と captionOffset、無ければ真ん中で線の上）と、そこの区間の向き
     const at = typeof e.src.captionAt === "number" ? e.src.captionAt : 0.5;
-    const off = typeof e.src.captionOffset === "number" ? Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, e.src.captionOffset)) : 0;
+    const off = typeof e.src.captionOffset === "number" ? clampCaptionOffset(e.src.captionOffset) : 0;
     const [nx, ny] = leftNormalAt(pts, at);
     const vertical = Math.abs(nx) > Math.abs(ny); // 左の向きが横なら、区間は縦向き
     const w = e.a === e.b || vertical ? LABEL_MAX_W : Math.max(LABEL_MIN_W, Math.min(LABEL_MAX_W, len - LABEL_MARGIN));

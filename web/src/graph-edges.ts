@@ -6,7 +6,7 @@ import { type Head, isHead } from "./heads";
 import { t } from "./i18n";
 import type { Mode } from "./interaction";
 import { type Box, type Edge, type World, abilitiesOf, routeDefaultOf, setOrDelete } from "./model";
-import { CAPTION_OFFSET_MAX } from "./render";
+import { clampCaptionOffset } from "./render";
 import { type RouteInput, alignedEnds, perimeterAt, vertexOf } from "./routing";
 import { perimeter } from "./selfloop";
 import type { Arrow, Dash, EdgeData, Route } from "./types";
@@ -159,7 +159,7 @@ export function createEdges(ctx: EdgesContext) {
     if ("captionOffset" in patch) {
       const v = patch.captionOffset;
       if (v != null && !Number.isFinite(v)) throw new Error(t("captionOffset は数にしてください: {v}", { v }));
-      setOrDelete(e.src, "captionOffset", v == null ? undefined : Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, v)), v == null);
+      setOrDelete(e.src, "captionOffset", v == null ? undefined : clampCaptionOffset(v), v == null);
     }
     if ("caption" in patch) {
       const v = patch.caption == null ? "" : String(patch.caption).trim();
