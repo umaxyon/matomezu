@@ -6,6 +6,18 @@ import { t } from "./i18n";
 
 export const SVGNS = "http://www.w3.org/2000/svg";
 
+// 浮かせた要素 el（position: fixed）を anchor の下に、左端をそろえて出す。画面の右や下からはみ出すなら内側へ寄せる
+// （下が足りなければ上に出す）。margin は画面の端からの間、gap は anchor との間
+export function placeBelow(el: HTMLElement, anchor: Element, margin = 8, gap = 6): void {
+  const r = anchor.getBoundingClientRect();
+  const p = el.getBoundingClientRect();
+  const left = Math.max(margin, Math.min(r.left, window.innerWidth - p.width - margin));
+  const below = r.bottom + gap;
+  const top = below + p.height > window.innerHeight - margin ? Math.max(margin, r.top - p.height - gap) : below;
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+}
+
 export function injectStyle(id: string, css: string): void {
   if (document.getElementById(id)) return;
   const s = document.createElement("style");

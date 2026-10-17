@@ -14,6 +14,7 @@
 import { visibleRect } from "./clip-rect";
 import { esc } from "./dom";
 import { t } from "./i18n";
+import { clientRectToIn, viewRectOf } from "./viewport";
 
 export interface BubbleItem {
   id: string;
@@ -115,18 +116,12 @@ export function createAskBubbles(ctx: AskBubblesContext) {
     return e;
   }
 
-  // 箱の要素のワールドの座標
-  function rectOf(el: Element, w: DOMRect, z: number): Rect {
-    const r = el.getBoundingClientRect();
-    return { x: (r.left - w.left) / z, y: (r.top - w.top) / z, w: r.width / z, h: r.height / z };
-  }
-
   function place() {
     raf = items.length ? requestAnimationFrame(place) : 0;
     if (!items.length) return;
     if (layer.parentElement !== ctx.worldEl) ctx.worldEl.appendChild(layer); // 組み立て直しで外れた
     const w = ctx.worldEl.getBoundingClientRect(), z = ctx.zoom() || 1;
-    const bounds = rectOf(ctx.canvasEl, w, z);
+    const bounds = clientRectToIn(w, z, ctx.canvasEl.getBoundingClientRect());
     const placed: Rect[] = []; // 置いた吹き出し（後の吹き出しが避ける）
     const marks: { x: number; y: number }[] = []; // 置いた印（重なる印は左へずらす。リストの端に寄った印どうしなど）
     // 最後に見せた問い（パレット・印を押した）を先に置く（ほかの吹き出しに押されて印に縮まないように）
@@ -137,9 +132,9 @@ export function createAskBubbles(ctx: AskBubblesContext) {
       if (!boxEl) { e.mark.hidden = true; if (e.bubble) e.bubble.hidden = true; continue; }
       // 吹き出しは箱そのもの（切り取らない位置）に付けて一緒に動かす。ただし付け根の辺が見えている側だけに置く
       // （リストの中でスクロールして、付け根が隠れたら印に縮めて、リストの外に取り残さない）
-      const full = rectOf(boxEl, w, z);
+      const full = clientRectToIn(w, z, boxEl.getBoundingClientRect());
       const v = visibleRect(boxEl, ctx.worldEl);
-      const vis: Rect | null = v.hidden ? null : { x: (v.left - w.left) / z, y: (v.top - w.top) / z, w: (v.right - v.left) / z, h: (v.bottom - v.top) / z };
+      const vis: Rect | null = v.hidden ? null : clientRectToIn(w, z, v);
       let showBubble = !!e.bubble && it.state === "open" && !!vis;
       if (e.bubble && showBubble && vis) {
         if (e.bubble.parentElement !== layer) layer.appendChild(e.bubble);
@@ -155,7 +150,7 @@ export function createAskBubbles(ctx: AskBubblesContext) {
         if (full.y >= vis.y - EDGE) at.top = { x: full.x, y: full.y - GAP - bh, w: bw, h: bh };
         // 避ける箱も見えている分だけ（リストの中でスクロールして見えない行は避けない）
         const boxes = ctx.obstacles(it.box).map(o => visibleRect(o, ctx.worldEl)).filter(o => !o.hidden)
-          .map(o => ({ x: (o.left - w.left) / z, y: (o.top - w.top) / z, w: (o.right - o.left) / z, h: (o.bottom - o.top) / z }));
+          .map(o => clientRectToIn(w, z, o));
         const cost = (r: Rect) => {
           const o = { x: r.x - 10, y: r.y - 10, w: r.w + 20, h: r.h + 20 }; // 左上の A・B の札もはみ出さないよう、少し広げて測る
           const outside = o.w * o.h - overlap(o, bounds); // 置いてよい範囲の外は大きく嫌う
@@ -184,13 +179,13 @@ export function createAskBubbles(ctx: AskBubblesContext) {
       if (e.mark.parentElement !== layer) layer.appendChild(e.mark);
       e.mark.hidden = !showMark;
       if (showMark) {
-        const m = vis ?? { x: (v.left - w.left) / z, y: (v.top - w.top) / z, w: (v.right - v.left) / z, h: 0 };
+        const m = vis ?? { ...clientRectToIn(w, z, v), h: 0 };
         let x = m.x + m.w - 4;
         let y = m.y - 12;
         // ドロワーに隠れる所なら、見えている範囲の端へ寄せる（箱の左の端・上の端より先へは寄せない）
-        const c = ctx.container.getBoundingClientRect();
-        const right = (c.left + ctx.container.clientWidth - inset.right - w.left) / z - 20;
-        const bottom = (c.top + ctx.container.clientHeight - inset.bottom - w.top) / z - 20;
+        const c = viewRectOf(ctx.container);
+        const right = (c.right - inset.right - w.left) / z - 20;
+        const bottom = (c.bottom - inset.bottom - w.top) / z - 20;
         if (inset.right && x > right) x = Math.max(m.x, right);
         if (inset.bottom && y > bottom) y = Math.max(m.y - 12, bottom);
         while (marks.some(p => Math.abs(p.x - x) < 18 && Math.abs(p.y - y) < 18)) x -= 20;
@@ -217,8 +212,8 @@ export function createAskBubbles(ctx: AskBubblesContext) {
       if (!target || target.hidden) return;
       // 見えている範囲（ドロワーに隠れる分を除く）に、札や点滅の輪の分（M）まで入るようにスクロールする
       const M = 14;
-      const c = ctx.container.getBoundingClientRect(), r = target.getBoundingClientRect();
-      const view = { left: c.left, top: c.top, right: c.left + ctx.container.clientWidth - inset.right, bottom: c.top + ctx.container.clientHeight - inset.bottom };
+      const c = viewRectOf(ctx.container), r = target.getBoundingClientRect();
+      const view = { left: c.left, top: c.top, right: c.right - inset.right, bottom: c.bottom - inset.bottom };
       const dx = r.left - M < view.left ? r.left - M - view.left : r.right + M > view.right ? Math.min(r.right + M - view.right, r.left - M - view.left) : 0;
       const dy = r.top - M < view.top ? r.top - M - view.top : r.bottom + M > view.bottom ? Math.min(r.bottom + M - view.bottom, r.top - M - view.top) : 0;
       if (dx || dy) ctx.container.scrollBy({ left: dx, top: dy, behavior: "smooth" });

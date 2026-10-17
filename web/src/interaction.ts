@@ -11,7 +11,7 @@ import { SVGNS } from "./dom";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
 } from "./model";
-import { clientToIn, inToClient, toWorldLength } from "./viewport";
+import { clientToIn, inToClient, toWorldLength, viewRectOf } from "./viewport";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 import { shapeIcon } from "./shape-icons";
@@ -35,6 +35,8 @@ export interface AddRequest {
 export const REMOVED_MIME = "application/x-matomezu-removed";
 // サイドバーの一覧から、ほかのブックの箱を図へドラッグして移植するときのデータの種類（中身は { copy: Subtree, from: ブック名 } の JSON）
 export const COPY_MIME = "application/x-matomezu-copy";
+// 足す箱の左上は、ポインタのこれだけ左上（追加モードの影・一覧から戻すとき・ワールドを選んで貼り付けるとき。graph.ts）
+export const ADD_OFFSET = { x: 16, y: 12 };
 
 // 箱をドラッグして図の端へ寄せたときのスクロール。端からこれだけの内側（px）に入ったら動き出し、端に近いほど速く、
 // 端を越えたら一番速く（毎秒 EDGE_SCROLL_MAX px）。図の外へ箱を運んで、図を広げられるように（残課題 E8）。
@@ -472,10 +474,9 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const el = target();
       if (!last || !el) return;
       // el の見えている範囲（画面の座標）。倍率がかかっていれば（リストの中）、見た目の大きさで
-      const c = el.getBoundingClientRect();
-      const z = el.offsetWidth ? c.width / el.offsetWidth : 1;
-      const left = c.left + el.clientLeft * z, top = c.top + el.clientTop * z;
-      const vx = speed(last.x, left, left + el.clientWidth * z, zoneOf(el.clientWidth * z)), vy = speed(last.y, top, top + el.clientHeight * z, zoneOf(el.clientHeight * z));
+      const z = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+      const v = viewRectOf(el, z);
+      const vx = speed(last.x, v.left, v.right, zoneOf(v.right - v.left)), vy = speed(last.y, v.top, v.bottom, zoneOf(v.bottom - v.top));
       if (!vx && !vy) { prev = 0; carry = [0, 0]; return; }
       // 前のコマからの時間（止まっていたら 1 コマ分。タブが裏に回っていたなどで間が空いても、一度に飛ばない）
       const dt = Math.min(prev ? now - prev : 16, 50) / 1000;
@@ -509,8 +510,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // ポインタ（画面の座標）の先まで図を広げる（端の帯の幅の 2 倍。帯の中でもスクロールが続くように）。足す前に縮めないよう、
   // 広げた大きさは箱を足すかモードを変えるまで保つ（layout.ts の stretchWorld）。again はスクロールするたびに呼ぶ（影を置き直す）
   function followEdge(x: number, y: number, again: () => void = () => {}) {
-    const c = container.getBoundingClientRect();
-    const right = c.left + container.clientLeft + container.clientWidth, bottom = c.top + container.clientTop + container.clientHeight;
+    const { right, bottom } = viewRectOf(container);
     // 広げるのは右や下の端の帯の中だけ（上や左の端へはスクロールするだけ）
     if (x >= right - EDGE_SCROLL_ZONE || y >= bottom - EDGE_SCROLL_ZONE) {
       stretchWorld(...clientToIn(world.el, ctx.zoom(), x + EDGE_SCROLL_ZONE * 2, y + EDGE_SCROLL_ZONE * 2));
@@ -674,7 +674,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const side: Side = i % 2 ? "r" : "l";
       el.dataset.side = side;
       el.dataset.member = name;
-      const [x, y] = toScreen(memberPoint(n!, name, side, PORT_OUT / ctx.zoom()));
+      const [x, y] = toScreen(memberPoint(n!, name, side, unscale(PORT_OUT)));
       el.style.left = x + "px";
       el.style.top = y + "px";
     });
@@ -685,7 +685,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // （引ける相手の子の上でも、その相手に引く）。引ける相手以外は薄くする。引いた線の端は、〇の辺の真ん中と離した所に固定する
   // （相手の子の上で離したら終点は自由。自分に戻る線なら、離した所に近い角）
   function linkGesture(from: Box, side: Side, port: HTMLElement, member?: string): Gesture {
-    const [sx, sy] = member != null ? toScreen(memberPoint(from, member, side, PORT_OUT / ctx.zoom())) : portPoint(from, side);
+    const [sx, sy] = member != null ? toScreen(memberPoint(from, member, side, unscale(PORT_OUT))) : portPoint(from, side);
     const siblings = from.parent ? from.parent.children : world.children;
     const can = new Set(siblings.filter(o => ctx.canLink(from, o)));
     const overlay = document.createElementNS(SVGNS, "svg");
@@ -765,7 +765,6 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // （箱の上ならその箱の子、何も無い所ならワールド。ページの箱の上には足せない）。リストの上（とリストの葉の子の上）では、
   // ポインタに近い子と子の間に線を出し、そこへ差し込む
 
-  const ADD_OFFSET = { x: 16, y: 12 }; // 影の左上は、ポインタのこれだけ左上（一覧から戻すときと同じ）
   const ADD_RECHECK = 150; // 端のスクロールの間に、足す所を探し直す間隔（ミリ秒）
   let addGhost: HTMLElement | null = null;
   let addLine: HTMLElement | null = null;

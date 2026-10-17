@@ -13,7 +13,7 @@ import type { Graph } from "./graph";
 import { t } from "./i18n";
 import { type MailNote, removeMail, sendMail } from "./mailbox";
 import { pageOf } from "./pages";
-import { EDIT_ZOOMS } from "./preview";
+import { editZoomToFit } from "./preview";
 import { toast } from "./toast";
 import { createTourView } from "./tour-view";
 import type { Diagram } from "./types";
@@ -124,7 +124,7 @@ export function createTourer<B extends TourBook>(ctx: TourContext<B>) {
     if (!target) return stop(t("示す箱が無くなったので、ツアーを終えました"));
     const rect = target.el.getBoundingClientRect(), z = b.graph.zoom(), room = 0.8;
     const fits = (k: number) => rect.width * k / z <= b.stage.clientWidth * room && rect.height * k / z <= b.stage.clientHeight * room;
-    if (!fits(z)) ctx.setZoom([...EDIT_ZOOMS].reverse().find(k => k < z && fits(k)) ?? EDIT_ZOOMS[0]!);
+    if (!fits(z)) ctx.setZoom(editZoomToFit(z, fits));
     b.graph.center(s.box);
     r.view.show({ find: () => b.graph.tourTarget(s.box)?.el ?? null, color: target.color, say: s.say, index: i, count: r.tour.steps.length });
   }

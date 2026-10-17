@@ -25,6 +25,8 @@ import { PATTERN_LABELS, isPattern } from "./validate";
 
 // マスターの一覧の 1 行（サーバーの /api/books。internal/server/books.go）
 interface BookRow { id: string; name: string; title: string; mtime: number; madeBy: string; pattern: string }
+// 一覧の行の見出し（題名が無ければ名前）
+const titleOf = (r: BookRow) => r.title || r.name;
 // マスターに窓を並べる数（新しい順。残りは「その他のブック」）と、リストの置き方（リストの幅の目安・見出しの高さ・リストどうしの間）。
 // 窓はリストの行（縮図は右。D13）なので、行の高さは横に分ける窓の高さとリストの間隔で決まる。目安を外れても重なりは配置が直す
 const MASTER_TOP = 10;
@@ -89,7 +91,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
     return p;
   }
   const crossList = createCrossList(ctx.crossList, {
-    books: () => masterRows.map(r => ({ id: r.id, title: r.title || r.name })),
+    books: () => masterRows.map(r => ({ id: r.id, title: titleOf(r) })),
     load: loadBook,
   });
 
@@ -118,7 +120,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
       e.preventDefault();
       e.stopPropagation();
       const target = rows.get(el.dataset.id!.slice(2))!;
-      const name = target.title || target.name;
+      const name = titleOf(target);
       let item: CrossPayload;
       try { item = JSON.parse(e.dataTransfer!.getData(CROSS_MIME)); } catch { return; }
       const d = await loadBook(target.id);
@@ -152,18 +154,26 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
         masterBook?.graph.redraw();
       });
     }
-    return { title: row.title || row.name, pattern, scene: scene && scene !== "loading" ? scene : null };
+    return { title: titleOf(row), pattern, scene: scene && scene !== "loading" ? scene : null };
+  }
+
+  // 登録した図の一覧（サーバーの /api/books）。取れなければ投げる
+  async function fetchBooks(): Promise<BookRow[]> {
+    const l = await fetch("api/books", { cache: "no-store" });
+    if (!l.ok) throw new Error(String(l.status));
+    return (await l.json()).books;
+  }
+  // 取った一覧を覚える（窓の題名・パターン・縮図のもと、ブックリンクの選択肢）
+  function remember(list: BookRow[]) {
+    rows = new Map(list.map(r => [r.id, r]));
+    masterRows = list;
   }
 
   // ブックの一覧（窓の題名・パターン・縮図のもと）を取り直す。マスターを開いていなくても、ふつうのページのブックリンク（D29）のために持つ。
   // 開いたときと、登録した図の一覧が変わった知らせ（books）で呼ぶ
   async function catalog() {
     try {
-      const l = await fetch("api/books", { cache: "no-store" });
-      if (!l.ok) return;
-      const list: BookRow[] = (await l.json()).books;
-      rows = new Map(list.map(r => [r.id, r]));
-      masterRows = list;
+      remember(await fetchBooks());
       ctx.redraw();
     } catch {
       // 取れなければ今のまま（次の知らせで取り直す）
@@ -176,7 +186,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
     const top = list.slice(0, MASTER_TOP), rest = list.slice(MASTER_TOP);
     const nodes: DiagramData["nodes"] = [];
     const win = (r: BookRow, parent: string, by: "user" | "ai") => nodes.push({
-      id: "b-" + r.id, parent, caption: r.title || r.name, book: r.id, color: MADE_BY_COLOR[by],
+      id: "b-" + r.id, parent, caption: titleOf(r), book: r.id, color: MADE_BY_COLOR[by],
     });
     const groups = [
       { id: "user", caption: t("ユーザー"), by: "user" as const, list: top.filter(r => r.madeBy === "user") },
@@ -213,8 +223,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
     if (!b) return ctx.error(t("マスターを開けませんでした: {error}", { error: id }));
     if (masterBook !== b) setupWindowDrops(b);
     masterBook = b;
-    rows = new Map(list.map(r => [r.id, r]));
-    masterRows = list;
+    remember(list);
     bookData.clear(); // 縮図（scenes）は最終更新ごとに覚えているので捨てない
     ctx.activate(b, null);
     b.graph.load(masterData(list));
@@ -235,9 +244,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
         if (!b || ctx.current() !== b) return;
         let list: BookRow[];
         try {
-          const l = await fetch("api/books", { cache: "no-store" });
-          if (!l.ok) throw new Error(String(l.status));
-          list = (await l.json()).books;
+          list = await fetchBooks();
         } catch {
           return; // 取れなければ今のまま（次の知らせで取り直す）
         }
@@ -245,8 +252,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
         if (JSON.stringify(list) === builtFrom) continue;
         builtFrom = JSON.stringify(list);
         const openOthers = b.graph.toJSON().nodes.find(n => n.id === "others")?.childView;
-        rows = new Map(list.map(r => [r.id, r]));
-        masterRows = list;
+        remember(list);
         bookData.clear();
         const data = masterData(list);
         const others = data.nodes.find(n => n.id === "others");
@@ -263,13 +269,13 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
   function duplicate(id: string) {
     const row = rows.get(id);
     if (!row) return;
-    const base = (row.title || row.name).replace(/ \(\d+\)$/, "");
+    const base = titleOf(row).replace(/ \(\d+\)$/, "");
     const taken = new Set(masterRows.flatMap(r => [r.title, r.name]));
     let n = 2;
     while (taken.has(`${base} (${n})`)) n++;
     const fields = `<label class="mz-dlg-field"><span>${t("図の題名")}${helpIcon(t("タブの見出しと、ファイル名になります（空なら「無題」）"))}</span>
       <input class="mz-dlg-input" type="text" name="caption" value="${esc(`${base} (${n})`)}"></label>
-      <p class="mz-dlg-note">${t("「{book}」の中身を写して、同じフォルダに作ります", { book: row.title || row.name })}</p>`;
+      <p class="mz-dlg-note">${t("「{book}」の中身を写して、同じフォルダに作ります", { book: titleOf(row) })}</p>`;
     openDialog(t("ブックの複製"), t("作成"), fields, o => {
       const title = o.querySelector<HTMLInputElement>('[name="caption"]')!.value.trim();
       void copyBook(id, title).catch((e: Error) => ctx.error(e.message));
@@ -282,7 +288,7 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
   }
 
   // ブックリンクを作るときに選べるブック（D29）: 登録した図の一覧（新しい順）。except は今のブック
-  const choices = (except: string | null) => masterRows.filter(r => r.id !== except).map(r => ({ id: r.id, title: r.title || r.name }));
+  const choices = (except: string | null) => masterRows.filter(r => r.id !== except).map(r => ({ id: r.id, title: titleOf(r) }));
 
   return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow, duplicate, catalog, choices };
 }
