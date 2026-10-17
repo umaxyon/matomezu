@@ -112,26 +112,6 @@ test("Ctrl（Mac は Cmd）を押してもモードは入れ替わらない（E1
   expect(g.mode()).toBe("reparent");
 });
 
-test("ドラッグ中は切り替えず、手を離してから切り替える", () => {
-  document.body.innerHTML = `
-    <button id="mode-tool" data-mode="move"></button><span id="label"></span><div id="stage"></div>`;
-  const stage = document.getElementById("stage")!;
-  graph = createGraph(stage, { nodes: [{ id: 1, caption: "a", x: 40, y: 40 }] }, { measureText: fakeMeasure });
-  dispose = setupModes(graph, document.getElementById("mode-tool") as HTMLButtonElement, document.getElementById("label")!);
-  graph.select(1);
-  const head = stage.querySelector(".mz-node.mz-current > .mz-head")!;
-  const fire = (type: string, x: number) =>
-    head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
-  fire("pointerdown", 0);
-  fire("pointermove", 10);
-  key(" ");
-  expect(graph.mode()).toBe("move");
-  fire("pointermove", 20);
-  fire("pointerup", 20);
-  expect(graph.mode()).toBe("pan");
-  expect(graph.info(1).x).toBe(60); // 移動のドラッグはそのまま終わる
-});
-
 test("図の側でモードが変わったら、ボタンとラベルもそれに合わせる", () => {
   const { g, $, button } = setupWithModes();
   button.click();    // 付け替えモード

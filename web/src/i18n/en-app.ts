@@ -22,8 +22,7 @@ export default {
   "付け替えモード: ドラッグして落とした先のボックスの子にする": "Reparent mode: drag a box and drop it onto another box to make it a child",
   "付け替えモード": "Reparent mode",
   "追加モード": "Add mode",
-  "手のひらモード: ドラッグで見る範囲を動かす（どのモードでも Space を押している間は手のひら）":
-    "Hand mode: drag to move the view (in any mode, hold Space for the hand)",
+  "手のひらモード: ドラッグで見る範囲を動かす": "Hand mode: drag to move the view",
   "手のひらモード": "Hand mode",
   "サンプル": "Sample",
   "JSONを開く": "Open JSON",

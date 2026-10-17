@@ -10,7 +10,7 @@
 // - 手のひらのモードでは 設定 だけ（2026-10-18 ユーザー）。タブ行ではブラウザのメニューも出さない（setupBarContextMenu）
 // - 出さないとき（Ctrl+C / Ctrl+V と同じ条件）: プレビュー中・ダイアログが開いている・ドラッグ中・選択・付け替え・手のひら以外のモード。
 //   説明ツアー中は幕が右クリックを止める（tour-view.ts）
-// - 右の長押しはモードの切り替え（mode-picker.ts。setupContextMenu が押し続けを見る）
+// - 右の長押しと Space はモードの切り替え（mode-picker.ts。setupContextMenu が押し続けと Space を見る）
 // 項目は menuFor に足せばよい形にしておく（タブなどへ広げるのと、パターンごとの出し分けは後で。D39・D25）
 import type { Graph, MenuTarget } from "./graph";
 import { type Head, headOptions, headPatch } from "./heads";
@@ -176,6 +176,22 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () 
     if (d) show(d.target, d.at);
   }, { signal });
   window.addEventListener("blur", endPress, { signal });
+  // Space でも、最後のポインタの位置（図の外なら図の真ん中）にモードのアイコンを出す（2026-10-18 ユーザー。前は押している間だけ手のひら）。
+  // 入力欄・ボタンの上（Space で押す）・ダイアログ・プレビューでは出さない。Space で図がスクロールしないよう止める
+  let last: { x: number; y: number } | null = null;
+  window.addEventListener("pointermove", e => { last = { x: e.clientX, y: e.clientY }; }, { signal, passive: true });
+  document.addEventListener("keydown", e => {
+    if (e.key !== " " || e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
+    if (e.target instanceof Element && e.target.closest("button, a, select, .mz-dlg-overlay")) return;
+    if (blocked() || closePicker || !stage.isConnected || stage.offsetParent === null) return;
+    e.preventDefault();
+    if (e.repeat) return;
+    const r = stage.getBoundingClientRect();
+    const inside = last && last.x >= r.left && last.x <= r.right && last.y >= r.top && last.y <= r.bottom;
+    endPress();
+    close?.();
+    closePicker = openModePicker(graph, inside ? last! : { x: r.left + r.width / 2, y: r.top + r.height / 2 }, byRight => { closePicker = null; if (byRight) swallow = true; });
+  }, { signal });
   window.addEventListener("contextmenu", e => {
     if (!swallow) return;
     swallow = false;

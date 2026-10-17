@@ -1,4 +1,4 @@
-// 画面の操作（D32）: 図の周りの余白、手のひら（モードと Space）、編集中の拡大縮小
+// 画面の操作（D32）: 図の周りの余白、手のひら（モード）・Space でモードのアイコン、編集中の拡大縮小
 import { expect, test } from "@playwright/test";
 import { example, openDiagram, rect, violations, setMode } from "./helpers";
 
@@ -59,21 +59,23 @@ test("手のひらのモードでは、箱をドラッグしても箱は動か�
   await expect(page.locator(".mz-node.mz-current")).toHaveCount(0);
 });
 
-test("Space を押している間は手のひらになり、離すと前のモードに戻る", async ({ page }) => {
+test("Space でポインタの位置にモードのアイコンを出す。もう一度 Space で閉じ、アイコンを押せばそのモード", async ({ page }) => {
   await page.locator("#stage").click({ position: { x: 5, y: 5 } }); // 図に焦点を移す（ボタンの上の Space はボタンを押すので）
-  await page.keyboard.down(" ");
-  await expect(page.locator("#mode-label")).toHaveText("手のひらモード");
-  const before = await rect(page, 3);
-  const [sl0] = await scrollOf(page);
   const b = (await head(page, 3).boundingBox())!;
-  await page.mouse.move(b.x + 10, b.y + 10);
-  await page.mouse.down();
-  await page.mouse.move(b.x - 60, b.y - 40, { steps: 5 });
-  await page.mouse.up();
-  expect(await rect(page, 3)).toEqual(before);
-  expect((await scrollOf(page))[0]).toBeGreaterThan(sl0);
-  await page.keyboard.up(" ");
-  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move");
+  await page.mouse.move(b.x + 10, b.y + 80);
+  await page.keyboard.press(" ");
+  const btns = page.locator(".mz-mpick-btn");
+  await expect(btns).toHaveCount(3);
+  const first = (await btns.nth(0).boundingBox())!, lastBtn = (await btns.nth(2).boundingBox())!;
+  expect(first.x).toBeLessThan(b.x + 10);
+  expect(lastBtn.x + lastBtn.width).toBeGreaterThan(b.x + 10);
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move"); // 出しただけではモードは変わらない
+  await page.keyboard.press(" ");
+  await expect(page.locator(".mz-mpick-overlay")).toHaveCount(0);
+  await page.keyboard.press(" ");
+  await btns.nth(1).click();
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "pan");
+  await expect(page.locator("#mode-label")).toHaveText("手のひらモード");
 });
 
 // ワールドの左上を図の枠の左上に合わせる（拡大縮小は画面の真ん中を中心に広がるので、確かめる前に見る範囲をそろえる）
