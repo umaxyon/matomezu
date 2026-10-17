@@ -3,16 +3,16 @@
 
 import { classAnchors, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
-import { type Box, type Edge, absPos, shapeOf } from "./model";
+import { type Box, type Edge, shapeOf } from "./model";
 import { type Pt, leftNormalAt, nearestAt, pointAt } from "./geom";
-import { CAPTION_OFFSET_MAX } from "./render";
+import { clampCaptionOffset } from "./render";
 import { type RouteInput, fixedAts, perimeterAt, simplifyVia, vertexOf } from "./routing";
 import { perimeter } from "./selfloop";
 
 export interface EdgeDragContext {
   svg: SVGSVGElement;      // 吸着の目印を描く所
   edges(): Edge[];
-  anchorRect(n: Box): { x: number; y: number; w: number; h: number }; // 線がつながる範囲（箱の左上から）
+  absAnchorRect(n: Box): { x: number; y: number; w: number; h: number }; // 線がつながる範囲（ワールドの座標。layout.ts）
   redraw(): void;          // 線を描き直す
   edited(e: Edge): void;   // e.src を書き換えた（描き直し、選んでいる線ならサイドバーに知らせる）
   committed(e: Edge): void; // ドラッグを終えた（1 件の履歴に残し、選んでいる線ならサイドバーに知らせる）
@@ -27,12 +27,7 @@ const SNAP_DISTANCE = 8;
 export function createEdgeDrag(ctx: EdgeDragContext) {
   let snapMark: SVGCircleElement | null = null;
 
-  // 線がつながる範囲（ワールドの座標）
-  function edgeRect(n: Box) {
-    const [x, y] = absPos(n);
-    const r = ctx.anchorRect(n);
-    return { x: x + r.x, y: y + r.y, w: r.w, h: r.h };
-  }
+  const edgeRect = (n: Box) => ctx.absAnchorRect(n);
 
   // 端をドラッグしている線 e の、箱 own の側の端（動ける道 path、今の点 p）が吸着するほかの線の端。
   // 対象は、同じ箱につながるほかの線の端のうち、この端が動ける道の上にあるもの（同じ辺）。一番近いものを SNAP_DISTANCE まで
@@ -153,7 +148,7 @@ export function createEdgeDrag(ctx: EdgeDragContext) {
       const at = nearestAt(e.points, x, y);
       const [bx, by] = pointAt(e.points, at);
       const [nx, ny] = leftNormalAt(e.points, at);
-      const off = Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, (x - bx) * nx + (y - by) * ny));
+      const off = clampCaptionOffset((x - bx) * nx + (y - by) * ny);
       e.src.captionAt = Math.round(at * 1000) / 1000;
       e.src.captionOffset = Math.round(off);
       ctx.edited(e);

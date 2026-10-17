@@ -17,12 +17,12 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, setSpec, shapeOf, sizeOf,
+  absPos, ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, placerOf, setSpec, shapeOf, sizeOf,
 } from "../model";
 import { alignFlow } from "./flow-align";
 import { shapeDef } from "../shapes";
 import type { TextMeasurer } from "./measure";
-import { BODY_GAP, createNodeKinds } from "./node-kinds";
+import { bodyBand, createNodeKinds } from "./node-kinds";
 import { type Scene, createAnchorRules } from "./policy";
 import { layoutStats } from "./stats";
 import { GROUP_MIN } from "../validate";
@@ -71,7 +71,7 @@ export function createLayout(ctx: LayoutContext) {
   const incident = (n: Box) => edges().filter(e => e.a === n || e.b === n);
 
   // 見出しの下の本文の分（本文が無ければ 0）
-  const bodyTop = (n: Box) => { const h = kindOf(n).name === "nest" ? bodyHeightTop(n) : 0; return h ? h + BODY_GAP : 0; };
+  const bodyTop = (n: Box) => bodyBand(kindOf(n).name === "nest" ? bodyHeightTop(n) : 0);
 
   // 子を置ける領域の内側の余白
   function innerArea(c: Container) {
@@ -178,6 +178,8 @@ export function createLayout(ctx: LayoutContext) {
   const fit = (n: Box) => kindOf(n).measure(n);
   // 同じ階層との線をつなぐ範囲（ボックスの左上からの位置）。ツリーで見せていれば枠全体、それ以外は本体
   const anchorRect = (n: Box) => kindOf(n).anchorRect(n);
+  // 線がつながる範囲（ワールドの座標）
+  const absAnchorRect = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return { x: x + r.x, y: y + r.y, w: r.w, h: r.h }; };
   // 大きさが変わったとき、どこを保つか（policy.ts）
   const anchors = createAnchorRules({ anchorRect });
   // 線がつながる範囲の横の中心（親の中での位置）
@@ -247,7 +249,7 @@ export function createLayout(ctx: LayoutContext) {
   // 並べ方の戦略のローカルなルールが先: 子どうしの間隔を決めていればそれ（リスト）、組ごとの間隔を使わない戦略（フローチャート）なら
   // 線があっても広げない（model.ts の STRATEGIES の kidGap・pairGaps）
   function gapBetween(n: Box, o: Box): number {
-    const s = kidStrategyOf(containerOf(n));
+    const s = placerOf(n);
     let g = s.kidGap ?? opt.gap;
     if (!s.pairGaps) return g;
     for (const e of edges()) {
@@ -599,7 +601,7 @@ export function createLayout(ctx: LayoutContext) {
   return {
     containerOf, siblings, incident, innerArea, gapBetween, fixedSize, syncWorld, holdWorld, stretchWorld, outsideFixed,
     offset: () => offset, // ワールドを図の枠の中でずらしている量（sizeCanvas）
-    kindOf, anchorRect, centerX, fit, refitAncestors,
+    kindOf, anchorRect, absAnchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow, stepAside,
     settle, fitToViewport, viewport, alignKids,

@@ -2,7 +2,7 @@
 
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
-import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, type Rect as ClipRect, isLinkLook, isRect } from "./link-box";
+import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, type Rect as ClipRect, isLinkLook, isRect, linkRowHeight } from "./link-box";
 import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, PreviewSide, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { ARROWS, SIZES, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
@@ -138,6 +138,13 @@ export function absPos(n: Box): [number, number] {
   let x = 0, y = 0;
   for (let m: Box | null = n; m; m = m.parent) { x += m.x; y += m.y; }
   return [x, y];
+}
+// 箱の本体（ヘッド）の矩形。(x, y) は箱の左上の位置（無ければ箱の左上からの位置）
+export const headRectOf = (n: Box, x = 0, y = 0): R4 => ({ x: x + n.hx, y: y + n.hy, w: n.hw, h: n.hh });
+// 箱の枠（子孫を含めた範囲）の、ワールドの座標の矩形
+export function absRect(n: Box): R4 {
+  const [x, y] = absPos(n);
+  return { x, y, w: n.w, h: n.h };
 }
 
 export const other = (e: Edge, n: Box) => (e.a === n ? e.b : e.a);
@@ -275,21 +282,23 @@ export function arrangeOf(n: Box): Arrange {
   if (!n.children.length) return "leaf";
   if (isTreeRoot(n) || treeRootOf(n)) return worldViewOf(n.world);
   const own = viewOf(n);
-  if (!n.parent || !lookOf(n).preview) return own;
-  return own === "hidden" || previewSideOf(n.parent) === "none" ? "hidden" : "preview";
+  const slot = previewSlotOf(n);
+  if (!slot) return own;
+  return own === "hidden" || slot === "none" ? "hidden" : "preview";
 }
 // リストの子の縮図の位置（リストの previewSide。無ければ右）
 export const previewSideOf = (list: Box): PreviewSide => (isPreviewSide(list.src.previewSide) ? list.src.previewSide : "right");
+// 縮図を横に出す並べ方（リスト）の子なら、親が決めた縮図の位置（右・左・出さない）。でなければ null
+export const previewSlotOf = (n: Box): PreviewSide | null => (n.parent && lookOf(n).preview ? previewSideOf(n.parent) : null);
 // 横に縮図を出す箱なら、その位置（右か左）。子を持って縮図になった子と、縮図を横に出す並べ方の中の窓（リンクの箱）。でなければ null
 export function listPreviewOf(n: Box): "right" | "left" | null {
-  if (!n.parent || !lookOf(n).preview) return null;
-  const side = previewSideOf(n.parent);
-  if (side === "none") return null;
+  const side = previewSlotOf(n);
+  if (side == null || side === "none") return null;
   return isLinkBox(n) || arrangeOf(n) === "preview" ? side : null;
 }
 // 縮図を出さない並べ方（リストの none）の中の窓か。縮図の代わりに、押すと開くアイコンを右に出す（2026-10-14 ユーザー）
 // 縮図の代わりに開くアイコンを出すか: 縮図を出さない見せ方（linkLook の icon。D29）か、縮図を出さないリストの中（D13）
-export const linkIconOf = (n: Box): boolean => isLinkBox(n) && (n.src.linkLook === "icon" || (!!n.parent && lookOf(n).preview && previewSideOf(n.parent) === "none"));
+export const linkIconOf = (n: Box): boolean => isLinkBox(n) && (n.src.linkLook === "icon" || previewSlotOf(n) === "none");
 // 子を描かない並べ方か（非表示と縮図）
 export const hidesKids = (n: Box): boolean => arrangeOf(n) === "hidden" || arrangeOf(n) === "preview";
 // 箱が子を並べる戦略（子が無ければ null）
@@ -297,6 +306,8 @@ export const strategyOf = (n: Box): Strategy | null => (n.children.length ? STRA
 // 箱を並べている親の並べ方。最上位はページのパターンが最上位の箱を置く戦略（STRATEGIES の tops。ツリーのページでも最上位は自由に置く）
 // （親は子を持つので leaf にはならない）
 export const placedBy = (n: Box): ChildView => (n.parent ? (arrangeOf(n.parent) as ChildView) : STRATEGIES[worldViewOf(n.world)].tops);
+// 箱を並べている戦略（placedBy の戦略。入れ物の側から引く kidStrategyOf(n.parent ?? n.world) と同じもの）
+export const placerOf = (n: Box): Strategy => STRATEGIES[placedBy(n)];
 // 中の箱のサイズ（フローチャートで一括で変えたもの。無ければ null）
 export const kidSizeOf = (c: Container): Size | null => { const v = c.isWorld ? (c.src as WorldData).kidSize : undefined; return isSize(v) ? v : null; }; // ページ（world）の設定
 // 子の見せ方とページのパターンの既定（書いていなければ内包）
@@ -314,7 +325,7 @@ export const inList = (n: Box): boolean => placedBy(n) === "list" && !!n.parent;
 // ツリーで並んでいる子か（子同士の線は描かない）
 export const inTree = (n: Box): boolean => placedBy(n) === "tree" && !!n.parent;
 // 親の中に入っている（ドラッグで自由に動かせる）子か。最上位も含む
-export const inNest = (n: Box): boolean => STRATEGIES[placedBy(n)].free;
+export const inNest = (n: Box): boolean => placerOf(n).free;
 // 子を枠の中に入れて見せるボックス（子を持ち、戦略が枠で見せるもの）。枠と見出しで描き、形とサイズは使わない
 export const isNesting = (n: Box): boolean => !!strategyOf(n)?.framed;
 // 見た目が葉の箱か（子が無いか、子を隠して本体だけを見せる）
@@ -329,7 +340,7 @@ export const linkPageOf = (n: Box): string | null => (n.src.link == null ? null 
 export const linkBookOf = (n: Box): string | null => (typeof n.src.book === "string" && n.src.book ? n.src.book : null);
 // 縮図を横に出す並べ方（リスト）の中では、いつも横に分ける（D13。2026-10-14 ユーザー）
 // 描くときの見せ方（リストの中は横に分ける。縮図を出さない（icon）も横に分ける形で描き、アイコンかは linkIconOf）
-export const linkLookOf = (n: Box): LinkLook => (n.parent && lookOf(n).preview ? "side" : n.src.linkLook === "icon" ? "side" : isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
+export const linkLookOf = (n: Box): LinkLook => (previewSlotOf(n) != null ? "side" : n.src.linkLook === "icon" ? "side" : isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
 // データに書いた見せ方（編集ダイアログの選択。無ければ既定）
 export const dataLinkLookOf = (n: Box): LinkLook => (isLinkLook(n.src.linkLook) ? n.src.linkLook : DEFAULT_LINK_LOOK);
 // 窓に映す範囲（のぞくページの座標。無ければ null = ページ全体）
@@ -345,13 +356,13 @@ export interface Abilities {
   dropInto: boolean;  // 付け替えや追加で、中へ落とせる（リンクの箱は窓なので中に入れられず、クラスの箱とフローチャートの要素は子を持てない）
 }
 export function abilitiesOf(n: Box): Abilities {
-  const by = STRATEGIES[placedBy(n)];
+  const by = placerOf(n);
   return {
     drag: by.free,
     reorder: by.reorder && !!n.parent,
     link: !n.parent || by.link,
     widthGrip: !!strategyOf(n)?.widthGrip,
-    heightGrip: !!strategyOf(n)?.scroll && Number(n.src.listHeight) > 0,
+    heightGrip: !!strategyOf(n)?.scroll && listHeightOf(n) > 0,
     dropInto: shapeDef(shapeOf(n)).kids && !by.leafKids && !isLinkBox(n),
   };
 }
@@ -361,13 +372,17 @@ export const dataSizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "
 // リストの高さ（子の最小の高さ。D13。2026-10-14 ユーザー）: S は縮図の代わりにアイコンを出した窓の行、M は普通の箱、L は縮図のある行の高さ。
 // 縮図を出すときも出さないときも選べる（2026-10-14 ユーザー）。行は中身が収まる限りこの高さで、収まらない行だけ高くなる
 export const ROW_HEIGHTS: Record<Size, number> = {
-  S: LINK_ICON_DEF.win.h + 2 * LINK_ICON_DEF.gap,
+  S: linkRowHeight(LINK_ICON_DEF),
   M: SIZES.M.h,
-  L: PREVIEW_ROW_DEF.win.h + 2 * PREVIEW_ROW_DEF.gap,
+  L: linkRowHeight(PREVIEW_ROW_DEF),
 };
 export const rowSizeOf = (list: Box): Size => (isSize(list.src.rowSize) ? list.src.rowSize : "M");
 // リストの子の最小の高さ
 export const rowHeightOf = (list: Box): number => ROW_HEIGHTS[rowSizeOf(list)];
+// 親のリストの高さ（rowSize）を最小の高さに使う箱か（リストの子）
+export const takesRowSize = (n: Box): boolean => !!n.parent && lookOf(n).sharedSize;
+// リストの高さの上限（listHeight。D33。無ければ 0 = 中身に合わせて伸びる）
+export const listHeightOf = (list: Box): number => (Number(list.src.listHeight) > 0 ? Number(list.src.listHeight) : 0);
 // サイズ（L / M / S）が効くのは、見た目が葉の箱だけ（子の無い箱、ツリーの親の本体、非表示）。内包・リストの箱の大きさは子の並びで決まるので、
 // サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの子もサイズを使わず普通の大きさ（高さはリストの高さ。D13）
 export const sizeOf = (n: Box): Size =>
@@ -404,12 +419,12 @@ export function treeLinesBetween(dir: TreeDirection, head: R4, kids: R4[], gapY:
 }
 // ツリーの節 n の線（n の左上からの座標）
 export const treeLinesOf = (n: Box, gapY: number): [number, number][][] =>
-  treeLinesBetween(treeDirOf(n), { x: n.hx, y: n.hy, w: n.hw, h: n.hh }, n.children.map(k => ({ x: k.x + k.hx, y: k.y + k.hy, w: k.hw, h: k.hh })), gapY);
+  treeLinesBetween(treeDirOf(n), headRectOf(n), n.children.map(k => headRectOf(k, k.x, k.y)), gapY);
 // 子を内包しているボックスは枠なので、形は常にボックス
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
 // 線のキャプションの候補: 始点が分岐の形（ひし形）で、それを並べる戦略が候補を持つとき（フローチャートの Yes / No）
 export const captionHintsOf = (e: Edge): string[] =>
-  (e.a !== e.b && shapeDef(shapeOf(e.a)).branch ? [...STRATEGIES[placedBy(e.a)].branchCaptions] : []);
+  (e.a !== e.b && shapeDef(shapeOf(e.a)).branch ? [...placerOf(e.a).branchCaptions] : []);
 // 分岐から出る線の頂点（2026-10-11 ユーザー。フローチャートの戦略）: 1 つの頂点から 2 本出さない（下と右のような組み合わせでもよい）。
 // targets は線ごとの、分岐の中心から相手の中心への向き。avoid は入ってくる線が使う頂点（空いていれば避ける）。
 // 頂点の向きと相手の向きのなす角の合計が一番小さい割り当てを選ぶ（4 本までは全部試す。5 本目からは割り当てない）
@@ -442,7 +457,7 @@ export const shapeOf = (n: Box): Shape => {
 // 入れ物 p の子にできるか（子を持てない戦略の子の中へは入れられず、子を持つ箱は子を持てない戦略の中へ入れられない。
 // ツリーのページで子を持てるのは根の子孫だけなので、根の外の最上位へは子を持つ箱を落とせず、根の外の葉の中へも落とせない）
 export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
-  if (!p.isWorld && (STRATEGIES[placedBy(p)].leafKids || isLinkBox(p))) return false;
+  if (!p.isWorld && (placerOf(p).leafKids || isLinkBox(p))) return false;
   if (kidHasKids && kidStrategyOf(p).leafKids) return false;
   const pattern = STRATEGIES[worldViewOf(p.isWorld ? p : p.world)];
   if (pattern.rootOnly) {
@@ -485,6 +500,8 @@ export const bodyWidthOf = (n: Box): number => (typeof n.src.bodyWidth === "numb
 // 内包する箱・リストの親の本文を折り返す幅（箱の幅として数える。余白を含む）。自動なら箱の幅いっぱい、つまみで変えていればその幅。
 // 箱の幅は子の並びで決まり、本文はそれを超えない（図が優先。子を詰めて狭くなれば箱の幅で折り返し、覚えた幅は消さない）
 export const bodyWrapW = (n: Box, w: number): number => Math.min(bodyWidthOf(n) || w, w);
+// 本文の文字を折り返す幅（左右の余白 padding を除く）。配置で測る幅（layout/node-kinds.ts）と描く幅（render.ts）は、どちらもこれを使う
+export const bodyTextW = (n: Box, w: number, padding: number): number => bodyWrapW(n, w) - 2 * padding;
 
 // t が n 自身か、n の子孫か
 export function isInside(t: Box, n: Box) {

@@ -7,13 +7,13 @@ import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
 import { leftNormalAt, pointAt, polylineLength } from "./geom";
-import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt } from "./routing";
+import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt, vertexAt } from "./routing";
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
-  type Box, type Edge, type World, abilitiesOf, absPos, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyWrapW, borderOf,
-  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
-  sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
+  type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
+  captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listHeightOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
+  sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
@@ -55,11 +55,13 @@ function parseShadow(css: string): { dx: number; dy: number; blur: number; color
 
 // 線のキャプションを線から離せる量（px）
 export const CAPTION_OFFSET_MAX = 60;
+// 線のキャプションを線から離す量を、離せる範囲（±CAPTION_OFFSET_MAX）に収める
+export const clampCaptionOffset = (v: number): number => Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, v));
 
 
 export function createRenderer(ctx: RenderContext, L: Layout) {
   const { opt, worldEl } = ctx;
-  const { anchorRect } = L;
+  const { absAnchorRect } = L;
 
   // 背景色。明るさに合わせて、ワールドの中の文字や線を見やすい配色にする（graph-style.ts の .mz-on-light / .mz-on-dark）
   function applyWorldStyle() {
@@ -362,10 +364,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     return (p: Box | null) => {
       let list = frames.get(p);
       if (!list) {
-        list = ctx.nodes().filter(n => n.parent === p && !isHidden(n)).map(n => {
-          const [x, y] = absPos(n);
-          return { n, r: { x, y, w: n.w, h: n.h } };
-        });
+        list = ctx.nodes().filter(n => n.parent === p && !isHidden(n)).map(n => ({ n, r: absRect(n) }));
         frames.set(p, list);
       }
       return list;
@@ -374,13 +373,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // 線の道筋を決める入力（routing.ts）。ほかの箱は、道筋に関わりうるものだけに絞る（scopeObstacles）
   function routeInputOf(e: Edge, siblingsOf = siblingFrames()): RouteInput {
-    const [ax, ay] = absPos(e.a);
-    const [bx, by] = absPos(e.b);
-    const ra = anchorRect(e.a), rb = anchorRect(e.b);
     const obstacles = siblingsOf(e.a.parent).filter(o => o.n !== e.a && o.n !== e.b).map(o => o.r);
     const input: RouteInput = {
-      a: { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h },
-      b: { x: bx + rb.x, y: by + rb.y, w: rb.w, h: rb.h },
+      a: absAnchorRect(e.a),
+      b: absAnchorRect(e.b),
       elbow: routeOf(e, ctx.world) === "elbow",
       via: viaOf(e),
       obstacles, margin: BEND_MARGIN,
@@ -389,12 +385,12 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       aVertex: vertexOnly(shapeOf(e.a)), bVertex: vertexOnly(shapeOf(e.b)),
       // 前に描いた辺の記憶（ちらつきを抑える）。フローチャートの線は、ドラッグしている間だけ使う（止まっているときは、いつも一番よい形。
       // 開いたときに、配置が決まる前に描いた辺が残らないように）
-      memory: kidStrategyOf(e.a.parent ?? e.a.world).separateEnds && !ctx.dragging() ? null : e.memory,
+      memory: placerOf(e.a).separateEnds && !ctx.dragging() ? null : e.memory,
     };
     // フローチャートの分岐から出る線は、向かい合う頂点に分けて出す（端を固定していない線だけ。データは書き換えない）
     if (input.exitAt == null) {
       const v = branchVertexOf(e);
-      if (v) input.exitAt = perimeterAt(input.a, vertexPoint(input.a, v));
+      if (v) input.exitAt = perimeterAt(input.a, vertexAt(input.a, v));
     }
     // クラスの端は、決まった接点に固定する（docs/CLASS-plan.md）。データの固定の位置があれば、一番近い接点として読む
     const pin = (n: Box, r: Rect4, other: Rect4, at: number | null, member: unknown) => {
@@ -411,13 +407,13 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 2 本以上あれば、折れ目の少ない線（同じなら短い線）がその辺を取り、負けた線は、空いている辺のうち相手に背を向けていない辺で、
   // 折れ目の一番少ない道を探す（routing.ts の routeOnSides）。探せなければ、そのまま共有する。描くときだけ決め、端を固定した線は除く
   function separateEnds(list: { e: Edge; input: RouteInput; r: Route }[]) {
-    const rimOf = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return { x: x + r.x, y: y + r.y, w: r.w, h: r.h }; };
+    const rimOf = absAnchorRect;
     // 同じ箱の同じ辺に入り、端どうしが SAME_END px より近い線を 1 つの組にする（丸めで 1px ずれることがある）
     const SAME_END = 6;
     const bySide = new Map<string, typeof list>();
     for (const item of list) {
       const { e, r } = item;
-      if (typeof e.src.enterAt === "number" || r.arrangement === "overlap" || !kidStrategyOf(e.b.parent ?? e.b.world).separateEnds) continue;
+      if (typeof e.src.enterAt === "number" || r.arrangement === "overlap" || !placerOf(e.b).separateEnds) continue;
       const side = sideAt(rimOf(e.b), r.points[r.points.length - 1]!);
       if (!side) continue;
       const key = `${e.b.id}|${side}`;
@@ -461,18 +457,16 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 入ってくる線の頂点（相手の向きに一番近い頂点）は、空いていれば避ける
   function branchVertexOf(e: Edge): Vertex | null {
     const d = e.a;
-    if (d === e.b || !shapeDef(shapeOf(d)).branch || !kidStrategyOf(d.parent ?? d.world).splitBranches) return null;
+    if (d === e.b || !shapeDef(shapeOf(d)).branch || !placerOf(d).splitBranches) return null;
     const out = ctx.edges().filter(x => x.a === d && x.b !== d && typeof x.src.exitAt !== "number" && !edgeHidden(x));
     if (out.length < 2) return null;
-    const c = (n: Box) => { const [x, y] = absPos(n), r = anchorRect(n); return [x + r.x + r.w / 2, y + r.y + r.h / 2] as const; };
+    const c = (n: Box) => { const r = absAnchorRect(n); return [r.x + r.w / 2, r.y + r.h / 2] as const; };
     const [cx, cy] = c(d);
     const facing = (dx: number, dy: number): Vertex => (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "r" : "l") : dy > 0 ? "b" : "t");
     const avoid = ctx.edges().filter(x => x.b === d && x.a !== d && !edgeHidden(x)).map(x => { const [sx, sy] = c(x.a); return facing(sx - cx, sy - cy); });
     const vs = splitBranches(out.map(x => { const [tx, ty] = c(x.b); return [tx - cx, ty - cy]; }), avoid);
     return vs[out.indexOf(e)] ?? null;
   }
-  const vertexPoint = (r: Rect4, v: Vertex): [number, number] =>
-    v === "t" ? [r.x + r.w / 2, r.y] : v === "b" ? [r.x + r.w / 2, r.y + r.h] : v === "l" ? [r.x, r.y + r.h / 2] : [r.x + r.w, r.y + r.h / 2];
 
   // 線は本体（ツリーなら外枠）どうしを結ぶ。非表示の子や、ツリーの子同士の線は描かない（データには残す）
   function renderEdges() {
@@ -490,7 +484,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const key = JSON.stringify(input);
       // フローチャートの線は、折れ目の一番少ない形にする（いつもの自動の形は、斜めに並ぶ箱どうしを Z 字で結ぶため。2026-10-12 ユーザー）
       const r = e.routeMemo?.key === key ? e.routeMemo.route
-        : kidStrategyOf(e.a.parent ?? e.a.world).separateEnds ? fewestRoute(input) ?? route(input) : route(input);
+        : placerOf(e.a).separateEnds ? fewestRoute(input) ?? route(input) : route(input);
       e.routeMemo = Object.keys(r.fix).length ? null : { key, route: r };
       routed.push({ e, input, r });
     }
@@ -546,9 +540,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
   // 自分に戻る線の輪を描く箱（ワールドの座標）と、避けるほかの箱・線
   function loopInputOf(e: Edge, siblingsOf = siblingFrames()) {
-    const [ax, ay] = absPos(e.a);
-    const ra = anchorRect(e.a);
-    const r = { x: ax + ra.x, y: ay + ra.y, w: ra.w, h: ra.h };
+    const r = absAnchorRect(e.a);
     const boxes = siblingsOf(e.a.parent).filter(o => o.n !== e.a).map(o => o.r);
     const lines = ctx.edges().filter(o => o !== e && o.a.parent === e.a.parent && o.el.style.display !== "none").map(o => o.points);
     return { r, boxes, lines };
@@ -613,7 +605,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const len = polylineLength(pts);
     // 置く位置（手で動かしていれば captionAt と captionOffset、無ければ真ん中で線の上）と、そこの区間の向き
     const at = typeof e.src.captionAt === "number" ? e.src.captionAt : 0.5;
-    const off = typeof e.src.captionOffset === "number" ? Math.max(-CAPTION_OFFSET_MAX, Math.min(CAPTION_OFFSET_MAX, e.src.captionOffset)) : 0;
+    const off = typeof e.src.captionOffset === "number" ? clampCaptionOffset(e.src.captionOffset) : 0;
     const [nx, ny] = leftNormalAt(pts, at);
     const vertical = Math.abs(nx) > Math.abs(ny); // 左の向きが横なら、区間は縦向き
     const w = e.a === e.b || vertical ? LABEL_MAX_W : Math.max(LABEL_MIN_W, Math.min(LABEL_MAX_W, len - LABEL_MARGIN));
@@ -665,7 +657,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 子の要素をその中へ移す（子の位置は入れ物の上端から）。超えなくなったら子を箱へ戻して入れ物を外す
   function scrollKids() {
     for (const n of ctx.nodes()) {
-      const scrolls = n.children.length > 0 && n.h < n.fullH - 0.5 && Number(n.src.listHeight) > 0;
+      const scrolls = n.children.length > 0 && n.h < n.fullH - 0.5 && listHeightOf(n) > 0;
       if (scrolls && !n.kidsEl) {
         n.kidsEl = document.createElement("div");
         n.kidsEl.className = "mz-list-kids";
@@ -704,7 +696,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       // 内包する箱・リストの親の本文は、見出しの下に置く。幅は箱の幅いっぱいか、つまみで変えた幅（箱の幅まで）。
       // 子の無い箱では本体の中の流れに任せる
       const block = n.bodyEl.classList.contains("mz-body-block") && !n.bodyEl.hidden;
-      const bw = block ? bodyWrapW(n, n.hw) - 2 * opt.padding : 0;
+      const bw = block ? bodyTextW(n, n.hw, opt.padding) : 0;
       if (block) n.bodyEl.style.width = bw + "px";
       // つまみ: 子の無い箱は本体の右の縁（高さいっぱい）、内包する箱は本文の右の縁
       const g = n.gripEl.style;

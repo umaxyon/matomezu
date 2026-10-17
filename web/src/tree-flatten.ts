@@ -4,7 +4,7 @@
 // 腹（親と子の間の区間）を兄弟でそろえるので、ツリーの線と同じ絵になる（親から出る区間は兄弟の線で重なる）。矢印は付けない。
 // 今の見た目から決める所（planFlatten）と、データの写しを直す所（applyFlatten）に分ける。作り直すのは graph.ts の rebuildWith
 import type { Rect } from "./geom";
-import { type Box, type Edge, type World, absPos, descendants, routeDefaultOf, treeDirOf } from "./model";
+import { type Box, type Edge, type World, absPos, absRect, descendants, headRectOf, routeDefaultOf, treeDirOf } from "./model";
 import { place, setPlace } from "./edits";
 import { pageWorld } from "./pages";
 import { type RouteInput, framedAround, passes, perimeterAt, pickCandidate, route, routeCandidates } from "./routing";
@@ -39,7 +39,7 @@ export function planFlatten(ctx: FlattenContext): FlattenPlan {
   const bx = rx - root.x, by = ry - root.y;
   const head = new Map(subtree.map(n => {
     const [x, y] = absPos(n);
-    return [n.id, { x: x - bx + n.hx, y: y - by + n.hy, w: n.hw, h: n.hh }];
+    return [n.id, headRectOf(n, x - bx, y - by)];
   }));
   const half = ctx.treeGapY / 2;
   const newId = edgeIdMaker(ctx.usedIds);
@@ -100,8 +100,7 @@ export function applyFlatten(data: Diagram, plan: FlattenPlan, page: string | nu
 function rerouteAround(ctx: FlattenContext, subtree: Box[], head: Map<string, Rect>, bx: number, by: number): Map<string, EndsPatch> {
   const { root } = ctx;
   const out = new Map<string, EndsPatch>();
-  const [fx, fy] = absPos(root);
-  const F = { x: fx, y: fy, w: root.w, h: root.h };
+  const F = absRect(root);
   const abs = (r: Rect) => ({ x: r.x + bx, y: r.y + by, w: r.w, h: r.h });
   const H = abs(head.get(root.id)!);
   const others = subtree.filter(n => n !== root).map(n => abs(head.get(n.id)!));

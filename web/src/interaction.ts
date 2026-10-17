@@ -6,14 +6,15 @@
 import type { EdgeDrag } from "./edge-drag";
 import type { Drag, DragSession } from "./layout/drag";
 import type { Layout } from "./layout/layout";
-import { CLASS_HEAD, memberNames, memberY } from "./classbox";
+import { classAnchors, memberNames, memberY } from "./classbox";
 import { SVGNS } from "./dom";
 import {
-  type Box, type Edge, type World, abilitiesOf, absPos, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
+  type Box, type Edge, type World, abilitiesOf, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
 } from "./model";
 import { clientToIn, inToClient, toWorldLength, viewRectOf } from "./viewport";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
+import { vertexAt } from "./routing";
 import { shapeIcon } from "./shape-icons";
 import type { Shape, Size } from "./types";
 import { DEFAULT_SHAPE } from "./shapes";
@@ -618,27 +619,21 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // 〇を出す箱: 選択モードで、選んでいない箱。リストの子とツリーの子には出さない（線を引かない）
   const portable = (n: Box) => ctx.mode() === "move" && ctx.current() !== n && abilitiesOf(n).link;
 
-  // 箱 n の side の辺の真ん中（ワールドの座標）。out だけ辺の外へずらす
+  // 箱 n の side の辺の接点（ワールドの座標）。out だけ辺の外へずらす。
+  // 接点は線がつながる所と同じ: クラスの箱は決まった接点（classbox.ts の classAnchors。左右はクラス名の区画の真ん中）、ほかは辺の真ん中
+  const OUTWARD: Record<Side, [number, number]> = { t: [0, -1], r: [1, 0], b: [0, 1], l: [-1, 0] };
   function sidePoint(n: Box, side: Side, out = 0): [number, number] {
-    const [ax, ay] = absPos(n);
-    const a = L.anchorRect(n);
-    const x = ax + a.x, y = ay + a.y;
-    // クラスの箱の左右の接点は、クラス名の区画の真ん中
-    const cy = isClass(n) ? y + Math.min(CLASS_HEAD, a.h) / 2 : y + a.h / 2;
-    switch (side) {
-      case "t": return [x + a.w / 2, y - out];
-      case "r": return [x + a.w + out, cy];
-      case "b": return [x + a.w / 2, y + a.h + out];
-      case "l": return [x - out, cy];
-    }
+    const r = L.absAnchorRect(n);
+    const [x, y] = isClass(n) ? classAnchors(r)[side] : vertexAt(r, side);
+    const [dx, dy] = OUTWARD[side];
+    return [x + dx * out, y + dy * out];
   }
 
   // クラスの箱 n の、属性・操作 member の行の side（左か右）の端（ワールドの座標）。out だけ外へずらす
   function memberPoint(n: Box, member: string, side: Side, out = 0): [number, number] {
-    const [ax, ay] = absPos(n);
-    const a = L.anchorRect(n);
-    const y = ay + a.y + (memberY(n.src, member) ?? a.h / 2);
-    return side === "l" ? [ax + a.x - out, y] : [ax + a.x + a.w + out, y];
+    const a = L.absAnchorRect(n);
+    const y = a.y + (memberY(n.src, member) ?? a.h / 2);
+    return side === "l" ? [a.x - out, y] : [a.x + a.w + out, y];
   }
 
   const toScreen = ([x, y]: [number, number]): [number, number] => inToClient(world.el, ctx.zoom(), x, y);

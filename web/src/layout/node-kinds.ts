@@ -3,15 +3,19 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, inTreeOf, isLinkBox, kidStrategyOf, rowHeightOf, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, anchorInsetOf, headRectOf, arrangeOf, bodyOf, bodyTextW, bodyWidthOf, captionOf, inTreeOf, isLinkBox, kidStrategyOf, listHeightOf, rowHeightOf, takesRowSize, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
-import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth } from "../link-box";
+import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth, linkRowHeight } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
 import { shapeDef } from "../shapes";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
 
 export const BODY_GAP = 6; // 内包する箱の本文と、その下の子の並びとの間（docs/BODY-plan.md）
 export const BODY_MIN_W = 160; // 本文を持つ箱の最小の幅。子を持つ箱でも効く（図が優先の唯一の例外。docs/SIZE-plan.md）
+// 見出しの下の本文の帯の高さ（本文の高さ h と、その下の子の並びとの間。本文が無ければ 0）
+export const bodyBand = (h: number): number => (h ? h + BODY_GAP : 0);
+// 見た目の補正値（n.out。テーマから）で、足跡が土台より広がる幅と高さ（四方に広げるので 2 倍）
+const outsetOf = (n: Box) => ({ ox: 2 * (n.out?.x ?? 0), oy: 2 * (n.out?.y ?? 0) });
 
 export interface Rect { x: number; y: number; w: number; h: number }
 
@@ -38,7 +42,7 @@ export interface KindContext {
 
 export function createNodeKinds(ctx: KindContext) {
   const { opt, measure, caption } = ctx;
-  const headRect = (n: Box): Rect => ({ x: n.hx, y: n.hy, w: n.hw, h: n.hh });
+  const headRect = (n: Box): Rect => headRectOf(n);
   // 親の並べ方がこの箱にそろえさせる幅（0 は決めていない。今は親がリストのときだけ）
   const assignedW = (n: Box): number => (n.parent ? kindOf(n.parent).childWidth?.(n) ?? 0 : 0);
 
@@ -54,7 +58,7 @@ export function createNodeKinds(ctx: KindContext) {
   // 本文はその幅で折り返す。docs/SIZE-plan.md）
   const bodyMinW = (n: Box): number => (bodyOf(n) ? BODY_MIN_W : 0);
   // 内包する箱・リストの親が幅 w のときの、見出しの下の本文の高さ（本文が無ければ 0）。つまみで幅を変えていれば、その幅で折り返す
-  const bodyHeight = (n: Box, w: number) => (bodyOf(n) ? ctx.body(n, bodyWrapW(n, w) - 2 * opt.padding)[1] : 0);
+  const bodyHeight = (n: Box, w: number) => (bodyOf(n) ? ctx.body(n, bodyTextW(n, w, opt.padding))[1] : 0);
 
   // 子を置くときの、見出しの下の本文の高さ（子を置ける領域の上端を決める）。まだ大きさを決めていなければ（初めて置くとき）、
   // 今の幅（無ければ本文が求める幅）で見込んで覚えておく。大きさを決めるとき（nest.measure）に本当の幅で測り直し、違えば子を動かす
@@ -70,18 +74,18 @@ export function createNodeKinds(ctx: KindContext) {
   function fitHead(n: Box, useSpec: boolean) {
     if (isLinkBox(n)) return fitLink(n);
     if (listPreviewOf(n)) return fitSide(n, PREVIEW_ROW_DEF);
-    if (lookOf(n).sharedSize && leafLike(n)) {
+    if (takesRowSize(n) && leafLike(n)) {
       // リストの葉の子（と非表示の子）: 幅はリストがそろえた幅（まだ決まっていなければ自分の中身の幅）。高さは文字をその幅で折り返した高さ
       // （最小はリストの中でそろえたサイズの高さ。S の高さの固定は使わない）。大きさの指定や中身の扱いは使わない（docs/LIST-plan.md、docs/SIZE-plan.md）
       // 高さの最小はリストの高さ（D13。サイズの高さは使わない）
       const w = assignedW(n) || listItemWidth(n);
       n.hw = w;
-      n.hh = Math.max(rowHeightOf(n.parent!) + 2 * (n.out?.y ?? 0), measure(n, w)[1]);
+      n.hh = Math.max(rowHeightOf(n.parent!) + outsetOf(n).oy, measure(n, w)[1]);
       return;
     }
     // 大きさの決まり（サイズの範囲・幅や高さの指定・本文の最小の幅）は土台のもの。見た目の補正値（n.out。テーマから）の分だけ広げて
     // 足跡の大きさにする（文字を折り返す幅は、どのテーマでも同じ。docs/LAYOUT-BASE-plan.md）
-    const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
+    const { ox, oy } = outsetOf(n);
     const z0 = SIZES[sizeOf(n)];
     const z = { ...z0, minW: z0.minW + ox, maxW: z0.maxW + ox, h: z0.h + oy };
     const specW = useSpec && n.specW ? n.specW + ox : 0;
@@ -153,28 +157,27 @@ export function createNodeKinds(ctx: KindContext) {
   function fitLink(n: Box) {
     if (linkIconOf(n)) return fitSide(n, LINK_ICON_DEF); // 縮図を出さないリストの中（アイコンだけ）
     const look = linkLookOf(n), d = LINK_LOOK_DEFS[look];
-    const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
+    const { ox, oy } = outsetOf(n);
     const hasText = !!captionOf(n) || !!bodyOf(n);
-    const winH = d.win.h + 2 * d.gap;
     if (!d.textW) {
       const w = Math.max(linkBoxWidth(d) + ox, assignedW(n));
       n.hw = w;
-      n.hh = d.handle + (hasText ? measure(n, w)[1] : 0) + winH + oy;
+      n.hh = d.handle + (hasText ? measure(n, w)[1] : 0) + linkRowHeight(d) + oy;
       return;
     }
     fitSide(n, d);
   }
   // 横に分ける形（窓の行と、リストの子の縮図の行。D13）
   function fitSide(n: Box, d: LinkLookDef) {
-    const ox = 2 * (n.out?.x ?? 0), oy = 2 * (n.out?.y ?? 0);
+    const { ox, oy } = outsetOf(n);
     const hasText = !!captionOf(n) || !!bodyOf(n);
     const tw = d.textW ?? { min: 0, max: 0 };
-    const fixed = d.handle + d.win.w + 2 * d.gap + ox;
+    const fixed = d.handle + linkBoxWidth(d) + ox;
     const textW = hasText ? Math.max(tw.min, Math.min(tw.max, measure(n, null)[0] - fixed)) : 0;
     n.hw = Math.max(fixed + textW, assignedW(n));
     // リストの中なら、リストの高さまで伸ばす（中身が高ければそのまま。D13）
-    const rowH = n.parent && lookOf(n).sharedSize ? rowHeightOf(n.parent) : 0;
-    n.hh = Math.max(d.win.h + 2 * d.gap, hasText ? measure(n, n.hw)[1] : 0, rowH) + oy;
+    const rowH = takesRowSize(n) ? rowHeightOf(n.parent!) : 0;
+    n.hh = Math.max(linkRowHeight(d), hasText ? measure(n, n.hw)[1] : 0, rowH) + oy;
   }
 
   // lo〜hi のうち、文字の高さが h を超えない一番狭い幅（1px 刻みの二分探索。hi では h に収まる前提）
@@ -211,7 +214,7 @@ export function createNodeKinds(ctx: KindContext) {
       // 本文は決まった幅で折り返す。高さが前と変わったら（子は前の高さの下に置いてある）、その分だけ子を上下に動かす。
       // 子の左右の位置は本文の高さに関わらないので、幅は先に決まる
       const bh = bodyHeight(n, n.w);
-      const delta = (bh ? bh + BODY_GAP : 0) - (n.bodyH ? n.bodyH + BODY_GAP : 0);
+      const delta = bodyBand(bh) - bodyBand(n.bodyH);
       if (delta) for (const c of n.children) { c.y += delta; c.intendedY += delta; }
       n.bodyH = bh;
       let b = 0;
@@ -322,7 +325,7 @@ export function createNodeKinds(ctx: KindContext) {
         : Math.max(floor, ...widths.map(c => c.w), Math.min(SIZES.L.maxW, caption(n) - 2 * P));
       n.bodyH = bodyHeight(n, inner + 2 * P);
       const gap = kidStrategyOf(n).kidGap ?? opt.gap; // リストの子どうしは詰める（並べる戦略のローカルなルール。2026-10-12 ユーザー）
-      let y = opt.header + (n.bodyH ? n.bodyH + BODY_GAP : 0);
+      let y = opt.header + bodyBand(n.bodyH);
       n.kidsTop = y;
       for (const k of n.children) {
         k.listW = inner;
@@ -334,7 +337,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.w = inner + 2 * P;
       n.fullH = Math.max(GROUP_MIN.h, y - gap + P);
       // 高さの上限（listHeight。D33）があれば、そこで止める（超えた分はリストの中だけスクロールする。render.ts）。子が 1 行は見える高さより低くはしない
-      const cap = Number(n.src.listHeight) || 0;
+      const cap = listHeightOf(n);
       n.h = cap ? Math.min(n.fullH, Math.max(cap, n.kidsTop + LIST_SCROLL_MIN)) : n.fullH;
       n.hx = 0; n.hy = 0;
       n.hw = n.w; n.hh = n.h;
