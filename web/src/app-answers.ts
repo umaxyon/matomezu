@@ -23,18 +23,30 @@ export function createAnswers(ctx: AnswersContext) {
   for (const type of ["pointerup", "pointercancel"]) window.addEventListener(type, () => { pressing = false; }, true);
   window.addEventListener("blur", () => { pressing = false; }); // 押したままほかのウィンドウへ移ったときに残らないように
 
+  // ボタンを離すまで待つ。SUMMARY_BUSY を過ぎても押していれば false（busy と答える）
+  async function released(): Promise<boolean> {
+    const until = Date.now() + SUMMARY_BUSY;
+    while (pressing) {
+      if (Date.now() > until) return false;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return true;
+  }
+  // 答えを url へ送る
+  const poster = (url: string) => (body: object) =>
+    fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
+  // 見えない所で並べるときの大きさ（図の枠と同じ。測れなければ 1200×800）
+  function offscreenSize() {
+    const rect = ctx.canvas.getBoundingClientRect();
+    return { w: Math.floor(rect.width) || 1200, h: Math.floor(rect.height) || 800 };
+  }
+
   // matomezu check の配置の要約（D30。docs/NOTIFY-plan.md）。この画面がカレントなので頼まれた。前に出さず、ファイルも書き換えない。
   // そのページをその版で表示していれば表示中の図から、していなければ見えない所に同じ大きさで並べて作る（offscreen-scene.ts）。
   // ユーザーがボタンを押している間（ドラッグなど）は、並べると操作が引っかかるので待つ。長く離さなければ busy と答える（LLM はあとで頼み直す）
   async function answerSummary(req: string, doc: string, page: string, version: string) {
-    const send = (body: object) => fetch(`api/summary/${encodeURIComponent(req)}`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-    }).catch(() => {});
-    const until = Date.now() + SUMMARY_BUSY;
-    while (pressing) {
-      if (Date.now() > until) return send({ busy: true });
-      await new Promise(r => setTimeout(r, 100));
-    }
+    const send = poster(`api/summary/${encodeURIComponent(req)}`);
+    if (!await released()) return send({ busy: true });
     try {
       let g: Geometry | null = ctx.shown(doc, page, version);
       let shown = version;
@@ -42,8 +54,7 @@ export function createAnswers(ctx: AnswersContext) {
         const r = await fetchRemote(docBase(doc));
         if (!r) return send({ error: "the diagram could not be read" });
         if (r.data instanceof Error) return send({ error: r.data.message });
-        const rect = ctx.canvas.getBoundingClientRect();
-        g = await layoutGeometry(r.data as Diagram, page || null, { w: Math.floor(rect.width) || 1200, h: Math.floor(rect.height) || 800 });
+        g = await layoutGeometry(r.data as Diagram, page || null, offscreenSize());
         shown = r.version.replace(/^W\//, "").replace(/"/g, "");
       }
       return send({ version: shown, page, summary: summarize(g), details: details(g), outside: g.outside ?? [], focus: ctx.focus(doc) });
@@ -56,20 +67,15 @@ export function createAnswers(ctx: AnswersContext) {
   // （前から紙の外にある箱は数えない。ユーザーの操作の決まりと同じ）。ボタンを押している間は待つ（answerSummary と同じ）
   async function answerFit(req: string, doc: string) {
     const url = `api/fit/${encodeURIComponent(req)}`;
-    const send = (body: object) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
-    const until = Date.now() + SUMMARY_BUSY;
-    while (pressing) {
-      if (Date.now() > until) return send({ busy: true });
-      await new Promise(r => setTimeout(r, 100));
-    }
+    const send = poster(url);
+    if (!await released()) return send({ busy: true });
     try {
       const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) return send({ error: `${res.status}` });
       const next = await res.json() as Diagram;
       const now = await fetchRemote(docBase(doc));
       const before = now && !(now.data instanceof Error) ? now.data as Diagram : null;
-      const rect = ctx.canvas.getBoundingClientRect();
-      const size = { w: Math.floor(rect.width) || 1200, h: Math.floor(rect.height) || 800 };
+      const size = offscreenSize();
       const pageIds = (d: Diagram | null) => (d ? ["", ...(Array.isArray(d.pages) ? d.pages.map(p => String(p.id)) : [])] : []);
       const over = [];
       for (const page of pageIds(next)) {
