@@ -57,7 +57,7 @@ export function createResizers(ctx: ResizersContext) {
       ctx.settle(n);
     };
     return {
-      width: n.w,
+      width: n.w - n.listOx, // 書くのは土台の幅（足跡は葉の子の補正値の分だけ広い。node-kinds.ts の list）
       set(w: number) { apply(Math.round(Math.max(GROUP_MIN.w, w))); },
       finish() {
         if (!n.parent) n.intendedCX = ctx.centerX(n);

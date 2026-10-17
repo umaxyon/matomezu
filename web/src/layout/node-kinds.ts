@@ -288,10 +288,12 @@ export function createNodeKinds(ctx: KindContext) {
   };
 
   // リストの葉の子の、中身に合わせた幅（1 行の文字の幅を、自分のデータのサイズの範囲に収める。本文があれば最小の幅も）
-  // 箱のサイズは使わない（リストの子は普通の大きさ。D13）
+  // 箱のサイズは使わない（リストの子は普通の大きさ。D13）。範囲は土台のもので、補正値の分だけ広げる（ふつうの箱の textW と同じ。
+  // 文字を折り返す幅は、どのテーマでも同じ。CLAUDE.md の 9）
   const listItemWidth = (k: Box) => {
     const z = SIZES[sizeOf(k)];
-    return Math.max(z.minW, bodyMinW(k), Math.min(z.maxW, contentW(k)));
+    const { ox } = outsetOf(k);
+    return Math.max(z.minW + ox, bodyMinW(k) + (bodyMinW(k) ? ox : 0), Math.min(z.maxW + ox, contentW(k)));
   };
 
   // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は一番広い子の幅（docs/SIZE-plan.md の決めごと 5）か、自分の見出しが入る幅
@@ -316,11 +318,13 @@ export function createNodeKinds(ctx: KindContext) {
         kindOf(k).measure(k);
         return k.w;
       };
-      const widths = n.children.map(k => ({ leaf: leafLike(k) && !listPreviewOf(k) && !linkIconOf(k), w: own(k) }));
+      const widths = n.children.map(k => ({ leaf: leafLike(k) && !listPreviewOf(k) && !linkIconOf(k), w: own(k), ox: outsetOf(k).ox }));
+      // 幅の指定は土台の幅なので、葉の子の補正値の分だけ広げる（テーマを変えても、葉の子が文字を折り返す幅は変わらない）
+      n.listOx = Math.max(0, ...widths.filter(c => c.leaf).map(c => c.ox));
       // 指定があっても狭められない幅（子を持つ子は、下から決まった幅より狭くできない）
       const floor = Math.max(GROUP_MIN.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, assignedW(n) - 2 * P);
       const inner = n.specW
-        ? Math.max(floor, n.specW - 2 * P)
+        ? Math.max(floor, n.specW - 2 * P + n.listOx)
         : Math.max(floor, ...widths.map(c => c.w), Math.min(SIZES.L.maxW, caption(n) - 2 * P));
       n.bodyH = bodyHeight(n, inner + 2 * P);
       const gap = kidStrategyOf(n).kidGap ?? opt.gap; // リストの子どうしは詰める（並べる戦略のローカルなルール。2026-10-12 ユーザー）

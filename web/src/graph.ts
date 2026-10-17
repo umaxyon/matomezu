@@ -1559,7 +1559,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       intendedY: Number(src.y) || 0,
       intendedCX: NaN,
       capW: 0,
-      listW: 0, kidsTop: 0, fullH: 0, kidsEl: null,
+      listW: 0, listOx: 0, kidsTop: 0, fullH: 0, kidsEl: null,
       out: null,
       bodyH: 0,
       el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, heightGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,

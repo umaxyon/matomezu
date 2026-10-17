@@ -127,3 +127,33 @@ test("位置の無い子を格子に置くとき、線でつながった兄弟�
   expect(b.y).toBe(a.y);
   expect(b.x - (a.x + a.w)).toBe(DEFAULTS.linkGap);
 });
+
+// 本物のブラウザと同じく、箱の中の余白に補正値（render.ts が付ける --mz-out-x / --mz-out-y）を足して測る（fakeMeasure は足さない）
+const outOf = (el: HTMLElement, axis: "x" | "y") => Number.parseFloat(el.style.getPropertyValue(`--mz-out-${axis}`)) || 0;
+const paddedMeasure: typeof fakeMeasure = (el, width) => {
+  const ox = 2 * outOf(el, "x"), oy = 2 * outOf(el, "y");
+  const [w, h] = fakeMeasure(el, width == null ? null : width - ox);
+  return [width == null ? w + ox : width, h + oy];
+};
+
+test("リストの子も補正値の分だけ幅が広がり、テーマを変えても文字を折り返す幅は変わらない（E1）", () => {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const long = "あ".repeat(30); // M の最大の幅で折り返す長さ
+  const g = createGraph(el, {
+    nodes: [
+      { id: 1, caption: "一覧", childView: "list", x: 40, y: 40 },
+      { id: 2, caption: long, parent: 1 }, { id: 3, caption: "短い", parent: 1 },
+      { id: 4, caption: "幅の指定", childView: "list", width: 200, x: 400, y: 40 },
+      { id: 5, caption: long, parent: 4 },
+    ],
+  }, { measureText: paddedMeasure });
+  graphs.push(g);
+  const sizes = () => [2, 3, 5].map(id => [info(g, id).w, info(g, id).h]);
+  const before = sizes();
+  g.update(null, { theme: "sticky" });
+  const [ox, oy] = [8, 8]; // 付箋紙の M の補正値（上下左右 4）
+  expect(sizes()).toEqual(before.map(([w, h]) => [w! + ox, h! + oy]));
+  g.update(null, { theme: null });
+  expect(sizes()).toEqual(before);
+});

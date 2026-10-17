@@ -38,6 +38,9 @@ export interface Box {
   out: { x: number; y: number } | null;
   // リストの子のときの幅（親のリストがそろえた幅。node-kinds.ts の list が決める。保存しない）
   listW: number;
+  // リストの葉の子の補正値の幅（左右の合計）の一番大きいもの（node-kinds.ts の list が決める。保存しない）。リストの幅の指定（width）は土台なので、
+  // 足跡はこの分だけ広い（つまみは土台の幅を書く。resizers.ts）
+  listOx: number;
   // スクロールするリスト（D33。listHeight）: 子が始まる高さ（見出しと本文の下）と、中身の全体の高さ（node-kinds.ts の list が決める。保存しない）。
   // 中身が箱の高さを超えたら、子は見出しの下のスクロールする入れ物（kidsEl。render.ts が作る）に入る
   kidsTop: number;
