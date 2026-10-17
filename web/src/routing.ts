@@ -666,14 +666,20 @@ export function pickCandidate(list: Candidate[]): Candidate | null {
   return best;
 }
 
+// 両端の箱を囲む矩形（外へ margin 広げる）に掛かるほかの箱
+function nearObstacles(r: RouteInput): Rect[] {
+  const { a, b, margin, obstacles } = r;
+  const lo = { x: Math.min(a.x, b.x) - margin, y: Math.min(a.y, b.y) - margin };
+  const hi = { x: Math.max(a.x + a.w, b.x + b.w) + margin, y: Math.max(a.y + a.h, b.y + b.h) + margin };
+  return obstacles.filter(o => o.x < hi.x && o.x + o.w > lo.x && o.y < hi.y && o.y + o.h > lo.y);
+}
+
 // fewest が true なら、候補が見つかった折れ目の数で探すのをやめる（route が使う。折れ目の多い形まで全部試すと重いため）
 // 道筋に関わりうるほかの箱だけを残す。候補の道はどれも、両端の箱の外 LOOP_DEPTH と、行く手の箱の脇 margin までの範囲に収まるので、
 // その範囲に掛からない箱は結果を変えない。描画は、これで絞った入力を覚えておく鍵にする（ドラッグ中に遠くの箱が動いても探し直さない）
 export function scopeObstacles(r: RouteInput): Rect[] {
   const { a, b, margin, obstacles } = r;
-  const lo = { x: Math.min(a.x, b.x) - margin, y: Math.min(a.y, b.y) - margin };
-  const hi = { x: Math.max(a.x + a.w, b.x + b.w) + margin, y: Math.max(a.y + a.h, b.y + b.h) + margin };
-  const near = obstacles.filter(o => o.x < hi.x && o.x + o.w > lo.x && o.y < hi.y && o.y + o.h > lo.y);
+  const near = nearObstacles(r);
   const d = Math.max(LOOP_DEPTH, margin);
   const x0 = Math.min(a.x - d, b.x - d, ...near.map(o => o.x - margin)), x1 = Math.max(a.x + a.w + d, b.x + b.w + d, ...near.map(o => o.x + o.w + margin));
   const y0 = Math.min(a.y - d, b.y - d, ...near.map(o => o.y - margin)), y1 = Math.max(a.y + a.h + d, b.y + b.h + d, ...near.map(o => o.y + o.h + margin));
@@ -685,9 +691,7 @@ function candidatesWith(
 ): Candidate[] {
   const { a, b, margin, obstacles } = r;
   // 途中の区間を置いてみる位置: 両端の箱の間の真ん中、両端の箱の外（LOOP_DEPTH）、行く手にあるほかの箱の脇（margin）
-  const lo = { x: Math.min(a.x, b.x) - margin, y: Math.min(a.y, b.y) - margin };
-  const hi = { x: Math.max(a.x + a.w, b.x + b.w) + margin, y: Math.max(a.y + a.h, b.y + b.h) + margin };
-  const near = obstacles.filter(o => o.x < hi.x && o.x + o.w > lo.x && o.y < hi.y && o.y + o.h > lo.y);
+  const near = nearObstacles(r);
   const coords = (k: "x" | "y"): number[] => {
     const size = k === "x" ? "w" : "h";
     const [p, q] = a[k] < b[k] ? [a, b] : [b, a];
