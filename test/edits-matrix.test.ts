@@ -154,10 +154,10 @@ describe("pasteSubtree", () => {
   });
   test("写したものはデータを共有しない（貼ったあと元を変えても変わらない）。最初のページの最上位なら page も位置も書かない", () => {
     const d: Diagram = { nodes: [] };
-    const src = { id: 1, caption: "元", style: { color: "red" }, x: 3, y: 4, page: "p9" } as unknown as BoxData;
+    const src: BoxData = { id: 1, caption: "元", link: "p2", clip: { x: 0, y: 0, w: 10, h: 10 }, x: 3, y: 4, page: "p9" };
     pasteSubtree(d, { root: "1", nodes: [src], edges: [] }, { page: null }, null);
-    (src as unknown as { style: { color: string } }).style.color = "blue";
-    expect(d.nodes[0]).toEqual({ id: 1, caption: "元", style: { color: "red" }, userAdded: true });
+    src.clip!.x = 5; // 元を変えても写しは変わらない（入れ子の値も写す）
+    expect(d.nodes[0]).toEqual({ id: 1, caption: "元", link: "p2", clip: { x: 0, y: 0, w: 10, h: 10 }, userAdded: true });
   });
 });
 

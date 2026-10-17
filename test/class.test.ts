@@ -43,7 +43,7 @@ test("検査: 子を持つクラス、重なる名前、知らない access、�
   (d.nodes[0]!.attrs as unknown[]).push({ name: "save" }, { name: "x", access: "secret" });
   (d.edges as EdgeData[]).push({ id: "e4", from: 1, to: 3, fromMember: "nope" }, { id: "e5", from: 3, to: 3, fromMember: "id" });
   expect(problems(d)).toEqual([
-    "access の値が不正です: 1 の x (secret)",
+    "access に使えるのは public / private / protected / package です: 1 の x (secret)",
     "属性・操作の名前が重なっています: 1 の save",
     "クラスの箱は子を持てません: 4 → 1",
     "fromMember の属性・操作がありません: 1 - 3 (nope)",

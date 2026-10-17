@@ -39,7 +39,7 @@ test("データの検査: link は存在するページ、自分のページへ�
   expect(() => validate({ ...book(), nodes: [{ id: 1, link: "p1", linkLook: "huge" }] })).toThrow("linkLook に使えるのは window / side / icon です: 1 (huge)");
   expect(() => validate({ ...book(), nodes: [{ id: 1, link: "p1", linkLook: "icon" }] })).toThrow("縮図を出さないリンクの箱には、キャプションを書いてください: 1");
   expect(() => validate({ ...book(), nodes: [{ id: 1, link: "p1", linkLook: "icon", caption: "流れ" }] })).not.toThrow();
-  expect(() => validate({ ...book(), nodes: [{ id: 1, link: "p1", clip: { x: 0, y: 0, w: 0, h: 10 } }] })).toThrow("clip は { x, y, w, h } の四角（w と h は正の数）にしてください: 1");
+  expect(() => validate({ ...book(), nodes: [{ id: 1, link: "p1", clip: { x: 0, y: 0, w: 0, h: 10 } }] })).toThrow("clip に使えるのは { x, y, w, h } の四角（w と h は正の数） です: 1");
   expect(() => validate({ ...book(), nodes: [{ id: 1, link: "p1", clip: { x: 10, y: 20, w: 300, h: 200 } }] })).not.toThrow();
   expect(() => validate({ world: { childView: "tree", root: 1 }, pages: [{ id: "p1" }], nodes: [{ id: 1, link: "p1" }] }))
     .toThrow("ツリーの根はリンクの箱にできません: 1");

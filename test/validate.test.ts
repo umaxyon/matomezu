@@ -4,7 +4,7 @@ import { assignIds, problems, validate, formatOf } from "../web/src/validate";
 describe("validate", () => {
   test("正しいデータは通る", () => {
     expect(() => validate({
-      world: { overflow: "clip" },
+      world: { route: "elbow" },
       nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3, parent: 1 }],
       edges: [{ id: "e1", from: 2, to: 3 }, [2, 3]],
     })).not.toThrow();
@@ -19,7 +19,7 @@ describe("validate", () => {
     [{ nodes: [{ id: 1 }, { id: 1 }] }, "id が重複しています: 1"],
     [{ nodes: [{ id: 1, parent: 5 }] }, "存在しない親です: 1 → 5"],
     [{ nodes: [{ id: 1, parent: 2 }, { id: 2, parent: 1 }] }, "親子関係が循環しています: 1"],
-    [{ nodes: [{ id: 1, size: "XL" }] }, "size の値が不正です: 1 (XL)"],
+    [{ nodes: [{ id: 1, size: "XL" }] }, "size に使えるのは L / M / S です: 1 (XL)"],
     [{ nodes: [{ id: 1 }, { id: 2, parent: 1 }], edges: [[1, 2]] }, "階層の違うボックス同士の線があります: 1 - 2"],
     [{ nodes: [{ id: 1 }, { id: 2 }], edges: [{ id: "e1", from: 1, to: 2 }, { id: "e1", from: 2, to: 1 }] }, "線の id が重複しています: e1"],
   ])("不正なデータ %#", (data, message) => {
@@ -33,26 +33,9 @@ test("assignIds は既存の数値 id の続きから振る", () => {
   expect(data.nodes.map(n => n.id)).toEqual([8, 7, 9]);
 });
 
-test("shape の値を検証する", () => {
-  expect(() => validate({ nodes: [{ id: 1, shape: "person" }, { id: 2, shape: "db" }] })).not.toThrow();
-  expect(() => validate({ nodes: [{ id: 1, shape: "cloud" }] })).toThrow("shape の値が不正です: 1 (cloud)");
-});
 
-test("world の background は文字列", () => {
-  expect(() => validate({ world: { background: "#fff" }, nodes: [] })).not.toThrow();
-  expect(() => validate({ world: { background: 123 }, nodes: [] })).toThrow("background");
-});
 
-test("treeDirection はページの world に書く。値を検証し、箱に書いたら誤り", () => {
-  expect(() => validate({ world: { treeDirection: "left" }, nodes: [] })).not.toThrow();
-  expect(() => validate({ world: { treeDirection: "diagonal" }, nodes: [] })).toThrow("treeDirection の値が不正です");
-  expect(() => validate({ nodes: [{ id: 1, treeDirection: "left" }] })).toThrow("箱には書けません");
-});
 
-test("箱に tree を書くと、world.childView と world.root に書く直し方を案内する（flow は world.childView だけ）", () => {
-  expect(() => validate({ nodes: [{ id: 1, childView: "tree" }] })).toThrow("world.root に根の箱の id");
-  expect(() => validate({ nodes: [{ id: 1, childView: "flow" }] })).toThrow("world.childView に書きます");
-});
 
 test("ページの違う箱どうしの線は誤り。関連はリンクの箱へ線を引く、と案内する", () => {
   const book = (edges: [number, number][]) => ({
@@ -68,14 +51,14 @@ test("problems は誤りを全部挙げる（validate は最初の 1 つで止�
     edges: [{ from: 1, to: 3 }, { from: 1, to: 2, exitAt: 2 }],
   };
   expect(problems(data)).toEqual([
-    "size の値が不正です: 1 (XL)",
+    "size に使えるのは L / M / S です: 1 (XL)",
     "id が重複しています: 1",
     "存在しない親です: 2 → 9",
     "存在しないノードへの線があります: 1 - 3",
-    "exitAt は 0 から 1 の数にしてください: 1 - 2 (2)",
+    "exitAt に使えるのは 0 から 1 の数 です: 1 - 2 (2)",
     "階層の違うボックス同士の線があります: 1 - 2",
   ]);
-  expect(() => validate(data)).toThrow("size の値が不正です: 1 (XL)");
+  expect(() => validate(data)).toThrow("size に使えるのは L / M / S です: 1 (XL)");
   expect(problems({ nodes: [{ id: 1 }] })).toEqual([]);
 });
 
@@ -87,10 +70,6 @@ test("problems は親子の循環があっても止まる", () => {
     ]);
 });
 
-test("world の title は文字列だけ", () => {
-  expect(problems({ world: { title: 3 }, nodes: [] })).toEqual(["world の title は文字列にしてください"]);
-  expect(problems({ world: { title: "題名" }, nodes: [] })).toEqual([]);
-});
 
 test("ファイルの形式: マスターのパターンはマスター用のファイルの最初のページにだけ書け、窓（book）はどちらのファイルにも書ける（D26・D29）", () => {
   expect(formatOf({ world: { childView: "master" } })).toBe("master");
@@ -100,13 +79,9 @@ test("ファイルの形式: マスターのパターンはマスター用のフ
   expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: "abc" }] })).toEqual([]);
   expect(problems({ world: { childView: "master" }, pages: [{ id: "p1" }], nodes: [] })[0]).toContain("2 枚目からのページを持てません");
   expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: "abc" }, { id: 2, parent: 1 }] })[0]).toContain("ブックの窓は子を持てません");
-  expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: 3 }] })[0]).toContain("book はブックの id の文字列");
+  expect(problems({ world: { childView: "master" }, nodes: [{ id: 1, book: 3 }] })[0]).toContain("book に使えるのは 空でない文字列");
   // ふつうのブック: ブックへの窓（ブックリンク）も書ける（D29）。ページにマスターのパターンは書けない
   expect(problems({ nodes: [{ id: 1, book: "abc" }] })).toEqual([]);
   expect(problems({ pages: [{ id: "p1", world: { childView: "master" } }], nodes: [] })[0]).toContain("ページには書けません");
 });
 
-test("world.madeBy（画面で作ったブックの印）は user だけ", () => {
-  expect(problems({ world: { madeBy: "user" }, nodes: [] })).toEqual([]);
-  expect(problems({ world: { madeBy: "ai" }, nodes: [] })[0]).toContain("madeBy");
-});

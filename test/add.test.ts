@@ -161,11 +161,6 @@ test("消したものの一覧: 完全に削除できる行だけに × が出�
   expect(purgeButtons()).toEqual([]);
 });
 
-test("userAdded は true か false だけ", async () => {
-  const { problems } = await import("../web/src/validate");
-  expect(problems({ nodes: [{ id: 1, userAdded: "yes" as never }] })[0]).toContain("userAdded は true か false");
-  expect(problems({ nodes: [{ id: 1, userAdded: true }] })).toEqual([]);
-});
 
 // 箱のダイアログの左の列（形・サイズ・テーマ。docs/ADD-plan.md の 4 章）
 const dialog = () => document.querySelector<HTMLElement>(".mz-dlg-overlay")!;

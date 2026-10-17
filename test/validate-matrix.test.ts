@@ -1,76 +1,8 @@
-// validate.ts の検査を、項目ごとの値の境目と、ページ・リンク・ツリーの根・消した箱の組み合わせで確かめる。
-// validate.test.ts は代表の誤りを見る。ここは「通る値と通らない値の境目」と「場所ごとの決まり」を表で回す
+// validate.ts の検査のうち、箱どうしの関係を見る決まり（ページ・リンク・ツリーの根・消した箱・線の両端）を組み合わせで確かめる。
+// 項目と値の決まり（表 WORLD_FIELDS など）は test/schema.test.ts が表から回す
 import { describe, expect, test } from "bun:test";
-import { PAGE_PATTERNS, PAPER_NAMES, assignIds, problems, validate } from "../web/src/validate";
-import { THEMES } from "../web/src/theme";
+import { assignIds, problems, validate } from "../web/src/validate";
 
-// 箱 1 つに項目を足したデータの誤り
-const boxProblems = (fields: Record<string, unknown>) => problems({ nodes: [{ id: 1, caption: "a", ...fields }] });
-// ページの world に項目を足したデータの誤り（最初のページと、2 枚目のページの両方で同じ結果になること）
-const worldProblems = (fields: Record<string, unknown>) => {
-  const first = problems({ world: fields, nodes: [] });
-  const second = problems({ pages: [{ id: "p2", world: fields }], nodes: [] });
-  expect(second.length).toBe(first.length);
-  return first;
-};
-
-describe("箱の設定の値の境目（通る値 / 通らない値と、誤りの文に入る言葉）", () => {
-  test.each([
-    ["width", [1, 0.5, 400], [0, -1, "10", Number.NaN], "width は正の数"],
-    ["bodyWidth", [1, 200], [0, -5, "1"], "bodyWidth は正の数"],
-    ["bodyLines", [1, 3], [0, 1.5, -1, "2"], "bodyLines は 1 以上の整数"],
-    ["listHeight", [1, 300], [0, -1, "100"], "listHeight"],
-    ["size", ["L", "M", "S"], ["XL", "m", 1], "size の値が不正"],
-    ["kidSize", ["L", "M", "S"], ["XS"], "kidSize の値が不正"],
-    ["rowSize", ["L", "M", "S"], ["XL"], "rowSize に使えるのは"],
-    ["overflow", ["wrap", "clip"], ["scroll", "grow"], "overflow の値が不正"],
-    ["previewSide", ["right", "left", "none"], ["top", true], "previewSide に使えるのは"],
-    ["linkLook", ["window", "side"], ["frame"], "linkLook に使えるのは"],
-    ["userAdded", [true, false], ["true", 1], "userAdded は true か false"],
-    ["bodyRule", [true, false], ["no", 0], "bodyRule は true か false"],
-    ["body", ["", "本文"], [3, ["a"]], "body は文字列"],
-    ["clip", [{ x: 0, y: 0, w: 1, h: 1 }], [{ x: 0, y: 0, w: 0, h: 1 }, { x: 0, y: 0, w: 1 }, [0, 0, 1, 1]], "clip は { x, y, w, h }"],
-    ["childView", ["nest", "list", "hidden"], ["preview", "bogus"], "childView の値が不正"],
-    ["childView", [], ["flow", "master"], "world.childView に書きます"],
-    ["childView", [], ["tree"], "world.root に根の箱の id"],
-    ["treeDirection", [], ["down", "left"], "箱には書けません"],
-  ] as [string, unknown[], unknown[], string][])("%s", (key, ok, ng, message) => {
-    for (const v of ok) expect([v, boxProblems({ [key]: v })]).toEqual([v, []]);
-    for (const v of ng) {
-      const got = boxProblems({ [key]: v });
-      expect([v, got.length]).toEqual([v, 1]);
-      expect(got[0]).toContain(message);
-    }
-  });
-
-  test("theme: 表のテーマは通る。知らない名前は problems では誤り、画面で開く validate では誤りにしない（標準として描く）", () => {
-    for (const th of THEMES) expect(boxProblems({ theme: th.id })).toEqual([]);
-    expect(boxProblems({ theme: "nothing" })[0]).toContain("theme の値が不正");
-    expect(() => validate({ nodes: [{ id: 1, theme: "nothing" }] })).not.toThrow();
-    expect(() => validate({ world: { theme: "nothing" }, nodes: [] })).not.toThrow();
-  });
-});
-
-describe("ページ（world）の設定の値の境目。最初のページと 2 枚目からのページで同じ", () => {
-  test("childView はページのパターンだけ。箱の見せ方は書けない", () => {
-    for (const p of PAGE_PATTERNS.filter(p => p !== "master" && p !== "tree")) expect(worldProblems({ childView: p })).toEqual([]);
-    for (const v of ["list", "hidden", "preview", "bogus"]) expect(worldProblems({ childView: v })[0]).toContain("world の childView に使えるのは");
-  });
-  test("paper は紙の型の表の名前だけ", () => {
-    for (const p of PAPER_NAMES) expect(worldProblems({ paper: p })).toEqual([]);
-    for (const v of ["b5", "A4-landscape", 1]) expect(worldProblems({ paper: v })[0]).toContain("paper（紙の型）の値が不正");
-  });
-  test("treeDirection・route", () => {
-    for (const d of ["down", "up", "left", "right"]) expect(worldProblems({ treeDirection: d })).toEqual([]);
-    expect(worldProblems({ treeDirection: "diagonal" })[0]).toContain("treeDirection の値が不正");
-    for (const r of ["straight", "elbow"]) expect(worldProblems({ route: r })).toEqual([]);
-    expect(worldProblems({ route: "curve" })[0]).toContain("route の値が不正");
-  });
-  test("world とページの world がオブジェクトでなければ誤り", () => {
-    expect(problems({ world: [], nodes: [] })).toEqual(["world がオブジェクトではありません"]);
-    expect(problems({ pages: [{ id: "p2", world: "x" }], nodes: [] })[0]).toContain("world がオブジェクトではありません: p2");
-  });
-});
 
 describe("ページのパターン × 置く場所（最初のページと 2 枚目のページ）", () => {
   // そのページに、子を持つ最上位の箱を 2 つ（1 と 3）置く。ツリーなら 1 を根にする
@@ -137,7 +69,7 @@ describe("リンクの箱（link）とブックの窓（book）", () => {
     expect(withPages([{ id: 1, link: "p2", linkLook: "side" }])).toEqual([]); // 縮図を出す見せ方はキャプションが無くてよい
   });
   test("book は空でない文字列。link と一緒に書けず、子を持てない", () => {
-    expect(withPages([{ id: 1, book: "" }])).toEqual(["book はブックの id の文字列にしてください: 1"]);
+    expect(withPages([{ id: 1, book: "" }])).toEqual([expect.stringContaining("book に使えるのは 空でない文字列 です: 1")]);
     expect(withPages([{ id: 1, book: "b", link: "p2" }])).toEqual(["book と link は一緒に書けません: 1"]);
     expect(withPages([{ id: 1, book: "b" }, { id: 2, parent: 1 }])).toEqual(["ブックの窓は子を持てません: 1"]);
   });
@@ -145,13 +77,13 @@ describe("リンクの箱（link）とブックの窓（book）", () => {
 
 describe("ページ（pages）と箱の page", () => {
   test.each([
-    [{ pages: {}, nodes: [] }, "pages が配列ではありません"],
+    [{ pages: {}, nodes: [] }, "pages に使えるのは 配列 です"],
     [{ pages: [{ title: "x" }], nodes: [] }, "pages に id の無いページがあります"],
     [{ pages: [{ id: "p2" }, { id: "p2" }], nodes: [] }, "ページの id が重複しています: p2"],
-    [{ pages: [{ id: "p2", title: 1 }], nodes: [] }, "ページの title は文字列にしてください: p2"],
+    [{ pages: [{ id: "p2", title: 1 }], nodes: [] }, "title に使えるのは 文字列 です: ページ p2"],
     [{ nodes: [{ id: 1, page: "p9" }] }, "存在しないページです: 1 → p9"],
-    [{ nodes: [{ id: 1, page: false }] }, "存在しないページです: 1 → false"],
-    [{ nodes: [{ id: 1, world: {} }] }, "箱に world は書けません"],
+    [{ nodes: [{ id: 1, page: false }] }, "page に使えるのは id（数か文字列） です: 1 (false)"],
+    [{ nodes: [{ id: 1, world: {} }] }, "world は「箱」には書けません"],
     [{ pages: [{ id: "p2" }], nodes: [{ id: 1, page: "p2" }, { id: 2, parent: 1, page: "p2" }] }, "page は最上位の箱にだけ書けます"],
   ])("誤り %#", (data, message) => {
     const got = problems(data);
@@ -168,7 +100,7 @@ describe("ページ（pages）と箱の page", () => {
 
 describe("消した箱（removed）", () => {
   test.each([
-    [{ nodes: [], removed: {} }, "removed が配列ではありません"],
+    [{ nodes: [], removed: {} }, "removed に使えるのは 配列 です: ファイル ({})"],
     [{ nodes: [], removed: [{ caption: "x" }] }, "removed に空のノードがあります"],
     [{ nodes: [{ id: 1 }], removed: [{ id: 1 }] }, "id が重複しています: 1"],
     [{ nodes: [], removed: [{ id: 2 }, { id: "2" }] }, "id が重複しています: 2"],
@@ -186,31 +118,10 @@ describe("消した箱（removed）", () => {
   });
 });
 
-describe("線の項目の値の境目", () => {
-  const edgeProblems = (fields: Record<string, unknown>) =>
-    problems({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, ...fields }] });
-  test.each([
-    ["captionAt", [0, 0.5, 1], [-0.01, 1.01, "0.5"], "captionAt は 0 から 1"],
-    ["exitAt", [0, 1], [-1, 2], "exitAt は 0 から 1"],
-    ["enterAt", [0, 1], [1.5], "enterAt は 0 から 1"],
-    ["captionOffset", [0, -12.5, 30], [Infinity, Number.NaN, "3"], "captionOffset は数"],
-    ["caption", ["", "はい"], [1], "線の caption は文字列"],
-    ["via", [[], [10], [1, 2, 3]], [[1, "2"], [Number.NaN], 5], "via は数の並び"],
-    ["arrow", ["start", "end", "both"], ["none"], "arrow の値が不正"],
-    ["dash", ["solid", "dashed"], ["dotted"], "dash の値が不正"],
-    ["route", ["straight", "elbow"], ["curve"], "route の値が不正"],
-    ["startHead", [], ["bogus"], "startHead の値が不正"],
-  ] as [string, unknown[], unknown[], string][])("%s", (key, ok, ng, message) => {
-    for (const v of ok) expect([v, edgeProblems({ [key]: v })]).toEqual([v, []]);
-    for (const v of ng) {
-      const got = edgeProblems({ [key]: v });
-      expect([v, got.length]).toEqual([v, 1]);
-      expect(got[0]).toContain(message);
-    }
-  });
+describe("線", () => {
   test("線が配列でもオブジェクトでもなければ空の線。edges が配列でなければ誤り", () => {
     expect(problems({ nodes: [{ id: 1 }], edges: ["1-2", null] })).toEqual(["空の線があります", "空の線があります"]);
-    expect(problems({ nodes: [], edges: {} })).toEqual(["edges が配列ではありません"]);
+    expect(problems({ nodes: [], edges: {} })).toEqual(["edges に使えるのは 配列 です: ファイル ({})"]);
   });
   test("fromMember / toMember はクラスの箱の端の、ある属性・操作の名前だけ", () => {
     const cls = { id: 1, shape: "class", attrs: [{ name: "id" }], ops: [{ name: "save" }] };
@@ -218,7 +129,7 @@ describe("線の項目の値の境目", () => {
     expect(run({ fromMember: "id" })).toEqual([]);
     expect(run({ fromMember: "save" })).toEqual([]);
     expect(run({ fromMember: "nope" })[0]).toContain("fromMember の属性・操作がありません");
-    expect(run({ fromMember: 1 })[0]).toContain("fromMember は属性か操作の名前");
+    expect(run({ fromMember: 1 })[0]).toContain("fromMember に使えるのは");
     expect(run({ toMember: "id" })[0]).toContain("toMember はクラスの箱の端にだけ書けます");
     expect(run({ fromMember: "id" }, { id: 1 })[0]).toContain("fromMember はクラスの箱の端にだけ書けます");
   });
@@ -235,8 +146,9 @@ test("validate は最初の誤りで止まり、problems はデータの形が�
   const got = problems(broken);
   expect(got).toContain("空のノードがあります");
   expect(got).toContain("親子関係が循環しています: 1");
-  expect(got).toContain("removed が配列ではありません");
-  expect(got).toContain("pages が配列ではありません");
+  expect(got).toContain("removed に使えるのは 配列 です: ファイル (x)");
+  expect(got).toContain("pages に使えるのは 配列 です: ファイル (3)");
+  expect(got).toContain("world に使えるのは オブジェクト です: ファイル (1)");
   expect(got).toContain("存在しないノードへの線があります: 1 - 9");
   expect(() => validate(broken)).toThrow(got[0]!);
 });

@@ -68,3 +68,8 @@
 15. **紙（D33。docs/PAPER-plan.md）の決まりは 1 か所に書く**: 紙の型（名前と大きさ）は `validate.ts` の `PAPERS`（DOM の無い CLI も同じ検査を使う）、紙の制限を受けるか（`paper`）とリストのスクロールを持てるか（`scroll`）は戦略の表（`STRATEGIES`）。
    紙の大きさがワールドに入る入口は `graph.ts` の `worldFixed` だけ（`layout.ts` は `LayoutContext.worldFixed` から受け取る）。紙からはみ出す操作を断るのは `graph.ts` の `refuseOverPaper` 1 か所で、
    画面の操作は `changed` と `batch` を通るので入口ごとに書かない。LLM の書き込み（`set`）は、画面の側の同じ並べ方で確かめる（`internal/server/fit.go`）。画面の座標とワールドの座標の行き来は `viewport.ts`
+16. **データの項目は型と表で決める**（2026-10-17 ユーザー）: 置いてよい項目と値の決まりは、場所（最初のページの world・ページの world・ページ・箱・線・クラスの属性と操作・最上位）ごとに
+   `validate.ts` の表（`WORLD_FIELDS`・`PAGE_FIELDS`・`BOX_FIELDS`・`EDGE_FIELDS`・`ATTR_FIELDS`・`OP_FIELDS`・`TOP_FIELDS`）に書き、表に無い項目は誤りにする。
+   表の鍵は `types.ts` の型と一致しないとビルドが通らない（`satisfies Record<keyof ..., Rule>`）。箱の種類だけが持つ項目は `WINDOW_ONLY`・`CLASS_ONLY`、ブック全体の world だけの項目は `BOOK_WORLD_ONLY`。
+   項目を廃止・移したときに「ここには置けません」の個別の検査を足さない（表から消せば誤りになり、置ける場所の案内は表から出る）。値の決まりも表の `Rule` に書き、表の外に書くのは箱どうしの関係を見る検査だけ。
+   値の見本（`Rule` の good・bad）から `test/schema.test.ts` が全部の項目を回すので、項目ごとの値の境目のテストは書かない。自由に書ける逃げ場の項目は作らない（要るなら型に足す。ユーザーに相談する）

@@ -98,11 +98,6 @@ test("リストの子の本文は、リストがそろえた幅に合わせる�
   expect(info(3).w).toBe(info(2).w);
 });
 
-test("body は文字列、bodyWidth は正の数だけ", () => {
-  expect(problems({ nodes: [{ id: 1, body: 3 as never }] })[0]).toContain("body は文字列");
-  expect(problems({ nodes: [{ id: 1, bodyWidth: -5 }] })[0]).toContain("bodyWidth は正の数");
-  expect(problems({ nodes: [{ id: 1, body: "本文", bodyWidth: 200 }] })).toEqual([]);
-});
 
 test("選んだ箱の本文の右の縁をドラッグすると本文の幅が変わり、右の箱を押しのける。狭めれば戻り、手を離すと 1 件の履歴になる", () => {
   const { g, node, info } = setup({
@@ -192,11 +187,6 @@ test("編集ダイアログで最大行数を選べる（制限なしを含む�
   expect(g.toJSON().nodes[0]!.bodyLines).toBeUndefined();
 });
 
-test("bodyLines は 1 以上の整数だけ", () => {
-  expect(problems({ nodes: [{ id: 1, bodyLines: 0 }] })[0]).toContain("bodyLines は 1 以上の整数");
-  expect(problems({ nodes: [{ id: 1, bodyLines: 2.5 }] })[0]).toContain("bodyLines は 1 以上の整数");
-  expect(problems({ nodes: [{ id: 1, bodyLines: 3 }] })).toEqual([]);
-});
 
 test("子の見せ方をリストにすると、子を持つ子は孫を描かずに縮図の行になり、本文は本体の中の流れに置く（D13）。内包に戻せば枠と見出しの下", () => {
   const { g, node, bodyEl } = setup({

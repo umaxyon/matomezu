@@ -8,19 +8,18 @@ import (
 )
 
 func TestApplySets(t *testing.T) {
-	in := `{"world":{"width":800},"nodes":[{"id":1,"caption":"A","x":10},{"id":2,"caption":"B","parent":1}],"edges":[],"extra":1}`
-	out, _, err := applySets([]byte(in), "", []string{"1.childView=tree", "1.x=", "2.size=S", "2.fill=false", "world.background=#fff", "1.width=200"})
+	in := `{"world":{"paper":"a3-landscape"},"nodes":[{"id":1,"caption":"A","x":10},{"id":2,"caption":"B","parent":1}],"edges":[]}`
+	out, _, err := applySets([]byte(in), "", []string{"1.childView=list", "1.x=", "2.size=S", "2.fill=false", "world.background=#fff", "1.width=200"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := `{
-  "world": { "width": 800, "background": "#fff" },
+  "world": { "paper": "a3-landscape", "background": "#fff" },
   "nodes": [
-    { "id": 1, "caption": "A", "childView": "tree", "width": 200 },
+    { "id": 1, "caption": "A", "childView": "list", "width": 200 },
     { "id": 2, "caption": "B", "parent": 1, "size": "S", "fill": false }
   ],
-  "edges": [],
-  "extra": 1
+  "edges": []
 }
 `
 	if string(out) != want {
@@ -67,7 +66,7 @@ func TestCheckDataListsAllProblems(t *testing.T) {
 	os.WriteFile(path, []byte(`{"nodes":[{"id":1,"size":"XL"},{"id":2,"parent":9}]}`), 0o644)
 	err := checkData(path)
 	if err == nil || !strings.Contains(err.Error(), "2 problem(s)") ||
-		!strings.Contains(err.Error(), "invalid size: 1 (XL)") || !strings.Contains(err.Error(), "parent does not exist: 2 → 9") {
+		!strings.Contains(err.Error(), "size must be L / M / S: 1 (XL)") || !strings.Contains(err.Error(), "parent does not exist: 2 → 9") {
 		t.Fatalf("err = %v", err)
 	}
 	os.WriteFile(path, []byte(`{"nodes":[{"id":1}]}`), 0o644)
@@ -95,12 +94,19 @@ func TestSetDoesNotWriteInvalidData(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.json")
 	orig := `{"nodes":[{"id":1}]}`
 	os.WriteFile(path, []byte(orig), 0o644)
-	err := set([]string{path, "1.size=XL"})
-	if err == nil || !strings.Contains(err.Error(), "invalid size") || !strings.HasPrefix(err.Error(), "not written") {
-		t.Fatalf("err = %v", err)
-	}
-	if b, _ := os.ReadFile(path); string(b) != orig {
-		t.Fatalf("file changed:\n%s", b)
+	for _, c := range []struct{ arg, want string }{
+		{"1.size=XL", "size must be L / M / S"},
+		// 型（表）に無い項目は書けない。ほかの場所に置ける項目は、その場所を案内する（2026-10-17 ユーザー）
+		{"1.memo=x", `memo can't be written in "box"`},
+		{"1.kidSize=L", "(write it in: world)"},
+	} {
+		err := set([]string{path, c.arg})
+		if err == nil || !strings.Contains(err.Error(), c.want) || !strings.HasPrefix(err.Error(), "not written") {
+			t.Fatalf("%s: err = %v", c.arg, err)
+		}
+		if b, _ := os.ReadFile(path); string(b) != orig {
+			t.Fatalf("%s: file changed:\n%s", c.arg, b)
+		}
 	}
 }
 

@@ -2,8 +2,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { HEADS, headDraw, headOf, headPatch, headsPatch } from "../web/src/heads";
-import type { Diagram, EdgeData, EdgeInfo } from "../web/src/types";
-import { problems } from "../web/src/validate";
+import type { EdgeData, EdgeInfo } from "../web/src/types";
 import { fakeMeasure, pointsOf } from "./helpers";
 
 let graph: Graph | null = null;
@@ -26,10 +25,6 @@ test("headsPatch: 塗りの三角は arrow、ほかは startHead / endHead に�
   expect(headsPatch("hollowDiamond", "arrow")).toEqual({ arrow: "end", startHead: "hollowDiamond", endHead: null });
 });
 
-test("検査: 知らない種類は誤り", () => {
-  const d: Diagram = { nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, endHead: "star" as never }] };
-  expect(problems(d)).toEqual(["endHead の値が不正です: 1 - 2 (star)"]);
-});
 
 test("どの種類も何か描き、線を形の付け根で止める長さは 0 以上", () => {
   for (const h of HEADS) {
@@ -44,7 +39,7 @@ test("headsPatch と headOf は行き来できる: どの組（無しを含む�
   for (const s of kinds) for (const e of kinds) {
     const p = headsPatch(s, e);
     const src: EdgeData = { from: 1, to: 2 };
-    for (const [k, v] of Object.entries(p)) if (v != null) (src as Record<string, unknown>)[k] = v;
+    for (const [k, v] of Object.entries(p)) if (v != null) (src as unknown as Record<string, unknown>)[k] = v;
     expect([s, e, headOf(src, "start"), headOf(src, "end")]).toEqual([s, e, s, e]);
   }
 });

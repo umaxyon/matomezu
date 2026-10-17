@@ -298,7 +298,7 @@ export const strategyOf = (n: Box): Strategy | null => (n.children.length ? STRA
 // （親は子を持つので leaf にはならない）
 export const placedBy = (n: Box): ChildView => (n.parent ? (arrangeOf(n.parent) as ChildView) : STRATEGIES[worldViewOf(n.world)].tops);
 // 中の箱のサイズ（フローチャートで一括で変えたもの。無ければ null）
-export const kidSizeOf = (c: Container): Size | null => (isSize(c.src.kidSize) ? c.src.kidSize : null);
+export const kidSizeOf = (c: Container): Size | null => { const v = c.isWorld ? (c.src as WorldData).kidSize : undefined; return isSize(v) ? v : null; }; // ページ（world）の設定
 // 子の見せ方とページのパターンの既定（書いていなければ内包）
 export const DEFAULT_VIEW: BoxView & PagePattern = "nest";
 // ページ（ワールド）のパターン。ページに掛けられる戦略だけ（無ければ内包）

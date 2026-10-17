@@ -1,12 +1,12 @@
 // データの検証と正規化。DOM に依存しない。
 
-import { isAccess, isObject as isRecord, memberNames } from "./classbox";
-import { isHead } from "./heads";
+import { ACCESSES, type ClassAttr, type ClassOp, memberNames } from "./classbox";
+import { HEADS } from "./heads";
 import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import { SHAPE_DEFS } from "./shapes";
-import { isLinkLook, isRect } from "./link-box";
-import type { BookFormat, BoxView, Diagram, EdgeData, Id, PagePattern, PreviewSide, Shape, Size } from "./types";
+import { LINK_LOOKS, isRect } from "./link-box";
+import type { BookFormat, BoxData, BoxView, Diagram, EdgeData, Id, PageData, PagePattern, PreviewSide, Shape, Size, WorldData } from "./types";
 
 export interface SizeSpec {
   minW: number;
@@ -76,10 +76,10 @@ export const PATTERN_LABELS: Record<PagePattern, string> = { nest: t("内包"), 
 // パターンごとのファイルの形式（D26 の段階 2。2026-10-14 ユーザー: 形式の切り替えもパターンの定義の項目で決める）。
 // データの検査は DOM の無い CLI でも使うので、パターンの名前と見出しと同じくここに置く。形式ごとの決まりは下の FORMAT_RULES
 export const PAGE_FORMATS: Record<PagePattern, BookFormat> = { nest: "book", tree: "book", flow: "book", master: "master" };
-// 形式ごとの決まり: bookLinks はブックへの窓（book）を書けるか（2026-10-16 にふつうのブックでも書けるようにした。D29）、pages は 2 枚目からのページを持てるか
-export const FORMAT_RULES: Record<BookFormat, { bookLinks: boolean; pages: boolean }> = {
-  book: { bookLinks: true, pages: true },
-  master: { bookLinks: true, pages: false },
+// 形式ごとの決まり: pages は 2 枚目からのページを持てるか（ブックへの窓 book は、2026-10-16 からどちらの形式にも書ける。D29）
+export const FORMAT_RULES: Record<BookFormat, { pages: boolean }> = {
+  book: { pages: true },
+  master: { pages: false },
 };
 // ファイルの形式（最初のページのパターンで決まる。マスターのパターンはマスター用のファイルの最初のページにだけ書ける）
 export const formatOf = (d: { world?: { childView?: unknown } }): BookFormat => (isPattern(d.world?.childView) ? PAGE_FORMATS[d.world!.childView] : "book");
@@ -105,49 +105,128 @@ export function normalizeEdge(e: EdgeData | [Id, Id]): EdgeData {
   return { ...e };
 }
 
-// 箱とワールドの設定の値。誤りの文を返す（無ければ空）。
-// theme が false なら、知らないテーマの名前は誤りにしない（画面で開くとき。標準として描き、知らせる。名前を変えたり減らしたりしても図が開けるように）
-// world が true なら、ワールド（ページ）の設定として調べる（childView はページのパターン、treeDirection と root を持てる）
-export function settingsProblems(s: Record<string, unknown>, where: unknown, theme = true, world = false): string[] {
+// ---- スキーマ（2026-10-17 ユーザー: データの形は型で決め、表に無い項目は誤りにする） ----
+// 場所（最初のページの world・ページの world・ページ・箱・線・クラスの属性と操作・最上位）ごとに、置いてよい項目と値の決まりを表にする。
+// 表に無い項目は、どの場所でも誤り（未知の項目を残す決まりは 2026-10-17 にやめた。足したい項目は型と表に足す）。
+// 表の鍵は types.ts の型の項目と一致しないとビルドが通らない（satisfies Record<keyof ..., Rule>）。
+// 箱どうしの関係を見る決まり（親・ページ・ツリーの根・線の両端など）は表ではなく inspect に書く
+
+// 値の決まり。expect は誤りの文に出す「使える値」、good・bad はテストが表から回す見本（test/schema.test.ts）
+export interface Rule {
+  expect: string;
+  ok(v: unknown, o: { theme: boolean }): boolean;
+  good: unknown[];
+  bad: unknown[];
+  hint?(v: unknown): string | null; // 誤りの文に添える直し方（無ければ null）
+}
+const oneOf = (list: readonly unknown[]): Rule => ({ expect: list.join(" / "), ok: v => list.includes(v), good: [...list], bad: ["?", 1] });
+const STR: Rule = { expect: t("文字列"), ok: v => typeof v === "string", good: ["", "a"], bad: [1, true] };
+const TEXT: Rule = { expect: t("空でない文字列"), ok: v => typeof v === "string" && !!v, good: ["a"], bad: ["", 1] };
+const BOOL: Rule = { expect: t("true か false"), ok: v => typeof v === "boolean", good: [true, false], bad: ["true", 1] };
+const NUM: Rule = { expect: t("数"), ok: v => typeof v === "number" && Number.isFinite(v), good: [0, -5, 1.5], bad: ["1", true] };
+const POS: Rule = { expect: t("正の数"), ok: v => typeof v === "number" && v > 0 && Number.isFinite(v), good: [1, 0.5], bad: [0, -1, "1"] };
+const POS_INT: Rule = { expect: t("1 以上の整数"), ok: v => Number.isInteger(v) && (v as number) > 0, good: [1, 3], bad: [0, 1.5, "2"] };
+const FRAC: Rule = { expect: t("0 から 1 の数"), ok: v => typeof v === "number" && v >= 0 && v <= 1, good: [0, 0.5, 1], bad: [-0.1, 1.1, "0.5"] };
+const NUMS: Rule = { expect: t("数の並び"), ok: v => Array.isArray(v) && v.every(x => typeof x === "number" && Number.isFinite(x)), good: [[], [1, 2.5]], bad: [[1, "a"], 1] };
+const ID: Rule = { expect: t("id（数か文字列）"), ok: v => typeof v === "number" || (typeof v === "string" && !!v), good: [1, "p2"], bad: [true, "", {}] };
+const OBJ: Rule = { expect: t("オブジェクト"), ok: isObject, good: [{}], bad: [[], 1] };
+const LIST: Rule = { expect: t("配列"), ok: Array.isArray, good: [[]], bad: [{}, 1] };
+const RECT: Rule = { expect: t("{ x, y, w, h } の四角（w と h は正の数）"), ok: isRect, good: [{ x: 0, y: 0, w: 1, h: 1 }], bad: [{ x: 0, y: 0, w: 0, h: 1 }, "r"] };
+const THEME: Rule = {
+  expect: THEMES.map(x => x.id).join(" / "),
+  // 画面で開くとき（theme: false）は、知らないテーマの名前も通す（標準として描いて知らせる。名前を変えても図が開けるように）
+  ok: (v, o) => (o.theme ? isTheme(v) : typeof v === "string"), good: THEMES.map(x => x.id), bad: [1],
+};
+const BOX_VIEW: Rule = {
+  ...oneOf(BOX_VIEWS),
+  hint: v => (v === "tree" ? t("（tree はページのパターンなので、world.childView に tree、world.root に根の箱の id を書きます）")
+    : includes(PAGE_PATTERNS, v) ? t("（{value} はページのパターンなので、world.childView に書きます）", { value: v }) : null),
+};
+
+// 最初のページの world（ブック全体の設定を含む）
+export const WORLD_FIELDS = {
+  width: POS, height: POS, // 紙を持たないページ（マスター）の広さ
+  background: STR, route: oneOf(ROUTES), theme: THEME, kidSize: oneOf(Object.keys(SIZES)),
+  childView: { ...oneOf(PAGE_PATTERNS), bad: ["list", 1] }, root: ID, treeDirection: oneOf(TREE_DIRECTIONS),
+  madeBy: oneOf(["user"]), paper: oneOf(PAPER_NAMES), title: STR,
+} as const satisfies Record<keyof Required<WorldData>, Rule>;
+// ブック全体の world にだけ書ける項目（ページの world には書かない）
+export const BOOK_WORLD_ONLY: readonly (keyof WorldData)[] = ["title", "madeBy"];
+export const PAGE_FIELDS = { id: ID, title: STR, world: OBJ } as const satisfies Record<keyof Required<PageData>, Rule>;
+export const BOX_FIELDS = {
+  id: ID, caption: STR, body: STR, bodyWidth: POS, bodyRule: BOOL, bodyLines: POS_INT, userAdded: BOOL,
+  parent: ID, x: NUM, y: NUM, width: POS, height: POS, color: STR, theme: THEME,
+  size: oneOf(Object.keys(SIZES)), shape: oneOf(SHAPES), childView: BOX_VIEW, fill: BOOL, border: BOOL, overflow: oneOf(OVERFLOWS),
+  page: ID, book: TEXT, link: ID, linkLook: oneOf(LINK_LOOKS), clip: RECT,
+  previewSide: oneOf(PREVIEW_SIDES), rowSize: oneOf(Object.keys(SIZES)), listHeight: POS,
+  abstract: BOOL, attrs: LIST, ops: LIST,
+} as const satisfies Record<keyof Required<BoxData>, Rule>;
+// 箱の種類だけが持つ項目: 窓（リンクの箱・ブックの窓）の見せ方と映す範囲、クラスの箱の属性と操作
+export const WINDOW_ONLY: readonly (keyof BoxData)[] = ["linkLook", "clip"];
+export const CLASS_ONLY: readonly (keyof BoxData)[] = ["abstract", "attrs", "ops"];
+export const EDGE_FIELDS = {
+  id: ID, from: ID, to: ID, arrow: oneOf(ARROWS), startHead: oneOf(HEADS), endHead: oneOf(HEADS), dash: oneOf(DASHES), route: oneOf(ROUTES),
+  exitAt: FRAC, enterAt: FRAC, via: NUMS, caption: STR, captionAt: FRAC, captionOffset: NUM, fromMember: TEXT, toMember: TEXT,
+} as const satisfies Record<keyof Required<EdgeData>, Rule>;
+export const ATTR_FIELDS = { name: TEXT, type: STR, access: oneOf(ACCESSES), static: BOOL } as const satisfies Record<keyof Required<ClassAttr>, Rule>;
+export const OP_FIELDS = { ...ATTR_FIELDS, params: STR, abstract: BOOL } as const satisfies Record<keyof Required<ClassOp>, Rule>;
+export const TOP_FIELDS = { world: OBJ, pages: LIST, nodes: LIST, edges: LIST, removed: LIST } as const satisfies Record<keyof Required<Diagram>, Rule>;
+
+// 場所の名前（誤りの文の「どこに置けるか」の案内に使う）と表
+const PLACES: { name: string; fields: Record<string, Rule> }[] = [
+  { name: "world", fields: WORLD_FIELDS }, { name: t("ページ"), fields: PAGE_FIELDS }, { name: t("箱"), fields: BOX_FIELDS },
+  { name: t("線"), fields: EDGE_FIELDS }, { name: t("ファイルの最上位"), fields: TOP_FIELDS },
+];
+
+// 表に無い項目の誤りの文。ほかの場所に置ける項目ならその場所を、近い名前の項目があればその名前を添える
+function unknownKey(key: string, place: string, where: unknown, fields: Record<string, Rule>): string {
+  const elsewhere = PLACES.filter(p => p.name !== place && Object.hasOwn(p.fields, key)).map(p => p.name);
+  const near = Object.keys(fields).find(k => k !== key && closeName(k, key));
+  const hint = elsewhere.length ? t("（{places} に書きます）", { places: elsewhere.join(t("・")) })
+    : near ? t("（{near} のことですか）", { near }) : "";
+  return t("{key} は「{place}」には書けません: {where}", { key, place, where }) + hint;
+}
+// 大文字小文字を無視して、1 文字の違い（足す・消す・替える）までを近い名前とする
+function closeName(a: string, b: string): boolean {
+  const [x, y] = [a.toLowerCase(), b.toLowerCase()];
+  if (x === y) return true;
+  if (Math.abs(x.length - y.length) > 1) return false;
+  let i = 0;
+  while (i < x.length && x[i] === y[i]) i++;
+  return x.slice(i + (x.length >= y.length ? 1 : 0)) === y.slice(i + (y.length >= x.length ? 1 : 0));
+}
+const show = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v));
+
+// 値の誤りの文
+function badValue(key: string, rule: Rule, v: unknown, where: unknown): string {
+  return t("{key} に使えるのは {expect} です: {where} ({value})", { key, expect: rule.expect, where, value: show(v) }) + (rule.hint?.(v) ?? "");
+}
+
+// o の項目を表で調べ、誤りの文を返す。only は書ける項目をさらに絞る（無ければ表の全部）。null の項目は無いのと同じに扱う
+function fieldProblems(o: Record<string, unknown>, place: string, fields: Record<string, Rule>, where: unknown, opt: { theme: boolean }, deny: readonly string[] = []): string[] {
   const out: string[] = [];
-  if (world) {
-    if (s.childView != null && !isPattern(s.childView)) out.push(t("world の childView に使えるのは nest / tree / flow です: {where} ({value})", { where, value: s.childView }));
-    if (s.treeDirection != null && !isTreeDirection(s.treeDirection)) out.push(t("treeDirection の値が不正です: {where} ({value})", { where, value: s.treeDirection }));
-    if (s.paper != null && !isPaper(s.paper)) out.push(t("paper（紙の型）の値が不正です: {where} ({value})。使えるのは {papers}", { where, value: s.paper, papers: PAPER_NAMES.join(" / ") }));
-  }
-  if (s.overflow != null && !isOverflow(s.overflow)) out.push(t("overflow の値が不正です: {where} ({value})", { where, value: s.overflow }));
-  if (s.size != null && !isSize(s.size)) out.push(t("size の値が不正です: {where} ({value})", { where, value: s.size }));
-  if (s.shape != null && !isShape(s.shape)) out.push(t("shape の値が不正です: {where} ({value})", { where, value: s.shape }));
-  if (s.body != null && typeof s.body !== "string") out.push(t("body は文字列にしてください: {where}", { where }));
-  if (s.width != null && !(typeof s.width === "number" && s.width > 0)) out.push(t("width は正の数にしてください: {where} ({value})", { where, value: s.width }));
-  if (s.bodyWidth != null && !(typeof s.bodyWidth === "number" && s.bodyWidth > 0)) out.push(t("bodyWidth は正の数にしてください: {where} ({value})", { where, value: s.bodyWidth }));
-  if (s.bodyLines != null && !(Number.isInteger(s.bodyLines) && (s.bodyLines as number) > 0)) out.push(t("bodyLines は 1 以上の整数にしてください: {where} ({value})", { where, value: s.bodyLines }));
-  if (s.userAdded != null && typeof s.userAdded !== "boolean") out.push(t("userAdded は true か false にしてください: {where} ({value})", { where, value: s.userAdded }));
-  if (s.bodyRule != null && typeof s.bodyRule !== "boolean") out.push(t("bodyRule は true か false にしてください: {where} ({value})", { where, value: s.bodyRule }));
-  if (s.kidSize != null && !isSize(s.kidSize)) out.push(t("kidSize の値が不正です: {where} ({value})", { where, value: s.kidSize }));
-  // 箱の childView は内包パターンの見せ方だけ。ツリーとフローチャートはページのパターン（world.childView）なので、箱に書いたら直し方を案内する
-  if (!world && s.childView != null && !isView(s.childView)) {
-    out.push(s.childView === "tree"
-      ? t("childView の tree は箱には書けません（ページのパターンなので、world.childView に tree、world.root に根の箱の id を書きます）: {where}", { where })
-      : includes(PAGE_PATTERNS, s.childView)
-      ? t("childView の {value} は箱には書けません（ページのパターンなので world.childView に書きます）: {where}", { where, value: s.childView })
-      : t("childView の値が不正です: {where} ({value})", { where, value: s.childView }));
-  }
-  if (!world && s.treeDirection != null) out.push(t("treeDirection は箱には書けません（ツリーのページの world.treeDirection に書きます）: {where}", { where }));
-  if (s.listHeight != null && !(typeof s.listHeight === "number" && s.listHeight > 0)) out.push(t("listHeight（リストの高さの上限）は正の数にしてください: {where} ({value})", { where, value: s.listHeight }));
-  if (s.rowSize != null && !isSize(s.rowSize)) out.push(t("rowSize に使えるのは L / M / S です: {where} ({value})", { where, value: s.rowSize }));
-  if (s.previewSide != null && !isPreviewSide(s.previewSide)) out.push(t("previewSide に使えるのは right / left / none です: {where} ({value})", { where, value: s.previewSide }));
-  if (s.linkLook != null && !isLinkLook(s.linkLook)) out.push(t("linkLook に使えるのは window / side / icon です: {where} ({value})", { where, value: s.linkLook }));
-  if (s.clip != null && !isRect(s.clip)) out.push(t("clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}", { where }));
-  if (theme && s.theme != null && !isTheme(s.theme)) {
-    out.push(t("theme の値が不正です: {where} ({value})。使えるのは {themes}", { where, value: s.theme, themes: THEMES.map(x => x.id).join(" / ") }));
+  for (const [k, v] of Object.entries(o)) {
+    if (!Object.hasOwn(fields, k) || deny.includes(k)) { out.push(deny.includes(k) ? denied(k, place, where) : unknownKey(k, place, where, fields)); continue; }
+    if (v == null) continue;
+    if (!fields[k]!.ok(v, opt)) out.push(badValue(k, fields[k]!, v, where));
   }
   return out;
 }
+// 場所の表にはあるが、この箱・このページでは書けない項目
+function denied(key: string, place: string, where: unknown): string {
+  if (includes(WINDOW_ONLY, key)) return t("{key} はリンクの箱（link か book のある箱）にだけ書けます: {where}", { key, where });
+  if (includes(CLASS_ONLY, key)) return t("{key} はクラスの箱（shape: class）にだけ書けます: {where}", { key, where });
+  if (includes(BOOK_WORLD_ONLY, key)) return t("{key} はブック全体の world にだけ書けます（ページの world には書けません）: {where}", { key, where });
+  return t("{key} は「{place}」には書けません: {where}", { key, place, where });
+}
 
+// 画面の変更（graph.update の patch）の値を確かめる。最初の誤りで例外。表に無い項目は見ない（patch の項目は型で決まっている）
 export function checkSettings(s: Record<string, unknown>, where: unknown, world = false): void {
-  const [first] = settingsProblems(s, where, true, world);
-  if (first) throw new Error(first);
+  const fields: Record<string, Rule> = world ? WORLD_FIELDS : BOX_FIELDS;
+  for (const [k, v] of Object.entries(s)) {
+    if (v == null || !Object.hasOwn(fields, k)) continue;
+    if (!fields[k]!.ok(v, { theme: true })) throw new Error(badValue(k, fields[k]!, v, where));
+  }
 }
 
 // id の無いボックスに連番を振る（既存の数値 id の続きから。消したボックスの id も使用済みとして数える）
@@ -176,37 +255,29 @@ export function validate(data: unknown): asserts data is Diagram {
 }
 
 // 誤りを見つけるたびに fail を呼ぶ。fail が例外を投げれば最初の 1 つで止まる。投げなければ、続けられる所から調べ続ける。
-// theme が false なら、知らないテーマの名前は誤りにしない
+// theme が false なら、知らないテーマの名前は誤りにしない。項目と値は表（WORLD_FIELDS など）で、箱どうしの関係はここで調べる
 function inspect(data: unknown, fail: (message: string) => void, theme: boolean): void {
   if (!isObject(data) || !Array.isArray(data.nodes)) return fail(t("nodes 配列がありません"));
-  if (data.world != null) {
-    if (!isObject(data.world)) fail(t("world がオブジェクトではありません"));
-    else {
-      settingsProblems(data.world, "world", theme, true).forEach(fail);
-      if (data.world.route != null && !includes(ROUTES, data.world.route)) fail(t("world の route の値が不正です: {value}", { value: data.world.route }));
-      if (data.world.background != null && typeof data.world.background !== "string") fail(t("world の background は色の文字列にしてください"));
-      if (data.world.title != null && typeof data.world.title !== "string") fail(t("world の title は文字列にしてください"));
-      if (data.world.madeBy != null && data.world.madeBy !== "user") fail(t("world の madeBy に書けるのは user だけです（画面で作ったブックの印）: {value}", { value: data.world.madeBy }));
-    }
-  }
+  const opt = { theme };
+  fieldProblems(data, t("ファイルの最上位"), TOP_FIELDS, t("ファイル"), opt).forEach(fail);
+  if (isObject(data.world)) fieldProblems(data.world, "world", WORLD_FIELDS, "world", opt).forEach(fail);
   const byId = new Map<string, Record<string, unknown>>();
   for (const n of data.nodes as unknown[]) {
     if (!isObject(n) || n.id == null) { fail(t("空のノードがあります")); continue; }
     if (byId.has(String(n.id))) { fail(t("id が重複しています: {id}", { id: n.id })); continue; }
     byId.set(String(n.id), n);
-    settingsProblems(n, n.id, theme).forEach(fail);
-    classProblems(n).forEach(fail);
+    boxProblems(n, n.id, opt).forEach(fail);
   }
   // 消したボックス。id は nodes と重ならないこと（parent は消したボックスや、もう無い id でもよい）
-  if (data.removed != null && !Array.isArray(data.removed)) fail(t("removed が配列ではありません"));
   const removedIds = new Set<string>();
   for (const n of (Array.isArray(data.removed) ? data.removed : []) as unknown[]) {
     if (!isObject(n) || n.id == null) { fail(t("removed に空のノードがあります")); continue; }
     if (byId.has(String(n.id)) || removedIds.has(String(n.id))) { fail(t("id が重複しています: {id}", { id: n.id })); continue; }
     removedIds.add(String(n.id));
+    boxProblems(n, t("消した箱 {id}", { id: n.id }), opt).forEach(fail);
   }
   for (const n of byId.values()) {
-    if (n.parent == null) continue;
+    if (n.parent == null || !ID.ok(n.parent, opt)) continue; // 値の誤りは表で知らせている
     if (!byId.has(String(n.parent))) { fail(t("存在しない親です: {id} → {parent}", { id: n.id, parent: n.parent })); continue; }
     const seen = new Set([String(n.id)]);
     for (let p: unknown = n.parent; p != null; p = byId.get(String(p))?.parent) {
@@ -218,31 +289,23 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
   for (const n of byId.values()) {
     if (n.parent != null && SHAPE_DEFS[byId.get(String(n.parent))?.shape as Shape]?.kids === false) fail(t("クラスの箱は子を持てません: {id} → {parent}", { id: n.id, parent: n.parent }));
   }
-  // ページ（pages。2026-10-12 ユーザー: ページはブックの子。docs/TABS-plan.md）: id が重ならず、world はワールドの設定。
-  // 箱の page はそのページの id で、最上位の箱にだけ書く。ページの設定は pages の world に書き、箱には world を書けない
+  // ページ（pages。2026-10-12 ユーザー: ページはブックの子。docs/TABS-plan.md）: id が重ならず、world はワールドの設定（ブック全体の項目は書けない）。
+  // 箱の page はそのページの id で、最上位の箱にだけ書く
   const pages = new Map<string, Record<string, unknown>>();
-  if (data.pages != null && !Array.isArray(data.pages)) fail(t("pages が配列ではありません"));
   for (const p of (Array.isArray(data.pages) ? data.pages : []) as unknown[]) {
     if (!isObject(p) || p.id == null) { fail(t("pages に id の無いページがあります")); continue; }
     if (pages.has(String(p.id))) { fail(t("ページの id が重複しています: {id}", { id: p.id })); continue; }
     pages.set(String(p.id), p);
-    if (p.title != null && typeof p.title !== "string") fail(t("ページの title は文字列にしてください: {id}", { id: p.id }));
-    if (p.world != null) {
-      if (!isObject(p.world)) fail(t("world がオブジェクトではありません: {id}", { id: p.id }));
-      else {
-        settingsProblems(p.world, t("ページ {id} の world", { id: p.id }), theme, true).forEach(fail);
-        if (p.world.route != null && !includes(ROUTES, p.world.route)) fail(t("world の route の値が不正です: {id} ({value})", { id: p.id, value: p.world.route }));
-      }
-    }
+    fieldProblems(p, t("ページ"), PAGE_FIELDS, t("ページ {id}", { id: p.id }), opt).forEach(fail);
+    if (isObject(p.world)) fieldProblems(p.world, "world", WORLD_FIELDS, t("ページ {id} の world", { id: p.id }), opt, BOOK_WORLD_ONLY).forEach(fail);
   }
   for (const n of byId.values()) {
-    if (n.world != null) fail(t("箱に world は書けません（ページの設定は pages の world に書きます）: {id}", { id: n.id }));
-    if (n.page == null) continue;
+    if (n.page == null || !ID.ok(n.page, opt)) continue;
     if (!pages.has(String(n.page))) { fail(t("存在しないページです: {id} → {page}", { id: n.id, page: n.page })); continue; }
     if (n.parent != null) fail(t("page は最上位の箱にだけ書けます（中の箱は親と同じページに載ります）: {id}", { id: n.id }));
   }
   // ファイルの形式（PAGE_FORMATS。D26 の段階 2）: マスターのパターンは最初のページにだけ書け、マスター用のファイルにする。
-  // マスター用のファイルは 2 枚目からのページを持たず、窓（book）を書ける。ほかのファイルには book を書けない
+  // マスター用のファイルは 2 枚目からのページを持たない
   const format = formatOf(data as { world?: { childView?: unknown } });
   for (const p of pages.values()) {
     if (isObject(p.world) && isPattern(p.world.childView) && PAGE_FORMATS[p.world.childView] !== "book") {
@@ -250,21 +313,16 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     }
   }
   if (!FORMAT_RULES[format].pages && pages.size) fail(t("マスター用のファイルは 2 枚目からのページを持てません"));
-  for (const n of byId.values()) {
-    if (n.book == null) continue;
-    if (!FORMAT_RULES[format].bookLinks) fail(t("book（ブックの窓）はマスター用のファイルにだけ書けます: {id}", { id: n.id }));
-    else if (typeof n.book !== "string" || !n.book) fail(t("book はブックの id の文字列にしてください: {id}", { id: n.id }));
-    if (n.link != null) fail(t("book と link は一緒に書けません: {id}", { id: n.id }));
-  }
-  // リンクの箱（link-box.ts）: link は存在するページの id で、自分の載っているページではない。子を持てない
+  // 窓（リンクの箱・ブックの窓。link-box.ts）: link は存在するページの id で、自分の載っているページではない。子を持てない
   const hasKids = new Set([...byId.values()].filter(n => n.parent != null).map(n => String(n.parent)));
   for (const n of byId.values()) {
+    if (n.book != null && n.link != null) fail(t("book と link は一緒に書けません: {id}", { id: n.id }));
     if (n.book != null && hasKids.has(String(n.id))) fail(t("ブックの窓は子を持てません: {id}", { id: n.id }));
     // 縮図を出さない見せ方（icon。D29）は、文字だけがリンク先を示すので、キャプションが要る
     if ((n.link != null || n.book != null) && n.linkLook === "icon" && !(typeof n.caption === "string" && n.caption.trim())) {
       fail(t("縮図を出さないリンクの箱には、キャプションを書いてください: {id}", { id: n.id }));
     }
-    if (n.link == null) continue;
+    if (n.link == null || !ID.ok(n.link, opt)) continue;
     if (!pages.has(String(n.link))) { fail(t("存在しないページへのリンクです: {id} → {page}", { id: n.id, page: n.link })); continue; }
     if (hasKids.has(String(n.id))) fail(t("リンクの箱は子を持てません: {id}", { id: n.id }));
   }
@@ -308,42 +366,17 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
     const p = byId.get(String(id))?.parent;
     return p == null ? null : String(p);
   };
-  if (data.edges != null && !Array.isArray(data.edges)) fail(t("edges が配列ではありません"));
   const edgeIds = new Set<string>();
   for (const e of (Array.isArray(data.edges) ? data.edges : []) as unknown[]) {
     if (!isObject(e) && !Array.isArray(e)) { fail(t("空の線があります")); continue; }
     const { id, from, to } = normalizeEdge(e as EdgeData | [Id, Id]);
     if (!byId.has(String(from)) || !byId.has(String(to))) { fail(t("存在しないノードへの線があります: {from} - {to}", { from, to })); continue; }
-    const caption = (e as EdgeData).caption;
-    if (caption != null && typeof caption !== "string") fail(t("線の caption は文字列にしてください: {from} - {to}", { from, to }));
-    const captionAt = (e as EdgeData).captionAt;
-    if (captionAt != null && !(typeof captionAt === "number" && captionAt >= 0 && captionAt <= 1)) fail(t("captionAt は 0 から 1 の数にしてください: {from} - {to}", { from, to }));
-    const captionOffset = (e as EdgeData).captionOffset;
-    if (captionOffset != null && !Number.isFinite(captionOffset)) fail(t("captionOffset は数にしてください: {from} - {to}", { from, to }));
-    const arrow = (e as EdgeData).arrow;
-    if (arrow != null && !includes(ARROWS, arrow)) fail(t("arrow の値が不正です: {from} - {to} ({value})", { from, to, value: arrow }));
-    for (const k of ["startHead", "endHead"] as const) {
-      const v = (e as EdgeData)[k];
-      if (v != null && !isHead(v)) fail(t("{k} の値が不正です: {from} - {to} ({value})", { k, from, to, value: v }));
-    }
-    const route = (e as EdgeData).route;
-    if (route != null && !includes(ROUTES, route)) fail(t("route の値が不正です: {from} - {to} ({value})", { from, to, value: route }));
-    for (const k of ["exitAt", "enterAt"] as const) {
-      const v = (e as EdgeData)[k];
-      if (v != null && !(typeof v === "number" && v >= 0 && v <= 1)) fail(t("{key} は 0 から 1 の数にしてください: {from} - {to} ({value})", { key: k, from, to, value: v }));
-    }
-    const via = (e as EdgeData).via;
-    if (via != null && !(Array.isArray(via) && via.every(v => typeof v === "number" && Number.isFinite(v)))) {
-      fail(t("via は数の並びにしてください: {from} - {to}", { from, to }));
-    }
-    const dash = (e as EdgeData).dash;
-    if (dash != null && !includes(DASHES, dash)) fail(t("dash の値が不正です: {from} - {to} ({value})", { from, to, value: dash }));
+    if (isObject(e)) fieldProblems(e, t("線"), EDGE_FIELDS, `${from} - ${to}`, opt).forEach(fail);
     for (const [key, end] of [["fromMember", from], ["toMember", to]] as const) {
-      const m = (e as EdgeData)[key];
-      if (m == null) continue;
+      const m = isObject(e) ? e[key] : undefined;
+      if (typeof m !== "string" || !m) continue; // 値の誤りは表で知らせている
       const box = byId.get(String(end))!;
-      if (typeof m !== "string") fail(t("{key} は属性か操作の名前にしてください: {from} - {to}", { key, from, to }));
-      else if (box.shape !== "class") fail(t("{key} はクラスの箱の端にだけ書けます: {from} - {to}", { key, from, to }));
+      if (!isClassBox(box)) fail(t("{key} はクラスの箱の端にだけ書けます: {from} - {to}", { key, from, to }));
       else if (!memberNames(box).includes(m)) fail(t("{key} の属性・操作がありません: {from} - {to} ({value})", { key, from, to, value: m }));
     }
     if (parentOf(from) !== parentOf(to)) fail(t("階層の違うボックス同士の線があります: {from} - {to}", { from, to }));
@@ -357,25 +390,25 @@ function inspect(data: unknown, fail: (message: string) => void, theme: boolean)
   }
 }
 
-// クラスの箱の属性・操作の誤り（docs/CLASS-plan.md）。名前は属性と操作を通して重ねられない
-function classProblems(n: Record<string, unknown>): string[] {
+// クラスの箱か（属性と操作を持つ形。形の表 SHAPE_DEFS の土台の決め方で引く）
+const isClassBox = (n: Record<string, unknown>) => SHAPE_DEFS[n.shape as Shape]?.base === "class";
+
+// 箱（と消した箱）の項目。窓の項目は窓（link か book のある箱）だけ、クラスの項目はクラスの箱だけ。クラスの属性・操作の行も表で調べる
+function boxProblems(n: Record<string, unknown>, where: unknown, opt: { theme: boolean }): string[] {
+  const deny = [...(n.link == null && n.book == null ? WINDOW_ONLY : []), ...(isClassBox(n) ? [] : CLASS_ONLY)];
+  return [...fieldProblems(n, t("箱"), BOX_FIELDS, where, opt, deny), ...(isClassBox(n) ? classProblems(n, opt) : [])];
+}
+
+// クラスの箱の属性・操作の行（docs/CLASS-plan.md）。名前は属性と操作を通して重ねられない
+function classProblems(n: Record<string, unknown>, opt: { theme: boolean }): string[] {
   const out: string[] = [];
   const names = new Set<string>();
-  const id = n.id;
-  if (n.abstract != null && typeof n.abstract !== "boolean") out.push(t("abstract は true か false にしてください: {id}", { id }));
-  for (const key of ["attrs", "ops"] as const) {
-    if (n[key] == null) continue;
-    if (!Array.isArray(n[key])) { out.push(t("{key} は配列にしてください: {id}", { key, id })); continue; }
+  for (const [key, fields, place] of [["attrs", ATTR_FIELDS, t("属性")], ["ops", OP_FIELDS, t("操作")]] as const) {
+    if (!Array.isArray(n[key])) continue; // 配列でなければ表で知らせている
     for (const m of n[key] as unknown[]) {
-      if (!isRecord(m) || typeof m.name !== "string" || !m.name) { out.push(t("{key} に名前の無い行があります: {id}", { key, id })); continue; }
-      if (m.access != null && !isAccess(m.access)) out.push(t("access の値が不正です: {id} の {name} ({value})", { id, name: m.name, value: m.access }));
-      for (const f of ["static", "abstract"]) {
-        if (m[f] != null && typeof m[f] !== "boolean") out.push(t("{field} は true か false にしてください: {id} の {name}", { field: f, id, name: m.name }));
-      }
-      for (const f of ["type", "params"]) {
-        if (m[f] != null && typeof m[f] !== "string") out.push(t("{field} は文字列にしてください: {id} の {name}", { field: f, id, name: m.name }));
-      }
-      if (names.has(m.name)) out.push(t("属性・操作の名前が重なっています: {id} の {name}", { id, name: m.name }));
+      if (!isObject(m) || typeof m.name !== "string" || !m.name) { out.push(t("{key} に名前の無い行があります: {id}", { key, id: n.id })); continue; }
+      out.push(...fieldProblems(m, place, fields, t("{id} の {name}", { id: n.id, name: m.name }), opt));
+      if (names.has(m.name)) out.push(t("属性・操作の名前が重なっています: {id} の {name}", { id: n.id, name: m.name }));
       names.add(m.name);
     }
   }

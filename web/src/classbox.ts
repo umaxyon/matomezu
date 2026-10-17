@@ -24,17 +24,20 @@ export const CLASS_MAX_W = 400;
 export const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 export const isAccess = (v: unknown): v is Access => ACCESSES.includes(v as Access);
 
+// 属性と操作を持つもの（箱のデータ BoxData。検査の前の生のデータも渡せるよう、中身は確かめながら読む）
+export interface Members { attrs?: unknown; ops?: unknown }
+
 // 属性の並び（name の無い行は読まない。検査で誤りにする）
-export function attrsOf(src: Record<string, unknown>): ClassAttr[] {
+export function attrsOf(src: { attrs?: unknown }): ClassAttr[] {
   return (Array.isArray(src.attrs) ? src.attrs : []).filter(a => isObject(a) && typeof a.name === "string") as ClassAttr[];
 }
 
-export function opsOf(src: Record<string, unknown>): ClassOp[] {
+export function opsOf(src: { ops?: unknown }): ClassOp[] {
   return (Array.isArray(src.ops) ? src.ops : []).filter(o => isObject(o) && typeof o.name === "string") as ClassOp[];
 }
 
 // 属性と操作の名前（線がつなぐ先。上から順）
-export const memberNames = (src: Record<string, unknown>): string[] => [...attrsOf(src), ...opsOf(src)].map(m => m.name);
+export const memberNames = (src: Members): string[] => [...attrsOf(src), ...opsOf(src)].map(m => m.name);
 
 const mark = (a: unknown) => (isAccess(a) ? ACCESS_MARK[a] + " " : "");
 
@@ -46,11 +49,11 @@ export const opText = (o: ClassOp): string => `${mark(o.access)}${o.name}(${o.pa
 const sectionH = (rows: number) => 1 + 2 * CLASS_PAD + rows * CLASS_ROW;
 
 // 本体の高さ
-export const classHeight = (src: Record<string, unknown>): number =>
+export const classHeight = (src: Members): number =>
   CLASS_HEAD + sectionH(attrsOf(src).length) + sectionH(opsOf(src).length);
 
 // 名前の属性か操作の行の、本体の上からの真ん中の高さ。無ければ null
-export function memberY(src: Record<string, unknown>, name: string): number | null {
+export function memberY(src: Members, name: string): number | null {
   const attrs = attrsOf(src), ops = opsOf(src);
   const i = attrs.findIndex(a => a.name === name);
   if (i >= 0) return CLASS_HEAD + 1 + CLASS_PAD + (i + 0.5) * CLASS_ROW;
@@ -70,7 +73,7 @@ const dist2 = (p: Pt, q: Pt) => (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2;
 // クラスの線の端の点（ワールドの座標）。r はクラスの本体、other は相手の箱。
 // member があれば、その行の左右のうち相手のいる側。無ければ 4 つの接点から相手の向きで選ぶ。
 // near（データの exitAt / enterAt が指す点）があれば、それに一番近い接点（行なら近い側）
-export function classEnd(r: Rect, src: Record<string, unknown>, member: string | undefined, other: Rect, near: Pt | null): Pt {
+export function classEnd(r: Rect, src: Members, member: string | undefined, other: Rect, near: Pt | null): Pt {
   const [ox, oy] = [other.x + other.w / 2, other.y + other.h / 2];
   const y = member == null ? null : memberY(src, member);
   if (y != null) {

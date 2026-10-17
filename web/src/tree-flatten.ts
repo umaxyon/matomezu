@@ -73,7 +73,7 @@ export function applyFlatten(data: Diagram, plan: FlattenPlan, page: string | nu
     if (Array.isArray(d) || !rerouted.has(String(d.id))) continue;
     const p = rerouted.get(String(d.id))!;
     for (const k of ["exitAt", "enterAt", "via"] as const) {
-      if (p[k] == null) delete d[k]; else (d as Record<string, unknown>)[k] = p[k];
+      if (p[k] == null) delete d[k]; else (d as unknown as Record<string, unknown>)[k] = p[k];
     }
   }
   for (const n of subtree) {

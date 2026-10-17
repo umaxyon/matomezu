@@ -1,4 +1,4 @@
-// データ形式の型。仕様は graph.ts 冒頭のコメントを参照。
+// データ形式の型。仕様は graph.ts 冒頭のコメントを参照。型に無い項目はデータに書けない（validate.ts の表 WORLD_FIELDS などと一致させる。表と型がずれるとビルドが通らない）
 
 import type { ClassAttr, ClassOp } from "./classbox";
 import type { Head } from "./heads";
@@ -29,7 +29,6 @@ export type Id = number | string;
 export interface WorldData {
   width?: number;
   height?: number;
-  overflow?: Exclude<Overflow, "grow">;
   background?: string; // 背景色。省略すると背景なし
   route?: Route;       // 線の通り方の既定（無ければ直線）
   theme?: string;      // テーマ（theme.ts）。ページの world に書けばそのページ。無ければ default（ページはブック全体の world のテーマ）
@@ -40,7 +39,6 @@ export interface WorldData {
   madeBy?: "user";     // 画面の「新しい図」で作ったブックの印（サーバーが書く。無ければ LLM が渡したもの。マスターで分けて並べる。D26）。ブック全体の world だけ
   paper?: string;      // 紙の型（validate.ts の PAPERS の名前。無ければ DEFAULT_PAPER。D33）。紙の制限を受けるパターン（STRATEGIES の paper）のページだけ効く
   title?: string;      // 図（ブック）の題名。タブの見出しに使う（無ければファイル名）。ブック全体の world だけ（ページの world には書かない）
-  [key: string]: unknown;
 }
 
 export interface BoxData {
@@ -61,7 +59,6 @@ export interface BoxData {
   theme?: string;      // テーマ（theme.ts）。この箱と子孫に効く。無ければ親を受け継ぐ
   size?: Size;
   shape?: Shape;
-  kidSize?: Size;      // 中の箱のサイズ（一括で変えたサイズ。整列の間隔と、道具入れから足す箱のサイズに使う。フローチャートのとき）
   childView?: BoxView;  // 子の見せ方（内包パターンの持ち物: nest（既定）/ list / hidden。tree と flow はページのパターン）
   fill?: boolean;
   border?: boolean;
@@ -77,7 +74,6 @@ export interface BoxData {
   abstract?: boolean;    // クラスの箱（shape: "class"）が抽象クラスか（docs/CLASS-plan.md）
   attrs?: ClassAttr[];   // クラスの箱の属性
   ops?: ClassOp[];       // クラスの箱の操作
-  [key: string]: unknown; // 未知の項目は保存時にそのまま残す
 }
 
 export interface EdgeData {
@@ -97,7 +93,6 @@ export interface EdgeData {
   captionOffset?: number; // キャプションを線から離す px（始点から終点へ進む向きの左が正。±60 まで）。無ければ線の上
   fromMember?: string; // 始点がクラスの箱のとき、つなぐ属性か操作の名前（docs/CLASS-plan.md）。無ければクラスそのもの
   toMember?: string;   // 終点がクラスの箱のとき、つなぐ属性か操作の名前
-  [key: string]: unknown;
 }
 
 // ブックのページ（2 枚目から。最初のページはファイルの最上位の world と、page の無い箱）。パターンはページ単位（docs/PATTERN-plan.md）
@@ -105,7 +100,6 @@ export interface PageData {
   id: Id;
   title?: string;     // ページの名前（タブの見出し。無ければ id）
   world?: WorldData;  // そのページのワールドの設定（パターン・テーマ・背景・線の通り方・ツリーの根と向き）
-  [key: string]: unknown;
 }
 
 export interface Diagram {
@@ -115,7 +109,6 @@ export interface Diagram {
   edges?: (EdgeData | [Id, Id])[]; // [from, to] の形でも読める
   // 人が消したボックス（nodes と同じ形。parent は消す直前の親）。サイドバーの一覧から戻せる
   removed?: BoxData[];
-  [key: string]: unknown;
 }
 
 // ---- 画面（サイドバー）向けの情報 ----

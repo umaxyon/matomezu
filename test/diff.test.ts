@@ -40,7 +40,7 @@ describe("diffData と applyChanges: 種類ごとに、進めると後の状態�
   });
 
   test("最上位の項目（world・nodes などの外）を足して戻す", () => {
-    const after = edit(d => { (d as Record<string, unknown>).version = 2; });
+    const after = edit(d => { (d as unknown as Record<string, unknown>).version = 2; });
     const ops = diffData(base(), after);
     expect(kinds(ops)).toEqual(["top:change:", "keys:order:"]); // 項目の並びも 1 件（並びを当てる側にそろえる）
     expect(applyChanges(base(), ops, "redo")).toEqual(after);
@@ -50,7 +50,7 @@ describe("diffData と applyChanges: 種類ごとに、進めると後の状態�
   // 最上位の項目の並びも、進めた後の状態と同じにする（formatDiagram は並びどおりに書くので、Redo のたびにファイルの行が動いていた。
   // 2026-10-17 のテストの見直しで見つけた X8）
   test("最上位の項目を足す操作を Redo しても、ファイルの項目の並びが変わらない", () => {
-    const after = edit(d => { (d as Record<string, unknown>).version = 2; });
+    const after = edit(d => { (d as unknown as Record<string, unknown>).version = 2; });
     expect(JSON.stringify(applyChanges(base(), diffData(base(), after), "redo"))).toBe(JSON.stringify(after));
   });
 
@@ -110,7 +110,7 @@ test("touchedOf: 触った箱（線は両端）・消した箱・ページ（wor
     d.edges = [[2, 1] as [number, number]];
     d.pages![0]!.title = "x";
     d.world!.title = "x";
-    (d as Record<string, unknown>).version = 1;
+    (d as unknown as Record<string, unknown>).version = 1;
   });
   const t = touchedOf(diffData(base(), after));
   expect([...t.nodes].sort()).toEqual(["1", "2", "3", "4"]);

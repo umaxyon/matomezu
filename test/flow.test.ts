@@ -75,7 +75,7 @@ test("ページのパターンは作るときに決め、後から変えない�
     expect(() => graph.update(null, { childView: p as never })).toThrow("後から変えません");
   }
   expect(graph.toJSON()).toEqual(before);
-  expect(() => graph.update(1, { childView: "flow" as never })).toThrow("箱には書けません");
+  expect(() => graph.update(1, { childView: "flow" as never })).toThrow("world.childView に書きます");
 });
 
 test("データの検査: フローチャートのページの箱が子を持つと誤り。箱に flow / tree を書いても誤り（ページの world に書くよう案内）", () => {
@@ -83,7 +83,7 @@ test("データの検査: フローチャートのページの箱が子を持つ
   expect(problems(bad).some(p => p.includes("フローチャート"))).toBe(true);
   expect(problems({ nodes: [{ id: 1, childView: "flow" }] })).toEqual([expect.stringContaining("world.childView")]);
   expect(problems({ nodes: [{ id: 1, childView: "tree" }] })).toEqual([expect.stringContaining("world.childView")]);
-  expect(problems({ nodes: [{ id: 1, treeDirection: "left" }] })).toEqual([expect.stringContaining("world.treeDirection")]);
+  expect(problems({ nodes: [{ id: 1, treeDirection: "left" }] })).toEqual([expect.stringContaining("（world に書きます）")]);
   expect(problems(data())).toEqual([]);
 });
 

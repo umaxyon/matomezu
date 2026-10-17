@@ -162,7 +162,7 @@ test("データの検査: ページの id の重複、無いページ、中の�
   expect(() => validate({ ...d, pages: [...d.pages!, { id: "p1" }] })).toThrow(/重複/);
   expect(() => validate({ ...d, nodes: [...d.nodes, { id: 7, page: "p9" }] })).toThrow(/存在しないページ/);
   expect(() => validate({ ...d, nodes: [...d.nodes, { id: 7, parent: 4, page: "p1" }] })).toThrow(/最上位の箱にだけ/);
-  expect(() => validate({ nodes: [{ id: 1, world: {} as never }] })).toThrow(/pages の world/);
+  expect(() => validate({ nodes: [{ id: 1, world: {} as never }] })).toThrow(/world は「箱」には書けません/);
   expect(() => validate({ pages: [{ id: "p1", world: { childView: "list" } }], nodes: [] })).toThrow(/nest \/ tree \/ flow/);
 });
 

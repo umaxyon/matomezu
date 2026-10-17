@@ -29,13 +29,6 @@ function apart(a: BoxData, ai: { w: number; h: number }, b: BoxData, bi: { w: nu
          a.y! + ai.h + gap <= b.y! || b.y! + bi.h + gap <= a.y!;
 }
 
-test("未知の項目を残したまま保存する", () => {
-  const { graph } = setup({ title: "t", nodes: [{ id: 1, memo: "x" }, { id: 2 }], edges: [[1, 2]] });
-  const out = graph.toJSON();
-  expect(out.title).toBe("t");
-  expect(out.nodes[0]!.memo).toBe("x");
-  expect(out.edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
-});
 
 test("自動配置した最上位のボックスは重ならない", () => {
   const nodes = Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `box ${i + 1}` }));
@@ -173,12 +166,6 @@ test("選択モードで線をクリックすると線を選び、線の情報�
   expect(graph.toJSON().edges).toEqual([{ id: "e1", from: 1, to: 2 }]);
 });
 
-test("線の arrow は start / end / both、dash は solid / dashed だけ", () => {
-  expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, arrow: "left" as never }] }))
-    .toThrow("arrow の値が不正です");
-  expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, dash: "wavy" as never }] }))
-    .toThrow("dash の値が不正です");
-});
 
 test("検証エラーのときは例外を投げ、表示は元のまま", () => {
   const { graph } = setup({ nodes: [{ id: 1, caption: "keep" }] });
@@ -952,10 +939,9 @@ describe("文字のボックスは中身に合わせて伸ばさない", () => {
   // 伸ばしたあとで折り返しに戻せなくなるので、文字のボックスでは grow を使わない
   const long = "とても長いキャプションの入ったボックス";
 
-  test("選べる扱いは折り返す・切り詰めるだけ。データの grow は検査で誤り", () => {
+  test("選べる扱いは折り返す・切り詰めるだけ", () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: long }] });
     expect(graph.info(1).overflows).toEqual(["wrap", "clip"]);
-    expect(() => setup({ nodes: [{ id: 1, caption: long, overflow: "grow" as never }] })).toThrow("overflow の値が不正です");
   });
 
   test("グループはつねに grow で、選べる扱いは無い（docs/SIZE-plan.md）", () => {
@@ -1448,14 +1434,7 @@ describe("線のつなぎ方", () => {
     expect(graph.toJSON().edges![0]).toEqual({ id: "e1", from: 1, to: 2, route: "elbow" }); // データには書かない
   });
 
-  test("exitAt / enterAt は 0 から 1 の数だけ", () => {
-    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, exitAt: 1.5 }] })).toThrow("exitAt は 0 から 1 の数");
-  });
 
-  test("route は straight / elbow だけ（線と図の既定）", () => {
-    expect(() => setup({ nodes: [{ id: 1 }, { id: 2 }], edges: [{ from: 1, to: 2, route: "curve" as never }] })).toThrow("route の値が不正です");
-    expect(() => setup({ world: { route: "curve" as never }, nodes: [] })).toThrow("world の route の値が不正です");
-  });
 
   test("箱が大きくなっても、真横の相手への線は水平のまま（つなぐ位置が滑る）", () => {
     const { el, graph } = setup({

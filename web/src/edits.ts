@@ -171,7 +171,7 @@ export function applyClassEdit(data: Diagram, id: Id, e: ClassEdit): { kids: num
       cut += r.cut;
     }
     // クラスの箱は本文と子の見せ方を持たない。幅は中身で決まる
-    for (const k of ["body", "bodyWidth", "bodyLines", "bodyRule", "childView", "treeDirection", "overflow", "width", "height"]) delete s[k];
+    for (const k of ["body", "bodyWidth", "bodyLines", "bodyRule", "childView", "overflow", "width", "height"] as const) delete s[k];
   }
   if (e.shape === DEFAULT_SHAPE) delete s.shape; else s.shape = e.shape;
   if (e.caption != null) {

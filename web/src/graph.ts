@@ -329,7 +329,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   container.appendChild(worldEl);
   const svg = document.createElementNS(SVGNS, "svg");
 
-  let source: Diagram = { nodes: [] }; // 読み込んだデータ（ブック全体。保存時に未知の項目もそのまま残す）
+  let source: Diagram = { nodes: [] }; // 読み込んだデータ（ブック全体。項目は型と validate.ts の表で決まっている）
   let page: string | null = null;      // 描いているページ（pages のページの id。null は最初のページ）
   let offEdges: EdgeData[] = [];       // ほかのページの線（描かずに残しておく）
   let nodes: Box[] = [];               // データの並び順
@@ -1274,7 +1274,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         const w: WorldData = { ...(id == null ? data.world : p!.world) };
         for (const [k, v] of Object.entries(worldPatch)) {
           const dflt = (k === "route" && v === DEFAULT_ROUTE) || (k === "treeDirection" && v === "down") || (k === "paper" && v === DEFAULT_PAPER);
-          if (v == null || v === "" || dflt) delete w[k]; else w[k] = v;
+          const key = k as keyof WorldData; // 値は checkSettings で確かめている
+          if (v == null || v === "" || dflt) delete w[key]; else (w as Record<string, unknown>)[key] = v;
         }
         if (id == null) data.world = w;
         else if (Object.keys(w).length) p!.world = w;
@@ -1347,7 +1348,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       if (next.overflow && next.overflow !== overflowOf(n)) {
         // 文字のボックスのキャプションを 1 行にする（clip）か戻す（wrap）。幅の上限はサイズの最大（幅の指定があればその幅）なので、
         // 大きさの指定は書かない（docs/SIZE-plan.md の 5 章）。既定の wrap はデータから消す
-        setOrDelete(n.src, "overflow", next.overflow, next.overflow === "wrap");
+        setOrDelete(n.src as BoxData, "overflow", next.overflow, next.overflow === "wrap"); // ワールドは上で断っている
       }
       if (n.isWorld) {
         if ("title" in next) {
@@ -1690,7 +1691,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     flattenTree,
     autoAlign,
     setKidSize,
-    // 現在の状態を返す（元データにある他の項目はそのまま残す）
+    // 現在の状態を返す（描いていないページの箱など、元データのほかの項目はそのまま残す）
     toJSON() {
       const out: Diagram = JSON.parse(JSON.stringify(source));
       for (const src of out.nodes) {

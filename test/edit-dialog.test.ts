@@ -295,10 +295,3 @@ test("サイズを書くと、今と同じサイズでも大きさの指定を�
   expect(box(g, 1).size).toBe("S");
 });
 
-test("ワールドのデータの overflow は無視する（書き換えない）", () => {
-  const { g } = setup({ world: { overflow: "clip" }, nodes: [{ id: 1 }] });
-  expect(g.info(null).overflow).toBe("wrap");
-  expect(() => g.update(null, { overflow: "clip" })).toThrow();
-  expect(g.toJSON().world!.overflow).toBe("clip");
-  expect(document.querySelector(".mz-world")!.classList.contains("mz-ov-clip")).toBe(false);
-});

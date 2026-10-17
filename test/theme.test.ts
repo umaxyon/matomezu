@@ -69,8 +69,8 @@ test("箱に書いたテーマはその箱と子孫に効き、兄弟には効�
 });
 
 test("知らないテーマの名前は、検査（matomezu validate）では誤り。画面では開けて標準として描き、知らせる。書き込みは断る", () => {
-  expect(problems({ world: { theme: "neon" }, nodes: [] })[0]).toContain("theme の値が不正です");
-  expect(problems({ nodes: [{ id: 1, theme: "neon" }] })[0]).toContain("theme の値が不正です");
+  expect(problems({ world: { theme: "neon" }, nodes: [] })[0]).toContain("theme に使えるのは");
+  expect(problems({ nodes: [{ id: 1, theme: "neon" }] })[0]).toContain("theme に使えるのは");
   expect(problems({ world: { theme: "sticky" }, nodes: [{ id: 1, theme: "simple" }] })).toEqual([]);
 
   const events: GraphEvent[] = [];
