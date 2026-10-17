@@ -46,7 +46,7 @@ test("右クリックのメニューで写して貼る。使えない項目は�
   await expect(page.locator('.mz-node[data-id="2"] .mz-node')).toHaveCount(1);
 });
 
-test("右ボタンではドラッグを始めない。手のひらモードのメニューは設定だけ、タブ行では何も出さない", async ({ page }) => {
+test("右ボタンではドラッグを始めない。手のひらモードのメニューは設定だけ、図の外では何も出さない", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
   // 右ボタンで押したまま動かしても、箱は動かない
   const before = (await head(page, 1).boundingBox())!;
@@ -68,13 +68,22 @@ test("右ボタンではドラッグを始めない。手のひらモードの�
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
-  // タブ行の右クリックでは何も出さない（ブラウザのメニューも止める）
-  const prevented = await page.locator("#tab-bar").evaluate(bar => {
+  // 図の外（タブ行・サイドバー・ミニマップ）の右クリックでは何も出さない（ブラウザのメニューも止める）。入力欄の中はブラウザのまま
+  const prevented = await page.evaluate(() => ["#mode-tool", "#sidebar", "#minimap-toggle", "body"].map(sel => {
     const ev = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
-    bar.querySelector("#mode-tool")!.dispatchEvent(ev);
+    document.querySelector(sel)!.dispatchEvent(ev);
+    return ev.defaultPrevented;
+  }));
+  expect(prevented).toEqual([true, true, true, true]);
+  const inInput = await page.evaluate(() => {
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    const ev = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    input.dispatchEvent(ev);
+    input.remove();
     return ev.defaultPrevented;
   });
-  expect(prevented).toBe(true);
+  expect(inInput).toBe(false);
   await expect(menu).toHaveCount(0);
 });
 

@@ -21,7 +21,7 @@ test("ミニマップは最初は閉じていて図の上に何も無い。ボ�
   await expect(map.locator(".mm-box")).toHaveCount(12);
   await expect(map.locator(".mm-edge")).toHaveCount(1);
   // 見えている範囲の四角は、図の端に重なる辺も枠の内側に収まる（右の線が切れない）
-  const [svgBox, viewBox] = [(await map.locator("svg").boundingBox())!, (await view.boundingBox())!];
+  const [svgBox, viewBox] = [(await map.locator(".mz-minimap-body > svg").boundingBox())!, (await view.boundingBox())!];
   expect(viewBox.x + viewBox.width).toBeLessThanOrEqual(svgBox.x + svgBox.width + 0.01);
 
   const stage = page.locator("#stage");
@@ -34,10 +34,10 @@ test("ミニマップは最初は閉じていて図の上に何も無い。ボ�
   await page.mouse.down();
   await page.mouse.move(v.x + v.width / 2, v.y + 45, { steps: 5 });
   await page.mouse.up();
-  const scale = await map.locator("svg").evaluate(s => (s as SVGSVGElement).width.baseVal.value / document.getElementById("stage")!.scrollWidth);
+  const scale = await map.locator(".mz-minimap-body > svg").evaluate(s => (s as SVGSVGElement).width.baseVal.value / document.getElementById("stage")!.scrollWidth);
   expect(Math.abs(await top() - top0 - 40 / scale)).toBeLessThan(4);
   // 一番上を押すと、そこが真ん中に来るように飛ぶ（上端なので 0）
-  const svg = (await map.locator("svg").boundingBox())!;
+  const svg = (await map.locator(".mz-minimap-body > svg").boundingBox())!;
   await page.mouse.click(svg.x + 10, svg.y + 1);
   await expect.poll(top).toBe(0);
   // 閉じると図の上から消える
@@ -73,7 +73,7 @@ test("全体像がミニマップの高さを超えても、右端は切れず�
   await expect.poll(() => body.evaluate(b => b.scrollHeight > b.clientHeight)).toBe(true); // 中でスクロールしている
   // スクロールバーで狭くならず、全体像の幅は中に使える幅とちょうど同じ
   expect(await body.evaluate(b => b.clientWidth)).toBe(158); // 160 から枠線の 2px を除いた幅
-  expect(await map.locator("svg").evaluate(s => (s as SVGSVGElement).width.baseVal.value)).toBe(158);
+  expect(await map.locator(".mz-minimap-body > svg").evaluate(s => (s as SVGSVGElement).width.baseVal.value)).toBe(158);
   // 図を一番下までスクロールすると、ミニマップも追って四角が見える
   await page.locator("#stage").evaluate(s => { s.scrollTop = s.scrollHeight; });
   const view = map.locator(".mm-view");

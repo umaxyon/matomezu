@@ -36,6 +36,17 @@ export interface Preview {
 
 }
 
+// 倍率の操作をほかの所（ミニマップの下の帯。minimap.ts）からも使う口。タブ行の －・倍率・＋・初めの位置のボタンと同じ動き
+export interface ZoomControls {
+  zoomIn(): void;
+  zoomOut(): void;
+  home(): void;
+  state(): { level: string; canIn: boolean; canOut: boolean; canHome: boolean };
+  onChange(fn: () => void): () => void; // 倍率や押せるかが変わったら呼ぶ。外す関数を返す
+}
+let controls: ZoomControls | null = null;
+export const zoomControls = (): ZoomControls | null => controls;
+
 const typing = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.matches("input, textarea, select") || t.isContentEditable);
 
@@ -60,10 +71,12 @@ export function setupPreview(ui: PreviewUi): Preview {
 
   const showLevel = () => showZoom(graph ? current() : null);
   // 倍率 z（図が無ければ null）を見せる。編集中は段の端でボタンを押せなくする
+  const changed = new Set<() => void>();
   function showZoom(z: number | null) {
     ui.level.textContent = z == null ? "" : `${Math.round(z * 100)}%`;
     ui.zoomOut.disabled = z == null || (!on && z <= EDIT_ZOOMS[0]!);
     ui.zoomIn.disabled = z == null || (!on && z >= EDIT_ZOOMS.at(-1)!);
+    for (const f of changed) f();
   }
 
   // 倍率を変える。at（画面の座標）の下にある図の点が動かないようにスクロールを合わせる（無ければ表示領域の真ん中）。
@@ -143,9 +156,11 @@ export function setupPreview(ui: PreviewUi): Preview {
     showLevel();
   }
 
+  const zoomIn = () => { if (on) zoomTo(current() * STEP, undefined, true); else editStep(1); };
+  const zoomOut = () => { if (on) zoomTo(current() / STEP, undefined, true); else editStep(-1); };
   ui.toggle.addEventListener("click", () => setOn(!on));
-  ui.zoomIn.addEventListener("click", () => { if (on) zoomTo(current() * STEP, undefined, true); else editStep(1); });
-  ui.zoomOut.addEventListener("click", () => { if (on) zoomTo(current() / STEP, undefined, true); else editStep(-1); });
+  ui.zoomIn.addEventListener("click", zoomIn);
+  ui.zoomOut.addEventListener("click", zoomOut);
   ui.fit.addEventListener("click", fit);
   ui.home.addEventListener("click", home);
   document.addEventListener("keydown", e => {
@@ -195,5 +210,10 @@ export function setupPreview(ui: PreviewUi): Preview {
     showLevel();
   }
 
+  controls = {
+    zoomIn, zoomOut, home,
+    state: () => ({ level: ui.level.textContent ?? "", canIn: !ui.zoomIn.disabled, canOut: !ui.zoomOut.disabled, canHome: !!graph && !on }),
+    onChange: fn => { changed.add(fn); return () => changed.delete(fn); },
+  };
   return { attach, setEditZoom };
 }

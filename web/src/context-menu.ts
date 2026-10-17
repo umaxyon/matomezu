@@ -7,7 +7,8 @@
 //   種類の違う操作の間は区切り線で分ける
 // - 使えない項目は消さずに灰色で出す。ショートカットを横に添える
 // - 文字の入力欄の中と、文字を選んでいるときはブラウザの既定のメニューを残す
-// - 手のひらのモードでは 設定 だけ（2026-10-18 ユーザー）。タブ行ではブラウザのメニューも出さない（setupBarContextMenu）
+// - 手のひらのモードでは 設定 だけ（2026-10-18 ユーザー）。図の外（タブ行・サイドバーの一覧・郵便箱・ミニマップなど）と、図でメニューを出さないときは、
+//   ブラウザのメニューも出さない（setupNoBrowserMenu。文字の入力欄と文字の選択中だけ残す）
 // - 出さないとき（Ctrl+C / Ctrl+V と同じ条件）: プレビュー中・ダイアログが開いている・ドラッグ中・選択・付け替え・手のひら以外のモード。
 //   説明ツアー中は幕が右クリックを止める（tour-view.ts）
 // - 右の長押しと Space はモードの切り替え（mode-picker.ts。setupContextMenu が押し続けと Space を見る）
@@ -153,7 +154,7 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () 
         if (blocked()) return;
         close?.();
         swallow = true; // Windows では、このあと離したときに contextmenu が届く
-        closePicker = openModePicker(graph, p.at, byRight => { closePicker = null; if (byRight) swallow = true; });
+        closePicker = openModePicker(graph, stage, p.at, byRight => { closePicker = null; if (byRight) swallow = true; });
       }, LONG_PRESS_MS),
     };
     press = p;
@@ -190,7 +191,7 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () 
     const inside = last && last.x >= r.left && last.x <= r.right && last.y >= r.top && last.y <= r.bottom;
     endPress();
     close?.();
-    closePicker = openModePicker(graph, inside ? last! : { x: r.left + r.width / 2, y: r.top + r.height / 2 }, byRight => { closePicker = null; if (byRight) swallow = true; });
+    closePicker = openModePicker(graph, stage, inside ? last! : { x: r.left + r.width / 2, y: r.top + r.height / 2 }, byRight => { closePicker = null; if (byRight) swallow = true; });
   }, { signal });
   window.addEventListener("contextmenu", e => {
     if (!swallow) return;
@@ -218,9 +219,13 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () 
   };
 }
 
-// タブ行（ヘッダー）の右クリックでは何もしない（ブラウザのメニューも出さない。2026-10-18 ユーザー）。文字の入力欄の中はブラウザのまま
-export function setupBarContextMenu(bar: HTMLElement): void {
-  bar.addEventListener("contextmenu", e => { if (!typing(e.target)) e.preventDefault(); });
+// 画面のどこでも、右クリックでブラウザのメニューを出さない（2026-10-18 ユーザー。タブ行・サイドバーの一覧・郵便箱・ミニマップなど）。
+// 文字の入力欄の中と、文字を選んでいるときはブラウザのまま（文字のコピー・貼り付けに使う）。図のメニューは setupContextMenu が先に出す
+export function setupNoBrowserMenu(root: Document | HTMLElement = document): void {
+  root.addEventListener("contextmenu", e => {
+    if (typing(e.target) || !(window.getSelection()?.isCollapsed ?? true)) return;
+    e.preventDefault();
+  });
 }
 
 // メニューを出す。閉じる関数を返す
