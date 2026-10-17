@@ -674,7 +674,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const side: Side = i % 2 ? "r" : "l";
       el.dataset.side = side;
       el.dataset.member = name;
-      const [x, y] = toScreen(memberPoint(n!, name, side, PORT_OUT / ctx.zoom()));
+      const [x, y] = toScreen(memberPoint(n!, name, side, unscale(PORT_OUT)));
       el.style.left = x + "px";
       el.style.top = y + "px";
     });
@@ -685,7 +685,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   // （引ける相手の子の上でも、その相手に引く）。引ける相手以外は薄くする。引いた線の端は、〇の辺の真ん中と離した所に固定する
   // （相手の子の上で離したら終点は自由。自分に戻る線なら、離した所に近い角）
   function linkGesture(from: Box, side: Side, port: HTMLElement, member?: string): Gesture {
-    const [sx, sy] = member != null ? toScreen(memberPoint(from, member, side, PORT_OUT / ctx.zoom())) : portPoint(from, side);
+    const [sx, sy] = member != null ? toScreen(memberPoint(from, member, side, unscale(PORT_OUT))) : portPoint(from, side);
     const siblings = from.parent ? from.parent.children : world.children;
     const can = new Set(siblings.filter(o => ctx.canLink(from, o)));
     const overlay = document.createElementNS(SVGNS, "svg");

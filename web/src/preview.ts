@@ -14,6 +14,10 @@ const MIN = 0.1;
 const MAX = 4;
 const STEP = 1.25; // プレビューのボタン 1 回の倍率の変わり方
 export const EDIT_ZOOMS = [0.5, 0.75, 1, 1.25]; // 編集中の倍率の段（D32。50% は A3 の紙を見るため。D33。2026-10-15 ユーザー）
+// 倍率 z で fits（その倍率で収まるか）でなければ、z より小さい段のうち収まる一番大きな段（どれでも収まらなければ一番小さい段）。
+// 収まれば z のまま（説明ツアーが箱を収める。D38）
+export const editZoomToFit = (z: number, fits: (k: number) => boolean): number =>
+  fits(z) ? z : [...EDIT_ZOOMS].reverse().find(k => k < z && fits(k)) ?? EDIT_ZOOMS[0]!;
 const ANIMATE_MS = 200; // 倍率を切り替えるアニメーションの長さ
 const WHEEL_STEP = 50;  // 編集中に Ctrl+ホイールで 1 段変えるまでの回した量（ホイールの 1 目盛りくらい）
 
@@ -54,12 +58,12 @@ export function setupPreview(ui: PreviewUi): Preview {
     return clampZoom(Math.min(stage.clientWidth / c.w, stage.clientHeight / c.h, 1));
   }
 
-  function showLevel() {
-    ui.level.textContent = graph ? `${Math.round(current() * 100)}%` : "";
-    // 編集中は段の端でボタンを押せなくする
-    const z = current();
-    ui.zoomOut.disabled = !graph || (!on && z <= EDIT_ZOOMS[0]!);
-    ui.zoomIn.disabled = !graph || (!on && z >= EDIT_ZOOMS.at(-1)!);
+  const showLevel = () => showZoom(graph ? current() : null);
+  // 倍率 z（図が無ければ null）を見せる。編集中は段の端でボタンを押せなくする
+  function showZoom(z: number | null) {
+    ui.level.textContent = z == null ? "" : `${Math.round(z * 100)}%`;
+    ui.zoomOut.disabled = z == null || (!on && z <= EDIT_ZOOMS[0]!);
+    ui.zoomIn.disabled = z == null || (!on && z >= EDIT_ZOOMS.at(-1)!);
   }
 
   // 倍率を変える。at（画面の座標）の下にある図の点が動かないようにスクロールを合わせる（無ければ表示領域の真ん中）。
@@ -93,9 +97,7 @@ export function setupPreview(ui: PreviewUi): Preview {
     };
     frame = requestAnimationFrame(step);
     // 倍率の表示とボタンは、行き先の倍率ですぐ変える（アニメーションの途中で押せる・押せないが揺れないように）
-    ui.level.textContent = `${Math.round(z * 100)}%`;
-    ui.zoomOut.disabled = !on && z <= EDIT_ZOOMS[0]!;
-    ui.zoomIn.disabled = !on && z >= EDIT_ZOOMS.at(-1)!;
+    showZoom(z);
   }
 
   // 編集中の倍率の段を dir（+1 で大きく、-1 で小さく）だけ動かす。今の倍率が段の間なら、近い段から数える
