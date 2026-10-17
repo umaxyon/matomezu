@@ -17,7 +17,7 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, setSpec, shapeOf, sizeOf,
+  absPos, ancestors, descendants, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, placerOf, setSpec, shapeOf, sizeOf,
 } from "../model";
 import { alignFlow } from "./flow-align";
 import { shapeDef } from "../shapes";
@@ -249,7 +249,7 @@ export function createLayout(ctx: LayoutContext) {
   // 並べ方の戦略のローカルなルールが先: 子どうしの間隔を決めていればそれ（リスト）、組ごとの間隔を使わない戦略（フローチャート）なら
   // 線があっても広げない（model.ts の STRATEGIES の kidGap・pairGaps）
   function gapBetween(n: Box, o: Box): number {
-    const s = kidStrategyOf(containerOf(n));
+    const s = placerOf(n);
     let g = s.kidGap ?? opt.gap;
     if (!s.pairGaps) return g;
     for (const e of edges()) {

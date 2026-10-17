@@ -13,7 +13,7 @@ import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
-  sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, kidStrategyOf, splitBranches, type Vertex,
+  sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
 import { shapeDef } from "./shapes";
@@ -385,7 +385,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       aVertex: vertexOnly(shapeOf(e.a)), bVertex: vertexOnly(shapeOf(e.b)),
       // 前に描いた辺の記憶（ちらつきを抑える）。フローチャートの線は、ドラッグしている間だけ使う（止まっているときは、いつも一番よい形。
       // 開いたときに、配置が決まる前に描いた辺が残らないように）
-      memory: kidStrategyOf(e.a.parent ?? e.a.world).separateEnds && !ctx.dragging() ? null : e.memory,
+      memory: placerOf(e.a).separateEnds && !ctx.dragging() ? null : e.memory,
     };
     // フローチャートの分岐から出る線は、向かい合う頂点に分けて出す（端を固定していない線だけ。データは書き換えない）
     if (input.exitAt == null) {
@@ -413,7 +413,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const bySide = new Map<string, typeof list>();
     for (const item of list) {
       const { e, r } = item;
-      if (typeof e.src.enterAt === "number" || r.arrangement === "overlap" || !kidStrategyOf(e.b.parent ?? e.b.world).separateEnds) continue;
+      if (typeof e.src.enterAt === "number" || r.arrangement === "overlap" || !placerOf(e.b).separateEnds) continue;
       const side = sideAt(rimOf(e.b), r.points[r.points.length - 1]!);
       if (!side) continue;
       const key = `${e.b.id}|${side}`;
@@ -457,7 +457,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
   // 入ってくる線の頂点（相手の向きに一番近い頂点）は、空いていれば避ける
   function branchVertexOf(e: Edge): Vertex | null {
     const d = e.a;
-    if (d === e.b || !shapeDef(shapeOf(d)).branch || !kidStrategyOf(d.parent ?? d.world).splitBranches) return null;
+    if (d === e.b || !shapeDef(shapeOf(d)).branch || !placerOf(d).splitBranches) return null;
     const out = ctx.edges().filter(x => x.a === d && x.b !== d && typeof x.src.exitAt !== "number" && !edgeHidden(x));
     if (out.length < 2) return null;
     const c = (n: Box) => { const r = absAnchorRect(n); return [r.x + r.w / 2, r.y + r.h / 2] as const; };
@@ -484,7 +484,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const key = JSON.stringify(input);
       // フローチャートの線は、折れ目の一番少ない形にする（いつもの自動の形は、斜めに並ぶ箱どうしを Z 字で結ぶため。2026-10-12 ユーザー）
       const r = e.routeMemo?.key === key ? e.routeMemo.route
-        : kidStrategyOf(e.a.parent ?? e.a.world).separateEnds ? fewestRoute(input) ?? route(input) : route(input);
+        : placerOf(e.a).separateEnds ? fewestRoute(input) ?? route(input) : route(input);
       e.routeMemo = Object.keys(r.fix).length ? null : { key, route: r };
       routed.push({ e, input, r });
     }

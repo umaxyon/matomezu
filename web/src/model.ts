@@ -302,6 +302,8 @@ export const strategyOf = (n: Box): Strategy | null => (n.children.length ? STRA
 // 箱を並べている親の並べ方。最上位はページのパターンが最上位の箱を置く戦略（STRATEGIES の tops。ツリーのページでも最上位は自由に置く）
 // （親は子を持つので leaf にはならない）
 export const placedBy = (n: Box): ChildView => (n.parent ? (arrangeOf(n.parent) as ChildView) : STRATEGIES[worldViewOf(n.world)].tops);
+// 箱を並べている戦略（placedBy の戦略。入れ物の側から引く kidStrategyOf(n.parent ?? n.world) と同じもの）
+export const placerOf = (n: Box): Strategy => STRATEGIES[placedBy(n)];
 // 中の箱のサイズ（フローチャートで一括で変えたもの。無ければ null）
 export const kidSizeOf = (c: Container): Size | null => { const v = c.isWorld ? (c.src as WorldData).kidSize : undefined; return isSize(v) ? v : null; }; // ページ（world）の設定
 // 子の見せ方とページのパターンの既定（書いていなければ内包）
@@ -319,7 +321,7 @@ export const inList = (n: Box): boolean => placedBy(n) === "list" && !!n.parent;
 // ツリーで並んでいる子か（子同士の線は描かない）
 export const inTree = (n: Box): boolean => placedBy(n) === "tree" && !!n.parent;
 // 親の中に入っている（ドラッグで自由に動かせる）子か。最上位も含む
-export const inNest = (n: Box): boolean => STRATEGIES[placedBy(n)].free;
+export const inNest = (n: Box): boolean => placerOf(n).free;
 // 子を枠の中に入れて見せるボックス（子を持ち、戦略が枠で見せるもの）。枠と見出しで描き、形とサイズは使わない
 export const isNesting = (n: Box): boolean => !!strategyOf(n)?.framed;
 // 見た目が葉の箱か（子が無いか、子を隠して本体だけを見せる）
@@ -350,7 +352,7 @@ export interface Abilities {
   dropInto: boolean;  // 付け替えや追加で、中へ落とせる（リンクの箱は窓なので中に入れられず、クラスの箱とフローチャートの要素は子を持てない）
 }
 export function abilitiesOf(n: Box): Abilities {
-  const by = STRATEGIES[placedBy(n)];
+  const by = placerOf(n);
   return {
     drag: by.free,
     reorder: by.reorder && !!n.parent,
@@ -414,7 +416,7 @@ export const treeLinesOf = (n: Box, gapY: number): [number, number][][] =>
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
 // 線のキャプションの候補: 始点が分岐の形（ひし形）で、それを並べる戦略が候補を持つとき（フローチャートの Yes / No）
 export const captionHintsOf = (e: Edge): string[] =>
-  (e.a !== e.b && shapeDef(shapeOf(e.a)).branch ? [...STRATEGIES[placedBy(e.a)].branchCaptions] : []);
+  (e.a !== e.b && shapeDef(shapeOf(e.a)).branch ? [...placerOf(e.a).branchCaptions] : []);
 // 分岐から出る線の頂点（2026-10-11 ユーザー。フローチャートの戦略）: 1 つの頂点から 2 本出さない（下と右のような組み合わせでもよい）。
 // targets は線ごとの、分岐の中心から相手の中心への向き。avoid は入ってくる線が使う頂点（空いていれば避ける）。
 // 頂点の向きと相手の向きのなす角の合計が一番小さい割り当てを選ぶ（4 本までは全部試す。5 本目からは割り当てない）
@@ -447,7 +449,7 @@ export const shapeOf = (n: Box): Shape => {
 // 入れ物 p の子にできるか（子を持てない戦略の子の中へは入れられず、子を持つ箱は子を持てない戦略の中へ入れられない。
 // ツリーのページで子を持てるのは根の子孫だけなので、根の外の最上位へは子を持つ箱を落とせず、根の外の葉の中へも落とせない）
 export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
-  if (!p.isWorld && (STRATEGIES[placedBy(p)].leafKids || isLinkBox(p))) return false;
+  if (!p.isWorld && (placerOf(p).leafKids || isLinkBox(p))) return false;
   if (kidHasKids && kidStrategyOf(p).leafKids) return false;
   const pattern = STRATEGIES[worldViewOf(p.isWorld ? p : p.world)];
   if (pattern.rootOnly) {
