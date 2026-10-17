@@ -6,7 +6,7 @@ import { t } from "./i18n";
 import { subtreeIds } from "./pages";
 import { type ClassAttr, type ClassOp, cleanMembers, memberNames } from "./classbox";
 import type { BoxData, Diagram, EdgeData, Id, Shape } from "./types";
-import { normalizeEdge } from "./validate";
+import { edgeIdMaker, nextBoxId, normalizeEdge } from "./validate";
 import { DEFAULT_SHAPE } from "./shapes";
 
 // 置く位置（親の左上から）。null は位置を消して自動で並べる
@@ -84,8 +84,7 @@ export function pasteSubtree(
   data: Diagram, copy: { root: string; nodes: BoxData[]; edges: EdgeData[] }, at: Place, pos: Pos,
 ): { root: string; nodes: number; edges: number } {
   if (!copy.nodes.some(s => String(s.id) === copy.root)) throw new Error(t("写した箱がありません: {id}", { id: copy.root }));
-  const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
-  let next = Math.max(0, ...used) + 1;
+  let next = nextBoxId(data, true);
   const ids = new Map(copy.nodes.map(s => [String(s.id), next++]));
   const nodes = copy.nodes.map(s => {
     // このブックの LLM はまだ知らない箱なので、ユーザーが足した印を付ける（docs/ADD-plan.md の 4 章）
@@ -99,13 +98,8 @@ export function pasteSubtree(
     }
     return c;
   });
-  const usedEdges = new Set(edgesOf(data).map(e => String(e.id)));
-  let seq = 1;
-  const edges = copy.edges.map(e => {
-    while (usedEdges.has("e" + seq)) seq++;
-    usedEdges.add("e" + seq);
-    return { ...e, id: "e" + seq, from: ids.get(String(e.from))!, to: ids.get(String(e.to))! };
-  });
+  const newEdgeId = edgeIdMaker(new Set(edgesOf(data).map(e => String(e.id))));
+  const edges = copy.edges.map(e => ({ ...e, id: newEdgeId(), from: ids.get(String(e.from))!, to: ids.get(String(e.to))! }));
   data.nodes.push(...nodes);
   data.edges = [...edgesOf(data), ...edges];
   return { root: String(ids.get(copy.root)), nodes: nodes.length, edges: edges.length };
@@ -115,8 +109,7 @@ export function pasteSubtree(
 // id はこのブックで空いている番号（消した箱の番号も使わない）。before があれば、データの並びでその箱の前に入れる
 // （リストの並び順はデータの並び順なので、リストの間への差し込みに使う）。無ければ末尾。新しい箱の id を返す
 export function addBox(data: Diagram, fields: Partial<BoxData>, at: Place, pos: Pos, before?: Id): number {
-  const used = [...data.nodes, ...(data.removed ?? [])].map(s => Number(s.id)).filter(Number.isFinite);
-  const id = Math.max(0, ...used) + 1;
+  const id = nextBoxId(data, true);
   const s: BoxData = { ...fields, id, userAdded: true };
   setPlace(s, at);
   place(s, pos);

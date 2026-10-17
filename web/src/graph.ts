@@ -162,7 +162,7 @@ import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import type { BoxData, BoxView, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
-import { DEFAULT_PAPER, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, isPaper, isPattern, normalizeEdge, validate } from "./validate";
+import { DEFAULT_PAPER, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, edgeIdMaker, isPaper, isPattern, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, isRect } from "./link-box";
 import type { Scene } from "./preview-art";
 import { createView } from "./graph-view";
@@ -1594,14 +1594,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
     const raw = (source.edges ?? []).map(normalizeEdge);
     const used = new Set(raw.map(e => e.id).filter(id => id != null).map(String));
-    let seq = 1;
+    const newEdgeId = edgeIdMaker(used);
     offEdges = [];
     for (const src of raw) {
-      if (src.id == null) {
-        while (used.has("e" + seq)) seq++;
-        src.id = "e" + seq;
-        used.add(src.id);
-      }
+      if (src.id == null) src.id = newEdgeId();
       // 線は同じ親どうしなので、両端とも今のページにあるか、両端ともほかのページにある
       const a = byId.get(String(src.from)), b = byId.get(String(src.to));
       if (a && b) addEdge(src, a, b);

@@ -10,7 +10,7 @@ import { CAPTION_OFFSET_MAX } from "./render";
 import { type RouteInput, alignedEnds, perimeterAt, vertexOf } from "./routing";
 import { perimeter } from "./selfloop";
 import type { Arrow, Dash, EdgeData, Route } from "./types";
-import { ARROWS, DASHES, ROUTES } from "./validate";
+import { ARROWS, DASHES, ROUTES, edgeIdMaker } from "./validate";
 
 // updateEdge で変えられる線の項目（null で消す）
 export interface EdgePatch {
@@ -54,10 +54,7 @@ export type GraphEdges = ReturnType<typeof createEdges>;
 
 export function createEdges(ctx: EdgesContext) {
   function newEdgeId() {
-    const used = new Set([...ctx.edges().map(e => e.id), ...ctx.offEdgeIds()]);
-    let i = ctx.edges().length + 1;
-    while (used.has("e" + i)) i++;
-    return "e" + i;
+    return edgeIdMaker(new Set([...ctx.edges().map(e => e.id), ...ctx.offEdgeIds()]), ctx.edges().length + 1)();
   }
 
   function canLink(a: Box, b: Box) {

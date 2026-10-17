@@ -8,6 +8,7 @@ import { type Box, type Edge, type World, absPos, descendants, routeDefaultOf, t
 import { pageWorld } from "./pages";
 import { type RouteInput, framedAround, passes, perimeterAt, pickCandidate, route, routeCandidates } from "./routing";
 import type { Diagram, EdgeData } from "./types";
+import { edgeIdMaker } from "./validate";
 
 export interface FlattenContext {
   root: Box;              // ツリーの根（world.root）
@@ -40,9 +41,7 @@ export function planFlatten(ctx: FlattenContext): FlattenPlan {
     return [n.id, { x: x - bx + n.hx, y: y - by + n.hy, w: n.hw, h: n.hh }];
   }));
   const half = ctx.treeGapY / 2;
-  const used = ctx.usedIds;
-  let next = 1;
-  const newId = () => { while (used.has("e" + next)) next++; used.add("e" + next); return "e" + next; };
+  const newId = edgeIdMaker(ctx.usedIds);
   // 辺の真ん中の、ふち一周の割合（exitAt / enterAt に書く値）
   const rimAt = (r: { w: number; h: number }, side: "t" | "r" | "b" | "l") => {
     const box = { x: 0, y: 0, w: r.w, h: r.h };

@@ -105,6 +105,25 @@ export function normalizeEdge(e: EdgeData | [Id, Id]): EdgeData {
   return { ...e };
 }
 
+// 線の新しい id（"e" と番号）を作る関数を返す。番号は start から数え、used（使っている線の id）に無い最初の番号。
+// 作った id は used に足すので、続けて呼べば重ならない（線の id の採番はここ 1 か所）
+export function edgeIdMaker(used: Set<string>, start = 1): () => string {
+  let seq = start;
+  return () => {
+    while (used.has("e" + seq)) seq++;
+    used.add("e" + seq);
+    return "e" + seq;
+  };
+}
+
+// 箱の新しい id（消した箱の id も使用済みとして数え、その最大の次）。箱の id の採番はここ 1 か所。
+// fractions は小数の id（2.5 など）も数えるか。画面の追加・貼り付けは数え（2.5 があれば 3.5）、id の無い箱への連番（assignIds）は整数だけを数える
+export function nextBoxId(data: { nodes: unknown[]; removed?: unknown[] }, fractions: boolean): number {
+  const used = [...data.nodes, ...(data.removed ?? [])].map(n => Number(isObject(n) ? n.id : NaN))
+    .filter(fractions ? Number.isFinite : Number.isInteger);
+  return Math.max(0, ...used) + 1;
+}
+
 // ---- スキーマ（2026-10-17 ユーザー: データの形は型で決め、表に無い項目は誤りにする） ----
 // 場所（最初のページの world・ページの world・ページ・箱・線・クラスの属性と操作・最上位）ごとに、置いてよい項目と値の決まりを表にする。
 // 表に無い項目は、どの場所でも誤り（未知の項目を残す決まりは 2026-10-17 にやめた。足したい項目は型と表に足す）。
@@ -233,9 +252,7 @@ export function checkSettings(s: Record<string, unknown>, where: unknown, world 
 export function assignIds(data: unknown): void {
   if (!isObject(data) || !Array.isArray(data.nodes)) return;
   const nodes: unknown[] = data.nodes;
-  const removed: unknown[] = Array.isArray(data.removed) ? data.removed : [];
-  const used = [...nodes, ...removed].map(n => Number(isObject(n) ? n.id : NaN)).filter(Number.isInteger);
-  let next = Math.max(0, ...used) + 1;
+  let next = nextBoxId({ nodes, removed: Array.isArray(data.removed) ? data.removed : [] }, false);
   for (const n of nodes) {
     if (isObject(n) && n.id == null) n.id = next++;
   }
