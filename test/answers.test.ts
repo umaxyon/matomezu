@@ -113,15 +113,19 @@ test("紙の確かめ: 預けた中身が読めなければ、その状態の数
 });
 
 test("紙の確かめ: 紙の制限が無ければ（紙を切っている）はみ出しは無い", async () => {
-  fitBody = { nodes: [{ id: 1 }, { id: 2, x: 50000, y: 0 }] };
-  files.a = { text: JSON.stringify({ nodes: [{ id: 1 }] }), etag: '"v1"' };
-  const { A } = setup();
-  await A.fit("r1", "a");
-  expect(replies).toEqual([{ url: "api/fit/r1", body: { over: [] } }]);
+  DEFAULTS.paper = false;
+  try {
+    fitBody = { nodes: [{ id: 1 }, { id: 2, x: 50000, y: 0 }] };
+    files.a = { text: JSON.stringify({ nodes: [{ id: 1 }] }), etag: '"v1"' };
+    const { A } = setup();
+    await A.fit("r1", "a");
+    expect(replies).toEqual([{ url: "api/fit/r1", body: { over: [] } }]);
+  } finally {
+    DEFAULTS.paper = true;
+  }
 });
 
 test("紙の確かめ: 書き換えで新しく紙からはみ出す最上位の箱だけを、ページと紙の型と、はみ出す量と一緒に答える（前からはみ出している箱は数えない）", async () => {
-  DEFAULTS.paper = true;
   try {
     files.a = { text: JSON.stringify({ nodes: [{ id: 1, caption: "前から", x: 50000, y: 0 }] }), etag: '"v1"' };
     fitBody = { nodes: [{ id: 1, caption: "前から", x: 50000, y: 0 }, { id: 2, caption: "新しい", x: 60000, y: 0 }, { id: 3, caption: "収まる" }] };
@@ -134,6 +138,6 @@ test("紙の確かめ: 書き換えで新しく紙からはみ出す最上位の
     expect(over[0]!.boxes.map(b => [b.id, b.caption])).toEqual([["2", "新しい"]]);
     expect(over[0]!.boxes[0]!.right).toBeGreaterThan(0);
   } finally {
-    DEFAULTS.paper = false;
+    DEFAULTS.paper = true;
   }
 });

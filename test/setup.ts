@@ -17,5 +17,6 @@ localStorage.setItem("matomezu.lang", "ja");
 // 余白を確かめるテストは createGraph に margin を渡す。graph を読み込むと画面の言語が決まるので、言語を日本語にしたあとで読み込む
 const { DEFAULTS } = await import("../web/src/graph");
 DEFAULTS.margin = 0;
-// 紙（D33）も切る（配置の計算を確かめるテストは、ワールドが表示領域の広さに合わせて決まる前提）。紙を確かめるテストは createGraph に paper を渡す
-DEFAULTS.paper = false;
+// 紙（D33）は製品と同じく使う（ふつうのページは既定の紙 A4 横）。紙の無い動き（マスター）を確かめるテストだけ、createGraph に paper: false を渡し、
+// テスト名にそう書く（2026-10-17 ユーザー。以前は全部を紙なしで流していた）
+DEFAULTS.paper = true;

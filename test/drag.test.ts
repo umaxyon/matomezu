@@ -25,12 +25,13 @@ const at = (g: Graph, id: number) => [g.info(id).x, g.info(id).y];
 // three-levels.json の id: 1 タイトル、2 ユーザー、3 フロントエンド、10 バックエンド、17 外部サービス
 test("タイトルを、途中の箱にぶつかっても止まらずにバックエンドの下まで動かせる。通り過ぎた箱は上へずれる", () => {
   const { el, graph } = setup(example("three-levels"));
+  const far = at(graph, 17); // 17 は右の離れた所（紙のページでは、開いたときに動かさない）
   // 5px ずつ動かす（人の操作と同じく、途中を飛び越えない）
   dragBy(el, graph, 1, 0, 380, 76);
   expect(at(graph, 1)).toEqual([24, 396]);
   // タイトルの高さ 64 + 8 だけ上へ
   expect([at(graph, 2), at(graph, 3), at(graph, 10)]).toEqual([[40, 120 - 72], [220, 88 - 72], [220, 280 - 72]]);
-  expect(at(graph, 17)).toEqual([372, 468]); // まだ触れていない（17 は内包の枠。ツリーだったときより狭い）
+  expect(at(graph, 17)).toEqual(far); // まだ触れていない
   expect(violations(el)).toEqual([]);
 });
 

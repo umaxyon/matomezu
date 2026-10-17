@@ -101,7 +101,7 @@ test("色の見本と「なし」、塗りつぶし・枠線（どれも確定�
 });
 
 test("形と子の見せ方は編集ダイアログ、ツリーの向きはブックのダイアログのページのタブで選ぶ", () => {
-  const { g, dlg, openDlg, dlgClick, ok, cancel } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3 }] });
+  const { g, dlg, openDlg, ok, cancel } = setup({ nodes: [{ id: 1 }, { id: 2, parent: 1 }, { id: 3 }] });
   openDlg(3);
   dlg<HTMLInputElement>('input[name="shape"][value="db"]')!.checked = true; // 形は絵の並び（shape-picker.ts）
   expect(dlg('input[name="view"]')).toBeNull(); // 子の無い箱には子の見せ方を出さない
@@ -124,12 +124,12 @@ test("形と子の見せ方は編集ダイアログ、ツリーの向きはブ�
   dlg<HTMLInputElement>('input[name="view"][value="list"]')!.checked = true;
   ok();
   expect(box(g, 1).childView).toBe("list");
-  // ツリーの向き（ツリーのページのときだけ出る）
-  g.update(null, { childView: "tree" });
-  openBookDialog(g, "e2e.json");
-  dlg<HTMLInputElement>('input[name="dir-"][value="left"]')!.checked = true;
-  dlgClick("[data-ok]");
-  expect((g.info(null) as { treeDirection: string }).treeDirection).toBe("left");
+  // ツリーの向き（ツリーのページのときだけ出る。パターンは作るときに決めるので、ツリーのページを開き直す）
+  const tree = setup({ world: { childView: "tree", root: 1 }, nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, parent: 1 }] });
+  openBookDialog(tree.g, "e2e.json");
+  tree.dlg<HTMLInputElement>('input[name="dir-"][value="left"]')!.checked = true;
+  tree.dlgClick("[data-ok]");
+  expect((tree.g.info(null) as { treeDirection: string }).treeDirection).toBe("left");
 });
 
 test("子のサイズをそろえるボタンは、そろえられる子が 2 つ以上あるときだけ出る。押すと印が付き、確定のときに 1 件の変更として行う", () => {

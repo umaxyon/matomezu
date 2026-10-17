@@ -8,18 +8,18 @@ import { fakeMeasure } from "./helpers";
 let graph: Graph | null = null;
 afterEach(() => { graph?.destroy(); graph = null; document.body.innerHTML = ""; });
 
-function setup(margin: number) {
+function setup(margin: number, paper = true) {
   const el = document.createElement("div");
   document.body.appendChild(el);
-  graph = createGraph(el, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }] }, { measureText: fakeMeasure, margin });
+  graph = createGraph(el, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }] }, { measureText: fakeMeasure, margin, paper });
   const world = el.querySelector<HTMLElement>(".mz-world")!;
   const canvas = el.querySelector<HTMLElement>(".mz-canvas")!;
   return { el, graph, world, canvas };
 }
 
-test("ワールドは表示領域いっぱいの広さで、余白は外側に足す（上下左右とも余白の分だけずらせる）。開いたときはワールドの左上から見せる", () => {
+test("ワールドは表示領域いっぱいの広さで、余白は外側に足す（上下左右とも余白の分だけずらせる）。開いたときはワールドの左上から見せる（紙なし。マスターの動き。D34 で見直す）", () => {
   const m = 50;
-  const { el, graph, world, canvas } = setup(m);
+  const { el, graph, world, canvas } = setup(m, false);
   expect([world.style.left, world.style.top]).toEqual([`${m}px`, `${m}px`]);
   expect(graph.view()).toEqual({ zoom: 1, margin: m, ox: m, oy: m });
   // 表示領域は 1000 × 700（test/setup.ts）。ワールドはその広さで、要約もその広さで答える
@@ -52,9 +52,11 @@ test("倍率をかけると、ワールドは transform で拡大縮小し（紙
 test("縮めて紙が表示領域より小さくなれば、紙は表示領域の真ん中に来て、スクロールしない（2026-10-15 ユーザー）", () => {
   const m = 50;
   const { el, graph, world, canvas } = setup(m);
-  graph.setPreview(0.5); // ワールドは 1000 × 700 → 見た目 500 × 350（表示領域は 1000 × 700）
-  expect([world.style.left, world.style.top]).toEqual(["250px", "175px"]);
-  expect(graph.view()).toEqual({ zoom: 0.5, margin: m, ox: 250, oy: 175 });
+  const w = Number.parseFloat(world.style.width), h = Number.parseFloat(world.style.height); // 紙（既定の A4 横）
+  graph.setPreview(0.5); // 見た目は半分（表示領域は 1000 × 700）。真ん中に置く
+  const ox = (1000 - w / 2) / 2, oy = (700 - h / 2) / 2;
+  expect([world.style.left, world.style.top]).toEqual([`${ox}px`, `${oy}px`]);
+  expect(graph.view()).toEqual({ zoom: 0.5, margin: m, ox, oy });
   expect([canvas.style.width, canvas.style.height]).toEqual(["1000px", "700px"]);
   graph.home();
   expect([el.scrollLeft, el.scrollTop]).toEqual([0, 0]);

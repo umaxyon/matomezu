@@ -48,12 +48,15 @@ function count(run: () => void) {
   return { ...layoutStats };
 }
 
-test("大きな図での処理の回数が、基準を超えない", () => {
+// 紙なし（world.width 3600 の広い図。マスターと同じく紙の制限を受けない）で数える。
+// 起点 AI（2026-10-17、単体テストを紙ありにしたとき）: 同じ図を紙あり（A4 横。中身の大半が紙の外）で開くと、重なりの判定が 20〜100 倍に増える
+// （load 約 11 万・settings 約 62 万・drag 約 28 万）。LLM が紙の外まで書いた図で重くなる候補。仕分けは tmp/review-2026-10-17.json の「紙ありで見えた候補」
+test("大きな図での処理の回数が、基準を超えない（紙なし）", () => {
   const el = document.createElement("div");
   document.body.appendChild(el);
   let graph!: Graph;
   const out = {
-    load: count(() => { graph = createGraph(el, big(), { measureText: fakeMeasure }); graphs.push(graph); }),
+    load: count(() => { graph = createGraph(el, big(), { measureText: fakeMeasure, paper: false }); graphs.push(graph); }),
     settings: count(() => {
       graph.update(kidId(0, 0), { caption: "計測で長くしたキャプション".repeat(4) });
       graph.update(kidId(0, 0), { size: "L" });
