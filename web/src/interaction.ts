@@ -11,6 +11,7 @@ import { SVGNS } from "./dom";
 import {
   type Box, type Edge, type World, abilitiesOf, absPos, acceptsKid, isInside, isLinkBox, leafLike, strategyOf,
 } from "./model";
+import { clientToIn, inToClient, toWorldLength } from "./viewport";
 import type { Subtree } from "./pages";
 import type { Renderer } from "./render";
 import { shapeIcon } from "./shape-icons";
@@ -87,7 +88,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   const { render, blocked, focus, unfocus } = R;
   // 画面の上の長さ（px）を、ワールドの座標の長さにする（倍率をかけていれば割り戻す。D32）
-  const unscale = (v: number) => v / ctx.zoom();
+  const unscale = (v: number) => toWorldLength(ctx.zoom(), v);
 
   // ---- 進行中のドラッグ ----
   // どの種類も同じ形にする。押したときに種類ごとの関数が作って active に入れる。
@@ -114,10 +115,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
   } | null = null;
 
   // ポインタの位置（ワールドの座標）
-  const worldAt = (ev: PointerEvent): [number, number] => {
-    const r = world.el.getBoundingClientRect();
-    return [unscale(ev.clientX - r.left), unscale(ev.clientY - r.top)];
-  };
+  const worldAt = (ev: PointerEvent): [number, number] => clientToIn(world.el, ctx.zoom(), ev.clientX, ev.clientY);
 
   // 折れ線の途中の区間のドラッグ（選択モード）。index は区間の番号（via の何番目か）。
   // ポインタの位置へ区間を動かす。動ける範囲は graph の側で収める
@@ -515,8 +513,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     const right = c.left + container.clientLeft + container.clientWidth, bottom = c.top + container.clientTop + container.clientHeight;
     // 広げるのは右や下の端の帯の中だけ（上や左の端へはスクロールするだけ）
     if (x >= right - EDGE_SCROLL_ZONE || y >= bottom - EDGE_SCROLL_ZONE) {
-      const r = world.el.getBoundingClientRect();
-      stretchWorld(unscale(x - r.left + EDGE_SCROLL_ZONE * 2), unscale(y - r.top + EDGE_SCROLL_ZONE * 2));
+      stretchWorld(...clientToIn(world.el, ctx.zoom(), x + EDGE_SCROLL_ZONE * 2, y + EDGE_SCROLL_ZONE * 2));
     }
     edgeScroll.follow({ clientX: x, clientY: y }, () => { followEdge(x, y, again); again(); });
   }
@@ -644,16 +641,11 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     return side === "l" ? [ax + a.x - out, y] : [ax + a.x + a.w + out, y];
   }
 
-  const toScreen = ([x, y]: [number, number]): [number, number] => {
-    const w = world.el.getBoundingClientRect(), z = ctx.zoom();
-    return [w.left + x * z, w.top + y * z];
-  };
+  const toScreen = ([x, y]: [number, number]): [number, number] => inToClient(world.el, ctx.zoom(), x, y);
 
   // 箱 n の side の辺の〇の中心（画面の座標）
   function portPoint(n: Box, side: Side): [number, number] {
-    const w = world.el.getBoundingClientRect(), z = ctx.zoom();
-    const [x, y] = sidePoint(n, side, PORT_OUT / z); // 〇は画面の上で同じだけ離す
-    return [w.left + x * z, w.top + y * z];
+    return toScreen(sidePoint(n, side, unscale(PORT_OUT))); // 〇は画面の上で同じだけ離す
   }
 
   function showPorts(n: Box | null) {
@@ -790,14 +782,15 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       const kids = list.children.map(k => ({ k, r: k.el.getBoundingClientRect() }));
       const next = kids.find(({ r }) => y < r.top + r.height / 2);
       const lr = list.el.getBoundingClientRect(), last = kids.at(-1)!.r;
-      const gap = 4; // 子と子の間（8px）の真ん中
+      // 子と子の間の真ん中（描かれた隙間を測る。間隔のルールは読まない。子が 1 つなら隙間は無いので端に出す）
+      const gap = kids.length > 1 ? (kids[1]!.r.top - kids[0]!.r.bottom) / 2 : 0;
       return {
         parentId: list.id, before: next?.k.id,
         line: { left: last.left, top: next ? next.r.top - gap : last.bottom + gap, width: Math.min(last.width, lr.width) },
       };
     }
-    const r = (t ?? world).el.getBoundingClientRect();
-    return { parentId: t ? t.id : null, at: { x: unscale(x - r.left - ADD_OFFSET.x), y: unscale(y - r.top - ADD_OFFSET.y) } };
+    const [ax, ay] = clientToIn((t ?? world).el, ctx.zoom(), x - ADD_OFFSET.x, y - ADD_OFFSET.y);
+    return { parentId: t ? t.id : null, at: { x: ax, y: ay } };
   }
 
   // shape は影に付ける形の絵（無ければ追加モードで足す形）
@@ -924,8 +917,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     // 新しい親の中での位置（ゴーストの左上）
     let at: { x: number; y: number } | undefined;
     if (t !== undefined) {
-      const r = (t ?? world).el.getBoundingClientRect();
-      at = { x: unscale(e.clientX - l.offX - r.left), y: unscale(e.clientY - l.offY - r.top) };
+      const [ax, ay] = clientToIn((t ?? world).el, ctx.zoom(), e.clientX - l.offX, e.clientY - l.offY);
+      at = { x: ax, y: ay };
     }
     const id = l.id;
     endLift();
@@ -959,8 +952,8 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     const t = dropTargetAt(e.clientX, e.clientY, null);
     markRestore(undefined);
     if (t === undefined) return;
-    const r = (t ?? world).el.getBoundingClientRect();
-    const at = { x: unscale(e.clientX - r.left - 16), y: unscale(e.clientY - r.top - 12) };
+    const [ax, ay] = clientToIn((t ?? world).el, ctx.zoom(), e.clientX - ADD_OFFSET.x, e.clientY - ADD_OFFSET.y);
+    const at = { x: ax, y: ay };
     if (carriesCopy(e)) {
       let payload: { copy: Subtree; from?: string };
       try {

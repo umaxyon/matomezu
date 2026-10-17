@@ -3,7 +3,7 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, STRATEGIES, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, inTreeOf, isLinkBox, rowHeightOf, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
+  type Box, anchorInsetOf, arrangeOf, bodyOf, bodyWidthOf, bodyWrapW, captionOf, inTreeOf, isLinkBox, kidStrategyOf, rowHeightOf, linkIconOf, linkLookOf, listPreviewOf, lookOf, leafLike, overflowOf, shapeOf, sizeOf, treeDirOf,
 } from "../model";
 import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth } from "../link-box";
 import { GROUP_MIN, SIZES } from "../validate";
@@ -321,7 +321,7 @@ export function createNodeKinds(ctx: KindContext) {
         ? Math.max(floor, n.specW - 2 * P)
         : Math.max(floor, ...widths.map(c => c.w), Math.min(SIZES.L.maxW, caption(n) - 2 * P));
       n.bodyH = bodyHeight(n, inner + 2 * P);
-      const gap = STRATEGIES.list.kidGap ?? opt.gap; // リストの子どうしは詰める（リストのローカルなルール。2026-10-12 ユーザー）
+      const gap = kidStrategyOf(n).kidGap ?? opt.gap; // リストの子どうしは詰める（並べる戦略のローカルなルール。2026-10-12 ユーザー）
       let y = opt.header + (n.bodyH ? n.bodyH + BODY_GAP : 0);
       n.kidsTop = y;
       for (const k of n.children) {

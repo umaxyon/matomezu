@@ -1,7 +1,7 @@
 // 画面の見え方（D32）: 編集中の倍率・プレビューの倍率、開いたときの位置（home）、見る範囲を動かす（手のひら・プレビューの背景のドラッグ）。
 // スクロールの位置とワールドの座標の行き来は viewport.ts、ワールドをずらす量とスクロールの広さは layout.ts の sizeCanvas
 import type { Mode } from "./interaction";
-import type { View } from "./viewport";
+import { type View, homeScroll } from "./viewport";
 
 export interface ViewContext {
   container: HTMLElement;
@@ -56,9 +56,7 @@ export function createView(ctx: ViewContext) {
     homed = container.clientWidth > 0;
     if (!homed) return;
     // 紙が表示領域より大きければワールドの左上を表示領域の左上に、小さければ真ん中に（ずらす量が真ん中の分を含むので、その分戻す）
-    const v = view();
-    container.scrollLeft = Math.max(0, v.ox - Math.max(0, (container.clientWidth - world.w * v.zoom) / 2));
-    container.scrollTop = Math.max(0, v.oy - Math.max(0, (container.clientHeight - world.h * v.zoom) / 2));
+    homeScroll(container, view(), world.w, world.h);
     homeAt = { left: container.scrollLeft, top: container.scrollTop };
   }
   // 開いた直後に紙の型が決まる（既定の紙で合わせたあと、データの紙に替わる）ときのため、合わせたまま動いていなければ合わせ直す
