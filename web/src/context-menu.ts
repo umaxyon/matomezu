@@ -1,6 +1,7 @@
 // 右クリックのコンテキストメニュー（D42。2026-10-17 ユーザーと決めた形）:
 // - 箱・背景（ワールド）・線に出す。右クリックした箱か線を選んでから出す。図の外（ミニマップなど）はブラウザの既定のまま
-// - 箱と背景: コピー・貼り付け（Ctrl+C / Ctrl+V と同じ graph.copySelected / pasteClip）、区切り線、削除。背景で開いたら、右クリックした所に貼る
+// - 箱と背景: 切り取り・コピー・貼り付け（Ctrl+X / Ctrl+C / Ctrl+V と同じ graph.cutSelected / copySelected / pasteClip）、区切り線、削除。
+//   背景で開いたら、右クリックした所に貼る。切り取りは写してから削除と同じく消す（消したものの一覧から戻せる）
 // - 線: 通り方（2 段目で折れ線・直線。自分に戻る線には無い）、区切り線、削除
 // - 削除はいつも一番下。種類の違う操作の間は区切り線で分ける
 // - 使えない項目は消さずに灰色で出す。ショートカットを横に添える
@@ -62,6 +63,7 @@ function menuFor(graph: Graph, kind: "edge" | "box" | "world", at: { x: number; 
   const clip = graph.clipState(), mod = mac ? "⌘" : "Ctrl+";
   const box = kind === "box" ? graph.selected() : null;
   return [
+    { label: t("切り取り"), key: `${mod}X`, enabled: clip.cut, run: () => { graph.cutSelected(); } },
     { label: t("コピー"), key: `${mod}C`, enabled: clip.copy, run: () => { graph.copySelected(); } },
     { label: t("貼り付け"), key: `${mod}V`, enabled: clip.paste, run: () => { graph.pasteClip(at); } },
     "hr",

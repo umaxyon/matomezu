@@ -1,4 +1,4 @@
-// 右クリックのコンテキストメニュー（D42）: 箱と背景にはコピー・貼り付け・削除、線には通り方（2 段目）と削除。右クリックした箱か線を選んでから出し、背景なら右クリックした所に貼る
+// 右クリックのコンテキストメニュー（D42）: 箱と背景には切り取り・コピー・貼り付け・削除、線には通り方（2 段目）と削除。右クリックした箱か線を選んでから出し、背景なら右クリックした所に貼る
 import { expect, test } from "@playwright/test";
 import { openDiagram } from "./helpers";
 
@@ -7,16 +7,17 @@ const head = (page: import("@playwright/test").Page, id: number | string) => pag
 test("右クリックのメニューで写して貼る。使えない項目は灰色で、背景なら右クリックした所、箱ならその中に貼る", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "写す箱", x: 40, y: 40 }, { id: 2, caption: "入れ物", x: 400, y: 40 }], edges: [] } as never);
   const menu = page.locator(".mz-cmenu");
-  const copy = menu.locator("button").nth(0), paste = menu.locator("button").nth(1), del = menu.locator("button").nth(2);
+  const cut = menu.locator("button").nth(0), copy = menu.locator("button").nth(1), paste = menu.locator("button").nth(2), del = menu.locator("button").nth(3);
   const world = (await page.locator("#stage .mz-world").boundingBox())!;
 
   // 背景: ワールドを選ぶので写せず、まだ何も写していないので貼れない。Esc で閉じる
   await page.mouse.click(world.x + 300, world.y + 400, { button: "right" });
   await expect(menu).toBeVisible();
+  await expect(cut).toBeDisabled();
   await expect(copy).toBeDisabled();
   await expect(paste).toBeDisabled();
   await expect(del).toBeDisabled();
-  await expect(menu.locator("hr")).toHaveCount(1); // コピー・貼り付けと削除の間
+  await expect(menu.locator("hr")).toHaveCount(1); // 切り取り・コピー・貼り付けと削除の間
   await page.keyboard.press("Escape");
   await expect(menu).toHaveCount(0);
 
@@ -105,4 +106,22 @@ test("線のメニュー: 通り方の 2 段目で折れ線と直線を選び、
   await rightClick();
   await top.last().click();
   await expect(edge).toHaveCount(0);
+});
+
+test("切り取り: メニューか Ctrl+X で写してから消し、貼ると戻る。Undo で戻せる", async ({ page }) => {
+  await openDiagram(page, { nodes: [{ id: 1, caption: "切る箱", x: 40, y: 40 }, { id: 2, caption: "入れ物", x: 400, y: 40 }, { id: 3, caption: "キーで切る箱", x: 40, y: 300 }], edges: [] } as never);
+  const menu = page.locator(".mz-cmenu");
+  await head(page, 1).click({ position: { x: 10, y: 8 }, button: "right" });
+  await menu.locator("button").nth(0).click();
+  await expect(page.locator('.mz-node[data-id="1"]')).toHaveCount(0);
+  // 入れ物の中に貼る
+  await head(page, 2).click({ position: { x: 10, y: 8 }, button: "right" });
+  await menu.locator("button").nth(2).click();
+  await expect(page.locator('.mz-node[data-id="2"] .mz-node > .mz-head')).toContainText("切る箱");
+  // Ctrl+X
+  await head(page, 3).click({ position: { x: 10, y: 8 } });
+  await page.keyboard.press("Control+x");
+  await expect(page.locator('.mz-node[data-id="3"]')).toHaveCount(0);
+  await page.keyboard.press("Control+z"); // 戻せる
+  await expect(page.locator('.mz-node[data-id="3"]')).toHaveCount(1);
 });

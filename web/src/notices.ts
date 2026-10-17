@@ -18,7 +18,7 @@ export type GraphEvent =
   // ツリーのページの根を消そうとした（消さなかった。根は 1 ページに 1 つで、消せない）
   | { kind: "rootKept" }
   // 子孫ごと消した
-  | { kind: "removed"; key: string; kids: number; cutEdges: number }
+  | { kind: "removed"; key: string; kids: number; cutEdges: number; cut?: true } // cut は切り取り（Ctrl+X。写してから消した）
   // 消したボックスを戻した。byDrag はサイドバーの一覧からドラッグして戻したか
   | { kind: "restored"; key: string; byDrag: boolean }
   // ほかのブックの箱を移植した。from は元のブックの名前
@@ -59,7 +59,7 @@ export function noticeOf(ev: GraphEvent): string {
       return t("ツリーの根は消せません");
     case "removed": {
       const parts = list([kids(ev.kids), lines(ev.cutEdges)]);
-      return t("「{key}」を消しました", { key: ev.key }) + (parts ? t("（{list}も）", { list: parts }) : "");
+      return (ev.cut ? t("「{key}」を切り取りました", { key: ev.key }) : t("「{key}」を消しました", { key: ev.key })) + (parts ? t("（{list}も）", { list: parts }) : "");
     }
     case "restored":
       return t("「{key}」を戻しました", { key: ev.key });

@@ -42,7 +42,7 @@
  *   graph.page();                // 描いているページ
  *   graph.pages();               // ブックのページ（2 枚目から。ページの id と名前）
  *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
- *   graph.copySelected(); graph.pasteClip(); // Ctrl+C / Ctrl+V（D23）。選んだ箱を子孫ごと写し、選んでいる所に貼る（決まりはページのパターン。STRATEGIES の copy）
+ *   graph.copySelected(); graph.cutSelected(); graph.pasteClip(); // Ctrl+C / Ctrl+X / Ctrl+V（D23）。選んだ箱を子孫ごと写し、選んでいる所に貼る（決まりはページのパターン。STRATEGIES の copy）
  *   graph.clipState(); graph.pickForMenu(target); // 右クリックのメニュー（D42。context-menu.ts）: 使える項目と、右クリックした所を選ぶ
  *   graph.purge(id);             // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱 userAdded だけ。docs/ADD-plan.md）
  *   graph.add(req, fields);      // 新しい箱を足す（req は追加モードで押した所。onAddRequest で届く。docs/ADD-plan.md）
@@ -296,11 +296,13 @@ export interface Graph {
   paste(copy: Subtree, parentId: Id | null, at?: { x: number; y: number }, from?: string): string;
   // コピー・貼り付け（D23）: 選んだ箱を子孫と中の線ごと写す（この図の中だけで覚える）。写せなければ false
   copySelected(): boolean;
+  // 切り取り（Ctrl+X）: 写してから、Delete と同じく子孫ごと消す（消したものの一覧から戻せる）。ツリーの根・マスターは切り取れない。できなければ false
+  cutSelected(): boolean;
   // 写したものを貼る: ワールドを選んでいればポインタの位置（図の外なら見えている範囲の真ん中。at を渡せばその画面の座標）、
   // 箱を選んでいればその中の左上、子を入れられない箱なら隣。パターンの違うページへは断る。貼れなければ false
   pasteClip(at?: { x: number; y: number }): boolean;
-  // 今コピー・貼り付けができるか（右クリックのメニューで使えない項目を灰色にする。D42）
-  clipState(): { copy: boolean; paste: boolean };
+  // 今切り取り・コピー・貼り付けができるか（右クリックのメニューで使えない項目を灰色にする。D42）
+  clipState(): { cut: boolean; copy: boolean; paste: boolean };
   // 右クリックの所を選ぶ（D42）。線の上ならその線、箱の上ならその箱、背景ならワールドを選び、どれかを返す。図の外（ミニマップなど）は選ばず null
   pickForMenu(target: EventTarget | null): "edge" | "box" | "world" | null;
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
@@ -814,7 +816,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // n を子孫ごと消す。図は作り直さずにその場で外す（作り直すと、押し下げられた箱が本来いたい高さを忘れる）。
   // 今の位置を書いて removed の末尾へ移し、つながっていた線は捨てる。親は縮み（中身に合わせて伸びる祖先の
   // 大きさの指定は外す）、残った子は動かさない
-  function remove(id: Id) {
+  function remove(id: Id, cutting = false) { // cutting は切り取り（知らせの文言だけが変わる）
     if (!byId.has(String(id))) return removeElsewhere(id);
     const n = nodeOf(id);
     if (n.isWorld) throw new Error(t("ワールドは消せません"));
@@ -845,7 +847,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     render();
     changed();
     notifySelect();
-    opt.onEvent?.({ kind: "removed", key: keyOfBox(n), kids: gone.size - 1, cutEdges: cut.length });
+    opt.onEvent?.({ kind: "removed", key: keyOfBox(n), kids: gone.size - 1, cutEdges: cut.length, ...(cutting ? { cut: true as const } : {}) });
     return true;
   }
 
@@ -909,10 +911,17 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return true;
   }
 
-  function clipState(): { copy: boolean; paste: boolean } {
-    if (copyRule() === "books") return { copy: !!current && linkBookOf(current) != null, paste: bookClip != null && !!opt.onDuplicateBook };
-    if (copyRule() !== "boxes") return { copy: false, paste: false };
-    return { copy: !!current, paste: !!clip };
+  function clipState(): { cut: boolean; copy: boolean; paste: boolean } {
+    if (copyRule() === "books") return { cut: false, copy: !!current && linkBookOf(current) != null, paste: bookClip != null && !!opt.onDuplicateBook };
+    if (copyRule() !== "boxes") return { cut: false, copy: false, paste: false };
+    return { cut: !!current && !isTreeRoot(current), copy: !!current, paste: !!clip };
+  }
+
+  function cutSelected(): boolean {
+    if (!clipState().cut) return false;
+    const n = current!;
+    clip = copySubtree(api.toJSON(), n.id);
+    return remove(n.id, true);
   }
 
   function pickForMenu(t: EventTarget | null): "edge" | "box" | "world" | null {
@@ -1752,6 +1761,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     linkScene: id => windowScene(nodeOf(id) as Box),
     paste: (copy, parentId, at, from) => paste(copy, parentId, at, from),
     copySelected,
+    cutSelected,
     pasteClip,
     clipState,
     pickForMenu,
