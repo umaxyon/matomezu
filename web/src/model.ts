@@ -207,14 +207,18 @@ export interface Strategy {
   pairGaps: boolean;     // 子どうしに、組ごとの最小間隔（線でつながれば 32・キャプションがあれば 40px。layout.ts の gapBetween）を使うか。
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
                          // 2026-10-12 ユーザー: 例外は、戦略が明示的に無視すると書いてあればよい）
+  // ページに掛けたとき、箱の大きさが変わったら、どこを起点に大きさを変えるか（軸ごと。start は左・上を保って右・下へ、center は真ん中を保って両側へ）。
+  // 押し込み（layout/squeeze.ts）が、育った箱とグループの広がる向きに使う（docs/PAPER-plan.md の 4.6。2026-10-17 ユーザー: 内包は左上、ツリー・フローチャートは中央）
+  growFrom: { x: GrowFrom; y: GrowFrom };
 }
-const PLAIN = { copy: null, scroll: false, leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false } as const;
+export type GrowFrom = "start" | "center";
+const PLAIN = { copy: null, scroll: false, leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false, growFrom: { x: "start", y: "start" } } as const;
 const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"], paper: true, copy: "boxes" };
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   NEST,
   // ツリー（ページのパターン）: 根（world.root）の子孫全体を木に並べる。最上位の箱（根も、根でない葉も）は自由に置く
   // 道具箱は追加だけ（ツリーは次の段階で作り込む。2026-10-14 ユーザー: それまでの暫定）
-  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, pick: true, tops: "nest", rootOnly: true, tools: ["add"], paper: true, copy: "boxes" },
+  tree:   { framed: false, free: false, descendants: true,  reorder: false, link: false, widthGrip: false, ...PLAIN, onWorld: true, pick: true, tops: "nest", rootOnly: true, tools: ["add"], paper: true, copy: "boxes", growFrom: { x: "center", y: "start" } },
   list:   { framed: true,  free: false, descendants: false, reorder: true,  link: false, widthGrip: true,  ...PLAIN, onBox: true, tops: "list", kidGap: 8, scroll: true },
   hidden: { framed: false, free: false, descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onBox: true, tops: "hidden" },
   // 縮図（D13。2026-10-14 ユーザー）: リストの子が子を持つときの見せ方。非表示と同じく子を描かず、子の代わりに中身の縮図を横に出す。
@@ -225,7 +229,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false, paper: true, scroll: false, copy: "boxes",
+    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false, paper: true, scroll: false, copy: "boxes", growFrom: { x: "center", y: "start" },
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
@@ -318,6 +322,8 @@ export const kidSizeOf = (c: Container): Size | null => { const v = c.isWorld ? 
 export const DEFAULT_VIEW: BoxView & PagePattern = "nest";
 // ページ（ワールド）のパターン。ページに掛けられる戦略だけ（無ければ内包）
 export const worldViewOf = (w: World): PagePattern => (isPattern(w.src.childView) && STRATEGIES[w.src.childView].onWorld ? w.src.childView : "nest");
+// 入れ物が載っているページの、大きさが変わるときの起点（ページのパターンの growFrom。docs/PAPER-plan.md の 4.6）
+export const growFromOf = (c: Container): Strategy["growFrom"] => STRATEGIES[worldViewOf(c.isWorld ? c : c.world)].growFrom;
 // 入れ物（箱かワールド）が子を並べる戦略。ワールドは最上位の箱を置く戦略（tops）。子の無い箱は、自分の見せ方（子を置けばそれで並ぶ）
 export const kidStrategyOf = (c: Container): Strategy =>
   STRATEGIES[c.isWorld ? STRATEGIES[worldViewOf(c)].tops : arrangeOf(c) === "leaf" ? viewOf(c) : arrangeOf(c) as ChildView];
