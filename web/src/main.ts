@@ -12,7 +12,7 @@ import { lang, t, translateDom } from "./i18n";
 import { setupPreview } from "./preview";
 import { setupSettings } from "./settings";
 import { setupHistory, setupModes } from "./toolbar";
-import { setupBarContextMenu, setupContextMenu } from "./context-menu";
+import { setupContextMenu, setupNoBrowserMenu } from "./context-menu";
 import { toast } from "./toast";
 import { mountDiagram } from "./view";
 
@@ -80,7 +80,7 @@ async function main() {
   const redoBtn = $<HTMLButtonElement>("redo");
   const modeButton = $<HTMLButtonElement>("mode-tool");
   setupMinimapToggle($<HTMLButtonElement>("minimap-toggle"));
-  setupBarContextMenu($("tab-bar"));
+  setupNoBrowserMenu();
   const side = setupSide({ boxes: $<HTMLButtonElement>("side-toggle"), mail: $<HTMLButtonElement>("mail-toggle") });
   setupSettings($("settings"));
   const preview = setupPreview({
