@@ -64,7 +64,7 @@ test("Space でポインタの位置にモードのアイコンを出す。も�
   const b = (await head(page, 3).boundingBox())!;
   await page.mouse.move(b.x + 10, b.y + 80);
   await page.keyboard.press(" ");
-  const btns = page.locator(".mz-mpick-btn");
+  const btns = page.locator(".mz-mpick-btn[data-mode]");
   await expect(btns).toHaveCount(3);
   const first = (await btns.nth(0).boundingBox())!, lastBtn = (await btns.nth(2).boundingBox())!;
   expect(first.x).toBeLessThan(b.x + 10);
