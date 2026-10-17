@@ -488,10 +488,10 @@ describe("親子の付け替え", () => {
     // バックエンドとフロントエンド・外部サービスの線は外れ、API-データの線は残る
     expect(out.edges).toEqual([{ id: "e3", from: 5, to: 6 }]);
     expect(notices.at(-1)).toBe("「2_Web」の中へ移しました（階層が変わったため、線を 2 本外しました）");
-    // 今ある子（トップ画面）の下の左端に置かれる
+    // 中の左上に置かれ、今ある子（トップ画面）は並びを保ったまま下へずれる（docs/PAPER-plan.md の 4.7）
     const top = graph.info(3), back = graph.info(4);
     expect(back.x).toBe(top.x);
-    expect(back.y).toBeGreaterThanOrEqual(top.y + top.h);
+    expect(top.y).toBeGreaterThanOrEqual(back.y + back.h);
     expect(graph.selected()).toBe("4");
   });
 

@@ -702,8 +702,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // id のボックス（子孫ごと）を parentId（今のページの箱。null は今のページの最上位）の子にする。同じ階層でなくなった線は外す。
   // id はほかのページの箱でもよい（タブへのドラッグでページを移したとき）。
-  // 位置: 最上位なら at。子を内包しているグループなら、今ある子の下の左端。
-  // それ以外（子の無いボックスやツリー、非表示）は自動で並べる
+  // 位置: 最上位なら at（重なるなら近くの空き）。子を自由に置く箱（グループ・子の無い箱）なら中の左上（docs/PAPER-plan.md の 4.7）。
+  // それ以外（ツリー、リスト、非表示）は自動で並べる
   function reparent(id: Id, parentId: Id | null, at?: { x: number; y: number }) {
     const dest = target(parentId);
     if (!source.nodes.some(s => String(s.id) === String(id))) throw new Error(t("ボックスがありません: {id}", { id }));
@@ -717,11 +717,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       fromPage = pageOf(data.nodes, id);
       // 同じ親の中（最上位なら同じページ）なら、動かすものが無い
       if (String(src.parent ?? "") === String(to.parent ?? "") && (src.parent != null || fromPage === page)) return null;
-      const pos = dest == null && at ? { x: Math.max(0, at.x), y: Math.max(0, at.y) }
-        : dest && isNesting(dest) ? { x: innerArea(dest).left, y: Math.max(...dest.children.map(k => k.y + k.h)) + opt.gap * 2 }
-        : null;
+      const pos = dest == null && at ? { x: Math.max(0, at.x), y: Math.max(0, at.y) } : null;
       cut = moveSubtree(data, id, to, pos);
-      return { select: String(id) };
+      return { select: String(id), drop: pos ?? undefined, into: !!dest && placesFreely(dest) };
     }, true);
     if (!moved) return false;
     opt.onEvent?.({
@@ -791,9 +789,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   // 選び直した箱（無ければ null）を返す。値を変える操作（update など）はその場で直すので、ここを通らない。
   // 今のページの箱を消す remove も、押し下げられた箱の本来いたい高さを保つため、その場で外す（作り直すと忘れる）
   // regrow なら、作り直したあとの育ち方を統一した決まりにする（docs/PAPER-plan.md の 4.6。追加・貼り付け・付け替え・戻す・クラスの変更）:
-  // 同じ親のまま残った箱は作り直す前の位置に戻し、置いた箱（select）の置き方は今のまま（drop の位置、ぶつかった兄弟は下へ）、
-  // 親が育った分は layout.ts の regrow で同じ向きにだけ押す（作り直しの並べ方に任せると、データの並びで後ろの箱が跳んでいた。F26）
-  function rebuildWith(edit: (data: Diagram) => { select?: string; drop?: Pos } | null, regrow = false): Box | null | undefined {
+  // 同じ親のまま残った箱は作り直す前の位置に戻し、置いた箱（select）を置き方に従って置き、親が育った分は layout.ts の regrow で
+  // 同じ向きにだけ押す（作り直しの並べ方に任せると、データの並びで後ろの箱が跳んでいた。F26）。置き方は 2 つ:
+  //   into: グループの子として入れる（中の左上。ふさがっていれば中身全体を下へずらす。4.7）
+  //   drop: 押した・落とした所に置き、今ある箱と重なるなら置いた箱の方が近くの空きへずれる（4.6 の追加）
+  function rebuildWith(edit: (data: Diagram) => { select?: string; drop?: Pos; into?: boolean } | null, regrow = false): Box | null | undefined {
     const data = api.toJSON();
     const prior = regrow ? L.snapshot() : null;
     const r = edit(data);
@@ -805,12 +805,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = r.select != null ? byId.get(r.select) ?? null : null;
     if (prior) {
       L.restoreFrom(prior);
-      if (n && r.drop) [n.x, n.y] = clamp(n, r.drop.x, r.drop.y);
-      if (n && r.drop !== undefined) [n.intendedX, n.intendedY] = [n.x, n.y];
-      if (n && r.drop) L.placeAmong(n);
+      const into = !!(r.into && n?.parent && placesFreely(n.parent));
+      // 置ける所の候補を順に当て、紙に収まった所に置く（無ければ断る）
+      let spots: [number, number][] = n ? [[n.x, n.y]] : [];
+      if (n && into) { L.putTopLeft(n); spots = [[n.x, n.y]]; }
+      else if (n && r.drop) { [n.x, n.y] = [r.drop.x, r.drop.y]; spots = L.dropSpots(n); }
       // 箱を置いた先（足した・貼った・戻した・付け替えた先）は、置いた子を詰めずに中身から決まる大きさから始める
-      const put = n?.parent && (r.drop !== undefined || prior.get(n.id)?.parent !== n.parent.id) ? [n.parent] : [];
-      if (L.regrow(() => {}, undefined, { prior, placed: put }) === "refused") notFitting = true;
+      const put = n?.parent && (into || r.drop !== undefined || prior.get(n.id)?.parent !== n.parent.id) ? [n.parent] : [];
+      let fits = false;
+      for (const [x, y] of n ? spots : [[0, 0] as [number, number]]) {
+        if (n) [n.x, n.y] = [x, y];
+        if (n && (into || r.drop !== undefined)) [n.intendedX, n.intendedY] = [n.x, n.y];
+        if (L.regrow(() => {}, undefined, { prior, placed: put }) !== "refused") { fits = true; break; }
+      }
+      if (!fits) notFitting = true;
       render();
     } else if (n && r.drop !== undefined) {
       if (r.drop) {
@@ -937,7 +945,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const pos = dropPos(dest, at);
     const n = rebuildWith(data => {
       restoreSubtree(data, id, placeOf(dest), pos);
-      return { select: String(id), drop: pos };
+      return { select: String(id), drop: pos, into: !!dest && placesFreely(dest) };
     }, true)!;
     opt.onEvent?.({ kind: "restored", key: keyOfBox(n), byDrag });
     return true;
@@ -1065,7 +1073,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     try {
       n = rebuildWith(data => {
         r = pasteSubtree(data, copy, placeOf(dest), pos);
-        return { select: r.root, drop: pos };
+        return { select: r.root, drop: pos, into: !!dest && placesFreely(dest) };
       }, true)!;
     } finally {
       quietPaper = false;

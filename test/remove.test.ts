@@ -134,12 +134,12 @@ test("親ごと消えた子だけを、別のグループへ先に戻せる", ()
   expect(violations(el)).toEqual([]);
 });
 
-test("戻した位置でぶつかったら、相手を下へずらす", () => {
+test("戻した位置でぶつかったら、戻した箱の方が近くの空きへずれる（今ある箱は動かさない。docs/PAPER-plan.md の 4.6）", () => {
   const { el, graph } = setup(data());
   graph.remove(5);
   graph.restore(5, null, { x: 400, y: 40 }); // 4 と同じ位置
-  expect(at(graph, 5)).toEqual([400, 40]);
-  expect(graph.info(4).y).toBe(40 + 64 + 8);
+  expect(at(graph, 4)).toEqual([400, 40]);
+  expect(at(graph, 5)).not.toEqual([400, 40]);
   expect(violations(el)).toEqual([]);
   // Undo 1 回で消した状態に戻る
   graph.undo();

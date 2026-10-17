@@ -322,7 +322,7 @@ describe("フローチャートのページ（子は子を持てない）へ、�
 });
 
 // ---- 付け替えの行き先: 見せ方ごと ----
-describe("付け替え: 落とし先の見せ方は変えない。自由に置く見せ方なら今ある子の下に置く。Undo で戻る", () => {
+describe("付け替え: 落とし先の見せ方は変えない。自由に置く見せ方なら中の左上に置き、今ある子を下へずらす（docs/PAPER-plan.md の 4.7）。Undo で戻る", () => {
   test.each(BOX_VIEWS.map(v => [v] as const))("%s の箱へ付け替える", v => {
     const nodes: BoxData[] = [
       { id: 1, caption: "動かす", x: 40, y: 400 },
@@ -333,8 +333,11 @@ describe("付け替え: 落とし先の見せ方は変えない。自由に置�
     const s = nodeOf(graph, 1)!;
     expect(String(s.parent)).toBe("10");
     expect(nodeOf(graph, 10)!.childView).toBe(v);
-    // 自由に置く見せ方（内包）なら今ある子の下に置く（ほかの見せ方は並べ方が決める）
-    if (STRATEGIES[v].free) expect(Number(s.y)).toBeGreaterThan(30);
+    // 自由に置く見せ方（内包）なら中の左上に置き、今ある子はその下へずれる（ほかの見せ方は並べ方が決める）
+    if (STRATEGIES[v].free) {
+      expect([Number(s.x), Number(s.y)]).toEqual([12, 30]);
+      expect(Number(nodeOf(graph, 11)!.y)).toBeGreaterThan(30);
+    }
     graph.undo();
     expect(nodeOf(graph, 1)!.parent).toBeUndefined();
   });

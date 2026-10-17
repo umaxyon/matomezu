@@ -461,11 +461,72 @@ export function createLayout(ctx: LayoutContext) {
       [b.x, b.y, b.intendedX, b.intendedY] = [p.x, p.y, p.ix, p.iy];
     }
   }
-  // 置いた箱 n と重なる兄弟をずらす（置き方は今のまま: ぶつかった相手は同じ x のまま下へ。追加・貼り付け・付け替え・戻す。docs/PAPER-plan.md の 4.6）
-  function placeAmong(n: Box) {
-    if (!inNest(n)) return;
-    if (n.parent) placeGroup(n.parent.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n);
-    else settleRoots(n);
+  // 押した所（今の n の位置）に置くときの、置ける所の候補（よい順。docs/PAPER-plan.md の 4.6 の追加）。今ある箱は動かさない:
+  //   1. 押した所が空いていれば、そこ
+  //   2. ふさがっていれば、入れ物の今の大きさの中（紙のワールドなら紙の中）で、押した所に一番近い空き（入れ物は広がらない）
+  //   3. 中に空きが無ければ（グループ）、今ある子全体の右か下（入れ物は右だけか下だけに広がる）。広がりの小さい方を先に
+  // 候補が無ければ空（紙のワールドに空きが無い）。紙に収まるかは呼ぶ側が regrow で順に確かめる
+  function dropSpots(n: Box): [number, number][] {
+    if (!inNest(n)) return [[n.x, n.y]];
+    const c = containerOf(n), a = innerArea(c);
+    const kids = siblings(n).filter(k => k !== n && k.hasPos);
+    [n.x, n.y] = [Math.max(a.left, n.x), Math.max(a.top, n.y)];
+    // 入れ物の今の中の範囲（グループは今ある子の広がりと最小の大きさ、紙のワールドは紙、紙の無いワールドは限りなし）
+    const f = c.isWorld ? worldFixed() : { w: null, h: null };
+    const floor = c.isWorld ? null : kindOf(c as Box).floor?.(c as Box);
+    const right = c.isWorld ? (f.w != null ? f.w - a.right : Infinity)
+      : Math.max((floor?.w ?? 0) - a.right, ...kids.map(k => k.x + k.w));
+    const bottom = c.isWorld ? (f.h != null ? f.h - a.bottom : Infinity)
+      : Math.max((floor?.h ?? 0) - a.bottom, ...kids.map(k => k.y + k.h));
+    const inside = (x: number, y: number) => x >= a.left - 0.5 && y >= a.top - 0.5 && x + n.w <= right + 0.5 && y + n.h <= bottom + 0.5;
+    if (!collides(n, n.x, n.y)) return [[n.x, n.y]];
+    if (!Number.isFinite(right) || !Number.isFinite(bottom)) return [findFreeSpot(n, n.x, n.y)];
+    // 中の空き: 置ける位置の候補は、中の端と、今ある子の端にそろう所・間隔の分だけ離れた所（ぴったりの隙間も取りこぼさず、ずらした先は並びにそろう）。
+    // 押した所そのもの（そろっていない位置）は候補にしない。押した所に一番近いもの
+    const xs = [a.left, right - n.w], ys = [a.top, bottom - n.h];
+    for (const k of kids) {
+      const g = gapBetween(n, k);
+      xs.push(k.x + k.w + g, k.x - g - n.w, k.x);
+      ys.push(k.y + k.h + g, k.y - g - n.h, k.y);
+    }
+    let best: [number, number] | null = null, bestD = Infinity;
+    for (const x of xs) for (const y of ys) {
+      if (!inside(x, y) || collides(n, x, y)) continue;
+      const d = Math.hypot(x - n.x, y - n.y);
+      if (d < bestD) [best, bestD] = [[x, y], d];
+    }
+    if (best) return [best];
+    if (c.isWorld) return []; // 紙は広がれない
+    // 今ある子全体の右か下（入れ物を片方の向きにだけ広げる）
+    // 右なら今ある子の上端か中の上端に、下なら今ある子の左端か中の左端にそろえる（押した所に近い方。今の高さ・幅に収まる所）
+    const g = Math.max(opt.gap, ...kids.map(k => gapBetween(n, k)));
+    const near = (v: number, cands: number[], lo: number, hi: number) =>
+      cands.filter(c => c >= lo - 0.5 && c <= hi + 0.5).sort((p, q) => Math.abs(p - v) - Math.abs(q - v))[0] ?? lo;
+    const toRight: [number, number] = [Math.max(...kids.map(k => k.x + k.w)) + g, near(n.y, [a.top, ...kids.map(k => k.y)], a.top, bottom - n.h)];
+    const below: [number, number] = [near(n.x, [a.left, ...kids.map(k => k.x)], a.left, right - n.w), Math.max(...kids.map(k => k.y + k.h)) + g];
+    const grow = ([x, y]: [number, number]) => Math.max(0, x + n.w - right) + Math.max(0, y + n.h - bottom);
+    return [toRight, below].sort((p, q) => grow(p) - grow(q));
+  }
+
+  // グループの子として入れる（貼り付け・一覧から戻す・移植・付け替え。docs/PAPER-plan.md の 4.7）: 中の左上に置く。
+  // ふさがっていれば、ほかの子全体を並びを保ったまま、入るのに必要な分だけ下へずらす（当たらない子も一緒に）。
+  // ずらした位置が子の新しい位置（本来いたい位置）で、入れた箱を消しても戻さない
+  function putTopLeft(n: Box) {
+    const c = n.parent;
+    if (!c || !inNest(n)) return;
+    const a = innerArea(c);
+    [n.x, n.y] = [a.left, a.top];
+    const kids = c.children.filter(k => k !== n && k.hasPos);
+    let d = 0;
+    for (const k of kids) {
+      const g = gapBetween(n, k);
+      if (k.x < n.x + n.w + g && n.x < k.x + k.w + g) d = Math.max(d, n.y + n.h + g - k.y);
+    }
+    if (d <= 0) return;
+    for (const k of kids) {
+      k.y += d;
+      [k.intendedX, k.intendedY] = [k.x, k.y];
+    }
   }
 
   // 大きさが変わったときの並べ直し（docs/PAPER-plan.md の 4.6）。設定変更（graph.ts の update）、作り直し（rebuildWith。追加・貼り付け・
@@ -657,7 +718,7 @@ export function createLayout(ctx: LayoutContext) {
     kindOf, anchorRect, absAnchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow,
-    settle, regrow, snapshot, restoreFrom, placeAmong, fitToViewport, viewport, alignKids,
+    settle, regrow, snapshot, restoreFrom, dropSpots, putTopLeft, fitToViewport, viewport, alignKids,
     sizable, alignChildren,
   };
 }

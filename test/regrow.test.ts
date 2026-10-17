@@ -198,3 +198,95 @@ test("本文の幅のつまみで広げたとき、左に余裕があれば、�
   expect([info(1).x, info(1).w]).toEqual([right - 8 - 160, 160]); // 戻せば元の位置
   fire("pointerup", 0);
 });
+
+// ---- 段階 5c: グループの子として入れる置き方（4.7）と、追加の置き方（4.6） ----
+
+const groupOf2 = (k2x: number): Diagram => ({
+  nodes: [
+    { id: 1, caption: "グループ", x: 40, y: 40 },
+    { id: 2, caption: "子", parent: 1, x: k2x, y: 30 },
+    { id: 3, caption: "子", parent: 1, x: k2x + 128, y: 30 },
+    { id: 9, caption: "入れる", x: 40, y: 400 },
+  ],
+});
+
+test("グループの左上が空いていれば、そこに入れるだけで、中の子は動かさない", () => {
+  setup({ nodes: [{ id: 1, caption: "グループ", x: 40, y: 40 }, { id: 3, caption: "子", parent: 1, x: 140, y: 102 }, { id: 9, caption: "入れる", x: 40, y: 400 }] });
+  const k = info(3);
+  graph!.reparent(9, 1);
+  expect([graph!.toJSON().nodes.find(n => n.id === 9)!.x, graph!.toJSON().nodes.find(n => n.id === 9)!.y]).toEqual([12, 30]);
+  expect([info(3).x, info(3).y]).toEqual([k.x, k.y]);
+});
+
+test.each([
+  ["付け替え", () => graph!.reparent(9, 1)],
+  ["貼り付け（グループを選んで）", () => { graph!.select(9); graph!.copySelected(); graph!.select(1); graph!.pasteClip(); }],
+  ["一覧から戻す（落とした位置は使わない）", () => { graph!.remove(9); graph!.restore(9, 1, { x: 200, y: 60 }); }],
+] as const)("左上がふさがっていれば、中の子全体を並びを保って下へずらし、左上に入れる: %s", (_, run) => {
+  setup(groupOf2(12));
+  const [k2, k3] = [info(2), info(3)];
+  run();
+  const put = graph!.toJSON().nodes.find(n => n.parent === 1 && n.id !== 2 && n.id !== 3)!;
+  expect([put.x, put.y]).toEqual([12, 30]);
+  const d = 64 + DEFAULTS.gap; // 新しい箱の高さと間隔の下限
+  expect([info(2).x, info(2).y, info(3).x, info(3).y]).toEqual([k2.x, k2.y + d, k3.x, k3.y + d]); // 当たらない右の子も一緒に
+});
+
+test("入れた箱を消しても、ずらした子は戻らない（上に空きが残る。Undo なら戻る）", () => {
+  setup(groupOf2(12));
+  const y2 = info(2).y;
+  graph!.reparent(9, 1);
+  const shifted = info(2).y;
+  expect(shifted).toBeGreaterThan(y2);
+  graph!.remove(9);
+  expect(info(2).y).toBe(shifted);
+  graph!.undo();
+  graph!.undo();
+  expect(info(2).y).toBe(y2);
+});
+
+test("追加で押した所に今ある箱があれば、足した箱の方が近くの空きへずれ、今ある箱は動かさない", () => {
+  setup(groupOf2(12));
+  const [k2, k3] = [info(2), info(3)];
+  const id = graph!.add({ parentId: "1", at: { x: 20, y: 40 } }, { caption: "足した" });
+  expect([info(2).x, info(2).y, info(3).x, info(3).y]).toEqual([k2.x, k2.y, k3.x, k3.y]);
+  const a = graph!.info(id);
+  for (const k of [info(2), info(3)]) expect(a.x + a.w <= k.x || k.x + k.w <= a.x || a.y + a.h <= k.y || k.y + k.h <= a.y).toBe(true);
+});
+
+test("追加で押した所がふさがっていて、グループの中に空きが無ければ、右か下の広がりの小さい方に置き、グループを片方の向きにだけ広げる", () => {
+  setup({ nodes: [{ id: 1, caption: "グループ", x: 40, y: 40 }, { id: 2, caption: "子", parent: 1, x: 12, y: 30 }] });
+  const g = info(1), k = info(2);
+  const id = graph!.add({ parentId: "1", at: { x: 20, y: 40 } }, { caption: "足した" });
+  const a = graph!.info(id);
+  expect([info(2).x, info(2).y]).toEqual([k.x, k.y]);
+  expect([a.x, a.y]).toEqual([k.x, k.y + k.h + DEFAULTS.gap]); // 下（右より広がりが小さい）
+  expect(info(1).w).toBe(g.w); // 横には広がらない
+  expect(info(1).h).toBe(g.h + 64 + DEFAULTS.gap);
+});
+
+test("追加で押した所がふさがっていても、グループの中に空きがあれば、そこへ置いてグループは広げない", () => {
+  setup({ nodes: [{ id: 1, caption: "グループ", x: 40, y: 40 }, { id: 2, caption: "子", parent: 1, x: 12, y: 30 }, { id: 3, caption: "子", parent: 1, x: 140, y: 102 }] });
+  const g = info(1);
+  const id = graph!.add({ parentId: "1", at: { x: 20, y: 40 } }, { caption: "足した" });
+  expect([info(1).w, info(1).h]).toEqual([g.w, g.h]);
+  const a = graph!.info(id);
+  for (const k of [info(2), info(3)]) expect(a.x + a.w <= k.x || k.x + k.w <= a.x || a.y + a.h <= k.y || k.y + k.h <= a.y).toBe(true);
+});
+
+test("追加で、右にも下にも紙に収まらなければ足さない", () => {
+  // 紙の右下いっぱいのグループ（子 1 つ）。右も下も紙の端
+  const w = A4.w - 2 * PAD, h = A4.h - 2 * PAD;
+  setup({ nodes: [{ id: 1, caption: "グループ", x: PAD, y: PAD }, { id: 2, caption: "子", parent: 1, width: w - 24, height: h - 42, x: 12, y: 30 }] });
+  const before = graph!.toJSON();
+  expect(graph!.add({ parentId: "1", at: { x: 20, y: 40 } }, { caption: "足した" })).toBe("");
+  expect(graph!.toJSON()).toEqual(before);
+  expect(events.filter(e => e.kind === "overPaper")).toHaveLength(1);
+});
+
+test("追加でずらした先は並びにそろう（下に置くなら今ある子か中の左端にそろえ、押した横の位置のままにしない）", () => {
+  setup({ nodes: [{ id: 1, caption: "グループ", x: 40, y: 40 }, { id: 2, caption: "子", parent: 1, x: 12, y: 30 }, { id: 3, caption: "子", parent: 1, x: 140, y: 30 }] });
+  const id = graph!.add({ parentId: "1", at: { x: 30, y: 40 } }, { caption: "足した" });
+  const a = graph!.toJSON().nodes.find(n => String(n.id) === id)!;
+  expect([a.x, a.y]).toEqual([12, 30 + 64 + DEFAULTS.gap]);
+});
