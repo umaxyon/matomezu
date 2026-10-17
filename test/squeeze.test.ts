@@ -119,3 +119,11 @@ test("大きさが変わらなければ、どの箱も動かない", () => {
   expect(at(3)).toEqual({ x: 300, y: 300, w: 200, h: 100 });
   expect(at(4)).toEqual({ x: 20, y: 40, w: 60, h: 30 });
 });
+
+test("縦横とも中央起点（中央の根から四方へ伸びる並び）: 真ん中の箱が育つと、上下左右の箱を半分ずつ押す", () => {
+  const BOTH: SqOptions["from"] = { x: "center", y: "center" };
+  const at = fit(paper([box(1, 300, 300, 100, 40, 140, 60), box(2, 192, 300, 100, 40), box(3, 408, 300, 100, 40), box(4, 300, 252, 100, 40), box(5, 300, 348, 100, 40)]), BOTH);
+  expect(at(1)).toEqual({ x: 280, y: 290, w: 140, h: 60 });
+  expect([at(2).x, at(3).x, at(4).y, at(5).y]).toEqual([192 - 20, 408 + 20, 252 - 10, 348 + 10]);
+  expect([at(2).y, at(3).y, at(4).x, at(5).x]).toEqual([300, 300, 300, 300]);
+});
