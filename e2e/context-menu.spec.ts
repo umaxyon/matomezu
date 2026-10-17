@@ -125,3 +125,94 @@ test("切り取り: メニューか Ctrl+X で写してから消し、貼ると�
   await page.keyboard.press("Control+z"); // 戻せる
   await expect(page.locator('.mz-node[data-id="3"]')).toHaveCount(1);
 });
+
+test("線の端の近くか〇を右クリックすると「矢印」が一番上に出て、2 段目でその端の形を選べる。真ん中では出ない", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [{ id: 1, caption: "始点の箱", x: 40, y: 40 }, { id: 2, caption: "終点の箱", x: 400, y: 300 }],
+    edges: [{ id: "e1", from: 1, to: 2, route: "straight" }],
+  } as never);
+  const edge = page.locator('.mz-edge[data-id="e1"]');
+  // 線の上の点（始点から len px。負なら終点から）
+  const along = (len: number) => edge.locator(".mz-hit").evaluate((l, len) => {
+    const g = l as SVGPolylineElement;
+    const svg = g.ownerSVGElement!.getBoundingClientRect();
+    const total = g.getTotalLength();
+    const p = g.getPointAtLength(len === 0 ? total / 2 : len > 0 ? len : total + len);
+    return { x: svg.left + p.x, y: svg.top + p.y };
+  }, len);
+  const menus = page.locator(".mz-cmenu");
+  const rightClick = async (len: number) => { const m = await along(len); await page.mouse.click(m.x, m.y, { button: "right" }); };
+  const headIn = async (side: "start" | "end") => {
+    await page.keyboard.press("Escape");
+    await page.mouse.dblclick((await along(0)).x, (await along(0)).y);
+    const v = await page.locator(`.mz-dlg [name="head-${side}"]`).inputValue();
+    await page.locator(".mz-dlg [data-cancel]").click();
+    return v;
+  };
+
+  // 真ん中: 矢印は無い（通り方と削除）
+  await rightClick(0);
+  await expect(menus.first().locator("button")).toHaveCount(2);
+  await page.keyboard.press("Escape");
+
+  // 始点の近く: 矢印（始点）> の 2 段目で、塗りの三角
+  await rightClick(10);
+  const top = menus.first().locator("button");
+  await expect(top).toHaveCount(3);
+  await top.first().hover();
+  const sub = menus.nth(1).locator("button");
+  await expect(sub).toHaveCount(11);
+  await expect(sub.nth(0)).toHaveAttribute("aria-checked", "true"); // 今はなし
+  await sub.nth(1).click();
+  await expect(menus).toHaveCount(0);
+  expect(await headIn("start")).toBe("arrow");
+  expect(await headIn("end")).toBe("");
+
+  // 選んだ線の終点の〇: 矢印（終点）で、白抜きのひし形
+  await page.mouse.click((await along(0)).x, (await along(0)).y);
+  const ring = (await edge.locator('.mz-end[data-end="enter"]').boundingBox())!;
+  await page.mouse.click(ring.x + ring.width / 2, ring.y + ring.height / 2, { button: "right" });
+  await menus.first().locator("button").first().click();
+  await menus.nth(1).locator("button").nth(5).click();
+  expect(await headIn("end")).toBe("hollowDiamond");
+  expect(await headIn("start")).toBe("arrow");
+});
+
+test("線を引く〇を右クリックすると、〇を出した箱のメニューになる（ブラウザのメニューを出さない）", async ({ page }) => {
+  await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 80, y: 80 }], edges: [] } as never);
+  await page.locator('.mz-node[data-id="1"] > .mz-head').hover();
+  const port = page.locator('.mz-port[data-side="r"]');
+  await expect(port).toBeVisible();
+  const p = (await port.boundingBox())!;
+  await page.mouse.click(p.x + p.width / 2, p.y + p.height / 2, { button: "right" });
+  await expect(page.locator('.mz-node[data-id="1"]')).toHaveClass(/mz-current/);
+  await expect(page.locator(".mz-cmenu button")).toHaveCount(4); // 切り取り・コピー・貼り付け・削除
+  await expect(page.locator(".mz-cmenu button").first()).toBeEnabled();
+});
+
+test("〇に線の端が重なっていれば、〇の右クリックは線の端のメニュー（矢印）を優先する。重なっていない〇は箱のメニュー", async ({ page }) => {
+  await openDiagram(page, {
+    nodes: [{ id: 1, caption: "左", x: 40, y: 80 }, { id: 2, caption: "右", x: 400, y: 80 }],
+    edges: [{ id: "e1", from: 1, to: 2, route: "straight" }],
+  } as never);
+  const rightClickPort = async (side: string) => {
+    await page.keyboard.press("Escape");
+    await page.mouse.click(5, 5); // 選択を外して、〇が出るようにする
+    await page.locator('.mz-node[data-id="1"] > .mz-head').hover();
+    const port = page.locator(`.mz-port[data-side="${side}"]`);
+    await expect(port).toBeVisible();
+    const p = (await port.boundingBox())!;
+    await page.mouse.click(p.x + p.width / 2, p.y + p.height / 2, { button: "right" });
+  };
+  const top = page.locator(".mz-cmenu").first().locator("button");
+  // 右の〇には線の始点が重なる: 線を選び、矢印（始点）が一番上
+  await rightClickPort("r");
+  await expect(page.locator('.mz-edge[data-id="e1"]')).toHaveClass(/mz-selected/);
+  await expect(top).toHaveCount(3);
+  await top.first().hover();
+  await expect(page.locator(".mz-cmenu").nth(1).locator("button")).toHaveCount(11);
+  // 上の〇には線が無い: 箱のメニュー
+  await rightClickPort("t");
+  await expect(page.locator('.mz-node[data-id="1"]')).toHaveClass(/mz-current/);
+  await expect(top).toHaveCount(4);
+});

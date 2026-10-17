@@ -2,14 +2,15 @@
 // - 箱・背景（ワールド）・線に出す。右クリックした箱か線を選んでから出す。図の外（ミニマップなど）はブラウザの既定のまま
 // - 箱と背景: 切り取り・コピー・貼り付け（Ctrl+X / Ctrl+C / Ctrl+V と同じ graph.cutSelected / copySelected / pasteClip）、区切り線、削除。
 //   背景で開いたら、右クリックした所に貼る。切り取りは写してから削除と同じく消す（消したものの一覧から戻せる）
-// - 線: 通り方（2 段目で折れ線・直線。自分に戻る線には無い）、区切り線、削除
+// - 線: 矢印（端の〇か端の近くを右クリックしたときだけ。2 段目でその端の形）、通り方（2 段目で折れ線・直線。自分に戻る線には無い）、区切り線、削除
 // - 削除はいつも一番下。種類の違う操作の間は区切り線で分ける
 // - 使えない項目は消さずに灰色で出す。ショートカットを横に添える
 // - 文字の入力欄の中と、文字を選んでいるときはブラウザの既定のメニューを残す
 // - 出さないとき（Ctrl+C / Ctrl+V と同じ条件）: プレビュー中・ダイアログが開いている・ドラッグ中・選択と付け替え以外のモード。
 //   説明ツアー中は幕が右クリックを止める（tour-view.ts）
 // 項目は menuFor に足せばよい形にしておく（タブなどへ広げるのと、パターンごとの出し分けは後で。D39・D25）
-import type { Graph } from "./graph";
+import type { Graph, MenuTarget } from "./graph";
+import { type Head, headOptions, headPatch } from "./heads";
 import type { BoxInfo } from "./types";
 import { injectStyle } from "./dom";
 import { t } from "./i18n";
@@ -48,20 +49,29 @@ interface Item {
 type Entry = Item | "hr";
 
 // 右クリックした所に出す項目。at は右クリックした所（画面の座標）
-function menuFor(graph: Graph, kind: "edge" | "box" | "world", at: { x: number; y: number }, mac: boolean): Entry[] {
+function menuFor(graph: Graph, target: MenuTarget, at: { x: number; y: number }, mac: boolean): Entry[] {
   const del = mac ? "⌫" : "Delete";
-  if (kind === "edge") {
+  if (target.kind === "edge") {
     const id = graph.selectedEdge()!;
     const e = graph.edgeInfo(id)!;
     const route = (r: "elbow" | "straight", label: string): Item =>
       ({ label, checked: e.route === r, enabled: true, run: () => { if (e.route !== r) graph.updateEdge(id, { route: r }); } });
+    // 端の近くなら、その端の形（線の編集ダイアログと同じ選択肢）
+    const side = target.end, now = side === "start" ? e.startHead : e.endHead;
+    const heads = side == null ? [] : [{
+      label: t("矢印（{side}）", { side: side === "start" ? t("始点") : t("終点") }), enabled: true,
+      sub: headOptions().map(([v, label]): Item => ({ label, checked: (now ?? "") === v, enabled: true,
+        run: () => { if ((now ?? "") !== v) graph.updateEdge(id, headPatch(e, side, (v || null) as Head | null)); } })),
+    }];
     return [
-      ...(e.self ? [] : [{ label: t("通り方"), enabled: true, sub: [route("elbow", t("折れ線")), route("straight", t("直線"))] }, "hr" as const]),
+      ...heads,
+      ...(e.self ? [] : [{ label: t("通り方"), enabled: true, sub: [route("elbow", t("折れ線")), route("straight", t("直線"))] }]),
+      ...(heads.length || !e.self ? ["hr" as const] : []),
       { label: t("削除"), key: del, enabled: true, run: () => graph.removeEdge(id) },
     ];
   }
   const clip = graph.clipState(), mod = mac ? "⌘" : "Ctrl+";
-  const box = kind === "box" ? graph.selected() : null;
+  const box = target.kind === "box" ? graph.selected() : null;
   return [
     { label: t("切り取り"), key: `${mod}X`, enabled: clip.cut, run: () => { graph.cutSelected(); } },
     { label: t("コピー"), key: `${mod}C`, enabled: clip.copy, run: () => { graph.copySelected(); } },
@@ -87,11 +97,11 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement): () => void {
     if (typing(e.target) || !(window.getSelection()?.isCollapsed ?? true)) return;
     if (graph.preview() != null || graph.dragging() || document.querySelector(".mz-dlg-overlay")) return;
     if (graph.mode() !== "move" && graph.mode() !== "reparent") return;
-    const kind = graph.pickForMenu(e.target);
-    if (!kind) return;
-    e.preventDefault();
     const at = { x: e.clientX, y: e.clientY };
-    close = open(menuFor(graph, kind, at, mac), at, () => { close = null; });
+    const target = graph.pickForMenu(e.target, at);
+    if (!target) return;
+    e.preventDefault();
+    close = open(menuFor(graph, target, at, mac), at, () => { close = null; });
   }, { signal: listening.signal });
 
   return () => {

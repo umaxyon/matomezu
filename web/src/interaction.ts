@@ -991,6 +991,7 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
 
   return {
     dragging: () => active != null,
+    portOwner: () => portBox, // 今〇を出している箱（右クリックのメニューで、〇はその箱として扱う。D42）
     endLift,
     endAdd,
     // 描き直すときに、ドラッグと削除の印を忘れる。付け替えのドラッグは続ける（落とし先は描き直した要素で探し直す）

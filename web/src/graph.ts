@@ -154,7 +154,7 @@ import {
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, removedBox, restoreSubtree, seedRoot } from "./edits";
 import { attrsOf, opsOf } from "./classbox";
-import { headOf } from "./heads";
+import { type Side as HeadSide, headOf } from "./heads";
 import { type Subtree, captionOfData, copySubtree, dataPaint, liveItems, pageData, pageKeys, pageMembers, pageNameOf, pageOf, pageWorld, pagesOf, patternOf, removedPageOf, setPageWorld, subtreeIds } from "./pages";
 import { createRenderer } from "./render";
 import { type RouteFix, isAligned, perimeterAt, route } from "./routing";
@@ -214,6 +214,11 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
 }
 
 export type { AddRequest, EdgePatch, HistoryState, Mode };
+
+// 右クリックした所（D42。context-menu.ts）。線は、端の近くならその端（end。start は from の側）
+export type MenuTarget = { kind: "edge"; end: HeadSide | null } | { kind: "box" | "world" };
+// 線の端の近くとみなす距離（画面の px）。この中を右クリックすると、その端の形を選べる
+export const MENU_END_NEAR = 24;
 export { COPY_MIME, REMOVED_MIME } from "./interaction";
 
 // 履歴に残す件数
@@ -303,8 +308,10 @@ export interface Graph {
   pasteClip(at?: { x: number; y: number }): boolean;
   // 今切り取り・コピー・貼り付けができるか（右クリックのメニューで使えない項目を灰色にする。D42）
   clipState(): { cut: boolean; copy: boolean; paste: boolean };
-  // 右クリックの所を選ぶ（D42）。線の上ならその線、箱の上ならその箱、背景ならワールドを選び、どれかを返す。図の外（ミニマップなど）は選ばず null
-  pickForMenu(target: EventTarget | null): "edge" | "box" | "world" | null;
+  // 右クリックの所を選ぶ（D42）。線の上ならその線、箱の上ならその箱、背景ならワールドを選び、どれかを返す。図の外（ミニマップなど）は選ばず null。
+  // 線は、端の〇か端の近く（画面で MENU_END_NEAR px の中。at は右クリックした画面の座標）なら、その端（start は from の側）も返す。
+  // 箱の〇は箱として扱うが、その箱につながる線の端が近くにあれば線の端を選ぶ
+  pickForMenu(target: EventTarget | null, at: { x: number; y: number }): MenuTarget | null;
   purge(id: Id): boolean; // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱だけ）
   // 新しい箱を足す（追加モードで押した所 req に、fields を中身にして）。新しい箱を選び、その id を返す
   add(req: AddRequest, fields: Partial<BoxData>): string;
@@ -924,15 +931,48 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return remove(n.id, true);
   }
 
-  function pickForMenu(t: EventTarget | null): "edge" | "box" | "world" | null {
-    if (!(t instanceof Element) || !(t === container || canvasEl.contains(t) || worldEl.contains(t))) return null;
+  function pickForMenu(t: EventTarget | null, at: { x: number; y: number }): MenuTarget | null {
+    if (!(t instanceof Element) || !(t === container || canvasEl.contains(t) || worldEl.contains(t) || (container.contains(t) && t.closest(".mz-port")))) return null;
+    // 線を引く〇は図の枠に置いてあり、〇を出した箱のもの。ただしその箱につながる線の端が近くにあれば、端の形を変えたいことが多いので線の端を選ぶ
+    const owner = t.closest(".mz-port") ? I.portOwner() : null;
+    if (owner) {
+      const hit = nearestEnd(edges.filter(e => e.a === owner || e.b === owner), at, e => [...(e.a === owner ? ["start" as const] : []), ...(e.b === owner ? ["end" as const] : [])]);
+      if (hit) { selectEdge(hit.edge); return { kind: "edge", end: hit.end }; }
+      select(owner);
+      return { kind: "box" };
+    }
     const edgeEl = t.closest(".mz-edge");
     const edge = edgeEl ? edgeOfEl.get(edgeEl) : undefined;
-    if (edge) { selectEdge(edge); return "edge"; }
+    if (edge) {
+      selectEdge(edge);
+      return { kind: "edge", end: menuEndOf(edge, t, at) };
+    }
     const el = t.closest(".mz-node");
     const n = el ? boxOfEl.get(el) : undefined;
     select(n ?? null);
-    return n ? "box" : "world";
+    return { kind: n ? "box" : "world" };
+  }
+
+  // 右クリックした所が線のどちらかの端か。端の〇ならその端、ほかは近い方の端が MENU_END_NEAR px（画面の単位）の中なら、その端
+  function menuEndOf(e: Edge, t: Element, at: { x: number; y: number }): HeadSide | null {
+    const ring = t.closest<SVGElement>(".mz-end");
+    if (ring) return ring.dataset.end === "enter" ? "end" : "start";
+    return nearestEnd([e], at, () => ["start", "end"])?.end ?? null;
+  }
+
+  // 線 list の端（sides が返す側だけ）のうち、at（画面の座標）に一番近く、MENU_END_NEAR px の中にあるもの
+  function nearestEnd(list: Edge[], at: { x: number; y: number }, sides: (e: Edge) => HeadSide[]): { edge: Edge; end: HeadSide } | null {
+    const [x, y] = clientToIn(worldEl, V.applied(), at.x, at.y);
+    let best: { edge: Edge; end: HeadSide; d: number } | null = null;
+    for (const e of list) {
+      for (const end of sides(e)) {
+        const p = end === "start" ? e.points[0] : e.points.at(-1);
+        if (!p) continue;
+        const d = Math.hypot(p[0] - x, p[1] - y);
+        if (d <= MENU_END_NEAR / V.applied() && (!best || d < best.d)) best = { edge: e, end, d };
+      }
+    }
+    return best && { edge: best.edge, end: best.end };
   }
 
   function pasteClip(at0?: { x: number; y: number }): boolean {

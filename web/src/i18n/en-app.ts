@@ -96,6 +96,7 @@ export default {
   "「{key}」を切り取りました": "Cut \"{key}\"",
   "「{key}」を貼り付けました": "Pasted \"{key}\"",
   "切り取り": "Cut",
+  "矢印（{side}）": "Arrow ({side})",
   "コピー": "Copy",
   "貼り付け": "Paste",
   "ブックの複製": "Duplicate book",
