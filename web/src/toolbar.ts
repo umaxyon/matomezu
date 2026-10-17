@@ -3,7 +3,7 @@
 import type { Graph, Mode } from "./graph";
 import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { t } from "./i18n";
-import { modeIcon } from "./mode-icons";
+import { showModeWheel } from "./mode-wheel";
 
 // 入力欄の中か（キー操作を文字入力に譲る）
 const typing = (t: EventTarget | null) =>
@@ -87,10 +87,8 @@ export function setupModes(graph: Graph, button: HTMLButtonElement, label: HTMLE
     const m = effective();
     if (graph.dragging()) return; // 手を離してから
     if (graph.mode() !== m) graph.setMode(m);
-    if (button.dataset.mode !== m || !button.firstElementChild) {
-      button.dataset.mode = m;
-      button.innerHTML = modeIcon(m);
-    }
+    showModeWheel(button, m, button.dataset.mode !== m); // 変わったら輪を回す
+    button.dataset.mode = m;
     button.title = t("{mode}（押すと{next}）", { mode: MODE_TIPS[m], next: MODE_LABELS[NEXT[base]] });
     button.setAttribute("aria-label", MODE_LABELS[m]);
     label.textContent = MODE_LABELS[m];

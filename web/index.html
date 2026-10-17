@@ -144,6 +144,16 @@
   .icon-btn:disabled:hover { background: transparent; }
   .icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .icon-btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: transparent; }
+  /* モードのボタン（D39。mode-wheel.ts）: 今のモードを手前に、残りを左右の後ろに小さく薄く控えさせ、変わると輪を回す */
+  /* 背景は開いているタブと同じ色で、タブ行のほかの所と分ける（色は変数にして、後でスキンで変えられるように） */
+  #mode-tool.mode-wheel { --wheel-bg: var(--bg); --wheel-hover: var(--btn); --wheel-fg: var(--text);
+    position: relative; width: 60px; height: 32px; padding: 0; background: var(--wheel-bg); color: var(--wheel-fg); }
+  #mode-tool.mode-wheel:hover { background: var(--wheel-hover); }
+  /* 手前の絵の下に敷く薄い色の丸（後ろの控えより前、手前の絵より後ろ） */
+  #mode-tool.mode-wheel::before { content: ""; position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 42%, transparent); z-index: 6; pointer-events: none; }
+  .mode-wheel-icon { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; line-height: 0; pointer-events: none; }
+  .mode-wheel-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   /* 今のモードの札（選択モード以外のときだけ、図の上の真ん中に出す。toolbar.ts の setupModes） */
   .mode-label {
     position: absolute; left: 50%; top: 10px; z-index: 30; transform: translateX(-50%);
@@ -236,11 +246,6 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
     </button>
     <span class="sep" aria-hidden="true"></span>
-    <!-- ツールのモード: 押すたびに 選択 → 付け替え → 手のひら → 選択 と回す。絵と説明は今のモード（toolbar.ts の setupModes） -->
-    <button id="mode-tool" class="icon-btn" data-mode="move" title="選択モード" aria-label="選択モード">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.35 3v16l4.5-4.2 3 6.7 2.6-1.2-3-6.6h5.9z"/></svg>
-    </button>
-    <span class="sep" aria-hidden="true"></span>
     <button id="book" class="icon-btn" title="ブック: ブックとページの設定" aria-label="ブック">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M8 7h7"/></svg>
     </button>
@@ -250,6 +255,11 @@
     <button id="mail-toggle" class="icon-btn" title="郵便箱: 届いた箱・ブックを左に出す・隠す" aria-label="郵便箱" aria-pressed="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13l3-8h12l3 8"/><path d="M3 13v6h18v-6h-5l-1.5 2.5h-5L8 13z"/></svg>
       <span class="badge" id="mail-badge"></span>
+    </button>
+    <span class="sep" aria-hidden="true"></span>
+    <!-- ツールのモード: 押すたびに 選択 → 付け替え → 手のひら → 選択 と回す。絵と説明は今のモード（toolbar.ts の setupModes） -->
+    <button id="mode-tool" class="icon-btn" data-mode="move" title="選択モード" aria-label="選択モード">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.35 3v16l4.5-4.2 3 6.7 2.6-1.2-3-6.6h5.9z"/></svg>
     </button>
   </div>
   <div class="ask-palette" id="ask-palette" role="toolbar" aria-label="AI の問い" hidden></div>
