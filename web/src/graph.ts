@@ -147,7 +147,7 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, browserMeasure, createTextMeasurer } from "./layout/measure";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
-  type Box, type Container, type Edge, type World, absPos, absRect, ancestors, arrowOf, bodyLinesOf, bodyWidthOf, borderOf,
+  type Box, type Container, type Edge, type World, absPos, absRect, ancestors, headRectOf, arrowOf, bodyLinesOf, bodyWidthOf, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isLinkBox, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
@@ -1778,7 +1778,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           id: n.id, caption: captionOf(n), ancestors: ancestors(n).map(p => p.id),
           x, y, w: n.w, h: n.h, cut: displayCaption(n) !== captionOf(n), color: paintOf(n).color, fill: fillOf(n), border: borderOf(n),
           ...(n.children.length ? { view: viewOf(n), kids: n.children.length } : {}),
-          ...(isTreeRoot(n) || inTreeOf(n) ? { head: { x: x + n.hx, y: y + n.hy, w: n.hw, h: n.hh } } : {}),
+          ...(isTreeRoot(n) || inTreeOf(n) ? { head: headRectOf(n, x, y) } : {}),
         };
       });
       const treeLines = nodes.filter(n => !isHidden(n) && n.children.length && (isTreeRoot(n) || inTreeOf(n))).flatMap(n => {

@@ -4,7 +4,7 @@
 // 腹（親と子の間の区間）を兄弟でそろえるので、ツリーの線と同じ絵になる（親から出る区間は兄弟の線で重なる）。矢印は付けない。
 // 今の見た目から決める所（planFlatten）と、データの写しを直す所（applyFlatten）に分ける。作り直すのは graph.ts の rebuildWith
 import type { Rect } from "./geom";
-import { type Box, type Edge, type World, absPos, absRect, descendants, routeDefaultOf, treeDirOf } from "./model";
+import { type Box, type Edge, type World, absPos, absRect, descendants, headRectOf, routeDefaultOf, treeDirOf } from "./model";
 import { pageWorld } from "./pages";
 import { type RouteInput, framedAround, passes, perimeterAt, pickCandidate, route, routeCandidates } from "./routing";
 import type { Diagram, EdgeData } from "./types";
@@ -37,7 +37,7 @@ export function planFlatten(ctx: FlattenContext): FlattenPlan {
   const bx = rx - root.x, by = ry - root.y;
   const head = new Map(subtree.map(n => {
     const [x, y] = absPos(n);
-    return [n.id, { x: x - bx + n.hx, y: y - by + n.hy, w: n.hw, h: n.hh }];
+    return [n.id, headRectOf(n, x - bx, y - by)];
   }));
   const half = ctx.treeGapY / 2;
   const used = ctx.usedIds;

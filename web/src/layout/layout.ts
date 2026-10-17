@@ -22,7 +22,7 @@ import {
 import { alignFlow } from "./flow-align";
 import { shapeDef } from "../shapes";
 import type { TextMeasurer } from "./measure";
-import { BODY_GAP, createNodeKinds } from "./node-kinds";
+import { bodyBand, createNodeKinds } from "./node-kinds";
 import { type Scene, createAnchorRules } from "./policy";
 import { layoutStats } from "./stats";
 import { GROUP_MIN } from "../validate";
@@ -71,7 +71,7 @@ export function createLayout(ctx: LayoutContext) {
   const incident = (n: Box) => edges().filter(e => e.a === n || e.b === n);
 
   // 見出しの下の本文の分（本文が無ければ 0）
-  const bodyTop = (n: Box) => { const h = kindOf(n).name === "nest" ? bodyHeightTop(n) : 0; return h ? h + BODY_GAP : 0; };
+  const bodyTop = (n: Box) => bodyBand(kindOf(n).name === "nest" ? bodyHeightTop(n) : 0);
 
   // 子を置ける領域の内側の余白
   function innerArea(c: Container) {

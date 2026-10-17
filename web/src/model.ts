@@ -139,6 +139,8 @@ export function absPos(n: Box): [number, number] {
   for (let m: Box | null = n; m; m = m.parent) { x += m.x; y += m.y; }
   return [x, y];
 }
+// 箱の本体（ヘッド）の矩形。(x, y) は箱の左上の位置（無ければ箱の左上からの位置）
+export const headRectOf = (n: Box, x = 0, y = 0): R4 => ({ x: x + n.hx, y: y + n.hy, w: n.hw, h: n.hh });
 // 箱の枠（子孫を含めた範囲）の、ワールドの座標の矩形
 export function absRect(n: Box): R4 {
   const [x, y] = absPos(n);
@@ -411,7 +413,7 @@ export function treeLinesBetween(dir: TreeDirection, head: R4, kids: R4[], gapY:
 }
 // ツリーの節 n の線（n の左上からの座標）
 export const treeLinesOf = (n: Box, gapY: number): [number, number][][] =>
-  treeLinesBetween(treeDirOf(n), { x: n.hx, y: n.hy, w: n.hw, h: n.hh }, n.children.map(k => ({ x: k.x + k.hx, y: k.y + k.hy, w: k.hw, h: k.hh })), gapY);
+  treeLinesBetween(treeDirOf(n), headRectOf(n), n.children.map(k => headRectOf(k, k.x, k.y)), gapY);
 // 子を内包しているボックスは枠なので、形は常にボックス
 // ページの箱は、決まった形（タブ付きの見出し。render.ts）で描くので、形の指定は使わない
 // 線のキャプションの候補: 始点が分岐の形（ひし形）で、それを並べる戦略が候補を持つとき（フローチャートの Yes / No）
