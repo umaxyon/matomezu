@@ -1,8 +1,10 @@
-// 配置の動きを固定するテスト。配置の処理を整理するときに、動きが変わっていないことを確かめる
+// 配置の動きを固定するテスト。配置の処理を整理するときに、動きが変わっていないことを確かめる。
+// ランダムな操作で崩れないかは test/layout-random-*.test.ts（重いので、配置に関係しない修正では飛ばす。package.json の test:quick）
 import { afterEach, describe, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import type { Diagram, Patch } from "../web/src/types";
-import { dragBy, example, fakeMeasure, PLAIN_GAPS, frames, violations } from "./helpers";
+import type { Diagram } from "../web/src/types";
+import { dragBy, fakeMeasure, PLAIN_GAPS, frames, violations } from "./helpers";
+import { random, randomOp, sample } from "./random-ops";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -17,88 +19,6 @@ function setup(data: Diagram, paper = true) {
   graphs.push(graph);
   return { el, graph };
 }
-
-const sample = () => example("three-levels");
-
-// 決まった種の乱数（毎回同じ操作になる）
-function random(seed: number) {
-  let s = seed;
-  return () => (s = (s * 16807) % 2147483647) / 2147483647;
-}
-
-// ランダムな操作を1つ行い、何をしたかを返す
-function randomOp(el: HTMLElement, g: Graph, rnd: () => number): string {
-  const pick = <T>(a: readonly T[]) => a[Math.floor(rnd() * a.length)]!;
-  const ids = g.toJSON().nodes.map(n => n.id!);
-  const id = pick(ids);
-  const op = pick(["view", "dir", "size", "shape", "caption", "fit", "reparent", "drag", "undo"] as const);
-  const patches: Record<string, () => Patch> = {
-    view: () => ({ childView: pick(["nest", "list", "hidden"] as const) }),
-    size: () => ({ size: pick(["L", "M", "S"] as const) }),
-    shape: () => ({ shape: pick(["box", "person", "db"] as const) }),
-    caption: () => ({ caption: pick(["短", "少し長いキャプション", "とても長いキャプションが入ったボックスの例"]) }),
-  };
-  if (op === "dir") {
-    // ツリーのページの向き（内包のページでも world に書くだけ）
-    const p: Patch = { treeDirection: pick(["down", "up", "left", "right"] as const) };
-    g.update(null, p);
-    return `dir world ${JSON.stringify(p)}`;
-  }
-  if (patches[op]) {
-    const p = patches[op]!();
-    g.update(id, p);
-    return `${op} ${id} ${JSON.stringify(p)}`;
-  }
-  if (op === "fit") {
-    const w = pick(["width", "height", "both"] as const);
-    g.fitChildren(id, w);
-    return `fit ${id} ${w}`;
-  }
-  if (op === "reparent") {
-    const to = pick([null, ...ids]);
-    try { g.reparent(id, to); } catch { /* 自分や子孫の中へは移せない */ }
-    return `reparent ${id} → ${to}`;
-  }
-  if (op === "undo") {
-    g.undo();
-    return "undo";
-  }
-  g.select(id);
-  const head = el.querySelector(".mz-node.mz-current > .mz-head");
-  const dx = Math.round((rnd() - 0.5) * 400), dy = Math.round((rnd() - 0.5) * 400);
-  if (head) {
-    const fire = (type: string, x: number, y: number) =>
-      head.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
-    fire("pointerdown", 0, 0);
-    for (let i = 1; i <= 8; i++) fire("pointermove", (dx * i) / 8, (dy * i) / 8);
-    fire("pointerup", dx, dy);
-  }
-  return `drag ${id} ${dx},${dy}`;
-}
-
-describe("ランダムな操作でも崩れない", () => {
-  // 紙あり（ふつうのページ）と紙なし（マスターと同じ広がるワールド）の両方で流す。紙ありの種 1 では、紙に空きが無いときの置き場所探しが
-  // 重なりを許して、ドラッグのあと兄弟が重なっていた（2026-10-17、単体テストを紙ありにして見つけた P1。原因は P3 と同じ findFreeSpot）
-  const cases: [number, boolean][] = [[1, false], [2, false], [3, false], [1, true], [2, true], [3, true]];
-  test.each(cases)("種 %i（紙あり: %p）", (seed, paper) => run(seed, paper), 60000);
-  function run(seed: number, paper: boolean) {
-    const rnd = random(seed * 7919);
-    const { el, graph } = setup(sample(), paper);
-    const log: string[] = [];
-    for (let step = 0; step < 150; step++) {
-      log.push(randomOp(el, graph, rnd));
-      const v = violations(el);
-      if (v.length) throw new Error(`${log.slice(-3).join(" / ")}: ${v.join(", ")}`);
-      // Undo して Redo すれば、同じ状態に戻る
-      if (graph.history().canUndo) {
-        const before = JSON.stringify(graph.toJSON());
-        graph.undo();
-        graph.redo();
-        expect(JSON.stringify(graph.toJSON())).toBe(before);
-      }
-    }
-  }
-});
 
 test("決まった操作の結果（全ボックスの位置と大きさ）が変わらない", () => {
   const rnd = random(424242);

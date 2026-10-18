@@ -6,7 +6,9 @@
     "build": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser && bun build web/src/validate-cli.ts --outfile web/dist/validate.js --target browser",
     "dev": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser --watch",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test --parallel",
+    "test:quick": "bun test --parallel --path-ignore-patterns='test/layout-random-*.test.ts'",
+    "test:auto": "scripts/test-auto.sh",
     "e2e": "bun run build && playwright test",
     "e2e:shots": "bun run build && SHOTS=1 playwright test e2e/pending-shots.spec.ts"
   },
