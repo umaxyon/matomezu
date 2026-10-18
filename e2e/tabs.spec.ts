@@ -752,6 +752,8 @@ async function misfitByFile(page: import("@playwright/test").Page) {
 
 test("set の確かめは開くときと同じ決まり: 押し込んでも紙に入らなければ断り、書かない（D33。docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page }) => {
   await openPaper(page);
+  // 開いた画面が大きさを書き戻すのを待ってから覚える（set の確かめの前に、画面は保存待ちを保存する。H5）
+  await expect.poll(() => readFileSync(join(dir, "p.json"), "utf8").includes('"width"')).toBe(true);
   const before = readFileSync(join(dir, "p.json"), "utf8");
   // 7 つを 1 段に並べると、間隔を詰めても紙の幅に入らない（折り返さない）ので書かない
   const err = fails("set", "p.json", "5.y=40", "6.y=40", "7.y=40", "5.x=560", "6.x=690", "7.x=820");

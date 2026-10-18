@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { type Page, expect, test } from "@playwright/test";
 import { choose, confirmDialog, openBoxDialog, rect, select, violations } from "./helpers";
 import { type TestServer, testServer } from "./server";
+import { BASE_MIN } from "../web/src/size-rules";
 
 let s: TestServer;
 test.beforeEach(() => { s = testServer(); });
@@ -144,16 +145,13 @@ test("画面が書いた大きさを CLI が検査し直す: 全部の箱が wid
   validate(file);
 });
 
-// 不具合の候補（2026-10-18 に見つけた。直すまで fixme）: 固定の width・height が土台の最小（size-rules.ts の BASE_MIN、64 × 44）を下回っても、そのまま描いて書き戻す。
-// CLAUDE.md の 17（強い順の一番上が土台の最小）・view-api.md（「固定しても、決まりの範囲に収める（最小は 64 × 44）」）と食い違う。
-// 原因の見込み: node-kinds.ts のふつうの箱の大きさ `Math.max(bodyMinW(n), specW || textW())` と `specH || ...` が、指定のときに最小を当てていない。
-// 再現: 葉の箱の図を open → `matomezu set 図.json 60.width=10` → 画面の箱が幅 10 で描かれ、ファイルの width も 10 のまま（height=10 も同じ）
-test.fixme("set で土台の最小より小さい width・height を書いても、画面は最小（64 × 44）に収めて描き、その値を書き戻す（D44）", { tag: "@d44" }, async ({ page }) => {
+// 固定の width・height も土台の最小（size-rules.ts の BASE_MIN）を下回らない（CLAUDE.md の 17）。前はそのまま描いて書き戻していた（残課題図の H3）
+test("set で土台の最小より小さい width・height を書いても、画面は最小（64 × 44）に収めて描き、その値を書き戻す（D44）", { tag: "@d44" }, async ({ page }) => {
   const file = await open(page, "min.json", book());
   await fileMatchesScreen(page, file, [LEAF]);
   set(file, `${LEAF}.width=10`, `${LEAF}.height=10`);
-  await expect.poll(async () => { const r = await rect(page, LEAF); return [r.w, r.h]; }).toEqual([64, 44]);
-  await expect.poll(() => { const n = nodeOf(file, LEAF); return [n.width, n.height, n.fixedWidth, n.fixedHeight]; }).toEqual([64, 44, true, true]);
+  await expect.poll(async () => { const r = await rect(page, LEAF); return [r.w, r.h]; }).toEqual([BASE_MIN.w, BASE_MIN.h]);
+  await expect.poll(() => { const n = nodeOf(file, LEAF); return [n.width, n.height, n.fixedWidth, n.fixedHeight]; }).toEqual([BASE_MIN.w, BASE_MIN.h, true, true]);
   validate(file);
 });
 

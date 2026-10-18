@@ -151,12 +151,33 @@ func set(args []string) error {
 	if s == nil {
 		return errors.New("not written: no browser is open to check that the change fits on the paper; run: matomezu open " + path)
 	}
-	over, err := daemon.Fit(s, path, out)
-	if err != nil {
-		return fmt.Errorf("not written: %w", err)
-	}
-	if len(over) > 0 {
-		return errors.New("not written: " + server.OverText("the change does not fit on the paper:", over))
+	// 確かめを待つ間に画面が保存していれば（ボタンを離すまで待つので、ドラッグの直後など）、最新の中身に書き換えを当て直して確かめ直す。
+	// 前に読んだ中身で書くと、ユーザーの直したばかりの変更を消してしまう（残課題図の H5。画面は答える前に保存待ちを保存する）
+	for try := 0; ; try++ {
+		over, err := daemon.Fit(s, path, out)
+		if err != nil {
+			return fmt.Errorf("not written: %w", err)
+		}
+		if len(over) > 0 {
+			return errors.New("not written: " + server.OverText("the change does not fit on the paper:", over))
+		}
+		now, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if bytes.Equal(now, b) {
+			break
+		}
+		if try == 2 {
+			return errors.New("not written: the file kept changing while the screen checked the change; run the same set again")
+		}
+		b = now
+		if out, notes, err = applySets(b, *page, fs.Args()[1:]); err != nil {
+			return err
+		}
+		if err := checkBytes(out, path); err != nil {
+			return fmt.Errorf("not written: %w", err)
+		}
 	}
 	if err := writeFile(path, out); err != nil {
 		return err

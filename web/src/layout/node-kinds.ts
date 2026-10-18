@@ -85,8 +85,9 @@ export function createNodeKinds(ctx: KindContext) {
     // テーマは大きさに入らない（2026-10-18 ユーザー: テーマは余白を持たない。CLAUDE.md の 9）
     const rule = sizeRuleOf(n);
     const z = { minW: rule.textW.min, maxW: rule.textW.max, h: rule.minH };
-    const specW = useSpec && n.specW ? n.specW : 0;
-    const specH = useSpec && n.specH ? n.specH : 0;
+    // 幅や高さの指定（固定）も、決まりの最小（土台の最小 BASE_MIN を含む）を下回らない（CLAUDE.md の 17。残課題図の H3）
+    const specW = useSpec && n.specW ? Math.max(rule.min.w, n.specW) : 0;
+    const specH = useSpec && n.specH ? Math.max(rule.min.h, n.specH) : 0;
     const maxW = Math.min(z.maxW, n.capW || Infinity);
     const textW = () => Math.max(z.minW, bodyMinW(n), Math.min(maxW, contentW(n)));
     // 土台の決め方は形の表（shapes.ts の base）で分ける

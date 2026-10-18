@@ -41,6 +41,7 @@ function setup(shown: Geometry | null = null, refused: string[] = []) {
     focus: doc => `focus of ${doc}`,
     shown: (doc, page, version) => { asked.push(`${doc} ${page} ${version}`); return shown; },
     refuseOpen: (doc, reason, name) => refused.push(`${doc} ${name} ${reason}`),
+    flush: async () => {},
   });
   return { A, asked };
 }

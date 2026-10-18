@@ -6,6 +6,7 @@ import { dragBy, endsOf, fakeMeasure, pointsOf } from "./helpers";
 import { nearestAt } from "../web/src/geom";
 import { perimeter } from "../web/src/selfloop";
 import { DEFAULT_PAPER, PAPERS } from "../web/src/validate";
+import { BASE_MIN } from "../web/src/size-rules";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -1182,11 +1183,12 @@ describe("線のつなぎ方", () => {
     });
     expect(pts(el)[1]![0]).toBe(280);
     const { el: el2 } = setup({
-      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }, { id: 3, x: 260, y: 80, width: 40, fixedWidth: true }],
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }, { id: 3, x: 280 - BASE_MIN.w / 2, y: 80, width: BASE_MIN.w, fixedWidth: true }],
       edges: [{ from: 1, to: 2, route: "elbow" }],
     });
-    // 3 は 260〜300 × 80〜144。真ん中の 280 から外へ 4 ずつ探し、同じ距離なら右を先に試すので、縁に触れるだけの 300 になる
-    expect(pts(el2)[1]![0]).toBe(300);
+    // 3 は真ん中の 280 を中心に、土台の最小の幅（固定の幅もこれより狭くならない）。280 から外へ 4 ずつ探し、
+    // 同じ距離なら右を先に試すので、右の縁に触れるだけの位置になる
+    expect(pts(el2)[1]![0]).toBe(280 + BASE_MIN.w / 2);
   });
 
   // 箱のふちの上の点の、ふち一周の割合（固定の端の値）。1: 40〜160 × 40〜104 なら一周 368

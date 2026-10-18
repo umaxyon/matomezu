@@ -585,6 +585,7 @@ export async function startApp(ui: AppUi) {
       const b = books.find(x => x.id === doc && x.loaded);
       return b && current?.book === b && (b.graph.page() ?? "") === page && b.sync.shown() === version ? b.graph.geometry() : null;
     },
+    flush: doc => books.find(x => x.id === doc && x.loaded)?.sync.flush() ?? Promise.resolve(),
     // 開こうとしたブックは登録していない（マスターの一覧に載せない）ので、名前はサーバーが渡したファイルの名前
     async refuseOpen(_doc, reason, name) {
       await openMaster();

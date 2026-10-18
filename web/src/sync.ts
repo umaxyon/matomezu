@@ -68,6 +68,9 @@ export interface Sync {
   setActive(active: boolean): void;
   // 画面が表示している版（引用符なし。まだ表示していなければ ""）
   shown(): string;
+  // 保存待ちの変更があれば、待たずに保存し終えるまで待つ（matomezu set の確かめに答える前。set が古い中身で書いて、
+  // ユーザーの直したばかりの変更を消さないように。残課題図の H5）
+  flush(): Promise<void>;
   close(): void;
 }
 
@@ -207,6 +210,10 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       if (active === next) return;
       active = next;
       if (active) show();
+    },
+    async flush() {
+      while (saving) await new Promise(r => setTimeout(r, 20));
+      if (timer) { clearTimeout(timer); await save(); }
     },
     // 読めなかった版（不正・紙に収まらない）は表示していない（前の表示が残っているだけ）
     shown: () => (blocked ? "" : version.replace(/^W\//, "").replace(/"/g, "")),

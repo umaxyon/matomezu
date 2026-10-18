@@ -18,6 +18,8 @@ export interface AnswersContext {
   shown(doc: string, page: string, version: string): Geometry | null;
   // matomezu open で、紙に収まらないので届けなかった（マスターを出して reason を知らせる。name はファイルの名前。docs/PAPER-plan.md の 4.6 の 7）
   refuseOpen(doc: string, reason: string, name: string): void;
+  // doc の保存待ちの変更を保存し終えるまで待つ（開いていなければすぐ返る。set の確かめの前。H5）
+  flush(doc: string): Promise<void>;
 }
 
 export function createAnswers(ctx: AnswersContext) {
@@ -74,6 +76,8 @@ export function createAnswers(ctx: AnswersContext) {
     const send = poster(url);
     if (!await released()) return send({ busy: true });
     try {
+      // ボタンを離した直後の変更（ドラッグなど）を先に保存する。set は答えのあとにファイルを読み直して書き換えを当て直すので、消えない（H5）
+      if (!open) await ctx.flush(doc);
       const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) return send({ error: `${res.status}` });
       const next = await res.json() as Diagram;
