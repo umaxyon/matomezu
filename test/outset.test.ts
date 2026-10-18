@@ -45,11 +45,11 @@ test("テーマを付箋紙にすると、ノーマルの形は補正値の分�
   expect(info(g, 1).w).toBe(before[0]!.w);
 });
 
-test("形 × サイズの全組: 補正値はノーマルの形にだけ、サイズごとの値（上下, 左右）で効き、内包のページでは左上を保つ", () => {
+test("形 × サイズの全組: 補正値はテーマの 1 つの値で、ノーマルの形のふつうの段にだけ効き（小さい段は効かせない。形のローカルなルール。D44）、内包のページでは左上を保つ", () => {
   const sticky = THEMES.find(t => t.id === "sticky")!;
   const was = sticky.outset;
-  // 上下と左右・サイズごとに違う値にする（取り違えれば失敗する）
-  sticky.outset = { L: [2, 6], M: [3, 5], S: [1, 7] };
+  // 上下と左右で違う値にする（取り違えれば失敗する）
+  sticky.outset = [3, 5];
   try {
     const sizes = ["L", "M", "S"] as const;
     // 紙（A3 横）に収まるように 9 列に並べる（紙に収まらない図は開かない。docs/PAPER-plan.md の 4.6 の 7）
@@ -60,8 +60,8 @@ test("形 × サイズの全組: 補正値はノーマルの形にだけ、サ�
     const before = nodes.map(n => ({ c: topLeft(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h }));
     g.update(null, { theme: "sticky" });
     nodes.forEach((n, k) => {
-      const normal = SHAPE_DEFS[n.shape].kind === "normal";
-      const [v, hz] = normal ? sticky.outset![n.size]! : [0, 0];
+      const on = SHAPE_DEFS[n.shape].kind === "normal" && n.size !== "S";
+      const [v, hz] = on ? sticky.outset! : [0, 0];
       const now = { c: topLeft(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h };
       expect([n.shape, n.size, now.w - before[k]!.w, now.h - before[k]!.h]).toEqual([n.shape, n.size, 2 * hz, 2 * v]);
       expect([n.shape, n.size, now.c]).toEqual([n.shape, n.size, before[k]!.c]);

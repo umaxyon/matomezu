@@ -80,7 +80,7 @@ test("フローチャートで横に置く分岐を下げる量は、戦略の�
 
 test("テーマの補正値は、テーマの outset の値だけで決まり、内包のページでは左上を保つ（ページの起点。PAPER-plan の 4.6）", () => {
   const sticky = THEMES.find(t => t.id === "sticky")!;
-  withValue(sticky, "outset", { M: [10, 6] }, () => {
+  withValue(sticky, "outset", [10, 6], () => {
     const { graph } = setup({ nodes: [{ id: 1, caption: "箱", x: 100, y: 100 }] });
     const before = info(graph, 1);
     graph.update(null, { theme: "sticky" });

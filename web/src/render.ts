@@ -13,7 +13,7 @@ import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listHeightOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
-  sizeOf, sizeRuleOf, slantOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
+  sizeRuleOf, slantOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
 } from "./model";
 import { OVERFLOWS, PATTERN_LABELS, SHAPES } from "./validate";
 import { shapeDef } from "./shapes";
@@ -110,7 +110,6 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const { color, own } = ctx.paintOf(n); // own: データの色（値か名前）で塗っているか
     const group = isNesting(n);
     const arrange = arrangeOf(n);
-    const size = sizeOf(n);
     const rule = sizeRuleOf(n); // 大きさの決まり（size-rules.ts。D44）
     const fill = fillOf(n);
 
@@ -126,7 +125,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     // 見た目の補正値（テーマとサイズから。ノーマルの形だけ。docs/LAYOUT-BASE-plan.md）。箱の中の余白に足して描き（graph-style.ts の
     // --mz-out-x / --mz-out-y）、配置はこれを足した大きさ（足跡）で決まる。値が変わっても位置は動かさない
     // （どこを保って広がるかはページの起点。layout.ts の regrow。docs/PAPER-plan.md の 4.6）
-    const [oy, ox] = !group && shapeDef(shape).kind === "normal" ? theme.outset?.[size] ?? [0, 0] : [0, 0];
+    const [oy, ox] = !group && rule.outset ? theme.outset ?? [0, 0] : [0, 0];
     head.style.setProperty("--mz-out-y", oy + "px");
     head.style.setProperty("--mz-out-x", ox + "px");
     // 形の数値（形の表 shapes.ts）を CSS へ渡す: 斜めの辺の食い込み（文字の左右の余白に足す）と、文字を折り返す幅の割合（ひし形・円）

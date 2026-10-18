@@ -37,13 +37,13 @@ export const DEFAULT_RULE: SizeRule = {
 
 // ふつうの形（と、文字の大きさから形を決めるひし形・円・絵の形）のローカルな段の表。データの size を読むのはここだけ。
 // 段の名前は形のローカルなもので、土台・ほかの層には出てこない（4.8）
-type Step = Pick<SizeRule, "fixedH" | "titleMax" | "body" | "look" | "oneLine" | "alignable"> & { minW: number; maxW: number; h: number };
-const PLAIN_STEP = { fixedH: false, titleMax: Infinity, body: true, look: "normal", oneLine: true, alignable: true } as const;
+type Step = Pick<SizeRule, "fixedH" | "titleMax" | "body" | "look" | "oneLine" | "alignable" | "outset"> & { minW: number; maxW: number; h: number };
+const PLAIN_STEP = { fixedH: false, titleMax: Infinity, body: true, look: "normal", oneLine: true, alignable: true, outset: true } as const;
 export const STEPS: Record<Size, Step> = {
   L: { ...PLAIN_STEP, minW: 120, maxW: 400, h: 64 },
   M: { ...PLAIN_STEP, minW: 120, maxW: 240, h: 64 },
-  // 小さい段: 高さ固定・短い名前（10 文字）の札。本文・1 行にするは持たず、子のサイズをそろえる対象にもしない
-  S: { minW: 64, maxW: 96, h: 44, fixedH: true, titleMax: 10, body: false, look: "small", oneLine: false, alignable: false },
+  // 小さい段: 高さ固定・短い名前（10 文字）の札。本文・1 行にするは持たず、子のサイズをそろえる対象にもしない。テーマの補正値も効かせない
+  S: { minW: 64, maxW: 96, h: 44, fixedH: true, titleMax: 10, body: false, look: "small", oneLine: false, alignable: false, outset: false },
 };
 
 // 段を当てる形のローカルなルール（形の表の値と合わせる）
@@ -53,7 +53,7 @@ function shapeRule(def: ShapeDef, step: Size, r: SizeRule): SizeRule {
     ...r,
     textW: { min: z.minW, max: z.maxW }, minH: z.h, fixedH: z.fixedH, titleMax: z.titleMax,
     body: def.body && z.body, look: z.look, oneLine: z.oneLine, alignable: z.alignable,
-    outset: def.kind === "normal",
+    outset: def.kind === "normal" && z.outset,
     slant: def.slant[step], artScale: def.art?.scale[step] ?? 1,
   };
 }

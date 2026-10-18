@@ -21,7 +21,7 @@ function setup(data: Diagram) {
 const info = (id: number) => graph!.info(id) as BoxInfo;
 const A4 = PAPERS["a4-landscape"];
 const PAD = DEFAULTS.padding;
-const [, OX] = THEMES.find(t => t.id === "sticky")!.outset!.M!;
+const [, OX] = THEMES.find(t => t.id === "sticky")!.outset!;
 
 test("紙の右端にぴったりの箱も、付箋紙にすると左へ押し込まれて収まる（今までは断っていた。E6）", () => {
   const w = setup({ nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }] }).info(1).w;
