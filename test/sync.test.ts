@@ -12,6 +12,7 @@ let seq = 0;
 let fileVersion = "";
 let putGate: Promise<void> | null = null; // これが解決するまで PUT の応答を返さない
 let puts: string[] = [];
+let putKinds: (string | null)[] = []; // 保存の印（X-Matomezu-Save。layout は計算の書き戻し。D44）
 
 function writeFile(text: string) {
   file = text;
@@ -34,6 +35,7 @@ const realFetch = globalThis.fetch;
 beforeEach(() => {
   writeFile(JSON.stringify({ nodes: [{ id: 1, x: 20, y: 20 }, { id: 2, x: 300, y: 20 }] }));
   puts = [];
+  putKinds = [];
   putGate = null;
   globalThis.fetch = (async (_url: string, init?: RequestInit) => {
     if (init?.method === "PUT") {
@@ -42,6 +44,7 @@ beforeEach(() => {
       if (match !== fileVersion) return new Response("file changed", { status: 409, headers: { ETag: fileVersion } });
       writeFile(String(init.body));
       puts.push(String(init.body));
+      putKinds.push(new Headers(init.headers).get("X-Matomezu-Save"));
       const written = fileVersion;
       if (putGate) await putGate;
       return new Response(null, { status: 204, headers: { ETag: written } });
@@ -322,15 +325,20 @@ test("紙の外の箱を押し込んで開いたら、押し込んだ位置を�
   // アプリと同じく、裏で読み込んでから前に出す（app.ts の openBook と activate。前に出したときに表示する）
   const el = document.createElement("div");
   document.body.appendChild(el);
-  const g = graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d) });
+  const g = graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d), onLayoutWrite: (d: Diagram) => sync?.layoutChanged(d) });
   sync = startSync(g, "", (await fetchRemote(""))!, { error: () => {}, clearError: () => {} }, { active: false });
   sync.setActive(true);
   await settle();
   expect(puts).toHaveLength(1);
+  expect(putKinds).toEqual(["layout"]); // 計算の書き戻しの印（サーバーはユーザーの保存として扱わない）
   const x = JSON.parse(puts[0]!).nodes[0].x;
   expect(x).toBe(g.info(1).x);
   expect(x).toBeLessThan(1123);
   expect(g.history().canUndo).toBe(false);
+  // ユーザーが変えた保存には印を付けない
+  g.update(1, { caption: "直した" });
+  await settle();
+  expect(putKinds).toEqual(["layout", null]);
 });
 
 test("読み直したファイルが紙に収まらなければ、前の表示を残して知らせ、直るまで保存を止める。表示した版にはしない", async () => {

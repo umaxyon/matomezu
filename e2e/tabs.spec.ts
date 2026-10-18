@@ -364,8 +364,10 @@ test("マスターの追加削除: 一覧の行を窓へ落とすと、そのブ
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   writeFileSync(join(dir, "f.json"), JSON.stringify({ world: { childView: "flow" }, nodes: [{ id: 1, caption: "開始", x: 40, y: 40 }] }));
   writeFileSync(join(dir, "a.json"), JSON.stringify({ ...onA3(example("nested")), world: { title: "入れ子の例", paper: "a3-landscape" } }));
-  const before = readFileSync(join(dir, "a.json"), "utf8");
   await page.goto(run("open", "-no-browser", "a.json").trim());
+  // 開くと画面が計算した大きさと位置を書き戻す（D44 の段階 4）。比べる元は、書き戻しが済んだあとの内容
+  await expect.poll(() => readFileSync(join(dir, "a.json"), "utf8").includes('"width"')).toBe(true);
+  const before = readFileSync(join(dir, "a.json"), "utf8");
   await arrive(page, "p.json");
   await arrive(page, "f.json");
   await page.locator("#master").click();
@@ -863,6 +865,21 @@ test("紙に収まらないブックは開かない: open は理由を返して�
   await expect(next.locator(".mz-toast-error")).toHaveText(/^!ブック「wide.json」を開けませんでした\s*原因：ページ幅オーバー（\d+px）$/);
   await expect(next.locator(".tab-name", { hasText: "wide.json" })).toHaveCount(0);
   await expect.poll(listed).toBe(false);
+});
+
+test("開いたとき・外の変更を読んだとき、画面は計算した大きさを書き戻す。計算の書き戻しは LLM の変更に上書きの印を付けない（D44 の段階 4）", { tag: "@d44" }, async ({ page }) => {
+  const file = join(dir, "sizes.json");
+  writeFileSync(file, JSON.stringify({ nodes: [{ id: 1, caption: "大きさの無い箱", x: 40, y: 40 }], edges: [] }));
+  await page.goto(run("open", "-no-browser", "sizes.json").trim());
+  await expect(selected(page)).toHaveText("sizes.json");
+  const box = () => (JSON.parse(readFileSync(file, "utf8")) as { nodes: { id: number; caption: string; width?: number; height?: number }[] }).nodes[0]!;
+  await expect.poll(() => box().width).toBeGreaterThan(0);
+  const w0 = box().width!;
+  // LLM がキャプションを長くした → 画面が計算し直して幅を書き戻す。LLM の変更（キャプション）に上書きの印は付かない
+  run("set", "sizes.json", "1.caption=キャプションをずっと長くした大きさの無い箱");
+  await expect.poll(() => box().width).toBeGreaterThan(w0);
+  expect(box().caption).toBe("キャプションをずっと長くした大きさの無い箱");
+  expect(run("history", "sizes.json")).not.toContain("overwritten");
 });
 
 // matomezu が誤りで終わったときの出力（run は誤りで例外を投げる）

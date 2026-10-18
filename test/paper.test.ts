@@ -51,7 +51,7 @@ test("開いたとき、紙の外に書かれた箱は形を変えずに紙の�
   const el = document.createElement("div");
   document.body.appendChild(el);
   graph = createGraph(el, { nodes: [{ id: 1, caption: "中", x: 40, y: 40 }, { id: 2, caption: "外", x: w + 100, y: 40 }] },
-    { measureText: fakeMeasure, paper: true, onChange: d => changes.push(d) });
+    { measureText: fakeMeasure, paper: true, onLayoutWrite: d => changes.push(d) });
   const b = graph.info(2);
   expect([b.x, b.y]).toEqual([w - DEFAULTS.padding - b.w, 40]); // 右の端まで、横にだけ押し込む
   expect(graph.info(1).x).toBe(40);
@@ -59,9 +59,13 @@ test("開いたとき、紙の外に書かれた箱は形を変えずに紙の�
   expect(graph.history().canUndo).toBe(false);
   expect(graph.misfits()).toEqual([]);
   expect(summarize(graph.geometry()).split("\n")[0]).toMatch(new RegExp(`^paper a4-landscape ${w}x${PAPERS["a4-landscape"].h}, content \\d+x\\d+ → fits`));
-  // 紙の中だけなら書き戻さない
+  // 計算した大きさ（width・height）が無ければ、それも書き戻す（D44 の段階 4）
   graph.load({ nodes: [{ id: 1, caption: "中", x: 40, y: 40 }] });
-  expect(changes).toHaveLength(1);
+  expect(changes).toHaveLength(2);
+  expect([changes[1]!.nodes[0]!.width, changes[1]!.nodes[0]!.height]).toEqual([graph.info(1).w, graph.info(1).h]);
+  // 読んだデータが並べた結果と同じなら、書き戻さない
+  graph.load(changes[1]!);
+  expect(changes).toHaveLength(2);
 });
 
 // 横に並んだ 12 個の箱（A4 横の幅 1123 に、間隔の下限 8px を詰めても入らない）

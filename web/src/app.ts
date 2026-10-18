@@ -439,6 +439,7 @@ export async function startApp(ui: AppUi) {
       let book: Book | null = null;
       const { graph, panel, minimap } = mountDiagram(stage, side, { nodes: [] }, {
         onChange: data => { book?.sync.changed(data); if (book) refreshPages(book); },
+        onLayoutWrite: data => book?.sync.layoutChanged(data), // 計算の書き戻し（履歴に積まない。D44）
         onHistory: () => { if (book && current?.book === book) refreshButtons(book); },
         onEvent: ev => {
           if (!book || current?.book !== book) return;

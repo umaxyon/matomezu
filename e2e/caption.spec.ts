@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 import { openDiagram, openBoxDialog, openSide } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
-  await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 300, y: 40 }] });
+  // B はダイアログ（真ん中に出る）に隠れない左端に置く（後ろの箱を押してもダイアログの外を押したことになるように）
+  await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 300, y: 40 }, { id: 2, caption: "B", x: 12, y: 40 }] });
 });
 
 const caption = (page: import("@playwright/test").Page, id: number) => page.locator(`.mz-node[data-id="${id}"] > .mz-head .mz-text`);

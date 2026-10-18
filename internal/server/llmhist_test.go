@@ -119,3 +119,37 @@ func TestLLMHistory(t *testing.T) {
 		t.Fatalf("after delete = %+v", got)
 	}
 }
+
+// 計算の書き戻し（X-Matomezu-Save: layout。画面が大きさや押し込んだ位置を計算し直して書いただけ）は、ユーザーの保存として扱わない:
+// まだ見ていない LLM の変更と同じ項目を書いても、「ユーザーが上書きした」印を付けない（D44 の 4.3）
+func TestLayoutSaveIsNotAUserSave(t *testing.T) {
+	hub, ts, _ := setupStoreHub(t)
+	p := filepath.Join(t.TempDir(), "a.json")
+	os.WriteFile(p, []byte(`{"nodes":[{"id":1,"caption":"A","x":0}]}`), 0o644)
+	res, err := hub.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := ts.URL + "/d/" + res.ID
+	entries := func() []LLMEntry {
+		var out struct{ Entries []LLMEntry }
+		json.NewDecoder(do(t, "GET", base+"/api/llm", "", nil).Body).Decode(&out)
+		return out.Entries
+	}
+	version := func() string { return strings.Trim(do(t, "GET", base+"/api/data", "", nil).Header.Get("ETag"), `"`) }
+	version()
+	// LLM が位置を紙の外に書いた
+	os.WriteFile(p, []byte(`{"nodes":[{"id":1,"caption":"A","x":5000}]}`), 0o644)
+	v := version()
+	if got := entries(); len(got) != 1 {
+		t.Fatalf("after LLM = %+v", got)
+	}
+	// 画面が押し込んで書き戻した（計算の書き戻し）→ 印を付けない
+	r := do(t, "PUT", base+"/api/data", `{"nodes":[{"id":1,"caption":"A","x":1000,"width":120,"height":64}]}`, map[string]string{"If-Match": `"` + v + `"`, "X-Matomezu-Save": "layout"})
+	if r.StatusCode != http.StatusNoContent {
+		t.Fatalf("put = %d", r.StatusCode)
+	}
+	if got := entries(); len(got) != 1 || len(got[0].Overwritten) != 0 {
+		t.Fatalf("layout save marked the LLM change: %+v", got)
+	}
+}

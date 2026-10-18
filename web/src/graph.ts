@@ -200,6 +200,9 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   // 縮図だけを読む見えない図（offscreen-scene.ts の layoutScene）は、描くページだけにして軽くする
   judgePages?: boolean;
   onChange?: (data: Diagram) => void;
+  // 計算の書き戻し（D44 の段階 4。docs/BOX-SIZE-plan.md の 4.2・4.3）: 開いたとき・外の変更を読んだときに計算した大きさや、紙の外から押し込んだ位置が、
+  // 読んだデータと違えば、その状態で呼ぶ。ユーザーの変更ではないので、履歴（Undo・LLM の履歴）に積まずに保存する（sync.ts の layoutChanged）
+  onLayoutWrite?: (data: Diagram) => void;
   onSelect?: (info: Info) => void;
   onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
   onEvent?: (ev: GraphEvent) => void;         // 図で起きたこと（付け替えた、消したなど）。文言と画面の方針は notices.ts
@@ -1689,8 +1692,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       H.reset();
       U.clear();
     }
-    // 紙の外の箱を押し込んだら、その位置をファイルに書き戻す（2026-10-18 ユーザー。履歴には積まない。開いた状態が出発点）
-    if (moved) opt.onChange?.(api.toJSON());
+    // 計算した大きさ（全部の箱の width・height）と、紙の外から押し込んだ位置が、読んだデータと違えば書き戻す（履歴には積まない。開いた状態が出発点。
+    // 2026-10-18 ユーザー。D44 の段階 4）。同梱のフォントで測るので、どの画面で開いても同じ値になり、書き戻しが行き来しない
+    const out = api.toJSON();
+    if (moved || layoutDiffers(newData, out)) opt.onLayoutWrite?.(out);
+  }
+
+  // 読んだデータと、並べたあとのデータで、箱の大きさ・位置が違うか（書き戻すか）
+  function layoutDiffers(input: unknown, out: Diagram): boolean {
+    const nodes = (input as Diagram | null)?.nodes;
+    if (!Array.isArray(nodes)) return false;
+    const before = new Map(nodes.map(n => [String(n?.id), n]));
+    return out.nodes.some(n => {
+      const b = before.get(String(n.id));
+      return !b || (["width", "height", "x", "y"] as const).some(k => b[k] !== n[k]);
+    });
   }
 
   // 外部の変更を読み直すとき、画面にだけある位置（保存されない）を使う。使わないと読み直すたびに動いてしまう。

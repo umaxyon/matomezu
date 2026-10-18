@@ -24,7 +24,7 @@ const maxBody = 16 << 20
 // doc は1つの図の JSON ファイルを、画面と LLM の間で同期させる。
 //
 //	GET  api/data    ファイルの中身。ETag に版（中身のハッシュ）、X-Matomezu-Name にファイル名を入れる
-//	PUT  api/data    画面からの保存。If-Match の版が今のファイルと違えば 409 を返す
+//	PUT  api/data    画面からの保存。If-Match の版が今のファイルと違えば 409 を返す。X-Matomezu-Save: layout は計算の書き戻し（ユーザーの保存として扱わない。D44）
 //
 // 版の変更は Hub の通知（hub.go の /api/events）で画面へ知らせる。
 // ファイルの変更は、画面が開いているあいだ Hub が一定間隔で読み直し（poll）、中身のハッシュを比べて見つける。
@@ -212,7 +212,9 @@ func (d *doc) putData(w http.ResponseWriter, r *http.Request) {
 	if cur != nil {
 		d.sawFile(cur, "")
 	}
-	if d.onUserSave != nil && d.last != nil {
+	// 計算の書き戻し（画面が大きさや押し込んだ位置を計算し直して書いただけ。X-Matomezu-Save: layout）は、ユーザーの保存として扱わない
+	// （LLM の変更に「ユーザーが上書きした」印を付けない。D44 の 4.3。docs/BOX-SIZE-plan.md）
+	if d.onUserSave != nil && d.last != nil && r.Header.Get("X-Matomezu-Save") != "layout" {
 		d.onUserSave(d.id, d.last, b)
 	}
 	d.last = b

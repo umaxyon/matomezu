@@ -60,6 +60,8 @@ export async function fetchRemote(base: string): Promise<Remote | null> {
 export interface Sync {
   // 画面での変更を知らせる（createGraph の onChange から呼ぶ）
   changed(data: Diagram): void;
+  // 計算の書き戻しを知らせる（createGraph の onLayoutWrite から呼ぶ。D44）。ユーザーの保存として扱わないよう、印を付けて保存する
+  layoutChanged(data: Diagram): void;
   // サーバーから知らされたファイルの版（引用符なし）
   notify(version: string): void;
   // 見ているタブか。前に出たら、届いていた変更を読み直し、配置の要約を送る
@@ -78,6 +80,7 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
   let saving = false;
   let loading = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let userChange = false;      // 次の保存にユーザーの変更が入っているか（無ければ計算の書き戻しだけ。X-Matomezu-Save: layout）
 
 
 
@@ -132,10 +135,12 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
     if (saving || loading) { schedule(); return; }
     saving = true;
     const prev = version;
+    const layoutOnly = !userChange;
+    userChange = false;
     try {
       const res = await fetch(base + "api/data", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "If-Match": version },
+        headers: { "Content-Type": "application/json", "If-Match": version, ...(layoutOnly ? { "X-Matomezu-Save": "layout" } : {}) },
         body: formatDiagram(graph.toJSON()),
       });
       const etag = res.headers.get("ETag");
@@ -186,6 +191,11 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
 
   return {
     changed() {
+      if (blocked) return;
+      userChange = true;
+      schedule();
+    },
+    layoutChanged() {
       if (blocked) return;
       schedule();
     },
