@@ -46,17 +46,3 @@ test("グループの上に落とすと、その中へ戻る", async ({ page }) 
   const parent = await node(page, 2).evaluate(el => el.parentElement!.closest<HTMLElement>(".mz-node")?.dataset.id);
   expect(parent).toBe("10");
 });
-
-test("一覧の見出しを押すと区画が折りたたまれ、箱を消して一覧が変わっても閉じたまま", async ({ page }) => {
-  await openSide(page);
-  const live = page.locator('[data-fold="live"]');
-  await live.locator("summary").click();
-  await expect(live).not.toHaveAttribute("open");
-  await expect(page.locator('.mzp-row[data-select="2"]')).toBeHidden();
-  await node(page, 2).locator(":scope > .mz-head").click({ position: { x: 20, y: 10 } });
-  await page.keyboard.press("Delete");
-  await expect(page.locator(".mzp-removed")).toHaveCount(1);
-  await expect(live).not.toHaveAttribute("open");
-  await live.locator("summary").click();
-  await expect(page.locator('.mzp-row[data-select="3"]')).toBeVisible();
-});

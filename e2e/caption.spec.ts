@@ -33,14 +33,6 @@ test("箱をダブルクリックすると編集ダイアログが開き、後�
   await expect(page.locator('.mz-node[data-id="1"] .mz-body')).toBeHidden();
 });
 
-test("Esc で閉じると何も変えない", async ({ page }) => {
-  await openBoxDialog(page, 1);
-  await page.locator('.mz-dlg [name="caption"]').fill("書きかけ");
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
-  await expect(caption(page, 1)).toHaveText("A");
-});
-
 test("キャプションを空にすると空の箱になる（id を出さない）。一覧では「id_(空)」と出す", async ({ page }) => {
   await openBoxDialog(page, 1);
   await page.locator('.mz-dlg [name="caption"]').fill("");

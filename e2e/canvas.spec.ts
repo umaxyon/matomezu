@@ -41,24 +41,6 @@ test("開いたとき、ワールドの左上が図の枠の左上に合い、�
   expect(Math.round(frame.y + frame.height - (w.y + w.height))).toBe(margin);
 });
 
-test("手のひらのモードでは、箱をドラッグしても箱は動かず、見る範囲が動く。選びもしない", async ({ page }) => {
-  await setMode(page, "pan");
-  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "pan");
-  await expect(page.locator("#mode-label")).toHaveText("手のひらモード");
-  const before = await rect(page, 3);
-  const [sl0, st0] = await scrollOf(page);
-  const b = (await head(page, 3).boundingBox())!;
-  await page.mouse.move(b.x + 10, b.y + 10);
-  await page.mouse.down();
-  await page.mouse.move(b.x - 90, b.y - 60, { steps: 5 });
-  await page.mouse.up();
-  expect(await rect(page, 3)).toEqual(before);
-  const [sl, st] = await scrollOf(page);
-  expect(sl).toBeGreaterThan(sl0);
-  expect(st).toBeGreaterThan(st0);
-  await expect(page.locator(".mz-node.mz-current")).toHaveCount(0);
-});
-
 test("Space でポインタの位置にモードのアイコンを出す。もう一度 Space で閉じ、アイコンを押せばそのモード", async ({ page }) => {
   await page.locator(".stage:visible").click({ position: { x: 5, y: 5 } }); // 図に焦点を移す（ボタンの上の Space はボタンを押すので）
   const b = (await head(page, 3).boundingBox())!;

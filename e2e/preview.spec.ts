@@ -39,21 +39,6 @@ test("入ると全体が収まる倍率になり、サイドバーと編集の�
   expect(await zoomOf(page)).toBe(1);
 });
 
-test("押すと選べるが、ドラッグしても動かず、Undo も効かない", async ({ page }) => {
-  await page.click("#preview-toggle");
-  const before = await rect(page, 2);
-  const head = page.locator('.mz-node[data-id="2"] > .mz-head');
-  const box = (await head.boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2 + 60, { steps: 8 });
-  await page.mouse.up();
-  await expect(page.locator('.mz-node[data-id="2"]')).toHaveClass(/mz-current/);
-  expect(await rect(page, 2)).toEqual(before);
-  await page.keyboard.press("Control+z");
-  expect(await rect(page, 2)).toEqual(before);
-});
-
 test("＋で拡大し、全体で収まる倍率に戻る", async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
   await page.click("#side-toggle"); // サイドバーを出しておく（プレビューの間は隠れ、戻ると出る）

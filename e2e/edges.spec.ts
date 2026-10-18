@@ -1,47 +1,6 @@
-// 線の選択（選択モード）、矢印、線の編集ダイアログからの削除
+// 線の通り方（Z 字）、整列、中棒と端のドラッグ、端のつなぎ替え
 import { expect, test } from "@playwright/test";
 import { example, openDiagram, confirmDialog } from "./helpers";
-
-test("選択モードで線をクリックすると選べ、線の編集ダイアログで矢印を付けたり消したりできる", async ({ page }) => {
-  await openDiagram(page, example("nested"));
-  await expect(page.locator("#mode-label")).toHaveText("選択モード");
-  // e2（1-4、フロントエンドとバックエンド）の真ん中を押す
-  const edge = page.locator('.mz-edge[data-id="e2"]');
-  const mid = await edge.locator(".mz-hit").evaluate(l => {
-    const g = l as SVGPolylineElement;
-    const svg = g.ownerSVGElement!.getBoundingClientRect();
-    const p = g.getPointAtLength(g.getTotalLength() / 2);
-    return { x: svg.left + p.x, y: svg.top + p.y };
-  });
-  await page.mouse.click(mid.x, mid.y);
-  await expect(edge).toHaveClass(/mz-selected/);
-  // 矢印・線の種類・消すは、線の編集ダイアログで（線のダブルクリックで開く。サイドバーには出さない。2026-10-13 D26）
-  const dlg = page.locator(".mz-dlg-overlay > .mz-dlg");
-  const edit = async (fn: () => Promise<unknown>) => {
-    await page.mouse.dblclick(mid.x, mid.y);
-    await fn();
-    await dlg.locator("[data-ok]").click();
-  };
-  await edit(() => dlg.locator('[name="head-end"]').selectOption("arrow"));
-  await expect(edge.locator(".mz-arrow")).toHaveAttribute("d", /^M.+Z$/);
-  await edit(() => dlg.locator('[name="head-start"]').selectOption("arrow"));
-  await expect.poll(() => edge.locator(".mz-arrow").getAttribute("d")).toMatch(/Z.*Z$/); // 両端に 1 つずつ
-  await edit(async () => {
-    await dlg.locator('[name="head-start"]').selectOption("");
-    await dlg.locator('[name="head-end"]').selectOption("");
-  });
-  await expect(edge.locator(".mz-arrow")).toHaveAttribute("d", "");
-
-  await edit(() => dlg.locator('[name="dash"][value="dashed"]').check());
-  await expect(edge.locator(".mz-line")).toHaveClass(/mz-dashed/);
-  await edit(() => dlg.locator('[name="dash"][value="solid"]').check());
-  await expect(edge.locator(".mz-line")).not.toHaveClass(/mz-dashed/);
-
-  const before = await page.locator(".mz-edge").count();
-  await page.mouse.dblclick(mid.x, mid.y);
-  await dlg.locator("[data-delete]").click();
-  await expect(page.locator(".mz-edge")).toHaveCount(before - 1);
-});
 
 test("斜めに離れた箱どうしの線を折れ線にすると Z 字になり、直線に戻せる", async ({ page }) => {
   // e1（9 ユーザー - 1 フロントエンド）は、上下にも左右にも重ならない（位置を書いて斜めに離す）

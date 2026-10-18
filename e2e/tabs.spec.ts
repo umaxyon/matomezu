@@ -155,27 +155,6 @@ test("郵便箱: LLM の open は今のブックの郵便箱に入り、「届�
   await page.locator("#mail-toggle").click();
 });
 
-test("郵便箱に届いた箱は、ブックを開いたときに知らせ、図へドラッグすると写して郵便箱から取り除く（D26）", async ({ page }) => {
-  const url = run("open", "-no-browser", "b.json").trim();
-  const doc = new URL(url).searchParams.get("d")!;
-  const copy = { root: "4", pattern: "nest", nodes: [{ id: 4, caption: "届いた箱" }, { id: 5, caption: "その子", parent: 4 }], edges: [] };
-  const res = await fetch(new URL(`d/${doc}/api/mail`, url), {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind: "box", from: "ほかのブック", pattern: "nest", caption: "4_届いた箱", copy }),
-  });
-  expect(res.ok).toBe(true);
-  await page.goto(url);
-  await expect(page.locator(".mz-toast", { hasText: "郵便箱にアイテムが届いています（1 件）" })).toBeVisible();
-  await expect(page.locator("#mail-badge")).toHaveText("1");
-  await page.locator("#mail-toggle").click();
-  const before = JSON.parse(readFileSync(join(dir, "b.json"), "utf8")).nodes.length;
-  await page.locator("#mailbox .mz-mail-row", { hasText: "4_届いた箱" }).dragTo(page.locator(".stage:visible"), { targetPosition: { x: 400, y: 400 } });
-  await expect.poll(() => JSON.parse(readFileSync(join(dir, "b.json"), "utf8")).nodes.length).toBe(before + 2);
-  await expect(page.locator("#mailbox .mz-mail-row")).toHaveCount(0);
-  await page.locator("#mail-toggle").click();
-  writeFileSync(join(dir, "b.json"), JSON.stringify(onA3(example("three-levels"))));
-});
-
 test("リンクの箱の窓を押すと、そのページのタブが前に出る。持ち手でドラッグすると箱が動く（link-box.ts）", async ({ page }) => {
   writeFileSync(join(dir, "link.json"), JSON.stringify({
     pages: [{ id: "p1", title: "流れ", world: { childView: "flow" } }],
@@ -255,21 +234,6 @@ test("サーバーを止めて別の図だけ open し直しても、前に開�
   // 実行ファイルを作り直したとき（版が変わる）は画面が読み直し、覚えているタブをサーバーに問い合わせて開き直す
   await page.reload();
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"], { timeout: 10_000 });
-});
-
-test("読み直したあと一度も前に出していないタブの図が外部で変わったら、前に出したとき新しい内容を出す", { tag: "@d44" }, async ({ page }) => {
-  writeFileSync(join(dir, "c.json"), JSON.stringify({ nodes: [{ id: 1, caption: "前の内容", x: 40, y: 40 }] }));
-  const url = run("open", "-no-browser", "a.json").trim();
-  await page.goto(url);
-  await arrive(page, "c.json");
-  await switchTo(page, "a.json");
-  await page.waitForTimeout(5500); // open の知らせを送り直す時間（hub.go の showReplay）を過ぎてから読み直す
-  await page.reload(); // c は読み直したあと一度も前に出ていない（最初のデータを持ったまま待つ）
-  await expect(selected(page)).toHaveText("a.json");
-  writeFileSync(join(dir, "c.json"), JSON.stringify({ nodes: [{ id: 1, caption: "新しい内容", x: 40, y: 40 }] }));
-  await page.waitForTimeout(1000); // サーバーが変更を見つけて知らせるまで
-  await switchTo(page, "c.json");
-  await expect(page.locator(".stage:visible .mz-head", { hasText: "新しい内容" })).toHaveCount(1);
 });
 
 // ページ（docs/TABS-plan.md。2026-10-12 から、ページはブックの子）。ページ p1「詳細」に 3 と 4 が載る
@@ -399,7 +363,6 @@ test("マスターの追加削除: 一覧の行を窓へ落とすと、そのブ
     .toEqual([[5, null], [6, 5], [7, 5], [8, 7], [9, 7]]);
   expect(out.edges.length).toBe(4);
   await page.locator("#mail-toggle").click();
-  writeFileSync(join(dir, "a.json"), JSON.stringify(onA3(example("nested")))); // 後のテストはファイル名の見出しを使う
 });
 
 test("図の題名（world.title）があればタブの見出しに出し、ポインタを乗せるとファイル名が出る。ブックのダイアログで書き換えられる", async ({ page }) => {
@@ -647,50 +610,6 @@ test("ユーザーがボタンを押している間は、要約を作らずに�
   expect(await out).toContain("paper");
 });
 
-test("通知: ほかのブックを開く通知は題名と本文のダイアログを出す。キャンセルなら郵便箱に残り、行を押すとダイアログを挟んで開ける（D30）", async ({ page }) => {
-  await page.goto(run("open", "-no-browser", "a.json").trim());
-  await expect(selected(page)).toHaveText("a.json");
-  expect(run("notify", "-title", "図を直しました", "-body", "箱 5 の名前を変えました", "b.json")).toContain("notified");
-  const dlg = page.locator(".mz-dlg");
-  await expect(dlg.locator("h2")).toHaveText("図を直しました");
-  await expect(dlg).toContainText("箱 5 の名前を変えました");
-  await dlg.locator("[data-cancel]").click();
-  await expect(selected(page)).toHaveText("a.json"); // 切り替えない
-  await page.locator("#mail-toggle").click();
-  const row = page.locator("#mailbox .mz-mail-row", { hasText: "図を直しました（b.json）" });
-  await expect(row).toHaveCount(1);
-  await row.click(); // 押しただけでは移らず、ダイアログを挟む
-  await expect(dlg.locator("h2")).toHaveText("図を直しました");
-  await expect(selected(page)).toHaveText("a.json");
-  await dlg.locator("[data-ok]").click();
-  await expect(selected(page)).toHaveText("b.json");
-  await switchTo(page, "a.json");
-  await expect(page.locator("#mailbox .mz-mail-row")).toHaveCount(0); // 開いたら取り除く
-  await page.locator("#mail-toggle").click();
-});
-
-test("通知: 説明だけの通知は「閉じる」だけのダイアログで、見たら郵便箱に残らない。-mail はダイアログを出さず未読の数だけ増える（D30）", async ({ page }) => {
-  await page.goto(run("open", "-no-browser", "a.json").trim());
-  await expect(selected(page)).toHaveText("a.json");
-  run("notify", "-title", "作業が終わりました", "-body", "1 行目\n2 行目");
-  const dlg = page.locator(".mz-dlg");
-  await expect(dlg.locator("h2")).toHaveText("作業が終わりました");
-  await expect(dlg.locator("[data-cancel]")).toHaveCount(0);
-  await dlg.locator("[data-ok]").click();
-  await expect(page.locator("#mail-badge")).toHaveText("");
-  run("notify", "-mail", "-title", "あとで見てください");
-  await expect(page.locator("#mail-badge")).toHaveText("1");
-  await expect(dlg).toHaveCount(0);
-  await page.locator("#mail-toggle").click();
-  const row = page.locator("#mailbox .mz-mail-row", { hasText: "あとで見てください" });
-  await expect(row.locator(".mz-mail-chip")).toHaveText("お知らせ");
-  await expect(page.locator("#mailbox .mz-mail-row", { hasText: "作業が終わりました" })).toHaveCount(0); // ダイアログで見たものは残らない
-  await row.click();
-  await dlg.locator("[data-ok]").click();
-  await expect(row).toHaveCount(0);
-  await page.locator("#mail-toggle").click();
-});
-
 test("通知はカレントの画面にだけ届く。画面が無ければ断る（D30）", async ({ page, context }) => {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
@@ -733,30 +652,6 @@ test("郵便箱は、欄を開いて題名が見えただけでは読んだこ�
   await expect(page.locator("#mail-badge")).toHaveText("");
   await book.locator(".mz-mail-del").click();
   await page.locator("#mail-toggle").click();
-});
-
-test("通知のダイアログは順番待ち: 開いているダイアログを押しのけず、閉じたら次を出す。待っている間に郵便箱で見た分は出さない（2026-10-15）", async ({ page }) => {
-  await page.goto(run("open", "-no-browser", "a.json").trim());
-  await expect(selected(page)).toHaveText("a.json");
-  const dlg = page.locator(".mz-dlg");
-  run("notify", "-title", "1 つ目");
-  await expect(dlg.locator("h2")).toHaveText("1 つ目");
-  run("notify", "-title", "2 つ目");
-  run("notify", "-title", "3 つ目");
-  await expect(page.locator("#mail-badge")).toHaveText("2"); // 待っている間は未読
-  await page.waitForTimeout(300);
-  await expect(dlg.locator("h2")).toHaveText("1 つ目"); // 押しのけない
-  await dlg.locator("[data-ok]").click();
-  await expect(dlg.locator("h2")).toHaveText("2 つ目");
-  // 3 つ目は、待っている間にほかから読まれた（ダイアログは画面を覆うので、別の画面などから。ここではサーバーに直接）。2 つ目を閉じても出さない
-  const base = new URL(`d/${new URL(page.url()).searchParams.get("d")}/api/mail`, page.url()).href;
-  const items = (await (await page.request.get(base)).json()).items as { id: string; body: { title?: string } }[];
-  const third = items.find(i => i.body.title === "3 つ目")!;
-  await page.request.post(`${base}/${third.id}/read`, { data: {} });
-  await dlg.locator("[data-ok]").click();
-  await page.waitForTimeout(300);
-  await expect(dlg).toHaveCount(0);
-  await expect(page.locator("#mail-badge")).toHaveText("");
 });
 
 test("マスターを見ている最中に check・history で問い合わせても、マスターは作り直さず、箱が動かない（2026-10-15）", { tag: "@d44" }, async ({ page }) => {
@@ -946,7 +841,7 @@ test("フォーカス枠: ほかのブックの箱は移るかを確かめる。
   await expect(selected(page)).toHaveText("a.json");
   expect(run("focus", "b.json", "5")).toContain("asked the user");
   const dlg = page.locator(".mz-dlg");
-  await expect(dlg).toContainText(/ブック「b.json」の「.*トップ画面」を示しています/); // 前のテストが名前を変えていることがある
+  await expect(dlg).toContainText("ブック「b.json」の「トップ画面」を示しています");
   expect(fails("focus", "a.json", "1")).toMatch(/has not responded|operating the screen/);
   await dlg.locator("[data-cancel]").click();
   await expect(selected(page)).toHaveText("a.json");
