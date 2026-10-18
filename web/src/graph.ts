@@ -674,9 +674,20 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function reveal(n: Box) {
     const m = drawnBox(n);
     if (!m) return;
+    revealInLists(m.el);
     const r = m.el.getBoundingClientRect(), v = viewRectOf(container);
     if (r.left >= v.left && r.top >= v.top && r.right <= v.right && r.bottom <= v.bottom) return;
     scrollToCenter(container, r, "smooth");
+  }
+
+  // el を囲むスクロールのリスト（D33）を、el が見える所まですぐスクロールする（図の枠は動かさない。そのあとの reveal が図を動かす。残課題図の H2）
+  function revealInLists(el: HTMLElement) {
+    for (let p = el.parentElement; p && p !== container; p = p.parentElement) {
+      if (p.scrollHeight <= p.clientHeight || !/(auto|scroll)/.test(getComputedStyle(p).overflowY)) continue;
+      const r = el.getBoundingClientRect(), s = p.getBoundingClientRect();
+      if (r.top < s.top) p.scrollTop -= s.top - r.top;
+      else if (r.bottom > s.bottom) p.scrollTop += Math.min(r.bottom - s.bottom, r.top - s.top);
+    }
   }
 
   function select(n: Box | null) {
