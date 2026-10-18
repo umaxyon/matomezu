@@ -16,7 +16,8 @@
 // SCENES の外にある決まり（どの場面でも同じか、表の値では表せない手順のもの）:
 //   - ぶつかった相手は、同じ x のまま下へ、相手の端のちょうど gap 先へずらす（placeGroup + spotBelow + slide）
 //   - 位置の無い箱は、最上位なら円形に並べてから近くの空きへ（placeAutoRoots + findFreeSpot）、グループの中なら左上から格子状に空きを探す（findGridSpot）
-//   - 押し下げられた箱は、上が空いたら本来いたい高さ（intendedY）へ戻す
+//   - 押し下げられた箱は本来いたい位置を変えない。上が空いたら、次の regrow で本来いたい位置へ戻る（戻すのは regrow だけ。D48）
+//   - 本来いたい位置（intendedX・intendedY）を決めるのは土台だけ（adoptMoved・markPlaced・fromPrior。D48）。操作の側は箱を動かすだけ
 //   - 開いたとき・読み直しでも押せずに残った重なり（大きさの分からない箱、前から重なっていた組）は、下へずらす（settleFromData の最後の段）
 //   - ツリーとリストの子の並べ方は node-kinds.ts（子の位置は自分では決めない）
 //   - ドラッグ中は settle を使わず、drag.ts の DragSession が開始時の写しから毎回決め直す（入れ替えは 4 分の 1 食い込んでから）。
@@ -66,6 +67,8 @@ export interface LayoutContext {
   fitted?(n: Box): void;
   // 開いたとき・読み直し・Undo で、押す前の大きさ（D45）: データの width・height、無ければ直前に画面に出ていた大きさ。どちらも無ければ undefined（土台の最小）
   priorSize?(n: Box): { w: number; h: number } | undefined;
+  // 読み直し・Undo で、直前の画面から引き継ぐ本来いたい位置（D45）: 位置も親も画面に出ていたときのままの箱だけ。無ければ undefined（今の位置）
+  priorHome?(n: Box): { x: number; y: number } | undefined;
 }
 
 export type Layout = ReturnType<typeof createLayout>;
@@ -202,6 +205,36 @@ export function createLayout(ctx: LayoutContext) {
   let holdPlaced = false;
   const isPlaced = (o: Box) => !unplaced.has(o);
 
+  // ---- 本来いたい位置（intendedX・intendedY）の決まり（D48。2026-10-19 ユーザー: 土台を固める） ----
+  // 本来いたい位置から離れてよいのは、土台が押した箱（regrow の押し、重なりを下へずらす）だけ。決めるのはこの 3 つだけで、操作の側は触らない:
+  //   adoptMoved: 並べ直しの初めに、土台が最後に並べ終えた位置（placedX・placedY）から動いている箱は、土台の外で動かされた
+  //               （ドラッグ・ドロップ・置き直し・詰め直し）ので、今の位置を本来いたい位置にする（片方の向きだけ動かしても、置いた位置全体が意図）
+  //   markPlaced: 並べ終えたら、今の位置を覚える（自由に置かれる箱だけ。並べ方が決まる箱は、自由に置かれたときに今の位置から始める）
+  //   fromPrior:  開いたとき・読み直し・Undo は、直前の画面から引き継ぐ（ctx.priorHome）か、データの位置
+  // 土台の中で、押すのではなく置き直す所（空きに置く・整列・押し込み・開いたときの採用）は、そこで本来いたい位置も決める
+  const isFree = (b: Box) => inNest(b) && b.hasPos;
+  function adoptMoved() {
+    for (const b of allBoxes()) {
+      if (Math.abs(b.x - b.placedX) <= 0.5 && Math.abs(b.y - b.placedY) <= 0.5) continue;
+      [b.intendedX, b.intendedY] = [b.x, b.y];
+    }
+  }
+  function markPlaced() {
+    for (const b of allBoxes()) [b.placedX, b.placedY] = isFree(b) ? [b.x, b.y] : [NaN, NaN];
+  }
+  function fromPrior() {
+    for (const b of allBoxes()) {
+      const home = ctx.priorHome?.(b);
+      [b.intendedX, b.intendedY] = home ? [home.x, home.y] : [b.x, b.y];
+    }
+    markPlaced();
+  }
+  // 今の位置と本来いたい位置を覚え、戻す関数を返す（つまみで幅を変える間、開始時から毎回決め直すため。resizers.ts）
+  function hold(): () => void {
+    const saved = allBoxes().map(b => [b, b.x, b.y, b.intendedX, b.intendedY, b.placedX, b.placedY] as const);
+    return () => { for (const [b, ...v] of saved) [b.x, b.y, b.intendedX, b.intendedY, b.placedX, b.placedY] = v; };
+  }
+
   function refitAncestors(n: Box) {
     for (const p of ancestors(n)) fit(p);
   }
@@ -318,25 +351,14 @@ export function createLayout(ctx: LayoutContext) {
     return slide(n, sx, sy, "down", Infinity) ?? [x, y];
   }
 
-  // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす（押し下げる。本来いたい高さは変えない）。
+  // 位置指定のあるものを優先して1つずつ置き、重なるものは空きへ逃がす（押し下げる。本来いたい位置は変えない）。
   // first を指定すると、それを最初に置く（変更したボックスをその場に残し、相手の方をずらすため）。
-  // 本来いたい高さより下にいるボックスは、ほかを置いたあとで、本来いたい高さから今の高さまでの一番上の空きへ戻す
-  // （押し下げた相手が縮んだら戻るように）
+  // 押し下げた箱を戻すのはここではなく regrow（本来いたい位置から押すので、相手が縮めば戻る。D48 で 1 か所にした）
   function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box) {
     for (const n of list) unplaced.add(n);
     const rest = list.filter(n => n !== first);
-    // 押し下げられた箱は後から置き直す（上が空いていれば戻す）。開いたとき・読み直しの最後のずらし（settleFromData）では、押したのは
-    // regrow（本来いたい位置から押した）なので後回しにしない（後回しにすると、押した相手の下へ回り込む）
-    const below = (n: Box) => !fromData && n.hasPos && n.y > n.intendedY + 0.5;
-    const pushed = rest.filter(below).sort((a, b) => a.intendedY - b.intendedY);
-    const order = (first && list.includes(first) ? [first] : [])
-      .concat(rest.filter(n => n.hasPos && !below(n)), pushed, rest.filter(n => !n.hasPos));
+    const order = (first && list.includes(first) ? [first] : []).concat(rest.filter(n => n.hasPos), rest.filter(n => !n.hasPos));
     for (const n of order) {
-      // 押し下げは同じ x のまま下へずらすものなので、戻すときも今の x のまま上へ戻すだけにする
-      if (n !== first && !holdPlaced && below(n)) {
-        const back = slide(n, n.x, clamp(n, n.x, n.intendedY)[1], "down", n.y);
-        if (back) [n.x, n.y] = back;
-      }
       // 紙の外にある最上位の箱（ファイルに書かれた位置）は、ここでは寄せない。1 つずつ紙の端へ寄せると、隣と重なって押し下げられる（折り返す）。
       // 並べたあとで fitPaper が、形を変えずに紙の内側へ押し込む（docs/PAPER-plan.md の 4.6 の 7）
       if (!outsideFixed(n)) [n.x, n.y] = clamp(n, n.x, n.y);
@@ -443,6 +465,7 @@ export function createLayout(ctx: LayoutContext) {
   function settle(scene: Scene, changed?: Box, apply?: () => void) {
     apply?.();
     if (scene.fromData) return settleFromData(scene);
+    adoptMoved();
     // 変えた節点と祖先はその場に残し、ぶつかる相手の方を動かす（others）。later なら後から置くものが動く
     const keep = changed && scene.yieldTo === "others" ? new Set([changed, ...ancestors(changed)]) : undefined;
     roots().forEach(r => settleNode(r, keep));
@@ -454,6 +477,7 @@ export function createLayout(ctx: LayoutContext) {
     syncWorld();
     if (scene.fitViewport) fitToViewport();
     if (scene.adoptPlaced) for (const b of roots().flatMap(r => [r, ...descendants(r)])) [b.intendedX, b.intendedY] = [b.x, b.y];
+    markPlaced();
   }
 
   // 開いたとき・読み直し・Undo（D45。2026-10-19 ユーザー）: ユーザーの操作と同じ決まり（regrow）で並べる。
@@ -468,6 +492,7 @@ export function createLayout(ctx: LayoutContext) {
   function settleFromData(scene: Scene) {
     fromData = true;
     try {
+      fromPrior();
       holdPlaced = true;
       try { settleSteps(); } finally { holdPlaced = false; }
       // 紙の外に書かれた箱があれば、ここで押し込まれる（fitPaper が「押し込んだ」と答えて、呼んだ側がファイルに書き戻せるよう覚える）
@@ -479,6 +504,7 @@ export function createLayout(ctx: LayoutContext) {
       // 開いたとき（前の画面が無い）は、並べた結果が出発点（押した位置が本来いたい位置。あとで上が空いても上がらない。docs/LAYOUT-PENDING.md の 3）。
       // 読み直し・Undo は、画面から引き継いだ本来いたい位置を保つ（相手が縮めば戻る。graph.ts の buildNode）
       if (scene.adoptPlaced) for (const b of allBoxes()) [b.intendedX, b.intendedY] = [b.x, b.y];
+      markPlaced();
     } finally { fromData = false; }
   }
   function settleSteps() {
@@ -503,11 +529,11 @@ export function createLayout(ctx: LayoutContext) {
   }
 
   // 並べ直しの前の、箱ごとの位置と大きさ（id で引く。作り直し（graph.ts の rebuildWith）で箱が作り直されても引けるように）
-  type Snapshot = Map<string, { x: number; y: number; w: number; h: number; ix: number; iy: number; parent: string | null; free: boolean; holds: boolean }>;
+  type Snapshot = Map<string, { x: number; y: number; w: number; h: number; ix: number; iy: number; px: number; py: number; parent: string | null; free: boolean; holds: boolean }>;
   const allBoxes = () => roots().flatMap(r => [r, ...descendants(r)]);
   function snapshot(): Snapshot {
     return new Map(allBoxes().map(b => [b.id, {
-      x: b.x, y: b.y, w: b.w, h: b.h, ix: b.intendedX, iy: b.intendedY, parent: b.parent?.id ?? null,
+      x: b.x, y: b.y, w: b.w, h: b.h, ix: b.intendedX, iy: b.intendedY, px: b.placedX, py: b.placedY, parent: b.parent?.id ?? null,
       free: inNest(b) && b.hasPos, holds: kindOf(b).holdsChildren,
     }]));
   }
@@ -516,7 +542,7 @@ export function createLayout(ctx: LayoutContext) {
     for (const b of allBoxes()) {
       const p = prior.get(b.id);
       if (!p || !p.free || p.parent !== (b.parent?.id ?? null) || !inNest(b)) continue;
-      [b.x, b.y, b.intendedX, b.intendedY] = [p.x, p.y, p.ix, p.iy];
+      [b.x, b.y, b.intendedX, b.intendedY, b.placedX, b.placedY] = [p.x, p.y, p.ix, p.iy, p.px, p.py];
     }
   }
   // 押した所（今の n の位置）に置くときの、置ける所の候補（よい順。docs/PAPER-plan.md の 4.6 の追加）。今ある箱は動かさない:
@@ -568,7 +594,7 @@ export function createLayout(ctx: LayoutContext) {
 
   // グループの子として入れる（貼り付け・一覧から戻す・移植・付け替え。docs/PAPER-plan.md の 4.7）: 中の左上に置く。
   // ふさがっていれば、ほかの子全体を並びを保ったまま、入るのに必要な分だけ下へずらす（当たらない子も一緒に）。
-  // ずらした位置が子の新しい位置（本来いたい位置）で、入れた箱を消しても戻さない
+  // ずらした位置が子の新しい位置（本来いたい位置。このあとの regrow の adoptMoved）で、入れた箱を消しても戻さない
   function putTopLeft(n: Box) {
     const c = n.parent;
     if (!c || !inNest(n)) return;
@@ -581,10 +607,7 @@ export function createLayout(ctx: LayoutContext) {
       if (k.x < n.x + n.w + g && n.x < k.x + k.w + g) d = Math.max(d, n.y + n.h + g - k.y);
     }
     if (d <= 0) return;
-    for (const k of kids) {
-      k.y += d;
-      [k.intendedX, k.intendedY] = [k.x, k.y];
-    }
+    for (const k of kids) k.y += d;
   }
 
   // regrow が最後に断ったときの、入らなかった向き・端から端へつながった最上位の箱の列・足りない px（収まれば null）
@@ -603,6 +626,7 @@ export function createLayout(ctx: LayoutContext) {
     const all = allBoxes;
     const prior = o.prior ?? snapshot();
     apply();
+    adoptMoved();
     // 前から自由に置かれていた箱（同じ親のまま）だけ、前の大きさを使う（新しく自由に置かれる箱は、今の位置と大きさから始める）。
     // 子を自由に置く箱になったばかりの箱（非表示・リストから内包に戻した）と、子を置いたばかりの入れ物も、子の位置から決まる大きさから始める
     const before = new Map<Box, { w: number; h: number; holds: boolean }>(); // holds: 子を自由に置く箱だったか
@@ -662,6 +686,7 @@ export function createLayout(ctx: LayoutContext) {
     const refit = (n: Box) => { n.children.forEach(refit); if (kindOf(n).holdsChildren) fit(n); };
     roots().forEach(refit);
     syncWorld();
+    markPlaced();
     return "fits";
   }
 
@@ -753,8 +778,7 @@ export function createLayout(ctx: LayoutContext) {
       unplaced.add(g);
     }
     for (const g of kids) {
-      [g.x, g.y] = slide(g, g.x, g.y, dir)!;
-      [g.intendedX, g.intendedY] = [g.x, g.y]; // 詰め直した位置が、本来いたい位置になる
+      [g.x, g.y] = slide(g, g.x, g.y, dir)!; // 詰め直した位置が、本来いたい位置になる（settle の apply の中なので adoptMoved）
       unplaced.delete(g);
     }
     fit(k);
@@ -797,7 +821,7 @@ export function createLayout(ctx: LayoutContext) {
     kindOf, anchorRect, absAnchorRect, centerX, fit, refitAncestors,
     clamp, overlaps, collides, isPlaced,
     findGridSpot, findFreeSpot, placeGroup, settleNode, settleRoots, spotBelow,
-    settle, regrow, fitPaper, snapshot, restoreFrom, dropSpots, putTopLeft, fitToViewport, viewport, alignKids,
+    settle, regrow, fitPaper, snapshot, restoreFrom, hold, dropSpots, putTopLeft, fitToViewport, viewport, alignKids,
     sizable, alignChildren,
   };
 }

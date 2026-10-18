@@ -476,6 +476,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const was = shownBefore.get(n.id);
       return was ? { w: was.w, h: was.h } : undefined;
     },
+    // 読み直し・Undo で、位置も親も画面に出ていたときのまま（LLM が動かしていない）なら、本来いたい位置も引き継ぐ
+    // （押されていた箱は、相手が縮めば元へ戻る。書き戻したファイルの位置は押された位置なので、データだけでは分からない。D45）
+    priorHome: n => {
+      const was = shownBefore.get(n.id);
+      if (!was || !n.hasPos || was.parent !== (n.parent?.id ?? null) || Math.round(n.x) !== was.x || Math.round(n.y) !== was.y) return undefined;
+      return { x: was.ix, y: was.iy };
+    },
   });
   // 読み直す直前に画面に出ていた箱（読み直し・Undo の間だけ。D45）: 押す前の大きさの手がかりと、本来いたい位置を引き継ぐため
   let shownBefore = new Map<string, { x: number; y: number; w: number; h: number; ix: number; iy: number; parent: string | null }>();
@@ -489,7 +496,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
   // つまみで大きさを変える（本文の幅・リストの幅・リストの高さ。resizers.ts）
   const Z = createResizers({
-    nodes: () => nodes, snapshot: () => L.snapshot(), changed, notifySelect,
+    snapshot: () => L.snapshot(), hold: () => L.hold(), changed, notifySelect,
     regrow: (n, prior) => { const ok = L.regrow(() => {}, n, { prior }) !== "refused"; render(); return ok; },
   });
   // 線の追加・削除・変更・つなぎ直し（graph-edges.ts）
@@ -864,10 +871,11 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       // 箱を置いた先（足した・貼った・戻した・付け替えた先）は、置いた子を詰めずに中身から決まる大きさから始める
       const put = n?.parent && (into || r.drop !== undefined || prior.get(n.id)?.parent !== n.parent.id) ? [n.parent] : [];
       let fits = false;
+      // 置いた箱は、置いた位置が本来いたい位置（regrow の changed）
+      const placedBox = n && (into || r.drop !== undefined) ? n : undefined;
       for (const [x, y] of n ? spots : [[0, 0] as [number, number]]) {
         if (n) [n.x, n.y] = [x, y];
-        if (n && (into || r.drop !== undefined)) [n.intendedX, n.intendedY] = [n.x, n.y];
-        if (L.regrow(() => {}, undefined, { prior, placed: put }) !== "refused") { fits = true; break; }
+        if (L.regrow(() => {}, placedBox, { prior, placed: put }) !== "refused") { fits = true; break; }
       }
       if (!fits) notFitting = true;
       render();
@@ -877,8 +885,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         settle(SCENES.drop, n);
         render();
       }
-      n.intendedY = n.y;
-      n.intendedX = n.x;
     }
     select(n);
     changed();
@@ -1430,8 +1436,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       k.hasPos = Number.isFinite(k.src.x) && Number.isFinite(k.src.y);
       k.x = Number(k.src.x) || 0;
       k.y = Number(k.src.y) || 0;
-      k.intendedY = k.y;
-      k.intendedX = k.x;
     }
   }
 
@@ -1690,19 +1694,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       hasPos: Number.isFinite(src.x) && Number.isFinite(src.y),
       intendedY: Number(src.y) || 0,
       intendedX: Number(src.x) || 0,
+      placedX: NaN, placedY: NaN,
       capW: 0,
       listW: 0, kidsTop: 0, fullH: 0, kidsEl: null,
       bodyH: 0,
       el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, heightGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,
     };
     boxOfEl.set(el, n);
-    // 読み直し・Undo で、位置が画面に出ていたときのまま（LLM が動かしていない）なら、本来いたい位置も引き継ぐ
-    // （押されていた箱は、相手が縮めば元へ戻る。書き戻したファイルの位置は押された位置なので、データだけでは分からない。D45）
-    const was = shownBefore.get(n.id);
-    if (was && n.hasPos && was.parent === (src.parent == null ? null : String(src.parent)) && Math.round(n.x) === was.x && Math.round(n.y) === was.y) {
-      n.intendedX = was.ix;
-      n.intendedY = was.iy;
-    }
     return n;
   }
 

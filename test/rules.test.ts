@@ -112,3 +112,20 @@ test("段（S・M・L）の名前を比べる判定と、段の値の表を読�
   }
   expect(over).toEqual([]);
 });
+
+// 本来いたい位置（intendedX・intendedY）と、土台が最後に並べ終えた位置（placedX・placedY）を書き換えるのは、配置の土台（layout/）だけ
+// （D48。2026-10-19 ユーザー: 土台を固める）。操作の側は箱を動かすだけで、土台が並べ直すときに決める（layout.ts の adoptMoved）。
+// 土台の外で書いてよいのは、箱を作るときの初めの値（graph.ts の buildNode）だけ
+test("本来いたい位置を書き換えるのは配置の土台だけ", () => {
+  const WRITE = /\b(intended|placed)[XY]\s*[+-]?=(?!=)|\[[^\]]*\.(intended|placed)[XY][^\]]*\]\s*=(?!=)/g;
+  const BUILD = /^\s*(intended|placed)[XY]: /gm; // 箱を作るときの初めの値（オブジェクトの項目）
+  const over: string[] = [];
+  for (const f of files(SRC)) {
+    const name = relative(SRC, f).replaceAll("\\", "/");
+    if (name.startsWith("layout/")) continue;
+    const text = readFileSync(f, "utf8").replace(BUILD, "");
+    const hits = text.match(WRITE) ?? [];
+    if (hits.length) over.push(`${name}: ${hits.join(" / ")}`);
+  }
+  expect(over).toEqual([]);
+});

@@ -420,8 +420,6 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         // 押し出された箱の線も、粘らずに一番よい形を追う（A5）
         ctx.resetRoutes([...fresh], session.displaced(), n);
         if (n.x !== ox || n.y !== oy) moved = true;
-        n.intendedY = n.y; // 手で置いた位置が、本来いたい位置になる
-        n.intendedX = n.x;
         render();
         syncWorld(); // 図の端へ寄せたら、図を広げてその先へスクロールできるようにする
         if (!reached) blocked(n);
@@ -433,13 +431,10 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         unfocus();
         if (started) holdWorld(false);
         if (!moved || !session) return;
-        // 手を離したときの位置で確定する。どいた箱は、どいた先が本来いたい位置になる
-        // （離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
+        // 手を離したときの位置で確定する。手で置いた位置と、どいた箱のどいた先が本来いたい位置になる（このあとの並べ直しの adoptMoved。
+        // 離れても戻さない。2026-09-28 にユーザーと決めた。docs/LAYOUT-PENDING.md の 6）
         session.finish();
         ctx.settleRoutes(n);
-        n.intendedY = n.y;
-        n.intendedX = n.x;
-        for (const b of session.displaced()) { b.intendedY = b.y; b.intendedX = b.x; }
         // 重なりが残っていれば直す。どちらでも、置いたあとの位置で文字の箱の折り返しを決め直す（ドラッグを始めた位置で決めた幅を残さない。
         // Undo・Redo で読み直したときと同じ幅になる。残課題図の H7）
         if (session.overlapping()) ctx.drop(n);
