@@ -4,6 +4,7 @@ import { openBookDialog } from "../web/src/book-dialog";
 import { closeEditDialog } from "../web/src/edit-dialog";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { Diagram } from "../web/src/types";
+import { DEFAULT_PAPER, PAPER_NAMES, PAPERS } from "../web/src/validate";
 import { fakeMeasure } from "./helpers";
 
 const graphs: Graph[] = [];
@@ -90,4 +91,27 @@ test("今描いているページの一回きりの操作は、押すと印が�
   ok();
   expect(g.toJSON().pages![0]!.world?.kidSize).toBe("S");
   expect(g.toJSON().nodes.filter(n => n.page === "p1").map(n => n.size)).toEqual(["S", "S"]);
+});
+
+test("紙の型: 今のページを小さな紙にして収まらなければ閉じずに知らせ、紙は変わらない。見ていないページは縦横とも今以上の紙だけ選べる（D33）", () => {
+  // 横に 7 つ並んだ箱（A4 横には入るが、A5 横には間隔を詰めても入らない。docs/PAPER-plan.md の 4.6 の 7）
+  const row = Array.from({ length: 7 }, (_, i) => ({ id: 10 + i, caption: `横${i + 1}`, x: 40 + i * 140, y: 40 }));
+  const g = setup({ pages: [{ id: "p2", title: "二枚目" }], nodes: [...row, { id: 2, caption: "二枚目の箱", page: "p2" }] } as Diagram);
+  expect(g.misfits()).toEqual([]);
+  openBookDialog(g, "design.json");
+  // 見ていないページ（二枚目、既定の紙）: 縦横とも今の紙以上の型だけ。今のページは全部の型
+  const now = PAPERS[DEFAULT_PAPER];
+  const choices = (key: string) => [...pane(key).querySelectorAll<HTMLOptionElement>('[name="paper"] option')].map(o => o.value);
+  expect(choices("p2")).toEqual(PAPER_NAMES.filter(n => PAPERS[n].w >= now.w && PAPERS[n].h >= now.h));
+  expect(choices("p2")).not.toContain("a5-landscape");
+  expect(choices("")).toEqual([...PAPER_NAMES]);
+  // 今のページを A5 横にすると、7 つの並びが入らないので確定できない
+  pane("").querySelector<HTMLSelectElement>('[name="paper"]')!.value = "a5-landscape";
+  ok();
+  expect(dlg()).not.toBeNull();
+  expect(dlg().closest(".mz-dlg-overlay")!.querySelector(".mz-dlg-refused")!.textContent).toContain("紙に収まらない");
+  dlg().querySelector<HTMLElement>("[data-cancel]")!.click();
+  expect(document.querySelector(".mz-dlg")).toBeNull();
+  expect(g.paper()).toEqual({ name: DEFAULT_PAPER, w: now.w, h: now.h });
+  expect(g.toJSON().world?.paper).toBeUndefined();
 });

@@ -7,6 +7,8 @@ import { PaperMisfit } from "../web/src/paper-misfit";
 import { summarize } from "../web/src/report";
 import { DEFAULT_PAPER, PAPERS, problems } from "../web/src/validate";
 import type { Diagram } from "../web/src/types";
+import { closeEditDialog } from "../web/src/edit-dialog";
+import { mountDiagram } from "../web/src/view";
 import { dragBy, fakeMeasure } from "./helpers";
 
 let graph: Graph | null = null;
@@ -178,4 +180,30 @@ test("リストの高さの上限（listHeight）: そこで止まり、隠れ�
   graph.update(1, { listHeight: null });
   expect(graph.info(1).h).toBeGreaterThan(200);
   expect(graph.toJSON().nodes.find(n => n.id === 1)!.listHeight).toBeUndefined();
+});
+
+test("追加モードで紙の外（周りの余白の上）を押しても、箱は足せない。影は足せない印になり、足すダイアログも開かない。紙の中なら開く", () => {
+  const { w, h } = PAPERS["a5-landscape"];
+  const stage = document.createElement("div"), side = document.createElement("div");
+  document.body.append(stage, side);
+  const g = graph = mountDiagram(stage, side, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }] }, { measureText: fakeMeasure }).graph;
+  // この DOM には位置の計算が無いので、図の枠（周りの余白を含む）と紙の位置を決め打ちする（紙は枠の左上から 50 の所）
+  const rect = (left: number, top: number, rw: number, rh: number) => () => new DOMRect(left, top, rw, rh);
+  stage.getBoundingClientRect = rect(0, 0, w + 200, h + 200);
+  stage.querySelector<HTMLElement>(".mz-world")!.getBoundingClientRect = rect(50, 50, w, h);
+  g.setMode("add");
+  const at = (type: string, x: number, y: number) =>
+    (type === "pointermove" ? window : stage.querySelector(".mz-world")!).dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0, pointerId: 1 }));
+  // 紙の右の外（図の枠の中）
+  at("pointermove", 50 + w + 40, 150);
+  expect(stage.querySelector(".mz-add-ghost")!.classList.contains("mz-ghost-no")).toBe(true);
+  at("pointerdown", 50 + w + 40, 150);
+  expect(document.querySelector(".mz-dlg")).toBeNull();
+  expect(stage.querySelectorAll(".mz-node")).toHaveLength(1);
+  // 紙の中なら足せる（足すダイアログが開く）
+  at("pointermove", 300, 300);
+  expect(stage.querySelector(".mz-add-ghost")!.classList.contains("mz-ghost-no")).toBe(false);
+  at("pointerdown", 300, 300);
+  expect(document.querySelector(".mz-dlg")).not.toBeNull();
+  closeEditDialog();
 });

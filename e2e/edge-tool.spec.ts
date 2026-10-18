@@ -123,8 +123,3 @@ test("同じ箱に戻して離すと自分に戻る線。離した所に近い�
   expect(Math.max(...pts.map(p => p[1]!))).toBeGreaterThan(b.y + b.h);
   expect(Math.max(...pts.map(p => p[0]!))).toBeLessThan(b.x + b.w / 2);
 });
-
-test("ツールバーに線モードのボタンは無い", async ({ page }) => {
-  await openDiagram(page, data());
-  await expect(page.locator('[data-mode="link"]')).toHaveCount(0);
-});

@@ -48,32 +48,6 @@ test("区画と行を描き、行につないだ線は行の高さで左右に�
 
 const dlg = (page: import("@playwright/test").Page) => page.locator(".mz-dlg-overlay > .mz-dlg");
 
-test("ダイアログで形をクラスにすると、右側がクラスの入力に変わる。行を足して確定すると描く", async ({ page }) => {
-  await openDiagram(page, { nodes: [{ id: 1, caption: "Order", x: 40, y: 60 }] });
-  await head(page, 1).dblclick();
-  await dlg(page).locator('label:has(input[name="shape"][value="class"])').click();
-  await expect(dlg(page).locator('[data-pane="class"]')).toBeVisible();
-  await expect(dlg(page).locator('[data-pane="box"]')).toBeHidden();
-  await expect(dlg(page).locator("[data-caption-label]")).toHaveText("クラス名");
-  await expect(dlg(page).locator('[name="size"][value="L"]')).toBeDisabled();
-  await dlg(page).locator('[data-add="attrs"]').click();
-  const row = dlg(page).locator('[data-list="attrs"] .mz-dlg-mrow').last();
-  await row.locator('[name="m-name"]').fill("total");
-  await row.locator('[name="m-type"]').fill("int");
-  await row.locator('[name="m-access"]').selectOption("private");
-  await dlg(page).locator('[data-add="ops"]').click();
-  const op = dlg(page).locator('[data-list="ops"] .mz-dlg-mrow').last();
-  await op.locator('[name="m-name"]').fill("pay");
-  await op.locator('[name="m-params"]').fill("amount: int");
-  await op.locator('[name="m-static"]').check();
-  await dlg(page).locator('[name="abstract"]').check();
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/class-dialog.png` });
-  await dlg(page).locator("[data-ok]").click();
-  await expect(head(page, 1).locator(".mz-class-row")).toHaveText(["- total: int", "pay(amount: int)"]);
-  await expect(head(page, 1).locator(".mz-class-row").last()).toHaveClass(/mz-static/);
-  await expect(head(page, 1)).toHaveClass(/mz-class-abstract/);
-});
-
 test("名前が重なると確定できない。クラスを別の形にすると確認が出て、キャンセルなら元のまま", async ({ page }) => {
   await openDiagram(page, data());
   await head(page, 2).dblclick();
@@ -218,14 +192,4 @@ test("線の端をドラッグすると、一番近い接点へつなぎ替え�
   s = (await screenPts(page))[0]!;
   const g = (await user.locator('[data-member="groupId"]').boundingBox())!;
   expect(Math.abs(s[1]! - (g.y + g.height / 2))).toBeLessThanOrEqual(1.5);
-});
-
-test("折れ線の途中の区間（腹）や端の丸をダブルクリックしても、線の編集ダイアログが開く", async ({ page }) => {
-  await openDiagram(page, memberLine());
-  await page.locator('.mz-edge[data-id="e1"] .mz-hit').click({ force: true });
-  await page.locator('.mz-edge[data-id="e1"] .mz-bend').first().dblclick({ force: true });
-  await expect(dlg(page).locator("h2")).toHaveText("線の編集");
-  await page.keyboard.press("Escape");
-  await page.locator('.mz-edge[data-id="e1"] .mz-ends circle').last().dblclick({ force: true });
-  await expect(dlg(page).locator("h2")).toHaveText("線の編集");
 });

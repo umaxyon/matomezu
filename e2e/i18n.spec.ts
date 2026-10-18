@@ -41,12 +41,4 @@ test.describe("ブラウザの言語が英語", () => {
     await expect(page.locator("#mode-label")).toHaveText("Select mode");
   });
 
-  test("言語を変えずに確定したら読み直さない", async ({ page }) => {
-    await openDiagram(page, data);
-    await page.evaluate(() => { (window as unknown as { mzMark: number }).mzMark = 1; }); // 読み直すと消える印
-    await openSettings(page);
-    await page.locator(".mz-dlg [data-ok]").click();
-    await expect(page.locator(".mz-dlg")).toHaveCount(0);
-    expect(await page.evaluate(() => (window as unknown as { mzMark?: number }).mzMark)).toBe(1);
-  });
 });

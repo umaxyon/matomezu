@@ -87,16 +87,6 @@ test("右ボタンではドラッグを始めない。手のひらモードの�
   await expect(menu).toHaveCount(0);
 });
 
-test("箱のメニューの削除で、その箱を消す", async ({ page }) => {
-  await openDiagram(page, { nodes: [{ id: 1, caption: "消す箱", x: 40, y: 40 }, { id: 2, caption: "残す箱", x: 300, y: 40 }], edges: [] } as never);
-  await head(page, 1).click({ position: { x: 10, y: 8 }, button: "right" });
-  const del = page.locator(".mz-cmenu button").last();
-  await expect(del).toBeEnabled();
-  await del.click();
-  await expect(page.locator('.mz-node[data-id="1"]')).toHaveCount(0);
-  await expect(page.locator('.mz-node[data-id="2"]')).toHaveCount(1);
-});
-
 test("線のメニュー: 通り方の 2 段目で折れ線と直線を選び、削除は一番下", async ({ page }) => {
   await openDiagram(page, {
     nodes: [{ id: 1, caption: "左", x: 40, y: 40 }, { id: 2, caption: "右下", x: 400, y: 300 }],
@@ -136,24 +126,6 @@ test("線のメニュー: 通り方の 2 段目で折れ線と直線を選び、
   await rightClick();
   await top.last().click();
   await expect(edge).toHaveCount(0);
-});
-
-test("切り取り: メニューか Ctrl+X で写してから消し、貼ると戻る。Undo で戻せる", async ({ page }) => {
-  await openDiagram(page, { nodes: [{ id: 1, caption: "切る箱", x: 40, y: 40 }, { id: 2, caption: "入れ物", x: 400, y: 40 }, { id: 3, caption: "キーで切る箱", x: 40, y: 300 }], edges: [] } as never);
-  const menu = page.locator(".mz-cmenu");
-  await head(page, 1).click({ position: { x: 10, y: 8 }, button: "right" });
-  await menu.locator("button").nth(1).click();
-  await expect(page.locator('.mz-node[data-id="1"]')).toHaveCount(0);
-  // 入れ物の中に貼る
-  await head(page, 2).click({ position: { x: 10, y: 8 }, button: "right" });
-  await menu.locator("button").nth(3).click();
-  await expect(page.locator('.mz-node[data-id="2"] .mz-node > .mz-head')).toContainText("切る箱");
-  // Ctrl+X
-  await head(page, 3).click({ position: { x: 10, y: 8 } });
-  await page.keyboard.press("Control+x");
-  await expect(page.locator('.mz-node[data-id="3"]')).toHaveCount(0);
-  await page.keyboard.press("Control+z"); // 戻せる
-  await expect(page.locator('.mz-node[data-id="3"]')).toHaveCount(1);
 });
 
 test("線の端の近くか〇を右クリックすると「矢印」が設定の下に出て、2 段目でその端の形を選べる。真ん中では出ない", async ({ page }) => {
@@ -245,37 +217,4 @@ test("〇に線の端が重なっていれば、〇の右クリックは線の�
   await rightClickPort("t");
   await expect(page.locator('.mz-node[data-id="1"]')).toHaveClass(/mz-current/);
   await expect(top).toHaveCount(5);
-});
-
-test("一番上の「設定」: 箱は編集ダイアログ、線は線の編集ダイアログ、背景はブックのダイアログを開く", async ({ page }) => {
-  await openDiagram(page, {
-    nodes: [{ id: 1, caption: "左", x: 40, y: 40 }, { id: 2, caption: "右下", x: 400, y: 300 }],
-    edges: [{ id: "e1", from: 1, to: 2, route: "straight" }],
-  } as never);
-  const settings = page.locator(".mz-cmenu button").first();
-  const dlg = page.locator(".mz-dlg");
-  const close = async () => { await dlg.locator("[data-cancel]").click(); await expect(dlg).toHaveCount(0); };
-  // 箱
-  await head(page, 1).click({ position: { x: 10, y: 8 }, button: "right" });
-  await settings.click();
-  await expect(dlg.locator('[name="caption"]')).toHaveValue("左");
-  await expect(dlg.locator('[name="route"]')).toHaveCount(0);
-  await close();
-  // 線（真ん中）
-  const mid = await page.locator('.mz-edge[data-id="e1"] .mz-hit').evaluate(l => {
-    const g = l as SVGPolylineElement;
-    const svg = g.ownerSVGElement!.getBoundingClientRect();
-    const p = g.getPointAtLength(g.getTotalLength() / 2);
-    return { x: svg.left + p.x, y: svg.top + p.y };
-  });
-  await page.mouse.click(mid.x, mid.y, { button: "right" });
-  await settings.click();
-  await expect(dlg.locator('[name="route"]').first()).toBeVisible();
-  await close();
-  // 背景
-  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
-  await page.mouse.click(world.x + 300, world.y + 500, { button: "right" });
-  await settings.click();
-  await expect(dlg.locator('[name="book-title"]')).toHaveCount(1);
-  await close();
 });

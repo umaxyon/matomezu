@@ -12,7 +12,7 @@ import { anchorAt, keepAnchor } from "./viewport";
 
 const MIN = 0.1;
 const MAX = 4;
-const STEP = 1.25; // プレビューのボタン 1 回の倍率の変わり方
+export const STEP = 1.25; // プレビューのボタン 1 回の倍率の変わり方
 export const EDIT_ZOOMS = [0.5, 0.75, 1, 1.25]; // 編集中の倍率の段（D32。50% は A3 の紙を見るため。D33。2026-10-15 ユーザー）
 // 倍率 z で fits（その倍率で収まるか）でなければ、z より小さい段のうち収まる一番大きな段（どれでも収まらなければ一番小さい段）。
 // 収まれば z のまま（説明ツアーが箱を収める。D38）

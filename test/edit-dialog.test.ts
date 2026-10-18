@@ -8,6 +8,7 @@ import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
 import { SHAPE_GROUPS, SHAPE_LABELS, SHAPES } from "../web/src/validate";
 import { shapeIcon } from "../web/src/shape-icons";
+import { createPanel } from "../web/src/panel";
 
 let graph: Graph | null = null;
 afterEach(() => {
@@ -295,3 +296,18 @@ test("サイズを書くと、今と同じサイズでも大きさの指定を�
   expect(box(g, 1).size).toBe("S");
 });
 
+
+test("キャプションを空にすると空の箱になる（id を出さない）。一覧では「id_(空)」と出す", () => {
+  const { g, openDlg, dlg } = setup({ nodes: [{ id: 1, caption: "A", x: 300, y: 40 }, { id: 2, caption: "B", x: 12, y: 40 }] });
+  openDlg(1);
+  const cap = dlg<HTMLInputElement>('[name="caption"]')!;
+  cap.value = "";
+  cap.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  expect(dlg(".mz-dlg")).toBeNull();
+  expect(box(g, 1).caption).toBe("");
+  expect(document.querySelector('.mz-node[data-id="1"] > .mz-head .mz-text')!.textContent).toBe("");
+  const side = document.createElement("aside");
+  document.body.append(side);
+  createPanel(side, g).shown();
+  expect(side.querySelector('.mzp-row[data-select="1"] .mzp-row-cap')!.textContent).toBe("1_(空)");
+});

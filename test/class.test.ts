@@ -1,14 +1,17 @@
 // クラス図の形（docs/CLASS-plan.md）。データの検査、クラスにかかわる変更、描画と大きさ、線の接点
 import { afterEach, expect, test } from "bun:test";
 import { CLASS_HEAD, CLASS_PAD, CLASS_ROW, type ClassAttr, classEnd, classHeight, cleanMembers, memberY } from "../web/src/classbox";
+import { closeEditDialog, openEditDialog } from "../web/src/edit-dialog";
 import { applyClassEdit } from "../web/src/edits";
 import { createGraph, type Graph } from "../web/src/graph";
+import { mountDiagram } from "../web/src/view";
 import type { BoxData, BoxInfo, Diagram, EdgeData } from "../web/src/types";
 import { problems } from "../web/src/validate";
 import { fakeMeasure } from "./helpers";
 
 let graph: Graph | null = null;
 afterEach(() => {
+  closeEditDialog();
   graph?.destroy();
   graph = null;
   document.body.innerHTML = "";
@@ -126,4 +129,70 @@ test("子を持つ箱をクラスにすると、子は消したものの一覧�
   expect(graph.toJSON().nodes).toEqual([expect.objectContaining({ id: 1, shape: "class" })]);
   expect(graph.items().removed.map(i => i.id)).toEqual(["2", "3"]);
   expect(events).toContain("classKids");
+});
+
+// ダイアログの中の要素と、押す・選ぶ・書く
+const dlg = <T extends Element = HTMLElement>(sel: string) => document.querySelector<T>(`.mz-dlg-overlay > .mz-dlg ${sel}`);
+const click = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+const choose = (el: HTMLInputElement | HTMLSelectElement, value?: string | boolean) => {
+  if (typeof value === "boolean") (el as HTMLInputElement).checked = value;
+  else if (value != null) el.value = value;
+  else (el as HTMLInputElement).checked = true;
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+};
+// 形を選ぶ（形を選ぶ絵の並び。shape-picker.ts）。happy-dom の :checked は checked の属性も見るので、属性も移してから知らせる
+const pickShape = (shape: string) => {
+  for (const r of document.querySelectorAll<HTMLInputElement>('.mz-dlg-overlay input[name="shape"]')) r.toggleAttribute("checked", r.value === shape);
+  choose(dlg<HTMLInputElement>(`input[name="shape"][value="${shape}"]`)!);
+};
+const fill = (row: Element, name: string, value: string) => {
+  const input = row.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+  input.value = value;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+};
+
+test("ダイアログで形をクラスにすると、右側がクラスの入力に変わる（サイズは選べない）。行を足して確定すると描く", () => {
+  const { el, g } = setup({ nodes: [{ id: 1, caption: "Order", x: 40, y: 60 }] });
+  openEditDialog(g, "1");
+  pickShape("class");
+  expect(dlg('[data-pane="class"]')!.hidden).toBe(false);
+  expect(dlg('[data-pane="box"]')!.hidden).toBe(true);
+  expect(dlg("[data-caption-label]")!.textContent).toBe("クラス名");
+  expect(dlg<HTMLInputElement>('[name="size"][value="L"]')!.disabled).toBe(true);
+  click(dlg('[data-add="attrs"]')!);
+  const row = [...document.querySelectorAll('[data-list="attrs"] .mz-dlg-mrow')].at(-1)!;
+  fill(row, "m-name", "total");
+  fill(row, "m-type", "int");
+  choose(row.querySelector<HTMLSelectElement>('[name="m-access"]')!, "private");
+  click(dlg('[data-add="ops"]')!);
+  const op = [...document.querySelectorAll('[data-list="ops"] .mz-dlg-mrow')].at(-1)!;
+  fill(op, "m-name", "pay");
+  fill(op, "m-params", "amount: int");
+  choose(op.querySelector<HTMLInputElement>('[name="m-static"]')!, true);
+  choose(dlg<HTMLInputElement>('[name="abstract"]')!, true);
+  click(dlg("[data-ok]")!);
+  const head = el.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head')!;
+  const rows = [...head.querySelectorAll(".mz-class-row")];
+  expect(rows.map(r => r.textContent)).toEqual(["- total: int", "pay(amount: int)"]);
+  expect(rows.at(-1)!.classList.contains("mz-static")).toBe(true);
+  expect(head.classList.contains("mz-class-abstract")).toBe(true);
+});
+
+test("折れ線の途中の区間（腹）や端の丸をダブルクリックしても、線の編集ダイアログが開く", () => {
+  const stage = document.createElement("div"), side = document.createElement("div");
+  document.body.append(stage, side);
+  const g = graph = mountDiagram(stage, side, {
+    nodes: [
+      { id: 1, shape: "class", caption: "User", x: 40, y: 60, attrs: [{ name: "id" }, { name: "groupId" }] },
+      { id: 2, shape: "class", caption: "Group", x: 420, y: 200, attrs: [{ name: "id" }] },
+    ],
+    edges: [{ id: "e1", from: 1, to: 2, fromMember: "groupId", toMember: "id" }],
+  }, { measureText: fakeMeasure }).graph;
+  g.selectEdge("e1");
+  const dblclick = (sel: string) => document.querySelector(`.mz-edge[data-id="e1"] ${sel}`)!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  dblclick(".mz-bend");
+  expect(dlg("h2")!.textContent).toBe("線の編集");
+  closeEditDialog();
+  dblclick(".mz-ends circle:last-child");
+  expect(dlg("h2")!.textContent).toBe("線の編集");
 });

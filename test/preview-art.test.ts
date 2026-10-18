@@ -1,6 +1,8 @@
 // 縮図の絵（preview-art.ts）のテスト
 import { expect, test } from "bun:test";
-import { sceneOf } from "../web/src/preview-art";
+import { createGraph } from "../web/src/graph";
+import { sceneItems, sceneOf } from "../web/src/preview-art";
+import { fakeMeasure } from "./helpers";
 import type { Geometry } from "../web/src/report";
 
 const box = (id: string, y: number, h: number, extra = {}) =>
@@ -17,4 +19,25 @@ test("スクロールしているリストの中の箱は、リストの枠で�
   } as unknown as Geometry;
   const s = sceneOf(g, null);
   expect(s.boxes.map(b => [b.y, b.h])).toEqual([[0, 100], [30, 40], [80, 20]]);
+});
+
+test("ミニマップでも、塗らない箱は枠だけ、塗らず枠も無い箱（見出しの文字だけの箱）は描かない", () => {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const graph = createGraph(el, {
+    nodes: [
+      { id: 1, caption: "見出しだけ", fill: false, border: false, x: 40, y: 20 },
+      { id: 2, caption: "枠だけ", fill: false, border: true, x: 40, y: 120 },
+      ...Array.from({ length: 10 }, (_, i) => ({ id: i + 3, caption: `箱 ${i + 3}`, x: 40 + (i % 2) * 300, y: 220 + Math.floor(i / 2) * 80 })),
+    ],
+  }, { measureText: fakeMeasure });
+  try {
+    // ミニマップ（minimap.ts）と同じ描き方: 配置の結果から絵のもとを作り、要素にする
+    const items = sceneItems(sceneOf(graph.geometry(), null));
+    expect(items.filter(x => x.getAttribute("class") === "mm-box")).toHaveLength(10); // 塗る箱だけ
+    expect(items.filter(x => x.getAttribute("class") === "mm-group")).toHaveLength(1); // 枠だけの箱（見出しだけの箱は描かない）
+  } finally {
+    graph.destroy();
+    document.body.innerHTML = "";
+  }
 });

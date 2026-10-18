@@ -1,11 +1,13 @@
 // 多言語対応の漏れを見つける（docs/I18N-plan.md）。
 // - web/src の文字列で日本語を含むものは、t("…") のキーか、i18n-ok の印を付けた行だけ
 // - t のキーと index.html の文言は、どれも英語の辞書にある。差し込む {name} も訳と合う
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { browserLang, langSetting, setLang, setLangSetting, t, translateDom } from "../web/src/i18n";
 import { EN, PARTS } from "../web/src/i18n/en";
+import { closeEditDialog } from "../web/src/edit-dialog";
+import { openSettings } from "../web/src/settings";
 
 const SRC = join(import.meta.dir, "../web/src");
 const JA = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
@@ -200,6 +202,29 @@ describe("言語の設定（設定画面。D8）", () => {
     } finally {
       if (desc) Object.defineProperty(navigator, "languages", desc);
       else delete (navigator as { languages?: unknown }).languages;
+    }
+  });
+
+  test("設定の画面で言語を変えずに確定したら、読み直さず、覚えも変えない。変えれば覚えて読み直す（サーバーから開いた画面）", () => {
+    const reload = spyOn(location, "reload").mockImplementation(() => {});
+    document.body.classList.add("served"); // サーバーから開いた画面は、確かめずに読み直す
+    try {
+      openSettings();
+      const ok = () => document.querySelector<HTMLElement>(".mz-dlg [data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      ok();
+      expect(document.querySelector(".mz-dlg")).toBeNull();
+      expect(reload).not.toHaveBeenCalled();
+      expect(localStorage.getItem(KEY)).toBe(saved);
+      openSettings();
+      document.querySelector<HTMLSelectElement>('.mz-dlg [name="lang"]')!.value = "en";
+      ok();
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem(KEY)).toBe("en");
+    } finally {
+      reload.mockRestore();
+      document.body.classList.remove("served");
+      closeEditDialog();
+      restore();
     }
   });
 });

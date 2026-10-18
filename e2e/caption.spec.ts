@@ -1,6 +1,6 @@
 // キャプションと本文の編集ダイアログ（edit-dialog.ts）を実際のブラウザで確かめる
 import { expect, test } from "@playwright/test";
-import { openDiagram, openBoxDialog, openSide } from "./helpers";
+import { openDiagram } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   // B はダイアログ（真ん中に出る）に隠れない左端に置く（後ろの箱を押してもダイアログの外を押したことになるように）
@@ -33,11 +33,3 @@ test("箱をダブルクリックすると編集ダイアログが開き、後�
   await expect(page.locator('.mz-node[data-id="1"] .mz-body')).toBeHidden();
 });
 
-test("キャプションを空にすると空の箱になる（id を出さない）。一覧では「id_(空)」と出す", async ({ page }) => {
-  await openBoxDialog(page, 1);
-  await page.locator('.mz-dlg [name="caption"]').fill("");
-  await page.locator('.mz-dlg [name="caption"]').press("Enter");
-  await expect(caption(page, 1)).toHaveText("");
-  await openSide(page);
-  await expect(page.locator('.mzp-row[data-select="1"] .mzp-row-cap')).toHaveText("1_(空)");
-});

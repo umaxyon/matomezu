@@ -1,7 +1,8 @@
 // リンクの箱（link-box.ts。D27 の段階 3）: ほかのページをのぞく窓を持つ箱。形・サイズ・子の見せ方は使わず、子を持てない。窓を押すとそのページを開く
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
-import { LINK_LOOK_DEFS, linkBoxWidth, previewRegion, windowOf } from "../web/src/link-box";
+import { LINK_ICON_DEF, LINK_LOOK_DEFS, linkBoxWidth, previewRegion, windowOf } from "../web/src/link-box";
+import { closeEditDialog, openEditDialog } from "../web/src/edit-dialog";
 import { DEFAULTS } from "../web/src/graph";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { validate } from "../web/src/validate";
@@ -9,6 +10,7 @@ import { fakeMeasure } from "./helpers";
 
 const graphs: Graph[] = [];
 afterEach(() => {
+  closeEditDialog();
   for (const g of graphs.splice(0)) g.destroy();
   document.body.innerHTML = "";
 });
@@ -244,4 +246,44 @@ test("マスターの窓（book）: 題名とパターンは bookWindow から�
   g.update("others", { childView: "nest" });
   expect(calls.some(([b, v]) => b === "y" && v)).toBe(true);
   g.destroy();
+});
+
+// リンクの箱の見せ方の「縮図を出さない」（linkLook の icon。D29）: 縮図の代わりに押すと開くアイコン。キャプションが要る
+const iconBook = (look?: "icon"): Diagram => ({
+  pages: [{ id: "p2", title: "処理の流れ" }],
+  nodes: [{ id: 1, caption: "流れへ", link: "p2", x: 40, y: 40, ...(look ? { linkLook: look } : {}) }, { id: 2, caption: "中", page: "p2" }],
+});
+
+test("縮図を出さない見せ方は、横に分ける形で縮図の代わりに開くアイコンを出す（窓の大きさは LINK_ICON_DEF。ページリンクの持ち手は縞にしない）", () => {
+  const { el } = setup(iconBook("icon"));
+  const head = el.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head')!;
+  expect(head.classList.contains("mz-link-icon")).toBe(true);
+  expect(head.classList.contains("mz-link-side")).toBe(true);
+  expect(head.classList.contains("mz-link-book")).toBe(false);
+  expect(head.style.getPropertyValue("--mz-link-win-w")).toBe(LINK_ICON_DEF.win.w + "px");
+  expect(head.querySelector(".mz-link-art")!.childElementCount).toBe(0);
+  expect(head.querySelector<HTMLElement>(".mz-link-win")!.title).toBe("押すと「処理の流れ」のページを開きます");
+});
+
+test("編集ダイアログで縮図を出さないを選ぶと映す範囲の欄が隠れ、キャプションが空なら確定しない", () => {
+  const { el, graph } = setup(iconBook());
+  openEditDialog(graph, "1");
+  const dlg = document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
+  const clip = dlg.querySelector<HTMLElement>("[data-clip]")!;
+  expect(clip.hidden).toBe(false);
+  const icon = dlg.querySelector<HTMLInputElement>('[name="linkLook"][value="icon"]')!;
+  icon.checked = true;
+  icon.dispatchEvent(new Event("change", { bubbles: true }));
+  expect(clip.hidden).toBe(true);
+  const caption = dlg.querySelector<HTMLInputElement>('[name="caption"]')!;
+  const ok = () => dlg.querySelector<HTMLElement>("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  caption.value = "";
+  ok();
+  expect(dlg.querySelector(".mz-dlg-refused")!.textContent).toContain("キャプションを入れてください");
+  expect(document.querySelector(".mz-dlg-overlay")).not.toBeNull();
+  caption.value = "流れへ";
+  ok();
+  expect(document.querySelector(".mz-dlg-overlay")).toBeNull();
+  expect(graph.toJSON().nodes.find(n => n.id === 1)!.linkLook).toBe("icon");
+  expect(el.querySelector('.mz-node[data-id="1"] > .mz-head')!.classList.contains("mz-link-icon")).toBe(true);
 });

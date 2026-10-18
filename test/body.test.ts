@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { openEditDialog } from "../web/src/edit-dialog";
+import { mountDiagram } from "../web/src/view";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { problems } from "../web/src/validate";
 import { fakeMeasure } from "./helpers";
@@ -310,4 +311,16 @@ test("サイズは見た目が葉の箱だけに効く。内包する箱は S �
 test("previewSide は right / left / none だけ（D13）", () => {
   expect(problems({ nodes: [{ id: 1, childView: "list", previewSide: "top" }] })[0]).toContain("previewSide");
   expect(problems({ nodes: [{ id: 1, childView: "list", previewSide: "left" }] })).toEqual([]);
+});
+
+test("本文の幅のつまみをダブルクリックすると、本文の幅を自動に戻す（編集ダイアログは開かない）", () => {
+  const stage = document.createElement("div"), side = document.createElement("div");
+  document.body.append(stage, side);
+  const g = graph = mountDiagram(stage, side, { nodes: [{ id: 1, caption: "見出し", size: "L", bodyWidth: 300, body: "短い本文", x: 40, y: 40 }] }, { measureText: fakeMeasure }).graph;
+  expect(g.info(1).w).toBe(300);
+  g.select(1);
+  stage.querySelector('.mz-node[data-id="1"] > .mz-head > .mz-body-grip')!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  expect(g.toJSON().nodes[0]!.bodyWidth).toBeUndefined();
+  expect(g.info(1).w).toBeLessThan(300);
+  expect(document.querySelector(".mz-dlg-overlay")).toBeNull();
 });

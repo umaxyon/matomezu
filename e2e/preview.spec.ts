@@ -39,17 +39,6 @@ test("入ると全体が収まる倍率になり、サイドバーと編集の�
   expect(await zoomOf(page)).toBe(1);
 });
 
-test("＋で拡大し、全体で収まる倍率に戻る", async ({ page }) => {
-  await page.setViewportSize({ width: 700, height: 500 });
-  await page.click("#side-toggle"); // サイドバーを出しておく（プレビューの間は隠れ、戻ると出る）
-  await page.click("#preview-toggle");
-  const fit = await zoomOf(page);
-  await page.click("#zoom-in");
-  await expect.poll(() => zoomOf(page)).toBeCloseTo(fit * 1.25, 5); // なめらかに変わるので、行き先に着くまで待つ（D32）
-  await page.click("#zoom-fit");
-  expect(await zoomOf(page)).toBeCloseTo(fit, 5);
-});
-
 test("プレビュー中に図を読み直しても、箱の大きさは編集のときと同じ（倍率で割り戻して文字を測る。D32）", { tag: "@d44" }, async ({ page, browser }) => {
   // まだ測っていない文字にする（同じ文字は前に測った幅を使い回すので、測り方の誤りが出ない）
   const changed = example("three-levels");

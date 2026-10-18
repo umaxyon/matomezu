@@ -183,18 +183,6 @@ test("紙に収まらない本文を箱の編集ダイアログで確定する�
   await expect(page.locator("#undo")).toBeDisabled();
 });
 
-test("追加モードで紙の外（周りの余白の上）を押しても、箱は足せない（D33）", async ({ page }) => {
-  await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  await page.locator('.mz-toolbox [data-tool="add"]').click();
-  const paper = (await page.locator(".stage:visible .mz-world").boundingBox())!;
-  // 紙（A5 横 794 × 559）の右の外
-  await page.mouse.move(paper.x + paper.width + 40, paper.y + 100);
-  await expect(page.locator(".mz-add-ghost")).toHaveClass(/mz-ghost-no/);
-  await page.mouse.click(paper.x + paper.width + 40, paper.y + 100);
-  await expect(page.locator(".mz-dlg")).toHaveCount(0);
-  await expect(page.locator(".stage:visible .mz-node")).toHaveCount(1);
-});
-
 test("紙が画面より小さければ紙を図の枠の真ん中に置き、大きければ紙の左上を図の枠の左上に合わせる（D33。2026-10-15 ユーザー）", async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
@@ -207,25 +195,6 @@ test("紙が画面より小さければ紙を図の枠の真ん中に置き、�
   const f2 = (await stage(page).boundingBox())!, p2 = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   expect(Math.abs(p2.x + p2.width / 2 - (f2.x + f2.width / 2))).toBeLessThan(1.5);
   expect(Math.round(p2.y)).toBe(Math.round(f2.y));
-});
-
-test("紙の型: ブックのダイアログで今のページを小さな紙にして収まらなければ閉じずに知らせ、見ていないページは大きな紙だけ選べる（D33）", { tag: "@d44" }, async ({ page }) => {
-  // 横に 7 つ並んだ箱（A4 横には入るが、A5 横には間隔を詰めても入らない。紙を小さくすると押し込み、入らなければ断る。docs/PAPER-plan.md の 4.6 の 7）
-  const row = Array.from({ length: 7 }, (_, i) => ({ id: 10 + i, caption: `横${i + 1}`, x: 40 + i * 140, y: 40 }));
-  await openDiagram(page, { pages: [{ id: "p2", title: "二枚目" }], nodes: [...row, { id: 2, caption: "二枚目の箱", page: "p2" }], edges: [] } as never);
-  await page.locator("#book").click();
-  const dlg = page.locator(".mz-dlg");
-  // 見ていないページ（二枚目、A4 横）: 縦横とも A4 横以上の型だけ
-  await dlg.locator('[data-tab="p2"]').click();
-  const others = await dlg.locator('[data-tab-pane="p2"] [name="paper"] option').evaluateAll(os => os.map(o => (o as HTMLOptionElement).value));
-  expect(others).toEqual(["a4-landscape", "a3-portrait", "a3-landscape"]);
-  // 今のページを A5 横にすると、7 つの並びが入らないので確定できない
-  await dlg.locator('[data-tab=""]').click();
-  await dlg.locator('[data-tab-pane=""] [name="paper"]').selectOption("a5-landscape");
-  await dlg.locator("[data-ok]").click();
-  await expect(page.locator(".mz-dlg-refused")).toContainText("紙に収まらない");
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".stage:visible .mz-world")).toHaveCSS("width", "1123px");
 });
 
 test("スクロールするリストの並べ替え: 上下の端へ寄せたまま止めると中がスクロールし、隠れていた行の先へ移せる（E18。D33）", async ({ page }) => {

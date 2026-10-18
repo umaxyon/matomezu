@@ -1,6 +1,9 @@
 // ツールバーのテスト
 import { afterEach, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createGraph, type Graph } from "../web/src/graph";
+import { openModePicker } from "../web/src/mode-picker";
 import { setupHistory, setupModes } from "../web/src/toolbar";
 import { fakeMeasure } from "./helpers";
 
@@ -158,4 +161,15 @@ test("選んだ箱も Delete で消える（子孫ごと、消したものの一
   expect(graph.toJSON().removed!.map(n => n.id)).toEqual([2, 3]);
   key("z", { ctrlKey: true });
   expect(live()).toEqual([1, 2, 3]);
+});
+
+test("ツールバーに線モードのボタンは無い（線は箱の〇から引く。モードのアイコンにも出さない）", () => {
+  const html = new DOMParser().parseFromString(readFileSync(join(import.meta.dir, "../web/index.html"), "utf8"), "text/html");
+  expect(html.querySelectorAll("[data-mode]").length).toBeGreaterThan(0);
+  expect(html.querySelector('[data-mode="link"]')).toBeNull();
+  const { g, $ } = setup();
+  const close = openModePicker(g, $("stage"), { x: 100, y: 100 }, () => {});
+  expect([...document.querySelectorAll<HTMLElement>(".mz-mpick-btn[data-mode]")].map(b => b.dataset.mode)).not.toContain("link");
+  expect(document.querySelectorAll(".mz-mpick-btn[data-mode]").length).toBeGreaterThan(0);
+  close();
 });
