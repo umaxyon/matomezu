@@ -15,7 +15,7 @@ import { t } from "./i18n";
 import { modeIcon } from "./mode-icons";
 import { minimapView, watchStage } from "./minimap";
 
-export const LONG_PRESS_MS = 300; // 長押しの時間（後で全体設定から変えられるようにする）
+export const LONG_PRESS_MS = 250; // 長押しの時間（後で全体設定から変えられるようにする）
 export const MOVE_SLOP = 5;       // 長押しを取り消さない動きの遊び（px）
 const PICK_MODES = ["move", "pan", "reparent"] as const satisfies readonly Mode[];
 const ICON = 40, GAP = 6, AWAY = 16, MARGIN = 6; // アイコンの大きさ・間・ポインタからの離れ・画面の端との間（px）
