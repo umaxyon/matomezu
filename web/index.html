@@ -37,6 +37,14 @@
       --scroll-hover: rgba(0, 0, 0, 0.36);
     }
   }
+  /* 同梱のフォント（D44 の 4.2）: どの画面でも同じフォントで描いて測る（環境で文字の幅が変わらない）。太さは 100〜900 を 1 つのファイルで持つ。
+     フォントに無い文字（絵文字など）だけ OS のフォントで描く */
+  @font-face {
+    font-family: "matomezu Noto Sans JP";
+    src: url("fonts/NotoSansJP-VF.woff2") format("woff2");
+    font-weight: 100 900;
+    font-display: block;
+  }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
@@ -44,7 +52,7 @@
     flex-direction: column;
     background: var(--bg);
     color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    font-family: "matomezu Noto Sans JP", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
   }
   /* ボタンやタブの文字は、ドラッグしたときに選択されないようにする（入力欄はそのまま選べる） */
   .tab-bar, button, .mzp-tabs, .mzp-seg label { user-select: none; -webkit-user-select: none; }

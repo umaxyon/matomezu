@@ -75,7 +75,16 @@ async function served() {
   }
 }
 
+// 同梱のフォント（index.html の @font-face。D44 の 4.2）を読み込んでから並べる（読み込む前に測ると、仮のフォントの幅で並べてしまう）
+async function fontsReady() {
+  const family = '"matomezu Noto Sans JP"';
+  try {
+    await Promise.all(["400", "600"].map(w => document.fonts.load(`${w} 14px ${family}`)));
+  } catch { /* 読めなくても動く（仮のフォントで並べる） */ }
+}
+
 async function main() {
+  await fontsReady();
   const undoBtn = $<HTMLButtonElement>("undo");
   const redoBtn = $<HTMLButtonElement>("redo");
   const modeButton = $<HTMLButtonElement>("mode-tool");

@@ -623,6 +623,7 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("GET /api/master", h.master) // マスター用のファイル（books.go）
 	mux.Handle("GET /{$}", h.web)
 	mux.Handle("GET /dist/", h.web)
+	mux.Handle("GET /fonts/", h.web) // 同梱のフォント（web/fonts。D44 の 4.2）
 
 	if h.token != "" {
 		mux.HandleFunc("GET /api/ping", h.control(h.ping))
