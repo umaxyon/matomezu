@@ -60,7 +60,8 @@ test("境目: ちょうど linkGap 離れていれば動かさず、1px でも�
 });
 
 test("横に離れていても、間隔より近ければぶつかる（つながった組は linkGap の内側に入れない）", () => {
-  // 左右に並べ、横のすき間を gap より広く linkGap より狭くする。線が無ければそのまま、線があれば下へ押しのける
+  // 左右に並べ、横のすき間を gap より広く linkGap より狭くする。線が無ければそのまま、線があれば同じ向き（右）へ押しのける
+  // （開いたときも regrow と同じ決まり。D45。前は下へずらしていた）
   const w = info(setup({ nodes: [{ id: 1, caption: "左", x: 100, y: 100 }] }), 1).w;
   const data = (edges: Diagram["edges"]): Diagram => ({
     nodes: [{ id: 1, caption: "左", x: 100, y: 100 }, { id: 2, caption: "右", x: 100 + w + GAPS.gap + 4, y: 100 }], edges,
@@ -68,7 +69,8 @@ test("横に離れていても、間隔より近ければぶつかる（つな�
   const free = setup(data([]));
   expect(info(free, 2).y).toBe(100);
   const linked = setup(data([{ id: "e1", from: 1, to: 2 }]));
-  expect(gapY(linked, 1, 2)).toBe(GAPS.linkGap);
+  expect(info(linked, 2).x - (info(linked, 1).x + info(linked, 1).w)).toBe(GAPS.linkGap);
+  expect(info(linked, 2).y).toBe(100);
 });
 
 test("グループの中の兄弟どうしも組ごとの間隔。3 つ目の兄弟との線は、その組の間隔に効かない", () => {

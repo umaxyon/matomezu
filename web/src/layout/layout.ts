@@ -4,9 +4,11 @@
 // 大きさが変わったとき（設定変更、追加・貼り付け・付け替え・戻す、箱を消す、本文の幅・リストのつまみ）は、regrow が統一した決まり
 // （docs/PAPER-plan.md の 4.6）で並べ直す: ページの起点から広がり、ぶつかる相手は同じ向きにだけ押し（折り返さない）、縮めば押した相手は
 // 本来いたい位置（intendedX・intendedY）へ戻り、紙に収まらなければ断る。判定は squeeze.ts の canSqueeze。
-// 開いたとき・読み直しで紙の外にある箱（ファイルに書かれた位置）も、fitPaper が同じ決まりで押し込み、収まらなければそのファイルを開かない（4.6 の 7）。
+// 開いたとき・読み直し・Undo も同じ決まり（D45。2026-10-19 ユーザー）: データの大きさを前の状態として regrow で押す（settleFromData）。
+// 紙の外にある箱（ファイルに書かれた位置）もここで押し込み、収まらなければそのファイルを開かない（fitPaper。4.6 の 7）。
+// 文字の箱が同じ段の右の大きい兄弟にぶつかるなら、押す前にその手前で折り返す（fitToRow。regrow の中で、どの場面でも）。
 //
-// 読み込み・外部の変更の読み直し・子のサイズをそろえる・ドラッグで手を離したときは、settle が
+// 子のサイズをそろえる・ドラッグで手を離したときに重なりが残っていたときは、settle が
 // 場面ごとの設定値（policy.ts の SCENES）に従って決め直す。場面ごとの違い（誰が動くか、子を詰め直す向き、
 // はみ出しを調整するか、置いた位置を本来いたい位置にするか）は SCENES の 1 行の値の差。
 // 設定を変える処理（子のサイズをそろえるときは alignChildren）は apply として settle に渡す。
@@ -15,10 +17,10 @@
 //   - ぶつかった相手は、同じ x のまま下へ、相手の端のちょうど gap 先へずらす（placeGroup + spotBelow + slide）
 //   - 位置の無い箱は、最上位なら円形に並べてから近くの空きへ（placeAutoRoots + findFreeSpot）、グループの中なら左上から格子状に空きを探す（findGridSpot）
 //   - 押し下げられた箱は、上が空いたら本来いたい高さ（intendedY）へ戻す
-//   - 文字の箱が右の大きい兄弟にはみ出すときは、ずらさずにその手前まで狭めて折り返す（fitToRow。開いたとき・読み直しだけ。設定変更は regrow）
+//   - 開いたとき・読み直しでも押せずに残った重なり（大きさの分からない箱、前から重なっていた組）は、下へずらす（settleFromData の最後の段）
 //   - ツリーとリストの子の並べ方は node-kinds.ts（子の位置は自分では決めない）
 //   - ドラッグ中は settle を使わず、drag.ts の DragSession が開始時の写しから毎回決め直す（入れ替えは 4 分の 1 食い込んでから）。
-//     手を離したときに重なりが残っていれば、settle(SCENES.drop) で直す
+//     手を離したときに重なりが残っていれば、settle(SCENES.drop) で直す。どちらでも、置いたあとの位置で fitToRow を決め直す（regrow）
 
 import {
   type Box, type Container, type Edge, type World,
@@ -62,6 +64,8 @@ export interface LayoutContext {
   canvasSized?(): void; // スクロールの広さとワールドをずらす量を決め直したあと（graph.ts が開いたときの見え方を合わせ直す）
   // 開いたときのはみ出しの調整（fitToViewport）で移した（表示だけ。ファイルには無い位置）
   fitted?(n: Box): void;
+  // 開いたとき・読み直し・Undo で、押す前の大きさ（D45）: データの width・height、無ければ直前に画面に出ていた大きさ。どちらも無ければ undefined（土台の最小）
+  priorSize?(n: Box): { w: number; h: number } | undefined;
 }
 
 export type Layout = ReturnType<typeof createLayout>;
@@ -194,6 +198,8 @@ export function createLayout(ctx: LayoutContext) {
   // 置く処理（placeGroup、compress）の途中で、まだ置いていないボックス。重なりの判定の相手にしない。
   // 置く処理の外（ドラッグ中など）では空で、すべてのボックスが相手になる
   const unplaced = new Set<Box>();
+  // 位置のある箱を動かさず、位置の無い箱だけを空きに置く（開いたとき・読み直しの最初の段。大きさが変わった分は regrow が押す。D45）
+  let holdPlaced = false;
   const isPlaced = (o: Box) => !unplaced.has(o);
 
   function refitAncestors(n: Box) {
@@ -222,8 +228,8 @@ export function createLayout(ctx: LayoutContext) {
 
   // 文字の箱（と、本体だけを見せる非表示）が、同じ段の右にいる自分より大きい兄弟にはみ出すなら、その手前まで
   // 狭めて折り返す。左端を保ち、右端を相手の手前にそろえるので、何度計算し直しても（Undo や読み直しを含む）同じ幅になる。
-  // 自分以下の大きさの兄弟は今までどおり押し下げる。幅の指定がある箱、位置の無い箱は変えない。最小の幅でも収まらなければ狭めない。
-  // 開いたとき・読み直し・手を離したときの settle だけが使う（大きさが変わったときは regrow で隣を押す。段階 6 で開いたときの判定に置き換える）
+  // 自分以下の大きさの兄弟は押す（regrow）。幅の指定がある箱、位置の無い箱は変えない。最小の幅でも収まらなければ狭めない。
+  // regrow が押す前に、どの場面でも使う（D45。2026-10-19 ユーザー: 文字は折り返しが要る場合がある）。置いたあとの位置で決めるので、Undo・Redo でも同じ幅になる
   function fitToRow(n: Box) {
     const kind = kindOf(n).name;
     if (!n.hasPos || !inNest(n) || (kind !== "text" && kind !== "hidden") || (kind === "text" && n.specW)) return;
@@ -319,20 +325,22 @@ export function createLayout(ctx: LayoutContext) {
   function placeGroup(list: Box[], spot: (n: Box) => [number, number], first?: Box) {
     for (const n of list) unplaced.add(n);
     const rest = list.filter(n => n !== first);
-    const below = (n: Box) => n.hasPos && n.y > n.intendedY + 0.5;
+    // 押し下げられた箱は後から置き直す（上が空いていれば戻す）。開いたとき・読み直しの最後のずらし（settleFromData）では、押したのは
+    // regrow（本来いたい位置から押した）なので後回しにしない（後回しにすると、押した相手の下へ回り込む）
+    const below = (n: Box) => !fromData && n.hasPos && n.y > n.intendedY + 0.5;
     const pushed = rest.filter(below).sort((a, b) => a.intendedY - b.intendedY);
     const order = (first && list.includes(first) ? [first] : [])
       .concat(rest.filter(n => n.hasPos && !below(n)), pushed, rest.filter(n => !n.hasPos));
     for (const n of order) {
       // 押し下げは同じ x のまま下へずらすものなので、戻すときも今の x のまま上へ戻すだけにする
-      if (n !== first && below(n)) {
+      if (n !== first && !holdPlaced && below(n)) {
         const back = slide(n, n.x, clamp(n, n.x, n.intendedY)[1], "down", n.y);
         if (back) [n.x, n.y] = back;
       }
       // 紙の外にある最上位の箱（ファイルに書かれた位置）は、ここでは寄せない。1 つずつ紙の端へ寄せると、隣と重なって押し下げられる（折り返す）。
       // 並べたあとで fitPaper が、形を変えずに紙の内側へ押し込む（docs/PAPER-plan.md の 4.6 の 7）
       if (!outsideFixed(n)) [n.x, n.y] = clamp(n, n.x, n.y);
-      if (!n.hasPos || collides(n, n.x, n.y)) {
+      if (!n.hasPos || (!holdPlaced && collides(n, n.x, n.y))) {
         const wasPlaced = n.hasPos, was = { x: n.x };
         [n.x, n.y] = spot(n);
         if (!wasPlaced) n.intendedY = n.y; // 位置の無いボックスは、空きに置いた位置が本来いたい位置
@@ -351,7 +359,7 @@ export function createLayout(ctx: LayoutContext) {
     n.children.forEach(c => settleNode(c, keep));
     if (kindOf(n).holdsChildren) {
       if (unplacedAligned(n)) alignKids(n);
-      n.children.forEach(c => fitToRow(c));
+      if (!fromData) n.children.forEach(c => fitToRow(c));
       placeGroup(n.children, c => (c.hasPos ? spotBelow(c) : findGridSpot(c)), n.children.find(c => keep?.has(c)));
     }
     fit(n);
@@ -434,10 +442,11 @@ export function createLayout(ctx: LayoutContext) {
   // （先に変えると、変わったあとの大きさで覚えてしまう）
   function settle(scene: Scene, changed?: Box, apply?: () => void) {
     apply?.();
+    if (scene.fromData) return settleFromData(scene);
     // 変えた節点と祖先はその場に残し、ぶつかる相手の方を動かす（others）。later なら後から置くものが動く
     const keep = changed && scene.yieldTo === "others" ? new Set([changed, ...ancestors(changed)]) : undefined;
     roots().forEach(r => settleNode(r, keep));
-    roots().forEach(r => fitToRow(r));
+    if (!fromData) roots().forEach(r => fitToRow(r));
     syncWorld();
     if (unplacedAligned(world)) alignKids(world);
     placeAutoRoots();
@@ -445,6 +454,52 @@ export function createLayout(ctx: LayoutContext) {
     syncWorld();
     if (scene.fitViewport) fitToViewport();
     if (scene.adoptPlaced) for (const b of roots().flatMap(r => [r, ...descendants(r)])) [b.intendedX, b.intendedY] = [b.x, b.y];
+  }
+
+  // 開いたとき・読み直し・Undo（D45。2026-10-19 ユーザー）: ユーザーの操作と同じ決まり（regrow）で並べる。
+  // データの大きさ（無ければ直前に画面に出ていた大きさ）を前の状態とし、測った本当の大きさへ広がった分を同じ向きに押す
+  // （縮めば押された箱は本来いたい位置へ戻る）。大きさの分からない箱（LLM が書いたばかり）は前の状態を持たず、本当の大きさで重なれば
+  // 3 で下へずらす（最小の大きさから広がったとみなすと、押す向きを仮の大きさで決めてしまう。2026-10-19 に試した）。手順:
+  //   1. 位置の無い箱だけを空きに置く（位置のある箱は動かさない）
+  //   2. 前の大きさから regrow で押す（文字の箱が右の大きい隣にぶつかるなら、まず手前で折り返す。regrow の中の fitToRow）
+  //   3. それでも重なっている箱（大きさの分からない箱、前の大きさでも重なっていた組。regrow は押さない）は、今までどおり下へずらす
+  let fromData = false;
+  let pushedIn = false;
+  function settleFromData(scene: Scene) {
+    fromData = true;
+    try {
+      holdPlaced = true;
+      try { settleSteps(); } finally { holdPlaced = false; }
+      // 紙の外に書かれた箱があれば、ここで押し込まれる（fitPaper が「押し込んだ」と答えて、呼んだ側がファイルに書き戻せるよう覚える）
+      const outside = roots().some(outsideFixed);
+      regrow(() => {}, undefined, { prior: priorFromData() });
+      pushedIn = outside && !roots().some(outsideFixed);
+      settleSteps();
+      if (scene.fitViewport) fitToViewport();
+      // 開いたとき（前の画面が無い）は、並べた結果が出発点（押した位置が本来いたい位置。あとで上が空いても上がらない。docs/LAYOUT-PENDING.md の 3）。
+      // 読み直し・Undo は、画面から引き継いだ本来いたい位置を保つ（相手が縮めば戻る。graph.ts の buildNode）
+      if (scene.adoptPlaced) for (const b of allBoxes()) [b.intendedX, b.intendedY] = [b.x, b.y];
+    } finally { fromData = false; }
+  }
+  function settleSteps() {
+    roots().forEach(r => settleNode(r));
+    syncWorld();
+    if (unplacedAligned(world)) alignKids(world);
+    placeAutoRoots();
+    settleRoots();
+    syncWorld();
+  }
+  // 押す前の様子: 位置は今の位置（データの位置か、1 で置いた位置）、大きさは前の大きさ。1 で置いた箱は前の大きさを持たない（今の大きさから始める）
+  function priorFromData(): Snapshot {
+    const now = snapshot();
+    for (const b of allBoxes()) {
+      const p = now.get(b.id);
+      // 子を自由に置く箱（グループ）の大きさは子の並びから決まるので、前の大きさも今の大きさのまま（中の子は子ごとに押す）
+      if (!p || !p.free || p.holds) continue;
+      const size = ctx.priorSize?.(b);
+      if (size) now.set(b.id, { ...p, w: size.w, h: size.h });
+    }
+    return now;
   }
 
   // 並べ直しの前の、箱ごとの位置と大きさ（id で引く。作り直し（graph.ts の rebuildWith）で箱が作り直されても引けるように）
@@ -562,6 +617,10 @@ export function createLayout(ctx: LayoutContext) {
     // 子から順に測る（子を自由に置く箱は、本文の高さが変わった分だけ子を上下に動かす。node-kinds.ts の nest）
     const measure = (n: Box) => { n.children.forEach(measure); fit(n); };
     roots().forEach(measure);
+    // 文字の箱が同じ段の右の大きい兄弟にぶつかるなら、押す前にその手前で折り返す（どの場面でも同じ。D45。2026-10-19 ユーザー）。
+    // 折り返しても入らない分は、このあと押す
+    const rowFit = (n: Box) => { n.children.forEach(rowFit); fitToRow(n); };
+    roots().forEach(rowFit);
     const byId = new Map<string, Box>();
     const toSq = (n: Box): SqBox => {
       byId.set(n.id, n);
@@ -611,6 +670,7 @@ export function createLayout(ctx: LayoutContext) {
   // 収まれば押し込んだ位置が本来いたい位置になり "moved"（呼んだ側がファイルに書き戻す）。はみ出した箱が無ければ "fits"。
   // 収まらなければ位置は変えずに、入らなかった列（refusal）を返す（呼んだ側がそのファイルを開かない）
   function fitPaper(): "fits" | "moved" | { axis: "x" | "y"; chain: string[]; short: number } {
+    if (pushedIn) { pushedIn = false; return "moved"; } // 開いたときの並べ直し（settleFromData）で押し込んだ
     if (!roots().some(outsideFixed)) return "fits";
     if (regrow(() => {}) !== "fits") return refusal ?? { axis: "x", chain: [], short: 0 };
     for (const b of allBoxes()) [b.intendedX, b.intendedY] = [b.x, b.y];

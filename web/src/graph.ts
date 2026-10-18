@@ -469,7 +469,16 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const file = posKey(n.src);
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
     },
+    // 押す前の大きさ（D45）: データの width・height。無ければ、読み直す直前に画面に出ていた大きさ
+    priorSize: n => {
+      const w = Number(n.src.width), h = Number(n.src.height);
+      if (w > 0 && h > 0) return { w, h };
+      const was = shownBefore.get(n.id);
+      return was ? { w: was.w, h: was.h } : undefined;
+    },
   });
+  // 読み直す直前に画面に出ていた箱（読み直し・Undo の間だけ。D45）: 押す前の大きさの手がかりと、本来いたい位置を引き継ぐため
+  let shownBefore = new Map<string, { x: number; y: number; w: number; h: number; ix: number; iy: number; parent: string | null }>();
   // ドラッグ中か（線の道筋から分かったデータの直しを、手を離すまで待つ）。操作の仕組み（I）を作ったあとで差し替える
   let dragging = () => false;
   const R = createRenderer({ opt, world, worldEl, nodes: () => nodes, edges: () => edges, fixEdge, themeOf, paintOf, backgroundOf, dragging: () => dragging(), linkOf, sceneOf: windowScene }, L);
@@ -516,7 +525,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     changed,
     notifySelect,
     reparent,
-    drop: n => { settle(SCENES.drop, n); render(); },
+    // 手を離したあとは、置いたあとの位置で文字の箱の折り返し（fitToRow）を決め直す（regrow）。読み直し・Undo と同じ位置で決まるので、
+    // Undo・Redo で読み直しても同じ幅になる（残課題図の H7。D45）
+    drop: n => { settle(SCENES.drop, n); L.regrow(() => {}); render(); },
+    refit: () => { L.regrow(() => {}); render(); },
     remove: n => { remove(n.id); },
     openLink: n => { const p = linkPageOf(n), b = linkBookOf(n); if (p != null) opt.onOpenPage?.(p); else if (b != null) opt.onOpenBook?.(b); },
     boxById: id => byId.get(id),
@@ -1684,6 +1696,13 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, heightGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,
     };
     boxOfEl.set(el, n);
+    // 読み直し・Undo で、位置が画面に出ていたときのまま（LLM が動かしていない）なら、本来いたい位置も引き継ぐ
+    // （押されていた箱は、相手が縮めば元へ戻る。書き戻したファイルの位置は押された位置なので、データだけでは分からない。D45）
+    const was = shownBefore.get(n.id);
+    if (was && n.hasPos && was.parent === (src.parent == null ? null : String(src.parent)) && Math.round(n.x) === was.x && Math.round(n.y) === was.y) {
+      n.intendedX = was.ix;
+      n.intendedY = was.iy;
+    }
     return n;
   }
 
@@ -1695,6 +1714,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const prevPage = page;
     if (o.keepHistory) keepShownPositions(copy);
     else fitted = new Map();
+    shownBefore = o.keepHistory
+      ? new Map(nodes.map(n => [n.id, { x: Math.round(n.x), y: Math.round(n.y), w: n.w, h: n.h, ix: n.intendedX, iy: n.intendedY, parent: n.parent?.id ?? null }]))
+      : new Map();
     // 消える箱の、今の場所（消した箱の認知は、消す前の場所が見えたとき）
     const before = o.keepHistory ? new Map(nodes.map(n => [n.id, { page, rect: absRect(n) }])) : null;
     // 外部の変更の読み直しでは、選んでいる箱や線を保つ（残っていれば。Undo と同じ）。LLM が図を書き換えるたびに

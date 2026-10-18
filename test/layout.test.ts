@@ -1,6 +1,7 @@
 // 配置の動きを固定するテスト。配置の処理を整理するときに、動きが変わっていないことを確かめる。
 // ランダムな操作で崩れないかは test/layout-random-*.test.ts（重いので、配置に関係しない修正では飛ばす。package.json の test:quick）
 import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { createGraph, type Graph } from "../web/src/graph";
 import type { Diagram } from "../web/src/types";
 import { dragBy, fakeMeasure, PLAIN_GAPS, frames, violations } from "./helpers";
@@ -222,20 +223,18 @@ describe("縮んだら、押し下げた相手を元の位置へ戻す", () => {
 });
 
 // 以前は、隣の手前まで狭めて折り返した（fitToRow）。設定変更では使わず、統一した決まりで押す（docs/PAPER-plan.md の 4.6。開いたとき・読み直しは段階 6 まで今のまま）
-describe("文字の箱が育つと、同じ段の隣を同じ向きに押し、文字を戻せば元の位置へ戻る", () => {
+describe("文字の箱が育つと、右の大きい隣の手前で折り返すか同じ向きに押し、文字を戻せば元の位置へ戻る", () => {
   const LONG = "ユーザーあいうえおかきくけこさしすせそたちつてと".repeat(3);
   const rect = (graph: Graph, id: number) => { const i = graph.info(id); return [i.x, i.y, i.w, i.h]; };
 
-  test("長い文字を入れると左上を保って広がり、右の大きい隣を右へ押す（下へはずらさない）。文字を戻せば元の大きさと位置", () => {
+  test("長い文字を入れると左上を保ち、右の大きい隣の手前で折り返して下へ伸びる（隣は押さない。D45 で開いたときと同じ決まりにした）。文字を戻せば元の大きさと位置", () => {
     const { graph } = setup(sample());
     const user = rect(graph, 2), front = rect(graph, 3);
     graph.update(2, { caption: LONG });
     const u = graph.info(2), f = graph.info(3);
     expect([u.x, u.y]).toEqual([user[0]!, user[1]!]);
-    expect(u.w).toBeGreaterThan(user[2]!);
-    expect(f.x).toBeGreaterThan(front[0]!); // フロントエンドは右へ
-    expect(f.y).toBe(front[1]!);
-    expect(f.x).toBeGreaterThanOrEqual(u.x + u.w + 8);
+    expect(rect(graph, 3)).toEqual(front); // フロントエンドは動かない
+    expect(u.x + u.w).toBeLessThanOrEqual(f.x - 8); // 隣の手前で折り返す
     graph.update(2, { caption: "ユーザー" });
     expect([rect(graph, 2), rect(graph, 3)]).toEqual([user, front]);
     graph.update(2, { caption: LONG });
@@ -284,4 +283,19 @@ describe("文字の箱が育つと、同じ段の隣を同じ向きに押し、�
     const n = graph.toJSON().nodes.find(n => n.id === 2)!;
     expect(["fixedWidth" in n, n.width]).toEqual([false, graph.info(2).w]);
   });
+});
+
+// 残課題図の F13（2026-10-19 に D45 で直した）: 外の変更で子の文字を長くして親が広がったあと、元のデータに戻すと親も元の大きさに戻る
+test("外の変更で子の文字を長くして親が広がっても、元のデータを読み直せば親の大きさも元に戻る", () => {
+  const fixture = (): Diagram => JSON.parse(readFileSync("test/fixtures/three-levels.json", "utf8")) as Diagram;
+  const { graph } = setup(fixture());
+  const sizes = () => [3, 4].map(id => [graph.info(id).w, graph.info(id).h]);
+  const start = sizes();
+  const long = fixture();
+  const n5 = long.nodes.find(n => n.id === 5)!;
+  n5.caption = String(n5.caption).repeat(8);
+  graph.load(long, { keepHistory: true });
+  expect(sizes()).not.toEqual(start); // 子が育って親が広がった
+  graph.load(fixture(), { keepHistory: true });
+  expect(sizes()).toEqual(start);
 });

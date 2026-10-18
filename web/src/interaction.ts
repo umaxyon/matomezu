@@ -62,6 +62,7 @@ export interface InteractionContext {
   notifySelect(): void;
   reparent(id: string, parentId: string | null, at?: { x: number; y: number }): void;
   drop(n: Box): void;             // ドラッグ中に解決できなかった重なりを直す（場面の表の drop）
+  refit(): void;                  // 置いたあとの位置で、文字の箱の折り返しを決め直して描く（layout.ts の regrow。H7）
   remove(n: Box): void;           // 子孫ごと消す
   openLink(n: Box): void;         // リンクの箱の窓を押した（そのページを開く。link-box.ts）
   restore(id: string, parentId: string | null, at: { x: number; y: number }): void; // 消したボックスを戻す
@@ -439,8 +440,10 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
         n.intendedY = n.y;
         n.intendedX = n.x;
         for (const b of session.displaced()) { b.intendedY = b.y; b.intendedX = b.x; }
+        // 重なりが残っていれば直す。どちらでも、置いたあとの位置で文字の箱の折り返しを決め直す（ドラッグを始めた位置で決めた幅を残さない。
+        // Undo・Redo で読み直したときと同じ幅になる。残課題図の H7）
         if (session.overlapping()) ctx.drop(n);
-        else render();
+        else ctx.refit();
         syncWorld();
         ctx.changed();
         ctx.notifySelect();
