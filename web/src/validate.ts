@@ -8,21 +8,8 @@ import { SHAPE_DEFS } from "./shapes";
 import { LINK_LOOKS, isRect } from "./link-box";
 import type { BookFormat, BoxData, BoxView, Diagram, EdgeData, Id, PageData, PagePattern, PreviewSide, Shape, Size, WorldData } from "./types";
 
-export interface SizeSpec {
-  minW: number;
-  maxW: number; // 文字がこれより長ければ折り返す
-  h: number; // 高さの最小（fixedH なら固定）
-  fixedH?: boolean;
-  limit?: number; // 表示する最大文字数
-}
-
-// ボックスの大きさの段階。文字のボックスの幅は、文字に合わせて minW〜maxW の間で決まる。
-// 見た目の調整で変えてよい値（テストは test/graph.test.ts の「サイズの段階」）
-export const SIZES: Record<Size, SizeSpec> = {
-  L: { minW: 120, maxW: 400, h: 64 },
-  M: { minW: 120, maxW: 240, h: 64 },
-  S: { minW: 64, maxW: 96, h: 44, fixedH: true, limit: 10 },
-};
+// データに書ける段（size・rowSize・kidSize）の名前。段の値（幅の範囲・高さなど）は、ふつうの形のローカルなルール（size-rules.ts の STEPS。D44）
+export const SIZE_NAMES = ["L", "M", "S"] as const satisfies readonly Size[];
 
 // 子を内包するボックスとワールドの最小の大きさ（サイズによらない）
 
@@ -89,7 +76,7 @@ export const ROUTES = ["straight", "elbow"] as const;
 export const isRoute = (v: unknown) => includes(ROUTES, v);
 
 const includes = <T>(list: readonly T[], v: unknown): v is T => list.includes(v as T);
-export const isSize = (v: unknown): v is Size => typeof v === "string" && v in SIZES;
+export const isSize = (v: unknown): v is Size => typeof v === "string" && (SIZE_NAMES as readonly string[]).includes(v);
 export const isOverflow = (v: unknown) => includes(OVERFLOWS, v);
 export const isView = (v: unknown): v is BoxView => includes(BOX_VIEWS, v);
 export const isPattern = (v: unknown): v is PagePattern => includes(PAGE_PATTERNS, v);
@@ -164,7 +151,7 @@ const BOX_VIEW: Rule = {
 // 最初のページの world（ブック全体の設定を含む）
 export const WORLD_FIELDS = {
   width: POS, height: POS, // 紙を持たないページ（マスター）の広さ
-  background: STR, route: oneOf(ROUTES), theme: THEME, kidSize: oneOf(Object.keys(SIZES)),
+  background: STR, route: oneOf(ROUTES), theme: THEME, kidSize: oneOf(SIZE_NAMES),
   childView: { ...oneOf(PAGE_PATTERNS), bad: ["list", 1] }, root: ID, treeDirection: oneOf(TREE_DIRECTIONS),
   madeBy: oneOf(["user"]), paper: oneOf(PAPER_NAMES), title: STR,
 } as const satisfies Record<keyof Required<WorldData>, Rule>;
@@ -174,9 +161,9 @@ export const PAGE_FIELDS = { id: ID, title: STR, world: OBJ } as const satisfies
 export const BOX_FIELDS = {
   id: ID, caption: STR, body: STR, bodyWidth: POS, bodyRule: BOOL, bodyLines: POS_INT, userAdded: BOOL,
   parent: ID, x: NUM, y: NUM, width: POS, height: POS, color: STR, theme: THEME,
-  size: oneOf(Object.keys(SIZES)), shape: oneOf(SHAPES), childView: BOX_VIEW, fill: BOOL, border: BOOL, overflow: oneOf(OVERFLOWS),
+  size: oneOf(SIZE_NAMES), shape: oneOf(SHAPES), childView: BOX_VIEW, fill: BOOL, border: BOOL, overflow: oneOf(OVERFLOWS),
   page: ID, book: TEXT, link: ID, linkLook: oneOf(LINK_LOOKS), clip: RECT,
-  previewSide: oneOf(PREVIEW_SIDES), rowSize: oneOf(Object.keys(SIZES)), listHeight: POS,
+  previewSide: oneOf(PREVIEW_SIDES), rowSize: oneOf(SIZE_NAMES), listHeight: POS,
   abstract: BOOL, attrs: LIST, ops: LIST,
 } as const satisfies Record<keyof Required<BoxData>, Rule>;
 // 箱の種類だけが持つ項目: 窓（リンクの箱・ブックの窓）の見せ方と映す範囲、クラスの箱の属性と操作

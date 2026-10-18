@@ -94,4 +94,4 @@ test.each([true, false])("大きな図での処理の回数が、基準を超え
       .filter(k => v[k] > base[scene as keyof typeof base][k])
       .map(k => `${scene}.${k}: ${v[k]}（基準 ${base[scene as keyof typeof base][k]}）`));
   expect(over).toEqual([]);
-});
+}, 30000); // 並列で流すと負荷で 5 秒（既定の制限時間）を越えることがある（回数を数えるテストで、時間は見ない）

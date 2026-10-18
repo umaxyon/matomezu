@@ -5,7 +5,7 @@ import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure, violations } from "./helpers";
 import { LINK_LOOK_DEFS } from "../web/src/link-box";
 import { ROW_HEIGHTS } from "../web/src/model";
-import { SIZES } from "../web/src/validate";
+import { STEPS as SIZES } from "../web/src/size-rules";
 
 const graphs: Graph[] = [];
 afterEach(() => {

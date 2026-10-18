@@ -9,7 +9,8 @@ import { copySubtree, liveItems, pageMembers, pageNameOf, pageOf, pageWorld, pat
 import { applyFlatten, type FlattenPlan } from "../web/src/tree-flatten";
 import { createUnseen } from "../web/src/unseen";
 import type { BoxData, Diagram } from "../web/src/types";
-import { SIZES, problems } from "../web/src/validate";
+import { problems } from "../web/src/validate";
+import { STEPS as SIZES } from "../web/src/size-rules";
 
 describe("pages.ts", () => {
   test("pageOf: 親子が循環していても止まる。無い id は最初のページ", () => {

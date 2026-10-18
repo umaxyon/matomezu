@@ -16,6 +16,7 @@
  * - 単純なダイアログ（openSimpleDialog・openConfirmDialog）: 題名、本文、一番下にキーの案内・キャンセル・確定（今までの形）
  */
 
+import { resolveSize } from "./size-rules";
 import { ACCESSES, ACCESS_MARK, type ClassAttr, type ClassOp, cleanMembers } from "./classbox";
 import { SVGNS, esc, injectStyle } from "./dom";
 import { type Head, headOptions, headsPatch } from "./heads";
@@ -392,7 +393,9 @@ export function confirmInside(overlay: HTMLElement, message: string, okLabel: st
 function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxValues) => Committed, lead = ""): HTMLElement {
   const lines = [...new Set([...LINE_CHOICES, ...(b.bodyLines ? [b.bodyLines] : [])])].sort((x, y) => x - y);
   // 形やサイズのほかに本文を出せない理由（ページの箱、キャプションを 1 行にした箱）があるか
-  const bodyBase0 = b.canBody || !shapeDef(b.shape).body || b.size === "S";
+  // 段（サイズ）で本文を持てるかは大きさの決まり（size-rules.ts。D44）に聞く
+  const stepBody = (shape: Shape, size: Size) => resolveSize({ shape, step: size, shared: false, fullText: false, group: false }).body;
+  const bodyBase0 = b.canBody || !stepBody(b.shape, b.size);
   const oneLineNow = () => overlay?.querySelector<HTMLInputElement>('[name="one-line"]')?.checked ?? b.overflow === "clip";
   const bodyBase = () => !oneLineNow() && (b.overflow !== "clip" || !b.canOneLine ? bodyBase0 : true);
   const off = b.canBody ? "" : " disabled";
@@ -609,9 +612,9 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   // 選んだ形（形を選ぶ絵の並び。shape-picker.ts）
   const pickedShape = (): Shape => (overlay.querySelector<HTMLInputElement>('[name="shape"]:checked')?.value ?? b.shape) as Shape;
   const pick = (s: Shape) => { const r = overlay.querySelector<HTMLInputElement>(`[name="shape"][value="${s}"]`); if (r) r.checked = true; };
-  const sizeS = overlay.querySelector<HTMLInputElement>('[name="size"][value="S"]')!;
-  const pickedSize = () => overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value ?? b.size;
-  const bodyAllowed = () => bodyBase() && shapeDef(pickedShape()).body && (sizeFixedNow() || pickedSize() !== "S");
+  const pickedSize = () => (overlay.querySelector<HTMLInputElement>('[name="size"]:checked')?.value ?? b.size) as Size;
+  // 段を選べない箱（リストの中など）では段は効かないので、形だけで決まる
+  const bodyAllowed = () => bodyBase() && shapeDef(pickedShape()).body && (sizeFixedNow() || stepBody(pickedShape(), pickedSize()));
   const syncBody = () => {
     const allowed = bodyAllowed();
     for (const el of overlay.querySelectorAll<HTMLTextAreaElement | HTMLSelectElement>('[name="body"], [name="lines"]')) el.disabled = !allowed;
@@ -620,7 +623,8 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
     syncShapePicker(overlay, "shape", v => frameOff(v) ?? (has && !shapeDef(v).body ? t("本文があるあいだは選べません") : null));
     const cls = pickedShape() === "class";
     // クラスの箱はサイズを使わない（幅は中身で決まる）
-    for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.disabled = sizeFixedNow() || cls || (r === sizeS && has);
+    // 本文があるあいだは、本文を持てない段を選べない
+    for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) r.disabled = sizeFixedNow() || cls || (has && !stepBody(pickedShape(), r.value as Size));
     overlay.querySelector<HTMLElement>("[data-class-size]")!.hidden = !cls;
     overlay.querySelector<HTMLElement>("[data-size-fixed]")!.hidden = !sizeFixedNow() || !!b.link;
     // 見た目: 塗りつぶし・枠線は効く形でだけ出す。本文があるあいだは 1 行にできない

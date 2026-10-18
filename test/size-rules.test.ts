@@ -2,10 +2,16 @@
 import { expect, test } from "bun:test";
 import { BASE_MIN, DEFAULT_RULE, GROUP_MIN, resolveSize } from "../web/src/size-rules";
 import { SHAPE_DEFS } from "../web/src/shapes";
-import { SHAPES, SIZES } from "../web/src/validate";
+import { SHAPES } from "../web/src/validate";
 import type { Size } from "../web/src/types";
 
 const steps = ["L", "M", "S"] as const satisfies readonly Size[];
+// D44 の前の値（validate.ts の SIZES。層に載せ替えても同じになること）
+const SIZES: Record<Size, { minW: number; maxW: number; h: number; fixedH?: boolean; limit?: number }> = {
+  L: { minW: 120, maxW: 400, h: 64 },
+  M: { minW: 120, maxW: 240, h: 64 },
+  S: { minW: 64, maxW: 96, h: 44, fixedH: true, limit: 10 },
+};
 
 test("形 × 段 × 置かれ方の全組で、幅の範囲・高さ・高さの固定・文字数の上限・本文・斜めの辺・絵の倍率が今と同じ", () => {
   for (const shape of SHAPES) {

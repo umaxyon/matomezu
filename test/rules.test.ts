@@ -87,3 +87,28 @@ test("並べ方の名前を直接比べる判定を、戦略の表の外に増�
   }
   expect(over).toEqual([]);
 });
+
+// 大きさの決まりの層（D44。docs/BOX-SIZE-plan.md の 6.1）: 段（S・M・L）の値を持つのは size-rules.ts（ふつうの形のローカルな段の表）だけ。
+// 大きさを測る所・描く所は、層を当てた決まり（sizeRuleOf）を読み、段の名前で比べない。ほかに段の名前を比べてよいのは、
+// データの既定（書かれていなければ M。既定なら書かない）だけ。ファイルごとの数は今の数が上限（増やすなら理由をここに書く）
+const STEP_ALLOWED: Record<string, number> = {
+  "size-rules.ts": Infinity, // 段の表そのもの
+  "graph.ts": 1,             // リストの高さ（rowSize）が既定の M なら書かない
+  "edit-dialog.ts": 1,       // 足す箱のサイズが既定の M なら書かない
+};
+const STEP_COMPARE = /[!=]==\s*"(L|M|S)"/g;
+// 段の値の表を読み込む所（size-rules.ts の STEPS。validate.ts の SIZES はデータの検査の名前だけ）
+const STEP_TABLES = /import[^;]*\b(SIZES|STEPS)\b[^;]*from "[./]*\/?(size-rules|validate)"/g;
+
+test("段（S・M・L）の名前を比べる判定と、段の値の表を読む所を、size-rules.ts の外に増やさない（D44）", () => {
+  const over: string[] = [];
+  for (const f of files(SRC)) {
+    const name = relative(SRC, f).replaceAll("\\", "/");
+    const src = readFileSync(f, "utf8").split("\n").map(l => l.replace(/\/\/.*$/, "")).join("\n"); // コメントは数えない
+    const count = (src.match(STEP_COMPARE) ?? []).length;
+    if (count > (STEP_ALLOWED[name] ?? 0)) over.push(`${name}: 段の名前の比較 ${count}（上限 ${STEP_ALLOWED[name] ?? 0}）`);
+    if (name !== "size-rules.ts" && name !== "validate.ts" && STEP_TABLES.test(src)) over.push(`${name}: 段の値の表を読んでいる`);
+    STEP_TABLES.lastIndex = 0;
+  }
+  expect(over).toEqual([]);
+});
