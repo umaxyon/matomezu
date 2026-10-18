@@ -33,3 +33,27 @@ export function workerServer(): WorkerServer {
   server = { dir, run, write };
   return server;
 }
+
+export interface TestServer extends WorkerServer {
+  stop(): void; // サーバーを止めてフォルダを消す（afterEach で呼ぶ）
+}
+
+// テストごとのサーバー（シナリオのテスト用）。登録した図・郵便箱・LLM の履歴が前のテストから残らないので、
+// 1 本のテストの中で LLM とユーザーの往復をはじめから通せる。使い方: beforeEach で作り、afterEach で stop
+export function testServer(): TestServer {
+  const bin = process.env.MATOMEZU_E2E_BIN;
+  if (!bin) throw new Error("MATOMEZU_E2E_BIN is not set (e2e/global-setup.ts builds the binary)");
+  const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"));
+  const run = (...args: string[]) =>
+    execFileSync(bin, args, { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8", timeout: 20_000 });
+  const write = (name: string, data: unknown) => {
+    const file = join(dir, name);
+    writeFileSync(file, JSON.stringify(data));
+    return file;
+  };
+  const stop = () => {
+    try { run("stop"); } catch { /* 止まっていてもよい */ }
+    rmSync(dir, { recursive: true, force: true });
+  };
+  return { dir, run, write, stop };
+}

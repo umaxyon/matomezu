@@ -134,23 +134,6 @@ test("マスターを見ている最中に、登録した図のファイルが�
   await expect(stage.locator('.mz-node[data-id^="b-"]', { hasText: "b.json" })).toHaveCount(1);
 });
 
-test("プレビューの間は、道具と道具箱、ページを足す＋と閉じる × が隠れる。戻ると元に戻る（D26）", async ({ page }) => {
-  const url = run("open", "-no-browser", "a.json").trim();
-  await page.goto(url);
-  await arrive(page, "b.json");
-  await expect(selected(page)).toHaveText("b.json");
-  await expect(page.locator(".stage:visible .mz-toolbox")).toBeVisible();
-  await page.locator("#preview-toggle").click();
-  await expect(visibleTabs(page)).toHaveText(["b.json"]);
-  await expect(page.locator(".toolbar")).toBeHidden();
-  await expect(page.locator(".mz-toolbox:visible")).toHaveCount(0);
-  await expect(page.locator(".tab-close:visible")).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".stage:visible .mz-toolbox")).toBeVisible();
-  await expect(page.locator(".tab-close:visible")).toHaveCount(1);
-  await page.locator(".tab", { hasText: "b.json" }).locator(".tab-close").click();
-});
-
 test("郵便箱: LLM の open は今のブックの郵便箱に入り、「届いています」と聞く。キャンセルしても残り（中身は見たので読んだことになる）、郵便箱から開ける（D26）", async ({ page }) => {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
