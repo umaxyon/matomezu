@@ -262,7 +262,7 @@ func Summary(s *State, path, page string) (server.Layout, error) {
 	return l, err
 }
 
-// Fit は path の図を data に書き換えたら紙に収まるかを、カレントの画面に頼んで返す（新しくはみ出す箱。D33）。誤りはサーバーの言葉だけを返す
+// Fit は path の図を data に書き換えたら紙に収まるかを、カレントの画面に頼んで返す（収まらないページ。開くときと同じ判定。D33）。誤りはサーバーの言葉だけを返す
 func Fit(s *State, path string, data []byte) ([]server.FitOver, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
