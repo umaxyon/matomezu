@@ -291,7 +291,7 @@ func open(args []string) error {
 		return err
 	}
 	if len(res.Over) > 0 {
-		return errors.New("not opened: " + overText("the diagram does not fit on its paper (the browser shows this on the master page):", res.Over))
+		return errors.New("not opened: " + server.OverText("the diagram does not fit on its paper (the browser shows this on the master page):", res.Over))
 	}
 	fmt.Println(bookURL(s, res.ID, *page))
 	if !screen {

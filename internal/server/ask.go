@@ -143,7 +143,18 @@ func (h *Hub) Ask(path string, items []AskItem) (string, *Topic, error) {
 
 // ask は確かめた項目で話題を出す。focus なら、画面は 1 つ目の箱にフォーカスの枠も出す（matomezu focus -button）
 func (h *Hub) ask(path string, items []AskItem, focus bool) (string, *Topic, error) {
-	res, err := h.existingDoc(path)
+	// 出せない理由（話題・ツアーが残っている）を先に返す（紙の判定は画面に頼むので重い。下でもう一度確かめる）
+	h.mu.Lock()
+	busy := h.topic != nil
+	touring := h.tour != nil && !h.tour.done()
+	h.mu.Unlock()
+	switch {
+	case busy:
+		return "", nil, errTopicOpen
+	case touring:
+		return "", nil, errTourOpen
+	}
+	res, err := h.shownDoc(path)
 	if err != nil {
 		return "", nil, err
 	}

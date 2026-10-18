@@ -4,6 +4,7 @@ package server
 //
 //	POST /api/notify  {"title", "body", "path", "page", "box", "mail"} カレントの画面に通知を送る … 要トークン
 //	                  path があれば「そのブック（page があればそのページ）を開く」動きを持つ（登録もする）。無ければ説明だけ。
+//	                  path があれば、送る前に画面に紙に収まるかを判定してもらい、収まらなければ送らない（fit.go の shownDoc。docs/PAPER-plan.md の 4.6 の 7）
 //	                  box があれば、開いたらその箱（のページ）へ移ってフォーカス枠で示す（matomezu focus -mail。D37。題名が無ければ画面が付ける）。
 //	                  mail なら郵便箱に入れるだけ。無ければダイアログも出す。画面が無ければ 409
 //
@@ -39,7 +40,7 @@ func (h *Hub) Notify(n NotifyRequest) error {
 		msg["box"] = n.Box
 	}
 	if n.Path != "" {
-		res, err := h.existingDoc(n.Path)
+		res, err := h.shownDoc(n.Path)
 		if err != nil {
 			return err
 		}

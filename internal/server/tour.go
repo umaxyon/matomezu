@@ -89,9 +89,9 @@ func (h *Hub) StartTour(r TourRequest) (*Tour, error) {
 		if s.Path == "" {
 			s.Path = r.Path
 		}
-		res, err := h.existingDoc(s.Path)
+		res, err := h.shownDoc(s.Path)
 		if err != nil {
-			return nil, fmt.Errorf("step %d: %v", i+1, err)
+			return nil, fmt.Errorf("step %d: %w", i+1, err)
 		}
 		s.Doc = res.ID
 		steps[i] = s

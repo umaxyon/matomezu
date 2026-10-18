@@ -159,6 +159,45 @@ func nextEvent(t *testing.T, r *bufio.Reader, name string) string {
 	}
 }
 
+// 画面の役として、紙に収まるかの頼み（fit）には「収まる」と答えながら、name のイベントを 1 つ読む
+// （ブックを見せる知らせ・フォーカス・ツアーは、送る前に判定を頼み、その答えを待つ。fit.go の shownDoc）。
+// 頼む側が答えを待って止まるので、頼む前に裏で動かしておき、読めた data を受け取る（5 秒で来なければ ""）
+func screenEvent(url string, r *bufio.Reader, name string) <-chan string {
+	out := make(chan string, 1)
+	go func() {
+		ev := ""
+		timer := time.AfterFunc(5*time.Second, func() { out <- "" })
+		defer timer.Stop()
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				return
+			}
+			line = strings.TrimSpace(line)
+			if v, ok := strings.CutPrefix(line, "event: "); ok {
+				ev = v
+				continue
+			}
+			v, ok := strings.CutPrefix(line, "data: ")
+			if !ok {
+				continue
+			}
+			switch ev {
+			case "fit":
+				var q struct{ Req string }
+				json.Unmarshal([]byte(v), &q)
+				if res, err := http.Post(url+"/api/fit/"+q.Req, "application/json", strings.NewReader(`{"over":[]}`)); err == nil {
+					res.Body.Close()
+				}
+			case name:
+				out <- v
+				return
+			}
+		}
+	}()
+	return out
+}
+
 // SSE から version イベントを1つ読み、版を返す
 func nextVersion(t *testing.T, r *bufio.Reader) string {
 	t.Helper()

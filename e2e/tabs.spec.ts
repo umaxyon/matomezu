@@ -846,8 +846,14 @@ test("紙に収まらないブックは開かない: open は理由を返して�
   await expect(page.locator(".mz-dlg")).toHaveCount(0); // 届いていないので「届いています」も出ない
   expect(await listed()).toBe(false);
   await expect(page.locator(".stage:visible .mz-node[data-id^='b-']", { hasText: "wide.json" })).toHaveCount(0);
+  // 知らせにブックを付けても、収まらなければ送らない（LLM が check を飛ばしても届かない）
+  expect(fails("notify", "-mail", "-title", "見て", "wide.json")).toContain("not shown to the user");
+  expect(await listed()).toBe(false);
   // 画面が無いときの open -no-browser は判定せずに届けるので、URL を開いた画面がブックを開くときに判定し、開かずにマスターで知らせて一覧から外す
   await page.close();
+  // サーバーが画面の切れたことに気づくまで待つ（気づく前だと、閉じた画面に判定を頼んで答えを待ってしまう）
+  const current = async () => ((await (await context.request.get(origin + "/api/current")).json()) as { client: string }).client;
+  await expect.poll(current).toBe("");
   const url = run("open", "-no-browser", "wide.json").trim();
   expect(await listed()).toBe(true);
   const next = await context.newPage();

@@ -156,7 +156,7 @@ func set(args []string) error {
 		return fmt.Errorf("not written: %w", err)
 	}
 	if len(over) > 0 {
-		return errors.New("not written: " + overText("the change does not fit on the paper:", over))
+		return errors.New("not written: " + server.OverText("the change does not fit on the paper:", over))
 	}
 	if err := writeFile(path, out); err != nil {
 		return err
@@ -167,33 +167,6 @@ func set(args []string) error {
 	}
 	fmt.Println("written (run matomezu check to see the layout)")
 	return nil
-}
-
-// overText は、紙に収まらなかったページの並びと、取れる手段を並べる（set と open が断ったとき。docs/PAPER-plan.md の 4.6 の 7）
-func overText(lead string, over []server.FitOver) string {
-	var b strings.Builder
-	b.WriteString(lead)
-	for _, o := range over {
-		page := "first page"
-		if o.Page != "" {
-			page = "page " + o.Page
-			if o.Name != "" && o.Name != o.Page {
-				page += " (" + o.Name + ")"
-			}
-		}
-		kind, more := "row", "wider"
-		if o.Axis == "y" {
-			kind, more = "column", "taller"
-		}
-		row := make([]string, len(o.Boxes))
-		for i, x := range o.Boxes {
-			row[i] = "#" + x.ID + " " + x.Caption
-		}
-		fmt.Fprintf(&b, "\n  %s, paper %s: the %s %s is %dpx %s than the paper", page, o.Paper, kind, strings.Join(row, ", "), o.Short, more)
-	}
-	b.WriteString("\nboxes outside the paper are pushed in only along their row or column, never wrapped to another row")
-	b.WriteString("\nto make it fit: summarize or cut content, turn a long list into a scrolling list, use a larger paper (world.paper), or move a detail that deserves its own page to a page")
-	return b.String()
 }
 
 // ---- 項目の書き換え ----

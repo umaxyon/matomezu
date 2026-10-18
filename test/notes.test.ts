@@ -24,6 +24,8 @@ afterEach(() => {
 });
 
 const tick = () => new Promise(r => setTimeout(r, 5));
+// ok になるまで待つ（1 秒まで）。並列で流すと 5ms では間に合わないことがあるので、出るはずのものは決め打ちの時間ではなく条件で待つ
+const until = async (ok: () => boolean) => { for (let i = 0; i < 200 && !ok(); i++) await tick(); };
 const note = (title: string, book: string | null = null): MailNote => ({ kind: "note", title, body: "", book, page: null });
 const title = () => document.querySelector(".mz-dlg-overlay #mz-dlg-title")?.textContent ?? null;
 const press = (sel: "[data-ok]" | "[data-cancel]") => document.querySelector<HTMLElement>(`.mz-dlg-overlay ${sel}`)!.click();
@@ -32,7 +34,7 @@ test("ダイアログが無ければすぐ出す。開いている間に届い�
   const queue = createNoteQueue();
   const opened: string[] = [];
   queue({ note: note("1 通目", "b"), into: null, sent: null, open: () => opened.push("1") });
-  await tick();
+  await until(() => title() === "1 通目");
   expect(title()).toBe("1 通目");
   queue({ note: note("2 通目"), into: null, sent: null, open: () => {} });
   queue({ note: note("3 通目"), into: null, sent: null, open: () => {} });
@@ -40,10 +42,10 @@ test("ダイアログが無ければすぐ出す。開いている間に届い�
   expect(title()).toBe("1 通目"); // 押しのけない
   press("[data-ok]");
   expect(opened).toEqual(["1"]);
-  await tick();
+  await until(() => title() === "2 通目");
   expect(title()).toBe("2 通目");
   press("[data-ok]");
-  await tick();
+  await until(() => title() === "3 通目");
   expect(title()).toBe("3 通目");
 });
 
@@ -54,7 +56,7 @@ test("編集のダイアログが開いていれば、その入力を失わな�
   await tick();
   expect(title()).toBe("編集中");
   press("[data-cancel]");
-  await tick();
+  await until(() => title() === "通知");
   expect(title()).toBe("通知");
 });
 
@@ -69,7 +71,7 @@ test("説明ツアーの間は出さず、ツアーの幕が外れたら出す�
   expect(title()).toBeNull();
   document.body.classList.remove("touring");
   tour.remove();
-  await tick();
+  await until(() => title() === "通知");
   expect(title()).toBe("通知");
 });
 
@@ -77,13 +79,13 @@ test("郵便箱に入れた通知: 出すときに中身を見せるので、開
   const queue = createNoteQueue();
   mail = [{ id: "5", at: 1, read: false, body: note("開ける", "b") }, { id: "6", at: 1, read: false, body: note("説明") }];
   queue({ note: note("開ける", "b"), into: "a", sent: "5", open: () => {} });
-  await tick();
+  await until(() => calls.includes("POST d/a/api/mail/5/read") && title() === "開ける");
   expect(calls).toContain("POST d/a/api/mail/5/read");
   press("[data-ok]"); // 開いたら取り除く
   expect(calls.at(-1)).toBe("DELETE d/a/api/mail/5");
   await tick();
   queue({ note: note("説明"), into: "a", sent: "6", open: () => {} });
-  await tick();
+  await until(() => calls.includes("DELETE d/a/api/mail/6"));
   expect(calls).toContain("DELETE d/a/api/mail/6");
 });
 
@@ -95,8 +97,7 @@ test("待っている間に郵便箱から見た（既読）・消した通知�
   queue({ note: note("消した"), into: "a", sent: "2", open: () => {} }); // 郵便箱に無い
   queue({ note: note("残り"), into: null, sent: null, open: () => {} });
   press("[data-cancel]");
-  await tick();
-  await tick();
+  await until(() => title() === "残り");
   expect(title()).toBe("残り");
 });
 
@@ -105,7 +106,7 @@ test("show があれば通知のダイアログの代わりにそれを出し、
   mail = [{ id: "3", at: 1, read: false, body: note("ツアー") }];
   let shown = 0;
   queue({ note: note("ツアー"), into: "a", sent: "3", open: () => {}, show: () => { shown++; } });
-  await tick();
+  await until(() => shown === 1 && calls.includes("POST d/a/api/mail/3/read"));
   expect(shown).toBe(1);
   expect(title()).toBeNull();
   expect(calls).toContain("POST d/a/api/mail/3/read");

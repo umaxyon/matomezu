@@ -63,8 +63,8 @@
 package server
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -691,7 +691,7 @@ func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 	// 読めないファイル（JSON の誤りなど）も今までどおり届け、画面が誤りを見せる
 	if req.Ask {
 		if b, err := os.ReadFile(req.Path); err == nil && len(bytes.TrimSpace(b)) > 0 && json.Valid(b) {
-			over, err := h.Fit(req.Path, b, true)
+			over, err := h.Fit(req.Path, b, fitOpen)
 			switch {
 			case errors.Is(err, errBusy):
 				http.Error(w, err.Error(), http.StatusConflict)

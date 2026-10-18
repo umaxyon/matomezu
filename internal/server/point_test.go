@@ -40,7 +40,7 @@ func TestPointAsksTheCurrentScreen(t *testing.T) {
 		got := make(chan map[string]string, 1)
 		go func() {
 			var p map[string]string
-			json.Unmarshal([]byte(nextEvent(t, r, "point")), &p)
+			json.Unmarshal([]byte(<-screenEvent(ts.URL, r, "point")), &p)
 			do(t, "POST", ts.URL+"/api/point/"+p["req"], answer, nil).Body.Close()
 			got <- p
 		}()
@@ -97,11 +97,12 @@ func TestNotifyWithBox(t *testing.T) {
 		t.Fatal(err)
 	}
 	body, _ := json.Marshal(map[string]any{"path": path, "box": "1", "mail": true})
+	screen := screenEvent(ts.URL, r, "notify")
 	if s := notify(string(body)); s != http.StatusNoContent {
 		t.Fatalf("notify: %d", s)
 	}
 	var n struct{ Book, Box, Dialog string }
-	json.Unmarshal([]byte(nextEvent(t, r, "notify")), &n)
+	json.Unmarshal([]byte(<-screen), &n)
 	if n.Book != docID(path) || n.Box != "1" || n.Dialog != "" {
 		t.Fatalf("notice: %+v", n)
 	}

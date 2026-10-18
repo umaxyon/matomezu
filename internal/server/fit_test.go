@@ -136,3 +136,57 @@ func TestOpenAsksTheScreenToJudgeFirst(t *testing.T) {
 		t.Fatalf("notify = %s", v)
 	}
 }
+
+// 紙に収まらなかったページは、向き・並び・足りない px と、折り返さないこと、取れる手段を書く（set と open が断ったとき）
+func TestOverText(t *testing.T) {
+	got := OverText("lead:", []FitOver{
+		{Page: "", Paper: "a4-landscape 1123x794", Axis: "x", Short: 40, Boxes: []FitBox{{ID: "1", Caption: "A"}, {ID: "2", Caption: "B"}}},
+		{Page: "p2", Name: "二枚目", Paper: "a5-portrait 559x794", Axis: "y", Short: 7, Boxes: []FitBox{{ID: "9", Caption: "C"}}},
+	})
+	for _, want := range []string{
+		"lead:\n  first page, paper a4-landscape 1123x794: the row #1 A, #2 B is 40px wider than the paper",
+		"\n  page p2 (二枚目), paper a5-portrait 559x794: the column #9 C is 7px taller than the paper",
+		"never wrapped", "world.paper",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+// ブックを見せる知らせ（notify にファイル）は、送る前に画面に判定を頼む（画面には何も出させない）。収まらなければ送らずに原因を返し、
+// マスターの一覧にも載せない。LLM が check を飛ばしても、収まらないブックがユーザーに届かない（docs/PAPER-plan.md の 4.6 の 7。2026-10-18）
+func TestNotifyWithABookIsJudgedFirst(t *testing.T) {
+	_, ts, _ := setupHub(t)
+	path := filepath.Join(t.TempDir(), "wide.json")
+	if err := os.WriteFile(path, []byte(`{"nodes":[{"id":1}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res := do(t, "GET", ts.URL+"/api/events", "", nil)
+	defer res.Body.Close()
+	r := bufio.NewReader(res.Body)
+	nextEvent(t, r, "hello")
+	got := make(chan map[string]string, 1)
+	go func() {
+		var q map[string]string
+		json.Unmarshal([]byte(nextEvent(t, r, "fit")), &q)
+		do(t, "POST", ts.URL+"/api/fit/"+q["req"], `{"over":[{"page":"","paper":"a4-landscape 1123x794","axis":"x","short":40,"boxes":[{"id":"1","caption":"横"}]}]}`, nil).Body.Close()
+		got <- q
+	}()
+	body, _ := json.Marshal(map[string]any{"title": "見て", "path": path})
+	out := do(t, "POST", ts.URL+"/api/notify", string(body), map[string]string{"X-Matomezu-Token": "secret"})
+	b, _ := io.ReadAll(out.Body)
+	out.Body.Close()
+	if out.StatusCode != http.StatusBadRequest || !strings.Contains(string(b), "not shown to the user") || !strings.Contains(string(b), "the row #1 横 is 40px wider") {
+		t.Fatalf("notify: %d %s", out.StatusCode, b)
+	}
+	if q := <-got; q["open"] != "" || q["doc"] != docID(path) {
+		t.Fatalf("fit request: %+v", q)
+	}
+	list := do(t, "GET", ts.URL+"/api/books", "", nil)
+	lb, _ := io.ReadAll(list.Body)
+	list.Body.Close()
+	if strings.Contains(string(lb), "wide.json") {
+		t.Fatal("listed")
+	}
+}

@@ -11,11 +11,15 @@ package server
 // （web/src/app-answers.ts の answerFit）。open の判定なら、収まらないとき画面はマスターを出して知らせる（そのブックは届けない）
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -47,12 +51,21 @@ type fitRequest struct {
 	ans  chan fitAnswer
 }
 
-// Fit は path の図を data にしたら紙に収まるかを、カレントの画面に頼んで返す（収まらないページ。収まれば空）。
-// open なら matomezu open の判定で、収まらなければ画面はマスターを出して知らせる
-func (h *Hub) Fit(path string, data []byte, open bool) ([]FitOver, error) {
-	// open の判定では登録しない（開けなかったブックをマスターの一覧に載せない。名前は画面に渡す）
+// fitMode は判定の使い方
+type fitMode int
+
+const (
+	fitSet   fitMode = iota // matomezu set の確かめ（図を登録する。その図はもう開いている）
+	fitOpen                 // matomezu open の判定（登録しない。収まらなければ画面がマスターで知らせる）
+	fitQuiet                // ブックを見せる知らせ（notify・focus・ask・tour）の前の判定（登録しない。画面には何も出さない。shownDoc）
+)
+
+// Fit は path の図を data にしたら紙に収まるかを、カレントの画面に頼んで返す（収まらないページ。収まれば空）
+func (h *Hub) Fit(path string, data []byte, mode fitMode) ([]FitOver, error) {
+	// set のほかは登録しない（開けなかったブックをマスターの一覧に載せない。名前は画面に渡す）
+	open := mode == fitOpen
 	var res OpenResult
-	if open {
+	if mode != fitSet {
 		abs, err := filepath.Abs(path)
 		if err != nil {
 			return nil, err
@@ -116,7 +129,7 @@ func (h *Hub) fit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "path and data required", http.StatusBadRequest)
 		return
 	}
-	over, err := h.Fit(req.Path, req.Data, false)
+	over, err := h.Fit(req.Path, req.Data, fitSet)
 	switch {
 	case errors.Is(err, errNoScreen), errors.Is(err, errBusy):
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -155,4 +168,58 @@ func (h *Hub) fitAnswer(w http.ResponseWriter, r *http.Request) {
 	default:
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// OverText は、紙に収まらなかったページの並びと、取れる手段を並べる（set・open と、ブックを見せる知らせが断ったとき。docs/PAPER-plan.md の 4.6 の 7）
+func OverText(lead string, over []FitOver) string {
+	var b strings.Builder
+	b.WriteString(lead)
+	for _, o := range over {
+		page := "first page"
+		if o.Page != "" {
+			page = "page " + o.Page
+			if o.Name != "" && o.Name != o.Page {
+				page += " (" + o.Name + ")"
+			}
+		}
+		kind, more := "row", "wider"
+		if o.Axis == "y" {
+			kind, more = "column", "taller"
+		}
+		row := make([]string, len(o.Boxes))
+		for i, x := range o.Boxes {
+			row[i] = "#" + x.ID + " " + x.Caption
+		}
+		fmt.Fprintf(&b, "\n  %s, paper %s: the %s %s is %dpx %s than the paper", page, o.Paper, kind, strings.Join(row, ", "), o.Short, more)
+	}
+	b.WriteString("\nboxes outside the paper are pushed in only along their row or column, never wrapped to another row")
+	b.WriteString("\nto make it fit: summarize or cut content, turn a long list into a scrolling list, use a larger paper (world.paper), or move a detail that deserves its own page to a page")
+	return b.String()
+}
+
+// NotFitError は、紙に収まらないので、そのブックをユーザーに見せなかった（Error は LLM 向けの原因と手段）
+type NotFitError struct{ Over []FitOver }
+
+func (e *NotFitError) Error() string {
+	return OverText("not shown to the user: the diagram does not fit on its paper:", e.Over)
+}
+
+// shownDoc は existingDoc と同じく図を引くが、その前に紙に収まるかを判定する（docs/PAPER-plan.md の 4.6 の 7）。
+// ブックを開く・移る動きを持つ知らせ（notify・focus・ask・tour）が使い、収まらなければ *NotFitError を返して何も送らない
+// （LLM が check を飛ばしても、収まらないブックがユーザーに届かないように。2026-10-18 ユーザー）。読めないファイルは判定せずに通す（画面が誤りを見せる）
+func (h *Hub) shownDoc(path string) (OpenResult, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return OpenResult{}, err
+	}
+	if b, err := os.ReadFile(abs); err == nil && len(bytes.TrimSpace(b)) > 0 && json.Valid(b) {
+		over, err := h.Fit(abs, b, fitQuiet)
+		switch {
+		case errors.Is(err, errNoScreen), errors.Is(err, errBusy):
+			return OpenResult{}, err
+		case err == nil && len(over) > 0:
+			return OpenResult{}, &NotFitError{over}
+		}
+	}
+	return h.existingDoc(abs)
 }

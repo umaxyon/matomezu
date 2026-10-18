@@ -41,11 +41,12 @@ func TestNotifyGoesToTheCurrentScreen(t *testing.T) {
 		t.Fatal(err)
 	}
 	body, _ := json.Marshal(map[string]any{"title": "done", "body": "changed 1", "path": path, "page": "p2"})
+	screen := screenEvent(ts.URL, ra, "notify")
 	if s := notify(string(body)); s != http.StatusNoContent {
 		t.Fatalf("notify: %d", s)
 	}
 	var n struct{ Title, Body, Book, Page, Dialog string }
-	json.Unmarshal([]byte(nextEvent(t, ra, "notify")), &n)
+	json.Unmarshal([]byte(<-screen), &n)
 	if n.Title != "done" || n.Body != "changed 1" || n.Book != docID(path) || n.Page != "p2" || n.Dialog != "true" {
 		t.Fatalf("notice: %+v", n)
 	}
