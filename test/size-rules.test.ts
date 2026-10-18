@@ -1,6 +1,6 @@
 // 大きさの決まりの層（size-rules.ts。D44 の段階 2）: 層に載せ替えても、今の挙動（validate.ts の SIZES と形の表の値）と同じ決まりになる
 import { expect, test } from "bun:test";
-import { BASE_MIN, DEFAULT_RULE, resolveSize } from "../web/src/size-rules";
+import { BASE_MIN, DEFAULT_RULE, GROUP_MIN, resolveSize } from "../web/src/size-rules";
 import { SHAPE_DEFS } from "../web/src/shapes";
 import { SHAPES, SIZES } from "../web/src/validate";
 import type { Size } from "../web/src/types";
@@ -13,7 +13,7 @@ test("形 × 段 × 置かれ方の全組で、幅の範囲・高さ・高さの
     for (const step of steps) {
       for (const shared of [false, true]) {
         for (const fullText of [false, true]) {
-          const r = resolveSize({ shape, step, shared, fullText });
+          const r = resolveSize({ shape, step, shared, fullText, group: false });
           const z = SIZES[shared ? "M" : step]; // 今は sizeOf が、ふつうの大きさにする箱を M にしていた
           const at = `${shape} ${step} shared=${shared} fullText=${fullText}`;
           expect([at, r.textW.min, r.textW.max, r.minH]).toEqual([at, z.minW, z.maxW, z.h]);
@@ -37,8 +37,14 @@ test("全オブジェクトの既定は、文字数の上限なし・折り返�
   expect([DEFAULT_RULE.titleMax, DEFAULT_RULE.bodyMax, DEFAULT_RULE.wrap, DEFAULT_RULE.body]).toEqual([Infinity, Infinity, true, true]);
   expect(BASE_MIN).toEqual({ w: 64, h: 44 });
   for (const shape of SHAPES) for (const step of steps) {
-    const r = resolveSize({ shape, step, shared: false, fullText: false });
+    const r = resolveSize({ shape, step, shared: false, fullText: false, group: false });
     expect(r.textW.min).toBeGreaterThanOrEqual(BASE_MIN.w);
     expect(r.minH).toBeGreaterThanOrEqual(BASE_MIN.h);
   }
+});
+
+test("箱の種類の層: 子を並べる箱の最小は今の 120 × 64、ほかの箱は土台の最小（64 × 44）", () => {
+  expect(resolveSize({ shape: "box", step: "M", shared: true, fullText: false, group: true }).min).toEqual(GROUP_MIN);
+  expect(GROUP_MIN).toEqual({ w: 120, h: 64 });
+  expect(resolveSize({ shape: "box", step: "S", shared: false, fullText: false, group: false }).min).toEqual(BASE_MIN);
 });

@@ -5,7 +5,6 @@
 import type { Layout } from "./layout/layout";
 import { BODY_MIN_W } from "./layout/node-kinds";
 import { type Box, bodyWrapW, isNesting, listHeightOf, setOrDelete, setSpec, sizeRuleOf } from "./model";
-import { GROUP_MIN } from "./validate";
 
 type Prior = ReturnType<Layout["snapshot"]>;
 
@@ -67,7 +66,7 @@ export function createResizers(ctx: ResizersContext) {
     };
     return {
       width: n.w - n.listOx, // 書くのは土台の幅（足跡は葉の子の補正値の分だけ広い。node-kinds.ts の list）
-      set(w: number) { const v = Math.round(Math.max(GROUP_MIN.w, w)); if (apply(v)) last = v; else apply(last); },
+      set(w: number) { const v = Math.round(Math.max(sizeRuleOf(n).min.w, w)); if (apply(v)) last = v; else apply(last); },
       finish() {
         n.intendedX = n.x;
         ctx.changed();

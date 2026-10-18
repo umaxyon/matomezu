@@ -6,7 +6,6 @@ import {
   type Box, anchorInsetOf, headRectOf, arrangeOf, bodyOf, bodyTextW, bodyWidthOf, captionOf, inTreeOf, isLinkBox, kidStrategyOf, listHeightOf, rowHeightOf, takesRowSize, linkIconOf, linkLookOf, listPreviewOf, leafLike, overflowOf, shapeOf, sizeRuleOf, treeDirOf,
 } from "../model";
 import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth, linkRowHeight } from "../link-box";
-import { GROUP_MIN } from "../validate";
 import { shapeDef } from "../shapes";
 import type { Rect } from "../geom";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
@@ -226,7 +225,8 @@ export function createNodeKinds(ctx: KindContext) {
     },
     floor(n) {
       const bh = bodyHeight(n, n.w);
-      return { w: Math.max(GROUP_MIN.w, bodyMinW(n), assignedW(n)), h: Math.max(GROUP_MIN.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0) };
+      const min = sizeRuleOf(n).min;
+      return { w: Math.max(min.w, bodyMinW(n), assignedW(n)), h: Math.max(min.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0) };
     },
     anchorRect: headRect,
   };
@@ -329,7 +329,8 @@ export function createNodeKinds(ctx: KindContext) {
       // 幅の指定は土台の幅なので、葉の子の補正値の分だけ広げる（テーマを変えても、葉の子が文字を折り返す幅は変わらない）
       n.listOx = Math.max(0, ...widths.filter(c => c.leaf).map(c => c.ox));
       // 指定があっても狭められない幅（子を持つ子は、下から決まった幅より狭くできない）
-      const floor = Math.max(GROUP_MIN.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, assignedW(n) - 2 * P);
+      const min = sizeRuleOf(n).min;
+      const floor = Math.max(min.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, assignedW(n) - 2 * P);
       const inner = n.specW
         ? Math.max(floor, n.specW - 2 * P + n.listOx)
         : Math.max(floor, ...widths.map(c => c.w), Math.min(LIST_TITLE_MAX_W, caption(n) - 2 * P));
@@ -345,7 +346,7 @@ export function createNodeKinds(ctx: KindContext) {
         y += k.h + gap;
       }
       n.w = inner + 2 * P;
-      n.fullH = Math.max(GROUP_MIN.h, y - gap + P);
+      n.fullH = Math.max(min.h, y - gap + P);
       // 高さの上限（listHeight。D33）があれば、そこで止める（超えた分はリストの中だけスクロールする。render.ts）。子が 1 行は見える高さより低くはしない
       const cap = listHeightOf(n);
       n.h = cap ? Math.min(n.fullH, Math.max(cap, n.kidsTop + LIST_SCROLL_MIN)) : n.fullH;

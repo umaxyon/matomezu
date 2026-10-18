@@ -4,7 +4,8 @@ import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { STRATEGIES } from "../web/src/model";
 import type { Diagram } from "../web/src/types";
-import { BOX_VIEWS, GROUP_MIN } from "../web/src/validate";
+import { BOX_VIEWS } from "../web/src/validate";
+import { GROUP_MIN } from "../web/src/size-rules";
 import { fakeMeasure } from "./helpers";
 
 const graphs: Graph[] = [];

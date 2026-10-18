@@ -8,7 +8,7 @@ import { isTreeDirection, normalizeEdge } from "./validate";
 import { resolveSize } from "./size-rules";
 
 // 大きさの指定が無い箱の近似（ふつうの箱の決まり。size-rules.ts）
-const PLAIN = resolveSize({ shape: "box", step: "M", shared: true, fullText: false });
+const PLAIN = resolveSize({ shape: "box", step: "M", shared: true, fullText: false, group: false });
 
 // 何も無い縮図（マスターの窓で、まだ読んでいないブック）
 export const EMPTY_SCENE: Scene = { w: 1, h: 1, bg: null, boxes: [], edges: [] };

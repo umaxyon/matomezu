@@ -25,7 +25,6 @@ export const SIZES: Record<Size, SizeSpec> = {
 };
 
 // 子を内包するボックスとワールドの最小の大きさ（サイズによらない）
-export const GROUP_MIN = { w: 120, h: 64 };
 
 export const OVERFLOWS = ["wrap", "clip"] as const; // データに書ける文字の箱の中身の扱い（子を持つ箱はつねに子に合わせて伸びる。docs/SIZE-plan.md）
 // 並べ方の戦略の名前（model.ts の STRATEGIES）。パターンはページ単位（2026-10-12 ユーザー）:

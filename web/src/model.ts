@@ -405,7 +405,7 @@ export const dataSizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "
 // 縮図を出すときも出さないときも選べる（2026-10-14 ユーザー）。行は中身が収まる限りこの高さで、収まらない行だけ高くなる
 export const ROW_HEIGHTS: Record<Size, number> = {
   S: linkRowHeight(LINK_ICON_DEF),
-  M: resolveSize({ shape: "box", step: "M", shared: true, fullText: true }).minH, // ふつうの箱の高さ
+  M: resolveSize({ shape: "box", step: "M", shared: true, fullText: true, group: false }).minH, // ふつうの箱の高さ
   L: linkRowHeight(PREVIEW_ROW_DEF),
 };
 export const rowSizeOf = (list: Box): Size => (isSize(list.src.rowSize) ? list.src.rowSize : "M");
@@ -422,7 +422,7 @@ export const sizeOf = (n: Box): Size =>
 // 箱の大きさの決まり（D44。size-rules.ts の層を当てた結果）。大きさを測る所は、段の名前や値ではなくこれを読む
 export const sizeRuleOf = (n: Box): SizeRule => resolveSize({
   shape: shapeOf(n), step: dataSizeOf(n),
-  shared: lookOf(n).sharedSize && leafLike(n) || isNesting(n) || isLinkBox(n), fullText: lookOf(n).fullCaption,
+  shared: lookOf(n).sharedSize && leafLike(n) || isNesting(n) || isLinkBox(n), fullText: lookOf(n).fullCaption, group: isNesting(n),
 });
 export const viewOf = (n: Box): BoxView => (isView(n.src.childView) && STRATEGIES[n.src.childView].onBox ? n.src.childView : "nest");
 // ツリーの向き（ツリーのページの world.treeDirection。既定は下）。箱で呼んでも、そのページの向き

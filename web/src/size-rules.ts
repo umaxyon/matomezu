@@ -14,6 +14,7 @@ import type { Shape, Size } from "./types";
 export const BASE_MIN = { w: 64, h: 44 } as const;
 
 export interface SizeRule {
+  min: { w: number; h: number }; // 箱の最小の大きさ（土台の最小を下回らない。箱の種類の層が上げる）
   textW: { min: number; max: number }; // 中身に合わせるときの幅の範囲（土台の大きさ。テーマの補正値は測る所が足す）
   minH: number;      // 高さの最小
   fixedH: boolean;   // 高さを決まった値にする（文字に合わせて伸ばさない）
@@ -31,6 +32,7 @@ export interface SizeRule {
 
 // 全オブジェクトの既定（層 2。2026-10-18 ユーザー: 文字数の上限は項目別、折り返しは可）
 export const DEFAULT_RULE: SizeRule = {
+  min: BASE_MIN,
   textW: { min: BASE_MIN.w, max: Infinity }, minH: BASE_MIN.h, fixedH: false,
   titleMax: Infinity, bodyMax: Infinity, wrap: true, body: true, look: "normal", oneLine: true, alignable: true, outset: true, slant: 0, artScale: 1,
 };
@@ -45,6 +47,9 @@ export const STEPS: Record<Size, Step> = {
   // 小さい段: 高さ固定・短い名前（10 文字）の札。本文・1 行にするは持たず、子のサイズをそろえる対象にもしない。テーマの補正値も効かせない
   S: { minW: 64, maxW: 96, h: 44, fixedH: true, titleMax: 10, body: false, look: "small", oneLine: false, alignable: false, outset: false },
 };
+
+// 箱の種類の層: 子を並べる箱（内包・リスト。枠で見せる並べ方）の最小（今の挙動。D44 の前は validate.ts の GROUP_MIN）
+export const GROUP_MIN = { w: 120, h: 64 } as const;
 
 // 段を当てる形のローカルなルール（形の表の値と合わせる）
 function shapeRule(def: ShapeDef, step: Size, r: SizeRule): SizeRule {
@@ -67,12 +72,14 @@ export interface SizeInput {
   step: Size;        // データの段（無ければ M）
   shared: boolean;
   fullText: boolean;
+  group: boolean;    // 子を並べる箱（箱の種類の層）
 }
 
 export function resolveSize(o: SizeInput): SizeRule {
   let r = DEFAULT_RULE;
   r = shapeRule(shapeDef(o.shape), o.shared ? "M" : o.step, r);
+  if (o.group) r = { ...r, min: GROUP_MIN };
   if (o.fullText) r = { ...r, titleMax: Infinity, fixedH: false };
   // 土台: 最小を下回らない
-  return { ...r, textW: { min: Math.max(BASE_MIN.w, r.textW.min), max: Math.max(BASE_MIN.w, r.textW.max) }, minH: Math.max(BASE_MIN.h, r.minH) };
+  return { ...r, min: { w: Math.max(BASE_MIN.w, r.min.w), h: Math.max(BASE_MIN.h, r.min.h) }, textW: { min: Math.max(BASE_MIN.w, r.textW.min), max: Math.max(BASE_MIN.w, r.textW.max) }, minH: Math.max(BASE_MIN.h, r.minH) };
 }

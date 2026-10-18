@@ -31,7 +31,6 @@ import { bodyBand, createNodeKinds } from "./node-kinds";
 import type { Scene } from "./policy";
 import { type SqBox, canSqueeze } from "./squeeze";
 import { layoutStats } from "./stats";
-import { GROUP_MIN } from "../validate";
 
 export { layoutStats };
 
@@ -675,8 +674,8 @@ export function createLayout(ctx: LayoutContext) {
     if (!kindOf(k).holdsChildren) return naturalSize(k, dim);
     const a = innerArea(k);
     return dim === "w"
-      ? Math.max(GROUP_MIN.w, a.left + a.right + Math.max(...k.children.map(g => g.w)))
-      : Math.max(GROUP_MIN.h, a.top + a.bottom + Math.max(...k.children.map(g => g.h)));
+      ? Math.max(sizeRuleOf(k).min.w, a.left + a.right + Math.max(...k.children.map(g => g.w)))
+      : Math.max(sizeRuleOf(k).min.h, a.top + a.bottom + Math.max(...k.children.map(g => g.h)));
   }
 
   // 内包している k の中身を、大きさ limit に収まるよう詰め直す。はみ出す中身を内側へ寄せ、
