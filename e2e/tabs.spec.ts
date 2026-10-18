@@ -15,9 +15,6 @@ const bin = () => {
   return b;
 };
 
-// タブとサーバーを確かめるテストなので、紙（D33）からはみ出さないよう大きな紙（A3 横）で開く
-// （見本の図は、開いたときの並べ方が箱を A4 横の紙の外へ押し出すことがある。残課題図の F24）
-const onA3 = (d: ReturnType<typeof example>) => ({ ...d, world: { ...(d.world ?? {}), paper: "a3-landscape" } });
 
 const run = (...args: string[]) =>
   execFileSync(bin(), args, { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8", timeout: 20_000 });
@@ -27,8 +24,8 @@ test.describe.configure({ mode: "parallel" });
 
 test.beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"));
-  writeFileSync(join(dir, "a.json"), JSON.stringify(onA3(example("nested"))));
-  writeFileSync(join(dir, "b.json"), JSON.stringify(onA3(example("three-levels"))));
+  writeFileSync(join(dir, "a.json"), JSON.stringify(example("nested")));
+  writeFileSync(join(dir, "b.json"), JSON.stringify(example("three-levels")));
 });
 
 test.afterEach(() => {
@@ -209,7 +206,7 @@ test("set は書き換えだけ: 見ていないブックを set しても前に
   expect(out).toContain("written");
   expect(out).not.toContain("paper");
   await expect(selected(page)).toHaveText("a.json");
-  expect(run("check", "b.json")).toContain("paper a3-landscape"); // 要約は紙に対して（D33）
+  expect(run("check", "b.json")).toContain("paper a4-landscape"); // 要約は紙に対して（D33）
   await expect(selected(page)).toHaveText("a.json");
   await switchTo(page, "b.json");
   await expect(page.locator(".stage:visible .mz-head", { hasText: "変えたトップ画面" })).toHaveCount(1);
@@ -331,7 +328,7 @@ test("追加削除の一覧はページごとの見出しで分かれ、ほか�
 test("マスターの追加削除: 一覧の行を窓へ落とすと、そのブックの郵便箱へ写しを送り、開いて図へ置ける。同じパターンのページが無ければ送らない（D26）", async ({ page }) => {
   writeFileSync(join(dir, "p.json"), JSON.stringify(paged));
   writeFileSync(join(dir, "f.json"), JSON.stringify({ world: { childView: "flow" }, nodes: [{ id: 1, caption: "開始", x: 40, y: 40 }] }));
-  writeFileSync(join(dir, "a.json"), JSON.stringify({ ...onA3(example("nested")), world: { title: "入れ子の例", paper: "a3-landscape" } }));
+  writeFileSync(join(dir, "a.json"), JSON.stringify({ ...example("nested"), world: { title: "入れ子の例" } }));
   await page.goto(run("open", "-no-browser", "a.json").trim());
   // 開くと画面が計算した大きさと位置を書き戻す（D44 の段階 4）。比べる元は、書き戻しが済んだあとの内容
   await expect.poll(() => readFileSync(join(dir, "a.json"), "utf8").includes('"width"')).toBe(true);
@@ -636,7 +633,7 @@ test("通知はカレントの画面にだけ届く。画面が無ければ断�
   run("notify", "-title", "こちらにだけ");
   await expect(page.locator(".mz-dlg h2")).toHaveText("こちらにだけ");
   // other には送られていない: そのあと全部の画面へ配られる知らせ（ファイルを直接書き換えたときの version）が other に届くのを区切りにして確かめる
-  const d = onA3(example("nested"));
+  const d = example("nested");
   d.nodes[0]!.caption = `${d.nodes[0]!.caption ?? ""}（書き換え）`;
   writeFileSync(join(dir, "a.json"), JSON.stringify(d));
   await expect.poll(async () => (await sseOf(other)).slice(from)).toContain("version");
@@ -1299,7 +1296,7 @@ test("説明ツアー: -mail は郵便箱だけ。キャンセルしても残り
 });
 
 test("マスターの右クリック: 窓の設定は出さない（Enter でも開かない）、背景の設定は全体の設定、窓の削除は確かめてから一覧から外す（ファイルは残る。D42）", async ({ page }) => {
-  writeFileSync(join(dir, "外す本.json"), JSON.stringify(onA3(example("nested"))));
+  writeFileSync(join(dir, "外す本.json"), JSON.stringify(example("nested")));
   const url = run("open", "-no-browser", "外す本.json").trim();
   await page.goto(url);
   await page.locator("#master").click();
