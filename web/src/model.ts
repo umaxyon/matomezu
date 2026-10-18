@@ -6,6 +6,7 @@ import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, isLinkLook, isRect, 
 import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, PreviewSide, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
 import type { Rect } from "./geom";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
+import { type SizeRule, resolveSize } from "./size-rules";
 import { ARROWS, SIZES, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
@@ -418,6 +419,11 @@ export const listHeightOf = (list: Box): number => (Number(list.src.listHeight) 
 // サイズを使わない（データは消さずに無視する。子を全部外せば効く）。リストの子もサイズを使わず普通の大きさ（高さはリストの高さ。D13）
 export const sizeOf = (n: Box): Size =>
   (lookOf(n).sharedSize && leafLike(n) || isNesting(n) || isLinkBox(n) ? "M" : dataSizeOf(n));
+// 箱の大きさの決まり（D44。size-rules.ts の層を当てた結果）。大きさを測る所は、段の名前や値ではなくこれを読む
+export const sizeRuleOf = (n: Box): SizeRule => resolveSize({
+  shape: shapeOf(n), step: dataSizeOf(n),
+  shared: lookOf(n).sharedSize && leafLike(n) || isNesting(n) || isLinkBox(n), fullText: lookOf(n).fullCaption,
+});
 export const viewOf = (n: Box): BoxView => (isView(n.src.childView) && STRATEGIES[n.src.childView].onBox ? n.src.childView : "nest");
 // ツリーの向き（ツリーのページの world.treeDirection。既定は下）。箱で呼んでも、そのページの向き
 export function treeDirOf(c: Container): TreeDirection {

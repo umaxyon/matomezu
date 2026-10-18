@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 base="${1:-HEAD}"
-LAYOUT='^(web/src/layout/|web/src/graph[^/]*\.ts$|web/src/(render|model|shapes|theme|edits|interaction|resizers|history|validate)\.ts$|test/(random-ops|helpers)\.ts$|test/fixtures/|test/layout-random-)'
+LAYOUT='^(web/src/layout/|web/src/graph[^/]*\.ts$|web/src/(render|model|shapes|size-rules|theme|edits|interaction|resizers|history|validate)\.ts$|test/(random-ops|helpers)\.ts$|test/fixtures/|test/layout-random-)'
 
 changed="$( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u )"
 if grep -qE "$LAYOUT" <<<"$changed"; then
