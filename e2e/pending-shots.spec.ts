@@ -86,7 +86,7 @@ for (const s of scenarios) {
       "|---|" + Object.keys(s.watch).map(() => "---").join("|") + "|"];
     const shoot = async (i: number, name: string) => {
       await page.mouse.move(0, 0); // ポインタを乗せたときの薄い表示を消す
-      await page.locator("#stage").screenshot({ path: resolve(OUT, `${s.no}-${i}.png`) });
+      await page.locator(".stage:visible").screenshot({ path: resolve(OUT, `${s.no}-${i}.png`) });
       const cells = [];
       for (const id of Object.keys(s.watch)) {
         const r = await rect(page, Number(id));

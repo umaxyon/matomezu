@@ -20,12 +20,12 @@ test("箱を選んで Enter を押すと、ダブルクリックと同じ編集�
 const tallPaper = () => { const d = example("nested"); return { ...d, world: { ...(d.world ?? {}), paper: "a3-portrait" } }; };
 // 開いたときに見えている最上位の箱のうち、一番上のもの（画面の外の箱はつかめない）
 const topBoxId = (page: import("@playwright/test").Page) =>
-  page.locator("#stage .mz-world > .mz-node").evaluateAll(els => Number(els.reduce((a, b) => (parseFloat((a as HTMLElement).style.top) <= parseFloat((b as HTMLElement).style.top) ? a : b)).getAttribute("data-id")));
+  page.locator(".stage:visible .mz-world > .mz-node").evaluateAll(els => Number(els.reduce((a, b) => (parseFloat((a as HTMLElement).style.top) <= parseFloat((b as HTMLElement).style.top) ? a : b)).getAttribute("data-id")));
 
 test("箱を図の下の端へ寄せたままにすると、図がスクロールし、箱は見えていた範囲の外まで運べる（紙の下の端まで）", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
   await openDiagram(page, tallPaper());
-  const stage = page.locator("#stage");
+  const stage = page.locator(".stage:visible");
   const view = (await stage.boundingBox())!;
   const id = await topBoxId(page);
   const before = await rect(page, id);
@@ -46,7 +46,7 @@ test("箱を図の下の端へ寄せたままにすると、図がスクロー�
 test("下の端でスクロールしたあと、つかんだまま上へ戻すと、箱はポインタと同じだけ動く", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
   await openDiagram(page, tallPaper());
-  const stage = page.locator("#stage");
+  const stage = page.locator(".stage:visible");
   const view = (await stage.boundingBox())!;
   const head = page.locator(`.mz-node[data-id="${await topBoxId(page)}"] > .mz-head`);
   const box = (await head.boundingBox())!;
@@ -81,7 +81,7 @@ test("ボタンやタブの文字は、ドラッグで選択されない", async
 test("追加モードで影を図の下の端へ寄せるとスクロールして図が広がり、見えていた範囲の外に箱を足せる。足したら図は中身に合わせる", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
   await openDiagram(page, example("nested"));
-  const stage = page.locator("#stage");
+  const stage = page.locator(".stage:visible");
   const view = (await stage.boundingBox())!;
   await page.locator('.mz-toolbox [data-tool="add"]').click();
   const x = view.x + 200;
@@ -105,7 +105,7 @@ test("追加モードで影を図の下の端へ寄せるとスクロールし�
 test("フローチャートの道具入れの道具を押して、影を図の下の端へ寄せると、スクロールして図が広がり、押した所に足せる", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
   await openDiagram(page, { world: { childView: "flow" }, nodes: [{ id: 1, caption: "開始", shape: "stadium", x: 200, y: 40 }] });
-  const stage = page.locator("#stage");
+  const stage = page.locator(".stage:visible");
   const view = (await stage.boundingBox())!;
   await page.locator(".mz-world").click({ position: { x: 5, y: 300 } });
   await page.locator('.mz-toolbox [data-tool="box"]').click();
@@ -126,9 +126,10 @@ test("フローチャートの道具入れの道具を押して、影を図の�
 test("追加モードでポインタを図の上の外（タブの列の上）へ出しても、上へのスクロールは続く。図から離れたら（サイドバーの上）止まる", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
   // 縦に長い図を一番下までスクロールしておく
-  await openDiagram(page, { nodes: Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `箱${i + 1}`, x: 40, y: 40 + i * 160 })) });
+  // 紙（A3 縦）に収まる縦に長い図（紙に収まらない図は開かない。docs/PAPER-plan.md の 4.6 の 7）
+  await openDiagram(page, { world: { paper: "a3-portrait" }, nodes: Array.from({ length: 9 }, (_, i) => ({ id: i + 1, caption: `箱${i + 1}`, x: 40, y: 40 + i * 160 })) } as never);
   await openSide(page); // 図から離れる先にサイドバーを出しておく
-  const stage = page.locator("#stage");
+  const stage = page.locator(".stage:visible");
   const view = (await stage.boundingBox())!;
   await stage.evaluate(el => { el.scrollTop = 1e6; });
   const start = await stage.evaluate(el => el.scrollTop);

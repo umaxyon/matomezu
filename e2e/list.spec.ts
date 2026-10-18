@@ -17,7 +17,7 @@ const far = (): Diagram => ({
 
 // 箱が図の見えている範囲（スクロールバーを除く）に収まっているか
 const inView = (page: import("@playwright/test").Page, id: number) => page.evaluate(id => {
-  const s = document.getElementById("stage")!, r = document.querySelector(`.mz-node[data-id="${id}"]`)!.getBoundingClientRect();
+  const s = document.querySelector<HTMLElement>(".stage:not([hidden])")!, r = document.querySelector(`.mz-node[data-id="${id}"]`)!.getBoundingClientRect();
   const c = s.getBoundingClientRect();
   return r.left >= c.left && r.top >= c.top && r.right <= c.left + s.clientWidth && r.bottom <= c.top + s.clientHeight;
 }, id);
@@ -32,10 +32,10 @@ test("一覧の行を押すと、見えている範囲の外の箱へ図をス�
   expect(await inView(page, 2)).toBe(false);
   await page.locator('.mzp-row[data-select="2"]').click();
   await expect.poll(() => inView(page, 2)).toBe(true);
-  const at = await page.evaluate(() => [document.getElementById("stage")!.scrollLeft, document.getElementById("stage")!.scrollTop]);
+  const at = await page.evaluate(() => [document.querySelector<HTMLElement>(".stage:not([hidden])")!.scrollLeft, document.querySelector<HTMLElement>(".stage:not([hidden])")!.scrollTop]);
   await page.locator('.mzp-row[data-select="2"]').click(); // もう見えている
   await page.waitForTimeout(300);
-  expect(await page.evaluate(() => [document.getElementById("stage")!.scrollLeft, document.getElementById("stage")!.scrollTop])).toEqual(at);
+  expect(await page.evaluate(() => [document.querySelector<HTMLElement>(".stage:not([hidden])")!.scrollLeft, document.querySelector<HTMLElement>(".stage:not([hidden])")!.scrollTop])).toEqual(at);
 });
 
 test("非表示の親の中の箱を選ぶと、親を見せる", async ({ page }) => {

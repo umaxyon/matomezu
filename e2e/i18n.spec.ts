@@ -4,6 +4,11 @@ import { openDiagram } from "./helpers";
 
 const data = { nodes: [{ id: 1, caption: "A" }, { id: 2, caption: "B", parent: 1 }], edges: [] };
 const SHOTS = process.env.SHOTS_DIR;
+// 設定のダイアログ: マスターの道具箱の「設定」から開く（サーバーから開いた画面。F29）
+async function openSettings(page: import("@playwright/test").Page) {
+  await page.locator("#master").click();
+  await page.locator('.stage:visible .mz-toolbox [data-tool="settings"]').click();
+}
 
 test.describe("ブラウザの言語が英語", () => {
   test.use({ locale: "en-US" });
@@ -18,33 +23,30 @@ test.describe("ブラウザの言語が英語", () => {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/en-main.png` });
     await page.keyboard.press("Escape");
 
-    await page.locator("#settings").click();
+    await openSettings(page);
     const dlg = page.locator(".mz-dlg");
     await expect(dlg.locator("h2")).toHaveText("Settings");
     await expect(dlg.locator('[name="lang"]')).toHaveValue("auto");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/en-settings.png` });
     await dlg.locator('[name="lang"]').selectOption("ja");
-    await dlg.locator("[data-ok]").click();
-    // サーバーから開いていないので、読み直す前に確かめる
-    await expect(page.locator(".mz-dlg h2")).toHaveText("Change the language");
-    await page.locator(".mz-dlg [data-ok]").click();
+    await dlg.locator("[data-ok]").click(); // サーバーから開いた画面は、保存してあるので確かめずに読み直す
     await expect(page.locator("#mode-label")).toHaveText("選択モード");
     await expect(page.locator("html")).toHaveAttribute("lang", "ja");
 
-    await page.locator("#settings").click();
+    await openSettings(page);
     await expect(page.locator(".mz-dlg h2")).toHaveText("設定");
     await expect(page.locator('.mz-dlg [name="lang"]')).toHaveValue("ja");
     await page.locator('.mz-dlg [name="lang"]').selectOption("auto");
     await page.locator(".mz-dlg [data-ok]").click();
-    await page.locator(".mz-dlg [data-ok]").click(); // 確かめ
     await expect(page.locator("#mode-label")).toHaveText("Select mode");
   });
 
   test("言語を変えずに確定したら読み直さない", async ({ page }) => {
     await openDiagram(page, data);
-    await page.locator("#settings").click();
+    await page.evaluate(() => { (window as unknown as { mzMark: number }).mzMark = 1; }); // 読み直すと消える印
+    await openSettings(page);
     await page.locator(".mz-dlg [data-ok]").click();
     await expect(page.locator(".mz-dlg")).toHaveCount(0);
-    await expect(page.locator("#name")).toHaveText("e2e.json"); // 読み直すと開いた図が消える
+    expect(await page.evaluate(() => (window as unknown as { mzMark?: number }).mzMark)).toBe(1);
   });
 });

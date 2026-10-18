@@ -8,7 +8,7 @@ const settled = (page: import("@playwright/test").Page) =>
 
 test("右の長押しでモードのアイコンを出し、押すとそのモードになる。外を押す・Esc では何もせずに閉じる", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   const picker = page.locator(".mz-mpick-overlay"), btns = picker.locator(".mz-mpick-btn[data-mode]");
   const at = { x: world.x + 300, y: world.y + 300 };
 
@@ -61,7 +61,7 @@ test("右の長押しでモードのアイコンを出し、押すとそのモ�
 
 test("押している間に動いたら長押しを取り消し、離すとコンテキストメニューを出す。短く押したらメニュー", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   const at = { x: world.x + 300, y: world.y + 300 };
   await page.mouse.move(at.x, at.y);
   await page.mouse.down({ button: "right" });
@@ -81,7 +81,7 @@ test("押している間に動いたら長押しを取り消し、離すとコ�
 test("右端では縦並びでポインタの左、左端では縦並びで右、上端では下に出す", async ({ page }) => {
   await openDiagram(page, { nodes: [], edges: [] } as never);
   const vw = page.viewportSize()!.width;
-  const stage = (await page.locator("#stage").boundingBox())!;
+  const stage = (await page.locator(".stage:visible").boundingBox())!;
   const btns = page.locator(".mz-mpick-btn[data-mode]");
   const longPress = async (x: number, y: number) => {
     await page.mouse.move(x, y);
@@ -113,7 +113,7 @@ test("右端では縦並びでポインタの左、左端では縦並びで右�
 
 test("アイコンに乗ると名前を出す。押さずに遠くへ動かすと、今のモードのまま閉じる", async ({ page }) => {
   await openDiagram(page, { nodes: [], edges: [] } as never);
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   const at = { x: world.x + 300, y: world.y + 300 };
   const btns = page.locator(".mz-mpick-btn[data-mode]"), tip = page.locator(".mz-mpick-tip");
   await page.mouse.move(at.x, at.y);
@@ -151,7 +151,7 @@ test("アイコンに乗ると名前を出す。押さずに遠くへ動かす�
 
 test("並びの上の真ん中のミニマップのボタンを押すと、アイコンがミニマップに替わり、倍率の帯で拡大・縮小・初めの位置ができる", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   const at = { x: world.x + 300, y: world.y + 300 };
   await page.mouse.move(at.x, at.y);
   await page.mouse.down({ button: "right" });
@@ -192,7 +192,7 @@ test("並びの上の真ん中のミニマップのボタンを押すと、ア�
 test("ミニマップの絵を押して見る範囲を動かしても、ミニマップの位置は変わらない", async ({ page }) => {
   // 広がるアニメーションの途中で大きさを測り違え、絵を押して描き直したときに正しい位置へ飛んでいた
   await openDiagram(page, { nodes: Array.from({ length: 30 }, (_, i) => ({ id: i + 1, caption: `箱${i}`, x: 40 + (i % 6) * 260, y: 40 + Math.floor(i / 6) * 200 })), edges: [] } as never);
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   await page.mouse.move(world.x + 400, world.y + 300);
   await page.mouse.down({ button: "right" });
   await expect(page.locator(".mz-mpick-map")).toBeVisible({ timeout: 2000 });
@@ -202,7 +202,7 @@ test("ミニマップの絵を押して見る範囲を動かしても、ミニ�
   const panel = page.locator(".mz-mpick-panel");
   await page.waitForFunction(() => document.querySelector(".mz-mpick-panel")?.getAnimations().length === 0);
   const p0 = (await panel.boundingBox())!;
-  const scroll0 = await page.locator("#stage").evaluate(s => s.scrollLeft + s.scrollTop);
+  const scroll0 = await page.locator(".stage:visible").evaluate(s => s.scrollLeft + s.scrollTop);
   for (const [fx, fy] of [[0.9, 0.9], [0.1, 0.1]] as const) {
     const art = (await panel.locator(".mz-minimap-body > svg").boundingBox())!;
     await page.mouse.click(art.x + art.width * fx, art.y + art.height * fy);
@@ -210,5 +210,5 @@ test("ミニマップの絵を押して見る範囲を動かしても、ミニ�
     const p1 = (await panel.boundingBox())!;
     expect([p1.x, p1.y]).toEqual([p0.x, p0.y]);
   }
-  expect(await page.locator("#stage").evaluate(s => s.scrollLeft + s.scrollTop)).not.toBe(scroll0); // 見る範囲は動いた
+  expect(await page.locator(".stage:visible").evaluate(s => s.scrollLeft + s.scrollTop)).not.toBe(scroll0); // 見る範囲は動いた
 });

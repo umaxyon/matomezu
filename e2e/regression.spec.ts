@@ -131,7 +131,7 @@ test("表示領域の幅に小数があっても、中身が収まっていれ�
     await page.evaluate(w => { document.getElementById("sidebar")!.style.width = w; }, w);
     await page.waitForTimeout(50);
     const r = await page.evaluate(() => {
-      const s = document.getElementById("stage")!, world = document.querySelector<HTMLElement>(".mz-world")!;
+      const s = document.querySelector<HTMLElement>(".stage:not([hidden])")!, world = document.querySelector<HTMLElement>(".mz-world")!;
       // スクロールバーの分を除いた、表示領域の中身の幅と高さ（小数まで）
       const rect = s.getBoundingClientRect();
       return {

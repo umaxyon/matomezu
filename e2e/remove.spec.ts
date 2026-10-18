@@ -21,8 +21,8 @@ test("一覧の × で子ごと消え、消したものの行を図へドラッ�
   await expect(node(page, 18)).toHaveCount(0);
 
   // 落とす位置はワールドの左上から（図の周りに余白がある。D32）。サイドバーは図にかぶさるので、左の余白の分スクロールして図を出す（E22）
-  await page.locator("#stage").evaluate(el => { el.scrollLeft = 0; });
-  await page.locator('.mzp-removed[data-restore="17"]').dragTo(page.locator("#stage .mz-world"), {
+  await page.locator(".stage:visible").evaluate(el => { el.scrollLeft = 0; });
+  await page.locator('.mzp-removed[data-restore="17"]').dragTo(page.locator(".stage:visible .mz-world"), {
     targetPosition: { x: 60, y: 520 },
   });
   await expect(node(page, 17)).toHaveCount(1);

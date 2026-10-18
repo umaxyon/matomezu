@@ -8,7 +8,7 @@ test("右クリックのメニューで写して貼る。使えない項目は�
   await openDiagram(page, { nodes: [{ id: 1, caption: "写す箱", x: 40, y: 40 }, { id: 2, caption: "入れ物", x: 400, y: 40 }], edges: [] } as never);
   const menu = page.locator(".mz-cmenu");
   const settings = menu.locator("button").nth(0), cut = menu.locator("button").nth(1), copy = menu.locator("button").nth(2), paste = menu.locator("button").nth(3), del = menu.locator("button").nth(4);
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
 
   // 背景: ワールドを選ぶので写せず、まだ何も写していないので貼れない。Esc で閉じる
   await page.mouse.click(world.x + 300, world.y + 400, { button: "right" });
@@ -34,8 +34,8 @@ test("右クリックのメニューで写して貼る。使えない項目は�
   await expect(paste).toBeEnabled();
   await page.mouse.move(world.x + 600, world.y + 100); // メニューへ動かしても、右クリックした所に貼る
   await paste.click();
-  await expect(page.locator("#stage .mz-node")).toHaveCount(3);
-  const pasted = page.locator("#stage .mz-node:not([data-id='1']):not([data-id='2'])");
+  await expect(page.locator(".stage:visible .mz-node")).toHaveCount(3);
+  const pasted = page.locator(".stage:visible .mz-node:not([data-id='1']):not([data-id='2'])");
   const b = (await pasted.boundingBox())!;
   expect(Math.abs(b.x - (world.x + 320 - 16))).toBeLessThanOrEqual(2);
   expect(Math.abs(b.y - (world.y + 420 - 12))).toBeLessThanOrEqual(2);
@@ -273,7 +273,7 @@ test("一番上の「設定」: 箱は編集ダイアログ、線は線の編集
   await expect(dlg.locator('[name="route"]').first()).toBeVisible();
   await close();
   // 背景
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   await page.mouse.click(world.x + 300, world.y + 500, { button: "right" });
   await settings.click();
   await expect(dlg.locator('[name="book-title"]')).toHaveCount(1);

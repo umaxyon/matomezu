@@ -1,25 +1,33 @@
 // 実際のブラウザのテストの補助。画面の要素から状態を読み、ユーザーと同じ操作（クリック、入力、ドラッグ）で動かす
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { type Page, expect } from "@playwright/test";
 import type { Diagram } from "../web/src/types";
-
-const INDEX = pathToFileURL(resolve(import.meta.dirname, "../web/index.html")).href;
+import { workerServer } from "./server";
 
 export const example = (name: string) =>
   JSON.parse(readFileSync(resolve(import.meta.dirname, `../test/fixtures/${name}.json`), "utf8")) as Diagram; // テストの土台に固定した写し（test/fixtures/README.md）
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
-// 画面を file:// で開き、「開く」のファイル選択から図を渡す
-export async function openDiagram(page: Page, data: Diagram) {
-  await page.goto(INDEX);
-  await page.setInputFiles("#file", {
-    name: "e2e.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(data)),
-  });
-  await expect(page.locator("#name")).toHaveText("e2e.json");
+// 図をワーカーのサーバー（e2e/server.ts）を通して開く: 一時フォルダに書いて matomezu open し、返った URL を開く（F29。2026-10-18 ユーザー:
+// サーバーを通さずにエンドツーエンドと言えるのか）。図は 1 つずつ別のファイルにする（ブックのタブの名前は e2e-<番号>.json）。
+// 返すのは図のファイルのパス（書き換えると、外の変更として画面が読み直す）
+let opened = 0;
+export async function openDiagram(page: Page, data: Diagram): Promise<string> {
+  const s = workerServer();
+  const file = s.write(`e2e-${++opened}.json`, data);
+  // 開き直したら図を置き換える（前に開いていたブックをタブに残さない）。画面は開いていたブックを localStorage に覚えている（app-location.ts）。
+  // 前の画面からは先に離れる（つながったままだと、新しいブックが「届きました」で来て、前のブックも裏のタブに残る）
+  if (page.url().startsWith("http")) {
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("about:blank");
+  }
+  const url = s.run("open", "-no-browser", file).trim().split("\n")[0]!;
+  await page.goto(url);
+  await expect(page.locator(".stage:visible .mz-world")).toHaveCount(1);
   await page.evaluate(() => document.fonts.ready);
+  return file;
 }
 
 const node = (page: Page, id: number) => page.locator(`.mz-node[data-id="${id}"]`);

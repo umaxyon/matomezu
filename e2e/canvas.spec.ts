@@ -10,13 +10,13 @@ test.afterEach(async ({ page }) => {
   expect(await violations(page)).toEqual([]);
 });
 
-const stage = (page: import("@playwright/test").Page) => page.locator("#stage");
+const stage = (page: import("@playwright/test").Page) => page.locator(".stage:visible");
 const scrollOf = (page: import("@playwright/test").Page) => stage(page).evaluate(s => [s.scrollLeft, s.scrollTop] as [number, number]);
 const head = (page: import("@playwright/test").Page, id: number) => page.locator(`.mz-node[data-id="${id}"] > .mz-head`);
 
 test("開いたとき、ワールドの左上が図の枠の左上に合い、スクロールバーは出ない。手のひらで、上下左右とも余白の分だけ外へずらせる", async ({ page }) => {
   const frame = (await stage(page).boundingBox())!;
-  const world = () => page.locator("#stage .mz-world").boundingBox().then(b => b!);
+  const world = () => page.locator(".stage:visible .mz-world").boundingBox().then(b => b!);
   expect(Math.round((await world()).x)).toBe(Math.round(frame.x));
   expect(Math.round((await world()).y)).toBe(Math.round(frame.y));
   expect(await stage(page).evaluate(s => { const e = s as HTMLElement; return [e.offsetWidth - e.clientWidth, e.offsetHeight - e.clientHeight]; })).toEqual([0, 0]);
@@ -60,7 +60,7 @@ test("手のひらのモードでは、箱をドラッグしても箱は動か�
 });
 
 test("Space でポインタの位置にモードのアイコンを出す。もう一度 Space で閉じ、アイコンを押せばそのモード", async ({ page }) => {
-  await page.locator("#stage").click({ position: { x: 5, y: 5 } }); // 図に焦点を移す（ボタンの上の Space はボタンを押すので）
+  await page.locator(".stage:visible").click({ position: { x: 5, y: 5 } }); // 図に焦点を移す（ボタンの上の Space はボタンを押すので）
   const b = (await head(page, 3).boundingBox())!;
   await page.mouse.move(b.x + 10, b.y + 80);
   await page.keyboard.press(" ");
@@ -87,7 +87,7 @@ const homeView = (page: import("@playwright/test").Page) =>
   });
 
 const zoomOf = (page: import("@playwright/test").Page) =>
-  page.locator("#stage .mz-world").evaluate(el => Number(/scale\(([\d.]+)\)/.exec((el as HTMLElement).style.transform)?.[1] ?? 1));
+  page.locator(".stage:visible .mz-world").evaluate(el => Number(/scale\(([\d.]+)\)/.exec((el as HTMLElement).style.transform)?.[1] ?? 1));
 
 test("編集中も倍率のボタンが出て、50% / 75% / 100% / 125% の段で切り替わる（なめらかに変わる）。端の段ではボタンを押せない。「全体」はプレビューだけ", async ({ page }) => {
   await expect(page.locator("#zoom-level")).toHaveText("100%");
@@ -121,7 +121,7 @@ test("「初めの位置に戻す」と Home キーで、倍率 100% の開い�
   await expect(page.locator("#zoom-level")).toHaveText("100%");
   await expect.poll(() => scrollOf(page)).toEqual(start);
   await stage(page).evaluate(s => { s.scrollLeft += 120; s.scrollTop += 80; });
-  await page.locator("#stage").click({ position: { x: 5, y: 5 } });
+  await page.locator(".stage:visible").click({ position: { x: 5, y: 5 } });
   await page.keyboard.press("Home");
   await expect.poll(() => scrollOf(page)).toEqual(start);
   await page.click("#preview-toggle");
@@ -147,13 +147,13 @@ test("125% でも、箱はポインタに付いて動き（画面で 125 動か�
 
 test("75% で追加モードを使うと、押した所（影の左上）に箱ができる。縮めても紙の大きさは変わらない", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "A", x: 40, y: 40 }], edges: [] } as never);
-  const paper = await page.locator("#stage .mz-world").evaluate(el => [(el as HTMLElement).style.width, (el as HTMLElement).style.height]);
+  const paper = await page.locator(".stage:visible .mz-world").evaluate(el => [(el as HTMLElement).style.width, (el as HTMLElement).style.height]);
   await page.click("#zoom-out");
   await expect.poll(() => zoomOf(page)).toBe(0.75);
-  expect(await page.locator("#stage .mz-world").evaluate(el => [(el as HTMLElement).style.width, (el as HTMLElement).style.height])).toEqual(paper);
+  expect(await page.locator(".stage:visible .mz-world").evaluate(el => [(el as HTMLElement).style.width, (el as HTMLElement).style.height])).toEqual(paper);
   await homeView(page);
   await page.locator('.mz-toolbox [data-tool="add"]').click();
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   await page.mouse.move(world.x + 300, world.y + 240);
   await page.mouse.click(world.x + 300, world.y + 240);
   await expect(page.locator(".mz-dlg h2")).toHaveText("ボックスの追加");
@@ -204,25 +204,25 @@ test("紙に収まらない本文を箱の編集ダイアログで確定する�
 test("追加モードで紙の外（周りの余白の上）を押しても、箱は足せない（D33）", async ({ page }) => {
   await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
   await page.locator('.mz-toolbox [data-tool="add"]').click();
-  const paper = (await page.locator("#stage .mz-world").boundingBox())!;
+  const paper = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   // 紙（A5 横 794 × 559）の右の外
   await page.mouse.move(paper.x + paper.width + 40, paper.y + 100);
   await expect(page.locator(".mz-add-ghost")).toHaveClass(/mz-ghost-no/);
   await page.mouse.click(paper.x + paper.width + 40, paper.y + 100);
   await expect(page.locator(".mz-dlg")).toHaveCount(0);
-  await expect(page.locator("#stage .mz-node")).toHaveCount(1);
+  await expect(page.locator(".stage:visible .mz-node")).toHaveCount(1);
 });
 
 test("紙が画面より小さければ紙を図の枠の真ん中に置き、大きければ紙の左上を図の枠の左上に合わせる（D33。2026-10-15 ユーザー）", async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  const frame = (await stage(page).boundingBox())!, paper = (await page.locator("#stage .mz-world").boundingBox())!;
+  const frame = (await stage(page).boundingBox())!, paper = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   expect(paper.width).toBeLessThan(frame.width);
   expect(Math.abs(paper.x + paper.width / 2 - (frame.x + frame.width / 2))).toBeLessThan(1.5);
   expect(Math.abs(paper.y + paper.height / 2 - (frame.y + frame.height / 2))).toBeLessThan(1.5);
   // A3 縦（1123 × 1587）は横は収まるので真ん中、縦は収まらないので上を合わせる
   await openDiagram(page, { world: { paper: "a3-portrait" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  const f2 = (await stage(page).boundingBox())!, p2 = (await page.locator("#stage .mz-world").boundingBox())!;
+  const f2 = (await stage(page).boundingBox())!, p2 = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   expect(Math.abs(p2.x + p2.width / 2 - (f2.x + f2.width / 2))).toBeLessThan(1.5);
   expect(Math.round(p2.y)).toBe(Math.round(f2.y));
 });
@@ -243,7 +243,7 @@ test("紙の型: ブックのダイアログで今のページを小さな紙に
   await dlg.locator("[data-ok]").click();
   await expect(page.locator(".mz-dlg-refused")).toContainText("紙に収まらない");
   await page.keyboard.press("Escape");
-  await expect(page.locator("#stage .mz-world")).toHaveCSS("width", "1123px");
+  await expect(page.locator(".stage:visible .mz-world")).toHaveCSS("width", "1123px");
 });
 
 test("スクロールするリストの並べ替え: 上下の端へ寄せたまま止めると中がスクロールし、隠れていた行の先へ移せる（E18。D33）", async ({ page }) => {
@@ -314,7 +314,7 @@ test("リストのスクロール: ダイアログで入れると今の高さが
 });
 
 test("サイドバーは図にかぶせるドロワー（幅 340px）: 開いても図の枠と図の位置は変わらず、左の余白がその幅だけ広がって図をドロワーの右へ出せる。道具箱はドロワーの右。閉じれば余白は戻る（E22）", async ({ page }) => {
-  const stage = page.locator("#stage"), world = page.locator("#stage .mz-world");
+  const stage = page.locator(".stage:visible"), world = page.locator(".stage:visible .mz-world");
   const frame0 = (await stage.boundingBox())!, w0 = (await world.boundingBox())!;
   const scrollW0 = await stage.evaluate(el => el.scrollWidth);
   // ふだんの余白: 一番左までスクロールしたときの図の左上（見たあと元の位置に戻す）

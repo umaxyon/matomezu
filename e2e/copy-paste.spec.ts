@@ -9,12 +9,12 @@ test("箱を選んで Ctrl+C、背景を押してポインタを置いて Ctrl+V
   await head(page, 1).click({ position: { x: 10, y: 8 } });
   await page.keyboard.press("Control+c");
   // 背景を押してワールドを選び、ポインタを置いて貼る
-  const world = (await page.locator("#stage .mz-world").boundingBox())!;
+  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
   await page.mouse.click(world.x + 300, world.y + 400);
   await page.mouse.move(world.x + 320, world.y + 420);
   await page.keyboard.press("Control+v");
-  await expect(page.locator("#stage .mz-node")).toHaveCount(3);
-  const pasted = page.locator("#stage .mz-node:not([data-id='1']):not([data-id='2'])");
+  await expect(page.locator(".stage:visible .mz-node")).toHaveCount(3);
+  const pasted = page.locator(".stage:visible .mz-node:not([data-id='1']):not([data-id='2'])");
   const b = (await pasted.boundingBox())!;
   expect(Math.abs(b.x - (world.x + 320 - 16))).toBeLessThanOrEqual(2);
   expect(Math.abs(b.y - (world.y + 420 - 12))).toBeLessThanOrEqual(2);

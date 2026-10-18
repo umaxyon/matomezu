@@ -63,7 +63,7 @@ test("フローチャートのページでは、図の左端の上下の真ん�
   await openDiagram(page, { world: { childView: "flow" }, nodes: [{ id: 1, caption: "A", x: 200, y: 200 }] });
   await page.locator(".mz-world").click({ position: { x: 5, y: 5 } });
   await expect(toolbox(page)).toBeVisible();
-  const stage = (await page.locator("#stage").boundingBox())!;
+  const stage = (await page.locator(".stage:visible").boundingBox())!;
   const box = (await toolbox(page).boundingBox())!;
   expect(box.x - stage.x).toBeLessThan(20);
   expect(Math.abs(box.y + box.height / 2 - (stage.y + stage.height / 2))).toBeLessThan(10);
