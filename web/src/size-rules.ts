@@ -6,7 +6,8 @@
 //   JSON の値（width など）は、決まった範囲の中での求めとして、測る所が使う。最後に土台の最小（BASE_MIN）を下回らない
 // 土台は上限を持たない。最小を下回らないことだけを保証する（4.8）
 //
-// 純粋な関数: 箱（Box）は読まず、形・データの段・置かれ方を受け取る（model.ts の sizeRuleOf が箱から集めて呼ぶ）。テーマも読まない（CLAUDE.md の 9）
+// 純粋な関数: 箱（Box）は読まず、形・データの段・置かれ方を受け取る（model.ts の sizeRuleOf が箱から集めて呼ぶ）。
+// テーマは大きさに入らない（テーマは余白を持たない。2026-10-18 ユーザー。CLAUDE.md の 9）
 import { type ShapeDef, shapeDef } from "./shapes";
 import type { Shape, Size } from "./types";
 
@@ -15,7 +16,7 @@ export const BASE_MIN = { w: 64, h: 44 } as const;
 
 export interface SizeRule {
   min: { w: number; h: number }; // 箱の最小の大きさ（土台の最小を下回らない。箱の種類の層が上げる）
-  textW: { min: number; max: number }; // 中身に合わせるときの幅の範囲（土台の大きさ。テーマの補正値は測る所が足す）
+  textW: { min: number; max: number }; // 中身に合わせるときの幅の範囲
   minH: number;      // 高さの最小
   fixedH: boolean;   // 高さを決まった値にする（文字に合わせて伸ばさない）
   titleMax: number;  // タイトル（キャプション）の文字数の上限（Infinity は無し。超えた分は … で切る）
@@ -25,7 +26,6 @@ export interface SizeRule {
   look: "normal" | "small"; // 文字の見た目（small は小さい文字と狭い余白。graph-style.ts）
   oneLine: boolean;  // 「キャプションを 1 行にする」（overflow: clip）を選べるか（選べなければ折り返す）
   alignable: boolean; // 子のサイズをそろえる（layout.ts の alignChildren）対象になるか
-  outset: boolean;   // テーマの補正値（足跡を広げる）を効かせるか
   slant: number;     // 斜めの辺が横に食い込む幅（形のローカルな値）
   artScale: number;  // 絵の形の絵の倍率（形のローカルな値）
 }
@@ -34,18 +34,18 @@ export interface SizeRule {
 export const DEFAULT_RULE: SizeRule = {
   min: BASE_MIN,
   textW: { min: BASE_MIN.w, max: Infinity }, minH: BASE_MIN.h, fixedH: false,
-  titleMax: Infinity, bodyMax: Infinity, wrap: true, body: true, look: "normal", oneLine: true, alignable: true, outset: true, slant: 0, artScale: 1,
+  titleMax: Infinity, bodyMax: Infinity, wrap: true, body: true, look: "normal", oneLine: true, alignable: true, slant: 0, artScale: 1,
 };
 
 // ふつうの形（と、文字の大きさから形を決めるひし形・円・絵の形）のローカルな段の表。データの size を読むのはここだけ。
 // 段の名前は形のローカルなもので、土台・ほかの層には出てこない（4.8）
-type Step = Pick<SizeRule, "fixedH" | "titleMax" | "body" | "look" | "oneLine" | "alignable" | "outset"> & { minW: number; maxW: number; h: number };
-const PLAIN_STEP = { fixedH: false, titleMax: Infinity, body: true, look: "normal", oneLine: true, alignable: true, outset: true } as const;
+type Step = Pick<SizeRule, "fixedH" | "titleMax" | "body" | "look" | "oneLine" | "alignable"> & { minW: number; maxW: number; h: number };
+const PLAIN_STEP = { fixedH: false, titleMax: Infinity, body: true, look: "normal", oneLine: true, alignable: true } as const;
 export const STEPS: Record<Size, Step> = {
   L: { ...PLAIN_STEP, minW: 120, maxW: 400, h: 64 },
   M: { ...PLAIN_STEP, minW: 120, maxW: 240, h: 64 },
-  // 小さい段: 高さ固定・短い名前（10 文字）の札。本文・1 行にするは持たず、子のサイズをそろえる対象にもしない。テーマの補正値も効かせない
-  S: { minW: 64, maxW: 96, h: 44, fixedH: true, titleMax: 10, body: false, look: "small", oneLine: false, alignable: false, outset: false },
+  // 小さい段: 高さ固定・短い名前（10 文字）の札。本文・1 行にするは持たず、子のサイズをそろえる対象にもしない
+  S: { minW: 64, maxW: 96, h: 44, fixedH: true, titleMax: 10, body: false, look: "small", oneLine: false, alignable: false },
 };
 
 // 箱の種類の層: 子を並べる箱（内包・リスト。枠で見せる並べ方）の最小（今の挙動。D44 の前は validate.ts の GROUP_MIN）
@@ -58,7 +58,6 @@ function shapeRule(def: ShapeDef, step: Size, r: SizeRule): SizeRule {
     ...r,
     textW: { min: z.minW, max: z.maxW }, minH: z.h, fixedH: z.fixedH, titleMax: z.titleMax,
     body: def.body && z.body, look: z.look, oneLine: z.oneLine, alignable: z.alignable,
-    outset: def.kind === "normal" && z.outset,
     slant: def.slant[step], artScale: def.art?.scale[step] ?? 1,
   };
 }

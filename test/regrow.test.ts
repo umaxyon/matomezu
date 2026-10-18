@@ -1,8 +1,8 @@
-// 大きさが変わったときの並べ直し（docs/PAPER-plan.md の 4.6。段階 3 はテーマの変更）: ページの起点から広がり、ぶつかる相手は同じ向きにだけ押す。
-// 紙の端では内側へ押し込み、形を変えずに収まらなければ断る
+// 大きさが変わったときの並べ直し（docs/PAPER-plan.md の 4.6）: ページの起点から広がり、ぶつかる相手は同じ向きにだけ押す。
+// 紙の端では内側へ押し込み、形を変えずに収まらなければ断る。箱が育つきっかけは、キャプションを長くするか幅を広げる
+// （D44 の前はテーマの補正値で育てて確かめていた。テーマは余白を持たなくなった。2026-10-18 ユーザー）
 import { afterEach, expect, test } from "bun:test";
 import { DEFAULTS, type Graph, createGraph } from "../web/src/graph";
-import { THEMES } from "../web/src/theme";
 import { PAPERS } from "../web/src/validate";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
@@ -21,23 +21,25 @@ function setup(data: Diagram) {
 const info = (id: number) => graph!.info(id) as BoxInfo;
 const A4 = PAPERS["a4-landscape"];
 const PAD = DEFAULTS.padding;
-const [, OX] = THEMES.find(t => t.id === "sticky")!.outset!;
+// 中身に合わせる箱を育てる長いキャプション（M の最大の幅まで広がる）
+const LONG = "長くしたキャプションの箱";
 
-test("紙の右端にぴったりの箱も、付箋紙にすると左へ押し込まれて収まる（今までは断っていた。E6）", () => {
+test("紙の右端にぴったりの箱も、育つと左へ押し込まれて収まる（今までは断っていた。E6）", () => {
   const w = setup({ nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }] }).info(1).w;
   graph!.destroy();
   setup({ nodes: [{ id: 1, caption: "箱", x: A4.w - PAD - w, y: 40 }] });
-  graph!.update(null, { theme: "sticky" });
+  graph!.update(1, { caption: LONG });
   expect(events.filter(e => e.kind === "overPaper")).toHaveLength(0);
   expect(info(1).x + info(1).w).toBe(A4.w - PAD);
-  expect(info(1).w).toBe(w + 2 * OX);
+  expect(info(1).w).toBeGreaterThan(w);
 });
 
 test("横に並んだ箱は横にだけ押す（右の箱は下へずれない。折り返さない）", () => {
   const w = setup({ nodes: [{ id: 1, caption: "左", x: 40, y: 40 }] }).info(1).w;
   graph!.destroy();
   setup({ nodes: [{ id: 1, caption: "左", x: 40, y: 40 }, { id: 2, caption: "右", x: 40 + w + DEFAULTS.gap, y: 40 }] });
-  graph!.update(null, { theme: "sticky" });
+  graph!.update(1, { caption: LONG });
+  expect(info(1).w).toBeGreaterThan(w);
   expect([info(1).x, info(1).y]).toEqual([40, 40]);
   expect(info(2).y).toBe(40);
   expect(info(2).x).toBe(40 + info(1).w + DEFAULTS.gap);
@@ -48,10 +50,10 @@ test("押し込んでも紙に収まらない（端から端まで詰まった�
   const width = Math.floor((A4.w - 2 * PAD - 3 * DEFAULTS.gap) / 4);
   const w = setup({ nodes: [{ id: 1, caption: "箱", width, x: 40, y: 40 }] }).info(1).w;
   graph!.destroy();
-  expect(A4.w - 2 * PAD - (4 * w + 3 * DEFAULTS.gap)).toBeLessThan(4 * 2 * OX); // 補正値の分だけ広がると入らない
+  expect(A4.w - 2 * PAD - (4 * w + 3 * DEFAULTS.gap)).toBeLessThan(20); // 1 つの箱が 20px 広がると入らない
   setup({ nodes: Array.from({ length: 4 }, (_, i) => ({ id: i + 1, caption: "箱", width, x: PAD + i * (w + DEFAULTS.gap), y: 40 })) });
   const before = graph!.toJSON();
-  graph!.update(null, { theme: "sticky" });
+  graph!.update(2, { width: width + 20 });
   expect(graph!.toJSON()).toEqual(before);
   expect(events.filter(e => e.kind === "overPaper")).toHaveLength(1);
 });
@@ -68,7 +70,7 @@ test("グループの中に左の余裕があれば、中で詰めて収め、�
     ],
   });
   const gw = info(1).w;
-  graph!.update(null, { theme: "sticky" });
+  graph!.update(3, { width: w + 20 }); // 左の余裕（40px）より小さく育つ
   expect(info(1).w).toBe(gw);
   expect(info(3).y).toBe(info(2).y);
   expect(info(3).x - (info(2).x + info(2).w)).toBe(DEFAULTS.gap);
@@ -80,18 +82,18 @@ test("ツリーのページは横の真ん中と上を保って広がる（ペ�
     nodes: [{ id: 1, caption: "根", x: 300, y: 40 }, { id: 2, caption: "子", parent: 1 }, { id: 3, caption: "子", parent: 1 }],
   });
   const b = info(1);
-  graph!.update(null, { theme: "sticky" });
+  graph!.update(2, { caption: LONG }); // 子が育つと、ツリーの全体（根の箱の枠）が広がる
   const a = info(1);
   expect(a.w).toBeGreaterThan(b.w);
-  expect(a.x + a.w / 2).toBe(b.x + b.w / 2);
+  expect(Math.abs(a.x + a.w / 2 - (b.x + b.w / 2))).toBeLessThan(1); // 広がった幅が奇数なら 0.5px の丸めがある
   expect(a.y).toBe(b.y);
 });
 
-test("付箋紙から戻すと、広がった箱は元の大きさに戻り、起点（左上）は動かない", () => {
+test("育った箱を元に戻すと、元の大きさに戻り、起点（左上）は動かない", () => {
   setup({ nodes: [{ id: 1, caption: "箱", x: 100, y: 100 }] });
   const b = info(1);
-  graph!.update(null, { theme: "sticky" });
-  graph!.update(null, { theme: null });
+  graph!.update(1, { caption: LONG });
+  graph!.update(1, { caption: "箱" });
   expect([info(1).x, info(1).y, info(1).w, info(1).h]).toEqual([b.x, b.y, b.w, b.h]);
 });
 
@@ -101,11 +103,11 @@ test("断った設定変更の原因は、1 つずつ当てて確かめた項目
   graph!.destroy();
   setup({ nodes: Array.from({ length: 4 }, (_, i) => ({ id: i + 1, caption: "箱", width, x: PAD + i * (w + DEFAULTS.gap), y: 40 })) });
   const slack = A4.w - 2 * PAD - (4 * w + 3 * DEFAULTS.gap);
-  expect(slack).toBeLessThan(2 * OX); // 1 つの箱が付箋紙になるだけで入らない
+  expect(slack).toBeLessThan(20); // 1 つの箱が 20px 広がるだけで入らない
   const before = graph!.toJSON();
   graph!.select(2);
-  expect(graph!.batch(() => graph!.update(2, { theme: "sticky", color: "danger" }))).toBe(false);
-  expect(graph!.refusedBy()).toEqual(["theme"]);
+  expect(graph!.batch(() => graph!.update(2, { width: width + 20, color: "danger" }))).toBe(false);
+  expect(graph!.refusedBy()).toEqual(["width"]);
   expect(graph!.toJSON()).toEqual(before);
   expect(graph!.selected()).toBe("2");
   // 収まる変更のあとは空
@@ -161,10 +163,10 @@ test("グループの中で育った子が左の余裕へ詰めたら、元の�
     ],
   });
   const [b2, b3, g] = [info(2), info(3), info(1)];
-  graph!.update(3, { theme: "sticky" });
+  graph!.update(3, { width: 140 });
   expect(info(1).w).toBe(g.w); // グループは広がらない（左の余裕を使う）
   expect(info(2).x).toBeLessThan(b2.x);
-  graph!.update(3, { theme: null });
+  graph!.update(3, { width: null });
   expect([info(2).x, info(3).x, info(1).w]).toEqual([b2.x, b3.x, g.w]);
 });
 

@@ -1,10 +1,8 @@
-// 配置の土台と見た目の補正値（docs/LAYOUT-BASE-plan.md）: テーマは補正値（定数）でだけ配置に入る。テーマを変えたとき、箱はページの起点
-// （STRATEGIES の growFrom。内包は左上、ツリー・フローチャートは横の真ん中と上）から広がる（docs/PAPER-plan.md の 4.6）
+// 配置の土台（docs/LAYOUT-BASE-plan.md）: テーマは見た目だけで、配置に入らない（D44。2026-10-18 ユーザー: テーマは余白を持たない）。
+// 大きさが変わったとき、箱はページの起点（STRATEGIES の growFrom。内包は左上、ツリー・フローチャートは横の真ん中と上）から広がる（docs/PAPER-plan.md の 4.6）
 import { afterEach, expect, test } from "bun:test";
 import { DEFAULTS, createGraph, type Graph } from "../web/src/graph";
 import { STRATEGIES } from "../web/src/model";
-import { SHAPE_DEFS } from "../web/src/shapes";
-import { THEMES } from "../web/src/theme";
 import { SHAPES } from "../web/src/validate";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
@@ -24,51 +22,19 @@ const setup = (data: Diagram) => {
 const info = (g: Graph, id: number) => g.info(id) as BoxInfo;
 const topLeft = (g: Graph, id: number) => [info(g, id).x, info(g, id).y];
 
-test("テーマを付箋紙にすると、ノーマルの形は補正値の分だけ広がり、内包のページでは左上を保つ。特殊な形と S は広がらない", () => {
-  const g = setup({
-    nodes: [
-      { id: 1, caption: "箱", x: 100, y: 100 }, { id: 2, caption: "分岐", shape: "diamond", x: 400, y: 100 },
-      { id: 3, caption: "小", size: "S", x: 100, y: 300 }, { id: 4, caption: "端", shape: "stadium", x: 400, y: 300 },
-    ],
-  });
-  const before = [1, 2, 3, 4].map(id => ({ c: topLeft(g, id), w: info(g, id).w, h: info(g, id).h }));
+test("テーマは見た目だけで、大きさにも位置にも入らない: 形 × サイズの全組で、付箋紙にしても戻しても箱は動かず大きさも同じ（D44。2026-10-18 ユーザー: テーマは余白を持たない）", () => {
+  const sizes = ["L", "M", "S"] as const;
+  // 紙（A3 横）に収まるように 9 列に並べる（紙に収まらない図は開かない。docs/PAPER-plan.md の 4.6 の 7）
+  const at = (k: number) => ({ x: 20 + (k % 9) * 170, y: 20 + Math.floor(k / 9) * 150 });
+  const nodes = SHAPES.flatMap((shape, i) => sizes.map((size, j) => ({ id: i * 3 + j + 1, caption: "形", shape, size, ...at(i * 3 + j) })));
+  const g = setup({ world: { paper: "a3-landscape" }, nodes });
+  expect(g.misfits()).toEqual([]);
+  const rects = () => nodes.map(n => [n.shape, n.size, ...topLeft(g, n.id), info(g, n.id).w, info(g, n.id).h]);
+  const before = rects();
   g.update(null, { theme: "sticky" });
-  const after = [1, 2, 3, 4].map(id => ({ c: topLeft(g, id), w: info(g, id).w, h: info(g, id).h }));
-  for (const i of [0, 1, 2, 3]) expect(after[i]!.c).toEqual(before[i]!.c);
-  expect([after[0]!.w - before[0]!.w, after[0]!.h - before[0]!.h]).toEqual([8, 8]); // ボックス: 上下左右 +4
-  expect([after[3]!.w - before[3]!.w, after[3]!.h - before[3]!.h]).toEqual([8, 8]); // 角丸もノーマル
-  expect([after[1]!.w, after[1]!.h]).toEqual([before[1]!.w, before[1]!.h]);        // ひし形は特殊
-  expect([after[2]!.w, after[2]!.h]).toEqual([before[2]!.w, before[2]!.h]);        // S の補正値は 0
-  // 戻すと、元の位置と大きさに戻る
+  expect(rects()).toEqual(before);
   g.update(null, { theme: null });
-  expect(info(g, 1).x).toBe(100);
-  expect(info(g, 1).w).toBe(before[0]!.w);
-});
-
-test("形 × サイズの全組: 補正値はテーマの 1 つの値で、ノーマルの形のふつうの段にだけ効き（小さい段は効かせない。形のローカルなルール。D44）、内包のページでは左上を保つ", () => {
-  const sticky = THEMES.find(t => t.id === "sticky")!;
-  const was = sticky.outset;
-  // 上下と左右で違う値にする（取り違えれば失敗する）
-  sticky.outset = [3, 5];
-  try {
-    const sizes = ["L", "M", "S"] as const;
-    // 紙（A3 横）に収まるように 9 列に並べる（紙に収まらない図は開かない。docs/PAPER-plan.md の 4.6 の 7）
-    const at = (k: number) => ({ x: 20 + (k % 9) * 170, y: 20 + Math.floor(k / 9) * 150 });
-    const nodes = SHAPES.flatMap((shape, i) => sizes.map((size, j) => ({ id: i * 3 + j + 1, caption: "形", shape, size, ...at(i * 3 + j) })));
-    const g = setup({ world: { paper: "a3-landscape" }, nodes });
-    expect(g.misfits()).toEqual([]);
-    const before = nodes.map(n => ({ c: topLeft(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h }));
-    g.update(null, { theme: "sticky" });
-    nodes.forEach((n, k) => {
-      const on = SHAPE_DEFS[n.shape].kind === "normal" && n.size !== "S";
-      const [v, hz] = on ? sticky.outset! : [0, 0];
-      const now = { c: topLeft(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h };
-      expect([n.shape, n.size, now.w - before[k]!.w, now.h - before[k]!.h]).toEqual([n.shape, n.size, 2 * hz, 2 * v]);
-      expect([n.shape, n.size, now.c]).toEqual([n.shape, n.size, before[k]!.c]);
-    });
-  } finally {
-    sticky.outset = was;
-  }
+  expect(rects()).toEqual(before);
 });
 
 test("箱どうしの最小間隔は組ごと: つながっていなければ 8px、線でつながれば 32px、その線にキャプションがあれば 40px。リストの子は 8px", () => {
@@ -140,7 +106,7 @@ const paddedMeasure: typeof fakeMeasure = (el, width) => {
   return [width == null ? w + ox : width, h + oy];
 };
 
-test("リストの子も補正値の分だけ幅が広がり、テーマを変えても文字を折り返す幅は変わらない（E1）", () => {
+test("リストの子も、テーマを変えても幅も高さも変わらない（D44。テーマは余白を持たない）", () => {
   const el = document.createElement("div");
   document.body.appendChild(el);
   const long = "あ".repeat(30); // M の最大の幅で折り返す長さ
@@ -156,8 +122,7 @@ test("リストの子も補正値の分だけ幅が広がり、テーマを変�
   const sizes = () => [2, 3, 5].map(id => [info(g, id).w, info(g, id).h]);
   const before = sizes();
   g.update(null, { theme: "sticky" });
-  const [ox, oy] = [8, 8]; // 付箋紙の M の補正値（上下左右 4）
-  expect(sizes()).toEqual(before.map(([w, h]) => [w! + ox, h! + oy]));
+  expect(sizes()).toEqual(before);
   g.update(null, { theme: null });
   expect(sizes()).toEqual(before);
 });

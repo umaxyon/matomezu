@@ -122,17 +122,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
 
     const shape = shapeOf(n);
     const draw = shapeDef(shape).draw; // 描き方（形の表 shapes.ts）
-    // 見た目の補正値（テーマとサイズから。ノーマルの形だけ。docs/LAYOUT-BASE-plan.md）。箱の中の余白に足して描き（graph-style.ts の
-    // --mz-out-x / --mz-out-y）、配置はこれを足した大きさ（足跡）で決まる。値が変わっても位置は動かさない
-    // （どこを保って広がるかはページの起点。layout.ts の regrow。docs/PAPER-plan.md の 4.6）
-    const [oy, ox] = !group && rule.outset ? theme.outset ?? [0, 0] : [0, 0];
-    head.style.setProperty("--mz-out-y", oy + "px");
-    head.style.setProperty("--mz-out-x", ox + "px");
     // 形の数値（形の表 shapes.ts）を CSS へ渡す: 斜めの辺の食い込み（文字の左右の余白に足す）と、文字を折り返す幅の割合（ひし形・円）
     head.style.setProperty("--mz-slant", slantOf(n) + "px");
     const fit = shapeDef(shape).fit;
     if (fit) head.style.setProperty("--mz-text-ratio", String(fit.ratio)); else head.style.removeProperty("--mz-text-ratio");
-    n.out = { x: ox, y: oy };
     for (const sh of SHAPES) head.classList.toggle("mz-shape-" + sh, sh === shape);
     // 絵の形は、形の表の大きさの絵（shape-art.ts）の足元に文字を置く（graph-style.ts の .mz-icon）
     const art = shapeDef(shape).art;

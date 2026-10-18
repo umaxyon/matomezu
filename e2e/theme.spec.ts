@@ -1,4 +1,4 @@
-// テーマ（docs/THEME-plan.md 11 章）を実際のブラウザで確かめる。箱の中の余白は文字を測るときに含まれる
+// テーマ（docs/THEME-plan.md 11 章）を実際のブラウザで確かめる。テーマは見た目だけで、大きさに入らない（D44）
 import { expect, test } from "@playwright/test";
 import { openDiagram, rect, violations, confirmDialog } from "./helpers";
 
@@ -6,8 +6,7 @@ test.afterEach(async ({ page }) => {
   expect(await violations(page)).toEqual([]);
 });
 
-test("付箋紙にすると余白の分だけ文字の箱が大きくなり、標準に戻すと元の大きさに戻る", { tag: "@d44" }, async ({ page }) => {
-  // 幅が最小（120）と最大（240）のあいだに収まる長さの文字にする（張り付くと余白の差が出ない）
+test("付箋紙にしても文字の箱の大きさは変わらない（テーマは見た目だけで余白を持たない。D44）。右上に折り目が付き、標準に戻すと消える", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "テーマの余白を確かめる", x: 40, y: 40 }] });
   const before = await rect(page, 1);
   // ブックのダイアログのページのタブで、テーマを付箋紙にする
@@ -16,14 +15,14 @@ test("付箋紙にすると余白の分だけ文字の箱が大きくなり、�
     await page.selectOption('.mz-dlg [data-tab-pane]:not([hidden]) select[name="theme"]', value);
     await confirmDialog(page);
   };
+  const head = page.locator('.mz-node[data-id="1"] > .mz-head');
   await pageTheme("sticky");
-  const sticky = await rect(page, 1);
-  expect(sticky.h).toBeGreaterThan(before.h - 1); // 高さは最小の 64 のこともある
-  expect(sticky.w).toBeGreaterThan(before.w);
-  const pad = await page.locator('.mz-node[data-id="1"] > .mz-head').evaluate(h => getComputedStyle(h).paddingLeft);
-  expect(pad).toBe("12px");
+  expect(await rect(page, 1)).toEqual(before);
+  expect(await head.evaluate(h => getComputedStyle(h).paddingLeft)).toBe("8px");
+  await expect(head).toHaveClass(/mz-style-sticky/);
   await pageTheme("default");
   expect(await rect(page, 1)).toEqual(before);
+  await expect(head).not.toHaveClass(/mz-style-sticky/);
 });
 
 test("DB とひし形は、形の外の四角い範囲に色が付かない（背景が透ける）。影はひし形の図形にだけかけ、DB には付けない", async ({ page }) => {

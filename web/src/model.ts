@@ -33,14 +33,8 @@ export interface Box {
   intendedX: number;
   // 同じ段の兄弟にはみ出さないための、文字の幅の上限（0 なら無し）。配置を決め直すたびに計算し直す（保存しない）
   capW: number;
-  // 見た目の補正値（テーマとサイズと形から。render.ts の applyStyle が決める。docs/LAYOUT-BASE-plan.md）。まだ決めていなければ null。
-  // 足跡（x, y, w, h）はこの分だけ土台より四方に広い。値が変わったら、土台の位置を保つよう x, y をずらす
-  out: { x: number; y: number } | null;
   // リストの子のときの幅（親のリストがそろえた幅。node-kinds.ts の list が決める。保存しない）
   listW: number;
-  // リストの葉の子の補正値の幅（左右の合計）の一番大きいもの（node-kinds.ts の list が決める。保存しない）。リストの幅の指定（width）は土台なので、
-  // 足跡はこの分だけ広い（つまみは土台の幅を書く。resizers.ts）
-  listOx: number;
   // スクロールするリスト（D33。listHeight）: 子が始まる高さ（見出しと本文の下）と、中身の全体の高さ（node-kinds.ts の list が決める。保存しない）。
   // 中身が箱の高さを超えたら、子は見出しの下のスクロールする入れ物（kidsEl。render.ts が作る）に入る
   kidsTop: number;

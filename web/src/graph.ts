@@ -1648,8 +1648,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       intendedY: Number(src.y) || 0,
       intendedX: Number(src.x) || 0,
       capW: 0,
-      listW: 0, listOx: 0, kidsTop: 0, fullH: 0, kidsEl: null,
-      out: null,
+      listW: 0, kidsTop: 0, fullH: 0, kidsEl: null,
       bodyH: 0,
       el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, heightGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,
     };

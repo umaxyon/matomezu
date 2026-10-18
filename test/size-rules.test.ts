@@ -30,8 +30,6 @@ test("形 × 段 × 置かれ方の全組で、幅の範囲・高さ・高さの
           expect([at, r.body]).toEqual([at, def.body && (shared ? "M" : step) !== "S"]);
           expect([at, r.look]).toEqual([at, (shared ? "M" : step) === "S" ? "small" : "normal"]);
           expect([at, r.slant, r.artScale]).toEqual([at, def.slant[shared ? "M" : step], def.art?.scale[shared ? "M" : step] ?? 1]);
-          // テーマの補正値は、ノーマルの形のふつうの段だけ（今の付箋紙は S に 0 を持っていた）
-          expect([at, r.outset]).toEqual([at, def.kind === "normal" && (shared ? "M" : step) !== "S"]);
           expect([at, r.oneLine, r.alignable]).toEqual([at, (shared ? "M" : step) !== "S", (shared ? "M" : step) !== "S"]);
         }
       }

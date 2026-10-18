@@ -8,7 +8,6 @@ import { STRATEGIES } from "../web/src/model";
 import { SHAPE_DEFS } from "../web/src/shapes";
 import { SHAPE_ART } from "../web/src/shape-art";
 import { SHAPES } from "../web/src/validate";
-import { THEMES } from "../web/src/theme";
 import type { BoxInfo, Diagram } from "../web/src/types";
 import { fakeMeasure } from "./helpers";
 
@@ -75,18 +74,6 @@ test("フローチャートで横に置く分岐を下げる量は、戦略の�
       edges: [{ id: "e1", from: 2, to: 3 }, { id: "e2", from: 2, to: 4 }],
     });
     expect(info(graph, 3).y - (info(graph, 2).y + info(graph, 2).h / 2)).toBe(50);
-  });
-});
-
-test("テーマの補正値は、テーマの outset の値だけで決まり、内包のページでは左上を保つ（ページの起点。PAPER-plan の 4.6）", () => {
-  const sticky = THEMES.find(t => t.id === "sticky")!;
-  withValue(sticky, "outset", [10, 6], () => {
-    const { graph } = setup({ nodes: [{ id: 1, caption: "箱", x: 100, y: 100 }] });
-    const before = info(graph, 1);
-    graph.update(null, { theme: "sticky" });
-    const after = info(graph, 1);
-    expect([after.w - before.w, after.h - before.h]).toEqual([12, 20]);
-    expect([after.x, after.y]).toEqual([before.x, before.y]);
   });
 });
 

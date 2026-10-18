@@ -14,8 +14,6 @@ export const BODY_GAP = 6; // 内包する箱の本文と、その下の子の�
 export const BODY_MIN_W = 160; // 本文を持つ箱の最小の幅。子を持つ箱でも効く（図が優先の唯一の例外。docs/SIZE-plan.md）
 // 見出しの下の本文の帯の高さ（本文の高さ h と、その下の子の並びとの間。本文が無ければ 0）
 export const bodyBand = (h: number): number => (h ? h + BODY_GAP : 0);
-// 見た目の補正値（n.out。テーマから）で、足跡が土台より広がる幅と高さ（四方に広げるので 2 倍）
-const outsetOf = (n: Box) => ({ ox: 2 * (n.out?.x ?? 0), oy: 2 * (n.out?.y ?? 0) });
 
 export interface NodeKind {
   readonly name: "text" | "hidden" | "preview" | "nest" | "tree" | "list";
@@ -80,18 +78,17 @@ export function createNodeKinds(ctx: KindContext) {
       // 高さの最小はリストの高さ（D13。サイズの高さは使わない）
       const w = assignedW(n) || listItemWidth(n);
       n.hw = w;
-      n.hh = Math.max(rowHeightOf(n.parent!) + outsetOf(n).oy, measure(n, w)[1]);
+      n.hh = Math.max(rowHeightOf(n.parent!), measure(n, w)[1]);
       return;
     }
-    // 大きさの決まり（幅の範囲・高さ・幅や高さの指定・本文の最小の幅）は土台のもの。範囲と高さは層を当てた決まり（size-rules.ts。D44）。
-    // 見た目の補正値（n.out。テーマから）の分だけ広げて足跡の大きさにする（文字を折り返す幅は、どのテーマでも同じ。docs/LAYOUT-BASE-plan.md）
-    const { ox, oy } = outsetOf(n);
+    // 大きさの決まり（幅の範囲・高さ・幅や高さの指定・本文の最小の幅）。範囲と高さは層を当てた決まり（size-rules.ts。D44）。
+    // テーマは大きさに入らない（2026-10-18 ユーザー: テーマは余白を持たない。CLAUDE.md の 9）
     const rule = sizeRuleOf(n);
-    const z = { minW: rule.textW.min + ox, maxW: rule.textW.max + ox, h: rule.minH + oy };
-    const specW = useSpec && n.specW ? n.specW + ox : 0;
-    const specH = useSpec && n.specH ? n.specH + oy : 0;
+    const z = { minW: rule.textW.min, maxW: rule.textW.max, h: rule.minH };
+    const specW = useSpec && n.specW ? n.specW : 0;
+    const specH = useSpec && n.specH ? n.specH : 0;
     const maxW = Math.min(z.maxW, n.capW || Infinity);
-    const textW = () => Math.max(z.minW, bodyMinW(n) + (bodyMinW(n) ? ox : 0), Math.min(maxW, contentW(n)));
+    const textW = () => Math.max(z.minW, bodyMinW(n), Math.min(maxW, contentW(n)));
     // 土台の決め方は形の表（shapes.ts の base）で分ける
     const base = shapeDef(shapeOf(n)).base;
     if (base === "diamond") {
@@ -143,7 +140,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = specH || z.h;
       return;
     }
-    const w = Math.max(bodyMinW(n) + (bodyMinW(n) ? ox : 0), specW || textW());
+    const w = Math.max(bodyMinW(n), specW || textW());
     n.hw = w;
     // 高さを決まった値にする決まり（ふつうの形の小さい段。キャプションを切り詰めない並べ方の子では親のルールで外れる。size-rules.ts）
     n.hh = specH || (rule.fixedH ? z.h : Math.max(z.h, measure(n, w)[1]));
@@ -157,27 +154,25 @@ export function createNodeKinds(ctx: KindContext) {
   function fitLink(n: Box) {
     if (linkIconOf(n)) return fitSide(n, LINK_ICON_DEF); // 縮図を出さないリストの中（アイコンだけ）
     const look = linkLookOf(n), d = LINK_LOOK_DEFS[look];
-    const { ox, oy } = outsetOf(n);
     const hasText = !!captionOf(n) || !!bodyOf(n);
     if (!d.textW) {
-      const w = Math.max(linkBoxWidth(d) + ox, assignedW(n));
+      const w = Math.max(linkBoxWidth(d), assignedW(n));
       n.hw = w;
-      n.hh = d.handle + (hasText ? measure(n, w)[1] : 0) + linkRowHeight(d) + oy;
+      n.hh = d.handle + (hasText ? measure(n, w)[1] : 0) + linkRowHeight(d);
       return;
     }
     fitSide(n, d);
   }
   // 横に分ける形（窓の行と、リストの子の縮図の行。D13）
   function fitSide(n: Box, d: LinkLookDef) {
-    const { ox, oy } = outsetOf(n);
     const hasText = !!captionOf(n) || !!bodyOf(n);
     const tw = d.textW ?? { min: 0, max: 0 };
-    const fixed = d.handle + linkBoxWidth(d) + ox;
+    const fixed = d.handle + linkBoxWidth(d);
     const textW = hasText ? Math.max(tw.min, Math.min(tw.max, measure(n, null)[0] - fixed)) : 0;
     n.hw = Math.max(fixed + textW, assignedW(n));
     // リストの中なら、リストの高さまで伸ばす（中身が高ければそのまま。D13）
     const rowH = takesRowSize(n) ? rowHeightOf(n.parent!) : 0;
-    n.hh = Math.max(linkRowHeight(d), hasText ? measure(n, n.hw)[1] : 0, rowH) + oy;
+    n.hh = Math.max(linkRowHeight(d), hasText ? measure(n, n.hw)[1] : 0, rowH);
   }
 
   // lo〜hi のうち、文字の高さが h を超えない一番狭い幅（1px 刻みの二分探索。hi では h に収まる前提）
@@ -293,12 +288,10 @@ export function createNodeKinds(ctx: KindContext) {
   };
 
   // リストの葉の子の、中身に合わせた幅（1 行の文字の幅を、自分のデータのサイズの範囲に収める。本文があれば最小の幅も）
-  // 箱のサイズは使わない（リストの子は普通の大きさ。D13）。範囲は土台のもので、補正値の分だけ広げる（ふつうの箱の textW と同じ。
-  // 文字を折り返す幅は、どのテーマでも同じ。CLAUDE.md の 9）
+  // 箱のサイズは使わない（リストの子は普通の大きさ。D13）。範囲は大きさの決まり（ふつうの箱の textW と同じ）
   const listItemWidth = (k: Box) => {
     const { textW } = sizeRuleOf(k);
-    const { ox } = outsetOf(k);
-    return Math.max(textW.min + ox, bodyMinW(k) + (bodyMinW(k) ? ox : 0), Math.min(textW.max + ox, contentW(k)));
+    return Math.max(textW.min, bodyMinW(k), Math.min(textW.max, contentW(k)));
   };
 
   // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は一番広い子の幅（docs/SIZE-plan.md の決めごと 5）か、自分の見出しが入る幅
@@ -325,14 +318,12 @@ export function createNodeKinds(ctx: KindContext) {
         kindOf(k).measure(k);
         return k.w;
       };
-      const widths = n.children.map(k => ({ leaf: leafLike(k) && !listPreviewOf(k) && !linkIconOf(k), w: own(k), ox: outsetOf(k).ox }));
-      // 幅の指定は土台の幅なので、葉の子の補正値の分だけ広げる（テーマを変えても、葉の子が文字を折り返す幅は変わらない）
-      n.listOx = Math.max(0, ...widths.filter(c => c.leaf).map(c => c.ox));
+      const widths = n.children.map(k => ({ leaf: leafLike(k) && !listPreviewOf(k) && !linkIconOf(k), w: own(k) }));
       // 指定があっても狭められない幅（子を持つ子は、下から決まった幅より狭くできない）
       const min = sizeRuleOf(n).min;
       const floor = Math.max(min.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, assignedW(n) - 2 * P);
       const inner = n.specW
-        ? Math.max(floor, n.specW - 2 * P + n.listOx)
+        ? Math.max(floor, n.specW - 2 * P)
         : Math.max(floor, ...widths.map(c => c.w), Math.min(LIST_TITLE_MAX_W, caption(n) - 2 * P));
       n.bodyH = bodyHeight(n, inner + 2 * P);
       const gap = kidStrategyOf(n).kidGap ?? opt.gap; // リストの子どうしは詰める（並べる戦略のローカルなルール。2026-10-12 ユーザー）

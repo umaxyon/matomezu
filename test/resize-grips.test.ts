@@ -99,14 +99,12 @@ test("つまみは選択モードのときだけ効く（ほかのモードで�
   expect(src(graph, 1).width).toBeUndefined();
 });
 
-test("付箋紙でも、リストの幅のつまみは見えている幅から動かした分だけ変わり、width には土台の幅（補正値を除いた幅）を書く（E1）", () => {
+test("付箋紙でも、リストの幅のつまみは動かした分だけ変わり、その幅を width に書く。テーマを戻しても幅は変わらない（テーマは余白を持たない。D44）", () => {
   const { el, graph } = setup({ world: { theme: "sticky" }, ...list() });
   const w0 = graph.info(1).w;
   dragGrip(el, graph, 1, "mz-width-grip", 100, 0);
   expect(graph.info(1).w).toBe(w0 + 100);
-  const ox = 8; // 付箋紙の M の補正値（左右 4 ずつ）
-  expect(src(graph, 1).width).toBe(w0 + 100 - ox);
-  // 標準のテーマに戻すと、土台の幅（書いた width）になる
+  expect(src(graph, 1).width).toBe(w0 + 100);
   graph.update(null, { theme: null });
-  expect(graph.info(1).w).toBe(w0 + 100 - ox);
+  expect(graph.info(1).w).toBe(w0 + 100);
 });
