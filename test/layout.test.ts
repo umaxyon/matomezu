@@ -47,6 +47,18 @@ describe("大きさや見せ方が変わっても、内包のページでは左�
     expect(at(10)).toEqual(back); // 広がったときに押し下げたバックエンドも戻る
   });
 
+  test("リストを挟んで切り替えても、最上位の左上は動かず、上の相手も動かず、最後は元の位置と大きさに戻る", () => {
+    const { graph } = setup(sample());
+    const box = (id: number) => { const i = graph.info(id); return [i.x, i.y, i.w, i.h]; };
+    const title = box(1), front = box(3);
+    for (const v of ["hidden", "nest", "list", "nest", "hidden", "nest"] as const) {
+      graph.update(3, { childView: v });
+      expect(box(3).slice(0, 2), v).toEqual(front.slice(0, 2));
+      expect(box(1), v).toEqual(title);
+    }
+    expect(box(3)).toEqual(front);
+  });
+
   test("入れ子の中で非表示から内包にして広がっても、下の相手との間で上に余白を作らない", () => {
     // データ枠の中で、DB（API を内包）の右下にキャッシュがつながっている
     const { graph } = setup({

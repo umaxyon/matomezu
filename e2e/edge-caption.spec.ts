@@ -49,22 +49,3 @@ test("線の編集ダイアログで通り方・線の種類・矢印を選べ�
   await expect(page.locator(".mz-dlg")).toHaveCount(0);
   await expect(page.locator(".mz-edge")).toHaveCount(0);
 });
-
-test("線を選んで Delete キーで消す", async ({ page }) => {
-  await openDiagram(page, {
-    nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 40 }],
-    edges: [{ id: "e1", from: 1, to: 2 }],
-  });
-  const mid = await page.locator('.mz-edge[data-id="e1"] .mz-hit').evaluate(l => {
-    const g = l as SVGPolylineElement;
-    const svg = g.ownerSVGElement!.getBoundingClientRect();
-    const p = g.getPointAtLength(g.getTotalLength() / 2);
-    return { x: svg.left + p.x, y: svg.top + p.y };
-  });
-  await page.mouse.click(mid.x, mid.y);
-  await expect(page.locator(".mz-edge")).toHaveClass(/mz-selected/);
-  // タブ行のボタンに焦点が残っていても、Delete で消える（文字を打つ欄ではないので）
-  await page.locator("#mode-tool").focus();
-  await page.keyboard.press("Delete");
-  await expect(page.locator(".mz-edge")).toHaveCount(0);
-});

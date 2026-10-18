@@ -91,14 +91,3 @@ test("全体像がミニマップの高さを超えても、右端は切れず�
     return v.y >= b.y - 1 && v.y + v.height <= b.y + b.height + 1 && v.x + v.width <= b.x + b.width + 0.01;
   }).toBe(true);
 });
-
-test("ミニマップの背景は、テーマの背景（付箋紙・シンプル）も塗る。world.background があればそちら（リンクの箱の窓と同じ）", async ({ page }) => {
-  await openDiagram(page, { ...tall, world: { theme: "sticky" } });
-  await page.locator("#minimap-toggle").click();
-  const bg = page.locator(".mz-minimap .mm-bg");
-  await expect(bg).toHaveCount(1);
-  expect(await bg.evaluate(r => (r as SVGElement).style.fill)).toBe("rgb(244, 239, 228)"); // theme.ts の sticky の background（#f4efe4）
-  await openDiagram(page, { ...tall, world: { theme: "sticky", background: "#1e1e1e" } });
-  await page.locator("#minimap-toggle").click();
-  expect(await page.locator(".mz-minimap .mm-bg").evaluate(r => (r as SVGElement).style.fill)).toBe("rgb(30, 30, 30)");
-});

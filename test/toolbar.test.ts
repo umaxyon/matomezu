@@ -3,6 +3,7 @@ import { afterEach, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createGraph, type Graph } from "../web/src/graph";
+import { closeEditDialog } from "../web/src/edit-dialog";
 import { openModePicker } from "../web/src/mode-picker";
 import { setupHistory, setupModes } from "../web/src/toolbar";
 import { fakeMeasure } from "./helpers";
@@ -10,6 +11,7 @@ import { fakeMeasure } from "./helpers";
 let graph: Graph | null = null;
 let dispose: (() => void) | null = null;
 afterEach(() => {
+  closeEditDialog();
   dispose?.();
   dispose = null;
   graph?.destroy();
@@ -140,6 +142,35 @@ test("選んだ線は Delete（Mac の delete は Backspace）で消える。入
   expect(ids()).toEqual([]);
   key("z", { ctrlKey: true });
   expect(ids()).toEqual(["e2"]);
+});
+
+test("タブ行のボタンに焦点が残っていても、選んだ線は Delete で消える（文字を打つ欄ではないので）", () => {
+  document.body.innerHTML = `<button id="undo"></button><button id="redo"></button><button id="mode-tool" data-mode="move"></button><div id="stage"></div>`;
+  const $ = (id: string) => document.getElementById(id)!;
+  graph = createGraph($("stage"), { nodes: [{ id: 1 }, { id: 2 }], edges: [[1, 2]] }, { measureText: fakeMeasure });
+  dispose = setupHistory(graph, $("undo") as HTMLButtonElement, $("redo") as HTMLButtonElement);
+  graph.selectEdge("e1");
+  $("mode-tool").focus();
+  expect(document.activeElement).toBe($("mode-tool"));
+  key("Delete", {}, $("mode-tool"));
+  expect(graph.toJSON().edges ?? []).toEqual([]);
+});
+
+test("箱を選んで Enter を押すと編集ダイアログが開く。何も選んでいなければ（ワールドを選んでいれば）開かない", () => {
+  document.body.innerHTML = `<button id="undo"></button><button id="redo"></button><div id="stage"></div>`;
+  const $ = (id: string) => document.getElementById(id)!;
+  graph = createGraph($("stage"), { nodes: [{ id: 1, caption: "ユーザー" }, { id: 2, caption: "API" }] }, { measureText: fakeMeasure });
+  dispose = setupHistory(graph, $("undo") as HTMLButtonElement, $("redo") as HTMLButtonElement);
+  const overlays = () => document.querySelectorAll(".mz-dlg-overlay").length;
+  graph.select(1);
+  key("Enter");
+  expect(overlays()).toBe(1);
+  expect(document.querySelector<HTMLInputElement>('.mz-dlg [name="caption"]')!.value).toBe("ユーザー");
+  closeEditDialog();
+  expect(overlays()).toBe(0);
+  graph.select(null);
+  key("Enter");
+  expect(overlays()).toBe(0);
 });
 
 test("選んだ箱も Delete で消える（子孫ごと、消したものの一覧へ。Undo で戻る）。入力欄の中や、選択モード以外では消さない", () => {

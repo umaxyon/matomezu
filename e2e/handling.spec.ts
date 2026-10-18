@@ -1,6 +1,6 @@
 // 操作のしやすさ（残課題 E7〜E9）: Enter で編集ダイアログ、端へ寄せたドラッグで図をスクロールする、ボタンやタブの文字を選択させない
 import { type Page, expect, test } from "@playwright/test";
-import { example, openDiagram, rect, select, choose, openSide } from "./helpers";
+import { example, openDiagram, rect, choose, openSide } from "./helpers";
 
 // 2 フレーム待つ（端の自動スクロールは毎フレーム進むので、この間に値が変わらなければ止まっている）
 const frames = (page: Page) => page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
@@ -10,20 +10,6 @@ async function settled(page: Page, read: () => Promise<number>): Promise<number>
   await expect.poll(async () => { const a = await read(); await frames(page); last = await read(); return last === a; }).toBe(true);
   return last;
 }
-
-test("箱を選んで Enter を押すと、ダブルクリックと同じ編集ダイアログが開く。何も選んでいなければ開かない", async ({ page }) => {
-  await openDiagram(page, example("nested"));
-  await select(page, 9);
-  await page.keyboard.press("Enter");
-  await expect(page.locator(".mz-dlg-overlay")).toHaveCount(1);
-  await expect(page.locator('.mz-dlg [name="caption"]')).toHaveValue("ユーザー");
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
-  // 何も選んでいなければ開かない
-  await page.locator(".mz-world").click({ position: { x: 5, y: 5 } });
-  await page.keyboard.press("Enter");
-  await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
-});
 
 // 紙（D33）は広がらないので、画面より縦に長い紙（A3 縦）で、端へ寄せると見る範囲がスクロールし、紙の下の端までは運べることを確かめる
 const tallPaper = () => { const d = example("nested"); return { ...d, world: { ...(d.world ?? {}), paper: "a3-portrait" } }; };

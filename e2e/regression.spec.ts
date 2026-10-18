@@ -1,7 +1,7 @@
 // 2026-09-28 にユーザーが画面で確認した動きを、実際のブラウザで確かめる。
 // test/fixtures/three-levels.json の id: 1 タイトル、3 フロントエンド、5 トップ画面
 import { expect, test } from "@playwright/test";
-import { choose, edgeEnds, example, lines, openDiagram, rect, select, setCaption, violations } from "./helpers";
+import { example, lines, openDiagram, rect, setCaption, violations } from "./helpers";
 
 // 線を除いた同じ図。線でつながった箱どうしは間隔が広がる（32・40px。layout.ts の gapBetween）ので、線と関係の無い動き
 // （ワールドの幅）を確かめるテストは、こちらで開き直す
@@ -27,31 +27,6 @@ test("1行に収まる幅の文字は折り返さない（幅を小数まで測�
   }
 });
 
-test("最上位の見せ方を切り替えても元の位置に戻り、左上は動かず（内包のページの起点。docs/PAPER-plan.md の 4.6）、タイトルも動かない", { tag: "@d44" }, async ({ page }) => {
-  const title = await rect(page, 1), front = await rect(page, 3);
-  for (const v of ["hidden", "nest", "list", "nest", "hidden", "nest"]) {
-    await choose(page, 3, "view", v);
-    const r = await rect(page, 3);
-    expect([r.x, r.y], v).toEqual([front.x, front.y]);
-    expect(await rect(page, 1), v).toEqual(title);
-  }
-  expect(await rect(page, 3)).toEqual(front);
-});
-
-test("真横の相手への線は水平、真下の相手への線は垂直", async ({ page }) => {
-  // 直線のとき（折れ線の自由な端は、前に描いた辺と位置を保つので、大きさが変わると折れることがある。docs/EDGE-SPEC.md）
-  const d = example("three-levels");
-  await openDiagram(page, { ...d, world: { ...d.world, route: "straight" } });
-  const [, y1, , y2] = await edgeEnds(page, "e1"); // ユーザー - フロントエンド
-  expect(y1).toBe(y2);
-  const [x1, , x2] = await edgeEnds(page, "e2"); // フロントエンド - バックエンド
-  expect(x1).toBe(x2);
-  await choose(page, 3, "view", "hidden"); // 大きさが変わっても水平・垂直のまま
-  expect((await edgeEnds(page, "e1"))[1]).toBe((await edgeEnds(page, "e1"))[3]);
-  expect((await edgeEnds(page, "e2"))[0]).toBe((await edgeEnds(page, "e2"))[2]);
-  await select(page, 3);
-});
-
 test("表示領域の幅に小数があっても、中身が収まっていればワールドははみ出さない（スクロールバーを出さない）", async ({ page }) => {
   // ワールドが表示領域の幅に合わせて決まるのは、紙の制限を受けないページだけ（マスター。D33）
   const d = withoutLines();
@@ -72,4 +47,3 @@ test("表示領域の幅に小数があっても、中身が収まっていれ�
     await expect.poll(async () => { const r = await fits(); return { w: r.worldW <= r.w, h: r.worldH <= r.h }; }, { message: w }).toEqual({ w: true, h: true });
   }
 });
-

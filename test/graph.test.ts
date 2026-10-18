@@ -1443,6 +1443,24 @@ describe("線のつなぎ方", () => {
     const [, y1, , y2] = ends(el);
     expect(y1).toBe(y2);
   });
+
+  test("箱の大きさが変わっても、真下の相手への線は垂直のまま", () => {
+    const { el, graph } = setup({
+      world: { route: "straight" },
+      nodes: [{ id: 1, caption: "枠", x: 40, y: 40 }, { id: 3, parent: 1 }, { id: 4, parent: 1 }, { id: 2, caption: "相手", x: 60, y: 400 }],
+      edges: [[1, 2]],
+    });
+    const [x1, , x2] = ends(el);
+    expect(x1).toBe(x2);
+    for (const v of ["hidden", "nest"] as const) {
+      const before = graph.info(1);
+      graph.update(1, { childView: v }); // 小さくする・大きくする
+      const after = graph.info(1);
+      expect([after.w, after.h], v).not.toEqual([before.w, before.h]);
+      const [a, , b] = ends(el);
+      expect(a, v).toBe(b);
+    }
+  });
 });
 
 test("ポインタを乗せたときの強調は、描いていない線（ツリーの子どうし）をたどらない", () => {

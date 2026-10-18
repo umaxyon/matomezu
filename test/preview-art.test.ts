@@ -1,7 +1,9 @@
 // 縮図の絵（preview-art.ts）のテスト
 import { expect, test } from "bun:test";
 import { createGraph } from "../web/src/graph";
+import { minimapView } from "../web/src/minimap";
 import { sceneItems, sceneOf } from "../web/src/preview-art";
+import { themeById } from "../web/src/theme";
 import { fakeMeasure } from "./helpers";
 import type { Geometry } from "../web/src/report";
 
@@ -40,4 +42,21 @@ test("ミニマップでも、塗らない箱は枠だけ、塗らず枠も無�
     graph.destroy();
     document.body.innerHTML = "";
   }
+});
+
+test("ミニマップの背景は、テーマの背景（付箋紙など）も塗る。world.background があればそちら（リンクの箱の窓と同じ）", () => {
+  const bgOf = (world: Record<string, unknown>) => {
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    const graph = createGraph(el, { world, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }] } as never, { measureText: fakeMeasure });
+    const view = minimapView(el, graph, { width: 160, maxHeight: () => 400 });
+    view.draw();
+    const fill = view.el.querySelector<SVGElement>(".mm-bg")?.style.fill;
+    view.destroy();
+    graph.destroy();
+    el.remove();
+    return fill;
+  };
+  expect(bgOf({ theme: "sticky" })).toBe(themeById("sticky").background!);
+  expect(bgOf({ theme: "sticky", background: "#1e1e1e" })).toBe("#1e1e1e");
 });
