@@ -8,7 +8,7 @@ test.afterEach(async ({ page }) => {
 
 const LONG = "とても長い説明の項目です。折り返しを確かめます".repeat(6);
 
-test("選んだリストの右の縁のつまみで、L の最大を超えて広げられ、ダブルクリックで元に戻る", async ({ page }) => {
+test("選んだリストの右の縁のつまみで、L の最大を超えて広げられ、ダブルクリックで元に戻る", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, {
     world: { width: 1400 },
     nodes: [{ id: 1, caption: "一覧", childView: "list", x: 40, y: 40 }, { id: 2, caption: LONG, parent: 1, size: "L" }, { id: 3, caption: "短い", parent: 1 }],

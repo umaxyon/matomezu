@@ -15,7 +15,7 @@ test.afterEach(async ({ page }) => {
   expect(await violations(page)).toEqual([]);
 });
 
-test("1行に収まる幅の文字は折り返さない（幅を小数まで測って切り上げる）", async ({ page }) => {
+test("1行に収まる幅の文字は折り返さない（幅を小数まで測って切り上げる）", { tag: "@d44" }, async ({ page }) => {
   // 文字数を1つずつ増やし、最大の幅（M は 240）に届かないうちは1行のまま
   const texts = [
     ...Array.from({ length: 16 }, (_, i) => "トップ画面あいうえおかきくけこさし".slice(0, i + 1)),
@@ -28,7 +28,7 @@ test("1行に収まる幅の文字は折り返さない（幅を小数まで測�
   }
 });
 
-test("文字を増やすと最大の幅まで広がって折り返し、減らすと元の大きさに縮む", async ({ page }) => {
+test("文字を増やすと最大の幅まで広がって折り返し、減らすと元の大きさに縮む", { tag: "@d44" }, async ({ page }) => {
   const before = await rect(page, 5);
   await setCaption(page, 5, LONG);
   expect((await rect(page, 5)).w).toBe(240);
@@ -37,7 +37,7 @@ test("文字を増やすと最大の幅まで広がって折り返し、減ら�
   expect(await rect(page, 5)).toEqual(before);
 });
 
-test("押し下げた相手との間隔は、ちょうど 8px", async ({ page }) => {
+test("押し下げた相手との間隔は、ちょうど 8px", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, withoutLines());
   for (const n of [1, 2, 3]) {
     await setCaption(page, 5, LONG.repeat(n)); // トップ画面が伸びて、カート画面を押し下げる
@@ -46,7 +46,7 @@ test("押し下げた相手との間隔は、ちょうど 8px", async ({ page })
   }
 });
 
-test("キャプションを 1 行にすると、文字を減らせば縮み、増やせば上限の幅で切る", async ({ page }) => {
+test("キャプションを 1 行にすると、文字を減らせば縮み、増やせば上限の幅で切る", { tag: "@d44" }, async ({ page }) => {
   const before = await rect(page, 5);
   await setCaption(page, 5, LONG);
   await openBoxDialog(page, 5);
@@ -59,7 +59,7 @@ test("キャプションを 1 行にすると、文字を減らせば縮み、�
   expect((await rect(page, 5)).w).toBe(240);
 });
 
-test("最上位の見せ方を切り替えても元の位置に戻り、左上は動かず（内包のページの起点。docs/PAPER-plan.md の 4.6）、タイトルも動かない", async ({ page }) => {
+test("最上位の見せ方を切り替えても元の位置に戻り、左上は動かず（内包のページの起点。docs/PAPER-plan.md の 4.6）、タイトルも動かない", { tag: "@d44" }, async ({ page }) => {
   const title = await rect(page, 1), front = await rect(page, 3);
   for (const v of ["hidden", "nest", "list", "nest", "hidden", "nest"]) {
     await choose(page, 3, "view", v);
@@ -70,7 +70,7 @@ test("最上位の見せ方を切り替えても元の位置に戻り、左上�
   expect(await rect(page, 3)).toEqual(front);
 });
 
-test("非表示にした最上位は、関係ない箱を変えても横へ動かず、内包に戻すと元の位置", async ({ page }) => {
+test("非表示にした最上位は、関係ない箱を変えても横へ動かず、内包に戻すと元の位置", { tag: "@d44" }, async ({ page }) => {
   // フロントエンドは開いたときにタイトルとわずかに重なって押し下げられ、元の位置を覚えている
   const front = await rect(page, 3);
   await choose(page, 3, "view", "hidden");
@@ -81,7 +81,7 @@ test("非表示にした最上位は、関係ない箱を変えても横へ動�
   expect(await rect(page, 3)).toEqual(front);
 });
 
-test("ユーザーに長い文字を入れると、左上を保って広がり、右の大きい隣を右へ押す（下へはずらさない）。文字を戻せば両方とも元の位置", async ({ page }) => {
+test("ユーザーに長い文字を入れると、左上を保って広がり、右の大きい隣を右へ押す（下へはずらさない）。文字を戻せば両方とも元の位置", { tag: "@d44" }, async ({ page }) => {
   const front = await rect(page, 3), user = await rect(page, 2);
   await setCaption(page, 2, "ユーザー" + LONG);
   const u = await rect(page, 2), f = await rect(page, 3);

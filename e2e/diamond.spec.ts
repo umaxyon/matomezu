@@ -14,7 +14,7 @@ async function selectLine(page: import("@playwright/test").Page, id: string) {
   await page.mouse.click(world.x + (p![0]! + q![0]!) / 2, world.y + (p![1]! + q![1]!) / 2);
 }
 
-test("文字はひし形の内側に収まり、線は頂点につながる", async ({ page }) => {
+test("文字はひし形の内側に収まり、線は頂点につながる", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, {
     nodes: [
       { id: 1, caption: "在庫は十分にあるか確認する", shape: "diamond", x: 40, y: 40 },

@@ -6,7 +6,7 @@ test.afterEach(async ({ page }) => {
   expect(await violations(page)).toEqual([]);
 });
 
-test("本文はキャプションの下に左寄せで出る。選んだ箱の右の縁のつまみで幅を変えると、折り返しが減って低くなる", async ({ page }) => {
+test("本文はキャプションの下に左寄せで出る。選んだ箱の右の縁のつまみで幅を変えると、折り返しが減って低くなる", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, {
     nodes: [
       { id: 1, caption: "ログイン画面", size: "L", bodyWidth: 160, body: "メールアドレスとパスワードで入る。失敗が 5 回続いたら 10 分ロックする。", x: 40, y: 40 },
@@ -31,7 +31,7 @@ test("本文はキャプションの下に左寄せで出る。選んだ箱の�
   expect(after.x).toBe(before.x); // 左上を保って右へ伸びる
 });
 
-test("子の見せ方を内包・リスト・非表示と切り替えても、本文は箱に収まる。ツリーのページの根では本体の中に入る", async ({ page }) => {
+test("子の見せ方を内包・リスト・非表示と切り替えても、本文は箱に収まる。ツリーのページの根では本体の中に入る", { tag: "@d44" }, async ({ page }) => {
   const nodes = [
     { id: 10, caption: "ログイン機能", body: "見出しの下に本文、その下に子が並びます。\n本文は箱の幅いっぱいで折り返します。", x: 40, y: 40 },
     { id: 11, parent: 10, caption: "ログイン画面", body: "メールアドレスとパスワードで入る。" },
@@ -52,7 +52,7 @@ test("子の見せ方を内包・リスト・非表示と切り替えても、�
   expect(await fits()).toBe(true);
 });
 
-test("最大行数を選ぶと、超えた分を切って箱が低くなる。制限なしに戻すと全部出る", async ({ page }) => {
+test("最大行数を選ぶと、超えた分を切って箱が低くなる。制限なしに戻すと全部出る", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, {
     nodes: [{ id: 1, caption: "見出し", body: "一行目\n二行目\n三行目\n四行目\n五行目", x: 40, y: 40 }],
   });
@@ -70,7 +70,7 @@ test("最大行数を選ぶと、超えた分を切って箱が低くなる。�
   await expect.poll(async () => (await rect(page, 1)).h).toBe(full.h);
 });
 
-test("リストの中で隠れていた子の中身も、内包に戻すと大きさを測り直し、本文が箱に収まる", async ({ page }) => {
+test("リストの中で隠れていた子の中身も、内包に戻すと大きさを測り直し、本文が箱に収まる", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, {
     nodes: [
       // 開いたときからリスト（中身は隠れた状態で初めて測る）
@@ -99,7 +99,7 @@ test("リストの中で隠れていた子の中身も、内包に戻すと大�
   expect(w1).toBeGreaterThan(150);
 });
 
-test("本文の幅のつまみをダブルクリックすると、本文の幅を自動に戻す（編集ダイアログは開かない）", async ({ page }) => {
+test("本文の幅のつまみをダブルクリックすると、本文の幅を自動に戻す（編集ダイアログは開かない）", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "見出し", size: "L", bodyWidth: 300, body: "短い本文", x: 40, y: 40 }] });
   expect(Math.round((await rect(page, 1)).w)).toBe(300);
   await select(page, 1);

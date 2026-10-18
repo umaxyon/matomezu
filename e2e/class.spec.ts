@@ -27,7 +27,7 @@ test.afterEach(async ({ page }) => {
 
 const head = (page: import("@playwright/test").Page, id: number) => page.locator(`.mz-node[data-id="${id}"] > .mz-head`);
 
-test("区画と行を描き、行につないだ線は行の高さで左右につながる", async ({ page }) => {
+test("区画と行を描き、行につないだ線は行の高さで左右につながる", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, data());
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/class.png` });
   const user = head(page, 1);

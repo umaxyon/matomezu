@@ -128,7 +128,7 @@ test("「初めの位置に戻す」と Home キーで、倍率 100% の開い�
   await expect(page.locator("#zoom-home")).toBeHidden();
 });
 
-test("125% でも、箱はポインタに付いて動き（画面で 125 動かすと図で 100）、箱の大きさは 100% のときと同じ", async ({ page }) => {
+test("125% でも、箱はポインタに付いて動き（画面で 125 動かすと図で 100）、箱の大きさは 100% のときと同じ", { tag: "@d44" }, async ({ page }) => {
   const at100 = await rect(page, 2);
   await page.click("#zoom-in");
   await expect.poll(() => zoomOf(page)).toBe(1.25);
@@ -187,7 +187,7 @@ test("125% でも、線を引く〇は箱の辺のすぐ外（画面で同じだ
   await expect(page.locator(".mz-edge")).toHaveCount(1);
 });
 
-test("紙に収まらない本文を箱の編集ダイアログで確定すると、閉じずに知らせ、図は変わらない（D33）", async ({ page }) => {
+test("紙に収まらない本文を箱の編集ダイアログで確定すると、閉じずに知らせ、図は変わらない（D33）", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, { world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
   const before = await rect(page, 1);
   await head(page, 1).dblclick();
@@ -227,7 +227,7 @@ test("紙が画面より小さければ紙を図の枠の真ん中に置き、�
   expect(Math.round(p2.y)).toBe(Math.round(f2.y));
 });
 
-test("紙の型: ブックのダイアログで今のページを小さな紙にして収まらなければ閉じずに知らせ、見ていないページは大きな紙だけ選べる（D33）", async ({ page }) => {
+test("紙の型: ブックのダイアログで今のページを小さな紙にして収まらなければ閉じずに知らせ、見ていないページは大きな紙だけ選べる（D33）", { tag: "@d44" }, async ({ page }) => {
   // 横に 7 つ並んだ箱（A4 横には入るが、A5 横には間隔を詰めても入らない。紙を小さくすると押し込み、入らなければ断る。docs/PAPER-plan.md の 4.6 の 7）
   const row = Array.from({ length: 7 }, (_, i) => ({ id: 10 + i, caption: `横${i + 1}`, x: 40 + i * 140, y: 40 }));
   await openDiagram(page, { pages: [{ id: "p2", title: "二枚目" }], nodes: [...row, { id: 2, caption: "二枚目の箱", page: "p2" }], edges: [] } as never);
@@ -275,7 +275,7 @@ test("スクロールするリストの並べ替え: 上下の端へ寄せたま
   expect(ys2[0]!.id).toBe(10);
 });
 
-test("リストのスクロール: ダイアログで入れると今の高さが上限になり、下の縁のつまみで縮めると、リストの中だけスクロールする。Undo で戻る（D33）", async ({ page }) => {
+test("リストのスクロール: ダイアログで入れると今の高さが上限になり、下の縁のつまみで縮めると、リストの中だけスクロールする。Undo で戻る（D33）", { tag: "@d44" }, async ({ page }) => {
   // 下の縁のつまみが画面（900 × 600）の中に来る数
   const kids = Array.from({ length: 5 }, (_, i) => ({ id: 10 + i, caption: `項目 ${i + 1}`, parent: 1 }));
   await openDiagram(page, { nodes: [{ id: 1, caption: "リスト", childView: "list", x: 40, y: 40 }, ...kids], edges: [] } as never);

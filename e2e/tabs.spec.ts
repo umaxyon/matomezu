@@ -95,7 +95,8 @@ test("マスター: 登録した図の窓が並び（作った人で分ける）
   await expect(page.locator("#master")).toHaveAttribute("aria-pressed", "false");
 });
 
-test("マスターを見ている最中に、登録した図のファイルが変わると、一覧をその場で作り直す（2026-10-15）", async ({ page }) => {
+test("マスターを見ている最中に、登録した図のファイルが変わると、一覧をその場で作り直す（2026-10-15）", { tag: "@d44" }, async ({ page }) => {
+  run("open", "-no-browser", "b.json"); // 一覧に b を載せておく（このテストだけを流しても通るように）
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   await page.locator("#master").click();
@@ -214,7 +215,7 @@ test("matomezu close で、画面のタブが閉じる（タブの × と同じ�
   expect(() => run("close", "nothing.json")).toThrow(/not registered/);
 });
 
-test("set は書き換えだけ: 見ていないブックを set しても前に出さず、要約も返さない。書き換えは check と、開いたときに見える（D30）", async ({ page }) => {
+test("set は書き換えだけ: 見ていないブックを set しても前に出さず、要約も返さない。書き換えは check と、開いたときに見える（D30）", { tag: "@d44" }, async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   await arrive(page, "b.json");
@@ -253,7 +254,7 @@ test("サーバーを止めて別の図だけ open し直しても、前に開�
   await expect(tabNames(page)).toHaveText(["a.json", "b.json"], { timeout: 10_000 });
 });
 
-test("読み直したあと一度も前に出していないタブの図が外部で変わったら、前に出したとき新しい内容を出す", async ({ page }) => {
+test("読み直したあと一度も前に出していないタブの図が外部で変わったら、前に出したとき新しい内容を出す", { tag: "@d44" }, async ({ page }) => {
   writeFileSync(join(dir, "c.json"), JSON.stringify({ nodes: [{ id: 1, caption: "前の内容", x: 40, y: 40 }] }));
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
@@ -420,7 +421,7 @@ test("図の題名（world.title）があればタブの見出しに出し、ポ
   await tab.locator(".tab-close").click();
 });
 
-test("マスターの道具箱のブック追加で新しい図を作ると、最後に開いた図と同じフォルダにファイルができ、前に出る（D20・D26）", async ({ page }) => {
+test("マスターの道具箱のブック追加で新しい図を作ると、最後に開いた図と同じフォルダにファイルができ、前に出る（D20・D26）", { tag: "@d44" }, async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   await page.locator("#master").click();
@@ -544,7 +545,7 @@ test("ページのタブを図へドラッグすると点線の影が付き、�
   await page.locator(".tab-group-current .tab-book .tab-close").click();
 });
 
-test("LLM の変更はユーザーの Undo に入らず、見えたら認知してユーザーの履歴に入る。画面の外の箱は、スクロールで見えるまで認知しない。matomezu history に残り、見たら seen（D31）", async ({ page }) => {
+test("LLM の変更はユーザーの Undo に入らず、見えたら認知してユーザーの履歴に入る。画面の外の箱は、スクロールで見えるまで認知しない。matomezu history に残り、見たら seen（D31）", { tag: "@d44" }, async ({ page }) => {
   const file = join(dir, "hist.json");
   // 遠くの箱は、紙（A3 縦）の中で画面の外（紙の外に書くと、開いたときに紙の中へ押し込まれて見えてしまう。docs/PAPER-plan.md の 4.6 の 7）
   writeFileSync(file, JSON.stringify({ world: { paper: "a3-portrait" }, nodes: [{ id: 1, caption: "見える", x: 40, y: 40 }, { id: 2, caption: "遠く", x: 40, y: 1450 }] }));
@@ -609,7 +610,7 @@ test("2 つの画面を開いているとき、最後にフォーカスされた
   await other.close();
 });
 
-test("見ていないブックを check しても前に出さず、見えない所で並べた要約を返す。開いて表示中の図から作った要約と同じ（D30）", async ({ page }) => {
+test("見ていないブックを check しても前に出さず、見えない所で並べた要約を返す。開いて表示中の図から作った要約と同じ（D30）", { tag: "@d44" }, async ({ page }) => {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
   run("open", "-no-browser", "b.json");
@@ -750,7 +751,7 @@ test("通知のダイアログは順番待ち: 開いているダイアログを
   await expect(page.locator("#mail-badge")).toHaveText("");
 });
 
-test("マスターを見ている最中に check・history で問い合わせても、マスターは作り直さず、箱が動かない（2026-10-15）", async ({ page }) => {
+test("マスターを見ている最中に check・history で問い合わせても、マスターは作り直さず、箱が動かない（2026-10-15）", { tag: "@d44" }, async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await page.locator("#master").click();
@@ -796,7 +797,7 @@ test("サーバーを入れ替えても、最後にフォーカスされた画�
   await other.close();
 });
 
-test("set の確かめ・ファイルの直接の書き換え・check は、開くときと同じ決まり: 紙の外の箱は形を変えずに押し込み（画面が書き戻す）、押し込んでも入らなければ断る。画面が無ければ set は断る（D33。docs/PAPER-plan.md の 4.6 の 7）", async ({ page }) => {
+test("set の確かめ・ファイルの直接の書き換え・check は、開くときと同じ決まり: 紙の外の箱は形を変えずに押し込み（画面が書き戻す）、押し込んでも入らなければ断る。画面が無ければ set は断る（D33。docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page }) => {
   // A5 横（794 × 559）に、上の段に 4 つ・下の段に 3 つ
   const rows = (lower: number) => Array.from({ length: 7 }, (_, i) => ({ id: i + 1, caption: `箱${i + 1}`, x: 40 + (i < 4 ? i : i - 4 + 4 * (1 - lower)) * 130, y: i < 4 ? 40 : 40 + 150 * lower }));
   writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: rows(1), edges: [] }));
@@ -831,7 +832,7 @@ test("set の確かめ・ファイルの直接の書き換え・check は、開�
   expect(err).toContain("matomezu open");
 });
 
-test("紙に収まらないブックは開かない: open は理由を返して届けず、画面はマスターを出して知らせる。URL で開いても同じ。どちらもマスターの一覧に載せない（docs/PAPER-plan.md の 4.6 の 7）", async ({ page, context }) => {
+test("紙に収まらないブックは開かない: open は理由を返して届けず、画面はマスターを出して知らせる。URL で開いても同じ。どちらもマスターの一覧に載せない（docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page, context }) => {
   // A4 横に、間隔を詰めても入らない 12 個の横の並び
   writeFileSync(join(dir, "wide.json"), JSON.stringify({ nodes: Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `横${i + 1}`, x: 12 + i * 130, y: 12 })), edges: [] }));
   await page.goto(run("open", "-no-browser", "a.json").trim());
@@ -870,7 +871,7 @@ const fails = (...args: string[]) => {
   throw new Error(`matomezu ${args.join(" ")} did not fail`);
 };
 
-test("フォーカス枠: 今のブックの箱をデータに書かずに枠で示し、箱の大きさは変えない。反応（Esc・図を押す）までは次を断り、手すきでなければ断る。別のページへは移る（D37）", async ({ page }) => {
+test("フォーカス枠: 今のブックの箱をデータに書かずに枠で示し、箱の大きさは変えない。反応（Esc・図を押す）までは次を断り、手すきでなければ断る。別のページへは移る（D37）", { tag: "@d44" }, async ({ page }) => {
   writeFileSync(join(dir, "c.json"), JSON.stringify({
     world: { paper: "a3-landscape" }, pages: [{ id: "p2", title: "2枚目" }],
     nodes: [{ id: 1, caption: "表の箱" }, { id: 2, caption: "裏の箱", page: "p2" }],
@@ -945,7 +946,7 @@ test("フォーカス枠: ほかのブックの箱は移るかを確かめる。
   await expect(frame).toHaveCount(0);
 });
 
-test("AI の問い: 吹き出しを A・B で出し（データにも箱の大きさにも触らない）、答え・隠す・開くはサーバーに残る。話題が残る間は次の問いもフォーカスも断り、-end で消える（D36）", async ({ page }) => {
+test("AI の問い: 吹き出しを A・B で出し（データにも箱の大きさにも触らない）、答え・隠す・開くはサーバーに残る。話題が残る間は次の問いもフォーカスも断り、-end で消える（D36）", { tag: "@d44" }, async ({ page }) => {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
   const web = page.locator(".stage:visible .mz-node[data-id='2']");

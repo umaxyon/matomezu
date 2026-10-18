@@ -6,7 +6,7 @@ test.afterEach(async ({ page }) => {
   expect(await violations(page)).toEqual([]);
 });
 
-test("付箋紙にすると余白の分だけ文字の箱が大きくなり、標準に戻すと元の大きさに戻る", async ({ page }) => {
+test("付箋紙にすると余白の分だけ文字の箱が大きくなり、標準に戻すと元の大きさに戻る", { tag: "@d44" }, async ({ page }) => {
   // 幅が最小（120）と最大（240）のあいだに収まる長さの文字にする（張り付くと余白の差が出ない）
   await openDiagram(page, { nodes: [{ id: 1, caption: "テーマの余白を確かめる", x: 40, y: 40 }] });
   const before = await rect(page, 1);

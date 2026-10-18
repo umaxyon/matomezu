@@ -17,7 +17,7 @@ const data = (): Diagram => ({
 test.beforeEach(async ({ page }) => { await openDiagram(page, data()); });
 test.afterEach(async ({ page }) => { expect(await violations(page)).toEqual([]); });
 
-test("子が同じ幅で縦に並び、親の幅いっぱいに広がる", async ({ page }) => {
+test("子が同じ幅で縦に並び、親の幅いっぱいに広がる", { tag: "@d44" }, async ({ page }) => {
   const [p, a, b, c] = await Promise.all([rect(page, 1), rect(page, 2), rect(page, 3), rect(page, 4)]);
   expect(new Set([a.w, b.w, c.w]).size).toBe(1);
   expect(a.x).toBe(12);
@@ -26,7 +26,7 @@ test("子が同じ幅で縦に並び、親の幅いっぱいに広がる", async
   await expect(page.locator('.mz-node[data-id="5"]')).toBeHidden(); // 4 は子を非表示にしている
 });
 
-test("リストの子を内包にすると、孫は描かずに中身の縮図を右に出し、全員がその幅にそろう。縮図の位置を「出さない」にすると低い行と ▼ になる（D13）", async ({ page }) => {
+test("リストの子を内包にすると、孫は描かずに中身の縮図を右に出し、全員がその幅にそろう。縮図の位置を「出さない」にすると低い行と ▼ になる（D13）", { tag: "@d44" }, async ({ page }) => {
   await choose(page, 4, "view", "nest");
   const win = page.locator('.mz-node[data-id="4"] > .mz-head .mz-link-win');
   await expect(win).toBeVisible();
@@ -68,7 +68,7 @@ test("ドラッグで並べ替えられる", async ({ page }) => {
   expect((await rect(page, 1)).x).toBe(40);
 });
 
-test("見出しが子より長ければ、見出しが切れない幅になる", async ({ page }) => {
+test("見出しが子より長ければ、見出しが切れない幅になる", { tag: "@d44" }, async ({ page }) => {
   await openDiagram(page, {
     world: { width: 1000 },
     nodes: [

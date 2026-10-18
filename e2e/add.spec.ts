@@ -24,7 +24,7 @@ async function addWith(page: Page, caption: string) {
 // 画面に描いた箱を、キャプションから探す（新しい箱の id を知らなくてよいように）
 const captionOf = (page: Page, text: string) => page.locator(".mz-node > .mz-head", { hasText: text });
 
-test("追加ボタンを押すとポインタに影が付き、何も無い所を押してダイアログで追加すると、その位置に置いて選択モードに戻る", async ({ page }) => {
+test("追加ボタンを押すとポインタに影が付き、何も無い所を押してダイアログで追加すると、その位置に置いて選択モードに戻る", { tag: "@d44" }, async ({ page }) => {
   await page.locator('.mz-toolbox [data-tool="add"]').click();
   await expect(page.locator("#mode-label")).toHaveText("追加モード");
   const world = (await page.locator(".mz-world").boundingBox())!;
