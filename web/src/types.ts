@@ -140,6 +140,7 @@ export interface WorldInfo {
   title: string | null; // 図（ブック）の題名（どのページを見ていても、ブック全体の world のもの）
   childView: PagePattern;  // ページのパターン（最上位の箱の並べ方）
   treeDirection: TreeDirection; // ツリーのページの向き
+  items: "boxes" | "books"; // 並ぶ箱がふつうの箱か、ブックの窓か（マスター。STRATEGIES の items）
   canFlatten: boolean;     // 内包に変換できるか（ツリーのページ。戻せない。docs/PATTERN-plan.md）
   tools: { tools: ToolKey[]; size: Size } | null; // 道具箱（ページのパターンのもの。図の左端に出す）の道具と、足す箱のサイズ
   canAlign: boolean;     // 自動で整列できるか（決まった並べ方を持つ戦略で、子がある）

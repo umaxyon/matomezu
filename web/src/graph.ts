@@ -46,6 +46,7 @@
  *   graph.paste(copy, parentId, at, from); // ほかのブックの箱（pages.ts の copySubtree）を、parentId の子にコピーする（移植）
  *   graph.copySelected(); graph.cutSelected(); graph.pasteClip(); // Ctrl+C / Ctrl+X / Ctrl+V（D23）。選んだ箱を子孫ごと写し、選んでいる所に貼る（決まりはページのパターン。STRATEGIES の copy）
  *   graph.clipState(); graph.pickForMenu(target); // 右クリックのメニュー（D42。context-menu.ts）: 使える項目と、右クリックした所を選ぶ
+ *   graph.canRemove(id); graph.hasSettings(id); // 消せるか・設定を開けるか（決まりはページのパターン。STRATEGIES の items。D42）
  *   graph.purge(id);             // 消したボックスを子孫ごと完全に削除する（ユーザーが足した箱 userAdded だけ。docs/ADD-plan.md）
  *   graph.add(req, fields);      // 新しい箱を足す（req は追加モードで押した所。onAddRequest で届く。docs/ADD-plan.md）
  *   graph.destroy();
@@ -213,6 +214,7 @@ export interface GraphOptions extends Partial<typeof DEFAULTS> {
   bookWindow?: (book: string, visible: boolean) => { title: string; pattern: PagePattern; scene: Scene | null } | null;
   onOpenBook?: (book: string) => void;        // マスターの窓を押した（そのブックを前に出すのは画面の側。app.ts）
   onDuplicateBook?: (book: string) => void;   // マスターで写したブックの窓を貼った（複製のダイアログを出すのは画面の側。app-master.ts。D23）
+  onRemoveBook?: (book: string) => void;      // マスターでブックの窓を消した（一覧から外すのは画面の側。app-master.ts。D42）
   bookChoices?: () => { id: string; title: string }[]; // ブックリンクを作るときに選べるブック（今のブック以外の登録した図。D29）。持たなければ無し
   // 描いていないページの縮図を、画面の外で実際に並べて作る（offscreen-scene.ts の layoutScene）。持たなければデータだけの近似（dataScene。テスト）
   sceneLayout?: (data: Diagram, page: string | null, without?: string) => Promise<Scene>; // without は中身だけを映す箱（リストの子の縮図。D13）
@@ -320,6 +322,10 @@ export interface Graph {
   pasteClip(at?: { x: number; y: number }): boolean;
   // 今切り取り・コピー・貼り付けができるか（右クリックのメニューで使えない項目を灰色にする。D42）
   clipState(): { cut: boolean; copy: boolean; paste: boolean };
+  // 消せるか（右クリックのメニューの削除を灰色にする。ツリーの根と、マスターの窓でない箱は消せない。D42）
+  canRemove(id: Id): boolean;
+  // 設定（箱の編集ダイアログ）を開けるか。マスターの窓は開かない（D42）
+  hasSettings(id: Id): boolean;
   // 右クリックの所を選ぶ（D42）。線の上ならその線、箱の上ならその箱、背景ならワールドを選び、どれかを返す。図の外（ミニマップなど）は選ばず null。
   // 線は、端の〇か端の近く（画面で MENU_END_NEAR px の中。at は右クリックした画面の座標）なら、その端（start は from の側）も返す。
   // 箱の〇は箱として扱うが、その箱につながる線の端が近くにあれば線の端を選ぶ
@@ -881,6 +887,19 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // ---- 削除と復活（docs/DELETE-plan.md） ----
 
+  const itemsRule = () => STRATEGIES[worldViewOf(world)].items;
+  // 消せるか（右クリックのメニューの削除。remove が断るもの: ツリーの根、マスターの窓でない箱。外す先が無いマスターの窓）
+  function canRemove(id: Id): boolean {
+    const n = byId.get(String(id));
+    if (!n || isTreeRoot(n)) return false;
+    return itemsRule() === "books" ? linkBookOf(n) != null && !!opt.onRemoveBook : true;
+  }
+  // 設定（箱の編集ダイアログ）を開けるか。マスターの窓は開かない（そのブックの設定は、そのブックで開く。2026-10-18 ユーザー）
+  function hasSettings(id: Id): boolean {
+    const n = byId.get(String(id));
+    return !!n && !(itemsRule() === "books" && linkBookOf(n) != null);
+  }
+
   // n を子孫ごと消す。図は作り直さずにその場で外す（作り直すと、押し下げられた箱が本来いたい高さを忘れる）。
   // 今の位置を書いて removed の末尾へ移し、つながっていた線は捨てる。親は縮み（中身に合わせて伸びる祖先の
   // 大きさの指定は外す）、残った子は動かさない
@@ -889,6 +908,12 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const n = nodeOf(id);
     if (n.isWorld) throw new Error(t("ワールドは消せません"));
     if (isTreeRoot(n)) { opt.onEvent?.({ kind: "rootKept" }); return false; } // ツリーの根は消せない（docs/PATTERN-plan.md 8.2）
+    // マスター（items が books）: 窓はマスターの一覧から外すだけ（外すのは画面の側。一覧が変わった知らせで並べ直す）。窓でない箱は消さない
+    if (itemsRule() === "books") {
+      const book = linkBookOf(n);
+      if (book != null && opt.onRemoveBook) opt.onRemoveBook(book);
+      return false;
+    }
     const gone = new Set([n, ...descendants(n)]);
     const prior = L.snapshot(); // 消す前の様子（親が縮んだ分、押されていた箱を戻す。docs/PAPER-plan.md の 4.6 の 8）
     // データは今の位置を書いた写しで消し、消したものだけを移す（ほかのページにある子孫、つまりページの箱の中身も一緒に消える）。
@@ -1290,6 +1315,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         title: typeof source.world?.title === "string" && source.world.title ? source.world.title : null,
         childView: worldViewOf(world),
         treeDirection: treeDirOf(world),
+        items: itemsRule(),
         canFlatten: canFlatten(),
         tools: toolsOf(),
         canAlign: aligns(world),
@@ -1914,6 +1940,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     cutSelected,
     pasteClip,
     clipState,
+    canRemove,
+    hasSettings,
     pickForMenu,
     bookChoices: () => opt.bookChoices?.() ?? [],
     addGhost: at => I.ghost(at),

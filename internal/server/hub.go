@@ -220,7 +220,7 @@ func (h *Hub) remember(path string) {
 }
 
 // unlist は、紙に収まらないので開けなかった図を、覚えている図（マスターの一覧）から外す（docs/PAPER-plan.md の 4.6 の 7。2026-10-18 ユーザー:
-// 開けなかったブックを一覧に載せない）。どの画面も開いていなければ登録も外す
+// 開けなかったブックを一覧に載せない）。マスターで窓を消したときも使う（D42。ファイルは残す）。どの画面も開いていなければ登録も外す
 func (h *Hub) unlist(path string) {
 	h.mu.Lock()
 	out := make([]string, 0, len(h.recent))
@@ -586,7 +586,7 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("GET /d/{id}/api/llm", h.withLLM(h.getLLM))
 	mux.HandleFunc("POST /d/{id}/api/llm/seen", fromPage(h.withLLM(h.seenLLM)))
 	mux.HandleFunc("DELETE /d/{id}/api/llm", fromPage(h.withLLM(h.deleteLLM)))
-	// 紙に収まらないので開けなかった（画面がブックを開くときに判定した。docs/PAPER-plan.md の 4.6 の 7）: マスターの一覧から外す
+	// 紙に収まらないので開けなかった（画面がブックを開くときに判定した。docs/PAPER-plan.md の 4.6 の 7）か、マスターで窓を消した（D42）: マスターの一覧から外す
 	mux.HandleFunc("POST /d/{id}/api/unlist", fromPage(withDoc(func(d *doc, w http.ResponseWriter, _ *http.Request) {
 		h.unlist(d.path)
 		w.WriteHeader(http.StatusNoContent)

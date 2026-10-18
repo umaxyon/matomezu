@@ -729,6 +729,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
 }
 
 export function openEditDialog(graph: Graph, id: string): void {
+  if (!graph.hasSettings(id)) return; // マスターの窓は設定を持たない（D42）
   const info = graph.info(id);
   if (info.kind === "world") return;
   const b = info as BoxInfo;

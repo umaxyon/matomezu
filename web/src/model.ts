@@ -174,6 +174,19 @@ export function setSpec(n: Box, dim: "w" | "h", value: number) {
 // 破ってはいけない決まりは CLAUDE.md の「並べ方の戦略」
 // 非表示（hidden）は「子を描かずに ▼ だけを出す戦略」（折りたたみの項目には分けない。2026-10-11 ユーザー）
 
+// 右クリックのメニュー（D42。context-menu.ts）をパターンごとに変える決まり（2026-10-18 ユーザー: 今のメニューを既定とし、パターンごとに上書き・追加・非表示）。
+// 右クリックした所（MenuSpot）ごとに書く。window はリンクの箱（マスターの窓も）で、box の決まりを受けてから window の決まりを重ねる。
+// 項目（MenuKey）は既定のメニューにあるもの、動き（MenuAction）はパターンが足す・差し替える動きの名前（中身は context-menu.ts の ACTIONS）
+export type MenuSpot = "box" | "window" | "world" | "edge";
+export type MenuKey = "settings" | "cut" | "copy" | "paste" | "remove" | "heads" | "route";
+export type MenuAction = "appSettings";
+export interface MenuRule {
+  hide?: readonly MenuKey[];                          // 出さない項目
+  override?: Readonly<Partial<Record<MenuKey, MenuAction>>>; // 押したときの動きを差し替える（見出しとショートカットは既定のまま）
+  add?: readonly { action: MenuAction; after: MenuKey | null }[]; // 項目を足す（after の項目のすぐ後ろ。null は一番上）
+}
+export type MenuRules = Readonly<Partial<Record<MenuSpot, MenuRule>>>;
+
 export interface Strategy {
   framed: boolean;      // 子を枠の中に入れ、見出しを付けて見せる（内包・リスト）。自分の形とサイズは使わない（大きさは子の並びで決まる）
   free: boolean;        // 子を自由に置く（落とした位置に置き、子をドラッグで動かせる）
@@ -202,6 +215,11 @@ export interface Strategy {
   // boxes は選んだ箱を子孫と中の線ごと写し、ワールドを選んでいればポインタの位置、箱を選んでいればその中の左上に貼る（子を入れられない箱なら隣。
   // 入れられるかは acceptsKid と形の表から引くので、フローチャートの箱は隣になる）。books はブックの窓を写し、貼るとブックを複製する（マスター）。null は写さない
   copy: "boxes" | "books" | null;
+  // ページに掛けたとき、並ぶ箱が何か（右クリックのメニューの 設定・削除 と Delete・Enter の意味。D42。2026-10-18 ユーザー）。
+  // boxes はふつうの箱（削除は子孫ごと消す）。books はブックの窓（マスター）で、窓は設定を持たず（Enter・ダブルクリックでも開かない）、
+  // 削除（メニューと Delete）はマスターの一覧から外す（ファイルは残す。窓でない箱は消せない）。メニューの見せ方は menu
+  items: "boxes" | "books";
+  menu: MenuRules;       // ページに掛けたとき、右クリックのメニューを既定から変える決まり（MenuRule。空なら既定のまま）
   paper: boolean;        // ページに掛けたとき、固定サイズの紙の制限を受けるか（D33。docs/PAPER-plan.md）。マスターのような特別なページは受けない（中身に合わせて伸びる）
   pairGaps: boolean;     // 子どうしに、組ごとの最小間隔（線でつながれば 32・キャプションがあれば 40px。layout.ts の gapBetween）を使うか。
                          // 使わない戦略は、子どうしをいつも kidGap（無ければ全世界の gap）で並べる（フローチャートは自分の整列の間隔を持つので使わない。
@@ -211,7 +229,7 @@ export interface Strategy {
   growFrom: { x: GrowFrom; y: GrowFrom };
 }
 export type GrowFrom = "start" | "center";
-const PLAIN = { copy: null, scroll: false, leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false, growFrom: { x: "start", y: "start" } } as const;
+const PLAIN = { copy: null, items: "boxes", menu: {}, scroll: false, leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false, growFrom: { x: "start", y: "start" } } as const;
 const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"], paper: true, copy: "boxes" };
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   NEST,
@@ -228,7 +246,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
     leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
-    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false, paper: true, scroll: false, copy: "boxes", growFrom: { x: "center", y: "start" },
+    branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false, paper: true, scroll: false, copy: "boxes", items: "boxes", menu: {}, growFrom: { x: "center", y: "start" },
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
     align: { gaps: { S: { x: 40, y: 32 }, M: { x: 60, y: 48 }, L: { x: 80, y: 64 } }, sideDrop: { S: 16, M: 24, L: 32 }, top: 8 },
@@ -236,7 +254,9 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   // マスター（D26 の段階 2。docs/UI-plan.md。2026-10-14 ユーザー: パターンをプラグインして特別にした普通のページ）: 内包を土台に、
   // 違う所だけを上書きする（内包に足した決まりは、そのままマスターにも効く）。新しいページの選択肢には出さず（pick）、箱の見せ方にも使わない。
   // 道具箱はブック追加・ブックをまたぐ追加削除・設定。窓（book のある箱）でブックを並べる。ファイルの形式は validate.ts の PAGE_FORMATS
-  master: { ...NEST, onBox: false, pick: false, openMore: "list", tools: ["newBook", "crossMove", "settings"], paper: false, copy: "books" }, // 紙の制限を受けない（ブックの数で伸びる）
+  master: { ...NEST, onBox: false, pick: false, openMore: "list", tools: ["newBook", "crossMove", "settings"], paper: false, copy: "books", items: "books",
+    // 窓は設定を出さない（そのブックで開く）。背景の設定は全体の設定（マスターにはブックの設定が無い。2026-10-18 ユーザー）
+    menu: { window: { hide: ["settings"] }, world: { override: { settings: "appSettings" } } } }, // 紙の制限を受けない（ブックの数で伸びる）
 };
 
 // 箱が、ある戦略の子として並んだときの自分の見せ方。並べる側ではなく、並べられる箱の側の決まり（リストは子の中身に関与しない。
@@ -309,6 +329,8 @@ export const linkIconOf = (n: Box): boolean => isLinkBox(n) && (n.src.linkLook =
 // 子を描かない並べ方か（非表示と縮図）
 export const hidesKids = (n: Box): boolean => arrangeOf(n) === "hidden" || arrangeOf(n) === "preview";
 // 箱が子を並べる戦略（子が無ければ null）
+// ページのパターンの、右クリックのメニューの決まり（context-menu.ts。D42）
+export const menuRulesOf = (view: PagePattern): MenuRules => STRATEGIES[view].menu;
 export const strategyOf = (n: Box): Strategy | null => (n.children.length ? STRATEGIES[arrangeOf(n) as ChildView] : null);
 // 箱を並べている親の並べ方。最上位はページのパターンが最上位の箱を置く戦略（STRATEGIES の tops。ツリーのページでも最上位は自由に置く）
 // （親は子を持つので leaf にはならない）

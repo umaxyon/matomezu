@@ -453,6 +453,7 @@ export async function startApp(ui: AppUi) {
         onLLMSeen: version => { void fetch(base + "api/llm/seen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version }) }).catch(() => {}); },
         bookWindow: (id, visible) => M.bookWindow(id, visible), // マスターの窓（D26 の段階 2）
         onDuplicateBook: id => M.duplicate(id), // マスターでブックの窓を写して貼った（D23）
+        onRemoveBook: id => M.unlist(id), // マスターでブックの窓を消した（D42）
         bookChoices: () => M.choices(book?.id ?? null), // ブックリンクを作るときに選べるブック（D29）
         // ブックの窓を押した。マスターの窓はすぐ移る。ふつうのページのブックリンク（D29）は、移ると戻るのがマスター経由になるので、確かめてから
         onOpenBook: id => {

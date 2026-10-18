@@ -1,10 +1,10 @@
 // マスターページ（D26 の段階 2。docs/UI-plan.md）: サーバーの状態のフォルダの master.json を 1 冊のブックとして開き、
 // 開くたびに、登録した図の並び（/api/books）から中身を作り直す（「ユーザー」「AI」の箱に新しい 10 件の窓、残りは「その他のブック」）。
 // 窓の縮図は、見えている窓のブックだけ取りに行く。マスターの追加削除（cross-list.ts）の行を窓へ落とすと、そのブックの郵便箱へ写しを送る（段階 4）。
-// ブックの窓を写して貼る（Ctrl+C / Ctrl+V）と、ブックを複製する（D23 の段階 2。duplicate）。
+// ブックの窓を写して貼る（Ctrl+C / Ctrl+V）と、ブックを複製する（D23 の段階 2。duplicate）。窓を消すと、確かめてから一覧から外す（unlist。D42）。
 // ブックのタブ・前に出す・開くのは app.ts
 import { esc } from "./dom";
-import { openDialog } from "./edit-dialog";
+import { openConfirmDialog, openDialog } from "./edit-dialog";
 import { helpIcon } from "./help";
 import { t } from "./i18n";
 import { CROSS_MIME, type CrossPayload, createCrossList } from "./cross-list";
@@ -287,8 +287,20 @@ export function createMaster<B extends MasterBook>(ctx: MasterContext<B>) {
     // 並びはサーバーの一覧が変わった知らせ（books）で作り直す
   }
 
+  // 窓を消す（右クリックの削除・Delete。D42。2026-10-18 ユーザー）: 確かめてから、マスターの一覧から外す（ファイルは残す。もう一度開けば載る）。
+  // 並びはサーバーの一覧が変わった知らせ（books）で作り直す
+  function unlist(id: string) {
+    const row = rows.get(id);
+    if (!row) return;
+    openConfirmDialog(t("一覧から外す"), t("「{book}」をマスターの一覧から外します。\nファイルは消しません。もう一度開けば載ります。", { book: titleOf(row) }), t("外す"), () => {
+      void fetch(docBase(id) + "api/unlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+        .then(res => { if (!res.ok) throw new Error(res.statusText); })
+        .catch(() => ctx.error(t("「{book}」を一覧から外せませんでした", { book: titleOf(row) })));
+    });
+  }
+
   // ブックリンクを作るときに選べるブック（D29）: 登録した図の一覧（新しい順）。except は今のブック
   const choices = (except: string | null) => masterRows.filter(r => r.id !== except).map(r => ({ id: r.id, title: titleOf(r) }));
 
-  return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow, duplicate, catalog, choices };
+  return { open: openMaster, refresh: refreshMaster, command: masterCommand, bookWindow, duplicate, unlist, catalog, choices };
 }

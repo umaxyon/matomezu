@@ -161,3 +161,24 @@ test("一覧: 表示中と消したものを、親の名前と一緒に返す", 
   expect(list.live.map(i => [i.id, i.caption, i.parent])).toEqual([["4", "隣", null], ["5", "下", null]]);
   expect(list.removed.map(i => [i.id, i.caption, i.parent])).toEqual([["1", "親", null], ["2", "左", "親"], ["3", "右", "親"]]);
 });
+
+test("マスター（STRATEGIES の items が books）: 窓を消すと一覧から外す知らせだけ出し、図からは消さない。窓でない箱は消せない。窓は設定を持たない", () => {
+  const removed: string[] = [];
+  const data: Diagram = { world: { childView: "master" }, nodes: [{ id: "user", caption: "ユーザー", childView: "list" }, { id: "b-x", parent: "user", caption: "x", book: "x" }], edges: [] } as never;
+  const { graph } = setup(data, { onRemoveBook: b => removed.push(b) });
+  expect([graph.canRemove("b-x"), graph.canRemove("user")]).toEqual([true, false]);
+  expect(graph.remove("b-x")).toBe(false);
+  expect(graph.remove("user")).toBe(false);
+  expect(removed).toEqual(["x"]);
+  expect(graph.toJSON().nodes.map(n => n.id)).toEqual(["user", "b-x"]);
+  expect([graph.hasSettings("b-x"), graph.hasSettings("user")]).toEqual([false, true]);
+  // 外す先が無ければ（サーバーなし）窓も消せない
+  const { graph: alone } = setup(data);
+  expect(alone.canRemove("b-x")).toBe(false);
+});
+
+test("ふつうのページ（items が boxes）: 消せるのはツリーの根でない箱。設定は箱の編集のまま", () => {
+  const { graph } = setup({ world: { childView: "tree", root: 1 }, nodes: [{ id: 1, caption: "根" }, { id: 2, caption: "子", parent: 1 }], edges: [] } as never);
+  expect([graph.canRemove(1), graph.canRemove(2)]).toEqual([false, true]);
+  expect(graph.hasSettings(2)).toBe(true);
+});
