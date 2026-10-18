@@ -239,7 +239,7 @@ test.describe("シナリオ 8: 2 画面で同じブックを直す", () => {
     await expect.poll(() => boxIn("a.json", 5)?.caption).toBe("Bが変えたAPI");
     await seen;
 
-    // A の Undo は差分で 1 件ずつ戻す。認知した B の変更は A の操作より後の時刻なので先に戻り、A の変更は残る。戻した結果は B にもファイルにも出る
+    // A の Undo は差分で 1 件ずつ戻す。認知した B の変更は A の操作より後の時刻なので先に戻り、A の変更は残る。戻した結果は B にもファイルにも出る（2026-10-19 ユーザー: 自分の PC で自分が見ている 2 画面なので、これでよい）
     const undoA = async (cap2: string, cap5: string) => {
       await a.locator("#undo").click();
       for (const p of [a, b]) {
