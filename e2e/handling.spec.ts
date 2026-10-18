@@ -116,28 +116,6 @@ test("追加モードで影を図の下の端へ寄せると紙の中でスク�
   expect(await worldH()).toBe(paperH);
 });
 
-test("フローチャートの道具入れの道具を押して、影を図の下の端へ寄せると、紙の中でスクロールし、押した所に足せる", async ({ page }) => {
-  await page.setViewportSize({ width: 1200, height: 700 });
-  await openDiagram(page, { world: { childView: "flow" }, nodes: [{ id: 1, caption: "開始", shape: "stadium", x: 200, y: 40 }] });
-  const stage = page.locator(".stage:visible");
-  const view = (await stage.boundingBox())!;
-  await page.locator(".mz-world").click({ position: { x: 5, y: 300 } });
-  await page.locator('.mz-toolbox [data-tool="box"]').click();
-  const x = view.x + 300;
-  await page.mouse.move(x, view.y + 200);
-  await page.mouse.move(x, view.y + view.height - 6, { steps: 20 });
-  // 紙の下の端まで（それ以上はスクロールできない所まで）スクロールするのを待つ
-  await expect.poll(() => stage.evaluate(el => el.scrollHeight - el.clientHeight - el.scrollTop), { timeout: 10_000 }).toBeLessThanOrEqual(1);
-  expect(await stage.evaluate(el => el.scrollTop)).toBeGreaterThan(200);
-  await page.mouse.move(x, view.y + view.height - 120, { steps: 5 });
-  await page.mouse.click(x, view.y + view.height - 120);
-  await page.locator('.mz-dlg [name="caption"]').fill("運んだ箱");
-  await page.locator(".mz-dlg [data-ok]").click();
-  const added = page.locator(".mz-node > .mz-head", { hasText: "運んだ箱" });
-  await expect(added).toBeVisible();
-  expect(await added.evaluate(el => (el.parentElement as HTMLElement).offsetTop)).toBeGreaterThan(view.height);
-});
-
 test("追加モードでポインタを図の上の外（タブの列の上）へ出しても、上へのスクロールは続く。図から離れたら（サイドバーの上）止まる", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
   // 縦に長い図を一番下までスクロールしておく

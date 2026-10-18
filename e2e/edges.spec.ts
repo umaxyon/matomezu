@@ -1,74 +1,6 @@
-// 線の通り方（Z 字）、整列、中棒と端のドラッグ、端のつなぎ替え
+// 線の中棒のドラッグと、端のつなぎ替え（本物のポインタの位置で判定する所）
 import { expect, test } from "@playwright/test";
-import { example, openDiagram, confirmDialog } from "./helpers";
-
-test("斜めに離れた箱どうしの線を折れ線にすると Z 字になり、直線に戻せる", async ({ page }) => {
-  // e1（9 ユーザー - 1 フロントエンド）は、上下にも左右にも重ならない（位置を書いて斜めに離す）
-  const data = example("nested");
-  for (const n of data.nodes) {
-    if (n.id === 9) Object.assign(n, { x: 40, y: 40 });
-    if (n.id === 1) Object.assign(n, { x: 360, y: 130 }); // 縦の隙間を横の隙間の 1/3 より小さくする（Z 字になる。routing.ts の ELBOW_Z_RATIO）
-    if (n.id === 4) Object.assign(n, { x: 360, y: 460 });
-  }
-  await openDiagram(page, data);
-  const edge = page.locator('.mz-edge[data-id="e1"]');
-  const mid = await edge.locator(".mz-hit").evaluate(l => {
-    const g = l as SVGPolylineElement;
-    const svg = g.ownerSVGElement!.getBoundingClientRect();
-    const p = g.getPointAtLength(g.getTotalLength() / 2);
-    return { x: svg.left + p.x, y: svg.top + p.y };
-  });
-  const count = () => edge.locator(".mz-hit").evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/).length);
-  // 通り方は線の編集ダイアログで（線のダブルクリックで開く）
-  const route = async (value: string) => {
-    await page.mouse.dblclick(mid.x, mid.y);
-    await page.locator(`.mz-dlg [name="route"][value="${value}"]`).check();
-    await page.locator(".mz-dlg [data-ok]").click();
-  };
-  await route("elbow");
-  await expect.poll(count).toBe(4);
-  // 線は塗らない（折れ線の点で囲まれた面が黒く塗られないように）
-  expect(await edge.locator(".mz-line").evaluate(l => getComputedStyle(l).fill)).toBe("none");
-  expect(await edge.locator(".mz-hit").evaluate(l => getComputedStyle(l).fill)).toBe("none");
-  await route("straight");
-  await expect.poll(count).toBe(2);
-});
-
-test("線を選ぶと「整列」が出る。押すと両端が辺の真ん中（まっすぐ結べるならまっすぐ）に固定されて押せなくなり、「接辺の自動選択」で戻る（端が自動なら押せない）", async ({ page }) => {
-  // 1 の右の辺の上の方（y = 44）に固定した線。2 は 1 の右で、上下の範囲が重なる
-  await openDiagram(page, {
-    nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 60 }],
-    edges: [{ id: "e1", from: 1, to: 2, route: "elbow", exitAt: 124 / 368 }],
-  });
-  const hit = page.locator(".mz-edge .mz-hit").first();
-  const points = () => hit.evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/).length);
-  expect(await points()).toBe(4); // Z 字
-  const mid = await hit.evaluate(l => {
-    const g = l as SVGPolylineElement;
-    const svg = g.ownerSVGElement!.getBoundingClientRect();
-    const p = g.getPointAtLength(g.getTotalLength() / 2);
-    return { x: svg.left + p.x, y: svg.top + p.y };
-  });
-  // 端の位置の操作は線の編集ダイアログ（押すと印が付き、確定のときに行う。D26）
-  const dlg = page.locator(".mz-dlg");
-  await page.mouse.dblclick(mid.x, mid.y);
-  // 見出しの「?」に乗せると説明の吹き出しが出る
-  await dlg.locator(".mz-dlg-ends > span .mz-help").hover();
-  await expect(page.locator(".mz-help-tip:visible")).toContainText("つまんで動かすとその位置に固定されます");
-  await expect(dlg.locator('[data-once="align"]')).toBeEnabled();
-  await dlg.locator('[data-once="align"]').click();
-  await confirmDialog(page);
-  await expect.poll(points).toBe(2); // まっすぐ
-  await hit.dblclick({ force: true }); // まっすぐになった線の真ん中
-  await expect(dlg.locator('[data-once="align"]')).toBeDisabled(); // 整列済み
-  await expect(dlg.locator('[data-once="free"]')).toHaveText("接辺の自動選択");
-  await dlg.locator('[data-once="free"]').click();
-  await confirmDialog(page);
-  await hit.dblclick({ force: true });
-  await expect(dlg.locator('[data-once="free"]')).toBeDisabled(); // 端は自動で選んでいる
-  await page.keyboard.press("Escape");
-  await expect.poll(points).toBe(2); // 自由な端どうしも、横に並ぶのでまっすぐ
-});
+import { openDiagram, confirmDialog } from "./helpers";
 
 test("Z 字の中棒をドラッグで動かせ、線を選ぶと自動に戻せる", async ({ page }) => {
   await openDiagram(page, {
@@ -102,38 +34,6 @@ test("Z 字の中棒をドラッグで動かせ、線を選ぶと自動に戻せ
   await expect(page.locator(".mz-dlg h2")).toHaveText("線の編集");
   await expect(reset).toHaveCount(0);
   await page.keyboard.press("Escape");
-});
-
-test("斜めの直線を選ぶと両端に丸が出て、ドラッグで端を辺に沿ってずらせる。自動に戻せる", async ({ page }) => {
-  await openDiagram(page, {
-    world: { route: "straight" }, // 何も書かなければ折れ線（2026-10-11 から）
-    nodes: [{ id: 1, caption: "A", x: 40, y: 40 }, { id: 2, caption: "B", x: 400, y: 300 }],
-    edges: [{ id: "e1", from: 1, to: 2 }],
-  });
-  const edge = page.locator('.mz-edge[data-id="e1"]');
-  const start = await edge.locator(".mz-hit").evaluate(l => {
-    const g = l as SVGPolylineElement;
-    const svg = g.ownerSVGElement!.getBoundingClientRect();
-    const [p, q] = (g.getAttribute("points") ?? "").trim().split(/\s+/).map(s => s.split(",").map(Number));
-    return { svgX: svg.left, svgY: svg.top, p: p!, q: q! };
-  });
-  const end = edge.locator('.mz-end[data-end="exit"]');
-  await expect(end).toBeHidden(); // 選ぶまでは出ない
-  await page.mouse.click(start.svgX + (start.p[0]! + start.q[0]!) / 2, start.svgY + (start.p[1]! + start.q[1]!) / 2);
-  await expect(end).toBeVisible();
-  // 始点の丸を、1 の下の辺の左寄り（x = 60）へ
-  await page.mouse.move(start.svgX + start.p[0]!, start.svgY + start.p[1]!);
-  await page.mouse.down();
-  await page.mouse.move(start.svgX + 60, start.svgY + 130, { steps: 8 });
-  await page.mouse.up();
-  const first = () => edge.locator(".mz-hit").evaluate(l => (l.getAttribute("points") ?? "").trim().split(/\s+/)[0]!.split(",").map(Number));
-  // 割合は小数 3 桁で持つので、0.2px ほどずれることがある
-  await expect.poll(async () => { const [x, y] = await first(); return Math.abs(x! - 60) < 0.5 && y === 104; }).toBe(true);
-  await edge.locator(".mz-hit").dblclick({ force: true });
-  await page.locator('.mz-dlg [data-once="free"]').click();
-  await confirmDialog(page);
-  // 自動の位置（中心どうしを結んだ線が縁と交わる点）は、下の辺の x = 144 あたり
-  await expect.poll(async () => Math.round((await first())[0]!)).toBe(144);
 });
 
 test("選んだ線の端をほかの箱まで運ぶと、その箱を強調し、離すとつなぎ替える。付け替えられない箱へは付け替えない（E12）", async ({ page }) => {

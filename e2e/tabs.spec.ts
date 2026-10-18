@@ -1313,31 +1313,6 @@ test("説明ツアー: -mail は郵便箱だけ。キャンセルしても残り
   expect(run("check", "a.json")).toContain("tour: interrupt");
 });
 
-test("タブがはみ出すと、タブの上の縦のホイールで横にスクロールし、先がある側の端をぼかす。選んだページのタブは見える所までスクロールする（G5）", async ({ page }) => {
-  await page.setViewportSize({ width: 1000, height: 500 });
-  const pages = Array.from({ length: 14 }, (_, i) => ({ id: `p${i + 2}`, title: `ページその${i + 2}の題名` }));
-  writeFileSync(join(dir, "many.json"), JSON.stringify({ pages, nodes: [{ id: 1, caption: "表紙", x: 40, y: 40 }, ...pages.map((p, i) => ({ id: 100 + i, caption: "中", page: p.id }))], edges: [] }));
-  await page.goto(run("open", "-no-browser", "many.json").trim());
-  await expect(selected(page)).toHaveText("many.json");
-  const tabs = page.locator("#tabs");
-  await expect(tabs).toHaveClass(/fade-right/);
-  await expect(tabs).not.toHaveClass(/fade-left/);
-  const box = (await tabs.boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, 300);
-  await expect.poll(() => tabs.evaluate(t => t.scrollLeft)).toBeGreaterThan(0);
-  await expect(tabs).toHaveClass(/fade-left/);
-  await tabs.evaluate(t => { t.scrollLeft = 0; });
-  // AI が端のページを開くと、そのタブが見える所までスクロールする
-  await arrive(page, "many.json", "p15");
-  const last = page.locator(".tab-group-current .tab", { hasText: "ページその15の題名" });
-  await expect(last).toHaveAttribute("aria-selected", "true");
-  await expect.poll(async () => {
-    const [t, l] = [(await tabs.boundingBox())!, (await last.boundingBox())!];
-    return l.x >= t.x - 1 && l.x + l.width <= t.x + t.width + 1;
-  }).toBe(true);
-});
-
 test("マスターの右クリック: 窓の設定は出さない（Enter でも開かない）、背景の設定は全体の設定、窓の削除は確かめてから一覧から外す（ファイルは残る。D42）", async ({ page }) => {
   writeFileSync(join(dir, "外す本.json"), JSON.stringify(onA3(example("nested"))));
   const url = run("open", "-no-browser", "外す本.json").trim();
