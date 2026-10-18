@@ -4,7 +4,11 @@ import { pageWorld, patternOf } from "./pages";
 import { type Rect, centerOf } from "./geom";
 import type { Scene } from "./preview-art";
 import type { BoxData, Diagram, TreeDirection } from "./types";
-import { SIZES, isTreeDirection, normalizeEdge } from "./validate";
+import { isTreeDirection, normalizeEdge } from "./validate";
+import { resolveSize } from "./size-rules";
+
+// 大きさの指定が無い箱の近似（ふつうの箱の決まり。size-rules.ts）
+const PLAIN = resolveSize({ shape: "box", step: "M", shared: true, fullText: false });
 
 // 何も無い縮図（マスターの窓で、まだ読んでいないブック）
 export const EMPTY_SCENE: Scene = { w: 1, h: 1, bg: null, boxes: [], edges: [] };
@@ -18,7 +22,7 @@ export function dataScene(source: Diagram, p: string, opt: SceneOptions): Scene 
   const hasKids = new Set(source.nodes.filter(s => s.parent != null).map(s => String(s.parent)));
   const rectOf = (s: BoxData) => ({
     x: Number(s.x) || 0, y: Number(s.y) || 0,
-    w: Number(s.width) || SIZES.M.minW, h: Number(s.height) || SIZES.M.h,
+    w: Number(s.width) || PLAIN.textW.min, h: Number(s.height) || PLAIN.minH,
   });
   const colorOf = (s: BoxData) => (typeof s.color === "string" && /^#/.test(s.color) ? s.color : null);
   const byId = new Map(tops.map(s => [String(s.id), rectOf(s)]));

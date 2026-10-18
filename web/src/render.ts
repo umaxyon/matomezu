@@ -13,9 +13,9 @@ import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
   type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listHeightOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
-  sizeOf, slantOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
+  sizeOf, sizeRuleOf, slantOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
 } from "./model";
-import { OVERFLOWS, PATTERN_LABELS, SHAPES, SIZES } from "./validate";
+import { OVERFLOWS, PATTERN_LABELS, SHAPES } from "./validate";
 import { shapeDef } from "./shapes";
 import { LINK_ICON_DEF, LINK_LOOKS, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, previewRegion, windowOf } from "./link-box";
 import { type Scene, drawScene } from "./preview-art";
@@ -111,13 +111,14 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const group = isNesting(n);
     const arrange = arrangeOf(n);
     const size = sizeOf(n);
+    const rule = sizeRuleOf(n); // 大きさの決まり（size-rules.ts。D44）
     const fill = fillOf(n);
 
     head.classList.toggle("mz-group", group);
     head.classList.toggle("mz-leaf", !group);
-    for (const s of Object.keys(SIZES)) head.classList.toggle("mz-size-" + s, s === size);
-    // 文字の扱いは子を持たないボックスだけが overflow に従う（S は固定の大きさの中で折り返す）
-    const textOv = n.children.length || size === "S" || isIconShape(shapeOf(n)) ? "wrap" : overflowOf(n);
+    for (const l of ["normal", "small"] as const) head.classList.toggle("mz-look-" + l, l === rule.look); // 文字の見た目（graph-style.ts）
+    // 文字の扱いは子を持たないボックスだけが overflow に従う（1 行にするを持たない箱は、決まった大きさの中で折り返す）
+    const textOv = n.children.length || !rule.oneLine || isIconShape(shapeOf(n)) ? "wrap" : overflowOf(n);
     for (const ov of OVERFLOWS) head.classList.toggle("mz-ov-" + ov, !group && textOv === ov);
 
     const shape = shapeOf(n);
@@ -138,8 +139,8 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const art = shapeDef(shape).art;
     head.classList.toggle("mz-icon", !!art);
     if (art) {
-      head.style.setProperty("--mz-art-w", art.w * art.scale[size] + "px");
-      head.style.setProperty("--mz-art-h", art.h * art.scale[size] + "px");
+      head.style.setProperty("--mz-art-w", art.w * rule.artScale + "px");
+      head.style.setProperty("--mz-art-h", art.h * rule.artScale + "px");
     }
     // 文字を塗りの上に書くのは、ボックスと DB（塗りつぶしあり）だけ
     const onFill = !group && fill && !isIconShape(shape);

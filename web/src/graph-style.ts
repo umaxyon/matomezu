@@ -128,7 +128,7 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   font-size: 14px; font-weight: 600; line-height: 1.3;
   overflow: hidden;
 }
-.mz-leaf.mz-size-S { font-size: 12px; padding: calc(2px + var(--mz-out-y, 0px)) calc(6px + var(--mz-out-x, 0px)); border-radius: min(var(--mz-radius, 6px), 6px); }
+.mz-leaf.mz-look-small { font-size: 12px; padding: calc(2px + var(--mz-out-y, 0px)) calc(6px + var(--mz-out-x, 0px)); border-radius: min(var(--mz-radius, 6px), 6px); }
 /* 付箋（テーマのスタイル。render.ts の folded）: 右上の角は背景で切り欠き、折り返しの三角をここで重ねる。大きさ（12px）は render.ts の FOLD */
 .mz-head.mz-style-sticky::after {
   content: ""; position: absolute; right: 0; top: 0; width: 12px; height: 12px; pointer-events: none;
@@ -144,7 +144,7 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
   padding: 0 10px; font-size: 13px; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.mz-group.mz-size-S > .mz-caption { font-size: 11px; }
+.mz-group.mz-look-small > .mz-caption { font-size: 11px; }
 /* 本文（docs/BODY-plan.md）。子の無い箱はキャプションの下に区切り線を引いて左寄せ、内包する箱は見出しの下（位置は render.ts） */
 .mz-body { font-size: 13px; font-weight: 400; line-height: 1.5; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
 .mz-body[hidden] { display: none; }
@@ -264,7 +264,7 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-leaf.mz-shape-circle { padding: 0; }
 .mz-leaf.mz-shape-stadium { padding-inline: calc(8px + var(--mz-out-x, 0px) + 12px); }
 .mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt { padding-inline: calc(8px + var(--mz-out-x, 0px) + var(--mz-slant, 0px)); }
-.mz-leaf.mz-size-S.mz-shape-hexagon, .mz-leaf.mz-size-S.mz-shape-parallelogram, .mz-leaf.mz-size-S.mz-shape-parallelogramAlt, .mz-leaf.mz-size-S.mz-shape-trapezoid, .mz-leaf.mz-size-S.mz-shape-trapezoidAlt { padding-inline: calc(6px + var(--mz-out-x, 0px) + var(--mz-slant, 0px)); }
+.mz-leaf.mz-look-small.mz-shape-hexagon, .mz-leaf.mz-look-small.mz-shape-parallelogram, .mz-leaf.mz-look-small.mz-shape-parallelogramAlt, .mz-leaf.mz-look-small.mz-shape-trapezoid, .mz-leaf.mz-look-small.mz-shape-trapezoidAlt { padding-inline: calc(6px + var(--mz-out-x, 0px) + var(--mz-slant, 0px)); }
 .mz-shape-circle > .mz-shape, .mz-shape-stadium > .mz-shape, .mz-shape-hexagon > .mz-shape, .mz-shape-parallelogram > .mz-shape, .mz-shape-parallelogramAlt > .mz-shape, .mz-shape-trapezoid > .mz-shape, .mz-shape-trapezoidAlt > .mz-shape {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
 }

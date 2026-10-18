@@ -82,7 +82,7 @@
  *       "L" … 幅は文字に合わせて 120〜400。越えると折り返す
  *       "M" … 既定。幅は文字に合わせて 120〜240。越えると折り返す
  *       "S" … 小さい文字。幅は 64〜96、高さは固定。10 文字まで（超えると … で切る）
- *     幅の範囲は validate.ts の SIZES で決めている。width を書けば、その幅で折り返す。
+ *     段はふつうの形のローカルなルールで、値は size-rules.ts の STEPS（D44。大きさを測る所は層を当てた決まり sizeRuleOf を読む）。width を書けば、その幅で折り返す。
  *     サイズが効くのは見た目が葉の箱（子の無い箱、ツリーの親の本体、非表示）だけ。内包・リストの箱では使わない（docs/SIZE-plan.md）。
  *   - 箱の childView は子の見せ方（内包パターンの持ち物）: "nest"（内包、既定）/ "hidden"（非表示、▼ で子がいることを示す）/
  *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形は使わない。docs/LIST-plan.md）。
@@ -152,7 +152,7 @@ import { type MeasureText, browserMeasure, createTextMeasurer } from "./layout/m
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
   type Box, type Container, type Edge, type World, absPos, absRect, ancestors, headRectOf, arrowOf, bodyLinesOf, bodyWidthOf, borderOf,
-  canBody, captionOf, dashOf, dataSizeOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
+  canBody, captionOf, dashOf, dataSizeOf, sizeRuleOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isLinkBox, listHeightOf, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
 import { type ClassEdit, type Place, type Pos, addBox, applyClassEdit, canPurge, moveSubtree, pasteSubtree, purgeRemoved, removeSubtree, removedBox, restoreSubtree, seedRoot } from "./edits";
@@ -167,7 +167,7 @@ import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
 import { type Misfit, PaperMisfit, misfitText } from "./paper-misfit";
 import type { BoxData, BoxView, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
-import { DEFAULT_PAPER, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, edgeIdMaker, isPaper, normalizeEdge, validate } from "./validate";
+import { DEFAULT_PAPER, PAPERS, type PaperName, ROUTES, assignIds, isSize, checkSettings, edgeIdMaker, isPaper, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, isRect } from "./link-box";
 import type { Scene } from "./preview-art";
 import { createView } from "./graph-view";
@@ -1192,7 +1192,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function setKidSize(size: Size) {
     const c = world;
     if (!aligns(c)) return false;
-    if (!(SIZES as Record<string, unknown>)[size]) throw new Error(t("size の値が不正です: {where} ({value})", { where: "world", value: size }));
+    if (!isSize(size)) throw new Error(t("size の値が不正です: {where} ({value})", { where: "world", value: size }));
     // 箱のサイズを変えて測り直してから（サイズを選んだときと同じく、付いていた大きさの指定は外す）、そのサイズの間隔で整列する
     settle(SCENES.fitChildren, undefined, () => {
       c.src.kidSize = size;
@@ -1325,7 +1325,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const size = sizeOf(n);
     // 中身の扱いを選べるのは、文字を持つボックス（S 以外）だけ。子を持つ箱はつねに子に合わせて伸びる（docs/SIZE-plan.md）。
     // スティックマンは文字の置き方が決まっているので使わない
-    const usesOverflow = !n.children.length && size !== "S" && shapeDef(shapeOf(n)).overflow && !lookOf(n).sharedSize;
+    const usesOverflow = !n.children.length && sizeRuleOf(n).oneLine && shapeDef(shapeOf(n)).overflow && !lookOf(n).sharedSize;
     const out: BoxInfo = {
       kind: n.children.length ? "group" : "box",
       id: n.id,

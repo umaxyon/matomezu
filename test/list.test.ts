@@ -91,7 +91,7 @@ test("リストの子は箱のサイズ（L / M / S）を使わず普通の大�
       { id: 5, caption: "本文あり", body: "一行目\n二行目\n三行目\n四行目", parent: 1 },
     ],
   });
-  expect([2, 3, 4].map(id => head(el, id).classList.contains("mz-size-M"))).toEqual([true, true, true]);
+  expect([2, 3, 4].map(id => head(el, id).classList.contains("mz-look-normal"))).toEqual([true, true, true]);
   expect(head(el, 2).textContent).toContain("あ".repeat(20));
   expect(graph.info(3).h).toBe(ROW_HEIGHTS.S);
   expect(graph.info(4).h).toBe(ROW_HEIGHTS.S);

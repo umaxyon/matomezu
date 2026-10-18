@@ -4,8 +4,8 @@
 // ドラッグの状態（いつ始めて終えるか）は interaction.ts
 import type { Layout } from "./layout/layout";
 import { BODY_MIN_W } from "./layout/node-kinds";
-import { type Box, bodyWrapW, isNesting, listHeightOf, setOrDelete, setSpec, sizeOf } from "./model";
-import { GROUP_MIN, SIZES } from "./validate";
+import { type Box, bodyWrapW, isNesting, listHeightOf, setOrDelete, setSpec, sizeRuleOf } from "./model";
+import { GROUP_MIN } from "./validate";
 
 type Prior = ReturnType<Layout["snapshot"]>;
 
@@ -27,7 +27,7 @@ export function createResizers(ctx: ResizersContext) {
     const before = typeof n.src.bodyWidth === "number" ? n.src.bodyWidth : undefined;
     const group = isNesting(n);
     const width = group ? bodyWrapW(n, n.hw) : n.hw;
-    const max = group ? n.hw : SIZES[sizeOf(n)].maxW;
+    const max = group ? n.hw : sizeRuleOf(n).textW.max;
     const prior = ctx.snapshot();
     const restore = () => { for (const [b, s] of snap) Object.assign(b, s); };
     let last = before;

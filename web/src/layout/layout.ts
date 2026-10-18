@@ -22,7 +22,7 @@
 
 import {
   type Box, type Container, type Edge, type World,
-  absPos, ancestors, descendants, growFromOf, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, placerOf, setSpec, shapeOf, sizeOf,
+  absPos, ancestors, descendants, growFromOf, inNest, isIconShape, kidSizeOf, kidStrategyOf, other, placerOf, setSpec, shapeOf, sizeRuleOf,
 } from "../model";
 import { alignFlow } from "./flow-align";
 import { shapeDef } from "../shapes";
@@ -654,7 +654,7 @@ export function createLayout(ctx: LayoutContext) {
     if (!kindOf(n).holdsChildren) return [];
     return n.children.filter(k => {
       const kind = kindOf(k).name;
-      return (kind === "nest" || kind === "text") && sizeOf(k) !== "S" && !isIconShape(shapeOf(k));
+      return (kind === "nest" || kind === "text") && sizeRuleOf(k).alignable && !isIconShape(shapeOf(k));
     });
   }
 

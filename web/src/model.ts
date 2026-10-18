@@ -7,7 +7,7 @@ import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, Edge
 import type { Rect } from "./geom";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { type SizeRule, resolveSize } from "./size-rules";
-import { ARROWS, SIZES, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
+import { ARROWS, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
 
@@ -405,7 +405,7 @@ export const dataSizeOf = (n: Box): Size => (isSize(n.src.size) ? n.src.size : "
 // 縮図を出すときも出さないときも選べる（2026-10-14 ユーザー）。行は中身が収まる限りこの高さで、収まらない行だけ高くなる
 export const ROW_HEIGHTS: Record<Size, number> = {
   S: linkRowHeight(LINK_ICON_DEF),
-  M: SIZES.M.h,
+  M: resolveSize({ shape: "box", step: "M", shared: true, fullText: true }).minH, // ふつうの箱の高さ
   L: linkRowHeight(PREVIEW_ROW_DEF),
 };
 export const rowSizeOf = (list: Box): Size => (isSize(list.src.rowSize) ? list.src.rowSize : "M");
@@ -506,7 +506,7 @@ export function acceptsKid(p: Container, kidHasKids: boolean): boolean {
 export const vertexOnly = (s: Shape): boolean => shapeDef(s).vertexOnly;
 // 斜めの辺を持つ形（六角形・平行四辺形・台形）の、斜めの辺が横に食い込む幅（S は小さく）。文字の左右の余白にもこの分を足す
 // （graph-style.ts の .mz-shape-hexagon などの padding-inline と合わせる）
-export const slantOf = (n: Box): number => shapeDef(shapeOf(n)).slant[sizeOf(n)];
+export const slantOf = (n: Box): number => sizeRuleOf(n).slant;
 // 線がつながる範囲を左右に縮める幅（平行四辺形と台形は、左右の辺の真ん中が本体の縁より内側にあるので、そこへつなぐ）
 export const anchorInsetOf = (n: Box): number => {
   return shapeDef(shapeOf(n)).insetEnds ? slantOf(n) / 2 : 0;
@@ -523,11 +523,11 @@ export function overflowOf(c: Container): Overflow {
   if (!c.children.length) return c.src.overflow === "clip" && !isLinkBox(c) ? "clip" : "wrap";
   return "grow";
 }
-// S は 10 文字で切る。リストの子は高さを中身に合わせるので切らない
-export const displayCaption = (n: Box) => (lookOf(n).fullCaption ? captionOf(n) : truncate(captionOf(n), SIZES[sizeOf(n)].limit));
-// 出す本文（無ければ空）。本文を持てるのは普通の箱で、S サイズ（高さが固定）以外（docs/BODY-plan.md）
+// タイトルの文字数の上限で切る（大きさの決まり。size-rules.ts。上限の無い箱は切らない）
+export const displayCaption = (n: Box) => truncate(captionOf(n), sizeRuleOf(n).titleMax);
+// 出す本文（無ければ空）。本文を持てるかは大きさの決まり（size-rules.ts。形と段で決まる。docs/BODY-plan.md）
 export const canBody = (n: Box): boolean =>
-  isLinkBox(n) || (shapeDef(shapeOf(n)).body && sizeOf(n) !== "S" && overflowOf(n) !== "clip");
+  isLinkBox(n) || (sizeRuleOf(n).body && overflowOf(n) !== "clip");
 export const bodyOf = (n: Box): string => (typeof n.src.body === "string" && n.src.body && canBody(n) ? n.src.body : "");
 // 本文の最大行数（無ければ 0。制限なし）
 export const bodyLinesOf = (n: Box): number => (Number.isInteger(n.src.bodyLines) && (n.src.bodyLines as number) > 0 ? n.src.bodyLines as number : 0);
