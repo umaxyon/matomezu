@@ -22,6 +22,18 @@ const inView = (page: import("@playwright/test").Page, id: number) => page.evalu
   return r.left >= c.left && r.top >= c.top && r.right <= c.left + s.clientWidth && r.bottom <= c.top + s.clientHeight;
 }, id);
 
+const scrollOf = (page: import("@playwright/test").Page) => page.evaluate(() => {
+  const s = document.querySelector<HTMLElement>(".stage:not([hidden])")!;
+  return [s.scrollLeft, s.scrollTop];
+});
+const frames = (page: import("@playwright/test").Page) => page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+// スクロールが止まるまで待ち（2 フレーム離した 2 回の読みが同じ）、その位置を返す
+async function settledScroll(page: import("@playwright/test").Page): Promise<number[]> {
+  let last: number[] = [];
+  await expect.poll(async () => { const a = await scrollOf(page); await frames(page); last = await scrollOf(page); return String(a) === String(last); }).toBe(true);
+  return last;
+}
+
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 600 });
   await openDiagram(page, far());
@@ -32,10 +44,16 @@ test("一覧の行を押すと、見えている範囲の外の箱へ図をス�
   expect(await inView(page, 2)).toBe(false);
   await page.locator('.mzp-row[data-select="2"]').click();
   await expect.poll(() => inView(page, 2)).toBe(true);
-  const at = await page.evaluate(() => [document.querySelector<HTMLElement>(".stage:not([hidden])")!.scrollLeft, document.querySelector<HTMLElement>(".stage:not([hidden])")!.scrollTop]);
-  await page.locator('.mzp-row[data-select="2"]').click(); // もう見えている
-  await page.waitForTimeout(300);
-  expect(await page.evaluate(() => [document.querySelector<HTMLElement>(".stage:not([hidden])")!.scrollLeft, document.querySelector<HTMLElement>(".stage:not([hidden])")!.scrollTop])).toEqual(at);
+  // スクロールはなめらかに動くので、止まった位置を覚える
+  const at = await settledScroll(page);
+  // もう見えている。行の処理（選ぶ・見せる）はクリックの中で済むので、ページのクリックの知らせが届いたのを待つ
+  await page.evaluate(() => { (window as never as { rowClicked: boolean }).rowClicked = false; addEventListener("click", () => { (window as never as { rowClicked: boolean }).rowClicked = true; }, { once: true }); });
+  await page.locator('.mzp-row[data-select="2"]').click();
+  await expect.poll(() => page.evaluate(() => (window as never as { rowClicked: boolean }).rowClicked)).toBe(true);
+  await expect(page.locator('.mz-node[data-id="2"]')).toHaveClass(/mz-current/);
+  // なめらかなスクロールは次のコマから動くので、2 フレーム待ってから読む
+  await frames(page);
+  expect(await scrollOf(page)).toEqual(at);
 });
 
 test("非表示の親の中の箱を選ぶと、親を見せる", async ({ page }) => {

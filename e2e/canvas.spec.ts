@@ -226,40 +226,74 @@ test("スクロールするリストの並べ替え: 上下の端へ寄せたま
   expect(ys2[0]!.id).toBe(10);
 });
 
-test("リストのスクロール: ダイアログで入れると今の高さが上限になり、下の縁のつまみで縮めると、リストの中だけスクロールする。Undo で戻る（D33）", { tag: "@d44" }, async ({ page }) => {
-  // 下の縁のつまみが画面（900 × 600）の中に来る数
+// リストのスクロールの試し: 下の縁のつまみが画面（900 × 600）の中に来る数の子を持つリストを開き、つまみの前の高さを返す
+async function openFiveRowList(page: import("@playwright/test").Page): Promise<number> {
   const kids = Array.from({ length: 5 }, (_, i) => ({ id: 10 + i, caption: `項目 ${i + 1}`, parent: 1 }));
   await openDiagram(page, { nodes: [{ id: 1, caption: "リスト", childView: "list", x: 40, y: 40 }, ...kids], edges: [] } as never);
-  const full = (await rect(page, 1)).h;
+  return (await rect(page, 1)).h;
+}
+// 箱の編集ダイアログで「スクロール」を入れる
+async function turnOnListScroll(page: import("@playwright/test").Page) {
   await head(page, 1).dblclick({ position: { x: 20, y: 8 } });
   await expect(page.locator(".mz-dlg h2")).toHaveText("ボックスの編集");
   await page.locator('.mz-dlg [name="list-scroll"]').check();
   await page.locator(".mz-dlg [data-ok]").click();
   await expect(page.locator(".mz-dlg")).toHaveCount(0);
-  expect((await rect(page, 1)).h).toBe(full); // 入れただけでは隠れない
-  // 選んで、下の縁のつまみを上へドラッグして縮める
+}
+// 選んで、下の縁のつまみを上へ dy ドラッグして縮める
+async function shrinkByGrip(page: import("@playwright/test").Page, dy: number) {
   await head(page, 1).click({ position: { x: 20, y: 8 } });
   const grip = page.locator('.mz-node[data-id="1"] > .mz-head > .mz-height-grip');
   await expect(grip).toBeVisible();
   const g = (await grip.boundingBox())!;
   await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
   await page.mouse.down();
-  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2 - 150, { steps: 8 });
+  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2 - dy, { steps: 8 });
   await page.mouse.up();
-  const small = (await rect(page, 1)).h;
-  expect(Math.abs(small - (full - 150))).toBeLessThanOrEqual(2);
-  // 中だけスクロールする（見出しは動かない）
+}
+// 高さの上限（listHeight）を持ち、中身がはみ出すリストを開く
+async function openScrollingList(page: import("@playwright/test").Page) {
+  const kids = Array.from({ length: 12 }, (_, i) => ({ id: 10 + i, caption: `項目 ${i + 1}`, parent: 1 }));
+  await openDiagram(page, { nodes: [{ id: 1, caption: "リスト", childView: "list", listHeight: 200, x: 40, y: 40 }, ...kids], edges: [] } as never);
   const kidsBox = page.locator('.mz-node[data-id="1"] > .mz-list-kids');
   await expect(kidsBox).toHaveCount(1);
-  const capY = (await page.locator('.mz-node[data-id="1"] > .mz-head').boundingBox())!.y;
+  return kidsBox;
+}
+
+test("リストのスクロール: ダイアログで入れると今の高さが上限になり、入れただけでは隠れない（D33）", { tag: "@d44" }, async ({ page }) => {
+  const full = await openFiveRowList(page);
+  await turnOnListScroll(page);
+  expect((await rect(page, 1)).h).toBe(full);
+});
+
+test("リストのスクロール: 下の縁のつまみで上へ動かした分だけ縮む（D33）", { tag: "@d44" }, async ({ page }) => {
+  const full = await openFiveRowList(page);
+  await turnOnListScroll(page);
+  await shrinkByGrip(page, 150);
+  const small = (await rect(page, 1)).h;
+  expect(Math.abs(small - (full - 150))).toBeLessThanOrEqual(2);
+});
+
+test("リストのスクロール: 高さの上限を持つリストは中だけスクロールし、見出しは動かない（D33）", { tag: "@d44" }, async ({ page }) => {
+  const kidsBox = await openScrollingList(page);
+  const capY = (await head(page, 1).boundingBox())!.y;
   await kidsBox.evaluate(el => { el.scrollTop = 100; });
-  expect((await page.locator('.mz-node[data-id="1"] > .mz-head').boundingBox())!.y).toBe(capY);
+  expect((await head(page, 1).boundingBox())!.y).toBe(capY);
   expect(await kidsBox.evaluate(el => el.scrollTop)).toBe(100);
-  // 中身は枠の線（2px）の内側まで（下の枠に行が重なって、境目があいまいにならないように。2026-10-15 ユーザー）
-  const kb = (await kidsBox.boundingBox())!, lb = (await page.locator('.mz-node[data-id="1"] > .mz-head').boundingBox())!;
+});
+
+test("リストのスクロール: 中身は枠の線（2px）の内側まで（下の枠に行が重なって、境目があいまいにならないように。2026-10-15 ユーザー。D33）", { tag: "@d44" }, async ({ page }) => {
+  const kidsBox = await openScrollingList(page);
+  const kb = (await kidsBox.boundingBox())!, lb = (await head(page, 1).boundingBox())!;
   expect(kb.y + kb.height).toBeLessThanOrEqual(lb.y + lb.height - 2 + 0.5);
   expect(kb.x + kb.width).toBeLessThanOrEqual(lb.x + lb.width - 2 + 0.5);
-  // Undo でつまみの前に戻る
+});
+
+test("リストのスクロール: つまみで縮めたあと Undo でつまみの前の高さに戻る（D33）", { tag: "@d44" }, async ({ page }) => {
+  const full = await openFiveRowList(page);
+  await turnOnListScroll(page);
+  await shrinkByGrip(page, 150);
+  expect((await rect(page, 1)).h).toBeLessThan(full);
   await page.keyboard.press("Control+z");
   expect((await rect(page, 1)).h).toBe(full);
 });

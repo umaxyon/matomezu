@@ -9,17 +9,21 @@ test.beforeEach(async ({ page }) => {
 
 const caption = (page: import("@playwright/test").Page, id: number) => page.locator(`.mz-node[data-id="${id}"] > .mz-head .mz-text`);
 
-test("箱をダブルクリックすると編集ダイアログが開き、後ろの図は触れない（外を押すとキャンセル）。Ctrl+Enter でキャプションと本文を確定する", async ({ page }) => {
+test("箱をダブルクリックすると編集ダイアログが開き、キャプションの欄に入る。後ろの図は触れない", async ({ page }) => {
   await caption(page, 1).dblclick();
   const dlg = page.locator(".mz-dlg");
   await expect(dlg).toBeVisible();
   await expect(dlg.locator('[name="caption"]')).toBeFocused();
-  // オーバーレイが図を覆っているので、後ろの箱は押せない（選択が変わらない）。外を押すとキャンセルで閉じる
+  // オーバーレイが図を覆っているので、後ろの箱は押せない（選択が変わらない）。外を押すとキャンセルで閉じるのは dialog-outside.spec.ts
   const b = (await page.locator('.mz-node[data-id="2"] > .mz-head').boundingBox())!;
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
   await expect(page.locator('.mz-node[data-id="2"]')).not.toHaveClass(/mz-current/);
+});
+
+test("Ctrl+Enter でキャプションと本文を確定し、1 回の Undo で両方戻る", async ({ page }) => {
   await caption(page, 1).dblclick();
+  const dlg = page.locator(".mz-dlg");
   await expect(dlg).toBeVisible();
   await dlg.locator('[name="caption"]').fill("ログイン画面");
   await dlg.locator('[name="body"]').fill("メールアドレスで入る。\n失敗が続いたらロックする。");
@@ -27,9 +31,7 @@ test("箱をダブルクリックすると編集ダイアログが開き、後�
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
   await expect(caption(page, 1)).toHaveText("ログイン画面");
   await expect(page.locator('.mz-node[data-id="1"] .mz-body')).toHaveText("メールアドレスで入る。\n失敗が続いたらロックする。");
-  // 1 回の Undo で、キャプションも本文も戻る
   await page.keyboard.press("Control+z");
   await expect(caption(page, 1)).toHaveText("A");
   await expect(page.locator('.mz-node[data-id="1"] .mz-body')).toBeHidden();
 });
-

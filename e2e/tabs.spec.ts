@@ -58,6 +58,24 @@ async function switchTo(page: import("@playwright/test").Page, name: string) {
   await expect(page.locator('.tab[aria-selected="true"] .tab-name')).toHaveText("マスター");
   await page.locator(".stage:visible .mz-node[data-id^='b-']", { hasText: name }).first().locator(".mz-link-win").click();
 }
+// 画面に届いたサーバーの知らせ（SSE。web/src/events.ts）の名前を、届いた順に window.__mzSse へ残す。
+// 「起きない」ことを確かめるとき、決まった時間を待つ代わりに、あとから届くはずの知らせが届いたのを区切りにする
+// （サーバーは画面ごとに知らせを順に送るので、それが届いた時点で、前の知らせはもう届いて処理されている）
+const SSE_NAMES = ["hello", "version", "notify", "close", "mail", "books", "fit", "point", "ask", "askchanged", "tour", "tourchanged", "summary"];
+async function spySse(target: import("@playwright/test").Page | import("@playwright/test").BrowserContext) {
+  await target.addInitScript((names: string[]) => {
+    const w = window as unknown as { __mzSse: string[]; EventSource: typeof EventSource };
+    w.__mzSse = [];
+    const Base = w.EventSource;
+    w.EventSource = class extends Base {
+      constructor(url: string | URL, init?: EventSourceInit) {
+        super(url, init);
+        for (const n of names) this.addEventListener(n, () => { w.__mzSse.push(n); }); // 画面の受け手より先に登録するので、先に残る
+      }
+    } as typeof EventSource;
+  }, SSE_NAMES);
+}
+const sseOf = (p: import("@playwright/test").Page) => p.evaluate(() => (window as unknown as { __mzSse: string[] }).__mzSse.slice());
 
 test("別の図を open すると前に出る。タブは今のブックだけで、ほかのブックへはマスターの窓から移る。閉じられる", async ({ page }) => {
   const url = run("open", "-no-browser", "a.json").trim();
@@ -597,35 +615,56 @@ test("見ていないブックを check しても前に出さず、見えない�
 });
 
 test("ユーザーがボタンを押している間は、要約を作らずに待つ。離すと答える（D30）", async ({ page }) => {
+  await spySse(page);
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
+  let answered = false; // 画面が要約の答えを送ったか（web/src/app-answers.ts の api/summary/{req}）
+  page.on("request", r => { if (r.method() === "POST" && r.url().includes("/api/summary/")) answered = true; });
   await page.mouse.move(5, 300);
   await page.mouse.down();
   let done = false;
   const out = new Promise<string>((ok, ng) => execFile(bin(), ["check", "a.json"], { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8" },
     (err, stdout) => { done = true; if (err) ng(err); else ok(stdout); }));
-  await page.waitForTimeout(800);
+  // 頼みが画面に届いてから確かめる。届いた知らせの処理（押していなければ、その場で答えを送る）が済むよう、画面の側でひと回り待つ
+  await expect.poll(() => sseOf(page)).toContain("summary");
+  await page.evaluate(() => new Promise(r => setTimeout(r, 0)));
+  expect(answered).toBe(false);
   expect(done).toBe(false);
   await page.mouse.up();
   expect(await out).toContain("paper");
+  expect(answered).toBe(true);
 });
 
 test("通知はカレントの画面にだけ届く。画面が無ければ断る（D30）", async ({ page, context }) => {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
   const other = await context.newPage();
+  await spySse(other);
   await other.goto(page.url());
   await expect(selected(other)).toHaveText("a.json");
-  await page.evaluate(() => window.dispatchEvent(new Event("focus"))); // ヘッドレスではフォーカスが動かないので起こす
-  await expect.poll(async () => (await (await page.request.get(new URL("/api/current", page.url()).href)).json()).client).not.toBe("");
-  // focus の知らせが届いてから送る
-  await page.waitForTimeout(200);
+  const origin = new URL(page.url()).origin;
+  const current = async () => ((await (await context.request.get(origin + "/api/current")).json()) as { client: string }).client;
+  // ヘッドレスではフォーカスが動かないので起こす。page の接続の id はフォーカスの知らせから読み、サーバーがカレントにしてから送る
+  const focused = page.waitForRequest(r => r.url().endsWith("/api/focus")).then(r => (JSON.parse(r.postData() ?? "{}") as { client: string }).client);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  const id = await focused;
+  await expect.poll(current).toBe(id);
+  const from = (await sseOf(other)).length;
   run("notify", "-title", "こちらにだけ");
   await expect(page.locator(".mz-dlg h2")).toHaveText("こちらにだけ");
-  await other.waitForTimeout(300);
+  // other には送られていない: そのあと全部の画面へ配られる知らせ（ファイルを直接書き換えたときの version）が other に届くのを区切りにして確かめる
+  const d = onA3(example("nested"));
+  d.nodes[0]!.caption = `${d.nodes[0]!.caption ?? ""}（書き換え）`;
+  writeFileSync(join(dir, "a.json"), JSON.stringify(d));
+  await expect.poll(async () => (await sseOf(other)).slice(from)).toContain("version");
+  expect((await sseOf(other)).slice(from)).not.toContain("notify");
   await expect(other.locator(".mz-dlg")).toHaveCount(0);
   await page.locator(".mz-dlg [data-ok]").click();
+  // 画面が無ければ断る
   await other.close();
+  await page.close();
+  await expect.poll(current).toBe("");
+  expect(fails("notify", "-title", "だれも見ていない")).toContain("matomezu open");
 });
 
 test("郵便箱は、欄を開いて題名が見えただけでは読んだことにしない。行を押して中身を見たら読んだことになる（2026-10-15）", async ({ page }) => {
@@ -656,6 +695,7 @@ test("郵便箱は、欄を開いて題名が見えただけでは読んだこ�
 
 test("マスターを見ている最中に check・history で問い合わせても、マスターは作り直さず、箱が動かない（2026-10-15）", { tag: "@d44" }, async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
+  await spySse(page);
   run("open", "-no-browser", "b.json"); // 一覧に b を載せておく（check で初めて載ると、一覧が変わった知らせが出る）
   await page.goto(run("open", "-no-browser", "a.json").trim());
   // 開いた画面が大きさを書き戻すのを待つ（書き戻しは保存なので、一覧が変わった知らせが出る。D44 の段階 4）
@@ -667,10 +707,15 @@ test("マスターを見ている最中に check・history で問い合わせて
   const before = await ai.evaluate(el => (el as HTMLElement).style.cssText);
   const books = new Set<string>();
   page.on("request", r => { if (r.url().endsWith("/api/books")) books.add(r.url()); });
+  const from = (await sseOf(page)).length;
   run("check", "b.json");
   run("history", "a.json");
-  await page.waitForTimeout(500);
-  expect(books.size).toBe(0); // 一覧を取り直していない（ブックの一覧が変わった知らせが出ていない）
+  // 区切り: もう一度 check する。画面が答えた（check が返った）なら、history までに出た知らせはもう画面に届いて処理されている
+  run("check", "b.json");
+  const seen = (await sseOf(page)).slice(from);
+  expect(seen.filter(n => n === "summary")).toHaveLength(2);
+  expect(seen).not.toContain("books"); // ブックの一覧が変わった知らせが出ていない
+  expect(books.size).toBe(0); // 一覧を取り直していない
   expect(await ai.evaluate(el => (el as HTMLElement).style.cssText)).toBe(before);
   await expect(selected(page)).toHaveText("マスター");
 });
@@ -684,8 +729,10 @@ test("サーバーを入れ替えても、最後にフォーカスされた画�
   const other = await context.newPage();
   await other.goto(url);
   await expect(selected(other)).toHaveText("a.json");
+  // フォーカスの知らせを送った接続の id（サーバーが受け取って答えるまで待つ）
   const idOf = (p: import("@playwright/test").Page) =>
-    p.waitForRequest(r => r.url().endsWith("/api/focus")).then(r => (JSON.parse(r.postData() ?? "{}") as { client: string }).client);
+    p.waitForResponse(r => r.url().endsWith("/api/focus") && r.request().method() === "POST")
+      .then(r => (JSON.parse(r.request().postData() ?? "{}") as { client: string }).client);
   const first = idOf(page);
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await first;
@@ -694,48 +741,71 @@ test("サーバーを入れ替えても、最後にフォーカスされた画�
   run("stop");
   run("open", "-no-browser", "a.json");
   const id = await again;
-  // other は確実にあとからつながらせる（読み直す）。一度もフォーカスされていないので、カレントにはならない
+  const current = async () => (await (await page.request.get(new URL("/api/current", url).href)).json()).client as string;
+  await expect.poll(current).toBe(id);
+  // other は確実にあとからつながらせる（読み直す）。一度もフォーカスされていないので、カレントにはならない。
+  // サーバーは画面を登録してから hello を送るので、読み直した other に hello が届いたら、もうカレントの選び直しに入っている
+  await spySse(other);
   await other.reload();
   await expect(selected(other)).toHaveText("a.json");
-  const current = async () => (await (await page.request.get(new URL("/api/current", url).href)).json()).client as string;
-  await page.waitForTimeout(500);
+  await expect.poll(() => sseOf(other)).toContain("hello");
   expect(await current()).toBe(id);
   await other.close();
 });
 
-test("set の確かめ・ファイルの直接の書き換え・check は、開くときと同じ決まり: 紙の外の箱は形を変えずに押し込み（画面が書き戻す）、押し込んでも入らなければ断る。画面が無ければ set は断る（D33。docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page }) => {
-  // A5 横（794 × 559）に、上の段に 4 つ・下の段に 3 つ
-  const rows = (lower: number) => Array.from({ length: 7 }, (_, i) => ({ id: i + 1, caption: `箱${i + 1}`, x: 40 + (i < 4 ? i : i - 4 + 4 * (1 - lower)) * 130, y: i < 4 ? 40 : 40 + 150 * lower }));
-  writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: rows(1), edges: [] }));
+// A5 横（794 × 559）に、上の段に 4 つ・下の段に 3 つ（lower が 0 なら 7 つを 1 段に並べる）。紙の決まりのテスト（D33。docs/PAPER-plan.md の 4.6 の 7）
+const paperRows = (lower: number) => Array.from({ length: 7 }, (_, i) => ({ id: i + 1, caption: `箱${i + 1}`, x: 40 + (i < 4 ? i : i - 4 + 4 * (1 - lower)) * 130, y: i < 4 ? 40 : 40 + 150 * lower }));
+const paperDiagram = (lower: number) => JSON.stringify({ world: { paper: "a5-landscape" }, nodes: paperRows(lower), edges: [] });
+async function openPaper(page: import("@playwright/test").Page) {
+  writeFileSync(join(dir, "p.json"), paperDiagram(1));
   await page.goto(run("open", "-no-browser", "p.json").trim());
   await expect(selected(page)).toHaveText("p.json");
+}
+// ファイルを直接書かれて、押し込んでも入らなくなった（画面は前の表示のまま知らせる）
+async function misfitByFile(page: import("@playwright/test").Page) {
+  writeFileSync(join(dir, "p.json"), paperDiagram(0));
+  await expect(page.locator(".mz-toast-error")).toContainText("AIが図の書き換えに失敗しました");
+}
+
+test("set の確かめは開くときと同じ決まり: 押し込んでも紙に入らなければ断り、書かない（D33。docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page }) => {
+  await openPaper(page);
   const before = readFileSync(join(dir, "p.json"), "utf8");
-  const xOf = (id: number) => (JSON.parse(readFileSync(join(dir, "p.json"), "utf8")) as { nodes: { id: number; x: number }[] }).nodes.find(n => n.id === id)!.x;
   // 7 つを 1 段に並べると、間隔を詰めても紙の幅に入らない（折り返さない）ので書かない
-  let err = "";
-  try { run("set", "p.json", "5.y=40", "6.y=40", "7.y=40", "5.x=560", "6.x=690", "7.x=820"); } catch (e) { err = String((e as { stderr?: string }).stderr ?? e); }
+  const err = fails("set", "p.json", "5.y=40", "6.y=40", "7.y=40", "5.x=560", "6.x=690", "7.x=820");
   expect(err).toContain("not written");
   expect(err).toContain("does not fit on the paper");
   expect(err).toMatch(/the row #1 箱1, .*#7 箱7 is \d+px wider than the paper/);
   expect(err).toContain("larger paper");
   expect(readFileSync(join(dir, "p.json"), "utf8")).toBe(before);
-  // 紙の外へ出しても、押し込めば入るなら書ける。画面が紙の内側へ押し込んで書き戻す
+});
+
+test("set の確かめ: 紙の外へ出しても、押し込めば入るなら書ける。画面が紙の内側へ押し込んで書き戻す（D33。docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page }) => {
+  await openPaper(page);
+  const xOf = (id: number) => (JSON.parse(readFileSync(join(dir, "p.json"), "utf8")) as { nodes: { id: number; x: number }[] }).nodes.find(n => n.id === id)!.x;
   expect(run("set", "p.json", "7.x=900")).toContain("written");
   await expect.poll(() => xOf(7)).toBeLessThan(794);
-  // ファイルを直接書かれて、押し込んでも入らなくなったら: 前の表示のまま知らせ、保存を止める。check は理由を出してエラー
-  writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: rows(0), edges: [] }));
-  await expect(page.locator(".mz-toast-error")).toContainText("AIが図の書き換えに失敗しました");
+});
+
+test("ファイルを直接書かれて、押し込んでも紙に入らなくなったら、画面は前の表示のまま知らせる（D33。docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page }) => {
+  await openPaper(page);
+  await misfitByFile(page);
   await expect(page.locator('.stage:visible .mz-node[data-id="5"]')).toHaveCSS("top", /^(?!40px)/);
+});
+
+test("ファイルを直接書かれて紙に入らなくなったブックの check は、理由を出してエラーにする（D33。docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page }) => {
+  await openPaper(page);
+  await misfitByFile(page);
   let out = "";
   try { run("check", "p.json"); } catch (e) { out = String((e as { stdout?: string }).stdout ?? "") + String((e as { stderr?: string }).stderr ?? ""); }
   expect(out).toContain("paper a5-landscape 794x559");
   expect(out).toContain("does not fit: the row #1 箱1");
   expect(out).toContain("the browser does not show this file");
-  // 画面が無ければ set は断る
+});
+
+test("画面が無ければ set は断る（D33。docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page }) => {
+  await openPaper(page);
   run("stop");
-  err = "";
-  try { run("set", "p.json", "1.x=100"); } catch (e) { err = String((e as { stderr?: string }).stderr ?? e); }
-  expect(err).toContain("matomezu open");
+  expect(fails("set", "p.json", "1.x=100")).toContain("matomezu open");
 });
 
 test("紙に収まらないブックは開かない: open は理由を返して届けず、画面はマスターを出して知らせる。URL で開いても同じ。どちらもマスターの一覧に載せない（docs/PAPER-plan.md の 4.6 の 7）", { tag: "@d44" }, async ({ page, context }) => {
@@ -792,18 +862,25 @@ const fails = (...args: string[]) => {
   throw new Error(`matomezu ${args.join(" ")} did not fail`);
 };
 
-test("フォーカス枠: 今のブックの箱をデータに書かずに枠で示し、箱の大きさは変えない。反応（Esc・図を押す）までは次を断り、手すきでなければ断る。別のページへは移る（D37）", { tag: "@d44" }, async ({ page }) => {
+// フォーカス枠のテストの図: 1 枚目に箱 1、2 枚目（p2）に箱 2（D37）
+async function openTwoPages(page: import("@playwright/test").Page) {
   writeFileSync(join(dir, "c.json"), JSON.stringify({
     world: { paper: "a3-landscape" }, pages: [{ id: "p2", title: "2枚目" }],
     nodes: [{ id: 1, caption: "表の箱" }, { id: 2, caption: "裏の箱", page: "p2" }],
   }));
   await page.goto(run("open", "-no-browser", "c.json").trim());
   await expect(selected(page)).toHaveText("c.json");
+  return page.locator(".stage:visible .mz-point");
+}
+
+test("フォーカス枠: 今のブックの箱をデータに書かずに枠で示し、箱の大きさは変えない。check に反応待ちと出る（D37）", { tag: "@d44" }, async ({ page }) => {
+  const frame = await openTwoPages(page);
+  // 開いた画面が大きさを書き戻すのを待ってから測る（D44 の段階 4）
+  await expect.poll(() => readFileSync(join(dir, "c.json"), "utf8").includes('"width"')).toBe(true);
   const box = page.locator(".stage:visible .mz-node[data-id='1']");
   const before = await box.boundingBox();
   const file = readFileSync(join(dir, "c.json"), "utf8");
   expect(run("focus", "c.json", "1")).toContain("shown");
-  const frame = page.locator(".stage:visible .mz-point");
   await expect(frame).toHaveCount(1);
   const f = (await frame.boundingBox())!, b = (await box.boundingBox())!;
   expect(f.x).toBeLessThan(b.x);
@@ -811,24 +888,43 @@ test("フォーカス枠: 今のブックの箱をデータに書かずに枠で
   expect(b).toEqual(before); // 箱の大きさ・位置は変わらない
   expect(readFileSync(join(dir, "c.json"), "utf8")).toBe(file); // データにも書かない
   expect(run("check", "c.json")).toContain("focus: box 1 is shown; the user has not responded yet");
+});
+
+test("フォーカス枠: 反応（Esc）までは次を断る。Esc で枠が消え、check に反応が出る（D37）", { tag: "@d44" }, async ({ page }) => {
+  const frame = await openTwoPages(page);
+  run("focus", "c.json", "1");
+  await expect(frame).toHaveCount(1);
   expect(fails("focus", "c.json", "2")).toContain("has not responded to the previous focus");
   await page.keyboard.press("Escape");
   await expect(frame).toHaveCount(0);
   expect(run("check", "c.json")).toContain("focus: the user responded to box 1 (the frame is closed)");
-  // 別のページの箱: そのページへ移って示す。図を押すと消える
+});
+
+test("フォーカス枠: 別のページの箱は、そのページへ移って示す。図を押すと消える（D37）", { tag: "@d44" }, async ({ page }) => {
+  const frame = await openTwoPages(page);
   run("focus", "c.json", "2");
   await expect(selected(page)).toHaveText("2枚目");
   await expect(frame).toHaveCount(1);
   await page.locator(".stage:visible").click({ position: { x: 5, y: 5 } });
   await expect(frame).toHaveCount(0);
-  // 手すきでない（ダイアログが開いている）なら断る。消えた箱は示せない
+});
+
+test("フォーカス枠: 手すきでない（ダイアログが開いている）なら断る（D37）", { tag: "@d44" }, async ({ page }) => {
+  await openTwoPages(page);
   await page.locator("#book").click();
   await expect(page.locator(".mz-dlg")).toHaveCount(1);
   expect(fails("focus", "c.json", "1")).toContain("the user is operating the screen");
   await page.locator(".mz-dlg [data-cancel]").click(); // Esc は F27（ダイアログの中にフォーカスが移らないことがある）
   await expect(page.locator(".mz-dlg")).toHaveCount(0);
+});
+
+test("フォーカス枠: 無い箱は示せない（D37）", { tag: "@d44" }, async ({ page }) => {
+  await openTwoPages(page);
   expect(fails("focus", "c.json", "99")).toContain("no box 99");
-  // -clear で AI が自分で消す
+});
+
+test("フォーカス枠: -clear で AI が自分で消す（D37）", { tag: "@d44" }, async ({ page }) => {
+  const frame = await openTwoPages(page);
   run("focus", "c.json", "1");
   await expect(selected(page)).toHaveText("c.json");
   await expect(frame).toHaveCount(1);
@@ -867,18 +963,30 @@ test("フォーカス枠: ほかのブックの箱は移るかを確かめる。
   await expect(frame).toHaveCount(0);
 });
 
-test("AI の問い: 吹き出しを A・B で出し（データにも箱の大きさにも触らない）、答え・隠す・開くはサーバーに残る。話題が残る間は次の問いもフォーカスも断り、-end で消える（D36）", { tag: "@d44" }, async ({ page }) => {
+// AI の問いのテスト: a.json に 3 つの問い（A は選ぶ、B はボタン 1 つ、C は文字だけ）を出す（D36）
+const ASK_THREE = JSON.stringify({ items: [
+  { box: "2", text: "Webは残す？", choices: ["はい", "いいえ"] },
+  { box: "5", choices: ["了承する"] },
+  { box: "9", text: "あとで名前を直します" },
+] });
+async function askThree(page: import("@playwright/test").Page) {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
+  expect(run("ask", "a.json", ASK_THREE)).toContain("shown");
+  const bubbles = page.locator(".stage:visible .mz-ask-bubble:visible");
+  await expect(bubbles).toHaveCount(3);
+  return { bubbles, palette: page.locator("#ask-palette") };
+}
+
+test("AI の問い: 吹き出しを A・B・C で出し、データにも箱の大きさにも触らない。パレットに答えた数が出る（D36）", { tag: "@d44" }, async ({ page }) => {
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  // 開いた画面が大きさを書き戻すのを待ってから測る（D44 の段階 4）
+  await expect.poll(() => readFileSync(join(dir, "a.json"), "utf8").includes('"width"')).toBe(true);
   const web = page.locator(".stage:visible .mz-node[data-id='2']");
   const before = await web.boundingBox();
   const file = readFileSync(join(dir, "a.json"), "utf8");
-  const spec = JSON.stringify({ items: [
-    { box: "2", text: "Webは残す？", choices: ["はい", "いいえ"] },
-    { box: "5", choices: ["了承する"] },
-    { box: "9", text: "あとで名前を直します" },
-  ] });
-  expect(run("ask", "a.json", spec)).toContain("shown");
+  expect(run("ask", "a.json", ASK_THREE)).toContain("shown");
   const bubbles = page.locator(".stage:visible .mz-ask-bubble:visible");
   await expect(bubbles).toHaveCount(3);
   await expect(bubbles.locator(".mz-ask-id")).toHaveText(["A", "B", "C"]);
@@ -887,33 +995,56 @@ test("AI の問い: 吹き出しを A・B で出し（データにも箱の大�
   const palette = page.locator("#ask-palette");
   await expect(palette).toBeVisible();
   await expect(palette.locator(".ask-count")).toHaveText("0 / 3");
-  // 話題が残る間は、次の問いもフォーカスも断る
-  expect(fails("ask", "a.json", spec)).toContain("still open");
+});
+
+test("AI の問い: 話題が残る間は、次の問いもフォーカスも断る（D36）", { tag: "@d44" }, async ({ page }) => {
+  await askThree(page);
+  expect(fails("ask", "a.json", ASK_THREE)).toContain("still open");
   expect(fails("focus", "a.json", "1")).toContain("still open");
-  // A に答える
+});
+
+test("AI の問い: 吹き出しで選んだ答えはサーバーに残り、パレットに答えた問いが出る（D36）", { tag: "@d44" }, async ({ page }) => {
+  const { bubbles, palette } = await askThree(page);
   await bubbles.filter({ hasText: "Webは残す？" }).locator("[data-choice='はい']").click();
   await expect(palette.locator(".ask-count")).toHaveText("1 / 3");
   await expect(palette.locator("button.ask-done")).toHaveText("A");
-  expect(run("ask", "-status")).toMatch(/1 \(A\) box 2, bubble: answered \["はい"\]/);
-  // B を隠すと印に縮み、印を押すと戻る。AI からも閉じられる
-  const b = bubbles.filter({ hasText: "了承する" });
-  await b.locator("[data-hide]").click();
+  await expect.poll(() => run("ask", "-status")).toMatch(/1 \(A\) box 2, bubble: answered \["はい"\]/); // 画面が答えをサーバーへ送るまで待つ
+});
+
+test("AI の問い: 吹き出しを隠すと印に縮み、印を押すと戻る。AI からも隠す・開くができ、サーバーに残る（D36）", { tag: "@d44" }, async ({ page }) => {
+  const { bubbles } = await askThree(page);
+  await bubbles.filter({ hasText: "了承する" }).locator("[data-hide]").click();
   const markB = page.locator(".stage:visible .mz-ask-mark:visible", { hasText: "B" });
   await expect(markB).toHaveCount(1);
-  expect(run("ask", "-status")).toContain("2 (B) box 5, bubble: hidden");
-  await markB.click();
   await expect(bubbles).toHaveCount(2);
+  await expect.poll(() => run("ask", "-status")).toContain("2 (B) box 5, bubble: hidden");
+  await markB.click();
+  await expect(bubbles).toHaveCount(3);
   run("ask", "-hide", "B");
   await expect(markB).toHaveCount(1);
-  run("ask", "-show", "2");
   await expect(bubbles).toHaveCount(2);
-  // ボタンの無い C は × で見た
+  run("ask", "-show", "2");
+  await expect(bubbles).toHaveCount(3);
+  await expect(markB).toHaveCount(0);
+});
+
+test("AI の問い: ボタンの無い問いは × で見たことになり、check に答えた数が出る（D36）", { tag: "@d44" }, async ({ page }) => {
+  const { bubbles, palette } = await askThree(page);
+  await bubbles.filter({ hasText: "Webは残す？" }).locator("[data-choice='はい']").click();
+  await expect(palette.locator(".ask-count")).toHaveText("1 / 3");
   await bubbles.filter({ hasText: "あとで名前を直します" }).locator("[data-seen]").click();
-  expect(run("ask", "-status")).toContain("3 (C) box 9, bubble: seen");
+  await expect(palette.locator(".ask-count")).toHaveText("2 / 3");
+  await expect.poll(() => run("ask", "-status")).toContain("3 (C) box 9, bubble: seen");
   expect(run("check", "a.json")).toContain("ask: 2 of 3 questions responded");
-  // 図を押しても消えない
+});
+
+test("AI の問い: 図を押しても吹き出しは消えない。-end で吹き出しとパレットが消え、話題が無くなる（D36）", { tag: "@d44" }, async ({ page }) => {
+  const { bubbles, palette } = await askThree(page);
   await page.locator(".stage:visible").click({ position: { x: 5, y: 5 } });
-  await expect(bubbles).toHaveCount(1);
+  // 押したことの処理（消すなら描き直し）が済むまで、画面の描画をひと回り待ってから確かめる
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await expect(palette).toBeVisible();
+  await expect(bubbles).toHaveCount(3);
   expect(run("ask", "-end")).toContain("ended");
   await expect(bubbles).toHaveCount(0);
   await expect(palette).toBeHidden();
@@ -921,6 +1052,12 @@ test("AI の問い: 吹き出しを A・B で出し（データにも箱の大�
 });
 
 test("AI の問い: 長いものはドロワーの印になる。ほかのブックは移るかを確かめ、キャンセルは -status に出る。ページをまたぐ問い・無い箱は断る（D36）", async ({ page }) => {
+  // ページをまたぐ問いのための、2 枚のページのブック（1 枚目に箱 1、2 枚目に箱 2）。一覧に載せておく
+  writeFileSync(join(dir, "c.json"), JSON.stringify({
+    world: { paper: "a3-landscape" }, pages: [{ id: "p2", title: "2枚目" }],
+    nodes: [{ id: 1, caption: "表の箱" }, { id: 2, caption: "裏の箱", page: "p2" }],
+  }));
+  run("open", "-no-browser", "c.json");
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
   const long = JSON.stringify({ items: [{ box: "5", text: "トップ画面は残しますか？ほかの画面とまとめますか？", choices: ["残す", "まとめる"] }] });
@@ -938,6 +1075,9 @@ test("AI の問い: 長いものはドロワーの印になる。ほかのブッ
   run("ask", "-end");
   expect(fails("ask", "a.json", JSON.stringify({ items: [{ box: "99", text: "これは？" }] }))).toContain("no box 99");
   expect(run("ask", "-status")).toContain("no topic"); // 断った話題は残らない
+  expect(fails("ask", "c.json", JSON.stringify({ items: [{ box: "1", text: "表？" }, { box: "2", text: "裏？" }] }))).toContain("the boxes are on different pages");
+  expect(run("ask", "-status")).toContain("no topic");
+  await expect(selected(page)).toHaveText("a.json"); // 断ったので移らない
 });
 
 test("AI の問い: ドロワーは複数選択と文字で答えられ、答えないも選べる。答えたら閉じてパレットで線が引かれる（D36）", async ({ page }) => {
@@ -1086,28 +1226,45 @@ test("AI の問い: パレットの「終える」でユーザーが話題を終
   run("ask", "-end");
 });
 
-test("説明ツアー: 案内で開始すると幕で操作を止め、段をブックをまたいでたどる。最後の［終わる］で complete、終了のダイアログで開始前の場所に戻れる（D38）", async ({ page }) => {
+// 説明ツアーのテスト: a.json を開き、2 段（a.json の箱 2 → b.json の箱 3）のツアーの案内を出す（D38）
+async function offerTour(page: import("@playwright/test").Page) {
   await page.goto(run("open", "-no-browser", "a.json").trim());
   await expect(selected(page)).toHaveText("a.json");
   run("tour", "-title", "流れ", "a.json", JSON.stringify({ steps: [{ box: "2", say: "ここが入口です" }, { box: "3", say: "別のブックの箱です", path: "b.json" }] }));
   const dlg = page.locator(".mz-dlg");
   await expect(dlg).toContainText("「流れ」の説明ツアーを開始してもいいですか？（2 ステップ）");
-  expect(run("tour", "-status")).toContain("waiting");
-  // ダイアログで届いた案内はキャンセルが無く、Esc でも閉じない（郵便箱にも入れない）
-  await expect(dlg.locator("[data-cancel]")).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await expect(dlg).toHaveCount(1);
-  await expect(page.locator("#mail-badge")).toHaveText("");
+  return dlg;
+}
+// 案内で開始して、1 段目の吹き出しが出るのを待つ
+async function startTour(page: import("@playwright/test").Page) {
+  const dlg = await offerTour(page);
   await dlg.locator("[data-ok]").click();
   const bubble = page.locator(".mz-tour-bubble");
   await expect(bubble).toContainText("ここが入口です");
   await expect(bubble.locator(".mz-tour-count")).toHaveText("1 / 2");
+  return { dlg, bubble };
+}
+
+test("説明ツアー: ダイアログで届いた案内は開始を待つ。キャンセルが無く、Esc でも閉じず、郵便箱にも入れない（D38）", async ({ page }) => {
+  const dlg = await offerTour(page);
+  expect(run("tour", "-status")).toContain("waiting");
+  await expect(dlg.locator("[data-cancel]")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(1);
+  await expect(page.locator("#mail-badge")).toHaveText("");
+});
+
+test("説明ツアー: 案内で開始すると幕で操作を止める。ほかの AI の頼みは断り、幕の上の操作は図や道具へ届かない（D38）", async ({ page }) => {
+  await startTour(page);
   await expect.poll(() => run("tour", "-status")).toContain("running");
-  // ほかの AI の頼みは断る。幕の上の操作は図や道具へ届かない
   expect(() => run("focus", "a.json", "5")).toThrow();
   const tool = (await page.locator("#mode-tool").boundingBox())!;
   await page.mouse.click(tool.x + tool.width / 2, tool.y + tool.height / 2);
   await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move");
+});
+
+test("説明ツアー: 段をブックをまたいでたどり、最後の［終わる］で complete。終了のダイアログで開始前の場所に戻れる（D38）", async ({ page }) => {
+  const { dlg, bubble } = await startTour(page);
   await page.keyboard.press("ArrowRight"); // 次へ
   await expect(selected(page)).toHaveText("b.json");
   await expect(bubble).toContainText("別のブックの箱です");

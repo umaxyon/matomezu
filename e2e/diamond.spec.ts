@@ -72,7 +72,8 @@ test("ひし形の側の端をつまんで、別の頂点へ動かせる（折�
   expect(after.length).toBeGreaterThan(2);
 });
 
-test("ひし形の端を下の頂点へ動かしたあと、途中の区間や相手の端を動かしても、下の頂点のまま突き抜けない", async ({ page }) => {
+// トップ画面 → ひし形の折れ線を開き、ひし形の側の端を下の頂点へ動かす。線の点・箱の位置・ドラッグなどの道具を返す
+async function bottomEndedLine(page: import("@playwright/test").Page) {
   await openDiagram(page, {
     world: { route: "elbow" },
     nodes: [
@@ -106,26 +107,39 @@ test("ひし形の端を下の頂点へ動かしたあと、途中の区間や�
   await selectLine(page, "e1");
   await drag('.mz-edge[data-id="e1"] .mz-end[data-end="enter"]', bottom[0]! + 4, bottom[1]! - 4);
   expect((await points()).at(-1)).toEqual(bottom);
+  return { points, rectOf, bottom, world, drag, through };
+}
+
+test("ひし形の端を下の頂点へ動かすと、下の頂点に入り、ひし形を突き抜けない", async ({ page }) => {
+  const { points, through } = await bottomEndedLine(page);
   expect(through(await points())).toBe(false);
-  // 途中の区間（縦の区間）を左へ動かす
+});
+
+test("ひし形の端を下の頂点へ動かしたあと、途中の区間を動かしても、下の頂点のまま突き抜けない", async ({ page }) => {
+  const { points, bottom, world, drag, through } = await bottomEndedLine(page);
   const bends = page.locator('.mz-edge[data-id="e1"] .mz-bend');
   expect(await bends.count()).toBeGreaterThan(0); // 下の頂点へ回り込む形なので、動かせる区間がある
-  const before0 = await points();
+  const before = await points();
   const b = (await bends.first().boundingBox())!;
   const vertical = b.height > b.width;
   await drag('.mz-edge[data-id="e1"] .mz-bend', b.x - world.x + b.width / 2 + (vertical ? -30 : 0), b.y - world.y + b.height / 2 + (vertical ? 0 : 20));
-  expect(await points()).not.toEqual(before0);
+  expect(await points()).not.toEqual(before);
   expect((await points()).at(-1)).toEqual(bottom);
   expect(through(await points())).toBe(false);
-  // 相手（トップ画面）の側の端を、下の辺の左寄りへ動かす
+});
+
+test("ひし形の端を下の頂点へ動かしたあと、相手（トップ画面）の端を下の辺の左寄りへ動かしても、下の頂点のまま突き抜けない", async ({ page }) => {
+  const { points, rectOf, bottom, drag, through } = await bottomEndedLine(page);
   const t = await rectOf(1);
   const before = (await points())[0]!;
   await drag('.mz-edge[data-id="e1"] .mz-end[data-end="exit"]', t.x + 20, t.y + t.h + 3);
   const after = await points();
   expect(after[0]).not.toEqual(before);
+  // 相手の端は、トップ画面の下の辺の左寄りに移った
+  expect(after[0]![1]).toBe(t.y + t.h);
+  expect(after[0]![0]).toBeLessThan(t.x + t.w / 2);
   expect(after.at(-1)).toEqual(bottom);
   expect(through(after)).toBe(false);
-  expect(t.w).toBeGreaterThan(0);
 });
 
 test("始点を右の辺に固定した線は、終点をひし形の上や下の頂点へ動かしても右から出たまま（回り込む）", async ({ page }) => {

@@ -59,8 +59,8 @@ test("表示領域の幅に小数があっても、中身が収まっていれ�
   // Windows の表示倍率などで表示領域の幅に小数が出る状態を、サイドバーの幅で作る
   for (const w of ["280.2px", "280.4px", "280.6px", "280.8px"]) {
     await page.evaluate(w => { document.getElementById("sidebar")!.style.width = w; }, w);
-    await page.waitForTimeout(50);
-    const r = await page.evaluate(() => {
+    // 幅が変わったあと、並べ直して収まるまで待つ（収まらないままなら時間切れで落ちる）
+    const fits = () => page.evaluate(() => {
       const s = document.querySelector<HTMLElement>(".stage:not([hidden])")!, world = document.querySelector<HTMLElement>(".mz-world")!;
       // スクロールバーの分を除いた、表示領域の中身の幅と高さ（小数まで）
       const rect = s.getBoundingClientRect();
@@ -69,8 +69,7 @@ test("表示領域の幅に小数があっても、中身が収まっていれ�
         worldW: parseFloat(world.style.width), worldH: parseFloat(world.style.height),
       };
     });
-    expect(r.worldW, w).toBeLessThanOrEqual(r.w);
-    expect(r.worldH, w).toBeLessThanOrEqual(r.h);
+    await expect.poll(async () => { const r = await fits(); return { w: r.worldW <= r.w, h: r.worldH <= r.h }; }, { message: w }).toEqual({ w: true, h: true });
   }
 });
 

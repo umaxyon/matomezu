@@ -1,18 +1,32 @@
 // 右の長押しのモードの切り替え（D39 の試し）: 0.25 秒押し続けるとポインタの近くにアイコンを並べ、押すとそのモードにする。動いたら取り消す
 import { expect, test } from "@playwright/test";
+import { LONG_PRESS_MS } from "../web/src/mode-picker";
 import { openDiagram, setMode } from "./helpers";
 
 // 広がるアニメーションが終わるのを待つ
 const settled = (page: import("@playwright/test").Page) =>
   page.waitForFunction(() => [...document.querySelectorAll(".mz-mpick-btn")].every(b => b.getAnimations().length === 0));
 
-test("右の長押しでモードのアイコンを出し、押すとそのモードになる。外を押す・Esc では何もせずに閉じる", async ({ page }) => {
+// 右の長押しでアイコンを出して、離すまで待つ（at はポインタの位置）
+async function openByLongPress(page: import("@playwright/test").Page, at: { x: number; y: number }) {
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down({ button: "right" });
+  await expect(page.locator(".mz-mpick-overlay")).toBeVisible({ timeout: 2000 });
+  await page.mouse.up({ button: "right" });
+}
+// 1 箱の図を開き、アイコンを出す位置（ワールドの左上から 300, 300）を返す
+async function openOneBox(page: import("@playwright/test").Page) {
   await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
   const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
-  const picker = page.locator(".mz-mpick-overlay"), btns = picker.locator(".mz-mpick-btn[data-mode]");
-  const at = { x: world.x + 300, y: world.y + 300 };
+  return { x: world.x + 300, y: world.y + 300 };
+}
+// 描き終わるまで待つ（メニューは押した・離したときの処理の中で出すので、次の描画の時点で出ていなければ出ない）
+const nextFrame = (page: import("@playwright/test").Page) =>
+  page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
 
-  // 長押し: 離しても残る。コンテキストメニューは出ない。今のモードが押された形
+test("右の長押しでモードのアイコンを出す。離しても残り、コンテキストメニューは出ず、今のモードが押された形でポインタの上に横並び", async ({ page }) => {
+  const at = await openOneBox(page);
+  const picker = page.locator(".mz-mpick-overlay"), btns = picker.locator(".mz-mpick-btn[data-mode]");
   await page.mouse.move(at.x, at.y);
   await page.mouse.down({ button: "right" });
   await expect(page.locator(".mz-mpick-ring")).toBeVisible();
@@ -29,50 +43,63 @@ test("右の長押しでモードのアイコンを出し、押すとそのモ�
   expect(Math.abs(b0.y - b2.y)).toBeLessThan(1);
   expect(b0.x).toBeLessThan(at.x);
   expect(b2.x + b2.width).toBeGreaterThan(at.x);
-  // 手のひらを押すと手のひらモードになって閉じる
-  await btns.nth(1).click();
+});
+
+test("モードのアイコンの手のひらを押すと、手のひらモードになって閉じる", async ({ page }) => {
+  const at = await openOneBox(page);
+  const picker = page.locator(".mz-mpick-overlay");
+  await openByLongPress(page, at);
+  await settled(page);
+  await picker.locator(".mz-mpick-btn[data-mode]").nth(1).click();
   await expect(picker).toHaveCount(0);
   await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "pan");
+});
 
-  // 手のひらモードでも出る。外を押すと何もせずに閉じる
-  await page.mouse.down({ button: "right" });
-  await expect(picker).toBeVisible({ timeout: 2000 });
-  await page.mouse.up({ button: "right" });
+test("手のひらモードでも右の長押しでアイコンが出て、外を押すと何もせずに閉じる", async ({ page }) => {
+  const at = await openOneBox(page);
+  const picker = page.locator(".mz-mpick-overlay");
+  await setMode(page, "pan");
+  await openByLongPress(page, at);
   await page.mouse.click(at.x, at.y + 40);
   await expect(picker).toHaveCount(0);
   await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "pan");
-  // Esc でも閉じる
-  await page.mouse.down({ button: "right" });
-  await expect(picker).toBeVisible({ timeout: 2000 });
-  await page.mouse.up({ button: "right" });
+});
+
+test("モードのアイコンは Esc で何もせずに閉じる", async ({ page }) => {
+  const at = await openOneBox(page);
+  const picker = page.locator(".mz-mpick-overlay");
+  await openByLongPress(page, at);
   await page.keyboard.press("Escape");
   await expect(picker).toHaveCount(0);
-  // 右ボタンで閉じても、コンテキストメニューは出ない
-  await setMode(page, "move");
-  await page.mouse.move(at.x, at.y);
-  await page.mouse.down({ button: "right" });
-  await expect(picker).toBeVisible({ timeout: 2000 });
-  await page.mouse.up({ button: "right" });
+  await expect(page.locator("#mode-tool")).toHaveAttribute("data-mode", "move");
+});
+
+test("モードのアイコンを右ボタンで外を押して閉じても、コンテキストメニューは出ない", async ({ page }) => {
+  const at = await openOneBox(page);
+  const picker = page.locator(".mz-mpick-overlay");
+  await openByLongPress(page, at);
   await page.mouse.click(at.x, at.y + 40, { button: "right" });
   await expect(picker).toHaveCount(0);
-  await page.waitForTimeout(100);
+  await nextFrame(page);
   await expect(page.locator(".mz-cmenu")).toHaveCount(0);
 });
 
-test("押している間に動いたら長押しを取り消し、離すとコンテキストメニューを出す。短く押したらメニュー", async ({ page }) => {
-  await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  const world = (await page.locator(".stage:visible .mz-world").boundingBox())!;
-  const at = { x: world.x + 300, y: world.y + 300 };
+test("押している間に動いたら長押しを取り消し、離すとコンテキストメニューを出す", async ({ page }) => {
+  const at = await openOneBox(page);
   await page.mouse.move(at.x, at.y);
+  const pressed = Date.now();
   await page.mouse.down({ button: "right" });
   await page.mouse.move(at.x + 3, at.y + 2); // 遊びの中
   await page.mouse.move(at.x + 30, at.y);   // 遊びより動いた
-  await page.waitForTimeout(900);
+  // 出ないことを確かめるので、押してから長押しの時間（LONG_PRESS_MS）を確実に過ぎるまで待つ。余分の 150ms は、時計の進みと押した時点のずれの分
+  await page.waitForTimeout(Math.max(0, pressed + LONG_PRESS_MS + 150 - Date.now()));
   await expect(page.locator(".mz-mpick-overlay")).toHaveCount(0);
   await page.mouse.up({ button: "right" });
   await expect(page.locator(".mz-cmenu")).toBeVisible();
-  await page.keyboard.press("Escape");
-  // 短く押す
+});
+
+test("右ボタンを短く押したらコンテキストメニューで、モードのアイコンは出ない", async ({ page }) => {
+  const at = await openOneBox(page);
   await page.mouse.click(at.x, at.y, { button: "right" });
   await expect(page.locator(".mz-cmenu")).toBeVisible();
   await expect(page.locator(".mz-mpick-overlay")).toHaveCount(0);
@@ -205,8 +232,11 @@ test("ミニマップの絵を押して見る範囲を動かしても、ミニ�
   const scroll0 = await page.locator(".stage:visible").evaluate(s => s.scrollLeft + s.scrollTop);
   for (const [fx, fy] of [[0.9, 0.9], [0.1, 0.1]] as const) {
     const art = (await panel.locator(".mz-minimap-body > svg").boundingBox())!;
+    const before = await page.locator(".stage:visible").evaluate(s => [s.scrollLeft, s.scrollTop]);
     await page.mouse.click(art.x + art.width * fx, art.y + art.height * fy);
-    await page.waitForTimeout(100);
+    // 押した所へ見る範囲が動き（スクロール）、それを受けてミニマップを描き直したあとの位置を比べる
+    await expect.poll(() => page.locator(".stage:visible").evaluate(s => [s.scrollLeft, s.scrollTop])).not.toEqual(before);
+    await nextFrame(page);
     const p1 = (await panel.boundingBox())!;
     expect([p1.x, p1.y]).toEqual([p0.x, p0.y]);
   }

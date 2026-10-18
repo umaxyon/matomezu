@@ -46,9 +46,8 @@ test("右クリックのメニューで写して貼る。使えない項目は�
   await expect(page.locator('.mz-node[data-id="2"] .mz-node')).toHaveCount(1);
 });
 
-test("右ボタンではドラッグを始めない。手のひらモードのメニューは設定だけ、図の外では何も出さない", async ({ page }) => {
+test("右ボタンではドラッグを始めない（押したまま動かしても箱は動かない）", async ({ page }) => {
   await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
-  // 右ボタンで押したまま動かしても、箱は動かない
   const before = (await head(page, 1).boundingBox())!;
   await page.mouse.move(before.x + 10, before.y + 8);
   await page.mouse.down({ button: "right" });
@@ -57,7 +56,10 @@ test("右ボタンではドラッグを始めない。手のひらモードの�
   await page.keyboard.press("Escape");
   const after = (await head(page, 1).boundingBox())!;
   expect([after.x, after.y]).toEqual([before.x, before.y]);
-  // 手のひらモードでは設定だけ（箱なら編集ダイアログ）
+});
+
+test("手のひらモードのメニューは設定だけ（箱なら編集ダイアログ）", async ({ page }) => {
+  await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
   await setMode(page, "pan");
   await head(page, 1).click({ position: { x: 10, y: 8 }, button: "right" });
   const menu = page.locator(".mz-cmenu");
@@ -68,7 +70,10 @@ test("右ボタンではドラッグを始めない。手のひらモードの�
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(page.locator(".mz-dlg-overlay")).toHaveCount(0);
-  // 図の外（タブ行・サイドバー・ミニマップ）の右クリックでは何も出さない（ブラウザのメニューも止める）。入力欄の中はブラウザのまま
+});
+
+test("図の外（タブ行・サイドバー・ミニマップ）の右クリックでは何も出さない（ブラウザのメニューも止める）。入力欄の中はブラウザのまま", async ({ page }) => {
+  await openDiagram(page, { nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] } as never);
   const prevented = await page.evaluate(() => ["#mode-tool", "#sidebar", "#minimap-toggle", "body"].map(sel => {
     const ev = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
     document.querySelector(sel)!.dispatchEvent(ev);
@@ -84,7 +89,7 @@ test("右ボタンではドラッグを始めない。手のひらモードの�
     return ev.defaultPrevented;
   });
   expect(inInput).toBe(false);
-  await expect(menu).toHaveCount(0);
+  await expect(page.locator(".mz-cmenu")).toHaveCount(0);
 });
 
 test("線のメニュー: 通り方の 2 段目で折れ線と直線を選び、削除は一番下", async ({ page }) => {
