@@ -42,8 +42,10 @@ function clearError() {
 // サイドバーの出し入れ。追加削除の一覧（boxes）と郵便箱（mail）のどちらか 1 つを出す。同じボタンをもう一度押すと隠す。
 // body の side-open と data-side を切り替え、変わったら知らせる
 export type SideKind = "boxes" | "mail" | "cross"; // cross はマスターの追加削除（道具箱から出す。ボタンは無い）
-export interface SideToggle { open(): SideKind | null; show(kind: SideKind | null): void; onChange(fn: (kind: SideKind | null) => void): void }
-function setupSide(buttons: Partial<Record<SideKind, HTMLButtonElement>>): SideToggle {
+// inset は図の左にかぶせている幅（図の左の余白をその分広げる。E22）。下から出す狭い画面と、閉じているときは 0
+// onInset は、その幅が変わったとき（開く・閉じる・切り替える・プレビューで隠す・狭い画面に変わる）
+export interface SideToggle { open(): SideKind | null; show(kind: SideKind | null): void; onChange(fn: (kind: SideKind | null) => void): void; inset(): number; onInset(fn: () => void): void }
+function setupSide(buttons: Partial<Record<SideKind, HTMLButtonElement>>, drawer: HTMLElement): SideToggle {
   const listeners: ((kind: SideKind | null) => void)[] = [];
   let now: SideKind | null = null;
   const show = (kind: SideKind | null) => {
@@ -55,7 +57,16 @@ function setupSide(buttons: Partial<Record<SideKind, HTMLButtonElement>>): SideT
     for (const f of listeners) f(kind);
   };
   for (const [k, b] of Object.entries(buttons) as [SideKind, HTMLButtonElement][]) b.addEventListener("click", () => show(now === k ? null : k));
-  return { open: () => now, show, onChange: fn => { listeners.push(fn); } };
+  const inset = () => {
+    const w = drawer.offsetWidth, all = drawer.parentElement?.clientWidth ?? 0;
+    return now && w > 0 && w < all ? w : 0;
+  };
+  const insetListeners: (() => void)[] = [];
+  let last = 0;
+  const check = () => { const w = inset(); if (w !== last) { last = w; for (const f of insetListeners) f(); } };
+  listeners.push(check);
+  if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(check); ro.observe(drawer); ro.observe(drawer.parentElement ?? drawer); }
+  return { open: () => now, show, onChange: fn => { listeners.push(fn); }, inset, onInset: fn => { insetListeners.push(fn); } };
 }
 
 // 図の真ん中の案内（null で隠す）
@@ -90,7 +101,7 @@ async function main() {
   const modeButton = $<HTMLButtonElement>("mode-tool");
   setupMinimapToggle($<HTMLButtonElement>("minimap-toggle"));
   setupNoBrowserMenu();
-  const side = setupSide({ boxes: $<HTMLButtonElement>("side-toggle"), mail: $<HTMLButtonElement>("mail-toggle") });
+  const side = setupSide({ boxes: $<HTMLButtonElement>("side-toggle"), mail: $<HTMLButtonElement>("mail-toggle") }, $("sidebar"));
   setupSettings($("settings"));
   const preview = setupPreview({
     toggle: $("preview-toggle"), zoomOut: $("zoom-out"), zoomIn: $("zoom-in"), fit: $("zoom-fit"), home: $("zoom-home"), level: $("zoom-level"),
@@ -140,6 +151,7 @@ async function main() {
   $("save").addEventListener("click", () => download(graph.toJSON(), fileName));
   $("book").addEventListener("click", () => openBookDialog(graph, fileName));
   side.onChange(kind => (kind === "boxes" ? panel.shown() : panel.hidden()));
+  side.onInset(() => graph.setInset(side.inset()));
 
   $("open").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {

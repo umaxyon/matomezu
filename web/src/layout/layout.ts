@@ -58,6 +58,7 @@ export interface LayoutContext {
   roots(): Box[];
   edges(): Edge[];
   zoom?(): number; // ワールドにかけている倍率（transform: scale。無ければ 1）
+  inset?(): number; // 図の左にかぶせているドロワーの幅（px。E22。無ければ 0）。その間は左の余白をこの分広げる
   canvasSized?(): void; // スクロールの広さとワールドをずらす量を決め直したあと（graph.ts が開いたときの見え方を合わせ直す）
   // 開いたときのはみ出しの調整（fitToViewport）で移した（表示だけ。ファイルには無い位置）
   fitted?(n: Box): void;
@@ -158,15 +159,17 @@ export function createLayout(ctx: LayoutContext) {
   // 上下左右とも、余白の分だけワールドを外へずらせる
   // ワールドをずらす量（縦横別）は、周りの余白と、紙が表示領域より小さいときに真ん中に来る量の大きい方（2026-10-15 ユーザー:
   // 縮めたとき紙を真ん中に。広い画面で右と下ばかり空かないように）。スクロールの広さは、ワールドの見た目の大きさ ＋ 両側のずらす量
+  // 左にドロワーをかぶせている間（inset。E22。2026-10-18 ユーザー）は、左の余白をその幅だけ広げ、図をドロワーの下から出せるようにする。真ん中はドロワーの右の範囲で取る
   let offset = { x: opt.margin, y: opt.margin };
   function sizeCanvas() {
     if (!ctx.canvas) return;
-    const z = ctx.zoom?.() ?? 1, m = opt.margin;
+    const z = ctx.zoom?.() ?? 1, m = opt.margin, inset = ctx.inset?.() ?? 0;
     const ww = world.w * z, wh = world.h * z;
-    offset = { x: Math.max(m, (container.clientWidth - ww) / 2), y: Math.max(m, (container.clientHeight - wh) / 2) };
+    const right = Math.max(m, (container.clientWidth - inset - ww) / 2);
+    offset = { x: inset + right, y: Math.max(m, (container.clientHeight - wh) / 2) };
     worldEl.style.left = offset.x + "px";
     worldEl.style.top = offset.y + "px";
-    ctx.canvas.style.width = Math.ceil(ww + 2 * offset.x) + "px";
+    ctx.canvas.style.width = Math.ceil(ww + offset.x + right) + "px";
     ctx.canvas.style.height = Math.ceil(wh + 2 * offset.y) + "px";
     ctx.canvasSized?.();
   }

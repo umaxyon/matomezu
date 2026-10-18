@@ -8,6 +8,7 @@ export interface ViewContext {
   worldEl: HTMLElement;
   world: { w: number; h: number };
   margin: number;
+  inset(): number;                    // 図の左にかぶせているドロワーの幅（E22）
   offset(): { x: number; y: number }; // ワールドをずらしている量（layout.ts）
   syncWorld(): void;                  // 倍率に合わせてスクロールできる広さを決め直す
   mode(): Mode;
@@ -46,7 +47,7 @@ export function createView(ctx: ViewContext) {
     if (preview == null) applyZoom(z);
   }
 
-  const view = (): View => ({ zoom: applied, margin: ctx.margin, ox: ctx.offset().x, oy: ctx.offset().y });
+  const view = (): View => ({ zoom: applied, margin: ctx.margin, ox: ctx.offset().x, oy: ctx.offset().y, inset: ctx.inset() });
 
   // ワールドの左上を表示領域の左上に合わせる（スクロールの位置 = 余白。D32）。隠れている図（裏のブック）はスクロールできないので、
   // 見えるようになったときに合わせる（下の ResizeObserver）

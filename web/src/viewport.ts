@@ -24,6 +24,7 @@ export interface View {
   margin: number; // 図の周りの余白（px。倍率をかけない）
   ox: number;     // ワールドを図の枠の中でずらしている量（横・縦。px。余白か、紙が小さければ真ん中に来る量）
   oy: number;
+  inset?: number; // 図の左にかぶせているドロワーの幅（px。E22）。見えている範囲はその右。無ければ 0
 }
 type Axis = "x" | "y";
 const offset = (v: View, axis: Axis) => (axis === "x" ? v.ox : v.oy);
@@ -34,9 +35,10 @@ export const fromScroll = (v: View, scroll: number, axis: Axis = "x"): number =>
 
 // 見えている範囲（ワールドの座標）
 export function visibleWorld(stage: HTMLElement, v: View): Rect {
+  const inset = v.inset ?? 0;
   return {
-    x: fromScroll(v, stage.scrollLeft, "x"), y: fromScroll(v, stage.scrollTop, "y"),
-    w: stage.clientWidth / v.zoom, h: stage.clientHeight / v.zoom,
+    x: fromScroll(v, stage.scrollLeft + inset, "x"), y: fromScroll(v, stage.scrollTop, "y"),
+    w: Math.max(0, stage.clientWidth - inset) / v.zoom, h: stage.clientHeight / v.zoom,
   };
 }
 
@@ -50,7 +52,8 @@ export interface Anchor { px: number; py: number; wx: number; wy: number }
 
 export function anchorAt(stage: HTMLElement, v: View, at?: { x: number; y: number }): Anchor {
   const r = viewRectOf(stage);
-  const px = at ? at.x - r.left : (r.right - r.left) / 2;
+  const inset = v.inset ?? 0;
+  const px = at ? at.x - r.left : inset + (r.right - r.left - inset) / 2;
   const py = at ? at.y - r.top : (r.bottom - r.top) / 2;
   return { px, py, wx: fromScroll(v, stage.scrollLeft + px, "x"), wy: fromScroll(v, stage.scrollTop + py, "y") };
 }
@@ -62,9 +65,10 @@ export function keepAnchor(stage: HTMLElement, v: View, a: Anchor): void {
 }
 
 // ワールドの左上を表示領域の左上に合わせる（スクロールの位置 = 余白）。紙（w × h）が表示領域より小さければ真ん中に来るように
-// ずらす量（ox・oy）に真ん中の分が入っているので、その分戻す
+// ずらす量（ox・oy）に真ん中の分が入っているので、その分戻す。左にドロワーをかぶせていれば（inset）、その右を表示領域とみなす
 export function homeScroll(stage: HTMLElement, v: View, w: number, h: number): void {
-  stage.scrollLeft = Math.max(0, toScroll(v, 0, "x") - Math.max(0, (stage.clientWidth - w * v.zoom) / 2));
+  const inset = v.inset ?? 0;
+  stage.scrollLeft = Math.max(0, toScroll(v, 0, "x") - inset - Math.max(0, (stage.clientWidth - inset - w * v.zoom) / 2));
   stage.scrollTop = Math.max(0, toScroll(v, 0, "y") - Math.max(0, (stage.clientHeight - h * v.zoom) / 2));
 }
 

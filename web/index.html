@@ -172,8 +172,9 @@
   /* 開いている図が無いときの案内（図の真ん中） */
   .empty { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; padding: 16px; color: var(--hint); text-align: center; pointer-events: none; }
   .empty[hidden] { display: none; }
-  main { flex: 1; display: flex; min-height: 0; }
-  /* サイドバー（追加削除の一覧）はふだん隠し、タブ行の「追加削除」で左から出す。図は右へ押される（D26） */
+  main { position: relative; flex: 1; display: flex; min-height: 0; }
+  /* サイドバー（追加削除の一覧・郵便箱）はふだん隠し、タブ行のボタンで左から出す（D26）。図の上にかぶせるドロワーで、図の枠は押さない（E22。2026-10-18 ユーザー）。
+     開いている間は、図の左の余白をドロワーの幅だけ広げる（graph.setInset。幅はここの width を測って渡す） */
   #sidebar { display: none; }
   body.side-open:not(.previewing) #sidebar { display: block; }
   /* サイドバーは、追加削除の一覧（ブックごとの .side-pane）か郵便箱（#mailbox）のどちらか 1 つを見せる（body の data-side。D26 の段階 3） */
@@ -199,11 +200,12 @@
   .ask-palette button.ask-drawer { border-style: dashed; }
   .ask-palette button.ask-end { margin-left: 4px; font-weight: 500; border-color: var(--bar-border); color: inherit; }
   #sidebar {
-    width: 280px;
-    flex: none;
+    position: absolute; left: 0; top: 0; bottom: 0; z-index: 40;
+    width: 340px; max-width: 100%; box-sizing: border-box;
     overflow-y: auto;
     background: var(--bar);
     border-right: 1px solid var(--bar-border);
+    box-shadow: 6px 0 20px rgba(0, 0, 0, 0.12);
   }
   /* スクロールバー: 細い角丸のつまみだけを見せ、通り道は透明にする。乗せると太く濃くなる。
      Chrome・Edge・Safari は ::-webkit-scrollbar で形を作る（scrollbar-width / scrollbar-color を指定すると
@@ -235,8 +237,7 @@
   .canvas > .stage[hidden], .side-pane[hidden] { display: none; }
   #stage.dropping { outline: 2px dashed var(--accent); outline-offset: -8px; }
   @media (max-width: 640px) {
-    main { flex-direction: column-reverse; }
-    #sidebar { width: auto; max-height: 40vh; border-right: 0; border-top: 1px solid var(--bar-border); }
+    #sidebar { top: auto; right: 0; width: auto; max-height: 40vh; border-right: 0; border-top: 1px solid var(--bar-border); box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.12); }
   }
 </style>
 </head>

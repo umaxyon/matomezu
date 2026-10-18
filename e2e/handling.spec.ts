@@ -140,7 +140,8 @@ test("追加モードでポインタを図の上の外（タブの列の上）�
   await page.waitForTimeout(400);
   const mid = await stage.evaluate(el => el.scrollTop);
   expect(mid).toBeLessThan(start);
-  await page.mouse.move(view.x - 150, view.y + 100, { steps: 5 }); // 図から離れる（サイドバーの上）
+  const side = (await page.locator("#sidebar").boundingBox())!;
+  await page.mouse.move(side.x + side.width / 2, view.y + 100, { steps: 5 }); // 図から離れる（図にかぶせたサイドバーの上。E22）
   const stopped = await stage.evaluate(el => el.scrollTop);
   await page.waitForTimeout(300);
   expect(await stage.evaluate(el => el.scrollTop)).toBe(stopped);

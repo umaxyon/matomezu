@@ -389,7 +389,7 @@ test("マスターの追加削除: 一覧の行を窓へ落とすと、そのブ
   await switchTo(page, "p.json");
   await expect(page.locator(".mz-toast", { hasText: "郵便箱にアイテムが届いています" })).toBeVisible();
   await page.locator("#mail-toggle").click();
-  await page.locator("#mailbox .mz-mail-row", { hasText: "バックエンド" }).dragTo(page.locator(".stage:visible"), { targetPosition: { x: 200, y: 400 } });
+  await page.locator("#mailbox .mz-mail-row", { hasText: "バックエンド" }).dragTo(page.locator(".stage:visible"), { targetPosition: { x: 600, y: 400 } }); // 郵便箱は図にかぶせるドロワーなので、その右へ落とす（E22）
   await expect.poll(() => JSON.parse(readFileSync(join(dir, "p.json"), "utf8")).nodes.length).toBe(9);
   const out = JSON.parse(readFileSync(join(dir, "p.json"), "utf8"));
   expect(out.nodes.slice(-5).map((n: { id: number; parent?: number }) => [n.id, n.parent ?? null]))
