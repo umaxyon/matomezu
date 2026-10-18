@@ -58,7 +58,7 @@
  *       { "id": 1, "caption": "グループ", "color": "#3b82f6", "childView": "list" },
  *       { "id": 2, "caption": "A", "parent": 1, "size": "M" },
  *       { "id": 3, "caption": "B", "color": "#ef4444", "x": 300, "y": 80,
- *         "width": 120, "height": 64, "fill": false, "border": true, "overflow": "clip" }
+ *         "width": 120, "height": 64, "fixedWidth": true, "fill": false, "border": true, "overflow": "clip" }
  *     ],
  *     "edges": [
  *       { "id": "e1", "from": 1, "to": 3, "arrow": "end" }   // [1, 3] の形でも読める
@@ -82,7 +82,8 @@
  *       "L" … 幅は文字に合わせて 120〜400。越えると折り返す
  *       "M" … 既定。幅は文字に合わせて 120〜240。越えると折り返す
  *       "S" … 小さい文字。幅は 64〜96、高さは固定。10 文字まで（超えると … で切る）
- *     段はふつうの形のローカルなルールで、値は size-rules.ts の STEPS（D44。大きさを測る所は層を当てた決まり sizeRuleOf を読む）。width を書けば、その幅で折り返す。
+ *     段はふつうの形のローカルなルールで、値は size-rules.ts の STEPS（D44。大きさを測る所は層を当てた決まり sizeRuleOf を読む）。
+ *   - width, height は箱の今の大きさ（toJSON が全部の箱に書く。D44）。fixedWidth / fixedHeight が true のときだけ、その値が大きさの指定（その幅で折り返す）。
  *     サイズが効くのは見た目が葉の箱（子の無い箱、ツリーの親の本体、非表示）だけ。内包・リストの箱では使わない（docs/SIZE-plan.md）。
  *   - 箱の childView は子の見せ方（内包パターンの持ち物）: "nest"（内包、既定）/ "hidden"（非表示、▼ で子がいることを示す）/
  *     "list"（リスト。子を縦に並べて幅をそろえる。子のサイズ・形は使わない。docs/LIST-plan.md）。
