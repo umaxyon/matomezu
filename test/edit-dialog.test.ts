@@ -136,7 +136,7 @@ test("子のサイズをそろえるボタンは、そろえられる子が 2 �
   const { g, dlg, openDlg, dlgClick, ok, notices } = setup({
     nodes: [
       { id: 1, caption: "枠", x: 40, y: 40 },
-      { id: 2, parent: 1, x: 12, y: 30, width: 300 }, { id: 3, parent: 1, x: 12, y: 110 },
+      { id: 2, parent: 1, x: 12, y: 30, width: 300, fixedWidth: true }, { id: 3, parent: 1, x: 12, y: 110 },
       { id: 4, x: 600, y: 40 }, { id: 5, parent: 4 },
     ],
   });
@@ -287,10 +287,10 @@ test("形を選ぶ絵の並び: どの箱でも全部の形を並べ、名前は
 });
 
 test("サイズを書くと、今と同じサイズでも大きさの指定を外す", () => {
-  const { g } = setup({ nodes: [{ id: 1, x: 40, y: 40, width: 312 }] });
+  const { g } = setup({ nodes: [{ id: 1, x: 40, y: 40, width: 312, fixedWidth: true }] });
   g.update(1, { size: "M" });
   expect(box(g, 1).w).toBe(120);
-  expect("width" in g.toJSON().nodes[0]!).toBe(false);
+  expect("fixedWidth" in g.toJSON().nodes[0]!).toBe(false);
   g.update(1, { size: "S" });
   expect(box(g, 1).size).toBe("S");
 });

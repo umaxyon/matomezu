@@ -124,7 +124,7 @@ describe("場面ごとの操作列", () => {
         { id: 1, caption: "左", x: 40, y: 40 },
         { id: 2, caption: "右端（つながる）", x: 900, y: 40 },
         { id: 3, caption: "右端（つながらない）", x: 950, y: 200 },
-        { id: 4, caption: "左から大きい", x: 300, y: 300, width: 800 },
+        { id: 4, caption: "左から大きい", x: 300, y: 300, width: 800, fixedWidth: true },
       ],
       edges: [[1, 2]],
     };
@@ -187,7 +187,7 @@ describe("場面の表の行のうち、テストが無かったもの", () => {
     Object.defineProperty(proto, "clientWidth", { configurable: true, get: () => 700 });
     try {
       const { graph } = setup({
-        nodes: [1, 2, 3, 4].map(id => ({ id, caption: `箱 ${id}`, width: 600, height: 400 })),
+        nodes: [1, 2, 3, 4].map(id => ({ id, caption: `箱 ${id}`, width: 600, fixedWidth: true, height: 400, fixedHeight: true })),
       }, paper);
       const r = [1, 2, 3, 4].map(id => graph.info(id));
       for (const a of r) for (const b of r) {

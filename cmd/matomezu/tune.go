@@ -448,6 +448,16 @@ func applySets(b []byte, page string, sets []string) ([]byte, []string, error) {
 		} else {
 			o.set(key, v)
 		}
+		// 箱の width・height は今の大きさ（画面が計算する結果）なので、書くことは「その大きさに固定する」意味しか持たない。
+		// 固定の印も付ける（消せば固定を外す。画面が計算し直して書く）（D44 の段階 3。docs/BOX-SIZE-plan.md の 6.2 の 3。2026-10-18 ユーザー）
+		_, isBox := index[target]
+		if fixed, ok := map[string]string{"width": "fixedWidth", "height": "fixedHeight"}[key]; ok && isBox && target != "world" {
+			if value(key, val) == nil {
+				o.del(fixed)
+			} else {
+				o.set(fixed, json.RawMessage("true"))
+			}
+		}
 	}
 	var moved []string
 	for id, from := range before {

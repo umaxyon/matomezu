@@ -234,7 +234,7 @@ describe("文字の箱が育つと、同じ段の隣を同じ向きに押し、�
   test("左の大きい隣とは重ならず、縮めば元の位置に戻る", () => {
     // 左上を保って右と下へ広がるので、左の大きい隣にはぶつからない
     const { graph } = setup({
-      nodes: [{ id: 1, caption: "大きい相手", x: 40, y: 100, width: 250, height: 200 }, { id: 2, caption: "箱", x: 300, y: 150 }],
+      nodes: [{ id: 1, caption: "大きい相手", x: 40, y: 100, width: 250, fixedWidth: true, height: 200, fixedHeight: true }, { id: 2, caption: "箱", x: 300, y: 150 }],
     });
     const before = rect(graph, 2);
     graph.update(2, { caption: LONG });
@@ -245,7 +245,7 @@ describe("文字の箱が育つと、同じ段の隣を同じ向きに押し、�
 
   test("線でつながった大きい隣は、線の間隔（linkGap）を残して右へ押し、文字を戻すと両方とも元の位置に戻る", () => {
     const { graph } = setup({
-      nodes: [{ id: 1, caption: "ユーザー", x: 200, y: 100 }, { id: 2, caption: "大きい相手", x: 350, y: 60, width: 400, height: 200 }],
+      nodes: [{ id: 1, caption: "ユーザー", x: 200, y: 100 }, { id: 2, caption: "大きい相手", x: 350, y: 60, width: 400, fixedWidth: true, height: 200, fixedHeight: true }],
       edges: [[1, 2]],
     });
     const user = rect(graph, 1), big = rect(graph, 2);
@@ -266,9 +266,10 @@ describe("文字の箱が育つと、同じ段の隣を同じ向きに押し、�
     expect([rect(graph, 2), rect(graph, 3)]).toEqual([after, front]);
   });
 
-  test("ファイルには幅を書かない", () => {
+  test("ファイルには固定の印を書かない（width は今の大きさ。D44 の段階 3）", () => {
     const { graph } = setup(sample());
     graph.update(2, { caption: LONG });
-    expect("width" in graph.toJSON().nodes.find(n => n.id === 2)!).toBe(false);
+    const n = graph.toJSON().nodes.find(n => n.id === 2)!;
+    expect(["fixedWidth" in n, n.width]).toEqual([false, graph.info(2).w]);
   });
 });

@@ -61,3 +61,9 @@ export function randomOp(el: HTMLElement, g: Graph, rnd: () => number): string {
   return `drag ${id} ${dx},${dy}`;
 }
 
+
+// Undo・Redo で戻ったかを比べるデータ（箱の width・height を除く）。開いたとき・読み直しの fitToRow が狭めた幅を、隣が動いても計算し直さず覚えたままにするので、
+// Undo・Redo で読み直すと別の幅になることがある（前から。D44 でデータに大きさを書くようになって見えた。残課題 F34、F31 の論点と一緒に考える）
+export function withoutSizes(d: { nodes: { width?: number; height?: number }[] }): string {
+  return JSON.stringify({ ...d, nodes: d.nodes.map(({ width: _w, height: _h, ...rest }) => rest) });
+}

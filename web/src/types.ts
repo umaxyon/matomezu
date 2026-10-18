@@ -54,8 +54,12 @@ export interface BoxData {
   parent?: Id;
   x?: number;
   y?: number;
+  // 今の大きさ（画面が計算した結果。全部の箱が持つ。テーマと無関係。D44 の段階 3。docs/BOX-SIZE-plan.md の 6.2）。
+  // 固定（fixedWidth・fixedHeight）の箱だけ、この値がその大きさの指定になる
   width?: number;
   height?: number;
+  fixedWidth?: boolean;  // 幅を固定する（無ければ中身に合わせる）。効くのは子の無い箱とリスト（D7）
+  fixedHeight?: boolean; // 高さを固定する（無ければ中身に合わせる）。効くのは子の無い箱
   color?: string;
   theme?: string;      // テーマ（theme.ts）。この箱と子孫に効く。無ければ親を受け継ぐ
   size?: Size;

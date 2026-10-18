@@ -149,12 +149,13 @@ export const other = (e: Edge, n: Box) => (e.a === n ? e.b : e.a);
 
 // 大きさの指定（width, height）を付ける。0 なら外す（中身に合わせた大きさに戻る）
 export function setSpec(n: Box, dim: "w" | "h", value: number) {
+  // 固定の大きさを書く（0 なら固定を外して中身に合わせる。width・height は画面が計算した今の大きさとして toJSON が書く。D44 の段階 3）
   if (dim === "w") {
     n.specW = value;
-    if (value) n.src.width = value; else delete n.src.width;
+    if (value) { n.src.width = value; n.src.fixedWidth = true; } else delete n.src.fixedWidth;
   } else {
     n.specH = value;
-    if (value) n.src.height = value; else delete n.src.height;
+    if (value) { n.src.height = value; n.src.fixedHeight = true; } else delete n.src.fixedHeight;
   }
 }
 

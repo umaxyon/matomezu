@@ -59,7 +59,7 @@ test("リストの幅のつまみ: 右へ広げると width に書き、1 件の
   expect([b.x, b.y]).not.toEqual([330, 40]);
   expect(changes() - c0).toBe(1);
   graph.undo();
-  expect(src(graph, 1).width).toBeUndefined();
+  expect(src(graph, 1).fixedWidth).toBeUndefined();
   expect(graph.info(1).w).toBe(w0);
 });
 
@@ -96,7 +96,7 @@ test("つまみは選択モードのときだけ効く（ほかのモードで�
   fire("pointermove", 200);
   fire("pointerup", 200);
   graph.setMode("move");
-  expect(src(graph, 1).width).toBeUndefined();
+  expect(src(graph, 1).fixedWidth).toBeUndefined();
 });
 
 test("付箋紙でも、リストの幅のつまみは動かした分だけ変わり、その幅を width に書く。テーマを戻しても幅は変わらない（テーマは余白を持たない。D44）", () => {

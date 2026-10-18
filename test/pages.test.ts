@@ -43,6 +43,8 @@ const book = (): Diagram => ({
 
 const drawn = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>(".mz-node")].map(n => n.dataset.id).sort();
 const node = (d: Diagram, id: number) => d.nodes.find(n => n.id === id)!;
+// 描いたページの箱には、保存のときに今の大きさ（width・height）が入る（D44 の段階 3）。中身が変わっていないかは、大きさを除いて比べる
+const noSize = (nodes: Diagram["nodes"]) => nodes.map(({ width: _w, height: _h, ...rest }) => rest);
 const edgeIds = (d: Diagram) => (d.edges as EdgeData[]).map(e => e.id);
 
 test("ページの関数: 箱の載っているページ（最上位の祖先の page）、ページの中身、子孫、ページの名前", () => {
@@ -63,7 +65,8 @@ test("最初のページでは、ほかのページの箱を描かない。保�
   expect(graph.page()).toBeNull();
   expect(drawn(el)).toEqual(["1", "2", "6"]);
   const out = graph.toJSON();
-  expect(out.nodes).toEqual(book().nodes as BoxData[]);
+  expect(noSize(out.nodes)).toEqual(noSize(book().nodes) as BoxData[]);
+  for (const id of [3, 4, 5]) expect(node(out, id)).toEqual(node(book(), id)); // 描いていないページの箱は、大きさも含めてそのまま
   expect(out.pages).toEqual(book().pages);
   expect(edgeIds(out)).toEqual(["e1", "e2"]);
 });
@@ -76,7 +79,7 @@ test("ページを描くと、そのページの箱が最上位に並び、ワ�
   expect(graph.info(null).children.map(c => c.id)).toEqual(["3", "4"]);
   const w = graph.info(null);
   expect(w.kind === "world" && w.background).toBe("#101010");
-  expect(graph.toJSON().nodes).toEqual(book().nodes as BoxData[]);
+  expect(noSize(graph.toJSON().nodes)).toEqual(noSize(book().nodes) as BoxData[]);
 });
 
 test("ページの中で動かしても、ほかのページの箱と線は変わらない", () => {
@@ -85,7 +88,7 @@ test("ページの中で動かしても、ほかのページの箱と線は変�
   dragBy(el, graph, 3, 0, 200);
   const out = graph.toJSON();
   expect(node(out, 3).y).toBeGreaterThan(20);
-  for (const id of [1, 2, 6]) expect(node(out, id)).toEqual(node(book(), id));
+  for (const id of [1, 2, 6]) expect(noSize([node(out, id)])).toEqual(noSize([node(book(), id)]));
   expect(edgeIds(out)).toEqual(["e1", "e2"]);
 });
 

@@ -160,7 +160,7 @@ export const BOOK_WORLD_ONLY: readonly (keyof WorldData)[] = ["title", "madeBy"]
 export const PAGE_FIELDS = { id: ID, title: STR, world: OBJ } as const satisfies Record<keyof Required<PageData>, Rule>;
 export const BOX_FIELDS = {
   id: ID, caption: STR, body: STR, bodyWidth: POS, bodyRule: BOOL, bodyLines: POS_INT, userAdded: BOOL,
-  parent: ID, x: NUM, y: NUM, width: POS, height: POS, color: STR, theme: THEME,
+  parent: ID, x: NUM, y: NUM, width: POS, height: POS, fixedWidth: BOOL, fixedHeight: BOOL, color: STR, theme: THEME,
   size: oneOf(SIZE_NAMES), shape: oneOf(SHAPES), childView: BOX_VIEW, fill: BOOL, border: BOOL, overflow: oneOf(OVERFLOWS),
   page: ID, book: TEXT, link: ID, linkLook: oneOf(LINK_LOOKS), clip: RECT,
   previewSide: oneOf(PREVIEW_SIDES), rowSize: oneOf(SIZE_NAMES), listHeight: POS,

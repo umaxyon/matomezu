@@ -307,7 +307,7 @@ test("見せ方を変えて大きくなったら、重なる相手を同じ向�
 
 test("ワールドの高さが指定されていなければ、下へ広がる", () => {
   const { graph } = setup({
-    nodes: [{ id: 1, x: 40, y: 600, height: 64 }, { id: 2, x: 40, y: 680 }],
+    nodes: [{ id: 1, x: 40, y: 600, height: 64, fixedHeight: true }, { id: 2, x: 40, y: 680 }],
   });
   graph.update(1, { overflow: "clip" }); // 何か変更して、配置し直させる
   graph.update(1, { caption: "とても長いキャプションが入って高さが伸びるボックス".repeat(4), overflow: "wrap" });
@@ -701,7 +701,7 @@ describe("子の大きさをそろえる", () => {
     const { graph } = setup({
       nodes: [
         { id: 1, x: 40, y: 40 },
-        { id: 2, caption: "短い", parent: 1, width: 300 },
+        { id: 2, caption: "短い", parent: 1, width: 300, fixedWidth: true },
         { id: 3, caption: "とても長いキャプションの入ったボックス", parent: 1 },
       ],
     });
@@ -717,7 +717,7 @@ describe("子の大きさをそろえる", () => {
       { id: 1, caption: "バックエンド", x: 40, y: 40 },
       { id: 2, caption: "API", parent: 1, x: 12, y: 30 },
       { id: 21, caption: "認証", parent: 2 }, { id: 22, caption: "注文", parent: 2 },
-      { id: 3, caption: "データ", parent: 1, x: 12, y: 200, width: 400 },
+      { id: 3, caption: "データ", parent: 1, x: 12, y: 200, width: 400, fixedWidth: true },
       { id: 31, caption: "DB", parent: 3 },
       { id: 4, caption: "小", parent: 1, x: 500, y: 30, size: "S" },
     ],
@@ -733,8 +733,8 @@ describe("子の大きさをそろえる", () => {
     // API は中の 2 つを詰め直して（縦に並べて）144 にそろう
     expect([graph.info(2).w, graph.info(3).w]).toEqual([144, 144]);
     expect(graph.info(4).w).toBe(s);
-    expect(byId(graph.toJSON(), 2).width).toBeUndefined(); // 子を持つ箱には大きさを指定しない
-    expect(byId(graph.toJSON(), 3).width).toBeUndefined();
+    expect([byId(graph.toJSON(), 2).width, byId(graph.toJSON(), 2).fixedWidth]).toEqual([144, undefined]); // 子を持つ箱は固定しない（width は今の大きさ）
+    expect(byId(graph.toJSON(), 3).fixedWidth).toBeUndefined();
     expect(notices.at(-1)).toBe("子 2 個の幅をそろえました");
   });
 
@@ -762,7 +762,7 @@ test("左から始まる大きなボックスが少しはみ出しただけな�
   const { graph } = setup({
     nodes: [
       { id: 1, caption: "ユーザー", x: 40, y: 140 },
-      { id: 2, caption: "大きな枠", x: 220, y: 100, width: 780 }, // 右端 1000 が、表示領域（1000 - 余白）を少し越える
+      { id: 2, caption: "大きな枠", x: 220, y: 100, width: 780, fixedWidth: true }, // 右端 1000 が、表示領域（1000 - 余白）を少し越える
       { id: 3, caption: "中", parent: 2 },
     ],
     edges: [[1, 2]],
@@ -773,7 +773,7 @@ test("左から始まる大きなボックスが少しはみ出しただけな�
 describe("子を持つ箱は、大きさの指定と中身の扱いを使わず子に合わせる（docs/SIZE-plan.md）", () => {
   const data = (): Diagram => ({
     nodes: [
-      { id: 1, caption: "API", x: 40, y: 40, width: 400, height: 150, overflow: "wrap" }, // 指定は無視する
+      { id: 1, caption: "API", x: 40, y: 40, width: 400, fixedWidth: true, height: 150, fixedHeight: true, overflow: "wrap" }, // 指定は無視する
       { id: 2, caption: "認証", parent: 1, x: 12, y: 30 },
       { id: 3, caption: "注文", parent: 1, x: 260, y: 30 },
     ],
@@ -795,7 +795,8 @@ describe("子を持つ箱は、大きさの指定と中身の扱いを使わず�
     expect(graph.info(1).overflow).toBe("grow");
     expect(graph.info(1).overflows).toEqual([]);
     const out = byId(graph.toJSON(), 1);
-    expect([out.width, out.height, out.overflow]).toEqual([400, 150, "wrap"]);
+    // width・height は今の大きさ（D44 の段階 3）。固定の印と overflow は使わないが残す
+    expect([out.width, out.height, out.fixedWidth, out.fixedHeight, out.overflow]).toEqual([392, 106, true, true, "wrap"]);
   });
 
   test("子を内側へ動かすと縮み、外へ動かすと広がる。Undo で戻る", () => {
@@ -838,11 +839,11 @@ test("子の大きさをそろえる: 縮められない子があっても、ほ
 });
 
 test("サイズを選ぶと、付いていた大きさの指定を外して中身に合わせた大きさに戻る", () => {
-  const { graph } = setup({ nodes: [{ id: 1, caption: "トップ画面", x: 40, y: 40, width: 312, height: 90 }] });
+  const { graph } = setup({ nodes: [{ id: 1, caption: "トップ画面", x: 40, y: 40, width: 312, fixedWidth: true, height: 90, fixedHeight: true }] });
   expect(graph.info(1).w).toBe(312);
   graph.update(1, { size: "M" }); // 今と同じサイズでも戻す
   const out = byId(graph.toJSON(), 1);
-  expect(["width" in out, "height" in out]).toEqual([false, false]);
+  expect(["fixedWidth" in out, "fixedHeight" in out]).toEqual([false, false]); // 固定を外す（width・height は今の大きさ）
   expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]);
   graph.undo();
   expect(graph.info(1).w).toBe(312);
@@ -896,7 +897,7 @@ test("見せ方を変えて広がったボックスが大きい隣にぶつか�
     nodes: [
       { id: 2, caption: "外部サービス", childView: "hidden", x: 40, y: 40 },
       { id: 21, caption: "決済", parent: 2 }, { id: 22, caption: "メール配信", parent: 2 },
-      { id: 1, caption: "フロントエンド", x: 40, y: 150, width: 800, height: 300 }, // 真下の大きい隣
+      { id: 1, caption: "フロントエンド", x: 40, y: 150, width: 800, fixedWidth: true, height: 300, fixedHeight: true }, // 真下の大きい隣
     ],
   });
   const big = graph.info(1);
@@ -996,7 +997,7 @@ describe("サイズの段階", () => {
   });
 
   test("width の指定があれば、その幅で折り返す", () => {
-    const { graph } = setup({ nodes: [{ id: 1, caption: chars(60), width: 150 }] });
+    const { graph } = setup({ nodes: [{ id: 1, caption: chars(60), width: 150, fixedWidth: true }] });
     expect(graph.info(1).w).toBe(150);
   });
 
@@ -1005,7 +1006,7 @@ describe("サイズの段階", () => {
     const before = graph.info(1); // 幅 240 で折り返して高い
     graph.update(1, { overflow: "clip" });
     expect([graph.info(1).w, graph.info(1).h]).toEqual([before.w, 64]);
-    expect("width" in byId(graph.toJSON(), 1)).toBe(false);
+    expect("fixedWidth" in byId(graph.toJSON(), 1)).toBe(false);
     graph.update(1, { caption: "API" });
     expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]); // 中身に合わせて縮む
     graph.update(1, { caption: chars(20) });
@@ -1020,7 +1021,7 @@ describe("サイズの段階", () => {
     const { graph } = setup({
       nodes: [
         { id: 1, caption: "短い", size: "L", x: 40, y: 40 },
-        { id: 2, caption: "短い", size: "L", width: 200, x: 40, y: 300 },
+        { id: 2, caption: "短い", size: "L", width: 200, fixedWidth: true, x: 40, y: 300 },
       ],
     });
     graph.update(1, { overflow: "clip" });
@@ -1035,7 +1036,7 @@ describe("サイズの段階", () => {
     graph.update(1, { overflow: "clip" });
     graph.update(1, { overflow: "wrap" });
     const out = byId(graph.toJSON(), 1);
-    expect(["width" in out, "height" in out, "overflow" in out]).toEqual([false, false, false]);
+    expect(["fixedWidth" in out, "fixedHeight" in out, "overflow" in out]).toEqual([false, false, false]);
     graph.update(1, { caption: "API" }); // 文字を減らせば縮む
     expect([graph.info(1).w, graph.info(1).h]).toEqual([120, 64]);
   });
@@ -1181,7 +1182,7 @@ describe("線のつなぎ方", () => {
     });
     expect(pts(el)[1]![0]).toBe(280);
     const { el: el2 } = setup({
-      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }, { id: 3, x: 260, y: 80, width: 40 }],
+      nodes: [{ id: 1, x: 40, y: 40 }, { id: 2, x: 400, y: 120 }, { id: 3, x: 260, y: 80, width: 40, fixedWidth: true }],
       edges: [{ from: 1, to: 2, route: "elbow" }],
     });
     // 3 は 260〜300 × 80〜144。真ん中の 280 から外へ 4 ずつ探し、同じ距離なら右を先に試すので、縁に触れるだけの 300 になる

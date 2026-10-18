@@ -237,7 +237,7 @@ test("箱のダイアログ: 形がボックス以外か S のあいだは本文
   const n = g.toJSON().nodes[0]!;
   expect([n.body, n.size, n.theme]).toEqual(["本文", "L", "simple"]);
   g.undo();
-  expect(g.toJSON().nodes[0]).toEqual({ id: 1, caption: "A", x: 40, y: 40 });
+  expect(g.toJSON().nodes[0]).toEqual({ id: 1, caption: "A", x: 40, y: 40, width: 120, height: 64 }); // width・height は今の大きさ（D44 の段階 3）
 });
 
 test("内包している箱の編集ダイアログでは、形はボックスとクラスだけ選べ、サイズは選べない", async () => {

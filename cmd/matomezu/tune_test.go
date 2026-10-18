@@ -16,7 +16,7 @@ func TestApplySets(t *testing.T) {
 	want := `{
   "world": { "paper": "a3-landscape", "background": "#fff" },
   "nodes": [
-    { "id": 1, "caption": "A", "childView": "list", "width": 200 },
+    { "id": 1, "caption": "A", "childView": "list", "width": 200, "fixedWidth": true },
     { "id": 2, "caption": "B", "parent": 1, "size": "S", "fill": false }
   ],
   "edges": []
@@ -261,5 +261,24 @@ func TestApplySetsKeepsPatternAndBoxType(t *testing.T) {
 	out, _, err := applySets([]byte(in), "", []string{"2.link=p3", "world.title=題"})
 	if err != nil || !strings.Contains(string(out), `"link": "p3"`) {
 		t.Fatalf("retarget: %v\n%s", err, out)
+	}
+}
+
+// 箱の width・height は今の大きさ（画面が計算する）なので、set で書けば固定の印が付き、消せば印も外れる（D44 の段階 3）。world の width には付けない
+func TestSetSizeFixes(t *testing.T) {
+	in := `{"world":{},"nodes":[{"id":1,"caption":"A","width":120,"height":64}],"edges":[]}`
+	out, _, err := applySets([]byte(in), "", []string{"1.width=300", "1.height=80", "world.width=900"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := string(out); !strings.Contains(s, `"width": 300, "height": 80, "fixedWidth": true, "fixedHeight": true`) || strings.Contains(s, `"world": { "width": 900, "fixed`) {
+		t.Fatalf("fixed: %s", s)
+	}
+	out, _, err = applySets(out, "", []string{"1.width=", "1.fixedHeight=false"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := string(out); strings.Contains(s, "fixedWidth") || !strings.Contains(s, `"fixedHeight": false`) {
+		t.Fatalf("unfixed: %s", s)
 	}
 }

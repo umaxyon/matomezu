@@ -1639,8 +1639,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       id: String(src.id),
       parent: null,
       children: [],
-      specW: Number(src.width) || 0,
-      specH: Number(src.height) || 0,
+      // 固定の箱だけ、データの width・height が大きさの指定（ほかの箱の width・height は前に計算した結果。D44 の段階 3）
+      specW: src.fixedWidth ? Number(src.width) || 0 : 0,
+      specH: src.fixedHeight ? Number(src.height) || 0 : 0,
       x: Number(src.x) || 0,
       y: Number(src.y) || 0,
       w: 0, h: 0, hx: 0, hy: 0, hw: 0, hh: 0,
@@ -1884,8 +1885,14 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       const out: Diagram = JSON.parse(JSON.stringify(source));
       for (const src of out.nodes) {
         const n = byId.get(String(src.id));
-        // ほかのページの箱はそのまま。ツリーや非表示の子は自動配置なので、内包のときの位置を残す
-        if (!n || !inNest(n)) continue;
+        if (!n) continue; // ほかのページの箱はそのまま
+        // 今の大きさ（全部の箱。D44 の段階 3）。非表示の親の中の箱は文字を測れない（描かない）ので、前に計算した値のまま
+        if (!isHidden(n) && n.w > 0 && n.h > 0) {
+          src.width = Math.round(n.w);
+          src.height = Math.round(n.h);
+        }
+        // ツリーや非表示の子は自動配置なので、内包のときの位置を残す
+        if (!inNest(n)) continue;
         src.x = Math.round(n.x);
         src.y = Math.round(n.y);
       }

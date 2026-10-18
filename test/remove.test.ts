@@ -88,13 +88,13 @@ test("親が縮むと、押し下げていた下の箱は元の高さへ戻る",
 
 test("親の大きさは子の並びで決まり（大きさの指定は使わない）、子を消せば縮む", () => {
   const d = data();
-  d.nodes[0]!.width = 400;
-  d.nodes[0]!.height = 200;
+  Object.assign(d.nodes[0]!, { width: 400, height: 200, fixedWidth: true, fixedHeight: true });
   const { graph } = setup(d);
   expect(graph.info(1).w).toBe(272);
   graph.remove(3);
   expect(graph.info(1).w).toBe(144);
-  expect(graph.toJSON().nodes[0]!.width).toBe(400); // データは書き換えない（子を全部外して葉に戻れば効く）
+  // 固定の印は残す（子を全部外して葉に戻れば効く）。width は今の大きさ（D44 の段階 3）
+  expect([graph.toJSON().nodes[0]!.fixedWidth, graph.toJSON().nodes[0]!.width]).toEqual([true, 144]);
 });
 
 test("消したボックスの id は再利用しない", () => {

@@ -48,10 +48,10 @@ test("横に並んだ箱は横にだけ押す（右の箱は下へずれない�
 test("押し込んでも紙に収まらない（端から端まで詰まった列）なら断り、元のまま", () => {
   // 4 つの箱を、間隔の下限で紙の幅いっぱいに並べる（幅の指定で、土台の幅をそろえる）
   const width = Math.floor((A4.w - 2 * PAD - 3 * DEFAULTS.gap) / 4);
-  const w = setup({ nodes: [{ id: 1, caption: "箱", width, x: 40, y: 40 }] }).info(1).w;
+  const w = setup({ nodes: [{ id: 1, caption: "箱", width, fixedWidth: true, x: 40, y: 40 }] }).info(1).w;
   graph!.destroy();
   expect(A4.w - 2 * PAD - (4 * w + 3 * DEFAULTS.gap)).toBeLessThan(20); // 1 つの箱が 20px 広がると入らない
-  setup({ nodes: Array.from({ length: 4 }, (_, i) => ({ id: i + 1, caption: "箱", width, x: PAD + i * (w + DEFAULTS.gap), y: 40 })) });
+  setup({ nodes: Array.from({ length: 4 }, (_, i) => ({ id: i + 1, caption: "箱", width, fixedWidth: true, x: PAD + i * (w + DEFAULTS.gap), y: 40 })) });
   const before = graph!.toJSON();
   graph!.update(2, { width: width + 20 });
   expect(graph!.toJSON()).toEqual(before);
@@ -99,9 +99,9 @@ test("育った箱を元に戻すと、元の大きさに戻り、起点（左�
 
 test("断った設定変更の原因は、1 つずつ当てて確かめた項目（大きさに関わらない色は入らない）。確かめたあとも断ったあとの状態のまま", () => {
   const width = Math.floor((A4.w - 2 * PAD - 3 * DEFAULTS.gap) / 4);
-  const w = setup({ nodes: [{ id: 1, caption: "箱", width, x: 40, y: 40 }] }).info(1).w;
+  const w = setup({ nodes: [{ id: 1, caption: "箱", width, fixedWidth: true, x: 40, y: 40 }] }).info(1).w;
   graph!.destroy();
-  setup({ nodes: Array.from({ length: 4 }, (_, i) => ({ id: i + 1, caption: "箱", width, x: PAD + i * (w + DEFAULTS.gap), y: 40 })) });
+  setup({ nodes: Array.from({ length: 4 }, (_, i) => ({ id: i + 1, caption: "箱", width, fixedWidth: true, x: PAD + i * (w + DEFAULTS.gap), y: 40 })) });
   const slack = A4.w - 2 * PAD - (4 * w + 3 * DEFAULTS.gap);
   expect(slack).toBeLessThan(20); // 1 つの箱が 20px 広がるだけで入らない
   const before = graph!.toJSON();
@@ -172,7 +172,7 @@ test("グループの中で育った子が左の余裕へ詰めたら、元の�
 
 test("本文の幅のつまみは、紙に収まる幅で止まる（列に余裕が無ければ、それ以上は広げない）", () => {
   // 本文の箱（160）と右の箱で、紙の幅いっぱい
-  setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: PAD, y: 40 }, { id: 2, caption: "右の箱", width: A4.w - 2 * PAD - 160 - DEFAULTS.gap, x: PAD + 160 + DEFAULTS.gap, y: 40 }] });
+  setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: PAD, y: 40 }, { id: 2, caption: "右の箱", width: A4.w - 2 * PAD - 160 - DEFAULTS.gap, fixedWidth: true, x: PAD + 160 + DEFAULTS.gap, y: 40 }] });
   const at2 = [info(2).x, info(2).w];
   graph!.select(1);
   const grip = document.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head > .mz-body-grip')!;
@@ -187,7 +187,7 @@ test("本文の幅のつまみは、紙に収まる幅で止まる（列に余�
 
 test("本文の幅のつまみで広げたとき、左に余裕があれば、箱ごと左の余裕へ寄って収まる（4.6 の 4。手触りは画面で確かめる）", () => {
   const right = A4.w - PAD - 120;
-  setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: right - 8 - 160, y: 40 }, { id: 2, caption: "右の箱", width: 120, x: right, y: 40 }] });
+  setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: right - 8 - 160, y: 40 }, { id: 2, caption: "右の箱", width: 120, fixedWidth: true, x: right, y: 40 }] });
   graph!.select(1);
   const grip = document.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head > .mz-body-grip')!;
   const fire = (type: string, x: number) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
@@ -279,7 +279,7 @@ test("追加で押した所がふさがっていても、グループの中に�
 test("追加で、右にも下にも紙に収まらなければ足さない", () => {
   // 紙の右下いっぱいのグループ（子 1 つ）。右も下も紙の端
   const w = A4.w - 2 * PAD, h = A4.h - 2 * PAD;
-  setup({ nodes: [{ id: 1, caption: "グループ", x: PAD, y: PAD }, { id: 2, caption: "子", parent: 1, width: w - 24, height: h - 42, x: 12, y: 30 }] });
+  setup({ nodes: [{ id: 1, caption: "グループ", x: PAD, y: PAD }, { id: 2, caption: "子", parent: 1, width: w - 24, fixedWidth: true, height: h - 42, fixedHeight: true, x: 12, y: 30 }] });
   const before = graph!.toJSON();
   expect(graph!.add({ parentId: "1", at: { x: 20, y: 40 } }, { caption: "足した" })).toBe("");
   expect(graph!.toJSON()).toEqual(before);

@@ -55,7 +55,7 @@ function grab(el: HTMLElement, graph: Graph, id: number) {
 }
 
 // 文字の箱（fakeMeasure で 120×64。width を書けばその幅）
-const box = (id: number, x: number, y: number, width?: number) => ({ id, caption: `b${id}`, x, y, ...(width ? { width } : {}) });
+const box = (id: number, x: number, y: number, width?: number) => ({ id, caption: `b${id}`, x, y, ...(width ? { width, fixedWidth: true } : {}) });
 
 test("相手の大きさの半分まで食い込んだら入れ替わり、そのまま通り過ぎても入れ替わったまま。戻れば元に戻る", () => {
   // 2 は高さ 64 なので、1 の下端が 2 の上端 120 から 32 食い込んだ（1 の y が 88 を超えた）ら入れ替わる

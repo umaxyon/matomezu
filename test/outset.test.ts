@@ -114,7 +114,7 @@ test("リストの子も、テーマを変えても幅も高さも変わらな�
     nodes: [
       { id: 1, caption: "一覧", childView: "list", x: 40, y: 40 },
       { id: 2, caption: long, parent: 1 }, { id: 3, caption: "短い", parent: 1 },
-      { id: 4, caption: "幅の指定", childView: "list", width: 200, x: 400, y: 40 },
+      { id: 4, caption: "幅の指定", childView: "list", width: 200, fixedWidth: true, x: 400, y: 40 },
       { id: 5, caption: long, parent: 4 },
     ],
   }, { measureText: paddedMeasure });

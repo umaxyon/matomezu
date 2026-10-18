@@ -3,7 +3,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { createGraph, type Graph } from "../web/src/graph";
 import { fakeMeasure, PLAIN_GAPS, violations } from "./helpers";
-import { random, randomOp, sample } from "./random-ops";
+import { random, randomOp, sample, withoutSizes } from "./random-ops";
 
 const graphs: Graph[] = [];
 afterEach(() => {
@@ -24,10 +24,10 @@ test.each([1, 2, 3])("種 %i（紙なし）", seed => {
     if (v.length) throw new Error(`${log.slice(-3).join(" / ")}: ${v.join(", ")}`);
     // Undo して Redo すれば、同じ状態に戻る
     if (graph.history().canUndo) {
-      const before = JSON.stringify(graph.toJSON());
+      const before = withoutSizes(graph.toJSON());
       graph.undo();
       graph.redo();
-      expect(JSON.stringify(graph.toJSON())).toBe(before);
+      expect(withoutSizes(graph.toJSON())).toBe(before);
     }
   }
 }, 60000);

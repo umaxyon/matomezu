@@ -55,22 +55,23 @@ test("リストの幅の指定（width）があれば、L の最大を超えて�
   const d = (extra = {}): Diagram => ({ nodes: [{ id: 1, childView: "list", x: 40, y: 40, ...extra }, { id: 2, caption: long, parent: 1, size: "L" }] });
   const auto = setup(d()).graph;
   expect(auto.info(2).w).toBe(SIZES.M.maxW); // 指定が無ければ、葉の子は普通の大きさの最大で折り返す（リストの子は箱のサイズを使わない。D13）
-  const { graph } = setup(d({ width: 1400 }));
+  const { graph } = setup(d({ width: 1400, fixedWidth: true }));
   expect([graph.info(1).w, graph.info(2).w]).toEqual([1400, 1400 - 24]);
   expect(graph.info(2).h).toBeLessThan(auto.info(2).h); // 広い幅で折り返すので低くなる
   graph.update(1, { width: null });
   expect(graph.info(1).w).toBe(auto.info(1).w);
-  expect(graph.toJSON().nodes[0]!.width).toBeUndefined();
+  expect(graph.toJSON().nodes[0]!.fixedWidth).toBeUndefined(); // 固定を外す（width は今の大きさ）
   graph.update(1, { width: 700 });
   expect([graph.info(1).w, graph.toJSON().nodes[0]!.width]).toEqual([700, 700]);
 });
 
 test("リストの幅の指定は、子を持つ子の幅より狭くできない。葉の子は狭めた幅で折り返す", () => {
-  const { graph } = setup(data({ width: 60 }));
+  const { graph } = setup(data({ width: 60, fixedWidth: true }));
   expect(graph.info(1).w).toBe(graph.info(4).w + 24); // 子を持つ子（ツリー）の幅が下限
   expect(graph.info(1).w).toBeLessThan(setup(data()).graph.info(1).w);
   expect(graph.info(3).w).toBe(graph.info(1).w - 24); // 葉の子は狭めた幅にそろい、その幅で折り返す
-  expect(graph.toJSON().nodes[0]!.width).toBe(60);    // データはそのまま
+  // 固定の求め（60）はルールの範囲に収めた大きさで書く（大きさは JSON よりルールが上。D44）。固定の印は残る
+  expect([graph.toJSON().nodes[0]!.fixedWidth, graph.toJSON().nodes[0]!.width]).toEqual([true, graph.info(1).w]);
 });
 
 test("リストの子は形を使わず（データはそのまま）、子を持つ子も子の見せ方のデータは変えずに縮図で見せる（D13）", () => {
