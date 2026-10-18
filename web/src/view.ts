@@ -66,7 +66,7 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
       graph.startAdd(key as Shape, toolSize);
     }
     showTools(graph.info(graph.selected())); // 追加モードのまま別の道具に替えたとき（モードの知らせは来ない）
-  });
+  }, () => graph.view().inset ?? 0);
   panel = createPanel(sidebar, graph);
   graph.onDataChange(() => showTools(graph.info(graph.selected())));
   graph.onModeChange(m => { if (m !== "add") picked = null; showTools(graph.info(graph.selected())); });

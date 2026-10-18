@@ -312,3 +312,31 @@ test("リストのスクロール: ダイアログで入れると今の高さが
   await page.keyboard.press("Control+z");
   expect((await rect(page, 1)).h).toBe(full);
 });
+
+test("サイドバーは図にかぶせるドロワー（幅 340px）: 開いても図の枠と図の位置は変わらず、左の余白がその幅だけ広がって図をドロワーの右へ出せる。道具箱はドロワーの右。閉じれば余白は戻る（E22）", async ({ page }) => {
+  const stage = page.locator("#stage"), world = page.locator("#stage .mz-world");
+  const frame0 = (await stage.boundingBox())!, w0 = (await world.boundingBox())!;
+  const scrollW0 = await stage.evaluate(el => el.scrollWidth);
+  // ふだんの余白: 一番左までスクロールしたときの図の左上（見たあと元の位置に戻す）
+  const left0 = await stage.evaluate(el => el.scrollLeft);
+  await stage.evaluate(el => { el.scrollLeft = 0; });
+  const base = (await world.boundingBox())!.x;
+  await stage.evaluate((el, x) => { el.scrollLeft = x; }, left0);
+  await page.locator("#side-toggle").click();
+  const side = (await page.locator("#sidebar").boundingBox())!;
+  expect(side.width).toBe(340);
+  expect(await stage.boundingBox()).toEqual(frame0);
+  expect((await world.boundingBox())!.x).toBeCloseTo(w0.x, 0);
+  expect(await stage.evaluate(el => el.scrollWidth)).toBe(scrollW0 + 340);
+  // 一番左までスクロールすると、図の左上はドロワーの右（余白の分あけて）
+  await stage.evaluate(el => { el.scrollLeft = 0; });
+  expect((await world.boundingBox())!.x).toBeGreaterThanOrEqual(side.x + side.width + 40);
+  const tools = (await page.locator(".mz-toolbox").boundingBox())!;
+  expect(tools.x).toBeGreaterThanOrEqual(side.x + side.width);
+  // 閉じれば余白は戻る。広げた余白の中を見ていたので、図はふだんの余白の所へ寄る
+  await page.locator("#side-toggle").click();
+  await expect(page.locator("#sidebar")).toBeHidden();
+  await expect.poll(() => stage.evaluate(el => el.scrollWidth)).toBe(scrollW0);
+  expect((await world.boundingBox())!.x).toBeCloseTo(base, 0);
+  expect((await page.locator(".mz-toolbox").boundingBox())!.x).toBeLessThan(side.x + side.width);
+});

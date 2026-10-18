@@ -50,7 +50,8 @@ const GAP = 8; // 見えている範囲の縁との間
 const svgOf = (icon: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`;
 
 // container は図をスクロールする要素（道具入れはその中に置き、図と一緒にスクロールする）
-export function createToolbox(container: HTMLElement, onPick: (key: string, by: "pointer" | "key") => void): Toolbox {
+// inset は図の左にかぶせているドロワーの幅（E22）。道具箱はその右に置く
+export function createToolbox(container: HTMLElement, onPick: (key: string, by: "pointer" | "key") => void, inset: () => number = () => 0): Toolbox {
   injectStyle(STYLE_ID, CSS);
   const el = document.createElement("div");
   el.className = "mz-toolbox";
@@ -62,7 +63,7 @@ export function createToolbox(container: HTMLElement, onPick: (key: string, by: 
   const markPressed = () => { for (const b of el.querySelectorAll<HTMLElement>("button[data-tool]")) b.setAttribute("aria-pressed", String(b.dataset.tool === pressed)); };
   // 見えている範囲の左端の、上下の真ん中に置く（2026-10-14 ユーザー）
   const pin = () => {
-    el.style.left = container.scrollLeft + GAP + "px";
+    el.style.left = container.scrollLeft + inset() + GAP + "px";
     el.style.top = container.scrollTop + Math.max(GAP, (container.clientHeight - el.offsetHeight) / 2) + "px";
   };
   container.addEventListener("scroll", () => { if (!el.hidden) pin(); });

@@ -345,7 +345,10 @@ export interface Graph {
   zoom(): number;
   preview(): number | null;
   // 画面の見え方（D32）: 今の倍率、図の周りの余白、ワールドをずらす量（ox・oy）。スクロールの位置 = ずらす量 + ワールドの座標 × 倍率（viewport.ts）
-  view(): { zoom: number; margin: number; ox: number; oy: number };
+  view(): { zoom: number; margin: number; ox: number; oy: number; inset?: number };
+  // 図の左にかぶせているドロワー（郵便箱・追加削除。E22）の幅。開いている間は左の余白をその分広げ、図をドロワーの下から出せる。
+  // 変えても図は画面の上で動かない（スクロールの位置をずらす量に合わせる）
+  setInset(px: number): void;
   paper(): { name: PaperName; w: number; h: number } | null; // 今のページの紙（紙の制限を受けないページは null。D33）
   home(): void; // ワールドの左上を表示領域の左上に合わせる。紙が表示領域より小さい向きは真ん中に（開いたとき・ページを切り替えたとき。D32）
   contentSize(): { w: number; h: number }; // ボックスが占める範囲（ワールドの左上から、余白込み）
@@ -420,9 +423,21 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       return nodes.filter(n => !skip.has(n) && n.el.getClientRects().length).map(n => n.el);
     },
   });
+  let insetLeft = 0; // 図の左にかぶせているドロワーの幅（setInset。E22）
+  // 効いている幅。プレビューの間はドロワーを隠すので 0（入ったときの収まる倍率を、ドロワーの無い広さで決める）
+  const inset = () => (V.preview() != null ? 0 : insetLeft);
+  function setInset(px: number) {
+    if (px === insetLeft) return;
+    if (V.preview() != null) { insetLeft = px; return; }
+    const at = container.scrollLeft - L.offset().x; // 画面の上のワールドの位置を保つ
+    insetLeft = px;
+    L.syncWorld();
+    container.scrollLeft = at + L.offset().x;
+    container.dispatchEvent(new Event("scroll")); // 見えている範囲の左端に付く物（道具箱など）を置き直す（スクロールの位置が変わらないときも）
+  }
   // 画面の見え方（倍率・プレビュー・home・手のひら。graph-view.ts）
   const V = createView({
-    container, worldEl, world, margin: opt.margin, offset: () => L.offset(), syncWorld: () => L.syncWorld(), mode: () => mode,
+    container, worldEl, world, margin: opt.margin, inset, offset: () => L.offset(), syncWorld: () => L.syncWorld(), mode: () => mode,
     zoomed: () => { if (U.any()) setTimeout(U.check, 0); }, // 拡大縮小で見えた LLM の変更（D31）
     previewChanged: () => U.check(),
     pick(t) {
@@ -449,7 +464,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     return p ? { w: p.w, h: p.h } : { w: Number(world.src.width) || null, h: Number(world.src.height) || null };
   };
   const L = createLayout({
-    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => V.applied(), worldFixed, canvasSized: () => V.rehome(),
+    opt, world, worldEl, container, canvas: canvasEl, measurer, roots: () => roots, edges: () => edges, zoom: () => V.applied(), inset, worldFixed, canvasSized: () => V.rehome(),
     fitted: n => {
       const file = posKey(n.src);
       if (file && !fitted.has(n.id)) fitted.set(n.id, { file, x: Math.round(n.x), y: Math.round(n.y) });
@@ -2031,6 +2046,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     zoom: V.editZoom,
     preview: V.preview,
     view: V.view,
+    setInset,
     paper: paperOf,
     home: V.home,
     contentSize() {

@@ -331,6 +331,7 @@ export async function startApp(ui: AppUi) {
       }
       if (ui.side.open() === "boxes") b.panel.shown();
       if (ui.side.open() === "cross" && !b.master) ui.side.show(null); // ブックをまたぐ一覧はマスターのもの
+      b.graph.setInset(ui.side.inset()); // ドロワーを開いたまま移ってきた（E22）
       for (const f of bookOpened) f(b);
       // 見えるようにしてから前に出す（配置は見えている要素で文字を測る）
       b.sync.setActive(true);
@@ -509,6 +510,7 @@ export async function startApp(ui: AppUi) {
     if (current) (kind === "boxes" ? current.book.panel.shown() : current.book.panel.hidden());
     if (kind === "mail") mailbox.refresh(); // 開いたら読んだことにする
   });
+  ui.side.onInset(() => current?.book.graph.setInset(ui.side.inset())); // ドロワーの幅だけ、図の左の余白を広げる（E22）
 
   // マスター（D26 の段階 2。app-master.ts）
   const M = createMaster<Book>({
