@@ -10,8 +10,7 @@
     "test:quick": "bun test --parallel --path-ignore-patterns='test/layout-random-*.test.ts'",
     "test:auto": "scripts/test-auto.sh",
     "e2e": "bun run build && playwright test",
-    "e2e:d44": "bun run build && playwright test --grep @d44",
-    "e2e:shots": "bun run build && SHOTS=1 playwright test e2e/pending-shots.spec.ts"
+    "e2e:d44": "bun run build && playwright test --grep @d44"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.14.5",

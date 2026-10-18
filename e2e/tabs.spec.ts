@@ -4,32 +4,34 @@
 import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { example, openSide, setMode } from "./helpers";
 
-const repo = resolve(import.meta.dirname, "..");
 let dir = "";
-let bin = "";
+const bin = () => {
+  const b = process.env.MATOMEZU_E2E_BIN;
+  if (!b) throw new Error("MATOMEZU_E2E_BIN is not set (e2e/global-setup.ts builds the binary)");
+  return b;
+};
 
 // タブとサーバーを確かめるテストなので、紙（D33）からはみ出さないよう大きな紙（A3 横）で開く
 // （見本の図は、開いたときの並べ方が箱を A4 横の紙の外へ押し出すことがある。残課題図の F24）
 const onA3 = (d: ReturnType<typeof example>) => ({ ...d, world: { ...(d.world ?? {}), paper: "a3-landscape" } });
 
 const run = (...args: string[]) =>
-  execFileSync(bin, args, { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8", timeout: 20_000 });
+  execFileSync(bin(), args, { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8", timeout: 20_000 });
 
-test.describe.configure({ mode: "serial" });
+// テストごとに、自分の状態のフォルダと常駐サーバーを持つ（登録した図・郵便箱・LLM の履歴が前のテストから残らないので、並べて流せる）
+test.describe.configure({ mode: "parallel" });
 
-test.beforeAll(() => {
+test.beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"));
-  bin = join(dir, "matomezu");
-  execFileSync("go", ["build", "-o", bin, "./cmd/matomezu"], { cwd: repo, timeout: 120_000 });
   writeFileSync(join(dir, "a.json"), JSON.stringify(onA3(example("nested"))));
   writeFileSync(join(dir, "b.json"), JSON.stringify(onA3(example("three-levels"))));
 });
 
-test.afterAll(() => {
+test.afterEach(() => {
   try { run("stop"); } catch { /* 止まっていてもよい */ }
   rmSync(dir, { recursive: true, force: true });
 });
@@ -78,6 +80,7 @@ test("別の図を open すると前に出る。タブは今のブックだけ�
 });
 
 test("マスター: 登録した図の窓が並び（作った人で分ける）、道具箱はブック追加・追加削除・設定。窓を押すとそのブックへ移る（D26）", async ({ page }) => {
+  run("open", "-no-browser", "b.json"); // 一覧に b を載せておく
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   await page.locator("#master").click();
@@ -447,6 +450,9 @@ test("マスターの道具箱のブック追加で新しい図を作ると、�
 });
 
 test("マスターでブックの窓を Ctrl+C、Ctrl+V すると複製のダイアログが出て、番号付きの名前で同じフォルダに写す。キャンセルなら作らない。リストは写せない（D23）", async ({ page }) => {
+  // ユーザーがマスターで作ったブック（前のテストの「ブック追加」で作るものと同じ）を一覧に載せておく
+  writeFileSync(join(dir, "設計メモ.json"), JSON.stringify({ world: { title: "設計メモ", theme: "sticky", childView: "flow", madeBy: "user" }, nodes: [] }));
+  run("open", "-no-browser", "設計メモ.json");
   const url = run("open", "-no-browser", "a.json").trim();
   await page.goto(url);
   await page.locator("#master").click();
@@ -633,7 +639,7 @@ test("ユーザーがボタンを押している間は、要約を作らずに�
   await page.mouse.move(5, 300);
   await page.mouse.down();
   let done = false;
-  const out = new Promise<string>((ok, ng) => execFile(bin, ["check", "a.json"], { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8" },
+  const out = new Promise<string>((ok, ng) => execFile(bin(), ["check", "a.json"], { cwd: dir, env: { ...process.env, MATOMEZU_HOME: dir }, encoding: "utf8" },
     (err, stdout) => { done = true; if (err) ng(err); else ok(stdout); }));
   await page.waitForTimeout(800);
   expect(done).toBe(false);
@@ -755,7 +761,10 @@ test("通知のダイアログは順番待ち: 開いているダイアログを
 
 test("マスターを見ている最中に check・history で問い合わせても、マスターは作り直さず、箱が動かない（2026-10-15）", { tag: "@d44" }, async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
+  run("open", "-no-browser", "b.json"); // 一覧に b を載せておく（check で初めて載ると、一覧が変わった知らせが出る）
   await page.goto(run("open", "-no-browser", "a.json").trim());
+  // 開いた画面が大きさを書き戻すのを待つ（書き戻しは保存なので、一覧が変わった知らせが出る。D44 の段階 4）
+  await expect.poll(() => readFileSync(join(dir, "a.json"), "utf8").includes('"width"')).toBe(true);
   await page.locator("#master").click();
   await expect(selected(page)).toHaveText("マスター");
   const ai = page.locator('.stage:visible .mz-node[data-id="ai"]');
