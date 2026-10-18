@@ -1252,3 +1252,49 @@ test("タブがはみ出すと、タブの上の縦のホイールで横にス�
     return l.x >= t.x - 1 && l.x + l.width <= t.x + t.width + 1;
   }).toBe(true);
 });
+
+test("マスターの右クリック: 窓の設定は出さない（Enter でも開かない）、背景の設定は全体の設定、窓の削除は確かめてから一覧から外す（ファイルは残る。D42）", async ({ page }) => {
+  writeFileSync(join(dir, "外す本.json"), JSON.stringify(onA3(example("nested"))));
+  const url = run("open", "-no-browser", "外す本.json").trim();
+  await page.goto(url);
+  await page.locator("#master").click();
+  await expect(selected(page)).toHaveText("マスター");
+  const stage = page.locator(".stage:visible");
+  const win = () => page.locator('.stage:visible .mz-node[data-id^="b-"]', { hasText: "外す本.json" });
+  const menu = page.locator(".mz-cmenu");
+  const dlg = page.locator(".mz-dlg");
+  // 窓の設定: 出さない（一番上は切り取り）。Enter でも開かない
+  await win().first().locator(":scope > .mz-head").click({ button: "right", position: { x: 6, y: 6 } });
+  await expect(menu.locator("button", { hasText: "設定" })).toHaveCount(0);
+  await expect(menu.locator("button").first()).toContainText("切り取り");
+  expect(await menu.evaluate(m => m.firstElementChild?.querySelector("hr") == null && m.firstElementChild?.tagName !== "HR")).toBe(true); // 区切り線から始まらない
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Enter");
+  await expect(dlg).toHaveCount(0);
+  // 背景の設定: 全体の設定
+  const area = (await stage.boundingBox())!; // 窓は左上に並ぶので、見えている範囲の右下は背景
+  await page.mouse.click(area.x + area.width - 40, area.y + area.height - 40, { button: "right" });
+  await menu.locator("button", { hasText: "設定" }).click();
+  await expect(dlg.locator("h2")).toHaveText("設定");
+  await page.keyboard.press("Escape");
+  // 窓の削除: 確かめてから外す。キャンセルなら残る
+  await win().first().locator(":scope > .mz-head").click({ button: "right", position: { x: 6, y: 6 } });
+  await menu.locator("button", { hasText: "削除" }).click();
+  await expect(dlg.locator("h2")).toHaveText("一覧から外す");
+  await page.keyboard.press("Escape");
+  await expect(win()).toHaveCount(1);
+  await win().first().locator(":scope > .mz-head").click({ position: { x: 6, y: 6 } });
+  await page.keyboard.press("Delete");
+  await dlg.locator("[data-ok]").click();
+  await expect(win()).toHaveCount(0);
+  expect(readFileSync(join(dir, "外す本.json"), "utf8")).toContain("nodes");
+  // 窓でない箱（ユーザー・AI）は消せない
+  await stage.locator('.mz-node[data-id="ai"] > .mz-head').click({ button: "right", position: { x: 6, y: 6 } });
+  await expect(menu.locator("button", { hasText: "削除" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  // もう一度開けば載る
+  await page.reload();
+  run("open", "-no-browser", "外す本.json");
+  await page.locator("#master").click();
+  await expect(win()).toHaveCount(1);
+});

@@ -12,13 +12,17 @@
 // - 出さないとき（Ctrl+C / Ctrl+V と同じ条件）: プレビュー中・ダイアログが開いている・ドラッグ中・選択・付け替え・手のひら以外のモード。
 //   説明ツアー中は幕が右クリックを止める（tour-view.ts）
 // - 右の長押しと Space はモードの切り替え（mode-picker.ts。setupContextMenu が押し続けと Space を見る）
-// 項目は menuFor に足せばよい形にしておく（タブなどへ広げるのと、パターンごとの出し分けは後で。D39・D25）
+// - ここに書くのは既定のメニュー（defaultMenu）。パターンごとの違い（出さない・差し替え・追加）は STRATEGIES の menu に書き、applyRules が重ねる
+//   （2026-10-18 ユーザー。例: マスターは窓の設定を出さず、背景の設定は全体の設定）。消すと一覧から外すなどの動きの違いは graph の側（items）
+// ほかの操作は、それぞれの操作を作るときに defaultMenu か、パターンの menu に足す
 import type { Graph, MenuTarget } from "./graph";
 import { type Head, headOptions, headPatch } from "./heads";
-import type { BoxInfo } from "./types";
+import type { BoxInfo, WorldInfo } from "./types";
+import { type MenuAction, type MenuKey, type MenuRule, menuRulesOf } from "./model";
 import { injectStyle } from "./dom";
 import { openEdgeEditDialog, openEditDialog } from "./edit-dialog";
 import { t } from "./i18n";
+import { openSettings } from "./settings";
 import { LONG_PRESS_MS, MOVE_SLOP, openModePicker, pressRing } from "./mode-picker";
 
 const STYLE_ID = "matomezu-context-menu-style";
@@ -53,15 +57,63 @@ interface Item {
   sub?: Entry[];     // 2 段目（「>」で開く）
 }
 type Entry = Item | "hr";
+// 既定のメニューの 1 行。id はパターンの決まり（STRATEGIES の menu）が指す名前
+export type Row = (Item & { id: MenuKey | MenuAction }) | "hr";
+
+// パターンが足す・差し替える動き（MenuAction。model.ts）の中身
+const ACTIONS: Record<MenuAction, { label: () => string; enabled: () => boolean; run: () => void }> = {
+  appSettings: { label: () => t("設定"), enabled: () => true, run: openSettings }, // 全体の設定（マスターの道具箱の設定と同じ）
+};
 
 // 右クリックした所に出す項目。at は右クリックした所（画面の座標）
 function menuFor(graph: Graph, target: MenuTarget, at: { x: number; y: number }, mac: boolean, openBook: () => void): Entry[] {
-  const entries = fullMenu(graph, target, at, mac, openBook);
-  // 手のひらのモードは見るだけなので、一番上の設定だけ
-  return graph.mode() === "pan" ? entries.slice(0, 1) : entries;
+  const rows = applyRules(defaultMenu(graph, target, at, mac, openBook), rulesFor(graph, target));
+  // 手のひらのモードは見るだけなので、設定だけ（パターンが設定を出さなければ何も出さない）
+  return finish(graph.mode() === "pan" ? rows.filter(x => x !== "hr" && x.id === "settings") : rows);
 }
 
-function fullMenu(graph: Graph, target: MenuTarget, at: { x: number; y: number }, mac: boolean, openBook: () => void): Entry[] {
+// 右クリックした所に効くパターンの決まり。リンクの箱（窓）は box の決まりに window の決まりを重ねる
+function rulesFor(graph: Graph, target: MenuTarget): MenuRule[] {
+  const menu = menuRulesOf((graph.info(null) as WorldInfo).childView);
+  if (target.kind === "edge") return [menu.edge ?? {}];
+  if (target.kind === "world") return [menu.world ?? {}];
+  const box = graph.selected();
+  const win = box != null && !!(graph.info(box) as BoxInfo).link;
+  return win ? [menu.box ?? {}, menu.window ?? {}] : [menu.box ?? {}];
+}
+
+// 決まりを既定のメニューに重ねる: 差し替え → 追加 → 出さない の順
+export function applyRules(rows: Row[], rules: MenuRule[]): Row[] {
+  for (const r of rules) {
+    rows = rows.map(x => {
+      const a = x !== "hr" && r.override?.[x.id as MenuKey];
+      return a ? { ...x, enabled: ACTIONS[a].enabled(), run: ACTIONS[a].run, sub: undefined } : x;
+    });
+    for (const { action, after } of r.add ?? []) {
+      const a = ACTIONS[action];
+      const at = after == null ? 0 : rows.findIndex(x => x !== "hr" && x.id === after) + 1;
+      if (after != null && at === 0) continue; // 足す先の項目が無い（線の矢印など、出ないこともある項目）
+      rows.splice(at, 0, { id: action, label: a.label(), enabled: a.enabled(), run: a.run });
+    }
+    rows = rows.filter(x => x === "hr" || !r.hide?.includes(x.id as MenuKey));
+  }
+  return rows;
+}
+
+// 区切り線を整える（先頭・末尾・続けての区切り線を消す）
+export function finish(rows: Row[]): Entry[] {
+  const out: Entry[] = [];
+  for (const x of rows) {
+    if (x === "hr") { if (out.length && out.at(-1) !== "hr") out.push("hr"); continue; }
+    const { id: _, ...item } = x;
+    out.push(item);
+  }
+  while (out.at(-1) === "hr") out.pop();
+  return out;
+}
+
+// 既定のメニュー（どのパターンでも同じ。パターンごとの違いは STRATEGIES の menu で重ねる）
+function defaultMenu(graph: Graph, target: MenuTarget, at: { x: number; y: number }, mac: boolean, openBook: () => void): Row[] {
   const del = mac ? "⌫" : "Delete";
   if (target.kind === "edge") {
     const id = graph.selectedEdge()!;
@@ -70,34 +122,34 @@ function fullMenu(graph: Graph, target: MenuTarget, at: { x: number; y: number }
       ({ label, checked: e.route === r, enabled: true, run: () => { if (e.route !== r) graph.updateEdge(id, { route: r }); } });
     // 端の近くなら、その端の形（線の編集ダイアログと同じ選択肢）
     const side = target.end, now = side === "start" ? e.startHead : e.endHead;
-    const heads = side == null ? [] : [{
-      label: t("矢印（{side}）", { side: side === "start" ? t("始点") : t("終点") }), enabled: true,
+    const heads: Row[] = side == null ? [] : [{
+      id: "heads", label: t("矢印（{side}）", { side: side === "start" ? t("始点") : t("終点") }), enabled: true,
       sub: headOptions().map(([v, label]): Item => ({ label, checked: (now ?? "") === v, enabled: true,
         run: () => { if ((now ?? "") !== v) graph.updateEdge(id, headPatch(e, side, (v || null) as Head | null)); } })),
     }];
     return [
-      { label: t("設定"), key: "Enter", enabled: true, run: () => openEdgeEditDialog(graph, id) },
+      { id: "settings", label: t("設定"), key: "Enter", enabled: true, run: () => openEdgeEditDialog(graph, id) },
       "hr",
       ...heads,
-      ...(e.self ? [] : [{ label: t("通り方"), enabled: true, sub: [route("elbow", t("折れ線")), route("straight", t("直線"))] }]),
-      ...(heads.length || !e.self ? ["hr" as const] : []),
-      { label: t("削除"), key: del, enabled: true, run: () => graph.removeEdge(id) },
+      ...(e.self ? [] : [{ id: "route" as const, label: t("通り方"), enabled: true, sub: [route("elbow", t("折れ線")), route("straight", t("直線"))] }]),
+      "hr",
+      { id: "remove", label: t("削除"), key: del, enabled: true, run: () => graph.removeEdge(id) },
     ];
   }
   const clip = graph.clipState(), mod = mac ? "⌘" : "Ctrl+";
   const box = target.kind === "box" ? graph.selected() : null;
   return [
-    // 箱はダブルクリックと同じ編集ダイアログ、背景（ワールド）はブックのダイアログ
+    // 箱はダブルクリックと同じ編集ダイアログ（設定を持たない箱は灰色）、背景（ワールド）はブックのダイアログ
     box != null
-      ? { label: t("設定"), key: "Enter", enabled: true, run: () => openEditDialog(graph, box) }
-      : { label: t("設定"), enabled: true, run: openBook },
+      ? { id: "settings", label: t("設定"), key: "Enter", enabled: graph.hasSettings(box), run: () => openEditDialog(graph, box) }
+      : { id: "settings", label: t("設定"), enabled: true, run: openBook },
     "hr",
-    { label: t("切り取り"), key: `${mod}X`, enabled: clip.cut, run: () => { graph.cutSelected(); } },
-    { label: t("コピー"), key: `${mod}C`, enabled: clip.copy, run: () => { graph.copySelected(); } },
-    { label: t("貼り付け"), key: `${mod}V`, enabled: clip.paste, run: () => { graph.pasteClip(at); } },
+    { id: "cut", label: t("切り取り"), key: `${mod}X`, enabled: clip.cut, run: () => { graph.cutSelected(); } },
+    { id: "copy", label: t("コピー"), key: `${mod}C`, enabled: clip.copy, run: () => { graph.copySelected(); } },
+    { id: "paste", label: t("貼り付け"), key: `${mod}V`, enabled: clip.paste, run: () => { graph.pasteClip(at); } },
     "hr",
-    // ツリーの根は消せない（graph.remove も断る）
-    { label: t("削除"), key: del, enabled: box != null && !(graph.info(box) as BoxInfo).treeRoot, run: () => { graph.remove(box!); } },
+    // ツリーの根と、マスターの窓でない箱は消せない（graph.remove も断る）。マスターの窓は一覧から外す
+    { id: "remove", label: t("削除"), key: del, enabled: box != null && graph.canRemove(box), run: () => { graph.remove(box!); } },
   ];
 }
 
@@ -129,7 +181,9 @@ export function setupContextMenu(graph: Graph, stage: HTMLElement, openBook: () 
     if (graph.mode() !== "move" && graph.mode() !== "reparent" && graph.mode() !== "pan") return false;
     const picked = graph.pickForMenu(target, at);
     if (!picked) return false;
-    close = open(menuFor(graph, picked, at, mac, openBook), at, () => { close = null; });
+    const entries = menuFor(graph, picked, at, mac, openBook);
+    if (!entries.length) return false; // パターンが全部の項目を出さない（手のひらのモードでマスターの窓など）
+    close = open(entries, at, () => { close = null; });
     return true;
   };
   const endPress = () => {
