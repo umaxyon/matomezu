@@ -5,6 +5,8 @@
  *   外部の変更を優先する。
  * - ドラッグ中や保存中に届いた変更は、それが終わってから読み直す。
  * - 読み直したデータが不正なときは表示を残し、直るまで保存を止める（書きかけのファイルを上書きしないため）。
+ *   紙に収まらないファイル（docs/PAPER-plan.md の 4.6 の 7）も同じ。最初に開くときに収まらなければ、表示が無いので refused で知らせる（app.ts がマスターを出す）。
+ *   紙の外の箱を押し込んで開いたときは、押し込んだ位置を保存する（graph.ts の load が onChange で知らせる）。
  * - 外部の変更はユーザーの Undo の履歴には積まない。ユーザーが見たときにユーザーの履歴へ差し込む（D31。graph.ts の load の version）。
  * - 見ていないタブ（active でない）では読み直さず、前に出たときに読み直す。隠れた画面では文字の幅を測れず、配置が壊れるため。
  * - 配置の要約（matomezu check）は送らない。check はカレントの画面に直接頼む（app-answers.ts の answerSummary、internal/server/summary.go。D30）
@@ -13,6 +15,7 @@
 import { formatDiagram } from "./format";
 import { t } from "./i18n";
 import type { Graph } from "./graph";
+import { PaperMisfit } from "./paper-misfit";
 import type { Diagram } from "./types";
 
 const SAVE_DELAY = 300;
@@ -21,6 +24,7 @@ export interface SyncUi {
   notice?(text: string): void;  // 気づいてほしい知らせ（画面の変更を取り消して読み直す。トーストで出す）
   error(message: string): void;
   clearError(): void;
+  refused?(reason: string): void; // 最初に開くとき、紙に収まらないので開けなかった（reason はページごとの理由。無ければ error）
 }
 
 export interface Remote {
@@ -83,16 +87,19 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
     try {
       if (r.data instanceof Error) throw r.data;
       const sel = graph.selected();
-      graph.load(r.data, { keepHistory, version: r.version });
+      blocked = false; // 押し込んだ位置の保存（load の onChange）を受けるため、先に戻す
+      graph.load(r.data, { keepHistory, version: r.version, refuse: true });
       if (sel != null) {
         try { graph.select(sel); } catch { /* 消えたボックスは選び直さない */ }
       }
-      blocked = false;
       ui.clearError();
       return true;
     } catch (err) {
       blocked = true;
-      ui.error(t("ファイルを読み込めません（直るまで保存を止めています）: {error}", { error: err instanceof Error ? err.message : String(err) }));
+      const message = err instanceof Error ? err.message : String(err);
+      if (err instanceof PaperMisfit && !keepHistory && ui.refused) ui.refused(message);
+      else if (err instanceof PaperMisfit) ui.error(t("AIが図の書き換えに失敗しました") + "\n" + message);
+      else ui.error(t("ファイルを読み込めません（直るまで保存を止めています）: {error}", { error: message }));
       return false;
     }
   }
@@ -191,7 +198,8 @@ export function startSync(graph: Graph, base: string, first: Remote, ui: SyncUi,
       active = next;
       if (active) show();
     },
-    shown: () => version.replace(/^W\//, "").replace(/"/g, ""),
+    // 読めなかった版（不正・紙に収まらない）は表示していない（前の表示が残っているだけ）
+    shown: () => (blocked ? "" : version.replace(/^W\//, "").replace(/"/g, "")),
     close() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);

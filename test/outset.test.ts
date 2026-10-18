@@ -52,8 +52,11 @@ test("形 × サイズの全組: 補正値はノーマルの形にだけ、サ�
   sticky.outset = { L: [2, 6], M: [3, 5], S: [1, 7] };
   try {
     const sizes = ["L", "M", "S"] as const;
-    const nodes = SHAPES.flatMap((shape, i) => sizes.map((size, j) => ({ id: i * 3 + j + 1, caption: "形", shape, size, x: 40 + j * 300, y: 40 + i * 200 })));
-    const g = setup({ nodes });
+    // 紙（A3 横）に収まるように 9 列に並べる（紙に収まらない図は開かない。docs/PAPER-plan.md の 4.6 の 7）
+    const at = (k: number) => ({ x: 20 + (k % 9) * 170, y: 20 + Math.floor(k / 9) * 150 });
+    const nodes = SHAPES.flatMap((shape, i) => sizes.map((size, j) => ({ id: i * 3 + j + 1, caption: "形", shape, size, ...at(i * 3 + j) })));
+    const g = setup({ world: { paper: "a3-landscape" }, nodes });
+    expect(g.misfits()).toEqual([]);
     const before = nodes.map(n => ({ c: topLeft(g, n.id), w: info(g, n.id).w, h: info(g, n.id).h }));
     g.update(null, { theme: "sticky" });
     nodes.forEach((n, k) => {

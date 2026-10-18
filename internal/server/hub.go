@@ -20,8 +20,11 @@
 //	GET  /api/books      登録した図を最終更新の新しい順に返す（マスターの一覧。books.go）
 //	GET  /api/master     マスター用のファイルを登録して {"id"} を返す（books.go）
 //	GET  /api/ping       起動確認。{"version", "pid"} を返す            … 要トークン
-//	POST /api/open       {"path", "show", "page", "ask"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
-//	                     show なら、つながっている画面にその図（page があればそのページ）を開くよう知らせる
+//	POST /api/open       {"path", "page", "ask"} の図を登録し、{"id", "path", "connections"} を返す … 要トークン
+//	                     ask（matomezu open）なら、カレントの画面に紙に収まるかを判定してもらい（fit.go）、収まればその図（page があればそのページ）を
+//	                     届ける。収まらなければ届けずに "over" を返す（画面はマスターを出して知らせる）。画面が無ければ判定せずに届け、
+//	                     あとでつながった画面が開くときに判定する
+//	POST /d/<id>/api/unlist  紙に収まらないので開けなかった図を、マスターの一覧から外す（画面がブックを開くときに判定した。docs/PAPER-plan.md の 4.6 の 7）
 //	POST /api/close      {"path"} の図のタブを閉じるよう、つながっている画面に知らせ、{"id", "connections"} を返す … 要トークン
 //	                     登録は残す（あとで open すればすぐ開ける。登録は新しい方から storeLimit 件まで）。登録の無い図は誤り
 //	POST /api/shutdown   サーバーを止める                                … 要トークン
@@ -42,7 +45,8 @@
 //	tour     {"req", "id", "mail"} 説明ツアーの開始の案内を出し、api/point/{req} へ答える（カレントの画面にだけ。tour.go。D38）
 //	tourchanged {} ツアーが変わった（画面は GET /api/tour で読み直す）
 //	point    {"req", "doc", "box", "clear", "say"} その図の箱を示し、api/point/{req} へ答える（カレントの画面にだけ送る。point.go。D37）
-//	fit      {"req", "doc"} 預けた中身（api/fit/{req}）が紙に収まるかを api/fit/{req} へ答える（カレントの画面にだけ送る。fit.go。D33）
+//	fit      {"req", "doc", "open", "name"} 預けた中身（api/fit/{req}）が紙に収まるかを api/fit/{req} へ答える（カレントの画面にだけ送る。fit.go。D33）。
+//	         open は matomezu open の判定（収まらなければ画面がマスターで知らせる。name はそのファイルの名前。判定の間は登録しない）
 //
 // 図ごとに SSE をつなぐと、ブラウザの同じサーバーへの同時接続の上限（HTTP/1.1 で 6 本）に当たるので、1本にまとめている。
 //
@@ -60,10 +64,12 @@ package server
 
 import (
 	"context"
+	"bytes"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -213,6 +219,30 @@ func (h *Hub) remember(path string) {
 	}
 }
 
+// unlist は、紙に収まらないので開けなかった図を、覚えている図（マスターの一覧）から外す（docs/PAPER-plan.md の 4.6 の 7。2026-10-18 ユーザー:
+// 開けなかったブックを一覧に載せない）。どの画面も開いていなければ登録も外す
+func (h *Hub) unlist(path string) {
+	h.mu.Lock()
+	out := make([]string, 0, len(h.recent))
+	for _, p := range h.recent {
+		if p != path {
+			out = append(out, p)
+		}
+	}
+	if len(out) == len(h.recent) {
+		h.mu.Unlock()
+		return
+	}
+	h.recent = out
+	h.forget()
+	b, _ := json.MarshalIndent(out, "", "  ")
+	h.mu.Unlock()
+	h.booksChanged()
+	if h.store != "" {
+		_ = writeAtomic(h.store, b)
+	}
+}
+
 // forget は、覚えている図（recent。新しい方から storeLimit 件）から落ちた図の登録を外す。どれかの画面が開いている図は外さない
 // （開いている図を知らせていない画面があれば、全部を開いているとみなして外さない）。h.mu を持って呼ぶ
 func (h *Hub) forget() {
@@ -283,6 +313,8 @@ type OpenResult struct {
 	ID          string `json:"id"`
 	Path        string `json:"path"`
 	Connections int    `json:"connections"` // つながっている画面の数（0 ならブラウザを開く）
+	// matomezu open（ask）で、紙に収まらないので届けなかったページ（docs/PAPER-plan.md の 4.6 の 7。画面はマスターを出して知らせた）
+	Over []FitOver `json:"over,omitempty"`
 }
 
 // Open は path の図を登録する。登録済みならそれを返す。ファイルが無ければ空の図で作る（画面には知らせない）
@@ -554,6 +586,11 @@ func (h *Hub) Handler() http.Handler {
 	mux.HandleFunc("GET /d/{id}/api/llm", h.withLLM(h.getLLM))
 	mux.HandleFunc("POST /d/{id}/api/llm/seen", fromPage(h.withLLM(h.seenLLM)))
 	mux.HandleFunc("DELETE /d/{id}/api/llm", fromPage(h.withLLM(h.deleteLLM)))
+	// 紙に収まらないので開けなかった（画面がブックを開くときに判定した。docs/PAPER-plan.md の 4.6 の 7）: マスターの一覧から外す
+	mux.HandleFunc("POST /d/{id}/api/unlist", fromPage(withDoc(func(d *doc, w http.ResponseWriter, _ *http.Request) {
+		h.unlist(d.path)
+		w.WriteHeader(http.StatusNoContent)
+	})))
 	mux.HandleFunc("GET /api/events", h.events)
 	mux.HandleFunc("GET /api/info", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]string{"server": h.version})
@@ -647,6 +684,29 @@ func (h *Hub) open(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.Path == "" {
 		http.Error(w, "path required", http.StatusBadRequest)
 		return
+	}
+	// matomezu open（ask）は、届ける前にカレントの画面に紙に収まるかを判定してもらう（docs/PAPER-plan.md の 4.6 の 7）。
+	// 収まらなければ届けない（画面はマスターを出して知らせる）。画面が無ければ（open -no-browser）判定せずに届けておき、
+	// あとでつながった画面がブックを開くときに判定する（収まらなければ、そこでマスターを出して知らせる）。
+	// 読めないファイル（JSON の誤りなど）も今までどおり届け、画面が誤りを見せる
+	if req.Ask {
+		if b, err := os.ReadFile(req.Path); err == nil && len(bytes.TrimSpace(b)) > 0 && json.Valid(b) {
+			over, err := h.Fit(req.Path, b, true)
+			switch {
+			case errors.Is(err, errBusy):
+				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			case err == nil && len(over) > 0:
+				// 開けなかったブックはマスターの一覧に載せない（前から載っていれば外す）
+				abs, _ := filepath.Abs(req.Path)
+				h.unlist(abs)
+				h.mu.Lock()
+				conns := len(h.clients)
+				h.mu.Unlock()
+				writeJSON(w, OpenResult{ID: docID(abs), Path: abs, Connections: conns, Over: over})
+				return
+			}
+		}
 	}
 	res, err := h.openDoc(req.Path, req.Page, req.Ask)
 	if err != nil {

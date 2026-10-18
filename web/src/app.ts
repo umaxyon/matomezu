@@ -471,6 +471,13 @@ export async function startApp(ui: AppUi) {
         notice: text => { if (current?.book === b) ui.notice(text); },
         error: message => { b.error = message; if (current?.book === b) ui.error(message); },
         clearError: () => { b.error = null; if (current?.book === b) ui.clearError(); },
+        // 紙に収まらないファイルは開かない（docs/PAPER-plan.md の 4.6 の 7）: マスターを出して理由を知らせ、このブックを閉じて、
+        // マスターの一覧からも外す（開けなかったブックを載せない。2026-10-18 ユーザー）。前に出す途中（activate の中）で知らされるので、終わってから
+        refused: reason => setTimeout(() => void openMaster().then(() => {
+          closeBook(b);
+          void fetch(base + "api/unlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+          ui.error(t("ブック「{name}」を開けませんでした", { name: titleOf(b) }) + "\n" + reason);
+        }), 0),
       }, { active: false });
       const first = makeTab(b, null, remote.name);
       b.tabs.push(first);
@@ -574,6 +581,11 @@ export async function startApp(ui: AppUi) {
       const b = books.find(x => x.id === doc && x.loaded);
       return b && current?.book === b && (b.graph.page() ?? "") === page && b.sync.shown() === version ? b.graph.geometry() : null;
     },
+    // 開こうとしたブックは登録していない（マスターの一覧に載せない）ので、名前はサーバーが渡したファイルの名前
+    async refuseOpen(_doc, reason, name) {
+      await openMaster();
+      ui.error(t("AIがブック「{name}」を開けませんでした", { name }) + "\n" + reason);
+    },
   });
 
   events = connectEvents({
@@ -600,7 +612,7 @@ export async function startApp(ui: AppUi) {
     askChanged() { void asker.refresh(); },
     tour(req, id, mail) { void tourer.answer(req, id, mail); },
     tourChanged() { void tourer.refresh(); },
-    fit(req, doc) { void answers.fit(req, doc); },
+    fit(req, doc, open, name) { void answers.fit(req, doc, open, name); },
     // matomezu close: タブの × と同じに閉じる（開いていなければ何もしない。サーバーの登録は残る）
     close(doc) {
       const b = books.find(x => x.id === doc);
@@ -611,7 +623,7 @@ export async function startApp(ui: AppUi) {
   void M.catalog(); // ブックの一覧（ブックリンクの窓の題名と縮図。D29）
 
   // 前に開いていたタブと、URL で指定されたページを開く（サーバーが知らないブックは開かない）
-  const { book: wanted, page: wantedPage } = wantedFromUrl();
+  const { book: wanted, page: wantedPage, master: wantMaster } = wantedFromUrl();
   const saved = loadSavedBooks();
   if (wanted && !saved.includes(wanted)) saved.push(wanted);
   await Promise.all(saved.map(id => openBook(id)));
@@ -620,6 +632,7 @@ export async function startApp(ui: AppUi) {
   for (const b of books) ui.tabs.appendChild(b.group);
   remember();
   if (current) return; // 読み込みの間に open の知らせで前に出たものがある
+  if (wantMaster && !wanted) { await openMaster(); return; } // matomezu start（画面が無かったとき）はマスターから
   const first = books.find(b => b.id === wanted) ?? books[0];
   if (first) activate(first, first.id === wanted ? wantedPage : null);
   else await openMaster().then(() => { if (!current) empty(); }); // 開いているブックが無ければマスターを出す

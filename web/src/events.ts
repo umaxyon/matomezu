@@ -10,7 +10,8 @@
  * - close: その図のタブを閉じるよう頼まれた（matomezu close）。タブの × と同じに閉じる。
  * - mail: その図の郵便箱が変わった（届いた・読んだ・取り除いた。D26 の段階 3）。
  * - books: 登録したブックの一覧が変わった（登録した・ファイルが変わった・消えた。マスターを作り直す）。
- * - fit: 預けた中身が紙に収まるかを求められた（matomezu set。カレントの画面にだけ届く。D33）。答えは api/fit/<req> へ送る。
+ * - fit: 預けた中身が紙に収まるかを求められた（matomezu set の確かめと、open の判定。カレントの画面にだけ届く。D33）。答えは api/fit/<req> へ送る。
+ *   open なら、収まらないときにこの画面にマスターを出して知らせる
  * - ask / askchanged: AI の問いの話題を出すよう求められた・話題が変わった（matomezu ask。D36）。ask の答えは api/point/<req> へ送る。
  * - point: その図の箱を示すフォーカス枠を求められた（matomezu focus。カレントの画面にだけ届く。D37）。答えは api/point/<req> へ送る。
  * - summary: その図のページの配置の要約を求められた（matomezu check。カレントの画面にだけ届く。D30）。答えは api/summary/<req> へ送る。
@@ -30,7 +31,7 @@ export interface EventHandlers {
   tour?(req: string, id: string, mail: boolean): void; // 説明ツアーの開始の案内を出す（matomezu tour。D38）
   tourChanged?(): void; // ツアーが変わった（GET api/tour で読み直す）
   askChanged?(): void;                  // 話題が変わった（GET api/ask で読み直す） // 箱を示す（doc・box が null なら出している枠を消す。matomezu focus。D37）
-  fit?(req: string, doc: string): void; // 預けた中身（api/fit/{req}）が紙に収まるかを答える（matomezu set。D33）
+  fit?(req: string, doc: string, open: boolean, name: string): void; // 預けた中身（api/fit/{req}）が紙に収まるかを答える（matomezu set・open。D33。name は open のときのファイルの名前）
   watched?(): string[]; // 開いている図の id
 }
 
@@ -146,7 +147,7 @@ export function connectEvents(h: EventHandlers, o: EventOptions = {}): EventConn
     es.addEventListener("books", () => h.books?.());
     es.addEventListener("fit", e => {
       const v = parse(e);
-      if (v && typeof v.req === "string" && typeof v.doc === "string") h.fit?.(v.req, v.doc);
+      if (v && typeof v.req === "string" && typeof v.doc === "string") h.fit?.(v.req, v.doc, v.open === "true", typeof v.name === "string" ? v.name : "");
     });
     es.addEventListener("point", e => {
       const v = parse(e);

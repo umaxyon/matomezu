@@ -1,4 +1,4 @@
-// サーバーからの問い合わせへの答え（app-answers.ts。D30・D33）: matomezu check の配置の要約と、matomezu set の前の紙の確かめ
+// サーバーからの問い合わせへの答え（app-answers.ts。D30・D33）: matomezu check の配置の要約と、matomezu set の前の紙の確かめ・open の判定
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { createAnswers } from "../web/src/app-answers";
 import { DEFAULTS } from "../web/src/graph";
@@ -32,7 +32,7 @@ const GEO: Geometry = {
   viewport: { w: 800, h: 600 }, outside: [], edges: [],
   boxes: [{ id: "1", caption: "箱", ancestors: [], x: 10, y: 10, w: 100, h: 40, cut: false } as Geometry["boxes"][number]],
 };
-function setup(shown: Geometry | null = null) {
+function setup(shown: Geometry | null = null, refused: string[] = []) {
   const canvas = document.createElement("div");
   document.body.appendChild(canvas);
   const asked: string[] = [];
@@ -40,6 +40,7 @@ function setup(shown: Geometry | null = null) {
     canvas,
     focus: doc => `focus of ${doc}`,
     shown: (doc, page, version) => { asked.push(`${doc} ${page} ${version}`); return shown; },
+    refuseOpen: (doc, reason, name) => refused.push(`${doc} ${name} ${reason}`),
   });
   return { A, asked };
 }
@@ -93,7 +94,7 @@ test("押したまま 5 秒を過ぎたら busy と答える（LLM はあとで�
   try {
     window.dispatchEvent(new PointerEvent("pointerdown"));
     const p = A.summary("r1", "a", "", "v1");
-    const q = A.fit("r2", "a");
+    const q = A.fit("r2", "a", false);
     t += 6000;
     await Promise.all([p, q]);
     expect(replies.map(r => [r.url, r.body])).toEqual([["api/summary/r1", { busy: true }], ["api/fit/r2", { busy: true }]]);
@@ -108,7 +109,7 @@ test("押したまま 5 秒を過ぎたら busy と答える（LLM はあとで�
 
 test("紙の確かめ: 預けた中身が読めなければ、その状態の数を error で答える", async () => {
   const { A } = setup();
-  await A.fit("r1", "a");
+  await A.fit("r1", "a", false);
   expect(replies).toEqual([{ url: "api/fit/r1", body: { error: "404" } }]);
 });
 
@@ -118,26 +119,44 @@ test("紙の確かめ: 紙の制限が無ければ（紙を切っている）は
     fitBody = { nodes: [{ id: 1 }, { id: 2, x: 50000, y: 0 }] };
     files.a = { text: JSON.stringify({ nodes: [{ id: 1 }] }), etag: '"v1"' };
     const { A } = setup();
-    await A.fit("r1", "a");
+    await A.fit("r1", "a", false);
     expect(replies).toEqual([{ url: "api/fit/r1", body: { over: [] } }]);
   } finally {
     DEFAULTS.paper = true;
   }
 });
 
-test("紙の確かめ: 書き換えで新しく紙からはみ出す最上位の箱だけを、ページと紙の型と、はみ出す量と一緒に答える（前からはみ出している箱は数えない）", async () => {
-  try {
-    files.a = { text: JSON.stringify({ nodes: [{ id: 1, caption: "前から", x: 50000, y: 0 }] }), etag: '"v1"' };
-    fitBody = { nodes: [{ id: 1, caption: "前から", x: 50000, y: 0 }, { id: 2, caption: "新しい", x: 60000, y: 0 }, { id: 3, caption: "収まる" }] };
-    const { A } = setup();
-    await A.fit("r1", "a");
-    const over = replies[0]!.body.over as { page: string; paper: string; boxes: { id: string; caption: string; right: number; bottom: number }[] }[];
-    expect(over.length).toBe(1);
-    expect(over[0]!.page).toBe("");
-    expect(over[0]!.paper).toMatch(/^\S+ \d+x\d+$/);
-    expect(over[0]!.boxes.map(b => [b.id, b.caption])).toEqual([["2", "新しい"]]);
-    expect(over[0]!.boxes[0]!.right).toBeGreaterThan(0);
-  } finally {
-    DEFAULTS.paper = true;
-  }
+// 横に並んだ 12 個の箱（A4 横の幅 1123 に、間隔の下限 8px を詰めても入らない）。右の 2 つは紙の外に書いてある
+const TOO_WIDE = { nodes: Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `横${i + 1}`, x: 12 + i * 130, y: 12 })) };
+
+test("紙の確かめ: 開いたときと同じに紙の外の箱を押し込み、それでも入らないページを、紙の型・向き・足りない px・端から端への並びと一緒に答える", async () => {
+  fitBody = TOO_WIDE;
+  const { A } = setup();
+  await A.fit("r1", "a", false);
+  const over = replies[0]!.body.over as { page: string; name: string; paper: string; axis: string; short: number; boxes: { id: string; caption: string }[] }[];
+  expect(over.length).toBe(1);
+  expect([over[0]!.page, over[0]!.axis]).toEqual(["", "x"]);
+  expect(over[0]!.paper).toMatch(/^\S+ \d+x\d+$/);
+  expect(over[0]!.short).toBeGreaterThan(0);
+  expect(over[0]!.boxes.map(b => b.id)).toEqual(TOO_WIDE.nodes.map(n => String(n.id)));
+});
+
+test("紙の確かめ: 紙の外に書かれていても、形を変えずに押し込めば入るなら、はみ出しは無い（前から外にあったかは見ない）", async () => {
+  fitBody = { nodes: [{ id: 1, caption: "外", x: 50000, y: 0 }, { id: 2, caption: "もっと外", x: 60000, y: 0 }, { id: 3, caption: "位置なし" }] };
+  const refused: string[] = [];
+  const { A } = setup(null, refused);
+  await A.fit("r1", "a", true);
+  expect(replies).toEqual([{ url: "api/fit/r1", body: { over: [] } }]);
+  expect(refused).toEqual([]);
+});
+
+test("open の判定で入らなければ、マスターに出す理由（ページ・並び・足りない px）を知らせる。set の確かめでは知らせない", async () => {
+  fitBody = TOO_WIDE;
+  const refused: string[] = [];
+  const { A } = setup(null, refused);
+  await A.fit("r1", "a", false);
+  expect(refused).toEqual([]);
+  await A.fit("r2", "a", true, "wide.json");
+  expect(refused.length).toBe(1);
+  expect(refused[0]).toMatch(/^a wide.json 原因：ページ幅オーバー（\d+px）$/);
 });

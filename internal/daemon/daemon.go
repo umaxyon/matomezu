@@ -219,14 +219,30 @@ func Open(s *State, path string) (server.OpenResult, error) {
 	return res, err
 }
 
-// Ask は path の図を登録し、画面には郵便箱に入れて「届いています」と聞くよう知らせる（matomezu open。D26 の段階 3）
+// Screen は、サーバーにつながっている画面（ブラウザの matomezu のタブ）があるか
+func Screen(s *State) (bool, error) {
+	var res struct {
+		Client string `json:"client"`
+	}
+	if err := call(s, "GET", "/api/current", nil, &res); err != nil {
+		return false, err
+	}
+	return res.Client != "", nil
+}
+
+// Ask は path の図を登録し、画面には郵便箱に入れて「届いています」と聞くよう知らせる（matomezu open。D26 の段階 3）。
+// 届ける前に画面が紙に収まるかを判定し、収まらなければ届けずに res.Over を返す（docs/PAPER-plan.md の 4.6 の 7）。誤りはサーバーの言葉だけを返す
 func Ask(s *State, path string, page string) (server.OpenResult, error) {
 	var res server.OpenResult
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return res, err
 	}
-	err = call(s, "POST", "/api/open", map[string]any{"path": abs, "page": page, "ask": true}, &res)
+	err = callWith(slowClient, s, "POST", "/api/open", map[string]any{"path": abs, "page": page, "ask": true}, &res)
+	var se *serverError
+	if errors.As(err, &se) {
+		return res, errors.New(se.msg)
+	}
 	return res, err
 }
 

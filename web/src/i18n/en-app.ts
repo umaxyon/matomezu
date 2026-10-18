@@ -206,4 +206,8 @@ export default {
   "示す箱が無くなったので、ツアーを終えました": "The tour ended because its box is gone",
   "AI がツアーを取り下げました": "The AI withdrew the tour",
   "ツアー": "Tour",
+  // 紙に収まらないファイル（sync.ts・app.ts。docs/PAPER-plan.md の 4.6 の 7）
+  "AIが図の書き換えに失敗しました": "The AI failed to rewrite the diagram",
+  "ブック「{name}」を開けませんでした": "Could not open the book \"{name}\"",
+  "AIがブック「{name}」を開けませんでした": "The AI could not open the book \"{name}\"",
 } satisfies Record<string, string>;

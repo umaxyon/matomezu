@@ -84,7 +84,9 @@ test.each([true, false])("大きな図での処理の回数が、基準を超え
     // （紙の外はそのまま見せる）。右端のグループが外に残るので、ドラッグの重なりの判定が 5315 → 5637
     // 2026-10-17 Q1: 設定の場面からページのパターンの切り替え（ツリー → 内包）を外したので、ドラッグの前の配置が変わり 5637 → 5654
     drag: { measures: 0, overlapChecks: 5654 },
-    fit: { measures: 0, overlapChecks: 2114 },
+    // 2026-10-18 段階 6（docs/PAPER-plan.md の 4.6 の 7）: 紙ありではこの図は紙に収まらない（開くときの判定で NG。画面は開かず、check が理由を返す）。
+    // 前から紙の外にある箱を許す決まりを外したので、紙ありの操作は全部断られ、そろえる前の配置が変わって 2114 → 2180
+    fit: { measures: 0, overlapChecks: 2180 },
     reload: { measures: 0, overlapChecks: 1090 },
   };
   const over = Object.entries(out).flatMap(([scene, v]) =>

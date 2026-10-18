@@ -12,6 +12,8 @@
  *   const graph = createGraph(document.getElementById('stage'), data, { onChange, onSelect });
  *   graph.toJSON();              // 現在の状態を反映したデータ
  *   graph.load(data);            // 別のデータで描き直す（検証エラーなら例外を投げ、表示はそのまま残る）。履歴は空にする
+ *   graph.load(data, { refuse: true });   // 紙のページは、紙の外の箱を形を変えずに押し込み（押し込んだらファイルに書き戻すよう onChange で知らせる）、
+ *                                            // 収まらなければ描かずに前の表示に戻して PaperMisfit を投げる（開くときの判定。docs/PAPER-plan.md の 4.6 の 7）
  *   graph.load(data, { keepHistory: true, version }); // 外部（LLM）の変更として描き直す（はみ出しの調整はしない。開いたときに移した箱は、位置が変わらなければ移した先のまま）。ユーザーの履歴には積まず、
  *                                            // 変えた箱が見えたら（認知）その時刻の位置に差し込む（D31。history.ts）。見たら onLLMSeen で version を知らせる
  *   graph.undo(); graph.redo();  // ユーザーの操作を、差分で今の状態に戻す・進める（LLM の変更は残る。戻したら onChange で知らせる）。
@@ -162,6 +164,7 @@ import { DEFAULT_THEME, PALETTE, PALETTE_LABELS, askColor, isTheme, paintFor, po
 import { createEdgeDrag } from "./edge-drag";
 import type { GraphEvent } from "./notices";
 import type { GeoEdge, Geometry } from "./report";
+import { type Misfit, PaperMisfit, misfitText } from "./paper-misfit";
 import type { BoxData, BoxView, BoxInfo, Diagram, EdgeData, EdgeInfo, Id, Info, Items, NodeInfo, ListItem, PageData, PagePattern, PagePatch, Patch, Shape, Size, ToolKey, WorldData } from "./types";
 import { DEFAULT_PAPER, PAPERS, type PaperName, ROUTES, SIZES, assignIds, checkSettings, edgeIdMaker, isPaper, normalizeEdge, validate } from "./validate";
 import { DEFAULT_LINK_LOOK, isRect } from "./link-box";
@@ -192,6 +195,9 @@ export const DEFAULTS = {
 };
 
 export interface GraphOptions extends Partial<typeof DEFAULTS> {
+  // 読み込んだとき、描かないページも描いて紙に収まるかを判定するか（既定は判定する。docs/PAPER-plan.md の 4.6 の 7）。
+  // 縮図だけを読む見えない図（offscreen-scene.ts の layoutScene）は、描くページだけにして軽くする
+  judgePages?: boolean;
   onChange?: (data: Diagram) => void;
   onSelect?: (info: Info) => void;
   onHistory?: (state: HistoryState) => void; // 戻れる・進めるかが変わったとき
@@ -228,7 +234,10 @@ const HISTORY_LIMIT = 100;
 const SETTLE_BENDS = 3;
 
 export interface Graph {
-  load(data: unknown, options?: { keepHistory?: boolean; version?: string }): void; // version は外部の変更の版（見ていない LLM の変更を、見たときにサーバーへ伝える。D31）
+  // version は外部の変更の版（見ていない LLM の変更を、見たときにサーバーへ伝える。D31）。refuse なら、紙に収まらないファイルは描かずに
+  // 前の表示に戻し、PaperMisfit を投げる（開くときの判定。docs/PAPER-plan.md の 4.6 の 7）
+  load(data: unknown, options?: { keepHistory?: boolean; version?: string; refuse?: boolean }): void;
+  misfits(): Misfit[]; // 読み込んだデータで、紙に収まらなかったページ（refuse しなかったとき。見えない所で並べる check・set の確かめが読む）
   undo(): boolean;
   redo(): boolean;
   history(): HistoryState;
@@ -551,25 +560,22 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     opt.onChange?.(data);
   }
 
-  // 紙（D33）: 紙からはみ出している最上位の箱。操作のたびに、前から出ていた箱（LLM がファイルに書いた位置など）を覚えておき、
-  // 操作で新しくはみ出す箱ができたら、その操作はしない（直前の状態に戻し、履歴に積まない）。warn なら知らせる（ダイアログは自分で知らせる）
-  let outsideKnown = new Set<string>();
+  // 紙（D33）: 操作で紙からはみ出す最上位の箱ができたら、その操作はしない（直前の状態に戻し、履歴に積まない）。warn なら知らせる（ダイアログは自分で知らせる）。
+  // 開いたファイルは、紙の外の箱を押し込んで収めてあるか、収まらなければ開いていない（load の refuse。docs/PAPER-plan.md の 4.6 の 7）ので、前からはみ出している箱は無い
   let quietPaper = false; // 断るとき知らせない（貼り付け。収まらないものは黙って貼らない。2026-10-17 ユーザー）
   let paperRefused = false; // 直前に紙からはみ出すので断ったか（呼んだ側が、した後の知らせを出さないために見る）
   let notFitting = false; // 大きさが変わって、形を変えずには紙に収まらなかった（layout.ts の regrow）
   // 今の操作の中で、紙に収まらなかった設定変更（refusedBy が原因の項目を確かめる）。断ったあとは lastRefused に移す
   let refusedPatches: { id: Id | null; patch: Patch }[] = [];
   let lastRefused: { id: Id | null; patch: Patch }[] = [];
-  const outsideNow = () => new Set(roots.filter(L.outsideFixed).map(n => n.id));
+  const overPaper = () => roots.some(L.outsideFixed);
   function refuseOverPaper(warn: boolean): boolean {
     const p = paperOf();
-    const now = outsideNow();
     const squeezed = notFitting;
     notFitting = false;
     lastRefused = refusedPatches;
     refusedPatches = [];
-    if (!p || (!squeezed && [...now].every(id => outsideKnown.has(id)))) {
-      outsideKnown = now;
+    if (!p || (!squeezed && !overPaper())) {
       lastRefused = [];
       return false;
     }
@@ -595,7 +601,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if (!keys.includes(k)) keys.push(k);
         batching++;
         try { update(id, { [k]: v } as Patch); } catch { /* 1 つだけでは当てられない項目は、原因に数えない */ } finally { batching--; batchDirty = false; }
-        const over = notFitting || [...outsideNow()].some(o => !outsideKnown.has(o));
+        const over = notFitting || overPaper();
         notFitting = false;
         refusedPatches = [];
         build(JSON.parse(base), false);
@@ -798,10 +804,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     const prior = regrow ? L.snapshot() : null;
     const r = edit(data);
     if (!r) return undefined;
-    // 組み立て直しても、前から紙の外にあった箱だけを覚えておく（作り直しで覚え直すと、この操作ではみ出した箱を断れない。D33）
-    const known = outsideKnown;
     build(data, false);
-    outsideKnown = new Set([...known].filter(id => byId.has(id)));
     const n = r.select != null ? byId.get(r.select) ?? null : null;
     if (prior) {
       L.restoreFrom(prior);
@@ -1630,8 +1633,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
 
   // 読み込み直後のはみ出しの調整（fitToViewport）は、最初に開いたときだけ行う。
   // 外部（LLM など）の変更の読み直しでは行わない。行うと、ファイルの位置と画面の位置がずれていくため
-  function load(newData: unknown, o: { keepHistory?: boolean; version?: string } = {}) {
+  function load(newData: unknown, o: { keepHistory?: boolean; version?: string; refuse?: boolean } = {}) {
     const copy: unknown = newData == null ? newData : JSON.parse(JSON.stringify(newData));
+    const prev = o.refuse ? api.toJSON() : null; // 紙に収まらなければ戻す表示
+    const prevPage = page;
     if (o.keepHistory) keepShownPositions(copy);
     else fitted = new Map();
     // 消える箱の、今の場所（消した箱の認知は、消す前の場所が見えたとき）
@@ -1639,7 +1644,15 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     // 外部の変更の読み直しでは、選んでいる箱や線を保つ（残っていれば。Undo と同じ）。LLM が図を書き換えるたびに
     // 選択が外れると、サイドバーで入力中の内容も消えてしまうため（docs/REVIEW-2026-10-09.md の B10）
     const keep = o.keepHistory ? { box: current?.id ?? null, edge: currentEdge?.id ?? null } : undefined;
-    build(copy, !o.keepHistory, keep);
+    const moved = buildJudged(copy, !o.keepHistory, keep);
+    if (prev && misfits.length) {
+      const found = misfits;
+      const text = misfitText(found, p => pageNameOf(source, p));
+      page = prevPage;
+      build(prev, false, keep);
+      misfits = [];
+      throw new PaperMisfit(found, text);
+    }
     const unknown = unknownThemes();
     if (unknown.length) opt.onEvent?.({ kind: "unknownTheme", names: unknown });
     // 外部の変更（LLM）はユーザーの履歴に積まず、見ていない変更として覚える。読み込み直しは出発点にする
@@ -1650,6 +1663,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       H.reset();
       U.clear();
     }
+    // 紙の外の箱を押し込んだら、その位置をファイルに書き戻す（2026-10-18 ユーザー。履歴には積まない。開いた状態が出発点）
+    if (moved) opt.onChange?.(api.toJSON());
   }
 
   // 外部の変更を読み直すとき、画面にだけある位置（保存されない）を使う。使わないと読み直すたびに動いてしまう。
@@ -1687,7 +1702,40 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   function build(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
     buildAll(copy, fit, keep);
     worldEl.classList.toggle("mz-paper", !!paperOf()); // 紙の見た目（graph-style.ts。D33）
-    outsideKnown = outsideNow(); // 読み込んだときから紙の外にある箱（LLM の書いた位置）は、操作を断る理由にしない
+  }
+
+  // 開いたとき・読み直しの判定（docs/PAPER-plan.md の 4.6 の 7）: 紙のページを 1 枚ずつ描き、紙の外にある箱を形を変えずに押し込む
+  // （layout.ts の fitPaper）。描くページ（page）は最後に描く。押し込んだページはその位置をデータに入れ、moved を返す（呼んだ側がファイルに書き戻す）。
+  // 収まらないページは misfits に覚え、位置は変えない
+  let misfits: Misfit[] = [];
+  function buildJudged(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }): boolean {
+    misfits = [];
+    let moved = false;
+    const judge = () => {
+      if (!paperOf()) return false;
+      const r = L.fitPaper();
+      if (r === "moved") { moved = true; render(); return true; }
+      const pp = paperOf()!;
+      if (r !== "fits") misfits.push({ page, paper: `${pp.name} ${pp.w}x${pp.h}`, axis: r.axis, short: r.short, boxes: r.chain.map(id => ({ id, caption: captionOf(byId.get(id)!) })) });
+      return false;
+    };
+    const shown = page;
+    if (opt.paper && opt.judgePages !== false) {
+      assignIds(copy);
+      validate(copy);
+      const ids = [null, ...pagesOf(copy as Diagram).map(p => String(p.id))];
+      const target = shown != null && ids.includes(shown) ? shown : null; // 描くページ（無くなっていれば最初のページ。buildAll と同じ）
+      for (const p of ids) {
+        if (p === target) continue;
+        page = p;
+        build(JSON.parse(JSON.stringify(copy)), fit);
+        if (judge()) copy = api.toJSON(); // 押し込んだページの位置を、描くページのデータに入れる
+      }
+      page = shown;
+    }
+    build(copy, fit, keep);
+    judge();
+    return moved;
   }
 
   function buildAll(copy: unknown, fit: boolean, keep?: { box: string | null; edge: string | null }) {
@@ -1857,6 +1905,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       setTimeout(U.check, 0); // そのページの見ていない LLM の変更（D31）
     },
     page: () => page,
+    misfits: () => misfits,
     pageScene: P.pageScene,
     redraw: () => { nodes.filter(n => isLinkBox(n) || listPreviewOf(n)).forEach(applyStyle); render(); }, // 窓と縮図の行の絵は applyStyle で描く
     linkScene: id => windowScene(nodeOf(id) as Box),
@@ -1909,7 +1958,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         viewport: L.viewport(), // 倍率をかけないときの広さ（LLM への配置の要約。D32・D33）
         paper: paperOf(),
         inset: opt.padding,
-        outside: [...outsideNow()],
+        outside: roots.filter(L.outsideFixed).map(n => n.id),
+        ...(misfits.some(m => m.page === page) ? { misfit: misfits.find(m => m.page === page)! } : {}),
         boxes,
         treeLines,
         edges: shown.map(e => {

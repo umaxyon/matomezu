@@ -1,7 +1,9 @@
 // サーバーからの問い合わせへの答え（D30・D33。docs/NOTIFY-plan.md・docs/PAPER-plan.md）。この画面がカレントなので頼まれた。
 // どちらも前に出さず、ファイルも書き換えない。ユーザーがボタンを押している間（ドラッグなど）は、並べると操作が引っかかるので待つ。
 // 長く離さなければ busy と答える（LLM はあとで頼み直す）
-import { layoutGeometry } from "./offscreen-scene";
+import { layoutGeometry, layoutMisfits } from "./offscreen-scene";
+import { pageNameOf } from "./pages";
+import { misfitText } from "./paper-misfit";
 import { type Geometry, details, summarize } from "./report";
 import { docBase, fetchRemote } from "./sync";
 import type { Diagram } from "./types";
@@ -14,6 +16,8 @@ export interface AnswersContext {
   focus(doc: string): string; // その図の箱を示したフォーカス枠の様子（D37。app-point.ts。無ければ ""）
   // doc のページ page を版 version で表示していれば、その配置の結果（していなければ null で、見えない所で並べる）
   shown(doc: string, page: string, version: string): Geometry | null;
+  // matomezu open で、紙に収まらないので届けなかった（マスターを出して reason を知らせる。name はファイルの名前。docs/PAPER-plan.md の 4.6 の 7）
+  refuseOpen(doc: string, reason: string, name: string): void;
 }
 
 export function createAnswers(ctx: AnswersContext) {
@@ -62,10 +66,10 @@ export function createAnswers(ctx: AnswersContext) {
       return send({ error: err instanceof Error ? err.message : String(err) });
     }
   }
-  // matomezu set の前の確かめ（D33。docs/PAPER-plan.md）: 書き換えたあとの中身（サーバーに預けたもの）が紙に収まるか。
-  // 今のファイルと預けた中身を、ページごとに見えない所で並べて比べ、書き換えで新しく紙からはみ出す最上位の箱を答える
-  // （前から紙の外にある箱は数えない。ユーザーの操作の決まりと同じ）。ボタンを押している間は待つ（answerSummary と同じ）
-  async function answerFit(req: string, doc: string) {
+  // matomezu set の前の確かめと、matomezu open の判定（D33。docs/PAPER-plan.md の 4.6 の 7）: 中身（サーバーに預けたもの）を開いたときと同じに
+  // 見えない所で並べ、紙の外の箱を形を変えずに押し込んでも紙に収まらないページを答える。open なら、収まらなければこの画面にマスターを出して知らせる
+  // （そのブックは届けない）。ボタンを押している間は待つ（answerSummary と同じ）
+  async function answerFit(req: string, doc: string, open: boolean, name = "") {
     const url = `api/fit/${encodeURIComponent(req)}`;
     const send = poster(url);
     if (!await released()) return send({ busy: true });
@@ -73,27 +77,10 @@ export function createAnswers(ctx: AnswersContext) {
       const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) return send({ error: `${res.status}` });
       const next = await res.json() as Diagram;
-      const now = await fetchRemote(docBase(doc));
-      const before = now && !(now.data instanceof Error) ? now.data as Diagram : null;
-      const size = offscreenSize();
-      const pageIds = (d: Diagram | null) => (d ? ["", ...(Array.isArray(d.pages) ? d.pages.map(p => String(p.id)) : [])] : []);
-      const over = [];
-      for (const page of pageIds(next)) {
-        const g = await layoutGeometry(next, page || null, size);
-        if (!g.paper || !g.outside?.length) continue;
-        const was = before && pageIds(before).includes(page) ? new Set((await layoutGeometry(before, page || null, size)).outside ?? []) : new Set<string>();
-        const fresh = g.outside.filter(id => !was.has(id));
-        if (!fresh.length) continue;
-        const p = g.paper;
-        over.push({
-          page, paper: `${p.name} ${p.w}x${p.h}`,
-          boxes: fresh.map(id => {
-            const b = g.boxes.find(x => x.id === id)!;
-            return { id, caption: b.caption, right: Math.max(0, Math.round(b.x + b.w - p.w)), bottom: Math.max(0, Math.round(b.y + b.h - p.h)) };
-          }),
-        });
-      }
-      return send({ over });
+      const misfits = await layoutMisfits(next, offscreenSize());
+      const pageName = (p: string | null) => pageNameOf(next, p);
+      if (open && misfits.length) ctx.refuseOpen(doc, misfitText(misfits, pageName), name || doc);
+      return send({ over: misfits.map(m => ({ page: m.page ?? "", name: pageName(m.page), paper: m.paper, axis: m.axis, short: Math.ceil(m.short), boxes: m.boxes })) });
     } catch (err) {
       return send({ error: err instanceof Error ? err.message : String(err) });
     }

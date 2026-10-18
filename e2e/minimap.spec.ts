@@ -2,9 +2,10 @@
 import { expect, test } from "@playwright/test";
 import { openDiagram } from "./helpers";
 
-// 縦に長い図（画面の 3 倍ほど）。線も 1 本
+// 縦に長い図（画面の 2 倍ほど。紙の外に書くと、開いたときに紙の中へ押し込まれるので A3 縦の紙の中に。docs/PAPER-plan.md の 4.6 の 7）。線も 1 本
 const tall = {
-  nodes: Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `箱 ${i + 1}`, x: 40 + (i % 2) * 300, y: 40 + i * 160 })),
+  world: { paper: "a3-portrait" },
+  nodes: Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `箱 ${i + 1}`, x: 40 + (i % 2) * 300, y: 40 + i * 120 })),
   edges: [{ from: 1, to: 12 }],
 };
 

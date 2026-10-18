@@ -546,7 +546,8 @@ test("ページのタブを図へドラッグすると点線の影が付き、�
 
 test("LLM の変更はユーザーの Undo に入らず、見えたら認知してユーザーの履歴に入る。画面の外の箱は、スクロールで見えるまで認知しない。matomezu history に残り、見たら seen（D31）", async ({ page }) => {
   const file = join(dir, "hist.json");
-  writeFileSync(file, JSON.stringify({ nodes: [{ id: 1, caption: "見える", x: 40, y: 40 }, { id: 2, caption: "遠く", x: 40, y: 3000 }] }));
+  // 遠くの箱は、紙（A3 縦）の中で画面の外（紙の外に書くと、開いたときに紙の中へ押し込まれて見えてしまう。docs/PAPER-plan.md の 4.6 の 7）
+  writeFileSync(file, JSON.stringify({ world: { paper: "a3-portrait" }, nodes: [{ id: 1, caption: "見える", x: 40, y: 40 }, { id: 2, caption: "遠く", x: 40, y: 1450 }] }));
   const url = run("open", "-no-browser", "hist.json").trim();
   await page.goto(url);
   const stage = page.locator(".stage:visible");
@@ -795,33 +796,66 @@ test("サーバーを入れ替えても、最後にフォーカスされた画�
   await other.close();
 });
 
-test("紙からはみ出す set は書かずにエラー（どの箱がどれだけはみ出すかと手段）。紙の外に箱があれば check はエラーで終わる。画面が無ければ set は断る（D33）", async ({ page }) => {
-  writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 40, y: 40 }], edges: [] }));
+test("set の確かめ・ファイルの直接の書き換え・check は、開くときと同じ決まり: 紙の外の箱は形を変えずに押し込み（画面が書き戻す）、押し込んでも入らなければ断る。画面が無ければ set は断る（D33。docs/PAPER-plan.md の 4.6 の 7）", async ({ page }) => {
+  // A5 横（794 × 559）に、上の段に 4 つ・下の段に 3 つ
+  const rows = (lower: number) => Array.from({ length: 7 }, (_, i) => ({ id: i + 1, caption: `箱${i + 1}`, x: 40 + (i < 4 ? i : i - 4 + 4 * (1 - lower)) * 130, y: i < 4 ? 40 : 40 + 150 * lower }));
+  writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: rows(1), edges: [] }));
   await page.goto(run("open", "-no-browser", "p.json").trim());
   await expect(selected(page)).toHaveText("p.json");
   const before = readFileSync(join(dir, "p.json"), "utf8");
-  // 紙（A5 横 794 × 559）の右の外へ動かす
+  const xOf = (id: number) => (JSON.parse(readFileSync(join(dir, "p.json"), "utf8")) as { nodes: { id: number; x: number }[] }).nodes.find(n => n.id === id)!.x;
+  // 7 つを 1 段に並べると、間隔を詰めても紙の幅に入らない（折り返さない）ので書かない
   let err = "";
-  try { run("set", "p.json", "1.x=900"); } catch (e) { err = String((e as { stderr?: string }).stderr ?? e); }
+  try { run("set", "p.json", "5.y=40", "6.y=40", "7.y=40", "5.x=560", "6.x=690", "7.x=820"); } catch (e) { err = String((e as { stderr?: string }).stderr ?? e); }
   expect(err).toContain("not written");
-  expect(err).toContain("off the paper");
-  expect(err).toContain("#1 箱");
+  expect(err).toContain("does not fit on the paper");
+  expect(err).toMatch(/the row #1 箱1, .*#7 箱7 is \d+px wider than the paper/);
   expect(err).toContain("larger paper");
   expect(readFileSync(join(dir, "p.json"), "utf8")).toBe(before);
-  // 収まる set は書ける
-  expect(run("set", "p.json", "1.x=200")).toContain("written");
-  // ファイルを直接書かれて紙の外に箱があると、check は要約を出したうえでエラー
-  writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: [{ id: 1, caption: "箱", x: 900, y: 40 }], edges: [] }));
-  await expect.poll(() => page.locator('.stage:visible .mz-node[data-id="1"]').evaluate(el => (el as HTMLElement).style.left)).toBe("900px");
+  // 紙の外へ出しても、押し込めば入るなら書ける。画面が紙の内側へ押し込んで書き戻す
+  expect(run("set", "p.json", "7.x=900")).toContain("written");
+  await expect.poll(() => xOf(7)).toBeLessThan(794);
+  // ファイルを直接書かれて、押し込んでも入らなくなったら: 前の表示のまま知らせ、保存を止める。check は理由を出してエラー
+  writeFileSync(join(dir, "p.json"), JSON.stringify({ world: { paper: "a5-landscape" }, nodes: rows(0), edges: [] }));
+  await expect(page.locator(".mz-toast-error")).toContainText("AIが図の書き換えに失敗しました");
+  await expect(page.locator('.stage:visible .mz-node[data-id="5"]')).toHaveCSS("top", /^(?!40px)/);
   let out = "";
   try { run("check", "p.json"); } catch (e) { out = String((e as { stdout?: string }).stdout ?? "") + String((e as { stderr?: string }).stderr ?? ""); }
   expect(out).toContain("paper a5-landscape 794x559");
-  expect(out).toContain("off the paper");
+  expect(out).toContain("does not fit: the row #1 箱1");
+  expect(out).toContain("the browser does not show this file");
   // 画面が無ければ set は断る
   run("stop");
   err = "";
   try { run("set", "p.json", "1.x=100"); } catch (e) { err = String((e as { stderr?: string }).stderr ?? e); }
   expect(err).toContain("matomezu open");
+});
+
+test("紙に収まらないブックは開かない: open は理由を返して届けず、画面はマスターを出して知らせる。URL で開いても同じ。どちらもマスターの一覧に載せない（docs/PAPER-plan.md の 4.6 の 7）", async ({ page, context }) => {
+  // A4 横に、間隔を詰めても入らない 12 個の横の並び
+  writeFileSync(join(dir, "wide.json"), JSON.stringify({ nodes: Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `横${i + 1}`, x: 12 + i * 130, y: 12 })), edges: [] }));
+  await page.goto(run("open", "-no-browser", "a.json").trim());
+  await expect(selected(page)).toHaveText("a.json");
+  const origin = new URL(page.url()).origin;
+  const listed = async () => ((await (await page.request.get(origin + "/api/books")).json()) as { books: { name: string }[] }).books.some(b => b.name === "wide.json");
+  const err = fails("open", "-no-browser", "wide.json");
+  expect(err).toContain("not opened");
+  expect(err).toMatch(/first page, paper a4-landscape 1123x794: the row #1 横1, .*#12 横12 is \d+px wider than the paper/);
+  await expect(selected(page)).toHaveText("マスター");
+  await expect(page.locator(".mz-toast-error")).toHaveText(/^!AIがブック「wide.json」を開けませんでした\s*原因：ページ幅オーバー（\d+px）$/);
+  await expect(page.locator(".mz-dlg")).toHaveCount(0); // 届いていないので「届いています」も出ない
+  expect(await listed()).toBe(false);
+  await expect(page.locator(".stage:visible .mz-node[data-id^='b-']", { hasText: "wide.json" })).toHaveCount(0);
+  // 画面が無いときの open -no-browser は判定せずに届けるので、URL を開いた画面がブックを開くときに判定し、開かずにマスターで知らせて一覧から外す
+  await page.close();
+  const url = run("open", "-no-browser", "wide.json").trim();
+  expect(await listed()).toBe(true);
+  const next = await context.newPage();
+  await next.goto(url);
+  await expect(selected(next)).toHaveText("マスター");
+  await expect(next.locator(".mz-toast-error")).toHaveText(/^!ブック「wide.json」を開けませんでした\s*原因：ページ幅オーバー（\d+px）$/);
+  await expect(next.locator(".tab-name", { hasText: "wide.json" })).toHaveCount(0);
+  await expect.poll(listed).toBe(false);
 });
 
 // matomezu が誤りで終わったときの出力（run は誤りで例外を投げる）

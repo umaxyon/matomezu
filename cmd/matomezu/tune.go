@@ -61,9 +61,10 @@ func check(args []string) error {
 	if l.Ask != "" {
 		fmt.Println(l.Ask)
 	}
-	// 紙からはみ出している間はエラーで終わる（D33。LLM が直すまで返し続ける）
+	// 紙からはみ出している間はエラーで終わる（D33。LLM が直すまで返し続ける）。紙の外の箱は開くときに形を変えずに押し込むので、
+	// 残っているのは押し込んでも入らないとき（要約の does not fit の行。画面はこのファイルを表示しない。docs/PAPER-plan.md の 4.6 の 7）
 	if len(l.Outside) > 0 {
-		return fmt.Errorf("%d box(es) are off the paper (marked ! in top): move them inside, summarize or cut, use a scrolling list, a larger paper (world.paper), or a page", len(l.Outside))
+		return fmt.Errorf("%d box(es) are off the paper (marked ! in top) and cannot be pushed in without wrapping, so the browser does not show this file: summarize or cut, use a scrolling list, a larger paper (world.paper), or a page", len(l.Outside))
 	}
 	return nil
 }
@@ -155,7 +156,7 @@ func set(args []string) error {
 		return fmt.Errorf("not written: %w", err)
 	}
 	if len(over) > 0 {
-		return errors.New("not written: " + overText(over))
+		return errors.New("not written: " + overText("the change does not fit on the paper:", over))
 	}
 	if err := writeFile(path, out); err != nil {
 		return err
@@ -168,20 +169,29 @@ func set(args []string) error {
 	return nil
 }
 
-// overText は、紙からはみ出す箱と、取れる手段を並べる（set が断ったとき）
-func overText(over []server.FitOver) string {
+// overText は、紙に収まらなかったページの並びと、取れる手段を並べる（set と open が断ったとき。docs/PAPER-plan.md の 4.6 の 7）
+func overText(lead string, over []server.FitOver) string {
 	var b strings.Builder
-	b.WriteString("the change makes boxes go off the paper:")
+	b.WriteString(lead)
 	for _, o := range over {
 		page := "first page"
 		if o.Page != "" {
 			page = "page " + o.Page
+			if o.Name != "" && o.Name != o.Page {
+				page += " (" + o.Name + ")"
+			}
 		}
-		fmt.Fprintf(&b, "\n  %s (paper %s):", page, o.Paper)
-		for _, x := range o.Boxes {
-			fmt.Fprintf(&b, " #%s %s (right %d, bottom %d);", x.ID, x.Caption, x.Right, x.Bottom)
+		kind, more := "row", "wider"
+		if o.Axis == "y" {
+			kind, more = "column", "taller"
 		}
+		row := make([]string, len(o.Boxes))
+		for i, x := range o.Boxes {
+			row[i] = "#" + x.ID + " " + x.Caption
+		}
+		fmt.Fprintf(&b, "\n  %s, paper %s: the %s %s is %dpx %s than the paper", page, o.Paper, kind, strings.Join(row, ", "), o.Short, more)
 	}
+	b.WriteString("\nboxes outside the paper are pushed in only along their row or column, never wrapped to another row")
 	b.WriteString("\nto make it fit: summarize or cut content, turn a long list into a scrolling list, use a larger paper (world.paper), or move a detail that deserves its own page to a page")
 	return b.String()
 }

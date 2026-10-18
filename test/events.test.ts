@@ -185,7 +185,8 @@ test("閉じる・郵便・一覧・紙の頼みは doc（と req）が文字の
   es.send("books", null);
   es.send("fit", { req: "r1", doc: "a" });
   es.send("fit", { req: "r2" });
-  expect(got).toEqual(['close ["a"]', 'mail ["a"]', "books []", 'fit ["r1","a"]']);
+  es.send("fit", { req: "r3", doc: "a", open: "true", name: "a.json" }); // matomezu open の判定
+  expect(got).toEqual(['close ["a"]', 'mail ["a"]', "books []", 'fit ["r1","a",false,""]', 'fit ["r3","a",true,"a.json"]']);
 });
 
 test("フォーカスは doc・box が無ければ null（枠を消す頼み）、say が無ければ空。req が無ければ配らない（D37）", () => {

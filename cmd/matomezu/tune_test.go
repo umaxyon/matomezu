@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/umaxyon/matomezu/internal/server"
 )
 
 func TestApplySets(t *testing.T) {
@@ -261,5 +263,22 @@ func TestApplySetsKeepsPatternAndBoxType(t *testing.T) {
 	out, _, err := applySets([]byte(in), "", []string{"2.link=p3", "world.title=題"})
 	if err != nil || !strings.Contains(string(out), `"link": "p3"`) {
 		t.Fatalf("retarget: %v\n%s", err, out)
+	}
+}
+
+// 紙に収まらなかったページは、向き・並び・足りない px と、折り返さないこと、取れる手段を書く（set と open が断ったとき）
+func TestOverText(t *testing.T) {
+	got := overText("lead:", []server.FitOver{
+		{Page: "", Paper: "a4-landscape 1123x794", Axis: "x", Short: 40, Boxes: []server.FitBox{{ID: "1", Caption: "A"}, {ID: "2", Caption: "B"}}},
+		{Page: "p2", Name: "二枚目", Paper: "a5-portrait 559x794", Axis: "y", Short: 7, Boxes: []server.FitBox{{ID: "9", Caption: "C"}}},
+	})
+	for _, want := range []string{
+		"lead:\n  first page, paper a4-landscape 1123x794: the row #1 A, #2 B is 40px wider than the paper",
+		"\n  page p2 (二枚目), paper a5-portrait 559x794: the column #9 C is 7px taller than the paper",
+		"never wrapped", "world.paper",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
 	}
 }

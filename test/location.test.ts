@@ -40,10 +40,10 @@ test("覚えられなくても（localStorage が使えない）落ちない", (
 test("表示中のブックとページを URL に書き、ほかの項目は残す。ページが null なら p を消す", () => {
   happyDOM.setURL("http://localhost/?x=1");
   writeUrl("book 1", "7");
-  expect(wantedFromUrl()).toEqual({ book: "book 1", page: "7" });
+  expect(wantedFromUrl()).toEqual({ book: "book 1", page: "7", master: false });
   expect(new URLSearchParams(location.search).get("x")).toBe("1");
   writeUrl("b2", null);
-  expect(wantedFromUrl()).toEqual({ book: "b2", page: null });
+  expect(wantedFromUrl()).toEqual({ book: "b2", page: null, master: false });
   expect(location.search).not.toContain("p=");
 });
 
@@ -53,5 +53,12 @@ test("URL を書き換えられなくても（about:blank など）落ちない"
 
 test("URL に何も無ければ、頼まれたブックもページも無い", () => {
   happyDOM.setURL("http://localhost/");
-  expect(wantedFromUrl()).toEqual({ book: null, page: null });
+  expect(wantedFromUrl()).toEqual({ book: null, page: null, master: false });
+});
+
+test("?master=1 はマスターを出す（matomezu start）。ブックを書いたら消す", () => {
+  happyDOM.setURL("http://localhost/?master=1");
+  expect(wantedFromUrl()).toEqual({ book: null, page: null, master: true });
+  writeUrl("a", null);
+  expect(wantedFromUrl()).toEqual({ book: "a", page: null, master: false });
 });

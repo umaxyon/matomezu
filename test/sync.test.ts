@@ -298,3 +298,56 @@ test("画面が表示している版は、引用符を除いて返す（matomezu
   await setup();
   expect(sync!.shown()).toBe(fileVersion.replace(/"/g, ""));
 });
+
+// ---- 紙に収まるかの判定（docs/PAPER-plan.md の 4.6 の 7） ----
+
+// A4 横に、間隔を詰めても入らない 12 個の横の並び
+const TOO_WIDE = { nodes: Array.from({ length: 12 }, (_, i) => ({ id: i + 1, caption: `横${i + 1}`, x: 12 + i * 130, y: 12 })) };
+
+test("最初に開くとき紙に収まらなければ、描かずに refused で理由を知らせる（app.ts がマスターを出す）。表示した版は無い", async () => {
+  writeFile(JSON.stringify(TOO_WIDE));
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const refused: string[] = [];
+  graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d) });
+  sync = startSync(graph, "", (await fetchRemote(""))!, { error: t => refused.push("ERROR " + t), clearError: () => {}, refused: r => refused.push(r) });
+  expect(refused).toHaveLength(1);
+  expect(refused[0]).toMatch(/^原因：ページ幅オーバー（\d+px）$/);
+  expect(graph.toJSON().nodes).toEqual([]);
+  expect(sync.shown()).toBe("");
+});
+
+test("紙の外の箱を押し込んで開いたら、押し込んだ位置を保存する（履歴には積まない）", async () => {
+  writeFile(JSON.stringify({ nodes: [{ id: 1, caption: "外", x: 5000, y: 20 }] }));
+  // アプリと同じく、裏で読み込んでから前に出す（app.ts の openBook と activate。前に出したときに表示する）
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const g = graph = createGraph(el, { nodes: [] }, { measureText: fakeMeasure, onChange: (d: Diagram) => sync?.changed(d) });
+  sync = startSync(g, "", (await fetchRemote(""))!, { error: () => {}, clearError: () => {} }, { active: false });
+  sync.setActive(true);
+  await settle();
+  expect(puts).toHaveLength(1);
+  const x = JSON.parse(puts[0]!).nodes[0].x;
+  expect(x).toBe(g.info(1).x);
+  expect(x).toBeLessThan(1123);
+  expect(g.history().canUndo).toBe(false);
+});
+
+test("読み直したファイルが紙に収まらなければ、前の表示を残して知らせ、直るまで保存を止める。表示した版にはしない", async () => {
+  const g = await setup();
+  const shown = sync!.shown();
+  external(TOO_WIDE);
+  await wait(10);
+  expect(messages.at(-1)).toMatch(/^ERROR AIが図の書き換えに失敗しました\n原因：ページ幅オーバー（\d+px）$/);
+  expect(g.toJSON().nodes.map(n => n.id)).toEqual([1, 2]);
+  expect(sync!.shown()).toBe("");
+  g.update(1, { caption: "保存しない" });
+  await settle();
+  expect(puts).toHaveLength(0);
+  // 直れば読み直して保存も戻る
+  external({ nodes: [{ id: 1, caption: "直した", x: 20, y: 20 }] });
+  await wait(10);
+  expect(captions(g)).toEqual(["直した"]);
+  expect(sync!.shown()).not.toBe("");
+  expect(sync!.shown()).not.toBe(shown);
+});

@@ -145,7 +145,8 @@ test("CSS は形の数値を書き写さず、render.ts が渡す変数で読む
 });
 
 test("リンクの箱の窓の縮尺の下限は DEFAULTS.previewMinScale の値だけで決まる", () => {
-  const data: Diagram = { pages: [{ id: "p1" }], nodes: [{ id: 1, link: "p1", x: 0, y: 0 }, { id: 2, caption: "遠く", page: "p1", x: 3000, y: 2000 }] };
+  // 遠くの箱は紙（A3 横）の中に置く（紙の外に書いた箱は、開いたときに押し込まれる。docs/PAPER-plan.md の 4.6 の 7）
+  const data: Diagram = { pages: [{ id: "p1", world: { paper: "a3-landscape" } }], nodes: [{ id: 1, link: "p1", x: 0, y: 0 }, { id: 2, caption: "遠く", page: "p1", x: 1400, y: 1000 }] };
   const widthAt = (min: number) => {
     const { el } = setup(data, { previewMinScale: min });
     return Number(el.querySelector<SVGSVGElement>('.mz-node[data-id="1"] .mz-link-art')!.getAttribute("viewBox")!.split(" ")[2]);

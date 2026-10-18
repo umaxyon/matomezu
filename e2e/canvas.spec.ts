@@ -228,14 +228,16 @@ test("紙が画面より小さければ紙を図の枠の真ん中に置き、�
 });
 
 test("紙の型: ブックのダイアログで今のページを小さな紙にして収まらなければ閉じずに知らせ、見ていないページは大きな紙だけ選べる（D33）", async ({ page }) => {
-  await openDiagram(page, { pages: [{ id: "p2", title: "二枚目" }], nodes: [{ id: 1, caption: "右の箱", x: 900, y: 40 }, { id: 2, caption: "二枚目の箱", page: "p2" }], edges: [] } as never);
+  // 横に 7 つ並んだ箱（A4 横には入るが、A5 横には間隔を詰めても入らない。紙を小さくすると押し込み、入らなければ断る。docs/PAPER-plan.md の 4.6 の 7）
+  const row = Array.from({ length: 7 }, (_, i) => ({ id: 10 + i, caption: `横${i + 1}`, x: 40 + i * 140, y: 40 }));
+  await openDiagram(page, { pages: [{ id: "p2", title: "二枚目" }], nodes: [...row, { id: 2, caption: "二枚目の箱", page: "p2" }], edges: [] } as never);
   await page.locator("#book").click();
   const dlg = page.locator(".mz-dlg");
   // 見ていないページ（二枚目、A4 横）: 縦横とも A4 横以上の型だけ
   await dlg.locator('[data-tab="p2"]').click();
   const others = await dlg.locator('[data-tab-pane="p2"] [name="paper"] option').evaluateAll(os => os.map(o => (o as HTMLOptionElement).value));
   expect(others).toEqual(["a4-landscape", "a3-portrait", "a3-landscape"]);
-  // 今のページを A5 横にすると、x 900 の箱がはみ出すので確定できない
+  // 今のページを A5 横にすると、7 つの並びが入らないので確定できない
   await dlg.locator('[data-tab=""]').click();
   await dlg.locator('[data-tab-pane=""] [name="paper"]').selectOption("a5-landscape");
   await dlg.locator("[data-ok]").click();

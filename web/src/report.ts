@@ -30,6 +30,8 @@ export interface Geometry {
   paper?: { name: string; w: number; h: number } | null; // 紙（D33）。あれば、はみ出しは表示領域ではなく紙に対して数える
   inset?: number;     // 紙のふちに残す余白（layout.ts の clamp と outsideFixed の padding）。紙のはみ出しは、紙からこの分だけ内側で数える
   outside?: string[]; // 紙からはみ出している最上位の箱の id（D33。graph.ts の refuseOverPaper と同じ決まり）
+  // 開くときの判定で、形を変えずには紙に収まらなかった（docs/PAPER-plan.md の 4.6 の 7）: 入らなかった向き・足りない px・端から端へつながった最上位の箱
+  misfit?: { axis: "x" | "y"; short: number; boxes: { id: string; caption: string }[] };
   boxes: GeoBox[];
   edges: GeoEdge[];
   treeLines?: Pt[][];  // ツリーの線の区間（ワールドの座標。縮図で使う）
@@ -71,6 +73,13 @@ export function details(g: Geometry): Record<string, string> {
   return out;
 }
 
+// 開くときの判定で紙に収まらなかったページの 1 行（matomezu check の要約。open と set の断りは Go の側が同じ形で書く。docs/PAPER-plan.md の 4.6 の 7）
+export function misfitLine(m: NonNullable<Geometry["misfit"]>): string {
+  const row = m.boxes.map(b => `#${b.id} ${b.caption.length > LABEL_MAX ? b.caption.slice(0, LABEL_MAX) + "…" : b.caption}`).join(", ");
+  return `does not fit: the ${m.axis === "x" ? "row" : "column"} ${row} is ${Math.ceil(m.short)}px ${m.axis === "x" ? "wider" : "taller"} than the paper` +
+    " (boxes outside the paper are pushed in along their row or column, never wrapped); the browser will not show this file until it fits";
+}
+
 export function summarize(g: Geometry): string {
   const byId = new Map(g.boxes.map(b => [b.id, b]));
   const top = g.boxes.filter(b => b.ancestors.length === 0);
@@ -88,6 +97,7 @@ export function summarize(g: Geometry): string {
   if (bottom > vh + 0.5) over.push(`bottom ${Math.round(bottom - vh)}`);
   const frame = g.paper ? `paper ${g.paper.name} ${vw0}x${vh0}` : `viewport ${vw0}x${vh0}`;
   lines.push(`${frame}, content ${Math.round(right)}x${Math.round(bottom)}` + (over.length ? ` → over ${over.join(", ")}` : " → fits"));
+  if (g.misfit) lines.push(misfitLine(g.misfit));
 
   // 最上位のボックスは、動かす判断に要るので常に出す。はみ出しているものに ! を付ける
   const rect = (b: GeoBox) => `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}`;

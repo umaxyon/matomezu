@@ -27,8 +27,12 @@ var version = "dev"
 const reconnectWait = 4 * time.Second
 
 const usageText = `usage:
-  matomezu open [-no-browser] [-page id] <file.json>   show the diagram (or the page with that id) in the browser (starts the background server)
+  matomezu start [-no-browser]               start the background server and, if no browser shows matomezu, open the master page in the browser
+                                             and wait until it connects (with -no-browser, print the URL for the user to open and wait)
+  matomezu open [-no-browser] [-page id] <file.json>   show the diagram (or the page with that id) in the browser (runs start first when needed)
                                              if the user is looking at another diagram, it goes to their mailbox and they are asked whether to open it
+                                             a diagram that does not fit on its paper is not opened: the reason is printed and the browser shows it on the master page
+                                             with -no-browser and no browser showing matomezu, it only prints the URL for the user to open
   matomezu serve [-addr host:port] <file.json>   run a server in the foreground for one diagram
   matomezu check [-page id] [-in ids] <file.json>   print a summary of how the user's screen lays it out (the first page, or the page with that id)
                                              it does not switch the user's screen; a page the user is not looking at is laid out off screen at the same size
@@ -85,6 +89,8 @@ func main() {
 	args := os.Args[2:]
 	var err error
 	switch os.Args[1] {
+	case "start":
+		err = startCmd(args)
 	case "open":
 		err = open(args)
 	case "serve":
@@ -174,11 +180,92 @@ func newFlags(name string) *flag.FlagSet {
 	return fs
 }
 
-// open は図をブラウザで見せる。バックグラウンドのサーバーが無ければ起動し、すぐに戻る。
-// 1行目に URL を出す。LLM はブラウザを開けなかったとき、この URL をユーザーに伝える
+// screenWait は、ブラウザを開いてから画面がつながるまで待つ長さ。noBrowserWait は、URL をユーザーに開いてもらうときに待つ長さ
+const (
+	screenWait    = 30 * time.Second
+	noBrowserWait = 2 * time.Minute
+)
+
+// serverUp はバックグラウンドのサーバーを起動し（版が違えば入れ替える）、画面（ブラウザの matomezu のタブ）がつながっているかを返す。
+// 入れ替えたときは、開いていた画面が同じ URL でつなぎ直すのを少し待つ
+func serverUp() (*daemon.State, bool, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, false, err
+	}
+	s, replaced, err := daemon.Ensure(context.Background(), exe, buildVersion(exe))
+	if err != nil {
+		return nil, false, err
+	}
+	if ok, _ := daemon.Screen(s); ok {
+		return s, true, nil
+	}
+	return s, replaced && waitScreen(s, reconnectWait), nil
+}
+
+// waitScreen は画面がつながるまで d だけ待つ
+func waitScreen(s *daemon.State, d time.Duration) bool {
+	for deadline := time.Now().Add(d); ; time.Sleep(200 * time.Millisecond) {
+		if ok, _ := daemon.Screen(s); ok {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+	}
+}
+
+// startScreen は、画面が無ければブラウザでマスターを開いて、画面がつながるまで待つ（matomezu start。open も中で使う）。
+// noBrowser ならブラウザを開かず、マスターの URL を出してユーザーが開くのを待つ。画面がつながらなければ誤り
+func startScreen(noBrowser bool) (*daemon.State, error) {
+	s, ok, err := serverUp()
+	if err != nil || ok {
+		return s, err
+	}
+	url := s.URL("/?master=1")
+	if noBrowser {
+		fmt.Println(url)
+		fmt.Fprintln(os.Stderr, "Ask the user to open the URL above; waiting for the browser to connect.")
+		if !waitScreen(s, noBrowserWait) {
+			return nil, errors.New("no browser connected; ask the user to open " + url + " and run the command again")
+		}
+		return s, nil
+	}
+	if err := browser.Open(url); err != nil {
+		return nil, fmt.Errorf("could not open a browser: %v; ask the user to open %s and run the command again", err, url)
+	}
+	if !waitScreen(s, screenWait) {
+		return nil, errors.New("the browser did not connect; ask the user to open " + url + " and run the command again")
+	}
+	return s, nil
+}
+
+// startCmd は画面を用意する（matomezu start）。図は開かない
+func startCmd(args []string) error {
+	fs := newFlags("start")
+	noBrowser := fs.Bool("no-browser", false, "print the URL of the master page without opening a browser, and wait for the user to open it")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		fs.Usage()
+		os.Exit(2)
+	}
+	s, err := startScreen(*noBrowser)
+	if err != nil {
+		return err
+	}
+	fmt.Println(s.URL("/?master=1"))
+	fmt.Fprintln(os.Stderr, "The browser shows matomezu.")
+	return nil
+}
+
+// open は図をブラウザで見せる。画面が無ければ start と同じく用意してから（マスターが出る）、その画面に届ける。
+// 届ける前に画面が紙に収まるかを判定し、収まらなければ届けずに理由を返す（画面はマスターで知らせる。docs/PAPER-plan.md の 4.6 の 7）。
+// 1 行目に URL を出す
 func open(args []string) error {
 	fs := newFlags("open")
-	noBrowser := fs.Bool("no-browser", false, "print the URL without opening a browser")
+	noBrowser := fs.Bool("no-browser", false, "do not open a browser when none shows matomezu: register the diagram and print its URL for the user to open")
 	page := fs.String("page", "", "open this page (an id in pages) instead of the first page")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -187,47 +274,41 @@ func open(args []string) error {
 		fs.Usage()
 		os.Exit(2)
 	}
-	exe, err := os.Executable()
+	// ブラウザを開かないときは、画面が無くても待たない（届けておき、URL を開いた画面がブックを開くときに判定する。収まらなければマスターで知らせる）
+	var s *daemon.State
+	var err error
+	screen := true
+	if *noBrowser {
+		s, screen, err = serverUp()
+	} else {
+		s, err = startScreen(false)
+	}
 	if err != nil {
 		return err
 	}
-	s, replaced, err := daemon.Ensure(context.Background(), exe, buildVersion(exe))
-	if err != nil {
-		return err
-	}
-	// 画面がつながっていれば、そのタブの中で図を開く（サーバーは、少しあとにつながった画面にも知らせる）
 	res, err := daemon.Ask(s, fs.Arg(0), *page)
 	if err != nil {
 		return err
 	}
-	// サーバーを入れ替えたときは、開いていた画面が同じ URL でつなぎ直すのを少し待つ（つながればブラウザを開かない）
-	if replaced && res.Connections == 0 {
-		for deadline := time.Now().Add(reconnectWait); time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
-			if res, err = daemon.Open(s, fs.Arg(0)); err != nil {
-				return err
-			}
-			if res.Connections > 0 {
-				break
-			}
-		}
+	if len(res.Over) > 0 {
+		return errors.New("not opened: " + overText("the diagram does not fit on its paper (the browser shows this on the master page):", res.Over))
 	}
-	url := s.URL("/?d=" + res.ID)
-	if *page != "" {
-		url += "&p=" + *page
+	fmt.Println(bookURL(s, res.ID, *page))
+	if !screen {
+		fmt.Fprintln(os.Stderr, "No browser shows matomezu: ask the user to open the URL above. If the diagram does not fit on its paper, the browser shows why on the master page (matomezu check reports it too).")
+		return nil
 	}
-	fmt.Println(url)
-	switch {
-	case res.Connections > 0:
-		fmt.Fprintln(os.Stderr, "Opened in the matomezu tab already open in the browser; it updates automatically when the file changes.")
-	case *noBrowser:
-	default:
-		if err := browser.Open(url); err != nil {
-			fmt.Fprintf(os.Stderr, "Could not open a browser: %v. Ask the user to open the URL above.\n", err)
-		} else {
-			fmt.Fprintln(os.Stderr, "Opened in the browser.")
-		}
-	}
+	fmt.Fprintln(os.Stderr, "Sent to the matomezu tab in the browser (if the user is looking at another diagram, they are asked whether to open it); it updates automatically when the file changes.")
 	return nil
+}
+
+// bookURL はブック（page があればそのページ）を開く画面の URL
+func bookURL(s *daemon.State, id, page string) string {
+	url := s.URL("/?d=" + id)
+	if page != "" {
+		url += "&p=" + page
+	}
+	return url
 }
 
 // 開発中のビルドは版がすべて dev なので、実行ファイルの更新時刻で見分ける。

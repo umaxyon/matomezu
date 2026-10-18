@@ -1,6 +1,6 @@
 // 画面の外に覚えること（app.ts から使う）。どちらも覚えられなくても動く
 // - 開いているブックの並び: localStorage
-// - 表示中のブックとページ: URL（?d=<ブックの id>&p=<ページの箱の id>）
+// - 表示中のブックとページ: URL（?d=<ブックの id>&p=<ページの箱の id>）。?master=1 はマスター（matomezu start）
 
 const STORE_KEY = "matomezu.tabs";
 
@@ -21,16 +21,17 @@ export function saveBooks(ids: string[]) {
   } catch { /* 覚えられなくても動く */ }
 }
 
-// URL で頼まれたブックとページ（開いたとき）
-export function wantedFromUrl(): { book: string | null; page: string | null } {
+// URL で頼まれたブックとページ（開いたとき）。master はマスターを出す（matomezu start がブラウザを開くとき。?master=1）
+export function wantedFromUrl(): { book: string | null; page: string | null; master: boolean } {
   const params = new URLSearchParams(location.search);
-  return { book: params.get("d"), page: params.get("p") };
+  return { book: params.get("d"), page: params.get("p"), master: params.get("master") === "1" };
 }
 
 export function writeUrl(book: string, page: string | null) {
   try {
     const url = new URL(location.href);
     url.searchParams.set("d", book);
+    url.searchParams.delete("master");
     if (page != null) url.searchParams.set("p", page);
     else url.searchParams.delete("p");
     history.replaceState(null, "", url);

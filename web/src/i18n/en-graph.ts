@@ -37,4 +37,8 @@ export default {
   "clip は { x, y, w, h } の四角（w と h は正の数）にしてください: {where}": "clip must be a rectangle { x, y, w, h } (w and h positive): {where}",
   "そのページはありません: {id}": "No such page: {id}",
   "中身の縮図": "Preview of the contents",
+  // 開くときの判定（paper-misfit.ts。docs/PAPER-plan.md の 4.6 の 7）
+  "原因：{page}{side}オーバー（{short}px）": "Cause: {page}{side} exceeded ({short}px)",
+  "ページ幅": "page width",
+  "ページ高さ": "page height",
 } satisfies Record<string, string>;
