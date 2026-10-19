@@ -3,19 +3,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser && bun build web/src/validate-cli.ts --outfile web/dist/validate.js --target browser",
-    "dev": "bun build web/src/main.ts --outfile web/dist/matomezu.js --target browser --watch",
+    "dev": "bun --port=5173 web/index.html",
+    "build": "bun build web/index.html --outdir web/dist --production",
     "typecheck": "tsc --noEmit",
-    "test": "bun test --parallel",
-    "test:quick": "bun test --parallel --path-ignore-patterns='test/layout-random-*.test.ts'",
-    "test:auto": "scripts/test-auto.sh",
-    "e2e": "bun run build && playwright test",
-    "e2e:d44": "bun run build && playwright test --grep @d44"
+    "test": "bun test",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@happy-dom/global-registrator": "^20.14.5",
-    "@playwright/test": "^1.63.0",
-    "@types/bun": "^1.4.2",
+    "@happy-dom/global-registrator": "^21.0.3",
+    "@playwright/test": "^1.64.1",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/bun": "^1.4.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "typescript": "7.0.2"
   }
 }
