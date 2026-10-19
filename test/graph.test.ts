@@ -718,7 +718,7 @@ describe("子の大きさをそろえる", () => {
       { id: 1, caption: "バックエンド", x: 40, y: 40 },
       { id: 2, caption: "API", parent: 1, x: 12, y: 30 },
       { id: 21, caption: "認証", parent: 2 }, { id: 22, caption: "注文", parent: 2 },
-      { id: 3, caption: "データ", parent: 1, x: 12, y: 200, width: 400, fixedWidth: true },
+      { id: 3, caption: "データ", parent: 1, x: 12, y: 200, width: 400 }, // 固定でない width は前に計算した結果（使わない）
       { id: 31, caption: "DB", parent: 3 },
       { id: 4, caption: "小", parent: 1, x: 500, y: 30, size: "S" },
     ],
@@ -730,7 +730,7 @@ describe("子の大きさをそろえる", () => {
     expect((graph.info(1) as import("../web/src/types").BoxInfo).sizableChildren).toBe(2);
     const s = graph.info(4).w;
     expect(graph.fitChildren(1, "width")).toBe(2);
-    // データの幅は子を持つ箱では使わない（docs/SIZE-plan.md）ので、データは中身の DB に合わせた 12+120+12 = 144。
+    // 固定でない子を持つ箱の幅は子の並びで決まる（docs/SIZE-plan.md）ので、データは中身の DB に合わせた 12+120+12 = 144。
     // API は中の 2 つを詰め直して（縦に並べて）144 にそろう
     expect([graph.info(2).w, graph.info(3).w]).toEqual([144, 144]);
     expect(graph.info(4).w).toBe(s);
@@ -771,10 +771,10 @@ test("左から始まる大きなボックスが少しはみ出しただけな�
   expect([graph.info(2).x, graph.info(2).y]).toEqual([220, 100]);
 });
 
-describe("子を持つ箱は、大きさの指定と中身の扱いを使わず子に合わせる（docs/SIZE-plan.md）", () => {
+describe("子を持つ箱は、中身の扱いを使わず子に合わせる（docs/SIZE-plan.md）。固定にすれば、その大きさ（D45）", () => {
   const data = (): Diagram => ({
     nodes: [
-      { id: 1, caption: "API", x: 40, y: 40, width: 400, fixedWidth: true, height: 150, fixedHeight: true, overflow: "wrap" }, // 指定は無視する
+      { id: 1, caption: "API", x: 40, y: 40, width: 400, height: 150, overflow: "wrap" }, // 固定でない width・height は前の結果（使わない）。中身の扱いも使わない
       { id: 2, caption: "認証", parent: 1, x: 12, y: 30 },
       { id: 3, caption: "注文", parent: 1, x: 260, y: 30 },
     ],
@@ -796,8 +796,20 @@ describe("子を持つ箱は、大きさの指定と中身の扱いを使わず�
     expect(graph.info(1).overflow).toBe("grow");
     expect(graph.info(1).overflows).toEqual([]);
     const out = byId(graph.toJSON(), 1);
-    // width・height は今の大きさ（D44 の段階 3）。固定の印と overflow は使わないが残す
-    expect([out.width, out.height, out.fixedWidth, out.fixedHeight, out.overflow]).toEqual([392, 106, true, true, "wrap"]);
+    // width・height は今の大きさ（D44 の段階 3）。overflow は使わないが残す
+    expect([out.width, out.height, out.fixedWidth, out.fixedHeight, out.overflow]).toEqual([392, 106, undefined, undefined, "wrap"]);
+  });
+
+  test("固定にした子を持つ箱はその大きさ。子を内側へ動かしても縮まず、外へ動かしても壁で止まって広がらない（D45）", () => {
+    const d = data();
+    Object.assign(d.nodes[0]!, { fixedWidth: true, fixedHeight: true });
+    const { el, graph } = setup(d);
+    expect([graph.info(1).w, graph.info(1).h]).toEqual([400, 150]);
+    press(el, graph, 3, [[-40, 0], [-80, 0]]);
+    expect(graph.info(1).w).toBe(400);
+    press(el, graph, 3, [[300, 0]]);
+    expect(graph.info(1).w).toBe(400);
+    expect(graph.info(3).x + graph.info(3).w).toBe(400 - 12);
   });
 
   test("子を内側へ動かすと縮み、外へ動かすと広がる。Undo で戻る", () => {

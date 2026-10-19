@@ -1,4 +1,5 @@
-// つまみで大きさを変える: 本文の幅（docs/BODY-plan.md）、リストの幅（docs/SIZE-plan.md の 10 章）、スクロールにしたリストの高さ（D33）。
+// つまみで大きさを変える: 本文の幅（docs/BODY-plan.md）、リストの幅（docs/SIZE-plan.md の 10 章）、スクロールにしたリストの高さ（D33）、
+// 枠のつまみ（箱の大きさを自由に決めて固定にする。D45。docs/BOX-SIZE-plan.md の 6.3）。
 // どれも、ドラッグの間は開始時の位置の写しから毎回決め直し（押しのけた相手は、戻せば戻る）、手を離したら 1 件の履歴にする。
 // 押しのけ方は大きさが変わったときの統一した決まり（layout.ts の regrow。docs/PAPER-plan.md の 4.6）。紙に収まらない大きさにはせず、収まった最後の大きさで止める
 // ドラッグの状態（いつ始めて終えるか）は interaction.ts
@@ -93,5 +94,44 @@ export function createResizers(ctx: ResizersContext) {
     };
   }
 
-  return { body: bodyResizer, list: listResizer, listHeight: listHeightResizer };
+  // 枠のつまみ（D45）。動かした向きだけ固定にする（axis。x は幅、y は高さ、xy は両方）。下限は決まりの最小（土台の最小 64×44 など）で、
+  // それより小さくしても、測る所が中身による最小（タイトルと本文の 1 行ずつ）と子の並び（内包する箱）までしか縮めない。
+  // 手を離したら、収まった今の大きさを固定の値として書く（データの width・height は今の大きさ。CLAUDE.md の 17）
+  function frameResizer(n: Box, axis: "x" | "y" | "xy") {
+    const restore = ctx.hold();
+    const before = { w: n.specW, h: n.specH };
+    const prior = ctx.snapshot();
+    const min = sizeRuleOf(n).min;
+    const size = { w: n.w, h: n.h };
+    let last = size;
+    const apply = (w: number, h: number) => {
+      restore();
+      if (axis !== "y") setSpec(n, "w", w);
+      if (axis !== "x") setSpec(n, "h", h);
+      ctx.restyle(n);
+      return ctx.regrow(n, prior);
+    };
+    return {
+      size,
+      set(w: number, h: number) {
+        const v = { w: Math.round(Math.max(min.w, w)), h: Math.round(Math.max(min.h, h)) };
+        if (apply(v.w, v.h)) last = v; else apply(last.w, last.h);
+      },
+      finish() {
+        if (axis !== "y") setSpec(n, "w", Math.round(n.w));
+        if (axis !== "x") setSpec(n, "h", Math.round(n.h));
+        ctx.changed();
+        ctx.notifySelect();
+      },
+      cancel() {
+        restore();
+        setSpec(n, "w", before.w);
+        setSpec(n, "h", before.h);
+        ctx.restyle(n);
+        ctx.regrow(n, prior);
+      },
+    };
+  }
+
+  return { body: bodyResizer, list: listResizer, listHeight: listHeightResizer, frame: frameResizer };
 }

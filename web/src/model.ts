@@ -45,6 +45,7 @@ export interface Box {
   fullH: number;
   kidsEl: HTMLDivElement | null;
   heightGripEl: HTMLDivElement; // スクロールにしたリストの高さの上限を変えるつまみ（下の縁。選んでいるときだけ CSS で出す。D33）
+  frameEl: HTMLDivElement;      // 枠のつまみ（右の辺・下の辺・右下の角の .mz-frame-grip。選んでいるときだけ CSS で出す。D45）
   // 内包する箱・リストの親の、見出しの下に置いた本文の高さ（0 なら本文なし）。子を置ける領域の上端を決める（node-kinds.ts。保存しない）
   bodyH: number;
   el: HTMLDivElement;
@@ -194,6 +195,8 @@ export interface Strategy {
   reorder: boolean;     // 並べた子を、兄弟の中で並べ替えられる（並べ替えの差し込みもできる）
   link: boolean;        // 並べた子どうしに線を引ける・〇を出す（自動で並べる戦略では、線を引くと形が崩れる）
   widthGrip: boolean;   // 自分の幅のつまみを出す
+  frameGrip: boolean;   // この戦略で置かれた箱（子の無い箱と内包する箱）に、枠のつまみを出す（大きさを自由に決めて固定にする。D45。2026-10-19 ユーザー）。
+                        // ページのパターンとしても持っていなければ出さない（内包のページだけ。ツリーのページの最上位の箱にも出さない）
   scroll: boolean;      // 高さの上限（listHeight）を持ち、超えた分を中だけスクロールできる（D33。下の縁のつまみと、ダイアログの「スクロール」）
   leafKids: boolean;    // 子は子を持てない（フローチャートの要素。子を持つ箱は入れられず、子の中へも落とせない）
   tools: readonly ToolKey[]; // ページのパターンのとき、道具箱（toolbox.ts。図の左端）に並べる道具（形・追加・マスターの操作。D26）。空なら道具箱を出さない
@@ -229,8 +232,8 @@ export interface Strategy {
   growFrom: { x: GrowFrom; y: GrowFrom };
 }
 export type GrowFrom = "start" | "center";
-const PLAIN = { copy: null, items: "boxes", menu: {}, scroll: false, leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false, growFrom: { x: "start", y: "start" } } as const;
-const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"], paper: true, copy: "boxes" };
+const PLAIN = { frameGrip: false, copy: null, items: "boxes", menu: {}, scroll: false, leafKids: false, tools: [], pick: false, openMore: null, branchCaptions: [], onWorld: false, onBox: false, rootOnly: false, splitBranches: false, autoAlign: false, separateEnds: false, kidGap: null, pairGaps: true, align: null, paper: false, growFrom: { x: "start", y: "start" } } as const;
+const NEST: Strategy = { framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false, ...PLAIN, onWorld: true, onBox: true, pick: true, tops: "nest", tools: ["add"], paper: true, copy: "boxes", frameGrip: true };
 export const STRATEGIES: Record<ChildView, Strategy> = {
   nest:   NEST,
   // ツリー（ページのパターン）: 根（world.root）の子孫全体を木に並べる。最上位の箱（根も、根でない葉も）は自由に置く
@@ -245,7 +248,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   // 形はどこでも同じに使える（フローチャートだけの形は持たない。2026-10-12 ユーザー）
   flow:   {
     framed: true,  free: true,  descendants: false, reorder: false, link: true,  widthGrip: false,
-    leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
+    frameGrip: false, leafKids: true, tools: ["box", "diamond", "circle", "hexagon", "parallelogram", "trapezoid", "db"],
     branchCaptions: ["Yes", "No"], onWorld: true, pick: true, openMore: null, onBox: false, tops: "flow", rootOnly: false, splitBranches: true, autoAlign: true, separateEnds: true, kidGap: null, pairGaps: false, paper: true, scroll: false, copy: "boxes", items: "boxes", menu: {}, growFrom: { x: "center", y: "start" },
     // 整列の間隔（2026-10-12 ユーザー。線のキャプション Yes / No が入るくらい。触ってから調整する仮の値）
     // 横に置く分岐を下げる量は、段の間の半分（2026-10-12 ユーザー）
@@ -254,7 +257,7 @@ export const STRATEGIES: Record<ChildView, Strategy> = {
   // マスター（D26 の段階 2。docs/UI-plan.md。2026-10-14 ユーザー: パターンをプラグインして特別にした普通のページ）: 内包を土台に、
   // 違う所だけを上書きする（内包に足した決まりは、そのままマスターにも効く）。新しいページの選択肢には出さず（pick）、箱の見せ方にも使わない。
   // 道具箱はブック追加・ブックをまたぐ追加削除・設定。窓（book のある箱）でブックを並べる。ファイルの形式は validate.ts の PAGE_FORMATS
-  master: { ...NEST, onBox: false, pick: false, openMore: "list", tools: ["newBook", "crossMove", "settings"], paper: false, copy: "books", items: "books",
+  master: { ...NEST, frameGrip: false, onBox: false, pick: false, openMore: "list", tools: ["newBook", "crossMove", "settings"], paper: false, copy: "books", items: "books",
     // 窓は設定を出さない（そのブックで開く）。背景の設定は全体の設定（マスターにはブックの設定が無い。2026-10-18 ユーザー）
     menu: { window: { hide: ["settings"] }, world: { override: { settings: "appSettings" } } } }, // 紙の制限を受けない（ブックの数で伸びる）
 };
@@ -384,7 +387,13 @@ export interface Abilities {
   link: boolean;      // 線を引ける・〇を出す（ツリー・リストの子は自動で並ぶので、線を引くと形が崩れる）
   widthGrip: boolean; // 幅のつまみを出す（子を持つリスト）
   heightGrip: boolean; // 高さの上限のつまみを出す（スクロールにしたリスト。D33）
+  frameGrip: "both" | "width" | null; // 枠のつまみで変えられる向き（D45。内包のページの、子の無い箱と内包する箱。リンクの箱・リスト・リストの子には出さない）
   dropInto: boolean;  // 付け替えや追加で、中へ落とせる（リンクの箱は窓なので中に入れられず、クラスの箱とフローチャートの要素は子を持てない）
+}
+function frameGripOf(n: Box, by: Strategy): Abilities["frameGrip"] {
+  if (!by.frameGrip || !STRATEGIES[worldViewOf(n.world)].frameGrip || isLinkBox(n) || inTreeOf(n)) return null;
+  const a = arrangeOf(n);
+  return a === "nest" ? "both" : a === "leaf" ? shapeDef(shapeOf(n)).resize : null;
 }
 export function abilitiesOf(n: Box): Abilities {
   const by = placerOf(n);
@@ -394,6 +403,7 @@ export function abilitiesOf(n: Box): Abilities {
     link: !n.parent || by.link,
     widthGrip: !!strategyOf(n)?.widthGrip,
     heightGrip: !!strategyOf(n)?.scroll && listHeightOf(n) > 0,
+    frameGrip: frameGripOf(n, by),
     dropInto: shapeDef(shapeOf(n)).kids && !by.leafKids && !isLinkBox(n),
   };
 }

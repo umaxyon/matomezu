@@ -110,6 +110,8 @@ export function createLayout(ctx: LayoutContext) {
   };
   function fixedSize(c: Container): { w: number | null; h: number | null } {
     if (c.isWorld) return { w: world.w, h: worldFixed().h != null ? world.h : null };
+    // 枠のつまみで固定にした内包する箱（D45）: 子はその中に収める（ドラッグで壁を押しても広げない。2026-10-19 ユーザー）
+    if (kindOf(c).holdsChildren) return { w: c.specW ? c.w : null, h: c.specH ? c.h : null };
     return { w: null, h: null };
   }
 
@@ -186,7 +188,7 @@ export function createLayout(ctx: LayoutContext) {
   // 節点の種類（文字の箱、非表示、内包、ツリー）ごとの、大きさの決め方と線がつながる範囲
   const { kindOf, bodyTop: bodyHeightTop } = createNodeKinds({
     opt, measure: (n, w, captionOnly) => ctx.measurer.measure(n, w, captionOnly), body: (n, w) => ctx.measurer.body(n, w),
-    caption: n => ctx.measurer.caption(n),
+    caption: n => ctx.measurer.caption(n), twoLines: n => ctx.measurer.twoLines(n),
   });
 
   // 自分の大きさと本体の矩形を決める（子の大きさと、内包なら子の位置はもう決まっていること）

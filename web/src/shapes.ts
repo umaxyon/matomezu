@@ -27,6 +27,8 @@ export interface ShapeDef {
   branch: boolean;      // 分岐を表す形（出る線を別々の頂点から出す・キャプションの候補 Yes / No。フローチャートの戦略が使う）
   borderToggle: boolean; // 枠線の有無を選べる（ボックスだけ）
   fillToggle: boolean;   // 塗りの有無を選べる（スティックマンは線だけの絵なので選べない）
+  // 枠のつまみで変えられる向き（D45。内包のページ）。both は幅と高さ。width は幅だけ（高さを形と文字から自分で決める特殊な形）
+  resize: "both" | "width";
   // 形の数値（ここにだけ書く。CSS は render.ts が付ける変数で読み、大きさの計算は node-kinds.ts が読む。test/params.test.ts が見張る）
   slant: Record<Size, number>; // 斜めの辺が横に食い込む幅（px）。文字の左右の余白にも足す（CSS の --mz-slant）。斜めの辺が無ければ 0
   // 文字を中に収める形（ひし形・円）の決まり: ratio は文字を折り返す幅の、形の幅に対する割合（CSS の --mz-text-ratio）。
@@ -42,7 +44,7 @@ export interface ShapeDef {
 
 const NORMAL = {
   kind: "normal", base: "box", draw: "box", vertexOnly: false, insetEnds: false, slanted: false,
-  body: false, overflow: true, kids: true, terminal: false, branch: false, borderToggle: false, fillToggle: true,
+  body: false, overflow: true, kids: true, terminal: false, branch: false, borderToggle: false, fillToggle: true, resize: "both",
   slant: { L: 0, M: 0, S: 0 }, fit: null, minW: 0, art: null, placed: {},
 } as const;
 const OUTLINE = { ...NORMAL, draw: "outline", vertexOnly: true } as const;
@@ -51,7 +53,7 @@ const SLANT = { ...OUTLINE, slanted: true, slant: { L: 14, M: 14, S: 10 } } as c
 // 真ん中につなぐので、形のままだと左右向きのツリーで線と形の間が空くため（2026-10-12 ユーザー: ツリーの側は変えず、形の側のルールで）
 const INSET = { ...SLANT, insetEnds: true, placed: { tree: { plainShape: true } } } as const;
 const ICON = {
-  ...NORMAL, kind: "special", base: "icon", draw: "art", vertexOnly: false, overflow: false, minW: 64,
+  ...NORMAL, kind: "special", base: "icon", draw: "art", vertexOnly: false, overflow: false, minW: 64, resize: "width",
 } as const;
 // 絵の形の絵の大きさ。S は高さ 38px になる倍率
 const art = (w: number, h: number) => ({ w, h, scale: { L: 1, M: 1, S: 38 / 52 } });
@@ -65,9 +67,9 @@ export const SHAPE_DEFS: Record<Shape, ShapeDef> = {
   trapezoid:        { ...INSET },
   trapezoidAlt:     { ...INSET },
   // ひし形は、内側に収まる四角が縦横の半分なので、文字の 2 倍の大きさ（ratio 0.5）
-  diamond:          { ...NORMAL, kind: "special", base: "diamond", draw: "diamond", vertexOnly: true, branch: true, fit: { ratio: 0.5, pad: 12, wrap: 0.6 } },
+  diamond:          { ...NORMAL, kind: "special", base: "diamond", draw: "diamond", vertexOnly: true, branch: true, resize: "width", fit: { ratio: 0.5, pad: 12, wrap: 0.6 } },
   // 円は、内側に収まる四角が直径の 1/√2（ratio）。文字を囲む四角の対角線に余白を足した直径にする
-  circle:           { ...NORMAL, kind: "special", base: "circle", draw: "outline", vertexOnly: true, terminal: true, fit: { ratio: Math.SQRT1_2, pad: 10, wrap: 0.6 } },
+  circle:           { ...NORMAL, kind: "special", base: "circle", draw: "outline", vertexOnly: true, terminal: true, resize: "width", fit: { ratio: Math.SQRT1_2, pad: 10, wrap: 0.6 } },
   person:           { ...ICON, draw: "person", fillToggle: false, art: art(36, 52) },
   db:               { ...ICON, art: art(40, 52) },
   server:           { ...ICON, art: art(40, 52) },
@@ -83,7 +85,7 @@ export const SHAPE_DEFS: Record<Shape, ShapeDef> = {
   forest:           { ...ICON, art: art(52, 46) },
   house:            { ...ICON, art: art(48, 46) },
   family:           { ...ICON, art: art(52, 46) },
-  class:            { ...NORMAL, kind: "special", base: "class", draw: "class", overflow: false, kids: false },
+  class:            { ...NORMAL, kind: "special", base: "class", draw: "class", overflow: false, kids: false, resize: "width" },
 };
 
 export const shapeDef = (s: Shape): ShapeDef => SHAPE_DEFS[s];

@@ -559,6 +559,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     resizeBody: n => Z.body(n),
     resizeList: n => Z.list(n),
     resizeListHeight: n => Z.listHeight(n),
+    resizeFrame: (n, axis) => Z.frame(n, axis),
     resetRoutes: (boxes, passive = [], grabbed = null) => {
       const set = new Set(boxes), pushed = new Set(passive);
       for (const e of edges) {
@@ -1534,6 +1535,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           setOrDelete(n.src, "bodyWidth", v == null ? undefined : Math.round(v), v == null);
         }
         if ("width" in next) setSpec(n, "w", next.width ? Math.round(next.width) : 0);
+        if ("height" in next) setSpec(n, "h", next.height ? Math.round(next.height) : 0);
         if ("color" in next) setOrDelete(n.src, "color", String(next.color ?? ""), !next.color);
         if ("theme" in next) setOrDelete(n.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("fill" in next) n.src.fill = !!next.fill;
@@ -1654,6 +1656,18 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     heightGripEl.className = "mz-height-grip";
     heightGripEl.title = t("ドラッグでリストの高さの上限を変える（超えた分はリストの中でスクロール）");
     heightGripEl.hidden = true;
+    // 枠のつまみ（D45）: 右の辺で幅、下の辺で高さ、右下の角で両方を変えて固定にする。ダブルクリックでその向きを中身に合わせるに戻す
+    const frameEl = document.createElement("div");
+    frameEl.className = "mz-frame";
+    frameEl.hidden = true;
+    for (const [axis, title] of [["x", t("ドラッグで幅を変える（ダブルクリックで中身に合わせる）")], ["y", t("ドラッグで高さを変える（ダブルクリックで中身に合わせる）")],
+      ["xy", t("ドラッグで大きさを変える（ダブルクリックで中身に合わせる）")]] as const) {
+      const g = document.createElement("div");
+      g.className = "mz-frame-grip";
+      g.dataset.axis = axis;
+      g.title = title;
+      frameEl.append(g);
+    }
     // リンクの箱の部品（link-box.ts）: 持ち手の帯（パターンの札を持つ）と窓。リンクの箱のときだけ出す（render.ts）
     const linkEl = document.createElement("div");
     linkEl.className = "mz-link-parts";
@@ -1672,7 +1686,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
     linkGo.className = "mz-link-go";
     linkWin.append(linkArt, linkGo);
     linkEl.append(linkBar, linkWin);
-    head.append(shapeSvg, textEl, classEl, bodyEl, gripEl, widthGripEl, heightGripEl, moreEl, linkEl);
+    head.append(shapeSvg, textEl, classEl, bodyEl, gripEl, widthGripEl, heightGripEl, frameEl, moreEl, linkEl);
     const treeSvg = document.createElementNS(SVGNS, "svg");
     treeSvg.setAttribute("class", "mz-tree");
     const treePath = document.createElementNS(SVGNS, "path");
@@ -1703,7 +1717,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       capW: 0,
       listW: 0, kidsTop: 0, fullH: 0, kidsEl: null,
       bodyH: 0,
-      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, heightGripEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,
+      el, head, textEl, bodyEl, classEl, gripEl, widthGripEl, heightGripEl, frameEl, moreEl, shapeSvg, treeSvg, treePath, treeFrame, linkEl, linkBadge, linkWin, linkArt,
     };
     boxOfEl.set(el, n);
     return n;

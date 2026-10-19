@@ -47,6 +47,8 @@ export const ADD_OFFSET = { x: 16, y: 12 };
 const EDGE_SCROLL_ZONE = 48;
 const EDGE_SCROLL_MAX = 600;
 
+export type FrameAxis = "x" | "y" | "xy"; // 枠のつまみの向き（D45）
+
 export interface InteractionContext {
   container: HTMLElement;
   world: World;
@@ -84,6 +86,8 @@ export interface InteractionContext {
   resizeList(n: Box): { width: number; set(w: number): void; finish(): void; cancel(): void };
   // スクロールにしたリストの高さの上限を変え始める（width は今の高さ。D33）
   resizeListHeight(n: Box): { width: number; set(h: number): void; finish(): void; cancel(): void };
+  // 枠のつまみで箱の大きさを変え始める（size は今の大きさ。axis は動かす向き。D45）
+  resizeFrame(n: Box, axis: FrameAxis): { size: { w: number; h: number }; set(w: number, h: number): void; finish(): void; cancel(): void };
   zoom(): number; // ワールドにかけている倍率（transform: scale。D32）。画面の上の差分を、これで割るとワールドの座標の差分になる
 }
 
@@ -270,6 +274,16 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
     }
     // 本文の幅のつまみ（docs/BODY-plan.md）と、リストの幅のつまみ（docs/SIZE-plan.md の 10 章）。選択モードで、選んでいる箱だけ出す
     // スクロールにしたリストの高さの上限のつまみ（下の縁。D33）は縦に動かす
+    // 枠のつまみ（右の辺・下の辺・右下の角。D45）は、動かした向きの大きさを変えて固定にする
+    const frame = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-frame-grip") : null;
+    const frameBox = frame && ctx.mode() === "move" ? boxOf(frame) : undefined;
+    if (frameBox) {
+      e.stopPropagation();
+      e.preventDefault();
+      frame!.setPointerCapture?.(e.pointerId);
+      begin(frameGesture(ctx.resizeFrame(frameBox, frame!.dataset.axis as FrameAxis), e), e);
+      return;
+    }
     const grip = e.target instanceof Element ? e.target.closest<HTMLElement>(".mz-body-grip, .mz-width-grip, .mz-height-grip") : null;
     const gripBox = grip && ctx.mode() === "move" ? boxOf(grip) : undefined;
     if (gripBox) {
@@ -333,6 +347,20 @@ export function createInteraction(ctx: InteractionContext, L: Layout, R: Rendere
       },
       end() { if (moved) r.finish(); },
       cancel() { r.cancel(); },
+    };
+  }
+
+  // 枠のつまみを動かした分だけ箱の大きさを変え、周りは押しのける（手を離したら確定。D45）
+  function frameGesture(r: ReturnType<InteractionContext["resizeFrame"]>, down: PointerEvent): Gesture {
+    let moved = false;
+    return {
+      kind: "body", slop: 0,
+      move(ev) {
+        moved = true;
+        r.set(r.size.w + unscale(ev.clientX - down.clientX), r.size.h + unscale(ev.clientY - down.clientY));
+      },
+      end() { if (moved) r.finish(); },
+      cancel() { if (moved) r.cancel(); },
     };
   }
 

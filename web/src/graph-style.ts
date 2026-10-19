@@ -138,6 +138,7 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-leaf.mz-light { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 .mz-leaf.mz-dark { color: #1b1b1f; }
 .mz-text { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.mz-text.mz-fit-clamp { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; } /* 固定の高さに入らないタイトル（render.ts の fitFixedText。D45） */
 .mz-leaf.mz-ov-clip .mz-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mz-group > .mz-caption {
   position: absolute; left: 0; right: 0; top: 0;
@@ -169,6 +170,16 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-leaf > .mz-body-grip { right: auto; left: calc(var(--mz-leaf-pad) + var(--mz-body-end) - 3px); }
 .mz-leaf.mz-ba-center > .mz-body-grip { left: calc(50% + var(--mz-body-end) / 2 - 3px); }
 .mz-leaf.mz-ba-right > .mz-body-grip { left: calc(100% - var(--mz-leaf-pad) - 3px); }
+/* 枠のつまみ（D45。graph.ts の frameEl）: 選んだ箱の右の辺・下の辺・右下の角。箱の内側の縁に置く（子の無い箱は中身を切って見せるため） */
+.mz-frame { display: none; }
+.mz-mode-move .mz-node.mz-current > .mz-head > .mz-frame:not([hidden]) { display: contents; }
+.mz-preview .mz-frame { display: none !important; }
+.mz-frame-grip { position: absolute; pointer-events: auto; z-index: 2; }
+.mz-frame-grip[hidden] { display: none; }
+.mz-frame-grip[data-axis="x"] { right: 0; top: 0; bottom: 10px; width: 6px; cursor: ew-resize; }
+.mz-frame-grip[data-axis="y"] { left: 0; right: 10px; bottom: 0; height: 6px; cursor: ns-resize; }
+.mz-frame-grip[data-axis="xy"] { right: 0; bottom: 0; width: 10px; height: 10px; cursor: nwse-resize; }
+.mz-frame-grip[data-axis="xy"]::after { content: ""; position: absolute; right: 1px; bottom: 1px; width: 7px; height: 7px; border-radius: 2px; background: var(--mz-select); }
 .mz-body-grip { display: none; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: ew-resize; pointer-events: auto; z-index: 1; }
 .mz-body-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 3px; height: 22px; max-height: 100%; transform: translateY(-50%); border-radius: 2px; background: var(--mz-select); }
 .mz-mode-move .mz-node.mz-current > .mz-head > .mz-body-grip:not([hidden]) { display: block; }

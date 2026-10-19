@@ -41,6 +41,7 @@ export interface KindContext {
   measure(n: Box, width: number | null, captionOnly?: boolean): [number, number]; // 文字の大きさ（width が null なら1行のまま。captionOnly なら本文を除く）
   body(n: Box, width: number | null): [number, number]; // 本文だけの大きさ
   caption(n: Box): number; // グループの見出しを 1 行で出すのに要る幅
+  twoLines(n: Box): number; // タイトル 1 行と本文 1 行の箱の高さ（固定の高さの下限。D45）
 }
 
 export function createNodeKinds(ctx: KindContext) {
@@ -85,7 +86,8 @@ export function createNodeKinds(ctx: KindContext) {
     const z = { minW: rule.textW.min, maxW: rule.textW.max, h: rule.minH };
     // 幅や高さの指定（固定）も、決まりの最小（土台の最小 BASE_MIN を含む）を下回らない（CLAUDE.md の 17。残課題図の H3）
     const specW = useSpec && n.specW ? Math.max(rule.min.w, n.specW) : 0;
-    const specH = useSpec && n.specH ? Math.max(rule.min.h, n.specH) : 0;
+    // 中身による最小（D45。2026-10-19 ユーザー）: タイトルと本文の両方がある箱は、固定の高さを縮めてもタイトル 1 行と本文 1 行を残す
+    const specH = useSpec && n.specH ? Math.max(rule.min.h, n.specH, captionOf(n) && bodyOf(n) ? ctx.twoLines(n) : 0) : 0;
     const maxW = Math.min(z.maxW, n.capW || Infinity);
     const textW = () => Math.max(z.minW, Math.min(maxW, contentW(n)));
     // 土台の決め方は形の表（shapes.ts の base）で分ける
@@ -196,7 +198,7 @@ export function createNodeKinds(ctx: KindContext) {
     anchorRect: n => { const r = headRect(n), d = anchorInsetOf(n); return d ? { ...r, x: r.x + d, w: r.w - 2 * d } : r; },
   });
 
-  // 内包: 子の並びに合わせて伸びる（大きさの指定・中身の扱い・サイズは使わない。docs/SIZE-plan.md）
+  // 内包: 子の並びに合わせて伸びる（中身の扱い・サイズは使わない。docs/SIZE-plan.md）。枠のつまみで固定にした大きさ（D45）は下限
   const nest: NodeKind = {
     name: "nest",
     holdsChildren: true,
@@ -220,7 +222,8 @@ export function createNodeKinds(ctx: KindContext) {
     floor(n) {
       const bh = bodyHeight(n, n.w);
       const min = sizeRuleOf(n).min;
-      return { w: Math.max(min.w, assignedW(n)), h: Math.max(min.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0) };
+      // 枠のつまみで固定にした大きさ（D45）も下限にする（子の並びがそれより大きければ、子が入る大きさ。子をはみ出させない）
+      return { w: Math.max(min.w, assignedW(n), n.specW), h: Math.max(min.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0, n.specH) };
     },
     anchorRect: headRect,
   };

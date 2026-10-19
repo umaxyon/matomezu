@@ -30,6 +30,8 @@ export interface TextMeasurer {
   measure(n: Box, width: number | null, captionOnly?: boolean): [number, number];
   // 本文だけの大きさ（width は本文の幅。内包する箱の見出しの下に置く本文を測る。docs/BODY-plan.md）
   body(n: Box, width: number | null): [number, number];
+  // タイトル 1 行と本文 1 行の箱の高さ（余白を含む）。固定の高さを縮めても、タイトルと本文の両方がある箱はこれだけ残す（D45。2026-10-19 ユーザー）
+  twoLines(n: Box): number;
   // グループの見出しを 1 行で出すのに要る幅（見出しの左右の余白を含む）。見出しは箱の中に位置を決めて置く
   // （position: absolute）ので、本体を測っても箱の幅に表れない。見出しの要素そのものを測る
   caption(n: Box): number;
@@ -85,6 +87,21 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
       const r = measureText(b, width);
       remember(key, r);
       return r;
+    },
+    twoLines(n) {
+      const t = n.textEl, b = n.bodyEl;
+      const key = `two|${n.head.className}|${t.className}|${b.className}`;
+      const hit = cache.get(key);
+      if (hit) return hit[1];
+      layoutStats.measures++;
+      // 1 文字ずつにして 1 行のまま測る（文字の大きさと余白だけで決まる）
+      const [ct, bt, lines] = [t.textContent, b.textContent, b.style.getPropertyValue("-webkit-line-clamp")];
+      t.textContent = "あ"; b.textContent = "あ"; // i18n-ok（測るための 1 文字）
+      const r = measureText(n.head, null);
+      t.textContent = ct; b.textContent = bt;
+      if (lines) b.style.setProperty("-webkit-line-clamp", lines);
+      remember(key, r);
+      return r[1];
     },
     caption(n) {
       const t = n.textEl;

@@ -246,6 +246,10 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (col) head.style.setProperty("--mz-body-col", col + "px"); else head.style.removeProperty("--mz-body-col");
     n.widthGripEl.hidden = !abilitiesOf(n).widthGrip;
     n.heightGripEl.hidden = !abilitiesOf(n).heightGrip;
+    // 枠のつまみ（D45）。幅だけ変えられる形には、下の辺と角を出さない
+    const frame = abilitiesOf(n).frameGrip;
+    n.frameEl.hidden = !frame;
+    for (const g of n.frameEl.children as HTMLCollectionOf<HTMLElement>) g.hidden = frame === "width" && g.dataset.axis !== "x";
     head.classList.toggle("mz-has-body", !!body);
     // 文字の寄せ（D45。graph-style.ts の .mz-ta-*・.mz-ba-*）。書いてある箱だけに付け、書いていなければ見せ方ごとの今の寄せのまま
     const ta = n.src.titleAlign && titleAlignOf(n), ba = n.src.bodyAlign && bodyAlignOf(n);
@@ -685,6 +689,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       h.top = n.hy + "px";
       h.width = n.hw + "px";
       h.height = n.hh + "px";
+      fitFixedText(n);
       // 内包する箱・リストの親の本文は、見出しの下に置く。幅は箱の幅いっぱいか、つまみで変えた幅（箱の幅まで）。
       // 子の無い箱では本体の中の流れに任せる
       const block = n.bodyEl.classList.contains("mz-body-block") && !n.bodyEl.hidden;
@@ -704,6 +709,41 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       renderTree(n);
     }
     renderEdges();
+  }
+
+  // 高さを固定した箱（枠のつまみ。D45）に文字が入らないときは、超えた分を … で切る。タイトルと本文の両方があれば、それぞれ 1 行は残す
+  // （2026-10-19 ユーザー。高さの下限は配置が残す。node-kinds.ts の twoLines）。配置が決めた大きさの中での見た目だけで、配置には戻さない。
+  // 切った行の数は描いた文字の行の高さから決める（入るかは描いてみないと分からないので、固定の高さの箱だけ測る）
+  function fitFixedText(n: Box) {
+    const t = n.textEl, b = n.bodyEl;
+    const clampTo = (el: HTMLElement, cls: string, k: number) => {
+      el.classList.toggle(cls, k > 0);
+      el.style.setProperty("-webkit-line-clamp", k ? String(k) : "");
+    };
+    const own = bodyLinesOf(n); // データの最大行数（applyStyle が付けたもの）
+    const reset = () => {
+      if (t.classList.contains("mz-fit-clamp")) clampTo(t, "mz-fit-clamp", 0);
+      if (b.dataset.fit) { delete b.dataset.fit; clampTo(b, "mz-body-clamp", own); }
+    };
+    reset();
+    const fixed = n.specH > 0 && !isNesting(n) && overflowOf(n) !== "clip" && shapeDef(shapeOf(n)).resize === "both" && !!displayCaption(n);
+    if (!fixed || n.head.scrollHeight <= n.head.clientHeight + 1) return;
+    const cs = getComputedStyle, px = (v: string) => Number.parseFloat(v) || 0;
+    const capLH = px(cs(t).lineHeight);
+    if (!capLH) return;
+    const hcs = cs(n.head);
+    const hasBody = !b.hidden;
+    const bcs = hasBody ? cs(b) : null;
+    const bodyLH = bcs ? px(bcs.lineHeight) : 0;
+    const bodyTop = bcs ? px(bcs.marginTop) + px(bcs.paddingTop) + px(bcs.borderTopWidth) : 0;
+    const avail = n.head.clientHeight - px(hcs.paddingTop) - px(hcs.paddingBottom) - bodyTop;
+    const capAll = Math.max(1, Math.round(t.offsetHeight / capLH));
+    const capN = Math.max(1, Math.min(capAll, Math.floor((avail - (hasBody ? bodyLH : 0)) / capLH)));
+    if (capN < capAll) clampTo(t, "mz-fit-clamp", capN);
+    if (!hasBody || !bodyLH) return;
+    const bodyAll = Math.max(1, Math.round((b.scrollHeight - px(bcs!.paddingTop)) / bodyLH));
+    const bodyN = Math.max(1, Math.floor((avail - capN * capLH) / bodyLH));
+    if (bodyN < Math.min(bodyAll, own || Infinity)) { b.dataset.fit = "1"; clampTo(b, "mz-body-clamp", bodyN); }
   }
 
   function blocked(n: Box) {

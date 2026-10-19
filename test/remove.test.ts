@@ -86,15 +86,19 @@ test("親が縮むと、押し下げていた下の箱は元の高さへ戻る",
   expect(graph.info(5).y).toBe(160);
 });
 
-test("親の大きさは子の並びで決まり（大きさの指定は使わない）、子を消せば縮む", () => {
-  const d = data();
-  Object.assign(d.nodes[0]!, { width: 400, height: 200, fixedWidth: true, fixedHeight: true });
-  const { graph } = setup(d);
+test("親の大きさは子の並びで決まり、子を消せば縮む。固定にした親（枠のつまみ。D45）は、子を消しても固定の大きさのまま", () => {
+  const { graph } = setup(data());
   expect(graph.info(1).w).toBe(272);
   graph.remove(3);
   expect(graph.info(1).w).toBe(144);
-  // 固定の印は残す（子を全部外して葉に戻れば効く）。width は今の大きさ（D44 の段階 3）
-  expect([graph.toJSON().nodes[0]!.fixedWidth, graph.toJSON().nodes[0]!.width]).toEqual([true, 144]);
+  graph.destroy();
+  const d = data();
+  Object.assign(d.nodes[0]!, { width: 400, height: 200, fixedWidth: true, fixedHeight: true });
+  const fixed = setup(d).graph;
+  expect([fixed.info(1).w, fixed.info(1).h]).toEqual([400, 200]);
+  fixed.remove(3);
+  expect([fixed.info(1).w, fixed.info(1).h]).toEqual([400, 200]);
+  expect([fixed.toJSON().nodes[0]!.fixedWidth, fixed.toJSON().nodes[0]!.width]).toEqual([true, 400]);
 });
 
 test("消したボックスの id は再利用しない", () => {

@@ -61,8 +61,8 @@ export interface BoxData {
   // 固定（fixedWidth・fixedHeight）の箱だけ、この値がその大きさの指定になる
   width?: number;
   height?: number;
-  fixedWidth?: boolean;  // 幅を固定する（無ければ中身に合わせる）。効くのは子の無い箱とリスト（D7）
-  fixedHeight?: boolean; // 高さを固定する（無ければ中身に合わせる）。効くのは子の無い箱
+  fixedWidth?: boolean;  // 幅を固定する（無ければ中身に合わせる）。効くのは子の無い箱・リスト（D7）・内包する箱（子が入る大きさより狭くはしない。D45）
+  fixedHeight?: boolean; // 高さを固定する（無ければ中身に合わせる）。効くのは子の無い箱と内包する箱
   color?: string;
   theme?: string;      // テーマ（theme.ts）。この箱と子孫に効く。無ければ親を受け継ぐ
   size?: Size;
@@ -278,7 +278,8 @@ export interface Patch {
   caption?: string | null;
   body?: string | null;      // 空か null で消す
   bodyWidth?: number | null; // null で中身に合わせる
-  width?: number | null;     // 幅の指定（リストの幅など）。null で中身に合わせる
+  width?: number | null;     // 幅の指定（リストの幅・枠のつまみなど）。null で中身に合わせる
+  height?: number | null;    // 高さの指定（枠のつまみ。D45）。null で中身に合わせる
   bodyRule?: boolean | null; // false で仕切りの線を引かない。null で引く（既定）
   bodyLines?: number | null; // 本文の最大行数。null で制限なし
   titleAlign?: TextAlign | null; // タイトルの文字の寄せ。null で既定に戻す

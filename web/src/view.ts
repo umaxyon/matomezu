@@ -86,6 +86,14 @@ export function mountDiagram(stage: HTMLElement, sidebar: HTMLElement, data: unk
   stage.addEventListener("dblclick", e => {
     if (!(e.target instanceof Element) || graph.mode() !== "move" || graph.preview() != null) return;
     // 本文の幅のつまみなら本文の幅を、リストの幅のつまみならリストの幅を自動に戻す（箱の編集は開かない）
+    // 枠のつまみなら、その向きの固定を外して中身に合わせる（D45）
+    const frame = e.target.closest<HTMLElement>(".mz-frame-grip");
+    if (frame) {
+      const id = frame.closest<HTMLElement>(".mz-node")?.dataset.id;
+      const axis = frame.dataset.axis;
+      if (id) graph.update(id, { ...(axis !== "y" ? { width: null } : {}), ...(axis !== "x" ? { height: null } : {}) });
+      return;
+    }
     const grip = e.target.closest(".mz-body-grip, .mz-width-grip");
     if (grip) {
       const id = grip.closest<HTMLElement>(".mz-node")?.dataset.id;

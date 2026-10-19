@@ -18,6 +18,9 @@ export default {
   "ドラッグで本文の幅を変える（ダブルクリックで元に戻す）": "Drag to change the body width (double-click to reset)",
   "ドラッグでリストの幅を変える（ダブルクリックで元に戻す）": "Drag to change the list width (double-click to reset)",
   "ドラッグでリストの高さの上限を変える（超えた分はリストの中でスクロール）": "Drag to change the list's maximum height (the rest scrolls inside the list)",
+  "ドラッグで幅を変える（ダブルクリックで中身に合わせる）": "Drag to change the width (double-click to fit the content)",
+  "ドラッグで高さを変える（ダブルクリックで中身に合わせる）": "Drag to change the height (double-click to fit the content)",
+  "ドラッグで大きさを変える（ダブルクリックで中身に合わせる）": "Drag to change the size (double-click to fit the content)",
   "子 {n} 件": "{n} child(ren)",
   // クラスの箱（docs/CLASS-plan.md）
   "クラスの箱は子を持てません": "A class box can't have children",
