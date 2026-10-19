@@ -27,12 +27,12 @@ import type { AddRequest } from "./interaction";
 import { closeColorPicker, openColorPicker } from "./color-picker";
 import { DEFAULTS } from "./graph";
 import { PALETTE, THEMES, isPaletteName, paintFor, themeById } from "./theme";
-import type { BoxData, BoxInfo, BoxView, LinkLook, Patch, PreviewSide, Shape, Size } from "./types";
+import type { BoxData, BoxInfo, BoxView, LinkLook, Patch, PreviewSide, Shape, Size, TextAlign } from "./types";
 import { STRATEGIES, previewsKids } from "./model";
 import { DEFAULT_LINK_LOOK, LINK_LOOK_DEFS, LINK_LOOK_OPTIONS, previewRegion, windowOf } from "./link-box";
 import { type Rect, unionRect } from "./geom";
 import { type Scene, drawScene, make } from "./preview-art";
-import { PATTERN_LABELS } from "./validate";
+import { PATTERN_LABELS, TEXT_ALIGNS } from "./validate";
 import { shapePicker, syncShapePicker } from "./shape-picker";
 import { type SearchOption, createSearchSelect } from "./search-select";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
@@ -315,6 +315,7 @@ function setupClipPicker(host: HTMLElement, scene: Scene, start: Rect | null, wi
 // 編集と追加で同じ並び。本文を持つ間は形と S を選べず、形がボックス以外か S のあいだは本文を書けない（サイドバーと同じ決まり）
 interface BoxValues {
   caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean;
+  titleAlign: TextAlign; bodyAlign: TextAlign; // 文字の寄せ（D45）
   shape: Shape; size: Size; theme: string; color: string; bodyAllowed: boolean;
   linkLook: LinkLook | null; // リンクの箱の見せ方（リンクの箱でなければ null。link-box.ts）
   clip: Rect | null;         // リンクの箱の窓に映す範囲（null はページ全体）
@@ -325,7 +326,7 @@ interface BoxValues {
   // サイドバーから移した項目（D26。編集のときだけ）: 子の見せ方、塗りつぶし・枠線・1 行、子のサイズをそろえる（確定のときに一緒に行う一回きりの操作）
   view: BoxView; previewSide: PreviewSide; rowSize: Size; listScroll: boolean; fill: boolean; border: boolean; oneLine: boolean; fit: "width" | "height" | "both" | null;
 }
-type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops" | "link" | "previewSide" | "rowSize" | "listHeight"> & {
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "titleAlign" | "bodyAlign" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops" | "link" | "previewSide" | "rowSize" | "listHeight"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
   color: string;      // 書いた色（名前か色の値。"" は書いていない）
   inherited: string;  // 親から受け継ぐテーマ（テーマを「受け継ぐ」にしたときの色の見本と、見た目の色に使う）
@@ -345,6 +346,13 @@ export function classChangeWarning(from: Shape, to: Shape, kids: number, hasClas
   if (to === "class" && from !== "class" && kids > 0) return t("クラスの箱は子を持てません。子 {n} 個（その子孫も）は、消したものの一覧へ移ります", { n: kids });
   if (from === "class" && to !== "class" && hasClassData) return t("クラス名以外の情報（abstract・属性・操作）は捨てられます");
   return null;
+}
+
+// 文字の寄せ（左・中央・右）を選ぶ並び（D45）
+function alignSeg(name: string, value: TextAlign, label: string): string {
+  const labels: Record<TextAlign, string> = { left: t("左"), center: t("中央"), right: t("右") };
+  return `<div class="mz-dlg-row mz-dlg-align"><span>${label}</span><div class="mz-dlg-seg">${TEXT_ALIGNS.map(a =>
+    `<label><input type="radio" name="${name}" value="${a}"${a === value ? " checked" : ""}>${esc(labels[a])}</label>`).join("")}</div></div>`;
 }
 
 // 属性・操作の 1 行の入力
@@ -464,6 +472,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   overlay = show(title, okLabel, `<div class="mz-dlg-split">${side}<div class="mz-dlg-main">
       <label class="mz-dlg-field"><span data-caption-label>${t("キャプション")}</span>
         <input class="mz-dlg-input" type="text" name="caption" value="${esc(b.caption)}" placeholder="${t("なし（空の箱）")}"></label>
+      ${alignSeg("titleAlign", b.titleAlign, t("タイトルの寄せ"))}
       <div data-pane="class" hidden>
         <label class="mz-dlg-check"><input type="checkbox" name="abstract"${b.abstract ? " checked" : ""}>abstract</label>
         <div class="mz-dlg-mhead">${t("属性")}</div>
@@ -480,6 +489,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
         <span class="mz-dlg-onoff">OFF</span></div>
       <label class="mz-dlg-field mz-dlg-body"><span>${t("本文")}</span>
         <textarea class="mz-dlg-input" name="body" placeholder="${t("なし")}"${off}>${esc(b.body)}</textarea></label>
+      ${alignSeg("bodyAlign", b.bodyAlign, t("本文の寄せ"))}
       <p class="mz-dlg-note" data-body-note${b.canBody ? " hidden" : ""}>${t("本文は、形がボックスで S 以外のサイズ、キャプションを 1 行にしていないときに出せます")}</p>
       <div class="mz-dlg-row">
         <button type="button" class="mz-dlg-btn" data-width-auto${b.bodyWidth && b.canBody ? "" : " disabled"}>${t("箱の幅に合わせる")}</button>
@@ -511,6 +521,8 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       color,
       bodyAllowed: bodyAllowed(),
       caption: field<HTMLInputElement>("caption").value,
+      titleAlign: (ov.querySelector<HTMLInputElement>('[name="titleAlign"]:checked')?.value ?? b.titleAlign) as TextAlign,
+      bodyAlign: (ov.querySelector<HTMLInputElement>('[name="bodyAlign"]:checked')?.value ?? b.bodyAlign) as TextAlign,
       body: field<HTMLTextAreaElement>("body").value,
       rule: field("rule").getAttribute("aria-checked") === "true",
       lines: linesValue ? Number(linesValue) : null,
@@ -757,6 +769,8 @@ export function openEditDialog(graph: Graph, id: string): void {
     }
     const patch: Patch = {};
     if (v.caption !== b.caption) patch.caption = v.caption;
+    if (v.titleAlign !== b.titleAlign) patch.titleAlign = v.titleAlign;
+    if (v.bodyAllowed && v.bodyAlign !== b.bodyAlign) patch.bodyAlign = v.bodyAlign;
     if (b.canShape && v.shape !== b.shape) patch.shape = v.shape;
     if (!sizeFixed && v.size !== b.size) patch.size = v.size; // サイズを変えたときだけ（変えると大きさの指定も外れる）
     if (v.theme !== (b.theme ?? "")) patch.theme = v.theme || null;
@@ -790,7 +804,7 @@ export function openEditDialog(graph: Graph, id: string): void {
 // size は最初に選んでおくサイズ（道具入れから足すときは、中の箱のサイズ）
 export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box", size: Size = "M"): void {
   const start: BoxStart = {
-    caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, canBody: true,
+    caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, titleAlign: "center", bodyAlign: "left", canBody: true,
     shape, size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
     color: "", inherited: graph.info(req.parentId).themeUsed,
     abstract: false, attrs: [], ops: [], kids: 0, link: null, previewSide: "right", rowSize: "M", listHeight: null, scene: null, previewMinScale: DEFAULTS.previewMinScale,
@@ -822,6 +836,8 @@ export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box
     if (v.bodyAllowed && v.body) fields.body = v.body;
     if (v.body && !v.rule) fields.bodyRule = false;
     if (v.lines) fields.bodyLines = v.lines;
+    if (v.titleAlign !== "center") fields.titleAlign = v.titleAlign;
+    if (v.bodyAllowed && v.body && v.bodyAlign !== "left") fields.bodyAlign = v.bodyAlign;
     // 紙に収まらなければ足さず、閉じずに知らせる（D33）
     if (!graph.batch(() => graph.add(req, fields))) return false;
     graph.setMode("move");

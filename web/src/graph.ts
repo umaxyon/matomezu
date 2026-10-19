@@ -152,7 +152,7 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, browserMeasure, createTextMeasurer } from "./layout/measure";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
-  type Box, type Container, type Edge, type World, absPos, absRect, ancestors, headRectOf, arrowOf, bodyLinesOf, bodyWidthOf, borderOf,
+  type Box, type Container, type Edge, type World, absPos, absRect, ancestors, headRectOf, arrowOf, bodyAlignOf, bodyLinesOf, bodyWidthOf, defaultTitleAlign, titleAlignOf, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, sizeRuleOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isLinkBox, listHeightOf, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
@@ -1396,6 +1396,8 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       bodyRule: n.src.bodyRule !== false,
       bodyLines: bodyLinesOf(n) || null,
       bodyWidth: bodyWidthOf(n) || null,
+      titleAlign: titleAlignOf(n),
+      bodyAlign: bodyAlignOf(n),
       inList: inList(n),
       sizableChildren: sizable(n).length,
       childView: viewOf(n),
@@ -1524,6 +1526,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if ("body" in next) setOrDelete(n.src, "body", String(next.body ?? ""), !next.body);
         if ("bodyRule" in next) setOrDelete(n.src, "bodyRule", false, next.bodyRule !== false);
         if ("bodyLines" in next) setOrDelete(n.src, "bodyLines", next.bodyLines ?? undefined, next.bodyLines == null);
+        // 文字の寄せ（D45）: 既定の寄せは書かない
+        if ("titleAlign" in next) setOrDelete(n.src, "titleAlign", next.titleAlign ?? undefined, !next.titleAlign || next.titleAlign === defaultTitleAlign(n));
+        if ("bodyAlign" in next) setOrDelete(n.src, "bodyAlign", next.bodyAlign ?? undefined, !next.bodyAlign || next.bodyAlign === "left");
         if ("bodyWidth" in next) {
           const v = next.bodyWidth; // 値の誤りは checkSettings で断っている
           setOrDelete(n.src, "bodyWidth", v == null ? undefined : Math.round(v), v == null);

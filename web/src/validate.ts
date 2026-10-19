@@ -6,7 +6,7 @@ import { t } from "./i18n";
 import { THEMES, isTheme } from "./theme";
 import { SHAPE_DEFS } from "./shapes";
 import { LINK_LOOKS, isRect } from "./link-box";
-import type { BookFormat, BoxData, BoxView, Diagram, EdgeData, Id, PageData, PagePattern, PreviewSide, Shape, Size, WorldData } from "./types";
+import type { BookFormat, BoxData, BoxView, Diagram, EdgeData, Id, PageData, PagePattern, PreviewSide, Shape, Size, TextAlign, WorldData } from "./types";
 
 // データに書ける段（size・rowSize・kidSize）の名前。段の値（幅の範囲・高さなど）は、ふつうの形のローカルなルール（size-rules.ts の STEPS。D44）
 export const SIZE_NAMES = ["L", "M", "S"] as const satisfies readonly Size[];
@@ -20,6 +20,9 @@ export const VIEWS = ["nest", "tree", "hidden", "list", "flow", "master", "previ
 // リストの子の縮図の位置（D13）
 export const PREVIEW_SIDES = ["right", "left", "none"] as const satisfies readonly PreviewSide[];
 export const isPreviewSide = (v: unknown): v is PreviewSide => includes(PREVIEW_SIDES, v);
+// タイトル・本文の文字の寄せ（titleAlign・bodyAlign。D45）
+export const TEXT_ALIGNS = ["left", "center", "right"] as const satisfies readonly TextAlign[];
+export const isTextAlign = (v: unknown): v is TextAlign => includes(TEXT_ALIGNS, v);
 export const PAGE_PATTERNS = ["nest", "tree", "flow", "master"] as const satisfies readonly PagePattern[];
 export const BOX_VIEWS = ["nest", "hidden", "list"] as const satisfies readonly BoxView[];
 export const SHAPES = [
@@ -159,7 +162,7 @@ export const WORLD_FIELDS = {
 export const BOOK_WORLD_ONLY: readonly (keyof WorldData)[] = ["title", "madeBy"];
 export const PAGE_FIELDS = { id: ID, title: STR, world: OBJ } as const satisfies Record<keyof Required<PageData>, Rule>;
 export const BOX_FIELDS = {
-  id: ID, caption: STR, body: STR, bodyWidth: POS, bodyRule: BOOL, bodyLines: POS_INT, userAdded: BOOL,
+  id: ID, caption: STR, body: STR, bodyWidth: POS, bodyRule: BOOL, bodyLines: POS_INT, titleAlign: oneOf(TEXT_ALIGNS), bodyAlign: oneOf(TEXT_ALIGNS), userAdded: BOOL,
   parent: ID, x: NUM, y: NUM, width: POS, height: POS, fixedWidth: BOOL, fixedHeight: BOOL, color: STR, theme: THEME,
   size: oneOf(SIZE_NAMES), shape: oneOf(SHAPES), childView: BOX_VIEW, fill: BOOL, border: BOOL, overflow: oneOf(OVERFLOWS),
   page: ID, book: TEXT, link: ID, linkLook: oneOf(LINK_LOOKS), clip: RECT,

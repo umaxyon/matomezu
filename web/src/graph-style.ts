@@ -157,6 +157,10 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-body.mz-body-clamp { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .mz-group > .mz-body { color: var(--mz-text); box-sizing: border-box; }
 /* 本文の幅のつまみ。選んでいる箱だけ、右の縁に出す（位置は render.ts。内包する箱は本文の右の縁） */
+/* 文字の寄せ（D45。render.ts が付ける。箱自身の文字だけ）。子の無い箱で本文が無ければ、文字の塊ごと寄せる */
+.mz-ta-left > :is(.mz-text, .mz-caption) { text-align: left; } .mz-ta-center > :is(.mz-text, .mz-caption) { text-align: center; } .mz-ta-right > :is(.mz-text, .mz-caption) { text-align: right; }
+.mz-leaf.mz-ta-left:not(.mz-has-body) { justify-content: flex-start; } .mz-leaf.mz-ta-right:not(.mz-has-body) { justify-content: flex-end; }
+.mz-ba-left > .mz-body { text-align: left; } .mz-ba-center > .mz-body { text-align: center; } .mz-ba-right > .mz-body { text-align: right; }
 .mz-body-grip { display: none; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: ew-resize; pointer-events: auto; z-index: 1; }
 .mz-body-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 3px; height: 22px; max-height: 100%; transform: translateY(-50%); border-radius: 2px; background: var(--mz-select); }
 .mz-mode-move .mz-node.mz-current > .mz-head > .mz-body-grip:not([hidden]) { display: block; }

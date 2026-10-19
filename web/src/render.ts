@@ -11,11 +11,11 @@ import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt, 
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
-  type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyLinesOf, bodyOf, bodyTextW, borderOf,
+  type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyAlignOf, bodyLinesOf, bodyOf, bodyTextW, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listHeightOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
-  sizeRuleOf, slantOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
+  sizeRuleOf, slantOf, titleAlignOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
 } from "./model";
-import { OVERFLOWS, PATTERN_LABELS, SHAPES } from "./validate";
+import { OVERFLOWS, PATTERN_LABELS, SHAPES, TEXT_ALIGNS } from "./validate";
 import { shapeDef } from "./shapes";
 import { LINK_ICON_DEF, LINK_LOOKS, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, previewRegion, windowOf } from "./link-box";
 import { type Scene, drawScene } from "./preview-art";
@@ -242,6 +242,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     n.widthGripEl.hidden = !abilitiesOf(n).widthGrip;
     n.heightGripEl.hidden = !abilitiesOf(n).heightGrip;
     head.classList.toggle("mz-has-body", !!body);
+    // 文字の寄せ（D45。graph-style.ts の .mz-ta-*・.mz-ba-*）。書いてある箱だけに付け、書いていなければ見せ方ごとの今の寄せのまま
+    const ta = n.src.titleAlign && titleAlignOf(n), ba = n.src.bodyAlign && bodyAlignOf(n);
+    for (const a of TEXT_ALIGNS) { head.classList.toggle("mz-ta-" + a, a === ta); head.classList.toggle("mz-ba-" + a, a === ba); }
     head.classList.toggle("mz-body-norule", n.src.bodyRule === false);
     // 内包する箱・リストの親の本文は見出しの下に位置を決めて置き、それ以外は本体の中の流れに置く。大きさを測る前に切り替える
     // （描くときに切り替えると、ツリーに変えた直後に位置を決めたまま測り、本文の分の高さが入らない。測った結果も使い回される）

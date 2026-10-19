@@ -3,11 +3,11 @@
 import { truncate } from "./dom";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import { DEFAULT_LINK_LOOK, LINK_ICON_DEF, PREVIEW_ROW_DEF, isLinkLook, isRect, linkRowHeight } from "./link-box";
-import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, PreviewSide, Shape, Size, ToolKey, TreeDirection, WorldData } from "./types";
+import type { Arrangement, Arrow, BoxData, BoxView, Dash, Route, ChildView, EdgeData, LinkLook, Overflow, PagePattern, PreviewSide, Shape, Size, TextAlign, ToolKey, TreeDirection, WorldData } from "./types";
 import type { Rect } from "./geom";
 import type { EndMemory, EndPaths, Route as Routed, RouteShape, Segment } from "./routing";
 import { type SizeRule, resolveSize } from "./size-rules";
-import { ARROWS, isPattern, isPreviewSide, isRoute, isShape, isSize, isTreeDirection, isView } from "./validate";
+import { ARROWS, isPattern, isPreviewSide, isRoute, isShape, isSize, isTextAlign, isTreeDirection, isView } from "./validate";
 
 const isArrow = (v: unknown): v is Arrow => (ARROWS as readonly unknown[]).includes(v);
 
@@ -530,6 +530,10 @@ export const canBody = (n: Box): boolean =>
 export const bodyOf = (n: Box): string => (typeof n.src.body === "string" && n.src.body && canBody(n) ? n.src.body : "");
 // 本文の最大行数（無ければ 0。制限なし）
 export const bodyLinesOf = (n: Box): number => (Number.isInteger(n.src.bodyLines) && (n.src.bodyLines as number) > 0 ? n.src.bodyLines as number : 0);
+// タイトル・本文の文字の寄せ（D45。箱自身の文字の決まりで、子の箱には効かない）。既定はタイトルが中央（内包する箱の見出しとリンクの箱は今までどおり左）、本文が左
+export const defaultTitleAlign = (n: Box): TextAlign => (isNesting(n) || isLinkBox(n) ? "left" : "center");
+export const titleAlignOf = (n: Box): TextAlign => (isTextAlign(n.src.titleAlign) ? n.src.titleAlign : defaultTitleAlign(n));
+export const bodyAlignOf = (n: Box): TextAlign => (isTextAlign(n.src.bodyAlign) ? n.src.bodyAlign : "left");
 // 本文の幅の指定（無ければ 0）
 export const bodyWidthOf = (n: Box): number => (typeof n.src.bodyWidth === "number" && n.src.bodyWidth > 0 ? n.src.bodyWidth : 0);
 // 内包する箱・リストの親の本文を折り返す幅（箱の幅として数える。余白を含む）。自動なら箱の幅いっぱい、つまみで変えていればその幅。

@@ -17,6 +17,7 @@ export type BookFormat = "book" | "master";
 export type ToolKey = Shape | "add" | "newBook" | "crossMove" | "settings";
 export type BoxView = "nest" | "list" | "hidden";
 export type Overflow = "wrap" | "grow" | "clip";
+export type TextAlign = "left" | "center" | "right"; // 文字の寄せ（タイトル・本文。D45）
 export type Shape = "box" | "person" | "db" | "diamond" | "server" | "class" | "circle" | "stadium" | "hexagon"
   | "parallelogram" | "parallelogramAlt" | "trapezoid" | "trapezoidAlt"
   | "pc" | "factory" | "document" | "trash" | "robot" | "cat" | "heart" | "bulb" | "dog" | "forest" | "house" | "family";
@@ -49,6 +50,8 @@ export interface BoxData {
   bodyWidth?: number;  // 本文の幅（px。箱の幅として数える）。無ければ本文の中身に合わせる。サイズの最大幅は超えない
   bodyRule?: boolean;  // false ならキャプションと本文の間の線を引かない（無ければ引く）
   bodyLines?: number;  // 本文の最大行数（超えた分は … で切る）。無ければ制限なし
+  titleAlign?: TextAlign; // タイトル（キャプション）の文字の寄せ。箱自身の文字だけで、子の箱には効かない。無ければ既定（子の無い箱は中央、内包する箱は左。D45）
+  bodyAlign?: TextAlign;  // 本文の文字の寄せ。無ければ左（D45）
   userAdded?: boolean; // ユーザーが画面で足した（追加・移植）箱で、LLM がまだ持ち物として認識していない。消したあと完全に削除できる。
                        // LLM が会話で認識したら消す（docs/ADD-plan.md の 4 章）
   parent?: Id;
@@ -172,6 +175,8 @@ export interface BoxInfo {
   bodyRule: boolean; // キャプションと本文の間に線を引くか
   bodyLines: number | null; // 本文の最大行数（null は制限なし）
   bodyWidth: number | null; // 本文の幅の指定（つまみで変えた幅。null は自動）
+  titleAlign: TextAlign; // タイトルの文字の寄せ（書いていなければ既定の寄せ）
+  bodyAlign: TextAlign;  // 本文の文字の寄せ
   inList: boolean;   // リストの子か（サイズ・形・子の見せ方を使わない。docs/LIST-plan.md）
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
   childView: BoxView;
@@ -276,6 +281,8 @@ export interface Patch {
   width?: number | null;     // 幅の指定（リストの幅など）。null で中身に合わせる
   bodyRule?: boolean | null; // false で仕切りの線を引かない。null で引く（既定）
   bodyLines?: number | null; // 本文の最大行数。null で制限なし
+  titleAlign?: TextAlign | null; // タイトルの文字の寄せ。null で既定に戻す
+  bodyAlign?: TextAlign | null;  // 本文の文字の寄せ。null で既定に戻す
   color?: string | null;
   size?: Size;
   shape?: Shape;

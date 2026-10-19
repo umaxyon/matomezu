@@ -311,3 +311,24 @@ test("キャプションを空にすると空の箱になる（id を出さな�
   createPanel(side, g).shown();
   expect(side.querySelector('.mzp-row[data-select="1"] .mzp-row-cap')!.textContent).toBe("1_(空)");
 });
+
+test("タイトルと本文の文字の寄せを選ぶ。既定（タイトルは中央・本文は左）は書かず、箱の本体に寄せの印が付く（D45）", () => {
+  const { g, dlg, openDlg, ok } = setup({ nodes: [{ id: 1, caption: "API", body: "本文" }] });
+  openDlg(1);
+  const pick = (name: string, v: string) => dlg<HTMLInputElement>(`[name="${name}"][value="${v}"]`)!.checked = true;
+  expect(dlg<HTMLInputElement>('[name="titleAlign"]:checked')!.value).toBe("center");
+  expect(dlg<HTMLInputElement>('[name="bodyAlign"]:checked')!.value).toBe("left");
+  pick("titleAlign", "left");
+  pick("bodyAlign", "right");
+  ok();
+  expect(g.toJSON().nodes[0]).toMatchObject({ titleAlign: "left", bodyAlign: "right" });
+  const head = document.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head')!;
+  expect([head.classList.contains("mz-ta-left"), head.classList.contains("mz-ba-right")]).toEqual([true, true]);
+  openDlg(1);
+  pick("titleAlign", "center");
+  pick("bodyAlign", "left");
+  ok();
+  const n = g.toJSON().nodes[0]!;
+  expect([n.titleAlign, n.bodyAlign]).toEqual([undefined, undefined]);
+  expect(head.classList.contains("mz-ta-left")).toBe(false);
+});
