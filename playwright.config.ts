@@ -1,4 +1,4 @@
-// 実際のブラウザ（WSL の Chromium）でのテスト。bun run e2e。画面は bun の開発サーバーで出す
+// 実際のブラウザでのテスト。bun run e2e。画面は bun の開発サーバーで出す
 import { defineConfig, devices } from "@playwright/test";
 
 const port = 5174;

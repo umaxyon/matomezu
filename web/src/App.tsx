@@ -1,4 +1,4 @@
-// 新基盤の画面の仮の根（オーバーホール中。docs/OVERHAUL.md）
+// 画面の根
 export function App() {
   return <h1>matomezu</h1>;
 }
