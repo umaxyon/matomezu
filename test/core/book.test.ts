@@ -11,10 +11,11 @@ test("ページを足すと、使っていない一番小さい番号を使う",
       { id: "p3", title: "ページ 3" },
     ],
   }
-  const { book: next, page } = addPage(book)
+  const { book: next, page } = addPage(book, "ja")
   expect(page).toEqual({ id: "p2", title: "ページ 2" })
   expect(next.pages.map(p => p.id)).toEqual(["p1", "p3", "p2"])
   expect(book.pages).toHaveLength(2)
+  expect(addPage(book, "en").page.title).toBe("Page 2")
 })
 
 test("ブックの形に無い項目は誤り", () => {

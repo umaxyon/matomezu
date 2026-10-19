@@ -3,6 +3,7 @@
 import { memo, type PointerEvent, useRef, useState, type WheelEvent } from "react"
 import { placement } from "../../core/stage"
 import { BookSearch } from "../book-search/BookSearch"
+import { useT } from "../i18n"
 import { useActions, useApp } from "../store-context"
 import styles from "./StageView.module.css"
 import { useResize } from "./use-resize"
@@ -19,6 +20,7 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
   const isCurrent = useApp(s => s.workspace.current === id)
   const isMulti = useApp(s => s.workspace.stages.length > 1)
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
+  const t = useT()
   const ref = useRef<HTMLElement>(null)
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -55,7 +57,7 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
     <section
       ref={ref}
       className={styles.stage}
-      aria-label="ステージ"
+      aria-label={t("ステージ")}
       data-current={isCurrent}
       data-multi={isMulti}
       data-dragging={dragging}
@@ -69,12 +71,12 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
         <div
           className={styles.paper}
           role="img"
-          aria-label="紙"
+          aria-label={t("紙")}
           style={{ width: p.w, height: p.h, transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})` }}
         />
       ) : (
         <div className={styles.empty}>
-          <p className={styles.prompt}>ブックを選択してください</p>
+          <p className={styles.prompt}>{t("ブックを選択してください")}</p>
           <BookSearch onSelect={book => openBook(id, book)} />
         </div>
       )}

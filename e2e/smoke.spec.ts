@@ -84,3 +84,17 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   expect(bar.x).toBeGreaterThanOrEqual(stage.x)
   expect(bar.x).toBeLessThan(stage.x + 60)
 })
+
+test.describe("ブラウザの言語が英語のとき", () => {
+  test.use({ locale: "en-US" })
+  test("画面の文言が英語になる", async ({ page }) => {
+    await page.goto("/")
+    await expect(page.locator("html")).toHaveAttribute("lang", "en")
+    await page.getByRole("button", { name: "Split screen" }).click()
+    await expect(page.getByText("Select a book")).toBeVisible()
+    await expect(page.getByRole("combobox", { name: "Search books" })).toHaveAttribute(
+      "placeholder",
+      "Search by book name",
+    )
+  })
+})

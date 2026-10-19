@@ -2,11 +2,13 @@
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { searchBooks } from "../../core/book-search"
+import { useT } from "../i18n"
 import { useApp } from "../store-context"
 import styles from "./BookSearch.module.css"
 
 export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: string) => void; autoFocus?: boolean }) {
   const books = useApp(useShallow(s => Object.values(s.books)))
+  const t = useT()
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
   const listId = useId()
@@ -39,12 +41,12 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
         className={styles.input}
         type="text"
         role="combobox"
-        aria-label="ブックを探す"
+        aria-label={t("ブックを探す")}
         aria-expanded="true"
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={current >= 0 ? optionId(current) : undefined}
-        placeholder="ブックの名前で探す"
+        placeholder={t("ブックの名前で探す")}
         autoComplete="off"
         // biome-ignore lint/a11y/noAutofocus: 探す欄を出したら、すぐ打てるようにする
         autoFocus={autoFocus}
@@ -55,7 +57,7 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
         }}
         onKeyDown={onKeyDown}
       />
-      <div className={styles.list} id={listId} role="listbox" aria-label="ブック">
+      <div className={styles.list} id={listId} role="listbox" aria-label={t("ブック")}>
         {found.map((b, i) => (
           // biome-ignore lint/a11y/useKeyWithClickEvents: キーでの操作は探す欄（combobox）が受け持つ
           <div
@@ -74,7 +76,7 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
           </div>
         ))}
       </div>
-      {found.length === 0 && <p className={styles.empty}>当てはまるブックはありません</p>}
+      {found.length === 0 && <p className={styles.empty}>{t("当てはまるブックはありません")}</p>}
     </div>
   )
 }

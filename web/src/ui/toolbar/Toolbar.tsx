@@ -1,16 +1,18 @@
 // 道具: 画面全体にかける操作（画面を分ける）
+import { useT } from "../i18n"
 import { useActions, useApp } from "../store-context"
 import styles from "./Toolbar.module.css"
 
 export function Toolbar() {
   const isSplit = useApp(s => s.workspace.stages.length > 1)
   const { split, unsplit } = useActions()
+  const t = useT()
   return (
     <div className={styles.tools}>
       <button
         type="button"
         className={styles.iconButton}
-        aria-label="画面を分割"
+        aria-label={t("画面を分割")}
         aria-pressed={isSplit}
         onClick={isSplit ? unsplit : split}
       >

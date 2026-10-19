@@ -79,3 +79,18 @@ test("core のデータと同じ名前の画面の部品は作らない（デー
   const clashes = views.filter(f => dataNames.has(basename(f.rel, ".tsx").toLowerCase())).map(f => f.rel)
   expect(clashes).toEqual([])
 })
+
+test("画面の文言は t() を通す（ui に日本語を直に書かない）", () => {
+  const japanese = /[\u3040-\u30ff\u3400-\u9fff]/
+  const offenders = sources
+    .filter(f => layerOf(f.rel) === "ui")
+    .flatMap(f =>
+      f.text
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .map((line, i) => ({ line: line.replace(/\/\/.*$/, "").replace(/\bt\("[^"]*"/g, ""), at: `${f.rel}:${i + 1}` }))
+        .filter(l => japanese.test(l.line))
+        .map(l => l.at),
+    )
+  expect(offenders).toEqual([])
+})

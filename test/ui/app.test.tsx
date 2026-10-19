@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
-import { createAppStore } from "../../web/src/store/store"
+import { SAMPLE_BOOKS } from "../../web/src/store/sample-books"
+import { createAppStore, initialState } from "../../web/src/store/store"
 import { App } from "../../web/src/ui/App"
 import { StoreProvider } from "../../web/src/ui/store-context"
 
@@ -100,4 +101,18 @@ test("日本語の変換を確定する Enter では、候補を選ばない", (
   fireEvent.keyDown(input, { key: "Enter", isComposing: true })
   expect(screen.getByRole("dialog", { name: "ブックを開く" })).toBeTruthy()
   expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("まとめ図の構想")
+})
+
+test("言語を英語にすると、画面の文言が英語になり、＋で足すページの題名も英語になる", () => {
+  const store = createAppStore(initialState(SAMPLE_BOOKS, "en"))
+  render(
+    <StoreProvider store={store}>
+      <App />
+    </StoreProvider>,
+  )
+  fireEvent.click(screen.getByRole("button", { name: "Add page" }))
+  expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["ページ 1", "Page 2"])
+  fireEvent.click(screen.getByRole("button", { name: "Split screen" }))
+  expect(screen.getByText("Select a book")).toBeTruthy()
+  expect(document.documentElement.lang).toBe("en")
 })
