@@ -3,7 +3,7 @@
 // 箱・スティックマン・円柱の形の違いは、文字の箱（と、本体を見せる非表示・ツリー）の本体の大きさの中で扱う
 import type { LayoutOptions } from "./layout";
 import {
-  type Box, anchorInsetOf, headRectOf, arrangeOf, bodyOf, bodyTextW, bodyWidthOf, captionOf, inTreeOf, isLinkBox, kidStrategyOf, listHeightOf, rowHeightOf, takesRowSize, linkIconOf, linkLookOf, listPreviewOf, leafLike, overflowOf, shapeOf, sizeRuleOf, treeDirOf,
+  type Box, anchorInsetOf, headRectOf, arrangeOf, bodyOf, bodyTextW, captionOf, inTreeOf, isLinkBox, kidStrategyOf, listHeightOf, rowHeightOf, takesRowSize, linkIconOf, linkLookOf, listPreviewOf, leafLike, overflowOf, shapeOf, sizeRuleOf, treeDirOf,
 } from "../model";
 import { LINK_ICON_DEF, LINK_LOOK_DEFS, PREVIEW_ROW_DEF, type LinkLookDef, linkBoxWidth, linkRowHeight } from "../link-box";
 import { shapeDef } from "../shapes";
@@ -11,7 +11,12 @@ import type { Rect } from "../geom";
 import { CLASS_MAX_W, CLASS_MIN_W, classHeight } from "../classbox";
 
 export const BODY_GAP = 6; // 内包する箱の本文と、その下の子の並びとの間（docs/BODY-plan.md）
-export const BODY_MIN_W = 160; // 本文を持つ箱の最小の幅。子を持つ箱でも効く（図が優先の唯一の例外。docs/SIZE-plan.md）
+// 本文のつまみで狭められる本文の幅の下限（D45 で箱の幅の下限ではなくなった。2026-10-19 ユーザー。docs/BOX-SIZE-plan.md の 6.3）
+export const BODY_MIN_W = 160;
+// 子の無い箱の左右の余白（graph-style.ts の .mz-leaf が --mz-leaf-pad で使う。render.ts が渡す）
+export const LEAF_PAD_X = 8;
+// 本文のつまみを出す、箱の内側の幅の下限（これより狭い箱では本文を狭める余地が無いので出さない。D45）
+export const BODY_GRIP_MIN_W = 240;
 // 見出しの下の本文の帯の高さ（本文の高さ h と、その下の子の並びとの間。本文が無ければ 0）
 export const bodyBand = (h: number): number => (h ? h + BODY_GAP : 0);
 
@@ -45,16 +50,9 @@ export function createNodeKinds(ctx: KindContext) {
   const assignedW = (n: Box): number => (n.parent ? kindOf(n.parent).childWidth?.(n) ?? 0 : 0);
 
 
-  // 本文の幅（箱の幅として数える）を加えた、中身に合わせた幅（1 行のまま測った幅）。本文の幅の指定があれば、キャプションの幅と
-  // その指定の大きい方。無ければ本文の中身も含めて測った幅（docs/BODY-plan.md の 4 章）
-  const contentW = (n: Box): number => {
-    const bw = bodyOf(n) ? bodyWidthOf(n) : 0;
-    return bw ? Math.max(measure(n, null, true)[0], bw) : measure(n, null)[0];
-  };
-
-  // 本文を持つ箱の幅の下限（本文が無ければ 0）。内包する箱・リストの親では、本文はこれ以上箱を広げない（箱の幅は子の並びで決まり、
-  // 本文はその幅で折り返す。docs/SIZE-plan.md）
-  const bodyMinW = (n: Box): number => (bodyOf(n) ? BODY_MIN_W : 0);
+  // 中身に合わせた幅（キャプションと本文を 1 行のまま測った幅）。本文の幅の指定（つまみ）は本文を箱の中で狭めるだけで、箱の幅に数えない
+  // （D45。2026-10-19 ユーザー。1 行のまま測るときは、本文の幅の指定を外して測る。measure.ts）
+  const contentW = (n: Box): number => measure(n, null)[0];
   // 内包する箱・リストの親が幅 w のときの、見出しの下の本文の高さ（本文が無ければ 0）。つまみで幅を変えていれば、その幅で折り返す
   const bodyHeight = (n: Box, w: number) => (bodyOf(n) ? ctx.body(n, bodyTextW(n, w, opt.padding))[1] : 0);
 
@@ -62,7 +60,7 @@ export function createNodeKinds(ctx: KindContext) {
   // 今の幅（無ければ本文が求める幅）で見込んで覚えておく。大きさを決めるとき（nest.measure）に本当の幅で測り直し、違えば子を動かす
   function bodyTop(n: Box): number {
     if (!bodyOf(n)) return (n.bodyH = 0);
-    if (!n.bodyH) n.bodyH = bodyHeight(n, Math.max(n.w, bodyMinW(n)));
+    if (!n.bodyH) n.bodyH = bodyHeight(n, Math.max(n.w, sizeRuleOf(n).min.w));
     return n.bodyH;
   }
 
@@ -81,7 +79,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = Math.max(rowHeightOf(n.parent!), measure(n, w)[1]);
       return;
     }
-    // 大きさの決まり（幅の範囲・高さ・幅や高さの指定・本文の最小の幅）。範囲と高さは層を当てた決まり（size-rules.ts。D44）。
+    // 大きさの決まり（幅の範囲・高さ・幅や高さの指定）。範囲と高さは層を当てた決まり（size-rules.ts。D44）。
     // テーマは大きさに入らない（2026-10-18 ユーザー: テーマは余白を持たない。CLAUDE.md の 9）
     const rule = sizeRuleOf(n);
     const z = { minW: rule.textW.min, maxW: rule.textW.max, h: rule.minH };
@@ -89,7 +87,7 @@ export function createNodeKinds(ctx: KindContext) {
     const specW = useSpec && n.specW ? Math.max(rule.min.w, n.specW) : 0;
     const specH = useSpec && n.specH ? Math.max(rule.min.h, n.specH) : 0;
     const maxW = Math.min(z.maxW, n.capW || Infinity);
-    const textW = () => Math.max(z.minW, bodyMinW(n), Math.min(maxW, contentW(n)));
+    const textW = () => Math.max(z.minW, Math.min(maxW, contentW(n)));
     // 土台の決め方は形の表（shapes.ts の base）で分ける
     const base = shapeDef(shapeOf(n)).base;
     if (base === "diamond") {
@@ -141,7 +139,7 @@ export function createNodeKinds(ctx: KindContext) {
       n.hh = specH || z.h;
       return;
     }
-    const w = Math.max(bodyMinW(n), specW || textW());
+    const w = specW || textW();
     n.hw = w;
     // 高さを決まった値にする決まり（ふつうの形の小さい段。キャプションを切り詰めない並べ方の子では親のルールで外れる。size-rules.ts）
     n.hh = specH || (rule.fixedH ? z.h : Math.max(z.h, measure(n, w)[1]));
@@ -198,7 +196,7 @@ export function createNodeKinds(ctx: KindContext) {
     anchorRect: n => { const r = headRect(n), d = anchorInsetOf(n); return d ? { ...r, x: r.x + d, w: r.w - 2 * d } : r; },
   });
 
-  // 内包: 子の並びに合わせて伸びる（大きさの指定・中身の扱い・サイズは使わない。本文があれば最小の幅だけ効く。docs/SIZE-plan.md）
+  // 内包: 子の並びに合わせて伸びる（大きさの指定・中身の扱い・サイズは使わない。docs/SIZE-plan.md）
   const nest: NodeKind = {
     name: "nest",
     holdsChildren: true,
@@ -222,7 +220,7 @@ export function createNodeKinds(ctx: KindContext) {
     floor(n) {
       const bh = bodyHeight(n, n.w);
       const min = sizeRuleOf(n).min;
-      return { w: Math.max(min.w, bodyMinW(n), assignedW(n)), h: Math.max(min.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0) };
+      return { w: Math.max(min.w, assignedW(n)), h: Math.max(min.h, bh ? opt.header + bh + BODY_GAP + opt.padding : 0) };
     },
     anchorRect: headRect,
   };
@@ -288,18 +286,18 @@ export function createNodeKinds(ctx: KindContext) {
     anchorRect: n => ({ x: 0, y: 0, w: n.w, h: n.h }),
   };
 
-  // リストの葉の子の、中身に合わせた幅（1 行の文字の幅を、自分のデータのサイズの範囲に収める。本文があれば最小の幅も）
+  // リストの葉の子の、中身に合わせた幅（1 行の文字の幅を、自分のデータのサイズの範囲に収める）
   // 箱のサイズは使わない（リストの子は普通の大きさ。D13）。範囲は大きさの決まり（ふつうの箱の textW と同じ）
   const listItemWidth = (k: Box) => {
     const { textW } = sizeRuleOf(k);
-    return Math.max(textW.min, bodyMinW(k), Math.min(textW.max, contentW(k)));
+    return Math.max(textW.min, Math.min(textW.max, contentW(k)));
   };
 
   // リスト: 子を縦に並べ、幅をそろえる（spread）。幅は一番広い子の幅（docs/SIZE-plan.md の決めごと 5）か、自分の見出しが入る幅
   // （上限は L の最大。見出しは長ければ … で切れる）の広い方。子の幅は、葉の子（と非表示の子）は自分のサイズの範囲で測った幅、
   // 子を持つ子（内包・ツリー・リスト）は子の並びで決まった幅（上限なし）。
   // 幅の指定（width）があれば、その幅にする（L の最大を超えても、狭くてもよい。葉の子はその幅で折り返す。2026-10-11 ユーザー）。
-  // ただし、子を持つ子の幅・本文の最小の幅・親のリストがそろえた幅より狭くはしない。高さの指定は使わない。
+  // ただし、子を持つ子の幅・親のリストがそろえた幅より狭くはしない。高さの指定は使わない。
   // 子の高さは中身に合わせる。並び順は children の順（データの並び順）
   // スクロールするリストの高さの下限のうち、子が見える分（見出しと本文の下に、これだけは見せる。D33）
   const LIST_SCROLL_MIN = 32;
@@ -322,7 +320,7 @@ export function createNodeKinds(ctx: KindContext) {
       const widths = n.children.map(k => ({ leaf: leafLike(k) && !listPreviewOf(k) && !linkIconOf(k), w: own(k) }));
       // 指定があっても狭められない幅（子を持つ子は、下から決まった幅より狭くできない）
       const min = sizeRuleOf(n).min;
-      const floor = Math.max(min.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), bodyMinW(n) - 2 * P, assignedW(n) - 2 * P);
+      const floor = Math.max(min.w - 2 * P, ...widths.filter(c => !c.leaf).map(c => c.w), assignedW(n) - 2 * P);
       const inner = n.specW
         ? Math.max(floor, n.specW - 2 * P)
         : Math.max(floor, ...widths.map(c => c.w), Math.min(LIST_TITLE_MAX_W, caption(n) - 2 * P));

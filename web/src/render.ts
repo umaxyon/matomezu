@@ -6,12 +6,13 @@ import { SVGNS, esc, isLightColor } from "./dom";
 import { t } from "./i18n";
 import { THEMES, isTheme, setThemeVars, type Theme } from "./theme";
 import type { Layout } from "./layout/layout";
+import { BODY_GRIP_MIN_W, LEAF_PAD_X } from "./layout/node-kinds";
 import { type Pt, type Rect, centerOf, leftNormalAt, pointAt, polylineLength } from "./geom";
 import { fewestRoute, perimeterAt, route, routeOnSides, scopeObstacles, sideAt, vertexAt } from "./routing";
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop";
 import type { Route, RouteFix, RouteInput, Side } from "./routing";
 import {
-  type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyAlignOf, bodyLinesOf, bodyOf, bodyTextW, borderOf,
+  type Box, type Edge, type World, abilitiesOf, absRect, ancestors, arrangeOf, BEND_MARGIN, bodyAlignOf, bodyLinesOf, bodyOf, bodyTextW, bodyWidthOf, borderOf,
   captionOf, dashOf, descendants, displayCaption, fillOf, hidesKids, inTreeOf, isHidden, linkIconOf, linkLookOf, listHeightOf, listPreviewOf, isIconShape, isNesting, overflowOf, routeOf, shapeOf,
   sizeRuleOf, slantOf, titleAlignOf, treeLinesOf, vertexOnly, viaOf, placerOf, splitBranches, type Vertex,
 } from "./model";
@@ -68,6 +69,7 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     const theme = ctx.themeOf(null);
     setThemeVars(worldEl, theme);
     // 背景は world.background が優先。無ければテーマの背景（あれば配色をその背景で固定する）
+    worldEl.style.setProperty("--mz-leaf-pad", LEAF_PAD_X + "px"); // 子の無い箱の左右の余白（node-kinds.ts）
     const bg = ctx.backgroundOf();
     worldEl.style.background = bg || "";
     // 線の色は背景と混ぜて作る（graph-style.ts の --mz-edge）
@@ -239,6 +241,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
     if (isClass) n.classEl.innerHTML = classHtml(n.src);
     else if (n.classEl.firstChild) n.classEl.replaceChildren();
     n.gripEl.hidden = !body;
+    // 子の無い箱の本文の幅の指定（つまみ）は、本文を箱の中で狭めるだけ（D45。graph-style.ts の .mz-leaf > .mz-body）
+    const col = !group && body ? bodyWidthOf(n) : 0;
+    if (col) head.style.setProperty("--mz-body-col", col + "px"); else head.style.removeProperty("--mz-body-col");
     n.widthGripEl.hidden = !abilitiesOf(n).widthGrip;
     n.heightGripEl.hidden = !abilitiesOf(n).heightGrip;
     head.classList.toggle("mz-has-body", !!body);
@@ -685,7 +690,9 @@ export function createRenderer(ctx: RenderContext, L: Layout) {
       const block = n.bodyEl.classList.contains("mz-body-block") && !n.bodyEl.hidden;
       const bw = block ? bodyTextW(n, n.hw, opt.padding) : 0;
       if (block) n.bodyEl.style.width = bw + "px";
-      // つまみ: 子の無い箱は本体の右の縁（高さいっぱい）、内包する箱は本文の右の縁
+      // つまみ: 本文の右の縁（子の無い箱は高さいっぱいで、位置は graph-style.ts が本文の幅 --mz-body-col から決める。内包する箱は本文の高さ）。
+      // 本文を狭める余地の無い狭い箱には出さない（D45）
+      n.gripEl.hidden = !bodyOf(n) || n.hw - 2 * (block ? opt.padding : LEAF_PAD_X) < BODY_GRIP_MIN_W;
       const g = n.gripEl.style;
       g.left = block ? opt.padding + bw - 3 + "px" : "";
       g.right = block ? "auto" : "";

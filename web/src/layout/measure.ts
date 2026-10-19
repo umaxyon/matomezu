@@ -55,7 +55,10 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
       const body = b && !b.hidden && !captionOnly ? `${b.dataset.lines ?? ""}|${b.textContent}` : "";
       const c = n.classEl;
       const members = c && !c.hidden ? c.textContent : ""; // クラスの箱の属性と操作の行
-      const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}|${body}|${members}`;
+      // 本文の幅の指定（子の無い箱の本文を箱の中で狭める。render.ts の --mz-body-col。D45）は、折り返した高さにだけ効く。
+      // 1 行のまま測る幅（箱が中身に合わせる幅）には数えないので、外して測る
+      const col = width == null || !body ? "" : n.head.style.getPropertyValue("--mz-body-col");
+      const key = `${n.head.className}|${t.className}|${t.style.lineHeight}|${width}|${t.textContent}|${body}|${members}|${col}`;
       const hit = cache.get(key);
       if (hit) return hit;
       layoutStats.measures++;
@@ -64,7 +67,10 @@ export function createTextMeasurer(measureText: MeasureText = browserMeasure): T
       // リンクの箱の持ち手と窓は、文字の大きさに数えない（大きさは link-box.ts の数値で足す。node-kinds.ts の fitLink）
       const parts = n.linkEl && !n.linkEl.hidden ? n.linkEl : null;
       if (parts) parts.hidden = true;
+      const unset = width == null ? n.head.style.getPropertyValue("--mz-body-col") : "";
+      if (unset) n.head.style.removeProperty("--mz-body-col");
       const r = measureText(n.head, width);
+      if (unset) n.head.style.setProperty("--mz-body-col", unset);
       if (parts) parts.hidden = false;
       if (hide) b.hidden = false;
       remember(key, r);

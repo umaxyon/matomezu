@@ -170,37 +170,6 @@ test("グループの中で育った子が左の余裕へ詰めたら、元の�
   expect([info(2).x, info(3).x, info(1).w]).toEqual([b2.x, b3.x, g.w]);
 });
 
-test("本文の幅のつまみは、紙に収まる幅で止まる（列に余裕が無ければ、それ以上は広げない）", () => {
-  // 本文の箱（160）と右の箱で、紙の幅いっぱい
-  setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: PAD, y: 40 }, { id: 2, caption: "右の箱", width: A4.w - 2 * PAD - 160 - DEFAULTS.gap, fixedWidth: true, x: PAD + 160 + DEFAULTS.gap, y: 40 }] });
-  const at2 = [info(2).x, info(2).w];
-  graph!.select(1);
-  const grip = document.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head > .mz-body-grip')!;
-  const fire = (type: string, x: number) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
-  fire("pointerdown", 0);
-  fire("pointermove", 60);
-  expect(info(1).w).toBe(160);
-  expect([info(2).x, info(2).w]).toEqual(at2);
-  fire("pointerup", 60);
-  expect(events.filter(e => e.kind === "overPaper")).toHaveLength(0);
-});
-
-test("本文の幅のつまみで広げたとき、左に余裕があれば、箱ごと左の余裕へ寄って収まる（4.6 の 4。手触りは画面で確かめる）", () => {
-  const right = A4.w - PAD - 120;
-  setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: right - 8 - 160, y: 40 }, { id: 2, caption: "右の箱", width: 120, fixedWidth: true, x: right, y: 40 }] });
-  graph!.select(1);
-  const grip = document.querySelector<HTMLElement>('.mz-node[data-id="1"] > .mz-head > .mz-body-grip')!;
-  const fire = (type: string, x: number) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
-  fire("pointerdown", 0);
-  fire("pointermove", 60);
-  expect(info(1).w).toBe(220);
-  expect(info(1).x + info(1).w).toBe(right - 8);
-  expect(info(2).x).toBe(right);
-  fire("pointermove", 0);
-  expect([info(1).x, info(1).w]).toEqual([right - 8 - 160, 160]); // 戻せば元の位置
-  fire("pointerup", 0);
-});
-
 // ---- 段階 5c: グループの子として入れる置き方（4.7）と、追加の置き方（4.6） ----
 
 const groupOf2 = (k2x: number): Diagram => ({

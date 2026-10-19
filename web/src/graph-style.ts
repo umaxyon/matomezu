@@ -124,7 +124,7 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-leaf {
   display: flex; align-items: center; justify-content: center;
   /* 箱の中の余白。テーマは余白を持たない（D44。2026-10-18 ユーザー） */
-  padding: 4px 8px; text-align: center;
+  padding: 4px var(--mz-leaf-pad); text-align: center; /* 左右の余白は node-kinds.ts の LEAF_PAD_X（render.ts が渡す） */
   font-size: 14px; font-weight: 600; line-height: 1.3;
   overflow: hidden;
 }
@@ -161,6 +161,14 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 .mz-ta-left > :is(.mz-text, .mz-caption) { text-align: left; } .mz-ta-center > :is(.mz-text, .mz-caption) { text-align: center; } .mz-ta-right > :is(.mz-text, .mz-caption) { text-align: right; }
 .mz-leaf.mz-ta-left:not(.mz-has-body) { justify-content: flex-start; } .mz-leaf.mz-ta-right:not(.mz-has-body) { justify-content: flex-end; }
 .mz-ba-left > .mz-body { text-align: left; } .mz-ba-center > .mz-body { text-align: center; } .mz-ba-right > .mz-body { text-align: right; }
+/* 子の無い箱の本文の幅の指定（つまみ。render.ts の --mz-body-col）は、本文を箱の中で狭めるだけ。狭めた本文は本文の寄せの側に置く（D45） */
+.mz-leaf > .mz-body { max-width: var(--mz-body-col, none); }
+.mz-leaf.mz-ba-center > .mz-body { margin-inline: auto; } .mz-leaf.mz-ba-right > .mz-body { margin-left: auto; }
+/* 本文のつまみは本文の右の縁。子の無い箱は高さいっぱいで、横の位置は本文の幅と寄せから（内包する箱は render.ts が位置を決める） */
+.mz-leaf { --mz-body-end: min(var(--mz-body-col, 100%), 100% - 2 * var(--mz-leaf-pad)); }
+.mz-leaf > .mz-body-grip { right: auto; left: calc(var(--mz-leaf-pad) + var(--mz-body-end) - 3px); }
+.mz-leaf.mz-ba-center > .mz-body-grip { left: calc(50% + var(--mz-body-end) / 2 - 3px); }
+.mz-leaf.mz-ba-right > .mz-body-grip { left: calc(100% - var(--mz-leaf-pad) - 3px); }
 .mz-body-grip { display: none; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: ew-resize; pointer-events: auto; z-index: 1; }
 .mz-body-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 3px; height: 22px; max-height: 100%; transform: translateY(-50%); border-radius: 2px; background: var(--mz-select); }
 .mz-mode-move .mz-node.mz-current > .mz-head > .mz-body-grip:not([hidden]) { display: block; }
@@ -267,7 +275,7 @@ export const GRAPH_CSS = `/* i18n-ok（CSS のコメント） */
 }
 .mz-leaf.mz-shape-circle { padding: 0; }
 .mz-leaf.mz-shape-stadium { padding-inline: calc(8px + 12px); }
-.mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt { padding-inline: calc(8px + var(--mz-slant, 0px)); }
+.mz-leaf.mz-shape-hexagon, .mz-leaf.mz-shape-parallelogram, .mz-leaf.mz-shape-parallelogramAlt, .mz-leaf.mz-shape-trapezoid, .mz-leaf.mz-shape-trapezoidAlt { padding-inline: calc(var(--mz-leaf-pad) + var(--mz-slant, 0px)); }
 .mz-leaf.mz-look-small.mz-shape-hexagon, .mz-leaf.mz-look-small.mz-shape-parallelogram, .mz-leaf.mz-look-small.mz-shape-parallelogramAlt, .mz-leaf.mz-look-small.mz-shape-trapezoid, .mz-leaf.mz-look-small.mz-shape-trapezoidAlt { padding-inline: calc(6px + var(--mz-slant, 0px)); }
 .mz-shape-circle > .mz-shape, .mz-shape-stadium > .mz-shape, .mz-shape-hexagon > .mz-shape, .mz-shape-parallelogram > .mz-shape, .mz-shape-parallelogramAlt > .mz-shape, .mz-shape-trapezoid > .mz-shape, .mz-shape-trapezoidAlt > .mz-shape {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;

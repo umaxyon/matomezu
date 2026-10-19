@@ -82,7 +82,9 @@ export const fakeMeasure: MeasureText = (el, width) => {
   const tw = (Array.from(el.textContent ?? "").length - Array.from(bodyEl?.textContent ?? "").length - Array.from(parts).length) * 9;
   const w = width ?? Math.max(tw, body ? bodyWidth(body) : 0) + 16;
   const lines = width == null ? 1 : Math.max(1, Math.ceil(tw / Math.max(1, width - 16)));
-  return [w, lines * 18 + 8 + (body ? bodyLines(body, width == null ? null : width - 16, maxLines(bodyEl)) * 18 : 0)];
+  // 子の無い箱の本文の幅の指定（render.ts の --mz-body-col）は、本文を箱の中で狭める（折り返した高さにだけ効く。D45）
+  const col = Number.parseFloat(el.style.getPropertyValue("--mz-body-col")) || Infinity;
+  return [w, lines * 18 + 8 + (body ? bodyLines(body, width == null ? null : Math.min(width - 16, col), maxLines(bodyEl)) * 18 : 0)];
 };
 
 // 線（polyline）の点の並びと、両端の座標 [x1, y1, x2, y2]

@@ -47,7 +47,7 @@ export interface BoxData {
   id?: Id; // 省くと読み込み時に連番を振る
   caption?: string;
   body?: string;       // 本文（キャプションの下に出す長文。改行はそのまま。docs/BODY-plan.md）。普通の箱だけ（S サイズは出さない）
-  bodyWidth?: number;  // 本文の幅（px。箱の幅として数える）。無ければ本文の中身に合わせる。サイズの最大幅は超えない
+  bodyWidth?: number;  // 本文を箱の中で狭める幅（px。箱の幅は変えない。D45）。子の無い箱は本文の列の幅、子を持つ箱は左右の余白を含む幅。無ければ箱の幅いっぱい
   bodyRule?: boolean;  // false ならキャプションと本文の間の線を引かない（無ければ引く）
   bodyLines?: number;  // 本文の最大行数（超えた分は … で切る）。無ければ制限なし
   titleAlign?: TextAlign; // タイトル（キャプション）の文字の寄せ。箱自身の文字だけで、子の箱には効かない。無ければ既定（子の無い箱は中央、内包する箱は左。D45）

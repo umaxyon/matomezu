@@ -42,17 +42,19 @@ test("本文はキャプションの下に出し、その分だけ箱が高く�
   expect(g.toJSON().nodes[1]!.body).toBe("一行目\n二行目\n三行目");
 });
 
-test("本文の幅（bodyWidth）は箱の幅の下限として効く。キャプションの方が広ければキャプションの幅、最大幅は超えない", () => {
-  const { info } = setup({
+test("本文の幅（bodyWidth）は本文を箱の中で狭めるだけで、箱の幅は変えない。狭めた分だけ本文が折り返して箱が高くなる（D45）", () => {
+  const { info, node } = setup({
     nodes: [
-      { id: 1, caption: "短い", body: "本文", bodyWidth: 200, x: 40, y: 40 },
-      { id: 2, caption: "とても長いキャプションです", body: "本文", bodyWidth: 130, x: 300, y: 40 },
-      { id: 3, caption: "短い", body: "本文", bodyWidth: 900, x: 40, y: 300 },
+      { id: 1, caption: "短い", body: "一\n二\n" + "あ".repeat(20), x: 40, y: 40 },                 // 本文 180px → 箱 196
+      { id: 2, caption: "短い", body: "一\n二\n" + "あ".repeat(20), bodyWidth: 90, x: 300, y: 40 }, // 本文を 90px の列に
     ],
   });
-  expect(info(1).w).toBe(200);
-  expect(info(2).w).toBeGreaterThan(130);
-  expect(info(3).w).toBe(240);
+  expect(info(2).w).toBe(info(1).w);
+  expect(info(1).h).toBe(18 + 8 + 3 * 18);
+  expect(info(2).h).toBe(18 + 8 + 4 * 18);
+  const head = (id: number) => node(id).querySelector<HTMLElement>(":scope > .mz-head")!;
+  expect(head(2).style.getPropertyValue("--mz-body-col")).toBe("90px");
+  expect(head(1).style.getPropertyValue("--mz-body-col")).toBe("");
 });
 
 test("S サイズ・ほかの形・切り詰める箱では本文を出さない。本文があれば、編集ダイアログで形と S を選べない", () => {
@@ -100,45 +102,50 @@ test("リストの子の本文は、リストがそろえた幅に合わせる�
 });
 
 
-test("選んだ箱の本文の右の縁をドラッグすると本文の幅が変わり、右の箱を押しのける。狭めれば戻り、手を離すと 1 件の履歴になる", () => {
+test("選んだ箱の本文の右の縁をドラッグすると本文だけが狭まり、箱の幅は変わらない。下の箱を押しのけ、広げれば戻り、手を離すと 1 件の履歴になる（D45）", () => {
   const { g, node, info } = setup({
     nodes: [
-      { id: 1, caption: "本文の箱", body: "本文", x: 40, y: 40 }, // 本文の最小の幅 160（40〜200）
-      { id: 2, caption: "右の箱", x: 240, y: 40 },
+      { id: 1, caption: "本文の箱", body: "あ".repeat(26), x: 40, y: 40 }, // 本文 234px → 箱 240（M の最大）。内側 224
+      { id: 2, caption: "下の箱", x: 40, y: 120 },
     ],
   });
   g.select(1);
   const grip = node(1).querySelector<HTMLElement>(":scope > .mz-head > .mz-body-grip")!;
-  expect(grip.hidden).toBe(false);
-  const w0 = info(1).w, at2 = [info(2).x, info(2).y];
-  const fire = (type: string, x: number) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
+  expect(grip.hidden).toBe(true); // 内側の幅 224 は本文のつまみを出す 240 に足りない
+  g.load({ nodes: [{ id: 1, caption: "本文の箱", size: "L", body: "一\n二\n" + "あ".repeat(30), x: 40, y: 40 }, { id: 2, caption: "下の箱", x: 40, y: 120 }] });
+  g.select(1);
+  const grip2 = node(1).querySelector<HTMLElement>(":scope > .mz-head > .mz-body-grip")!;
+  expect(grip2.hidden).toBe(false); // 本文 270px → 箱 286。内側 270
+  const w0 = info(1).w, h0 = info(1).h, at2 = [info(2).x, info(2).y];
+  const fire = (type: string, x: number) => grip2.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
   const before = g.history().canUndo;
   fire("pointerdown", 0);
-  fire("pointermove", 80);
-  expect(info(1).w).toBe(w0 + 80);
-  expect(info(2).y).toBe(at2[1]!); // 押しのけた（横に並ぶ相手は横へ。下へはずらさない。docs/PAPER-plan.md の 4.6）
-  expect(info(2).x).toBe(info(1).x + info(1).w + 8);
+  fire("pointermove", -100); // 本文の列 170
+  expect(info(1).w).toBe(w0);
+  expect(info(1).h).toBeGreaterThan(h0);
+  expect(info(2).y).toBeGreaterThan(at2[1]!); // 高くなった分、下の箱を押す
   fire("pointermove", 0);
-  expect([info(2).x, info(2).y]).toEqual(at2);     // 狭めれば戻る
-  fire("pointermove", 60);
-  fire("pointerup", 60);
-  expect(g.toJSON().nodes[0]!.bodyWidth).toBe(w0 + 60);
+  expect([info(2).x, info(2).y]).toEqual(at2); // 広げれば戻る
+  fire("pointermove", -400);
+  fire("pointerup", -400);
+  expect(g.toJSON().nodes[0]!.bodyWidth).toBe(160); // 本文の最小の幅で止まる
+  expect(info(1).w).toBe(w0);
   expect(before).toBe(false);
   g.undo();
   expect(g.toJSON().nodes[0]!.bodyWidth).toBeUndefined();
-  expect(info(1).w).toBe(w0);
 });
 
-test("本文の幅はサイズの最大幅で止まる", () => {
-  const { g, node, info } = setup({ nodes: [{ id: 1, caption: "本文の箱", body: "本文", x: 40, y: 40 }] });
+test("本文のつまみは箱の内側の幅まで。そこまで広げたら自動に戻す（D45）", () => {
+  const { g, node, info } = setup({ nodes: [{ id: 1, caption: "本文の箱", size: "L", body: "あ".repeat(30), bodyWidth: 200, x: 40, y: 40 }] });
   g.select(1);
+  const w0 = info(1).w;
   const grip = node(1).querySelector<HTMLElement>(":scope > .mz-head > .mz-body-grip")!;
   const fire = (type: string, x: number) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, pointerId: 1 }));
   fire("pointerdown", 0);
   fire("pointermove", 900);
   fire("pointerup", 900);
-  expect(info(1).w).toBe(240); // M の最大幅
-  expect(g.toJSON().nodes[0]!.bodyWidth).toBe(240);
+  expect(info(1).w).toBe(w0);
+  expect(g.toJSON().nodes[0]!.bodyWidth).toBeUndefined();
 });
 
 test("内包する箱の本文は箱の幅いっぱいで折り返す。子の並びで箱が広ければ、本文も広がって低くなり、子はその分上に来る", () => {
@@ -212,17 +219,17 @@ test("子の見せ方をリストにすると、子を持つ子は孫を描か�
 });
 
 test("編集ダイアログの「箱の幅に合わせる」で、つまみで変えた本文の幅を消す（確定したときに書く）。内包する箱でも押せる", () => {
-  const { g, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "本文", bodyWidth: 220, x: 40, y: 40 }] });
-  expect(info(1).w).toBe(220);
+  const { g, info } = setup({ nodes: [{ id: 1, caption: "見出し", body: "一\n二\n" + "あ".repeat(20), bodyWidth: 100, x: 40, y: 40 }] });
+  const h0 = info(1).h;
   const open = () => openEditDialog(g, "1");
   open();
   const dlg = () => document.querySelector<HTMLElement>(".mz-dlg-overlay")!;
   expect(dlg().querySelector("[data-width-auto]")!.textContent).toBe("箱の幅に合わせる");
   dlg().querySelector<HTMLElement>("[data-width-auto]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  expect(g.toJSON().nodes[0]!.bodyWidth).toBe(220); // まだ書かない
+  expect(g.toJSON().nodes[0]!.bodyWidth).toBe(100); // まだ書かない
   dlg().querySelector<HTMLElement>("[data-ok]")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   expect(g.toJSON().nodes[0]!.bodyWidth).toBeUndefined();
-  expect(info(1).w).toBeLessThan(220);
+  expect(info(1).h).toBeLessThan(h0); // 本文が箱の幅いっぱいに戻って低くなる
   // 自動のときは押せない
   open();
   expect(dlg().querySelector<HTMLButtonElement>("[data-width-auto]")!.disabled).toBe(true);
@@ -236,7 +243,7 @@ test("編集ダイアログの「箱の幅に合わせる」で、つまみで�
 
 // ---- 箱のサイズと幅の決まり（docs/SIZE-plan.md）----
 
-test("本文を持つ箱は最小の幅 160。子を持つ箱でも、子が細ければ 160 まで広がる", () => {
+test("本文を持つ箱にも最小の幅 160 は無い（D45 で廃止）。子の無い箱は中身の幅、子を持つ箱は子の並びの幅", () => {
   const { info } = setup({
     nodes: [
       { id: 1, caption: "あ", x: 40, y: 40 },
@@ -246,8 +253,8 @@ test("本文を持つ箱は最小の幅 160。子を持つ箱でも、子が細�
     ],
   });
   expect(info(1).w).toBe(120);
-  expect(info(2).w).toBe(160);
-  expect(info(3).w).toBe(160);
+  expect(info(2).w).toBe(120);
+  expect(info(3).w).toBe(144);
 });
 
 test("内包する箱の本文は箱を広げない。本文の幅を指定していても箱の幅は子の並びで決まり、指定が狭ければその幅で折り返す", () => {
@@ -316,11 +323,11 @@ test("previewSide は right / left / none だけ（D13）", () => {
 test("本文の幅のつまみをダブルクリックすると、本文の幅を自動に戻す（編集ダイアログは開かない）", () => {
   const stage = document.createElement("div"), side = document.createElement("div");
   document.body.append(stage, side);
-  const g = graph = mountDiagram(stage, side, { nodes: [{ id: 1, caption: "見出し", size: "L", bodyWidth: 300, body: "短い本文", x: 40, y: 40 }] }, { measureText: fakeMeasure }).graph;
-  expect(g.info(1).w).toBe(300);
+  const g = graph = mountDiagram(stage, side, { nodes: [{ id: 1, caption: "見出し", size: "L", bodyWidth: 170, body: "一\n二\n" + "あ".repeat(30), x: 40, y: 40 }] }, { measureText: fakeMeasure }).graph;
+  const h0 = g.info(1).h;
   g.select(1);
   stage.querySelector('.mz-node[data-id="1"] > .mz-head > .mz-body-grip')!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
   expect(g.toJSON().nodes[0]!.bodyWidth).toBeUndefined();
-  expect(g.info(1).w).toBeLessThan(300);
+  expect(g.info(1).h).toBeLessThan(h0);
   expect(document.querySelector(".mz-dlg-overlay")).toBeNull();
 });

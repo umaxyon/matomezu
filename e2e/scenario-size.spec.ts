@@ -167,7 +167,7 @@ test.fixme("2 枚目のページの箱も、開いたとき（遅くとも、そ
   validate(file);
 });
 
-test("本文はキャプションの下に左寄せで折り返し、つまみで広げると低くなる。最大行数で切ると低くなり、戻すと全部出る。どの段でも書き戻したファイルが validate を通る（D44）", { tag: "@d44" }, async ({ page }) => {
+test("本文はキャプションの下に左寄せで折り返し、つまみで本文を広げると低くなる（箱の幅は変わらない）。最大行数で切ると低くなり、戻すと全部出る。どの段でも書き戻したファイルが validate を通る（D44）", { tag: "@d44" }, async ({ page }) => {
   const file = await open(page, "body.json", book());
   await fileMatchesScreen(page, file, [MEMO]);
   const body = head(page, MEMO).locator(".mz-body");
@@ -183,13 +183,14 @@ test("本文はキャプションの下に左寄せで折り返し、つまみ�
   })).toBeGreaterThan(1);
   validate(file);
 
-  // 本文の幅のつまみで広げる → 折り返しが減って低くなり、左上は動かない。本文の幅と箱の大きさが書き戻される
+  // 本文の幅のつまみで広げる → 本文だけが広がって折り返しが減り、低くなる。箱の幅と左上は動かない（本文は箱の中で狭めるだけ。D45）。
+  // 本文の幅と箱の大きさが書き戻される
   const before = await rect(page, MEMO);
   await select(page, MEMO);
-  await dragGrip(page, MEMO, ".mz-body-grip", 60);
-  await expect.poll(async () => (await rect(page, MEMO)).w).toBeCloseTo(before.w + 60, 0);
+  await dragGrip(page, MEMO, ".mz-body-grip", 200); // 本文の列 160 → 360（箱の内側 384）
+  await expect.poll(async () => (await rect(page, MEMO)).h).toBeLessThan(before.h);
   const wide = await rect(page, MEMO);
-  expect(wide.h).toBeLessThan(before.h);
+  expect(wide.w).toBe(before.w);
   expect(wide.x).toBe(before.x);
   await expect.poll(() => nodeOf(file, MEMO).bodyWidth).toBeGreaterThan(160);
   await fileMatchesScreen(page, file, [MEMO]);

@@ -496,7 +496,7 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
   const { applyWorldStyle, applyStyle, renderEdges, render, blocked, unfocus } = R;
   // つまみで大きさを変える（本文の幅・リストの幅・リストの高さ。resizers.ts）
   const Z = createResizers({
-    snapshot: () => L.snapshot(), hold: () => L.hold(), changed, notifySelect,
+    snapshot: () => L.snapshot(), hold: () => L.hold(), restyle: applyStyle, changed, notifySelect,
     regrow: (n, prior) => { const ok = L.regrow(() => {}, n, { prior }) !== "refused"; render(); return ok; },
   });
   // 線の追加・削除・変更・つなぎ直し（graph-edges.ts）
