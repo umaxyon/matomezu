@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --port=5173 web/index.html",
-    "build": "bun build web/index.html --outdir web/dist --production",
+    "dev": "bun scripts/dev.ts 5300",
+    "build": "rm -rf web/dist && bun build web/index.html --outdir web/dist --production",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "e2e": "playwright test"

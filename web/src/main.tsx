@@ -1,10 +1,17 @@
-// 画面の入口: React の根を作って App を描く
+// 画面の入口: store を作り、React の根に App を描く
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { createAppStore } from "./store/store";
+import { App } from "./ui/App";
+import { StoreProvider } from "./ui/store-context";
+import "./ui/skin.css";
+
+const store = createAppStore();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <StoreProvider store={store}>
+      <App />
+    </StoreProvider>
   </StrictMode>,
 );
