@@ -111,7 +111,8 @@ export function createLayout(ctx: LayoutContext) {
   function fixedSize(c: Container): { w: number | null; h: number | null } {
     if (c.isWorld) return { w: world.w, h: worldFixed().h != null ? world.h : null };
     // 枠のつまみで固定にした内包する箱（D45）: 子はその中に収める（ドラッグで壁を押しても広げない。2026-10-19 ユーザー）
-    if (kindOf(c).holdsChildren) return { w: c.specW ? c.w : null, h: c.specH ? c.h : null };
+    // 子を置くときは、まだ自分の大きさを測る前（fit の前）なので、今の大きさではなく指定と比べる（開いたとき、子が壁へ寄せられて折り返していた）
+    if (kindOf(c).holdsChildren) return { w: c.specW ? Math.max(c.w, c.specW) : null, h: c.specH ? Math.max(c.h, c.specH) : null };
     return { w: null, h: null };
   }
 

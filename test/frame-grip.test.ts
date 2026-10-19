@@ -134,3 +134,12 @@ test("紙に収まらない大きさにはしない（収まった最後の大�
   expect(info(1).w).toBeGreaterThan(400); // 段の上限（L 400）を超えて広げられる
   expect(events.filter(e => e.kind === "overPaper")).toHaveLength(0);
 });
+
+test("固定にした内包する箱を開いても、中の子は書かれた位置のまま（測る前の小さな幅を壁にして折り返さない）", () => {
+  setup({ nodes: [
+    { id: 1, caption: "枠", width: 280, height: 106, fixedWidth: true, x: 40, y: 40 },
+    { id: 2, parent: 1, caption: "左", x: 12, y: 30, width: 120, height: 64 },
+    { id: 3, parent: 1, caption: "右", x: 148, y: 30, width: 120, height: 64 },
+  ] });
+  expect([info(1).w, info(3).x, info(3).y]).toEqual([280, 148, 30]);
+});
