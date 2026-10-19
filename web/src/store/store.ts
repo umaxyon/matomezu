@@ -2,9 +2,19 @@
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { addPage } from "../core/book"
-import type { Point } from "../core/geom"
+import type { Size } from "../core/geom"
 import type { Book } from "../core/schema/book"
-import { currentStage, focus, newWorkspace, setPan, showPage, split, unsplit, type Workspace } from "../core/workspace"
+import { panBy, resize } from "../core/stage"
+import {
+  currentStage,
+  focus,
+  mapStage,
+  newWorkspace,
+  showPage,
+  split,
+  unsplit,
+  type Workspace,
+} from "../core/workspace"
 
 export interface AppState {
   books: Record<string, Book> // ブックの id ごと
@@ -17,7 +27,8 @@ export interface Actions {
   focusStage(id: string): void
   openPage(page: string): void // カレントのステージに
   addPage(): void // カレントのステージのブックに足して、そのステージで開く
-  panStage(id: string, pan: Point): void
+  resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
+  panStageBy(id: string, dx: number, dy: number): void
 }
 
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
@@ -53,7 +64,8 @@ export function createAppStore(initial: AppState = initialState()): AppStore {
       const { book, page } = addPage(owner)
       setState({ books: { ...books, [book.id]: book }, workspace: showPage(workspace, page.id) })
     },
-    panStage: (id, pan) => withWorkspace(ws => setPan(ws, id, pan)),
+    resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
+    panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
   }
   return { state: store, actions }
 }

@@ -32,3 +32,10 @@ test("変わらない操作では知らせない", () => {
   off()
   expect(calls).toBe(0)
 })
+
+test("store が持つずらす量は、表示領域の大きさで範囲に収めた値", () => {
+  const { state, actions } = createAppStore()
+  actions.resizeStage("s1", { w: 400, h: 300 })
+  actions.panStageBy("s1", 500, 500)
+  expect(state.getState().workspace.stages[0]!.pan).toEqual({ x: 0, y: 0 })
+})

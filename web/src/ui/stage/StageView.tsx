@@ -1,49 +1,42 @@
-// ステージ 1 つ: 与えられた枠の中に、開いているページの紙を描く。ドラッグとホイールで紙をずらす（手のひら）
+// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に紙を描く。
+// 測った大きさと、ドラッグ・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { memo, type PointerEvent, useRef, useState, type WheelEvent } from "react"
-import type { Point } from "../../core/geom"
-import { DEFAULT_PAPER, PAPERS } from "../../core/paper"
-import { clampPan, contentSize, paperOrigin } from "../../core/viewport"
+import { placement } from "../../core/stage"
 import { useActions, useApp } from "../store-context"
-import styles from "./Stage.module.css"
-import { useViewSize } from "./use-view-size"
+import styles from "./StageView.module.css"
+import { useResize } from "./use-resize"
 
+// ドラッグ中のポインタと、前に知らせた位置
 interface Drag {
   pointer: number
-  startX: number
-  startY: number
-  pan: Point
+  x: number
+  y: number
 }
 
-export const Stage = memo(function Stage({ id }: { id: string }) {
+export const StageView = memo(function StageView({ id }: { id: string }) {
   const stage = useApp(s => s.workspace.stages.find(st => st.id === id))
   const isCurrent = useApp(s => s.workspace.current === id)
   const isMulti = useApp(s => s.workspace.stages.length > 1)
-  const { focusStage, panStage } = useActions()
+  const { focusStage, resizeStage, panStageBy } = useActions()
   const ref = useRef<HTMLElement>(null)
-  const view = useViewSize(ref)
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
+  useResize(ref, view => resizeStage(id, view))
   if (!stage) return null
-
-  const paper = PAPERS[DEFAULT_PAPER]
-  const content = contentSize(paper, stage.zoom)
-  const pan = view ? clampPan(view, content, stage.pan) : stage.pan
-  const origin = paperOrigin(pan)
-  const panTo = (next: Point) => {
-    if (view) panStage(id, clampPan(view, content, next))
-  }
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
     if (e.button !== 0) return
     e.currentTarget.setPointerCapture(e.pointerId)
-    drag.current = { pointer: e.pointerId, startX: e.clientX, startY: e.clientY, pan }
+    drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY }
     setDragging(true)
   }
   const onPointerMove = (e: PointerEvent<HTMLElement>) => {
     const d = drag.current
     if (!d || d.pointer !== e.pointerId) return
-    panTo({ x: d.pan.x + e.clientX - d.startX, y: d.pan.y + e.clientY - d.startY })
+    panStageBy(id, e.clientX - d.x, e.clientY - d.y)
+    d.x = e.clientX
+    d.y = e.clientY
   }
   const endDrag = (e: PointerEvent<HTMLElement>) => {
     if (drag.current?.pointer !== e.pointerId) return
@@ -53,9 +46,10 @@ export const Stage = memo(function Stage({ id }: { id: string }) {
   const onWheel = (e: WheelEvent<HTMLElement>) => {
     const dx = e.shiftKey ? e.deltaY : e.deltaX
     const dy = e.shiftKey ? e.deltaX : e.deltaY
-    panTo({ x: pan.x - dx, y: pan.y - dy })
+    panStageBy(id, -dx, -dy)
   }
 
+  const p = placement(stage)
   return (
     <section
       ref={ref}
@@ -74,11 +68,7 @@ export const Stage = memo(function Stage({ id }: { id: string }) {
         className={styles.paper}
         role="img"
         aria-label="紙"
-        style={{
-          width: paper.w,
-          height: paper.h,
-          transform: `translate(${origin.x}px, ${origin.y}px) scale(${stage.zoom})`,
-        }}
+        style={{ width: p.w, height: p.h, transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})` }}
       />
     </section>
   )

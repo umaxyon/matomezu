@@ -1,7 +1,7 @@
 // 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、外の世界に触る所、コメントの言葉
 import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
-import { dirname, join, relative, resolve } from "node:path"
+import { basename, dirname, join, relative, resolve } from "node:path"
 
 const ROOT = resolve(import.meta.dir, "..")
 const SRC = join(ROOT, "web/src")
@@ -63,4 +63,19 @@ test("ソースに、その時の状況でしか意味を持たない言葉を�
     .map(f => (typeof f === "string" ? { rel: relative(ROOT, f), text: readFileSync(f, "utf8") } : f))
     .filter(f => !f.rel.endsWith("rules.test.ts"))
   expect(files.filter(f => words.test(f.text)).map(f => f.rel)).toEqual([])
+})
+
+test("core のデータと同じ名前の画面の部品は作らない（データ X のビューは XView）", () => {
+  const dataNames = new Set(
+    sources
+      .filter(f => layerOf(f.rel) === "core")
+      .map(f =>
+        basename(f.rel)
+          .replace(/\.tsx?$/, "")
+          .toLowerCase(),
+      ),
+  )
+  const views = sources.filter(f => layerOf(f.rel) === "ui" && f.rel.endsWith(".tsx"))
+  const clashes = views.filter(f => dataNames.has(basename(f.rel, ".tsx").toLowerCase())).map(f => f.rel)
+  expect(clashes).toEqual([])
 })

@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test"
+import { panBy } from "../../web/src/core/stage"
 import {
   currentStage,
   focus,
   MAX_STAGES,
+  mapStage,
   newWorkspace,
-  setPan,
   showPage,
   split,
   unsplit,
@@ -38,7 +39,7 @@ describe("workspace", () => {
     const opened = showPage(two, "p2")
     expect(currentStage(opened).page).toBe("p2")
     expect(opened.stages[1]).toBe(two.stages[1]!)
-    const panned = setPan(two, "s2", { x: -10, y: -20 })
+    const panned = mapStage(two, "s2", s => panBy(s, -10, -20))
     expect(panned.stages[1]!.pan).toEqual({ x: -10, y: -20 })
     expect(panned.stages[0]).toBe(two.stages[0]!)
   })
@@ -47,6 +48,6 @@ describe("workspace", () => {
     expect(focus(ws, "s1")).toBe(ws)
     expect(focus(ws, "nope")).toBe(ws)
     expect(unsplit(ws)).toBe(ws)
-    expect(setPan(ws, "s1", { x: 0, y: 0 })).toEqual(ws)
+    expect(mapStage(ws, "s1", s => panBy(s, 0, 0))).toBe(ws)
   })
 })
