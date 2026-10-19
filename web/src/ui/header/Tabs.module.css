@@ -1,6 +1,21 @@
-.tabs { flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 2px; padding: 4px 8px 0; overflow-x: auto; }
+.tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 4px 8px 0;
+  overflow-x: auto;
+}
 /* ブックのタブの組。左端の色の印でブックを見分ける */
-.group { display: flex; align-items: flex-end; gap: 2px; padding-left: 6px; border-left: 3px solid var(--skin-accent); align-self: stretch; }
+.group {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding-left: 6px;
+  border-left: 3px solid var(--skin-accent);
+  align-self: stretch;
+}
 .tab {
   max-width: 240px;
   padding: 5px 12px;
@@ -14,9 +29,40 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tab:hover { color: var(--skin-text); background: var(--skin-btn); }
-.tab[aria-selected="true"] { color: var(--skin-text); background: var(--skin-bg); border-color: var(--skin-line); }
-.add { align-self: center; margin-left: 2px; padding: 3px; border: 0; border-radius: 6px; background: transparent; color: var(--skin-hint); line-height: 0; cursor: pointer; }
-.add:hover { color: var(--skin-text); background: var(--skin-btn-hover); }
-.add svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
-.tab:focus-visible, .add:focus-visible { outline: 2px solid var(--skin-accent); outline-offset: -2px; }
+.tab:hover {
+  color: var(--skin-text);
+  background: var(--skin-btn);
+}
+.tab[aria-selected="true"] {
+  color: var(--skin-text);
+  background: var(--skin-bg);
+  border-color: var(--skin-line);
+}
+.add {
+  align-self: center;
+  margin-left: 2px;
+  padding: 3px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--skin-hint);
+  line-height: 0;
+  cursor: pointer;
+}
+.add:hover {
+  color: var(--skin-text);
+  background: var(--skin-btn-hover);
+}
+.add svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.tab:focus-visible,
+.add:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: -2px;
+}

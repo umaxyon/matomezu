@@ -33,7 +33,21 @@
     --skin-paper-line: rgba(0, 0, 0, 0.12);
   }
 }
-* { box-sizing: border-box; }
-html, body, #root { margin: 0; height: 100%; }
-body { background: var(--skin-bg); color: var(--skin-text); font-family: var(--skin-font); }
-button { font: inherit; color: inherit; }
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+body {
+  background: var(--skin-bg);
+  color: var(--skin-text);
+  font-family: var(--skin-font);
+}
+button {
+  font: inherit;
+  color: inherit;
+}

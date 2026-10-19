@@ -1,11 +1,11 @@
 // ヘッダー: 画面を分ける道具と、カレントのステージのページのタブ
-import { useActions, useApp } from "../store-context";
-import styles from "./Header.module.css";
-import { Tabs } from "./Tabs";
+import { useActions, useApp } from "../store-context"
+import styles from "./Header.module.css"
+import { Tabs } from "./Tabs"
 
 export function Header() {
-  const isSplit = useApp(s => s.workspace.stages.length > 1);
-  const { split, unsplit } = useActions();
+  const isSplit = useApp(s => s.workspace.stages.length > 1)
+  const { split, unsplit } = useActions()
   return (
     <header className={styles.header}>
       <div className={styles.tools}>
@@ -24,5 +24,5 @@ export function Header() {
       </div>
       <Tabs />
     </header>
-  );
+  )
 }

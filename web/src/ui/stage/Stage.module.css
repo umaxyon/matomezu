@@ -9,7 +9,9 @@
   touch-action: none;
   user-select: none;
 }
-.stage[data-dragging="true"] { cursor: grabbing; }
+.stage[data-dragging="true"] {
+  cursor: grabbing;
+}
 /* ステージが 2 つ以上あるとき、カレントのステージを内側の枠で示す（紙より手前の層に描く） */
 .stage[data-current="true"][data-multi="true"]::after {
   content: "";
@@ -24,5 +26,7 @@
   top: 0;
   transform-origin: 0 0;
   background: var(--skin-paper);
-  box-shadow: 0 0 0 1px var(--skin-paper-line), 0 6px 24px var(--skin-paper-shadow);
+  box-shadow:
+    0 0 0 1px var(--skin-paper-line),
+    0 6px 24px var(--skin-paper-shadow);
 }

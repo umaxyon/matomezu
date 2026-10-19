@@ -12,3 +12,4 @@ node_modules/
 
 # 実際のブラウザのテストの出力
 /e2e/.results/
+/e2e/.dist/

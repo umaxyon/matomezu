@@ -1,13 +1,13 @@
 // カレントのステージのブックのページのタブ。押したページをカレントのステージで開き、＋でページを足す
-import { currentStage } from "../../core/workspace";
-import { useActions, useApp } from "../store-context";
-import styles from "./Tabs.module.css";
+import { currentStage } from "../../core/workspace"
+import { useActions, useApp } from "../store-context"
+import styles from "./Tabs.module.css"
 
 export function Tabs() {
-  const book = useApp(s => s.books[currentStage(s.workspace).book]);
-  const page = useApp(s => currentStage(s.workspace).page);
-  const { openPage, addPage } = useActions();
-  if (!book) return null;
+  const book = useApp(s => s.books[currentStage(s.workspace).book])
+  const page = useApp(s => currentStage(s.workspace).page)
+  const { openPage, addPage } = useActions()
+  if (!book) return null
   return (
     <div className={styles.tabs}>
       <div className={styles.group} role="tablist" aria-label={book.title}>
@@ -30,5 +30,5 @@ export function Tabs() {
         </button>
       </div>
     </div>
-  );
+  )
 }

@@ -7,7 +7,9 @@
     "build": "rm -rf web/dist && bun build web/index.html --outdir web/dist --production",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "lint": "biome check",
+    "format": "biome check --write"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -16,6 +18,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@happy-dom/global-registrator": "^21.0.3",
     "@playwright/test": "^1.64.1",
     "@testing-library/dom": "^10.4.2",
