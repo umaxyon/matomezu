@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { createAppStore } from "../../web/src/store/store"
 import { App } from "../../web/src/ui/App"
 import { StoreProvider } from "../../web/src/ui/store-context"
@@ -38,4 +38,20 @@ test("＋でページが増え、そのタブが選ばれる", () => {
   const tabs = screen.getAllByRole("tab")
   expect(tabs.map(t => t.textContent)).toEqual(["ページ 1", "ページ 2"])
   expect(tabs[1]!.getAttribute("aria-selected")).toBe("true")
+})
+
+test("分割すると、ステージごとにタブがあり、右の＋は右のステージだけでページを開く", () => {
+  renderApp()
+  fireEvent.click(screen.getByRole("button", { name: "画面を分割" }))
+  const lists = screen.getAllByRole("tablist")
+  expect(lists).toHaveLength(2)
+  fireEvent.click(within(lists[1]!).getByRole("button", { name: "ページを足す" }))
+  const selected = (list: HTMLElement) => within(list).getByRole("tab", { selected: true }).textContent
+  expect(selected(lists[0]!)).toBe("ページ 1")
+  expect(selected(lists[1]!)).toBe("ページ 2")
+  expect(
+    within(lists[0]!)
+      .getAllByRole("tab")
+      .map(t => t.textContent),
+  ).toEqual(["ページ 1", "ページ 2"])
 })

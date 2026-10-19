@@ -1,14 +1,4 @@
-/* 一番上の行。左から道具・タブ。道具はタブと背景の色で分ける */
-.header {
-  flex: none;
-  display: flex;
-  align-items: stretch;
-  min-height: 40px;
-  background: var(--skin-bar);
-  border-bottom: 1px solid var(--skin-line);
-  font-size: 13px;
-  user-select: none;
-}
+/* 道具の区画。タブと背景の色で分ける */
 .tools {
   flex: none;
   display: flex;
@@ -44,9 +34,7 @@
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-.iconButton:focus-visible,
-.tab:focus-visible,
-.add:focus-visible {
+.iconButton:focus-visible {
   outline: 2px solid var(--skin-accent);
   outline-offset: -2px;
 }

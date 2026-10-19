@@ -5,16 +5,7 @@ import { addPage } from "../core/book"
 import type { Size } from "../core/geom"
 import type { Book } from "../core/schema/book"
 import { panBy, resize } from "../core/stage"
-import {
-  currentStage,
-  focus,
-  mapStage,
-  newWorkspace,
-  showPage,
-  split,
-  unsplit,
-  type Workspace,
-} from "../core/workspace"
+import { focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
 
 export interface AppState {
   books: Record<string, Book> // ブックの id ごと
@@ -25,8 +16,8 @@ export interface Actions {
   split(): void
   unsplit(): void
   focusStage(id: string): void
-  openPage(page: string): void // カレントのステージに
-  addPage(): void // カレントのステージのブックに足して、そのステージで開く
+  openPage(stage: string, page: string): void // そのステージで開き、カレントにする
+  addPage(stage: string): void // そのステージのブックに足して、そのステージで開き、カレントにする
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
 }
@@ -55,14 +46,17 @@ export function createAppStore(initial: AppState = initialState()): AppStore {
     split: () => withWorkspace(split),
     unsplit: () => withWorkspace(unsplit),
     focusStage: id => withWorkspace(ws => focus(ws, id)),
-    openPage: page => withWorkspace(ws => showPage(ws, page)),
-    addPage: () => {
+    openPage: (stage, page) => withWorkspace(ws => showPage(focus(ws, stage), stage, page)),
+    addPage: stageId => {
       const { books, workspace } = getState()
-      const stage = currentStage(workspace)
-      const owner = books[stage.book]
+      const stage = workspace.stages.find(s => s.id === stageId)
+      const owner = stage && books[stage.book]
       if (!owner) return
       const { book, page } = addPage(owner)
-      setState({ books: { ...books, [book.id]: book }, workspace: showPage(workspace, page.id) })
+      setState({
+        books: { ...books, [book.id]: book },
+        workspace: showPage(focus(workspace, stageId), stageId, page.id),
+      })
     },
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),

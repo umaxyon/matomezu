@@ -61,7 +61,7 @@ export function focus(ws: Workspace, id: string): Workspace {
   return { ...ws, current: id }
 }
 
-// カレントのステージに、同じブックのページを開く
-export function showPage(ws: Workspace, page: string): Workspace {
-  return mapStage(ws, ws.current, s => openPage(s, page))
+// ステージに、同じブックのページを開く
+export function showPage(ws: Workspace, stage: string, page: string): Workspace {
+  return mapStage(ws, stage, s => openPage(s, page))
 }

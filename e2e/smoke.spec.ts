@@ -35,3 +35,18 @@ test("＋でタブが増え、そのページが選ばれる", async ({ page }) 
   await expect(page.getByRole("tab")).toHaveText(["ページ 1", "ページ 2"])
   await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
 })
+
+test("分割すると右のステージにもタブがあり、右で選んだページは右だけで開く", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "画面を分割" }).click()
+  const lists = page.getByRole("tablist")
+  await expect(lists).toHaveCount(2)
+  await lists.nth(1).getByRole("button", { name: "ページを足す" }).click()
+  await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
+  await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
+  // 右のタブの区画は、右のステージの真上にある
+  const bar = (await lists.nth(1).boundingBox())!
+  const stage = (await page.getByRole("region", { name: "ステージ" }).nth(1).boundingBox())!
+  expect(bar.x).toBeGreaterThanOrEqual(stage.x)
+  expect(bar.x).toBeLessThan(stage.x + 40)
+})
