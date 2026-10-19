@@ -1,0 +1,23 @@
+.dialog {
+  padding: 0;
+  border: 1px solid var(--skin-line);
+  border-radius: 10px;
+  background: var(--skin-bar);
+  color: var(--skin-text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 14px 16px 16px;
+}
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}

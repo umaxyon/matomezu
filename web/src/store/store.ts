@@ -4,8 +4,9 @@ import { createStore, type StoreApi } from "zustand/vanilla"
 import { addPage } from "../core/book"
 import type { Size } from "../core/geom"
 import type { Book } from "../core/schema/book"
-import { panBy, resize } from "../core/stage"
+import { openBook, panBy, resize } from "../core/stage"
 import { focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
+import { SAMPLE_BOOKS } from "./sample-books"
 
 export interface AppState {
   books: Record<string, Book> // ブックの id ごと
@@ -16,7 +17,8 @@ export interface Actions {
   split(): void
   unsplit(): void
   focusStage(id: string): void
-  openPage(stage: string, page: string): void // そのステージで開き、カレントにする
+  openBook(stage: string, book: string): void // そのステージでブックの最初のページを開き、カレントにする
+  openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
   addPage(stage: string): void // そのステージのブックに足して、そのステージで開き、カレントにする
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
@@ -29,9 +31,13 @@ export interface AppStore {
   actions: Actions
 }
 
-export function initialState(): AppState {
-  const book: Book = { id: "b1", title: "ブック 1", pages: [{ id: "p1", title: "ページ 1" }] }
-  return { books: { [book.id]: book }, workspace: newWorkspace(book.id, "p1") }
+export function initialState(books: readonly Book[] = SAMPLE_BOOKS): AppState {
+  const first = books[0]
+  if (!first?.pages[0]) throw new Error("no book to open")
+  return {
+    books: Object.fromEntries(books.map(b => [b.id, b])),
+    workspace: newWorkspace(first.id, first.pages[0].id),
+  }
 }
 
 export function createAppStore(initial: AppState = initialState()): AppStore {
@@ -46,11 +52,15 @@ export function createAppStore(initial: AppState = initialState()): AppStore {
     split: () => withWorkspace(split),
     unsplit: () => withWorkspace(unsplit),
     focusStage: id => withWorkspace(ws => focus(ws, id)),
+    openBook: (stage, bookId) => {
+      const book = getState().books[bookId]
+      if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(s, book)))
+    },
     openPage: (stage, page) => withWorkspace(ws => showPage(focus(ws, stage), stage, page)),
     addPage: stageId => {
       const { books, workspace } = getState()
       const stage = workspace.stages.find(s => s.id === stageId)
-      const owner = stage && books[stage.book]
+      const owner = stage?.opened && books[stage.opened.book]
       if (!owner) return
       const { book, page } = addPage(owner)
       setState({

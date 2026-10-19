@@ -5,10 +5,11 @@ import { createAppStore } from "../../web/src/store/store"
 test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
   const { state, actions } = createAppStore()
   actions.split()
+  actions.openBook("s2", "b1")
   actions.addPage("s2")
   const s = state.getState()
   expect(s.books.b1!.pages.map(p => p.id)).toEqual(["p1", "p2"])
-  expect(s.workspace.stages.map(st => st.page)).toEqual(["p1", "p2"])
+  expect(s.workspace.stages.map(st => st.opened?.page)).toEqual(["p1", "p2"])
   expect(currentStage(s.workspace).id).toBe("s2")
 })
 
@@ -16,10 +17,22 @@ test("ページを開くのは指定したステージで、そのステージ�
   const { state, actions } = createAppStore()
   actions.addPage("s1")
   actions.split()
+  actions.openBook("s2", "b1")
   actions.openPage("s2", "p1")
+  actions.openPage("s1", "p2")
   const ws = state.getState().workspace
-  expect(ws.stages.map(st => st.page)).toEqual(["p2", "p1"])
-  expect(currentStage(ws).id).toBe("s2")
+  expect(ws.stages.map(st => st.opened?.page)).toEqual(["p2", "p1"])
+  expect(currentStage(ws).id).toBe("s1")
+})
+
+test("分けたステージは何も開いておらず、ブックを開くとそのステージがカレントになる", () => {
+  const { state, actions } = createAppStore()
+  actions.split()
+  expect(state.getState().workspace.stages[1]!.opened).toBeNull()
+  actions.openBook("s2", "b3")
+  const ws = state.getState().workspace
+  expect(ws.stages[1]!.opened).toEqual({ book: "b3", page: "p1" })
+  expect(ws.current).toBe("s2")
 })
 
 test("変わらない操作では知らせない", () => {

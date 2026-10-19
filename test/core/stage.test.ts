@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { newStage, openPage, panBy, paperOf, placement, resize } from "../../web/src/core/stage"
+import { newStage, openBook, openPage, panBy, paperOf, placement, resize } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
 
 describe("stage", () => {
-  const stage = newStage("s1", "b1", "p1")
-  const content = contentSize(paperOf(stage), 1)
+  const stage = newStage("s1", { book: "b1", page: "p1" })
+  const content = contentSize(paperOf(stage)!, 1)
   const small = { w: 400, h: 300 } // 中身が収まらない表示領域
 
   test("測る前は、ずらしても範囲に収めない（大きさが分からないので）", () => {
@@ -32,11 +32,33 @@ describe("stage", () => {
 
   test("ページを開くと、ずらす量は最初の位置に戻る", () => {
     const s = panBy(resize(stage, small), -200, -100)
-    expect(openPage(s, "p2")).toMatchObject({ page: "p2", pan: { x: 0, y: 0 } })
+    expect(openPage(s, "p2")).toMatchObject({ opened: { book: "b1", page: "p2" }, pan: { x: 0, y: 0 } })
   })
 
   test("紙は、ずらす量から余白の分だけ内側に置く", () => {
     const s = panBy(resize(stage, small), -30, -40)
-    expect(placement(s)).toEqual({ x: MARGIN - 30, y: MARGIN - 40, ...paperOf(s), zoom: 1 })
+    expect(placement(s)).toEqual({ x: MARGIN - 30, y: MARGIN - 40, ...paperOf(s)!, zoom: 1 })
+  })
+
+  test("何も開いていないステージは、紙が無く、ずらせない", () => {
+    const empty = resize(newStage("s2"), small)
+    expect(paperOf(empty)).toBeNull()
+    expect(placement(empty)).toBeNull()
+    expect(panBy(empty, -10, -10)).toBe(empty)
+    expect(openPage(empty, "p1")).toBe(empty)
+  })
+
+  test("ブックを開くと、最初のページを開き、ずらす量は範囲に収めた最初の位置", () => {
+    const book = {
+      id: "b9",
+      title: "見本",
+      pages: [
+        { id: "p4", title: "ページ 4" },
+        { id: "p5", title: "ページ 5" },
+      ],
+    }
+    const opened = openBook(resize(newStage("s2"), small), book)
+    expect(opened.opened).toEqual({ book: "b9", page: "p4" })
+    expect(opened.pan).toEqual({ x: 0, y: 0 })
   })
 })

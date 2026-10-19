@@ -14,10 +14,10 @@ import {
 describe("workspace", () => {
   const ws = newWorkspace("b1", "p1")
 
-  test("分けると、カレントの右に同じページのステージが増え、カレントは変わらない", () => {
+  test("分けると、カレントの右に何も開いていないステージが増え、カレントは変わらない", () => {
     const two = split(ws)
     expect(two.stages.map(s => s.id)).toEqual(["s1", "s2"])
-    expect(two.stages[1]).toMatchObject({ book: "b1", page: "p1" })
+    expect(two.stages[1]!.opened).toBeNull()
     expect(two.current).toBe("s1")
   })
 
@@ -37,11 +37,11 @@ describe("workspace", () => {
   test("ページを開くのも、ずらすのも、そのステージだけが変わり、ほかは同じものを使い回す", () => {
     const two = split(ws)
     const opened = showPage(two, "s1", "p2")
-    expect(currentStage(opened).page).toBe("p2")
+    expect(currentStage(opened).opened?.page).toBe("p2")
     expect(opened.stages[1]).toBe(two.stages[1]!)
-    const panned = mapStage(two, "s2", s => panBy(s, -10, -20))
-    expect(panned.stages[1]!.pan).toEqual({ x: -10, y: -20 })
-    expect(panned.stages[0]).toBe(two.stages[0]!)
+    const panned = mapStage(two, "s1", s => panBy(s, -10, -20))
+    expect(panned.stages[0]!.pan).toEqual({ x: -10, y: -20 })
+    expect(panned.stages[1]).toBe(two.stages[1]!)
   })
 
   test("変わらない操作は同じ値を返す", () => {

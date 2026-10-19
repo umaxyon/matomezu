@@ -1,14 +1,46 @@
 import { expect, test } from "@playwright/test"
 
-test("紙が 1 枚あり、分割のボタンでステージが 2 つになり、それぞれに紙がある", async ({ page }) => {
+test("分割すると、右のステージは何も開かず真ん中でブックを選べ、選ぶと右に紙が出る", async ({ page }) => {
   await page.goto("/")
   const papers = page.getByRole("img", { name: "紙" })
   await expect(papers).toHaveCount(1)
   await page.getByRole("button", { name: "画面を分割" }).click()
+  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
+  await expect(right.getByText("ブックを選択してください")).toBeVisible()
+  await expect(papers).toHaveCount(1)
+  const input = right.getByRole("combobox", { name: "ブックを探す" })
+  await input.click()
+  await input.pressSequentially("振り返り")
+  await expect(right.getByRole("option")).toHaveText(["週次の振り返り"])
+  await input.press("Enter")
   await expect(papers).toHaveCount(2)
-  const [left, right] = [await papers.nth(0).boundingBox(), await papers.nth(1).boundingBox()]
-  expect(left!.x + left!.width).toBeLessThanOrEqual(right!.x + right!.width)
-  expect(right!.x).toBeGreaterThan(left!.x)
+  const [left, r] = [await papers.nth(0).boundingBox(), await papers.nth(1).boundingBox()]
+  expect(r!.x).toBeGreaterThan(left!.x)
+  await expect(page.getByRole("tablist").nth(1)).toHaveAttribute("aria-label", "週次の振り返り")
+})
+
+test("タブの左のボタンでダイアログが開き、打った文字で絞り込んで選ぶと、そのステージで開く", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "ブックを開く" }).click()
+  const dialog = page.getByRole("dialog", { name: "ブックを開く" })
+  await expect(dialog).toBeVisible()
+  const input = dialog.getByRole("combobox", { name: "ブックを探す" })
+  await expect(input).toBeFocused()
+  await page.keyboard.type("design")
+  await expect(dialog.getByRole("option")).toHaveText(["Design Notes"])
+  await page.keyboard.press("Enter")
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "Design Notes")
+})
+
+test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "ブックを開く" }).click()
+  const dialog = page.getByRole("dialog", { name: "ブックを開く" })
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "まとめ図の構想")
 })
 
 test("ドラッグで紙がずれ、ずらせるのは紙の周りの余白までで止まる", async ({ page }) => {
@@ -36,9 +68,11 @@ test("＋でタブが増え、そのページが選ばれる", async ({ page }) 
   await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
 })
 
-test("分割すると右のステージにもタブがあり、右で選んだページは右だけで開く", async ({ page }) => {
+test("分割して右で同じブックを開くと右にもタブがあり、右で足したページは右だけで開く", async ({ page }) => {
   await page.goto("/")
   await page.getByRole("button", { name: "画面を分割" }).click()
+  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
+  await right.getByRole("option", { name: "まとめ図の構想" }).click()
   const lists = page.getByRole("tablist")
   await expect(lists).toHaveCount(2)
   await lists.nth(1).getByRole("button", { name: "ページを足す" }).click()
@@ -46,7 +80,7 @@ test("分割すると右のステージにもタブがあり、右で選んだ�
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
   // 右のタブの区画は、右のステージの真上にある
   const bar = (await lists.nth(1).boundingBox())!
-  const stage = (await page.getByRole("region", { name: "ステージ" }).nth(1).boundingBox())!
+  const stage = (await right.boundingBox())!
   expect(bar.x).toBeGreaterThanOrEqual(stage.x)
-  expect(bar.x).toBeLessThan(stage.x + 40)
+  expect(bar.x).toBeLessThan(stage.x + 60)
 })

@@ -1,7 +1,8 @@
-// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に紙を描く。
+// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に紙を描く。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
 // 測った大きさと、ドラッグ・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { memo, type PointerEvent, useRef, useState, type WheelEvent } from "react"
 import { placement } from "../../core/stage"
+import { BookSearch } from "../book-search/BookSearch"
 import { useActions, useApp } from "../store-context"
 import styles from "./StageView.module.css"
 import { useResize } from "./use-resize"
@@ -17,7 +18,7 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
   const stage = useApp(s => s.workspace.stages.find(st => st.id === id))
   const isCurrent = useApp(s => s.workspace.current === id)
   const isMulti = useApp(s => s.workspace.stages.length > 1)
-  const { focusStage, resizeStage, panStageBy } = useActions()
+  const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const ref = useRef<HTMLElement>(null)
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -26,7 +27,7 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
-    if (e.button !== 0) return
+    if (e.button !== 0 || !stage.opened) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY }
     setDragging(true)
@@ -64,12 +65,19 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
       onPointerCancel={endDrag}
       onWheel={onWheel}
     >
-      <div
-        className={styles.paper}
-        role="img"
-        aria-label="紙"
-        style={{ width: p.w, height: p.h, transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})` }}
-      />
+      {p ? (
+        <div
+          className={styles.paper}
+          role="img"
+          aria-label="紙"
+          style={{ width: p.w, height: p.h, transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})` }}
+        />
+      ) : (
+        <div className={styles.empty}>
+          <p className={styles.prompt}>ブックを選択してください</p>
+          <BookSearch onSelect={book => openBook(id, book)} />
+        </div>
+      )}
     </section>
   )
 })

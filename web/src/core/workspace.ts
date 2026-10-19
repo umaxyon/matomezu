@@ -1,4 +1,4 @@
-// 見ているもの。画面の見える領域をステージ（stage.ts）に分け、ステージごとにブックのページを開く。
+// 見ているもの。画面の見える領域をステージ（stage.ts）に分け、ステージごとにブックのページを開く（何も開かないステージもある）。
 // 道具箱・キー・タブなどの操作の宛先は、カレントのステージ。
 // ステージの並べ方は arrangement が持ち、ステージは自分の置き場所を知らない。
 // 操作はデータを書き換えず、新しい値を返す（変わらないステージは同じものを使い回す）
@@ -19,7 +19,7 @@ export interface Workspace {
 export const MAX_STAGES = 2
 
 export function newWorkspace(book: string, page: string): Workspace {
-  return { stages: [newStage("s1", book, page)], current: "s1", arrangement: { direction: "row" } }
+  return { stages: [newStage("s1", { book, page })], current: "s1", arrangement: { direction: "row" } }
 }
 
 export function currentStage(ws: Workspace): Stage {
@@ -40,12 +40,12 @@ export function mapStage(ws: Workspace, id: string, change: (s: Stage) => Stage)
   return changed ? { ...ws, stages } : ws
 }
 
-// カレントのステージの右に、同じページを開いたステージを足す
+// カレントのステージの右に、何も開いていないステージを足す
 export function split(ws: Workspace): Workspace {
   if (ws.stages.length >= MAX_STAGES) return ws
   const cur = currentStage(ws)
   const ids = ws.stages.map(s => s.id)
-  const added = newStage(`s${nextNumber("s", ids)}`, cur.book, cur.page)
+  const added = newStage(`s${nextNumber("s", ids)}`)
   const at = ws.stages.indexOf(cur) + 1
   return { ...ws, stages: [...ws.stages.slice(0, at), added, ...ws.stages.slice(at)] }
 }

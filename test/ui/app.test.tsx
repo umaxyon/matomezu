@@ -16,20 +16,72 @@ function renderApp() {
   return store
 }
 
+const stages = () => screen.getAllByRole("region", { name: "ステージ" })
+
 test("ステージに紙が 1 枚ある", () => {
   renderApp()
-  expect(screen.getAllByRole("region", { name: "ステージ" })).toHaveLength(1)
+  expect(stages()).toHaveLength(1)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
 })
 
-test("分割のボタンで、ステージが 2 つになり、それぞれに紙がある。もう一度押すと 1 つに戻る", () => {
+test("分割すると、右のステージは何も開いておらず、真ん中でブックを選べる。もう一度押すと 1 つに戻る", () => {
   renderApp()
   const button = screen.getByRole("button", { name: "画面を分割" })
   fireEvent.click(button)
   expect(button.getAttribute("aria-pressed")).toBe("true")
-  expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(2)
-  fireEvent.click(button)
+  expect(stages()).toHaveLength(2)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
+  const right = stages()[1]!
+  expect(within(right).getByText("ブックを選択してください")).toBeTruthy()
+  expect(within(right).getByRole("combobox", { name: "ブックを探す" })).toBeTruthy()
+  fireEvent.click(button)
+  expect(stages()).toHaveLength(1)
+})
+
+test("右のステージで探して選んだブックを右で開き、右にそのブックのタブが出る", () => {
+  renderApp()
+  fireEvent.click(screen.getByRole("button", { name: "画面を分割" }))
+  const right = stages()[1]!
+  const input = within(right).getByRole("combobox", { name: "ブックを探す" })
+  fireEvent.change(input, { target: { value: "残課題" } })
+  expect(
+    within(right)
+      .getAllByRole("option")
+      .map(o => o.textContent),
+  ).toEqual(["残課題"])
+  fireEvent.keyDown(input, { key: "Enter" })
+  expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(2)
+  expect(screen.getAllByRole("tablist").map(l => l.getAttribute("aria-label"))).toEqual(["まとめ図の構想", "残課題"])
+})
+
+test("↑↓で選ぶ候補が動き、クリックでも選べる", () => {
+  renderApp()
+  fireEvent.click(screen.getByRole("button", { name: "画面を分割" }))
+  const right = stages()[1]!
+  const input = within(right).getByRole("combobox", { name: "ブックを探す" })
+  const selected = () => within(right).getByRole("option", { selected: true }).textContent
+  expect(selected()).toBe("まとめ図の構想")
+  fireEvent.keyDown(input, { key: "ArrowDown" })
+  expect(selected()).toBe("画面の構成")
+  fireEvent.keyDown(input, { key: "ArrowUp" })
+  fireEvent.keyDown(input, { key: "ArrowUp" })
+  expect(selected()).toBe("Design Notes")
+  fireEvent.click(within(right).getByRole("option", { name: "データの形" }))
+  expect(screen.getAllByRole("tablist").map(l => l.getAttribute("aria-label"))).toEqual([
+    "まとめ図の構想",
+    "データの形",
+  ])
+})
+
+test("タブの左のボタンでダイアログを開き、選んだブックをそのステージで開く", () => {
+  renderApp()
+  fireEvent.click(screen.getByRole("button", { name: "ブックを開く" }))
+  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
+  const input = within(dialog).getByRole("combobox", { name: "ブックを探す" })
+  fireEvent.change(input, { target: { value: "api" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("API の一覧")
+  expect(screen.queryByRole("combobox", { name: "ブックを探す" })).toBeNull()
 })
 
 test("＋でページが増え、そのタブが選ばれる", () => {
@@ -40,18 +92,12 @@ test("＋でページが増え、そのタブが選ばれる", () => {
   expect(tabs[1]!.getAttribute("aria-selected")).toBe("true")
 })
 
-test("分割すると、ステージごとにタブがあり、右の＋は右のステージだけでページを開く", () => {
+test("日本語の変換を確定する Enter では、候補を選ばない", () => {
   renderApp()
-  fireEvent.click(screen.getByRole("button", { name: "画面を分割" }))
-  const lists = screen.getAllByRole("tablist")
-  expect(lists).toHaveLength(2)
-  fireEvent.click(within(lists[1]!).getByRole("button", { name: "ページを足す" }))
-  const selected = (list: HTMLElement) => within(list).getByRole("tab", { selected: true }).textContent
-  expect(selected(lists[0]!)).toBe("ページ 1")
-  expect(selected(lists[1]!)).toBe("ページ 2")
-  expect(
-    within(lists[0]!)
-      .getAllByRole("tab")
-      .map(t => t.textContent),
-  ).toEqual(["ページ 1", "ページ 2"])
+  fireEvent.click(screen.getByRole("button", { name: "ブックを開く" }))
+  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
+  const input = within(dialog).getByRole("combobox", { name: "ブックを探す" })
+  fireEvent.keyDown(input, { key: "Enter", isComposing: true })
+  expect(screen.getByRole("dialog", { name: "ブックを開く" })).toBeTruthy()
+  expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("まとめ図の構想")
 })

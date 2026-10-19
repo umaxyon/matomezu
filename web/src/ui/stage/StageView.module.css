@@ -30,3 +30,25 @@
     0 0 0 1px var(--skin-paper-line),
     0 6px 24px var(--skin-paper-shadow);
 }
+/* 何も開いていないとき: 真ん中にブックを選ぶ欄 */
+.empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(320px, calc(100% - 32px));
+  padding: 16px;
+  border: 1px solid var(--skin-line);
+  border-radius: 10px;
+  background: var(--skin-bar);
+  cursor: default;
+  user-select: text;
+}
+.prompt {
+  margin: 0;
+  font-size: 14px;
+  color: var(--skin-text);
+}
