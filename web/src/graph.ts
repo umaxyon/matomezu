@@ -152,7 +152,7 @@ import { SCENES } from "./layout/policy";
 import { type MeasureText, browserMeasure, createTextMeasurer } from "./layout/measure";
 import { DEFAULT_SHAPE, shapeDef } from "./shapes";
 import {
-  type Box, type Container, type Edge, type World, absPos, absRect, ancestors, headRectOf, arrowOf, bodyAlignOf, bodyLinesOf, bodyWidthOf, defaultTitleAlign, titleAlignOf, borderOf,
+  type Box, type Container, type Edge, type World, abilitiesOf, absPos, absRect, ancestors, headRectOf, arrowOf, bodyAlignOf, bodyLinesOf, bodyWidthOf, defaultTitleAlign, titleAlignOf, borderOf,
   canBody, captionOf, dashOf, dataSizeOf, sizeRuleOf, descendants, displayCaption, fillOf, inList, inNest, isHidden, isNesting, other,
   overflowOf, inTreeOf, isLinkBox, listHeightOf, listPreviewOf, previewSideOf, rowSizeOf, isTreeRoot, linkBookOf, linkPageOf, lookOf, rootBoxOf, STRATEGIES, acceptsKid, worldViewOf, DEFAULT_VIEW, DEFAULT_ROUTE, kidSizeOf, captionHintsOf, placesFreely, routeDefaultOf, routeOf, setOrDelete, setSpec, shapeOf, sizeOf, treeDirOf, treeLinesOf, viaOf, viewOf,
 } from "./model";
@@ -1398,6 +1398,10 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
       bodyLines: bodyLinesOf(n) || null,
       bodyWidth: bodyWidthOf(n) || null,
       titleAlign: titleAlignOf(n),
+      // 大きさの固定（D45）: 固定にできる向き（枠のつまみと同じ。リストは幅だけ）と、今固定になっているか
+      resizable: abilitiesOf(n).frameGrip ?? (abilitiesOf(n).widthGrip ? "width" : null),
+      fixedW: n.specW > 0,
+      fixedH: n.specH > 0,
       bodyAlign: bodyAlignOf(n),
       inList: inList(n),
       sizableChildren: sizable(n).length,
@@ -1534,8 +1538,6 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
           const v = next.bodyWidth; // 値の誤りは checkSettings で断っている
           setOrDelete(n.src, "bodyWidth", v == null ? undefined : Math.round(v), v == null);
         }
-        if ("width" in next) setSpec(n, "w", next.width ? Math.round(next.width) : 0);
-        if ("height" in next) setSpec(n, "h", next.height ? Math.round(next.height) : 0);
         if ("color" in next) setOrDelete(n.src, "color", String(next.color ?? ""), !next.color);
         if ("theme" in next) setOrDelete(n.src, "theme", String(next.theme ?? ""), !next.theme);
         if ("fill" in next) n.src.fill = !!next.fill;
@@ -1543,6 +1545,9 @@ export function createGraph(container: HTMLElement, data: unknown, options: Grap
         if (next.size) {
           setSize(n, next.size);
         }
+        // 大きさの固定（サイズを変えると固定は外れるので、そのあとに書く。一緒に渡せば固定が勝つ）
+        if ("width" in next) setSpec(n, "w", next.width ? Math.round(next.width) : 0);
+        if ("height" in next) setSpec(n, "h", next.height ? Math.round(next.height) : 0);
         if (next.shape) setOrDelete(n.src, "shape", next.shape, next.shape === DEFAULT_SHAPE);
         if (next.linkLook) setOrDelete(n.src, "linkLook", next.linkLook, next.linkLook === DEFAULT_LINK_LOOK); // 値は checkSettings で確かめている
         if (next.previewSide) setOrDelete(n.src, "previewSide", next.previewSide, next.previewSide === "right");

@@ -332,3 +332,35 @@ test("タイトルと本文の文字の寄せを選ぶ。既定（タイトル�
   expect([n.titleAlign, n.bodyAlign]).toEqual([undefined, undefined]);
   expect(head.classList.contains("mz-ta-left")).toBe(false);
 });
+
+test("大きさの欄で幅・高さの固定を入れ切りし、値を変えられる。固定でなければ値は押せない。サイズを選び直すと固定は外れる（D45）", () => {
+  const { g, dlg, openDlg, ok } = setup({ nodes: [{ id: 1, caption: "API", width: 200, fixedWidth: true, x: 40, y: 40 }] });
+  openDlg(1);
+  const fix = (k: string) => dlg<HTMLInputElement>(`[name="fix-${k}"]`)!;
+  const dim = (k: string) => dlg<HTMLInputElement>(`[name="dim-${k}"]`)!;
+  expect([fix("w").checked, dim("w").value, dim("w").disabled]).toEqual([true, "200", false]);
+  expect([fix("h").checked, dim("h").disabled]).toEqual([false, true]);
+  dim("w").value = "260";
+  fix("h").checked = true;
+  fix("h").dispatchEvent(new Event("change", { bubbles: true }));
+  expect(dim("h").disabled).toBe(false);
+  dim("h").value = "90";
+  ok();
+  expect([box(g, 1).w, box(g, 1).h, box(g, 1).fixedW, box(g, 1).fixedH]).toEqual([260, 90, true, true]);
+  openDlg(1);
+  const l = dlg<HTMLInputElement>('[name="size"][value="L"]')!;
+  l.checked = true;
+  l.dispatchEvent(new Event("change", { bubbles: true }));
+  expect([fix("w").checked, fix("h").checked]).toEqual([false, false]);
+  ok();
+  expect([box(g, 1).fixedW, box(g, 1).fixedH]).toEqual([false, false]);
+});
+
+test("大きさの欄は固定にできる箱だけに出す（ツリーのページには出さない。リストは幅だけ）", () => {
+  const { dlg, openDlg } = setup({ nodes: [{ id: 1, caption: "リスト", childView: "list", x: 40, y: 40 }, { id: 2, parent: 1, caption: "行" }] });
+  openDlg(1);
+  expect([!!dlg('[name="fix-w"]'), !!dlg('[name="fix-h"]')]).toEqual([true, false]);
+  closeEditDialog();
+  openDlg(2);
+  expect(dlg('[data-group="dims"]')).toBeNull();
+});

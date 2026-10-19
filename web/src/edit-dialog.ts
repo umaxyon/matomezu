@@ -144,6 +144,9 @@ select.mz-dlg-input { width: auto; }
 .mz-dlg-switch:focus-visible { outline: 2px solid var(--dlg-accent); outline-offset: 2px; }
 .mz-dlg-onoff { min-width: 3em; color: var(--dlg-muted); font-size: 12px; }
 .mz-dlg-lines { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.mz-dlg-dim { display: flex; align-items: center; gap: 6px; }
+.mz-dlg-dim > span:first-child { min-width: 2.5em; }
+.mz-dlg-dim input[type="number"] { width: 5em; }
 /* 箱のダイアログ: 左に見た目の設定、縦の線で区切って右に中身（背景の色は変えない。docs/ADD-plan.md の 4 章） */
 .mz-dlg.mz-dlg-wide { width: min(672px, 100%); } /* 右の列が約 434px（780px のときの 4/5） */
 .mz-dlg-split { display: flex; align-items: stretch; }
@@ -316,6 +319,7 @@ function setupClipPicker(host: HTMLElement, scene: Scene, start: Rect | null, wi
 interface BoxValues {
   caption: string; body: string; rule: boolean; lines: number | null; widthAuto: boolean;
   titleAlign: TextAlign; bodyAlign: TextAlign; // 文字の寄せ（D45）
+  fixW: boolean; fixH: boolean; dimW: number; dimH: number; // 大きさの固定と、その値（D45）
   shape: Shape; size: Size; theme: string; color: string; bodyAllowed: boolean;
   linkLook: LinkLook | null; // リンクの箱の見せ方（リンクの箱でなければ null。link-box.ts）
   clip: Rect | null;         // リンクの箱の窓に映す範囲（null はページ全体）
@@ -326,7 +330,7 @@ interface BoxValues {
   // サイドバーから移した項目（D26。編集のときだけ）: 子の見せ方、塗りつぶし・枠線・1 行、子のサイズをそろえる（確定のときに一緒に行う一回きりの操作）
   view: BoxView; previewSide: PreviewSide; rowSize: Size; listScroll: boolean; fill: boolean; border: boolean; oneLine: boolean; fit: "width" | "height" | "both" | null;
 }
-type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "titleAlign" | "bodyAlign" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops" | "link" | "previewSide" | "rowSize" | "listHeight"> & {
+type BoxStart = Pick<BoxInfo, "caption" | "body" | "bodyRule" | "bodyLines" | "bodyWidth" | "titleAlign" | "bodyAlign" | "resizable" | "fixedW" | "fixedH" | "w" | "h" | "canBody" | "shape" | "size" | "canShape" | "canClass" | "overflow" | "abstract" | "attrs" | "ops" | "link" | "previewSide" | "rowSize" | "listHeight"> & {
   theme: string;      // 書いたテーマ（"" は受け継ぐ）
   color: string;      // 書いた色（名前か色の値。"" は書いていない）
   inherited: string;  // 親から受け継ぐテーマ（テーマを「受け継ぐ」にしたときの色の見本と、見た目の色に使う）
@@ -346,6 +350,16 @@ export function classChangeWarning(from: Shape, to: Shape, kids: number, hasClas
   if (to === "class" && from !== "class" && kids > 0) return t("クラスの箱は子を持てません。子 {n} 個（その子孫も）は、消したものの一覧へ移ります", { n: kids });
   if (from === "class" && to !== "class" && hasClassData) return t("クラス名以外の情報（abstract・属性・操作）は捨てられます");
   return null;
+}
+
+// 大きさの固定（D45）: 固定にできる向きごとに「固定」と値。固定でなければ値は今の大きさを見せるだけ（押せない）
+function dimsGroup(b: BoxStart): string {
+  if (!b.resizable) return "";
+  const row = (k: "w" | "h", label: string, fixed: boolean, v: number) => `<div class="mz-dlg-row mz-dlg-dim"><span>${label}</span>
+      <label class="mz-dlg-check"><input type="checkbox" name="fix-${k}"${fixed ? " checked" : ""}>${t("固定")}</label>
+      <input class="mz-dlg-input" type="number" name="dim-${k}" min="1" step="1" value="${Math.round(v)}" aria-label="${label}"${fixed ? "" : " disabled"}><span>px</span></div>`;
+  return `<div class="mz-dlg-group" data-group="dims"><h3>${t("大きさ")}${helpIcon(t("固定でなければ中身に合わせます。枠のつまみで変えても固定になります"))}</h3>
+      ${row("w", t("幅"), b.fixedW, b.w)}${b.resizable === "both" ? row("h", t("高さ"), b.fixedH, b.h) : ""}</div>`;
 }
 
 // 文字の寄せ（左・中央・右）を選ぶ並び（D45）
@@ -457,6 +471,7 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
         <div class="mz-dlg-seg">${sizes.map(v => `<label><input type="radio" name="size" value="${v}"${v === b.size && !b.sizeFixed ? " checked" : ""}${b.sizeFixed ? " disabled" : ""}>${v}</label>`).join("")}</div>
         <p class="mz-dlg-note" data-size-fixed${b.sizeFixed && !b.link ? "" : " hidden"}>${t("内包・リストの箱の大きさは、子の並びで決まります")}</p>
         <p class="mz-dlg-note" data-class-size hidden>${t("クラスの箱の幅は、中身に合わせて決まります")}</p></div>
+      ${dimsGroup(b)}
       <div class="mz-dlg-group"><h3>${t("テーマ")}</h3>
         <select class="mz-dlg-input" name="theme" aria-label="${t("テーマ")}">
           <option value=""${b.theme ? "" : " selected"}>${t("受け継ぐ")}</option>
@@ -523,6 +538,9 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
       caption: field<HTMLInputElement>("caption").value,
       titleAlign: (ov.querySelector<HTMLInputElement>('[name="titleAlign"]:checked')?.value ?? b.titleAlign) as TextAlign,
       bodyAlign: (ov.querySelector<HTMLInputElement>('[name="bodyAlign"]:checked')?.value ?? b.bodyAlign) as TextAlign,
+      fixW: checked("fix-w", b.fixedW), fixH: checked("fix-h", b.fixedH),
+      dimW: Number(ov.querySelector<HTMLInputElement>('[name="dim-w"]')?.value) || Math.round(b.w),
+      dimH: Number(ov.querySelector<HTMLInputElement>('[name="dim-h"]')?.value) || Math.round(b.h),
       body: field<HTMLTextAreaElement>("body").value,
       rule: field("rule").getAttribute("aria-checked") === "true",
       lines: linesValue ? Number(linesValue) : null,
@@ -723,6 +741,12 @@ function boxDialog(title: string, okLabel: string, b: BoxStart, commit: (v: BoxV
   }
   bodyField.addEventListener("input", syncBody);
   syncBody();
+  // 大きさの固定（D45）: 固定を入れたら値を押せるようにする。サイズ（S・M・L）を選び直すと固定は外れる（graph.ts の setSize）ので、外して見せる
+  const dims = (["w", "h"] as const).map(k => [overlay.querySelector<HTMLInputElement>(`[name="fix-${k}"]`), overlay.querySelector<HTMLInputElement>(`[name="dim-${k}"]`)] as const);
+  for (const [fix, dim] of dims) fix?.addEventListener("change", () => { if (dim) dim.disabled = !fix.checked; });
+  for (const r of overlay.querySelectorAll<HTMLInputElement>('[name="size"]')) {
+    r.addEventListener("change", () => { for (const [fix, dim] of dims) if (fix && dim) { fix.checked = false; dim.disabled = true; } });
+  }
   // 「箱の幅に合わせる」は確定したときに書く（押したらボタンを押せなくして、押したことを示す）
   overlay.querySelector<HTMLElement>("[data-width-auto]")!.addEventListener("click", e => {
     overlay.querySelector<HTMLInputElement>('[name="width-auto"]')!.value = "1";
@@ -770,6 +794,9 @@ export function openEditDialog(graph: Graph, id: string): void {
     const patch: Patch = {};
     if (v.caption !== b.caption) patch.caption = v.caption;
     if (v.titleAlign !== b.titleAlign) patch.titleAlign = v.titleAlign;
+    // 大きさの固定（D45）: 固定を入れ切りしたか、固定の値を変えたときだけ書く
+    if (b.resizable && (v.fixW !== b.fixedW || v.fixW && v.dimW !== Math.round(b.w))) patch.width = v.fixW ? v.dimW : null;
+    if (b.resizable === "both" && (v.fixH !== b.fixedH || v.fixH && v.dimH !== Math.round(b.h))) patch.height = v.fixH ? v.dimH : null;
     if (v.bodyAllowed && v.bodyAlign !== b.bodyAlign) patch.bodyAlign = v.bodyAlign;
     if (b.canShape && v.shape !== b.shape) patch.shape = v.shape;
     if (!sizeFixed && v.size !== b.size) patch.size = v.size; // サイズを変えたときだけ（変えると大きさの指定も外れる）
@@ -804,7 +831,7 @@ export function openEditDialog(graph: Graph, id: string): void {
 // size は最初に選んでおくサイズ（道具入れから足すときは、中の箱のサイズ）
 export function openAddDialog(graph: Graph, req: AddRequest, shape: Shape = "box", size: Size = "M"): void {
   const start: BoxStart = {
-    caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, titleAlign: "center", bodyAlign: "left", canBody: true,
+    caption: "", body: "", bodyRule: true, bodyLines: null, bodyWidth: null, titleAlign: "center", bodyAlign: "left", resizable: null, fixedW: false, fixedH: false, w: 0, h: 0, canBody: true,
     shape, size, canShape: true, canClass: true, overflow: "wrap", theme: "", sizeFixed: false,
     color: "", inherited: graph.info(req.parentId).themeUsed,
     abstract: false, attrs: [], ops: [], kids: 0, link: null, previewSide: "right", rowSize: "M", listHeight: null, scene: null, previewMinScale: DEFAULTS.previewMinScale,

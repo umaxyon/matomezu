@@ -176,6 +176,9 @@ export interface BoxInfo {
   bodyLines: number | null; // 本文の最大行数（null は制限なし）
   bodyWidth: number | null; // 本文の幅の指定（つまみで変えた幅。null は自動）
   titleAlign: TextAlign; // タイトルの文字の寄せ（書いていなければ既定の寄せ）
+  resizable: "both" | "width" | null; // 大きさを固定にできる向き（D45。枠のつまみと同じ。リストは幅だけ。null はできない）
+  fixedW: boolean; // 幅を固定しているか
+  fixedH: boolean; // 高さを固定しているか
   bodyAlign: TextAlign;  // 本文の文字の寄せ
   inList: boolean;   // リストの子か（サイズ・形・子の見せ方を使わない。docs/LIST-plan.md）
   sizableChildren: number; // 大きさをそろえられる子の数（内包しているときだけ。2 以上でそろえられる）
