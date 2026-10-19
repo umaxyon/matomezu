@@ -35,7 +35,6 @@ for t in "${targets[@]}"; do
   mkdir -p "$dir"
   CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
     go build -trimpath -ldflags "-s -w -X main.version=$version" -o "$dir/$exe" ./cmd/matomezu
-  cp examples/*.json "$dir/"
   echo "$dir/$exe"
 done
 
