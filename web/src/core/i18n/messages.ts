@@ -3,6 +3,8 @@ export const MESSAGES = {
   マスター: { en: "Master" },
   画面を分割: { en: "Split screen" },
   ステージを閉じる: { en: "Close stage" },
+  分割をやめる: { en: "Unsplit" },
+  ページを開く: { en: "Open page" },
   ブックを開く: { en: "Open book" },
   ページを足す: { en: "Add page" },
   "ページ {n}": { en: "Page {n}" },

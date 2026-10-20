@@ -1,10 +1,11 @@
 // ステージの下の行: 左端にブックの名前の欄、その右にページのタブ。
-// 名前の欄にマウスを乗せるか押すと、上にメニュー（マスター・画面の分割・ブックを開く）がせり上がり、欄とメニューから離れると下がる
+// 名前の欄にマウスを乗せるか押すと、上にメニュー（マスター・画面の分割・ブックを開く）がせり上がり、欄とメニューから離れると下がる。
+// メニューの項目はコマンド（stage.master・stage.split か stage.unsplit・book.open）を呼ぶ
 import { useEffect, useRef, useState } from "react"
 import { bookTitle } from "../../core/book"
-import { OpenBookDialog } from "../book-search/OpenBookDialog"
+import { useCommand } from "../commands"
 import { useT } from "../i18n"
-import { useActions, useApp } from "../store-context"
+import { useApp } from "../store-context"
 import { PageTabs } from "../tabs/PageTabs"
 import styles from "./StageFooter.module.css"
 
@@ -19,7 +20,6 @@ export function StageFooter({ stage }: { stage: string }) {
   const lang = useApp(s => s.settings.lang)
   const t = useT()
   const [open, setOpen] = useState(false)
-  const [picking, setPicking] = useState(false)
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelLeave = () => {
     if (leave.current) clearTimeout(leave.current)
@@ -61,30 +61,21 @@ export function StageFooter({ stage }: { stage: string }) {
             cancelLeave()
             setOpen(false)
           }}
-          onOpenBook={() => setPicking(true)}
         />
       </div>
       <PageTabs stage={stage} />
-      <OpenBookDialog stage={stage} open={picking} onClose={() => setPicking(false)} />
     </div>
   )
 }
 
 // せり上がるメニュー。閉じている間は見えず、押せず、読み上げにも出ない
-function StageMenu({
-  stage,
-  open,
-  onPick,
-  onOpenBook,
-}: {
-  stage: string
-  open: boolean
-  onPick: () => void
-  onOpenBook: () => void
-}) {
-  const isSplit = useApp(s => s.workspace.stages.length > 1)
+// 分割のボタンは 1 つで、出ているほう（分割する・やめる）を呼び、分割しているかを押されている見た目で示す
+function StageMenu({ stage, open, onPick }: { stage: string; open: boolean; onPick: () => void }) {
   const onMaster = useApp(s => s.workspace.stages.find(st => st.id === stage)?.opened?.type === "master")
-  const { split, unsplit, openMaster } = useActions()
+  const master = useCommand(stage, "stage.master")
+  const split = useCommand(stage, "stage.split")
+  const unsplit = useCommand(stage, "stage.unsplit")
+  const openBook = useCommand(stage, "book.open")
   const t = useT()
   const pick = (run: () => void) => () => {
     run()
@@ -95,9 +86,9 @@ function StageMenu({
       <button
         type="button"
         className={styles.item}
-        aria-label={t("マスター")}
+        aria-label={t(master.title)}
         aria-pressed={onMaster}
-        onClick={pick(() => openMaster(stage))}
+        onClick={pick(() => master.run())}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 11 12 4l8 7" />
@@ -107,16 +98,16 @@ function StageMenu({
       <button
         type="button"
         className={styles.item}
-        aria-label={t("画面を分割")}
-        aria-pressed={isSplit}
-        onClick={pick(() => (isSplit ? unsplit(stage) : split(stage)))}
+        aria-label={t(split.title)}
+        aria-pressed={unsplit.shown}
+        onClick={pick(() => (unsplit.shown ? unsplit.run() : split.run()))}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <rect x="3" y="5" width="18" height="14" rx="2" />
           <path d="M12 5v14" />
         </svg>
       </button>
-      <button type="button" className={styles.item} aria-label={t("ブックを開く")} onClick={pick(onOpenBook)}>
+      <button type="button" className={styles.item} aria-label={t(openBook.title)} onClick={pick(() => openBook.run())}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3.5 5.5h6l2 2h9v11h-17z" />
         </svg>

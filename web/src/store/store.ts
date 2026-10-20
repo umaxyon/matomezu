@@ -9,6 +9,8 @@ import { type ArgsOf, perform } from "../core/perform"
 import type { Book, BookOf } from "../core/schema/book"
 import { openBook, panBy, resize } from "../core/stage"
 import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
+import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
+import type { DialogId, OpenedDialog } from "./dialogs"
 import { SAMPLE_BOOKS } from "./sample-books"
 
 // 見る人ごとの設定
@@ -21,9 +23,14 @@ export interface AppState {
   books: Record<string, Book> // ブックの id ごと
   workspace: Workspace
   settings: Settings
+  dialog: OpenedDialog | null
 }
 
 export interface Actions {
+  // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す
+  command<Id extends CommandId>(stage: string, id: Id, ...args: CommandArgs<Id>): boolean
+  openDialog(stage: string, id: DialogId): void // そのステージから開くダイアログを出す（出ていたものは閉じる）
+  closeDialog(): void
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
@@ -56,6 +63,7 @@ export function initialState(books: readonly BookOf<"drawing">[] = SAMPLE_BOOKS,
     books: Object.fromEntries([MASTER_BOOK, ...books].map(b => [b.id, b])),
     workspace: newWorkspace(first),
     settings: { lang, skin: "auto" },
+    dialog: null,
   }
 }
 
@@ -67,12 +75,28 @@ export function createAppStore(
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ lang: getState().settings.lang, newId })
+  // 開いたステージが無くなったダイアログは閉じる
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {
-    const ws = getState().workspace
+    const { workspace: ws, dialog } = getState()
     const next = change(ws)
-    if (next !== ws) setState({ workspace: next })
+    if (next === ws) return
+    const keeps = dialog === null || next.stages.some(s => s.id === dialog.stage)
+    setState(keeps ? { workspace: next } : { workspace: next, dialog: null })
   }
   const actions: Actions = {
+    command: (stage, id, ...args) => {
+      const state = getState()
+      const ctx = commandContext(state, stage)
+      if (!ctx || !isEnabled(state, stage, id)) return false
+      commandDef(id).run(ctx, actions, args[0] as never)
+      return true
+    },
+    openDialog: (stage, id) => {
+      if (getState().workspace.stages.some(s => s.id === stage)) setState({ dialog: { id, stage } })
+    },
+    closeDialog: () => {
+      if (getState().dialog) setState({ dialog: null })
+    },
     split: stage => withWorkspace(ws => split(focus(ws, stage))),
     unsplit: stage => withWorkspace(ws => unsplit(focus(ws, stage))),
     closeStage: id => withWorkspace(ws => close(ws, id)),

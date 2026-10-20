@@ -6,11 +6,12 @@ import { useT } from "../i18n"
 import { useActions } from "../store-context"
 import { Dialog } from "./Dialog"
 import { controlClass, Field, Form } from "./FormParts"
+import type { DialogProps } from "./views"
 
-export function NewBookDialog({ stage, open, onClose }: { stage: string; open: boolean; onClose: () => void }) {
+export function NewBookDialog({ stage, onClose }: DialogProps) {
   const t = useT()
   return (
-    <Dialog open={open} title={t("新しいブック")} onClose={onClose}>
+    <Dialog title={t("新しいブック")} onClose={onClose}>
       <NewBookForm stage={stage} onDone={onClose} />
     </Dialog>
   )

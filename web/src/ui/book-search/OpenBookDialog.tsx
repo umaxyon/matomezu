@@ -1,14 +1,15 @@
 // ブックを開くダイアログ: 探して選んだブックを、そのステージで開く
 import { Dialog } from "../dialog/Dialog"
+import type { DialogProps } from "../dialog/views"
 import { useT } from "../i18n"
 import { useActions } from "../store-context"
 import { BookSearch } from "./BookSearch"
 
-export function OpenBookDialog({ stage, open, onClose }: { stage: string; open: boolean; onClose: () => void }) {
+export function OpenBookDialog({ stage, onClose }: DialogProps) {
   const { openBook } = useActions()
   const t = useT()
   return (
-    <Dialog open={open} title={t("ブックを開く")} onClose={onClose}>
+    <Dialog title={t("ブックを開く")} onClose={onClose}>
       <BookSearch
         autoFocus
         onSelect={book => {

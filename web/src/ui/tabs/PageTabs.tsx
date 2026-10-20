@@ -1,17 +1,16 @@
 // ステージのページのタブ: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
-// 押したページをそのステージで開く。ブックのタイプが決めていれば、＋でページを作るダイアログを開く
-import { useState } from "react"
+// 押したページをそのステージで開く（コマンド page.open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page.new）
 import { addsFromTabs, hasPages } from "../../core/book"
-import { NewPageDialog } from "../dialog/NewPageDialog"
+import { useCommand } from "../commands"
 import { useT } from "../i18n"
-import { useActions, useApp } from "../store-context"
+import { useApp } from "../store-context"
 import styles from "./PageTabs.module.css"
 
 export function PageTabs({ stage }: { stage: string }) {
   const opened = useApp(s => s.workspace.stages.find(x => x.id === stage)?.opened)
   const book = useApp(s => (opened ? s.books[opened.book] : undefined))
-  const { openPage } = useActions()
-  const [adding, setAdding] = useState(false)
+  const openPage = useCommand(stage, "page.open")
+  const newPage = useCommand(stage, "page.new")
   const t = useT()
   if (!book || !hasPages(book)) return <div className={styles.tabs} />
   return (
@@ -23,19 +22,18 @@ export function PageTabs({ stage }: { stage: string }) {
           role="tab"
           className={styles.tab}
           aria-selected={p.id === opened?.page}
-          onClick={() => openPage(stage, p.id)}
+          onClick={() => openPage.run(p.id)}
         >
           {p.title}
         </button>
       ))}
-      {addsFromTabs(book) && (
-        <button type="button" className={styles.add} aria-label={t("ページを足す")} onClick={() => setAdding(true)}>
+      {addsFromTabs(book) && newPage.shown && (
+        <button type="button" className={styles.add} aria-label={t("ページを足す")} onClick={() => newPage.run()}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3v10M3 8h10" />
           </svg>
         </button>
       )}
-      <NewPageDialog stage={stage} book={book} open={adding} onClose={() => setAdding(false)} />
     </div>
   )
 }
