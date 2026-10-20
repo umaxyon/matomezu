@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { panBy } from "../../web/src/core/stage"
 import {
+  close,
   currentStage,
   focus,
   MAX_STAGES,
@@ -44,7 +45,17 @@ describe("workspace", () => {
     expect(panned.stages[1]).toBe(two.stages[1]!)
   })
 
+  test("ステージを閉じると、残りのステージだけになる。カレントを閉じたら残りがカレント", () => {
+    const two = focus(split(ws), "s2")
+    expect(close(two, "s1")).toMatchObject({ stages: [{ id: "s2" }], current: "s2" })
+    const left = close(two, "s2")
+    expect(left).toMatchObject({ stages: [{ id: "s1" }], current: "s1" })
+    expect(close(focus(two, "s1"), "s1").current).toBe("s2")
+  })
+
   test("変わらない操作は同じ値を返す", () => {
+    expect(close(ws, "s1")).toBe(ws)
+    expect(close(split(ws), "nope").stages).toHaveLength(2)
     expect(focus(ws, "s1")).toBe(ws)
     expect(focus(ws, "nope")).toBe(ws)
     expect(unsplit(ws)).toBe(ws)

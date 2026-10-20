@@ -60,6 +60,16 @@ export function unsplit(ws: Workspace): Workspace {
   return { ...ws, stages: [currentStage(ws)] }
 }
 
+// ステージを閉じる。最後の 1 つは閉じない。カレントを閉じたら、隣（無ければ左）がカレントになる
+export function close(ws: Workspace, id: string): Workspace {
+  const at = ws.stages.findIndex(s => s.id === id)
+  if (ws.stages.length === 1 || at < 0) return ws
+  const stages = ws.stages.filter(s => s.id !== id)
+  const next = stages[at] ?? stages[at - 1]
+  if (!next) return ws
+  return { ...ws, stages, current: ws.current === id ? next.id : ws.current }
+}
+
 export function focus(ws: Workspace, id: string): Workspace {
   if (ws.current === id || !ws.stages.some(s => s.id === id)) return ws
   return { ...ws, current: id }

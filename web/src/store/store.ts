@@ -6,7 +6,7 @@ import type { Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import type { Book, DrawingBook } from "../core/schema/book"
 import { openBook, panBy, resize } from "../core/stage"
-import { focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
+import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
 import { SAMPLE_BOOKS } from "./sample-books"
 
 // 見る人ごとの設定
@@ -23,6 +23,7 @@ export interface AppState {
 export interface Actions {
   split(): void
   unsplit(): void
+  closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
   openMaster(): void // カレントのステージでマスターのブックを開く
@@ -62,6 +63,7 @@ export function createAppStore(initial: AppState = initialState()): AppStore {
   const actions: Actions = {
     split: () => withWorkspace(split),
     unsplit: () => withWorkspace(unsplit),
+    closeStage: id => withWorkspace(ws => close(ws, id)),
     focusStage: id => withWorkspace(ws => focus(ws, id)),
     openBook: (stage, bookId) => {
       const book = getState().books[bookId]

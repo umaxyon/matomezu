@@ -31,3 +31,32 @@
   flex: 1;
   min-height: 0;
 }
+/* ステージを閉じるボタン（区画の右端） */
+.close {
+  flex: none;
+  align-self: center;
+  margin: 0 6px;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--skin-hint);
+  line-height: 0;
+  cursor: pointer;
+}
+.close:hover {
+  color: var(--skin-text);
+  background: var(--skin-btn-hover);
+}
+.close:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: -2px;
+}
+.close svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}

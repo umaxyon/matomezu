@@ -127,3 +127,16 @@ test("左上のマスターのボタンで、カレントのステージにマ�
   expect(screen.queryByRole("tablist")).toBeNull()
   expect(button.getAttribute("aria-pressed")).toBe("true")
 })
+
+test("分割すると、それぞれのステージの区画に閉じるボタンが出て、閉じると残りのステージだけになる", () => {
+  renderApp()
+  expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
+  fireEvent.click(screen.getByRole("button", { name: "画面を分割" }))
+  const closes = screen.getAllByRole("button", { name: "ステージを閉じる" })
+  expect(closes).toHaveLength(2)
+  fireEvent.click(closes[0]!)
+  expect(stages()).toHaveLength(1)
+  expect(within(stages()[0]!).getByText("ブックを選択してください")).toBeTruthy()
+  expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
+  expect(screen.getByRole("button", { name: "画面を分割" }).getAttribute("aria-pressed")).toBe("false")
+})

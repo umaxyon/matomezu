@@ -86,6 +86,18 @@ test("分割した右のステージで探す欄からマスターを選ぶと�
   await expect(page.getByRole("button", { name: "マスター" })).toHaveAttribute("aria-pressed", "true")
 })
 
+test("分割した右のステージを閉じると、左のステージが画面全体に広がる", async ({ page }) => {
+  await page.goto("/")
+  const full = await page.getByRole("region", { name: "ステージ" }).boundingBox()
+  await page.getByRole("button", { name: "画面を分割" }).click()
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(2)
+  await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).click()
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
+  await expect(page.getByRole("button", { name: "ステージを閉じる" })).toHaveCount(0)
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
+  expect(await page.getByRole("region", { name: "ステージ" }).boundingBox()).toEqual(full)
+})
+
 test("ドラッグで紙がずれ、ずらせるのは紙の周りの余白までで止まる", async ({ page }) => {
   await page.goto("/")
   const paper = page.getByRole("img", { name: "紙" })
