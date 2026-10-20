@@ -1,6 +1,6 @@
-// ダイアログの id ごとの中身。store の DIALOG_IDS は、全部ここに中身を持つ（抜けると型の誤り）
+// ダイアログの id ごとの中身。型の表（store/tables.ts）に書き足したダイアログは、全部ここに中身を持つ（抜けると型の誤り）
 import type { ComponentType } from "react"
-import type { DialogId } from "../../store/dialogs"
+import type { DialogId } from "../../store/tables"
 import { OpenBookDialog } from "../book-search/OpenBookDialog"
 import { NewBookDialog } from "./NewBookDialog"
 import { NewPageDialog } from "./NewPageDialog"

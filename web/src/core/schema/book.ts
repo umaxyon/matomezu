@@ -1,15 +1,10 @@
-// ブックのデータの型。形はブックのタイプ（type）ごとに違い、各タイプの定義（core/book-types）が持つ。ここはその型を 1 つに束ねる。
+// ブックのデータの型。形はブックのタイプ（type）ごとに違い、各タイプの定義が持つ。ここは、型の表（core/tables.ts）に書き足したタイプの型を 1 つに束ねる。
 // データを検査する形は、登録表が自分のブックのタイプから作る（Registry の bookSchema）
 import type { z } from "zod"
-import type { BOOK_TYPES } from "../book-types"
+import type { BookTypeId, BookTypeTable } from "../tables"
 
-// 表の並びのままの、各タイプの形の組
-type SchemasOf<T extends readonly unknown[]> = T extends readonly [infer H, ...infer R]
-  ? [H extends { schema: infer S } ? S : never, ...SchemasOf<R>]
-  : []
-type Schemas = SchemasOf<typeof BOOK_TYPES>
-
-export type Book = z.infer<Schemas[number]>
+// 書き足したブックのタイプごとの、データの型の和
+export type Book = { [K in BookTypeId]: z.infer<BookTypeTable[K]["schema"]> }[BookTypeId]
 export type BookOf<T extends Book["type"]> = Extract<Book, { type: T }>
 export type { Page } from "./page"
 export { PageSchema } from "./page"

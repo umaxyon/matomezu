@@ -4,10 +4,11 @@ import type { z } from "zod"
 import type { ActionContext, ActionDef, Subjects } from "./def/action"
 import type { Library } from "./library"
 import { masterOf } from "./library"
-import { type ACTIONS, type ActionId, bookType, type Registry } from "./registry"
+import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
+import type { ActionId, ActionTable } from "./tables"
 
-type ActionOf<Id extends ActionId> = Extract<(typeof ACTIONS)[number], { id: Id }>
+type ActionOf<Id extends ActionId> = ActionTable[Id]
 export type SubjectOf<Id extends ActionId> = Subjects[ActionOf<Id>["target"]]
 export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> = ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R> ? R : never

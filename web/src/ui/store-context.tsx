@@ -4,6 +4,7 @@ import { createContext, type ReactNode, useContext } from "react"
 import { useStore } from "zustand"
 import { fail } from "../core/errors"
 import type { Registry } from "../core/registry"
+import type { AppDefs } from "../store/plugin"
 import type { Actions, AppState, AppStore } from "../store/store"
 
 const StoreContext = createContext<AppStore | null>(null)
@@ -27,7 +28,11 @@ export function useActions(): Actions {
   return useAppStore().actions
 }
 
-// store が使う登録表（作った後は変わらない）
+// store が使う定義の表と登録表（作った後は変わらない）
+export function useDefs(): AppDefs {
+  return useAppStore()
+}
+
 export function useRegistry(): Registry {
   return useAppStore().registry
 }

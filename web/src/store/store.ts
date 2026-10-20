@@ -8,13 +8,16 @@ import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { type ArgsOf, perform } from "../core/perform"
-import { REGISTRY, type Registry } from "../core/registry"
+import type { Registry } from "../core/registry"
 import type { Book, BookOf } from "../core/schema/book"
 import { openBook, panBy, resize } from "../core/stage"
 import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
+import { BUILTIN } from "./builtin"
 import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
-import type { DialogId, OpenedDialog } from "./dialogs"
+import type { OpenedDialog } from "./dialogs"
+import { type AppDefs, assemble } from "./plugin"
 import { SAMPLE_BOOKS } from "./sample-books"
+import type { DialogId } from "./tables"
 
 // 見る人ごとの設定
 export interface Settings {
@@ -53,8 +56,8 @@ export interface Actions {
 
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
 
-export interface AppStore {
-  registry: Registry // この store が使う登録表
+// AppDefs は、この store が使う定義の表（登録表・コマンド・ダイアログ）
+export interface AppStore extends AppDefs {
   state: ReadonlyStore
   actions: Actions
 }
@@ -63,7 +66,7 @@ export interface AppStore {
 export function initialState(
   books: readonly BookOf<"drawing">[] = SAMPLE_BOOKS,
   lang: Lang = "ja",
-  registry: Registry = REGISTRY,
+  registry: Registry = builtinAppDefs().registry,
 ): AppState {
   const first = books[0]
   if (!first) return fail("E106")
@@ -75,15 +78,25 @@ export function initialState(
   }
 }
 
+let builtinDefs: AppDefs | undefined
+// 中の部品だけの定義の表（初めて使うときに作る）
+export function builtinAppDefs(): AppDefs {
+  builtinDefs ??= assemble(BUILTIN)
+  return builtinDefs
+}
+
 export interface StoreOptions {
-  registry?: Registry // 無ければ中の部品の表
-  initial?: AppState // 無ければ見本のブックを開いた状態
+  defs?: AppDefs // 無ければ中の部品だけの表
+  books?: readonly BookOf<"drawing">[] // 最初に持つブック（最初の 1 冊を開く）。無ければ見本のブック
+  lang?: Lang // 無ければ日本語
+  initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
 }
 
 export function createAppStore(options: StoreOptions = {}): AppStore {
-  const registry = options.registry ?? REGISTRY
-  const initial = options.initial ?? initialState(SAMPLE_BOOKS, "ja", registry)
+  const defs = options.defs ?? builtinAppDefs()
+  const { registry } = defs
+  const initial = options.initial ?? initialState(options.books ?? SAMPLE_BOOKS, options.lang ?? "ja", registry)
   const newId = options.newId ?? (() => crypto.randomUUID())
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
@@ -99,12 +112,14 @@ export function createAppStore(options: StoreOptions = {}): AppStore {
   const actions: Actions = {
     command: (stage, id, ...args) => {
       const state = getState()
+      const def = commandDef(defs, id)
       const ctx = commandContext(registry, state, stage)
-      if (!ctx || !isEnabled(registry, state, stage, id)) return false
-      commandDef(id).run(ctx, actions, args[0] as never)
+      if (!ctx || !isEnabled(defs, state, stage, id)) return false
+      def.run(ctx, actions, args[0] as never)
       return true
     },
     openDialog: (stage, id) => {
+      if (!defs.dialogs.has(id)) fail("E108", { id })
       if (getState().workspace.stages.some(s => s.id === stage)) setState({ dialog: { id, stage } })
     },
     closeDialog: () => {
@@ -157,5 +172,5 @@ export function createAppStore(options: StoreOptions = {}): AppStore {
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
   }
-  return { registry, state: store, actions }
+  return { ...defs, state: store, actions }
 }

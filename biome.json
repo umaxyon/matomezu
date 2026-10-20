@@ -51,6 +51,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["web/src/**/tables.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noEmptyInterface": "off"
+          }
+        }
+      }
     }
   ]
 }

@@ -13,6 +13,7 @@ import { THEME_TOKENS, type ThemeDef } from "./def/theme"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import { BOX } from "./items/box"
 import { PAPERS } from "./papers"
+import type { ItemId, ItemTable } from "./tables"
 import { STANDARD } from "./themes/standard"
 
 export { BOOK_TYPES, PAPERS }
@@ -20,13 +21,23 @@ export const ITEMS = [BOX] as const satisfies readonly ItemDef[]
 export const ACTIONS = [PAGE_ADD, BOOK_CREATE] as const satisfies readonly ActionDef[]
 export const THEMES = [STANDARD] as const satisfies readonly ThemeDef[]
 
-export type BookTypeId = (typeof BOOK_TYPES)[number]["id"]
-export type ItemId = (typeof ITEMS)[number]["id"]
-export type ActionId = (typeof ACTIONS)[number]["id"]
-export type ThemeId = (typeof THEMES)[number]["id"]
+export type { ActionId, BookTypeId, ItemId, PaperId, ThemeId } from "./tables"
 
 // アイテムの、置いたものが持つ項目の型
-export type ItemProps<K extends ItemId> = z.infer<Extract<(typeof ITEMS)[number], { id: K }>["props"]>
+export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
+
+declare module "./tables" {
+  interface ItemTable {
+    "shape.box": typeof BOX
+  }
+  interface ActionTable {
+    "page.add": typeof PAGE_ADD
+    "book.create": typeof BOOK_CREATE
+  }
+  interface ThemeTable {
+    standard: typeof STANDARD
+  }
+}
 
 // 表を作るもとの、定義の組
 export interface RegistryParts {

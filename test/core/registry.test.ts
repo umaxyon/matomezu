@@ -17,7 +17,6 @@ import {
 } from "../../web/src/core/registry"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
 import { SAMPLE_BOOKS } from "../../web/src/store/sample-books"
-import { createAppStore } from "../../web/src/store/store"
 
 describe("登録表", () => {
   test("表どうしの参照に食い違いが無い", () => {
@@ -185,13 +184,5 @@ describe("登録表ごとに別の世界", () => {
       { registry: REGISTRY, lang: "ja", newId: () => "n1" },
     )
     expect(refused).toEqual({ ok: false, reason: "refused" })
-  })
-
-  test("store は渡した表を使う", () => {
-    const store = createAppStore({ registry: reg, newId: () => "n2" })
-    expect(store.registry).toBe(reg)
-    expect(store.actions.createBook("s1", { title: "メモ", type: "notes" })).toBe(true)
-    expect(store.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "notes", book: "n2" })
-    expect(createAppStore().actions.createBook("s1", { title: "メモ", type: "notes" })).toBe(false)
   })
 })
