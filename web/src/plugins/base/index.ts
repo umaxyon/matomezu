@@ -6,6 +6,7 @@ import { defineBuiltin } from "../../store/plugin"
 import { BOOK_NEW, BOOK_OPEN, PAGE_NEW, PAGE_OPEN } from "./book-commands"
 import { BOOK_CREATE } from "./book-create"
 import { MASTER } from "./master"
+import { BASE_MESSAGES } from "./messages"
 import { PAGE_ADD } from "./page-add"
 import { A3, A4, A5 } from "./papers"
 import { SETTINGS_LANG, SETTINGS_SKIN } from "./settings-commands"
@@ -38,12 +39,14 @@ export const BASE = defineBuiltin({
     SETTINGS_SKIN,
   ],
   dialogs: [OPEN_BOOK_DIALOG, NEW_BOOK_DIALOG, NEW_PAGE_DIALOG],
+  messages: BASE_MESSAGES,
 })
 
 declare module "../../core/tables" {
   interface BookTypeTable {
     master: typeof MASTER
   }
+  interface MessageTable extends Readonly<typeof BASE_MESSAGES> {}
   interface ActionTable {
     "book.create": typeof BOOK_CREATE
     "page.add": typeof PAGE_ADD

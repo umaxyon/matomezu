@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
-import { isMatomezuError } from "../../web/src/core/errors"
+import { isMatomezuError, problemText } from "../../web/src/core/errors"
 import { BUILTIN } from "../../web/src/plugins"
 import { BASE } from "../../web/src/plugins/base"
 import { defineCommand } from "../../web/src/store/commands/def"
@@ -70,6 +70,20 @@ describe("app を組み立てる", () => {
     expect(thrown(() => createMatomezu({ plugins: [...BUILTIN, bad], partial: true }))).toMatchObject({
       code: "E301",
     })
+  })
+
+  test("プラグインの文言は app の表に入り、コマンドの名前が文言の表に無ければ作らない", () => {
+    const greet = definePlugin({ id: "greet", messages: { やあ: { en: "Hi" } } })
+    const app = createMatomezu({ plugins: [...BUILTIN, greet], partial: true })
+    expect(app.registry.messages.get("やあ")).toEqual({ en: "Hi" })
+    const nameless = definePlugin({
+      id: "nameless",
+      commands: [defineCommand({ id: "nameless/run", title: "無い名前" as never, run: () => {}, when: () => true })],
+    })
+    const e = thrown(() => createMatomezu({ plugins: [...BUILTIN, nameless], partial: true }))
+    expect(isMatomezuError(e) && e.details.map(problemText)).toEqual([
+      "E018 command nameless/run: title 無い名前 is not in the messages",
+    ])
   })
 
   test("同じ id のコマンドやダイアログを 2 つのプラグインが持てば作らない", () => {

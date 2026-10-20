@@ -6,6 +6,7 @@ import type { ItemDef } from "../core/def/item"
 import type { PaperDef } from "../core/def/paper"
 import type { ThemeDef } from "../core/def/theme"
 import { fail, matomezuError, problem } from "../core/errors"
+import type { MessageSet } from "../core/i18n/messages"
 import { buildRegistry, type Registry } from "../core/registry"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef } from "./dialogs"
@@ -18,8 +19,9 @@ export interface PluginParts {
   papers?: readonly PaperDef[]
   commands?: readonly CommandDef<never>[]
   dialogs?: readonly DialogDef[]
+  messages?: MessageSet // このプラグインの文言（defineMessages で書き、型の表 MessageTable に書き足す）
 }
-export type Part = keyof PluginParts
+export type Part = Exclude<keyof PluginParts, "messages">
 export const PARTS: readonly Part[] = ["bookTypes", "items", "actions", "themes", "papers", "commands", "dialogs"]
 
 export interface Plugin extends PluginParts {
@@ -79,14 +81,21 @@ export function assemble(plugins: readonly Plugin[]): AppDefs {
     ),
   ]
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
+  const registry = buildRegistry({
+    bookTypes: all("bookTypes"),
+    items: all("items"),
+    actions: all("actions"),
+    themes: all("themes"),
+    papers: all("papers"),
+    messages: plugins.flatMap(p => (p.messages ? [p.messages] : [])),
+  })
+  // コマンドの名前も文言の表から引く
+  const untitled = commands
+    .filter(c => !registry.messages.has(c.title))
+    .map(c => problem("E018", { kind: "command", id: c.id, title: c.title }))
+  if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
   return {
-    registry: buildRegistry({
-      bookTypes: all("bookTypes"),
-      items: all("items"),
-      actions: all("actions"),
-      themes: all("themes"),
-      papers: all("papers"),
-    }),
+    registry,
     commands: new Map(commands.map(c => [c.id, c])),
     dialogs: new Set(dialogs.map(d => d.id)),
   }

@@ -18,6 +18,8 @@ export const ERRORS = {
   E014: "paper {id}: size must be portrait (w <= h)",
   E015: "registry has no book type",
   E016: "registry has {count} problems",
+  E017: "message {key} has different translations",
+  E018: "{kind} {id}: title {title} is not in the messages",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",

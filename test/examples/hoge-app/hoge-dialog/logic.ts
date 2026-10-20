@@ -1,2 +1,2 @@
 // hoge の純粋な関数
-export const greeting = (name: string) => `hello, ${name}`
+export const shout = (name: string) => name.toUpperCase()

@@ -6,9 +6,11 @@ export interface ItemTable {}
 export interface ActionTable {}
 export interface ThemeTable {}
 export interface PaperTable {}
+export interface MessageTable {} // 文言の鍵 → 訳
 
 export type BookTypeId = keyof BookTypeTable & string
 export type ItemId = keyof ItemTable & string
 export type ActionId = keyof ActionTable & string
 export type ThemeId = keyof ThemeTable & string
 export type PaperId = keyof PaperTable & string
+export type MessageKey = keyof MessageTable & string

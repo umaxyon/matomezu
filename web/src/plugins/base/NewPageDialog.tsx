@@ -30,7 +30,7 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
   const t = useT()
   const registry = useRegistry()
   const { papers, orientations } = paperChoices(registry, book)
-  const [title, setTitle] = useState(() => nextPageTitle(book, lang))
+  const [title, setTitle] = useState(() => nextPageTitle(registry, book, lang))
   const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(registry, book))
   return (
     <Form

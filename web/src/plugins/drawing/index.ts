@@ -2,11 +2,13 @@
 import { defineBuiltin } from "../../store/plugin"
 import { BOX } from "./box"
 import { DRAWING } from "./drawing"
+import { DRAWING_MESSAGES } from "./messages"
 
 export const DRAWING_PLUGIN = defineBuiltin({
   id: "@matomezu/drawing",
   bookTypes: [DRAWING],
   items: [BOX],
+  messages: DRAWING_MESSAGES,
 })
 
 declare module "../../core/tables" {
@@ -16,4 +18,5 @@ declare module "../../core/tables" {
   interface ItemTable {
     "shape.box": typeof BOX
   }
+  interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
 }

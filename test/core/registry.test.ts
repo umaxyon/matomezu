@@ -45,6 +45,15 @@ describe("登録表", () => {
     expect(() => buildRegistry({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 registry has no book type")
   })
 
+  test("同じ鍵に違う訳を持つ文言と、文言の表に無い名前は誤り", () => {
+    const conflict = { ...BUILTIN_PARTS, messages: [...BUILTIN_PARTS.messages, { マスター: { en: "Boss" } }] }
+    expect(checkRegistry(conflict).map(problemText)).toEqual(["E017 message マスター has different translations"])
+    const same = { ...BUILTIN_PARTS, messages: [...BUILTIN_PARTS.messages, { マスター: { en: "Master" } }] }
+    expect(checkRegistry(same)).toEqual([])
+    const untitled = { ...BUILTIN_PARTS, messages: [] }
+    expect(checkRegistry(untitled).map(p => p.code)).toContain("E018")
+  })
+
   test("作った表は id で引け、ブックのデータの形を持つ", () => {
     const reg = buildRegistry(BUILTIN_PARTS)
     expect(reg.bookTypes.get("drawing")).toBe(BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing"))

@@ -34,7 +34,9 @@ export function createBook(reg: Registry, type: string, init: NewBook): Book {
 
 // 画面に出すブックの名前。題名を持たないか空のブックは、タイプの名前で呼ぶ
 export function bookTitle(reg: Registry, book: Book, lang: Lang): string {
-  return "title" in book && book.title.trim() !== "" ? book.title : translate(lang, bookType(reg, book.type).title)
+  return "title" in book && book.title.trim() !== ""
+    ? book.title
+    : translate(reg.messages, lang, bookType(reg, book.type).title)
 }
 
 function pagesRule(reg: Registry, book: PagedBook) {
@@ -81,8 +83,8 @@ export function addsFromTabs(reg: Registry, book: Book): boolean {
 }
 
 // 次のページの題名の案
-export function nextPageTitle(book: PagedBook, lang: Lang): string {
-  return translate(lang, "ページ {n}", { n: book.pages.length + 1 })
+export function nextPageTitle(reg: Registry, book: PagedBook, lang: Lang): string {
+  return translate(reg.messages, lang, "ページ {n}", { n: book.pages.length + 1 })
 }
 
 export function addPage<B extends PagedBook>(book: B, init: { title: string } & PaperChoice): { book: B; page: Page } {

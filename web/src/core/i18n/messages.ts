@@ -1,49 +1,34 @@
-// 画面などに出す文言の表。鍵は日本語の文そのもので、ほかの言語の訳を持つ。{name} は t() に渡す値で置き換える
-export const MESSAGES = {
-  マスター: { en: "Master" },
-  画面を分割: { en: "Split screen" },
-  ステージを閉じる: { en: "Close stage" },
-  分割をやめる: { en: "Unsplit" },
-  ページを開く: { en: "Open page" },
-  ブックを開く: { en: "Open book" },
+// 文言の表の型と、土台の文言。鍵は日本語の文そのもので、ほかの言語の訳を持つ。{name} は t() に渡す値で置き換える。
+// プラグインは自分の文言を defineMessages で書き、プラグインの messages に渡して、型の表（MessageTable）に書き足す
+export type Lang = "ja" | "en"
+
+// 1 つの文言の、日本語のほかの言語の訳（日本語は鍵そのもの）
+export type Translations = Readonly<Record<Exclude<Lang, "ja">, string>>
+export type MessageSet = Readonly<Record<string, Translations>>
+
+// 書いた鍵と訳を文字のまま型に残す（型の表で、同じ鍵に違う訳を書き足すと型の誤りになる）
+export const defineMessages = <const M extends Record<string, Translations>>(messages: M): M => messages
+
+// 土台（core・store・ui）が使う文言
+export const MESSAGES = defineMessages({
   ページを足す: { en: "Add page" },
   "ページ {n}": { en: "Page {n}" },
   ステージ: { en: "Stage" },
-  紙: { en: "Paper" },
   ブックを選択してください: { en: "Select a book" },
   ブックを探す: { en: "Search books" },
   ブックの名前で探す: { en: "Search by book name" },
   ブック: { en: "Books" },
   当てはまるブックはありません: { en: "No matching books" },
-  図面: { en: "Drawing" },
-  箱: { en: "Box" },
-  標準: { en: "Standard" },
   ダーク: { en: "Dark" },
   ライト: { en: "Light" },
-  A5: { en: "A5" },
-  A4: { en: "A4" },
-  A3: { en: "A3" },
-  向き: { en: "Orientation" },
   縦: { en: "Portrait" },
   横: { en: "Landscape" },
-  不明な紙: { en: "Unknown paper" },
-  この紙は表示できません: { en: "This paper cannot be shown" },
-  新しいブック: { en: "New book" },
-  新しいページ: { en: "New page" },
-  ブックの名前: { en: "Book name" },
-  ブックのタイプ: { en: "Book type" },
-  ページの名前: { en: "Page name" },
-  紙のサイズ: { en: "Paper size" },
-  作成: { en: "Create" },
-  ページを作る: { en: "Create page" },
-  ページがありません: { en: "No pages" },
-  設定: { en: "Settings" },
-  言語: { en: "Language" },
-  スキン: { en: "Skin" },
-  自動: { en: "Auto" },
   ブックのメニュー: { en: "Book menu" },
   ツール: { en: "Tools" },
-} as const satisfies Record<string, Record<Exclude<Lang, "ja">, string>>
+})
 
-export type Lang = "ja" | "en"
-export type MessageKey = keyof typeof MESSAGES
+declare module "../tables" {
+  interface MessageTable extends Readonly<typeof MESSAGES> {}
+}
+
+export type { MessageKey } from "../tables"

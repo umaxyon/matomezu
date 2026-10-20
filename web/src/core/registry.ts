@@ -8,6 +8,8 @@ import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
 import { THEME_TOKENS, type ThemeDef } from "./def/theme"
 import { fail, matomezuError, type Problem, problem } from "./errors"
+import type { Messages } from "./i18n/i18n"
+import { MESSAGES, type MessageSet, type Translations } from "./i18n/messages"
 import type { ItemId, ItemTable } from "./tables"
 
 export type { ActionId, BookTypeId, ItemId, PaperId, ThemeId } from "./tables"
@@ -22,6 +24,7 @@ export interface RegistryParts {
   actions: readonly ActionDef[]
   themes: readonly ThemeDef[]
   papers: readonly PaperDef[]
+  messages: readonly MessageSet[] // 土台の文言（MESSAGES）は、いつも表に入る
 }
 
 // 作った表。id で引く。bookSchema は、表のブックのタイプの形を 1 つに束ねた、ブックのデータの形
@@ -32,6 +35,7 @@ export interface Registry {
   actions: ReadonlyMap<string, ActionDef>
   themes: ReadonlyMap<string, ThemeDef>
   papers: ReadonlyMap<string, PaperDef>
+  messages: Messages
   bookSchema: z.ZodType
 }
 
@@ -50,6 +54,7 @@ export function buildRegistry(parts: RegistryParts): Registry {
     actions: byId(parts.actions),
     themes: byId(parts.themes),
     papers: byId(parts.papers),
+    messages: new Map(allMessages(parts).flatMap(set => Object.entries(set))),
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
   }
 }
@@ -59,6 +64,8 @@ export function buildRegistry(parts: RegistryParts): Registry {
 export function bookType(reg: Registry, id: string): BookTypeDef {
   return reg.bookTypes.get(id) ?? fail("E101", { id })
 }
+
+const allMessages = (parts: RegistryParts) => [MESSAGES, ...parts.messages]
 
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
 export function checkRegistry(parts: RegistryParts): Problem[] {
@@ -117,5 +124,23 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
     for (const id of Object.keys(th.tokens ?? {}))
       if (!declared.has(id)) problems.push(problem("E013", { id: th.id, token: id }))
   for (const p of parts.papers) if (p.size.w > p.size.h) problems.push(problem("E014", { id: p.id }))
+  // 同じ鍵に違う訳を持つ文言と、文言の表に無い名前
+  const messages = new Map<string, Translations>()
+  for (const set of allMessages(parts))
+    for (const [key, t] of Object.entries(set)) {
+      const known = messages.get(key)
+      if (known && JSON.stringify(known) !== JSON.stringify(t)) problems.push(problem("E017", { key }))
+      messages.set(key, t)
+    }
+  const named = [
+    ["bookType", parts.bookTypes],
+    ["item", parts.items],
+    ["action", parts.actions],
+    ["theme", parts.themes],
+    ["paper", parts.papers],
+  ] as const
+  for (const [kind, defs] of named)
+    for (const d of defs as readonly { id: string; title: string }[])
+      if (!messages.has(d.title)) problems.push(problem("E018", { kind, id: d.id, title: d.title }))
   return problems
 }
