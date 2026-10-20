@@ -4,7 +4,7 @@ import { createAppStore } from "../../web/src/store/store"
 
 test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
   const { state, actions } = createAppStore()
-  actions.split()
+  actions.split("s1")
   actions.openBook("s2", "b1")
   actions.addPage("s2", { title: "ページ 2" })
   const s = state.getState()
@@ -16,7 +16,7 @@ test("ページを足すと、そのステージのブックに入り、その�
 test("ページを開くのは指定したステージで、そのステージがカレントになる", () => {
   const { state, actions } = createAppStore()
   actions.addPage("s1", { title: "ページ 2" })
-  actions.split()
+  actions.split("s1")
   actions.openBook("s2", "b1")
   actions.openPage("s2", "p1")
   actions.openPage("s1", "p2")
@@ -27,7 +27,7 @@ test("ページを開くのは指定したステージで、そのステージ�
 
 test("分けたステージは何も開いておらず、ブックを開くとそのステージがカレントになる", () => {
   const { state, actions } = createAppStore()
-  actions.split()
+  actions.split("s1")
   expect(state.getState().workspace.stages[1]!.opened).toBeNull()
   actions.openBook("s2", "b3")
   const ws = state.getState().workspace
@@ -40,7 +40,7 @@ test("変わらない操作では知らせない", () => {
   let calls = 0
   const off = state.subscribe(() => calls++)
   actions.focusStage("s1")
-  actions.unsplit()
+  actions.unsplit("s1")
   off()
   expect(calls).toBe(0)
 })
@@ -54,9 +54,9 @@ test("store が持つずらす量は、表示領域の大きさで範囲に収�
 
 test("マスターはカレントのステージで開き、ページは足せない", () => {
   const { state, actions } = createAppStore()
-  actions.split()
+  actions.split("s1")
   actions.focusStage("s2")
-  actions.openMaster()
+  actions.openMaster("s2")
   const s = state.getState()
   expect(s.workspace.stages.map(st => st.opened?.type)).toEqual(["drawing", "master"])
   expect(actions.addPage("s2", { title: "x" })).toBe(false)
@@ -65,7 +65,7 @@ test("マスターはカレントのステージで開き、ページは足せ�
 
 test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
   const { state, actions } = createAppStore(undefined, () => "made")
-  actions.split()
+  actions.split("s1")
   expect(actions.createBook("s2", { title: " ", type: "drawing" })).toBe(false)
   expect(actions.createBook("s2", { title: "新しい図", type: "drawing" })).toBe(true)
   const s = state.getState()

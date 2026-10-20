@@ -16,9 +16,9 @@ export function hasPages(book: Book): book is PagedBook {
   return "pages" in book
 }
 
-// 画面に出すブックの名前。題名を持たないブックは、タイプの名前で呼ぶ
+// 画面に出すブックの名前。題名を持たないか空のブックは、タイプの名前で呼ぶ
 export function bookTitle(book: Book, lang: Lang): string {
-  return "title" in book ? book.title : translate(lang, bookType(book.type).title)
+  return "title" in book && book.title.trim() !== "" ? book.title : translate(lang, bookType(book.type).title)
 }
 
 function pagesRule(book: PagedBook) {

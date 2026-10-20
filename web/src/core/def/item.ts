@@ -13,6 +13,7 @@ interface ItemBase {
   version: number // 項目の形の版
   title: MessageKey
   capabilities: readonly Capability[]
+  toolbox: boolean // ツールボックスに出すか（出さないものは、ほかの操作で置く）
   props: z.ZodType // 置いたアイテムが持つ項目の形
   tokens: readonly TokenDecl[] // 描くのに使うテーマの欄
 }

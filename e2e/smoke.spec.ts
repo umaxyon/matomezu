@@ -1,10 +1,17 @@
-import { expect, test } from "@playwright/test"
+import { expect, type Page, test } from "@playwright/test"
+
+// i 番目のステージの下の行の名前の欄にマウスを乗せ、せり上がったメニューの中のボタンを返す
+async function fromMenu(page: Page, name: string, i = 0) {
+  const trigger = page.locator("button[aria-expanded]").nth(i)
+  await trigger.hover()
+  return trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name })
+}
 
 test("分割すると、右のステージは何も開かず真ん中でブックを選べ、選ぶと右に紙が出る", async ({ page }) => {
   await page.goto("/")
   const papers = page.getByRole("img", { name: "紙" })
   await expect(papers).toHaveCount(1)
-  await page.getByRole("button", { name: "画面を分割" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   await expect(right.getByText("ブックを選択してください")).toBeVisible()
   await expect(papers).toHaveCount(1)
@@ -21,7 +28,7 @@ test("分割すると、右のステージは何も開かず真ん中でブッ�
 
 test("タブの左のボタンでダイアログが開き、打った文字で絞り込んで選ぶと、そのステージで開く", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "ブックを開く" }).click()
+  await (await fromMenu(page, "ブックを開く")).click()
   const dialog = page.getByRole("dialog", { name: "ブックを開く" })
   await expect(dialog).toBeVisible()
   const input = dialog.getByRole("combobox", { name: "ブックを探す" })
@@ -35,9 +42,9 @@ test("タブの左のボタンでダイアログが開き、打った文字で�
 
 test("絞り込んで候補が減っても、探す欄の位置は変わらない（ステージの真ん中とダイアログ）", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "画面を分割" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
   const stage = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await page.getByRole("button", { name: "ブックを開く" }).first().click()
+  await (await fromMenu(page, "ブックを開く")).click()
   const dialog = page.getByRole("dialog", { name: "ブックを開く" })
   for (const place of [dialog, stage]) {
     const input = place.getByRole("combobox", { name: "ブックを探す" })
@@ -54,7 +61,7 @@ test("絞り込んで候補が減っても、探す欄の位置は変わらな�
 
 test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "ブックを開く" }).click()
+  await (await fromMenu(page, "ブックを開く")).click()
   const dialog = page.getByRole("dialog", { name: "ブックを開く" })
   await expect(dialog).toBeVisible()
   await page.keyboard.press("Escape")
@@ -64,11 +71,11 @@ test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ 
 
 test("マスターのボタンで、カレントのステージがマスターの画面になり、ブックを開くと紙に戻る", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "マスター" }).click()
+  await (await fromMenu(page, "マスター")).click()
   await expect(page.getByRole("region", { name: "マスター" })).toBeVisible()
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(0)
   await expect(page.getByRole("tablist")).toHaveCount(0)
-  await page.getByRole("button", { name: "ブックを開く" }).click()
+  await (await fromMenu(page, "ブックを開く")).click()
   await page.keyboard.type("残課題")
   await page.keyboard.press("Enter")
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
@@ -77,19 +84,19 @@ test("マスターのボタンで、カレントのステージがマスター�
 
 test("分割した右のステージで探す欄からマスターを選ぶと、右にマスターが開く", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "画面を分割" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   await expect(right.getByRole("option").first()).toHaveText("マスター")
   await right.getByRole("option", { name: "マスター" }).click()
   await expect(right.getByRole("region", { name: "マスター" })).toBeVisible()
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
-  await expect(page.getByRole("button", { name: "マスター" })).toHaveAttribute("aria-pressed", "true")
+  await expect(await fromMenu(page, "マスター", 1)).toHaveAttribute("aria-pressed", "true")
 })
 
 test("分割した右のステージを閉じると、左のステージが画面全体に広がる", async ({ page }) => {
   await page.goto("/")
   const full = await page.getByRole("region", { name: "ステージ" }).boundingBox()
-  await page.getByRole("button", { name: "画面を分割" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(2)
   await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).click()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
@@ -133,7 +140,7 @@ test("＋で開くダイアログでページを作るとタブが増え、そ�
 
 test("分割して右で同じブックを開くと右にもタブがあり、右で足したページは右だけで開く", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "画面を分割" }).click()
+  await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   await right.getByRole("option", { name: "まとめ図の構想" }).click()
   const lists = page.getByRole("tablist")
@@ -142,16 +149,17 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
-  // 右のタブの区画は、右のステージの真上にある
+  // 右のタブは、右のステージの真下で、ブックの名前の欄（120px）の右にある
   const bar = (await lists.nth(1).boundingBox())!
   const stage = (await right.boundingBox())!
-  expect(bar.x).toBeGreaterThanOrEqual(stage.x)
-  expect(bar.x).toBeLessThan(stage.x + 60)
+  expect(bar.y).toBeGreaterThanOrEqual(stage.y + stage.height - 1)
+  expect(bar.x).toBeGreaterThanOrEqual(stage.x + 120)
+  expect(bar.x).toBeLessThan(stage.x + 180)
 })
 
 test("マスターで新しいブックを作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "マスター" }).click()
+  await (await fromMenu(page, "マスター")).click()
   await page.getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
   await expect(dialog.getByRole("button", { name: "作成" })).toBeDisabled()
@@ -165,14 +173,14 @@ test("マスターで新しいブックを作ると空のブックが開き、�
   await expect(page.getByRole("tab")).toHaveText(["ページ 1"])
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
   // 作ったブックは探す欄にも出る
-  await page.getByRole("button", { name: "ブックを開く" }).click()
+  await (await fromMenu(page, "ブックを開く")).click()
   await page.keyboard.type("新しい")
   await expect(page.getByRole("dialog", { name: "ブックを開く" }).getByRole("option")).toHaveText(["新しい図"])
 })
 
 test("マスターの設定で言語とスキンを変えると、画面がすぐに変わる", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "マスター" }).click()
+  await (await fromMenu(page, "マスター")).click()
   await page.getByLabel("スキン").selectOption("light")
   await expect(page.locator("html")).toHaveAttribute("data-skin", "light")
   await page.getByLabel("言語").selectOption("en")
@@ -180,12 +188,42 @@ test("マスターの設定で言語とスキンを変えると、画面がす�
   await expect(page.locator("html")).toHaveAttribute("lang", "en")
 })
 
+test("名前の欄にマウスを乗せるとメニューがせり上がり、離れると下がる。押しても出る", async ({ page }) => {
+  await page.goto("/")
+  const trigger = page.getByRole("button", { name: "まとめ図の構想" })
+  const menu = trigger.locator("xpath=following-sibling::div[1]")
+  await expect(menu).toBeHidden()
+  await trigger.hover()
+  await expect(menu).toBeVisible()
+  await page.mouse.move(600, 300)
+  await expect(menu).toBeHidden()
+  await trigger.dispatchEvent("click")
+  await expect(menu).toBeVisible()
+  // 下の行はステージの下にあり、上の行（ツールボックス）より細い
+  const footer = (await trigger.boundingBox())!
+  const tools = (await page.getByRole("toolbar", { name: "ツール" }).boundingBox())!
+  const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
+  expect(footer.y).toBeGreaterThanOrEqual(stage.y + stage.height)
+  expect(footer.height).toBeLessThan(tools.height)
+  expect(footer.width).toBe(120)
+})
+
+test("分割すると、ツールボックスの無いステージでも右上に閉じるボタンがある", async ({ page }) => {
+  await page.goto("/")
+  await (await fromMenu(page, "画面を分割")).click()
+  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
+  const close = (await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).boundingBox())!
+  const box = (await right.boundingBox())!
+  expect(close.y).toBeLessThan(box.y + 20)
+  expect(close.x + close.width).toBeGreaterThan(box.x + box.width - 20)
+})
+
 test.describe("ブラウザの言語が英語のとき", () => {
   test.use({ locale: "en-US" })
   test("画面の文言が英語になる", async ({ page }) => {
     await page.goto("/")
     await expect(page.locator("html")).toHaveAttribute("lang", "en")
-    await page.getByRole("button", { name: "Split screen" }).click()
+    await (await fromMenu(page, "Split screen")).click()
     await expect(page.getByText("Select a book")).toBeVisible()
     await expect(page.getByRole("combobox", { name: "Search books" })).toHaveAttribute(
       "placeholder",

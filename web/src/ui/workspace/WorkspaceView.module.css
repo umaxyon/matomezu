@@ -7,6 +7,7 @@
   flex-direction: row;
 }
 .column {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -15,31 +16,21 @@
 .column + .column {
   border-left: 1px solid var(--skin-line);
 }
-/* 上の行（列をまたいでつながって見える） */
-.bar {
-  flex: none;
-  display: flex;
-  align-items: stretch;
-  min-height: 40px;
-  background: var(--skin-bar);
-  border-bottom: 1px solid var(--skin-line);
-  font-size: 13px;
-  user-select: none;
-}
 .cell {
   position: relative;
   flex: 1;
   min-height: 0;
 }
-/* ステージを閉じるボタン（区画の右端） */
+/* ステージを閉じるボタン（列の右上。ツールボックスがあればその右端、無ければステージの上に浮かぶ） */
 .close {
-  flex: none;
-  align-self: center;
-  margin: 0 6px;
-  padding: 4px;
-  border: 0;
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 4;
+  padding: 5px;
+  border: 1px solid var(--skin-line);
   border-radius: 6px;
-  background: transparent;
+  background: var(--skin-bar);
   color: var(--skin-hint);
   line-height: 0;
   cursor: pointer;

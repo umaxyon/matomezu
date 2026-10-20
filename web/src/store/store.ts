@@ -24,12 +24,12 @@ export interface AppState {
 }
 
 export interface Actions {
-  split(): void
-  unsplit(): void
+  split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
+  unsplit(stage: string): void // そのステージだけを残す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
-  openMaster(): void // カレントのステージでマスターのブックを開く
+  openMaster(stage: string): void // そのステージでマスターのブックを開き、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
   // そのステージのブックにページを足して（アクション page.add）、そのステージで開き、カレントにする。足せたか返す
   addPage(stage: string, args: ArgsOf<"page.add">): boolean
@@ -73,15 +73,15 @@ export function createAppStore(
     if (next !== ws) setState({ workspace: next })
   }
   const actions: Actions = {
-    split: () => withWorkspace(split),
-    unsplit: () => withWorkspace(unsplit),
+    split: stage => withWorkspace(ws => split(focus(ws, stage))),
+    unsplit: stage => withWorkspace(ws => unsplit(focus(ws, stage))),
     closeStage: id => withWorkspace(ws => close(ws, id)),
     focusStage: id => withWorkspace(ws => focus(ws, id)),
     openBook: (stage, bookId) => {
       const book = getState().books[bookId]
       if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(s, book)))
     },
-    openMaster: () => withWorkspace(ws => mapStage(ws, ws.current, s => openBook(s, MASTER_BOOK))),
+    openMaster: stage => withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(s, MASTER_BOOK))),
     openPage: (stage, page) => {
       const { books, workspace } = getState()
       const book = books[workspace.stages.find(s => s.id === stage)?.opened?.book ?? ""]

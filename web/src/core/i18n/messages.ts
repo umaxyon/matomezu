@@ -37,6 +37,8 @@ export const MESSAGES = {
   言語: { en: "Language" },
   スキン: { en: "Skin" },
   自動: { en: "Auto" },
+  ブックのメニュー: { en: "Book menu" },
+  ツール: { en: "Tools" },
 } as const satisfies Record<string, Record<Exclude<Lang, "ja">, string>>
 
 export type Lang = "ja" | "en"

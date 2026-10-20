@@ -8,6 +8,7 @@ export const BOX = defineItem({
   version: 1,
   title: "箱",
   capabilities: ["connectable", "resizable", "hasText"],
+  toolbox: true,
   props: z.strictObject({ text: z.string() }),
   size: { w: 160, h: 64 },
   tokens: [
