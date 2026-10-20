@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "bun scripts/dev.ts 5300",
     "build": "rm -rf web/dist && bun build web/index.html --outdir web/dist --production",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test/examples/hoge-app",
     "test": "bun test",
     "e2e": "playwright test",
     "lint": "biome check",
