@@ -4,7 +4,16 @@ import { newStage, openBook, openPage, panBy, paperOf, placement, resize } from 
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
 
 describe("stage", () => {
-  const stage = newStage("s1", { type: "drawing", book: "b1", page: "p1" })
+  const paged = {
+    type: "drawing" as const,
+    id: "b1",
+    title: "見本",
+    pages: [
+      { id: "p1", title: "ページ 1", paper: "a4-landscape" as const },
+      { id: "p2", title: "ページ 2", paper: "a5-portrait" as const },
+    ],
+  }
+  const stage = openBook(newStage("s1"), paged)
   const content = contentSize(paperOf(stage)!, 1)
   const small = { w: 400, h: 300 } // 中身が収まらない表示領域
 
@@ -28,15 +37,18 @@ describe("stage", () => {
     const s = resize(stage, small)
     expect(resize(s, { ...small })).toBe(s)
     expect(panBy(s, 10, 10)).toBe(s)
-    expect(openPage(s, "p1")).toBe(s)
+    expect(openPage(s, paged, "p1")).toBe(s)
+    expect(openPage(s, paged, "nope")).toBe(s)
   })
 
-  test("ページを開くと、ずらす量は最初の位置に戻る", () => {
+  test("ページを開くと、そのページの紙になり、ずらす量は最初の位置に戻る", () => {
     const s = panBy(resize(stage, small), -200, -100)
-    expect(openPage(s, "p2")).toMatchObject({
-      opened: { type: "drawing", book: "b1", page: "p2" },
+    const next = openPage(s, paged, "p2")
+    expect(next).toMatchObject({
+      opened: { type: "drawing", book: "b1", page: "p2", paper: "a5-portrait" },
       pan: { x: 0, y: 0 },
     })
+    expect(paperOf(next)).toMatchObject({ w: 559, h: 794 })
   })
 
   test("紙は、ずらす量から余白の分だけ内側に置く", () => {
@@ -49,7 +61,7 @@ describe("stage", () => {
     expect(paperOf(empty)).toBeNull()
     expect(placement(empty)).toBeNull()
     expect(panBy(empty, -10, -10)).toBe(empty)
-    expect(openPage(empty, "p1")).toBe(empty)
+    expect(openPage(empty, paged, "p1")).toBe(empty)
   })
 
   test("ブックを開くと、最初のページを開き、ずらす量は範囲に収めた最初の位置", () => {
@@ -58,23 +70,30 @@ describe("stage", () => {
       id: "b9",
       title: "見本",
       pages: [
-        { id: "p4", title: "ページ 4" },
-        { id: "p5", title: "ページ 5" },
+        { id: "p4", title: "ページ 4", paper: "a4-landscape" as const },
+        { id: "p5", title: "ページ 5", paper: "a4-landscape" as const },
       ],
     }
     const opened = openBook(resize(newStage("s2"), small), book)
-    expect(opened.opened).toEqual({ type: "drawing", book: "b9", page: "p4" })
+    expect(opened.opened).toEqual({ type: "drawing", book: "b9", page: "p4", paper: "a4-landscape" })
     expect(opened.pan).toEqual({ x: 0, y: 0 })
+  })
+
+  test("ページの無いブックを開くと、ページも紙も開かず、ずらせない", () => {
+    const opened = openBook(resize(stage, small), { ...paged, id: "b0", pages: [] })
+    expect(opened.opened).toEqual({ type: "drawing", book: "b0", page: null, paper: null })
+    expect(placement(opened)).toBeNull()
+    expect(panBy(opened, -10, -10)).toBe(opened)
   })
 
   test("マスターのブックを開くと、紙が無く、ずらせず、ページも開けない。もう一度開いても同じ値", () => {
     const master = openBook(panBy(resize(stage, small), -30, -40), MASTER_BOOK)
-    expect(master.opened).toEqual({ type: "master", book: "master", page: null })
+    expect(master.opened).toEqual({ type: "master", book: "master", page: null, paper: null })
     expect(master.pan).toEqual({ x: 0, y: 0 })
     expect(paperOf(master)).toBeNull()
     expect(placement(master)).toBeNull()
     expect(panBy(master, -10, -10)).toBe(master)
-    expect(openPage(master, "p1")).toBe(master)
+    expect(openPage(master, paged, "p1")).toBe(master)
     expect(openBook(master, MASTER_BOOK)).toBe(master)
   })
 })

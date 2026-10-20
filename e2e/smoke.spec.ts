@@ -116,10 +116,18 @@ test("ドラッグで紙がずれ、ずらせるのは紙の周りの余白ま�
   expect(bottomGap).toBeLessThan(96)
 })
 
-test("＋でタブが増え、そのページが選ばれる", async ({ page }) => {
+test("＋で開くダイアログでページを作るとタブが増え、そのページが選ばれ、選んだ紙になる", async ({ page }) => {
   await page.goto("/")
+  const before = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.getByRole("button", { name: "ページを足す" }).click()
+  const dialog = page.getByRole("dialog", { name: "新しいページ" })
+  await expect(dialog.getByLabel("ページの名前")).toBeFocused()
+  await dialog.getByLabel("紙のサイズ").selectOption("a4-portrait")
+  await page.keyboard.press("Enter")
+  await expect(dialog).toBeHidden()
   await expect(page.getByRole("tab")).toHaveText(["ページ 1", "ページ 2"])
+  const after = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  expect(after.height).toBeGreaterThan(before.height)
   await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
 })
 
@@ -131,6 +139,7 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   const lists = page.getByRole("tablist")
   await expect(lists).toHaveCount(2)
   await lists.nth(1).getByRole("button", { name: "ページを足す" }).click()
+  await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
   // 右のタブの区画は、右のステージの真上にある
@@ -138,6 +147,37 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   const stage = (await right.boundingBox())!
   expect(bar.x).toBeGreaterThanOrEqual(stage.x)
   expect(bar.x).toBeLessThan(stage.x + 60)
+})
+
+test("マスターで新しいブックを作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "マスター" }).click()
+  await page.getByRole("button", { name: "新しいブック" }).click()
+  const dialog = page.getByRole("dialog", { name: "新しいブック" })
+  await expect(dialog.getByRole("button", { name: "作成" })).toBeDisabled()
+  await page.keyboard.type("新しい図")
+  await page.keyboard.press("Enter")
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "新しい図")
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(0)
+  await page.getByRole("button", { name: "ページを作る" }).click()
+  await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
+  await expect(page.getByRole("tab")).toHaveText(["ページ 1"])
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
+  // 作ったブックは探す欄にも出る
+  await page.getByRole("button", { name: "ブックを開く" }).click()
+  await page.keyboard.type("新しい")
+  await expect(page.getByRole("dialog", { name: "ブックを開く" }).getByRole("option")).toHaveText(["新しい図"])
+})
+
+test("マスターの設定で言語とスキンを変えると、画面がすぐに変わる", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "マスター" }).click()
+  await page.getByLabel("スキン").selectOption("light")
+  await expect(page.locator("html")).toHaveAttribute("data-skin", "light")
+  await page.getByLabel("言語").selectOption("en")
+  await expect(page.getByRole("button", { name: "New book" })).toBeVisible()
+  await expect(page.locator("html")).toHaveAttribute("lang", "en")
 })
 
 test.describe("ブラウザの言語が英語のとき", () => {

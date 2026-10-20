@@ -1,20 +1,44 @@
-// アクションを行う、ブックのデータを変える入口。ブックで使えるアクションかと引数の形を確かめてから run する
-import type { ActionContext } from "./def/action"
-import { actionDef, bookType } from "./registry"
+// アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
+// 使えるかは、book が対象ならそのブックのタイプ、library が対象ならマスターのブックのタイプが決める
+import type { z } from "zod"
+import type { ActionContext, ActionDef, Subjects } from "./def/action"
+import type { Library } from "./library"
+import { masterOf } from "./library"
+import { type ACTIONS, type ActionId, actionDef, bookType } from "./registry"
 import type { Book } from "./schema/book"
 
-export type Performed = { ok: true; book: Book } | { ok: false; reason: "unknown" | "not-allowed" | "bad-args" }
+type ActionOf<Id extends ActionId> = Extract<(typeof ACTIONS)[number], { id: Id }>
+export type SubjectOf<Id extends ActionId> = Subjects[ActionOf<Id>["target"]]
+export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
+export type ResultOf<Id extends ActionId> = ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R> ? R : never
+
+export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
+export type Performed<Id extends ActionId> =
+  | { ok: true; next: SubjectOf<Id>; result: ResultOf<Id> }
+  | { ok: false; reason: Refusal }
 
 // ブックで使えるアクション（タイプの既定）
 export function actionsOf(book: Book): readonly string[] {
   return bookType(book.type).actions.defaults
 }
 
-export function perform(book: Book, id: string, args: unknown, ctx: ActionContext): Performed {
-  const action = actionDef(id)
+function allowed(action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
+  const owner = action.target === "library" ? masterOf(subject as Library) : (subject as Book)
+  return owner !== undefined && actionsOf(owner).includes(action.id)
+}
+
+export function perform<Id extends ActionId>(
+  subject: SubjectOf<Id>,
+  id: Id,
+  args: ArgsOf<Id>,
+  ctx: ActionContext,
+): Performed<Id> {
+  const action: ActionDef | undefined = actionDef(id)
   if (!action) return { ok: false, reason: "unknown" }
-  if (!actionsOf(book).includes(id)) return { ok: false, reason: "not-allowed" }
+  if (!allowed(action, subject)) return { ok: false, reason: "not-allowed" }
   const parsed = action.args.safeParse(args)
   if (!parsed.success) return { ok: false, reason: "bad-args" }
-  return { ok: true, book: action.run(book, parsed.data, ctx) }
+  const done = action.run(subject, parsed.data, ctx)
+  if (!done) return { ok: false, reason: "refused" }
+  return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }

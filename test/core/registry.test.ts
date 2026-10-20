@@ -27,16 +27,49 @@ describe("登録表", () => {
 
 describe("アクションを行う", () => {
   const book = SAMPLE_BOOKS[0]!
+  const ctx = { lang: "ja" as const, newId: () => "new" }
+  const library = { [MASTER_BOOK.id]: MASTER_BOOK, [book.id]: book }
 
-  test("ブックで使えるアクションは、引数を確かめてから行う", () => {
-    const done = perform(book, "page.add", {}, { lang: "ja" })
-    expect(done.ok && "pages" in done.book && done.book.pages.map(p => p.title)).toEqual(["ページ 1", "ページ 2"])
-    expect(perform(book, "page.add", { extra: 1 }, { lang: "ja" })).toEqual({ ok: false, reason: "bad-args" })
+  test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
+    const done = perform(book, "page.add", { title: " 表紙 ", paper: "a3-portrait" }, ctx)
+    expect(done).toMatchObject({ ok: true, result: { page: "p2" } })
+    expect(done.ok && "pages" in done.next && done.next.pages.at(-1)).toEqual({
+      id: "p2",
+      title: "表紙",
+      paper: "a3-portrait",
+    })
+    // 紙を決めなければ、規定の既定
+    const plain = perform(book, "page.add", { title: "次" }, ctx)
+    expect(plain.ok && "pages" in plain.next && plain.next.pages.at(-1)?.paper).toBe("a4-landscape")
+  })
+
+  test("名前が空のページとブックは断る", () => {
+    expect(perform(book, "page.add", { title: "  " }, ctx)).toEqual({ ok: false, reason: "bad-args" })
+    expect(perform(library, "book.create", { title: "", type: "drawing" }, ctx)).toEqual({
+      ok: false,
+      reason: "bad-args",
+    })
+  })
+
+  test("ブックを作ると、振った id で一覧に入り、その id を返す。同じ id があれば断る", () => {
+    const done = perform(library, "book.create", { title: "新しい図", type: "drawing" }, ctx)
+    expect(done).toMatchObject({ ok: true, result: { book: "new" } })
+    expect(done.ok && done.next.new).toEqual({ type: "drawing", id: "new", title: "新しい図", pages: [] })
+    const again = done.ok ? perform(done.next, "book.create", { title: "もう一つ", type: "drawing" }, ctx) : null
+    expect(again).toEqual({ ok: false, reason: "refused" })
+  })
+
+  test("ブックの一覧を変えるアクションは、マスターのタイプが許すときだけ", () => {
+    expect(perform({ [book.id]: book }, "book.create", { title: "x", type: "drawing" }, ctx)).toEqual({
+      ok: false,
+      reason: "not-allowed",
+    })
   })
 
   test("タイプが許していないアクションと、知らないアクションは断る", () => {
-    expect(perform(MASTER_BOOK, "page.add", {}, { lang: "ja" })).toEqual({ ok: false, reason: "not-allowed" })
-    expect(perform(book, "nope", {}, { lang: "ja" })).toEqual({ ok: false, reason: "unknown" })
+    expect(perform(MASTER_BOOK, "page.add", { title: "x" }, ctx)).toEqual({ ok: false, reason: "not-allowed" })
+    // @ts-expect-error 知らない id は型でも誤り
+    expect(perform(book, "nope", {}, ctx)).toEqual({ ok: false, reason: "unknown" })
   })
 })
 

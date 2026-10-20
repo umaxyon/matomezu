@@ -1,4 +1,4 @@
-// 見本の図面のブック（どれも 1 ページ）
+// 見本の図面のブック（どれも A4 横のページが 1 つ）
 import type { BookOf } from "../core/schema/book"
 
 const TITLES = [
@@ -16,5 +16,5 @@ export const SAMPLE_BOOKS: BookOf<"drawing">[] = TITLES.map((title, i) => ({
   type: "drawing",
   id: `b${i + 1}`,
   title,
-  pages: [{ id: "p1", title: "ページ 1" }],
+  pages: [{ id: "p1", title: "ページ 1", paper: "a4-landscape" }],
 }))

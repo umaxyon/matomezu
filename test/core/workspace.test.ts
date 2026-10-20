@@ -13,7 +13,16 @@ import {
 } from "../../web/src/core/workspace"
 
 describe("workspace", () => {
-  const ws = newWorkspace("b1", "p1")
+  const book = {
+    type: "drawing" as const,
+    id: "b1",
+    title: "見本",
+    pages: [
+      { id: "p1", title: "ページ 1", paper: "a4-landscape" as const },
+      { id: "p2", title: "ページ 2", paper: "a4-landscape" as const },
+    ],
+  }
+  const ws = newWorkspace(book)
 
   test("分けると、カレントの右に何も開いていないステージが増え、カレントは変わらない", () => {
     const two = split(ws)
@@ -37,7 +46,7 @@ describe("workspace", () => {
 
   test("ページを開くのも、ずらすのも、そのステージだけが変わり、ほかは同じものを使い回す", () => {
     const two = split(ws)
-    const opened = showPage(two, "s1", "p2")
+    const opened = showPage(two, "s1", book, "p2")
     expect(currentStage(opened).opened).toMatchObject({ page: "p2" })
     expect(opened.stages[1]).toBe(two.stages[1]!)
     const panned = mapStage(two, "s1", s => panBy(s, -10, -20))

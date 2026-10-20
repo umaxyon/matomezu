@@ -6,7 +6,7 @@ test("ページを足すと、そのステージのブックに入り、その�
   const { state, actions } = createAppStore()
   actions.split()
   actions.openBook("s2", "b1")
-  actions.addPage("s2")
+  actions.addPage("s2", { title: "ページ 2" })
   const s = state.getState()
   expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "p2" }] })
   expect(s.workspace.stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "p2" }])
@@ -15,7 +15,7 @@ test("ページを足すと、そのステージのブックに入り、その�
 
 test("ページを開くのは指定したステージで、そのステージがカレントになる", () => {
   const { state, actions } = createAppStore()
-  actions.addPage("s1")
+  actions.addPage("s1", { title: "ページ 2" })
   actions.split()
   actions.openBook("s2", "b1")
   actions.openPage("s2", "p1")
@@ -31,7 +31,7 @@ test("分けたステージは何も開いておらず、ブックを開くと�
   expect(state.getState().workspace.stages[1]!.opened).toBeNull()
   actions.openBook("s2", "b3")
   const ws = state.getState().workspace
-  expect(ws.stages[1]!.opened).toEqual({ type: "drawing", book: "b3", page: "p1" })
+  expect(ws.stages[1]!.opened).toEqual({ type: "drawing", book: "b3", page: "p1", paper: "a4-landscape" })
   expect(ws.current).toBe("s2")
 })
 
@@ -59,6 +59,29 @@ test("マスターはカレントのステージで開き、ページは足せ�
   actions.openMaster()
   const s = state.getState()
   expect(s.workspace.stages.map(st => st.opened?.type)).toEqual(["drawing", "master"])
-  actions.addPage("s2")
+  expect(actions.addPage("s2", { title: "x" })).toBe(false)
+  expect(state.getState()).toBe(s)
+})
+
+test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
+  const { state, actions } = createAppStore(undefined, () => "made")
+  actions.split()
+  expect(actions.createBook("s2", { title: " ", type: "drawing" })).toBe(false)
+  expect(actions.createBook("s2", { title: "新しい図", type: "drawing" })).toBe(true)
+  const s = state.getState()
+  expect(s.books.made).toEqual({ type: "drawing", id: "made", title: "新しい図", pages: [] })
+  expect(s.workspace.stages[1]!.opened).toEqual({ type: "drawing", book: "made", page: null, paper: null })
+  expect(s.workspace.current).toBe("s2")
+  actions.addPage("s2", { title: "最初", paper: "a3-portrait" })
+  expect(state.getState().workspace.stages[1]!.opened).toMatchObject({ page: "p1", paper: "a3-portrait" })
+})
+
+test("言語とスキンの設定を変える。同じ値なら知らせない", () => {
+  const { state, actions } = createAppStore()
+  actions.setLang("en")
+  actions.setSkin("light")
+  expect(state.getState().settings).toEqual({ lang: "en", skin: "light" })
+  const s = state.getState()
+  actions.setSkin("light")
   expect(state.getState()).toBe(s)
 })

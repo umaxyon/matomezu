@@ -85,12 +85,22 @@ test("タブの左のボタンでダイアログを開き、選んだブック�
   expect(screen.queryByRole("combobox", { name: "ブックを探す" })).toBeNull()
 })
 
-test("＋でページが増え、そのタブが選ばれる", () => {
+test("＋でページを作るダイアログが開き、名前と紙を決めて作ると、そのタブが選ばれる。名前が空なら作れない", () => {
   renderApp()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  const dialog = screen.getByRole("dialog", { name: "新しいページ" })
+  const name = within(dialog).getByLabelText("ページの名前") as HTMLInputElement
+  expect(name.value).toBe("ページ 2")
+  expect((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).value).toBe("a4-landscape")
+  fireEvent.change(name, { target: { value: "  " } })
+  expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.change(name, { target: { value: "裏表紙" } })
+  fireEvent.change(within(dialog).getByLabelText("紙のサイズ"), { target: { value: "a5-portrait" } })
+  fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
   const tabs = screen.getAllByRole("tab")
-  expect(tabs.map(t => t.textContent)).toEqual(["ページ 1", "ページ 2"])
+  expect(tabs.map(t => t.textContent)).toEqual(["ページ 1", "裏表紙"])
   expect(tabs[1]!.getAttribute("aria-selected")).toBe("true")
+  expect(screen.queryByRole("dialog", { name: "新しいページ" })).toBeNull()
 })
 
 test("日本語の変換を確定する Enter では、候補を選ばない", () => {
@@ -103,7 +113,7 @@ test("日本語の変換を確定する Enter では、候補を選ばない", (
   expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("まとめ図の構想")
 })
 
-test("言語を英語にすると、画面の文言が英語になり、＋で足すページの題名も英語になる", () => {
+test("言語を英語にすると、画面の文言が英語になり、＋で足すページの名前の案も英語になる", () => {
   const store = createAppStore(initialState(SAMPLE_BOOKS, "en"))
   render(
     <StoreProvider store={store}>
@@ -111,6 +121,8 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
     </StoreProvider>,
   )
   fireEvent.click(screen.getByRole("button", { name: "Add page" }))
+  const dialog = screen.getByRole("dialog", { name: "New page" })
+  fireEvent.click(within(dialog).getByRole("button", { name: "Create" }))
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["ページ 1", "Page 2"])
   fireEvent.click(screen.getByRole("button", { name: "Split screen" }))
   expect(screen.getByText("Select a book")).toBeTruthy()
@@ -139,4 +151,35 @@ test("分割すると、それぞれのステージの区画に閉じるボタ�
   expect(within(stages()[0]!).getByText("ブックを選択してください")).toBeTruthy()
   expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
   expect(screen.getByRole("button", { name: "画面を分割" }).getAttribute("aria-pressed")).toBe("false")
+})
+
+test("マスターで新しいブックを作ると、そのステージでページの無いブックが開き、ページを作ると最初のタブができる", () => {
+  renderApp()
+  fireEvent.click(screen.getByRole("button", { name: "マスター" }))
+  fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
+  const dialog = screen.getByRole("dialog", { name: "新しいブック" })
+  const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
+  expect([...type.options].map(o => o.textContent)).toEqual(["図面"])
+  expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "新しい図" } })
+  fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
+  expect(screen.queryByRole("region", { name: "マスター" })).toBeNull()
+  expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("新しい図")
+  expect(screen.queryAllByRole("tab")).toHaveLength(0)
+  expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
+  fireEvent.click(screen.getByRole("button", { name: "ページを作る" }))
+  const page = screen.getByRole("dialog", { name: "新しいページ" })
+  expect((within(page).getByLabelText("ページの名前") as HTMLInputElement).value).toBe("ページ 1")
+  fireEvent.click(within(page).getByRole("button", { name: "作成" }))
+  expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["ページ 1"])
+  expect(screen.getByRole("img", { name: "紙" })).toBeTruthy()
+})
+
+test("マスターの設定で言語とスキンを変える", () => {
+  renderApp()
+  fireEvent.click(screen.getByRole("button", { name: "マスター" }))
+  fireEvent.change(screen.getByLabelText("言語"), { target: { value: "en" } })
+  expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy()
+  fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "light" } })
+  expect(document.documentElement.dataset.skin).toBe("light")
 })

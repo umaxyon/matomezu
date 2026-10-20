@@ -2,7 +2,7 @@
 // アイテム・アクション・テーマは id で参照する（アイテムとアクションはブックのタイプを知らない）
 import type { z } from "zod"
 import type { MessageKey } from "../i18n/i18n"
-import type { PaperName } from "../paper"
+import type { PaperRule } from "../paper"
 import type { TokenDecl } from "./theme"
 
 // 使えるものの規定。ブックは allowed の中から選び、選んでいなければ defaults を使う
@@ -11,20 +11,44 @@ export interface Choice {
   defaults: readonly string[]
 }
 
-export interface BookTypeDef {
+// ページの決まり。addFromTabs はタブの横に、ページを足すボタン（page.add）を出すか
+export interface PagesRule {
+  paper: PaperRule
+  addFromTabs: boolean
+}
+
+// 新しいブックを作るときに渡すもの
+export interface NewBook {
+  id: string
+  title: string
+}
+
+interface BookTypeBase<S extends z.ZodObject> {
   id: string // データの type の値
   version: number // データの形の版
   title: MessageKey // タイプの名前。題名を持たないブックは、この名前で呼ぶ
-  schema: z.ZodObject // そのタイプのブックのデータの形（type は id の値）
-  single: boolean // 1 冊だけのタイプか
-  pages: boolean // ページを持つか（持つなら schema に pages がある）
-  paper: PaperName | null // ページに置く紙（無ければ null）
+  schema: S // そのタイプのブックのデータの形（type は id の値）
+  pages: PagesRule | null // ページを持つか（持つなら schema に pages がある）
   items: Choice
   actions: Choice
   theme: string // 既定のテーマ
   tokens: readonly TokenDecl[] // ブックの画面を描くのに使うテーマの欄
 }
 
-export function defineBookType<const T extends BookTypeDef>(def: T): T {
+// 1 冊だけのタイプ（マスターなど）。作る操作は無い
+export interface SingleBookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTypeBase<S> {
+  single: true
+}
+
+// 何冊も作れるタイプ。create は空のブックを作る
+export interface ManyBookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTypeBase<S> {
+  single: false
+  create(init: NewBook): z.infer<S>
+}
+
+export type BookTypeDef<S extends z.ZodObject = z.ZodObject> = SingleBookTypeDef<S> | ManyBookTypeDef<S>
+
+// create の返す値を、schema の形に合わせる（id などは書いた文字のまま残す）
+export function defineBookType<const S extends z.ZodObject, const T extends BookTypeDef<S>>(def: T & { schema: S }): T {
   return def
 }

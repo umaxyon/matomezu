@@ -2,6 +2,7 @@
 // 表どうしの参照（ブックのタイプが使うアイテムなど）が実在するかは checkRegistry が確かめる
 
 import type { z } from "zod"
+import { BOOK_CREATE } from "./actions/book-create"
 import { PAGE_ADD } from "./actions/page-add"
 import { BOOK_TYPES } from "./book-types"
 import type { ActionDef } from "./def/action"
@@ -13,7 +14,7 @@ import { STANDARD } from "./themes/standard"
 
 export { BOOK_TYPES }
 export const ITEMS = [BOX] as const satisfies readonly ItemDef[]
-export const ACTIONS = [PAGE_ADD] as const satisfies readonly ActionDef[]
+export const ACTIONS = [PAGE_ADD, BOOK_CREATE] as const satisfies readonly ActionDef[]
 export const THEMES = [STANDARD] as const satisfies readonly ThemeDef[]
 
 export type BookTypeId = (typeof BOOK_TYPES)[number]["id"]
@@ -58,7 +59,14 @@ export function checkRegistry(): string[] {
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
     if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
       problems.push(`${where}: schema.type must be the literal "${t.id}"`)
-    if (t.pages !== "pages" in t.schema.shape) problems.push(`${where}: pages must match whether schema has pages`)
+    if ((t.pages !== null) !== "pages" in t.schema.shape)
+      problems.push(`${where}: pages must match whether schema has pages`)
+    if (t.pages && !t.pages.paper.allowed.includes(t.pages.paper.default))
+      problems.push(`${where}: default paper ${t.pages.paper.default} is not allowed`)
+    if (t.pages?.addFromTabs && !t.actions.defaults.includes("page.add"))
+      problems.push(`${where}: addFromTabs needs page.add in the default actions`)
+    if (!t.single && !t.schema.safeParse(t.create({ id: "check", title: "check" })).success)
+      problems.push(`${where}: create must return a book of the schema`)
     for (const [kind, choice, table] of [
       ["item", t.items, items],
       ["action", t.actions, actions],
