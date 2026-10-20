@@ -2,14 +2,41 @@ import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { MASTER_BOOK } from "../../web/src/core/book"
 import { perform } from "../../web/src/core/perform"
-import { ACTIONS, BOOK_TYPES, checkRegistry, ITEMS } from "../../web/src/core/registry"
+import { ACTIONS, BOOK_TYPES, BUILTIN_PARTS, buildRegistry, checkRegistry, ITEMS } from "../../web/src/core/registry"
 import { BookSchema } from "../../web/src/core/schema/book"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
 import { SAMPLE_BOOKS } from "../../web/src/store/sample-books"
 
 describe("登録表", () => {
   test("表どうしの参照に食い違いが無い", () => {
-    expect(checkRegistry()).toEqual([])
+    expect(checkRegistry(BUILTIN_PARTS)).toEqual([])
+  })
+
+  test("食い違いのある定義の組からは表を作らず、直す所を並べる", () => {
+    const [drawing, master] = BOOK_TYPES
+    const broken = {
+      ...BUILTIN_PARTS,
+      bookTypes: [drawing, master, drawing],
+      items: [],
+      papers: BUILTIN_PARTS.papers.filter(p => p.id !== "a3"),
+    }
+    expect(checkRegistry(broken)).toEqual([
+      "bookType drawing: id is registered twice",
+      "bookType drawing: unknown paper a3",
+      "bookType drawing: unknown item shape.box",
+      "bookType drawing: unknown paper a3",
+      "bookType drawing: unknown item shape.box",
+    ])
+    expect(() => buildRegistry(broken)).toThrow("bookType drawing: unknown item shape.box")
+    expect(() => buildRegistry({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("no book type")
+  })
+
+  test("作った表は id で引け、ブックのデータの形を持つ", () => {
+    const reg = buildRegistry(BUILTIN_PARTS)
+    expect(reg.bookTypes.get("drawing")).toBe(BOOK_TYPES[0])
+    expect(reg.items.get("nope")).toBeUndefined()
+    expect(reg.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
+    expect(reg.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
   })
 
   test("ブックの形・アイテムの項目・アクションの引数は、JSON Schema に書き出せる（LLM に見せる形）", () => {
