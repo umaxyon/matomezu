@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { REGISTRY } from "../../web/src/core/registry"
 import { COMMANDS, isShown } from "../../web/src/store/commands"
 import { createAppStore } from "../../web/src/store/store"
 
@@ -11,7 +12,9 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
   test("分割していなければ分割を出し、分割していれば、やめると閉じるを出す", () => {
     const { state, actions } = createAppStore()
     const shown = () =>
-      ["stage.split", "stage.unsplit", "stage.close"].filter(id => isShown(state.getState(), "s1", id as never))
+      ["stage.split", "stage.unsplit", "stage.close"].filter(id =>
+        isShown(REGISTRY, state.getState(), "s1", id as never),
+      )
     expect(shown()).toEqual(["stage.split"])
     actions.command("s1", "stage.split")
     expect(shown()).toEqual(["stage.unsplit", "stage.close"])
@@ -19,16 +22,16 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
 
   test("ブックを作るのはマスター、ページを作るのはページを足せるブックを開いているときだけ", () => {
     const { state, actions } = createAppStore()
-    expect(isShown(state.getState(), "s1", "book.new")).toBe(false)
-    expect(isShown(state.getState(), "s1", "page.new")).toBe(true)
+    expect(isShown(REGISTRY, state.getState(), "s1", "book.new")).toBe(false)
+    expect(isShown(REGISTRY, state.getState(), "s1", "page.new")).toBe(true)
     actions.command("s1", "stage.master")
-    expect(isShown(state.getState(), "s1", "book.new")).toBe(true)
-    expect(isShown(state.getState(), "s1", "page.new")).toBe(false)
+    expect(isShown(REGISTRY, state.getState(), "s1", "book.new")).toBe(true)
+    expect(isShown(REGISTRY, state.getState(), "s1", "page.new")).toBe(false)
   })
 
   test("無いステージからは、どのコマンドも出さない", () => {
     const { state } = createAppStore()
-    expect(COMMANDS.filter(c => isShown(state.getState(), "nope", c.id))).toEqual([])
+    expect(COMMANDS.filter(c => isShown(REGISTRY, state.getState(), "nope", c.id))).toEqual([])
   })
 })
 

@@ -77,15 +77,11 @@ export const BUILTIN_PARTS: RegistryParts = {
 }
 export const REGISTRY = buildRegistry(BUILTIN_PARTS)
 
-export function bookType(id: BookTypeId): BookTypeDef {
-  const def = REGISTRY.bookTypes.get(id)
-  return def ?? fail("E101", { id })
+// ブックのタイプは、データのタイプが表に無ければ誤り。ほかの定義は reg.items.get(id) などで引き、知らない id なら undefined
+// （データに残った、外したプラグインのアイテムなど）
+export function bookType(reg: Registry, id: string): BookTypeDef {
+  return reg.bookTypes.get(id) ?? fail("E101", { id })
 }
-
-// 知らない id なら undefined（データに残った、外したプラグインのアイテムなど）
-export const itemDef = (id: string): ItemDef | undefined => REGISTRY.items.get(id)
-export const actionDef = (id: string): ActionDef | undefined => REGISTRY.actions.get(id)
-export const themeDef = (id: string): ThemeDef | undefined => REGISTRY.themes.get(id)
 
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
 export function checkRegistry(parts: RegistryParts): Problem[] {

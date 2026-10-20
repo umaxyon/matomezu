@@ -8,6 +8,7 @@ import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { type ArgsOf, perform } from "../core/perform"
+import { REGISTRY, type Registry } from "../core/registry"
 import type { Book, BookOf } from "../core/schema/book"
 import { openBook, panBy, resize } from "../core/stage"
 import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
@@ -53,30 +54,40 @@ export interface Actions {
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
 
 export interface AppStore {
+  registry: Registry // この store が使う登録表
   state: ReadonlyStore
   actions: Actions
 }
 
 // 最初のブックを開いた状態。マスターのブックはいつもある
-export function initialState(books: readonly BookOf<"drawing">[] = SAMPLE_BOOKS, lang: Lang = "ja"): AppState {
+export function initialState(
+  books: readonly BookOf<"drawing">[] = SAMPLE_BOOKS,
+  lang: Lang = "ja",
+  registry: Registry = REGISTRY,
+): AppState {
   const first = books[0]
   if (!first) return fail("E106")
   return {
     books: Object.fromEntries([MASTER_BOOK, ...books].map(b => [b.id, b])),
-    workspace: newWorkspace(first),
+    workspace: newWorkspace(registry, first),
     settings: { lang, skin: "auto" },
     dialog: null,
   }
 }
 
-// newId は、作るブックの id を振る（どの世界でも重ならない uuid）
-export function createAppStore(
-  initial: AppState = initialState(),
-  newId: () => string = () => crypto.randomUUID(),
-): AppStore {
+export interface StoreOptions {
+  registry?: Registry // 無ければ中の部品の表
+  initial?: AppState // 無ければ見本のブックを開いた状態
+  newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
+}
+
+export function createAppStore(options: StoreOptions = {}): AppStore {
+  const registry = options.registry ?? REGISTRY
+  const initial = options.initial ?? initialState(SAMPLE_BOOKS, "ja", registry)
+  const newId = options.newId ?? (() => crypto.randomUUID())
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
-  const ctx = (): ActionContext => ({ lang: getState().settings.lang, newId })
+  const ctx = (): ActionContext => ({ registry, lang: getState().settings.lang, newId })
   // 開いたステージが無くなったダイアログは閉じる
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {
     const { workspace: ws, dialog } = getState()
@@ -88,8 +99,8 @@ export function createAppStore(
   const actions: Actions = {
     command: (stage, id, ...args) => {
       const state = getState()
-      const ctx = commandContext(state, stage)
-      if (!ctx || !isEnabled(state, stage, id)) return false
+      const ctx = commandContext(registry, state, stage)
+      if (!ctx || !isEnabled(registry, state, stage, id)) return false
       commandDef(id).run(ctx, actions, args[0] as never)
       return true
     },
@@ -105,13 +116,14 @@ export function createAppStore(
     focusStage: id => withWorkspace(ws => focus(ws, id)),
     openBook: (stage, bookId) => {
       const book = getState().books[bookId]
-      if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(s, book)))
+      if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(registry, s, book)))
     },
-    openMaster: stage => withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(s, MASTER_BOOK))),
+    openMaster: stage =>
+      withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(registry, s, MASTER_BOOK))),
     openPage: (stage, page) => {
       const { books, workspace } = getState()
       const book = books[workspace.stages.find(s => s.id === stage)?.opened?.book ?? ""]
-      if (book && hasPages(book)) withWorkspace(ws => showPage(focus(ws, stage), stage, book, page))
+      if (book && hasPages(book)) withWorkspace(ws => showPage(registry, focus(ws, stage), stage, book, page))
     },
     addPage: (stageId, args) => {
       const { books, workspace } = getState()
@@ -121,7 +133,7 @@ export function createAppStore(
       if (!done.ok || !hasPages(done.next)) return false
       setState({
         books: { ...books, [done.next.id]: done.next },
-        workspace: showPage(focus(workspace, stageId), stageId, done.next, done.result.page),
+        workspace: showPage(registry, focus(workspace, stageId), stageId, done.next, done.result.page),
       })
       return true
     },
@@ -130,7 +142,10 @@ export function createAppStore(
       const done = perform(books, "book.create", args, ctx())
       const book = done.ok && done.next[done.result.book]
       if (!book) return false
-      setState({ books: done.next, workspace: mapStage(focus(workspace, stageId), stageId, s => openBook(s, book)) })
+      setState({
+        books: done.next,
+        workspace: mapStage(focus(workspace, stageId), stageId, s => openBook(registry, s, book)),
+      })
       return true
     },
     setLang: lang => {
@@ -142,5 +157,5 @@ export function createAppStore(
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
   }
-  return { state: store, actions }
+  return { registry, state: store, actions }
 }

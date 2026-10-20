@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { REGISTRY } from "../../web/src/core/registry"
 import { panBy } from "../../web/src/core/stage"
 import {
   close,
@@ -22,7 +23,7 @@ describe("workspace", () => {
       { id: "p2", title: "ページ 2", paper: "a4", orientation: "landscape" as const },
     ],
   }
-  const ws = newWorkspace(book)
+  const ws = newWorkspace(REGISTRY, book)
 
   test("分けると、カレントの右に何も開いていないステージが増え、カレントは変わらない", () => {
     const two = split(ws)
@@ -46,7 +47,7 @@ describe("workspace", () => {
 
   test("ページを開くのも、ずらすのも、そのステージだけが変わり、ほかは同じものを使い回す", () => {
     const two = split(ws)
-    const opened = showPage(two, "s1", book, "p2")
+    const opened = showPage(REGISTRY, two, "s1", book, "p2")
     expect(currentStage(opened).opened).toMatchObject({ page: "p2" })
     expect(opened.stages[1]).toBe(two.stages[1]!)
     const panned = mapStage(two, "s1", s => panBy(s, -10, -20))

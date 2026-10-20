@@ -8,7 +8,7 @@ import { bookTokens } from "../../core/theme"
 import { BookSearch } from "../book-search/BookSearch"
 import { BOOK_VIEWS } from "../book-types/views"
 import { useT } from "../i18n"
-import { useActions, useApp } from "../store-context"
+import { useActions, useApp, useRegistry } from "../store-context"
 import { themeVars } from "../theme-vars"
 import styles from "./StageView.module.css"
 import { useResize } from "./use-resize"
@@ -28,7 +28,8 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
     const o = s.workspace.stages.find(st => st.id === id)?.opened
     return o ? s.books[o.book] : undefined
   })
-  const vars = useMemo(() => (book ? themeVars(bookTokens(book)) : undefined), [book])
+  const registry = useRegistry()
+  const vars = useMemo(() => (book ? themeVars(bookTokens(registry, book)) : undefined), [registry, book])
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const t = useT()
   const ref = useRef<HTMLElement>(null)

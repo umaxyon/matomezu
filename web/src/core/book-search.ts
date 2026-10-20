@@ -2,15 +2,16 @@
 // 全角と半角、大文字と小文字は区別しない
 import { bookTitle } from "./book"
 import type { Lang } from "./i18n/i18n"
+import type { Registry } from "./registry"
 import type { Book } from "./schema/book"
 
 const normalize = (s: string) => s.normalize("NFKC").toLowerCase()
 
-export function searchBooks(books: readonly Book[], query: string, lang: Lang): Book[] {
+export function searchBooks(reg: Registry, books: readonly Book[], query: string, lang: Lang): Book[] {
   const words = normalize(query).split(/\s+/).filter(Boolean)
   if (words.length === 0) return [...books]
   return books.filter(b => {
-    const title = normalize(bookTitle(b, lang))
+    const title = normalize(bookTitle(reg, b, lang))
     return words.every(w => title.includes(w))
   })
 }

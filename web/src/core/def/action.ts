@@ -3,6 +3,7 @@
 import type { z } from "zod"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
+import type { Registry } from "../registry"
 import type { Book } from "../schema/book"
 import type { Capability } from "./item"
 
@@ -15,6 +16,7 @@ export interface Subjects {
 export type ActionTarget = keyof Subjects
 
 export interface ActionContext {
+  registry: Registry // 使う登録表（アクション・ブックのタイプ・紙など）
   lang: Lang
   newId(): string // ブックなど、ほかの世界と行き来するものの id を振る
 }

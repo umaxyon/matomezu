@@ -6,7 +6,7 @@
 import { hasPages, type PagedBook } from "./book"
 import type { Point, Size } from "./geom"
 import { type ResolvedPaper, resolvePaper } from "./paper"
-import type { BookTypeId } from "./registry"
+import type { BookTypeId, Registry } from "./registry"
 import type { Book } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
@@ -67,22 +67,27 @@ export function panBy(stage: Stage, dx: number, dy: number): Stage {
 
 // ブックを開く（ページを持つなら最初のページ）。ずらす量は最初の位置に戻す。
 // ページを持たないブックがもう開いていれば、同じ値を返す
-export function openBook(stage: Stage, book: Book): Stage {
+export function openBook(reg: Registry, stage: Stage, book: Book): Stage {
   if (!hasPages(book)) {
     if (stage.opened?.book === book.id) return stage
     return settle({ ...stage, opened: { type: book.type, book: book.id, page: null, paper: null } }, HOME)
   }
   const first = book.pages[0]
-  const opened = { type: book.type, book: book.id, page: first?.id ?? null, paper: first ? resolvePaper(first) : null }
+  const opened = {
+    type: book.type,
+    book: book.id,
+    page: first?.id ?? null,
+    paper: first ? resolvePaper(reg, first) : null,
+  }
   return settle({ ...stage, opened }, HOME)
 }
 
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は最初の位置に戻す
-export function openPage(stage: Stage, book: PagedBook, page: string): Stage {
+export function openPage(reg: Registry, stage: Stage, book: PagedBook, page: string): Stage {
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found || o.page === page) return stage
-  return settle({ ...stage, opened: { ...o, page, paper: resolvePaper(found) } }, HOME)
+  return settle({ ...stage, opened: { ...o, page, paper: resolvePaper(reg, found) } }, HOME)
 }
 
 // 紙の置き場所（何も開いていなければ null）

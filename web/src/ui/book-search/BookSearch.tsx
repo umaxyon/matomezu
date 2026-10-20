@@ -5,18 +5,19 @@ import { useShallow } from "zustand/react/shallow"
 import { bookTitle } from "../../core/book"
 import { searchBooks } from "../../core/book-search"
 import { useT } from "../i18n"
-import { useApp } from "../store-context"
+import { useApp, useRegistry } from "../store-context"
 import styles from "./BookSearch.module.css"
 
 export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: string) => void; autoFocus?: boolean }) {
   const books = useApp(useShallow(s => Object.values(s.books)))
   const lang = useApp(s => s.settings.lang)
+  const registry = useRegistry()
   const t = useT()
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
   const listId = useId()
   const activeRef = useRef<HTMLDivElement>(null)
-  const found = searchBooks(books, query, lang)
+  const found = searchBooks(registry, books, query, lang)
   const current = Math.min(active, found.length - 1)
   const optionId = (i: number) => `${listId}-${i}`
 
@@ -76,7 +77,7 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
               onPointerMove={() => setActive(i)}
               onClick={() => onSelect(b.id)}
             >
-              {bookTitle(b, lang)}
+              {bookTitle(registry, b, lang)}
             </div>
           ))}
         </div>

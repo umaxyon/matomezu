@@ -14,11 +14,11 @@ export const PAGE_ADD = defineAction({
     paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定
     orientation: z.enum(ORIENTATIONS).optional(), // 無ければ規定の既定
   }),
-  run: (book, args) => {
+  run: (book, args, ctx) => {
     if (!hasPages(book)) return null
-    const fallback = defaultPaper(book)
+    const fallback = defaultPaper(ctx.registry, book)
     const choice = { paper: args.paper ?? fallback.paper, orientation: args.orientation ?? fallback.orientation }
-    if (!canChoose(paperChoices(book), choice)) return null
+    if (!canChoose(paperChoices(ctx.registry, book), choice)) return null
     const done = addPage(book, { title: args.title, ...choice })
     return { next: done.book, result: { page: done.page.id } }
   },

@@ -1,9 +1,9 @@
 // ブックを作るダイアログ: 名前とタイプを決めて作り（アクション book.create）、そのステージで開く
 import { useState } from "react"
-import { CREATABLE_TYPES, type CreatableTypeId } from "../../core/book-types"
+import { creatableTypes } from "../../core/book"
 import { bookType } from "../../core/registry"
 import { useT } from "../i18n"
-import { useActions } from "../store-context"
+import { useActions, useRegistry } from "../store-context"
 import { Dialog } from "./Dialog"
 import { controlClass, Field, Form } from "./FormParts"
 import type { DialogProps } from "./views"
@@ -21,7 +21,9 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const { createBook } = useActions()
   const t = useT()
   const [title, setTitle] = useState("")
-  const [type, setType] = useState<CreatableTypeId>(CREATABLE_TYPES[0])
+  const registry = useRegistry()
+  const types = creatableTypes(registry)
+  const [type, setType] = useState(types[0] ?? "")
   return (
     <Form
       submit={t("作成")}
@@ -42,12 +44,12 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
             id={id}
             className={controlClass}
             value={type}
-            disabled={CREATABLE_TYPES.length < 2}
-            onChange={e => setType(e.target.value as CreatableTypeId)}
+            disabled={types.length < 2}
+            onChange={e => setType(e.target.value)}
           >
-            {CREATABLE_TYPES.map(c => (
+            {types.map(c => (
               <option key={c} value={c}>
-                {t(bookType(c).title)}
+                {t(bookType(registry, c).title)}
               </option>
             ))}
           </select>

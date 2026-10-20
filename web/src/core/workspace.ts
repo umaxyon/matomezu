@@ -6,6 +6,7 @@
 
 import type { PagedBook } from "./book"
 import { fail } from "./errors"
+import type { Registry } from "./registry"
 import type { Book } from "./schema/book"
 import { newStage, openBook, openPage, type Stage } from "./stage"
 
@@ -24,9 +25,9 @@ export interface Workspace {
 export const MAX_STAGES = 2
 
 // ブックを 1 つ開いたステージ 1 つ
-export function newWorkspace(book: Book): Workspace {
+export function newWorkspace(reg: Registry, book: Book): Workspace {
   return {
-    stages: [openBook(newStage("s1"), book)],
+    stages: [openBook(reg, newStage("s1"), book)],
     current: "s1",
     arrangement: { direction: "row" },
     issued: 1,
@@ -83,6 +84,6 @@ export function focus(ws: Workspace, id: string): Workspace {
 }
 
 // ステージに、開いているブックのページを開く
-export function showPage(ws: Workspace, stage: string, book: PagedBook, page: string): Workspace {
-  return mapStage(ws, stage, s => openPage(s, book, page))
+export function showPage(reg: Registry, ws: Workspace, stage: string, book: PagedBook, page: string): Workspace {
+  return mapStage(ws, stage, s => openPage(reg, s, book, page))
 }

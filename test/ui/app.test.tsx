@@ -130,7 +130,7 @@ test("日本語の変換を確定する Enter では、候補を選ばない", (
 })
 
 test("言語を英語にすると、画面の文言が英語になり、＋で足すページの名前の案も英語になる", () => {
-  const store = createAppStore(initialState(SAMPLE_BOOKS, "en"))
+  const store = createAppStore({ initial: initialState(SAMPLE_BOOKS, "en") })
   render(
     <StoreProvider store={store}>
       <App />
@@ -209,7 +209,7 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
     title: "外した紙",
     pages: [{ id: "p1", title: "ページ 1", paper: "b5", orientation: "portrait" as const }],
   }
-  const store = createAppStore(initialState([book]))
+  const store = createAppStore({ initial: initialState([book]) })
   render(
     <StoreProvider store={store}>
       <App />

@@ -2,11 +2,11 @@
 
 import type { TokenDecl } from "./def/theme"
 import { fail } from "./errors"
-import { bookType, itemDef, themeDef } from "./registry"
+import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 
-export function resolveTokens(themeId: string, decls: readonly TokenDecl[]): Record<string, string> {
-  const theme = themeDef(themeId)
+export function resolveTokens(reg: Registry, themeId: string, decls: readonly TokenDecl[]): Record<string, string> {
+  const theme = reg.themes.get(themeId)
   if (!theme) return fail("E102", { id: themeId })
   const values: Record<string, string> = { ...theme.base }
   for (const d of decls) values[d.id] = theme.tokens?.[d.id] ?? theme.base[d.fallback]
@@ -14,8 +14,8 @@ export function resolveTokens(themeId: string, decls: readonly TokenDecl[]): Rec
 }
 
 // ブックを描くのに使うテーマの値（ブックのタイプと、そのブックで使えるアイテムの欄）
-export function bookTokens(book: Book): Record<string, string> {
-  const type = bookType(book.type)
-  const items = type.items.defaults.flatMap(id => itemDef(id)?.tokens ?? [])
-  return resolveTokens(type.theme, [...type.tokens, ...items])
+export function bookTokens(reg: Registry, book: Book): Record<string, string> {
+  const type = bookType(reg, book.type)
+  const items = type.items.defaults.flatMap(id => reg.items.get(id)?.tokens ?? [])
+  return resolveTokens(reg, type.theme, [...type.tokens, ...items])
 }

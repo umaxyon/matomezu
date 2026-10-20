@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { bookTitle } from "../../core/book"
 import { useCommand } from "../commands"
 import { useT } from "../i18n"
-import { useApp } from "../store-context"
+import { useApp, useRegistry } from "../store-context"
 import { PageTabs } from "../tabs/PageTabs"
 import styles from "./StageFooter.module.css"
 
@@ -39,7 +39,8 @@ export function StageFooter({ stage }: { stage: string }) {
     cancelLeave()
     leave.current = setTimeout(() => setOpen(false), LEAVE_MS)
   }
-  const title = book ? bookTitle(book, lang) : ""
+  const registry = useRegistry()
+  const title = book ? bookTitle(registry, book, lang) : ""
   return (
     <div className={styles.footer}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: マウスが乗ったかを見るだけで、操作は中のボタンが受ける */}

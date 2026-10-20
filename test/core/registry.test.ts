@@ -3,12 +3,21 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { z } from "zod"
 import { MASTER_BOOK } from "../../web/src/core/book"
+import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
 import { perform } from "../../web/src/core/perform"
-import { ACTIONS, BOOK_TYPES, BUILTIN_PARTS, buildRegistry, checkRegistry, ITEMS } from "../../web/src/core/registry"
-import { BookSchema } from "../../web/src/core/schema/book"
+import {
+  ACTIONS,
+  BOOK_TYPES,
+  BUILTIN_PARTS,
+  buildRegistry,
+  checkRegistry,
+  ITEMS,
+  REGISTRY,
+} from "../../web/src/core/registry"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
 import { SAMPLE_BOOKS } from "../../web/src/store/sample-books"
+import { createAppStore } from "../../web/src/store/store"
 
 describe("登録表", () => {
   test("表どうしの参照に食い違いが無い", () => {
@@ -52,21 +61,21 @@ describe("登録表", () => {
   })
 
   test("ブックの形・アイテムの項目・アクションの引数は、JSON Schema に書き出せる（LLM に見せる形）", () => {
-    expect(z.toJSONSchema(BookSchema)).toBeTruthy()
+    expect(z.toJSONSchema(REGISTRY.bookSchema)).toBeTruthy()
     for (const def of [...ITEMS.map(i => i.props), ...ACTIONS.map(a => a.args)])
       expect(z.toJSONSchema(def)).toBeTruthy()
   })
 
   test("ブックのデータは、そのタイプの形で検査する", () => {
     for (const t of BOOK_TYPES) expect(t.schema.shape.type.value).toBe(t.id)
-    expect(BookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
-    expect(BookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
+    expect(REGISTRY.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
+    expect(REGISTRY.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
   })
 })
 
 describe("アクションを行う", () => {
   const book = SAMPLE_BOOKS[0]!
-  const ctx = { lang: "ja" as const, newId: () => "new" }
+  const ctx = { registry: REGISTRY, lang: "ja" as const, newId: () => "new" }
   const library = { [MASTER_BOOK.id]: MASTER_BOOK, [book.id]: book }
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
@@ -118,13 +127,13 @@ describe("アクションを行う", () => {
 
 describe("テーマの値", () => {
   test("宣言された欄は、テーマが上書きしていなければ、宣言の既定（共通の欄）の値", () => {
-    const values = resolveTokens("standard", [{ id: "box.fill", fallback: "fill" }])
+    const values = resolveTokens(REGISTRY, "standard", [{ id: "box.fill", fallback: "fill" }])
     expect(values["box.fill"]).toBe(values.fill!)
   })
 
   test("ブックの値には、ブックで使えるアイテムの欄が入る", () => {
-    expect(Object.keys(bookTokens(SAMPLE_BOOKS[0]!))).toContain("box.fill")
-    expect(Object.keys(bookTokens(MASTER_BOOK))).not.toContain("box.fill")
+    expect(Object.keys(bookTokens(REGISTRY, SAMPLE_BOOKS[0]!))).toContain("box.fill")
+    expect(Object.keys(bookTokens(REGISTRY, MASTER_BOOK))).not.toContain("box.fill")
   })
 })
 
@@ -139,5 +148,50 @@ describe("誤りの表", () => {
       expect(code).toMatch(/^E\d{3}$/)
       expect(text.includes(`"${code}"`)).toBe(true)
     }
+  })
+})
+
+describe("登録表ごとに別の世界", () => {
+  const NOTES = defineBookType({
+    id: "notes",
+    version: 1,
+    title: "図面",
+    schema: z.strictObject({ type: z.literal("notes"), id: z.string().min(1), title: z.string() }),
+    single: false,
+    create: init => ({ type: "notes" as const, ...init }),
+    pages: null,
+    items: { allowed: [], defaults: [] },
+    actions: { allowed: [], defaults: [] },
+    theme: "standard",
+    tokens: [],
+  })
+  const reg = buildRegistry({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })
+  const library = { [MASTER_BOOK.id]: MASTER_BOOK }
+
+  test("足したタイプのブックは、それを持つ表でだけ作れて、データの形もその表で通る", () => {
+    const made = perform(
+      library,
+      "book.create",
+      { title: "メモ", type: "notes" },
+      { registry: reg, lang: "ja", newId: () => "n1" },
+    )
+    expect(made).toMatchObject({ ok: true, result: { book: "n1" } })
+    expect(made.ok && reg.bookSchema.safeParse(made.next.n1).success).toBe(true)
+    expect(REGISTRY.bookSchema.safeParse({ type: "notes", id: "n1", title: "メモ" }).success).toBe(false)
+    const refused = perform(
+      library,
+      "book.create",
+      { title: "メモ", type: "notes" },
+      { registry: REGISTRY, lang: "ja", newId: () => "n1" },
+    )
+    expect(refused).toEqual({ ok: false, reason: "refused" })
+  })
+
+  test("store は渡した表を使う", () => {
+    const store = createAppStore({ registry: reg, newId: () => "n2" })
+    expect(store.registry).toBe(reg)
+    expect(store.actions.createBook("s1", { title: "メモ", type: "notes" })).toBe(true)
+    expect(store.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "notes", book: "n2" })
+    expect(createAppStore().actions.createBook("s1", { title: "メモ", type: "notes" })).toBe(false)
   })
 })

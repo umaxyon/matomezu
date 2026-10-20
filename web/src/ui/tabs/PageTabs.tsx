@@ -3,7 +3,7 @@
 import { addsFromTabs, hasPages } from "../../core/book"
 import { useCommand } from "../commands"
 import { useT } from "../i18n"
-import { useApp } from "../store-context"
+import { useApp, useRegistry } from "../store-context"
 import styles from "./PageTabs.module.css"
 
 export function PageTabs({ stage }: { stage: string }) {
@@ -11,6 +11,7 @@ export function PageTabs({ stage }: { stage: string }) {
   const book = useApp(s => (opened ? s.books[opened.book] : undefined))
   const openPage = useCommand(stage, "page.open")
   const newPage = useCommand(stage, "page.new")
+  const registry = useRegistry()
   const t = useT()
   if (!book || !hasPages(book)) return <div className={styles.tabs} />
   return (
@@ -27,7 +28,7 @@ export function PageTabs({ stage }: { stage: string }) {
           {p.title}
         </button>
       ))}
-      {addsFromTabs(book) && newPage.shown && (
+      {addsFromTabs(registry, book) && newPage.shown && (
         <button type="button" className={styles.add} aria-label={t("ページを足す")} onClick={() => newPage.run()}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3v10M3 8h10" />

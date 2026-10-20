@@ -64,7 +64,7 @@ test("マスターはカレントのステージで開き、ページは足せ�
 })
 
 test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
-  const { state, actions } = createAppStore(undefined, () => "made")
+  const { state, actions } = createAppStore({ newId: () => "made" })
   actions.split("s1")
   expect(actions.createBook("s2", { title: " ", type: "drawing" })).toBe(false)
   expect(actions.createBook("s2", { title: "新しい図", type: "drawing" })).toBe(true)

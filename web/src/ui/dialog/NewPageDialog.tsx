@@ -3,9 +3,9 @@
 import { useState } from "react"
 import { defaultPaper, hasPages, nextPageTitle, type PagedBook, paperChoices } from "../../core/book"
 import { ORIENTATION_TITLES, type Orientation } from "../../core/def/paper"
-import { type PaperChoice, paperDef } from "../../core/paper"
+import type { PaperChoice } from "../../core/paper"
 import { useT } from "../i18n"
-import { useActions, useApp } from "../store-context"
+import { useActions, useApp, useRegistry } from "../store-context"
 import { Dialog } from "./Dialog"
 import { controlClass, Field, Form } from "./FormParts"
 import type { DialogProps } from "./views"
@@ -28,9 +28,10 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
   const { addPage } = useActions()
   const lang = useApp(s => s.settings.lang)
   const t = useT()
-  const { papers, orientations } = paperChoices(book)
+  const registry = useRegistry()
+  const { papers, orientations } = paperChoices(registry, book)
   const [title, setTitle] = useState(() => nextPageTitle(book, lang))
-  const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(book))
+  const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(registry, book))
   return (
     <Form
       submit={t("作成")}
@@ -55,7 +56,7 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
             onChange={e => setChoice({ ...choice, paper: e.target.value })}
           >
             {papers.map(p => {
-              const def = paperDef(p)
+              const def = registry.papers.get(p)
               return (
                 <option key={p} value={p}>
                   {def ? t(def.title) : t("不明な紙")}

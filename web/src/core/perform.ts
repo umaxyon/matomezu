@@ -4,7 +4,7 @@ import type { z } from "zod"
 import type { ActionContext, ActionDef, Subjects } from "./def/action"
 import type { Library } from "./library"
 import { masterOf } from "./library"
-import { type ACTIONS, type ActionId, actionDef, bookType } from "./registry"
+import { type ACTIONS, type ActionId, bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 
 type ActionOf<Id extends ActionId> = Extract<(typeof ACTIONS)[number], { id: Id }>
@@ -18,13 +18,13 @@ export type Performed<Id extends ActionId> =
   | { ok: false; reason: Refusal }
 
 // ブックで使えるアクション（タイプの既定）
-export function actionsOf(book: Book): readonly string[] {
-  return bookType(book.type).actions.defaults
+export function actionsOf(reg: Registry, book: Book): readonly string[] {
+  return bookType(reg, book.type).actions.defaults
 }
 
-function allowed(action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
+function allowed(reg: Registry, action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
   const owner = action.target === "library" ? masterOf(subject as Library) : (subject as Book)
-  return owner !== undefined && actionsOf(owner).includes(action.id)
+  return owner !== undefined && actionsOf(reg, owner).includes(action.id)
 }
 
 export function perform<Id extends ActionId>(
@@ -33,9 +33,9 @@ export function perform<Id extends ActionId>(
   args: ArgsOf<Id>,
   ctx: ActionContext,
 ): Performed<Id> {
-  const action: ActionDef | undefined = actionDef(id)
+  const action: ActionDef | undefined = ctx.registry.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  if (!allowed(action, subject)) return { ok: false, reason: "not-allowed" }
+  if (!allowed(ctx.registry, action, subject)) return { ok: false, reason: "not-allowed" }
   const parsed = action.args.safeParse(args)
   if (!parsed.success) return { ok: false, reason: "bad-args" }
   const done = action.run(subject, parsed.data, ctx)

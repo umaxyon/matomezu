@@ -15,14 +15,14 @@ export const BOOK_NEW = defineCommand({
   id: "book.new",
   title: "新しいブック",
   run: (ctx, a) => a.openDialog(ctx.stage.id, "book.new"),
-  when: ctx => ctx.book !== null && actionsOf(ctx.book).includes("book.create"),
+  when: ctx => ctx.book !== null && actionsOf(ctx.registry, ctx.book).includes("book.create"),
 })
 
 export const PAGE_NEW = defineCommand({
   id: "page.new",
   title: "新しいページ",
   run: (ctx, a) => a.openDialog(ctx.stage.id, "page.new"),
-  when: ctx => ctx.book !== null && hasPages(ctx.book) && actionsOf(ctx.book).includes("page.add"),
+  when: ctx => ctx.book !== null && hasPages(ctx.book) && actionsOf(ctx.registry, ctx.book).includes("page.add"),
 })
 
 export const PAGE_OPEN = defineCommand({

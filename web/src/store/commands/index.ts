@@ -1,4 +1,5 @@
 // コマンドの表と、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
+import type { Registry } from "../../core/registry"
 import type { AppState } from "../store"
 import { BOOK_NEW, BOOK_OPEN, PAGE_NEW, PAGE_OPEN } from "./book"
 import type { CommandContext, CommandDef } from "./def"
@@ -28,20 +29,20 @@ const BY_ID = Object.fromEntries(COMMANDS.map(c => [c.id, c])) as Record<Command
 export const commandDef = (id: CommandId): CommandDef<never> => BY_ID[id]
 
 // そのステージから呼んだときの様子。ステージが無ければ null
-export function commandContext(state: AppState, stageId: string): CommandContext | null {
+export function commandContext(registry: Registry, state: AppState, stageId: string): CommandContext | null {
   const stage = state.workspace.stages.find(s => s.id === stageId)
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
-  return { stage, book, workspace: state.workspace, settings: state.settings }
+  return { registry, stage, book, workspace: state.workspace, settings: state.settings }
 }
 
-export function isShown(state: AppState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(state, stageId)
+export function isShown(registry: Registry, state: AppState, stageId: string, id: CommandId): boolean {
+  const ctx = commandContext(registry, state, stageId)
   return ctx !== null && commandDef(id).when(ctx)
 }
 
-export function isEnabled(state: AppState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(state, stageId)
+export function isEnabled(registry: Registry, state: AppState, stageId: string, id: CommandId): boolean {
+  const ctx = commandContext(registry, state, stageId)
   const def = commandDef(id)
   return ctx !== null && def.when(ctx) && (def.enabled?.(ctx) ?? true)
 }

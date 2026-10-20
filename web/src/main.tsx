@@ -10,7 +10,7 @@ import { App } from "./ui/App"
 import { StoreProvider } from "./ui/store-context"
 import "./ui/skin.css"
 
-const store = createAppStore(initialState(SAMPLE_BOOKS, detectLang(navigator.languages)))
+const store = createAppStore({ initial: initialState(SAMPLE_BOOKS, detectLang(navigator.languages)) })
 const root = document.getElementById("root")
 if (!root) fail("E202")
 
