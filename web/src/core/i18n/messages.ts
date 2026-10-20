@@ -1,5 +1,6 @@
 // 画面などに出す文言の表。鍵は日本語の文そのもので、ほかの言語の訳を持つ。{name} は t() に渡す値で置き換える
 export const MESSAGES = {
+  マスター: { en: "Master" },
   画面を分割: { en: "Split screen" },
   ブックを開く: { en: "Open book" },
   ページを足す: { en: "Add page" },

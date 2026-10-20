@@ -1,4 +1,4 @@
-// 見ているもの。画面の見える領域をステージ（stage.ts）に分け、ステージごとにブックのページを開く（何も開かないステージもある）。
+// 見ているもの。画面の見える領域をステージ（stage.ts）に分け、ステージごとにブックを開く（何も開かないステージもある）。
 // 道具箱・キー・タブなどの操作の宛先は、カレントのステージ。
 // ステージの並べ方は arrangement が持ち、ステージは自分の置き場所を知らない。
 // 操作はデータを書き換えず、新しい値を返す（変わらないステージは同じものを使い回す）
@@ -19,7 +19,11 @@ export interface Workspace {
 export const MAX_STAGES = 2
 
 export function newWorkspace(book: string, page: string): Workspace {
-  return { stages: [newStage("s1", { book, page })], current: "s1", arrangement: { direction: "row" } }
+  return {
+    stages: [newStage("s1", { type: "drawing", book, page })],
+    current: "s1",
+    arrangement: { direction: "row" },
+  }
 }
 
 export function currentStage(ws: Workspace): Stage {
@@ -61,7 +65,7 @@ export function focus(ws: Workspace, id: string): Workspace {
   return { ...ws, current: id }
 }
 
-// ステージに、同じブックのページを開く
+// ステージに、開いている図面のブックのページを開く
 export function showPage(ws: Workspace, stage: string, page: string): Workspace {
   return mapStage(ws, stage, s => openPage(s, page))
 }

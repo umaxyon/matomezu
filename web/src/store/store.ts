@@ -1,10 +1,10 @@
 // 画面の状態の store（1 つ）。状態を変えるのは、ここの名前付きの操作だけ。
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
 import { createStore, type StoreApi } from "zustand/vanilla"
-import { addPage } from "../core/book"
+import { addPage, MASTER_BOOK } from "../core/book"
 import type { Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
-import type { Book } from "../core/schema/book"
+import type { Book, DrawingBook } from "../core/schema/book"
 import { openBook, panBy, resize } from "../core/stage"
 import { focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
 import { SAMPLE_BOOKS } from "./sample-books"
@@ -24,9 +24,10 @@ export interface Actions {
   split(): void
   unsplit(): void
   focusStage(id: string): void
-  openBook(stage: string, book: string): void // そのステージでブックの最初のページを開き、カレントにする
+  openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
+  openMaster(): void // カレントのステージでマスターのブックを開く
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
-  addPage(stage: string): void // そのステージのブックに足して、そのステージで開き、カレントにする
+  addPage(stage: string): void // そのステージの図面のブックに足して、そのステージで開き、カレントにする
   setLang(lang: Lang): void
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
@@ -39,11 +40,12 @@ export interface AppStore {
   actions: Actions
 }
 
-export function initialState(books: readonly Book[] = SAMPLE_BOOKS, lang: Lang = "ja"): AppState {
+// 最初の図面のブックを開いた状態。マスターのブックはいつもある
+export function initialState(books: readonly DrawingBook[] = SAMPLE_BOOKS, lang: Lang = "ja"): AppState {
   const first = books[0]
   if (!first?.pages[0]) throw new Error("no book to open")
   return {
-    books: Object.fromEntries(books.map(b => [b.id, b])),
+    books: Object.fromEntries([MASTER_BOOK, ...books].map(b => [b.id, b])),
     workspace: newWorkspace(first.id, first.pages[0].id),
     settings: { lang },
   }
@@ -65,12 +67,13 @@ export function createAppStore(initial: AppState = initialState()): AppStore {
       const book = getState().books[bookId]
       if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(s, book)))
     },
+    openMaster: () => withWorkspace(ws => mapStage(ws, ws.current, s => openBook(s, MASTER_BOOK))),
     openPage: (stage, page) => withWorkspace(ws => showPage(focus(ws, stage), stage, page)),
     addPage: stageId => {
       const { books, workspace, settings } = getState()
       const stage = workspace.stages.find(s => s.id === stageId)
       const owner = stage?.opened && books[stage.opened.book]
-      if (!owner) return
+      if (owner?.type !== "drawing") return
       const { book, page } = addPage(owner, settings.lang)
       setState({
         books: { ...books, [book.id]: book },

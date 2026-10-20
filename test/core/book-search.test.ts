@@ -1,10 +1,22 @@
 import { expect, test } from "bun:test"
+import { MASTER_BOOK } from "../../web/src/core/book"
 import { searchBooks } from "../../web/src/core/book-search"
 
-const book = (id: string, title: string) => ({ id, title, pages: [{ id: "p1", title: "ページ 1" }] })
-const books = [book("a", "画面の構成"), book("b", "API の一覧"), book("c", "Design Notes"), book("d", "画面の一覧")]
+const book = (id: string, title: string) => ({
+  type: "drawing" as const,
+  id,
+  title,
+  pages: [{ id: "p1", title: "ページ 1" }],
+})
+const books = [
+  MASTER_BOOK,
+  book("a", "画面の構成"),
+  book("b", "API の一覧"),
+  book("c", "Design Notes"),
+  book("d", "画面の一覧"),
+]
 
-test("言葉が無ければ全部を、並びを変えずに返す", () => {
+test("言葉が無ければ図面のブックを全部、並びを変えずに返す（マスターは探さない）", () => {
   expect(searchBooks(books, "  ").map(b => b.id)).toEqual(["a", "b", "c", "d"])
 })
 

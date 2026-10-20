@@ -1,0 +1,15 @@
+.master {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 24px 32px;
+  background: var(--skin-bg);
+  cursor: default;
+  user-select: text;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--skin-text);
+}

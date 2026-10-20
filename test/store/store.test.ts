@@ -8,8 +8,8 @@ test("ページを足すと、そのステージのブックに入り、その�
   actions.openBook("s2", "b1")
   actions.addPage("s2")
   const s = state.getState()
-  expect(s.books.b1!.pages.map(p => p.id)).toEqual(["p1", "p2"])
-  expect(s.workspace.stages.map(st => st.opened?.page)).toEqual(["p1", "p2"])
+  expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "p2" }] })
+  expect(s.workspace.stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "p2" }])
   expect(currentStage(s.workspace).id).toBe("s2")
 })
 
@@ -21,7 +21,7 @@ test("ページを開くのは指定したステージで、そのステージ�
   actions.openPage("s2", "p1")
   actions.openPage("s1", "p2")
   const ws = state.getState().workspace
-  expect(ws.stages.map(st => st.opened?.page)).toEqual(["p2", "p1"])
+  expect(ws.stages.map(st => st.opened)).toMatchObject([{ page: "p2" }, { page: "p1" }])
   expect(currentStage(ws).id).toBe("s1")
 })
 
@@ -31,7 +31,7 @@ test("分けたステージは何も開いておらず、ブックを開くと�
   expect(state.getState().workspace.stages[1]!.opened).toBeNull()
   actions.openBook("s2", "b3")
   const ws = state.getState().workspace
-  expect(ws.stages[1]!.opened).toEqual({ book: "b3", page: "p1" })
+  expect(ws.stages[1]!.opened).toEqual({ type: "drawing", book: "b3", page: "p1" })
   expect(ws.current).toBe("s2")
 })
 
@@ -50,4 +50,15 @@ test("store が持つずらす量は、表示領域の大きさで範囲に収�
   actions.resizeStage("s1", { w: 400, h: 300 })
   actions.panStageBy("s1", 500, 500)
   expect(state.getState().workspace.stages[0]!.pan).toEqual({ x: 0, y: 0 })
+})
+
+test("マスターはカレントのステージで開き、ページは足せない", () => {
+  const { state, actions } = createAppStore()
+  actions.split()
+  actions.focusStage("s2")
+  actions.openMaster()
+  const s = state.getState()
+  expect(s.workspace.stages.map(st => st.opened?.type)).toEqual(["drawing", "master"])
+  actions.addPage("s2")
+  expect(state.getState()).toBe(s)
 })

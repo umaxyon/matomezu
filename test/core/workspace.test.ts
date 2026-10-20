@@ -37,7 +37,7 @@ describe("workspace", () => {
   test("ページを開くのも、ずらすのも、そのステージだけが変わり、ほかは同じものを使い回す", () => {
     const two = split(ws)
     const opened = showPage(two, "s1", "p2")
-    expect(currentStage(opened).opened?.page).toBe("p2")
+    expect(currentStage(opened).opened).toMatchObject({ page: "p2" })
     expect(opened.stages[1]).toBe(two.stages[1]!)
     const panned = mapStage(two, "s1", s => panBy(s, -10, -20))
     expect(panned.stages[0]!.pan).toEqual({ x: -10, y: -20 })

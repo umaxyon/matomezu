@@ -62,6 +62,19 @@ test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ 
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "まとめ図の構想")
 })
 
+test("マスターのボタンで、カレントのステージがマスターの画面になり、ブックを開くと紙に戻る", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "マスター" }).click()
+  await expect(page.getByRole("region", { name: "マスター" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(0)
+  await expect(page.getByRole("tablist")).toHaveCount(0)
+  await page.getByRole("button", { name: "ブックを開く" }).click()
+  await page.keyboard.type("残課題")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
+  await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "残課題")
+})
+
 test("ドラッグで紙がずれ、ずらせるのは紙の周りの余白までで止まる", async ({ page }) => {
   await page.goto("/")
   const paper = page.getByRole("img", { name: "紙" })

@@ -1,15 +1,17 @@
-/* ステージ: 点の格子の上に紙を置く。マウスは手のひら（ドラッグで紙をずらす） */
 .stage {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background-image: radial-gradient(var(--skin-grid) 1px, transparent 1px);
-  background-size: 22px 22px;
-  cursor: grab;
   touch-action: none;
   user-select: none;
 }
-.stage[data-dragging="true"] {
+/* 紙があるとき: 点の格子の上に紙を置く。マウスは手のひら（ドラッグで紙をずらす） */
+.stage[data-paper="true"] {
+  background-image: radial-gradient(var(--skin-grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  cursor: grab;
+}
+.stage[data-paper="true"][data-dragging="true"] {
   cursor: grabbing;
 }
 /* ステージが 2 つ以上あるとき、カレントのステージを内側の枠で示す（紙より手前の層に描く） */

@@ -1,9 +1,12 @@
 // ブックの操作（データを書き換えず、新しい値を返す）
 import { type Lang, translate } from "./i18n/i18n"
 import { nextNumber } from "./ids"
-import type { Book, Page } from "./schema/book"
+import type { DrawingBook, MasterBook, Page } from "./schema/book"
 
-export function addPage(book: Book, lang: Lang): { book: Book; page: Page } {
+// マスターのブックは 1 冊だけ
+export const MASTER_BOOK: MasterBook = { type: "master", id: "master" }
+
+export function addPage(book: DrawingBook, lang: Lang): { book: DrawingBook; page: Page } {
   const n = nextNumber(
     "p",
     book.pages.map(p => p.id),

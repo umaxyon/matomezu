@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test"
+import { MASTER_BOOK } from "../../web/src/core/book"
 import { newStage, openBook, openPage, panBy, paperOf, placement, resize } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
 
 describe("stage", () => {
-  const stage = newStage("s1", { book: "b1", page: "p1" })
+  const stage = newStage("s1", { type: "drawing", book: "b1", page: "p1" })
   const content = contentSize(paperOf(stage)!, 1)
   const small = { w: 400, h: 300 } // 中身が収まらない表示領域
 
@@ -32,7 +33,10 @@ describe("stage", () => {
 
   test("ページを開くと、ずらす量は最初の位置に戻る", () => {
     const s = panBy(resize(stage, small), -200, -100)
-    expect(openPage(s, "p2")).toMatchObject({ opened: { book: "b1", page: "p2" }, pan: { x: 0, y: 0 } })
+    expect(openPage(s, "p2")).toMatchObject({
+      opened: { type: "drawing", book: "b1", page: "p2" },
+      pan: { x: 0, y: 0 },
+    })
   })
 
   test("紙は、ずらす量から余白の分だけ内側に置く", () => {
@@ -50,6 +54,7 @@ describe("stage", () => {
 
   test("ブックを開くと、最初のページを開き、ずらす量は範囲に収めた最初の位置", () => {
     const book = {
+      type: "drawing" as const,
       id: "b9",
       title: "見本",
       pages: [
@@ -58,7 +63,18 @@ describe("stage", () => {
       ],
     }
     const opened = openBook(resize(newStage("s2"), small), book)
-    expect(opened.opened).toEqual({ book: "b9", page: "p4" })
+    expect(opened.opened).toEqual({ type: "drawing", book: "b9", page: "p4" })
     expect(opened.pan).toEqual({ x: 0, y: 0 })
+  })
+
+  test("マスターのブックを開くと、紙が無く、ずらせず、ページも開けない。もう一度開いても同じ値", () => {
+    const master = openBook(panBy(resize(stage, small), -30, -40), MASTER_BOOK)
+    expect(master.opened).toEqual({ type: "master", book: "master" })
+    expect(master.pan).toEqual({ x: 0, y: 0 })
+    expect(paperOf(master)).toBeNull()
+    expect(placement(master)).toBeNull()
+    expect(panBy(master, -10, -10)).toBe(master)
+    expect(openPage(master, "p1")).toBe(master)
+    expect(openBook(master, MASTER_BOOK)).toBe(master)
   })
 })

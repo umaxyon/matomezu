@@ -1,9 +1,11 @@
-// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に紙を描く。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
+// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを描く。図面は紙を置き、マスターはマスターの画面を出す。
+// 何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
 // 測った大きさと、ドラッグ・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { memo, type PointerEvent, useRef, useState, type WheelEvent } from "react"
 import { placement } from "../../core/stage"
 import { BookSearch } from "../book-search/BookSearch"
 import { useT } from "../i18n"
+import { MasterView } from "../master/MasterView"
 import { useActions, useApp } from "../store-context"
 import styles from "./StageView.module.css"
 import { useResize } from "./use-resize"
@@ -26,10 +28,11 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
   const [dragging, setDragging] = useState(false)
   useResize(ref, view => resizeStage(id, view))
   if (!stage) return null
+  const p = placement(stage)
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
-    if (e.button !== 0 || !stage.opened) return
+    if (e.button !== 0 || !p) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY }
     setDragging(true)
@@ -52,7 +55,6 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
     panStageBy(id, -dx, -dy)
   }
 
-  const p = placement(stage)
   return (
     <section
       ref={ref}
@@ -60,6 +62,7 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
       aria-label={t("ステージ")}
       data-current={isCurrent}
       data-multi={isMulti}
+      data-paper={p !== null}
       data-dragging={dragging}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -67,7 +70,9 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
       onPointerCancel={endDrag}
       onWheel={onWheel}
     >
-      {p ? (
+      {stage.opened?.type === "master" ? (
+        <MasterView />
+      ) : p ? (
         <div
           className={styles.paper}
           role="img"

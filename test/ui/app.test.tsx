@@ -116,3 +116,14 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
   expect(screen.getByText("Select a book")).toBeTruthy()
   expect(document.documentElement.lang).toBe("en")
 })
+
+test("左上のマスターのボタンで、カレントのステージにマスターの画面が出る。紙もページのタブも無い", () => {
+  renderApp()
+  const button = screen.getByRole("button", { name: "マスター" })
+  expect(button.getAttribute("aria-pressed")).toBe("false")
+  fireEvent.click(button)
+  expect(within(stages()[0]!).getByRole("region", { name: "マスター" })).toBeTruthy()
+  expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
+  expect(screen.queryByRole("tablist")).toBeNull()
+  expect(button.getAttribute("aria-pressed")).toBe("true")
+})
