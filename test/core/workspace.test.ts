@@ -53,6 +53,12 @@ describe("workspace", () => {
     expect(close(focus(two, "s1"), "s1").current).toBe("s2")
   })
 
+  test("ステージの id は使い回さない。閉じたあとに分けても、新しい番号を振る", () => {
+    const reopened = split(close(split(ws), "s1"))
+    expect(reopened.stages.map(s => s.id)).toEqual(["s2", "s3"])
+    expect(split(close(reopened, "s3")).stages.map(s => s.id)).toEqual(["s2", "s4"])
+  })
+
   test("変わらない操作は同じ値を返す", () => {
     expect(close(ws, "s1")).toBe(ws)
     expect(close(split(ws), "nope").stages).toHaveLength(2)
