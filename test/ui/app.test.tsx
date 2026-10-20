@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { StrictMode } from "react"
 import { BUILTIN_UI } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
@@ -209,4 +210,19 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
   const store = renderApp({ books: [book] })
   expect(within(screen.getByRole("img", { name: "紙" })).getByText("不明な紙")).toBeTruthy()
   expect(store.state.getState().books.x).toEqual(book)
+})
+
+test("StrictMode で描いても、開いたダイアログは閉じない", async () => {
+  const store = createMatomezu({ books: SAMPLE_BOOKS, plugins: BUILTIN_UI })
+  render(
+    <StrictMode>
+      <MatomezuProvider app={store}>
+        <App />
+      </MatomezuProvider>
+    </StrictMode>,
+  )
+  fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  await new Promise(r => setTimeout(r, 50))
+  expect(store.state.getState().dialog).toMatchObject({ id: "page.new" })
+  expect(screen.getByRole("dialog", { name: "新しいページ" })).toBeTruthy()
 })

@@ -4,18 +4,27 @@ import styles from "./Dialog.module.css"
 
 export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const unmounting = useRef(false) // 描くのをやめるときに自分で閉じている間
   useLayoutEffect(() => {
     const d = ref.current
     if (!d) return
+    unmounting.current = false
     if (!d.open) d.showModal()
-    return () => d.close()
+    return () => {
+      unmounting.current = true
+      d.close()
+    }
   }, [])
   return (
     <dialog
       ref={ref}
       className={styles.dialog}
       aria-label={title}
-      onClose={onClose}
+      // 自分で閉じたときの知らせは、閉じたことにしない。知らせはすぐ届くことも後から届くこともあり、
+      // 後から届いたときにもう開き直していれば（StrictMode が描き直したときなど）それも閉じたことにしない
+      onClose={e => {
+        if (!unmounting.current && !e.currentTarget.open) onClose()
+      }}
       onClick={e => {
         if (e.target === e.currentTarget) onClose()
       }}

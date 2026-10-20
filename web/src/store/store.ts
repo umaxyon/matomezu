@@ -62,7 +62,7 @@ export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> exte
 }
 
 // 最初のブック（無ければマスター）を開いた状態。マスターのブックはいつもある
-export function initialState(registry: Registry, books: readonly Book[], lang: Lang): AppState {
+function initialState(registry: Registry, books: readonly Book[], lang: Lang): AppState {
   const first = books[0] ?? MASTER_BOOK
   return {
     books: Object.fromEntries([MASTER_BOOK, ...books].map(b => [b.id, b])),
