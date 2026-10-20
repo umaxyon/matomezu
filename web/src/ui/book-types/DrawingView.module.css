@@ -36,3 +36,23 @@
   font-weight: 600;
   cursor: pointer;
 }
+/* 表に無い紙の印（紙の左上） */
+.unknown {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--theme-accent);
+  color: var(--theme-paper);
+  font-size: 12px;
+}
+.error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  color: var(--skin-hint);
+  font-size: 14px;
+}

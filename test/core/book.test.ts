@@ -8,7 +8,8 @@ import {
   paperChoices,
 } from "../../web/src/core/book"
 import { createBook } from "../../web/src/core/book-types"
-import { PAPER_NAMES } from "../../web/src/core/paper"
+import { resolvePaper } from "../../web/src/core/paper"
+import { PAPER_IDS } from "../../web/src/core/papers"
 import { BookSchema } from "../../web/src/core/schema/book"
 
 const book = {
@@ -16,14 +17,14 @@ const book = {
   id: "b1",
   title: "ブック",
   pages: [
-    { id: "p1", title: "ページ 1", paper: "a4-landscape" as const },
-    { id: "p3", title: "ページ 3", paper: "a3-portrait" as const },
+    { id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" as const },
+    { id: "p3", title: "ページ 3", paper: "a3", orientation: "portrait" as const },
   ],
 }
 
 test("ページを足すと、使っていない一番小さい番号の id で、決めた名前と紙のページになる", () => {
-  const { book: next, page } = addPage(book, { title: "表紙", paper: "a5-portrait" })
-  expect(page).toEqual({ id: "p2", title: "表紙", paper: "a5-portrait" })
+  const { book: next, page } = addPage(book, { title: "表紙", paper: "a5", orientation: "portrait" })
+  expect(page).toEqual({ id: "p2", title: "表紙", paper: "a5", orientation: "portrait" })
   expect(next.pages.map(p => p.id)).toEqual(["p1", "p3", "p2"])
   expect(book.pages).toHaveLength(2)
 })
@@ -36,18 +37,22 @@ test("作ったブックは、そのタイプの形の空のブック", () => {
 
 describe("紙の規定（図面はページごとに選べる）", () => {
   test("どのページでも、規定の紙を全部選べ、既定は A4 横", () => {
-    expect(paperChoices(book)).toEqual(PAPER_NAMES)
-    expect(defaultPaper({ ...book, pages: [] })).toBe("a4-landscape")
+    expect(paperChoices(book)).toEqual({ papers: PAPER_IDS, orientations: ["portrait", "landscape"] })
+    expect(defaultPaper({ ...book, pages: [] })).toEqual({ paper: "a4", orientation: "landscape" })
   })
 
   test("1 冊の紙をそろえる規定では、最初のページは規定から選び、後のページは最初のページの紙だけ", () => {
     const rule = {
-      allowed: ["a4-landscape", "a3-landscape"] as const,
-      default: "a4-landscape" as const,
+      allowed: ["a4", "a3"],
+      default: "a4",
+      orientation: "landscape" as const,
       perPage: false,
     }
-    expect(choosablePapers(rule, [])).toEqual(["a4-landscape", "a3-landscape"])
-    expect(choosablePapers(rule, [{ id: "p1", title: "1", paper: "a3-landscape" }])).toEqual(["a3-landscape"])
+    expect(choosablePapers(rule, [])).toEqual({ papers: ["a4", "a3"], orientations: ["portrait", "landscape"] })
+    expect(choosablePapers(rule, [{ id: "p1", title: "1", paper: "a3", orientation: "portrait" }])).toEqual({
+      papers: ["a3"],
+      orientations: ["portrait"],
+    })
   })
 
   test("図面は、タブの横でページを足せる。マスターはページを持たない", () => {
@@ -61,14 +66,36 @@ test("ブックの形に無い項目は誤り。形はタイプで決まる", ()
     type: "drawing",
     id: "b1",
     title: "ブック",
-    pages: [{ id: "p1", title: "ページ 1", paper: "a4-landscape" }],
+    pages: [{ id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" }],
   }
   expect(BookSchema.safeParse(ok).success).toBe(true)
   expect(BookSchema.safeParse({ ...ok, extra: 1 }).success).toBe(false)
   expect(BookSchema.safeParse({ ...ok, pages: [] }).success).toBe(true)
   expect(BookSchema.safeParse({ ...ok, pages: [{ id: "p1", title: "ページ 1" }] }).success).toBe(false)
-  expect(BookSchema.safeParse({ ...ok, pages: [{ id: "p1", title: "ページ 1", paper: "b5" }] }).success).toBe(false)
+  // 表に無い紙の id も受け取る（描き方は resolvePaper）。向きは決まった値だけ
+  expect(BookSchema.safeParse({ ...ok, pages: [{ ...ok.pages[0], paper: "b5" }] }).success).toBe(true)
+  expect(BookSchema.safeParse({ ...ok, pages: [{ ...ok.pages[0], orientation: "up" }] }).success).toBe(false)
   expect(BookSchema.safeParse({ id: "b1", title: "ブック", pages: ok.pages }).success).toBe(false)
   expect(BookSchema.safeParse({ type: "master", id: "master" }).success).toBe(true)
   expect(BookSchema.safeParse({ type: "master", id: "master", pages: ok.pages }).success).toBe(false)
+})
+
+describe("ページの紙を描く大きさ", () => {
+  test("表にある紙は、その大きさを向きに合わせて描く", () => {
+    expect(resolvePaper({ paper: "a4", orientation: "landscape" })).toEqual({
+      status: "known",
+      size: { w: 1123, h: 794 },
+    })
+    expect(resolvePaper({ paper: "a4", orientation: "portrait" })).toEqual({
+      status: "known",
+      size: { w: 794, h: 1123 },
+    })
+  })
+
+  test("表に無い紙は、表で一番大きい紙で描いて不明とする。中身が入らなければ描けない", () => {
+    const unknown = { paper: "b5", orientation: "landscape" as const }
+    expect(resolvePaper(unknown)).toEqual({ status: "unknown", size: { w: 1587, h: 1123 } })
+    expect(resolvePaper(unknown, { w: 1500, h: 1000 })).toEqual({ status: "unknown", size: { w: 1587, h: 1123 } })
+    expect(resolvePaper(unknown, { w: 2000, h: 1000 })).toEqual({ status: "unshowable" })
+  })
 })

@@ -5,7 +5,7 @@
 
 import { hasPages, type PagedBook } from "./book"
 import type { Point, Size } from "./geom"
-import { PAPERS, type PaperName } from "./paper"
+import { type ResolvedPaper, resolvePaper } from "./paper"
 import type { BookTypeId } from "./registry"
 import type { Book } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
@@ -15,7 +15,7 @@ export interface Opened {
   type: BookTypeId
   book: string // ブックの id
   page: string | null // 開いているページの id（ページを持たないタイプと、ページが無いブックは null）
-  paper: PaperName | null // 開いているページの紙（ページを開いていなければ null）
+  paper: ResolvedPaper | null // 開いているページの描く紙（ページを開いていなければ null）
 }
 
 export interface Stage {
@@ -41,10 +41,10 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
   return { id, opened, zoom: 1, pan: HOME, view: null }
 }
 
-// ステージに出す紙（ページを開いていなければ null）
+// ステージに出す紙の大きさ（ページを開いていないか、描けない紙なら null）
 export function paperOf(stage: Stage): Size | null {
   const paper = stage.opened?.paper
-  return paper ? { w: PAPERS[paper].w, h: PAPERS[paper].h } : null
+  return paper && paper.status !== "unshowable" ? paper.size : null
 }
 
 // ずらす量を pan にして、範囲に収める
@@ -73,7 +73,7 @@ export function openBook(stage: Stage, book: Book): Stage {
     return settle({ ...stage, opened: { type: book.type, book: book.id, page: null, paper: null } }, HOME)
   }
   const first = book.pages[0]
-  const opened = { type: book.type, book: book.id, page: first?.id ?? null, paper: first?.paper ?? null }
+  const opened = { type: book.type, book: book.id, page: first?.id ?? null, paper: first ? resolvePaper(first) : null }
   return settle({ ...stage, opened }, HOME)
 }
 
@@ -82,7 +82,7 @@ export function openPage(stage: Stage, book: PagedBook, page: string): Stage {
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found || o.page === page) return stage
-  return settle({ ...stage, opened: { ...o, page, paper: found.paper } }, HOME)
+  return settle({ ...stage, opened: { ...o, page, paper: resolvePaper(found) } }, HOME)
 }
 
 // 紙の置き場所（何も開いていなければ null）

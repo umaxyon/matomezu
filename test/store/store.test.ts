@@ -31,7 +31,7 @@ test("分けたステージは何も開いておらず、ブックを開くと�
   expect(state.getState().workspace.stages[1]!.opened).toBeNull()
   actions.openBook("s2", "b3")
   const ws = state.getState().workspace
-  expect(ws.stages[1]!.opened).toEqual({ type: "drawing", book: "b3", page: "p1", paper: "a4-landscape" })
+  expect(ws.stages[1]!.opened).toMatchObject({ type: "drawing", book: "b3", page: "p1", paper: { status: "known" } })
   expect(ws.current).toBe("s2")
 })
 
@@ -72,8 +72,11 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
   expect(s.books.made).toEqual({ type: "drawing", id: "made", title: "新しい図", pages: [] })
   expect(s.workspace.stages[1]!.opened).toEqual({ type: "drawing", book: "made", page: null, paper: null })
   expect(s.workspace.current).toBe("s2")
-  actions.addPage("s2", { title: "最初", paper: "a3-portrait" })
-  expect(state.getState().workspace.stages[1]!.opened).toMatchObject({ page: "p1", paper: "a3-portrait" })
+  actions.addPage("s2", { title: "最初", paper: "a3", orientation: "portrait" })
+  expect(state.getState().workspace.stages[1]!.opened).toMatchObject({
+    page: "p1",
+    paper: { size: { w: 1123, h: 1587 } },
+  })
 })
 
 test("言語とスキンの設定を変える。同じ値なら知らせない", () => {

@@ -16,5 +16,5 @@ export const SAMPLE_BOOKS: BookOf<"drawing">[] = TITLES.map((title, i) => ({
   type: "drawing",
   id: `b${i + 1}`,
   title,
-  pages: [{ id: "p1", title: "ページ 1", paper: "a4-landscape" }],
+  pages: [{ id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" }],
 }))

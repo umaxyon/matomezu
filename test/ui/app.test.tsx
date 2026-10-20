@@ -106,11 +106,12 @@ test("＋でページを作るダイアログが開き、名前と紙を決め�
   const dialog = screen.getByRole("dialog", { name: "新しいページ" })
   const name = within(dialog).getByLabelText("ページの名前") as HTMLInputElement
   expect(name.value).toBe("ページ 2")
-  expect((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).value).toBe("a4-landscape")
+  expect((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).value).toBe("a4")
+  expect((within(dialog).getByLabelText("向き") as HTMLSelectElement).value).toBe("landscape")
   fireEvent.change(name, { target: { value: "  " } })
   expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
   fireEvent.change(name, { target: { value: "裏表紙" } })
-  fireEvent.change(within(dialog).getByLabelText("紙のサイズ"), { target: { value: "a5-portrait" } })
+  fireEvent.change(within(dialog).getByLabelText("紙のサイズ"), { target: { value: "a5" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
   const tabs = screen.getAllByRole("tab")
   expect(tabs.map(t => t.textContent)).toEqual(["ページ 1", "裏表紙"])
@@ -199,4 +200,21 @@ test("マスターの設定で言語とスキンを変える", () => {
   expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy()
   fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "light" } })
   expect(document.documentElement.dataset.skin).toBe("light")
+})
+
+test("表に無い紙のページは、代わりの紙に「不明な紙」と示して描き、データの紙の id は残す", () => {
+  const book = {
+    type: "drawing" as const,
+    id: "x",
+    title: "外した紙",
+    pages: [{ id: "p1", title: "ページ 1", paper: "b5", orientation: "portrait" as const }],
+  }
+  const store = createAppStore(initialState([book]))
+  render(
+    <StoreProvider store={store}>
+      <App />
+    </StoreProvider>,
+  )
+  expect(within(screen.getByRole("img", { name: "紙" })).getByText("不明な紙")).toBeTruthy()
+  expect(store.state.getState().books.x).toEqual(book)
 })

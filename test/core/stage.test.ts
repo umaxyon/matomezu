@@ -9,8 +9,8 @@ describe("stage", () => {
     id: "b1",
     title: "見本",
     pages: [
-      { id: "p1", title: "ページ 1", paper: "a4-landscape" as const },
-      { id: "p2", title: "ページ 2", paper: "a5-portrait" as const },
+      { id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" as const },
+      { id: "p2", title: "ページ 2", paper: "a5", orientation: "portrait" as const },
     ],
   }
   const stage = openBook(newStage("s1"), paged)
@@ -45,7 +45,7 @@ describe("stage", () => {
     const s = panBy(resize(stage, small), -200, -100)
     const next = openPage(s, paged, "p2")
     expect(next).toMatchObject({
-      opened: { type: "drawing", book: "b1", page: "p2", paper: "a5-portrait" },
+      opened: { type: "drawing", book: "b1", page: "p2", paper: { status: "known", size: { w: 559, h: 794 } } },
       pan: { x: 0, y: 0 },
     })
     expect(paperOf(next)).toMatchObject({ w: 559, h: 794 })
@@ -70,12 +70,17 @@ describe("stage", () => {
       id: "b9",
       title: "見本",
       pages: [
-        { id: "p4", title: "ページ 4", paper: "a4-landscape" as const },
-        { id: "p5", title: "ページ 5", paper: "a4-landscape" as const },
+        { id: "p4", title: "ページ 4", paper: "a4", orientation: "landscape" as const },
+        { id: "p5", title: "ページ 5", paper: "a4", orientation: "landscape" as const },
       ],
     }
     const opened = openBook(resize(newStage("s2"), small), book)
-    expect(opened.opened).toEqual({ type: "drawing", book: "b9", page: "p4", paper: "a4-landscape" })
+    expect(opened.opened).toEqual({
+      type: "drawing",
+      book: "b9",
+      page: "p4",
+      paper: { status: "known", size: { w: 1123, h: 794 } },
+    })
     expect(opened.pan).toEqual({ x: 0, y: 0 })
   })
 

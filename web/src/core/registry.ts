@@ -1,4 +1,4 @@
-// 登録表: ブックのタイプ・アイテム・アクション・テーマの正本。足すときは、定義のファイルを作ってここの表に 1 行足す（ブックのタイプは book-types/index.ts）。
+// 登録表: ブックのタイプ・アイテム・アクション・テーマ・紙の正本。足すときは、定義のファイルを作ってここの表に 1 行足す（ブックのタイプは book-types/index.ts、紙は papers/index.ts）。
 // 表どうしの参照（ブックのタイプが使うアイテムなど）が実在するかは checkRegistry が確かめる
 
 import type { z } from "zod"
@@ -8,11 +8,13 @@ import { BOOK_TYPES } from "./book-types"
 import type { ActionDef } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
+import type { PaperDef } from "./def/paper"
 import { THEME_TOKENS, type ThemeDef } from "./def/theme"
 import { BOX } from "./items/box"
+import { PAPERS } from "./papers"
 import { STANDARD } from "./themes/standard"
 
-export { BOOK_TYPES }
+export { BOOK_TYPES, PAPERS }
 export const ITEMS = [BOX] as const satisfies readonly ItemDef[]
 export const ACTIONS = [PAGE_ADD, BOOK_CREATE] as const satisfies readonly ActionDef[]
 export const THEMES = [STANDARD] as const satisfies readonly ThemeDef[]
@@ -30,6 +32,7 @@ const bookTypes = byId<BookTypeDef>(BOOK_TYPES)
 const items = byId<ItemDef>(ITEMS)
 const actions = byId<ActionDef>(ACTIONS)
 const themes = byId<ThemeDef>(THEMES)
+const papers = byId<PaperDef>(PAPERS)
 
 export function bookType(id: BookTypeId): BookTypeDef {
   const def = bookTypes.get(id)
@@ -45,7 +48,7 @@ export const themeDef = (id: string): ThemeDef | undefined => themes.get(id)
 // 登録表の食い違いを、直す所が分かる文で返す（無ければ空）
 export function checkRegistry(): string[] {
   const problems: string[] = []
-  const tables = { bookType: BOOK_TYPES, item: ITEMS, action: ACTIONS, theme: THEMES }
+  const tables = { bookType: BOOK_TYPES, item: ITEMS, action: ACTIONS, theme: THEMES, paper: PAPERS }
   for (const [name, defs] of Object.entries(tables)) {
     const seen = new Set<string>()
     for (const d of defs as readonly { id: string }[]) {
@@ -61,8 +64,11 @@ export function checkRegistry(): string[] {
       problems.push(`${where}: schema.type must be the literal "${t.id}"`)
     if ((t.pages !== null) !== "pages" in t.schema.shape)
       problems.push(`${where}: pages must match whether schema has pages`)
-    if (t.pages && !t.pages.paper.allowed.includes(t.pages.paper.default))
-      problems.push(`${where}: default paper ${t.pages.paper.default} is not allowed`)
+    if (t.pages) {
+      const rule = t.pages.paper
+      for (const id of rule.allowed) if (!papers.has(id)) problems.push(`${where}: unknown paper ${id}`)
+      if (!rule.allowed.includes(rule.default)) problems.push(`${where}: default paper ${rule.default} is not allowed`)
+    }
     if (t.pages?.addFromTabs && !t.actions.defaults.includes("page.add"))
       problems.push(`${where}: addFromTabs needs page.add in the default actions`)
     if (!t.single && !t.schema.safeParse(t.create({ id: "check", title: "check" })).success)
@@ -88,5 +94,7 @@ export function checkRegistry(): string[] {
   for (const th of THEMES as readonly ThemeDef[])
     for (const id of Object.keys(th.tokens ?? {}))
       if (!declared.has(id)) problems.push(`theme ${th.id}: token ${id} is not declared by any item or book type`)
+  for (const p of PAPERS as readonly PaperDef[])
+    if (p.size.w > p.size.h) problems.push(`paper ${p.id}: size must be portrait (w <= h)`)
   return problems
 }

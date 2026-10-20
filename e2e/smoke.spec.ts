@@ -129,7 +129,7 @@ test("＋で開くダイアログでページを作るとタブが増え、そ�
   await page.getByRole("button", { name: "ページを足す" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいページ" })
   await expect(dialog.getByLabel("ページの名前")).toBeFocused()
-  await dialog.getByLabel("紙のサイズ").selectOption("a4-portrait")
+  await dialog.getByLabel("向き").selectOption("portrait")
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()
   await expect(page.getByRole("tab")).toHaveText(["ページ 1", "ページ 2"])
@@ -208,7 +208,9 @@ test("名前の欄にマウスを乗せるとメニューがせり上がり、�
   expect(footer.width).toBe(120)
 })
 
-test("分割すると、ツールボックスの無いステージでも右上に閉じるボタンがある。画面は縦にはみ出さない", async ({ page }) => {
+test("分割すると、ツールボックスの無いステージでも右上に閉じるボタンがある。画面は縦にはみ出さない", async ({
+  page,
+}) => {
   await page.goto("/")
   await (await fromMenu(page, "画面を分割")).click()
   // 何も開いていないステージの名前の欄は空。空でも下の行からはみ出さない

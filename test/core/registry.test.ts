@@ -31,16 +31,20 @@ describe("アクションを行う", () => {
   const library = { [MASTER_BOOK.id]: MASTER_BOOK, [book.id]: book }
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
-    const done = perform(book, "page.add", { title: " 表紙 ", paper: "a3-portrait" }, ctx)
+    const done = perform(book, "page.add", { title: " 表紙 ", paper: "a3", orientation: "portrait" }, ctx)
     expect(done).toMatchObject({ ok: true, result: { page: "p2" } })
     expect(done.ok && "pages" in done.next && done.next.pages.at(-1)).toEqual({
       id: "p2",
       title: "表紙",
-      paper: "a3-portrait",
+      paper: "a3",
+      orientation: "portrait",
     })
     // 紙を決めなければ、規定の既定
     const plain = perform(book, "page.add", { title: "次" }, ctx)
-    expect(plain.ok && "pages" in plain.next && plain.next.pages.at(-1)?.paper).toBe("a4-landscape")
+    expect(plain.ok && "pages" in plain.next && plain.next.pages.at(-1)).toMatchObject({
+      paper: "a4",
+      orientation: "landscape",
+    })
   })
 
   test("名前が空のページとブックは断る", () => {

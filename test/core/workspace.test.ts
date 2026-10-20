@@ -18,8 +18,8 @@ describe("workspace", () => {
     id: "b1",
     title: "見本",
     pages: [
-      { id: "p1", title: "ページ 1", paper: "a4-landscape" as const },
-      { id: "p2", title: "ページ 2", paper: "a4-landscape" as const },
+      { id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" as const },
+      { id: "p2", title: "ページ 2", paper: "a4", orientation: "landscape" as const },
     ],
   }
   const ws = newWorkspace(book)

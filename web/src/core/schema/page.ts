@@ -1,11 +1,13 @@
-// ページのデータの形（ページを持つブックのタイプが使う）
+// ページのデータの形（ページを持つブックのタイプが使う）。
+// 紙の id は表（core/papers）に無いものも受け取って残す（外した紙のデータを壊さない。描き方は core/paper.ts の resolvePaper）
 import { z } from "zod"
-import { PAPER_NAMES } from "../paper"
+import { ORIENTATIONS } from "../def/paper"
 
 export const PageSchema = z.strictObject({
   id: z.string().min(1),
   title: z.string(),
-  paper: z.enum(PAPER_NAMES),
+  paper: z.string().min(1),
+  orientation: z.enum(ORIENTATIONS),
 })
 
 export type Page = z.infer<typeof PageSchema>

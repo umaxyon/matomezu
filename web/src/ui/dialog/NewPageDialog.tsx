@@ -1,8 +1,9 @@
 // ページを作るダイアログ: 名前と紙を決めて、そのステージのブックに足し（アクション page.add）、そのページを開く。
-// 選べる紙はブックのタイプの規定で決まる（1 つしか無ければ選べない）
+// 選べる紙と向きはブックのタイプの規定で決まる（1 つしか無ければ選べない）
 import { useState } from "react"
 import { defaultPaper, nextPageTitle, type PagedBook, paperChoices } from "../../core/book"
-import { PAPERS, type PaperName } from "../../core/paper"
+import { ORIENTATION_TITLES, type Orientation } from "../../core/def/paper"
+import { type PaperChoice, paperDef } from "../../core/paper"
 import { useT } from "../i18n"
 import { useActions, useApp } from "../store-context"
 import { Dialog } from "./Dialog"
@@ -31,15 +32,15 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
   const { addPage } = useActions()
   const lang = useApp(s => s.settings.lang)
   const t = useT()
-  const choices = paperChoices(book)
+  const { papers, orientations } = paperChoices(book)
   const [title, setTitle] = useState(() => nextPageTitle(book, lang))
-  const [paper, setPaper] = useState<PaperName>(() => defaultPaper(book))
+  const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(book))
   return (
     <Form
       submit={t("作成")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        if (addPage(stage, { title, paper })) onDone()
+        if (addPage(stage, { title, ...choice })) onDone()
       }}
     >
       <Field label={t("ページの名前")}>
@@ -53,13 +54,33 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
           <select
             id={id}
             className={controlClass}
-            value={paper}
-            disabled={choices.length < 2}
-            onChange={e => setPaper(e.target.value as PaperName)}
+            value={choice.paper}
+            disabled={papers.length < 2}
+            onChange={e => setChoice({ ...choice, paper: e.target.value })}
           >
-            {choices.map(p => (
-              <option key={p} value={p}>
-                {t(PAPERS[p].title)}
+            {papers.map(p => {
+              const def = paperDef(p)
+              return (
+                <option key={p} value={p}>
+                  {def ? t(def.title) : t("不明な紙")}
+                </option>
+              )
+            })}
+          </select>
+        )}
+      </Field>
+      <Field label={t("向き")}>
+        {id => (
+          <select
+            id={id}
+            className={controlClass}
+            value={choice.orientation}
+            disabled={orientations.length < 2}
+            onChange={e => setChoice({ ...choice, orientation: e.target.value as Orientation })}
+          >
+            {orientations.map(o => (
+              <option key={o} value={o}>
+                {t(ORIENTATION_TITLES[o])}
               </option>
             ))}
           </select>

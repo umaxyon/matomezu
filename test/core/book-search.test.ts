@@ -6,7 +6,7 @@ const book = (id: string, title: string) => ({
   type: "drawing" as const,
   id,
   title,
-  pages: [{ id: "p1", title: "ページ 1", paper: "a4-landscape" as const }],
+  pages: [{ id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" as const }],
 })
 const books = [
   MASTER_BOOK,
