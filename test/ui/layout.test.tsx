@@ -1,0 +1,111 @@
+import { afterEach, describe, expect, test } from "bun:test"
+import { cleanup, render, screen, within } from "@testing-library/react"
+import { isMatomezuError, problemText } from "../../web/src/core/errors"
+import { DEFAULT_LAYOUT } from "../../web/src/plugins/base/ui"
+import { BUILTIN_UI } from "../../web/src/plugins/ui"
+import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { createMatomezu } from "../../web/src/store/create"
+import { definePlugin } from "../../web/src/store/plugin"
+import { App } from "../../web/src/ui/App"
+import { checkLayout, defineLayout, defineWidget, type LayoutDef } from "../../web/src/ui/layout"
+import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
+import { MatomezuProvider } from "../../web/src/ui/store-context"
+
+afterEach(cleanup)
+
+const app = () => createMatomezu({ plugins: BUILTIN_UI, books: SAMPLE_BOOKS })
+const ui = assembleUi(BUILTIN_UI)
+const commands = new Set(app().commands.keys())
+
+// タブを上の行に移した配置
+const TABS_ON_TOP = defineLayout({
+  ...DEFAULT_LAYOUT,
+  id: "tabs-on-top",
+  slots: { ...DEFAULT_LAYOUT.slots, "stage.top": ["toolbox", "page-tabs"], "stage.bottom": ["book-name"] },
+})
+
+describe("配置", () => {
+  test("既定の配置には食い違いが無い", () => {
+    expect(checkLayout(DEFAULT_LAYOUT, ui.widgets, commands)).toEqual([])
+  })
+
+  test("知らないウィジェット・置けないスロット・app に無いコマンドは誤り", () => {
+    const bad = {
+      id: "bad",
+      slots: { "stage.top": ["nope", "book-view"] },
+      menus: { "stage.menu": [{ either: ["stage.split", "stage.nope"] }] },
+    } as unknown as LayoutDef
+    expect(checkLayout(bad, ui.widgets, commands).map(problemText)).toEqual([
+      "E207 layout bad: slot stage.top has unknown widget nope",
+      "E208 layout bad: widget book-view cannot be placed in slot stage.top",
+      "E209 layout bad: menu stage.menu has unknown command stage.nope",
+    ])
+  })
+
+  test("食い違いのある配置は、画面に置くときに誤り", () => {
+    const bad = { id: "bad", slots: { app: ["nope"] }, menus: {} } as unknown as LayoutDef
+    let thrown: unknown
+    try {
+      render(
+        <MatomezuProvider app={app()} layout={bad}>
+          <App />
+        </MatomezuProvider>,
+      )
+    } catch (e) {
+      thrown = e
+    }
+    expect(isMatomezuError(thrown) && thrown.code).toBe("E210")
+  })
+
+  test("配置の型: 置けないスロット・知らないウィジェット・引数の要るコマンドは型の誤り（行わない）", () => {
+    const typeOnly = () => {
+      // @ts-expect-error ブックのビューの置き場は、ステージの本体にしか置けない
+      defineLayout({ id: "x", slots: { "stage.top": ["book-view"] }, menus: {} })
+      // @ts-expect-error 知らないウィジェット
+      defineLayout({ id: "x", slots: { "stage.top": ["nope"] }, menus: {} })
+      // @ts-expect-error page.open はページの id を取るので、メニューに置けない
+      defineLayout({ id: "x", slots: {}, menus: { "stage.menu": ["page.open"] } })
+    }
+    expect(typeOnly).toBeFunction()
+  })
+
+  test("配置を替えると、その場で組み直す（タブを上の行へ）", () => {
+    const a = app()
+    const { rerender } = render(
+      <MatomezuProvider app={a} layout={DEFAULT_LAYOUT}>
+        <App />
+      </MatomezuProvider>,
+    )
+    const toolbar = () => screen.getByRole("toolbar", { name: "ツール" }).parentElement!
+    expect(within(toolbar()).queryByRole("tablist")).toBeNull()
+    rerender(
+      <MatomezuProvider app={a} layout={TABS_ON_TOP}>
+        <App />
+      </MatomezuProvider>,
+    )
+    expect(within(toolbar()).getByRole("tablist")).toBeTruthy()
+  })
+})
+
+describe("ウィジェット", () => {
+  const Ping = () => <p>ping</p>
+
+  test("外のプラグインのウィジェットは、頭にプラグインの id と / を付ける", () => {
+    const bad = definePluginUi(definePlugin({ id: "w" }), {
+      widgets: [defineWidget({ id: "ping", slots: ["app"], view: Ping })],
+    })
+    expect(() => assembleUi([...BUILTIN_UI, bad])).toThrow("E301")
+  })
+
+  test("同じ id のウィジェットは誤り。差し替えは overrides の widgets で、置けるスロットは変わらない", () => {
+    const twice = definePluginUi(definePlugin({ id: "w" }), {
+      widgets: [defineWidget({ id: "w/ping", slots: ["app"], view: Ping })],
+    })
+    expect(() => assembleUi([...BUILTIN_UI, twice, twice])).toThrow("E001")
+    const Tabs = () => <p>my tabs</p>
+    const replace = definePluginUi(definePlugin({ id: "w" }), { overrides: { widgets: { "page-tabs": Tabs } } })
+    const replaced = assembleUi([...BUILTIN_UI, replace]).widgets.get("page-tabs")
+    expect(replaced?.view).toBe(Tabs)
+    expect(replaced?.slots).toEqual(ui.widgets.get("page-tabs")?.slots)
+  })
+})

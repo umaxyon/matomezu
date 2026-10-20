@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { StrictMode } from "react"
+import { DEFAULT_LAYOUT } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
@@ -13,7 +14,7 @@ afterEach(cleanup)
 function renderApp(options: Omit<StoreOptions, "plugins"> = {}) {
   const store = createMatomezu({ books: SAMPLE_BOOKS, ...options, plugins: BUILTIN_UI })
   render(
-    <MatomezuProvider app={store}>
+    <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
       <App />
     </MatomezuProvider>,
   )
@@ -47,13 +48,14 @@ test("分割すると、右のステージは何も開いておらず、真ん�
   renderApp()
   expect(screen.queryByRole("button", { name: "画面を分割" })).toBeNull()
   fireEvent.click(fromMenu("画面を分割"))
-  expect(fromMenu("画面を分割").getAttribute("aria-pressed")).toBe("true")
+  // 分割すると、同じボタンは「分割をやめる」になり、押されている見た目になる
+  expect(fromMenu("分割をやめる").getAttribute("aria-pressed")).toBe("true")
   expect(stages()).toHaveLength(2)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
   const right = stages()[1]!
   expect(within(right).getByText("ブックを選択してください")).toBeTruthy()
   expect(within(right).getByRole("combobox", { name: "ブックを探す" })).toBeTruthy()
-  fireEvent.click(fromMenu("画面を分割"))
+  fireEvent.click(fromMenu("分割をやめる"))
   expect(stages()).toHaveLength(1)
 })
 
@@ -216,7 +218,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   const store = createMatomezu({ books: SAMPLE_BOOKS, plugins: BUILTIN_UI })
   render(
     <StrictMode>
-      <MatomezuProvider app={store}>
+      <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
         <App />
       </MatomezuProvider>
     </StrictMode>,

@@ -1,3 +1,4 @@
+import { DEFAULT_LAYOUT } from "./plugins/base/ui"
 // 画面の入口: 中の部品と見た目で app を作り、React の根に App を描く
 
 import { StrictMode } from "react"
@@ -17,7 +18,7 @@ if (!root) fail("E202")
 
 createRoot(root).render(
   <StrictMode>
-    <MatomezuProvider app={store}>
+    <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
       <App />
     </MatomezuProvider>
   </StrictMode>,

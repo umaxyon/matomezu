@@ -1,17 +1,15 @@
-// 画面の根: ステージの列と、開いているダイアログを描く
+// 画面の根: 言語とスキンを合わせ、根のスロット（app）を描く。何を置くか（ステージの列・ダイアログの置き場など）は配置が決める
 import styles from "./App.module.css"
-import { DialogHost } from "./dialog/DialogHost"
 import { LangSync } from "./LangSync"
+import { Slot } from "./Slot"
 import { SkinStyle } from "./skins/SkinStyle"
-import { WorkspaceView } from "./workspace/WorkspaceView"
 
 export function App() {
   return (
     <div className={styles.app}>
       <LangSync />
       <SkinStyle />
-      <WorkspaceView />
-      <DialogHost />
+      <Slot name="app" props={{}} />
     </div>
   )
 }

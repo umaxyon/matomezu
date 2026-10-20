@@ -50,7 +50,7 @@ const BUILTIN_MARK = Symbol("matomezu.builtin")
 export function defineBuiltin<const P extends Plugin>(plugin: P): P {
   return Object.assign(plugin, { [BUILTIN_MARK]: true })
 }
-const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
+export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
 
 // app が使う定義の表
 export interface AppDefs {

@@ -8,6 +8,7 @@ export const STAGE_MASTER = defineCommand({
   title: "マスター",
   run: (ctx, a) => a.openMaster(ctx.stage.id),
   when: () => true,
+  active: ctx => ctx.book?.type === "master",
 })
 
 export const STAGE_SPLIT = defineCommand({
@@ -15,6 +16,7 @@ export const STAGE_SPLIT = defineCommand({
   title: "画面を分割",
   run: (ctx, a) => a.split(ctx.stage.id),
   when: ctx => !isSplit(ctx),
+  active: isSplit,
 })
 
 export const STAGE_UNSPLIT = defineCommand({
@@ -22,6 +24,7 @@ export const STAGE_UNSPLIT = defineCommand({
   title: "分割をやめる",
   run: (ctx, a) => a.unsplit(ctx.stage.id),
   when: isSplit,
+  active: isSplit, // 分割の切り替えのボタンで、分割していることを押されている見た目で示す
 })
 
 export const STAGE_CLOSE = defineCommand({

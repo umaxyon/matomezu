@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { BUILTIN } from "../../web/src/plugins"
-import { BASE_UI } from "../../web/src/plugins/base/ui"
+import { BASE_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog } from "../../web/src/store/dialogs"
@@ -54,7 +54,7 @@ describe("見た目のプラグイン", () => {
   test("外のプラグインのビューで描き、差し替えたダイアログを中の部品のコマンドが開く", () => {
     const app = createMatomezu({ plugins: [...BUILTIN_UI, notesUi], partial: true, newId: () => "n1" })
     render(
-      <MatomezuProvider app={app}>
+      <MatomezuProvider app={app} layout={DEFAULT_LAYOUT}>
         <App />
       </MatomezuProvider>,
     )
@@ -96,7 +96,9 @@ describe("見た目のプラグイン", () => {
     const app = createMatomezu({ plugins: BUILTIN })
     const typeOnly = () => (
       // @ts-expect-error 見た目を結んでいない
-      <MatomezuProvider app={app}>{null}</MatomezuProvider>
+      <MatomezuProvider app={app} layout={DEFAULT_LAYOUT}>
+        {null}
+      </MatomezuProvider>
     )
     expect(typeOnly).toBeFunction()
   })

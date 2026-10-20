@@ -1,6 +1,6 @@
-// ダイアログの置き場: store の開いているダイアログ（dialog）を、その id の中身（プラグインが結んだビュー）で描く
+// ダイアログの置き場（ウィジェット dialog-host）: store の開いているダイアログ（dialog）を、その id の中身（プラグインが結んだビュー）で描く
 import { fail } from "../../core/errors"
-import { useActions, useApp, useUi } from "../store-context"
+import { useActions, useApp, useUi } from "../../ui/store-context"
 
 export function DialogHost() {
   const dialog = useApp(s => s.dialog)

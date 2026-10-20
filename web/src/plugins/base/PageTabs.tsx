@@ -1,9 +1,9 @@
-// ステージのページのタブ: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
+// ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
 // 押したページをそのステージで開く（コマンド page.open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page.new）
 import { addsFromTabs, hasPages } from "../../core/book"
-import { useCommand } from "../commands"
-import { useT } from "../i18n"
-import { useApp, useRegistry } from "../store-context"
+import { useCommand } from "../../ui/commands"
+import { useT } from "../../ui/i18n"
+import { useApp, useRegistry } from "../../ui/store-context"
 import styles from "./PageTabs.module.css"
 
 export function PageTabs({ stage }: { stage: string }) {

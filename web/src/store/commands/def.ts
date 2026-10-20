@@ -21,6 +21,7 @@ export interface CommandDef<A = undefined> {
   title: MessageKey
   when(ctx: CommandContext): boolean // 出すか
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
+  active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない
   run(ctx: CommandContext, actions: Actions, args: A): void
 }
 

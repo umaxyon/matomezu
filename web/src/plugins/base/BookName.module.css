@@ -1,15 +1,3 @@
-/* 下の行。上の行（ツールボックス）より細い */
-.footer {
-  flex: none;
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  height: 30px;
-  background: var(--skin-bar);
-  border-top: 1px solid var(--skin-line);
-  font-size: 12px;
-  user-select: none;
-}
 /* ブックの名前の欄。色の帯で行の頭と分かるようにする */
 .name {
   flex: none;

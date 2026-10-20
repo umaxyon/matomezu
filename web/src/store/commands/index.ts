@@ -35,3 +35,8 @@ export function isEnabled(defs: AppDefs, state: AppState, stageId: string, id: C
   const def = commandDef(defs, id)
   return ctx !== null && def.when(ctx) && (def.enabled?.(ctx) ?? true)
 }
+
+export function isActive(defs: AppDefs, state: AppState, stageId: string, id: CommandId): boolean {
+  const ctx = commandContext(defs.registry, state, stageId)
+  return ctx !== null && (commandDef(defs, id).active?.(ctx) ?? false)
+}

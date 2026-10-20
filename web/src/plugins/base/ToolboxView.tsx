@@ -1,8 +1,8 @@
-// ツールボックスのビュー: ステージのブックのツールボックス（core/toolbox.ts）を横に並べる。出すツールが無ければ何も描かない
+// ツールボックスのビュー（ウィジェット toolbox）: ステージのブックのツールボックス（core/toolbox.ts）を横に並べる。出すツールが無ければ何も描かない
 
 import { toolboxOf } from "../../core/toolbox"
-import { useT } from "../i18n"
-import { useApp, useRegistry, useUi } from "../store-context"
+import { useT } from "../../ui/i18n"
+import { useApp, useRegistry, useUi } from "../../ui/store-context"
 import styles from "./ToolboxView.module.css"
 
 export function ToolboxView({ stage }: { stage: string }) {

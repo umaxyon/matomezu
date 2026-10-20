@@ -1,12 +1,15 @@
-// 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインのブックのタイプ・アイテム・ダイアログのビューを結ぶ。
+// 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインのブックのタイプ・アイテム・ダイアログのビューを結び、
+// ウィジェット（スロットに置ける部品）とコマンドのアイコンを足す。
 // ビューは、そのプラグインの id を全部持たないと型の誤り。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
 // 画面に置く app は、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
 import type { ComponentType, ReactNode } from "react"
 import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { BookTypeId } from "../core/tables"
-import type { IdsOf, Plugin } from "../store/plugin"
+import { type IdsOf, isBuiltin, type Plugin } from "../store/plugin"
 import type { DialogId } from "../store/tables"
+import type { AnyWidgetDef } from "./layout"
+import type { WidgetId, WidgetTable } from "./tables"
 
 export interface BookViewProps {
   stage: Stage
@@ -38,13 +41,22 @@ export type PluginViews<P> = Field<
   Field<IdsOf<P, "items">, "items", { [id in IdsOf<P, "items">]: ItemUi<ItemPropsOf<P, id>> }> &
   Field<IdsOf<P, "dialogs">, "dialogViews", { [id in IdsOf<P, "dialogs">]: ComponentType<DialogProps> }>
 
-// ほかのプラグインのビューの差し替え。型の表にある id だけ
+// ウィジェットが受け取る値（そのウィジェットの部品の props）
+type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: infer P) => ReactNode } ? P : never
+
+// ほかのプラグインのビューとウィジェットの差し替え。型の表にある id だけ（ウィジェットは置けるスロットを変えず、描く部品だけを替える）
 export interface Overrides {
   bookViews?: { [id in BookTypeId]?: ComponentType<BookViewProps> }
   dialogViews?: { [id in DialogId]?: ComponentType<DialogProps> }
+  widgets?: { [id in WidgetId]?: (props: WidgetProps<id>) => ReactNode }
 }
 
-export type UiParts<P> = PluginViews<P> & { overrides?: Overrides }
+// widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）
+export type UiParts<P> = PluginViews<P> & {
+  widgets?: readonly AnyWidgetDef[]
+  commandIcons?: { [id in IdsOf<P, "commands">]?: ReactNode }
+  overrides?: Overrides
+}
 export type PluginUi<P extends Plugin> = P & { ui: UiParts<P> }
 // 見た目を結んだプラグインのどれか
 export type AnyPluginUi = Plugin & { ui: object }
@@ -56,15 +68,20 @@ export interface UiDefs {
   bookViews: ReadonlyMap<string, ComponentType<BookViewProps>>
   items: ReadonlyMap<string, ItemUi>
   dialogViews: ReadonlyMap<string, ComponentType<DialogProps>>
+  widgets: ReadonlyMap<string, AnyWidgetDef>
+  commandIcons: ReadonlyMap<string, ReactNode>
 }
 
 interface LooseUi {
   bookViews?: Record<string, ComponentType<BookViewProps>>
   items?: Record<string, ItemUi>
   dialogViews?: Record<string, ComponentType<DialogProps>>
+  widgets?: readonly AnyWidgetDef[]
+  commandIcons?: Record<string, ReactNode>
   overrides?: {
     bookViews?: Record<string, ComponentType<BookViewProps>>
     dialogViews?: Record<string, ComponentType<DialogProps>>
+    widgets?: Record<string, (props: never) => ReactNode>
   }
 }
 
@@ -73,6 +90,8 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
   const bookViews = new Map<string, ComponentType<BookViewProps>>()
   const items = new Map<string, ItemUi>()
   const dialogViews = new Map<string, ComponentType<DialogProps>>()
+  const widgets = new Map<string, AnyWidgetDef>()
+  const commandIcons = new Map<string, ReactNode>()
   const uis = plugins.map(p => {
     const ui = (p as Partial<AnyPluginUi>).ui as LooseUi | undefined
     if (!ui) return fail("E203", { plugin: p.id })
@@ -94,6 +113,12 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
     need("bookType", p.bookTypes, ui.bookViews, bookViews)
     need("item", p.items, ui.items, items)
     need("dialog", p.dialogs, ui.dialogViews, dialogViews)
+    for (const w of ui.widgets ?? []) {
+      if (!isBuiltin(p) && !w.id.startsWith(`${p.id}/`)) fail("E301", { plugin: p.id, kind: "widget", id: w.id })
+      if (widgets.has(w.id)) fail("E001", { kind: "widget", id: w.id })
+      widgets.set(w.id, w)
+    }
+    for (const [id, icon] of Object.entries(ui.commandIcons ?? {})) commandIcons.set(id, icon)
   }
   const overridden = new Set<string>()
   for (const { p, ui } of uis)
@@ -107,5 +132,13 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
         overridden.add(`${kind}:${id}`)
         ;(into as Map<string, unknown>).set(id, view)
       }
-  return { bookViews, items, dialogViews }
+  for (const { p, ui } of uis)
+    for (const [id, view] of Object.entries(ui.overrides?.widgets ?? {})) {
+      const w = widgets.get(id)
+      if (!w) fail("E205", { plugin: p.id, kind: "widget", id })
+      if (overridden.has(`widget:${id}`)) fail("E206", { plugin: p.id, kind: "widget", id })
+      overridden.add(`widget:${id}`)
+      widgets.set(id, { ...w, view })
+    }
+  return { bookViews, items, dialogViews, widgets, commandIcons }
 }

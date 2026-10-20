@@ -36,6 +36,10 @@ export const ERRORS = {
   E204: "plugin {plugin}: {kind} {id} has no view",
   E205: "plugin {plugin}: overrides unknown {kind} {id}",
   E206: "plugin {plugin}: {kind} {id} is overridden twice",
+  E207: "layout {layout}: slot {slot} has unknown widget {widget}",
+  E208: "layout {layout}: widget {widget} cannot be placed in slot {slot}",
+  E209: "layout {layout}: menu {menu} has unknown command {command}",
+  E210: "layout {layout} has {count} problems",
 
   E301: 'plugin {plugin}: {kind} {id} must start with "{plugin}/"',
 } as const

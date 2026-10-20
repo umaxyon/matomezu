@@ -1,4 +1,4 @@
-// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
+// ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
 // ブックの中はブックのテーマの値（CSS 変数）で描く。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
 // 測った大きさと、ドラッグ・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
@@ -6,12 +6,12 @@ import { fail } from "../../core/errors"
 import type { BookTypeId } from "../../core/registry"
 import { paperOf, type Stage } from "../../core/stage"
 import { bookTokens } from "../../core/theme"
-import { BookSearch } from "../book-search/BookSearch"
-import { useT } from "../i18n"
-import { useActions, useApp, useRegistry, useUi } from "../store-context"
-import { themeVars } from "../theme-vars"
+import { BookSearch } from "../../ui/book-search/BookSearch"
+import { useT } from "../../ui/i18n"
+import { useActions, useApp, useRegistry, useUi } from "../../ui/store-context"
+import { themeVars } from "../../ui/theme-vars"
+import { useResize } from "../../ui/use-resize"
 import styles from "./StageView.module.css"
-import { useResize } from "./use-resize"
 
 // ドラッグ中のポインタと、前に知らせた位置
 interface Drag {
@@ -20,7 +20,7 @@ interface Drag {
   y: number
 }
 
-export const StageView = memo(function StageView({ id }: { id: string }) {
+export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
   const stage = useApp(s => s.workspace.stages.find(st => st.id === id))
   const isCurrent = useApp(s => s.workspace.current === id)
   const isMulti = useApp(s => s.workspace.stages.length > 1)
