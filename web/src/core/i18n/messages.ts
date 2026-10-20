@@ -13,6 +13,11 @@ export const MESSAGES = {
   ブックの名前で探す: { en: "Search by book name" },
   ブック: { en: "Books" },
   当てはまるブックはありません: { en: "No matching books" },
+  図面: { en: "Drawing" },
+  箱: { en: "Box" },
+  標準: { en: "Standard" },
+  ダーク: { en: "Dark" },
+  ライト: { en: "Light" },
 } as const satisfies Record<string, Record<Exclude<Lang, "ja">, string>>
 
 export type Lang = "ja" | "en"

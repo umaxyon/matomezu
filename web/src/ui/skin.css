@@ -1,38 +1,4 @@
-/* スキン: アプリの外枠の見た目。値は --skin- の変数だけで持つ（図の中身の見た目とは混ぜない） */
-:root {
-  color-scheme: dark;
-  --skin-bg: #1e1e1e;
-  --skin-grid: rgba(255, 255, 255, 0.035);
-  --skin-text: #e4e4e7;
-  --skin-hint: rgba(220, 220, 230, 0.55);
-  --skin-bar: #252526;
-  --skin-tools: #34343a;
-  --skin-line: rgba(255, 255, 255, 0.08);
-  --skin-btn: #3a3a3f;
-  --skin-btn-hover: #4a4a50;
-  --skin-accent: #8b6cf0;
-  --skin-paper: #2a2a30;
-  --skin-paper-line: rgba(255, 255, 255, 0.14);
-  --skin-paper-shadow: rgba(0, 0, 0, 0.18);
-  --skin-font: system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --skin-bg: #f6f6f8;
-    --skin-grid: rgba(0, 0, 0, 0.045);
-    --skin-text: #1b1b1f;
-    --skin-hint: rgba(40, 40, 50, 0.55);
-    --skin-bar: #ffffff;
-    --skin-tools: #e6e6ec;
-    --skin-line: rgba(0, 0, 0, 0.1);
-    --skin-btn: #ececf0;
-    --skin-btn-hover: #dedee4;
-    --skin-accent: #6d4bd8;
-    --skin-paper: #ffffff;
-    --skin-paper-line: rgba(0, 0, 0, 0.12);
-  }
-}
+/* 文書の土台。スキンの値（--skin-）は ui/skins の表から SkinStyle が置く */
 * {
   box-sizing: border-box;
 }

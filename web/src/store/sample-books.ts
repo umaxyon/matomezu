@@ -1,5 +1,5 @@
 // 見本の図面のブック（どれも 1 ページ）
-import type { DrawingBook } from "../core/schema/book"
+import type { BookOf } from "../core/schema/book"
 
 const TITLES = [
   "まとめ図の構想",
@@ -12,7 +12,7 @@ const TITLES = [
   "Design Notes",
 ]
 
-export const SAMPLE_BOOKS: DrawingBook[] = TITLES.map((title, i) => ({
+export const SAMPLE_BOOKS: BookOf<"drawing">[] = TITLES.map((title, i) => ({
   type: "drawing",
   id: `b${i + 1}`,
   title,

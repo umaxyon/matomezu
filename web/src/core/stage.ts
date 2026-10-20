@@ -1,15 +1,21 @@
-// ステージ: 画面の見える領域の 1 区画。ブックを 1 つ開くか、何も開いていない。図面のブックはページを 1 つ開き、紙を置く。表示領域の大きさ・倍率・ずらす量を持つ。
+// ステージ: 画面の見える領域の 1 区画。ブックを 1 つ開くか、何も開いていない。ページを持つタイプのブックはページを 1 つ開き、
+// タイプが紙を決めていれば紙を置く。表示領域の大きさ・倍率・ずらす量を持つ。
 // ずらす量は、いつも範囲に収めた値で持つ（収めるのはここの操作だけで、描く側は直さない）。
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
+
+import { hasPages } from "./book"
 import type { Point, Size } from "./geom"
-import { DEFAULT_PAPER, PAPERS } from "./paper"
+import { PAPERS } from "./paper"
+import { type BookTypeId, bookType } from "./registry"
 import type { Book } from "./schema/book"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
-// 開いているブック（book はブックの id）。ブックのタイプを写して持ち、タイプで形が変わる（ブックのタイプは変わらない）
-export type Opened =
-  | { type: "drawing"; book: string; page: string } // page は開いているページの id
-  | { type: "master"; book: string }
+// 開いているブック。ブックのタイプを写して持つ（ブックのタイプは変わらない）
+export interface Opened {
+  type: BookTypeId
+  book: string // ブックの id
+  page: string | null // 開いているページの id（ページを持たないタイプは null）
+}
 
 export interface Stage {
   id: string
@@ -34,9 +40,10 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
   return { id, opened, zoom: 1, pan: HOME, view: null }
 }
 
-// ステージに出す紙（図面のブックを開いていなければ null）
+// ステージに出す紙（開いたブックのタイプが紙を決めていなければ null）
 export function paperOf(stage: Stage): Size | null {
-  return stage.opened?.type === "drawing" ? PAPERS[DEFAULT_PAPER] : null
+  const paper = stage.opened && bookType(stage.opened.type).paper
+  return paper ? PAPERS[paper] : null
 }
 
 // ずらす量を pan にして、範囲に収める
@@ -57,21 +64,22 @@ export function panBy(stage: Stage, dx: number, dy: number): Stage {
   return settle(stage, { x: stage.pan.x + dx, y: stage.pan.y + dy })
 }
 
-// ブックを開く（図面は最初のページ）。ずらす量は最初の位置に戻す
+// ブックを開く（ページを持つなら最初のページ）。ずらす量は最初の位置に戻す。
+// ページを持たないブックがもう開いていれば、同じ値を返す
 export function openBook(stage: Stage, book: Book): Stage {
-  if (book.type === "master") {
+  if (!hasPages(book)) {
     if (stage.opened?.book === book.id) return stage
-    return settle({ ...stage, opened: { type: "master", book: book.id } }, HOME)
+    return settle({ ...stage, opened: { type: book.type, book: book.id, page: null } }, HOME)
   }
   const first = book.pages[0]
   if (!first) return stage
-  return settle({ ...stage, opened: { type: "drawing", book: book.id, page: first.id } }, HOME)
+  return settle({ ...stage, opened: { type: book.type, book: book.id, page: first.id } }, HOME)
 }
 
-// 開いている図面のブックのページを開く。ずらす量は最初の位置に戻す
+// 開いているブックのページを開く（ページを持たないブックでは何もしない）。ずらす量は最初の位置に戻す
 export function openPage(stage: Stage, page: string): Stage {
   const o = stage.opened
-  if (o?.type !== "drawing" || o.page === page) return stage
+  if (!o || o.page === null || o.page === page) return stage
   return settle({ ...stage, opened: { ...o, page } }, HOME)
 }
 

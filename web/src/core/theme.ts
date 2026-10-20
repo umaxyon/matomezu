@@ -1,0 +1,19 @@
+// テーマの値を決める: 宣言された欄（TokenDecl）ごとに、テーマの上書き → 宣言の既定（共通の欄）の順で値を選ぶ
+import type { TokenDecl } from "./def/theme"
+import { bookType, itemDef, themeDef } from "./registry"
+import type { Book } from "./schema/book"
+
+export function resolveTokens(themeId: string, decls: readonly TokenDecl[]): Record<string, string> {
+  const theme = themeDef(themeId)
+  if (!theme) throw new Error(`unknown theme: ${themeId}`)
+  const values: Record<string, string> = { ...theme.base }
+  for (const d of decls) values[d.id] = theme.tokens?.[d.id] ?? theme.base[d.fallback]
+  return values
+}
+
+// ブックを描くのに使うテーマの値（ブックのタイプと、そのブックで使えるアイテムの欄）
+export function bookTokens(book: Book): Record<string, string> {
+  const type = bookType(book.type)
+  const items = type.items.defaults.flatMap(id => itemDef(id)?.tokens ?? [])
+  return resolveTokens(type.theme, [...type.tokens, ...items])
+}

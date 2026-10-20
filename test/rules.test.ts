@@ -80,6 +80,7 @@ test("core のデータと同じ名前の画面の部品は作らない（デー
   expect(clashes).toEqual([])
 })
 
+// Def の title は文言の表の鍵（MessageKey の型が確かめる）なので除く
 test("画面の文言は t() を通す（ui に日本語を直に書かない）", () => {
   const japanese = /[\u3040-\u30ff\u3400-\u9fff]/
   const offenders = sources
@@ -88,7 +89,13 @@ test("画面の文言は t() を通す（ui に日本語を直に書かない）
       f.text
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .split("\n")
-        .map((line, i) => ({ line: line.replace(/\/\/.*$/, "").replace(/\bt\("[^"]*"/g, ""), at: `${f.rel}:${i + 1}` }))
+        .map((line, i) => ({
+          line: line
+            .replace(/\/\/.*$/, "")
+            .replace(/\bt\("[^"]*"/g, "")
+            .replace(/^\s*title: "[^"]*"/, ""),
+          at: `${f.rel}:${i + 1}`,
+        }))
         .filter(l => japanese.test(l.line))
         .map(l => l.at),
     )

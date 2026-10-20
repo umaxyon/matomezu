@@ -3,7 +3,7 @@
   inset: 0;
   overflow: auto;
   padding: 24px 32px;
-  background: var(--skin-bg);
+  background: var(--theme-surface);
   cursor: default;
   user-select: text;
 }
@@ -11,5 +11,5 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--skin-text);
+  color: var(--theme-text);
 }

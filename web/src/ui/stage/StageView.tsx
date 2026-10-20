@@ -1,12 +1,15 @@
-// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを描く。図面は紙を置き、マスターはマスターの画面を出す。
-// 何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
+// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（BOOK_VIEWS）で描く。
+// ブックの中はブックのテーマの値（CSS 変数）で描く。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
 // 測った大きさと、ドラッグ・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
-import { memo, type PointerEvent, useRef, useState, type WheelEvent } from "react"
-import { placement } from "../../core/stage"
+import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
+import type { BookTypeId } from "../../core/registry"
+import { paperOf, type Stage } from "../../core/stage"
+import { bookTokens } from "../../core/theme"
 import { BookSearch } from "../book-search/BookSearch"
+import { BOOK_VIEWS } from "../book-types/views"
 import { useT } from "../i18n"
-import { MasterView } from "../master/MasterView"
 import { useActions, useApp } from "../store-context"
+import { themeVars } from "../theme-vars"
 import styles from "./StageView.module.css"
 import { useResize } from "./use-resize"
 
@@ -21,6 +24,11 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
   const stage = useApp(s => s.workspace.stages.find(st => st.id === id))
   const isCurrent = useApp(s => s.workspace.current === id)
   const isMulti = useApp(s => s.workspace.stages.length > 1)
+  const book = useApp(s => {
+    const o = s.workspace.stages.find(st => st.id === id)?.opened
+    return o ? s.books[o.book] : undefined
+  })
+  const vars = useMemo(() => (book ? themeVars(bookTokens(book)) : undefined), [book])
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const t = useT()
   const ref = useRef<HTMLElement>(null)
@@ -28,11 +36,11 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
   const [dragging, setDragging] = useState(false)
   useResize(ref, view => resizeStage(id, view))
   if (!stage) return null
-  const p = placement(stage)
+  const hasPaper = paperOf(stage) !== null
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
-    if (e.button !== 0 || !p) return
+    if (e.button !== 0 || !hasPaper) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY }
     setDragging(true)
@@ -62,7 +70,7 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
       aria-label={t("ステージ")}
       data-current={isCurrent}
       data-multi={isMulti}
-      data-paper={p !== null}
+      data-paper={hasPaper}
       data-dragging={dragging}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -70,15 +78,8 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
       onPointerCancel={endDrag}
       onWheel={onWheel}
     >
-      {stage.opened?.type === "master" ? (
-        <MasterView />
-      ) : p ? (
-        <div
-          className={styles.paper}
-          role="img"
-          aria-label={t("紙")}
-          style={{ width: p.w, height: p.h, transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})` }}
-        />
+      {stage.opened && book ? (
+        <BookContent stage={stage} type={stage.opened.type} vars={vars} />
       ) : (
         <div className={styles.empty}>
           <p className={styles.prompt}>{t("ブックを選択してください")}</p>
@@ -88,3 +89,13 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
     </section>
   )
 })
+
+// 開いたブックを、そのタイプのビューで、テーマの値の中に描く
+function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
+  const View = BOOK_VIEWS[type]
+  return (
+    <div className={styles.book} style={vars}>
+      <View stage={stage} />
+    </div>
+  )
+}

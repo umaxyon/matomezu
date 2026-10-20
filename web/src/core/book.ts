@@ -1,17 +1,25 @@
 // ブックの操作（データを書き換えず、新しい値を返す）
-import { type Lang, translate } from "./i18n/i18n"
+import type { Lang } from "./i18n/i18n"
+import { translate } from "./i18n/i18n"
 import { nextNumber } from "./ids"
-import type { Book, DrawingBook, MasterBook, Page } from "./schema/book"
+import { bookType } from "./registry"
+import type { Book, BookOf, Page } from "./schema/book"
 
-// マスターのブックは 1 冊だけ
-export const MASTER_BOOK: MasterBook = { type: "master", id: "master" }
+export type PagedBook = Extract<Book, { pages: Page[] }>
 
-// 画面に出すブックの名前。マスターは題名を持たず、画面の言葉で呼ぶ
-export function bookTitle(book: Book, lang: Lang): string {
-  return book.type === "master" ? translate(lang, "マスター") : book.title
+// マスターのブック（1 冊だけ）
+export const MASTER_BOOK: BookOf<"master"> = { type: "master", id: "master" }
+
+export function hasPages(book: Book): book is PagedBook {
+  return "pages" in book
 }
 
-export function addPage(book: DrawingBook, lang: Lang): { book: DrawingBook; page: Page } {
+// 画面に出すブックの名前。題名を持たないブックは、タイプの名前で呼ぶ
+export function bookTitle(book: Book, lang: Lang): string {
+  return "title" in book ? book.title : translate(lang, bookType(book.type).title)
+}
+
+export function addPage<B extends PagedBook>(book: B, lang: Lang): { book: B; page: Page } {
   const n = nextNumber(
     "p",
     book.pages.map(p => p.id),

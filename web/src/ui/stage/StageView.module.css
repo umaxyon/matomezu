@@ -22,15 +22,9 @@
   box-shadow: inset 0 0 0 2px var(--skin-accent);
   pointer-events: none;
 }
-.paper {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-  background: var(--skin-paper);
-  box-shadow:
-    0 0 0 1px var(--skin-paper-line),
-    0 6px 24px var(--skin-paper-shadow);
+/* 開いたブックの中身。テーマの値（--theme-）をここに置き、中の部品が使う。枠の大きさには加わらない */
+.book {
+  display: contents;
 }
 /* 何も開いていないとき: 真ん中にブックを選ぶ欄 */
 .empty {

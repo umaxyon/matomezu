@@ -1,29 +1,16 @@
-// ブックとページのデータの形。ブックはタイプ（type）ごとに形が違う。
-// 図面（drawing）はページを持ち、ページに紙を置く。マスター（master）はブックの一覧や設定などを集める画面で、ページも紙も持たない
+// ブックのデータの形。形はブックのタイプ（type）ごとに違い、各タイプの定義（core/book-types）が持つ。ここはそれを 1 つに束ねる
 import { z } from "zod"
+import { BOOK_TYPES } from "../book-types"
 
-export const PageSchema = z.strictObject({
-  id: z.string().min(1),
-  title: z.string(),
-})
+// 表の並びのままの、各タイプの形の組
+type SchemasOf<T extends readonly unknown[]> = T extends readonly [infer H, ...infer R]
+  ? [H extends { schema: infer S } ? S : never, ...SchemasOf<R>]
+  : []
+type Schemas = SchemasOf<typeof BOOK_TYPES>
 
-export const DrawingBookSchema = z.strictObject({
-  type: z.literal("drawing"),
-  id: z.string().min(1),
-  title: z.string(),
-  pages: z.array(PageSchema).min(1),
-})
+export const BookSchema = z.discriminatedUnion("type", BOOK_TYPES.map(t => t.schema) as unknown as Schemas)
 
-// 名前は画面の言葉（t("マスター")）で出すので、題名を持たない
-export const MasterBookSchema = z.strictObject({
-  type: z.literal("master"),
-  id: z.string().min(1),
-})
-
-export const BookSchema = z.discriminatedUnion("type", [DrawingBookSchema, MasterBookSchema])
-
-export type Page = z.infer<typeof PageSchema>
-export type DrawingBook = z.infer<typeof DrawingBookSchema>
-export type MasterBook = z.infer<typeof MasterBookSchema>
 export type Book = z.infer<typeof BookSchema>
-export type BookType = Book["type"]
+export type BookOf<T extends Book["type"]> = Extract<Book, { type: T }>
+export type { Page } from "./page"
+export { PageSchema } from "./page"

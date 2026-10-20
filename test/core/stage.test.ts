@@ -69,7 +69,7 @@ describe("stage", () => {
 
   test("マスターのブックを開くと、紙が無く、ずらせず、ページも開けない。もう一度開いても同じ値", () => {
     const master = openBook(panBy(resize(stage, small), -30, -40), MASTER_BOOK)
-    expect(master.opened).toEqual({ type: "master", book: "master" })
+    expect(master.opened).toEqual({ type: "master", book: "master", page: null })
     expect(master.pan).toEqual({ x: 0, y: 0 })
     expect(paperOf(master)).toBeNull()
     expect(placement(master)).toBeNull()

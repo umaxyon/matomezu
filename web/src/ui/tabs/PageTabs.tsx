@@ -1,6 +1,7 @@
-// ステージのページのタブ: 左端にブックを開くボタン、その右にそのステージの図面のブックのページを並べる（ページの無いブックはタブを出さない）。
+// ステージのページのタブ: 左端にブックを開くボタン、その右にそのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
 // 押したページをそのステージで開き、＋でページを足す
 import { useState } from "react"
+import { hasPages } from "../../core/book"
 import { OpenBookDialog } from "../book-search/OpenBookDialog"
 import { useT } from "../i18n"
 import { useActions, useApp } from "../store-context"
@@ -8,7 +9,7 @@ import styles from "./PageTabs.module.css"
 
 export function PageTabs({ stage }: { stage: string }) {
   const opened = useApp(s => s.workspace.stages.find(x => x.id === stage)?.opened)
-  const book = useApp(s => (opened?.type === "drawing" ? s.books[opened.book] : undefined))
+  const book = useApp(s => (opened ? s.books[opened.book] : undefined))
   const { openPage, addPage } = useActions()
   const [picking, setPicking] = useState(false)
   const t = useT()
@@ -19,7 +20,7 @@ export function PageTabs({ stage }: { stage: string }) {
           <path d="M2.5 3.5h4l1.5 1.5h5.5v7.5h-11z" />
         </svg>
       </button>
-      {book?.type === "drawing" && opened?.type === "drawing" && (
+      {book && hasPages(book) && opened?.page && (
         <div className={styles.group} role="tablist" aria-label={book.title}>
           {book.pages.map(p => (
             <button
