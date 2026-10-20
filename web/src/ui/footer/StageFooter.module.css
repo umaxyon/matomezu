@@ -16,7 +16,9 @@
   position: relative;
   width: 120px;
 }
+/* 行の中の inline に置くと、名前が空のとき下に文字の下がりの分がはみ出すので block にする */
 .trigger {
+  display: block;
   width: 100%;
   height: 100%;
   padding: 0 10px 0 12px;

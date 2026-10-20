@@ -208,9 +208,11 @@ test("名前の欄にマウスを乗せるとメニューがせり上がり、�
   expect(footer.width).toBe(120)
 })
 
-test("分割すると、ツールボックスの無いステージでも右上に閉じるボタンがある", async ({ page }) => {
+test("分割すると、ツールボックスの無いステージでも右上に閉じるボタンがある。画面は縦にはみ出さない", async ({ page }) => {
   await page.goto("/")
   await (await fromMenu(page, "画面を分割")).click()
+  // 何も開いていないステージの名前の欄は空。空でも下の行からはみ出さない
+  expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBe(0)
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   const close = (await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).boundingBox())!
   const box = (await right.boundingBox())!
