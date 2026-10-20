@@ -1,16 +1,16 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { BUILTIN_UI } from "../../web/src/plugins/ui"
+import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
-import { SAMPLE_BOOKS } from "../../web/src/store/sample-books"
 import type { StoreOptions } from "../../web/src/store/store"
 import { App } from "../../web/src/ui/App"
-import { BUILTIN_UI } from "../../web/src/ui/builtin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
 function renderApp(options: Omit<StoreOptions, "plugins"> = {}) {
-  const store = createMatomezu({ ...options, plugins: BUILTIN_UI })
+  const store = createMatomezu({ books: SAMPLE_BOOKS, ...options, plugins: BUILTIN_UI })
   render(
     <MatomezuProvider app={store}>
       <App />

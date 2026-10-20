@@ -1,6 +1,6 @@
 // 見る人ごとの設定のコマンド: 言語・スキンを変える
 import type { Lang } from "../../core/i18n/i18n"
-import { defineCommand } from "./def"
+import { defineCommand } from "../../store/commands/def"
 
 export const SETTINGS_LANG = defineCommand({
   id: "settings.lang",

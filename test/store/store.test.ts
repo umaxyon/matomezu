@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
 import { currentStage } from "../../web/src/core/workspace"
-import { createAppStore } from "../../web/src/store/store"
+import { newStore } from "../support"
 
 test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
-  const { state, actions } = createAppStore()
+  const { state, actions } = newStore()
   actions.split("s1")
   actions.openBook("s2", "b1")
   actions.addPage("s2", { title: "ページ 2" })
@@ -14,7 +14,7 @@ test("ページを足すと、そのステージのブックに入り、その�
 })
 
 test("ページを開くのは指定したステージで、そのステージがカレントになる", () => {
-  const { state, actions } = createAppStore()
+  const { state, actions } = newStore()
   actions.addPage("s1", { title: "ページ 2" })
   actions.split("s1")
   actions.openBook("s2", "b1")
@@ -26,7 +26,7 @@ test("ページを開くのは指定したステージで、そのステージ�
 })
 
 test("分けたステージは何も開いておらず、ブックを開くとそのステージがカレントになる", () => {
-  const { state, actions } = createAppStore()
+  const { state, actions } = newStore()
   actions.split("s1")
   expect(state.getState().workspace.stages[1]!.opened).toBeNull()
   actions.openBook("s2", "b3")
@@ -36,7 +36,7 @@ test("分けたステージは何も開いておらず、ブックを開くと�
 })
 
 test("変わらない操作では知らせない", () => {
-  const { state, actions } = createAppStore()
+  const { state, actions } = newStore()
   let calls = 0
   const off = state.subscribe(() => calls++)
   actions.focusStage("s1")
@@ -46,14 +46,14 @@ test("変わらない操作では知らせない", () => {
 })
 
 test("store が持つずらす量は、表示領域の大きさで範囲に収めた値", () => {
-  const { state, actions } = createAppStore()
+  const { state, actions } = newStore()
   actions.resizeStage("s1", { w: 400, h: 300 })
   actions.panStageBy("s1", 500, 500)
   expect(state.getState().workspace.stages[0]!.pan).toEqual({ x: 0, y: 0 })
 })
 
 test("マスターはカレントのステージで開き、ページは足せない", () => {
-  const { state, actions } = createAppStore()
+  const { state, actions } = newStore()
   actions.split("s1")
   actions.focusStage("s2")
   actions.openMaster("s2")
@@ -64,7 +64,7 @@ test("マスターはカレントのステージで開き、ページは足せ�
 })
 
 test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
-  const { state, actions } = createAppStore({ newId: () => "made" })
+  const { state, actions } = newStore({ newId: () => "made" })
   actions.split("s1")
   expect(actions.createBook("s2", { title: " ", type: "drawing" })).toBe(false)
   expect(actions.createBook("s2", { title: "新しい図", type: "drawing" })).toBe(true)
@@ -80,7 +80,7 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
 })
 
 test("言語とスキンの設定を変える。同じ値なら知らせない", () => {
-  const { state, actions } = createAppStore()
+  const { state, actions } = newStore()
   actions.setLang("en")
   actions.setSkin("light")
   expect(state.getState().settings).toEqual({ lang: "en", skin: "light" })

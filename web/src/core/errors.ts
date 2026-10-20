@@ -24,7 +24,6 @@ export const ERRORS = {
   E103: "book type {type} has no pages",
   E104: "not a creatable book type: {type}",
   E105: "no current stage: {id}",
-  E106: "no book to open",
   E107: "unknown command: {id}",
   E108: "unknown dialog: {id}",
   E109: "no view for {kind} {id}",

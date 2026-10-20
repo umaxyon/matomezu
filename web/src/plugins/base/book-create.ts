@@ -1,7 +1,7 @@
 // ブックを作る: 何冊も作れるタイプの空のブックを、ブックの一覧に足す。登録表に無いタイプと、1 冊だけのタイプは断る
 import { z } from "zod"
-import { creatableTypes, createBook } from "../book"
-import { defineAction } from "../def/action"
+import { creatableTypes, createBook } from "../../core/book"
+import { defineAction } from "../../core/def/action"
 
 export const BOOK_CREATE = defineAction({
   id: "book.create",

@@ -1,41 +1,10 @@
-// 中の部品のコマンドの並びと、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
+// app のコマンドを引き、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
 import { fail } from "../../core/errors"
 import type { Registry } from "../../core/registry"
 import type { AppDefs } from "../plugin"
 import type { AppState } from "../store"
 import type { CommandId, CommandTable } from "../tables"
-import { BOOK_NEW, BOOK_OPEN, PAGE_NEW, PAGE_OPEN } from "./book"
 import type { CommandContext, CommandDef } from "./def"
-import { SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
-import { STAGE_CLOSE, STAGE_MASTER, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
-
-export const COMMANDS = [
-  STAGE_MASTER,
-  STAGE_SPLIT,
-  STAGE_UNSPLIT,
-  STAGE_CLOSE,
-  BOOK_OPEN,
-  BOOK_NEW,
-  PAGE_NEW,
-  PAGE_OPEN,
-  SETTINGS_LANG,
-  SETTINGS_SKIN,
-] as const
-
-declare module "../tables" {
-  interface CommandTable {
-    "stage.master": typeof STAGE_MASTER
-    "stage.split": typeof STAGE_SPLIT
-    "stage.unsplit": typeof STAGE_UNSPLIT
-    "stage.close": typeof STAGE_CLOSE
-    "book.open": typeof BOOK_OPEN
-    "book.new": typeof BOOK_NEW
-    "page.new": typeof PAGE_NEW
-    "page.open": typeof PAGE_OPEN
-    "settings.lang": typeof SETTINGS_LANG
-    "settings.skin": typeof SETTINGS_SKIN
-  }
-}
 
 export type { CommandId } from "../tables"
 

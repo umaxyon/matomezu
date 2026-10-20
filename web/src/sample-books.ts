@@ -1,5 +1,5 @@
 // 見本の図面のブック（どれも A4 横のページが 1 つ）
-import type { BookOf } from "../core/schema/book"
+import type { BookOf } from "./core/schema/book"
 
 const TITLES = [
   "まとめ図の構想",

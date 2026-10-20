@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test"
-import { REGISTRY } from "../../web/src/core/registry"
 import { panBy } from "../../web/src/core/stage"
 import {
   close,
@@ -12,6 +11,7 @@ import {
   split,
   unsplit,
 } from "../../web/src/core/workspace"
+import { REGISTRY } from "../support"
 
 describe("workspace", () => {
   const book = {

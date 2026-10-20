@@ -1,15 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { COMMANDS, isShown } from "../../web/src/store/commands"
-import { createAppStore } from "../../web/src/store/store"
-
-test("コマンドの id は重ならない", () => {
-  const ids = COMMANDS.map(c => c.id)
-  expect(new Set(ids).size).toBe(ids.length)
-})
+import { isShown } from "../../web/src/store/commands"
+import { newStore } from "../support"
 
 describe("コマンドを出すかは、呼んだ場所の様子で決まる", () => {
   test("分割していなければ分割を出し、分割していれば、やめると閉じるを出す", () => {
-    const store = createAppStore()
+    const store = newStore()
     const { state, actions } = store
     const shown = () =>
       ["stage.split", "stage.unsplit", "stage.close"].filter(id => isShown(store, state.getState(), "s1", id as never))
@@ -19,7 +14,7 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
   })
 
   test("ブックを作るのはマスター、ページを作るのはページを足せるブックを開いているときだけ", () => {
-    const store = createAppStore()
+    const store = newStore()
     const { state, actions } = store
     expect(isShown(store, state.getState(), "s1", "book.new")).toBe(false)
     expect(isShown(store, state.getState(), "s1", "page.new")).toBe(true)
@@ -29,29 +24,29 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
   })
 
   test("無いステージからは、どのコマンドも出さない", () => {
-    const store = createAppStore()
+    const store = newStore()
     const { state } = store
-    expect(COMMANDS.filter(c => isShown(store, state.getState(), "nope", c.id))).toEqual([])
+    expect([...store.commands.keys()].filter(id => isShown(store, state.getState(), "nope", id as never))).toEqual([])
   })
 })
 
 describe("コマンドを行う", () => {
   test("出ていないコマンドは行わない", () => {
-    const { state, actions } = createAppStore()
+    const { state, actions } = newStore()
     expect(actions.command("s1", "stage.unsplit")).toBe(false)
     expect(actions.command("s1", "book.new")).toBe(false)
     expect(state.getState().dialog).toBeNull()
   })
 
   test("引数のあるコマンドは、その値で行う", () => {
-    const { state, actions } = createAppStore()
+    const { state, actions } = newStore()
     expect(actions.command("s1", "settings.lang", "en")).toBe(true)
     expect(actions.command("s1", "page.open", "p1")).toBe(true)
     expect(state.getState().settings.lang).toBe("en")
   })
 
   test("ダイアログのコマンドは、呼んだステージから開いたダイアログにする", () => {
-    const { state, actions } = createAppStore()
+    const { state, actions } = newStore()
     actions.command("s1", "stage.split")
     actions.command("s2", "book.open")
     expect(state.getState().dialog).toEqual({ id: "book.open", stage: "s2" })
@@ -60,7 +55,7 @@ describe("コマンドを行う", () => {
   })
 
   test("開いたステージが閉じたらダイアログも閉じ、ほかのステージが閉じても残る", () => {
-    const { state, actions } = createAppStore()
+    const { state, actions } = newStore()
     actions.command("s1", "stage.split")
     actions.command("s2", "book.open")
     actions.command("s1", "stage.close")
@@ -73,7 +68,7 @@ describe("コマンドを行う", () => {
   })
 
   test("引数の型はコマンドで決まる（型を確かめるだけで、行わない）", () => {
-    const { actions } = createAppStore()
+    const { actions } = newStore()
     const typeOnly = () => {
       // @ts-expect-error page.open にはページの id を渡す
       actions.command("s1", "page.open")

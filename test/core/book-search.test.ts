@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { MASTER_BOOK } from "../../web/src/core/book"
 import { searchBooks } from "../../web/src/core/book-search"
-import { REGISTRY } from "../../web/src/core/registry"
+import { REGISTRY } from "../support"
 
 const book = (id: string, title: string) => ({
   type: "drawing" as const,

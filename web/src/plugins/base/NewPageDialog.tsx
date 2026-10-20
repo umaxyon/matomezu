@@ -4,11 +4,11 @@ import { useState } from "react"
 import { defaultPaper, hasPages, nextPageTitle, type PagedBook, paperChoices } from "../../core/book"
 import { ORIENTATION_TITLES, type Orientation } from "../../core/def/paper"
 import type { PaperChoice } from "../../core/paper"
-import { useT } from "../i18n"
-import type { DialogProps } from "../plugin"
-import { useActions, useApp, useRegistry } from "../store-context"
-import { Dialog } from "./Dialog"
-import { controlClass, Field, Form } from "./FormParts"
+import { Dialog } from "../../ui/dialog/Dialog"
+import { controlClass, Field, Form } from "../../ui/dialog/FormParts"
+import { useT } from "../../ui/i18n"
+import type { DialogProps } from "../../ui/plugin"
+import { useActions, useApp, useRegistry } from "../../ui/store-context"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useT()

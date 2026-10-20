@@ -6,17 +6,10 @@ import { MASTER_BOOK } from "../../web/src/core/book"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
 import { perform } from "../../web/src/core/perform"
-import {
-  ACTIONS,
-  BOOK_TYPES,
-  BUILTIN_PARTS,
-  buildRegistry,
-  checkRegistry,
-  ITEMS,
-  REGISTRY,
-} from "../../web/src/core/registry"
+import { buildRegistry, checkRegistry } from "../../web/src/core/registry"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
-import { SAMPLE_BOOKS } from "../../web/src/store/sample-books"
+import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { BUILTIN_PARTS, REGISTRY } from "../support"
 
 describe("登録表", () => {
   test("表どうしの参照に食い違いが無い", () => {
@@ -24,7 +17,8 @@ describe("登録表", () => {
   })
 
   test("食い違いのある定義の組からは表を作らず、直す所を並べる", () => {
-    const [drawing, master] = BOOK_TYPES
+    const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing")!
+    const master = BUILTIN_PARTS.bookTypes.find(t => t.id === "master")!
     const broken = {
       ...BUILTIN_PARTS,
       bookTypes: [drawing, master, drawing],
@@ -53,7 +47,7 @@ describe("登録表", () => {
 
   test("作った表は id で引け、ブックのデータの形を持つ", () => {
     const reg = buildRegistry(BUILTIN_PARTS)
-    expect(reg.bookTypes.get("drawing")).toBe(BOOK_TYPES[0])
+    expect(reg.bookTypes.get("drawing")).toBe(BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing"))
     expect(reg.items.get("nope")).toBeUndefined()
     expect(reg.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
     expect(reg.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
@@ -61,12 +55,12 @@ describe("登録表", () => {
 
   test("ブックの形・アイテムの項目・アクションの引数は、JSON Schema に書き出せる（LLM に見せる形）", () => {
     expect(z.toJSONSchema(REGISTRY.bookSchema)).toBeTruthy()
-    for (const def of [...ITEMS.map(i => i.props), ...ACTIONS.map(a => a.args)])
+    for (const def of [...BUILTIN_PARTS.items.map(i => i.props), ...BUILTIN_PARTS.actions.map(a => a.args)])
       expect(z.toJSONSchema(def)).toBeTruthy()
   })
 
   test("ブックのデータは、そのタイプの形で検査する", () => {
-    for (const t of BOOK_TYPES) expect(t.schema.shape.type.value).toBe(t.id)
+    for (const t of BUILTIN_PARTS.bookTypes) expect(t.schema.shape.type.value).toBe(t.id)
     expect(REGISTRY.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
     expect(REGISTRY.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
   })

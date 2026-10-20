@@ -9,14 +9,12 @@ import type { Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { type ArgsOf, perform } from "../core/perform"
 import type { Registry } from "../core/registry"
-import type { Book, BookOf } from "../core/schema/book"
+import type { Book } from "../core/schema/book"
 import { openBook, panBy, resize } from "../core/stage"
 import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
-import { BUILTIN } from "./builtin"
 import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
 import type { OpenedDialog } from "./dialogs"
 import { type AppDefs, assemble, type Plugin } from "./plugin"
-import { SAMPLE_BOOKS } from "./sample-books"
 import type { DialogId } from "./tables"
 
 // 見る人ごとの設定
@@ -63,14 +61,9 @@ export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> exte
   actions: Actions
 }
 
-// 最初のブックを開いた状態。マスターのブックはいつもある
-export function initialState(
-  books: readonly BookOf<"drawing">[] = SAMPLE_BOOKS,
-  lang: Lang = "ja",
-  registry: Registry = builtinAppDefs().registry,
-): AppState {
-  const first = books[0]
-  if (!first) return fail("E106")
+// 最初のブック（無ければマスター）を開いた状態。マスターのブックはいつもある
+export function initialState(registry: Registry, books: readonly Book[], lang: Lang): AppState {
+  const first = books[0] ?? MASTER_BOOK
   return {
     books: Object.fromEntries([MASTER_BOOK, ...books].map(b => [b.id, b])),
     workspace: newWorkspace(registry, first),
@@ -79,28 +72,19 @@ export function initialState(
   }
 }
 
-let builtinDefs: AppDefs | undefined
-// 中の部品だけの定義の表（初めて使うときに作る）
-export function builtinAppDefs(): AppDefs {
-  builtinDefs ??= assemble(BUILTIN)
-  return builtinDefs
-}
-
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
-  plugins?: Ps // 無ければ中の部品だけ
-  books?: readonly BookOf<"drawing">[] // 最初に持つブック（最初の 1 冊を開く）。無ければ見本のブック
+  plugins: Ps
+  books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、マスターを開く
   lang?: Lang // 無ければ日本語
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
 }
 
-export function createAppStore<const Ps extends readonly Plugin[] = typeof BUILTIN>(
-  options: StoreOptions<Ps> = {},
-): AppStore<Ps> {
-  const plugins = options.plugins ?? (BUILTIN as unknown as Ps)
-  const defs = options.plugins ? assemble(options.plugins) : builtinAppDefs()
+export function createAppStore<const Ps extends readonly Plugin[]>(options: StoreOptions<Ps>): AppStore<Ps> {
+  const { plugins } = options
+  const defs = assemble(plugins)
   const { registry } = defs
-  const initial = options.initial ?? initialState(options.books ?? SAMPLE_BOOKS, options.lang ?? "ja", registry)
+  const initial = options.initial ?? initialState(registry, options.books ?? [], options.lang ?? "ja")
   const newId = options.newId ?? (() => crypto.randomUUID())
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store

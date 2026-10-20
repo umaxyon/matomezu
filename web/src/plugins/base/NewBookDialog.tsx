@@ -2,11 +2,11 @@
 import { useState } from "react"
 import { creatableTypes } from "../../core/book"
 import { bookType } from "../../core/registry"
-import { useT } from "../i18n"
-import type { DialogProps } from "../plugin"
-import { useActions, useRegistry } from "../store-context"
-import { Dialog } from "./Dialog"
-import { controlClass, Field, Form } from "./FormParts"
+import { Dialog } from "../../ui/dialog/Dialog"
+import { controlClass, Field, Form } from "../../ui/dialog/FormParts"
+import { useT } from "../../ui/i18n"
+import type { DialogProps } from "../../ui/plugin"
+import { useActions, useRegistry } from "../../ui/store-context"
 
 export function NewBookDialog({ stage, onClose }: DialogProps) {
   const t = useT()

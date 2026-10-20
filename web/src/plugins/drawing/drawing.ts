@@ -1,8 +1,8 @@
 // 図面のブック: ページを持ち、ページごとに紙を置く
 import { z } from "zod"
-import { defineBookType } from "../def/book-type"
-import { PAPER_IDS } from "../papers"
-import { PageSchema } from "../schema/page"
+import { defineBookType } from "../../core/def/book-type"
+import { PageSchema } from "../../core/schema/page"
+import { PAPER_IDS } from "../base"
 
 export const DRAWING = defineBookType({
   id: "drawing",

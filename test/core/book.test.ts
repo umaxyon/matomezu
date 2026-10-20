@@ -9,8 +9,8 @@ import {
   paperChoices,
 } from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
-import { PAPER_IDS } from "../../web/src/core/papers"
-import { REGISTRY } from "../../web/src/core/registry"
+import { PAPER_IDS } from "../../web/src/plugins/base"
+import { REGISTRY } from "../support"
 
 const book = {
   type: "drawing" as const,

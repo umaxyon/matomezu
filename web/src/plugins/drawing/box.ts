@@ -1,6 +1,6 @@
 // 箱: 文字を入れられる四角
 import { z } from "zod"
-import { defineItem } from "../def/item"
+import { defineItem } from "../../core/def/item"
 
 export const BOX = defineItem({
   id: "shape.box",

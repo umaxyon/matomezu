@@ -2,10 +2,10 @@
 // 設定（言語・スキン）と、ブックを作るボタンを置く。どれもコマンド（book.new・settings.lang・settings.skin）を呼ぶ
 import { LANG_NAMES, LANGS, type Lang } from "../../core/i18n/i18n"
 import type { Stage } from "../../core/stage"
-import { useCommand } from "../commands"
-import { useT } from "../i18n"
-import { SKINS } from "../skins"
-import { useApp } from "../store-context"
+import { useCommand } from "../../ui/commands"
+import { useT } from "../../ui/i18n"
+import { SKINS } from "../../ui/skins"
+import { useApp } from "../../ui/store-context"
 import styles from "./MasterView.module.css"
 
 export function MasterView({ stage }: { stage: Stage }) {

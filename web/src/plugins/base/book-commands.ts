@@ -1,7 +1,7 @@
 // ブックとページのコマンド: ブックを開く・作る、ページを作る・開く。作るものはダイアログで決める
 import { hasPages } from "../../core/book"
 import { actionsOf } from "../../core/perform"
-import { defineCommand } from "./def"
+import { defineCommand } from "../../store/commands/def"
 
 export const BOOK_OPEN = defineCommand({
   id: "book.open",

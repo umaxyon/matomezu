@@ -1,5 +1,5 @@
 // ページのデータの形（ページを持つブックのタイプが使う）。
-// 紙の id は表（core/papers）に無いものも受け取って残す（外した紙のデータを壊さない。描き方は core/paper.ts の resolvePaper）
+// 紙の id は登録表の紙に無いものも受け取って残す（外した紙のデータを壊さない。描き方は core/paper.ts の resolvePaper）
 import { z } from "zod"
 import { ORIENTATIONS } from "../def/paper"
 

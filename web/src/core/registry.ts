@@ -2,42 +2,18 @@
 // 表どうしの参照（ブックのタイプが使うアイテムなど）が実在するかは checkRegistry が確かめ、食い違いがあれば作らない
 
 import { z } from "zod"
-import { BOOK_CREATE } from "./actions/book-create"
-import { PAGE_ADD } from "./actions/page-add"
-import { BOOK_TYPES } from "./book-types"
 import type { ActionDef } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
 import { THEME_TOKENS, type ThemeDef } from "./def/theme"
 import { fail, matomezuError, type Problem, problem } from "./errors"
-import { BOX } from "./items/box"
-import { PAPERS } from "./papers"
 import type { ItemId, ItemTable } from "./tables"
-import { STANDARD } from "./themes/standard"
-
-export { BOOK_TYPES, PAPERS }
-export const ITEMS = [BOX] as const satisfies readonly ItemDef[]
-export const ACTIONS = [PAGE_ADD, BOOK_CREATE] as const satisfies readonly ActionDef[]
-export const THEMES = [STANDARD] as const satisfies readonly ThemeDef[]
 
 export type { ActionId, BookTypeId, ItemId, PaperId, ThemeId } from "./tables"
 
 // アイテムの、置いたものが持つ項目の型
 export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
-
-declare module "./tables" {
-  interface ItemTable {
-    "shape.box": typeof BOX
-  }
-  interface ActionTable {
-    "page.add": typeof PAGE_ADD
-    "book.create": typeof BOOK_CREATE
-  }
-  interface ThemeTable {
-    standard: typeof STANDARD
-  }
-}
 
 // 表を作るもとの、定義の組
 export interface RegistryParts {
@@ -77,16 +53,6 @@ export function buildRegistry(parts: RegistryParts): Registry {
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
   }
 }
-
-// 中の部品の定義の組と、その表
-export const BUILTIN_PARTS: RegistryParts = {
-  bookTypes: BOOK_TYPES,
-  items: ITEMS,
-  actions: ACTIONS,
-  themes: THEMES,
-  papers: PAPERS,
-}
-export const REGISTRY = buildRegistry(BUILTIN_PARTS)
 
 // ブックのタイプは、データのタイプが表に無ければ誤り。ほかの定義は reg.items.get(id) などで引き、知らない id なら undefined
 // （データに残った、外したプラグインのアイテムなど）

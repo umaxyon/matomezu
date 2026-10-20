@@ -17,15 +17,16 @@ function filesUnder(dir: string): string[] {
 const sources = filesUnder(SRC).map(path => ({ path, rel: relative(SRC, path), text: readFileSync(path, "utf8") }))
 const layerOf = (rel: string) => rel.split("/")[0]!
 
-// import の行き先。相対なら web/src から見たフォルダ（core・store・ui・host）、そうでなければパッケージ名
+// import の行き先。相対なら web/src から見たパス（拡張子なし）、そうでなければパッケージ名
 function importsOf(file: { path: string; text: string }): string[] {
   const specs = [
     ...file.text.matchAll(/(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']/g),
   ].map(m => (m[1] ?? m[2])!)
-  return specs.map(s => (s.startsWith(".") ? layerOf(relative(SRC, resolve(dirname(file.path), s))) : s))
+  return specs.map(s => (s.startsWith(".") ? relative(SRC, resolve(dirname(file.path), s)) : s))
 }
+const topOf = (t: string) => t.split("/")[0]!
 
-// フォルダごとに読み込んでよいもの（フォルダの名前か、パッケージ名）
+// フォルダごとに読み込んでよいもの（土台のフォルダの名前か、パッケージ名）
 const ALLOWED: Record<string, (target: string) => boolean> = {
   core: t => t === "core" || t === "zod",
   store: t => t === "core" || t === "store" || t === "zustand/vanilla",
@@ -33,14 +34,38 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
     ["core", "store", "ui", "react", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),
 }
+// プラグインのファイルは役割で見る。見た目（.tsx と ui.ts）は ui と同じもの、ほかは core・store・zod だけ
+const isView = (rel: string) => rel.endsWith(".tsx") || basename(rel) === "ui.ts"
+const pluginAllowed = (rel: string) => (t: string) =>
+  isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod"
 
 describe("依存の向き", () => {
   for (const file of sources) {
     const layer = layerOf(file.rel)
+    const targets = importsOf(file)
+    const local = (t: string) => ["core", "store", "ui", "plugins"].includes(topOf(t)) && !t.endsWith(".css")
+    if (layer === "plugins") {
+      const own = dirname(file.rel)
+      test(file.rel, () => {
+        const bad = targets.filter(t => {
+          if (t.endsWith(".css")) return !isView(file.rel)
+          if (!local(t)) return !pluginAllowed(file.rel)(t)
+          if (topOf(t) !== "plugins") return !pluginAllowed(file.rel)(topOf(t))
+          // 同じプラグインの中か、ほかのプラグインの入口（index・ui）だけ。見た目でないファイルは見た目を読まない
+          const entry = /^plugins\/[^/]+(\/(index|ui))?$/.test(t)
+          if (dirname(t) !== own && !entry) return true
+          const targetIsView = basename(t) === "ui" || sources.some(f => f.rel === `${t}.tsx`)
+          return !isView(file.rel) && targetIsView
+        })
+        expect(bad).toEqual([])
+      })
+      continue
+    }
     const allowed = ALLOWED[layer]
     if (!allowed) continue
     test(file.rel, () => {
-      expect(importsOf(file).filter(t => !allowed(t))).toEqual([])
+      // 土台（core・store・ui）は、プラグインを読まない
+      expect(targets.filter(t => (local(t) ? !allowed(topOf(t)) : !allowed(t)))).toEqual([])
     })
   }
 })
@@ -80,7 +105,7 @@ test("core のデータと同じ名前の画面の部品は作らない（デー
           .toLowerCase(),
       ),
   )
-  const views = sources.filter(f => layerOf(f.rel) === "ui" && f.rel.endsWith(".tsx"))
+  const views = sources.filter(f => (layerOf(f.rel) === "ui" || layerOf(f.rel) === "plugins") && f.rel.endsWith(".tsx"))
   const clashes = views.filter(f => dataNames.has(basename(f.rel, ".tsx").toLowerCase())).map(f => f.rel)
   expect(clashes).toEqual([])
 })
@@ -89,7 +114,7 @@ test("core のデータと同じ名前の画面の部品は作らない（デー
 test("画面の文言は t() を通す（ui に日本語を直に書かない）", () => {
   const japanese = /[\u3040-\u30ff\u3400-\u9fff]/
   const offenders = sources
-    .filter(f => layerOf(f.rel) === "ui")
+    .filter(f => layerOf(f.rel) === "ui" || (layerOf(f.rel) === "plugins" && f.rel.endsWith(".tsx")))
     .flatMap(f =>
       f.text
         .replace(/\/\*[\s\S]*?\*\//g, "")

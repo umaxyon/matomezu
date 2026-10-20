@@ -2,12 +2,13 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
-import { BUILTIN } from "../../web/src/store/builtin"
+import { BUILTIN } from "../../web/src/plugins"
+import { BASE_UI } from "../../web/src/plugins/base/ui"
+import { BUILTIN_UI } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
 import { App } from "../../web/src/ui/App"
-import { BUILTIN_UI, MATOMEZU_UI } from "../../web/src/ui/builtin"
 import { assembleUi, type DialogProps, definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
@@ -70,7 +71,7 @@ describe("見た目のプラグイン", () => {
     const ui = assembleUi([...BUILTIN_UI, notesUi])
     expect(ui.bookViews.get("notes/note")).toBe(NoteView)
     expect(ui.dialogViews.get("book.new")).toBe(MyNewBook)
-    expect(ui.dialogViews.get("book.open")).toBe(MATOMEZU_UI.ui.dialogViews["book.open"])
+    expect(ui.dialogViews.get("book.open")).toBe(BASE_UI.ui.dialogViews["book.open"])
   })
 
   test("見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り", () => {

@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { isMatomezuError } from "../../web/src/core/errors"
-import { BUILTIN, MATOMEZU } from "../../web/src/store/builtin"
+import { BUILTIN } from "../../web/src/plugins"
+import { BASE } from "../../web/src/plugins/base"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog } from "../../web/src/store/dialogs"
@@ -85,7 +86,7 @@ describe("app を組み立てる", () => {
       // @ts-expect-error 型の表に書き足していないプラグインを渡した
       createMatomezu({ plugins: [...BUILTIN, notes] })
       // @ts-expect-error 中の部品を 1 つの並びにしたものではない
-      createMatomezu({ plugins: [{ ...MATOMEZU, commands: [] }] })
+      createMatomezu({ plugins: [{ ...BASE, commands: [] }, BUILTIN[1]] })
     }
     expect(typeOnly).toBeFunction()
   })
