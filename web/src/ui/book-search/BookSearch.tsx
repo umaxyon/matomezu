@@ -1,4 +1,5 @@
-// ブックを探して選ぶ部品: 打つたびに題名で絞り込み、↑↓で選び、Enter かクリックで決める
+// ブックを探して選ぶ部品: 打つたびに題名で絞り込み、↑↓で選び、Enter かクリックで決める。
+// 候補の欄は高さが決まっていて、絞り込んでも部品の大きさは変わらない（真ん中に置いても探す欄が動かない）
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { searchBooks } from "../../core/book-search"
@@ -57,26 +58,28 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
         }}
         onKeyDown={onKeyDown}
       />
-      <div className={styles.list} id={listId} role="listbox" aria-label={t("ブック")}>
-        {found.map((b, i) => (
-          // biome-ignore lint/a11y/useKeyWithClickEvents: キーでの操作は探す欄（combobox）が受け持つ
-          <div
-            key={b.id}
-            ref={i === current ? activeRef : undefined}
-            id={optionId(i)}
-            role="option"
-            tabIndex={-1}
-            aria-selected={i === current}
-            className={styles.option}
-            onPointerDown={e => e.preventDefault()}
-            onPointerMove={() => setActive(i)}
-            onClick={() => onSelect(b.id)}
-          >
-            {b.title}
-          </div>
-        ))}
+      <div className={styles.results}>
+        <div className={styles.list} id={listId} role="listbox" aria-label={t("ブック")}>
+          {found.map((b, i) => (
+            // biome-ignore lint/a11y/useKeyWithClickEvents: キーでの操作は探す欄（combobox）が受け持つ
+            <div
+              key={b.id}
+              ref={i === current ? activeRef : undefined}
+              id={optionId(i)}
+              role="option"
+              tabIndex={-1}
+              aria-selected={i === current}
+              className={styles.option}
+              onPointerDown={e => e.preventDefault()}
+              onPointerMove={() => setActive(i)}
+              onClick={() => onSelect(b.id)}
+            >
+              {b.title}
+            </div>
+          ))}
+        </div>
+        {found.length === 0 && <p className={styles.empty}>{t("当てはまるブックはありません")}</p>}
       </div>
-      {found.length === 0 && <p className={styles.empty}>{t("当てはまるブックはありません")}</p>}
     </div>
   )
 }

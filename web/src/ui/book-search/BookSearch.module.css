@@ -18,9 +18,13 @@
   outline: 2px solid var(--skin-accent);
   outline-offset: -1px;
 }
+/* 候補の欄: 候補の数によらず同じ高さ */
+.results {
+  height: 240px;
+}
 .list {
   padding: 2px;
-  max-height: 240px;
+  max-height: 100%;
   overflow-y: auto;
 }
 .option {

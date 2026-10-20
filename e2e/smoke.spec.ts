@@ -33,6 +33,25 @@ test("タブの左のボタンでダイアログが開き、打った文字で�
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "Design Notes")
 })
 
+test("絞り込んで候補が減っても、探す欄の位置は変わらない（ステージの真ん中とダイアログ）", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "画面を分割" }).click()
+  const stage = page.getByRole("region", { name: "ステージ" }).nth(1)
+  await page.getByRole("button", { name: "ブックを開く" }).first().click()
+  const dialog = page.getByRole("dialog", { name: "ブックを開く" })
+  for (const place of [dialog, stage]) {
+    const input = place.getByRole("combobox", { name: "ブックを探す" })
+    const before = await input.boundingBox()
+    await input.fill("振り返り")
+    await expect(place.getByRole("option")).toHaveText(["週次の振り返り"])
+    expect(await input.boundingBox()).toEqual(before)
+    await input.fill("当てはまらない言葉")
+    await expect(place.getByText("当てはまるブックはありません")).toBeVisible()
+    expect(await input.boundingBox()).toEqual(before)
+    if (place === dialog) await page.keyboard.press("Escape")
+  }
+})
+
 test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ page }) => {
   await page.goto("/")
   await page.getByRole("button", { name: "ブックを開く" }).click()
