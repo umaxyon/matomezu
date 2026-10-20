@@ -1,6 +1,7 @@
 // ブックの操作（データを書き換えず、新しい値を返す）
 
 import { ORIENTATIONS, type Orientation } from "./def/paper"
+import { fail } from "./errors"
 import type { Lang } from "./i18n/i18n"
 import { translate } from "./i18n/i18n"
 import { nextNumber } from "./ids"
@@ -25,7 +26,7 @@ export function bookTitle(book: Book, lang: Lang): string {
 
 function pagesRule(book: PagedBook) {
   const rule = bookType(book.type as BookTypeId).pages
-  if (!rule) throw new Error(`book type ${book.type} has no pages`)
+  if (!rule) return fail("E103", { type: book.type })
   return rule
 }
 

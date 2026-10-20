@@ -1,8 +1,10 @@
 // 画面の状態の store（1 つ）。状態を変えるのは、ここの名前付きの操作だけ。
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
+
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { hasPages, MASTER_BOOK } from "../core/book"
 import type { ActionContext } from "../core/def/action"
+import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { type ArgsOf, perform } from "../core/perform"
@@ -58,7 +60,7 @@ export interface AppStore {
 // 最初のブックを開いた状態。マスターのブックはいつもある
 export function initialState(books: readonly BookOf<"drawing">[] = SAMPLE_BOOKS, lang: Lang = "ja"): AppState {
   const first = books[0]
-  if (!first) throw new Error("no book to open")
+  if (!first) return fail("E106")
   return {
     books: Object.fromEntries([MASTER_BOOK, ...books].map(b => [b.id, b])),
     workspace: newWorkspace(first),

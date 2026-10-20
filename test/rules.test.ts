@@ -57,6 +57,11 @@ test("外の世界（通信・保存・URL・クリップボード）に触る�
   expect(offenders).toEqual([])
 })
 
+test("誤りは誤りの表（core/errors.ts）の番号で投げる（ほかで Error を作らない）", () => {
+  const offenders = sources.filter(f => f.rel !== "core/errors.ts" && /\bnew Error\(/.test(f.text)).map(f => f.rel)
+  expect(offenders).toEqual([])
+})
+
 test("ソースに、その時の状況でしか意味を持たない言葉を書かない", () => {
   const words = /新基盤|オーバーホール|仮の|とりあえず|暫定/
   const files = [...sources, ...filesUnder(join(ROOT, "test")), ...filesUnder(join(ROOT, "e2e"))]

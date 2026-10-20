@@ -10,6 +10,7 @@ import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
 import { THEME_TOKENS, type ThemeDef } from "./def/theme"
+import { fail, matomezuError, type Problem, problem } from "./errors"
 import { BOX } from "./items/box"
 import { PAPERS } from "./papers"
 import { STANDARD } from "./themes/standard"
@@ -52,9 +53,9 @@ const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T
 // 食い違いがあれば、直す所が分かる文を並べて誤りにする
 export function buildRegistry(parts: RegistryParts): Registry {
   const problems = checkRegistry(parts)
-  if (problems.length > 0) throw new Error(`registry has problems:\n${problems.join("\n")}`)
+  if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const [first, ...rest] = parts.bookTypes.map(t => t.schema)
-  if (!first) throw new Error("registry has no book type")
+  if (!first) return fail("E015")
   return {
     parts,
     bookTypes: byId(parts.bookTypes),
@@ -78,8 +79,7 @@ export const REGISTRY = buildRegistry(BUILTIN_PARTS)
 
 export function bookType(id: BookTypeId): BookTypeDef {
   const def = REGISTRY.bookTypes.get(id)
-  if (!def) throw new Error(`unknown book type: ${id}`)
-  return def
+  return def ?? fail("E101", { id })
 }
 
 // 知らない id なら undefined（データに残った、外したプラグインのアイテムなど）
@@ -87,9 +87,9 @@ export const itemDef = (id: string): ItemDef | undefined => REGISTRY.items.get(i
 export const actionDef = (id: string): ActionDef | undefined => REGISTRY.actions.get(id)
 export const themeDef = (id: string): ThemeDef | undefined => REGISTRY.themes.get(id)
 
-// 定義の組の食い違いを、直す所が分かる文で返す（無ければ空）
-export function checkRegistry(parts: RegistryParts): string[] {
-  const problems: string[] = []
+// 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
+export function checkRegistry(parts: RegistryParts): Problem[] {
+  const problems: Problem[] = []
   const papers = byId(parts.papers)
   const items = byId(parts.items)
   const actions = byId(parts.actions)
@@ -104,48 +104,45 @@ export function checkRegistry(parts: RegistryParts): string[] {
   for (const [name, defs] of Object.entries(tables)) {
     const seen = new Set<string>()
     for (const d of defs as readonly { id: string }[]) {
-      if (seen.has(d.id)) problems.push(`${name} ${d.id}: id is registered twice`)
+      if (seen.has(d.id)) problems.push(problem("E001", { kind: name, id: d.id }))
       seen.add(d.id)
     }
   }
   for (const t of parts.bookTypes) {
-    const where = `bookType ${t.id}`
     const literal = t.schema.shape.type
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
     if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
-      problems.push(`${where}: schema.type must be the literal "${t.id}"`)
-    if ((t.pages !== null) !== "pages" in t.schema.shape)
-      problems.push(`${where}: pages must match whether schema has pages`)
+      problems.push(problem("E002", { id: t.id }))
+    if ((t.pages !== null) !== "pages" in t.schema.shape) problems.push(problem("E003", { id: t.id }))
     if (t.pages) {
       const rule = t.pages.paper
-      for (const id of rule.allowed) if (!papers.has(id)) problems.push(`${where}: unknown paper ${id}`)
-      if (!rule.allowed.includes(rule.default)) problems.push(`${where}: default paper ${rule.default} is not allowed`)
+      for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
+      if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
     }
-    if (t.pages?.addFromTabs && !t.actions.defaults.includes("page.add"))
-      problems.push(`${where}: addFromTabs needs page.add in the default actions`)
+    if (t.pages?.addFromTabs && !t.actions.defaults.includes("page.add")) problems.push(problem("E006", { id: t.id }))
     if (!t.single && !t.schema.safeParse(t.create({ id: "check", title: "check" })).success)
-      problems.push(`${where}: create must return a book of the schema`)
+      problems.push(problem("E007", { id: t.id }))
     for (const [kind, choice, table] of [
       ["item", t.items, items],
       ["action", t.actions, actions],
     ] as const) {
-      for (const id of choice.allowed) if (!table.has(id)) problems.push(`${where}: unknown ${kind} ${id}`)
+      for (const id of choice.allowed) if (!table.has(id)) problems.push(problem("E008", { id: t.id, kind, ref: id }))
       for (const id of choice.defaults)
-        if (!choice.allowed.includes(id)) problems.push(`${where}: default ${kind} ${id} is not allowed`)
+        if (!choice.allowed.includes(id)) problems.push(problem("E009", { id: t.id, kind, ref: id }))
     }
-    if (!themes.has(t.theme)) problems.push(`${where}: unknown theme ${t.theme}`)
+    if (!themes.has(t.theme)) problems.push(problem("E010", { id: t.id, theme: t.theme }))
   }
   const decls = [...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k })))
   const declared = new Set<string>()
   for (const d of decls) {
-    if (declared.has(d.id)) problems.push(`${d.owner}: token ${d.id} is declared twice`)
+    if (declared.has(d.id)) problems.push(problem("E011", { owner: d.owner, token: d.id }))
     declared.add(d.id)
     if (!(THEME_TOKENS as readonly string[]).includes(d.fallback))
-      problems.push(`${d.owner}: token ${d.id} falls back to unknown ${d.fallback}`)
+      problems.push(problem("E012", { owner: d.owner, token: d.id, fallback: d.fallback }))
   }
   for (const th of parts.themes)
     for (const id of Object.keys(th.tokens ?? {}))
-      if (!declared.has(id)) problems.push(`theme ${th.id}: token ${id} is not declared by any item or book type`)
-  for (const p of parts.papers) if (p.size.w > p.size.h) problems.push(`paper ${p.id}: size must be portrait (w <= h)`)
+      if (!declared.has(id)) problems.push(problem("E013", { id: th.id, token: id }))
+  for (const p of parts.papers) if (p.size.w > p.size.h) problems.push(problem("E014", { id: p.id }))
   return problems
 }

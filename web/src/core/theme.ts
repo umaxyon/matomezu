@@ -1,11 +1,13 @@
 // テーマの値を決める: 宣言された欄（TokenDecl）ごとに、テーマの上書き → 宣言の既定（共通の欄）の順で値を選ぶ
+
 import type { TokenDecl } from "./def/theme"
+import { fail } from "./errors"
 import { bookType, itemDef, themeDef } from "./registry"
 import type { Book } from "./schema/book"
 
 export function resolveTokens(themeId: string, decls: readonly TokenDecl[]): Record<string, string> {
   const theme = themeDef(themeId)
-  if (!theme) throw new Error(`unknown theme: ${themeId}`)
+  if (!theme) return fail("E102", { id: themeId })
   const values: Record<string, string> = { ...theme.base }
   for (const d of decls) values[d.id] = theme.tokens?.[d.id] ?? theme.base[d.fallback]
   return values

@@ -1,6 +1,8 @@
 // store を画面の木に配る入れ物と、読む口・操作を取り出すフック
+
 import { createContext, type ReactNode, useContext } from "react"
 import { useStore } from "zustand"
+import { fail } from "../core/errors"
 import type { Actions, AppState, AppStore } from "../store/store"
 
 const StoreContext = createContext<AppStore | null>(null)
@@ -11,7 +13,7 @@ export function StoreProvider({ store, children }: { store: AppStore; children: 
 
 function useAppStore(): AppStore {
   const store = useContext(StoreContext)
-  if (!store) throw new Error("StoreProvider is missing")
+  if (!store) return fail("E201")
   return store
 }
 

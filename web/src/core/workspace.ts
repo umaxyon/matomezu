@@ -3,7 +3,9 @@
 // ステージの並べ方は arrangement が持ち、ステージは自分の置き場所を知らない。
 // ステージの id は、作るたびに番号を 1 つ進めて振り、閉じたステージの id も使い回さない（後から届く操作や履歴が、別のステージを指さないように）。
 // 操作はデータを書き換えず、新しい値を返す（変わらないステージは同じものを使い回す）
+
 import type { PagedBook } from "./book"
+import { fail } from "./errors"
 import type { Book } from "./schema/book"
 import { newStage, openBook, openPage, type Stage } from "./stage"
 
@@ -33,7 +35,7 @@ export function newWorkspace(book: Book): Workspace {
 
 export function currentStage(ws: Workspace): Stage {
   const stage = ws.stages.find(s => s.id === ws.current)
-  if (!stage) throw new Error(`no current stage: ${ws.current}`)
+  if (!stage) return fail("E105", { id: ws.current })
   return stage
 }
 
