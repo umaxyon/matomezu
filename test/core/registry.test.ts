@@ -113,11 +113,17 @@ describe("アクションを行う", () => {
     expect(again).toEqual({ ok: false, reason: "refused" })
   })
 
-  test("ブックの一覧を変えるアクションは、マスターのタイプが許すときだけ", () => {
-    expect(perform({ [book.id]: book }, "book.create", { title: "x", type: "drawing" }, ctx)).toEqual({
+  test("ブックの一覧と設定を変えるアクションは、ホームのタイプが許すときだけ。ホームが無ければ断る", () => {
+    const homeless = { ...ctx, home: null }
+    expect(perform({ [book.id]: book }, "book.create", { title: "x", type: "drawing" }, homeless)).toEqual({
       ok: false,
       reason: "not-allowed",
     })
+    const settings = { lang: "ja" as const, skin: "auto" }
+    expect(perform(settings, "settings.lang", { lang: "en" }, ctx)).toMatchObject({ ok: true, next: { lang: "en" } })
+    expect(perform(settings, "settings.lang", { lang: "en" }, homeless)).toEqual({ ok: false, reason: "not-allowed" })
+    // @ts-expect-error 言語は決まった値だけ（引数の形でも断る）
+    expect(perform(settings, "settings.lang", { lang: "fr" }, ctx)).toEqual({ ok: false, reason: "bad-args" })
   })
 
   test("タイプが許していないアクションと、知らないアクションは断る", () => {

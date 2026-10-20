@@ -10,6 +10,7 @@ import type { Lang } from "../core/i18n/i18n"
 import { type ArgsOf, perform } from "../core/perform"
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
+import type { Settings } from "../core/settings"
 import { openBook, panBy, resize } from "../core/stage"
 import type { SingleBookTypeId } from "../core/tables"
 import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
@@ -18,11 +19,7 @@ import type { OpenedDialog } from "./dialogs"
 import { type AppDefs, assemble, type Plugin } from "./plugin"
 import type { DialogId } from "./tables"
 
-// 見る人ごとの設定
-export interface Settings {
-  lang: Lang
-  skin: string // スキンの id。"auto" なら OS の明暗に合わせる
-}
+export type { Settings } from "../core/settings"
 
 export interface AppState {
   books: Record<string, Book> // ブックの id ごと
@@ -46,8 +43,9 @@ export interface Actions {
   addPage(stage: string, args: ArgsOf<"page.add">): boolean
   // ブックを作って（アクション book.create）、そのステージで開き、カレントにする。作れたか返す
   createBook(stage: string, args: ArgsOf<"book.create">): boolean
-  setLang(lang: Lang): void
-  setSkin(skin: string): void
+  // 設定を変える（アクション settings.lang・settings.skin）。ホームのタイプが許さなければ変えない。変えたか返す
+  setLang(lang: Lang): boolean
+  setSkin(skin: string): boolean
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
 }
@@ -98,6 +96,13 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     if (next === ws) return
     const keeps = dialog === null || next.stages.some(s => s.id === dialog.stage)
     setState(keeps ? { workspace: next } : { workspace: next, dialog: null })
+  }
+  // 設定のアクションの結果を反映する（同じ値なら知らせない）
+  const changeSettings = (done: { ok: true; next: Settings } | { ok: false }) => {
+    if (!done.ok) return false
+    const now = getState().settings
+    if (done.next.lang !== now.lang || done.next.skin !== now.skin) setState({ settings: done.next })
+    return true
   }
   const actions: Actions = {
     command: (stage, id, ...args) => {
@@ -151,12 +156,8 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       })
       return true
     },
-    setLang: lang => {
-      if (getState().settings.lang !== lang) setState({ settings: { ...getState().settings, lang } })
-    },
-    setSkin: skin => {
-      if (getState().settings.skin !== skin) setState({ settings: { ...getState().settings, skin } })
-    },
+    setLang: lang => changeSettings(perform(getState().settings, "settings.lang", { lang }, ctx())),
+    setSkin: skin => changeSettings(perform(getState().settings, "settings.skin", { skin }, ctx())),
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
   }

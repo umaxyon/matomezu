@@ -1,8 +1,7 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book が対象ならそのブックのタイプ、library が対象なら app のホームのブックのタイプが決める（ホームが無ければ断る）
+// 使えるかは、book が対象ならそのブックのタイプ、library と settings が対象なら app のホームのブックのタイプが決める（ホームが無ければ断る）
 import type { z } from "zod"
 import type { ActionContext, ActionDef, Subjects } from "./def/action"
-import type { Library } from "./library"
 import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 import type { ActionId, ActionTable } from "./tables"
@@ -10,7 +9,8 @@ import type { ActionId, ActionTable } from "./tables"
 type ActionOf<Id extends ActionId> = ActionTable[Id]
 export type SubjectOf<Id extends ActionId> = Subjects[ActionOf<Id>["target"]]
 export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
-export type ResultOf<Id extends ActionId> = ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R> ? R : never
+export type ResultOf<Id extends ActionId> =
+  ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
 
 export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
 export type Performed<Id extends ActionId> =
@@ -22,10 +22,15 @@ export function actionsOf(reg: Registry, book: Book): readonly string[] {
   return bookType(reg, book.type).actions.defaults
 }
 
+// ホームのブックで使えるアクション（ホームが無ければ無い）。ホームは 1 冊だけのタイプで、ブックの id はタイプの id
+export function homeActions(reg: Registry, home: string | null): readonly string[] {
+  return home === null ? [] : bookType(reg, home).actions.defaults
+}
+
 function allowed(ctx: ActionContext, action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
-  const owner =
-    action.target === "library" ? (ctx.home ? (subject as Library)[ctx.home] : undefined) : (subject as Book)
-  return owner !== undefined && actionsOf(ctx.registry, owner).includes(action.id)
+  const usable =
+    action.target === "book" ? actionsOf(ctx.registry, subject as Book) : homeActions(ctx.registry, ctx.home)
+  return usable.includes(action.id)
 }
 
 export function perform<Id extends ActionId>(

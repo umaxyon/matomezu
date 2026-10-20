@@ -45,4 +45,19 @@ describe("ホーム", () => {
     const parts = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t.id === "master" ? bad : t)) }
     expect(checkRegistry(parts).map(p => p.code)).toEqual(["E019"])
   })
+
+  test("設定はアクションで変え、ホームのタイプが許さない設定は変えず、そのコマンドも出さない", () => {
+    const app = newStore()
+    expect(app.actions.command("s1", "settings.lang", "en")).toBe(true)
+    expect(app.state.getState().settings.lang).toBe("en")
+    // 言語だけを許すホーム
+    const strict = { ...MASTER, actions: { allowed: ["settings.lang"], defaults: ["settings.lang"] } }
+    const org = { ...BUILTIN[1], bookTypes: [strict] }
+    const locked = createMatomezu({ plugins: [BUILTIN[0], org, BUILTIN[2]], home: "master" })
+    expect(locked.actions.setSkin("dark")).toBe(false)
+    expect(locked.state.getState().settings.skin).toBe("auto")
+    expect(isShown(locked, locked.state.getState(), "s1", "settings.skin")).toBe(false)
+    expect(isShown(locked, locked.state.getState(), "s1", "settings.lang")).toBe(true)
+    expect(locked.actions.createBook("s1", { title: "x", type: "drawing" })).toBe(false)
+  })
 })

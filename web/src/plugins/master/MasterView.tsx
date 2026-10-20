@@ -29,6 +29,7 @@ export function MasterView({ stage }: { stage: Stage }) {
   )
 }
 
+// 設定の欄。ホームのタイプが変えるのを許さない設定は、選べなくする
 function Settings({ stage }: { stage: string }) {
   const t = useT()
   const { lang, skin } = useApp(s => s.settings)
@@ -39,7 +40,12 @@ function Settings({ stage }: { stage: string }) {
       <h2 className={styles.heading}>{t("設定")}</h2>
       <label className={styles.row}>
         <span className={styles.label}>{t(setLang.title)}</span>
-        <select className={styles.select} value={lang} onChange={e => setLang.run(e.target.value as Lang)}>
+        <select
+          className={styles.select}
+          value={lang}
+          disabled={!setLang.enabled}
+          onChange={e => setLang.run(e.target.value as Lang)}
+        >
           {LANGS.map(l => (
             <option key={l} value={l}>
               {LANG_NAMES[l]}
@@ -49,7 +55,12 @@ function Settings({ stage }: { stage: string }) {
       </label>
       <label className={styles.row}>
         <span className={styles.label}>{t(setSkin.title)}</span>
-        <select className={styles.select} value={skin} onChange={e => setSkin.run(e.target.value)}>
+        <select
+          className={styles.select}
+          value={skin}
+          disabled={!setSkin.enabled}
+          onChange={e => setSkin.run(e.target.value)}
+        >
           <option value="auto">{t("自動")}</option>
           {SKINS.map(s => (
             <option key={s.id} value={s.id}>

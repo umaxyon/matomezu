@@ -1,17 +1,24 @@
-// 見る人ごとの設定のコマンド: 言語・スキンを変える
+// 見る人ごとの設定のコマンド: 言語・スキンを変える（アクション settings.lang・settings.skin）。ホームのタイプが許すときだけ出す
 import type { Lang } from "../../core/i18n/i18n"
-import { defineCommand } from "../../store/commands/def"
+import { homeActions } from "../../core/perform"
+import { type CommandContext, defineCommand } from "../../store/commands/def"
+
+const allows = (action: string) => (ctx: CommandContext) => homeActions(ctx.registry, ctx.home).includes(action)
 
 export const SETTINGS_LANG = defineCommand({
   id: "settings.lang",
   title: "言語",
-  run: (_ctx, a, lang: Lang) => a.setLang(lang),
-  when: () => true,
+  run: (_ctx, a, lang: Lang) => {
+    a.setLang(lang)
+  },
+  when: allows("settings.lang"),
 })
 
 export const SETTINGS_SKIN = defineCommand({
   id: "settings.skin",
   title: "スキン",
-  run: (_ctx, a, skin: string) => a.setSkin(skin),
-  when: () => true,
+  run: (_ctx, a, skin: string) => {
+    a.setSkin(skin)
+  },
+  when: allows("settings.skin"),
 })
