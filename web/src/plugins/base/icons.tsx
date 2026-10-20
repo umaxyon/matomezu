@@ -13,7 +13,7 @@ const SPLIT = icon(
 )
 
 export const COMMAND_ICONS = {
-  "stage.master": icon(
+  "stage.home": icon(
     <>
       <path d="M4 11 12 4l8 7" />
       <path d="M6 9.5V20h12V9.5" />

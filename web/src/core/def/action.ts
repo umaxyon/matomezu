@@ -7,7 +7,7 @@ import type { Registry } from "../registry"
 import type { Book } from "../schema/book"
 import type { Capability } from "./item"
 
-// 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧で、使えるかはマスターのブックのタイプが決める
+// 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧で、使えるかはホームのブックのタイプが決める
 export interface Subjects {
   library: Library
   book: Book
@@ -17,6 +17,7 @@ export type ActionTarget = keyof Subjects
 
 export interface ActionContext {
   registry: Registry // 使う登録表（アクション・ブックのタイプ・紙など）
+  home: string | null // app のホームのブックの id（一覧のアクションを許すかは、このブックのタイプが決める）。無ければ一覧のアクションは断る
   lang: Lang
   newId(): string // ブックなど、ほかの世界と行き来するものの id を振る
 }

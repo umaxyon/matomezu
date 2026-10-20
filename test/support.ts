@@ -9,4 +9,4 @@ export const BUILTIN_PARTS = REGISTRY.parts
 
 // 見本のブックを持ち、最初の 1 冊を開いた store
 export const newStore = (options: Omit<StoreOptions, "plugins"> = {}) =>
-  createAppStore({ plugins: BUILTIN, books: SAMPLE_BOOKS, ...options })
+  createAppStore({ plugins: BUILTIN, home: "master", books: SAMPLE_BOOKS, ...options })

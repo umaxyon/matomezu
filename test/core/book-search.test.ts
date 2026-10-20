@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
-import { MASTER_BOOK } from "../../web/src/core/book"
 import { searchBooks } from "../../web/src/core/book-search"
+import { MASTER_BOOK } from "../../web/src/plugins/master"
 import { REGISTRY } from "../support"
 
 const book = (id: string, title: string) => ({

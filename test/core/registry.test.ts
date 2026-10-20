@@ -2,12 +2,12 @@ import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { z } from "zod"
-import { MASTER_BOOK } from "../../web/src/core/book"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
 import { perform } from "../../web/src/core/perform"
 import { buildRegistry, checkRegistry } from "../../web/src/core/registry"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
+import { MASTER_BOOK } from "../../web/src/plugins/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, REGISTRY } from "../support"
 
@@ -77,7 +77,7 @@ describe("登録表", () => {
 
 describe("アクションを行う", () => {
   const book = SAMPLE_BOOKS[0]!
-  const ctx = { registry: REGISTRY, lang: "ja" as const, newId: () => "new" }
+  const ctx = { registry: REGISTRY, home: "master", lang: "ja" as const, newId: () => "new" }
   const library = { [MASTER_BOOK.id]: MASTER_BOOK, [book.id]: book }
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
@@ -175,7 +175,7 @@ describe("登録表ごとに別の世界", () => {
       library,
       "book.create",
       { title: "メモ", type: "notes" },
-      { registry: reg, lang: "ja", newId: () => "n1" },
+      { registry: reg, home: "master", lang: "ja", newId: () => "n1" },
     )
     expect(made).toMatchObject({ ok: true, result: { book: "n1" } })
     expect(made.ok && reg.bookSchema.safeParse(made.next.n1).success).toBe(true)
@@ -184,7 +184,7 @@ describe("登録表ごとに別の世界", () => {
       library,
       "book.create",
       { title: "メモ", type: "notes" },
-      { registry: REGISTRY, lang: "ja", newId: () => "n1" },
+      { registry: REGISTRY, home: "master", lang: "ja", newId: () => "n1" },
     )
     expect(refused).toEqual({ ok: false, reason: "refused" })
   })

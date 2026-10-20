@@ -2,7 +2,7 @@
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
 
 import { createStore, type StoreApi } from "zustand/vanilla"
-import { hasPages, MASTER_BOOK } from "../core/book"
+import { hasPages, singleBooks } from "../core/book"
 import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
@@ -11,6 +11,7 @@ import { type ArgsOf, perform } from "../core/perform"
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import { openBook, panBy, resize } from "../core/stage"
+import type { SingleBookTypeId } from "../core/tables"
 import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
 import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
 import type { OpenedDialog } from "./dialogs"
@@ -40,7 +41,6 @@ export interface Actions {
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
-  openMaster(stage: string): void // そのステージでマスターのブックを開き、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
   // そのステージのブックにページを足して（アクション page.add）、そのステージで開き、カレントにする。足せたか返す
   addPage(stage: string, args: ArgsOf<"page.add">): boolean
@@ -54,18 +54,19 @@ export interface Actions {
 
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
 
-// AppDefs は、この store が使う定義の表（登録表・コマンド・ダイアログ）。plugins は、表のもとにしたプラグイン（画面の側が見た目を引く）
+// AppDefs は、この store が使う定義の表（登録表・コマンド・ダイアログ・ホーム）。plugins は、表のもとにしたプラグイン（画面の側が見た目を引く）
 export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> extends AppDefs {
   plugins: Ps
   state: ReadonlyStore
   actions: Actions
 }
 
-// 最初のブック（無ければマスター）を開いた状態。マスターのブックはいつもある
-function initialState(registry: Registry, books: readonly Book[], lang: Lang): AppState {
-  const first = books[0] ?? MASTER_BOOK
+// 最初のブック（無ければホーム、それも無ければ何も開かない）を開いた状態。表にある 1 冊だけのタイプのブックはいつも持つ
+function initialState(registry: Registry, books: readonly Book[], lang: Lang, home: string | null): AppState {
+  const all = [...singleBooks(registry), ...books]
+  const first = books[0] ?? all.find(b => b.id === home) ?? null
   return {
-    books: Object.fromEntries([MASTER_BOOK, ...books].map(b => [b.id, b])),
+    books: Object.fromEntries(all.map(b => [b.id, b])),
     workspace: newWorkspace(registry, first),
     settings: { lang, skin: "auto" },
     dialog: null,
@@ -74,7 +75,8 @@ function initialState(registry: Registry, books: readonly Book[], lang: Lang): A
 
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
   plugins: Ps
-  books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、マスターを開く
+  home?: SingleBookTypeId // ホームのブック（1 冊だけのタイプ）。最初に開くブックと「ホームを開く」の行き先で、ブックの一覧のアクションを許すかはこのタイプが決める
+  books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、ホームを開く
   lang?: Lang // 無ければ日本語
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
@@ -82,13 +84,13 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
 
 export function createAppStore<const Ps extends readonly Plugin[]>(options: StoreOptions<Ps>): AppStore<Ps> {
   const { plugins } = options
-  const defs = assemble(plugins)
-  const { registry } = defs
-  const initial = options.initial ?? initialState(registry, options.books ?? [], options.lang ?? "ja")
+  const defs = assemble(plugins, options.home ?? null)
+  const { registry, home } = defs
+  const initial = options.initial ?? initialState(registry, options.books ?? [], options.lang ?? "ja", home)
   const newId = options.newId ?? (() => crypto.randomUUID())
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
-  const ctx = (): ActionContext => ({ registry, lang: getState().settings.lang, newId })
+  const ctx = (): ActionContext => ({ registry, home, lang: getState().settings.lang, newId })
   // 開いたステージが無くなったダイアログは閉じる
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {
     const { workspace: ws, dialog } = getState()
@@ -101,7 +103,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     command: (stage, id, ...args) => {
       const state = getState()
       const def = commandDef(defs, id)
-      const ctx = commandContext(registry, state, stage)
+      const ctx = commandContext(registry, home, state, stage)
       if (!ctx || !isEnabled(defs, state, stage, id)) return false
       def.run(ctx, actions, args[0] as never)
       return true
@@ -121,8 +123,6 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       const book = getState().books[bookId]
       if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(registry, s, book)))
     },
-    openMaster: stage =>
-      withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(registry, s, MASTER_BOOK))),
     openPage: (stage, page) => {
       const { books, workspace } = getState()
       const book = books[workspace.stages.find(s => s.id === stage)?.opened?.book ?? ""]

@@ -1,8 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { StrictMode } from "react"
-import { DEFAULT_LAYOUT } from "../../web/src/plugins/base/ui"
-import { BUILTIN_UI } from "../../web/src/plugins/ui"
+import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import type { StoreOptions } from "../../web/src/store/store"
@@ -12,7 +11,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 afterEach(cleanup)
 
 function renderApp(options: Omit<StoreOptions, "plugins"> = {}) {
-  const store = createMatomezu({ books: SAMPLE_BOOKS, ...options, plugins: BUILTIN_UI })
+  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, ...options, plugins: BUILTIN_UI })
   render(
     <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
       <App />
@@ -147,7 +146,7 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
 
 test("名前の欄のメニューのマスターで、そのステージにマスターの画面が出る。紙もページのタブもツールも無い", () => {
   renderApp()
-  const button = fromMenu("マスター")
+  const button = fromMenu("ホーム")
   expect(button.getAttribute("aria-pressed")).toBe("false")
   fireEvent.click(button)
   expect(within(stages()[0]!).getByRole("region", { name: "マスター" })).toBeTruthy()
@@ -155,7 +154,7 @@ test("名前の欄のメニューのマスターで、そのステージにマ�
   expect(screen.queryByRole("tablist")).toBeNull()
   expect(screen.queryByRole("toolbar")).toBeNull()
   expect(screen.getByRole("button", { name: "マスター", expanded: false }).textContent).toBe("マスター")
-  expect(fromMenu("マスター").getAttribute("aria-pressed")).toBe("true")
+  expect(fromMenu("ホーム").getAttribute("aria-pressed")).toBe("true")
 })
 
 test("分割すると、それぞれのステージの区画に閉じるボタンが出て、閉じると残りのステージだけになる", () => {
@@ -173,7 +172,7 @@ test("分割すると、それぞれのステージの区画に閉じるボタ�
 
 test("マスターで新しいブックを作ると、そのステージでページの無いブックが開き、ページを作ると最初のタブができる", () => {
   renderApp()
-  fireEvent.click(fromMenu("マスター"))
+  fireEvent.click(fromMenu("ホーム"))
   fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
   const dialog = screen.getByRole("dialog", { name: "新しいブック" })
   const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
@@ -195,7 +194,7 @@ test("マスターで新しいブックを作ると、そのステージでペ�
 
 test("マスターの設定で言語とスキンを変える", () => {
   renderApp()
-  fireEvent.click(fromMenu("マスター"))
+  fireEvent.click(fromMenu("ホーム"))
   fireEvent.change(screen.getByLabelText("言語"), { target: { value: "en" } })
   expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy()
   fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "light" } })
@@ -215,7 +214,7 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
 })
 
 test("StrictMode で描いても、開いたダイアログは閉じない", async () => {
-  const store = createMatomezu({ books: SAMPLE_BOOKS, plugins: BUILTIN_UI })
+  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, plugins: BUILTIN_UI })
   render(
     <StrictMode>
       <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>

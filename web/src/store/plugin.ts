@@ -55,12 +55,13 @@ export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUIL
 // app が使う定義の表
 export interface AppDefs {
   registry: Registry
+  home: string | null // app のホームのブックの id（1 冊だけのタイプ。無ければ null）
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlySet<string>
 }
 
-// プラグインを 1 つの表にする。id の頭・同じ id の重なり・表どうしの参照を確かめ、食い違いがあれば作らない
-export function assemble(plugins: readonly Plugin[]): AppDefs {
+// プラグインを 1 つの表にする。id の頭・同じ id の重なり・表どうしの参照・ホームが 1 冊だけのタイプかを確かめ、食い違いがあれば作らない
+export function assemble(plugins: readonly Plugin[], home: string | null = null): AppDefs {
   for (const p of plugins) {
     if (isBuiltin(p)) continue
     for (const kind of PARTS)
@@ -94,8 +95,10 @@ export function assemble(plugins: readonly Plugin[]): AppDefs {
     .filter(c => !registry.messages.has(c.title))
     .map(c => problem("E018", { kind: "command", id: c.id, title: c.title }))
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
+  if (home !== null && registry.bookTypes.get(home)?.single !== true) fail("E110", { id: home })
   return {
     registry,
+    home,
     commands: new Map(commands.map(c => [c.id, c])),
     dialogs: new Set(dialogs.map(d => d.id)),
   }

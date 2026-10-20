@@ -20,6 +20,7 @@ export const ERRORS = {
   E016: "registry has {count} problems",
   E017: "message {key} has different translations",
   E018: "{kind} {id}: title {title} is not in the messages",
+  E019: "bookType {id}: book must be a book of the schema whose id is {id}",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
@@ -29,6 +30,7 @@ export const ERRORS = {
   E107: "unknown command: {id}",
   E108: "unknown dialog: {id}",
   E109: "no view for {kind} {id}",
+  E110: "home {id} is not a single book type",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

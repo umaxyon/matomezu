@@ -100,6 +100,8 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
       if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
     }
     if (t.pages?.addFromTabs && !t.actions.defaults.includes("page.add")) problems.push(problem("E006", { id: t.id }))
+    if (t.single && (t.book.id !== t.id || !t.schema.safeParse(t.book).success))
+      problems.push(problem("E019", { id: t.id }))
     if (!t.single && !t.schema.safeParse(t.create({ id: "check", title: "check" })).success)
       problems.push(problem("E007", { id: t.id }))
     for (const [kind, choice, table] of [

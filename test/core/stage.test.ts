@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { MASTER_BOOK } from "../../web/src/core/book"
 import { newStage, openBook, openPage, panBy, paperOf, placement, resize } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
+import { MASTER_BOOK } from "../../web/src/plugins/master"
 import { REGISTRY } from "../support"
 
 describe("stage", () => {

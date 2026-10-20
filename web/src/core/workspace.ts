@@ -24,10 +24,10 @@ export interface Workspace {
 
 export const MAX_STAGES = 2
 
-// ブックを 1 つ開いたステージ 1 つ
-export function newWorkspace(reg: Registry, book: Book): Workspace {
+// ステージ 1 つ。ブックを渡せばそれを開き、無ければ何も開かない
+export function newWorkspace(reg: Registry, book: Book | null): Workspace {
   return {
-    stages: [openBook(reg, newStage("s1"), book)],
+    stages: [book ? openBook(reg, newStage("s1"), book) : newStage("s1")],
     current: "s1",
     arrangement: { direction: "row" },
     issued: 1,

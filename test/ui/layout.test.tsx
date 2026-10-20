@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import { isMatomezuError, problemText } from "../../web/src/core/errors"
-import { DEFAULT_LAYOUT } from "../../web/src/plugins/base/ui"
-import { BUILTIN_UI } from "../../web/src/plugins/ui"
+import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
@@ -13,7 +12,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-const app = () => createMatomezu({ plugins: BUILTIN_UI, books: SAMPLE_BOOKS })
+const app = () => createMatomezu({ plugins: BUILTIN_UI, home: "master", books: SAMPLE_BOOKS })
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(app().commands.keys())
 

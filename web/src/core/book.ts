@@ -9,12 +9,14 @@ import { nextNumber } from "./ids"
 import type { PaperChoice, PaperRule } from "./paper"
 import { actionsOf } from "./perform"
 import { bookType, type Registry } from "./registry"
-import type { Book, BookOf, Page } from "./schema/book"
+import type { Book, Page } from "./schema/book"
 
 export type PagedBook = Extract<Book, { pages: Page[] }>
 
-// マスターのブック（1 冊だけ）
-export const MASTER_BOOK: BookOf<"master"> = { type: "master", id: "master" }
+// 表にある 1 冊だけのタイプのブック（app がいつも持つもの）
+export function singleBooks(reg: Registry): Book[] {
+  return reg.parts.bookTypes.flatMap(t => (t.single ? [t.book as Book] : []))
+}
 
 export function hasPages(book: Book): book is PagedBook {
   return "pages" in book

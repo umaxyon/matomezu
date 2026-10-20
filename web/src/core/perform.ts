@@ -1,9 +1,8 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book が対象ならそのブックのタイプ、library が対象ならマスターのブックのタイプが決める
+// 使えるかは、book が対象ならそのブックのタイプ、library が対象なら app のホームのブックのタイプが決める（ホームが無ければ断る）
 import type { z } from "zod"
 import type { ActionContext, ActionDef, Subjects } from "./def/action"
 import type { Library } from "./library"
-import { masterOf } from "./library"
 import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 import type { ActionId, ActionTable } from "./tables"
@@ -23,9 +22,10 @@ export function actionsOf(reg: Registry, book: Book): readonly string[] {
   return bookType(reg, book.type).actions.defaults
 }
 
-function allowed(reg: Registry, action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
-  const owner = action.target === "library" ? masterOf(subject as Library) : (subject as Book)
-  return owner !== undefined && actionsOf(reg, owner).includes(action.id)
+function allowed(ctx: ActionContext, action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
+  const owner =
+    action.target === "library" ? (ctx.home ? (subject as Library)[ctx.home] : undefined) : (subject as Book)
+  return owner !== undefined && actionsOf(ctx.registry, owner).includes(action.id)
 }
 
 export function perform<Id extends ActionId>(
@@ -36,7 +36,7 @@ export function perform<Id extends ActionId>(
 ): Performed<Id> {
   const action: ActionDef | undefined = ctx.registry.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  if (!allowed(ctx.registry, action, subject)) return { ok: false, reason: "not-allowed" }
+  if (!allowed(ctx, action, subject)) return { ok: false, reason: "not-allowed" }
   const parsed = action.args.safeParse(args)
   if (!parsed.success) return { ok: false, reason: "bad-args" }
   const done = action.run(subject, parsed.data, ctx)

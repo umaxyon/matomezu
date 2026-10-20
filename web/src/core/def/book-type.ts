@@ -35,9 +35,11 @@ interface BookTypeBase<S extends z.ZodObject> {
   tokens: readonly TokenDecl[] // ブックの画面を描くのに使うテーマの欄
 }
 
-// 1 冊だけのタイプ（マスターなど）。作る操作は無い
+// 1 冊だけのタイプ（マスターなど）。作る操作は無く、その 1 冊のデータを定義に持つ（id はタイプの id）。
+// app は表にある 1 冊だけのタイプのブックを、いつも持つ
 export interface SingleBookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTypeBase<S> {
   single: true
+  book: z.infer<S>
 }
 
 // 何冊も作れるタイプ。create は空のブックを作る

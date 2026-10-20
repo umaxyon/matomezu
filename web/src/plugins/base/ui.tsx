@@ -1,14 +1,12 @@
-// 土台のプラグインの見た目: マスターのビュー、ブックを開く・作る・ページを作るダイアログ、画面の骨組みのウィジェット、メニューのアイコン、既定の配置。
+// 土台のプラグインの見た目: ブックを開く・ページを作るダイアログ、画面の骨組みのウィジェット、メニューのアイコン。
 // 末尾で、骨組みが描くスロット・ウィジェット・メニューを型の表に書き足す
-import { defineLayout, defineWidget } from "../../ui/layout"
+import { defineWidget } from "../../ui/layout"
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."
 import { BookName } from "./BookName"
 import { CloseButton } from "./CloseButton"
 import { DialogHost } from "./DialogHost"
 import { COMMAND_ICONS } from "./icons"
-import { MasterView } from "./MasterView"
-import { NewBookDialog } from "./NewBookDialog"
 import { NewPageDialog } from "./NewPageDialog"
 import { OpenBookDialog } from "./OpenBookDialog"
 import { PageTabs } from "./PageTabs"
@@ -31,25 +29,9 @@ export const PAGE_TABS = defineWidget({ id: "page-tabs", slots: STAGE_SLOTS, vie
 export const CLOSE_BUTTON = defineWidget({ id: "close-button", slots: STAGE_SLOTS, view: CloseButton })
 
 export const BASE_UI = definePluginUi(BASE, {
-  bookViews: { master: MasterView },
-  dialogViews: { "book.open": OpenBookDialog, "book.new": NewBookDialog, "page.new": NewPageDialog },
+  dialogViews: { "book.open": OpenBookDialog, "page.new": NewPageDialog },
   widgets: [WORKSPACE, DIALOG_HOST, BOOK_VIEW, TOOLBOX, BOOK_NAME, PAGE_TABS, CLOSE_BUTTON],
   commandIcons: COMMAND_ICONS,
-})
-
-// 既定の配置（今の画面の形）。app は MatomezuProvider にこれか、これを写して直したものを渡す
-export const DEFAULT_LAYOUT = defineLayout({
-  id: "default",
-  slots: {
-    app: ["workspace", "dialog-host"],
-    "stage.top": ["toolbox"],
-    "stage.body": ["book-view"],
-    "stage.bottom": ["book-name", "page-tabs"],
-    "stage.corner": ["close-button"],
-  },
-  menus: {
-    "stage.menu": ["stage.master", { either: ["stage.split", "stage.unsplit"] }, "book.open"],
-  },
 })
 
 declare module "../../ui/tables" {

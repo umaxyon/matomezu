@@ -51,7 +51,7 @@ const thrown = (run: () => unknown) => {
 
 describe("app を組み立てる", () => {
   test("渡したプラグインの定義だけを使う", () => {
-    const app = createMatomezu({ plugins: [...BUILTIN, notes], partial: true, newId: () => "n1" })
+    const app = createMatomezu({ plugins: [...BUILTIN, notes], partial: true, home: "master", newId: () => "n1" })
     expect(app.registry.bookTypes.has("notes/note")).toBe(true)
     expect(app.actions.createBook("s1", { title: "メモ", type: "notes/note" })).toBe(true)
     expect(app.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "notes/note", book: "n1" })
@@ -100,7 +100,7 @@ describe("app を組み立てる", () => {
       // @ts-expect-error 型の表に書き足していないプラグインを渡した
       createMatomezu({ plugins: [...BUILTIN, notes] })
       // @ts-expect-error 中の部品を 1 つの並びにしたものではない
-      createMatomezu({ plugins: [{ ...BASE, commands: [] }, BUILTIN[1]] })
+      createMatomezu({ plugins: [{ ...BASE, commands: [] }, BUILTIN[1], BUILTIN[2]] })
     }
     expect(typeOnly).toBeFunction()
   })

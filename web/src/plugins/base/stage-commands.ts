@@ -1,14 +1,17 @@
-// ステージのコマンド: マスターを開く・分割する・分割をやめる・閉じる
+// ステージのコマンド: ホームを開く・分割する・分割をやめる・閉じる
 import { type CommandContext, defineCommand } from "../../store/commands/def"
 
 const isSplit = (ctx: CommandContext) => ctx.workspace.stages.length > 1
 
-export const STAGE_MASTER = defineCommand({
-  id: "stage.master",
-  title: "マスター",
-  run: (ctx, a) => a.openMaster(ctx.stage.id),
-  when: () => true,
-  active: ctx => ctx.book?.type === "master",
+// app のホームのブックを、そのステージで開く（ホームが無い app では出さない）
+export const STAGE_HOME = defineCommand({
+  id: "stage.home",
+  title: "ホーム",
+  run: (ctx, a) => {
+    if (ctx.home) a.openBook(ctx.stage.id, ctx.home)
+  },
+  when: ctx => ctx.home !== null,
+  active: ctx => ctx.home !== null && ctx.stage.opened?.book === ctx.home,
 })
 
 export const STAGE_SPLIT = defineCommand({

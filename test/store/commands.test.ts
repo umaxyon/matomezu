@@ -18,7 +18,7 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
     const { state, actions } = store
     expect(isShown(store, state.getState(), "s1", "book.new")).toBe(false)
     expect(isShown(store, state.getState(), "s1", "page.new")).toBe(true)
-    actions.command("s1", "stage.master")
+    actions.command("s1", "stage.home")
     expect(isShown(store, state.getState(), "s1", "book.new")).toBe(true)
     expect(isShown(store, state.getState(), "s1", "page.new")).toBe(false)
   })

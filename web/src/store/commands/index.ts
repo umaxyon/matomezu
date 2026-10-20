@@ -18,25 +18,30 @@ export function commandDef(defs: AppDefs, id: string): CommandDef<never> {
 }
 
 // そのステージから呼んだときの様子。ステージが無ければ null
-export function commandContext(registry: Registry, state: AppState, stageId: string): CommandContext | null {
+export function commandContext(
+  registry: Registry,
+  home: string | null,
+  state: AppState,
+  stageId: string,
+): CommandContext | null {
   const stage = state.workspace.stages.find(s => s.id === stageId)
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
-  return { registry, stage, book, workspace: state.workspace, settings: state.settings }
+  return { registry, home, stage, book, workspace: state.workspace, settings: state.settings }
 }
 
 export function isShown(defs: AppDefs, state: AppState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.registry, state, stageId)
+  const ctx = commandContext(defs.registry, defs.home, state, stageId)
   return ctx !== null && commandDef(defs, id).when(ctx)
 }
 
 export function isEnabled(defs: AppDefs, state: AppState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.registry, state, stageId)
+  const ctx = commandContext(defs.registry, defs.home, state, stageId)
   const def = commandDef(defs, id)
   return ctx !== null && def.when(ctx) && (def.enabled?.(ctx) ?? true)
 }
 
 export function isActive(defs: AppDefs, state: AppState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.registry, state, stageId)
+  const ctx = commandContext(defs.registry, defs.home, state, stageId)
   return ctx !== null && (commandDef(defs, id).active?.(ctx) ?? false)
 }

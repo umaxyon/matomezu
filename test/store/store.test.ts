@@ -56,7 +56,7 @@ test("マスターはカレントのステージで開き、ページは足せ�
   const { state, actions } = newStore()
   actions.split("s1")
   actions.focusStage("s2")
-  actions.openMaster("s2")
+  actions.command("s2", "stage.home")
   const s = state.getState()
   expect(s.workspace.stages.map(st => st.opened?.type)).toEqual(["drawing", "master"])
   expect(actions.addPage("s2", { title: "x" })).toBe(false)

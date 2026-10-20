@@ -3,8 +3,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { BUILTIN } from "../../web/src/plugins"
-import { BASE_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/base/ui"
-import { BUILTIN_UI } from "../../web/src/plugins/ui"
+import { BASE_UI } from "../../web/src/plugins/base/ui"
+import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
@@ -52,7 +52,7 @@ const thrown = (run: () => unknown) => {
 
 describe("見た目のプラグイン", () => {
   test("外のプラグインのビューで描き、差し替えたダイアログを中の部品のコマンドが開く", () => {
-    const app = createMatomezu({ plugins: [...BUILTIN_UI, notesUi], partial: true, newId: () => "n1" })
+    const app = createMatomezu({ plugins: [...BUILTIN_UI, notesUi], partial: true, home: "master", newId: () => "n1" })
     render(
       <MatomezuProvider app={app} layout={DEFAULT_LAYOUT}>
         <App />
@@ -62,7 +62,7 @@ describe("見た目のプラグイン", () => {
       app.actions.createBook("s1", { title: "メモ", type: "notes/note" })
     })
     expect(screen.getByText("note view")).toBeTruthy()
-    act(() => app.actions.openMaster("s1"))
+    act(() => app.actions.command("s1", "stage.home"))
     fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
     expect(screen.getByRole("button", { name: "my new book" })).toBeTruthy()
   })

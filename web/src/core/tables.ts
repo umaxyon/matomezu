@@ -9,6 +9,8 @@ export interface PaperTable {}
 export interface MessageTable {} // 文言の鍵 → 訳
 
 export type BookTypeId = keyof BookTypeTable & string
+// 1 冊だけのタイプの id（そのブックの id でもある）
+export type SingleBookTypeId = { [K in BookTypeId]: BookTypeTable[K] extends { single: true } ? K : never }[BookTypeId]
 export type ItemId = keyof ItemTable & string
 export type ActionId = keyof ActionTable & string
 export type ThemeId = keyof ThemeTable & string

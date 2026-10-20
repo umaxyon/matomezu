@@ -71,7 +71,7 @@ test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ 
 
 test("マスターのボタンで、カレントのステージがマスターの画面になり、ブックを開くと紙に戻る", async ({ page }) => {
   await page.goto("/")
-  await (await fromMenu(page, "マスター")).click()
+  await (await fromMenu(page, "ホーム")).click()
   await expect(page.getByRole("region", { name: "マスター" })).toBeVisible()
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(0)
   await expect(page.getByRole("tablist")).toHaveCount(0)
@@ -90,7 +90,7 @@ test("分割した右のステージで探す欄からマスターを選ぶと�
   await right.getByRole("option", { name: "マスター" }).click()
   await expect(right.getByRole("region", { name: "マスター" })).toBeVisible()
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
-  await expect(await fromMenu(page, "マスター", 1)).toHaveAttribute("aria-pressed", "true")
+  await expect(await fromMenu(page, "ホーム", 1)).toHaveAttribute("aria-pressed", "true")
 })
 
 test("分割した右のステージを閉じると、左のステージが画面全体に広がる", async ({ page }) => {
@@ -159,7 +159,7 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
 
 test("マスターで新しいブックを作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({ page }) => {
   await page.goto("/")
-  await (await fromMenu(page, "マスター")).click()
+  await (await fromMenu(page, "ホーム")).click()
   await page.getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
   await expect(dialog.getByRole("button", { name: "作成" })).toBeDisabled()
@@ -180,7 +180,7 @@ test("マスターで新しいブックを作ると空のブックが開き、�
 
 test("マスターの設定で言語とスキンを変えると、画面がすぐに変わる", async ({ page }) => {
   await page.goto("/")
-  await (await fromMenu(page, "マスター")).click()
+  await (await fromMenu(page, "ホーム")).click()
   await page.getByLabel("スキン").selectOption("light")
   await expect(page.locator("html")).toHaveAttribute("data-skin", "light")
   await page.getByLabel("言語").selectOption("en")

@@ -10,6 +10,7 @@ import type { Actions, Settings } from "../store"
 // コマンドが受け取る、呼ばれた場所の様子
 export interface CommandContext {
   registry: Registry
+  home: string | null // app のホームのブックの id
   stage: Stage // 呼ばれた場所のステージ
   book: Book | null // そのステージで開いているブック
   workspace: Workspace
