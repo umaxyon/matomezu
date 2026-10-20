@@ -75,6 +75,17 @@ test("マスターのボタンで、カレントのステージがマスター�
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "残課題")
 })
 
+test("分割した右のステージで探す欄からマスターを選ぶと、右にマスターが開く", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "画面を分割" }).click()
+  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
+  await expect(right.getByRole("option").first()).toHaveText("マスター")
+  await right.getByRole("option", { name: "マスター" }).click()
+  await expect(right.getByRole("region", { name: "マスター" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
+  await expect(page.getByRole("button", { name: "マスター" })).toHaveAttribute("aria-pressed", "true")
+})
+
 test("ドラッグで紙がずれ、ずらせるのは紙の周りの余白までで止まる", async ({ page }) => {
   await page.goto("/")
   const paper = page.getByRole("img", { name: "紙" })

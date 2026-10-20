@@ -61,9 +61,9 @@ test("↑↓で選ぶ候補が動き、クリックでも選べる", () => {
   const right = stages()[1]!
   const input = within(right).getByRole("combobox", { name: "ブックを探す" })
   const selected = () => within(right).getByRole("option", { selected: true }).textContent
-  expect(selected()).toBe("まとめ図の構想")
+  expect(selected()).toBe("マスター")
   fireEvent.keyDown(input, { key: "ArrowDown" })
-  expect(selected()).toBe("画面の構成")
+  expect(selected()).toBe("まとめ図の構想")
   fireEvent.keyDown(input, { key: "ArrowUp" })
   fireEvent.keyDown(input, { key: "ArrowUp" })
   expect(selected()).toBe("Design Notes")
