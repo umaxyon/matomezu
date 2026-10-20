@@ -1,14 +1,14 @@
-// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（BOOK_VIEWS）で描く。
+// ステージのビュー: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
 // ブックの中はブックのテーマの値（CSS 変数）で描く。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
 // 測った大きさと、ドラッグ・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
+import { fail } from "../../core/errors"
 import type { BookTypeId } from "../../core/registry"
 import { paperOf, type Stage } from "../../core/stage"
 import { bookTokens } from "../../core/theme"
 import { BookSearch } from "../book-search/BookSearch"
-import { BOOK_VIEWS } from "../book-types/views"
 import { useT } from "../i18n"
-import { useActions, useApp, useRegistry } from "../store-context"
+import { useActions, useApp, useRegistry, useUi } from "../store-context"
 import { themeVars } from "../theme-vars"
 import styles from "./StageView.module.css"
 import { useResize } from "./use-resize"
@@ -93,7 +93,7 @@ export const StageView = memo(function StageView({ id }: { id: string }) {
 
 // 開いたブックを、そのタイプのビューで、テーマの値の中に描く
 function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
-  const View = BOOK_VIEWS[type]
+  const View = useUi().bookViews.get(type) ?? fail("E109", { kind: "bookType", id: type })
   return (
     <div className={styles.book} style={vars}>
       <View stage={stage} />

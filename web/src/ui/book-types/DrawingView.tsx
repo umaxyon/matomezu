@@ -4,9 +4,10 @@ import type { Stage } from "../../core/stage"
 import { placement } from "../../core/stage"
 import { useCommand } from "../commands"
 import { useT } from "../i18n"
+import type { BookViewProps } from "../plugin"
 import styles from "./DrawingView.module.css"
 
-export function DrawingView({ stage }: { stage: Stage }) {
+export function DrawingView({ stage }: BookViewProps) {
   const t = useT()
   const p = placement(stage)
   const paper = stage.opened?.paper

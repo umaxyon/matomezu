@@ -2,8 +2,7 @@
 
 import { toolboxOf } from "../../core/toolbox"
 import { useT } from "../i18n"
-import { ITEM_ICONS } from "../items/icons"
-import { useApp, useRegistry } from "../store-context"
+import { useApp, useRegistry, useUi } from "../store-context"
 import styles from "./ToolboxView.module.css"
 
 export function ToolboxView({ stage }: { stage: string }) {
@@ -13,6 +12,7 @@ export function ToolboxView({ stage }: { stage: string }) {
   })
   const t = useT()
   const registry = useRegistry()
+  const ui = useUi()
   const tools = book ? toolboxOf(registry, book) : []
   if (tools.length === 0) return null
   return (
@@ -21,7 +21,7 @@ export function ToolboxView({ stage }: { stage: string }) {
         const def = registry.items.get(id)
         return (
           <button key={id} type="button" className={styles.tool} aria-label={def ? t(def.title) : id}>
-            {ITEM_ICONS[id]}
+            {ui.items.get(id)?.icon}
           </button>
         )
       })}

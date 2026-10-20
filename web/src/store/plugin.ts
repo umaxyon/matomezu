@@ -42,12 +42,13 @@ type PrefixCheck<P extends Plugin> = [Unprefixed<P>] extends [never]
 // 外のプラグインを書く入口。id の頭を型で確かめる（組み立てでも確かめる）
 export const definePlugin = <const P extends Plugin>(plugin: P & PrefixCheck<P>): P => plugin
 
-// 中の部品は、頭の無い短い id を使う（「/」を含まない id は中の部品だけのもの）
-const BUILTINS = new WeakSet<Plugin>()
+// 中の部品は、頭の無い短い id を使う（「/」を含まない id は中の部品だけのもの）。
+// 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
+const BUILTIN_MARK = Symbol("matomezu.builtin")
 export function defineBuiltin<const P extends Plugin>(plugin: P): P {
-  BUILTINS.add(plugin)
-  return plugin
+  return Object.assign(plugin, { [BUILTIN_MARK]: true })
 }
+const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
 
 // app が使う定義の表
 export interface AppDefs {
@@ -59,7 +60,7 @@ export interface AppDefs {
 // プラグインを 1 つの表にする。id の頭・同じ id の重なり・表どうしの参照を確かめ、食い違いがあれば作らない
 export function assemble(plugins: readonly Plugin[]): AppDefs {
   for (const p of plugins) {
-    if (BUILTINS.has(p)) continue
+    if (isBuiltin(p)) continue
     for (const kind of PARTS)
       for (const d of p[kind] ?? []) if (!d.id.startsWith(`${p.id}/`)) fail("E301", { plugin: p.id, kind, id: d.id })
   }

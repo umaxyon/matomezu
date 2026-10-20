@@ -15,7 +15,7 @@ import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Wo
 import { BUILTIN } from "./builtin"
 import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
 import type { OpenedDialog } from "./dialogs"
-import { type AppDefs, assemble } from "./plugin"
+import { type AppDefs, assemble, type Plugin } from "./plugin"
 import { SAMPLE_BOOKS } from "./sample-books"
 import type { DialogId } from "./tables"
 
@@ -56,8 +56,9 @@ export interface Actions {
 
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
 
-// AppDefs は、この store が使う定義の表（登録表・コマンド・ダイアログ）
-export interface AppStore extends AppDefs {
+// AppDefs は、この store が使う定義の表（登録表・コマンド・ダイアログ）。plugins は、表のもとにしたプラグイン（画面の側が見た目を引く）
+export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> extends AppDefs {
+  plugins: Ps
   state: ReadonlyStore
   actions: Actions
 }
@@ -85,16 +86,19 @@ export function builtinAppDefs(): AppDefs {
   return builtinDefs
 }
 
-export interface StoreOptions {
-  defs?: AppDefs // 無ければ中の部品だけの表
+export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
+  plugins?: Ps // 無ければ中の部品だけ
   books?: readonly BookOf<"drawing">[] // 最初に持つブック（最初の 1 冊を開く）。無ければ見本のブック
   lang?: Lang // 無ければ日本語
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
 }
 
-export function createAppStore(options: StoreOptions = {}): AppStore {
-  const defs = options.defs ?? builtinAppDefs()
+export function createAppStore<const Ps extends readonly Plugin[] = typeof BUILTIN>(
+  options: StoreOptions<Ps> = {},
+): AppStore<Ps> {
+  const plugins = options.plugins ?? (BUILTIN as unknown as Ps)
+  const defs = options.plugins ? assemble(options.plugins) : builtinAppDefs()
   const { registry } = defs
   const initial = options.initial ?? initialState(options.books ?? SAMPLE_BOOKS, options.lang ?? "ja", registry)
   const newId = options.newId ?? (() => crypto.randomUUID())
@@ -172,5 +176,5 @@ export function createAppStore(options: StoreOptions = {}): AppStore {
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
   }
-  return { ...defs, state: store, actions }
+  return { ...defs, plugins, state: store, actions }
 }

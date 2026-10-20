@@ -2,7 +2,7 @@
 // 型では、型の表に書き足した id と、渡したプラグインの id がそろっているかを確かめる（型と実物のずれを、書いた時点で捕まえる）。
 // 1 つのプロジェクトの createMatomezu には、型を書き足したプラグインを全部渡す。わざと減らす app（テストなど）は partial: true
 import type { ActionTable, BookTypeTable, ItemTable, PaperTable, ThemeTable } from "../core/tables"
-import { assemble, type IdsOf, type Part, type Plugin } from "./plugin"
+import type { IdsOf, Part, Plugin } from "./plugin"
 import { type AppStore, createAppStore, type StoreOptions } from "./store"
 import type { CommandTable, DialogTable } from "./tables"
 
@@ -25,15 +25,14 @@ type Gaps<P> = {
 // 合わない id を、渡す値に要る項目の名前にする（型の誤りの文に id がそのまま並ぶ）
 type Check<P> = [Gaps<P>] extends [never] ? unknown : { [gap in Gaps<P>]: "型の表と合わない id" }
 
-export interface MatomezuOptions<Ps extends readonly Plugin[], Partial extends boolean>
-  extends Omit<StoreOptions, "defs"> {
+export interface MatomezuOptions<Ps extends readonly Plugin[], Partial extends boolean> extends StoreOptions<Ps> {
   plugins: Ps
   partial?: Partial
 }
 
 export function createMatomezu<const Ps extends readonly Plugin[], const Partial extends boolean = false>(
   options: MatomezuOptions<Ps, Partial> & (Partial extends true ? unknown : Check<Ps[number]>),
-): AppStore {
-  const { plugins, partial: _, ...rest } = options
-  return createAppStore({ ...rest, defs: assemble(plugins) })
+): AppStore<Ps> {
+  const { partial: _, ...rest } = options
+  return createAppStore(rest)
 }

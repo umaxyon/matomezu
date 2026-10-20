@@ -5,10 +5,10 @@ import { defaultPaper, hasPages, nextPageTitle, type PagedBook, paperChoices } f
 import { ORIENTATION_TITLES, type Orientation } from "../../core/def/paper"
 import type { PaperChoice } from "../../core/paper"
 import { useT } from "../i18n"
+import type { DialogProps } from "../plugin"
 import { useActions, useApp, useRegistry } from "../store-context"
 import { Dialog } from "./Dialog"
 import { controlClass, Field, Form } from "./FormParts"
-import type { DialogProps } from "./views"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useT()

@@ -27,9 +27,14 @@ export const ERRORS = {
   E106: "no book to open",
   E107: "unknown command: {id}",
   E108: "unknown dialog: {id}",
+  E109: "no view for {kind} {id}",
 
-  E201: "StoreProvider is missing",
+  E201: "MatomezuProvider is missing",
   E202: "#root is missing",
+  E203: "plugin {plugin} has no views; pass the plugin wrapped by definePluginUi",
+  E204: "plugin {plugin}: {kind} {id} has no view",
+  E205: "plugin {plugin}: overrides unknown {kind} {id}",
+  E206: "plugin {plugin}: {kind} {id} is overridden twice",
 
   E301: 'plugin {plugin}: {kind} {id} must start with "{plugin}/"',
 } as const

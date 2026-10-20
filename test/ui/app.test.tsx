@@ -1,18 +1,20 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { createMatomezu } from "../../web/src/store/create"
 import { SAMPLE_BOOKS } from "../../web/src/store/sample-books"
-import { createAppStore, initialState } from "../../web/src/store/store"
+import type { StoreOptions } from "../../web/src/store/store"
 import { App } from "../../web/src/ui/App"
-import { StoreProvider } from "../../web/src/ui/store-context"
+import { BUILTIN_UI } from "../../web/src/ui/builtin"
+import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-function renderApp() {
-  const store = createAppStore()
+function renderApp(options: Omit<StoreOptions, "plugins"> = {}) {
+  const store = createMatomezu({ ...options, plugins: BUILTIN_UI })
   render(
-    <StoreProvider store={store}>
+    <MatomezuProvider app={store}>
       <App />
-    </StoreProvider>,
+    </MatomezuProvider>,
   )
   return store
 }
@@ -130,12 +132,7 @@ test("日本語の変換を確定する Enter では、候補を選ばない", (
 })
 
 test("言語を英語にすると、画面の文言が英語になり、＋で足すページの名前の案も英語になる", () => {
-  const store = createAppStore({ initial: initialState(SAMPLE_BOOKS, "en") })
-  render(
-    <StoreProvider store={store}>
-      <App />
-    </StoreProvider>,
-  )
+  renderApp({ books: SAMPLE_BOOKS, lang: "en" })
   fireEvent.click(screen.getByRole("button", { name: "Add page" }))
   const dialog = screen.getByRole("dialog", { name: "New page" })
   fireEvent.click(within(dialog).getByRole("button", { name: "Create" }))
@@ -209,12 +206,7 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
     title: "外した紙",
     pages: [{ id: "p1", title: "ページ 1", paper: "b5", orientation: "portrait" as const }],
   }
-  const store = createAppStore({ initial: initialState([book]) })
-  render(
-    <StoreProvider store={store}>
-      <App />
-    </StoreProvider>,
-  )
+  const store = renderApp({ books: [book] })
   expect(within(screen.getByRole("img", { name: "紙" })).getByText("不明な紙")).toBeTruthy()
   expect(store.state.getState().books.x).toEqual(book)
 })
