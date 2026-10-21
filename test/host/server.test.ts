@@ -10,6 +10,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   const listeners = new Map<string, (data: string) => void>()
   let onError = () => {}
   let reads = 0
+  let focus = () => {}
   const events: Events = {
     on: (name, l) => listeners.set(name, l),
     onError: l => {
@@ -19,14 +20,19 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   }
   const host = serverHost({
     fetch: async (url, init) => {
-      if (url === "api/perform") sent.push(JSON.parse(String(init?.body)))
+      if (url === "api/perform" || url === "api/view") sent.push({ url, ...JSON.parse(String(init?.body)) })
       if (url === "api/data") reads++
       return new Response(JSON.stringify(data))
     },
     events: () => events,
+    focused: () => true,
+    onFocus: l => {
+      focus = l
+      return () => {}
+    },
   })
   const emit = (name: string, v: unknown) => listeners.get(name)?.(JSON.stringify(v))
-  return { host, sent, emit, fail: () => onError(), reads: () => reads }
+  return { host, sent, emit, fail: () => onError(), reads: () => reads, focus: () => focus() }
 }
 
 // 常駐から読んで作った store。最初の知らせ hello を先に送る
@@ -64,9 +70,10 @@ test("読むと、置いてあるブックと設定を返す", async () => {
 
 test("画面で行ったアクションは、振った id と、つながりの id と順の番号を添えて常駐に送る", async () => {
   const { store, sent } = await connected()
+  sent.length = 0
   place(store)
   place(store)
-  expect(sent).toEqual([
+  expect(sent.filter(x => x.url === "api/perform")).toEqual([
     expect.objectContaining({
       action: "item.place",
       on: { book: "b1" },
@@ -127,6 +134,8 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
   const host = serverHost({
     fetch: () => new Promise<Response>(r => (answer = r)),
     events: () => ({ on: (name, l) => listeners.set(name, l), onError: () => {}, close: () => {} }),
+    focused: () => false,
+    onFocus: () => () => {},
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
@@ -134,4 +143,18 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
   listeners.get("book")?.(JSON.stringify({ book: b1With("new"), version: 3 }))
   answer(new Response(JSON.stringify({ books: [{ id: "b1", book: b1With("old"), version: 2 }], settings: null })))
   expect((await loading).books).toEqual([b1With("new")])
+})
+
+test("カレントのステージが見ているものと、窓がフォーカスされたことを知らせる。変わらなければ知らせない", async () => {
+  const s = await connected()
+  expect(s.sent).toEqual([
+    { url: "api/view", client: "c1", view: { book: "b1", page: "p1", selection: [] }, focused: true },
+  ])
+  s.store.actions.select("s1", ["x"])
+  s.store.actions.resizeStage("s1", { w: 100, h: 100 })
+  s.focus()
+  expect(s.sent.slice(1)).toEqual([
+    { url: "api/view", client: "c1", view: { book: "b1", page: "p1", selection: ["x"] }, focused: false },
+    { url: "api/view", client: "c1", view: { book: "b1", page: "p1", selection: ["x"] }, focused: true },
+  ])
 })

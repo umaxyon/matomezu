@@ -36,8 +36,10 @@ type event struct {
 }
 
 type client struct {
-	id string
-	ch chan event
+	id      string
+	ch      chan event
+	view    json.RawMessage // 画面が知らせた、カレントのステージが見ているもの（POST /api/view）
+	focused int64           // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
 }
 
 // Hub は世界と画面をまとめる
@@ -50,6 +52,7 @@ type Hub struct {
 	settings json.RawMessage
 	clients  map[string]*client
 	next     int
+	ticks    int64 // フォーカスの順を振る数
 }
 
 // NewHub は置き場所から世界を読む
@@ -184,7 +187,8 @@ func (h *Hub) Join() *client {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.next++
-	c := &client{id: fmt.Sprintf("c%d", h.next), ch: make(chan event, clientBuffer)}
+	h.ticks++
+	c := &client{id: fmt.Sprintf("c%d", h.next), ch: make(chan event, clientBuffer), focused: h.ticks}
 	h.clients[c.id] = c
 	h.send(c, "hello", map[string]any{"client": c.id})
 	return c
@@ -198,6 +202,67 @@ func (h *Hub) Leave(c *client) {
 		delete(h.clients, c.id)
 		close(c.ch)
 	}
+}
+
+// SetView は、画面が見ているものを覚える。focused なら、その画面がいちばん新しくフォーカスされた画面になる
+func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	c, ok := h.clients[clientID]
+	if !ok {
+		return false
+	}
+	if len(view) > 0 {
+		c.view = view
+	}
+	if focused {
+		h.ticks++
+		c.focused = h.ticks
+	}
+	return true
+}
+
+// View は、最後にフォーカスされた画面が見ているもの（つながっている画面が無い・まだ知らせが無ければ nil）
+func (h *Hub) View() json.RawMessage {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var last *client
+	for _, c := range h.clients {
+		if last == nil || c.focused > last.focused {
+			last = c
+		}
+	}
+	if last == nil {
+		return nil
+	}
+	return last.view
+}
+
+// Book は 1 冊のブック（無ければ nil）
+func (h *Hub) Book(id string) *storage.Book {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	e, ok := h.books[id]
+	if !ok {
+		return nil
+	}
+	return &storage.Book{ID: id, Body: e.body, Version: e.version}
+}
+
+// Lang は利用者の設定の言語（無ければ空。core が決める）
+func (h *Hub) Lang() string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var s struct {
+		Lang string `json:"lang"`
+	}
+	_ = json.Unmarshal(h.settings, &s)
+	return s.Lang
+}
+
+// Catalog はアクションとアイテムの目録（engine.Catalog）
+func (h *Hub) Catalog() json.RawMessage {
+	return h.engine.Catalog()
 }
 
 // CloseAll は全部の画面を外す（常駐を止めるとき。知らせの通り道を閉じると、画面とのつながりが終わる）

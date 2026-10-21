@@ -9,6 +9,15 @@
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
 //	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}  … 画面から
+//	POST /api/view        {"client", "view", "focused"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか  … 画面から
+//
+// AI の入口（MCP。internal/mcp）は合言葉で通す:
+//
+//	GET  /api/ai/view        最後にフォーカスされた画面が見ているもの（{"book", "page", "selection"}。無ければ null）
+//	GET  /api/ai/books       {"books": [{"id", "type", "title", "version"}]}
+//	GET  /api/ai/books/{id}  {"id", "book", "version"}
+//	GET  /api/ai/catalog     アクションとアイテムの目録（engine.Catalog）
+//	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "result"} を返す
 //
 // 合言葉は Authorization: Bearer <token> で渡す（server.json の token。常駐ごとに作る）。
 // 「画面から」の入口は、この常駐の画面からの頼みだけを受ける（sameOrigin。ほかのサイトに開かれたページから書かせない）。
@@ -63,6 +72,15 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/events", sameOrigin(o.events))
 	mux.Handle("POST /api/perform", sameOrigin(o.perform))
 	mux.Handle("PUT /api/books/{id}", sameOrigin(o.putBook))
+	mux.Handle("POST /api/view", sameOrigin(o.view))
+	mux.Handle("GET /api/ai/view", o.auth(o.aiView))
+	mux.Handle("GET /api/ai/books", o.auth(o.aiBooks))
+	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
+	mux.Handle("GET /api/ai/catalog", o.auth(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(o.Hub.Catalog())
+	}))
+	mux.Handle("POST /api/ai/perform", o.auth(o.aiPerform))
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux
@@ -183,6 +201,71 @@ func (o Options) putBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"version": version})
+}
+
+func (o Options) view(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Client  string          `json:"client"`
+		View    json.RawMessage `json:"view"`
+		Focused bool            `json:"focused"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if !o.Hub.SetView(req.Client, req.View, req.Focused) {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, map[string]any{})
+}
+
+func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
+	v := o.Hub.View()
+	if v == nil {
+		v = json.RawMessage("null")
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(v)
+}
+
+func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
+	books, _ := o.Hub.Data()
+	type head struct {
+		ID      string `json:"id"`
+		Type    string `json:"type"`
+		Title   string `json:"title"`
+		Version int64  `json:"version"`
+	}
+	heads := make([]head, 0, len(books))
+	for _, b := range books {
+		h := head{ID: b.ID, Version: b.Version}
+		_ = json.Unmarshal(b.Body, &h)
+		h.ID, h.Version = b.ID, b.Version
+		heads = append(heads, h)
+	}
+	writeJSON(w, map[string]any{"books": heads})
+}
+
+func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
+	b := o.Hub.Book(r.PathValue("id"))
+	if b == nil {
+		http.Error(w, "no such book", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, b)
+}
+
+func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
+	var p Perform
+	if !readJSON(w, r, &p) {
+		return
+	}
+	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, Lang: o.Hub.Lang()})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, done)
 }
 
 // readJSON は本文を v に読む。読めなければ 400 を返して false

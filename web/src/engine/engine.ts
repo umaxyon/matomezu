@@ -1,8 +1,9 @@
 // 常駐（Go）の中で動くアクションの入口: 中の部品で登録表を組み、JSON で受けた世界（ブックと設定）にアクションを行い、変わったものを JSON で返す。
 // 常駐は、これをまとめたファイル（internal/engine/engine.js。bun run build:engine）を埋め込み、goja で動かす。
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
+import { z } from "zod"
 import { restoreBooks } from "../core/book"
-import { detectLang } from "../core/i18n/i18n"
+import { detectLang, translate } from "../core/i18n/i18n"
 import { NO_KEY_CHANGES } from "../core/keys"
 import { performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
@@ -53,6 +54,27 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
+// アクションとアイテムの目録（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
+function catalog() {
+  const en = (key: string) => translate(registry.messages, "en", key as never)
+  return {
+    actions: [...registry.actions.values()].map(a => ({
+      id: a.id,
+      target: a.target,
+      title: en(a.title),
+      args: z.toJSONSchema(a.args, { io: "input", unrepresentable: "any" }),
+    })),
+    items: [...registry.items.values()].map(i => ({
+      id: i.id,
+      title: en(i.title),
+      size: "size" in i ? i.size : null,
+      props: z.toJSONSchema(i.props, { io: "input", unrepresentable: "any" }),
+    })),
+  }
+}
+
+;(globalThis as { matomezuCatalog?: () => string }).matomezuCatalog = () => JSON.stringify(catalog())
+
 // 常駐が呼ぶ口: JSON の文字列で受けて返す
 ;(globalThis as { matomezuPerform?: (input: string) => string }).matomezuPerform = input =>
   JSON.stringify(perform(JSON.parse(input) as Input))

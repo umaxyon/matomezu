@@ -2,9 +2,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -17,6 +20,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/home"
+	"github.com/umaxyon/matomezu/internal/mcp"
 	"github.com/umaxyon/matomezu/internal/server"
 	"github.com/umaxyon/matomezu/internal/storage"
 	"github.com/umaxyon/matomezu/web"
@@ -34,6 +38,7 @@ type cli struct {
 	Serve   serveCmd   `cmd:"" help:"Run the server in the foreground."`
 	Start   startCmd   `cmd:"" help:"Start the server in the background unless it is running, and print its URL."`
 	Stop    stopCmd    `cmd:"" help:"Stop the background server."`
+	MCP     mcpCmd     `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Version versionCmd `cmd:"" help:"Print the version."`
 }
 
@@ -60,6 +65,10 @@ type startCmd struct {
 }
 
 type stopCmd struct{}
+
+type mcpCmd struct {
+	serverFlags
+}
 
 type versionCmd struct{}
 
@@ -165,26 +174,45 @@ func (c *startCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	if s, err := running(h); err != nil || s != nil {
-		if s != nil {
-			fmt.Println(s.URL)
-		}
+	s, err := ensure(h, c.serverFlags)
+	if err != nil {
 		return err
+	}
+	fmt.Println(s.URL)
+	return nil
+}
+
+func (c *mcpCmd) Run() error {
+	h, err := openHome()
+	if err != nil {
+		return err
+	}
+	s, err := ensure(h, c.serverFlags)
+	if err != nil {
+		return err
+	}
+	return mcp.Serve(os.Stdin, os.Stdout, httpAPI{s}, version)
+}
+
+// ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ
+func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
+	if s, err := running(h); err != nil || s != nil {
+		return s, err
 	}
 	exe, err := os.Executable()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log, err := os.OpenFile(h.LogPath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer log.Close()
-	cmd := exec.Command(exe, append([]string{"serve"}, c.args()...)...)
+	cmd := exec.Command(exe, append([]string{"serve"}, f.args()...)...)
 	cmd.Stdout, cmd.Stderr = log, log
 	cmd.SysProcAttr = detached()
 	if err := cmd.Start(); err != nil {
-		return err
+		return nil, err
 	}
 	exited := make(chan error, 1)
 	go func() { exited <- cmd.Wait() }()
@@ -193,16 +221,56 @@ func (c *startCmd) Run() error {
 	for {
 		select {
 		case <-exited:
-			return fmt.Errorf("the server stopped while starting: see %s", h.LogPath())
+			return nil, fmt.Errorf("the server stopped while starting: see %s", h.LogPath())
 		case <-deadline:
-			return fmt.Errorf("the server did not start in %s: see %s", startWait, h.LogPath())
+			return nil, fmt.Errorf("the server did not start in %s: see %s", startWait, h.LogPath())
 		case <-time.After(100 * time.Millisecond):
 		}
 		if s, _ := running(h); s != nil {
-			fmt.Println(s.URL)
-			return nil
+			return s, nil
 		}
 	}
+}
+
+// httpAPI は、合言葉を付けて常駐の AI の入口を呼ぶ
+type httpAPI struct {
+	s *home.Server
+}
+
+func (a httpAPI) Get(path string) (json.RawMessage, error) {
+	return a.do(http.MethodGet, path, nil)
+}
+
+func (a httpAPI) Post(path string, body any) (json.RawMessage, error) {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	return a.do(http.MethodPost, path, b)
+}
+
+func (a httpAPI) do(method, path string, body []byte) (json.RawMessage, error) {
+	req, err := http.NewRequest(method, a.s.URL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+a.s.Token)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	res, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("the matomezu server did not answer: %w", err)
+	}
+	defer res.Body.Close()
+	out, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s %s: %s %s", method, path, res.Status, bytes.TrimSpace(out))
+	}
+	return out, nil
 }
 
 // running は、立っていて答える常駐のつなぎ方。立っていなければ nil

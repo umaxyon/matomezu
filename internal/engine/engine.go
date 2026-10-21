@@ -49,6 +49,7 @@ type Output struct {
 type Engine struct {
 	mu      sync.Mutex
 	perform func(string) string
+	catalog json.RawMessage
 }
 
 // New は core を読み込む
@@ -64,6 +65,11 @@ func New() (*Engine, error) {
 	if err := vm.ExportTo(vm.Get("matomezuPerform"), &e.perform); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuPerform: %w", err)
 	}
+	var catalog func() string
+	if err := vm.ExportTo(vm.Get("matomezuCatalog"), &catalog); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuCatalog: %w", err)
+	}
+	e.catalog = json.RawMessage(catalog())
 	return e, nil
 }
 
@@ -84,6 +90,12 @@ func (e *Engine) Perform(in Input) (out Output, err error) {
 		return Output{}, err
 	}
 	return out, nil
+}
+
+// Catalog はアクションとアイテムの目録 {"actions": [{"id", "target", "title", "args"}], "items": [{"id", "title", "size", "props"}]}。
+// args と props は JSON Schema
+func (e *Engine) Catalog() json.RawMessage {
+	return e.catalog
 }
 
 // randomUUID は版 4 の UUID（画面の crypto.randomUUID と同じ形）

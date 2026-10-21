@@ -1,10 +1,12 @@
 // 常駐に頼むホスト: 画面は自分で先にアクションを行い、同じアクションを常駐に送る（POST /api/perform）。
 // 常駐はアクションを 1 つずつ順に行い、変わったブックと設定をつながっている全部の画面に知らせる（/api/events。internal/server/hub.go）。
 // 画面は、常駐が決めた世界（確かめた世界）の上で、まだ確かめられていない自分のアクションを行い直したものを出す（store の receive）。
-// 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える
+// 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。
+// カレントのステージが見ているもの（ブック・ページ・選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）
 import { z } from "zod"
 import { fail } from "../core/errors"
-import type { AppStore, DoneAction } from "../store/store"
+import { currentStage } from "../core/workspace"
+import type { AppState, AppStore, DoneAction } from "../store/store"
 import type { Host, Loaded } from "./host"
 
 // 常駐が答えなかった（常駐から開いていない）
@@ -14,6 +16,8 @@ export class NoServer {}
 export interface Net {
   fetch(url: string, init?: RequestInit): Promise<Response>
   events(url: string): Events
+  focused(): boolean // 窓がフォーカスされているか
+  onFocus(listener: () => void): () => void // 窓がフォーカスされたら呼ぶ。止める関数を返す
 }
 export interface Events {
   on(name: string, listener: (data: string) => void): void
@@ -33,6 +37,19 @@ const browserNet: Net = {
       close: () => source.close(),
     }
   },
+  focused: () => document.hasFocus(),
+  onFocus: listener => {
+    window.addEventListener("focus", listener)
+    return () => window.removeEventListener("focus", listener)
+  },
+}
+
+// カレントのステージが見ているもの（何も開いていなければ null）
+export function viewOf(state: AppState): { book: string; page: string | null; selection: readonly string[] } | null {
+  const stage = currentStage(state.workspace)
+  const opened = stage.opened
+  if (!opened) return null
+  return { book: opened.book, page: "page" in opened ? (opened.page ?? null) : null, selection: stage.selection }
 }
 
 const DataSchema = z.object({
@@ -141,7 +158,25 @@ export function serverHost(net: Net = browserNet): ServerHost {
     connect: next => {
       app = next
       show()
+      let told = ""
+      const tell = (focused: boolean) => {
+        const view = JSON.stringify(viewOf(next.state.getState()))
+        if (view === told && !focused) return
+        told = view
+        void net
+          .fetch("api/view", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ client, view: JSON.parse(view), focused }),
+          })
+          .catch(() => {})
+      }
+      tell(net.focused())
+      const stopView = next.state.subscribe(() => tell(false))
+      const stopFocus = net.onFocus(() => tell(true))
       return () => {
+        stopView()
+        stopFocus()
         app = null
         events?.close()
       }

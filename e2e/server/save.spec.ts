@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { expect, type Page, test } from "@playwright/test"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 
@@ -67,4 +68,25 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
   await b.mouse.move(box.x + 80, box.y + 60, { steps: 4 })
   await b.mouse.up()
   await expect.poll(async () => (await shared(a).boundingBox())!.x).toBeGreaterThan(before.x + 40)
+})
+
+test("AI の入口からは、最後にフォーカスした窓が見ているものが分かり、AI が置いた箱はすぐ窓に出る", async ({ page }) => {
+  const { token } = JSON.parse(readFileSync("e2e/.home/server.json", "utf8"))
+  const ai = { Authorization: `Bearer ${token}` }
+  await page.goto("/")
+  await page.bringToFront()
+  await expect(page.locator("[data-item]").first()).toBeVisible()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toMatchObject({ book: "e2e-1", page: "p1" })
+  const done = await page.request.post("/api/ai/perform", {
+    headers: ai,
+    data: {
+      action: "item.place",
+      args: { page: "p1", item: "shape.box", at: { x: 40, y: 400 }, props: { caption: "AI の箱" } },
+      on: { book: "e2e-1" },
+    },
+  })
+  expect(await done.json()).toMatchObject({ ok: true })
+  await expect(page.locator("[data-item]", { hasText: "AI の箱" })).toBeVisible()
 })

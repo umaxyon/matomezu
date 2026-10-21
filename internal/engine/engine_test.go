@@ -83,3 +83,29 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 		t.Fatalf("settings.lang = %+v %s, %v", out, out.Settings, err)
 	}
 }
+
+func TestCatalogDescribesActionsAndItems(t *testing.T) {
+	var c struct {
+		Actions []struct {
+			ID     string          `json:"id"`
+			Target string          `json:"target"`
+			Args   json.RawMessage `json:"args"`
+		} `json:"actions"`
+		Items []struct {
+			ID    string          `json:"id"`
+			Props json.RawMessage `json:"props"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(newEngine(t).Catalog(), &c); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, a := range c.Actions {
+		if a.ID == "item.place" {
+			found = a.Target == "book" && strings.Contains(string(a.Args), `"page"`) && strings.Contains(string(a.Args), `"required"`)
+		}
+	}
+	if !found || len(c.Items) == 0 || !strings.Contains(string(c.Items[0].Props), `"caption"`) {
+		t.Fatalf("catalog = %s", newEngine(t).Catalog())
+	}
+}

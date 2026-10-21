@@ -285,3 +285,50 @@ func TestSettingsActions(t *testing.T) {
 		t.Fatalf("data = %s", data)
 	}
 }
+
+func TestViewIsTheLastFocusedScreens(t *testing.T) {
+	s := newServer(t, nil)
+	a, b := listen(t, s.URL), listen(t, s.URL)
+	next(t, a)
+	next(t, b)
+	ai := func() string {
+		_, body := send(t, "GET", s.URL+"/api/ai/view", "", map[string]string{"Authorization": "Bearer secret"})
+		return body
+	}
+	if got := ai(); got != "null" {
+		t.Fatalf("view before any report = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"A"},"focused":true}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":{"book":"B"}}`, nil)
+	if got := ai(); got != `{"book":"A"}` {
+		t.Fatalf("view = %s; want the focused screen's", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","focused":true}`, nil)
+	if got := ai(); got != `{"book":"B"}` {
+		t.Fatalf("view after c2 is focused = %s", got)
+	}
+	if code, _ := send(t, "POST", s.URL+"/api/view", `{"client":"c9"}`, nil); code != 404 {
+		t.Fatalf("an unknown client = %d", code)
+	}
+}
+
+func TestAIEntrancesNeedTheToken(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	auth := map[string]string{"Authorization": "Bearer secret"}
+	for _, path := range []string{"/api/ai/view", "/api/ai/books", "/api/ai/books/b1", "/api/ai/catalog"} {
+		if code, _ := send(t, "GET", s.URL+path, "", nil); code != 401 {
+			t.Errorf("%s without the token = %d", path, code)
+		}
+	}
+	if _, body := send(t, "GET", s.URL+"/api/ai/books", "", auth); body != `{"books":[{"id":"b1","type":"drawing","title":"T","version":1}]}` {
+		t.Fatalf("books = %s", body)
+	}
+	code, body := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"page.add","args":{"title":"Two"},"on":{"book":"b1"}}`, auth)
+	if code != 200 || !strings.HasPrefix(body, `{"ok":true,"result":{"page":"`) {
+		t.Fatalf("perform = %d %s", code, body)
+	}
+	if _, body := send(t, "GET", s.URL+"/api/ai/books/b1", "", auth); !strings.Contains(body, `"title":"Two"`) || !strings.Contains(body, `"version":2`) {
+		t.Fatalf("book = %s", body)
+	}
+}

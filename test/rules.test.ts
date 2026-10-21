@@ -31,7 +31,7 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
   core: t => t === "core" || t === "zod",
   store: t => t === "core" || t === "store" || t === "zustand/vanilla",
   host: t => t === "core" || t === "store" || t === "host" || t === "zod",
-  engine: t => t === "core" || t === "store" || t === "plugins",
+  engine: t => t === "core" || t === "store" || t === "plugins" || t === "zod",
   ui: t =>
     ["core", "store", "ui", "react", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),
