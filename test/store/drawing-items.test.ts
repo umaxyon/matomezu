@@ -41,7 +41,7 @@ test("置くときに渡した項目を箱に入れ、書かなかった項目�
     { book: "b1" },
   )
   expect(page(store).items).toEqual([
-    { id: "b1", item: "shape.box", x: 100, y: 50, props: { caption: "見出し", rule: true, body: "本文" } },
+    { id: "n1", item: "shape.box", x: 100, y: 50, props: { caption: "見出し", rule: true, body: "本文" } },
   ])
   const bad = store.actions.perform(
     "item.place",
@@ -62,8 +62,10 @@ test("紙から少しでもはみ出す所では置かず、置こうとした�
   expect(store.state.getState().workspace.stages[0]!.placing).toBe("shape.box")
 })
 
-test("アイテムの id は、ブックのどのページとも重ならない番号", () => {
-  const store = ready()
+test("アイテムの id は振った値から作り、ブックのどのページのアイテムとも重なれば振り直す", () => {
+  const ids = ["p2", "x", "x", "y"]
+  const store = newStore({ newId: () => ids.shift()! })
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.actions.addPage("s1", { title: "ページ 2" })
   store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x: 0, y: 0 } }, { book: "b1" })
   const done = store.actions.perform(
@@ -71,7 +73,7 @@ test("アイテムの id は、ブックのどのページとも重ならない�
     { page: "p2", item: "shape.box", at: { x: 0, y: 0 } },
     { book: "b1" },
   )
-  expect(done).toEqual({ ok: true, result: { item: "b2" } })
+  expect(done).toEqual({ ok: true, result: { item: "y" } })
 })
 
 test("ブックで使えないアイテムは置けない", () => {
@@ -87,9 +89,9 @@ test("ブックで使えないアイテムは置けない", () => {
 test("動かすのは画面の上で動いた量を倍率で割った量。はみ出すなら動かさない", () => {
   const store = ready()
   store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x: 10, y: 10 } }, { book: "b1" })
-  store.actions.command("s1", "drawing.move", { items: ["b1"], by: { x: 30, y: 20 } })
+  store.actions.command("s1", "drawing.move", { items: ["n1"], by: { x: 30, y: 20 } })
   expect(page(store).items![0]).toMatchObject({ x: 40, y: 30 })
-  store.actions.command("s1", "drawing.move", { items: ["b1"], by: { x: -41, y: 0 } })
+  store.actions.command("s1", "drawing.move", { items: ["n1"], by: { x: -41, y: 0 } })
   expect(page(store).items![0]).toMatchObject({ x: 40, y: 30 })
 })
 
@@ -130,14 +132,14 @@ test("箱の編集は書いた項目だけを変え、位置と id はそのま�
   store.actions.perform("item.place", { page: "p1", item: "shape.box", at, props: { caption: "前" } }, { book: "b1" })
   const done = store.actions.perform(
     "item.update",
-    { page: "p1", item: "b1", props: { caption: "後", body: "本文" } },
+    { page: "p1", item: "n1", props: { caption: "後", body: "本文" } },
     { book: "b1" },
   )
   expect(done.ok).toBe(true)
   expect(page(store).items).toEqual([
-    { id: "b1", item: "shape.box", x: 10, y: 20, props: { caption: "後", rule: true, body: "本文" } },
+    { id: "n1", item: "shape.box", x: 10, y: 20, props: { caption: "後", rule: true, body: "本文" } },
   ])
-  const bad = store.actions.perform("item.update", { page: "p1", item: "b1", props: { text: "x" } }, { book: "b1" })
+  const bad = store.actions.perform("item.update", { page: "p1", item: "n1", props: { text: "x" } }, { book: "b1" })
   const none = store.actions.perform("item.update", { page: "p1", item: "b9", props: {} }, { book: "b1" })
   expect([bad.ok, none.ok]).toEqual([false, false])
 })
@@ -147,8 +149,8 @@ test("箱を編集するコマンドは、そのページの箱を渡して編�
   store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x: 0, y: 0 } }, { book: "b1" })
   store.actions.command("s1", "drawing.edit", { item: "b9" })
   expect(store.state.getState().dialog).toBeNull()
-  store.actions.command("s1", "drawing.edit", { item: "b1" })
-  expect(store.state.getState().dialog).toMatchObject({ id: "box.edit", stage: "s1", args: { page: "p1", item: "b1" } })
+  store.actions.command("s1", "drawing.edit", { item: "n1" })
+  expect(store.state.getState().dialog).toMatchObject({ id: "box.edit", stage: "s1", args: { page: "p1", item: "n1" } })
 })
 
 test("選んでいるアイテムを消すと選択も外れる。選んでいなければ消すコマンドは出ない。無いアイテムは消さない", () => {
@@ -156,11 +158,11 @@ test("選んでいるアイテムを消すと選択も外れる。選んでい�
   for (const x of [0, 200, 400])
     store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x, y: 0 } }, { book: "b1" })
   expect(store.actions.command("s1", "drawing.delete")).toBe(false)
-  store.actions.select("s1", ["b1", "b3"])
+  store.actions.select("s1", ["n1", "n3"])
   expect(store.actions.command("s1", "drawing.delete")).toBe(true)
-  expect(page(store).items!.map(i => i.id)).toEqual(["b2"])
+  expect(page(store).items!.map(i => i.id)).toEqual(["n2"])
   expect(store.state.getState().workspace.stages[0]!.selection).toEqual([])
-  const none = store.actions.perform("item.remove", { page: "p1", items: ["b2", "b9"] }, { book: "b1" })
+  const none = store.actions.perform("item.remove", { page: "p1", items: ["n2", "b9"] }, { book: "b1" })
   expect(none.ok).toBe(false)
-  expect(page(store).items!.map(i => i.id)).toEqual(["b2"])
+  expect(page(store).items!.map(i => i.id)).toEqual(["n2"])
 })

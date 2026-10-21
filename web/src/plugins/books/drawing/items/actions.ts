@@ -24,7 +24,12 @@ export const ITEM_PLACE = defineAction({
     if (!bookType(ctx.registry, book.type).items.defaults.includes(args.item)) return null
     const props = ctx.registry.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
-    const item = PlacedSchema.safeParse({ id: nextItemId(book), item: args.item, ...args.at, props: props.data })
+    const item = PlacedSchema.safeParse({
+      id: nextItemId(book, ctx.newId),
+      item: args.item,
+      ...args.at,
+      props: props.data,
+    })
     if (!item.success) return null
     const next = placeItem(ctx.registry, book, args.page, item.data)
     return next && { next, result: { item: item.data.id } }

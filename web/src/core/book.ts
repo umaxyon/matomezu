@@ -5,7 +5,7 @@ import { ORIENTATIONS, type Orientation } from "./def/paper"
 import { fail } from "./errors"
 import type { Lang } from "./i18n/i18n"
 import { translate } from "./i18n/i18n"
-import { nextNumber } from "./ids"
+import { freshId } from "./ids"
 import type { PaperChoice, PaperRule } from "./paper"
 import { actionsOf } from "./perform"
 import { bookType, type Registry } from "./registry"
@@ -98,11 +98,18 @@ export function nextPageTitle(reg: Registry, book: PagedBook, lang: Lang): strin
   return translate(reg.messages, lang, "Page {n}", { n: book.pages.length + 1 })
 }
 
-export function addPage<B extends PagedBook>(book: B, init: { title: string } & PaperChoice): { book: B; page: Page } {
-  const n = nextNumber(
-    "p",
-    book.pages.map(p => p.id),
-  )
-  const page = { id: `p${n}`, ...init }
+// ページを末尾に足す。id は newId から振る（ブックのほかのページと重ならない）
+export function addPage<B extends PagedBook>(
+  book: B,
+  init: { title: string } & PaperChoice,
+  newId: () => string,
+): { book: B; page: Page } {
+  const page = {
+    id: freshId(
+      newId,
+      book.pages.map(p => p.id),
+    ),
+    ...init,
+  }
   return { book: { ...book, pages: [...book.pages, page] }, page }
 }

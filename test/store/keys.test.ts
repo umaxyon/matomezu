@@ -82,8 +82,8 @@ test("押したキーは、当たった範囲のコマンドを行い、押せ�
   const store = newStore()
   store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x: 0, y: 0 } }, { book: "b1" })
   expect(store.actions.pressKey("Delete")).toBe(false)
-  store.actions.select("s1", ["b1"])
-  store.actions.command("s1", "drawing.edit", { item: "b1" })
+  store.actions.select("s1", ["n1"])
+  store.actions.command("s1", "drawing.edit", { item: "n1" })
   // ダイアログが開いている間は、ステージの Delete は効かない
   expect(store.actions.pressKey("Delete")).toBe(false)
   expect(store.actions.pressKey("Escape")).toBe(true)

@@ -22,7 +22,7 @@ export interface ActionContext {
   registry: Registry // 使う登録表（アクション・ブックのタイプ・紙など）
   home: string | null // app のホームのブックの id（一覧と設定のアクションを許すかは、このブックのタイプが決める）。無ければ断る
   lang: Lang
-  newId(): string // ブックなど、ほかの世界と行き来するものの id を振る
+  newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
 }
 
 export interface Done<T extends ActionTarget, R> {

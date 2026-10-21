@@ -37,6 +37,7 @@ export const ERRORS = {
   E109: "no view for {kind} {id}",
   E110: "home {id} is not a single book type",
   E111: "auto skin {id} is not a {scheme} skin",
+  E112: "could not make a new id",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

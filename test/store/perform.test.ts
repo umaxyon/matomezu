@@ -55,8 +55,8 @@ describe("アクションの入口", () => {
     actions.split("s1")
     actions.openBook("s2", "made")
     const done = actions.perform("page.add", { title: "最初" }, { book: "made" })
-    expect(done).toEqual({ ok: true, result: { page: "p1" } })
-    expect(state.getState().workspace.stages.map(s => s.opened?.page)).toEqual(["p1", "p1"])
+    expect(done).toEqual({ ok: true, result: { page: "made" } })
+    expect(state.getState().workspace.stages.map(s => s.opened?.page)).toEqual(["made", "made"])
   })
 
   test("宛先のブックが無い・タイプが許さない・引数の形が違うときは断り、状態を変えない", () => {

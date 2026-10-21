@@ -115,9 +115,9 @@ describe("アクションを行う", () => {
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
     const done = perform(book, "page.add", { title: " 表紙 ", paper: "a3", orientation: "portrait" }, ctx)
-    expect(done).toMatchObject({ ok: true, result: { page: "p2" } })
+    expect(done).toMatchObject({ ok: true, result: { page: "new" } })
     expect(done.ok && "pages" in done.next && done.next.pages.at(-1)).toEqual({
-      id: "p2",
+      id: "new",
       title: "表紙",
       paper: "a3",
       orientation: "portrait",

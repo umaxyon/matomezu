@@ -1,7 +1,7 @@
 // 図面のページに置いたアイテムの操作（データを書き換えず、新しい値を返す）。
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない
 import type { Point, Size } from "../../../../core/geom"
-import { nextNumber } from "../../../../core/ids"
+import { freshId } from "../../../../core/ids"
 import { resolvePaper } from "../../../../core/paper"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
@@ -14,12 +14,12 @@ export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
 export const itemsOf = (page: DrawingPage): readonly Placed[] => page.items ?? []
 
-// 次に置くアイテムの id（ブックの全部のページで重ならない、使っていない一番小さい番号）
-export function nextItemId(book: Drawing): string {
-  return `b${nextNumber(
-    "b",
+// 次に置くアイテムの id（newId から振る。ブックの全部のページで重ならない）
+export function nextItemId(book: Drawing, newId: () => string): string {
+  return freshId(
+    newId,
     book.pages.flatMap(p => itemsOf(p).map(i => i.id)),
-  )}`
+  )
 }
 
 // アイテムの大きさ（表に無いアイテムは null）

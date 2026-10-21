@@ -8,8 +8,8 @@ test("ページを足すと、そのステージのブックに入り、その�
   actions.openBook("s2", "b1")
   actions.addPage("s2", { title: "ページ 2" })
   const s = state.getState()
-  expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "p2" }] })
-  expect(s.workspace.stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "p2" }])
+  expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "n1" }] })
+  expect(s.workspace.stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "n1" }])
   expect(currentStage(s.workspace).id).toBe("s2")
 })
 
@@ -19,9 +19,9 @@ test("ページを開くのは指定したステージで、そのステージ�
   actions.split("s1")
   actions.openBook("s2", "b1")
   actions.openPage("s2", "p1")
-  actions.openPage("s1", "p2")
+  actions.openPage("s1", "n1")
   const ws = state.getState().workspace
-  expect(ws.stages.map(st => st.opened)).toMatchObject([{ page: "p2" }, { page: "p1" }])
+  expect(ws.stages.map(st => st.opened)).toMatchObject([{ page: "n1" }, { page: "p1" }])
   expect(currentStage(ws).id).toBe("s1")
 })
 
@@ -74,7 +74,7 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
   expect(s.workspace.current).toBe("s2")
   actions.addPage("s2", { title: "最初", paper: "a3", orientation: "portrait" })
   expect(state.getState().workspace.stages[1]!.opened).toMatchObject({
-    page: "p1",
+    page: "made",
     paper: { size: { w: 1123, h: 1587 } },
   })
 })
@@ -90,15 +90,15 @@ test("言語とスキンの設定を変える。同じ値なら知らせない",
 })
 
 test("ページの無いブックを 2 つのステージで開いて最初のページを作ると、どちらのステージもそのページを開く", () => {
-  const { state, actions } = newStore({ newId: () => "made" })
+  const { state, actions } = newStore()
   actions.createBook("s1", { title: "空", type: "drawing" })
   actions.split("s1")
-  actions.openBook("s2", "made")
+  actions.openBook("s2", "n1")
   actions.addPage("s2", { title: "最初" })
-  expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["p1", "p1"])
+  expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["n2", "n2"])
   // ほかのページを見ているステージは変えない
   actions.addPage("s2", { title: "次" })
-  expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["p1", "p2"])
+  expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["n2", "n3"])
 })
 
 test("閉じたステージへの分割と分割の取りやめは、ほかのステージにかけない", () => {
