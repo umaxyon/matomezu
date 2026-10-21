@@ -41,6 +41,7 @@ export const MESSAGES = defineMessages({
   Landscape: { ja: "横" },
   "Book menu": { ja: "ブックのメニュー" },
   Tools: { ja: "ツール" },
+  Menu: { ja: "メニュー" },
 })
 
 declare module "../tables" {

@@ -112,3 +112,18 @@ test("閉じたステージへの分割と分割の取りやめは、ほかの�
   expect(state.getState().workspace).toBe(before)
   expect(before.stages.map(s => s.id)).toEqual(["s1", "s3"])
 })
+
+test("右クリックのメニューは 1 つだけ出し、開いたステージが無くなれば閉じる。無いステージでは開かない", () => {
+  const { state, actions } = newStore()
+  actions.split("s1")
+  actions.openContextMenu("s1", "drawing.context", {}, { x: 10, y: 20 })
+  actions.openContextMenu("s2", "drawing.context", {}, { x: 30, y: 40 })
+  expect(state.getState().contextMenu).toEqual({ id: "drawing.context", stage: "s2", target: {}, at: { x: 30, y: 40 } })
+  actions.closeStage("s2")
+  expect(state.getState().contextMenu).toBeNull()
+  actions.openContextMenu("s9", "drawing.context", {}, { x: 0, y: 0 })
+  expect(state.getState().contextMenu).toBeNull()
+  actions.openContextMenu("s1", "drawing.context", {}, { x: 0, y: 0 })
+  actions.closeContextMenu()
+  expect(state.getState().contextMenu).toBeNull()
+})

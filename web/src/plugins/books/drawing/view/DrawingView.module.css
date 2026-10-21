@@ -1,3 +1,8 @@
+/* 図面の画面の全体（右クリックを受ける）。紙・知らせはこの中に置く */
+.drawing {
+  position: absolute;
+  inset: 0;
+}
 .paper {
   position: absolute;
   left: 0;

@@ -235,3 +235,36 @@ test.describe("ブラウザの言語が英語のとき", () => {
     )
   })
 })
+
+test("図面の画面を右クリックすると押した位置にメニューが出て、設定を押すと設定のダイアログが開く。外を押すと閉じる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const paper = page.getByRole("img", { name: "紙" })
+  const box = (await paper.boundingBox())!
+  await page.mouse.click(box.x + 30, box.y + 40, { button: "right" })
+  const menu = page.getByRole("menu")
+  await expect(menu).toBeVisible()
+  const at = (await menu.boundingBox())!
+  expect(Math.round(at.x)).toBe(Math.round(box.x + 30))
+  expect(Math.round(at.y)).toBe(Math.round(box.y + 40))
+  await page.mouse.click(box.x + 200, box.y + 200)
+  await expect(menu).toHaveCount(0)
+  await page.mouse.click(box.x + 30, box.y + 40, { button: "right" })
+  await menu.getByRole("menuitem", { name: "設定" }).click()
+  await expect(menu).toHaveCount(0)
+  const dialog = page.getByRole("dialog", { name: "設定" })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "閉じる" }).click()
+  await expect(dialog).toHaveCount(0)
+})
+
+test("右クリックのメニューは、窓の右下で開いても窓の中に収まる", async ({ page }) => {
+  await page.goto("/")
+  const size = page.viewportSize()!
+  const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
+  await page.mouse.click(stage.x + stage.width - 4, stage.y + stage.height - 4, { button: "right" })
+  const at = (await page.getByRole("menu").boundingBox())!
+  expect(at.x + at.width).toBeLessThanOrEqual(size.width)
+  expect(at.y + at.height).toBeLessThanOrEqual(size.height)
+})

@@ -26,7 +26,7 @@ const TABS_ON_TOP = defineLayout({
 
 describe("配置", () => {
   test("既定の配置には食い違いが無い", () => {
-    expect(checkLayout(DEFAULT_LAYOUT, ui.widgets, commands)).toEqual([])
+    expect(checkLayout(DEFAULT_LAYOUT, ui, commands)).toEqual([])
   })
 
   test("知らないウィジェット・置けないスロット・app に無いコマンドは誤り", () => {
@@ -35,7 +35,7 @@ describe("配置", () => {
       slots: { app: ["workspace"], "stage.top": ["nope", "book-view"], "stage.bottom": ["book-name"] },
       menus: { "stage.menu": [{ either: ["stage.split", "stage.nope"] }] },
     } as unknown as LayoutDef
-    expect(checkLayout(bad, ui.widgets, commands).map(problemText)).toEqual([
+    expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
       "E207 layout bad: slot stage.top has unknown widget nope",
       "E208 layout bad: widget book-view cannot be placed in slot stage.top",
       "E209 layout bad: menu stage.menu has unknown command stage.nope",
@@ -49,7 +49,7 @@ describe("配置", () => {
       id: "no-stages",
       slots: { ...DEFAULT_LAYOUT.slots, app: ["dialog-host"] },
     })
-    expect(checkLayout(noStages, ui.widgets, commands).map(problemText)).toEqual([
+    expect(checkLayout(noStages, ui, commands).map(problemText)).toEqual([
       "E211 layout no-stages: slot stage.top is not opened by any placed widget",
       "E211 layout no-stages: slot stage.body is not opened by any placed widget",
       "E211 layout no-stages: slot stage.bottom is not opened by any placed widget",
@@ -58,7 +58,7 @@ describe("配置", () => {
     ])
     // 中身を書かなければ、ステージの無い画面にできる
     const bare = defineLayout({ id: "bare", slots: { app: ["dialog-host"] }, menus: {} })
-    expect(checkLayout(bare, ui.widgets, commands)).toEqual([])
+    expect(checkLayout(bare, ui, commands)).toEqual([])
   })
 
   test("ステージの骨組みは defineWorkspace で差し替えられる（ベーススロットを全部開ける）", () => {
@@ -72,7 +72,28 @@ describe("配置", () => {
       id: "mine",
       slots: { ...DEFAULT_LAYOUT.slots, app: ["w/workspace", "dialog-host"] },
     }
-    expect(checkLayout(layout as unknown as LayoutDef, widgets, commands)).toEqual([])
+    expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
+  })
+
+  test("右クリックのメニューの app に無いコマンドと、どの部品も開かないメニューは誤り", () => {
+    const bad = {
+      ...DEFAULT_LAYOUT,
+      id: "bad",
+      contextMenus: { "drawing.context": ["drawing.nope"], "other.context": ["stage.home"] },
+    } as unknown as LayoutDef
+    expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
+      "E209 layout bad: menu drawing.context has unknown command drawing.nope",
+      "E213 layout bad: context menu other.context is not opened by any placed widget or book view",
+    ])
+  })
+
+  test("右クリックのメニューに置けるのは、引数の無いコマンドと受け取る物を引数に取れるコマンドだけ", () => {
+    defineLayout({
+      ...DEFAULT_LAYOUT,
+      id: "typed",
+      // @ts-expect-error page.open はページの id を受け取るが、図面のメニューは何も渡さない
+      contextMenus: { "drawing.context": ["drawing.settings", "page.open"] },
+    })
   })
 
   test("食い違いのある配置は、画面に置くときに誤り", () => {

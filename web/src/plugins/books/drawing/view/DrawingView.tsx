@@ -1,13 +1,25 @@
 // 図面のブックのビュー: ステージの紙の置き場所（core/stage.ts の placement）に紙を描く。
-// ページが無ければ、真ん中にページを作るボタン（コマンド page.new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す
+// ページが無ければ、真ん中にページを作るボタン（コマンド page.new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
+// 画面のどこを右クリックしても、図面のメニュー（drawing.context）を開く
 import type { Stage } from "../../../../core/stage"
 import { placement } from "../../../../core/stage"
 import { useCommand } from "../../../../ui/commands"
+import { useContextMenu } from "../../../../ui/context-menu"
 import { useT } from "../../../../ui/i18n"
 import type { BookViewProps } from "../../../../ui/plugin"
 import styles from "./DrawingView.module.css"
 
 export function DrawingView({ stage }: BookViewProps) {
+  const openMenu = useContextMenu(stage.id, "drawing.context")
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: 右クリックでメニューを開くだけで、操作はメニューの項目が受ける
+    <div className={styles.drawing} onContextMenu={e => openMenu(e, {})}>
+      <Content stage={stage} />
+    </div>
+  )
+}
+
+function Content({ stage }: { stage: Stage }) {
   const t = useT()
   const p = placement(stage)
   const paper = stage.opened?.paper

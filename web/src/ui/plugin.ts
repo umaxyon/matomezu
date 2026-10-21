@@ -9,10 +9,16 @@ import type { BookTypeId } from "../core/tables"
 import { type IdsOf, isBuiltin, type Plugin } from "../store/plugin"
 import type { DialogId } from "../store/tables"
 import type { AnyWidgetDef } from "./layout"
-import type { WidgetId, WidgetTable } from "./tables"
+import type { ContextMenuId, WidgetId, WidgetTable } from "./tables"
 
 export interface BookViewProps {
   stage: Stage
+}
+// ブックのビュー: 開いたブックのタイプで決まる、ステージの真ん中に描く部品（配置には書かない）。
+// ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
+export interface BookViewDef {
+  view: ComponentType<BookViewProps>
+  contextMenus?: readonly ContextMenuId[]
 }
 export interface DialogProps {
   stage: string // 開いたステージ
@@ -33,11 +39,7 @@ type ItemPropsOf<P, Id> = P extends { items?: readonly (infer D)[] }
 // そのプラグインに id が無ければ、その欄は書かなくてよい
 type Field<Ids, Name extends string, V> = [Ids] extends [never] ? { [n in Name]?: never } : { [n in Name]: V }
 
-export type PluginViews<P> = Field<
-  IdsOf<P, "bookTypes">,
-  "bookViews",
-  { [id in IdsOf<P, "bookTypes">]: ComponentType<BookViewProps> }
-> &
+export type PluginViews<P> = Field<IdsOf<P, "bookTypes">, "bookViews", { [id in IdsOf<P, "bookTypes">]: BookViewDef }> &
   Field<IdsOf<P, "items">, "items", { [id in IdsOf<P, "items">]: ItemUi<ItemPropsOf<P, id>> }> &
   Field<IdsOf<P, "dialogs">, "dialogViews", { [id in IdsOf<P, "dialogs">]: ComponentType<DialogProps> }>
 
@@ -46,7 +48,7 @@ type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: in
 
 // ほかのプラグインのビューとウィジェットの差し替え。型の表にある id だけ（ウィジェットは置けるスロットを変えず、描く部品だけを替える）
 export interface Overrides {
-  bookViews?: { [id in BookTypeId]?: ComponentType<BookViewProps> }
+  bookViews?: { [id in BookTypeId]?: BookViewDef }
   dialogViews?: { [id in DialogId]?: ComponentType<DialogProps> }
   widgets?: { [id in WidgetId]?: (props: WidgetProps<id>) => ReactNode }
 }
@@ -65,7 +67,7 @@ export const definePluginUi = <const P extends Plugin>(plugin: P, ui: UiParts<P>
 
 // app の見た目の表
 export interface UiDefs {
-  bookViews: ReadonlyMap<string, ComponentType<BookViewProps>>
+  bookViews: ReadonlyMap<string, BookViewDef>
   items: ReadonlyMap<string, ItemUi>
   dialogViews: ReadonlyMap<string, ComponentType<DialogProps>>
   widgets: ReadonlyMap<string, AnyWidgetDef>
@@ -73,13 +75,13 @@ export interface UiDefs {
 }
 
 interface LooseUi {
-  bookViews?: Record<string, ComponentType<BookViewProps>>
+  bookViews?: Record<string, BookViewDef>
   items?: Record<string, ItemUi>
   dialogViews?: Record<string, ComponentType<DialogProps>>
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
   overrides?: {
-    bookViews?: Record<string, ComponentType<BookViewProps>>
+    bookViews?: Record<string, BookViewDef>
     dialogViews?: Record<string, ComponentType<DialogProps>>
     widgets?: Record<string, (props: never) => ReactNode>
   }
@@ -87,7 +89,7 @@ interface LooseUi {
 
 // プラグインの見た目を 1 つの表にする。見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り
 export function assembleUi(plugins: readonly Plugin[]): UiDefs {
-  const bookViews = new Map<string, ComponentType<BookViewProps>>()
+  const bookViews = new Map<string, BookViewDef>()
   const items = new Map<string, ItemUi>()
   const dialogViews = new Map<string, ComponentType<DialogProps>>()
   const widgets = new Map<string, AnyWidgetDef>()

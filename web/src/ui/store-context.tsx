@@ -28,7 +28,7 @@ export function MatomezuProvider({
 }) {
   const ui = useMemo(() => assembleUi(app.plugins), [app])
   const value = useMemo(() => {
-    const problems = checkLayout(layout, ui.widgets, new Set(app.commands.keys()))
+    const problems = checkLayout(layout, ui, new Set(app.commands.keys()))
     if (problems.length > 0)
       throw matomezuError(problem("E210", { layout: layout.id, count: problems.length }), problems)
     return { store: app, ui, layout }

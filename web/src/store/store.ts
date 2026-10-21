@@ -5,7 +5,7 @@ import { createStore, type StoreApi } from "zustand/vanilla"
 import { hasPages, singleBooks } from "../core/book"
 import type { ActionContext, ActionTarget } from "../core/def/action"
 import { fail } from "../core/errors"
-import type { Size } from "../core/geom"
+import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang } from "../core/i18n/i18n"
 import { type ArgsOf, perform, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Registry } from "../core/registry"
@@ -27,6 +27,7 @@ import {
   type Workspace,
 } from "../core/workspace"
 import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
+import type { OpenedContextMenu } from "./context-menus"
 import type { OpenedDialog } from "./dialogs"
 import { type AppDefs, assemble, type Plugin } from "./plugin"
 import type { DialogId } from "./tables"
@@ -38,6 +39,7 @@ export interface AppState {
   workspace: Workspace
   settings: Settings
   dialog: OpenedDialog | null
+  contextMenu: OpenedContextMenu | null
 }
 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
@@ -56,6 +58,9 @@ export interface Actions {
   command<Id extends CommandId>(stage: string, id: Id, ...args: CommandArgs<Id>): boolean
   openDialog(stage: string, id: DialogId): void // そのステージから開くダイアログを出す（出ていたものは閉じる）
   closeDialog(): void
+  // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
+  openContextMenu(stage: string, id: string, target: unknown, at: Point): void
+  closeContextMenu(): void
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
@@ -91,6 +96,7 @@ function initialState(registry: Registry, books: readonly Book[], lang: Lang, ho
     workspace: newWorkspace(registry, first),
     settings: { lang, skin: "auto" },
     dialog: null,
+    contextMenu: null,
   }
 }
 
@@ -167,13 +173,18 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     const same = JSON.stringify(next) === JSON.stringify(settings)
     return { ok: true, result: done.result, next: same ? {} : { settings: next } }
   }
-  // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログは閉じる
+  // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じる
   const commit = (next: Partial<AppState>) => {
     if (Object.keys(next).length === 0) return
-    const { dialog } = getState()
+    const { dialog, contextMenu } = getState()
     const stages = next.workspace?.stages
-    const keeps = !stages || dialog === null || stages.some(s => s.id === dialog.stage)
-    setState(keeps ? next : { ...next, dialog: null })
+    const gone = (opened: { stage: string } | null) =>
+      stages !== undefined && opened !== null && !stages.some(s => s.id === opened.stage)
+    setState({
+      ...next,
+      ...(gone(dialog) ? { dialog: null } : {}),
+      ...(gone(contextMenu) ? { contextMenu: null } : {}),
+    })
   }
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
@@ -196,6 +207,12 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     },
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })
+    },
+    openContextMenu: (stage, id, target, at) => {
+      if (getState().workspace.stages.some(s => s.id === stage)) setState({ contextMenu: { id, stage, target, at } })
+    },
+    closeContextMenu: () => {
+      if (getState().contextMenu) setState({ contextMenu: null })
     },
     // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
     split: stage => withWorkspace(ws => (hasStage(ws, stage) ? split(focus(ws, stage)) : ws)),

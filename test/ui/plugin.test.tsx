@@ -37,7 +37,7 @@ const MyNewBook = ({ onClose }: DialogProps) => (
   </button>
 )
 const notesUi = definePluginUi(notes, {
-  bookViews: { "notes/note": NoteView },
+  bookViews: { "notes/note": { view: NoteView } },
   dialogViews: { "notes/shot": ShotDialog },
   overrides: { dialogViews: { "book.new": MyNewBook } },
 })
@@ -75,7 +75,7 @@ describe("見た目のプラグイン", () => {
 
   test("見た目の表は、プラグインのビューと差し替えから作る", () => {
     const ui = assembleUi([...BUILTIN_UI, notesUi])
-    expect(ui.bookViews.get("notes/note")).toBe(NoteView)
+    expect(ui.bookViews.get("notes/note")?.view).toBe(NoteView)
     expect(ui.dialogViews.get("book.new")).toBe(MyNewBook)
     expect(ui.dialogViews.get("book.open")).toBe(BASE_UI.ui.dialogViews["book.open"])
   })
@@ -83,10 +83,10 @@ describe("見た目のプラグイン", () => {
   test("見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, notes]))).toMatchObject({ code: "E203" })
     // @ts-expect-error ダイアログのビューが無い
-    const missing = definePluginUi(notes, { bookViews: { "notes/note": NoteView } })
+    const missing = definePluginUi(notes, { bookViews: { "notes/note": { view: NoteView } } })
     expect(thrown(() => assembleUi([...BUILTIN_UI, missing]))).toMatchObject({ code: "E204" })
     const unknown = definePluginUi(notes, {
-      bookViews: { "notes/note": NoteView },
+      bookViews: { "notes/note": { view: NoteView } },
       dialogViews: { "notes/shot": ShotDialog },
       // @ts-expect-error 型の表に無い id は差し替えられない
       overrides: { dialogViews: { "book.nope": MyNewBook } },

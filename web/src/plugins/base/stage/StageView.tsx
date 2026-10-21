@@ -93,7 +93,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 
 // 開いたブックを、そのタイプのビューで、テーマの値の中に描く
 function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
-  const View = useUi().bookViews.get(type) ?? fail("E109", { kind: "bookType", id: type })
+  const View = (useUi().bookViews.get(type) ?? fail("E109", { kind: "bookType", id: type })).view
   return (
     <div className={styles.book} style={vars}>
       <View stage={stage} />

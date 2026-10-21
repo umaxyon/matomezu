@@ -47,6 +47,7 @@ export const ERRORS = {
   E210: "layout {layout} has {count} problems",
   E211: "layout {layout}: slot {slot} is not opened by any placed widget",
   E212: "layout {layout}: menu {menu} is not shown by any placed widget",
+  E213: "layout {layout}: context menu {menu} is not opened by any placed widget or book view",
 
   E301: 'plugin {plugin}: {kind} {id} must start with "{plugin}/"',
 } as const

@@ -1,6 +1,7 @@
 // 図面のプラグインの文言（ブックのタイプの名前と、各フォルダの文言を集めたもの）
 import { defineMessages } from "../../../core/i18n/messages"
 import { BOX_MESSAGES } from "./box/messages"
+import { SETTINGS_MESSAGES } from "./settings/messages"
 import { DRAWING_VIEW_MESSAGES } from "./view/messages"
 
 export const DRAWING_MESSAGES = {
@@ -9,4 +10,5 @@ export const DRAWING_MESSAGES = {
   }),
   ...DRAWING_VIEW_MESSAGES,
   ...BOX_MESSAGES,
+  ...SETTINGS_MESSAGES,
 }

@@ -3,16 +3,18 @@ import type { ReactNode } from "react"
 import { type Problem, problem } from "../core/errors"
 import type { CommandArgs } from "../store/commands"
 import type { CommandId } from "../store/tables"
-import type { MenuId, SlotId, SlotProps, WidgetId, WidgetTable } from "./tables"
+import type { ContextMenuId, ContextMenuTable, MenuId, SlotId, SlotProps, WidgetId, WidgetTable } from "./tables"
 
 // 置けるスロットと、描く部品。置けるスロットは、どれも同じ値（props）を渡すものだけにする。
-// スロットとメニューを開けるのはウィジェットだけで、部品の中で描くスロット（<Slot>）とメニュー（useMenu）は opens・menus に全部書く
+// スロットとメニューを開けるのはウィジェットとブックのビューだけで、部品の中で描くスロット（<Slot>）とメニュー（useMenu）、
+// 開く右クリックのメニュー（useContextMenu）は opens・menus・contextMenus に全部書く
 // （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（骨組みの差し替え）
 export interface WidgetDef<S extends SlotId = SlotId> {
   id: string // 外のプラグインは「プラグインの id/名前」
   slots: readonly S[]
   opens?: readonly SlotId[]
   menus?: readonly MenuId[]
+  contextMenus?: readonly ContextMenuId[]
   view: (props: SlotProps<S>) => ReactNode
 }
 // どれかのウィジェット（表に入れるときの形）
@@ -21,6 +23,7 @@ export interface AnyWidgetDef {
   slots: readonly SlotId[]
   opens?: readonly SlotId[]
   menus?: readonly MenuId[]
+  contextMenus?: readonly ContextMenuId[]
   view: (props: never) => ReactNode
 }
 
@@ -37,11 +40,22 @@ type WidgetsFor<S extends SlotId> = {
 export type MenuCommandId = { [K in CommandId]: CommandArgs<K> extends [] ? K : never }[CommandId]
 // メニューの 1 項目: コマンド 1 つか、並べたうち出ている最初の 1 つを出す切り替え。押されている見た目はコマンドの active が決める
 export type MenuItem = MenuCommandId | { either: readonly MenuCommandId[] }
+// 右クリックのメニューに置けるコマンド: 引数を取らないものと、そのメニューが受け取る物を引数に取れるもの
+export type ContextMenuCommandId<M extends ContextMenuId> = {
+  [K in CommandId]: CommandArgs<K> extends []
+    ? K
+    : CommandArgs<K> extends [infer A]
+      ? ContextMenuTable[M] extends A
+        ? K
+        : never
+      : never
+}[CommandId]
 
 export interface LayoutDef {
   id: string
   slots: { [S in SlotId]?: readonly WidgetsFor<S>[] }
   menus: { [M in MenuId]?: readonly MenuItem[] }
+  contextMenus?: { [M in ContextMenuId]?: readonly ContextMenuCommandId<M>[] }
 }
 export const defineLayout = <const L extends LayoutDef>(def: L): L => def
 
@@ -52,12 +66,16 @@ export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
 export const ROOT_SLOT = "app" satisfies SlotId
 
 // 配置の食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・app に無いコマンド・
-// 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー（無ければ空）
+// 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー、置いたウィジェットとブックのビューのどれも開かない右クリックのメニュー（無ければ空）
 export function checkLayout(
   layout: LayoutDef,
-  widgets: ReadonlyMap<string, AnyWidgetDef>,
+  views: {
+    widgets: ReadonlyMap<string, AnyWidgetDef>
+    bookViews: ReadonlyMap<string, { contextMenus?: readonly string[] }>
+  },
   commands: ReadonlySet<string>,
 ): Problem[] {
+  const { widgets } = views
   const problems: Problem[] = []
   for (const [slot, ids] of Object.entries(layout.slots) as [string, readonly string[]][])
     for (const id of ids) {
@@ -69,24 +87,33 @@ export function checkLayout(
   for (const [menu, items] of Object.entries(layout.menus) as [string, readonly MenuItem[]][])
     for (const id of items.flatMap(menuCommands))
       if (!commands.has(id)) problems.push(problem("E209", { layout: layout.id, menu, command: id }))
-  const { slots, menus } = opened(layout, widgets)
+  const contextMenus = Object.entries(layout.contextMenus ?? {}) as [string, readonly string[]][]
+  for (const [menu, ids] of contextMenus)
+    for (const id of ids)
+      if (!commands.has(id)) problems.push(problem("E209", { layout: layout.id, menu, command: id }))
+  const { slots, menus, contextMenus: openedMenus } = opened(layout, widgets)
+  for (const view of views.bookViews.values()) for (const m of view.contextMenus ?? []) openedMenus.add(m)
   for (const [slot, ids] of Object.entries(layout.slots) as [string, readonly string[]][])
     if (ids.length > 0 && !slots.has(slot)) problems.push(problem("E211", { layout: layout.id, slot }))
   for (const [menu, items] of Object.entries(layout.menus) as [string, readonly MenuItem[]][])
     if (items.length > 0 && !menus.has(menu)) problems.push(problem("E212", { layout: layout.id, menu }))
+  for (const [menu, ids] of contextMenus)
+    if (ids.length > 0 && !openedMenus.has(menu)) problems.push(problem("E213", { layout: layout.id, menu }))
   return problems
 }
 
-// 画面に開くスロットとメニュー: 根のスロットから、置いたウィジェットが開けるものをたどる
+// 画面に開くスロットとメニュー（右クリックのメニューも）: 根のスロットから、置いたウィジェットが開けるものをたどる
 function opened(layout: LayoutDef, widgets: ReadonlyMap<string, AnyWidgetDef>) {
   const slots = new Set<string>([ROOT_SLOT])
   const menus = new Set<string>()
+  const contextMenus = new Set<string>()
   const next = [ROOT_SLOT]
   for (let slot = next.pop(); slot !== undefined; slot = next.pop())
     for (const id of (layout.slots as Record<string, readonly string[] | undefined>)[slot] ?? []) {
       const w = widgets.get(id)
       for (const s of w?.opens ?? []) if (!slots.has(s)) next.push(slots.add(s) && s)
       for (const m of w?.menus ?? []) menus.add(m)
+      for (const m of w?.contextMenus ?? []) contextMenus.add(m)
     }
-  return { slots, menus }
+  return { slots, menus, contextMenus }
 }

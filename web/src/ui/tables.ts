@@ -5,8 +5,11 @@ export interface SlotTable {
 }
 export interface WidgetTable {}
 export interface MenuTable {} // メニューの id → true
+// 右クリックのメニューの id → 受け取る物（右クリックされた物。項目のコマンドに引数として渡す。何も受け取らなければ Record<string, never>）
+export interface ContextMenuTable {}
 
 export type SlotId = keyof SlotTable & string
 export type WidgetId = keyof WidgetTable & string
 export type MenuId = keyof MenuTable & string
+export type ContextMenuId = keyof ContextMenuTable & string
 export type SlotProps<S extends SlotId> = SlotTable[S]

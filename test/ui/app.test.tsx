@@ -266,3 +266,40 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   expect(store.state.getState().dialog).toMatchObject({ id: "page.new" })
   expect(screen.getByRole("dialog", { name: "新しいページ" })).toBeTruthy()
 })
+
+test("図面の画面を右クリックすると押した位置にメニューが出て、設定を押すと閉じて設定のダイアログが開く", () => {
+  renderApp()
+  const paper = screen.getByRole("img", { name: "紙" })
+  const notCanceled = fireEvent.contextMenu(paper, { clientX: 40, clientY: 50 })
+  expect(notCanceled).toBe(false) // ブラウザのメニューは出さない
+  const menu = screen.getByRole("menu")
+  expect(
+    within(menu)
+      .getAllByRole("menuitem")
+      .map(b => b.textContent),
+  ).toEqual(["設定"])
+  fireEvent.click(within(menu).getByRole("menuitem", { name: "設定" }))
+  expect(screen.queryByRole("menu")).toBeNull()
+  const dialog = screen.getByRole("dialog", { name: "設定" })
+  fireEvent.click(within(dialog).getByRole("button", { name: "閉じる" }))
+  expect(screen.queryByRole("dialog")).toBeNull()
+})
+
+test("右クリックのメニューは、外を押すか Escape で閉じる", () => {
+  renderApp()
+  const paper = screen.getByRole("img", { name: "紙" })
+  fireEvent.contextMenu(paper)
+  fireEvent.pointerDown(paper)
+  expect(screen.queryByRole("menu")).toBeNull()
+  fireEvent.contextMenu(paper)
+  fireEvent.keyDown(document, { key: "Escape" })
+  expect(screen.queryByRole("menu")).toBeNull()
+})
+
+test("マスターの画面には右クリックのメニューが無く、ブラウザのメニューを止めない", () => {
+  const store = renderApp()
+  act(() => store.actions.openBook("s1", "master"))
+  const notCanceled = fireEvent.contextMenu(screen.getByRole("region", { name: "マスター" }))
+  expect(notCanceled).toBe(true)
+  expect(screen.queryByRole("menu")).toBeNull()
+})
