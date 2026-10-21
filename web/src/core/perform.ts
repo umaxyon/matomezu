@@ -7,6 +7,7 @@ import type { Book } from "./schema/book"
 import type { ActionId, ActionTable } from "./tables"
 
 type ActionOf<Id extends ActionId> = ActionTable[Id]
+export type TargetOf<Id extends ActionId> = ActionOf<Id>["target"]
 export type SubjectOf<Id extends ActionId> = Subjects[ActionOf<Id>["target"]]
 export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> =

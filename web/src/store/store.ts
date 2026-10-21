@@ -3,24 +3,25 @@
 
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { hasPages, singleBooks } from "../core/book"
-import type { ActionContext } from "../core/def/action"
+import type { ActionContext, ActionTarget } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import { detectLang, type Lang } from "../core/i18n/i18n"
-import { type ArgsOf, perform } from "../core/perform"
+import { type ArgsOf, perform, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import type { Settings } from "../core/settings"
 import { openBook, panBy, resize } from "../core/stage"
-import type { SingleBookTypeId } from "../core/tables"
+import type { ActionId, SingleBookTypeId } from "../core/tables"
 import {
   close,
   focus,
+  followBook,
+  followLibrary,
   hasStage,
   mapStage,
   newWorkspace,
   showPage,
-  showPageWhereNone,
   split,
   unsplit,
   type Workspace,
@@ -39,7 +40,18 @@ export interface AppState {
   dialog: OpenedDialog | null
 }
 
+// アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
+export type PerformArgs<Id extends ActionId> =
+  TargetOf<Id> extends "book" ? [args: ArgsOf<Id>, on: { book: string }] : [args: ArgsOf<Id>]
+// 行ったアクションの結果。no-book は宛先のブックが無いとき
+export type Performed<Id extends ActionId> =
+  | { ok: true; result: ResultOf<Id> }
+  | { ok: false; reason: Refusal | "no-book" }
+
 export interface Actions {
+  // アクションを行い、結果を状態に入れる（中の部品のアクションもプラグインのアクションも、画面と AI から同じ入口を通る）。
+  // ブックが変われば、そのブックを開いている全部のステージを合わせ、一覧が変われば、無くなったブックを開いていたステージは何も開かない
+  perform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
   // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す
   command<Id extends CommandId>(stage: string, id: Id, ...args: CommandArgs<Id>): boolean
   openDialog(stage: string, id: DialogId): void // そのステージから開くダイアログを出す（出ていたものは閉じる）
@@ -105,22 +117,70 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ registry, home, lang: getState().settings.lang, newId })
-  // 開いたステージが無くなったダイアログは閉じる
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {
-    const { workspace: ws, dialog } = getState()
+    const { workspace: ws } = getState()
     const next = change(ws)
-    if (next === ws) return
-    const keeps = dialog === null || next.stages.some(s => s.id === dialog.stage)
-    setState(keeps ? { workspace: next } : { workspace: next, dialog: null })
+    if (next !== ws) commit({ workspace: next })
   }
-  // 設定のアクションの結果を反映する（同じ値なら知らせない）
-  const changeSettings = (done: { ok: true; next: Settings } | { ok: false }) => {
-    if (!done.ok) return false
-    const now = getState().settings
-    if (done.next.lang !== now.lang || done.next.skin !== now.skin) setState({ settings: done.next })
-    return true
+  // アクションを行い、入れる状態の差分を返す（入れるのは呼んだ側。ほかの変更と一度に入れられるように）
+  const run = (
+    id: string,
+    args: unknown,
+    on?: { book: string },
+  ): { ok: true; result: unknown; next: Partial<AppState> } | { ok: false; reason: Refusal | "no-book" } => {
+    const { books, workspace, settings } = getState()
+    const target: ActionTarget | undefined = registry.actions.get(id)?.target
+    const loose = perform as (
+      subject: unknown,
+      id: string,
+      args: unknown,
+      ctx: ActionContext,
+    ) => ReturnType<typeof perform>
+    if (target === "book") {
+      const book = books[on?.book ?? ""]
+      if (!book) return { ok: false, reason: "no-book" }
+      const done = loose(book, id, args, ctx())
+      if (!done.ok) return done
+      const next = done.next as Book
+      if (next.id !== book.id) return { ok: false, reason: "refused" }
+      if (next === book) return { ok: true, result: done.result, next: {} }
+      return {
+        ok: true,
+        result: done.result,
+        next: { books: { ...books, [book.id]: next }, workspace: followBook(registry, workspace, next) },
+      }
+    }
+    const subject = target === "library" ? books : settings
+    const done = loose(subject, id, args, ctx())
+    if (!done.ok) return done
+    if (target === "library") {
+      const next = done.next as AppState["books"]
+      return {
+        ok: true,
+        result: done.result,
+        next: { books: next, workspace: followLibrary(registry, workspace, next) },
+      }
+    }
+    // 同じ値の設定なら知らせない
+    const next = done.next as Settings
+    const same = JSON.stringify(next) === JSON.stringify(settings)
+    return { ok: true, result: done.result, next: same ? {} : { settings: next } }
+  }
+  // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログは閉じる
+  const commit = (next: Partial<AppState>) => {
+    if (Object.keys(next).length === 0) return
+    const { dialog } = getState()
+    const stages = next.workspace?.stages
+    const keeps = !stages || dialog === null || stages.some(s => s.id === dialog.stage)
+    setState(keeps ? next : { ...next, dialog: null })
   }
   const actions: Actions = {
+    perform: (id, ...[args, on]) => {
+      const done = run(id, args, on)
+      if (!done.ok) return done
+      commit(done.next)
+      return { ok: true, result: done.result } as Performed<typeof id>
+    },
     command: (stage, id, ...args) => {
       const state = getState()
       const def = commandDef(defs, id)
@@ -151,35 +211,27 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       if (book && hasPages(book)) withWorkspace(ws => showPage(registry, focus(ws, stage), stage, book, page))
     },
     addPage: (stageId, args) => {
-      const { books, workspace } = getState()
-      const owner = books[workspace.stages.find(s => s.id === stageId)?.opened?.book ?? ""]
-      if (!owner) return false
-      const done = perform(owner, "page.add", args, ctx())
-      if (!done.ok || !hasPages(done.next)) return false
-      setState({
-        books: { ...books, [done.next.id]: done.next },
-        workspace: showPageWhereNone(
-          registry,
-          showPage(registry, focus(workspace, stageId), stageId, done.next, done.result.page),
-          done.next,
-          done.result.page,
-        ),
-      })
+      const book = getState().workspace.stages.find(s => s.id === stageId)?.opened?.book
+      const done = book ? run("page.add", args, { book }) : null
+      if (!done?.ok) return false
+      const next = done.next.books?.[book as string]
+      const ws = done.next.workspace ?? getState().workspace
+      if (!next || !hasPages(next)) return false
+      const page = (done.result as ResultOf<"page.add">).page
+      commit({ ...done.next, workspace: showPage(registry, focus(ws, stageId), stageId, next, page) })
       return true
     },
     createBook: (stageId, args) => {
-      const { books, workspace } = getState()
-      const done = perform(books, "book.create", args, ctx())
-      const book = done.ok && done.next[done.result.book]
+      const done = run("book.create", args)
+      if (!done.ok) return false
+      const book = done.next.books?.[(done.result as ResultOf<"book.create">).book]
+      const ws = done.next.workspace ?? getState().workspace
       if (!book) return false
-      setState({
-        books: done.next,
-        workspace: mapStage(focus(workspace, stageId), stageId, s => openBook(registry, s, book)),
-      })
+      commit({ ...done.next, workspace: mapStage(focus(ws, stageId), stageId, s => openBook(registry, s, book)) })
       return true
     },
-    setLang: lang => changeSettings(perform(getState().settings, "settings.lang", { lang }, ctx())),
-    setSkin: skin => changeSettings(perform(getState().settings, "settings.skin", { skin }, ctx())),
+    setLang: lang => actions.perform("settings.lang", { lang }).ok,
+    setSkin: skin => actions.perform("settings.skin", { skin }).ok,
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
   }

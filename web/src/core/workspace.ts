@@ -8,7 +8,7 @@ import type { PagedBook } from "./book"
 import { fail } from "./errors"
 import type { Registry } from "./registry"
 import type { Book } from "./schema/book"
-import { newStage, openBook, openPage, type Stage } from "./stage"
+import { closeBook, followBook as followStage, newStage, openBook, openPage, type Stage } from "./stage"
 
 // 横に並べる
 export interface Arrangement {
@@ -90,9 +90,18 @@ export function showPage(reg: Registry, ws: Workspace, stage: string, book: Page
   return mapStage(ws, stage, s => openPage(reg, s, book, page))
 }
 
-// そのブックを開いていて、ページを開いていないステージに、ページを開く（ページの無いブックに最初のページができたとき。ほかのページを見ているステージは変えない）
-export function showPageWhereNone(reg: Registry, ws: Workspace, book: PagedBook, page: string): Workspace {
-  return ws.stages
-    .filter(s => s.opened?.book === book.id && s.opened.page === null)
-    .reduce((w, s) => showPage(reg, w, s.id, book, page), ws)
+// ブックが変わったとき、そのブックを開いている全部のステージを合わせる（stage.ts の followBook）
+export function followBook(reg: Registry, ws: Workspace, book: Book): Workspace {
+  const stages = ws.stages.map(s => followStage(reg, s, book))
+  return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
+}
+
+// ブックの一覧が変わったとき: 無くなったブックを開いていたステージは何も開いていない状態にし、残ったブックには合わせる
+export function followLibrary(reg: Registry, ws: Workspace, books: Readonly<Record<string, Book>>): Workspace {
+  const stages = ws.stages.map(s => {
+    const book = s.opened ? books[s.opened.book] : undefined
+    if (!s.opened) return s
+    return book ? followStage(reg, s, book) : closeBook(s)
+  })
+  return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }

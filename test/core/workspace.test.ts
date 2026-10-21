@@ -4,6 +4,8 @@ import {
   close,
   currentStage,
   focus,
+  followBook,
+  followLibrary,
   MAX_STAGES,
   mapStage,
   newWorkspace,
@@ -76,5 +78,24 @@ describe("workspace", () => {
     expect(focus(ws, "nope")).toBe(ws)
     expect(unsplit(ws)).toBe(ws)
     expect(mapStage(ws, "s1", s => panBy(s, 0, 0))).toBe(ws)
+  })
+
+  test("ブックが変わると、開いているステージを合わせる。開いていたページが無くなれば最初のページ、紙が変われば紙を決め直す", () => {
+    const two = showPage(REGISTRY, split(ws), "s1", book, "p2")
+    const both = mapStage(two, "s2", s => ({ ...s, opened: two.stages[0]!.opened }))
+    const removed = { ...book, pages: [book.pages[0]!] }
+    expect(followBook(REGISTRY, both, removed).stages.map(s => s.opened?.page)).toEqual(["p1", "p1"])
+    const a3 = { ...book, pages: [book.pages[0]!, { ...book.pages[1]!, paper: "a3" }] }
+    expect(followBook(REGISTRY, both, a3).stages[0]!.opened?.paper).toMatchObject({
+      status: "known",
+      size: { w: 1587, h: 1123 },
+    })
+    expect(followBook(REGISTRY, both, book)).toBe(both)
+  })
+
+  test("ブックの一覧が変わると、無くなったブックを開いていたステージは何も開かない", () => {
+    const two = split(ws)
+    expect(followLibrary(REGISTRY, two, {}).stages.map(s => s.opened)).toEqual([null, null])
+    expect(followLibrary(REGISTRY, two, { b1: book })).toBe(two)
   })
 })

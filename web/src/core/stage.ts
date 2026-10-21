@@ -90,6 +90,25 @@ export function openPage(reg: Registry, stage: Stage, book: PagedBook, page: str
   return settle({ ...stage, opened: { ...o, page, paper: resolvePaper(reg, found) } }, HOME)
 }
 
+// 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
+// 無くなっていれば最初のページ（ページが無ければ開かない）。ページが変わったときだけ、ずらす量を最初の位置に戻す。
+// そのブックを開いていなければ、同じ値を返す
+export function followBook(reg: Registry, stage: Stage, book: Book): Stage {
+  const o = stage.opened
+  if (!o || o.book !== book.id || !hasPages(book)) return stage
+  const found = book.pages.find(p => p.id === o.page) ?? book.pages[0]
+  const page = found?.id ?? null
+  const paper = found ? resolvePaper(reg, found) : null
+  if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) return stage
+  const opened = { ...o, page, paper }
+  return settle({ ...stage, opened }, page === o.page ? stage.pan : HOME)
+}
+
+// 何も開いていない状態にする（開いていたブックが無くなったときなど）
+export function closeBook(stage: Stage): Stage {
+  return stage.opened ? settle({ ...stage, opened: null }, HOME) : stage
+}
+
 // 紙の置き場所（何も開いていなければ null）
 export function placement(stage: Stage): Placement | null {
   const paper = paperOf(stage)
