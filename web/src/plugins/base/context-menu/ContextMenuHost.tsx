@@ -1,6 +1,6 @@
 // 右クリックのメニューの置き場（ウィジェット menu-host）: store の開いているメニュー（contextMenu）を、押した位置に、
 // 配置に書いたそのメニューのコマンドの並びで描く。出ていないコマンドは並べず、押せないものは押せない見た目にする。
-// 外を押す・Escape・窓から離れると閉じ、項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ
+// 外を押す・Escape・窓の大きさが変わると閉じ（窓から離れただけでは閉じない）、項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { fitInside, type Point } from "../../../core/geom"
 import type { OpenedContextMenu } from "../../../store/context-menus"
@@ -40,12 +40,10 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
     }
     document.addEventListener("pointerdown", onPointerDown, true)
     document.addEventListener("keydown", onKeyDown)
-    window.addEventListener("blur", closeContextMenu)
     window.addEventListener("resize", closeContextMenu)
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true)
       document.removeEventListener("keydown", onKeyDown)
-      window.removeEventListener("blur", closeContextMenu)
       window.removeEventListener("resize", closeContextMenu)
     }
   }, [closeContextMenu])
