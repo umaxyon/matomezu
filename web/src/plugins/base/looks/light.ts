@@ -1,6 +1,6 @@
 // base のスキン: ライト
 
-import { defineSkin } from "../../core/def/skin"
+import { defineSkin } from "../../../core/def/skin"
 import { DARK } from "./dark"
 
 export const LIGHT = defineSkin({

@@ -1,6 +1,6 @@
 // ステージを閉じるボタン（ウィジェット close-button）: コマンド stage.close を出すときだけ描く
-import { useCommand } from "../../ui/commands"
-import { useT } from "../../ui/i18n"
+import { useCommand } from "../../../ui/commands"
+import { useT } from "../../../ui/i18n"
 import styles from "./CloseButton.module.css"
 
 export function CloseButton({ stage }: { stage: string }) {

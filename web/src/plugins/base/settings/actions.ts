@@ -1,6 +1,6 @@
 // 設定のアクション: 言語・スキンを変える。使えるかはホームのブックのタイプが決める（組織のホームで、変えさせない設定を決められる）
 import { z } from "zod"
-import { defineAction } from "../../core/def/action"
+import { defineAction } from "../../../core/def/action"
 
 export const SET_LANG = defineAction({
   id: "settings.lang",

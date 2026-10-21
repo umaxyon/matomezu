@@ -1,10 +1,10 @@
 // ブックを開くダイアログ: 探して選んだブックを、そのステージで開く
 
-import { BookSearch } from "../../ui/book-search/BookSearch"
-import { Dialog } from "../../ui/dialog/Dialog"
-import { useT } from "../../ui/i18n"
-import type { DialogProps } from "../../ui/plugin"
-import { useActions } from "../../ui/store-context"
+import { Dialog } from "../../../ui/dialog/Dialog"
+import { useT } from "../../../ui/i18n"
+import type { DialogProps } from "../../../ui/plugin"
+import { useActions } from "../../../ui/store-context"
+import { BookSearch } from "./BookSearch"
 
 export function OpenBookDialog({ stage, onClose }: DialogProps) {
   const { openBook } = useActions()

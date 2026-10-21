@@ -2,10 +2,10 @@
 // 候補の欄は高さが決まっていて、絞り込んでも部品の大きさは変わらない（真ん中に置いても探す欄が動かない）
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { bookTitle } from "../../core/book"
-import { searchBooks } from "../../core/book-search"
-import { useT } from "../i18n"
-import { useApp, useRegistry } from "../store-context"
+import { bookTitle } from "../../../core/book"
+import { searchBooks } from "../../../core/book-search"
+import { useT } from "../../../ui/i18n"
+import { useApp, useRegistry } from "../../../ui/store-context"
 import styles from "./BookSearch.module.css"
 
 export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: string) => void; autoFocus?: boolean }) {

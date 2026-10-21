@@ -1,14 +1,14 @@
 // ページを作るダイアログ: 名前と紙を決めて、そのステージのブックに足し（アクション page.add）、そのページを開く。
 // 選べる紙と向きはブックのタイプの規定で決まる（1 つしか無ければ選べない）
 import { useState } from "react"
-import { defaultPaper, hasPages, nextPageTitle, type PagedBook, paperChoices } from "../../core/book"
-import { ORIENTATION_TITLES, type Orientation } from "../../core/def/paper"
-import type { PaperChoice } from "../../core/paper"
-import { Dialog } from "../../ui/dialog/Dialog"
-import { controlClass, Field, Form } from "../../ui/dialog/FormParts"
-import { useT } from "../../ui/i18n"
-import type { DialogProps } from "../../ui/plugin"
-import { useActions, useApp, useRegistry } from "../../ui/store-context"
+import { defaultPaper, hasPages, nextPageTitle, type PagedBook, paperChoices } from "../../../core/book"
+import { ORIENTATION_TITLES, type Orientation } from "../../../core/def/paper"
+import type { PaperChoice } from "../../../core/paper"
+import { Dialog } from "../../../ui/dialog/Dialog"
+import { controlClass, Field, Form } from "../../../ui/dialog/FormParts"
+import { useT } from "../../../ui/i18n"
+import type { DialogProps } from "../../../ui/plugin"
+import { useActions, useApp, useRegistry } from "../../../ui/store-context"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useT()

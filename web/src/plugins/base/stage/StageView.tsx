@@ -2,15 +2,15 @@
 // ブックの中はブックのテーマの値（CSS 変数）で描く。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
 // 測った大きさと、ドラッグ・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
-import { fail } from "../../core/errors"
-import type { BookTypeId } from "../../core/registry"
-import { paperOf, type Stage } from "../../core/stage"
-import { bookTokens } from "../../core/theme"
-import { BookSearch } from "../../ui/book-search/BookSearch"
-import { useT } from "../../ui/i18n"
-import { useActions, useApp, useRegistry, useUi } from "../../ui/store-context"
-import { themeVars } from "../../ui/theme-vars"
-import { useResize } from "../../ui/use-resize"
+import { fail } from "../../../core/errors"
+import type { BookTypeId } from "../../../core/registry"
+import { paperOf, type Stage } from "../../../core/stage"
+import { bookTokens } from "../../../core/theme"
+import { useT } from "../../../ui/i18n"
+import { useActions, useApp, useRegistry, useUi } from "../../../ui/store-context"
+import { themeVars } from "../../../ui/theme-vars"
+import { useResize } from "../../../ui/use-resize"
+import { BookSearch } from "../book-open/BookSearch"
 import styles from "./StageView.module.css"
 
 // ドラッグ中のポインタと、前に知らせた位置

@@ -1,7 +1,7 @@
 // 見る人ごとの設定のコマンド: 言語・スキンを変える（アクション settings.lang・settings.skin）。ホームのタイプが許すときだけ出す
-import type { Lang } from "../../core/i18n/i18n"
-import { homeActions } from "../../core/perform"
-import { type CommandContext, defineCommand } from "../../store/commands/def"
+import type { Lang } from "../../../core/i18n/i18n"
+import { homeActions } from "../../../core/perform"
+import { type CommandContext, defineCommand } from "../../../store/commands/def"
 
 const allows = (action: string) => (ctx: CommandContext) => homeActions(ctx.registry, ctx.home).includes(action)
 

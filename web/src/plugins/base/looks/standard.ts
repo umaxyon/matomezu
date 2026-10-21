@@ -1,5 +1,5 @@
 // 標準のテーマ: 白い紙に濃い文字
-import { defineTheme } from "../../core/def/theme"
+import { defineTheme } from "../../../core/def/theme"
 
 export const STANDARD = defineTheme({
   id: "standard",

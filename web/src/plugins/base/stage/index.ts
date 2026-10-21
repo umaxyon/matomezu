@@ -1,5 +1,5 @@
 // ステージのコマンド: ホームを開く・分割する・分割をやめる・閉じる
-import { type CommandContext, defineCommand } from "../../store/commands/def"
+import { type CommandContext, defineCommand } from "../../../store/commands/def"
 
 const isSplit = (ctx: CommandContext) => ctx.workspace.stages.length > 1
 

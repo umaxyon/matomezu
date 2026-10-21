@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { defineTheme } from "../../web/src/core/def/theme"
 import { buildRegistry } from "../../web/src/core/registry"
 import { resolveTokens, shades } from "../../web/src/core/theme"
-import { STANDARD } from "../../web/src/plugins/base/standard"
+import { STANDARD } from "../../web/src/plugins/base/looks/standard"
 import { themeVars } from "../../web/src/ui/theme-vars"
 import { BUILTIN_PARTS } from "../support"
 

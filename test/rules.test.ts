@@ -45,15 +45,15 @@ describe("依存の向き", () => {
     const targets = importsOf(file)
     const local = (t: string) => ["core", "store", "ui", "plugins"].includes(topOf(t)) && !t.endsWith(".css")
     if (layer === "plugins") {
-      const own = dirname(file.rel)
+      const own = file.rel.split("/").slice(0, 2).join("/") // そのファイルのプラグインのフォルダ（plugins/名前）
       test(file.rel, () => {
         const bad = targets.filter(t => {
           if (t.endsWith(".css")) return !isView(file.rel)
           if (!local(t)) return !pluginAllowed(file.rel)(t)
           if (topOf(t) !== "plugins") return !pluginAllowed(file.rel)(topOf(t))
-          // 同じプラグインの中か、ほかのプラグインの入口（index・ui）だけ。見た目でないファイルは見た目を読まない
+          // 同じプラグインの中（下のフォルダも含む）か、ほかのプラグインの入口（index・ui）だけ。見た目でないファイルは見た目を読まない
           const entry = /^plugins\/[^/]+(\/(index|ui))?$/.test(t)
-          if (dirname(t) !== own && !entry) return true
+          if (!t.startsWith(`${own}/`) && !entry) return true
           const targetIsView = basename(t) === "ui" || sources.some(f => f.rel === `${t}.tsx`)
           return !isView(file.rel) && targetIsView
         })

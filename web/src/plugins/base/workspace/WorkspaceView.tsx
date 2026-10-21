@@ -1,8 +1,8 @@
 // workspace のビュー（ウィジェット workspace）: ステージの列を並べ、列ごとにステージのスロットを描く。並べ方は workspace の arrangement に従う。
 // 列は、上の行（stage.top）・ステージの本体（stage.body）・下の行（stage.bottom）と、右上に浮かぶ角（stage.corner）。何を置くかは配置が決める
 import { useShallow } from "zustand/react/shallow"
-import { Slot } from "../../ui/Slot"
-import { useApp } from "../../ui/store-context"
+import { Slot } from "../../../ui/Slot"
+import { useApp } from "../../../ui/store-context"
 import styles from "./WorkspaceView.module.css"
 
 export function WorkspaceView() {

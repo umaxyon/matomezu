@@ -1,14 +1,12 @@
-// ブックとページのコマンド: ブックを開く、ページを作る・開く。作るものはダイアログで決める
-import { hasPages } from "../../core/book"
-import { actionsOf } from "../../core/perform"
-import { defineCommand } from "../../store/commands/def"
+// ページ: ページを作る・開くコマンドと、ページを作るダイアログ。作るものはダイアログで決める
+import { hasPages } from "../../../core/book"
+import { actionsOf } from "../../../core/perform"
+import { defineCommand } from "../../../store/commands/def"
+import { defineDialog } from "../../../store/dialogs"
 
-export const BOOK_OPEN = defineCommand({
-  id: "book.open",
-  title: "Open book",
-  run: (ctx, a) => a.openDialog(ctx.stage.id, "book.open"),
-  when: () => true,
-})
+export { PAGE_ADD } from "./page-add"
+
+export const NEW_PAGE_DIALOG = defineDialog({ id: "page.new" })
 
 export const PAGE_NEW = defineCommand({
   id: "page.new",

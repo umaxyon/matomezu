@@ -1,23 +1,16 @@
 // 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）。
-// 画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
-import { defineDialog } from "../../store/dialogs"
+// 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
-import { BOOK_OPEN, PAGE_NEW, PAGE_OPEN } from "./book-commands"
-import { DARK } from "./dark"
-import { LIGHT } from "./light"
+import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
+import { DARK, LIGHT, PAPERS, STANDARD } from "./looks"
+import type { A3, A4, A5 } from "./looks/papers"
 import { BASE_MESSAGES } from "./messages"
-import { PAGE_ADD } from "./page-add"
-import { A3, A4, A5 } from "./papers"
-import { SET_LANG, SET_SKIN } from "./settings-actions"
-import { SETTINGS_LANG, SETTINGS_SKIN } from "./settings-commands"
-import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage-commands"
-import { STANDARD } from "./standard"
+import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN } from "./page-tabs"
+import { SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
+import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 
-export const OPEN_BOOK_DIALOG = defineDialog({ id: "book.open" })
-export const NEW_PAGE_DIALOG = defineDialog({ id: "page.new" })
-
-export const PAPERS = [A5, A4, A3] as const
-export const PAPER_IDS = PAPERS.map(p => p.id)
+export { PAPER_IDS, PAPERS } from "./looks"
+export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin({
   id: "@matomezu/base",

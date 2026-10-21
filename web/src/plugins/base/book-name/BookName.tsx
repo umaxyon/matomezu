@@ -1,12 +1,12 @@
 // ブックの名前の欄（ウィジェット book-name）: ステージのブックの名前を出す。
 // 乗せるか押すと、上にメニュー（配置のメニュー stage.menu）がせり上がり、欄とメニューから離れると下がる。メニューの項目はコマンドを呼ぶ
 import { useEffect, useRef, useState } from "react"
-import { bookTitle } from "../../core/book"
-import { useCommand } from "../../ui/commands"
-import { useT } from "../../ui/i18n"
-import { type MenuCommandId, type MenuItem, menuCommands } from "../../ui/layout"
-import { useMenu, useMenuCommand } from "../../ui/menu"
-import { useApp, useRegistry, useUi } from "../../ui/store-context"
+import { bookTitle } from "../../../core/book"
+import { useCommand } from "../../../ui/commands"
+import { useT } from "../../../ui/i18n"
+import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
+import { useMenu, useMenuCommand } from "../../../ui/menu"
+import { useApp, useRegistry, useUi } from "../../../ui/store-context"
 import styles from "./BookName.module.css"
 
 // 離れてからメニューが下がるまで（欄とメニューの間を動く間に下がらないように）

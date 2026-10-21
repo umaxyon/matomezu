@@ -1,8 +1,8 @@
 // ページを足す: ページを持つブックの最後に、名前と紙を決めたページを足す。紙と向きはブックのタイプの規定（paperChoices）の中から選ぶ
 import { z } from "zod"
-import { addPage, canChoose, defaultPaper, hasPages, paperChoices } from "../../core/book"
-import { defineAction } from "../../core/def/action"
-import { ORIENTATIONS } from "../../core/def/paper"
+import { addPage, canChoose, defaultPaper, hasPages, paperChoices } from "../../../core/book"
+import { defineAction } from "../../../core/def/action"
+import { ORIENTATIONS } from "../../../core/def/paper"
 
 export const PAGE_ADD = defineAction({
   id: "page.add",
