@@ -1,7 +1,7 @@
 // マスターのブック: ブックの一覧や設定などを集める、紙もページも無い画面。名前はタイプの名前で呼ぶ（題名を持たない）。
 // app のホームにすると、ブックの一覧と設定を変えるアクション（book.create・settings.lang など）を許すかは、このタイプが決める
 import { z } from "zod"
-import { defineBookType } from "../../core/def/book-type"
+import { defineBookType } from "../../../core/def/book-type"
 
 export const MASTER = defineBookType({
   id: "master",

@@ -10,6 +10,8 @@ import { BOOK_VIEW, CLOSE_BUTTON, STAGE_ICONS } from "./stage/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 
+export { Dialog } from "./dialog-host/Dialog"
+export { controlClass, Field, Form } from "./dialog-host/FormParts"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {

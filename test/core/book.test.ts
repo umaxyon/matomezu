@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { addPage, addsFromTabs, choosablePapers, createBook, defaultPaper, paperChoices } from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
-import { MASTER_BOOK } from "../../web/src/plugins/master"
+import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { REGISTRY } from "../support"
 
 const book = {

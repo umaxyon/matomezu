@@ -36,6 +36,11 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
 }
 // プラグインのファイルは役割で見る。見た目（.tsx と ui.ts）は ui と同じもの、ほかは core・store・zod だけ
 const isView = (rel: string) => rel.endsWith(".tsx") || basename(rel) === "ui.ts"
+// プラグインのフォルダ: plugins/名前。ブックのタイプのプラグインは plugins/books/名前
+const pluginRoot = (rel: string) => {
+  const parts = rel.split("/")
+  return parts.slice(0, parts[1] === "books" ? 3 : 2).join("/")
+}
 const pluginAllowed = (rel: string) => (t: string) =>
   isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod"
 
@@ -45,14 +50,15 @@ describe("依存の向き", () => {
     const targets = importsOf(file)
     const local = (t: string) => ["core", "store", "ui", "plugins"].includes(topOf(t)) && !t.endsWith(".css")
     if (layer === "plugins") {
-      const own = file.rel.split("/").slice(0, 2).join("/") // そのファイルのプラグインのフォルダ（plugins/名前）
+      const own = pluginRoot(file.rel)
       test(file.rel, () => {
         const bad = targets.filter(t => {
           if (t.endsWith(".css")) return !isView(file.rel)
           if (!local(t)) return !pluginAllowed(file.rel)(t)
           if (topOf(t) !== "plugins") return !pluginAllowed(file.rel)(topOf(t))
           // 同じプラグインの中（下のフォルダも含む）か、ほかのプラグインの入口（index・ui）だけ。見た目でないファイルは見た目を読まない
-          const entry = /^plugins\/[^/]+(\/(index|ui))?$/.test(t)
+          const root = pluginRoot(t)
+          const entry = t === root || t === `${root}/index` || t === `${root}/ui`
           if (!t.startsWith(`${own}/`) && !entry) return true
           const targetIsView = basename(t) === "ui" || sources.some(f => f.rel === `${t}.tsx`)
           return !isView(file.rel) && targetIsView

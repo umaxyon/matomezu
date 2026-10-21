@@ -1,5 +1,5 @@
 // マスターのプラグインの文言
-import { defineMessages } from "../../core/i18n/messages"
+import { defineMessages } from "../../../core/i18n/messages"
 
 export const MASTER_MESSAGES = defineMessages({
   Master: { ja: "マスター" },

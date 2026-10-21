@@ -4,7 +4,7 @@ import { inspect } from "../../web/src/core/inspect"
 import { buildRegistry } from "../../web/src/core/registry"
 import { shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
-import { MASTER_BOOK } from "../../web/src/plugins/master"
+import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, REGISTRY } from "../support"
 

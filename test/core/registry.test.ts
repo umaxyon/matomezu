@@ -9,7 +9,7 @@ import { defineLanguagePack } from "../../web/src/core/i18n/messages"
 import { perform } from "../../web/src/core/perform"
 import { buildRegistry, checkRegistry } from "../../web/src/core/registry"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
-import { MASTER_BOOK } from "../../web/src/plugins/master"
+import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, REGISTRY } from "../support"
 

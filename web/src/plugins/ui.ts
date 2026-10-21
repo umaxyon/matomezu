@@ -1,8 +1,8 @@
 // 中の部品の一覧（画面のある app 用。どのプラグインにも見た目を結んだもの）と、それを渡した app の既定の配置
 import { defineLayout } from "../ui/layout"
 import { BASE_UI } from "./base/ui"
-import { DRAWING_UI } from "./drawing/ui"
-import { MASTER_UI } from "./master/ui"
+import { DRAWING_UI } from "./books/drawing/ui"
+import { MASTER_UI } from "./books/master/ui"
 
 export const BUILTIN_UI = [BASE_UI, MASTER_UI, DRAWING_UI] as const
 

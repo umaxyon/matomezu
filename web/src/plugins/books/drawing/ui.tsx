@@ -1,5 +1,5 @@
 // 図面のプラグインの見た目: 図面のビューと、箱のビューとアイコン
-import { definePluginUi } from "../../ui/plugin"
+import { definePluginUi } from "../../../ui/plugin"
 import { DRAWING_PLUGIN } from "."
 import { BoxView } from "./BoxView"
 import { DrawingView } from "./DrawingView"
