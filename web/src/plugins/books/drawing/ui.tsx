@@ -1,11 +1,10 @@
-// 図面のプラグインの見た目: 図面のビューと、箱のビューとアイコン
+// 図面のプラグインの見た目: 図面のビューと、箱のビューとアイコン（各フォルダの見た目を集める）
 import { definePluginUi } from "../../../ui/plugin"
 import { DRAWING_PLUGIN } from "."
-import { BoxView } from "./BoxView"
-import { DrawingView } from "./DrawingView"
-import { BOX_ICON } from "./icons"
+import { BOX_UI } from "./box/ui"
+import { DRAWING_VIEW } from "./view/ui"
 
 export const DRAWING_UI = definePluginUi(DRAWING_PLUGIN, {
-  bookViews: { drawing: DrawingView },
-  items: { "shape.box": { view: BoxView, icon: BOX_ICON } },
+  bookViews: { drawing: DRAWING_VIEW },
+  items: { "shape.box": BOX_UI },
 })

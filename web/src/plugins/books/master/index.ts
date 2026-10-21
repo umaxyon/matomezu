@@ -1,17 +1,15 @@
 // マスターのプラグイン: マスターのブック（1 冊だけのタイプ）と、その画面の機能（ブックを作る）。
 // app のホームにすると（createMatomezu の home: "master"）、ブックの一覧を変えるアクションを許すかはマスターのタイプが決める。
 // マスターの画面は土台のプラグイン（base）の設定のコマンドを使う。組織ごとのホームは、このプラグインの代わりに自分のものを渡す
-import { defineDialog } from "../../../store/dialogs"
 import { defineBuiltin } from "../../../store/plugin"
-import { BOOK_CREATE } from "./book-create"
-import { BOOK_NEW } from "./commands"
+import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { MASTER } from "./master"
 
 export { MASTER_BOOK } from "./master"
 
 import { MASTER_MESSAGES } from "./messages"
 
-export const NEW_BOOK_DIALOG = defineDialog({ id: "book.new" })
+export { NEW_BOOK_DIALOG }
 
 export const MASTER_PLUGIN = defineBuiltin({
   id: "@matomezu/master",

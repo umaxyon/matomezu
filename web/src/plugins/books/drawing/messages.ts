@@ -1,11 +1,12 @@
-// 図面のプラグインの文言
+// 図面のプラグインの文言（ブックのタイプの名前と、各フォルダの文言を集めたもの）
 import { defineMessages } from "../../../core/i18n/messages"
+import { BOX_MESSAGES } from "./box/messages"
+import { DRAWING_VIEW_MESSAGES } from "./view/messages"
 
-export const DRAWING_MESSAGES = defineMessages({
-  Paper: { ja: "紙" },
-  Drawing: { ja: "図面" },
-  Box: { ja: "箱" },
-  "This paper cannot be shown": { ja: "この紙は表示できません" },
-  "Create page": { ja: "ページを作る" },
-  "No pages": { ja: "ページがありません" },
-})
+export const DRAWING_MESSAGES = {
+  ...defineMessages({
+    Drawing: { ja: "図面" },
+  }),
+  ...DRAWING_VIEW_MESSAGES,
+  ...BOX_MESSAGES,
+}
