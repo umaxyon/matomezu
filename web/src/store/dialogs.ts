@@ -1,14 +1,30 @@
-// ダイアログ。定義は id だけを持ち、中身（ビュー）は ui が id に結ぶ（画面の無い app でも、コマンドがダイアログを開けるように）。
-// 画面に出すダイアログは 1 つだけで、どれを出すかは id、どこから開いたかは stage で決まる
-import type { DialogId } from "./tables"
+// ダイアログ。定義は id と、開くときに渡す値の型だけを持ち、中身（ビュー）は ui が id に結ぶ（画面の無い app でも、コマンドがダイアログを開けるように）。
+// 画面に出すダイアログは 1 つだけで、どれを出すかは id、どこから開いたかは stage、何について開いたかは args で決まる
+import type { DialogId, DialogTable } from "./tables"
 
-export interface DialogDef {
+declare const ARGS: unique symbol
+
+// A は開くときに渡す値の型（値を持たない印。渡さないダイアログは undefined）
+export interface DialogDef<A = undefined> {
   id: string
+  readonly [ARGS]?: A
 }
 
-export const defineDialog = <const Id extends string>(def: DialogDef & { id: Id }): DialogDef & { id: Id } => def
+// 値を渡さないダイアログ
+export const defineDialog = <const Id extends string>(def: { id: Id }): DialogDef & { id: Id } => def
+
+// 開くときに A の値を渡すダイアログ（defineDialogWith<渡す値の型>()({ id })）
+export const defineDialogWith =
+  <A>() =>
+  <const Id extends string>(def: { id: Id }): DialogDef<A> & { id: Id } =>
+    def
+
+export type DialogArgsOf<Id extends DialogId> = DialogTable[Id] extends DialogDef<infer A> ? A : never
+// ダイアログを開くときに渡す値の並び（値を渡さないダイアログには何も渡さない）
+export type DialogArgs<Id extends DialogId> = [DialogArgsOf<Id>] extends [undefined] ? [] : [DialogArgsOf<Id>]
 
 export interface OpenedDialog {
   id: DialogId
   stage: string // 開いたステージ。ダイアログの操作はこのステージに向ける
+  args: unknown // 開くときに渡した値（id で型が決まる）
 }

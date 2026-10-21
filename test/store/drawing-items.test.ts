@@ -19,12 +19,36 @@ function ready() {
   return store
 }
 
-test("箱を置こうとして紙の上で押すと、そこに置き、置くのをやめて置いた箱を選ぶ", () => {
+test("箱を置こうとして紙の上で押すと、置くのをやめ、押した所を渡して追加のダイアログを開く（まだ置かない）", () => {
   const store = ready()
   store.actions.togglePlacing("s1", "shape.box")
   expect(store.actions.command("s1", "drawing.place", pointerFor(store, { x: 100, y: 50 }))).toBe(true)
-  expect(page(store).items).toEqual([{ id: "b1", item: "shape.box", x: 100, y: 50, props: { text: "" } }])
-  expect(store.state.getState().workspace.stages[0]).toMatchObject({ placing: null, selection: ["b1"], tool: "select" })
+  expect(page(store).items).toBeUndefined()
+  expect(store.state.getState().dialog).toEqual({
+    id: "box.add",
+    stage: "s1",
+    args: { page: "p1", at: { x: 100, y: 50 } },
+  })
+  expect(store.state.getState().workspace.stages[0]).toMatchObject({ placing: null, tool: "select" })
+})
+
+test("置くときに渡した項目を箱に入れ、書かなかった項目は既定。形に合わない項目なら置かない", () => {
+  const store = ready()
+  const at = { x: 100, y: 50 }
+  store.actions.perform(
+    "item.place",
+    { page: "p1", item: "shape.box", at, props: { caption: "見出し", body: "本文" } },
+    { book: "b1" },
+  )
+  expect(page(store).items).toEqual([
+    { id: "b1", item: "shape.box", x: 100, y: 50, props: { caption: "見出し", rule: true, body: "本文" } },
+  ])
+  const bad = store.actions.perform(
+    "item.place",
+    { page: "p1", item: "shape.box", at, props: { text: "x" } },
+    { book: "b1" },
+  )
+  expect(bad).toEqual({ ok: false, reason: "refused" })
 })
 
 test("紙から少しでもはみ出す所では置かず、置こうとしたままにする", () => {

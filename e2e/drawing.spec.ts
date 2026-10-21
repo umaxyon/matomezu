@@ -2,13 +2,22 @@ import { expect, type Page, test } from "@playwright/test"
 
 const items = (page: Page) => page.locator("[data-item]")
 
+// 箱を置こうとして (x, y) で押し、開いた追加のダイアログでキャプションを入れて追加する
+async function addBox(page: Page, x: number, y: number, caption = "") {
+  await page.mouse.click(x, y)
+  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
+  await dialog.getByLabel("キャプション").fill(caption)
+  await dialog.getByRole("button", { name: "追加" }).click()
+  await expect(dialog).toBeHidden()
+}
+
 // 紙の左上から (x, y) の画面の座標
 async function onPaper(page: Page, x: number, y: number) {
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   return { x: paper.x + x, y: paper.y + y }
 }
 
-test("箱のツールを押すとポインタに点線の箱が付き、紙の上で押すとそこに置かれて選ばれ、道具は選択に戻る", async ({
+test("箱のツールを押すとポインタに点線の箱が付き、紙の上で押して追加のダイアログで追加すると、そこに置かれて選ばれ、道具は選択に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -22,10 +31,10 @@ test("箱のツールを押すとポインタに点線の箱が付き、紙の�
   const g = (await ghost.boundingBox())!
   expect(Math.round(at.x - g.x)).toBe(16)
   expect(Math.round(at.y - g.y)).toBe(12)
-  await page.mouse.down()
-  await page.mouse.up()
+  await addBox(page, at.x, at.y, "見出し")
   await expect(items(page)).toHaveCount(1)
   await expect(items(page)).toHaveAttribute("data-selected", "true")
+  await expect(items(page)).toHaveText("見出し")
   await expect(ghost).toHaveCount(0)
   await expect(page.getByRole("button", { name: "箱" })).toHaveAttribute("aria-pressed", "false")
   await expect(page.getByRole("button", { name: "選択ツール" })).toBeVisible()
@@ -51,7 +60,7 @@ test("選択の道具で箱をドラッグすると動き、何も無い所を�
   await page.goto("/")
   await page.getByRole("button", { name: "箱" }).click()
   const at = await onPaper(page, 200, 150)
-  await page.mouse.click(at.x, at.y)
+  await addBox(page, at.x, at.y)
   const box = items(page)
   const before = (await box.boundingBox())!
   await page.mouse.move(before.x + 20, before.y + 20)
@@ -78,4 +87,40 @@ test("選択の道具で箱をドラッグすると動き、何も無い所を�
   expect(p1.y).toBeLessThan(p0.y)
   expect(Math.round(moved.x - after.x)).toBe(Math.round(p1.x - p0.x))
   expect(Math.round(moved.y - after.y)).toBe(Math.round(p1.y - p0.y))
+})
+
+test("追加のダイアログは見出しの右にキャンセルと追加を並べ、キャンセルでは置かない。区切り線は本文を書くと押せて入り、Enter で追加する", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "箱" }).click()
+  const at = await onPaper(page, 200, 150)
+  await page.mouse.click(at.x, at.y)
+  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
+  const title = (await dialog.getByRole("heading", { name: "ボックスの追加" }).boundingBox())!
+  const cancel = (await dialog.getByRole("button", { name: "キャンセル" }).boundingBox())!
+  const add = (await dialog.getByRole("button", { name: "追加" }).boundingBox())!
+  expect(Math.abs(cancel.y + cancel.height / 2 - (title.y + title.height / 2))).toBeLessThan(4)
+  expect(cancel.x).toBeGreaterThan(title.x + title.width)
+  expect(add.x).toBeGreaterThan(cancel.x)
+  await expect(dialog.getByLabel("キャプション")).toBeFocused()
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(items(page)).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "箱" })).toHaveAttribute("aria-pressed", "false")
+
+  await page.getByRole("button", { name: "箱" }).click()
+  await page.mouse.click(at.x, at.y)
+  const rule = dialog.getByRole("switch", { name: "区切り線" })
+  await expect(rule).toBeDisabled()
+  await dialog.getByLabel("本文").fill("一行目\n二行目")
+  await expect(rule).toHaveAttribute("aria-checked", "true")
+  await rule.click()
+  await expect(rule).toHaveAttribute("aria-checked", "false")
+  await dialog.getByLabel("キャプション").fill("見出し")
+  await dialog.getByLabel("キャプション").press("Enter")
+  await expect(dialog).toBeHidden()
+  await expect(items(page)).toHaveCount(1)
+  await expect(items(page).locator("hr")).toHaveCount(0)
+  await expect(items(page)).toContainText("一行目")
 })

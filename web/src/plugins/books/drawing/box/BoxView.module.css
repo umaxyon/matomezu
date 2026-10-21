@@ -1,10 +1,44 @@
+/* 箱。本文が無ければキャプションを真ん中に置く */
 .box {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
+  padding: 4px 8px;
+  overflow: hidden;
   border: 1px solid var(--theme-box-line);
   border-radius: 6px;
   background: var(--theme-box-fill);
   color: var(--theme-box-text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.box[data-body="true"] {
+  justify-content: flex-start;
+}
+/* キャプション: 1 行で、収まらない分は … で切る */
+.caption {
+  flex: none;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.rule {
+  flex: none;
+  width: 100%;
+  margin: 3px 0;
+  border: 0;
+  border-top: 1px solid var(--theme-box-line);
+}
+/* 本文: 改行はそのまま、収まらない行は切る */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

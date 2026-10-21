@@ -21,7 +21,7 @@ export interface PluginParts {
   papers?: readonly PaperDef[]
   skins?: readonly SkinDef[]
   commands?: readonly CommandDef<never>[]
-  dialogs?: readonly DialogDef[]
+  dialogs?: readonly DialogDef<unknown>[] // 開くときに渡す値の型は、ダイアログごとに違う
   messages?: MessageSet // このプラグインの文言（defineMessages で書き、型の表 MessageTable に書き足す）
   languages?: readonly LanguagePack[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
 }

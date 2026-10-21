@@ -7,17 +7,22 @@ import { PlacedSchema } from "./schema"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
-// 置くアイテムは、ブックで使えるアイテムだけ。項目は、そのアイテムの項目の形の既定
+// 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定）
 export const ITEM_PLACE = defineAction({
   id: "item.place",
   title: "Place item",
   target: "book",
   needs: [],
-  args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), at: PointSchema }),
+  args: z.strictObject({
+    page: z.string().min(1),
+    item: z.string().min(1),
+    at: PointSchema,
+    props: z.record(z.string(), z.unknown()).optional(),
+  }),
   run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
     if (!bookType(ctx.registry, book.type).items.defaults.includes(args.item)) return null
-    const props = ctx.registry.items.get(args.item)?.props.safeParse({})
+    const props = ctx.registry.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
     const item = PlacedSchema.safeParse({ id: nextItemId(book), item: args.item, ...args.at, props: props.data })
     if (!item.success) return null

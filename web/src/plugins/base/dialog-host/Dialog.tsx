@@ -1,15 +1,29 @@
-// ダイアログ: 描いている間、画面の上に出し、ほかの操作を止める。Esc か外側を押すと閉じる（onClose）
+// ダイアログ: 描いている間、画面の上に出し、ほかの操作を止める。Esc か外側を押すと閉じる（onClose）。
+// actions は見出しの行の右に並べる物（ボタンなど。何を置くかは使う側が決める）。開くと、中身の最初の入力欄に焦点を当てる
 import { type ReactNode, useLayoutEffect, useRef } from "react"
 import styles from "./Dialog.module.css"
 
-export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Dialog({
+  title,
+  actions,
+  onClose,
+  children,
+}: {
+  title: string
+  actions?: ReactNode
+  onClose: () => void
+  children: ReactNode
+}) {
   const ref = useRef<HTMLDialogElement>(null)
   const unmounting = useRef(false) // 描くのをやめるときに自分で閉じている間
   useLayoutEffect(() => {
     const d = ref.current
     if (!d) return
     unmounting.current = false
-    if (!d.open) d.showModal()
+    if (!d.open) {
+      d.showModal()
+      d.querySelector<HTMLElement>(`.${styles.content} :is(input, textarea, select)`)?.focus()
+    }
     return () => {
       unmounting.current = true
       d.close()
@@ -35,8 +49,11 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
       }}
     >
       <div className={styles.body}>
-        <h2 className={styles.title}>{title}</h2>
-        {children}
+        <div className={styles.head}>
+          <h2 className={styles.title}>{title}</h2>
+          {actions && <div className={styles.headActions}>{actions}</div>}
+        </div>
+        <div className={styles.content}>{children}</div>
       </div>
     </dialog>
   )

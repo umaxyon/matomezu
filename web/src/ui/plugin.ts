@@ -6,6 +6,7 @@ import type { ComponentType, ReactNode } from "react"
 import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { BookTypeId } from "../core/tables"
+import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import { type IdsOf, isBuiltin, type Plugin } from "../store/plugin"
 import type { DialogId } from "../store/tables"
 import type { AnyWidgetDef } from "./layout"
@@ -20,10 +21,15 @@ export interface BookViewDef {
   view: ComponentType<BookViewProps>
   contextMenus?: readonly ContextMenuId[]
 }
-export interface DialogProps {
+// A は開くときに渡された値の型（値を渡さないダイアログは undefined）
+export interface DialogProps<A = undefined> {
   stage: string // 開いたステージ
+  args: A
   onClose: () => void
 }
+// どのダイアログのビューも入る型（表に入れるときに使う。渡す値の型は id ごとに違うので、表の上では見ない）
+// biome-ignore lint/suspicious/noExplicitAny: 関数の部品とクラスの部品の両方を受けるには any しかない
+type AnyDialogView = ComponentType<DialogProps<any>>
 // アイテムのビューは、そのアイテムの項目（props）のデータを受け取る
 export interface ItemUi<Props = never> {
   view: ComponentType<{ props: Props }>
@@ -36,12 +42,22 @@ type ItemPropsOf<P, Id> = P extends { items?: readonly (infer D)[] }
     : never
   : never
 
+type DialogArgsOfPlugin<P, Id> = P extends { dialogs?: readonly (infer D)[] }
+  ? D extends { id: Id } & DialogDef<infer A>
+    ? A
+    : never
+  : never
+
 // そのプラグインに id が無ければ、その欄は書かなくてよい
 type Field<Ids, Name extends string, V> = [Ids] extends [never] ? { [n in Name]?: never } : { [n in Name]: V }
 
 export type PluginViews<P> = Field<IdsOf<P, "bookTypes">, "bookViews", { [id in IdsOf<P, "bookTypes">]: BookViewDef }> &
   Field<IdsOf<P, "items">, "items", { [id in IdsOf<P, "items">]: ItemUi<ItemPropsOf<P, id>> }> &
-  Field<IdsOf<P, "dialogs">, "dialogViews", { [id in IdsOf<P, "dialogs">]: ComponentType<DialogProps> }>
+  Field<
+    IdsOf<P, "dialogs">,
+    "dialogViews",
+    { [id in IdsOf<P, "dialogs">]: ComponentType<DialogProps<DialogArgsOfPlugin<P, id>>> }
+  >
 
 // ウィジェットが受け取る値（そのウィジェットの部品の props）
 type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: infer P) => ReactNode } ? P : never
@@ -49,7 +65,7 @@ type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: in
 // ほかのプラグインのビューとウィジェットの差し替え。型の表にある id だけ（ウィジェットは置けるスロットを変えず、描く部品だけを替える）
 export interface Overrides {
   bookViews?: { [id in BookTypeId]?: BookViewDef }
-  dialogViews?: { [id in DialogId]?: ComponentType<DialogProps> }
+  dialogViews?: { [id in DialogId]?: ComponentType<DialogProps<DialogArgsOf<id>>> }
   widgets?: { [id in WidgetId]?: (props: WidgetProps<id>) => ReactNode }
 }
 
@@ -69,7 +85,7 @@ export const definePluginUi = <const P extends Plugin>(plugin: P, ui: UiParts<P>
 export interface UiDefs {
   bookViews: ReadonlyMap<string, BookViewDef>
   items: ReadonlyMap<string, ItemUi>
-  dialogViews: ReadonlyMap<string, ComponentType<DialogProps>>
+  dialogViews: ReadonlyMap<string, AnyDialogView>
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
 }
@@ -77,12 +93,12 @@ export interface UiDefs {
 interface LooseUi {
   bookViews?: Record<string, BookViewDef>
   items?: Record<string, ItemUi>
-  dialogViews?: Record<string, ComponentType<DialogProps>>
+  dialogViews?: Record<string, AnyDialogView>
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
   overrides?: {
     bookViews?: Record<string, BookViewDef>
-    dialogViews?: Record<string, ComponentType<DialogProps>>
+    dialogViews?: Record<string, AnyDialogView>
     widgets?: Record<string, (props: never) => ReactNode>
   }
 }
@@ -91,7 +107,7 @@ interface LooseUi {
 export function assembleUi(plugins: readonly Plugin[]): UiDefs {
   const bookViews = new Map<string, BookViewDef>()
   const items = new Map<string, ItemUi>()
-  const dialogViews = new Map<string, ComponentType<DialogProps>>()
+  const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
   const uis = plugins.map(p => {

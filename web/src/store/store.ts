@@ -28,7 +28,7 @@ import {
 } from "../core/workspace"
 import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
 import type { OpenedContextMenu } from "./context-menus"
-import type { OpenedDialog } from "./dialogs"
+import type { DialogArgs, OpenedDialog } from "./dialogs"
 import { type AppDefs, assemble, type Plugin } from "./plugin"
 import type { DialogId } from "./tables"
 
@@ -56,7 +56,8 @@ export interface Actions {
   perform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
   // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す
   command<Id extends CommandId>(stage: string, id: Id, ...args: CommandArgs<Id>): boolean
-  openDialog(stage: string, id: DialogId): void // そのステージから開くダイアログを出す（出ていたものは閉じる）
+  // そのステージから開くダイアログを出す（出ていたものは閉じる）。値を渡すダイアログには、その値を渡す
+  openDialog<Id extends DialogId>(stage: string, id: Id, ...args: DialogArgs<Id>): void
   closeDialog(): void
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
   openContextMenu(stage: string, id: string, target: unknown, at: Point): void
@@ -205,9 +206,9 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       def.run(ctx, actions, args[0] as never)
       return true
     },
-    openDialog: (stage, id) => {
+    openDialog: (stage, id, ...args) => {
       if (!defs.dialogs.has(id)) fail("E108", { id })
-      if (getState().workspace.stages.some(s => s.id === stage)) setState({ dialog: { id, stage } })
+      if (getState().workspace.stages.some(s => s.id === stage)) setState({ dialog: { id, stage, args: args[0] } })
     },
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })

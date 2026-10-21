@@ -27,7 +27,7 @@ const NOTE = defineBookType({
 const SHOOT = defineCommand({
   id: "notes/shoot",
   title: "Master",
-  run: (ctx, a) => a.openDialog(ctx.stage.id, "notes/shot" as never),
+  run: (ctx, a) => (a.openDialog as (stage: string, id: string) => void)(ctx.stage.id, "notes/shot"),
   when: () => true,
 })
 const notes = definePlugin({

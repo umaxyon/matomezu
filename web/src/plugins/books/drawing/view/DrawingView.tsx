@@ -45,8 +45,10 @@ export function DrawingView({ stage }: BookViewProps) {
   }
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || !ref.current) return
-    if (placing) place.run(local(e, ref.current))
-    else if (stage.tool !== "hand" && !(e.target as Element).closest("[data-item]")) select(stage.id, [])
+    if (placing) {
+      e.preventDefault() // 置いて開いたダイアログから、押した続きで焦点を移さない
+      place.run(local(e, ref.current))
+    } else if (stage.tool !== "hand" && !(e.target as Element).closest("[data-item]")) select(stage.id, [])
   }
 
   return (

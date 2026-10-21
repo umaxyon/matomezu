@@ -1,6 +1,9 @@
-// 箱: 文字を入れられる四角
+// 箱: キャプションと本文を入れる四角。キャプションと本文の間に区切り線を引ける（本文があるときだけ）。
+// 置くときは、置く所を覚えて追加のダイアログ（box.add）を開き、中身を決めてから置く
 import { z } from "zod"
 import { defineItem } from "../../../../core/def/item"
+import type { Point } from "../../../../core/geom"
+import { defineDialogWith } from "../../../../store/dialogs"
 
 export const BOX = defineItem({
   id: "shape.box",
@@ -9,7 +12,11 @@ export const BOX = defineItem({
   title: "Box",
   capabilities: ["connectable", "resizable", "hasText"],
   toolbox: true,
-  props: z.strictObject({ text: z.string().default("") }),
+  props: z.strictObject({
+    caption: z.string().default(""),
+    rule: z.boolean().default(true), // キャプションと本文の間の区切り線
+    body: z.string().default(""),
+  }),
   size: { w: 160, h: 64 },
   tokens: [
     { id: "box.fill", fallback: "fill" },
@@ -17,3 +24,6 @@ export const BOX = defineItem({
     { id: "box.text", fallback: "text" },
   ],
 })
+
+// 箱の追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
+export const BOX_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "box.add" })

@@ -1,8 +1,9 @@
 // 図面の画面から置く・動かすコマンド。画面の座標を受け取り、紙の上の座標に直してアクションを呼ぶ
 import type { Point } from "../../../../core/geom"
-import { toPaper, toPaperDelta } from "../../../../core/stage"
+import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
-import { PLACE_OFFSET } from "./items"
+import { BOX } from "../box"
+import { fitsPaper, itemSize, PLACE_OFFSET } from "./items"
 
 const onDrawingPage = (ctx: CommandContext) => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null
 
@@ -11,7 +12,8 @@ export function placeAt(ctx: Pick<CommandContext, "stage">, pointer: Point): Poi
   return toPaper(ctx.stage, { x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
 }
 
-// 置こうとしているアイテムを、ポインタの所に置く。置けたら置くのをやめ、置いたアイテムを選ぶ。置けなければ何もしない
+// 置こうとしているアイテムを、ポインタの所に置く。置けたら置くのをやめ、置いたアイテムを選ぶ。紙からはみ出す所なら何もしない。
+// 箱は、置くのをやめて追加のダイアログを開き、中身を決めてから置く
 export const DRAWING_PLACE = defineCommand({
   id: "drawing.place",
   title: "Place item",
@@ -19,7 +21,14 @@ export const DRAWING_PLACE = defineCommand({
     const { stage } = ctx
     const at = placeAt(ctx, pointer)
     const page = stage.opened?.page
-    if (!at || !page || !stage.placing || !stage.opened) return
+    const size = stage.placing && itemSize(ctx.registry, stage.placing)
+    const paper = paperOf(stage)
+    if (!at || !page || !stage.placing || !stage.opened || !size || !paper || !fitsPaper(at, size, paper)) return
+    if (stage.placing === BOX.id) {
+      a.stopPlacing(stage.id)
+      a.openDialog(stage.id, "box.add", { page, at })
+      return
+    }
     const done = a.perform("item.place", { page, item: stage.placing, at }, { book: stage.opened.book })
     if (!done.ok) return
     a.stopPlacing(stage.id)
