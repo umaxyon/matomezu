@@ -52,6 +52,8 @@ export function mapStage(ws: Workspace, id: string, change: (s: Stage) => Stage)
   return changed ? { ...ws, stages } : ws
 }
 
+export const hasStage = (ws: Workspace, id: string): boolean => ws.stages.some(s => s.id === id)
+
 // カレントのステージの右に、何も開いていないステージを足す
 export function split(ws: Workspace): Workspace {
   if (ws.stages.length >= MAX_STAGES) return ws
@@ -86,4 +88,11 @@ export function focus(ws: Workspace, id: string): Workspace {
 // ステージに、開いているブックのページを開く
 export function showPage(reg: Registry, ws: Workspace, stage: string, book: PagedBook, page: string): Workspace {
   return mapStage(ws, stage, s => openPage(reg, s, book, page))
+}
+
+// そのブックを開いていて、ページを開いていないステージに、ページを開く（ページの無いブックに最初のページができたとき。ほかのページを見ているステージは変えない）
+export function showPageWhereNone(reg: Registry, ws: Workspace, book: PagedBook, page: string): Workspace {
+  return ws.stages
+    .filter(s => s.opened?.book === book.id && s.opened.page === null)
+    .reduce((w, s) => showPage(reg, w, s.id, book, page), ws)
 }

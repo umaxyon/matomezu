@@ -28,8 +28,10 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
       onClick={e => {
         if (e.target === e.currentTarget) onClose()
       }}
+      // Escape で閉じるのは keydown だけが受ける（文字の変換中の Escape は変換の取り消しなので閉じない）。ブラウザ自身の閉じ方（cancel）は止める
+      onCancel={e => e.preventDefault()}
       onKeyDown={e => {
-        if (e.key === "Escape") onClose()
+        if (e.key === "Escape" && !e.nativeEvent.isComposing) onClose()
       }}
     >
       <div className={styles.body}>

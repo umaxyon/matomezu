@@ -13,7 +13,18 @@ import type { Book } from "../core/schema/book"
 import type { Settings } from "../core/settings"
 import { openBook, panBy, resize } from "../core/stage"
 import type { SingleBookTypeId } from "../core/tables"
-import { close, focus, mapStage, newWorkspace, showPage, split, unsplit, type Workspace } from "../core/workspace"
+import {
+  close,
+  focus,
+  hasStage,
+  mapStage,
+  newWorkspace,
+  showPage,
+  showPageWhereNone,
+  split,
+  unsplit,
+  type Workspace,
+} from "../core/workspace"
 import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
 import type { OpenedDialog } from "./dialogs"
 import { type AppDefs, assemble, type Plugin } from "./plugin"
@@ -125,8 +136,9 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })
     },
-    split: stage => withWorkspace(ws => split(focus(ws, stage))),
-    unsplit: stage => withWorkspace(ws => unsplit(focus(ws, stage))),
+    // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
+    split: stage => withWorkspace(ws => (hasStage(ws, stage) ? split(focus(ws, stage)) : ws)),
+    unsplit: stage => withWorkspace(ws => (hasStage(ws, stage) ? unsplit(focus(ws, stage)) : ws)),
     closeStage: id => withWorkspace(ws => close(ws, id)),
     focusStage: id => withWorkspace(ws => focus(ws, id)),
     openBook: (stage, bookId) => {
@@ -146,7 +158,12 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       if (!done.ok || !hasPages(done.next)) return false
       setState({
         books: { ...books, [done.next.id]: done.next },
-        workspace: showPage(registry, focus(workspace, stageId), stageId, done.next, done.result.page),
+        workspace: showPageWhereNone(
+          registry,
+          showPage(registry, focus(workspace, stageId), stageId, done.next, done.result.page),
+          done.next,
+          done.result.page,
+        ),
       })
       return true
     },

@@ -88,3 +88,27 @@ test("言語とスキンの設定を変える。同じ値なら知らせない",
   actions.setSkin("light")
   expect(state.getState()).toBe(s)
 })
+
+test("ページの無いブックを 2 つのステージで開いて最初のページを作ると、どちらのステージもそのページを開く", () => {
+  const { state, actions } = newStore({ newId: () => "made" })
+  actions.createBook("s1", { title: "空", type: "drawing" })
+  actions.split("s1")
+  actions.openBook("s2", "made")
+  actions.addPage("s2", { title: "最初" })
+  expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["p1", "p1"])
+  // ほかのページを見ているステージは変えない
+  actions.addPage("s2", { title: "次" })
+  expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["p1", "p2"])
+})
+
+test("閉じたステージへの分割と分割の取りやめは、ほかのステージにかけない", () => {
+  const { state, actions } = newStore()
+  actions.split("s1")
+  actions.closeStage("s2")
+  actions.split("s1")
+  const before = state.getState().workspace
+  actions.unsplit("s2")
+  actions.split("s2")
+  expect(state.getState().workspace).toBe(before)
+  expect(before.stages.map(s => s.id)).toEqual(["s1", "s3"])
+})

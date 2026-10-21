@@ -80,8 +80,12 @@
   cursor: pointer;
   line-height: 0;
 }
-.item:hover {
+.item:hover:not(:disabled) {
   background: var(--skin-btn-hover);
+}
+.item:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .item[aria-pressed="true"] {
   color: var(--skin-accent);

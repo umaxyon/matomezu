@@ -86,7 +86,7 @@ function MenuEntry({ stage, item, onPick }: { stage: string; item: MenuItem; onP
   return id ? <MenuButton stage={stage} id={id} onPick={onPick} /> : null
 }
 
-// コマンドのボタン。アイコンが無ければ名前を出し、押されている状態はコマンドの active
+// コマンドのボタン。アイコンが無ければ名前を出し、押されている状態はコマンドの active、押せるかは enabled
 function MenuButton({ stage, id, onPick }: { stage: string; id: MenuCommandId; onPick: () => void }) {
   const command = useCommand(stage, id)
   const icon = useUi().commandIcons.get(id)
@@ -97,6 +97,7 @@ function MenuButton({ stage, id, onPick }: { stage: string; id: MenuCommandId; o
       className={styles.item}
       aria-label={t(command.title)}
       aria-pressed={command.active}
+      disabled={!command.enabled}
       onClick={() => {
         command.run()
         onPick()

@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test"
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { StrictMode } from "react"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
@@ -199,6 +199,43 @@ test("マスターの設定で言語とスキンを変える", () => {
   expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy()
   fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "light" } })
   expect(document.documentElement.dataset.skin).toBe("light")
+})
+
+test("表に無いスキンは、自動のスキンで描く（data-skin を付けない）", () => {
+  const store = renderApp()
+  act(() => {
+    store.actions.setSkin("light")
+  })
+  expect(document.documentElement.dataset.skin).toBe("light")
+  act(() => {
+    store.actions.setSkin("removed-skin")
+  })
+  expect(document.documentElement.dataset.skin).toBeUndefined()
+})
+
+test("文字の変換中の Escape ではダイアログを閉じず、変換していない Escape で閉じる", () => {
+  const store = renderApp()
+  fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  const name = within(screen.getByRole("dialog", { name: "新しいページ" })).getByRole("textbox")
+  fireEvent.keyDown(name, { key: "Escape", isComposing: true })
+  expect(store.state.getState().dialog).toMatchObject({ id: "page.new" })
+  fireEvent.keyDown(name, { key: "Escape" })
+  expect(store.state.getState().dialog).toBeNull()
+})
+
+test("メニューのボタンは、コマンドが押せないとき押せない", () => {
+  const [base, ...rest] = BUILTIN_UI
+  const locked = {
+    ...base,
+    commands: base.commands.map(c => (c.id === "stage.split" ? { ...c, enabled: () => false } : c)),
+  }
+  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: [locked, ...rest] })
+  render(
+    <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
+      <App />
+    </MatomezuProvider>,
+  )
+  expect((fromMenu("画面を分割") as HTMLButtonElement).disabled).toBe(true)
 })
 
 test("表に無い紙のページは、代わりの紙に「不明な紙」と示して描き、データの紙の id は残す", () => {
