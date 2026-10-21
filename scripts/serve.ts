@@ -1,4 +1,4 @@
-// ビルドした画面を配る静的なサーバー。bun scripts/serve.ts <ポート> [フォルダ（既定は web/dist）]
+// ビルドした画面を配る静的なサーバー（実際のブラウザのテスト用）。bun scripts/serve.ts <ポート> [フォルダ（既定は web/dist）]
 import { join, normalize, resolve } from "node:path"
 
 const port = Number(process.argv[2] ?? 5300)

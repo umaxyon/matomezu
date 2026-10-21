@@ -13,3 +13,6 @@ node_modules/
 # 実際のブラウザのテストの出力
 /e2e/.results/
 /e2e/.dist/
+
+# 開発用の常駐のアプリのフォルダ（bun run dev）
+/.dev-home/
