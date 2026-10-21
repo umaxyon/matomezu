@@ -31,6 +31,7 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
   core: t => t === "core" || t === "zod",
   store: t => t === "core" || t === "store" || t === "zustand/vanilla",
   host: t => t === "core" || t === "store" || t === "host" || t === "zod",
+  engine: t => t === "core" || t === "store" || t === "plugins",
   ui: t =>
     ["core", "store", "ui", "react", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),
@@ -49,7 +50,8 @@ describe("依存の向き", () => {
   for (const file of sources) {
     const layer = layerOf(file.rel)
     const targets = importsOf(file)
-    const local = (t: string) => ["core", "store", "ui", "plugins", "host"].includes(topOf(t)) && !t.endsWith(".css")
+    const local = (t: string) =>
+      ["core", "store", "ui", "plugins", "host", "engine"].includes(topOf(t)) && !t.endsWith(".css")
     if (layer === "plugins") {
       const own = pluginRoot(file.rel)
       test(file.rel, () => {
