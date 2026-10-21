@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -8,7 +9,9 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -22,7 +25,18 @@ func newServer(t *testing.T, stop func()) *httptest.Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	s := httptest.NewServer(Handler(Options{Web: web, Token: "secret", Version: "v1", Stop: stop, Storage: store}))
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hub, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := httptest.NewUnstartedServer(Handler(Options{Web: web, Token: "secret", Version: "v1", Stop: stop, Hub: hub}))
+	s.Config.RegisterOnShutdown(hub.CloseAll)
+	s.Start()
+	t.Cleanup(hub.CloseAll)
 	t.Cleanup(s.Close)
 	return s
 }
@@ -132,10 +146,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	if code, _ := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b2"},"base":2}`, nil); code != 400 {
 		t.Fatalf("a book of another id = %d", code)
 	}
-	if code, _ := send(t, "PUT", s.URL+"/api/settings", `{"lang":"en"}`, nil); code != 200 {
-		t.Fatalf("settings = %d", code)
-	}
-	want := `{"books":[{"id":"b1","book":{"id":"b1","title":"B"},"version":2}],"settings":{"lang":"en"}}`
+	want := `{"books":[{"id":"b1","book":{"id":"b1","title":"B"},"version":2}],"settings":null}`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -154,7 +165,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 		{"a name pointed at this machine", map[string]string{"Host": "evil.example:" + strings.Split(host, ":")[1]}, 403},
 	}
 	for _, c := range cases {
-		req, _ := http.NewRequest("PUT", s.URL+"/api/settings", strings.NewReader(`{}`))
+		req, _ := http.NewRequest("POST", s.URL+"/api/perform", strings.NewReader(`{"action":"nope"}`))
 		req.Header.Set("Content-Type", "application/json")
 		for k, v := range c.headers {
 			req.Header.Set(k, v)
@@ -171,11 +182,106 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 			t.Errorf("%s = %d; want %d", c.name, res.StatusCode, c.want)
 		}
 	}
-	req, _ := http.NewRequest("PUT", s.URL+"/api/settings", strings.NewReader(`{}`))
+	req, _ := http.NewRequest("POST", s.URL+"/api/perform", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "text/plain")
 	res, _ := http.DefaultClient.Do(req)
 	res.Body.Close()
 	if res.StatusCode != 415 {
 		t.Errorf("a body that is not JSON = %d; want 415", res.StatusCode)
+	}
+}
+
+const drawing = `{"type":"drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"a4","orientation":"landscape"}]}`
+
+// listen は /api/events につなぎ、届いたイベントを「名前 data」の行で返す通り道
+func listen(t *testing.T, url string) <-chan string {
+	t.Helper()
+	res, err := http.Get(url + "/api/events")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { res.Body.Close() })
+	lines := make(chan string, 16)
+	go func() {
+		defer close(lines)
+		sc := bufio.NewScanner(res.Body)
+		name := ""
+		for sc.Scan() {
+			l := sc.Text()
+			if v, ok := strings.CutPrefix(l, "event: "); ok {
+				name = v
+			} else if v, ok := strings.CutPrefix(l, "data: "); ok {
+				lines <- name + " " + v
+			}
+		}
+	}()
+	return lines
+}
+
+func next(t *testing.T, lines <-chan string) string {
+	t.Helper()
+	select {
+	case l := <-lines:
+		return l
+	case <-time.After(3 * time.Second):
+		t.Fatal("no event")
+		return ""
+	}
+}
+
+func TestPerformTellsEveryScreen(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a, b := listen(t, s.URL), listen(t, s.URL)
+	if got := next(t, a); got != `hello {"client":"c1"}` {
+		t.Fatalf("a hello = %s", got)
+	}
+	next(t, b)
+	code, body := send(t, "POST", s.URL+"/api/perform",
+		`{"action":"item.place","args":{"page":"p1","item":"shape.box","at":{"x":1,"y":2}},"on":{"book":"b1"},"lang":"ja","ids":["k1"],"client":"c1","seq":7}`, nil)
+	if code != 200 || body != `{"ok":true,"result":{"item":"k1"}}` {
+		t.Fatalf("perform = %d %s", code, body)
+	}
+	for name, lines := range map[string]<-chan string{"a": a, "b": b} {
+		got := next(t, lines)
+		if !strings.HasPrefix(got, `book {"book":{`) || !strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `"client":"c1","seq":7,"version":2}`) {
+			t.Fatalf("%s book = %s", name, got)
+		}
+	}
+	if got := next(t, a); got != `ack {"ok":true,"reason":"","seq":7}` {
+		t.Fatalf("a ack = %s", got)
+	}
+	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
+	if !strings.Contains(data, `"id":"k1"`) || !strings.Contains(data, `"version":2`) {
+		t.Fatalf("data = %s", data)
+	}
+}
+
+func TestRefusedActionChangesNothing(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	code, body := send(t, "POST", s.URL+"/api/perform",
+		`{"action":"item.update","args":{"page":"p1","item":"gone","props":{}},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`, nil)
+	if code != 200 || body != `{"ok":false,"reason":"refused"}` {
+		t.Fatalf("perform = %d %s", code, body)
+	}
+	if got := next(t, a); got != `ack {"ok":false,"reason":"refused","seq":1}` {
+		t.Fatalf("ack = %s", got)
+	}
+}
+
+func TestSettingsActions(t *testing.T) {
+	s := newServer(t, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/perform", `{"action":"settings.skin","args":{"skin":"dark"},"lang":"ja"}`, nil)
+	if got := next(t, a); !strings.HasPrefix(got, `settings {`) || !strings.Contains(got, `"skin":"dark"`) {
+		t.Fatalf("settings = %s", got)
+	}
+	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
+	if !strings.Contains(data, `"skin":"dark"`) {
+		t.Fatalf("data = %s", data)
 	}
 }

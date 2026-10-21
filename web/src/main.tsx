@@ -1,10 +1,9 @@
-// 画面の入口: ホスト（常駐から開いていればサーバー、そうでなければ見本のブックを持つメモリ）から残したブックと設定を読み、中の部品と見た目で app を作り、React の根に App を描く。変わったものはホストに残す
+// 画面の入口: ホスト（常駐から開いていればサーバー、そうでなければ見本のブックを持つメモリ）から残したブックと設定を読み、中の部品と見た目で app を作り、React の根に App を描く。行ったアクションと外の変化はホストとやり取りする
 
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
 import { memoryHost } from "./host/memory"
-import { persist } from "./host/persist"
 import { startHost } from "./host/start"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { SAMPLE_BOOKS } from "./sample-books"
@@ -20,8 +19,9 @@ const store = createMatomezu({
   savedBooks: saved.books,
   settings: saved.settings,
   lang: navigator.languages,
+  observe: done => host.observe(done),
 })
-persist(store, host)
+host.connect(store)
 const root = document.getElementById("root")
 if (!root) fail("E202")
 

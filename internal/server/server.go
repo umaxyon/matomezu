@@ -4,9 +4,11 @@
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
 //	GET  /api/data        {"books": [{"id", "book", "version"}], "settings"} 置いてあるブックと設定  … 画面から
-//	PUT  /api/books/{id}  {"book", "base"} 置いてある版が base のときだけ書き、{"version"} を返す。
+//	GET  /api/events      SSE。世界の変わり目の知らせ（hub.go）                                    … 画面から
+//	POST /api/perform     {"action", "args", "on", "lang", "ids", "client", "seq"} アクションを行い、{"ok", "reason", "result"} を返す。
+//	                      変わったものは /api/events で知らせる                                     … 画面から
+//	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
 //	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}  … 画面から
-//	PUT  /api/settings    設定を丸ごと書く                                                       … 画面から
 //
 // 合言葉は Authorization: Bearer <token> で渡す（server.json の token。常駐ごとに作る）。
 // 「画面から」の入口は、この常駐の画面からの頼みだけを受ける（sameOrigin。ほかのサイトに開かれたページから書かせない）。
@@ -16,6 +18,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"mime"
@@ -23,8 +26,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/umaxyon/matomezu/internal/storage"
+	"time"
 )
 
 // user は設定の持ち主。利用者の区別ができるまでは 1 人
@@ -39,8 +41,11 @@ type Options struct {
 	Token   string // 合言葉
 	Version string
 	Stop    func() // /api/stop で呼ぶ。呼ばれたら常駐を止める
-	Storage storage.Storage
+	Hub     *Hub
 }
+
+// 知らせが無いあいだ、つながりを保つために送る間隔
+const keepAlive = 25 * time.Second
 
 // Handler は常駐の入口をまとめた http.Handler
 func Handler(o Options) http.Handler {
@@ -55,8 +60,9 @@ func Handler(o Options) http.Handler {
 		}
 	}))
 	mux.Handle("GET /api/data", sameOrigin(o.data))
+	mux.Handle("GET /api/events", sameOrigin(o.events))
+	mux.Handle("POST /api/perform", sameOrigin(o.perform))
 	mux.Handle("PUT /api/books/{id}", sameOrigin(o.putBook))
-	mux.Handle("PUT /api/settings", sameOrigin(o.putSettings))
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux
@@ -101,20 +107,52 @@ func sameOrigin(h http.HandlerFunc) http.Handler {
 }
 
 func (o Options) data(w http.ResponseWriter, _ *http.Request) {
-	books, err := o.Storage.Books()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	settings, err := o.Storage.Settings(user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	books, settings := o.Hub.Data()
 	if settings == nil {
 		settings = json.RawMessage("null")
 	}
 	writeJSON(w, map[string]any{"books": books, "settings": settings})
+}
+
+func (o Options) events(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming is not supported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	c := o.Hub.Join()
+	defer o.Hub.Leave(c)
+	tick := time.NewTicker(keepAlive)
+	defer tick.Stop()
+	for {
+		select {
+		case ev, ok := <-c.ch:
+			if !ok {
+				return
+			}
+			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.name, ev.data)
+		case <-tick.C:
+			fmt.Fprint(w, ": keep\n\n")
+		case <-r.Context().Done():
+			return
+		}
+		flusher.Flush()
+	}
+}
+
+func (o Options) perform(w http.ResponseWriter, r *http.Request) {
+	var p Perform
+	if !readJSON(w, r, &p) {
+		return
+	}
+	done, err := o.Hub.Perform(p)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, done)
 }
 
 func (o Options) putBook(w http.ResponseWriter, r *http.Request) {
@@ -133,8 +171,8 @@ func (o Options) putBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "the book must be an object with the id of the path", http.StatusBadRequest)
 		return
 	}
-	version, have, err := o.Storage.PutBook(id, req.Book, req.Base)
-	if errors.Is(err, storage.ErrConflict) {
+	version, have, err := o.Hub.PutBook(id, req.Book, req.Base)
+	if errors.Is(err, ErrConflict) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
 		_ = json.NewEncoder(w).Encode(have)
@@ -145,22 +183,6 @@ func (o Options) putBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"version": version})
-}
-
-func (o Options) putSettings(w http.ResponseWriter, r *http.Request) {
-	var body json.RawMessage
-	if !readJSON(w, r, &body) {
-		return
-	}
-	if len(body) == 0 || body[0] != '{' {
-		http.Error(w, "the settings must be an object", http.StatusBadRequest)
-		return
-	}
-	if err := o.Storage.PutSettings(user, body); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, map[string]any{})
 }
 
 // readJSON は本文を v に読む。読めなければ 400 を返して false

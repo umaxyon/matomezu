@@ -3,17 +3,14 @@ import type { Book } from "../../web/src/core/schema/book"
 import type { Settings } from "../../web/src/core/settings"
 import { memoryHost } from "../../web/src/host/memory"
 import { persist } from "../../web/src/host/persist"
-import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { newStore } from "../support"
 
-// 頼まれた順に残す中身を覚えるホスト
+// 頼まれた順に残す中身を覚える
 function recording() {
-  const host = memoryHost(SAMPLE_BOOKS)
   const books: Book[] = []
   const settings: Settings[] = []
   return {
     host: {
-      ...host,
       saveBook: (b: Book) => books.push(b),
       saveSettings: (s: Settings) => settings.push(s),
     },
@@ -55,7 +52,7 @@ test("止めたあとは頼まない", () => {
 test("メモリのホストは残したものを次に読む", async () => {
   const host = memoryHost([])
   const store = newStore({ books: [], savedBooks: (await host.load()).books })
-  persist(store, host)
+  host.connect(store)
   store.actions.createBook("s1", { title: "新しいブック", type: "drawing" })
   store.actions.setSkin("dark")
   const again = await host.load()

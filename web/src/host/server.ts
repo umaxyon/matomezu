@@ -1,107 +1,147 @@
-// サーバーに頼むホスト: 常駐（matomezu serve）の API で読み、変わったブックと設定を少し待ってまとめて書く。
-// ブックは読んだときの版を添えて書く。ほかから書き換えられていれば（409）、そのブックはそれから書かない。
-// 窓を閉じる・読み直すときは、待っているものをすぐ送る（keepalive。窓が無くなっても届く）
+// 常駐に頼むホスト: 画面は自分で先にアクションを行い、同じアクションを常駐に送る（POST /api/perform）。
+// 常駐はアクションを 1 つずつ順に行い、変わったブックと設定をつながっている全部の画面に知らせる（/api/events。internal/server/hub.go）。
+// 画面は、常駐が決めた世界（確かめた世界）の上で、まだ確かめられていない自分のアクションを行い直したものを出す（store の receive）。
+// 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える
 import { z } from "zod"
 import { fail } from "../core/errors"
-import type { Book } from "../core/schema/book"
-import type { Settings } from "../core/settings"
+import type { AppStore, DoneAction } from "../store/store"
 import type { Host, Loaded } from "./host"
 
-// 書く前に待つ時間（続けて変わったものを 1 回にまとめる）
-export const SAVE_DELAY = 300
+// 常駐が答えなかった（常駐から開いていない）
+export class NoServer {}
+
+// 外とのやり取り（テストでは差し替える）
+export interface Net {
+  fetch(url: string, init?: RequestInit): Promise<Response>
+  events(url: string): Events
+}
+export interface Events {
+  on(name: string, listener: (data: string) => void): void
+  onError(listener: () => void): void
+  close(): void
+}
+
+const browserNet: Net = {
+  fetch: (url, init) => fetch(url, init),
+  events: url => {
+    const source = new EventSource(url)
+    return {
+      on: (name, listener) => source.addEventListener(name, e => listener((e as MessageEvent<string>).data)),
+      onError: listener => {
+        source.onerror = listener
+      },
+      close: () => source.close(),
+    }
+  },
+}
 
 const DataSchema = z.object({
   books: z.array(z.object({ id: z.string(), book: z.unknown(), version: z.number().int() })),
   settings: z.unknown(),
 })
-const SavedSchema = z.object({ version: z.number().int() })
+const HelloSchema = z.object({ client: z.string() })
+const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
+const BookSchema = z.object({ book: z.object({ id: z.string() }).loose(), version: z.number().int(), ...Mark })
+const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
+const AckSchema = z.object({ seq: z.number().int() })
 
 export interface ServerHost extends Host {
-  flush(): Promise<void> // 待っている書き込みを、すぐ書く（書き終わるまで待つ）
-  stale: ReadonlySet<string> // ほかから書き換えられていたので、書かないブック
+  pending(): readonly DoneAction[] // まだ確かめられていない自分のアクション
 }
 
-// 常駐が答えなかった（常駐から開いていない）
-export class NoServer {}
+export function serverHost(net: Net = browserNet): ServerHost {
+  const confirmed = new Map<string, { book: unknown; version: number }>()
+  let settings: unknown
+  let pending: { seq: number; done: DoneAction }[] = []
+  let client = ""
+  let seq = 0
+  let app: AppStore | null = null
+  let events: Events | null = null
 
-type Fetch = (url: string, init?: RequestInit) => Promise<Response>
+  const show = () =>
+    app?.actions.receive(
+      { books: [...confirmed.values()].map(e => e.book), settings },
+      pending.map(p => p.done),
+    )
+  const settle = (mark: { client?: string; seq?: number }) => {
+    if (mark.client === client && mark.seq !== undefined) pending = pending.filter(p => p.seq > (mark.seq as number))
+  }
+  const read = async () => {
+    const res = await net.fetch("api/data").catch(() => null)
+    if (!res || res.status === 404) throw new NoServer()
+    if (!res.ok) fail("E401", { status: `${res.status}` })
+    const data = DataSchema.parse(await res.json())
+    confirmed.clear()
+    for (const b of data.books) confirmed.set(b.id, { book: b.book, version: b.version })
+    settings = data.settings ?? undefined
+  }
 
-export function serverHost(fetcher: Fetch = (url, init) => fetch(url, init)): ServerHost {
-  const versions = new Map<string, number>() // ブックの、置いてある版（まだ置いていなければ無い）
-  const waiting = new Map<string, Book>() // 書くのを待っているブック
-  const stale = new Set<string>()
-  let settings: Settings | null = null // 書くのを待っている設定
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let writing: Promise<void> = Promise.resolve() // 書いている途中のもの（書くのは 1 回ずつ、順に）
-
-  const put = (url: string, body: unknown, keepalive = false) =>
-    fetcher(url, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      keepalive,
+  // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
+  const listen = () =>
+    new Promise<void>((resolve, reject) => {
+      const source = net.events("api/events")
+      events = source
+      let first = true
+      source.onError(() => {
+        if (!first) return // つなぎ直しはブラウザに任せる（つながると hello が来る）
+        source.close()
+        reject(new NoServer())
+      })
+      source.on("hello", data => {
+        client = HelloSchema.parse(JSON.parse(data)).client
+        if (first) {
+          first = false
+          resolve()
+          return
+        }
+        // つなぎ直した: 前のつながりで送ったアクションの答えは届かないので、読み直した世界から出し直す
+        pending = []
+        void read().then(show, () => {})
+      })
+      source.on("book", data => {
+        const e = BookSchema.parse(JSON.parse(data))
+        const have = confirmed.get(e.book.id)
+        if (!have || have.version < e.version) confirmed.set(e.book.id, { book: e.book, version: e.version })
+        settle(e)
+        show()
+      })
+      source.on("settings", data => {
+        const e = SettingsSchema.parse(JSON.parse(data))
+        settings = e.settings
+        settle(e)
+        show()
+      })
+      source.on("ack", data => {
+        settle({ client, seq: AckSchema.parse(JSON.parse(data)).seq })
+        show()
+      })
     })
-
-  const writeBook = async (book: Book) => {
-    const res = await put(`api/books/${encodeURIComponent(book.id)}`, { book, base: versions.get(book.id) ?? 0 })
-    if (res.status === 409) {
-      stale.add(book.id)
-      return
-    }
-    if (!res.ok) return // 書けなければ、次に変わったときにまた書く
-    versions.set(book.id, SavedSchema.parse(await res.json()).version)
-  }
-
-  // 待っているものを書く。書いている途中に来たものは、そのあとに書く
-  const write = () => {
-    if (timer) clearTimeout(timer)
-    timer = null
-    const books = [...waiting.values()]
-    const next = settings
-    waiting.clear()
-    settings = null
-    writing = writing.then(async () => {
-      for (const book of books) await writeBook(book).catch(() => {})
-      if (next) await put("api/settings", next).catch(() => {})
-    })
-    return writing
-  }
-  const schedule = () => {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(write, SAVE_DELAY)
-  }
-
-  // 窓が無くなるときは待たずに送る（版は書いている途中のものが返す前の値になりうるが、届かないよりよい）
-  if (typeof window !== "undefined") {
-    window.addEventListener("pagehide", () => {
-      for (const book of waiting.values()) {
-        void put(`api/books/${encodeURIComponent(book.id)}`, { book, base: versions.get(book.id) ?? 0 }, true)
-      }
-      if (settings) void put("api/settings", settings, true)
-      waiting.clear()
-      settings = null
-    })
-  }
 
   return {
-    stale,
+    pending: () => pending.map(p => p.done),
     load: async (): Promise<Loaded> => {
-      const res = await fetcher("api/data").catch(() => null)
-      if (!res || res.status === 404) throw new NoServer()
-      if (!res.ok) fail("E401", { status: `${res.status}` })
-      const data = DataSchema.parse(await res.json())
-      for (const b of data.books) versions.set(b.id, b.version)
-      return { books: data.books.map(b => b.book), settings: data.settings ?? undefined }
+      await listen()
+      await read()
+      return { books: [...confirmed.values()].map(e => e.book), settings }
     },
-    saveBook: book => {
-      if (stale.has(book.id)) return
-      waiting.set(book.id, book)
-      schedule()
+    observe: done => {
+      seq += 1
+      pending.push({ seq, done })
+      void net
+        .fetch("api/perform", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...done, client, seq }),
+        })
+        .catch(() => {})
     },
-    saveSettings: next => {
-      settings = next
-      schedule()
+    connect: next => {
+      app = next
+      show()
+      return () => {
+        app = null
+        events?.close()
+      }
     },
-    flush: write,
   }
 }

@@ -101,6 +101,18 @@ export interface Actions {
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
   closePicker(): void
+  // 外で決まったブックと設定（常駐が知らせたもの）に入れ替え、まだ確かめられていない自分のアクション replay をその上で行い直す。
+  // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす
+  receive(world: { books: readonly unknown[]; settings: unknown }, replay: readonly DoneAction[]): void
+}
+
+// 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
+export interface DoneAction {
+  action: string
+  args: unknown
+  on?: { book: string }
+  ids: readonly string[]
+  lang: Lang
 }
 
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
@@ -134,7 +146,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。この app のブックの形に合うものだけを、books のあとに持つ
   settings?: unknown // 残しておいた設定（ホストが読んだもの）。この app で使える項目だけ、lang より優先して使う
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
-  newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
+  newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
+  observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
 }
 
 function startLang(registry: Registry, lang: Lang | readonly string[] = []): Lang {
@@ -158,6 +171,17 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ registry, home, lang: getState().settings.lang, newId })
+  // 残した・知らされたブックの、形を確かめた値（同じ値は確かめ直さない）
+  const checked = new WeakMap<object, Book>()
+  const restore = (saved: readonly unknown[]): Book[] =>
+    saved.flatMap(b => {
+      if (typeof b !== "object" || b === null) return []
+      const hit = checked.get(b)
+      if (hit) return [hit]
+      const [book] = restoreBooks(registry, [b])
+      if (book) checked.set(b, book)
+      return book ? [book] : []
+    })
   // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
   const keysFor = (changes: KeyChanges): KeyTable => {
@@ -176,8 +200,18 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     on?: { book: string },
   ): { ok: true; result: unknown; next: Partial<AppState> } | { ok: false; reason: Refusal | "no-book" } => {
     const { books, workspace, settings } = getState()
-    const done = performIn({ books, settings }, id, args, on, ctx())
+    const ids: string[] = []
+    const c = ctx()
+    const done = performIn({ books, settings }, id, args, on, {
+      ...c,
+      newId: () => {
+        const made = c.newId()
+        ids.push(made)
+        return made
+      },
+    })
     if (!done.ok) return done
+    options.observe?.({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang })
     const next: Partial<AppState> = {}
     if (done.book) {
       next.books = { ...books, [done.book.id]: done.book }
@@ -284,6 +318,39 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       if (!book) return false
       commit({ ...done.next, workspace: mapStage(focus(ws, stageId), stageId, s => openBook(registry, s, book)) })
       return true
+    },
+    receive: (world, replay) => {
+      let books: AppState["books"] = Object.fromEntries(
+        [...singleBooks(registry), ...restore(world.books)].map(b => [b.id, b]),
+      )
+      let settings = restoreSettings(registry, start, world.settings)
+      for (const done of replay) {
+        const ids = [...done.ids]
+        const next = performIn({ books, settings }, done.action, done.args, done.on, {
+          registry,
+          home,
+          lang: done.lang,
+          newId: () => ids.shift() ?? newId(),
+        })
+        if (!next.ok) continue
+        if (next.book) books = { ...books, [next.book.id]: next.book }
+        if (next.books) books = next.books as AppState["books"]
+        if (next.settings) settings = next.settings
+      }
+      const now = getState()
+      // 中身の同じブック・設定は前の値を使う（描き直しと、保存の知らせを減らす）
+      for (const [id, b] of Object.entries(books)) {
+        const old = now.books[id]
+        if (old && old !== b && JSON.stringify(old) === JSON.stringify(b)) books = { ...books, [id]: old }
+      }
+      if (JSON.stringify(settings) === JSON.stringify(now.settings)) settings = now.settings
+      const same =
+        Object.keys(books).length === Object.keys(now.books).length &&
+        Object.entries(books).every(([id, b]) => now.books[id] === b)
+      commit({
+        ...(same ? {} : { books, workspace: followLibrary(registry, now.workspace, books) }),
+        ...(settings === now.settings ? {} : { settings }),
+      })
     },
     setLang: lang => actions.perform("settings.lang", { lang }).ok,
     setSkin: skin => actions.perform("settings.skin", { skin }).ok,

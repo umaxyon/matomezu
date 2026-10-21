@@ -1,82 +1,122 @@
 import { expect, test } from "bun:test"
-import type { Book } from "../../web/src/core/schema/book"
-import { NoServer, serverHost } from "../../web/src/host/server"
+import type { BookOf } from "../../web/src/core/schema/book"
+import { type Events, NoServer, serverHost } from "../../web/src/host/server"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { newStore } from "../support"
 
-interface Sent {
-  url: string
-  body: unknown
-}
-
-// 常駐の代わり: 送られた書き込みを覚え、answer の答えを返す
-function fakeServer(answer: (url: string, body: unknown) => Response) {
-  const sent: Sent[] = []
-  const fetcher = async (url: string, init?: RequestInit) => {
-    const body = init?.body ? JSON.parse(String(init.body)) : undefined
-    if (init?.method === "PUT") sent.push({ url, body })
-    return answer(url, body)
+// 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る
+function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: null }) {
+  const sent: Record<string, unknown>[] = []
+  const listeners = new Map<string, (data: string) => void>()
+  let onError = () => {}
+  let reads = 0
+  const events: Events = {
+    on: (name, l) => listeners.set(name, l),
+    onError: l => {
+      onError = l
+    },
+    close: () => {},
   }
-  return { sent, host: serverHost(fetcher) }
+  const host = serverHost({
+    fetch: async (url, init) => {
+      if (url === "api/perform") sent.push(JSON.parse(String(init?.body)))
+      if (url === "api/data") reads++
+      return new Response(JSON.stringify(data))
+    },
+    events: () => events,
+  })
+  const emit = (name: string, v: unknown) => listeners.get(name)?.(JSON.stringify(v))
+  return { host, sent, emit, fail: () => onError(), reads: () => reads }
 }
-const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status })
-const b1 = SAMPLE_BOOKS[0]!
-const data = { books: [{ id: "b1", book: b1, version: 3 }], settings: { lang: "en" } }
 
-test("読むと、置いてあるブックと設定を返す。設定が無ければ undefined", async () => {
-  expect(await fakeServer(() => json(data)).host.load()).toEqual({ books: [b1], settings: { lang: "en" } })
-  const empty = fakeServer(() => json({ books: [], settings: null }))
-  expect(await empty.host.load()).toEqual({ books: [], settings: undefined })
+// 常駐から読んで作った store。最初の知らせ hello を先に送る
+async function connected(server = fakeServer()) {
+  const loading = server.host.load()
+  server.emit("hello", { client: "c1" })
+  const saved = await loading
+  const store = newStore({ books: [], savedBooks: saved.books, observe: d => server.host.observe(d) })
+  server.host.connect(store)
+  return { ...server, store }
+}
+const itemsOf = (store: ReturnType<typeof newStore>) =>
+  (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!.items?.map(i => i.id) ?? []
+const place = (store: ReturnType<typeof newStore>) =>
+  store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x: 0, y: 0 } }, { book: "b1" })
+// 常駐が知らせる、アイテムを足した b1
+const b1With = (...ids: string[]) => ({
+  ...SAMPLE_BOOKS[0],
+  pages: [{ ...SAMPLE_BOOKS[0]!.pages[0], items: ids.map(id => ({ id, item: "shape.box", x: 0, y: 0, props: {} })) }],
 })
 
-test("常駐が答えなければ（無い道・つながらない）NoServer。常駐の誤りは誤りの番号で投げる", async () => {
-  await expect(fakeServer(() => new Response("", { status: 404 })).host.load()).rejects.toBeInstanceOf(NoServer)
-  const down = serverHost(() => Promise.reject(new TypeError("down")))
-  await expect(down.load()).rejects.toBeInstanceOf(NoServer)
-  await expect(fakeServer(() => new Response("", { status: 500 })).host.load()).rejects.toMatchObject({ code: "E401" })
+test("知らせにつながらなければ NoServer", async () => {
+  const s = fakeServer()
+  const loading = s.host.load()
+  s.fail()
+  await expect(loading).rejects.toBeInstanceOf(NoServer)
 })
 
-test("続けて変わったブックは 1 回にまとめ、読んだ版を添えて書く。書いたあとは返った版を添える", async () => {
-  let version = 3
-  const s = fakeServer(url => (url === "api/data" ? json(data) : json({ version: ++version })))
-  await s.host.load()
-  s.host.saveBook({ ...b1, title: "1" })
-  s.host.saveBook({ ...b1, title: "2" })
-  await s.host.flush()
-  expect(s.sent).toEqual([{ url: "api/books/b1", body: { book: { ...b1, title: "2" }, base: 3 } }])
-  s.host.saveBook({ ...b1, title: "3" })
-  await s.host.flush()
-  expect(s.sent[1]!.body).toMatchObject({ base: 4 })
+test("読むと、置いてあるブックと設定を返す", async () => {
+  const s = fakeServer({ books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: { lang: "en" } })
+  const loading = s.host.load()
+  s.emit("hello", { client: "c1" })
+  expect(await loading).toEqual({ books: [SAMPLE_BOOKS[0]], settings: { lang: "en" } })
 })
 
-test("まだ置いていないブックは版 0 で書く", async () => {
-  const s = fakeServer(url => (url === "api/data" ? json({ books: [], settings: null }) : json({ version: 1 })))
-  await s.host.load()
-  const book: Book = { ...b1, id: "new" }
-  s.host.saveBook(book)
-  await s.host.flush()
-  expect(s.sent).toEqual([{ url: "api/books/new", body: { book, base: 0 } }])
-})
-
-test("ほかから書き換えられていた（409）ブックは、それから書かない。ほかのブックは書く", async () => {
-  const s = fakeServer(url =>
-    url === "api/data" ? json(data) : url === "api/books/b1" ? json(null, 409) : json({ version: 1 }),
-  )
-  await s.host.load()
-  s.host.saveBook({ ...b1, title: "x" })
-  await s.host.flush()
-  expect([...s.host.stale]).toEqual(["b1"])
-  s.host.saveBook({ ...b1, title: "y" })
-  s.host.saveBook({ ...b1, id: "b2" })
-  await s.host.flush()
-  expect(s.sent.map(x => x.url)).toEqual(["api/books/b1", "api/books/b2"])
-})
-
-test("設定は最後の値を書く", async () => {
-  const s = fakeServer(() => json({}))
-  s.host.saveSettings({ lang: "en", skin: "auto", keys: { added: [], removed: [] } })
-  s.host.saveSettings({ lang: "ja", skin: "dark", keys: { added: [], removed: [] } })
-  await s.host.flush()
-  expect(s.sent).toEqual([
-    { url: "api/settings", body: { lang: "ja", skin: "dark", keys: { added: [], removed: [] } } },
+test("画面で行ったアクションは、振った id と、つながりの id と順の番号を添えて常駐に送る", async () => {
+  const { store, sent } = await connected()
+  place(store)
+  place(store)
+  expect(sent).toEqual([
+    expect.objectContaining({
+      action: "item.place",
+      on: { book: "b1" },
+      ids: ["n1"],
+      lang: "ja",
+      client: "c1",
+      seq: 1,
+    }),
+    expect.objectContaining({ ids: ["n2"], seq: 2 }),
   ])
+})
+
+test("ほかから変わったブックの上で、まだ確かめられていない自分のアクションを行い直す。自分の番号が返ると確かめ終わり", async () => {
+  const { store, emit, host } = await connected()
+  place(store)
+  expect(itemsOf(store)).toEqual(["n1"])
+  emit("book", { book: b1With("o1"), version: 2, client: "c2", seq: 5 })
+  expect(itemsOf(store)).toEqual(["o1", "n1"])
+  expect(host.pending()).toHaveLength(1)
+  emit("book", { book: b1With("o1", "n1"), version: 3, client: "c1", seq: 1 })
+  expect(itemsOf(store)).toEqual(["o1", "n1"])
+  expect(host.pending()).toEqual([])
+})
+
+test("古い版の知らせは使わない", async () => {
+  const { store, emit } = await connected()
+  emit("book", { book: b1With("x"), version: 3 })
+  emit("book", { book: b1With("old"), version: 2 })
+  expect(itemsOf(store)).toEqual(["x"])
+})
+
+test("断られた（ack で確かめ終わり、変わったブックが来ない）アクションは画面から消える", async () => {
+  const { store, emit } = await connected()
+  place(store)
+  emit("ack", { seq: 1, ok: false, reason: "refused" })
+  expect(itemsOf(store)).toEqual([])
+})
+
+test("つなぎ直したら（2 度目の hello）、送ったアクションの答えを待たず、読み直した世界を出す", async () => {
+  const s = await connected()
+  place(s.store)
+  s.emit("hello", { client: "c9" })
+  await Bun.sleep(0)
+  expect(s.reads()).toBe(2)
+  expect(s.host.pending()).toEqual([])
+  expect(itemsOf(s.store)).toEqual([])
+})
+
+test("設定の知らせで設定を入れ替える", async () => {
+  const { store, emit } = await connected()
+  emit("settings", { settings: { lang: "en", skin: "dark" } })
+  expect(store.state.getState().settings).toMatchObject({ lang: "en", skin: "dark" })
 })

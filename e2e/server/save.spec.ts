@@ -40,3 +40,31 @@ test("置いた箱は少し待って常駐に残り、読み直しても同じ�
   await expect(item).toHaveText("残る箱")
   expect(await item.boundingBox()).toEqual(before)
 })
+
+test("1 つの窓で置いた箱は、同じブックを開いているほかの窓にもすぐ出る。ほかの窓で動かすと、元の窓でも動く", async ({
+  browser,
+}) => {
+  // 前のテストで置いたブック（e2e-1。箱が 1 つ）を、どちらの窓も最初に開く
+  const a = await browser.newPage()
+  const b = await browser.newPage()
+  for (const page of [a, b]) {
+    await page.goto("/")
+    await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", SAMPLE_BOOKS[0]!.title)
+    await expect(page.locator("[data-item]")).toHaveCount(1)
+  }
+  await a.getByRole("button", { name: "箱" }).click()
+  const paper = (await a.getByRole("img", { name: "紙" }).boundingBox())!
+  await a.mouse.click(paper.x + 500, paper.y + 300)
+  const dialog = a.getByRole("dialog", { name: "ボックスの追加" })
+  await dialog.getByLabel("キャプション").fill("共有の箱")
+  await dialog.getByRole("button", { name: "追加" }).click()
+  const shared = (page: typeof a) => page.locator("[data-item]", { hasText: "共有の箱" })
+  await expect(shared(b)).toBeVisible()
+  const before = (await shared(a).boundingBox())!
+  const box = (await shared(b).boundingBox())!
+  await b.mouse.move(box.x + 20, box.y + 20)
+  await b.mouse.down()
+  await b.mouse.move(box.x + 80, box.y + 60, { steps: 4 })
+  await b.mouse.up()
+  await expect.poll(async () => (await shared(a).boundingBox())!.x).toBeGreaterThan(before.x + 40)
+})

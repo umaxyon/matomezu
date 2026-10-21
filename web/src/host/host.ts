@@ -1,7 +1,6 @@
-// ホストの口: 画面が外の世界に頼むこと（読む・残す）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
-// 実装はメモリに持つもの（memory.ts。テストとサーバーなし）とサーバーに頼むもの（server.ts）
-import type { Book } from "../core/schema/book"
-import type { Settings } from "../core/settings"
+// ホストの口: 画面が外の世界に頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
+// 実装はメモリに持つもの（memory.ts。テストとサーバーなし）と常駐に頼むもの（server.ts）
+import type { AppStore, DoneAction } from "../store/store"
 
 // 起動のときに読むもの
 export interface Loaded {
@@ -11,6 +10,6 @@ export interface Loaded {
 
 export interface Host {
   load(): Promise<Loaded>
-  saveBook(book: Book): void // 変わったブックを残す（いつ書くかはホストが決める）
-  saveSettings(settings: Settings): void
+  observe(done: DoneAction): void // 画面で行ったアクション（createMatomezu の observe に渡す）
+  connect(app: AppStore): () => void // load で読んだもので作った app とつなぐ（外の変化を入れ、残す）。切る関数を返す
 }

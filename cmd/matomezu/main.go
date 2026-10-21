@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/home"
 	"github.com/umaxyon/matomezu/internal/server"
 	"github.com/umaxyon/matomezu/internal/storage"
@@ -98,6 +99,14 @@ func (c *serveCmd) Run() error {
 		return err
 	}
 	defer store.Close()
+	eng, err := engine.New()
+	if err != nil {
+		return err
+	}
+	hub, err := server.NewHub(store, eng)
+	if err != nil {
+		return err
+	}
 	host, _, err := net.SplitHostPort(c.Addr)
 	if err != nil {
 		return err
@@ -117,9 +126,10 @@ func (c *serveCmd) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	srv := &http.Server{
-		Handler:           server.Handler(server.Options{Web: webFS, Token: token, Version: version, Stop: stop, Storage: store}),
+		Handler:           server.Handler(server.Options{Web: webFS, Token: token, Version: version, Stop: stop, Hub: hub}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	srv.RegisterOnShutdown(hub.CloseAll)
 	url := "http://" + ln.Addr().String() + "/"
 	if err := h.WriteServer(home.Server{URL: url, Token: token, PID: os.Getpid(), Version: version}); err != nil {
 		return err
