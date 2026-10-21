@@ -2,7 +2,7 @@
 // ページが無ければ、真ん中にページを作るボタン（コマンド page.new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、図面のメニュー（drawing.context）を開く。
 // アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（drawing.place。紙からはみ出す所では薄く出し、置かない）。Escape で取り消す。
-// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。何も無い所を押すと選択を外す。
+// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import type { Point } from "../../../../core/geom"
@@ -103,6 +103,7 @@ function Items({ stage }: { stage: Stage }) {
     return book?.pages.find(pg => pg.id === o?.page)
   })
   const move = useCommand(stage.id, "drawing.move")
+  const edit = useCommand(stage.id, "drawing.edit")
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
@@ -138,6 +139,9 @@ function Items({ stage }: { stage: Stage }) {
       onPointerMove={onPointerMove}
       onPointerUp={e => endDrag(e, true)}
       onPointerCancel={e => endDrag(e, false)}
+      onDoubleClick={() => {
+        if (stage.tool !== "hand" && stage.placing === null) edit.run(item.id)
+      }}
     />
   ))
 }
@@ -150,6 +154,7 @@ interface ItemProps {
   onPointerMove(e: PointerEvent<HTMLDivElement>): void
   onPointerUp(e: PointerEvent<HTMLDivElement>): void
   onPointerCancel(e: PointerEvent<HTMLDivElement>): void
+  onDoubleClick(): void
 }
 
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く

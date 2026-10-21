@@ -58,6 +58,10 @@
   color: var(--skin-text);
   font: inherit;
 }
+/* 複数行の欄は縦にだけ伸ばせる */
+textarea.control {
+  resize: vertical;
+}
 .control:focus {
   outline: 2px solid var(--skin-accent);
   outline-offset: -1px;

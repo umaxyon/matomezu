@@ -1,5 +1,5 @@
-// 置いたアイテム: 図面のページに置いたアイテムのデータ、置く・動かすアクションと、画面から呼ぶコマンド
-export { ITEM_MOVE, ITEM_PLACE } from "./actions"
-export { DRAWING_MOVE, DRAWING_PLACE, placeAt } from "./commands"
+// 置いたアイテム: 図面のページに置いたアイテムのデータ、置く・動かす・中身を変えるアクションと、画面から呼ぶコマンド
+export { ITEM_MOVE, ITEM_PLACE, ITEM_UPDATE } from "./actions"
+export { DRAWING_EDIT, DRAWING_MOVE, DRAWING_PLACE, placeAt } from "./commands"
 export { fitsPaper, itemSize, itemsOf } from "./items"
 export { type DrawingPage, DrawingPageSchema, type Placed } from "./schema"

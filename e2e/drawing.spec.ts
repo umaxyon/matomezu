@@ -124,3 +124,32 @@ test("追加のダイアログは見出しの右にキャンセルと追加を�
   await expect(items(page).locator("hr")).toHaveCount(0)
   await expect(items(page)).toContainText("一行目")
 })
+
+test("選択の道具で箱をダブルクリックすると、今の中身の入った編集のダイアログが開き、確定で変わり、キャンセルでは変わらない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "箱" }).click()
+  const at = await onPaper(page, 200, 150)
+  await addBox(page, at.x, at.y, "前")
+  const box = items(page)
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  await box.dblclick()
+  await expect(dialog.getByLabel("キャプション")).toHaveValue("前")
+  await expect(dialog.getByLabel("キャプション")).toBeFocused()
+  await dialog.getByLabel("キャプション").fill("取りやめ")
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect(box).toHaveText("前")
+
+  await box.dblclick()
+  await dialog.getByLabel("キャプション").fill("後")
+  await dialog.getByLabel("本文").fill("本文")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(box).toContainText("後")
+  await expect(box).toContainText("本文")
+  await expect(box.locator("hr")).toHaveCount(1)
+  // 本文の欄は縦にだけ伸ばせる
+  await box.dblclick()
+  await expect(dialog.getByLabel("本文")).toHaveCSS("resize", "vertical")
+})

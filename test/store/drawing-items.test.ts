@@ -123,3 +123,30 @@ test("ページを替えると、選択と置こうとしていたアイテム�
   store.actions.command("s1", "stage.home")
   expect(store.actions.command("s1", "tool.next")).toBe(false)
 })
+
+test("箱の編集は書いた項目だけを変え、位置と id はそのまま。形に合わない項目・無い箱なら変えない", () => {
+  const store = ready()
+  const at = { x: 10, y: 20 }
+  store.actions.perform("item.place", { page: "p1", item: "shape.box", at, props: { caption: "前" } }, { book: "b1" })
+  const done = store.actions.perform(
+    "item.update",
+    { page: "p1", item: "b1", props: { caption: "後", body: "本文" } },
+    { book: "b1" },
+  )
+  expect(done.ok).toBe(true)
+  expect(page(store).items).toEqual([
+    { id: "b1", item: "shape.box", x: 10, y: 20, props: { caption: "後", rule: true, body: "本文" } },
+  ])
+  const bad = store.actions.perform("item.update", { page: "p1", item: "b1", props: { text: "x" } }, { book: "b1" })
+  const none = store.actions.perform("item.update", { page: "p1", item: "b9", props: {} }, { book: "b1" })
+  expect([bad.ok, none.ok]).toEqual([false, false])
+})
+
+test("箱を編集するコマンドは、そのページの箱を渡して編集のダイアログを開く", () => {
+  const store = ready()
+  store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x: 0, y: 0 } }, { book: "b1" })
+  store.actions.command("s1", "drawing.edit", "b9")
+  expect(store.state.getState().dialog).toBeNull()
+  store.actions.command("s1", "drawing.edit", "b1")
+  expect(store.state.getState().dialog).toEqual({ id: "box.edit", stage: "s1", args: { page: "p1", item: "b1" } })
+})

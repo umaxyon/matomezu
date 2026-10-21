@@ -2,7 +2,7 @@
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { bookType } from "../../../../core/registry"
-import { moveItems, nextItemId, placeItem } from "./items"
+import { itemsOf, moveItems, nextItemId, placeItem, replaceItem } from "./items"
 import { PlacedSchema } from "./schema"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
@@ -40,6 +40,29 @@ export const ITEM_MOVE = defineAction({
   run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
     const next = moveItems(ctx.registry, book, args.page, args.items, args.by)
+    return next && { next, result: {} }
+  },
+})
+
+// アイテムの項目を変える。props に書いた項目だけを変え、書かなかった項目はそのまま。項目の形に合わなければ断る
+export const ITEM_UPDATE = defineAction({
+  id: "item.update",
+  title: "Update item",
+  target: "book",
+  needs: [],
+  args: z.strictObject({
+    page: z.string().min(1),
+    item: z.string().min(1),
+    props: z.record(z.string(), z.unknown()),
+  }),
+  run: (book, args) => {
+    if (book.type !== "drawing") return null
+    const page = book.pages.find(p => p.id === args.page)
+    const now = page && itemsOf(page).find(i => i.id === args.item)
+    if (!now) return null
+    const item = PlacedSchema.safeParse({ ...now, props: { ...now.props, ...args.props } })
+    if (!item.success) return null
+    const next = replaceItem(book, args.page, item.data)
     return next && { next, result: {} }
   },
 })

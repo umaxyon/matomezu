@@ -21,7 +21,10 @@ export const DRAWING = defineBookType({
     addFromTabs: true,
   },
   items: { allowed: ["shape.box"], defaults: ["shape.box"] },
-  actions: { allowed: ["page.add", "item.place", "item.move"], defaults: ["page.add", "item.place", "item.move"] },
+  actions: {
+    allowed: ["page.add", "item.place", "item.move", "item.update"],
+    defaults: ["page.add", "item.place", "item.move", "item.update"],
+  },
   theme: "standard",
   tokens: [],
 })

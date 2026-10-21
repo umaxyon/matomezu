@@ -9,4 +9,6 @@ export const BOX_MESSAGES = defineMessages({
   Body: { ja: "本文" },
   Cancel: { ja: "キャンセル" },
   Add: { ja: "追加" },
+  "Edit box": { ja: "ボックスの編集" },
+  OK: { ja: "確定" },
 })

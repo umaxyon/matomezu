@@ -51,6 +51,13 @@ export function placeItem(reg: Registry, book: Drawing, pageId: string, item: Pl
   return withPage(book, { ...page, items: [...itemsOf(page), item] })
 }
 
+// ページのアイテムを next に置き換える（id とページの中の順はそのまま）。無いページ・無いアイテム・id の違うものなら null
+export function replaceItem(book: Drawing, pageId: string, next: Placed): Drawing | null {
+  const page = book.pages.find(p => p.id === pageId)
+  if (!page || !itemsOf(page).some(i => i.id === next.id)) return null
+  return withPage(book, { ...page, items: itemsOf(page).map(i => (i.id === next.id ? next : i)) })
+}
+
 // ページのアイテム ids を by だけ動かす。無いページ・無いアイテム・どれかがはみ出すなら null
 export function moveItems(
   reg: Registry,

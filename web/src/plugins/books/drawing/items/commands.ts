@@ -3,7 +3,7 @@ import type { Point } from "../../../../core/geom"
 import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
 import { BOX } from "../box"
-import { fitsPaper, itemSize, PLACE_OFFSET } from "./items"
+import { fitsPaper, itemSize, itemsOf, PLACE_OFFSET } from "./items"
 
 const onDrawingPage = (ctx: CommandContext) => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null
 
@@ -35,6 +35,21 @@ export const DRAWING_PLACE = defineCommand({
     a.select(stage.id, [done.result.item])
   },
   when: ctx => onDrawingPage(ctx) && ctx.stage.placing !== null,
+})
+
+// アイテムの中身を変えるダイアログを開く（箱は box.edit）。開いているページに無いアイテムなら何もしない
+export const DRAWING_EDIT = defineCommand({
+  id: "drawing.edit",
+  title: "Edit item",
+  run: (ctx, a, item: string) => {
+    const page = ctx.stage.opened?.page
+    const book = ctx.book?.type === "drawing" ? ctx.book : null
+    const found = book?.pages.find(p => p.id === page)
+    const placed = found && itemsOf(found).find(i => i.id === item)
+    if (!page || !placed) return
+    if (placed.item === BOX.id) a.openDialog(ctx.stage.id, "box.edit", { page, item })
+  },
+  when: onDrawingPage,
 })
 
 // アイテムを、画面の上で動いた量だけ動かす。はみ出すなら動かさない
