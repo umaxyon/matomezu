@@ -71,8 +71,11 @@ export function serverHost(net: Net = browserNet): ServerHost {
     if (!res || res.status === 404) throw new NoServer()
     if (!res.ok) fail("E401", { status: `${res.status}` })
     const data = DataSchema.parse(await res.json())
-    confirmed.clear()
-    for (const b of data.books) confirmed.set(b.id, { book: b.book, version: b.version })
+    // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
+    for (const b of data.books) {
+      const have = confirmed.get(b.id)
+      if (!have || have.version < b.version) confirmed.set(b.id, { book: b.book, version: b.version })
+    }
     settings = data.settings ?? undefined
   }
 

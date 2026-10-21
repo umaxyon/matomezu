@@ -120,3 +120,18 @@ test("設定の知らせで設定を入れ替える", async () => {
   emit("settings", { settings: { lang: "en", skin: "dark" } })
   expect(store.state.getState().settings).toMatchObject({ lang: "en", skin: "dark" })
 })
+
+test("読んでいる間に届いた新しい版の知らせは、読んだ古い版で消さない", async () => {
+  let answer = (_: Response) => {}
+  const listeners = new Map<string, (data: string) => void>()
+  const host = serverHost({
+    fetch: () => new Promise<Response>(r => (answer = r)),
+    events: () => ({ on: (name, l) => listeners.set(name, l), onError: () => {}, close: () => {} }),
+  })
+  const loading = host.load()
+  listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
+  await Bun.sleep(0)
+  listeners.get("book")?.(JSON.stringify({ book: b1With("new"), version: 3 }))
+  answer(new Response(JSON.stringify({ books: [{ id: "b1", book: b1With("old"), version: 2 }], settings: null })))
+  expect((await loading).books).toEqual([b1With("new")])
+})
