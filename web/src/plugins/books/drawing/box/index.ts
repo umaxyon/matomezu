@@ -9,7 +9,7 @@ export const BOX = defineItem({
   title: "Box",
   capabilities: ["connectable", "resizable", "hasText"],
   toolbox: true,
-  props: z.strictObject({ text: z.string() }),
+  props: z.strictObject({ text: z.string().default("") }),
   size: { w: 160, h: 64 },
   tokens: [
     { id: "box.fill", fallback: "fill" },

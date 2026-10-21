@@ -1,4 +1,4 @@
-// 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）。
+// 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・道具の切り替え・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
@@ -8,6 +8,7 @@ import { BASE_MESSAGES } from "./messages"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN } from "./page-tabs"
 import { SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
+import { TOOL_NEXT } from "./tool-switch"
 
 export { PAPER_IDS, PAPERS } from "./looks"
 export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
@@ -23,6 +24,7 @@ export const BASE = defineBuiltin({
     STAGE_SPLIT,
     STAGE_UNSPLIT,
     STAGE_CLOSE,
+    TOOL_NEXT,
     BOOK_OPEN,
     PAGE_NEW,
     PAGE_OPEN,
@@ -60,6 +62,7 @@ declare module "../../store/tables" {
     "stage.split": typeof STAGE_SPLIT
     "stage.unsplit": typeof STAGE_UNSPLIT
     "stage.close": typeof STAGE_CLOSE
+    "tool.next": typeof TOOL_NEXT
     "book.open": typeof BOOK_OPEN
     "page.new": typeof PAGE_NEW
     "page.open": typeof PAGE_OPEN

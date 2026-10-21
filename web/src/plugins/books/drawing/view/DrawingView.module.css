@@ -61,3 +61,34 @@
   color: var(--skin-hint);
   font-size: 14px;
 }
+/* アイテムを置こうとしている間 */
+.drawing[data-placing="true"] {
+  cursor: copy;
+}
+/* 置いたアイテム（位置と大きさは紙の上の値） */
+.item {
+  position: absolute;
+  box-sizing: border-box;
+}
+.item[data-selected="true"] {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
+/* ビューの無いアイテムは枠だけ */
+.unknownItem {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 1px dashed var(--theme-line);
+}
+/* 置こうとしているアイテムの点線の箱。紙からはみ出す所では薄くする */
+.ghost {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--theme-accent);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.ghost[data-fits="false"] {
+  opacity: 0.35;
+}

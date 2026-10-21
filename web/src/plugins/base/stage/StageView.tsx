@@ -1,6 +1,6 @@
 // ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
 // ブックの中はブックのテーマの値（CSS 変数）で描く。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
-// 測った大きさと、ドラッグ・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
+// 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
 import { fail } from "../../../core/errors"
 import type { BookTypeId } from "../../../core/registry"
@@ -41,7 +41,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
-    if (e.button !== 0 || !hasPaper) return
+    if (e.button !== 0 || !hasPaper || stage.tool !== "hand") return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY }
     setDragging(true)
@@ -72,6 +72,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       data-current={isCurrent}
       data-multi={isMulti}
       data-paper={hasPaper}
+      data-tool={stage.tool}
       data-dragging={dragging}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

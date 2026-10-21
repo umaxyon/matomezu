@@ -5,10 +5,12 @@
   touch-action: none;
   user-select: none;
 }
-/* 紙があるとき: 点の格子の上に紙を置く。マウスは手のひら（ドラッグで紙をずらす） */
+/* 紙があるとき: 点の格子の上に紙を置く。ハンドの道具では、マウスは手のひら（ドラッグで紙をずらす） */
 .stage[data-paper="true"] {
   background-image: radial-gradient(var(--skin-grid) 1px, transparent 1px);
   background-size: 22px 22px;
+}
+.stage[data-paper="true"][data-tool="hand"] {
   cursor: grab;
 }
 .stage[data-paper="true"][data-dragging="true"] {

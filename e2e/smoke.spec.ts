@@ -105,8 +105,11 @@ test("分割した右のステージを閉じると、左のステージが画�
   expect(await page.getByRole("region", { name: "ステージ" }).boundingBox()).toEqual(full)
 })
 
-test("ドラッグで紙がずれ、ずらせるのは紙の周りの余白までで止まる", async ({ page }) => {
+test("ハンドの道具ではドラッグで紙がずれ、ずらせるのは紙の周りの余白までで止まる", async ({ page }) => {
   await page.goto("/")
+  await page.getByRole("button", { name: "選択ツール" }).click()
+  await page.getByRole("button", { name: "付け替えツール" }).click()
+  await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()
   const paper = page.getByRole("img", { name: "紙" })
   const stage = page.getByRole("region", { name: "ステージ" })
   const before = (await paper.boundingBox())!

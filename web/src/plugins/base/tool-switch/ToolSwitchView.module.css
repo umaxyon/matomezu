@@ -1,0 +1,52 @@
+/* 道具の切り替えのボタン。手前の絵の下に薄い色の丸を敷く（奥の控えより前、手前の絵より後ろ） */
+.wheel {
+  position: relative;
+  flex: none;
+  width: 60px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--skin-text);
+  cursor: pointer;
+}
+.wheel:hover {
+  background: var(--skin-btn-hover);
+}
+.wheel:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: -2px;
+}
+.wheel::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--skin-accent) 42%, transparent);
+  z-index: 6;
+  pointer-events: none;
+}
+.icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  line-height: 0;
+  pointer-events: none;
+}
+.icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

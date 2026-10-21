@@ -11,7 +11,7 @@ export const DEFAULT_LAYOUT = defineLayout({
   id: "default",
   slots: {
     app: ["workspace", "dialog-host", "menu-host"],
-    "stage.top": ["toolbox"],
+    "stage.top": ["tool-switch", "toolbox"],
     "stage.body": ["book-view"],
     "stage.bottom": ["book-name", "page-tabs"],
     "stage.corner": ["close-button"],

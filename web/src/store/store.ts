@@ -11,8 +11,8 @@ import { type ArgsOf, perform, type Refusal, type ResultOf, type TargetOf } from
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import type { Settings } from "../core/settings"
-import { openBook, panBy, resize } from "../core/stage"
-import type { ActionId, SingleBookTypeId, SkinId } from "../core/tables"
+import { openBook, panBy, resize, select, setTool, stopPlacing, type Tool, togglePlacing } from "../core/stage"
+import type { ActionId, ItemId, SingleBookTypeId, SkinId } from "../core/tables"
 import {
   close,
   focus,
@@ -76,6 +76,10 @@ export interface Actions {
   setSkin(skin: string): boolean
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
+  setTool(stage: string, tool: Tool): void // そのステージの道具を替える（置こうとしていたアイテムは取り消す）
+  togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
+  stopPlacing(stage: string): void
+  select(stage: string, ids: readonly string[]): void // そのステージで選ぶアイテム（開いているページのもの）
 }
 
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
@@ -252,6 +256,10 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     setSkin: skin => actions.perform("settings.skin", { skin }).ok,
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
+    setTool: (id, tool) => withWorkspace(ws => mapStage(ws, id, s => setTool(s, tool))),
+    togglePlacing: (id, item) => withWorkspace(ws => mapStage(ws, id, s => togglePlacing(s, item))),
+    stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),
+    select: (id, ids) => withWorkspace(ws => mapStage(ws, id, s => select(s, ids))),
   }
   return { ...defs, plugins, state: store, actions }
 }

@@ -1,5 +1,5 @@
 // ステージ: 画面の見える領域の 1 区画。ブックを 1 つ開くか、何も開いていない。ページを持つタイプのブックはページを 1 つ開き
-// （ページが無ければ開かない）、開いたページの紙を置く。表示領域の大きさ・倍率・ずらす量を持つ。
+// （ページが無ければ開かない）、開いたページの紙を置く。表示領域の大きさ・倍率・ずらす量と、使っている道具・置こうとしているアイテム・選択を持つ。
 // ずらす量は、いつも範囲に収めた値で持つ（収めるのはここの操作だけで、描く側は直さない）。
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
@@ -8,6 +8,7 @@ import type { Point, Size } from "./geom"
 import { type ResolvedPaper, resolvePaper } from "./paper"
 import type { BookTypeId, Registry } from "./registry"
 import type { Book } from "./schema/book"
+import type { ItemId } from "./tables"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
 // 開いているブック。ブックのタイプと、開いたページの紙を写して持つ（開くときに決まる）
@@ -18,12 +19,19 @@ export interface Opened {
   paper: ResolvedPaper | null // 開いているページの描く紙（ページを開いていなければ null）
 }
 
+// 道具（回す順）。select は選んで動かす、hand はドラッグで紙をずらす。reparent は select と同じに動く
+export const TOOLS = ["select", "reparent", "hand"] as const
+export type Tool = (typeof TOOLS)[number]
+
 export interface Stage {
   id: string
   opened: Opened | null // 何も開いていなければ null
   zoom: number
   pan: Point // ずらす量（viewport.ts）
   view: Size | null // 表示領域の大きさ（測るまでは null）
+  tool: Tool
+  placing: ItemId | null // 置こうとしているアイテム（ツールボックスで選んだもの。置くか取り消すまで）
+  selection: readonly string[] // 選んでいるアイテムの id（開いているページのもの）
 }
 
 // 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ
@@ -36,9 +44,15 @@ export interface Placement {
 }
 
 const HOME: Point = { x: 0, y: 0 }
+const NONE: readonly string[] = []
 
 export function newStage(id: string, opened: Opened | null = null): Stage {
-  return { id, opened, zoom: 1, pan: HOME, view: null }
+  return { id, opened, zoom: 1, pan: HOME, view: null, tool: "select", placing: null, selection: NONE }
+}
+
+// 開くものが変わったときに、置こうとしているアイテムと選択を捨てる
+function leave(stage: Stage): Stage {
+  return stage.placing === null && stage.selection.length === 0 ? stage : { ...stage, placing: null, selection: NONE }
 }
 
 // ステージに出す紙の大きさ（ページを開いていないか、描けない紙なら null）
@@ -70,7 +84,7 @@ export function panBy(stage: Stage, dx: number, dy: number): Stage {
 export function openBook(reg: Registry, stage: Stage, book: Book): Stage {
   if (!hasPages(book)) {
     if (stage.opened?.book === book.id) return stage
-    return settle({ ...stage, opened: { type: book.type, book: book.id, page: null, paper: null } }, HOME)
+    return settle(leave({ ...stage, opened: { type: book.type, book: book.id, page: null, paper: null } }), HOME)
   }
   const first = book.pages[0]
   const opened = {
@@ -79,7 +93,7 @@ export function openBook(reg: Registry, stage: Stage, book: Book): Stage {
     page: first?.id ?? null,
     paper: first ? resolvePaper(reg, first) : null,
   }
-  return settle({ ...stage, opened }, HOME)
+  return settle(leave({ ...stage, opened }), HOME)
 }
 
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は最初の位置に戻す
@@ -87,11 +101,11 @@ export function openPage(reg: Registry, stage: Stage, book: PagedBook, page: str
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found || o.page === page) return stage
-  return settle({ ...stage, opened: { ...o, page, paper: resolvePaper(reg, found) } }, HOME)
+  return settle(leave({ ...stage, opened: { ...o, page, paper: resolvePaper(reg, found) } }), HOME)
 }
 
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
-// 無くなっていれば最初のページ（ページが無ければ開かない）。ページが変わったときだけ、ずらす量を最初の位置に戻す。
+// 無くなっていれば最初のページ（ページが無ければ開かない）。ページが変わったときだけ、ずらす量を最初の位置に戻し、選択を捨てる。
 // そのブックを開いていなければ、同じ値を返す
 export function followBook(reg: Registry, stage: Stage, book: Book): Stage {
   const o = stage.opened
@@ -101,12 +115,37 @@ export function followBook(reg: Registry, stage: Stage, book: Book): Stage {
   const paper = found ? resolvePaper(reg, found) : null
   if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) return stage
   const opened = { ...o, page, paper }
-  return settle({ ...stage, opened }, page === o.page ? stage.pan : HOME)
+  return page === o.page ? settle({ ...stage, opened }, stage.pan) : settle(leave({ ...stage, opened }), HOME)
 }
 
 // 何も開いていない状態にする（開いていたブックが無くなったときなど）
 export function closeBook(stage: Stage): Stage {
-  return stage.opened ? settle({ ...stage, opened: null }, HOME) : stage
+  return stage.opened ? settle(leave({ ...stage, opened: null }), HOME) : stage
+}
+
+// 回す順で次の道具
+export function nextTool(tool: Tool): Tool {
+  return TOOLS[(TOOLS.indexOf(tool) + 1) % TOOLS.length] ?? "select"
+}
+
+// 道具を替える。置こうとしていたアイテムは取り消す
+export function setTool(stage: Stage, tool: Tool): Stage {
+  return stage.tool === tool && stage.placing === null ? stage : { ...stage, tool, placing: null }
+}
+
+// アイテムを置こうとする（置くのは選択の道具の仕事なので、道具も選択にする）。同じアイテムをもう一度選べば取り消す
+export function togglePlacing(stage: Stage, item: ItemId): Stage {
+  if (stage.placing === item) return { ...stage, placing: null }
+  return { ...stage, tool: "select", placing: item }
+}
+
+export function stopPlacing(stage: Stage): Stage {
+  return stage.placing === null ? stage : { ...stage, placing: null }
+}
+
+export function select(stage: Stage, ids: readonly string[]): Stage {
+  const same = ids.length === stage.selection.length && ids.every((id, i) => stage.selection[i] === id)
+  return same ? stage : { ...stage, selection: ids.length === 0 ? NONE : [...ids] }
 }
 
 // 紙の置き場所（何も開いていなければ null）
@@ -115,4 +154,16 @@ export function placement(stage: Stage): Placement | null {
   if (!paper) return null
   const origin = paperOrigin(stage.pan)
   return { x: origin.x, y: origin.y, w: paper.w, h: paper.h, zoom: stage.zoom }
+}
+
+// 表示領域の中の点（左上から）を、紙の上の点に直す（紙が無ければ null）
+export function toPaper(stage: Stage, p: Point): Point | null {
+  const at = placement(stage)
+  if (!at) return null
+  return { x: (p.x - at.x) / at.zoom, y: (p.y - at.y) / at.zoom }
+}
+
+// 画面の上で動いた量を、紙の上で動いた量に直す
+export function toPaperDelta(stage: Stage, d: Point): Point {
+  return { x: d.x / stage.zoom, y: d.y / stage.zoom }
 }

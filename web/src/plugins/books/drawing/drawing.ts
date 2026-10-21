@@ -1,8 +1,8 @@
-// 図面のブック: ページを持ち、ページごとに紙を置く
+// 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテムを置く
 import { z } from "zod"
 import { defineBookType } from "../../../core/def/book-type"
-import { PageSchema } from "../../../core/schema/page"
 import { PAPER_IDS } from "../../base"
+import { DrawingPageSchema } from "./items/schema"
 
 export const DRAWING = defineBookType({
   id: "drawing",
@@ -12,7 +12,7 @@ export const DRAWING = defineBookType({
     type: z.literal("drawing"),
     id: z.string().min(1),
     title: z.string(),
-    pages: z.array(PageSchema),
+    pages: z.array(DrawingPageSchema),
   }),
   single: false,
   create: init => ({ type: "drawing", ...init, pages: [] }),
@@ -21,7 +21,7 @@ export const DRAWING = defineBookType({
     addFromTabs: true,
   },
   items: { allowed: ["shape.box"], defaults: ["shape.box"] },
-  actions: { allowed: ["page.add"], defaults: ["page.add"] },
+  actions: { allowed: ["page.add", "item.place", "item.move"], defaults: ["page.add", "item.place", "item.move"] },
   theme: "standard",
   tokens: [],
 })

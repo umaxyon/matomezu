@@ -8,6 +8,7 @@ import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { BOOK_VIEW, CLOSE_BUTTON, STAGE_ICONS } from "./stage/ui"
+import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 
@@ -17,7 +18,7 @@ export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./worksp
 
 export const BASE_UI = definePluginUi(BASE, {
   dialogViews: { ...BOOK_OPEN_DIALOG_VIEWS, ...PAGE_DIALOG_VIEWS },
-  widgets: [WORKSPACE, DIALOG_HOST, MENU_HOST, BOOK_VIEW, TOOLBOX, BOOK_NAME, PAGE_TABS, CLOSE_BUTTON],
+  widgets: [WORKSPACE, DIALOG_HOST, MENU_HOST, BOOK_VIEW, TOOL_SWITCH, TOOLBOX, BOOK_NAME, PAGE_TABS, CLOSE_BUTTON],
   commandIcons: { ...STAGE_ICONS, ...BOOK_OPEN_ICONS },
 })
 
@@ -33,6 +34,7 @@ declare module "../../ui/tables" {
     "dialog-host": typeof DIALOG_HOST
     "menu-host": typeof MENU_HOST
     "book-view": typeof BOOK_VIEW
+    "tool-switch": typeof TOOL_SWITCH
     toolbox: typeof TOOLBOX
     "book-name": typeof BOOK_NAME
     "page-tabs": typeof PAGE_TABS

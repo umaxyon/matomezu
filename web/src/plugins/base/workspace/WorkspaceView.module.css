@@ -21,13 +21,22 @@
   flex: 1;
   min-height: 0;
 }
-/* 上の行。置いたウィジェットを縦に積む（ツールボックスは自分で行の見た目を持つ） */
+/* 上の行。置いたウィジェットを左から横に並べる。右端はステージを閉じるボタンの場所を空ける。何も置かれなければ出さない */
 .top {
   flex: none;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 40px 0 8px;
+  background: var(--skin-tools);
+  border-bottom: 1px solid var(--skin-line);
+  user-select: none;
 }
-/* 下の行。上の行（ツールボックス）より細い */
+.top:empty {
+  display: none;
+}
+/* 下の行。上の行より細い */
 .bottom {
   flex: none;
   position: relative;
@@ -39,7 +48,7 @@
   font-size: 12px;
   user-select: none;
 }
-/* 列の右上の角（ツールボックスがあればその右端、無ければステージの上に浮かぶ） */
+/* 列の右上の角（上の行があればその右端、無ければステージの上に浮かぶ） */
 .corner {
   position: absolute;
   top: 7px;
