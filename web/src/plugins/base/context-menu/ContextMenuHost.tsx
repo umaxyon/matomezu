@@ -1,5 +1,5 @@
 // 右クリックのメニューの置き場（ウィジェット menu-host）: store の開いているメニュー（contextMenu）を、押した位置に、
-// 配置に書いたそのメニューのコマンドの並びで描く。出ていないコマンドは並べず、押せないものは押せない見た目にする。出るコマンドが無ければ閉じる。
+// 配置に書いたそのメニューのコマンドの並びで描く（区切り線も）。出ていないコマンドは並べず、押せないものは押せない見た目にする。出るコマンドが無ければ閉じる。
 // 外を押す・Escape・窓の大きさが変わると閉じ（窓から離れただけでは閉じない）、項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { fitInside, type Point } from "../../../core/geom"
@@ -7,7 +7,7 @@ import type { OpenedContextMenu } from "../../../store/context-menus"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenuItems } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
-import type { ContextMenuCommandId } from "../../../ui/layout"
+import { type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
 import { useActions, useApp, useUi } from "../../../ui/store-context"
 import type { ContextMenuId } from "../../../ui/tables"
 import styles from "./ContextMenuHost.module.css"
@@ -22,7 +22,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const { closeContextMenu } = useActions()
   const items = useContextMenuItems(menu.stage, menu.id as ContextMenuId)
   const t = useT()
-  const empty = items.length === 0
+  const empty = items.every(i => i === SEPARATOR)
   useEffect(() => {
     if (empty) closeContextMenu()
   }, [empty, closeContextMenu])
@@ -64,9 +64,14 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
       style={{ left: at.x, top: at.y }}
       onContextMenu={e => e.preventDefault()}
     >
-      {items.map(id => (
-        <ContextMenuItem key={id} menu={menu} id={id} />
-      ))}
+      {items.map((id, i) =>
+        id === SEPARATOR ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 区切り線は id を持たず、並びの位置で見分ける
+          <hr key={`sep-${i}`} className={styles.separator} />
+        ) : (
+          <ContextMenuItem key={id} menu={menu} id={id} />
+        ),
+      )}
     </div>
   )
 }

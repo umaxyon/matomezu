@@ -7,7 +7,7 @@ import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import { App } from "../../web/src/ui/App"
-import { checkLayout, defineLayout, defineWidget, type LayoutDef } from "../../web/src/ui/layout"
+import { checkLayout, defineLayout, defineWidget, type LayoutDef, tidySeparators } from "../../web/src/ui/layout"
 import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
@@ -162,4 +162,9 @@ describe("ウィジェット", () => {
     expect(replaced?.view).toBe(Tabs)
     expect(replaced?.slots).toEqual(ui.widgets.get("page-tabs")?.slots)
   })
+})
+
+test("右クリックのメニューの区切り線は、先頭・末尾・続けてのものを消す", () => {
+  expect(tidySeparators(["-", "a", "-", "-", "b", "-"])).toEqual(["a", "-", "b"])
+  expect(tidySeparators(["-", "-"])).toEqual([])
 })

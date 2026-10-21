@@ -2,7 +2,7 @@
 import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { isShown } from "../store/commands"
-import type { ContextMenuCommandId } from "./layout"
+import { type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
 import { useActions, useApp, useDefs, useLayout } from "./store-context"
 import type { ContextMenuId, ContextMenuTable } from "./tables"
 
@@ -20,10 +20,10 @@ export function useContextMenu<M extends ContextMenuId>(
   }
 }
 
-// 配置に書いたメニューの中身のうち、そのステージから見て出ているコマンド（並びは配置の順）
-export function useContextMenuItems<M extends ContextMenuId>(stage: string, id: M): readonly ContextMenuCommandId<M>[] {
-  const menus = useLayout().contextMenus as { [K in ContextMenuId]?: readonly ContextMenuCommandId<K>[] } | undefined
+// 配置に書いたメニューの中身のうち、そのステージから見て出ているコマンドと区切り線（並びは配置の順。先頭・末尾・続けての区切り線は消す）
+export function useContextMenuItems<M extends ContextMenuId>(stage: string, id: M): readonly ContextMenuEntry<M>[] {
+  const menus = useLayout().contextMenus as { [K in ContextMenuId]?: readonly ContextMenuEntry<K>[] } | undefined
   const items = menus?.[id] ?? []
   const defs = useDefs()
-  return useApp(useShallow(s => items.filter(c => isShown(defs, s, stage, c))))
+  return useApp(useShallow(s => tidySeparators(items.filter(c => c === SEPARATOR || isShown(defs, s, stage, c)))))
 }

@@ -153,3 +153,46 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
   await box.dblclick()
   await expect(dialog.getByLabel("本文")).toHaveCSS("resize", "vertical")
 })
+
+test("選んだ箱は Delete で消える。ダイアログの入力欄の中の Delete では消えない", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "箱" }).click()
+  const at = await onPaper(page, 200, 150)
+  await addBox(page, at.x, at.y, "消す")
+  await items(page).dblclick()
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  await dialog.getByLabel("キャプション").press("Delete")
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect(items(page)).toHaveCount(1)
+  await page.keyboard.press("Delete")
+  await expect(items(page)).toHaveCount(0)
+})
+
+test("箱を右クリックすると選ばれ、設定・区切り線・削除のメニューが出る。設定で編集のダイアログ、削除で消える", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, caption] of [
+    [200, "一"],
+    [450, "二"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, 150)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const second = items(page).filter({ hasText: "二" })
+  await items(page).filter({ hasText: "一" }).click({ button: "right" })
+  const menu = page.getByRole("menu")
+  await expect(menu.getByRole("menuitem")).toHaveText(["設定", "削除"])
+  await expect(menu.locator("hr")).toHaveCount(1)
+  await expect(items(page).filter({ hasText: "一" })).toHaveAttribute("data-selected", "true")
+  await expect(second).toHaveAttribute("data-selected", "false")
+  await menu.getByRole("menuitem", { name: "設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  await expect(dialog.getByLabel("キャプション")).toHaveValue("一")
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+
+  await second.click({ button: "right" })
+  await menu.getByRole("menuitem", { name: "削除" }).click()
+  await expect(items(page)).toHaveText(["一"])
+})

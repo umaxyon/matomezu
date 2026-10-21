@@ -37,11 +37,12 @@ export const DRAWING_PLACE = defineCommand({
   when: ctx => onDrawingPage(ctx) && ctx.stage.placing !== null,
 })
 
-// アイテムの中身を変えるダイアログを開く（箱は box.edit）。開いているページに無いアイテムなら何もしない
+// アイテムの中身を変えるダイアログを開く（箱は box.edit）。開いているページに無いアイテムなら何もしない。
+// 右クリックのメニューでは「設定」として出す
 export const DRAWING_EDIT = defineCommand({
   id: "drawing.edit",
-  title: "Edit item",
-  run: (ctx, a, item: string) => {
+  title: "Settings",
+  run: (ctx, a, { item }: { item: string }) => {
     const page = ctx.stage.opened?.page
     const book = ctx.book?.type === "drawing" ? ctx.book : null
     const found = book?.pages.find(p => p.id === page)
@@ -50,6 +51,19 @@ export const DRAWING_EDIT = defineCommand({
     if (placed.item === BOX.id) a.openDialog(ctx.stage.id, "box.edit", { page, item })
   },
   when: onDrawingPage,
+})
+
+// 選んでいるアイテムを消し、選択を外す（選んでいなければ出さない）
+export const DRAWING_DELETE = defineCommand({
+  id: "drawing.delete",
+  title: "Delete",
+  run: (ctx, a) => {
+    const { opened, selection, id } = ctx.stage
+    if (!opened?.page || selection.length === 0) return
+    const done = a.perform("item.remove", { page: opened.page, items: [...selection] }, { book: opened.book })
+    if (done.ok) a.select(id, [])
+  },
+  when: ctx => onDrawingPage(ctx) && ctx.stage.selection.length > 0,
 })
 
 // アイテムを、画面の上で動いた量だけ動かす。はみ出すなら動かさない

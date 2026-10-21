@@ -3,8 +3,10 @@
 // 画面のどこを右クリックしても、図面のメニュー（drawing.context）を開く。
 // アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（drawing.place。紙からはみ出す所では薄く出し、置かない）。Escape で取り消す。
 // 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
+// アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（box.context）を開く。
+// カレントのステージでは、Delete か Backspace で選んでいるアイテムを消す（drawing.delete。文字の入力欄の中とダイアログを開いている間は除く）。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
-import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
+import { type MouseEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import type { Point } from "../../../../core/geom"
 import type { BookOf } from "../../../../core/schema/book"
 import type { Stage } from "../../../../core/stage"
@@ -26,6 +28,9 @@ const local = (e: PointerEvent<Element>, el: Element): Point => {
 export function DrawingView({ stage }: BookViewProps) {
   const openMenu = useContextMenu(stage.id, "drawing.context")
   const place = useCommand(stage.id, "drawing.place")
+  const remove = useCommand(stage.id, "drawing.delete")
+  const isCurrent = useApp(s => s.workspace.current === stage.id)
+  const dialogOpen = useApp(s => s.dialog !== null)
   const { select, stopPlacing } = useActions()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
@@ -39,6 +44,21 @@ export function DrawingView({ stage }: BookViewProps) {
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [placing, stage.id, stopPlacing])
+
+  const canDelete = isCurrent && !dialogOpen && remove.enabled
+  const runDelete = remove.run
+  useEffect(() => {
+    if (!canDelete) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return
+      if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return
+      if ((e.target as Element | null)?.closest?.("input, textarea, select, [contenteditable]")) return
+      e.preventDefault()
+      runDelete()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [canDelete, runDelete])
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
@@ -104,6 +124,7 @@ function Items({ stage }: { stage: Stage }) {
   })
   const move = useCommand(stage.id, "drawing.move")
   const edit = useCommand(stage.id, "drawing.edit")
+  const openMenu = useContextMenu(stage.id, "box.context")
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
@@ -140,7 +161,12 @@ function Items({ stage }: { stage: Stage }) {
       onPointerUp={e => endDrag(e, true)}
       onPointerCancel={e => endDrag(e, false)}
       onDoubleClick={() => {
-        if (stage.tool !== "hand" && stage.placing === null) edit.run(item.id)
+        if (stage.tool !== "hand" && stage.placing === null) edit.run({ item: item.id })
+      }}
+      onContextMenu={e => {
+        if (stage.placing !== null) return
+        if (!stage.selection.includes(item.id)) select(stage.id, [item.id])
+        openMenu(e, { item: item.id })
       }}
     />
   ))
@@ -155,6 +181,7 @@ interface ItemProps {
   onPointerUp(e: PointerEvent<HTMLDivElement>): void
   onPointerCancel(e: PointerEvent<HTMLDivElement>): void
   onDoubleClick(): void
+  onContextMenu(e: MouseEvent<HTMLDivElement>): void
 }
 
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く

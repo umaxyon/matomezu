@@ -58,6 +58,16 @@ export function replaceItem(book: Drawing, pageId: string, next: Placed): Drawin
   return withPage(book, { ...page, items: itemsOf(page).map(i => (i.id === next.id ? next : i)) })
 }
 
+// ページのアイテム ids を消す。無いページ・無いアイテムを含むなら null
+export function removeItems(book: Drawing, pageId: string, ids: readonly string[]): Drawing | null {
+  const page = book.pages.find(p => p.id === pageId)
+  if (!page) return null
+  const items = itemsOf(page)
+  const targets = new Set(ids)
+  if (![...targets].every(id => items.some(i => i.id === id))) return null
+  return withPage(book, { ...page, items: items.filter(i => !targets.has(i.id)) })
+}
+
 // ページのアイテム ids を by だけ動かす。無いページ・無いアイテム・どれかがはみ出すなら null
 export function moveItems(
   reg: Registry,

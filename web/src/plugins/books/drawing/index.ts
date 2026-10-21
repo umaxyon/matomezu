@@ -2,7 +2,16 @@
 import { defineBuiltin } from "../../../store/plugin"
 import { BOX, BOX_ADD_DIALOG, BOX_EDIT_DIALOG } from "./box"
 import { DRAWING } from "./drawing"
-import { DRAWING_EDIT, DRAWING_MOVE, DRAWING_PLACE, ITEM_MOVE, ITEM_PLACE, ITEM_UPDATE } from "./items"
+import {
+  DRAWING_DELETE,
+  DRAWING_EDIT,
+  DRAWING_MOVE,
+  DRAWING_PLACE,
+  ITEM_MOVE,
+  ITEM_PLACE,
+  ITEM_REMOVE,
+  ITEM_UPDATE,
+} from "./items"
 import { DRAWING_MESSAGES } from "./messages"
 import { DRAWING_SETTINGS, DRAWING_SETTINGS_DIALOG } from "./settings"
 
@@ -10,8 +19,8 @@ export const DRAWING_PLUGIN = defineBuiltin({
   id: "@matomezu/drawing",
   bookTypes: [DRAWING],
   items: [BOX],
-  actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE],
-  commands: [DRAWING_SETTINGS, DRAWING_PLACE, DRAWING_MOVE, DRAWING_EDIT],
+  actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_REMOVE],
+  commands: [DRAWING_SETTINGS, DRAWING_PLACE, DRAWING_MOVE, DRAWING_EDIT, DRAWING_DELETE],
   dialogs: [DRAWING_SETTINGS_DIALOG, BOX_ADD_DIALOG, BOX_EDIT_DIALOG],
   messages: DRAWING_MESSAGES,
 })
@@ -27,6 +36,7 @@ declare module "../../../core/tables" {
     "item.place": typeof ITEM_PLACE
     "item.move": typeof ITEM_MOVE
     "item.update": typeof ITEM_UPDATE
+    "item.remove": typeof ITEM_REMOVE
   }
   interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
 }
@@ -37,6 +47,7 @@ declare module "../../../store/tables" {
     "drawing.place": typeof DRAWING_PLACE
     "drawing.move": typeof DRAWING_MOVE
     "drawing.edit": typeof DRAWING_EDIT
+    "drawing.delete": typeof DRAWING_DELETE
   }
   interface DialogTable {
     "drawing.settings": typeof DRAWING_SETTINGS_DIALOG

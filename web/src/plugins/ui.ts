@@ -21,5 +21,6 @@ export const DEFAULT_LAYOUT = defineLayout({
   },
   contextMenus: {
     "drawing.context": ["drawing.settings"],
+    "box.context": ["drawing.edit", "-", "drawing.delete"],
   },
 })

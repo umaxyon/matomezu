@@ -51,11 +51,23 @@ export type ContextMenuCommandId<M extends ContextMenuId> = {
       : never
 }[CommandId]
 
+// 右クリックのメニューの区切り線（種類の違う項目の間に引く）
+export const SEPARATOR = "-"
+export type ContextMenuEntry<M extends ContextMenuId> = ContextMenuCommandId<M> | typeof SEPARATOR
+
+// 出ている項目の並びから、先頭・末尾・続けての区切り線を消す
+export function tidySeparators<T extends string>(entries: readonly (T | typeof SEPARATOR)[]): (T | typeof SEPARATOR)[] {
+  const out: (T | typeof SEPARATOR)[] = []
+  for (const e of entries) if (e !== SEPARATOR || (out.length > 0 && out.at(-1) !== SEPARATOR)) out.push(e)
+  if (out.at(-1) === SEPARATOR) out.pop()
+  return out
+}
+
 export interface LayoutDef {
   id: string
   slots: { [S in SlotId]?: readonly WidgetsFor<S>[] }
   menus: { [M in MenuId]?: readonly MenuItem[] }
-  contextMenus?: { [M in ContextMenuId]?: readonly ContextMenuCommandId<M>[] }
+  contextMenus?: { [M in ContextMenuId]?: readonly ContextMenuEntry<M>[] } // 区切り線は SEPARATOR
 }
 export const defineLayout = <const L extends LayoutDef>(def: L): L => def
 
@@ -90,7 +102,8 @@ export function checkLayout(
   const contextMenus = Object.entries(layout.contextMenus ?? {}) as [string, readonly string[]][]
   for (const [menu, ids] of contextMenus)
     for (const id of ids)
-      if (!commands.has(id)) problems.push(problem("E209", { layout: layout.id, menu, command: id }))
+      if (id !== SEPARATOR && !commands.has(id))
+        problems.push(problem("E209", { layout: layout.id, menu, command: id }))
   const { slots, menus, contextMenus: openedMenus } = opened(layout, widgets)
   for (const view of views.bookViews.values()) for (const m of view.contextMenus ?? []) openedMenus.add(m)
   for (const [slot, ids] of Object.entries(layout.slots) as [string, readonly string[]][])

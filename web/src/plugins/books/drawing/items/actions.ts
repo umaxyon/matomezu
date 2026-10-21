@@ -2,7 +2,7 @@
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { bookType } from "../../../../core/registry"
-import { itemsOf, moveItems, nextItemId, placeItem, replaceItem } from "./items"
+import { itemsOf, moveItems, nextItemId, placeItem, removeItems, replaceItem } from "./items"
 import { PlacedSchema } from "./schema"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
@@ -63,6 +63,20 @@ export const ITEM_UPDATE = defineAction({
     const item = PlacedSchema.safeParse({ ...now, props: { ...now.props, ...args.props } })
     if (!item.success) return null
     const next = replaceItem(book, args.page, item.data)
+    return next && { next, result: {} }
+  },
+})
+
+// アイテムを消す。無いアイテムを含むなら断る
+export const ITEM_REMOVE = defineAction({
+  id: "item.remove",
+  title: "Remove items",
+  target: "book",
+  needs: [],
+  args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),
+  run: (book, args) => {
+    if (book.type !== "drawing") return null
+    const next = removeItems(book, args.page, args.items)
     return next && { next, result: {} }
   },
 })

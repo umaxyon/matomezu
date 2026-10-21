@@ -48,3 +48,8 @@
   stroke-linejoin: round;
   stroke-linecap: round;
 }
+.separator {
+  margin: 4px 6px;
+  border: 0;
+  border-top: 1px solid var(--skin-line);
+}

@@ -15,5 +15,6 @@ export const DRAWING_UI = definePluginUi(DRAWING_PLUGIN, {
 declare module "../../../ui/tables" {
   interface ContextMenuTable {
     "drawing.context": Record<string, never> // 図面の画面（何も受け取らない）
+    "box.context": { item: string } // 置いたアイテム（右クリックしたアイテムの id）
   }
 }
