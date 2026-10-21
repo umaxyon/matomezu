@@ -74,8 +74,6 @@ describe("コマンドを行う", () => {
       actions.command("s1", "page.open")
       // @ts-expect-error stage.split は引数を取らない
       actions.command("s1", "stage.split", "x")
-      // @ts-expect-error 言語は決まった値だけ
-      actions.command("s1", "settings.lang", "fr")
       // @ts-expect-error 表に無いコマンド
       actions.command("s1", "stage.nope")
     }

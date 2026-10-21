@@ -5,7 +5,10 @@ import type { MessageKey } from "../i18n/i18n"
 
 export const ORIENTATIONS = ["portrait", "landscape"] as const
 export type Orientation = (typeof ORIENTATIONS)[number]
-export const ORIENTATION_TITLES: Readonly<Record<Orientation, MessageKey>> = { portrait: "縦", landscape: "横" }
+export const ORIENTATION_TITLES: Readonly<Record<Orientation, MessageKey>> = {
+  portrait: "Portrait",
+  landscape: "Landscape",
+}
 
 export interface PaperDef {
   id: string

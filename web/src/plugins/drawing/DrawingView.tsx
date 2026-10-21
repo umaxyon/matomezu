@@ -12,16 +12,16 @@ export function DrawingView({ stage }: BookViewProps) {
   const p = placement(stage)
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
-  if (paper?.status === "unshowable") return <p className={styles.error}>{t("この紙は表示できません")}</p>
+  if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
   if (!p) return null
   return (
     <div
       className={styles.paper}
       role="img"
-      aria-label={t("紙")}
+      aria-label={t("Paper")}
       style={{ width: p.w, height: p.h, transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})` }}
     >
-      {paper?.status === "unknown" && <span className={styles.unknown}>{t("不明な紙")}</span>}
+      {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
     </div>
   )
 }
@@ -31,10 +31,10 @@ function NoPages({ stage }: { stage: Stage }) {
   const newPage = useCommand(stage.id, "page.new")
   return (
     <div className={styles.empty}>
-      <p className={styles.prompt}>{t("ページがありません")}</p>
+      <p className={styles.prompt}>{t("No pages")}</p>
       {newPage.shown && (
         <button type="button" className={styles.create} onClick={() => newPage.run()}>
-          {t("ページを作る")}
+          {t("Create page")}
         </button>
       )}
     </div>

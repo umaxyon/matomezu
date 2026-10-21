@@ -7,7 +7,8 @@ import { defineLayout } from "../../../web/src/ui/layout"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
 import { HOGE_UI } from "./hoge-dialog/ui"
 
-export const makeApp = () => createMatomezu({ plugins: [...BUILTIN_UI, HOGE_UI], home: "master", books: SAMPLE_BOOKS })
+export const makeApp = () =>
+  createMatomezu({ plugins: [...BUILTIN_UI, HOGE_UI], home: "master", books: SAMPLE_BOOKS, lang: "ja" })
 
 export const HOGE_LAYOUT = defineLayout({
   ...DEFAULT_LAYOUT,

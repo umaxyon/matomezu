@@ -9,7 +9,7 @@ import type { PaperDef } from "./def/paper"
 import { THEME_TOKENS, type ThemeDef } from "./def/theme"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
-import { MESSAGES, type MessageSet, type Translations } from "./i18n/messages"
+import { LANGUAGES, type Lang, type LanguagePack, MESSAGES, type MessageSet } from "./i18n/messages"
 import type { ItemId, ItemTable } from "./tables"
 
 export type { ActionId, BookTypeId, ItemId, PaperId, ThemeId } from "./tables"
@@ -25,6 +25,7 @@ export interface RegistryParts {
   themes: readonly ThemeDef[]
   papers: readonly PaperDef[]
   messages: readonly MessageSet[] // 土台の文言（MESSAGES）は、いつも表に入る
+  languages: readonly LanguagePack[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
 }
 
 // 作った表。id で引く。bookSchema は、表のブックのタイプの形を 1 つに束ねた、ブックのデータの形
@@ -36,6 +37,7 @@ export interface Registry {
   themes: ReadonlyMap<string, ThemeDef>
   papers: ReadonlyMap<string, PaperDef>
   messages: Messages
+  languages: ReadonlyMap<Lang, string> // app で選べる言語の id → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
 }
 
@@ -54,7 +56,8 @@ export function buildRegistry(parts: RegistryParts): Registry {
     actions: byId(parts.actions),
     themes: byId(parts.themes),
     papers: byId(parts.papers),
-    messages: new Map(allMessages(parts).flatMap(set => Object.entries(set))),
+    messages: mergeMessages(parts),
+    languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
   }
 }
@@ -66,6 +69,20 @@ export function bookType(reg: Registry, id: string): BookTypeDef {
 }
 
 const allMessages = (parts: RegistryParts) => [MESSAGES, ...parts.messages]
+const allLanguages = (parts: RegistryParts) => [...LANGUAGES, ...parts.languages]
+
+// 文言の鍵 → 言語ごとの訳。プラグインの文言の訳に、言語パックの訳を重ねる（パックが勝つ）。app に無い鍵のパックの訳は使わない
+function mergeMessages(parts: RegistryParts): Messages {
+  const messages = new Map<string, Readonly<Record<Lang, string>>>()
+  for (const set of allMessages(parts))
+    for (const [key, t] of Object.entries(set)) messages.set(key, { ...messages.get(key), ...t })
+  for (const pack of allLanguages(parts))
+    for (const [key, text] of Object.entries(pack.messages)) {
+      const known = messages.get(key)
+      if (known && text !== undefined) messages.set(key, { ...known, [pack.lang]: text })
+    }
+  return messages
+}
 
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
 export function checkRegistry(parts: RegistryParts): Problem[] {
@@ -126,14 +143,28 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
     for (const id of Object.keys(th.tokens ?? {}))
       if (!declared.has(id)) problems.push(problem("E013", { id: th.id, token: id }))
   for (const p of parts.papers) if (p.size.w > p.size.h) problems.push(problem("E014", { id: p.id }))
-  // 同じ鍵に違う訳を持つ文言と、文言の表に無い名前
-  const messages = new Map<string, Translations>()
+  // 同じ鍵の同じ言語に違う訳を持つ文言（プラグインの文言どうし・言語パックどうし）、名前の違う同じ言語、文言の表に無い名前
+  const messages = new Map<string, Record<Lang, string>>()
   for (const set of allMessages(parts))
     for (const [key, t] of Object.entries(set)) {
-      const known = messages.get(key)
-      if (known && JSON.stringify(known) !== JSON.stringify(t)) problems.push(problem("E017", { key }))
-      messages.set(key, t)
+      const known = (messages.get(key) ?? messages.set(key, {}).get(key)) as Record<Lang, string>
+      for (const [lang, text] of Object.entries(t)) {
+        if (known[lang] !== undefined && known[lang] !== text) problems.push(problem("E017", { key, lang }))
+        known[lang] = text
+      }
     }
+  const names = new Map<Lang, string>()
+  const packed = new Map<string, string>()
+  for (const pack of allLanguages(parts)) {
+    const name = names.get(pack.lang)
+    if (name !== undefined && name !== pack.name) problems.push(problem("E020", { lang: pack.lang }))
+    names.set(pack.lang, pack.name)
+    for (const [key, text] of Object.entries(pack.messages)) {
+      const seen = packed.get(`${pack.lang}\n${key}`)
+      if (seen !== undefined && seen !== text) problems.push(problem("E021", { key, lang: pack.lang }))
+      packed.set(`${pack.lang}\n${key}`, text as string)
+    }
+  }
   const named = [
     ["bookType", parts.bookTypes],
     ["item", parts.items],

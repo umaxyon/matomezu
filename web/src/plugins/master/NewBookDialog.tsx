@@ -11,7 +11,7 @@ import { useActions, useRegistry } from "../../ui/store-context"
 export function NewBookDialog({ stage, onClose }: DialogProps) {
   const t = useT()
   return (
-    <Dialog title={t("新しいブック")} onClose={onClose}>
+    <Dialog title={t("New book")} onClose={onClose}>
       <NewBookForm stage={stage} onDone={onClose} />
     </Dialog>
   )
@@ -26,19 +26,19 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const [type, setType] = useState(types[0] ?? "")
   return (
     <Form
-      submit={t("作成")}
+      submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
         if (createBook(stage, { title, type })) onDone()
       }}
     >
-      <Field label={t("ブックの名前")}>
+      <Field label={t("Book name")}>
         {id => (
           // biome-ignore lint/a11y/noAutofocus: 開いたダイアログの最初の欄
           <input id={id} className={controlClass} value={title} autoFocus onChange={e => setTitle(e.target.value)} />
         )}
       </Field>
-      <Field label={t("ブックのタイプ")}>
+      <Field label={t("Book type")}>
         {id => (
           <select
             id={id}

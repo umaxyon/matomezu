@@ -14,7 +14,7 @@ import type { Actions } from "../../web/src/store/store"
 const NOTE = defineBookType({
   id: "notes/note",
   version: 1,
-  title: "図面",
+  title: "Drawing",
   schema: z.strictObject({ type: z.literal("notes/note"), id: z.string().min(1), title: z.string() }),
   single: false,
   create: init => ({ type: "notes/note" as const, ...init }),
@@ -26,7 +26,7 @@ const NOTE = defineBookType({
 })
 const SHOOT = defineCommand({
   id: "notes/shoot",
-  title: "マスター",
+  title: "Master",
   run: (ctx, a) => a.openDialog(ctx.stage.id, "notes/shot" as never),
   when: () => true,
 })

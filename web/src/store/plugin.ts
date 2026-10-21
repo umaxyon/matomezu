@@ -6,7 +6,7 @@ import type { ItemDef } from "../core/def/item"
 import type { PaperDef } from "../core/def/paper"
 import type { ThemeDef } from "../core/def/theme"
 import { fail, matomezuError, problem } from "../core/errors"
-import type { MessageSet } from "../core/i18n/messages"
+import type { LanguagePack, MessageSet } from "../core/i18n/messages"
 import { buildRegistry, type Registry } from "../core/registry"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef } from "./dialogs"
@@ -20,8 +20,9 @@ export interface PluginParts {
   commands?: readonly CommandDef<never>[]
   dialogs?: readonly DialogDef[]
   messages?: MessageSet // このプラグインの文言（defineMessages で書き、型の表 MessageTable に書き足す）
+  languages?: readonly LanguagePack[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
 }
-export type Part = Exclude<keyof PluginParts, "messages">
+export type Part = Exclude<keyof PluginParts, "messages" | "languages">
 export const PARTS: readonly Part[] = ["bookTypes", "items", "actions", "themes", "papers", "commands", "dialogs"]
 
 export interface Plugin extends PluginParts {
@@ -89,6 +90,7 @@ export function assemble(plugins: readonly Plugin[], home: string | null = null)
     themes: all("themes"),
     papers: all("papers"),
     messages: plugins.flatMap(p => (p.messages ? [p.messages] : [])),
+    languages: plugins.flatMap(p => p.languages ?? []),
   })
   // コマンドの名前も文言の表から引く
   const untitled = commands

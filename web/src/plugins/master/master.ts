@@ -6,7 +6,7 @@ import { defineBookType } from "../../core/def/book-type"
 export const MASTER = defineBookType({
   id: "master",
   version: 1,
-  title: "マスター",
+  title: "Master",
   schema: z.strictObject({
     type: z.literal("master"),
     id: z.string().min(1),

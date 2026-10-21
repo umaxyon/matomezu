@@ -3,7 +3,7 @@ import { defineSkin } from "./def"
 
 export const LIGHT = defineSkin({
   id: "light",
-  title: "ライト",
+  title: "Light",
   scheme: "light",
   tokens: {
     bg: "#f6f6f8",

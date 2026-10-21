@@ -5,7 +5,7 @@ import { defineAction } from "../../core/def/action"
 
 export const BOOK_CREATE = defineAction({
   id: "book.create",
-  title: "新しいブック",
+  title: "New book",
   target: "library",
   needs: [],
   args: z.strictObject({

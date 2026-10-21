@@ -7,7 +7,7 @@ import { PAPER_IDS } from "../base"
 export const DRAWING = defineBookType({
   id: "drawing",
   version: 1,
-  title: "図面",
+  title: "Drawing",
   schema: z.strictObject({
     type: z.literal("drawing"),
     id: z.string().min(1),

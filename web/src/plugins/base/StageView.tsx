@@ -68,7 +68,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     <section
       ref={ref}
       className={styles.stage}
-      aria-label={t("ステージ")}
+      aria-label={t("Stage")}
       data-current={isCurrent}
       data-multi={isMulti}
       data-paper={hasPaper}
@@ -83,7 +83,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
         <BookContent stage={stage} type={stage.opened.type} vars={vars} />
       ) : (
         <div className={styles.empty}>
-          <p className={styles.prompt}>{t("ブックを選択してください")}</p>
+          <p className={styles.prompt}>{t("Select a book")}</p>
           <BookSearch onSelect={book => openBook(id, book)} />
         </div>
       )}

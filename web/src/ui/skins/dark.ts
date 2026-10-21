@@ -2,7 +2,7 @@ import { defineSkin } from "./def"
 
 export const DARK = defineSkin({
   id: "dark",
-  title: "ダーク",
+  title: "Dark",
   scheme: "dark",
   tokens: {
     bg: "#1e1e1e",

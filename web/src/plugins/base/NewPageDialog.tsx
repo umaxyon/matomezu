@@ -18,7 +18,7 @@ export function NewPageDialog({ stage, onClose }: DialogProps) {
   })
   if (!book || !hasPages(book)) return null
   return (
-    <Dialog title={t("新しいページ")} onClose={onClose}>
+    <Dialog title={t("New page")} onClose={onClose}>
       <NewPageForm stage={stage} book={book} onDone={onClose} />
     </Dialog>
   )
@@ -34,19 +34,19 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
   const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(registry, book))
   return (
     <Form
-      submit={t("作成")}
+      submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
         if (addPage(stage, { title, ...choice })) onDone()
       }}
     >
-      <Field label={t("ページの名前")}>
+      <Field label={t("Page name")}>
         {id => (
           // biome-ignore lint/a11y/noAutofocus: 開いたダイアログの最初の欄
           <input id={id} className={controlClass} value={title} autoFocus onChange={e => setTitle(e.target.value)} />
         )}
       </Field>
-      <Field label={t("紙のサイズ")}>
+      <Field label={t("Paper size")}>
         {id => (
           <select
             id={id}
@@ -59,14 +59,14 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
               const def = registry.papers.get(p)
               return (
                 <option key={p} value={p}>
-                  {def ? t(def.title) : t("不明な紙")}
+                  {def ? t(def.title) : t("Unknown paper")}
                 </option>
               )
             })}
           </select>
         )}
       </Field>
-      <Field label={t("向き")}>
+      <Field label={t("Orientation")}>
         {id => (
           <select
             id={id}

@@ -86,7 +86,7 @@ export function addsFromTabs(reg: Registry, book: Book): boolean {
 
 // 次のページの題名の案
 export function nextPageTitle(reg: Registry, book: PagedBook, lang: Lang): string {
-  return translate(reg.messages, lang, "ページ {n}", { n: book.pages.length + 1 })
+  return translate(reg.messages, lang, "Page {n}", { n: book.pages.length + 1 })
 }
 
 export function addPage<B extends PagedBook>(book: B, init: { title: string } & PaperChoice): { book: B; page: Page } {

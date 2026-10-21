@@ -3,7 +3,7 @@ import { defineTheme } from "../../core/def/theme"
 
 export const STANDARD = defineTheme({
   id: "standard",
-  title: "標準",
+  title: "Standard",
   base: {
     surface: "#f6f6f8",
     paper: "#ffffff",

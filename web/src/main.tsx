@@ -3,7 +3,6 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
-import { detectLang } from "./core/i18n/i18n"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
@@ -15,7 +14,7 @@ const store = createMatomezu({
   plugins: BUILTIN_UI,
   home: "master",
   books: SAMPLE_BOOKS,
-  lang: detectLang(navigator.languages),
+  lang: navigator.languages,
 })
 const root = document.getElementById("root")
 if (!root) fail("E202")

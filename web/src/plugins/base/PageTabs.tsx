@@ -29,7 +29,7 @@ export function PageTabs({ stage }: { stage: string }) {
         </button>
       ))}
       {addsFromTabs(registry, book) && newPage.shown && (
-        <button type="button" className={styles.add} aria-label={t("ページを足す")} onClick={() => newPage.run()}>
+        <button type="button" className={styles.add} aria-label={t("Add page")} onClick={() => newPage.run()}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3v10M3 8h10" />
           </svg>

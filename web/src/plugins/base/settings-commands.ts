@@ -7,7 +7,7 @@ const allows = (action: string) => (ctx: CommandContext) => homeActions(ctx.regi
 
 export const SETTINGS_LANG = defineCommand({
   id: "settings.lang",
-  title: "言語",
+  title: "Language",
   run: (_ctx, a, lang: Lang) => {
     a.setLang(lang)
   },
@@ -16,7 +16,7 @@ export const SETTINGS_LANG = defineCommand({
 
 export const SETTINGS_SKIN = defineCommand({
   id: "settings.skin",
-  title: "スキン",
+  title: "Skin",
   run: (_ctx, a, skin: string) => {
     a.setSkin(skin)
   },

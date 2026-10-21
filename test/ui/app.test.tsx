@@ -11,7 +11,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 afterEach(cleanup)
 
 function renderApp(options: Omit<StoreOptions, "plugins"> = {}) {
-  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, ...options, plugins: BUILTIN_UI })
+  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", ...options, plugins: BUILTIN_UI })
   render(
     <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
       <App />
@@ -214,7 +214,7 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
 })
 
 test("StrictMode で描いても、開いたダイアログは閉じない", async () => {
-  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, plugins: BUILTIN_UI })
+  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
   render(
     <StrictMode>
       <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>

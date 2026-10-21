@@ -18,7 +18,7 @@ afterEach(cleanup)
 const NOTE = defineBookType({
   id: "notes/note",
   version: 1,
-  title: "図面",
+  title: "Drawing",
   schema: z.strictObject({ type: z.literal("notes/note"), id: z.string().min(1), title: z.string() }),
   single: false,
   create: init => ({ type: "notes/note" as const, ...init }),
@@ -52,7 +52,13 @@ const thrown = (run: () => unknown) => {
 
 describe("見た目のプラグイン", () => {
   test("外のプラグインのビューで描き、差し替えたダイアログを中の部品のコマンドが開く", () => {
-    const app = createMatomezu({ plugins: [...BUILTIN_UI, notesUi], partial: true, home: "master", newId: () => "n1" })
+    const app = createMatomezu({
+      plugins: [...BUILTIN_UI, notesUi],
+      partial: true,
+      home: "master",
+      lang: "ja",
+      newId: () => "n1",
+    })
     render(
       <MatomezuProvider app={app} layout={DEFAULT_LAYOUT}>
         <App />

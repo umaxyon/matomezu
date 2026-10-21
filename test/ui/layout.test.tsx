@@ -13,7 +13,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-const app = () => createMatomezu({ plugins: BUILTIN_UI, home: "master", books: SAMPLE_BOOKS })
+const app = () => createMatomezu({ plugins: BUILTIN_UI, home: "master", books: SAMPLE_BOOKS, lang: "ja" })
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(app().commands.keys())
 

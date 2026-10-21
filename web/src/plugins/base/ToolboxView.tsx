@@ -16,7 +16,7 @@ export function ToolboxView({ stage }: { stage: string }) {
   const tools = book ? toolboxOf(registry, book) : []
   if (tools.length === 0) return null
   return (
-    <div className={styles.toolbox} role="toolbar" aria-label={t("ツール")}>
+    <div className={styles.toolbox} role="toolbar" aria-label={t("Tools")}>
       {tools.map(id => {
         const def = registry.items.get(id)
         return (

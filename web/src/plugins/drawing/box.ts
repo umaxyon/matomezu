@@ -6,7 +6,7 @@ export const BOX = defineItem({
   id: "shape.box",
   kind: "shape",
   version: 1,
-  title: "箱",
+  title: "Box",
   capabilities: ["connectable", "resizable", "hasText"],
   toolbox: true,
   props: z.strictObject({ text: z.string() }),

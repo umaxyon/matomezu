@@ -10,7 +10,7 @@ export function HogeDialog({ onClose }: DialogProps) {
   const t = useT()
   return (
     <Dialog title={t("hoge")} onClose={onClose}>
-      <p className={styles.body}>{t("こんにちは、{name}", { name: shout("matomezu") })}</p>
+      <p className={styles.body}>{t("hello, {name}", { name: shout("matomezu") })}</p>
     </Dialog>
   )
 }
@@ -19,9 +19,9 @@ export function HogeDialog({ onClose }: DialogProps) {
 export function MyNewBookDialog({ onClose }: DialogProps) {
   const t = useT()
   return (
-    <Dialog title={t("新しいブックの代わり")} onClose={onClose}>
+    <Dialog title={t("Instead of a new book")} onClose={onClose}>
       <button type="button" onClick={onClose}>
-        {t("閉じる")}
+        {t("Close")}
       </button>
     </Dialog>
   )

@@ -2,10 +2,10 @@
 import { defineMessages } from "../../core/i18n/messages"
 
 export const MASTER_MESSAGES = defineMessages({
-  マスター: { en: "Master" },
-  新しいブック: { en: "New book" },
-  ブックの名前: { en: "Book name" },
-  ブックのタイプ: { en: "Book type" },
-  設定: { en: "Settings" },
-  自動: { en: "Auto" },
+  Master: { ja: "マスター" },
+  "New book": { ja: "新しいブック" },
+  "Book name": { ja: "ブックの名前" },
+  "Book type": { ja: "ブックのタイプ" },
+  Settings: { ja: "設定" },
+  Auto: { ja: "自動" },
 })

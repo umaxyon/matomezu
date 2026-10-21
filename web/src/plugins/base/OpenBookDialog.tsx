@@ -10,7 +10,7 @@ export function OpenBookDialog({ stage, onClose }: DialogProps) {
   const { openBook } = useActions()
   const t = useT()
   return (
-    <Dialog title={t("ブックを開く")} onClose={onClose}>
+    <Dialog title={t("Open book")} onClose={onClose}>
       <BookSearch
         autoFocus
         onSelect={book => {

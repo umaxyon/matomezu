@@ -4,6 +4,8 @@ import { join } from "node:path"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
+import { translate } from "../../web/src/core/i18n/i18n"
+import { defineLanguagePack } from "../../web/src/core/i18n/messages"
 import { perform } from "../../web/src/core/perform"
 import { buildRegistry, checkRegistry } from "../../web/src/core/registry"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
@@ -45,13 +47,43 @@ describe("登録表", () => {
     expect(() => buildRegistry({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 registry has no book type")
   })
 
-  test("同じ鍵に違う訳を持つ文言と、文言の表に無い名前は誤り", () => {
-    const conflict = { ...BUILTIN_PARTS, messages: [...BUILTIN_PARTS.messages, { マスター: { en: "Boss" } }] }
-    expect(checkRegistry(conflict).map(problemText)).toEqual(["E017 message マスター has different translations"])
-    const same = { ...BUILTIN_PARTS, messages: [...BUILTIN_PARTS.messages, { マスター: { en: "Master" } }] }
-    expect(checkRegistry(same)).toEqual([])
+  test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は誤り", () => {
+    const conflict = { ...BUILTIN_PARTS, messages: [...BUILTIN_PARTS.messages, { Master: { ja: "親分" } }] }
+    expect(checkRegistry(conflict).map(problemText)).toEqual(["E017 message Master has different ja translations"])
+    // 同じ訳と、ほかの言語の訳を足すのはよい
+    const more = {
+      ...BUILTIN_PARTS,
+      messages: [...BUILTIN_PARTS.messages, { Master: { ja: "マスター", fr: "Maître" } }],
+    }
+    expect(checkRegistry(more)).toEqual([])
     const untitled = { ...BUILTIN_PARTS, messages: [] }
     expect(checkRegistry(untitled).map(p => p.code)).toContain("E018")
+  })
+
+  test("言語パックは言語を足し、どのプラグインの文言にも訳を足す。パックの訳がプラグインの訳に勝つ", () => {
+    const fr = defineLanguagePack({ lang: "fr", name: "Français", messages: { Master: "Maître", Box: "Boîte" } })
+    const jaFix = defineLanguagePack({ lang: "ja", name: "日本語", messages: { Master: "親分" } })
+    const reg = buildRegistry({ ...BUILTIN_PARTS, languages: [fr, jaFix] })
+    expect([...reg.languages]).toEqual([
+      ["en", "English"],
+      ["ja", "日本語"],
+      ["fr", "Français"],
+    ])
+    expect(translate(reg.messages, "fr", "Box")).toBe("Boîte")
+    expect(translate(reg.messages, "fr", "Add page")).toBe("Add page")
+    expect(translate(reg.messages, "ja", "Master")).toBe("親分")
+    // app に無い鍵の訳は使わない
+    const stray = defineLanguagePack({ lang: "fr", name: "Français", messages: { ["Nope" as "Box"]: "Non" } })
+    expect(buildRegistry({ ...BUILTIN_PARTS, languages: [stray] }).messages.has("Nope")).toBe(false)
+  })
+
+  test("名前の違う同じ言語と、パックどうしで違う訳は誤り", () => {
+    const a = defineLanguagePack({ lang: "fr", name: "Français", messages: { Box: "Boîte" } })
+    const b = defineLanguagePack({ lang: "fr", name: "French", messages: { Box: "Caisse" } })
+    expect(checkRegistry({ ...BUILTIN_PARTS, languages: [a, b] }).map(problemText)).toEqual([
+      "E020 language fr has different names",
+      "E021 language packs give message Box different fr translations",
+    ])
   })
 
   test("作った表は id で引け、ブックのデータの形を持つ", () => {
@@ -119,11 +151,11 @@ describe("アクションを行う", () => {
       ok: false,
       reason: "not-allowed",
     })
-    const settings = { lang: "ja" as const, skin: "auto" }
+    const settings = { lang: "ja", skin: "auto" }
     expect(perform(settings, "settings.lang", { lang: "en" }, ctx)).toMatchObject({ ok: true, next: { lang: "en" } })
     expect(perform(settings, "settings.lang", { lang: "en" }, homeless)).toEqual({ ok: false, reason: "not-allowed" })
-    // @ts-expect-error 言語は決まった値だけ（引数の形でも断る）
-    expect(perform(settings, "settings.lang", { lang: "fr" }, ctx)).toEqual({ ok: false, reason: "bad-args" })
+    // app に無い言語は断る
+    expect(perform(settings, "settings.lang", { lang: "fr" }, ctx)).toEqual({ ok: false, reason: "refused" })
   })
 
   test("タイプが許していないアクションと、知らないアクションは断る", () => {
@@ -163,7 +195,7 @@ describe("登録表ごとに別の世界", () => {
   const NOTES = defineBookType({
     id: "notes",
     version: 1,
-    title: "図面",
+    title: "Drawing",
     schema: z.strictObject({ type: z.literal("notes"), id: z.string().min(1), title: z.string() }),
     single: false,
     create: init => ({ type: "notes" as const, ...init }),

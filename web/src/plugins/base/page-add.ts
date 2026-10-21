@@ -6,7 +6,7 @@ import { ORIENTATIONS } from "../../core/def/paper"
 
 export const PAGE_ADD = defineAction({
   id: "page.add",
-  title: "ページを足す",
+  title: "Add page",
   target: "book",
   needs: [],
   args: z.strictObject({

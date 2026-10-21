@@ -6,7 +6,7 @@ const isSplit = (ctx: CommandContext) => ctx.workspace.stages.length > 1
 // app のホームのブックを、そのステージで開く（ホームが無い app では出さない）
 export const STAGE_HOME = defineCommand({
   id: "stage.home",
-  title: "ホーム",
+  title: "Home",
   run: (ctx, a) => {
     if (ctx.home) a.openBook(ctx.stage.id, ctx.home)
   },
@@ -16,7 +16,7 @@ export const STAGE_HOME = defineCommand({
 
 export const STAGE_SPLIT = defineCommand({
   id: "stage.split",
-  title: "画面を分割",
+  title: "Split screen",
   run: (ctx, a) => a.split(ctx.stage.id),
   when: ctx => !isSplit(ctx),
   active: isSplit,
@@ -24,7 +24,7 @@ export const STAGE_SPLIT = defineCommand({
 
 export const STAGE_UNSPLIT = defineCommand({
   id: "stage.unsplit",
-  title: "分割をやめる",
+  title: "Unsplit",
   run: (ctx, a) => a.unsplit(ctx.stage.id),
   when: isSplit,
   active: isSplit, // 分割の切り替えのボタンで、分割していることを押されている見た目で示す
@@ -32,7 +32,7 @@ export const STAGE_UNSPLIT = defineCommand({
 
 export const STAGE_CLOSE = defineCommand({
   id: "stage.close",
-  title: "ステージを閉じる",
+  title: "Close stage",
   run: (ctx, a) => a.closeStage(ctx.stage.id),
   when: isSplit,
 })

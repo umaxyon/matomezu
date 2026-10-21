@@ -9,7 +9,7 @@ export const HOGE_DIALOG = defineDialog({ id: "hoge/dialog" })
 // 中の部品のコマンド（stage.split）も、書き足した型のまま呼べる
 export const HOGE_OPEN = defineCommand({
   id: "hoge/open",
-  title: "hoge を開く",
+  title: "Open hoge",
   run: (ctx, a) => {
     a.command(ctx.stage.id, "stage.split")
     a.openDialog(ctx.stage.id, "hoge/dialog")
@@ -20,7 +20,7 @@ export const HOGE_OPEN = defineCommand({
 // 引数のあるコマンド
 export const HOGE_GREET = defineCommand({
   id: "hoge/greet",
-  title: "hoge の言語",
+  title: "hoge language",
   run: (ctx, a, lang: "ja" | "en") => {
     a.command(ctx.stage.id, "settings.lang", lang)
   },

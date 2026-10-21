@@ -45,12 +45,12 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
         className={styles.input}
         type="text"
         role="combobox"
-        aria-label={t("ブックを探す")}
+        aria-label={t("Search books")}
         aria-expanded="true"
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={current >= 0 ? optionId(current) : undefined}
-        placeholder={t("ブックの名前で探す")}
+        placeholder={t("Search by book name")}
         autoComplete="off"
         // biome-ignore lint/a11y/noAutofocus: 探す欄を出したら、すぐ打てるようにする
         autoFocus={autoFocus}
@@ -62,7 +62,7 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
         onKeyDown={onKeyDown}
       />
       <div className={styles.results}>
-        <div className={styles.list} id={listId} role="listbox" aria-label={t("ブック")}>
+        <div className={styles.list} id={listId} role="listbox" aria-label={t("Books")}>
           {found.map((b, i) => (
             // biome-ignore lint/a11y/useKeyWithClickEvents: キーでの操作は探す欄（combobox）が受け持つ
             <div
@@ -81,7 +81,7 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
             </div>
           ))}
         </div>
-        {found.length === 0 && <p className={styles.empty}>{t("当てはまるブックはありません")}</p>}
+        {found.length === 0 && <p className={styles.empty}>{t("No matching books")}</p>}
       </div>
     </div>
   )

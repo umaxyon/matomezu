@@ -6,7 +6,7 @@ import { hasPages, singleBooks } from "../core/book"
 import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
-import type { Lang } from "../core/i18n/i18n"
+import { detectLang, type Lang } from "../core/i18n/i18n"
 import { type ArgsOf, perform } from "../core/perform"
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
@@ -75,16 +75,21 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   plugins: Ps
   home?: SingleBookTypeId // ホームのブック（1 冊だけのタイプ）。最初に開くブックと「ホームを開く」の行き先で、ブックの一覧のアクションを許すかはこのタイプが決める
   books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、ホームを開く
-  lang?: Lang // 無ければ日本語
+  lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。app にある最初の言語を使い、無ければ英語
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
+}
+
+function startLang(registry: Registry, lang: Lang | readonly string[] = []): Lang {
+  return detectLang(typeof lang === "string" ? [lang] : lang, [...registry.languages.keys()])
 }
 
 export function createAppStore<const Ps extends readonly Plugin[]>(options: StoreOptions<Ps>): AppStore<Ps> {
   const { plugins } = options
   const defs = assemble(plugins, options.home ?? null)
   const { registry, home } = defs
-  const initial = options.initial ?? initialState(registry, options.books ?? [], options.lang ?? "ja", home)
+  const initial =
+    options.initial ?? initialState(registry, options.books ?? [], startLang(registry, options.lang), home)
   const newId = options.newId ?? (() => crypto.randomUUID())
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store

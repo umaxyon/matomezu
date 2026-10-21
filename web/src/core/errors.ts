@@ -18,9 +18,11 @@ export const ERRORS = {
   E014: "paper {id}: size must be portrait (w <= h)",
   E015: "registry has no book type",
   E016: "registry has {count} problems",
-  E017: "message {key} has different translations",
+  E017: "message {key} has different {lang} translations",
   E018: "{kind} {id}: title {title} is not in the messages",
   E019: "bookType {id}: book must be a book of the schema whose id is {id}",
+  E020: "language {lang} has different names",
+  E021: "language packs give message {key} different {lang} translations",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
