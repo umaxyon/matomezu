@@ -10,7 +10,7 @@ import (
 // instructions は、つないだ AI に渡す matomezu の説明
 const instructions = "matomezu shows diagrams (books of pages with boxes) to the user in a browser. " +
 	"Use view to see what the user is looking at, list_books and read_book to read, and the other tools to change books. " +
-	"Changes appear on the user's screen at once."
+	"Changes appear at once on screens showing that book; use show to put a book on the user's screen."
 
 // actionTool は、アクション 1 つを行う道具。受ける形は、そのアクションの引数（ブックが対象なら、それに book を足す）
 type actionTool struct {
@@ -83,6 +83,22 @@ type catalog struct {
 	} `json:"items"`
 }
 
+// showSchema は show の受ける形
+var showSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"book":  map[string]any{"type": "string", "description": "The book's id."},
+		"page":  map[string]any{"type": "string", "description": "The page to show. Without it, the book opens as usual (a drawing at its first page)."},
+		"stage": map[string]any{"type": "string", "description": "The id of the stage to show it on (see view). Without it, the current stage."},
+		"split": map[string]any{"type": "boolean", "description": "Split that stage and show the book on the new stage at its right."},
+	},
+	"required":             []string{"book"},
+	"additionalProperties": false,
+}
+
+const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current. " +
+	"When no window is open, a browser opens matomezu first (this can take some seconds)."
+
 func readCatalog(api API) (*catalog, error) {
 	raw, err := api.Get("api/ai/catalog")
 	if err != nil {
@@ -105,6 +121,7 @@ func listTools(api API) ([]map[string]any, error) {
 	for _, t := range readTools {
 		tools = append(tools, map[string]any{"name": t.name, "description": t.description, "inputSchema": t.schema})
 	}
+	tools = append(tools, map[string]any{"name": "show", "description": showDescription, "inputSchema": showSchema})
 	for _, t := range actionTools {
 		i := slices.IndexFunc(c.Actions, func(a catalogAction) bool { return a.ID == t.action })
 		if i < 0 {
@@ -173,6 +190,9 @@ func callTool(api API, name string, raw json.RawMessage) (string, bool) {
 			return string(out), false
 		}
 	}
+	if name == "show" {
+		return show(api, args)
+	}
 	for _, t := range actionTools {
 		if t.name != name {
 			continue
@@ -201,6 +221,38 @@ func callTool(api API, name string, raw json.RawMessage) (string, bool) {
 		return string(done.Result), false
 	}
 	return "unknown tool: " + name, true
+}
+
+func show(api API, args map[string]any) (string, bool) {
+	out, err := api.Post("api/ai/show", args)
+	if err != nil {
+		return err.Error(), true
+	}
+	var done struct {
+		OK     bool   `json:"ok"`
+		Opened bool   `json:"opened"`
+		Reason string `json:"reason"`
+		Detail string `json:"detail"`
+		URL    string `json:"url"`
+	}
+	if err := json.Unmarshal(out, &done); err != nil {
+		return string(out), true
+	}
+	switch {
+	case done.OK && done.Opened:
+		return "shown in a browser window opened for it", false
+	case done.OK:
+		return "shown", false
+	case done.Reason == "no-browser":
+		return "no-browser: could not open a browser (" + done.Detail + "); ask the user to open " + done.URL + " and call show again", true
+	case done.Reason == "no-window":
+		return "no-window: no matomezu window connected; ask the user to open " + done.URL + " and call show again", true
+	case done.Reason == "no-stage":
+		return "no-stage: the window has no stage with that id (see view)", true
+	case done.Reason == "no-split":
+		return "no-split: the window cannot split more; give the stage to show it on instead (see view)", true
+	}
+	return refusalText(done.Reason), true
 }
 
 func refusalText(reason string) string {

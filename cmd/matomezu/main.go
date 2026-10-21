@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/umaxyon/matomezu/internal/browser"
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/home"
 	"github.com/umaxyon/matomezu/internal/mcp"
@@ -134,12 +135,15 @@ func (c *serveCmd) Run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	url := "http://" + ln.Addr().String() + "/"
 	srv := &http.Server{
-		Handler:           server.Handler(server.Options{Web: webFS, Token: token, Version: version, Stop: stop, Hub: hub}),
+		Handler: server.Handler(server.Options{
+			Web: webFS, Token: token, Version: version, Stop: stop, Hub: hub,
+			URL: url, Open: func() error { return browser.Open(url) },
+		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	srv.RegisterOnShutdown(hub.CloseAll)
-	url := "http://" + ln.Addr().String() + "/"
 	if err := h.WriteServer(home.Server{URL: url, Token: token, PID: os.Getpid(), Version: version}); err != nil {
 		return err
 	}
@@ -258,7 +262,7 @@ func (a httpAPI) do(method, path string, body []byte) (json.RawMessage, error) {
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	res, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	res, err := (&http.Client{Timeout: 60 * time.Second}).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("the matomezu server did not answer: %w", err)
 	}

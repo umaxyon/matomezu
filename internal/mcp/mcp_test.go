@@ -85,7 +85,7 @@ func TestToolsAreTheListedActionsWithBookAdded(t *testing.T) {
 			place = tool
 		}
 	}
-	if strings.Join(names, ",") != "view,list_books,read_book,create_book,place_item" {
+	if strings.Join(names, ",") != "view,list_books,read_book,show,create_book,place_item" {
 		t.Fatalf("tools = %v (settings.lang is not listed, actions missing from the catalog are left out)", names)
 	}
 	schema := place["inputSchema"].(map[string]any)
@@ -123,5 +123,24 @@ func TestReadTools(t *testing.T) {
 	r := got[0]["result"].(map[string]any)
 	if r["content"].([]any)[0].(map[string]any)["text"] != `{"book":"b1","page":"p1","selection":[]}` {
 		t.Fatalf("view = %v", r)
+	}
+}
+
+func TestShowTool(t *testing.T) {
+	text := func(api *fakeAPI) (string, bool) {
+		got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"show","arguments":{"book":"b1","split":true}}}`)
+		r := got[0]["result"].(map[string]any)
+		return r["content"].([]any)[0].(map[string]any)["text"].(string), r["isError"].(bool)
+	}
+	api := &fakeAPI{answer: `{"ok":true,"opened":false}`}
+	if got, failed := text(api); got != "shown" || failed {
+		t.Fatalf("show = %s %v", got, failed)
+	}
+	if api.posts[0] != `api/ai/show {"book":"b1","split":true}` {
+		t.Fatalf("posted = %v", api.posts)
+	}
+	api.answer = `{"ok":false,"reason":"no-window","url":"http://127.0.0.1:7230/"}`
+	if got, failed := text(api); !strings.Contains(got, "open http://127.0.0.1:7230/") || !failed {
+		t.Fatalf("show without a window = %s %v", got, failed)
 	}
 }

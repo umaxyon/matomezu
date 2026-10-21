@@ -90,3 +90,27 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
   expect(await done.json()).toMatchObject({ ok: true })
   await expect(page.locator("[data-item]", { hasText: "AI の箱" })).toBeVisible()
 })
+
+test("AI が show で頼むと、最後にフォーカスした窓が、分けたステージでそのブックを開く", async ({ page }) => {
+  const { token } = JSON.parse(readFileSync("e2e/.home/server.json", "utf8"))
+  const ai = { Authorization: `Bearer ${token}` }
+  await page.goto("/")
+  await page.bringToFront()
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toMatchObject({
+      book: "e2e-1",
+      canSplit: true,
+    })
+  const made = await page.request.post("/api/ai/perform", {
+    headers: ai,
+    data: { action: "book.create", args: { type: "drawing", title: "AI のブック" } },
+  })
+  const { result } = await made.json()
+  const shown = await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book, split: true } })
+  expect(await shown.json()).toEqual({ ok: true, opened: false })
+  await expect(page.locator("[data-stage]")).toHaveCount(2)
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toMatchObject({ book: result.book, stage: "s2", canSplit: false })
+})

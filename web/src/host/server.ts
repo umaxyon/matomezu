@@ -2,10 +2,12 @@
 // 常駐はアクションを 1 つずつ順に行い、変わったブックと設定をつながっている全部の画面に知らせる（/api/events。internal/server/hub.go）。
 // 画面は、常駐が決めた世界（確かめた世界）の上で、まだ確かめられていない自分のアクションを行い直したものを出す（store の receive）。
 // 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。
-// カレントのステージが見ているもの（ブック・ページ・選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）
+// 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
+// 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く
 import { z } from "zod"
 import { fail } from "../core/errors"
-import { currentStage } from "../core/workspace"
+import type { Stage } from "../core/stage"
+import { currentStage, MAX_STAGES } from "../core/workspace"
 import type { AppState, AppStore, DoneAction } from "../store/store"
 import type { Host, Loaded } from "./host"
 
@@ -44,12 +46,44 @@ const browserNet: Net = {
   },
 }
 
-// カレントのステージが見ているもの（何も開いていなければ null）
-export function viewOf(state: AppState): { book: string; page: string | null; selection: readonly string[] } | null {
-  const stage = currentStage(state.workspace)
+const openedOf = (stage: Stage) => {
   const opened = stage.opened
-  if (!opened) return null
-  return { book: opened.book, page: "page" in opened ? (opened.page ?? null) : null, selection: stage.selection }
+  return { book: opened?.book ?? null, page: opened && "page" in opened ? (opened.page ?? null) : null }
+}
+
+// 窓が見ているもの。book・page・selection はカレントのステージのもの（何も開いていなければ book は null）
+export function viewOf(state: AppState) {
+  const ws = state.workspace
+  const stage = currentStage(ws)
+  return {
+    ...openedOf(stage),
+    selection: stage.selection,
+    stage: stage.id,
+    stages: ws.stages.map(s => ({ id: s.id, ...openedOf(s) })),
+    canSplit: ws.stages.length < MAX_STAGES,
+  }
+}
+
+const ShowSchema = z.object({
+  book: z.string(),
+  page: z.string().optional(),
+  stage: z.string().optional(),
+  split: z.boolean().optional(),
+})
+
+// 常駐が頼んだブックを出す。ステージが無ければカレント、split なら分けて右にできたステージに出す
+export function showIn(app: AppStore, show: z.infer<typeof ShowSchema>) {
+  const { actions, state } = app
+  let stage = show.stage ?? state.getState().workspace.current
+  if (show.split) {
+    const before = state.getState().workspace.stages.map(s => s.id)
+    actions.split(stage)
+    const added = state.getState().workspace.stages.find(s => !before.includes(s.id))
+    if (!added) return
+    stage = added.id
+  }
+  actions.openBook(stage, show.book)
+  if (show.page) actions.openPage(stage, show.page)
 }
 
 const DataSchema = z.object({
@@ -130,6 +164,9 @@ export function serverHost(net: Net = browserNet): ServerHost {
         settings = e.settings
         settle(e)
         show()
+      })
+      source.on("show", data => {
+        if (app) showIn(app, ShowSchema.parse(JSON.parse(data)))
       })
       source.on("ack", data => {
         settle({ client, seq: AckSchema.parse(JSON.parse(data)).seq })

@@ -18,6 +18,8 @@
 //	GET  /api/ai/books/{id}  {"id", "book", "version"}
 //	GET  /api/ai/catalog     アクションとアイテムの目録（engine.Catalog）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "result"} を返す
+//	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた画面にブックを出す（Hub.Show）。
+//	                         画面が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
 //
 // 合言葉は Authorization: Bearer <token> で渡す（server.json の token。常駐ごとに作る）。
 // 「画面から」の入口は、この常駐の画面からの頼みだけを受ける（sameOrigin。ほかのサイトに開かれたページから書かせない）。
@@ -51,7 +53,13 @@ type Options struct {
 	Version string
 	Stop    func() // /api/stop で呼ぶ。呼ばれたら常駐を止める
 	Hub     *Hub
+	URL     string        // 画面の URL
+	Open    func() error  // 画面をブラウザで開く（無ければ開かない）
+	Wait    time.Duration // ブラウザで開いた画面がつながるのを待つ長さ（0 なら windowWait）
 }
+
+// windowWait は、ブラウザで開いた画面がつながるのを待つ既定の長さ
+const windowWait = 20 * time.Second
 
 // 知らせが無いあいだ、つながりを保つために送る間隔
 const keepAlive = 25 * time.Second
@@ -81,6 +89,7 @@ func Handler(o Options) http.Handler {
 		_, _ = w.Write(o.Hub.Catalog())
 	}))
 	mux.Handle("POST /api/ai/perform", o.auth(o.aiPerform))
+	mux.Handle("POST /api/ai/show", o.auth(o.aiShow))
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux
@@ -266,6 +275,34 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, done)
+}
+
+func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
+	var req Show
+	if !readJSON(w, r, &req) {
+		return
+	}
+	err := o.Hub.Show(req)
+	opened := false
+	if errors.Is(err, ErrNoWindow) && o.Open != nil {
+		if open := o.Open(); open != nil {
+			writeJSON(w, map[string]any{"ok": false, "reason": "no-browser", "detail": open.Error(), "url": o.URL})
+			return
+		}
+		wait := o.Wait
+		if wait == 0 {
+			wait = windowWait
+		}
+		opened = true
+		if o.Hub.WaitWindow(wait) {
+			err = o.Hub.Show(req)
+		}
+	}
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "reason": err.Error(), "url": o.URL})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "opened": opened})
 }
 
 // readJSON は本文を v に読む。読めなければ 400 を返して false

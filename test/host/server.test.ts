@@ -145,16 +145,56 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
   expect((await loading).books).toEqual([b1With("new")])
 })
 
-test("カレントのステージが見ているものと、窓がフォーカスされたことを知らせる。変わらなければ知らせない", async () => {
+test("窓が見ているものと、窓がフォーカスされたことを知らせる。変わらなければ知らせない", async () => {
   const s = await connected()
-  expect(s.sent).toEqual([
-    { url: "api/view", client: "c1", view: { book: "b1", page: "p1", selection: [] }, focused: true },
-  ])
+  const view = (selection: string[]) => ({
+    book: "b1",
+    page: "p1",
+    selection,
+    stage: "s1",
+    stages: [{ id: "s1", book: "b1", page: "p1" }],
+    canSplit: true,
+  })
+  expect(s.sent).toEqual([{ url: "api/view", client: "c1", view: view([]), focused: true }])
   s.store.actions.select("s1", ["x"])
   s.store.actions.resizeStage("s1", { w: 100, h: 100 })
   s.focus()
   expect(s.sent.slice(1)).toEqual([
-    { url: "api/view", client: "c1", view: { book: "b1", page: "p1", selection: ["x"] }, focused: false },
-    { url: "api/view", client: "c1", view: { book: "b1", page: "p1", selection: ["x"] }, focused: true },
+    { url: "api/view", client: "c1", view: view(["x"]), focused: false },
+    { url: "api/view", client: "c1", view: view(["x"]), focused: true },
   ])
+})
+
+test("分けた窓は、ステージごとに見ているものを知らせ、もう分けられない", async () => {
+  const s = await connected()
+  s.store.actions.split("s1")
+  expect(s.sent.at(-1)?.view).toEqual({
+    book: "b1",
+    page: "p1",
+    selection: [],
+    stage: "s1",
+    stages: [
+      { id: "s1", book: "b1", page: "p1" },
+      { id: "s2", book: null, page: null },
+    ],
+    canSplit: false,
+  })
+})
+
+test("show が届いたら、言われたステージでブックを開き、カレントにする", async () => {
+  const s = await connected()
+  s.store.actions.split("s1")
+  s.emit("show", { book: "b1", stage: "s2" })
+  const ws = s.store.state.getState().workspace
+  expect(ws.current).toBe("s2")
+  expect(ws.stages.map(st => st.opened?.book ?? null)).toEqual(["b1", "b1"])
+})
+
+test("show の split は、そのステージを分けて右にできたステージに開く", async () => {
+  const s = await connected()
+  s.emit("show", { book: "b1", split: true })
+  const ws = s.store.state.getState().workspace
+  expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
+  expect(ws.current).toBe("s2")
+  expect(ws.stages[1]?.opened?.book).toBe("b1")
 })

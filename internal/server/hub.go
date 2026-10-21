@@ -11,12 +11,15 @@ package server
 //	book      {"book", "version", "client", "seq"} ブックが変わった・足された（client と seq は変えたアクションのもの。画面の外からなら空）
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	ack       {"seq", "ok", "reason"} 送った画面にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings のあとに届く
+//	show      {"book", "page", "stage", "split"} 最後にフォーカスされた画面にだけ。そのブックを出す（Show）
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
@@ -38,7 +41,7 @@ type event struct {
 type client struct {
 	id      string
 	ch      chan event
-	view    json.RawMessage // 画面が知らせた、カレントのステージが見ているもの（POST /api/view）
+	view    json.RawMessage // 画面が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
 	focused int64           // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
 }
 
@@ -52,7 +55,8 @@ type Hub struct {
 	settings json.RawMessage
 	clients  map[string]*client
 	next     int
-	ticks    int64 // フォーカスの順を振る数
+	ticks    int64         // フォーカスの順を振る数
+	viewed   chan struct{} // 画面が見ているものを知らせたら閉じて、作り直す（WaitWindow）
 }
 
 // NewHub は置き場所から世界を読む
@@ -65,7 +69,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{})}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version}
 		h.order = append(h.order, b.ID)
@@ -214,6 +218,8 @@ func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool) bool 
 	}
 	if len(view) > 0 {
 		c.view = view
+		close(h.viewed)
+		h.viewed = make(chan struct{})
 	}
 	if focused {
 		h.ticks++
@@ -226,16 +232,89 @@ func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool) bool 
 func (h *Hub) View() json.RawMessage {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if c := h.window(); c != nil {
+		return c.view
+	}
+	return nil
+}
+
+// window は、見ているものを知らせた画面のうち、最後にフォーカスされたもの（無ければ nil。h.mu を持って呼ぶ）
+func (h *Hub) window() *client {
 	var last *client
 	for _, c := range h.clients {
-		if last == nil || c.focused > last.focused {
+		if c.view != nil && (last == nil || c.focused > last.focused) {
 			last = c
 		}
 	}
-	if last == nil {
-		return nil
+	return last
+}
+
+// WaitWindow は、見ているものを知らせた画面ができるまで d だけ待ち、できたか返す
+func (h *Hub) WaitWindow(d time.Duration) bool {
+	deadline := time.After(d)
+	for {
+		h.mu.Lock()
+		ok, viewed := h.window() != nil, h.viewed
+		h.mu.Unlock()
+		if ok {
+			return true
+		}
+		select {
+		case <-viewed:
+		case <-deadline:
+			return false
+		}
 	}
-	return last.view
+}
+
+// Show の頼み。Stage は出すステージの id（空ならカレント）、Split なら、そのステージを分けて右にできたステージに出す。
+// Page は出すページ（空ならブックを開いたときのページ）
+type Show struct {
+	Book  string `json:"book"`
+	Page  string `json:"page,omitempty"`
+	Stage string `json:"stage,omitempty"`
+	Split bool   `json:"split,omitempty"`
+}
+
+// Show で出せなかった理由
+var (
+	ErrNoBook   = errors.New("no-book")   // そのブックが無い
+	ErrNoWindow = errors.New("no-window") // 画面がつながっていない
+	ErrNoStage  = errors.New("no-stage")  // 画面にそのステージが無い
+	ErrNoSplit  = errors.New("no-split")  // 画面がもう分けられない
+)
+
+// Show は、最後にフォーカスされた画面に、ブックを出すように知らせる。
+// ステージと分けられるかは、その画面が知らせた見ているもの（stages・canSplit）で確かめる
+func (h *Hub) Show(s Show) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, ok := h.books[s.Book]; !ok {
+		return ErrNoBook
+	}
+	c := h.window()
+	if c == nil {
+		return ErrNoWindow
+	}
+	var v struct {
+		Stages []struct {
+			ID string `json:"id"`
+		} `json:"stages"`
+		CanSplit bool `json:"canSplit"`
+	}
+	_ = json.Unmarshal(c.view, &v)
+	ids := make([]string, 0, len(v.Stages))
+	for _, st := range v.Stages {
+		ids = append(ids, st.ID)
+	}
+	if s.Stage != "" && !slices.Contains(ids, s.Stage) {
+		return ErrNoStage
+	}
+	if s.Split && !v.CanSplit {
+		return ErrNoSplit
+	}
+	h.send(c, "show", s)
+	return nil
 }
 
 // Book は 1 冊のブック（無ければ nil）

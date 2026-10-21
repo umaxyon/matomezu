@@ -16,6 +16,11 @@ import (
 )
 
 func newServer(t *testing.T, stop func()) *httptest.Server {
+	return newServerWith(t, Options{Stop: stop})
+}
+
+// newServerWith は、o に画面のファイル・合言葉・版・世界を足した常駐
+func newServerWith(t *testing.T, o Options) *httptest.Server {
 	web := fstest.MapFS{
 		"index.html": {Data: []byte("<!doctype html>top")},
 		"app.js":     {Data: []byte("js")},
@@ -33,7 +38,8 @@ func newServer(t *testing.T, stop func()) *httptest.Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := httptest.NewUnstartedServer(Handler(Options{Web: web, Token: "secret", Version: "v1", Stop: stop, Hub: hub}))
+	o.Web, o.Token, o.Version, o.Hub = web, "secret", "v1", hub
+	s := httptest.NewUnstartedServer(Handler(o))
 	s.Config.RegisterOnShutdown(hub.CloseAll)
 	s.Start()
 	t.Cleanup(hub.CloseAll)
@@ -330,5 +336,73 @@ func TestAIEntrancesNeedTheToken(t *testing.T) {
 	}
 	if _, body := send(t, "GET", s.URL+"/api/ai/books/b1", "", auth); !strings.Contains(body, `"title":"Two"`) || !strings.Contains(body, `"version":2`) {
 		t.Fatalf("book = %s", body)
+	}
+}
+
+const window = `{"book":"b1","page":"p1","selection":[],"stage":"s1","stages":[{"id":"s1","book":"b1","page":"p1"}],"canSplit":true}`
+
+func TestShowGoesToTheLastFocusedWindow(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a, b := listen(t, s.URL), listen(t, s.URL)
+	next(t, a)
+	next(t, b)
+	auth := map[string]string{"Authorization": "Bearer secret"}
+	show := func(body string) string {
+		_, out := send(t, "POST", s.URL+"/api/ai/show", body, auth)
+		return out
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+strings.Replace(window, `"canSplit":true`, `"canSplit":false`, 1)+`,"focused":true}`, nil)
+	if got := show(`{"book":"b1","page":"p1","stage":"s1"}`); got != "{\"ok\":true,\"opened\":false}" {
+		t.Fatalf("show = %s", got)
+	}
+	if got := next(t, b); got != `show {"book":"b1","page":"p1","stage":"s1"}` {
+		t.Fatalf("b = %s", got)
+	}
+	for body, reason := range map[string]string{
+		`{"book":"gone"}`:            "no-book",
+		`{"book":"b1","stage":"s9"}`: "no-stage",
+		`{"book":"b1","split":true}`: "no-split",
+	} {
+		if got := show(body); !strings.Contains(got, `"reason":"`+reason+`"`) {
+			t.Errorf("show %s = %s; want %s", body, got, reason)
+		}
+	}
+	select {
+	case l := <-a:
+		t.Fatalf("a window not focused last got %s", l)
+	default:
+	}
+}
+
+func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
+	var s *httptest.Server
+	opened := make(chan (<-chan string), 1)
+	s = newServerWith(t, Options{URL: "http://screen/", Open: func() error {
+		go func() {
+			lines := listen(t, s.URL)
+			<-lines // hello
+			send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"focused":true}`, nil)
+			opened <- lines
+		}()
+		return nil
+	}})
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	auth := map[string]string{"Authorization": "Bearer secret"}
+	if _, got := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","split":true}`, auth); got != "{\"ok\":true,\"opened\":true}" {
+		t.Fatalf("show = %s", got)
+	}
+	if got := next(t, <-opened); got != `show {"book":"b1","split":true}` {
+		t.Fatalf("the opened window got %s", got)
+	}
+}
+
+func TestShowWithoutAWindowNorABrowser(t *testing.T) {
+	s := newServerWith(t, Options{URL: "http://screen/", Wait: 50 * time.Millisecond, Open: func() error { return nil }})
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	auth := map[string]string{"Authorization": "Bearer secret"}
+	if _, got := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, auth); got != "{\"ok\":false,\"reason\":\"no-window\",\"url\":\"http://screen/\"}" {
+		t.Fatalf("show = %s", got)
 	}
 }
