@@ -42,6 +42,8 @@ export const ERRORS = {
   E208: "layout {layout}: widget {widget} cannot be placed in slot {slot}",
   E209: "layout {layout}: menu {menu} has unknown command {command}",
   E210: "layout {layout} has {count} problems",
+  E211: "layout {layout}: slot {slot} is not opened by any placed widget",
+  E212: "layout {layout}: menu {menu} is not shown by any placed widget",
 
   E301: 'plugin {plugin}: {kind} {id} must start with "{plugin}/"',
 } as const

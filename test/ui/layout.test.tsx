@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import { isMatomezuError, problemText } from "../../web/src/core/errors"
+import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
@@ -31,7 +32,7 @@ describe("配置", () => {
   test("知らないウィジェット・置けないスロット・app に無いコマンドは誤り", () => {
     const bad = {
       id: "bad",
-      slots: { "stage.top": ["nope", "book-view"] },
+      slots: { app: ["workspace"], "stage.top": ["nope", "book-view"], "stage.bottom": ["book-name"] },
       menus: { "stage.menu": [{ either: ["stage.split", "stage.nope"] }] },
     } as unknown as LayoutDef
     expect(checkLayout(bad, ui.widgets, commands).map(problemText)).toEqual([
@@ -39,6 +40,39 @@ describe("配置", () => {
       "E208 layout bad: widget book-view cannot be placed in slot stage.top",
       "E209 layout bad: menu stage.menu has unknown command stage.nope",
     ])
+  })
+
+  test("中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニューは誤り", () => {
+    // 根にステージの骨組みが無いので、ステージのスロットもメニューも画面に出ない
+    const noStages = defineLayout({
+      ...DEFAULT_LAYOUT,
+      id: "no-stages",
+      slots: { ...DEFAULT_LAYOUT.slots, app: ["dialog-host"] },
+    })
+    expect(checkLayout(noStages, ui.widgets, commands).map(problemText)).toEqual([
+      "E211 layout no-stages: slot stage.top is not opened by any placed widget",
+      "E211 layout no-stages: slot stage.body is not opened by any placed widget",
+      "E211 layout no-stages: slot stage.bottom is not opened by any placed widget",
+      "E211 layout no-stages: slot stage.corner is not opened by any placed widget",
+      "E212 layout no-stages: menu stage.menu is not shown by any placed widget",
+    ])
+    // 中身を書かなければ、ステージの無い画面にできる
+    const bare = defineLayout({ id: "bare", slots: { app: ["dialog-host"] }, menus: {} })
+    expect(checkLayout(bare, ui.widgets, commands)).toEqual([])
+  })
+
+  test("ステージの骨組みは defineWorkspace で差し替えられる（ベーススロットを全部開ける）", () => {
+    const MyWorkspace = () => <p>my workspace</p>
+    const MY_WORKSPACE = defineWorkspace({ id: "w/workspace", view: MyWorkspace })
+    expect(MY_WORKSPACE.opens).toEqual(STAGE_BASE_SLOTS)
+    const mine = definePluginUi(definePlugin({ id: "w" }), { widgets: [MY_WORKSPACE] })
+    const widgets = assembleUi([...BUILTIN_UI, mine]).widgets
+    const layout = {
+      ...DEFAULT_LAYOUT,
+      id: "mine",
+      slots: { ...DEFAULT_LAYOUT.slots, app: ["w/workspace", "dialog-host"] },
+    }
+    expect(checkLayout(layout as unknown as LayoutDef, widgets, commands)).toEqual([])
   })
 
   test("食い違いのある配置は、画面に置くときに誤り", () => {

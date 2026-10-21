@@ -5,16 +5,22 @@ import type { CommandArgs } from "../store/commands"
 import type { CommandId } from "../store/tables"
 import type { MenuId, SlotId, SlotProps, WidgetId, WidgetTable } from "./tables"
 
-// 置けるスロットと、描く部品。置けるスロットは、どれも同じ値（props）を渡すものだけにする
+// 置けるスロットと、描く部品。置けるスロットは、どれも同じ値（props）を渡すものだけにする。
+// スロットとメニューを開けるのはウィジェットだけで、部品の中で描くスロット（<Slot>）とメニュー（useMenu）は opens・menus に全部書く
+// （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（骨組みの差し替え）
 export interface WidgetDef<S extends SlotId = SlotId> {
   id: string // 外のプラグインは「プラグインの id/名前」
   slots: readonly S[]
+  opens?: readonly SlotId[]
+  menus?: readonly MenuId[]
   view: (props: SlotProps<S>) => ReactNode
 }
 // どれかのウィジェット（表に入れるときの形）
 export interface AnyWidgetDef {
   id: string
   slots: readonly SlotId[]
+  opens?: readonly SlotId[]
+  menus?: readonly MenuId[]
   view: (props: never) => ReactNode
 }
 
@@ -42,7 +48,11 @@ export const defineLayout = <const L extends LayoutDef>(def: L): L => def
 export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
   typeof item === "string" ? [item] : item.either
 
-// 配置の食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・app に無いコマンド（無ければ空）
+// 根のスロット（土台が開ける）
+export const ROOT_SLOT = "app" satisfies SlotId
+
+// 配置の食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・app に無いコマンド・
+// 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー（無ければ空）
 export function checkLayout(
   layout: LayoutDef,
   widgets: ReadonlyMap<string, AnyWidgetDef>,
@@ -59,5 +69,24 @@ export function checkLayout(
   for (const [menu, items] of Object.entries(layout.menus) as [string, readonly MenuItem[]][])
     for (const id of items.flatMap(menuCommands))
       if (!commands.has(id)) problems.push(problem("E209", { layout: layout.id, menu, command: id }))
+  const { slots, menus } = opened(layout, widgets)
+  for (const [slot, ids] of Object.entries(layout.slots) as [string, readonly string[]][])
+    if (ids.length > 0 && !slots.has(slot)) problems.push(problem("E211", { layout: layout.id, slot }))
+  for (const [menu, items] of Object.entries(layout.menus) as [string, readonly MenuItem[]][])
+    if (items.length > 0 && !menus.has(menu)) problems.push(problem("E212", { layout: layout.id, menu }))
   return problems
+}
+
+// 画面に開くスロットとメニュー: 根のスロットから、置いたウィジェットが開けるものをたどる
+function opened(layout: LayoutDef, widgets: ReadonlyMap<string, AnyWidgetDef>) {
+  const slots = new Set<string>([ROOT_SLOT])
+  const menus = new Set<string>()
+  const next = [ROOT_SLOT]
+  for (let slot = next.pop(); slot !== undefined; slot = next.pop())
+    for (const id of (layout.slots as Record<string, readonly string[] | undefined>)[slot] ?? []) {
+      const w = widgets.get(id)
+      for (const s of w?.opens ?? []) if (!slots.has(s)) next.push(slots.add(s) && s)
+      for (const m of w?.menus ?? []) menus.add(m)
+    }
+  return { slots, menus }
 }
