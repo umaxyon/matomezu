@@ -1,8 +1,10 @@
-// 画面の入口: 中の部品と見た目で app を作り、React の根に App を描く
+// 画面の入口: ホストから残したブックと設定を読み、中の部品と見た目で app を作り、React の根に App を描く。変わったものはホストに残す
 
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
+import { memoryHost } from "./host/memory"
+import { persist } from "./host/persist"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
@@ -10,12 +12,16 @@ import { App } from "./ui/App"
 import { MatomezuProvider } from "./ui/store-context"
 import "./ui/skin.css"
 
+const host = memoryHost(SAMPLE_BOOKS)
+const saved = await host.load()
 const store = createMatomezu({
   plugins: BUILTIN_UI,
   home: "master",
-  books: SAMPLE_BOOKS,
+  books: saved.books,
+  settings: saved.settings,
   lang: navigator.languages,
 })
+persist(store, host)
 const root = document.getElementById("root")
 if (!root) fail("E202")
 

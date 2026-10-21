@@ -11,7 +11,7 @@ import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
 import { type ArgsOf, perform, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
-import type { Settings } from "../core/settings"
+import { restoreSettings, type Settings } from "../core/settings"
 import {
   closePicker,
   openBook,
@@ -113,13 +113,13 @@ export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> exte
 }
 
 // 最初のブック（無ければホーム、それも無ければ何も開かない）を開いた状態。表にある 1 冊だけのタイプのブックはいつも持つ
-function initialState(registry: Registry, books: readonly Book[], lang: Lang, home: string | null): AppState {
+function initialState(registry: Registry, books: readonly Book[], settings: Settings, home: string | null): AppState {
   const all = [...singleBooks(registry), ...books]
   const first = books[0] ?? all.find(b => b.id === home) ?? null
   return {
     books: Object.fromEntries(all.map(b => [b.id, b])),
     workspace: newWorkspace(registry, first),
-    settings: { lang, skin: "auto", keys: NO_KEY_CHANGES },
+    settings,
     dialog: null,
     contextMenu: null,
   }
@@ -131,6 +131,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、ホームを開く
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。app にある最初の言語を使い、無ければ英語
+  settings?: unknown // 残しておいた設定（ホストが読んだもの）。この app で使える項目だけ、lang より優先して使う
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
 }
@@ -143,8 +144,10 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
   const { plugins } = options
   const defs = assemble(plugins, options.home ?? null, options.autoSkin)
   const { registry, home } = defs
+  const start: Settings = { lang: startLang(registry, options.lang), skin: "auto", keys: NO_KEY_CHANGES }
   const initial =
-    options.initial ?? initialState(registry, options.books ?? [], startLang(registry, options.lang), home)
+    options.initial ??
+    initialState(registry, options.books ?? [], restoreSettings(registry, start, options.settings), home)
   const newId = options.newId ?? (() => crypto.randomUUID())
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
