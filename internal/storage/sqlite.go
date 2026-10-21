@@ -31,11 +31,19 @@ type sqliteStorage struct {
 
 // OpenSQLite は path の SQLite を開き（無ければ作り）、表の形を最新にする
 func OpenSQLite(path string) (Storage, error) {
-	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)")
+	// 道筋はそのまま渡す（file: の URI にすると、Windows の \ の道筋の読み方が変わる）
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1) // 書くのは常駐 1 つ。つなぎを 1 本にして、書く順を 1 列にする
+	db.SetConnMaxIdleTime(0)
+	for _, p := range []string{`PRAGMA busy_timeout = 5000`, `PRAGMA journal_mode = WAL`, `PRAGMA foreign_keys = ON`} {
+		if _, err := db.Exec(p); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
 	if err := migrate(db); err != nil {
 		db.Close()
 		return nil, err
