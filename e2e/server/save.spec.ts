@@ -33,9 +33,7 @@ test("置いた箱は少し待って常駐に残り、読み直しても同じ�
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
   await dialog.getByLabel("キャプション").fill("残る箱")
   await dialog.getByRole("button", { name: "追加" }).click()
-  await expect
-    .poll(async () => (await data(page)).books.find((b: { id: string }) => b.id === book.id)?.version)
-    .toBe(2)
+  await expect.poll(async () => (await data(page)).books.find((b: { id: string }) => b.id === book.id)?.version).toBe(2)
   const before = (await page.locator("[data-item]").boundingBox())!
   await page.reload()
   const item = page.locator("[data-item]")

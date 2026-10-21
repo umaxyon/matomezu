@@ -1,10 +1,12 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
 // 使えるかは、book が対象ならそのブックのタイプ、library と settings が対象なら app のホームのブックのタイプが決める（ホームが無ければ断る）
 import type { z } from "zod"
-import type { ActionContext, ActionDef, Subjects } from "./def/action"
+import type { ActionContext, ActionDef, ActionTarget, Subjects } from "./def/action"
 import { inspect } from "./inspect"
+import type { Library } from "./library"
 import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
+import type { Settings } from "./settings"
 import type { ActionId, ActionTable } from "./tables"
 
 type ActionOf<Id extends ActionId> = ActionTable[Id]
@@ -49,4 +51,48 @@ export function perform<Id extends ActionId>(
   const done = action.run(subject, parsed.data, ctx)
   if (!done) return { ok: false, reason: "refused" }
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
+}
+
+// アクションが変えるもの全部: ブックの一覧と、見る人の設定
+export interface World {
+  books: Library
+  settings: Settings
+}
+
+// performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧）
+export type PerformedIn =
+  | { ok: true; result: unknown; book?: Book; books?: Library; settings?: Settings }
+  | { ok: false; reason: Refusal | "no-book" }
+
+// 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
+// ブックが対象なら on のブックで、id を変えたら断る。同じ値の設定は変わらなかったとみなす
+export function performIn(
+  world: World,
+  id: string,
+  args: unknown,
+  on: { book: string } | undefined,
+  ctx: ActionContext,
+): PerformedIn {
+  const target: ActionTarget | undefined = ctx.registry.actions.get(id)?.target
+  const loose = perform as (
+    subject: unknown,
+    id: string,
+    args: unknown,
+    ctx: ActionContext,
+  ) => ReturnType<typeof perform>
+  if (target === "book") {
+    const book = world.books[on?.book ?? ""]
+    if (!book) return { ok: false, reason: "no-book" }
+    const done = loose(book, id, args, ctx)
+    if (!done.ok) return done
+    const next = done.next as Book
+    if (next.id !== book.id) return { ok: false, reason: "refused" }
+    return next === book ? { ok: true, result: done.result } : { ok: true, result: done.result, book: next }
+  }
+  const done = loose(target === "library" ? world.books : world.settings, id, args, ctx)
+  if (!done.ok) return done
+  if (target === "library") return { ok: true, result: done.result, books: done.next as Library }
+  const next = done.next as Settings
+  const same = JSON.stringify(next) === JSON.stringify(world.settings)
+  return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
 }

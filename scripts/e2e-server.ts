@@ -11,7 +11,13 @@ const built = await Bun.spawn(["go", "build", "-o", exe, "./cmd/matomezu"], { st
 if (built !== 0) process.exit(built)
 // 画面のビルドは、配るサーバーが答えた時点で出来上がっている
 for (;;) {
-  if (await fetch(wait).then(r => r.ok, () => false)) break
+  if (
+    await fetch(wait).then(
+      r => r.ok,
+      () => false,
+    )
+  )
+    break
   await Bun.sleep(200)
 }
 rmSync(home, { recursive: true, force: true })

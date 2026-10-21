@@ -3,12 +3,12 @@
 
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { hasPages, restoreBooks, singleBooks } from "../core/book"
-import type { ActionContext, ActionTarget } from "../core/def/action"
+import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang } from "../core/i18n/i18n"
 import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
-import { type ArgsOf, perform, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
+import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import { restoreSettings, type Settings } from "../core/settings"
@@ -176,42 +176,19 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     on?: { book: string },
   ): { ok: true; result: unknown; next: Partial<AppState> } | { ok: false; reason: Refusal | "no-book" } => {
     const { books, workspace, settings } = getState()
-    const target: ActionTarget | undefined = registry.actions.get(id)?.target
-    const loose = perform as (
-      subject: unknown,
-      id: string,
-      args: unknown,
-      ctx: ActionContext,
-    ) => ReturnType<typeof perform>
-    if (target === "book") {
-      const book = books[on?.book ?? ""]
-      if (!book) return { ok: false, reason: "no-book" }
-      const done = loose(book, id, args, ctx())
-      if (!done.ok) return done
-      const next = done.next as Book
-      if (next.id !== book.id) return { ok: false, reason: "refused" }
-      if (next === book) return { ok: true, result: done.result, next: {} }
-      return {
-        ok: true,
-        result: done.result,
-        next: { books: { ...books, [book.id]: next }, workspace: followBook(registry, workspace, next) },
-      }
-    }
-    const subject = target === "library" ? books : settings
-    const done = loose(subject, id, args, ctx())
+    const done = performIn({ books, settings }, id, args, on, ctx())
     if (!done.ok) return done
-    if (target === "library") {
-      const next = done.next as AppState["books"]
-      return {
-        ok: true,
-        result: done.result,
-        next: { books: next, workspace: followLibrary(registry, workspace, next) },
-      }
+    const next: Partial<AppState> = {}
+    if (done.book) {
+      next.books = { ...books, [done.book.id]: done.book }
+      next.workspace = followBook(registry, workspace, done.book)
     }
-    // 同じ値の設定なら知らせない
-    const next = done.next as Settings
-    const same = JSON.stringify(next) === JSON.stringify(settings)
-    return { ok: true, result: done.result, next: same ? {} : { settings: next } }
+    if (done.books) {
+      next.books = done.books as AppState["books"]
+      next.workspace = followLibrary(registry, workspace, done.books as AppState["books"])
+    }
+    if (done.settings) next.settings = done.settings
+    return { ok: true, result: done.result, next }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じる
   const commit = (next: Partial<AppState>) => {
