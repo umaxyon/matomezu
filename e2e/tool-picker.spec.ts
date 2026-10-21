@@ -1,0 +1,87 @@
+import { expect, type Page, test } from "@playwright/test"
+
+const picker = (page: Page) => page.getByRole("toolbar", { name: "ツールの切り替え" })
+
+async function paperPoint(page: Page, x: number, y: number) {
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  return { x: paper.x + x, y: paper.y + y }
+}
+
+async function longPress(page: Page, at: { x: number; y: number }) {
+  await page.mouse.move(at.x, at.y)
+  await page.mouse.down({ button: "right" })
+  await page.waitForTimeout(350)
+}
+
+test("紙の上で右ボタンを長押しすると、ポインタの近くに道具のアイコンが出て、右クリックのメニューは出ない。ハンドを押すとハンドになる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const at = await paperPoint(page, 400, 300)
+  await longPress(page, at)
+  await expect(picker(page)).toBeVisible()
+  await page.mouse.up({ button: "right" })
+  await expect(page.getByRole("menu")).toHaveCount(0)
+  const buttons = picker(page).getByRole("button")
+  await expect(buttons).toHaveCount(3)
+  await expect(picker(page).getByRole("button", { name: "選択ツール" })).toHaveAttribute("aria-pressed", "true")
+  // 横並びでポインタの上
+  const hand = (await picker(page).getByRole("button", { name: "ハンドツール" }).boundingBox())!
+  expect(hand.y + hand.height).toBeLessThan(at.y)
+  expect(Math.abs(hand.x + hand.width / 2 - at.x)).toBeLessThan(30)
+  await picker(page).getByRole("button", { name: "ハンドツール" }).click()
+  await expect(picker(page)).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()
+})
+
+test("短い右クリックはメニューを出す。押している間に動けば長押しにならず、離したときにメニューが出る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const at = await paperPoint(page, 400, 300)
+  await page.mouse.click(at.x, at.y, { button: "right" })
+  await expect(page.getByRole("menu")).toBeVisible()
+  await page.keyboard.press("Escape")
+  await page.mouse.move(at.x, at.y)
+  await page.mouse.down({ button: "right" })
+  await page.mouse.move(at.x + 20, at.y, { steps: 3 })
+  await page.waitForTimeout(350)
+  await expect(picker(page)).toHaveCount(0)
+  await page.mouse.up({ button: "right" })
+  await expect(page.getByRole("menu")).toBeVisible()
+})
+
+test("付け替えは道具を変えずに閉じる。Escape・離れる・外を押すと閉じる。Space で開いて、もう一度 Space で閉じる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const at = await paperPoint(page, 400, 300)
+  await longPress(page, at)
+  await page.mouse.up({ button: "right" })
+  await picker(page).getByRole("button", { name: "付け替えツール" }).click()
+  await expect(picker(page)).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "選択ツール" })).toBeVisible()
+
+  await longPress(page, at)
+  await page.mouse.up({ button: "right" })
+  await page.keyboard.press("Escape")
+  await expect(picker(page)).toHaveCount(0)
+
+  await longPress(page, at)
+  await page.mouse.up({ button: "right" })
+  await page.mouse.move(at.x + 300, at.y + 200, { steps: 5 })
+  await expect(picker(page)).toHaveCount(0)
+
+  await longPress(page, at)
+  await page.mouse.up({ button: "right" })
+  await page.mouse.click(at.x + 30, at.y + 30)
+  await expect(picker(page)).toHaveCount(0)
+
+  await page.mouse.move(at.x, at.y)
+  await page.keyboard.press("Space")
+  await expect(picker(page)).toBeVisible()
+  const select = (await picker(page).getByRole("button", { name: "選択ツール" }).boundingBox())!
+  expect(Math.abs(select.y + select.height - at.y)).toBeLessThan(60)
+  await page.keyboard.press("Space")
+  await expect(picker(page)).toHaveCount(0)
+})

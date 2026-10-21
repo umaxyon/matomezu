@@ -12,7 +12,18 @@ import { type ArgsOf, perform, type Refusal, type ResultOf, type TargetOf } from
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import type { Settings } from "../core/settings"
-import { openBook, panBy, resize, select, setTool, stopPlacing, type Tool, togglePlacing } from "../core/stage"
+import {
+  closePicker,
+  openBook,
+  openPicker,
+  panBy,
+  resize,
+  select,
+  setTool,
+  stopPlacing,
+  type Tool,
+  togglePlacing,
+} from "../core/stage"
 import type { ActionId, ItemId, SingleBookTypeId, SkinId } from "../core/tables"
 import {
   close,
@@ -87,6 +98,9 @@ export interface Actions {
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
   stopPlacing(stage: string): void
   select(stage: string, ids: readonly string[]): void // そのステージで選ぶアイテム（開いているページのもの）
+  // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
+  openPicker(stage: string, at: Point | null): void
+  closePicker(): void
 }
 
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
@@ -233,8 +247,10 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     pressKey: (key, scopes) => {
       const { contextMenu, dialog, workspace, settings } = getState()
       const table = keysFor(settings.keys)
-      const stage = contextMenu?.stage ?? dialog?.stage ?? workspace.current
-      for (const scope of keyScopes({ menu: contextMenu !== null, dialog: dialog !== null }, scopes)) {
+      const picker = workspace.stages.find(s => s.picker !== null)?.id
+      const stage = contextMenu?.stage ?? picker ?? dialog?.stage ?? workspace.current
+      const menu = contextMenu !== null || picker !== undefined
+      for (const scope of keyScopes({ menu, dialog: dialog !== null }, scopes)) {
         const hit = findKey(table, scope, key)
         if (!hit) continue
         const { command, args } = hit.binding
@@ -291,6 +307,12 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     togglePlacing: (id, item) => withWorkspace(ws => mapStage(ws, id, s => togglePlacing(s, item))),
     stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),
     select: (id, ids) => withWorkspace(ws => mapStage(ws, id, s => select(s, ids))),
+    openPicker: (id, at) =>
+      withWorkspace(ws => {
+        const closed = ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)
+        return mapStage(closed, id, s => openPicker(s, at))
+      }),
+    closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
   }
   return { ...defs, plugins, state: store, actions }
 }

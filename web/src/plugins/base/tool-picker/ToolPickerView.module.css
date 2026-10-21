@@ -1,0 +1,90 @@
+/* 押している間の輪。RING_SHOW だけ待ってから、真上から満ちる */
+.ring {
+  position: fixed;
+  z-index: 30;
+  overflow: visible;
+  pointer-events: none;
+}
+.ring circle {
+  fill: none;
+  stroke: var(--skin-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0;
+  stroke-dashoffset: var(--len);
+  animation-name: fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes fill {
+  from {
+    opacity: 0.85;
+    stroke-dashoffset: var(--len);
+  }
+  to {
+    opacity: 0.85;
+    stroke-dashoffset: 0;
+  }
+}
+/* 出ている間は画面全体に薄い幕を掛けて、ほかの操作を止める */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.12);
+}
+.button {
+  position: fixed;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--skin-line);
+  border-radius: 50%;
+  background: var(--skin-bar);
+  color: var(--skin-text);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+.button:hover,
+.button:focus-visible {
+  background: var(--skin-btn-hover);
+  outline: none;
+}
+.button[aria-pressed="true"] {
+  background: var(--skin-accent);
+  border-color: transparent;
+  color: var(--skin-bg);
+}
+.button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* 乗ったアイコンの名前（位置は並べ方で変える） */
+.tip {
+  position: fixed;
+  padding: 3px 8px;
+  border: 1px solid var(--skin-line);
+  border-radius: 5px;
+  background: var(--skin-bar);
+  color: var(--skin-text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.tip[data-lay="row"] {
+  transform: translate(-50%, calc(-100% + var(--below, 0) * 100%));
+}
+.tip[data-lay="left"] {
+  transform: translate(-100%, -50%);
+}
+.tip[data-lay="right"] {
+  transform: translate(0, -50%);
+}

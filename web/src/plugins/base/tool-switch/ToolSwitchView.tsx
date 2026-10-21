@@ -5,10 +5,8 @@ import { TOOLS, type Tool } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useT } from "../../../ui/i18n"
 import { useApp } from "../../../ui/store-context"
-import { TOOL_ICONS } from "./icons"
+import { TOOL_ICONS, TOOL_NAMES } from "./icons"
 import styles from "./ToolSwitchView.module.css"
-
-const NAMES = { select: "Select tool", reparent: "Reparent tool", hand: "Hand tool" } as const
 
 // 左右の控え（手前から 120 度）が、真ん中から 20px 横・4px 下になる輪の半径と、真後ろで下げる量（px）
 const R = 20 / Math.sin(Math.PI / 3)
@@ -54,7 +52,7 @@ export function ToolSwitchView({ stage }: { stage: string }) {
   }, [tool])
 
   if (!next.shown) return null
-  const name = t(NAMES[tool])
+  const name = t(TOOL_NAMES[tool])
   return (
     <button
       type="button"

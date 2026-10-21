@@ -1,12 +1,19 @@
-// 右クリックのメニューのコマンド: 開いているメニューを閉じる（キーの既定は Escape）
+// メニューのコマンド: 開いているメニュー（右クリックのメニュー・道具のアイコン）を閉じる（キーの既定は Escape と Space）
 import { defineCommand } from "../../../store/commands/def"
 import { defineKeys } from "../../../store/keys"
 
 export const MENU_CLOSE = defineCommand({
   id: "menu.close",
   title: "Close menu",
-  run: (_ctx, a) => a.closeContextMenu(),
-  when: ctx => ctx.contextMenu !== null,
+  run: (_ctx, a) => {
+    a.closeContextMenu()
+    a.closePicker()
+  },
+  when: ctx => ctx.contextMenu !== null || ctx.workspace.stages.some(s => s.picker !== null),
 })
 
-export const MENU_KEYS = defineKeys([{ key: "Escape", command: "menu.close", scope: "menu" }])
+// Space で開いた道具のアイコンは、もう一度 Space で閉じる
+export const MENU_KEYS = defineKeys([
+  { key: "Escape", command: "menu.close", scope: "menu" },
+  { key: "Space", command: "menu.close", scope: "menu" },
+])

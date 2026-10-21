@@ -6,12 +6,14 @@ import { LOOKS_MESSAGES } from "./looks/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
 import { STAGE_MESSAGES } from "./stage/messages"
+import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
 
 export const BASE_MESSAGES = {
   ...STAGE_MESSAGES,
   ...TOOL_SWITCH_MESSAGES,
+  ...TOOL_PICKER_MESSAGES,
   ...TOOLBOX_MESSAGES,
   ...DIALOG_MESSAGES,
   ...MENU_MESSAGES,

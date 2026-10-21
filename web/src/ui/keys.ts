@@ -1,5 +1,6 @@
 // キーの受け口: 画面で押したキーを 1 か所で受け、store の割り当てで引いてコマンドを行う（行ったらブラウザの動きを止める）。
 // 日本語の変換中のキーは見ない。文字の入力欄の中では、Escape と 1 行の欄の Enter だけを見る（ほかは入力欄に任せる）。
+// 焦点のあるボタン・リンクの Space と Enter は、それを押す動きに任せる。
 // 押した所の要素から外側へたどり、data-key-scope で名乗った範囲（プラグインの範囲）を狭いものから渡す
 import { useEffect, useMemo } from "react"
 import { keyLabel, pressedKey, seenInText } from "../core/keys"
@@ -38,6 +39,8 @@ export function KeyListener() {
       const target = e.target instanceof Element ? e.target : null
       const field = textField(target)
       if (field && !seenInText(key, field)) return
+      // 焦点のあるボタン・リンクの Space と Enter は、それを押す動き（ブラウザ）に任せる
+      if ((key === "Space" || key === "Enter") && target?.closest("button, a[href], [role=button], summary")) return
       if (pressKey(key, scopesOf(target))) e.preventDefault()
     }
     window.addEventListener("keydown", onKey)

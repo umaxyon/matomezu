@@ -3,7 +3,7 @@
 export interface CommandTable {}
 export interface DialogTable {}
 
-// キーの範囲（割り当てが効く所）→ true。土台は app（アプリ全体）・stage（カレントのステージ）・dialog・menu（右クリックのメニュー）。
+// キーの範囲（割り当てが効く所）→ true。土台は app（アプリ全体）・stage（カレントのステージ）・dialog・menu（開いているメニュー: 右クリックのメニューと道具のアイコン）。
 // プラグインは自分の id を頭に付けた範囲を書き足し、自分のウィジェットの要素に data-key-scope で名乗らせる
 export interface KeyScopeTable {
   app: true

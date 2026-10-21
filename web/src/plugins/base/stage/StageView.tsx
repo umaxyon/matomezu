@@ -69,6 +69,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       ref={ref}
       className={styles.stage}
       aria-label={t("Stage")}
+      data-stage={id}
       data-current={isCurrent}
       data-multi={isMulti}
       data-paper={hasPaper}

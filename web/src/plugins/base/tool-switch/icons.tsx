@@ -1,4 +1,4 @@
-// 道具のアイコン（24 の四角の中に描く線。見た目の重心をそろえるため、少しずらしてある）
+// 道具のアイコン（24 の四角の中に描く線。見た目の重心をそろえるため、少しずらしてある）と名前
 import type { Tool } from "../../../core/stage"
 import { icon } from "../icon"
 
@@ -20,3 +20,5 @@ export const TOOL_ICONS: Record<Tool, ReturnType<typeof icon>> = {
     </g>,
   ),
 }
+
+export const TOOL_NAMES = { select: "Select tool", reparent: "Reparent tool", hand: "Hand tool" } as const

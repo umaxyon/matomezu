@@ -32,6 +32,7 @@ export interface Stage {
   tool: Tool
   placing: ItemId | null // 置こうとしているアイテム（ツールボックスで選んだもの。置くか取り消すまで）
   selection: readonly string[] // 選んでいるアイテムの id（開いているページのもの）
+  picker: { at: Point | null } | null // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める）
 }
 
 // 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ
@@ -47,12 +48,13 @@ const HOME: Point = { x: 0, y: 0 }
 const NONE: readonly string[] = []
 
 export function newStage(id: string, opened: Opened | null = null): Stage {
-  return { id, opened, zoom: 1, pan: HOME, view: null, tool: "select", placing: null, selection: NONE }
+  return { id, opened, zoom: 1, pan: HOME, view: null, tool: "select", placing: null, selection: NONE, picker: null }
 }
 
-// 開くものが変わったときに、置こうとしているアイテムと選択を捨てる
+// 開くものが変わったときに、置こうとしているアイテムと選択を捨て、道具のアイコンを閉じる
 function leave(stage: Stage): Stage {
-  return stage.placing === null && stage.selection.length === 0 ? stage : { ...stage, placing: null, selection: NONE }
+  if (stage.placing === null && stage.selection.length === 0 && stage.picker === null) return stage
+  return { ...stage, placing: null, selection: NONE, picker: null }
 }
 
 // ステージに出す紙の大きさ（ページを開いていないか、描けない紙なら null）
@@ -141,6 +143,15 @@ export function togglePlacing(stage: Stage, item: ItemId): Stage {
 
 export function stopPlacing(stage: Stage): Stage {
   return stage.placing === null ? stage : { ...stage, placing: null }
+}
+
+// 道具のアイコンを開く（紙が無ければ開かない）・閉じる
+export function openPicker(stage: Stage, at: Point | null): Stage {
+  return paperOf(stage) ? { ...stage, picker: { at } } : stage
+}
+
+export function closePicker(stage: Stage): Stage {
+  return stage.picker === null ? stage : { ...stage, picker: null }
 }
 
 export function select(stage: Stage, ids: readonly string[]): Stage {
