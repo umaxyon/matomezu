@@ -2,7 +2,15 @@
 // 型では、型の表に書き足した id と、渡したプラグインの id がそろっているかを確かめる（型と実物のずれを、書いた時点で捕まえる）。
 // 1 つのプロジェクトの createMatomezu には、型を書き足したプラグインを全部渡す。わざと減らす app（テストなど）は partial: true
 import type { MESSAGES } from "../core/i18n/messages"
-import type { ActionTable, BookTypeTable, ItemTable, MessageTable, PaperTable, ThemeTable } from "../core/tables"
+import type {
+  ActionTable,
+  BookTypeTable,
+  ItemTable,
+  MessageTable,
+  PaperTable,
+  SkinTable,
+  ThemeTable,
+} from "../core/tables"
 import type { IdsOf, Part, Plugin } from "./plugin"
 import { type AppStore, createAppStore, type StoreOptions } from "./store"
 import type { CommandTable, DialogTable } from "./tables"
@@ -13,6 +21,7 @@ interface Tables {
   actions: ActionTable
   themes: ThemeTable
   papers: PaperTable
+  skins: SkinTable
   commands: CommandTable
   dialogs: DialogTable
 }

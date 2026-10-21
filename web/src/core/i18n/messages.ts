@@ -37,8 +37,6 @@ export const MESSAGES = defineMessages({
   "Search by book name": { ja: "ブックの名前で探す" },
   Books: { ja: "ブック" },
   "No matching books": { ja: "当てはまるブックはありません" },
-  Dark: { ja: "ダーク" },
-  Light: { ja: "ライト" },
   Portrait: { ja: "縦" },
   Landscape: { ja: "横" },
   "Book menu": { ja: "ブックのメニュー" },

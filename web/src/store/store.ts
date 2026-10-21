@@ -12,7 +12,7 @@ import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import type { Settings } from "../core/settings"
 import { openBook, panBy, resize } from "../core/stage"
-import type { ActionId, SingleBookTypeId } from "../core/tables"
+import type { ActionId, SingleBookTypeId, SkinId } from "../core/tables"
 import {
   close,
   focus,
@@ -98,6 +98,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   plugins: Ps
   home?: SingleBookTypeId // ホームのブック（1 冊だけのタイプ）。最初に開くブックと「ホームを開く」の行き先で、ブックの一覧のアクションを許すかはこのタイプが決める
   books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、ホームを開く
+  autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。app にある最初の言語を使い、無ければ英語
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
@@ -109,7 +110,7 @@ function startLang(registry: Registry, lang: Lang | readonly string[] = []): Lan
 
 export function createAppStore<const Ps extends readonly Plugin[]>(options: StoreOptions<Ps>): AppStore<Ps> {
   const { plugins } = options
-  const defs = assemble(plugins, options.home ?? null)
+  const defs = assemble(plugins, options.home ?? null, options.autoSkin)
   const { registry, home } = defs
   const initial =
     options.initial ?? initialState(registry, options.books ?? [], startLang(registry, options.lang), home)

@@ -201,15 +201,17 @@ test("マスターの設定で言語とスキンを変える", () => {
   expect(document.documentElement.dataset.skin).toBe("light")
 })
 
-test("表に無いスキンは、自動のスキンで描く（data-skin を付けない）", () => {
+test("app に無いスキンは選べず、設定に残っていても自動のスキンで描く（data-skin を付けない）", () => {
   const store = renderApp()
   act(() => {
     store.actions.setSkin("light")
   })
   expect(document.documentElement.dataset.skin).toBe("light")
-  act(() => {
-    store.actions.setSkin("removed-skin")
-  })
+  expect(store.actions.setSkin("removed-skin")).toBe(false)
+  cleanup()
+  // 外したスキンが設定に残っている状態から描く
+  const kept = store.state.getState()
+  renderApp({ initial: { ...kept, settings: { ...kept.settings, skin: "removed-skin" } } })
   expect(document.documentElement.dataset.skin).toBeUndefined()
 })
 

@@ -13,12 +13,15 @@ export const SET_LANG = defineAction({
     ctx.registry.languages.has(args.lang) ? { next: { ...settings, lang: args.lang }, result: {} } : null,
 })
 
-// スキンの id は画面の側（ui の表）が持つので、ここでは形だけを見る（表に無い id は画面が自動のスキンで描く）
+// "auto" か、app にあるスキン（無いスキンは断る）
 export const SET_SKIN = defineAction({
   id: "settings.skin",
   title: "Skin",
   target: "settings",
   needs: [],
   args: z.strictObject({ skin: z.string().min(1) }),
-  run: (settings, args) => ({ next: { ...settings, skin: args.skin }, result: {} }),
+  run: (settings, args, ctx) =>
+    args.skin === "auto" || ctx.registry.skins.has(args.skin)
+      ? { next: { ...settings, skin: args.skin }, result: {} }
+      : null,
 })

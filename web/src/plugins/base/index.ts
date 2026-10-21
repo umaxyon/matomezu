@@ -1,8 +1,10 @@
-// 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・ブックを開く・ページ・紙・設定・標準のテーマ。
+// 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）。
 // 画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineDialog } from "../../store/dialogs"
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_OPEN, PAGE_NEW, PAGE_OPEN } from "./book-commands"
+import { DARK } from "./dark"
+import { LIGHT } from "./light"
 import { BASE_MESSAGES } from "./messages"
 import { PAGE_ADD } from "./page-add"
 import { A3, A4, A5 } from "./papers"
@@ -22,6 +24,7 @@ export const BASE = defineBuiltin({
   actions: [PAGE_ADD, SET_LANG, SET_SKIN],
   themes: [STANDARD],
   papers: PAPERS,
+  skins: [DARK, LIGHT],
   commands: [
     STAGE_HOME,
     STAGE_SPLIT,
@@ -46,6 +49,10 @@ declare module "../../core/tables" {
   }
   interface ThemeTable {
     standard: typeof STANDARD
+  }
+  interface SkinTable {
+    dark: typeof DARK
+    light: typeof LIGHT
   }
   interface PaperTable {
     a5: typeof A5

@@ -20,4 +20,6 @@ export const BASE_MESSAGES = defineMessages({
   Create: { ja: "作成" },
   Language: { ja: "言語" },
   Skin: { ja: "スキン" },
+  Dark: { ja: "ダーク" },
+  Light: { ja: "ライト" },
 })

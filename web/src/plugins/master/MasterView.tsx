@@ -3,7 +3,6 @@
 import type { Stage } from "../../core/stage"
 import { useCommand } from "../../ui/commands"
 import { useT } from "../../ui/i18n"
-import { SKINS } from "../../ui/skins"
 import { useApp, useRegistry } from "../../ui/store-context"
 import styles from "./MasterView.module.css"
 
@@ -32,7 +31,7 @@ export function MasterView({ stage }: { stage: Stage }) {
 function Settings({ stage }: { stage: string }) {
   const t = useT()
   const { lang, skin } = useApp(s => s.settings)
-  const { languages } = useRegistry()
+  const { languages, skins } = useRegistry()
   const setLang = useCommand(stage, "settings.lang")
   const setSkin = useCommand(stage, "settings.skin")
   return (
@@ -62,7 +61,7 @@ function Settings({ stage }: { stage: string }) {
           onChange={e => setSkin.run(e.target.value)}
         >
           <option value="auto">{t("Auto")}</option>
-          {SKINS.map(s => (
+          {[...skins.values()].map(s => (
             <option key={s.id} value={s.id}>
               {t(s.title)}
             </option>

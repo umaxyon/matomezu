@@ -6,13 +6,14 @@ import type { ActionDef } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
+import type { SkinDef } from "./def/skin"
 import { THEME_TOKENS, type ThemeDef } from "./def/theme"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
 import { LANGUAGES, type Lang, type LanguagePack, MESSAGES, type MessageSet } from "./i18n/messages"
 import type { ItemId, ItemTable } from "./tables"
 
-export type { ActionId, BookTypeId, ItemId, PaperId, ThemeId } from "./tables"
+export type { ActionId, BookTypeId, ItemId, PaperId, SkinId, ThemeId } from "./tables"
 
 // アイテムの、置いたものが持つ項目の型
 export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
@@ -24,6 +25,7 @@ export interface RegistryParts {
   actions: readonly ActionDef[]
   themes: readonly ThemeDef[]
   papers: readonly PaperDef[]
+  skins: readonly SkinDef[] // アプリの枠の見た目（見る人の設定で選ぶ）
   messages: readonly MessageSet[] // 土台の文言（MESSAGES）は、いつも表に入る
   languages: readonly LanguagePack[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
 }
@@ -36,6 +38,7 @@ export interface Registry {
   actions: ReadonlyMap<string, ActionDef>
   themes: ReadonlyMap<string, ThemeDef>
   papers: ReadonlyMap<string, PaperDef>
+  skins: ReadonlyMap<string, SkinDef>
   messages: Messages
   languages: ReadonlyMap<Lang, string> // app で選べる言語の id → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
@@ -56,6 +59,7 @@ export function buildRegistry(parts: RegistryParts): Registry {
     actions: byId(parts.actions),
     themes: byId(parts.themes),
     papers: byId(parts.papers),
+    skins: byId(parts.skins),
     messages: mergeMessages(parts),
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
@@ -97,6 +101,7 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
     action: parts.actions,
     theme: parts.themes,
     paper: parts.papers,
+    skin: parts.skins,
   }
   for (const [name, defs] of Object.entries(tables)) {
     const seen = new Set<string>()
@@ -171,6 +176,7 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
     ["action", parts.actions],
     ["theme", parts.themes],
     ["paper", parts.papers],
+    ["skin", parts.skins],
   ] as const
   for (const [kind, defs] of named)
     for (const d of defs as readonly { id: string; title: string }[])

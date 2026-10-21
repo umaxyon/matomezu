@@ -1,4 +1,5 @@
-import { defineSkin } from "./def"
+// base のスキン: ダーク
+import { defineSkin } from "../../core/def/skin"
 
 export const DARK = defineSkin({
   id: "dark",
