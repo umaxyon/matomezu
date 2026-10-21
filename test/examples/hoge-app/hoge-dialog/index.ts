@@ -1,6 +1,7 @@
-// 開発者が自分のアプリに作るプラグインの見本: hoge のダイアログと、それを開くコマンド（React なし）
+// 開発者が自分のアプリに作るプラグインの見本: hoge のダイアログと、それを開くコマンドと、その既定のキー（React なし）
 import { defineCommand } from "../../../../web/src/store/commands/def"
 import { defineDialog } from "../../../../web/src/store/dialogs"
+import { defineKeys } from "../../../../web/src/store/keys"
 import { definePlugin } from "../../../../web/src/store/plugin"
 import { HOGE_MESSAGES } from "./messages"
 
@@ -27,9 +28,17 @@ export const HOGE_GREET = defineCommand({
   when: () => true,
 })
 
+// 既定のキー。結べるのは自分のコマンドだけで、引数のあるコマンドには args に決まった値を書く。
+// 中の部品のキーとぶつかれば使われず（利用者が自分で割り当てる）、どう決まったかは store/keys.ts の inspectKey で分かる
+export const HOGE_KEYS = defineKeys([
+  { key: "Mod+Shift+H", command: "hoge/open", scope: "stage" },
+  { key: "Mod+Shift+J", command: "hoge/greet", scope: "app", args: "ja" },
+])
+
 export const HOGE = definePlugin({
   id: "hoge",
   commands: [HOGE_OPEN, HOGE_GREET],
+  keys: HOGE_KEYS,
   dialogs: [HOGE_DIALOG],
   messages: HOGE_MESSAGES,
 })

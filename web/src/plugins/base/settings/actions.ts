@@ -1,6 +1,7 @@
-// 設定のアクション: 言語・スキンを変える。使えるかはホームのブックのタイプが決める（組織のホームで、変えさせない設定を決められる）
+// 設定のアクション: 言語・スキン・キーの割り当ての変更を変える。使えるかはホームのブックのタイプが決める（組織のホームで、変えさせない設定を決められる）
 import { z } from "zod"
 import { defineAction } from "../../../core/def/action"
+import { KeyChangesSchema } from "../../../core/keys"
 
 export const SET_LANG = defineAction({
   id: "settings.lang",
@@ -24,4 +25,15 @@ export const SET_SKIN = defineAction({
     args.skin === "auto" || ctx.registry.skins.has(args.skin)
       ? { next: { ...settings, skin: args.skin }, result: {} }
       : null,
+})
+
+// キーの割り当ての、利用者の変更（足した行・外した既定の行）を丸ごと置き換える。
+// 今の app に無いコマンドの行も受けて残す（プラグインを戻せばまた効く）
+export const SET_KEYS = defineAction({
+  id: "settings.keys",
+  title: "Shortcut keys",
+  target: "settings",
+  needs: [],
+  args: KeyChangesSchema,
+  run: (settings, args) => ({ next: { ...settings, keys: args }, result: {} }),
 })

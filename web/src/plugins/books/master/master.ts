@@ -16,8 +16,8 @@ export const MASTER = defineBookType({
   pages: null,
   items: { allowed: [], defaults: [] },
   actions: {
-    allowed: ["book.create", "settings.lang", "settings.skin"],
-    defaults: ["book.create", "settings.lang", "settings.skin"],
+    allowed: ["book.create", "settings.lang", "settings.skin", "settings.keys"],
+    defaults: ["book.create", "settings.lang", "settings.skin", "settings.keys"],
   },
   theme: "standard",
   tokens: [],

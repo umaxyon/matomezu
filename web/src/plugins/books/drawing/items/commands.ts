@@ -2,6 +2,7 @@
 import type { Point } from "../../../../core/geom"
 import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
+import { defineKeys } from "../../../../store/keys"
 import { BOX } from "../box"
 import { fitsPaper, itemSize, itemsOf, PLACE_OFFSET } from "./items"
 
@@ -78,3 +79,9 @@ export const DRAWING_MOVE = defineCommand({
   },
   when: onDrawingPage,
 })
+
+// 選んでいるアイテムを消すキー（Mac の delete キーは Backspace として届く）
+export const ITEM_KEYS = defineKeys([
+  { key: "Delete", command: "drawing.delete", scope: "stage" },
+  { key: "Backspace", command: "drawing.delete", scope: "stage" },
+])

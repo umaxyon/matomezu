@@ -1,0 +1,56 @@
+// キーの受け口: 画面で押したキーを 1 か所で受け、store の割り当てで引いてコマンドを行う（行ったらブラウザの動きを止める）。
+// 日本語の変換中のキーは見ない。文字の入力欄の中では、Escape と 1 行の欄の Enter だけを見る（ほかは入力欄に任せる）。
+// 押した所の要素から外側へたどり、data-key-scope で名乗った範囲（プラグインの範囲）を狭いものから渡す
+import { useEffect, useMemo } from "react"
+import { keyLabel, pressedKey, seenInText } from "../core/keys"
+import { keysOf, keyTable } from "../store/keys"
+import type { CommandId } from "../store/tables"
+import { useActions, useApp, useDefs } from "./store-context"
+
+// Mac か（Mod を Cmd にし、キーの名前を記号で出す）
+export const isMac = (): boolean => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+
+// 文字の入力欄なら、1 行か複数行か
+function textField(el: Element | null): "line" | "multi" | null {
+  const field = el?.closest("input, textarea, select, [contenteditable]")
+  if (!field) return null
+  if (field instanceof HTMLInputElement)
+    return ["checkbox", "radio", "button", "submit"].includes(field.type) ? null : "line"
+  return "multi"
+}
+
+function scopesOf(el: Element | null): string[] {
+  const scopes: string[] = []
+  for (let e = el?.closest("[data-key-scope]"); e; e = e.parentElement?.closest("[data-key-scope]"))
+    scopes.push(e.getAttribute("data-key-scope") ?? "")
+  return scopes.filter(s => s !== "")
+}
+
+// 画面の根に 1 つ置く
+export function KeyListener() {
+  const { pressKey } = useActions()
+  useEffect(() => {
+    const mac = isMac()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing || e.keyCode === 229) return
+      const key = pressedKey(e, mac)
+      if (!key) return
+      const target = e.target instanceof Element ? e.target : null
+      const field = textField(target)
+      if (field && !seenInText(key, field)) return
+      if (pressKey(key, scopesOf(target))) e.preventDefault()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [pressKey])
+  return null
+}
+
+// コマンドに効いているキーの、画面に出す名前（無ければ null。いくつもあれば勝つ順の最初）
+export function useKeyLabel(command: CommandId): string | null {
+  const defs = useDefs()
+  const changes = useApp(s => s.settings.keys)
+  const table = useMemo(() => keyTable(defs.keys, changes), [defs.keys, changes])
+  const first = keysOf(table, command)[0]
+  return first ? keyLabel(first.binding.key, isMac()) : null
+}

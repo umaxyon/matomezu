@@ -5,6 +5,8 @@ import type { Registry } from "../../core/registry"
 import type { Book } from "../../core/schema/book"
 import type { Stage } from "../../core/stage"
 import type { Workspace } from "../../core/workspace"
+import type { OpenedContextMenu } from "../context-menus"
+import type { OpenedDialog } from "../dialogs"
 import type { Actions, Settings } from "../store"
 
 // コマンドが受け取る、呼ばれた場所の様子
@@ -15,6 +17,8 @@ export interface CommandContext {
   book: Book | null // そのステージで開いているブック
   workspace: Workspace
   settings: Settings
+  dialog: OpenedDialog | null // 開いているダイアログ
+  contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
 }
 
 export interface CommandDef<A = undefined> {

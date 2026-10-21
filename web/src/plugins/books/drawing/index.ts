@@ -1,4 +1,4 @@
-// 図面のプラグイン: ページごとに紙を置く図面のブックと、その上に置く箱・置く・動かす操作、図面の設定
+// 図面のプラグイン: ページごとに紙を置く図面のブックと、その上に置く箱・置く・動かす・消す操作とそのキー、図面の設定
 import { defineBuiltin } from "../../../store/plugin"
 import { BOX, BOX_ADD_DIALOG, BOX_EDIT_DIALOG } from "./box"
 import { DRAWING } from "./drawing"
@@ -7,6 +7,7 @@ import {
   DRAWING_EDIT,
   DRAWING_MOVE,
   DRAWING_PLACE,
+  ITEM_KEYS,
   ITEM_MOVE,
   ITEM_PLACE,
   ITEM_REMOVE,
@@ -22,6 +23,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
   actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_REMOVE],
   commands: [DRAWING_SETTINGS, DRAWING_PLACE, DRAWING_MOVE, DRAWING_EDIT, DRAWING_DELETE],
   dialogs: [DRAWING_SETTINGS_DIALOG, BOX_ADD_DIALOG, BOX_EDIT_DIALOG],
+  keys: ITEM_KEYS,
   messages: DRAWING_MESSAGES,
 })
 

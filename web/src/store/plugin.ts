@@ -1,4 +1,4 @@
-// プラグイン: 1 つの部品の定義の組（ブックのタイプ・アイテム・アクション・テーマ・紙・コマンド・ダイアログ）。React を使わない部分だけを持つ。
+// プラグイン: 1 つの部品の定義の組（ブックのタイプ・アイテム・アクション・テーマ・紙・コマンド・ダイアログ・キーの既定の割り当て）。React を使わない部分だけを持つ。
 // app は渡されたプラグインを assemble で 1 つの定義の表（AppDefs）にし、作った後は変えない
 import type { ActionDef } from "../core/def/action"
 import type { BookTypeDef } from "../core/def/book-type"
@@ -8,10 +8,12 @@ import type { Scheme, SkinDef } from "../core/def/skin"
 import type { ThemeDef } from "../core/def/theme"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePack, MessageSet } from "../core/i18n/messages"
+import { normalizeKey } from "../core/keys"
 import { buildRegistry, type Registry } from "../core/registry"
 import { type AutoSkin, autoSkin } from "../core/skin"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef } from "./dialogs"
+import type { DefaultKey, KeyDef } from "./keys"
 
 export interface PluginParts {
   bookTypes?: readonly BookTypeDef[]
@@ -24,8 +26,9 @@ export interface PluginParts {
   dialogs?: readonly DialogDef<unknown>[] // 開くときに渡す値の型は、ダイアログごとに違う
   messages?: MessageSet // このプラグインの文言（defineMessages で書き、型の表 MessageTable に書き足す）
   languages?: readonly LanguagePack[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
+  keys?: readonly KeyDef[] // キーの既定の割り当て（結べるのは自分のコマンドだけ。store/keys.ts）
 }
-export type Part = Exclude<keyof PluginParts, "messages" | "languages">
+export type Part = Exclude<keyof PluginParts, "messages" | "languages" | "keys">
 export const PARTS: readonly Part[] = [
   "bookTypes",
   "items",
@@ -72,6 +75,7 @@ export interface AppDefs {
   autoSkin: AutoSkin | null // 自動のスキンで使う明と暗のスキン（スキンが無ければ null）
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlySet<string>
+  keys: readonly DefaultKey[] // キーの既定の割り当て（キーはそろえた書き方）
 }
 
 // プラグインを 1 つの表にする。id の頭・同じ id の重なり・表どうしの参照・ホームが 1 冊だけのタイプか・自動のスキンの明暗を確かめ、食い違いがあれば作らない
@@ -115,6 +119,7 @@ export function assemble(
     .filter(c => !registry.messages.has(c.title))
     .map(c => problem("E018", { kind: "command", id: c.id, title: c.title }))
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
+  const keys = defaultKeys(plugins, new Set(commands.map(c => c.id)))
   if (home !== null && registry.bookTypes.get(home)?.single !== true) fail("E110", { id: home })
   return {
     registry,
@@ -122,7 +127,33 @@ export function assemble(
     autoSkin: autoSkin(registry, auto),
     commands: new Map(commands.map(c => [c.id, c])),
     dialogs: new Set(dialogs.map(d => d.id)),
+    keys,
   }
+}
+
+// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・外のプラグインがほかのコマンドに結んだ行・中の部品どうしで同じ範囲の同じキーは誤り
+function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>): DefaultKey[] {
+  const keys: DefaultKey[] = []
+  const problems = []
+  for (const p of plugins) {
+    const own = new Set((p.commands ?? []).map(c => c.id))
+    for (const k of p.keys ?? []) {
+      const key = normalizeKey(k.key)
+      if (!key) problems.push(problem("E022", { key: k.key, command: k.command }))
+      else if (!commands.has(k.command)) problems.push(problem("E024", { key: k.key, command: k.command }))
+      else if (!isBuiltin(p) && !own.has(k.command))
+        problems.push(problem("E302", { plugin: p.id, key: k.key, command: k.command }))
+      else keys.push({ binding: { ...k, key }, plugin: p.id, builtin: isBuiltin(p) })
+    }
+  }
+  const seen = new Set<string>()
+  for (const k of keys.filter(k => k.builtin)) {
+    const at = `${k.binding.scope} ${k.binding.key}`
+    if (seen.has(at)) problems.push(problem("E023", { key: k.binding.key, scope: k.binding.scope }))
+    seen.add(at)
+  }
+  if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
+  return keys
 }
 
 function duplicates(kind: string, ids: readonly string[]) {

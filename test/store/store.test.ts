@@ -83,7 +83,7 @@ test("言語とスキンの設定を変える。同じ値なら知らせない",
   const { state, actions } = newStore()
   actions.setLang("en")
   actions.setSkin("light")
-  expect(state.getState().settings).toEqual({ lang: "en", skin: "light" })
+  expect(state.getState().settings).toMatchObject({ lang: "en", skin: "light" })
   const s = state.getState()
   actions.setSkin("light")
   expect(state.getState()).toBe(s)

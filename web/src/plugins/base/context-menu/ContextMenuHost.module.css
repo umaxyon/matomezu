@@ -53,3 +53,13 @@
   border: 0;
   border-top: 1px solid var(--skin-line);
 }
+.label {
+  flex: 1;
+}
+/* 項目の横に添えるキー */
+.key {
+  margin-left: 16px;
+  color: var(--skin-hint);
+  font: inherit;
+  font-size: 12px;
+}

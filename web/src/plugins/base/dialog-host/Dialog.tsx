@@ -1,6 +1,8 @@
 // ダイアログ: 描いている間、画面の上に出し、ほかの操作を止める。Esc か外側を押すと閉じる（onClose）。
-// actions は見出しの行の右に並べる物（ボタンなど。何を置くかは使う側が決める）。開くと、中身の最初の入力欄に焦点を当てる
-import { type ReactNode, useLayoutEffect, useRef } from "react"
+// actions は見出しの行の右に並べる物（ボタンなど。何を置くかは使う側が決める）。開くと、中身の最初の入力欄に焦点を当てる。
+// 決める・閉じるキー（既定は Enter・Escape）はキーの割り当てが受け、決めるように頼まれたら（store の dialog.submitted）中身の form を送る
+import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react"
+import { useApp } from "../../../ui/store-context"
 import styles from "./Dialog.module.css"
 
 export function Dialog({
@@ -16,6 +18,10 @@ export function Dialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const unmounting = useRef(false) // 描くのをやめるときに自分で閉じている間
+  const submitted = useApp(s => s.dialog?.submitted ?? 0)
+  useEffect(() => {
+    if (submitted > 0) ref.current?.querySelector("form")?.requestSubmit()
+  }, [submitted])
   useLayoutEffect(() => {
     const d = ref.current
     if (!d) return
@@ -30,6 +36,7 @@ export function Dialog({
     }
   }, [])
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: 外側を押して閉じるのはポインタの操作で、閉じるキーはキーの割り当て（dialog.close）が受ける
     <dialog
       ref={ref}
       className={styles.dialog}
@@ -42,11 +49,8 @@ export function Dialog({
       onClick={e => {
         if (e.target === e.currentTarget) onClose()
       }}
-      // Escape で閉じるのは keydown だけが受ける（文字の変換中の Escape は変換の取り消しなので閉じない）。ブラウザ自身の閉じ方（cancel）は止める
+      // 閉じるのはキーの割り当て（dialog.close）が受ける。ブラウザ自身の閉じ方（cancel）は止める
       onCancel={e => e.preventDefault()}
-      onKeyDown={e => {
-        if (e.key === "Escape" && !e.nativeEvent.isComposing) onClose()
-      }}
     >
       <div className={styles.body}>
         <div className={styles.head}>

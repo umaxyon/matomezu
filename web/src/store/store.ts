@@ -7,6 +7,7 @@ import type { ActionContext, ActionTarget } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang } from "../core/i18n/i18n"
+import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
 import { type ArgsOf, perform, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
@@ -29,6 +30,7 @@ import {
 import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled } from "./commands"
 import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, OpenedDialog } from "./dialogs"
+import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type AppDefs, assemble, type Plugin } from "./plugin"
 import type { DialogId } from "./tables"
 
@@ -59,6 +61,10 @@ export interface Actions {
   // そのステージから開くダイアログを出す（出ていたものは閉じる）。値を渡すダイアログには、その値を渡す
   openDialog<Id extends DialogId>(stage: string, id: Id, ...args: DialogArgs<Id>): void
   closeDialog(): void
+  submitDialog(): void // 開いているダイアログに、決めるように頼む（枠が中身の form を送る）
+  // 押したキー（そろえた書き方）を、開いているメニュー・ダイアログ・カレントのステージの範囲で引き、当たったコマンドを行う。
+  // 当たった範囲より外は見ない（当たったコマンドが押せなくても）。scopes は押した所の要素が名乗ったプラグインの範囲。行ったか返す
+  pressKey(key: string, scopes?: readonly string[]): boolean
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
   openContextMenu(stage: string, id: string, target: unknown, at: Point): void
   closeContextMenu(): void
@@ -99,7 +105,7 @@ function initialState(registry: Registry, books: readonly Book[], lang: Lang, ho
   return {
     books: Object.fromEntries(all.map(b => [b.id, b])),
     workspace: newWorkspace(registry, first),
-    settings: { lang, skin: "auto" },
+    settings: { lang, skin: "auto", keys: NO_KEY_CHANGES },
     dialog: null,
     contextMenu: null,
   }
@@ -129,6 +135,12 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ registry, home, lang: getState().settings.lang, newId })
+  // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
+  let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
+  const keysFor = (changes: KeyChanges): KeyTable => {
+    if (keyCache?.changes !== changes) keyCache = { changes, table: keyTable(defs.keys, changes) }
+    return keyCache.table
+  }
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {
     const { workspace: ws } = getState()
     const next = change(ws)
@@ -208,10 +220,28 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     },
     openDialog: (stage, id, ...args) => {
       if (!defs.dialogs.has(id)) fail("E108", { id })
-      if (getState().workspace.stages.some(s => s.id === stage)) setState({ dialog: { id, stage, args: args[0] } })
+      if (getState().workspace.stages.some(s => s.id === stage))
+        setState({ dialog: { id, stage, args: args[0], submitted: 0 } })
     },
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })
+    },
+    submitDialog: () => {
+      const { dialog } = getState()
+      if (dialog) setState({ dialog: { ...dialog, submitted: dialog.submitted + 1 } })
+    },
+    pressKey: (key, scopes) => {
+      const { contextMenu, dialog, workspace, settings } = getState()
+      const table = keysFor(settings.keys)
+      const stage = contextMenu?.stage ?? dialog?.stage ?? workspace.current
+      for (const scope of keyScopes({ menu: contextMenu !== null, dialog: dialog !== null }, scopes)) {
+        const hit = findKey(table, scope, key)
+        if (!hit) continue
+        const { command, args } = hit.binding
+        const call = actions.command as (stage: string, id: string, ...args: unknown[]) => boolean
+        return call(stage, command, ...(args === undefined ? [] : [args]))
+      }
+      return false
     },
     openContextMenu: (stage, id, target, at) => {
       if (getState().workspace.stages.some(s => s.id === stage)) setState({ contextMenu: { id, stage, target, at } })

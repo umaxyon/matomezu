@@ -3,6 +3,7 @@
 import type { MessageKey } from "../../../web/src/core/tables"
 import { BUILTIN_UI } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
+import { defineKeys } from "../../../web/src/store/keys"
 import { makeApp } from "./App"
 import { HOGE } from "./hoge-dialog"
 
@@ -22,3 +23,11 @@ createMatomezu({ plugins: BUILTIN_UI })
 app.registry.messages.get("hoge") && translateKey("hoge の言葉")
 // 見た目を結ばないプラグインでも、React を使わない app なら作れる
 createMatomezu({ plugins: [...BUILTIN_UI, HOGE] })
+// キーの既定: 引数の型はコマンドの引数の型
+defineKeys([{ key: "K", command: "hoge/greet", scope: "stage", args: "en" }])
+// @ts-expect-error 引数の型が違う
+defineKeys([{ key: "K", command: "hoge/greet", scope: "stage", args: "fr" }])
+// @ts-expect-error 知らない範囲
+defineKeys([{ key: "K", command: "hoge/open", scope: "nowhere" }])
+// @ts-expect-error 知らないコマンド
+defineKeys([{ key: "K", command: "hoge/nope", scope: "stage" }])

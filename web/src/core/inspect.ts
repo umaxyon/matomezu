@@ -4,6 +4,7 @@
 import type { ActionContext, ActionDef } from "./def/action"
 import type { ThemeToken } from "./def/theme"
 import { THEME_TOKENS } from "./def/theme"
+import type { KeyBinding } from "./keys"
 import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 import { type Shades, shades } from "./theme"
@@ -14,6 +15,14 @@ export type Source =
   | { source: "registry"; table: "actions"; id: string } // 表にその定義があるか
   | { source: "bookType"; id: string; field: "actions.defaults" } // ブックのタイプが使えるアクション
   | { source: "home"; id: string | null; field: "actions.defaults" } // ホームのタイプが使えるアクション（ホームが無ければ id は null）
+  // キーの割り当ての行（誰の行か・書いたプラグイン・使わなかった理由。store/keys.ts の inspectKey）
+  | {
+      source: "key"
+      from: "user" | "builtin" | "plugin"
+      plugin: string | null
+      binding: KeyBinding
+      dropped?: "removed" | "builtin" | "plugins"
+    }
 
 export interface Step<V> {
   from: Source

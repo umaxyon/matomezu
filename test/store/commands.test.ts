@@ -49,7 +49,7 @@ describe("コマンドを行う", () => {
     const { state, actions } = newStore()
     actions.command("s1", "stage.split")
     actions.command("s2", "book.open")
-    expect(state.getState().dialog).toEqual({ id: "book.open", stage: "s2", args: undefined })
+    expect(state.getState().dialog).toMatchObject({ id: "book.open", stage: "s2" })
     actions.closeDialog()
     expect(state.getState().dialog).toBeNull()
   })
@@ -59,7 +59,7 @@ describe("コマンドを行う", () => {
     actions.command("s1", "stage.split")
     actions.command("s2", "book.open")
     actions.command("s1", "stage.close")
-    expect(state.getState().dialog).toEqual({ id: "book.open", stage: "s2", args: undefined })
+    expect(state.getState().dialog).toMatchObject({ id: "book.open", stage: "s2" })
     actions.command("s2", "stage.split")
     const added = state.getState().workspace.stages[1]!.id
     actions.command(added, "book.open")

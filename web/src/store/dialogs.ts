@@ -27,4 +27,5 @@ export interface OpenedDialog {
   id: DialogId
   stage: string // 開いたステージ。ダイアログの操作はこのステージに向ける
   args: unknown // 開くときに渡した値（id で型が決まる）
+  submitted: number // 決めるように頼まれた回数（ダイアログの枠が見て、中身の form を送る）
 }

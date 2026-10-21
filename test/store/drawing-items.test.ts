@@ -24,7 +24,7 @@ test("箱を置こうとして紙の上で押すと、置くのをやめ、押�
   store.actions.togglePlacing("s1", "shape.box")
   expect(store.actions.command("s1", "drawing.place", pointerFor(store, { x: 100, y: 50 }))).toBe(true)
   expect(page(store).items).toBeUndefined()
-  expect(store.state.getState().dialog).toEqual({
+  expect(store.state.getState().dialog).toMatchObject({
     id: "box.add",
     stage: "s1",
     args: { page: "p1", at: { x: 100, y: 50 } },
@@ -148,7 +148,7 @@ test("箱を編集するコマンドは、そのページの箱を渡して編�
   store.actions.command("s1", "drawing.edit", { item: "b9" })
   expect(store.state.getState().dialog).toBeNull()
   store.actions.command("s1", "drawing.edit", { item: "b1" })
-  expect(store.state.getState().dialog).toEqual({ id: "box.edit", stage: "s1", args: { page: "p1", item: "b1" } })
+  expect(store.state.getState().dialog).toMatchObject({ id: "box.edit", stage: "s1", args: { page: "p1", item: "b1" } })
 })
 
 test("選んでいるアイテムを消すと選択も外れる。選んでいなければ消すコマンドは出ない。無いアイテムは消さない", () => {

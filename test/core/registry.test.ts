@@ -6,6 +6,7 @@ import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import { defineLanguagePack } from "../../web/src/core/i18n/messages"
+import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { perform } from "../../web/src/core/perform"
 import { buildRegistry, checkRegistry } from "../../web/src/core/registry"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
@@ -151,7 +152,7 @@ describe("アクションを行う", () => {
       ok: false,
       reason: "not-allowed",
     })
-    const settings = { lang: "ja", skin: "auto" }
+    const settings = { lang: "ja", skin: "auto", keys: NO_KEY_CHANGES }
     expect(perform(settings, "settings.lang", { lang: "en" }, ctx)).toMatchObject({ ok: true, next: { lang: "en" } })
     expect(perform(settings, "settings.lang", { lang: "en" }, homeless)).toEqual({ ok: false, reason: "not-allowed" })
     // app に無い言語は断る

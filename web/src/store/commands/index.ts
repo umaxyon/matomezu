@@ -27,7 +27,8 @@ export function commandContext(
   const stage = state.workspace.stages.find(s => s.id === stageId)
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
-  return { registry, home, stage, book, workspace: state.workspace, settings: state.settings }
+  const { workspace, settings, dialog, contextMenu } = state
+  return { registry, home, stage, book, workspace, settings, dialog, contextMenu }
 }
 
 export function isShown(defs: AppDefs, state: AppState, stageId: string, id: CommandId): boolean {

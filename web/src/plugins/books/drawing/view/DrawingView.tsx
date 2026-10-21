@@ -1,12 +1,11 @@
 // 図面のブックのビュー: ステージの紙の置き場所（core/stage.ts の placement）に紙を描き、その上に開いたページのアイテムを置く。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page.new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、図面のメニュー（drawing.context）を開く。
-// アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（drawing.place。紙からはみ出す所では薄く出し、置かない）。Escape で取り消す。
+// アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（drawing.place。紙からはみ出す所では薄く出し、置かない）。
 // 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
 // アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（box.context）を開く。
-// カレントのステージでは、Delete か Backspace で選んでいるアイテムを消す（drawing.delete。文字の入力欄の中とダイアログを開いている間は除く）。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
-import { type MouseEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
+import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react"
 import type { Point } from "../../../../core/geom"
 import type { BookOf } from "../../../../core/schema/book"
 import type { Stage } from "../../../../core/stage"
@@ -28,37 +27,10 @@ const local = (e: PointerEvent<Element>, el: Element): Point => {
 export function DrawingView({ stage }: BookViewProps) {
   const openMenu = useContextMenu(stage.id, "drawing.context")
   const place = useCommand(stage.id, "drawing.place")
-  const remove = useCommand(stage.id, "drawing.delete")
-  const isCurrent = useApp(s => s.workspace.current === stage.id)
-  const dialogOpen = useApp(s => s.dialog !== null)
-  const { select, stopPlacing } = useActions()
+  const { select } = useActions()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage.placing !== null
-
-  useEffect(() => {
-    if (!placing) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") stopPlacing(stage.id)
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [placing, stage.id, stopPlacing])
-
-  const canDelete = isCurrent && !dialogOpen && remove.enabled
-  const runDelete = remove.run
-  useEffect(() => {
-    if (!canDelete) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Delete" && e.key !== "Backspace") return
-      if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return
-      if ((e.target as Element | null)?.closest?.("input, textarea, select, [contenteditable]")) return
-      e.preventDefault()
-      runDelete()
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [canDelete, runDelete])
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))

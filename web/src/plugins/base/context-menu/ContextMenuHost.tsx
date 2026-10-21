@@ -1,12 +1,14 @@
 // 右クリックのメニューの置き場（ウィジェット menu-host）: store の開いているメニュー（contextMenu）を、押した位置に、
 // 配置に書いたそのメニューのコマンドの並びで描く（区切り線も）。出ていないコマンドは並べず、押せないものは押せない見た目にする。出るコマンドが無ければ閉じる。
-// 外を押す・Escape・窓の大きさが変わると閉じ（窓から離れただけでは閉じない）、項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ
+// 外を押す・閉じるキー（キーの割り当ての menu.close。既定は Escape）・窓の大きさが変わると閉じ（窓から離れただけでは閉じない）、
+// 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { fitInside, type Point } from "../../../core/geom"
 import type { OpenedContextMenu } from "../../../store/context-menus"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenuItems } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
+import { useKeyLabel } from "../../../ui/keys"
 import { type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
 import { useActions, useApp, useUi } from "../../../ui/store-context"
 import type { ContextMenuId } from "../../../ui/tables"
@@ -39,15 +41,10 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
     const onPointerDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) closeContextMenu()
     }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeContextMenu()
-    }
     document.addEventListener("pointerdown", onPointerDown, true)
-    document.addEventListener("keydown", onKeyDown)
     window.addEventListener("resize", closeContextMenu)
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true)
-      document.removeEventListener("keydown", onKeyDown)
       window.removeEventListener("resize", closeContextMenu)
     }
   }, [closeContextMenu])
@@ -79,6 +76,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
 function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMenuCommandId<ContextMenuId> }) {
   const command = useCommand(menu.stage, id)
   const icon = useUi().commandIcons.get(id)
+  const key = useKeyLabel(id)
   const { closeContextMenu } = useActions()
   const t = useT()
   return (
@@ -94,7 +92,8 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
       }}
     >
       {icon && <span className={styles.icon}>{icon}</span>}
-      <span>{t(command.title)}</span>
+      <span className={styles.label}>{t(command.title)}</span>
+      {key && <kbd className={styles.key}>{key}</kbd>}
     </button>
   )
 }

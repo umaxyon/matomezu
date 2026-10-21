@@ -1,21 +1,24 @@
-// 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・道具の切り替え・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）。
+// 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・道具の切り替え・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）と、そのキーの既定の割り当て。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
+import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
+import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { DARK, LIGHT, PAPERS, STANDARD } from "./looks"
 import type { A3, A4, A5 } from "./looks/papers"
 import { BASE_MESSAGES } from "./messages"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN } from "./page-tabs"
-import { SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
+import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { TOOL_NEXT } from "./tool-switch"
+import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 
 export { PAPER_IDS, PAPERS } from "./looks"
 export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin({
   id: "@matomezu/base",
-  actions: [PAGE_ADD, SET_LANG, SET_SKIN],
+  actions: [PAGE_ADD, SET_LANG, SET_SKIN, SET_KEYS],
   themes: [STANDARD],
   papers: PAPERS,
   skins: [DARK, LIGHT],
@@ -25,6 +28,10 @@ export const BASE = defineBuiltin({
     STAGE_UNSPLIT,
     STAGE_CLOSE,
     TOOL_NEXT,
+    TOOLBOX_CANCEL,
+    DIALOG_SUBMIT,
+    DIALOG_CLOSE,
+    MENU_CLOSE,
     BOOK_OPEN,
     PAGE_NEW,
     PAGE_OPEN,
@@ -32,6 +39,7 @@ export const BASE = defineBuiltin({
     SETTINGS_SKIN,
   ],
   dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG],
+  keys: [...TOOLBOX_KEYS, ...DIALOG_KEYS, ...MENU_KEYS],
   messages: BASE_MESSAGES,
 })
 
@@ -41,6 +49,7 @@ declare module "../../core/tables" {
     "page.add": typeof PAGE_ADD
     "settings.lang": typeof SET_LANG
     "settings.skin": typeof SET_SKIN
+    "settings.keys": typeof SET_KEYS
   }
   interface ThemeTable {
     standard: typeof STANDARD
@@ -63,6 +72,10 @@ declare module "../../store/tables" {
     "stage.unsplit": typeof STAGE_UNSPLIT
     "stage.close": typeof STAGE_CLOSE
     "tool.next": typeof TOOL_NEXT
+    "toolbox.cancel": typeof TOOLBOX_CANCEL
+    "dialog.submit": typeof DIALOG_SUBMIT
+    "dialog.close": typeof DIALOG_CLOSE
+    "menu.close": typeof MENU_CLOSE
     "book.open": typeof BOOK_OPEN
     "page.new": typeof PAGE_NEW
     "page.open": typeof PAGE_OPEN

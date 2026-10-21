@@ -23,6 +23,9 @@ export const ERRORS = {
   E019: "bookType {id}: book must be a book of the schema whose id is {id}",
   E020: "language {lang} has different names",
   E021: "language packs give message {key} different {lang} translations",
+  E022: "key {key} of command {command} cannot be read",
+  E023: "key {key} in scope {scope} is bound twice by the built-in plugins",
+  E024: "key {key} binds unknown command {command}",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
@@ -50,6 +53,7 @@ export const ERRORS = {
   E213: "layout {layout}: context menu {menu} is not opened by any placed widget or book view",
 
   E301: 'plugin {plugin}: {kind} {id} must start with "{plugin}/"',
+  E302: "plugin {plugin}: key {key} binds {command}, which is not its own command",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS
