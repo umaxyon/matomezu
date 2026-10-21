@@ -303,3 +303,22 @@ test("マスターの画面には右クリックのメニューが無く、ブ�
   expect(notCanceled).toBe(true)
   expect(screen.queryByRole("menu")).toBeNull()
 })
+
+test("右クリックのメニューに出るコマンドが無ければ、メニューは出さない（ブラウザのメニューも出さない）", () => {
+  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
+  // 分割をやめるは、分割していないと出ない
+  const layout = {
+    ...DEFAULT_LAYOUT,
+    id: "unsplit-only",
+    contextMenus: { "drawing.context": ["stage.unsplit"] },
+  } as const
+  render(
+    <MatomezuProvider app={store} layout={layout}>
+      <App />
+    </MatomezuProvider>,
+  )
+  const notCanceled = fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))
+  expect(notCanceled).toBe(false)
+  expect(screen.queryByRole("menu")).toBeNull()
+  expect(store.state.getState().contextMenu).toBeNull()
+})

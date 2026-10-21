@@ -1,7 +1,9 @@
 // 右クリックのメニュー: 部品が右クリックを受けてメニューを開く口と、配置に書いたメニューの中身を読む口
 import type { MouseEvent } from "react"
+import { useShallow } from "zustand/react/shallow"
+import { isShown } from "../store/commands"
 import type { ContextMenuCommandId } from "./layout"
-import { useActions, useLayout } from "./store-context"
+import { useActions, useApp, useDefs, useLayout } from "./store-context"
 import type { ContextMenuId, ContextMenuTable } from "./tables"
 
 // そのステージで、右クリックされた物 target のメニュー id を、押した位置に開く。ブラウザのメニューは出さない。
@@ -18,7 +20,10 @@ export function useContextMenu<M extends ContextMenuId>(
   }
 }
 
-export function useContextMenuItems<M extends ContextMenuId>(id: M): readonly ContextMenuCommandId<M>[] {
+// 配置に書いたメニューの中身のうち、そのステージから見て出ているコマンド（並びは配置の順）
+export function useContextMenuItems<M extends ContextMenuId>(stage: string, id: M): readonly ContextMenuCommandId<M>[] {
   const menus = useLayout().contextMenus as { [K in ContextMenuId]?: readonly ContextMenuCommandId<K>[] } | undefined
-  return menus?.[id] ?? []
+  const items = menus?.[id] ?? []
+  const defs = useDefs()
+  return useApp(useShallow(s => items.filter(c => isShown(defs, s, stage, c))))
 }
