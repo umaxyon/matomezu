@@ -13,6 +13,15 @@ import type { Book, Page } from "./schema/book"
 
 export type PagedBook = Extract<Book, { pages: Page[] }>
 
+// 残しておいたブックのうち、この app のブックの形に合うものだけ（タイプの無いもの・形の合わないものは捨てる）。
+// 残したブックは外から来る値なので、形を確かめてから使う
+export function restoreBooks(reg: Registry, saved: readonly unknown[]): Book[] {
+  return saved.flatMap(b => {
+    const parsed = reg.bookSchema.safeParse(b)
+    return parsed.success ? [parsed.data as Book] : []
+  })
+}
+
 // 表にある 1 冊だけのタイプのブック（app がいつも持つもの）
 export function singleBooks(reg: Registry): Book[] {
   return reg.parts.bookTypes.flatMap(t => (t.single ? [t.book as Book] : []))

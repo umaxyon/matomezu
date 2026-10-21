@@ -2,7 +2,7 @@
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
 
 import { createStore, type StoreApi } from "zustand/vanilla"
-import { hasPages, singleBooks } from "../core/book"
+import { hasPages, restoreBooks, singleBooks } from "../core/book"
 import type { ActionContext, ActionTarget } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
@@ -131,6 +131,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、ホームを開く
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。app にある最初の言語を使い、無ければ英語
+  savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。この app のブックの形に合うものだけを、books のあとに持つ
   settings?: unknown // 残しておいた設定（ホストが読んだもの）。この app で使える項目だけ、lang より優先して使う
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // 作るブックの id を振る。無ければ、どの世界でも重ならない uuid
@@ -147,7 +148,12 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
   const start: Settings = { lang: startLang(registry, options.lang), skin: "auto", keys: NO_KEY_CHANGES }
   const initial =
     options.initial ??
-    initialState(registry, options.books ?? [], restoreSettings(registry, start, options.settings), home)
+    initialState(
+      registry,
+      [...(options.books ?? []), ...restoreBooks(registry, options.savedBooks ?? [])],
+      restoreSettings(registry, start, options.settings),
+      home,
+    )
   const newId = options.newId ?? (() => crypto.randomUUID())
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store

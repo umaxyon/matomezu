@@ -30,7 +30,7 @@ const topOf = (t: string) => t.split("/")[0]!
 const ALLOWED: Record<string, (target: string) => boolean> = {
   core: t => t === "core" || t === "zod",
   store: t => t === "core" || t === "store" || t === "zustand/vanilla",
-  host: t => t === "core" || t === "store" || t === "host",
+  host: t => t === "core" || t === "store" || t === "host" || t === "zod",
   ui: t =>
     ["core", "store", "ui", "react", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),

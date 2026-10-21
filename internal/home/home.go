@@ -142,6 +142,11 @@ func (h *Home) RemoveServer() error {
 	return err
 }
 
+// DataPath は、ブックと設定を置くデータベースのファイル
+func (h *Home) DataPath() string {
+	return filepath.Join(h.Dir, "data.db")
+}
+
 // LogPath は、裏で立てた常駐が出力を書くファイル
 func (h *Home) LogPath() string {
 	return filepath.Join(h.Dir, "server.log")

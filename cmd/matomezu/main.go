@@ -17,6 +17,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/umaxyon/matomezu/internal/home"
 	"github.com/umaxyon/matomezu/internal/server"
+	"github.com/umaxyon/matomezu/internal/storage"
 	"github.com/umaxyon/matomezu/web"
 )
 
@@ -92,6 +93,11 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
+	store, err := storage.OpenSQLite(h.DataPath())
+	if err != nil {
+		return err
+	}
+	defer store.Close()
 	host, _, err := net.SplitHostPort(c.Addr)
 	if err != nil {
 		return err
@@ -111,7 +117,7 @@ func (c *serveCmd) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	srv := &http.Server{
-		Handler:           server.Handler(server.Options{Web: webFS, Token: token, Version: version, Stop: stop}),
+		Handler:           server.Handler(server.Options{Web: webFS, Token: token, Version: version, Stop: stop, Storage: store}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	url := "http://" + ln.Addr().String() + "/"

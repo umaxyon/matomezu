@@ -54,12 +54,12 @@ test("止めたあとは頼まない", () => {
 
 test("メモリのホストは残したものを次に読む", async () => {
   const host = memoryHost([])
-  const store = newStore({ books: (await host.load()).books })
+  const store = newStore({ books: [], savedBooks: (await host.load()).books })
   persist(store, host)
   store.actions.createBook("s1", { title: "新しいブック", type: "drawing" })
   store.actions.setSkin("dark")
   const again = await host.load()
-  expect(again.books.map(b => b.title)).toContain("新しいブック")
+  expect(again.books).toContainEqual(expect.objectContaining({ title: "新しいブック" }))
   expect(again.settings).toMatchObject({ skin: "dark" })
 })
 

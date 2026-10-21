@@ -1,20 +1,37 @@
 // Package server は matomezu の常駐の HTTP サーバー。127.0.0.1 だけで待つ。
 //
-//	/                画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
-//	GET  /api/ping   {"version", "pid"} 立っているかの確認            … 要合言葉
-//	POST /api/stop   常駐を止める                                    … 要合言葉
+//	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
+//	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
+//	POST /api/stop        常駐を止める                                                          … 要合言葉
+//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings"} 置いてあるブックと設定  … 画面から
+//	PUT  /api/books/{id}  {"book", "base"} 置いてある版が base のときだけ書き、{"version"} を返す。
+//	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}  … 画面から
+//	PUT  /api/settings    設定を丸ごと書く                                                       … 画面から
 //
 // 合言葉は Authorization: Bearer <token> で渡す（server.json の token。常駐ごとに作る）。
+// 「画面から」の入口は、この常駐の画面からの頼みだけを受ける（sameOrigin。ほかのサイトに開かれたページから書かせない）。
 package server
 
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
+	"io"
 	"io/fs"
+	"mime"
+	"net"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/umaxyon/matomezu/internal/storage"
 )
+
+// user は設定の持ち主。利用者の区別ができるまでは 1 人
+const user = "me"
+
+// 書く頼みの中身の大きさの上限
+const maxBody = 16 << 20
 
 // Options は常駐の中身
 type Options struct {
@@ -22,6 +39,7 @@ type Options struct {
 	Token   string // 合言葉
 	Version string
 	Stop    func() // /api/stop で呼ぶ。呼ばれたら常駐を止める
+	Storage storage.Storage
 }
 
 // Handler は常駐の入口をまとめた http.Handler
@@ -36,6 +54,9 @@ func Handler(o Options) http.Handler {
 			go o.Stop()
 		}
 	}))
+	mux.Handle("GET /api/data", sameOrigin(o.data))
+	mux.Handle("PUT /api/books/{id}", sameOrigin(o.putBook))
+	mux.Handle("PUT /api/settings", sameOrigin(o.putSettings))
 	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", http.FileServerFS(o.Web))
 	return mux
@@ -56,4 +77,101 @@ func (o Options) auth(h http.HandlerFunc) http.Handler {
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// sameOrigin は、この常駐の画面からの頼みだけを通す。宛先（Host）が手元の名前で、
+// Origin があればその宛先と同じ（ほかのサイトのページからは Origin が違う）。書く頼みは JSON の本文に限る（ほかのサイトのフォームからは送れない）
+func sameOrigin(h http.HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host, _, err := net.SplitHostPort(r.Host)
+		local := err == nil && (host == "localhost" || net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback())
+		origin := r.Header.Get("Origin")
+		if !local || (origin != "" && origin != "http://"+r.Host) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if r.Method != http.MethodGet {
+			if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "application/json" {
+				http.Error(w, "the body must be JSON", http.StatusUnsupportedMediaType)
+				return
+			}
+		}
+		h(w, r)
+	})
+}
+
+func (o Options) data(w http.ResponseWriter, _ *http.Request) {
+	books, err := o.Storage.Books()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	settings, err := o.Storage.Settings(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if settings == nil {
+		settings = json.RawMessage("null")
+	}
+	writeJSON(w, map[string]any{"books": books, "settings": settings})
+}
+
+func (o Options) putBook(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Book json.RawMessage `json:"book"`
+		Base int64           `json:"base"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	id := r.PathValue("id")
+	var head struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(req.Book, &head) != nil || head.ID != id {
+		http.Error(w, "the book must be an object with the id of the path", http.StatusBadRequest)
+		return
+	}
+	version, have, err := o.Storage.PutBook(id, req.Book, req.Base)
+	if errors.Is(err, storage.ErrConflict) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(have)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"version": version})
+}
+
+func (o Options) putSettings(w http.ResponseWriter, r *http.Request) {
+	var body json.RawMessage
+	if !readJSON(w, r, &body) {
+		return
+	}
+	if len(body) == 0 || body[0] != '{' {
+		http.Error(w, "the settings must be an object", http.StatusBadRequest)
+		return
+	}
+	if err := o.Storage.PutSettings(user, body); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{})
+}
+
+// readJSON は本文を v に読む。読めなければ 400 を返して false
+func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	b, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBody))
+	if err == nil {
+		err = json.Unmarshal(b, v)
+	}
+	if err != nil {
+		http.Error(w, "the body is not JSON: "+err.Error(), http.StatusBadRequest)
+		return false
+	}
+	return true
 }

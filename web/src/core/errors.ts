@@ -1,6 +1,6 @@
 // matomezu の誤りの表。番号は一度付けたら変えず、消した番号も使い回さない（利用者が調べる手がかりと、テストの照合に使う）。
 // 文は開発者に向けたもので、画面には出さない（画面の文言は i18n の表）。{name} は渡す値で置き換える。
-// 番号の範囲: E0xx 定義の組の食い違い（登録表）、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン
+// 番号の範囲: E0xx 定義の組の食い違い（登録表）、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン、E4xx ホスト（外の世界とのやり取り）
 export const ERRORS = {
   E001: "{kind} {id}: id is registered twice",
   E002: 'bookType {id}: schema.type must be the literal "{id}"',
@@ -54,6 +54,8 @@ export const ERRORS = {
 
   E301: 'plugin {plugin}: {kind} {id} must start with "{plugin}/"',
   E302: "plugin {plugin}: key {key} binds {command}, which is not its own command",
+
+  E401: "the server could not give the data: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS
