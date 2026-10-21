@@ -168,7 +168,7 @@ describe("アクションを行う", () => {
 describe("テーマの値", () => {
   test("宣言された欄は、テーマが上書きしていなければ、宣言の既定（共通の欄）の値", () => {
     const values = resolveTokens(REGISTRY, "standard", [{ id: "box.fill", fallback: "fill" }])
-    expect(values["box.fill"]).toBe(values.fill!)
+    expect(values["box.fill"]).toEqual(values.fill!)
   })
 
   test("ブックの値には、ブックで使えるアイテムの欄が入る", () => {

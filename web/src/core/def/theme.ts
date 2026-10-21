@@ -23,11 +23,18 @@ export interface TokenDecl {
   fallback: ThemeToken
 }
 
+// 欄の値: 色 1 つか、明暗ごとの色。明暗の両方を書いた欄は見る人の OS の明暗で切り替え、片方だけなら明暗どちらでもその色
+// （全部の欄が色 1 つか片方だけなら、固定のテーマ）
+export type ThemeValue =
+  | string
+  | Readonly<{ light: string; dark?: string }>
+  | Readonly<{ light?: string; dark: string }>
+
 export interface ThemeDef {
   id: string
   title: MessageKey
-  base: Readonly<Record<ThemeToken, string>>
-  tokens?: Readonly<Record<string, string>> // 宣言された欄（TokenDecl の id）の上書き
+  base: Readonly<Record<ThemeToken, ThemeValue>>
+  tokens?: Readonly<Record<string, ThemeValue>> // 宣言された欄（TokenDecl の id）の上書き
 }
 
 export function defineTheme<const T extends ThemeDef>(def: T): T {

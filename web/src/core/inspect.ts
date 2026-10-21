@@ -6,6 +6,7 @@ import type { ThemeToken } from "./def/theme"
 import { THEME_TOKENS } from "./def/theme"
 import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
+import { type Shades, shades } from "./theme"
 
 // 段の出どころ
 export type Source =
@@ -29,7 +30,7 @@ export type Query =
   | { kind: "token"; book: Book; token: string } // ブックを描くテーマの欄の値
   | { kind: "action"; action: string; book?: Book } // アクションを使えるか（ブックが対象のアクションは、そのブック）
 
-type Answer<Q extends Query> = Q extends { kind: "token" } ? Inspected<string> : Inspected<boolean>
+type Answer<Q extends Query> = Q extends { kind: "token" } ? Inspected<Shades> : Inspected<boolean>
 
 export function inspect<Q extends Query>(reg: Registry, query: Q, ctx?: Pick<ActionContext, "home">): Answer<Q> {
   const answer = query.kind === "token" ? token(reg, query) : action(reg, query, ctx?.home ?? null)
@@ -41,21 +42,25 @@ const decide = <V>(steps: Step<V>[]): Inspected<V> => {
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }
 
-// テーマの値: 宣言された欄は テーマの上書き → 宣言の既定の共通の欄、共通の欄はテーマの値。どちらでもない欄は値が無い
-function token(reg: Registry, q: { book: Book; token: string }): Inspected<string> {
+// テーマの値（明暗ごとの色）: 宣言された欄は テーマの上書き → 宣言の既定の共通の欄、共通の欄はテーマの値。どちらでもない欄は値が無い
+function token(reg: Registry, q: { book: Book; token: string }): Inspected<Shades> {
   const type = bookType(reg, q.book.type)
   const theme = reg.themes.get(type.theme)
   if (!theme) return decide([])
-  const base = (key: ThemeToken): Step<string> => ({
+  const base = (key: ThemeToken): Step<Shades> => ({
     from: { source: "theme", id: theme.id, field: "base", key },
-    value: theme.base[key],
+    value: shades(theme.base[key]),
   })
   if ((THEME_TOKENS as readonly string[]).includes(q.token)) return decide([base(q.token as ThemeToken)])
   const items = type.items.defaults.flatMap(id => reg.items.get(id)?.tokens ?? [])
   const decl = [...type.tokens, ...items].find(d => d.id === q.token)
   if (!decl) return decide([])
+  const own = theme.tokens?.[decl.id]
   return decide([
-    { from: { source: "theme", id: theme.id, field: "tokens", key: decl.id }, value: theme.tokens?.[decl.id] ?? null },
+    {
+      from: { source: "theme", id: theme.id, field: "tokens", key: decl.id },
+      value: own === undefined ? null : shades(own),
+    },
     base(decl.fallback),
   ])
 }

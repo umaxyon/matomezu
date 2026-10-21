@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { defineTheme } from "../../web/src/core/def/theme"
 import { inspect } from "../../web/src/core/inspect"
 import { buildRegistry } from "../../web/src/core/registry"
+import { shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/standard"
 import { MASTER_BOOK } from "../../web/src/plugins/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
@@ -12,11 +13,11 @@ const drawing = SAMPLE_BOOKS[0]!
 describe("inspect: テーマの値", () => {
   test("宣言された欄は、テーマが上書きしなければ既定の共通の欄で決まり、見た段を順に返す", () => {
     expect(inspect(REGISTRY, { kind: "token", book: drawing, token: "box.fill" })).toEqual({
-      value: STANDARD.base.fill,
+      value: shades(STANDARD.base.fill),
       decidedBy: { source: "theme", id: "standard", field: "base", key: "fill" },
       steps: [
         { from: { source: "theme", id: "standard", field: "tokens", key: "box.fill" }, value: null },
-        { from: { source: "theme", id: "standard", field: "base", key: "fill" }, value: STANDARD.base.fill },
+        { from: { source: "theme", id: "standard", field: "base", key: "fill" }, value: shades(STANDARD.base.fill) },
       ],
     })
   })
@@ -25,13 +26,15 @@ describe("inspect: テーマの値", () => {
     const yellow = defineTheme({ ...STANDARD, tokens: { "box.fill": "#fff3c4" } })
     const reg = buildRegistry({ ...BUILTIN_PARTS, themes: [yellow] })
     const got = inspect(reg, { kind: "token", book: drawing, token: "box.fill" })
-    expect(got.value).toBe("#fff3c4")
+    expect(got.value).toEqual({ light: "#fff3c4", dark: "#fff3c4" })
     expect(got.decidedBy).toEqual({ source: "theme", id: "standard", field: "tokens", key: "box.fill" })
     expect(got.steps).toHaveLength(2)
   })
 
   test("共通の欄はテーマの値。どれでもない欄は値が無い", () => {
-    expect(inspect(REGISTRY, { kind: "token", book: drawing, token: "paper" }).value).toBe(STANDARD.base.paper)
+    expect(inspect(REGISTRY, { kind: "token", book: drawing, token: "paper" }).value).toEqual(
+      shades(STANDARD.base.paper),
+    )
     expect(inspect(REGISTRY, { kind: "token", book: drawing, token: "nope" })).toEqual({
       value: null,
       decidedBy: null,
