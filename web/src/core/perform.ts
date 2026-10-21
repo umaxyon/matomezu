@@ -2,6 +2,7 @@
 // 使えるかは、book が対象ならそのブックのタイプ、library と settings が対象なら app のホームのブックのタイプが決める（ホームが無ければ断る）
 import type { z } from "zod"
 import type { ActionContext, ActionDef, Subjects } from "./def/action"
+import { inspect } from "./inspect"
 import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 import type { ActionId, ActionTable } from "./tables"
@@ -28,10 +29,10 @@ export function homeActions(reg: Registry, home: string | null): readonly string
   return home === null ? [] : bookType(reg, home).actions.defaults
 }
 
+// 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）
 function allowed(ctx: ActionContext, action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
-  const usable =
-    action.target === "book" ? actionsOf(ctx.registry, subject as Book) : homeActions(ctx.registry, ctx.home)
-  return usable.includes(action.id)
+  const book = action.target === "book" ? (subject as Book) : undefined
+  return inspect(ctx.registry, { kind: "action", action: action.id, book }, ctx).value === true
 }
 
 export function perform<Id extends ActionId>(
