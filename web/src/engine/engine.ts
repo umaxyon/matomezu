@@ -54,7 +54,7 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
-// アクションとアイテムの目録（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
+// アクションとアイテムとテーマの目録（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
 function catalog() {
   const en = (key: string) => translate(registry.messages, "en", key as never)
   return {
@@ -70,6 +70,7 @@ function catalog() {
       size: "size" in i ? i.size : null,
       props: z.toJSONSchema(i.props, { io: "input", unrepresentable: "any" }),
     })),
+    themes: [...registry.themes.values()].map(th => ({ id: th.id, title: en(th.title) })),
   }
 }
 

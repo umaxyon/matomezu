@@ -324,7 +324,7 @@ test("置いた箱の幅はキャプションに合わせ、20 字までは切�
 }) => {
   await page.goto("/")
   await page.evaluate(() => document.fonts.ready)
-  const caption = (i: number) => page.locator("[data-item]").nth(i).locator("div").nth(1)
+  const caption = (i: number) => page.locator("[data-item]").nth(i).locator("[data-align]").first()
   const cut = (i: number) => caption(i).evaluate(el => el.scrollWidth > el.clientWidth)
   for (const [i, text, y] of [
     [0, "あいうえおかきくけこさしすせそたちつてと", 100],
@@ -390,4 +390,29 @@ test("ダイアログでキャプションと本文の寄せを選ぶと、箱�
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()
   expect([await align(0), await align(1)]).toEqual(["left", "right"])
+})
+
+test("ダイアログで箱のテーマを付箋紙にすると黄色の付箋になって右上が折り返り、ブックのテーマに戻すと元の見た目に戻る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBodyBox(page)
+  const box = page.locator("[data-item] [data-body]")
+  const look = () =>
+    box.evaluate(el => ({
+      fill: getComputedStyle(el).backgroundColor,
+      fold: getComputedStyle(el, "::after").width,
+    }))
+  expect(await look()).toEqual({ fill: "rgb(255, 255, 255)", fold: "0px" })
+  const choose = async (label: string) => {
+    await page.locator("[data-item]").dblclick()
+    const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+    await dialog.getByLabel("テーマ").selectOption({ label })
+    await dialog.getByRole("button", { name: "確定" }).click()
+    await expect(dialog).toBeHidden()
+  }
+  await choose("付箋紙")
+  expect(await look()).toEqual({ fill: "rgb(255, 243, 166)", fold: "12px" })
+  await choose("ブックのテーマ")
+  expect(await look()).toEqual({ fill: "rgb(255, 255, 255)", fold: "0px" })
 })

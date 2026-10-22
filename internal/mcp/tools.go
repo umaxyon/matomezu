@@ -85,6 +85,10 @@ type catalog struct {
 		Size  map[string]any `json:"size"`
 		Props map[string]any `json:"props"`
 	} `json:"items"`
+	Themes []struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	} `json:"themes"`
 }
 
 // showSchema は show の受ける形
@@ -174,7 +178,12 @@ func itemsText(c *catalog) string {
 		size, _ := json.Marshal(i.Size)
 		parts = append(parts, fmt.Sprintf("%s (%s, default size %s) props %s", i.ID, i.Title, size, props))
 	}
-	return strings.Join(parts, "; ")
+	themes := []string{}
+	for _, th := range c.Themes {
+		themes = append(themes, fmt.Sprintf("%s (%s)", th.ID, th.Title))
+	}
+	return strings.Join(parts, "; ") + ". A box's theme prop takes one of the themes: " + strings.Join(themes, ", ") +
+		" (without it, the box looks like its book's theme)"
 }
 
 // callTool は道具を呼び、AI に返す文と、失敗したかを返す

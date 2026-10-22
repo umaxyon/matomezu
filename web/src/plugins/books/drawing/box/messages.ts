@@ -13,6 +13,8 @@ export const BOX_MESSAGES = defineMessages({
   OK: { ja: "確定" },
   "Does not fit on the paper": { ja: "紙に収まりません" },
   "Caption alignment": { ja: "キャプションの寄せ" },
+  Theme: { ja: "テーマ" },
+  "Book's theme": { ja: "ブックのテーマ" },
   "Body alignment": { ja: "本文の寄せ" },
   "Align left": { ja: "左寄せ" },
   "Align center": { ja: "中央寄せ" },

@@ -17,11 +17,13 @@ import {
 } from "./items"
 import { DRAWING_MESSAGES } from "./messages"
 import { DRAWING_SETTINGS, DRAWING_SETTINGS_DIALOG } from "./settings"
+import { SIMPLE, STICKY } from "./themes"
 
 export const DRAWING_PLUGIN = defineBuiltin({
   id: "@matomezu/drawing",
   bookTypes: [DRAWING],
   items: [BOX],
+  themes: [STICKY, SIMPLE],
   actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE],
   commands: [DRAWING_SETTINGS, DRAWING_PLACE, DRAWING_MOVE, DRAWING_RESIZE, DRAWING_EDIT, DRAWING_DELETE],
   dialogs: [DRAWING_SETTINGS_DIALOG, BOX_ADD_DIALOG, BOX_EDIT_DIALOG],
@@ -35,6 +37,10 @@ declare module "../../../core/tables" {
   }
   interface ItemTable {
     "shape.box": typeof BOX
+  }
+  interface ThemeTable {
+    sticky: typeof STICKY
+    simple: typeof SIMPLE
   }
   interface ActionTable {
     "item.place": typeof ITEM_PLACE

@@ -7,6 +7,8 @@ import { DRAWING_VIEW_MESSAGES } from "./view/messages"
 
 export const DRAWING_MESSAGES = {
   ...defineMessages({
+    "Sticky notes": { ja: "付箋紙" },
+    Simple: { ja: "シンプル" },
     Drawing: { ja: "図面" },
   }),
   ...DRAWING_VIEW_MESSAGES,

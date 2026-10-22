@@ -24,12 +24,16 @@ export const BOX = defineItem({
     body: z.string().max(BOX_BODY_MAX).default(""),
     captionAlign: AlignSchema.default("center"), // キャプションの寄せ
     bodyAlign: AlignSchema.default("left"), // 本文の寄せ
+    theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければブックのテーマ）
   }),
   size: BOX_SIZE, // 幅の既定と、置いたときの一番低い高さ
   tokens: [
     { id: "box.fill", fallback: "fill" },
     { id: "box.line", fallback: "line" },
     { id: "box.text", fallback: "text" },
+    { id: "box.radius", value: "6px" }, // 角の丸み
+    { id: "box.shadow", value: "none" }, // 影（CSS の filter の値）
+    { id: "box.fold", value: "0px" }, // 右上の角を折り返す大きさ（付箋）
   ],
 })
 

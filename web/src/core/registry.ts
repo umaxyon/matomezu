@@ -141,7 +141,7 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
   for (const d of decls) {
     if (declared.has(d.id)) problems.push(problem("E011", { owner: d.owner, token: d.id }))
     declared.add(d.id)
-    if (!(THEME_TOKENS as readonly string[]).includes(d.fallback))
+    if ("fallback" in d && !(THEME_TOKENS as readonly string[]).includes(d.fallback))
       problems.push(problem("E012", { owner: d.owner, token: d.id, fallback: d.fallback }))
   }
   for (const th of parts.themes)

@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { textWidth } from "../../web/src/core/text/text"
+import { resolveTokens } from "../../web/src/core/theme"
+import { BOX } from "../../web/src/plugins/books/drawing/box"
 import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/books/drawing/box/size"
 import { newStore } from "../support"
 
@@ -154,4 +156,23 @@ test("寄せの項目は既定でキャプションが中央、本文が左。�
   expect(update({ captionAlign: "right", bodyAlign: "center" }).ok).toBe(true)
   expect(items(store)[0]!.props).toMatchObject({ captionAlign: "right", bodyAlign: "center" })
   expect(update({ bodyAlign: "justify" }).ok).toBe(false)
+})
+
+test("箱にテーマを当てられる。表に無いテーマは断る。テーマの箱の欄は、宣言の値かテーマの上書きで決まる", () => {
+  const store = ready()
+  expect(place(store, { caption: "付箋", theme: "sticky" }).ok).toBe(true)
+  expect(items(store)[0]!.props).toMatchObject({ theme: "sticky" })
+  expect(place(store, { caption: "無い", theme: "nope" }, { x: 400, y: 100 }).ok).toBe(false)
+  const update = (props: Record<string, unknown>) =>
+    store.actions.perform("item.update", { page: "p1", item: "n1", props }, { book: "b1" })
+  expect(update({ theme: "simple" }).ok).toBe(true)
+  expect(update({ theme: "nope" }).ok).toBe(false)
+  expect(update({ theme: null }).ok).toBe(true)
+  expect("theme" in items(store)[0]!.props).toBe(false)
+  const tokens = (theme: string) => resolveTokens(store.registry, theme, BOX.tokens)
+  expect(tokens("standard")["box.radius"]).toEqual({ light: "6px", dark: "6px" })
+  expect(tokens("standard")["box.fold"]).toEqual({ light: "0px", dark: "0px" })
+  expect(tokens("sticky")["box.fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })
+  expect(tokens("sticky")["box.fold"]).toEqual({ light: "12px", dark: "12px" })
+  expect(tokens("simple")["box.line"]).toEqual({ light: "#262626", dark: "#262626" })
 })

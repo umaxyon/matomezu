@@ -1,4 +1,5 @@
-// 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。見出しの行の右にキャンセルと決めるボタン（キャプションの欄の Enter でも決める）。
+// 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ。キャプションと本文の名前の右に、左・中央・右の寄せ）。
+// テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。見出しの行の右にキャンセルと決めるボタン（キャプションの欄の Enter でも決める）。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BOX_BODY_MAX 字まで。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は開いたときに覚えた所に箱を置いて（アクション item.place）選び、編集は箱の項目を書き換える（アクション item.update）
@@ -9,7 +10,7 @@ import type { ItemProps } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
-import { useActions, useApp } from "../../../../ui/store-context"
+import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { ActionButton, Choices, controlClass, Dialog, Field, Form, Problem, rowClass, Switch } from "../../../base/ui"
 import { itemsOf } from "../items/items"
 import { type Align, BOX } from "."
@@ -55,7 +56,12 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const { perform } = useActions()
   if (!book || !start) return null
   const update = (props: BoxProps) => {
-    const done = perform("item.update", { page: args.page, item: args.item, props }, { book })
+    // 「ブックのテーマ」に戻したら、箱のテーマの項目を消す
+    const done = perform(
+      "item.update",
+      { page: args.page, item: args.item, props: { ...props, theme: props.theme ?? null } },
+      { book },
+    )
     if (done.ok) onClose()
     return done.ok
   }
@@ -84,6 +90,8 @@ function BoxDialog({
   const [rule, setRule] = useState(start.rule)
   const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
   const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
+  const [theme, setTheme] = useState(start.theme ?? "")
+  const registry = useRegistry()
   const aligns = ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
   const [refused, setRefused] = useState(false)
   const hasBody = body !== ""
@@ -103,7 +111,9 @@ function BoxDialog({
       <Form
         id={form}
         ready={ready}
-        onSubmit={() => setRefused(!onSubmit({ caption, rule, body, captionAlign, bodyAlign }))}
+        onSubmit={() =>
+          setRefused(!onSubmit({ caption, rule, body, captionAlign, bodyAlign, ...(theme ? { theme } : {}) }))
+        }
       >
         <Field
           label={t("Caption")}
@@ -133,6 +143,18 @@ function BoxDialog({
                 setBody(e.target.value)
               }}
             />
+          )}
+        </Field>
+        <Field label={t("Theme")}>
+          {id => (
+            <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
+              <option value="">{t("Book's theme")}</option>
+              {[...registry.themes.values()].map(th => (
+                <option key={th.id} value={th.id}>
+                  {t(th.title)}
+                </option>
+              ))}
+            </select>
           )}
         </Field>
         {refused && <Problem>{t("Does not fit on the paper")}</Problem>}

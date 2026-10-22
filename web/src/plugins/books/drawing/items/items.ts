@@ -83,6 +83,11 @@ export function widenForCaption(reg: Registry, page: DrawingPage, before: Placed
   return w > size.w ? { ...next, w } : next
 }
 
+// アイテムに当てたテーマが表にあるか（当てていなければ true）
+export function knownTheme(reg: Registry, item: Placed): boolean {
+  return item.props.theme === undefined || reg.themes.has(item.props.theme)
+}
+
 // 置いたアイテムが、そのページの紙からはみ出さないか
 function fitsPage(reg: Registry, page: DrawingPage, item: Placed): boolean {
   const paper = paperSize(reg, page)

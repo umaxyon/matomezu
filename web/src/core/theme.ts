@@ -22,7 +22,8 @@ export function resolveTokens(reg: Registry, themeId: string, decls: readonly To
   if (!theme) return fail("E102", { id: themeId })
   const values: Record<string, Shades> = {}
   for (const [id, v] of Object.entries(theme.base)) values[id] = shades(v)
-  for (const d of decls) values[d.id] = shades(theme.tokens?.[d.id] ?? theme.base[d.fallback])
+  for (const d of decls)
+    values[d.id] = shades(theme.tokens?.[d.id] ?? ("fallback" in d ? theme.base[d.fallback] : d.value))
   return values
 }
 

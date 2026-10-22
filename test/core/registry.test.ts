@@ -15,6 +15,11 @@ import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, REGISTRY } from "../support"
 
 describe("登録表", () => {
+  test("テーマを上書きしている欄を宣言したアイテムが無ければ、直す所に並べる", () => {
+    const problems = checkRegistry({ ...BUILTIN_PARTS, items: [] })
+    expect(problems.filter(p => p.code === "E013").length).toBeGreaterThan(0)
+  })
+
   test("表どうしの参照に食い違いが無い", () => {
     expect(checkRegistry(BUILTIN_PARTS)).toEqual([])
   })
@@ -26,6 +31,7 @@ describe("登録表", () => {
       ...BUILTIN_PARTS,
       bookTypes: [drawing, master, drawing],
       items: [],
+      themes: BUILTIN_PARTS.themes.filter(th => !th.tokens), // 外したアイテムの欄を上書きするテーマも外す
       papers: BUILTIN_PARTS.papers.filter(p => p.id !== "a3"),
     }
     const problems = checkRegistry(broken)

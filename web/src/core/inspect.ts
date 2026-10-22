@@ -12,6 +12,7 @@ import { type Shades, shades } from "./theme"
 // 段の出どころ
 export type Source =
   | { source: "theme"; id: string; field: "tokens" | "base"; key: string } // テーマの上書き・共通の欄
+  | { source: "token"; id: string } // 欄の宣言に書いた値
   | { source: "registry"; table: "actions"; id: string } // 表にその定義があるか
   | { source: "bookType"; id: string; field: "actions.defaults" } // ブックのタイプが使えるアクション
   | { source: "home"; id: string | null; field: "actions.defaults" } // ホームのタイプが使えるアクション（ホームが無ければ id は null）
@@ -70,7 +71,7 @@ function token(reg: Registry, q: { book: Book; token: string }): Inspected<Shade
       from: { source: "theme", id: theme.id, field: "tokens", key: decl.id },
       value: own === undefined ? null : shades(own),
     },
-    base(decl.fallback),
+    "fallback" in decl ? base(decl.fallback) : { from: { source: "token", id: decl.id }, value: shades(decl.value) },
   ])
 }
 
