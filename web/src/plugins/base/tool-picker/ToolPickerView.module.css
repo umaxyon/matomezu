@@ -39,22 +39,22 @@
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-float-line);
   border-radius: 50%;
-  background: var(--skin-bar);
+  background: var(--skin-float);
   color: var(--skin-text);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 .button:hover,
 .button:focus-visible {
-  background: var(--skin-btn-hover);
+  background: var(--skin-float-hover);
   outline: none;
 }
 .button[aria-pressed="true"] {
   background: var(--skin-accent);
   border-color: transparent;
-  color: var(--skin-bg);
+  color: var(--skin-on-accent);
 }
 .button svg {
   width: 20px;

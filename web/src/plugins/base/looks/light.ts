@@ -20,6 +20,10 @@ export const LIGHT = defineSkin({
     accent: "#6d4bd8",
     current: "#eae6f9",
     divider: "#6d4bd8",
+    float: "#ffffff",
+    "float-line": "rgba(0, 0, 0, 0.12)",
+    "float-hover": "#ece8fb",
+    "on-accent": "#ffffff",
     font: DARK.tokens.font,
   },
 })

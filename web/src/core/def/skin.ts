@@ -15,6 +15,10 @@ export const SKIN_TOKENS = [
   "accent",
   "current", // 分けているときのカレントのステージの下の行の地
   "divider", // 分けているときの境目をつかんでいる間の線
+  "float", // 画面の上に浮かぶ丸いボタン（道具のアイコン）の地
+  "float-line", // 浮かぶボタンの縁
+  "float-hover", // 浮かぶボタンにポインタを乗せたときの地
+  "on-accent", // 強調の色の地の上の文字とアイコン
   "font",
 ] as const
 

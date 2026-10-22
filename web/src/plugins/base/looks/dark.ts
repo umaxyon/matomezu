@@ -18,6 +18,10 @@ export const DARK = defineSkin({
     accent: "#8b6cf0",
     current: "#332f42",
     divider: "#8b6cf0",
+    float: "#2e2e34",
+    "float-line": "rgba(255, 255, 255, 0.16)",
+    "float-hover": "#45405a",
+    "on-accent": "#ffffff",
     font: 'system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif',
   },
 })
