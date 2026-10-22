@@ -1,4 +1,4 @@
-// リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える。行の中身の形は RowPropsSchema（書かなかった項目は既定）
+// リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える・動かす（並べ替えと、同じページの別のリストへ）。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { AlignSchema } from "../box"
@@ -149,5 +149,38 @@ export const ROW_LINES = defineAction({
       return { ...r, props: (to === undefined ? rest : { ...rest, lines: to }) as RowProps }
     })
     return { next: withList(book, found.page, { ...found.list, children }), result: {} }
+  },
+})
+
+// 行を動かす: 同じページのリスト to（無ければ同じリスト）の、行 before の前（無ければ最後）へ。
+// 移した先がチェックリストでなければ、行のチェックを消す。無いリスト・無い行・自分の前へなら断る
+export const ROW_MOVE = defineAction({
+  id: "row.move",
+  title: "Move row",
+  target: "book",
+  needs: [],
+  args: z.strictObject({
+    page: z.string().min(1),
+    list: z.string().min(1),
+    row: z.string().min(1),
+    to: z.string().min(1).optional(),
+    before: z.string().min(1).optional(),
+  }),
+  run: (book, args) => {
+    if (book.type !== "drawing") return null
+    const from = findList(book, args.page, args.list)
+    const moving = from && rowsOf(from.list).find(r => r.id === args.row)
+    if (!from || !moving || args.before === args.row) return null
+    const rest = rowsOf(from.list).filter(r => r.id !== args.row)
+    const left = withList(book, from.page, { ...from.list, children: rest })
+    const to = findList(left, args.page, args.to ?? args.list)
+    if (!to) return null
+    const target = rowsOf(to.list)
+    const at = args.before === undefined ? target.length : target.findIndex(r => r.id === args.before)
+    if (at < 0) return null
+    const { checked, ...plain } = moving.props
+    const row = to.list.props.checklist || checked === undefined ? moving : { ...moving, props: plain as RowProps }
+    const children = [...target.slice(0, at), row, ...target.slice(at)]
+    return { next: withList(left, to.page, { ...to.list, children }), result: {} }
   },
 })

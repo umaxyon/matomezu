@@ -3,12 +3,16 @@
 // 行をダブルクリックすると行の編集、右クリックすると行のメニュー（row.context）。チェックリストなら、行の左のチェックを押すだけで入れ切りする。
 // 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（行を押すとリストを選ぶだけで、
 // リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
+// 行を押して少し動かすと行のドラッグになり（押しただけ・ダブルクリック・チェックは今まで通り）、行がポインタに付いてきて、落とす所の行と行の間が光る。
+// 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list.moveRow）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
+// ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外の層に描く）。
 // 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list.stretchRow。ドラッグの途中の動いた量だけはビューに持つ）。
 // 設定のダイアログの「行の高さ」の下書き（項目 rowLines。データには無い）があれば、全部の行をそれで描く。
 // リストのテーマと色は箱と同じ欄（box.*）と、リストの欄（list.*。見出しの帯・台紙・行の付箋）で描き、行はリストに従う。
 // チェックリストでは、チェック済みの行を薄く描き（checkedGray）、先頭か最後に寄せて見せる（checkedOrder。データの順は変えない）。
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 import { type CSSProperties, type PointerEvent, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import type { ItemProps } from "../../../../core/registry"
 import { toPaperDelta } from "../../../../core/stage"
 import { resolveTokens } from "../../../../core/theme"
@@ -35,6 +39,49 @@ function shownOrder(rows: readonly ListRow[], order: "none" | "first" | "last"):
   return order === "first" ? [...done, ...rest] : [...rest, ...done]
 }
 
+// 行のドラッグを始めるまでに動かす量（画面の px）
+const DRAG_START = 4
+
+// 行のドラッグ: 押した行と位置、動かし始めたか
+interface Carry {
+  pointer: number
+  row: string
+  caption: string
+  start: { x: number; y: number }
+  moving: boolean
+}
+
+// 行を落とす所: リスト list の行 before の前（無ければ最後）と、光らせる所（画面の座標）
+interface Drop {
+  list: string
+  before?: string
+  bar: { x: number; y: number; w: number }
+}
+
+// ポインタ（画面の座標）の下のリストで、行 row を落とす所（無ければ null）。行の並びは画面に見えている順。行の真ん中より上なら、その行の前
+function dropAt(x: number, y: number, row: string): Drop | null {
+  const under = document.elementsFromPoint(x, y)
+  const item = under.map(el => el.closest("[data-item]")).find(Boolean)
+  const ul = item?.querySelector<HTMLElement>("[data-list-rows]")
+  const list = ul?.dataset.listRows
+  if (!ul || !list) return null
+  const box = ul.getBoundingClientRect()
+  const others = [...ul.querySelectorAll<HTMLElement>(":scope > [data-row]")].filter(li => li.dataset.row !== row)
+  const next = others.find(li => {
+    const r = li.getBoundingClientRect()
+    return y < r.top + r.height / 2
+  })
+  const last = others.at(-1)?.getBoundingClientRect()
+  const at = next ? next.getBoundingClientRect().top - GAP_MID : last ? last.bottom + GAP_MID : box.top + INSET_MID
+  return {
+    list,
+    ...(next?.dataset.row ? { before: next.dataset.row } : {}),
+    bar: { x: box.left + 8, y: at, w: box.width - 16 },
+  }
+}
+const GAP_MID = 3 // 行の間の隙間（6px）の真ん中
+const INSET_MID = 4 // 行の無いリストの、台紙の内側の余白の真ん中
+
 // 行の高さを変えているドラッグ: つかんだ行と、その高さ（紙の上）、押したときのポインタの位置
 interface Stretch {
   pointer: number
@@ -60,6 +107,45 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   const check = useCommand(stage, "list.check")
   const openMenu = useContextMenu(stage, "row.context")
   const stretchRow = useCommand(stage, "list.stretchRow")
+  const moveRow = useCommand(stage, "list.moveRow")
+  const carry = useRef<Carry | null>(null)
+  const [carried, setCarried] = useState<{ x: number; y: number; drop: Drop | null } | null>(null)
+  const endCarry = (drop: boolean) => {
+    const c = carry.current
+    carry.current = null
+    const target = carried?.drop
+    setCarried(null)
+    if (!drop || !c?.moving || !target || target.before === c.row) return
+    moveRow.run({ list: id, row: c.row, to: target.list, ...(target.before ? { before: target.before } : {}) })
+  }
+  const carrying = (row: ListRow) => ({
+    onPointerDown: (e: PointerEvent<HTMLLIElement>) => {
+      if (e.button !== 0) return
+      e.stopPropagation()
+      select(stage, [id])
+      carry.current = {
+        pointer: e.pointerId,
+        row: row.id,
+        caption: row.props.caption,
+        start: { x: e.clientX, y: e.clientY },
+        moving: false,
+      }
+    },
+    onPointerMove: (e: PointerEvent<HTMLLIElement>) => {
+      const c = carry.current
+      if (c?.pointer !== e.pointerId) return
+      if (!c.moving) {
+        if (Math.hypot(e.clientX - c.start.x, e.clientY - c.start.y) < DRAG_START) return
+        c.moving = true
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }
+      setCarried({ x: e.clientX, y: e.clientY, drop: dropAt(e.clientX, e.clientY, c.row) })
+    },
+    onPointerUp: (e: PointerEvent<HTMLLIElement>) => {
+      if (carry.current?.pointer === e.pointerId) endCarry(true)
+    },
+    onPointerCancel: () => endCarry(false),
+  })
   const { select } = useActions()
   const at = useApp(s => s.workspace.stages.find(st => st.id === stage))
   const stretch = useRef<Stretch | null>(null)
@@ -110,7 +196,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
             if (el.scrollHeight > el.clientHeight) e.stopPropagation()
           }}
         >
-          <ul className={styles.items} aria-label={t("Rows of {name}", { name: props.caption })}>
+          <ul className={styles.items} data-list-rows={id} aria-label={t("Rows of {name}", { name: props.caption })}>
             {shownOrder(rows, props.checklist ? props.checkedOrder : "none").map(i => {
               const row = rows[i] as ListRow
               const look = layout[i]
@@ -120,11 +206,8 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
                   className={styles.row}
                   data-row={row.id}
                   data-done={props.checklist && props.checkedGray && row.props.checked === true}
-                  onPointerDown={e => {
-                    if (e.button !== 0) return
-                    e.stopPropagation()
-                    select(stage, [id])
-                  }}
+                  data-carried={carried !== null && carry.current?.row === row.id}
+                  {...carrying(row)}
                   style={{ height: heightOf(row.id, look?.height ?? 0) }}
                   onDoubleClick={e => {
                     e.stopPropagation()
@@ -179,6 +262,23 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
           </button>
         </div>
       </div>
+      {carried &&
+        carry.current &&
+        createPortal(
+          <>
+            <div className={styles.ghost} style={{ left: carried.x + 12, top: carried.y - 14 }}>
+              {carry.current.caption}
+            </div>
+            {carried.drop && (
+              <div
+                className={styles.dropBar}
+                data-drop-bar
+                style={{ left: carried.drop.bar.x, top: carried.drop.bar.y - 1.5, width: carried.drop.bar.w }}
+              />
+            )}
+          </>,
+          document.body,
+        )}
     </div>
   )
 }

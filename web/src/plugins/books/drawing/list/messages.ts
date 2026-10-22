@@ -17,6 +17,7 @@ export const LIST_MESSAGES = defineMessages({
   "Remove rows": { ja: "行を消す" },
   "Check row": { ja: "行をチェックする" },
   "Set row heights": { ja: "行の高さを変える" },
+  "Move row": { ja: "行を動かす" },
   "Row height": { ja: "行の高さ" },
   "Fit each row to its body": { ja: "中身が見える高さにそろえる" },
   "Most lines": { ja: "最大行" },

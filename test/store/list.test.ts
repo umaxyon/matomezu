@@ -127,3 +127,28 @@ test("row.lines で行の行数を書き換える。rows が無ければ全部�
   expect(list(store).children!.every(r => !("lines" in r.props))).toBe(true)
   expect(act(store, "row.lines", { list: "n1", rows: ["nope"], lines: 1 }).ok).toBe(false)
 })
+
+test("row.move で行を並べ替え、同じページの別のリストへ移す。チェックリストでないリストへ移すとチェックは消える", () => {
+  const store = ready()
+  place(store, { checklist: true })
+  store.actions.perform(
+    "item.place",
+    { page: "p1", item: "shape.list", at: { x: 500, y: 100 }, props: {} },
+    { book: "b1" },
+  )
+  for (const c of ["一", "二", "三"]) act(store, "row.add", { list: "n1", props: { caption: c } })
+  const ids = list(store).children!.map(r => r.id)
+  const captions = () => list(store).children!.map(r => r.props.caption)
+  expect(act(store, "row.move", { list: "n1", row: ids[2], before: ids[0] }).ok).toBe(true)
+  expect(captions()).toEqual(["三", "一", "二"])
+  expect(act(store, "row.move", { list: "n1", row: ids[2] }).ok).toBe(true)
+  expect(captions()).toEqual(["一", "二", "三"])
+  act(store, "row.check", { list: "n1", row: ids[0], checked: true })
+  expect(act(store, "row.move", { list: "n1", row: ids[0], to: "n2" }).ok).toBe(true)
+  expect(captions()).toEqual(["二", "三"])
+  const other = items(store).find(i => i.id === "n2") as ReturnType<typeof list>
+  expect(other.children!.map(r => r.props)).toEqual([expect.objectContaining({ caption: "一" })])
+  expect("checked" in other.children![0]!.props).toBe(false)
+  expect(act(store, "row.move", { list: "n1", row: ids[1], before: ids[1] }).ok).toBe(false)
+  expect(act(store, "row.move", { list: "n1", row: ids[1], to: "nope" }).ok).toBe(false)
+})

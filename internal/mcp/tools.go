@@ -40,6 +40,8 @@ var actionTools = []actionTool{
 		"Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks."},
 	{"update_row", "row.update", "Change some props of a list's row. Props not given stay; a prop given as null is removed (back to its default)."},
 	{"remove_rows", "row.remove", "Remove rows from a list."},
+	{"move_row", "row.move", "Move a row of a list before the row before (or to the end without it), in the same list or in another list (to) on the same page. " +
+		"A row moved to a list that is not a checklist loses its check."},
 	{"check_row", "row.check", "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with update_item, and setting it false removes every row's check). " +
 		"The user checks rows too, so a check can carry their answer."},
 	{"set_row_lines", "row.lines", "Set how many body lines rows of a list show (rows given, or every row): a number gives them all that height whatever their body; " +

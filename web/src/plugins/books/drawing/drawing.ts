@@ -37,6 +37,7 @@ export const DRAWING = defineBookType({
       "row.remove",
       "row.check",
       "row.lines",
+      "row.move",
     ],
     defaults: [
       "page.add",
@@ -51,6 +52,7 @@ export const DRAWING = defineBookType({
       "row.remove",
       "row.check",
       "row.lines",
+      "row.move",
     ],
   },
   theme: "standard",

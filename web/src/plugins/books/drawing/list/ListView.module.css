@@ -216,3 +216,31 @@
   background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--ink);
 }
+/* 行のドラッグ: 動かしている行は元の所で薄く、ポインタに付く行の札と、落とす所の行と行の間の光る線は画面の上に重ねる（スキンの強調の色） */
+.row[data-carried="true"] {
+  opacity: 0.35;
+}
+.ghost {
+  position: fixed;
+  z-index: 40;
+  max-width: 240px;
+  padding: 4px 10px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--skin-bar);
+  color: var(--skin-text);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.dropBar {
+  position: fixed;
+  z-index: 39;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--skin-accent);
+  pointer-events: none;
+}

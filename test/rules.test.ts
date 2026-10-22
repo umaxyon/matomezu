@@ -33,7 +33,7 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
   host: t => t === "core" || t === "store" || t === "host" || t === "zod",
   engine: t => t === "core" || t === "store" || t === "plugins" || t === "zod",
   ui: t =>
-    ["core", "store", "ui", "react", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
+    ["core", "store", "ui", "react", "react-dom", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),
 }
 // プラグインのファイルは役割で見る。見た目（.tsx と ui.ts）は ui と同じもの、ほかは core・store・zod だけ

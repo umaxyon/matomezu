@@ -1,4 +1,4 @@
-// リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す、チェックを入れ切りする、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
+// リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
 import type { Point } from "../../../../core/geom"
 import { toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
@@ -59,6 +59,23 @@ export const LIST_STRETCH_ROW = defineCommand({
     if (!opened?.page) return
     const lines = linesFor(height + toPaperDelta(ctx.stage, by).y)
     a.perform("row.lines", { page: opened.page, list, rows: [row], lines }, { book: opened.book })
+  },
+  when: onDrawingPage,
+})
+
+// 行を動かす: リスト to（無ければ同じリスト）の行 before の前（無ければ最後）へ（行のドラッグで離したとき）
+export const LIST_MOVE_ROW = defineCommand({
+  id: "list.moveRow",
+  title: "Move row",
+  run: (ctx, a, args: { list: string; row: string; to: string; before?: string }) => {
+    const { opened } = ctx.stage
+    if (!opened?.page) return
+    const before = args.before === undefined ? {} : { before: args.before }
+    a.perform(
+      "row.move",
+      { page: opened.page, list: args.list, row: args.row, to: args.to, ...before },
+      { book: opened.book },
+    )
   },
   when: onDrawingPage,
 })

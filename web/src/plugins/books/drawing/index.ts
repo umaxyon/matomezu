@@ -16,8 +16,15 @@ import {
   ITEM_UPDATE,
 } from "./items"
 import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
-import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_REMOVE, ROW_UPDATE } from "./list/actions"
-import { LIST_ADD_ROW, LIST_CHECK, LIST_DELETE_ROW, LIST_EDIT_ROW, LIST_STRETCH_ROW } from "./list/commands"
+import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./list/actions"
+import {
+  LIST_ADD_ROW,
+  LIST_CHECK,
+  LIST_DELETE_ROW,
+  LIST_EDIT_ROW,
+  LIST_MOVE_ROW,
+  LIST_STRETCH_ROW,
+} from "./list/commands"
 import { DRAWING_MESSAGES } from "./messages"
 import { DRAWING_SETTINGS, DRAWING_SETTINGS_DIALOG } from "./settings"
 import { SIMPLE, STICKY } from "./themes"
@@ -38,6 +45,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
     ROW_REMOVE,
     ROW_CHECK,
     ROW_LINES,
+    ROW_MOVE,
   ],
   commands: [
     DRAWING_SETTINGS,
@@ -51,6 +59,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
     LIST_DELETE_ROW,
     LIST_CHECK,
     LIST_STRETCH_ROW,
+    LIST_MOVE_ROW,
   ],
   dialogs: [
     DRAWING_SETTINGS_DIALOG,
@@ -88,6 +97,7 @@ declare module "../../../core/tables" {
     "row.remove": typeof ROW_REMOVE
     "row.check": typeof ROW_CHECK
     "row.lines": typeof ROW_LINES
+    "row.move": typeof ROW_MOVE
   }
   interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
 }
@@ -105,6 +115,7 @@ declare module "../../../store/tables" {
     "list.deleteRow": typeof LIST_DELETE_ROW
     "list.check": typeof LIST_CHECK
     "list.stretchRow": typeof LIST_STRETCH_ROW
+    "list.moveRow": typeof LIST_MOVE_ROW
   }
   interface DialogTable {
     "drawing.settings": typeof DRAWING_SETTINGS_DIALOG

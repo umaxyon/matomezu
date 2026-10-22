@@ -198,3 +198,43 @@ test("リストのキャプションも、箱と同じく左・中央・右に�
   await expect(dialog).toBeHidden()
   await expect(head).toHaveCSS("text-align", "left")
 })
+
+test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは今まで通り", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const first = await addList(page, "左")
+  for (const c of ["一", "二", "三"]) await addRow(page, first, c)
+  await page.getByRole("button", { name: "リスト", exact: true }).click()
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  await page.mouse.click(paper.x + 520, paper.y + 120)
+  const add = page.getByRole("dialog", { name: "リストの追加" })
+  await add.getByLabel("キャプション", { exact: true }).fill("右")
+  await add.getByRole("button", { name: "追加" }).click()
+  const second = page.locator("[data-item]", { hasText: "右" })
+  const rows = (list: typeof first) => list.getByRole("listitem")
+  const drag = async (from: { x: number; y: number }, to: { x: number; y: number }, during?: () => Promise<void>) => {
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    await page.mouse.move(to.x, to.y, { steps: 8 })
+    await during?.()
+    await page.mouse.up()
+  }
+  // 「三」を「一」の上半分へ: 一の前に入る（ドラッグ中は光る線が出る）
+  const three = (await rows(first).nth(2).boundingBox())!
+  const one = (await rows(first).nth(0).boundingBox())!
+  await drag({ x: three.x + 40, y: three.y + 10 }, { x: one.x + 40, y: one.y + 4 }, async () => {
+    await expect(page.locator("[data-drop-bar]")).toBeVisible()
+  })
+  await expect(rows(first)).toHaveText(["三", "一", "二"])
+  await expect(page.locator("[data-drop-bar]")).toHaveCount(0)
+  // 「一」を右のリストへ
+  const target = (await second.locator("[data-list-rows]").boundingBox())!
+  const moving = (await rows(first).nth(1).boundingBox())!
+  await drag({ x: moving.x + 40, y: moving.y + 10 }, { x: target.x + 40, y: target.y + 10 })
+  await expect(rows(first)).toHaveText(["三", "二"])
+  await expect(rows(second)).toHaveText(["一"])
+  // ダブルクリックは行の編集のまま
+  await rows(second).first().dblclick()
+  await expect(page.getByRole("dialog", { name: "行の編集" })).toBeVisible()
+})
