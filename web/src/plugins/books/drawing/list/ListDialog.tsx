@@ -1,5 +1,6 @@
-// リストのダイアログ: 追加と編集で同じ並び（キャプション・テーマ・色・チェックリスト・行の色分け）。テーマと色は箱のダイアログと同じ。
-// 編集では、選んだテーマ・色・チェックリスト・行の色分けを決める前からリストに重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
+// リストのダイアログ: 追加と編集で同じ並び。キャプション（名前の右に左・中央・右の寄せ）、テーマ・色・行の色分けを横に並べた行、
+// チェックリストのスイッチと、入れたときだけ下に開く「チェック済みを」（グレーアウト・並べ替え）、行があるときの「行の高さ」。テーマと色は箱のダイアログと同じ。
+// 編集では、選んだ寄せ・テーマ・色・チェックリスト・行の色分け・チェック済みの見せ方・行の高さを決める前からリストに重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
 // チェックの入った行があるリストのチェックリストを切ろうとしたら、切る前に上に重ねたモーダルで確かめる（「チェックの状態が消えます」と、消す・戻すのボタン。base の Confirm）。確定すると行のチェックは消える（item.update）。
 // 編集には「行の高さ」（どれも高さの書き換え。決まりではない）: 「中身が見える高さにそろえる」は行ごとにその行の本文が全部見える高さに（行ごとに違う）、
 // 「行にそろえる」は選んだ行数（「最大行」なら本文の一番長い行が全部見える行数）に、本文の量によらず全部の行を同じ高さにする。
@@ -269,10 +270,11 @@ function ListDialog({
               />
             </span>
           )}
-        </div>
-        <div className={rowClass}>
-          <span>{t("Alternating row colors")}</span>
-          <Switch label={t("Alternating row colors")} checked={zebra} onChange={setZebra} />
+          <span className={styles.divider} aria-hidden="true" />
+          <span className={styles.pair}>
+            <span>{t("Alternating row colors")}</span>
+            <Switch label={t("Alternating row colors")} checked={zebra} onChange={setZebra} />
+          </span>
         </div>
         <SwitchPanel label={t("Checklist")} checked={checklist} onChange={toggleChecklist}>
           <fieldset className={styles.sub}>

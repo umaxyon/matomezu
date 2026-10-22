@@ -1,4 +1,4 @@
-/* 色の欄のボタン: 今の色の丸。「なし」は斜めの線 */
+/* 色の欄のボタン: 今の色の丸。「なし」は縁を点線に */
 .button {
   width: 24px;
   height: 24px;
@@ -9,16 +9,13 @@
   box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.55);
   cursor: pointer;
 }
+/* 「なし」（テーマに任せている）: テーマの塗りの色の丸を少し小さくし、その外に点線の輪（塗りの上では点線が見えないので、間を空ける） */
 .button[data-none="true"] {
-  background:
-    linear-gradient(
-      to top right,
-      transparent calc(50% - 1px),
-      #e11d48 calc(50% - 1px),
-      #e11d48 calc(50% + 1px),
-      transparent calc(50% + 1px)
-    ),
-    var(--color);
+  box-sizing: border-box;
+  padding: 2px;
+  border: 1.5px dashed color-mix(in srgb, var(--skin-text) 70%, transparent);
+  background-clip: content-box;
+  box-shadow: none;
 }
 .button:focus-visible {
   outline: 2px solid var(--skin-accent);
