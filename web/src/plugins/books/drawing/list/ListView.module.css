@@ -220,10 +220,13 @@
   background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--ink);
 }
-/* 行のドラッグ: つかんだ行は元の所にそのまま描き、同じリストのほかの行を薄くする（アイテムのドラッグと同じ）。
+/* 行のドラッグ: つかんだ行は元の所では隠し（場所は空けたまま）、ポインタに付く写しだけを見せる。同じリストのほかの行は薄くする（アイテムのドラッグと同じ）。
    ポインタに付く行の写しと、落とす所の行と行の間の線は画面の上に重ねる */
 .items[data-carrying="true"] .row:not([data-carried="true"]) {
   opacity: 0.4;
+}
+.row[data-carried="true"] {
+  visibility: hidden;
 }
 /* 行の写し: 行と同じ字の決まりで描き、少し透かして影を付ける（下が透けて見えるように） */
 .ghost {
