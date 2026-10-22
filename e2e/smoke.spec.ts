@@ -152,11 +152,11 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
-  // 右のタブは、右のステージの真下で、ブックの名前の欄（120px）の右にある
+  // 右のタブは、右のステージの真下で、ブックの名前の欄（156px）の右にある
   const bar = (await lists.nth(1).boundingBox())!
   const stage = (await right.boundingBox())!
   expect(bar.y).toBeGreaterThanOrEqual(stage.y + stage.height - 1)
-  expect(bar.x).toBeGreaterThanOrEqual(stage.x + 120)
+  expect(bar.x).toBeGreaterThanOrEqual(stage.x + 156)
   expect(bar.x).toBeLessThan(stage.x + 180)
 })
 
@@ -208,7 +208,7 @@ test("名前の欄にマウスを乗せるとメニューがせり上がり、�
   const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
   expect(footer.y).toBeGreaterThanOrEqual(stage.y + stage.height)
   expect(footer.height).toBeLessThan(tools.height)
-  expect(footer.width).toBe(120)
+  expect(footer.width).toBe(156)
 })
 
 test("分割すると、ツールボックスの無いステージでも右上に閉じるボタンがある。画面は縦にはみ出さない", async ({
@@ -315,4 +315,11 @@ test("分割すると、カレントのステージの下の行だけ色が少�
       .nth(2)
       .evaluate(el => getComputedStyle(el).backgroundColor)
   expect(await bg(0)).not.toBe(await bg(1))
+  const accent = (i: number) =>
+    page
+      .getByRole("button", { name: /まとめ図の構想|ブックのメニュー/ })
+      .nth(i)
+      .evaluate(el => getComputedStyle(el).boxShadow)
+  expect(await accent(0)).toBe("none")
+  expect(await accent(1)).not.toBe("none")
 })

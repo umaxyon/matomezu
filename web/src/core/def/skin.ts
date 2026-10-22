@@ -13,6 +13,7 @@ export const SKIN_TOKENS = [
   "btn",
   "btn-hover",
   "accent",
+  "current", // 分けているときのカレントのステージの下の行の地
   "font",
 ] as const
 

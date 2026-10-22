@@ -69,9 +69,9 @@
   font-size: 12px;
   user-select: none;
 }
-/* 分けているときのカレントのステージの下の行: 地に強調の色を少し混ぜる */
+/* 分けているときのカレントのステージの下の行 */
 .column[data-current="true"] .bottom {
-  background: color-mix(in srgb, var(--skin-bar), var(--skin-accent) 14%);
+  background: var(--skin-current);
 }
 /* 列の右上の角（上の行があればその右端、無ければステージの上に浮かぶ） */
 .corner {

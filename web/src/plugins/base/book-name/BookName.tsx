@@ -18,6 +18,7 @@ export function BookName({ stage }: { stage: string }) {
     return o ? s.books[o.book] : undefined
   })
   const lang = useApp(s => s.settings.lang)
+  const current = useApp(s => s.workspace.current === stage)
   const t = useT()
   const [open, setOpen] = useState(false)
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -48,6 +49,7 @@ export function BookName({ stage }: { stage: string }) {
         <button
           type="button"
           className={styles.trigger}
+          data-current={current}
           aria-label={title || t("Book menu")}
           aria-expanded={open}
           title={title || undefined}
