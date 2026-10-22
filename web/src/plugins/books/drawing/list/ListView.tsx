@@ -4,7 +4,7 @@
 // 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（行を押すとリストを選ぶだけで、
 // リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
 // 行を押して少し動かすと行のドラッグになり（押しただけ・ダブルクリック・チェックは今まで通り）、行のカードの写しがポインタに付いてきて、
-// 落とす所の行と行の間に線が出る。つかんだ行は元の所では隠し（場所は空けたまま）、同じリストのほかの行を薄くする（アイテムのドラッグと同じ見せ方）。
+// 落とす所の行と行の間に線が出る。リストの行の並びの上か下の端へ寄せると、その向きへスクロールする（edge-scroll.ts）。つかんだ行は元の所では隠し（場所は空けたまま）、同じリストのほかの行を薄くする（アイテムのドラッグと同じ見せ方）。
 // 写しは画面の上の層に描くので、行の所のテーマと色の変数を写し取って当てる。
 // 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list.moveRow）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
 // ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外の層に描く）。
@@ -13,7 +13,7 @@
 // リストのテーマと色は箱と同じ欄（box.*）と、リストの欄（list.*。見出しの帯・台紙・行の付箋）で描き、行はリストに従う。
 // チェックリストでは、チェック済みの行を薄く描き（checkedGray）、先頭か最後に寄せて見せる（checkedOrder。データの順は変えない）。
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
-import { type CSSProperties, type PointerEvent, useMemo, useRef, useState } from "react"
+import { type CSSProperties, type PointerEvent, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { ItemProps } from "../../../../core/registry"
 import { toPaperDelta } from "../../../../core/stage"
@@ -26,6 +26,7 @@ import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { themeVars } from "../../../../ui/theme-vars"
 import { BOX } from "../box"
 import { LIST, type ListRow } from "."
+import { edgeScroller } from "./edge-scroll"
 import styles from "./ListView.module.css"
 import { listPaintVars } from "./paint"
 import { linesFor, listLayout, type RowLayout, type RowsLines, rowHeight } from "./size"
@@ -142,9 +143,12 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   }, [registry])
   const carry = useRef<Carry | null>(null)
   const [carried, setCarried] = useState<{ x: number; y: number; drop: Drop | null } | null>(null)
+  const edge = useRef(edgeScroller()).current
+  useEffect(() => () => edge.stop(), [edge])
   const endCarry = (drop: boolean) => {
     const c = carry.current
     carry.current = null
+    edge.stop()
     const target = carried?.drop
     setCarried(null)
     if (!drop || !c?.moving || !target || target.before === c.row.id) return
@@ -171,7 +175,10 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
         c.look = ghostLook(e.currentTarget, c.start.x, c.start.y, ghostNames)
         e.currentTarget.setPointerCapture(e.pointerId)
       }
-      setCarried({ x: e.clientX, y: e.clientY, drop: dropAt(e.clientX, e.clientY, c.row.id) })
+      const { clientX: x, clientY: y } = e
+      const follow = () => setCarried({ x, y, drop: dropAt(x, y, c.row.id) })
+      follow()
+      edge.follow(x, y, follow)
     },
     onPointerUp: (e: PointerEvent<HTMLLIElement>) => {
       if (carry.current?.pointer === e.pointerId) endCarry(true)

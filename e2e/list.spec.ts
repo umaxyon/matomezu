@@ -238,3 +238,27 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   await rows(second).first().dblclick()
   await expect(page.getByRole("dialog", { name: "行の編集" })).toBeVisible()
 })
+
+test("行をドラッグして行の並びの下の端へ寄せると、ポインタを止めていても一番下までスクロールし続け、上の端へ寄せると上へ戻る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const list = await addList(page, "多い")
+  for (const n of [1, 2, 3, 4, 5, 6]) await addRow(page, list, `行 ${n}`)
+  const rows = list.locator("ul").locator("..")
+  // 足した行が見えるようにスクロールしているので、一番上へ戻してから最初の行をつかむ
+  await rows.evaluate(el => {
+    el.scrollTop = 0
+  })
+  const at = (await rows.boundingBox())!
+  const first = (await list.getByRole("listitem").first().boundingBox())!
+  await page.mouse.move(first.x + 40, first.y + 10)
+  await page.mouse.down()
+  await page.mouse.move(at.x + 40, at.y + at.height - 2, { steps: 8 })
+  // ポインタを止めたまま、行の並びの一番下まで届く
+  const end = await rows.evaluate(el => el.scrollHeight - el.clientHeight)
+  await expect.poll(() => rows.evaluate(el => el.scrollTop)).toBe(end)
+  await page.mouse.move(at.x + 40, at.y + 2, { steps: 4 })
+  await expect.poll(() => rows.evaluate(el => el.scrollTop)).toBe(0)
+  await page.mouse.up()
+})
