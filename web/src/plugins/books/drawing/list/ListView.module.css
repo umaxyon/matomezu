@@ -55,6 +55,7 @@
   list-style: none;
 }
 .row {
+  position: relative;
   display: flex;
   gap: 6px;
   box-sizing: border-box;
@@ -123,21 +124,35 @@
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-/* 行を足す「＋」の行 */
+/* 行の高さを変えるためにつかめる所（行の下の端の内側。行は中身を切り取るので外へははみ出さない。印は出さず、ポインタの形だけを変える） */
+.grip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: 5px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+/* 行を足す「＋」の行: 角の丸いボタン（上下左右に 4px・8px の空き） */
 .add {
   display: block;
-  width: 100%;
+  box-sizing: border-box;
+  width: calc(100% - 16px);
   height: 24px;
+  margin: 4px 8px;
   padding: 0;
-  border: 0;
-  background: transparent;
-  color: color-mix(in srgb, var(--theme-box-text) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-box-line) 45%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 4%);
+  color: color-mix(in srgb, var(--theme-box-text) 60%, transparent);
   font: inherit;
   font-size: 16px;
-  line-height: 24px;
+  line-height: 22px;
   cursor: pointer;
 }
 .add:hover {
-  background: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 8%);
+  background: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 10%);
   color: var(--theme-box-text);
 }

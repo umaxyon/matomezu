@@ -1,9 +1,10 @@
-// リストの行のアクション: 行を足す・変える・消す・チェックする。行の中身の形は RowPropsSchema（書かなかった項目は既定）
+// リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { nextItemId } from "../items/items"
-import { ROW_ITEM, RowPropsSchema } from "."
+import { ROW_ITEM, type RowProps, RowPropsSchema } from "."
 import { findList, rowsOf, withList } from "./rows"
+import { MAX_ROW_LINES } from "./size"
 
 // リスト list の最後に行を足す。チェックリストでないリストの行にチェックは書けない
 export const ROW_ADD = defineAction({
@@ -92,6 +93,33 @@ export const ROW_CHECK = defineAction({
     const children = rowsOf(found.list).map(r =>
       r.id === args.row ? { ...r, props: { ...r.props, checked: args.checked } } : r,
     )
+    return { next: withList(book, found.page, { ...found.list, children }), result: {} }
+  },
+})
+
+// 行の高さ（本文を見せる行数）を書き換える。rows が無ければ全部の行。lines が null なら行数を消し、リストでそろえる高さに戻す。無い行を含むなら断る
+export const ROW_LINES = defineAction({
+  id: "row.lines",
+  title: "Set row heights",
+  target: "book",
+  needs: [],
+  args: z.strictObject({
+    page: z.string().min(1),
+    list: z.string().min(1),
+    rows: z.array(z.string().min(1)).min(1).optional(),
+    lines: z.number().int().min(0).max(MAX_ROW_LINES).nullable(),
+  }),
+  run: (book, args) => {
+    if (book.type !== "drawing") return null
+    const found = findList(book, args.page, args.list)
+    const rows = found ? rowsOf(found.list) : []
+    if (!found || !(args.rows ?? []).every(id => rows.some(r => r.id === id))) return null
+    const targets = new Set(args.rows ?? rows.map(r => r.id))
+    const children = rows.map(r => {
+      if (!targets.has(r.id)) return r
+      const { lines: _, ...rest } = r.props
+      return { ...r, props: (args.lines === null ? rest : { ...rest, lines: args.lines }) as RowProps }
+    })
     return { next: withList(book, found.page, { ...found.list, children }), result: {} }
   },
 })

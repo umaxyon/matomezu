@@ -9,3 +9,16 @@
 .confirm > span {
   flex: 1;
 }
+/* 行の高さ: 名前と、最大の行数にそろえるボタン、行数の欄と、その行数にそろえるボタン */
+.lines {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.lines > span {
+  flex-basis: 100%;
+}
+.lines > input {
+  width: 4.5em;
+}

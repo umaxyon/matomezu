@@ -1,6 +1,7 @@
 // リストの大きさと行の並び: 幅と高さは置いたアイテムの w・h（利用者が決める。行が増えても伸びない。入らない行はリストの中でスクロールする）。
-// 上にキャプションの見出し（1 行）、その下に行を並べ、最後に行を足す「＋」の行。
-// 行の高さはそろえる: 全部の行の本文の折り返した行数のうち一番多い数と PLACE_LINES の小さい方まで本文を出し（収まらない本文は … で切る）、本文の無い行も同じ高さ。
+// 上にキャプションの見出し（1 行）、その下に行を並べ、最後に行を足す「＋」の行（角の丸いボタン）。
+// 行の高さは、本文を何行分見せるか（行数）で決める。行が行数（lines）を持てばその行数（本文の量によらない。ドラッグとそろえるボタンが書く）。
+// 持たない行はそろえる: 行数を持たない行の本文の折り返した行数のうち一番多い数と PLACE_LINES の小さい方（本文の無い行も同じ高さ）。収まらない本文は … で切る。
 // 文字の幅と折り返しは core/text で計算するので、画面でも常駐でも同じ行になる。画面（ListView）はこの値のとおりに描く
 import type { Size } from "../../../../core/geom"
 import { clampLines, textWidth, wrap } from "../../../../core/text/text"
@@ -16,7 +17,7 @@ export const LIST_LOOK = {
   ruleGap: BOX_LOOK.ruleGap,
   check: 14, // チェックの印の大きさ
   checkGap: 6, // チェックの印と行の文字の間
-  add: 24, // 「＋」の行の高さ
+  add: 32, // 「＋」の行の高さ（上下 4px の空きと、24px のボタン）
 } as const
 
 const L = LIST_LOOK
@@ -28,37 +29,47 @@ export const LIST_SIZE: Size = { w: 240, h: 2 * L.border + HEAD + 3 * EMPTY_ROW 
 export const LIST_MIN: Size = { w: 64, h: 2 * L.border + HEAD + L.add } // 一番狭い幅と、一番低い高さ（見出しと「＋」の行）
 
 export interface RowLayout {
-  body: string[] // 描く本文の行（そろえた行数で切る。本文が無ければ空）
+  lines: number // 本文を見せる行数
+  height: number // 行の高さ（下の線を含む）
+  body: string[] // 描く本文の行（行数で切る。本文が無ければ空）
   rule: boolean // 区切り線を引くか
 }
 
-export interface ListLayout {
-  lines: number // そろえた本文の行数
-  height: number // 1 行の高さ（下の線を含む）
-  rows: RowLayout[]
+export const MAX_ROW_LINES = 50 // 行に持たせる行数の上限
+
+// 本文を lines 行分見せる行の高さ（下の線を含む）
+export const rowHeight = (lines: number): number => EMPTY_ROW + (lines > 0 ? RULE + lines * L.line : 0)
+
+// 行の高さ height に一番近い行数（0 から MAX_ROW_LINES）。ドラッグで高さを変えるとき
+export function linesFor(height: number): number {
+  const lines = Math.round((height - EMPTY_ROW - RULE) / L.line)
+  return Math.min(MAX_ROW_LINES, Math.max(0, height < EMPTY_ROW + RULE / 2 ? 0 : lines))
 }
+
+// そろえるボタンの下書き: 全部の行の行数を消す（"auto"）か、全部の行を同じ行数にする
+export type RowsLines = "auto" | number
 
 // 行の文字を置ける幅（チェックリストならチェックの印の分を除く）
 const textWidthOf = (w: number, checklist: boolean) =>
   w - 2 * (L.border + L.padX) - (checklist ? L.check + L.checkGap : 0)
 
-// 幅 w のリストに描く行の並び
-export function listLayout(rows: readonly ListRow[], w: number, checklist: boolean): ListLayout {
+// 幅 w のリストに描く行の並び。all を渡せば、行の持つ行数の代わりにそれで決める（そろえるボタンの下書き）
+export function listLayout(rows: readonly ListRow[], w: number, checklist: boolean, all?: RowsLines): RowLayout[] {
   const inner = textWidthOf(w, checklist)
   const wrapped = rows.map(r => (r.props.body === "" ? [] : wrap(r.props.body, inner, BOX_LOOK.body)))
-  const lines = Math.min(Math.max(0, ...wrapped.map(b => b.length)), PLACE_LINES)
-  const height = EMPTY_ROW + (lines > 0 ? RULE + lines * L.line : 0)
-  return {
-    lines,
-    height,
-    rows: rows.map((r, i) => {
-      const body = wrapped[i] ?? []
-      return {
-        body: body.length > 0 && lines > 0 ? clampLines(body, lines, inner, BOX_LOOK.body) : [],
-        rule: r.props.rule && body.length > 0 && lines > 0,
-      }
-    }),
-  }
+  const own = (r: ListRow) => (all === undefined ? r.props.lines : all === "auto" ? undefined : all)
+  const counts = wrapped.filter((_, i) => own(rows[i] as ListRow) === undefined).map(b => b.length)
+  const auto = Math.min(Math.max(0, ...counts), PLACE_LINES)
+  return rows.map((r, i) => {
+    const lines = own(r) ?? auto
+    const body = wrapped[i] ?? []
+    return {
+      lines,
+      height: rowHeight(lines),
+      body: body.length > 0 && lines > 0 ? clampLines(body, lines, inner, BOX_LOOK.body) : [],
+      rule: r.props.rule && body.length > 0 && lines > 0,
+    }
+  })
 }
 
 // キャプションが PLACE_CAPTION 字まで切れずに見える幅（超えるなら、その字数と … が見える幅。一番狭くて LIST_MIN の幅）

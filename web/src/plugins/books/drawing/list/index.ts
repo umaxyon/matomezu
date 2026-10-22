@@ -11,7 +11,7 @@ import type { Point } from "../../../../core/geom"
 import { defineDialogWith } from "../../../../store/dialogs"
 import { AlignSchema } from "../box"
 import { BOX_BODY_MAX } from "../box/size"
-import { LIST_SIZE } from "./size"
+import { LIST_SIZE, MAX_ROW_LINES } from "./size"
 
 // 行の項目（箱の項目と同じ並びに、チェックの印）
 export const RowPropsSchema = z.strictObject({
@@ -21,6 +21,7 @@ export const RowPropsSchema = z.strictObject({
   captionAlign: AlignSchema.default("left"),
   bodyAlign: AlignSchema.default("left"),
   checked: z.boolean().optional(), // チェックが入っているか（チェックリストのときだけ）
+  lines: z.number().int().min(0).max(MAX_ROW_LINES).optional(), // 本文を見せる行数（無ければリストでそろえる。size.ts）
 })
 export type RowProps = z.infer<typeof RowPropsSchema>
 

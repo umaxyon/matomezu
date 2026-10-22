@@ -3,23 +3,34 @@
 // 行をダブルクリックすると行の編集、右クリックすると行のメニュー（row.context）。チェックリストなら、行の左のチェックを押すだけで入れ切りする。
 // 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（行を押すとリストを選ぶだけで、
 // リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
+// 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list.stretchRow。ドラッグの途中の動いた量だけはビューに持つ）。
+// 設定のダイアログの「行の高さ」の下書き（項目 rowLines。データには無い）があれば、全部の行をそれで描く。
 // リストのテーマと色は箱と同じ欄（box.*）で描き、行はリストに従う
-import { type CSSProperties, useMemo } from "react"
+import { type CSSProperties, type PointerEvent, useMemo, useRef, useState } from "react"
 import type { ItemProps } from "../../../../core/registry"
+import { toPaperDelta } from "../../../../core/stage"
 import { resolveTokens } from "../../../../core/theme"
 import { useCommand } from "../../../../ui/commands"
 import { useContextMenu } from "../../../../ui/context-menu"
 import { useT } from "../../../../ui/i18n"
 import type { ItemViewProps } from "../../../../ui/plugin"
-import { useActions, useRegistry } from "../../../../ui/store-context"
+import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { themeVars } from "../../../../ui/theme-vars"
 import { BOX } from "../box"
 import { paintVars } from "../box/paint"
 import type { ListRow } from "."
 import styles from "./ListView.module.css"
-import { listLayout } from "./size"
+import { linesFor, listLayout, type RowsLines, rowHeight } from "./size"
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
+
+// 行の高さを変えているドラッグ: つかんだ行と、その高さ（紙の上）、押したときのポインタの位置
+interface Stretch {
+  pointer: number
+  row: string
+  height: number
+  start: number
+}
 
 export function ListView({ props, size, id, stage, content }: ItemViewProps<ItemProps<"shape.list">>) {
   const t = useT()
@@ -34,8 +45,44 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   const edit = useCommand(stage, "list.editRow")
   const check = useCommand(stage, "list.check")
   const openMenu = useContextMenu(stage, "row.context")
+  const stretchRow = useCommand(stage, "list.stretchRow")
   const { select } = useActions()
-  const layout = listLayout(rows, size.w, props.checklist)
+  const at = useApp(s => s.workspace.stages.find(st => st.id === stage))
+  const stretch = useRef<Stretch | null>(null)
+  const [moved, setMoved] = useState(0) // 行の高さを変えているドラッグの、画面の上で動いた量
+  const draft = (props as { rowLines?: RowsLines }).rowLines
+  const layout = listLayout(rows, size.w, props.checklist, draft)
+  // 高さを変えている途中の行は、一番近い行数の高さで描く
+  const heightOf = (row: string, height: number) => {
+    const st = stretch.current
+    if (!st || st.row !== row || !at) return height
+    return rowHeight(linesFor(st.height + toPaperDelta(at, { x: 0, y: moved }).y))
+  }
+  const grip = (row: string, height: number) => ({
+    onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return
+      e.stopPropagation()
+      e.currentTarget.setPointerCapture(e.pointerId)
+      stretch.current = { pointer: e.pointerId, row, height, start: e.clientY }
+      select(stage, [id])
+    },
+    onPointerMove: (e: PointerEvent<HTMLDivElement>) => {
+      const st = stretch.current
+      if (st?.pointer === e.pointerId) setMoved(e.clientY - st.start)
+    },
+    onPointerUp: (e: PointerEvent<HTMLDivElement>) => {
+      const st = stretch.current
+      if (st?.pointer !== e.pointerId) return
+      stretch.current = null
+      setMoved(0)
+      if (moved !== 0) stretchRow.run({ list: id, row, height: st.height, by: { x: 0, y: moved } })
+    },
+    onPointerCancel: () => {
+      stretch.current = null
+      setMoved(0)
+    },
+    onDoubleClick: (e: { stopPropagation(): void }) => e.stopPropagation(),
+  })
   return (
     <div className={styles.frame} style={vars} data-theme={theme}>
       <div className={styles.list} style={paintVars(props.color) as CSSProperties} data-zebra={props.zebra}>
@@ -49,7 +96,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
         >
           <ul className={styles.items} aria-label={t("Rows of {name}", { name: props.caption })}>
             {rows.map((row, i) => {
-              const look = layout.rows[i]
+              const look = layout[i]
               return (
                 <li
                   key={row.id}
@@ -60,7 +107,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
                     e.stopPropagation()
                     select(stage, [id])
                   }}
-                  style={{ height: layout.height }}
+                  style={{ height: heightOf(row.id, look?.height ?? 0) }}
                   onDoubleClick={e => {
                     e.stopPropagation()
                     edit.run({ list: id, row: row.id })
@@ -94,6 +141,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
                       </div>
                     )}
                   </div>
+                  <div className={styles.grip} data-grip="row" {...grip(row.id, look?.height ?? 0)} />
                 </li>
               )
             })}

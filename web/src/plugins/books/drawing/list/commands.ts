@@ -1,5 +1,8 @@
-// リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す、チェックを入れ切りする（リストのビューと、行の右クリックのメニューから呼ぶ）
+// リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す、チェックを入れ切りする、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
+import type { Point } from "../../../../core/geom"
+import { toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
+import { linesFor } from "./size"
 
 const onDrawingPage = (ctx: CommandContext) => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null
 
@@ -43,6 +46,19 @@ export const LIST_CHECK = defineCommand({
   run: (ctx, a, { list, row, checked }: { list: string; row: string; checked: boolean }) => {
     const { opened } = ctx.stage
     if (opened?.page) a.perform("row.check", { page: opened.page, list, row, checked }, { book: opened.book })
+  },
+  when: onDrawingPage,
+})
+
+// 行の下の端を、画面の上で by だけ動かしたとき: 高さ height（紙の上）の行を、一番近い行数の高さにする（size.ts の linesFor）
+export const LIST_STRETCH_ROW = defineCommand({
+  id: "list.stretchRow",
+  title: "Set row heights",
+  run: (ctx, a, { list, row, height, by }: { list: string; row: string; height: number; by: Point }) => {
+    const { opened } = ctx.stage
+    if (!opened?.page) return
+    const lines = linesFor(height + toPaperDelta(ctx.stage, by).y)
+    a.perform("row.lines", { page: opened.page, list, rows: [row], lines }, { book: opened.book })
   },
   when: onDrawingPage,
 })

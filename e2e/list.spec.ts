@@ -100,3 +100,42 @@ test("行がリストの高さを超えるとリストの中でスクロール�
       .evaluate(el => getComputedStyle(el).backgroundColor)
   expect(await bg(0)).not.toBe(await bg(1))
 })
+
+test("行の下の端をドラッグすると、その行の高さが 1 行刻みで変わる。設定の「行の高さ」で全部の行をそろえ、キャンセルなら元のまま", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const list = await addList(page, "高さ")
+  await addRow(page, list, "一")
+  await addRow(page, list, "二", "本文")
+  const rows = list.getByRole("listitem")
+  const height = async (i: number) => (await rows.nth(i).boundingBox())!.height
+  const zoom = await page.evaluate(() => {
+    const p = document.querySelector('[role="img"]') as HTMLElement
+    return p.getBoundingClientRect().width / p.offsetWidth
+  })
+  const start = await height(0)
+  expect(await height(1)).toBe(start)
+  // 1 つめの行の下の端を、2 行ぶん下へ
+  const grip = (await rows.nth(0).locator('[data-grip="row"]').boundingBox())!
+  await page.mouse.move(grip.x + 30, grip.y + grip.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(grip.x + 30, grip.y + grip.height / 2 + 36 * zoom, { steps: 4 })
+  await page.mouse.up()
+  await expect.poll(() => height(0)).toBeCloseTo(start + 36 * zoom, 0)
+  expect(await height(1)).toBe(start)
+  // 設定で 3 行にそろえる: 確定の前から見せ、キャンセルで戻る
+  await list.getByText("高さ").dblclick()
+  const dialog = page.getByRole("dialog", { name: "リストの編集" })
+  await dialog.getByLabel("行数").fill("3")
+  await dialog.getByRole("button", { name: "3 行にそろえる" }).click()
+  await expect.poll(() => height(1)).toBeCloseTo(start + 36 * zoom, 0)
+  expect(await height(0)).toBeCloseTo(start + 36 * zoom, 0)
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect.poll(() => height(1)).toBe(start)
+  // 最大の行数にそろえる: 行数を消して、置いたときと同じ高さ（本文 1 行）に戻す
+  await list.getByText("高さ").dblclick()
+  await dialog.getByRole("button", { name: "最大の行数にそろえる" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect.poll(() => height(0)).toBe(start)
+})
