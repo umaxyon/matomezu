@@ -156,7 +156,7 @@ test("行の下の端をドラッグすると、その行の高さが 1 行刻�
   await expect.poll(() => height(0)).toBe(start)
 })
 
-test("チェックリストにすると「チェック済みを」の欄が出て、チェック済みの行を薄くし、先頭か最後に寄せて見せる（データの順は変えない）", async ({
+test("チェックリストにすると「チェック済みを」の欄が出て、チェック済みの行を薄くし、先頭か最後に寄せて見せる（データの順は変えない）。寄せているときチェック済みの行はドラッグできない", async ({
   page,
 }) => {
   await page.goto("/")
@@ -178,6 +178,21 @@ test("チェックリストにすると「チェック済みを」の欄が出�
   await expect(list.getByRole("listitem")).toHaveText(["一", "二", "三"]) // 下書きで見せる
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(list.getByRole("listitem")).toHaveText(["二", "三", "一"])
+  // 寄せて見せているときは、チェック済みの行はドラッグできない（チェックの無い行は動かせる）
+  const rows = list.getByRole("listitem")
+  const drag = async (from: number, to: number) => {
+    const a = (await rows.nth(from).boundingBox())!
+    const b = (await rows.nth(to).boundingBox())!
+    await page.mouse.move(a.x + 40, a.y + 10)
+    await page.mouse.down()
+    await page.mouse.move(b.x + 40, b.y + 4, { steps: 8 })
+    await expect(page.locator("[data-drop-bar]")).toHaveCount(from === 2 ? 0 : 1)
+    await page.mouse.up()
+  }
+  await drag(2, 0)
+  await expect(rows).toHaveText(["二", "三", "一"])
+  await drag(1, 0)
+  await expect(rows).toHaveText(["三", "二", "一"])
 })
 
 test("リストのキャプションも、箱と同じく左・中央・右に寄せられる（既定は中央。確定の前から見せる）", async ({

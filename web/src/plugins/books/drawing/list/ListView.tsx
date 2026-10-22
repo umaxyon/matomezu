@@ -4,7 +4,7 @@
 // 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（行を押すとリストを選ぶだけで、
 // リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
 // 行を押して少し動かすと行のドラッグになり（押しただけ・ダブルクリック・チェックは今まで通り）、行のカードの写しがポインタに付いてきて、
-// 落とす所の行と行の間に線が出る。リストの行の並びの上か下の端へ寄せると、その向きへスクロールする（edge-scroll.ts）。つかんだ行は元の所では隠し（場所は空けたまま）、同じリストのほかの行を薄くする（アイテムのドラッグと同じ見せ方）。
+// 落とす所の行と行の間に線が出る。チェック済みの行を寄せて見せているリストでは、チェック済みの行は動かせない。リストの行の並びの上か下の端へ寄せると、その向きへスクロールする（edge-scroll.ts）。つかんだ行は元の所では隠し（場所は空けたまま）、同じリストのほかの行を薄くする（アイテムのドラッグと同じ見せ方）。
 // 写しは画面の上の層に描くので、行の所のテーマと色の変数を写し取って当てる。
 // 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list.moveRow）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
 // ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外の層に描く）。
@@ -159,11 +159,14 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
     if (!drop || !c?.moving || !target || target.before === c.row.id) return
     moveRow.run({ list: id, row: c.row.id, to: target.list, ...(target.before ? { before: target.before } : {}) })
   }
+  // チェック済みの行を先頭か最後に寄せて見せているときは、チェック済みの行は動かせない（落としても、見せる順で寄せ直されるため）
+  const pinned = (row: ListRow) => props.checklist && props.checkedOrder !== "none" && row.props.checked === true
   const carrying = (row: ListRow) => ({
     onPointerDown: (e: PointerEvent<HTMLLIElement>) => {
       if (e.button !== 0) return
       e.stopPropagation()
       select(stage, [id])
+      if (pinned(row)) return
       carry.current = {
         pointer: e.pointerId,
         row,
