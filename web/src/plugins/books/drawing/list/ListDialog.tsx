@@ -15,6 +15,7 @@ import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import {
   ActionButton,
+  Choices,
   ColorPicker,
   Confirm,
   controlClass,
@@ -27,7 +28,7 @@ import {
   Switch,
   SwitchPanel,
 } from "../../../base/ui"
-import { useBookOf, useBookTheme, useSwatches } from "../box/BoxDialog"
+import { useAligns, useBookOf, useBookTheme, useSwatches } from "../box/BoxDialog"
 import { itemsOf } from "../items/items"
 import { LIST, type ListRow } from "."
 import styles from "./ListDialog.module.css"
@@ -44,11 +45,21 @@ const PICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 type ListProps = ItemProps<"shape.list">
 
 // 選んだそばからリストに見せる項目（rowLines は行の高さの下書きで、データには無い）
-type Look = Pick<ListProps, "theme" | "color" | "checklist" | "zebra" | "checkedGray" | "checkedOrder"> & {
+type Look = Pick<
+  ListProps,
+  "captionAlign" | "theme" | "color" | "checklist" | "zebra" | "checkedGray" | "checkedOrder"
+> & {
   rowLines?: RowsLines
 }
 
-const EMPTY: ListProps = { caption: "", checklist: false, zebra: false, checkedGray: false, checkedOrder: "none" }
+const EMPTY: ListProps = {
+  caption: "",
+  captionAlign: "center",
+  checklist: false,
+  zebra: false,
+  checkedGray: false,
+  checkedOrder: "none",
+}
 
 export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
   const book = useBookOf(stage)
@@ -147,6 +158,8 @@ function ListDialog({
   const form = useId()
   const registry = useRegistry()
   const [caption, setCaption] = useState(start.caption)
+  const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
+  const aligns = useAligns()
   const [theme, setTheme] = useState(start.theme ?? "")
   const [color, setColor] = useState(start.color)
   const [checklist, setChecklist] = useState(start.checklist)
@@ -159,6 +172,7 @@ function ListDialog({
   const [pick, setPick] = useState<number | "max">("max")
   const swatches = useSwatches(theme || bookTheme)
   const changed =
+    captionAlign !== start.captionAlign ||
     theme !== (start.theme ?? "") ||
     color !== start.color ||
     checklist !== start.checklist ||
@@ -170,6 +184,7 @@ function ListDialog({
     onPreview?.(
       changed
         ? {
+            captionAlign,
             theme: theme || undefined,
             color,
             checklist,
@@ -180,7 +195,7 @@ function ListDialog({
           }
         : null,
     )
-  }, [changed, theme, color, checklist, zebra, checkedGray, checkedOrder, rowLines, onPreview])
+  }, [changed, captionAlign, theme, color, checklist, zebra, checkedGray, checkedOrder, rowLines, onPreview])
   const toggleChecklist = (on: boolean) => {
     // チェックの入った行があるリストで切るなら、切る前に確かめる（確かめている間は入ったまま）
     if (!on && start.checklist && checked) setConfirming(true)
@@ -209,6 +224,7 @@ function ListDialog({
             !onSubmit(
               {
                 caption,
+                captionAlign,
                 checklist,
                 zebra,
                 checkedGray,
@@ -221,7 +237,12 @@ function ListDialog({
           )
         }
       >
-        <Field label={t("Caption")}>
+        <Field
+          label={t("Caption")}
+          aside={
+            <Choices label={t("Caption alignment")} value={captionAlign} options={aligns} onChange={setCaptionAlign} />
+          }
+        >
           {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
         </Field>
         <div className={styles.inline}>

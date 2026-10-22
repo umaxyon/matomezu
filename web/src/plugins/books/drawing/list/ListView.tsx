@@ -100,7 +100,9 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   return (
     <div className={styles.frame} style={vars} data-theme={theme}>
       <div className={styles.list} style={listPaintVars(props.color) as CSSProperties} data-zebra={props.zebra}>
-        <div className={styles.head}>{props.caption}</div>
+        <div className={styles.head} data-align={props.captionAlign}>
+          {props.caption}
+        </div>
         <div
           className={styles.rows}
           onWheel={e => {

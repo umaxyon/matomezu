@@ -42,6 +42,7 @@ export const LIST = defineItem({
   toolbox: true,
   props: z.strictObject({
     caption: z.string().default(""),
+    captionAlign: AlignSchema.default("center"), // 見出しのキャプションの寄せ（箱と同じ）
     theme: z.string().min(1).optional(), // リストに当てるテーマの id（無ければブックのテーマ）
     color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（箱と同じ）
     checklist: z.boolean().default(false), // 行の左にチェックの印を出す

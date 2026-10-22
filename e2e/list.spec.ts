@@ -179,3 +179,22 @@ test("チェックリストにすると「チェック済みを」の欄が出�
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(list.getByRole("listitem")).toHaveText(["二", "三", "一"])
 })
+
+test("リストのキャプションも、箱と同じく左・中央・右に寄せられる（既定は中央。確定の前から見せる）", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const list = await addList(page, "寄せ")
+  const head = list.getByText("寄せ")
+  await expect(head).toHaveCSS("text-align", "center")
+  await head.dblclick()
+  const dialog = page.getByRole("dialog", { name: "リストの編集" })
+  await dialog
+    .getByRole("group", { name: "キャプションの寄せ" })
+    .getByRole("radio", { name: "左寄せ" })
+    .check({ force: true })
+  await expect(head).toHaveCSS("text-align", "left")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(head).toHaveCSS("text-align", "left")
+})

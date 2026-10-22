@@ -51,6 +51,13 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* 見出しのキャプションの寄せ */
+.head[data-align="left"] {
+  text-align: left;
+}
+.head[data-align="right"] {
+  text-align: right;
+}
 /* 行の並び。リストの高さを超えたらここだけスクロールする。スクロールバーは細く、つまみはテーマの文字の色を薄めた色、溝は透明（OS の明暗によらない） */
 .rows {
   flex: 1;
