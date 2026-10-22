@@ -114,3 +114,29 @@ test("画面から辺をつかんで大きさを変える: 辺はその辺だけ
   drag({ y: "top" }, 0, 1000)
   expect(items(store)[0]).toMatchObject({ y: 200 - BOX_MIN.h, h: BOX_MIN.h })
 })
+
+test("中身を変えてキャプションが長くなったら、20 字まで見える幅まで右へ広げる。狭めはせず、紙の右の端で止める", () => {
+  const store = ready()
+  place(store, box("本文"))
+  const update = (props: Record<string, unknown>) =>
+    store.actions.perform("item.update", { page: "p1", item: "n1", props }, { book: "b1" })
+  const twenty = "あ".repeat(20)
+  expect(update({ caption: twenty }).ok).toBe(true)
+  expect(items(store)[0]).toMatchObject({ x: 100, w: placedWidth({ caption: twenty, rule: true, body: "" }) })
+  update({ caption: "あ".repeat(30) })
+  const wide = items(store)[0]!.w!
+  expect(wide).toBe(placedWidth({ caption: "あ".repeat(30), rule: true, body: "" }))
+  update({ caption: "短い" })
+  expect(items(store)[0]!.w).toBe(wide)
+  store.actions.perform("item.resize", { page: "p1", item: "n1", w: 64, x: 1123 - 100 }, { book: "b1" })
+  update({ caption: twenty })
+  expect(items(store)[0]).toMatchObject({ x: 1023, w: 100 })
+})
+
+test("キャプションを変えないなら、幅はそのまま", () => {
+  const store = ready()
+  place(store, box("本文"), { x: 100, y: 100 }, { w: 64 })
+  store.actions.perform("item.resize", { page: "p1", item: "n1", w: 64 }, { book: "b1" })
+  store.actions.perform("item.update", { page: "p1", item: "n1", props: { body: "変えた" } }, { book: "b1" })
+  expect(items(store)[0]!.w).toBe(64)
+})

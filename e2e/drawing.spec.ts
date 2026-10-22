@@ -343,3 +343,24 @@ test("置いた箱の幅はキャプションに合わせ、20 字までは切�
   expect(b.width).toBeGreaterThan(a.width)
   expect(b.width - a.width).toBeLessThan(20)
 })
+
+test("編集でキャプションを長くすると、20 字が見える幅まで箱が右へ広がる", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "箱" }).click()
+  const at = await onPaper(page, 100, 100)
+  await addBox(page, at.x, at.y, "短い")
+  const box = page.locator("[data-item]")
+  const before = (await box.boundingBox())!
+  await box.dblclick()
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  await dialog.getByLabel("キャプション").fill("あいうえおかきくけこさしすせそたちつてと")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect.poll(async () => (await box.boundingBox())!.width).toBeGreaterThan(before.width * 2)
+  expect(Math.abs((await box.boundingBox())!.x - before.x)).toBeLessThan(1)
+  expect(
+    await box
+      .locator("div")
+      .nth(1)
+      .evaluate(el => el.scrollWidth > el.clientWidth),
+  ).toBe(false)
+})

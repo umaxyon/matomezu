@@ -72,6 +72,17 @@ export function resizedBy(
   return { x: h.at, y: v.at, w: h.len, h: v.len }
 }
 
+// 中身を変えた箱 next の幅: キャプションが変わって、置いたときの幅（20 字まで）より狭ければ、そこまで右へ広げる（紙の右の端で止める）。
+// 狭めはしない。箱でないか、キャプションが変わらなければそのまま
+export function widenForCaption(reg: Registry, page: DrawingPage, before: Placed, next: Placed): Placed {
+  if (next.item !== BOX.id || before.item !== BOX.id || next.props.caption === before.props.caption) return next
+  const size = placedSize(reg, next)
+  const paper = paperSize(reg, page)
+  if (!size || !paper) return next
+  const w = Math.min(placedWidth(next.props), paper.w - next.x)
+  return w > size.w ? { ...next, w } : next
+}
+
 // 置いたアイテムが、そのページの紙からはみ出さないか
 function fitsPage(reg: Registry, page: DrawingPage, item: Placed): boolean {
   const paper = paperSize(reg, page)

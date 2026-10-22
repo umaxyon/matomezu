@@ -2,7 +2,16 @@
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { bookType } from "../../../../core/registry"
-import { itemsOf, moveItems, nextItemId, placedSize, placeItem, removeItems, replaceItem } from "./items"
+import {
+  itemsOf,
+  moveItems,
+  nextItemId,
+  placedSize,
+  placeItem,
+  removeItems,
+  replaceItem,
+  widenForCaption,
+} from "./items"
 import { PlacedSchema } from "./schema"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
@@ -53,7 +62,7 @@ export const ITEM_MOVE = defineAction({
 })
 
 // アイテムの項目を変える。props に書いた項目だけを変え、書かなかった項目はそのまま。null を書いた項目は消す（既定に戻す）。
-// 項目の形に合わない・変えた中身で紙からはみ出すなら断る
+// 箱のキャプションが変わったら、20 字まで見える幅まで右へ広げる（items.ts の widenForCaption。狭めはしない）。項目の形に合わなければ断る
 export const ITEM_UPDATE = defineAction({
   id: "item.update",
   title: "Update item",
@@ -71,8 +80,8 @@ export const ITEM_UPDATE = defineAction({
     if (!now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const item = PlacedSchema.safeParse({ ...now, props })
-    if (!item.success) return null
-    const next = replaceItem(ctx.registry, book, args.page, item.data)
+    if (!item.success || !page) return null
+    const next = replaceItem(ctx.registry, book, args.page, widenForCaption(ctx.registry, page, now, item.data))
     return next && { next, result: {} }
   },
 })
