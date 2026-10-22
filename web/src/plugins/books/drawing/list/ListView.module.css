@@ -43,11 +43,13 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-/* 行の並び。リストの高さを超えたらここだけスクロールする */
+/* 行の並び。リストの高さを超えたらここだけスクロールする。スクロールバーは細く、つまみはテーマの文字の色を薄めた色、溝は透明（OS の明暗によらない） */
 .rows {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--theme-box-text) 28%, transparent) transparent;
 }
 .items {
   margin: 0;

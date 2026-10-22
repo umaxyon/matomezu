@@ -109,3 +109,29 @@ func TestCatalogDescribesActionsAndItems(t *testing.T) {
 		t.Fatalf("catalog = %s", newEngine(t).Catalog())
 	}
 }
+
+func TestCatalogDescribesListRows(t *testing.T) {
+	var c struct {
+		Actions []struct {
+			ID   string          `json:"id"`
+			Args json.RawMessage `json:"args"`
+		} `json:"actions"`
+	}
+	if err := json.Unmarshal(newEngine(t).Catalog(), &c); err != nil {
+		t.Fatal(err)
+	}
+	args := map[string]string{}
+	for _, a := range c.Actions {
+		args[a.ID] = string(a.Args)
+	}
+	for _, id := range []string{"row.add", "row.update", "row.remove", "row.check", "row.lines"} {
+		if args[id] == "" {
+			t.Fatalf("%s is not in the catalog", id)
+		}
+	}
+	for _, field := range []string{`"caption"`, `"rule"`, `"bodyAlign"`} {
+		if !strings.Contains(args["row.add"], field) || !strings.Contains(args["row.update"], field) {
+			t.Fatalf("row props lack %s: %s", field, args["row.add"])
+		}
+	}
+}

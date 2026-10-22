@@ -1,12 +1,33 @@
 // リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
+import { AlignSchema } from "../box"
+import { BOX_BODY_MAX } from "../box/size"
 import { nextItemId } from "../items/items"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "."
 import { findList, rowsOf, withList } from "./rows"
 import { MAX_ROW_LINES } from "./size"
 
-// リスト list の最後に行を足す。チェックリストでないリストの行にチェックは書けない
+// 行の項目を変えるときに渡す形: 書いた項目だけを変え、null は消す（既定に戻す）。AI にもこの形で見せる。
+// チェック（checked）は row.check、行数（lines）は row.lines で変える
+const RowPatchSchema = z.strictObject({
+  caption: z.string().nullable().optional(),
+  rule: z.boolean().nullable().optional(), // キャプションと本文の間の区切り線
+  body: z.string().max(BOX_BODY_MAX).nullable().optional(),
+  captionAlign: AlignSchema.nullable().optional(),
+  bodyAlign: AlignSchema.nullable().optional(),
+})
+
+// 足す行の項目（書かなかった項目は既定）
+const RowNewSchema = RowPatchSchema.extend({
+  caption: z.string().optional(),
+  rule: z.boolean().optional(),
+  body: z.string().max(BOX_BODY_MAX).optional(),
+  captionAlign: AlignSchema.optional(),
+  bodyAlign: AlignSchema.optional(),
+})
+
+// リスト list の最後に行を足す
 export const ROW_ADD = defineAction({
   id: "row.add",
   title: "Add row",
@@ -15,20 +36,20 @@ export const ROW_ADD = defineAction({
   args: z.strictObject({
     page: z.string().min(1),
     list: z.string().min(1),
-    props: z.record(z.string(), z.unknown()).optional(),
+    props: RowNewSchema.optional(),
   }),
   run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
     const found = findList(book, args.page, args.list)
     const props = RowPropsSchema.safeParse(args.props ?? {})
-    if (!found || !props.success || (props.data.checked !== undefined && !found.list.props.checklist)) return null
+    if (!found || !props.success) return null
     const row = { id: nextItemId(book, ctx.newId), item: ROW_ITEM, props: props.data }
     const next = withList(book, found.page, { ...found.list, children: [...rowsOf(found.list), row] })
     return { next, result: { row: row.id } }
   },
 })
 
-// 行の項目を変える。props に書いた項目だけを変え、null を書いた項目は消す（既定に戻す）。項目の形に合わない・チェックリストでないリストのチェックは断る
+// 行の項目を変える。props に書いた項目だけを変え、null を書いた項目は消す（既定に戻す）。項目の形に合わなければ断る
 export const ROW_UPDATE = defineAction({
   id: "row.update",
   title: "Update row",
@@ -38,7 +59,7 @@ export const ROW_UPDATE = defineAction({
     page: z.string().min(1),
     list: z.string().min(1),
     row: z.string().min(1),
-    props: z.record(z.string(), z.unknown()),
+    props: RowPatchSchema,
   }),
   run: (book, args) => {
     if (book.type !== "drawing") return null
@@ -47,7 +68,7 @@ export const ROW_UPDATE = defineAction({
     if (!found || !now) return null
     const merged = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const props = RowPropsSchema.safeParse(merged)
-    if (!props.success || (props.data.checked !== undefined && !found.list.props.checklist)) return null
+    if (!props.success) return null
     const children = rowsOf(found.list).map(r => (r.id === args.row ? { ...r, props: props.data } : r))
     return { next: withList(book, found.page, { ...found.list, children }), result: {} }
   },

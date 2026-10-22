@@ -25,7 +25,8 @@ var actionTools = []actionTool{
 	{"update_book", "book.update", "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it) and paperColor (#rrggbb, the paper's color). " +
 		"Only what is given changes; null removes it (back to the book type's theme, or the theme's paper color)."},
 	{"add_page", "page.add", "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id."},
-	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box). " +
+	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box, a list). " +
+		"A list (shape.list) starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with add_row. " +
 		"Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. " +
 		"Boxes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed. It is refused if it does not fit on the paper. Returns the new item's id."},
 	{"move_items", "item.move", "Move items of a page by (x, y) paper pixels. Other boxes are not pushed: moving one box at least half into the box ahead of it swaps them; " +
@@ -35,6 +36,14 @@ var actionTools = []actionTool{
 		"Boxes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed boxes shrink (no narrower than their caption, no lower than one caption line). " +
 		"It is refused below the item's smallest size, off the paper, or when they cannot shrink enough."},
 	{"remove_items", "item.remove", "Remove items from a page."},
+	{"add_row", "row.add", "Add a row at the end of a list (an item shape.list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. " +
+		"Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks."},
+	{"update_row", "row.update", "Change some props of a list's row. Props not given stay; a prop given as null is removed (back to its default)."},
+	{"remove_rows", "row.remove", "Remove rows from a list."},
+	{"check_row", "row.check", "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with update_item, and setting it false removes every row's check). " +
+		"The user checks rows too, so a check can carry their answer."},
+	{"set_row_lines", "row.lines", "Set how many body lines rows of a list show, whatever their body (rows given, or every row). " +
+		"null removes it: rows without it share the height of the most body lines among them, up to 5, and a longer body is cut with …."},
 }
 
 type readTool struct {
