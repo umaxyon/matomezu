@@ -569,3 +569,26 @@ test("ブックの名前の欄のメニューからブックの設定を開い�
   await expect(dialog).toBeHidden()
   await expect(trigger).toHaveText("新しい名前")
 })
+
+test("箱の右の辺を右の箱へ向けて広げると、手を離したときに右の箱が押されて右へずれる", async ({ page }) => {
+  await page.goto("/")
+  for (const [x, caption] of [
+    [120, "左"],
+    [260, "右"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, 120)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const boxes = page.locator("[data-item]")
+  const before = (await boxes.nth(1).boundingBox())!
+  await boxes.nth(0).click()
+  await dragGrip(page, "right", 120, 0)
+  await expect.poll(async () => (await boxes.nth(1).boundingBox())!.x).toBeGreaterThan(before.x)
+  // 押された箱は、広げた箱の右の端から間隔の下限（8px）先。縦には動かない
+  const left = (await boxes.nth(0).boundingBox())!
+  const after = (await boxes.nth(1).boundingBox())!
+  const zoom = await zoomOf(page)
+  expect(Math.abs(after.x - (left.x + left.width + 8 * zoom))).toBeLessThan(1)
+  expect(Math.abs(after.y - before.y)).toBeLessThan(1)
+})

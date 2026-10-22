@@ -10,7 +10,7 @@ import {
   placedSize,
   placeItem,
   removeItems,
-  replaceItem,
+  replacePushing,
   widenForCaption,
 } from "./items"
 import { PlacedSchema } from "./schema"
@@ -63,7 +63,8 @@ export const ITEM_MOVE = defineAction({
 })
 
 // アイテムの項目を変える。props に書いた項目だけを変え、書かなかった項目はそのまま。null を書いた項目は消す（既定に戻す）。
-// 箱に当てるテーマ（theme）は表にあるものだけ。箱のキャプションが変わったら、20 字まで見える幅まで右へ広げる（items.ts の widenForCaption。狭めはしない）。項目の形に合わなければ断る
+// 箱に当てるテーマ（theme）は表にあるものだけ。箱のキャプションが変わったら、20 字まで見える幅まで右へ広げ（items.ts の widenForCaption。狭めはしない）、
+// 近づきすぎた相手を押す。押した相手が紙に収まらなければ、広げずに変える。項目の形に合わなければ断る
 export const ITEM_UPDATE = defineAction({
   id: "item.update",
   title: "Update item",
@@ -82,13 +83,16 @@ export const ITEM_UPDATE = defineAction({
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const item = PlacedSchema.safeParse({ ...now, props })
     if (!item.success || !page || !knownTheme(ctx.registry, item.data)) return null
-    const next = replaceItem(ctx.registry, book, args.page, widenForCaption(ctx.registry, page, now, item.data))
+    const wide = widenForCaption(ctx.registry, page, now, item.data)
+    const next =
+      replacePushing(ctx.registry, book, args.page, wide) ??
+      (wide !== item.data ? replacePushing(ctx.registry, book, args.page, item.data) : null)
     return next && { next, result: {} }
   },
 })
 
 // アイテムの大きさを変える（大きさを変えられるアイテムだけ）。渡した値だけを変える。x・y を渡せば左上も動かす（左や上の辺をつかんで変えるとき）。
-// 一番小さい大きさより小さい・紙からはみ出すなら断る
+// 近づきすぎた相手は、育った向きに押してどける（items.ts の replacePushing）。一番小さい大きさより小さい・紙からはみ出す・押した相手が紙に収まらないなら断る
 export const ITEM_RESIZE = defineAction({
   id: "item.resize",
   title: "Resize item",
@@ -117,7 +121,7 @@ export const ITEM_RESIZE = defineAction({
       h: args.h ?? size.h,
     })
     if (!item.success) return null
-    const next = replaceItem(ctx.registry, book, args.page, item.data)
+    const next = replacePushing(ctx.registry, book, args.page, item.data)
     return next && { next, result: {} }
   },
 })

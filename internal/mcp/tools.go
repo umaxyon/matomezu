@@ -29,9 +29,9 @@ var actionTools = []actionTool{
 		"Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. " +
 		"It is refused if it does not fit on the paper. Returns the new item's id."},
 	{"move_items", "item.move", "Move items of a page by (x, y) paper pixels. It is refused if any would leave the paper."},
-	{"update_item", "item.update", "Change some props of an item. Props not given stay; a prop given as null is removed (back to its default). The item's size does not change."},
+	{"update_item", "item.update", "Change some props of an item. Props not given stay; a prop given as null is removed (back to its default). The item's size does not change, except that a box whose caption grows widens to show it up to 20 characters, pushing the boxes it would come too close to (when they would leave the paper, it stays as wide)."},
 	{"resize_item", "item.resize", "Change the size of an item that can be resized (a box): only w and h given change; x and y move its top-left too. " +
-		"It is refused below the item's smallest size or off the paper."},
+		"Boxes it would come within 8 pixels of are pushed the way it grew. It is refused below the item's smallest size, off the paper, or when a pushed box would leave the paper."},
 	{"remove_items", "item.remove", "Remove items from a page."},
 }
 

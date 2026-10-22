@@ -1,5 +1,5 @@
 // 図面のページに置いたアイテムの操作（データを書き換えず、新しい値を返す）。
-// アイテムは紙から少しでもはみ出す所には置かず、動かさない
+// アイテムは紙から少しでもはみ出す所には置かず、動かさない。大きさか左上が変わったアイテムは、近づきすぎた相手を押してどける（push.ts）
 import type { Point, Size } from "../../../../core/geom"
 import { freshId } from "../../../../core/ids"
 import { resolvePaper } from "../../../../core/paper"
@@ -7,6 +7,7 @@ import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { BOX } from "../box"
 import { BOX_MIN, placedHeight, placedWidth } from "../box/size"
+import { newClash, pushFrom, type Rect } from "./push"
 import type { DrawingPage, Placed } from "./schema"
 
 type Drawing = BookOf<"drawing">
@@ -117,11 +118,32 @@ export function placeItem(reg: Registry, book: Drawing, pageId: string, item: Pl
   return withPage(book, { ...page, items: [...itemsOf(page), item] })
 }
 
-// ページのアイテムを next に置き換える（id とページの中の順はそのまま）。無いページ・無いアイテム・id の違うもの・はみ出すなら null
-export function replaceItem(reg: Registry, book: Drawing, pageId: string, next: Placed): Drawing | null {
+// ページのアイテムの四角（大きさの分からないアイテムは入れない）
+function rectsOf(reg: Registry, page: DrawingPage): Map<string, Rect> {
+  const rects = new Map<string, Rect>()
+  for (const i of itemsOf(page)) {
+    const size = placedSize(reg, i)
+    if (size) rects.set(i.id, { x: i.x, y: i.y, ...size })
+  }
+  return rects
+}
+
+// ページのアイテムを next に置き換え、近づきすぎた相手を押してどける（push.ts）。
+// 無いページ・無いアイテム・id の違うもの・はみ出す・押した相手が紙に収まらないなら null
+export function replacePushing(reg: Registry, book: Drawing, pageId: string, next: Placed): Drawing | null {
   const page = book.pages.find(p => p.id === pageId)
-  if (!page || !itemsOf(page).some(i => i.id === next.id) || !fitsPage(reg, page, next)) return null
-  return withPage(book, { ...page, items: itemsOf(page).map(i => (i.id === next.id ? next : i)) })
+  const paper = page && paperSize(reg, page)
+  const size = placedSize(reg, next)
+  if (!page || !paper || !size || !itemsOf(page).some(i => i.id === next.id)) return null
+  const before = rectsOf(reg, page)
+  const after = pushFrom(before, next.id, { x: next.x, y: next.y, ...size }, paper)
+  if (!after || newClash(before, after)) return null
+  const items = itemsOf(page).map(i => {
+    if (i.id === next.id) return next
+    const r = after.get(i.id)
+    return r && (r.x !== i.x || r.y !== i.y) ? { ...i, x: r.x, y: r.y } : i
+  })
+  return withPage(book, { ...page, items })
 }
 
 // ページのアイテム ids を消す。無いページ・無いアイテムを含むなら null
