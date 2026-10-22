@@ -285,3 +285,68 @@ test("行をドラッグして行の並びの下の端へ寄せると、ポイ�
   for (const y of tops) expect(y).toBeGreaterThanOrEqual(at.y - 0.5)
   await page.mouse.up()
 })
+
+test("リストのテーマを付箋紙にすると行が黄色の付箋になって右上が折り返り、色を選ぶと台紙がそのテーマの色になる。ブックのテーマに戻すと元の見た目", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const list = await addList(page, "見た目")
+  await addRow(page, list, "一")
+  const mount = list.locator("ul").locator("../..")
+  // 行の地は、行の帯の内側に描くカード（行の最初の子の中）
+  const row = list.getByRole("listitem").first()
+  const card = () =>
+    row.evaluate(el => {
+      const c = el.firstElementChild?.firstElementChild as Element
+      return { fill: getComputedStyle(c).backgroundColor, fold: getComputedStyle(c, "::after").width }
+    })
+  const look = async () => ({
+    card: (await card()).fill,
+    fold: (await card()).fold,
+    mount: await mount.evaluate(el => getComputedStyle(el).backgroundColor),
+  })
+  const before = await look()
+  expect(before.card).toBe("rgb(255, 255, 255)")
+  expect(before.fold).toBe("0px")
+  const dialog = page.getByRole("dialog", { name: "リストの編集" })
+  await list.getByText("見た目").dblclick()
+  await dialog.getByLabel("テーマ").selectOption({ label: "付箋紙" })
+  await dialog.getByRole("button", { name: "色", exact: true }).click()
+  await page.getByRole("dialog", { name: "色を選ぶ" }).getByRole("button", { name: "テーマの色 1" }).click()
+  await page.keyboard.press("Escape")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  expect(await look()).toEqual({ card: "rgb(255, 243, 166)", fold: "10px", mount: "rgb(207, 226, 255)" })
+  await list.getByText("見た目").dblclick()
+  await dialog.getByLabel("テーマ").selectOption({ label: "ブックを継承" })
+  await dialog.getByRole("button", { name: "色", exact: true }).click()
+  await page.getByRole("dialog", { name: "色を選ぶ" }).getByRole("button", { name: "なし" }).click()
+  await page.keyboard.press("Escape")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  expect(await look()).toEqual(before)
+})
+
+test("行の追加と編集のダイアログで、行のキャプションと本文の寄せを選べる（既定は左）", async ({ page }) => {
+  await page.goto("/")
+  const list = await addList(page, "寄せ")
+  await addRow(page, list, "一", "本文")
+  const row = list.getByRole("listitem").first()
+  const caption = row.getByText("一")
+  const body = row.getByText("本文")
+  await expect(caption).toHaveCSS("text-align", "left")
+  await row.dblclick()
+  const dialog = page.getByRole("dialog", { name: "行の編集" })
+  await dialog
+    .getByRole("group", { name: "キャプションの寄せ" })
+    .getByRole("radio", { name: "右寄せ" })
+    .check({ force: true })
+  await dialog
+    .getByRole("group", { name: "本文の寄せ" })
+    .getByRole("radio", { name: "中央寄せ" })
+    .check({ force: true })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(caption).toHaveCSS("text-align", "right")
+  await expect(body.locator("..")).toHaveCSS("text-align", "center")
+})
