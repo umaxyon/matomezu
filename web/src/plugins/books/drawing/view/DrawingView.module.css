@@ -66,9 +66,16 @@
   cursor: copy;
 }
 /* 置いたアイテム（位置と大きさは紙の上の値） */
+/* 薄くする・戻すのは緩やかに（位置は追従させるので、濃さだけ） */
 .item {
   position: absolute;
   box-sizing: border-box;
+  transition: opacity 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    transition: none;
+  }
 }
 .item[data-selected="true"] {
   outline: 2px solid var(--theme-accent);
