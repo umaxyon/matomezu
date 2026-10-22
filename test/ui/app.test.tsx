@@ -277,10 +277,10 @@ test("図面の画面を右クリックすると押した位置にメニュー�
     within(menu)
       .getAllByRole("menuitem")
       .map(b => b.textContent),
-  ).toEqual(["設定"])
-  fireEvent.click(within(menu).getByRole("menuitem", { name: "設定" }))
+  ).toEqual(["ブックの設定"])
+  fireEvent.click(within(menu).getByRole("menuitem", { name: "ブックの設定" }))
   expect(screen.queryByRole("menu")).toBeNull()
-  const dialog = screen.getByRole("dialog", { name: "設定" })
+  const dialog = screen.getByRole("dialog", { name: "ブックの設定" })
   fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
   expect(screen.queryByRole("dialog")).toBeNull()
 })

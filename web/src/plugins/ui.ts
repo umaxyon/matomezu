@@ -17,7 +17,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "stage.corner": ["close-button"],
   },
   menus: {
-    "stage.menu": ["stage.home", { either: ["stage.split", "stage.unsplit"] }, "book.open"],
+    "stage.menu": ["stage.home", { either: ["stage.split", "stage.unsplit"] }, "book.open", "drawing.settings"],
   },
   contextMenus: {
     "drawing.context": ["drawing.settings"],

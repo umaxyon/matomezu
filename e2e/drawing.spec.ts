@@ -531,11 +531,11 @@ test("設定のダイアログでブックのテーマと紙の色を選ぶと�
     paper: await paper.evaluate(el => getComputedStyle(el).backgroundColor),
     box: await box.evaluate(el => getComputedStyle(el).backgroundColor),
   })
-  const dialog = page.getByRole("dialog", { name: "設定" })
+  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
   const choose = async () => {
     const at = (await paper.boundingBox())!
     await page.mouse.click(at.x + 600, at.y + 400, { button: "right" })
-    await page.getByRole("menu").getByRole("menuitem", { name: "設定" }).click()
+    await page.getByRole("menu").getByRole("menuitem", { name: "ブックの設定" }).click()
     await dialog.getByLabel("テーマ").selectOption({ label: "付箋紙" })
     await expect.poll(look).toEqual({ paper: "rgb(244, 239, 228)", box: "rgb(255, 243, 166)" })
     await dialog.getByRole("button", { name: "紙の色" }).click()
@@ -550,4 +550,22 @@ test("設定のダイアログでブックのテーマと紙の色を選ぶと�
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()
   expect(await look()).toEqual({ paper: "rgb(239, 246, 255)", box: "rgb(255, 243, 166)" })
+})
+
+test("ブックの名前の欄のメニューからブックの設定を開いて名前を変えると、欄の名前が変わる。空の間は確定できない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const trigger = page.locator("button[aria-expanded]").first()
+  await trigger.hover()
+  await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ブックの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  const name = dialog.getByLabel("ブックの名前")
+  await expect(name).toHaveValue("まとめ図の構想")
+  await name.fill("  ")
+  await expect(dialog.getByRole("button", { name: "確定" })).toBeDisabled()
+  await name.fill("新しい名前")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(trigger).toHaveText("新しい名前")
 })

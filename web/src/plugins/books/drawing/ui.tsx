@@ -3,13 +3,14 @@
 import { definePluginUi } from "../../../ui/plugin"
 import { DRAWING_PLUGIN } from "."
 import { BOX_DIALOG_VIEWS, BOX_UI } from "./box/ui"
-import { SETTINGS_DIALOG_VIEWS } from "./settings/ui"
+import { SETTINGS_DIALOG_VIEWS, SETTINGS_ICONS } from "./settings/ui"
 import { DRAWING_VIEW } from "./view/ui"
 
 export const DRAWING_UI = definePluginUi(DRAWING_PLUGIN, {
   bookViews: { drawing: DRAWING_VIEW },
   items: { "shape.box": BOX_UI },
   dialogViews: { ...SETTINGS_DIALOG_VIEWS, ...BOX_DIALOG_VIEWS },
+  commandIcons: SETTINGS_ICONS,
 })
 
 declare module "../../../ui/tables" {

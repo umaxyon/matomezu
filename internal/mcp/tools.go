@@ -22,7 +22,7 @@ type actionTool struct {
 // actionTools は AI に渡すアクションの道具（並べたものだけを行える）
 var actionTools = []actionTool{
 	{"create_book", "book.create", "Create a book. type is a book type such as drawing. Returns the new book's id."},
-	{"update_book", "book.update", "Change a book's look: theme (one of the themes; the boxes without a theme of their own follow it) and paperColor (#rrggbb, the paper's color). " +
+	{"update_book", "book.update", "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it) and paperColor (#rrggbb, the paper's color). " +
 		"Only what is given changes; null removes it (back to the book type's theme, or the theme's paper color)."},
 	{"add_page", "page.add", "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id."},
 	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box). " +

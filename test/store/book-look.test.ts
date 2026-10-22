@@ -41,3 +41,12 @@ test("ダイアログの下書きは、アイテムを指さなければブッ�
   expect(store.state.getState().dialog?.preview).toEqual({ book: "b1", props: { theme: "simple" } })
   expect("theme" in book(store)).toBe(false)
 })
+
+test("book.update でブックの名前を変える。前後の空白は除き、空にはできない", () => {
+  const store = newStore()
+  expect(update(store, { title: "  新しい名前 " }).ok).toBe(true)
+  expect(book(store).title).toBe("新しい名前")
+  expect(update(store, { title: "   " }).ok).toBe(false)
+  expect(update(store, { title: "" }).ok).toBe(false)
+  expect(book(store).title).toBe("新しい名前")
+})
