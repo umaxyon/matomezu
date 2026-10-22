@@ -271,3 +271,29 @@ test("右クリックのメニューは、窓の右下で開いても窓の中�
   expect(at.x + at.width).toBeLessThanOrEqual(size.width)
   expect(at.y + at.height).toBeLessThanOrEqual(size.height)
 })
+
+test("分割の境目をドラッグすると左右の幅が変わり、分割をやめて分け直してもその幅。境目のダブルクリックで真ん中に戻る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const stages = page.getByRole("region", { name: "ステージ" })
+  const full = (await stages.boundingBox())!
+  await (await fromMenu(page, "画面を分割")).click()
+  await expect(stages).toHaveCount(2)
+  const leftWidth = async () => (await stages.nth(0).boundingBox())!.width
+  expect(Math.abs((await leftWidth()) - full.width / 2)).toBeLessThan(2)
+  const divider = page.locator("[data-divider]")
+  const at = (await divider.boundingBox())!
+  await page.mouse.move(at.x + at.width / 2, at.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(full.x + full.width * 0.3, at.y + 200, { steps: 5 })
+  await page.mouse.up()
+  expect(Math.abs((await leftWidth()) - full.width * 0.3)).toBeLessThan(3)
+  await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).click()
+  await expect(stages).toHaveCount(1)
+  await (await fromMenu(page, "画面を分割")).click()
+  await expect(stages).toHaveCount(2)
+  expect(Math.abs((await leftWidth()) - full.width * 0.3)).toBeLessThan(3)
+  await divider.dblclick()
+  expect(Math.abs((await leftWidth()) - full.width / 2)).toBeLessThan(2)
+})

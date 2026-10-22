@@ -3,11 +3,15 @@ import { panBy } from "../../web/src/core/stage"
 import {
   close,
   currentStage,
+  EVEN_SHARE,
+  evenDivider,
   focus,
   followBook,
   followLibrary,
   MAX_STAGES,
+  MIN_SHARE,
   mapStage,
+  moveDivider,
   newWorkspace,
   showPage,
   split,
@@ -97,5 +101,16 @@ describe("workspace", () => {
     const two = split(ws)
     expect(followLibrary(REGISTRY, two, {}).stages.map(s => s.opened)).toEqual([null, null])
     expect(followLibrary(REGISTRY, two, { b1: book })).toBe(two)
+  })
+
+  test("境目を動かすと左の幅の割合が変わり、端には寄り切らない。分割をやめても覚えていて、真ん中に戻せる", () => {
+    const moved = moveDivider(split(ws), 300, 1000)
+    expect(moved.arrangement.share).toBe(0.3)
+    expect(moveDivider(moved, 0, 1000).arrangement.share).toBe(MIN_SHARE)
+    expect(moveDivider(moved, 1000, 1000).arrangement.share).toBe(1 - MIN_SHARE)
+    expect(moveDivider(moved, 300, 0)).toBe(moved)
+    expect(split(unsplit(moved)).arrangement.share).toBe(0.3)
+    expect(evenDivider(moved).arrangement.share).toBe(EVEN_SHARE)
+    expect(evenDivider(ws)).toBe(ws)
   })
 })

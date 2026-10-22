@@ -17,11 +17,13 @@ import type { ActionId, ItemId, SingleBookTypeId, SkinId } from "../core/tables"
 import type { Tool } from "../core/tools"
 import {
   close,
+  evenDivider,
   focus,
   followBook,
   followLibrary,
   hasStage,
   mapStage,
+  moveDivider,
   newWorkspace,
   setTool,
   showPage,
@@ -75,6 +77,8 @@ export interface Actions {
   closeContextMenu(): void
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
+  moveDivider(x: number, width: number): void // 分けている境目を、並べた幅 width の左から x の所へ（ドラッグした位置）
+  evenDivider(): void // 分けている境目を真ん中に戻す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
@@ -287,6 +291,8 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
     split: stage => withWorkspace(ws => (hasStage(ws, stage) ? split(focus(ws, stage)) : ws)),
     unsplit: stage => withWorkspace(ws => (hasStage(ws, stage) ? unsplit(focus(ws, stage)) : ws)),
+    moveDivider: (x, width) => withWorkspace(ws => moveDivider(ws, x, width)),
+    evenDivider: () => withWorkspace(evenDivider),
     closeStage: id => withWorkspace(ws => close(ws, id)),
     focusStage: id => withWorkspace(ws => focus(ws, id)),
     openBook: (stage, bookId) => {

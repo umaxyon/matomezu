@@ -21,10 +21,14 @@ import {
 import type { ItemId } from "./tables"
 import { hasTool, type Tool, type Tools, toolIn, toolSetOf } from "./tools"
 
-// 横に並べる
+// 横に並べる。share は分割したときの左のステージの幅の割合（分割をやめても覚えていて、次に分割したときもその割合で分ける）
 export interface Arrangement {
   direction: "row"
+  share: number
 }
+
+export const EVEN_SHARE = 0.5
+export const MIN_SHARE = 0.15 // 片方のステージの幅の割合の下限
 
 export interface Workspace {
   stages: Stage[]
@@ -41,7 +45,7 @@ export function newWorkspace(reg: Registry, book: Book | null): Workspace {
   return {
     stages: [book ? openBook(reg, newStage("s1"), book) : newStage("s1")],
     current: "s1",
-    arrangement: { direction: "row" },
+    arrangement: { direction: "row", share: EVEN_SHARE },
     issued: 1,
     tools: {},
   }
@@ -91,6 +95,18 @@ export function close(ws: Workspace, id: string): Workspace {
   const next = stages[at] ?? stages[at - 1]
   if (!next) return ws
   return { ...ws, stages, current: ws.current === id ? next.id : ws.current }
+}
+
+// 分けている境目を、並べた幅 width の左から x の所に動かす（割合は MIN_SHARE から 1 - MIN_SHARE に収める）
+export function moveDivider(ws: Workspace, x: number, width: number): Workspace {
+  if (width <= 0) return ws
+  const share = Math.min(1 - MIN_SHARE, Math.max(MIN_SHARE, x / width))
+  return share === ws.arrangement.share ? ws : { ...ws, arrangement: { ...ws.arrangement, share } }
+}
+
+// 分けている境目を真ん中に戻す
+export function evenDivider(ws: Workspace): Workspace {
+  return ws.arrangement.share === EVEN_SHARE ? ws : { ...ws, arrangement: { ...ws.arrangement, share: EVEN_SHARE } }
 }
 
 export function focus(ws: Workspace, id: string): Workspace {
