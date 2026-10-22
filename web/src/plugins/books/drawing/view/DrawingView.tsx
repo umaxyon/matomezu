@@ -2,7 +2,8 @@
 // ページが無ければ、真ん中にページを作るボタン（コマンド page.new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、図面のメニュー（drawing.context）を開く。
 // アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（drawing.place。紙からはみ出す所では薄く出し、置かない）。
-// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
+// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ドラッグ中は、離したらそうなる並び（items.ts の moveRects。
+// 入れ替え・押す・手前で止める）で全部のアイテムを描く。収まらない所では、動かすアイテムだけをポインタに付けて描く（離せば元に戻る）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
 // アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（box.context）を開く。
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize）。
@@ -25,6 +26,7 @@ import {
   itemSize,
   itemsOf,
   minSize,
+  moveRects,
   type Placed,
   placeAt,
   placedSize,
@@ -151,6 +153,15 @@ function Items({ stage }: { stage: Stage }) {
     if (drop && moved && (moved.x !== 0 || moved.y !== 0)) move.run({ items: d.items, by: moved })
   }
   const shift = moved && toPaperDelta(stage, moved)
+  const dragged = drag.current?.items ?? []
+  const plan = shift && dragged.length > 0 ? moveRects(registry, page, dragged, shift) : null
+  // ドラッグ中にずらして描く量（紙の上）
+  const shiftOf = (item: Placed): Point | null => {
+    if (!shift) return null
+    const r = plan?.get(item.id)
+    if (r) return r.x !== item.x || r.y !== item.y ? { x: r.x - item.x, y: r.y - item.y } : null
+    return dragged.includes(item.id) ? shift : null
+  }
 
   const startStretch = (e: PointerEvent<HTMLDivElement>, item: string, edges: Edges) => {
     if (e.button !== 0) return
@@ -195,7 +206,7 @@ function Items({ stage }: { stage: Stage }) {
         cancel: e => endStretch(e, false),
       }}
       selected={stage.selection.includes(item.id)}
-      shift={shift && drag.current?.items.includes(item.id) ? shift : null}
+      shift={shiftOf(item)}
       onPointerDown={e => onPointerDown(e, item.id)}
       onPointerMove={onPointerMove}
       onPointerUp={e => endDrag(e, true)}

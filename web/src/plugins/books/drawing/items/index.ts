@@ -9,5 +9,5 @@ export {
   ITEM_KEYS,
   placeAt,
 } from "./commands"
-export { type Edges, fitsPaper, itemSize, itemsOf, minSize, placedSize, resizedBy } from "./items"
+export { type Edges, fitsPaper, itemSize, itemsOf, minSize, moveRects, placedSize, resizedBy } from "./items"
 export { type DrawingPage, DrawingPageSchema, type Placed } from "./schema"

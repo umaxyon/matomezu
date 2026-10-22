@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { placedWidth } from "../../web/src/plugins/books/drawing/box/size"
-import { GAP, pushFrom, type Rect } from "../../web/src/plugins/books/drawing/items/push"
+import { GAP, planMove, planPlace, pushFrom, type Rect } from "../../web/src/plugins/books/drawing/items/push"
 import { newStore } from "../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横
@@ -85,4 +85,55 @@ test("キャプションで広がるときも隣を押す。押した箱が収�
     store.actions.perform("item.update", { page: "p1", item: "n4", props: { caption: twenty } }, { book: "b1" }).ok,
   ).toBe(true)
   expect(at(store, "n4")).toMatchObject({ w: 64, props: { caption: twenty } })
+})
+
+const ids = (...xs: string[]) => new Set(xs)
+
+test("動いた向きの正面の相手に半分以上入ったら入れ替わる: 相手は動かした箱の大きさと間隔の分だけ動き始めた側へずれ、まだ近ければ動かした箱は相手の向こう側へ", () => {
+  const before = rects({ a: r(100, 100), b: r(220, 100) })
+  const after = planMove(before, ids("a"), { x: 160, y: 0 }, PAPER)!
+  expect(after.get("a")).toEqual(r(260, 100))
+  expect(after.get("b")).toEqual(r(220 - 100 - GAP, 100))
+  const adjacent = rects({ a: r(100, 100), b: r(200 + GAP, 100) })
+  const swapped = planMove(adjacent, ids("a"), { x: 60, y: 0 }, PAPER)!
+  expect(swapped.get("b")).toEqual(r(100, 100))
+  expect(swapped.get("a")).toEqual(r(200 + GAP, 100))
+  expect(planMove(adjacent, ids("a"), { x: 40, y: 0 }, PAPER)!.get("b")).toEqual(r(240 + GAP, 100))
+})
+
+test("浅く入ったら、入ってきた向き（重なりの浅い方の向き）に相手を押す（列ごと）", () => {
+  const before = rects({ a: r(100, 100), b: r(300, 100), c: r(420, 100) })
+  const after = planMove(before, ids("a"), { x: 120, y: 5 }, PAPER)!
+  expect(after.get("a")).toEqual(r(220, 105))
+  expect(after.get("b")).toEqual(r(320 + GAP, 100))
+  expect(after.get("c")).toEqual(r(320 + GAP + 100 + GAP, 100))
+  const down = planMove(rects({ a: r(100, 100), b: r(110, 260) }), ids("a"), { x: 0, y: 120 }, PAPER)!
+  expect(down.get("b")).toEqual(r(110, 280 + GAP))
+})
+
+test("押せなければ、動かした箱を相手の手前（入ってきた側）で止める", () => {
+  const wall = planMove(rects({ a: r(300, 100), b: r(0, 100) }), ids("a"), { x: -200, y: 0 }, PAPER)!
+  expect(wall.get("a")).toEqual(r(100 + GAP, 100))
+  expect(wall.get("b")).toEqual(r(0, 100))
+  const chain = rects({ a: r(500, 100), b: r(0, 100), c: r(100 + GAP + 4, 100) })
+  const stopped = planMove(chain, ids("a"), { x: -300, y: 0 }, PAPER)!
+  expect(stopped.get("a")).toEqual(r(100 + GAP + 4 + 100 + GAP, 100))
+  expect(stopped.get("c")).toEqual(r(100 + GAP + 4, 100))
+})
+
+test("何人かまとめて動かしても、押すのは動かした箱以外。紙からはみ出す動きは収まらない", () => {
+  const before = rects({ a: r(100, 100), b: r(100, 200), c: r(260, 100, 100, 160) })
+  const after = planMove(before, ids("a", "b"), { x: 100, y: 0 }, PAPER)!
+  expect(after.get("a")).toEqual(r(200, 100))
+  expect(after.get("c")).toEqual(r(300 + GAP, 100, 100, 160))
+  expect(planMove(before, ids("a"), { x: -200, y: 0 }, PAPER)).toBeNull()
+})
+
+test("置いた所に箱があれば、相手を右へ押し、駄目なら下へ押す。どちらも駄目なら置けない", () => {
+  const after = planPlace(rects({ b: r(150, 100) }), "n", r(100, 100), PAPER)!
+  expect(after.get("b")).toEqual(r(200 + GAP, 100))
+  const right = rects({ b: r(1000, 100) })
+  expect(planPlace(right, "n", r(960, 100), PAPER)!.get("b")).toEqual(r(1000, 160 + GAP))
+  const corner = rects({ b: r(1000, 700) })
+  expect(planPlace(corner, "n", r(960, 680), PAPER)).toBeNull()
 })
