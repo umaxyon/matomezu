@@ -5,7 +5,8 @@
 // リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
 // 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list.stretchRow。ドラッグの途中の動いた量だけはビューに持つ）。
 // 設定のダイアログの「行の高さ」の下書き（項目 rowLines。データには無い）があれば、全部の行をそれで描く。
-// リストのテーマと色は箱と同じ欄（box.*）で描き、行はリストに従う
+// リストのテーマと色は箱と同じ欄（box.*）と、リストの欄（list.*。見出しの帯・台紙・行の付箋）で描き、行はリストに従う。
+// 行は帯の内側に付箋（card）を描き、文字はその上に置く（付箋紙のテーマでは台紙の上に 1 枚ずつ貼った付箋、ほかのテーマでは帯いっぱいの地）
 import { type CSSProperties, type PointerEvent, useMemo, useRef, useState } from "react"
 import type { ItemProps } from "../../../../core/registry"
 import { toPaperDelta } from "../../../../core/stage"
@@ -18,7 +19,7 @@ import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { themeVars } from "../../../../ui/theme-vars"
 import { BOX } from "../box"
 import { paintVars } from "../box/paint"
-import type { ListRow } from "."
+import { LIST, type ListRow } from "."
 import styles from "./ListView.module.css"
 import { linesFor, listLayout, type RowsLines, rowHeight } from "./size"
 
@@ -38,7 +39,10 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   const rows = content as readonly ListRow[]
   const theme = props.theme
   const vars = useMemo(
-    () => (theme && registry.themes.has(theme) ? themeVars(resolveTokens(registry, theme, BOX.tokens)) : undefined),
+    () =>
+      theme && registry.themes.has(theme)
+        ? themeVars(resolveTokens(registry, theme, [...BOX.tokens, ...LIST.tokens]))
+        : undefined,
     [registry, theme],
   )
   const add = useCommand(stage, "list.addRow")
@@ -114,6 +118,9 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
                   }}
                   onContextMenu={e => openMenu(e, { list: id, row: row.id })}
                 >
+                  <div className={styles.cardShadow}>
+                    <div className={styles.card} />
+                  </div>
                   {props.checklist && (
                     <input
                       type="checkbox"

@@ -93,11 +93,12 @@ test("行がリストの高さを超えるとリストの中でスクロール�
   const dialog = page.getByRole("dialog", { name: "リストの編集" })
   await dialog.getByRole("switch", { name: "行を交互に色分け" }).click()
   await dialog.getByRole("button", { name: "確定" }).click()
+  // 行の地は、行の帯の内側に描く付箋（行の最初の子の中）の色
   const bg = (i: number) =>
     list
       .getByRole("listitem")
       .nth(i)
-      .evaluate(el => getComputedStyle(el).backgroundColor)
+      .evaluate(el => getComputedStyle(el.firstElementChild?.firstElementChild as Element).backgroundColor)
   expect(await bg(0)).not.toBe(await bg(1))
 })
 

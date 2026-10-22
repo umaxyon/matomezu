@@ -32,6 +32,15 @@ export const STICKY = defineTheme({
     "box.radius": "3px",
     "box.shadow": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
     "box.fold": "12px",
+    // リストは台紙の上に、行を 1 枚ずつ付箋として貼る（見出しは台紙の上の文字）
+    "list.head-mix": "0%",
+    "list.mount-tint": "#8a6d3b",
+    "list.mount-mix": "30%",
+    "list.card-inset": "2px 4px",
+    "list.card-radius": "2px",
+    "list.card-shadow": "drop-shadow(0 1px 2px rgba(70, 55, 20, 0.3))",
+    "list.card-fold": "8px",
+    "list.rule-mix": "0%",
   },
 })
 
@@ -64,5 +73,11 @@ export const SIMPLE = defineTheme({
     "box.line": "#262626",
     "box.text": "#1a1a1a",
     "box.radius": "4px",
+    "box.shadow": "none",
+    // リストの見出しは黒い帯に白い文字、行の仕切りは黒い線（印刷向け）
+    "list.head-tint": "#262626",
+    "list.head-mix": "100%",
+    "list.head-ink": "100%",
+    "list.rule-mix": "100%",
   },
 })

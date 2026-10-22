@@ -2,7 +2,8 @@
 // データは枠が中身（children）を持つ形で、行の並びは children の順（内包と同じ形で、並べ方だけが違う）。
 // リストは自分のテーマ（theme）と色（color）を持ち、行はリストに従う。チェックリスト（checklist）なら行の左にチェックの印を出し、行の checked で持つ
 // （チェックリストをやめると、行の checked は消える）。行の色分け（zebra）なら 1 行おきに地の色を少し変える。行がリストの高さを超えたら、リストの中でスクロールする。
-// 描くテーマの欄は箱の欄（box.*）を使う（同じプラグインの箱が宣言している。リストは自分の欄を宣言しない）。
+// 描くテーマの欄は、色と線と角と影は箱の欄（box.*。同じプラグインの箱が宣言している）、リストだけの見せ方（見出しの帯・台紙・行の付箋）は list.* の欄。
+// list.* の欄は色を混ぜる割合などの値で、色はリストの塗り（色を当てればその色）から作る。テーマは大きさを変えないので、どのテーマでも行の高さと折り返しは同じ。
 // 置くときは追加のダイアログ（list.add）、設定は編集のダイアログ（list.edit）。行は行の追加（row.add）・編集（row.edit）のダイアログで中身を決める
 import { z } from "zod"
 import { HEX, PALETTE } from "../../../../core/color"
@@ -45,7 +46,18 @@ export const LIST = defineItem({
     zebra: z.boolean().default(false), // 1 行おきに地の色を少し変える
   }),
   size: LIST_SIZE,
-  tokens: [],
+  tokens: [
+    { id: "list.head-tint", value: "#6d4bd8" }, // 見出しの帯に混ぜる色
+    { id: "list.head-mix", value: "12%" }, // 見出しの帯に混ぜる割合（0% なら帯なし）
+    { id: "list.head-ink", value: "0%" }, // 見出しの文字を白に寄せる割合（濃い帯の上の白い文字）
+    { id: "list.mount-tint", value: "#000000" }, // 台紙（リストの地）に混ぜる色
+    { id: "list.mount-mix", value: "0%" }, // 台紙に混ぜる割合（0% なら行と同じ地）
+    { id: "list.card-inset", value: "0px" }, // 行の付箋を行の帯からどれだけ内側に描くか（0px なら帯いっぱい）
+    { id: "list.card-radius", value: "0px" }, // 行の付箋の角の丸み
+    { id: "list.card-shadow", value: "none" }, // 行の付箋の影（CSS の filter の値）
+    { id: "list.card-fold", value: "0px" }, // 行の付箋の右上の折り返しの大きさ
+    { id: "list.rule-mix", value: "45%" }, // 行の仕切り線の濃さ（線の色の割合。0% なら線なし）
+  ],
 })
 
 // リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く

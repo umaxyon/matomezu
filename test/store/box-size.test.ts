@@ -170,7 +170,7 @@ test("箱にテーマを当てられる。表に無いテーマは断る。テ�
   expect(update({ theme: null }).ok).toBe(true)
   expect("theme" in items(store)[0]!.props).toBe(false)
   const tokens = (theme: string) => resolveTokens(store.registry, theme, BOX.tokens)
-  expect(tokens("standard")["box.radius"]).toEqual({ light: "6px", dark: "6px" })
+  expect(tokens("standard")["box.radius"]).toEqual({ light: "8px", dark: "8px" })
   expect(tokens("standard")["box.fold"]).toEqual({ light: "0px", dark: "0px" })
   expect(tokens("sticky")["box.fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })
   expect(tokens("sticky")["box.fold"]).toEqual({ light: "12px", dark: "12px" })
