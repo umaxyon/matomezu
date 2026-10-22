@@ -28,4 +28,12 @@ export interface OpenedDialog {
   stage: string // 開いたステージ。ダイアログの操作はこのステージに向ける
   args: unknown // 開くときに渡した値（id で型が決まる）
   submitted: number // 決めるように頼まれた回数（ダイアログの枠が見て、中身の form を送る）
+  preview: ItemPreview | null // 選んだ値を、決める前に箱に重ねて見せる下書き（このダイアログを閉じれば消える）
+}
+
+// 置いたアイテムの下書き: ブック book のアイテム item を、項目に props を重ねて描く（データは変えない。この窓の中だけ）
+export interface ItemPreview {
+  book: string
+  item: string
+  props: Readonly<Record<string, unknown>>
 }

@@ -1,9 +1,10 @@
 // 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ。キャプションと本文の名前の右に、左・中央・右の寄せ）。
-// テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。見出しの行の右にキャンセルと決めるボタン（キャプションの欄の Enter でも決める）。
+// テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。
+// 編集では、選んだ寄せとテーマを決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションの欄の Enter でも決める）。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BOX_BODY_MAX 字まで。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は開いたときに覚えた所に箱を置いて（アクション item.place）選び、編集は箱の項目を書き換える（アクション item.update）
-import { useId, useState } from "react"
+import { useCallback, useEffect, useId, useState } from "react"
 import type { Point } from "../../../../core/geom"
 import type { MessageKey } from "../../../../core/i18n/i18n"
 import type { ItemProps } from "../../../../core/registry"
@@ -18,6 +19,9 @@ import { ALIGN_ICONS } from "./icons"
 import { BOX_BODY_MAX } from "./size"
 
 type BoxProps = ItemProps<"shape.box">
+
+// 選んだそばから箱に見せる項目（寄せとテーマ。テーマの undefined はブックのテーマ）
+type Look = Pick<BoxProps, "captionAlign" | "bodyAlign" | "theme">
 
 const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "center", bodyAlign: "left" }
 
@@ -53,7 +57,11 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
     const page = b?.pages.find(p => p.id === args.page)
     return page && itemsOf(page).find(i => i.id === args.item && i.item === BOX.id)?.props
   })
-  const { perform } = useActions()
+  const { perform, previewDialog } = useActions()
+  const preview = useCallback(
+    (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
+    [book, args.item, previewDialog],
+  )
   if (!book || !start) return null
   const update = (props: BoxProps) => {
     // 「ブックのテーマ」に戻したら、箱のテーマの項目を消す
@@ -65,7 +73,17 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
     if (done.ok) onClose()
     return done.ok
   }
-  return <BoxDialog title="Edit box" submit="OK" start={start} ready onSubmit={update} onClose={onClose} />
+  return (
+    <BoxDialog
+      title="Edit box"
+      submit="OK"
+      start={start}
+      ready
+      onSubmit={update}
+      onPreview={preview}
+      onClose={onClose}
+    />
+  )
 }
 
 function BoxDialog({
@@ -74,6 +92,7 @@ function BoxDialog({
   start,
   ready,
   onSubmit,
+  onPreview,
   onClose,
 }: {
   title: MessageKey
@@ -81,6 +100,7 @@ function BoxDialog({
   start: BoxProps
   ready: boolean
   onSubmit: (props: BoxProps) => boolean // 決められたか
+  onPreview?: (look: Look | null) => void // 寄せかテーマを選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
   const t = useT()
@@ -92,6 +112,10 @@ function BoxDialog({
   const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
   const [theme, setTheme] = useState(start.theme ?? "")
   const registry = useRegistry()
+  const changed = captionAlign !== start.captionAlign || bodyAlign !== start.bodyAlign || theme !== (start.theme ?? "")
+  useEffect(() => {
+    onPreview?.(changed ? { captionAlign, bodyAlign, theme: theme || undefined } : null)
+  }, [changed, captionAlign, bodyAlign, theme, onPreview])
   const aligns = ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
   const [refused, setRefused] = useState(false)
   const hasBody = body !== ""

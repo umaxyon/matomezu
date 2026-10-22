@@ -176,3 +176,16 @@ test("箱にテーマを当てられる。表に無いテーマは断る。テ�
   expect(tokens("sticky")["box.fold"]).toEqual({ light: "12px", dark: "12px" })
   expect(tokens("simple")["box.line"]).toEqual({ light: "#262626", dark: "#262626" })
 })
+
+test("ダイアログの下書きは開いているダイアログが持ち、閉じると消える。データは変えない", () => {
+  const store = ready()
+  place(store, { caption: "見出し" })
+  store.actions.previewDialog({ book: "b1", item: "n1", props: { theme: "sticky" } })
+  expect(store.state.getState().dialog).toBeNull()
+  store.actions.openDialog("s1", "box.edit", { page: "p1", item: "n1" })
+  store.actions.previewDialog({ book: "b1", item: "n1", props: { theme: "sticky" } })
+  expect(store.state.getState().dialog?.preview).toEqual({ book: "b1", item: "n1", props: { theme: "sticky" } })
+  expect("theme" in items(store)[0]!.props).toBe(false)
+  store.actions.closeDialog()
+  expect(store.state.getState().dialog).toBeNull()
+})

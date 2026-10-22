@@ -416,3 +416,37 @@ test("ダイアログで箱のテーマを付箋紙にすると黄色の付箋�
   await choose("ブックのテーマ")
   expect(await look()).toEqual({ fill: "rgb(255, 255, 255)", fold: "0px" })
 })
+
+test("編集のダイアログでテーマと寄せを選ぶと、確定の前から箱に出る。キャンセルで元に戻り、確定でそのままになる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBodyBox(page)
+  const box = page.locator("[data-item] [data-body]")
+  const fill = () => box.evaluate(el => getComputedStyle(el).backgroundColor)
+  const bodyAlign = () =>
+    page
+      .locator("[data-item] [data-align]")
+      .nth(1)
+      .evaluate(el => getComputedStyle(el).textAlign)
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  const choose = async () => {
+    await page.locator("[data-item]").dblclick()
+    await dialog.getByLabel("テーマ").selectOption({ label: "付箋紙" })
+    await dialog
+      .getByRole("group", { name: "本文の寄せ" })
+      .getByRole("radio", { name: "右寄せ" })
+      .check({ force: true })
+    await expect.poll(fill).toBe("rgb(255, 243, 166)")
+    expect(await bodyAlign()).toBe("right")
+  }
+  await choose()
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect.poll(fill).toBe("rgb(255, 255, 255)")
+  expect(await bodyAlign()).toBe("left")
+  await choose()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  expect(await fill()).toBe("rgb(255, 243, 166)")
+  expect(await bodyAlign()).toBe("right")
+})

@@ -6,6 +6,7 @@
 // アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（box.context）を開く。
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize）。
+// 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react"
 import type { Point, Size } from "../../../../core/geom"
@@ -124,6 +125,7 @@ function Items({ stage }: { stage: Stage }) {
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
   const resize = useCommand(stage.id, "drawing.resize")
+  const preview = useApp(s => s.dialog?.preview ?? null)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
   const registry = useRegistry()
@@ -168,8 +170,12 @@ function Items({ stage }: { stage: Stage }) {
     if (drop && (stretched.x !== 0 || stretched.y !== 0)) resize.run({ item: st.item, edges: st.edges, by: stretched })
   }
   const paper = paperOf(stage)
-  // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く
-  const shown = (item: Placed): Placed => {
+  // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きのあるアイテムは、項目に下書きを重ねて描く
+  const shown = (placed: Placed): Placed => {
+    const item =
+      preview && preview.book === stage.opened?.book && preview.item === placed.id
+        ? ({ ...placed, props: { ...placed.props, ...preview.props } } as Placed)
+        : placed
     const st = stretch.current
     if (!st || st.item !== item.id || !paper) return item
     const to = resizedBy(registry, item, st.edges, toPaperDelta(stage, stretched), paper)
