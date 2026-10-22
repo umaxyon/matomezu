@@ -6,7 +6,7 @@ import { resolvePaper } from "../../../../core/paper"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { BOX } from "../box"
-import { BOX_MIN_W, boxLayout } from "../box/size"
+import { BOX_MIN, placedHeight } from "../box/size"
 import type { DrawingPage, Placed } from "./schema"
 
 type Drawing = BookOf<"drawing">
@@ -29,35 +29,47 @@ export function itemSize(reg: Registry, item: string): Size | null {
   return reg.items.get(item)?.size ?? null
 }
 
-// 置いたアイテムの大きさ。幅は w（無ければ定義の幅）、箱の高さは中身から決める
+// 置いたアイテムの大きさ。w・h（無ければ定義の幅と、箱は置いたときの高さ）
 export function placedSize(reg: Registry, item: Placed): Size | null {
   const size = itemSize(reg, item.item)
   if (!size) return null
   const w = item.w ?? size.w
-  return item.item === BOX.id ? boxLayout(item.props, w).size : { w, h: size.h }
+  return { w, h: item.h ?? (item.item === BOX.id ? placedHeight(item.props, w) : size.h) }
 }
 
-// 幅を変えられるアイテムの、一番狭い幅（変えられないアイテムは null）
-export function minWidth(item: Placed): number | null {
-  return item.item === BOX.id ? BOX_MIN_W : null
+// 大きさを変えられるアイテムの、一番小さい大きさ（変えられないアイテムは null）
+export function minSize(item: Placed): Size | null {
+  return item.item === BOX.id ? BOX_MIN : null
 }
 
-// 左か右の辺をつかんで、紙の上で dx だけ動かしたときの左端と幅。反対の辺はそのまま。
-// 一番狭い幅より狭くせず、紙の左右の端の外へは広げない（変えられないアイテムは null）
+// つかんだ辺（x は左か右、y は上か下。角なら両方）
+export interface Edges {
+  x?: "left" | "right"
+  y?: "top" | "bottom"
+}
+
+// 辺をつかんで、紙の上で by だけ動かしたときの左上と大きさ。つかんでいない辺はそのまま。
+// 一番小さい大きさより小さくせず、紙の外へは広げない（変えられないアイテムは null）
 export function resizedBy(
   reg: Registry,
   item: Placed,
-  side: "left" | "right",
-  dx: number,
+  edges: Edges,
+  by: Point,
   paper: Size,
-): { x: number; w: number } | null {
-  const min = minWidth(item)
+): { x: number; y: number; w: number; h: number } | null {
+  const min = minSize(item)
   const size = placedSize(reg, item)
-  if (min === null || !size) return null
-  if (side === "right") return { x: item.x, w: Math.min(Math.max(size.w + dx, min), paper.w - item.x) }
-  const right = item.x + size.w
-  const x = Math.max(Math.min(item.x + dx, right - min), 0)
-  return { x, w: right - x }
+  if (!min || !size) return null
+  const span = (start: number, len: number, d: number, side: "start" | "end" | undefined, lo: number, max: number) => {
+    if (side === "end") return { at: start, len: Math.min(Math.max(len + d, lo), max - start) }
+    if (side !== "start") return { at: start, len }
+    const end = start + len
+    const at = Math.max(Math.min(start + d, end - lo), 0)
+    return { at, len: end - at }
+  }
+  const h = span(item.x, size.w, by.x, edges.x && (edges.x === "left" ? "start" : "end"), min.w, paper.w)
+  const v = span(item.y, size.h, by.y, edges.y && (edges.y === "top" ? "start" : "end"), min.h, paper.h)
+  return { x: h.at, y: v.at, w: h.len, h: v.len }
 }
 
 // 置いたアイテムが、そのページの紙からはみ出さないか

@@ -23,11 +23,13 @@ type actionTool struct {
 var actionTools = []actionTool{
 	{"create_book", "book.create", "Create a book. type is a book type such as drawing. Returns the new book's id."},
 	{"add_page", "page.add", "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id."},
-	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w sets the width of an item that can be resized (a box); a box's height follows its content " +
-		"(its body wraps to the width, cut with … after bodyLines lines when set). It is refused if it does not fit on the paper. Returns the new item's id."},
+	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box). " +
+		"Without h, a box is made tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. " +
+		"It is refused if it does not fit on the paper. Returns the new item's id."},
 	{"move_items", "item.move", "Move items of a page by (x, y) paper pixels. It is refused if any would leave the paper."},
-	{"update_item", "item.update", "Change some props of an item. Props not given stay; a prop given as null is removed (back to its default). It is refused if the item would not fit on the paper."},
-	{"resize_item", "item.resize", "Change the width of an item that can be resized (a box). x moves its left edge too. A box's height follows its content. It is refused below the item's smallest width or off the paper."},
+	{"update_item", "item.update", "Change some props of an item. Props not given stay; a prop given as null is removed (back to its default). The item's size does not change."},
+	{"resize_item", "item.resize", "Change the size of an item that can be resized (a box): only w and h given change; x and y move its top-left too. " +
+		"It is refused below the item's smallest size or off the paper."},
 	{"remove_items", "item.remove", "Remove items from a page."},
 }
 

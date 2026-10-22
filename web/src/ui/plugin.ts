@@ -4,6 +4,7 @@
 // 画面に置く app は、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
 import type { ComponentType, ReactNode } from "react"
 import { fail } from "../core/errors"
+import type { Size } from "../core/geom"
 import type { Stage } from "../core/stage"
 import type { BookTypeId } from "../core/tables"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
@@ -32,7 +33,7 @@ export interface DialogProps<A = undefined> {
 type AnyDialogView = ComponentType<DialogProps<any>>
 // アイテムのビューは、そのアイテムの項目（props）のデータを受け取る
 export interface ItemUi<Props = never> {
-  view: ComponentType<{ props: Props; w: number }> // w は置いたアイテムの幅（紙の上の px）
+  view: ComponentType<{ props: Props; size: Size }> // size は置いたアイテムの大きさ（紙の上の px）
   icon: ReactNode // ツールボックスなどに出すアイコン
 }
 

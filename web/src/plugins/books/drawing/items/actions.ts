@@ -2,13 +2,13 @@
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { bookType } from "../../../../core/registry"
-import { itemsOf, moveItems, nextItemId, placeItem, removeItems, replaceItem } from "./items"
+import { itemsOf, moveItems, nextItemId, placedSize, placeItem, removeItems, replaceItem } from "./items"
 import { PlacedSchema } from "./schema"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
 // 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定）。
-// w は幅を変えられるアイテムの幅（無ければ定義の幅）
+// w・h は大きさを変えられるアイテムの幅と高さ（無ければ定義の幅と、箱は本文が 5 行まで見える高さ。データには決まった値を書く）
 export const ITEM_PLACE = defineAction({
   id: "item.place",
   title: "Place item",
@@ -19,6 +19,7 @@ export const ITEM_PLACE = defineAction({
     item: z.string().min(1),
     at: PointSchema,
     w: z.number().optional(),
+    h: z.number().optional(),
     props: z.record(z.string(), z.unknown()).optional(),
   }),
   run: (book, args, ctx) => {
@@ -26,13 +27,12 @@ export const ITEM_PLACE = defineAction({
     if (!bookType(ctx.registry, book.type).items.defaults.includes(args.item)) return null
     const props = ctx.registry.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
-    const item = PlacedSchema.safeParse({
-      id: nextItemId(book, ctx.newId),
-      item: args.item,
-      ...args.at,
-      ...(args.w === undefined ? {} : { w: args.w }),
-      props: props.data,
-    })
+    const base = { id: nextItemId(book, ctx.newId), item: args.item, ...args.at, props: props.data }
+    const resizable = ctx.registry.items.get(args.item)?.capabilities.includes("resizable")
+    const draft = PlacedSchema.safeParse(resizable && args.w !== undefined ? { ...base, w: args.w } : base)
+    if (!draft.success) return null
+    const size = placedSize(ctx.registry, draft.data)
+    const item = resizable && size ? PlacedSchema.safeParse({ ...draft.data, w: size.w, h: args.h ?? size.h }) : draft
     if (!item.success) return null
     const next = placeItem(ctx.registry, book, args.page, item.data)
     return next && { next, result: { item: item.data.id } }
@@ -77,20 +77,35 @@ export const ITEM_UPDATE = defineAction({
   },
 })
 
-// アイテムの幅を w に変える（幅を変えられるアイテムだけ）。x を渡せば左端も動かす（左の辺をつかんで変えるとき）。
-// 一番狭い幅より狭い・紙からはみ出すなら断る
+// アイテムの大きさを変える（大きさを変えられるアイテムだけ）。渡した値だけを変える。x・y を渡せば左上も動かす（左や上の辺をつかんで変えるとき）。
+// 一番小さい大きさより小さい・紙からはみ出すなら断る
 export const ITEM_RESIZE = defineAction({
   id: "item.resize",
   title: "Resize item",
   target: "book",
   needs: [],
-  args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), w: z.number(), x: z.number().optional() }),
+  args: z.strictObject({
+    page: z.string().min(1),
+    item: z.string().min(1),
+    w: z.number().optional(),
+    h: z.number().optional(),
+    x: z.number().optional(),
+    y: z.number().optional(),
+  }),
   run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && itemsOf(page).find(i => i.id === args.item)
     if (!now || !ctx.registry.items.get(now.item)?.capabilities.includes("resizable")) return null
-    const item = PlacedSchema.safeParse({ ...now, w: args.w, x: args.x ?? now.x })
+    const size = placedSize(ctx.registry, now)
+    if (!size) return null
+    const item = PlacedSchema.safeParse({
+      ...now,
+      x: args.x ?? now.x,
+      y: args.y ?? now.y,
+      w: args.w ?? size.w,
+      h: args.h ?? size.h,
+    })
     if (!item.success) return null
     const next = replaceItem(ctx.registry, book, args.page, item.data)
     return next && { next, result: {} }

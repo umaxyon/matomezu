@@ -225,7 +225,7 @@ test("キーは割り当ての表で効く: 本文の欄の Enter は改行、�
 })
 
 const BODY =
-  "matomezu は図を描く道具です。「箱」の本文は、幅に合わせて折り返し、行の数だけ箱が縦に伸びます。Noto Sans JP で描きます。"
+  "matomezu は図を描く道具です。「箱」の本文は、幅に合わせて折り返し、高さに収まらない分は切ります。Noto Sans JP で描きます。"
 
 // 本文を入れた箱を置き、選んだままにする
 async function addBodyBox(page: Page) {
@@ -244,7 +244,9 @@ async function zoomOf(page: Page) {
   return (await page.getByRole("img", { name: "紙" }).boundingBox())!.width / 1123
 }
 
-test("本文は折り返した行ごとに描き、描いた字の幅は core の計算（フォントの表）と 1px 未満で合う", async ({ page }) => {
+test("本文は折り返した行ごとに描き（置いたときは 5 行まで）、描いた字の幅は core の計算（フォントの表）と 1px 未満で合う", async ({
+  page,
+}) => {
   const { textWidth } = await import("../web/src/core/text/text")
   await page.goto("/")
   await addBodyBox(page)
@@ -259,52 +261,60 @@ test("本文は折り返した行ごとに描き、描いた字の幅は core �
       return { text: el.textContent ?? "", width: range.getBoundingClientRect().width }
     }),
   )
-  expect(
-    drawn
-      .map(d => d.text)
-      .join("")
-      .replace(/ /g, ""),
-  ).toBe(BODY.replace(/ /g, ""))
+  const shown = drawn.map(d => d.text.replace(/…$/, "")).join("")
+  expect(BODY.replace(/ /g, "").startsWith(shown.replace(/ /g, ""))).toBe(true)
   expect(await page.evaluate(() => document.fonts.check('13px "Noto Sans JP"'))).toBe(true)
   for (const d of drawn) {
     expect(Math.abs(d.width / zoom - textWidth(d.text, { size: 13, weight: 400 }))).toBeLessThan(1)
   }
 })
 
-test("選んだ箱の左右の辺と四隅でポインタが横向きと斜めの矢印になり、右の辺を右へドラッグすると幅が広がって行が減る", async ({
+// つかむ所の真ん中を押して (dx, dy) だけドラッグする
+async function dragGrip(page: Page, at: string, dx: number, dy: number) {
+  const grip = (await page.locator(`[data-item] [data-grip="${at}"]`).boundingBox())!
+  const x = grip.x + grip.width / 2
+  const y = grip.y + grip.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + dx, y + dy, { steps: 5 })
+  await page.mouse.up()
+}
+
+test("選んだ箱の四辺と四隅でポインタが矢印になる。右下の角をドラッグすると幅と高さが変わり、左上はそのまま", async ({
   page,
 }) => {
   await page.goto("/")
   await addBodyBox(page)
   const box = page.locator("[data-item]")
-  const grips = box.locator("[data-grip]")
-  await expect(grips).toHaveCount(6)
+  await expect(box.locator("[data-grip]")).toHaveCount(8)
   const cursor = (at: string) => box.locator(`[data-grip="${at}"]`).evaluate(el => getComputedStyle(el).cursor)
   expect(await cursor("right")).toBe("ew-resize")
+  expect(await cursor("bottom")).toBe("ns-resize")
   expect(await cursor("top-left")).toBe("nwse-resize")
   expect(await cursor("bottom-left")).toBe("nesw-resize")
   const before = (await box.boundingBox())!
-  const lines = await box.locator("[data-line]").count()
-  const grip = (await box.locator('[data-grip="bottom-right"]').boundingBox())!
-  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(grip.x + grip.width / 2 + 150, grip.y + grip.height / 2 + 30, { steps: 5 })
-  await page.mouse.up()
+  await dragGrip(page, "bottom-right", 150, 60)
   await expect.poll(async () => (await box.boundingBox())!.width).toBeGreaterThan(before.width + 140)
   const after = (await box.boundingBox())!
+  expect(after.height).toBeGreaterThan(before.height + 50)
   expect(Math.abs(after.x - before.x)).toBeLessThan(1)
-  expect(await box.locator("[data-line]").count()).toBeLessThan(lines)
-  expect(after.height).toBeLessThan(before.height)
+  expect(Math.abs(after.y - before.y)).toBeLessThan(1)
 })
 
-test("ダイアログで本文の最大の行数を選ぶと、超えた分を … で切る", async ({ page }) => {
+test("下の辺を上へ縮めると本文は収まる行だけになって … で切れ、さらに縮めると本文と区切り線が消えてキャプションだけが残る", async ({
+  page,
+}) => {
   await page.goto("/")
   await addBodyBox(page)
-  await page.locator("[data-item]").dblclick()
-  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
-  await dialog.getByLabel("最大行数").selectOption("2")
-  await dialog.getByRole("button", { name: "確定" }).click()
   const lines = page.locator("[data-item] [data-line]")
-  await expect(lines).toHaveCount(2)
-  await expect(lines.nth(1)).toHaveText(/…$/)
+  await expect(lines).toHaveCount(5)
+  await expect(lines.nth(4)).toHaveText(/…$/)
+  const zoom = await zoomOf(page)
+  await dragGrip(page, "bottom", 0, -36 * zoom)
+  await expect(lines).toHaveCount(3)
+  await expect(lines.nth(2)).toHaveText(/…$/)
+  await dragGrip(page, "bottom", 0, -200 * zoom)
+  await expect(lines).toHaveCount(0)
+  await expect(page.locator("[data-item] hr")).toHaveCount(0)
+  await expect(page.locator("[data-item]")).toHaveText("見出し")
 })
