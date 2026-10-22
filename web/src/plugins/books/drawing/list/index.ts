@@ -1,0 +1,57 @@
+// リスト: キャプションの見出しの下に、行を上から順に並べる枠。行は箱と同じくキャプション・区切り線・本文を持ち、リストの中にだけある（紙に直には置けない）。
+// データは枠が中身（children）を持つ形で、行の並びは children の順（内包と同じ形で、並べ方だけが違う）。
+// リストは自分のテーマ（theme）と色（color）を持ち、行はリストに従う。チェックリスト（checklist）なら行の左にチェックの印を出し、行の checked で持つ
+// （チェックリストをやめると、行の checked は消える）。行の色分け（zebra）なら 1 行おきに地の色を少し変える。行がリストの高さを超えたら、リストの中でスクロールする。
+// 描くテーマの欄は箱の欄（box.*）を使う（同じプラグインの箱が宣言している。リストは自分の欄を宣言しない）。
+// 置くときは追加のダイアログ（list.add）、設定は編集のダイアログ（list.edit）。行は行の追加（row.add）・編集（row.edit）のダイアログで中身を決める
+import { z } from "zod"
+import { HEX, PALETTE } from "../../../../core/color"
+import { defineItem } from "../../../../core/def/item"
+import type { Point } from "../../../../core/geom"
+import { defineDialogWith } from "../../../../store/dialogs"
+import { AlignSchema } from "../box"
+import { BOX_BODY_MAX } from "../box/size"
+import { LIST_SIZE } from "./size"
+
+// 行の項目（箱の項目と同じ並びに、チェックの印）
+export const RowPropsSchema = z.strictObject({
+  caption: z.string().default(""),
+  rule: z.boolean().default(true),
+  body: z.string().max(BOX_BODY_MAX).default(""),
+  captionAlign: AlignSchema.default("left"),
+  bodyAlign: AlignSchema.default("left"),
+  checked: z.boolean().optional(), // チェックが入っているか（チェックリストのときだけ）
+})
+export type RowProps = z.infer<typeof RowPropsSchema>
+
+// リストの行
+export const ROW_ITEM = "list.row" as const
+export const ListRowSchema = z.strictObject({ id: z.string().min(1), item: z.literal(ROW_ITEM), props: RowPropsSchema })
+export type ListRow = z.infer<typeof ListRowSchema>
+
+export const LIST = defineItem({
+  id: "shape.list",
+  kind: "shape",
+  version: 1,
+  title: "List",
+  capabilities: ["connectable", "resizable", "hasText"],
+  toolbox: true,
+  props: z.strictObject({
+    caption: z.string().default(""),
+    theme: z.string().min(1).optional(), // リストに当てるテーマの id（無ければブックのテーマ）
+    color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（箱と同じ）
+    checklist: z.boolean().default(false), // 行の左にチェックの印を出す
+    zebra: z.boolean().default(false), // 1 行おきに地の色を少し変える
+  }),
+  size: LIST_SIZE,
+  tokens: [],
+})
+
+// リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
+export const LIST_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "list.add" })
+// リストの設定のダイアログ
+export const LIST_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "list.edit" })
+// 行の追加のダイアログ（リスト list の最後に足す）
+export const ROW_ADD_DIALOG = defineDialogWith<{ page: string; list: string }>()({ id: "row.add" })
+// 行の編集のダイアログ
+export const ROW_EDIT_DIALOG = defineDialogWith<{ page: string; list: string; row: string }>()({ id: "row.edit" })

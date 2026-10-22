@@ -44,16 +44,39 @@ const ALIGNS = [
   { value: "right", label: "Align right" },
 ] as const satisfies readonly { value: Align; label: MessageKey }[]
 
-// 開いたステージで開いているブックの id
-const useBookOf = (stage: string) => useApp(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
+// 開いたステージで開いているブックの id（リストのダイアログも使う）
+export const useBookOf = (stage: string) => useApp(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
 
 // ブックのテーマの id
-function useBookTheme(book: string | undefined) {
+export function useBookTheme(book: string | undefined) {
   const registry = useRegistry()
   return useApp(s => {
     const b = book ? s.books[book] : undefined
     return b ? bookTheme(registry, b) : undefined
   })
+}
+
+// 色の見本: テーマ looks の代表色と塗り（表に無いテーマなら null）
+export function useSwatches(looks: string | undefined) {
+  const t = useT()
+  const registry = useRegistry()
+  return useMemo(() => {
+    if (!looks || !registry.themes.has(looks)) return null
+    const tokens = resolveTokens(registry, looks, BOX.tokens)
+    // 役割の名前は出さない（意味を利用者に押し付けない）
+    const palette = PALETTE.map((name, i) => ({
+      name,
+      hex: tokens[`palette.${name}`]?.light ?? "#ffffff",
+      label: t("Theme color {n}", { n: i + 1 }),
+    }))
+    return { palette, none: tokens["box.fill"]?.light ?? "#ffffff" }
+  }, [registry, looks, t])
+}
+
+// 寄せの選択肢（左・中央・右のアイコンのボタン）
+export function useAligns() {
+  const t = useT()
+  return ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
 }
 
 export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
@@ -87,7 +110,8 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const start = useApp(s => {
     const b = book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined
     const page = b?.pages.find(p => p.id === args.page)
-    return page && itemsOf(page).find(i => i.id === args.item && i.item === BOX.id)?.props
+    const found = page && itemsOf(page).find(i => i.id === args.item)
+    return found?.item === BOX.id ? found.props : undefined
   })
   const { perform, previewDialog } = useActions()
   const preview = useCallback(
@@ -150,17 +174,7 @@ function BoxDialog({
   const registry = useRegistry()
   // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
   const looks = theme || bookTheme
-  const swatches = useMemo(() => {
-    if (!looks || !registry.themes.has(looks)) return null
-    const tokens = resolveTokens(registry, looks, BOX.tokens)
-    // 役割の名前は出さない（意味を利用者に押し付けない）
-    const palette = PALETTE.map((name, i) => ({
-      name,
-      hex: tokens[`palette.${name}`]?.light ?? "#ffffff",
-      label: t("Theme color {n}", { n: i + 1 }),
-    }))
-    return { palette, none: tokens["box.fill"]?.light ?? "#ffffff" }
-  }, [registry, looks, t])
+  const swatches = useSwatches(looks)
   const changed =
     captionAlign !== start.captionAlign ||
     bodyAlign !== start.bodyAlign ||
@@ -169,7 +183,7 @@ function BoxDialog({
   useEffect(() => {
     onPreview?.(changed ? { captionAlign, bodyAlign, theme: theme || undefined, color } : null)
   }, [changed, captionAlign, bodyAlign, theme, color, onPreview])
-  const aligns = ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
+  const aligns = useAligns()
   const [refused, setRefused] = useState(false)
   const hasBody = body !== ""
   return (

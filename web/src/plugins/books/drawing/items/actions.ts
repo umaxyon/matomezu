@@ -2,6 +2,8 @@
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { bookType } from "../../../../core/registry"
+import { LIST } from "../list"
+import { settleChecks } from "../list/rows"
 import { DIRS } from "./drag"
 import {
   itemsOf,
@@ -88,12 +90,13 @@ export const ITEM_UPDATE = defineAction({
     const now = page && itemsOf(page).find(i => i.id === args.item)
     if (!now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
-    const item = PlacedSchema.safeParse({ ...now, props })
-    if (!item.success || !page || !knownTheme(ctx.registry, item.data)) return null
-    const wide = widenForCaption(ctx.registry, page, now, item.data)
+    const parsed = PlacedSchema.safeParse({ ...now, props })
+    if (!parsed.success || !page || !knownTheme(ctx.registry, parsed.data)) return null
+    const item = parsed.data.item === LIST.id ? settleChecks(parsed.data) : parsed.data
+    const wide = widenForCaption(ctx.registry, page, now, item)
     const next =
       replacePushing(ctx.registry, book, args.page, wide, false) ??
-      (wide !== item.data ? replacePushing(ctx.registry, book, args.page, item.data, false) : null)
+      (wide !== item ? replacePushing(ctx.registry, book, args.page, item, false) : null)
     return next && { next, result: {} }
   },
 })

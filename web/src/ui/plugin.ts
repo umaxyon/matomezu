@@ -31,9 +31,18 @@ export interface DialogProps<A = undefined> {
 // どのダイアログのビューも入る型（表に入れるときに使う。渡す値の型は id ごとに違うので、表の上では見ない）
 // biome-ignore lint/suspicious/noExplicitAny: 関数の部品とクラスの部品の両方を受けるには any しかない
 type AnyDialogView = ComponentType<DialogProps<any>>
+// アイテムのビューに渡す値: 項目（props）・大きさ（紙の上の px）・アイテムの id・描いているステージ・中身（中身を持つアイテムの children）
+export interface ItemViewProps<Props> {
+  props: Props
+  size: Size
+  id: string
+  stage: string
+  content: readonly unknown[]
+}
+
 // アイテムのビューは、そのアイテムの項目（props）のデータを受け取る
 export interface ItemUi<Props = never> {
-  view: ComponentType<{ props: Props; size: Size }> // size は置いたアイテムの大きさ（紙の上の px）
+  view: ComponentType<ItemViewProps<Props>>
   icon: ReactNode // ツールボックスなどに出すアイコン
 }
 

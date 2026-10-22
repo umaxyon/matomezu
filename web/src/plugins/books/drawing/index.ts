@@ -1,4 +1,4 @@
-// 図面のプラグイン: ページごとに紙を置く図面のブックと、その上に置く箱・置く・動かす・消す操作とそのキー、図面の設定
+// 図面のプラグイン: ページごとに紙を置く図面のブックと、その上に置く箱・リスト（と行の操作）・置く・動かす・消す操作とそのキー、図面の設定
 import { defineBuiltin } from "../../../store/plugin"
 import { BOX, BOX_ADD_DIALOG, BOX_EDIT_DIALOG } from "./box"
 import { DRAWING } from "./drawing"
@@ -15,6 +15,9 @@ import {
   ITEM_RESIZE,
   ITEM_UPDATE,
 } from "./items"
+import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
+import { ROW_ADD, ROW_CHECK, ROW_REMOVE, ROW_UPDATE } from "./list/actions"
+import { LIST_ADD_ROW, LIST_CHECK, LIST_DELETE_ROW, LIST_EDIT_ROW } from "./list/commands"
 import { DRAWING_MESSAGES } from "./messages"
 import { DRAWING_SETTINGS, DRAWING_SETTINGS_DIALOG } from "./settings"
 import { SIMPLE, STICKY } from "./themes"
@@ -22,11 +25,30 @@ import { SIMPLE, STICKY } from "./themes"
 export const DRAWING_PLUGIN = defineBuiltin({
   id: "@matomezu/drawing",
   bookTypes: [DRAWING],
-  items: [BOX],
+  items: [BOX, LIST],
   themes: [STICKY, SIMPLE],
-  actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE],
-  commands: [DRAWING_SETTINGS, DRAWING_PLACE, DRAWING_MOVE, DRAWING_RESIZE, DRAWING_EDIT, DRAWING_DELETE],
-  dialogs: [DRAWING_SETTINGS_DIALOG, BOX_ADD_DIALOG, BOX_EDIT_DIALOG],
+  actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE, ROW_ADD, ROW_UPDATE, ROW_REMOVE, ROW_CHECK],
+  commands: [
+    DRAWING_SETTINGS,
+    DRAWING_PLACE,
+    DRAWING_MOVE,
+    DRAWING_RESIZE,
+    DRAWING_EDIT,
+    DRAWING_DELETE,
+    LIST_ADD_ROW,
+    LIST_EDIT_ROW,
+    LIST_DELETE_ROW,
+    LIST_CHECK,
+  ],
+  dialogs: [
+    DRAWING_SETTINGS_DIALOG,
+    BOX_ADD_DIALOG,
+    BOX_EDIT_DIALOG,
+    LIST_ADD_DIALOG,
+    LIST_EDIT_DIALOG,
+    ROW_ADD_DIALOG,
+    ROW_EDIT_DIALOG,
+  ],
   keys: ITEM_KEYS,
   messages: DRAWING_MESSAGES,
 })
@@ -37,6 +59,7 @@ declare module "../../../core/tables" {
   }
   interface ItemTable {
     "shape.box": typeof BOX
+    "shape.list": typeof LIST
   }
   interface ThemeTable {
     sticky: typeof STICKY
@@ -48,6 +71,10 @@ declare module "../../../core/tables" {
     "item.update": typeof ITEM_UPDATE
     "item.resize": typeof ITEM_RESIZE
     "item.remove": typeof ITEM_REMOVE
+    "row.add": typeof ROW_ADD
+    "row.update": typeof ROW_UPDATE
+    "row.remove": typeof ROW_REMOVE
+    "row.check": typeof ROW_CHECK
   }
   interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
 }
@@ -60,10 +87,18 @@ declare module "../../../store/tables" {
     "drawing.resize": typeof DRAWING_RESIZE
     "drawing.edit": typeof DRAWING_EDIT
     "drawing.delete": typeof DRAWING_DELETE
+    "list.addRow": typeof LIST_ADD_ROW
+    "list.editRow": typeof LIST_EDIT_ROW
+    "list.deleteRow": typeof LIST_DELETE_ROW
+    "list.check": typeof LIST_CHECK
   }
   interface DialogTable {
     "drawing.settings": typeof DRAWING_SETTINGS_DIALOG
     "box.add": typeof BOX_ADD_DIALOG
     "box.edit": typeof BOX_EDIT_DIALOG
+    "list.add": typeof LIST_ADD_DIALOG
+    "list.edit": typeof LIST_EDIT_DIALOG
+    "row.add": typeof ROW_ADD_DIALOG
+    "row.edit": typeof ROW_EDIT_DIALOG
   }
 }

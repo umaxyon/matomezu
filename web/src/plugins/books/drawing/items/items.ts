@@ -7,6 +7,8 @@ import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { BOX } from "../box"
 import { BOX_MIN, placedHeight, placedWidth } from "../box/size"
+import { LIST } from "../list"
+import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../list/size"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 import { type Floors, newClash, planPlace, pushFrom, type Rect } from "./push"
 import type { DrawingPage, Placed } from "./schema"
@@ -18,11 +20,13 @@ export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
 export const itemsOf = (page: DrawingPage): readonly Placed[] => page.items ?? []
 
-// 次に置くアイテムの id（newId から振る。ブックの全部のページで重ならない）
+// 次に置くアイテム（リストの行も）の id（newId から振る。ブックの全部のページの、アイテムとその中身で重ならない）
 export function nextItemId(book: Drawing, newId: () => string): string {
   return freshId(
     newId,
-    book.pages.flatMap(p => itemsOf(p).map(i => i.id)),
+    book.pages.flatMap(p =>
+      itemsOf(p).flatMap(i => [i.id, ...("children" in i ? (i.children ?? []).map(c => c.id) : [])]),
+    ),
   )
 }
 
@@ -31,17 +35,22 @@ export function itemSize(reg: Registry, item: string): Size | null {
   return reg.items.get(item)?.size ?? null
 }
 
-// 置いたアイテムの大きさ。w・h（無ければ定義の大きさ。箱は置いたときの幅と高さ）
+// 置いたアイテムの大きさ。w・h（無ければ置いたときの幅と高さ: 箱はキャプションと本文から、リストはキャプションから）
 export function placedSize(reg: Registry, item: Placed): Size | null {
-  const size = itemSize(reg, item.item)
-  if (!size) return null
-  const w = item.w ?? (item.item === BOX.id ? placedWidth(item.props) : size.w)
-  return { w, h: item.h ?? (item.item === BOX.id ? placedHeight(item.props, w) : size.h) }
+  if (!itemSize(reg, item.item)) return null
+  if (item.item === LIST.id) return { w: item.w ?? placedListWidth(item.props.caption), h: item.h ?? LIST_SIZE.h }
+  const w = item.w ?? placedWidth(item.props)
+  return { w, h: item.h ?? placedHeight(item.props, w) }
 }
 
 // 大きさを変えられるアイテムの、一番小さい大きさ（変えられないアイテムは null）
 export function minSize(item: Placed): Size | null {
-  return item.item === BOX.id ? BOX_MIN : null
+  return item.item === BOX.id ? BOX_MIN : item.item === LIST.id ? LIST_MIN : null
+}
+
+// キャプションが PLACE_CAPTION 字まで切れずに見える幅（箱・リスト。編集で縮めてよい横の下限と、キャプションで広げる幅）
+function captionWidth(item: Placed): number {
+  return item.item === LIST.id ? listCaptionWidth(item.props.caption) : placedWidth(item.props)
 }
 
 // つかんだ辺（x は左か右、y は上か下。角なら両方）
@@ -74,14 +83,14 @@ export function resizedBy(
   return { x: h.at, y: v.at, w: h.len, h: v.len }
 }
 
-// 中身を変えた箱 next の幅: キャプションが変わって、置いたときの幅（20 字まで）より狭ければ、そこまで右へ広げる（紙の右の端で止める）。
-// 狭めはしない。箱でないか、キャプションが変わらなければそのまま
+// 中身を変えた箱・リスト next の幅: キャプションが変わって、キャプションが見える幅（20 字まで）より狭ければ、そこまで右へ広げる（紙の右の端で止める）。
+// 狭めはしない。キャプションが変わらなければそのまま
 export function widenForCaption(reg: Registry, page: DrawingPage, before: Placed, next: Placed): Placed {
-  if (next.item !== BOX.id || before.item !== BOX.id || next.props.caption === before.props.caption) return next
+  if (next.props.caption === before.props.caption) return next
   const size = placedSize(reg, next)
   const paper = paperSize(reg, page)
   if (!size || !paper) return next
-  const w = Math.min(placedWidth(next.props), paper.w - next.x)
+  const w = Math.min(captionWidth(next), paper.w - next.x)
   return w > size.w ? { ...next, w } : next
 }
 
@@ -126,19 +135,14 @@ export function rectsOf(reg: Registry, page: DrawingPage): Map<string, Rect> {
   return rects
 }
 
-// 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 箱は、横がキャプションが全部見える幅（置いたときの幅と同じ）、縦がキャプション 1 行の高さ。
-// 今それより小さければ今の大きさ。大きさを変えられないアイテムは今の大きさ
+// 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行）。
+// 今それより小さければ今の大きさ
 function floorsOf(reg: Registry, page: DrawingPage): Floors {
   const floors = new Map<string, Size>()
   for (const i of itemsOf(page)) {
     const size = placedSize(reg, i)
     if (!size) continue
-    floors.set(
-      i.id,
-      i.item === BOX.id
-        ? { w: Math.min(size.w, Math.max(BOX_MIN.w, placedWidth(i.props))), h: Math.min(size.h, BOX_MIN.h) }
-        : size,
-    )
+    floors.set(i.id, { w: Math.min(size.w, captionWidth(i)), h: Math.min(size.h, (minSize(i) ?? size).h) })
   }
   return floors
 }

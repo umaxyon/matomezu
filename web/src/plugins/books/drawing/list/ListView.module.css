@@ -1,0 +1,143 @@
+/* リストの外枠: テーマの影（filter） */
+.frame {
+  width: 100%;
+  height: 100%;
+  filter: var(--theme-box-shadow);
+}
+/* リスト。寸法は size.ts の LIST_LOOK と同じ値にする。字は箱と同じく同梱の Noto Sans JP で、字詰めなどを止める */
+.list {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--theme-box-line);
+  border-radius: var(--theme-box-radius);
+  background: var(--theme-box-fill);
+  color: var(--theme-box-text);
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "kern" 0,
+    "liga" 0,
+    "palt" 0;
+  text-spacing-trim: space-all;
+  text-autospace: no-autospace;
+}
+/* 見出し: キャプション 1 行（収まらない分は … で切る）と、その下の線 */
+.head {
+  flex: none;
+  box-sizing: border-box;
+  height: 27px;
+  padding: 4px 8px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--theme-box-line);
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* 行の並び。リストの高さを超えたらここだけスクロールする */
+.rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: flex;
+  gap: 6px;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  overflow: hidden;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-box-line) 45%, transparent);
+}
+/* 行の色分け: 1 行おきに地へ文字の色を少し混ぜる */
+.list[data-zebra="true"] .row:nth-child(even) {
+  background: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 7%);
+}
+.text {
+  flex: 1;
+  min-width: 0;
+}
+.caption {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+.text [data-align="left"] {
+  text-align: left;
+}
+.text [data-align="center"] {
+  text-align: center;
+}
+.text [data-align="right"] {
+  text-align: right;
+}
+.rule {
+  width: 100%;
+  margin: 3px 0;
+  border: 0;
+  border-top: 1px solid var(--theme-box-line);
+}
+.line {
+  height: 18px;
+  white-space: pre;
+}
+/* チェックの印（行のキャプションの高さの真ん中） */
+.check {
+  flex: none;
+  position: relative;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  padding: 0;
+  border: 1.5px solid var(--theme-box-line);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+.check:checked {
+  background: var(--theme-box-line);
+}
+.check:checked::after {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 0.5px;
+  width: 3px;
+  height: 7px;
+  border: solid var(--theme-box-fill);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+/* 行を足す「＋」の行 */
+.add {
+  display: block;
+  width: 100%;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--theme-box-text) 55%, transparent);
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  cursor: pointer;
+}
+.add:hover {
+  background: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 8%);
+  color: var(--theme-box-text);
+}

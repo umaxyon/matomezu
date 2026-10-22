@@ -1,0 +1,11 @@
+/* チェックリストを切る前の確かめ: 理由の文と、消す・戻すのボタンを 1 行に */
+.confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--skin-accent);
+  font-size: 12px;
+}
+.confirm > span {
+  flex: 1;
+}

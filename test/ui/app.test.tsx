@@ -39,7 +39,7 @@ test("ステージに紙が 1 枚あり、上にツールボックス、下の�
     within(tools)
       .getAllByRole("button")
       .map(b => b.getAttribute("aria-label")),
-  ).toEqual(["箱"])
+  ).toEqual(["箱", "リスト"])
   expect(screen.getByRole("button", { name: "まとめ図の構想" }).getAttribute("aria-expanded")).toBe("false")
 })
 

@@ -3,9 +3,9 @@
 // 箱にテーマ（theme）を当てていれば、そのテーマの箱の欄（塗り・線・文字・角の丸み・影・角の折り返し）で描く。表に無いテーマならブックのテーマのまま。
 // 色（color）があれば、塗りと文字の欄をその色で上書きする（paint.ts）
 import { type CSSProperties, useMemo } from "react"
-import type { Size } from "../../../../core/geom"
 import type { ItemProps } from "../../../../core/registry"
 import { resolveTokens } from "../../../../core/theme"
+import type { ItemViewProps } from "../../../../ui/plugin"
 import { useRegistry } from "../../../../ui/store-context"
 import { themeVars } from "../../../../ui/theme-vars"
 import { BOX } from "."
@@ -13,7 +13,7 @@ import styles from "./BoxView.module.css"
 import { paintVars } from "./paint"
 import { boxLayout } from "./size"
 
-export function BoxView({ props, size }: { props: ItemProps<"shape.box">; size: Size }) {
+export function BoxView({ props, size }: ItemViewProps<ItemProps<"shape.box">>) {
   const registry = useRegistry()
   const theme = props.theme
   const vars = useMemo(

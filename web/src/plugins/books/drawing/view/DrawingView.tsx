@@ -10,7 +10,7 @@
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react"
-import type { Point, Size } from "../../../../core/geom"
+import type { Point } from "../../../../core/geom"
 import type { BookOf } from "../../../../core/schema/book"
 import type { Stage } from "../../../../core/stage"
 import { paperOf, placement, toPaperDelta } from "../../../../core/stage"
@@ -18,7 +18,7 @@ import { toolOf } from "../../../../core/workspace"
 import { useCommand } from "../../../../ui/commands"
 import { useContextMenu } from "../../../../ui/context-menu"
 import { useT } from "../../../../ui/i18n"
-import type { BookViewProps } from "../../../../ui/plugin"
+import type { BookViewProps, ItemViewProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry, useUi } from "../../../../ui/store-context"
 import {
   type Came,
@@ -219,6 +219,7 @@ function Items({ stage }: { stage: Stage }) {
   return itemsOf(page).map(item => (
     <Item
       key={item.id}
+      stage={stage.id}
       item={shown(item)}
       stretchable={single && stage.selection[0] === item.id && minSize(item) !== null}
       onStretch={{
@@ -247,6 +248,7 @@ function Items({ stage }: { stage: Stage }) {
 }
 
 interface ItemProps {
+  stage: string
   item: Placed
   stretchable: boolean // 四辺と四隅をつかんで大きさを変えられるか
   onStretch: {
@@ -279,11 +281,11 @@ const GRIPS: readonly { at: string; edges: Edges }[] = [
 ]
 
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く
-function Item({ item, stretchable, onStretch, selected, shift, look, ...handlers }: ItemProps) {
+function Item({ stage, item, stretchable, onStretch, selected, shift, look, ...handlers }: ItemProps) {
   const registry = useRegistry()
   const ui = useUi().items.get(item.item)
   const size = placedSize(registry, item)
-  const View = ui?.view as ((p: { props: Placed["props"]; size: Size }) => ReactNode) | undefined
+  const View = ui?.view as ((p: ItemViewProps<Placed["props"]>) => ReactNode) | undefined
   return (
     <div
       data-item={item.id}
@@ -299,7 +301,17 @@ function Item({ item, stretchable, onStretch, selected, shift, look, ...handlers
       }}
       {...handlers}
     >
-      {View && size ? <View props={item.props} size={size} /> : <div className={styles.unknownItem} />}
+      {View && size ? (
+        <View
+          props={item.props}
+          size={size}
+          id={item.id}
+          stage={stage}
+          content={"children" in item ? (item.children ?? []) : []}
+        />
+      ) : (
+        <div className={styles.unknownItem} />
+      )}
       {stretchable &&
         GRIPS.map(g => (
           <div
