@@ -95,7 +95,7 @@ func TestToolsAreTheListedActionsWithBookAdded(t *testing.T) {
 	if req := schema["required"].([]any); req[0] != "book" || req[1] != "page" {
 		t.Fatalf("required = %v", req)
 	}
-	if !strings.Contains(place["description"].(string), `shape.box (Box, size {"h":96,"w":160}) props {"caption"`) {
+	if !strings.Contains(place["description"].(string), `shape.box (Box, default size {"h":96,"w":160}) props {"caption"`) {
 		t.Fatalf("description = %s", place["description"])
 	}
 }

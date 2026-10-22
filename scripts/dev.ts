@@ -8,6 +8,7 @@ const built = await Bun.spawn(["go", "build", "-o", exe, "./cmd/matomezu"], { st
   .exited
 if (built !== 0) process.exit(built)
 await Bun.spawn(build, { stdout: "inherit", stderr: "inherit" }).exited
+await Bun.spawn(["bun", "scripts/fonts.ts", "copy", "web/dist/fonts"], { stdout: "inherit", stderr: "inherit" }).exited
 const watch = Bun.spawn([...build, "--watch", "--no-clear-screen"], { stdout: "inherit", stderr: "inherit" })
 const serve = Bun.spawn([exe, "serve", "--addr", `127.0.0.1:${port}`, "--web", "web/dist"], {
   env: { ...process.env, MATOMEZU_HOME: ".dev-home" },

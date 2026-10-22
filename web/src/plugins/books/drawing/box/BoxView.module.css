@@ -1,4 +1,5 @@
-/* 箱。本文が無ければキャプションを真ん中に置く */
+/* 箱。本文が無ければキャプションを真ん中に置く。寸法は size.ts の BOX_LOOK と同じ値にする。
+   字は同梱の Noto Sans JP で描き、字詰め・合字・字の形の切り替え・約物の詰め・和欧の間の空きを止める（幅は core/text が計算した値のとおりにする） */
 .box {
   display: flex;
   flex-direction: column;
@@ -12,8 +13,19 @@
   border-radius: 6px;
   background: var(--theme-box-fill);
   color: var(--theme-box-text);
+  font-family: "Noto Sans JP", sans-serif;
   font-size: 13px;
-  line-height: 1.4;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "kern" 0,
+    "liga" 0,
+    "palt" 0;
+  text-spacing-trim: space-all;
+  text-autospace: no-autospace;
 }
 .box[data-body="true"] {
   justify-content: flex-start;
@@ -25,7 +37,8 @@
   text-align: center;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-weight: 600;
+  min-height: 18px;
+  font-weight: 700;
 }
 .rule {
   flex: none;
@@ -34,11 +47,11 @@
   border: 0;
   border-top: 1px solid var(--theme-box-line);
 }
-/* 本文: 改行はそのまま、収まらない行は切る */
+/* 本文: 折り返した行を 1 行ずつ置く。行の中では折り返さない */
 .body {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  flex: none;
+}
+.line {
+  height: 18px;
+  white-space: pre;
 }

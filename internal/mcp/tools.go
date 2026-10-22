@@ -23,9 +23,11 @@ type actionTool struct {
 var actionTools = []actionTool{
 	{"create_book", "book.create", "Create a book. type is a book type such as drawing. Returns the new book's id."},
 	{"add_page", "page.add", "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id."},
-	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). It is refused if it does not fit on the paper. Returns the new item's id."},
+	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w sets the width of an item that can be resized (a box); a box's height follows its content " +
+		"(its body wraps to the width, cut with … after bodyLines lines when set). It is refused if it does not fit on the paper. Returns the new item's id."},
 	{"move_items", "item.move", "Move items of a page by (x, y) paper pixels. It is refused if any would leave the paper."},
-	{"update_item", "item.update", "Change some props of an item. Props not given stay."},
+	{"update_item", "item.update", "Change some props of an item. Props not given stay; a prop given as null is removed (back to its default). It is refused if the item would not fit on the paper."},
+	{"resize_item", "item.resize", "Change the width of an item that can be resized (a box). x moves its left edge too. A box's height follows its content. It is refused below the item's smallest width or off the paper."},
 	{"remove_items", "item.remove", "Remove items from a page."},
 }
 
@@ -168,7 +170,7 @@ func itemsText(c *catalog) string {
 	for _, i := range c.Items {
 		props, _ := json.Marshal(i.Props["properties"])
 		size, _ := json.Marshal(i.Size)
-		parts = append(parts, fmt.Sprintf("%s (%s, size %s) props %s", i.ID, i.Title, size, props))
+		parts = append(parts, fmt.Sprintf("%s (%s, default size %s) props %s", i.ID, i.Title, size, props))
 	}
 	return strings.Join(parts, "; ")
 }

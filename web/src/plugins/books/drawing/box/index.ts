@@ -1,9 +1,11 @@
 // 箱: キャプションと本文を入れる四角。キャプションと本文の間に区切り線を引ける（本文があるときだけ）。
+// 幅は変えられ（置いたアイテムの w）、高さは中身で決まる（size.ts）。本文は最大の行数（bodyLines。無ければ制限なし）を超えた分を … で切る。
 // 置くときは、置く所を覚えて追加のダイアログ（box.add）を開き、中身を決めてから置く。中身は編集のダイアログ（box.edit）で変える
 import { z } from "zod"
 import { defineItem } from "../../../../core/def/item"
 import type { Point } from "../../../../core/geom"
 import { defineDialogWith } from "../../../../store/dialogs"
+import { BOX_SIZE } from "./size"
 
 export const BOX = defineItem({
   id: "shape.box",
@@ -16,8 +18,9 @@ export const BOX = defineItem({
     caption: z.string().default(""),
     rule: z.boolean().default(true), // キャプションと本文の間の区切り線
     body: z.string().default(""),
+    bodyLines: z.number().int().min(1).optional(), // 本文の最大の行数
   }),
-  size: { w: 160, h: 64 },
+  size: BOX_SIZE, // 幅の既定と、一番低い高さ
   tokens: [
     { id: "box.fill", fallback: "fill" },
     { id: "box.line", fallback: "line" },

@@ -6,7 +6,16 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["web/**", "test/**", "e2e/**", "scripts/**", "*.ts", "*.json", "!!web/dist"]
+    "includes": [
+      "web/**",
+      "test/**",
+      "e2e/**",
+      "scripts/**",
+      "*.ts",
+      "*.json",
+      "!!web/dist",
+      "!!web/src/core/text/noto-sans-jp.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

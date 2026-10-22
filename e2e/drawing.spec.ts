@@ -223,3 +223,88 @@ test("キーは割り当ての表で効く: 本文の欄の Enter は改行、�
   await expect(page.getByRole("menu")).toBeHidden()
   await expect(items(page)).toHaveCount(1)
 })
+
+const BODY =
+  "matomezu は図を描く道具です。「箱」の本文は、幅に合わせて折り返し、行の数だけ箱が縦に伸びます。Noto Sans JP で描きます。"
+
+// 本文を入れた箱を置き、選んだままにする
+async function addBodyBox(page: Page) {
+  await page.getByRole("button", { name: "箱" }).click()
+  const at = await onPaper(page, 120, 120)
+  await page.mouse.click(at.x, at.y)
+  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
+  await dialog.getByLabel("キャプション").fill("見出し")
+  await dialog.getByLabel("本文").fill(BODY)
+  await dialog.getByRole("button", { name: "追加" }).click()
+  await expect(dialog).toBeHidden()
+}
+
+// 紙の上の 1px が画面の何 px か
+async function zoomOf(page: Page) {
+  return (await page.getByRole("img", { name: "紙" }).boundingBox())!.width / 1123
+}
+
+test("本文は折り返した行ごとに描き、描いた字の幅は core の計算（フォントの表）と 1px 未満で合う", async ({ page }) => {
+  const { textWidth } = await import("../web/src/core/text/text")
+  await page.goto("/")
+  await addBodyBox(page)
+  await page.evaluate(() => document.fonts.ready)
+  const lines = page.locator("[data-item] [data-line]")
+  expect(await lines.count()).toBeGreaterThan(2)
+  const zoom = await zoomOf(page)
+  const drawn = await lines.evaluateAll(els =>
+    els.map(el => {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      return { text: el.textContent ?? "", width: range.getBoundingClientRect().width }
+    }),
+  )
+  expect(
+    drawn
+      .map(d => d.text)
+      .join("")
+      .replace(/ /g, ""),
+  ).toBe(BODY.replace(/ /g, ""))
+  expect(await page.evaluate(() => document.fonts.check('13px "Noto Sans JP"'))).toBe(true)
+  for (const d of drawn) {
+    expect(Math.abs(d.width / zoom - textWidth(d.text, { size: 13, weight: 400 }))).toBeLessThan(1)
+  }
+})
+
+test("選んだ箱の左右の辺と四隅でポインタが横向きと斜めの矢印になり、右の辺を右へドラッグすると幅が広がって行が減る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBodyBox(page)
+  const box = page.locator("[data-item]")
+  const grips = box.locator("[data-grip]")
+  await expect(grips).toHaveCount(6)
+  const cursor = (at: string) => box.locator(`[data-grip="${at}"]`).evaluate(el => getComputedStyle(el).cursor)
+  expect(await cursor("right")).toBe("ew-resize")
+  expect(await cursor("top-left")).toBe("nwse-resize")
+  expect(await cursor("bottom-left")).toBe("nesw-resize")
+  const before = (await box.boundingBox())!
+  const lines = await box.locator("[data-line]").count()
+  const grip = (await box.locator('[data-grip="bottom-right"]').boundingBox())!
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(grip.x + grip.width / 2 + 150, grip.y + grip.height / 2 + 30, { steps: 5 })
+  await page.mouse.up()
+  await expect.poll(async () => (await box.boundingBox())!.width).toBeGreaterThan(before.width + 140)
+  const after = (await box.boundingBox())!
+  expect(Math.abs(after.x - before.x)).toBeLessThan(1)
+  expect(await box.locator("[data-line]").count()).toBeLessThan(lines)
+  expect(after.height).toBeLessThan(before.height)
+})
+
+test("ダイアログで本文の最大の行数を選ぶと、超えた分を … で切る", async ({ page }) => {
+  await page.goto("/")
+  await addBodyBox(page)
+  await page.locator("[data-item]").dblclick()
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  await dialog.getByLabel("最大行数").selectOption("2")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  const lines = page.locator("[data-item] [data-line]")
+  await expect(lines).toHaveCount(2)
+  await expect(lines.nth(1)).toHaveText(/…$/)
+})

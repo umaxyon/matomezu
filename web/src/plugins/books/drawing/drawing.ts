@@ -22,8 +22,8 @@ export const DRAWING = defineBookType({
   },
   items: { allowed: ["shape.box"], defaults: ["shape.box"] },
   actions: {
-    allowed: ["page.add", "item.place", "item.move", "item.update", "item.remove"],
-    defaults: ["page.add", "item.place", "item.move", "item.update", "item.remove"],
+    allowed: ["page.add", "item.place", "item.move", "item.update", "item.resize", "item.remove"],
+    defaults: ["page.add", "item.place", "item.move", "item.update", "item.resize", "item.remove"],
   },
   theme: "standard",
   tokens: [],

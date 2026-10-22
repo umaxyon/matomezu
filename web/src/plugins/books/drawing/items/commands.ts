@@ -4,7 +4,7 @@ import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
 import { defineKeys } from "../../../../store/keys"
 import { BOX } from "../box"
-import { fitsPaper, itemSize, itemsOf, PLACE_OFFSET } from "./items"
+import { fitsPaper, itemSize, itemsOf, PLACE_OFFSET, resizedBy } from "./items"
 
 const onDrawingPage = (ctx: CommandContext) => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null
 
@@ -76,6 +76,24 @@ export const DRAWING_MOVE = defineCommand({
     if (!opened?.page || args.items.length === 0) return
     const by = toPaperDelta(ctx.stage, args.by)
     a.perform("item.move", { page: opened.page, items: [...args.items], by }, { book: opened.book })
+  },
+  when: onDrawingPage,
+})
+
+// アイテムの左か右の辺をつかんで、画面の上で横に動いた量だけ幅を変える（items.ts の resizedBy）。
+// 中身が伸びて紙の下にはみ出すなら変えない
+export const DRAWING_RESIZE = defineCommand({
+  id: "drawing.resize",
+  title: "Resize item",
+  run: (ctx, a, args: { item: string; side: "left" | "right"; by: number }) => {
+    const { opened } = ctx.stage
+    const paper = paperOf(ctx.stage)
+    const book = ctx.book?.type === "drawing" ? ctx.book : null
+    const page = book?.pages.find(p => p.id === opened?.page)
+    const placed = page && itemsOf(page).find(i => i.id === args.item)
+    if (!opened?.page || !paper || !placed) return
+    const to = resizedBy(ctx.registry, placed, args.side, toPaperDelta(ctx.stage, { x: args.by, y: 0 }).x, paper)
+    if (to) a.perform("item.resize", { page: opened.page, item: placed.id, ...to }, { book: opened.book })
   },
   when: onDrawingPage,
 })

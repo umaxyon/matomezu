@@ -7,10 +7,12 @@ import {
   DRAWING_EDIT,
   DRAWING_MOVE,
   DRAWING_PLACE,
+  DRAWING_RESIZE,
   ITEM_KEYS,
   ITEM_MOVE,
   ITEM_PLACE,
   ITEM_REMOVE,
+  ITEM_RESIZE,
   ITEM_UPDATE,
 } from "./items"
 import { DRAWING_MESSAGES } from "./messages"
@@ -20,8 +22,8 @@ export const DRAWING_PLUGIN = defineBuiltin({
   id: "@matomezu/drawing",
   bookTypes: [DRAWING],
   items: [BOX],
-  actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_REMOVE],
-  commands: [DRAWING_SETTINGS, DRAWING_PLACE, DRAWING_MOVE, DRAWING_EDIT, DRAWING_DELETE],
+  actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE],
+  commands: [DRAWING_SETTINGS, DRAWING_PLACE, DRAWING_MOVE, DRAWING_RESIZE, DRAWING_EDIT, DRAWING_DELETE],
   dialogs: [DRAWING_SETTINGS_DIALOG, BOX_ADD_DIALOG, BOX_EDIT_DIALOG],
   keys: ITEM_KEYS,
   messages: DRAWING_MESSAGES,
@@ -38,6 +40,7 @@ declare module "../../../core/tables" {
     "item.place": typeof ITEM_PLACE
     "item.move": typeof ITEM_MOVE
     "item.update": typeof ITEM_UPDATE
+    "item.resize": typeof ITEM_RESIZE
     "item.remove": typeof ITEM_REMOVE
   }
   interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
@@ -48,6 +51,7 @@ declare module "../../../store/tables" {
     "drawing.settings": typeof DRAWING_SETTINGS
     "drawing.place": typeof DRAWING_PLACE
     "drawing.move": typeof DRAWING_MOVE
+    "drawing.resize": typeof DRAWING_RESIZE
     "drawing.edit": typeof DRAWING_EDIT
     "drawing.delete": typeof DRAWING_DELETE
   }

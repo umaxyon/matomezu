@@ -145,3 +145,9 @@ textarea.control {
   gap: 10px;
   color: var(--skin-hint);
 }
+/* 決められなかった理由 */
+.problem {
+  margin: 0;
+  color: var(--skin-accent);
+  font-size: 12px;
+}

@@ -74,6 +74,48 @@
   outline: 2px solid var(--theme-accent);
   outline-offset: 2px;
 }
+/* 幅を変えるためにつかめる所（印は出さず、ポインタの形だけを変える）。辺は縦に長く、角は小さな四角 */
+.grip {
+  position: absolute;
+}
+.grip[data-grip="left"],
+.grip[data-grip="right"] {
+  top: 6px;
+  bottom: 6px;
+  width: 8px;
+  cursor: ew-resize;
+}
+.grip[data-grip="left"] {
+  left: -5px;
+}
+.grip[data-grip="right"] {
+  right: -5px;
+}
+.grip[data-grip^="top"],
+.grip[data-grip^="bottom"] {
+  width: 12px;
+  height: 12px;
+}
+.grip[data-grip^="top"] {
+  top: -6px;
+}
+.grip[data-grip^="bottom"] {
+  bottom: -6px;
+}
+.grip[data-grip$="-left"] {
+  left: -6px;
+}
+.grip[data-grip$="-right"] {
+  right: -6px;
+}
+.grip[data-grip="top-left"],
+.grip[data-grip="bottom-right"] {
+  cursor: nwse-resize;
+}
+.grip[data-grip="top-right"],
+.grip[data-grip="bottom-left"] {
+  cursor: nesw-resize;
+}
 /* ビューの無いアイテムは枠だけ */
 .unknownItem {
   width: 100%;

@@ -9,9 +9,11 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
 import { App } from "./ui/App"
+import { loadFonts } from "./ui/fonts"
 import { MatomezuProvider } from "./ui/store-context"
 import "./ui/skin.css"
 
+loadFonts()
 const { host, loaded: saved } = await startHost(() => memoryHost(SAMPLE_BOOKS))
 const store = createMatomezu({
   plugins: BUILTIN_UI,

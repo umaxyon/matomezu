@@ -4,6 +4,8 @@
 // アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（drawing.place。紙からはみ出す所では薄く出し、置かない）。
 // 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
 // アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（box.context）を開く。
+// アイテムを 1 つだけ選んでいて、そのアイテムの幅を変えられるなら、左右の辺と四隅をつかんで幅を変えられる（印は出さず、ポインタの形だけが変わる。
+// 角は近い辺と同じに動く。離したときに drawing.resize）。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react"
 import type { Point } from "../../../../core/geom"
@@ -16,7 +18,7 @@ import { useContextMenu } from "../../../../ui/context-menu"
 import { useT } from "../../../../ui/i18n"
 import type { BookViewProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry, useUi } from "../../../../ui/store-context"
-import { fitsPaper, itemSize, itemsOf, type Placed, placeAt } from "../items"
+import { fitsPaper, itemSize, itemsOf, minWidth, type Placed, placeAt, placedSize, resizedBy } from "../items"
 import styles from "./DrawingView.module.css"
 
 // 要素の左上から見たポインタの位置
@@ -90,6 +92,16 @@ interface Drag {
   items: readonly string[]
 }
 
+type Side = "left" | "right"
+
+// 幅を変えているドラッグ: つかんだ辺と、押したときのポインタの横の位置
+interface Stretch {
+  pointer: number
+  item: string
+  side: Side
+  startX: number
+}
+
 // 開いたページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く
 function Items({ stage }: { stage: Stage }) {
   const page = useApp(s => {
@@ -103,6 +115,9 @@ function Items({ stage }: { stage: Stage }) {
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
+  const resize = useCommand(stage.id, "drawing.resize")
+  const stretch = useRef<Stretch | null>(null)
+  const [stretched, setStretched] = useState(0) // 幅を変えているドラッグの、画面の上で横に動いた量
   const registry = useRegistry()
   const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
   if (!page) return null
@@ -127,10 +142,44 @@ function Items({ stage }: { stage: Stage }) {
   }
   const shift = moved && toPaperDelta(stage, moved)
 
+  const startStretch = (e: PointerEvent<HTMLDivElement>, item: string, side: Side) => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    stretch.current = { pointer: e.pointerId, item, side, startX: e.clientX }
+  }
+  const moveStretch = (e: PointerEvent<HTMLDivElement>) => {
+    const st = stretch.current
+    if (st?.pointer === e.pointerId) setStretched(e.clientX - st.startX)
+  }
+  const endStretch = (e: PointerEvent<HTMLDivElement>, drop: boolean) => {
+    const st = stretch.current
+    if (st?.pointer !== e.pointerId) return
+    stretch.current = null
+    setStretched(0)
+    if (drop && stretched !== 0) resize.run({ item: st.item, side: st.side, by: stretched })
+  }
+  const paper = paperOf(stage)
+  // 幅を変えている途中のアイテムは、変えたあとの左端と幅で描く
+  const shown = (item: Placed): Placed => {
+    const st = stretch.current
+    if (!st || st.item !== item.id || !paper) return item
+    const to = resizedBy(registry, item, st.side, toPaperDelta(stage, { x: stretched, y: 0 }).x, paper)
+    return to ? { ...item, ...to } : item
+  }
+  const single = stage.selection.length === 1 && !hand && stage.placing === null
+
   return itemsOf(page).map(item => (
     <Item
       key={item.id}
-      item={item}
+      item={shown(item)}
+      stretchable={single && stage.selection[0] === item.id && minWidth(item) !== null}
+      onStretch={{
+        down: (e, side) => startStretch(e, item.id, side),
+        move: moveStretch,
+        up: e => endStretch(e, true),
+        cancel: e => endStretch(e, false),
+      }}
       selected={stage.selection.includes(item.id)}
       shift={shift && drag.current?.items.includes(item.id) ? shift : null}
       onPointerDown={e => onPointerDown(e, item.id)}
@@ -151,6 +200,13 @@ function Items({ stage }: { stage: Stage }) {
 
 interface ItemProps {
   item: Placed
+  stretchable: boolean // 辺と四隅をつかんで幅を変えられるか
+  onStretch: {
+    down(e: PointerEvent<HTMLDivElement>, side: Side): void
+    move(e: PointerEvent<HTMLDivElement>): void
+    up(e: PointerEvent<HTMLDivElement>): void
+    cancel(e: PointerEvent<HTMLDivElement>): void
+  }
   selected: boolean
   shift: Point | null // ドラッグ中にずらして描く量（紙の上）
   onPointerDown(e: PointerEvent<HTMLDivElement>): void
@@ -161,12 +217,22 @@ interface ItemProps {
   onContextMenu(e: MouseEvent<HTMLDivElement>): void
 }
 
+// 幅を変えるためにつかめる所: 左右の辺と四隅（角は近い辺と同じに動く）
+const GRIPS: readonly { at: string; side: Side }[] = [
+  { at: "left", side: "left" },
+  { at: "right", side: "right" },
+  { at: "top-left", side: "left" },
+  { at: "bottom-left", side: "left" },
+  { at: "top-right", side: "right" },
+  { at: "bottom-right", side: "right" },
+]
+
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く
-function Item({ item, selected, shift, ...handlers }: ItemProps) {
+function Item({ item, stretchable, onStretch, selected, shift, ...handlers }: ItemProps) {
   const registry = useRegistry()
   const ui = useUi().items.get(item.item)
-  const size = itemSize(registry, item.item)
-  const View = ui?.view as ((p: { props: Placed["props"] }) => ReactNode) | undefined
+  const size = placedSize(registry, item)
+  const View = ui?.view as ((p: { props: Placed["props"]; w: number }) => ReactNode) | undefined
   return (
     <div
       data-item={item.id}
@@ -181,7 +247,19 @@ function Item({ item, selected, shift, ...handlers }: ItemProps) {
       }}
       {...handlers}
     >
-      {View ? <View props={item.props} /> : <div className={styles.unknownItem} />}
+      {View && size ? <View props={item.props} w={size.w} /> : <div className={styles.unknownItem} />}
+      {stretchable &&
+        GRIPS.map(g => (
+          <div
+            key={g.at}
+            className={styles.grip}
+            data-grip={g.at}
+            onPointerDown={e => onStretch.down(e, g.side)}
+            onPointerMove={onStretch.move}
+            onPointerUp={onStretch.up}
+            onPointerCancel={onStretch.cancel}
+          />
+        ))}
     </div>
   )
 }

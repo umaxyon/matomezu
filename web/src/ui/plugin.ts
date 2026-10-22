@@ -32,7 +32,7 @@ export interface DialogProps<A = undefined> {
 type AnyDialogView = ComponentType<DialogProps<any>>
 // アイテムのビューは、そのアイテムの項目（props）のデータを受け取る
 export interface ItemUi<Props = never> {
-  view: ComponentType<{ props: Props }>
+  view: ComponentType<{ props: Props; w: number }> // w は置いたアイテムの幅（紙の上の px）
   icon: ReactNode // ツールボックスなどに出すアイコン
 }
 

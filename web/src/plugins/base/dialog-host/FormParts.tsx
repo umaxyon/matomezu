@@ -5,6 +5,15 @@ import styles from "./Dialog.module.css"
 export const controlClass = styles.control
 export const rowClass = styles.row
 
+// 決められなかった理由の 1 行（決めるボタンを押して断られたとき）
+export function Problem({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className={styles.problem}>
+      {children}
+    </p>
+  )
+}
+
 // children は欄の id を受け取って、入力の部品を返す
 export function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
   const id = useId()

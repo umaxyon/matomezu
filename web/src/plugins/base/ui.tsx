@@ -14,7 +14,7 @@ import { TOOLBOX } from "./toolbox/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 
 export { Dialog } from "./dialog-host/Dialog"
-export { ActionButton, controlClass, Field, Form, rowClass, Switch } from "./dialog-host/FormParts"
+export { ActionButton, controlClass, Field, Form, Problem, rowClass, Switch } from "./dialog-host/FormParts"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {
