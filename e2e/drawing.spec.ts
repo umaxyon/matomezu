@@ -666,3 +666,26 @@ test("箱を右へ広げて、押した右の箱が紙の右の端で詰まる�
   expect(after.x + after.width).toBeLessThanOrEqual(paper.x + paper.width + 0.5)
   expect(after.width).toBeGreaterThanOrEqual(64 * zoom - 0.5)
 })
+
+test("箱の大きさを変えるドラッグの間は、ほかの箱が薄くなり、離すと戻る", async ({ page }) => {
+  await page.goto("/")
+  for (const [x, caption] of [
+    [120, "左"],
+    [260, "右"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, 120)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const left = page.locator("[data-item]", { hasText: "左" })
+  const right = page.locator("[data-item]", { hasText: "右" })
+  await left.click()
+  const grip = (await left.locator('[data-grip="bottom"]').boundingBox())!
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + 40, { steps: 4 })
+  await expect(right).toHaveAttribute("data-look", "faded")
+  await expect(left).not.toHaveAttribute("data-look")
+  await page.mouse.up()
+  await expect(right).not.toHaveAttribute("data-look")
+})

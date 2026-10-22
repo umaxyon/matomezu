@@ -6,7 +6,7 @@
 // ほかのアイテムは薄くして動かさない。アイテム 1 つなら、通り道（items.ts の trackDrag）を覚え、正面から半分入った相手をその場で入れ替えて描く（dragging）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
 // アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（box.context）を開く。
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
-// 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize）。
+// 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react"
@@ -208,6 +208,12 @@ function Items({ stage }: { stage: Stage }) {
     const to = resizedBy(registry, item, st.edges, toPaperDelta(stage, stretched), paper)
     return to ? { ...item, ...to } : item
   }
+  // ドラッグ中の見た目: 動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く
+  const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
+  const lookOf = (id: string): "lifted" | "faded" | undefined => {
+    if (dragged.length > 0) return dragged.includes(id) ? "lifted" : "faded"
+    return resizing && id !== resizing ? "faded" : undefined
+  }
   const single = stage.selection.length === 1 && !hand && stage.placing === null
 
   return itemsOf(page).map(item => (
@@ -223,7 +229,7 @@ function Items({ stage }: { stage: Stage }) {
       }}
       selected={stage.selection.includes(item.id)}
       shift={shiftOf(item)}
-      look={dragged.length === 0 ? undefined : dragged.includes(item.id) ? "lifted" : "faded"}
+      look={lookOf(item.id)}
       onPointerDown={e => onPointerDown(e, item.id)}
       onPointerMove={onPointerMove}
       onPointerUp={e => endDrag(e, true)}
