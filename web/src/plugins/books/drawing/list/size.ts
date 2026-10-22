@@ -50,22 +50,41 @@ export function linesFor(height: number): number {
   return Math.min(MAX_ROW_LINES, Math.max(0, height < EMPTY_ROW + RULE / 2 ? 0 : lines))
 }
 
-// そろえるボタンの下書き: 全部の行の行数を消す（"auto"）か、全部の行を同じ行数にする
-export type RowsLines = "auto" | number
+// 行の行数の書き換え（そろえるボタンと AI の row.lines）: 決めた行数（全部の行が同じ高さ）、"max"（全部の行を本文の一番長い行が全部見える行数に）、
+// "fit"（行ごとに、その行の本文が全部見える行数に。高さは行ごとに違う）、null（行数を消し、行数を持たない行の決まりでそろえる）
+export type RowsLines = number | "max" | "fit" | null
 
 // 行の文字を置ける幅（チェックリストならチェックの印の分を除く）
 const textWidthOf = (w: number, checklist: boolean) =>
   w - 2 * (L.border + L.inset + L.rowPadX) - (checklist ? L.check + L.checkGap : 0)
 
-// 幅 w のリストに描く行の並び。all を渡せば、行の持つ行数の代わりにそれで決める（そろえるボタンの下書き）
+// 幅 w のリストの行ごとの本文の折り返し
+const wrapAll = (rows: readonly ListRow[], inner: number) =>
+  rows.map(r => (r.props.body === "" ? [] : wrap(r.props.body, inner, BOX_LOOK.body)))
+
+// 書き換え all を当てたときの、行ごとの行数（行数を持たない行は undefined。all が無ければ行の持つ行数のまま）
+export function rewrittenLines(
+  rows: readonly ListRow[],
+  w: number,
+  checklist: boolean,
+  all: RowsLines | undefined,
+): (number | undefined)[] {
+  if (all === undefined) return rows.map(r => r.props.lines)
+  if (all === null) return rows.map(() => undefined)
+  if (typeof all === "number") return rows.map(() => all)
+  const counts = wrapAll(rows, textWidthOf(w, checklist)).map(b => Math.min(b.length, MAX_ROW_LINES))
+  return all === "fit" ? counts : rows.map(() => Math.max(0, ...counts))
+}
+
+// 幅 w のリストに描く行の並び。all を渡せば、行の持つ行数の代わりにそれを当てて決める（そろえるボタンの下書き）
 export function listLayout(rows: readonly ListRow[], w: number, checklist: boolean, all?: RowsLines): RowLayout[] {
   const inner = textWidthOf(w, checklist)
-  const wrapped = rows.map(r => (r.props.body === "" ? [] : wrap(r.props.body, inner, BOX_LOOK.body)))
-  const own = (r: ListRow) => (all === undefined ? r.props.lines : all === "auto" ? undefined : all)
-  const counts = wrapped.filter((_, i) => own(rows[i] as ListRow) === undefined).map(b => b.length)
+  const wrapped = wrapAll(rows, inner)
+  const own = rewrittenLines(rows, w, checklist, all)
+  const counts = wrapped.filter((_, i) => own[i] === undefined).map(b => b.length)
   const auto = Math.min(Math.max(0, ...counts), PLACE_LINES)
   return rows.map((r, i) => {
-    const lines = own(r) ?? auto
+    const lines = own[i] ?? auto
     const body = wrapped[i] ?? []
     return {
       lines,

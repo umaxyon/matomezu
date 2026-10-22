@@ -96,7 +96,9 @@ test("行数を持つ行は、本文の量によらずその高さ。そろえ�
   expect(got.map(r => r.lines)).toEqual([4, 3, 3])
   expect(got[0]!.body).toEqual(["一"])
   expect(listLayout(rows, 240, false, 1).map(r => r.lines)).toEqual([1, 1, 1])
-  expect(listLayout(rows, 240, false, "auto").map(r => r.lines)).toEqual([3, 3, 3])
+  expect(listLayout(rows, 240, false, null).map(r => r.lines)).toEqual([3, 3, 3])
+  expect(listLayout(rows, 240, false, "fit").map(r => r.lines)).toEqual([1, 3, 0])
+  expect(listLayout(rows, 240, false, "max").map(r => r.lines)).toEqual([3, 3, 3])
 })
 
 test("ドラッグした高さに一番近い行数", () => {
@@ -116,6 +118,11 @@ test("row.lines で行の行数を書き換える。rows が無ければ全部�
   expect(list(store).children!.map(r => r.props.lines)).toEqual([2, undefined])
   expect(act(store, "row.lines", { list: "n1", lines: 5 }).ok).toBe(true)
   expect(list(store).children!.map(r => r.props.lines)).toEqual([5, 5])
+  act(store, "row.update", { list: "n1", row: a, props: { body: "一\n二\n三\n四\n五\n六\n七" } })
+  expect(act(store, "row.lines", { list: "n1", lines: "fit" }).ok).toBe(true)
+  expect(list(store).children!.map(r => r.props.lines)).toEqual([7, 0])
+  expect(act(store, "row.lines", { list: "n1", lines: "max" }).ok).toBe(true)
+  expect(list(store).children!.map(r => r.props.lines)).toEqual([7, 7])
   expect(act(store, "row.lines", { list: "n1", lines: null }).ok).toBe(true)
   expect(list(store).children!.every(r => !("lines" in r.props))).toBe(true)
   expect(act(store, "row.lines", { list: "n1", rows: ["nope"], lines: 1 }).ok).toBe(false)

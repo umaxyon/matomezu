@@ -19,6 +19,6 @@
 .lines > span {
   flex-basis: 100%;
 }
-.lines > input {
-  width: 4.5em;
+.lines > select {
+  width: 6.5em;
 }

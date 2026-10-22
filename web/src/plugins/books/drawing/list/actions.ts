@@ -6,7 +6,7 @@ import { BOX_BODY_MAX } from "../box/size"
 import { nextItemId } from "../items/items"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "."
 import { findList, rowsOf, withList } from "./rows"
-import { MAX_ROW_LINES } from "./size"
+import { MAX_ROW_LINES, placedListWidth, rewrittenLines } from "./size"
 
 // 行の項目を変えるときに渡す形: 書いた項目だけを変え、null は消す（既定に戻す）。AI にもこの形で見せる。
 // チェック（checked）は row.check、行数（lines）は row.lines で変える
@@ -118,7 +118,8 @@ export const ROW_CHECK = defineAction({
   },
 })
 
-// 行の高さ（本文を見せる行数）を書き換える。rows が無ければ全部の行。lines が null なら行数を消し、リストでそろえる高さに戻す。無い行を含むなら断る
+// 行の高さ（本文を見せる行数）を書き換える。rows が無ければ全部の行。lines は size.ts の RowsLines: 行数（同じ高さ）、"max"（本文の一番長い行に）、
+// "fit"（行ごとにその行の本文が全部見える高さ）、null（行数を消し、リストでそろえる高さに戻す）。無い行を含むなら断る
 export const ROW_LINES = defineAction({
   id: "row.lines",
   title: "Set row heights",
@@ -128,7 +129,7 @@ export const ROW_LINES = defineAction({
     page: z.string().min(1),
     list: z.string().min(1),
     rows: z.array(z.string().min(1)).min(1).optional(),
-    lines: z.number().int().min(0).max(MAX_ROW_LINES).nullable(),
+    lines: z.union([z.number().int().min(0).max(MAX_ROW_LINES), z.literal("max"), z.literal("fit")]).nullable(),
   }),
   run: (book, args) => {
     if (book.type !== "drawing") return null
@@ -136,10 +137,16 @@ export const ROW_LINES = defineAction({
     const rows = found ? rowsOf(found.list) : []
     if (!found || !(args.rows ?? []).every(id => rows.some(r => r.id === id))) return null
     const targets = new Set(args.rows ?? rows.map(r => r.id))
+    const picked = rows.filter(r => targets.has(r.id))
+    const w = found.list.w ?? placedListWidth(found.list.props.caption)
+    const lines = new Map(
+      picked.map((r, i) => [r.id, rewrittenLines(picked, w, found.list.props.checklist, args.lines)[i]]),
+    )
     const children = rows.map(r => {
       if (!targets.has(r.id)) return r
       const { lines: _, ...rest } = r.props
-      return { ...r, props: (args.lines === null ? rest : { ...rest, lines: args.lines }) as RowProps }
+      const to = lines.get(r.id)
+      return { ...r, props: (to === undefined ? rest : { ...rest, lines: to }) as RowProps }
     })
     return { next: withList(book, found.page, { ...found.list, children }), result: {} }
   },

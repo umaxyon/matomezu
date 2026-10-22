@@ -42,7 +42,8 @@ var actionTools = []actionTool{
 	{"remove_rows", "row.remove", "Remove rows from a list."},
 	{"check_row", "row.check", "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with update_item, and setting it false removes every row's check). " +
 		"The user checks rows too, so a check can carry their answer."},
-	{"set_row_lines", "row.lines", "Set how many body lines rows of a list show, whatever their body (rows given, or every row). " +
+	{"set_row_lines", "row.lines", "Set how many body lines rows of a list show (rows given, or every row): a number gives them all that height whatever their body; " +
+		"\"max\" gives them all the height of the longest body; \"fit\" gives each row the height of its own body. " +
 		"null removes it: rows without it share the height of the most body lines among them, up to 5, and a longer body is cut with …."},
 }
 

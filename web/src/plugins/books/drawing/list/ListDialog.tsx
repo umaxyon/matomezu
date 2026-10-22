@@ -2,7 +2,8 @@
 // 編集では、選んだテーマ・色・チェックリスト・行の色分けを決める前からリストに重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
 // チェックの入った行があるリストのチェックリストを切ろうとしたら、切る前にその場で確かめる（「チェックの状態が消えます」と、消す・戻すのボタン。
 // ダイアログは 1 つしか開けないので、別のダイアログにはしない）。確定すると行のチェックは消える（item.update）。
-// 編集には「行の高さ」: 全部の行を最大の行数にそろえる（行の行数を消し、置いたときと同じ決まりに戻す）か、決めた行数にそろえる（本文の量によらず書き換える）。
+// 編集には「行の高さ」（どれも高さの書き換え。決まりではない）: 「中身が見える高さにそろえる」は行ごとにその行の本文が全部見える高さに（行ごとに違う）、
+// 「行にそろえる」は選んだ行数（「最大行」なら本文の一番長い行が全部見える行数）に、本文の量によらず全部の行を同じ高さにする。
 // これも下書きで見せ、確定で行の行数を書き換える（row.lines）。
 // 追加は開いたときに覚えた所にリストを置いて（item.place）選び、編集はリストの項目を書き換える（item.update）
 import { useCallback, useEffect, useId, useState } from "react"
@@ -28,7 +29,10 @@ import { useBookOf, useBookTheme, useSwatches } from "../box/BoxDialog"
 import { itemsOf } from "../items/items"
 import { LIST, type ListRow } from "."
 import styles from "./ListDialog.module.css"
-import { MAX_ROW_LINES, type RowsLines } from "./size"
+import type { RowsLines } from "./size"
+
+// 全部の行をそろえる行数の選択肢（「最大行」のほか）
+const PICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
 type ListProps = ItemProps<"shape.list">
 
@@ -86,10 +90,8 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
       { page: args.page, item: args.item, props: { ...props, theme: props.theme ?? null, color: props.color ?? null } },
       { book },
     )
-    if (done.ok && rowLines !== undefined && rows.length > 0) {
-      const lines = rowLines === "auto" ? null : rowLines
-      perform("row.lines", { page: args.page, list: args.item, lines }, { book })
-    }
+    if (done.ok && rowLines !== undefined && rows.length > 0)
+      perform("row.lines", { page: args.page, list: args.item, lines: rowLines }, { book })
     if (done.ok) onClose()
     return done.ok
   }
@@ -143,7 +145,7 @@ function ListDialog({
   const [confirming, setConfirming] = useState(false)
   const [refused, setRefused] = useState(false)
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
-  const [count, setCount] = useState(3)
+  const [pick, setPick] = useState<number | "max">("max")
   const swatches = useSwatches(theme || bookTheme)
   const changed =
     theme !== (start.theme ?? "") ||
@@ -240,17 +242,21 @@ function ListDialog({
         {hasRows && (
           <div className={styles.lines}>
             <span>{t("Row height")}</span>
-            <ActionButton onClick={() => setRowLines("auto")}>{t("Fit the most lines")}</ActionButton>
-            <input
-              type="number"
+            <ActionButton onClick={() => setRowLines("fit")}>{t("Fit each row to its body")}</ActionButton>
+            <select
               className={controlClass}
               aria-label={t("Lines")}
-              min={0}
-              max={MAX_ROW_LINES}
-              value={count}
-              onChange={e => setCount(Math.min(MAX_ROW_LINES, Math.max(0, Math.round(Number(e.target.value) || 0))))}
-            />
-            <ActionButton onClick={() => setRowLines(count)}>{t("Set to {n} lines", { n: count })}</ActionButton>
+              value={String(pick)}
+              onChange={e => setPick(e.target.value === "max" ? "max" : Number(e.target.value))}
+            >
+              <option value="max">{t("Most lines")}</option>
+              {PICKS.map(n => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <ActionButton onClick={() => setRowLines(pick)}>{t("Align rows")}</ActionButton>
           </div>
         )}
         {refused && <Problem>{t("Does not fit on the paper")}</Problem>}

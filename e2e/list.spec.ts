@@ -125,18 +125,25 @@ test("行の下の端をドラッグすると、その行の高さが 1 行刻�
   await page.mouse.up()
   await expect.poll(() => height(0)).toBeCloseTo(start + 36 * zoom, 0)
   expect(await height(1)).toBe(start)
-  // 設定で 3 行にそろえる: 確定の前から見せ、キャンセルで戻る
+  // 設定で 3 行にそろえる: 全部の行が同じ高さ。確定の前から見せ、キャンセルで戻る
   await list.getByText("高さ").dblclick()
   const dialog = page.getByRole("dialog", { name: "リストの編集" })
-  await dialog.getByLabel("行数").fill("3")
-  await dialog.getByRole("button", { name: "3 行にそろえる" }).click()
+  await dialog.getByLabel("行数").selectOption("3")
+  await dialog.getByRole("button", { name: "行にそろえる" }).click()
   await expect.poll(() => height(1)).toBeCloseTo(start + 36 * zoom, 0)
   expect(await height(0)).toBeCloseTo(start + 36 * zoom, 0)
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect.poll(() => height(1)).toBe(start)
-  // 最大の行数にそろえる: 行数を消して、置いたときと同じ高さ（本文 1 行）に戻す
+  // 中身が見える高さにそろえる: 行ごとに、その行の本文が全部見える高さ（本文の無い行は本文なし、1 行の行は 1 行）
   await list.getByText("高さ").dblclick()
-  await dialog.getByRole("button", { name: "最大の行数にそろえる" }).click()
+  await dialog.getByRole("button", { name: "中身が見える高さにそろえる" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect.poll(() => height(0)).toBeLessThan(start)
+  expect(await height(1)).toBe(start)
+  // 最大行にそろえる: 本文の一番長い行（1 行）に、全部の行をそろえる
+  await list.getByText("高さ").dblclick()
+  await dialog.getByLabel("行数").selectOption("max")
+  await dialog.getByRole("button", { name: "行にそろえる" }).click()
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect.poll(() => height(0)).toBe(start)
 })
