@@ -1,5 +1,5 @@
 // ダイアログ: 描いている間、画面の上に出し、ほかの操作を止める。Esc か外側を押すと閉じる（onClose）。
-// actions は見出しの行の右に並べる物（ボタンなど。何を置くかは使う側が決める）。開くと、中身の最初の入力欄に焦点を当てる。
+// actions は見出しの行の右に並べる物（ボタンなど。何を置くかは使う側が決める）。開くと、中身の最初の入力欄（選択肢のボタンは除く）に焦点を当てる。
 // 決める・閉じるキー（既定は Enter・Escape）はキーの割り当てが受け、決めるように頼まれたら（store の dialog.submitted）中身の form を送る
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react"
 import { useApp } from "../../../ui/store-context"
@@ -28,7 +28,7 @@ export function Dialog({
     unmounting.current = false
     if (!d.open) {
       d.showModal()
-      d.querySelector<HTMLElement>(`.${styles.content} :is(input, textarea, select)`)?.focus()
+      d.querySelector<HTMLElement>(`.${styles.content} :is(input:not([type="radio"]), textarea, select)`)?.focus()
     }
     return () => {
       unmounting.current = true

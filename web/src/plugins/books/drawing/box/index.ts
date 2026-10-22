@@ -7,6 +7,10 @@ import type { Point } from "../../../../core/geom"
 import { defineDialogWith } from "../../../../store/dialogs"
 import { BOX_BODY_MAX, BOX_SIZE } from "./size"
 
+// 文の寄せ（左・中央・右）
+export const AlignSchema = z.enum(["left", "center", "right"])
+export type Align = z.infer<typeof AlignSchema>
+
 export const BOX = defineItem({
   id: "shape.box",
   kind: "shape",
@@ -18,6 +22,8 @@ export const BOX = defineItem({
     caption: z.string().default(""),
     rule: z.boolean().default(true), // キャプションと本文の間の区切り線
     body: z.string().max(BOX_BODY_MAX).default(""),
+    captionAlign: AlignSchema.default("center"), // キャプションの寄せ
+    bodyAlign: AlignSchema.default("left"), // 本文の寄せ
   }),
   size: BOX_SIZE, // 幅の既定と、置いたときの一番低い高さ
   tokens: [

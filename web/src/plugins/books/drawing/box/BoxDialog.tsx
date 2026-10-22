@@ -1,4 +1,4 @@
-// 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文）。見出しの行の右にキャンセルと決めるボタン（キャプションの欄の Enter でも決める）。
+// 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。見出しの行の右にキャンセルと決めるボタン（キャプションの欄の Enter でも決める）。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BOX_BODY_MAX 字まで。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は開いたときに覚えた所に箱を置いて（アクション item.place）選び、編集は箱の項目を書き換える（アクション item.update）
@@ -10,14 +10,21 @@ import type { BookOf } from "../../../../core/schema/book"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp } from "../../../../ui/store-context"
-import { ActionButton, controlClass, Dialog, Field, Form, Problem, rowClass, Switch } from "../../../base/ui"
+import { ActionButton, Choices, controlClass, Dialog, Field, Form, Problem, rowClass, Switch } from "../../../base/ui"
 import { itemsOf } from "../items/items"
-import { BOX } from "."
+import { type Align, BOX } from "."
+import { ALIGN_ICONS } from "./icons"
 import { BOX_BODY_MAX } from "./size"
 
 type BoxProps = ItemProps<"shape.box">
 
-const EMPTY: BoxProps = { caption: "", rule: true, body: "" }
+const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "center", bodyAlign: "left" }
+
+const ALIGNS = [
+  { value: "left", label: "Align left" },
+  { value: "center", label: "Align center" },
+  { value: "right", label: "Align right" },
+] as const satisfies readonly { value: Align; label: MessageKey }[]
 
 // 開いたステージで開いているブックの id
 const useBookOf = (stage: string) => useApp(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
@@ -75,6 +82,9 @@ function BoxDialog({
   const [caption, setCaption] = useState(start.caption)
   const [body, setBody] = useState(start.body)
   const [rule, setRule] = useState(start.rule)
+  const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
+  const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
+  const aligns = ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
   const [refused, setRefused] = useState(false)
   const hasBody = body !== ""
   return (
@@ -90,15 +100,27 @@ function BoxDialog({
         </>
       }
     >
-      <Form id={form} ready={ready} onSubmit={() => setRefused(!onSubmit({ caption, rule, body }))}>
-        <Field label={t("Caption")}>
+      <Form
+        id={form}
+        ready={ready}
+        onSubmit={() => setRefused(!onSubmit({ caption, rule, body, captionAlign, bodyAlign }))}
+      >
+        <Field
+          label={t("Caption")}
+          aside={
+            <Choices label={t("Caption alignment")} value={captionAlign} options={aligns} onChange={setCaptionAlign} />
+          }
+        >
           {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
         </Field>
         <div className={rowClass}>
           <span>{t("Divider")}</span>
           <Switch label={t("Divider")} checked={rule} disabled={!hasBody} onChange={setRule} />
         </div>
-        <Field label={t("Body")}>
+        <Field
+          label={t("Body")}
+          aside={<Choices label={t("Body alignment")} value={bodyAlign} options={aligns} onChange={setBodyAlign} />}
+        >
           {id => (
             <textarea
               id={id}

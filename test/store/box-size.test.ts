@@ -6,7 +6,8 @@ import { newStore } from "../support"
 
 const page = (store: ReturnType<typeof newStore>) => (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
 const items = (store: ReturnType<typeof newStore>) => page(store).items ?? []
-const box = (body: string, rule = true) => ({ caption: "見出し", rule, body })
+const ALIGNS = { captionAlign: "center", bodyAlign: "left" } as const
+const box = (body: string, rule = true) => ({ caption: "見出し", rule, body, ...ALIGNS })
 // 本文を n 行出す箱の高さ（上下の枠と余白・キャプション・区切り線・本文）
 const heightOf = (n: number, rule = true) =>
   2 * (BOX_LOOK.border + BOX_LOOK.padY) + BOX_LOOK.line + (rule ? 2 * BOX_LOOK.ruleGap + 1 : 0) + n * BOX_LOOK.line
@@ -50,7 +51,7 @@ test("置いたときの高さは、本文が 5 行まで見える高さ（一�
 })
 
 test("置いたときの幅は、キャプションが 20 字まで切れずに見える幅。超えたら 20 字と … の幅で、一番狭くて 64", () => {
-  const caption = (c: string) => ({ caption: c, rule: true, body: "" })
+  const caption = (c: string) => ({ caption: c, rule: true, body: "", ...ALIGNS })
   const pad = 2 * (BOX_LOOK.border + BOX_LOOK.padX)
   expect(placedWidth(caption(""))).toBe(64)
   expect(placedWidth(caption("見出し"))).toBe(64)
@@ -122,10 +123,13 @@ test("中身を変えてキャプションが長くなったら、20 字まで�
     store.actions.perform("item.update", { page: "p1", item: "n1", props }, { book: "b1" })
   const twenty = "あ".repeat(20)
   expect(update({ caption: twenty }).ok).toBe(true)
-  expect(items(store)[0]).toMatchObject({ x: 100, w: placedWidth({ caption: twenty, rule: true, body: "" }) })
+  expect(items(store)[0]).toMatchObject({
+    x: 100,
+    w: placedWidth({ caption: twenty, rule: true, body: "", ...ALIGNS }),
+  })
   update({ caption: "あ".repeat(30) })
   const wide = items(store)[0]!.w!
-  expect(wide).toBe(placedWidth({ caption: "あ".repeat(30), rule: true, body: "" }))
+  expect(wide).toBe(placedWidth({ caption: "あ".repeat(30), rule: true, body: "", ...ALIGNS }))
   update({ caption: "短い" })
   expect(items(store)[0]!.w).toBe(wide)
   store.actions.perform("item.resize", { page: "p1", item: "n1", w: 64, x: 1123 - 100 }, { book: "b1" })
@@ -139,4 +143,15 @@ test("キャプションを変えないなら、幅はそのまま", () => {
   store.actions.perform("item.resize", { page: "p1", item: "n1", w: 64 }, { book: "b1" })
   store.actions.perform("item.update", { page: "p1", item: "n1", props: { body: "変えた" } }, { book: "b1" })
   expect(items(store)[0]!.w).toBe(64)
+})
+
+test("寄せの項目は既定でキャプションが中央、本文が左。左・中央・右のほかは断る", () => {
+  const store = ready()
+  place(store, { caption: "見出し" })
+  expect(items(store)[0]!.props).toMatchObject({ captionAlign: "center", bodyAlign: "left" })
+  const update = (props: Record<string, unknown>) =>
+    store.actions.perform("item.update", { page: "p1", item: "n1", props }, { book: "b1" })
+  expect(update({ captionAlign: "right", bodyAlign: "center" }).ok).toBe(true)
+  expect(items(store)[0]!.props).toMatchObject({ captionAlign: "right", bodyAlign: "center" })
+  expect(update({ bodyAlign: "justify" }).ok).toBe(false)
 })

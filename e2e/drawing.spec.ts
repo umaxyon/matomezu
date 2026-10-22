@@ -6,7 +6,7 @@ const items = (page: Page) => page.locator("[data-item]")
 async function addBox(page: Page, x: number, y: number, caption = "") {
   await page.mouse.click(x, y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション").fill(caption)
+  await dialog.getByLabel("キャプション", { exact: true }).fill(caption)
   await dialog.getByRole("button", { name: "追加" }).click()
   await expect(dialog).toBeHidden()
 }
@@ -103,7 +103,7 @@ test("追加のダイアログは見出しの右にキャンセルと追加を�
   expect(Math.abs(cancel.y + cancel.height / 2 - (title.y + title.height / 2))).toBeLessThan(4)
   expect(cancel.x).toBeGreaterThan(title.x + title.width)
   expect(add.x).toBeGreaterThan(cancel.x)
-  await expect(dialog.getByLabel("キャプション")).toBeFocused()
+  await expect(dialog.getByLabel("キャプション", { exact: true })).toBeFocused()
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(dialog).toBeHidden()
   await expect(items(page)).toHaveCount(0)
@@ -113,12 +113,12 @@ test("追加のダイアログは見出しの右にキャンセルと追加を�
   await page.mouse.click(at.x, at.y)
   const rule = dialog.getByRole("switch", { name: "区切り線" })
   await expect(rule).toBeDisabled()
-  await dialog.getByLabel("本文").fill("一行目\n二行目")
+  await dialog.getByLabel("本文", { exact: true }).fill("一行目\n二行目")
   await expect(rule).toHaveAttribute("aria-checked", "true")
   await rule.click()
   await expect(rule).toHaveAttribute("aria-checked", "false")
-  await dialog.getByLabel("キャプション").fill("見出し")
-  await dialog.getByLabel("キャプション").press("Enter")
+  await dialog.getByLabel("キャプション", { exact: true }).fill("見出し")
+  await dialog.getByLabel("キャプション", { exact: true }).press("Enter")
   await expect(dialog).toBeHidden()
   await expect(items(page)).toHaveCount(1)
   await expect(items(page).locator("hr")).toHaveCount(0)
@@ -135,15 +135,15 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
   const box = items(page)
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
   await box.dblclick()
-  await expect(dialog.getByLabel("キャプション")).toHaveValue("前")
-  await expect(dialog.getByLabel("キャプション")).toBeFocused()
-  await dialog.getByLabel("キャプション").fill("取りやめ")
+  await expect(dialog.getByLabel("キャプション", { exact: true })).toHaveValue("前")
+  await expect(dialog.getByLabel("キャプション", { exact: true })).toBeFocused()
+  await dialog.getByLabel("キャプション", { exact: true }).fill("取りやめ")
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(box).toHaveText("前")
 
   await box.dblclick()
-  await dialog.getByLabel("キャプション").fill("後")
-  await dialog.getByLabel("本文").fill("本文")
+  await dialog.getByLabel("キャプション", { exact: true }).fill("後")
+  await dialog.getByLabel("本文", { exact: true }).fill("本文")
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()
   await expect(box).toContainText("後")
@@ -151,7 +151,7 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
   await expect(box.locator("hr")).toHaveCount(1)
   // 本文の欄は縦にだけ伸ばせる
   await box.dblclick()
-  await expect(dialog.getByLabel("本文")).toHaveCSS("resize", "vertical")
+  await expect(dialog.getByLabel("本文", { exact: true })).toHaveCSS("resize", "vertical")
 })
 
 test("選んだ箱は Delete で消える。ダイアログの入力欄の中の Delete では消えない", async ({ page }) => {
@@ -161,7 +161,7 @@ test("選んだ箱は Delete で消える。ダイアログの入力欄の中の
   await addBox(page, at.x, at.y, "消す")
   await items(page).dblclick()
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
-  await dialog.getByLabel("キャプション").press("Delete")
+  await dialog.getByLabel("キャプション", { exact: true }).press("Delete")
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(items(page)).toHaveCount(1)
   await page.keyboard.press("Delete")
@@ -190,7 +190,7 @@ test("箱を右クリックすると選ばれ、設定・区切り線・削除�
   await expect(second).toHaveAttribute("data-selected", "false")
   await menu.getByRole("menuitem", { name: "設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
-  await expect(dialog.getByLabel("キャプション")).toHaveValue("一")
+  await expect(dialog.getByLabel("キャプション", { exact: true })).toHaveValue("一")
   await dialog.getByRole("button", { name: "キャンセル" }).click()
 
   await second.click({ button: "right" })
@@ -206,14 +206,14 @@ test("キーは割り当ての表で効く: 本文の欄の Enter は改行、�
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  const body = dialog.getByLabel("本文")
+  const body = dialog.getByLabel("本文", { exact: true })
   await body.click()
   await page.keyboard.type("一")
   await page.keyboard.press("Enter")
   await page.keyboard.type("二")
   await expect(body).toHaveValue("一\n二")
   await expect(dialog).toBeVisible()
-  await dialog.getByLabel("キャプション").press("Enter")
+  await dialog.getByLabel("キャプション", { exact: true }).press("Enter")
   await expect(dialog).toBeHidden()
   await expect(items(page)).toHaveCount(1)
 
@@ -233,8 +233,8 @@ async function addBodyBox(page: Page) {
   const at = await onPaper(page, 120, 120)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
-  await dialog.getByLabel("キャプション").fill("見出し")
-  await dialog.getByLabel("本文").fill(BODY)
+  await dialog.getByLabel("キャプション", { exact: true }).fill("見出し")
+  await dialog.getByLabel("本文", { exact: true }).fill(BODY)
   await dialog.getByRole("button", { name: "追加" }).click()
   await expect(dialog).toBeHidden()
 }
@@ -353,7 +353,7 @@ test("編集でキャプションを長くすると、20 字が見える幅ま�
   const before = (await box.boundingBox())!
   await box.dblclick()
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
-  await dialog.getByLabel("キャプション").fill("あいうえおかきくけこさしすせそたちつてと")
+  await dialog.getByLabel("キャプション", { exact: true }).fill("あいうえおかきくけこさしすせそたちつてと")
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect.poll(async () => (await box.boundingBox())!.width).toBeGreaterThan(before.width * 2)
   expect(Math.abs((await box.boundingBox())!.x - before.x)).toBeLessThan(1)
@@ -363,4 +363,31 @@ test("編集でキャプションを長くすると、20 字が見える幅ま�
       .nth(1)
       .evaluate(el => el.scrollWidth > el.clientWidth),
   ).toBe(false)
+})
+
+test("ダイアログでキャプションと本文の寄せを選ぶと、箱の中の文がその寄せになる。既定はキャプションが中央、本文が左", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBodyBox(page)
+  const box = page.locator("[data-item]")
+  const align = (i: number) =>
+    box
+      .locator("[data-align]")
+      .nth(i)
+      .evaluate(el => getComputedStyle(el).textAlign)
+  expect([await align(0), await align(1)]).toEqual(["center", "left"])
+  await box.dblclick()
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  await expect(
+    dialog.getByRole("group", { name: "キャプションの寄せ" }).getByRole("radio", { name: "中央寄せ" }),
+  ).toBeChecked()
+  await dialog
+    .getByRole("group", { name: "キャプションの寄せ" })
+    .getByRole("radio", { name: "左寄せ" })
+    .check({ force: true })
+  await dialog.getByRole("group", { name: "本文の寄せ" }).getByRole("radio", { name: "右寄せ" }).check({ force: true })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  expect([await align(0), await align(1)]).toEqual(["left", "right"])
 })

@@ -14,14 +14,58 @@ export function Problem({ children }: { children: ReactNode }) {
   )
 }
 
-// children は欄の id を受け取って、入力の部品を返す
-export function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
+// children は欄の id を受け取って、入力の部品を返す。aside は名前の行の右に置く部品
+export function Field({
+  label,
+  aside,
+  children,
+}: {
+  label: string
+  aside?: ReactNode
+  children: (id: string) => ReactNode
+}) {
   const id = useId()
   return (
     <div className={styles.field}>
-      <label htmlFor={id}>{label}</label>
+      <div className={styles.labelRow}>
+        <label htmlFor={id}>{label}</label>
+        {aside}
+      </div>
       {children(id)}
     </div>
+  )
+}
+
+// 選択肢から 1 つを選ぶボタンの並び（名前は label。選択肢ごとに値・名前・中身のアイコン。中は見えないラジオボタン）
+export function Choices<V extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: V
+  options: readonly { value: V; label: string; icon: ReactNode }[]
+  onChange: (value: V) => void
+}) {
+  const name = useId()
+  return (
+    <fieldset aria-label={label} className={styles.choices}>
+      {options.map(o => (
+        <label key={o.value} className={styles.choice} title={o.label}>
+          <input
+            type="radio"
+            className={styles.radio}
+            name={name}
+            value={o.value}
+            aria-label={o.label}
+            checked={o.value === value}
+            onChange={() => onChange(o.value)}
+          />
+          {o.icon}
+        </label>
+      ))}
+    </fieldset>
   )
 }
 

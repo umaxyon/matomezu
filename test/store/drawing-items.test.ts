@@ -54,7 +54,7 @@ test("置くときに渡した項目を箱に入れ、書かなかった項目�
       y: 50,
       w: 64,
       h: 64,
-      props: { caption: "見出し", rule: true, body: "本文" },
+      props: { caption: "見出し", rule: true, body: "本文", captionAlign: "center", bodyAlign: "left" },
     },
   ])
   const bad = store.actions.perform(
@@ -152,7 +152,15 @@ test("箱の編集は書いた項目だけを変え、位置・大きさと id �
   )
   expect(done.ok).toBe(true)
   expect(page(store).items).toEqual([
-    { id: "n1", item: "shape.box", x: 10, y: 20, w: 64, h: 64, props: { caption: "後", rule: true, body: "本文" } },
+    {
+      id: "n1",
+      item: "shape.box",
+      x: 10,
+      y: 20,
+      w: 64,
+      h: 64,
+      props: { caption: "後", rule: true, body: "本文", captionAlign: "center", bodyAlign: "left" },
+    },
   ])
   const bad = store.actions.perform("item.update", { page: "p1", item: "n1", props: { text: "x" } }, { book: "b1" })
   const none = store.actions.perform("item.update", { page: "p1", item: "b9", props: {} }, { book: "b1" })

@@ -30,11 +30,20 @@
 .box[data-body="true"] {
   justify-content: flex-start;
 }
+/* キャプションと本文の寄せ */
+.box [data-align="left"] {
+  text-align: left;
+}
+.box [data-align="center"] {
+  text-align: center;
+}
+.box [data-align="right"] {
+  text-align: right;
+}
 /* キャプション: 1 行で、収まらない分は … で切る */
 .caption {
   flex: none;
   overflow: hidden;
-  text-align: center;
   white-space: nowrap;
   text-overflow: ellipsis;
   min-height: 18px;
