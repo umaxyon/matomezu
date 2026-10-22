@@ -297,3 +297,22 @@ test("分割の境目をドラッグすると左右の幅が変わり、分割�
   await divider.dblclick()
   expect(Math.abs((await leftWidth()) - full.width / 2)).toBeLessThan(2)
 })
+
+test("分割すると、カレントのステージの下の行だけ色が少し変わり、もう片方を押すとそちらに移る", async ({ page }) => {
+  await page.goto("/")
+  await (await fromMenu(page, "画面を分割")).click()
+  const stages = page.getByRole("region", { name: "ステージ" })
+  await expect(stages).toHaveCount(2)
+  const bottoms = page.locator("main > [data-current]")
+  const current = () => bottoms.evaluateAll(cols => cols.map(c => c.getAttribute("data-current")))
+  expect(await current()).toEqual(["true", "false"])
+  await stages.nth(1).click({ position: { x: 20, y: 20 } })
+  expect(await current()).toEqual(["false", "true"])
+  const bg = (i: number) =>
+    bottoms
+      .nth(i)
+      .locator(":scope > div")
+      .nth(2)
+      .evaluate(el => getComputedStyle(el).backgroundColor)
+  expect(await bg(0)).not.toBe(await bg(1))
+})

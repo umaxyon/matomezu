@@ -25,7 +25,6 @@ interface Drag {
 export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
   const stage = useApp(s => s.workspace.stages.find(st => st.id === id))
   const isCurrent = useApp(s => s.workspace.current === id)
-  const isMulti = useApp(s => s.workspace.stages.length > 1)
   const book = useApp(s => {
     const o = s.workspace.stages.find(st => st.id === id)?.opened
     return o ? s.books[o.book] : undefined
@@ -79,7 +78,6 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       aria-label={t("Stage")}
       data-stage={id}
       data-current={isCurrent}
-      data-multi={isMulti}
       data-paper={hasPaper}
       data-tool={tool ?? undefined}
       data-dragging={dragging}

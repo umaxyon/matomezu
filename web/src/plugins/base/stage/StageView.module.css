@@ -16,14 +16,6 @@
 .stage[data-paper="true"][data-dragging="true"] {
   cursor: grabbing;
 }
-/* ステージが 2 つ以上あるとき、カレントのステージを内側の枠で示す（紙より手前の層に描く） */
-.stage[data-current="true"][data-multi="true"]::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  box-shadow: inset 0 0 0 2px var(--skin-accent);
-  pointer-events: none;
-}
 /* 開いたブックの中身。テーマの値（--theme-）をここに置き、中の部品が使う。枠の大きさには加わらない */
 .book {
   display: contents;
