@@ -14,6 +14,7 @@ import { TOOLBOX } from "./toolbox/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
 
 export { ColorPicker, type Swatch } from "./dialog-host/ColorPicker"
+export { Confirm } from "./dialog-host/Confirm"
 export { Dialog } from "./dialog-host/Dialog"
 export { ActionButton, Choices, controlClass, Field, Form, Problem, rowClass, Switch } from "./dialog-host/FormParts"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"

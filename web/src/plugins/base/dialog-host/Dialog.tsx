@@ -1,5 +1,6 @@
 // ダイアログ: 描いている間、画面の上に出し、ほかの操作を止める。Esc か外側を押すと閉じる（onClose）。
 // actions は見出しの行の右に並べる物（ボタンなど。何を置くかは使う側が決める）。開くと、中身の最初の入力欄（選択肢のボタンは除く）に焦点を当てる。
+// height を渡すと、ダイアログの高さをその高さ（画面に収まらなければ画面の高さ）に決め、中身が増えても大きさを変えない（入らない分は中身だけスクロール。見出しの行は動かない）。
 // 決める・閉じるキー（既定は Enter・Escape）はキーの割り当てが受け、決めるように頼まれたら（store の dialog.submitted）中身の form を送る
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react"
 import { useApp } from "../../../ui/store-context"
@@ -8,11 +9,13 @@ import styles from "./Dialog.module.css"
 export function Dialog({
   title,
   actions,
+  height,
   onClose,
   children,
 }: {
   title: string
   actions?: ReactNode
+  height?: number // ダイアログの高さ（px）
   onClose: () => void
   children: ReactNode
 }) {
@@ -52,7 +55,11 @@ export function Dialog({
       // 閉じるのはキーの割り当て（dialog.close）が受ける。ブラウザ自身の閉じ方（cancel）は止める
       onCancel={e => e.preventDefault()}
     >
-      <div className={styles.body}>
+      <div
+        className={styles.body}
+        data-fixed={height !== undefined}
+        style={height === undefined ? undefined : { height: `min(${height}px, calc(100vh - 32px))` }}
+      >
         <div className={styles.head}>
           <h2 className={styles.title}>{title}</h2>
           {actions && <div className={styles.headActions}>{actions}</div>}

@@ -59,14 +59,22 @@ test("チェックリストにすると行の左にチェックが出て、押�
   const check = list.getByRole("checkbox", { name: "チェック" })
   await check.click()
   await expect(check).toBeChecked()
-  // 切ろうとすると確かめる。戻すならそのまま、消すと切れる
+  // 切ろうとすると、上に重ねたモーダルで確かめる。戻すならそのまま、消すと切れる。どちらでも設定のダイアログは開いたまま
   await list.getByText("やること").dblclick()
+  const size = await dialog.boundingBox()
   await dialog.getByRole("switch", { name: "チェックリスト" }).click()
-  await expect(dialog.getByRole("alert")).toHaveText(/チェックの状態が消えます/)
-  await dialog.getByRole("button", { name: "戻す" }).click()
+  const confirm = page.getByRole("alertdialog", { name: "チェックの状態が消えます" })
+  await expect(confirm).toBeVisible()
+  await confirm.getByRole("button", { name: "戻す" }).click()
+  await expect(confirm).toBeHidden()
   await expect(dialog.getByRole("switch", { name: "チェックリスト" })).toHaveAttribute("aria-checked", "true")
   await dialog.getByRole("switch", { name: "チェックリスト" }).click()
-  await dialog.getByRole("button", { name: "消す" }).click()
+  await page.keyboard.press("Escape") // Escape はモーダルだけを閉じる
+  await expect(confirm).toBeHidden()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("switch", { name: "チェックリスト" }).click()
+  await confirm.getByRole("button", { name: "消す" }).click()
+  expect(await dialog.boundingBox()).toEqual(size) // 欄が減ってもダイアログの大きさは変わらない
   await expect(list.getByRole("checkbox")).toHaveCount(0) // 下書きで見せる
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()

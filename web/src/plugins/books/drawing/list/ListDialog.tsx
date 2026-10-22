@@ -1,7 +1,6 @@
 // リストのダイアログ: 追加と編集で同じ並び（キャプション・テーマ・色・チェックリスト・行の色分け）。テーマと色は箱のダイアログと同じ。
 // 編集では、選んだテーマ・色・チェックリスト・行の色分けを決める前からリストに重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
-// チェックの入った行があるリストのチェックリストを切ろうとしたら、切る前にその場で確かめる（「チェックの状態が消えます」と、消す・戻すのボタン。
-// ダイアログは 1 つしか開けないので、別のダイアログにはしない）。確定すると行のチェックは消える（item.update）。
+// チェックの入った行があるリストのチェックリストを切ろうとしたら、切る前に上に重ねたモーダルで確かめる（「チェックの状態が消えます」と、消す・戻すのボタン。base の Confirm）。確定すると行のチェックは消える（item.update）。
 // 編集には「行の高さ」（どれも高さの書き換え。決まりではない）: 「中身が見える高さにそろえる」は行ごとにその行の本文が全部見える高さに（行ごとに違う）、
 // 「行にそろえる」は選んだ行数（「最大行」なら本文の一番長い行が全部見える行数）に、本文の量によらず全部の行を同じ高さにする。
 // これも下書きで見せ、確定で行の行数を書き換える（row.lines）。
@@ -17,6 +16,7 @@ import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import {
   ActionButton,
   ColorPicker,
+  Confirm,
   controlClass,
   Dialog,
   Field,
@@ -30,6 +30,9 @@ import { itemsOf } from "../items/items"
 import { LIST, type ListRow } from "."
 import styles from "./ListDialog.module.css"
 import type { RowsLines } from "./size"
+
+// ダイアログの高さ（全部の欄が出たときの高さ。チェックリストなどで欄が増えても大きさを変えない）
+const DIALOG_HEIGHT = 480
 
 // 全部の行をそろえる行数の選択肢（「最大行」のほか）
 const PICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
@@ -182,6 +185,7 @@ function ListDialog({
   return (
     <Dialog
       title={t(title)}
+      height={DIALOG_HEIGHT}
       onClose={onClose}
       actions={
         <>
@@ -249,18 +253,16 @@ function ListDialog({
           <Switch label={t("Checklist")} checked={checklist} onChange={toggleChecklist} />
         </div>
         {confirming && (
-          <div className={styles.confirm} role="alert">
-            <span>{t("Check marks will be removed")}</span>
-            <ActionButton
-              onClick={() => {
-                setConfirming(false)
-                setChecklist(false)
-              }}
-            >
-              {t("Remove")}
-            </ActionButton>
-            <ActionButton onClick={() => setConfirming(false)}>{t("Keep")}</ActionButton>
-          </div>
+          <Confirm
+            message={t("Check marks will be removed")}
+            ok={t("Remove")}
+            cancel={t("Keep")}
+            onOk={() => {
+              setConfirming(false)
+              setChecklist(false)
+            }}
+            onCancel={() => setConfirming(false)}
+          />
         )}
         {checklist && (
           <fieldset className={styles.group}>
