@@ -4,6 +4,7 @@ import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
 import { defineKeys } from "../../../../store/keys"
 import { BOX } from "../box"
+import type { Came } from "./drag"
 import { type Edges, fitsPaper, itemSize, itemsOf, PLACE_OFFSET, resizedBy } from "./items"
 
 const onDrawingPage = (ctx: CommandContext) => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null
@@ -67,15 +68,16 @@ export const DRAWING_DELETE = defineCommand({
   when: ctx => onDrawingPage(ctx) && ctx.stage.selection.length > 0,
 })
 
-// アイテムを、画面の上で動いた量だけ動かす。はみ出すなら動かさない
+// アイテムを、画面の上で動いた量だけ動かす（came はドラッグの通り道で覚えた、相手ごとの先端が来た向き）。収まらなければ動かさない
 export const DRAWING_MOVE = defineCommand({
   id: "drawing.move",
   title: "Move items",
-  run: (ctx, a, args: { items: readonly string[]; by: Point }) => {
+  run: (ctx, a, args: { items: readonly string[]; by: Point; came?: Came }) => {
     const { opened } = ctx.stage
     if (!opened?.page || args.items.length === 0) return
     const by = toPaperDelta(ctx.stage, args.by)
-    a.perform("item.move", { page: opened.page, items: [...args.items], by }, { book: opened.book })
+    const came = args.came && { came: { ...args.came } }
+    a.perform("item.move", { page: opened.page, items: [...args.items], by, ...came }, { book: opened.book })
   },
   when: onDrawingPage,
 })

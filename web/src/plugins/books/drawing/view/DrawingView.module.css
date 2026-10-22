@@ -74,6 +74,14 @@
   outline: 2px solid var(--theme-accent);
   outline-offset: 2px;
 }
+/* ドラッグ中: 動かすアイテムは手前に置いて少し透かし（下のアイテムが透けて見えるように）、ほかは薄く */
+.item[data-look="lifted"] {
+  z-index: 1;
+  opacity: 0.85;
+}
+.item[data-look="faded"] {
+  opacity: 0.4;
+}
 /* 大きさを変えるためにつかめる所（印は出さず、ポインタの形だけを変える）。辺は細長く、角は小さな四角 */
 .grip {
   position: absolute;

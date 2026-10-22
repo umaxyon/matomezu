@@ -2,6 +2,7 @@
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { bookType } from "../../../../core/registry"
+import { DIRS } from "./drag"
 import {
   itemsOf,
   knownTheme,
@@ -49,15 +50,21 @@ export const ITEM_PLACE = defineAction({
   },
 })
 
+// アイテムを by だけ動かす（items.ts の moveItems。1 つなら正面の相手と入れ替え・手前へ戻す、何個かならまとめて手前へ戻す）。収まらなければ断る
 export const ITEM_MOVE = defineAction({
   id: "item.move",
   title: "Move items",
   target: "book",
   needs: [],
-  args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1), by: PointSchema }),
+  args: z.strictObject({
+    page: z.string().min(1),
+    items: z.array(z.string().min(1)).min(1),
+    by: PointSchema,
+    came: z.record(z.string(), z.enum(DIRS)).optional(), // ドラッグの通り道で覚えた、相手ごとの先端が来た向き（drag.ts）
+  }),
   run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
-    const next = moveItems(ctx.registry, book, args.page, args.items, args.by)
+    const next = moveItems(ctx.registry, book, args.page, args.items, args.by, args.came)
     return next && { next, result: {} }
   },
 })

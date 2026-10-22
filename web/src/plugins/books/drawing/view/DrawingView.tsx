@@ -2,8 +2,8 @@
 // ページが無ければ、真ん中にページを作るボタン（コマンド page.new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、図面のメニュー（drawing.context）を開く。
 // アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（drawing.place。紙からはみ出す所では薄く出し、置かない）。
-// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ドラッグ中は、離したらそうなる並び（items.ts の moveRects。
-// 入れ替え・押す・手前で止める）で全部のアイテムを描く。収まらない所では、動かすアイテムだけをポインタに付けて描く（離せば元に戻る）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
+// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ドラッグ中は、動かすアイテムを少し透かしてポインタに付け、
+// ほかのアイテムは薄くして動かさない。アイテム 1 つなら、通り道（items.ts の trackDrag）を覚え、正面から半分入った相手をその場で入れ替えて描く（dragging）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
 // アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（box.context）を開く。
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize）。
@@ -21,16 +21,18 @@ import { useT } from "../../../../ui/i18n"
 import type { BookViewProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry, useUi } from "../../../../ui/store-context"
 import {
+  type Came,
+  dragging,
   type Edges,
   fitsPaper,
   itemSize,
   itemsOf,
   minSize,
-  moveRects,
   type Placed,
   placeAt,
   placedSize,
   resizedBy,
+  trackDrag,
 } from "../items"
 import styles from "./DrawingView.module.css"
 
@@ -98,11 +100,13 @@ function Content({ stage, pointer }: { stage: Stage; pointer: Point | null }) {
   )
 }
 
-// ドラッグ中のポインタと、押した位置・動かすアイテム
+// ドラッグ中のポインタと、押した位置・動かすアイテム。アイテム 1 つなら、通り道で覚えた相手ごとの先端が来た向きと、前に覚えたときの動いた量（紙の上）
 interface Drag {
   pointer: number
   start: Point
   items: readonly string[]
+  came: Came
+  prev: Point
 }
 
 // 大きさを変えているドラッグ: つかんだ辺と、押したときのポインタの位置
@@ -139,22 +143,34 @@ function Items({ stage }: { stage: Stage }) {
     const items = stage.selection.includes(id) ? stage.selection : [id]
     select(stage.id, items)
     e.currentTarget.setPointerCapture(e.pointerId)
-    drag.current = { pointer: e.pointerId, start: { x: e.clientX, y: e.clientY }, items }
+    drag.current = {
+      pointer: e.pointerId,
+      start: { x: e.clientX, y: e.clientY },
+      items,
+      came: {},
+      prev: { x: 0, y: 0 },
+    }
   }
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current
-    if (d?.pointer === e.pointerId) setMoved({ x: e.clientX - d.start.x, y: e.clientY - d.start.y })
+    if (d?.pointer !== e.pointerId) return
+    const screen = { x: e.clientX - d.start.x, y: e.clientY - d.start.y }
+    const by = toPaperDelta(stage, screen)
+    if (d.items.length === 1) d.came = trackDrag(registry, page, d.items[0] as string, d.prev, by, d.came)
+    d.prev = by
+    setMoved(screen)
   }
   const endDrag = (e: PointerEvent<HTMLDivElement>, drop: boolean) => {
     const d = drag.current
     if (d?.pointer !== e.pointerId) return
     drag.current = null
     setMoved(null)
-    if (drop && moved && (moved.x !== 0 || moved.y !== 0)) move.run({ items: d.items, by: moved })
+    if (drop && moved && (moved.x !== 0 || moved.y !== 0)) move.run({ items: d.items, by: moved, came: d.came })
   }
   const shift = moved && toPaperDelta(stage, moved)
-  const dragged = drag.current?.items ?? []
-  const plan = shift && dragged.length > 0 ? moveRects(registry, page, dragged, shift) : null
+  const d = drag.current
+  const dragged = shift && d ? d.items : []
+  const plan = shift && d?.items.length === 1 ? dragging(registry, page, d.items[0] as string, shift, d.came) : null
   // ドラッグ中にずらして描く量（紙の上）
   const shiftOf = (item: Placed): Point | null => {
     if (!shift) return null
@@ -207,6 +223,7 @@ function Items({ stage }: { stage: Stage }) {
       }}
       selected={stage.selection.includes(item.id)}
       shift={shiftOf(item)}
+      look={dragged.length === 0 ? undefined : dragged.includes(item.id) ? "lifted" : "faded"}
       onPointerDown={e => onPointerDown(e, item.id)}
       onPointerMove={onPointerMove}
       onPointerUp={e => endDrag(e, true)}
@@ -234,6 +251,7 @@ interface ItemProps {
   }
   selected: boolean
   shift: Point | null // ドラッグ中にずらして描く量（紙の上）
+  look?: "lifted" | "faded" // ドラッグ中の見た目（動かすアイテムは少し透かし、ほかは薄く）
   onPointerDown(e: PointerEvent<HTMLDivElement>): void
   onPointerMove(e: PointerEvent<HTMLDivElement>): void
   onPointerUp(e: PointerEvent<HTMLDivElement>): void
@@ -255,7 +273,7 @@ const GRIPS: readonly { at: string; edges: Edges }[] = [
 ]
 
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く
-function Item({ item, stretchable, onStretch, selected, shift, ...handlers }: ItemProps) {
+function Item({ item, stretchable, onStretch, selected, shift, look, ...handlers }: ItemProps) {
   const registry = useRegistry()
   const ui = useUi().items.get(item.item)
   const size = placedSize(registry, item)
@@ -265,6 +283,7 @@ function Item({ item, stretchable, onStretch, selected, shift, ...handlers }: It
       data-item={item.id}
       className={styles.item}
       data-selected={selected}
+      data-look={look}
       style={{
         left: item.x,
         top: item.y,

@@ -593,7 +593,7 @@ test("箱の右の辺を右の箱へ向けて広げると、手を離したと�
   expect(Math.abs(after.y - before.y)).toBeLessThan(1)
 })
 
-test("箱をドラッグして右の箱に浅く入れると、離したときに右の箱が押され、半分以上入れると入れ替わる。ドラッグ中からその並びで描く", async ({
+test("ドラッグ中はほかの箱が薄くなって動かず、右の箱に浅く入れて離すと手前へ戻る。半分入れるとその場で入れ替わり、離すと入れ替わった並びになる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -609,26 +609,30 @@ test("箱をドラッグして右の箱に浅く入れると、離したとき�
   const left = page.locator("[data-item]", { hasText: "左" })
   const right = page.locator("[data-item]", { hasText: "右" })
   const x = async (box: typeof left) => (await box.boundingBox())!.x
-  const drag = async (box: typeof left, dx: number, check?: () => Promise<void>) => {
-    const b = (await box.boundingBox())!
+  const drag = async (dx: number, during?: () => Promise<void>) => {
+    const b = (await left.boundingBox())!
     await page.mouse.move(b.x + 20, b.y + 20)
     await page.mouse.down()
-    await page.mouse.move(b.x + 20 + dx, b.y + 20, { steps: 6 })
-    await check?.()
+    await page.mouse.move(b.x + 20 + dx, b.y + 20, { steps: 8 })
+    await during?.()
     await page.mouse.up()
   }
-  // 左の箱（幅 64）を、右の箱に 16px 入る所まで動かす: 右の箱が押される（ドラッグ中から）
   const start = { left: await x(left), right: await x(right) }
-  const into = start.right - start.left - 64 * zoom + 16 * zoom
-  await drag(left, into, async () => {
-    expect(await x(right)).toBeGreaterThan(start.right)
+  const touch = start.right - start.left - 64 * zoom // 左の箱の右の端が、右の箱の左の端に来るまで
+  // 浅く（16px）入れる: ドラッグ中、右の箱は薄くなって動かない。離すと左の箱は右の箱の手前（間隔 8px）へ戻る
+  await drag(touch + 16 * zoom, async () => {
+    await expect(right).toHaveAttribute("data-look", "faded")
+    await expect(left).toHaveAttribute("data-look", "lifted")
+    expect(await x(right)).toBe(start.right)
   })
-  await expect.poll(() => x(right)).toBeGreaterThan(start.right + 10)
-  const pushed = { left: await x(left), right: await x(right) }
-  expect(Math.abs(pushed.right - (pushed.left + 64 * zoom + 8 * zoom))).toBeLessThan(1)
-  // もう一度、右の箱の半分を越えるまで入れる: 入れ替わり、右の箱は左の箱のドラッグ前の位置へ、左の箱は右の箱のいた位置へ
-  await drag(left, pushed.right - pushed.left - 64 * zoom + 40 * zoom)
-  await expect.poll(() => x(right)).toBeLessThan(pushed.left + 1)
-  expect(Math.abs((await x(right)) - pushed.left)).toBeLessThan(1)
-  expect(Math.abs((await x(left)) - pushed.right)).toBeLessThan(1)
+  await expect(right).not.toHaveAttribute("data-look")
+  await expect.poll(() => x(left)).toBeCloseTo(start.right - 8 * zoom - 64 * zoom, 0)
+  expect(await x(right)).toBe(start.right)
+  // 半分（32px）より深く入れる: ドラッグ中にその場で入れ替わり、離すと右の箱は左の箱のいた所、左の箱は右の箱のいた所へ
+  const near = await x(left)
+  await drag(start.right - near - 64 * zoom + 40 * zoom, async () => {
+    await expect.poll(() => x(right)).toBeCloseTo(near, 0)
+  })
+  await expect.poll(() => x(left)).toBeCloseTo(start.right, 0)
+  expect(await x(right)).toBeCloseTo(near, 0)
 })
