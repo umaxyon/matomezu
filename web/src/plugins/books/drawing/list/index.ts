@@ -12,17 +12,12 @@ import { HEX, PALETTE } from "../../../../core/color"
 import { defineItem } from "../../../../core/def/item"
 import type { Point } from "../../../../core/geom"
 import { defineDialogWith } from "../../../../store/dialogs"
-import { AlignSchema } from "../box"
-import { BOX_BODY_MAX } from "../box/size"
+import { AlignSchema, textProps } from "../shape"
 import { LIST_SIZE, MAX_ROW_LINES } from "./size"
 
 // 行の項目（箱の項目と同じ並びに、チェックの印）
 export const RowPropsSchema = z.strictObject({
-  caption: z.string().default(""),
-  rule: z.boolean().default(true),
-  body: z.string().max(BOX_BODY_MAX).default(""),
-  captionAlign: AlignSchema.default("left"),
-  bodyAlign: AlignSchema.default("left"),
+  ...textProps("left"),
   checked: z.boolean().optional(), // チェックが入っているか（チェックリストのときだけ）
   lines: z.number().int().min(0).max(MAX_ROW_LINES).optional(), // 本文を見せる行数（無ければリストでそろえる。size.ts）
 })

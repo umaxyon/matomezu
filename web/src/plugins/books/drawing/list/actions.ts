@@ -1,31 +1,18 @@
 // リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える・動かす（並べ替えと、同じページの別のリストへ）。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
-import { AlignSchema } from "../box"
-import { BOX_BODY_MAX } from "../box/size"
 import { nextItemId } from "../items/items"
+import { textNew, textPatch } from "../shape"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "."
 import { findList, rowsOf, withList } from "./rows"
 import { MAX_ROW_LINES, placedListWidth, rewrittenLines } from "./size"
 
 // 行の項目を変えるときに渡す形: 書いた項目だけを変え、null は消す（既定に戻す）。AI にもこの形で見せる。
 // チェック（checked）は row.check、行数（lines）は row.lines で変える
-const RowPatchSchema = z.strictObject({
-  caption: z.string().nullable().optional(),
-  rule: z.boolean().nullable().optional(), // キャプションと本文の間の区切り線
-  body: z.string().max(BOX_BODY_MAX).nullable().optional(),
-  captionAlign: AlignSchema.nullable().optional(),
-  bodyAlign: AlignSchema.nullable().optional(),
-})
+const RowPatchSchema = z.strictObject(textPatch())
 
 // 足す行の項目（書かなかった項目は既定）
-const RowNewSchema = RowPatchSchema.extend({
-  caption: z.string().optional(),
-  rule: z.boolean().optional(),
-  body: z.string().max(BOX_BODY_MAX).optional(),
-  captionAlign: AlignSchema.optional(),
-  bodyAlign: AlignSchema.optional(),
-})
+const RowNewSchema = z.strictObject(textNew())
 
 // リスト list の最後に行を足す
 export const ROW_ADD = defineAction({

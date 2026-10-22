@@ -32,8 +32,9 @@ import {
   Switch,
   SwitchPanel,
 } from "../../../base/ui"
-import { useAligns, useBookOf, useBookTheme, useSwatches } from "../box/BoxDialog"
+import { BOX_FILL } from "../box"
 import { itemsOf } from "../items/items"
+import { useAligns, useBookOf, useBookTheme, useSwatches } from "../shape/parts"
 import { LIST, type ListRow } from "."
 import type { RowsLines } from "./size"
 
@@ -173,7 +174,7 @@ function ListDialog({
   const [refused, setRefused] = useState(false)
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
   const [pick, setPick] = useState<number | "max">("max")
-  const swatches = useSwatches(theme || bookTheme)
+  const swatches = useSwatches(theme || bookTheme, BOX_FILL)
   const changed =
     captionAlign !== start.captionAlign ||
     theme !== (start.theme ?? "") ||

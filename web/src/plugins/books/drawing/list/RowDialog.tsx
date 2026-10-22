@@ -1,5 +1,5 @@
 // 行のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。テーマと色はリストに従うので持たない。
-// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BOX_BODY_MAX 字まで。
+// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
 // 追加はリストの最後に行を足し（row.add）、編集は行の項目を書き換える（row.update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
 import { useId, useState } from "react"
 import type { MessageKey } from "../../../../core/i18n/i18n"
@@ -8,9 +8,9 @@ import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp } from "../../../../ui/store-context"
 import { ActionButton, Choices, controlClass, Dialog, Field, Form, rowClass, Switch } from "../../../base/ui"
-import { useAligns, useBookOf } from "../box/BoxDialog"
-import { BOX_BODY_MAX } from "../box/size"
 import { itemsOf } from "../items/items"
+import { BODY_MAX } from "../shape"
+import { useAligns, useBookOf } from "../shape/parts"
 import { LIST, type RowProps } from "."
 
 type Text = Omit<RowProps, "checked">
@@ -104,7 +104,7 @@ function RowDialog({
               id={id}
               className={controlClass}
               rows={4}
-              maxLength={BOX_BODY_MAX}
+              maxLength={BODY_MAX}
               value={body}
               onChange={e => {
                 if (!hasBody && e.target.value !== "") setRule(true)

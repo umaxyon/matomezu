@@ -25,11 +25,15 @@ import type { ItemViewProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { themeVars } from "../../../../ui/theme-vars"
 import { BOX } from "../box"
+import { useThemeVars } from "../shape/parts"
 import { LIST, type ListRow } from "."
 import { edgeScroller } from "./edge-scroll"
 import styles from "./ListView.module.css"
 import { listPaintVars } from "./paint"
 import { linesFor, listLayout, type RowLayout, type RowsLines, rowHeight } from "./size"
+
+// リストを描くテーマの欄（箱の欄とリストの欄）
+const LOOK_TOKENS = [...BOX.tokens, ...LIST.tokens]
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
 
@@ -125,13 +129,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   const registry = useRegistry()
   const rows = content as readonly ListRow[]
   const theme = props.theme
-  const vars = useMemo(
-    () =>
-      theme && registry.themes.has(theme)
-        ? themeVars(resolveTokens(registry, theme, [...BOX.tokens, ...LIST.tokens]))
-        : undefined,
-    [registry, theme],
-  )
+  const vars = useThemeVars(theme, LOOK_TOKENS)
   const add = useCommand(stage, "list.addRow")
   const edit = useCommand(stage, "list.editRow")
   const check = useCommand(stage, "list.check")
@@ -142,9 +140,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   const ghostNames = useMemo(() => {
     const any = [...registry.themes.keys()][0]
     if (any === undefined) return []
-    return Object.keys(themeVars(resolveTokens(registry, any, [...BOX.tokens, ...LIST.tokens]))).filter(k =>
-      k.startsWith("--"),
-    )
+    return Object.keys(themeVars(resolveTokens(registry, any, LOOK_TOKENS))).filter(k => k.startsWith("--"))
   }, [registry])
   const carry = useRef<Carry | null>(null)
   const [carried, setCarried] = useState<{ x: number; y: number; drop: Drop | null } | null>(null)

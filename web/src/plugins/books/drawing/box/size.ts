@@ -4,21 +4,14 @@
 // 文字の幅と折り返しは core/text で計算するので、画面でも常駐でも同じ行になる。画面（BoxView）はこの値のとおりに描く
 import type { z } from "zod"
 import type { Size } from "../../../../core/geom"
-import { clampLines, type Font, textWidth, wrap } from "../../../../core/text/text"
+import { clampLines, wrap } from "../../../../core/text/text"
+import { captionTextWidth, PLACE_LINES, TEXT_LOOK } from "../shape"
 import type { BOX } from "."
 
 type BoxProps = z.infer<(typeof BOX)["props"]>
 
-// 箱の見た目の寸法（px）。BoxView.module.css と同じ値にする
-export const BOX_LOOK = {
-  border: 1,
-  padX: 8,
-  padY: 4,
-  line: 18, // 1 行の高さ
-  ruleGap: 3, // 区切り線の上下の間（線は 1px）
-  caption: { size: 13, weight: 700 } satisfies Font,
-  body: { size: 13, weight: 400 } satisfies Font,
-} as const
+// 箱の見た目の寸法（px）。BoxView.module.css と同じ値にする。文字の寸法は形で共通（shape の TEXT_LOOK）
+export const BOX_LOOK = { border: 1, ...TEXT_LOOK } as const
 
 const L = BOX_LOOK
 const HEAD = 2 * (L.border + L.padY) + L.line // 上下の枠と余白と、キャプション 1 行
@@ -26,9 +19,6 @@ const RULE = 2 * L.ruleGap + 1
 
 export const BOX_SIZE: Size = { w: 64, h: 64 } // 置いたときの一番小さい大きさ（中身の無い箱の大きさ）
 export const BOX_MIN: Size = { w: 64, h: HEAD } // 一番狭い幅と、一番低い高さ（キャプション 1 行）
-export const PLACE_CAPTION = 20 // 置いたときに幅を取るキャプションの字の数の上限（超えた分は … で切れる）
-export const BOX_BODY_MAX = 2000 // 本文の字数の上限
-export const PLACE_LINES = 5 // 置いたときに見せる本文の行の数の上限
 
 export interface BoxLayout {
   body: string[] // 描く本文の行（本文が無いか、1 行も出ない高さなら空）
@@ -49,9 +39,7 @@ export function boxLayout(props: BoxProps, size: Size): BoxLayout {
 
 // 置いたときの幅: キャプションが PLACE_CAPTION 字まで切れずに見える幅（超えるなら、その字数と … が見える幅。一番狭くて BOX_SIZE の幅）
 export function placedWidth(props: BoxProps): number {
-  const chars = [...props.caption]
-  const shown = chars.length > PLACE_CAPTION ? `${chars.slice(0, PLACE_CAPTION).join("")}…` : props.caption
-  return Math.max(BOX_SIZE.w, Math.ceil(textWidth(shown, L.caption)) + 2 * (L.border + L.padX))
+  return Math.max(BOX_SIZE.w, captionTextWidth(props.caption) + 2 * (L.border + L.padX))
 }
 
 // 置いたときの高さ: 本文が PLACE_LINES 行まで見える高さ（一番低くて BOX_SIZE の高さ）

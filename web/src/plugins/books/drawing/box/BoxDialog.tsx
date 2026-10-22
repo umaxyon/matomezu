@@ -1,16 +1,14 @@
 // 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ・色。キャプションと本文の名前の右に、左・中央・右の寄せ）。
 // テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
 // 編集では、選んだ寄せ・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションの欄の Enter でも決める）。
-// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BOX_BODY_MAX 字まで。
+// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は開いたときに覚えた所に箱を置いて（アクション item.place）選び、編集は箱の項目を書き換える（アクション item.update）
-import { useCallback, useEffect, useId, useMemo, useState } from "react"
-import { PALETTE } from "../../../../core/color"
+import { useCallback, useEffect, useId, useState } from "react"
 import type { Point } from "../../../../core/geom"
 import type { MessageKey } from "../../../../core/i18n/i18n"
 import type { ItemProps } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
-import { bookTheme, resolveTokens } from "../../../../core/theme"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
@@ -27,9 +25,9 @@ import {
   Switch,
 } from "../../../base/ui"
 import { itemsOf } from "../items/items"
-import { type Align, BOX } from "."
-import { ALIGN_ICONS } from "./icons"
-import { BOX_BODY_MAX } from "./size"
+import { BODY_MAX } from "../shape"
+import { useAligns, useBookOf, useBookTheme, useSwatches } from "../shape/parts"
+import { BOX, BOX_FILL } from "."
 
 type BoxProps = ItemProps<"shape.box">
 
@@ -37,47 +35,6 @@ type BoxProps = ItemProps<"shape.box">
 type Look = Pick<BoxProps, "captionAlign" | "bodyAlign" | "theme" | "color">
 
 const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "center", bodyAlign: "left" }
-
-const ALIGNS = [
-  { value: "left", label: "Align left" },
-  { value: "center", label: "Align center" },
-  { value: "right", label: "Align right" },
-] as const satisfies readonly { value: Align; label: MessageKey }[]
-
-// 開いたステージで開いているブックの id（リストのダイアログも使う）
-export const useBookOf = (stage: string) => useApp(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
-
-// ブックのテーマの id
-export function useBookTheme(book: string | undefined) {
-  const registry = useRegistry()
-  return useApp(s => {
-    const b = book ? s.books[book] : undefined
-    return b ? bookTheme(registry, b) : undefined
-  })
-}
-
-// 色の見本: テーマ looks の代表色と塗り（表に無いテーマなら null）
-export function useSwatches(looks: string | undefined) {
-  const t = useT()
-  const registry = useRegistry()
-  return useMemo(() => {
-    if (!looks || !registry.themes.has(looks)) return null
-    const tokens = resolveTokens(registry, looks, BOX.tokens)
-    // 役割の名前は出さない（意味を利用者に押し付けない）
-    const palette = PALETTE.map((name, i) => ({
-      name,
-      hex: tokens[`palette.${name}`]?.light ?? "#ffffff",
-      label: t("Theme color {n}", { n: i + 1 }),
-    }))
-    return { palette, none: tokens["box.fill"]?.light ?? "#ffffff" }
-  }, [registry, looks, t])
-}
-
-// 寄せの選択肢（左・中央・右のアイコンのボタン）
-export function useAligns() {
-  const t = useT()
-  return ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
-}
 
 export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
   const book = useBookOf(stage)
@@ -174,7 +131,7 @@ function BoxDialog({
   const registry = useRegistry()
   // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
   const looks = theme || bookTheme
-  const swatches = useSwatches(looks)
+  const swatches = useSwatches(looks, BOX_FILL)
   const changed =
     captionAlign !== start.captionAlign ||
     bodyAlign !== start.bodyAlign ||
@@ -237,7 +194,7 @@ function BoxDialog({
               id={id}
               className={controlClass}
               rows={4}
-              maxLength={BOX_BODY_MAX}
+              maxLength={BODY_MAX}
               value={body}
               onChange={e => {
                 if (!hasBody && e.target.value !== "") setRule(true)

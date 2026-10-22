@@ -4,17 +4,17 @@
 // 持たない行はそろえる: 行数を持たない行の本文の折り返した行数のうち一番多い数と PLACE_LINES の小さい方（本文の無い行も同じ高さ）。収まらない本文は … で切る。
 // 文字の幅と折り返しは core/text で計算するので、画面でも常駐でも同じ行になる。画面（ListView）はこの値のとおりに描く
 import type { Size } from "../../../../core/geom"
-import { clampLines, textWidth, wrap } from "../../../../core/text/text"
-import { BOX_LOOK, PLACE_CAPTION, PLACE_LINES } from "../box/size"
+import { clampLines, wrap } from "../../../../core/text/text"
+import { captionTextWidth, PLACE_LINES, TEXT_LOOK } from "../shape"
 import type { ListRow } from "."
 
-// リストの見た目の寸法（px。どのテーマでも同じ）。ListView.module.css と同じ値にする。字は箱と同じ
+// リストの見た目の寸法（px。どのテーマでも同じ）。ListView.module.css と同じ値にする。文字の寸法は形で共通（shape の TEXT_LOOK）
 export const LIST_LOOK = {
   border: 1,
-  padX: BOX_LOOK.padX, // 見出しの左右の余白
-  padY: BOX_LOOK.padY, // 見出しの上下の余白
-  line: BOX_LOOK.line,
-  ruleGap: BOX_LOOK.ruleGap,
+  padX: TEXT_LOOK.padX, // 見出しの左右の余白
+  padY: TEXT_LOOK.padY, // 見出しの上下の余白
+  line: TEXT_LOOK.line,
+  ruleGap: TEXT_LOOK.ruleGap,
   inset: 8, // 台紙の内側の余白（行のカードの左右と、最初の行の上）
   gap: 6, // 行のカードの間の隙間（行の下に取る）
   rowPadX: 12, // 行のカードの左右の余白
@@ -60,7 +60,7 @@ const textWidthOf = (w: number, checklist: boolean) =>
 
 // 幅 w のリストの行ごとの本文の折り返し
 const wrapAll = (rows: readonly ListRow[], inner: number) =>
-  rows.map(r => (r.props.body === "" ? [] : wrap(r.props.body, inner, BOX_LOOK.body)))
+  rows.map(r => (r.props.body === "" ? [] : wrap(r.props.body, inner, TEXT_LOOK.body)))
 
 // 書き換え all を当てたときの、行ごとの行数（行数を持たない行は undefined。all が無ければ行の持つ行数のまま）
 export function rewrittenLines(
@@ -89,7 +89,7 @@ export function listLayout(rows: readonly ListRow[], w: number, checklist: boole
     return {
       lines,
       height: rowHeight(lines),
-      body: body.length > 0 && lines > 0 ? clampLines(body, lines, inner, BOX_LOOK.body) : [],
+      body: body.length > 0 && lines > 0 ? clampLines(body, lines, inner, TEXT_LOOK.body) : [],
       rule: r.props.rule && body.length > 0 && lines > 0,
     }
   })
@@ -97,9 +97,7 @@ export function listLayout(rows: readonly ListRow[], w: number, checklist: boole
 
 // キャプションが PLACE_CAPTION 字まで切れずに見える幅（超えるなら、その字数と … が見える幅。一番狭くて LIST_MIN の幅）
 export function listCaptionWidth(caption: string): number {
-  const chars = [...caption]
-  const shown = chars.length > PLACE_CAPTION ? `${chars.slice(0, PLACE_CAPTION).join("")}…` : caption
-  return Math.max(LIST_MIN.w, Math.ceil(textWidth(shown, BOX_LOOK.caption)) + 2 * (L.border + L.padX))
+  return Math.max(LIST_MIN.w, captionTextWidth(caption) + 2 * (L.border + L.padX))
 }
 
 // 置いたときの幅: キャプションが見える幅（listCaptionWidth）と、LIST_SIZE の幅の大きい方
