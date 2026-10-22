@@ -19,6 +19,7 @@ export const LIGHT = defineSkin({
     "btn-hover": "#dedee4",
     accent: "#6d4bd8",
     current: "#eae6f9",
+    divider: "#6d4bd8",
     font: DARK.tokens.font,
   },
 })

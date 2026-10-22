@@ -14,6 +14,7 @@ export const SKIN_TOKENS = [
   "btn-hover",
   "accent",
   "current", // 分けているときのカレントのステージの下の行の地
+  "divider", // 分けているときの境目をつかんでいる間の線
   "font",
 ] as const
 

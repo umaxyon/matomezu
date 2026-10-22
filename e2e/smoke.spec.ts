@@ -284,8 +284,11 @@ test("分割の境目をドラッグすると左右の幅が変わり、分割�
   expect(Math.abs((await leftWidth()) - full.width / 2)).toBeLessThan(2)
   const divider = page.locator("[data-divider]")
   const at = (await divider.boundingBox())!
+  const color = () => divider.evaluate(el => getComputedStyle(el).backgroundImage)
   await page.mouse.move(at.x + at.width / 2, at.y + 200)
+  expect(await color()).toBe("none")
   await page.mouse.down()
+  expect(await color()).not.toBe("none")
   await page.mouse.move(full.x + full.width * 0.3, at.y + 200, { steps: 5 })
   await page.mouse.up()
   expect(Math.abs((await leftWidth()) - full.width * 0.3)).toBeLessThan(3)

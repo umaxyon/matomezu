@@ -16,7 +16,7 @@
 .column + .column {
   border-left: 1px solid var(--skin-line);
 }
-/* 列の境目をつかむ所（境目の線をまたぐ細い帯。つかめる所で色を付ける） */
+/* 列の境目をつかむ所（境目の線をまたぐ細い帯。色はつかんでいる間だけ付ける） */
 .divider {
   position: absolute;
   top: 0;
@@ -27,13 +27,12 @@
   cursor: col-resize;
   touch-action: none;
 }
-.divider:hover,
 .divider:active {
   background: linear-gradient(
     to right,
     transparent 2px,
-    var(--skin-accent) 2px,
-    var(--skin-accent) 5px,
+    var(--skin-divider) 2px,
+    var(--skin-divider) 5px,
     transparent 5px
   );
 }

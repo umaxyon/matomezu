@@ -17,6 +17,7 @@ export const DARK = defineSkin({
     "btn-hover": "#4a4a50",
     accent: "#8b6cf0",
     current: "#332f42",
+    divider: "#8b6cf0",
     font: 'system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif',
   },
 })
