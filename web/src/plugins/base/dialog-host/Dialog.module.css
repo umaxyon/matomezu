@@ -226,3 +226,73 @@ textarea.control {
 .confirmText {
   margin: 0;
 }
+/* 選ぶ欄とボタンをつなげた部品: 1 つの枠の中に、左に選ぶ欄、仕切りの線、右にボタン */
+.selectButton {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--skin-line);
+  border-radius: 6px;
+  background: var(--skin-bg);
+}
+.selectButton > select {
+  padding: 6px 4px 6px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--skin-text);
+  font: inherit;
+  cursor: pointer;
+}
+.selectButton > button {
+  padding: 6px 12px;
+  border: 0;
+  border-left: 1px solid var(--skin-line);
+  background: var(--skin-btn);
+  color: var(--skin-text);
+  font: inherit;
+  cursor: pointer;
+}
+.selectButton > button:hover {
+  background: var(--skin-btn-hover);
+}
+.selectButton > :focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: -2px;
+}
+/* スイッチに属する枠: スイッチを入れると下に開く（高さを滑らかに）。地の色を変えた四角い枠 */
+.switchPanel {
+  display: flex;
+  flex-direction: column;
+}
+.panelSlide {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.16s ease;
+}
+.switchPanel[data-open="true"] > .panelSlide {
+  grid-template-rows: 1fr;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--skin-bar), var(--skin-text) 6%);
+  transition:
+    margin-top 0.16s ease,
+    padding 0.16s ease;
+}
+.switchPanel[data-open="true"] .panel {
+  margin-top: 8px;
+  padding: 10px 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .panelSlide,
+  .panel {
+    transition: none;
+  }
+}

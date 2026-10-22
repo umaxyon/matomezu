@@ -23,7 +23,9 @@ import {
   Form,
   Problem,
   rowClass,
+  SelectButton,
   Switch,
+  SwitchPanel,
 } from "../../../base/ui"
 import { useBookOf, useBookTheme, useSwatches } from "../box/BoxDialog"
 import { itemsOf } from "../items/items"
@@ -33,6 +35,8 @@ import type { RowsLines } from "./size"
 
 // ダイアログの高さ（全部の欄が出たときの高さ。チェックリストなどで欄が増えても大きさを変えない）
 const DIALOG_HEIGHT = 480
+// ダイアログの幅（行の高さの 2 つの操作が 1 行に並ぶ幅）
+const DIALOG_WIDTH = 440
 
 // 全部の行をそろえる行数の選択肢（「最大行」のほか）
 const PICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
@@ -186,6 +190,7 @@ function ListDialog({
     <Dialog
       title={t(title)}
       height={DIALOG_HEIGHT}
+      width={DIALOG_WIDTH}
       onClose={onClose}
       actions={
         <>
@@ -248,24 +253,8 @@ function ListDialog({
           <span>{t("Alternating row colors")}</span>
           <Switch label={t("Alternating row colors")} checked={zebra} onChange={setZebra} />
         </div>
-        <div className={rowClass}>
-          <span>{t("Checklist")}</span>
-          <Switch label={t("Checklist")} checked={checklist} onChange={toggleChecklist} />
-        </div>
-        {confirming && (
-          <Confirm
-            message={t("Check marks will be removed")}
-            ok={t("Remove")}
-            cancel={t("Keep")}
-            onOk={() => {
-              setConfirming(false)
-              setChecklist(false)
-            }}
-            onCancel={() => setConfirming(false)}
-          />
-        )}
-        {checklist && (
-          <fieldset className={styles.group}>
+        <SwitchPanel label={t("Checklist")} checked={checklist} onChange={toggleChecklist}>
+          <fieldset className={styles.sub}>
             <legend>{t("Checked rows")}</legend>
             <div className={rowClass}>
               <span>{t("Gray out")}</span>
@@ -284,27 +273,35 @@ function ListDialog({
               </select>
             </label>
           </fieldset>
+        </SwitchPanel>
+        {confirming && (
+          <Confirm
+            message={t("Check marks will be removed")}
+            ok={t("Remove")}
+            cancel={t("Keep")}
+            onOk={() => {
+              setConfirming(false)
+              setChecklist(false)
+            }}
+            onCancel={() => setConfirming(false)}
+          />
         )}
         {hasRows && (
           <fieldset className={styles.group}>
             <legend>{t("Row height")}</legend>
-            <div className={styles.inline}>
-              <select
-                className={`${controlClass} ${styles.narrow}`}
-                aria-label={t("Lines")}
+            <div className={styles.heights}>
+              <SelectButton
+                label={t("Lines")}
                 value={String(pick)}
-                onChange={e => setPick(e.target.value === "max" ? "max" : Number(e.target.value))}
-              >
-                <option value="max">{t("Most lines")}</option>
-                {PICKS.map(n => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-              <ActionButton onClick={() => setRowLines(pick)}>{t("Align")}</ActionButton>
-            </div>
-            <div>
+                options={[
+                  { value: "max", label: t("Most lines") },
+                  ...PICKS.map(n => ({ value: String(n), label: String(n) })),
+                ]}
+                button={t("Align")}
+                onChange={v => setPick(v === "max" ? "max" : Number(v))}
+                onClick={() => setRowLines(pick)}
+              />
+              <span className={styles.divider} aria-hidden="true" />
               <ActionButton onClick={() => setRowLines("fit")}>{t("Fit each row to its body")}</ActionButton>
             </div>
           </fieldset>

@@ -3,7 +3,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
+  gap: 8px 12px;
 }
 .pair {
   display: flex;
@@ -28,4 +28,32 @@
   padding: 0 6px 0 0;
   color: var(--skin-hint);
   font-size: 12px;
+}
+/* チェックリストの枠の中の欄（「チェック済みを」の名前と、その下の欄） */
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sub > legend {
+  padding: 0 0 6px;
+  color: var(--skin-hint);
+  font-size: 12px;
+}
+/* 行の高さの 2 つの操作を 1 行に（間に縦の線） */
+.heights {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.heights > button {
+  white-space: nowrap;
+}
+.divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--skin-line);
 }

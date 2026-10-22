@@ -10,12 +10,14 @@ export function Dialog({
   title,
   actions,
   height,
+  width,
   onClose,
   children,
 }: {
   title: string
   actions?: ReactNode
   height?: number // ダイアログの高さ（px）
+  width?: number // ダイアログの幅（px。無ければ 360。画面に収まらなければ画面の幅）
   onClose: () => void
   children: ReactNode
 }) {
@@ -58,7 +60,10 @@ export function Dialog({
       <div
         className={styles.body}
         data-fixed={height !== undefined}
-        style={height === undefined ? undefined : { height: `min(${height}px, calc(100vh - 32px))` }}
+        style={{
+          ...(height === undefined ? {} : { height: `min(${height}px, calc(100vh - 32px))` }),
+          ...(width === undefined ? {} : { width: `min(${width}px, calc(100vw - 32px))` }),
+        }}
       >
         <div className={styles.head}>
           <h2 className={styles.title}>{title}</h2>

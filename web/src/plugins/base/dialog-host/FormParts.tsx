@@ -163,3 +163,61 @@ export function ActionButton({
     </button>
   )
 }
+
+// 選ぶ欄とボタンをつなげた部品: 選んだ値でボタンの動きをする（例: [最大行 ▾](にそろえる)）。label は選ぶ欄の名前
+export function SelectButton<V extends string>({
+  label,
+  value,
+  options,
+  button,
+  onChange,
+  onClick,
+}: {
+  label: string
+  value: V
+  options: readonly { value: V; label: string }[]
+  button: string // ボタンの名前
+  onChange: (value: V) => void
+  onClick: () => void
+}) {
+  return (
+    <span className={styles.selectButton}>
+      <select aria-label={label} value={value} onChange={e => onChange(e.target.value as V)}>
+        {options.map(o => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <button type="button" onClick={onClick}>
+        {button}
+      </button>
+    </span>
+  )
+}
+
+// スイッチと、入れているときだけその下に開く枠（スイッチに属する欄。地の色を変えた四角い枠で、サブメニューと分かるように）。
+// 開け閉めは高さを滑らかに変える。onChange はスイッチを押したとき（入れるか切るかは使う側が決める）
+export function SwitchPanel({
+  label,
+  checked,
+  onChange,
+  children,
+}: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  children: ReactNode
+}) {
+  return (
+    <div className={styles.switchPanel} data-open={checked}>
+      <div className={styles.row}>
+        <span>{label}</span>
+        <Switch label={label} checked={checked} onChange={onChange} />
+      </div>
+      <div className={styles.panelSlide} inert={!checked} aria-hidden={!checked}>
+        <div className={styles.panel}>{children}</div>
+      </div>
+    </div>
+  )
+}
