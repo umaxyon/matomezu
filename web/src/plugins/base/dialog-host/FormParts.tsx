@@ -1,9 +1,23 @@
-// 入力のダイアログの部品: 名前の付いた欄と、決めるボタンの行・見出しの行に置くボタン
+// 入力のダイアログの部品: 名前の付いた欄と、決めるボタンの行・見出しの行に置くボタン、区分・横に並べる行・名前と入力の組。
+// 見た目の決まり（文字・余白・区分・ボタン）は Dialog.module.css の冒頭
 import { type ReactNode, useId } from "react"
 import styles from "./Dialog.module.css"
 
 export const controlClass = styles.control
 export const rowClass = styles.row
+export const inlineClass = styles.inline // 横に並べる行（入らなければ次の行へ）
+export const pairClass = styles.pair // 名前と入力の組
+export const dividerClass = styles.divider // 横に並べた物の間の縦の線
+
+// 区分: 見出しと右へ伸びる線、その下に欄（Dialog.module.css の冒頭の決まり）
+export function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset className={styles.section}>
+      <legend className={styles.sectionTitle}>{title}</legend>
+      {children}
+    </fieldset>
+  )
+}
 
 // 決められなかった理由の 1 行（決めるボタンを押して断られたとき）
 export function Problem({ children }: { children: ReactNode }) {
@@ -200,11 +214,13 @@ export function SelectButton<V extends string>({
 // 開け閉めは高さを滑らかに変える。onChange はスイッチを押したとき（入れるか切るかは使う側が決める）
 export function SwitchPanel({
   label,
+  title,
   checked,
   onChange,
   children,
 }: {
   label: string
+  title?: string // 枠の中の見出し（区分の見出しと同じ見た目で、線は無い）
   checked: boolean
   onChange: (checked: boolean) => void
   children: ReactNode
@@ -216,7 +232,10 @@ export function SwitchPanel({
         <Switch label={label} checked={checked} onChange={onChange} />
       </div>
       <div className={styles.panelSlide} inert={!checked} aria-hidden={!checked}>
-        <div className={styles.panel}>{children}</div>
+        <fieldset className={styles.panel}>
+          {title && <legend className={styles.panelTitle}>{title}</legend>}
+          {children}
+        </fieldset>
       </div>
     </div>
   )

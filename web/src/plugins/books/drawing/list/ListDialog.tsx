@@ -21,10 +21,13 @@ import {
   Confirm,
   controlClass,
   Dialog,
+  dividerClass,
   Field,
   Form,
+  inlineClass,
   Problem,
-  rowClass,
+  pairClass,
+  Section,
   SelectButton,
   Switch,
   SwitchPanel,
@@ -32,7 +35,6 @@ import {
 import { useAligns, useBookOf, useBookTheme, useSwatches } from "../box/BoxDialog"
 import { itemsOf } from "../items/items"
 import { LIST, type ListRow } from "."
-import styles from "./ListDialog.module.css"
 import type { RowsLines } from "./size"
 
 // ダイアログの高さ（全部の欄が出たときの高さ。チェックリストなどで欄が増えても大きさを変えない）
@@ -246,8 +248,8 @@ function ListDialog({
         >
           {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
         </Field>
-        <div className={styles.inline}>
-          <label className={styles.pair}>
+        <div className={inlineClass}>
+          <label className={pairClass}>
             <span>{t("Theme")}</span>
             <select className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
               <option value="">{t("Book's theme")}</option>
@@ -259,7 +261,7 @@ function ListDialog({
             </select>
           </label>
           {swatches && (
-            <span className={styles.pair}>
+            <span className={pairClass}>
               <span>{t("Color")}</span>
               <ColorPicker
                 label={t("Color")}
@@ -270,35 +272,32 @@ function ListDialog({
               />
             </span>
           )}
-          <span className={styles.divider} aria-hidden="true" />
-          <span className={styles.pair}>
+          <span className={dividerClass} aria-hidden="true" />
+          <span className={pairClass}>
             <span>{t("Alternating row colors")}</span>
             <Switch label={t("Alternating row colors")} checked={zebra} onChange={setZebra} />
           </span>
         </div>
-        <SwitchPanel label={t("Checklist")} checked={checklist} onChange={toggleChecklist}>
-          <fieldset className={styles.sub}>
-            <legend>{t("Checked rows")}</legend>
-            <div className={styles.heights}>
-              <span className={rowClass}>
-                <span>{t("Gray out")}</span>
-                <Switch label={t("Gray out")} checked={checkedGray} onChange={setCheckedGray} />
-              </span>
-              <span className={styles.divider} aria-hidden="true" />
-              <label className={rowClass}>
-                <span>{t("Reorder")}</span>
-                <select
-                  className={`${controlClass} ${styles.narrow}`}
-                  value={checkedOrder}
-                  onChange={e => setCheckedOrder(e.target.value as ListProps["checkedOrder"])}
-                >
-                  <option value="none">{t("Not reordered")}</option>
-                  <option value="first">{t("First")}</option>
-                  <option value="last">{t("Last")}</option>
-                </select>
-              </label>
-            </div>
-          </fieldset>
+        <SwitchPanel label={t("Checklist")} title={t("Checked rows")} checked={checklist} onChange={toggleChecklist}>
+          <div className={inlineClass}>
+            <span className={pairClass}>
+              <span>{t("Gray out")}</span>
+              <Switch label={t("Gray out")} checked={checkedGray} onChange={setCheckedGray} />
+            </span>
+            <span className={dividerClass} aria-hidden="true" />
+            <label className={pairClass}>
+              <span>{t("Reorder")}</span>
+              <select
+                className={controlClass}
+                value={checkedOrder}
+                onChange={e => setCheckedOrder(e.target.value as ListProps["checkedOrder"])}
+              >
+                <option value="none">{t("Not reordered")}</option>
+                <option value="first">{t("First")}</option>
+                <option value="last">{t("Last")}</option>
+              </select>
+            </label>
+          </div>
         </SwitchPanel>
         {confirming && (
           <Confirm
@@ -313,9 +312,8 @@ function ListDialog({
           />
         )}
         {hasRows && (
-          <fieldset className={styles.group}>
-            <legend>{t("Row height")}</legend>
-            <div className={styles.heights}>
+          <Section title={t("Row height")}>
+            <div className={inlineClass}>
               <SelectButton
                 label={t("Lines")}
                 value={String(pick)}
@@ -327,10 +325,10 @@ function ListDialog({
                 onChange={v => setPick(v === "max" ? "max" : Number(v))}
                 onClick={() => setRowLines(pick)}
               />
-              <span className={styles.divider} aria-hidden="true" />
+              <span className={dividerClass} aria-hidden="true" />
               <ActionButton onClick={() => setRowLines("fit")}>{t("Fit each row to its body")}</ActionButton>
             </div>
-          </fieldset>
+          </Section>
         )}
         {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
       </Form>
