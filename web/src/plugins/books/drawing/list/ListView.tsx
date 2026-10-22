@@ -6,6 +6,7 @@
 // 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list.stretchRow。ドラッグの途中の動いた量だけはビューに持つ）。
 // 設定のダイアログの「行の高さ」の下書き（項目 rowLines。データには無い）があれば、全部の行をそれで描く。
 // リストのテーマと色は箱と同じ欄（box.*）と、リストの欄（list.*。見出しの帯・台紙・行の付箋）で描き、行はリストに従う。
+// チェックリストでは、チェック済みの行を薄く描き（checkedGray）、先頭か最後に寄せて見せる（checkedOrder。データの順は変えない）。
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 import { type CSSProperties, type PointerEvent, useMemo, useRef, useState } from "react"
 import type { ItemProps } from "../../../../core/registry"
@@ -24,6 +25,15 @@ import { listPaintVars } from "./paint"
 import { linesFor, listLayout, type RowsLines, rowHeight } from "./size"
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
+
+// 行を見せる順（行の番号の並び）: チェック済みの行を先頭か最後に寄せる（ほかの順はデータのまま。データの順は変えない）
+function shownOrder(rows: readonly ListRow[], order: "none" | "first" | "last"): number[] {
+  const all = rows.map((_, i) => i)
+  if (order === "none") return all
+  const done = all.filter(i => rows[i]?.props.checked === true)
+  const rest = all.filter(i => rows[i]?.props.checked !== true)
+  return order === "first" ? [...done, ...rest] : [...rest, ...done]
+}
 
 // 行の高さを変えているドラッグ: つかんだ行と、その高さ（紙の上）、押したときのポインタの位置
 interface Stretch {
@@ -99,13 +109,15 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
           }}
         >
           <ul className={styles.items} aria-label={t("Rows of {name}", { name: props.caption })}>
-            {rows.map((row, i) => {
+            {shownOrder(rows, props.checklist ? props.checkedOrder : "none").map(i => {
+              const row = rows[i] as ListRow
               const look = layout[i]
               return (
                 <li
                   key={row.id}
                   className={styles.row}
                   data-row={row.id}
+                  data-done={props.checklist && props.checkedGray && row.props.checked === true}
                   onPointerDown={e => {
                     if (e.button !== 0) return
                     e.stopPropagation()

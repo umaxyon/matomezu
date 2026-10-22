@@ -129,7 +129,7 @@ test("行の下の端をドラッグすると、その行の高さが 1 行刻�
   await list.getByText("高さ").dblclick()
   const dialog = page.getByRole("dialog", { name: "リストの編集" })
   await dialog.getByLabel("行数").selectOption("3")
-  await dialog.getByRole("button", { name: "行にそろえる" }).click()
+  await dialog.getByRole("button", { name: "にそろえる", exact: true }).click()
   await expect.poll(() => height(1)).toBeCloseTo(start + 36 * zoom, 0)
   expect(await height(0)).toBeCloseTo(start + 36 * zoom, 0)
   await dialog.getByRole("button", { name: "キャンセル" }).click()
@@ -143,7 +143,31 @@ test("行の下の端をドラッグすると、その行の高さが 1 行刻�
   // 最大行にそろえる: 本文の一番長い行（1 行）に、全部の行をそろえる
   await list.getByText("高さ").dblclick()
   await dialog.getByLabel("行数").selectOption("max")
-  await dialog.getByRole("button", { name: "行にそろえる" }).click()
+  await dialog.getByRole("button", { name: "にそろえる", exact: true }).click()
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect.poll(() => height(0)).toBe(start)
+})
+
+test("チェックリストにすると「チェック済みを」の欄が出て、チェック済みの行を薄くし、先頭か最後に寄せて見せる（データの順は変えない）", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const list = await addList(page, "順番")
+  for (const c of ["一", "二", "三"]) await addRow(page, list, c)
+  await list.getByText("順番").dblclick()
+  const dialog = page.getByRole("dialog", { name: "リストの編集" })
+  await expect(dialog.getByRole("group", { name: "チェック済みを" })).toHaveCount(0)
+  await dialog.getByRole("switch", { name: "チェックリスト" }).click()
+  const checked = dialog.getByRole("group", { name: "チェック済みを" })
+  await checked.getByRole("switch", { name: "グレーアウトする" }).click()
+  await checked.getByLabel("並べ替える").selectOption({ label: "最後" })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await list.getByRole("listitem").filter({ hasText: "一" }).getByRole("checkbox").click()
+  await expect(list.getByRole("listitem")).toHaveText(["二", "三", "一"])
+  await expect(list.getByRole("listitem").last()).toHaveCSS("opacity", "0.45")
+  await list.getByText("順番").dblclick()
+  await dialog.getByRole("group", { name: "チェック済みを" }).getByLabel("並べ替える").selectOption({ label: "先頭" })
+  await expect(list.getByRole("listitem")).toHaveText(["一", "二", "三"]) // 下書きで見せる
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect(list.getByRole("listitem")).toHaveText(["二", "三", "一"])
 })

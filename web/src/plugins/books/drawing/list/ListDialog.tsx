@@ -37,9 +37,11 @@ const PICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 type ListProps = ItemProps<"shape.list">
 
 // 選んだそばからリストに見せる項目（rowLines は行の高さの下書きで、データには無い）
-type Look = Pick<ListProps, "theme" | "color" | "checklist" | "zebra"> & { rowLines?: RowsLines }
+type Look = Pick<ListProps, "theme" | "color" | "checklist" | "zebra" | "checkedGray" | "checkedOrder"> & {
+  rowLines?: RowsLines
+}
 
-const EMPTY: ListProps = { caption: "", checklist: false, zebra: false }
+const EMPTY: ListProps = { caption: "", checklist: false, zebra: false, checkedGray: false, checkedOrder: "none" }
 
 export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
   const book = useBookOf(stage)
@@ -142,6 +144,8 @@ function ListDialog({
   const [color, setColor] = useState(start.color)
   const [checklist, setChecklist] = useState(start.checklist)
   const [zebra, setZebra] = useState(start.zebra)
+  const [checkedGray, setCheckedGray] = useState(start.checkedGray)
+  const [checkedOrder, setCheckedOrder] = useState(start.checkedOrder)
   const [confirming, setConfirming] = useState(false)
   const [refused, setRefused] = useState(false)
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
@@ -152,14 +156,24 @@ function ListDialog({
     color !== start.color ||
     checklist !== start.checklist ||
     zebra !== start.zebra ||
+    checkedGray !== start.checkedGray ||
+    checkedOrder !== start.checkedOrder ||
     rowLines !== undefined
   useEffect(() => {
     onPreview?.(
       changed
-        ? { theme: theme || undefined, color, checklist, zebra, ...(rowLines !== undefined ? { rowLines } : {}) }
+        ? {
+            theme: theme || undefined,
+            color,
+            checklist,
+            zebra,
+            checkedGray,
+            checkedOrder,
+            ...(rowLines !== undefined ? { rowLines } : {}),
+          }
         : null,
     )
-  }, [changed, theme, color, checklist, zebra, rowLines, onPreview])
+  }, [changed, theme, color, checklist, zebra, checkedGray, checkedOrder, rowLines, onPreview])
   const toggleChecklist = (on: boolean) => {
     // チェックの入った行があるリストで切るなら、切る前に確かめる（確かめている間は入ったまま）
     if (!on && start.checklist && checked) setConfirming(true)
@@ -184,7 +198,15 @@ function ListDialog({
         onSubmit={() =>
           setRefused(
             !onSubmit(
-              { caption, checklist, zebra, ...(theme ? { theme } : {}), ...(color ? { color } : {}) },
+              {
+                caption,
+                checklist,
+                zebra,
+                checkedGray,
+                checkedOrder,
+                ...(theme ? { theme } : {}),
+                ...(color ? { color } : {}),
+              },
               rowLines,
             ),
           )
@@ -193,9 +215,10 @@ function ListDialog({
         <Field label={t("Caption")}>
           {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
         </Field>
-        <Field label={t("Theme")}>
-          {id => (
-            <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
+        <div className={styles.inline}>
+          <label className={styles.pair}>
+            <span>{t("Theme")}</span>
+            <select className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
               <option value="">{t("Book's theme")}</option>
               {[...registry.themes.values()].map(th => (
                 <option key={th.id} value={th.id}>
@@ -203,20 +226,24 @@ function ListDialog({
                 </option>
               ))}
             </select>
+          </label>
+          {swatches && (
+            <span className={styles.pair}>
+              <span>{t("Color")}</span>
+              <ColorPicker
+                label={t("Color")}
+                value={color}
+                palette={swatches.palette}
+                none={swatches.none}
+                onChange={setColor}
+              />
+            </span>
           )}
-        </Field>
-        {swatches && (
-          <div className={rowClass}>
-            <span>{t("Color")}</span>
-            <ColorPicker
-              label={t("Color")}
-              value={color}
-              palette={swatches.palette}
-              none={swatches.none}
-              onChange={setColor}
-            />
-          </div>
-        )}
+        </div>
+        <div className={rowClass}>
+          <span>{t("Alternating row colors")}</span>
+          <Switch label={t("Alternating row colors")} checked={zebra} onChange={setZebra} />
+        </div>
         <div className={rowClass}>
           <span>{t("Checklist")}</span>
           <Switch label={t("Checklist")} checked={checklist} onChange={toggleChecklist} />
@@ -235,29 +262,50 @@ function ListDialog({
             <ActionButton onClick={() => setConfirming(false)}>{t("Keep")}</ActionButton>
           </div>
         )}
-        <div className={rowClass}>
-          <span>{t("Alternating row colors")}</span>
-          <Switch label={t("Alternating row colors")} checked={zebra} onChange={setZebra} />
-        </div>
+        {checklist && (
+          <fieldset className={styles.group}>
+            <legend>{t("Checked rows")}</legend>
+            <div className={rowClass}>
+              <span>{t("Gray out")}</span>
+              <Switch label={t("Gray out")} checked={checkedGray} onChange={setCheckedGray} />
+            </div>
+            <label className={rowClass}>
+              <span>{t("Reorder")}</span>
+              <select
+                className={`${controlClass} ${styles.narrow}`}
+                value={checkedOrder}
+                onChange={e => setCheckedOrder(e.target.value as ListProps["checkedOrder"])}
+              >
+                <option value="none">{t("Not reordered")}</option>
+                <option value="first">{t("First")}</option>
+                <option value="last">{t("Last")}</option>
+              </select>
+            </label>
+          </fieldset>
+        )}
         {hasRows && (
-          <div className={styles.lines}>
-            <span>{t("Row height")}</span>
-            <ActionButton onClick={() => setRowLines("fit")}>{t("Fit each row to its body")}</ActionButton>
-            <select
-              className={controlClass}
-              aria-label={t("Lines")}
-              value={String(pick)}
-              onChange={e => setPick(e.target.value === "max" ? "max" : Number(e.target.value))}
-            >
-              <option value="max">{t("Most lines")}</option>
-              {PICKS.map(n => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <ActionButton onClick={() => setRowLines(pick)}>{t("Align rows")}</ActionButton>
-          </div>
+          <fieldset className={styles.group}>
+            <legend>{t("Row height")}</legend>
+            <div className={styles.inline}>
+              <select
+                className={`${controlClass} ${styles.narrow}`}
+                aria-label={t("Lines")}
+                value={String(pick)}
+                onChange={e => setPick(e.target.value === "max" ? "max" : Number(e.target.value))}
+              >
+                <option value="max">{t("Most lines")}</option>
+                {PICKS.map(n => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <ActionButton onClick={() => setRowLines(pick)}>{t("Align")}</ActionButton>
+            </div>
+            <div>
+              <ActionButton onClick={() => setRowLines("fit")}>{t("Fit each row to its body")}</ActionButton>
+            </div>
+          </fieldset>
         )}
         {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
       </Form>

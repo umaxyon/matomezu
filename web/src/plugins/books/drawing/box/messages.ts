@@ -14,7 +14,7 @@ export const BOX_MESSAGES = defineMessages({
   "Does not fit on the paper": { ja: "紙に収まりません" },
   "Caption alignment": { ja: "キャプションの寄せ" },
   Theme: { ja: "テーマ" },
-  "Book's theme": { ja: "ブックのテーマ" },
+  "Book's theme": { ja: "ブックを継承" },
   Color: { ja: "色" },
   "Theme color {n}": { ja: "テーマの色 {n}" },
   "Body alignment": { ja: "本文の寄せ" },

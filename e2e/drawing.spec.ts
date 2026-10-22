@@ -413,7 +413,7 @@ test("ダイアログで箱のテーマを付箋紙にすると黄色の付箋�
   }
   await choose("付箋紙")
   expect(await look()).toEqual({ fill: "rgb(255, 243, 166)", fold: "12px" })
-  await choose("ブックのテーマ")
+  await choose("ブックを継承")
   expect(await look()).toEqual({ fill: "rgb(255, 255, 255)", fold: "0px" })
 })
 
@@ -509,7 +509,7 @@ test("テーマの色はテーマを変えるとそのテーマの色になり�
   await edit(() =>
     dialog
       .getByLabel("テーマ")
-      .selectOption({ label: "ブックのテーマ" })
+      .selectOption({ label: "ブックを継承" })
       .then(() => {}),
   )
   expect(await fill()).toBe("rgb(30, 58, 138)")

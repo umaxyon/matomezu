@@ -75,6 +75,10 @@
   margin-bottom: 6px;
   padding: 8px 12px;
 }
+/* チェック済みの行を薄く（グレーアウト） */
+.row[data-done="true"] {
+  opacity: 0.45;
+}
 /* 行の色分け: 1 行おきにカードの地へ文字の色を少し混ぜる */
 .list[data-zebra="true"] .row:nth-child(even) {
   --row-fill: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 7%);

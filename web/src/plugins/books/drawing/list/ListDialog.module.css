@@ -9,16 +9,34 @@
 .confirm > span {
   flex: 1;
 }
-/* 行の高さ: 名前と、最大の行数にそろえるボタン、行数の欄と、その行数にそろえるボタン */
-.lines {
+/* 横に並べる行（テーマと色、行数と「にそろえる」） */
+.inline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px 16px;
 }
-.lines > span {
-  flex-basis: 100%;
+.pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
-.lines > select {
-  width: 6.5em;
+.narrow {
+  width: auto;
+}
+/* 見出しの線の下にまとめる欄（チェック済みを・行の高さ） */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 0 0;
+  border: 0;
+  border-top: 1px solid var(--skin-line);
+}
+.group > legend {
+  padding: 0 6px 0 0;
+  color: var(--skin-hint);
+  font-size: 12px;
 }
