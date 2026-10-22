@@ -322,3 +322,12 @@ test("右クリックのメニューに出るコマンドが無ければ、メ�
   expect(screen.queryByRole("menu")).toBeNull()
   expect(store.state.getState().contextMenu).toBeNull()
 })
+
+test("ステージの上の行と下の行を右クリックしても、ブラウザのメニューを出さない", () => {
+  renderApp()
+  const tab = screen.getAllByRole("tab")[0]!
+  expect(fireEvent.contextMenu(tab)).toBe(false)
+  const tool = screen.getByRole("button", { name: "箱" })
+  expect(fireEvent.contextMenu(tool)).toBe(false)
+  expect(screen.queryByRole("menu")).toBeNull()
+})
