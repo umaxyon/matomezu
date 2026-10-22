@@ -15,4 +15,12 @@ export const STANDARD = defineTheme({
     fill: "#ffffff",
     accent: "#6d4bd8",
   },
+  palette: {
+    primary: "#3b82f6",
+    secondary: "#a855f7",
+    success: "#22c55e",
+    warn: "#eab308",
+    danger: "#ef4444",
+    muted: "#64748b",
+  },
 })

@@ -3,6 +3,7 @@
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
 import { restoreBooks } from "../core/book"
+import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { NO_KEY_CHANGES } from "../core/keys"
 import { performIn } from "../core/perform"
@@ -54,7 +55,7 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
-// アクションとアイテムとテーマの目録（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
+// アクションとアイテムとテーマと代表色の目録（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
 function catalog() {
   const en = (key: string) => translate(registry.messages, "en", key as never)
   return {
@@ -71,6 +72,7 @@ function catalog() {
       props: z.toJSONSchema(i.props, { io: "input", unrepresentable: "any" }),
     })),
     themes: [...registry.themes.values()].map(th => ({ id: th.id, title: en(th.title) })),
+    colors: PALETTE.map(id => ({ id, meaning: PALETTE_MEANINGS[id] })),
   }
 }
 

@@ -1,6 +1,8 @@
 // テーマの定義: ブックの中身の見た目。色・線・影など並べ方を変えないものだけを持ち、大きさは変えない。
 // どのテーマも共通の欄（ThemeToken）を全部埋める。アイテムとブックのタイプは自分の使う欄を宣言し（TokenDecl）、
-// 既定の値は共通の欄か、宣言に書いた値から取る。テーマは知っている欄だけを上書きする
+// 既定の値は共通の欄か、宣言に書いた値から取る。テーマは知っている欄だけを上書きする。
+// どのテーマも代表色（core/color の PALETTE の役割ごとの色）を持つ
+import type { PaletteName } from "../color"
 import type { MessageKey } from "../i18n/i18n"
 
 export const THEME_TOKENS = [
@@ -32,6 +34,7 @@ export interface ThemeDef {
   id: string
   title: MessageKey
   base: Readonly<Record<ThemeToken, ThemeValue>>
+  palette: Readonly<Record<PaletteName, ThemeValue>> // 代表色（#rrggbb）
   tokens?: Readonly<Record<string, ThemeValue>> // 宣言された欄（TokenDecl の id）の上書き
 }
 

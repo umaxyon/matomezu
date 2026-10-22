@@ -89,6 +89,10 @@ type catalog struct {
 		ID    string `json:"id"`
 		Title string `json:"title"`
 	} `json:"themes"`
+	Colors []struct {
+		ID      string `json:"id"`
+		Meaning string `json:"meaning"`
+	} `json:"colors"`
 }
 
 // showSchema は show の受ける形
@@ -182,8 +186,14 @@ func itemsText(c *catalog) string {
 	for _, th := range c.Themes {
 		themes = append(themes, fmt.Sprintf("%s (%s)", th.ID, th.Title))
 	}
+	colors := []string{}
+	for _, c := range c.Colors {
+		colors = append(colors, fmt.Sprintf("%s (%s)", c.ID, c.Meaning))
+	}
 	return strings.Join(parts, "; ") + ". A box's theme prop takes one of the themes: " + strings.Join(themes, ", ") +
-		" (without it, the box looks like its book's theme)"
+		" (without it, the box looks like its book's theme)" +
+		". A box's color prop fills the box: one of the theme's colors by role, " + strings.Join(colors, ", ") +
+		", drawn in the colors of the box's theme; or #rrggbb, the same in every theme (without it, the theme's fill)"
 }
 
 // callTool は道具を呼び、AI に返す文と、失敗したかを返す

@@ -1,7 +1,9 @@
 // 箱: キャプションと本文を入れる四角。キャプションと本文の間に区切り線を引ける（本文があるときだけ）。
 // 幅と高さは置いたアイテムの w・h で、利用者が変える（size.ts）。本文は高さに収まらない分を … で切る（本文の字数は BOX_BODY_MAX まで）。
+// 色（color）はテーマの上の塗りの上書き: 代表色の名前ならそのテーマの色、#rrggbb ならどのテーマでもその色、無ければテーマの塗り（paint.ts）。
 // 置くときは、置く所を覚えて追加のダイアログ（box.add）を開き、中身を決めてから置く。中身は編集のダイアログ（box.edit）で変える
 import { z } from "zod"
+import { HEX, PALETTE } from "../../../../core/color"
 import { defineItem } from "../../../../core/def/item"
 import type { Point } from "../../../../core/geom"
 import { defineDialogWith } from "../../../../store/dialogs"
@@ -25,6 +27,7 @@ export const BOX = defineItem({
     captionAlign: AlignSchema.default("center"), // キャプションの寄せ
     bodyAlign: AlignSchema.default("left"), // 本文の寄せ
     theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければブックのテーマ）
+    color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
   }),
   size: BOX_SIZE, // 幅の既定と、置いたときの一番低い高さ
   tokens: [

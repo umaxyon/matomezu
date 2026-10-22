@@ -450,3 +450,72 @@ test("編集のダイアログでテーマと寄せを選ぶと、確定の前�
   expect(await fill()).toBe("rgb(255, 243, 166)")
   expect(await bodyAlign()).toBe("right")
 })
+
+test("編集のダイアログの色のボタンでポップアップを開き、テーマの色を選ぶと箱がその色になる。Escape はポップアップだけを閉じ、キャンセルで元に戻る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBodyBox(page)
+  const box = page.locator("[data-item] [data-body]")
+  const look = () =>
+    box.evaluate(el => ({ fill: getComputedStyle(el).backgroundColor, text: getComputedStyle(el).color }))
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  const picker = page.getByRole("dialog", { name: "色を選ぶ" })
+  await page.locator("[data-item]").dblclick()
+  await dialog.getByRole("button", { name: "色", exact: true }).click()
+  await picker.getByRole("button", { name: "テーマの色 1" }).click()
+  await expect.poll(look).toEqual({ fill: "rgb(59, 130, 246)", text: "rgb(255, 255, 255)" })
+  await page.keyboard.press("Escape")
+  await expect(picker).toBeHidden()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect.poll(look).toEqual({ fill: "rgb(255, 255, 255)", text: "rgb(27, 27, 31)" })
+})
+
+test("テーマの色はテーマを変えるとそのテーマの色になり、値の欄に書いた色はどのテーマでもその色。なしで元の塗りに戻る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBodyBox(page)
+  const box = page.locator("[data-item] [data-body]")
+  const fill = () => box.evaluate(el => getComputedStyle(el).backgroundColor)
+  const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+  const picker = page.getByRole("dialog", { name: "色を選ぶ" })
+  const edit = async (change: () => Promise<void>) => {
+    await page.locator("[data-item]").dblclick()
+    await change()
+    await dialog.getByRole("button", { name: "確定" }).click()
+    await expect(dialog).toBeHidden()
+  }
+  await edit(async () => {
+    await dialog.getByRole("button", { name: "色", exact: true }).click()
+    await picker.getByRole("button", { name: "テーマの色 1" }).click()
+  })
+  expect(await fill()).toBe("rgb(59, 130, 246)")
+  await edit(() =>
+    dialog
+      .getByLabel("テーマ")
+      .selectOption({ label: "付箋紙" })
+      .then(() => {}),
+  )
+  expect(await fill()).toBe("rgb(207, 226, 255)")
+  await edit(async () => {
+    await dialog.getByRole("button", { name: "色", exact: true }).click()
+    await picker.getByLabel("色の値（#rrggbb）").fill("#1e3a8a")
+    await picker.getByLabel("色の値（#rrggbb）").press("Enter")
+    await expect(dialog).toBeVisible()
+  })
+  expect(await fill()).toBe("rgb(30, 58, 138)")
+  await edit(() =>
+    dialog
+      .getByLabel("テーマ")
+      .selectOption({ label: "ブックのテーマ" })
+      .then(() => {}),
+  )
+  expect(await fill()).toBe("rgb(30, 58, 138)")
+  await edit(async () => {
+    await dialog.getByRole("button", { name: "色", exact: true }).click()
+    await picker.getByRole("button", { name: "なし" }).click()
+  })
+  expect(await fill()).toBe("rgb(255, 255, 255)")
+})

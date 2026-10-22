@@ -1,7 +1,8 @@
 // 箱のアイテムのビュー: 上にキャプション（1 行で、収まらなければ … で切る）、本文が出るなら区切り線と本文。寄せはそれぞれの項目（captionAlign・bodyAlign）。
 // 本文は size.ts の boxLayout が折り返して高さに収めた行を、そのまま 1 行ずつ描く（ブラウザには折り返させない）。
-// 箱にテーマ（theme）を当てていれば、そのテーマの箱の欄（塗り・線・文字・角の丸み・影・角の折り返し）で描く。表に無いテーマならブックのテーマのまま
-import { useMemo } from "react"
+// 箱にテーマ（theme）を当てていれば、そのテーマの箱の欄（塗り・線・文字・角の丸み・影・角の折り返し）で描く。表に無いテーマならブックのテーマのまま。
+// 色（color）があれば、塗りと文字の欄をその色で上書きする（paint.ts）
+import { type CSSProperties, useMemo } from "react"
 import type { Size } from "../../../../core/geom"
 import type { ItemProps } from "../../../../core/registry"
 import { resolveTokens } from "../../../../core/theme"
@@ -9,6 +10,7 @@ import { useRegistry } from "../../../../ui/store-context"
 import { themeVars } from "../../../../ui/theme-vars"
 import { BOX } from "."
 import styles from "./BoxView.module.css"
+import { paintVars } from "./paint"
 import { boxLayout } from "./size"
 
 export function BoxView({ props, size }: { props: ItemProps<"shape.box">; size: Size }) {
@@ -22,7 +24,12 @@ export function BoxView({ props, size }: { props: ItemProps<"shape.box">; size: 
   const hasBody = body.length > 0
   return (
     <div className={styles.frame} style={vars} data-theme={theme}>
-      <div className={styles.box} data-body={hasBody}>
+      <div
+        className={styles.box}
+        style={paintVars(props.color) as CSSProperties}
+        data-body={hasBody}
+        data-color={props.color}
+      >
         {(props.caption !== "" || hasBody) && (
           <div className={styles.caption} data-align={props.captionAlign}>
             {props.caption}

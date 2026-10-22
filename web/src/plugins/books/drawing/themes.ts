@@ -16,6 +16,15 @@ export const STICKY = defineTheme({
     fill: "#fff3a6",
     accent: "#c2410c",
   },
+  // 付箋の色違い（淡い色）
+  palette: {
+    primary: "#cfe2ff",
+    secondary: "#e4d5ff",
+    success: "#d3f0c2",
+    warn: "#fff3a6",
+    danger: "#ffd0da",
+    muted: "#e9e3d5",
+  },
   tokens: {
     "box.fill": "#fff3a6",
     "box.line": "#d9c873",
@@ -40,6 +49,15 @@ export const SIMPLE = defineTheme({
     line: "#262626",
     fill: "#ffffff",
     accent: "#262626",
+  },
+  // 白い箱と黒い文字に合う、淡めの色
+  palette: {
+    primary: "#bfdbfe",
+    secondary: "#e9d5ff",
+    success: "#bbf7d0",
+    warn: "#fde68a",
+    danger: "#fecaca",
+    muted: "#e5e7eb",
   },
   tokens: {
     "box.fill": "#ffffff",
