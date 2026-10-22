@@ -83,29 +83,34 @@ interface Drop {
   bar: { x: number; y: number; w: number }
 }
 
-// ポインタ（画面の座標）の下のリストで、行 row を落とす所（無ければ null）。行の並びは画面に見えている順。行の真ん中より上なら、その行の前
-function dropAt(x: number, y: number, row: string): Drop | null {
-  const under = document.elementsFromPoint(x, y)
+// ポインタ（画面の座標）の下のリストで、行 row を落とす所（無ければ null）。行の並びは画面に見えている順。行の真ん中より上なら、その行の前。
+// ポインタの高さと光る線は、行の並びの見えている範囲（スクロールする所）の中に収める（範囲の外の行の間には出さない）
+function dropAt(x: number, pointerY: number, row: string): Drop | null {
+  const under = document.elementsFromPoint(x, pointerY)
   const item = under.map(el => el.closest("[data-item]")).find(Boolean)
   const ul = item?.querySelector<HTMLElement>("[data-list-rows]")
   const list = ul?.dataset.listRows
   if (!ul || !list) return null
   const box = ul.getBoundingClientRect()
+  const view = (ul.parentElement ?? ul).getBoundingClientRect()
+  const y = clamp(pointerY, view.top, view.bottom)
   const others = [...ul.querySelectorAll<HTMLElement>(":scope > [data-row]")].filter(li => li.dataset.row !== row)
   const next = others.find(li => {
     const r = li.getBoundingClientRect()
     return y < r.top + r.height / 2
   })
   const last = others.at(-1)?.getBoundingClientRect()
-  const at = next ? next.getBoundingClientRect().top - GAP_MID : last ? last.bottom + GAP_MID : box.top + INSET_MID
+  const gap = next ? next.getBoundingClientRect().top - GAP_MID : last ? last.bottom + GAP_MID : box.top + INSET_MID
   return {
     list,
     ...(next?.dataset.row ? { before: next.dataset.row } : {}),
-    bar: { x: box.left + 8, y: at, w: box.width - 16 },
+    bar: { x: box.left + 8, y: clamp(gap, view.top + BAR_HALF, view.bottom - BAR_HALF), w: box.width - 16 },
   }
 }
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const GAP_MID = 3 // 行の間の隙間（6px）の真ん中
 const INSET_MID = 4 // 行の無いリストの、台紙の内側の余白の真ん中
+const BAR_HALF = 2 // 光る線の太さ（4px）の半分
 
 // 行の高さを変えているドラッグ: つかんだ行と、その高さ（紙の上）、押したときのポインタの位置
 interface Stretch {
@@ -305,7 +310,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
               <div
                 className={styles.dropBar}
                 data-drop-bar
-                style={{ left: carried.drop.bar.x, top: carried.drop.bar.y - 1.5, width: carried.drop.bar.w }}
+                style={{ left: carried.drop.bar.x, top: carried.drop.bar.y - BAR_HALF, width: carried.drop.bar.w }}
               />
             )}
           </>,

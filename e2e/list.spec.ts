@@ -239,7 +239,7 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   await expect(page.getByRole("dialog", { name: "行の編集" })).toBeVisible()
 })
 
-test("行をドラッグして行の並びの下の端へ寄せると、ポインタを止めていても一番下までスクロールし続け、上の端へ寄せると上へ戻る", async ({
+test("行をドラッグして行の並びの下の端へ寄せると、ポインタを止めていても一番下までスクロールし続け、上の端へ寄せると上へ戻る。光る線は行の並びの外に出ない", async ({
   page,
 }) => {
   await page.goto("/")
@@ -258,7 +258,15 @@ test("行をドラッグして行の並びの下の端へ寄せると、ポイ�
   // ポインタを止めたまま、行の並びの一番下まで届く
   const end = await rows.evaluate(el => el.scrollHeight - el.clientHeight)
   await expect.poll(() => rows.evaluate(el => el.scrollTop)).toBe(end)
-  await page.mouse.move(at.x + 40, at.y + 2, { steps: 4 })
-  await expect.poll(() => rows.evaluate(el => el.scrollTop)).toBe(0)
+  // 上の端の外（見出しの上）へ寄せると上へ戻る。光る線は行の並びの見えている範囲の外に出ない
+  await page.mouse.move(at.x + 40, at.y - 10, { steps: 4 })
+  const tops: number[] = []
+  await expect
+    .poll(async () => {
+      tops.push((await page.locator("[data-drop-bar]").boundingBox())!.y)
+      return rows.evaluate(el => el.scrollTop)
+    })
+    .toBe(0)
+  for (const y of tops) expect(y).toBeGreaterThanOrEqual(at.y - 0.5)
   await page.mouse.up()
 })
