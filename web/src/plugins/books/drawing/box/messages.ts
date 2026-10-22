@@ -16,6 +16,7 @@ export const BOX_MESSAGES = defineMessages({
   Theme: { ja: "テーマ" },
   "Book's theme": { ja: "ブックのテーマ" },
   Color: { ja: "色" },
+  "Theme color {n}": { ja: "テーマの色 {n}" },
   "Body alignment": { ja: "本文の寄せ" },
   "Align left": { ja: "左寄せ" },
   "Align center": { ja: "中央寄せ" },

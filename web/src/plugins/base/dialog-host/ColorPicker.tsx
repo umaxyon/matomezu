@@ -1,5 +1,5 @@
 // 色を選ぶ欄: 今の色の丸いボタン。押すと下に色を選ぶポップアップを出す（Figma の形）:
-//   上: 代表色の見本と「なし」。押すとその色になる。役割の名前は出さない（意味を利用者に押し付けない）
+//   上: 見本（代表色など、使う側が渡す）と「なし」。押すとその色になる
 //   中: 四角（横が濃さ、縦が明るさ）と、色合いのスライダー、灰色のスライダー（どの色合いでも灰色を選べる）
 //   下: 値の欄（#rrggbb。Enter か欄を離れたら決める。読めない値なら元に戻す）
 // 四角とスライダーは、動かすそばから onChange に渡す。外を押すか Esc で閉じる（Esc はダイアログには渡さない）。
@@ -18,8 +18,9 @@ import { useT } from "../../../ui/i18n"
 import styles from "./ColorPicker.module.css"
 
 export interface Swatch {
-  name: string // 選んだときの値（代表色の名前）
+  name: string // 選んだときの値（代表色の名前か #rrggbb）
   hex: string // 見本の色（#rrggbb）
+  label: string // 見本の名前
 }
 
 export function ColorPicker({
@@ -166,13 +167,13 @@ function Popup({
       onKeyDown={onKey}
     >
       <div className={styles.swatches}>
-        {palette.map((s, i) => (
+        {palette.map(s => (
           <button
             key={s.name}
             type="button"
             className={styles.swatch}
             style={{ background: s.hex }}
-            aria-label={t("Theme color {n}", { n: i + 1 })}
+            aria-label={s.label}
             aria-pressed={value === s.name}
             onClick={() => chooseSwatch(s)}
           />

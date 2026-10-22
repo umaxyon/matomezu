@@ -258,7 +258,7 @@ test("図面の画面を右クリックすると押した位置にメニュー�
   await expect(menu).toHaveCount(0)
   const dialog = page.getByRole("dialog", { name: "設定" })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole("button", { name: "閉じる" }).click()
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(dialog).toHaveCount(0)
 })
 

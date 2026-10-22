@@ -1,6 +1,7 @@
 // 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）と、そのキーの既定の割り当て。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
+import { BOOK_UPDATE } from "./book-look"
 import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
@@ -19,7 +20,7 @@ export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin({
   id: "@matomezu/base",
-  actions: [PAGE_ADD, SET_LANG, SET_SKIN, SET_KEYS],
+  actions: [PAGE_ADD, BOOK_UPDATE, SET_LANG, SET_SKIN, SET_KEYS],
   themes: [STANDARD],
   papers: PAPERS,
   skins: [DARK, LIGHT],
@@ -50,6 +51,7 @@ declare module "../../core/tables" {
   interface MessageTable extends Readonly<typeof BASE_MESSAGES> {}
   interface ActionTable {
     "page.add": typeof PAGE_ADD
+    "book.update": typeof BOOK_UPDATE
     "settings.lang": typeof SET_LANG
     "settings.skin": typeof SET_SKIN
     "settings.keys": typeof SET_KEYS

@@ -1,9 +1,10 @@
 // ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
-// ブックの中はブックのテーマの値（CSS 変数）で描く。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
+// ブックの中はブックのテーマの値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
 import { fail } from "../../../core/errors"
 import type { BookTypeId } from "../../../core/registry"
+import type { Book } from "../../../core/schema/book"
 import { paperOf, type Stage } from "../../../core/stage"
 import { bookTokens } from "../../../core/theme"
 import { toolOf } from "../../../core/workspace"
@@ -29,9 +30,14 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     const o = s.workspace.stages.find(st => st.id === id)?.opened
     return o ? s.books[o.book] : undefined
   })
+  const preview = useApp(s => s.dialog?.preview ?? null)
+  const look = preview && preview.item === undefined && preview.book === book?.id ? preview.props : null
   const registry = useRegistry()
   const tool = useApp(s => toolOf(registry, s.workspace, id))
-  const vars = useMemo(() => (book ? themeVars(bookTokens(registry, book)) : undefined), [registry, book])
+  const vars = useMemo(
+    () => (book ? themeVars(bookTokens(registry, look ? ({ ...book, ...look } as Book) : book)) : undefined),
+    [registry, book, look],
+  )
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const t = useT()
   const ref = useRef<HTMLElement>(null)

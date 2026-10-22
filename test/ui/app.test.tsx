@@ -281,7 +281,7 @@ test("図面の画面を右クリックすると押した位置にメニュー�
   fireEvent.click(within(menu).getByRole("menuitem", { name: "設定" }))
   expect(screen.queryByRole("menu")).toBeNull()
   const dialog = screen.getByRole("dialog", { name: "設定" })
-  fireEvent.click(within(dialog).getByRole("button", { name: "閉じる" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
   expect(screen.queryByRole("dialog")).toBeNull()
 })
 

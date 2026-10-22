@@ -1,6 +1,7 @@
-// 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテムを置く
+// 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテムを置く。見た目（テーマと紙の色）を変えられる
 import { z } from "zod"
 import { defineBookType } from "../../../core/def/book-type"
+import { BookLookSchema } from "../../../core/theme"
 import { PAPER_IDS } from "../../base"
 import { DrawingPageSchema } from "./items/schema"
 
@@ -13,6 +14,7 @@ export const DRAWING = defineBookType({
     id: z.string().min(1),
     title: z.string(),
     pages: z.array(DrawingPageSchema),
+    ...BookLookSchema,
   }),
   single: false,
   create: init => ({ type: "drawing", ...init, pages: [] }),
@@ -22,8 +24,8 @@ export const DRAWING = defineBookType({
   },
   items: { allowed: ["shape.box"], defaults: ["shape.box"] },
   actions: {
-    allowed: ["page.add", "item.place", "item.move", "item.update", "item.resize", "item.remove"],
-    defaults: ["page.add", "item.place", "item.move", "item.update", "item.resize", "item.remove"],
+    allowed: ["page.add", "book.update", "item.place", "item.move", "item.update", "item.resize", "item.remove"],
+    defaults: ["page.add", "book.update", "item.place", "item.move", "item.update", "item.resize", "item.remove"],
   },
   theme: "standard",
   tokens: [],

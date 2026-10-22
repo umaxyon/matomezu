@@ -173,7 +173,7 @@ function Items({ stage }: { stage: Stage }) {
   // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きのあるアイテムは、項目に下書きを重ねて描く
   const shown = (placed: Placed): Placed => {
     const item =
-      preview && preview.book === stage.opened?.book && preview.item === placed.id
+      preview?.item !== undefined && preview.book === stage.opened?.book && preview.item === placed.id
         ? ({ ...placed, props: { ...placed.props, ...preview.props } } as Placed)
         : placed
     const st = stretch.current

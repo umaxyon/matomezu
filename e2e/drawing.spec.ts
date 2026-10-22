@@ -519,3 +519,35 @@ test("テーマの色はテーマを変えるとそのテーマの色になり�
   })
   expect(await fill()).toBe("rgb(255, 255, 255)")
 })
+
+test("設定のダイアログでブックのテーマと紙の色を選ぶと、確定の前から紙と中の箱に出る。キャンセルで戻り、確定でそのままになる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBodyBox(page)
+  const paper = page.getByRole("img", { name: "紙" })
+  const box = page.locator("[data-item] [data-body]")
+  const look = async () => ({
+    paper: await paper.evaluate(el => getComputedStyle(el).backgroundColor),
+    box: await box.evaluate(el => getComputedStyle(el).backgroundColor),
+  })
+  const dialog = page.getByRole("dialog", { name: "設定" })
+  const choose = async () => {
+    const at = (await paper.boundingBox())!
+    await page.mouse.click(at.x + 600, at.y + 400, { button: "right" })
+    await page.getByRole("menu").getByRole("menuitem", { name: "設定" }).click()
+    await dialog.getByLabel("テーマ").selectOption({ label: "付箋紙" })
+    await expect.poll(look).toEqual({ paper: "rgb(244, 239, 228)", box: "rgb(255, 243, 166)" })
+    await dialog.getByRole("button", { name: "紙の色" }).click()
+    await page.getByRole("dialog", { name: "色を選ぶ" }).getByRole("button", { name: "#eff6ff" }).click()
+    await page.keyboard.press("Escape")
+    await expect.poll(look).toEqual({ paper: "rgb(239, 246, 255)", box: "rgb(255, 243, 166)" })
+  }
+  await choose()
+  await dialog.getByRole("button", { name: "キャンセル" }).click()
+  await expect.poll(look).toEqual({ paper: "rgb(255, 255, 255)", box: "rgb(255, 255, 255)" })
+  await choose()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  expect(await look()).toEqual({ paper: "rgb(239, 246, 255)", box: "rgb(255, 243, 166)" })
+})

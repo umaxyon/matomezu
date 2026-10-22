@@ -8,9 +8,9 @@ import { useCallback, useEffect, useId, useMemo, useState } from "react"
 import { PALETTE } from "../../../../core/color"
 import type { Point } from "../../../../core/geom"
 import type { MessageKey } from "../../../../core/i18n/i18n"
-import { bookType, type ItemProps } from "../../../../core/registry"
+import type { ItemProps } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
-import { resolveTokens } from "../../../../core/theme"
+import { bookTheme, resolveTokens } from "../../../../core/theme"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
@@ -50,8 +50,10 @@ const useBookOf = (stage: string) => useApp(s => s.workspace.stages.find(st => s
 // ブックのテーマの id
 function useBookTheme(book: string | undefined) {
   const registry = useRegistry()
-  const type = useApp(s => (book ? s.books[book]?.type : undefined))
-  return type ? bookType(registry, type).theme : undefined
+  return useApp(s => {
+    const b = book ? s.books[book] : undefined
+    return b ? bookTheme(registry, b) : undefined
+  })
 }
 
 export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
@@ -151,9 +153,14 @@ function BoxDialog({
   const swatches = useMemo(() => {
     if (!looks || !registry.themes.has(looks)) return null
     const tokens = resolveTokens(registry, looks, BOX.tokens)
-    const palette = PALETTE.map(name => ({ name, hex: tokens[`palette.${name}`]?.light ?? "#ffffff" }))
+    // 役割の名前は出さない（意味を利用者に押し付けない）
+    const palette = PALETTE.map((name, i) => ({
+      name,
+      hex: tokens[`palette.${name}`]?.light ?? "#ffffff",
+      label: t("Theme color {n}", { n: i + 1 }),
+    }))
     return { palette, none: tokens["box.fill"]?.light ?? "#ffffff" }
-  }, [registry, looks])
+  }, [registry, looks, t])
   const changed =
     captionAlign !== start.captionAlign ||
     bodyAlign !== start.bodyAlign ||
