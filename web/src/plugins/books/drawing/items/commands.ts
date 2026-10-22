@@ -3,8 +3,7 @@ import type { Point } from "../../../../core/geom"
 import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
 import { defineKeys } from "../../../../store/keys"
-import { BOX } from "../box"
-import { LIST } from "../list"
+import { placedDef, placedDefOf } from "../placed"
 import type { Came } from "./drag"
 import { type Edges, fitsPaper, itemSize, itemsOf, PLACE_OFFSET, resizedBy } from "./items"
 
@@ -14,10 +13,6 @@ const onDrawingPage = (ctx: CommandContext) => ctx.book?.type === "drawing" && c
 export function placeAt(ctx: Pick<CommandContext, "stage">, pointer: Point): Point | null {
   return toPaper(ctx.stage, { x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
 }
-
-// 置く前に中身を決める追加のダイアログと、中身を変える編集のダイアログ（アイテムごと）
-const ADD_DIALOGS = { [BOX.id]: "box.add", [LIST.id]: "list.add" } as const
-const EDIT_DIALOGS = { [BOX.id]: "box.edit", [LIST.id]: "list.edit" } as const
 
 // 置こうとしているアイテムを、ポインタの所に置く。置けたら置くのをやめ、置いたアイテムを選ぶ。紙からはみ出す所なら何もしない。
 // 追加のダイアログのあるアイテム（箱・リスト）は、置くのをやめて追加のダイアログを開き、中身を決めてから置く
@@ -31,7 +26,7 @@ export const DRAWING_PLACE = defineCommand({
     const size = stage.placing && itemSize(ctx.registry, stage.placing)
     const paper = paperOf(stage)
     if (!at || !page || !stage.placing || !stage.opened || !size || !paper || !fitsPaper(at, size, paper)) return
-    const dialog = ADD_DIALOGS[stage.placing as keyof typeof ADD_DIALOGS]
+    const dialog = placedDefOf(stage.placing)?.dialogs.add
     if (dialog) {
       a.stopPlacing(stage.id)
       a.openDialog(stage.id, dialog, { page, at })
@@ -56,7 +51,7 @@ export const DRAWING_EDIT = defineCommand({
     const found = book?.pages.find(p => p.id === page)
     const placed = found && itemsOf(found).find(i => i.id === item)
     if (!page || !placed) return
-    a.openDialog(ctx.stage.id, EDIT_DIALOGS[placed.item], { page, item })
+    a.openDialog(ctx.stage.id, placedDef(placed).dialogs.edit, { page, item })
   },
   when: onDrawingPage,
 })

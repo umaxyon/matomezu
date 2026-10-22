@@ -79,6 +79,21 @@ describe("依存の向き", () => {
   }
 })
 
+test("図面の置き方の層（items）はアイテムを名指ししない: items は box・list を読まず、box・list の置き方（placed）は items の約束（placed-def）だけを読む", () => {
+  const DRAWING = "plugins/books/drawing"
+  const offenders = sources.flatMap(f => {
+    const targets = importsOf(f).filter(t => t.startsWith(`${DRAWING}/`))
+    if (f.rel.startsWith(`${DRAWING}/items/`))
+      return targets.filter(t => /^plugins\/books\/drawing\/(box|list)(\/|$)/.test(t)).map(t => `${f.rel} -> ${t}`)
+    if (/^plugins\/books\/drawing\/(box|list)\/placed\.ts$/.test(f.rel))
+      return targets
+        .filter(t => t.startsWith(`${DRAWING}/items/`) && t !== `${DRAWING}/items/placed-def`)
+        .map(t => `${f.rel} -> ${t}`)
+    return []
+  })
+  expect(offenders).toEqual([])
+})
+
 test("状態を変えるのは store の中だけ（画面は setState を使わない）", () => {
   const offenders = sources.filter(f => layerOf(f.rel) !== "store" && /\bsetState\b/.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])

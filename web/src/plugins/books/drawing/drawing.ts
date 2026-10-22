@@ -3,7 +3,7 @@ import { z } from "zod"
 import { defineBookType } from "../../../core/def/book-type"
 import { BookLookSchema } from "../../../core/theme"
 import { PAPER_IDS } from "../../base"
-import { DrawingPageSchema } from "./items/schema"
+import { DrawingPageSchema } from "./placed"
 
 export const DRAWING = defineBookType({
   id: "drawing",

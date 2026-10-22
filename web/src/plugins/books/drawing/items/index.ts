@@ -1,4 +1,6 @@
 // 置いたアイテム: 図面のページに置いたアイテムのデータ、置く・動かす・中身を変える・消すアクションと、画面から呼ぶコマンド
+
+export { type DrawingPage, DrawingPageSchema, type Placed } from "../placed"
 export { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 export {
   DRAWING_DELETE,
@@ -11,4 +13,3 @@ export {
 } from "./commands"
 export { type Came, DIRS, type Dir } from "./drag"
 export { dragging, type Edges, fitsPaper, itemSize, itemsOf, minSize, placedSize, resizedBy, trackDrag } from "./items"
-export { type DrawingPage, DrawingPageSchema, type Placed } from "./schema"

@@ -5,13 +5,9 @@ import { freshId } from "../../../../core/ids"
 import { resolvePaper } from "../../../../core/paper"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
-import { BOX } from "../box"
-import { BOX_MIN, placedHeight, placedWidth } from "../box/size"
-import { LIST } from "../list"
-import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../list/size"
+import { type DrawingPage, type Placed, placedDef } from "../placed"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 import { type Floors, newClash, planPlace, pushFrom, type Rect } from "./push"
-import type { DrawingPage, Placed } from "./schema"
 
 type Drawing = BookOf<"drawing">
 
@@ -35,23 +31,18 @@ export function itemSize(reg: Registry, item: string): Size | null {
   return reg.items.get(item)?.size ?? null
 }
 
-// 置いたアイテムの大きさ。w・h（無ければ置いたときの幅と高さ: 箱はキャプションと本文から、リストはキャプションから）
+// 置いたアイテムの大きさ。w・h（無ければ置いたときの幅と高さ。アイテムの置き方が決める）。表に無いアイテムは null
 export function placedSize(reg: Registry, item: Placed): Size | null {
-  if (!itemSize(reg, item.item)) return null
-  if (item.item === LIST.id) return { w: item.w ?? placedListWidth(item.props.caption), h: item.h ?? LIST_SIZE.h }
-  const w = item.w ?? placedWidth(item.props)
-  return { w, h: item.h ?? placedHeight(item.props, w) }
+  return itemSize(reg, item.item) ? placedDef(item).size(item) : null
 }
 
 // 大きさを変えられるアイテムの、一番小さい大きさ（変えられないアイテムは null）
 export function minSize(item: Placed): Size | null {
-  return item.item === BOX.id ? BOX_MIN : item.item === LIST.id ? LIST_MIN : null
+  return placedDef(item).min ?? null
 }
 
-// キャプションが PLACE_CAPTION 字まで切れずに見える幅（箱・リスト。編集で縮めてよい横の下限と、キャプションで広げる幅）
-function captionWidth(item: Placed): number {
-  return item.item === LIST.id ? listCaptionWidth(item.props.caption) : placedWidth(item.props)
-}
+// キャプションが切れずに見える幅（編集で縮めてよい横の下限と、キャプションで広げる幅）
+const captionWidth = (item: Placed): number => placedDef(item).captionWidth(item)
 
 // つかんだ辺（x は左か右、y は上か下。角なら両方）
 export interface Edges {

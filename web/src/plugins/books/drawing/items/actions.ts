@@ -2,8 +2,7 @@
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { bookType } from "../../../../core/registry"
-import { LIST } from "../list"
-import { settleChecks } from "../list/rows"
+import { PlacedSchema, placedDef } from "../placed"
 import { DIRS } from "./drag"
 import {
   itemsOf,
@@ -16,7 +15,6 @@ import {
   replacePushing,
   widenForCaption,
 } from "./items"
-import { PlacedSchema } from "./schema"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
@@ -92,7 +90,7 @@ export const ITEM_UPDATE = defineAction({
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const parsed = PlacedSchema.safeParse({ ...now, props })
     if (!parsed.success || !page || !knownTheme(ctx.registry, parsed.data)) return null
-    const item = parsed.data.item === LIST.id ? settleChecks(parsed.data) : parsed.data
+    const item = placedDef(parsed.data).settle?.(parsed.data) ?? parsed.data
     const wide = widenForCaption(ctx.registry, page, now, item)
     const next =
       replacePushing(ctx.registry, book, args.page, wide, false) ??
