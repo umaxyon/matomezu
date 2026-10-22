@@ -4,7 +4,7 @@
 // 文字の幅と折り返しは core/text で計算するので、画面でも常駐でも同じ行になる。画面（BoxView）はこの値のとおりに描く
 import type { z } from "zod"
 import type { Size } from "../../../../core/geom"
-import { clampLines, type Font, wrap } from "../../../../core/text/text"
+import { clampLines, type Font, textWidth, wrap } from "../../../../core/text/text"
 import type { BOX } from "."
 
 type BoxProps = z.infer<(typeof BOX)["props"]>
@@ -24,8 +24,9 @@ const L = BOX_LOOK
 const HEAD = 2 * (L.border + L.padY) + L.line // 上下の枠と余白と、キャプション 1 行
 const RULE = 2 * L.ruleGap + 1
 
-export const BOX_SIZE: Size = { w: 160, h: 64 } // 幅の既定と、置いたときの一番低い高さ
-export const BOX_MIN: Size = { w: 80, h: HEAD } // 一番狭い幅と、一番低い高さ（キャプション 1 行）
+export const BOX_SIZE: Size = { w: 64, h: 64 } // 置いたときの一番小さい大きさ（中身の無い箱の大きさ）
+export const BOX_MIN: Size = { w: 64, h: HEAD } // 一番狭い幅と、一番低い高さ（キャプション 1 行）
+export const PLACE_CAPTION = 20 // 置いたときに幅を取るキャプションの字の数の上限（超えた分は … で切れる）
 export const BOX_BODY_MAX = 2000 // 本文の字数の上限
 export const PLACE_LINES = 5 // 置いたときに見せる本文の行の数の上限
 
@@ -44,6 +45,13 @@ export function boxLayout(props: BoxProps, size: Size): BoxLayout {
   if (fits <= 0) return { body: [], rule: false }
   const inner = innerWidth(size.w)
   return { body: clampLines(wrap(props.body, inner, L.body), fits, inner, L.body), rule: props.rule }
+}
+
+// 置いたときの幅: キャプションが PLACE_CAPTION 字まで切れずに見える幅（超えるなら、その字数と … が見える幅。一番狭くて BOX_SIZE の幅）
+export function placedWidth(props: BoxProps): number {
+  const chars = [...props.caption]
+  const shown = chars.length > PLACE_CAPTION ? `${chars.slice(0, PLACE_CAPTION).join("")}…` : props.caption
+  return Math.max(BOX_SIZE.w, Math.ceil(textWidth(shown, L.caption)) + 2 * (L.border + L.padX))
 }
 
 // 置いたときの高さ: 本文が PLACE_LINES 行まで見える高さ（一番低くて BOX_SIZE の高さ）

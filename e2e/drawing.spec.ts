@@ -318,3 +318,28 @@ test("下の辺を上へ縮めると本文は収まる行だけになって … 
   await expect(page.locator("[data-item] hr")).toHaveCount(0)
   await expect(page.locator("[data-item]")).toHaveText("見出し")
 })
+
+test("置いた箱の幅はキャプションに合わせ、20 字までは切れずに出る。20 字を超えると、20 字と … が見える幅で切れる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.evaluate(() => document.fonts.ready)
+  const caption = (i: number) => page.locator("[data-item]").nth(i).locator("div").nth(1)
+  const cut = (i: number) => caption(i).evaluate(el => el.scrollWidth > el.clientWidth)
+  for (const [i, text, y] of [
+    [0, "あいうえおかきくけこさしすせそたちつてと", 100],
+    [1, "あいうえおかきくけこさしすせそたちつてとなにぬねの", 200],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, 100, y)
+    await addBox(page, at.x, at.y, text)
+    await page.evaluate(() => document.fonts.ready)
+    expect(await cut(i)).toBe(i === 1)
+  }
+  const [a, b] = [
+    (await page.locator("[data-item]").nth(0).boundingBox())!,
+    (await page.locator("[data-item]").nth(1).boundingBox())!,
+  ]
+  expect(b.width).toBeGreaterThan(a.width)
+  expect(b.width - a.width).toBeLessThan(20)
+})

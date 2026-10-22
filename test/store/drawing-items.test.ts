@@ -52,7 +52,7 @@ test("置くときに渡した項目を箱に入れ、書かなかった項目�
       item: "shape.box",
       x: 100,
       y: 50,
-      w: 160,
+      w: 64,
       h: 64,
       props: { caption: "見出し", rule: true, body: "本文" },
     },
@@ -70,7 +70,7 @@ test("紙から少しでもはみ出す所では置かず、置こうとした�
   store.actions.togglePlacing("s1", "shape.box")
   store.actions.command("s1", "drawing.place", pointerFor(store, { x: -1, y: 0 }))
   const w = store.state.getState().workspace.stages[0]!.opened!.paper
-  const right = w?.status === "known" ? w.size.w - 160 + 1 : 0
+  const right = w?.status === "known" ? w.size.w - 64 + 1 : 0
   store.actions.command("s1", "drawing.place", pointerFor(store, { x: right, y: 0 }))
   expect(page(store).items).toBeUndefined()
   expect(store.state.getState().workspace.stages[0]!.placing).toBe("shape.box")
@@ -152,7 +152,7 @@ test("箱の編集は書いた項目だけを変え、位置・大きさと id �
   )
   expect(done.ok).toBe(true)
   expect(page(store).items).toEqual([
-    { id: "n1", item: "shape.box", x: 10, y: 20, w: 160, h: 64, props: { caption: "後", rule: true, body: "本文" } },
+    { id: "n1", item: "shape.box", x: 10, y: 20, w: 64, h: 64, props: { caption: "後", rule: true, body: "本文" } },
   ])
   const bad = store.actions.perform("item.update", { page: "p1", item: "n1", props: { text: "x" } }, { book: "b1" })
   const none = store.actions.perform("item.update", { page: "p1", item: "b9", props: {} }, { book: "b1" })

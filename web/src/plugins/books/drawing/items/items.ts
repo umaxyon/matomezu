@@ -6,7 +6,7 @@ import { resolvePaper } from "../../../../core/paper"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { BOX } from "../box"
-import { BOX_MIN, placedHeight } from "../box/size"
+import { BOX_MIN, placedHeight, placedWidth } from "../box/size"
 import type { DrawingPage, Placed } from "./schema"
 
 type Drawing = BookOf<"drawing">
@@ -29,11 +29,11 @@ export function itemSize(reg: Registry, item: string): Size | null {
   return reg.items.get(item)?.size ?? null
 }
 
-// 置いたアイテムの大きさ。w・h（無ければ定義の幅と、箱は置いたときの高さ）
+// 置いたアイテムの大きさ。w・h（無ければ定義の大きさ。箱は置いたときの幅と高さ）
 export function placedSize(reg: Registry, item: Placed): Size | null {
   const size = itemSize(reg, item.item)
   if (!size) return null
-  const w = item.w ?? size.w
+  const w = item.w ?? (item.item === BOX.id ? placedWidth(item.props) : size.w)
   return { w, h: item.h ?? (item.item === BOX.id ? placedHeight(item.props, w) : size.h) }
 }
 

@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight } from "../../web/src/plugins/books/drawing/box/size"
+import { textWidth } from "../../web/src/core/text/text"
+import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/books/drawing/box/size"
 import { newStore } from "../support"
 
 const page = (store: ReturnType<typeof newStore>) => (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
@@ -48,10 +49,22 @@ test("置いたときの高さは、本文が 5 行まで見える高さ（一�
   expect(placedHeight(box("一\n二\n三"), 160)).toBe(heightOf(3))
 })
 
+test("置いたときの幅は、キャプションが 20 字まで切れずに見える幅。超えたら 20 字と … の幅で、一番狭くて 64", () => {
+  const caption = (c: string) => ({ caption: c, rule: true, body: "" })
+  const pad = 2 * (BOX_LOOK.border + BOX_LOOK.padX)
+  expect(placedWidth(caption(""))).toBe(64)
+  expect(placedWidth(caption("見出し"))).toBe(64)
+  const twenty = "あ".repeat(20)
+  expect(placedWidth(caption(twenty))).toBe(Math.ceil(textWidth(twenty, BOX_LOOK.caption)) + pad)
+  const over = placedWidth(caption("あ".repeat(30)))
+  expect(over).toBe(Math.ceil(textWidth(`${twenty}…`, BOX_LOOK.caption)) + pad)
+  expect(placedWidth(caption("あ".repeat(50)))).toBe(over)
+})
+
 test("置くと、幅と高さをデータに書く。幅と高さを渡せばその大きさで置き、一番小さい大きさより小さければ置かない", () => {
   const store = ready()
   expect(place(store, box(LONG)).ok).toBe(true)
-  expect(items(store)[0]).toMatchObject({ w: 160, h: heightOf(5) })
+  expect(items(store)[0]).toMatchObject({ w: 64, h: heightOf(5) })
   expect(place(store, box(""), { x: 400, y: 100 }, { w: 240, h: 100 }).ok).toBe(true)
   expect(items(store)[1]).toMatchObject({ w: 240, h: 100 })
   expect(place(store, box(""), { x: 100, y: 400 }, { w: 40 }).ok).toBe(false)
@@ -68,7 +81,7 @@ test("本文を変えても大きさは変わらない", () => {
   const store = ready()
   place(store, box("短い"))
   store.actions.perform("item.update", { page: "p1", item: "n1", props: { body: LONG } }, { book: "b1" })
-  expect(items(store)[0]).toMatchObject({ w: 160, h: 64, props: { body: LONG } })
+  expect(items(store)[0]).toMatchObject({ w: 64, h: 64, props: { body: LONG } })
 })
 
 test("item.resize で渡した値だけを変える。x・y を渡せば左上も動く。小さすぎる・紙の外へ出る大きさは断る", () => {
@@ -80,7 +93,7 @@ test("item.resize で渡した値だけを変える。x・y を渡せば左上�
   expect(items(store)[0]).toMatchObject({ x: 100, y: 100, w: 300, h: 64 })
   expect(resize({ h: 200, y: 50 }).ok).toBe(true)
   expect(items(store)[0]).toMatchObject({ x: 100, y: 50, w: 300, h: 200 })
-  expect(resize({ w: 79 }).ok).toBe(false)
+  expect(resize({ w: BOX_MIN.w - 1 }).ok).toBe(false)
   expect(resize({ h: BOX_MIN.h - 1 }).ok).toBe(false)
   expect(resize({ h: 2000 }).ok).toBe(false)
   expect(items(store)[0]).toMatchObject({ w: 300, h: 200 })
@@ -93,11 +106,11 @@ test("画面から辺をつかんで大きさを変える: 辺はその辺だけ
   const drag = (edges: object, x: number, y: number) =>
     store.actions.command("s1", "drawing.resize", { item: "n1", edges, by: { x: x * zoom, y: y * zoom } })
   drag({ x: "right" }, 40, 30)
-  expect(items(store)[0]).toMatchObject({ x: 100, y: 100, w: 200, h: 64 })
+  expect(items(store)[0]).toMatchObject({ x: 100, y: 100, w: 104, h: 64 })
   drag({ y: "bottom" }, 30, 36)
-  expect(items(store)[0]).toMatchObject({ w: 200, h: 100 })
+  expect(items(store)[0]).toMatchObject({ w: 104, h: 100 })
   drag({ x: "left", y: "top" }, -20, -10)
-  expect(items(store)[0]).toMatchObject({ x: 80, y: 90, w: 220, h: 110 })
+  expect(items(store)[0]).toMatchObject({ x: 80, y: 90, w: 124, h: 110 })
   drag({ y: "top" }, 0, 1000)
   expect(items(store)[0]).toMatchObject({ y: 200 - BOX_MIN.h, h: BOX_MIN.h })
 })
