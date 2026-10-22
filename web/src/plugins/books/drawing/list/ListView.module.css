@@ -4,18 +4,22 @@
   height: 100%;
   filter: var(--theme-box-shadow);
 }
-/* リスト。寸法は size.ts の LIST_LOOK と同じ値にする。字は箱と同じく同梱の Noto Sans JP で、字詰めなどを止める */
+/* リスト（台紙）。寸法は size.ts の LIST_LOOK と同じ値にする。字は箱と同じく同梱の Noto Sans JP で、字詰めなどを止める。
+   台紙の色は、色（--list-mount）を当てていればその色、無ければ塗りにテーマの台紙の色を混ぜた色。台紙の上の文字は --list-ink（無ければテーマの文字の色） */
 .list {
+  --mount: var(
+    --list-mount,
+    color-mix(in srgb, var(--theme-box-fill), var(--theme-list-mount-tint) var(--theme-list-mount-mix))
+  );
+  --ink: var(--list-ink, var(--theme-box-text));
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border: 1px solid var(--theme-box-line);
+  border: 1px solid var(--theme-list-frame-line);
   border-radius: var(--theme-box-radius);
-  /* 台紙: 塗りにテーマの台紙の色を混ぜる（混ぜなければ行と同じ地） */
-  --mount: color-mix(in srgb, var(--theme-box-fill), var(--theme-list-mount-tint) var(--theme-list-mount-mix));
   background: var(--mount);
   color: var(--theme-box-text);
   font-family: "Noto Sans JP", sans-serif;
@@ -32,17 +36,16 @@
   text-spacing-trim: space-all;
   text-autospace: no-autospace;
 }
-/* 見出し: キャプション 1 行（収まらない分は … で切る）と、その下の線 */
+/* 見出し: キャプション 1 行（収まらない分は … で切る）。台紙にテーマの帯の色を混ぜ（混ぜなければ台紙の上の文字）、文字はテーマの割合だけ白に寄せる */
 .head {
   flex: none;
   box-sizing: border-box;
   height: 27px;
   padding: 4px 8px;
   overflow: hidden;
-  border-bottom: 1px solid var(--theme-box-line);
-  /* 見出しの帯: 台紙にテーマの帯の色を混ぜ、文字はテーマの割合だけ白に寄せる */
+  border-bottom: 1px solid transparent;
   background: color-mix(in srgb, var(--mount), var(--theme-list-head-tint) var(--theme-list-head-mix));
-  color: color-mix(in srgb, var(--theme-box-text), #ffffff var(--theme-list-head-ink));
+  color: color-mix(in srgb, var(--ink), #ffffff var(--theme-list-head-ink));
   font-weight: 700;
   text-align: center;
   white-space: nowrap;
@@ -54,39 +57,41 @@
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--theme-box-text) 28%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent;
 }
+/* 台紙の内側の余白（左右と、最初の行の上） */
 .items {
   margin: 0;
-  padding: 0;
+  padding: 8px 8px 0;
   list-style: none;
 }
+/* 行: 台紙の上の 1 枚のカード（下に隙間 6px、中の余白は上下 8px・左右 12px） */
 .row {
+  --row-fill: var(--theme-box-fill);
   position: relative;
   display: flex;
-  gap: 6px;
+  gap: 8px;
   box-sizing: border-box;
-  padding: 4px 8px;
-  overflow: hidden;
-  border-bottom: 1px solid color-mix(in srgb, var(--theme-box-line) var(--theme-list-rule-mix), transparent);
-  --row-fill: var(--theme-box-fill);
+  margin-bottom: 6px;
+  padding: 8px 12px;
 }
-/* 行の色分け: 1 行おきに付箋の地へ文字の色を少し混ぜる */
+/* 行の色分け: 1 行おきにカードの地へ文字の色を少し混ぜる */
 .list[data-zebra="true"] .row:nth-child(even) {
   --row-fill: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 7%);
 }
-/* 行の付箋: 帯の内側（テーマの card-inset）に、角の丸み・影・右上の折り返しを付けて描く。文字はこの上に置く。
-   帯いっぱいに描くテーマでは、行が続いた 1 枚の板になり、影は一番下の行の下と台紙に落ちる（行が台紙から少し浮いて見える） */
+/* 行のカードの地: テーマの角の丸み・縁の線・影・右上の折り返し。文字はこの上に置く */
 .cardShadow {
   position: absolute;
-  inset: var(--theme-list-card-inset);
+  inset: 0;
   filter: var(--theme-list-card-shadow);
   pointer-events: none;
 }
 .card {
   position: relative;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
+  border: 1px solid color-mix(in srgb, var(--theme-box-line) var(--theme-list-card-line), transparent);
   border-radius: var(--theme-list-card-radius);
   background: var(--row-fill);
   clip-path: polygon(
@@ -100,8 +105,8 @@
 .card::after {
   content: "";
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -1px;
+  right: -1px;
   width: var(--theme-list-card-fold);
   height: var(--theme-list-card-fold);
   background: linear-gradient(to bottom left, transparent 50%, color-mix(in srgb, var(--row-fill), #000 14%) 50%);
@@ -110,6 +115,7 @@
   position: relative;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 .caption {
   overflow: hidden;
@@ -136,7 +142,7 @@
   height: 18px;
   white-space: pre;
 }
-/* チェックの印（行のキャプションの高さの真ん中） */
+/* チェックの印（行のキャプションの高さの真ん中）。印の線と地はテーマの文字の色 */
 .check {
   flex: none;
   position: relative;
@@ -144,7 +150,7 @@
   appearance: none;
   width: 14px;
   height: 14px;
-  margin-top: 2px;
+  margin: 2px 0 0;
   padding: 0;
   border: 1.5px solid color-mix(in srgb, var(--theme-box-text) 55%, transparent);
   border-radius: 3px;
@@ -162,11 +168,11 @@
   top: 0.5px;
   width: 3px;
   height: 7px;
-  border: solid var(--theme-box-fill);
+  border: solid var(--row-fill);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-/* 行の高さを変えるためにつかめる所（行の下の端の内側。行は中身を切り取るので外へははみ出さない。印は出さず、ポインタの形だけを変える） */
+/* 行の高さを変えるためにつかめる所（行のカードの下の端の内側。印は出さず、ポインタの形だけを変える） */
 .grip {
   position: absolute;
   left: 0;
@@ -177,7 +183,7 @@
   cursor: ns-resize;
   touch-action: none;
 }
-/* 行を足す「＋」の行: 真ん中の小さな角の丸いボタン（上下に 4px の空き）。行より目立たないよう、地は透かし、線と文字は薄く */
+/* 行を足す「＋」の行: 真ん中の小さな角の丸いボタン（上下に 4px の空き）。行より目立たないよう、地は透かし、線と文字は台紙の上の文字の色を薄く */
 .add {
   position: relative;
   display: block;
@@ -186,16 +192,16 @@
   height: 24px;
   margin: 4px auto;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--theme-box-text) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
   border-radius: 12px;
   background: transparent;
-  color: color-mix(in srgb, var(--theme-box-text) 45%, transparent);
+  color: color-mix(in srgb, var(--ink) 50%, transparent);
   font: inherit;
   font-size: 16px;
   line-height: 22px;
   cursor: pointer;
 }
 .add:hover {
-  background: color-mix(in srgb, var(--theme-box-text) 8%, transparent);
-  color: var(--theme-box-text);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
 }

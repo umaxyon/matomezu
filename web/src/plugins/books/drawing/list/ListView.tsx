@@ -6,7 +6,7 @@
 // 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list.stretchRow。ドラッグの途中の動いた量だけはビューに持つ）。
 // 設定のダイアログの「行の高さ」の下書き（項目 rowLines。データには無い）があれば、全部の行をそれで描く。
 // リストのテーマと色は箱と同じ欄（box.*）と、リストの欄（list.*。見出しの帯・台紙・行の付箋）で描き、行はリストに従う。
-// 行は帯の内側に付箋（card）を描き、文字はその上に置く（付箋紙のテーマでは台紙の上に 1 枚ずつ貼った付箋、ほかのテーマでは帯いっぱいの地）
+// 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 import { type CSSProperties, type PointerEvent, useMemo, useRef, useState } from "react"
 import type { ItemProps } from "../../../../core/registry"
 import { toPaperDelta } from "../../../../core/stage"
@@ -18,9 +18,9 @@ import type { ItemViewProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { themeVars } from "../../../../ui/theme-vars"
 import { BOX } from "../box"
-import { paintVars } from "../box/paint"
 import { LIST, type ListRow } from "."
 import styles from "./ListView.module.css"
+import { listPaintVars } from "./paint"
 import { linesFor, listLayout, type RowsLines, rowHeight } from "./size"
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
@@ -89,7 +89,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   })
   return (
     <div className={styles.frame} style={vars} data-theme={theme}>
-      <div className={styles.list} style={paintVars(props.color) as CSSProperties} data-zebra={props.zebra}>
+      <div className={styles.list} style={listPaintVars(props.color) as CSSProperties} data-zebra={props.zebra}>
         <div className={styles.head}>{props.caption}</div>
         <div
           className={styles.rows}

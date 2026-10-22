@@ -1,5 +1,5 @@
 // リストの大きさと行の並び: 幅と高さは置いたアイテムの w・h（利用者が決める。行が増えても伸びない。入らない行はリストの中でスクロールする）。
-// 上にキャプションの見出し（1 行）、その下に行を並べ、最後に行を足す「＋」の行（角の丸いボタン）。
+// 上にキャプションの見出し（1 行）、その下の台紙に行を 1 枚ずつのカードとして並べ（台紙の内側に余白、行の間に隙間）、最後に行を足す「＋」の行（角の丸いボタン）。
 // 行の高さは、本文を何行分見せるか（行数）で決める。行が行数（lines）を持てばその行数（本文の量によらない。ドラッグとそろえるボタンが書く）。
 // 持たない行はそろえる: 行数を持たない行の本文の折り返した行数のうち一番多い数と PLACE_LINES の小さい方（本文の無い行も同じ高さ）。収まらない本文は … で切る。
 // 文字の幅と折り返しは core/text で計算するので、画面でも常駐でも同じ行になる。画面（ListView）はこの値のとおりに描く
@@ -8,36 +8,40 @@ import { clampLines, textWidth, wrap } from "../../../../core/text/text"
 import { BOX_LOOK, PLACE_CAPTION, PLACE_LINES } from "../box/size"
 import type { ListRow } from "."
 
-// リストの見た目の寸法（px）。ListView.module.css と同じ値にする。字と余白は箱と同じ
+// リストの見た目の寸法（px。どのテーマでも同じ）。ListView.module.css と同じ値にする。字は箱と同じ
 export const LIST_LOOK = {
   border: 1,
-  padX: BOX_LOOK.padX,
-  padY: BOX_LOOK.padY,
+  padX: BOX_LOOK.padX, // 見出しの左右の余白
+  padY: BOX_LOOK.padY, // 見出しの上下の余白
   line: BOX_LOOK.line,
   ruleGap: BOX_LOOK.ruleGap,
+  inset: 8, // 台紙の内側の余白（行のカードの左右と、最初の行の上）
+  gap: 6, // 行のカードの間の隙間（行の下に取る）
+  rowPadX: 12, // 行のカードの左右の余白
+  rowPadY: 8, // 行のカードの上下の余白
   check: 14, // チェックの印の大きさ
-  checkGap: 6, // チェックの印と行の文字の間
+  checkGap: 8, // チェックの印と行の文字の間
   add: 32, // 「＋」の行の高さ（上下 4px の空きと、24px のボタン）
 } as const
 
 const L = LIST_LOOK
 const HEAD = 2 * L.padY + L.line + 1 // 見出し（キャプション 1 行）と、その下の線
 const RULE = 2 * L.ruleGap + 1
-const EMPTY_ROW = 2 * L.padY + L.line + 1 // 本文を出さない行（キャプション 1 行）と、その下の線
+const EMPTY_ROW = 2 * L.rowPadY + L.line // 本文を出さない行のカード（キャプション 1 行）
 
-export const LIST_SIZE: Size = { w: 240, h: 2 * L.border + HEAD + 3 * EMPTY_ROW + L.add } // 置いたときの幅の下限と、置いたときの高さ（行 3 つぶんの空き）
-export const LIST_MIN: Size = { w: 64, h: 2 * L.border + HEAD + L.add } // 一番狭い幅と、一番低い高さ（見出しと「＋」の行）
+export const LIST_SIZE: Size = { w: 240, h: 2 * L.border + HEAD + L.inset + 3 * (EMPTY_ROW + L.gap) + L.add } // 置いたときの幅の下限と、置いたときの高さ（行 3 つぶんの空き）
+export const LIST_MIN: Size = { w: 64, h: 2 * L.border + HEAD + L.inset + L.add } // 一番狭い幅と、一番低い高さ（見出しと「＋」の行）
 
 export interface RowLayout {
   lines: number // 本文を見せる行数
-  height: number // 行の高さ（下の線を含む）
+  height: number // 行のカードの高さ（下の隙間は含まない）
   body: string[] // 描く本文の行（行数で切る。本文が無ければ空）
   rule: boolean // 区切り線を引くか
 }
 
 export const MAX_ROW_LINES = 50 // 行に持たせる行数の上限
 
-// 本文を lines 行分見せる行の高さ（下の線を含む）
+// 本文を lines 行分見せる行のカードの高さ
 export const rowHeight = (lines: number): number => EMPTY_ROW + (lines > 0 ? RULE + lines * L.line : 0)
 
 // 行の高さ height に一番近い行数（0 から MAX_ROW_LINES）。ドラッグで高さを変えるとき
@@ -51,7 +55,7 @@ export type RowsLines = "auto" | number
 
 // 行の文字を置ける幅（チェックリストならチェックの印の分を除く）
 const textWidthOf = (w: number, checklist: boolean) =>
-  w - 2 * (L.border + L.padX) - (checklist ? L.check + L.checkGap : 0)
+  w - 2 * (L.border + L.inset + L.rowPadX) - (checklist ? L.check + L.checkGap : 0)
 
 // 幅 w のリストに描く行の並び。all を渡せば、行の持つ行数の代わりにそれで決める（そろえるボタンの下書き）
 export function listLayout(rows: readonly ListRow[], w: number, checklist: boolean, all?: RowsLines): RowLayout[] {
