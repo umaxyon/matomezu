@@ -235,13 +235,18 @@ textarea.control {
   border-radius: 6px;
   background: var(--skin-bg);
 }
+/* 選ぶ欄の地はスキンの地にする（透明だと、開いた選択肢の一覧がブラウザの明るい地に明るい文字で描かれて見えない） */
 .selectButton > select {
   padding: 6px 4px 6px 10px;
   border: 0;
-  background: transparent;
+  background: var(--skin-bg);
   color: var(--skin-text);
   font: inherit;
   cursor: pointer;
+}
+.selectButton option {
+  background: var(--skin-bg);
+  color: var(--skin-text);
 }
 .selectButton > button {
   padding: 6px 12px;

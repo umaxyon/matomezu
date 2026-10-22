@@ -256,22 +256,25 @@ function ListDialog({
         <SwitchPanel label={t("Checklist")} checked={checklist} onChange={toggleChecklist}>
           <fieldset className={styles.sub}>
             <legend>{t("Checked rows")}</legend>
-            <div className={rowClass}>
-              <span>{t("Gray out")}</span>
-              <Switch label={t("Gray out")} checked={checkedGray} onChange={setCheckedGray} />
+            <div className={styles.heights}>
+              <span className={rowClass}>
+                <span>{t("Gray out")}</span>
+                <Switch label={t("Gray out")} checked={checkedGray} onChange={setCheckedGray} />
+              </span>
+              <span className={styles.divider} aria-hidden="true" />
+              <label className={rowClass}>
+                <span>{t("Reorder")}</span>
+                <select
+                  className={`${controlClass} ${styles.narrow}`}
+                  value={checkedOrder}
+                  onChange={e => setCheckedOrder(e.target.value as ListProps["checkedOrder"])}
+                >
+                  <option value="none">{t("Not reordered")}</option>
+                  <option value="first">{t("First")}</option>
+                  <option value="last">{t("Last")}</option>
+                </select>
+              </label>
             </div>
-            <label className={rowClass}>
-              <span>{t("Reorder")}</span>
-              <select
-                className={`${controlClass} ${styles.narrow}`}
-                value={checkedOrder}
-                onChange={e => setCheckedOrder(e.target.value as ListProps["checkedOrder"])}
-              >
-                <option value="none">{t("Not reordered")}</option>
-                <option value="first">{t("First")}</option>
-                <option value="last">{t("Last")}</option>
-              </select>
-            </label>
           </fieldset>
         </SwitchPanel>
         {confirming && (
