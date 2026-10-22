@@ -32,10 +32,9 @@ import {
   Switch,
   SwitchPanel,
 } from "../../../base/ui"
-import { BOX_FILL } from "../box"
 import { itemsOf } from "../items/items"
 import { useAligns, useBookOf, useBookTheme, useSwatches } from "../shape/parts"
-import { LIST, type ListRow } from "."
+import { LIST, LIST_FILL, type ListRow } from "."
 import type { RowsLines } from "./size"
 
 // ダイアログの高さ（全部の欄が出たときの高さ。チェックリストなどで欄が増えても大きさを変えない）
@@ -174,7 +173,7 @@ function ListDialog({
   const [refused, setRefused] = useState(false)
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
   const [pick, setPick] = useState<number | "max">("max")
-  const swatches = useSwatches(theme || bookTheme, BOX_FILL)
+  const swatches = useSwatches(theme || bookTheme, LIST_FILL)
   const changed =
     captionAlign !== start.captionAlign ||
     theme !== (start.theme ?? "") ||

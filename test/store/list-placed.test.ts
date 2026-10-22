@@ -2,8 +2,11 @@ import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { placement } from "../../web/src/core/stage"
+import { resolveTokens } from "../../web/src/core/theme"
+import { BOX } from "../../web/src/plugins/books/drawing/box"
 import { PLACE_OFFSET } from "../../web/src/plugins/books/drawing/items/items"
 import { GAP } from "../../web/src/plugins/books/drawing/items/push"
+import { LIST } from "../../web/src/plugins/books/drawing/list"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../web/src/plugins/books/drawing/list/size"
 import { newStore, REGISTRY } from "../support"
 
@@ -95,4 +98,13 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
   expect(ok({ item: "shape.list", props: {}, children: [{ ...row, props: { caption: 1 } }] })).toBe(false)
   expect(ok({ item: "shape.list", props: {}, children: [{ ...row, item: "shape.box" }] })).toBe(false)
   expect(ok({ item: "shape.nope", props: {} })).toBe(false)
+})
+
+test("リストの塗り・文字・線・角・影の欄は、どのテーマでも箱の欄と同じ値（テーマは箱とリストを同じ見た目にする）", () => {
+  const pairs = ["fill", "text", "line", "radius", "shadow"] as const
+  for (const theme of REGISTRY.themes.keys()) {
+    const box = resolveTokens(REGISTRY, theme, BOX.tokens)
+    const list = resolveTokens(REGISTRY, theme, LIST.tokens)
+    for (const k of pairs) expect([theme, k, list[`list.${k}`]]).toEqual([theme, k, box[`box.${k}`]])
+  }
 })

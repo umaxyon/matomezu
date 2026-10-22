@@ -24,7 +24,6 @@ import { useT } from "../../../../ui/i18n"
 import type { ItemViewProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { themeVars } from "../../../../ui/theme-vars"
-import { BOX } from "../box"
 import { useThemeVars } from "../shape/parts"
 import { LIST, type ListRow } from "."
 import { edgeScroller } from "./edge-scroll"
@@ -32,8 +31,8 @@ import styles from "./ListView.module.css"
 import { listPaintVars } from "./paint"
 import { linesFor, listLayout, type RowLayout, type RowsLines, rowHeight } from "./size"
 
-// リストを描くテーマの欄（箱の欄とリストの欄）
-const LOOK_TOKENS = [...BOX.tokens, ...LIST.tokens]
+// リストを描くテーマの欄
+const LOOK_TOKENS = LIST.tokens
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
 

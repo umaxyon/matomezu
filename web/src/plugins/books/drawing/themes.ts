@@ -33,6 +33,11 @@ export const STICKY = defineTheme({
     "box.shadow": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
     "box.fold": "12px",
     // リストは明るいクラフト紙の台紙の上に、行を 1 枚ずつ付箋として貼る（見出しは台紙の上の文字。旧版の見た目）
+    "list.fill": "#fff3a6",
+    "list.line": "#d9c873",
+    "list.text": "#3b3524",
+    "list.radius": "3px",
+    "list.shadow": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
     "list.frame-line": "#b9ad8f",
     "list.mount-tint": "#e7e0cf",
     "list.mount-mix": "88%",
@@ -73,6 +78,11 @@ export const SIMPLE = defineTheme({
     "box.radius": "4px",
     "box.shadow": "none",
     // リストの見出しは黒い帯に白い文字、行のカードは黒い細い線で影なし（印刷向け）
+    "list.fill": "#ffffff",
+    "list.line": "#262626",
+    "list.text": "#1a1a1a",
+    "list.radius": "4px",
+    "list.shadow": "none",
     "list.frame-line": "#262626",
     "list.mount-mix": "3%",
     "list.head-tint": "#262626",

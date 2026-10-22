@@ -3,8 +3,8 @@
 // リストは自分のテーマ（theme）と色（color）を持ち、行はリストに従う。チェックリスト（checklist）なら行の左にチェックの印を出し、行の checked で持つ
 // （チェックリストをやめると、行の checked は消える）。チェックリストでは、チェック済みの行を薄く描く（checkedGray）、先頭か最後に寄せて見せる（checkedOrder）ことができる。
 // 行の色分け（zebra）なら 1 行おきに地の色を少し変える。行がリストの高さを超えたら、リストの中でスクロールする。
-// 描くテーマの欄は、色と線と角と影は箱の欄（box.*。同じプラグインの箱が宣言している）、リストだけの見せ方（見出しの帯・台紙・行の付箋）は list.* の欄。
-// list.* の欄は色を混ぜる割合などの値。台紙はリストの塗りから作り、行のカードはリストの塗り。色（color）を当てると台紙と見出しがその色になり、行のカードはテーマの地のまま（paint.ts）。
+// 描くテーマの欄は、リストの欄（list.*）だけ。塗り・文字・線・角・影は箱の欄と同じ既定の値で（テーマは箱と同じ見た目にするなら両方を上書きする）、
+// 見出しの帯・台紙・行の付箋の欄は色を混ぜる割合などの値。台紙はリストの塗りから作り、行のカードはリストの塗り。色（color）を当てると台紙と見出しがその色になり、行のカードはテーマの地のまま（paint.ts）。
 // テーマは大きさを変えないので、どのテーマでも行の高さと折り返しは同じ。
 // 置くときは追加のダイアログ（list.add）、設定は編集のダイアログ（list.edit）。行は行の追加（row.add）・編集（row.edit）のダイアログで中身を決める
 import { z } from "zod"
@@ -28,6 +28,9 @@ export const ROW_ITEM = "list.row" as const
 export const ListRowSchema = z.strictObject({ id: z.string().min(1), item: z.literal(ROW_ITEM), props: RowPropsSchema })
 export type ListRow = z.infer<typeof ListRowSchema>
 
+// リストの塗りの欄（行のカードの地。色の見本の「なし」もこの色）
+export const LIST_FILL = { id: "list.fill", fallback: "fill" } as const
+
 export const LIST = defineItem({
   id: "shape.list",
   kind: "shape",
@@ -47,6 +50,11 @@ export const LIST = defineItem({
   }),
   size: LIST_SIZE,
   tokens: [
+    LIST_FILL,
+    { id: "list.text", fallback: "text" }, // 文字（チェックの印も）
+    { id: "list.line", value: "#cdcdd6" }, // 区切り線と行のカードの縁の線の色
+    { id: "list.radius", value: "8px" }, // リストの角の丸み
+    { id: "list.shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // リストの影（CSS の filter の値）
     { id: "list.frame-line", value: "#cdcdd6" }, // リストの外枠の線
     { id: "list.mount-tint", value: "#000000" }, // 台紙（リストの地）に混ぜる色
     { id: "list.mount-mix", value: "5%" }, // 台紙に混ぜる割合（行のカードとの差）
