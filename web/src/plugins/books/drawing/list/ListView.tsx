@@ -3,7 +3,9 @@
 // 行をダブルクリックすると行の編集、右クリックすると行のメニュー（row.context）。チェックリストなら、行の左のチェックを押すだけで入れ切りする。
 // 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（行を押すとリストを選ぶだけで、
 // リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
-// 行を押して少し動かすと行のドラッグになり（押しただけ・ダブルクリック・チェックは今まで通り）、行がポインタに付いてきて、落とす所の行と行の間が光る。
+// 行を押して少し動かすと行のドラッグになり（押しただけ・ダブルクリック・チェックは今まで通り）、行のカードの写しがポインタに付いてきて、
+// 落とす所の行と行の間に線が出る。つかんだ行は元の所にそのまま描き、同じリストのほかの行を薄くする（アイテムのドラッグと同じ見せ方）。
+// 写しは画面の上の層に描くので、行の所のテーマと色の変数を写し取って当てる。
 // 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list.moveRow）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
 // ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外の層に描く）。
 // 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list.stretchRow。ドラッグの途中の動いた量だけはビューに持つ）。
@@ -26,7 +28,7 @@ import { BOX } from "../box"
 import { LIST, type ListRow } from "."
 import styles from "./ListView.module.css"
 import { listPaintVars } from "./paint"
-import { linesFor, listLayout, type RowsLines, rowHeight } from "./size"
+import { linesFor, listLayout, type RowLayout, type RowsLines, rowHeight } from "./size"
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
 
@@ -42,13 +44,35 @@ function shownOrder(rows: readonly ListRow[], order: "none" | "first" | "last"):
 // 行のドラッグを始めるまでに動かす量（画面の px）
 const DRAG_START = 4
 
-// 行のドラッグ: 押した行と位置、動かし始めたか
+// 行のドラッグ: 押した行と位置、動かし始めたか、写しの見た目
 interface Carry {
   pointer: number
-  row: string
-  caption: string
+  row: ListRow
   start: { x: number; y: number }
   moving: boolean
+  look?: GhostLook
+}
+
+// ポインタに付く行の写し: 行の大きさ（紙の上の px）と画面での倍率、つかんだ所（行の左上から、画面の px）、行の所の CSS 変数
+interface GhostLook {
+  w: number
+  h: number
+  scale: number
+  grab: { x: number; y: number }
+  vars: Record<string, string>
+}
+
+// 行の要素 li から写しの見た目を取る。変数はテーマの欄（names）と、台紙・文字・行の地
+function ghostLook(li: HTMLElement, x: number, y: number, names: readonly string[]): GhostLook {
+  const r = li.getBoundingClientRect()
+  const css = getComputedStyle(li)
+  const vars: Record<string, string> = {}
+  for (const name of [...names, "--mount", "--ink", "--row-fill"]) {
+    const v = css.getPropertyValue(name)
+    if (v !== "") vars[name] = v
+  }
+  const scale = li.offsetWidth > 0 ? r.width / li.offsetWidth : 1
+  return { w: li.offsetWidth, h: li.offsetHeight, scale, grab: { x: x - r.left, y: y - r.top }, vars }
 }
 
 // 行を落とす所: リスト list の行 before の前（無ければ最後）と、光らせる所（画面の座標）
@@ -108,6 +132,14 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   const openMenu = useContextMenu(stage, "row.context")
   const stretchRow = useCommand(stage, "list.stretchRow")
   const moveRow = useCommand(stage, "list.moveRow")
+  // 写しに写し取るテーマの変数の名前（テーマが違っても欄は同じ）
+  const ghostNames = useMemo(() => {
+    const any = [...registry.themes.keys()][0]
+    if (any === undefined) return []
+    return Object.keys(themeVars(resolveTokens(registry, any, [...BOX.tokens, ...LIST.tokens]))).filter(k =>
+      k.startsWith("--"),
+    )
+  }, [registry])
   const carry = useRef<Carry | null>(null)
   const [carried, setCarried] = useState<{ x: number; y: number; drop: Drop | null } | null>(null)
   const endCarry = (drop: boolean) => {
@@ -115,8 +147,8 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
     carry.current = null
     const target = carried?.drop
     setCarried(null)
-    if (!drop || !c?.moving || !target || target.before === c.row) return
-    moveRow.run({ list: id, row: c.row, to: target.list, ...(target.before ? { before: target.before } : {}) })
+    if (!drop || !c?.moving || !target || target.before === c.row.id) return
+    moveRow.run({ list: id, row: c.row.id, to: target.list, ...(target.before ? { before: target.before } : {}) })
   }
   const carrying = (row: ListRow) => ({
     onPointerDown: (e: PointerEvent<HTMLLIElement>) => {
@@ -125,8 +157,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
       select(stage, [id])
       carry.current = {
         pointer: e.pointerId,
-        row: row.id,
-        caption: row.props.caption,
+        row,
         start: { x: e.clientX, y: e.clientY },
         moving: false,
       }
@@ -137,9 +168,10 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
       if (!c.moving) {
         if (Math.hypot(e.clientX - c.start.x, e.clientY - c.start.y) < DRAG_START) return
         c.moving = true
+        c.look = ghostLook(e.currentTarget, c.start.x, c.start.y, ghostNames)
         e.currentTarget.setPointerCapture(e.pointerId)
       }
-      setCarried({ x: e.clientX, y: e.clientY, drop: dropAt(e.clientX, e.clientY, c.row) })
+      setCarried({ x: e.clientX, y: e.clientY, drop: dropAt(e.clientX, e.clientY, c.row.id) })
     },
     onPointerUp: (e: PointerEvent<HTMLLIElement>) => {
       if (carry.current?.pointer === e.pointerId) endCarry(true)
@@ -196,7 +228,12 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
             if (el.scrollHeight > el.clientHeight) e.stopPropagation()
           }}
         >
-          <ul className={styles.items} data-list-rows={id} aria-label={t("Rows of {name}", { name: props.caption })}>
+          <ul
+            className={styles.items}
+            data-list-rows={id}
+            data-carrying={carried !== null}
+            aria-label={t("Rows of {name}", { name: props.caption })}
+          >
             {shownOrder(rows, props.checklist ? props.checkedOrder : "none").map(i => {
               const row = rows[i] as ListRow
               const look = layout[i]
@@ -206,7 +243,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
                   className={styles.row}
                   data-row={row.id}
                   data-done={props.checklist && props.checkedGray && row.props.checked === true}
-                  data-carried={carried !== null && carry.current?.row === row.id}
+                  data-carried={carried !== null && carry.current?.row.id === row.id}
                   {...carrying(row)}
                   style={{ height: heightOf(row.id, look?.height ?? 0) }}
                   onDoubleClick={e => {
@@ -215,9 +252,6 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
                   }}
                   onContextMenu={e => openMenu(e, { list: id, row: row.id })}
                 >
-                  <div className={styles.cardShadow}>
-                    <div className={styles.card} />
-                  </div>
                   {props.checklist && (
                     <input
                       type="checkbox"
@@ -229,22 +263,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
                       onChange={e => check.run({ list: id, row: row.id, checked: e.target.checked })}
                     />
                   )}
-                  <div className={styles.text}>
-                    <div className={styles.caption} data-align={row.props.captionAlign}>
-                      {row.props.caption}
-                    </div>
-                    {look?.rule && <hr className={styles.rule} />}
-                    {look && look.body.length > 0 && (
-                      <div data-align={row.props.bodyAlign}>
-                        {look.body.map((line, n) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
-                          <div key={n} className={styles.line}>
-                            {line}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <RowFace row={row} look={look} />
                   <div className={styles.grip} data-grip="row" {...grip(row.id, look?.height ?? 0)} />
                 </li>
               )
@@ -263,12 +282,18 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
         </div>
       </div>
       {carried &&
-        carry.current &&
+        carry.current?.look &&
         createPortal(
           <>
-            <div className={styles.ghost} style={{ left: carried.x + 12, top: carried.y - 14 }}>
-              {carry.current.caption}
-            </div>
+            <Ghost
+              row={carry.current.row}
+              look={carry.current.look}
+              x={carried.x}
+              y={carried.y}
+              checklist={props.checklist}
+              lines={layout[rows.indexOf(carry.current.row)]}
+              done={props.checklist && props.checkedGray && carry.current.row.props.checked === true}
+            />
             {carried.drop && (
               <div
                 className={styles.dropBar}
@@ -279,6 +304,79 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
           </>,
           document.body,
         )}
+    </div>
+  )
+}
+
+// 行のカードの地と、キャプション・線・本文（チェックの印は除く）
+function RowFace({ row, look }: { row: ListRow; look: RowLayout | undefined }) {
+  return (
+    <>
+      <div className={styles.cardShadow}>
+        <div className={styles.card} />
+      </div>
+      <div className={styles.text}>
+        <div className={styles.caption} data-align={row.props.captionAlign}>
+          {row.props.caption}
+        </div>
+        {look?.rule && <hr className={styles.rule} />}
+        {look && look.body.length > 0 && (
+          <div data-align={row.props.bodyAlign}>
+            {look.body.map((line, n) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
+              <div key={n} className={styles.line}>
+                {line}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ポインタに付く行の写し: つかんだ所がポインタの下に来るように、行と同じ大きさ・倍率で描く。チェックの印は押せない飾り
+function Ghost(p: {
+  row: ListRow
+  look: GhostLook
+  x: number
+  y: number
+  checklist: boolean
+  lines: RowLayout | undefined
+  done: boolean
+}) {
+  const { look } = p
+  const { "--row-fill": fill, ...vars } = look.vars
+  return (
+    <div
+      className={styles.ghost}
+      style={
+        {
+          ...vars,
+          left: p.x - look.grab.x,
+          top: p.y - look.grab.y,
+          width: look.w,
+          height: look.h,
+          transform: `scale(${look.scale})`,
+        } as CSSProperties
+      }
+    >
+      <div
+        className={styles.row}
+        data-done={p.done}
+        style={{ height: look.h, ...(fill ? { "--row-fill": fill } : {}) } as CSSProperties}
+      >
+        {p.checklist && (
+          <input
+            type="checkbox"
+            className={styles.check}
+            checked={p.row.props.checked === true}
+            readOnly
+            tabIndex={-1}
+          />
+        )}
+        <RowFace row={p.row} look={p.lines} />
+      </div>
     </div>
   )
 }

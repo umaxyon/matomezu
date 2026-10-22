@@ -1,10 +1,27 @@
+/* リストと行の写しの字: 箱と同じく同梱の Noto Sans JP で、字詰めなどを止める */
+.list,
+.ghost {
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "kern" 0,
+    "liga" 0,
+    "palt" 0;
+  text-spacing-trim: space-all;
+  text-autospace: no-autospace;
+}
 /* リストの外枠: テーマの影（filter） */
 .frame {
   width: 100%;
   height: 100%;
   filter: var(--theme-box-shadow);
 }
-/* リスト（台紙）。寸法は size.ts の LIST_LOOK と同じ値にする。字は箱と同じく同梱の Noto Sans JP で、字詰めなどを止める。
+/* リスト（台紙）。寸法は size.ts の LIST_LOOK と同じ値にする。
    台紙の色は、色（--list-mount）を当てていればその色、無ければ塗りにテーマの台紙の色を混ぜた色。台紙の上の文字は --list-ink（無ければテーマの文字の色） */
 .list {
   --mount: var(
@@ -22,19 +39,6 @@
   border-radius: var(--theme-box-radius);
   background: var(--mount);
   color: var(--theme-box-text);
-  font-family: "Noto Sans JP", sans-serif;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 18px;
-  letter-spacing: 0;
-  font-kerning: none;
-  font-variant-ligatures: none;
-  font-feature-settings:
-    "kern" 0,
-    "liga" 0,
-    "palt" 0;
-  text-spacing-trim: space-all;
-  text-autospace: no-autospace;
 }
 /* 見出し: キャプション 1 行（収まらない分は … で切る）。台紙にテーマの帯の色を混ぜ（混ぜなければ台紙の上の文字）、文字はテーマの割合だけ白に寄せる */
 .head {
@@ -216,31 +220,34 @@
   background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--ink);
 }
-/* 行のドラッグ: 動かしている行は元の所で薄く、ポインタに付く行の札と、落とす所の行と行の間の光る線は画面の上に重ねる（スキンの強調の色） */
-.row[data-carried="true"] {
-  opacity: 0.35;
+/* 行のドラッグ: つかんだ行は元の所にそのまま描き、同じリストのほかの行を薄くする（アイテムのドラッグと同じ）。
+   ポインタに付く行の写しと、落とす所の行と行の間の線は画面の上に重ねる */
+.items[data-carrying="true"] .row:not([data-carried="true"]) {
+  opacity: 0.4;
 }
+/* 行の写し: 行と同じ字の決まりで描き、少し透かして影を付ける（下が透けて見えるように） */
 .ghost {
   position: fixed;
   z-index: 40;
-  max-width: 240px;
-  padding: 4px 10px;
-  overflow: hidden;
-  border-radius: 6px;
-  background: var(--skin-bar);
-  color: var(--skin-text);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  color-scheme: light dark;
+  transform-origin: 0 0;
+  opacity: 0.9;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+  color: var(--theme-box-text);
   pointer-events: none;
 }
+.ghost .row {
+  margin: 0;
+}
+/* 落とす所の線: 濃い線を白で縁取り、台紙と行のどちらの色の上でも見えるようにする */
 .dropBar {
   position: fixed;
   z-index: 39;
-  height: 3px;
+  height: 4px;
   border-radius: 2px;
-  background: var(--skin-accent);
+  background: #1f1f1f;
+  box-shadow:
+    0 0 0 1.5px #ffffff,
+    0 1px 4px rgba(0, 0, 0, 0.4);
   pointer-events: none;
 }
