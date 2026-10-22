@@ -8,7 +8,7 @@ import type { BookOf } from "../../../../core/schema/book"
 import { BOX } from "../box"
 import { BOX_MIN, placedHeight, placedWidth } from "../box/size"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
-import { newClash, planPlace, pushFrom, type Rect } from "./push"
+import { type Floors, newClash, planPlace, pushFrom, type Rect } from "./push"
 import type { DrawingPage, Placed } from "./schema"
 
 type Drawing = BookOf<"drawing">
@@ -105,15 +105,15 @@ function withPage(book: Drawing, page: DrawingPage): Drawing {
   return { ...book, pages: book.pages.map(p => (p.id === page.id ? page : p)) }
 }
 
-// ページにアイテムを置く（id は nextItemId で振ったもの）。重なった相手は右へ、駄目なら下へ押す（push.ts の planPlace）。
+// ページにアイテムを置く（id は nextItemId で振ったもの）。重なった相手は右へ、駄目なら下へ押し、それも駄目なら押した列を縮めて右へ・下へ（push.ts の planPlace）。
 // 無いページ・はみ出す所・押した相手が収まらないなら null
 export function placeItem(reg: Registry, book: Drawing, pageId: string, item: Placed): Drawing | null {
   const page = book.pages.find(p => p.id === pageId)
   const paper = page && paperSize(reg, page)
   const size = placedSize(reg, item)
   if (!page || !paper || !size) return null
-  const after = planPlace(rectsOf(reg, page), item.id, { x: item.x, y: item.y, ...size }, paper)
-  return after && withPage(book, { ...page, items: [...placedAt(itemsOf(page), after), item] })
+  const after = planPlace(rectsOf(reg, page), item.id, { x: item.x, y: item.y, ...size }, paper, floorsOf(reg, page))
+  return after && withPage(book, { ...page, items: [...placedAt(reg, itemsOf(page), after), item] })
 }
 
 // ページのアイテムの四角（大きさの分からないアイテムは入れない）
@@ -126,25 +126,58 @@ export function rectsOf(reg: Registry, page: DrawingPage): Map<string, Rect> {
   return rects
 }
 
-// ページのアイテムを next に置き換え、近づきすぎた相手を押してどける（push.ts）。
+// 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 箱は、横がキャプションが全部見える幅（置いたときの幅と同じ）、縦がキャプション 1 行の高さ。
+// 今それより小さければ今の大きさ。大きさを変えられないアイテムは今の大きさ
+function floorsOf(reg: Registry, page: DrawingPage): Floors {
+  const floors = new Map<string, Size>()
+  for (const i of itemsOf(page)) {
+    const size = placedSize(reg, i)
+    if (!size) continue
+    floors.set(
+      i.id,
+      i.item === BOX.id
+        ? { w: Math.min(size.w, Math.max(BOX_MIN.w, placedWidth(i.props))), h: Math.min(size.h, BOX_MIN.h) }
+        : size,
+    )
+  }
+  return floors
+}
+
+// ページのアイテムを next に置き換え、近づきすぎた相手を押してどける（push.ts）。shrink なら、押した列が紙からはみ出すとき縮めて収める。
 // 無いページ・無いアイテム・id の違うもの・はみ出す・押した相手が紙に収まらないなら null
-export function replacePushing(reg: Registry, book: Drawing, pageId: string, next: Placed): Drawing | null {
+export function replacePushing(
+  reg: Registry,
+  book: Drawing,
+  pageId: string,
+  next: Placed,
+  shrink: boolean,
+): Drawing | null {
   const page = book.pages.find(p => p.id === pageId)
   const paper = page && paperSize(reg, page)
   const size = placedSize(reg, next)
   if (!page || !paper || !size || !itemsOf(page).some(i => i.id === next.id)) return null
   const before = rectsOf(reg, page)
-  const after = pushFrom(before, next.id, { x: next.x, y: next.y, ...size }, paper)
+  const after = pushFrom(
+    before,
+    next.id,
+    { x: next.x, y: next.y, ...size },
+    paper,
+    shrink ? floorsOf(reg, page) : undefined,
+  )
   if (!after || newClash(before, after)) return null
-  const items = placedAt(itemsOf(page), after).map(i => (i.id === next.id ? next : i))
+  const items = placedAt(reg, itemsOf(page), after).map(i => (i.id === next.id ? next : i))
   return withPage(book, { ...page, items })
 }
 
-// アイテムの左上を、四角 rects の左上にする（rects に無いアイテム・同じ左上のアイテムはそのまま）
-function placedAt(items: readonly Placed[], rects: ReadonlyMap<string, Rect>): Placed[] {
+// アイテムの左上と大きさを、四角 rects にする（rects に無いアイテム・変わらないアイテムはそのまま。縮めたアイテムは w・h を書く）
+function placedAt(reg: Registry, items: readonly Placed[], rects: ReadonlyMap<string, Rect>): Placed[] {
   return items.map(i => {
     const r = rects.get(i.id)
-    return r && (r.x !== i.x || r.y !== i.y) ? { ...i, x: r.x, y: r.y } : i
+    const size = placedSize(reg, i)
+    if (!r || !size) return i
+    const at = r.x !== i.x || r.y !== i.y ? { x: r.x, y: r.y } : {}
+    const sized = r.w !== size.w || r.h !== size.h ? { w: r.w, h: r.h } : {}
+    return Object.keys(at).length + Object.keys(sized).length > 0 ? { ...i, ...at, ...sized } : i
   })
 }
 
@@ -194,5 +227,5 @@ export function moveItems(
     ids.length === 1
       ? dropRects(before, ids[0] as string, by, came, paper)
       : dropManyRects(before, new Set(ids), by, paper)
-  return after && withPage(book, { ...page, items: placedAt(itemsOf(page), after) })
+  return after && withPage(book, { ...page, items: placedAt(reg, itemsOf(page), after) })
 }

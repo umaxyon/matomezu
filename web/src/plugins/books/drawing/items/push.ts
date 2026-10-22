@@ -6,6 +6,7 @@
 //   押す向きは、元と相手の組なら呼ぶ側が決め（大きさを変えた・置いたで違う）、押された箱と相手の組なら、変わる前の位置で離れていた方の向き
 // - 押した先が紙からはみ出す・元を押し返すなら、収まらない（null）
 // - 変わる前から近づきすぎていた組（よそから来たデータ）は押さない
+// - 押した列が紙からはみ出すときは、その列の押された箱を、縮めてよい下限まで余裕に比例して縮めて収める（pushShrinking。呼ぶ側が使うか決める）
 // 置いたとき（planPlace）は、動きの向きが無いので、重なった相手を右へ押し、駄目なら下へ押す。動かしたとき（ドラッグ）の決まりは drag.ts
 import type { Size } from "../../../../core/geom"
 
@@ -49,18 +50,22 @@ function apartWay(was: Rect, wasOther: Rect): Way {
   return { axis, ahead: centerAhead(was, wasOther, axis) }
 }
 
-// sources の箱を、その四角に変えたとき（sources は動かさない）の、押したあとの全部の四角。
-// way は元と相手の組を押す向き（無ければ、変わる前の位置で離れていた方）
-export function push(
+// 押した結果: 全部の四角と、押された箱ごとの押した箱
+interface Spread {
+  now: Map<string, Rect>
+  from: Map<string, string>
+}
+
+// sources の箱を、その四角に変えたとき（sources は動かさない）に押していった結果。紙は見ない。元を押し返す・押し合いが巡るなら null
+function spread(
   before: Rects,
   sources: Rects,
-  paper: Size,
-  way?: (source: Rect, other: Rect) => Way,
-  gap = GAP,
-): Map<string, Rect> | null {
-  for (const r of sources.values()) if (!inPaper(r, paper)) return null
+  way: ((source: Rect, other: Rect) => Way) | undefined,
+  gap: number,
+): Spread | null {
   const now = new Map(before)
   for (const [id, r] of sources) now.set(id, r)
+  const from = new Map<string, string>()
   const queue = [...sources.keys()]
   let steps = 0
   const limit = now.size * now.size * 4 + 16 // 押し合いが巡ってしまったときに止める
@@ -78,18 +83,97 @@ export function push(
       const at = w.ahead
         ? Math.max(rect[w.axis], pusher[w.axis] + pusher[len] + gap)
         : Math.min(rect[w.axis], pusher[w.axis] - gap - rect[len])
-      const moved = { ...rect, [w.axis]: at }
-      if (!inPaper(moved, paper)) return null
-      now.set(b, moved)
+      now.set(b, { ...rect, [w.axis]: at })
+      from.set(b, m)
       queue.push(b)
     }
   }
-  return now
+  return { now, from }
 }
 
-// 箱 id の左上か大きさを next に変えたとき（大きさを変えた・キャプションで広がった）。相手は変わる前の位置で離れていた方の向きに押す
-export function pushFrom(before: Rects, id: string, next: Rect, paper: Size, gap = GAP): Map<string, Rect> | null {
-  return push(before, new Map([[id, next]]), paper, undefined, gap)
+// sources の箱を、その四角に変えたとき（sources は動かさない）の、押したあとの全部の四角。
+// way は元と相手の組を押す向き（無ければ、変わる前の位置で離れていた方）
+export function push(
+  before: Rects,
+  sources: Rects,
+  paper: Size,
+  way?: (source: Rect, other: Rect) => Way,
+  gap = GAP,
+): Map<string, Rect> | null {
+  const done = spread(before, sources, way, gap)
+  return done && [...done.now.values()].every(r => inPaper(r, paper)) ? done.now : null
+}
+
+// 縮めてよい下限（縮められない箱は今の大きさ）
+export type Floors = ReadonlyMap<string, { w: number; h: number }>
+
+// 紙からはみ出した量（向きごとの、端を越えた一番大きい量）
+function overflow(r: Rect, paper: Size, axis: Axis): number {
+  const len = LEN[axis]
+  return Math.max(r[axis] + r[len] - paper[len], -r[axis], 0)
+}
+
+// push と同じに押し、押した列が紙からはみ出すなら、その列の押された箱を縮めて収める（OVERHAUL の「紙に収める」）。
+// 縮めるのは、はみ出した箱から元へさかのぼる列の、押された箱だけ（元は縮めない）。足りない量を、箱ごとの余裕（今の大きさ − 下限 floors）に比例して分ける
+// （HTML の表・flexbox と同じ。余裕に比例するので、全員が同時に下限に着く）。余裕が足りなければ収まらない（null）
+export function pushShrinking(
+  before: Rects,
+  sources: Rects,
+  paper: Size,
+  floors: Floors,
+  way?: (source: Rect, other: Rect) => Way,
+  gap = GAP,
+): Map<string, Rect> | null {
+  for (const r of sources.values()) if (!inPaper(r, paper)) return null
+  let sized = new Map(before)
+  for (let round = 0; round < 8; round++) {
+    const done = spread(sized, sources, way, gap)
+    if (!done) return null
+    let fits = true
+    let cut = false
+    const next = new Map(sized)
+    for (const axis of ["x", "y"] as const) {
+      const out = [...done.now].filter(([, r]) => overflow(r, paper, axis) > 0)
+      if (out.length === 0) continue
+      fits = false
+      const short = Math.max(...out.map(([, r]) => overflow(r, paper, axis)))
+      // はみ出した箱から元へさかのぼる列（押された箱だけ）
+      const chain = new Set<string>()
+      for (const [id] of out)
+        for (let k: string | undefined = id; k && !sources.has(k); k = done.from.get(k)) chain.add(k)
+      const len = LEN[axis]
+      const room = [...chain].map(id => ({ id, r: next.get(id) as Rect, room: 0 }))
+      for (const c of room) c.room = Math.max(0, c.r[len] - (floors.get(c.id)?.[len] ?? c.r[len]))
+      const total = room.reduce((n, c) => n + c.room, 0)
+      if (total < short) return null
+      for (const c of room) {
+        const take = Math.ceil((short * c.room) / total)
+        if (take <= 0) continue
+        next.set(c.id, { ...c.r, [len]: Math.max(c.r[len] - take, floors.get(c.id)?.[len] ?? c.r[len]) })
+        cut = true
+      }
+    }
+    if (fits) return done.now
+    if (!cut) return null
+    sized = next
+  }
+  return null
+}
+
+// 箱 id の左上か大きさを next に変えたとき（大きさを変えた・キャプションで広がった）。相手は変わる前の位置で離れていた方の向きに押す。
+// floors を渡せば、押した列が紙からはみ出すときに縮めて収める（pushShrinking）
+export function pushFrom(
+  before: Rects,
+  id: string,
+  next: Rect,
+  paper: Size,
+  floors?: Floors,
+  gap = GAP,
+): Map<string, Rect> | null {
+  const sources = new Map([[id, next]])
+  return floors
+    ? pushShrinking(before, sources, paper, floors, undefined, gap)
+    : push(before, sources, paper, undefined, gap)
 }
 
 // before から after になって、新しく近づきすぎた組があるか（前から近づきすぎていた組は問わない）
@@ -110,15 +194,24 @@ export function newClash(before: Rects, after: Rects, gap = GAP): boolean {
 const settled = (before: Rects, after: Map<string, Rect> | null, gap: number) =>
   after && !newClash(before, after, gap) ? after : null
 
-// 箱 id を rect に置いたとき（置いた・貼った）の、全部の四角（収まらなければ null）。重なった相手を右へ押し、駄目なら下へ押す
-export function planPlace(before: Rects, id: string, rect: Rect, paper: Size, gap = GAP): Map<string, Rect> | null {
+// 箱 id を rect に置いたとき（置いた・貼った）の、全部の四角（収まらなければ null）。
+// 重なった相手を右へ押し、駄目なら下へ押す。どちらも駄目なら、押した列を縮めて右へ、それも駄目なら縮めて下へ（floors が縮めてよい下限）
+export function planPlace(
+  before: Rects,
+  id: string,
+  rect: Rect,
+  paper: Size,
+  floors: Floors = new Map(),
+  gap = GAP,
+): Map<string, Rect> | null {
   const sources = new Map([[id, rect]])
-  for (const axis of ["x", "y"] as const) {
-    const done = settled(
-      before,
-      push(before, sources, paper, () => ({ axis, ahead: true }), gap),
-      gap,
-    )
+  const ways = (["x", "y"] as const).map(axis => () => ({ axis, ahead: true }))
+  for (const way of ways) {
+    const done = settled(before, push(before, sources, paper, way, gap), gap)
+    if (done) return done
+  }
+  for (const way of ways) {
+    const done = settled(before, pushShrinking(before, sources, paper, floors, way, gap), gap)
     if (done) return done
   }
   return null

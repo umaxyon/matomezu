@@ -92,14 +92,15 @@ export const ITEM_UPDATE = defineAction({
     if (!item.success || !page || !knownTheme(ctx.registry, item.data)) return null
     const wide = widenForCaption(ctx.registry, page, now, item.data)
     const next =
-      replacePushing(ctx.registry, book, args.page, wide) ??
-      (wide !== item.data ? replacePushing(ctx.registry, book, args.page, item.data) : null)
+      replacePushing(ctx.registry, book, args.page, wide, false) ??
+      (wide !== item.data ? replacePushing(ctx.registry, book, args.page, item.data, false) : null)
     return next && { next, result: {} }
   },
 })
 
 // アイテムの大きさを変える（大きさを変えられるアイテムだけ）。渡した値だけを変える。x・y を渡せば左上も動かす（左や上の辺をつかんで変えるとき）。
-// 近づきすぎた相手は、育った向きに押してどける（items.ts の replacePushing）。一番小さい大きさより小さい・紙からはみ出す・押した相手が紙に収まらないなら断る
+// 近づきすぎた相手は、育った向きに押してどけ、押した列が紙からはみ出すなら、押された箱を縮めて収める（items.ts の replacePushing）。
+// 一番小さい大きさより小さい・紙からはみ出す・縮めても収まらないなら断る
 export const ITEM_RESIZE = defineAction({
   id: "item.resize",
   title: "Resize item",
@@ -128,7 +129,7 @@ export const ITEM_RESIZE = defineAction({
       h: args.h ?? size.h,
     })
     if (!item.success) return null
-    const next = replacePushing(ctx.registry, book, args.page, item.data)
+    const next = replacePushing(ctx.registry, book, args.page, item.data, true)
     return next && { next, result: {} }
   },
 })

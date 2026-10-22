@@ -27,12 +27,13 @@ var actionTools = []actionTool{
 	{"add_page", "page.add", "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id."},
 	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box). " +
 		"Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. " +
-		"Boxes it would come within 8 pixels of are pushed right, or else down. It is refused if it does not fit on the paper. Returns the new item's id."},
+		"Boxes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed. It is refused if it does not fit on the paper. Returns the new item's id."},
 	{"move_items", "item.move", "Move items of a page by (x, y) paper pixels. Other boxes are not pushed: moving one box at least half into the box ahead of it swaps them; " +
 		"coming within 8 pixels of a box otherwise stops it just before that box. It is refused if any would leave the paper."},
 	{"update_item", "item.update", "Change some props of an item. Props not given stay; a prop given as null is removed (back to its default). The item's size does not change, except that a box whose caption grows widens to show it up to 20 characters, pushing the boxes it would come too close to (when they would leave the paper, it stays as wide)."},
 	{"resize_item", "item.resize", "Change the size of an item that can be resized (a box): only w and h given change; x and y move its top-left too. " +
-		"Boxes it would come within 8 pixels of are pushed the way it grew. It is refused below the item's smallest size, off the paper, or when a pushed box would leave the paper."},
+		"Boxes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed boxes shrink (no narrower than their caption, no lower than one caption line). " +
+		"It is refused below the item's smallest size, off the paper, or when they cannot shrink enough."},
 	{"remove_items", "item.remove", "Remove items from a page."},
 }
 

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { placedWidth } from "../../web/src/plugins/books/drawing/box/size"
-import { GAP, planPlace, pushFrom, type Rect } from "../../web/src/plugins/books/drawing/items/push"
+import { GAP, planPlace, pushFrom, pushShrinking, type Rect } from "../../web/src/plugins/books/drawing/items/push"
 import { newStore } from "../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横
@@ -54,16 +54,17 @@ const place = (store: ReturnType<typeof newStore>, x: number, y: number, w: numb
     { book: "b1" },
   )
 
-test("item.resize で広げると隣の箱を押し、押した箱が紙からはみ出すなら断って何も変えない", () => {
+test("item.resize で広げると隣の箱を押し、紙の端で詰まれば押した箱を縮めて収める。縮めても収まらなければ断って何も変えない", () => {
   const store = ready()
   place(store, 100, 100, 100)
   place(store, 220, 100, 100)
   const resize = (w: number) => store.actions.perform("item.resize", { page: "p1", item: "n1", w }, { book: "b1" })
   expect(resize(200).ok).toBe(true)
   expect(at(store, "n2")).toMatchObject({ x: 300 + GAP, y: 100 })
-  expect(resize(940).ok).toBe(false)
-  expect(at(store, "n1").w).toBe(200)
-  expect(at(store, "n2")).toMatchObject({ x: 300 + GAP })
+  expect(resize(940).ok).toBe(true)
+  expect(at(store, "n2")).toMatchObject({ x: 1040 + GAP, w: PAPER.w - 1040 - GAP })
+  expect(resize(1000).ok).toBe(false)
+  expect(at(store, "n1").w).toBe(940)
 })
 
 test("キャプションで広がるときも隣を押す。押した箱が収まらなければ、広げずにキャプションだけ変える", () => {
@@ -94,4 +95,56 @@ test("置いた所に箱があれば、相手を右へ押し、駄目なら下�
   expect(planPlace(right, "n", r(960, 100), PAPER)!.get("b")).toEqual(r(1000, 160 + GAP))
   const corner = rects({ b: r(1000, 700) })
   expect(planPlace(corner, "n", r(960, 680), PAPER)).toBeNull()
+})
+
+const floor = (o: Record<string, { w: number; h: number }>) => new Map(Object.entries(o))
+
+test("押した列が紙の端で詰まれば、押された箱だけを余裕（今の大きさ − 下限）に比例して縮める。押した箱は縮めない", () => {
+  // a を 500 幅にすると、b・c を押して 400 はみ出す… の手前。b の余裕 200、c の余裕 100 で 60 足りない → b が 40、c が 20 縮む
+  const before = rects({ a: r(0, 100), b: r(108, 100, 300), c: r(416, 100, 200) })
+  const wide = r(0, 100, 433 + 200 - 300 + 400 - 8)
+  const floors = floor({ a: { w: 100, h: 28 }, b: { w: 100, h: 28 }, c: { w: 100, h: 28 } })
+  const paper = { w: 1040, h: 794 }
+  const after = pushShrinking(before, new Map([["a", wide]]), paper, floors)!
+  const b = after.get("b")!
+  const c = after.get("c")!
+  expect(after.get("a")).toEqual(wide)
+  expect(c.x + c.w).toBeLessThanOrEqual(paper.w)
+  expect(b.x).toBe(wide.w + GAP)
+  expect(300 - b.w).toBeGreaterThan(200 - c.w) // 余裕の大きい b が多く縮む
+  expect(b.w).toBeGreaterThanOrEqual(100)
+  expect(c.w).toBeGreaterThanOrEqual(100)
+})
+
+test("列に入らない箱は縮めない。余裕が足りなければ収まらない", () => {
+  const before = rects({ a: r(0, 100), b: r(108, 100, 300), d: r(500, 400, 300) })
+  const floors = floor({ b: { w: 100, h: 28 }, d: { w: 100, h: 28 } })
+  const after = pushShrinking(before, new Map([["a", r(0, 100, 900)]]), PAPER, floors)!
+  expect(after.get("d")).toEqual(r(500, 400, 300))
+  expect(after.get("b")!.w).toBe(PAPER.w - 900 - GAP)
+  expect(pushShrinking(before, new Map([["a", r(0, 100, 1050)]]), PAPER, floors)).toBeNull()
+})
+
+test("縦も同じ: 下へ押した列が詰まれば高さを縮める（本文が切れる）", () => {
+  const before = rects({ a: r(100, 100), b: r(100, 200, 100, 200) })
+  const floors = floor({ b: { w: 100, h: 28 } })
+  const after = pushShrinking(before, new Map([["a", r(100, 100, 100, 600)]]), PAPER, floors)!
+  expect(after.get("b")).toEqual(r(100, 700 + GAP, 100, PAPER.h - 700 - GAP))
+})
+
+test("置いたときは、縮めずに右・下を試してから、縮めて右、縮めて下", () => {
+  const before = rects({ b: r(1000, 100, 120), c: r(960, 700, 120, 80) })
+  const floors = floor({ b: { w: 64, h: 28 }, c: { w: 64, h: 28 } })
+  const after = planPlace(before, "n", r(960, 100), PAPER, floors)!
+  expect(after.get("b")).toEqual(r(1000, 160 + GAP, 120))
+  // 右へも下へも押せない: 右へ縮めて入るなら右（b の幅 55 は下限 40 以上）
+  const full = rects({ b: r(1000, 100, 120), c: r(1000, 168, 120, 600) })
+  const right = planPlace(full, "n", r(960, 100), PAPER, floor({ b: { w: 40, h: 28 }, c: { w: 40, h: 28 } }))!
+  expect(right.get("b")).toEqual(r(1060 + GAP, 100, PAPER.w - 1060 - GAP))
+  // 右へ縮めても入らなければ（下限 64）、縮めて下へ: b と c の高さが縮む
+  const down = planPlace(full, "n", r(960, 100), PAPER, floor({ b: { w: 64, h: 28 }, c: { w: 64, h: 28 } }))!
+  const [db, dc] = [down.get("b")!, down.get("c")!]
+  expect(db).toMatchObject({ x: 1000, y: 160 + GAP, w: 120 })
+  expect(db.h).toBeLessThan(60)
+  expect(dc.y + dc.h).toBeLessThanOrEqual(PAPER.h)
 })

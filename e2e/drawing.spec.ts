@@ -636,3 +636,33 @@ test("ドラッグ中はほかの箱が薄くなって動かず、右の箱に�
   await expect.poll(() => x(left)).toBeCloseTo(start.right, 0)
   expect(await x(right)).toBeCloseTo(near, 0)
 })
+
+test("箱を右へ広げて、押した右の箱が紙の右の端で詰まると、右の箱が縮んで収まる（キャプションが切れない幅まで）", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  const zoom = await zoomOf(page)
+  for (const [x, caption] of [
+    [120, "左"],
+    [260, "右"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, 120)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const right = page.locator("[data-item]", { hasText: "右" })
+  // 右の箱を広げて、紙の右の端の近くまで伸ばす
+  await right.click()
+  await dragGrip(page, "right", paper.x + paper.width - 20 * zoom - (await right.boundingBox())!.x - 64 * zoom, 0)
+  const wide = (await right.boundingBox())!
+  expect(wide.width).toBeGreaterThan(400 * zoom)
+  // 左の箱を右へ大きく広げる: 右の箱は押されて縮む。右の端は紙の中、幅はキャプションが切れない幅（64）以上
+  const left = page.locator("[data-item]", { hasText: "左" })
+  await left.click()
+  await dragGrip(page, "right", 300 * zoom, 0)
+  await expect.poll(async () => (await right.boundingBox())!.width).toBeLessThan(wide.width - 100 * zoom)
+  const after = (await right.boundingBox())!
+  expect(after.x + after.width).toBeLessThanOrEqual(paper.x + paper.width + 0.5)
+  expect(after.width).toBeGreaterThanOrEqual(64 * zoom - 0.5)
+})
