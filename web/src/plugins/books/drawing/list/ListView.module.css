@@ -75,7 +75,8 @@
 .list[data-zebra="true"] .row:nth-child(even) {
   --row-fill: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 7%);
 }
-/* 行の付箋: 帯の内側（テーマの card-inset）に、角の丸み・影・右上の折り返しを付けて描く。文字はこの上に置く */
+/* 行の付箋: 帯の内側（テーマの card-inset）に、角の丸み・影・右上の折り返しを付けて描く。文字はこの上に置く。
+   帯いっぱいに描くテーマでは、行が続いた 1 枚の板になり、影は一番下の行の下と台紙に落ちる（行が台紙から少し浮いて見える） */
 .cardShadow {
   position: absolute;
   inset: var(--theme-list-card-inset);
@@ -176,25 +177,25 @@
   cursor: ns-resize;
   touch-action: none;
 }
-/* 行を足す「＋」の行: 角の丸いボタン（上下左右に 4px・8px の空き） */
+/* 行を足す「＋」の行: 真ん中の小さな角の丸いボタン（上下に 4px の空き）。行より目立たないよう、地は透かし、線と文字は薄く */
 .add {
+  position: relative;
   display: block;
   box-sizing: border-box;
-  width: calc(100% - 16px);
+  width: 64px;
   height: 24px;
-  margin: 4px 8px;
+  margin: 4px auto;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--theme-box-line) 45%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 4%);
-  position: relative;
-  color: color-mix(in srgb, var(--theme-box-text) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-box-text) 18%, transparent);
+  border-radius: 12px;
+  background: transparent;
+  color: color-mix(in srgb, var(--theme-box-text) 45%, transparent);
   font: inherit;
   font-size: 16px;
   line-height: 22px;
   cursor: pointer;
 }
 .add:hover {
-  background: color-mix(in srgb, var(--theme-box-fill), var(--theme-box-text) 10%);
+  background: color-mix(in srgb, var(--theme-box-text) 8%, transparent);
   color: var(--theme-box-text);
 }

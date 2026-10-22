@@ -50,11 +50,11 @@ export const LIST = defineItem({
     { id: "list.head-tint", value: "#6d4bd8" }, // 見出しの帯に混ぜる色
     { id: "list.head-mix", value: "12%" }, // 見出しの帯に混ぜる割合（0% なら帯なし）
     { id: "list.head-ink", value: "0%" }, // 見出しの文字を白に寄せる割合（濃い帯の上の白い文字）
-    { id: "list.mount-tint", value: "#000000" }, // 台紙（リストの地）に混ぜる色
-    { id: "list.mount-mix", value: "0%" }, // 台紙に混ぜる割合（0% なら行と同じ地）
+    { id: "list.mount-tint", value: "#000000" }, // 台紙（リストの地。「＋」の下と、行の無い所）に混ぜる色
+    { id: "list.mount-mix", value: "4%" }, // 台紙に混ぜる割合（0% なら行と同じ地。標準は行よりほんの少し暗く）
     { id: "list.card-inset", value: "0px" }, // 行の付箋を行の帯からどれだけ内側に描くか（0px なら帯いっぱい）
     { id: "list.card-radius", value: "0px" }, // 行の付箋の角の丸み
-    { id: "list.card-shadow", value: "none" }, // 行の付箋の影（CSS の filter の値）
+    { id: "list.card-shadow", value: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12))" }, // 行の付箋の影（CSS の filter の値。標準は軽い影で、行が台紙から浮く）
     { id: "list.card-fold", value: "0px" }, // 行の付箋の右上の折り返しの大きさ
     { id: "list.rule-mix", value: "45%" }, // 行の仕切り線の濃さ（線の色の割合。0% なら線なし）
   ],
