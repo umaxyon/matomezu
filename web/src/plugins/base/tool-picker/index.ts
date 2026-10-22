@@ -1,6 +1,7 @@
 // 道具のアイコン: ポインタのすぐ近くに道具のアイコンを並べて出し、押した道具にする（右ボタンの長押しか Space で開く）。
 // 道具を替えるコマンドと、開くコマンド（キーの既定は、ステージの範囲の Space）
-import { paperOf, type Tool } from "../../../core/stage"
+import { paperOf } from "../../../core/stage"
+import type { Tool } from "../../../core/tools"
 import { defineCommand } from "../../../store/commands/def"
 import { defineKeys } from "../../../store/keys"
 

@@ -85,3 +85,23 @@ test("付け替えは道具を変えずに閉じる。Escape・離れる・外�
   await page.keyboard.press("Space")
   await expect(picker(page)).toHaveCount(0)
 })
+
+test("分けて別の図面を開いても、道具は左右で同じ。左でハンドにすると右もハンドになる", async ({ page }) => {
+  await page.goto("/")
+  const trigger = page.locator("button[aria-expanded]").first()
+  await trigger.hover()
+  await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "画面を分割" }).click()
+  const stages = page.getByRole("region", { name: "ステージ" })
+  const input = stages.nth(1).getByRole("combobox", { name: "ブックを探す" })
+  await input.click()
+  await input.pressSequentially("振り返り")
+  await input.press("Enter")
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(2)
+  const left = (await page.getByRole("img", { name: "紙" }).first().boundingBox())!
+  await longPress(page, { x: left.x + 200, y: left.y + 200 })
+  await page.mouse.up({ button: "right" })
+  await picker(page).getByRole("button", { name: "ハンドツール" }).click()
+  await expect(stages.nth(0)).toHaveAttribute("data-tool", "hand")
+  await expect(stages.nth(1)).toHaveAttribute("data-tool", "hand")
+  await expect(page.getByRole("button", { name: "ハンドツール" })).toHaveCount(2)
+})

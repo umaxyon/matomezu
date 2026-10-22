@@ -1,10 +1,11 @@
-// 道具の切り替えのボタン（ウィジェット tool-switch）: 3 つの道具を輪に並べ、今の道具を手前に大きく、残りの 2 つを左右の奥に小さく薄く、少し下げて控えさせる。
+// 道具の切り替えのボタン（ウィジェット tool-switch）: ステージの道具の組の 3 つの道具を輪に並べ、今の道具を手前に大きく、残りの 2 つを左右の奥に小さく薄く、少し下げて控えさせる。
 // 右が次（押すと来る）、左が前。道具が変わると、輪を近い向きへ 1 つ分回して入れ替える。押すとコマンド tool.next を呼ぶ
 import { useEffect, useRef } from "react"
-import { TOOLS, type Tool } from "../../../core/stage"
+import { TOOL_SETS, type Tool, toolSetOf } from "../../../core/tools"
+import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useT } from "../../../ui/i18n"
-import { useApp } from "../../../ui/store-context"
+import { useApp, useRegistry } from "../../../ui/store-context"
 import { TOOL_ICONS, TOOL_NAMES } from "./icons"
 import styles from "./ToolSwitchView.module.css"
 
@@ -30,16 +31,22 @@ const angle = (icon: number, front: number) => (((((icon - front) * 120 + 180) %
 export function ToolSwitchView({ stage }: { stage: string }) {
   const t = useT()
   const next = useCommand(stage, "tool.next")
-  const tool = useApp(s => s.workspace.stages.find(st => st.id === stage)?.tool ?? "select")
+  const registry = useRegistry()
+  const tool = useApp(s => toolOf(registry, s.workspace, stage)) ?? "select"
+  const set = useApp(s => {
+    const st = s.workspace.stages.find(x => x.id === stage)
+    return st ? toolSetOf(registry, st) : null
+  })
+  const order: readonly Tool[] = set ? TOOL_SETS[set] : []
   const icons = useRef<(HTMLSpanElement | null)[]>([])
   const shown = useRef<Tool>(tool)
 
   useEffect(() => {
-    const from = TOOLS.indexOf(shown.current)
-    const to = TOOLS.indexOf(tool)
+    const from = order.indexOf(shown.current)
+    const to = order.indexOf(tool)
     shown.current = tool
     if (from === to) return
-    const step = to === (from + 1) % TOOLS.length ? 1 : -1 // 次なら右から、前なら左から
+    const step = to === (from + 1) % order.length ? 1 : -1 // 次なら右から、前なら左から
     icons.current.forEach((el, i) => {
       if (!el || typeof el.animate !== "function") return
       const a0 = angle(i, from)
@@ -49,7 +56,7 @@ export function ToolSwitchView({ stage }: { stage: string }) {
       })
       el.animate(frames, { duration: TURN_MS, easing: "cubic-bezier(0.3, 0.7, 0.3, 1)" })
     })
-  }, [tool])
+  }, [tool, order])
 
   if (!next.shown) return null
   const name = t(TOOL_NAMES[tool])
@@ -63,14 +70,14 @@ export function ToolSwitchView({ stage }: { stage: string }) {
       disabled={!next.enabled}
       onClick={() => next.run()}
     >
-      {TOOLS.map((id, i) => (
+      {order.map((id, i) => (
         <span
           key={id}
           ref={el => {
             icons.current[i] = el
           }}
           className={styles.icon}
-          style={look(angle(i, TOOLS.indexOf(tool)))}
+          style={look(angle(i, order.indexOf(tool)))}
         >
           {TOOL_ICONS[id]}
         </span>

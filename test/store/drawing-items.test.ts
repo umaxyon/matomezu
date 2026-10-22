@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { placement } from "../../web/src/core/stage"
+import { toolOf } from "../../web/src/core/workspace"
 import { PLACE_OFFSET } from "../../web/src/plugins/books/drawing/items/items"
 import { newStore } from "../support"
 
@@ -12,6 +13,10 @@ function pointerFor(store: ReturnType<typeof newStore>, at: Point): Point {
 }
 const page = (store: ReturnType<typeof newStore>, book = "b1", i = 0) =>
   (store.state.getState().books[book] as BookOf<"drawing">).pages[i]!
+
+// そのステージの今の道具
+const toolAt = (store: ReturnType<typeof newStore>, stage = "s1") =>
+  toolOf(store.registry, store.state.getState().workspace, stage)
 
 function ready() {
   const store = newStore()
@@ -29,7 +34,8 @@ test("箱を置こうとして紙の上で押すと、置くのをやめ、押�
     stage: "s1",
     args: { page: "p1", at: { x: 100, y: 50 } },
   })
-  expect(store.state.getState().workspace.stages[0]).toMatchObject({ placing: null, tool: "select" })
+  expect(store.state.getState().workspace.stages[0]).toMatchObject({ placing: null })
+  expect(toolAt(store)).toBe("select")
 })
 
 test("置くときに渡した項目を箱に入れ、書かなかった項目は既定。形に合わない項目なら置かない", () => {
@@ -100,7 +106,7 @@ test("道具は選択・付け替え・ハンドの順に回り、替えると�
   store.actions.togglePlacing("s1", "shape.box")
   const tools = [1, 2, 3].map(() => {
     store.actions.command("s1", "tool.next")
-    return store.state.getState().workspace.stages[0]!.tool
+    return toolAt(store)
   })
   expect(tools).toEqual(["reparent", "hand", "select"])
   expect(store.state.getState().workspace.stages[0]!.placing).toBeNull()
@@ -110,7 +116,8 @@ test("ハンドの道具でアイテムを置こうとすると、選択の道�
   const store = ready()
   store.actions.setTool("s1", "hand")
   store.actions.togglePlacing("s1", "shape.box")
-  expect(store.state.getState().workspace.stages[0]).toMatchObject({ tool: "select", placing: "shape.box" })
+  expect(store.state.getState().workspace.stages[0]).toMatchObject({ placing: "shape.box" })
+  expect(toolAt(store)).toBe("select")
   store.actions.togglePlacing("s1", "shape.box")
   expect(store.state.getState().workspace.stages[0]!.placing).toBeNull()
 })
@@ -165,4 +172,30 @@ test("選んでいるアイテムを消すと選択も外れる。選んでい�
   const none = store.actions.perform("item.remove", { page: "p1", items: ["n2", "b9"] }, { book: "b1" })
   expect(none.ok).toBe(false)
   expect(page(store).items!.map(i => i.id)).toEqual(["n2"])
+})
+
+test("道具は道具の組ごとに 1 つ。同じ組を使うステージは、開いているブックが違っても同じ道具になる。紙の無いマスターは道具を持たない", () => {
+  const store = ready()
+  store.actions.split("s1")
+  store.actions.openBook("s2", "b2")
+  store.actions.setTool("s1", "hand")
+  expect([toolAt(store, "s1"), toolAt(store, "s2")]).toEqual(["hand", "hand"])
+  store.actions.command("s2", "tool.next")
+  expect([toolAt(store, "s1"), toolAt(store, "s2")]).toEqual(["select", "select"])
+  store.actions.openBook("s2", "master")
+  expect(toolAt(store, "s2")).toBeNull()
+  expect(store.actions.command("s2", "tool.next")).toBe(false)
+})
+
+test("置こうとしているアイテムはステージごと。道具を替えると、同じ組を使うステージの全部で取り消す", () => {
+  const store = ready()
+  store.actions.split("s1")
+  store.actions.openBook("s2", "b2")
+  store.actions.setTool("s1", "hand")
+  store.actions.togglePlacing("s2", "shape.box")
+  const placing = () => store.state.getState().workspace.stages.map(s => s.placing)
+  expect(placing()).toEqual([null, "shape.box"])
+  expect(toolAt(store, "s1")).toBe("select")
+  store.actions.setTool("s1", "hand")
+  expect(placing()).toEqual([null, null])
 })

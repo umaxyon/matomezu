@@ -1,5 +1,5 @@
 // 道具のアイコン（24 の四角の中に描く線。見た目の重心をそろえるため、少しずらしてある）と名前
-import type { Tool } from "../../../core/stage"
+import type { Tool } from "../../../core/tools"
 import { icon } from "../icon"
 
 export const TOOL_ICONS: Record<Tool, ReturnType<typeof icon>> = {

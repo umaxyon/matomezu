@@ -1,5 +1,6 @@
 // ステージ: 画面の見える領域の 1 区画。ブックを 1 つ開くか、何も開いていない。ページを持つタイプのブックはページを 1 つ開き
-// （ページが無ければ開かない）、開いたページの紙を置く。表示領域の大きさ・倍率・ずらす量と、使っている道具・置こうとしているアイテム・選択を持つ。
+// （ページが無ければ開かない）、開いたページの紙を置く。表示領域の大きさ・倍率・ずらす量と、置こうとしているアイテム・選択を持つ
+// （道具はステージではなく、道具の組ごとに窓が持つ。core/tools.ts）。
 // ずらす量は、いつも範囲に収めた値で持つ（収めるのはここの操作だけで、描く側は直さない）。
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
@@ -19,17 +20,12 @@ export interface Opened {
   paper: ResolvedPaper | null // 開いているページの描く紙（ページを開いていなければ null）
 }
 
-// 道具（回す順）。select は選んで動かす、hand はドラッグで紙をずらす。reparent は select と同じに動く
-export const TOOLS = ["select", "reparent", "hand"] as const
-export type Tool = (typeof TOOLS)[number]
-
 export interface Stage {
   id: string
   opened: Opened | null // 何も開いていなければ null
   zoom: number
   pan: Point // ずらす量（viewport.ts）
   view: Size | null // 表示領域の大きさ（測るまでは null）
-  tool: Tool
   placing: ItemId | null // 置こうとしているアイテム（ツールボックスで選んだもの。置くか取り消すまで）
   selection: readonly string[] // 選んでいるアイテムの id（開いているページのもの）
   picker: { at: Point | null } | null // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める）
@@ -48,7 +44,7 @@ const HOME: Point = { x: 0, y: 0 }
 const NONE: readonly string[] = []
 
 export function newStage(id: string, opened: Opened | null = null): Stage {
-  return { id, opened, zoom: 1, pan: HOME, view: null, tool: "select", placing: null, selection: NONE, picker: null }
+  return { id, opened, zoom: 1, pan: HOME, view: null, placing: null, selection: NONE, picker: null }
 }
 
 // 開くものが変わったときに、置こうとしているアイテムと選択を捨て、道具のアイコンを閉じる
@@ -125,20 +121,9 @@ export function closeBook(stage: Stage): Stage {
   return stage.opened ? settle(leave({ ...stage, opened: null }), HOME) : stage
 }
 
-// 回す順で次の道具
-export function nextTool(tool: Tool): Tool {
-  return TOOLS[(TOOLS.indexOf(tool) + 1) % TOOLS.length] ?? "select"
-}
-
-// 道具を替える。置こうとしていたアイテムは取り消す
-export function setTool(stage: Stage, tool: Tool): Stage {
-  return stage.tool === tool && stage.placing === null ? stage : { ...stage, tool, placing: null }
-}
-
-// アイテムを置こうとする（置くのは選択の道具の仕事なので、道具も選択にする）。同じアイテムをもう一度選べば取り消す
+// アイテムを置こうとする。同じアイテムをもう一度選べば取り消す（道具を選択にするのは workspace.ts の togglePlacing）
 export function togglePlacing(stage: Stage, item: ItemId): Stage {
-  if (stage.placing === item) return { ...stage, placing: null }
-  return { ...stage, tool: "select", placing: item }
+  return { ...stage, placing: stage.placing === item ? null : item }
 }
 
 export function stopPlacing(stage: Stage): Stage {

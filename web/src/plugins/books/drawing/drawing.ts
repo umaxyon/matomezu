@@ -27,4 +27,5 @@ export const DRAWING = defineBookType({
   },
   theme: "standard",
   tokens: [],
+  tools: "paper",
 })

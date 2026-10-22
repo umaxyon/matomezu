@@ -12,19 +12,9 @@ import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } fr
 import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import { restoreSettings, type Settings } from "../core/settings"
-import {
-  closePicker,
-  openBook,
-  openPicker,
-  panBy,
-  resize,
-  select,
-  setTool,
-  stopPlacing,
-  type Tool,
-  togglePlacing,
-} from "../core/stage"
+import { closePicker, openBook, openPicker, panBy, resize, select, stopPlacing } from "../core/stage"
 import type { ActionId, ItemId, SingleBookTypeId, SkinId } from "../core/tables"
+import type { Tool } from "../core/tools"
 import {
   close,
   focus,
@@ -33,8 +23,10 @@ import {
   hasStage,
   mapStage,
   newWorkspace,
+  setTool,
   showPage,
   split,
+  togglePlacing,
   unsplit,
   type Workspace,
 } from "../core/workspace"
@@ -94,7 +86,8 @@ export interface Actions {
   setSkin(skin: string): boolean
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
-  setTool(stage: string, tool: Tool): void // そのステージの道具を替える（置こうとしていたアイテムは取り消す）
+  // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
+  setTool(stage: string, tool: Tool): void
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
   stopPlacing(stage: string): void
   select(stage: string, ids: readonly string[]): void // そのステージで選ぶアイテム（開いているページのもの）
@@ -356,8 +349,8 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     setSkin: skin => actions.perform("settings.skin", { skin }).ok,
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
-    setTool: (id, tool) => withWorkspace(ws => mapStage(ws, id, s => setTool(s, tool))),
-    togglePlacing: (id, item) => withWorkspace(ws => mapStage(ws, id, s => togglePlacing(s, item))),
+    setTool: (id, tool) => withWorkspace(ws => setTool(registry, ws, id, tool)),
+    togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(registry, ws, id, item)),
     stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),
     select: (id, ids) => withWorkspace(ws => mapStage(ws, id, s => select(s, ids))),
     openPicker: (id, at) =>

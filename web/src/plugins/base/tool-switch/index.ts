@@ -1,10 +1,14 @@
-// 道具の切り替え: そのステージの道具を、回す順（core/stage.ts の TOOLS）で次へ替えるコマンド。紙のあるステージだけに出す
-import { nextTool, paperOf } from "../../../core/stage"
+// 道具の切り替え: そのステージの道具を、道具の組の回す順（core/tools.ts の TOOL_SETS）で次へ替えるコマンド。紙のあるステージだけに出す
+import { paperOf } from "../../../core/stage"
+import { nextTool, toolIn, toolSetOf } from "../../../core/tools"
 import { defineCommand } from "../../../store/commands/def"
 
 export const TOOL_NEXT = defineCommand({
   id: "tool.next",
   title: "Switch tool",
-  run: (ctx, a) => a.setTool(ctx.stage.id, nextTool(ctx.stage.tool)),
-  when: ctx => paperOf(ctx.stage) !== null,
+  run: (ctx, a) => {
+    const set = toolSetOf(ctx.registry, ctx.stage)
+    if (set) a.setTool(ctx.stage.id, nextTool(set, toolIn(ctx.workspace.tools, set)))
+  },
+  when: ctx => paperOf(ctx.stage) !== null && toolSetOf(ctx.registry, ctx.stage) !== null,
 })

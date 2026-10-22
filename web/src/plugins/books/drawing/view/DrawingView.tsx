@@ -10,6 +10,7 @@ import type { Point } from "../../../../core/geom"
 import type { BookOf } from "../../../../core/schema/book"
 import type { Stage } from "../../../../core/stage"
 import { paperOf, placement, toPaperDelta } from "../../../../core/stage"
+import { toolOf } from "../../../../core/workspace"
 import { useCommand } from "../../../../ui/commands"
 import { useContextMenu } from "../../../../ui/context-menu"
 import { useT } from "../../../../ui/i18n"
@@ -31,6 +32,8 @@ export function DrawingView({ stage }: BookViewProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage.placing !== null
+  const registry = useRegistry()
+  const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
@@ -40,7 +43,7 @@ export function DrawingView({ stage }: BookViewProps) {
     if (placing) {
       e.preventDefault() // 置いて開いたダイアログから、押した続きで焦点を移さない
       place.run(local(e, ref.current))
-    } else if (stage.tool !== "hand" && !(e.target as Element).closest("[data-item]")) select(stage.id, [])
+    } else if (!hand && !(e.target as Element).closest("[data-item]")) select(stage.id, [])
   }
 
   return (
@@ -100,10 +103,12 @@ function Items({ stage }: { stage: Stage }) {
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
+  const registry = useRegistry()
+  const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
   if (!page) return null
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
-    if (e.button !== 0 || stage.tool === "hand" || stage.placing !== null) return
+    if (e.button !== 0 || hand || stage.placing !== null) return
     const items = stage.selection.includes(id) ? stage.selection : [id]
     select(stage.id, items)
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -133,7 +138,7 @@ function Items({ stage }: { stage: Stage }) {
       onPointerUp={e => endDrag(e, true)}
       onPointerCancel={e => endDrag(e, false)}
       onDoubleClick={() => {
-        if (stage.tool !== "hand" && stage.placing === null) edit.run({ item: item.id })
+        if (!hand && stage.placing === null) edit.run({ item: item.id })
       }}
       onContextMenu={e => {
         if (stage.placing !== null) return

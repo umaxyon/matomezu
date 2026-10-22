@@ -8,7 +8,18 @@ import type { PagedBook } from "./book"
 import { fail } from "./errors"
 import type { Registry } from "./registry"
 import type { Book } from "./schema/book"
-import { closeBook, followBook as followStage, newStage, openBook, openPage, type Stage } from "./stage"
+import {
+  closeBook,
+  followBook as followStage,
+  newStage,
+  openBook,
+  openPage,
+  type Stage,
+  stopPlacing,
+  togglePlacing as togglePlacingOn,
+} from "./stage"
+import type { ItemId } from "./tables"
+import { hasTool, type Tool, type Tools, toolIn, toolSetOf } from "./tools"
 
 // 横に並べる
 export interface Arrangement {
@@ -20,6 +31,7 @@ export interface Workspace {
   current: string // カレントのステージの id
   arrangement: Arrangement
   issued: number // 最後に振ったステージの番号
+  tools: Tools // 道具の組ごとの今の道具（core/tools.ts）
 }
 
 export const MAX_STAGES = 2
@@ -31,6 +43,7 @@ export function newWorkspace(reg: Registry, book: Book | null): Workspace {
     current: "s1",
     arrangement: { direction: "row" },
     issued: 1,
+    tools: {},
   }
 }
 
@@ -83,6 +96,34 @@ export function close(ws: Workspace, id: string): Workspace {
 export function focus(ws: Workspace, id: string): Workspace {
   if (ws.current === id || !ws.stages.some(s => s.id === id)) return ws
   return { ...ws, current: id }
+}
+
+// ステージの今の道具（無いステージや、道具を使わないステージは null）
+export function toolOf(reg: Registry, ws: Workspace, id: string): Tool | null {
+  const stage = ws.stages.find(s => s.id === id)
+  const set = stage ? toolSetOf(reg, stage) : null
+  return set ? toolIn(ws.tools, set) : null
+}
+
+// ステージが使う道具の組の道具を替える。同じ組を使うステージは、全部その道具になる。組に無い道具には替えない。
+// 置くのは選択の道具の仕事なので、その組を使うステージの置こうとしていたアイテムは、全部取り消す
+export function setTool(reg: Registry, ws: Workspace, id: string, tool: Tool): Workspace {
+  const stage = ws.stages.find(s => s.id === id)
+  const set = stage ? toolSetOf(reg, stage) : null
+  if (!set || !hasTool(set, tool)) return ws
+  const stages = ws.stages.map(s => (toolSetOf(reg, s) === set ? stopPlacing(s) : s))
+  if (toolIn(ws.tools, set) === tool && stages.every((s, i) => s === ws.stages[i])) return ws
+  return { ...ws, stages, tools: { ...ws.tools, [set]: tool } }
+}
+
+// ステージでアイテムを置こうとする（同じアイテムなら取り消す）。置くのは選択の道具の仕事なので、そのステージの組の道具を選択にする。
+// ほかのステージの置こうとしているアイテムはそのまま
+export function togglePlacing(reg: Registry, ws: Workspace, id: string, item: ItemId): Workspace {
+  const next = mapStage(ws, id, s => togglePlacingOn(s, item))
+  const stage = next.stages.find(s => s.id === id)
+  const set = stage ? toolSetOf(reg, stage) : null
+  if (!stage?.placing || !set || toolIn(next.tools, set) === "select" || !hasTool(set, "select")) return next
+  return { ...next, tools: { ...next.tools, [set]: "select" } }
 }
 
 // ステージに、開いているブックのページを開く

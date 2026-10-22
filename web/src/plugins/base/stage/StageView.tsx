@@ -6,6 +6,7 @@ import { fail } from "../../../core/errors"
 import type { BookTypeId } from "../../../core/registry"
 import { paperOf, type Stage } from "../../../core/stage"
 import { bookTokens } from "../../../core/theme"
+import { toolOf } from "../../../core/workspace"
 import { useT } from "../../../ui/i18n"
 import { useActions, useApp, useRegistry, useUi } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
@@ -29,6 +30,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     return o ? s.books[o.book] : undefined
   })
   const registry = useRegistry()
+  const tool = useApp(s => toolOf(registry, s.workspace, id))
   const vars = useMemo(() => (book ? themeVars(bookTokens(registry, book)) : undefined), [registry, book])
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const t = useT()
@@ -41,7 +43,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
-    if (e.button !== 0 || !hasPaper || stage.tool !== "hand") return
+    if (e.button !== 0 || !hasPaper || tool !== "hand") return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY }
     setDragging(true)
@@ -73,7 +75,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       data-current={isCurrent}
       data-multi={isMulti}
       data-paper={hasPaper}
-      data-tool={stage.tool}
+      data-tool={tool ?? undefined}
       data-dragging={dragging}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

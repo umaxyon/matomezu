@@ -7,10 +7,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { Point } from "../../../core/geom"
-import { paperOf, type Tool } from "../../../core/stage"
+import { paperOf } from "../../../core/stage"
+import type { Tool } from "../../../core/tools"
+import { toolOf } from "../../../core/workspace"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
-import { useActions, useApp } from "../../../ui/store-context"
+import { useActions, useApp, useRegistry } from "../../../ui/store-context"
 import { TOOL_ICONS, TOOL_NAMES } from "../tool-switch/icons"
 import { ICON, leftPicker, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
@@ -135,6 +137,8 @@ function Ring({ at }: { at: Point }) {
 function Picker({ last }: { last: { current: Point | null } }) {
   const t = useT()
   const opened = useApp(s => s.workspace.stages.find(st => st.picker !== null))
+  const registry = useRegistry()
+  const current = useApp(s => (opened ? toolOf(registry, s.workspace, opened.id) : null))
   const { command, closePicker } = useActions()
   const [hover, setHover] = useState<number | null>(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
@@ -193,7 +197,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const { layout } = placed
   const pick = (tool: Tool) => {
     closePicker()
-    if (tool !== "reparent" && tool !== opened.tool) command(opened.id, "tool.set", tool)
+    if (tool !== "reparent" && tool !== current) command(opened.id, "tool.set", tool)
   }
   const tip = hover === null ? null : layout.slots[hover]
   return (
@@ -220,7 +224,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
             type="button"
             className={styles.button}
             aria-label={t(TOOL_NAMES[tool])}
-            aria-pressed={opened.tool === tool}
+            aria-pressed={current === tool}
             style={{ left: slot.x, top: slot.y, width: ICON, height: ICON }}
             onClick={() => pick(tool)}
             onPointerMove={() => setHover(i)}
