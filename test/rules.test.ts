@@ -112,7 +112,7 @@ test("誤りは誤りの表（core/errors.ts）の番号で投げる（ほかで
 })
 
 test("ソースに、その時の状況でしか意味を持たない言葉を書かない", () => {
-  const words = /新基盤|オーバーホール|仮の|とりあえず|暫定/
+  const words = /新基盤|オーバーホール|仮の|とりあえず|暫定|旧版|前の作り/
   const files = [...sources, ...filesUnder(join(ROOT, "test")), ...filesUnder(join(ROOT, "e2e"))]
     .map(f => (typeof f === "string" ? { rel: relative(ROOT, f), text: readFileSync(f, "utf8") } : f))
     .filter(f => !f.rel.endsWith("rules.test.ts"))

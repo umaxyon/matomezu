@@ -9,9 +9,8 @@
 // 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list.moveRow）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
 // ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外の層に描く）。
 // 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list.stretchRow。ドラッグの途中の動いた量だけはビューに持つ）。
-// 設定のダイアログの「行の高さ」の下書き（項目 rowLines。データには無い）があれば、全部の行をそれで描く。
-// リストのテーマと色は箱と同じ欄（box.*）と、リストの欄（list.*。見出しの帯・台紙・行の付箋）で描き、行はリストに従う。
-// チェックリストでは、チェック済みの行を薄く描き（checkedGray）、先頭か最後に寄せて見せる（checkedOrder。データの順は変えない）。
+// リストのテーマと色はリストの欄（list.*）で描き、行はリストに従う。
+// チェックリストでは、チェック済みの行を薄く描き（checkedGray）、先頭か最後に寄せて見せる（checkedOrder。見せる順と動かせる行は rows.ts）。
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 import { type CSSProperties, type PointerEvent, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
@@ -29,21 +28,13 @@ import { LIST, type ListRow } from "."
 import { edgeScroller } from "./edge-scroll"
 import styles from "./ListView.module.css"
 import { listPaintVars } from "./paint"
-import { linesFor, listLayout, type RowLayout, type RowsLines, rowHeight } from "./size"
+import { canCarry, shownOrder } from "./rows"
+import { linesFor, listLayout, type RowLayout, rowHeight } from "./size"
 
 // リストを描くテーマの欄
 const LOOK_TOKENS = LIST.tokens
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
-
-// 行を見せる順（行の番号の並び）: チェック済みの行を先頭か最後に寄せる（ほかの順はデータのまま。データの順は変えない）
-function shownOrder(rows: readonly ListRow[], order: "none" | "first" | "last"): number[] {
-  const all = rows.map((_, i) => i)
-  if (order === "none") return all
-  const done = all.filter(i => rows[i]?.props.checked === true)
-  const rest = all.filter(i => rows[i]?.props.checked !== true)
-  return order === "first" ? [...done, ...rest] : [...rest, ...done]
-}
 
 // 行のドラッグを始めるまでに動かす量（画面の px）
 const DRAG_START = 4
@@ -154,14 +145,12 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
     if (!drop || !c?.moving || !target || target.before === c.row.id) return
     moveRow.run({ list: id, row: c.row.id, to: target.list, ...(target.before ? { before: target.before } : {}) })
   }
-  // チェック済みの行を先頭か最後に寄せて見せているときは、チェック済みの行は動かせない（落としても、見せる順で寄せ直されるため）
-  const pinned = (row: ListRow) => props.checklist && props.checkedOrder !== "none" && row.props.checked === true
   const carrying = (row: ListRow) => ({
     onPointerDown: (e: PointerEvent<HTMLLIElement>) => {
       if (e.button !== 0) return
       e.stopPropagation()
       select(stage, [id])
-      if (pinned(row)) return
+      if (!canCarry({ props }, row)) return
       carry.current = {
         pointer: e.pointerId,
         row,
@@ -192,8 +181,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   const at = useApp(s => s.workspace.stages.find(st => st.id === stage))
   const stretch = useRef<Stretch | null>(null)
   const [moved, setMoved] = useState(0) // 行の高さを変えているドラッグの、画面の上で動いた量
-  const draft = (props as { rowLines?: RowsLines }).rowLines
-  const layout = listLayout(rows, size.w, props.checklist, draft)
+  const layout = listLayout(rows, size.w, props.checklist)
   // 高さを変えている途中の行は、一番近い行数の高さで描く
   const heightOf = (row: string, height: number) => {
     const st = stretch.current
@@ -244,7 +232,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
             data-carrying={carried !== null}
             aria-label={t("Rows of {name}", { name: props.caption })}
           >
-            {shownOrder(rows, props.checklist ? props.checkedOrder : "none").map(i => {
+            {shownOrder({ props }, rows).map(i => {
               const row = rows[i] as ListRow
               const look = layout[i]
               return (

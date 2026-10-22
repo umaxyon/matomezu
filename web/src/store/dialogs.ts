@@ -31,9 +31,11 @@ export interface OpenedDialog {
   preview: DialogPreview | null // 選んだ値を、決める前に重ねて見せる下書き（このダイアログを閉じれば消える）
 }
 
-// ダイアログの下書き: ブック book のアイテム item（無ければブックそのもの）を、項目に props を重ねて描く（データは変えない。この窓の中だけ）
+// ダイアログの下書き: ブック book のアイテム item（無ければブックそのもの）を、項目に props を重ねて描く（データは変えない。この窓の中だけ）。
+// content があれば、アイテムの中身（リストの行など）をそれに替えて描く
 export interface DialogPreview {
   book: string
   item?: string
   props: Readonly<Record<string, unknown>>
+  content?: readonly unknown[]
 }

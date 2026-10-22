@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BOX_LOOK } from "../../web/src/plugins/books/drawing/box/size"
 import type { ListRow } from "../../web/src/plugins/books/drawing/list"
+import { canCarry, shownOrder } from "../../web/src/plugins/books/drawing/list/rows"
 import { LIST_SIZE, linesFor, listLayout, rowHeight } from "../../web/src/plugins/books/drawing/list/size"
 import { newStore } from "../support"
 
@@ -151,4 +152,31 @@ test("row.move で行を並べ替え、同じページの別のリストへ移�
   expect("checked" in other.children![0]!.props).toBe(false)
   expect(act(store, "row.move", { list: "n1", row: ids[1], before: ids[1] }).ok).toBe(false)
   expect(act(store, "row.move", { list: "n1", row: ids[1], to: "nope" }).ok).toBe(false)
+})
+
+test("見せる順: チェックリストでチェック済みを先頭か最後に寄せる（チェックリストでなければ、寄せの設定があってもデータの順）。寄せているとき、チェック済みの行は動かせない", () => {
+  const row = (id: string, checked?: boolean): ListRow => ({
+    id,
+    item: "list.row",
+    props: {
+      caption: id,
+      rule: true,
+      body: "",
+      captionAlign: "left",
+      bodyAlign: "left",
+      ...(checked ? { checked } : {}),
+    },
+  })
+  const rows = [row("a"), row("b", true), row("c"), row("d", true)]
+  const look = (checklist: boolean, checkedOrder: "none" | "first" | "last") => ({
+    props: { caption: "", captionAlign: "center" as const, checklist, zebra: false, checkedGray: false, checkedOrder },
+  })
+  expect(shownOrder(look(true, "none"), rows)).toEqual([0, 1, 2, 3])
+  expect(shownOrder(look(true, "first"), rows)).toEqual([1, 3, 0, 2])
+  expect(shownOrder(look(true, "last"), rows)).toEqual([0, 2, 1, 3])
+  expect(shownOrder(look(false, "first"), rows)).toEqual([0, 1, 2, 3])
+  expect(canCarry(look(true, "first"), rows[1]!)).toBe(false)
+  expect(canCarry(look(true, "first"), rows[0]!)).toBe(true)
+  expect(canCarry(look(true, "none"), rows[1]!)).toBe(true)
+  expect(canCarry(look(false, "last"), rows[1]!)).toBe(true)
 })

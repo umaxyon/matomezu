@@ -35,6 +35,7 @@ import {
 import { itemsOf } from "../items/items"
 import { useAligns, useBookOf, useBookTheme, useSwatches } from "../shape/parts"
 import { LIST, LIST_FILL, type ListRow } from "."
+import { withRowLines } from "./rows"
 import type { RowsLines } from "./size"
 
 // ダイアログの高さ（全部の欄が出たときの高さ。チェックリストなどで欄が増えても大きさを変えない）
@@ -47,13 +48,8 @@ const PICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
 type ListProps = ItemProps<"shape.list">
 
-// 選んだそばからリストに見せる項目（rowLines は行の高さの下書きで、データには無い）
-type Look = Pick<
-  ListProps,
-  "captionAlign" | "theme" | "color" | "checklist" | "zebra" | "checkedGray" | "checkedOrder"
-> & {
-  rowLines?: RowsLines
-}
+// 選んだそばからリストに見せる項目
+type Look = Pick<ListProps, "captionAlign" | "theme" | "color" | "checklist" | "zebra" | "checkedGray" | "checkedOrder">
 
 const EMPTY: ListProps = {
   caption: "",
@@ -100,9 +96,17 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
     return item?.item === LIST.id ? item : undefined
   })
   const { perform, previewDialog } = useActions()
+  // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(
-    (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
-    [book, args.item, previewDialog],
+    (look: Look | null, rowLines?: RowsLines) => {
+      if (!look || !book || !found) return previewDialog(null)
+      const content =
+        rowLines === undefined
+          ? undefined
+          : withRowLines({ ...found, props: { ...found.props, ...look } }, rowLines).children
+      previewDialog({ book, item: args.item, props: look, ...(content ? { content } : {}) })
+    },
+    [book, args.item, found, previewDialog],
   )
   if (!book || !found) return null
   const rows: readonly ListRow[] = found.children ?? []
@@ -154,7 +158,7 @@ function ListDialog({
   bookTheme: string | undefined
   ready: boolean
   onSubmit: (props: ListProps, rowLines?: RowsLines) => boolean // 決められたか
-  onPreview?: (look: Look | null) => void // テーマ・色・チェックリスト・行の色分けを選んだ（元の値に戻せば null）
+  onPreview?: (look: Look | null, rowLines?: RowsLines) => void // テーマ・色・チェックリスト・行の色分け・行の高さを選んだ（元の値に戻せば null）
   onClose: () => void
 }) {
   const t = useT()
@@ -194,9 +198,9 @@ function ListDialog({
             zebra,
             checkedGray,
             checkedOrder,
-            ...(rowLines !== undefined ? { rowLines } : {}),
           }
         : null,
+      rowLines,
     )
   }, [changed, captionAlign, theme, color, checklist, zebra, checkedGray, checkedOrder, rowLines, onPreview])
   const toggleChecklist = (on: boolean) => {

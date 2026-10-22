@@ -4,7 +4,7 @@
 // アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（drawing.place。紙からはみ出す所では薄く出し、置かない）。
 // 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに drawing.move）。ドラッグ中は、動かすアイテムを少し透かしてポインタに付け、
 // ほかのアイテムは薄くして動かさない。アイテム 1 つなら、通り道（items.ts の trackDrag）を覚え、正面から半分入った相手をその場で入れ替えて描く（dragging）。ダブルクリックで中身を編集する（drawing.edit）。何も無い所を押すと選択を外す。
-// アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（box.context）を開く。
+// アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（item.context）を開く。
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
@@ -126,7 +126,7 @@ function Items({ stage }: { stage: Stage }) {
   })
   const move = useCommand(stage.id, "drawing.move")
   const edit = useCommand(stage.id, "drawing.edit")
-  const openMenu = useContextMenu(stage.id, "box.context")
+  const openMenu = useContextMenu(stage.id, "item.context")
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
@@ -197,11 +197,15 @@ function Items({ stage }: { stage: Stage }) {
     if (drop && (stretched.x !== 0 || stretched.y !== 0)) resize.run({ item: st.item, edges: st.edges, by: stretched })
   }
   const paper = paperOf(stage)
-  // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きのあるアイテムは、項目に下書きを重ねて描く
+  // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きのあるアイテムは、項目に下書きを重ねて描く（中身の下書きがあれば中身も替える）
   const shown = (placed: Placed): Placed => {
     const item =
       preview?.item !== undefined && preview.book === stage.opened?.book && preview.item === placed.id
-        ? ({ ...placed, props: { ...placed.props, ...preview.props } } as Placed)
+        ? ({
+            ...placed,
+            props: { ...placed.props, ...preview.props },
+            ...(preview.content ? { children: preview.content } : {}),
+          } as Placed)
         : placed
     const st = stretch.current
     if (!st || st.item !== item.id || !paper) return item

@@ -4,8 +4,8 @@ import { defineAction } from "../../../../core/def/action"
 import { nextItemId } from "../items/items"
 import { textNew, textPatch } from "../shape"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "."
-import { findList, rowsOf, withList } from "./rows"
-import { MAX_ROW_LINES, placedListWidth, rewrittenLines } from "./size"
+import { findList, rowsOf, withList, withRowLines } from "./rows"
+import { MAX_ROW_LINES } from "./size"
 
 // 行の項目を変えるときに渡す形: 書いた項目だけを変え、null は消す（既定に戻す）。AI にもこの形で見せる。
 // チェック（checked）は row.check、行数（lines）は row.lines で変える
@@ -123,19 +123,7 @@ export const ROW_LINES = defineAction({
     const found = findList(book, args.page, args.list)
     const rows = found ? rowsOf(found.list) : []
     if (!found || !(args.rows ?? []).every(id => rows.some(r => r.id === id))) return null
-    const targets = new Set(args.rows ?? rows.map(r => r.id))
-    const picked = rows.filter(r => targets.has(r.id))
-    const w = found.list.w ?? placedListWidth(found.list.props.caption)
-    const lines = new Map(
-      picked.map((r, i) => [r.id, rewrittenLines(picked, w, found.list.props.checklist, args.lines)[i]]),
-    )
-    const children = rows.map(r => {
-      if (!targets.has(r.id)) return r
-      const { lines: _, ...rest } = r.props
-      const to = lines.get(r.id)
-      return { ...r, props: (to === undefined ? rest : { ...rest, lines: to }) as RowProps }
-    })
-    return { next: withList(book, found.page, { ...found.list, children }), result: {} }
+    return { next: withList(book, found.page, withRowLines(found.list, args.lines, args.rows)), result: {} }
   },
 })
 
