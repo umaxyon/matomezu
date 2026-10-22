@@ -70,7 +70,7 @@
 .item {
   position: absolute;
   box-sizing: border-box;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.12s ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .item {
