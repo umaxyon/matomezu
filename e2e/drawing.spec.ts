@@ -984,3 +984,32 @@ test("線のキャプションを押すと線が選ばれ、ドラッグする�
   await page.mouse.up()
   await expect.poll(first).not.toBe(was)
 })
+
+test("線の色は、灰色を紙の色に 4 割混ぜた色。見る人の OS が暗い明暗でも同じ色で、白い紙の上で見える", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, y, caption] of [
+    [150, 150, "始"],
+    [550, 150, "終"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, y)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 900, 650)
+  await page.mouse.click(empty.x, empty.y)
+  await drawLine(page, "始", "終")
+  const stroke = page.locator("[data-item]:not([data-shape]) polyline").first()
+  // 計算された色を 0〜255 の rgb にする（color-mix の結果は color(srgb …) で返る）
+  const rgb = () =>
+    stroke.evaluate(el => {
+      const c = getComputedStyle(el).stroke
+      const n = c.match(/[\d.]+/g)!.map(Number)
+      return c.startsWith("color(") ? n.slice(0, 3).map(v => Math.round(v * 255)) : n.slice(0, 3)
+    })
+  const light = await rgb()
+  expect(light).toEqual([189, 189, 197]) // rgb(90, 90, 110) を 4 割、白を 6 割
+  await page.emulateMedia({ colorScheme: "dark" })
+  expect(await rgb()).toEqual(light)
+})
