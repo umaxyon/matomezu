@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useId, useState } from "react"
 import { pagedOf } from "../../../../core/book"
 import type { MessageKey } from "../../../../core/i18n/i18n"
+import { rectsOf } from "../../../../core/placed"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
@@ -23,7 +24,6 @@ import {
   rowClass,
   Section,
 } from "../../../base/ui"
-import { rectsOf } from "../items/items"
 import { linesOf } from "../placed"
 import { useBookOf } from "../shape/parts"
 import { elbowAt, type LineRoute } from "."

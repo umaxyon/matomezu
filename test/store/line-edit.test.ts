@@ -1,7 +1,8 @@
 // 線をじかに直す決まり（drawing/line/edit.ts）と、端のつなぎ替え（line.reconnect）
+
 import { expect, test } from "bun:test"
+import { rectsOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { rectsOf } from "../../web/src/plugins/books/drawing/items/items"
 import { reconnectTargets } from "../../web/src/plugins/books/drawing/line/connect"
 import { drawLines } from "../../web/src/plugins/books/drawing/line/drawn"
 import { captionDragged, endDragged, viaDragged, viaSettled } from "../../web/src/plugins/books/drawing/line/edit"

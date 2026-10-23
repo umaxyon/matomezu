@@ -11,8 +11,19 @@
 //   入れ替えていない相手と近ければ、動かした箱を相手の手前（来た側）へ戻す（相手は動かさない）。
 //   それでも紙からはみ出す・近すぎる組が残るなら、動かさない（元の位置に戻る）
 // - 何個かまとめて動かすときは入れ替えず、近すぎる相手の手前へまとめて戻すだけ
+
 import type { Point, Size } from "../../../../core/geom"
-import { type Axis, apart, evenGap, type Gap, inPaper, LEN, newClash, type Rect, tooClose } from "./push"
+import {
+  type Axis,
+  apart,
+  evenGap,
+  type Gap,
+  inPaper,
+  LEN,
+  newClash,
+  type Rect,
+  tooClose,
+} from "../../../../core/place/push"
 
 export type Dir = "left" | "right" | "up" | "down"
 export const DIRS = ["left", "right", "up", "down"] as const

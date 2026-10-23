@@ -25,6 +25,8 @@ import {
 } from "react"
 import { pagedOf } from "../../../../core/book"
 import type { Point, Rect } from "../../../../core/geom"
+import { type Edges, fitsPaper, itemSize, minSize, resizedBy, shownRects } from "../../../../core/place/items"
+import { placedSize, rectsOf, shapesOf } from "../../../../core/placed"
 import type { Stage } from "../../../../core/stage"
 import { paperOf, placement, toPaperDelta } from "../../../../core/stage"
 import { toolOf } from "../../../../core/workspace"
@@ -33,22 +35,7 @@ import { useContextMenu } from "../../../../ui/context-menu"
 import { useT } from "../../../../ui/i18n"
 import type { BookViewProps, ItemViewProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry, useUi } from "../../../../ui/store-context"
-import {
-  type Came,
-  dragging,
-  type Edges,
-  fitsPaper,
-  itemSize,
-  minSize,
-  type Placed,
-  placeAt,
-  placedSize,
-  resizedBy,
-  shapesOf,
-  shownRects,
-  trackDrag,
-} from "../items"
-import { rectsOf } from "../items/items"
+import { type Came, dragging, type Placed, placeAt, trackDrag } from "../items"
 import { elbowAt, usesLines } from "../line"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "../line/connect"
 import { drawLines, type LineCache } from "../line/drawn"

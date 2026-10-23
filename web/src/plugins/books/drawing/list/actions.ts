@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { hasPages } from "../../../../core/book"
 import { defineAction } from "../../../../core/def/action"
-import { nextItemId } from "../items/items"
+import { nextItemId } from "../../../../core/place/items"
 import { textNew, textPatch } from "../shape"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "."
 import { findList, rowsOf, withList, withRowLines } from "./rows"

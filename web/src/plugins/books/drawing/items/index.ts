@@ -12,14 +12,4 @@ export {
   placeAt,
 } from "./commands"
 export { type Came, DIRS, type Dir } from "./drag"
-export {
-  dragging,
-  type Edges,
-  fitsPaper,
-  itemSize,
-  minSize,
-  placedSize,
-  resizedBy,
-  shownRects,
-  trackDrag,
-} from "./items"
+export { dragging, trackDrag } from "./items"

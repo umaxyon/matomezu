@@ -1,13 +1,15 @@
 // 図面の画面から置く・動かすコマンド。画面の座標を受け取り、紙の上の座標に直してアクションを呼ぶ
+
 import { pagedOf } from "../../../../core/book"
 import type { Point } from "../../../../core/geom"
+import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../../../core/place/items"
 import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
 import type { DialogTaking } from "../../../../store/dialogs"
 import { defineKeys } from "../../../../store/keys"
-import { shapeDefOf, shapesOf } from "../placed"
+import { shapesOf } from "../placed"
 import type { Came } from "./drag"
-import { type Edges, fitsPaper, itemSize, PLACE_OFFSET, resizedBy } from "./items"
+import { PLACE_OFFSET } from "./items"
 
 const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
 

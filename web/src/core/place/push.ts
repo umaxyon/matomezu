@@ -8,7 +8,7 @@
 // - 変わる前から近づきすぎていた組（よそから来たデータ）は押さない
 // - 押した列が紙からはみ出すときは、その列の押された箱を、縮めてよい下限まで余裕に比例して縮めて収める（pushShrinking。呼ぶ側が使うか決める）
 // 置いたとき（planPlace）は、動きの向きが無いので、重なった相手を右へ押し、駄目なら下へ押す。動かしたとき（ドラッグ）の決まりは drag.ts
-import type { Rect, Size } from "../../../../core/geom"
+import type { Rect, Size } from "../geom"
 
 export type { Rect }
 

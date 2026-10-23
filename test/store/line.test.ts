@@ -1,11 +1,12 @@
 // 線のアクション（line.connect・line.update）と、線と形の決まり（組ごとの間隔・消すと線も消える・引けなくなった区間・関係の検査）
+
 import { expect, test } from "bun:test"
 import { restoreBooks } from "../../web/src/core/book"
 import { perform } from "../../web/src/core/perform"
+import { GAP } from "../../web/src/core/place/push"
+import { rectsOf } from "../../web/src/core/placed"
 import { buildRegistry } from "../../web/src/core/registry"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { rectsOf } from "../../web/src/plugins/books/drawing/items/items"
-import { GAP } from "../../web/src/plugins/books/drawing/items/push"
 import { elbowAt, usesLines } from "../../web/src/plugins/books/drawing/line"
 import { alignedEndsOf } from "../../web/src/plugins/books/drawing/line/drawn"
 import { CAPTION_GAP, LINK_GAP } from "../../web/src/plugins/books/drawing/line/placed"

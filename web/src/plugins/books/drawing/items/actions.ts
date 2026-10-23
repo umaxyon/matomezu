@@ -1,21 +1,22 @@
 // 図面のページにアイテムを置く・動かすアクション
+
 import { z } from "zod"
 import { bookItems, hasPages } from "../../../../core/book"
 import { defineAction } from "../../../../core/def/action"
-import { shapeSchema } from "../../../../core/placed"
-import type { Registry } from "../../../../core/registry"
-import { type Placed, shapeDefOf, shapesOf } from "../placed"
-import { DIRS } from "./drag"
 import {
   knownTheme,
-  moveItems,
   nextItemId,
-  placedSize,
   placeItem,
   removeItems,
   replacePushing,
+  shapeDefOf,
   widenForCaption,
-} from "./items"
+} from "../../../../core/place/items"
+import { placedSize, shapeSchema } from "../../../../core/placed"
+import type { Registry } from "../../../../core/registry"
+import { type Placed, shapesOf } from "../placed"
+import { DIRS } from "./drag"
+import { moveItems } from "./items"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
