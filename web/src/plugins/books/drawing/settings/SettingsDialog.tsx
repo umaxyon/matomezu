@@ -1,4 +1,4 @@
-// ブックの設定のダイアログ: ブックの名前・テーマ・紙の色・線の既定の通り方（ページが自分の既定を持たなければこれ）。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
+// ブックの設定のダイアログ: ブックの名前・テーマ・紙の色・線の既定の通り方（ページが自分の既定を持たなければこれ。線が使えるブックだけ）。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
 // テーマは表のテーマから選ぶ（ブックのタイプのテーマを選べば、ブックのテーマの項目を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）。
 // テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book.update（線の既定の通り方を変えたら drawing.update も）を書き、キャンセルでは元のまま
 import { useEffect, useId, useMemo, useState } from "react"
@@ -8,7 +8,7 @@ import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { ActionButton, Choices, ColorPicker, controlClass, Dialog, Field, Form, rowClass } from "../../../base/ui"
-import type { LineRoute } from "../line"
+import { type LineRoute, usesLines } from "../line"
 import { ROUTE_ICONS } from "../line/icons"
 import { DEFAULT_ROUTE } from "../line/placed"
 
@@ -46,6 +46,7 @@ export function SettingsDialog({ stage, onClose }: DialogProps) {
     [registry, book, theme],
   )
   if (!book) return null
+  const lineable = usesLines(registry, book) // 線が使えるブックだけ、線の既定の通り方を出す
   const named = title.trim() !== ""
   const swatches = PAPER_PRESETS.map(hex => ({ name: hex, hex, label: hex }))
   const submit = () => {
@@ -99,18 +100,20 @@ export function SettingsDialog({ stage, onClose }: DialogProps) {
             onChange={setPaperColor}
           />
         </div>
-        <div className={rowClass}>
-          <span>{t("Line route")}</span>
-          <Choices
-            label={t("Line route")}
-            value={route}
-            options={[
-              { value: "elbow", label: t("Elbow"), icon: ROUTE_ICONS.elbow },
-              { value: "straight", label: t("Straight"), icon: ROUTE_ICONS.straight },
-            ]}
-            onChange={setRoute}
-          />
-        </div>
+        {lineable && (
+          <div className={rowClass}>
+            <span>{t("Line route")}</span>
+            <Choices
+              label={t("Line route")}
+              value={route}
+              options={[
+                { value: "elbow", label: t("Elbow"), icon: ROUTE_ICONS.elbow },
+                { value: "straight", label: t("Straight"), icon: ROUTE_ICONS.straight },
+              ]}
+              onChange={setRoute}
+            />
+          </div>
+        )}
       </Form>
     </Dialog>
   )

@@ -2,6 +2,7 @@
 // ページの設定は右クリックのメニューに置く）
 import { defineCommand } from "../../../../store/commands/def"
 import { defineDialog, defineDialogWith } from "../../../../store/dialogs"
+import { usesLines } from "../line"
 
 export const DRAWING_SETTINGS_DIALOG = defineDialog({ id: "drawing.settings" })
 
@@ -15,7 +16,7 @@ export const DRAWING_SETTINGS = defineCommand({
 // ページの設定のダイアログ。開いたステージのブックの、ページ page の設定を変える
 export const PAGE_SETTINGS_DIALOG = defineDialogWith<{ page: string }>()({ id: "page.settings" })
 
-// 開いているページの設定のダイアログを開く
+// 開いているページの設定のダイアログを開く（設定は線の既定の通り方だけなので、線が使えるブックだけ）
 export const PAGE_SETTINGS = defineCommand({
   id: "page.settings",
   title: "Page settings",
@@ -23,5 +24,5 @@ export const PAGE_SETTINGS = defineCommand({
     const page = ctx.stage.opened?.page
     if (page) a.openDialog(ctx.stage.id, "page.settings", { page })
   },
-  when: ctx => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null,
+  when: ctx => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null && usesLines(ctx.registry, ctx.book),
 })

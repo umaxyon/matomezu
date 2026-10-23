@@ -5,7 +5,7 @@ import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { keepApart, nextItemId, rectsOf } from "../items/items"
 import { type DrawingPage, elbowOf, linesOf } from "../placed"
-import { LINE, LinePatchSchema } from "."
+import { LINE, LinePatchSchema, usesLines } from "."
 import { connectable } from "./connect"
 import { canConnect, type PlacedLine, PlacedLineSchema, tidyLines } from "./placed"
 
@@ -28,7 +28,7 @@ function withLine(reg: Registry, book: Drawing, page: DrawingPage, line: PlacedL
 }
 
 // 形 from から to へ線を引く（同じ形なら自分に戻る線）。両端は同じページのつなげる形（箱・リスト。リストの行にはつながない）。
-// 同じ組（向きは問わない）には 1 本だけ、自分に戻る線は何本でも。props は線の項目（書かなかった項目は既定）。
+// 線が使えるブック（usesLines）だけ。同じ組（向きは問わない）には 1 本だけ、自分に戻る線は何本でも。props は線の項目（書かなかった項目は既定）。
 // 線でつながった 2 つの形は間隔の下限が広がる（32px、キャプションがあれば 40px）ので、近すぎれば終点の側をどける。どけられなければ断る
 export const LINE_CONNECT = defineAction({
   id: "line.connect",
@@ -42,7 +42,7 @@ export const LINE_CONNECT = defineAction({
     props: LINE.props.optional(),
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (book.type !== "drawing" || !usesLines(ctx.registry, book)) return null
     const page = book.pages.find(p => p.id === args.page)
     if (!page || !connectable(ctx.registry, page, args.from) || !connectable(ctx.registry, page, args.to)) return null
     if (!canConnect(linesOf(page), args.from, args.to)) return null
@@ -104,7 +104,7 @@ export const LINE_RECONNECT = defineAction({
     props: z.strictObject({ exitAt: LINE.props.shape.exitAt, enterAt: LINE.props.shape.enterAt }).optional(),
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (book.type !== "drawing" || !usesLines(ctx.registry, book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now || now[args.end] === args.item || !connectable(ctx.registry, page, args.item)) return null

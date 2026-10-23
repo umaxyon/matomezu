@@ -1,7 +1,7 @@
 // 図面のページにアイテムを置く・動かすアクション
 import { z } from "zod"
+import { bookItems } from "../../../../core/book"
 import { defineAction } from "../../../../core/def/action"
-import { bookType } from "../../../../core/registry"
 import { PlacedSchema, placedDef, shapesOf } from "../placed"
 import { DIRS } from "./drag"
 import {
@@ -34,7 +34,7 @@ export const ITEM_PLACE = defineAction({
   }),
   run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
-    if (!bookType(ctx.registry, book.type).items.defaults.includes(args.item)) return null
+    if (!bookItems(ctx.registry, book).includes(args.item)) return null
     const props = ctx.registry.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
     const base = { id: nextItemId(book, ctx.newId), item: args.item, ...args.at, props: props.data }

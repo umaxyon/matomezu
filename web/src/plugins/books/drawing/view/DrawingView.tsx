@@ -45,6 +45,7 @@ import {
   shapesOf,
   trackDrag,
 } from "../items"
+import { usesLines } from "../line"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "../line/connect"
 import { drawLines, type LineCache } from "../line/drawn"
 import { LinesView } from "../line/LinesView"
@@ -163,10 +164,15 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
     const book = o ? (s.books[o.book] as BookOf<"drawing"> | undefined) : undefined
     return book?.pages.find(pg => pg.id === o?.page)
   })
-  // ブックの線の既定の通り方（ページが自分の既定を持たなければこれ）
+  // ブックの線の既定の通り方（ページが自分の既定を持たなければこれ）と、ブックで線が使えるか（使えなければ線を引く〇を出さない）
   const bookRoute = useApp(s => {
     const o = stage.opened
     return o ? (s.books[o.book] as BookOf<"drawing"> | undefined)?.lineRoute : undefined
+  })
+  const registry = useRegistry()
+  const lineable = useApp(s => {
+    const b = stage.opened ? s.books[stage.opened.book] : undefined
+    return b ? usesLines(registry, b) : false
   })
   const move = useCommand(stage.id, "drawing.move")
   const edit = useCommand(stage.id, "drawing.edit")
@@ -179,7 +185,6 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   const preview = useApp(s => s.dialog?.preview ?? null)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
-  const registry = useRegistry()
   const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
   const draw = useCommand(stage.id, "line.draw")
   const lineEdit = useCommand(stage.id, "line.edit")
@@ -396,7 +401,14 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
     const l = link.current
     if (linking && l) return l.from === id ? [l.side] : []
     const busy = dragged.length > 0 || resizing !== null
-    if (!selectable || busy || hover !== id || stage.selection.includes(id) || !targetsFrom(registry, page, id).size)
+    if (
+      !lineable ||
+      !selectable ||
+      busy ||
+      hover !== id ||
+      stage.selection.includes(id) ||
+      !targetsFrom(registry, page, id).size
+    )
       return []
     return SIDES
   }

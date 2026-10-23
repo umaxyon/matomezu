@@ -88,6 +88,11 @@ export function defaultPaper(reg: Registry, book: PagedBook): PaperChoice {
   }
 }
 
+// ブックで使えるアイテム（タイプの既定。置ける・引けるのはこの中だけ）
+export function bookItems(reg: Registry, book: Book): readonly string[] {
+  return bookType(reg, book.type).items.defaults
+}
+
 // タブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page.add が使える）
 export function addsFromTabs(reg: Registry, book: Book): boolean {
   return hasPages(book) && pagesRule(reg, book).addFromTabs && actionsOf(reg, book).includes("page.add")

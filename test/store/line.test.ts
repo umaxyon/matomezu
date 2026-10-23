@@ -1,13 +1,16 @@
 // 線のアクション（line.connect・line.update）と、線と形の決まり（組ごとの間隔・消すと線も消える・引けなくなった区間・関係の検査）
 import { expect, test } from "bun:test"
 import { restoreBooks } from "../../web/src/core/book"
+import { perform } from "../../web/src/core/perform"
+import { buildRegistry } from "../../web/src/core/registry"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { rectsOf } from "../../web/src/plugins/books/drawing/items/items"
 import { GAP } from "../../web/src/plugins/books/drawing/items/push"
+import { usesLines } from "../../web/src/plugins/books/drawing/line"
 import { alignedEndsOf } from "../../web/src/plugins/books/drawing/line/drawn"
 import { CAPTION_GAP, LINK_GAP } from "../../web/src/plugins/books/drawing/line/placed"
 import { elbowOf, linesOf, shapesOf } from "../../web/src/plugins/books/drawing/placed"
-import { newStore, REGISTRY } from "../support"
+import { BUILTIN_PARTS, newStore, REGISTRY, sequence } from "../support"
 
 function ready() {
   const store = newStore()
@@ -230,4 +233,30 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   expect(store.actions.perform("drawing.update", { lineRoute: null }, { book: "b1" }).ok).toBe(true)
   expect("lineRoute" in book()).toBe(false)
   expect(elbow()).toBe(true)
+})
+
+test("線が使えないブック（ブックで使えるアイテムに線が無い）では、線を引けず、線の既定の通り方も変えられない。ページの設定は出さない", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 100)
+  const book = store.state.getState().books.b1 as BookOf<"drawing">
+  // 図面のタイプから線を外した登録表
+  const noLines = buildRegistry({
+    ...BUILTIN_PARTS,
+    bookTypes: BUILTIN_PARTS.bookTypes.map(t =>
+      t.id === "drawing"
+        ? { ...t, items: { allowed: ["shape.box", "shape.list"], defaults: ["shape.box", "shape.list"] } }
+        : t,
+    ),
+  })
+  const ctx = { registry: noLines, home: null, lang: "ja", newId: sequence("x") }
+  expect(usesLines(REGISTRY, book)).toBe(true)
+  expect(usesLines(noLines, book)).toBe(false)
+  expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)
+  expect(perform(book, "drawing.update", { lineRoute: "straight" }, ctx).ok).toBe(false)
+  expect(perform(book, "page.update", { page: "p1", lineRoute: "straight" }, ctx).ok).toBe(false)
+  // 同じ操作は、線が使えるブックなら通る
+  const ok = { ...ctx, registry: REGISTRY }
+  expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ok).ok).toBe(true)
+  expect(perform(book, "drawing.update", { lineRoute: "straight" }, ok).ok).toBe(true)
 })
