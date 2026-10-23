@@ -3,8 +3,12 @@ import { defineLayout } from "../ui/layout"
 import { BASE_UI } from "./base/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
 import { MASTER_UI } from "./books/master/ui"
+import { BOX_UI } from "./items/box/ui"
+import { LINE_UI } from "./items/line/ui"
+import { LIST_UI } from "./items/list/ui"
+import { PAPER_UI } from "./paper/ui"
 
-export const BUILTIN_UI = [BASE_UI, MASTER_UI, DRAWING_UI] as const
+export const BUILTIN_UI = [BASE_UI, MASTER_UI, PAPER_UI, BOX_UI, LIST_UI, LINE_UI, DRAWING_UI] as const
 
 // 既定の配置（今の画面の形）。app は MatomezuProvider にこれか、これを写して直したものを渡す
 export const DEFAULT_LAYOUT = defineLayout({
@@ -20,9 +24,9 @@ export const DEFAULT_LAYOUT = defineLayout({
     "stage.menu": ["stage.home", { either: ["stage.split", "stage.unsplit"] }, "book.open", "book.settings"],
   },
   contextMenus: {
-    "drawing.context": ["page.settings", "book.settings"],
-    "item.context": ["drawing.edit", "-", "drawing.delete"],
+    "paper.context": ["page.settings", "book.settings"],
+    "item.context": ["paper.edit", "-", "paper.delete"],
     "row.context": ["list.editRow", "-", "list.deleteRow"],
-    "line.context": ["line.edit", "-", "drawing.delete"],
+    "line.context": ["line.edit", "-", "paper.delete"],
   },
 })

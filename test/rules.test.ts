@@ -38,10 +38,10 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
 }
 // プラグインのファイルは役割で見る。見た目（.tsx と ui.ts）は ui と同じもの、ほかは core・store・zod だけ
 const isView = (rel: string) => rel.endsWith(".tsx") || basename(rel) === "ui.ts"
-// プラグインのフォルダ: plugins/名前。ブックのタイプのプラグインは plugins/books/名前
+// プラグインのフォルダ: plugins/名前。ブックのタイプのプラグインは plugins/books/名前、アイテムのプラグインは plugins/items/名前
 const pluginRoot = (rel: string) => {
   const parts = rel.split("/")
-  return parts.slice(0, parts[1] === "books" ? 3 : 2).join("/")
+  return parts.slice(0, parts[1] === "books" || parts[1] === "items" ? 3 : 2).join("/")
 }
 const pluginAllowed = (rel: string) => (t: string) =>
   isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod"
@@ -59,10 +59,13 @@ describe("依存の向き", () => {
           if (t.endsWith(".css")) return !isView(file.rel)
           if (!local(t)) return !pluginAllowed(file.rel)(t)
           if (topOf(t) !== "plugins") return !pluginAllowed(file.rel)(topOf(t))
-          // 同じプラグインの中（下のフォルダも含む）か、ほかのプラグインの入口（index・ui）だけ。見た目でないファイルは見た目を読まない
+          // 同じプラグインの中（下のフォルダも含む）か、土台のプラグイン base の入口（index・ui）だけ。見た目でないファイルは見た目を読まない
           const root = pluginRoot(t)
-          const entry = t === root || t === `${root}/index` || t === `${root}/ui`
-          if (!t.startsWith(`${own}/`) && !entry) return true
+          const isEntry = t === root || t === `${root}/index` || t === `${root}/ui`
+          // 中の部品の一覧（plugins/index.ts・plugins/ui.ts）は、どのプラグインの入口も読む
+          const assembly = file.rel === "plugins/index.ts" || file.rel === "plugins/ui.ts"
+          const entry = isEntry && (root === "plugins/base" || assembly)
+          if (t !== own && !t.startsWith(`${own}/`) && !entry) return true
           const targetIsView = basename(t) === "ui" || sources.some(f => f.rel === `${t}.tsx`)
           return !isView(file.rel) && targetIsView
         })
@@ -77,23 +80,6 @@ describe("依存の向き", () => {
       expect(targets.filter(t => (local(t) ? !allowed(topOf(t)) : !allowed(t)))).toEqual([])
     })
   }
-})
-
-test("図面の置き方の層（items）はアイテムを名指ししない: items は box・list・line を読まず、box・list の置き方（placed）は items の約束（placed-def）だけを読み、line の決まり（placed）は items を読まない", () => {
-  const DRAWING = "plugins/books/drawing"
-  const offenders = sources.flatMap(f => {
-    const targets = importsOf(f).filter(t => t.startsWith(`${DRAWING}/`))
-    if (f.rel.startsWith(`${DRAWING}/items/`))
-      return targets.filter(t => /^plugins\/books\/drawing\/(box|list|line)(\/|$)/.test(t)).map(t => `${f.rel} -> ${t}`)
-    if (/^plugins\/books\/drawing\/(box|list)\/placed\.ts$/.test(f.rel))
-      return targets
-        .filter(t => t.startsWith(`${DRAWING}/items/`) && t !== `${DRAWING}/items/placed-def`)
-        .map(t => `${f.rel} -> ${t}`)
-    if (f.rel === `${DRAWING}/line/placed.ts`)
-      return targets.filter(t => t.startsWith(`${DRAWING}/items/`)).map(t => `${f.rel} -> ${t}`)
-    return []
-  })
-  expect(offenders).toEqual([])
 })
 
 test("ブックのタイプの名前で振る舞いを分けない（使えるかは、タイプが選んだものと宣言で決める）", () => {

@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { checkRegistry } from "../../web/src/core/registry"
 import { BUILTIN } from "../../web/src/plugins"
-import { BASE } from "../../web/src/plugins/base"
-import { DRAWING_PLUGIN } from "../../web/src/plugins/books/drawing"
 import { MASTER } from "../../web/src/plugins/books/master/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { isShown } from "../../web/src/store/commands"
@@ -32,8 +30,9 @@ describe("ホーム", () => {
     expect(empty.state.getState().workspace.stages[0]!.opened).toBeNull()
   })
 
-  test("マスターのプラグインが無くても、土台と図面だけで app を作れる", () => {
-    const app = createMatomezu({ plugins: [BASE, DRAWING_PLUGIN], partial: true, books: SAMPLE_BOOKS })
+  test("マスターのプラグインが無くても、土台と図面（と図面が選ぶもの）で app を作れる", () => {
+    const plugins = BUILTIN.filter(p => p.id !== "@matomezu/master")
+    const app = createMatomezu({ plugins, partial: true, books: SAMPLE_BOOKS })
     expect(app.registry.bookTypes.has("master")).toBe(false)
     expect(app.actions.command("s1", "stage.split")).toBe(true)
   })
@@ -53,7 +52,7 @@ describe("ホーム", () => {
     // 言語だけを許すホーム
     const strict = { ...MASTER, actions: { allowed: ["settings.lang"], defaults: ["settings.lang"] } }
     const org = { ...BUILTIN[1], bookTypes: [strict] }
-    const locked = createMatomezu({ plugins: [BUILTIN[0], org, BUILTIN[2]], home: "master" })
+    const locked = createMatomezu({ plugins: [BUILTIN[0], org, ...BUILTIN.slice(2)], home: "master" })
     expect(locked.actions.setSkin("dark")).toBe(false)
     expect(locked.state.getState().settings.skin).toBe("auto")
     expect(isShown(locked, locked.state.getState(), "s1", "settings.skin")).toBe(false)

@@ -2,5 +2,17 @@
 import { BASE } from "./base"
 import { DRAWING_PLUGIN } from "./books/drawing"
 import { MASTER_PLUGIN } from "./books/master"
+import { BOX_PLUGIN } from "./items/box"
+import { LINE_PLUGIN } from "./items/line"
+import { LIST_PLUGIN } from "./items/list"
+import { PAPER_PLUGIN } from "./paper"
 
-export const BUILTIN = [BASE, MASTER_PLUGIN, DRAWING_PLUGIN] as const
+export const BUILTIN = [
+  BASE,
+  MASTER_PLUGIN,
+  PAPER_PLUGIN,
+  BOX_PLUGIN,
+  LIST_PLUGIN,
+  LINE_PLUGIN,
+  DRAWING_PLUGIN,
+] as const

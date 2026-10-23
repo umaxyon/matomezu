@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
 import { GAP } from "../../web/src/core/place/push"
+import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { placement } from "../../web/src/core/stage"
 import { resolveTokens } from "../../web/src/core/theme"
-import { BOX } from "../../web/src/plugins/books/drawing/box"
-import { PLACE_OFFSET } from "../../web/src/plugins/books/drawing/items/items"
-import { LIST } from "../../web/src/plugins/books/drawing/list"
-import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../web/src/plugins/books/drawing/list/size"
-import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { BOX } from "../../web/src/plugins/items/box/box"
+import { LIST } from "../../web/src/plugins/items/list/list"
+import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../web/src/plugins/items/list/size"
+import { PLACE_OFFSET } from "../../web/src/plugins/paper/placing/items"
 import { newStore, REGISTRY } from "../support"
 
 // 置いたリストの大きさ・押されたときの縮め方・コマンド・データの形（箱と同じ置き場の決まりを、リストも持つこと）
@@ -76,11 +76,11 @@ function pointerFor(store: Store, p: Point): Point {
 test("リストを置こうとして紙の上で押すとリストの追加のダイアログ、リストの編集のコマンドはリストの設定のダイアログを開く", () => {
   const store = ready()
   store.actions.togglePlacing("s1", "shape.list")
-  expect(store.actions.command("s1", "drawing.place", pointerFor(store, { x: 100, y: 50 }))).toBe(true)
+  expect(store.actions.command("s1", "paper.place", pointerFor(store, { x: 100, y: 50 }))).toBe(true)
   expect(store.state.getState().dialog).toMatchObject({ id: "list.add", args: { page: "p1", at: { x: 100, y: 50 } } })
   store.actions.closeDialog()
   place(store, "shape.list", 100, 100)
-  store.actions.command("s1", "drawing.edit", { item: "n1" })
+  store.actions.command("s1", "paper.edit", { item: "n1" })
   expect(store.state.getState().dialog).toMatchObject({ id: "list.edit", args: { page: "p1", item: "n1" } })
 })
 

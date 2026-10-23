@@ -1,6 +1,6 @@
 // 線の端の形（drawing/line/heads.ts）
 import { expect, test } from "bun:test"
-import { HEADS, headDraw } from "../../web/src/plugins/books/drawing/line/heads"
+import { HEADS, headDraw } from "../../web/src/plugins/items/line/heads"
 
 test("どの種類も何か描き、線を形の付け根で止める長さは 0 以上", () => {
   for (const h of HEADS) {

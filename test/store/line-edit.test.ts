@@ -1,12 +1,12 @@
 // 線をじかに直す決まり（drawing/line/edit.ts）と、端のつなぎ替え（line.reconnect）
 
 import { expect, test } from "bun:test"
-import { rectsOf } from "../../web/src/core/placed"
+import { rectsOf, shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { reconnectTargets } from "../../web/src/plugins/books/drawing/line/connect"
-import { drawLines } from "../../web/src/plugins/books/drawing/line/drawn"
-import { captionDragged, endDragged, viaDragged, viaSettled } from "../../web/src/plugins/books/drawing/line/edit"
-import { linesOf, shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { reconnectTargets } from "../../web/src/plugins/items/line/connect"
+import { drawLines } from "../../web/src/plugins/items/line/drawn"
+import { captionDragged, endDragged, viaDragged, viaSettled } from "../../web/src/plugins/items/line/edit"
+import { linesOf } from "../../web/src/plugins/items/line/placed"
 import { newStore, REGISTRY } from "../support"
 
 function ready(boxes: [number, number][]) {

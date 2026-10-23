@@ -1,7 +1,7 @@
 // 線の道筋（drawing/line/route.ts）を、画面を作らずに確かめる
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
-import { nearestAt, pointAt, type Rect } from "../../web/src/plugins/books/drawing/line/geom"
+import { nearestAt, pointAt, type Rect } from "../../web/src/plugins/items/line/geom"
 import {
   alignedEnds,
   passes,
@@ -14,8 +14,8 @@ import {
   shapePoints,
   sideAt,
   simplifyVia,
-} from "../../web/src/plugins/books/drawing/line/route"
-import { perimeter } from "../../web/src/plugins/books/drawing/line/selfloop"
+} from "../../web/src/plugins/items/line/route"
+import { perimeter } from "../../web/src/plugins/items/line/selfloop"
 
 // a: 40〜160 × 40〜104（中心 100, 72）、b: 400〜520 × 300〜364（中心 460, 332）
 const a = { x: 40, y: 40, w: 120, h: 64 },

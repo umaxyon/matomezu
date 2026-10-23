@@ -79,10 +79,10 @@ describe("配置", () => {
     const bad = {
       ...DEFAULT_LAYOUT,
       id: "bad",
-      contextMenus: { "drawing.context": ["drawing.nope"], "other.context": ["stage.home"] },
+      contextMenus: { "paper.context": ["drawing.nope"], "other.context": ["stage.home"] },
     } as unknown as LayoutDef
     expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
-      "E209 layout bad: menu drawing.context has unknown command drawing.nope",
+      "E209 layout bad: menu paper.context has unknown command drawing.nope",
       "E213 layout bad: context menu other.context is not opened by any placed widget or book view",
     ])
   })
@@ -92,7 +92,7 @@ describe("配置", () => {
       ...DEFAULT_LAYOUT,
       id: "typed",
       // @ts-expect-error page.open はページの id を受け取るが、図面のメニューは何も渡さない
-      contextMenus: { "drawing.context": ["book.settings", "page.open"] },
+      contextMenus: { "paper.context": ["book.settings", "page.open"] },
     })
   })
 

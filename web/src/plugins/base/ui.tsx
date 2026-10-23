@@ -33,6 +33,7 @@ export {
   Switch,
   SwitchPanel,
 } from "./dialog-host/FormParts"
+export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {

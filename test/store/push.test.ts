@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
 import { GAP, planPlace, pushFrom, pushShrinking, type Rect } from "../../web/src/core/place/push"
+import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { placedWidth } from "../../web/src/plugins/books/drawing/box/size"
-import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { placedWidth } from "../../web/src/plugins/items/box/size"
 import { newStore } from "../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横

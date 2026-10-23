@@ -3,6 +3,7 @@ import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_OPEN_MESSAGES } from "./book-open/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
+import { ITEM_PARTS_MESSAGES } from "./item-parts/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
@@ -23,4 +24,5 @@ export const BASE_MESSAGES = {
   ...PAGE_MESSAGES,
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,
+  ...ITEM_PARTS_MESSAGES,
 }

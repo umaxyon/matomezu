@@ -1,7 +1,7 @@
 // 自分に戻る線の形（drawing/line/selfloop.ts）
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
-import { type Corner, cornerAt, nearestCorner, selfLoop } from "../../web/src/plugins/books/drawing/line/selfloop"
+import { type Corner, cornerAt, nearestCorner, selfLoop } from "../../web/src/plugins/items/line/selfloop"
 
 const box = { x: 100, y: 100, w: 120, h: 64 }
 const rounded = (p: Point): Point => ({ x: Math.round(p.x), y: Math.round(p.y) })

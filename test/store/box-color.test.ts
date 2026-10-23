@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
+import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { resolveTokens } from "../../web/src/core/theme"
-import { BOX } from "../../web/src/plugins/books/drawing/box"
-import { paintVars } from "../../web/src/plugins/books/drawing/box/paint"
-import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { BOX } from "../../web/src/plugins/items/box/box"
+import { paintVars } from "../../web/src/plugins/items/box/paint"
 import { newStore } from "../support"
 
 function ready() {

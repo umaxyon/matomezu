@@ -211,9 +211,6 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
     if ("fallback" in d && !(THEME_TOKENS as readonly string[]).includes(d.fallback))
       problems.push(problem("E012", { owner: d.owner, token: d.id, fallback: d.fallback }))
   }
-  for (const th of parts.themes)
-    for (const id of Object.keys(th.tokens ?? {}))
-      if (!declared.has(id)) problems.push(problem("E013", { id: th.id, token: id }))
   for (const p of parts.papers) if (p.size.w > p.size.h) problems.push(problem("E014", { id: p.id }))
   const fieldOwner = new Map<string, string>()
   for (const d of parts.settings) {

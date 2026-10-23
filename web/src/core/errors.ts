@@ -13,7 +13,6 @@ export const ERRORS = {
   E010: "bookType {id}: unknown theme {theme}",
   E011: "{owner}: token {token} is declared twice",
   E012: "{owner}: token {token} falls back to unknown {fallback}",
-  E013: "theme {id}: token {token} is not declared by any item or book type",
   E014: "paper {id}: size must be portrait (w <= h)",
   E015: "registry has no book type",
   E016: "registry has {count} problems",

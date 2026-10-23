@@ -310,7 +310,7 @@ test("右クリックのメニューに出るコマンドが無ければ、メ�
   const layout = {
     ...DEFAULT_LAYOUT,
     id: "unsplit-only",
-    contextMenus: { "drawing.context": ["stage.unsplit"] },
+    contextMenus: { "paper.context": ["stage.unsplit"] },
   } as const
   render(
     <MatomezuProvider app={store} layout={layout}>

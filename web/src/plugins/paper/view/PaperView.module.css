@@ -1,0 +1,168 @@
+/* 紙のビューの全体（右クリックを受ける）。紙・知らせはこの中に置く */
+.drawing {
+  position: absolute;
+  inset: 0;
+}
+.paper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  background: var(--theme-paper);
+  box-shadow:
+    0 0 0 1px var(--theme-paper-line),
+    0 6px 24px var(--theme-paper-shadow);
+}
+/* ページが無いとき: 真ん中に知らせとページを作るボタン */
+.empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+.prompt {
+  margin: 0;
+  font-size: 14px;
+  color: var(--skin-hint);
+}
+.create {
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--skin-accent);
+  color: var(--skin-bg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* 表に無い紙の印（紙の左上） */
+.unknown {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--theme-accent);
+  color: var(--theme-paper);
+  font-size: 12px;
+}
+.error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  color: var(--skin-hint);
+  font-size: 14px;
+}
+/* アイテムを置こうとしている間 */
+.drawing[data-placing="true"] {
+  cursor: copy;
+}
+/* 置いたアイテム（位置と大きさは紙の上の値） */
+/* 薄くする・戻すのは緩やかに（位置は追従させるので、濃さだけ） */
+.item {
+  position: absolute;
+  box-sizing: border-box;
+  transition: opacity 0.12s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    transition: none;
+  }
+}
+.item[data-selected="true"] {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
+/* 〇から引いている線の、今の相手 */
+.item[data-target="true"] {
+  outline: 3px solid var(--theme-accent);
+  outline-offset: 3px;
+}
+/* ドラッグ中: 動かすアイテムは手前に置いて少し透かし（下のアイテムが透けて見えるように）、ほかは薄く */
+.item[data-look="lifted"] {
+  z-index: 1;
+  opacity: 0.85;
+}
+.item[data-look="faded"] {
+  opacity: 0.4;
+}
+/* 大きさを変えるためにつかめる所（印は出さず、ポインタの形だけを変える）。辺は細長く、角は小さな四角 */
+.grip {
+  position: absolute;
+}
+.grip[data-grip="left"],
+.grip[data-grip="right"] {
+  top: 6px;
+  bottom: 6px;
+  width: 8px;
+  cursor: ew-resize;
+}
+.grip[data-grip="left"] {
+  left: -5px;
+}
+.grip[data-grip="right"] {
+  right: -5px;
+}
+.grip[data-grip="top"],
+.grip[data-grip="bottom"] {
+  left: 6px;
+  right: 6px;
+  height: 8px;
+  cursor: ns-resize;
+}
+.grip[data-grip="top"] {
+  top: -5px;
+}
+.grip[data-grip="bottom"] {
+  bottom: -5px;
+}
+.grip[data-grip*="-"] {
+  width: 12px;
+  height: 12px;
+}
+.grip[data-grip^="top-"] {
+  top: -6px;
+}
+.grip[data-grip^="bottom-"] {
+  bottom: -6px;
+}
+.grip[data-grip$="-left"] {
+  left: -6px;
+}
+.grip[data-grip$="-right"] {
+  right: -6px;
+}
+.grip[data-grip="top-left"],
+.grip[data-grip="bottom-right"] {
+  cursor: nwse-resize;
+}
+.grip[data-grip="top-right"],
+.grip[data-grip="bottom-left"] {
+  cursor: nesw-resize;
+}
+/* ビューの無いアイテムは枠だけ */
+.unknownItem {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 1px dashed var(--theme-line);
+}
+/* 置こうとしているアイテムの点線の箱。紙からはみ出す所では薄くする */
+.ghost {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--theme-accent);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.ghost[data-fits="false"] {
+  opacity: 0.35;
+}

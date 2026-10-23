@@ -1,10 +1,10 @@
 // 前の辺に留まる線の選び方（drawing/line/sticky.ts）と、線の編集のダイアログで変える項目（edit.ts の linePatch）
 import { expect, test } from "bun:test"
 import type { Rect } from "../../web/src/core/geom"
-import { linePatch } from "../../web/src/plugins/books/drawing/line/edit"
-import type { PlacedLine } from "../../web/src/plugins/books/drawing/line/placed"
-import type { EndMemory } from "../../web/src/plugins/books/drawing/line/route"
-import { type StickyScene, stickyMemory } from "../../web/src/plugins/books/drawing/line/sticky"
+import { linePatch } from "../../web/src/plugins/items/line/edit"
+import type { PlacedLine } from "../../web/src/plugins/items/line/placed"
+import type { EndMemory } from "../../web/src/plugins/items/line/route"
+import { type StickyScene, stickyMemory } from "../../web/src/plugins/items/line/sticky"
 
 const r = (x: number, y = 100): Rect => ({ x, y, w: 100, h: 64 })
 const line = (id: string, from: string, to: string, props: PlacedLine["props"] = {}): PlacedLine => ({

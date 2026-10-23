@@ -1,7 +1,7 @@
 // 線のキャプションの札の置き方（drawing/line/caption.ts）
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
-import { CAPTION_BOX_H, captionBox, clampCaptionOffset } from "../../web/src/plugins/books/drawing/line/caption"
+import { CAPTION_BOX_H, captionBox, clampCaptionOffset } from "../../web/src/plugins/items/line/caption"
 
 const center = (b: { x: number; y: number; w: number; h: number }) => [b.x + b.w / 2, b.y + b.h / 2]
 const across = (to: number): Point[] => [

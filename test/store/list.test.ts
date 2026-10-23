@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test"
+import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { BOX_LOOK } from "../../web/src/plugins/books/drawing/box/size"
-import type { ListRow } from "../../web/src/plugins/books/drawing/list"
-import { canCarry, shownOrder } from "../../web/src/plugins/books/drawing/list/rows"
-import { LIST_SIZE, linesFor, listLayout, rowHeight } from "../../web/src/plugins/books/drawing/list/size"
-import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { BOX_LOOK } from "../../web/src/plugins/items/box/size"
+import type { ListRow } from "../../web/src/plugins/items/list/list"
+import { canCarry, shownOrder } from "../../web/src/plugins/items/list/rows"
+import { LIST_SIZE, linesFor, listLayout, rowHeight } from "../../web/src/plugins/items/list/size"
 import { newStore } from "../support"
 
 function ready() {

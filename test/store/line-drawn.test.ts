@@ -1,8 +1,8 @@
 // ページの線を描く形（drawing/line/drawn.ts の drawLines）
 import { expect, test } from "bun:test"
 import type { Point } from "../../web/src/core/geom"
-import { drawLines } from "../../web/src/plugins/books/drawing/line/drawn"
-import type { PlacedLine } from "../../web/src/plugins/books/drawing/line/placed"
+import { drawLines } from "../../web/src/plugins/items/line/drawn"
+import type { PlacedLine } from "../../web/src/plugins/items/line/placed"
 
 const rects = new Map([
   ["a", { x: 100, y: 100, w: 100, h: 64 }],

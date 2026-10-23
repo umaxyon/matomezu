@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import { rectsOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { drawnLineProps, portAt, targetsFrom } from "../../web/src/plugins/books/drawing/line/connect"
+import { drawnLineProps, portAt, targetsFrom } from "../../web/src/plugins/items/line/connect"
 import { newStore, REGISTRY } from "../support"
 
 function ready() {

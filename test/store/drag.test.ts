@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
 import { shownRects } from "../../web/src/core/place/items"
 import { GAP, type Rect } from "../../web/src/core/place/push"
+import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { dragRects, dropManyRects, dropRects, track } from "../../web/src/plugins/books/drawing/items/drag"
-import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { dragRects, dropManyRects, dropRects, track } from "../../web/src/plugins/paper/placing/drag"
 import { newStore, REGISTRY } from "../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横

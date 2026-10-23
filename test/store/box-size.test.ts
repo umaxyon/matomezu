@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test"
+import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { textWidth } from "../../web/src/core/text/text"
 import { resolveTokens } from "../../web/src/core/theme"
-import { BOX } from "../../web/src/plugins/books/drawing/box"
-import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/books/drawing/box/size"
-import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { BOX } from "../../web/src/plugins/items/box/box"
+import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/items/box/size"
 import { newStore } from "../support"
 
 const page = (store: ReturnType<typeof newStore>) => (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
@@ -108,7 +108,7 @@ test("画面から辺をつかんで大きさを変える: 辺はその辺だけ
   place(store, box("本文"))
   const zoom = store.state.getState().workspace.stages[0]!.zoom
   const drag = (edges: object, x: number, y: number) =>
-    store.actions.command("s1", "drawing.resize", { item: "n1", edges, by: { x: x * zoom, y: y * zoom } })
+    store.actions.command("s1", "paper.resize", { item: "n1", edges, by: { x: x * zoom, y: y * zoom } })
   drag({ x: "right" }, 40, 30)
   expect(items(store)[0]).toMatchObject({ x: 100, y: 100, w: 104, h: 64 })
   drag({ y: "bottom" }, 30, 36)

@@ -15,9 +15,10 @@ import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, REGISTRY } from "../support"
 
 describe("登録表", () => {
-  test("テーマを上書きしている欄を宣言したアイテムが無ければ、直す所に並べる", () => {
-    const problems = checkRegistry({ ...BUILTIN_PARTS, items: [] })
-    expect(problems.filter(p => p.code === "E013").length).toBeGreaterThan(0)
+  test("中の部品のテーマが上書きする欄は、どれも中の部品のアイテムかタイプが宣言している（app に無いアイテムの欄の上書きは誤りにせず、使わないだけ）", () => {
+    const declared = new Set([...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens.map(k => k.id)))
+    const unknown = BUILTIN_PARTS.themes.flatMap(th => Object.keys(th.tokens ?? {}).filter(id => !declared.has(id)))
+    expect(unknown).toEqual([])
   })
 
   test("表どうしの参照に食い違いが無い", () => {

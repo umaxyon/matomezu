@@ -5,7 +5,7 @@ import { BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_UPDATE } from "./book-look"
 import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
-import { DARK, LIGHT, PAPERS, STANDARD } from "./looks"
+import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
 import type { A3, A4, A5 } from "./looks/papers"
 import { BASE_MESSAGES } from "./messages"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
@@ -22,7 +22,7 @@ export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 export const BASE = defineBuiltin({
   id: "@matomezu/base",
   actions: [PAGE_ADD, PAGE_UPDATE, BOOK_UPDATE, SET_LANG, SET_SKIN, SET_KEYS],
-  themes: [STANDARD],
+  themes: [STANDARD, STICKY, SIMPLE],
   papers: PAPERS,
   skins: [DARK, LIGHT],
   commands: [
@@ -62,6 +62,8 @@ declare module "../../core/tables" {
   }
   interface ThemeTable {
     standard: typeof STANDARD
+    sticky: typeof STICKY
+    simple: typeof SIMPLE
   }
   interface SkinTable {
     dark: typeof DARK

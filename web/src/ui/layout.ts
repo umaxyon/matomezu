@@ -78,13 +78,14 @@ export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
 export const ROOT_SLOT = "app" satisfies SlotId
 
 // 配置の食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・app に無いコマンド・
-// 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー、置いたウィジェットと見せ方・つなぐもののビューのどれも開かない右クリックのメニュー（無ければ空）
+// 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー、置いたウィジェットと見せ方・アイテムのビューのどれも開かない右クリックのメニュー（無ければ空）
 export function checkLayout(
   layout: LayoutDef,
   views: {
     widgets: ReadonlyMap<string, AnyWidgetDef>
     presentationViews: ReadonlyMap<string, { contextMenus?: readonly string[] }>
     connectors: ReadonlyMap<string, { contextMenus?: readonly string[] }>
+    items: ReadonlyMap<string, { contextMenus?: readonly string[] }>
   },
   commands: ReadonlySet<string>,
 ): Problem[] {
@@ -106,7 +107,7 @@ export function checkLayout(
       if (id !== SEPARATOR && !commands.has(id))
         problems.push(problem("E209", { layout: layout.id, menu, command: id }))
   const { slots, menus, contextMenus: openedMenus } = opened(layout, widgets)
-  for (const view of [...views.presentationViews.values(), ...views.connectors.values()])
+  for (const view of [...views.presentationViews.values(), ...views.connectors.values(), ...views.items.values()])
     for (const m of view.contextMenus ?? []) openedMenus.add(m)
   for (const [slot, ids] of Object.entries(layout.slots) as [string, readonly string[]][])
     if (ids.length > 0 && !slots.has(slot)) problems.push(problem("E211", { layout: layout.id, slot }))

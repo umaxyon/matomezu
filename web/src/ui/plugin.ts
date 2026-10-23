@@ -45,6 +45,7 @@ export interface ItemViewProps<Props> {
 export interface ItemUi<Props = never> {
   view: ComponentType<ItemViewProps<Props>>
   icon: ReactNode // ツールボックスなどに出すアイコン
+  contextMenus?: readonly ContextMenuId[] // ビューが開く右クリックのメニュー
 }
 
 // 設定の項目（core/def/setting.ts）を変える部品に渡す値。of はブックかページか、value はその段の値（無ければ undefined）、
