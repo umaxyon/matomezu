@@ -1,4 +1,4 @@
-// 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインのブックのタイプ・アイテム・ダイアログのビューを結び、
+// 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインの見せ方・アイテム・設定の項目・ダイアログのビューを結び、
 // ウィジェット（スロットに置ける部品）とコマンドのアイコンを足す。
 // ビューは、そのプラグインの id を全部持たないと型の誤り。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
 // 画面に置く app は、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
@@ -6,7 +6,7 @@ import type { ComponentType, ReactNode } from "react"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import type { Stage } from "../core/stage"
-import type { BookTypeId } from "../core/tables"
+import type { PresentationId } from "../core/tables"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import { type IdsOf, isBuiltin, type Plugin } from "../store/plugin"
 import type { DialogId } from "../store/tables"
@@ -17,7 +17,7 @@ import type { ContextMenuId, WidgetId, WidgetTable } from "./tables"
 export interface BookViewProps {
   stage: Stage
 }
-// ブックのビュー: 開いたブックのタイプで決まる、ステージの真ん中に描く部品（配置には書かない）。
+// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）の部品で、ステージの真ん中に描く（配置には書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
 export interface BookViewDef {
   view: ComponentType<BookViewProps>
@@ -91,7 +91,11 @@ type DialogArgsOfPlugin<P, Id> = P extends { dialogs?: readonly (infer D)[] }
 // そのプラグインに id が無ければ、その欄は書かなくてよい
 type Field<Ids, Name extends string, V> = [Ids] extends [never] ? { [n in Name]?: never } : { [n in Name]: V }
 
-export type PluginViews<P> = Field<IdsOf<P, "bookTypes">, "bookViews", { [id in IdsOf<P, "bookTypes">]: BookViewDef }> &
+export type PluginViews<P> = Field<
+  IdsOf<P, "presentations">,
+  "presentationViews",
+  { [id in IdsOf<P, "presentations">]: BookViewDef }
+> &
   Field<ShapeIdsOf<P>, "items", { [id in ShapeIdsOf<P>]: ItemUi<ItemPropsOf<P, id>> }> &
   Field<ConnectorIdsOf<P>, "connectors", { [id in ConnectorIdsOf<P>]: ConnectorUi }> &
   Field<IdsOf<P, "settings">, "settingViews", { [id in IdsOf<P, "settings">]: SettingUi }> &
@@ -106,7 +110,7 @@ type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: in
 
 // ほかのプラグインのビューとウィジェットの差し替え。型の表にある id だけ（ウィジェットは置けるスロットを変えず、描く部品だけを替える）
 export interface Overrides {
-  bookViews?: { [id in BookTypeId]?: BookViewDef }
+  presentationViews?: { [id in PresentationId]?: BookViewDef }
   dialogViews?: { [id in DialogId]?: ComponentType<DialogProps<DialogArgsOf<id>>> }
   widgets?: { [id in WidgetId]?: (props: WidgetProps<id>) => ReactNode }
 }
@@ -125,7 +129,7 @@ export const definePluginUi = <const P extends Plugin>(plugin: P, ui: UiParts<P>
 
 // app の見た目の表
 export interface UiDefs {
-  bookViews: ReadonlyMap<string, BookViewDef>
+  presentationViews: ReadonlyMap<string, BookViewDef>
   items: ReadonlyMap<string, ItemUi>
   connectors: ReadonlyMap<string, ConnectorUi>
   settingViews: ReadonlyMap<string, SettingUi>
@@ -135,7 +139,7 @@ export interface UiDefs {
 }
 
 interface LooseUi {
-  bookViews?: Record<string, BookViewDef>
+  presentationViews?: Record<string, BookViewDef>
   items?: Record<string, ItemUi>
   connectors?: Record<string, ConnectorUi>
   settingViews?: Record<string, SettingUi>
@@ -143,7 +147,7 @@ interface LooseUi {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
   overrides?: {
-    bookViews?: Record<string, BookViewDef>
+    presentationViews?: Record<string, BookViewDef>
     dialogViews?: Record<string, AnyDialogView>
     widgets?: Record<string, (props: never) => ReactNode>
   }
@@ -151,7 +155,7 @@ interface LooseUi {
 
 // プラグインの見た目を 1 つの表にする。見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り
 export function assembleUi(plugins: readonly Plugin[]): UiDefs {
-  const bookViews = new Map<string, BookViewDef>()
+  const presentationViews = new Map<string, BookViewDef>()
   const items = new Map<string, ItemUi>()
   const connectors = new Map<string, ConnectorUi>()
   const settingViews = new Map<string, SettingUi>()
@@ -176,7 +180,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
         into.set(d.id, v)
       }
     }
-    need("bookType", p.bookTypes, ui.bookViews, bookViews)
+    need("presentation", p.presentations, ui.presentationViews, presentationViews)
     need(
       "item",
       p.items?.filter(i => i.kind === "shape"),
@@ -201,7 +205,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
   const overridden = new Set<string>()
   for (const { p, ui } of uis)
     for (const [kind, views, into] of [
-      ["bookType", ui.overrides?.bookViews, bookViews],
+      ["presentation", ui.overrides?.presentationViews, presentationViews],
       ["dialog", ui.overrides?.dialogViews, dialogViews],
     ] as const)
       for (const [id, view] of Object.entries(views ?? {})) {
@@ -218,5 +222,5 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
       overridden.add(`widget:${id}`)
       widgets.set(id, { ...w, view })
     }
-  return { bookViews, items, connectors, settingViews, dialogViews, widgets, commandIcons }
+  return { presentationViews, items, connectors, settingViews, dialogViews, widgets, commandIcons }
 }

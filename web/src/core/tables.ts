@@ -8,6 +8,7 @@ export interface ThemeTable {}
 export interface PaperTable {}
 export interface SkinTable {}
 export interface SettingTable {}
+export interface PresentationTable {}
 export interface MessageTable {} // 文言の鍵 → 訳
 
 export type BookTypeId = keyof BookTypeTable & string
@@ -19,4 +20,5 @@ export type ThemeId = keyof ThemeTable & string
 export type PaperId = keyof PaperTable & string
 export type SkinId = keyof SkinTable & string
 export type SettingId = keyof SettingTable & string
+export type PresentationId = keyof PresentationTable & string
 export type MessageKey = keyof MessageTable & string

@@ -3,7 +3,7 @@
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
 import { fail } from "../../../core/errors"
-import type { BookTypeId } from "../../../core/registry"
+import { type BookTypeId, bookType } from "../../../core/registry"
 import type { Book } from "../../../core/schema/book"
 import { paperOf, type Stage } from "../../../core/stage"
 import { bookTokens } from "../../../core/theme"
@@ -99,9 +99,11 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   )
 })
 
-// 開いたブックを、そのタイプのビューで、テーマの値の中に描く
+// 開いたブックを、そのタイプが選んだ見せ方のビューで、テーマの値の中に描く
 function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
-  const View = (useUi().bookViews.get(type) ?? fail("E109", { kind: "bookType", id: type })).view
+  const presentation = bookType(useRegistry(), type).presentation
+  const View = (useUi().presentationViews.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation }))
+    .view
   return (
     <div className={styles.book} style={vars}>
       <View stage={stage} />

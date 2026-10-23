@@ -7,6 +7,7 @@ import type { ActionDef } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
+import type { PresentationDef } from "./def/presentation"
 import type { SettingDef } from "./def/setting"
 import type { SkinDef } from "./def/skin"
 import { THEME_TOKENS, type ThemeDef } from "./def/theme"
@@ -28,6 +29,7 @@ export interface RegistryParts {
   items: readonly ItemDef[]
   actions: readonly ActionDef[]
   settings: readonly SettingDef[]
+  presentations: readonly PresentationDef[]
   themes: readonly ThemeDef[]
   papers: readonly PaperDef[]
   skins: readonly SkinDef[] // アプリの枠の見た目（見る人の設定で選ぶ）
@@ -49,6 +51,7 @@ export interface Registry {
   items: ReadonlyMap<string, ItemDef>
   actions: ReadonlyMap<string, ActionDef>
   settings: ReadonlyMap<string, SettingDef>
+  presentations: ReadonlyMap<string, PresentationDef>
   themes: ReadonlyMap<string, ThemeDef>
   papers: ReadonlyMap<string, PaperDef>
   skins: ReadonlyMap<string, SkinDef>
@@ -73,6 +76,7 @@ export function buildRegistry(parts: RegistryParts): Registry {
     items: byId(parts.items),
     actions: byId(parts.actions),
     settings: byId(parts.settings),
+    presentations: byId(parts.presentations),
     themes: byId(parts.themes),
     papers: byId(parts.papers),
     skins: byId(parts.skins),
@@ -152,6 +156,7 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
     item: parts.items,
     action: parts.actions,
     setting: parts.settings,
+    presentation: parts.presentations,
     theme: parts.themes,
     paper: parts.papers,
     skin: parts.skins,
@@ -195,6 +200,8 @@ export function checkRegistry(parts: RegistryParts): Problem[] {
         if (!choice.allowed.includes(id)) problems.push(problem("E009", { id: t.id, kind, ref: id }))
     }
     if (!themes.has(t.theme)) problems.push(problem("E010", { id: t.id, theme: t.theme }))
+    if (!parts.presentations.some(p => p.id === t.presentation))
+      problems.push(problem("E008", { id: t.id, kind: "presentation", ref: t.presentation }))
   }
   const decls = [...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k })))
   const declared = new Set<string>()

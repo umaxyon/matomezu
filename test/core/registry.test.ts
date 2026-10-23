@@ -210,6 +210,7 @@ describe("登録表ごとに別の世界", () => {
     items: { allowed: [], defaults: [] },
     actions: { allowed: [], defaults: [] },
     theme: "standard",
+    presentation: "master", // 画面に出さないので、見せ方は表にあるものを借りる
     tokens: [],
   })
   const reg = buildRegistry({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })

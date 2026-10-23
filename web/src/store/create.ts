@@ -8,6 +8,7 @@ import type {
   ItemTable,
   MessageTable,
   PaperTable,
+  PresentationTable,
   SettingTable,
   SkinTable,
   ThemeTable,
@@ -21,6 +22,7 @@ interface Tables {
   items: ItemTable
   actions: ActionTable
   settings: SettingTable
+  presentations: PresentationTable
   themes: ThemeTable
   papers: PaperTable
   skins: SkinTable

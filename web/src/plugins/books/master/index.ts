@@ -3,7 +3,7 @@
 // マスターの画面は土台のプラグイン（base）の設定のコマンドを使う。組織ごとのホームは、このプラグインの代わりに自分のものを渡す
 import { defineBuiltin } from "../../../store/plugin"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
-import { MASTER } from "./master"
+import { MASTER, MASTER_PRESENTATION } from "./master"
 
 export { MASTER_BOOK } from "./master"
 
@@ -14,6 +14,7 @@ export { NEW_BOOK_DIALOG }
 export const MASTER_PLUGIN = defineBuiltin({
   id: "@matomezu/master",
   bookTypes: [MASTER],
+  presentations: [MASTER_PRESENTATION],
   actions: [BOOK_CREATE],
   commands: [BOOK_NEW],
   dialogs: [NEW_BOOK_DIALOG],
@@ -26,6 +27,9 @@ declare module "../../../core/tables" {
   }
   interface ActionTable {
     "book.create": typeof BOOK_CREATE
+  }
+  interface PresentationTable {
+    master: typeof MASTER_PRESENTATION
   }
   interface MessageTable extends Readonly<typeof MASTER_MESSAGES> {}
 }

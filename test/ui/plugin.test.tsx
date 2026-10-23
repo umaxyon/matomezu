@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePresentation } from "../../web/src/core/def/presentation"
 import { BUILTIN } from "../../web/src/plugins"
 import { BASE_UI } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -15,6 +16,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 afterEach(cleanup)
 
 // 外のプラグインの見本（型の表には書き足さないので、app は partial で作る）
+const NOTE_LOOK = definePresentation({ id: "notes/note" })
 const NOTE = defineBookType({
   id: "notes/note",
   version: 1,
@@ -26,9 +28,15 @@ const NOTE = defineBookType({
   items: { allowed: [], defaults: [] },
   actions: { allowed: [], defaults: [] },
   theme: "standard",
+  presentation: NOTE_LOOK.id,
   tokens: [],
 })
-const notes = definePlugin({ id: "notes", bookTypes: [NOTE], dialogs: [defineDialog({ id: "notes/shot" })] })
+const notes = definePlugin({
+  id: "notes",
+  bookTypes: [NOTE],
+  presentations: [NOTE_LOOK],
+  dialogs: [defineDialog({ id: "notes/shot" })],
+})
 const NoteView = () => <p>note view</p>
 const ShotDialog = (_: DialogProps) => <p>shot</p>
 const MyNewBook = ({ onClose }: DialogProps) => (
@@ -37,7 +45,7 @@ const MyNewBook = ({ onClose }: DialogProps) => (
   </button>
 )
 const notesUi = definePluginUi(notes, {
-  bookViews: { "notes/note": { view: NoteView } },
+  presentationViews: { "notes/note": { view: NoteView } },
   dialogViews: { "notes/shot": ShotDialog },
   overrides: { dialogViews: { "book.new": MyNewBook } },
 })
@@ -75,7 +83,7 @@ describe("見た目のプラグイン", () => {
 
   test("見た目の表は、プラグインのビューと差し替えから作る", () => {
     const ui = assembleUi([...BUILTIN_UI, notesUi])
-    expect(ui.bookViews.get("notes/note")?.view).toBe(NoteView)
+    expect(ui.presentationViews.get("notes/note")?.view).toBe(NoteView)
     expect(ui.dialogViews.get("book.new")).toBe(MyNewBook)
     expect(ui.dialogViews.get("book.open")).toBe(BASE_UI.ui.dialogViews["book.open"])
   })
@@ -83,10 +91,10 @@ describe("見た目のプラグイン", () => {
   test("見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, notes]))).toMatchObject({ code: "E203" })
     // @ts-expect-error ダイアログのビューが無い
-    const missing = definePluginUi(notes, { bookViews: { "notes/note": { view: NoteView } } })
+    const missing = definePluginUi(notes, { presentationViews: { "notes/note": { view: NoteView } } })
     expect(thrown(() => assembleUi([...BUILTIN_UI, missing]))).toMatchObject({ code: "E204" })
     const unknown = definePluginUi(notes, {
-      bookViews: { "notes/note": { view: NoteView } },
+      presentationViews: { "notes/note": { view: NoteView } },
       dialogViews: { "notes/shot": ShotDialog },
       // @ts-expect-error 型の表に無い id は差し替えられない
       overrides: { dialogViews: { "book.nope": MyNewBook } },

@@ -1,6 +1,11 @@
 // 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）を変えられる
 import { z } from "zod"
 import { defineBookType } from "../../../core/def/book-type"
+import { definePresentation } from "../../../core/def/presentation"
+
+// 紙の見せ方: ページごとに紙を置き、その上に形と線を置いて触る
+export const PAPER = definePresentation({ id: "paper" })
+
 import { BookLookSchema } from "../../../core/theme"
 import { PAPER_IDS } from "../../base"
 
@@ -65,6 +70,7 @@ export const DRAWING = defineBookType({
     ],
   },
   theme: "standard",
+  presentation: PAPER.id,
   tokens: [],
   tools: "paper",
   settings: { book: ["line.route"], page: ["line.route"] }, // 線の既定の通り方（ページは自分の既定を持たなければブックの既定を継ぐ）

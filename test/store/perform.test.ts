@@ -20,6 +20,7 @@ const NOTE = defineBookType({
   items: { allowed: [], defaults: [] },
   actions: { allowed: ["notes/rename"], defaults: ["notes/rename"] },
   theme: "standard",
+  presentation: "master", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],
 })
 const RENAME = defineAction({

@@ -8,7 +8,7 @@ import { LIST_DIALOG_VIEWS, LIST_UI } from "./list/ui"
 import { DRAWING_VIEW } from "./view/ui"
 
 export const DRAWING_UI = definePluginUi(DRAWING_PLUGIN, {
-  bookViews: { drawing: DRAWING_VIEW },
+  presentationViews: { paper: DRAWING_VIEW },
   items: { "shape.box": BOX_UI, "shape.list": LIST_UI },
   connectors: { "connector.line": LINE_UI },
   settingViews: LINE_SETTING_VIEWS,

@@ -5,6 +5,6 @@ import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { MASTER_VIEW } from "./view/ui"
 
 export const MASTER_UI = definePluginUi(MASTER_PLUGIN, {
-  bookViews: { master: MASTER_VIEW },
+  presentationViews: { master: MASTER_VIEW },
   dialogViews: BOOK_NEW_DIALOG_VIEWS,
 })

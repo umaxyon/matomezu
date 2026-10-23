@@ -4,6 +4,7 @@ import type { ActionDef } from "../core/def/action"
 import type { BookTypeDef } from "../core/def/book-type"
 import type { ItemDef } from "../core/def/item"
 import type { PaperDef } from "../core/def/paper"
+import type { PresentationDef } from "../core/def/presentation"
 import type { SettingDef } from "../core/def/setting"
 import type { Scheme, SkinDef } from "../core/def/skin"
 import type { ThemeDef } from "../core/def/theme"
@@ -21,6 +22,7 @@ export interface PluginParts {
   items?: readonly ItemDef[]
   actions?: readonly ActionDef[]
   settings?: readonly SettingDef[]
+  presentations?: readonly PresentationDef[]
   themes?: readonly ThemeDef[]
   papers?: readonly PaperDef[]
   skins?: readonly SkinDef[]
@@ -36,6 +38,7 @@ export const PARTS: readonly Part[] = [
   "items",
   "actions",
   "settings",
+  "presentations",
   "themes",
   "papers",
   "skins",
@@ -117,6 +120,7 @@ export function assemble(
     items: all("items"),
     actions: all("actions"),
     settings: all("settings"),
+    presentations: all("presentations"),
     themes: all("themes"),
     papers: all("papers"),
     skins: all("skins"),

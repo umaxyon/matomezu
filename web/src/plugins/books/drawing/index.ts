@@ -1,7 +1,7 @@
 // 図面のプラグイン: ページごとに紙を置く図面のブックと、その上に置く箱・リスト（と行の操作）・線・置く・動かす・消す操作とそのキー、図面の設定
 import { defineBuiltin } from "../../../store/plugin"
 import { BOX, BOX_ADD_DIALOG, BOX_EDIT_DIALOG } from "./box"
-import { DRAWING } from "./drawing"
+import { DRAWING, PAPER } from "./drawing"
 import {
   DRAWING_DELETE,
   DRAWING_EDIT,
@@ -34,6 +34,7 @@ import { SIMPLE, STICKY } from "./themes"
 export const DRAWING_PLUGIN = defineBuiltin({
   id: "@matomezu/drawing",
   bookTypes: [DRAWING],
+  presentations: [PAPER],
   items: [BOX, LIST, LINE],
   settings: [LINE_ROUTE],
   themes: [STICKY, SIMPLE],
@@ -90,6 +91,9 @@ declare module "../../../core/tables" {
     "shape.box": typeof BOX
     "shape.list": typeof LIST
     "connector.line": typeof LINE
+  }
+  interface PresentationTable {
+    paper: typeof PAPER
   }
   interface SettingTable {
     "line.route": typeof LINE_ROUTE
