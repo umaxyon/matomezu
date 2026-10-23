@@ -5,6 +5,7 @@ export const LINE_MESSAGES = defineMessages({
   Line: { ja: "線" },
   "Connect items": { ja: "線を引く" },
   "Update line": { ja: "線を変える" },
+  "Reconnect line": { ja: "線をつなぎ替える" },
   "Edit line": { ja: "線の編集" },
   Route: { ja: "通り方" },
   Elbow: { ja: "折れ線" },

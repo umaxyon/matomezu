@@ -43,6 +43,9 @@ var actionTools = []actionTool{
 		"route is straight or elbow (without it, elbow); startHead and endHead put a shape on that end (arrow is a filled triangle); dash is solid or dashed. " +
 		"exitAt and enterAt fix where the line leaves from and enters to: a fraction (0 to 1) of the way clockwise round the item's edge from its top-left corner; without them the line picks its ends. " +
 		"via (elbow lines with both ends fixed) places the line's middle segments. If the two items are now too close (32 pixels, 40 with a caption), to is moved away. Returns the new line's id. read_book shows lines among a page's items."},
+	{"reconnect_line", "line.reconnect", "Move one end of a line (end is from or to) to another item on the page, keeping its caption, heads, style and route. " +
+		"Its hand-placed middle segments and the moved end's fixed place are dropped (both ends' places when it becomes or stops being a loop); props.exitAt or props.enterAt fix them again. " +
+		"The item and the other end must not be joined by another line. If they are now too close, the other end's item is moved away."},
 	{"update_line", "line.update", "Change some props of a line. Props not given stay; a prop given as null is removed (back to its default). A caption that widens the gap moves the end item away."},
 	{"add_row", "row.add", "Add a row at the end of a list (an item shape.list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. " +
 		"Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks."},

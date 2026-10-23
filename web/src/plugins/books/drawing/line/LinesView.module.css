@@ -96,3 +96,30 @@
     transition: none;
   }
 }
+/* 選んだ線の途中の区間をつまむ透明な線（縦の区間は左右へ、横の区間は上下へ動かす） */
+.bend {
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+  cursor: row-resize;
+  touch-action: none;
+}
+.bend[data-axis="x"] {
+  cursor: col-resize;
+}
+/* 選んだ線の両端をつまむ丸 */
+.end {
+  fill: var(--theme-accent);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  pointer-events: all;
+  cursor: move;
+  touch-action: none;
+}
+/* 端が吸い付いた、ほかの線の端の目印 */
+.snap {
+  fill: none;
+  stroke: var(--theme-accent);
+  stroke-width: 2;
+  pointer-events: none;
+}

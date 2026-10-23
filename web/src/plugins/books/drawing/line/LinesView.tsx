@@ -1,8 +1,11 @@
 // ページの線のビュー: 形より手前の層に、線（見える線・端の形・破線）とキャプションの札を描く（選んだ線はほかの線より手前）。道筋は drawLines（drawn.ts）が決めたものを描くだけ。
 // 線を選べるのは選択の道具のときだけで、線の上（見える線より太い透明な当たり）を押すと線を選び、ダブルクリックで編集のダイアログ、右クリックで線のメニューを開く。
-// ほかのときは、線はポインタを受けず、下の形と紙に届く
+// ほかのときは、線はポインタを受けず、下の形と紙に届く。
+// 1 本だけ選んでいる線（editing）には、両端をつまむ丸と、折れ線の途中の区間をつまむ透明な線を出す（区間は向きに合わせて左右か上下に動かす）。
+// キャプションの札は選べるときに押せ、押すと線を選んでドラッグを始める。端が吸い付いた点（snap）には輪を出す
 import type { MouseEvent, PointerEvent } from "react"
 import type { DrawnLine } from "./drawn"
+import type { Pt } from "./geom"
 import styles from "./LinesView.module.css"
 
 const pointsAttr = (pts: readonly (readonly [number, number])[]) =>
@@ -15,9 +18,30 @@ interface Props {
   onPointerDown(e: PointerEvent<SVGGElement>, id: string): void
   onDoubleClick(id: string): void
   onContextMenu(e: MouseEvent<SVGGElement>, id: string): void
+  editing: string | null // つまむ印を出す線
+  snap: Pt | null
+  drag: {
+    via(e: PointerEvent<Element>, id: string, index: number): void
+    end(e: PointerEvent<Element>, id: string, end: "from" | "to"): void
+    caption(e: PointerEvent<Element>, id: string): void
+    move(e: PointerEvent<Element>): void
+    up(e: PointerEvent<Element>): void
+    cancel(e: PointerEvent<Element>): void
+  }
 }
 
-export function LinesView({ lines, selection, selectable, onPointerDown, onDoubleClick, onContextMenu }: Props) {
+export function LinesView({
+  lines,
+  selection,
+  selectable,
+  onPointerDown,
+  onDoubleClick,
+  onContextMenu,
+  editing,
+  snap,
+  drag,
+}: Props) {
+  const follow = { onPointerMove: drag.move, onPointerUp: drag.up, onPointerCancel: drag.cancel }
   // 選んだ線は、ほかの線に隠れないよう手前（後ろの順）に描く
   const ordered = [...lines.filter(l => !selection.includes(l.id)), ...lines.filter(l => selection.includes(l.id))]
   return (
@@ -46,12 +70,52 @@ export function LinesView({ lines, selection, selectable, onPointerDown, onDoubl
               height={l.caption.box.h}
             >
               <div className={styles.labelBox}>
-                <span>{l.caption.text}</span>
+                <span onPointerDown={e => drag.caption(e, l.id)} {...follow}>
+                  {l.caption.text}
+                </span>
               </div>
             </foreignObject>
           )}
+          {editing === l.id &&
+            l.segments.map(seg => {
+              const p = l.points[seg.index + 1]
+              const q = l.points[seg.index + 2]
+              return (
+                p &&
+                q && (
+                  <line
+                    key={seg.index}
+                    className={styles.bend}
+                    data-axis={seg.axis}
+                    x1={p[0]}
+                    y1={p[1]}
+                    x2={q[0]}
+                    y2={q[1]}
+                    onPointerDown={e => drag.via(e, l.id, seg.index)}
+                    {...follow}
+                  />
+                )
+              )
+            })}
+          {editing === l.id &&
+            (["from", "to"] as const).map(end => {
+              const [x, y] = (end === "from" ? l.points[0] : l.points[l.points.length - 1]) as Pt
+              return (
+                <circle
+                  key={end}
+                  className={styles.end}
+                  data-end={end}
+                  cx={x}
+                  cy={y}
+                  r={5}
+                  onPointerDown={e => drag.end(e, l.id, end)}
+                  {...follow}
+                />
+              )
+            })}
         </g>
       ))}
+      {snap && <circle className={styles.snap} cx={snap[0]} cy={snap[1]} r={9} />}
     </svg>
   )
 }

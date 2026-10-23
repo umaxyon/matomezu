@@ -16,8 +16,8 @@ import {
   ITEM_UPDATE,
 } from "./items"
 import { LINE, LINE_EDIT_DIALOG } from "./line"
-import { LINE_CONNECT, LINE_UPDATE } from "./line/actions"
-import { LINE_DRAW, LINE_EDIT } from "./line/commands"
+import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./line/actions"
+import { LINE_DRAW, LINE_EDIT, LINE_RECONNECT_DROP } from "./line/commands"
 import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./list/actions"
 import {
@@ -52,6 +52,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
     ROW_MOVE,
     LINE_CONNECT,
     LINE_UPDATE,
+    LINE_RECONNECT,
     PAGE_UPDATE,
   ],
   commands: [
@@ -69,6 +70,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
     LIST_MOVE_ROW,
     LINE_DRAW,
     LINE_EDIT,
+    LINE_RECONNECT_DROP,
     PAGE_SETTINGS,
   ],
   dialogs: [
@@ -114,6 +116,7 @@ declare module "../../../core/tables" {
     "line.connect": typeof LINE_CONNECT
     "line.update": typeof LINE_UPDATE
     "page.update": typeof PAGE_UPDATE
+    "line.reconnect": typeof LINE_RECONNECT
   }
   interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
 }
@@ -134,6 +137,7 @@ declare module "../../../store/tables" {
     "list.moveRow": typeof LIST_MOVE_ROW
     "line.draw": typeof LINE_DRAW
     "line.edit": typeof LINE_EDIT
+    "line.drop": typeof LINE_RECONNECT_DROP
     "page.settings": typeof PAGE_SETTINGS
   }
   interface DialogTable {

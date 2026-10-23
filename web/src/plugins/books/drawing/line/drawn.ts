@@ -5,7 +5,7 @@ import { captionBox } from "./caption"
 import type { Pt, Rect } from "./geom"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"
-import { alignedEnds, isAligned, type RouteInput, route, scopeObstacles } from "./route"
+import { alignedEnds, isAligned, type RouteInput, type RouteShape, route, type Segment, scopeObstacles } from "./route"
 import { selfLoop } from "./selfloop"
 
 export interface DrawnLine {
@@ -15,7 +15,13 @@ export interface DrawnLine {
   heads: { fill: string; stroke: string } // 端の形（塗る形と線で描く形の path）
   dashed: boolean
   caption: { text: string; box: { x: number; y: number; w: number; h: number } } | null
+  shape: RouteShape | null // 折れ線の形（直線・自分に戻る線は null）
+  segments: Segment[] // ドラッグで動かせる途中の区間
+  ends: { exit: Pt[]; enter: Pt[] } // 両端をつまんで動かせる道（形のふち。自分に戻る線は、もう一方の端の辺とその両隣）
 }
+
+// 道筋の、描く形のほかの所
+type Geometry = Pick<DrawnLine, "points" | "shape" | "segments" | "ends">
 
 // p から q へ向かって d だけ進んだ点
 function toward(p: Pt, q: Pt, d: number): Pt {
@@ -71,11 +77,13 @@ export function alignedEndsOf(
 
 // ページの線を描く形にする。rects は形の四角（紙の座標）、elbow はページの既定が折れ線か。両端の形の四角が無い線は描かない
 export function drawLines(lines: readonly PlacedLine[], rects: ReadonlyMap<string, Rect>, elbow: boolean): DrawnLine[] {
-  const points = new Map<string, Pt[]>()
+  const geos = new Map<string, Geometry>()
   const others = (ids: readonly string[]) => [...rects].filter(([id]) => !ids.includes(id)).map(([, r]) => r)
   for (const l of lines) {
     const input = routeInputOf(l, rects, elbow)
-    if (input) points.set(l.id, route(input).points)
+    if (!input) continue
+    const r = route(input)
+    geos.set(l.id, { points: r.points, shape: r.shape, segments: r.segments, ends: r.ends })
   }
   const loops = new Map<string, number>()
   for (const l of lines) {
@@ -88,14 +96,16 @@ export function drawLines(lines: readonly PlacedLine[], rects: ReadonlyMap<strin
     const drawn = lines
       .filter(o => o.from !== l.from || o.to !== l.from)
       .flatMap(o => {
-        const pts = points.get(o.id)
-        return pts ? [pts] : []
+        const g = geos.get(o.id)
+        return g ? [g.points] : []
       })
-    points.set(l.id, selfLoop(r, others([l.from]), index, drawn, at).points)
+    const loop = selfLoop(r, others([l.from]), index, drawn, at)
+    geos.set(l.id, { points: loop.points, shape: null, segments: [], ends: loop.ends })
   }
   return lines.flatMap(l => {
-    const pts = points.get(l.id)
-    if (!pts) return []
+    const geo = geos.get(l.id)
+    if (!geo) return []
+    const pts = geo.points
     const text = l.props.caption?.trim() ?? ""
     const box = text ? captionBox(pts, { at: l.props.captionAt, offset: l.props.captionOffset }, l.from === l.to) : null
     return [
@@ -105,6 +115,9 @@ export function drawLines(lines: readonly PlacedLine[], rects: ReadonlyMap<strin
         ...painted(pts, l.props.startHead, l.props.endHead),
         dashed: l.props.dash === "dashed",
         caption: box && { text, box },
+        shape: geo.shape,
+        segments: geo.segments,
+        ends: geo.ends,
       },
     ]
   })

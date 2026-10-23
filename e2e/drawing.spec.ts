@@ -847,3 +847,59 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2)
 })
+
+test("選んだ線の両端に丸が出る。終点の丸を別の箱へ運んで離すとつなぎ替わり、折れ線の途中の区間をつまむと横にずれる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, y, caption] of [
+    [150, 150, "始"],
+    [550, 250, "終"],
+    [550, 500, "先"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, y)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 900, 650)
+  await page.mouse.click(empty.x, empty.y)
+  await drawLine(page, "始", "終")
+  const line = page.locator("[data-item]:not([data-shape])")
+  const hit = line.locator("polyline").last()
+  const pointsOf = async () => (await hit.getAttribute("points"))!.split(" ").map(p => p.split(",").map(Number))
+  // 線を押して選ぶと、両端に丸
+  const before = await pointsOf()
+  const mid = before[1]!
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  const zoom = paper.width / Number(await page.getByRole("img", { name: "紙" }).evaluate(el => el.clientWidth))
+  const screen = ([x, y]: number[]) => ({ x: paper.x + x! * zoom, y: paper.y + y! * zoom })
+  const onLine = screen([(before[0]![0]! + mid[0]!) / 2, (before[0]![1]! + mid[1]!) / 2])
+  await page.mouse.click(onLine.x, onLine.y)
+  await expect(line).toHaveAttribute("data-selected", "true")
+  await expect(line.locator("circle[data-end]")).toHaveCount(2)
+  // 途中の区間（Z 字の縦の区間）を右へ 30 ずらす
+  const bend = line.locator("line[data-axis]")
+  await expect(bend).toHaveCount(1)
+  const b = (await bend.boundingBox())!
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(b.x + b.width / 2 + 30, b.y + b.height / 2, { steps: 5 })
+  await page.mouse.up()
+  await expect.poll(async () => Math.round((await pointsOf())[1]![0]! - mid[0]!)).toBe(Math.round(30 / zoom))
+  // 終点の丸を「先」の箱へ運んで離すと、つなぎ替わる
+  const end = (await line.locator('circle[data-end="to"]').boundingBox())!
+  const target = items(page).filter({ hasText: "先" })
+  const t = (await target.boundingBox())!
+  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(t.x + 20, t.y + 10, { steps: 6 })
+  await expect(target).toHaveAttribute("data-target", "true")
+  await page.mouse.up()
+  await expect(target).toHaveAttribute("data-target", "false")
+  const last = (await pointsOf()).at(-1)!
+  const p = screen(last)
+  expect(p.x).toBeGreaterThanOrEqual(t.x - 1)
+  expect(p.x).toBeLessThanOrEqual(t.x + t.width + 1)
+  expect(p.y).toBeGreaterThanOrEqual(t.y - 1)
+  expect(p.y).toBeLessThanOrEqual(t.y + t.height + 1)
+})
