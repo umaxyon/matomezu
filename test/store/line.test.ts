@@ -2,7 +2,9 @@
 import { expect, test } from "bun:test"
 import { restoreBooks } from "../../web/src/core/book"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { rectsOf } from "../../web/src/plugins/books/drawing/items/items"
 import { GAP } from "../../web/src/plugins/books/drawing/items/push"
+import { alignedEndsOf } from "../../web/src/plugins/books/drawing/line/drawn"
 import { CAPTION_GAP, LINK_GAP } from "../../web/src/plugins/books/drawing/line/placed"
 import { linesOf, shapesOf } from "../../web/src/plugins/books/drawing/placed"
 import { newStore, REGISTRY } from "../support"
@@ -175,4 +177,34 @@ test("line.update: via を持つ線を直線にする・端を自由に戻すと
   expect(update(store, "n3", { route: null, via: [300] }).ok).toBe(true)
   expect(update(store, "n3", { exitAt: null }).ok).toBe(true)
   expect(lines(store)[0]!.props).toEqual({ enterAt: ends.enterAt })
+})
+
+test("page.update: ページの線の既定の通り方を直線にすると、通り方を持たない線が直線になり、引けなくなった via を消す。null で既定（折れ線）に戻す", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 300)
+  const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
+  connect(store, "n1", "n2", { ...ends, via: [300] })
+  const pageUpdate = (lineRoute: "elbow" | "straight" | null) =>
+    store.actions.perform("page.update", { page: "p1", lineRoute }, { book: "b1" })
+  expect(pageUpdate("straight").ok).toBe(true)
+  expect(page(store).lineRoute).toBe("straight")
+  expect(lines(store)[0]!.props).toEqual(ends)
+  expect(pageUpdate(null).ok).toBe(true)
+  expect("lineRoute" in page(store)).toBe(false)
+  expect(store.actions.perform("page.update", { page: "p1", lineRoute: "curve" as "elbow" }, { book: "b1" }).ok).toBe(
+    false,
+  )
+})
+
+test("整列の位置: 横に並ぶ箱どうしは、向き合う辺の重なる範囲の真ん中。整列済みなら null", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 120)
+  connect(store, "n1", "n2", { exitAt: 104 / 328 }) // n1 の右の辺の上の端の近く（y = 104）
+  const rects = rectsOf(REGISTRY, page(store))
+  const ends = alignedEndsOf(lines(store)[0]!, rects, true)!
+  expect(ends).toBeDefined()
+  expect(update(store, "n3", ends).ok).toBe(true)
+  expect(alignedEndsOf(lines(store)[0]!, rectsOf(REGISTRY, page(store)), true)).toBeNull()
 })

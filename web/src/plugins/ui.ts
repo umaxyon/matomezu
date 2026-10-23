@@ -20,9 +20,9 @@ export const DEFAULT_LAYOUT = defineLayout({
     "stage.menu": ["stage.home", { either: ["stage.split", "stage.unsplit"] }, "book.open", "drawing.settings"],
   },
   contextMenus: {
-    "drawing.context": ["drawing.settings"],
+    "drawing.context": ["page.settings", "drawing.settings"],
     "item.context": ["drawing.edit", "-", "drawing.delete"],
     "row.context": ["list.editRow", "-", "list.deleteRow"],
-    "line.context": ["drawing.delete"],
+    "line.context": ["line.edit", "-", "drawing.delete"],
   },
 })

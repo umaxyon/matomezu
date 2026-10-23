@@ -5,7 +5,7 @@ import { captionBox } from "./caption"
 import type { Pt, Rect } from "./geom"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"
-import { route, scopeObstacles } from "./route"
+import { alignedEnds, isAligned, type RouteInput, route, scopeObstacles } from "./route"
 import { selfLoop } from "./selfloop"
 
 export interface DrawnLine {
@@ -38,25 +38,44 @@ function painted(points: Pt[], start: Head | undefined, end: Head | undefined) {
   }
 }
 
+// 2 つの形を結ぶ線の道筋を決める入力（ほかの形は、道筋に関わりうるものだけ）。両端の形の四角が無い線と、自分に戻る線は null
+export function routeInputOf(l: PlacedLine, rects: ReadonlyMap<string, Rect>, elbow: boolean): RouteInput | null {
+  const a = rects.get(l.from)
+  const b = rects.get(l.to)
+  if (!a || !b || l.from === l.to) return null
+  const input = {
+    a,
+    b,
+    elbow: (l.props.route ?? (elbow ? "elbow" : "straight")) === "elbow",
+    via: l.props.via ?? null,
+    obstacles: [...rects].filter(([id]) => id !== l.from && id !== l.to).map(([, r]) => r),
+    margin: BEND_MARGIN,
+    exitAt: l.props.exitAt ?? null,
+    enterAt: l.props.enterAt ?? null,
+  }
+  return { ...input, obstacles: scopeObstacles(input) }
+}
+
+// 整列: 線 l の今の形のまま、両端をその辺の一番よい位置（向き合う辺どうしでまっすぐ結べるならその位置、そうでなければ辺の真ん中）に置いた端の位置。
+// もう整列していて手で直した区間も無ければ null（自分に戻る線・描けない線も null）
+export function alignedEndsOf(
+  l: PlacedLine,
+  rects: ReadonlyMap<string, Rect>,
+  elbow: boolean,
+): { exitAt: number; enterAt: number } | null {
+  const input = routeInputOf(l, rects, elbow)
+  if (!input) return null
+  const pts = route(input).points
+  return isAligned(input, pts) ? null : alignedEnds(input, pts)
+}
+
 // ページの線を描く形にする。rects は形の四角（紙の座標）、elbow はページの既定が折れ線か。両端の形の四角が無い線は描かない
 export function drawLines(lines: readonly PlacedLine[], rects: ReadonlyMap<string, Rect>, elbow: boolean): DrawnLine[] {
   const points = new Map<string, Pt[]>()
   const others = (ids: readonly string[]) => [...rects].filter(([id]) => !ids.includes(id)).map(([, r]) => r)
   for (const l of lines) {
-    const a = rects.get(l.from)
-    const b = rects.get(l.to)
-    if (!a || !b || l.from === l.to) continue
-    const input = {
-      a,
-      b,
-      elbow: (l.props.route ?? (elbow ? "elbow" : "straight")) === "elbow",
-      via: l.props.via ?? null,
-      obstacles: others([l.from, l.to]),
-      margin: BEND_MARGIN,
-      exitAt: l.props.exitAt ?? null,
-      enterAt: l.props.enterAt ?? null,
-    }
-    points.set(l.id, route({ ...input, obstacles: scopeObstacles(input) }).points)
+    const input = routeInputOf(l, rects, elbow)
+    if (input) points.set(l.id, route(input).points)
   }
   const loops = new Map<string, number>()
   for (const l of lines) {

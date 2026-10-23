@@ -43,6 +43,7 @@ export const DRAWING = defineBookType({
       "row.move",
       "line.connect",
       "line.update",
+      "page.update",
     ],
     defaults: [
       "page.add",
@@ -60,6 +61,7 @@ export const DRAWING = defineBookType({
       "row.move",
       "line.connect",
       "line.update",
+      "page.update",
     ],
   },
   theme: "standard",

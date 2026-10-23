@@ -172,7 +172,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   const q = at(150, 280)
   await page.mouse.click(q.x, q.y, { button: "right" })
   const menu = page.getByRole("menu")
-  await expect(menu.getByRole("menuitem")).toHaveText(["削除Delete"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["設定", "削除Delete"])
   await menu.getByRole("menuitem", { name: "削除" }).click()
   await expect(line("l2")).toHaveCount(0)
   // 箱 b を消すと、b から c の線も消える

@@ -117,6 +117,18 @@ textarea.control {
 .plain:hover {
   background: var(--skin-btn-hover);
 }
+.plain:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.plain:disabled:hover {
+  background: transparent;
+}
+/* 入り切りの印のボタンの、入っている間 */
+.plain[aria-pressed="true"] {
+  border-color: var(--skin-accent);
+  color: var(--skin-accent);
+}
 /* 入り切りのスイッチ: 丸がつまみ。入ると右に寄って色が付く */
 .switch {
   position: relative;

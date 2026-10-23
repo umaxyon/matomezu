@@ -25,6 +25,7 @@ var actionTools = []actionTool{
 	{"update_book", "book.update", "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it) and paperColor (#rrggbb, the paper's color). " +
 		"Only what is given changes; null removes it (back to the book type's theme, or the theme's paper color)."},
 	{"add_page", "page.add", "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id."},
+	{"update_page", "page.update", "Change a page's settings: lineRoute is how its lines run when they have no route of their own (straight or elbow; null removes it, back to elbow)."},
 	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box, a list). " +
 		"A list (shape.list) starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with add_row. " +
 		"Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. " +

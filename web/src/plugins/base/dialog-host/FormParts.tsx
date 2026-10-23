@@ -151,17 +151,20 @@ export function Switch({
   )
 }
 
-// 見出しの行などに置くボタン。form を渡すと、その form を送るボタンになる（primary は強調する）
+// 見出しの行などに置くボタン。form を渡すと、その form を送るボタンになる（primary は強調する）。
+// pressed を渡すと、押すたびに入り切りする印のボタン（入っている間は強調の色の縁取り）
 export function ActionButton({
   form,
   primary = false,
   disabled = false,
+  pressed,
   onClick,
   children,
 }: {
   form?: string
   primary?: boolean
   disabled?: boolean
+  pressed?: boolean
   onClick?: () => void
   children: ReactNode
 }) {
@@ -171,6 +174,7 @@ export function ActionButton({
       form={form}
       className={primary ? styles.submit : styles.plain}
       disabled={disabled}
+      aria-pressed={pressed}
       onClick={onClick}
     >
       {children}

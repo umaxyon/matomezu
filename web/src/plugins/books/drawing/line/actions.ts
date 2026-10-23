@@ -4,16 +4,16 @@ import { defineAction } from "../../../../core/def/action"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { keepApart, nextItemId, rectsOf } from "../items/items"
-import { type DrawingPage, linesOf } from "../placed"
+import { type DrawingPage, elbowOf, linesOf } from "../placed"
 import { LINE, LinePatchSchema } from "."
 import { connectable } from "./connect"
-import { canConnect, DEFAULT_ROUTE, type PlacedLine, PlacedLineSchema, tidyLines } from "./placed"
+import { canConnect, type PlacedLine, PlacedLineSchema, tidyLines } from "./placed"
 
 type Drawing = BookOf<"drawing">
 
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
 const tidied = (reg: Registry, page: DrawingPage, line: PlacedLine): PlacedLine =>
-  tidyLines([line], rectsOf(reg, page), DEFAULT_ROUTE === "elbow")[0] ?? line
+  tidyLines([line], rectsOf(reg, page), elbowOf(page))[0] ?? line
 
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
 const viaDrawn = (reg: Registry, page: DrawingPage, line: PlacedLine): boolean =>

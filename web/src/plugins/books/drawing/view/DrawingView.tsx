@@ -9,7 +9,7 @@
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
 // 線は形より手前の層に、描いている形の四角（下書き・ドラッグでずらした所も）から道筋を決めて描く（line/drawn.ts の drawLines）。
-// 選択の道具で線を押すと線を選び、右クリックで線を選んで線のメニュー（line.context）を開く。
+// 選択の道具で線を押すと線を選び、ダブルクリックで線の編集のダイアログ（line.edit）、右クリックで線を選んで線のメニュー（line.context）を開く。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 import {
   type CSSProperties,
@@ -48,9 +48,9 @@ import { PORT_OUT, portAt, SIDES, targetsFrom } from "../line/connect"
 import { drawLines } from "../line/drawn"
 import { LinesView } from "../line/LinesView"
 import { LinkPreview, Ports } from "../line/PortsView"
-import { DEFAULT_ROUTE } from "../line/placed"
+import type { PlacedLine } from "../line/placed"
 import type { Side } from "../line/route"
-import { linesOf } from "../placed"
+import { elbowOf, linesOf } from "../placed"
 import styles from "./DrawingView.module.css"
 
 // 要素の左上から見たポインタの位置
@@ -174,6 +174,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   const registry = useRegistry()
   const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
   const draw = useCommand(stage.id, "line.draw")
+  const lineEdit = useCommand(stage.id, "line.edit")
   const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形（〇を出す）
   const link = useRef<Link | null>(null)
   const [linkAt, setLinkAt] = useState<{ at: Point; target: string | null } | null>(null) // 線の先（紙の上）と、その下の引ける相手
@@ -322,7 +323,13 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
       return size ? [[item.id, { x: item.x + (shift?.x ?? 0), y: item.y + (shift?.y ?? 0), ...size }] as const] : []
     }),
   )
-  const lines = drawLines(linesOf(page), rects, DEFAULT_ROUTE === "elbow")
+  // ダイアログの下書きのある線は、項目に下書きを重ねて描く
+  const drafted = linesOf(page).map(l =>
+    preview?.item === l.id && preview.book === stage.opened?.book
+      ? ({ ...l, props: { ...l.props, ...preview.props } } as PlacedLine)
+      : l,
+  )
+  const lines = drawLines(drafted, rects, elbowOf(page))
   const selectable = !hand && stage.placing === null
 
   // 〇を出す形: 選択の道具で、ポインタを乗せている選んでいない形（ドラッグ・大きさを変えている間は出さない）。線を引いている間は、引き始めた形の押した〇だけ
@@ -388,6 +395,9 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
         onPointerDown={(e, id) => {
           if (e.button !== 0 || !selectable) return
           if (!stage.selection.includes(id)) select(stage.id, [id])
+        }}
+        onDoubleClick={id => {
+          if (selectable) lineEdit.run({ item: id })
         }}
         onContextMenu={(e, id) => {
           if (stage.placing !== null) return

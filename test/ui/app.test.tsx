@@ -267,7 +267,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   expect(screen.getByRole("dialog", { name: "新しいページ" })).toBeTruthy()
 })
 
-test("図面の画面を右クリックすると押した位置にメニューが出て、設定を押すと閉じて設定のダイアログが開く", () => {
+test("図面の画面を右クリックすると押した位置にメニュー（ページの設定・ブックの設定）が出て、設定を押すと閉じて設定のダイアログが開く", () => {
   renderApp()
   const paper = screen.getByRole("img", { name: "紙" })
   const notCanceled = fireEvent.contextMenu(paper, { clientX: 40, clientY: 50 })
@@ -277,7 +277,7 @@ test("図面の画面を右クリックすると押した位置にメニュー�
     within(menu)
       .getAllByRole("menuitem")
       .map(b => b.textContent),
-  ).toEqual(["ブックの設定"])
+  ).toEqual(["ページの設定", "ブックの設定"])
   fireEvent.click(within(menu).getByRole("menuitem", { name: "ブックの設定" }))
   expect(screen.queryByRole("menu")).toBeNull()
   const dialog = screen.getByRole("dialog", { name: "ブックの設定" })

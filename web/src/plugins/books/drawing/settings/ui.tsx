@@ -1,7 +1,8 @@
-// ブックの設定の見た目: 設定のダイアログと、それを開くコマンドのアイコン（歯車）
+// ブックの設定とページの設定の見た目: 設定のダイアログと、それを開くコマンドのアイコン（歯車）
+import { PageDialog } from "./PageDialog"
 import { SettingsDialog } from "./SettingsDialog"
 
-export const SETTINGS_DIALOG_VIEWS = { "drawing.settings": SettingsDialog }
+export const SETTINGS_DIALOG_VIEWS = { "drawing.settings": SettingsDialog, "page.settings": PageDialog }
 
 export const SETTINGS_ICONS = {
   "drawing.settings": (

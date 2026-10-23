@@ -769,3 +769,81 @@ test("〇から同じ箱へ戻して離すと、自分に戻る線が引かれ�
   await expect(line).toHaveCount(1)
   expect((await line.locator("polyline").last().getAttribute("points"))!.split(" ").length).toBeGreaterThan(8)
 })
+
+// 箱 from の右の〇から、箱 to の左の辺の近くへ引く
+async function drawLine(page: Page, from: string, to: string) {
+  const a = items(page).filter({ hasText: from })
+  const b = (await items(page).filter({ hasText: to }).boundingBox())!
+  const s = (await a.boundingBox())!
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  const r = (await a.locator('[data-port="r"]').boundingBox())!
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(b.x + 10, b.y + b.height / 2, { steps: 5 })
+  await page.mouse.up()
+}
+
+test("線をダブルクリックすると線の編集のダイアログが開き、線の種類と端の形を変えて確定すると線が変わる。「線を消す」で消える", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, y, caption] of [
+    [150, 150, "始"],
+    [550, 350, "終"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, y)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y)
+  await drawLine(page, "始", "終")
+  const line = page.locator("[data-item]:not([data-shape])")
+  await expect(line).toHaveCount(1)
+  await line.locator("polyline").last().dispatchEvent("dblclick")
+  const dialog = page.getByRole("dialog", { name: "線の編集" })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("radio", { name: "破線" }).check({ force: true })
+  // 下書き: 確定の前から破線で見せる
+  await expect(line.locator("polyline").first()).toHaveAttribute("data-dashed", "true")
+  await dialog.getByLabel("終点の形").selectOption("")
+  await dialog.getByLabel("キャプション", { exact: true }).fill("申請")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(line.locator("polyline").first()).toHaveAttribute("data-dashed", "true")
+  await expect(line.locator("path")).toHaveCount(0)
+  await expect(line).toContainText("申請")
+  // 右クリックのメニューの「設定」でも開き、「線を消す」で消える
+  await line.locator("polyline").last().dispatchEvent("contextmenu")
+  const menu = page.getByRole("menu")
+  await expect(menu.getByRole("menuitem")).toHaveText(["設定", "削除Delete"])
+  await menu.getByRole("menuitem", { name: "設定" }).click()
+  await dialog.getByRole("button", { name: "線を消す" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(line).toHaveCount(0)
+})
+
+test("紙の右クリックの「ページの設定」で、線の既定の通り方を直線にすると、斜めに離れた箱どうしの線が 2 点の直線になる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, y, caption] of [
+    [150, 150, "始"],
+    [550, 350, "終"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, y)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y)
+  await drawLine(page, "始", "終")
+  const points = page.locator("[data-item]:not([data-shape]) polyline").last()
+  await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBeGreaterThan(2)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2)
+})

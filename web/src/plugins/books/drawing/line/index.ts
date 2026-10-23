@@ -4,6 +4,7 @@
 // 道筋は持たず、つないだ形の位置から描くたびに決める（route.ts）
 import { z } from "zod"
 import { defineItem } from "../../../../core/def/item"
+import { defineDialogWith } from "../../../../store/dialogs"
 import { CAPTION_OFFSET_MAX } from "./caption"
 import { HEADS } from "./heads"
 
@@ -52,3 +53,6 @@ export const LINE = defineItem({
     { id: "line.text", fallback: "text" }, // キャプションの文字の色
   ],
 })
+
+// 線の編集のダイアログ。開いたステージのブックの、ページ page の線 item の項目を変える
+export const LINE_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "line.edit" })

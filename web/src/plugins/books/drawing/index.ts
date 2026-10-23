@@ -15,9 +15,9 @@ import {
   ITEM_RESIZE,
   ITEM_UPDATE,
 } from "./items"
-import { LINE } from "./line"
+import { LINE, LINE_EDIT_DIALOG } from "./line"
 import { LINE_CONNECT, LINE_UPDATE } from "./line/actions"
-import { LINE_DRAW } from "./line/commands"
+import { LINE_DRAW, LINE_EDIT } from "./line/commands"
 import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./list/actions"
 import {
@@ -29,7 +29,8 @@ import {
   LIST_STRETCH_ROW,
 } from "./list/commands"
 import { DRAWING_MESSAGES } from "./messages"
-import { DRAWING_SETTINGS, DRAWING_SETTINGS_DIALOG } from "./settings"
+import { DRAWING_SETTINGS, DRAWING_SETTINGS_DIALOG, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./settings"
+import { PAGE_UPDATE } from "./settings/actions"
 import { SIMPLE, STICKY } from "./themes"
 
 export const DRAWING_PLUGIN = defineBuiltin({
@@ -51,6 +52,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
     ROW_MOVE,
     LINE_CONNECT,
     LINE_UPDATE,
+    PAGE_UPDATE,
   ],
   commands: [
     DRAWING_SETTINGS,
@@ -66,6 +68,8 @@ export const DRAWING_PLUGIN = defineBuiltin({
     LIST_STRETCH_ROW,
     LIST_MOVE_ROW,
     LINE_DRAW,
+    LINE_EDIT,
+    PAGE_SETTINGS,
   ],
   dialogs: [
     DRAWING_SETTINGS_DIALOG,
@@ -75,6 +79,8 @@ export const DRAWING_PLUGIN = defineBuiltin({
     LIST_EDIT_DIALOG,
     ROW_ADD_DIALOG,
     ROW_EDIT_DIALOG,
+    LINE_EDIT_DIALOG,
+    PAGE_SETTINGS_DIALOG,
   ],
   keys: ITEM_KEYS,
   messages: DRAWING_MESSAGES,
@@ -107,6 +113,7 @@ declare module "../../../core/tables" {
     "row.move": typeof ROW_MOVE
     "line.connect": typeof LINE_CONNECT
     "line.update": typeof LINE_UPDATE
+    "page.update": typeof PAGE_UPDATE
   }
   interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
 }
@@ -126,6 +133,8 @@ declare module "../../../store/tables" {
     "list.stretchRow": typeof LIST_STRETCH_ROW
     "list.moveRow": typeof LIST_MOVE_ROW
     "line.draw": typeof LINE_DRAW
+    "line.edit": typeof LINE_EDIT
+    "page.settings": typeof PAGE_SETTINGS
   }
   interface DialogTable {
     "drawing.settings": typeof DRAWING_SETTINGS_DIALOG
@@ -135,5 +144,7 @@ declare module "../../../store/tables" {
     "list.edit": typeof LIST_EDIT_DIALOG
     "row.add": typeof ROW_ADD_DIALOG
     "row.edit": typeof ROW_EDIT_DIALOG
+    "line.edit": typeof LINE_EDIT_DIALOG
+    "page.settings": typeof PAGE_SETTINGS_DIALOG
   }
 }
