@@ -1,33 +1,34 @@
 // 線の形の計算の道具（点、矩形、折れ線）。DOM は触らない純粋な関数。
 // 線の道筋（route.ts）、自分に戻る線（selfloop.ts）、キャプションの置き方（caption.ts）が使う
 
-export type Pt = [number, number]
-export type Rect = { x: number; y: number; w: number; h: number }
+import type { Point, Rect } from "../../../../core/geom"
+
+export type { Rect }
 
 // 折れ線の区間ごとの長さ
-const lengths = (path: Pt[]) =>
-  path.slice(1).map((p, i) => Math.hypot(p[0] - (path[i] as Pt)[0], p[1] - (path[i] as Pt)[1]))
+const lengths = (path: Point[]) =>
+  path.slice(1).map((p, i) => Math.hypot(p.x - (path[i] as Point).x, p.y - (path[i] as Point).y))
 
 // 折れ線の長さ
-export const polylineLength = (path: Pt[]) => lengths(path).reduce((s, l) => s + l, 0)
+export const polylineLength = (path: Point[]) => lengths(path).reduce((s, l) => s + l, 0)
 
 // 折れ線の、長さに対する割合 t（0〜1）の点
-export function pointAt(path: Pt[], t: number): Pt {
+export function pointAt(path: Point[], t: number): Point {
   const lens = lengths(path)
   let d = Math.min(1, Math.max(0, t)) * lens.reduce((s, l) => s + l, 0)
   for (let i = 0; i < lens.length; i++) {
     if (d <= (lens[i] as number) || i === lens.length - 1) {
       const k = (lens[i] as number) ? Math.min(1, d / (lens[i] as number)) : 0
-      const [p, q] = [path[i] as Pt, path[i + 1] as Pt]
-      return [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k]
+      const [p, q] = [path[i] as Point, path[i + 1] as Point]
+      return { x: p.x + (q.x - p.x) * k, y: p.y + (q.y - p.y) * k }
     }
     d -= lens[i] as number
   }
-  return path[0] as Pt
+  return path[0] as Point
 }
 
-// 点 (x, y) に一番近い、折れ線の上の点の割合（0〜1）
-export function nearestAt(path: Pt[], x: number, y: number): number {
+// 点 { x, y } に一番近い、折れ線の上の点の割合（0〜1）
+export function nearestAt(path: Point[], { x, y }: Point): number {
   const lens = lengths(path)
   const total = lens.reduce((s, l) => s + l, 0)
   if (!total) return 0
@@ -35,12 +36,10 @@ export function nearestAt(path: Pt[], x: number, y: number): number {
     bestD = Infinity,
     before = 0
   lens.forEach((len, i) => {
-    const [p, q] = [path[i] as Pt, path[i + 1] as Pt]
-    const k = len
-      ? Math.min(1, Math.max(0, ((x - p[0]) * (q[0] - p[0]) + (y - p[1]) * (q[1] - p[1])) / (len * len)))
-      : 0
-    const px = p[0] + (q[0] - p[0]) * k,
-      py = p[1] + (q[1] - p[1]) * k
+    const [p, q] = [path[i] as Point, path[i + 1] as Point]
+    const k = len ? Math.min(1, Math.max(0, ((x - p.x) * (q.x - p.x) + (y - p.y) * (q.y - p.y)) / (len * len))) : 0
+    const px = p.x + (q.x - p.x) * k,
+      py = p.y + (q.y - p.y) * k
     const d = Math.hypot(x - px, y - py)
     if (d < bestD) {
       bestD = d
@@ -52,26 +51,26 @@ export function nearestAt(path: Pt[], x: number, y: number): number {
 }
 
 // 折れ線の、長さに対する割合 at の所の、進む向きの左を指す長さ 1 の向き（画面の座標。右向きの線なら上 (0, -1)）
-export function leftNormalAt(pts: Pt[], at: number): Pt {
+export function leftNormalAt(pts: Point[], at: number): Point {
   const lens = lengths(pts)
   const total = lens.reduce((s, l) => s + l, 0)
   let d = Math.min(1, Math.max(0, at)) * total
   for (let i = 0; i < lens.length; i++) {
     if (d <= (lens[i] as number) || i === lens.length - 1) {
-      const [p, q] = [pts[i] as Pt, pts[i + 1] as Pt],
+      const [p, q] = [pts[i] as Point, pts[i + 1] as Point],
         l = (lens[i] as number) || 1
-      return [(q[1] - p[1]) / l, -(q[0] - p[0]) / l]
+      return { x: (q.y - p.y) / l, y: -(q.x - p.x) / l }
     }
     d -= lens[i] as number
   }
-  return [0, -1]
+  return { x: 0, y: -1 }
 }
 
 // 折れ線の区間（隣り合う 2 点）の並び
-export const segmentsOf = (pts: Pt[]): [Pt, Pt][] => pts.slice(1).map((p, i) => [pts[i] as Pt, p])
+export const segmentsOf = (pts: Point[]): [Point, Point][] => pts.slice(1).map((p, i) => [pts[i] as Point, p])
 
 // 線分が矩形の内側を通るか（縁から 1 の内側。縁に触れるだけのものは数えない）。斜めの線分も厳密に見る
-export function segmentThroughRect([[ex1, ey1], [ex2, ey2]]: [Pt, Pt], r: Rect) {
+export function segmentThroughRect([{ x: ex1, y: ey1 }, { x: ex2, y: ey2 }]: [Point, Point], r: Rect) {
   const m = 1
   const x0 = r.x + m,
     y0 = r.y + m,
@@ -99,7 +98,7 @@ export function segmentThroughRect([[ex1, ey1], [ex2, ey2]]: [Pt, Pt], r: Rect) 
 }
 
 // 矩形の真ん中
-export const centerOf = (r: Rect): Pt => [r.x + r.w / 2, r.y + r.h / 2]
+export const centerOf = (r: Rect): Point => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
 
 // 2 つの矩形の、x（y）の向きの範囲が重なる所 [lo, hi]（hi <= lo なら重ならない）
 export function overlapSpan(a: Rect, b: Rect, k: "x" | "y"): [number, number] {

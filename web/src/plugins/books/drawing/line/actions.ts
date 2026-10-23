@@ -4,7 +4,7 @@ import { defineAction } from "../../../../core/def/action"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { keepApart, nextItemId, rectsOf } from "../items/items"
-import { type DrawingPage, elbowOf, linesOf } from "../placed"
+import { type DrawingPage, elbowOf, linesOf, pageItemsOf } from "../placed"
 import { LINE, LinePatchSchema, usesLines } from "."
 import { connectable } from "./connect"
 import { canConnect, type PlacedLine, PlacedLineSchema, tidyLines } from "./placed"
@@ -21,7 +21,7 @@ const viaDrawn = (reg: Registry, book: Drawing, page: DrawingPage, line: PlacedL
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、stay の形（無ければ始点）はそのままでもう一方をどける
 function withLine(reg: Registry, book: Drawing, page: DrawingPage, line: PlacedLine, stay = line.from): Drawing | null {
-  const items = page.items ?? []
+  const items = pageItemsOf(page)
   const next = items.some(i => i.id === line.id) ? items.map(i => (i.id === line.id ? line : i)) : [...items, line]
   const changed = { ...book, pages: book.pages.map(p => (p.id === page.id ? { ...page, items: next } : p)) }
   return keepApart(reg, changed, page.id, stay, stay === line.from ? line.to : line.from)

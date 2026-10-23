@@ -1,8 +1,9 @@
 // ページの線を描く形にする純粋な関数: 形の四角から、線ごとの点の並び・見える線（端の形の付け根で止めた点の並び）・端の形・キャプションの札の枠を決める。
 // 2 つの形を結ぶ線は道筋の計算（route.ts。ほかの形は、道筋に関わりうるものだけを避ける）、自分に戻る線は形の角の輪（selfloop.ts）。
 // 自分に戻る線は、ほかの線を描いたあとに、ほかの形とほかの線を避ける角に描く（同じ形の 2 本目からは、同じ角で輪を大きくする）
+import type { Point } from "../../../../core/geom"
 import { captionBox } from "./caption"
-import type { Pt, Rect } from "./geom"
+import type { Rect } from "./geom"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"
 import {
@@ -19,14 +20,14 @@ import { selfLoop } from "./selfloop"
 
 export interface DrawnLine {
   id: string
-  points: Pt[] // 線の点の並び（始点から終点。当たりはこの上で取る）
-  shown: Pt[] // 見える線（端の形の付け根で止める）
+  points: Point[] // 線の点の並び（始点から終点。当たりはこの上で取る）
+  shown: Point[] // 見える線（端の形の付け根で止める）
   heads: { fill: string; stroke: string } // 端の形（塗る形と線で描く形の path）
   dashed: boolean
   caption: { text: string; box: { x: number; y: number; w: number; h: number } } | null
   shape: RouteShape | null // 折れ線の形（直線・自分に戻る線は null）
   segments: Segment[] // ドラッグで動かせる途中の区間
-  ends: { exit: Pt[]; enter: Pt[] } // 両端をつまんで動かせる道（形のふち。自分に戻る線は、もう一方の端の辺とその両隣）
+  ends: { exit: Point[]; enter: Point[] } // 両端をつまんで動かせる道（形のふち。自分に戻る線は、もう一方の端の辺とその両隣）
   memory: EndMemory | null // 自由な端を描いた辺と位置（折れ線だけ。次に描くときに渡すと、その辺に留まる）
 }
 
@@ -49,20 +50,20 @@ export interface DrawOptions {
 export type LineCache = Map<string, { key: string; geo: Geometry }>
 
 // p から q へ向かって d だけ進んだ点
-function toward(p: Pt, q: Pt, d: number): Pt {
-  const len = Math.hypot(q[0] - p[0], q[1] - p[1])
+function toward(p: Point, q: Point, d: number): Point {
+  const len = Math.hypot(q.x - p.x, q.y - p.y)
   if (!len) return p
-  return [p[0] + ((q[0] - p[0]) / len) * d, p[1] + ((q[1] - p[1]) / len) * d]
+  return { x: p.x + ((q.x - p.x) / len) * d, y: p.y + ((q.y - p.y) / len) * d }
 }
 
 // 点の並びと端の形から、見える線と端の形の path
-function painted(points: Pt[], start: Head | undefined, end: Head | undefined) {
+function painted(points: Point[], start: Head | undefined, end: Head | undefined) {
   const n = points.length
-  const shown = points.map(p => [...p] as Pt)
-  const ds = start && n >= 2 ? headDraw(start, points[1] as Pt, points[0] as Pt) : null
-  const de = end && n >= 2 ? headDraw(end, points[n - 2] as Pt, points[n - 1] as Pt) : null
-  if (ds?.trim) shown[0] = toward(points[0] as Pt, points[1] as Pt, ds.trim)
-  if (de?.trim) shown[n - 1] = toward(points[n - 1] as Pt, points[n - 2] as Pt, de.trim)
+  const shown = points.map(p => ({ ...p }))
+  const ds = start && n >= 2 ? headDraw(start, points[1] as Point, points[0] as Point) : null
+  const de = end && n >= 2 ? headDraw(end, points[n - 2] as Point, points[n - 1] as Point) : null
+  if (ds?.trim) shown[0] = toward(points[0] as Point, points[1] as Point, ds.trim)
+  if (de?.trim) shown[n - 1] = toward(points[n - 1] as Point, points[n - 2] as Point, de.trim)
   return {
     shown,
     heads: { fill: (ds?.fill ?? "") + (de?.fill ?? ""), stroke: (ds?.stroke ?? "") + (de?.stroke ?? "") },

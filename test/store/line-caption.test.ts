@@ -1,12 +1,12 @@
 // 線のキャプションの札の置き方（drawing/line/caption.ts）
 import { expect, test } from "bun:test"
+import type { Point } from "../../web/src/core/geom"
 import { CAPTION_BOX_H, captionBox, clampCaptionOffset } from "../../web/src/plugins/books/drawing/line/caption"
-import type { Pt } from "../../web/src/plugins/books/drawing/line/geom"
 
 const center = (b: { x: number; y: number; w: number; h: number }) => [b.x + b.w / 2, b.y + b.h / 2]
-const across = (to: number): Pt[] => [
-  [160, 72],
-  [to, 72],
+const across = (to: number): Point[] => [
+  { x: 160, y: 72 },
+  { x: to, y: 72 },
 ]
 
 test("線の真ん中に置く。幅は上限の 160（線の長さ 240 - 16 = 224 より狭い）", () => {
@@ -20,9 +20,9 @@ test("箱どうしが近いと、線の長さに合わせて狭く折り返す�
 })
 
 test("その所の区間が縦向きの線と、自分に戻る線は、線の長さで狭めず上限の幅で折り返す", () => {
-  const down: Pt[] = [
-    [100, 104],
-    [100, 140],
+  const down: Point[] = [
+    { x: 100, y: 104 },
+    { x: 100, y: 140 },
   ]
   expect(captionBox(down, {}, false)!.w).toBe(160)
   expect(captionBox(across(180), {}, true)!.w).toBe(160)
@@ -36,5 +36,5 @@ test("captionAt と captionOffset の位置に置く（右向きの線なら左�
 test("線から離す量は ±60 まで。点が 2 つ未満なら置かない", () => {
   expect([clampCaptionOffset(90), clampCaptionOffset(-90), clampCaptionOffset(12)]).toEqual([60, -60, 12])
   expect(center(captionBox(across(400), { offset: 100 }, false)!)).toEqual([280, 12])
-  expect(captionBox([[0, 0]], {}, false)).toBeNull()
+  expect(captionBox([{ x: 0, y: 0 }], {}, false)).toBeNull()
 })

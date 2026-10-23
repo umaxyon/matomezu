@@ -7,6 +7,8 @@ export interface Size {
   w: number
   h: number
 }
+// 左上と大きさで決まる四角
+export interface Rect extends Point, Size {}
 
 // 大きさ size の四角の左上を at に置き、bounds（左上が 0, 0 の範囲）からはみ出す分だけ左と上に戻す（範囲より大きければ左上をそろえる）
 export function fitInside(at: Point, size: Size, bounds: Size): Point {

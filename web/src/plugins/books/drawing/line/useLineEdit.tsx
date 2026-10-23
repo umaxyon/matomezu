@@ -13,7 +13,7 @@ import type { DrawingPage } from "../placed"
 import { reconnectTargets } from "./connect"
 import type { DrawnLine } from "./drawn"
 import { captionDragged, endDragged, viaDragged, viaSettled } from "./edit"
-import type { Pt, Rect } from "./geom"
+import type { Rect } from "./geom"
 import type { PlacedLine } from "./placed"
 
 type Props = PlacedLine["props"]
@@ -48,7 +48,7 @@ export function useLineEdit(stage: Stage, registry: Registry, localOf: (e: Point
   const drop = useCommand(stage.id, "line.drop")
   const drag = useRef<Drag | null>(null)
   const [draft, setDraft] = useState<{ id: string; props: Props } | null>(null)
-  const [snap, setSnap] = useState<Pt | null>(null)
+  const [snap, setSnap] = useState<Point | null>(null)
   const [target, setTarget] = useState<string | null>(null)
   const [dimming, setDimming] = useState<ReadonlySet<string> | null>(null) // 端を運ぶ間、薄くしない形
   const active = draft !== null || dimming !== null
@@ -73,10 +73,9 @@ export function useLineEdit(stage: Stage, registry: Registry, localOf: (e: Point
     return () => window.removeEventListener("keydown", onKey)
   }, [active])
 
-  const paperAt = (e: PointerEvent<Element>): Pt | null => {
+  const paperAt = (e: PointerEvent<Element>): Point | null => {
     const at = localOf(e)
-    const p = at && toPaper(stage, at)
-    return p ? [p.x, p.y] : null
+    return at && toPaper(stage, at)
   }
   const begin = (e: PointerEvent<Element>, line: string, what: Kind) => {
     if (e.button !== 0) return
@@ -105,7 +104,7 @@ export function useLineEdit(stage: Stage, registry: Registry, localOf: (e: Point
       const w = d.what
       if (w.kind === "via") {
         const seg = drawn.segments.find(s => s.index === w.index)
-        const props = seg && viaDragged(line, drawn, scene.rects, w.index, seg.axis === "x" ? p[0] : p[1])
+        const props = seg && viaDragged(line, drawn, scene.rects, w.index, p[seg.axis])
         if (props) setDraft({ id: line.id, props })
       } else if (w.kind === "caption") {
         setDraft({ id: line.id, props: captionDragged(line, drawn.points, p) })

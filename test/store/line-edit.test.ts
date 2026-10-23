@@ -61,12 +61,12 @@ test("端のドラッグ: ポインタに一番近いふちの位置に固定す
   const { lines, rects, drawn } = scene(store)
   const l = lines.find(x => x.to === "n3")!
   // n1 の下の辺の x = 150 の近く（ふち一周 328 の上で、下の辺は右から左へ 164〜264）
-  const down = endDragged(l, "exit", lines, drawn, rects, [150, 175])!
+  const down = endDragged(l, "exit", lines, drawn, rects, { x: 150, y: 175 })!
   expect(down.snap).toBeNull()
   expect(down.props.exitAt).toBeCloseTo(214 / 328, 3)
   // n1 の右の辺の、もう 1 本の線の端（y = 132）の 5px 上
   const n2line = drawn.find(x => x.id === lines.find(y => y.to === "n2")!.id)!
-  const near = endDragged(l, "exit", lines, drawn, rects, [205, n2line.points[0]![1] - 5])!
+  const near = endDragged(l, "exit", lines, drawn, rects, { x: 205, y: n2line.points[0]!.y - 5 })!
   expect(near.snap).toEqual(n2line.points[0]!)
 })
 
@@ -78,8 +78,11 @@ test("キャプションのドラッグ: 線に沿った位置と、線から離
   connect(store, "n1", "n2", { caption: "申請" })
   const { lines, drawn } = scene(store)
   // 線は (200,132) から (400,132)。x = 250 は 4 分の 1、上へ 20 は左（右向きの線）
-  expect(captionDragged(lines[0]!, drawn[0]!.points, [250, 112])).toMatchObject({ captionAt: 0.25, captionOffset: 20 })
-  expect(captionDragged(lines[0]!, drawn[0]!.points, [250, 300]).captionOffset).toBe(-60)
+  expect(captionDragged(lines[0]!, drawn[0]!.points, { x: 250, y: 112 })).toMatchObject({
+    captionAt: 0.25,
+    captionOffset: 20,
+  })
+  expect(captionDragged(lines[0]!, drawn[0]!.points, { x: 250, y: 300 }).captionOffset).toBe(-60)
 })
 
 test("つなぎ替え: 端を別の箱へ移し、キャプション・端の形は残し、via と移した端の位置を捨てる。もう一方の端と組の線がある箱へは移せない", () => {

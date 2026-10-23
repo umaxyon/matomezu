@@ -33,8 +33,8 @@ test("引ける相手は、同じページのつなげる形（自分も入る�
 test("〇は辺の真ん中から外へ。引いた線は、始点が〇の辺の真ん中、終点が離した所に一番近いふちの点で、終点に矢印", () => {
   const store = ready()
   const rects = rectsOf(REGISTRY, page(store))
-  expect(portAt(rects.get("n1")!, "r", 10)).toEqual([210, 132])
-  const props = drawnLineProps(page(store), rects, true, "n1", "r", "n2", [395, 110])!
+  expect(portAt(rects.get("n1")!, "r", 10)).toEqual({ x: 210, y: 132 })
+  const props = drawnLineProps(page(store), rects, true, "n1", "r", "n2", { x: 395, y: 110 })!
   // n1 の一周 328 の上で、右の辺の真ん中は 132。n2 の左の辺の y=110 の所は 328 - 10 = 318
   expect(props.exitAt).toBeCloseTo(132 / 328, 4)
   expect(props.enterAt).toBeCloseTo(318 / 328, 4)
@@ -44,8 +44,8 @@ test("〇は辺の真ん中から外へ。引いた線は、始点が〇の辺�
 test("自分に戻る線: 離した所に一番近い角が自動の角（右上）なら端は自由、ほかの空いている角ならその角に固定", () => {
   const store = ready()
   const rects = rectsOf(REGISTRY, page(store))
-  expect(drawnLineProps(page(store), rects, true, "n1", "t", "n1", [195, 105])).toEqual({ endHead: "arrow" })
-  const left = drawnLineProps(page(store), rects, true, "n1", "t", "n1", [105, 105])!
+  expect(drawnLineProps(page(store), rects, true, "n1", "t", "n1", { x: 195, y: 105 })).toEqual({ endHead: "arrow" })
+  const left = drawnLineProps(page(store), rects, true, "n1", "t", "n1", { x: 105, y: 105 })!
   expect(left.exitAt).toBeDefined()
   expect(left.enterAt).toBeDefined()
 })

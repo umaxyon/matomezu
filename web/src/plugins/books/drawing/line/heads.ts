@@ -2,6 +2,8 @@
 // 端ごとの形は線の startHead / endHead に書く（書いた端に付く）。
 // 描き方は、塗る形（fill）と線で描く形（stroke）の path と、見える線を端から縮める長さ（trim。形の付け根で線を止める）
 
+import type { Point } from "../../../../core/geom"
+
 export const HEADS = [
   "arrow",
   "open",
@@ -25,7 +27,7 @@ export interface HeadDraw {
 const r = (n: number) => Math.round(n * 10) / 10
 
 // f から tip へ向かう区間の、tip の側の形。区間が短すぎれば何も描かない
-export function headDraw(kind: Head, [fx, fy]: [number, number], [tx, ty]: [number, number]): HeadDraw {
+export function headDraw(kind: Head, { x: fx, y: fy }: Point, { x: tx, y: ty }: Point): HeadDraw {
   const len = Math.hypot(tx - fx, ty - fy)
   if (len < 1) return { fill: "", stroke: "", trim: 0 }
   const ux = (tx - fx) / len,

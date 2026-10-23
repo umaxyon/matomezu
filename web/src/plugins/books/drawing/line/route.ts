@@ -7,10 +7,11 @@
 //   exit と enter が同じ向きなら via は奇数個、違えば偶数個（0 個が L 字）。出る辺（左か右か）は via の位置から決まる。
 // 手で直した via は、両端が固定のときだけ持つ（向きは固定の端の辺から決まる）。引けるあいだはそのまま使う
 
-import { centerOf, nearestAt, overlapSpan, type Pt, pointAt, type Rect, segmentThroughRect } from "./geom"
+import type { Point } from "../../../../core/geom"
+import { centerOf, nearestAt, overlapSpan, pointAt, type Rect, segmentThroughRect } from "./geom"
 import { perimeter } from "./selfloop"
 
-export type { Pt, Rect }
+export type { Rect }
 
 // 線の向き（横か縦）
 export type Axis = "horizontal" | "vertical"
@@ -64,8 +65,8 @@ export interface RouteInput {
 
 // 線の端をつまんで動かせる道（箱のふち一周。割合は exitAt / enterAt と同じ）
 export interface EndPaths {
-  exit: Pt[]
-  enter: Pt[]
+  exit: Point[]
+  enter: Point[]
 }
 
 // データに書き戻すこと（描画の側ではデータを書き換えない。graph が受け取って直す。箱や線をドラッグしている間は、離すまで待つ）
@@ -74,7 +75,7 @@ export interface RouteFix {
 }
 
 export interface Route {
-  points: Pt[]
+  points: Point[]
   arrangement: Arrangement
   shape: RouteShape | null // 折れ線の形（直線や、まっすぐ結んだ箱どうしなら null）
   segments: Segment[] // ドラッグで動かせる途中の区間
@@ -107,44 +108,39 @@ export function arrangementOf(a: Rect, b: Rect): Arrangement {
 }
 
 // 中心 (cx, cy) から (dx, dy) 方向へ伸ばした線が矩形の縁と交わる点
-function clipToRect(cx: number, cy: number, w: number, h: number, dx: number, dy: number): Pt {
+function clipToRect(cx: number, cy: number, w: number, h: number, dx: number, dy: number): Point {
   const tx = dx ? w / 2 / Math.abs(dx) : Infinity
   const ty = dy ? h / 2 / Math.abs(dy) : Infinity
   const t = Math.min(tx, ty, 1)
-  return [cx + dx * t, cy + dy * t]
+  return { x: cx + dx * t, y: cy + dy * t }
 }
 
 // 箱 r の縁の、中心から点 v へ向かう線が交わる点
-const clipToward = (r: Rect, v: Pt): Pt => {
-  const [cx, cy] = centerOf(r)
-  return clipToRect(cx, cy, r.w, r.h, v[0] - cx, v[1] - cy)
+const clipToward = (r: Rect, v: Point): Point => {
+  const { x: cx, y: cy } = centerOf(r)
+  return clipToRect(cx, cy, r.w, r.h, v.x - cx, v.y - cy)
 }
 
 // 点の並びのどこかの区間が、矩形の内側を通るか（縁に触れるだけのものは数えない）。
 // 縦か横の区間は、区間を囲む矩形との重なりで見る。斜めの区間（直線や、形を作れなかったときの中心どうしの線）は、
 // 囲む矩形で見ると角の近くを通るだけで通ると数えてしまうので、線そのもので見る
-export function passes(pts: Pt[], r: Rect) {
+export function passes(pts: Point[], r: Rect) {
   const x0 = r.x + 1,
     y0 = r.y + 1,
     x1 = r.x + r.w - 1,
     y1 = r.y + r.h - 1
-  return pts.slice(1).some(([qx, qy], i) => {
-    const [px, py] = pts[i] as Pt
-    if (px !== qx && py !== qy)
-      return segmentThroughRect(
-        [
-          [px, py],
-          [qx, qy],
-        ],
-        r,
-      )
+  return pts.slice(1).some((q, i) => {
+    const p = pts[i] as Point
+    const { x: px, y: py } = p,
+      { x: qx, y: qy } = q
+    if (px !== qx && py !== qy) return segmentThroughRect([p, q], r)
     return Math.max(px, qx) > x0 && Math.min(px, qx) < x1 && Math.max(py, qy) > y0 && Math.min(py, qy) < y1
   })
 }
 
 // 形（exit / enter / via）から点の並びを作る。引けない（出る区間が始点の箱の中へ向かう、入る区間が終点の箱の中から来る、
 // 線が両端の箱の中を通る、via の数が向きと合わない）なら null
-export function shapePoints(a: Rect, b: Rect, s: RouteShape, at: EndsAt = NO_AT): Pt[] | null {
+export function shapePoints(a: Rect, b: Rect, s: RouteShape, at: EndsAt = NO_AT): Point[] | null {
   const { exit, enter, via } = s
   if ((exit === enter) !== (via.length % 2 === 1)) return null
   // 出る辺・入る辺の上の位置（出る向きが横なら y、縦なら x）
@@ -152,38 +148,38 @@ export function shapePoints(a: Rect, b: Rect, s: RouteShape, at: EndsAt = NO_AT)
     bs = endCoord(b, enter, at.enterAt)
   // 出る辺: 最初に向かう位置が、始点の箱のどちら側にあるか
   const first = via.length ? (via[0] as number) : bs
-  let c: Pt
+  let c: Point
   if (exit === "horizontal") {
-    if (first >= a.x + a.w) c = [a.x + a.w, as]
-    else if (first <= a.x) c = [a.x, as]
+    if (first >= a.x + a.w) c = { x: a.x + a.w, y: as }
+    else if (first <= a.x) c = { x: a.x, y: as }
     else return null
   } else {
-    if (first >= a.y + a.h) c = [as, a.y + a.h]
-    else if (first <= a.y) c = [as, a.y]
+    if (first >= a.y + a.h) c = { x: as, y: a.y + a.h }
+    else if (first <= a.y) c = { x: as, y: a.y }
     else return null
   }
-  const pts: Pt[] = [c]
+  const pts: Point[] = [c]
   let axis = exit // 次に引く区間の向き
   for (const v of via) {
-    c = axis === "horizontal" ? [v, c[1]] : [c[0], v]
+    c = axis === "horizontal" ? { x: v, y: c.y } : { x: c.x, y: v }
     pts.push(c)
     axis = flip(axis)
   }
   // 入る辺: 終点の箱の手前まで来て、enter の向きで入る
   if (enter === "horizontal") {
-    c = [c[0], bs]
+    c = { x: c.x, y: bs }
     pts.push(c)
-    if (c[0] <= b.x) pts.push([b.x, bs])
-    else if (c[0] >= b.x + b.w) pts.push([b.x + b.w, bs])
+    if (c.x <= b.x) pts.push({ x: b.x, y: bs })
+    else if (c.x >= b.x + b.w) pts.push({ x: b.x + b.w, y: bs })
     else return null
   } else {
-    c = [bs, c[1]]
+    c = { x: bs, y: c.y }
     pts.push(c)
-    if (c[1] <= b.y) pts.push([bs, b.y])
-    else if (c[1] >= b.y + b.h) pts.push([bs, b.y + b.h])
+    if (c.y <= b.y) pts.push({ x: bs, y: b.y })
+    else if (c.y >= b.y + b.h) pts.push({ x: bs, y: b.y + b.h })
     else return null
   }
-  const out = pts.filter((p, i) => i === 0 || p[0] !== (pts[i - 1] as Pt)[0] || p[1] !== (pts[i - 1] as Pt)[1])
+  const out = pts.filter((p, i) => i === 0 || p.x !== (pts[i - 1] as Point).x || p.y !== (pts[i - 1] as Point).y)
   if (out.length < 2 || passes(out, a) || passes(out, b)) return null
   return out
 }
@@ -230,52 +226,52 @@ export function simplifyVia(a: Rect, b: Rect, s: RouteShape, at: EndsAt = NO_AT)
 // ---- 線の端 ----
 
 // 箱 r の、点 p に一番近い辺
-export function sideOf(r: Rect, p: Pt): Side {
-  const d = [Math.abs(p[1] - r.y), Math.abs(p[0] - (r.x + r.w)), Math.abs(p[1] - (r.y + r.h)), Math.abs(p[0] - r.x)]
+export function sideOf(r: Rect, p: Point): Side {
+  const d = [Math.abs(p.y - r.y), Math.abs(p.x - (r.x + r.w)), Math.abs(p.y - (r.y + r.h)), Math.abs(p.x - r.x)]
   return (["t", "r", "b", "l"] as const)[d.indexOf(Math.min(...d))] as Side
 }
 
 // 辺の真ん中（ひし形の頂点）
-export function vertexAt(r: Rect, side: Side): Pt {
+export function vertexAt(r: Rect, side: Side): Point {
   return side === "t"
-    ? [r.x + r.w / 2, r.y]
+    ? { x: r.x + r.w / 2, y: r.y }
     : side === "r"
-      ? [r.x + r.w, r.y + r.h / 2]
+      ? { x: r.x + r.w, y: r.y + r.h / 2 }
       : side === "b"
-        ? [r.x + r.w / 2, r.y + r.h]
-        : [r.x, r.y + r.h / 2]
+        ? { x: r.x + r.w / 2, y: r.y + r.h }
+        : { x: r.x, y: r.y + r.h / 2 }
 }
 
 // 箱 r の、点 p に一番近い辺の真ん中（ひし形の頂点）
-export function vertexOf(r: Rect, p: Pt): Pt {
+export function vertexOf(r: Rect, p: Point): Point {
   return vertexAt(r, sideOf(r, p))
 }
 
 // 箱 r のふちの上の点 p の、辺と辺の上の割合
-function placeOf(r: Rect, p: Pt, side = sideOf(r, p)): EndPlace {
-  const at = axisOfSide(side) === "horizontal" ? (p[1] - r.y) / r.h : (p[0] - r.x) / r.w
+function placeOf(r: Rect, p: Point, side = sideOf(r, p)): EndPlace {
+  const at = axisOfSide(side) === "horizontal" ? (p.y - r.y) / r.h : (p.x - r.x) / r.w
   return { side, at: Math.min(1, Math.max(0, at)) }
 }
 
 // 点のふち一周の割合（exitAt / enterAt に書く値。小数 4 桁）
-export function perimeterAt(r: Rect, p: Pt): number {
-  return Math.round(nearestAt(perimeter(r), p[0], p[1]) * 10000) / 10000
+export function perimeterAt(r: Rect, p: Point): number {
+  return Math.round(nearestAt(perimeter(r), p) * 10000) / 10000
 }
 
 // 固定の端の点（ひし形なら一番近い頂点）。自由なら null
-function fixedPoint(r: Rect, at: number | null | undefined, vertex: boolean | undefined): Pt | null {
+function fixedPoint(r: Rect, at: number | null | undefined, vertex: boolean | undefined): Point | null {
   if (at == null) return null
   const p = pointAt(perimeter(r), at)
   return vertex ? vertexOf(r, p) : p
 }
 
 // 線の端（点の並びの最初か最後）が出入りしている辺。端の区間が横なら左右、縦なら上下（角にあっても向きで決まる）
-function endSide(r: Rect, pts: Pt[], last: boolean): Side {
-  const p = last ? (pts[pts.length - 1] as Pt) : (pts[0] as Pt)
-  const q = last ? (pts[pts.length - 2] as Pt) : (pts[1] as Pt)
-  if (!q || (p[0] !== q[0] && p[1] !== q[1])) return sideOf(r, p)
-  if (p[1] === q[1]) return p[0] >= r.x + r.w - 0.5 ? "r" : "l"
-  return p[1] >= r.y + r.h - 0.5 ? "b" : "t"
+function endSide(r: Rect, pts: Point[], last: boolean): Side {
+  const p = last ? (pts[pts.length - 1] as Point) : (pts[0] as Point)
+  const q = last ? (pts[pts.length - 2] as Point) : (pts[1] as Point)
+  if (!q || (p.x !== q.x && p.y !== q.y)) return sideOf(r, p)
+  if (p.y === q.y) return p.x >= r.x + r.w - 0.5 ? "r" : "l"
+  return p.y >= r.y + r.h - 0.5 ? "b" : "t"
 }
 
 // 固定の端の、内部での位置（辺と辺の上の割合）
@@ -293,13 +289,13 @@ export function fixedAts(r: RouteInput): EndsAt {
 
 // 整列: 今の点の並び pts の両端を、その辺のままで一番よい位置に置き直す（ふち一周の割合で返す）。向き合う辺どうしで
 // まっすぐ結べるなら重なる範囲の真ん中でまっすぐ、そうでなければ辺の真ん中
-export function alignedEnds(r: RouteInput, pts: Pt[]): { exitAt: number; enterAt: number } {
+export function alignedEnds(r: RouteInput, pts: Point[]): { exitAt: number; enterAt: number } {
   const [p, q] = alignTargets(r, pts)
   return { exitAt: perimeterAt(r.a, p), enterAt: perimeterAt(r.b, q) }
 }
 
 // 整列したときの両端の点
-function alignTargets(r: RouteInput, pts: Pt[]): [Pt, Pt] {
+function alignTargets(r: RouteInput, pts: Point[]): [Point, Point] {
   const { a, b } = r
   const sa = endSide(a, pts, false),
     sb = endSide(b, pts, true)
@@ -314,33 +310,35 @@ function alignTargets(r: RouteInput, pts: Pt[]): [Pt, Pt] {
     if (axisOfSide(sa) === "horizontal") {
       const [lo, hi] = overlapSpan(a, b, "y")
       if (hi > lo) {
-        p = [p[0], (lo + hi) / 2]
-        q = [q[0], (lo + hi) / 2]
+        p = { x: p.x, y: (lo + hi) / 2 }
+        q = { x: q.x, y: (lo + hi) / 2 }
       }
     } else {
       const [lo, hi] = overlapSpan(a, b, "x")
       if (hi > lo) {
-        p = [(lo + hi) / 2, p[1]]
-        q = [(lo + hi) / 2, q[1]]
+        p = { x: (lo + hi) / 2, y: p.y }
+        q = { x: (lo + hi) / 2, y: q.y }
       }
     }
   } else if (facing) {
-    // ひし形の頂点は動かせないので、もう一方（普通の箱）を頂点にそろえる（重なる範囲にあれば）
-    const k = axisOfSide(sa) === "horizontal" ? 1 : 0
-    if (r.aVertex && !r.bVertex && p[k] > (k ? b.y : b.x) && p[k] < (k ? b.y + b.h : b.x + b.w))
-      q = k ? [q[0], p[1]] : [p[0], q[1]]
-    if (r.bVertex && !r.aVertex && q[k] > (k ? a.y : a.x) && q[k] < (k ? a.y + a.h : a.x + a.w))
-      p = k ? [p[0], q[1]] : [q[0], p[1]]
+    // ひし形の頂点は動かせないので、もう一方（普通の箱）を頂点にそろえる（重なる範囲にあれば）。
+    // 左右の辺どうしなら y を、上下の辺どうしなら x をそろえる
+    const k = axisOfSide(sa) === "horizontal" ? "y" : "x"
+    const size = k === "y" ? "h" : "w"
+    if (r.aVertex && !r.bVertex && p[k] > b[k] && p[k] < b[k] + b[size])
+      q = k === "y" ? { x: q.x, y: p.y } : { x: p.x, y: q.y }
+    if (r.bVertex && !r.aVertex && q[k] > a[k] && q[k] < a[k] + a[size])
+      p = k === "y" ? { x: p.x, y: q.y } : { x: q.x, y: p.y }
   }
   return [p, q]
 }
 
 // 整列しても変わらないか（両端がもう整列した位置にあり、手で直した区間も無い）。整列ボタンを押せなくするのに使う
-export function isAligned(r: RouteInput, pts: Pt[]): boolean {
+export function isAligned(r: RouteInput, pts: Point[]): boolean {
   if (r.via || pts.length < 2) return false
   const [p, q] = alignTargets(r, pts)
-  const near = (u: Pt, v: Pt) => Math.abs(u[0] - v[0]) < 0.5 && Math.abs(u[1] - v[1]) < 0.5
-  return near(pts[0] as Pt, p) && near(pts[pts.length - 1] as Pt, q)
+  const near = (u: Point, v: Point) => Math.abs(u.x - v.x) < 0.5 && Math.abs(u.y - v.y) < 0.5
+  return near(pts[0] as Point, p) && near(pts[pts.length - 1] as Point, q)
 }
 
 // ---- 道筋 ----
@@ -372,7 +370,12 @@ export function route(r: RouteInput): Route {
 }
 
 // 直線の両端
-function straightPoints(r: RouteInput, arr: "side" | "stack" | "diagonal", fa: Pt | null, fb: Pt | null): Pt[] {
+function straightPoints(
+  r: RouteInput,
+  arr: "side" | "stack" | "diagonal",
+  fa: Point | null,
+  fb: Point | null,
+): Point[] {
   const { a, b } = r
   if (fa && fb) return [fa, fb]
   if (fa) return [fa, toward(b, r.bVertex, fa, arr)]
@@ -380,7 +383,7 @@ function straightPoints(r: RouteInput, arr: "side" | "stack" | "diagonal", fa: P
   let [p, q] =
     arr === "diagonal"
       ? [clipToward(a, centerOf(b)), clipToward(b, centerOf(a))]
-      : (alignedPoints(a, b, arr) as [Pt, Pt])
+      : (alignedPoints(a, b, arr) as [Point, Point])
   if (r.aVertex) p = vertexOf(a, p)
   if (r.bVertex) q = vertexOf(b, q)
   // 片方だけひし形なら、もう一方（普通の箱）の端を頂点へ向ける
@@ -391,10 +394,10 @@ function straightPoints(r: RouteInput, arr: "side" | "stack" | "diagonal", fa: P
 
 // 自由な端を、相手の端 v へ向けて置く。横（縦）に並び、v が自分の高さ（横の範囲）にあればまっすぐ、そうでなければ中心から v へ向かう線と
 // 縁の交点。ひし形なら、その点に一番近い頂点
-function toward(r: Rect, vertex: boolean | undefined, v: Pt, arr: string): Pt {
-  let p: Pt
-  if (arr === "side" && v[1] > r.y && v[1] < r.y + r.h) p = [v[0] > r.x ? r.x + r.w : r.x, v[1]]
-  else if (arr === "stack" && v[0] > r.x && v[0] < r.x + r.w) p = [v[0], v[1] > r.y ? r.y + r.h : r.y]
+function toward(r: Rect, vertex: boolean | undefined, v: Point, arr: string): Point {
+  let p: Point
+  if (arr === "side" && v.y > r.y && v.y < r.y + r.h) p = { x: v.x > r.x ? r.x + r.w : r.x, y: v.y }
+  else if (arr === "stack" && v.x > r.x && v.x < r.x + r.w) p = { x: v.x, y: v.y > r.y ? r.y + r.h : r.y }
   else p = clipToward(r, v)
   return vertex ? vertexOf(r, p) : p
 }
@@ -406,12 +409,12 @@ interface EndSpec {
 }
 
 // 線の端が、箱 r のどの辺にあるか（端の点 p が辺の上になければ null）
-export function sideAt(r: Rect, p: Pt): Side | null {
+export function sideAt(r: Rect, p: Point): Side | null {
   const near = (a: number, b: number) => Math.abs(a - b) < 0.5
-  if (near(p[1], r.y)) return "t"
-  if (near(p[1], r.y + r.h)) return "b"
-  if (near(p[0], r.x)) return "l"
-  if (near(p[0], r.x + r.w)) return "r"
+  if (near(p.y, r.y)) return "t"
+  if (near(p.y, r.y + r.h)) return "b"
+  if (near(p.x, r.x)) return "l"
+  if (near(p.x, r.x + r.w)) return "r"
   return null
 }
 
@@ -426,8 +429,8 @@ function elbowRoute(r: RouteInput, arrangement: Arrangement, fix: RouteFix): Rou
   const finish = (out: Route): Route => {
     out.fix = fix
     out.memory = {
-      exit: fixed.a ? null : placeOf(a, out.points[0] as Pt, endSide(a, out.points, false)),
-      enter: fixed.b ? null : placeOf(b, out.points[out.points.length - 1] as Pt, endSide(b, out.points, true)),
+      exit: fixed.a ? null : placeOf(a, out.points[0] as Point, endSide(a, out.points, false)),
+      enter: fixed.b ? null : placeOf(b, out.points[out.points.length - 1] as Point, endSide(b, out.points, true)),
     }
     return out
   }
@@ -478,7 +481,7 @@ function fit(
   obstacles: Rect[],
 ): Route | null {
   const { a, b } = r
-  const ok = (pts: Pt[]) =>
+  const ok = (pts: Point[]) =>
     (!sa.side || endSide(a, pts, false) === sa.side) && (!sb.side || endSide(b, pts, true) === sb.side)
   const base = autoRoute({ ...r, obstacles }, arrangement, sa, sb)
   if (ok(base.points) && base.bends <= maxBends && !obstacles.some(o => passes(base.points, o))) return base
@@ -489,7 +492,7 @@ function fit(
   return best ? drawn(r, arrangement, best.shape, best.points) : null
 }
 
-function drawn(r: RouteInput, arrangement: Arrangement, shape: RouteShape, points: Pt[]): Route {
+function drawn(r: RouteInput, arrangement: Arrangement, shape: RouteShape, points: Point[]): Route {
   return {
     points,
     arrangement,
@@ -504,7 +507,7 @@ function drawn(r: RouteInput, arrangement: Arrangement, shape: RouteShape, point
 }
 
 // まっすぐな 2 点の線（横か縦に並ぶ箱どうし）
-function straightRoute(r: RouteInput, arrangement: Arrangement, points: Pt[]): Route {
+function straightRoute(r: RouteInput, arrangement: Arrangement, points: Point[]): Route {
   return {
     points,
     arrangement,
@@ -525,7 +528,7 @@ function autoRoute(r: RouteInput, arrangement: Arrangement, sa: EndSpec, sb: End
     enter = sb.side ? axisOfSide(sb.side) : null
   let at: EndsAt = { exitAt: sa.at, enterAt: sb.at }
   // 自動の形がほかの箱を通るなら、通らない形を折れ目の少ない方から探す。見つからなければ自動の形のまま
-  const avoided = (pts: Pt[]): Route | null => {
+  const avoided = (pts: Point[]): Route | null => {
     if (!r.obstacles.some(o => passes(pts, o))) return null
     const best = pickCandidate(candidatesWith(r, at, exit, enter, MAX_BENDS, true))
     return best ? drawn(r, arrangement, best.shape, best.points) : null
@@ -586,11 +589,11 @@ function alignAt(r: Rect, o: Rect, along: Axis, oAt: number): number | null {
 }
 
 // まっすぐ続く途中の点を除く
-function collapse(pts: Pt[]): Pt[] {
-  const out: Pt[] = [pts[0] as Pt]
+function collapse(pts: Point[]): Point[] {
+  const out: Point[] = [pts[0] as Point]
   for (let i = 1; i < pts.length; i++) {
-    const p = pts[i] as Pt
-    if (out.length >= 2 && straightJoint(out[out.length - 2] as Pt, out[out.length - 1] as Pt, p))
+    const p = pts[i] as Point
+    if (out.length >= 2 && straightJoint(out[out.length - 2] as Point, out[out.length - 1] as Point, p))
       out[out.length - 1] = p
     else out.push(p)
   }
@@ -598,30 +601,30 @@ function collapse(pts: Pt[]): Pt[] {
 }
 
 // 横（縦）に並ぶ箱どうしをまっすぐ結ぶ。重なる範囲の真ん中で水平（垂直）に
-function alignedPoints(a: Rect, b: Rect, arr: "side" | "stack"): Pt[] {
+function alignedPoints(a: Rect, b: Rect, arr: "side" | "stack"): Point[] {
   if (arr === "side") {
     const [lo, hi] = overlapSpan(a, b, "y"),
       y = (lo + hi) / 2
     return a.x < b.x
       ? [
-          [a.x + a.w, y],
-          [b.x, y],
+          { x: a.x + a.w, y },
+          { x: b.x, y },
         ]
       : [
-          [a.x, y],
-          [b.x + b.w, y],
+          { x: a.x, y },
+          { x: b.x + b.w, y },
         ]
   }
   const [lo, hi] = overlapSpan(a, b, "x"),
     x = (lo + hi) / 2
   return a.y < b.y
     ? [
-        [x, a.y + a.h],
-        [x, b.y],
+        { x, y: a.y + a.h },
+        { x, y: b.y },
       ]
     : [
-        [x, a.y],
-        [x, b.y + b.h],
+        { x, y: a.y },
+        { x, y: b.y + b.h },
       ]
 }
 
@@ -655,8 +658,8 @@ function elbowShape(
   margin: number,
   at: EndsAt,
 ): RouteShape {
-  const [acx, acy] = centerOf(a),
-    [bcx, bcy] = centerOf(b)
+  const { x: acx, y: acy } = centerOf(a),
+    { x: bcx, y: bcy } = centerOf(b)
   // 向き合う辺（a の出る辺と b の入る辺）の位置
   const ax = bcx > acx ? a.x + a.w : a.x,
     bx = bcx > acx ? b.x : b.x + b.w
@@ -687,7 +690,7 @@ function elbowShape(
 function bendAt(
   from: number,
   to: number,
-  points: (m: number) => Pt[] | null,
+  points: (m: number) => Point[] | null,
   obstacles: Rect[],
   margin: number,
 ): number {
@@ -733,7 +736,7 @@ function zMiddle(a: Rect, b: Rect, along: Axis): number {
 // 折れ線の候補。bends は折れ目の数、length は長さ、clearance はほかの箱との一番近い距離（ほかの箱が無ければ Infinity）
 export interface Candidate {
   shape: RouteShape
-  points: Pt[]
+  points: Point[]
   bends: number
   length: number
   clearance: number
@@ -836,7 +839,7 @@ function candidatesWith(
           if (
             !pts ||
             pts.length - 2 !== k + 1 ||
-            pts.some((p, i) => i >= 2 && straightJoint(pts[i - 2] as Pt, pts[i - 1] as Pt, p))
+            pts.some((p, i) => i >= 2 && straightJoint(pts[i - 2] as Point, pts[i - 1] as Point, p))
           ) {
             continue // 折れ目が重なるか、折れずにまっすぐ続く所がある（もっと折れ目の少ない形と同じ）
           }
@@ -850,8 +853,8 @@ function candidatesWith(
 }
 
 // p → q → r が折れずにまっすぐ続くか
-function straightJoint(p: Pt, q: Pt, r: Pt): boolean {
-  return (p[0] === q[0] && q[0] === r[0]) || (p[1] === q[1] && q[1] === r[1])
+function straightJoint(p: Point, q: Point, r: Point): boolean {
+  return (p.x === q.x && q.x === r.x) || (p.y === q.y && q.y === r.y)
 }
 
 // 並びの組み合わせを全部（[[1, 2], [3]] なら [1, 3], [2, 3]）
@@ -860,27 +863,28 @@ function product(sets: number[][]): number[][] {
 }
 
 // 最初と最後の区間（箱から出る・入る区間）が margin 以上あるか（矢印が箱の角に詰まらないように）
-function roomy(pts: Pt[], margin: number): boolean {
-  const len = (p: Pt, q: Pt) => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1])
+function roomy(pts: Point[], margin: number): boolean {
+  const len = (p: Point, q: Point) => Math.abs(p.x - q.x) + Math.abs(p.y - q.y)
   return (
-    len(pts[0] as Pt, pts[1] as Pt) >= margin && len(pts[pts.length - 2] as Pt, pts[pts.length - 1] as Pt) >= margin
+    len(pts[0] as Point, pts[1] as Point) >= margin &&
+    len(pts[pts.length - 2] as Point, pts[pts.length - 1] as Point) >= margin
   )
 }
 
-function lengthOf(pts: Pt[]): number {
+function lengthOf(pts: Point[]): number {
   return pts
     .slice(1)
-    .reduce((s, q, i) => s + Math.abs(q[0] - (pts[i] as Pt)[0]) + Math.abs(q[1] - (pts[i] as Pt)[1]), 0)
+    .reduce((s, q, i) => s + Math.abs(q.x - (pts[i] as Point).x) + Math.abs(q.y - (pts[i] as Point).y), 0)
 }
 
 // 線とほかの箱の一番近い距離
-function clearanceOf(pts: Pt[], obstacles: Rect[]): number {
+function clearanceOf(pts: Point[], obstacles: Rect[]): number {
   let best = Infinity
   for (const o of obstacles) {
     for (let i = 1; i < pts.length; i++) {
-      const [p, q] = [pts[i - 1] as Pt, pts[i] as Pt]
-      const dx = Math.max(o.x - Math.max(p[0], q[0]), 0, Math.min(p[0], q[0]) - (o.x + o.w))
-      const dy = Math.max(o.y - Math.max(p[1], q[1]), 0, Math.min(p[1], q[1]) - (o.y + o.h))
+      const [p, q] = [pts[i - 1] as Point, pts[i] as Point]
+      const dx = Math.max(o.x - Math.max(p.x, q.x), 0, Math.min(p.x, q.x) - (o.x + o.w))
+      const dy = Math.max(o.y - Math.max(p.y, q.y), 0, Math.min(p.y, q.y) - (o.y + o.h))
       best = Math.min(best, Math.hypot(dx, dy))
     }
   }

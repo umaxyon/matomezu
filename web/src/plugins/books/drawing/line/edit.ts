@@ -1,8 +1,9 @@
 // 線をじかに直すドラッグの決まり（純粋な関数）: 途中の区間・端・キャプションの札を動かしたあとの線の項目。
 // どれも、描いている線（drawLines の結果）と、ポインタの位置（紙の座標）から決める
+import type { Point } from "../../../../core/geom"
 import { clampCaptionOffset } from "./caption"
 import { type DrawnLine, routeInputOf } from "./drawn"
-import { leftNormalAt, nearestAt, type Pt, pointAt, type Rect } from "./geom"
+import { leftNormalAt, nearestAt, pointAt, type Rect } from "./geom"
 import type { PlacedLine } from "./placed"
 import { fixedAts, perimeterAt, simplifyVia } from "./route"
 import { perimeter } from "./selfloop"
@@ -27,8 +28,8 @@ export function viaDragged(
   if (!drawn.shape || !seg || !a || !b) return null
   const props = { ...line.props }
   if (!props.via) {
-    props.exitAt ??= perimeterAt(a, drawn.points[0] as Pt)
-    props.enterAt ??= perimeterAt(b, drawn.points[drawn.points.length - 1] as Pt)
+    props.exitAt ??= perimeterAt(a, drawn.points[0] as Point)
+    props.enterAt ??= perimeterAt(b, drawn.points[drawn.points.length - 1] as Point)
   }
   const via = [...(props.via ?? drawn.shape.via)]
   via[index] = Math.round(Math.min(seg.hi, Math.max(seg.lo, at)))
@@ -56,21 +57,21 @@ export function endDragged(
   lines: readonly PlacedLine[],
   drawn: readonly DrawnLine[],
   rects: ReadonlyMap<string, Rect>,
-  p: Pt,
-): { props: Props; snap: Pt | null } | null {
+  p: Point,
+): { props: Props; snap: Point | null } | null {
   const own = end === "exit" ? line.from : line.to
   const me = drawn.find(d => d.id === line.id)
   const r = rects.get(own)
   if (!me || !r) return null
   const path = end === "exit" ? me.ends.exit : me.ends.enter
-  const at = pointAt(path, nearestAt(path, p[0], p[1]))
+  const at = pointAt(path, nearestAt(path, p))
   const snap = snapTarget(line, own, lines, drawn, path, at)
-  const [x, y] = snap ?? at
+  const q = snap ?? at
   // 自分に戻る線の道は形のふちの一部なので、ふち一周の割合に直す（2 つの形を結ぶ線の道はふち一周そのもの）
   const value =
     line.from === line.to
-      ? Math.round(nearestAt(perimeter(r), x, y) * 1000) / 1000
-      : Math.round(nearestAt(path, x, y) * 10000) / 10000
+      ? Math.round(nearestAt(perimeter(r), q) * 1000) / 1000
+      : Math.round(nearestAt(path, q) * 10000) / 10000
   return { props: { ...line.props, [end === "exit" ? "exitAt" : "enterAt"]: value }, snap }
 }
 
@@ -80,21 +81,21 @@ function snapTarget(
   own: string,
   lines: readonly PlacedLine[],
   drawn: readonly DrawnLine[],
-  path: Pt[],
-  p: Pt,
-): Pt | null {
-  let best: Pt | null = null
+  path: Point[],
+  p: Point,
+): Point | null {
+  let best: Point | null = null
   let bestD = SNAP_DISTANCE
   for (const o of lines) {
     const d = o.id === line.id ? undefined : drawn.find(x => x.id === o.id)
     if (!d || d.points.length < 2) continue
-    const ends: Pt[] = []
-    if (o.from === own) ends.push(d.points[0] as Pt)
-    if (o.to === own) ends.push(d.points[d.points.length - 1] as Pt)
+    const ends: Point[] = []
+    if (o.from === own) ends.push(d.points[0] as Point)
+    if (o.to === own) ends.push(d.points[d.points.length - 1] as Point)
     for (const q of ends) {
-      const on = pointAt(path, nearestAt(path, q[0], q[1]))
-      if (Math.hypot(on[0] - q[0], on[1] - q[1]) > 0.5) continue // この端が動ける道の上に無い
-      const dist = Math.hypot(q[0] - p[0], q[1] - p[1])
+      const on = pointAt(path, nearestAt(path, q))
+      if (Math.hypot(on.x - q.x, on.y - q.y) > 0.5) continue // この端が動ける道の上に無い
+      const dist = Math.hypot(q.x - p.x, q.y - p.y)
       if (dist <= bestD) {
         best = q
         bestD = dist
@@ -105,11 +106,11 @@ function snapTarget(
 }
 
 // キャプションの札を、ポインタ p に近い線の上の位置と、線から離す量（±CAPTION_OFFSET_MAX まで）に置いた項目
-export function captionDragged(line: PlacedLine, points: Pt[], p: Pt): Props {
+export function captionDragged(line: PlacedLine, points: Point[], p: Point): Props {
   if (points.length < 2) return line.props
-  const at = nearestAt(points, p[0], p[1])
-  const [bx, by] = pointAt(points, at)
-  const [nx, ny] = leftNormalAt(points, at)
-  const offset = clampCaptionOffset((p[0] - bx) * nx + (p[1] - by) * ny)
+  const at = nearestAt(points, p)
+  const { x: bx, y: by } = pointAt(points, at)
+  const { x: nx, y: ny } = leftNormalAt(points, at)
+  const offset = clampCaptionOffset((p.x - bx) * nx + (p.y - by) * ny)
   return { ...line.props, captionAt: Math.round(at * 1000) / 1000, captionOffset: Math.round(offset) }
 }

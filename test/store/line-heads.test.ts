@@ -4,7 +4,7 @@ import { HEADS, headDraw } from "../../web/src/plugins/books/drawing/line/heads"
 
 test("どの種類も何か描き、線を形の付け根で止める長さは 0 以上", () => {
   for (const h of HEADS) {
-    const d = headDraw(h, [0, 0], [100, 0])
+    const d = headDraw(h, { x: 0, y: 0 }, { x: 100, y: 0 })
     expect(d.fill + d.stroke).not.toBe("")
     expect(d.trim).toBeGreaterThanOrEqual(0)
   }
@@ -12,21 +12,21 @@ test("どの種類も何か描き、線を形の付け根で止める長さは 0
 
 test("headDraw: 長さ 1 未満の区間には何も描かず、線も縮めない。向きを変えても、形の付け根で止める長さは同じ", () => {
   for (const h of HEADS) {
-    expect(headDraw(h, [0, 0], [0.5, 0.5])).toEqual({ fill: "", stroke: "", trim: 0 })
+    expect(headDraw(h, { x: 0, y: 0 }, { x: 0.5, y: 0.5 })).toEqual({ fill: "", stroke: "", trim: 0 })
     const trims = [
-      [100, 0],
-      [0, 100],
-      [-100, 0],
-      [0, -100],
-      [60, 80],
-    ].map(([x, y]) => headDraw(h, [0, 0], [x!, y!]).trim)
+      { x: 100, y: 0 },
+      { x: 0, y: 100 },
+      { x: -100, y: 0 },
+      { x: 0, y: -100 },
+      { x: 60, y: 80 },
+    ].map(tip => headDraw(h, { x: 0, y: 0 }, tip).trim)
     expect(new Set(trims).size).toBe(1)
   }
 })
 
 test("headDraw: 形は先端（tip）から出て、区間の長さを越えない範囲に描く（横向きの線なら x は先端から 21 以内、y は軸から ±7 以内。輪の半径の指定は点ではない）", () => {
   for (const h of HEADS) {
-    const d = headDraw(h, [0, 50], [100, 50])
+    const d = headDraw(h, { x: 0, y: 50 }, { x: 100, y: 50 })
     const nums = (d.fill + d.stroke)
       .replace(/A4,4 0 1 1 /g, "L")
       .match(/-?\d+(\.\d+)?,-?\d+(\.\d+)?/g)!
@@ -40,6 +40,6 @@ test("headDraw: 形は先端（tip）から出て、区間の長さを越えな�
 })
 
 test("白抜きの三角は線で描いて付け根（10）で止め、塗りの三角は塗る", () => {
-  expect(headDraw("hollow", [0, 0], [100, 0])).toMatchObject({ fill: "", trim: 10 })
-  expect(headDraw("arrow", [0, 0], [100, 0])).toMatchObject({ stroke: "", trim: 9 })
+  expect(headDraw("hollow", { x: 0, y: 0 }, { x: 100, y: 0 })).toMatchObject({ fill: "", trim: 10 })
+  expect(headDraw("arrow", { x: 0, y: 0 }, { x: 100, y: 0 })).toMatchObject({ stroke: "", trim: 9 })
 })

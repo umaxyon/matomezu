@@ -1,10 +1,11 @@
 // 形の〇から線を引くときの決まり（純粋な関数）: 引ける相手、〇の位置、引いた線の端の位置。
 // 〇は形の四辺の真ん中（の少し外）。引いた線の始点は〇の辺の真ん中、終点は離した所に一番近いふちの点に固定し、終点に矢印を付ける。
 // 同じ形で離せば自分に戻る線で、離した所に一番近い角が、自動で選ぶ角と違い、空いていれば、端をその角に固定する（同じなら自動のまま）
+import type { Point } from "../../../../core/geom"
 import type { Registry } from "../../../../core/registry"
 import { connectableShape, type DrawingPage, linesOf, shapesOf } from "../placed"
 import { drawLines } from "./drawn"
-import { nearestAt, type Pt, pointAt, type Rect } from "./geom"
+import { nearestAt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"
 import { canConnect, type PlacedLine } from "./placed"
 import { perimeterAt, type Side, vertexAt } from "./route"
@@ -12,7 +13,7 @@ import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop"
 
 export const SIDES: readonly Side[] = ["t", "r", "b", "l"]
 export const PORT_OUT = 10 // 〇の中心を、辺の真ん中からこれだけ外に置く（画面の px）
-const OUTWARD: Record<Side, Pt> = { t: [0, -1], r: [1, 0], b: [0, 1], l: [-1, 0] }
+const OUTWARD: Record<Side, Point> = { t: { x: 0, y: -1 }, r: { x: 1, y: 0 }, b: { x: 0, y: 1 }, l: { x: -1, y: 0 } }
 
 // ページの、線をつなげる形（connectable の形）か
 export const connectable = connectableShape
@@ -29,16 +30,16 @@ export function targetsFrom(reg: Registry, page: DrawingPage, from: string): Set
 }
 
 // 形 r の side の辺の〇の中心（辺の真ん中から out だけ外）
-export function portAt(r: Rect, side: Side, out: number): Pt {
-  const [x, y] = vertexAt(r, side)
-  const [dx, dy] = OUTWARD[side]
-  return [x + dx * out, y + dy * out]
+export function portAt(r: Rect, side: Side, out: number): Point {
+  const v = vertexAt(r, side)
+  const d = OUTWARD[side]
+  return { x: v.x + d.x * out, y: v.y + d.y * out }
 }
 
 // 形 r のふちの、点 p に一番近い点の、ふち一周の割合
-export function nearestEnd(r: Rect, p: Pt): number {
+export function nearestEnd(r: Rect, p: Point): number {
   const ring = perimeter(r)
-  return perimeterAt(r, pointAt(ring, nearestAt(ring, p[0], p[1])))
+  return perimeterAt(r, pointAt(ring, nearestAt(ring, p)))
 }
 
 // 形 id に自分に戻る線を描くときの、点 drop に一番近い角の端の位置（ふち一周の割合）。その角が自動で選ぶ角と同じか、ふさがっていれば null（端は自由のまま）。
@@ -48,7 +49,7 @@ export function loopEndsNear(
   rects: ReadonlyMap<string, Rect>,
   elbow: boolean,
   id: string,
-  drop: Pt,
+  drop: Point,
   skip?: string,
 ): { exitAt: number; enterAt: number } | null {
   const r = rects.get(id)
@@ -77,7 +78,7 @@ export function drawnLineProps(
   from: string,
   side: Side,
   to: string,
-  drop: Pt,
+  drop: Point,
 ): { exitAt?: number; enterAt?: number; endHead: Head } | null {
   const a = rects.get(from)
   const b = rects.get(to)

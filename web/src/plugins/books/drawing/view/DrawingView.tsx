@@ -302,7 +302,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
     e.currentTarget.setPointerCapture(e.pointerId)
     const r = rects.get(from)
     if (!r) return
-    const [x, y] = portAt(r, side, 0)
+    const at = portAt(r, side, 0)
     link.current = {
       pointer: e.pointerId,
       from,
@@ -310,7 +310,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
       targets: targetsFrom(registry, page, from),
       start: { x: e.clientX, y: e.clientY },
     }
-    setLinkAt({ at: { x, y }, target: null })
+    setLinkAt({ at, target: null })
   }
   const moveLink = (e: PointerEvent<HTMLDivElement>) => {
     const l = link.current
@@ -494,7 +494,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
         }}
       />
       {linkAt && from && link.current && (
-        <LinkPreview from={portAt(from, link.current.side, PORT_OUT / zoom)} to={[linkAt.at.x, linkAt.at.y]} />
+        <LinkPreview from={portAt(from, link.current.side, PORT_OUT / zoom)} to={linkAt.at} />
       )}
     </>
   )

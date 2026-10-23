@@ -4,12 +4,12 @@
 // 1 本だけ選んでいる線（editing）には、両端をつまむ丸と、折れ線の途中の区間をつまむ透明な線を出す（区間は向きに合わせて左右か上下に動かす）。
 // キャプションの札は選べるときに押せ、押すと線を選んでドラッグを始める。端が吸い付いた点（snap）には輪を出す
 import type { MouseEvent, PointerEvent } from "react"
+import type { Point } from "../../../../core/geom"
 import type { DrawnLine } from "./drawn"
-import type { Pt } from "./geom"
 import styles from "./LinesView.module.css"
 
-const pointsAttr = (pts: readonly (readonly [number, number])[]) =>
-  pts.map(([x, y]) => `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`).join(" ")
+const pointsAttr = (pts: readonly Point[]) =>
+  pts.map(({ x, y }) => `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`).join(" ")
 
 interface Props {
   lines: readonly DrawnLine[]
@@ -19,7 +19,7 @@ interface Props {
   onDoubleClick(id: string): void
   onContextMenu(e: MouseEvent<SVGGElement>, id: string): void
   editing: string | null // つまむ印を出す線
-  snap: Pt | null
+  snap: Point | null
   drag: {
     via(e: PointerEvent<Element>, id: string, index: number): void
     end(e: PointerEvent<Element>, id: string, end: "from" | "to"): void
@@ -87,10 +87,10 @@ export function LinesView({
                     key={seg.index}
                     className={styles.bend}
                     data-axis={seg.axis}
-                    x1={p[0]}
-                    y1={p[1]}
-                    x2={q[0]}
-                    y2={q[1]}
+                    x1={p.x}
+                    y1={p.y}
+                    x2={q.x}
+                    y2={q.y}
                     onPointerDown={e => drag.via(e, l.id, seg.index)}
                     {...follow}
                   />
@@ -99,7 +99,7 @@ export function LinesView({
             })}
           {editing === l.id &&
             (["from", "to"] as const).map(end => {
-              const [x, y] = (end === "from" ? l.points[0] : l.points[l.points.length - 1]) as Pt
+              const { x, y } = (end === "from" ? l.points[0] : l.points[l.points.length - 1]) as Point
               return (
                 <circle
                   key={end}
@@ -115,7 +115,7 @@ export function LinesView({
             })}
         </g>
       ))}
-      {snap && <circle className={styles.snap} cx={snap[0]} cy={snap[1]} r={9} />}
+      {snap && <circle className={styles.snap} cx={snap.x} cy={snap.y} r={9} />}
     </svg>
   )
 }
