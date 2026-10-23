@@ -3,11 +3,11 @@
 // ドラッグの間の途中の線の先と相手だけをビューに持つ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import type { Point, Rect } from "../../../../core/geom"
+import type { ItemPage } from "../../../../core/placed"
 import type { Registry } from "../../../../core/registry"
 import type { Stage } from "../../../../core/stage"
 import { toPaper } from "../../../../core/stage"
 import { useCommand } from "../../../../ui/commands"
-import type { DrawingPage } from "../placed"
 import { portAt, targetsFrom } from "./connect"
 import type { Side } from "./route"
 
@@ -40,7 +40,7 @@ export function useLinkDrag(stage: Stage, registry: Registry, localOf: (e: Point
   return {
     link: active ? link.current : null, // 引いているドラッグ（引いていなければ null）
     tip,
-    start(e: PointerEvent<Element>, page: DrawingPage, rect: Rect, from: string, side: Side) {
+    start(e: PointerEvent<Element>, page: ItemPage, rect: Rect, from: string, side: Side) {
       if (e.button !== 0) return
       e.stopPropagation()
       e.preventDefault()

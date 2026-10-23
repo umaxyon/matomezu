@@ -10,7 +10,7 @@ import { elbowAt } from "."
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
 import type { Side } from "./route"
 
-const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
+const onItemPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
 
 // 形 from の side の辺の〇から引き、形 to の上の at（表示領域の左上からの画面の座標）で離したときに線を引く（connect.ts の drawnLineProps の端と矢印）。
 // 引けない相手なら何もしない
@@ -27,7 +27,7 @@ export const LINE_DRAW = defineCommand({
     const props = drawnLineProps(page, rects, elbowAt(ctx.registry, book, page), args.from, args.side, args.to, drop)
     if (props) a.perform("line.connect", { page: page.id, from: args.from, to: args.to, props }, { book: opened.book })
   },
-  when: onDrawingPage,
+  when: onItemPage,
 })
 
 // 線の編集のダイアログを開く。右クリックのメニューでは「設定」として出す
@@ -38,7 +38,7 @@ export const LINE_EDIT = defineCommand({
     const page = ctx.stage.opened?.page
     if (page) a.openDialog(ctx.stage.id, "line.edit", { page, item })
   },
-  when: onDrawingPage,
+  when: onItemPage,
 })
 
 // 線 line の端 end（始点 from か終点 to）を運んで、形 item の上の at（表示領域の左上からの画面の座標）で離したときに、つなぎ替える（アクション line.reconnect）。
@@ -67,5 +67,5 @@ export const LINE_RECONNECT_DROP = defineCommand({
       { book: opened.book },
     )
   },
-  when: onDrawingPage,
+  when: onItemPage,
 })

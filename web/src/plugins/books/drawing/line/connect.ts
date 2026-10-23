@@ -1,9 +1,11 @@
 // 形の〇から線を引くときの決まり（純粋な関数）: 引ける相手、〇の位置、引いた線の端の位置。
 // 〇は形の四辺の真ん中（の少し外）。引いた線の始点は〇の辺の真ん中、終点は離した所に一番近いふちの点に固定し、終点に矢印を付ける。
 // 同じ形で離せば自分に戻る線で、離した所に一番近い角が、自動で選ぶ角と違い、空いていれば、端をその角に固定する（同じなら自動のまま）
+
 import type { Point } from "../../../../core/geom"
+import type { ItemPage } from "../../../../core/placed"
 import type { Registry } from "../../../../core/registry"
-import { connectableShape, type DrawingPage, linesOf, shapesOf } from "../placed"
+import { connectableShape, linesOf, shapesOf } from "../placed"
 import { drawLines } from "./drawn"
 import { nearestAt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"
@@ -19,7 +21,7 @@ const OUTWARD: Record<Side, Point> = { t: { x: 0, y: -1 }, r: { x: 1, y: 0 }, b:
 export const connectable = connectableShape
 
 // 形 from から線を引ける相手（from 自身は自分に戻る線として入る）。from がつなげる形でなければ無い
-export function targetsFrom(reg: Registry, page: DrawingPage, from: string): Set<string> {
+export function targetsFrom(reg: Registry, page: ItemPage, from: string): Set<string> {
   if (!connectable(reg, page, from)) return new Set()
   const lines = linesOf(page)
   return new Set(
@@ -45,7 +47,7 @@ export function nearestEnd(r: Rect, p: Point): number {
 // 形 id に自分に戻る線を描くときの、点 drop に一番近い角の端の位置（ふち一周の割合）。その角が自動で選ぶ角と同じか、ふさがっていれば null（端は自由のまま）。
 // 角は、線を描くとき（drawLines）と同じ入力で選ぶ: ほかの形と、同じ形の自分に戻る線を除いたほかの線。skip の線は数えない（つなぎ替えている線）
 export function loopEndsNear(
-  page: DrawingPage,
+  page: ItemPage,
   rects: ReadonlyMap<string, Rect>,
   elbow: boolean,
   id: string,
@@ -72,7 +74,7 @@ export function loopEndsNear(
 // 自分に戻る線は、drop に一番近い角が自動の角と違い、空いていればその角の端の位置（同じ角・ふさがっていれば端は自由）。
 // rects は形の四角、elbow はページの既定が折れ線か
 export function drawnLineProps(
-  page: DrawingPage,
+  page: ItemPage,
   rects: ReadonlyMap<string, Rect>,
   elbow: boolean,
   from: string,
@@ -89,7 +91,7 @@ export function drawnLineProps(
 
 // 線 line の端 end（始点 from か終点 to）をつなぎ替えられる形: もう一方の端と同じページのつなげる形で、今の形でなく、
 // もう一方の端との組にほかの線が無いもの（もう一方の端の形そのものなら、自分に戻る線になる）
-export function reconnectTargets(reg: Registry, page: DrawingPage, line: PlacedLine, end: "from" | "to"): Set<string> {
+export function reconnectTargets(reg: Registry, page: ItemPage, line: PlacedLine, end: "from" | "to"): Set<string> {
   const own = line[end]
   const other = end === "from" ? line.to : line.from
   const lines = linesOf(page).filter(l => l.id !== line.id)

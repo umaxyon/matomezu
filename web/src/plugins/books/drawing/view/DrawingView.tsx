@@ -8,9 +8,7 @@
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
-// 線は形より手前の層に、描いている形の四角（下書き・ドラッグでずらした所も）から道筋を決めて描く（line/drawn.ts の drawLines）。
-// 選択の道具で線を押すと線を選び、ダブルクリックで線の編集のダイアログ（line.edit）、右クリックで線を選んで線のメニュー（line.context）を開く。
-// 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（line/useLineEdit.ts）。
+// ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）の層で形の並びを包み、形ごとに重ねる部品を形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 
 import {
@@ -19,34 +17,24 @@ import {
   type PointerEvent,
   type ReactNode,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react"
-import { pagedOf } from "../../../../core/book"
-import type { Point, Rect } from "../../../../core/geom"
+import { bookItems, pagedOf } from "../../../../core/book"
+import type { Point } from "../../../../core/geom"
 import { type Edges, fitsPaper, itemSize, minSize, resizedBy, shownRects } from "../../../../core/place/items"
 import { placedSize, rectsOf, shapesOf } from "../../../../core/placed"
 import type { Stage } from "../../../../core/stage"
 import { paperOf, placement, toPaperDelta } from "../../../../core/stage"
 import { toolOf } from "../../../../core/workspace"
 import { useCommand } from "../../../../ui/commands"
+import { type ShapeScene, useShapeMarks } from "../../../../ui/connector"
 import { useContextMenu } from "../../../../ui/context-menu"
 import { useT } from "../../../../ui/i18n"
 import type { BookViewProps, ItemViewProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry, useUi } from "../../../../ui/store-context"
 import { type Came, dragging, type Placed, placeAt, trackDrag } from "../items"
-import { elbowAt, usesLines } from "../line"
-import { PORT_OUT, portAt, SIDES, targetsFrom } from "../line/connect"
-import { drawLines, type LineCache } from "../line/drawn"
-import { LinesView } from "../line/LinesView"
-import { LinkPreview, Ports } from "../line/PortsView"
-import type { PlacedLine } from "../line/placed"
-import type { EndMemory, Side } from "../line/route"
-import { memoryOf, stickyMemory } from "../line/sticky"
-import { useLineEdit } from "../line/useLineEdit"
-import { useLinkDrag } from "../line/useLinkDrag"
-import { type DrawingPage, linesOf } from "../placed"
+import type { DrawingPage } from "../placed"
 import styles from "./DrawingView.module.css"
 
 // 要素の左上から見たポインタの位置
@@ -151,22 +139,23 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   return page ? <PageItems stage={stage} page={page} localOf={localOf} /> : null
 }
 
-// ページのアイテムと線。ドラッグ中は、動かすアイテムを動いた量だけずらして描く
+// ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューの層で包む
 function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; localOf: LocalOf }) {
-  // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）と、ブックで線が使えるか（使えなければ線を引く〇を出さない）
   const registry = useRegistry()
-  const elbow = useApp(s => {
+  const ui = useUi()
+  // ブックで使えるつなぐもののビュー
+  const connectors = useApp(s => {
     const b = stage.opened ? s.books[stage.opened.book] : undefined
-    return b ? elbowAt(registry, b, page) : true
+    return b ? bookItems(registry, b).join(" ") : ""
   })
-  const lineable = useApp(s => {
-    const b = stage.opened ? s.books[stage.opened.book] : undefined
-    return b ? usesLines(registry, b) : false
-  })
+    .split(" ")
+    .flatMap(id => {
+      const c = ui.connectors.get(id)
+      return c ? [{ id, ...c }] : []
+    })
   const move = useCommand(stage.id, "drawing.move")
   const edit = useCommand(stage.id, "drawing.edit")
   const openMenu = useContextMenu(stage.id, "item.context")
-  const openLineMenu = useContextMenu(stage.id, "line.context")
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
@@ -175,17 +164,11 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; 
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
   const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
-  const lineEdit = useCommand(stage.id, "line.edit")
-  const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形（〇を出す）
-  const linkDrag = useLinkDrag(stage, registry, localOf)
-  const lineDrag = useLineEdit(stage, registry, localOf)
-  // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角、離したあとに付け替えを見る線
-  const memo = useRef(new Map<string, EndMemory>())
-  const cache = useRef<LineCache>(new Map())
-  const drawnRects = useRef<ReadonlyMap<string, Rect>>(new Map())
-  const settle = useRef<ReadonlySet<string>>(new Set())
+  const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形
+  // 離したばかりの形（離したあとの 1 回の描画だけ、つなぐもののビューに渡す）
+  const settled = useRef<ReadonlySet<string>>(new Set())
   useEffect(() => {
-    if (settle.current.size > 0) settle.current = new Set()
+    if (settled.current.size > 0) settled.current = new Set()
   })
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
@@ -210,7 +193,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; 
     if (d.items.length === 1) {
       const id = d.items[0] as string
       d.came = trackDrag(registry, page, id, d.prev, by, d.came)
-      // 入れ替えが起きたら覚える（このドラッグの終わりまで、動かす形の線は前の辺に留まらない）
+      // 入れ替えが起きたら覚える（このドラッグの終わりまで）
       const now = rectsOf(registry, page)
       const plan = dragging(registry, page, id, by, d.came)
       if ([...(plan ?? [])].some(([k, r]) => k !== id && (r.x !== now.get(k)?.x || r.y !== now.get(k)?.y)))
@@ -224,12 +207,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; 
     if (d?.pointer !== e.pointerId) return
     drag.current = null
     setMoved(null)
-    // 離したあとに描くとき、動かした形の線は、留まった形が一番よい形より明らかに悪ければ付け替える
-    settle.current = new Set(
-      linesOf(page)
-        .filter(l => d.items.includes(l.from) || d.items.includes(l.to))
-        .map(l => l.id),
-    )
+    settled.current = new Set(d.items)
     if (drop && moved && (moved.x !== 0 || moved.y !== 0)) move.run({ items: d.items, by: moved, came: d.came })
   }
   const shift = moved && toPaperDelta(stage, moved)
@@ -277,90 +255,34 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; 
     const to = resizedBy(registry, item, st.edges, toPaperDelta(stage, stretched), paper)
     return to ? { ...item, ...to } : item
   }
-  // ドラッグ中の見た目: 動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く。線を引いている間は、引ける相手と引き始めた形のほかを薄く
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
-  const lookOf = (id: string): "lifted" | "faded" | undefined => {
-    const l = linkDrag.link
-    if (l) return id === l.from || l.targets.has(id) ? undefined : "faded"
-    if (lineDrag.dimming) return lineDrag.dimming.has(id) ? undefined : "faded"
-    if (dragged.length > 0) return dragged.includes(id) ? "lifted" : "faded"
-    return resizing && id !== resizing ? "faded" : undefined
-  }
   const single = stage.selection.length === 1 && !hand && stage.placing === null
-  // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）と、その四角から決めた線
+  // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）
   const shapes = shapesOf(page).map(item => ({ item: shown(item), shift: shiftOf(item) }))
-  const rects = shownRects(registry, shapes)
-  // ダイアログの下書きのある線は、項目に下書きを重ねて描く。じかに直しているドラッグの線は、その途中の項目で描く
-  const drafted = linesOf(page).map(l =>
-    lineDrag.draft?.id === l.id
-      ? { ...l, props: lineDrag.draft.props }
-      : preview?.item === l.id && preview.book === stage.opened?.book
-        ? ({ ...l, props: { ...l.props, ...preview.props } } as PlacedLine)
-        : l,
-  )
-  // 前の辺に留まる線（line/sticky.ts）。入れ替えでずれて描いている形は、留まらない側
-  const pushed = shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id)
-  const memory = stickyMemory({
-    lines: drafted,
-    memo: memo.current,
-    before: drawnRects.current,
-    rects,
+  const scene: ShapeScene = {
+    stage,
+    page,
+    rects: shownRects(registry, shapes),
     dragged,
-    pushed,
+    pushed: shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id),
     swapped: d?.swapped ?? false,
-    settle: settle.current,
-  })
-  const lines = drawLines(drafted, rects, elbow, { memory, loose: settle.current, cache: cache.current })
-  const selectable = !hand && stage.placing === null
-  const scene = { page, lines: drafted, drawn: lines, rects, elbow }
-  const only = stage.selection.length === 1 ? stage.selection[0] : undefined
-  const editing = selectable && only && drafted.some(l => l.id === only) ? only : null
-
-  // 〇を出す形: 選択の道具で、ポインタを乗せている選んでいない形（ドラッグ・大きさを変えている間は出さない）。線を引いている間は、引き始めた形の押した〇だけ
-  const portsOf = (id: string): readonly Side[] => {
-    const l = linkDrag.link
-    if (l) return l.from === id ? [l.side] : []
-    const busy = dragged.length > 0 || resizing !== null
-    if (
-      !lineable ||
-      !selectable ||
-      busy ||
-      hover !== id ||
-      stage.selection.includes(id) ||
-      !targetsFrom(registry, page, id).size
-    )
-      return []
-    return SIDES
+    settled: settled.current,
+    busy: dragged.length > 0 || resizing !== null,
+    selectable: !hand && stage.placing === null,
+    hover,
+    localOf,
   }
-  const from = linkDrag.link && rects.get(linkDrag.link.from)
-  const zoom = placement(stage)?.zoom ?? 1
-
-  // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
-  useLayoutEffect(() => {
-    memo.current = memoryOf(lines)
-    drawnRects.current = rects
-  })
 
   const items = shapes.map(({ item, shift }) => (
     <Item
       key={item.id}
       stage={stage.id}
       item={item}
-      target={linkDrag.tip?.target === item.id || lineDrag.target === item.id}
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
-      ports={
-        <Ports
-          sides={portsOf(item.id)}
-          active={linkDrag.link !== null}
-          onStart={(e, side) => {
-            const r = rects.get(item.id)
-            if (r) linkDrag.start(e, page, r, item.id, side)
-          }}
-          onPointerMove={linkDrag.move}
-          onPointerUp={e => linkDrag.end(e, true)}
-          onPointerCancel={e => linkDrag.end(e, false)}
-        />
-      }
+      overlays={connectors.flatMap(c => {
+        const Overlay = c.overlay
+        return Overlay ? [<Overlay key={c.id} scene={scene} id={item.id} />] : []
+      })}
       stretchable={single && stage.selection[0] === item.id && minSize(registry, item) !== null}
       onStretch={{
         down: (e, edges) => startStretch(e, item.id, edges),
@@ -370,7 +292,8 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; 
       }}
       selected={stage.selection.includes(item.id)}
       shift={shift}
-      look={lookOf(item.id)}
+      dragged={dragged}
+      resizing={resizing}
       onPointerDown={e => onPointerDown(e, item.id)}
       onPointerMove={onPointerMove}
       onPointerUp={e => endDrag(e, true)}
@@ -385,56 +308,21 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; 
       }}
     />
   ))
-  return (
-    <>
-      {items}
-      <LinesView
-        lines={lines}
-        selection={stage.selection}
-        selectable={selectable}
-        onPointerDown={(e, id) => {
-          if (e.button !== 0 || !selectable) return
-          if (!stage.selection.includes(id)) select(stage.id, [id])
-        }}
-        onDoubleClick={id => {
-          if (selectable) lineEdit.run({ item: id })
-        }}
-        onContextMenu={(e, id) => {
-          if (stage.placing !== null) return
-          if (!stage.selection.includes(id)) select(stage.id, [id])
-          openLineMenu(e, { item: id })
-        }}
-        editing={editing}
-        snap={lineDrag.snap}
-        drag={{
-          via: (e, id, index) => lineDrag.startVia(e, id, index),
-          end: (e, id, end) => {
-            const l = drafted.find(x => x.id === id)
-            if (l) lineDrag.startEnd(e, scene, l, end)
-          },
-          caption: (e, id) => {
-            if (e.button !== 0 || !selectable) return
-            if (!stage.selection.includes(id)) select(stage.id, [id])
-            lineDrag.startCaption(e, id)
-          },
-          move: e => lineDrag.move(e, scene),
-          up: e => lineDrag.end(e, scene, true),
-          cancel: e => lineDrag.end(e, scene, false),
-        }}
-      />
-      {linkDrag.tip && from && linkDrag.link && (
-        <LinkPreview from={portAt(from, linkDrag.link.side, PORT_OUT / zoom)} to={linkDrag.tip.at} />
-      )}
-    </>
-  )
+  return connectors.reduceRight<ReactNode>((inner, c) => {
+    const Layer = c.layer
+    return (
+      <Layer key={c.id} scene={scene}>
+        {inner}
+      </Layer>
+    )
+  }, items)
 }
 
 interface ItemProps {
   stage: string
   item: Placed
-  target: boolean // 〇から引いている線の、今の相手か
   onHover(on: boolean): void
-  ports: ReactNode // 線を引く〇
+  overlays: ReactNode // つなぐもののビューが形の上に重ねる部品
   stretchable: boolean // 四辺と四隅をつかんで大きさを変えられるか
   onStretch: {
     down(e: PointerEvent<HTMLDivElement>, edges: Edges): void
@@ -444,7 +332,8 @@ interface ItemProps {
   }
   selected: boolean
   shift: Point | null // ドラッグ中にずらして描く量（紙の上）
-  look?: "lifted" | "faded" // ドラッグ中の見た目（動かすアイテムは少し透かし、ほかは薄く）
+  dragged: readonly string[] // ドラッグで動かしているアイテム
+  resizing: string | null // 大きさを変えているアイテム
   onPointerDown(e: PointerEvent<HTMLDivElement>): void
   onPointerMove(e: PointerEvent<HTMLDivElement>): void
   onPointerUp(e: PointerEvent<HTMLDivElement>): void
@@ -469,17 +358,30 @@ const GRIPS: readonly { at: string; edges: Edges }[] = [
 function Item({
   stage,
   item,
-  target,
   onHover,
-  ports,
+  overlays,
   stretchable,
   onStretch,
   selected,
   shift,
-  look,
+  dragged,
+  resizing,
   ...handlers
 }: ItemProps) {
   const registry = useRegistry()
+  const marks = useShapeMarks()
+  // ドラッグ中の見た目: つなぐもののビューが薄くするよう求めた形は薄く。動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く
+  const look = marks.keep
+    ? marks.keep.has(item.id)
+      ? undefined
+      : "faded"
+    : dragged.length > 0
+      ? dragged.includes(item.id)
+        ? "lifted"
+        : "faded"
+      : resizing && item.id !== resizing
+        ? "faded"
+        : undefined
   const ui = useUi().items.get(item.item)
   const size = placedSize(registry, item)
   const View = ui?.view as ((p: ItemViewProps<Placed["props"]>) => ReactNode) | undefined
@@ -487,7 +389,7 @@ function Item({
     <div
       data-item={item.id}
       data-shape
-      data-target={target}
+      data-target={marks.target === item.id}
       className={styles.item}
       onPointerEnter={() => onHover(true)}
       onPointerLeave={() => onHover(false)}
@@ -513,7 +415,7 @@ function Item({
       ) : (
         <div className={styles.unknownItem} />
       )}
-      {ports}
+      {overlays}
       {stretchable &&
         GRIPS.map(g => (
           <div

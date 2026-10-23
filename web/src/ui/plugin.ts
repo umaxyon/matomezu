@@ -10,6 +10,7 @@ import type { BookTypeId } from "../core/tables"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import { type IdsOf, isBuiltin, type Plugin } from "../store/plugin"
 import type { DialogId } from "../store/tables"
+import type { ConnectorUi } from "./connector"
 import type { AnyWidgetDef } from "./layout"
 import type { ContextMenuId, WidgetId, WidgetTable } from "./tables"
 
@@ -53,6 +54,13 @@ type ShapeIdsOf<P> = P extends { items?: readonly (infer D)[] }
     : never
   : never
 
+// 2 つの形をつなぐ（kind が connector）アイテムの id。形を並べるビューが、つなぐもののビュー（ui/connector.ts）を重ねる
+type ConnectorIdsOf<P> = P extends { items?: readonly (infer D)[] }
+  ? D extends { id: infer I; kind: "connector" }
+    ? I
+    : never
+  : never
+
 type ItemPropsOf<P, Id> = P extends { items?: readonly (infer D)[] }
   ? D extends { id: Id; props: { _zod: { output: infer O } } }
     ? O
@@ -70,6 +78,7 @@ type Field<Ids, Name extends string, V> = [Ids] extends [never] ? { [n in Name]?
 
 export type PluginViews<P> = Field<IdsOf<P, "bookTypes">, "bookViews", { [id in IdsOf<P, "bookTypes">]: BookViewDef }> &
   Field<ShapeIdsOf<P>, "items", { [id in ShapeIdsOf<P>]: ItemUi<ItemPropsOf<P, id>> }> &
+  Field<ConnectorIdsOf<P>, "connectors", { [id in ConnectorIdsOf<P>]: ConnectorUi }> &
   Field<
     IdsOf<P, "dialogs">,
     "dialogViews",
@@ -102,6 +111,7 @@ export const definePluginUi = <const P extends Plugin>(plugin: P, ui: UiParts<P>
 export interface UiDefs {
   bookViews: ReadonlyMap<string, BookViewDef>
   items: ReadonlyMap<string, ItemUi>
+  connectors: ReadonlyMap<string, ConnectorUi>
   dialogViews: ReadonlyMap<string, AnyDialogView>
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
@@ -110,6 +120,7 @@ export interface UiDefs {
 interface LooseUi {
   bookViews?: Record<string, BookViewDef>
   items?: Record<string, ItemUi>
+  connectors?: Record<string, ConnectorUi>
   dialogViews?: Record<string, AnyDialogView>
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
@@ -124,6 +135,7 @@ interface LooseUi {
 export function assembleUi(plugins: readonly Plugin[]): UiDefs {
   const bookViews = new Map<string, BookViewDef>()
   const items = new Map<string, ItemUi>()
+  const connectors = new Map<string, ConnectorUi>()
   const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
@@ -151,6 +163,12 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
       p.items?.filter(i => i.kind === "shape"),
       ui.items,
       items,
+    )
+    need(
+      "connector",
+      p.items?.filter(i => i.kind === "connector"),
+      ui.connectors,
+      connectors,
     )
     need("dialog", p.dialogs, ui.dialogViews, dialogViews)
     for (const w of ui.widgets ?? []) {
@@ -180,5 +198,5 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
       overridden.add(`widget:${id}`)
       widgets.set(id, { ...w, view })
     }
-  return { bookViews, items, dialogViews, widgets, commandIcons }
+  return { bookViews, items, connectors, dialogViews, widgets, commandIcons }
 }

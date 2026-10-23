@@ -4,12 +4,12 @@
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import type { Point } from "../../../../core/geom"
+import type { ItemPage } from "../../../../core/placed"
 import type { Registry } from "../../../../core/registry"
 import type { Stage } from "../../../../core/stage"
 import { toPaper } from "../../../../core/stage"
 import { useCommand } from "../../../../ui/commands"
 import { useActions } from "../../../../ui/store-context"
-import type { DrawingPage } from "../placed"
 import { reconnectTargets } from "./connect"
 import type { DrawnLine } from "./drawn"
 import { captionDragged, endDragged, viaDragged, viaSettled } from "./edit"
@@ -34,7 +34,7 @@ interface Drag {
 
 // 描いている線の今の様子（ドラッグの一歩ごとに、ビューが描いたものを渡す）
 export interface LineScene {
-  page: DrawingPage
+  page: ItemPage
   lines: readonly PlacedLine[] // 下書きを重ねたページの線
   drawn: readonly DrawnLine[]
   rects: ReadonlyMap<string, Rect>
