@@ -941,3 +941,46 @@ test("箱をドラッグしている間、つながる線はその箱に付い�
   expect(paper.y + q[1]! * zoom).toBeGreaterThanOrEqual(after.y - 1)
   expect(paper.y + q[1]! * zoom).toBeLessThanOrEqual(after.y + after.height + 1)
 })
+
+test("線のキャプションを押すと線が選ばれ、ドラッグすると線から離れた所へ動く。端の丸を同じ箱のふちに沿って動かすと、端の位置が変わる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, y, caption] of [
+    [150, 150, "始"],
+    [550, 150, "終"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, y)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 900, 650)
+  await page.mouse.click(empty.x, empty.y)
+  await drawLine(page, "始", "終")
+  const line = page.locator("[data-item]:not([data-shape])")
+  await line.locator("polyline").last().dispatchEvent("dblclick")
+  const dialog = page.getByRole("dialog", { name: "線の編集" })
+  await dialog.getByLabel("キャプション", { exact: true }).fill("申請")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  const label = line.getByText("申請")
+  const before = (await label.boundingBox())!
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(before.x + before.width / 2 - 60, before.y + before.height / 2 - 40, { steps: 6 })
+  await page.mouse.up()
+  await expect(line).toHaveAttribute("data-selected", "true")
+  const after = (await label.boundingBox())!
+  expect(after.y).toBeLessThan(before.y - 20)
+  expect(after.x).toBeLessThan(before.x - 30)
+  // 始点の丸を、始の箱の下の辺へ動かす
+  const hit = line.locator("polyline").last()
+  const first = async () => (await hit.getAttribute("points"))!.split(" ")[0]!
+  const was = await first()
+  const start = (await line.locator('circle[data-end="from"]').boundingBox())!
+  const box = (await items(page).filter({ hasText: "始" }).boundingBox())!
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height + 4, { steps: 6 })
+  await page.mouse.up()
+  await expect.poll(first).not.toBe(was)
+})

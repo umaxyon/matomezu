@@ -49,7 +49,14 @@ export const LINE = defineItem({
   toolbox: false,
   props: z.strictObject(optional(lineFields())),
   tokens: [
-    { id: "line.color", fallback: "line" }, // 線と端の形の色
+    // 線と端の形の色: 灰色を紙の色に 4 割混ぜた色（紙の色に合わせて変わる。半透明にしないのは、線が重なった区間だけ濃く見えないように）
+    {
+      id: "line.color",
+      value: {
+        light: "color-mix(in srgb, rgb(90, 90, 110) 40%, var(--theme-paper))",
+        dark: "color-mix(in srgb, rgb(180, 180, 190) 40%, var(--theme-paper))",
+      },
+    },
     { id: "line.text", fallback: "text" }, // キャプションの文字の色
   ],
 })
