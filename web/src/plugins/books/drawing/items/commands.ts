@@ -1,4 +1,5 @@
 // 図面の画面から置く・動かすコマンド。画面の座標を受け取り、紙の上の座標に直してアクションを呼ぶ
+import { pagedOf } from "../../../../core/book"
 import type { Point } from "../../../../core/geom"
 import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
@@ -8,7 +9,7 @@ import { shapeDefOf, shapesOf } from "../placed"
 import type { Came } from "./drag"
 import { type Edges, fitsPaper, itemSize, PLACE_OFFSET, resizedBy } from "./items"
 
-const onDrawingPage = (ctx: CommandContext) => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null
+const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所
 export function placeAt(ctx: Pick<CommandContext, "stage">, pointer: Point): Point | null {
@@ -49,7 +50,7 @@ export const DRAWING_EDIT = defineCommand({
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     const page = ctx.stage.opened?.page
-    const book = ctx.book?.type === "drawing" ? ctx.book : null
+    const book = pagedOf(ctx.book) ?? null
     const found = book?.pages.find(p => p.id === page)
     const placed = found && shapesOf(found).find(i => i.id === item)
     const dialog = placed && shapeDefOf(ctx.registry, placed.item)?.dialogs.edit
@@ -93,7 +94,7 @@ export const DRAWING_RESIZE = defineCommand({
   run: (ctx, a, args: { item: string; edges: Edges; by: Point }) => {
     const { opened } = ctx.stage
     const paper = paperOf(ctx.stage)
-    const book = ctx.book?.type === "drawing" ? ctx.book : null
+    const book = pagedOf(ctx.book) ?? null
     const page = book?.pages.find(p => p.id === opened?.page)
     const placed = page && shapesOf(page).find(i => i.id === args.item)
     if (!opened?.page || !paper || !placed) return

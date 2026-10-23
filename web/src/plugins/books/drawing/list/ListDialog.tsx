@@ -6,11 +6,12 @@
 // 「行にそろえる」は選んだ行数（「最大行」なら本文の一番長い行が全部見える行数）に、本文の量によらず全部の行を同じ高さにする。
 // これも下書きで見せ、確定で行の行数を書き換える（row.lines）。
 // 追加は開いたときに覚えた所にリストを置いて（item.place）選び、編集はリストの項目を書き換える（item.update）
+
 import { useCallback, useEffect, useId, useState } from "react"
+import { pagedOf } from "../../../../core/book"
 import type { Point } from "../../../../core/geom"
 import type { MessageKey } from "../../../../core/i18n/i18n"
 import type { ItemProps } from "../../../../core/registry"
-import type { BookOf } from "../../../../core/schema/book"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
@@ -90,7 +91,7 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
   const found = useApp(s => {
-    const b = book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined
+    const b = book ? pagedOf(s.books[book]) : undefined
     const page = b?.pages.find(p => p.id === args.page)
     const item = page && shapesOf(page).find(i => i.id === args.item)
     return item?.item === LIST.id ? item : undefined

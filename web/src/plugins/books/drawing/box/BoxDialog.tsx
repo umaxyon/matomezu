@@ -4,11 +4,12 @@
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は開いたときに覚えた所に箱を置いて（アクション item.place）選び、編集は箱の項目を書き換える（アクション item.update）
+
 import { useCallback, useEffect, useId, useState } from "react"
+import { pagedOf } from "../../../../core/book"
 import type { Point } from "../../../../core/geom"
 import type { MessageKey } from "../../../../core/i18n/i18n"
 import type { ItemProps } from "../../../../core/registry"
-import type { BookOf } from "../../../../core/schema/book"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
@@ -65,7 +66,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
   const start = useApp(s => {
-    const b = book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined
+    const b = book ? pagedOf(s.books[book]) : undefined
     const page = b?.pages.find(p => p.id === args.page)
     const found = page && shapesOf(page).find(i => i.id === args.item)
     return found?.item === BOX.id ? found.props : undefined

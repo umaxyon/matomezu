@@ -1,11 +1,11 @@
 // 図面のページに置いたアイテムの操作（データを書き換えず、新しい値を返す）。
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）
+import type { PagedBook } from "../../../../core/book"
 import type { Point, Size } from "../../../../core/geom"
 import { freshId } from "../../../../core/ids"
 import { resolvePaper } from "../../../../core/paper"
 import { placedSize, rectsOf } from "../../../../core/placed"
 import type { Registry } from "../../../../core/registry"
-import type { BookOf } from "../../../../core/schema/book"
 import {
   type DrawingPage,
   gapOf,
@@ -20,7 +20,7 @@ import {
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 import { apart, type Floors, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
-type Drawing = BookOf<"drawing">
+type Drawing = PagedBook
 
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
 export const PLACE_OFFSET: Point = { x: 16, y: 12 }

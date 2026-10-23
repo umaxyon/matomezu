@@ -31,6 +31,10 @@ export function hasPages(book: Book): book is PagedBook {
   return "pages" in book
 }
 
+// ページを持つブックなら、そのブック（無いかページを持たなければ undefined）
+export const pagedOf = (book: Book | null | undefined): PagedBook | undefined =>
+  book && hasPages(book) ? book : undefined
+
 // 表の、何冊も作れるタイプの id（表の順）
 export function creatableTypes(reg: Registry): string[] {
   return reg.parts.bookTypes.filter(t => !t.single).map(t => t.id)

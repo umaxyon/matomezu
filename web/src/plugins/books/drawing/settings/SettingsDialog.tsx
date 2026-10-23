@@ -1,15 +1,15 @@
-// ブックの設定のダイアログ: ブックの名前・テーマ・紙の色・線の既定の通り方（ページが自分の既定を持たなければこれ。線が使えるブックだけ）。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
+// ブックの設定のダイアログ: ブックの名前・テーマ・紙の色・線の既定の通り方（ページが自分の既定を持たなければこれ。タイプがその項目を選んだブックだけ）。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
 // テーマは表のテーマから選ぶ（ブックのタイプのテーマを選べば、ブックのテーマの項目を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）。
 // テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book.update（線の既定の通り方は、ブックのタイプの設定の項目 settings）を書き、キャンセルでは元のまま
 import { useEffect, useId, useMemo, useState } from "react"
-import { settingValue } from "../../../../core/book-settings"
+import { settingDefs, settingValue } from "../../../../core/book-settings"
 import { bookType } from "../../../../core/registry"
 import { type BookLook, bookTheme, bookTokens } from "../../../../core/theme"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
 import { ActionButton, Choices, ColorPicker, controlClass, Dialog, Field, Form, rowClass } from "../../../base/ui"
-import { LINE_ROUTE, type LineRoute, usesLines } from "../line"
+import { LINE_ROUTE, type LineRoute } from "../line"
 import { ROUTE_ICONS } from "../line/icons"
 
 // 紙の色の見本（白・淡い灰・淡い黄・淡い緑・淡い青・濃い灰・濃い紺・濃い茶）
@@ -46,7 +46,8 @@ export function SettingsDialog({ stage, onClose }: DialogProps) {
     [registry, book, theme],
   )
   if (!book) return null
-  const lineable = usesLines(registry, book) // 線が使えるブックだけ、線の既定の通り方を出す
+  // ブックのタイプが線の既定の通り方を選んでいるブックだけ、その項目を出す
+  const lineable = settingDefs(registry, book.type, "book").some(d => d.id === LINE_ROUTE.id)
   const named = title.trim() !== ""
   const swatches = PAPER_PRESETS.map(hex => ({ name: hex, hex, label: hex }))
   const submit = () => {

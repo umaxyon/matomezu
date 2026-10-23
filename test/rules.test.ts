@@ -96,6 +96,12 @@ test("図面の置き方の層（items）はアイテムを名指ししない: i
   expect(offenders).toEqual([])
 })
 
+test("ブックのタイプの名前で振る舞いを分けない（使えるかは、タイプが選んだものと宣言で決める）", () => {
+  const bookTypeIs = /\b(?:book|ctx\.book|opened|stage\.opened)\??\.type\s*[!=]==\s*["']/
+  const offenders = sources.filter(f => bookTypeIs.test(f.text)).map(f => f.rel)
+  expect(offenders).toEqual([])
+})
+
 test("状態を変えるのは store の中だけ（画面は setState を使わない）", () => {
   const offenders = sources.filter(f => layerOf(f.rel) !== "store" && /\bsetState\b/.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])

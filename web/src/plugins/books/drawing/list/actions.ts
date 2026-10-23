@@ -1,5 +1,7 @@
 // リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える・動かす（並べ替えと、同じページの別のリストへ）。行の中身の形は RowPropsSchema（書かなかった項目は既定）
+
 import { z } from "zod"
+import { hasPages } from "../../../../core/book"
 import { defineAction } from "../../../../core/def/action"
 import { nextItemId } from "../items/items"
 import { textNew, textPatch } from "../shape"
@@ -26,7 +28,7 @@ export const ROW_ADD = defineAction({
     props: RowNewSchema.optional(),
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     const props = RowPropsSchema.safeParse(args.props ?? {})
     if (!found || !props.success) return null
@@ -49,7 +51,7 @@ export const ROW_UPDATE = defineAction({
     props: RowPatchSchema,
   }),
   run: (book, args) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     const now = found && rowsOf(found.list).find(r => r.id === args.row)
     if (!found || !now) return null
@@ -73,7 +75,7 @@ export const ROW_REMOVE = defineAction({
     rows: z.array(z.string().min(1)).min(1),
   }),
   run: (book, args) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     const rows = found ? rowsOf(found.list) : []
     if (!found || !args.rows.every(id => rows.some(r => r.id === id))) return null
@@ -95,7 +97,7 @@ export const ROW_CHECK = defineAction({
     checked: z.boolean(),
   }),
   run: (book, args) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     if (!found?.list.props.checklist || !rowsOf(found.list).some(r => r.id === args.row)) return null
     const children = rowsOf(found.list).map(r =>
@@ -119,7 +121,7 @@ export const ROW_LINES = defineAction({
     lines: z.union([z.number().int().min(0).max(MAX_ROW_LINES), z.literal("max"), z.literal("fit")]).nullable(),
   }),
   run: (book, args) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
     const rows = found ? rowsOf(found.list) : []
     if (!found || !(args.rows ?? []).every(id => rows.some(r => r.id === id))) return null
@@ -142,7 +144,7 @@ export const ROW_MOVE = defineAction({
     before: z.string().min(1).optional(),
   }),
   run: (book, args) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const from = findList(book, args.page, args.list)
     const moving = from && rowsOf(from.list).find(r => r.id === args.row)
     if (!from || !moving || args.before === args.row) return null

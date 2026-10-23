@@ -1,5 +1,6 @@
 // 図面のページに置いたアイテムの読み方: 置いたデータの外枠と、形が変わったあとの整え・関係の決まりは土台（core/placed.ts）。
 // ここは、図面のページの型と、線の読み出し・組ごとの間隔・整えを、図面の置き方の層から呼ぶ入口にする
+import type { PagedBook } from "../../../core/book"
 import { settingsAt } from "../../../core/book-settings"
 import type { ShapeItemDef } from "../../../core/def/item"
 import {
@@ -11,14 +12,14 @@ import {
   tidyPage as tidyItems,
 } from "../../../core/placed"
 import type { Registry } from "../../../core/registry"
-import type { Book, BookOf } from "../../../core/schema/book"
+import type { Book } from "../../../core/schema/book"
 import { evenGap, type Gap } from "./items/push"
 import { LINE } from "./line"
 import type { PlacedLine } from "./line/placed"
 
 export { connectableShape, isShape, pageItemsOf, shapesOf } from "../../../core/placed"
 
-export type DrawingPage = BookOf<"drawing">["pages"][number]
+export type DrawingPage = PagedBook["pages"][number]
 export type Placed = PlacedShape
 export type PageItem = PlacedItem
 

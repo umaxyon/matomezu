@@ -12,6 +12,7 @@
 // 選択の道具で線を押すと線を選び、ダブルクリックで線の編集のダイアログ（line.edit）、右クリックで線を選んで線のメニュー（line.context）を開く。
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（line/useLineEdit.ts）。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
+
 import {
   type CSSProperties,
   type MouseEvent,
@@ -22,8 +23,8 @@ import {
   useRef,
   useState,
 } from "react"
+import { pagedOf } from "../../../../core/book"
 import type { Point, Rect } from "../../../../core/geom"
-import type { BookOf } from "../../../../core/schema/book"
 import type { Stage } from "../../../../core/stage"
 import { paperOf, placement, toPaperDelta } from "../../../../core/stage"
 import { toolOf } from "../../../../core/workspace"
@@ -157,7 +158,7 @@ interface Stretch {
 function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   const page = useApp(s => {
     const o = stage.opened
-    const book = o ? (s.books[o.book] as BookOf<"drawing"> | undefined) : undefined
+    const book = o ? pagedOf(s.books[o.book]) : undefined
     return book?.pages.find(pg => pg.id === o?.page)
   })
   return page ? <PageItems stage={stage} page={page} localOf={localOf} /> : null

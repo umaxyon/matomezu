@@ -1,11 +1,11 @@
 // リストの行の操作（データを書き換えず、新しい値を返す）。リストは図面のページに置いたアイテムで、行は children に順に並ぶ
-import type { BookOf } from "../../../../core/schema/book"
+import type { PagedBook } from "../../../../core/book"
 import type { DrawingPage } from "../placed"
 import { LIST, type ListRow, type RowProps } from "."
 import type { PlacedList } from "./placed"
 import { placedListWidth, type RowsLines, rewrittenLines } from "./size"
 
-type Drawing = BookOf<"drawing">
+type Drawing = PagedBook
 
 export const rowsOf = (list: PlacedList): readonly ListRow[] => list.children ?? []
 

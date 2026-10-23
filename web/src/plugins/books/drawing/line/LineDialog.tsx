@@ -3,9 +3,10 @@
 // 通り方・線の種類・端の形は、選んだそばから線に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
 // 確定でアクション line.update（変えた項目だけ）。整列は、ほかの項目を変えたあとの形で両端の位置を決める（line/drawn.ts の alignedEndsOf）。
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
+
 import { useCallback, useEffect, useId, useState } from "react"
+import { pagedOf } from "../../../../core/book"
 import type { MessageKey } from "../../../../core/i18n/i18n"
-import type { BookOf } from "../../../../core/schema/book"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
@@ -58,7 +59,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   const form = useId()
   const registry = useRegistry()
   const book = useBookOf(stage)
-  const drawing = useApp(s => (book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined))
+  const drawing = useApp(s => (book ? pagedOf(s.books[book]) : undefined))
   const page = drawing?.pages.find(p => p.id === args.page)
   const line = page && linesOf(page).find(l => l.id === args.item)
   const { perform, previewDialog } = useActions()

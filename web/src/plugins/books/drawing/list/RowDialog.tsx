@@ -1,9 +1,10 @@
 // 行のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。テーマと色はリストに従うので持たない。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
 // 追加はリストの最後に行を足し（row.add）、編集は行の項目を書き換える（row.update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
+
 import { useId, useState } from "react"
+import { pagedOf } from "../../../../core/book"
 import type { MessageKey } from "../../../../core/i18n/i18n"
-import type { BookOf } from "../../../../core/schema/book"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp } from "../../../../ui/store-context"
@@ -32,7 +33,7 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
 export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
   const book = useBookOf(stage)
   const start = useApp(s => {
-    const b = book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined
+    const b = book ? pagedOf(s.books[book]) : undefined
     const page = b?.pages.find(p => p.id === args.page)
     const list = page && shapesOf(page).find(i => i.id === args.list)
     return list?.item === LIST.id ? list.children?.find(r => r.id === args.row)?.props : undefined

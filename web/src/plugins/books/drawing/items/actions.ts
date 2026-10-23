@@ -1,6 +1,6 @@
 // 図面のページにアイテムを置く・動かすアクション
 import { z } from "zod"
-import { bookItems } from "../../../../core/book"
+import { bookItems, hasPages } from "../../../../core/book"
 import { defineAction } from "../../../../core/def/action"
 import { shapeSchema } from "../../../../core/placed"
 import type { Registry } from "../../../../core/registry"
@@ -42,7 +42,7 @@ export const ITEM_PLACE = defineAction({
     props: z.record(z.string(), z.unknown()).optional(),
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     if (!bookItems(ctx.registry, book).includes(args.item)) return null
     const props = ctx.registry.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
@@ -71,7 +71,7 @@ export const ITEM_MOVE = defineAction({
     came: z.record(z.string(), z.enum(DIRS)).optional(), // ドラッグの通り道で覚えた、相手ごとの先端が来た向き（drag.ts）
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const next = moveItems(ctx.registry, book, args.page, args.items, args.by, args.came)
     return next && { next, result: {} }
   },
@@ -91,7 +91,7 @@ export const ITEM_UPDATE = defineAction({
     props: z.record(z.string(), z.unknown()),
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && shapesOf(page).find(i => i.id === args.item)
     if (!now) return null
@@ -124,7 +124,7 @@ export const ITEM_RESIZE = defineAction({
     y: z.number().optional(),
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && shapesOf(page).find(i => i.id === args.item)
     if (!now || !ctx.registry.items.get(now.item)?.capabilities.includes("resizable")) return null
@@ -151,7 +151,7 @@ export const ITEM_REMOVE = defineAction({
   needs: [],
   args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const next = removeItems(ctx.registry, book, args.page, args.items)
     return next && { next, result: {} }
   },

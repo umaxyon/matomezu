@@ -1,16 +1,17 @@
 // 線のアクション: 線を引く・項目を変える・端をつなぎ替える。消すのは item.remove（形を消すと、つながる線も消える）
+
 import { z } from "zod"
+import { hasPages, type PagedBook } from "../../../../core/book"
 import { defineAction } from "../../../../core/def/action"
 import { connectorSchema } from "../../../../core/placed"
 import type { Registry } from "../../../../core/registry"
-import type { BookOf } from "../../../../core/schema/book"
 import { keepApart, nextItemId, rectsOf } from "../items/items"
 import { type DrawingPage, linesOf, pageItemsOf } from "../placed"
 import { elbowAt, LINE, LinePatchSchema, usesLines } from "."
 import { connectable } from "./connect"
 import { canConnect, type PlacedLine, tidyLines } from "./placed"
 
-type Drawing = BookOf<"drawing">
+type Drawing = PagedBook
 
 // 置いた線のデータの形
 const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLine>
@@ -46,7 +47,7 @@ export const LINE_CONNECT = defineAction({
     props: LINE.props.optional(),
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing" || !usesLines(ctx.registry, book)) return null
+    if (!hasPages(book) || !usesLines(ctx.registry, book)) return null
     const page = book.pages.find(p => p.id === args.page)
     if (!page || !connectable(ctx.registry, page, args.from) || !connectable(ctx.registry, page, args.to)) return null
     if (!canConnect(linesOf(page), args.from, args.to)) return null
@@ -78,7 +79,7 @@ export const LINE_UPDATE = defineAction({
     props: LinePatchSchema,
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing") return null
+    if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now) return null
@@ -108,7 +109,7 @@ export const LINE_RECONNECT = defineAction({
     props: z.strictObject({ exitAt: LINE.props.shape.exitAt, enterAt: LINE.props.shape.enterAt }).optional(),
   }),
   run: (book, args, ctx) => {
-    if (book.type !== "drawing" || !usesLines(ctx.registry, book)) return null
+    if (!hasPages(book) || !usesLines(ctx.registry, book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now || now[args.end] === args.item || !connectable(ctx.registry, page, args.item)) return null
