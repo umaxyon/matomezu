@@ -4,7 +4,6 @@
 export const ERRORS = {
   E001: "{kind} {id}: id is registered twice",
   E002: 'bookType {id}: schema.type must be the literal "{id}"',
-  E003: "bookType {id}: pages must match whether schema has pages",
   E004: "bookType {id}: unknown paper {paper}",
   E005: "bookType {id}: default paper {paper} is not allowed",
   E006: "bookType {id}: addFromTabs needs page.add in the default actions",
@@ -26,6 +25,9 @@ export const ERRORS = {
   E022: "key {key} of command {command} cannot be read",
   E023: "key {key} in scope {scope} is bound twice by the built-in plugins",
   E024: "key {key} binds unknown command {command}",
+  E025: "bookType {id}: schema must not have {field} (the registry adds it)",
+  E026: "item {id}: unknown dialog {dialog}",
+  E027: "setting {id}: field {field} is used by another setting",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
@@ -38,6 +40,7 @@ export const ERRORS = {
   E110: "home {id} is not a single book type",
   E111: "auto skin {id} is not a {scheme} skin",
   E112: "could not make a new id",
+  E113: "unknown setting: {id}",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

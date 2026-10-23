@@ -6,9 +6,9 @@ import type { z } from "zod"
 import type { Size } from "../../../../core/geom"
 import { clampLines, wrap } from "../../../../core/text/text"
 import { captionTextWidth, PLACE_LINES, TEXT_LOOK } from "../shape"
-import type { BOX } from "."
+import type { BoxPropsSchema } from "."
 
-type BoxProps = z.infer<(typeof BOX)["props"]>
+type BoxProps = z.infer<typeof BoxPropsSchema>
 
 // 箱の見た目の寸法（px）。BoxView.module.css と同じ値にする。文字の寸法は形で共通（shape の TEXT_LOOK）
 export const BOX_LOOK = { border: 1, ...TEXT_LOOK } as const

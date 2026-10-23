@@ -1,10 +1,9 @@
 // ブックを変える: アクション book.update（ブックの名前と、見た目のテーマと紙の色。見た目は core/theme の BookLook）と、
-// ブックのタイプが足す設定の項目（settings。core/book-settings.ts）。使えるのは、見た目の項目を形に持つブックのタイプだけ（そのタイプが許す）
+// ブックのタイプが選んだ設定の項目（settings。core/book-settings.ts）。使えるのは、見た目の項目を形に持つブックのタイプだけ（そのタイプが許す）
 import { z } from "zod"
-import { settingsArgs, settingsPatchOf, withSettings } from "../../../core/book-settings"
+import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../../../core/book-settings"
 import { HEX } from "../../../core/color"
 import { defineAction } from "../../../core/def/action"
-import { bookType } from "../../../core/registry"
 import type { Book } from "../../../core/schema/book"
 import type { BookLook } from "../../../core/theme"
 
@@ -16,7 +15,7 @@ const ARGS = z.strictObject({
 })
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。null は見た目の項目を消す（テーマはブックのタイプのテーマ、紙の色はテーマの紙の色に戻る）。表に無いテーマは断る。
-// settings はブックのタイプが宣言した項目だけ（形に合わない・宣言の無いタイプなら断る。null は消す）。変えたらタイプの settle で整える
+// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す）。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = defineAction({
   id: "book.update",
   title: "Change book",
@@ -36,8 +35,9 @@ export const BOOK_UPDATE = defineAction({
     if (args.settings === undefined) return { next, result: null }
     const patch = settingsPatchOf(ctx.registry, book, "book")?.safeParse(args.settings)
     if (!patch?.success) return null
-    const settle = bookType(ctx.registry, book.type).settings?.settle
-    const changed = withSettings<Book>(next, patch.data as Record<string, unknown>)
-    return { next: settle ? (settle(changed, ctx.registry) as Book) : changed, result: null }
+    return {
+      next: settleBook(ctx.registry, withSettings<Book>(next, patch.data as Record<string, unknown>)),
+      result: null,
+    }
   },
 })

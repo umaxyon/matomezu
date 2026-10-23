@@ -23,9 +23,9 @@ import {
   Section,
 } from "../../../base/ui"
 import { rectsOf } from "../items/items"
-import { elbowOf, linesOf } from "../placed"
+import { linesOf } from "../placed"
 import { useBookOf } from "../shape/parts"
-import type { LineRoute } from "."
+import { elbowAt, type LineRoute } from "."
 import { alignedEndsOf } from "./drawn"
 import { type LineOnce, linePatch } from "./edit"
 import { HEADS, type Head } from "./heads"
@@ -62,7 +62,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   const page = drawing?.pages.find(p => p.id === args.page)
   const line = page && linesOf(page).find(l => l.id === args.item)
   const { perform, previewDialog } = useActions()
-  const elbow = drawing && page ? elbowOf(drawing, page) : true
+  const elbow = drawing && page ? elbowAt(registry, drawing, page) : true
   const startRoute: LineRoute = line?.props.route ?? (elbow ? "elbow" : "straight")
   const [caption, setCaption] = useState(line?.props.caption ?? "")
   const [route, setRoute] = useState<LineRoute>(startRoute)

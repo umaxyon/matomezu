@@ -3,7 +3,8 @@ import type { Point } from "../../../../core/geom"
 import { toPaper } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
 import { rectsOf } from "../items/items"
-import { elbowOf, linesOf } from "../placed"
+import { linesOf } from "../placed"
+import { elbowAt } from "."
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
 import type { Side } from "./route"
 
@@ -21,7 +22,7 @@ export const LINE_DRAW = defineCommand({
     const drop = toPaper(ctx.stage, args.at)
     if (!opened || !book || !page || !drop) return
     const rects = rectsOf(ctx.registry, page)
-    const props = drawnLineProps(page, rects, elbowOf(book, page), args.from, args.side, args.to, drop)
+    const props = drawnLineProps(page, rects, elbowAt(ctx.registry, book, page), args.from, args.side, args.to, drop)
     if (props) a.perform("line.connect", { page: page.id, from: args.from, to: args.to, props }, { book: opened.book })
   },
   when: onDrawingPage,
@@ -56,7 +57,7 @@ export const LINE_RECONNECT_DROP = defineCommand({
     if (!to) return
     const props =
       args.item === other
-        ? (loopEndsNear(page, rects, elbowOf(book, page), args.item, drop, line.id) ?? undefined)
+        ? (loopEndsNear(page, rects, elbowAt(ctx.registry, book, page), args.item, drop, line.id) ?? undefined)
         : { [args.end === "from" ? "exitAt" : "enterAt"]: nearestEnd(to, drop) }
     a.perform(
       "line.reconnect",

@@ -48,7 +48,7 @@ import {
   trackDrag,
 } from "../items"
 import { rectsOf } from "../items/items"
-import { usesLines } from "../line"
+import { elbowAt, usesLines } from "../line"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "../line/connect"
 import { drawLines, type LineCache } from "../line/drawn"
 import { LinesView } from "../line/LinesView"
@@ -58,7 +58,7 @@ import type { EndMemory, Side } from "../line/route"
 import { memoryOf, stickyMemory } from "../line/sticky"
 import { useLineEdit } from "../line/useLineEdit"
 import { useLinkDrag } from "../line/useLinkDrag"
-import { type DrawingPage, elbowOf, linesOf } from "../placed"
+import { type DrawingPage, linesOf } from "../placed"
 import styles from "./DrawingView.module.css"
 
 // 要素の左上から見たポインタの位置
@@ -165,12 +165,12 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
 
 // ページのアイテムと線。ドラッグ中は、動かすアイテムを動いた量だけずらして描く
 function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; localOf: LocalOf }) {
-  // ブックの線の既定の通り方（ページが自分の既定を持たなければこれ）と、ブックで線が使えるか（使えなければ線を引く〇を出さない）
-  const bookRoute = useApp(s => {
-    const o = stage.opened
-    return o ? (s.books[o.book] as BookOf<"drawing"> | undefined)?.lineRoute : undefined
-  })
+  // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）と、ブックで線が使えるか（使えなければ線を引く〇を出さない）
   const registry = useRegistry()
+  const elbow = useApp(s => {
+    const b = stage.opened ? s.books[stage.opened.book] : undefined
+    return b ? elbowAt(registry, b, page) : true
+  })
   const lineable = useApp(s => {
     const b = stage.opened ? s.books[stage.opened.book] : undefined
     return b ? usesLines(registry, b) : false
@@ -310,7 +310,6 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; 
         ? ({ ...l, props: { ...l.props, ...preview.props } } as PlacedLine)
         : l,
   )
-  const elbow = elbowOf({ lineRoute: bookRoute }, page)
   // 前の辺に留まる線（line/sticky.ts）。入れ替えでずれて描いている形は、留まらない側
   const pushed = shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id)
   const memory = stickyMemory({
@@ -374,7 +373,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; 
           onPointerCancel={e => linkDrag.end(e, false)}
         />
       }
-      stretchable={single && stage.selection[0] === item.id && minSize(item) !== null}
+      stretchable={single && stage.selection[0] === item.id && minSize(registry, item) !== null}
       onStretch={{
         down: (e, edges) => startStretch(e, item.id, edges),
         move: moveStretch,

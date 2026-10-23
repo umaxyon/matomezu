@@ -21,6 +21,10 @@ export const defineDialogWith =
 
 export type DialogArgsOf<Id extends DialogId> = DialogTable[Id] extends DialogDef<infer A> ? A : never
 // ダイアログを開くときに渡す値の並び（値を渡さないダイアログには何も渡さない）
+// 渡す値がちょうど A のダイアログの id
+export type DialogTaking<A> = {
+  [K in DialogId]: [DialogArgsOf<K>] extends [A] ? ([A] extends [DialogArgsOf<K>] ? K : never) : never
+}[DialogId]
 export type DialogArgs<Id extends DialogId> = [DialogArgsOf<Id>] extends [undefined] ? [] : [DialogArgsOf<Id>]
 
 export interface OpenedDialog {

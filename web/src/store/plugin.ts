@@ -4,6 +4,7 @@ import type { ActionDef } from "../core/def/action"
 import type { BookTypeDef } from "../core/def/book-type"
 import type { ItemDef } from "../core/def/item"
 import type { PaperDef } from "../core/def/paper"
+import type { SettingDef } from "../core/def/setting"
 import type { Scheme, SkinDef } from "../core/def/skin"
 import type { ThemeDef } from "../core/def/theme"
 import { fail, matomezuError, problem } from "../core/errors"
@@ -19,6 +20,7 @@ export interface PluginParts {
   bookTypes?: readonly BookTypeDef[]
   items?: readonly ItemDef[]
   actions?: readonly ActionDef[]
+  settings?: readonly SettingDef[]
   themes?: readonly ThemeDef[]
   papers?: readonly PaperDef[]
   skins?: readonly SkinDef[]
@@ -33,6 +35,7 @@ export const PARTS: readonly Part[] = [
   "bookTypes",
   "items",
   "actions",
+  "settings",
   "themes",
   "papers",
   "skins",
@@ -103,11 +106,17 @@ export function assemble(
       dialogs.map(d => d.id),
     ),
   ]
+  const dialogIds = new Set(dialogs.map(d => d.id))
+  for (const i of all("items"))
+    if (i.kind === "shape")
+      for (const dialog of [i.dialogs.add, i.dialogs.edit])
+        if (!dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const registry = buildRegistry({
     bookTypes: all("bookTypes"),
     items: all("items"),
     actions: all("actions"),
+    settings: all("settings"),
     themes: all("themes"),
     papers: all("papers"),
     skins: all("skins"),

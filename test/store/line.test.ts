@@ -6,10 +6,10 @@ import { buildRegistry } from "../../web/src/core/registry"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { rectsOf } from "../../web/src/plugins/books/drawing/items/items"
 import { GAP } from "../../web/src/plugins/books/drawing/items/push"
-import { usesLines } from "../../web/src/plugins/books/drawing/line"
+import { elbowAt, usesLines } from "../../web/src/plugins/books/drawing/line"
 import { alignedEndsOf } from "../../web/src/plugins/books/drawing/line/drawn"
 import { CAPTION_GAP, LINK_GAP } from "../../web/src/plugins/books/drawing/line/placed"
-import { elbowOf, linesOf, shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { linesOf, shapesOf } from "../../web/src/plugins/books/drawing/placed"
 import { BUILTIN_PARTS, newStore, REGISTRY, sequence } from "../support"
 
 function ready() {
@@ -219,7 +219,7 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
   connect(store, "n1", "n2", { ...ends, via: [300] })
   const book = () => store.state.getState().books.b1 as BookOf<"drawing">
-  const elbow = () => elbowOf(book(), page(store))
+  const elbow = () => elbowAt(REGISTRY, book(), page(store))
   expect(elbow()).toBe(true)
   expect(store.actions.perform("book.update", { settings: { lineRoute: "straight" } }, { book: "b1" }).ok).toBe(true)
   expect(book().lineRoute).toBe("straight")
@@ -235,17 +235,21 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   expect(elbow()).toBe(true)
 })
 
-test("線が使えないブック（ブックで使えるアイテムに線が無い）では、線を引けず、線の既定の通り方も変えられない。ページの設定は出さない", () => {
+test("線と線の既定の通り方を選ばないタイプのブックでは、線を引けず、線の既定の通り方も変えられない", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
   const book = store.state.getState().books.b1 as BookOf<"drawing">
-  // 図面のタイプから線を外した登録表
+  // 図面のタイプから、線と線の既定の通り方を外した登録表
   const noLines = buildRegistry({
     ...BUILTIN_PARTS,
     bookTypes: BUILTIN_PARTS.bookTypes.map(t =>
       t.id === "drawing"
-        ? { ...t, items: { allowed: ["shape.box", "shape.list"], defaults: ["shape.box", "shape.list"] } }
+        ? {
+            ...t,
+            items: { allowed: ["shape.box", "shape.list"], defaults: ["shape.box", "shape.list"] },
+            settings: {},
+          }
         : t,
     ),
   })

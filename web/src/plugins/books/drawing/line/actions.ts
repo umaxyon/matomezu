@@ -1,19 +1,23 @@
 // 線のアクション: 線を引く・項目を変える・端をつなぎ替える。消すのは item.remove（形を消すと、つながる線も消える）
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
+import { connectorSchema } from "../../../../core/placed"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { keepApart, nextItemId, rectsOf } from "../items/items"
-import { type DrawingPage, elbowOf, linesOf, pageItemsOf } from "../placed"
-import { LINE, LinePatchSchema, usesLines } from "."
+import { type DrawingPage, linesOf, pageItemsOf } from "../placed"
+import { elbowAt, LINE, LinePatchSchema, usesLines } from "."
 import { connectable } from "./connect"
-import { canConnect, type PlacedLine, PlacedLineSchema, tidyLines } from "./placed"
+import { canConnect, type PlacedLine, tidyLines } from "./placed"
 
 type Drawing = BookOf<"drawing">
 
+// 置いた線のデータの形
+const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLine>
+
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
 const tidied = (reg: Registry, book: Drawing, page: DrawingPage, line: PlacedLine): PlacedLine =>
-  tidyLines([line], rectsOf(reg, page), elbowOf(book, page))[0] ?? line
+  tidyLines([line], rectsOf(reg, page), elbowAt(reg, book, page))[0] ?? line
 
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
 const viaDrawn = (reg: Registry, book: Drawing, page: DrawingPage, line: PlacedLine): boolean =>

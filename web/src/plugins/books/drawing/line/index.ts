@@ -4,12 +4,15 @@
 // 道筋は持たず、つないだ形の位置から描くたびに決める（route.ts）
 import { z } from "zod"
 import { bookItems } from "../../../../core/book"
-import { defineItem } from "../../../../core/def/item"
+import { settingValue } from "../../../../core/book-settings"
+import { defineConnector } from "../../../../core/def/item"
+import { defineSetting } from "../../../../core/def/setting"
 import type { Registry } from "../../../../core/registry"
 import type { Book } from "../../../../core/schema/book"
 import { defineDialogWith } from "../../../../store/dialogs"
 import { CAPTION_OFFSET_MAX } from "./caption"
 import { HEADS } from "./heads"
+import { lineGaps, linesHold, tidyLines } from "./placed"
 
 export const ROUTES = ["straight", "elbow"] as const
 export type LineRoute = (typeof ROUTES)[number]
@@ -43,7 +46,18 @@ export const LinePatchSchema = z.strictObject(
   },
 )
 
-export const LINE = defineItem({
+// 線の既定の通り方（ブックとページの設定の項目。線が自分の通り方を持たなければこれ）
+export const LINE_ROUTE = defineSetting({
+  id: "line.route",
+  title: "Line route",
+  field: "lineRoute",
+  schema: z.enum(ROUTES),
+  default: "elbow",
+})
+
+// 線は置いた形と次の決まりを持つ: つないだ組は間隔を広げる（placed.ts の lineGaps）、形が変わったあと端の形が無くなった線と引けなくなった手直しを消す（tidyLines）、
+// 両端がつなげる形にあり同じ組に 2 本無い（linesHold）
+export const LINE = defineConnector({
   id: "connector.line",
   kind: "connector",
   version: 1,
@@ -51,6 +65,12 @@ export const LINE = defineItem({
   capabilities: [],
   toolbox: false,
   props: z.strictObject(optional(lineFields())),
+  gaps: (lines, base) => {
+    const linked = lineGaps(lines, 0)
+    return (a, b) => Math.max(base(a, b), linked(a, b))
+  },
+  tidy: (lines, rects, setting) => tidyLines(lines, rects, setting(LINE_ROUTE.id) === "elbow"),
+  holds: linesHold,
   tokens: [
     // 線と端の形の色: 灰色を紙の色に 4 割混ぜた色（紙の色に合わせて変わる。半透明にしないのは、線が重なった区間だけ濃く見えないように）
     // （明暗で分けない。紙の色はテーマが決め、見る人の明暗では変わらないため）
@@ -61,6 +81,10 @@ export const LINE = defineItem({
 
 // 線の編集のダイアログ。開いたステージのブックの、ページ page の線 item の項目を変える
 export const LINE_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "line.edit" })
+
+// ページ page の線の既定が折れ線か（ページの既定、無ければブックの既定、それも無ければ設定の既定）
+export const elbowAt = (reg: Registry, book: Book, page: object | null): boolean =>
+  settingValue(reg, book, page, LINE_ROUTE.id) === "elbow"
 
 // ブックで線が使えるか（線のアイテムが、そのブックで使えるアイテムに入っている）。線を引く操作と、線の既定の通り方の設定はこれで出し分ける
 export const usesLines = (reg: Registry, book: Pick<Book, "type">): boolean => bookItems(reg, book).includes(LINE.id)

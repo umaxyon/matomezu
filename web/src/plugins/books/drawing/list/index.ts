@@ -9,11 +9,11 @@
 // 置くときは追加のダイアログ（list.add）、設定は編集のダイアログ（list.edit）。行は行の追加（row.add）・編集（row.edit）のダイアログで中身を決める
 import { z } from "zod"
 import { HEX, PALETTE } from "../../../../core/color"
-import { defineItem } from "../../../../core/def/item"
+import { defineShape } from "../../../../core/def/item"
 import type { Point } from "../../../../core/geom"
 import { defineDialogWith } from "../../../../store/dialogs"
 import { AlignSchema, textProps } from "../shape"
-import { LIST_SIZE, MAX_ROW_LINES } from "./size"
+import { LIST_MIN, LIST_SIZE, listCaptionWidth, MAX_ROW_LINES, placedListWidth } from "./size"
 
 // 行の項目（箱の項目と同じ並びに、チェックの印）
 export const RowPropsSchema = z.strictObject({
@@ -31,13 +31,37 @@ export type ListRow = z.infer<typeof ListRowSchema>
 // リストの塗りの欄（行のカードの地。色の見本の「なし」もこの色）
 export const LIST_FILL = { id: "list.fill", fallback: "fill" } as const
 
-export const LIST = defineItem({
+// リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
+export const LIST_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "list.add" })
+// リストの設定のダイアログ
+export const LIST_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "list.edit" })
+
+// チェックリストでないリストの行から、チェックの状態を消す（チェックリストをやめたとき）
+export function settleChecks<L extends { props: { checklist: boolean }; children?: ListRow[] }>(list: L): L {
+  const rows = list.children ?? []
+  if (list.props.checklist || !rows.some(r => r.props.checked !== undefined)) return list
+  const children = rows.map(r => {
+    const { checked: _, ...props } = r.props
+    return { ...r, props: props as RowProps }
+  })
+  return { ...list, children }
+}
+
+// 大きさは w・h（無ければキャプションの幅と、行 3 つぶんの空きの高さ）。中身は行（children の順）。
+// 項目を変えたら、チェックリストでなくなったリストの行からチェックを消す
+export const LIST = defineShape({
   id: "shape.list",
   kind: "shape",
   version: 1,
   title: "List",
   capabilities: ["connectable", "resizable", "hasText"],
   toolbox: true,
+  content: { children: z.array(ListRowSchema) },
+  min: LIST_MIN,
+  sizeOf: list => ({ w: list.w ?? placedListWidth(list.props.caption), h: list.h ?? LIST_SIZE.h }),
+  captionWidth: list => listCaptionWidth(list.props.caption),
+  settle: settleChecks,
+  dialogs: { add: LIST_ADD_DIALOG.id, edit: LIST_EDIT_DIALOG.id },
   props: z.strictObject({
     caption: z.string().default(""),
     captionAlign: AlignSchema.default("center"), // 見出しのキャプションの寄せ（箱と同じ）
@@ -68,10 +92,6 @@ export const LIST = defineItem({
   ],
 })
 
-// リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
-export const LIST_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "list.add" })
-// リストの設定のダイアログ
-export const LIST_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "list.edit" })
 // 行の追加のダイアログ（リスト list の最後に足す）
 export const ROW_ADD_DIALOG = defineDialogWith<{ page: string; list: string }>()({ id: "row.add" })
 // 行の編集のダイアログ

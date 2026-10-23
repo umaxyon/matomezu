@@ -8,6 +8,7 @@ import type {
   ItemTable,
   MessageTable,
   PaperTable,
+  SettingTable,
   SkinTable,
   ThemeTable,
 } from "../core/tables"
@@ -19,6 +20,7 @@ interface Tables {
   bookTypes: BookTypeTable
   items: ItemTable
   actions: ActionTable
+  settings: SettingTable
   themes: ThemeTable
   papers: PaperTable
   skins: SkinTable

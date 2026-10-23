@@ -2,7 +2,9 @@
 import { z } from "zod"
 import { bookItems } from "../../../../core/book"
 import { defineAction } from "../../../../core/def/action"
-import { PlacedSchema, placedDef, shapesOf } from "../placed"
+import { shapeSchema } from "../../../../core/placed"
+import type { Registry } from "../../../../core/registry"
+import { type Placed, shapeDefOf, shapesOf } from "../placed"
 import { DIRS } from "./drag"
 import {
   knownTheme,
@@ -16,6 +18,13 @@ import {
 } from "./items"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
+
+// 置いた形のデータとして確かめる（形の定義の項目と中身の形。表に無い形は通らない）
+function parsePlaced(reg: Registry, value: { item: string; [field: string]: unknown }): Placed | null {
+  const def = shapeDefOf(reg, value.item)
+  const parsed = def && shapeSchema(def).safeParse(value)
+  return parsed?.success ? (parsed.data as Placed) : null
+}
 
 // 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定。テーマは表にあるものだけ）。
 // w・h は大きさを変えられるアイテムの幅と高さ（無ければ定義の幅と、箱は本文が 5 行まで見える高さ。データには決まった値を書く）
@@ -39,13 +48,13 @@ export const ITEM_PLACE = defineAction({
     if (!props?.success) return null
     const base = { id: nextItemId(book, ctx.newId), item: args.item, ...args.at, props: props.data }
     const resizable = ctx.registry.items.get(args.item)?.capabilities.includes("resizable")
-    const draft = PlacedSchema.safeParse(resizable && args.w !== undefined ? { ...base, w: args.w } : base)
-    if (!draft.success) return null
-    const size = placedSize(ctx.registry, draft.data)
-    const item = resizable && size ? PlacedSchema.safeParse({ ...draft.data, w: size.w, h: args.h ?? size.h }) : draft
-    if (!item.success || !knownTheme(ctx.registry, item.data)) return null
-    const next = placeItem(ctx.registry, book, args.page, item.data)
-    return next && { next, result: { item: item.data.id } }
+    const draft = parsePlaced(ctx.registry, resizable && args.w !== undefined ? { ...base, w: args.w } : base)
+    if (!draft) return null
+    const size = placedSize(ctx.registry, draft)
+    const item = resizable && size ? parsePlaced(ctx.registry, { ...draft, w: size.w, h: args.h ?? size.h }) : draft
+    if (!item || !knownTheme(ctx.registry, item)) return null
+    const next = placeItem(ctx.registry, book, args.page, item)
+    return next && { next, result: { item: item.id } }
   },
 })
 
@@ -87,9 +96,9 @@ export const ITEM_UPDATE = defineAction({
     const now = page && shapesOf(page).find(i => i.id === args.item)
     if (!now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
-    const parsed = PlacedSchema.safeParse({ ...now, props })
-    if (!parsed.success || !page || !knownTheme(ctx.registry, parsed.data)) return null
-    const item = placedDef(parsed.data).settle?.(parsed.data) ?? parsed.data
+    const parsed = parsePlaced(ctx.registry, { ...now, props })
+    if (!parsed || !page || !knownTheme(ctx.registry, parsed)) return null
+    const item = (shapeDefOf(ctx.registry, parsed.item)?.settle?.(parsed) as Placed | undefined) ?? parsed
     const wide = widenForCaption(ctx.registry, page, now, item)
     const next =
       replacePushing(ctx.registry, book, args.page, wide, false) ??
@@ -121,15 +130,15 @@ export const ITEM_RESIZE = defineAction({
     if (!now || !ctx.registry.items.get(now.item)?.capabilities.includes("resizable")) return null
     const size = placedSize(ctx.registry, now)
     if (!size) return null
-    const item = PlacedSchema.safeParse({
+    const item = parsePlaced(ctx.registry, {
       ...now,
       x: args.x ?? now.x,
       y: args.y ?? now.y,
       w: args.w ?? size.w,
       h: args.h ?? size.h,
     })
-    if (!item.success) return null
-    const next = replacePushing(ctx.registry, book, args.page, item.data, true)
+    if (!item) return null
+    const next = replacePushing(ctx.registry, book, args.page, item, true)
     return next && { next, result: {} }
   },
 })

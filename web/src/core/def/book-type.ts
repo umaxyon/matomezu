@@ -29,8 +29,9 @@ interface BookTypeBase<S extends z.ZodObject> {
   id: string // データの type の値
   version: number // データの形の版
   title: MessageKey // タイプの名前。題名を持たないブックは、この名前で呼ぶ
-  schema: S // そのタイプのブックのデータの形（type は id の値）
-  pages: PagesRule | null // ページを持つか（持つなら schema に pages がある）
+  // そのタイプのブックが自分で持つ欄の形（type は id の値）。ページ（pages）と設定の項目の欄は書かず、登録表が選んだものから足す
+  schema: S
+  pages: PagesRule | null // ページを持つか（持つなら、登録表がページの欄を足す）
   items: Choice
   actions: Choice
   theme: string // 既定のテーマ
@@ -39,16 +40,13 @@ interface BookTypeBase<S extends z.ZodObject> {
   // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
   holds?(book: z.infer<S>, reg: Registry): boolean
-  settings?: BookTypeSettings<z.infer<S>>
+  settings?: BookTypeSettings
 }
 
-// タイプが足す設定の項目（core/book-settings.ts）。土台のアクション book.update はブックの、page.update はページの項目を受け付ける。
-// 項目はブック（ページ）のデータの形に同じ名前である欄（どれも書かなくてよい）。settle は項目を変えたあとにブックを整える（無ければそのまま）。
-// 使えないブックで項目を書けないことは、関係の決まり（holds）で決める
-export interface BookTypeSettings<B> {
-  book?: z.ZodObject
-  page?: z.ZodObject
-  settle?(book: B, reg: Registry): B
+// ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。土台のアクション book.update はブックの、page.update はページの項目を受け付ける
+export interface BookTypeSettings {
+  book?: readonly string[]
+  page?: readonly string[]
 }
 
 // 1 冊だけのタイプ（マスターなど）。作る操作は無く、その 1 冊のデータを定義に持つ（id はタイプの id）。

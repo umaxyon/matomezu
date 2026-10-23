@@ -1,9 +1,8 @@
-// ページを変える: アクション page.update（ブックのタイプが足すページの設定の項目。core/book-settings.ts）
+// ページを変える: アクション page.update（ブックのタイプが選んだページの設定の項目。core/book-settings.ts）
 import { z } from "zod"
 import { hasPages } from "../../../core/book"
-import { settingsArgs, settingsPatchOf, withSettings } from "../../../core/book-settings"
+import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../../../core/book-settings"
 import { defineAction } from "../../../core/def/action"
-import { bookType } from "../../../core/registry"
 import type { Book } from "../../../core/schema/book"
 
 const ARGS = z.strictObject({
@@ -11,8 +10,8 @@ const ARGS = z.strictObject({
   settings: z.record(z.string(), z.unknown()), // ブックのタイプが足す項目（形はタイプが決める）
 })
 
-// ページ page の、書いた項目だけを変える（null は消す）。ブックのタイプが宣言した項目だけ（形に合わない・宣言の無いタイプ・無いページなら断る）。
-// 変えたらタイプの settle で整える
+// ページ page の、書いた項目だけを変える（null は消す）。ブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・無いページなら断る）。
+// 変えたらページを整える（settleBook）
 export const PAGE_UPDATE = defineAction({
   id: "page.update",
   title: "Update page",
@@ -25,8 +24,6 @@ export const PAGE_UPDATE = defineAction({
     const patch = settingsPatchOf(ctx.registry, book, "page")?.safeParse(args.settings)
     if (!patch?.success) return null
     const pages = book.pages.map(p => (p.id === args.page ? withSettings(p, patch.data as Record<string, unknown>) : p))
-    const changed = { ...book, pages } as Book
-    const settle = bookType(ctx.registry, book.type).settings?.settle
-    return { next: settle ? (settle(changed, ctx.registry) as Book) : changed, result: {} }
+    return { next: settleBook(ctx.registry, { ...book, pages } as Book), result: {} }
   },
 })

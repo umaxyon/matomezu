@@ -1,88 +1,40 @@
-// 図面に置けるアイテムの表と、図面のページのデータの形。置き方の層（items）は、アイテムの置き方をここから引く（items/placed-def.ts の約束）。
-// ページのアイテムは、紙の上に四角を占める形（箱・リスト）と、形どうしを結ぶ線。置き方の層は形だけを並べ、線のことはここの入口
-// （組ごとの間隔 gapOf・形が変わったあとの整え tidyPage）を通して知る。
-// 形を足すときは、その形の置き方を書いて、ここに並べる
-import { z } from "zod"
+// 図面のページに置いたアイテムの読み方: 置いたデータの外枠と、形が変わったあとの整え・関係の決まりは土台（core/placed.ts）。
+// ここは、図面のページの型と、線の読み出し・組ごとの間隔・整えを、図面の置き方の層から呼ぶ入口にする
+import { settingsAt } from "../../../core/book-settings"
+import type { ShapeItemDef } from "../../../core/def/item"
+import {
+  gapOf as connectorGaps,
+  connectorsOf,
+  type ItemPage,
+  type PlacedItem,
+  type PlacedShape,
+  tidyPage as tidyItems,
+} from "../../../core/placed"
 import type { Registry } from "../../../core/registry"
-import { PageSchema } from "../../../core/schema/page"
-import { BOX_PLACED, PlacedBoxSchema } from "./box/placed"
-import type { PlacedDef } from "./items/placed-def"
-import { GAP, type Gap, type Rect } from "./items/push"
-import { LINE, type LineRoute, ROUTES, usesLines } from "./line"
-import { DEFAULT_ROUTE, lineGaps, linesHold, type PlacedLine, PlacedLineSchema, tidyLines } from "./line/placed"
-import { LIST_PLACED, PlacedListSchema } from "./list/placed"
+import type { Book, BookOf } from "../../../core/schema/book"
+import { evenGap, type Gap } from "./items/push"
+import { LINE } from "./line"
+import type { PlacedLine } from "./line/placed"
 
-// 置いた形のデータ。形の種類（item）ごとに、その形の形
-export const PlacedSchema = z.discriminatedUnion("item", [PlacedBoxSchema, PlacedListSchema])
-export type Placed = z.infer<typeof PlacedSchema>
+export { connectableShape, isShape, pageItemsOf, shapesOf } from "../../../core/placed"
 
-// ページのアイテム（形と線）
-export const PageItemSchema = z.discriminatedUnion("item", [PlacedBoxSchema, PlacedListSchema, PlacedLineSchema])
-export type PageItem = z.infer<typeof PageItemSchema>
+export type DrawingPage = BookOf<"drawing">["pages"][number]
+export type Placed = PlacedShape
+export type PageItem = PlacedItem
 
-// 図面のページ。items が無ければ、何も置いていない。lineRoute はページの線の既定の通り方（線が自分の通り方を持たなければこれ。無ければブックの既定を継ぐ）
-export const DrawingPageSchema = PageSchema.extend({
-  items: z.array(PageItemSchema).optional(),
-  lineRoute: z.enum(ROUTES).optional(),
-})
-export type DrawingPage = z.infer<typeof DrawingPageSchema>
-
-const PLACED: { [I in Placed as I["item"]]: PlacedDef<I> } = {
-  [BOX_PLACED.id]: BOX_PLACED,
-  [LIST_PLACED.id]: LIST_PLACED,
+// 置いた形の定義（表に無い形は null）
+export function shapeDefOf(reg: Registry, item: string): ShapeItemDef | null {
+  const def = reg.items.get(item)
+  return def?.kind === "shape" ? def : null
 }
 
-// アイテムの置き方（置いたアイテムの種類から）。表のアイテムごとの約束を、置いたアイテム全体の型で引く
-export const placedDef = (item: Placed): PlacedDef<Placed> => PLACED[item.item] as PlacedDef<Placed>
-
-// アイテムの id の置き方（置く前。図面に置けないアイテムなら undefined）
-export const placedDefOf = (id: string): PlacedDef<Placed> | undefined =>
-  (PLACED as Record<string, PlacedDef<Placed>>)[id]
-
-export const isShape = (item: PageItem): item is Placed => item.item in PLACED
-
-// ページのアイテム全部（形と線。重ねの順）
-export const pageItemsOf = (page: DrawingPage): readonly PageItem[] => page.items ?? []
-// ページの形（重ねの順）
-export const shapesOf = (page: DrawingPage): readonly Placed[] => pageItemsOf(page).filter(isShape)
 // ページの線
-export const linesOf = (page: DrawingPage): readonly PlacedLine[] =>
-  pageItemsOf(page).filter((i): i is PlacedLine => i.item === LINE.id)
-
-// ページの線の既定が折れ線か: ページの既定、無ければブックの既定、それも無ければ DEFAULT_ROUTE
-export const elbowOf = (book: { lineRoute?: LineRoute }, page: DrawingPage): boolean =>
-  (page.lineRoute ?? book.lineRoute ?? DEFAULT_ROUTE) === "elbow"
+export const linesOf = (page: ItemPage): PlacedLine[] =>
+  connectorsOf(page).filter((i): i is PlacedLine => i.item === LINE.id)
 
 // ページの、2 つの形の組の間隔の下限（線でつながった組は広い）
-export const gapOf = (page: DrawingPage): Gap => lineGaps(linesOf(page), GAP)
+export const gapOf = (reg: Registry, page: ItemPage): Gap => connectorGaps(reg, page, evenGap)
 
-// 形が変わったあとのページ: 端の形が無くなった線を消し、引けなくなった手で直した区間を消す（rects は形の四角、elbow はページの線の既定が折れ線か）
-export function tidyPage(page: DrawingPage, rects: ReadonlyMap<string, Rect>, elbow: boolean): DrawingPage {
-  const lines = linesOf(page)
-  if (lines.length === 0) return page
-  const tidy = new Map(tidyLines(lines, rects, elbow).map(l => [l.id, l] as const))
-  const now = pageItemsOf(page)
-  const items = now.flatMap((i): PageItem[] => {
-    if (isShape(i)) return [i]
-    const l = tidy.get(i.id)
-    return l ? [l] : []
-  })
-  return items.length === now.length && items.every((i, k) => i === now[k]) ? page : { ...page, items }
-}
-
-// 図面のブックの、データの形の外の決まり: どのページも、線の両端がそのページのつなげる形にあり、同じ組に 2 本無い。
-// 線が使えないブック（ブックで使えるアイテムに線が無い）は、線も線の既定の通り方も持たない
-export function drawingHolds(
-  book: { type: "drawing"; lineRoute?: LineRoute; pages: readonly DrawingPage[] },
-  reg: Registry,
-): boolean {
-  if (!usesLines(reg, book))
-    return book.lineRoute === undefined && book.pages.every(p => p.lineRoute === undefined && linesOf(p).length === 0)
-  return book.pages.every(page => linesHold(linesOf(page), id => connectableShape(reg, page, id)))
-}
-
-// ページの、線をつなげる形（connectable の形）か
-export function connectableShape(reg: Registry, page: DrawingPage, id: string): boolean {
-  const shape = shapesOf(page).find(s => s.id === id)
-  return !!shape && (reg.items.get(shape.item)?.capabilities.includes("connectable") ?? false)
-}
+// 形が変わったあとのページ: 端の形が無くなった線を消し、引けなくなった手で直した区間を消す
+export const tidyPage = <P extends ItemPage>(reg: Registry, book: Book, page: P): P =>
+  tidyItems(reg, page, settingsAt(reg, book, page))

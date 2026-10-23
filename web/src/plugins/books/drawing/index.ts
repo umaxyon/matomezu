@@ -15,7 +15,7 @@ import {
   ITEM_RESIZE,
   ITEM_UPDATE,
 } from "./items"
-import { LINE, LINE_EDIT_DIALOG } from "./line"
+import { LINE, LINE_EDIT_DIALOG, LINE_ROUTE } from "./line"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./line/actions"
 import { LINE_DRAW, LINE_EDIT, LINE_RECONNECT_DROP } from "./line/commands"
 import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
@@ -36,6 +36,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
   id: "@matomezu/drawing",
   bookTypes: [DRAWING],
   items: [BOX, LIST, LINE],
+  settings: [LINE_ROUTE],
   themes: [STICKY, SIMPLE],
   actions: [
     ITEM_PLACE,
@@ -94,6 +95,9 @@ declare module "../../../core/tables" {
     "shape.box": typeof BOX
     "shape.list": typeof LIST
     "connector.line": typeof LINE
+  }
+  interface SettingTable {
+    "line.route": typeof LINE_ROUTE
   }
   interface ThemeTable {
     sticky: typeof STICKY

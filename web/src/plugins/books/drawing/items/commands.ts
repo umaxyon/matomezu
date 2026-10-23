@@ -2,8 +2,9 @@
 import type { Point } from "../../../../core/geom"
 import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
+import type { DialogTaking } from "../../../../store/dialogs"
 import { defineKeys } from "../../../../store/keys"
-import { placedDef, placedDefOf, shapesOf } from "../placed"
+import { shapeDefOf, shapesOf } from "../placed"
 import type { Came } from "./drag"
 import { type Edges, fitsPaper, itemSize, PLACE_OFFSET, resizedBy } from "./items"
 
@@ -26,10 +27,11 @@ export const DRAWING_PLACE = defineCommand({
     const size = stage.placing && itemSize(ctx.registry, stage.placing)
     const paper = paperOf(stage)
     if (!at || !page || !stage.placing || !stage.opened || !size || !paper || !fitsPaper(at, size, paper)) return
-    const dialog = placedDefOf(stage.placing)?.dialogs.add
+    // 形の定義が名指す追加のダイアログ（渡す値は { page, at }。名指したダイアログがあることは組み立てで確かめる）
+    const dialog = shapeDefOf(ctx.registry, stage.placing)?.dialogs.add
     if (dialog) {
       a.stopPlacing(stage.id)
-      a.openDialog(stage.id, dialog, { page, at })
+      a.openDialog(stage.id, dialog as DialogTaking<{ page: string; at: Point }>, { page, at })
       return
     }
     const done = a.perform("item.place", { page, item: stage.placing, at }, { book: stage.opened.book })
@@ -50,8 +52,9 @@ export const DRAWING_EDIT = defineCommand({
     const book = ctx.book?.type === "drawing" ? ctx.book : null
     const found = book?.pages.find(p => p.id === page)
     const placed = found && shapesOf(found).find(i => i.id === item)
-    if (!page || !placed) return
-    a.openDialog(ctx.stage.id, placedDef(placed).dialogs.edit, { page, item })
+    const dialog = placed && shapeDefOf(ctx.registry, placed.item)?.dialogs.edit
+    if (!page || !dialog) return
+    a.openDialog(ctx.stage.id, dialog as DialogTaking<{ page: string; item: string }>, { page, item })
   },
   when: onDrawingPage,
 })

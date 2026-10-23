@@ -3,17 +3,17 @@
 import type { Point, Size } from "../../../../core/geom"
 import { freshId } from "../../../../core/ids"
 import { resolvePaper } from "../../../../core/paper"
+import { placedSize, rectsOf } from "../../../../core/placed"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import {
   type DrawingPage,
-  elbowOf,
   gapOf,
   isShape,
   type PageItem,
   type Placed,
   pageItemsOf,
-  placedDef,
+  shapeDefOf,
   shapesOf,
   tidyPage,
 } from "../placed"
@@ -41,18 +41,15 @@ export function itemSize(reg: Registry, item: string): Size | null {
   return def?.kind === "shape" ? def.size : null
 }
 
-// 置いたアイテムの大きさ。w・h（無ければ置いたときの幅と高さ。アイテムの置き方が決める）。表に無いアイテムは null
-export function placedSize(reg: Registry, item: Placed): Size | null {
-  return itemSize(reg, item.item) ? placedDef(item).size(item) : null
-}
+export { placedSize, rectsOf }
 
 // 大きさを変えられるアイテムの、一番小さい大きさ（変えられないアイテムは null）
-export function minSize(item: Placed): Size | null {
-  return placedDef(item).min ?? null
+export function minSize(reg: Registry, item: Placed): Size | null {
+  return shapeDefOf(reg, item.item)?.min ?? null
 }
 
-// キャプションが切れずに見える幅（編集で縮めてよい横の下限と、キャプションで広げる幅）
-const captionWidth = (item: Placed): number => placedDef(item).captionWidth(item)
+// キャプションが切れずに見える幅（編集で縮めてよい横の下限と、キャプションで広げる幅。表に無いアイテムは 0）
+const captionWidth = (reg: Registry, item: Placed): number => shapeDefOf(reg, item.item)?.captionWidth(item) ?? 0
 
 // つかんだ辺（x は左か右、y は上か下。角なら両方）
 export interface Edges {
@@ -69,7 +66,7 @@ export function resizedBy(
   by: Point,
   paper: Size,
 ): { x: number; y: number; w: number; h: number } | null {
-  const min = minSize(item)
+  const min = minSize(reg, item)
   const size = placedSize(reg, item)
   if (!min || !size) return null
   const span = (start: number, len: number, d: number, side: "start" | "end" | undefined, lo: number, max: number) => {
@@ -91,7 +88,7 @@ export function widenForCaption(reg: Registry, page: DrawingPage, before: Placed
   const size = placedSize(reg, next)
   const paper = paperSize(reg, page)
   if (!size || !paper) return next
-  const w = Math.min(captionWidth(next), paper.w - next.x)
+  const w = Math.min(captionWidth(reg, next), paper.w - next.x)
   return w > size.w ? { ...next, w } : next
 }
 
@@ -111,9 +108,9 @@ function paperSize(reg: Registry, page: DrawingPage): Size | null {
   return paper.status === "unshowable" ? null : paper.size
 }
 
-// ページを page に替える。形が変わったあとの線を整えてから（図面の表の tidyPage）
+// ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
 function withPage(reg: Registry, book: Drawing, page: DrawingPage): Drawing {
-  const tidy = tidyPage(page, rectsOf(reg, page), elbowOf(book, page))
+  const tidy = tidyPage(reg, book, page)
   return { ...book, pages: book.pages.map(p => (p.id === tidy.id ? tidy : p)) }
 }
 
@@ -130,19 +127,9 @@ export function placeItem(reg: Registry, book: Drawing, pageId: string, item: Pl
     { x: item.x, y: item.y, ...size },
     paper,
     floorsOf(reg, page),
-    gapOf(page),
+    gapOf(reg, page),
   )
   return after && withPage(reg, book, { ...page, items: [...placedAt(reg, page, after), item] })
-}
-
-// ページのアイテムの四角（大きさの分からないアイテムは入れない）
-export function rectsOf(reg: Registry, page: DrawingPage): Map<string, Rect> {
-  const rects = new Map<string, Rect>()
-  for (const i of shapesOf(page)) {
-    const size = placedSize(reg, i)
-    if (size) rects.set(i.id, { x: i.x, y: i.y, ...size })
-  }
-  return rects
 }
 
 // 描いている形の四角: 形ごとの左上と大きさに、ドラッグでずらして描く量（shift）を足したもの（大きさの分からない形は入れない）
@@ -162,7 +149,7 @@ function floorsOf(reg: Registry, page: DrawingPage): Floors {
   for (const i of shapesOf(page)) {
     const size = placedSize(reg, i)
     if (!size) continue
-    floors.set(i.id, { w: Math.min(size.w, captionWidth(i)), h: Math.min(size.h, (minSize(i) ?? size).h) })
+    floors.set(i.id, { w: Math.min(size.w, captionWidth(reg, i)), h: Math.min(size.h, (minSize(reg, i) ?? size).h) })
   }
   return floors
 }
@@ -181,7 +168,7 @@ export function replacePushing(
   const size = placedSize(reg, next)
   if (!page || !paper || !size || !shapesOf(page).some(i => i.id === next.id)) return null
   const before = rectsOf(reg, page)
-  const gap = gapOf(page)
+  const gap = gapOf(reg, page)
   const after = pushFrom(
     before,
     next.id,
@@ -222,7 +209,7 @@ export function dragging(
   came: Came,
 ): Map<string, Rect> | null {
   const paper = paperSize(reg, page)
-  return paper && dragRects(rectsOf(reg, page), id, by, came, paper, gapOf(page))
+  return paper && dragRects(rectsOf(reg, page), id, by, came, paper, gapOf(reg, page))
 }
 
 // ページのアイテム ids（形も線も）を消す。消した形につながる線も消える（tidyPage）。無いページ・無いアイテムを含むなら null
@@ -250,7 +237,7 @@ export function moveItems(
   if (!page || !paper) return null
   const before = rectsOf(reg, page)
   if (!ids.every(id => before.has(id))) return null
-  const gap = gapOf(page)
+  const gap = gapOf(reg, page)
   const after =
     ids.length === 1
       ? dropRects(before, ids[0] as string, by, came, paper, gap)
@@ -267,7 +254,7 @@ export function keepApart(reg: Registry, book: Drawing, pageId: string, a: strin
   const before = rectsOf(reg, page)
   const ra = before.get(a)
   const rb = before.get(b)
-  const gap = gapOf(page)
+  const gap = gapOf(reg, page)
   if (!ra || !rb || a === b || !tooClose(ra, rb, gap(a, b))) return book
   const axis = apart(ra, rb, "x") >= apart(ra, rb, "y") ? "x" : "y"
   const len = axis === "x" ? "w" : "h"

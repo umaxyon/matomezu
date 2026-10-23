@@ -1,15 +1,17 @@
 // ブックのタイプが足す設定の項目（core/book-settings.ts）と、それを受け付ける土台のアクション book.update・page.update
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { settingsArgs, settingsPatch, withSettings } from "../../web/src/core/book-settings"
+import { settingsArgs, settingsPatchOf, withSettings } from "../../web/src/core/book-settings"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { newStore, REGISTRY } from "../support"
 
-test("宣言した項目を、変えるときに渡す形にする: どれも書かなくてよく、null は消す。宣言に無い項目は受け付けない", () => {
-  const patch = settingsPatch(z.strictObject({ a: z.enum(["x", "y"]), b: z.number() }))
+test("選んだ項目を、変えるときに渡す形にする: どれも書かなくてよく、null は消す。選んでいない項目は受け付けない", () => {
+  const book = newStore().state.getState().books.b1 as BookOf<"drawing">
+  const patch = settingsPatchOf(REGISTRY, book, "book")
+  if (!patch) throw new Error("no settings")
   expect(patch.safeParse({}).success).toBe(true)
-  expect(patch.safeParse({ a: "x", b: null }).success).toBe(true)
-  expect(patch.safeParse({ a: "z" }).success).toBe(false)
+  expect(patch.safeParse({ lineRoute: null }).success).toBe(true)
+  expect(patch.safeParse({ lineRoute: "zigzag" }).success).toBe(false)
   expect(patch.safeParse({ c: 1 }).success).toBe(false)
   const before: Record<string, unknown> = { a: "x", b: 1, c: true }
   expect(withSettings(before, { a: "y", b: null })).toEqual({ a: "y", c: true })

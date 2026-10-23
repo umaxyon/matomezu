@@ -4,6 +4,7 @@ import type { z } from "zod"
 import type { ActionContext, ActionDef, ActionTarget, Subjects } from "./def/action"
 import { inspect } from "./inspect"
 import type { Library } from "./library"
+import { type ItemPage, pageHolds } from "./placed"
 import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
@@ -31,9 +32,10 @@ export function homeActions(reg: Registry, home: string | null): readonly string
   return home === null ? [] : bookType(reg, home).actions.defaults
 }
 
-// ブックがタイプの、データの形の外の決まり（アイテムどうしの関係）を守っているか
+// ブックが、データの形の外の決まり（アイテムどうしの関係）を守っているか: タイプの決まりと、どのページもつなぐものの定義の決まり
 export function holds(reg: Registry, book: Book): boolean {
-  return bookType(reg, book.type).holds?.(book, reg) ?? true
+  if (!(bookType(reg, book.type).holds?.(book, reg) ?? true)) return false
+  return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(reg, p))
 }
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）
