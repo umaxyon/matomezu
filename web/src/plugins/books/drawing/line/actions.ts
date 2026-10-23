@@ -12,12 +12,12 @@ import { canConnect, type PlacedLine, PlacedLineSchema, tidyLines } from "./plac
 type Drawing = BookOf<"drawing">
 
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
-const tidied = (reg: Registry, page: DrawingPage, line: PlacedLine): PlacedLine =>
-  tidyLines([line], rectsOf(reg, page), elbowOf(page))[0] ?? line
+const tidied = (reg: Registry, book: Drawing, page: DrawingPage, line: PlacedLine): PlacedLine =>
+  tidyLines([line], rectsOf(reg, page), elbowOf(book, page))[0] ?? line
 
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
-const viaDrawn = (reg: Registry, page: DrawingPage, line: PlacedLine): boolean =>
-  !line.props.via || tidied(reg, page, line).props.via !== undefined
+const viaDrawn = (reg: Registry, book: Drawing, page: DrawingPage, line: PlacedLine): boolean =>
+  !line.props.via || tidied(reg, book, page, line).props.via !== undefined
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、stay の形（無ければ始点）はそのままでもう一方をどける
 function withLine(reg: Registry, book: Drawing, page: DrawingPage, line: PlacedLine, stay = line.from): Drawing | null {
@@ -53,7 +53,7 @@ export const LINE_CONNECT = defineAction({
       to: args.to,
       props: args.props ?? {},
     })
-    if (!line.success || !viaDrawn(ctx.registry, page, line.data)) return null
+    if (!line.success || !viaDrawn(ctx.registry, book, page, line.data)) return null
     const next = withLine(ctx.registry, book, page, line.data)
     return next && { next, result: { line: line.data.id } }
   },
@@ -81,8 +81,8 @@ export const LINE_UPDATE = defineAction({
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const line = PlacedLineSchema.safeParse({ ...now, props })
     if (!line.success) return null
-    if (args.props.via != null && !viaDrawn(ctx.registry, page, line.data)) return null
-    const next = withLine(ctx.registry, book, page, tidied(ctx.registry, page, line.data))
+    if (args.props.via != null && !viaDrawn(ctx.registry, book, page, line.data)) return null
+    const next = withLine(ctx.registry, book, page, tidied(ctx.registry, book, page, line.data))
     return next && { next, result: {} }
   },
 })

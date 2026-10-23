@@ -163,6 +163,11 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
     const book = o ? (s.books[o.book] as BookOf<"drawing"> | undefined) : undefined
     return book?.pages.find(pg => pg.id === o?.page)
   })
+  // ブックの線の既定の通り方（ページが自分の既定を持たなければこれ）
+  const bookRoute = useApp(s => {
+    const o = stage.opened
+    return o ? (s.books[o.book] as BookOf<"drawing"> | undefined)?.lineRoute : undefined
+  })
   const move = useCommand(stage.id, "drawing.move")
   const edit = useCommand(stage.id, "drawing.edit")
   const openMenu = useContextMenu(stage.id, "item.context")
@@ -351,7 +356,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
         ? ({ ...l, props: { ...l.props, ...preview.props } } as PlacedLine)
         : l,
   )
-  const elbow = elbowOf(page)
+  const elbow = elbowOf({ lineRoute: bookRoute }, page)
   // 前の辺に留まる線（EDGE-SPEC の場面の表）: 動かしている形の線は留まる（入れ替えが起きたら、そのドラッグの終わりまで留まらない）。
   // 入れ替えでずれた形・ドラッグのほかで動いた形（押された・AI が動かした）の線は留まらず、一番よい形を追う
   const pushed = shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id)

@@ -30,7 +30,7 @@ import {
 } from "./list/commands"
 import { DRAWING_MESSAGES } from "./messages"
 import { DRAWING_SETTINGS, DRAWING_SETTINGS_DIALOG, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./settings"
-import { PAGE_UPDATE } from "./settings/actions"
+import { DRAWING_UPDATE, PAGE_UPDATE } from "./settings/actions"
 import { SIMPLE, STICKY } from "./themes"
 
 export const DRAWING_PLUGIN = defineBuiltin({
@@ -54,6 +54,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
     LINE_UPDATE,
     LINE_RECONNECT,
     PAGE_UPDATE,
+    DRAWING_UPDATE,
   ],
   commands: [
     DRAWING_SETTINGS,
@@ -117,6 +118,7 @@ declare module "../../../core/tables" {
     "line.update": typeof LINE_UPDATE
     "page.update": typeof PAGE_UPDATE
     "line.reconnect": typeof LINE_RECONNECT
+    "drawing.update": typeof DRAWING_UPDATE
   }
   interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
 }

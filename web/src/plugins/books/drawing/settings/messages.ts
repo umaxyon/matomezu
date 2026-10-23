@@ -9,4 +9,6 @@ export const SETTINGS_MESSAGES = defineMessages({
   "Page settings": { ja: "ページの設定" },
   "Update page": { ja: "ページを変える" },
   "Line route": { ja: "線の既定の通り方" },
+  "Update drawing": { ja: "図面を変える" },
+  "Inherit from book ({route})": { ja: "ブックを継承（{route}）" },
 })

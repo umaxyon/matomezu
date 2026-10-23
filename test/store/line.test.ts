@@ -6,7 +6,7 @@ import { rectsOf } from "../../web/src/plugins/books/drawing/items/items"
 import { GAP } from "../../web/src/plugins/books/drawing/items/push"
 import { alignedEndsOf } from "../../web/src/plugins/books/drawing/line/drawn"
 import { CAPTION_GAP, LINK_GAP } from "../../web/src/plugins/books/drawing/line/placed"
-import { linesOf, shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { elbowOf, linesOf, shapesOf } from "../../web/src/plugins/books/drawing/placed"
 import { newStore, REGISTRY } from "../support"
 
 function ready() {
@@ -207,4 +207,27 @@ test("整列の位置: 横に並ぶ箱どうしは、向き合う辺の重なる
   expect(ends).toBeDefined()
   expect(update(store, "n3", ends).ok).toBe(true)
   expect(alignedEndsOf(lines(store)[0]!, rectsOf(REGISTRY, page(store)), true)).toBeNull()
+})
+
+test("線の既定の通り方は、ページ → ブック → 折れ線の順に決まる。ブックを直線にすると、ページの既定の無いページの線が直線になり、引けなくなった via を消す", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 300)
+  const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
+  connect(store, "n1", "n2", { ...ends, via: [300] })
+  const book = () => store.state.getState().books.b1 as BookOf<"drawing">
+  const elbow = () => elbowOf(book(), page(store))
+  expect(elbow()).toBe(true)
+  expect(store.actions.perform("drawing.update", { lineRoute: "straight" }, { book: "b1" }).ok).toBe(true)
+  expect(book().lineRoute).toBe("straight")
+  expect(elbow()).toBe(false)
+  expect(lines(store)[0]!.props).toEqual(ends)
+  // ページの既定はブックより先
+  store.actions.perform("page.update", { page: "p1", lineRoute: "elbow" }, { book: "b1" })
+  expect(elbow()).toBe(true)
+  store.actions.perform("page.update", { page: "p1", lineRoute: null }, { book: "b1" })
+  expect(elbow()).toBe(false)
+  expect(store.actions.perform("drawing.update", { lineRoute: null }, { book: "b1" }).ok).toBe(true)
+  expect("lineRoute" in book()).toBe(false)
+  expect(elbow()).toBe(true)
 })

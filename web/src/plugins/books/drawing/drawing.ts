@@ -3,6 +3,7 @@ import { z } from "zod"
 import { defineBookType } from "../../../core/def/book-type"
 import { BookLookSchema } from "../../../core/theme"
 import { PAPER_IDS } from "../../base"
+import { ROUTES } from "./line"
 import { DrawingPageSchema, drawingHolds } from "./placed"
 
 export const DRAWING = defineBookType({
@@ -14,6 +15,7 @@ export const DRAWING = defineBookType({
     id: z.string().min(1),
     title: z.string(),
     pages: z.array(DrawingPageSchema),
+    lineRoute: z.enum(ROUTES).optional(), // ブックの線の既定の通り方（ページが自分の既定を持たなければこれ。無ければ折れ線）
     ...BookLookSchema,
   }),
   single: false,
@@ -45,6 +47,7 @@ export const DRAWING = defineBookType({
       "line.update",
       "line.reconnect",
       "page.update",
+      "drawing.update",
     ],
     defaults: [
       "page.add",
@@ -64,6 +67,7 @@ export const DRAWING = defineBookType({
       "line.update",
       "line.reconnect",
       "page.update",
+      "drawing.update",
     ],
   },
   theme: "standard",

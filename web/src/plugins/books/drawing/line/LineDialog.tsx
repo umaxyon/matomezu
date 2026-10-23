@@ -57,12 +57,11 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   const form = useId()
   const registry = useRegistry()
   const book = useBookOf(stage)
-  const page = useApp(s => (book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined))?.pages.find(
-    p => p.id === args.page,
-  )
+  const drawing = useApp(s => (book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined))
+  const page = drawing?.pages.find(p => p.id === args.page)
   const line = page && linesOf(page).find(l => l.id === args.item)
   const { perform, previewDialog } = useActions()
-  const elbow = page ? elbowOf(page) : true
+  const elbow = drawing && page ? elbowOf(drawing, page) : true
   const startRoute: LineRoute = line?.props.route ?? (elbow ? "elbow" : "straight")
   const [caption, setCaption] = useState(line?.props.caption ?? "")
   const [route, setRoute] = useState<LineRoute>(startRoute)

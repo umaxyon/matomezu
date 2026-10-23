@@ -19,9 +19,9 @@ export const LINE_DRAW = defineCommand({
     const book = ctx.book?.type === "drawing" ? ctx.book : null
     const page = book?.pages.find(p => p.id === opened?.page)
     const drop = toPaper(ctx.stage, args.at)
-    if (!opened || !page || !drop) return
+    if (!opened || !book || !page || !drop) return
     const rects = rectsOf(ctx.registry, page)
-    const props = drawnLineProps(page, rects, elbowOf(page), args.from, args.side, args.to, [drop.x, drop.y])
+    const props = drawnLineProps(page, rects, elbowOf(book, page), args.from, args.side, args.to, [drop.x, drop.y])
     if (props) a.perform("line.connect", { page: page.id, from: args.from, to: args.to, props }, { book: opened.book })
   },
   when: onDrawingPage,
@@ -49,7 +49,7 @@ export const LINE_RECONNECT_DROP = defineCommand({
     const page = book?.pages.find(p => p.id === opened?.page)
     const line = page && linesOf(page).find(l => l.id === args.line)
     const drop = toPaper(ctx.stage, args.at)
-    if (!opened || !page || !line || !drop) return
+    if (!opened || !book || !page || !line || !drop) return
     const rects = rectsOf(ctx.registry, page)
     const to = rects.get(args.item)
     const other = args.end === "from" ? line.to : line.from
@@ -57,7 +57,7 @@ export const LINE_RECONNECT_DROP = defineCommand({
     const p: [number, number] = [drop.x, drop.y]
     const props =
       args.item === other
-        ? (loopEndsNear(page, rects, elbowOf(page), args.item, p, line.id) ?? undefined)
+        ? (loopEndsNear(page, rects, elbowOf(book, page), args.item, p, line.id) ?? undefined)
         : { [args.end === "from" ? "exitAt" : "enterAt"]: nearestEnd(to, p) }
     a.perform(
       "line.reconnect",

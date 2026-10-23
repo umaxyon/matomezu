@@ -8,7 +8,7 @@ import { PageSchema } from "../../../core/schema/page"
 import { BOX_PLACED, PlacedBoxSchema } from "./box/placed"
 import type { PlacedDef } from "./items/placed-def"
 import { GAP, type Gap, type Rect } from "./items/push"
-import { LINE, ROUTES } from "./line"
+import { LINE, type LineRoute, ROUTES } from "./line"
 import { DEFAULT_ROUTE, lineGaps, linesHold, type PlacedLine, PlacedLineSchema, tidyLines } from "./line/placed"
 import { LIST_PLACED, PlacedListSchema } from "./list/placed"
 
@@ -20,7 +20,7 @@ export type Placed = z.infer<typeof PlacedSchema>
 export const PageItemSchema = z.discriminatedUnion("item", [PlacedBoxSchema, PlacedListSchema, PlacedLineSchema])
 export type PageItem = z.infer<typeof PageItemSchema>
 
-// 図面のページ。items が無ければ、何も置いていない。lineRoute はページの線の既定の通り方（線が自分の通り方を持たなければこれ。無ければ DEFAULT_ROUTE）
+// 図面のページ。items が無ければ、何も置いていない。lineRoute はページの線の既定の通り方（線が自分の通り方を持たなければこれ。無ければブックの既定を継ぐ）
 export const DrawingPageSchema = PageSchema.extend({
   items: z.array(PageItemSchema).optional(),
   lineRoute: z.enum(ROUTES).optional(),
@@ -49,17 +49,18 @@ export const shapesOf = (page: DrawingPage): readonly Placed[] => pageItemsOf(pa
 export const linesOf = (page: DrawingPage): readonly PlacedLine[] =>
   pageItemsOf(page).filter((i): i is PlacedLine => i.item === LINE.id)
 
-// ページの線の既定が折れ線か
-export const elbowOf = (page: DrawingPage): boolean => (page.lineRoute ?? DEFAULT_ROUTE) === "elbow"
+// ページの線の既定が折れ線か: ページの既定、無ければブックの既定、それも無ければ DEFAULT_ROUTE
+export const elbowOf = (book: { lineRoute?: LineRoute }, page: DrawingPage): boolean =>
+  (page.lineRoute ?? book.lineRoute ?? DEFAULT_ROUTE) === "elbow"
 
 // ページの、2 つの形の組の間隔の下限（線でつながった組は広い）
 export const gapOf = (page: DrawingPage): Gap => lineGaps(linesOf(page), GAP)
 
-// 形が変わったあとのページ: 端の形が無くなった線を消し、引けなくなった手で直した区間を消す（rects は形の四角）
-export function tidyPage(page: DrawingPage, rects: ReadonlyMap<string, Rect>): DrawingPage {
+// 形が変わったあとのページ: 端の形が無くなった線を消し、引けなくなった手で直した区間を消す（rects は形の四角、elbow はページの線の既定が折れ線か）
+export function tidyPage(page: DrawingPage, rects: ReadonlyMap<string, Rect>, elbow: boolean): DrawingPage {
   const lines = linesOf(page)
   if (lines.length === 0) return page
-  const tidy = new Map(tidyLines(lines, rects, elbowOf(page)).map(l => [l.id, l] as const))
+  const tidy = new Map(tidyLines(lines, rects, elbow).map(l => [l.id, l] as const))
   const now = pageItemsOf(page)
   const items = now.flatMap((i): PageItem[] => {
     if (isShape(i)) return [i]

@@ -7,6 +7,7 @@ import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import {
   type DrawingPage,
+  elbowOf,
   gapOf,
   isShape,
   type PageItem,
@@ -112,7 +113,7 @@ function paperSize(reg: Registry, page: DrawingPage): Size | null {
 
 // ページを page に替える。形が変わったあとの線を整えてから（図面の表の tidyPage）
 function withPage(reg: Registry, book: Drawing, page: DrawingPage): Drawing {
-  const tidy = tidyPage(page, rectsOf(reg, page))
+  const tidy = tidyPage(page, rectsOf(reg, page), elbowOf(book, page))
   return { ...book, pages: book.pages.map(p => (p.id === tidy.id ? tidy : p)) }
 }
 

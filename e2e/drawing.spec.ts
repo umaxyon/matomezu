@@ -843,7 +843,10 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
   await page.mouse.click(empty.x, empty.y, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ページの設定" })
-  await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
+  // 既定は「ブックを継承」（ブックの既定は折れ線）
+  await expect(dialog.getByLabel("線の既定の通り方")).toHaveValue("")
+  await expect(dialog.getByLabel("線の既定の通り方").locator("option").first()).toHaveText("ブックを継承（折れ線）")
+  await dialog.getByLabel("線の既定の通り方").selectOption("straight")
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2)
 })
@@ -1012,4 +1015,34 @@ test("線の色は、灰色を紙の色に 4 割混ぜた色。見る人の OS �
   expect(light).toEqual([189, 189, 197]) // rgb(90, 90, 110) を 4 割、白を 6 割
   await page.emulateMedia({ colorScheme: "dark" })
   expect(await rgb()).toEqual(light)
+})
+
+test("ブックの設定で線の既定の通り方を直線にすると、ページの設定が「ブックを継承」のページの線が直線になる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, y, caption] of [
+    [150, 150, "始"],
+    [550, 350, "終"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, y)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y)
+  await drawLine(page, "始", "終")
+  const points = page.locator("[data-item]:not([data-shape]) polyline").last()
+  await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBeGreaterThan(2)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ブックの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2)
+  // ページの設定の「ブックを継承」に、今のブックの既定が添えてある
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const pageDialog = page.getByRole("dialog", { name: "ページの設定" })
+  await expect(pageDialog.getByLabel("線の既定の通り方").locator("option").first()).toHaveText("ブックを継承（直線）")
 })
