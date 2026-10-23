@@ -8,6 +8,7 @@ import { PLACE_OFFSET } from "../../web/src/plugins/books/drawing/items/items"
 import { GAP } from "../../web/src/plugins/books/drawing/items/push"
 import { LIST } from "../../web/src/plugins/books/drawing/list"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../web/src/plugins/books/drawing/list/size"
+import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
 import { newStore, REGISTRY } from "../support"
 
 // 置いたリストの大きさ・押されたときの縮め方・コマンド・データの形（箱と同じ置き場の決まりを、リストも持つこと）
@@ -20,7 +21,7 @@ function ready() {
 }
 type Store = ReturnType<typeof ready>
 const at = (store: Store, id: string) =>
-  ((store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!.items ?? []).find(i => i.id === id)!
+  shapesOf((store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!).find(i => i.id === id)!
 const place = (store: Store, item: string, x: number, y: number, extra: Record<string, unknown> = {}) =>
   store.actions.perform("item.place", { page: "p1", item, at: { x, y }, ...extra }, { book: "b1" })
 const resize = (store: Store, item: string, size: { w?: number; h?: number }) =>

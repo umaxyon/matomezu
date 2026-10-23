@@ -1,0 +1,163 @@
+// 線のアクション（line.connect・line.update）と、線と形の決まり（組ごとの間隔・消すと線も消える・引けなくなった区間・関係の検査）
+import { expect, test } from "bun:test"
+import { restoreBooks } from "../../web/src/core/book"
+import type { BookOf } from "../../web/src/core/schema/book"
+import { GAP } from "../../web/src/plugins/books/drawing/items/push"
+import { CAPTION_GAP, LINK_GAP } from "../../web/src/plugins/books/drawing/line/placed"
+import { linesOf, shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { newStore, REGISTRY } from "../support"
+
+function ready() {
+  const store = newStore()
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
+  return store
+}
+type Store = ReturnType<typeof ready>
+const book = (store: Store) => store.state.getState().books.b1 as BookOf<"drawing">
+const page = (store: Store) => book(store).pages[0]!
+const shape = (store: Store, id: string) => shapesOf(page(store)).find(i => i.id === id)!
+const lines = (store: Store) => linesOf(page(store))
+const place = (store: Store, x: number, y: number, item = "shape.box") =>
+  store.actions.perform(
+    "item.place",
+    { page: "p1", item, at: { x, y }, ...(item === "shape.box" ? { w: 100, h: 64 } : {}) },
+    { book: "b1" },
+  )
+const connect = (store: Store, from: string, to: string, props: Record<string, unknown> = {}) =>
+  store.actions.perform("line.connect", { page: "p1", from, to, props }, { book: "b1" })
+const update = (store: Store, line: string, props: Record<string, unknown>) =>
+  store.actions.perform("line.update", { page: "p1", line, props }, { book: "b1" })
+
+test("線を引くと、ページの items に id・item・from・to・props の並びで残り、線の id を返す", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 100)
+  const done = connect(store, "n1", "n2", { endHead: "arrow" })
+  expect(done).toMatchObject({ ok: true, result: { line: "n3" } })
+  expect(lines(store)).toEqual([
+    { id: "n3", item: "connector.line", from: "n1", to: "n2", props: { endHead: "arrow" } },
+  ])
+  expect(Object.keys(lines(store)[0]!)).toEqual(["id", "item", "from", "to", "props"])
+})
+
+test("引けない相手: 無い形・リストの行・同じ組の 2 本目（向きは問わない）。自分に戻る線は何本でも引ける", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 100)
+  expect(place(store, 100, 300, "shape.list").ok).toBe(true)
+  store.actions.perform("row.add", { page: "p1", list: "n3" }, { book: "b1" })
+  expect(connect(store, "n1", "x").ok).toBe(false)
+  expect(connect(store, "n1", "n4").ok).toBe(false) // n4 はリストの行
+  expect(connect(store, "n1", "n3").ok).toBe(true) // リストの枠にはつながる
+  expect(connect(store, "n1", "n2").ok).toBe(true)
+  expect(connect(store, "n2", "n1").ok).toBe(false)
+  expect(connect(store, "n1", "n1").ok).toBe(true)
+  expect(connect(store, "n1", "n1").ok).toBe(true)
+  expect(lines(store).map(l => [l.from, l.to])).toEqual([
+    ["n1", "n3"],
+    ["n1", "n2"],
+    ["n1", "n1"],
+    ["n1", "n1"],
+  ])
+})
+
+test("線でつなぐと間隔の下限が 32 になり、近すぎれば始点はそのままで終点の側をどける。キャプションを付けると 40", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 200 + GAP, 100)
+  expect(connect(store, "n1", "n2").ok).toBe(true)
+  expect(shape(store, "n1").x).toBe(100)
+  expect(shape(store, "n2").x).toBe(200 + LINK_GAP)
+  expect(update(store, "n3", { caption: "申請" }).ok).toBe(true)
+  expect(shape(store, "n2").x).toBe(200 + CAPTION_GAP)
+  // キャプションを消しても、詰め直しはしない（間隔の下限が狭まるだけ）
+  expect(update(store, "n3", { caption: null }).ok).toBe(true)
+  expect(shape(store, "n2").x).toBe(200 + CAPTION_GAP)
+})
+
+test("線でつながった箱を押すときも、つながった組は 32 空ける。つながっていない組は 8 のまま", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 240, 100)
+  place(store, 380, 100)
+  connect(store, "n1", "n2")
+  expect(store.actions.perform("item.resize", { page: "p1", item: "n1", w: 150 }, { book: "b1" }).ok).toBe(true)
+  expect(shape(store, "n2").x).toBe(250 + LINK_GAP)
+  expect(shape(store, "n3").x).toBe(250 + LINK_GAP + 100 + GAP)
+})
+
+test("形を消すと、つながる線も消える。線だけを消すこともできる", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 100)
+  place(store, 100, 400)
+  connect(store, "n1", "n2")
+  connect(store, "n1", "n3")
+  connect(store, "n2", "n2")
+  expect(store.actions.perform("item.remove", { page: "p1", items: ["n2"] }, { book: "b1" }).ok).toBe(true)
+  expect(lines(store).map(l => l.id)).toEqual(["n5"])
+  expect(store.actions.perform("item.remove", { page: "p1", items: ["n5"] }, { book: "b1" }).ok).toBe(true)
+  expect(lines(store)).toEqual([])
+  expect(shapesOf(page(store)).map(s => s.id)).toEqual(["n1", "n3"])
+})
+
+test("線は動かせず、大きさも項目（item.update）も変えられない", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 100)
+  connect(store, "n1", "n2")
+  const p = { book: "b1" }
+  expect(store.actions.perform("item.move", { page: "p1", items: ["n3"], by: { x: 10, y: 0 } }, p).ok).toBe(false)
+  expect(store.actions.perform("item.resize", { page: "p1", item: "n3", w: 200 }, p).ok).toBe(false)
+  expect(store.actions.perform("item.update", { page: "p1", item: "n3", props: { caption: "x" } }, p).ok).toBe(false)
+  expect(store.actions.perform("item.place", { page: "p1", item: "connector.line", at: { x: 0, y: 0 } }, p).ok).toBe(
+    false,
+  )
+})
+
+test("line.update: 書いた項目だけを変え、null は消す。項目の形に合わなければ断る", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 100)
+  connect(store, "n1", "n2", { endHead: "arrow", dash: "dashed" })
+  expect(update(store, "n3", { dash: null, startHead: "diamond", route: "straight" }).ok).toBe(true)
+  expect(lines(store)[0]!.props).toEqual({ endHead: "arrow", startHead: "diamond", route: "straight" })
+  expect(update(store, "n3", { route: "curve" }).ok).toBe(false)
+  expect(update(store, "n3", { exitAt: 1.5 }).ok).toBe(false)
+  expect(update(store, "n1", { dash: "dashed" }).ok).toBe(false) // n1 は箱
+})
+
+test("手で直した区間（via）は、両端が固定で引けるときだけ書ける。形を動かして引けなくなると消える", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 300)
+  // 両端を、n1 の右の辺の真ん中と n2 の左の辺の真ん中に固定（ふち一周 328 の上で 132 と 296）
+  const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
+  expect(connect(store, "n1", "n2", { via: [300] }).ok).toBe(false) // 端が自由
+  expect(connect(store, "n1", "n2", { ...ends, via: [150] }).ok).toBe(false) // n1 の中を通る
+  expect(connect(store, "n1", "n2", { ...ends, via: [300] }).ok).toBe(true)
+  expect(lines(store)[0]!.props.via).toEqual([300])
+  // n2 を n1 の左へ動かすと、右の辺から出て左の辺へ入る形は引けない
+  expect(
+    store.actions.perform("item.move", { page: "p1", items: ["n2"], by: { x: -380, y: 0 } }, { book: "b1" }).ok,
+  ).toBe(true)
+  expect(lines(store)[0]!.props.via).toBeUndefined()
+  expect(lines(store)[0]!.props.exitAt).toBe(132 / 328)
+})
+
+test("関係の決まりを守らないブック（線の端が無い・行につながる・同じ組に 2 本）は、読み込むときに捨てる", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 100)
+  connect(store, "n1", "n2")
+  const good = book(store)
+  const withLines = (items: unknown[]) => ({
+    ...good,
+    pages: [{ ...good.pages[0]!, items: [...shapesOf(good.pages[0]!), ...items] }],
+  })
+  const line = (id: string, from: string, to: string) => ({ id, item: "connector.line", from, to, props: {} })
+  expect(restoreBooks(REGISTRY, [good])).toHaveLength(1)
+  expect(restoreBooks(REGISTRY, [withLines([line("l1", "n1", "zz")])])).toHaveLength(0)
+  expect(restoreBooks(REGISTRY, [withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")])])).toHaveLength(0)
+  expect(restoreBooks(REGISTRY, [withLines([line("l1", "n1", "n1"), line("l2", "n1", "n1")])])).toHaveLength(1)
+})

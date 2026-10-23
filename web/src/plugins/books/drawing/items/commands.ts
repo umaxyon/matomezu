@@ -3,9 +3,9 @@ import type { Point } from "../../../../core/geom"
 import { paperOf, toPaper, toPaperDelta } from "../../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../../store/commands/def"
 import { defineKeys } from "../../../../store/keys"
-import { placedDef, placedDefOf } from "../placed"
+import { placedDef, placedDefOf, shapesOf } from "../placed"
 import type { Came } from "./drag"
-import { type Edges, fitsPaper, itemSize, itemsOf, PLACE_OFFSET, resizedBy } from "./items"
+import { type Edges, fitsPaper, itemSize, PLACE_OFFSET, resizedBy } from "./items"
 
 const onDrawingPage = (ctx: CommandContext) => ctx.book?.type === "drawing" && ctx.stage.opened?.page != null
 
@@ -49,7 +49,7 @@ export const DRAWING_EDIT = defineCommand({
     const page = ctx.stage.opened?.page
     const book = ctx.book?.type === "drawing" ? ctx.book : null
     const found = book?.pages.find(p => p.id === page)
-    const placed = found && itemsOf(found).find(i => i.id === item)
+    const placed = found && shapesOf(found).find(i => i.id === item)
     if (!page || !placed) return
     a.openDialog(ctx.stage.id, placedDef(placed).dialogs.edit, { page, item })
   },
@@ -92,7 +92,7 @@ export const DRAWING_RESIZE = defineCommand({
     const paper = paperOf(ctx.stage)
     const book = ctx.book?.type === "drawing" ? ctx.book : null
     const page = book?.pages.find(p => p.id === opened?.page)
-    const placed = page && itemsOf(page).find(i => i.id === args.item)
+    const placed = page && shapesOf(page).find(i => i.id === args.item)
     if (!opened?.page || !paper || !placed) return
     const to = resizedBy(ctx.registry, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
     if (to) a.perform("item.resize", { page: opened.page, item: placed.id, ...to }, { book: opened.book })

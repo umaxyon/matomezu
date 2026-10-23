@@ -5,30 +5,39 @@ import { freshId } from "../../../../core/ids"
 import { resolvePaper } from "../../../../core/paper"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
-import { type DrawingPage, type Placed, placedDef } from "../placed"
+import {
+  type DrawingPage,
+  gapOf,
+  isShape,
+  type PageItem,
+  type Placed,
+  pageItemsOf,
+  placedDef,
+  shapesOf,
+  tidyPage,
+} from "../placed"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
-import { type Floors, newClash, planPlace, pushFrom, type Rect } from "./push"
+import { apart, type Floors, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
 type Drawing = BookOf<"drawing">
 
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
 export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
-export const itemsOf = (page: DrawingPage): readonly Placed[] => page.items ?? []
-
 // 次に置くアイテム（リストの行も）の id（newId から振る。ブックの全部のページの、アイテムとその中身で重ならない）
 export function nextItemId(book: Drawing, newId: () => string): string {
   return freshId(
     newId,
     book.pages.flatMap(p =>
-      itemsOf(p).flatMap(i => [i.id, ...("children" in i ? (i.children ?? []).map(c => c.id) : [])]),
+      pageItemsOf(p).flatMap(i => [i.id, ...("children" in i ? (i.children ?? []).map(c => c.id) : [])]),
     ),
   )
 }
 
-// 置く前のアイテムの大きさ（定義の大きさ。表に無いアイテムは null）
+// 置く前のアイテムの大きさ（定義の大きさ。表に無いアイテムと、大きさを持たないアイテムは null）
 export function itemSize(reg: Registry, item: string): Size | null {
-  return reg.items.get(item)?.size ?? null
+  const def = reg.items.get(item)
+  return def?.kind === "shape" ? def.size : null
 }
 
 // 置いたアイテムの大きさ。w・h（無ければ置いたときの幅と高さ。アイテムの置き方が決める）。表に無いアイテムは null
@@ -101,8 +110,10 @@ function paperSize(reg: Registry, page: DrawingPage): Size | null {
   return paper.status === "unshowable" ? null : paper.size
 }
 
-function withPage(book: Drawing, page: DrawingPage): Drawing {
-  return { ...book, pages: book.pages.map(p => (p.id === page.id ? page : p)) }
+// ページを page に替える。形が変わったあとの線を整えてから（図面の表の tidyPage）
+function withPage(reg: Registry, book: Drawing, page: DrawingPage): Drawing {
+  const tidy = tidyPage(page, rectsOf(reg, page))
+  return { ...book, pages: book.pages.map(p => (p.id === tidy.id ? tidy : p)) }
 }
 
 // ページにアイテムを置く（id は nextItemId で振ったもの）。重なった相手は右へ、駄目なら下へ押し、それも駄目なら押した列を縮めて右へ・下へ（push.ts の planPlace）。
@@ -112,14 +123,21 @@ export function placeItem(reg: Registry, book: Drawing, pageId: string, item: Pl
   const paper = page && paperSize(reg, page)
   const size = placedSize(reg, item)
   if (!page || !paper || !size) return null
-  const after = planPlace(rectsOf(reg, page), item.id, { x: item.x, y: item.y, ...size }, paper, floorsOf(reg, page))
-  return after && withPage(book, { ...page, items: [...placedAt(reg, itemsOf(page), after), item] })
+  const after = planPlace(
+    rectsOf(reg, page),
+    item.id,
+    { x: item.x, y: item.y, ...size },
+    paper,
+    floorsOf(reg, page),
+    gapOf(page),
+  )
+  return after && withPage(reg, book, { ...page, items: [...placedAt(reg, page, after), item] })
 }
 
 // ページのアイテムの四角（大きさの分からないアイテムは入れない）
 export function rectsOf(reg: Registry, page: DrawingPage): Map<string, Rect> {
   const rects = new Map<string, Rect>()
-  for (const i of itemsOf(page)) {
+  for (const i of shapesOf(page)) {
     const size = placedSize(reg, i)
     if (size) rects.set(i.id, { x: i.x, y: i.y, ...size })
   }
@@ -130,7 +148,7 @@ export function rectsOf(reg: Registry, page: DrawingPage): Map<string, Rect> {
 // 今それより小さければ今の大きさ
 function floorsOf(reg: Registry, page: DrawingPage): Floors {
   const floors = new Map<string, Size>()
-  for (const i of itemsOf(page)) {
+  for (const i of shapesOf(page)) {
     const size = placedSize(reg, i)
     if (!size) continue
     floors.set(i.id, { w: Math.min(size.w, captionWidth(i)), h: Math.min(size.h, (minSize(i) ?? size).h) })
@@ -150,23 +168,26 @@ export function replacePushing(
   const page = book.pages.find(p => p.id === pageId)
   const paper = page && paperSize(reg, page)
   const size = placedSize(reg, next)
-  if (!page || !paper || !size || !itemsOf(page).some(i => i.id === next.id)) return null
+  if (!page || !paper || !size || !shapesOf(page).some(i => i.id === next.id)) return null
   const before = rectsOf(reg, page)
+  const gap = gapOf(page)
   const after = pushFrom(
     before,
     next.id,
     { x: next.x, y: next.y, ...size },
     paper,
     shrink ? floorsOf(reg, page) : undefined,
+    gap,
   )
-  if (!after || newClash(before, after)) return null
-  const items = placedAt(reg, itemsOf(page), after).map(i => (i.id === next.id ? next : i))
-  return withPage(book, { ...page, items })
+  if (!after || newClash(before, after, gap)) return null
+  const items = placedAt(reg, page, after).map(i => (i.id === next.id ? next : i))
+  return withPage(reg, book, { ...page, items })
 }
 
-// アイテムの左上と大きさを、四角 rects にする（rects に無いアイテム・変わらないアイテムはそのまま。縮めたアイテムは w・h を書く）
-function placedAt(reg: Registry, items: readonly Placed[], rects: ReadonlyMap<string, Rect>): Placed[] {
-  return items.map(i => {
+// ページのアイテムのうち、形の左上と大きさを四角 rects にしたもの（rects に無い形・変わらない形と線はそのまま。縮めた形は w・h を書く）
+function placedAt(reg: Registry, page: DrawingPage, rects: ReadonlyMap<string, Rect>): PageItem[] {
+  return pageItemsOf(page).map(i => {
+    if (!isShape(i)) return i
     const r = rects.get(i.id)
     const size = placedSize(reg, i)
     if (!r || !size) return i
@@ -190,17 +211,17 @@ export function dragging(
   came: Came,
 ): Map<string, Rect> | null {
   const paper = paperSize(reg, page)
-  return paper && dragRects(rectsOf(reg, page), id, by, came, paper)
+  return paper && dragRects(rectsOf(reg, page), id, by, came, paper, gapOf(page))
 }
 
-// ページのアイテム ids を消す。無いページ・無いアイテムを含むなら null
-export function removeItems(book: Drawing, pageId: string, ids: readonly string[]): Drawing | null {
+// ページのアイテム ids（形も線も）を消す。消した形につながる線も消える（tidyPage）。無いページ・無いアイテムを含むなら null
+export function removeItems(reg: Registry, book: Drawing, pageId: string, ids: readonly string[]): Drawing | null {
   const page = book.pages.find(p => p.id === pageId)
   if (!page) return null
-  const items = itemsOf(page)
+  const items = pageItemsOf(page)
   const targets = new Set(ids)
   if (![...targets].every(id => items.some(i => i.id === id))) return null
-  return withPage(book, { ...page, items: items.filter(i => !targets.has(i.id)) })
+  return withPage(reg, book, { ...page, items: items.filter(i => !targets.has(i.id)) })
 }
 
 // ページのアイテム ids を by だけ動かす（drag.ts。1 つなら入れ替え・向こう側へ寄せる・手前へ戻す、何個かならまとめて手前へ戻す）。
@@ -218,9 +239,30 @@ export function moveItems(
   if (!page || !paper) return null
   const before = rectsOf(reg, page)
   if (!ids.every(id => before.has(id))) return null
+  const gap = gapOf(page)
   const after =
     ids.length === 1
-      ? dropRects(before, ids[0] as string, by, came, paper)
-      : dropManyRects(before, new Set(ids), by, paper)
-  return after && withPage(book, { ...page, items: placedAt(reg, itemsOf(page), after) })
+      ? dropRects(before, ids[0] as string, by, came, paper, gap)
+      : dropManyRects(before, new Set(ids), by, paper, gap)
+  return after && withPage(reg, book, { ...page, items: placedAt(reg, page, after) })
+}
+
+// ページの形 a と b の組が、間隔の下限（gapOf。線でつないだあとなど）より近ければ、a はそのままで b の側をどける
+// （離れていた方の向きへ。押した先も押し、紙の端で詰まれば押された形を縮める）。どけられなければ null。近くなければそのまま
+export function keepApart(reg: Registry, book: Drawing, pageId: string, a: string, b: string): Drawing | null {
+  const page = book.pages.find(p => p.id === pageId)
+  const paper = page && paperSize(reg, page)
+  if (!page || !paper) return null
+  const before = rectsOf(reg, page)
+  const ra = before.get(a)
+  const rb = before.get(b)
+  const gap = gapOf(page)
+  if (!ra || !rb || a === b || !tooClose(ra, rb, gap(a, b))) return book
+  const axis = apart(ra, rb, "x") >= apart(ra, rb, "y") ? "x" : "y"
+  const len = axis === "x" ? "w" : "h"
+  const ahead = rb[axis] + rb[len] / 2 >= ra[axis] + ra[len] / 2
+  const at = ahead ? ra[axis] + ra[len] + gap(a, b) : ra[axis] - gap(a, b) - rb[len]
+  const after = pushFrom(before, b, { ...rb, [axis]: at }, paper, floorsOf(reg, page), gap)
+  if (!after || newClash(before, after, gap)) return null
+  return withPage(reg, book, { ...page, items: placedAt(reg, page, after) })
 }

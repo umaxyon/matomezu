@@ -24,7 +24,7 @@ import {
   rowClass,
   Switch,
 } from "../../../base/ui"
-import { itemsOf } from "../items/items"
+import { shapesOf } from "../placed"
 import { BODY_MAX } from "../shape"
 import { useAligns, useBookOf, useBookTheme, useSwatches } from "../shape/parts"
 import { BOX, BOX_FILL } from "."
@@ -67,7 +67,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const start = useApp(s => {
     const b = book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined
     const page = b?.pages.find(p => p.id === args.page)
-    const found = page && itemsOf(page).find(i => i.id === args.item)
+    const found = page && shapesOf(page).find(i => i.id === args.item)
     return found?.item === BOX.id ? found.props : undefined
   })
   const { perform, previewDialog } = useActions()

@@ -3,6 +3,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { resolveTokens } from "../../web/src/core/theme"
 import { BOX } from "../../web/src/plugins/books/drawing/box"
 import { paintVars } from "../../web/src/plugins/books/drawing/box/paint"
+import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
 import { newStore } from "../support"
 
 function ready() {
@@ -11,7 +12,7 @@ function ready() {
   return store
 }
 const items = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!.items ?? []
+  shapesOf((store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!)
 const place = (store: ReturnType<typeof newStore>, props: Record<string, unknown>, x = 100) =>
   store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x, y: 100 }, props }, { book: "b1" })
 const update = (store: ReturnType<typeof newStore>, props: Record<string, unknown>) =>

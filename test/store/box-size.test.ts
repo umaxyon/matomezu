@@ -4,10 +4,11 @@ import { textWidth } from "../../web/src/core/text/text"
 import { resolveTokens } from "../../web/src/core/theme"
 import { BOX } from "../../web/src/plugins/books/drawing/box"
 import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/books/drawing/box/size"
+import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
 import { newStore } from "../support"
 
 const page = (store: ReturnType<typeof newStore>) => (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
-const items = (store: ReturnType<typeof newStore>) => page(store).items ?? []
+const items = (store: ReturnType<typeof newStore>) => shapesOf(page(store))
 const ALIGNS = { captionAlign: "center", bodyAlign: "left" } as const
 const box = (body: string, rule = true) => ({ caption: "見出し", rule, body, ...ALIGNS })
 // 本文を n 行出す箱の高さ（上下の枠と余白・キャプション・区切り線・本文）

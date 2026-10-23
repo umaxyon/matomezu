@@ -135,3 +135,25 @@ func TestCatalogDescribesListRows(t *testing.T) {
 		}
 	}
 }
+
+// 線の道筋の計算（route）を通るアクションも、画面と同じに行える: つないだ箱が近ければどけ、手で直した区間が引けるかを確かめる
+func TestConnectsItemsWithALine(t *testing.T) {
+	e := newEngine(t)
+	two := `{"type":"drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"a4","orientation":"landscape","items":[` +
+		`{"id":"a","x":100,"y":100,"item":"shape.box","w":100,"h":64,"props":{}},` +
+		`{"id":"b","x":400,"y":300,"item":"shape.box","w":100,"h":64,"props":{}}]}]}`
+	out, err := e.Perform(Input{
+		Action: "line.connect",
+		Args:   json.RawMessage(`{"page":"p1","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`),
+		On:     &On{Book: "b1"},
+		Lang:   "ja",
+		IDs:    []string{"l1"},
+		Books:  []json.RawMessage{json.RawMessage(two)},
+	})
+	if err != nil || !out.OK || string(out.Result) != `{"line":"l1"}` {
+		t.Fatalf("Perform = %+v, %v", out, err)
+	}
+	if !strings.Contains(string(out.Books[0]), `{"id":"l1","item":"connector.line","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`) {
+		t.Fatalf("book = %s", out.Books[0])
+	}
+}

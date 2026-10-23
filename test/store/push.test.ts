@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { placedWidth } from "../../web/src/plugins/books/drawing/box/size"
 import { GAP, planPlace, pushFrom, pushShrinking, type Rect } from "../../web/src/plugins/books/drawing/items/push"
+import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
 import { newStore } from "../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横
@@ -45,7 +46,7 @@ function ready() {
   return store
 }
 const items = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!.items ?? []
+  shapesOf((store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!)
 const at = (store: ReturnType<typeof newStore>, id: string) => items(store).find(i => i.id === id)!
 const place = (store: ReturnType<typeof newStore>, x: number, y: number, w: number, caption = "") =>
   store.actions.perform(
@@ -147,4 +148,17 @@ test("置いたときは、縮めずに右・下を試してから、縮めて�
   expect(db).toMatchObject({ x: 1000, y: 160 + GAP, w: 120 })
   expect(db.h).toBeLessThan(60)
   expect(dc.y + dc.h).toBeLessThanOrEqual(PAPER.h)
+})
+
+// 組ごとの間隔: a と b の組だけ 32、ほかは 8
+const pairGap = (a: string, b: string) => ([a, b].sort().join() === "a,b" ? 32 : GAP)
+
+test("組ごとの間隔: 押すときは、その組の間隔を空ける（線でつながった組は広い）", () => {
+  const before = rects({ a: r(100, 100), b: r(240, 100), c: r(380, 100) })
+  const after = pushFrom(before, "a", r(100, 100, 150), PAPER, undefined, pairGap)!
+  expect(after.get("b")).toEqual(r(250 + 32, 100))
+  expect(after.get("c")).toEqual(r(250 + 32 + 100 + GAP, 100))
+  // 置いたときも、組の間隔で押す
+  const placed = planPlace(rects({ b: r(200, 100) }), "a", r(100, 100), PAPER, new Map(), pairGap)!
+  expect(placed.get("b")).toEqual(r(200 + 32, 100))
 })

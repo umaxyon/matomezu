@@ -79,16 +79,18 @@ describe("依存の向き", () => {
   }
 })
 
-test("図面の置き方の層（items）はアイテムを名指ししない: items は box・list を読まず、box・list の置き方（placed）は items の約束（placed-def）だけを読む", () => {
+test("図面の置き方の層（items）はアイテムを名指ししない: items は box・list・line を読まず、box・list の置き方（placed）は items の約束（placed-def）だけを読み、line の決まり（placed）は items を読まない", () => {
   const DRAWING = "plugins/books/drawing"
   const offenders = sources.flatMap(f => {
     const targets = importsOf(f).filter(t => t.startsWith(`${DRAWING}/`))
     if (f.rel.startsWith(`${DRAWING}/items/`))
-      return targets.filter(t => /^plugins\/books\/drawing\/(box|list)(\/|$)/.test(t)).map(t => `${f.rel} -> ${t}`)
+      return targets.filter(t => /^plugins\/books\/drawing\/(box|list|line)(\/|$)/.test(t)).map(t => `${f.rel} -> ${t}`)
     if (/^plugins\/books\/drawing\/(box|list)\/placed\.ts$/.test(f.rel))
       return targets
         .filter(t => t.startsWith(`${DRAWING}/items/`) && t !== `${DRAWING}/items/placed-def`)
         .map(t => `${f.rel} -> ${t}`)
+    if (f.rel === `${DRAWING}/line/placed.ts`)
+      return targets.filter(t => t.startsWith(`${DRAWING}/items/`)).map(t => `${f.rel} -> ${t}`)
     return []
   })
   expect(offenders).toEqual([])

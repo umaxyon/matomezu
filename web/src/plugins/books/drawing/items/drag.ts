@@ -12,7 +12,7 @@
 //   それでも紙からはみ出す・近すぎる組が残るなら、動かさない（元の位置に戻る）
 // - 何個かまとめて動かすときは入れ替えず、近すぎる相手の手前へまとめて戻すだけ
 import type { Point, Size } from "../../../../core/geom"
-import { type Axis, apart, GAP, inPaper, LEN, newClash, type Rect, tooClose } from "./push"
+import { type Axis, apart, evenGap, type Gap, inPaper, LEN, newClash, type Rect, tooClose } from "./push"
 
 export type Dir = "left" | "right" | "up" | "down"
 export const DIRS = ["left", "right", "up", "down"] as const
@@ -75,7 +75,14 @@ export function track(before: Rects, id: string, prev: Point, by: Point, came: C
 }
 
 // ドラッグ中の並び: 動かす箱は start + by、入れ替えた相手はずらした所、ほかはそのまま
-export function dragRects(before: Rects, id: string, by: Point, came: Came, paper: Size, gap = GAP): Map<string, Rect> {
+export function dragRects(
+  before: Rects,
+  id: string,
+  by: Point,
+  came: Came,
+  paper: Size,
+  gap: Gap = evenGap,
+): Map<string, Rect> {
   const start = before.get(id)
   const now = new Map(before)
   if (!start) return now
@@ -86,21 +93,21 @@ export function dragRects(before: Rects, id: string, by: Point, came: Came, pape
     const axis = AXIS[d]
     const len = LEN[axis]
     if (!r || !faceOn(m, r, axis) || depth(m, r, d) < r[len] / 2) continue
-    const moved = { ...r, [axis]: r[axis] - SIGN[d] * (m[len] + gap) }
-    const blocked = [...now].some(([k, q]) => k !== o && k !== id && tooClose(moved, q, gap))
+    const moved = { ...r, [axis]: r[axis] - SIGN[d] * (m[len] + gap(id, o)) }
+    const blocked = [...now].some(([k, q]) => k !== o && k !== id && tooClose(moved, q, gap(o, k)))
     if (inPaper(moved, paper) && !blocked) now.set(o, moved)
   }
   return now
 }
 
-// 動かす箱 m を、d の向きに、hits の相手の向こう側（beyond）か手前へ寄せた四角
-function beside(m: Rect, hits: readonly Rect[], d: Dir, beyond: boolean, gap: number): Rect {
+// 動かす箱 m を、d の向きに、hits の相手の向こう側（beyond）か手前へ寄せた四角（相手ごとに、その組の間隔 gap を空ける）
+function beside(m: Rect, hits: readonly { r: Rect; gap: number }[], d: Dir, beyond: boolean): Rect {
   const axis = AXIS[d]
   const len = LEN[axis]
   const far = SIGN[d] > 0 === beyond
   const at = far
-    ? Math.max(...hits.map(o => o[axis] + o[len] + gap))
-    : Math.min(...hits.map(o => o[axis] - gap - m[len]))
+    ? Math.max(...hits.map(({ r: o, gap }) => o[axis] + o[len] + gap))
+    : Math.min(...hits.map(({ r: o, gap }) => o[axis] - gap - m[len]))
   return { ...m, [axis]: at }
 }
 
@@ -111,7 +118,7 @@ export function dropRects(
   by: Point,
   came: Came | undefined,
   paper: Size,
-  gap = GAP,
+  gap: Gap = evenGap,
 ): Map<string, Rect> | null {
   const start = before.get(id)
   if (!start) return null
@@ -128,25 +135,24 @@ export function dropRects(
   let m = now.get(id) as Rect
   // 入れ替えた相手とまだ近ければ、向こう側へ寄せる
   const swapped = [...now].filter(([o, r]) => o !== id && r !== before.get(o)).map(([o]) => o)
-  const near = swapped.filter(o => tooClose(m, now.get(o) as Rect, gap))
+  const near = swapped.filter(o => tooClose(m, now.get(o) as Rect, gap(id, o)))
   const d0 = near[0] && seen[near[0]]
   if (d0) {
-    const hits = near.filter(o => seen[o] === d0).map(o => now.get(o) as Rect)
-    m = beside(m, hits, d0, true, gap)
+    const hits = near.filter(o => seen[o] === d0).map(o => ({ r: now.get(o) as Rect, gap: gap(id, o) }))
+    m = beside(m, hits, d0, true)
   }
   // 入れ替えていない相手と近ければ、手前へ戻す
   const ahead = [...now]
-    .filter(([o, r]) => o !== id && !swapped.includes(o) && tooClose(m, r, gap))
-    .map(([o, r]) => ({ r, d: seen[o] ?? fromStart(start, r) }))
-    .filter((a): a is { r: Rect; d: Dir } => a.d !== null)
+    .filter(([o, r]) => o !== id && !swapped.includes(o) && tooClose(m, r, gap(id, o)))
+    .map(([o, r]) => ({ r, gap: gap(id, o), d: seen[o] ?? fromStart(start, r) }))
+    .filter((a): a is { r: Rect; gap: number; d: Dir } => a.d !== null)
   const d1 = ahead[0]?.d
   if (d1)
     m = beside(
       m,
-      ahead.filter(a => a.d === d1).map(a => a.r),
+      ahead.filter(a => a.d === d1),
       d1,
       false,
-      gap,
     )
   now.set(id, m)
   return inPaper(m, paper) && !newClash(before, now, gap) ? now : null
@@ -158,7 +164,7 @@ export function dropManyRects(
   ids: ReadonlySet<string>,
   by: Point,
   paper: Size,
-  gap = GAP,
+  gap: Gap = evenGap,
 ): Map<string, Rect> | null {
   const back = { x: 0, y: 0 }
   for (const id of ids) {
@@ -166,11 +172,12 @@ export function dropManyRects(
     if (!start) return null
     const m = shifted(start, by)
     for (const [o, r] of before) {
-      if (ids.has(o) || !tooClose(m, r, gap)) continue
+      const g = gap(id, o)
+      if (ids.has(o) || !tooClose(m, r, g)) continue
       const d = fromStart(start, r)
       if (!d) continue
       const axis = AXIS[d]
-      back[axis] = Math.max(back[axis], depth(m, r, d) + gap)
+      back[axis] = Math.max(back[axis], depth(m, r, d) + g)
     }
   }
   const to = { x: by.x - Math.sign(by.x) * back.x, y: by.y - Math.sign(by.y) * back.y }

@@ -26,12 +26,12 @@ import {
   type Edges,
   fitsPaper,
   itemSize,
-  itemsOf,
   minSize,
   type Placed,
   placeAt,
   placedSize,
   resizedBy,
+  shapesOf,
   trackDrag,
 } from "../items"
 import styles from "./DrawingView.module.css"
@@ -220,7 +220,7 @@ function Items({ stage }: { stage: Stage }) {
   }
   const single = stage.selection.length === 1 && !hand && stage.placing === null
 
-  return itemsOf(page).map(item => (
+  return shapesOf(page).map(item => (
     <Item
       key={item.id}
       stage={stage.id}

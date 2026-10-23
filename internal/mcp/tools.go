@@ -28,14 +28,21 @@ var actionTools = []actionTool{
 	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box, a list). " +
 		"A list (shape.list) starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with add_row. " +
 		"Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. " +
-		"Boxes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed. It is refused if it does not fit on the paper. Returns the new item's id."},
+		"Boxes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed. It is refused if it does not fit on the paper. Returns the new item's id. " +
+		"Two items joined by a line keep 32 pixels apart (40 when the line has a caption) instead of 8, here and in move_items, update_item and resize_item."},
 	{"move_items", "item.move", "Move items of a page by (x, y) paper pixels. Other boxes are not pushed: moving one box at least half into the box ahead of it swaps them; " +
 		"coming within 8 pixels of a box otherwise stops it just before that box. It is refused if any would leave the paper."},
 	{"update_item", "item.update", "Change some props of an item. Props not given stay; a prop given as null is removed (back to its default). The item's size does not change, except that a box whose caption grows widens to show it up to 20 characters, pushing the boxes it would come too close to (when they would leave the paper, it stays as wide)."},
 	{"resize_item", "item.resize", "Change the size of an item that can be resized (a box): only w and h given change; x and y move its top-left too. " +
 		"Boxes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed boxes shrink (no narrower than their caption, no lower than one caption line). " +
 		"It is refused below the item's smallest size, off the paper, or when they cannot shrink enough."},
-	{"remove_items", "item.remove", "Remove items from a page."},
+	{"remove_items", "item.remove", "Remove items (boxes, lists, lines) from a page. Removing a box or a list removes the lines joined to it."},
+	{"connect_items", "line.connect", "Draw a line from the item from to the item to (boxes and lists on the same page, not a list's rows); from and to the same item draws a line looping back to it. " +
+		"Two items are joined by one line at most (either way); an item may loop back to itself any number of times. " +
+		"route is straight or elbow (without it, elbow); startHead and endHead put a shape on that end (arrow is a filled triangle); dash is solid or dashed. " +
+		"exitAt and enterAt fix where the line leaves from and enters to: a fraction (0 to 1) of the way clockwise round the item's edge from its top-left corner; without them the line picks its ends. " +
+		"via (elbow lines with both ends fixed) places the line's middle segments. If the two items are now too close (32 pixels, 40 with a caption), to is moved away. Returns the new line's id. read_book shows lines among a page's items."},
+	{"update_line", "line.update", "Change some props of a line. Props not given stay; a prop given as null is removed (back to its default). A caption that widens the gap moves the end item away."},
 	{"add_row", "row.add", "Add a row at the end of a list (an item shape.list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. " +
 		"Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks."},
 	{"update_row", "row.update", "Change some props of a list's row. Props not given stay; a prop given as null is removed (back to its default)."},

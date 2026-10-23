@@ -32,7 +32,7 @@ import {
   Switch,
   SwitchPanel,
 } from "../../../base/ui"
-import { itemsOf } from "../items/items"
+import { shapesOf } from "../placed"
 import { useAligns, useBookOf, useBookTheme, useSwatches } from "../shape/parts"
 import { LIST, LIST_FILL, type ListRow } from "."
 import { withRowLines } from "./rows"
@@ -92,7 +92,7 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
   const found = useApp(s => {
     const b = book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined
     const page = b?.pages.find(p => p.id === args.page)
-    const item = page && itemsOf(page).find(i => i.id === args.item)
+    const item = page && shapesOf(page).find(i => i.id === args.item)
     return item?.item === LIST.id ? item : undefined
   })
   const { perform, previewDialog } = useActions()

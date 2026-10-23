@@ -35,7 +35,7 @@ describe("登録表", () => {
       papers: BUILTIN_PARTS.papers.filter(p => p.id !== "a3"),
     }
     const problems = checkRegistry(broken)
-    expect(problems.map(p => p.code)).toEqual(["E001", "E004", "E008", "E008", "E004", "E008", "E008"])
+    expect(problems.map(p => p.code)).toEqual(["E001", "E004", "E008", "E008", "E008", "E004", "E008", "E008", "E008"])
     expect(problems.map(problemText).slice(0, 3)).toEqual([
       "E001 bookType drawing: id is registered twice",
       "E004 bookType drawing: unknown paper a3",

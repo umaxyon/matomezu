@@ -3,6 +3,7 @@
 import type { z } from "zod"
 import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
+import type { Registry } from "../registry"
 import type { ToolSetId } from "../tools"
 import type { TokenDecl } from "./theme"
 
@@ -35,6 +36,9 @@ interface BookTypeBase<S extends z.ZodObject> {
   theme: string // 既定のテーマ
   tokens: readonly TokenDecl[] // ブックの画面を描くのに使うテーマの欄
   tools?: ToolSetId // ステージで使う道具の組（core/tools.ts。無ければ道具を使わない）
+  // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。
+  // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
+  holds?(book: z.infer<S>, reg: Registry): boolean
 }
 
 // 1 冊だけのタイプ（マスターなど）。作る操作は無く、その 1 冊のデータを定義に持つ（id はタイプの id）。

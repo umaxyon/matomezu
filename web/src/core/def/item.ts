@@ -24,7 +24,12 @@ export interface ShapeItemDef extends ItemBase {
   size: Size // 置いたときの大きさ
 }
 
-export type ItemDef = ShapeItemDef
+// 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる
+export interface ConnectorItemDef extends ItemBase {
+  kind: "connector"
+}
+
+export type ItemDef = ShapeItemDef | ConnectorItemDef
 export type ItemKind = ItemDef["kind"]
 
 export function defineItem<const T extends ItemDef>(def: T): T {

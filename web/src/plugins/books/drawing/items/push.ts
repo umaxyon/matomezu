@@ -19,6 +19,10 @@ export interface Rect {
 
 export const GAP = 8 // 箱どうしの間隔の下限（線の無い箱）
 
+// 2 つの箱 a・b の間隔の下限（組ごとに決まる。線でつながった組は広い）
+export type Gap = (a: string, b: string) => number
+export const evenGap: Gap = () => GAP
+
 export type Axis = "x" | "y"
 export const LEN = { x: "w", y: "h" } as const
 
@@ -36,7 +40,7 @@ export function apart(a: Rect, b: Rect, axis: Axis): number {
   return Math.max(b[axis] - (a[axis] + a[len]), a[axis] - (b[axis] + b[len]))
 }
 
-export const tooClose = (a: Rect, b: Rect, gap = GAP): boolean => apart(a, b, "x") < gap && apart(a, b, "y") < gap
+export const tooClose = (a: Rect, b: Rect, gap: number): boolean => apart(a, b, "x") < gap && apart(a, b, "y") < gap
 
 export const inPaper = (r: Rect, paper: Size): boolean =>
   r.x >= 0 && r.y >= 0 && r.x + r.w <= paper.w && r.y + r.h <= paper.h
@@ -61,7 +65,7 @@ function spread(
   before: Rects,
   sources: Rects,
   way: ((source: Rect, other: Rect) => Way) | undefined,
-  gap: number,
+  gap: Gap,
 ): Spread | null {
   const now = new Map(before)
   for (const [id, r] of sources) now.set(id, r)
@@ -74,15 +78,16 @@ function spread(
     const pusher = now.get(m) as Rect
     const wasM = before.get(m)
     for (const [b, rect] of now) {
-      if (b === m || !tooClose(pusher, rect, gap)) continue
+      const g = gap(m, b)
+      if (b === m || !tooClose(pusher, rect, g)) continue
       const wasB = before.get(b)
-      if (wasM && wasB && tooClose(wasM, wasB, gap)) continue
+      if (wasM && wasB && tooClose(wasM, wasB, g)) continue
       if (sources.has(b) || ++steps > limit) return null
       const w = sources.has(m) && way ? way(pusher, rect) : apartWay(wasM ?? pusher, wasB ?? rect)
       const len = LEN[w.axis]
       const at = w.ahead
-        ? Math.max(rect[w.axis], pusher[w.axis] + pusher[len] + gap)
-        : Math.min(rect[w.axis], pusher[w.axis] - gap - rect[len])
+        ? Math.max(rect[w.axis], pusher[w.axis] + pusher[len] + g)
+        : Math.min(rect[w.axis], pusher[w.axis] - g - rect[len])
       now.set(b, { ...rect, [w.axis]: at })
       from.set(b, m)
       queue.push(b)
@@ -98,7 +103,7 @@ export function push(
   sources: Rects,
   paper: Size,
   way?: (source: Rect, other: Rect) => Way,
-  gap = GAP,
+  gap: Gap = evenGap,
 ): Map<string, Rect> | null {
   const done = spread(before, sources, way, gap)
   return done && [...done.now.values()].every(r => inPaper(r, paper)) ? done.now : null
@@ -122,7 +127,7 @@ export function pushShrinking(
   paper: Size,
   floors: Floors,
   way?: (source: Rect, other: Rect) => Way,
-  gap = GAP,
+  gap: Gap = evenGap,
 ): Map<string, Rect> | null {
   for (const r of sources.values()) if (!inPaper(r, paper)) return null
   let sized = new Map(before)
@@ -168,7 +173,7 @@ export function pushFrom(
   next: Rect,
   paper: Size,
   floors?: Floors,
-  gap = GAP,
+  gap: Gap = evenGap,
 ): Map<string, Rect> | null {
   const sources = new Map([[id, next]])
   return floors
@@ -177,21 +182,22 @@ export function pushFrom(
 }
 
 // before から after になって、新しく近づきすぎた組があるか（前から近づきすぎていた組は問わない）
-export function newClash(before: Rects, after: Rects, gap = GAP): boolean {
+export function newClash(before: Rects, after: Rects, gap: Gap = evenGap): boolean {
   const ids = [...after.keys()]
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
       const a = ids[i] as string
       const b = ids[j] as string
       const was = [before.get(a), before.get(b)]
-      if (was[0] && was[1] && tooClose(was[0], was[1], gap)) continue
-      if (tooClose(after.get(a) as Rect, after.get(b) as Rect, gap)) return true
+      const g = gap(a, b)
+      if (was[0] && was[1] && tooClose(was[0], was[1], g)) continue
+      if (tooClose(after.get(a) as Rect, after.get(b) as Rect, g)) return true
     }
   }
   return false
 }
 
-const settled = (before: Rects, after: Map<string, Rect> | null, gap: number) =>
+const settled = (before: Rects, after: Map<string, Rect> | null, gap: Gap) =>
   after && !newClash(before, after, gap) ? after : null
 
 // 箱 id を rect に置いたとき（置いた・貼った）の、全部の四角（収まらなければ null）。
@@ -202,7 +208,7 @@ export function planPlace(
   rect: Rect,
   paper: Size,
   floors: Floors = new Map(),
-  gap = GAP,
+  gap: Gap = evenGap,
 ): Map<string, Rect> | null {
   const sources = new Map([[id, rect]])
   const ways = (["x", "y"] as const).map(axis => () => ({ axis, ahead: true }))

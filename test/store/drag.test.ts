@@ -64,3 +64,16 @@ test("何個かまとめて動かしたときは入れ替えず、近すぎる�
   expect(after.get("b")).toEqual(r(300 - GAP - 100, 200))
   expect(after.get("c")).toEqual(r(300, 150))
 })
+
+test("組ごとの間隔: 離したときに手前へ戻すのも、入れ替えた相手の向こう側へ寄せるのも、その組の間隔を空ける", () => {
+  const pairGap = (a: string, b: string) => ([a, b].sort().join() === "a,b" ? 32 : GAP)
+  const before = rects({ a: r(100, 100), b: r(300, 100) })
+  // 先端が b に 20 入った所で離す: b の手前、32 空けた所へ戻す
+  expect(dropRects(before, "a", { x: 120, y: 0 }, undefined, PAPER, pairGap)!.get("a")).toEqual(r(300 - 32 - 100, 100))
+  // まとめて動かしたときも同じ
+  expect(dropManyRects(before, new Set(["a"]), { x: 120, y: 0 }, PAPER, pairGap)!.get("a")).toEqual(
+    r(300 - 32 - 100, 100),
+  )
+  // 間隔が 32 の組は、8 の所まで寄せると近すぎる
+  expect(dropRects(before, "a", { x: 92, y: 0 }, undefined, PAPER, pairGap)!.get("a")).toEqual(r(168, 100))
+})

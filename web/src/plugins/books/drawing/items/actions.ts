@@ -2,10 +2,9 @@
 import { z } from "zod"
 import { defineAction } from "../../../../core/def/action"
 import { bookType } from "../../../../core/registry"
-import { PlacedSchema, placedDef } from "../placed"
+import { PlacedSchema, placedDef, shapesOf } from "../placed"
 import { DIRS } from "./drag"
 import {
-  itemsOf,
   knownTheme,
   moveItems,
   nextItemId,
@@ -85,7 +84,7 @@ export const ITEM_UPDATE = defineAction({
   run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
     const page = book.pages.find(p => p.id === args.page)
-    const now = page && itemsOf(page).find(i => i.id === args.item)
+    const now = page && shapesOf(page).find(i => i.id === args.item)
     if (!now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const parsed = PlacedSchema.safeParse({ ...now, props })
@@ -118,7 +117,7 @@ export const ITEM_RESIZE = defineAction({
   run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
     const page = book.pages.find(p => p.id === args.page)
-    const now = page && itemsOf(page).find(i => i.id === args.item)
+    const now = page && shapesOf(page).find(i => i.id === args.item)
     if (!now || !ctx.registry.items.get(now.item)?.capabilities.includes("resizable")) return null
     const size = placedSize(ctx.registry, now)
     if (!size) return null
@@ -142,9 +141,9 @@ export const ITEM_REMOVE = defineAction({
   target: "book",
   needs: [],
   args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),
-  run: (book, args) => {
+  run: (book, args, ctx) => {
     if (book.type !== "drawing") return null
-    const next = removeItems(book, args.page, args.items)
+    const next = removeItems(ctx.registry, book, args.page, args.items)
     return next && { next, result: {} }
   },
 })

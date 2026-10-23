@@ -7,18 +7,18 @@ import type { Lang } from "./i18n/i18n"
 import { translate } from "./i18n/i18n"
 import { freshId } from "./ids"
 import type { PaperChoice, PaperRule } from "./paper"
-import { actionsOf } from "./perform"
+import { actionsOf, holds } from "./perform"
 import { bookType, type Registry } from "./registry"
 import type { Book, Page } from "./schema/book"
 
 export type PagedBook = Extract<Book, { pages: Page[] }>
 
-// 残しておいたブックのうち、この app のブックの形に合うものだけ（タイプの無いもの・形の合わないものは捨てる）。
+// 残しておいたブックのうち、この app のブックの形に合うものだけ（タイプの無いもの・形の合わないもの・アイテムどうしの関係の決まりを守らないものは捨てる）。
 // 残したブックは外から来る値なので、形を確かめてから使う
 export function restoreBooks(reg: Registry, saved: readonly unknown[]): Book[] {
   return saved.flatMap(b => {
     const parsed = reg.bookSchema.safeParse(b)
-    return parsed.success ? [parsed.data as Book] : []
+    return parsed.success && holds(reg, parsed.data as Book) ? [parsed.data as Book] : []
   })
 }
 

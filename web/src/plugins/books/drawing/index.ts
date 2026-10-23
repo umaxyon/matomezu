@@ -1,4 +1,4 @@
-// 図面のプラグイン: ページごとに紙を置く図面のブックと、その上に置く箱・リスト（と行の操作）・置く・動かす・消す操作とそのキー、図面の設定
+// 図面のプラグイン: ページごとに紙を置く図面のブックと、その上に置く箱・リスト（と行の操作）・線・置く・動かす・消す操作とそのキー、図面の設定
 import { defineBuiltin } from "../../../store/plugin"
 import { BOX, BOX_ADD_DIALOG, BOX_EDIT_DIALOG } from "./box"
 import { DRAWING } from "./drawing"
@@ -15,6 +15,8 @@ import {
   ITEM_RESIZE,
   ITEM_UPDATE,
 } from "./items"
+import { LINE } from "./line"
+import { LINE_CONNECT, LINE_UPDATE } from "./line/actions"
 import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./list/actions"
 import {
@@ -32,7 +34,7 @@ import { SIMPLE, STICKY } from "./themes"
 export const DRAWING_PLUGIN = defineBuiltin({
   id: "@matomezu/drawing",
   bookTypes: [DRAWING],
-  items: [BOX, LIST],
+  items: [BOX, LIST, LINE],
   themes: [STICKY, SIMPLE],
   actions: [
     ITEM_PLACE,
@@ -46,6 +48,8 @@ export const DRAWING_PLUGIN = defineBuiltin({
     ROW_CHECK,
     ROW_LINES,
     ROW_MOVE,
+    LINE_CONNECT,
+    LINE_UPDATE,
   ],
   commands: [
     DRAWING_SETTINGS,
@@ -81,6 +85,7 @@ declare module "../../../core/tables" {
   interface ItemTable {
     "shape.box": typeof BOX
     "shape.list": typeof LIST
+    "connector.line": typeof LINE
   }
   interface ThemeTable {
     sticky: typeof STICKY
@@ -98,6 +103,8 @@ declare module "../../../core/tables" {
     "row.check": typeof ROW_CHECK
     "row.lines": typeof ROW_LINES
     "row.move": typeof ROW_MOVE
+    "line.connect": typeof LINE_CONNECT
+    "line.update": typeof LINE_UPDATE
   }
   interface MessageTable extends Readonly<typeof DRAWING_MESSAGES> {}
 }

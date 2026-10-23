@@ -8,7 +8,7 @@ import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useApp } from "../../../../ui/store-context"
 import { ActionButton, Choices, controlClass, Dialog, Field, Form, rowClass, Switch } from "../../../base/ui"
-import { itemsOf } from "../items/items"
+import { shapesOf } from "../placed"
 import { BODY_MAX } from "../shape"
 import { useAligns, useBookOf } from "../shape/parts"
 import { LIST, type RowProps } from "."
@@ -34,7 +34,7 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const start = useApp(s => {
     const b = book ? (s.books[book] as BookOf<"drawing"> | undefined) : undefined
     const page = b?.pages.find(p => p.id === args.page)
-    const list = page && itemsOf(page).find(i => i.id === args.list)
+    const list = page && shapesOf(page).find(i => i.id === args.list)
     return list?.item === LIST.id ? list.children?.find(r => r.id === args.row)?.props : undefined
   })
   const { perform } = useActions()

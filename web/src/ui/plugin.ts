@@ -46,6 +46,13 @@ export interface ItemUi<Props = never> {
   icon: ReactNode // ツールボックスなどに出すアイコン
 }
 
+// 画面に置く形（kind が shape）のアイテムの id。線（connector）はブックのビューが描くので、アイテムのビューを持たない
+type ShapeIdsOf<P> = P extends { items?: readonly (infer D)[] }
+  ? D extends { id: infer I; kind: "shape" }
+    ? I
+    : never
+  : never
+
 type ItemPropsOf<P, Id> = P extends { items?: readonly (infer D)[] }
   ? D extends { id: Id; props: { _zod: { output: infer O } } }
     ? O
@@ -62,7 +69,7 @@ type DialogArgsOfPlugin<P, Id> = P extends { dialogs?: readonly (infer D)[] }
 type Field<Ids, Name extends string, V> = [Ids] extends [never] ? { [n in Name]?: never } : { [n in Name]: V }
 
 export type PluginViews<P> = Field<IdsOf<P, "bookTypes">, "bookViews", { [id in IdsOf<P, "bookTypes">]: BookViewDef }> &
-  Field<IdsOf<P, "items">, "items", { [id in IdsOf<P, "items">]: ItemUi<ItemPropsOf<P, id>> }> &
+  Field<ShapeIdsOf<P>, "items", { [id in ShapeIdsOf<P>]: ItemUi<ItemPropsOf<P, id>> }> &
   Field<
     IdsOf<P, "dialogs">,
     "dialogViews",
@@ -139,7 +146,12 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
       }
     }
     need("bookType", p.bookTypes, ui.bookViews, bookViews)
-    need("item", p.items, ui.items, items)
+    need(
+      "item",
+      p.items?.filter(i => i.kind === "shape"),
+      ui.items,
+      items,
+    )
     need("dialog", p.dialogs, ui.dialogViews, dialogViews)
     for (const w of ui.widgets ?? []) {
       if (!isBuiltin(p) && !w.id.startsWith(`${p.id}/`)) fail("E301", { plugin: p.id, kind: "widget", id: w.id })

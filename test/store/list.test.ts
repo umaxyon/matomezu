@@ -4,6 +4,7 @@ import { BOX_LOOK } from "../../web/src/plugins/books/drawing/box/size"
 import type { ListRow } from "../../web/src/plugins/books/drawing/list"
 import { canCarry, shownOrder } from "../../web/src/plugins/books/drawing/list/rows"
 import { LIST_SIZE, linesFor, listLayout, rowHeight } from "../../web/src/plugins/books/drawing/list/size"
+import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
 import { newStore } from "../support"
 
 function ready() {
@@ -12,7 +13,7 @@ function ready() {
   return store
 }
 const items = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!.items ?? []
+  shapesOf((store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!)
 const list = (store: ReturnType<typeof newStore>) => {
   const found = items(store).find(i => i.item === "shape.list")!
   return found as Extract<typeof found, { item: "shape.list" }>
