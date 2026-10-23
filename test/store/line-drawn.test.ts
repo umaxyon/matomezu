@@ -63,3 +63,44 @@ test("破線・キャプション（空白だけなら無し）・両端の形�
   expect(drawn[0]!.caption?.text).toBe("申請")
   expect(drawn[1]!.caption).toBeNull()
 })
+
+test("前の辺の記憶: 渡した線は、自由な端が前に描いた辺に留まる（折れ目 3 まで）。loose なら、一番よい形より折れ目が 3 以上多いとき留まらない", () => {
+  const a = { x: 40, y: 40, w: 120, h: 64 }
+  const first = drawLines(
+    [line("l1", "a", "b")],
+    new Map([
+      ["a", a],
+      ["b", { x: 400, y: 300, w: 120, h: 64 }],
+    ]),
+    true,
+  )[0]!
+  expect(first.memory).toEqual({ exit: { side: "r", at: 0.5 }, enter: { side: "t", at: 0.5 } })
+  // b を a の真下へ動かす。一番よい形はまっすぐだが、記憶を渡すと右から出て b の上へ入る形に留まる
+  const below = new Map([
+    ["a", a],
+    ["b", { x: 60, y: 300, w: 120, h: 64 }],
+  ])
+  const memory = new Map([["l1", first.memory!]])
+  const kept = drawLines([line("l1", "a", "b")], below, true, { memory })[0]!
+  expect([kept.points[0], kept.points.length - 2]).toEqual([[160, 72], 3])
+  expect(drawLines([line("l1", "a", "b")], below, true)[0]!.points).toHaveLength(2)
+  // 手を離したとき（loose）: 留まった形（折れ目 3）は一番よい形（0）より 3 多いので、一番よい形にする
+  const loose = drawLines([line("l1", "a", "b")], below, true, { memory, loose: new Set(["l1"]) })[0]!
+  expect(loose.points).toHaveLength(2)
+})
+
+test("道筋の覚え: 入力（両端の形・道筋に関わるほかの形・項目・記憶）が同じ線は、計算し直さずに覚えた形を使う", () => {
+  const cache = new Map()
+  const lines = [line("l1", "a", "b"), line("l2", "a", "c")]
+  const first = drawLines(lines, rects, true, { cache })
+  // 遠くの形が動いても、どちらの線の入力も変わらない
+  const moved = new Map([...rects, ["far", { x: 1000, y: 700, w: 50, h: 50 }]])
+  const again = drawLines(lines, moved, true, { cache })
+  expect(again[0]!.points).toBe(first[0]!.points)
+  expect(again[1]!.points).toBe(first[1]!.points)
+  // b が動くと l1 だけ計算し直す
+  const bMoved = new Map([...rects, ["b", { x: 420, y: 100, w: 100, h: 64 }]])
+  const third = drawLines(lines, bMoved, true, { cache })
+  expect(third[0]!.points).not.toBe(first[0]!.points)
+  expect(third[1]!.points).toBe(first[1]!.points)
+})

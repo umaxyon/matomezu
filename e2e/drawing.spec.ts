@@ -903,3 +903,41 @@ test("選んだ線の両端に丸が出る。終点の丸を別の箱へ運ん�
   expect(p.y).toBeGreaterThanOrEqual(t.y - 1)
   expect(p.y).toBeLessThanOrEqual(t.y + t.height + 1)
 })
+
+test("箱をドラッグしている間、つながる線はその箱に付いてくる（〇から引いた線は端が固定なので、端は同じ辺の上）。離したあともつながったまま", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, y, caption] of [
+    [150, 150, "始"],
+    [500, 150, "終"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, y)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 900, 650)
+  await page.mouse.click(empty.x, empty.y)
+  await drawLine(page, "始", "終")
+  const hit = page.locator("[data-item]:not([data-shape]) polyline").last()
+  const last = async () => (await hit.getAttribute("points"))!.split(" ").at(-1)!.split(",").map(Number)
+  const end = items(page).filter({ hasText: "終" })
+  const b = (await end.boundingBox())!
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  const zoom = paper.width / Number(await page.getByRole("img", { name: "紙" }).evaluate(el => el.clientWidth))
+  await page.mouse.move(b.x + 30, b.y + 20)
+  await page.mouse.down()
+  await page.mouse.move(b.x + 30, b.y + 220, { steps: 8 })
+  // ドラッグ中: 線の終点は、ずらして描いている箱の左の辺の上
+  const during = (await end.boundingBox())!
+  const p = await last()
+  expect(Math.abs(paper.x + p[0]! * zoom - during.x)).toBeLessThan(2)
+  expect(paper.y + p[1]! * zoom).toBeGreaterThan(during.y)
+  expect(paper.y + p[1]! * zoom).toBeLessThan(during.y + during.height)
+  await page.mouse.up()
+  const after = (await end.boundingBox())!
+  const q = await last()
+  expect(paper.x + q[0]! * zoom).toBeGreaterThanOrEqual(after.x - 1)
+  expect(paper.y + q[1]! * zoom).toBeGreaterThanOrEqual(after.y - 1)
+  expect(paper.y + q[1]! * zoom).toBeLessThanOrEqual(after.y + after.height + 1)
+})

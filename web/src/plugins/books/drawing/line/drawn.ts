@@ -5,7 +5,16 @@ import { captionBox } from "./caption"
 import type { Pt, Rect } from "./geom"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"
-import { alignedEnds, isAligned, type RouteInput, type RouteShape, route, type Segment, scopeObstacles } from "./route"
+import {
+  alignedEnds,
+  type EndMemory,
+  isAligned,
+  type RouteInput,
+  type RouteShape,
+  route,
+  type Segment,
+  scopeObstacles,
+} from "./route"
 import { selfLoop } from "./selfloop"
 
 export interface DrawnLine {
@@ -18,10 +27,26 @@ export interface DrawnLine {
   shape: RouteShape | null // 折れ線の形（直線・自分に戻る線は null）
   segments: Segment[] // ドラッグで動かせる途中の区間
   ends: { exit: Pt[]; enter: Pt[] } // 両端をつまんで動かせる道（形のふち。自分に戻る線は、もう一方の端の辺とその両隣）
+  memory: EndMemory | null // 自由な端を描いた辺と位置（折れ線だけ。次に描くときに渡すと、その辺に留まる）
 }
 
 // 道筋の、描く形のほかの所
-type Geometry = Pick<DrawnLine, "points" | "shape" | "segments" | "ends">
+type Geometry = Pick<DrawnLine, "points" | "shape" | "segments" | "ends" | "memory">
+
+// 留まった形が一番よい形よりこれだけ以上折れ目が多ければ、留まるのをやめる（手を離したとき。2 だと、相手の端を動かさずに Z 字で結んだ形まで、離した瞬間にまっすぐへ戻ってしまう）
+export const LOOSEN_BENDS = 3
+
+// 描き方の指定。memory は線ごとの、自由な端が前に描いた辺と位置（渡した線はその辺に留まる。折れ目 STICKY_BENDS まで）。
+// loose の線は、留まった形が一番よい形より LOOSEN_BENDS 以上折れ目が多ければ、留まらずに一番よい形で描く。
+// cache は線ごとの道筋の覚え（入力が同じなら計算し直さない。描く側が持ち、同じものを渡し続ける）
+export interface DrawOptions {
+  memory?: ReadonlyMap<string, EndMemory>
+  loose?: ReadonlySet<string>
+  cache?: LineCache
+}
+
+// 線ごとの道筋の覚え（描く側が持つ）
+export type LineCache = Map<string, { key: string; geo: Geometry }>
 
 // p から q へ向かって d だけ進んだ点
 function toward(p: Pt, q: Pt, d: number): Pt {
@@ -76,14 +101,33 @@ export function alignedEndsOf(
 }
 
 // ページの線を描く形にする。rects は形の四角（紙の座標）、elbow はページの既定が折れ線か。両端の形の四角が無い線は描かない
-export function drawLines(lines: readonly PlacedLine[], rects: ReadonlyMap<string, Rect>, elbow: boolean): DrawnLine[] {
+export function drawLines(
+  lines: readonly PlacedLine[],
+  rects: ReadonlyMap<string, Rect>,
+  elbow: boolean,
+  options: DrawOptions = {},
+): DrawnLine[] {
   const geos = new Map<string, Geometry>()
   const others = (ids: readonly string[]) => [...rects].filter(([id]) => !ids.includes(id)).map(([, r]) => r)
   for (const l of lines) {
-    const input = routeInputOf(l, rects, elbow)
-    if (!input) continue
-    const r = route(input)
-    geos.set(l.id, { points: r.points, shape: r.shape, segments: r.segments, ends: r.ends })
+    const base = routeInputOf(l, rects, elbow)
+    if (!base) continue
+    const memory = options.memory?.get(l.id) ?? null
+    const loose = options.loose?.has(l.id) ?? false
+    const key = JSON.stringify([base, memory, loose])
+    const hit = options.cache?.get(l.id)
+    if (hit?.key === key) {
+      geos.set(l.id, hit.geo)
+      continue
+    }
+    let r = route({ ...base, memory })
+    if (memory && loose) {
+      const best = route(base)
+      if (r.bends - best.bends >= LOOSEN_BENDS) r = best
+    }
+    const geo = { points: r.points, shape: r.shape, segments: r.segments, ends: r.ends, memory: r.memory }
+    options.cache?.set(l.id, { key, geo })
+    geos.set(l.id, geo)
   }
   const loops = new Map<string, number>()
   for (const l of lines) {
@@ -100,7 +144,7 @@ export function drawLines(lines: readonly PlacedLine[], rects: ReadonlyMap<strin
         return g ? [g.points] : []
       })
     const loop = selfLoop(r, others([l.from]), index, drawn, at)
-    geos.set(l.id, { points: loop.points, shape: null, segments: [], ends: loop.ends })
+    geos.set(l.id, { points: loop.points, shape: null, segments: [], ends: loop.ends, memory: null })
   }
   return lines.flatMap(l => {
     const geo = geos.get(l.id)
@@ -118,6 +162,7 @@ export function drawLines(lines: readonly PlacedLine[], rects: ReadonlyMap<strin
         shape: geo.shape,
         segments: geo.segments,
         ends: geo.ends,
+        memory: geo.memory,
       },
     ]
   })

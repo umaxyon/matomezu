@@ -46,11 +46,11 @@ import {
   trackDrag,
 } from "../items"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "../line/connect"
-import { drawLines } from "../line/drawn"
+import { drawLines, type LineCache } from "../line/drawn"
 import { LinesView } from "../line/LinesView"
 import { LinkPreview, Ports } from "../line/PortsView"
 import type { PlacedLine } from "../line/placed"
-import type { Side } from "../line/route"
+import type { EndMemory, Rect, Side } from "../line/route"
 import { useLineEdit } from "../line/useLineEdit"
 import { elbowOf, linesOf } from "../placed"
 import styles from "./DrawingView.module.css"
@@ -136,6 +136,7 @@ interface Drag {
   items: readonly string[]
   came: Came
   prev: Point
+  swapped: boolean // このドラッグで入れ替えが起きたか（起きたら、動かす形の線は留まらずに一番よい形を追う）
 }
 
 // 大きさを変えているドラッグ: つかんだ辺と、押したときのポインタの位置
@@ -182,6 +183,14 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   const [linkAt, setLinkAt] = useState<{ at: Point; target: string | null } | null>(null) // 線の先（紙の上）と、その下の引ける相手
   const linking = linkAt !== null
   const lineDrag = useLineEdit(stage, registry, localOf)
+  // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角、離したあとに付け替えを見る線
+  const memo = useRef(new Map<string, EndMemory>())
+  const cache = useRef<LineCache>(new Map())
+  const drawnRects = useRef<ReadonlyMap<string, Rect>>(new Map())
+  const settle = useRef<ReadonlySet<string>>(new Set())
+  useEffect(() => {
+    if (settle.current.size > 0) settle.current = new Set()
+  })
   useEffect(() => {
     if (!linking) return
     const onKey = (e: KeyboardEvent) => {
@@ -205,6 +214,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
       items,
       came: {},
       prev: { x: 0, y: 0 },
+      swapped: false,
     }
   }
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -221,6 +231,12 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
     if (d?.pointer !== e.pointerId) return
     drag.current = null
     setMoved(null)
+    // 離したあとに描くとき、動かした形の線は、留まった形が一番よい形より明らかに悪ければ付け替える
+    settle.current = new Set(
+      linesOf(page)
+        .filter(l => d.items.includes(l.from) || d.items.includes(l.to))
+        .map(l => l.id),
+    )
     if (drop && moved && (moved.x !== 0 || moved.y !== 0)) move.run({ items: d.items, by: moved, came: d.came })
   }
   const shift = moved && toPaperDelta(stage, moved)
@@ -336,7 +352,35 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
         : l,
   )
   const elbow = elbowOf(page)
-  const lines = drawLines(drafted, rects, elbow)
+  // 前の辺に留まる線（EDGE-SPEC の場面の表）: 動かしている形の線は留まる（入れ替えが起きたら、そのドラッグの終わりまで留まらない）。
+  // 入れ替えでずれた形・ドラッグのほかで動いた形（押された・AI が動かした）の線は留まらず、一番よい形を追う
+  const pushed = shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id)
+  if (d && pushed.length > 0) d.swapped = true
+  const movedElse = (id: string) => {
+    const was = drawnRects.current.get(id)
+    const now = rects.get(id)
+    return (
+      !dragged.includes(id) &&
+      (!was || !now || was.x !== now.x || was.y !== now.y || was.w !== now.w || was.h !== now.h)
+    )
+  }
+  const memory = new Map(
+    drafted.flatMap(l => {
+      const m = memo.current.get(l.id)
+      const ends = [l.from, l.to]
+      if (!m || ends.some(id => pushed.includes(id))) return []
+      if (d?.swapped && ends.some(id => dragged.includes(id))) return []
+      if (!settle.current.has(l.id) && ends.some(movedElse)) return []
+      return [[l.id, m] as const]
+    }),
+  )
+  const lines = drawLines(drafted, rects, elbow, {
+    memory,
+    loose: settle.current,
+    cache: cache.current,
+  })
+  memo.current = new Map(lines.flatMap(l => (l.memory ? [[l.id, l.memory] as const] : [])))
+  drawnRects.current = rects
   const selectable = !hand && stage.placing === null
   const scene = { page, lines: drafted, drawn: lines, rects, elbow }
   const only = stage.selection.length === 1 ? stage.selection[0] : undefined
