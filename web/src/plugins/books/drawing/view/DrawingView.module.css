@@ -81,6 +81,11 @@
   outline: 2px solid var(--theme-accent);
   outline-offset: 2px;
 }
+/* 〇から引いている線の、今の相手 */
+.item[data-target="true"] {
+  outline: 3px solid var(--theme-accent);
+  outline-offset: 3px;
+}
 /* ドラッグ中: 動かすアイテムは手前に置いて少し透かし（下のアイテムが透けて見えるように）、ほかは薄く */
 .item[data-look="lifted"] {
   z-index: 1;

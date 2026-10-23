@@ -11,11 +11,19 @@
 // 線は形より手前の層に、描いている形の四角（下書き・ドラッグでずらした所も）から道筋を決めて描く（line/drawn.ts の drawLines）。
 // 選択の道具で線を押すと線を選び、右クリックで線を選んで線のメニュー（line.context）を開く。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
-import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react"
+import {
+  type CSSProperties,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 import type { Point } from "../../../../core/geom"
 import type { BookOf } from "../../../../core/schema/book"
 import type { Stage } from "../../../../core/stage"
-import { paperOf, placement, toPaperDelta } from "../../../../core/stage"
+import { paperOf, placement, toPaper, toPaperDelta } from "../../../../core/stage"
 import { toolOf } from "../../../../core/workspace"
 import { useCommand } from "../../../../ui/commands"
 import { useContextMenu } from "../../../../ui/context-menu"
@@ -36,9 +44,12 @@ import {
   shapesOf,
   trackDrag,
 } from "../items"
+import { PORT_OUT, portAt, SIDES, targetsFrom } from "../line/connect"
 import { drawLines } from "../line/drawn"
 import { LinesView } from "../line/LinesView"
+import { LinkPreview, Ports } from "../line/PortsView"
 import { DEFAULT_ROUTE } from "../line/placed"
+import type { Side } from "../line/route"
 import { linesOf } from "../placed"
 import styles from "./DrawingView.module.css"
 
@@ -80,12 +91,15 @@ export function DrawingView({ stage }: BookViewProps) {
       onPointerLeave={() => setPointer(null)}
       onPointerDown={onPointerDown}
     >
-      <Content stage={stage} pointer={placing ? pointer : null} />
+      <Content stage={stage} pointer={placing ? pointer : null} localOf={e => ref.current && local(e, ref.current)} />
     </div>
   )
 }
 
-function Content({ stage, pointer }: { stage: Stage; pointer: Point | null }) {
+// localOf はポインタの位置を、図面のビューの左上から見た位置にする
+type LocalOf = (e: PointerEvent<Element>) => Point | null
+
+function Content({ stage, pointer, localOf }: { stage: Stage; pointer: Point | null; localOf: LocalOf }) {
   const t = useT()
   const p = placement(stage)
   const paper = stage.opened?.paper
@@ -97,10 +111,17 @@ function Content({ stage, pointer }: { stage: Stage; pointer: Point | null }) {
       className={styles.paper}
       role="img"
       aria-label={t("Paper")}
-      style={{ width: p.w, height: p.h, transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})` }}
+      style={
+        {
+          width: p.w,
+          height: p.h,
+          transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})`,
+          "--paper-zoom": p.zoom,
+        } as CSSProperties
+      }
     >
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
-      <Items stage={stage} />
+      <Items stage={stage} localOf={localOf} />
       {pointer && <Ghost stage={stage} pointer={pointer} />}
     </div>
   )
@@ -123,8 +144,17 @@ interface Stretch {
   start: Point
 }
 
+// 〇から線を引いているドラッグ: 引き始めた形と辺、引ける相手、押したときのポインタの位置
+interface Link {
+  pointer: number
+  from: string
+  side: Side
+  targets: ReadonlySet<string>
+  start: Point
+}
+
 // 開いたページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く
-function Items({ stage }: { stage: Stage }) {
+function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   const page = useApp(s => {
     const o = stage.opened
     const book = o ? (s.books[o.book] as BookOf<"drawing"> | undefined) : undefined
@@ -143,6 +173,21 @@ function Items({ stage }: { stage: Stage }) {
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
   const registry = useRegistry()
   const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
+  const draw = useCommand(stage.id, "line.draw")
+  const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形（〇を出す）
+  const link = useRef<Link | null>(null)
+  const [linkAt, setLinkAt] = useState<{ at: Point; target: string | null } | null>(null) // 線の先（紙の上）と、その下の引ける相手
+  const linking = linkAt !== null
+  useEffect(() => {
+    if (!linking) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      link.current = null
+      setLinkAt(null)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [linking])
   if (!page) return null
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
@@ -219,9 +264,52 @@ function Items({ stage }: { stage: Stage }) {
     const to = resizedBy(registry, item, st.edges, toPaperDelta(stage, stretched), paper)
     return to ? { ...item, ...to } : item
   }
-  // ドラッグ中の見た目: 動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く
+  // 〇から線を引く: 押すと途中の線を伸ばし、ポインタの下の引ける相手を覚え、離すとその相手に引く（line.draw）。Escape・相手の無い所で取りやめ
+  const startLink = (e: PointerEvent<HTMLDivElement>, from: string, side: Side) => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const r = rects.get(from)
+    if (!r) return
+    const [x, y] = portAt(r, side, 0)
+    link.current = {
+      pointer: e.pointerId,
+      from,
+      side,
+      targets: targetsFrom(registry, page, from),
+      start: { x: e.clientX, y: e.clientY },
+    }
+    setLinkAt({ at: { x, y }, target: null })
+  }
+  const moveLink = (e: PointerEvent<HTMLDivElement>) => {
+    const l = link.current
+    const at = l?.pointer === e.pointerId ? localOf(e) : null
+    const on = at && toPaper(stage, at)
+    if (!l || !on) return
+    // ポインタの下の、一番手前の形（線は飛ばす）。引ける相手でなければ相手は無し
+    const shape = document
+      .elementsFromPoint(e.clientX, e.clientY)
+      .map(el => el.closest<HTMLElement>("[data-shape]")?.dataset.item)
+      .find(id => id !== undefined)
+    setLinkAt({ at: on, target: shape && l.targets.has(shape) ? shape : null })
+  }
+  const endLink = (e: PointerEvent<HTMLDivElement>, drop: boolean) => {
+    const l = link.current
+    if (l?.pointer !== e.pointerId) return
+    link.current = null
+    const target = linkAt?.target
+    setLinkAt(null)
+    const at = localOf(e)
+    const moved = Math.abs(e.clientX - l.start.x) > 3 || Math.abs(e.clientY - l.start.y) > 3
+    if (drop && moved && target && at) draw.run({ from: l.from, side: l.side, to: target, at })
+  }
+
+  // ドラッグ中の見た目: 動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く。線を引いている間は、引ける相手と引き始めた形のほかを薄く
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
   const lookOf = (id: string): "lifted" | "faded" | undefined => {
+    const l = link.current
+    if (linking && l) return id === l.from || l.targets.has(id) ? undefined : "faded"
     if (dragged.length > 0) return dragged.includes(id) ? "lifted" : "faded"
     return resizing && id !== resizing ? "faded" : undefined
   }
@@ -237,11 +325,35 @@ function Items({ stage }: { stage: Stage }) {
   const lines = drawLines(linesOf(page), rects, DEFAULT_ROUTE === "elbow")
   const selectable = !hand && stage.placing === null
 
+  // 〇を出す形: 選択の道具で、ポインタを乗せている選んでいない形（ドラッグ・大きさを変えている間は出さない）。線を引いている間は、引き始めた形の押した〇だけ
+  const portsOf = (id: string): readonly Side[] => {
+    const l = link.current
+    if (linking && l) return l.from === id ? [l.side] : []
+    const busy = dragged.length > 0 || resizing !== null
+    if (!selectable || busy || hover !== id || stage.selection.includes(id) || !targetsFrom(registry, page, id).size)
+      return []
+    return SIDES
+  }
+  const from = link.current && rects.get(link.current.from)
+  const zoom = placement(stage)?.zoom ?? 1
+
   const items = shapes.map(({ item, shift }) => (
     <Item
       key={item.id}
       stage={stage.id}
       item={item}
+      target={linkAt?.target === item.id}
+      onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
+      ports={
+        <Ports
+          sides={portsOf(item.id)}
+          active={linking}
+          onStart={(e, side) => startLink(e, item.id, side)}
+          onPointerMove={moveLink}
+          onPointerUp={e => endLink(e, true)}
+          onPointerCancel={e => endLink(e, false)}
+        />
+      }
       stretchable={single && stage.selection[0] === item.id && minSize(item) !== null}
       onStretch={{
         down: (e, edges) => startStretch(e, item.id, edges),
@@ -283,6 +395,9 @@ function Items({ stage }: { stage: Stage }) {
           openLineMenu(e, { item: id })
         }}
       />
+      {linkAt && from && link.current && (
+        <LinkPreview from={portAt(from, link.current.side, PORT_OUT / zoom)} to={[linkAt.at.x, linkAt.at.y]} />
+      )}
     </>
   )
 }
@@ -290,6 +405,9 @@ function Items({ stage }: { stage: Stage }) {
 interface ItemProps {
   stage: string
   item: Placed
+  target: boolean // 〇から引いている線の、今の相手か
+  onHover(on: boolean): void
+  ports: ReactNode // 線を引く〇
   stretchable: boolean // 四辺と四隅をつかんで大きさを変えられるか
   onStretch: {
     down(e: PointerEvent<HTMLDivElement>, edges: Edges): void
@@ -321,7 +439,19 @@ const GRIPS: readonly { at: string; edges: Edges }[] = [
 ]
 
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く
-function Item({ stage, item, stretchable, onStretch, selected, shift, look, ...handlers }: ItemProps) {
+function Item({
+  stage,
+  item,
+  target,
+  onHover,
+  ports,
+  stretchable,
+  onStretch,
+  selected,
+  shift,
+  look,
+  ...handlers
+}: ItemProps) {
   const registry = useRegistry()
   const ui = useUi().items.get(item.item)
   const size = placedSize(registry, item)
@@ -329,7 +459,11 @@ function Item({ stage, item, stretchable, onStretch, selected, shift, look, ...h
   return (
     <div
       data-item={item.id}
+      data-shape
+      data-target={target}
       className={styles.item}
+      onPointerEnter={() => onHover(true)}
+      onPointerLeave={() => onHover(false)}
       data-selected={selected}
       data-look={look}
       style={{
@@ -352,6 +486,7 @@ function Item({ stage, item, stretchable, onStretch, selected, shift, look, ...h
       ) : (
         <div className={styles.unknownItem} />
       )}
+      {ports}
       {stretchable &&
         GRIPS.map(g => (
           <div

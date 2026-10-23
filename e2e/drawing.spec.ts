@@ -689,3 +689,83 @@ test("箱の大きさを変えるドラッグの間は、ほかの箱が薄く�
   await page.mouse.up()
   await expect(right).not.toHaveAttribute("data-look")
 })
+
+test("選択の道具で、選んでいない箱にポインタを乗せると四辺に〇が出る。〇から相手の箱へドラッグして離すと、終点に矢印の付いた線が引かれる。何も無い所や Escape では引かない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  for (const [x, caption] of [
+    [150, "始"],
+    [550, "終"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, 150)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 600, 500)
+  await page.mouse.click(empty.x, empty.y) // 選択を外す
+  const start = items(page).filter({ hasText: "始" })
+  const end = items(page).filter({ hasText: "終" })
+  const s = (await start.boundingBox())!
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  const ports = start.locator("[data-port]")
+  await expect(ports).toHaveCount(4)
+  // 選んだ箱には出さない
+  await start.click()
+  await expect(ports).toHaveCount(0)
+  await page.mouse.click(empty.x, empty.y)
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  const right = start.locator('[data-port="r"]')
+  const r = (await right.boundingBox())!
+  const e = (await end.boundingBox())!
+  // 何も無い所で離すと引かない
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(empty.x, empty.y, { steps: 5 })
+  await page.mouse.up()
+  await expect(page.locator("[data-item]:not([data-shape])")).toHaveCount(0)
+  // Escape で取りやめ
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(e.x + 10, e.y + e.height / 2, { steps: 5 })
+  await expect(end).toHaveAttribute("data-target", "true")
+  await page.keyboard.press("Escape")
+  await expect(end).toHaveAttribute("data-target", "false")
+  await page.mouse.up()
+  await expect(page.locator("[data-item]:not([data-shape])")).toHaveCount(0)
+  // 相手の箱の上で離すと引く。引いている間は、引ける相手が強調される
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(e.x + 10, e.y + e.height / 2, { steps: 5 })
+  await expect(end).toHaveAttribute("data-target", "true")
+  await page.mouse.up()
+  const line = page.locator("[data-item]:not([data-shape])")
+  await expect(line).toHaveCount(1)
+  await expect(line.locator("path")).toHaveCount(1) // 終点の矢印
+  // 始点は〇の辺の真ん中（始の右の辺）、終点は離した所に近い終の左の辺
+  const pts = (await line.locator("polyline").last().getAttribute("points"))!.split(" ")
+  expect(pts).toHaveLength(2)
+  expect(pts[0]!.split(",")[1]).toBe(pts[1]!.split(",")[1])
+})
+
+test("〇から同じ箱へ戻して離すと、自分に戻る線が引かれる", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "箱" }).click()
+  const at = await onPaper(page, 300, 250)
+  await addBox(page, at.x, at.y, "輪")
+  const empty = await onPaper(page, 700, 600)
+  await page.mouse.click(empty.x, empty.y)
+  const box = items(page).filter({ hasText: "輪" })
+  const b = (await box.boundingBox())!
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+  const top = (await box.locator('[data-port="t"]').boundingBox())!
+  await page.mouse.move(top.x + 10, top.y + 10)
+  await page.mouse.down()
+  await page.mouse.move(b.x + b.width - 8, b.y + 8, { steps: 5 })
+  await page.mouse.up()
+  const line = page.locator("[data-item]:not([data-shape])")
+  await expect(line).toHaveCount(1)
+  expect((await line.locator("polyline").last().getAttribute("points"))!.split(" ").length).toBeGreaterThan(8)
+})

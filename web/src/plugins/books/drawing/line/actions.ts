@@ -4,17 +4,12 @@ import { defineAction } from "../../../../core/def/action"
 import type { Registry } from "../../../../core/registry"
 import type { BookOf } from "../../../../core/schema/book"
 import { keepApart, nextItemId, rectsOf } from "../items/items"
-import { type DrawingPage, linesOf, shapesOf } from "../placed"
+import { type DrawingPage, linesOf } from "../placed"
 import { LINE, LinePatchSchema } from "."
+import { connectable } from "./connect"
 import { canConnect, DEFAULT_ROUTE, type PlacedLine, PlacedLineSchema, tidyLines } from "./placed"
 
 type Drawing = BookOf<"drawing">
-
-// ページの、線をつなげる形（connectable）か
-function connectable(reg: Registry, page: DrawingPage, id: string): boolean {
-  const shape = shapesOf(page).find(s => s.id === id)
-  return !!shape && (reg.items.get(shape.item)?.capabilities.includes("connectable") ?? false)
-}
 
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
 const tidied = (reg: Registry, page: DrawingPage, line: PlacedLine): PlacedLine =>

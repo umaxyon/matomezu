@@ -17,6 +17,7 @@ import {
 } from "./items"
 import { LINE } from "./line"
 import { LINE_CONNECT, LINE_UPDATE } from "./line/actions"
+import { LINE_DRAW } from "./line/commands"
 import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./list/actions"
 import {
@@ -64,6 +65,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
     LIST_CHECK,
     LIST_STRETCH_ROW,
     LIST_MOVE_ROW,
+    LINE_DRAW,
   ],
   dialogs: [
     DRAWING_SETTINGS_DIALOG,
@@ -123,6 +125,7 @@ declare module "../../../store/tables" {
     "list.check": typeof LIST_CHECK
     "list.stretchRow": typeof LIST_STRETCH_ROW
     "list.moveRow": typeof LIST_MOVE_ROW
+    "line.draw": typeof LINE_DRAW
   }
   interface DialogTable {
     "drawing.settings": typeof DRAWING_SETTINGS_DIALOG
