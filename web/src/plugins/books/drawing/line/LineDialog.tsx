@@ -251,7 +251,9 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
           </Section>
         )}
         <div className={rowClass}>
-          <ActionButton onClick={remove}>{t("Delete line")}</ActionButton>
+          <ActionButton danger onClick={remove}>
+            {t("Delete line")}
+          </ActionButton>
         </div>
         {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
       </Form>

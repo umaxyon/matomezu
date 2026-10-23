@@ -124,6 +124,11 @@ textarea.control {
 .plain:disabled:hover {
   background: transparent;
 }
+/* 取り消せない操作のボタン: 赤い文字と縁 */
+.plain[data-danger] {
+  border-color: var(--skin-danger);
+  color: var(--skin-danger);
+}
 /* 入り切りの印のボタンの、入っている間 */
 .plain[aria-pressed="true"] {
   border-color: var(--skin-accent);

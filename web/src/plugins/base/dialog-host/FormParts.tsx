@@ -152,10 +152,11 @@ export function Switch({
 }
 
 // 見出しの行などに置くボタン。form を渡すと、その form を送るボタンになる（primary は強調する）。
-// pressed を渡すと、押すたびに入り切りする印のボタン（入っている間は強調の色の縁取り）
+// pressed を渡すと、押すたびに入り切りする印のボタン（入っている間は強調の色の縁取り）。danger は消すなど取り消せない操作のボタン（赤い文字と縁）
 export function ActionButton({
   form,
   primary = false,
+  danger = false,
   disabled = false,
   pressed,
   onClick,
@@ -163,6 +164,7 @@ export function ActionButton({
 }: {
   form?: string
   primary?: boolean
+  danger?: boolean
   disabled?: boolean
   pressed?: boolean
   onClick?: () => void
@@ -173,6 +175,7 @@ export function ActionButton({
       type={form ? "submit" : "button"}
       form={form}
       className={primary ? styles.submit : styles.plain}
+      data-danger={danger || undefined}
       disabled={disabled}
       aria-pressed={pressed}
       onClick={onClick}

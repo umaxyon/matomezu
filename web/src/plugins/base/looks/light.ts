@@ -24,6 +24,7 @@ export const LIGHT = defineSkin({
     "float-line": "rgba(0, 0, 0, 0.12)",
     "float-hover": "#ece8fb",
     "on-accent": "#ffffff",
+    danger: "#dc2626",
     font: DARK.tokens.font,
   },
 })
