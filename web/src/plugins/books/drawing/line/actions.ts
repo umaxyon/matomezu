@@ -16,9 +16,13 @@ function connectable(reg: Registry, page: DrawingPage, id: string): boolean {
   return !!shape && (reg.items.get(shape.item)?.capabilities.includes("connectable") ?? false)
 }
 
+// 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
+const tidied = (reg: Registry, page: DrawingPage, line: PlacedLine): PlacedLine =>
+  tidyLines([line], rectsOf(reg, page), DEFAULT_ROUTE === "elbow")[0] ?? line
+
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
 const viaDrawn = (reg: Registry, page: DrawingPage, line: PlacedLine): boolean =>
-  !line.props.via || tidyLines([line], rectsOf(reg, page), DEFAULT_ROUTE === "elbow")[0]?.props.via !== undefined
+  !line.props.via || tidied(reg, page, line).props.via !== undefined
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、始点の形はそのままで終点の側をどける
 function withLine(reg: Registry, book: Drawing, page: DrawingPage, line: PlacedLine): Drawing | null {
@@ -61,7 +65,9 @@ export const LINE_CONNECT = defineAction({
 })
 
 // 線の項目を変える。props に書いた項目だけを変え、null を書いた項目は消す（既定に戻す）。
-// 手で直した途中の区間（via）は、両端が固定で、引けるときだけ書ける。キャプションを付けて間隔の下限が広がれば、終点の側をどける
+// 手で直した途中の区間（via）は、両端が固定で、引けるときだけ書ける（書いて引けなければ断る）。
+// ほかの項目を変えて（直線にした・端を自由に戻した・端を別の辺へ動かした）今の via が引けなくなれば、via を消す。
+// キャプションを付けて間隔の下限が広がれば、終点の側をどける
 export const LINE_UPDATE = defineAction({
   id: "line.update",
   title: "Update line",
@@ -79,8 +85,9 @@ export const LINE_UPDATE = defineAction({
     if (!page || !now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const line = PlacedLineSchema.safeParse({ ...now, props })
-    if (!line.success || !viaDrawn(ctx.registry, page, line.data)) return null
-    const next = withLine(ctx.registry, book, page, line.data)
+    if (!line.success) return null
+    if (args.props.via != null && !viaDrawn(ctx.registry, page, line.data)) return null
+    const next = withLine(ctx.registry, book, page, tidied(ctx.registry, page, line.data))
     return next && { next, result: {} }
   },
 })

@@ -161,3 +161,18 @@ test("関係の決まりを守らないブック（線の端が無い・行に�
   expect(restoreBooks(REGISTRY, [withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")])])).toHaveLength(0)
   expect(restoreBooks(REGISTRY, [withLines([line("l1", "n1", "n1"), line("l2", "n1", "n1")])])).toHaveLength(1)
 })
+
+test("line.update: via を持つ線を直線にする・端を自由に戻すと、引けなくなった via を消す（断らない）。via を書いて引けなければ断る", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 300)
+  const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
+  connect(store, "n1", "n2", { ...ends, via: [300] })
+  expect(update(store, "n3", { via: [150] }).ok).toBe(false)
+  expect(lines(store)[0]!.props.via).toEqual([300])
+  expect(update(store, "n3", { route: "straight" }).ok).toBe(true)
+  expect(lines(store)[0]!.props).toEqual({ ...ends, route: "straight" })
+  expect(update(store, "n3", { route: null, via: [300] }).ok).toBe(true)
+  expect(update(store, "n3", { exitAt: null }).ok).toBe(true)
+  expect(lines(store)[0]!.props).toEqual({ enterAt: ends.enterAt })
+})
