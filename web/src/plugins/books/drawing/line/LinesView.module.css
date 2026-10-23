@@ -1,0 +1,98 @@
+/* 線の層: 紙と同じ大きさで形より手前に重ね、はみ出した輪や札も描く。層そのものはポインタを受けない */
+.lines {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+/* 見える線（太さ 1.5）。色はテーマの線の欄 */
+.stroke {
+  fill: none;
+  stroke: var(--theme-line-color);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  transition:
+    stroke 0.15s,
+    stroke-width 0.15s;
+}
+.stroke[data-dashed="true"] {
+  stroke-dasharray: 6 4;
+}
+/* 端の形: 塗る形と、線で描く形（線と同じ色と太さ） */
+.fill {
+  fill: var(--theme-line-color);
+  stroke: none;
+}
+.headStroke {
+  fill: none;
+  stroke: var(--theme-line-color);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+/* 線を押せる所: 見える線より太い透明な線。選べるときだけポインタを受ける */
+.hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+}
+.lines[data-selectable="true"] .hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+/* キャプションの札: 枠の中で上下左右の真ん中にそろえる。枠線も背景も無し。札だけが押せる（選べるとき） */
+.label {
+  overflow: visible;
+}
+.labelBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.labelBox > span {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 1px 5px;
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--theme-line-text);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.lines[data-selectable="true"] .labelBox > span {
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* 選んだ線と、ポインタを乗せた線は、強調の色（選んだ線は太く） */
+.line[data-selected="true"] .stroke {
+  stroke: var(--theme-accent);
+  stroke-width: 3;
+}
+.line[data-selected="true"] .fill {
+  fill: var(--theme-accent);
+}
+.line[data-selected="true"] .headStroke {
+  stroke: var(--theme-accent);
+  stroke-width: 2;
+}
+.lines[data-selectable="true"] .line:not([data-selected="true"]):hover .stroke,
+.lines[data-selectable="true"] .line:not([data-selected="true"]):hover .headStroke {
+  stroke: var(--theme-accent);
+}
+.lines[data-selectable="true"] .line:not([data-selected="true"]):hover .fill {
+  fill: var(--theme-accent);
+}
+.line[data-selected="true"] .labelBox > span,
+.lines[data-selectable="true"] .line:hover .labelBox > span {
+  color: var(--theme-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .stroke {
+    transition: none;
+  }
+}

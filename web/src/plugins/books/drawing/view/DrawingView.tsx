@@ -8,6 +8,8 @@
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに drawing.resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
+// 線は形より手前の層に、描いている形の四角（下書き・ドラッグでずらした所も）から道筋を決めて描く（line/drawn.ts の drawLines）。
+// 選択の道具で線を押すと線を選び、右クリックで線を選んで線のメニュー（line.context）を開く。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react"
 import type { Point } from "../../../../core/geom"
@@ -34,6 +36,10 @@ import {
   shapesOf,
   trackDrag,
 } from "../items"
+import { drawLines } from "../line/drawn"
+import { LinesView } from "../line/LinesView"
+import { DEFAULT_ROUTE } from "../line/placed"
+import { linesOf } from "../placed"
 import styles from "./DrawingView.module.css"
 
 // 要素の左上から見たポインタの位置
@@ -127,6 +133,7 @@ function Items({ stage }: { stage: Stage }) {
   const move = useCommand(stage.id, "drawing.move")
   const edit = useCommand(stage.id, "drawing.edit")
   const openMenu = useContextMenu(stage.id, "item.context")
+  const openLineMenu = useContextMenu(stage.id, "line.context")
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
@@ -219,12 +226,22 @@ function Items({ stage }: { stage: Stage }) {
     return resizing && id !== resizing ? "faded" : undefined
   }
   const single = stage.selection.length === 1 && !hand && stage.placing === null
+  // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）と、その四角から決めた線
+  const shapes = shapesOf(page).map(item => ({ item: shown(item), shift: shiftOf(item) }))
+  const rects = new Map(
+    shapes.flatMap(({ item, shift }) => {
+      const size = placedSize(registry, item)
+      return size ? [[item.id, { x: item.x + (shift?.x ?? 0), y: item.y + (shift?.y ?? 0), ...size }] as const] : []
+    }),
+  )
+  const lines = drawLines(linesOf(page), rects, DEFAULT_ROUTE === "elbow")
+  const selectable = !hand && stage.placing === null
 
-  return shapesOf(page).map(item => (
+  const items = shapes.map(({ item, shift }) => (
     <Item
       key={item.id}
       stage={stage.id}
-      item={shown(item)}
+      item={item}
       stretchable={single && stage.selection[0] === item.id && minSize(item) !== null}
       onStretch={{
         down: (e, edges) => startStretch(e, item.id, edges),
@@ -233,7 +250,7 @@ function Items({ stage }: { stage: Stage }) {
         cancel: e => endStretch(e, false),
       }}
       selected={stage.selection.includes(item.id)}
-      shift={shiftOf(item)}
+      shift={shift}
       look={lookOf(item.id)}
       onPointerDown={e => onPointerDown(e, item.id)}
       onPointerMove={onPointerMove}
@@ -249,6 +266,25 @@ function Items({ stage }: { stage: Stage }) {
       }}
     />
   ))
+  return (
+    <>
+      {items}
+      <LinesView
+        lines={lines}
+        selection={stage.selection}
+        selectable={selectable}
+        onPointerDown={(e, id) => {
+          if (e.button !== 0 || !selectable) return
+          if (!stage.selection.includes(id)) select(stage.id, [id])
+        }}
+        onContextMenu={(e, id) => {
+          if (stage.placing !== null) return
+          if (!stage.selection.includes(id)) select(stage.id, [id])
+          openLineMenu(e, { item: id })
+        }}
+      />
+    </>
+  )
 }
 
 interface ItemProps {

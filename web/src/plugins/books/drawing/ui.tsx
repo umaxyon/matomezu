@@ -19,5 +19,6 @@ declare module "../../../ui/tables" {
     "drawing.context": Record<string, never> // 図面の画面（何も受け取らない）
     "item.context": { item: string } // 置いたアイテム（右クリックしたアイテムの id）
     "row.context": { list: string; row: string } // リストの行（右クリックした行と、そのリストの id）
+    "line.context": { item: string } // 線（右クリックした線の id）
   }
 }

@@ -1,0 +1,55 @@
+// ページの線のビュー: 形より手前の層に、線（見える線・端の形・破線）とキャプションの札を描く（選んだ線はほかの線より手前）。道筋は drawLines（drawn.ts）が決めたものを描くだけ。
+// 線を選べるのは選択の道具のときだけで、線の上（見える線より太い透明な当たり）を押すと線を選び、右クリックで線のメニューを開く。
+// ほかのときは、線はポインタを受けず、下の形と紙に届く
+import type { MouseEvent, PointerEvent } from "react"
+import type { DrawnLine } from "./drawn"
+import styles from "./LinesView.module.css"
+
+const pointsAttr = (pts: readonly (readonly [number, number])[]) =>
+  pts.map(([x, y]) => `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`).join(" ")
+
+interface Props {
+  lines: readonly DrawnLine[]
+  selection: readonly string[]
+  selectable: boolean // 選択の道具で、置こうとしていないとき
+  onPointerDown(e: PointerEvent<SVGGElement>, id: string): void
+  onContextMenu(e: MouseEvent<SVGGElement>, id: string): void
+}
+
+export function LinesView({ lines, selection, selectable, onPointerDown, onContextMenu }: Props) {
+  // 選んだ線は、ほかの線に隠れないよう手前（後ろの順）に描く
+  const ordered = [...lines.filter(l => !selection.includes(l.id)), ...lines.filter(l => selection.includes(l.id))]
+  return (
+    <svg className={styles.lines} data-selectable={selectable} aria-hidden="true">
+      {ordered.map(l => (
+        // biome-ignore lint/a11y/noStaticElementInteractions: 線を選ぶのはポインタの操作で、キーの操作は選んだあとのコマンドが受ける
+        <g
+          key={l.id}
+          data-item={l.id}
+          className={styles.line}
+          data-selected={selection.includes(l.id)}
+          onPointerDown={e => onPointerDown(e, l.id)}
+          onContextMenu={e => onContextMenu(e, l.id)}
+        >
+          <polyline className={styles.stroke} data-dashed={l.dashed} points={pointsAttr(l.shown)} />
+          {l.heads.fill && <path className={styles.fill} d={l.heads.fill} />}
+          {l.heads.stroke && <path className={styles.headStroke} d={l.heads.stroke} />}
+          <polyline className={styles.hit} points={pointsAttr(l.points)} />
+          {l.caption && (
+            <foreignObject
+              className={styles.label}
+              x={l.caption.box.x}
+              y={l.caption.box.y}
+              width={l.caption.box.w}
+              height={l.caption.box.h}
+            >
+              <div className={styles.labelBox}>
+                <span>{l.caption.text}</span>
+              </div>
+            </foreignObject>
+          )}
+        </g>
+      ))}
+    </svg>
+  )
+}

@@ -47,5 +47,8 @@ export const LINE = defineItem({
   capabilities: [],
   toolbox: false,
   props: z.strictObject(optional(lineFields())),
-  tokens: [],
+  tokens: [
+    { id: "line.color", fallback: "line" }, // 線と端の形の色
+    { id: "line.text", fallback: "text" }, // キャプションの文字の色
+  ],
 })

@@ -23,5 +23,6 @@ export const DEFAULT_LAYOUT = defineLayout({
     "drawing.context": ["drawing.settings"],
     "item.context": ["drawing.edit", "-", "drawing.delete"],
     "row.context": ["list.editRow", "-", "list.deleteRow"],
+    "line.context": ["drawing.delete"],
   },
 })

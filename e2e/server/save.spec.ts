@@ -114,3 +114,76 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toMatchObject({ book: result.book, stage: "s2", canSplit: false })
 })
+
+// 線のあるブック: 箱 a・b・c と、a から b（終点に矢印・キャプション）・a から c・b から c の線
+const LINE_BOOK = {
+  type: "drawing",
+  id: "e2e-line",
+  title: "線",
+  pages: [
+    {
+      id: "p1",
+      title: "ページ 1",
+      paper: "a4",
+      orientation: "landscape",
+      items: [
+        { id: "a", x: 100, y: 100, item: "shape.box", w: 100, h: 64, props: { caption: "A" } },
+        { id: "b", x: 400, y: 100, item: "shape.box", w: 100, h: 64, props: { caption: "B" } },
+        { id: "c", x: 100, y: 400, item: "shape.box", w: 100, h: 64, props: { caption: "C" } },
+        { id: "l1", item: "connector.line", from: "a", to: "b", props: { endHead: "arrow", caption: "申請" } },
+        { id: "l2", item: "connector.line", from: "a", to: "c", props: {} },
+        { id: "l3", item: "connector.line", from: "b", to: "c", props: {} },
+      ],
+    },
+  ],
+}
+
+test("線は箱より手前に描かれ、選択の道具で押すと選ばれ、Delete と右クリックのメニューで消せる。箱を消すと、つながる線も消える", async ({
+  page,
+}) => {
+  const { token } = JSON.parse(readFileSync("e2e/.home/server.json", "utf8"))
+  const ai = { Authorization: `Bearer ${token}` }
+  const put = await page.request.put(`/api/books/${LINE_BOOK.id}`, { data: { book: LINE_BOOK, base: 0 } })
+  expect(put.ok()).toBe(true)
+  await page.goto("/")
+  await page.bringToFront()
+  // 前のテストの窓ではなく、開いたばかりのこの窓に届くように、この窓にフォーカスを知らせる（すでに前にある窓は focus が起きない）
+  await expect(page.locator("[data-stage]")).toHaveCount(1)
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")))
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
+    .toMatchObject({ book: "e2e-1", stage: "s1", canSplit: true })
+  const shown = await page.request.post("/api/ai/show", { headers: ai, data: { book: LINE_BOOK.id } })
+  expect(await shown.json()).toMatchObject({ ok: true })
+  const line = (id: string) => page.locator(`[data-item="${id}"]`)
+  await expect(line("l1")).toBeVisible()
+  await expect(line("l1")).toContainText("申請")
+  await expect(line("l1").locator("path")).toHaveCount(1) // 終点の矢印
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  const at = (x: number, y: number) => ({ x: paper.x + x, y: paper.y + y })
+  // a の右の辺から b の左の辺へ、y = 132 の横の線。キャプションを避けた所を押す
+  const p = at(230, 132)
+  await page.mouse.click(p.x, p.y)
+  await expect(line("l1")).toHaveAttribute("data-selected", "true")
+  await expect(page.locator('[data-item="a"]')).toHaveAttribute("data-selected", "false")
+  await page.keyboard.press("Delete")
+  await expect(line("l1")).toHaveCount(0)
+  // a の下の辺から c の上の辺へ、x = 150 の縦の線を右クリックして削除
+  const q = at(150, 280)
+  await page.mouse.click(q.x, q.y, { button: "right" })
+  const menu = page.getByRole("menu")
+  await expect(menu.getByRole("menuitem")).toHaveText(["削除Delete"])
+  await menu.getByRole("menuitem", { name: "削除" }).click()
+  await expect(line("l2")).toHaveCount(0)
+  // 箱 b を消すと、b から c の線も消える
+  const b = at(450, 132)
+  await page.mouse.click(b.x, b.y)
+  await page.keyboard.press("Delete")
+  await expect(line("l3")).toHaveCount(0)
+  await expect
+    .poll(async () => {
+      const saved = (await data(page)).books.find((x: { id: string }) => x.id === LINE_BOOK.id)
+      return saved?.book.pages[0].items.map((i: { id: string }) => i.id)
+    })
+    .toEqual(["a", "c"])
+})

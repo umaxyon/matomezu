@@ -1,9 +1,9 @@
-// 図面のブックのビュー: ページごとの紙と、その上の箱とリストを描く。画面の上の右クリックで図面のメニュー（drawing.context）、アイテムの上で item.context、
-// リストの行の上で row.context を開く（行のメニューは、ビューの中に描くリストのビューが開く）
+// 図面のブックのビュー: ページごとの紙と、その上の箱とリストと線を描く。画面の上の右クリックで図面のメニュー（drawing.context）、アイテムの上で item.context、
+// 線の上で line.context、リストの行の上で row.context を開く（行のメニューは、ビューの中に描くリストのビューが開く）
 import type { BookViewDef } from "../../../../ui/plugin"
 import { DrawingView } from "./DrawingView"
 
 export const DRAWING_VIEW = {
   view: DrawingView,
-  contextMenus: ["drawing.context", "item.context", "row.context"],
+  contextMenus: ["drawing.context", "item.context", "row.context", "line.context"],
 } as const satisfies BookViewDef
