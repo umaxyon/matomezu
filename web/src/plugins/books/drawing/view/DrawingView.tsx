@@ -18,13 +18,14 @@ import {
   type PointerEvent,
   type ReactNode,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react"
-import type { Point } from "../../../../core/geom"
+import type { Point, Rect } from "../../../../core/geom"
 import type { BookOf } from "../../../../core/schema/book"
 import type { Stage } from "../../../../core/stage"
-import { paperOf, placement, toPaper, toPaperDelta } from "../../../../core/stage"
+import { paperOf, placement, toPaperDelta } from "../../../../core/stage"
 import { toolOf } from "../../../../core/workspace"
 import { useCommand } from "../../../../ui/commands"
 import { useContextMenu } from "../../../../ui/context-menu"
@@ -43,17 +44,21 @@ import {
   placedSize,
   resizedBy,
   shapesOf,
+  shownRects,
   trackDrag,
 } from "../items"
+import { rectsOf } from "../items/items"
 import { usesLines } from "../line"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "../line/connect"
 import { drawLines, type LineCache } from "../line/drawn"
 import { LinesView } from "../line/LinesView"
 import { LinkPreview, Ports } from "../line/PortsView"
 import type { PlacedLine } from "../line/placed"
-import type { EndMemory, Rect, Side } from "../line/route"
+import type { EndMemory, Side } from "../line/route"
+import { memoryOf, stickyMemory } from "../line/sticky"
 import { useLineEdit } from "../line/useLineEdit"
-import { elbowOf, linesOf } from "../placed"
+import { useLinkDrag } from "../line/useLinkDrag"
+import { type DrawingPage, elbowOf, linesOf } from "../placed"
 import styles from "./DrawingView.module.css"
 
 // 要素の左上から見たポインタの位置
@@ -148,22 +153,18 @@ interface Stretch {
   start: Point
 }
 
-// 〇から線を引いているドラッグ: 引き始めた形と辺、引ける相手、押したときのポインタの位置
-interface Link {
-  pointer: number
-  from: string
-  side: Side
-  targets: ReadonlySet<string>
-  start: Point
-}
-
-// 開いたページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く
+// 開いたページのアイテム（ページが無ければ何も描かない）
 function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   const page = useApp(s => {
     const o = stage.opened
     const book = o ? (s.books[o.book] as BookOf<"drawing"> | undefined) : undefined
     return book?.pages.find(pg => pg.id === o?.page)
   })
+  return page ? <PageItems stage={stage} page={page} localOf={localOf} /> : null
+}
+
+// ページのアイテムと線。ドラッグ中は、動かすアイテムを動いた量だけずらして描く
+function PageItems({ stage, page, localOf }: { stage: Stage; page: DrawingPage; localOf: LocalOf }) {
   // ブックの線の既定の通り方（ページが自分の既定を持たなければこれ）と、ブックで線が使えるか（使えなければ線を引く〇を出さない）
   const bookRoute = useApp(s => {
     const o = stage.opened
@@ -186,12 +187,9 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
   const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
-  const draw = useCommand(stage.id, "line.draw")
   const lineEdit = useCommand(stage.id, "line.edit")
   const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形（〇を出す）
-  const link = useRef<Link | null>(null)
-  const [linkAt, setLinkAt] = useState<{ at: Point; target: string | null } | null>(null) // 線の先（紙の上）と、その下の引ける相手
-  const linking = linkAt !== null
+  const linkDrag = useLinkDrag(stage, registry, localOf)
   const lineDrag = useLineEdit(stage, registry, localOf)
   // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角、離したあとに付け替えを見る線
   const memo = useRef(new Map<string, EndMemory>())
@@ -201,17 +199,6 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   useEffect(() => {
     if (settle.current.size > 0) settle.current = new Set()
   })
-  useEffect(() => {
-    if (!linking) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return
-      link.current = null
-      setLinkAt(null)
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [linking])
-  if (!page) return null
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
     if (e.button !== 0 || hand || stage.placing !== null) return
@@ -232,7 +219,15 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
     if (d?.pointer !== e.pointerId) return
     const screen = { x: e.clientX - d.start.x, y: e.clientY - d.start.y }
     const by = toPaperDelta(stage, screen)
-    if (d.items.length === 1) d.came = trackDrag(registry, page, d.items[0] as string, d.prev, by, d.came)
+    if (d.items.length === 1) {
+      const id = d.items[0] as string
+      d.came = trackDrag(registry, page, id, d.prev, by, d.came)
+      // 入れ替えが起きたら覚える（このドラッグの終わりまで、動かす形の線は前の辺に留まらない）
+      const now = rectsOf(registry, page)
+      const plan = dragging(registry, page, id, by, d.came)
+      if ([...(plan ?? [])].some(([k, r]) => k !== id && (r.x !== now.get(k)?.x || r.y !== now.get(k)?.y)))
+        d.swapped = true
+    }
     d.prev = by
     setMoved(screen)
   }
@@ -294,52 +289,11 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
     const to = resizedBy(registry, item, st.edges, toPaperDelta(stage, stretched), paper)
     return to ? { ...item, ...to } : item
   }
-  // 〇から線を引く: 押すと途中の線を伸ばし、ポインタの下の引ける相手を覚え、離すとその相手に引く（line.draw）。Escape・相手の無い所で取りやめ
-  const startLink = (e: PointerEvent<HTMLDivElement>, from: string, side: Side) => {
-    if (e.button !== 0) return
-    e.stopPropagation()
-    e.preventDefault()
-    e.currentTarget.setPointerCapture(e.pointerId)
-    const r = rects.get(from)
-    if (!r) return
-    const at = portAt(r, side, 0)
-    link.current = {
-      pointer: e.pointerId,
-      from,
-      side,
-      targets: targetsFrom(registry, page, from),
-      start: { x: e.clientX, y: e.clientY },
-    }
-    setLinkAt({ at, target: null })
-  }
-  const moveLink = (e: PointerEvent<HTMLDivElement>) => {
-    const l = link.current
-    const at = l?.pointer === e.pointerId ? localOf(e) : null
-    const on = at && toPaper(stage, at)
-    if (!l || !on) return
-    // ポインタの下の、一番手前の形（線は飛ばす）。引ける相手でなければ相手は無し
-    const shape = document
-      .elementsFromPoint(e.clientX, e.clientY)
-      .map(el => el.closest<HTMLElement>("[data-shape]")?.dataset.item)
-      .find(id => id !== undefined)
-    setLinkAt({ at: on, target: shape && l.targets.has(shape) ? shape : null })
-  }
-  const endLink = (e: PointerEvent<HTMLDivElement>, drop: boolean) => {
-    const l = link.current
-    if (l?.pointer !== e.pointerId) return
-    link.current = null
-    const target = linkAt?.target
-    setLinkAt(null)
-    const at = localOf(e)
-    const moved = Math.abs(e.clientX - l.start.x) > 3 || Math.abs(e.clientY - l.start.y) > 3
-    if (drop && moved && target && at) draw.run({ from: l.from, side: l.side, to: target, at })
-  }
-
   // ドラッグ中の見た目: 動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く。線を引いている間は、引ける相手と引き始めた形のほかを薄く
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
   const lookOf = (id: string): "lifted" | "faded" | undefined => {
-    const l = link.current
-    if (linking && l) return id === l.from || l.targets.has(id) ? undefined : "faded"
+    const l = linkDrag.link
+    if (l) return id === l.from || l.targets.has(id) ? undefined : "faded"
     if (lineDrag.dimming) return lineDrag.dimming.has(id) ? undefined : "faded"
     if (dragged.length > 0) return dragged.includes(id) ? "lifted" : "faded"
     return resizing && id !== resizing ? "faded" : undefined
@@ -347,12 +301,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
   const single = stage.selection.length === 1 && !hand && stage.placing === null
   // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）と、その四角から決めた線
   const shapes = shapesOf(page).map(item => ({ item: shown(item), shift: shiftOf(item) }))
-  const rects = new Map(
-    shapes.flatMap(({ item, shift }) => {
-      const size = placedSize(registry, item)
-      return size ? [[item.id, { x: item.x + (shift?.x ?? 0), y: item.y + (shift?.y ?? 0), ...size }] as const] : []
-    }),
-  )
+  const rects = shownRects(registry, shapes)
   // ダイアログの下書きのある線は、項目に下書きを重ねて描く。じかに直しているドラッグの線は、その途中の項目で描く
   const drafted = linesOf(page).map(l =>
     lineDrag.draft?.id === l.id
@@ -362,35 +311,19 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
         : l,
   )
   const elbow = elbowOf({ lineRoute: bookRoute }, page)
-  // 前の辺に留まる線（EDGE-SPEC の場面の表）: 動かしている形の線は留まる（入れ替えが起きたら、そのドラッグの終わりまで留まらない）。
-  // 入れ替えでずれた形・ドラッグのほかで動いた形（押された・AI が動かした）の線は留まらず、一番よい形を追う
+  // 前の辺に留まる線（line/sticky.ts）。入れ替えでずれて描いている形は、留まらない側
   const pushed = shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id)
-  if (d && pushed.length > 0) d.swapped = true
-  const movedElse = (id: string) => {
-    const was = drawnRects.current.get(id)
-    const now = rects.get(id)
-    return (
-      !dragged.includes(id) &&
-      (!was || !now || was.x !== now.x || was.y !== now.y || was.w !== now.w || was.h !== now.h)
-    )
-  }
-  const memory = new Map(
-    drafted.flatMap(l => {
-      const m = memo.current.get(l.id)
-      const ends = [l.from, l.to]
-      if (!m || ends.some(id => pushed.includes(id))) return []
-      if (d?.swapped && ends.some(id => dragged.includes(id))) return []
-      if (!settle.current.has(l.id) && ends.some(movedElse)) return []
-      return [[l.id, m] as const]
-    }),
-  )
-  const lines = drawLines(drafted, rects, elbow, {
-    memory,
-    loose: settle.current,
-    cache: cache.current,
+  const memory = stickyMemory({
+    lines: drafted,
+    memo: memo.current,
+    before: drawnRects.current,
+    rects,
+    dragged,
+    pushed,
+    swapped: d?.swapped ?? false,
+    settle: settle.current,
   })
-  memo.current = new Map(lines.flatMap(l => (l.memory ? [[l.id, l.memory] as const] : [])))
-  drawnRects.current = rects
+  const lines = drawLines(drafted, rects, elbow, { memory, loose: settle.current, cache: cache.current })
   const selectable = !hand && stage.placing === null
   const scene = { page, lines: drafted, drawn: lines, rects, elbow }
   const only = stage.selection.length === 1 ? stage.selection[0] : undefined
@@ -398,8 +331,8 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
 
   // 〇を出す形: 選択の道具で、ポインタを乗せている選んでいない形（ドラッグ・大きさを変えている間は出さない）。線を引いている間は、引き始めた形の押した〇だけ
   const portsOf = (id: string): readonly Side[] => {
-    const l = link.current
-    if (linking && l) return l.from === id ? [l.side] : []
+    const l = linkDrag.link
+    if (l) return l.from === id ? [l.side] : []
     const busy = dragged.length > 0 || resizing !== null
     if (
       !lineable ||
@@ -412,24 +345,33 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
       return []
     return SIDES
   }
-  const from = link.current && rects.get(link.current.from)
+  const from = linkDrag.link && rects.get(linkDrag.link.from)
   const zoom = placement(stage)?.zoom ?? 1
+
+  // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
+  useLayoutEffect(() => {
+    memo.current = memoryOf(lines)
+    drawnRects.current = rects
+  })
 
   const items = shapes.map(({ item, shift }) => (
     <Item
       key={item.id}
       stage={stage.id}
       item={item}
-      target={linkAt?.target === item.id || lineDrag.target === item.id}
+      target={linkDrag.tip?.target === item.id || lineDrag.target === item.id}
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
       ports={
         <Ports
           sides={portsOf(item.id)}
-          active={linking}
-          onStart={(e, side) => startLink(e, item.id, side)}
-          onPointerMove={moveLink}
-          onPointerUp={e => endLink(e, true)}
-          onPointerCancel={e => endLink(e, false)}
+          active={linkDrag.link !== null}
+          onStart={(e, side) => {
+            const r = rects.get(item.id)
+            if (r) linkDrag.start(e, page, r, item.id, side)
+          }}
+          onPointerMove={linkDrag.move}
+          onPointerUp={e => linkDrag.end(e, true)}
+          onPointerCancel={e => linkDrag.end(e, false)}
         />
       }
       stretchable={single && stage.selection[0] === item.id && minSize(item) !== null}
@@ -493,8 +435,8 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
           cancel: e => lineDrag.end(e, scene, false),
         }}
       />
-      {linkAt && from && link.current && (
-        <LinkPreview from={portAt(from, link.current.side, PORT_OUT / zoom)} to={linkAt.at} />
+      {linkDrag.tip && from && linkDrag.link && (
+        <LinkPreview from={portAt(from, linkDrag.link.side, PORT_OUT / zoom)} to={linkDrag.tip.at} />
       )}
     </>
   )

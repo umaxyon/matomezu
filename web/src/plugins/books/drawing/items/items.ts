@@ -145,6 +145,16 @@ export function rectsOf(reg: Registry, page: DrawingPage): Map<string, Rect> {
   return rects
 }
 
+// 描いている形の四角: 形ごとの左上と大きさに、ドラッグでずらして描く量（shift）を足したもの（大きさの分からない形は入れない）
+export function shownRects(reg: Registry, shapes: readonly { item: Placed; shift: Point | null }[]): Map<string, Rect> {
+  const rects = new Map<string, Rect>()
+  for (const { item, shift } of shapes) {
+    const size = placedSize(reg, item)
+    if (size) rects.set(item.id, { x: item.x + (shift?.x ?? 0), y: item.y + (shift?.y ?? 0), ...size })
+  }
+  return rects
+}
+
 // 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行）。
 // 今それより小さければ今の大きさ
 function floorsOf(reg: Registry, page: DrawingPage): Floors {

@@ -27,6 +27,7 @@ import { elbowOf, linesOf } from "../placed"
 import { useBookOf } from "../shape/parts"
 import type { LineRoute } from "."
 import { alignedEndsOf } from "./drawn"
+import { type LineOnce, linePatch } from "./edit"
 import { HEADS, type Head } from "./heads"
 import { DASH_ICONS, ROUTE_ICONS } from "./icons"
 import type { PlacedLine } from "./placed"
@@ -36,7 +37,7 @@ type Dash = "solid" | "dashed"
 // 選んだそばから線に見せる項目
 type Look = Pick<LineProps, "route" | "dash" | "startHead" | "endHead">
 // 一回きりの操作
-type Once = "align" | "free" | "via" | "caption"
+type Once = LineOnce
 
 // 端の形の名前（選ぶ欄。"" は無し。記号は形の見当）
 const HEAD_LABELS: Record<Head, MessageKey> = {
@@ -111,20 +112,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
       return next
     })
   const submit = () => {
-    const patch: Record<string, unknown> = {}
-    if (caption.trim() !== (p.caption?.trim() ?? "")) patch.caption = caption.trim() ? caption : null
-    if (!self && route !== startRoute) patch.route = route
-    if (dash !== (p.dash ?? "solid")) patch.dash = dash === "dashed" ? "dashed" : null
-    if (startHead !== (p.startHead ?? "")) patch.startHead = startHead || null
-    if (endHead !== (p.endHead ?? "")) patch.endHead = endHead || null
-    if (once.has("free")) Object.assign(patch, { exitAt: null, enterAt: null, via: null })
-    if (once.has("via")) patch.via = null
-    if (once.has("caption")) Object.assign(patch, { captionAt: null, captionOffset: null })
-    if (once.has("align")) {
-      const props = Object.fromEntries(Object.entries({ ...p, ...patch }).filter(([, v]) => v !== null))
-      const ends = alignedEndsOf({ ...line, props: { ...props, via: undefined } }, rects, elbow)
-      if (ends) Object.assign(patch, ends, { via: null })
-    }
+    const patch = linePatch(line, { caption, route, dash, startHead, endHead, once }, rects, elbow)
     if (Object.keys(patch).length === 0) return onClose()
     const done = perform("line.update", { page: page.id, line: line.id, props: patch }, { book })
     if (done.ok) onClose()

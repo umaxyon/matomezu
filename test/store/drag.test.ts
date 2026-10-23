@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test"
+import type { BookOf } from "../../web/src/core/schema/book"
 import { dragRects, dropManyRects, dropRects, track } from "../../web/src/plugins/books/drawing/items/drag"
+import { shownRects } from "../../web/src/plugins/books/drawing/items/items"
 import { GAP, type Rect } from "../../web/src/plugins/books/drawing/items/push"
+import { shapesOf } from "../../web/src/plugins/books/drawing/placed"
+import { newStore, REGISTRY } from "../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横
 const rects = (o: Record<string, Rect>) => new Map(Object.entries(o))
@@ -76,4 +80,23 @@ test("組ごとの間隔: 離したときに手前へ戻すのも、入れ替え
   )
   // 間隔が 32 の組は、8 の所まで寄せると近すぎる
   expect(dropRects(before, "a", { x: 92, y: 0 }, undefined, PAPER, pairGap)!.get("a")).toEqual(r(168, 100))
+})
+
+test("描いている形の四角: 左上と大きさに、ドラッグでずらして描く量を足す", () => {
+  const store = newStore()
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
+  store.actions.perform(
+    "item.place",
+    { page: "p1", item: "shape.box", at: { x: 100, y: 100 }, w: 100, h: 64 },
+    { book: "b1" },
+  )
+  const page = (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
+  const [box] = shapesOf(page)
+  expect(shownRects(REGISTRY, [{ item: box!, shift: null }]).get(box!.id)).toEqual({ x: 100, y: 100, w: 100, h: 64 })
+  expect(shownRects(REGISTRY, [{ item: box!, shift: { x: 30, y: -10 } }]).get(box!.id)).toEqual({
+    x: 130,
+    y: 90,
+    w: 100,
+    h: 64,
+  })
 })

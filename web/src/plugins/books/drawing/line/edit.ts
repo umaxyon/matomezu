@@ -1,9 +1,11 @@
-// 線をじかに直すドラッグの決まり（純粋な関数）: 途中の区間・端・キャプションの札を動かしたあとの線の項目。
+// 線をじかに直す決まり（純粋な関数）: 途中の区間・端・キャプションの札を動かしたあとの線の項目と、線の編集のダイアログで選んだものから変える項目。
 // どれも、描いている線（drawLines の結果）と、ポインタの位置（紙の座標）から決める
 import type { Point } from "../../../../core/geom"
+import type { LineRoute } from "."
 import { clampCaptionOffset } from "./caption"
-import { type DrawnLine, routeInputOf } from "./drawn"
+import { alignedEndsOf, type DrawnLine, routeInputOf } from "./drawn"
 import { leftNormalAt, nearestAt, pointAt, type Rect } from "./geom"
+import type { Head } from "./heads"
 import type { PlacedLine } from "./placed"
 import { fixedAts, perimeterAt, simplifyVia } from "./route"
 import { perimeter } from "./selfloop"
@@ -113,4 +115,44 @@ export function captionDragged(line: PlacedLine, points: Point[], p: Point): Pro
   const { x: nx, y: ny } = leftNormalAt(points, at)
   const offset = clampCaptionOffset((p.x - bx) * nx + (p.y - by) * ny)
   return { ...line.props, captionAt: Math.round(at * 1000) / 1000, captionOffset: Math.round(offset) }
+}
+
+// 線の編集のダイアログで選んだもの。route は選んだ通り方（ページの既定に従う線は、その既定）、once は押した一回きりの操作
+export interface LineChoice {
+  caption: string
+  route: LineRoute
+  dash: "solid" | "dashed"
+  startHead: Head | ""
+  endHead: Head | ""
+  once: ReadonlySet<LineOnce>
+}
+// 一回きりの操作: 整列・接辺の自動選択（端の固定をやめる）・折れ線を自動に戻す・キャプションの位置を自動に戻す
+export type LineOnce = "align" | "free" | "via" | "caption"
+
+// 線の編集のダイアログで選んだものを、line.update に渡す項目にする（変えた項目だけ。null は消す）。
+// 自分に戻る線の通り方は変えない。接辺の自動選択は両端と区間を消し、整列はほかの項目を変えたあとの形で両端の位置を決めて区間を消す。
+// elbow はページの線の既定が折れ線か
+export function linePatch(
+  line: PlacedLine,
+  choice: LineChoice,
+  rects: ReadonlyMap<string, Rect>,
+  elbow: boolean,
+): Record<string, unknown> {
+  const p = line.props
+  const patch: Record<string, unknown> = {}
+  const startRoute = p.route ?? (elbow ? "elbow" : "straight")
+  if (choice.caption.trim() !== (p.caption?.trim() ?? "")) patch.caption = choice.caption.trim() ? choice.caption : null
+  if (line.from !== line.to && choice.route !== startRoute) patch.route = choice.route
+  if (choice.dash !== (p.dash ?? "solid")) patch.dash = choice.dash === "dashed" ? "dashed" : null
+  if (choice.startHead !== (p.startHead ?? "")) patch.startHead = choice.startHead || null
+  if (choice.endHead !== (p.endHead ?? "")) patch.endHead = choice.endHead || null
+  if (choice.once.has("free")) Object.assign(patch, { exitAt: null, enterAt: null, via: null })
+  if (choice.once.has("via")) patch.via = null
+  if (choice.once.has("caption")) Object.assign(patch, { captionAt: null, captionOffset: null })
+  if (choice.once.has("align")) {
+    const props = Object.fromEntries(Object.entries({ ...p, ...patch }).filter(([, v]) => v !== null))
+    const ends = alignedEndsOf({ ...line, props: { ...props, via: undefined } }, rects, elbow)
+    if (ends) Object.assign(patch, ends, { via: null })
+  }
+  return patch
 }
