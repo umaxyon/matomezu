@@ -8,4 +8,5 @@ export const ITEMS_MESSAGES = defineMessages({
   "Resize item": { ja: "アイテムの幅を変える" },
   "Remove items": { ja: "アイテムを消す" },
   Delete: { ja: "削除" },
+  Settings: { ja: "設定" },
 })

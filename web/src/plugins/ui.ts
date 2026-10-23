@@ -17,10 +17,10 @@ export const DEFAULT_LAYOUT = defineLayout({
     "stage.corner": ["close-button"],
   },
   menus: {
-    "stage.menu": ["stage.home", { either: ["stage.split", "stage.unsplit"] }, "book.open", "drawing.settings"],
+    "stage.menu": ["stage.home", { either: ["stage.split", "stage.unsplit"] }, "book.open", "book.settings"],
   },
   contextMenus: {
-    "drawing.context": ["page.settings", "drawing.settings"],
+    "drawing.context": ["page.settings", "book.settings"],
     "item.context": ["drawing.edit", "-", "drawing.delete"],
     "row.context": ["list.editRow", "-", "list.deleteRow"],
     "line.context": ["line.edit", "-", "drawing.delete"],

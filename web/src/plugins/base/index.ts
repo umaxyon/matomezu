@@ -1,14 +1,14 @@
 // 土台のプラグイン: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）と、そのキーの既定の割り当て。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
-import { BOOK_UPDATE } from "./book-look"
+import { BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_UPDATE } from "./book-look"
 import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { DARK, LIGHT, PAPERS, STANDARD } from "./looks"
 import type { A3, A4, A5 } from "./looks/papers"
 import { BASE_MESSAGES } from "./messages"
-import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN } from "./page-tabs"
+import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
@@ -40,10 +40,12 @@ export const BASE = defineBuiltin({
     BOOK_OPEN,
     PAGE_NEW,
     PAGE_OPEN,
+    PAGE_SETTINGS,
+    BOOK_SETTINGS,
     SETTINGS_LANG,
     SETTINGS_SKIN,
   ],
-  dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG],
+  dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG],
   keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...DIALOG_KEYS, ...MENU_KEYS],
   messages: BASE_MESSAGES,
 })
@@ -88,11 +90,15 @@ declare module "../../store/tables" {
     "book.open": typeof BOOK_OPEN
     "page.new": typeof PAGE_NEW
     "page.open": typeof PAGE_OPEN
+    "page.settings": typeof PAGE_SETTINGS
+    "book.settings": typeof BOOK_SETTINGS
     "settings.lang": typeof SETTINGS_LANG
     "settings.skin": typeof SETTINGS_SKIN
   }
   interface DialogTable {
     "book.open": typeof OPEN_BOOK_DIALOG
     "page.new": typeof NEW_PAGE_DIALOG
+    "page.settings": typeof PAGE_SETTINGS_DIALOG
+    "book.settings": typeof BOOK_SETTINGS_DIALOG
   }
 }

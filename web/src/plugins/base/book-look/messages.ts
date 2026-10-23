@@ -1,6 +1,9 @@
-// ブックの見た目の文言
+// ブックの見た目と設定の文言
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const BOOK_LOOK_MESSAGES = defineMessages({
   "Change book": { ja: "ブックを変える" },
+  "Book settings": { ja: "ブックの設定" },
+  "Book name": { ja: "ブックの名前" },
+  "Paper color": { ja: "紙の色" },
 })

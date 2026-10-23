@@ -1,21 +1,21 @@
-// ブックの設定のダイアログ: ブックの名前・テーマ・紙の色・線の既定の通り方（ページが自分の既定を持たなければこれ。タイプがその項目を選んだブックだけ）。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
+// ブックの設定のダイアログ: ブックの名前・テーマ・紙の色と、ブックのタイプが選んだブックの設定の項目。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
 // テーマは表のテーマから選ぶ（ブックのタイプのテーマを選べば、ブックのテーマの項目を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）。
-// テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book.update（線の既定の通り方は、ブックのタイプの設定の項目 settings）を書き、キャンセルでは元のまま
+// テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book.update（設定の項目は settings）を書き、キャンセルでは元のまま
 import { useEffect, useId, useMemo, useState } from "react"
-import { settingDefs, settingValue } from "../../../../core/book-settings"
-import { bookType } from "../../../../core/registry"
-import { type BookLook, bookTheme, bookTokens } from "../../../../core/theme"
-import { useT } from "../../../../ui/i18n"
-import type { DialogProps } from "../../../../ui/plugin"
-import { useActions, useApp, useRegistry } from "../../../../ui/store-context"
-import { ActionButton, Choices, ColorPicker, controlClass, Dialog, Field, Form, rowClass } from "../../../base/ui"
-import { LINE_ROUTE, type LineRoute } from "../line"
-import { ROUTE_ICONS } from "../line/icons"
+import { bookType } from "../../../core/registry"
+import { type BookLook, bookTheme, bookTokens } from "../../../core/theme"
+import { useT } from "../../../ui/i18n"
+import type { DialogProps } from "../../../ui/plugin"
+import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { ColorPicker } from "../dialog-host/ColorPicker"
+import { Dialog } from "../dialog-host/Dialog"
+import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
+import { useSettingControls } from "./SettingControls"
 
 // 紙の色の見本（白・淡い灰・淡い黄・淡い緑・淡い青・濃い灰・濃い紺・濃い茶）
 const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"]
 
-export function SettingsDialog({ stage, onClose }: DialogProps) {
+export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const t = useT()
   const form = useId()
   const registry = useRegistry()
@@ -29,8 +29,7 @@ export function SettingsDialog({ stage, onClose }: DialogProps) {
   const [title, setTitle] = useState(book && "title" in book ? book.title : "")
   const [theme, setTheme] = useState(startTheme)
   const [paperColor, setPaperColor] = useState(startPaper)
-  const startRoute = (book ? settingValue(registry, book, null, LINE_ROUTE.id) : LINE_ROUTE.default) as LineRoute
-  const [route, setRoute] = useState<LineRoute>(startRoute)
+  const settings = useSettingControls(book, "book", null)
   const typeTheme = book ? bookType(registry, book.type).theme : ""
   const id = book?.id
   const changed = theme !== startTheme || paperColor !== startPaper
@@ -46,17 +45,13 @@ export function SettingsDialog({ stage, onClose }: DialogProps) {
     [registry, book, theme],
   )
   if (!book) return null
-  // ブックのタイプが線の既定の通り方を選んでいるブックだけ、その項目を出す
-  const lineable = settingDefs(registry, book.type, "book").some(d => d.id === LINE_ROUTE.id)
   const named = title.trim() !== ""
   const swatches = PAPER_PRESETS.map(hex => ({ name: hex, hex, label: hex }))
   const submit = () => {
-    // 線の既定の通り方は図面のブックの設定の項目（既定の折れ線に戻せば項目を消す）
-    const settings =
-      lineable && route !== startRoute ? { settings: { lineRoute: route === LINE_ROUTE.default ? null : route } } : {}
+    const patch = Object.keys(settings.patch).length > 0 ? { settings: settings.patch } : {}
     const done = perform(
       "book.update",
-      { title, theme: theme === typeTheme ? null : theme, paperColor: paperColor ?? null, ...settings },
+      { title, theme: theme === typeTheme ? null : theme, paperColor: paperColor ?? null, ...patch },
       { book: book.id },
     )
     if (done.ok) onClose()
@@ -99,20 +94,7 @@ export function SettingsDialog({ stage, onClose }: DialogProps) {
             onChange={setPaperColor}
           />
         </div>
-        {lineable && (
-          <div className={rowClass}>
-            <span>{t("Line route")}</span>
-            <Choices
-              label={t("Line route")}
-              value={route}
-              options={[
-                { value: "elbow", label: t("Elbow"), icon: ROUTE_ICONS.elbow },
-                { value: "straight", label: t("Straight"), icon: ROUTE_ICONS.straight },
-              ]}
-              onChange={setRoute}
-            />
-          </div>
-        )}
+        {settings.controls}
       </Form>
     </Dialog>
   )

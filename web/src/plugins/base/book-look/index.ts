@@ -1,11 +1,14 @@
-// ブックを変える: アクション book.update（ブックの名前と、見た目のテーマと紙の色。見た目は core/theme の BookLook）と、
+// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book.update（ブックの名前と、見た目のテーマと紙の色。見た目は core/theme の BookLook）と、
 // ブックのタイプが選んだ設定の項目（settings。core/book-settings.ts）。使えるのは、見た目の項目を形に持つブックのタイプだけ（そのタイプが許す）
 import { z } from "zod"
 import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../../../core/book-settings"
 import { HEX } from "../../../core/color"
 import { defineAction } from "../../../core/def/action"
+import { actionsOf } from "../../../core/perform"
 import type { Book } from "../../../core/schema/book"
 import type { BookLook } from "../../../core/theme"
+import { defineCommand } from "../../../store/commands/def"
+import { defineDialog } from "../../../store/dialogs"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
@@ -40,4 +43,14 @@ export const BOOK_UPDATE = defineAction({
       result: null,
     }
   },
+})
+
+export const BOOK_SETTINGS_DIALOG = defineDialog({ id: "book.settings" })
+
+// ブックの設定のダイアログを開く（ブックのタイプが book.update を使える、名前と見た目を変えられるブックだけ）
+export const BOOK_SETTINGS = defineCommand({
+  id: "book.settings",
+  title: "Book settings",
+  run: (ctx, a) => a.openDialog(ctx.stage.id, "book.settings"),
+  when: ctx => ctx.book !== null && actionsOf(ctx.registry, ctx.book).includes("book.update"),
 })

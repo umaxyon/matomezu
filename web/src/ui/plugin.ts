@@ -47,6 +47,21 @@ export interface ItemUi<Props = never> {
   icon: ReactNode // ツールボックスなどに出すアイコン
 }
 
+// 設定の項目（core/def/setting.ts）を変える部品に渡す値。of はブックかページか、value はその段の値（無ければ undefined）、
+// inherited は値が無いときに効く値（ページならブックの値か既定、ブックなら既定）。onChange の undefined は値を消す（上の段を継ぐ）
+export interface SettingControlProps<V = unknown> {
+  of: "book" | "page"
+  label: string
+  value: V | undefined
+  inherited: V
+  onChange(value: V | undefined): void
+}
+// 設定の項目のビュー: 設定のダイアログに並べる部品
+export interface SettingUi {
+  // biome-ignore lint/suspicious/noExplicitAny: 値の型は項目ごとに違うので、表の上では見ない
+  control: ComponentType<SettingControlProps<any>>
+}
+
 // 画面に置く形（kind が shape）のアイテムの id。線（connector）はブックのビューが描くので、アイテムのビューを持たない
 type ShapeIdsOf<P> = P extends { items?: readonly (infer D)[] }
   ? D extends { id: infer I; kind: "shape" }
@@ -79,6 +94,7 @@ type Field<Ids, Name extends string, V> = [Ids] extends [never] ? { [n in Name]?
 export type PluginViews<P> = Field<IdsOf<P, "bookTypes">, "bookViews", { [id in IdsOf<P, "bookTypes">]: BookViewDef }> &
   Field<ShapeIdsOf<P>, "items", { [id in ShapeIdsOf<P>]: ItemUi<ItemPropsOf<P, id>> }> &
   Field<ConnectorIdsOf<P>, "connectors", { [id in ConnectorIdsOf<P>]: ConnectorUi }> &
+  Field<IdsOf<P, "settings">, "settingViews", { [id in IdsOf<P, "settings">]: SettingUi }> &
   Field<
     IdsOf<P, "dialogs">,
     "dialogViews",
@@ -112,6 +128,7 @@ export interface UiDefs {
   bookViews: ReadonlyMap<string, BookViewDef>
   items: ReadonlyMap<string, ItemUi>
   connectors: ReadonlyMap<string, ConnectorUi>
+  settingViews: ReadonlyMap<string, SettingUi>
   dialogViews: ReadonlyMap<string, AnyDialogView>
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
@@ -121,6 +138,7 @@ interface LooseUi {
   bookViews?: Record<string, BookViewDef>
   items?: Record<string, ItemUi>
   connectors?: Record<string, ConnectorUi>
+  settingViews?: Record<string, SettingUi>
   dialogViews?: Record<string, AnyDialogView>
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
@@ -136,6 +154,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
   const bookViews = new Map<string, BookViewDef>()
   const items = new Map<string, ItemUi>()
   const connectors = new Map<string, ConnectorUi>()
+  const settingViews = new Map<string, SettingUi>()
   const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
@@ -170,6 +189,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
       ui.connectors,
       connectors,
     )
+    need("setting", p.settings, ui.settingViews, settingViews)
     need("dialog", p.dialogs, ui.dialogViews, dialogViews)
     for (const w of ui.widgets ?? []) {
       if (!isBuiltin(p) && !w.id.startsWith(`${p.id}/`)) fail("E301", { plugin: p.id, kind: "widget", id: w.id })
@@ -198,5 +218,5 @@ export function assembleUi(plugins: readonly Plugin[]): UiDefs {
       overridden.add(`widget:${id}`)
       widgets.set(id, { ...w, view })
     }
-  return { bookViews, items, connectors, dialogViews, widgets, commandIcons }
+  return { bookViews, items, connectors, settingViews, dialogViews, widgets, commandIcons }
 }

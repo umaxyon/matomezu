@@ -36,7 +36,7 @@ test("ブックのテーマは、ブックの theme（無いか表に無けれ�
 
 test("ダイアログの下書きは、アイテムを指さなければブックそのものの下書き", () => {
   const store = newStore()
-  store.actions.openDialog("s1", "drawing.settings")
+  store.actions.openDialog("s1", "book.settings")
   store.actions.previewDialog({ book: "b1", props: { theme: "simple" } })
   expect(store.state.getState().dialog?.preview).toEqual({ book: "b1", props: { theme: "simple" } })
   expect("theme" in book(store)).toBe(false)

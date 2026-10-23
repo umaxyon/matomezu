@@ -29,7 +29,6 @@ import {
   LIST_STRETCH_ROW,
 } from "./list/commands"
 import { DRAWING_MESSAGES } from "./messages"
-import { DRAWING_SETTINGS, DRAWING_SETTINGS_DIALOG, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./settings"
 import { SIMPLE, STICKY } from "./themes"
 
 export const DRAWING_PLUGIN = defineBuiltin({
@@ -55,7 +54,6 @@ export const DRAWING_PLUGIN = defineBuiltin({
     LINE_RECONNECT,
   ],
   commands: [
-    DRAWING_SETTINGS,
     DRAWING_PLACE,
     DRAWING_MOVE,
     DRAWING_RESIZE,
@@ -70,10 +68,8 @@ export const DRAWING_PLUGIN = defineBuiltin({
     LINE_DRAW,
     LINE_EDIT,
     LINE_RECONNECT_DROP,
-    PAGE_SETTINGS,
   ],
   dialogs: [
-    DRAWING_SETTINGS_DIALOG,
     BOX_ADD_DIALOG,
     BOX_EDIT_DIALOG,
     LIST_ADD_DIALOG,
@@ -81,7 +77,6 @@ export const DRAWING_PLUGIN = defineBuiltin({
     ROW_ADD_DIALOG,
     ROW_EDIT_DIALOG,
     LINE_EDIT_DIALOG,
-    PAGE_SETTINGS_DIALOG,
   ],
   keys: ITEM_KEYS,
   messages: DRAWING_MESSAGES,
@@ -124,7 +119,6 @@ declare module "../../../core/tables" {
 
 declare module "../../../store/tables" {
   interface CommandTable {
-    "drawing.settings": typeof DRAWING_SETTINGS
     "drawing.place": typeof DRAWING_PLACE
     "drawing.move": typeof DRAWING_MOVE
     "drawing.resize": typeof DRAWING_RESIZE
@@ -139,10 +133,8 @@ declare module "../../../store/tables" {
     "line.draw": typeof LINE_DRAW
     "line.edit": typeof LINE_EDIT
     "line.drop": typeof LINE_RECONNECT_DROP
-    "page.settings": typeof PAGE_SETTINGS
   }
   interface DialogTable {
-    "drawing.settings": typeof DRAWING_SETTINGS_DIALOG
     "box.add": typeof BOX_ADD_DIALOG
     "box.edit": typeof BOX_EDIT_DIALOG
     "list.add": typeof LIST_ADD_DIALOG
@@ -150,6 +142,5 @@ declare module "../../../store/tables" {
     "row.add": typeof ROW_ADD_DIALOG
     "row.edit": typeof ROW_EDIT_DIALOG
     "line.edit": typeof LINE_EDIT_DIALOG
-    "page.settings": typeof PAGE_SETTINGS_DIALOG
   }
 }

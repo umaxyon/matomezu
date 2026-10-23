@@ -92,7 +92,7 @@ describe("配置", () => {
       ...DEFAULT_LAYOUT,
       id: "typed",
       // @ts-expect-error page.open はページの id を受け取るが、図面のメニューは何も渡さない
-      contextMenus: { "drawing.context": ["drawing.settings", "page.open"] },
+      contextMenus: { "drawing.context": ["book.settings", "page.open"] },
     })
   })
 

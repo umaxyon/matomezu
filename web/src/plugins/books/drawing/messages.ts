@@ -4,7 +4,6 @@ import { BOX_MESSAGES } from "./box/messages"
 import { ITEMS_MESSAGES } from "./items/messages"
 import { LINE_MESSAGES } from "./line/messages"
 import { LIST_MESSAGES } from "./list/messages"
-import { SETTINGS_MESSAGES } from "./settings/messages"
 import { DRAWING_VIEW_MESSAGES } from "./view/messages"
 
 export const DRAWING_MESSAGES = {
@@ -18,5 +17,4 @@ export const DRAWING_MESSAGES = {
   ...LIST_MESSAGES,
   ...LINE_MESSAGES,
   ...ITEMS_MESSAGES,
-  ...SETTINGS_MESSAGES,
 }

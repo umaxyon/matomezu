@@ -2,6 +2,7 @@
 // 末尾で、骨組みが描くスロット・ウィジェット・メニューを型の表に書き足す
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."
+import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS } from "./book-look/ui"
 import { BOOK_NAME } from "./book-name/ui"
 import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { MENU_HOST } from "./context-menu/ui"
@@ -35,7 +36,7 @@ export {
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {
-  dialogViews: { ...BOOK_OPEN_DIALOG_VIEWS, ...PAGE_DIALOG_VIEWS },
+  dialogViews: { ...BOOK_OPEN_DIALOG_VIEWS, ...PAGE_DIALOG_VIEWS, ...BOOK_LOOK_DIALOG_VIEWS },
   widgets: [
     WORKSPACE,
     DIALOG_HOST,
@@ -48,7 +49,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PAGE_TABS,
     CLOSE_BUTTON,
   ],
-  commandIcons: { ...STAGE_ICONS, ...BOOK_OPEN_ICONS },
+  commandIcons: { ...STAGE_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS },
 })
 
 declare module "../../ui/tables" {

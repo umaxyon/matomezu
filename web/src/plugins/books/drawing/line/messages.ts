@@ -10,6 +10,8 @@ export const LINE_MESSAGES = defineMessages({
   Route: { ja: "通り方" },
   Elbow: { ja: "折れ線" },
   Straight: { ja: "直線" },
+  "Line route": { ja: "線の既定の通り方" },
+  "Inherit from book ({route})": { ja: "ブックを継承（{route}）" },
   "Line style": { ja: "線の種類" },
   Solid: { ja: "実線" },
   Dashed: { ja: "破線" },
