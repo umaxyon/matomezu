@@ -37,6 +37,8 @@ export interface ActionDef<T extends ActionTarget = ActionTarget, A = unknown, R
   target: T
   needs: readonly Capability[] // 対象のアイテムに求める能力
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
+  // LLM に見せる引数の形を、登録表から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
+  describeArgs?(reg: Registry): z.ZodType
   run(subject: Subjects[T], args: A, ctx: ActionContext): Done<T, R> | null
 }
 

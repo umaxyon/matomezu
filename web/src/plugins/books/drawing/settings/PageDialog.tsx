@@ -1,6 +1,6 @@
 // ページの設定のダイアログ: 開いているページの線の既定の通り方（ブックを継承・折れ線・直線。線が自分の通り方を持たなければこれ）。
 // 「ブックを継承」は、ブックの既定（ブックの設定）に従う（名前の後ろに、今のブックの既定を添える）。
-// 見出しの行の右にキャンセルと確定のボタン。確定でアクション page.update を書き、「ブックを継承」ならページの項目を消す
+// 見出しの行の右にキャンセルと確定のボタン。確定でアクション page.update（ブックのタイプの設定の項目 settings）を書き、「ブックを継承」ならページの項目を消す
 import { useId, useState } from "react"
 import type { BookOf } from "../../../../core/schema/book"
 import { useT } from "../../../../ui/i18n"
@@ -24,7 +24,7 @@ export function PageDialog({ stage, args, onClose }: DialogProps<{ page: string 
   if (!book || !drawing || !page) return null
   const inherited = drawing.lineRoute ?? DEFAULT_ROUTE
   const submit = () => {
-    const done = perform("page.update", { page: page.id, lineRoute: route || null }, { book })
+    const done = perform("page.update", { page: page.id, settings: { lineRoute: route || null } }, { book })
     if (done.ok) onClose()
   }
   return (

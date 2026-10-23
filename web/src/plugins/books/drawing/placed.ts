@@ -8,7 +8,7 @@ import { PageSchema } from "../../../core/schema/page"
 import { BOX_PLACED, PlacedBoxSchema } from "./box/placed"
 import type { PlacedDef } from "./items/placed-def"
 import { GAP, type Gap, type Rect } from "./items/push"
-import { LINE, type LineRoute, ROUTES } from "./line"
+import { LINE, type LineRoute, ROUTES, usesLines } from "./line"
 import { DEFAULT_ROUTE, lineGaps, linesHold, type PlacedLine, PlacedLineSchema, tidyLines } from "./line/placed"
 import { LIST_PLACED, PlacedListSchema } from "./list/placed"
 
@@ -70,14 +70,19 @@ export function tidyPage(page: DrawingPage, rects: ReadonlyMap<string, Rect>, el
   return items.length === now.length && items.every((i, k) => i === now[k]) ? page : { ...page, items }
 }
 
-// 図面のブックの、データの形の外の決まり: どのページも、線の両端がそのページのつなげる形にあり、同じ組に 2 本無い
-export function drawingHolds(book: { pages: readonly DrawingPage[] }, reg: Registry): boolean {
-  return book.pages.every(page => {
-    const shapes = new Map(shapesOf(page).map(s => [s.id, s.item]))
-    const connectable = (id: string) => {
-      const item = shapes.get(id)
-      return item !== undefined && (reg.items.get(item)?.capabilities.includes("connectable") ?? false)
-    }
-    return linesHold(linesOf(page), connectable)
-  })
+// 図面のブックの、データの形の外の決まり: どのページも、線の両端がそのページのつなげる形にあり、同じ組に 2 本無い。
+// 線が使えないブック（ブックで使えるアイテムに線が無い）は、線も線の既定の通り方も持たない
+export function drawingHolds(
+  book: { type: "drawing"; lineRoute?: LineRoute; pages: readonly DrawingPage[] },
+  reg: Registry,
+): boolean {
+  if (!usesLines(reg, book))
+    return book.lineRoute === undefined && book.pages.every(p => p.lineRoute === undefined && linesOf(p).length === 0)
+  return book.pages.every(page => linesHold(linesOf(page), id => connectableShape(reg, page, id)))
+}
+
+// ページの、線をつなげる形（connectable の形）か
+export function connectableShape(reg: Registry, page: DrawingPage, id: string): boolean {
+  const shape = shapesOf(page).find(s => s.id === id)
+  return !!shape && (reg.items.get(shape.item)?.capabilities.includes("connectable") ?? false)
 }

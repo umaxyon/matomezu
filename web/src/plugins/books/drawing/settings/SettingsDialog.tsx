@@ -1,6 +1,6 @@
 // ブックの設定のダイアログ: ブックの名前・テーマ・紙の色・線の既定の通り方（ページが自分の既定を持たなければこれ。線が使えるブックだけ）。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
 // テーマは表のテーマから選ぶ（ブックのタイプのテーマを選べば、ブックのテーマの項目を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）。
-// テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book.update（線の既定の通り方を変えたら drawing.update も）を書き、キャンセルでは元のまま
+// テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book.update（線の既定の通り方は、ブックのタイプの設定の項目 settings）を書き、キャンセルでは元のまま
 import { useEffect, useId, useMemo, useState } from "react"
 import { bookType } from "../../../../core/registry"
 import { type BookLook, bookTheme, bookTokens } from "../../../../core/theme"
@@ -50,17 +50,15 @@ export function SettingsDialog({ stage, onClose }: DialogProps) {
   const named = title.trim() !== ""
   const swatches = PAPER_PRESETS.map(hex => ({ name: hex, hex, label: hex }))
   const submit = () => {
+    // 線の既定の通り方は図面のブックの設定の項目（既定の折れ線に戻せば項目を消す）
+    const settings =
+      lineable && route !== startRoute ? { settings: { lineRoute: route === DEFAULT_ROUTE ? null : route } } : {}
     const done = perform(
       "book.update",
-      { title, theme: theme === typeTheme ? null : theme, paperColor: paperColor ?? null },
+      { title, theme: theme === typeTheme ? null : theme, paperColor: paperColor ?? null, ...settings },
       { book: book.id },
     )
-    // 線の既定の通り方は図面のブックの設定（既定の折れ線に戻せば項目を消す）
-    const lines =
-      done.ok && route !== startRoute
-        ? perform("drawing.update", { lineRoute: route === DEFAULT_ROUTE ? null : route }, { book: book.id })
-        : done
-    if (done.ok && lines.ok) onClose()
+    if (done.ok) onClose()
   }
   return (
     <Dialog

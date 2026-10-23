@@ -9,4 +9,5 @@ export const PAGE_MESSAGES = defineMessages({
   "Page name": { ja: "ページの名前" },
   "Paper size": { ja: "紙のサイズ" },
   Create: { ja: "作成" },
+  "Update page": { ja: "ページを変える" },
 })

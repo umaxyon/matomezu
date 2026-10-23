@@ -3,8 +3,9 @@ import { z } from "zod"
 import { defineBookType } from "../../../core/def/book-type"
 import { BookLookSchema } from "../../../core/theme"
 import { PAPER_IDS } from "../../base"
+import { rectsOf } from "./items/items"
 import { ROUTES } from "./line"
-import { DrawingPageSchema, drawingHolds } from "./placed"
+import { DrawingPageSchema, drawingHolds, elbowOf, tidyPage } from "./placed"
 
 export const DRAWING = defineBookType({
   id: "drawing",
@@ -47,7 +48,6 @@ export const DRAWING = defineBookType({
       "line.update",
       "line.reconnect",
       "page.update",
-      "drawing.update",
     ],
     defaults: [
       "page.add",
@@ -67,11 +67,19 @@ export const DRAWING = defineBookType({
       "line.update",
       "line.reconnect",
       "page.update",
-      "drawing.update",
     ],
   },
   theme: "standard",
   tokens: [],
   tools: "paper",
   holds: drawingHolds,
+  // 設定の項目（土台の book.update・page.update が受け付ける）: 線の既定の通り方。変えたら、直線になって引けなくなった手で直した区間をどのページでも消す
+  settings: {
+    book: z.strictObject({ lineRoute: z.enum(ROUTES) }),
+    page: z.strictObject({ lineRoute: z.enum(ROUTES) }),
+    settle: (book, reg) => ({
+      ...book,
+      pages: book.pages.map(p => tidyPage(p, rectsOf(reg, p), elbowOf(book, p))),
+    }),
+  },
 })

@@ -2,7 +2,7 @@
 // 〇は形の四辺の真ん中（の少し外）。引いた線の始点は〇の辺の真ん中、終点は離した所に一番近いふちの点に固定し、終点に矢印を付ける。
 // 同じ形で離せば自分に戻る線で、離した所に一番近い角が、自動で選ぶ角と違い、空いていれば、端をその角に固定する（同じなら自動のまま）
 import type { Registry } from "../../../../core/registry"
-import { type DrawingPage, linesOf, shapesOf } from "../placed"
+import { connectableShape, type DrawingPage, linesOf, shapesOf } from "../placed"
 import { drawLines } from "./drawn"
 import { nearestAt, type Pt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"
@@ -14,11 +14,8 @@ export const SIDES: readonly Side[] = ["t", "r", "b", "l"]
 export const PORT_OUT = 10 // 〇の中心を、辺の真ん中からこれだけ外に置く（画面の px）
 const OUTWARD: Record<Side, Pt> = { t: [0, -1], r: [1, 0], b: [0, 1], l: [-1, 0] }
 
-// ページの、線をつなげる形（connectable）か
-export function connectable(reg: Registry, page: DrawingPage, id: string): boolean {
-  const shape = shapesOf(page).find(s => s.id === id)
-  return !!shape && (reg.items.get(shape.item)?.capabilities.includes("connectable") ?? false)
-}
+// ページの、線をつなげる形（connectable の形）か
+export const connectable = connectableShape
 
 // 形 from から線を引ける相手（from 自身は自分に戻る線として入る）。from がつなげる形でなければ無い
 export function targetsFrom(reg: Registry, page: DrawingPage, from: string): Set<string> {

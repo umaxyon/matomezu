@@ -182,22 +182,22 @@ test("line.update: via を持つ線を直線にする・端を自由に戻すと
   expect(lines(store)[0]!.props).toEqual({ enterAt: ends.enterAt })
 })
 
-test("page.update: ページの線の既定の通り方を直線にすると、通り方を持たない線が直線になり、引けなくなった via を消す。null で既定（折れ線）に戻す", () => {
+test("page.update（ページの設定の項目 lineRoute）: ページの線の既定の通り方を直線にすると、通り方を持たない線が直線になり、引けなくなった via を消す。null で既定（折れ線）に戻す", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 300)
   const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
   connect(store, "n1", "n2", { ...ends, via: [300] })
   const pageUpdate = (lineRoute: "elbow" | "straight" | null) =>
-    store.actions.perform("page.update", { page: "p1", lineRoute }, { book: "b1" })
+    store.actions.perform("page.update", { page: "p1", settings: { lineRoute } }, { book: "b1" })
   expect(pageUpdate("straight").ok).toBe(true)
   expect(page(store).lineRoute).toBe("straight")
   expect(lines(store)[0]!.props).toEqual(ends)
   expect(pageUpdate(null).ok).toBe(true)
   expect("lineRoute" in page(store)).toBe(false)
-  expect(store.actions.perform("page.update", { page: "p1", lineRoute: "curve" as "elbow" }, { book: "b1" }).ok).toBe(
-    false,
-  )
+  expect(
+    store.actions.perform("page.update", { page: "p1", settings: { lineRoute: "curve" } }, { book: "b1" }).ok,
+  ).toBe(false)
 })
 
 test("整列の位置: 横に並ぶ箱どうしは、向き合う辺の重なる範囲の真ん中。整列済みなら null", () => {
@@ -212,7 +212,7 @@ test("整列の位置: 横に並ぶ箱どうしは、向き合う辺の重なる
   expect(alignedEndsOf(lines(store)[0]!, rectsOf(REGISTRY, page(store)), true)).toBeNull()
 })
 
-test("線の既定の通り方は、ページ → ブック → 折れ線の順に決まる。ブックを直線にすると、ページの既定の無いページの線が直線になり、引けなくなった via を消す", () => {
+test("線の既定の通り方は、ページ → ブック → 折れ線の順に決まる。ブックを直線にすると（book.update の設定の項目）、ページの既定の無いページの線が直線になり、引けなくなった via を消す", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 300)
@@ -221,16 +221,16 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   const book = () => store.state.getState().books.b1 as BookOf<"drawing">
   const elbow = () => elbowOf(book(), page(store))
   expect(elbow()).toBe(true)
-  expect(store.actions.perform("drawing.update", { lineRoute: "straight" }, { book: "b1" }).ok).toBe(true)
+  expect(store.actions.perform("book.update", { settings: { lineRoute: "straight" } }, { book: "b1" }).ok).toBe(true)
   expect(book().lineRoute).toBe("straight")
   expect(elbow()).toBe(false)
   expect(lines(store)[0]!.props).toEqual(ends)
   // ページの既定はブックより先
-  store.actions.perform("page.update", { page: "p1", lineRoute: "elbow" }, { book: "b1" })
+  store.actions.perform("page.update", { page: "p1", settings: { lineRoute: "elbow" } }, { book: "b1" })
   expect(elbow()).toBe(true)
-  store.actions.perform("page.update", { page: "p1", lineRoute: null }, { book: "b1" })
+  store.actions.perform("page.update", { page: "p1", settings: { lineRoute: null } }, { book: "b1" })
   expect(elbow()).toBe(false)
-  expect(store.actions.perform("drawing.update", { lineRoute: null }, { book: "b1" }).ok).toBe(true)
+  expect(store.actions.perform("book.update", { settings: { lineRoute: null } }, { book: "b1" }).ok).toBe(true)
   expect("lineRoute" in book()).toBe(false)
   expect(elbow()).toBe(true)
 })
@@ -253,10 +253,10 @@ test("線が使えないブック（ブックで使えるアイテムに線が�
   expect(usesLines(REGISTRY, book)).toBe(true)
   expect(usesLines(noLines, book)).toBe(false)
   expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)
-  expect(perform(book, "drawing.update", { lineRoute: "straight" }, ctx).ok).toBe(false)
-  expect(perform(book, "page.update", { page: "p1", lineRoute: "straight" }, ctx).ok).toBe(false)
+  expect(perform(book, "book.update", { settings: { lineRoute: "straight" } }, ctx).ok).toBe(false)
+  expect(perform(book, "page.update", { page: "p1", settings: { lineRoute: "straight" } }, ctx).ok).toBe(false)
   // 同じ操作は、線が使えるブックなら通る
   const ok = { ...ctx, registry: REGISTRY }
   expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ok).ok).toBe(true)
-  expect(perform(book, "drawing.update", { lineRoute: "straight" }, ok).ok).toBe(true)
+  expect(perform(book, "book.update", { settings: { lineRoute: "straight" } }, ok).ok).toBe(true)
 })

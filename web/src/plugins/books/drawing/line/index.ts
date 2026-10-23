@@ -63,4 +63,4 @@ export const LINE = defineItem({
 export const LINE_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "line.edit" })
 
 // ブックで線が使えるか（線のアイテムが、そのブックで使えるアイテムに入っている）。線を引く操作と、線の既定の通り方の設定はこれで出し分ける
-export const usesLines = (reg: Registry, book: Book): boolean => bookItems(reg, book).includes(LINE.id)
+export const usesLines = (reg: Registry, book: Pick<Book, "type">): boolean => bookItems(reg, book).includes(LINE.id)

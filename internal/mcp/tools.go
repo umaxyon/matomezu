@@ -22,11 +22,12 @@ type actionTool struct {
 // actionTools は AI に渡すアクションの道具（並べたものだけを行える）
 var actionTools = []actionTool{
 	{"create_book", "book.create", "Create a book. type is a book type such as drawing. Returns the new book's id."},
-	{"update_book", "book.update", "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it) and paperColor (#rrggbb, the paper's color). " +
-		"Only what is given changes; null removes it (back to the book type's theme, or the theme's paper color)."},
+	{"update_book", "book.update", "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it), paperColor (#rrggbb, the paper's color) " +
+		"and settings, the ones its book type has (for a drawing, lineRoute: how lines run on pages without a route of their own, straight or elbow; without it, elbow). " +
+		"Only what is given changes; null removes it (back to the book type's theme, the theme's paper color, or the setting's default)."},
 	{"add_page", "page.add", "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id."},
-	{"update_page", "page.update", "Change a page's settings: lineRoute is how its lines run when they have no route of their own (straight or elbow; null removes it, and the page follows its book's)."},
-	{"update_drawing", "drawing.update", "Change a drawing book's settings: lineRoute is how lines run on pages without a route of their own (straight or elbow; null removes it, back to elbow)."},
+	{"update_page", "page.update", "Change a page's settings, the ones its book type has (settings; for a drawing, lineRoute: how its lines run when they have no route of their own, straight or elbow). " +
+		"Only what is given changes; null removes it (a drawing page then follows its book's lineRoute)."},
 	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box, a list). " +
 		"A list (shape.list) starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with add_row. " +
 		"Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. " +

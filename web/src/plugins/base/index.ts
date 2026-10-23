@@ -9,6 +9,7 @@ import { DARK, LIGHT, PAPERS, STANDARD } from "./looks"
 import type { A3, A4, A5 } from "./looks/papers"
 import { BASE_MESSAGES } from "./messages"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN } from "./page-tabs"
+import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
@@ -20,7 +21,7 @@ export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin({
   id: "@matomezu/base",
-  actions: [PAGE_ADD, BOOK_UPDATE, SET_LANG, SET_SKIN, SET_KEYS],
+  actions: [PAGE_ADD, PAGE_UPDATE, BOOK_UPDATE, SET_LANG, SET_SKIN, SET_KEYS],
   themes: [STANDARD],
   papers: PAPERS,
   skins: [DARK, LIGHT],
@@ -52,6 +53,7 @@ declare module "../../core/tables" {
   interface ActionTable {
     "page.add": typeof PAGE_ADD
     "book.update": typeof BOOK_UPDATE
+    "page.update": typeof PAGE_UPDATE
     "settings.lang": typeof SET_LANG
     "settings.skin": typeof SET_SKIN
     "settings.keys": typeof SET_KEYS

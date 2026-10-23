@@ -89,7 +89,7 @@ export function defaultPaper(reg: Registry, book: PagedBook): PaperChoice {
 }
 
 // ブックで使えるアイテム（タイプの既定。置ける・引けるのはこの中だけ）
-export function bookItems(reg: Registry, book: Book): readonly string[] {
+export function bookItems(reg: Registry, book: Pick<Book, "type">): readonly string[] {
   return bookType(reg, book.type).items.defaults
 }
 

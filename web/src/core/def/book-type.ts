@@ -39,6 +39,16 @@ interface BookTypeBase<S extends z.ZodObject> {
   // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
   holds?(book: z.infer<S>, reg: Registry): boolean
+  settings?: BookTypeSettings<z.infer<S>>
+}
+
+// タイプが足す設定の項目（core/book-settings.ts）。土台のアクション book.update はブックの、page.update はページの項目を受け付ける。
+// 項目はブック（ページ）のデータの形に同じ名前である欄（どれも書かなくてよい）。settle は項目を変えたあとにブックを整える（無ければそのまま）。
+// 使えないブックで項目を書けないことは、関係の決まり（holds）で決める
+export interface BookTypeSettings<B> {
+  book?: z.ZodObject
+  page?: z.ZodObject
+  settle?(book: B, reg: Registry): B
 }
 
 // 1 冊だけのタイプ（マスターなど）。作る操作は無く、その 1 冊のデータを定義に持つ（id はタイプの id）。

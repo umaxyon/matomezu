@@ -63,7 +63,7 @@ function catalog() {
       id: a.id,
       target: a.target,
       title: en(a.title),
-      args: z.toJSONSchema(a.args, { io: "input", unrepresentable: "any" }),
+      args: z.toJSONSchema(a.describeArgs?.(registry) ?? a.args, { io: "input", unrepresentable: "any" }),
     })),
     items: [...registry.items.values()].map(i => ({
       id: i.id,
