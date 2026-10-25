@@ -36,7 +36,7 @@
 | core の段 | `CoreCatalog`（`core/core-catalog.ts`）。画面とホストが共に使う定義（ブックのタイプ・アイテム・アクション・設定の項目・見せ方・テーマ・紙・スキン・文言・言語） |
 | store の段 | `StoreCatalog`。画面だけが使う、React の無い定義（コマンド・ダイアログ・キーの既定の割り当て） |
 | ui の段 | `UiCatalog`。画面だけが使う、React の定義（ビュー・ウィジェット・コマンドのアイコン・差し替え）。実体は `MatomezuProvider` が持つ |
-| AI 向けの機能台帳（AI catalog） | 機能台帳から AI に見せる種類を絞って書き出した物（ホストのエンジンの `aiCatalog()`・`/api/ai/catalog`・MCP の道具の元） |
+| AI 向けの機能台帳（AI catalog） | 機能台帳から AI に見せる種類を絞って書き出した物（ホストのエンジンの `aiCatalog()`・`/api/ai/catalog`・MCP の道具 `actions` が返す物の元） |
 
 ## 画面
 
