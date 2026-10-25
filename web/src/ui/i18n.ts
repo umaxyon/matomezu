@@ -1,4 +1,4 @@
-// 今の言語の t()。言語が変われば、使っている部品が描き直される
+// 今の言語の t()。言語が変われば、使っているコンポーネントが描き直される
 import { type MessageKey, type Params, translate } from "../core/i18n/i18n"
 import { useApp, useRegistry } from "./store-context"
 

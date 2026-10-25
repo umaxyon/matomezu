@@ -14,7 +14,7 @@ const def = (key: string, command: string, plugin: string, builtin = false, scop
   builtin,
 })
 
-test("勝つ順は 利用者 > 中の部品 > 外のプラグイン。外の既定は中とぶつかれば使わず、外どうしでぶつかればどちらも使わない", () => {
+test("勝つ順は 利用者 > ビルトインプラグイン > 外のプラグイン。外の既定は中とぶつかれば使わず、外どうしでぶつかればどちらも使わない", () => {
   const defaults = [
     def("Delete", "paper.delete", "@matomezu/paper", true),
     def("Delete", "a/del", "a"),
@@ -29,7 +29,7 @@ test("勝つ順は 利用者 > 中の部品 > 外のプラグイン。外の既�
     ["a/dup", "plugins"],
     ["b/dup", "plugins"],
   ])
-  // 利用者が足した行は中の部品に勝ち、後に足したものが先
+  // 利用者が足した行はビルトインプラグインに勝ち、後に足したものが先
   const user = keyTable(defaults, {
     added: [
       { key: "Delete", command: "x/one", scope: "stage" },

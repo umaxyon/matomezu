@@ -16,7 +16,7 @@
 .stage[data-paper="true"][data-dragging="true"] {
   cursor: grabbing;
 }
-/* 開いたブックの中身。テーマの値（--theme-）をここに置き、中の部品が使う。枠の大きさには加わらない */
+/* 開いたブックの中身。テーマの値（--theme-）をここに置き、中のコンポーネントが使う。枠の大きさには加わらない */
 .book {
   display: contents;
 }

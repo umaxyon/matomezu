@@ -1,4 +1,4 @@
-// 設定の項目の部品の並び: ブックのタイプが選んだ設定の項目（ブックかページ）ごとに、項目のビューの部品を出す（ビューの無い項目は出さない）。
+// 設定の項目のコンポーネントの並び: ブックのタイプが選んだ設定の項目（ブックかページ）ごとに、項目のビューのコンポーネントを出す（ビューの無い項目は出さない）。
 // 変えた項目だけを、欄の名前ごとの値（消すなら null）にして、アクション book.update・page.update の settings に渡す
 import { useState } from "react"
 import { type SettingsOf, settingDefs, settingValue } from "../../../core/book-settings"

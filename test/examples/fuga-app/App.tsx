@@ -1,4 +1,4 @@
-// hoge を使わないアプリの見本: 中の部品と fuga だけで app を作る。hoge の型の書き足しはこのアプリに入らない
+// hoge を使わないアプリの見本: ビルトインプラグインと fuga だけで app を作る。hoge の型の書き足しはこのアプリに入らない
 import { App, BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, defineLayout, MatomezuProvider } from "matomezu/testing"
 import { FUGA_UI } from "../plugins/fuga/ui"
 

@@ -1,4 +1,4 @@
-// テストで使う、中の部品だけの表と store
+// テストで使う、ビルトインプラグインだけの表と store
 import { BUILTIN } from "../web/src/plugins"
 import { SAMPLE_BOOKS } from "../web/src/sample-books"
 import { assemble } from "../web/src/store/plugin"

@@ -35,7 +35,7 @@ interface BookTypeBase<S extends z.ZodObject> {
   items: Choice
   actions: Choice
   theme: string // 既定のテーマ
-  presentation: string // 見せ方（core/def/presentation.ts。描く部品は見せ方の id で結ぶ）
+  presentation: string // 見せ方（core/def/presentation.ts。描くビューは見せ方の id で結ぶ）
   tokens: readonly TokenDecl[] // ブックの画面を描くのに使うテーマの欄
   tools?: ToolSetId // ステージで使う道具の組（core/tools.ts。無ければ道具を使わない）
   // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。

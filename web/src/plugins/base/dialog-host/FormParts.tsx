@@ -1,4 +1,4 @@
-// 入力のダイアログの部品: 名前の付いた欄と、決めるボタンの行・見出しの行に置くボタン、区分・横に並べる行・名前と入力の組。
+// 入力のダイアログのコンポーネント: 名前の付いた欄と、決めるボタンの行・見出しの行に置くボタン、区分・横に並べる行・名前と入力の組。
 // 見た目の決まり（文字・余白・区分・ボタン）は Dialog.module.css の冒頭
 import { type ReactNode, useId } from "react"
 import styles from "./Dialog.module.css"
@@ -28,7 +28,7 @@ export function Problem({ children }: { children: ReactNode }) {
   )
 }
 
-// children は欄の id を受け取って、入力の部品を返す。aside は名前の行の右に置く部品
+// children は欄の id を受け取って、入力のコンポーネントを返す。aside は名前の行の右に置くコンポーネント
 export function Field({
   label,
   aside,
@@ -185,7 +185,7 @@ export function ActionButton({
   )
 }
 
-// 選ぶ欄とボタンをつなげた部品: 選んだ値でボタンの動きをする（例: [最大行 ▾](にそろえる)）。label は選ぶ欄の名前
+// 選ぶ欄とボタンをつなげたコンポーネント: 選んだ値でボタンの動きをする（例: [最大行 ▾](にそろえる)）。label は選ぶ欄の名前
 export function SelectButton<V extends string>({
   label,
   value,

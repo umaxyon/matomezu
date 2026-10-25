@@ -1,4 +1,4 @@
-// ウィジェット（スロットに置ける部品）・配置（スロットごとに置くウィジェットの順と、メニューの中身）の定義と、配置の確かめ
+// ウィジェット（スロットに置けるコンポーネント）・配置（スロットごとに置くウィジェットの順と、メニューの中身）の定義と、配置の確かめ
 import type { ReactNode } from "react"
 import { type Problem, problem } from "../core/errors"
 import type {
@@ -13,8 +13,8 @@ import type {
 } from "../core/tables"
 import type { CommandArgs } from "../store/commands"
 
-// 置けるスロットと、描く部品。置けるスロットは、どれも同じ値（props）を渡すものだけにする。
-// スロットとメニューを開けるのはウィジェットとブックのビューだけで、部品の中で描くスロット（<Slot>）とメニュー（useMenu）、
+// 置けるスロットと、描くコンポーネント。置けるスロットは、どれも同じ値（props）を渡すものだけにする。
+// スロットとメニューを開けるのはウィジェットとブックのビューだけで、コンポーネントの中で描くスロット（<Slot>）とメニュー（useMenu）、
 // 開く右クリックのメニュー（useContextMenu）は opens・menus・contextMenus に全部書く
 // （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（骨組みの差し替え）
 export interface WidgetDef<S extends SlotId = SlotId> {

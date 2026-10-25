@@ -18,7 +18,7 @@ test("自分のウィジェットを配置でステージに置き、そこか�
   expect(screen.getByRole("dialog", { name: "hoge" }).textContent).toContain("hello, MATOMEZU")
 })
 
-test("中の部品のダイアログを、自分のものに差し替えられる", () => {
+test("ビルトインプラグインのダイアログを、自分のものに差し替えられる", () => {
   const app = makeApp()
   render(<HogeApp app={app} />)
   act(() => app.actions.openDialog("s1", "book.new"))

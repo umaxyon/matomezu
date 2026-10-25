@@ -96,11 +96,11 @@ describe("app を組み立てる", () => {
 
   test("型の表と渡したプラグインが合わなければ型の誤り（行わない）", () => {
     const typeOnly = () => {
-      // @ts-expect-error 中の部品を渡していない（書き足した id が足りない）
+      // @ts-expect-error ビルトインプラグインを渡していない（書き足した id が足りない）
       createMatomezu({ plugins: [] })
       // @ts-expect-error 型の表に書き足していないプラグインを渡した
       createMatomezu({ plugins: [...BUILTIN, notes] })
-      // @ts-expect-error 中の部品を 1 つの並びにしたものではない
+      // @ts-expect-error ビルトインプラグインを 1 つの並びにしたものではない
       createMatomezu({ plugins: [{ ...BASE, commands: [] }, BUILTIN[1], BUILTIN[2]] })
     }
     expect(typeOnly).toBeFunction()

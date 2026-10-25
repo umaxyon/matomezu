@@ -1,4 +1,4 @@
-// 形の画面が共に使う部品の文言（寄せの選択肢と、色の見本の名前）
+// 形の画面が共に使うものの文言（寄せの選択肢と、色の見本の名前）
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const ITEM_PARTS_MESSAGES = defineMessages({

@@ -66,7 +66,7 @@ type PrefixCheck<P extends Plugin> = [Unprefixed<P>] extends [never]
 // 外のプラグインを書く入口。id の頭を型で確かめる（組み立てでも確かめる）
 export const definePlugin = <const P extends Plugin>(plugin: P & PrefixCheck<P>): P => plugin
 
-// 中の部品は、頭の無い短い id を使う（「/」を含まない id は中の部品だけのもの）。
+// ビルトインプラグインは、頭の無い短い id を使う（「/」を含まない id はビルトインプラグインだけのもの）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")
 export function defineBuiltin<const P extends Plugin>(plugin: P): P {
@@ -144,7 +144,7 @@ export function assemble(
   }
 }
 
-// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・外のプラグインがほかのコマンドに結んだ行・中の部品どうしで同じ範囲の同じキーは誤り
+// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・外のプラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは誤り
 function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>): DefaultKey[] {
   const keys: DefaultKey[] = []
   const problems = []

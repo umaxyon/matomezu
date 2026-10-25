@@ -62,7 +62,7 @@ describe("依存の向き", () => {
           // 同じプラグインの中（下のフォルダも含む）か、土台のプラグイン base の入口（index・ui）だけ。見た目でないファイルは見た目を読まない
           const root = pluginRoot(t)
           const isEntry = t === root || t === `${root}/index` || t === `${root}/ui`
-          // 中の部品の一覧（plugins/index.ts・plugins/ui.ts）は、どのプラグインの入口も読む
+          // ビルトインプラグインの一覧（plugins/index.ts・plugins/ui.ts）は、どのプラグインの入口も読む
           const assembly = file.rel === "plugins/index.ts" || file.rel === "plugins/ui.ts"
           const entry = isEntry && (root === "plugins/base" || assembly)
           if (t !== own && !t.startsWith(`${own}/`) && !entry) return true
@@ -113,7 +113,7 @@ test("ソースに、その時の状況でしか意味を持たない言葉を�
   expect(files.filter(f => words.test(f.text)).map(f => f.rel)).toEqual([])
 })
 
-test("core のデータと同じ名前の画面の部品は作らない（データ X のビューは XView）", () => {
+test("core のデータと同じ名前のコンポーネントは作らない（データ X のビューは XView）", () => {
   const dataNames = new Set(
     sources
       .filter(f => layerOf(f.rel) === "core")

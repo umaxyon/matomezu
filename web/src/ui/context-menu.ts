@@ -1,4 +1,4 @@
-// 右クリックのメニュー: 部品が右クリックを受けてメニューを開く口と、配置に書いたメニューの中身を読む口
+// 右クリックのメニュー: コンポーネントが右クリックを受けてメニューを開く口と、配置に書いたメニューの中身を読む口
 import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/tables"
@@ -34,7 +34,7 @@ export function suppressContextMenu(): void {
 }
 
 // そのステージで、右クリックされた物 target のメニュー id を、押した位置に開く。ブラウザのメニューは出さない。
-// 右ボタンを押している間なら、離したときに開く。開く部品（ウィジェットかブックのビュー）は、そのメニューを contextMenus に書く
+// 右ボタンを押している間なら、離したときに開く。開くコンポーネント（ウィジェットかブックのビュー）は、そのメニューを contextMenus に書く
 export function useContextMenu<M extends ContextMenuId>(
   stage: string,
   id: M,

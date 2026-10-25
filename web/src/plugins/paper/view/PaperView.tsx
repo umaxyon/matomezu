@@ -8,7 +8,7 @@
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに paper.resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
-// ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）の層で形の並びを包み、形ごとに重ねる部品を形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
+// ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）の層で形の並びを包み、形ごとに重ねるコンポーネントを形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 
 import {
@@ -329,7 +329,7 @@ interface ItemProps {
   stage: string
   item: PlacedShape
   onHover(on: boolean): void
-  overlays: ReactNode // つなぐもののビューが形の上に重ねる部品
+  overlays: ReactNode // つなぐもののビューが形の上に重ねるコンポーネント
   stretchable: boolean // 四辺と四隅をつかんで大きさを変えられるか
   onStretch: {
     down(e: PointerEvent<HTMLDivElement>, edges: Edges): void

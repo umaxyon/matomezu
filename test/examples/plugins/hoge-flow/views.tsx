@@ -1,4 +1,4 @@
-// ひし形のビュー・ダイアログと、流れの向きの部品
+// ひし形のビュー・ダイアログと、流れの向きのコンポーネント
 
 import { Dialog, type DialogProps, type ItemViewProps, type SettingControlProps, useT } from "matomezu/ui"
 import type { z } from "zod"

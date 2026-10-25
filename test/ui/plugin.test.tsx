@@ -59,7 +59,7 @@ const thrown = (run: () => unknown) => {
 }
 
 describe("見た目のプラグイン", () => {
-  test("外のプラグインのビューで描き、差し替えたダイアログを中の部品のコマンドが開く", () => {
+  test("外のプラグインのビューで描き、差し替えたダイアログをビルトインプラグインのコマンドが開く", () => {
     const app = createMatomezu({
       plugins: [...BUILTIN_UI, notesUi],
       partial: true,

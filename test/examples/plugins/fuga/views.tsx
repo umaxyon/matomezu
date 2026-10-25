@@ -1,4 +1,4 @@
-// 星のビュー・ダイアログ、方眼の部品、ミントにするボタン
+// 星のビュー・ダイアログ、方眼のコンポーネント、ミントにするボタン
 import { Dialog, type DialogProps, type ItemViewProps, type SettingControlProps, useCommand, useT } from "matomezu/ui"
 import type { z } from "zod"
 import type { STAR } from "./board"

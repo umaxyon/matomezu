@@ -1,4 +1,4 @@
-// 線の見た目: 形を並べるビューに重ねる線の層と形の上の〇（ui/connector.ts）、線の編集のダイアログ、線の既定の通り方の設定の部品
+// 線の見た目: 形を並べるビューに重ねる線の層と形の上の〇（ui/connector.ts）、線の編集のダイアログ、線の既定の通り方の設定のコンポーネント
 import type { ConnectorUi } from "../../../ui/connector"
 import { definePluginUi } from "../../../ui/plugin"
 import { LINE_PLUGIN } from "."

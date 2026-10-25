@@ -50,7 +50,7 @@ describe("アクションの入口", () => {
     })
   })
 
-  test("中の部品のアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
+  test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
     const { state, actions } = newStore({ newId: () => "made" })
     actions.createBook("s1", { title: "空", type: "drawing" })
     actions.split("s1")

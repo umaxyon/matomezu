@@ -1,5 +1,5 @@
 // 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインの見せ方・アイテム・設定の項目・ダイアログのビューを結び、
-// ウィジェット（スロットに置ける部品）とコマンドのアイコンを足す。
+// ウィジェット（スロットに置けるコンポーネント）とコマンドのアイコンを足す。
 // ビューは、そのプラグインの id を全部持たないと型の誤り。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
 // 画面に置く app は、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
 import type { ComponentType, ReactNode } from "react"
@@ -15,7 +15,7 @@ import type { AnyWidgetDef } from "./layout"
 export interface BookViewProps {
   stage: Stage
 }
-// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）の部品で、ステージの真ん中に描く（配置には書かない）。
+// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネントで、ステージの真ん中に描く（配置には書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
 export interface BookViewDef {
   view: ComponentType<BookViewProps>
@@ -28,7 +28,7 @@ export interface DialogProps<A = undefined> {
   onClose: () => void
 }
 // どのダイアログのビューも入る型（表に入れるときに使う。渡す値の型は id ごとに違うので、表の上では見ない）
-// biome-ignore lint/suspicious/noExplicitAny: 関数の部品とクラスの部品の両方を受けるには any しかない
+// biome-ignore lint/suspicious/noExplicitAny: 関数コンポーネントとクラスコンポーネントの両方を受けるには any しかない
 type AnyDialogView = ComponentType<DialogProps<any>>
 // アイテムのビューに渡す値: 項目（props）・大きさ（紙の上の px）・アイテムの id・描いているステージ・中身（中身を持つアイテムの children）
 export interface ItemViewProps<Props> {
@@ -46,7 +46,7 @@ export interface ItemUi<Props = never> {
   contextMenus?: readonly ContextMenuId[] // ビューが開く右クリックのメニュー
 }
 
-// 設定の項目（core/def/setting.ts）を変える部品に渡す値。of はブックかページか、value はその段の値（無ければ undefined）、
+// 設定の項目（core/def/setting.ts）を変えるコンポーネントに渡す値。of はブックかページか、value はその段の値（無ければ undefined）、
 // inherited は値が無いときに効く値（ページならブックの値か既定、ブックなら既定）。onChange の undefined は値を消す（上の段を継ぐ）
 export interface SettingControlProps<V = unknown> {
   of: "book" | "page"
@@ -55,7 +55,7 @@ export interface SettingControlProps<V = unknown> {
   inherited: V
   onChange(value: V | undefined): void
 }
-// 設定の項目のビュー: 設定のダイアログに並べる部品
+// 設定の項目のビュー: 設定のダイアログに並べるコンポーネント
 export interface SettingUi {
   // biome-ignore lint/suspicious/noExplicitAny: 値の型は項目ごとに違うので、表の上では見ない
   control: ComponentType<SettingControlProps<any>>
@@ -104,10 +104,10 @@ export type PluginViews<P> = Field<
     { [id in IdsOf<P, "dialogs">]: ComponentType<DialogProps<DialogArgsOfPlugin<P, id>>> }
   >
 
-// ウィジェットが受け取る値（そのウィジェットの部品の props）
+// ウィジェットが受け取る値（そのウィジェットのコンポーネントの props）
 type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: infer P) => ReactNode } ? P : never
 
-// ほかのプラグインのビューとウィジェットの差し替え。型の表にある id だけ（ウィジェットは置けるスロットを変えず、描く部品だけを替える）
+// ほかのプラグインのビューとウィジェットの差し替え。型の表にある id だけ（ウィジェットは置けるスロットを変えず、描くコンポーネントだけを替える）
 export interface Overrides {
   presentationViews?: { [id in PresentationId]?: BookViewDef }
   dialogViews?: { [id in DialogId]?: ComponentType<DialogProps<DialogArgsOf<id>>> }

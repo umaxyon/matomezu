@@ -75,7 +75,7 @@ describe("配置", () => {
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
   })
 
-  test("右クリックのメニューの app に無いコマンドと、どの部品も開かないメニューは誤り", () => {
+  test("右クリックのメニューの app に無いコマンドと、どのコンポーネントも開かないメニューは誤り", () => {
     const bad = {
       ...DEFAULT_LAYOUT,
       id: "bad",

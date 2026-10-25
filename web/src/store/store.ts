@@ -57,7 +57,7 @@ export type Performed<Id extends ActionId> =
   | { ok: false; reason: Refusal | "no-book" }
 
 export interface Actions {
-  // アクションを行い、結果を状態に入れる（中の部品のアクションもプラグインのアクションも、画面と AI から同じ入口を通る）。
+  // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも外のプラグインのアクションも、画面と AI から同じ入口を通る）。
   // ブックが変われば、そのブックを開いている全部のステージを合わせ、一覧が変われば、無くなったブックを開いていたステージは何も開かない
   perform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
   // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す

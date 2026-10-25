@@ -1,4 +1,4 @@
-// fuga の見た目を結ぶ: 星のビュー・ダイアログ・方眼の部品・ステージの下の行に置くボタンのウィジェット。紙の見せ方は中の部品のものを使う
+// fuga の見た目を結ぶ: 星のビュー・ダイアログ・方眼のコンポーネント・ステージの下の行に置くボタンのウィジェット。紙の見せ方はビルトインプラグインのものを使う
 import { definePluginUi, defineWidget } from "matomezu/ui"
 import { FUGA } from "."
 import { AddStarDialog, EditStarDialog, GridSetting, MintButton, STAR_ICON, StarView } from "./views"

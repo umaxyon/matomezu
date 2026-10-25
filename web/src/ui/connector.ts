@@ -35,7 +35,7 @@ export const useShapeMarks = (): ShapeMarks => useContext(ShapeMarksContext)
 export interface ConnectorUi {
   // ページのつなぐものを描く層。形の並び（children）を包み、overlay と同じ状態を持てる
   layer: ComponentType<{ scene: ShapeScene; children: ReactNode }>
-  // 形 1 つの上に重ねる部品（線を引く〇など）
+  // 形 1 つの上に重ねるコンポーネント（線を引く〇など）
   overlay?: ComponentType<{ scene: ShapeScene; id: string }>
   contextMenus?: readonly ContextMenuId[] // 層が開く右クリックのメニュー
 }

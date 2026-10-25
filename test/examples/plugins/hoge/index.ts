@@ -4,7 +4,7 @@ import { HOGE_MESSAGES } from "./messages"
 
 export const HOGE_DIALOG = defineDialog({ id: "hoge/dialog" })
 
-// 中の部品のコマンド（stage.split）も、書き足した型のまま呼べる
+// ビルトインプラグインのコマンド（stage.split）も、書き足した型のまま呼べる
 export const HOGE_OPEN = defineCommand({
   id: "hoge/open",
   title: "Open hoge",
@@ -26,7 +26,7 @@ export const HOGE_GREET = defineCommand({
 })
 
 // 既定のキー。結べるのは自分のコマンドだけで、引数のあるコマンドには args に決まった値を書く。
-// 中の部品のキーとぶつかれば使われず（利用者が自分で割り当てる）、どう決まったかは store/keys.ts の inspectKey で分かる
+// ビルトインプラグインのキーとぶつかれば使われず（利用者が自分で割り当てる）、どう決まったかは store/keys.ts の inspectKey で分かる
 export const HOGE_KEYS = defineKeys([
   { key: "Mod+Shift+H", command: "hoge/open", scope: "stage" },
   { key: "Mod+Shift+J", command: "hoge/greet", scope: "global", args: "ja" },

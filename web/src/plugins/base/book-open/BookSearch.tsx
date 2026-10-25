@@ -1,5 +1,5 @@
-// ブックを探して選ぶ部品: 打つたびに題名で絞り込み、↑↓で選び、Enter かクリックで決める。
-// 候補の欄は高さが決まっていて、絞り込んでも部品の大きさは変わらない（真ん中に置いても探す欄が動かない）
+// ブックを探して選ぶコンポーネント: 打つたびに題名で絞り込み、↑↓で選び、Enter かクリックで決める。
+// 候補の欄は高さが決まっていて、絞り込んでもコンポーネントの大きさは変わらない（真ん中に置いても探す欄が動かない）
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookTitle } from "../../../core/book"
