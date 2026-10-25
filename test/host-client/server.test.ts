@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { type Events, NoServer, serverHost } from "../../web/src/host/server"
+import { type Events, NoServer, serverHost } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { newStore } from "../support"
 

@@ -30,7 +30,7 @@ const topOf = (t: string) => t.split("/")[0]!
 const ALLOWED: Record<string, (target: string) => boolean> = {
   core: t => t === "core" || t === "zod",
   store: t => t === "core" || t === "store" || t === "zustand/vanilla",
-  host: t => t === "core" || t === "store" || t === "host" || t === "zod",
+  "host-client": t => t === "core" || t === "store" || t === "host-client" || t === "zod",
   engine: t => t === "core" || t === "store" || t === "plugins" || t === "zod",
   ui: t =>
     ["core", "store", "ui", "react", "react-dom", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
@@ -51,7 +51,7 @@ describe("依存の向き", () => {
     const layer = layerOf(file.rel)
     const targets = importsOf(file)
     const local = (t: string) =>
-      ["core", "store", "ui", "plugins", "host", "engine"].includes(topOf(t)) && !t.endsWith(".css")
+      ["core", "store", "ui", "plugins", "host-client", "engine"].includes(topOf(t)) && !t.endsWith(".css")
     if (layer === "plugins") {
       const own = pluginRoot(file.rel)
       test(file.rel, () => {
@@ -93,10 +93,10 @@ test("状態を変えるのは store の中だけ（画面は setState を使わ
   expect(offenders).toEqual([])
 })
 
-test("外の世界（通信・保存・URL・クリップボード）に触るのはホストの口だけ", () => {
+test("外の世界（通信・保存・URL・クリップボード）に触るのはホストクライアントだけ", () => {
   const host =
     /\bfetch\(|\blocalStorage\b|\bsessionStorage\b|\blocation\.|\bhistory\.|navigator\.clipboard|\bEventSource\b|\bWebSocket\b/
-  const offenders = sources.filter(f => layerOf(f.rel) !== "host" && host.test(f.text)).map(f => f.rel)
+  const offenders = sources.filter(f => layerOf(f.rel) !== "host-client" && host.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])
 })
 

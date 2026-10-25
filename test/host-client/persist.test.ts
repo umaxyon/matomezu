@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
 import type { Book } from "../../web/src/core/schema/book"
 import type { Settings } from "../../web/src/core/settings"
-import { memoryHost } from "../../web/src/host/memory"
-import { persist } from "../../web/src/host/persist"
+import { memoryHost } from "../../web/src/host-client/memory"
+import { persist } from "../../web/src/host-client/persist"
 import { newStore } from "../support"
 
 // 頼まれた順に残す中身を覚える
