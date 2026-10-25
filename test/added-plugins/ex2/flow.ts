@@ -22,7 +22,7 @@ export const DIAMOND = defineShape({
   id: "ex2/diamond",
   kind: "shape",
   version: 1,
-  title: "Decision",
+  title: "ex2/decision",
   capabilities: ["connectable", "resizable", "hasText"],
   toolbox: true,
   props: z.strictObject({ caption: z.string().default(""), answer: z.enum(["yes", "no"]).optional() }),
@@ -41,7 +41,7 @@ interface FlowPage {
 }
 export const ANSWER = defineAction({
   id: "ex2/diamond.answer",
-  title: "Answer decision",
+  title: "ex2/answerDecision",
   aiDescription:
     "Answer a decision (an item ex2/diamond) on a page: answer is yes or no. Refused when the item is not a decision on that page.",
   target: "book",
@@ -63,7 +63,7 @@ export const FLOW_DIRECTIONS = ["down", "right"] as const
 // 流れの向き（ブックに持たせる）
 export const FLOW_DIRECTION = defineSetting({
   id: "ex2/flow.direction",
-  title: "Flow direction",
+  title: "ex2/flowDirection",
   field: "ex2Direction",
   schema: z.enum(FLOW_DIRECTIONS),
   default: "down",
@@ -87,7 +87,7 @@ const FLOW_ACTIONS = [
 export const FLOW = defineBookType({
   id: "ex2/flow",
   version: 1,
-  title: "Flow",
+  title: "ex2/flow",
   schema: z.strictObject({
     type: z.literal("ex2/flow"),
     id: z.string().min(1),

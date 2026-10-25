@@ -8,7 +8,9 @@ export type Params = Readonly<Record<string, string | number>>
 
 // 訳の無い言語と、表に無い鍵（機能台帳の型の側に書き足したのに、そのプラグインを渡していないインスタンスなど）は、英語の鍵をそのまま出す
 export function translate(messages: Messages, lang: Lang, key: MessageKey, params: Params = {}): string {
-  const text: string = messages.get(key)?.[lang] ?? key
+  // 訳の無い言語では英語の文（追加プラグインの鍵は必ず en を持つ。ビルトインの鍵は英語の文そのもの）
+  const t = messages.get(key)
+  const text: string = t?.[lang] ?? t?.en ?? key
   return text.replace(/\{(\w+)\}/g, (whole, name: string) => (name in params ? String(params[name]) : whole))
 }
 

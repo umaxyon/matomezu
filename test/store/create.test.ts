@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { isMatomezuError, problemText } from "../../web/src/core/errors"
+import { translate } from "../../web/src/core/i18n/i18n"
 import { BUILTIN } from "../../web/src/plugins"
 import { BASE } from "../../web/src/plugins/base"
 import { BOX } from "../../web/src/plugins/items/box/box"
@@ -75,9 +76,11 @@ describe("インスタンスを組み立てる", () => {
   })
 
   test("プラグインの文言はインスタンスの表に入り、コマンドの名前が文言の表に無ければ作らない", () => {
-    const greet = definePlugin({ id: "greet", messages: { やあ: { en: "Hi" } } })
+    const greet = definePlugin({ id: "greet", messages: { "greet/hi": { en: "Hi", ja: "やあ" } } })
     const instance = createMatomezu({ plugins: [...BUILTIN, greet], partial: true })
-    expect(instance.catalog.core.messages.get("やあ")).toEqual({ en: "Hi" })
+    expect(instance.catalog.core.messages.get("greet/hi")).toEqual({ en: "Hi", ja: "やあ" })
+    // 訳の無い言語では英語の文を出す
+    expect(translate(instance.catalog.core.messages, "fr", "greet/hi" as never)).toBe("Hi")
     const nameless = definePlugin({
       id: "nameless",
       commands: [defineCommand({ id: "nameless/run", title: "無い名前" as never, run: () => {}, when: () => true })],
@@ -86,6 +89,17 @@ describe("インスタンスを組み立てる", () => {
     expect(isMatomezuError(e) && e.details.map(problemText)).toEqual([
       "E018 command nameless/run: title 無い名前 is not in the messages",
     ])
+  })
+
+  test("追加プラグインの文言の鍵は頭にプラグインの id と / を付け、英語の文（en）を持つ。そうでなければ型の誤りで、作らない", () => {
+    // @ts-expect-error 頭が無い鍵
+    const bare = definePlugin({ id: "greet", messages: { hi: { en: "Hi" } } })
+    // @ts-expect-error 英語の文が無い
+    const noEnglish = definePlugin({ id: "greet", messages: { "greet/hi": { ja: "やあ" } } })
+    expect(thrown(() => createMatomezu({ plugins: [...BUILTIN, bare], partial: true }))).toMatchObject({ code: "E303" })
+    expect(thrown(() => createMatomezu({ plugins: [...BUILTIN, noEnglish], partial: true }))).toMatchObject({
+      code: "E304",
+    })
   })
 
   test("同じ id のコマンドやダイアログを 2 つのプラグインが持てば作らない", () => {

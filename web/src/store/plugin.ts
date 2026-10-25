@@ -39,11 +39,22 @@ export type IdsOf<P, K extends Part> = P extends { [k in K]?: readonly (infer D)
     : never
   : never
 
-// 頭に「プラグインの id と /」が付いていない id
-type Unprefixed<P extends Plugin> = { [K in Part]: Exclude<IdsOf<P, K>, `${P["id"]}/${string}`> }[Part]
+// 頭に「プラグインの id と /」が付いていない id と文言の鍵、英語の文（en）を持たない文言の鍵
+type MessagesOf<P> = P extends { messages?: infer M }
+  ? M extends object
+    ? M
+    : Record<never, never>
+  : Record<never, never>
+type NoEnglish<P> = {
+  [K in keyof MessagesOf<P>]: MessagesOf<P>[K] extends { en: string } ? never : K
+}[keyof MessagesOf<P>]
+type Unprefixed<P extends Plugin> =
+  | { [K in Part]: Exclude<IdsOf<P, K>, `${P["id"]}/${string}`> }[Part]
+  | Exclude<keyof MessagesOf<P> & string, `${P["id"]}/${string}`>
+  | (NoEnglish<P> & string)
 type PrefixCheck<P extends Plugin> = [Unprefixed<P>] extends [never]
   ? unknown
-  : { [id in Unprefixed<P>]: "id の頭にプラグインの id と / を付ける" }
+  : { [id in Unprefixed<P>]: "id と文言の鍵の頭にプラグインの id と / を付け、文言は英語の文（en）を持つ" }
 
 // 形の定義が名指すダイアログのうち、受ける値が ShapeAddArgs（追加）・ShapeEditArgs（編集）でないもの
 type ShapeDialogsOf<P> = P extends { items?: readonly (infer D)[] }
@@ -103,6 +114,10 @@ export function assemble(
     if (isBuiltin(p)) continue
     for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!d.id.startsWith(`${p.id}/`)) fail("E301", { plugin: p.id, kind, id: d.id })
+    for (const [key, t] of Object.entries(p.messages ?? {})) {
+      if (!key.startsWith(`${p.id}/`)) fail("E303", { plugin: p.id, key })
+      if (t.en === undefined) fail("E304", { plugin: p.id, key })
+    }
   }
   const all = <K extends Part>(kind: K) => plugins.flatMap(p => (p[kind] ?? []) as readonly PartDefTable[K][])
   const commands = all("commands")

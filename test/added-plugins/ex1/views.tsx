@@ -6,8 +6,8 @@ import styles from "./views.module.css"
 export function HelloDialog({ onClose }: DialogProps) {
   const t = useT()
   return (
-    <Dialog title={t("Say hello")} onClose={onClose}>
-      <p className={styles.greeting}>{t("Hello, {name}", { name: shout("matomezu") })}</p>
+    <Dialog title={t("ex1/sayHello")} onClose={onClose}>
+      <p className={styles.greeting}>{t("ex1/helloName", { name: shout("matomezu") })}</p>
     </Dialog>
   )
 }
@@ -15,8 +15,8 @@ export function HelloDialog({ onClose }: DialogProps) {
 export function InspectDialog({ args, onClose }: DialogProps<{ item: string }>) {
   const t = useT()
   return (
-    <Dialog title={t("Inspect item")} onClose={onClose}>
-      <p>{t("Item {id}", { id: args.item })}</p>
+    <Dialog title={t("ex1/inspectItem")} onClose={onClose}>
+      <p>{t("ex1/itemId", { id: args.item })}</p>
     </Dialog>
   )
 }
@@ -25,9 +25,9 @@ export function InspectDialog({ args, onClose }: DialogProps<{ item: string }>) 
 export function PageSettingsInstead({ onClose }: DialogProps<{ page: string }>) {
   const t = useT()
   return (
-    <Dialog title={t("Page settings by ex1")} onClose={onClose}>
+    <Dialog title={t("ex1/pageSettings")} onClose={onClose}>
       <button type="button" onClick={onClose}>
-        {t("Close")}
+        {t("ex1/close")}
       </button>
     </Dialog>
   )

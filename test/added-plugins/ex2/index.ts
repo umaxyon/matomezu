@@ -7,7 +7,7 @@ import { EX2_MESSAGES } from "./messages"
 // 判断のひし形を置いて、ダイアログを閉じる
 export const ADD = defineCommand({
   id: "ex2/add",
-  title: "Add decision",
+  title: "ex2/addDecision",
   run: (ctx, a, args: { page: string; at: Point; caption: string }) => {
     if (!ctx.book) return
     a.perform(
@@ -23,7 +23,7 @@ export const ADD = defineCommand({
 // 判断に答えて、ダイアログを閉じる
 export const ANSWER_COMMAND = defineCommand({
   id: "ex2/answer",
-  title: "Answer decision",
+  title: "ex2/answerDecision",
   run: (ctx, a, args: { page: string; item: string; answer: "yes" | "no" }) => {
     if (!ctx.book) return
     a.perform("ex2/diamond.answer", args, { book: ctx.book.id })

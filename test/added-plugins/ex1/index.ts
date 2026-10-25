@@ -9,7 +9,7 @@ export const INSPECT_DIALOG = defineDialogWith<{ item: string }>()({ id: "ex1/in
 // あいさつのダイアログを開く。ステージのメニューに入れてほしい
 export const HELLO = defineCommand({
   id: "ex1/hello",
-  title: "Say hello",
+  title: "ex1/sayHello",
   run: (ctx, a) => a.openDialog(ctx.stage.id, "ex1/hello"),
   when: () => true,
   place: { menus: ["stage.menu"] },
@@ -18,7 +18,7 @@ export const HELLO = defineCommand({
 // 引数のあるコマンド: 言語を変える（ビルトインプラグインのコマンドも型のまま呼べる）
 export const SWITCH_LANG = defineCommand({
   id: "ex1/lang",
-  title: "Switch language",
+  title: "ex1/switchLanguage",
   run: (ctx, a, lang: "ja" | "en" | "fr") => {
     a.command(ctx.stage.id, "settings.lang", lang)
   },
@@ -28,7 +28,7 @@ export const SWITCH_LANG = defineCommand({
 // 右クリックされたアイテムを受け取るコマンド。アイテムの右クリックのメニューに入れてほしい
 export const INSPECT = defineCommand({
   id: "ex1/inspect",
-  title: "Inspect item",
+  title: "ex1/inspectItem",
   run: (ctx, a, target: { item: string }) => a.openDialog(ctx.stage.id, "ex1/inspect", target),
   when: () => true,
   place: { contextMenus: ["item.context"] },

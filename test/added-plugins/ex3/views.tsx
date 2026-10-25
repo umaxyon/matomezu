@@ -32,7 +32,7 @@ export const STAR_ICON = (
 export function AddStarDialog({ onClose }: DialogProps<{ page: string; at: { x: number; y: number } }>) {
   const t = useT()
   return (
-    <Dialog title={t("Add star")} onClose={onClose}>
+    <Dialog title={t("ex3/addStar")} onClose={onClose}>
       {null}
     </Dialog>
   )
@@ -41,7 +41,7 @@ export function AddStarDialog({ onClose }: DialogProps<{ page: string; at: { x: 
 export function EditStarDialog({ onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useT()
   return (
-    <Dialog title={t("Edit star")} onClose={onClose}>
+    <Dialog title={t("ex3/editStar")} onClose={onClose}>
       {null}
     </Dialog>
   )

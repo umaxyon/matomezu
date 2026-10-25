@@ -17,7 +17,7 @@ createMatomezu({ plugins: BUILTIN_UI, home: "master" })
 defineKeys([{ key: "Mod+K", command: "ex1/lang", scope: "global", args: "de" }])
 defineCommand({
   id: "ex1/arg",
-  title: "Say hello",
+  title: "ex1/sayHello",
   run: (_ctx, _a, _n: number) => {},
   when: () => true,
   // @ts-expect-error 引数を取るコマンドはメニューに入れられない

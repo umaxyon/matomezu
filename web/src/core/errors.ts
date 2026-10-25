@@ -57,6 +57,8 @@ export const ERRORS = {
 
   E301: 'plugin {plugin}: {kind} {id} must start with "{plugin}/"',
   E302: "plugin {plugin}: key {key} binds {command}, which is not its own command",
+  E303: 'plugin {plugin}: message key {key} must start with "{plugin}/"',
+  E304: "plugin {plugin}: message {key} has no English text (en)",
 
   E401: "the server could not give the data: {status}",
 } as const

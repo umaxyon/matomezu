@@ -35,13 +35,13 @@ export function AddDiamondDialog({
   const add = useCommand(stage, "ex2/add")
   const [caption, setCaption] = useState("")
   return (
-    <Dialog title={t("Add decision")} onClose={onClose}>
+    <Dialog title={t("ex2/addDecision")} onClose={onClose}>
       <label>
-        {t("Caption")}
+        {t("ex2/caption")}
         <input value={caption} onChange={e => setCaption(e.target.value)} />
       </label>
       <button type="button" onClick={() => add.run({ ...args, caption })}>
-        {t("Add")}
+        {t("ex2/add")}
       </button>
     </Dialog>
   )
@@ -51,12 +51,12 @@ export function EditDiamondDialog({ stage, args, onClose }: DialogProps<{ page: 
   const t = useT()
   const answer = useCommand(stage, "ex2/answer")
   return (
-    <Dialog title={t("Edit decision")} onClose={onClose}>
+    <Dialog title={t("ex2/editDecision")} onClose={onClose}>
       <button type="button" onClick={() => answer.run({ ...args, answer: "yes" })}>
-        {t("Yes")}
+        {t("ex2/yes")}
       </button>
       <button type="button" onClick={() => answer.run({ ...args, answer: "no" })}>
-        {t("No")}
+        {t("ex2/no")}
       </button>
     </Dialog>
   )
@@ -68,8 +68,8 @@ export function DirectionSetting({ label, value, inherited, onChange }: SettingC
     <label>
       {label}
       <select value={value ?? inherited} onChange={e => onChange(e.target.value as "down" | "right")}>
-        <option value="down">{t("Down")}</option>
-        <option value="right">{t("Right")}</option>
+        <option value="down">{t("ex2/down")}</option>
+        <option value="right">{t("ex2/right")}</option>
       </select>
     </label>
   )

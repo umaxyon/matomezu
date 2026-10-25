@@ -24,7 +24,7 @@ export const STAR = defineShape({
   id: "ex3/star",
   kind: "shape",
   version: 1,
-  title: "Star",
+  title: "ex3/star",
   capabilities: ["connectable", "hasText"],
   toolbox: true,
   props: z.strictObject({ caption: z.string().default(""), points: z.number().int().min(3).max(12).default(5) }),
@@ -37,12 +37,12 @@ export const STAR = defineShape({
 })
 
 // 正方形の紙（縦横が同じなので、向きは見た目に効かない）
-export const SQUARE = definePaper({ id: "ex3/square", title: "Square", size: { w: 640, h: 640 } })
+export const SQUARE = definePaper({ id: "ex3/square", title: "ex3/square", size: { w: 640, h: 640 } })
 
 // 方眼を出すか（ブックに持たせる）
 export const GRID = defineSetting({
   id: "ex3/board.grid",
-  title: "Grid",
+  title: "ex3/grid",
   field: "ex3Grid",
   schema: z.boolean(),
   default: false,
@@ -50,7 +50,7 @@ export const GRID = defineSetting({
 
 export const MINT = defineTheme({
   id: "ex3/mint",
-  title: "Mint",
+  title: "ex3/mint",
   base: {
     surface: "#eef7f3",
     paper: "#fbfffd",
@@ -76,7 +76,7 @@ export const MINT = defineTheme({
 // 夜のスキン（アプリの枠の見た目。ブックの中身には効かない）
 export const NIGHT = defineSkin({
   id: "ex3/night",
-  title: "Night",
+  title: "ex3/night",
   scheme: "dark",
   tokens: {
     bg: "#0b1020",
@@ -113,7 +113,7 @@ const BOARD_ACTIONS = [
 export const BOARD = defineBookType({
   id: "ex3/board",
   version: 1,
-  title: "Board",
+  title: "ex3/board",
   schema: z.strictObject({
     type: z.literal("ex3/board"),
     id: z.string().min(1),

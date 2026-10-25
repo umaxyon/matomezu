@@ -7,7 +7,7 @@ import { EX3_MESSAGES } from "./messages"
 // 開いているブックのテーマをミントにする（ほかの作り手のタイプのブックにも使える）
 export const USE_MINT = defineCommand({
   id: "ex3/mint",
-  title: "Use mint",
+  title: "ex3/useMint",
   run: (ctx, a) => {
     if (ctx.book) a.perform("book.update", { theme: MINT.id }, { book: ctx.book.id })
   },
