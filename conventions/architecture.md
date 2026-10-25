@@ -12,8 +12,8 @@
 | `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）と外の世界（通信・保存・URL・クリップボード）に頼む口 | `core`・`store`・`host-client`・zod |
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
-| `plugin-api` | 【未実装】プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけの層（`index.ts` は React なし、`ui.ts` は見た目） | `index.ts` は `core`・`store`、`ui.ts` は `ui` |
-| `plugin-entry` | 【未実装】プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`）。今は `plugin-api` が入口を兼ねている | `index.ts` は `plugin-api` と zod（`z` を出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui` |
+| `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけの層（`index.ts` は React なし、`ui.ts` は見た目） | `index.ts` は `core`・`store`、`ui.ts` は `ui` |
+| `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api` と zod（`z` を出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui` |
 | `testing` | テストで組む入口（`matomezu/testing`） | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
 | `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`index.ts` はホストのエンジン用、`ui.ts` は画面用） | `plugin-entry`・React |
 
@@ -21,9 +21,9 @@
 - 【未実装】土台の中の、プラグインしか使っていない処理（`core/place`・`core/text`・`core/toolbox`）は base へ移し、道具の中身（select・reparent・hand と組 paper）は paper が定義する。core のモジュールで、プラグインしか読んでいない物が無いことを `test/rules.test.ts` が見張る
 - 入口（`plugin-entry`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない
 - 例外は `plugin-modules`。`plugin-entry` を読んでよいのは `plugin-modules` だけで、`plugin-modules` を読んでよいのはホストのエンジン（`engine/engine.ts`）と画面の入口（`main.tsx`）だけ
-- 【未実装】向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の部品を出し直すのは `plugin-entry`）
+- 向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の部品を出し直すのは `plugin-entry`）
 - プラグインのファイルは役割で見る。見た目（`.tsx` と `ui.ts`）は `ui` と同じものを読んでよく、ほかは `core`・`store`・zod だけ
-- 【未実装】上の行は base だけになる。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・React も読み、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ
+- 上の行は base だけ。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・React も読み、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ。状態を丸ごと読む 3 つのフック（`useMatomezuState`・`useCatalog`・`useUiCatalog`）だけは、見た目が `ui/store-context` から読む。base はプラグイン API を読まない
 - 見た目でないファイルは、見た目を読まない
 - これらは `test/rules.test.ts` が見張る
 

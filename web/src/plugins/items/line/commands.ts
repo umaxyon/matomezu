@@ -1,10 +1,6 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（線の層から呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import { pagedOf } from "../../../core/book"
-import type { Point } from "../../../core/geom"
-import { rectsOf } from "../../../core/placed"
-import { toPaper } from "../../../core/stage"
-import { type CommandContext, defineCommand } from "../../../store/commands/def"
+import { type CommandContext, defineCommand, type Point, pagedOf, rectsOf, toPaper } from "../../../plugin-api"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
 import { elbowAt } from "./line"
 import { linesOf } from "./placed"

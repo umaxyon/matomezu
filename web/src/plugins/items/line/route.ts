@@ -7,7 +7,7 @@
 //   exit と enter が同じ向きなら via は奇数個、違えば偶数個（0 個が L 字）。出る辺（左か右か）は via の位置から決まる。
 // 手で直した via は、両端が固定のときだけ持つ（向きは固定の端の辺から決まる）。引けるあいだはそのまま使う
 
-import type { Point } from "../../../core/geom"
+import type { Point } from "../../../plugin-api"
 import { centerOf, nearestAt, overlapSpan, pointAt, type Rect, segmentThroughRect } from "./geom"
 import { perimeter } from "./selfloop"
 

@@ -1,6 +1,5 @@
 // 線のデータと、ページの上での線の決まり: 線でつながった形の組の間隔、引ける相手、形が変わったあとの整え、関係の決まり
-import type { ConnectorData } from "../../../core/def/item"
-import { connectorsOf, type ItemPage, type PlacedOf } from "../../../core/placed"
+import { type ConnectorData, connectorsOf, type ItemPage, type PlacedOf } from "../../../plugin-api"
 import type { Rect } from "./geom"
 import { route } from "./route"
 

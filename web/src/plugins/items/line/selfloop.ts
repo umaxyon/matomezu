@@ -5,7 +5,7 @@
 // 端の位置（exitAt / enterAt）は、箱のふちを左上から時計回りに一周した割合（0〜1）。2 つの端は、同じ辺か
 // 隣り合う辺に置く（向かいの辺だと円が箱を横切るため。その指定は使わず、角に描く）
 
-import type { Point } from "../../../core/geom"
+import type { Point } from "../../../plugin-api"
 import { centerOf, nearestAt, pointAt, type Rect, rectsOverlap, segmentsOf, segmentThroughRect } from "./geom"
 
 export type { Rect }

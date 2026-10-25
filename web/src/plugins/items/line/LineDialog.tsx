@@ -5,12 +5,9 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { pagedOf } from "../../../core/book"
-import type { MessageKey } from "../../../core/i18n/i18n"
-import { rectsOf } from "../../../core/placed"
-import { useT } from "../../../ui/i18n"
-import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { type MessageKey, pagedOf, rectsOf } from "../../../plugin-api"
+import { type DialogProps, useActions, useT } from "../../../plugin-api/ui"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
   Choices,

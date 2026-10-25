@@ -3,13 +3,8 @@
 // （区間・端・札はアクション line.update、ほかの形の上で離した端はコマンド line.drop でつなぎ替え）。項目は edit.ts の純粋な関数で決める。
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
-import type { CoreCatalog } from "../../../core/core-catalog"
-import type { Point } from "../../../core/geom"
-import type { ItemPage } from "../../../core/placed"
-import type { Stage } from "../../../core/stage"
-import { toPaper } from "../../../core/stage"
-import { useCommand } from "../../../ui/commands"
-import { useActions } from "../../../ui/store-context"
+import { type CoreCatalog, type ItemPage, type Point, type Stage, toPaper } from "../../../plugin-api"
+import { useActions, useCommand } from "../../../plugin-api/ui"
 import { reconnectTargets } from "./connect"
 import type { DrawnLine } from "./drawn"
 import { captionDragged, endDragged, viaDragged, viaSettled } from "./edit"

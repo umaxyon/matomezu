@@ -1,5 +1,5 @@
 // ビルトインプラグインの一覧（画面のあるインスタンス用。どのプラグインにも見た目を結んだもの）と、それを渡したインスタンスの既定の配置
-import { defineLayout } from "../ui/layout"
+import { defineLayout } from "../plugin-api/ui"
 import { BASE_UI } from "./base/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
 import { MASTER_UI } from "./books/master/ui"

@@ -2,12 +2,8 @@
 // 離すとその相手に引く（コマンド line.draw）。何も無い所・引けない相手の上で離す、Escape、3px 未満しか動かさないときは引かない。
 // ドラッグの間の途中の線の先と相手だけをビューに持つ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
-import type { CoreCatalog } from "../../../core/core-catalog"
-import type { Point, Rect } from "../../../core/geom"
-import type { ItemPage } from "../../../core/placed"
-import type { Stage } from "../../../core/stage"
-import { toPaper } from "../../../core/stage"
-import { useCommand } from "../../../ui/commands"
+import { type CoreCatalog, type ItemPage, type Point, type Rect, type Stage, toPaper } from "../../../plugin-api"
+import { useCommand } from "../../../plugin-api/ui"
 import { portAt, targetsFrom } from "./connect"
 import type { Side } from "./route"
 

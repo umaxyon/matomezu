@@ -1,8 +1,7 @@
 // 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）を変えられる
 import { z } from "zod"
-import { defineBookType } from "../../../core/def/book-type"
+import { BookLookSchema, defineBookType } from "../../../plugin-api"
 
-import { BookLookSchema } from "../../../core/theme"
 import { PAPER_IDS } from "../../base"
 
 export const DRAWING = defineBookType({

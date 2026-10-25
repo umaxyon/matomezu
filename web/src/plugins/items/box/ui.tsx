@@ -1,5 +1,5 @@
 // 箱の見た目: 箱のビューとアイコン、箱の追加と編集のダイアログ
-import { definePluginUi } from "../../../ui/plugin"
+import { definePluginUi } from "../../../plugin-api/ui"
 import { BOX_PLUGIN } from "."
 import { AddBoxDialog, EditBoxDialog } from "./BoxDialog"
 import { BoxView } from "./BoxView"

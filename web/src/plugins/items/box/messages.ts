@@ -1,5 +1,5 @@
 // 箱の文言
-import { defineMessages } from "../../../core/i18n/messages"
+import { defineMessages } from "../../../plugin-api"
 
 export const BOX_MESSAGES = defineMessages({
   Box: { ja: "箱" },

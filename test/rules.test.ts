@@ -35,6 +35,8 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
   ui: t =>
     ["core", "store", "ui", "react", "react-dom", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),
+  // プラグイン API は土台から名前を出し直すだけ（index は core・store、ui は ui。下の「プラグイン API の層」で分けて見る）。プラグインは読まない
+  "plugin-api": t => t === "core" || t === "store" || t === "ui",
 }
 // プラグインのファイルは役割で見る。見た目（.tsx と ui.ts）は ui と同じもの、ほかは core・store・zod だけ
 const isView = (rel: string) => rel.endsWith(".tsx") || basename(rel) === "ui.ts"
@@ -43,8 +45,15 @@ const pluginRoot = (rel: string) => {
   const parts = rel.split("/")
   return parts.slice(0, parts[1] === "books" || parts[1] === "items" ? 3 : 2).join("/")
 }
-const pluginAllowed = (rel: string) => (t: string) =>
+// base は土台を直に読む（プラグイン API の部品を作る側）。プラグイン API は読まない（plugin-api が base を読まないのと合わせて、輪を作らない）
+const baseAllowed = (rel: string) => (t: string) =>
   isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod"
+// base 以外のビルトインプラグインは、プラグイン API と zod だけ（見た目は plugin-api/ui と React も）。
+// 状態を丸ごと読むフック（ui/store-context の useMatomezuState・useCatalog・useUiCatalog）は、状態を読むフックができるまで見た目から直に読む
+const apiAllowed = (rel: string) => (t: string) =>
+  t === "plugin-api" ||
+  t === "zod" ||
+  (isView(rel) && ["plugin-api/ui", "ui/store-context", "react", "react-dom", "zustand/react/shallow"].includes(t))
 
 describe("依存の向き", () => {
   for (const file of sources) {
@@ -54,9 +63,12 @@ describe("依存の向き", () => {
       ["core", "store", "ui", "plugins", "host-client", "engine"].includes(topOf(t)) && !t.endsWith(".css")
     if (layer === "plugins") {
       const own = pluginRoot(file.rel)
+      const pluginAllowed = own === "plugins/base" ? baseAllowed : apiAllowed
       test(file.rel, () => {
         const bad = targets.filter(t => {
           if (t.endsWith(".css")) return !isView(file.rel)
+          if (["ui/store-context", "plugin-api", "plugin-api/ui"].includes(t) && own !== "plugins/base")
+            return !pluginAllowed(file.rel)(t)
           if (!local(t)) return !pluginAllowed(file.rel)(t)
           if (topOf(t) !== "plugins") return !pluginAllowed(file.rel)(topOf(t))
           // 同じプラグインの中（下のフォルダも含む）か、base の入口（index・ui）だけ。見た目でないファイルは見た目を読まない
@@ -150,12 +162,12 @@ test("画面の文言は t() を通す（ui に日本語を直に書かない）
   expect(offenders).toEqual([])
 })
 
-// 外に見せる入口: プラグイン API（plugin-api/。matomezu は React なしの定義の口、matomezu/ui は見た目を結ぶ口）と、
+// 外に見せる入口: プラグイン API の入口（plugin-entry/。matomezu は React なしの定義の口、matomezu/ui は見た目を結ぶ口）と、
 // テストで組む入口（testing/。matomezu/testing）。中のコードは入口を読まない（入口が中を読む向きだけ）
-const ENTRY_LAYERS = ["plugin-api", "testing"]
+const ENTRY_LAYERS = ["plugin-entry", "testing"]
 const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
-  "plugin-api/index.ts": t => ["core", "store"].includes(topOf(t)) || t === "zod", // zod は matomezu から出し直す
-  "plugin-api/ui.ts": t => topOf(t) === "ui" || t === "plugins/base/ui",
+  "plugin-entry/index.ts": t => t === "plugin-api" || t === "zod", // zod は matomezu から出し直す
+  "plugin-entry/ui.ts": t => t === "plugin-api/ui" || t === "plugins/base/ui",
   "testing/index.ts": t => ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui",
 }
 
@@ -177,15 +189,35 @@ test("外に見せる入口は、決めた層だけを読み、中のコード�
   expect([...bad, ...inward]).toEqual([])
 })
 
+// プラグイン API の層（plugin-api/）: index は core・store だけ、ui は ui だけを読み、名前を出し直すだけ（ほかのことを書かない）
+test("プラグイン API の層は、index が core と store、ui が ui だけから名前を出し直す", () => {
+  const api = sources.filter(f => layerOf(f.rel) === "plugin-api")
+  expect(api.map(f => f.rel).sort()).toEqual(["plugin-api/index.ts", "plugin-api/ui.ts"])
+  const bad = api.flatMap(f => {
+    const ok = f.rel === "plugin-api/ui.ts" ? ["ui"] : ["core", "store"]
+    const code = f.text
+      .replace(/\/\/.*$/gm, "")
+      .replace(/export\s+(type\s+)?\{[^}]*\}\s+from\s+"[^"]+"/g, "")
+      .trim()
+    return [
+      ...importsOf(f)
+        .filter(t => !ok.includes(topOf(t)))
+        .map(t => `${f.rel} → ${t}`),
+      ...(code ? [`${f.rel}: ${code.slice(0, 40)}`] : []),
+    ]
+  })
+  expect(bad).toEqual([])
+})
+
 // 追加プラグインが借りる、名前から実物を引く表（plugin-modules/）: プラグイン API の入口を読んでよいのはここだけで、ここを読んでよいのはホストのエンジンと画面の入口だけ
-const MODULES_ALLOWED = ["plugin-api", "plugin-api/ui", "plugin-modules", "react", "react/jsx-runtime"]
+const MODULES_ALLOWED = ["plugin-entry", "plugin-entry/ui", "plugin-modules", "react", "react/jsx-runtime"]
 const MODULES_READERS = ["engine/engine.ts", "main.tsx"]
 
 test("plugin-modules は入口と React だけを読み、ホストのエンジンと画面の入口だけが読む", () => {
   const own = sources.filter(f => layerOf(f.rel) === "plugin-modules")
   const bad = own.flatMap(f =>
     importsOf(f)
-      .filter(t => !MODULES_ALLOWED.includes(t === "plugin-api/index" ? "plugin-api" : t))
+      .filter(t => !MODULES_ALLOWED.includes(t === "plugin-entry/index" ? "plugin-entry" : t))
       .map(t => `${f.rel} → ${t}`),
   )
   const readers = sources

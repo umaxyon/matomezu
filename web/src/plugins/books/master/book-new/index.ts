@@ -1,5 +1,5 @@
 // ブックを作る: アクション book.create と、それを選ぶダイアログを開くコマンド
-import { defineDialog } from "../../../../store/dialogs"
+import { defineDialog } from "../../../../plugin-api"
 
 export { BOOK_CREATE } from "./book-create"
 export { BOOK_NEW } from "./commands"

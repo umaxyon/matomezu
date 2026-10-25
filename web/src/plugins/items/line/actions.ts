@@ -1,11 +1,19 @@
 // 線のアクション: 線を引く・項目を変える・端をつなぎ替える。消すのは item.remove（形を消すと、つながる線も消える）
 
 import { z } from "zod"
-import { hasPages, type PagedBook, putPage } from "../../../core/book"
-import type { CoreCatalog } from "../../../core/core-catalog"
-import { defineAction } from "../../../core/def/action"
-import { keepApart, nextItemId } from "../../../core/place/items"
-import { connectorSchema, type ItemPage, pageItemsOf, rectsOf } from "../../../core/placed"
+import {
+  type CoreCatalog,
+  connectorSchema,
+  defineAction,
+  hasPages,
+  type ItemPage,
+  keepApart,
+  nextItemId,
+  type PagedBook,
+  pageItemsOf,
+  putPage,
+  rectsOf,
+} from "../../../plugin-api"
 import { connectable } from "./connect"
 import { elbowAt, LINE, LinePatchSchema, usesLines } from "./line"
 import { canConnect, linesOf, type PlacedLine, tidyLines } from "./placed"

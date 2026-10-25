@@ -1,5 +1,5 @@
 // ブックを作るの文言
-import { defineMessages } from "../../../../core/i18n/messages"
+import { defineMessages } from "../../../../plugin-api"
 
 export const BOOK_NEW_MESSAGES = defineMessages({
   "New book": { ja: "新しいブック" },

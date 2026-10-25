@@ -3,13 +3,9 @@
 // 追加はリストの最後に行を足し（row.add）、編集は行の項目を書き換える（row.update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
 
 import { useId, useState } from "react"
-import { pagedOf } from "../../../core/book"
-import type { MessageKey } from "../../../core/i18n/i18n"
-import { shapesOf } from "../../../core/placed"
-import { BODY_MAX } from "../../../core/text/fields"
-import { useT } from "../../../ui/i18n"
-import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { BODY_MAX, type MessageKey, pagedOf, shapesOf } from "../../../plugin-api"
+import { type DialogProps, useActions, useT } from "../../../plugin-api/ui"
+import { useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
   Choices,

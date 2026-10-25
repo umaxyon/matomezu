@@ -2,8 +2,8 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "matomezu": ["../../web/src/plugin-api/index.ts"],
-      "matomezu/ui": ["../../web/src/plugin-api/ui.ts"],
+      "matomezu": ["../../web/src/plugin-entry/index.ts"],
+      "matomezu/ui": ["../../web/src/plugin-entry/ui.ts"],
       "matomezu/testing": ["../../web/src/testing/index.ts"],
       "matomezu/catalog": ["../../web/src/core/catalog.ts"]
     }

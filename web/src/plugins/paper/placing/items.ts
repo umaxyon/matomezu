@@ -1,10 +1,16 @@
 // 紙のページに置いたアイテムのドラッグ（データを書き換えず、新しい値を返す）。置く・押す・消すなどは土台（core/place/items.ts）
-import type { PagedBook } from "../../../core/book"
-import type { CoreCatalog } from "../../../core/core-catalog"
-import type { Point } from "../../../core/geom"
-import { gapOf, paperSize, placedAt, withPage } from "../../../core/place/items"
-import type { Rect } from "../../../core/place/push"
-import { type ItemPage, rectsOf } from "../../../core/placed"
+import {
+  type CoreCatalog,
+  gapOf,
+  type ItemPage,
+  type PagedBook,
+  type Point,
+  paperSize,
+  placedAt,
+  type Rect,
+  rectsOf,
+  withPage,
+} from "../../../plugin-api"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 type Drawing = PagedBook

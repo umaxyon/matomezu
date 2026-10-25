@@ -1,5 +1,5 @@
 // 紙のプラグインの見た目: 紙のビュー。末尾で、紙のビューが開く右クリックのメニューを機能台帳の型の側に書き足す
-import { definePluginUi } from "../../ui/plugin"
+import { definePluginUi } from "../../plugin-api/ui"
 import { PAPER_PLUGIN } from "."
 import { PAPER_VIEW } from "./view/ui"
 

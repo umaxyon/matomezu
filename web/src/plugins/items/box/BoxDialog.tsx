@@ -6,15 +6,9 @@
 // 追加は開いたときに覚えた所に箱を置いて（アクション item.place）選び、編集は箱の項目を書き換える（アクション item.update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { pagedOf } from "../../../core/book"
-import type { ItemProps } from "../../../core/core-catalog"
-import type { Point } from "../../../core/geom"
-import type { MessageKey } from "../../../core/i18n/i18n"
-import { shapesOf } from "../../../core/placed"
-import { BODY_MAX } from "../../../core/text/fields"
-import { useT } from "../../../ui/i18n"
-import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { BODY_MAX, type ItemProps, type MessageKey, type Point, pagedOf, shapesOf } from "../../../plugin-api"
+import { type DialogProps, useActions, useT } from "../../../plugin-api/ui"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
   Choices,

@@ -1,7 +1,6 @@
 // リストの行の操作（データを書き換えず、新しい値を返す）。リストはページに置いたアイテムで、行は children に順に並ぶ
 
-import { type PagedBook, putPage } from "../../../core/book"
-import type { ItemPage } from "../../../core/placed"
+import { type ItemPage, type PagedBook, putPage } from "../../../plugin-api"
 import { LIST, type ListRow, type RowProps } from "./list"
 import type { PlacedList } from "./placed"
 import { placedListWidth, type RowsLines, rewrittenLines } from "./size"

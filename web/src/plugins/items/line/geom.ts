@@ -1,7 +1,7 @@
 // 線の形の計算の道具（点、矩形、折れ線）。DOM は触らない純粋な関数。
 // 線の道筋（route.ts）、自分に戻る線（selfloop.ts）、キャプションの置き方（caption.ts）が使う
 
-import type { Point, Rect } from "../../../core/geom"
+import type { Point, Rect } from "../../../plugin-api"
 
 export type { Rect }
 

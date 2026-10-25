@@ -3,9 +3,7 @@
 // 収まらない本文は、最後に出す行の終わりに … を付けて切る。本文が 1 行も出ない高さなら、区切り線も出さない。
 // 文字の幅と折り返しは core/text で計算するので、画面でも常駐でも同じ行になる。画面（BoxView）はこの値のとおりに描く
 import type { z } from "zod"
-import type { Size } from "../../../core/geom"
-import { captionTextWidth, PLACE_LINES, TEXT_LOOK } from "../../../core/text/fields"
-import { clampLines, wrap } from "../../../core/text/text"
+import { captionTextWidth, clampLines, PLACE_LINES, type Size, TEXT_LOOK, wrap } from "../../../plugin-api"
 import type { BoxPropsSchema } from "./box"
 
 type BoxProps = z.infer<typeof BoxPropsSchema>

@@ -4,7 +4,7 @@
 // 1 本だけ選んでいる線（editing）には、両端をつまむ丸と、折れ線の途中の区間をつまむ透明な線を出す（区間は向きに合わせて左右か上下に動かす）。
 // キャプションの札は選べるときに押せ、押すと線を選んでドラッグを始める。端が吸い付いた点（snap）には輪を出す
 import type { MouseEvent, PointerEvent } from "react"
-import type { Point } from "../../../core/geom"
+import type { Point } from "../../../plugin-api"
 import type { DrawnLine } from "./drawn"
 import styles from "./LinesView.module.css"
 

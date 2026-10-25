@@ -1,6 +1,6 @@
 // リストの見た目: リストのビューとアイコン、リストの追加と設定のダイアログ、行の追加と編集のダイアログ。
 // 末尾で、リストのビューが開く行の右クリックのメニューを機能台帳の型の側に書き足す
-import { definePluginUi } from "../../../ui/plugin"
+import { definePluginUi } from "../../../plugin-api/ui"
 import { LIST_PLUGIN } from "."
 import { AddListDialog, EditListDialog } from "./ListDialog"
 import { ListView } from "./ListView"

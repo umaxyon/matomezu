@@ -3,9 +3,7 @@
 // 行の高さは、本文を何行分見せるか（行数）で決める。行が行数（lines）を持てばその行数（本文の量によらない。ドラッグとそろえるボタンが書く）。
 // 持たない行はそろえる: 行数を持たない行の本文の折り返した行数のうち一番多い数と PLACE_LINES の小さい方（本文の無い行も同じ高さ）。収まらない本文は … で切る。
 // 文字の幅と折り返しは core/text で計算するので、画面でも常駐でも同じ行になる。画面（ListView）はこの値のとおりに描く
-import type { Size } from "../../../core/geom"
-import { captionTextWidth, PLACE_LINES, TEXT_LOOK } from "../../../core/text/fields"
-import { clampLines, wrap } from "../../../core/text/text"
+import { captionTextWidth, clampLines, PLACE_LINES, type Size, TEXT_LOOK, wrap } from "../../../plugin-api"
 import type { ListRow } from "./list"
 
 // リストの見た目の寸法（px。どのテーマでも同じ）。ListView.module.css と同じ値にする。文字の寸法は形で共通（shape の TEXT_LOOK）

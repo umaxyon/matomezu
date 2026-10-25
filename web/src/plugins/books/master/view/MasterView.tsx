@@ -1,8 +1,7 @@
 // マスターのブックのビュー: ブックの一覧や設定などを集める、紙の無いただの画面。見た目はテーマで描く。
 // 設定（言語・スキン）と、ブックを作るボタンを置く。どれもコマンド（book.new・settings.lang・settings.skin）を呼ぶ
-import type { Stage } from "../../../../core/stage"
-import { useCommand } from "../../../../ui/commands"
-import { useT } from "../../../../ui/i18n"
+import type { Stage } from "../../../../plugin-api"
+import { useCommand, useT } from "../../../../plugin-api/ui"
 import { useCatalog, useMatomezuState } from "../../../../ui/store-context"
 import styles from "./MasterView.module.css"
 

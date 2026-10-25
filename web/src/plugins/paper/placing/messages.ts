@@ -1,5 +1,5 @@
 // 置いたアイテムの文言
-import { defineMessages } from "../../../core/i18n/messages"
+import { defineMessages } from "../../../plugin-api"
 
 export const PLACING_MESSAGES = defineMessages({
   "Place item": { ja: "アイテムを置く" },

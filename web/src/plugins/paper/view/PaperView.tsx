@@ -20,19 +20,38 @@ import {
   useRef,
   useState,
 } from "react"
-import { bookItems, pagedOf } from "../../../core/book"
-import type { Point } from "../../../core/geom"
-import { type Edges, fitsPaper, itemSize, minSize, resizedBy, shownRects } from "../../../core/place/items"
-import { type ItemPage, type PlacedShape, placedSize, rectsOf, shapesOf } from "../../../core/placed"
-import type { Stage } from "../../../core/stage"
-import { paperOf, placement, toPaperDelta } from "../../../core/stage"
-import { toolOf } from "../../../core/workspace"
-import { useCommand } from "../../../ui/commands"
-import { type ShapeScene, useShapeMarks } from "../../../ui/connector"
-import { useContextMenu } from "../../../ui/context-menu"
-import { useT } from "../../../ui/i18n"
-import type { BookViewProps, ItemViewProps } from "../../../ui/plugin"
-import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import {
+  bookItems,
+  type Edges,
+  fitsPaper,
+  type ItemPage,
+  itemSize,
+  minSize,
+  type PlacedShape,
+  type Point,
+  pagedOf,
+  paperOf,
+  placedSize,
+  placement,
+  rectsOf,
+  resizedBy,
+  type Stage,
+  shapesOf,
+  shownRects,
+  toolOf,
+  toPaperDelta,
+} from "../../../plugin-api"
+import {
+  type BookViewProps,
+  type ItemViewProps,
+  type ShapeScene,
+  useActions,
+  useCommand,
+  useContextMenu,
+  useShapeMarks,
+  useT,
+} from "../../../plugin-api/ui"
+import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { type Came, dragging, placeAt, trackDrag } from "../placing"
 import styles from "./PaperView.module.css"
 

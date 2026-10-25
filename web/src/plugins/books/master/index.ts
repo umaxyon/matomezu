@@ -1,7 +1,7 @@
 // マスターのプラグイン: マスターのブック（1 冊だけのタイプ）と、その画面の機能（ブックを作る）。
 // インスタンスのホームにすると（createMatomezu の home: "master"）、ブックの一覧を変えるアクションを許すかはマスターのタイプが決める。
 // マスターの画面は base の設定のコマンドを使う。組織ごとのホームは、このプラグインの代わりに自分のものを渡す
-import { defineBuiltin } from "../../../store/plugin"
+import { defineBuiltin } from "../../../plugin-api"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { MASTER, MASTER_PRESENTATION } from "./master"
 

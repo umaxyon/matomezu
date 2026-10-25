@@ -1,6 +1,6 @@
 // 紙のプラグイン: 紙の見せ方（ページごとの紙の上に形を置く）と、形を置く・動かす・大きさを変える・中身を変える・消すアクションとコマンドとそのキー。
 // 置ける形とつなぐものは、ブックのタイプが選んだアイテムで、紙はそれを名指さない（アイテムの定義と、そのビューの口で扱う）
-import { defineBuiltin } from "../../store/plugin"
+import { defineBuiltin } from "../../plugin-api"
 import { PAPER_MESSAGES } from "./messages"
 import { PAPER } from "./paper"
 import {

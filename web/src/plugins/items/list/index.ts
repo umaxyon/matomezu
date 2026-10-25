@@ -1,5 +1,5 @@
 // リストのプラグイン: リストのアイテム（見出しと行）と、行の操作のアクションとコマンド、リストと行の追加・編集のダイアログ
-import { defineBuiltin } from "../../../store/plugin"
+import { defineBuiltin } from "../../../plugin-api"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_DELETE_ROW, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"

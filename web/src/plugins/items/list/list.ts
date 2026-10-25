@@ -8,10 +8,16 @@
 // テーマは大きさを変えないので、どのテーマでも行の高さと折り返しは同じ。
 // 置くときは追加のダイアログ（list.add）、設定は編集のダイアログ（list.edit）。行は行の追加（row.add）・編集（row.edit）のダイアログで中身を決める
 import { z } from "zod"
-import { HEX, PALETTE } from "../../../core/color"
-import { defineShape, type ShapeAddArgs, type ShapeEditArgs } from "../../../core/def/item"
-import { AlignSchema, textProps } from "../../../core/text/fields"
-import { defineDialogWith } from "../../../store/dialogs"
+import {
+  AlignSchema,
+  defineDialogWith,
+  defineShape,
+  HEX,
+  PALETTE,
+  type ShapeAddArgs,
+  type ShapeEditArgs,
+  textProps,
+} from "../../../plugin-api"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, MAX_ROW_LINES, placedListWidth } from "./size"
 
 // 行の項目（箱の項目と同じ並びに、チェックの印）

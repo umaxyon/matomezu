@@ -1,6 +1,5 @@
 // マスターのコマンド: ブックを作る（作るものはダイアログで決める）
-import { actionsOf } from "../../../../core/perform"
-import { defineCommand } from "../../../../store/commands/def"
+import { actionsOf, defineCommand } from "../../../../plugin-api"
 
 // ブックを作れるのは、アクション book.create を使えるブック（マスター）を開いているとき
 export const BOOK_NEW = defineCommand({

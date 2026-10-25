@@ -1,5 +1,5 @@
 // 線の文言
-import { defineMessages } from "../../../core/i18n/messages"
+import { defineMessages } from "../../../plugin-api"
 
 export const LINE_MESSAGES = defineMessages({
   Line: { ja: "線" },

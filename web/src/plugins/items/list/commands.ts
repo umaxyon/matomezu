@@ -1,8 +1,5 @@
 // リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
-import { pagedOf } from "../../../core/book"
-import type { Point } from "../../../core/geom"
-import { toPaperDelta } from "../../../core/stage"
-import { type CommandContext, defineCommand } from "../../../store/commands/def"
+import { type CommandContext, defineCommand, type Point, pagedOf, toPaperDelta } from "../../../plugin-api"
 import { linesFor } from "./size"
 
 const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null

@@ -12,7 +12,6 @@
 //   それでも紙からはみ出す・近すぎる組が残るなら、動かさない（元の位置に戻る）
 // - 何個かまとめて動かすときは入れ替えず、近すぎる相手の手前へまとめて戻すだけ
 
-import type { Point, Size } from "../../../core/geom"
 import {
   type Axis,
   apart,
@@ -21,9 +20,11 @@ import {
   inPaper,
   LEN,
   newClash,
+  type Point,
   type Rect,
+  type Size,
   tooClose,
-} from "../../../core/place/push"
+} from "../../../plugin-api"
 
 export type Dir = "left" | "right" | "up" | "down"
 export const DIRS = ["left", "right", "up", "down"] as const

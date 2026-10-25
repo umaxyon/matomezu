@@ -3,13 +3,15 @@
 // 端は自由か、形のふちの上に固定（exitAt・enterAt。ふちを左上から時計回りに一周した割合）。手で直した折れ線の途中の区間（via）は、両端が固定のときだけ持つ。
 // 道筋は持たず、つないだ形の位置から描くたびに決める（route.ts）
 import { z } from "zod"
-import { bookItems } from "../../../core/book"
-import { settingValue } from "../../../core/book-settings"
-import type { CoreCatalog } from "../../../core/core-catalog"
-import { defineConnector } from "../../../core/def/item"
-import { defineSetting } from "../../../core/def/setting"
-import type { Book } from "../../../core/schema/book"
-import { defineDialogWith } from "../../../store/dialogs"
+import {
+  type Book,
+  bookItems,
+  type CoreCatalog,
+  defineConnector,
+  defineDialogWith,
+  defineSetting,
+  settingValue,
+} from "../../../plugin-api"
 import { CAPTION_OFFSET_MAX } from "./caption"
 import { HEADS } from "./heads"
 import { lineGaps, linesHold, tidyLines } from "./placed"

@@ -2,7 +2,7 @@
 // 端ごとの形は線の startHead / endHead に書く（書いた端に付く）。
 // 描き方は、塗る形（fill）と線で描く形（stroke）の path と、見える線を端から縮める長さ（trim。形の付け根で線を止める）
 
-import type { Point } from "../../../core/geom"
+import type { Point } from "../../../plugin-api"
 
 export const HEADS = [
   "arrow",

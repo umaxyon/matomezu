@@ -3,7 +3,7 @@
 // 折り返す幅は、上限 CAPTION_MAX_W と、線の長さから余白を引いた幅の狭い方（箱どうしが近ければ縦に折り返して、箱にかぶらないように）。
 // ただし、その所の区間が縦向きの線と、自分に戻る線は狭めない（縦の線で箱とぶつかるのは札の高さなので、狭めると行が増えてかえってぶつかる）。
 // 札の枠は、幅を折り返しの幅にし、高さは CAPTION_BOX_H と十分に取る（描く側は枠の中で札を真ん中にそろえ、札の大きさを測らずに済む）
-import type { Point } from "../../../core/geom"
+import type { Point } from "../../../plugin-api"
 import { leftNormalAt, pointAt, polylineLength } from "./geom"
 
 export const CAPTION_MAX_W = 160

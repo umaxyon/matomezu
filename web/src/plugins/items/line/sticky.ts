@@ -1,6 +1,6 @@
 // 前の辺に留まる線を選ぶ純粋な関数（OVERHAUL 3.2 の「線」の、箱のドラッグとの兼ね合いの場面）。
 // 自由な端が前に描いた辺と位置（記憶）を、どの線に渡すかを決める。記憶は描く側（線の層）が画面の中だけに持つ
-import type { Rect } from "../../../core/geom"
+import type { Rect } from "../../../plugin-api"
 import type { DrawnLine } from "./drawn"
 import type { PlacedLine } from "./placed"
 import type { EndMemory } from "./route"

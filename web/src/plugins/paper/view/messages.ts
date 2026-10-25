@@ -1,5 +1,5 @@
 // 紙のビューの文言
-import { defineMessages } from "../../../core/i18n/messages"
+import { defineMessages } from "../../../plugin-api"
 
 export const PAPER_VIEW_MESSAGES = defineMessages({
   Paper: { ja: "紙" },

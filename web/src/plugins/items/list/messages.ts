@@ -1,5 +1,5 @@
 // リストの文言
-import { defineMessages } from "../../../core/i18n/messages"
+import { defineMessages } from "../../../plugin-api"
 
 export const LIST_MESSAGES = defineMessages({
   List: { ja: "リスト" },

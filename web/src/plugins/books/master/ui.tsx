@@ -1,5 +1,5 @@
 // マスターのプラグインの見た目: マスターのビューと、ブックを作るダイアログ（各フォルダの見た目を集める）
-import { definePluginUi } from "../../../ui/plugin"
+import { definePluginUi } from "../../../plugin-api/ui"
 import { MASTER_PLUGIN } from "."
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { MASTER_VIEW } from "./view/ui"

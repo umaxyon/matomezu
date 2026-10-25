@@ -1,13 +1,22 @@
 // 紙のビューから置く・動かすコマンド。画面の座標を受け取り、紙の上の座標に直してアクションを呼ぶ
 
-import { pagedOf } from "../../../core/book"
-import type { Point } from "../../../core/geom"
-import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../../core/place/items"
-import { shapesOf } from "../../../core/placed"
-import { paperOf, toPaper, toPaperDelta } from "../../../core/stage"
-import { type CommandContext, defineCommand } from "../../../store/commands/def"
-import { shapeDialogs } from "../../../store/dialogs"
-import { defineKeys } from "../../../store/keys"
+import {
+  type CommandContext,
+  defineCommand,
+  defineKeys,
+  type Edges,
+  fitsPaper,
+  itemSize,
+  type Point,
+  pagedOf,
+  paperOf,
+  resizedBy,
+  shapeDefOf,
+  shapeDialogs,
+  shapesOf,
+  toPaper,
+  toPaperDelta,
+} from "../../../plugin-api"
 import type { Came } from "./drag"
 import { PLACE_OFFSET } from "./items"
 

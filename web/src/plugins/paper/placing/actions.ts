@@ -1,19 +1,23 @@
 // 紙のページにアイテムを置く・動かすアクション
 
 import { z } from "zod"
-import { bookItems, hasPages } from "../../../core/book"
-import type { CoreCatalog } from "../../../core/core-catalog"
-import { defineAction } from "../../../core/def/action"
 import {
+  bookItems,
+  type CoreCatalog,
+  defineAction,
+  hasPages,
   knownTheme,
   nextItemId,
+  type PlacedShape,
+  placedSize,
   placeItem,
   removeItems,
   replacePushing,
   shapeDefOf,
+  shapeSchema,
+  shapesOf,
   widenForCaption,
-} from "../../../core/place/items"
-import { type PlacedShape, placedSize, shapeSchema, shapesOf } from "../../../core/placed"
+} from "../../../plugin-api"
 import { DIRS } from "./drag"
 import { moveItems } from "./items"
 

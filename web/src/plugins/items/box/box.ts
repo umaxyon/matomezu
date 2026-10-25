@@ -3,10 +3,15 @@
 // 色（color）はテーマの上の塗りの上書き: 代表色の名前ならそのテーマの色、#rrggbb ならどのテーマでもその色、無ければテーマの塗り（paint.ts）。
 // 置くときは、置く所を覚えて追加のダイアログ（box.add）を開き、中身を決めてから置く。中身は編集のダイアログ（box.edit）で変える
 import { z } from "zod"
-import { HEX, PALETTE } from "../../../core/color"
-import { defineShape, type ShapeAddArgs, type ShapeEditArgs } from "../../../core/def/item"
-import { textProps } from "../../../core/text/fields"
-import { defineDialogWith } from "../../../store/dialogs"
+import {
+  defineDialogWith,
+  defineShape,
+  HEX,
+  PALETTE,
+  type ShapeAddArgs,
+  type ShapeEditArgs,
+  textProps,
+} from "../../../plugin-api"
 import { BOX_MIN, BOX_SIZE, placedHeight, placedWidth } from "./size"
 
 // 箱の塗りの欄（色の見本の「なし」もこの色）

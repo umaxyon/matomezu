@@ -1,8 +1,12 @@
 // ブックを作る: 何冊も作れるタイプの空のブックを、ブックの一覧に足す。機能台帳に無いタイプと、1 冊だけのタイプは断る
 import { z } from "zod"
-import { creatableTypes, createBook } from "../../../../core/book"
-import type { BookTypeId, SingleBookTypeId } from "../../../../core/catalog"
-import { defineAction } from "../../../../core/def/action"
+import {
+  type BookTypeId,
+  creatableTypes,
+  createBook,
+  defineAction,
+  type SingleBookTypeId,
+} from "../../../../plugin-api"
 
 // 何冊も作れるブックのタイプの id（機能台帳の型の側から決まる。表に無いタイプは run が断る）
 type ManyBookTypeId = Exclude<BookTypeId, SingleBookTypeId>
