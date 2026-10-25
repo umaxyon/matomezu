@@ -9,8 +9,8 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
-import { App } from "../../web/src/ui/App"
 import { assembleUi, type DialogProps, definePluginUi } from "../../web/src/ui/plugin"
+import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
@@ -69,7 +69,7 @@ describe("見た目のプラグイン", () => {
     })
     render(
       <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
-        <App />
+        <Screen />
       </MatomezuProvider>,
     )
     act(() => {

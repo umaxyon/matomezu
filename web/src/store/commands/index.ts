@@ -4,7 +4,7 @@ import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import { fail } from "../../core/errors"
 import type { Assembled } from "../plugin"
-import type { AppState } from "../store"
+import type { MatomezuState } from "../store"
 import type { CommandContext, CommandDef } from "./def"
 
 export type { CommandId } from "../../core/catalog"
@@ -22,7 +22,7 @@ export function commandDef(defs: Assembled, id: string): CommandDef<never> {
 export function commandContext(
   catalog: CoreCatalog,
   home: string | null,
-  state: AppState,
+  state: MatomezuState,
   stageId: string,
 ): CommandContext | null {
   const stage = state.workspace.stages.find(s => s.id === stageId)
@@ -32,18 +32,18 @@ export function commandContext(
   return { catalog, home, stage, book, workspace, settings, dialog, contextMenu }
 }
 
-export function isShown(defs: Assembled, state: AppState, stageId: string, id: CommandId): boolean {
+export function isShown(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
   const ctx = commandContext(defs.catalog.core, defs.home, state, stageId)
   return ctx !== null && commandDef(defs, id).when(ctx)
 }
 
-export function isEnabled(defs: Assembled, state: AppState, stageId: string, id: CommandId): boolean {
+export function isEnabled(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
   const ctx = commandContext(defs.catalog.core, defs.home, state, stageId)
   const def = commandDef(defs, id)
   return ctx !== null && def.when(ctx) && (def.enabled?.(ctx) ?? true)
 }
 
-export function isActive(defs: Assembled, state: AppState, stageId: string, id: CommandId): boolean {
+export function isActive(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
   const ctx = commandContext(defs.catalog.core, defs.home, state, stageId)
   return ctx !== null && (commandDef(defs, id).active?.(ctx) ?? false)
 }

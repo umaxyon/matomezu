@@ -5,7 +5,7 @@ import { TOOL_SETS, type Tool, toolSetOf } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useT } from "../../../ui/i18n"
-import { useApp, useCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { TOOL_ICONS, TOOL_NAMES } from "./icons"
 import styles from "./ToolSwitchView.module.css"
 
@@ -32,8 +32,8 @@ export function ToolSwitchView({ stage }: { stage: string }) {
   const t = useT()
   const next = useCommand(stage, "tool.next")
   const catalog = useCatalog().core
-  const tool = useApp(s => toolOf(catalog, s.workspace, stage)) ?? "select"
-  const set = useApp(s => {
+  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage)) ?? "select"
+  const set = useMatomezuState(s => {
     const st = s.workspace.stages.find(x => x.id === stage)
     return st ? toolSetOf(catalog, st) : null
   })

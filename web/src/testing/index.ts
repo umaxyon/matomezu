@@ -2,6 +2,6 @@
 export { BUILTIN } from "../plugins"
 export { BUILTIN_UI, DEFAULT_LAYOUT } from "../plugins/ui"
 export { createMatomezu } from "../store/create"
-export { App } from "../ui/App"
 export { defineLayout, placeAdded } from "../ui/layout"
+export { Screen } from "../ui/Screen"
 export { MatomezuProvider } from "../ui/store-context"

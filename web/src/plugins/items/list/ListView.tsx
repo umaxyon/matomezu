@@ -22,7 +22,7 @@ import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
 import type { ItemViewProps } from "../../../ui/plugin"
-import { useActions, useApp, useCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { useThemeVars } from "../../base/ui"
 import { edgeScroller } from "./edge-scroll"
@@ -179,7 +179,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
     onPointerCancel: () => endCarry(false),
   })
   const { select } = useActions()
-  const at = useApp(s => s.workspace.stages.find(st => st.id === stage))
+  const at = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage))
   const stretch = useRef<Stretch | null>(null)
   const [moved, setMoved] = useState(0) // 行の高さを変えているドラッグの、画面の上で動いた量
   const layout = listLayout(rows, size.w, props.checklist)

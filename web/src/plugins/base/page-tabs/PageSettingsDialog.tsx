@@ -4,7 +4,7 @@ import { useId } from "react"
 import { pagedOf } from "../../../core/book"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp } from "../../../ui/store-context"
+import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { useSettingControls } from "../book-look/SettingControls"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, Form } from "../dialog-host/FormParts"
@@ -12,7 +12,7 @@ import { ActionButton, Form } from "../dialog-host/FormParts"
 export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
   const t = useT()
   const form = useId()
-  const book = useApp(s => {
+  const book = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? pagedOf(s.books[o.book]) : undefined
   })

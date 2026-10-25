@@ -9,7 +9,7 @@ import { shapesOf } from "../../../core/placed"
 import { BODY_MAX } from "../../../core/text/fields"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp } from "../../../ui/store-context"
+import { useActions, useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
   Choices,
@@ -42,7 +42,7 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
 
 export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
   const book = useBookOf(stage)
-  const start = useApp(s => {
+  const start = useMatomezuState(s => {
     const b = book ? pagedOf(s.books[book]) : undefined
     const page = b?.pages.find(p => p.id === args.page)
     const list = page && shapesOf(page).find(i => i.id === args.list)

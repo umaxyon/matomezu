@@ -1,4 +1,4 @@
-// 画面の入口: ホストクライアント（ホストから開いていればホストに頼むもの、そうでなければ見本のブックを持つメモリ）から残したブックと設定を読み、ビルトインプラグインと見た目でインスタンスを作り、React の根に App を描く。行ったアクションと外の変化はホストクライアントを通してやり取りする。
+// 画面の入口: ホストクライアント（ホストから開いていればホストに頼むもの、そうでなければ見本のブックを持つメモリ）から残したブックと設定を読み、ビルトインプラグインと見た目でインスタンスを作り、React の根に Screen を描く。行ったアクションと外の変化はホストクライアントを通してやり取りする。
 // ホストが足した追加プラグインも、ホストクライアントが読んだものをビルトインプラグインの後ろに足す。追加プラグインが借りる実物（plugin-modules）は、読む前に globalThis.__matomezuModules に置く
 
 import { StrictMode } from "react"
@@ -10,10 +10,10 @@ import { UI_MODULES } from "./plugin-modules/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
-import { App } from "./ui/App"
 import { loadFonts } from "./ui/fonts"
 import { placeAdded } from "./ui/layout"
 import { type AnyPluginUi, assembleUi } from "./ui/plugin"
+import { Screen } from "./ui/Screen"
 import { MatomezuProvider } from "./ui/store-context"
 import "./ui/skin.css"
 
@@ -38,7 +38,7 @@ if (!root) fail("E202")
 createRoot(root).render(
   <StrictMode>
     <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)}>
-      <App />
+      <Screen />
     </MatomezuProvider>
   </StrictMode>,
 )

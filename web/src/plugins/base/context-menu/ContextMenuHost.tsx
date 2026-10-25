@@ -11,11 +11,11 @@ import { useContextMenuItems } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
 import { useKeyLabel } from "../../../ui/keys"
 import { type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
-import { useActions, useApp, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import styles from "./ContextMenuHost.module.css"
 
 export function ContextMenuHost() {
-  const menu = useApp(s => s.contextMenu)
+  const menu = useMatomezuState(s => s.contextMenu)
   if (!menu) return null
   return <ContextMenu key={`${menu.id}:${menu.stage}:${menu.at.x}:${menu.at.y}`} menu={menu} />
 }

@@ -3,12 +3,12 @@
 import { addsFromTabs, hasPages } from "../../../core/book"
 import { useCommand } from "../../../ui/commands"
 import { useT } from "../../../ui/i18n"
-import { useApp, useCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import styles from "./PageTabs.module.css"
 
 export function PageTabs({ stage }: { stage: string }) {
-  const opened = useApp(s => s.workspace.stages.find(x => x.id === stage)?.opened)
-  const book = useApp(s => (opened ? s.books[opened.book] : undefined))
+  const opened = useMatomezuState(s => s.workspace.stages.find(x => x.id === stage)?.opened)
+  const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const openPage = useCommand(stage, "page.open")
   const newPage = useCommand(stage, "page.new")
   const catalog = useCatalog().core

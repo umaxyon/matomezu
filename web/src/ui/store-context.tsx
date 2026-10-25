@@ -3,16 +3,16 @@ import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { Catalog } from "../store/plugin"
-import type { Actions, AppState, AppStore } from "../store/store"
+import type { Actions, MatomezuInstance, MatomezuState } from "../store/store"
 import { checkLayout, type LayoutDef } from "./layout"
 import { type AnyPluginUi, assembleUi, type UiCatalog } from "./plugin"
 
-interface AppContext {
-  store: AppStore
+interface MatomezuContext {
+  store: MatomezuInstance
   ui: UiCatalog
   layout: LayoutDef
 }
-const Context = createContext<AppContext | null>(null)
+const Context = createContext<MatomezuContext | null>(null)
 
 // 見た目を結んだプラグインだけで作ったインスタンスを、配置と一緒に置く（結んでいないプラグインがあれば型の誤り）。
 // 配置は渡すたびに確かめ（知らないウィジェット・置けないスロット・インスタンスに無いコマンド）、変えればその場で組み直す
@@ -21,7 +21,7 @@ export function MatomezuProvider({
   layout,
   children,
 }: {
-  instance: AppStore<readonly AnyPluginUi[]>
+  instance: MatomezuInstance<readonly AnyPluginUi[]>
   layout: LayoutDef
   children: ReactNode
 }) {
@@ -35,34 +35,34 @@ export function MatomezuProvider({
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
-function useAppContext(): AppContext {
+function useMatomezuContext(): MatomezuContext {
   return useContext(Context) ?? fail("E201")
 }
 
 // 選んだ値が変わったときだけ描き直す。selector は新しいオブジェクトを作らず、状態の中の値をそのまま返す
-export function useApp<T>(selector: (s: AppState) => T): T {
-  return useStore(useAppContext().store.state, selector)
+export function useMatomezuState<T>(selector: (s: MatomezuState) => T): T {
+  return useStore(useMatomezuContext().store.state, selector)
 }
 
 export function useActions(): Actions {
-  return useAppContext().store.actions
+  return useMatomezuContext().store.actions
 }
 
 // インスタンス（機能台帳と組み立てで決まる値は、作った後は変わらない）
-export function useInstance(): AppStore {
-  return useAppContext().store
+export function useInstance(): MatomezuInstance {
+  return useMatomezuContext().store
 }
 
 // インスタンスが持つ機能台帳（core と store の段）
 export function useCatalog(): Catalog {
-  return useAppContext().store.catalog
+  return useMatomezuContext().store.catalog
 }
 
 // インスタンスの見た目の表（ブックのタイプ・アイテム・ダイアログのビュー・ウィジェット・コマンドのアイコン）
 export function useUiCatalog(): UiCatalog {
-  return useAppContext().ui
+  return useMatomezuContext().ui
 }
 
 export function useLayout(): LayoutDef {
-  return useAppContext().layout
+  return useMatomezuContext().layout
 }

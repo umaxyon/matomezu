@@ -3,7 +3,7 @@
 import type { Stage } from "../../../../core/stage"
 import { useCommand } from "../../../../ui/commands"
 import { useT } from "../../../../ui/i18n"
-import { useApp, useCatalog } from "../../../../ui/store-context"
+import { useCatalog, useMatomezuState } from "../../../../ui/store-context"
 import styles from "./MasterView.module.css"
 
 export function MasterView({ stage }: { stage: Stage }) {
@@ -30,7 +30,7 @@ export function MasterView({ stage }: { stage: Stage }) {
 // 設定の欄。ホームのタイプが変えるのを許さない設定は、選べなくする
 function Settings({ stage }: { stage: string }) {
   const t = useT()
-  const { lang, skin } = useApp(s => s.settings)
+  const { lang, skin } = useMatomezuState(s => s.settings)
   const { languages, skins } = useCatalog().core
   const setLang = useCommand(stage, "settings.lang")
   const setSkin = useCommand(stage, "settings.skin")

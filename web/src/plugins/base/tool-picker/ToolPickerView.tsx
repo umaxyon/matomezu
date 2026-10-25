@@ -12,7 +12,7 @@ import type { Tool } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
-import { useActions, useApp, useCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { TOOL_ICONS, TOOL_NAMES } from "../tool-switch/icons"
 import { ICON, leftPicker, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
@@ -40,7 +40,7 @@ export function ToolPickerView() {
   const press = useRef<Press | null>(null)
   const [ring, setRing] = useState<Point | null>(null)
   // 長押しで開けるステージ（紙があり、ダイアログも道具のアイコンも開いていない）。押したときに読むので ref に写す
-  const pressable = useApp(
+  const pressable = useMatomezuState(
     useShallow(s =>
       s.dialog !== null || s.workspace.stages.some(st => st.picker !== null)
         ? []
@@ -136,9 +136,9 @@ function Ring({ at }: { at: Point }) {
 // 開いている道具のアイコン。出す所は開いたときの値（無ければ最後のポインタの位置。ステージの外なら真ん中）
 function Picker({ last }: { last: { current: Point | null } }) {
   const t = useT()
-  const opened = useApp(s => s.workspace.stages.find(st => st.picker !== null))
+  const opened = useMatomezuState(s => s.workspace.stages.find(st => st.picker !== null))
   const catalog = useCatalog().core
-  const current = useApp(s => (opened ? toolOf(catalog, s.workspace, opened.id) : null))
+  const current = useMatomezuState(s => (opened ? toolOf(catalog, s.workspace, opened.id) : null))
   const { command, closePicker } = useActions()
   const [hover, setHover] = useState<number | null>(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])

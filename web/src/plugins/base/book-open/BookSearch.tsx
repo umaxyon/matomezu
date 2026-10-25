@@ -5,12 +5,12 @@ import { useShallow } from "zustand/react/shallow"
 import { bookTitle } from "../../../core/book"
 import { searchBooks } from "../../../core/book-search"
 import { useT } from "../../../ui/i18n"
-import { useApp, useCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import styles from "./BookSearch.module.css"
 
 export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: string) => void; autoFocus?: boolean }) {
-  const books = useApp(useShallow(s => Object.values(s.books)))
-  const lang = useApp(s => s.settings.lang)
+  const books = useMatomezuState(useShallow(s => Object.values(s.books)))
+  const lang = useMatomezuState(s => s.settings.lang)
   const catalog = useCatalog().core
   const t = useT()
   const [query, setQuery] = useState("")

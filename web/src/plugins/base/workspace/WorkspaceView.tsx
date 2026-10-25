@@ -6,7 +6,7 @@
 import { type MouseEvent, type PointerEvent, useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { Slot } from "../../../ui/Slot"
-import { useActions, useApp } from "../../../ui/store-context"
+import { useActions, useMatomezuState } from "../../../ui/store-context"
 import styles from "./WorkspaceView.module.css"
 
 const noBrowserMenu = (e: MouseEvent) => {
@@ -14,10 +14,10 @@ const noBrowserMenu = (e: MouseEvent) => {
 }
 
 export function WorkspaceView() {
-  const ids = useApp(useShallow(s => s.workspace.stages.map(st => st.id)))
-  const direction = useApp(s => s.workspace.arrangement.direction)
-  const share = useApp(s => s.workspace.arrangement.share)
-  const current = useApp(s => s.workspace.current)
+  const ids = useMatomezuState(useShallow(s => s.workspace.stages.map(st => st.id)))
+  const direction = useMatomezuState(s => s.workspace.arrangement.direction)
+  const share = useMatomezuState(s => s.workspace.arrangement.share)
+  const current = useMatomezuState(s => s.workspace.current)
   const { moveDivider, evenDivider } = useActions()
   const ref = useRef<HTMLElement>(null)
   const split = ids.length === 2

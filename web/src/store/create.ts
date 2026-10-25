@@ -17,7 +17,7 @@ import type {
 } from "../core/catalog"
 import type { MESSAGES } from "../core/i18n/messages"
 import type { IdsOf, Part, Plugin } from "./plugin"
-import { type AppStore, createAppStore, type StoreOptions } from "./store"
+import { createMatomezuInstance, type MatomezuInstance, type StoreOptions } from "./store"
 
 interface Tables {
   bookTypes: BookTypeTable
@@ -56,7 +56,7 @@ export interface MatomezuOptions<Ps extends readonly Plugin[], Partial extends b
 
 export function createMatomezu<const Ps extends readonly Plugin[], const Partial extends boolean = false>(
   options: MatomezuOptions<Ps, Partial> & (Partial extends true ? unknown : Check<Ps[number]>),
-): AppStore<Ps> {
+): MatomezuInstance<Ps> {
   const { partial: _, ...rest } = options
-  return createAppStore(rest)
+  return createMatomezuInstance(rest)
 }

@@ -10,7 +10,7 @@ import { useCommand } from "../../../ui/commands"
 import type { ShapeScene } from "../../../ui/connector"
 import { ShapeMarksContext } from "../../../ui/connector"
 import { useContextMenu } from "../../../ui/context-menu"
-import { useActions, useApp, useCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { drawLines, type LineCache } from "./drawn"
 import type { Rect } from "./geom"
@@ -38,11 +38,11 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const { stage, page, rects, localOf } = scene
   const catalog = useCatalog().core
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
-  const elbow = useApp(s => {
+  const elbow = useMatomezuState(s => {
     const b = stage.opened ? s.books[stage.opened.book] : undefined
     return b ? elbowAt(catalog, b, page) : true
   })
-  const preview = useApp(s => s.dialog?.preview ?? null)
+  const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   const lineEdit = useCommand(stage.id, "line.edit")
   const openLineMenu = useContextMenu(stage.id, "line.context")
   const { select } = useActions()

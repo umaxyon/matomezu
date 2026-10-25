@@ -7,7 +7,6 @@ import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
-import { App } from "../../web/src/ui/App"
 import {
   checkLayout,
   defineLayout,
@@ -17,6 +16,7 @@ import {
   tidySeparators,
 } from "../../web/src/ui/layout"
 import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
+import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
@@ -110,7 +110,7 @@ describe("配置", () => {
     try {
       render(
         <MatomezuProvider instance={instance()} layout={bad}>
-          <App />
+          <Screen />
         </MatomezuProvider>,
       )
     } catch (e) {
@@ -135,14 +135,14 @@ describe("配置", () => {
     const a = instance()
     const { rerender } = render(
       <MatomezuProvider instance={a} layout={DEFAULT_LAYOUT}>
-        <App />
+        <Screen />
       </MatomezuProvider>,
     )
     const toolbar = () => screen.getByRole("toolbar", { name: "ツール" }).parentElement!
     expect(within(toolbar()).queryByRole("tablist")).toBeNull()
     rerender(
       <MatomezuProvider instance={a} layout={TABS_ON_TOP}>
-        <App />
+        <Screen />
       </MatomezuProvider>,
     )
     expect(within(toolbar()).getByRole("tablist")).toBeTruthy()

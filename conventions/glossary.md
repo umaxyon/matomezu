@@ -10,7 +10,7 @@
 | 土台 | 層の `core`・`store`・`ui`。プラグインを受け取って組み立て・動かす枠と、その枠が決める言葉（ステージ・ページ・置いたアイテムの外枠など）。具体的な機能は持たない。base は含めない |
 | core | フォルダ `web/src/core`。土台の層の 1 つ（データの形・定義の型・機能台帳の core の段・純粋な関数） |
 | base | プラグイン `plugins/base`（`@matomezu/base`）。ビルトインプラグインの 1 つで、ほかのプラグインが読んでよい例外。「土台」と呼ばない |
-| インスタンス | `createMatomezu` が生成した `AppStore` のインスタンス。機能台帳（core と store の段）・組み立てで決まる値（`home`・`autoSkin`）・状態・操作を持つ、動いている matomezu 1 つ分。画面に 1 つ、テストごとに 1 つ |
+| インスタンス | `createMatomezu` が生成した `MatomezuInstance` のインスタンス。機能台帳（core と store の段）・組み立てで決まる値（`home`・`autoSkin`）・状態・操作を持つ、動いている matomezu 1 つ分。画面に 1 つ、テストごとに 1 つ |
 | ホスト | 常駐サーバーそのもの（Go。`internal/`）。「常駐」はホストと同じ意味 |
 | ホストクライアント | 画面の中で、ホストと外の世界に頼む口（`web/src/host-client`。`HostClient`・`serverClient`・`memoryClient`・`openClient`） |
 | ホストのエンジン | `web/src/engine`。ホストの goja で、画面と同じアクションを行う入口（`internal/engine/engine.js` にまとめて埋め込む） |

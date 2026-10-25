@@ -5,16 +5,16 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { createMatomezu } from "../../web/src/store/create"
 import type { StoreOptions } from "../../web/src/store/store"
-import { App } from "../../web/src/ui/App"
+import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-function renderApp(options: Omit<StoreOptions, "plugins"> = {}) {
+function renderScreen(options: Omit<StoreOptions, "plugins"> = {}) {
   const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", ...options, plugins: BUILTIN_UI })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <App />
+      <Screen />
     </MatomezuProvider>,
   )
   return store
@@ -31,7 +31,7 @@ function fromMenu(name: string, i = 0): HTMLElement {
 }
 
 test("ステージに紙が 1 枚あり、上にツールボックス、下の行の左にブックの名前がある", () => {
-  renderApp()
+  renderScreen()
   expect(stages()).toHaveLength(1)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
   const tools = screen.getByRole("toolbar", { name: "ツール" })
@@ -44,7 +44,7 @@ test("ステージに紙が 1 枚あり、上にツールボックス、下の�
 })
 
 test("分割すると、右のステージは何も開いておらず、真ん中でブックを選べる。もう一度押すと 1 つに戻る", () => {
-  renderApp()
+  renderScreen()
   expect(screen.queryByRole("button", { name: "画面を分割" })).toBeNull()
   fireEvent.click(fromMenu("画面を分割"))
   // 分割すると、同じボタンは「分割をやめる」になり、押されている見た目になる
@@ -59,7 +59,7 @@ test("分割すると、右のステージは何も開いておらず、真ん�
 })
 
 test("右のステージで探して選んだブックを右で開き、右にそのブックのタブが出る", () => {
-  renderApp()
+  renderScreen()
   fireEvent.click(fromMenu("画面を分割"))
   const right = stages()[1]!
   const input = within(right).getByRole("combobox", { name: "ブックを探す" })
@@ -75,7 +75,7 @@ test("右のステージで探して選んだブックを右で開き、右に�
 })
 
 test("↑↓で選ぶ候補が動き、クリックでも選べる", () => {
-  renderApp()
+  renderScreen()
   fireEvent.click(fromMenu("画面を分割"))
   const right = stages()[1]!
   const input = within(right).getByRole("combobox", { name: "ブックを探す" })
@@ -94,7 +94,7 @@ test("↑↓で選ぶ候補が動き、クリックでも選べる", () => {
 })
 
 test("タブの左のボタンでダイアログを開き、選んだブックをそのステージで開く", () => {
-  renderApp()
+  renderScreen()
   fireEvent.click(fromMenu("ブックを開く"))
   const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
   const input = within(dialog).getByRole("combobox", { name: "ブックを探す" })
@@ -105,7 +105,7 @@ test("タブの左のボタンでダイアログを開き、選んだブック�
 })
 
 test("＋でページを作るダイアログが開き、名前と紙を決めて作ると、そのタブが選ばれる。名前が空なら作れない", () => {
-  renderApp()
+  renderScreen()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   const dialog = screen.getByRole("dialog", { name: "新しいページ" })
   const name = within(dialog).getByLabelText("ページの名前") as HTMLInputElement
@@ -124,7 +124,7 @@ test("＋でページを作るダイアログが開き、名前と紙を決め�
 })
 
 test("日本語の変換を確定する Enter では、候補を選ばない", () => {
-  renderApp()
+  renderScreen()
   fireEvent.click(fromMenu("ブックを開く"))
   const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
   const input = within(dialog).getByRole("combobox", { name: "ブックを探す" })
@@ -134,7 +134,7 @@ test("日本語の変換を確定する Enter では、候補を選ばない", (
 })
 
 test("言語を英語にすると、画面の文言が英語になり、＋で足すページの名前の案も英語になる", () => {
-  renderApp({ books: SAMPLE_BOOKS, lang: "en" })
+  renderScreen({ books: SAMPLE_BOOKS, lang: "en" })
   fireEvent.click(screen.getByRole("button", { name: "Add page" }))
   const dialog = screen.getByRole("dialog", { name: "New page" })
   fireEvent.click(within(dialog).getByRole("button", { name: "Create" }))
@@ -145,7 +145,7 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
 })
 
 test("名前の欄のメニューのマスターで、そのステージにマスターの画面が出る。紙もページのタブもツールも無い", () => {
-  renderApp()
+  renderScreen()
   const button = fromMenu("ホーム")
   expect(button.getAttribute("aria-pressed")).toBe("false")
   fireEvent.click(button)
@@ -158,7 +158,7 @@ test("名前の欄のメニューのマスターで、そのステージにマ�
 })
 
 test("分割すると、それぞれのステージの区画に閉じるボタンが出て、閉じると残りのステージだけになる", () => {
-  renderApp()
+  renderScreen()
   expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
   fireEvent.click(fromMenu("画面を分割"))
   const closes = screen.getAllByRole("button", { name: "ステージを閉じる" })
@@ -171,7 +171,7 @@ test("分割すると、それぞれのステージの区画に閉じるボタ�
 })
 
 test("マスターで新しいブックを作ると、そのステージでページの無いブックが開き、ページを作ると最初のタブができる", () => {
-  renderApp()
+  renderScreen()
   fireEvent.click(fromMenu("ホーム"))
   fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
   const dialog = screen.getByRole("dialog", { name: "新しいブック" })
@@ -193,7 +193,7 @@ test("マスターで新しいブックを作ると、そのステージでペ�
 })
 
 test("マスターの設定で言語とスキンを変える", () => {
-  renderApp()
+  renderScreen()
   fireEvent.click(fromMenu("ホーム"))
   fireEvent.change(screen.getByLabelText("言語"), { target: { value: "en" } })
   expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy()
@@ -202,7 +202,7 @@ test("マスターの設定で言語とスキンを変える", () => {
 })
 
 test("インスタンスに無いスキンは選べず、設定に残っていても自動のスキンで描く（data-skin を付けない）", () => {
-  const store = renderApp()
+  const store = renderScreen()
   act(() => {
     store.actions.setSkin("light")
   })
@@ -211,12 +211,12 @@ test("インスタンスに無いスキンは選べず、設定に残ってい�
   cleanup()
   // 外したスキンが設定に残っている状態から描く
   const kept = store.state.getState()
-  renderApp({ initial: { ...kept, settings: { ...kept.settings, skin: "removed-skin" } } })
+  renderScreen({ initial: { ...kept, settings: { ...kept.settings, skin: "removed-skin" } } })
   expect(document.documentElement.dataset.skin).toBeUndefined()
 })
 
 test("文字の変換中の Escape ではダイアログを閉じず、変換していない Escape で閉じる", () => {
-  const store = renderApp()
+  const store = renderScreen()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   const name = within(screen.getByRole("dialog", { name: "新しいページ" })).getByRole("textbox")
   fireEvent.keyDown(name, { key: "Escape", isComposing: true })
@@ -234,7 +234,7 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
   const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: [locked, ...rest] })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <App />
+      <Screen />
     </MatomezuProvider>,
   )
   expect((fromMenu("画面を分割") as HTMLButtonElement).disabled).toBe(true)
@@ -247,7 +247,7 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
     title: "外した紙",
     pages: [{ id: "p1", title: "ページ 1", paper: "b5", orientation: "portrait" as const }],
   }
-  const store = renderApp({ books: [book] })
+  const store = renderScreen({ books: [book] })
   expect(within(screen.getByRole("img", { name: "紙" })).getByText("不明な紙")).toBeTruthy()
   expect(store.state.getState().books.x).toEqual(book)
 })
@@ -257,7 +257,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   render(
     <StrictMode>
       <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-        <App />
+        <Screen />
       </MatomezuProvider>
     </StrictMode>,
   )
@@ -268,7 +268,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
 })
 
 test("図面の画面を右クリックすると押した位置にメニュー（ページの設定・ブックの設定）が出て、設定を押すと閉じて設定のダイアログが開く", () => {
-  renderApp()
+  renderScreen()
   const paper = screen.getByRole("img", { name: "紙" })
   const notCanceled = fireEvent.contextMenu(paper, { clientX: 40, clientY: 50 })
   expect(notCanceled).toBe(false) // ブラウザのメニューは出さない
@@ -286,7 +286,7 @@ test("図面の画面を右クリックすると押した位置にメニュー�
 })
 
 test("右クリックのメニューは、外を押すか Escape で閉じる", () => {
-  renderApp()
+  renderScreen()
   const paper = screen.getByRole("img", { name: "紙" })
   fireEvent.contextMenu(paper)
   fireEvent.pointerDown(paper)
@@ -297,7 +297,7 @@ test("右クリックのメニューは、外を押すか Escape で閉じる", 
 })
 
 test("マスターの画面には右クリックのメニューが無く、ブラウザのメニューを止めない", () => {
-  const store = renderApp()
+  const store = renderScreen()
   act(() => store.actions.openBook("s1", "master"))
   const notCanceled = fireEvent.contextMenu(screen.getByRole("region", { name: "マスター" }))
   expect(notCanceled).toBe(true)
@@ -314,7 +314,7 @@ test("右クリックのメニューに出るコマンドが無ければ、メ�
   } as const
   render(
     <MatomezuProvider instance={store} layout={layout}>
-      <App />
+      <Screen />
     </MatomezuProvider>,
   )
   const notCanceled = fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))
@@ -324,7 +324,7 @@ test("右クリックのメニューに出るコマンドが無ければ、メ�
 })
 
 test("ステージの上の行と下の行を右クリックしても、ブラウザのメニューを出さない", () => {
-  renderApp()
+  renderScreen()
   const tab = screen.getAllByRole("tab")[0]!
   expect(fireEvent.contextMenu(tab)).toBe(false)
   const tool = screen.getByRole("button", { name: "箱" })

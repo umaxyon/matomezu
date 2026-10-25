@@ -6,13 +6,13 @@ import { ORIENTATION_TITLES, type Orientation } from "../../../core/def/paper"
 import type { PaperChoice } from "../../../core/paper"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp, useCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useT()
-  const book = useApp(s => {
+  const book = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined
   })
@@ -26,7 +26,7 @@ export function NewPageDialog({ stage, onClose }: DialogProps) {
 
 function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; onDone: () => void }) {
   const { addPage } = useActions()
-  const lang = useApp(s => s.settings.lang)
+  const lang = useMatomezuState(s => s.settings.lang)
   const t = useT()
   const catalog = useCatalog().core
   const { papers, orientations } = paperChoices(catalog, book)

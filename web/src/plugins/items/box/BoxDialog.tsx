@@ -14,7 +14,7 @@ import { shapesOf } from "../../../core/placed"
 import { BODY_MAX } from "../../../core/text/fields"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp, useCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
   Choices,
@@ -68,7 +68,7 @@ export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: strin
 export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
-  const start = useApp(s => {
+  const start = useMatomezuState(s => {
     const b = book ? pagedOf(s.books[book]) : undefined
     const page = b?.pages.find(p => p.id === args.page)
     const found = page && shapesOf(page).find(i => i.id === args.item)

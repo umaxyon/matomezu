@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { App, BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded } from "matomezu/testing"
+import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
 import EX1_UI from "../ui"
 
 afterEach(cleanup)
@@ -10,7 +10,7 @@ const make = () => {
   const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX1_UI], home: "master", lang: "ja" })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
-      <App />
+      <Screen />
     </MatomezuProvider>,
   )
   return instance

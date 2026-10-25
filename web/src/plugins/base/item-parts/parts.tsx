@@ -7,7 +7,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import type { Align } from "../../../core/text/fields"
 import { bookTheme, resolveTokens } from "../../../core/theme"
 import { useT } from "../../../ui/i18n"
-import { useApp, useCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 
 // 寄せのアイコン（左・中央・右に寄せた横線）
@@ -31,12 +31,13 @@ export function useAligns() {
 }
 
 // 開いたステージで開いているブックの id
-export const useBookOf = (stage: string) => useApp(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
+export const useBookOf = (stage: string) =>
+  useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
 
 // ブックのテーマの id
 export function useBookTheme(book: string | undefined) {
   const catalog = useCatalog().core
-  return useApp(s => {
+  return useMatomezuState(s => {
     const b = book ? s.books[book] : undefined
     return b ? bookTheme(catalog, b) : undefined
   })

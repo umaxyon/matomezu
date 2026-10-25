@@ -6,7 +6,7 @@ import { useEffect, useMemo } from "react"
 import type { CommandId } from "../core/catalog"
 import { keyLabel, pressedKey, seenInText } from "../core/keys"
 import { keysOf, keyTable } from "../store/keys"
-import { useActions, useApp, useInstance } from "./store-context"
+import { useActions, useInstance, useMatomezuState } from "./store-context"
 
 // Mac か（Mod を Cmd にし、キーの名前を記号で出す）
 export const isMac = (): boolean => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
@@ -52,7 +52,7 @@ export function KeyListener() {
 // コマンドに効いているキーの、画面に出す名前（無ければ null。いくつもあれば勝つ順の最初）
 export function useKeyLabel(command: CommandId): string | null {
   const defs = useInstance()
-  const changes = useApp(s => s.settings.keys)
+  const changes = useMatomezuState(s => s.settings.keys)
   const table = useMemo(() => keyTable(defs.catalog.store.keys, changes), [defs.catalog.store.keys, changes])
   const first = keysOf(table, command)[0]
   return first ? keyLabel(first.binding.key, isMac()) : null

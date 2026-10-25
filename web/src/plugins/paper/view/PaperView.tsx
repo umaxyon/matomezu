@@ -40,7 +40,7 @@ import { type ShapeScene, useShapeMarks } from "../../../ui/connector"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
 import type { BookViewProps, ItemViewProps } from "../../../ui/plugin"
-import { useActions, useApp, useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { type Came, dragging, placeAt, trackDrag } from "../placing"
 import styles from "./PaperView.module.css"
 
@@ -58,7 +58,7 @@ export function PaperView({ stage }: BookViewProps) {
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage.placing !== null
   const catalog = useCatalog().core
-  const hand = useApp(s => toolOf(catalog, s.workspace, stage.id) === "hand")
+  const hand = useMatomezuState(s => toolOf(catalog, s.workspace, stage.id) === "hand")
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
@@ -138,7 +138,7 @@ interface Stretch {
 
 // 開いたページのアイテム（ページが無ければ何も描かない）
 function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
-  const page = useApp(s => {
+  const page = useMatomezuState(s => {
     const o = stage.opened
     const book = o ? pagedOf(s.books[o.book]) : undefined
     return book?.pages.find(pg => pg.id === o?.page)
@@ -151,7 +151,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; lo
   const catalog = useCatalog().core
   const ui = useUiCatalog()
   // ブックで使えるつなぐもののビュー
-  const connectors = useApp(s => {
+  const connectors = useMatomezuState(s => {
     const b = stage.opened ? s.books[stage.opened.book] : undefined
     return b ? bookItems(catalog, b).join(" ") : ""
   })
@@ -167,10 +167,10 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; lo
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
   const resize = useCommand(stage.id, "paper.resize")
-  const preview = useApp(s => s.dialog?.preview ?? null)
+  const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
-  const hand = useApp(s => toolOf(catalog, s.workspace, stage.id) === "hand")
+  const hand = useMatomezuState(s => toolOf(catalog, s.workspace, stage.id) === "hand")
   const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形
   // 離したばかりの形（離したあとの 1 回の描画だけ、つなぐもののビューに渡す）
   const settled = useRef<ReadonlySet<string>>(new Set())

@@ -35,11 +35,11 @@ test("matomezu/ui が出す名前", () => {
 
 test("matomezu/testing が出す名前", () => {
   expect(names(testing)).toEqual([
-    "App",
     "BUILTIN",
     "BUILTIN_UI",
     "DEFAULT_LAYOUT",
     "MatomezuProvider",
+    "Screen",
     "createMatomezu",
     "defineLayout",
     "placeAdded",

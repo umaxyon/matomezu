@@ -9,7 +9,7 @@ import { paperOf, type Stage } from "../../../core/stage"
 import { bookTokens } from "../../../core/theme"
 import { toolOf } from "../../../core/workspace"
 import { useT } from "../../../ui/i18n"
-import { useActions, useApp, useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { useResize } from "../../../ui/use-resize"
 import { BookSearch } from "../book-open/BookSearch"
@@ -23,16 +23,16 @@ interface Drag {
 }
 
 export const StageView = memo(function StageView({ stage: id }: { stage: string }) {
-  const stage = useApp(s => s.workspace.stages.find(st => st.id === id))
-  const isCurrent = useApp(s => s.workspace.current === id)
-  const book = useApp(s => {
+  const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
+  const isCurrent = useMatomezuState(s => s.workspace.current === id)
+  const book = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === id)?.opened
     return o ? s.books[o.book] : undefined
   })
-  const preview = useApp(s => s.dialog?.preview ?? null)
+  const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   const look = preview && preview.item === undefined && preview.book === book?.id ? preview.props : null
   const catalog = useCatalog().core
-  const tool = useApp(s => toolOf(catalog, s.workspace, id))
+  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id))
   const vars = useMemo(
     () => (book ? themeVars(bookTokens(catalog, look ? ({ ...book, ...look } as Book) : book)) : undefined),
     [catalog, book, look],

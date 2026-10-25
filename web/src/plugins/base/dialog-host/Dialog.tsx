@@ -3,7 +3,7 @@
 // height を渡すと、ダイアログの高さをその高さ（画面に収まらなければ画面の高さ）に決め、中身が増えても大きさを変えない（入らない分は中身だけスクロール。見出しの行は動かない）。
 // 決める・閉じるキー（既定は Enter・Escape）はキーの割り当てが受け、決めるように頼まれたら（store の dialog.submitted）中身の form を送る
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react"
-import { useApp } from "../../../ui/store-context"
+import { useMatomezuState } from "../../../ui/store-context"
 import styles from "./Dialog.module.css"
 
 export function Dialog({
@@ -23,7 +23,7 @@ export function Dialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const unmounting = useRef(false) // 描くのをやめるときに自分で閉じている間
-  const submitted = useApp(s => s.dialog?.submitted ?? 0)
+  const submitted = useMatomezuState(s => s.dialog?.submitted ?? 0)
   useEffect(() => {
     if (submitted > 0) ref.current?.querySelector("form")?.requestSubmit()
   }, [submitted])

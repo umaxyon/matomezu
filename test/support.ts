@@ -2,7 +2,7 @@
 import { BUILTIN } from "../web/src/plugins"
 import { SAMPLE_BOOKS } from "../web/src/sample-books"
 import { assemble } from "../web/src/store/plugin"
-import { createAppStore, type StoreOptions } from "../web/src/store/store"
+import { createMatomezuInstance, type StoreOptions } from "../web/src/store/store"
 
 export const CORE_CATALOG = assemble(BUILTIN).catalog.core
 export const BUILTIN_PARTS = CORE_CATALOG.parts
@@ -15,4 +15,11 @@ export function sequence(prefix = "n"): () => string {
 
 // 見本のブックを持ち、最初の 1 冊を開いた store。id は n1, n2, … の順に振る
 export const newStore = (options: Omit<StoreOptions, "plugins"> = {}) =>
-  createAppStore({ plugins: BUILTIN, home: "master", books: SAMPLE_BOOKS, lang: "ja", newId: sequence(), ...options })
+  createMatomezuInstance({
+    plugins: BUILTIN,
+    home: "master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    newId: sequence(),
+    ...options,
+  })

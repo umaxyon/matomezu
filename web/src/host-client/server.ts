@@ -10,7 +10,7 @@ import { z } from "zod"
 import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import { currentStage, MAX_STAGES } from "../core/workspace"
-import type { AppState, AppStore, DoneAction } from "../store/store"
+import type { DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
 import type { HostClient, Loaded } from "./client"
 
 // 常駐が答えなかった（常駐から開いていない）
@@ -65,7 +65,7 @@ const openedOf = (stage: Stage) => {
 }
 
 // 窓が見ているもの。book・page・selection はカレントのステージのもの（何も開いていなければ book は null）
-export function viewOf(state: AppState) {
+export function viewOf(state: MatomezuState) {
   const ws = state.workspace
   const stage = currentStage(ws)
   return {
@@ -85,7 +85,7 @@ const ShowSchema = z.object({
 })
 
 // 常駐が頼んだブックを出す。ステージが無ければカレント、split なら分けて右にできたステージに出す
-export function showIn(instance: AppStore, show: z.infer<typeof ShowSchema>) {
+export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
   let stage = show.stage ?? state.getState().workspace.current
   if (show.split) {
@@ -121,7 +121,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let pending: { seq: number; done: DoneAction }[] = []
   let client = ""
   let seq = 0
-  let instance: AppStore | null = null
+  let instance: MatomezuInstance | null = null
   let events: Events | null = null
 
   const show = () =>

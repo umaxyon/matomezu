@@ -40,7 +40,7 @@ import { type Assembled, assemble, type Plugin } from "./plugin"
 
 export type { Settings } from "../core/settings"
 
-export interface AppState {
+export interface MatomezuState {
   books: Record<string, Book> // ブックの id ごと
   workspace: Workspace
   settings: Settings
@@ -113,10 +113,10 @@ export interface DoneAction {
   lang: Lang
 }
 
-export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
+export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
 
 // インスタンス: 組み立てたもの（機能台帳と、組み立てで決まる値）と、状態と操作。plugins は、台帳のもとにしたプラグイン（画面の側が見た目を引く）
-export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> extends Assembled {
+export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin[]> extends Assembled {
   plugins: Ps
   state: ReadonlyStore
   actions: Actions
@@ -129,7 +129,12 @@ export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> exte
 }
 
 // 最初のブック（無ければホーム、それも無ければ何も開かない）を開いた状態。表にある 1 冊だけのタイプのブックはいつも持つ
-function initialState(catalog: CoreCatalog, books: readonly Book[], settings: Settings, home: string | null): AppState {
+function initialState(
+  catalog: CoreCatalog,
+  books: readonly Book[],
+  settings: Settings,
+  home: string | null,
+): MatomezuState {
   const all = [...singleBooks(catalog), ...books]
   const first = books[0] ?? all.find(b => b.id === home) ?? null
   return {
@@ -149,7 +154,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。インスタンスにある最初の言語を使い、無ければ英語
   savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。このインスタンスのブックの形に合うものだけを、books のあとに持つ
   settings?: unknown // 残しておいた設定（ホストが読んだもの）。このインスタンスで使える項目だけ、lang より優先して使う
-  initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
+  initial?: MatomezuState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
 }
@@ -158,7 +163,9 @@ function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): L
   return detectLang(typeof lang === "string" ? [lang] : lang, [...catalog.languages.keys()])
 }
 
-export function createAppStore<const Ps extends readonly Plugin[]>(options: StoreOptions<Ps>): AppStore<Ps> {
+export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
+  options: StoreOptions<Ps>,
+): MatomezuInstance<Ps> {
   const { plugins } = options
   let defs = assemble(plugins, options.home ?? null, options.autoSkin)
   let { home } = defs
@@ -173,7 +180,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       home,
     )
   const newId = options.newId ?? (() => crypto.randomUUID())
-  const store = createStore<AppState>()(() => initial)
+  const store = createStore<MatomezuState>()(() => initial)
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId })
   // 残した・知らされたブックの、形を確かめた値（同じ値は確かめ直さない）
@@ -203,7 +210,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     id: string,
     args: unknown,
     on?: { book: string },
-  ): { ok: true; result: unknown; next: Partial<AppState> } | { ok: false; reason: Refusal | "no-book" } => {
+  ): { ok: true; result: unknown; next: Partial<MatomezuState> } | { ok: false; reason: Refusal | "no-book" } => {
     const { books, workspace, settings } = getState()
     const ids: string[] = []
     const c = ctx()
@@ -217,20 +224,20 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     })
     if (!done.ok) return done
     options.observe?.({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang })
-    const next: Partial<AppState> = {}
+    const next: Partial<MatomezuState> = {}
     if (done.book) {
       next.books = { ...books, [done.book.id]: done.book }
       next.workspace = followBook(catalog, workspace, done.book)
     }
     if (done.books) {
-      next.books = done.books as AppState["books"]
-      next.workspace = followLibrary(catalog, workspace, done.books as AppState["books"])
+      next.books = done.books as MatomezuState["books"]
+      next.workspace = followLibrary(catalog, workspace, done.books as MatomezuState["books"])
     }
     if (done.settings) next.settings = done.settings
     return { ok: true, result: done.result, next }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じる
-  const commit = (next: Partial<AppState>) => {
+  const commit = (next: Partial<MatomezuState>) => {
     if (Object.keys(next).length === 0) return
     const { dialog, contextMenu } = getState()
     const stages = next.workspace?.stages
@@ -331,7 +338,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       return true
     },
     receive: (world, replay) => {
-      let books: AppState["books"] = Object.fromEntries(
+      let books: MatomezuState["books"] = Object.fromEntries(
         [...singleBooks(catalog), ...restore(world.books)].map(b => [b.id, b]),
       )
       let settings = restoreSettings(catalog, start, world.settings)
@@ -345,7 +352,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
         })
         if (!next.ok) continue
         if (next.book) books = { ...books, [next.book.id]: next.book }
-        if (next.books) books = next.books as AppState["books"]
+        if (next.books) books = next.books as MatomezuState["books"]
         if (next.settings) settings = next.settings
       }
       const now = getState()
@@ -378,7 +385,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       }),
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
   }
-  const instance: AppStore<Ps> = {
+  const instance: MatomezuInstance<Ps> = {
     ...defs,
     plugins,
     state: store,

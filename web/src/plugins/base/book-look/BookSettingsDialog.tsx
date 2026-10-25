@@ -6,7 +6,7 @@ import { bookType } from "../../../core/core-catalog"
 import { type BookLook, bookTheme, bookTokens } from "../../../core/theme"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp, useCatalog } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { ColorPicker } from "../dialog-host/ColorPicker"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
@@ -19,7 +19,7 @@ export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const t = useT()
   const form = useId()
   const catalog = useCatalog().core
-  const book = useApp(s => {
+  const book = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined
   })

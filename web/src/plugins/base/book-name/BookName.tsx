@@ -6,19 +6,19 @@ import { useCommand } from "../../../ui/commands"
 import { useT } from "../../../ui/i18n"
 import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
 import { useMenu, useMenuCommand } from "../../../ui/menu"
-import { useApp, useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import styles from "./BookName.module.css"
 
 // 離れてからメニューが下がるまで（欄とメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
 
 export function BookName({ stage }: { stage: string }) {
-  const book = useApp(s => {
+  const book = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined
   })
-  const lang = useApp(s => s.settings.lang)
-  const current = useApp(s => s.workspace.current === stage)
+  const lang = useMatomezuState(s => s.settings.lang)
+  const current = useMatomezuState(s => s.workspace.current === stage)
   const t = useT()
   const [open, setOpen] = useState(false)
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null)

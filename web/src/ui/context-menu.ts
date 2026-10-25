@@ -4,7 +4,7 @@ import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
 import { isShown } from "../store/commands"
 import { type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
-import { useActions, useApp, useInstance, useLayout } from "./store-context"
+import { useActions, useInstance, useLayout, useMatomezuState } from "./store-context"
 
 // 右ボタンの押し続け: ブラウザが右クリックを知らせるのは、Windows では離したとき、Mac・Linux では押したとき。
 // 右ボタンを押している間に開こうとしたメニューは待たせ、離したときに開く（どの OS でも離したときに出る）。
@@ -55,5 +55,7 @@ export function useContextMenuItems<M extends ContextMenuId>(stage: string, id: 
   const menus = useLayout().contextMenus as { [K in ContextMenuId]?: readonly ContextMenuEntry<K>[] } | undefined
   const items = menus?.[id] ?? []
   const defs = useInstance()
-  return useApp(useShallow(s => tidySeparators(items.filter(c => c === SEPARATOR || isShown(defs, s, stage, c)))))
+  return useMatomezuState(
+    useShallow(s => tidySeparators(items.filter(c => c === SEPARATOR || isShown(defs, s, stage, c)))),
+  )
 }

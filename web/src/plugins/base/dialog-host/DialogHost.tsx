@@ -1,9 +1,9 @@
 // ダイアログの置き場（ウィジェット dialog-host）: store の開いているダイアログ（dialog）を、その id の中身（プラグインが結んだビュー）で、開くときに渡された値と一緒に描く
 import { fail } from "../../../core/errors"
-import { useActions, useApp, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 
 export function DialogHost() {
-  const dialog = useApp(s => s.dialog)
+  const dialog = useMatomezuState(s => s.dialog)
   const { closeDialog } = useActions()
   const ui = useUiCatalog()
   if (!dialog) return null

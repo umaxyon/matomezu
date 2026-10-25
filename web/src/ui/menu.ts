@@ -3,7 +3,7 @@
 import type { MenuId } from "../core/catalog"
 import { isShown } from "../store/commands"
 import { type MenuCommandId, type MenuItem, menuCommands } from "./layout"
-import { useApp, useInstance, useLayout } from "./store-context"
+import { useInstance, useLayout, useMatomezuState } from "./store-context"
 
 export function useMenu(menu: MenuId): readonly MenuItem[] {
   return useLayout().menus[menu] ?? []
@@ -13,6 +13,6 @@ export function useMenu(menu: MenuId): readonly MenuItem[] {
 export function useMenuCommand(stage: string, item: MenuItem): MenuCommandId | null {
   const defs = useInstance()
   const ids = menuCommands(item)
-  const at = useApp(s => ids.findIndex(id => isShown(defs, s, stage, id)))
+  const at = useMatomezuState(s => ids.findIndex(id => isShown(defs, s, stage, id)))
   return ids[at] ?? null
 }
