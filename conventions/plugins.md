@@ -6,6 +6,8 @@
 ## プラグインどうしの関係
 
 - プラグインは互いに独立している。ほかのプラグインを読まない
+- 追加プラグインは、プラグイン API（`matomezu`・`matomezu/ui`・`matomezu/catalog`）だけを読む。テストで組むときだけ `matomezu/testing` も読む（見本は `test/rules.test.ts` が見張る）
+- プラグイン API が出す名前の一覧は `test/plugin-api.test.ts` に書く。足すときも消すときもここを直し、わざと変えたと分かるようにする
 - 例外は `base`。画面の骨組み・ダイアログの枠と入力のコンポーネント・紙・標準のテーマを持ち、ほかのプラグインは `base` の入口（`plugins/base/index`・`plugins/base/ui`）を読んでよい
 - 別のプラグインの定義を使うときは、読むのではなく id で選ぶ（ブックのタイプがアイテム・アクション・道具の組を選ぶのと同じ形）
 - あるタイプを、ほかのタイプとの差分として作らない。タイプはそれぞれ、使う物を id で選んで持つ
@@ -28,11 +30,12 @@
 ## 機能台帳の型の側
 
 - 機能台帳の型の側（`core/catalog.ts`。追加プラグインからは `matomezu/catalog`）の空の interface に、`declare module` で書き足す。id の型・ブックの型・引数の型はここから決まる
+- 書き足しは `core/catalog.ts` そのものに向ける（名前を集め直すファイルに向けると、ほかの書き足しと合わさらない）
 - `createMatomezu` には、型を書き足したプラグインを全部渡す。わざと減らすインスタンス（テストなど）は `partial: true`
 
 ## 見た目と差し替え
 
-- `definePluginUi(plugin, { bookViews, items, dialogViews, widgets, commandIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ダイアログに、ビューが無いと型の誤り
+- `definePluginUi(plugin, { presentationViews, items, settingViews, dialogViews, widgets, commandIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ダイアログに、ビューが無いと型の誤り
 - 差し替えられるのはビュー（ブック・ダイアログ・ウィジェット）だけで、`overrides` に書く。アクションやブックのタイプなど中身は差し替えない
 - 画面の配置（スロットにどのウィジェットを置くか、メニューの中身）は配置（`defineLayout`）に書く。配置は丸ごと替え、差分を重ねて混ぜない
 - ブックのタイプによる出し分けは配置ではなく、ウィジェットが開いているブックを見て自分で決める
