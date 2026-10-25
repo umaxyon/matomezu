@@ -4,7 +4,7 @@
     "paths": {
       "matomezu": ["../../web/src/plugin-api/index.ts"],
       "matomezu/ui": ["../../web/src/plugin-api/ui.ts"],
-      "matomezu/app": ["../../web/src/plugin-api/app.ts"],
+      "matomezu/testing": ["../../web/src/testing/index.ts"],
       "matomezu/tables": ["../../web/src/core/tables.ts"]
     }
   },

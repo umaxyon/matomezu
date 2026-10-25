@@ -7,7 +7,7 @@ import {
   defineLayout,
   MatomezuProvider,
   SAMPLE_BOOKS,
-} from "matomezu/app"
+} from "matomezu/testing"
 import { FUGA_UI } from "../plugins/fuga/ui"
 import { HOGE_UI } from "../plugins/hoge/ui"
 import { HOGE_FLOW_UI } from "../plugins/hoge-flow/ui"

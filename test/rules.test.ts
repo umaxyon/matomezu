@@ -150,34 +150,35 @@ test("画面の文言は t() を通す（ui に日本語を直に書かない）
   expect(offenders).toEqual([])
 })
 
-// プラグイン API の入口（plugin-api/）: matomezu は React なしの定義の口、matomezu/ui は見た目を結ぶ口。同じフォルダの matomezu/app はアプリを組む側の口。
-// 中のコードはプラグイン API を読まない（プラグイン API が中を読む向きだけ）
-const API_ALLOWED: Record<string, (target: string) => boolean> = {
+// 外に見せる入口: プラグイン API（plugin-api/。matomezu は React なしの定義の口、matomezu/ui は見た目を結ぶ口）と、
+// テストで組む入口（testing/。matomezu/testing）。中のコードは入口を読まない（入口が中を読む向きだけ）
+const ENTRY_LAYERS = ["plugin-api", "testing"]
+const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
   "plugin-api/index.ts": t => ["core", "store"].includes(topOf(t)),
   "plugin-api/ui.ts": t => topOf(t) === "ui" || t === "plugins/base/ui",
-  "plugin-api/app.ts": t =>
+  "testing/index.ts": t =>
     ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui" || t === "sample-books",
 }
 
-test("プラグイン API の入口は、決めた層だけを読み、中のコードはプラグイン API を読まない", () => {
-  const api = sources.filter(f => layerOf(f.rel) === "plugin-api")
-  expect(api.map(f => f.rel).sort()).toEqual(Object.keys(API_ALLOWED).sort())
-  const bad = api.flatMap(f =>
+test("外に見せる入口は、決めた層だけを読み、中のコードは入口を読まない", () => {
+  const entries = sources.filter(f => ENTRY_LAYERS.includes(layerOf(f.rel)))
+  expect(entries.map(f => f.rel).sort()).toEqual(Object.keys(ENTRY_ALLOWED).sort())
+  const bad = entries.flatMap(f =>
     importsOf(f)
-      .filter(t => !API_ALLOWED[f.rel]!(t))
+      .filter(t => !ENTRY_ALLOWED[f.rel]!(t))
       .map(t => `${f.rel} → ${t}`),
   )
   const inward = sources
-    .filter(f => layerOf(f.rel) !== "plugin-api")
+    .filter(f => !ENTRY_LAYERS.includes(layerOf(f.rel)))
     .flatMap(f =>
       importsOf(f)
-        .filter(t => topOf(t) === "plugin-api")
+        .filter(t => ENTRY_LAYERS.includes(topOf(t)))
         .map(t => `${f.rel} → ${t}`),
     )
   expect([...bad, ...inward]).toEqual([])
 })
 
-// 外のプラグインと、それを組むアプリの見本（test/examples）: 中（web/src）を直に読まず、プラグイン API の名前（アプリは matomezu/app も）だけを読む。
+// 外のプラグインと、それを組むアプリの見本（test/examples）: 中（web/src）を直に読まず、プラグイン API の名前（アプリのテストは matomezu/testing も）だけを読む。
 // プラグイン（plugins/名前）は互いに読まない。見た目でないファイルは matomezu/ui も React も読まない。アプリはプラグインの入口（index・ui）を読む
 const EXAMPLES = join(ROOT, "test/examples")
 const examples = filesUnder(EXAMPLES).map(path => ({
@@ -207,7 +208,7 @@ test("見本はプラグイン API の名前だけを読み、プラグインど
         }
         const always = ["matomezu", "matomezu/tables", "zod"]
         const forViews = ["matomezu/ui", "react"]
-        const forApps = ["matomezu/app", "bun:test", "@testing-library/react"]
+        const forApps = ["matomezu/testing", "bun:test", "@testing-library/react"]
         if (always.includes(s)) return false
         if (forViews.includes(s)) return !view && isPlugin
         return isPlugin || !forApps.includes(s)

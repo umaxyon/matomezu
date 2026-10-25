@@ -1,8 +1,8 @@
-// プラグイン API の入口（と、アプリを組む側の入口）が出す名前（値）の一覧。外のプラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
+// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧。外のプラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
-import * as app from "../web/src/plugin-api/app"
 import * as api from "../web/src/plugin-api/index"
 import * as ui from "../web/src/plugin-api/ui"
+import * as testing from "../web/src/testing"
 
 const names = (m: object) => Object.keys(m).sort()
 
@@ -32,8 +32,8 @@ test("matomezu/ui が出す名前", () => {
   expect(names(ui)).toEqual(["Confirm", "Dialog", "definePluginUi", "defineWidget", "useCommand", "useT"])
 })
 
-test("matomezu/app が出す名前", () => {
-  expect(names(app)).toEqual([
+test("matomezu/testing が出す名前", () => {
+  expect(names(testing)).toEqual([
     "App",
     "BUILTIN",
     "BUILTIN_UI",

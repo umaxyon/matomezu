@@ -1,7 +1,7 @@
 // 型が誤りにする場面（tsc -p でこのプロジェクトを確かめる。@ts-expect-error の行が誤りにならなければ、確かめが落ちる）
 
 import { defineKeys, type MessageKey } from "matomezu"
-import { BUILTIN_UI, createMatomezu } from "matomezu/app"
+import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
 import { FUGA } from "../plugins/fuga"
 import { HOGE } from "../plugins/hoge"
 import { HOGE_FLOW } from "../plugins/hoge-flow"
