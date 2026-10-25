@@ -1,5 +1,5 @@
 // 線のプラグイン: 形どうしをつなぐ線のアイテムと、線の既定の通り方の設定の項目、線を引く・変える・つなぎ替えるアクションとコマンド、線の編集のダイアログ
-import { defineBuiltin } from "../../../plugin-api"
+import { defineBuiltin } from "../../../plugin-api/builtin"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { LINE_DRAW, LINE_EDIT, LINE_RECONNECT_DROP } from "./commands"
 import { LINE, LINE_EDIT_DIALOG, LINE_ROUTE } from "./line"

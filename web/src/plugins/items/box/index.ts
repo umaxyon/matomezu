@@ -1,5 +1,5 @@
 // 箱のプラグイン: 箱のアイテム（キャプションと本文の四角）と、その追加と編集のダイアログ
-import { defineBuiltin } from "../../../plugin-api"
+import { defineBuiltin } from "../../../plugin-api/builtin"
 import { BOX, BOX_ADD_DIALOG, BOX_EDIT_DIALOG } from "./box"
 import { BOX_MESSAGES } from "./messages"
 

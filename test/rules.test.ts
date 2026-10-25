@@ -52,6 +52,7 @@ const baseAllowed = (rel: string) => (t: string) =>
 // 状態を丸ごと読むフック（ui/store-context の useMatomezuState・useCatalog・useUiCatalog）は、状態を読むフックができるまで見た目から直に読む
 const apiAllowed = (rel: string) => (t: string) =>
   t === "plugin-api" ||
+  t === "plugin-api/builtin" ||
   t === "zod" ||
   (isView(rel) && ["plugin-api/ui", "ui/store-context", "react", "react-dom", "zustand/react/shallow"].includes(t))
 
@@ -67,7 +68,10 @@ describe("依存の向き", () => {
       test(file.rel, () => {
         const bad = targets.filter(t => {
           if (t.endsWith(".css")) return !isView(file.rel)
-          if (["ui/store-context", "plugin-api", "plugin-api/ui"].includes(t) && own !== "plugins/base")
+          if (
+            ["ui/store-context", "plugin-api", "plugin-api/ui", "plugin-api/builtin"].includes(t) &&
+            own !== "plugins/base"
+          )
             return !pluginAllowed(file.rel)(t)
           if (!local(t)) return !pluginAllowed(file.rel)(t)
           if (topOf(t) !== "plugins") return !pluginAllowed(file.rel)(topOf(t))
@@ -190,11 +194,11 @@ test("外に見せる入口は、決めた層だけを読み、中のコード�
 })
 
 // プラグイン API の層（plugin-api/）: index は core・store だけ、ui は ui だけを読み、名前を出し直すだけ（ほかのことを書かない）
-test("プラグイン API の層は、index が core と store、ui が ui だけから名前を出し直す", () => {
+test("プラグイン API の層は、index が core と store、ui が ui、builtin が store だけから名前を出し直す", () => {
   const api = sources.filter(f => layerOf(f.rel) === "plugin-api")
-  expect(api.map(f => f.rel).sort()).toEqual(["plugin-api/index.ts", "plugin-api/ui.ts"])
+  expect(api.map(f => f.rel).sort()).toEqual(["plugin-api/builtin.ts", "plugin-api/index.ts", "plugin-api/ui.ts"])
   const bad = api.flatMap(f => {
-    const ok = f.rel === "plugin-api/ui.ts" ? ["ui"] : ["core", "store"]
+    const ok = f.rel === "plugin-api/ui.ts" ? ["ui"] : f.rel === "plugin-api/builtin.ts" ? ["store"] : ["core", "store"]
     const code = f.text
       .replace(/\/\/.*$/gm, "")
       .replace(/export\s+(type\s+)?\{[^}]*\}\s+from\s+"[^"]+"/g, "")

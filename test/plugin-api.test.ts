@@ -29,7 +29,6 @@ test("matomezu が出す名前", () => {
     "createBook",
     "defineAction",
     "defineBookType",
-    "defineBuiltin",
     "defineCommand",
     "defineConnector",
     "defineDialog",
@@ -90,6 +89,10 @@ test("matomezu が出す名前", () => {
     "wrap",
     "z",
   ])
+})
+
+test("ビルトインの印（defineBuiltin）は外に出さない（追加プラグインが短い id と頭の検査の抜けを使えないように）", () => {
+  expect("defineBuiltin" in api).toBe(false)
 })
 
 test("matomezu/ui が出す名前", () => {
