@@ -1,0 +1,4 @@
+/* 色はスキンの変数で付ける */
+.greeting {
+  color: var(--skin-text);
+}

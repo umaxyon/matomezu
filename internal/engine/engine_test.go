@@ -182,19 +182,19 @@ func usePlugin(t *testing.T, e *Engine, dir string) []string {
 
 func TestUsesAnAddedPlugin(t *testing.T) {
 	e := newEngine(t)
-	if ids := usePlugin(t, e, "../../test/examples/plugins/hoge-flow"); len(ids) != 1 || ids[0] != "hoge-flow" {
+	if ids := usePlugin(t, e, "../../test/added-plugins/ex2"); len(ids) != 1 || ids[0] != "ex2" {
 		t.Fatalf("ids = %v", ids)
 	}
-	if c := string(e.AICatalog()); !strings.Contains(c, `"id":"hoge-flow/diamond"`) || !strings.Contains(c, `"hoge-flow/flow"`) {
+	if c := string(e.AICatalog()); !strings.Contains(c, `"id":"ex2/diamond"`) || !strings.Contains(c, `"ex2/flow"`) {
 		t.Fatalf("the AI catalog lacks the added plugin: %s", c)
 	}
 	out, err := e.Perform(Input{
 		Action: "book.create",
-		Args:   json.RawMessage(`{"title":"Flow","type":"hoge-flow/flow"}`),
+		Args:   json.RawMessage(`{"title":"Flow","type":"ex2/flow"}`),
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
 	})
-	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"type":"hoge-flow/flow","id":"fb"`) {
+	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"type":"ex2/flow","id":"fb"`) {
 		t.Fatalf("book.create = %+v %s, %v", out, out.Books, err)
 	}
 }

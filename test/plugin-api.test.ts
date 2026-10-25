@@ -42,5 +42,6 @@ test("matomezu/testing が出す名前", () => {
     "MatomezuProvider",
     "createMatomezu",
     "defineLayout",
+    "placeAdded",
   ])
 })

@@ -33,7 +33,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: `bun scripts/e2e-server.ts ${pluginsPort} e2e/.dist http://localhost:${port} --plugin test/examples/plugins/hoge-flow`,
+      command: `bun scripts/e2e-server.ts ${pluginsPort} e2e/.dist http://localhost:${port} --plugin test/added-plugins/ex2`,
       url: `http://127.0.0.1:${pluginsPort}`,
       reuseExistingServer: false,
     },

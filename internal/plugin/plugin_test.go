@@ -13,12 +13,12 @@ var modules = Modules{
 }
 
 func TestBuildsAnExamplePluginBorrowingTheModules(t *testing.T) {
-	b, err := Build("../../test/examples/plugins/hoge-flow", modules)
+	b, err := Build("../../test/added-plugins/ex2", modules)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for name, js := range map[string]string{"engine": b.Engine, "ui": string(b.UI)} {
-		if !strings.Contains(js, `globalThis.__matomezuModules["matomezu"]`) || !strings.Contains(js, "hoge-flow/diamond") {
+		if !strings.Contains(js, `globalThis.__matomezuModules["matomezu"]`) || !strings.Contains(js, "ex2/diamond") {
 			t.Fatalf("%s does not borrow matomezu or lacks the plugin:\n%s", name, js)
 		}
 		// 借りた物（zod・React）を取り込んでいない
@@ -30,17 +30,17 @@ func TestBuildsAnExamplePluginBorrowingTheModules(t *testing.T) {
 		t.Fatalf("ui is not an ES module borrowing react/jsx-runtime:\n%s", b.UI)
 	}
 	if b.CSS != nil {
-		t.Fatalf("hoge-flow has no CSS, got %s", b.CSS)
+		t.Fatalf("ex2 has no CSS, got %s", b.CSS)
 	}
 }
 
 func TestBuildsTheCSSOfAPlugin(t *testing.T) {
-	b, err := Build("../../test/examples/plugins/hoge", modules)
+	b, err := Build("../../test/added-plugins/ex1", modules)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(b.CSS) == 0 {
-		t.Fatal("hoge imports a CSS module, but no CSS was built")
+		t.Fatal("ex1 imports a CSS module, but no CSS was built")
 	}
 }
 

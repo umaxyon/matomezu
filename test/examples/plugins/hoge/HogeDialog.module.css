@@ -1,4 +1,0 @@
-/* 色はスキンの変数で付ける */
-.body {
-  color: var(--skin-text);
-}

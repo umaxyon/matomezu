@@ -149,20 +149,27 @@ func pluginDir(t *testing.T, id string, files map[string]string) string {
 	return dir
 }
 
-// copyDir は from のファイルを新しいフォルダに写し、change で書き換える
+// copyDir は from を新しいフォルダに写し、すぐ下のファイルを change で書き換える
 func copyDir(t *testing.T, from string, change func(name, text string) string) string {
 	t.Helper()
 	dir := t.TempDir()
-	entries, err := os.ReadDir(from)
+	if err := os.CopyFS(dir, os.DirFS(from)); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, e := range entries {
-		b, err := os.ReadFile(filepath.Join(from, e.Name()))
+		if e.IsDir() {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		b, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, e.Name()), []byte(change(e.Name(), string(b))), 0o600); err != nil {
+		if err := os.WriteFile(path, []byte(change(e.Name(), string(b))), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -182,13 +189,9 @@ func TestServesTheAddedPluginsToTheScreen(t *testing.T) {
 	s := newServer(t, nil)
 	a := pluginDir(t, "a", map[string]string{"index.ts": `export default { id: "a" }`, "ui.tsx": `import "./a.css"` + "\nexport default 1", "a.css": ".a{color:red}"})
 	b := pluginDir(t, "b", map[string]string{"index.ts": `export default { id: "b" }`, "ui.tsx": "export default 2"})
-	for id, dir := range map[string]string{"a": a, "b": b} {
-		if got := link(t, s, dir); got != `{"id":"`+id+`","ok":true}` {
-			t.Fatalf("link %s = %s", id, got)
-		}
-		if id == "a" {
-			link(t, s, b) // 並びを a・b にする（map の順によらない）
-			break
+	for id, dir := range []string{a, b} {
+		if got := link(t, s, dir); got != `{"id":"`+[]string{"a", "b"}[id]+`","ok":true}` {
+			t.Fatalf("link %s = %s", dir, got)
 		}
 	}
 	want := `"plugins":[{"id":"a","ui":"api/plugins/0/ui.js?v=2","css":"api/plugins/0/ui.css?v=2"},{"id":"b","ui":"api/plugins/1/ui.js?v=2"}]`
@@ -222,16 +225,16 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 		_, got := send(t, "POST", s.URL+"/api/ai/perform", body, ai)
 		return got
 	}
-	flow := "../../test/examples/plugins/hoge-flow"
+	flow := "../../test/added-plugins/ex2"
 
 	// 足す: 画面に知らせ、そのタイプのブックを作れる
-	if got := link(t, s, flow); got != `{"id":"hoge-flow","ok":true}` {
+	if got := link(t, s, flow); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link = %s", got)
 	}
 	if got := next(t, screen); got != `plugins {"version":1}` {
 		t.Fatalf("event = %s", got)
 	}
-	made := perform(`{"action":"book.create","args":{"title":"F","type":"hoge-flow/flow"}}`)
+	made := perform(`{"action":"book.create","args":{"title":"F","type":"ex2/flow"}}`)
 	if !strings.Contains(made, `"ok":true`) {
 		t.Fatalf("book.create = %s", made)
 	}
@@ -249,7 +252,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if json.Unmarshal([]byte(read), &book) != nil || len(book.Book.Pages) == 0 {
 		t.Fatalf("book = %s", read)
 	}
-	place := `{"action":"item.place","args":{"page":"` + book.Book.Pages[0].ID + `","item":"hoge-flow/diamond","at":{"x":40,"y":40},"props":{"caption":"D"}},"on":{"book":"` + created.Result.Book + `"}}`
+	place := `{"action":"item.place","args":{"page":"` + book.Book.Pages[0].ID + `","item":"ex2/diamond","at":{"x":40,"y":40},"props":{"caption":"D"}},"on":{"book":"` + created.Result.Book + `"}}`
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place = %s", got)
 	}
@@ -259,13 +262,13 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	changed := copyDir(t, flow, func(name, text string) string {
 		return strings.ReplaceAll(text, `size: DIAMOND_SIZE,`, `size: { w: 123, h: 64 },`) // min は変えない（置いた形が読めなくなる）
 	})
-	if got := link(t, s, changed); got != `{"id":"hoge-flow","ok":true}` {
+	if got := link(t, s, changed); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("replace = %s", got)
 	}
 	if got := next(t, screen); got != `plugins {"version":2}` {
 		t.Fatalf("event = %s", got)
 	}
-	if c := catalog(); !strings.Contains(c, `"w":123`) || strings.Count(c, `"id":"hoge-flow/diamond"`) != 1 {
+	if c := catalog(); !strings.Contains(c, `"w":123`) || strings.Count(c, `"id":"ex2/diamond"`) != 1 {
 		t.Fatalf("catalog after replacing = %s", c)
 	}
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
@@ -289,13 +292,13 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	next(t, screen) // book
 
 	// 外す: そのタイプのブックではアクションを断り、ほかは動く
-	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"hoge-flow"}`, ai); got != `{"ok":true}` {
+	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("remove = %s", got)
 	}
 	if got := next(t, screen); got != `plugins {"version":3}` {
 		t.Fatalf("event = %s", got)
 	}
-	if c := catalog(); strings.Contains(c, "hoge-flow") {
+	if c := catalog(); strings.Contains(c, "ex2") {
 		t.Fatalf("catalog after removing = %s", c)
 	}
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
@@ -304,7 +307,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := perform(`{"action":"book.create","args":{"title":"D","type":"drawing"}}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("book.create drawing = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"hoge-flow"}`, ai); !strings.Contains(got, `"ok":false`) {
+	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); !strings.Contains(got, `"ok":false`) {
 		t.Fatalf("remove again = %s", got)
 	}
 }

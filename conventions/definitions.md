@@ -77,7 +77,7 @@
 - テーマは知っている欄だけを上書きする
 - 欄ごとに light と dark の値を持てる。両方を書いた欄は、見る人の OS の明暗で切り替える
 - 欄の値は CSS 変数 `--theme-<欄の id>` になる。id の「.」は「-」にする（例: `box.fill` → `--theme-box-fill`）
-- 【未実装】id の「/」は「--」にする（例: `fuga/star.fill` → `--theme-fuga--star-fill`）。プラグイン API の `themeVar(id)` で名前を引ける。ビルトインプラグインが参照する `--theme-…` が宣言した欄にあることを、テストが見張る
+- 【未実装】id の「/」は「--」にする（例: `ex3/star.fill` → `--theme-ex3--star-fill`）。プラグイン API の `themeVar(id)` で名前を引ける。ビルトインプラグインが参照する `--theme-…` が宣言した欄にあることを、テストが見張る
 
 ## id
 

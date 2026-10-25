@@ -199,40 +199,36 @@ test("plugin-modules は入口と React だけを読み、ホストのエンジ�
   expect([...bad, ...readers]).toEqual([])
 })
 
-// 追加プラグインと、それを組むアプリの見本（test/examples）: 中（web/src）を直に読まず、プラグイン API の名前（アプリのテストは matomezu/testing も）だけを読む。
-// プラグイン（plugins/名前）は互いに読まない。見た目でないファイルは matomezu/ui も React も読まない。アプリはプラグインの入口（index・ui）を読む
-const EXAMPLES = join(ROOT, "test/examples")
-const examples = filesUnder(EXAMPLES).map(path => ({
-  path,
-  rel: relative(EXAMPLES, path),
-  text: readFileSync(path, "utf8"),
-}))
+// 追加プラグインの見本（test/added-plugins/exN。それぞれ開発者プロジェクトの形）: 中（web/src）を直に読まず、プラグイン API の名前だけを読む。
+// 見本どうしは読まない。見た目でないファイルは matomezu/ui も React も読まない。テスト（test/）は matomezu/testing と、自分のプラグインのファイルも読む
+const ADDED = join(ROOT, "test/added-plugins")
+const added = filesUnder(ADDED)
+  .filter(path => /\.tsx?$/.test(path))
+  .map(path => ({ path, rel: relative(ADDED, path), text: readFileSync(path, "utf8") }))
 const specsOf = (text: string) =>
   [...text.matchAll(/(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']/g)].map(
     m => (m[1] ?? m[2])!,
   )
 
-test("見本はプラグイン API の名前だけを読み、プラグインどうしは読まない", () => {
-  const bad = examples.flatMap(f => {
-    const parts = f.rel.split("/")
-    const isPlugin = parts[0] === "plugins"
-    const own = isPlugin ? parts.slice(0, 2).join("/") : parts[0]!
-    const view = isView(f.rel)
+test("追加プラグインの見本はプラグイン API の名前だけを読み、見本どうしは読まない", () => {
+  expect(added.length).toBeGreaterThan(0)
+  const bad = added.flatMap(f => {
+    const [own, ...rest] = f.rel.split("/")
+    const isTest = rest[0] === "test"
+    const view = isView(f.rel) && !isTest
     return specsOf(f.text)
       .filter(s => {
         if (s.startsWith(".")) {
-          const target = relative(EXAMPLES, resolve(dirname(f.path), s))
-          if (target === own || target.startsWith(`${own}/`)) return s.endsWith(".css") && !view
-          if (isPlugin) return true
-          const [top, name, ...rest] = target.split("/")
-          return top !== "plugins" || !name || !(rest.length === 0 || ["index", "ui"].includes(rest.join("/")))
+          const target = relative(ADDED, resolve(dirname(f.path), s))
+          if (target.split("/")[0] !== own) return true
+          return s.endsWith(".css") && !view
         }
         const always = ["matomezu", "matomezu/catalog"] // zod も matomezu から読む
         const forViews = ["matomezu/ui", "react"]
-        const forApps = ["matomezu/testing", "bun:test", "@testing-library/react"]
+        const forTests = ["matomezu/testing", "matomezu/ui", "bun:test", "@testing-library/react"]
         if (always.includes(s)) return false
-        if (forViews.includes(s)) return !view && isPlugin
-        return isPlugin || !forApps.includes(s)
+        if (isTest) return !forTests.includes(s)
+        return !(forViews.includes(s) && view)
       })
       .map(s => `${f.rel} → ${s}`)
   })

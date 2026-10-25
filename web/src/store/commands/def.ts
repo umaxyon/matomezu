@@ -45,7 +45,7 @@ export interface CommandPlace<A> {
 // run の 3 つ目の引数の型から A を決め、id は書いた文字のまま残す（引数が無ければ A は undefined）。
 // 型は書いた順に決まるので、run は when より前に書く（後ろに書くと、引数のあるコマンドが型の誤りになる）
 export function defineCommand<const Id extends string, A = undefined>(
-  def: CommandDef<A> & { id: Id; place?: CommandPlace<A> },
+  def: CommandDef<A> & { id: Id; place?: CommandPlace<NoInfer<A>> },
 ): CommandDef<A> & { id: Id } {
   return def
 }
