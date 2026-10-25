@@ -7,6 +7,9 @@ test.describe.configure({ mode: "serial" })
 
 // 常駐に置いてあるもの
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
+// AI の入口の合言葉（常駐のアプリのフォルダはポートごと。scripts/e2e-server.ts）
+const aiToken = (): string =>
+  JSON.parse(readFileSync(`e2e/.home-${new URL(test.info().project.use.baseURL ?? "").port}/server.json`, "utf8")).token
 
 test("初めて開くと、ブックを持たずにマスターを出す", async ({ page }) => {
   await page.goto("/")
@@ -71,7 +74,7 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
 })
 
 test("AI の入口からは、最後にフォーカスした窓が見ているものが分かり、AI が置いた箱はすぐ窓に出る", async ({ page }) => {
-  const { token } = JSON.parse(readFileSync("e2e/.home/server.json", "utf8"))
+  const token = aiToken()
   const ai = { Authorization: `Bearer ${token}` }
   await page.goto("/")
   await page.bringToFront()
@@ -92,7 +95,7 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
 })
 
 test("AI が show で頼むと、最後にフォーカスした窓が、分けたステージでそのブックを開く", async ({ page }) => {
-  const { token } = JSON.parse(readFileSync("e2e/.home/server.json", "utf8"))
+  const token = aiToken()
   const ai = { Authorization: `Bearer ${token}` }
   await page.goto("/")
   await page.bringToFront()
@@ -141,7 +144,7 @@ const LINE_BOOK = {
 test("線は箱より手前に描かれ、選択の道具で押すと選ばれ、Delete と右クリックのメニューで消せる。箱を消すと、つながる線も消える", async ({
   page,
 }) => {
-  const { token } = JSON.parse(readFileSync("e2e/.home/server.json", "utf8"))
+  const token = aiToken()
   const ai = { Authorization: `Bearer ${token}` }
   const put = await page.request.put(`/api/books/${LINE_BOOK.id}`, { data: { book: LINE_BOOK, base: 0 } })
   expect(put.ok()).toBe(true)

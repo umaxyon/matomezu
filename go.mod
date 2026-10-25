@@ -5,6 +5,7 @@ go 1.27.1
 require (
 	github.com/alecthomas/kong v1.16.1
 	github.com/dop251/goja v0.0.0-20261021140635-64adc8bb4d51
+	github.com/evanw/esbuild v0.28.2
 	github.com/gofrs/flock v0.13.1
 	modernc.org/sqlite v1.61.0
 )

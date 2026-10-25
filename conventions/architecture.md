@@ -10,14 +10,16 @@
 | `store` | 状態（Zustand）・コマンド・ダイアログの表・プラグインの組み立て | `core`・`store`・zustand |
 | `ui` | 画面の根と、プラグインが使う画面の口。画面に出る物は置かない | `core`・`store`・`ui`・React・zustand |
 | `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）と外の世界（通信・保存・URL・クリップボード）に頼む口 | `core`・`store`・`host-client`・zod |
-| `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`・zod |
+| `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
-| `plugin-api` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`・`plugins/base/ui` |
+| `plugin-api` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `core`・`store`・zod（`z` を出し直す）、`ui.ts` は `ui`・`plugins/base/ui` |
 | `testing` | テストで組む入口（`matomezu/testing`） | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
+| `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`index.ts` はホストのエンジン用、`ui.ts` は画面用） | `plugin-api`・React |
 
 - 土台（`core`・`store`・`ui`）は、プラグインを受け取って組み立て・動かす枠と、その枠が決める言葉（ステージ・ページ・置いたアイテムの外枠など）を持ち、具体的な機能は持たない。プラグインを読まない
 - 【未実装】土台の中の、プラグインしか使っていない処理（`core/place`・`core/text`・`core/toolbox`）は base へ移し、道具の中身（select・reparent・hand と組 paper）は paper が定義する。core のモジュールで、プラグインしか読んでいない物が無いことを `test/rules.test.ts` が見張る
 - 入口（`plugin-api`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない
+- 例外は `plugin-modules`。`plugin-api` を読んでよいのは `plugin-modules` だけで、`plugin-modules` を読んでよいのはホストのエンジン（`engine/engine.ts`）と画面の入口（`main.tsx`）だけ
 - プラグインのファイルは役割で見る。見た目（`.tsx` と `ui.ts`）は `ui` と同じものを読んでよく、ほかは `core`・`store`・zod だけ
 - 見た目でないファイルは、見た目を読まない
 - これらは `test/rules.test.ts` が見張る

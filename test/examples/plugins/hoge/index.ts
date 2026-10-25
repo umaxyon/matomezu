@@ -40,6 +40,9 @@ export const HOGE = definePlugin({
   messages: HOGE_MESSAGES,
 })
 
+// ホストが動的に取り込むときは、default で出したプラグインを受け取る
+export default HOGE
+
 declare module "matomezu/catalog" {
   interface MessageTable extends Readonly<typeof HOGE_MESSAGES> {}
   interface CommandTable {

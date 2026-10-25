@@ -134,9 +134,33 @@ func send(t *testing.T, method, url, body string, headers map[string]string) (in
 	return res.StatusCode, strings.TrimSpace(string(b))
 }
 
+func TestServesTheAddedPluginsToTheScreen(t *testing.T) {
+	s := newServerWith(t, Options{Plugins: []Plugin{
+		{ID: "a", UI: []byte("export default 1"), CSS: []byte(".a{}")},
+		{ID: "@x/b", UI: []byte("export default 2")},
+	}})
+	want := `"plugins":[{"id":"a","ui":"api/plugins/0/ui.js","css":"api/plugins/0/ui.css"},{"id":"@x/b","ui":"api/plugins/1/ui.js"}]`
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.Contains(body, want) {
+		t.Fatalf("data = %d %s", code, body)
+	}
+	for path, body := range map[string]string{"0/ui.js": "export default 1", "0/ui.css": ".a{}", "1/ui.js": "export default 2"} {
+		if code, got := send(t, "GET", s.URL+"/api/plugins/"+path, "", nil); code != 200 || got != body {
+			t.Fatalf("%s = %d %s", path, code, got)
+		}
+	}
+	for _, path := range []string{"1/ui.css", "2/ui.js", "x/ui.js", "0/other.js"} {
+		if code, _ := send(t, "GET", s.URL+"/api/plugins/"+path, "", nil); code != 404 {
+			t.Fatalf("%s = %d, want 404", path, code)
+		}
+	}
+	if code, _ := send(t, "GET", s.URL+"/api/plugins/0/ui.js", "", map[string]string{"Origin": "http://evil.example"}); code != 403 {
+		t.Fatalf("from another site = %d, want 403", code)
+	}
+}
+
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"settings":null}` {
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"plugins":[],"settings":null}` {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b1","title":"A"},"base":0}`, nil); code != 200 || body != `{"version":1}` {
@@ -152,7 +176,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	if code, _ := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b2"},"base":2}`, nil); code != 400 {
 		t.Fatalf("a book of another id = %d", code)
 	}
-	want := `{"books":[{"id":"b1","book":{"id":"b1","title":"B"},"version":2}],"settings":null}`
+	want := `{"books":[{"id":"b1","book":{"id":"b1","title":"B"},"version":2}],"plugins":[],"settings":null}`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
 		t.Fatalf("data = %d %s", code, body)
 	}

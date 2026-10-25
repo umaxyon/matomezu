@@ -12,6 +12,9 @@ export const HOGE_FLOW = definePlugin({
   messages: FLOW_MESSAGES,
 })
 
+// ホストが動的に取り込むときは、default で出したプラグインを受け取る
+export default HOGE_FLOW
+
 declare module "matomezu/catalog" {
   interface BookTypeTable {
     "hoge-flow/flow": typeof FLOW

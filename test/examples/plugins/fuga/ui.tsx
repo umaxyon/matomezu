@@ -16,6 +16,9 @@ export const FUGA_UI = definePluginUi(FUGA, {
   widgets: [FUGA_MINT_BUTTON],
 })
 
+// ホストが動的に取り込むときは、default で出した見た目を結んだプラグインを受け取る
+export default FUGA_UI
+
 declare module "matomezu/catalog" {
   interface WidgetTable {
     "fuga/mint-button": typeof FUGA_MINT_BUTTON

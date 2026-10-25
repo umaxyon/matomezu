@@ -31,7 +31,7 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
   core: t => t === "core" || t === "zod",
   store: t => t === "core" || t === "store" || t === "zustand/vanilla",
   "host-client": t => t === "core" || t === "store" || t === "host-client" || t === "zod",
-  engine: t => t === "core" || t === "store" || t === "plugins" || t === "zod",
+  engine: t => t === "core" || t === "store" || t === "plugins" || t === "plugin-modules" || t === "zod",
   ui: t =>
     ["core", "store", "ui", "react", "react-dom", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),
@@ -154,7 +154,7 @@ test("画面の文言は t() を通す（ui に日本語を直に書かない）
 // テストで組む入口（testing/。matomezu/testing）。中のコードは入口を読まない（入口が中を読む向きだけ）
 const ENTRY_LAYERS = ["plugin-api", "testing"]
 const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
-  "plugin-api/index.ts": t => ["core", "store"].includes(topOf(t)),
+  "plugin-api/index.ts": t => ["core", "store"].includes(topOf(t)) || t === "zod", // zod は matomezu から出し直す
   "plugin-api/ui.ts": t => topOf(t) === "ui" || t === "plugins/base/ui",
   "testing/index.ts": t => ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui",
 }
@@ -168,13 +168,35 @@ test("外に見せる入口は、決めた層だけを読み、中のコード�
       .map(t => `${f.rel} → ${t}`),
   )
   const inward = sources
-    .filter(f => !ENTRY_LAYERS.includes(layerOf(f.rel)))
+    .filter(f => !ENTRY_LAYERS.includes(layerOf(f.rel)) && layerOf(f.rel) !== "plugin-modules")
     .flatMap(f =>
       importsOf(f)
         .filter(t => ENTRY_LAYERS.includes(topOf(t)))
         .map(t => `${f.rel} → ${t}`),
     )
   expect([...bad, ...inward]).toEqual([])
+})
+
+// 追加プラグインが借りる、名前から実物を引く表（plugin-modules/）: プラグイン API の入口を読んでよいのはここだけで、ここを読んでよいのはホストのエンジンと画面の入口だけ
+const MODULES_ALLOWED = ["plugin-api", "plugin-api/ui", "plugin-modules", "react", "react/jsx-runtime"]
+const MODULES_READERS = ["engine/engine.ts", "main.tsx"]
+
+test("plugin-modules は入口と React だけを読み、ホストのエンジンと画面の入口だけが読む", () => {
+  const own = sources.filter(f => layerOf(f.rel) === "plugin-modules")
+  const bad = own.flatMap(f =>
+    importsOf(f)
+      .filter(t => !MODULES_ALLOWED.includes(t === "plugin-api/index" ? "plugin-api" : t))
+      .map(t => `${f.rel} → ${t}`),
+  )
+  const readers = sources
+    .filter(f => layerOf(f.rel) !== "plugin-modules" && !MODULES_READERS.includes(f.rel))
+    .flatMap(f =>
+      importsOf(f)
+        .filter(t => topOf(t) === "plugin-modules")
+        .map(t => `${f.rel} → ${t}`),
+    )
+  expect(own.length).toBeGreaterThan(0)
+  expect([...bad, ...readers]).toEqual([])
 })
 
 // 追加プラグインと、それを組むアプリの見本（test/examples）: 中（web/src）を直に読まず、プラグイン API の名前（アプリのテストは matomezu/testing も）だけを読む。
@@ -205,7 +227,7 @@ test("見本はプラグイン API の名前だけを読み、プラグインど
           const [top, name, ...rest] = target.split("/")
           return top !== "plugins" || !name || !(rest.length === 0 || ["index", "ui"].includes(rest.join("/")))
         }
-        const always = ["matomezu", "matomezu/catalog", "zod"]
+        const always = ["matomezu", "matomezu/catalog"] // zod も matomezu から読む
         const forViews = ["matomezu/ui", "react"]
         const forApps = ["matomezu/testing", "bun:test", "@testing-library/react"]
         if (always.includes(s)) return false

@@ -16,6 +16,9 @@ export const HOGE_UI = definePluginUi(HOGE, {
   overrides: { dialogViews: { "book.new": MyNewBookDialog } },
 })
 
+// ホストが動的に取り込むときは、default で出した見た目を結んだプラグインを受け取る
+export default HOGE_UI
+
 declare module "matomezu/catalog" {
   interface WidgetTable {
     "hoge/buttons": typeof HOGE_BUTTONS

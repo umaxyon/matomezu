@@ -7,8 +7,8 @@ import {
   defineShape,
   defineTheme,
   type Point,
+  z,
 } from "matomezu"
-import { z } from "zod"
 
 export const STAR_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "fuga/star.add" })
 export const STAR_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "fuga/star.edit" })

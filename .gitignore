@@ -16,5 +16,5 @@ node_modules/
 
 # 開発用の常駐のアプリのフォルダ（bun run dev）
 /.dev-home/
-/e2e/.home/
-/e2e/.matomezu
+/e2e/.home-*/
+/e2e/.matomezu-*

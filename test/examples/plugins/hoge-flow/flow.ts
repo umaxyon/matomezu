@@ -1,7 +1,6 @@
 // 追加プラグインのブックのタイプの見本: 自分の形（ひし形）と設定の項目（流れの向き）を持ち、ビルトインの見せ方（紙）・箱・線・線の設定を id で選ぶ
 
-import { BookLookSchema, defineBookType, defineDialogWith, defineSetting, defineShape, type Point } from "matomezu"
-import { z } from "zod"
+import { BookLookSchema, defineBookType, defineDialogWith, defineSetting, defineShape, type Point, z } from "matomezu"
 
 export const DIAMOND_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "hoge-flow/diamond.add" })
 export const DIAMOND_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "hoge-flow/diamond.edit" })

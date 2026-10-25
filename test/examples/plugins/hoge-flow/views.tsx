@@ -1,7 +1,7 @@
 // ひし形のビュー・ダイアログと、流れの向きのコンポーネント
 
+import type { z } from "matomezu"
 import { Dialog, type DialogProps, type ItemViewProps, type SettingControlProps, useT } from "matomezu/ui"
-import type { z } from "zod"
 import type { DIAMOND } from "./flow"
 
 type DiamondProps = z.output<(typeof DIAMOND)["props"]>

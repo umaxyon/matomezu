@@ -3,7 +3,10 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings"} 置いてあるブックと設定  … 画面から
+//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "plugins": [{"id", "ui", "css"}]} 置いてあるブックと設定、
+//	                      追加プラグイン（ui と css は画面が読む道。css は無ければ空）                                        … 画面から
+//	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS                          … 画面から
+//	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
 //	GET  /api/events      SSE。世界の変わり目の知らせ（hub.go）                                    … 画面から
 //	POST /api/perform     {"action", "args", "on", "lang", "ids", "client", "seq"} アクションを行い、{"ok", "reason", "result"} を返す。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
@@ -36,6 +39,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -56,6 +60,14 @@ type Options struct {
 	URL     string        // 画面の URL
 	Open    func() error  // 画面をブラウザで開く（無ければ開かない）
 	Wait    time.Duration // ブラウザで開いた画面がつながるのを待つ長さ（0 なら windowWait）
+	Plugins []Plugin      // 追加プラグイン（ホストのエンジンにはもう足したもの）
+}
+
+// Plugin は画面に配る追加プラグイン 1 つ
+type Plugin struct {
+	ID  string
+	UI  []byte // 画面で import() する JS（ES モジュール）
+	CSS []byte // 無ければ nil
 }
 
 // windowWait は、ブラウザで開いた画面がつながるのを待つ既定の長さ
@@ -78,6 +90,7 @@ func Handler(o Options) http.Handler {
 	}))
 	mux.Handle("GET /api/data", sameOrigin(o.data))
 	mux.Handle("GET /api/events", sameOrigin(o.events))
+	mux.Handle("GET /api/plugins/{n}/{file}", sameOrigin(o.pluginFile))
 	mux.Handle("POST /api/perform", sameOrigin(o.perform))
 	mux.Handle("PUT /api/books/{id}", sameOrigin(o.putBook))
 	mux.Handle("POST /api/view", sameOrigin(o.view))
@@ -138,7 +151,39 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 	if settings == nil {
 		settings = json.RawMessage("null")
 	}
-	writeJSON(w, map[string]any{"books": books, "settings": settings})
+	type plugin struct {
+		ID  string `json:"id"`
+		UI  string `json:"ui"`
+		CSS string `json:"css,omitempty"`
+	}
+	plugins := make([]plugin, len(o.Plugins))
+	for i, p := range o.Plugins {
+		plugins[i] = plugin{ID: p.ID, UI: fmt.Sprintf("api/plugins/%d/ui.js", i)}
+		if p.CSS != nil {
+			plugins[i].CSS = fmt.Sprintf("api/plugins/%d/ui.css", i)
+		}
+	}
+	writeJSON(w, map[string]any{"books": books, "settings": settings, "plugins": plugins})
+}
+
+func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {
+	n, err := strconv.Atoi(r.PathValue("n"))
+	if err != nil || n < 0 || n >= len(o.Plugins) {
+		http.NotFound(w, r)
+		return
+	}
+	p := o.Plugins[n]
+	w.Header().Set("Cache-Control", "no-cache")
+	switch {
+	case r.PathValue("file") == "ui.js":
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write(p.UI)
+	case r.PathValue("file") == "ui.css" && p.CSS != nil:
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = w.Write(p.CSS)
+	default:
+		http.NotFound(w, r)
+	}
 }
 
 func (o Options) events(w http.ResponseWriter, r *http.Request) {

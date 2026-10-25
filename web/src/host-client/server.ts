@@ -3,7 +3,8 @@
 // 画面は、常駐が決めた世界（確かめた世界）の上で、まだ確かめられていない自分のアクションを行い直したものを出す（store の receive）。
 // 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。
 // 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
-// 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く
+// 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く。
+// 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）
 import { z } from "zod"
 import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
@@ -20,6 +21,8 @@ export interface Net {
   events(url: string): Events
   focused(): boolean // 窓がフォーカスされているか
   onFocus(listener: () => void): () => void // 窓がフォーカスされたら呼ぶ。止める関数を返す
+  importModule(url: string): Promise<{ default?: unknown }> // ES モジュールを読む
+  addStyle(url: string): void // CSS を読む
 }
 export interface Events {
   on(name: string, listener: (data: string) => void): void
@@ -43,6 +46,13 @@ const browserNet: Net = {
   onFocus: listener => {
     window.addEventListener("focus", listener)
     return () => window.removeEventListener("focus", listener)
+  },
+  importModule: url => import(new URL(url, document.baseURI).href),
+  addStyle: url => {
+    const link = document.createElement("link")
+    link.rel = "stylesheet"
+    link.href = url
+    document.head.append(link)
   },
 }
 
@@ -89,6 +99,7 @@ export function showIn(instance: AppStore, show: z.infer<typeof ShowSchema>) {
 const DataSchema = z.object({
   books: z.array(z.object({ id: z.string(), book: z.unknown(), version: z.number().int() })),
   settings: z.unknown(),
+  plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
 })
 const HelloSchema = z.object({ client: z.string() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
@@ -103,6 +114,7 @@ export interface ServerClient extends HostClient {
 export function serverClient(net: Net = browserNet): ServerClient {
   const confirmed = new Map<string, { book: unknown; version: number }>()
   let settings: unknown
+  let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: { seq: number; done: DoneAction }[] = []
   let client = ""
   let seq = 0
@@ -128,6 +140,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       if (!have || have.version < b.version) confirmed.set(b.id, { book: b.book, version: b.version })
     }
     settings = data.settings ?? undefined
+    plugins = data.plugins ?? []
   }
 
   // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
@@ -179,7 +192,13 @@ export function serverClient(net: Net = browserNet): ServerClient {
     load: async (): Promise<Loaded> => {
       await listen()
       await read()
-      return { books: [...confirmed.values()].map(e => e.book), settings }
+      const added = await Promise.all(
+        plugins.map(async p => {
+          if (p.css) net.addStyle(p.css)
+          return (await net.importModule(p.ui)).default
+        }),
+      )
+      return { books: [...confirmed.values()].map(e => e.book), settings, plugins: added }
     },
     observe: done => {
       seq += 1

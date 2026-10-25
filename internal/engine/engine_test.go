@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/umaxyon/matomezu/internal/plugin"
 )
 
 const book = `{"type":"drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"a4","orientation":"landscape"}]}`
@@ -155,5 +157,52 @@ func TestConnectsItemsWithALine(t *testing.T) {
 	}
 	if !strings.Contains(string(out.Books[0]), `{"id":"l1","item":"connector.line","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`) {
 		t.Fatalf("book = %s", out.Books[0])
+	}
+}
+
+func usePlugin(t *testing.T, e *Engine, dir string) []string {
+	t.Helper()
+	b, err := plugin.Build(dir, e.Modules())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids, err := e.Use([]*plugin.Bundle{b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ids
+}
+
+func TestUsesAnAddedPlugin(t *testing.T) {
+	e := newEngine(t)
+	if ids := usePlugin(t, e, "../../test/examples/plugins/hoge-flow"); len(ids) != 1 || ids[0] != "hoge-flow" {
+		t.Fatalf("ids = %v", ids)
+	}
+	if c := string(e.AICatalog()); !strings.Contains(c, `"id":"hoge-flow/diamond"`) || !strings.Contains(c, `"hoge-flow/flow"`) {
+		t.Fatalf("the AI catalog lacks the added plugin: %s", c)
+	}
+	out, err := e.Perform(Input{
+		Action: "book.create",
+		Args:   json.RawMessage(`{"title":"Flow","type":"hoge-flow/flow"}`),
+		Lang:   "ja",
+		IDs:    []string{"fb", "fp"},
+	})
+	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"type":"hoge-flow/flow","id":"fb"`) {
+		t.Fatalf("book.create = %+v %s, %v", out, out.Books, err)
+	}
+}
+
+func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
+	e := newEngine(t)
+	b := &plugin.Bundle{Dir: "bad", Engine: `module.exports.default = { id: "bad", items: [{ id: "shape.box" }] }`}
+	if _, err := e.Use([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "E301") {
+		t.Fatalf("err = %v", err)
+	}
+	none := &plugin.Bundle{Dir: "none", Engine: `module.exports.x = 1`}
+	if _, err := e.Use([]*plugin.Bundle{none}); err == nil || !strings.Contains(err.Error(), "export the plugin as default") {
+		t.Fatalf("err = %v", err)
+	}
+	if out, err := e.Perform(place("p")); err != nil || !out.OK {
+		t.Fatalf("Perform after a refused plugin = %+v, %v", out, err)
 	}
 }

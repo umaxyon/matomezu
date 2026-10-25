@@ -30,6 +30,8 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
       focus = l
       return () => {}
     },
+    importModule: async url => ({ default: { id: url } }),
+    addStyle: () => {},
   })
   const emit = (name: string, v: unknown) => listeners.get(name)?.(JSON.stringify(v))
   return { host, sent, emit, fail: () => onError(), reads: () => reads, focus: () => focus() }
@@ -65,7 +67,39 @@ test("読むと、置いてあるブックと設定を返す", async () => {
   const s = fakeServer({ books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: { lang: "en" } })
   const loading = s.host.load()
   s.emit("hello", { client: "c1" })
-  expect(await loading).toEqual({ books: [SAMPLE_BOOKS[0]], settings: { lang: "en" } })
+  expect(await loading).toEqual({ books: [SAMPLE_BOOKS[0]], settings: { lang: "en" }, plugins: [] })
+})
+
+test("常駐が足した追加プラグインは、CSS を読み、見た目の JS を読んで default で出したものを返す", async () => {
+  const styles: string[] = []
+  const imported: string[] = []
+  const listeners = new Map<string, (data: string) => void>()
+  const host = serverClient({
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          books: [],
+          settings: null,
+          plugins: [
+            { id: "a", ui: "api/plugins/0/ui.js", css: "api/plugins/0/ui.css" },
+            { id: "b", ui: "api/plugins/1/ui.js" },
+          ],
+        }),
+      ),
+    events: () => ({ on: (name, l) => listeners.set(name, l), onError: () => {}, close: () => {} }),
+    focused: () => false,
+    onFocus: () => () => {},
+    importModule: async url => {
+      imported.push(url)
+      return { default: { id: url } }
+    },
+    addStyle: url => styles.push(url),
+  })
+  const loading = host.load()
+  listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
+  expect((await loading).plugins).toEqual([{ id: "api/plugins/0/ui.js" }, { id: "api/plugins/1/ui.js" }])
+  expect(imported).toEqual(["api/plugins/0/ui.js", "api/plugins/1/ui.js"])
+  expect(styles).toEqual(["api/plugins/0/ui.css"])
 })
 
 test("画面で行ったアクションは、振った id と、つながりの id と順の番号を添えて常駐に送る", async () => {
@@ -136,6 +170,8 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
     events: () => ({ on: (name, l) => listeners.set(name, l), onError: () => {}, close: () => {} }),
     focused: () => false,
     onFocus: () => () => {},
+    importModule: async () => ({}),
+    addStyle: () => {},
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))

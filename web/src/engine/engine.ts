@@ -1,5 +1,7 @@
 // 常駐（Go）の中で動くアクションの入口: ビルトインプラグインで機能台帳を組み、JSON で受けた世界（ブックと設定）にアクションを行い、変わったものを JSON で返す。
 // 常駐は、これをまとめたファイル（internal/engine/engine.js。bun run build:engine）を埋め込み、goja で動かす。
+// 追加プラグインは、常駐が変換した JS を同じ goja で動かして受け取り、matomezuUse でビルトインプラグインに足して組み直す。
+// 追加プラグインが借りる実物（plugin-modules）は、読み込んだときに globalThis.__matomezuModules に置く（変換した JS はここから取り出す）
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
 import { restoreBooks } from "../core/book"
@@ -9,12 +11,18 @@ import { NO_KEY_CHANGES } from "../core/keys"
 import { performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { restoreSettings } from "../core/settings"
+import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
-import { assemble } from "../store/plugin"
+import { assemble, type Plugin } from "../store/plugin"
 
-const assembled = assemble(BUILTIN, "master")
-const { home } = assembled
-const catalog = assembled.catalog.core
+;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
+
+let assembled = assemble(BUILTIN, "master")
+
+// 追加プラグインを足して組み直す。食い違いがあれば投げ、前の組み立てのまま
+function use(added: readonly Plugin[]) {
+  assembled = assemble([...BUILTIN, ...added], "master")
+}
 
 // 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
 interface Input {
@@ -35,6 +43,8 @@ type Output =
 declare const crypto: { randomUUID(): string }
 
 function perform(input: Input): Output {
+  const { home } = assembled
+  const catalog = assembled.catalog.core
   const lang = detectLang([input.lang], [...catalog.languages.keys()])
   const ids = [...(input.ids ?? [])]
   const books = Object.fromEntries(restoreBooks(catalog, input.books ?? []).map(b => [b.id, b]))
@@ -59,6 +69,7 @@ function perform(input: Input): Output {
 }
 // AI 向けの機能台帳: 機能台帳から AI に見せるアクション・アイテム・テーマ・代表色を絞って書き出したもの（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
 function aiCatalog() {
+  const catalog = assembled.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
   return {
     actions: [...catalog.actions.values()].map(a => ({
@@ -77,6 +88,11 @@ function aiCatalog() {
     colors: PALETTE.map(id => ({ id, meaning: PALETTE_MEANINGS[id] })),
   }
 }
+
+;(globalThis as { matomezuModuleNames?: () => string }).matomezuModuleNames = () =>
+  JSON.stringify({ engine: Object.keys(MODULES), ui: UI_NAMES })
+
+;(globalThis as { matomezuUse?: (added: readonly Plugin[]) => void }).matomezuUse = use
 
 ;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
 

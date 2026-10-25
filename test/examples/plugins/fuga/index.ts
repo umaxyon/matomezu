@@ -24,6 +24,9 @@ export const FUGA = definePlugin({
   messages: FUGA_MESSAGES,
 })
 
+// ホストが動的に取り込むときは、default で出したプラグインを受け取る
+export default FUGA
+
 declare module "matomezu/catalog" {
   interface BookTypeTable {
     "fuga/board": typeof BOARD
