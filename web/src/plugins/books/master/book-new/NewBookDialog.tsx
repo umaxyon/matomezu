@@ -28,7 +28,8 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        if (createBook(stage, { title, type })) onDone()
+        // 選べるタイプは動いている機能台帳から来る（型の側に無い追加プラグインのタイプもある）ので、型を外して渡す
+        if (createBook(stage, { title, type: type as never })) onDone()
       }}
     >
       <Field label={t("Book name")}>

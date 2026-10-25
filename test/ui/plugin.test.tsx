@@ -73,7 +73,7 @@ describe("見た目のプラグイン", () => {
       </MatomezuProvider>,
     )
     act(() => {
-      instance.actions.createBook("s1", { title: "メモ", type: "notes/note" })
+      instance.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })
     })
     expect(screen.getByText("note view")).toBeTruthy()
     act(() => instance.actions.command("s1", "stage.home"))

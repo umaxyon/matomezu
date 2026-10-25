@@ -104,8 +104,8 @@ describe("機能台帳", () => {
 
   test("ブックの形・アイテムの項目・アクションの引数は、JSON Schema に書き出せる（LLM に見せる形）", () => {
     expect(z.toJSONSchema(CORE_CATALOG.bookSchema)).toBeTruthy()
-    for (const def of [...BUILTIN_PARTS.items.map(i => i.props), ...BUILTIN_PARTS.actions.map(a => a.args)])
-      expect(z.toJSONSchema(def)).toBeTruthy()
+    const shown = BUILTIN_PARTS.actions.map(a => a.describeArgs?.(CORE_CATALOG) ?? a.args) // AI 向けの機能台帳と同じ形
+    for (const def of [...BUILTIN_PARTS.items.map(i => i.props), ...shown]) expect(z.toJSONSchema(def)).toBeTruthy()
   })
 
   test("ブックのデータは、そのタイプの形で検査する", () => {
@@ -221,7 +221,7 @@ describe("機能台帳ごとに別の世界", () => {
     const made = perform(
       library,
       "book.create",
-      { title: "メモ", type: "notes" },
+      { title: "メモ", type: "notes" as never },
       { catalog: catalog, home: "master", lang: "ja", newId: () => "n1" },
     )
     expect(made).toMatchObject({ ok: true, result: { book: "n1" } })
@@ -230,7 +230,7 @@ describe("機能台帳ごとに別の世界", () => {
     const refused = perform(
       library,
       "book.create",
-      { title: "メモ", type: "notes" },
+      { title: "メモ", type: "notes" as never },
       { catalog: CORE_CATALOG, home: "master", lang: "ja", newId: () => "n1" },
     )
     expect(refused).toEqual({ ok: false, reason: "refused" })

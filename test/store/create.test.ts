@@ -54,13 +54,13 @@ describe("インスタンスを組み立てる", () => {
   test("渡したプラグインの定義だけを使う", () => {
     const instance = createMatomezu({ plugins: [...BUILTIN, notes], partial: true, home: "master", newId: () => "n1" })
     expect(instance.catalog.core.bookTypes.has("notes/note")).toBe(true)
-    expect(instance.actions.createBook("s1", { title: "メモ", type: "notes/note" })).toBe(true)
+    expect(instance.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })).toBe(true)
     expect(instance.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "notes/note", book: "n1" })
     expect(untyped(instance.actions).command("s1", "notes/shoot")).toBe(true)
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes/shot", stage: "s1" })
 
     const plain = createMatomezu({ plugins: BUILTIN })
-    expect(plain.actions.createBook("s1", { title: "メモ", type: "notes/note" })).toBe(false)
+    expect(plain.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })).toBe(false)
     expect(thrown(() => untyped(plain.actions).command("s1", "notes/shoot"))).toMatchObject({ code: "E107" })
     expect(thrown(() => untyped(plain.actions).openDialog("s1", "notes/shot"))).toMatchObject({ code: "E108" })
   })
