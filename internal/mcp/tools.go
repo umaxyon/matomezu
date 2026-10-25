@@ -54,7 +54,7 @@ var readTools = []readTool{
 	{
 		"actions",
 		"List what can be done now (it changes when plugins are added or removed): the actions (id, target, title, description, and args as JSON Schema) to call with perform, " +
-			"the items with their props and default sizes, the themes, the colors by role, the languages and the skins.",
+			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the languages and the skins.",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
 	},

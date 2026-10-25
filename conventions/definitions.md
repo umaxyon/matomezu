@@ -18,6 +18,7 @@
 | ダイアログ（`DialogDef`） | 開くダイアログの id | `store/dialogs.ts` |
 | 文言（`MessageSet`） | 画面に出す文と訳 | `core/i18n` |
 
+- 定義の種類（文言と言語を除く上の表）の一覧は `core/catalog.ts` の `PARTS`（欄の名前・機能台帳の段・誤りの文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その段の層が `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインの欄（`PluginParts`）・機能台帳の core と store の段・id の頭と重なりの検査は、この一覧から作る
 - 定義は `defineX()` で書く。React を使わない（描き方はプラグインの見た目で結ぶ）
 - 機能台帳の core の段は定義の組から `buildCoreCatalog` で作り、作ったあとは変えない。`checkCoreCatalog` が表どうしの参照を確かめ、食い違えば作らない
 - core の関数は使う表を最初の引数（`catalog`。機能台帳の core の段）で受け取り、アクションは `ctx.catalog` で受け取る

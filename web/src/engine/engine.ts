@@ -67,7 +67,7 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
-// AI 向けの機能台帳: 機能台帳から AI に見せるアクション・アイテム・テーマ・代表色を絞って書き出したもの（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
+// AI 向けの機能台帳: 機能台帳から AI に見せるアクション・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
 function aiCatalog() {
   const catalog = assembled.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
@@ -79,10 +79,18 @@ function aiCatalog() {
       description: a.aiDescription,
       args: z.toJSONSchema(a.describeArgs?.(catalog) ?? a.args, { io: "input", unrepresentable: "any" }),
     })),
+    bookTypes: [...catalog.bookTypes.values()].map(t => ({
+      id: t.id,
+      title: en(t.title),
+      creatable: !t.single, // book.create で作れるか（1 冊だけのタイプは作れない）
+      pages: t.pages !== null,
+      items: t.items.allowed, // ページに置けるアイテム
+    })),
     items: [...catalog.items.values()].map(i => ({
       id: i.id,
+      kind: i.kind, // shape は置く形、connector は 2 つの形をつなぐもの
       title: en(i.title),
-      size: "size" in i ? i.size : null,
+      size: i.kind === "shape" ? i.size : null,
       props: z.toJSONSchema(i.props, { io: "input", unrepresentable: "any" }),
     })),
     themes: [...catalog.themes.values()].map(th => ({ id: th.id, title: en(th.title) })),

@@ -3,7 +3,7 @@
 // ブックのデータの形は、ブックのタイプが自分で持つ欄に、タイプが選んだものから組み立てた欄（ページと、そこに置けるアイテム・設定の項目）を足して作る（buildBookSchemas）
 
 import { z } from "zod"
-import type { ItemId, ItemTable } from "./catalog"
+import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
 import type { ActionDef } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
@@ -23,16 +23,22 @@ export type { ActionId, BookTypeId, ItemId, PaperId, SettingId, SkinId, ThemeId 
 // アイテムの、置いたものが持つ項目の型
 export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
 
-// 表を作るもとの、定義の組
-export interface CoreCatalogParts {
-  bookTypes: readonly BookTypeDef[]
-  items: readonly ItemDef[]
-  actions: readonly ActionDef[]
-  settings: readonly SettingDef[]
-  presentations: readonly PresentationDef[]
-  themes: readonly ThemeDef[]
-  papers: readonly PaperDef[]
-  skins: readonly SkinDef[] // アプリの枠の見た目（見る人の設定で選ぶ）
+// core の段の定義の種類の、定義の型（スキンはアプリの枠の見た目で、見る人の設定で選ぶ）
+declare module "./catalog" {
+  interface PartDefTable {
+    bookTypes: BookTypeDef
+    items: ItemDef
+    actions: ActionDef
+    settings: SettingDef
+    presentations: PresentationDef
+    themes: ThemeDef
+    papers: PaperDef
+    skins: SkinDef
+  }
+}
+
+// 表を作るもとの、定義の組: core の段の種類ごとの定義の並びと、文言・言語
+export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable[K][] } & {
   messages: readonly MessageSet[] // 土台の文言（MESSAGES）は、いつも表に入る
   languages: readonly LanguagePack[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
 }
@@ -43,18 +49,10 @@ export interface BookSchemas {
   page: z.ZodObject | null
 }
 
-// 作った表。id で引く。bookSchema は、表のブックのタイプの形を 1 つに束ねた、ブックのデータの形
-export interface CoreCatalog {
+// 作った表。種類ごとに id で引く。bookSchema は、表のブックのタイプの形を 1 つに束ねた、ブックのデータの形
+export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDefTable[K]> } & {
   parts: CoreCatalogParts
-  bookTypes: ReadonlyMap<string, BookTypeDef>
   schemas: ReadonlyMap<string, BookSchemas>
-  items: ReadonlyMap<string, ItemDef>
-  actions: ReadonlyMap<string, ActionDef>
-  settings: ReadonlyMap<string, SettingDef>
-  presentations: ReadonlyMap<string, PresentationDef>
-  themes: ReadonlyMap<string, ThemeDef>
-  papers: ReadonlyMap<string, PaperDef>
-  skins: ReadonlyMap<string, SkinDef>
   messages: Messages
   languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語の id → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
@@ -69,17 +67,14 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   const schemas = new Map(parts.bookTypes.map(t => [t.id, buildBookSchemas(parts, t)]))
   const [first, ...rest] = [...schemas.values()].map(s => s.book)
   if (!first) return fail("E015")
+  // 種類ごとの表（Object.fromEntries は欄の型を残さないので、種類ごとの定義の型を言い張る）
+  const tables = Object.fromEntries(partsOf("core").map(k => [k, byId<{ id: string }>(parts[k])])) as unknown as {
+    [K in CorePart]: ReadonlyMap<string, PartDefTable[K]>
+  }
   return {
+    ...tables,
     parts,
-    bookTypes: byId(parts.bookTypes),
     schemas,
-    items: byId(parts.items),
-    actions: byId(parts.actions),
-    settings: byId(parts.settings),
-    presentations: byId(parts.presentations),
-    themes: byId(parts.themes),
-    papers: byId(parts.papers),
-    skins: byId(parts.skins),
     messages: mergeMessages(parts),
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
@@ -151,20 +146,10 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   const actions = byId(parts.actions)
   const settings = byId(parts.settings)
   const themes = byId(parts.themes)
-  const tables = {
-    bookType: parts.bookTypes,
-    item: parts.items,
-    action: parts.actions,
-    setting: parts.settings,
-    presentation: parts.presentations,
-    theme: parts.themes,
-    paper: parts.papers,
-    skin: parts.skins,
-  }
-  for (const [name, defs] of Object.entries(tables)) {
+  for (const k of partsOf("core")) {
     const seen = new Set<string>()
-    for (const d of defs as readonly { id: string }[]) {
-      if (seen.has(d.id)) problems.push(problem("E001", { kind: name, id: d.id }))
+    for (const d of parts[k] as readonly { id: string }[]) {
+      if (seen.has(d.id)) problems.push(problem("E001", { kind: PARTS[k].label, id: d.id }))
       seen.add(d.id)
     }
   }

@@ -2,41 +2,16 @@
 // 型では、機能台帳の型の側に書き足した id と、渡したプラグインの id がそろっているかを確かめる（型と実物のずれを、書いた時点で捕まえる）。
 // 1 つのプロジェクトの createMatomezu には、型を書き足したプラグインを全部渡す。わざと減らすインスタンス（テストなど）は partial: true
 
-import type {
-  ActionTable,
-  BookTypeTable,
-  CommandTable,
-  DialogTable,
-  ItemTable,
-  MessageTable,
-  PaperTable,
-  PresentationTable,
-  SettingTable,
-  SkinTable,
-  ThemeTable,
-} from "../core/catalog"
+import type { MessageTable, Part, PartTables } from "../core/catalog"
 import type { MESSAGES } from "../core/i18n/messages"
-import type { IdsOf, Part, Plugin } from "./plugin"
+import type { IdsOf, Plugin } from "./plugin"
 import { createMatomezuInstance, type MatomezuInstance, type StoreOptions } from "./store"
-
-interface Tables {
-  bookTypes: BookTypeTable
-  items: ItemTable
-  actions: ActionTable
-  settings: SettingTable
-  presentations: PresentationTable
-  themes: ThemeTable
-  papers: PaperTable
-  skins: SkinTable
-  commands: CommandTable
-  dialogs: DialogTable
-}
 
 // 機能台帳の型の側と合わない id を「種類:id」の文字にする。書き足したのに渡していないものと、渡したのに書き足していないもの
 type Gaps<P> = {
   [K in Part]:
-    | `${K}:${Exclude<keyof Tables[K], IdsOf<P, K>> & string}`
-    | `${K}:${Exclude<IdsOf<P, K>, keyof Tables[K]> & string}`
+    | `${K}:${Exclude<keyof PartTables[K], IdsOf<P, K>> & string}`
+    | `${K}:${Exclude<IdsOf<P, K>, keyof PartTables[K]> & string}`
 }[Part]
 // 文言の鍵の食い違い（土台の文言は、いつも表に入る）
 type MessageKeysOf<P> = P extends { messages?: infer M } ? (M extends object ? keyof M : never) : never

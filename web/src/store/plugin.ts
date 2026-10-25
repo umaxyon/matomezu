@@ -1,15 +1,9 @@
 // プラグイン: 1 つの部品の定義の組（ブックのタイプ・アイテム・アクション・テーマ・紙・コマンド・ダイアログ・キーの既定の割り当て）。React を使わない部分だけを持つ。
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
-import { buildCoreCatalog, type CoreCatalog } from "../core/core-catalog"
-import type { ActionDef } from "../core/def/action"
-import type { BookTypeDef } from "../core/def/book-type"
-import type { ItemDef } from "../core/def/item"
-import type { PaperDef } from "../core/def/paper"
-import type { PresentationDef } from "../core/def/presentation"
-import type { SettingDef } from "../core/def/setting"
-import type { Scheme, SkinDef } from "../core/def/skin"
-import type { ThemeDef } from "../core/def/theme"
+import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
+import { buildCoreCatalog, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
+import type { Scheme } from "../core/def/skin"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePack, MessageSet } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
@@ -18,36 +12,22 @@ import type { CommandDef } from "./commands/def"
 import type { DialogDef } from "./dialogs"
 import type { DefaultKey, KeyDef } from "./keys"
 
-export interface PluginParts {
-  bookTypes?: readonly BookTypeDef[]
-  items?: readonly ItemDef[]
-  actions?: readonly ActionDef[]
-  settings?: readonly SettingDef[]
-  presentations?: readonly PresentationDef[]
-  themes?: readonly ThemeDef[]
-  papers?: readonly PaperDef[]
-  skins?: readonly SkinDef[]
-  commands?: readonly CommandDef<never>[]
-  dialogs?: readonly DialogDef<unknown>[] // 開くときに渡す値の型は、ダイアログごとに違う
+// store の段の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
+declare module "../core/catalog" {
+  interface PartDefTable {
+    commands: CommandDef<never>
+    dialogs: DialogDef<unknown>
+  }
+}
+
+// プラグインが持つ定義: 定義の種類ごとの並び（core/catalog.ts の PARTS）と、文言・言語・キーの既定の割り当て
+export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } & {
   messages?: MessageSet // このプラグインの文言（defineMessages で書き、機能台帳の型の側 MessageTable に書き足す）
   languages?: readonly LanguagePack[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // キーの既定の割り当て（結べるのは自分のコマンドだけ。store/keys.ts）
 }
-export type Part = Exclude<keyof PluginParts, "messages" | "languages" | "keys">
-export const PARTS: readonly Part[] = [
-  "bookTypes",
-  "items",
-  "actions",
-  "settings",
-  "presentations",
-  "themes",
-  "papers",
-  "skins",
-  "commands",
-  "dialogs",
-]
 
-export interface Plugin extends PluginParts {
+export type Plugin = PluginParts & {
   id: string // npm のパッケージ名。足す定義の id は、どれも頭に「この id と /」を付ける
 }
 
@@ -78,7 +58,7 @@ export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUIL
 // 機能台帳の store の段: コマンド・ダイアログ・キーの既定の割り当て
 export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
-  dialogs: ReadonlySet<string>
+  dialogs: ReadonlyMap<string, DialogDef<unknown>>
   keys: readonly DefaultKey[] // キーの既定の割り当て（キーはそろえた書き方）
 }
 
@@ -103,23 +83,19 @@ export function assemble(
 ): Assembled {
   for (const p of plugins) {
     if (isBuiltin(p)) continue
-    for (const kind of PARTS)
+    for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!d.id.startsWith(`${p.id}/`)) fail("E301", { plugin: p.id, kind, id: d.id })
   }
-  const all = <K extends Part>(kind: K) =>
-    plugins.flatMap(p => (p[kind] ?? []) as NonNullable<PluginParts[K]>[number][])
+  const all = <K extends Part>(kind: K) => plugins.flatMap(p => (p[kind] ?? []) as readonly PartDefTable[K][])
   const commands = all("commands")
   const dialogs = all("dialogs")
-  const problems = [
-    ...duplicates(
-      "command",
-      commands.map(c => c.id),
+  // core の段の種類の重なりは buildCoreCatalog が確かめる
+  const problems = partsOf("store").flatMap(k =>
+    duplicates(
+      PARTS[k].label,
+      all(k).map(d => d.id),
     ),
-    ...duplicates(
-      "dialog",
-      dialogs.map(d => d.id),
-    ),
-  ]
+  )
   const dialogIds = new Set(dialogs.map(d => d.id))
   for (const i of all("items"))
     if (i.kind === "shape")
@@ -127,14 +103,7 @@ export function assemble(
         if (!dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const catalog = buildCoreCatalog({
-    bookTypes: all("bookTypes"),
-    items: all("items"),
-    actions: all("actions"),
-    settings: all("settings"),
-    presentations: all("presentations"),
-    themes: all("themes"),
-    papers: all("papers"),
-    skins: all("skins"),
+    ...(Object.fromEntries(partsOf("core").map(k => [k, all(k)])) as unknown as Pick<CoreCatalogParts, CorePart>),
     messages: plugins.flatMap(p => (p.messages ? [p.messages] : [])),
     languages: plugins.flatMap(p => p.languages ?? []),
   })
@@ -148,7 +117,7 @@ export function assemble(
   return {
     catalog: {
       core: catalog,
-      store: { commands: new Map(commands.map(c => [c.id, c])), dialogs: new Set(dialogs.map(d => d.id)), keys },
+      store: { commands: new Map(commands.map(c => [c.id, c])), dialogs: new Map(dialogs.map(d => [d.id, d])), keys },
     },
     home,
     autoSkin: autoSkin(catalog, auto),

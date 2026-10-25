@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -116,6 +117,36 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 	if !found || len(c.Items) == 0 || !strings.Contains(string(c.Items[0].Props), `"caption"`) ||
 		strings.Join(c.Languages, ",") != "en,ja" || strings.Join(c.Skins, ",") != "dark,light" {
 		t.Fatalf("ai catalog = %s", newEngine(t).AICatalog())
+	}
+}
+
+func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
+	var c struct {
+		BookTypes []struct {
+			ID        string   `json:"id"`
+			Creatable bool     `json:"creatable"`
+			Pages     bool     `json:"pages"`
+			Items     []string `json:"items"`
+		} `json:"bookTypes"`
+		Items []struct {
+			ID   string `json:"id"`
+			Kind string `json:"kind"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(newEngine(t).AICatalog(), &c); err != nil {
+		t.Fatal(err)
+	}
+	types := map[string]string{}
+	for _, b := range c.BookTypes {
+		types[b.ID] = fmt.Sprint(b.Creatable, " ", b.Pages, " ", strings.Join(b.Items, ","))
+	}
+	kinds := map[string]string{}
+	for _, i := range c.Items {
+		kinds[i.ID] = i.Kind
+	}
+	if !strings.HasPrefix(types["drawing"], "true true ") || !strings.Contains(types["drawing"], "shape.box") ||
+		!strings.HasPrefix(types["master"], "false ") || kinds["shape.box"] != "shape" || kinds["connector.line"] != "connector" {
+		t.Fatalf("book types = %v, item kinds = %v", types, kinds)
 	}
 }
 
