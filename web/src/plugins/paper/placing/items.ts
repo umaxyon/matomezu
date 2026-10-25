@@ -2,9 +2,9 @@
 import type { PagedBook } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point } from "../../../core/geom"
-import { gapOf, type PagedPage, paperSize, placedAt, withPage } from "../../../core/place/items"
+import { gapOf, paperSize, placedAt, withPage } from "../../../core/place/items"
 import type { Rect } from "../../../core/place/push"
-import { rectsOf } from "../../../core/placed"
+import { type ItemPage, rectsOf } from "../../../core/placed"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 type Drawing = PagedBook
@@ -13,14 +13,14 @@ type Drawing = PagedBook
 export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）
-export function trackDrag(catalog: CoreCatalog, page: PagedPage, id: string, prev: Point, by: Point, came: Came): Came {
+export function trackDrag(catalog: CoreCatalog, page: ItemPage, id: string, prev: Point, by: Point, came: Came): Came {
   return track(rectsOf(catalog, page), id, prev, by, came)
 }
 
 // ドラッグ中の、全部のアイテムの四角（drag.ts の dragRects。動かすアイテムと、その場で入れ替えた相手だけが動く）。描けない紙なら null
 export function dragging(
   catalog: CoreCatalog,
-  page: PagedPage,
+  page: ItemPage,
   id: string,
   by: Point,
   came: Came,

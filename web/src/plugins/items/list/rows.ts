@@ -1,7 +1,7 @@
 // リストの行の操作（データを書き換えず、新しい値を返す）。リストはページに置いたアイテムで、行は children に順に並ぶ
 
-import type { PagedBook } from "../../../core/book"
-import type { PagedPage } from "../../../core/place/items"
+import { type PagedBook, putPage } from "../../../core/book"
+import type { ItemPage } from "../../../core/placed"
 import { LIST, type ListRow, type RowProps } from "./list"
 import type { PlacedList } from "./placed"
 import { placedListWidth, type RowsLines, rewrittenLines } from "./size"
@@ -11,16 +11,16 @@ type Drawing = PagedBook
 export const rowsOf = (list: PlacedList): readonly ListRow[] => list.children ?? []
 
 // ページのリスト list（無いか、リストでなければ null）
-export function findList(book: Drawing, pageId: string, list: string): { page: PagedPage; list: PlacedList } | null {
+export function findList(book: Drawing, pageId: string, list: string): { page: ItemPage; list: PlacedList } | null {
   const page = book.pages.find(p => p.id === pageId)
   const found = page?.items?.find(i => i.id === list)
   return page && found?.item === LIST.id ? { page, list: found } : null
 }
 
 // ページのリストを next に置き換えたブック
-export function withList(book: Drawing, page: PagedPage, next: PlacedList): Drawing {
+export function withList(book: Drawing, page: ItemPage, next: PlacedList): Drawing {
   const items = (page.items ?? []).map(i => (i.id === next.id ? next : i))
-  return { ...book, pages: book.pages.map(p => (p.id === page.id ? { ...page, items } : p)) }
+  return putPage(book, { ...page, items })
 }
 
 // 行を見せる順（行の番号の並び）: チェックリストでチェック済みの行を先頭か最後に寄せる（checkedOrder。ほかの順はデータのまま。データの順は変えない）

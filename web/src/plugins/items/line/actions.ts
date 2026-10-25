@@ -1,7 +1,7 @@
 // 線のアクション: 線を引く・項目を変える・端をつなぎ替える。消すのは item.remove（形を消すと、つながる線も消える）
 
 import { z } from "zod"
-import { hasPages, type PagedBook } from "../../../core/book"
+import { hasPages, type PagedBook, putPage } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { defineAction } from "../../../core/def/action"
 import { keepApart, nextItemId } from "../../../core/place/items"
@@ -33,7 +33,7 @@ function withLine(
 ): Drawing | null {
   const items = pageItemsOf(page)
   const next = items.some(i => i.id === line.id) ? items.map(i => (i.id === line.id ? line : i)) : [...items, line]
-  const changed = { ...book, pages: book.pages.map(p => (p.id === page.id ? { ...page, items: next } : p)) }
+  const changed = putPage(book, { ...page, items: next })
   return keepApart(catalog, changed, page.id, stay, stay === line.from ? line.to : line.from)
 }
 

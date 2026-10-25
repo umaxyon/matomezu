@@ -18,7 +18,7 @@ const NOTE = defineBookType({
   create: init => ({ type: "notes/note" as const, ...init }),
   pages: null,
   items: { allowed: [], defaults: [] },
-  actions: { allowed: ["notes/rename"], defaults: ["notes/rename"] },
+  actions: { allowed: ["notes/rename", "notes/break"], defaults: ["notes/rename", "notes/break"] },
   theme: "standard",
   presentation: "master", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],
@@ -32,7 +32,17 @@ const RENAME = defineAction({
   args: z.strictObject({ title: z.string().min(1) }),
   run: (book, args) => ({ next: { ...book, title: args.title }, result: { was: (book as { title?: string }).title } }),
 })
-const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME] })
+// 型を言い張って、タイプの形に無い欄を書くアクション
+const BREAK = defineAction({
+  id: "notes/break",
+  title: "Drawing",
+  aiDescription: "Write a field the notes book does not have.",
+  target: "book",
+  needs: [],
+  args: z.strictObject({}),
+  run: book => ({ next: { ...book, color: "red" } as typeof book, result: {} }),
+})
+const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME, BREAK] })
 const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unknown, on?: { book: string }): unknown }
 
 describe("アクションの入口", () => {
@@ -50,6 +60,18 @@ describe("アクションの入口", () => {
       ok: false,
       reason: "not-allowed",
     })
+  })
+
+  test("アクションが返したブックがタイプの形に合わなければ断り、ブックは変わらない", () => {
+    const instance = createMatomezu({ plugins: BUILTIN, home: "master", newId: () => "n1" })
+    instance.use([notes])
+    instance.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })
+    const before = instance.state.getState().books.n1
+    expect(untyped(instance.actions).perform("notes/break", {}, { book: "n1" })).toEqual({
+      ok: false,
+      reason: "refused",
+    })
+    expect(instance.state.getState().books.n1).toBe(before)
   })
 
   test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {

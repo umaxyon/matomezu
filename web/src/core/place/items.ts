@@ -1,7 +1,7 @@
 // ページに置いたアイテムの操作（データを書き換えず、新しい値を返す）。
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）。
 // 形が変わったあとは、ページのつなぐものの決まりで整える（core/placed.ts の tidyPage）
-import type { PagedBook } from "../book"
+import { type PagedBook, putPage } from "../book"
 import { settingsAt } from "../book-settings"
 import type { CoreCatalog } from "../core-catalog"
 import type { ShapeItemDef } from "../def/item"
@@ -21,9 +21,6 @@ import {
   tidyPage as tidyItems,
 } from "../placed"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
-
-// ページを持つブックのページ
-export type PagedPage = PagedBook["pages"][number]
 
 // 置いた形の定義（表に無い形は null）
 export function shapeDefOf(catalog: CoreCatalog, item: string): ShapeItemDef | null {
@@ -97,7 +94,7 @@ export function resizedBy(
 // 狭めはしない。キャプションが変わらなければそのまま
 export function widenForCaption(
   catalog: CoreCatalog,
-  page: PagedPage,
+  page: ItemPage,
   before: PlacedShape,
   next: PlacedShape,
 ): PlacedShape {
@@ -111,7 +108,9 @@ export function widenForCaption(
 
 // アイテムに当てたテーマが表にあるか（当てていなければ true）
 export function knownTheme(catalog: CoreCatalog, item: PlacedShape): boolean {
-  return item.props.theme === undefined || catalog.themes.has(item.props.theme)
+  // 形が theme の欄を持つかを土台が知らないまま読んでいる（監査 B1。形の約束で直すまで、欄があるものとして読む）
+  const theme = (item.props as { theme?: string }).theme
+  return theme === undefined || catalog.themes.has(theme)
 }
 
 // 左上 at、大きさ size の四角が、紙からはみ出さないか
@@ -120,20 +119,24 @@ export function fitsPaper(at: Point, size: Size, paper: Size): boolean {
 }
 
 // ページの紙の大きさ（描けない紙なら null）
-export function paperSize(catalog: CoreCatalog, page: PagedPage): Size | null {
+export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
   const paper = resolvePaper(catalog, page)
   return paper.status === "unshowable" ? null : paper.size
 }
 
 // ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
-export function withPage(catalog: CoreCatalog, book: PagedBook, page: PagedPage): PagedBook {
-  const tidy = tidyPage(catalog, book, page)
-  return { ...book, pages: book.pages.map(p => (p.id === tidy.id ? tidy : p)) }
+export function withPage<B extends PagedBook>(catalog: CoreCatalog, book: B, page: ItemPage): B {
+  return putPage(book, tidyPage(catalog, book, page))
 }
 
 // ページにアイテムを置く（id は nextItemId で振ったもの）。重なった相手は右へ、駄目なら下へ押し、それも駄目なら押した列を縮めて右へ・下へ（push.ts の planPlace）。
 // 無いページ・はみ出す所・押した相手が収まらないなら null
-export function placeItem(catalog: CoreCatalog, book: PagedBook, pageId: string, item: PlacedShape): PagedBook | null {
+export function placeItem<B extends PagedBook>(
+  catalog: CoreCatalog,
+  book: B,
+  pageId: string,
+  item: PlacedShape,
+): B | null {
   const page = book.pages.find(p => p.id === pageId)
   const paper = page && paperSize(catalog, page)
   const size = placedSize(catalog, item)
@@ -164,7 +167,7 @@ export function shownRects(
 
 // 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行）。
 // 今それより小さければ今の大きさ
-export function floorsOf(catalog: CoreCatalog, page: PagedPage): Floors {
+export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
   const floors = new Map<string, Size>()
   for (const i of shapesOf(page)) {
     const size = placedSize(catalog, i)
@@ -179,13 +182,13 @@ export function floorsOf(catalog: CoreCatalog, page: PagedPage): Floors {
 
 // ページのアイテムを next に置き換え、近づきすぎた相手を押してどける（push.ts）。shrink なら、押した列が紙からはみ出すとき縮めて収める。
 // 無いページ・無いアイテム・id の違うもの・はみ出す・押した相手が紙に収まらないなら null
-export function replacePushing(
+export function replacePushing<B extends PagedBook>(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: B,
   pageId: string,
   next: PlacedShape,
   shrink: boolean,
-): PagedBook | null {
+): B | null {
   const page = book.pages.find(p => p.id === pageId)
   const paper = page && paperSize(catalog, page)
   const size = placedSize(catalog, next)
@@ -206,7 +209,7 @@ export function replacePushing(
 }
 
 // ページのアイテムのうち、形の左上と大きさを四角 rects にしたもの（rects に無い形・変わらない形と線はそのまま。縮めた形は w・h を書く）
-export function placedAt(catalog: CoreCatalog, page: PagedPage, rects: ReadonlyMap<string, Rect>): PlacedItem[] {
+export function placedAt(catalog: CoreCatalog, page: ItemPage, rects: ReadonlyMap<string, Rect>): PlacedItem[] {
   return pageItemsOf(page).map(i => {
     if (!isShape(i)) return i
     const r = rects.get(i.id)
@@ -219,12 +222,12 @@ export function placedAt(catalog: CoreCatalog, page: PagedPage, rects: ReadonlyM
 }
 
 // ページのアイテム ids（形も線も）を消す。消した形につながる線も消える（tidyPage）。無いページ・無いアイテムを含むなら null
-export function removeItems(
+export function removeItems<B extends PagedBook>(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: B,
   pageId: string,
   ids: readonly string[],
-): PagedBook | null {
+): B | null {
   const page = book.pages.find(p => p.id === pageId)
   if (!page) return null
   const items = pageItemsOf(page)
@@ -235,13 +238,13 @@ export function removeItems(
 
 // ページの形 a と b の組が、間隔の下限（gapOf。線でつないだあとなど）より近ければ、a はそのままで b の側をどける
 // （離れていた方の向きへ。押した先も押し、紙の端で詰まれば押された形を縮める）。どけられなければ null。近くなければそのまま
-export function keepApart(
+export function keepApart<B extends PagedBook>(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: B,
   pageId: string,
   a: string,
   b: string,
-): PagedBook | null {
+): B | null {
   const page = book.pages.find(p => p.id === pageId)
   const paper = page && paperSize(catalog, page)
   if (!page || !paper) return null

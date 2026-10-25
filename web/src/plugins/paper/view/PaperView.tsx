@@ -22,16 +22,8 @@ import {
 } from "react"
 import { bookItems, pagedOf } from "../../../core/book"
 import type { Point } from "../../../core/geom"
-import {
-  type Edges,
-  fitsPaper,
-  itemSize,
-  minSize,
-  type PagedPage,
-  resizedBy,
-  shownRects,
-} from "../../../core/place/items"
-import { type PlacedShape, placedSize, rectsOf, shapesOf } from "../../../core/placed"
+import { type Edges, fitsPaper, itemSize, minSize, resizedBy, shownRects } from "../../../core/place/items"
+import { type ItemPage, type PlacedShape, placedSize, rectsOf, shapesOf } from "../../../core/placed"
 import type { Stage } from "../../../core/stage"
 import { paperOf, placement, toPaperDelta } from "../../../core/stage"
 import { toolOf } from "../../../core/workspace"
@@ -147,7 +139,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
 }
 
 // ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューの層で包む
-function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; localOf: LocalOf }) {
+function PageItems({ stage, page, localOf }: { stage: Stage; page: ItemPage; localOf: LocalOf }) {
   const catalog = useCatalog().core
   const ui = useUiCatalog()
   // ブックで使えるつなぐもののビュー

@@ -9,6 +9,7 @@ import { translate } from "./i18n/i18n"
 import { freshId } from "./ids"
 import type { PaperChoice, PaperRule } from "./paper"
 import { actionsOf, holds } from "./perform"
+import type { ItemPage } from "./placed"
 import type { Book, Page } from "./schema/book"
 
 export type PagedBook = Extract<Book, { pages: Page[] }>
@@ -25,6 +26,12 @@ export function restoreBooks(catalog: CoreCatalog, saved: readonly unknown[]): B
 // 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの）
 export function singleBooks(catalog: CoreCatalog): Book[] {
   return catalog.parts.bookTypes.flatMap(t => (t.single ? [t.book as Book] : []))
+}
+
+// ブック book の、同じ id のページを page に替える。page に置いたアイテムがブックのタイプの選んだものかは型では確かめられないので、
+// 渡されたブックの型のまま返すと言い張る（形は perform がアクションの後に機能台帳のブックの形で確かめ直す）
+export function putPage<B extends PagedBook>(book: B, page: ItemPage): B {
+  return { ...book, pages: book.pages.map((p: ItemPage) => (p.id === page.id ? page : p)) } as B
 }
 
 export function hasPages(book: Book): book is PagedBook {

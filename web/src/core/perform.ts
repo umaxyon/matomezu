@@ -38,6 +38,11 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
   return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }
 
+// アクションが返したブックが、機能台帳のブックの形に合い、データの形の外の決まりも守っているか（型を言い張った所があっても、ここで止める）
+function settles(catalog: CoreCatalog, book: Book): boolean {
+  return catalog.bookSchema.safeParse(book).success && holds(catalog, book)
+}
+
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）
 function allowed(ctx: ActionContext, action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
   const book = action.target === "book" ? (subject as Book) : undefined
@@ -57,7 +62,7 @@ export function perform<Id extends ActionId>(
   if (!parsed.success) return { ok: false, reason: "bad-args" }
   const done = action.run(subject, parsed.data, ctx)
   if (!done) return { ok: false, reason: "refused" }
-  if (action.target === "book" && !holds(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
+  if (action.target === "book" && !settles(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }
 
