@@ -3,8 +3,8 @@
 // 外のプラグインの既定は、中の部品の既定とぶつかれば使わず、外のプラグインどうしでぶつかれば、どちらも使わない（利用者が自分で割り当てる）
 import type { Inspected, Source, Step } from "../core/inspect"
 import { type KeyBinding, type KeyChanges, normalizeKey, sameBinding } from "../core/keys"
+import type { CommandId, KeyScopeId } from "../core/tables"
 import type { CommandArgs } from "./commands"
-import type { CommandId, KeyScopeId } from "./tables"
 
 // プラグインが書く既定の割り当て。コマンドの引数の型が、args の型になる（引数の無いコマンドには書かない）
 export type KeyDef = {

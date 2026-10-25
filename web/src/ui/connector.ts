@@ -7,7 +7,7 @@ import { type ComponentType, createContext, type PointerEvent, type ReactNode, u
 import type { Point, Rect } from "../core/geom"
 import type { ItemPage } from "../core/placed"
 import type { Stage } from "../core/stage"
-import type { ContextMenuId } from "./tables"
+import type { ContextMenuId } from "../core/tables"
 
 export interface ShapeScene {
   stage: Stage

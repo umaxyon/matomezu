@@ -74,9 +74,6 @@ declare module "../../core/tables" {
     a4: typeof A4
     a3: typeof A3
   }
-}
-
-declare module "../../store/tables" {
   interface CommandTable {
     "stage.home": typeof STAGE_HOME
     "stage.split": typeof STAGE_SPLIT

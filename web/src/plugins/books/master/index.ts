@@ -32,9 +32,6 @@ declare module "../../../core/tables" {
     master: typeof MASTER_PRESENTATION
   }
   interface MessageTable extends Readonly<typeof MASTER_MESSAGES> {}
-}
-
-declare module "../../../store/tables" {
   interface CommandTable {
     "book.new": typeof BOOK_NEW
   }

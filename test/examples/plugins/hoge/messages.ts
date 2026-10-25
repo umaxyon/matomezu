@@ -1,5 +1,5 @@
 // hoge の文言。鍵は英語の文で、日本語の訳を持つ
-import { defineMessages } from "../../../../web/src/core/i18n/messages"
+import { defineMessages } from "matomezu"
 
 export const HOGE_MESSAGES = defineMessages({
   "Open hoge": { ja: "hoge を開く" },

@@ -6,13 +6,11 @@ import type { ComponentType, ReactNode } from "react"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import type { Stage } from "../core/stage"
-import type { PresentationId } from "../core/tables"
+import type { ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/tables"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import { type IdsOf, isBuiltin, type Plugin } from "../store/plugin"
-import type { DialogId } from "../store/tables"
 import type { ConnectorUi } from "./connector"
 import type { AnyWidgetDef } from "./layout"
-import type { ContextMenuId, WidgetId, WidgetTable } from "./tables"
 
 export interface BookViewProps {
   stage: Stage

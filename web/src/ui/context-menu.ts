@@ -1,10 +1,10 @@
 // 右クリックのメニュー: 部品が右クリックを受けてメニューを開く口と、配置に書いたメニューの中身を読む口
 import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
+import type { ContextMenuId, ContextMenuTable } from "../core/tables"
 import { isShown } from "../store/commands"
 import { type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
 import { useActions, useApp, useDefs, useLayout } from "./store-context"
-import type { ContextMenuId, ContextMenuTable } from "./tables"
 
 // 右ボタンの押し続け: ブラウザが右クリックを知らせるのは、Windows では離したとき、Mac・Linux では押したとき。
 // 右ボタンを押している間に開こうとしたメニューは待たせ、離したときに開く（どの OS でも離したときに出る）。

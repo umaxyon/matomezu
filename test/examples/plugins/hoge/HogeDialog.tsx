@@ -1,7 +1,5 @@
 // hoge のダイアログ。枠は土台のダイアログを使う
-import { Dialog } from "../../../../web/src/plugins/base/ui"
-import { useT } from "../../../../web/src/ui/i18n"
-import type { DialogProps } from "../../../../web/src/ui/plugin"
+import { Dialog, type DialogProps, useT } from "matomezu/ui"
 import styles from "./HogeDialog.module.css"
 import { shout } from "./logic"
 

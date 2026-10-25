@@ -1,19 +1,33 @@
-// 開発者のアプリの見本: 中の部品と自分のプラグインで app を作り、既定の配置を写して自分のウィジェットをステージの上の行に置く
-import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
-import { SAMPLE_BOOKS } from "../../../web/src/sample-books"
-import { createMatomezu } from "../../../web/src/store/create"
-import { App } from "../../../web/src/ui/App"
-import { defineLayout } from "../../../web/src/ui/layout"
-import { MatomezuProvider } from "../../../web/src/ui/store-context"
-import { HOGE_UI } from "./hoge-dialog/ui"
+// 開発者のアプリの見本: 中の部品と、作り手の違う外のプラグイン（hoge・hoge-flow・fuga）で app を作り、既定の配置を写して外のウィジェットをステージの上と下の行に置く
+import {
+  App,
+  BUILTIN_UI,
+  createMatomezu,
+  DEFAULT_LAYOUT,
+  defineLayout,
+  MatomezuProvider,
+  SAMPLE_BOOKS,
+} from "matomezu/app"
+import { FUGA_UI } from "../plugins/fuga/ui"
+import { HOGE_UI } from "../plugins/hoge/ui"
+import { HOGE_FLOW_UI } from "../plugins/hoge-flow/ui"
 
 export const makeApp = () =>
-  createMatomezu({ plugins: [...BUILTIN_UI, HOGE_UI], home: "master", books: SAMPLE_BOOKS, lang: "ja" })
+  createMatomezu({
+    plugins: [...BUILTIN_UI, HOGE_UI, HOGE_FLOW_UI, FUGA_UI],
+    home: "master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+  })
 
 export const HOGE_LAYOUT = defineLayout({
   ...DEFAULT_LAYOUT,
   id: "hoge",
-  slots: { ...DEFAULT_LAYOUT.slots, "stage.top": ["toolbox", "hoge/buttons"] },
+  slots: {
+    ...DEFAULT_LAYOUT.slots,
+    "stage.top": ["toolbox", "hoge/buttons"],
+    "stage.bottom": [...DEFAULT_LAYOUT.slots["stage.bottom"], "fuga/mint-button"],
+  },
 })
 
 export function HogeApp({ app }: { app: ReturnType<typeof makeApp> }) {

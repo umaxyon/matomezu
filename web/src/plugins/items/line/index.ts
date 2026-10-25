@@ -28,9 +28,6 @@ declare module "../../../core/tables" {
     "line.reconnect": typeof LINE_RECONNECT
   }
   interface MessageTable extends Readonly<typeof LINE_MESSAGES> {}
-}
-
-declare module "../../../store/tables" {
   interface CommandTable {
     "line.draw": typeof LINE_DRAW
     "line.edit": typeof LINE_EDIT

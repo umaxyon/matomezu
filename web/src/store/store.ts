@@ -13,7 +13,7 @@ import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import { restoreSettings, type Settings } from "../core/settings"
 import { closePicker, openBook, openPicker, panBy, resize, select, stopPlacing } from "../core/stage"
-import type { ActionId, ItemId, SingleBookTypeId, SkinId } from "../core/tables"
+import type { ActionId, DialogId, ItemId, SingleBookTypeId, SkinId } from "../core/tables"
 import type { Tool } from "../core/tools"
 import {
   close,
@@ -37,7 +37,6 @@ import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
 import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type AppDefs, assemble, type Plugin } from "./plugin"
-import type { DialogId } from "./tables"
 
 export type { Settings } from "../core/settings"
 

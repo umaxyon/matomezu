@@ -1,6 +1,5 @@
 // hoge のボタン（ウィジェット hoge/buttons）: そのステージから hoge のコマンドを呼ぶ
-import { useCommand } from "../../../../web/src/ui/commands"
-import { useT } from "../../../../web/src/ui/i18n"
+import { useCommand, useT } from "matomezu/ui"
 
 export function HogeButtons({ stage }: { stage: string }) {
   const open = useCommand(stage, "hoge/open")

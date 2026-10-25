@@ -1,11 +1,11 @@
 // 型が誤りにする場面（tsc -p でこのプロジェクトを確かめる。@ts-expect-error の行が誤りにならなければ、確かめが落ちる）
 
-import type { MessageKey } from "../../../web/src/core/tables"
-import { BUILTIN_UI } from "../../../web/src/plugins/ui"
-import { createMatomezu } from "../../../web/src/store/create"
-import { defineKeys } from "../../../web/src/store/keys"
+import { defineKeys, type MessageKey } from "matomezu"
+import { BUILTIN_UI, createMatomezu } from "matomezu/app"
+import { FUGA } from "../plugins/fuga"
+import { HOGE } from "../plugins/hoge"
+import { HOGE_FLOW } from "../plugins/hoge-flow"
 import { makeApp } from "./App"
-import { HOGE } from "./hoge-dialog"
 
 const translateKey = (key: MessageKey) => key
 
@@ -17,12 +17,12 @@ app.actions.command("s1", "hoge/greet")
 app.actions.command("s1", "hoge/greet", "fr")
 // @ts-expect-error 知らないコマンド
 app.actions.command("s1", "hoge/nope")
-// @ts-expect-error hoge を渡し忘れた
+// @ts-expect-error 外のプラグインを渡し忘れた
 createMatomezu({ plugins: BUILTIN_UI })
 // @ts-expect-error 文言の表に無い鍵
 app.registry.messages.get("hoge") && translateKey("hoge の言葉")
 // 見た目を結ばないプラグインでも、React を使わない app なら作れる
-createMatomezu({ plugins: [...BUILTIN_UI, HOGE] })
+createMatomezu({ plugins: [...BUILTIN_UI, HOGE, HOGE_FLOW, FUGA] })
 // キーの既定: 引数の型はコマンドの引数の型
 defineKeys([{ key: "K", command: "hoge/greet", scope: "stage", args: "en" }])
 // @ts-expect-error 引数の型が違う

@@ -5,6 +5,8 @@ import type { MESSAGES } from "../core/i18n/messages"
 import type {
   ActionTable,
   BookTypeTable,
+  CommandTable,
+  DialogTable,
   ItemTable,
   MessageTable,
   PaperTable,
@@ -15,7 +17,6 @@ import type {
 } from "../core/tables"
 import type { IdsOf, Part, Plugin } from "./plugin"
 import { type AppStore, createAppStore, type StoreOptions } from "./store"
-import type { CommandTable, DialogTable } from "./tables"
 
 interface Tables {
   bookTypes: BookTypeTable

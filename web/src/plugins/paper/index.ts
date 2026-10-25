@@ -38,9 +38,6 @@ declare module "../../core/tables" {
     "item.remove": typeof ITEM_REMOVE
   }
   interface MessageTable extends Readonly<typeof PAPER_MESSAGES> {}
-}
-
-declare module "../../store/tables" {
   interface CommandTable {
     "paper.place": typeof PAPER_PLACE
     "paper.move": typeof PAPER_MOVE

@@ -1,12 +1,12 @@
 // app のコマンドを引き、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
 import { fail } from "../../core/errors"
 import type { Registry } from "../../core/registry"
+import type { CommandId, CommandTable } from "../../core/tables"
 import type { AppDefs } from "../plugin"
 import type { AppState } from "../store"
-import type { CommandId, CommandTable } from "../tables"
 import type { CommandContext, CommandDef } from "./def"
 
-export type { CommandId } from "../tables"
+export type { CommandId } from "../../core/tables"
 
 type ArgOf<Id extends CommandId> = CommandTable[Id] extends CommandDef<infer A> ? A : never
 // コマンドを呼ぶときに渡す引数の並び（引数の無いコマンドには何も渡さない）

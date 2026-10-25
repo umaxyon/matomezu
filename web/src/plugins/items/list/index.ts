@@ -27,9 +27,6 @@ declare module "../../../core/tables" {
     "row.move": typeof ROW_MOVE
   }
   interface MessageTable extends Readonly<typeof LIST_MESSAGES> {}
-}
-
-declare module "../../../store/tables" {
   interface CommandTable {
     "list.addRow": typeof LIST_ADD_ROW
     "list.editRow": typeof LIST_EDIT_ROW

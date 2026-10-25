@@ -22,7 +22,7 @@ export const LINE_UI = definePluginUi(LINE_PLUGIN, {
   dialogViews: LINE_DIALOG_VIEWS,
 })
 
-declare module "../../../ui/tables" {
+declare module "../../../core/tables" {
   interface ContextMenuTable {
     "line.context": { item: string } // 線（右クリックした線の id）
   }

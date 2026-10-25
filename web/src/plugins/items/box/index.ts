@@ -15,9 +15,6 @@ declare module "../../../core/tables" {
     "shape.box": typeof BOX
   }
   interface MessageTable extends Readonly<typeof BOX_MESSAGES> {}
-}
-
-declare module "../../../store/tables" {
   interface DialogTable {
     "box.add": typeof BOX_ADD_DIALOG
     "box.edit": typeof BOX_EDIT_DIALOG

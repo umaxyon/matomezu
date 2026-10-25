@@ -1,5 +1,4 @@
 {
-  "extends": "../../../tsconfig.json",
-  "include": ["../../../web/src", "../../setup.ts", "."],
-  "exclude": ["../../../web/src/main.tsx"]
+  "extends": "../tsconfig.json",
+  "include": ["../../setup.ts", "../../../web/src/css.d.ts", "."]
 }

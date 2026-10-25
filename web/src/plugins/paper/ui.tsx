@@ -7,7 +7,7 @@ export const PAPER_UI = definePluginUi(PAPER_PLUGIN, {
   presentationViews: { paper: PAPER_VIEW },
 })
 
-declare module "../../ui/tables" {
+declare module "../../core/tables" {
   interface ContextMenuTable {
     "paper.context": Record<string, never> // 紙の画面（何も受け取らない）
     "item.context": { item: string } // 置いたアイテム（右クリックしたアイテムの id）

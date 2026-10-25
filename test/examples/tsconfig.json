@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "matomezu": ["../../web/src/sdk/index.ts"],
+      "matomezu/ui": ["../../web/src/sdk/ui.ts"],
+      "matomezu/app": ["../../web/src/sdk/app.ts"],
+      "matomezu/tables": ["../../web/src/core/tables.ts"]
+    }
+  },
+  "include": [],
+  "exclude": []
+}

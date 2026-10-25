@@ -4,8 +4,8 @@
 // 押した所の要素から外側へたどり、data-key-scope で名乗った範囲（プラグインの範囲）を狭いものから渡す
 import { useEffect, useMemo } from "react"
 import { keyLabel, pressedKey, seenInText } from "../core/keys"
+import type { CommandId } from "../core/tables"
 import { keysOf, keyTable } from "../store/keys"
-import type { CommandId } from "../store/tables"
 import { useActions, useApp, useDefs } from "./store-context"
 
 // Mac か（Mod を Cmd にし、キーの名前を記号で出す）

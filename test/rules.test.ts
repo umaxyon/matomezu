@@ -149,3 +149,70 @@ test("画面の文言は t() を通す（ui に日本語を直に書かない）
     )
   expect(offenders).toEqual([])
 })
+
+// SDK の入口（sdk/）: matomezu は React なしの定義の口、matomezu/ui は見た目を結ぶ口、matomezu/app はアプリを組む側の口。
+// 中のコードは SDK を読まない（SDK が中を読む向きだけ）
+const SDK_ALLOWED: Record<string, (target: string) => boolean> = {
+  "sdk/index.ts": t => ["core", "store"].includes(topOf(t)),
+  "sdk/ui.ts": t => topOf(t) === "ui" || t === "plugins/base/ui",
+  "sdk/app.ts": t =>
+    ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui" || t === "sample-books",
+}
+
+test("SDK の入口は、決めた層だけを読み、中のコードは SDK を読まない", () => {
+  const sdk = sources.filter(f => layerOf(f.rel) === "sdk")
+  expect(sdk.map(f => f.rel).sort()).toEqual(Object.keys(SDK_ALLOWED).sort())
+  const bad = sdk.flatMap(f =>
+    importsOf(f)
+      .filter(t => !SDK_ALLOWED[f.rel]!(t))
+      .map(t => `${f.rel} → ${t}`),
+  )
+  const inward = sources
+    .filter(f => layerOf(f.rel) !== "sdk")
+    .flatMap(f =>
+      importsOf(f)
+        .filter(t => topOf(t) === "sdk")
+        .map(t => `${f.rel} → ${t}`),
+    )
+  expect([...bad, ...inward]).toEqual([])
+})
+
+// 外のプラグインと、それを組むアプリの見本（test/examples）: 中（web/src）を直に読まず、SDK の名前だけを読む。
+// プラグイン（plugins/名前）は互いに読まない。見た目でないファイルは matomezu/ui も React も読まない。アプリはプラグインの入口（index・ui）を読む
+const EXAMPLES = join(ROOT, "test/examples")
+const examples = filesUnder(EXAMPLES).map(path => ({
+  path,
+  rel: relative(EXAMPLES, path),
+  text: readFileSync(path, "utf8"),
+}))
+const specsOf = (text: string) =>
+  [...text.matchAll(/(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']/g)].map(
+    m => (m[1] ?? m[2])!,
+  )
+
+test("見本は SDK の名前だけを読み、プラグインどうしは読まない", () => {
+  const bad = examples.flatMap(f => {
+    const parts = f.rel.split("/")
+    const isPlugin = parts[0] === "plugins"
+    const own = isPlugin ? parts.slice(0, 2).join("/") : parts[0]!
+    const view = isView(f.rel)
+    return specsOf(f.text)
+      .filter(s => {
+        if (s.startsWith(".")) {
+          const target = relative(EXAMPLES, resolve(dirname(f.path), s))
+          if (target === own || target.startsWith(`${own}/`)) return s.endsWith(".css") && !view
+          if (isPlugin) return true
+          const [top, name, ...rest] = target.split("/")
+          return top !== "plugins" || !name || !(rest.length === 0 || ["index", "ui"].includes(rest.join("/")))
+        }
+        const always = ["matomezu", "matomezu/tables", "zod"]
+        const forViews = ["matomezu/ui", "react"]
+        const forApps = ["matomezu/app", "bun:test", "@testing-library/react"]
+        if (always.includes(s)) return false
+        if (forViews.includes(s)) return !view && isPlugin
+        return isPlugin || !forApps.includes(s)
+      })
+      .map(s => `${f.rel} → ${s}`)
+  })
+  expect(bad).toEqual([])
+})

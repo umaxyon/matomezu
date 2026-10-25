@@ -1,8 +1,5 @@
 // 開発者が自分のアプリに作るプラグインの見本: hoge のダイアログと、それを開くコマンドと、その既定のキー（React なし）
-import { defineCommand } from "../../../../web/src/store/commands/def"
-import { defineDialog } from "../../../../web/src/store/dialogs"
-import { defineKeys } from "../../../../web/src/store/keys"
-import { definePlugin } from "../../../../web/src/store/plugin"
+import { defineCommand, defineDialog, defineKeys, definePlugin } from "matomezu"
 import { HOGE_MESSAGES } from "./messages"
 
 export const HOGE_DIALOG = defineDialog({ id: "hoge/dialog" })
@@ -43,11 +40,8 @@ export const HOGE = definePlugin({
   messages: HOGE_MESSAGES,
 })
 
-declare module "../../../../web/src/core/tables" {
+declare module "matomezu/tables" {
   interface MessageTable extends Readonly<typeof HOGE_MESSAGES> {}
-}
-
-declare module "../../../../web/src/store/tables" {
   interface CommandTable {
     "hoge/open": typeof HOGE_OPEN
     "hoge/greet": typeof HOGE_GREET

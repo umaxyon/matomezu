@@ -27,7 +27,7 @@ export const LIST_UI = definePluginUi(LIST_PLUGIN, {
   dialogViews: LIST_DIALOG_VIEWS,
 })
 
-declare module "../../../ui/tables" {
+declare module "../../../core/tables" {
   interface ContextMenuTable {
     "row.context": { list: string; row: string } // リストの行（右クリックした行と、そのリストの id）
   }

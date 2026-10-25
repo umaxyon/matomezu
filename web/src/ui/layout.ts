@@ -1,9 +1,17 @@
 // ウィジェット（スロットに置ける部品）・配置（スロットごとに置くウィジェットの順と、メニューの中身）の定義と、配置の確かめ
 import type { ReactNode } from "react"
 import { type Problem, problem } from "../core/errors"
+import type {
+  CommandId,
+  ContextMenuId,
+  ContextMenuTable,
+  MenuId,
+  SlotId,
+  SlotProps,
+  WidgetId,
+  WidgetTable,
+} from "../core/tables"
 import type { CommandArgs } from "../store/commands"
-import type { CommandId } from "../store/tables"
-import type { ContextMenuId, ContextMenuTable, MenuId, SlotId, SlotProps, WidgetId, WidgetTable } from "./tables"
 
 // 置けるスロットと、描く部品。置けるスロットは、どれも同じ値（props）を渡すものだけにする。
 // スロットとメニューを開けるのはウィジェットとブックのビューだけで、部品の中で描くスロット（<Slot>）とメニュー（useMenu）、
