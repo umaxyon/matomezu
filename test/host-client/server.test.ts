@@ -11,6 +11,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   let onError = () => {}
   let reads = 0
   let focus = () => {}
+  let reloads = 0
   const events: Events = {
     on: (name, l) => listeners.set(name, l),
     onError: l => {
@@ -32,9 +33,12 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     },
     importModule: async url => ({ default: { id: url } }),
     addStyle: () => {},
+    reload: () => {
+      reloads++
+    },
   })
   const emit = (name: string, v: unknown) => listeners.get(name)?.(JSON.stringify(v))
-  return { host, sent, emit, fail: () => onError(), reads: () => reads, focus: () => focus() }
+  return { host, sent, emit, fail: () => onError(), reads: () => reads, focus: () => focus(), reloads: () => reloads }
 }
 
 // 常駐から読んで作った store。最初の知らせ hello を先に送る
@@ -94,12 +98,20 @@ test("常駐が足した追加プラグインは、CSS を読み、見た目の 
       return { default: { id: url } }
     },
     addStyle: url => styles.push(url),
+    reload: () => {},
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
   expect((await loading).plugins).toEqual([{ id: "api/plugins/0/ui.js" }, { id: "api/plugins/1/ui.js" }])
   expect(imported).toEqual(["api/plugins/0/ui.js", "api/plugins/1/ui.js"])
   expect(styles).toEqual(["api/plugins/0/ui.css"])
+})
+
+test("追加プラグインが変わったと届いたら、画面を読み直す", async () => {
+  const { emit, reloads } = await connected()
+  expect(reloads()).toBe(0)
+  emit("plugins", { version: 1 })
+  expect(reloads()).toBe(1)
 })
 
 test("画面で行ったアクションは、振った id と、つながりの id と順の番号を添えて常駐に送る", async () => {
@@ -172,6 +184,7 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
     onFocus: () => () => {},
     importModule: async () => ({}),
     addStyle: () => {},
+    reload: () => {},
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))

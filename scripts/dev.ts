@@ -1,5 +1,5 @@
 // 開発用: 画面を変更のたびにビルドし直し、web/dist を Go の常駐（matomezu serve）で配る。bun scripts/dev.ts <ポート> [serve に渡す引数]
-// 追加プラグインを結ぶなら bun run dev --plugin <開発者プロジェクトのフォルダ>（変えたら起動し直す）。
+// 追加プラグインを結ぶなら bun run dev --plugin <開発者プロジェクトのフォルダ>（変えたら起動し直すか、POST /api/plugins で入れ替える）。
 // 常駐のアプリのフォルダは .dev-home（利用者のフォルダに触らない）。Go のコードを変えたら起動し直す
 const [port = "5300", ...extra] = process.argv.slice(2)
 const build = ["bun", "build", "web/index.html", "--outdir", "web/dist"]

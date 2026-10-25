@@ -4,7 +4,8 @@
 // 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。
 // 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
 // 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く。
-// 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）
+// 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）。
+// 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（組み立て直すため）
 import { z } from "zod"
 import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
@@ -23,6 +24,7 @@ export interface Net {
   onFocus(listener: () => void): () => void // 窓がフォーカスされたら呼ぶ。止める関数を返す
   importModule(url: string): Promise<{ default?: unknown }> // ES モジュールを読む
   addStyle(url: string): void // CSS を読む
+  reload(): void // 画面を読み直す
 }
 export interface Events {
   on(name: string, listener: (data: string) => void): void
@@ -54,6 +56,7 @@ const browserNet: Net = {
     link.href = url
     document.head.append(link)
   },
+  reload: () => window.location.reload(),
 }
 
 const openedOf = (stage: Stage) => {
@@ -181,6 +184,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       source.on("show", data => {
         if (instance) showIn(instance, ShowSchema.parse(JSON.parse(data)))
       })
+      source.on("plugins", () => net.reload())
       source.on("ack", data => {
         settle({ client, seq: AckSchema.parse(JSON.parse(data)).seq })
         show()

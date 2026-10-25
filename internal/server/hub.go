@@ -12,6 +12,7 @@ package server
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	ack       {"seq", "ok", "reason"} 送った画面にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた画面にだけ。そのブックを出す（Show）
+//	plugins   {"version"} 追加プラグインが変わった（plugins.go）。画面は読み直す
 
 import (
 	"encoding/json"
@@ -22,6 +23,7 @@ import (
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
+	"github.com/umaxyon/matomezu/internal/plugin"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -47,16 +49,18 @@ type client struct {
 
 // Hub は世界と画面をまとめる
 type Hub struct {
-	mu       sync.Mutex
-	store    storage.Storage
-	engine   *engine.Engine
-	books    map[string]entry
-	order    []string // 置いた順のブックの id（GET /api/data の並び）
-	settings json.RawMessage
-	clients  map[string]*client
-	next     int
-	ticks    int64         // フォーカスの順を振る数
-	viewed   chan struct{} // 画面が見ているものを知らせたら閉じて、作り直す（WaitWindow）
+	mu             sync.Mutex
+	store          storage.Storage
+	engine         *engine.Engine
+	books          map[string]entry
+	order          []string // 置いた順のブックの id（GET /api/data の並び）
+	settings       json.RawMessage
+	clients        map[string]*client
+	next           int
+	ticks          int64            // フォーカスの順を振る数
+	viewed         chan struct{}    // 画面が見ているものを知らせたら閉じて、作り直す（WaitWindow）
+	plugins        []*plugin.Bundle // 足した追加プラグイン（plugins.go）
+	pluginsVersion int64            // 追加プラグインが変わるたびに進む
 }
 
 // NewHub は置き場所から世界を読む

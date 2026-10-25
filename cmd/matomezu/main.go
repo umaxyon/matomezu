@@ -22,7 +22,6 @@ import (
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/home"
 	"github.com/umaxyon/matomezu/internal/mcp"
-	"github.com/umaxyon/matomezu/internal/plugin"
 	"github.com/umaxyon/matomezu/internal/server"
 	"github.com/umaxyon/matomezu/internal/storage"
 	"github.com/umaxyon/matomezu/web"
@@ -118,13 +117,15 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	plugins, err := addPlugins(eng, c.Plugin)
-	if err != nil {
-		return err
-	}
 	hub, err := server.NewHub(store, eng)
 	if err != nil {
 		return err
+	}
+	// 1 つでも変換・組み立てができなければ常駐を立てない
+	for _, dir := range c.Plugin {
+		if _, err := hub.LinkPlugin(dir); err != nil {
+			return err
+		}
 	}
 	host, _, err := net.SplitHostPort(c.Addr)
 	if err != nil {
@@ -148,7 +149,7 @@ func (c *serveCmd) Run() error {
 	srv := &http.Server{
 		Handler: server.Handler(server.Options{
 			Web: webFS, Token: token, Version: version, Stop: stop, Hub: hub,
-			URL: url, Open: func() error { return browser.Open(url) }, Plugins: plugins,
+			URL: url, Open: func() error { return browser.Open(url) },
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -169,31 +170,6 @@ func (c *serveCmd) Run() error {
 	shut, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return srv.Shutdown(shut)
-}
-
-// addPlugins は、開発者プロジェクトのフォルダの追加プラグインを変換してホストのエンジンに足し、画面に配るものを返す。
-// 1 つでも変換・組み立てができなければ誤り（常駐を立てない）
-func addPlugins(eng *engine.Engine, dirs []string) ([]server.Plugin, error) {
-	if len(dirs) == 0 {
-		return nil, nil
-	}
-	bundles := make([]*plugin.Bundle, len(dirs))
-	for i, dir := range dirs {
-		b, err := plugin.Build(dir, eng.Modules())
-		if err != nil {
-			return nil, err
-		}
-		bundles[i] = b
-	}
-	ids, err := eng.Use(bundles)
-	if err != nil {
-		return nil, err
-	}
-	plugins := make([]server.Plugin, len(bundles))
-	for i, b := range bundles {
-		plugins[i] = server.Plugin{ID: ids[i], UI: b.UI, CSS: b.CSS}
-	}
-	return plugins, nil
 }
 
 // screen は配る画面。--web があればそのフォルダ、無ければ埋め込んだもの
