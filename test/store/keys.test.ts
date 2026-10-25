@@ -66,11 +66,11 @@ test("キーを変えるのは、既定の行を外して新しい行を足す�
 })
 
 test("範囲は狭いものから引き、メニューとダイアログが開いている間はほかを見ない。アプリ全体の行がステージで隠れるかを返す", () => {
-  expect(keyScopes({ menu: false, dialog: false }, ["a/panel"])).toEqual(["a/panel", "stage", "app"])
+  expect(keyScopes({ menu: false, dialog: false }, ["a/panel"])).toEqual(["a/panel", "stage", "global"])
   expect(keyScopes({ menu: false, dialog: true })).toEqual(["dialog"])
   expect(keyScopes({ menu: true, dialog: true })).toEqual(["menu"])
   const table = keyTable(
-    [def("D", "app/thing", "@matomezu/base", true, "app"), def("D", "paper.delete", "@matomezu/paper", true)],
+    [def("D", "app/thing", "@matomezu/base", true, "global"), def("D", "paper.delete", "@matomezu/paper", true)],
     NO_KEY_CHANGES,
   )
   expect(shadowedKeys(table)).toMatchObject([

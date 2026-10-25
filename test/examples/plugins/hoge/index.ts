@@ -29,7 +29,7 @@ export const HOGE_GREET = defineCommand({
 // 中の部品のキーとぶつかれば使われず（利用者が自分で割り当てる）、どう決まったかは store/keys.ts の inspectKey で分かる
 export const HOGE_KEYS = defineKeys([
   { key: "Mod+Shift+H", command: "hoge/open", scope: "stage" },
-  { key: "Mod+Shift+J", command: "hoge/greet", scope: "app", args: "ja" },
+  { key: "Mod+Shift+J", command: "hoge/greet", scope: "global", args: "ja" },
 ])
 
 export const HOGE = definePlugin({

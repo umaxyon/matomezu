@@ -83,7 +83,7 @@ export function keysOf(table: KeyTable, command: string): KeyEntry[] {
 export function keyScopes(open: { menu: boolean; dialog: boolean }, scopes: readonly string[] = []): string[] {
   if (open.menu) return [...scopes, "menu"]
   if (open.dialog) return [...scopes, "dialog"]
-  return [...scopes, "stage", "app"]
+  return [...scopes, "stage", "global"]
 }
 
 const sourceOf = (e: KeyEntry, dropped?: DroppedKey["reason"]): Source => ({
@@ -106,10 +106,10 @@ export function inspectKey(table: KeyTable, q: { scope: string; key: string }): 
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }
 
-// 狭い範囲の同じキーに隠れる行（アプリ全体の行が、ステージでは隠れるなど）
+// 狭い範囲の同じキーに隠れる行（画面全体の行が、ステージでは隠れるなど）
 export function shadowedKeys(table: KeyTable): { entry: KeyEntry; by: KeyEntry }[] {
   return table.active.flatMap(e => {
-    if (e.binding.scope !== "app" || findKey(table, "app", e.binding.key) !== e) return []
+    if (e.binding.scope !== "global" || findKey(table, "global", e.binding.key) !== e) return []
     const by = findKey(table, "stage", e.binding.key)
     return by ? [{ entry: e, by }] : []
   })

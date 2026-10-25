@@ -14,10 +14,10 @@ export interface MessageTable {} // 文言の鍵 → 訳
 export interface CommandTable {}
 export interface DialogTable {}
 
-// キーの範囲（割り当てが効く所）→ true。土台は app（アプリ全体）・stage（カレントのステージ）・dialog・menu（開いているメニュー: 右クリックのメニューと道具のアイコン）。
+// キーの範囲（割り当てが効く所）→ true。土台は global（ダイアログもメニューも開いていないとき、ステージに結び付かない画面全体のキー）・stage（カレントのステージ）・dialog・menu（開いているメニュー: 右クリックのメニューと道具のアイコン）。
 // プラグインは自分の id を頭に付けた範囲を書き足し、自分のウィジェットの要素に data-key-scope で名乗らせる
 export interface KeyScopeTable {
-  app: true
+  global: true
   stage: true
   dialog: true
   menu: true
