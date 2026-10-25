@@ -23,7 +23,7 @@
 | ビルトインプラグイン | matomezu に同梱され、`BUILTIN` に並ぶプラグイン（base・master・paper・box・list・line・drawing） |
 | 追加プラグイン | インストールされたプラグイン。開発中に開発者プロジェクトを結んだ物も、完成品も同じ。作り手の属性は持たない。プラグイン API だけを読み、定義の id の頭に自分の id を付ける |
 | 開発者プロジェクト | 追加プラグインを作るプロジェクト。matomezu の中（このリポジトリ）は含まない。利用者のローカルの Claude が作るときの作業の場所も同じ |
-| プラグイン API | 追加プラグインが使ってよい名前と型の約束。`web/src/plugin-api` に集め、実装は動いている matomezu が渡す。入口は `matomezu`・`matomezu/ui`・`matomezu/catalog` |
+| プラグイン API | 追加プラグインとビルトインプラグインが使ってよい名前と型の約束。`web/src/plugin-api` に集め、実装は動いている matomezu が渡す。入口は `matomezu`・`matomezu/ui`・`matomezu/catalog`（【未実装】`matomezu`・`matomezu/ui` は `web/src/plugin-entry`） |
 | `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`web/src/plugin-modules`）。キーは import の名前（`matomezu`・`matomezu/ui`・`react` など）、値は動いている matomezu が持つ実物。ホストのエンジンと画面が、追加プラグインを動かす前に渡す |
 | `matomezu/testing` | 開発者プロジェクトのテストで、ビルトインプラグインと自分のプラグインで matomezu を丸ごと組む入口（`web/src/testing`）。テストのプロセスの中で組み、ホストは使わない。プラグイン API に含めない |
 
