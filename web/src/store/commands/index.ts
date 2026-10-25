@@ -1,4 +1,4 @@
-// app のコマンドを引き、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
+// インスタンスのコマンドを引き、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
 import { fail } from "../../core/errors"
 import type { Registry } from "../../core/registry"
 import type { CommandId, CommandTable } from "../../core/tables"
@@ -12,7 +12,7 @@ type ArgOf<Id extends CommandId> = CommandTable[Id] extends CommandDef<infer A> 
 // コマンドを呼ぶときに渡す引数の並び（引数の無いコマンドには何も渡さない）
 export type CommandArgs<Id extends CommandId> = [ArgOf<Id>] extends [undefined] ? [] : [ArgOf<Id>]
 
-// app のコマンド。知らない id なら誤り（型に書き足したのに、そのプラグインを app に渡していないとき）
+// インスタンスのコマンド。知らない id なら誤り（型に書き足したのに、そのプラグインをインスタンスに渡していないとき）
 export function commandDef(defs: AppDefs, id: string): CommandDef<never> {
   return defs.commands.get(id) ?? fail("E107", { id })
 }

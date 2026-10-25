@@ -1,4 +1,4 @@
-// ブックのタイプが足す設定の項目（core/book-settings.ts）と、それを受け付ける土台のアクション book.update・page.update
+// ブックのタイプが足す設定の項目（core/book-settings.ts）と、それを受け付ける base のアクション book.update・page.update
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { settingsArgs, settingsPatchOf, withSettings } from "../../web/src/core/book-settings"

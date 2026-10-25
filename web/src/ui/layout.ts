@@ -18,7 +18,7 @@ import type { CommandArgs } from "../store/commands"
 // 開く右クリックのメニュー（useContextMenu）は opens・menus・contextMenus に全部書く
 // （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（骨組みの差し替え）
 export interface WidgetDef<S extends SlotId = SlotId> {
-  id: string // 外のプラグインは「プラグインの id/名前」
+  id: string // 追加プラグインは「プラグインの id/名前」
   slots: readonly S[]
   opens?: readonly SlotId[]
   menus?: readonly MenuId[]
@@ -85,7 +85,7 @@ export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
 // 根のスロット（土台が開ける）
 export const ROOT_SLOT = "root" satisfies SlotId
 
-// 配置の食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・app に無いコマンド・
+// 配置の食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・インスタンスに無いコマンド・
 // 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー、置いたウィジェットと見せ方・アイテムのビューのどれも開かない右クリックのメニュー（無ければ空）
 export function checkLayout(
   layout: LayoutDef,

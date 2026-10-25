@@ -15,7 +15,7 @@ import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, REGISTRY } from "../support"
 
 describe("登録表", () => {
-  test("ビルトインプラグインのテーマが上書きする欄は、どれもビルトインプラグインのアイテムかタイプが宣言している（app に無いアイテムの欄の上書きは誤りにせず、使わないだけ）", () => {
+  test("ビルトインプラグインのテーマが上書きする欄は、どれもビルトインプラグインのアイテムかタイプが宣言している（インスタンスに無いアイテムの欄の上書きは誤りにせず、使わないだけ）", () => {
     const declared = new Set([...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens.map(k => k.id)))
     const unknown = BUILTIN_PARTS.themes.flatMap(th => Object.keys(th.tokens ?? {}).filter(id => !declared.has(id)))
     expect(unknown).toEqual([])
@@ -80,7 +80,7 @@ describe("登録表", () => {
     expect(translate(reg.messages, "fr", "Box")).toBe("Boîte")
     expect(translate(reg.messages, "fr", "Add page")).toBe("Add page")
     expect(translate(reg.messages, "ja", "Master")).toBe("親分")
-    // app に無い鍵の訳は使わない
+    // インスタンスに無い鍵の訳は使わない
     const stray = defineLanguagePack({ lang: "fr", name: "Français", messages: { ["Nope" as "Box"]: "Non" } })
     expect(buildRegistry({ ...BUILTIN_PARTS, languages: [stray] }).messages.has("Nope")).toBe(false)
   })
@@ -162,7 +162,7 @@ describe("アクションを行う", () => {
     const settings = { lang: "ja", skin: "auto", keys: NO_KEY_CHANGES }
     expect(perform(settings, "settings.lang", { lang: "en" }, ctx)).toMatchObject({ ok: true, next: { lang: "en" } })
     expect(perform(settings, "settings.lang", { lang: "en" }, homeless)).toEqual({ ok: false, reason: "not-allowed" })
-    // app に無い言語は断る
+    // インスタンスに無い言語は断る
     expect(perform(settings, "settings.lang", { lang: "fr" }, ctx)).toEqual({ ok: false, reason: "refused" })
   })
 

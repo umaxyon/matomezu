@@ -44,14 +44,14 @@ interface BookTypeBase<S extends z.ZodObject> {
   settings?: BookTypeSettings
 }
 
-// ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。土台のアクション book.update はブックの、page.update はページの項目を受け付ける
+// ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。base のアクション book.update はブックの、page.update はページの項目を受け付ける
 export interface BookTypeSettings {
   book?: readonly string[]
   page?: readonly string[]
 }
 
 // 1 冊だけのタイプ（マスターなど）。作る操作は無く、その 1 冊のデータを定義に持つ（id はタイプの id）。
-// app は表にある 1 冊だけのタイプのブックを、いつも持つ
+// インスタンスは表にある 1 冊だけのタイプのブックを、いつも持つ
 export interface SingleBookTypeDef<S extends z.ZodObject = z.ZodObject> extends BookTypeBase<S> {
   single: true
   book: z.infer<S>

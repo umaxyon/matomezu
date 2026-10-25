@@ -57,7 +57,7 @@ export type Performed<Id extends ActionId> =
   | { ok: false; reason: Refusal | "no-book" }
 
 export interface Actions {
-  // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも外のプラグインのアクションも、画面と AI から同じ入口を通る）。
+  // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも追加プラグインのアクションも、画面と AI から同じ入口を通る）。
   // ブックが変われば、そのブックを開いている全部のステージを合わせ、一覧が変われば、無くなったブックを開いていたステージは何も開かない
   perform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
   // そのステージから呼んだコマンドを行う。出ていない・押せないコマンドは行わず、行ったか返す
@@ -140,9 +140,9 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   home?: SingleBookTypeId // ホームのブック（1 冊だけのタイプ）。最初に開くブックと「ホームを開く」の行き先で、ブックの一覧のアクションを許すかはこのタイプが決める
   books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、ホームを開く
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
-  lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。app にある最初の言語を使い、無ければ英語
-  savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。この app のブックの形に合うものだけを、books のあとに持つ
-  settings?: unknown // 残しておいた設定（ホストが読んだもの）。この app で使える項目だけ、lang より優先して使う
+  lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。インスタンスにある最初の言語を使い、無ければ英語
+  savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。このインスタンスのブックの形に合うものだけを、books のあとに持つ
+  settings?: unknown // 残しておいた設定（ホストが読んだもの）。このインスタンスで使える項目だけ、lang より優先して使う
   initial?: AppState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）

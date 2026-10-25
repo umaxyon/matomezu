@@ -15,7 +15,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-// 外のプラグインの見本（型の表には書き足さないので、app は partial で作る）
+// 追加プラグインの見本（型の表には書き足さないので、インスタンスは partial で作る）
 const NOTE_LOOK = definePresentation({ id: "notes/note" })
 const NOTE = defineBookType({
   id: "notes/note",
@@ -59,7 +59,7 @@ const thrown = (run: () => unknown) => {
 }
 
 describe("見た目のプラグイン", () => {
-  test("外のプラグインのビューで描き、差し替えたダイアログをビルトインプラグインのコマンドが開く", () => {
+  test("追加プラグインのビューで描き、差し替えたダイアログをビルトインプラグインのコマンドが開く", () => {
     const app = createMatomezu({
       plugins: [...BUILTIN_UI, notesUi],
       partial: true,
@@ -106,7 +106,7 @@ describe("見た目のプラグイン", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, notesUi, again]))).toMatchObject({ code: "E206" })
   })
 
-  test("見た目を結んでいないプラグインの app は、画面に置けない（型の誤り）", () => {
+  test("見た目を結んでいないプラグインのインスタンスは、画面に置けない（型の誤り）", () => {
     const app = createMatomezu({ plugins: BUILTIN })
     const typeOnly = () => (
       // @ts-expect-error 見た目を結んでいない

@@ -1,4 +1,4 @@
-// 外から足すブックのタイプの見本の見た目を結ぶ: ひし形のビュー・ダイアログ・流れの向きのコンポーネント。紙の見せ方はビルトインプラグインのものを使う
+// 追加プラグインのブックのタイプの見本の見た目を結ぶ: ひし形のビュー・ダイアログ・流れの向きのコンポーネント。紙の見せ方はビルトインプラグインのものを使う
 import { definePluginUi } from "matomezu/ui"
 import { HOGE_FLOW } from "."
 import { AddDiamondDialog, DIAMOND_ICON, DiamondView, DirectionSetting, EditDiamondDialog } from "./views"

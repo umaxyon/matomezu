@@ -20,7 +20,7 @@ export type ActionTarget = keyof Subjects
 
 export interface ActionContext {
   registry: Registry // 使う登録表（アクション・ブックのタイプ・紙など）
-  home: string | null // app のホームのブックの id（一覧と設定のアクションを許すかは、このブックのタイプが決める）。無ければ断る
+  home: string | null // インスタンスのホームのブックの id（一覧と設定のアクションを許すかは、このブックのタイプが決める）。無ければ断る
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
 }

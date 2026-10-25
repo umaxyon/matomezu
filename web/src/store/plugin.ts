@@ -1,5 +1,5 @@
 // プラグイン: 1 つの部品の定義の組（ブックのタイプ・アイテム・アクション・テーマ・紙・コマンド・ダイアログ・キーの既定の割り当て）。React を使わない部分だけを持つ。
-// app は渡されたプラグインを assemble で 1 つの定義の表（AppDefs）にし、作った後は変えない
+// インスタンスは渡されたプラグインを assemble で 1 つの定義の表（AppDefs）にし、作った後は変えない
 import type { ActionDef } from "../core/def/action"
 import type { BookTypeDef } from "../core/def/book-type"
 import type { ItemDef } from "../core/def/item"
@@ -63,7 +63,7 @@ type PrefixCheck<P extends Plugin> = [Unprefixed<P>] extends [never]
   ? unknown
   : { [id in Unprefixed<P>]: "id の頭にプラグインの id と / を付ける" }
 
-// 外のプラグインを書く入口。id の頭を型で確かめる（組み立てでも確かめる）
+// 追加プラグインを書く入口。id の頭を型で確かめる（組み立てでも確かめる）
 export const definePlugin = <const P extends Plugin>(plugin: P & PrefixCheck<P>): P => plugin
 
 // ビルトインプラグインは、頭の無い短い id を使う（「/」を含まない id はビルトインプラグインだけのもの）。
@@ -74,10 +74,10 @@ export function defineBuiltin<const P extends Plugin>(plugin: P): P {
 }
 export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
 
-// app が使う定義の表
+// インスタンスが使う定義の表
 export interface AppDefs {
   registry: Registry
-  home: string | null // app のホームのブックの id（1 冊だけのタイプ。無ければ null）
+  home: string | null // インスタンスのホームのブックの id（1 冊だけのタイプ。無ければ null）
   autoSkin: AutoSkin | null // 自動のスキンで使う明と暗のスキン（スキンが無ければ null）
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlySet<string>
@@ -144,7 +144,7 @@ export function assemble(
   }
 }
 
-// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・外のプラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは誤り
+// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは誤り
 function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>): DefaultKey[] {
   const keys: DefaultKey[] = []
   const problems = []

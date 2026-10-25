@@ -1,4 +1,4 @@
-// app の状態の変わり目を残す先に渡す: 変わったブックと設定を渡す（画面の状態は渡さない）。止める関数を返す
+// インスタンスの状態の変わり目を残す先に渡す: 変わったブックと設定を渡す（画面の状態は渡さない）。止める関数を返す
 import type { Book } from "../core/schema/book"
 import type { Settings } from "../core/settings"
 import type { AppStore } from "../store/store"

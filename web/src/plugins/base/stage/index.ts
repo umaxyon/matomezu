@@ -3,7 +3,7 @@ import { type CommandContext, defineCommand } from "../../../store/commands/def"
 
 const isSplit = (ctx: CommandContext) => ctx.workspace.stages.length > 1
 
-// app のホームのブックを、そのステージで開く（ホームが無い app では出さない）
+// インスタンスのホームのブックを、そのステージで開く（ホームが無いインスタンスでは出さない）
 export const STAGE_HOME = defineCommand({
   id: "stage.home",
   title: "Home",

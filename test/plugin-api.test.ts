@@ -1,4 +1,4 @@
-// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧。外のプラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
+// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧。追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
 import * as api from "../web/src/plugin-api/index"
 import * as ui from "../web/src/plugin-api/ui"

@@ -1,4 +1,4 @@
-// テストで組む入口 matomezu/testing: 開発者プロジェクトのテストが、ビルトインプラグインと自分のプラグインで app を作り、配置を決めて描くのに使うもの。プラグインのコードは読まない（プラグイン API ではない）
+// テストで組む入口 matomezu/testing: 開発者プロジェクトのテストが、ビルトインプラグインと自分のプラグインでインスタンスを作り、配置を決めて描くのに使うもの。プラグインのコードは読まない（プラグイン API ではない）
 export { BUILTIN } from "../plugins"
 export { BUILTIN_UI, DEFAULT_LAYOUT } from "../plugins/ui"
 export { SAMPLE_BOOKS } from "../sample-books"

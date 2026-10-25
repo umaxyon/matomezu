@@ -1,4 +1,4 @@
-// スキンを効かせる: app のスキンの CSS を置き、設定のスキンを根の要素の data-skin にする（"auto" と app に無いスキンは付けず、自動のスキンで描く）
+// スキンを効かせる: インスタンスのスキンの CSS を置き、設定のスキンを根の要素の data-skin にする（"auto" とインスタンスに無いスキンは付けず、自動のスキンで描く）
 import { useEffect, useMemo } from "react"
 import { useApp, useDefs } from "../store-context"
 import { skinCss } from "./css"

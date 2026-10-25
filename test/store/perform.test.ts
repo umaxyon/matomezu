@@ -8,7 +8,7 @@ import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions } from "../../web/src/store/store"
 import { newStore } from "../support"
 
-// 外のプラグインの見本: 自分のブックのタイプと、そのタイプで使えるアクション（型の表には書き足さない）
+// 追加プラグインの見本: 自分のブックのタイプと、そのタイプで使えるアクション（型の表には書き足さない）
 const NOTE = defineBookType({
   id: "notes/note",
   version: 1,

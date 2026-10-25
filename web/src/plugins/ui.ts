@@ -1,4 +1,4 @@
-// ビルトインプラグインの一覧（画面のある app 用。どのプラグインにも見た目を結んだもの）と、それを渡した app の既定の配置
+// ビルトインプラグインの一覧（画面のあるインスタンス用。どのプラグインにも見た目を結んだもの）と、それを渡したインスタンスの既定の配置
 import { defineLayout } from "../ui/layout"
 import { BASE_UI } from "./base/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
@@ -10,7 +10,7 @@ import { PAPER_UI } from "./paper/ui"
 
 export const BUILTIN_UI = [BASE_UI, MASTER_UI, PAPER_UI, BOX_UI, LIST_UI, LINE_UI, DRAWING_UI] as const
 
-// 既定の配置（今の画面の形）。app は MatomezuProvider にこれか、これを写して直したものを渡す
+// 既定の配置（今の画面の形）。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
 export const DEFAULT_LAYOUT = defineLayout({
   id: "default",
   slots: {

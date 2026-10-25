@@ -11,7 +11,7 @@ export interface Settings {
   keys: KeyChanges // キーの割り当ての、利用者の変更
 }
 
-// 残しておいた設定を、この app で使える項目だけ start に重ねる（無い言語・無いスキン・形の合わない値は捨てる）。
+// 残しておいた設定を、このインスタンスで使える項目だけ start に重ねる（無い言語・無いスキン・形の合わない値は捨てる）。
 // 残した設定は外から来る値なので、形を確かめてから使う
 export function restoreSettings(registry: Registry, start: Settings, saved: unknown): Settings {
   const parsed = SavedSettingsSchema.safeParse(saved)

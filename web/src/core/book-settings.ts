@@ -1,5 +1,5 @@
 // ブックとページの設定の項目: ブックのタイプが設定の定義（core/def/setting.ts）を id で選び、登録表がその欄をブックとページの形に足す。
-// 変える土台のアクション（book.update・page.update）は、名前などの共通の項目に加えて、選んだ項目を settings として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
+// 変える base のアクション（book.update・page.update）は、名前などの共通の項目に加えて、選んだ項目を settings として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
 // 変えたあとはページを整える（settleBook）。値は ページ → ブック → 定義の既定 の順に、最初に値のある所で決まる（settingValue）。
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
 import { z } from "zod"

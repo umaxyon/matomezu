@@ -14,7 +14,7 @@ const def = (key: string, command: string, plugin: string, builtin = false, scop
   builtin,
 })
 
-test("勝つ順は 利用者 > ビルトインプラグイン > 外のプラグイン。外の既定は中とぶつかれば使わず、外どうしでぶつかればどちらも使わない", () => {
+test("勝つ順は 利用者 > ビルトインプラグイン > 追加プラグイン。追加の既定はビルトインとぶつかれば使わず、追加どうしでぶつかればどちらも使わない", () => {
   const defaults = [
     def("Delete", "paper.delete", "@matomezu/paper", true),
     def("Delete", "a/del", "a"),
@@ -117,7 +117,7 @@ const thrown = (run: () => unknown) => {
   return null
 }
 
-test("組み立ては、読めないキー・無いコマンド・外のプラグインがほかのコマンドに結んだ行を誤りにする", () => {
+test("組み立ては、読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行を誤りにする", () => {
   const own = defineCommand({ id: "k/own", title: "Master", run: () => {}, when: () => true })
   const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })

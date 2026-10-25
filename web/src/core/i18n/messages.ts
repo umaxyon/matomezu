@@ -13,7 +13,7 @@ export type MessageSet = Readonly<Record<string, Translations>>
 export const defineMessages = <const M extends Record<string, Translations>>(messages: M): M => messages
 
 // 言語パック: 言語 1 つの名前（その言語自身の書き方）と、文言の鍵 → 訳。
-// プラグインが自分の文言に持つ訳より、パックの訳が勝つ。app に無い鍵の訳は使わない
+// プラグインが自分の文言に持つ訳より、パックの訳が勝つ。インスタンスに無い鍵の訳は使わない
 export interface LanguagePack {
   lang: Lang
   name: string

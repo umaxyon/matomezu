@@ -4,7 +4,7 @@ import { FugaApp, makeApp } from "./App"
 
 afterEach(cleanup)
 
-test("ビルトインプラグインと fuga だけの app でも、fuga のボードを作って星を置き、ミントのボタンが働く", () => {
+test("ビルトインプラグインと fuga だけのインスタンスでも、fuga のボードを作って星を置き、ミントのボタンが働く", () => {
   const app = makeApp()
   render(<FugaApp app={app} />)
   act(() => {

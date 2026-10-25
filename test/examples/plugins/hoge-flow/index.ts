@@ -1,4 +1,4 @@
-// 外から足すブックのタイプの見本（React なし）: タイプ・形・設定の項目・形のダイアログ
+// 追加プラグインのブックのタイプの見本（React なし）: タイプ・形・設定の項目・形のダイアログ
 import { definePlugin } from "matomezu"
 import { DIAMOND, DIAMOND_ADD_DIALOG, DIAMOND_EDIT_DIALOG, FLOW, FLOW_DIRECTION } from "./flow"
 import { FLOW_MESSAGES } from "./messages"

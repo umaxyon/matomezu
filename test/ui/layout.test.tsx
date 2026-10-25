@@ -29,7 +29,7 @@ describe("配置", () => {
     expect(checkLayout(DEFAULT_LAYOUT, ui, commands)).toEqual([])
   })
 
-  test("知らないウィジェット・置けないスロット・app に無いコマンドは誤り", () => {
+  test("知らないウィジェット・置けないスロット・インスタンスに無いコマンドは誤り", () => {
     const bad = {
       id: "bad",
       slots: { root: ["workspace"], "stage.top": ["nope", "book-view"], "stage.bottom": ["book-name"] },
@@ -75,7 +75,7 @@ describe("配置", () => {
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
   })
 
-  test("右クリックのメニューの app に無いコマンドと、どのコンポーネントも開かないメニューは誤り", () => {
+  test("右クリックのメニューのインスタンスに無いコマンドと、どのコンポーネントも開かないメニューは誤り", () => {
     const bad = {
       ...DEFAULT_LAYOUT,
       id: "bad",
@@ -144,7 +144,7 @@ describe("配置", () => {
 describe("ウィジェット", () => {
   const Ping = () => <p>ping</p>
 
-  test("外のプラグインのウィジェットは、頭にプラグインの id と / を付ける", () => {
+  test("追加プラグインのウィジェットは、頭にプラグインの id と / を付ける", () => {
     const bad = definePluginUi(definePlugin({ id: "w" }), {
       widgets: [defineWidget({ id: "ping", slots: ["root"], view: Ping })],
     })

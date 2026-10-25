@@ -1,5 +1,5 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book が対象ならそのブックのタイプ、library と settings が対象なら app のホームのブックのタイプが決める（ホームが無ければ断る）
+// 使えるかは、book が対象ならそのブックのタイプ、library と settings が対象ならインスタンスのホームのブックのタイプが決める（ホームが無ければ断る）
 import type { z } from "zod"
 import type { ActionContext, ActionDef, ActionTarget, Subjects } from "./def/action"
 import { inspect } from "./inspect"

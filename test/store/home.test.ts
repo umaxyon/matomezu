@@ -8,7 +8,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { BUILTIN_PARTS, newStore } from "../support"
 
 describe("ホーム", () => {
-  test("ホームの app は、1 冊だけのタイプのブックをいつも持ち、渡すブックが無ければホームを開く", () => {
+  test("ホームのあるインスタンスは、1 冊だけのタイプのブックをいつも持ち、渡すブックが無ければホームを開く", () => {
     const app = createMatomezu({ plugins: BUILTIN, home: "master" })
     expect(Object.keys(app.state.getState().books)).toEqual(["master"])
     expect(app.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "master", book: "master" })
@@ -21,7 +21,7 @@ describe("ホーム", () => {
     expect(app.actions.createBook("s1", { title: "新しい図", type: "drawing" })).toBe(true)
   })
 
-  test("ホームの無い app は、ブックの一覧を変えるアクションを断り、ホームを開くコマンドを出さない", () => {
+  test("ホームの無いインスタンスは、ブックの一覧を変えるアクションを断り、ホームを開くコマンドを出さない", () => {
     const app = createMatomezu({ plugins: BUILTIN, books: SAMPLE_BOOKS })
     expect(app.home).toBeNull()
     expect(app.actions.createBook("s1", { title: "新しい図", type: "drawing" })).toBe(false)
@@ -30,7 +30,7 @@ describe("ホーム", () => {
     expect(empty.state.getState().workspace.stages[0]!.opened).toBeNull()
   })
 
-  test("マスターのプラグインが無くても、土台と図面（と図面が選ぶもの）で app を作れる", () => {
+  test("マスターのプラグインが無くても、base と図面（と図面が選ぶもの）でインスタンスを作れる", () => {
     const plugins = BUILTIN.filter(p => p.id !== "@matomezu/master")
     const app = createMatomezu({ plugins, partial: true, books: SAMPLE_BOOKS })
     expect(app.registry.bookTypes.has("master")).toBe(false)

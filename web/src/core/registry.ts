@@ -56,7 +56,7 @@ export interface Registry {
   papers: ReadonlyMap<string, PaperDef>
   skins: ReadonlyMap<string, SkinDef>
   messages: Messages
-  languages: ReadonlyMap<Lang, string> // app で選べる言語の id → 名前（土台の言語が先、あとはパックの順）
+  languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語の id → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
 }
 
@@ -130,7 +130,7 @@ export function bookType(reg: Registry, id: string): BookTypeDef {
 const allMessages = (parts: RegistryParts) => [MESSAGES, ...parts.messages]
 const allLanguages = (parts: RegistryParts) => [...LANGUAGES, ...parts.languages]
 
-// 文言の鍵 → 言語ごとの訳。プラグインの文言の訳に、言語パックの訳を重ねる（パックが勝つ）。app に無い鍵のパックの訳は使わない
+// 文言の鍵 → 言語ごとの訳。プラグインの文言の訳に、言語パックの訳を重ねる（パックが勝つ）。インスタンスに無い鍵のパックの訳は使わない
 function mergeMessages(parts: RegistryParts): Messages {
   const messages = new Map<string, Readonly<Record<Lang, string>>>()
   for (const set of allMessages(parts))

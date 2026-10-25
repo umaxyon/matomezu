@@ -9,12 +9,12 @@ export const SET_LANG = defineAction({
   target: "settings",
   needs: [],
   args: z.strictObject({ lang: z.string().min(1) }),
-  // app に無い言語は断る（言語は言語パックで増えるので、表は登録表が持つ）
+  // インスタンスに無い言語は断る（言語は言語パックで増えるので、表は登録表が持つ）
   run: (settings, args, ctx) =>
     ctx.registry.languages.has(args.lang) ? { next: { ...settings, lang: args.lang }, result: {} } : null,
 })
 
-// "auto" か、app にあるスキン（無いスキンは断る）
+// "auto" か、インスタンスにあるスキン（無いスキンは断る）
 export const SET_SKIN = defineAction({
   id: "settings.skin",
   title: "Skin",
@@ -28,7 +28,7 @@ export const SET_SKIN = defineAction({
 })
 
 // キーの割り当ての、利用者の変更（足した行・外した既定の行）を丸ごと置き換える。
-// 今の app に無いコマンドの行も受けて残す（プラグインを戻せばまた効く）
+// 今のインスタンスに無いコマンドの行も受けて残す（プラグインを戻せばまた効く）
 export const SET_KEYS = defineAction({
   id: "settings.keys",
   title: "Shortcut keys",

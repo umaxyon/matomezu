@@ -20,7 +20,7 @@ test("訳の無い言語と表に無い鍵は、英語の鍵をそのまま出�
   expect(translate(new Map(), "ja", "Page {n}", { n: 2 })).toBe("Page 2")
 })
 
-test("好む言語の並びから、app にある最初の言語を選ぶ。無ければ英語", () => {
+test("好む言語の並びから、インスタンスにある最初の言語を選ぶ。無ければ英語", () => {
   const langs = ["en", "ja"]
   expect(detectLang(["ja-JP", "en"], langs)).toBe("ja")
   expect(detectLang(["ja"], langs)).toBe("ja")

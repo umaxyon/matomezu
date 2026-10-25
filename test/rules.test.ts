@@ -59,7 +59,7 @@ describe("依存の向き", () => {
           if (t.endsWith(".css")) return !isView(file.rel)
           if (!local(t)) return !pluginAllowed(file.rel)(t)
           if (topOf(t) !== "plugins") return !pluginAllowed(file.rel)(topOf(t))
-          // 同じプラグインの中（下のフォルダも含む）か、土台のプラグイン base の入口（index・ui）だけ。見た目でないファイルは見た目を読まない
+          // 同じプラグインの中（下のフォルダも含む）か、base の入口（index・ui）だけ。見た目でないファイルは見た目を読まない
           const root = pluginRoot(t)
           const isEntry = t === root || t === `${root}/index` || t === `${root}/ui`
           // ビルトインプラグインの一覧（plugins/index.ts・plugins/ui.ts）は、どのプラグインの入口も読む
@@ -178,7 +178,7 @@ test("外に見せる入口は、決めた層だけを読み、中のコード�
   expect([...bad, ...inward]).toEqual([])
 })
 
-// 外のプラグインと、それを組むアプリの見本（test/examples）: 中（web/src）を直に読まず、プラグイン API の名前（アプリのテストは matomezu/testing も）だけを読む。
+// 追加プラグインと、それを組むアプリの見本（test/examples）: 中（web/src）を直に読まず、プラグイン API の名前（アプリのテストは matomezu/testing も）だけを読む。
 // プラグイン（plugins/名前）は互いに読まない。見た目でないファイルは matomezu/ui も React も読まない。アプリはプラグインの入口（index・ui）を読む
 const EXAMPLES = join(ROOT, "test/examples")
 const examples = filesUnder(EXAMPLES).map(path => ({

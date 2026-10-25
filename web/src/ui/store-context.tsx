@@ -1,4 +1,4 @@
-// app（store・プラグインの見た目・配置）を画面の木に配る入れ物と、読む口・操作・表を取り出すフック
+// インスタンス（store・プラグインの見た目・配置）を画面の木に配る入れ物と、読む口・操作・表を取り出すフック
 import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
 import { fail, matomezuError, problem } from "../core/errors"
@@ -15,8 +15,8 @@ interface AppContext {
 }
 const Context = createContext<AppContext | null>(null)
 
-// 見た目を結んだプラグインだけで作った app を、配置と一緒に置く（結んでいないプラグインがあれば型の誤り）。
-// 配置は渡すたびに確かめ（知らないウィジェット・置けないスロット・app に無いコマンド）、変えればその場で組み直す
+// 見た目を結んだプラグインだけで作ったインスタンスを、配置と一緒に置く（結んでいないプラグインがあれば型の誤り）。
+// 配置は渡すたびに確かめ（知らないウィジェット・置けないスロット・インスタンスに無いコマンド）、変えればその場で組み直す
 export function MatomezuProvider({
   app,
   layout,
@@ -49,7 +49,7 @@ export function useActions(): Actions {
   return useAppContext().store.actions
 }
 
-// app が使う定義の表と登録表（作った後は変わらない）
+// インスタンスが使う定義の表と登録表（作った後は変わらない）
 export function useDefs(): AppDefs {
   return useAppContext().store
 }
@@ -58,7 +58,7 @@ export function useRegistry(): Registry {
   return useAppContext().store.registry
 }
 
-// app の見た目の表（ブックのタイプ・アイテム・ダイアログのビュー・ウィジェット・コマンドのアイコン）
+// インスタンスの見た目の表（ブックのタイプ・アイテム・ダイアログのビュー・ウィジェット・コマンドのアイコン）
 export function useUi(): UiDefs {
   return useAppContext().ui
 }

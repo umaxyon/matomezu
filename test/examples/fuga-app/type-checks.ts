@@ -4,7 +4,7 @@ import { makeApp } from "./App"
 
 const app = makeApp()
 app.actions.command("s1", "fuga/mint")
-// @ts-expect-error hoge のコマンドは、hoge を渡していない app には無い
+// @ts-expect-error hoge のコマンドは、hoge を渡していないインスタンスには無い
 app.actions.command("s1", "hoge/open")
 
 export const own: [BookTypeId, ItemId] = ["fuga/board", "fuga/star"]

@@ -60,7 +60,7 @@ test("メモリのホストは残したものを次に読む", async () => {
   expect(again.settings).toMatchObject({ skin: "dark" })
 })
 
-test("残した設定は、この app で使える項目だけ使う（無い言語・無いスキン・形の合わない値は捨てる）", () => {
+test("残した設定は、このインスタンスで使える項目だけ使う（無い言語・無いスキン・形の合わない値は捨てる）", () => {
   const pick = (settings: unknown) => newStore({ settings }).state.getState().settings
   expect(pick({ lang: "en", skin: "dark" })).toMatchObject({ lang: "en", skin: "dark" })
   expect(pick({ lang: "xx", skin: "nope", keys: { added: "bad" } })).toEqual(pick(undefined))

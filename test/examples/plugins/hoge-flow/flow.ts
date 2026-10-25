@@ -1,4 +1,4 @@
-// 外から足すブックのタイプの見本: 自分の形（ひし形）と設定の項目（流れの向き）を持ち、中の見せ方（紙）・箱・線・線の設定を id で選ぶ
+// 追加プラグインのブックのタイプの見本: 自分の形（ひし形）と設定の項目（流れの向き）を持ち、ビルトインの見せ方（紙）・箱・線・線の設定を id で選ぶ
 
 import { BookLookSchema, defineBookType, defineDialogWith, defineSetting, defineShape, type Point } from "matomezu"
 import { z } from "zod"

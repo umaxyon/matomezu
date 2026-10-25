@@ -25,7 +25,7 @@ test("ビルトインプラグインのダイアログを、自分のものに�
   expect(screen.getByRole("dialog", { name: "新しいブックの代わり" })).toBeTruthy()
 })
 
-test("外のタイプのブックを作り、外の形と中の箱を置いて線でつなぎ、外の設定を変え、中の紙の見せ方で描ける", () => {
+test("追加のタイプのブックを作り、追加の形とビルトインの箱を置いて線でつなぎ、追加の設定を変え、ビルトインの紙の見せ方で描ける", () => {
   const app = makeApp()
   render(<HogeApp app={app} />)
   act(() => {
@@ -58,7 +58,7 @@ test("外のタイプのブックを作り、外の形と中の箱を置いて�
   expect(document.querySelector("[data-hoge-diamond]")?.textContent).toBe("判断")
 })
 
-test("外の形は、選んでいない中のタイプ（図面）のブックには置けない", () => {
+test("追加の形は、選んでいないビルトインのタイプ（図面）のブックには置けない", () => {
   const app = makeApp()
   app.actions.createBook("s1", { title: "図面", type: "drawing" })
   const id = (app.state.getState().workspace.stages[0]!.opened as { book: string }).book
@@ -72,7 +72,7 @@ test("外の形は、選んでいない中のタイプ（図面）のブック�
   expect(r).toMatchObject({ ok: false })
 })
 
-// 作り手の違う外のプラグインを 2 つ以上いっしょに渡しても、それぞれのタイプ・形・設定・テーマが働き、互いの形は選ばれた所にだけ置ける
+// 作り手の違う追加プラグインを 2 つ以上いっしょに渡しても、それぞれのタイプ・形・設定・テーマが働き、互いの形は選ばれた所にだけ置ける
 const newBook = (app: ReturnType<typeof makeApp>, type: "hoge-flow/flow" | "fuga/board") => {
   act(() => {
     expect(app.actions.createBook("s1", { title: type, type })).toBe(true)
@@ -110,7 +110,7 @@ test("fuga のボードに fuga の星と中のリストを置いて線でつな
   expect(document.querySelector("[data-fuga-star]")?.getAttribute("data-fuga-star")).toBe("6")
 })
 
-test("外の形は、それを選んだタイプのブックにだけ置ける（hoge のひし形は fuga のボードに、fuga の星は hoge のフローに置けない）", () => {
+test("追加の形は、それを選んだタイプのブックにだけ置ける（hoge のひし形は fuga のボードに、fuga の星は hoge のフローに置けない）", () => {
   const app = makeApp()
   expect(newBook(app, "fuga/board").place("hoge-flow/diamond", { caption: "x" })).toMatchObject({ ok: false })
   expect(newBook(app, "hoge-flow/flow").place("fuga/star", { caption: "x" })).toMatchObject({ ok: false })

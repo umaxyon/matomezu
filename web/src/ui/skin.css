@@ -1,4 +1,4 @@
-/* 文書の土台。スキンの値（--skin-）は ui/skins の表から SkinStyle が置く */
+/* 文書の基本の見た目。スキンの値（--skin-）は ui/skins の表から SkinStyle が置く */
 * {
   box-sizing: border-box;
 }

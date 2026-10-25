@@ -1,4 +1,4 @@
-// hoge のダイアログ。枠は土台のダイアログを使う
+// hoge のダイアログ。枠は base のダイアログを使う
 import { Dialog, type DialogProps, useT } from "matomezu/ui"
 import styles from "./HogeDialog.module.css"
 import { shout } from "./logic"

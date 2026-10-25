@@ -1,4 +1,4 @@
-// そのステージから呼ぶコマンド。出すか・押せるかが変わったときだけ描き直す。app に無いコマンドなら誤り
+// そのステージから呼ぶコマンド。出すか・押せるかが変わったときだけ描き直す。インスタンスに無いコマンドなら誤り
 import type { MessageKey } from "../core/i18n/i18n"
 import { type CommandArgs, type CommandId, commandDef, isActive, isEnabled, isShown } from "../store/commands"
 import { useActions, useApp, useDefs } from "./store-context"

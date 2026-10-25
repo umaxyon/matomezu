@@ -9,7 +9,7 @@ import { definePlugin } from "../../web/src/store/plugin"
 import { skinCss } from "../../web/src/ui/skins/css"
 import { BUILTIN_PARTS, REGISTRY } from "../support"
 
-// 外のプラグインのスキン（型の表には書き足さない）
+// 追加プラグインのスキン（型の表には書き足さない）
 const ACME_DARK = defineSkin({ ...DARK, id: "acme/dark" })
 const acme = definePlugin({ id: "acme", skins: [ACME_DARK] })
 
@@ -35,7 +35,7 @@ describe("スキン", () => {
     expect(autoSkin(buildRegistry({ ...BUILTIN_PARTS, skins: [] }))).toBeNull()
   })
 
-  test("プラグインのスキンを持ち込み、自動のスキンにでき、設定で選べる。app に無いスキンは選べない", () => {
+  test("プラグインのスキンを持ち込み、自動のスキンにでき、設定で選べる。インスタンスに無いスキンは選べない", () => {
     const app = createMatomezu({
       plugins: [...BUILTIN, acme],
       partial: true,

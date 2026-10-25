@@ -10,7 +10,7 @@ import { defineDialog } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions } from "../../web/src/store/store"
 
-// 外のプラグインの見本。型の表には書き足さない（書き足すと、このプロジェクトの全部の app に要るものになる）ので、app は partial で作る
+// 追加プラグインの見本。型の表には書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
 const NOTE = defineBookType({
   id: "notes/note",
   version: 1,
@@ -65,7 +65,7 @@ describe("app を組み立てる", () => {
     expect(thrown(() => untyped(plain.actions).openDialog("s1", "notes/shot"))).toMatchObject({ code: "E108" })
   })
 
-  test("外のプラグインの id は、頭にプラグインの id と / を付ける", () => {
+  test("追加プラグインの id は、頭にプラグインの id と / を付ける", () => {
     // @ts-expect-error 頭が無い id
     const bad = definePlugin({ id: "notes", dialogs: [defineDialog({ id: "shot" })] })
     expect(thrown(() => createMatomezu({ plugins: [...BUILTIN, bad], partial: true }))).toMatchObject({
@@ -73,7 +73,7 @@ describe("app を組み立てる", () => {
     })
   })
 
-  test("プラグインの文言は app の表に入り、コマンドの名前が文言の表に無ければ作らない", () => {
+  test("プラグインの文言はインスタンスの表に入り、コマンドの名前が文言の表に無ければ作らない", () => {
     const greet = definePlugin({ id: "greet", messages: { やあ: { en: "Hi" } } })
     const app = createMatomezu({ plugins: [...BUILTIN, greet], partial: true })
     expect(app.registry.messages.get("やあ")).toEqual({ en: "Hi" })

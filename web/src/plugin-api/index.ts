@@ -1,4 +1,4 @@
-// プラグイン API の入口 matomezu（React なし）: 外のプラグインが定義を書くのに使うものだけを出す。型の表への書き足しは matomezu/tables（core/tables.ts）に向ける
+// プラグイン API の入口 matomezu（React なし）: 追加プラグインが定義を書くのに使うものだけを出す。型の表への書き足しは matomezu/tables（core/tables.ts）に向ける
 export type { ActionDef } from "../core/def/action"
 export { defineAction } from "../core/def/action"
 export type { BookTypeDef } from "../core/def/book-type"

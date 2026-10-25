@@ -87,7 +87,7 @@ describe("組み立ての食い違い", () => {
     expect(checkRegistry(parts).map(p => p.code)).toContain("E027")
   })
 
-  test("形のアイテムが名指すダイアログが app に無ければ、組み立てで誤り", () => {
+  test("形のアイテムが名指すダイアログがインスタンスに無ければ、組み立てで誤り", () => {
     const box = BUILTIN.find(p => p.id === "@matomezu/box")!
     const broken = { ...box, dialogs: [] }
     const plugins = BUILTIN.map(p => (p === box ? broken : p))

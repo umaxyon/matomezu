@@ -1,4 +1,4 @@
-// 土台のプラグインの文言（各フォルダの文言を集めたもの）
+// base の文言（各フォルダの文言を集めたもの）
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_OPEN_MESSAGES } from "./book-open/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"

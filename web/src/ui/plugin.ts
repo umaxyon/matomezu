@@ -1,7 +1,7 @@
 // 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインの見せ方・アイテム・設定の項目・ダイアログのビューを結び、
 // ウィジェット（スロットに置けるコンポーネント）とコマンドのアイコンを足す。
 // ビューは、そのプラグインの id を全部持たないと型の誤り。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
-// 画面に置く app は、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
+// 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
 import type { ComponentType, ReactNode } from "react"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
@@ -126,7 +126,7 @@ export type AnyPluginUi = Plugin & { ui: object }
 
 export const definePluginUi = <const P extends Plugin>(plugin: P, ui: UiParts<P>): PluginUi<P> => ({ ...plugin, ui })
 
-// app の見た目の表
+// インスタンスの見た目の表
 export interface UiDefs {
   presentationViews: ReadonlyMap<string, BookViewDef>
   items: ReadonlyMap<string, ItemUi>
