@@ -26,6 +26,7 @@ const NOTE = defineBookType({
 const RENAME = defineAction({
   id: "notes/rename",
   title: "Drawing",
+  aiDescription: "Rename a notes book.",
   target: "book",
   needs: [],
   args: z.strictObject({ title: z.string().min(1) }),

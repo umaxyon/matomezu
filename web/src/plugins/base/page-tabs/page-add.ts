@@ -6,6 +6,8 @@ import { ORIENTATIONS } from "../../../core/def/paper"
 
 export const PAGE_ADD = defineAction({
   id: "page.add",
+  aiDescription:
+    "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id.",
   title: "Add page",
   target: "book",
   needs: [],

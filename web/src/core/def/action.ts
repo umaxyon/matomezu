@@ -34,6 +34,7 @@ export interface Done<T extends ActionTarget, R> {
 export interface ActionDef<T extends ActionTarget = ActionTarget, A = unknown, R = unknown, I = unknown> {
   id: string // 「対象.動き」（例: page.add）
   title: MessageKey
+  aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
   needs: readonly Capability[] // 対象のアイテムに求める能力
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）

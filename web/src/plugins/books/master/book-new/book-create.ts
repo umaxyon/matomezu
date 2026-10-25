@@ -14,6 +14,7 @@ const ARGS = z.strictObject({
 
 export const BOOK_CREATE = defineAction({
   id: "book.create",
+  aiDescription: "Create a book. type is a book type such as drawing. Returns the new book's id.",
   title: "New book",
   target: "library",
   needs: [],

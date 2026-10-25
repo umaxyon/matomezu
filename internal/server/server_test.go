@@ -465,6 +465,13 @@ func TestSettingsActions(t *testing.T) {
 	if !strings.Contains(data, `"skin":"dark"`) {
 		t.Fatalf("data = %s", data)
 	}
+	// AI も設定を読んで変えられる
+	if _, got := send(t, "GET", s.URL+"/api/ai/settings", "", ai); !strings.Contains(got, `"skin":"dark"`) {
+		t.Fatalf("ai settings = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"settings.skin","args":{"skin":"light"}}`, ai); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("ai perform = %s", got)
+	}
 }
 
 func TestViewIsTheLastFocusedScreens(t *testing.T) {
@@ -497,7 +504,7 @@ func TestAIEntrancesNeedTheToken(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	auth := map[string]string{"Authorization": "Bearer secret"}
-	for _, path := range []string{"/api/ai/view", "/api/ai/books", "/api/ai/books/b1", "/api/ai/catalog"} {
+	for _, path := range []string{"/api/ai/view", "/api/ai/books", "/api/ai/books/b1", "/api/ai/settings", "/api/ai/catalog"} {
 		if code, _ := send(t, "GET", s.URL+path, "", nil); code != 401 {
 			t.Errorf("%s without the token = %d", path, code)
 		}

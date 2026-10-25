@@ -89,25 +89,32 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 	var c struct {
 		Actions []struct {
-			ID     string          `json:"id"`
-			Target string          `json:"target"`
-			Args   json.RawMessage `json:"args"`
+			ID          string          `json:"id"`
+			Target      string          `json:"target"`
+			Description string          `json:"description"`
+			Args        json.RawMessage `json:"args"`
 		} `json:"actions"`
 		Items []struct {
 			ID    string          `json:"id"`
 			Props json.RawMessage `json:"props"`
 		} `json:"items"`
+		Languages []string `json:"languages"`
+		Skins     []string `json:"skins"`
 	}
 	if err := json.Unmarshal(newEngine(t).AICatalog(), &c); err != nil {
 		t.Fatal(err)
 	}
 	found := false
 	for _, a := range c.Actions {
+		if a.Description == "" {
+			t.Errorf("%s has no description for the AI", a.ID)
+		}
 		if a.ID == "item.place" {
 			found = a.Target == "book" && strings.Contains(string(a.Args), `"page"`) && strings.Contains(string(a.Args), `"required"`)
 		}
 	}
-	if !found || len(c.Items) == 0 || !strings.Contains(string(c.Items[0].Props), `"caption"`) {
+	if !found || len(c.Items) == 0 || !strings.Contains(string(c.Items[0].Props), `"caption"`) ||
+		strings.Join(c.Languages, ",") != "en,ja" || strings.Join(c.Skins, ",") != "dark,light" {
 		t.Fatalf("ai catalog = %s", newEngine(t).AICatalog())
 	}
 }

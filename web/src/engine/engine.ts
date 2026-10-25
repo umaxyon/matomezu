@@ -76,6 +76,7 @@ function aiCatalog() {
       id: a.id,
       target: a.target,
       title: en(a.title),
+      description: a.aiDescription,
       args: z.toJSONSchema(a.describeArgs?.(catalog) ?? a.args, { io: "input", unrepresentable: "any" }),
     })),
     items: [...catalog.items.values()].map(i => ({
@@ -85,6 +86,8 @@ function aiCatalog() {
       props: z.toJSONSchema(i.props, { io: "input", unrepresentable: "any" }),
     })),
     themes: [...catalog.themes.values()].map(th => ({ id: th.id, title: en(th.title) })),
+    languages: [...catalog.languages.keys()],
+    skins: [...catalog.skins.keys()],
     colors: PALETTE.map(id => ({ id, meaning: PALETTE_MEANINGS[id] })),
   }
 }

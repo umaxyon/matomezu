@@ -2,65 +2,12 @@ package mcp
 
 import (
 	"encoding/json"
-	"fmt"
-	"slices"
-	"strings"
 )
 
 // instructions は、つないだ AI に渡す matomezu の説明
 const instructions = "matomezu shows diagrams (books of pages with boxes) to the user in a browser. " +
-	"Use view to see what the user is looking at, list_books and read_book to read, and the other tools to change books. " +
+	"Use view to see what the user is looking at, list_books and read_book to read, actions to see what can be done, and perform to do it. " +
 	"Changes appear at once on screens showing that book; use show to put a book on the user's screen."
-
-// actionTool は、アクション 1 つを行う道具。受ける形は、そのアクションの引数（ブックが対象なら、それに book を足す）
-type actionTool struct {
-	name        string
-	action      string
-	description string
-}
-
-// actionTools は AI に渡すアクションの道具（並べたものだけを行える）
-var actionTools = []actionTool{
-	{"create_book", "book.create", "Create a book. type is a book type such as drawing. Returns the new book's id."},
-	{"update_book", "book.update", "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it), paperColor (#rrggbb, the paper's color) " +
-		"and settings, the ones its book type has (for a drawing, lineRoute: how lines run on pages without a route of their own, straight or elbow; without it, elbow). " +
-		"Only what is given changes; null removes it (back to the book type's theme, the theme's paper color, or the setting's default)."},
-	{"add_page", "page.add", "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id."},
-	{"update_page", "page.update", "Change a page's settings, the ones its book type has (settings; for a drawing, lineRoute: how its lines run when they have no route of their own, straight or elbow). " +
-		"Only what is given changes; null removes it (a drawing page then follows its book's lineRoute)."},
-	{"place_item", "item.place", "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box, a list). " +
-		"A list (shape.list) starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with add_row. " +
-		"Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. " +
-		"Boxes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed. It is refused if it does not fit on the paper. Returns the new item's id. " +
-		"Two items joined by a line keep 32 pixels apart (40 when the line has a caption) instead of 8, here and in move_items, update_item and resize_item."},
-	{"move_items", "item.move", "Move items of a page by (x, y) paper pixels. Other boxes are not pushed: moving one box at least half into the box ahead of it swaps them; " +
-		"coming within 8 pixels of a box otherwise stops it just before that box. It is refused if any would leave the paper."},
-	{"update_item", "item.update", "Change some props of an item (a box or a list; a line is changed with update_line). Props not given stay; a prop given as null is removed (back to its default). The item's size does not change, except that a box whose caption grows widens to show it up to 20 characters, pushing the boxes it would come too close to (when they would leave the paper, it stays as wide)."},
-	{"resize_item", "item.resize", "Change the size of an item that can be resized (a box): only w and h given change; x and y move its top-left too. " +
-		"Boxes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed boxes shrink (no narrower than their caption, no lower than one caption line). " +
-		"It is refused below the item's smallest size, off the paper, or when they cannot shrink enough."},
-	{"remove_items", "item.remove", "Remove items (boxes, lists, lines) from a page. Removing a box or a list removes the lines joined to it."},
-	{"connect_items", "line.connect", "Draw a line from the item from to the item to (boxes and lists on the same page, not a list's rows); from and to the same item draws a line looping back to it. " +
-		"Two items are joined by one line at most (either way); an item may loop back to itself any number of times. " +
-		"route is straight or elbow (without it, elbow); startHead and endHead put a shape on that end (arrow is a filled triangle); dash is solid or dashed. " +
-		"exitAt and enterAt fix where the line leaves from and enters to: a fraction (0 to 1) of the way clockwise round the item's edge from its top-left corner; without them the line picks its ends. " +
-		"via (elbow lines with both ends fixed) places the line's middle segments. If the two items are now too close (32 pixels, 40 with a caption), to is moved away. Returns the new line's id. read_book shows lines among a page's items."},
-	{"reconnect_line", "line.reconnect", "Move one end of a line (end is from or to) to another item on the page, keeping its caption, heads, style and route. " +
-		"Its hand-placed middle segments and the moved end's fixed place are dropped (both ends' places when it becomes or stops being a loop); props.exitAt or props.enterAt fix them again. " +
-		"The item and the other end must not be joined by another line. If they are now too close, the other end's item is moved away."},
-	{"update_line", "line.update", "Change some props of a line. Props not given stay; a prop given as null is removed (back to its default). A caption that widens the gap moves the end item away."},
-	{"add_row", "row.add", "Add a row at the end of a list (an item shape.list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. " +
-		"Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks."},
-	{"update_row", "row.update", "Change some props of a list's row. Props not given stay; a prop given as null is removed (back to its default)."},
-	{"remove_rows", "row.remove", "Remove rows from a list."},
-	{"move_row", "row.move", "Move a row of a list before the row before (or to the end without it), in the same list or in another list (to) on the same page. " +
-		"A row moved to a list that is not a checklist loses its check."},
-	{"check_row", "row.check", "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with update_item, and setting it false removes every row's check). " +
-		"The user checks rows too, so a check can carry their answer."},
-	{"set_row_lines", "row.lines", "Set how many body lines rows of a list show (rows given, or every row): a number gives them all that height whatever their body; " +
-		"\"max\" gives them all the height of the longest body; \"fit\" gives each row the height of its own body. " +
-		"null removes it: rows without it share the height of the most body lines among them, up to 5, and a longer body is cut with …."},
-}
 
 type readTool struct {
 	name        string
@@ -98,31 +45,41 @@ var readTools = []readTool{
 			return api.Get("api/ai/books/" + id)
 		},
 	},
+	{
+		"read_settings",
+		"Read the user's settings: lang, skin and keys (their changes to the shortcut keys). null when they have changed nothing.",
+		noArgs,
+		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
+	},
+	{
+		"actions",
+		"List what can be done now (it changes when plugins are added or removed): the actions (id, target, title, description, and args as JSON Schema) to call with perform, " +
+			"the items with their props and default sizes, the themes, the colors by role, the languages and the skins.",
+		noArgs,
+		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
+	},
 }
 
-type aiCatalogAction struct {
-	ID     string         `json:"id"`
-	Target string         `json:"target"`
-	Args   map[string]any `json:"args"`
+// performSchema は perform の受ける形
+var performSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"action": map[string]any{"type": "string", "description": "The action's id (see actions)."},
+		"args":   map[string]any{"type": "object", "description": "The action's arguments, matching its args in actions."},
+		"on": map[string]any{
+			"type":                 "object",
+			"description":          "The book the action is done on, for an action whose target is book.",
+			"properties":           map[string]any{"book": map[string]any{"type": "string", "description": "The book's id."}},
+			"required":             []string{"book"},
+			"additionalProperties": false,
+		},
+	},
+	"required":             []string{"action", "args"},
+	"additionalProperties": false,
 }
 
-type aiCatalog struct {
-	Actions []aiCatalogAction `json:"actions"`
-	Items   []struct {
-		ID    string         `json:"id"`
-		Title string         `json:"title"`
-		Size  map[string]any `json:"size"`
-		Props map[string]any `json:"props"`
-	} `json:"items"`
-	Themes []struct {
-		ID    string `json:"id"`
-		Title string `json:"title"`
-	} `json:"themes"`
-	Colors []struct {
-		ID      string `json:"id"`
-		Meaning string `json:"meaning"`
-	} `json:"colors"`
-}
+const performDescription = "Perform an action listed by actions, as the user would on the screen: the change appears at once on screens showing that book. " +
+	"Returns the action's result (such as the id of what it made), or why it was refused."
 
 // showSchema は show の受ける形
 var showSchema = map[string]any{
@@ -140,89 +97,17 @@ var showSchema = map[string]any{
 const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
-func readAICatalog(api API) (*aiCatalog, error) {
-	raw, err := api.Get("api/ai/catalog")
-	if err != nil {
-		return nil, err
-	}
-	var c aiCatalog
-	if err := json.Unmarshal(raw, &c); err != nil {
-		return nil, err
-	}
-	return &c, nil
-}
-
-// listTools は道具の一覧（読む道具と、AI 向けの機能台帳にあるアクションの道具）
-func listTools(api API) ([]map[string]any, error) {
-	c, err := readAICatalog(api)
-	if err != nil {
-		return nil, err
-	}
+// listTools は道具の一覧（読む道具・show・perform）。追加プラグインを足しても変わらない
+func listTools() []map[string]any {
 	tools := []map[string]any{}
 	for _, t := range readTools {
 		tools = append(tools, map[string]any{"name": t.name, "description": t.description, "inputSchema": t.schema})
 	}
-	tools = append(tools, map[string]any{"name": "show", "description": showDescription, "inputSchema": showSchema})
-	for _, t := range actionTools {
-		i := slices.IndexFunc(c.Actions, func(a aiCatalogAction) bool { return a.ID == t.action })
-		if i < 0 {
-			continue
-		}
-		a := c.Actions[i]
-		description := t.description
-		if t.action == "item.place" {
-			description += " Items and their props: " + itemsText(c)
-		}
-		tools = append(tools, map[string]any{"name": t.name, "description": description, "inputSchema": inputSchema(a.Args, a.Target)})
-	}
-	return tools, nil
-}
-
-// inputSchema は、アクションの引数の形に、ブックが対象なら book を足したもの
-func inputSchema(args map[string]any, target string) map[string]any {
-	s := map[string]any{}
-	for k, v := range args {
-		if k != "$schema" {
-			s[k] = v
-		}
-	}
-	if target != "book" {
-		return s
-	}
-	props := map[string]any{"book": map[string]any{"type": "string", "description": "The book's id."}}
-	if p, ok := s["properties"].(map[string]any); ok {
-		for k, v := range p {
-			props[k] = v
-		}
-	}
-	s["properties"] = props
-	required := []any{"book"}
-	if r, ok := s["required"].([]any); ok {
-		required = append(required, r...)
-	}
-	s["required"] = required
-	return s
-}
-
-func itemsText(c *aiCatalog) string {
-	parts := []string{}
-	for _, i := range c.Items {
-		props, _ := json.Marshal(i.Props["properties"])
-		size, _ := json.Marshal(i.Size)
-		parts = append(parts, fmt.Sprintf("%s (%s, default size %s) props %s", i.ID, i.Title, size, props))
-	}
-	themes := []string{}
-	for _, th := range c.Themes {
-		themes = append(themes, fmt.Sprintf("%s (%s)", th.ID, th.Title))
-	}
-	colors := []string{}
-	for _, c := range c.Colors {
-		colors = append(colors, fmt.Sprintf("%s (%s)", c.ID, c.Meaning))
-	}
-	return strings.Join(parts, "; ") + ". A box's theme prop takes one of the themes: " + strings.Join(themes, ", ") +
-		" (without it, the box looks like its book's theme)" +
-		". A box's color prop fills the box: one of the theme's colors by role, " + strings.Join(colors, ", ") +
-		", drawn in the colors of the box's theme; or #rrggbb, the same in every theme (without it, the theme's fill)"
+	tools = append(tools,
+		map[string]any{"name": "show", "description": showDescription, "inputSchema": showSchema},
+		map[string]any{"name": "perform", "description": performDescription, "inputSchema": performSchema},
+	)
+	return tools
 }
 
 // callTool は道具を呼び、AI に返す文と、失敗したかを返す
@@ -245,34 +130,35 @@ func callTool(api API, name string, raw json.RawMessage) (string, bool) {
 	if name == "show" {
 		return show(api, args)
 	}
-	for _, t := range actionTools {
-		if t.name != name {
-			continue
-		}
-		req := map[string]any{"action": t.action}
-		if book, ok := args["book"].(string); ok {
-			req["on"] = map[string]any{"book": book}
-			delete(args, "book")
-		}
-		req["args"] = args
-		out, err := api.Post("api/ai/perform", req)
-		if err != nil {
-			return err.Error(), true
-		}
-		var done struct {
-			OK     bool            `json:"ok"`
-			Reason string          `json:"reason"`
-			Result json.RawMessage `json:"result"`
-		}
-		if err := json.Unmarshal(out, &done); err != nil {
-			return string(out), true
-		}
-		if !done.OK {
-			return refusalText(done.Reason), true
-		}
-		return string(done.Result), false
+	if name == "perform" {
+		return perform(api, args)
 	}
 	return "unknown tool: " + name, true
+}
+
+func perform(api API, args map[string]any) (string, bool) {
+	if _, ok := args["action"].(string); !ok {
+		return "perform needs action (an action's id, see actions)", true
+	}
+	if _, ok := args["args"].(map[string]any); !ok {
+		args["args"] = map[string]any{}
+	}
+	out, err := api.Post("api/ai/perform", args)
+	if err != nil {
+		return err.Error(), true
+	}
+	var done struct {
+		OK     bool            `json:"ok"`
+		Reason string          `json:"reason"`
+		Result json.RawMessage `json:"result"`
+	}
+	if err := json.Unmarshal(out, &done); err != nil {
+		return string(out), true
+	}
+	if !done.OK {
+		return refusalText(done.Reason), true
+	}
+	return string(done.Result), false
 }
 
 func show(api API, args map[string]any) (string, bool) {
@@ -312,9 +198,11 @@ func refusalText(reason string) string {
 	case "no-book":
 		return "no-book: there is no book with that id (see list_books)"
 	case "bad-args":
-		return "bad-args: the arguments do not match the tool's input schema"
+		return "bad-args: the args do not match the action's args (see actions)"
 	case "not-allowed":
-		return "not-allowed: this book's type does not allow it"
+		return "not-allowed: this book's type (or, for the library and the settings, the home book's type) does not allow it"
+	case "unknown":
+		return "unknown: there is no action with that id (see actions)"
 	default:
 		return reason + ": it could not be done here (for example the page or item does not exist, or it would leave the paper; read_book to check)"
 	}

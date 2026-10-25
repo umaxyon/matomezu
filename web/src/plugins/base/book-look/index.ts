@@ -21,6 +21,8 @@ const ARGS = z.strictObject({
 // settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す）。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = defineAction({
   id: "book.update",
+  aiDescription:
+    "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it), paperColor (#rrggbb, the paper's color) and settings, the ones its book type has (for a drawing, lineRoute: how lines run on pages without a route of their own, straight or elbow; without it, elbow). Only what is given changes; null removes it (back to the book type's theme, the theme's paper color, or the setting's default).",
   title: "Change book",
   target: "book",
   needs: [],

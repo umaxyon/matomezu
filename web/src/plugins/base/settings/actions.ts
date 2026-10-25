@@ -5,6 +5,8 @@ import { KeyChangesSchema } from "../../../core/keys"
 
 export const SET_LANG = defineAction({
   id: "settings.lang",
+  aiDescription:
+    "Change the language of the user's matomezu: lang is one of the languages in actions (a language it does not have is refused).",
   title: "Language",
   target: "settings",
   needs: [],
@@ -17,6 +19,8 @@ export const SET_LANG = defineAction({
 // "auto" か、インスタンスにあるスキン（無いスキンは断る）
 export const SET_SKIN = defineAction({
   id: "settings.skin",
+  aiDescription:
+    "Change how the user's matomezu looks: skin is auto (follow the OS's light or dark) or one of the skins in actions (a skin it does not have is refused).",
   title: "Skin",
   target: "settings",
   needs: [],
@@ -31,6 +35,8 @@ export const SET_SKIN = defineAction({
 // 今のインスタンスに無いコマンドの行も受けて残す（プラグインを戻せばまた効く）
 export const SET_KEYS = defineAction({
   id: "settings.keys",
+  aiDescription:
+    "Replace the user's changes to the shortcut keys as a whole: added are the rows added to the defaults, removed the default rows taken away. Read them first with read_settings and give them back with your change, or the other changes are lost.",
   title: "Shortcut keys",
   target: "settings",
   needs: [],

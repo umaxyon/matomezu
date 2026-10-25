@@ -30,6 +30,8 @@ function parsePlaced(catalog: CoreCatalog, value: { item: string; [field: string
 // w・h は大きさを変えられるアイテムの幅と高さ（無ければ定義の幅と、箱は本文が 5 行まで見える高さ。データには決まった値を書く）
 export const ITEM_PLACE = defineAction({
   id: "item.place",
+  aiDescription:
+    "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box, a list). A list (shape.list) starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with row.add. Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. Boxes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed. It is refused if it does not fit on the paper. Returns the new item's id. Two items joined by a line keep 32 pixels apart (40 when the line has a caption) instead of 8, here and in item.move, item.update and item.resize. The items, their props and sizes, the themes and the colors are in actions.",
   title: "Place item",
   target: "book",
   needs: [],
@@ -61,6 +63,8 @@ export const ITEM_PLACE = defineAction({
 // アイテムを by だけ動かす（items.ts の moveItems。1 つなら正面の相手と入れ替え・手前へ戻す、何個かならまとめて手前へ戻す）。収まらなければ断る
 export const ITEM_MOVE = defineAction({
   id: "item.move",
+  aiDescription:
+    "Move items of a page by (x, y) paper pixels. Other boxes are not pushed: moving one box at least half into the box ahead of it swaps them; coming within 8 pixels of a box otherwise stops it just before that box. It is refused if any would leave the paper.",
   title: "Move items",
   target: "book",
   needs: [],
@@ -82,6 +86,8 @@ export const ITEM_MOVE = defineAction({
 // 近づきすぎた相手を押す。押した相手が紙に収まらなければ、広げずに変える。項目の形に合わなければ断る
 export const ITEM_UPDATE = defineAction({
   id: "item.update",
+  aiDescription:
+    "Change some props of an item (a box or a list; a line is changed with line.update). Props not given stay; a prop given as null is removed (back to its default). The item's size does not change, except that a box whose caption grows widens to show it up to 20 characters, pushing the boxes it would come too close to (when they would leave the paper, it stays as wide).",
   title: "Update item",
   target: "book",
   needs: [],
@@ -112,6 +118,8 @@ export const ITEM_UPDATE = defineAction({
 // 一番小さい大きさより小さい・紙からはみ出す・縮めても収まらないなら断る
 export const ITEM_RESIZE = defineAction({
   id: "item.resize",
+  aiDescription:
+    "Change the size of an item that can be resized (a box): only w and h given change; x and y move its top-left too. Boxes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed boxes shrink (no narrower than their caption, no lower than one caption line). It is refused below the item's smallest size, off the paper, or when they cannot shrink enough.",
   title: "Resize item",
   target: "book",
   needs: [],
@@ -146,6 +154,8 @@ export const ITEM_RESIZE = defineAction({
 // アイテムを消す。無いアイテムを含むなら断る
 export const ITEM_REMOVE = defineAction({
   id: "item.remove",
+  aiDescription:
+    "Remove items (boxes, lists, lines) from a page. Removing a box or a list removes the lines joined to it.",
   title: "Remove items",
   target: "book",
   needs: [],

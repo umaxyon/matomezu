@@ -14,6 +14,8 @@ const ARGS = z.strictObject({
 // 変えたらページを整える（settleBook）
 export const PAGE_UPDATE = defineAction({
   id: "page.update",
+  aiDescription:
+    "Change a page's settings, the ones its book type has (settings; for a drawing, lineRoute: how its lines run when they have no route of their own, straight or elbow). Only what is given changes; null removes it (a drawing page then follows its book's lineRoute).",
   title: "Update page",
   target: "book",
   needs: [],
