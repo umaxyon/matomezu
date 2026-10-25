@@ -28,6 +28,13 @@ test("常駐が結んだ追加プラグインを画面に渡し、画面はそ�
   expect(put.ok()).toBe(true)
   await page.goto("/")
   await expect(page.locator("[data-ex2-diamond]")).toHaveAccessibleName("判断")
+  // ひし形はテーマの欄 ex2/diamond.fill の色で塗る（変数が無ければ黒になる）
+  const paint = await page.locator("[data-ex2-diamond] polygon").evaluate(el => ({
+    declared: getComputedStyle(el).getPropertyValue("--theme-ex2--diamond-fill").trim(),
+    fill: getComputedStyle(el).fill,
+  }))
+  expect(paint.declared).not.toBe("")
+  expect(paint.fill).not.toBe("rgb(0, 0, 0)")
 })
 
 test("追加プラグインの形を動かすと、常駐のエンジンも同じアクションを行って残し、読み直しても同じ所にある", async ({

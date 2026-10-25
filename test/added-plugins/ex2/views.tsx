@@ -1,5 +1,5 @@
 // 判断のひし形のビュー・追加と編集のダイアログ・流れの向きのコンポーネント
-import type { z } from "matomezu"
+import { themeVar, type z } from "matomezu"
 import { Dialog, type DialogProps, type ItemViewProps, type SettingControlProps, useCommand, useT } from "matomezu/ui"
 import { useState } from "react"
 import type { DIAMOND } from "./flow"
@@ -11,7 +11,7 @@ export function DiamondView({ props, size }: ItemViewProps<DiamondProps>) {
     <svg width={size.w} height={size.h} role="img" aria-label={props.caption} data-ex2-diamond={props.answer ?? ""}>
       <polygon
         points={`${size.w / 2},0 ${size.w},${size.h / 2} ${size.w / 2},${size.h} 0,${size.h / 2}`}
-        fill="var(--theme-ex2-diamond-fill)"
+        fill={themeVar("ex2/diamond.fill")}
       />
       <text x={size.w / 2} y={size.h / 2} textAnchor="middle" dominantBaseline="middle">
         {props.caption}

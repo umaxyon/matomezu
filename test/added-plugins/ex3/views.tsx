@@ -1,5 +1,5 @@
 // 星のビュー・ダイアログ、方眼のコンポーネント、ミントにするボタン
-import type { z } from "matomezu"
+import { themeVar, type z } from "matomezu"
 import { Dialog, type DialogProps, type ItemViewProps, type SettingControlProps, useCommand, useT } from "matomezu/ui"
 import type { STAR } from "./board"
 
@@ -15,7 +15,7 @@ const starPoints = (n: number, w: number, h: number) =>
 export function StarView({ props, size }: ItemViewProps<StarProps>) {
   return (
     <svg width={size.w} height={size.h} role="img" aria-label={props.caption} data-ex3-star={props.points}>
-      <polygon points={starPoints(props.points, size.w, size.h)} fill="var(--theme-ex3-star-fill)" />
+      <polygon points={starPoints(props.points, size.w, size.h)} fill={themeVar("ex3/star.fill")} />
       <text x={size.w / 2} y={size.h / 2} textAnchor="middle" dominantBaseline="middle">
         {props.caption}
       </text>

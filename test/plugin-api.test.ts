@@ -25,6 +25,7 @@ test("matomezu が出す名前", () => {
     "defineShape",
     "defineSkin",
     "defineTheme",
+    "themeVar",
     "z",
   ])
 })

@@ -23,6 +23,11 @@ export type ThemeToken = (typeof THEME_TOKENS)[number]
 // value に書いた値（共通の欄に当たるものが無い欄。角の丸み・影など）
 export type TokenDecl = { id: string; fallback: ThemeToken } | { id: string; value: ThemeValue }
 
+// 欄の値を入れる CSS 変数の名前: 頭に --theme-、欄の id の「/」は「--」、「.」は「-」（例: box.fill → --theme-box-fill、ex3/star.fill → --theme-ex3--star-fill）
+export const themeVarName = (id: string): string => `--theme-${id.replaceAll("/", "--").replaceAll(".", "-")}`
+// 欄の値を使う CSS の値（var(--theme-…)。ビューの style や属性に書く）
+export const themeVar = (id: string): string => `var(${themeVarName(id)})`
+
 // 欄の値: 色 1 つか、明暗ごとの色。明暗の両方を書いた欄は見る人の OS の明暗で切り替え、片方だけなら明暗どちらでもその色
 // （全部の欄が色 1 つか片方だけなら、固定のテーマ）
 export type ThemeValue =
