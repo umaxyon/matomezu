@@ -48,7 +48,7 @@ type cli struct {
 type serverFlags struct {
 	Addr   string   `default:"${addr}" help:"Address to listen on (127.0.0.1 only)."`
 	Web    string   `help:"Serve the screen from this folder instead of the one built in." type:"existingdir"`
-	Plugin []string `help:"Add the plugin in this developer project folder (index.ts and ui.tsx). Repeat for more." type:"existingdir"`
+	Plugin []string `help:"Add the plugin in this developer project folder (with matomezu.json). Repeat for more." type:"existingdir"`
 }
 
 func (f serverFlags) args() []string {

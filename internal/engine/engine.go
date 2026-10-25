@@ -96,7 +96,7 @@ func (e *Engine) Modules() plugin.Modules {
 }
 
 // Use は追加プラグインを動かして受け取り、ビルトインプラグインに足して組み直す。返すのはプラグインの id（bundles の順）。
-// 動かせない・default でプラグインを出していない・組み立てで食い違うなら誤りで、前の組み立てのまま
+// 動かせない・default でプラグインを出していない・manifest と id が違う・組み立てで食い違うなら誤りで、前の組み立てのまま
 func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -118,7 +118,10 @@ func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 			id = obj.Get("id").String()
 		}
 		if !ok || obj.Get("id") == nil || id == "" {
-			return nil, fmt.Errorf("plugin %s: index.ts must export the plugin as default (export default definePlugin(...))", b.Dir)
+			return nil, fmt.Errorf("plugin %s: %s must export the plugin as default (export default definePlugin(...))", b.Dir, b.Manifest.Engine)
+		}
+		if id != b.Manifest.ID {
+			return nil, fmt.Errorf("plugin %s: the id in %s is %q, but %s exports %q", b.Dir, plugin.ManifestFile, b.Manifest.ID, b.Manifest.Engine, id)
 		}
 		plugins = append(plugins, v)
 		ids = append(ids, id)

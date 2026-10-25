@@ -1,6 +1,6 @@
 // Package plugin は、開発者プロジェクトのフォルダを追加プラグインとして読む: TypeScript を、ホストのエンジンで動かす JS と、画面で読む JS（と CSS）に変換する。
 //
-// フォルダの入口は index.ts（React なし。プラグインを default で出す）と ui.tsx（見た目を結んだプラグインを default で出す）。
+// フォルダには matomezu.json（Manifest）を置き、入口を 2 つ指す: engine（React なし。プラグインを default で出す）と ui（見た目を結んだプラグインを default で出す）。
 // 追加プラグインが借りる名前（plugin-modules の表の名前。matomezu・react など）は取り込まず、
 // 動いている matomezu が globalThis.__matomezuModules に置いた実物から取り出す形にする。表に無い名前の import は誤り。
 // 変換は Go に組み込んだ esbuild で行うので、利用者にビルドの道具は要らない。
@@ -17,12 +17,24 @@ import (
 	"github.com/evanw/esbuild/pkg/api"
 )
 
+// ManifestFile は、フォルダに置くプラグインの説明のファイルの名前
+const ManifestFile = "matomezu.json"
+
+// Manifest は、コードを動かす前に読むプラグインの説明
+type Manifest struct {
+	ID        string `json:"id"`                  // プラグインの id（engine の default の id と同じ）
+	Engine    string `json:"engine"`              // ホストのエンジンで動かす入口（フォルダからのパス）
+	UI        string `json:"ui"`                  // 画面で読む入口（フォルダからのパス）
+	PluginAPI string `json:"pluginApi,omitempty"` // 作ったときのプラグイン API の版
+}
+
 // Bundle は変換した追加プラグイン 1 つ
 type Bundle struct {
-	Dir    string // 読んだフォルダ
-	Engine string // ホストのエンジンで動かす JS（CommonJS。index.ts から）
-	UI     []byte // 画面で import() する JS（ES モジュール。ui.tsx から）
-	CSS    []byte // 画面で読む CSS（無ければ nil）
+	Dir      string // 読んだフォルダ
+	Manifest Manifest
+	Engine   string // ホストのエンジンで動かす JS（CommonJS。index.ts から）
+	UI       []byte // 画面で import() する JS（ES モジュール。ui.tsx から）
+	CSS      []byte // 画面で読む CSS（無ければ nil）
 }
 
 // Modules は借りる名前。Engine はホストのエンジンの表、UI は画面の表の名前
@@ -37,18 +49,48 @@ func Build(dir string, modules Modules) (*Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &Bundle{Dir: abs}
-	engine, err := build(abs, "index.ts", api.FormatCommonJS, modules.Engine)
+	m, err := readManifest(abs)
+	if err != nil {
+		return nil, err
+	}
+	b := &Bundle{Dir: abs, Manifest: m}
+	engine, err := build(abs, m.Engine, api.FormatCommonJS, modules.Engine)
 	if err != nil {
 		return nil, err
 	}
 	b.Engine = string(engine[".js"])
-	ui, err := build(abs, "ui.tsx", api.FormatESModule, modules.UI)
+	ui, err := build(abs, m.UI, api.FormatESModule, modules.UI)
 	if err != nil {
 		return nil, err
 	}
 	b.UI, b.CSS = ui[".js"], ui[".css"]
 	return b, nil
+}
+
+// readManifest は dir の matomezu.json を読む。欄が足りない・知らない欄がある・入口がフォルダの外を指すなら誤り
+func readManifest(dir string) (Manifest, error) {
+	var m Manifest
+	f, err := os.Open(filepath.Join(dir, ManifestFile))
+	if err != nil {
+		return m, fmt.Errorf("plugin %s: no %s", dir, ManifestFile)
+	}
+	defer f.Close()
+	dec := json.NewDecoder(f)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&m); err != nil {
+		return m, fmt.Errorf("plugin %s: %s: %w", dir, ManifestFile, err)
+	}
+	for name, v := range map[string]string{"id": m.ID, "engine": m.Engine, "ui": m.UI} {
+		if v == "" {
+			return m, fmt.Errorf("plugin %s: %s needs %q", dir, ManifestFile, name)
+		}
+	}
+	for _, entry := range []string{m.Engine, m.UI} {
+		if filepath.IsAbs(entry) || !filepath.IsLocal(entry) {
+			return m, fmt.Errorf("plugin %s: %s: %q is not a path inside the folder", dir, ManifestFile, entry)
+		}
+	}
+	return m, nil
 }
 
 // build は入口 1 つを変換し、出したファイルを拡張子ごとに返す

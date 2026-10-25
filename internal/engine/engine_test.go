@@ -194,12 +194,16 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 
 func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
 	e := newEngine(t)
-	b := &plugin.Bundle{Dir: "bad", Engine: `module.exports.default = { id: "bad", items: [{ id: "shape.box" }] }`}
+	b := &plugin.Bundle{Dir: "bad", Manifest: plugin.Manifest{ID: "bad", Engine: "index.ts"}, Engine: `module.exports.default = { id: "bad", items: [{ id: "shape.box" }] }`}
 	if _, err := e.Use([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "E301") {
 		t.Fatalf("err = %v", err)
 	}
-	none := &plugin.Bundle{Dir: "none", Engine: `module.exports.x = 1`}
+	none := &plugin.Bundle{Dir: "none", Manifest: plugin.Manifest{ID: "none", Engine: "index.ts"}, Engine: `module.exports.x = 1`}
 	if _, err := e.Use([]*plugin.Bundle{none}); err == nil || !strings.Contains(err.Error(), "export the plugin as default") {
+		t.Fatalf("err = %v", err)
+	}
+	other := &plugin.Bundle{Dir: "other", Manifest: plugin.Manifest{ID: "other", Engine: "index.ts"}, Engine: `module.exports.default = { id: "another" }`}
+	if _, err := e.Use([]*plugin.Bundle{other}); err == nil || !strings.Contains(err.Error(), `the id in matomezu.json is "other", but index.ts exports "another"`) {
 		t.Fatalf("err = %v", err)
 	}
 	if out, err := e.Perform(place("p")); err != nil || !out.OK {
