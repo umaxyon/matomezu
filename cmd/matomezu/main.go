@@ -121,10 +121,10 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	// 1 つでも変換・組み立てができなければ常駐を立てない
+	// 変換・組み立てができない追加プラグインは外して立て、理由をログに残す（ほかのブックまで開けなくしない）
 	for _, dir := range c.Plugin {
 		if _, err := hub.LinkPlugin(dir); err != nil {
-			return err
+			fmt.Fprintf(os.Stderr, "plugin %s is not added: %v\n", dir, err)
 		}
 	}
 	host, _, err := net.SplitHostPort(c.Addr)
