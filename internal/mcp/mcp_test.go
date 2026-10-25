@@ -14,7 +14,7 @@ type fakeAPI struct {
 	answer string
 }
 
-const catalogJSON = `{"actions":[
+const aiCatalogJSON = `{"actions":[
  {"id":"item.place","target":"book","args":{"$schema":"x","type":"object","properties":{"page":{"type":"string"}},"required":["page"],"additionalProperties":false}},
  {"id":"book.create","target":"library","args":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}},
  {"id":"settings.lang","target":"settings","args":{"type":"object"}}],
@@ -23,7 +23,7 @@ const catalogJSON = `{"actions":[
 func (f *fakeAPI) Get(path string) (json.RawMessage, error) {
 	switch path {
 	case "api/ai/catalog":
-		return json.RawMessage(catalogJSON), nil
+		return json.RawMessage(aiCatalogJSON), nil
 	case "api/ai/view":
 		return json.RawMessage(`{"book":"b1","page":"p1","selection":[]}`), nil
 	}
@@ -86,7 +86,7 @@ func TestToolsAreTheListedActionsWithBookAdded(t *testing.T) {
 		}
 	}
 	if strings.Join(names, ",") != "view,list_books,read_book,show,create_book,place_item" {
-		t.Fatalf("tools = %v (settings.lang is not listed, actions missing from the catalog are left out)", names)
+		t.Fatalf("tools = %v (settings.lang is not listed, actions missing from the ai catalog are left out)", names)
 	}
 	schema := place["inputSchema"].(map[string]any)
 	if _, ok := schema["$schema"]; ok {

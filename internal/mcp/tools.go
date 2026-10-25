@@ -100,14 +100,14 @@ var readTools = []readTool{
 	},
 }
 
-type catalogAction struct {
+type aiCatalogAction struct {
 	ID     string         `json:"id"`
 	Target string         `json:"target"`
 	Args   map[string]any `json:"args"`
 }
 
-type catalog struct {
-	Actions []catalogAction `json:"actions"`
+type aiCatalog struct {
+	Actions []aiCatalogAction `json:"actions"`
 	Items   []struct {
 		ID    string         `json:"id"`
 		Title string         `json:"title"`
@@ -140,21 +140,21 @@ var showSchema = map[string]any{
 const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
-func readCatalog(api API) (*catalog, error) {
+func readAICatalog(api API) (*aiCatalog, error) {
 	raw, err := api.Get("api/ai/catalog")
 	if err != nil {
 		return nil, err
 	}
-	var c catalog
+	var c aiCatalog
 	if err := json.Unmarshal(raw, &c); err != nil {
 		return nil, err
 	}
 	return &c, nil
 }
 
-// listTools は道具の一覧（読む道具と、目録にあるアクションの道具）
+// listTools は道具の一覧（読む道具と、AI 向けの機能台帳にあるアクションの道具）
 func listTools(api API) ([]map[string]any, error) {
-	c, err := readCatalog(api)
+	c, err := readAICatalog(api)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func listTools(api API) ([]map[string]any, error) {
 	}
 	tools = append(tools, map[string]any{"name": "show", "description": showDescription, "inputSchema": showSchema})
 	for _, t := range actionTools {
-		i := slices.IndexFunc(c.Actions, func(a catalogAction) bool { return a.ID == t.action })
+		i := slices.IndexFunc(c.Actions, func(a aiCatalogAction) bool { return a.ID == t.action })
 		if i < 0 {
 			continue
 		}
@@ -204,7 +204,7 @@ func inputSchema(args map[string]any, target string) map[string]any {
 	return s
 }
 
-func itemsText(c *catalog) string {
+func itemsText(c *aiCatalog) string {
 	parts := []string{}
 	for _, i := range c.Items {
 		props, _ := json.Marshal(i.Props["properties"])

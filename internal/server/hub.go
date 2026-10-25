@@ -339,9 +339,9 @@ func (h *Hub) Lang() string {
 	return s.Lang
 }
 
-// Catalog はアクションとアイテムの目録（engine.Catalog）
-func (h *Hub) Catalog() json.RawMessage {
-	return h.engine.Catalog()
+// AICatalog は AI 向けの機能台帳（engine.AICatalog）
+func (h *Hub) AICatalog() json.RawMessage {
+	return h.engine.AICatalog()
 }
 
 // CloseAll は全部の画面を外す（常駐を止めるとき。知らせの通り道を閉じると、画面とのつながりが終わる）

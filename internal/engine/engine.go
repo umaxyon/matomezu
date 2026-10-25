@@ -47,9 +47,9 @@ type Output struct {
 
 // Engine は読み込んだ core
 type Engine struct {
-	mu      sync.Mutex
-	perform func(string) string
-	catalog json.RawMessage
+	mu        sync.Mutex
+	perform   func(string) string
+	aiCatalog json.RawMessage
 }
 
 // New は core を読み込む
@@ -65,11 +65,11 @@ func New() (*Engine, error) {
 	if err := vm.ExportTo(vm.Get("matomezuPerform"), &e.perform); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuPerform: %w", err)
 	}
-	var catalog func() string
-	if err := vm.ExportTo(vm.Get("matomezuCatalog"), &catalog); err != nil {
+	var aiCatalog func() string
+	if err := vm.ExportTo(vm.Get("matomezuAiCatalog"), &aiCatalog); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuCatalog: %w", err)
 	}
-	e.catalog = json.RawMessage(catalog())
+	e.aiCatalog = json.RawMessage(aiCatalog())
 	return e, nil
 }
 
@@ -92,10 +92,10 @@ func (e *Engine) Perform(in Input) (out Output, err error) {
 	return out, nil
 }
 
-// Catalog はアクションとアイテムの目録 {"actions": [{"id", "target", "title", "args"}], "items": [{"id", "title", "size", "props"}]}。
+// AICatalog は AI 向けの機能台帳（アクションとアイテムなど） {"actions": [{"id", "target", "title", "args"}], "items": [{"id", "title", "size", "props"}]}。
 // args と props は JSON Schema
-func (e *Engine) Catalog() json.RawMessage {
-	return e.catalog
+func (e *Engine) AICatalog() json.RawMessage {
+	return e.aiCatalog
 }
 
 // randomUUID は版 4 の UUID（画面の crypto.randomUUID と同じ形）

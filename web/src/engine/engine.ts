@@ -55,8 +55,8 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
-// アクションとアイテムとテーマと代表色の目録（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
-function catalog() {
+// AI 向けの機能台帳: 機能台帳から AI に見せるアクション・アイテム・テーマ・代表色を絞って書き出したもの（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
+function aiCatalog() {
   const en = (key: string) => translate(registry.messages, "en", key as never)
   return {
     actions: [...registry.actions.values()].map(a => ({
@@ -76,7 +76,7 @@ function catalog() {
   }
 }
 
-;(globalThis as { matomezuCatalog?: () => string }).matomezuCatalog = () => JSON.stringify(catalog())
+;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
 
 // 常駐が呼ぶ口: JSON の文字列で受けて返す
 ;(globalThis as { matomezuPerform?: (input: string) => string }).matomezuPerform = input =>

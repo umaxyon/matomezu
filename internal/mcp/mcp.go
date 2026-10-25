@@ -1,7 +1,7 @@
 // Package mcp は、AI に matomezu を道具として渡す MCP のサーバー（標準入出力で 1 行 1 つの JSON-RPC 2.0）。
 //
 // 道具は常駐の AI の入口（/api/ai/...）を呼ぶ。アクションの道具は、行ってよいものだけを表（tools.go）に並べ、
-// 受ける形は常駐の目録（そのアクションの引数の JSON Schema）から作る。
+// 受ける形はホストの AI 向けの機能台帳（そのアクションの引数の JSON Schema）から作る。
 package mcp
 
 import (

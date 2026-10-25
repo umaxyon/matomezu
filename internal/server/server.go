@@ -16,7 +16,7 @@
 //	GET  /api/ai/view        最後にフォーカスされた画面が見ているもの（{"book", "page", "selection"}。無ければ null）
 //	GET  /api/ai/books       {"books": [{"id", "type", "title", "version"}]}
 //	GET  /api/ai/books/{id}  {"id", "book", "version"}
-//	GET  /api/ai/catalog     アクションとアイテムの目録（engine.Catalog）
+//	GET  /api/ai/catalog     AI 向けの機能台帳（engine.AICatalog）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "result"} を返す
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた画面にブックを出す（Hub.Show）。
 //	                         画面が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
@@ -86,7 +86,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
 	mux.Handle("GET /api/ai/catalog", o.auth(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(o.Hub.Catalog())
+		_, _ = w.Write(o.Hub.AICatalog())
 	}))
 	mux.Handle("POST /api/ai/perform", o.auth(o.aiPerform))
 	mux.Handle("POST /api/ai/show", o.auth(o.aiShow))

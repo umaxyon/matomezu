@@ -84,7 +84,7 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 	}
 }
 
-func TestCatalogDescribesActionsAndItems(t *testing.T) {
+func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 	var c struct {
 		Actions []struct {
 			ID     string          `json:"id"`
@@ -96,7 +96,7 @@ func TestCatalogDescribesActionsAndItems(t *testing.T) {
 			Props json.RawMessage `json:"props"`
 		} `json:"items"`
 	}
-	if err := json.Unmarshal(newEngine(t).Catalog(), &c); err != nil {
+	if err := json.Unmarshal(newEngine(t).AICatalog(), &c); err != nil {
 		t.Fatal(err)
 	}
 	found := false
@@ -106,18 +106,18 @@ func TestCatalogDescribesActionsAndItems(t *testing.T) {
 		}
 	}
 	if !found || len(c.Items) == 0 || !strings.Contains(string(c.Items[0].Props), `"caption"`) {
-		t.Fatalf("catalog = %s", newEngine(t).Catalog())
+		t.Fatalf("ai catalog = %s", newEngine(t).AICatalog())
 	}
 }
 
-func TestCatalogDescribesListRows(t *testing.T) {
+func TestAICatalogDescribesListRows(t *testing.T) {
 	var c struct {
 		Actions []struct {
 			ID   string          `json:"id"`
 			Args json.RawMessage `json:"args"`
 		} `json:"actions"`
 	}
-	if err := json.Unmarshal(newEngine(t).Catalog(), &c); err != nil {
+	if err := json.Unmarshal(newEngine(t).AICatalog(), &c); err != nil {
 		t.Fatal(err)
 	}
 	args := map[string]string{}
@@ -126,7 +126,7 @@ func TestCatalogDescribesListRows(t *testing.T) {
 	}
 	for _, id := range []string{"row.add", "row.update", "row.remove", "row.check", "row.lines"} {
 		if args[id] == "" {
-			t.Fatalf("%s is not in the catalog", id)
+			t.Fatalf("%s is not in the ai catalog", id)
 		}
 	}
 	for _, field := range []string{`"caption"`, `"rule"`, `"bodyAlign"`} {
