@@ -12,23 +12,24 @@ import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
 import { App } from "./ui/App"
 import { loadFonts } from "./ui/fonts"
-import type { AnyPluginUi } from "./ui/plugin"
+import { type AnyPluginUi, assembleUi } from "./ui/plugin"
 import { MatomezuProvider } from "./ui/store-context"
 import "./ui/skin.css"
 
 loadFonts()
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = UI_MODULES
 const { client, loaded: saved } = await openClient(() => memoryClient(SAMPLE_BOOKS))
-// 追加プラグインは機能台帳の型の側に入らないので、型では確かめず、組み立てで確かめる（partial）
 const store = createMatomezu({
-  plugins: [...BUILTIN_UI, ...(saved.plugins as AnyPluginUi[])],
-  partial: true,
+  plugins: BUILTIN_UI,
   home: "master",
   savedBooks: saved.books,
   settings: saved.settings,
   lang: navigator.languages,
   observe: done => client.observe(done),
 })
+// 追加プラグインは機能台帳の型の側に入らないので、型では確かめず、組み立てで確かめる（見た目も）。組み立てられないものは外す
+for (const { id, error } of store.use(saved.plugins as AnyPluginUi[], all => assembleUi(all)).failed)
+  console.error(`plugin ${id} is not added:`, error)
 client.connect(store)
 const root = document.getElementById("root")
 if (!root) fail("E202")

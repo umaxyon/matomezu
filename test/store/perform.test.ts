@@ -37,7 +37,8 @@ const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unkn
 
 describe("アクションの入口", () => {
   test("プラグインのアクションを行い、結果を状態に入れる", () => {
-    const instance = createMatomezu({ plugins: [...BUILTIN, notes], partial: true, home: "master", newId: () => "n1" })
+    const instance = createMatomezu({ plugins: BUILTIN, home: "master", newId: () => "n1" })
+    instance.use([notes])
     instance.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })
     expect(untyped(instance.actions).perform("notes/rename", { title: "新" }, { book: "n1" })).toEqual({
       ok: true,

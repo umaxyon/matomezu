@@ -120,6 +120,12 @@ export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> exte
   plugins: Ps
   state: ReadonlyStore
   actions: Actions
+  // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
+  // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と誤りを返す
+  use(
+    added: readonly Plugin[],
+    check?: (plugins: readonly Plugin[]) => void,
+  ): { failed: { id: string; error: unknown }[] }
 }
 
 // 最初のブック（無ければホーム、それも無ければ何も開かない）を開いた状態。表にある 1 冊だけのタイプのブックはいつも持つ
@@ -154,9 +160,9 @@ function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): L
 
 export function createAppStore<const Ps extends readonly Plugin[]>(options: StoreOptions<Ps>): AppStore<Ps> {
   const { plugins } = options
-  const defs = assemble(plugins, options.home ?? null, options.autoSkin)
-  const { home } = defs
-  const catalog = defs.catalog.core
+  let defs = assemble(plugins, options.home ?? null, options.autoSkin)
+  let { home } = defs
+  let catalog = defs.catalog.core
   const start: Settings = { lang: startLang(catalog, options.lang), skin: "auto", keys: NO_KEY_CHANGES }
   const initial =
     options.initial ??
@@ -171,7 +177,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId })
   // 残した・知らされたブックの、形を確かめた値（同じ値は確かめ直さない）
-  const checked = new WeakMap<object, Book>()
+  let checked = new WeakMap<object, Book>()
   const restore = (saved: readonly unknown[]): Book[] =>
     saved.flatMap(b => {
       if (typeof b !== "object" || b === null) return []
@@ -372,5 +378,44 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       }),
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
   }
-  return { ...defs, plugins, state: store, actions }
+  const instance: AppStore<Ps> = {
+    ...defs,
+    plugins,
+    state: store,
+    actions,
+    use: (added, check) => {
+      const failed: { id: string; error: unknown }[] = []
+      let used: Plugin[] = []
+      let next = assemble(plugins, options.home ?? null, options.autoSkin)
+      for (const p of added) {
+        try {
+          const all = [...plugins, ...used, p]
+          const tried = assemble(all, options.home ?? null, options.autoSkin)
+          check?.(all)
+          used = [...used, p]
+          next = tried
+        } catch (error) {
+          failed.push({ id: p.id, error })
+        }
+      }
+      defs = next
+      home = next.home
+      catalog = next.catalog.core
+      checked = new WeakMap()
+      keyCache = null
+      Object.assign(instance, next, { plugins: [...plugins, ...used] })
+      const { settings } = getState()
+      setState(
+        initialState(
+          catalog,
+          [...(options.books ?? []), ...restoreBooks(catalog, options.savedBooks ?? [])],
+          settings,
+          home,
+        ),
+        true,
+      )
+      return { failed }
+    },
+  }
+  return instance
 }

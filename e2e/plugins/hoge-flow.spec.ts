@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs"
-import { resolve } from "node:path"
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { expect, type Page, test } from "@playwright/test"
 
 // 見本の追加プラグイン hoge-flow のフォルダを結んだ常駐を順に使う
@@ -91,4 +92,26 @@ test("動いている常駐にプラグインを足すと、開いている画�
   await reloaded()
   await expect(page.locator("[data-hoge-diamond]")).toBeVisible()
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["hoge-flow"])
+})
+
+test("見た目の組み立てで食い違う追加プラグインは、画面が外して、ほかはそのまま使える", async ({ page }) => {
+  // 星のビューを結んでいない fuga（ホストのエンジンでは組み立てられ、画面の見た目の組み立てで食い違う）
+  const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
+  cpSync(resolve("test/examples/plugins/fuga"), dir, { recursive: true })
+  const ui = join(dir, "ui.tsx")
+  writeFileSync(
+    ui,
+    readFileSync(ui, "utf8").replace(`items: { "fuga/star": { view: StarView, icon: STAR_ICON } },`, ""),
+  )
+  const errors: string[] = []
+  page.on("console", m => {
+    if (m.type() === "error") errors.push(m.text())
+  })
+  await page.goto("/")
+  const linked = await page.request.post("/api/plugins", { headers: ai(), data: { dir } })
+  expect(await linked.json()).toEqual({ ok: true, id: "fuga" })
+  await expect.poll(() => errors.some(e => e.includes("plugin fuga is not added"))).toBe(true)
+  await expect(page.locator("[data-hoge-diamond]")).toBeVisible()
+  const removed = await page.request.post("/api/plugins/remove", { headers: ai(), data: { id: "fuga" } })
+  expect(await removed.json()).toEqual({ ok: true })
 })
