@@ -40,7 +40,7 @@ const BREAK = defineAction({
   target: "book",
   needs: [],
   args: z.strictObject({}),
-  run: book => ({ next: { ...book, color: "red" } as typeof book, result: {} }),
+  run: book => ({ next: Object.assign({}, book, { color: "red" }), result: {} }),
 })
 const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME, BREAK] })
 const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unknown, on?: { book: string }): unknown }
