@@ -189,14 +189,14 @@ test("page.update（ページの設定の項目 lineRoute）: ページの線の
   const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
   connect(store, "n1", "n2", { ...ends, via: [300] })
   const pageUpdate = (lineRoute: "elbow" | "straight" | null) =>
-    store.actions.perform("page.update", { page: "p1", settings: { lineRoute } }, { book: "b1" })
+    store.actions.perform("page.update", { page: "p1", settings: { "line.route": lineRoute } }, { book: "b1" })
   expect(pageUpdate("straight").ok).toBe(true)
-  expect(page(store).lineRoute).toBe("straight")
+  expect(page(store).settings?.["line.route"]).toBe("straight")
   expect(lines(store)[0]!.props).toEqual(ends)
   expect(pageUpdate(null).ok).toBe(true)
-  expect("lineRoute" in page(store)).toBe(false)
+  expect("settings" in page(store)).toBe(false)
   expect(
-    store.actions.perform("page.update", { page: "p1", settings: { lineRoute: "curve" } }, { book: "b1" }).ok,
+    store.actions.perform("page.update", { page: "p1", settings: { "line.route": "curve" } }, { book: "b1" }).ok,
   ).toBe(false)
 })
 
@@ -221,17 +221,17 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   const book = () => store.state.getState().books.b1 as BookOf<"drawing">
   const elbow = () => elbowAt(CORE_CATALOG, book(), page(store))
   expect(elbow()).toBe(true)
-  expect(store.actions.perform("book.update", { settings: { lineRoute: "straight" } }, { book: "b1" }).ok).toBe(true)
-  expect(book().lineRoute).toBe("straight")
+  expect(store.actions.perform("book.update", { settings: { "line.route": "straight" } }, { book: "b1" }).ok).toBe(true)
+  expect(book().settings?.["line.route"]).toBe("straight")
   expect(elbow()).toBe(false)
   expect(lines(store)[0]!.props).toEqual(ends)
   // ページの既定はブックより先
-  store.actions.perform("page.update", { page: "p1", settings: { lineRoute: "elbow" } }, { book: "b1" })
+  store.actions.perform("page.update", { page: "p1", settings: { "line.route": "elbow" } }, { book: "b1" })
   expect(elbow()).toBe(true)
-  store.actions.perform("page.update", { page: "p1", settings: { lineRoute: null } }, { book: "b1" })
+  store.actions.perform("page.update", { page: "p1", settings: { "line.route": null } }, { book: "b1" })
   expect(elbow()).toBe(false)
-  expect(store.actions.perform("book.update", { settings: { lineRoute: null } }, { book: "b1" }).ok).toBe(true)
-  expect("lineRoute" in book()).toBe(false)
+  expect(store.actions.perform("book.update", { settings: { "line.route": null } }, { book: "b1" }).ok).toBe(true)
+  expect("settings" in book()).toBe(false)
   expect(elbow()).toBe(true)
 })
 
@@ -257,10 +257,10 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   expect(usesLines(CORE_CATALOG, book)).toBe(true)
   expect(usesLines(noLines, book)).toBe(false)
   expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)
-  expect(perform(book, "book.update", { settings: { lineRoute: "straight" } }, ctx).ok).toBe(false)
-  expect(perform(book, "page.update", { page: "p1", settings: { lineRoute: "straight" } }, ctx).ok).toBe(false)
+  expect(perform(book, "book.update", { settings: { "line.route": "straight" } }, ctx).ok).toBe(false)
+  expect(perform(book, "page.update", { page: "p1", settings: { "line.route": "straight" } }, ctx).ok).toBe(false)
   // 同じ操作は、線が使えるブックなら通る
   const ok = { ...ctx, catalog: CORE_CATALOG }
   expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ok).ok).toBe(true)
-  expect(perform(book, "book.update", { settings: { lineRoute: "straight" } }, ok).ok).toBe(true)
+  expect(perform(book, "book.update", { settings: { "line.route": "straight" } }, ok).ok).toBe(true)
 })

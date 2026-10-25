@@ -50,11 +50,14 @@ test("フローのブックに判断のひし形とビルトインの箱を置�
     expect(instance.actions.perform("line.connect", { page: page().id, from: d, to: b }, on)).toMatchObject({
       ok: true,
     })
-    expect(instance.actions.perform("book.update", { settings: { ex2Direction: "right" } }, on)).toMatchObject({
+    expect(instance.actions.perform("book.update", { settings: { "ex2/flow.direction": "right" } }, on)).toMatchObject({
       ok: true,
     })
   })
-  expect(instance.state.getState().books[on.book]).toMatchObject({ type: "ex2/flow", ex2Direction: "right" })
+  expect(instance.state.getState().books[on.book]).toMatchObject({
+    type: "ex2/flow",
+    settings: { "ex2/flow.direction": "right" },
+  })
   expect(page().items).toHaveLength(3)
   expect(document.querySelector("[data-ex2-diamond]")?.textContent).toBe("判断")
 })

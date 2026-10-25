@@ -22,7 +22,7 @@ const ARGS = z.strictObject({
 export const BOOK_UPDATE = defineAction({
   id: "book.update",
   aiDescription:
-    "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it), paperColor (#rrggbb, the paper's color) and settings, the ones its book type has (for a drawing, lineRoute: how lines run on pages without a route of their own, straight or elbow; without it, elbow). Only what is given changes; null removes it (back to the book type's theme, the theme's paper color, or the setting's default).",
+    "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it), paperColor (#rrggbb, the paper's color) and settings, the ones its book type has, keyed by the setting's id (for a drawing, line.route: how lines run on pages without a route of their own, straight or elbow; without it, elbow). Only what is given changes; null removes it (back to the book type's theme, the theme's paper color, or the setting's default).",
   title: "Change book",
   target: "book",
   needs: [],

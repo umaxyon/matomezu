@@ -81,15 +81,20 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   }
 }
 
-// ブックが自分の欄の後ろに持つ欄の前の、頭の欄（ここまでの後ろにページと設定の項目の欄を入れる。保存したデータの欄の並びを変えない）
+// ブックが自分の欄の後ろに持つ欄の前の、頭の欄（ここまでの後ろにページと設定の項目の欄 settings を入れる。保存したデータの欄の並びを変えない）
 const HEAD = ["type", "id", "title"]
 
-// タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目。
-// ブックの形は、タイプの頭の欄・ページの並び（pages）・ブックの設定の項目・タイプのほかの欄
+// タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
+// ブックの形は、タイプの頭の欄・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかの欄
 function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas {
   const settings = byId(parts.settings)
-  const fields = (ids: readonly string[] = []) =>
-    Object.fromEntries(ids.flatMap(id => settings.get(id) ?? []).map(d => [d.field, d.schema.optional()]))
+  // 選んだ設定の項目を、項目の id を鍵にした settings の欄にする（選んでいなければ欄を足さない）
+  const fields = (ids: readonly string[] = []) => {
+    const defs = ids.flatMap(id => settings.get(id) ?? [])
+    return defs.length > 0
+      ? { settings: z.strictObject(Object.fromEntries(defs.map(d => [d.id, d.schema.optional()]))).optional() }
+      : {}
+  }
   const items = byId(parts.items)
   const placed = t.items.allowed.flatMap(id => items.get(id) ?? []).map(placedSchema)
   const [one, ...more] = placed
@@ -158,11 +163,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
     if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
       problems.push(problem("E002", { id: t.id }))
-    const added = [
-      "pages",
-      ...[...(t.settings?.book ?? []), ...(t.settings?.page ?? [])].flatMap(id => settings.get(id)?.field ?? []),
-    ]
-    for (const field of added) if (field in t.schema.shape) problems.push(problem("E025", { id: t.id, field }))
+    for (const field of ["pages", "settings"])
+      if (field in t.schema.shape) problems.push(problem("E025", { id: t.id, field }))
     for (const id of [...(t.settings?.book ?? []), ...(t.settings?.page ?? [])])
       if (!settings.has(id)) problems.push(problem("E008", { id: t.id, kind: "setting", ref: id }))
     if (t.pages) {
@@ -197,11 +199,6 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       problems.push(problem("E012", { owner: d.owner, token: d.id, fallback: d.fallback }))
   }
   for (const p of parts.papers) if (p.size.w > p.size.h) problems.push(problem("E014", { id: p.id }))
-  const fieldOwner = new Map<string, string>()
-  for (const d of parts.settings) {
-    if (fieldOwner.has(d.field)) problems.push(problem("E027", { id: d.id, field: d.field }))
-    fieldOwner.set(d.field, d.id)
-  }
   // 同じ鍵の同じ言語に違う訳を持つ文言（プラグインの文言どうし・言語パックどうし）、名前の違う同じ言語、文言の表に無い名前
   const messages = new Map<string, Record<Lang, string>>()
   for (const set of allMessages(parts))

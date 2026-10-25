@@ -6,16 +6,10 @@ import type { BookTypeId, BookTypeTable, SettingTable } from "../catalog"
 import type { PlacedOf } from "../placed"
 import type { Page } from "./page"
 
-// 選んだ設定の項目の欄（どれも書かなくてよい）
-type SettingFields<Ids> = [Ids] extends [never] ? unknown : SettingFieldsOf<Ids>
-type SettingFieldsOf<Ids> = {
-  [K in Ids & keyof SettingTable as SettingTable[K] extends { field: infer F extends string }
-    ? F
-    : never]?: SettingTable[K] extends {
-    schema: infer S extends z.ZodType
-  }
-    ? z.output<S>
-    : never
+// 選んだ設定の項目の欄: settings の中に、項目の id を鍵にして値を持つ（どれも書かなくてよい）
+type SettingFields<Ids> = [Ids] extends [never] ? unknown : { settings?: SettingValuesOf<Ids> }
+type SettingValuesOf<Ids> = {
+  [K in Ids & keyof SettingTable]?: SettingTable[K] extends { schema: infer S extends z.ZodType } ? z.output<S> : never
 }
 type Selected<T, Of extends "book" | "page"> = T extends { settings: { [k in Of]: readonly (infer I)[] } } ? I : never
 

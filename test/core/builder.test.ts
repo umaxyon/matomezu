@@ -4,7 +4,6 @@ import { z } from "zod"
 import { restoreBooks } from "../../web/src/core/book"
 import { settingValue } from "../../web/src/core/book-settings"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
-import { defineSetting } from "../../web/src/core/def/setting"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble } from "../../web/src/store/plugin"
@@ -37,14 +36,16 @@ describe("組み立てたブックの形", () => {
 
   test("設定の項目の欄を持てるのは、タイプがその項目を選んだときだけ", () => {
     const noRoute = buildCoreCatalog(withDrawing({ settings: { book: [], page: ["line.route"] } }))
-    expect(restoreBooks(CORE_CATALOG, [book([page([])], { lineRoute: "straight" })])).toHaveLength(1)
-    expect(restoreBooks(noRoute, [book([page([])], { lineRoute: "straight" })])).toHaveLength(0)
-    expect(restoreBooks(noRoute, [book([page([], { lineRoute: "straight" })])])).toHaveLength(1)
+    expect(restoreBooks(CORE_CATALOG, [book([page([])], { settings: { "line.route": "straight" } })])).toHaveLength(1)
+    expect(restoreBooks(noRoute, [book([page([])], { settings: { "line.route": "straight" } })])).toHaveLength(0)
+    expect(restoreBooks(noRoute, [book([page([], { settings: { "line.route": "straight" } })])])).toHaveLength(1)
   })
 
   test("保存したデータの欄の並び: タイプの頭の欄（type・id・title）・ページ・設定の項目・タイプのほかの欄", () => {
-    const [restored] = restoreBooks(CORE_CATALOG, [{ ...book([page([])]), theme: "sticky", lineRoute: "straight" }])
-    expect(Object.keys(restored!)).toEqual(["type", "id", "title", "pages", "lineRoute", "theme"])
+    const [restored] = restoreBooks(CORE_CATALOG, [
+      { ...book([page([])]), theme: "sticky", settings: { "line.route": "straight" } },
+    ])
+    expect(Object.keys(restored!)).toEqual(["type", "id", "title", "pages", "settings", "theme"])
     expect(Object.keys((restored as BookOf<"drawing">).pages[0]!)).toEqual([
       "id",
       "title",
@@ -55,36 +56,29 @@ describe("組み立てたブックの形", () => {
   })
 
   test("設定の値は、ページ → ブック → 定義の既定 の順に、最初に値のある所で決まる", () => {
-    const b = book([page([], { lineRoute: "straight" }), { ...page([]), id: "p2" }], { lineRoute: "elbow" })
+    const b = book([page([], { settings: { "line.route": "straight" } }), { ...page([]), id: "p2" }], {
+      settings: { "line.route": "elbow" },
+    })
     const [p1, p2] = (b as { pages: object[] }).pages
     const read = (target: object, at: object | null) => settingValue(CORE_CATALOG, target as never, at, "line.route")
     expect(read(b, p1!)).toBe("straight")
     expect(read(b, p2!)).toBe("elbow")
     expect(read(book([page([])]), null)).toBe("elbow") // 定義の既定
-    expect(read({ ...b, lineRoute: "straight" }, p2!)).toBe("straight")
+    expect(read({ ...b, settings: { "line.route": "straight" } }, p2!)).toBe("straight")
   })
 })
 
 describe("組み立ての食い違い", () => {
-  test("タイプが自分の欄に、機能台帳が足す欄（pages・選んだ設定の項目の欄）を書くと誤り", () => {
+  test("タイプが自分の欄に、機能台帳が足す欄（pages・settings）を書くと誤り", () => {
     const own = drawing.schema.extend({ pages: z.array(z.unknown()) })
     expect(checkCoreCatalog(withDrawing({ schema: own })).map(p => p.code)).toContain("E025")
-    const route = drawing.schema.extend({ lineRoute: z.string().optional() })
+    const route = drawing.schema.extend({ settings: z.object({}).optional() })
     expect(checkCoreCatalog(withDrawing({ schema: route })).map(p => p.code)).toContain("E025")
   })
 
-  test("表に無い設定の項目・見せ方を選ぶと誤り。2 つの設定の項目が同じ欄を使うと誤り", () => {
+  test("表に無い設定の項目・見せ方を選ぶと誤り", () => {
     expect(checkCoreCatalog(withDrawing({ settings: { book: ["nope.setting"] } })).map(p => p.code)).toContain("E008")
     expect(checkCoreCatalog(withDrawing({ presentation: "nope" })).map(p => p.code)).toContain("E008")
-    const twin = defineSetting({
-      id: "twin.route",
-      title: "Line route",
-      field: "lineRoute",
-      schema: z.string(),
-      default: "",
-    })
-    const parts = { ...BUILTIN_PARTS, settings: [...BUILTIN_PARTS.settings, twin] }
-    expect(checkCoreCatalog(parts).map(p => p.code)).toContain("E027")
   })
 
   test("形のアイテムが名指すダイアログがインスタンスに無ければ、組み立てで誤り", () => {

@@ -43,7 +43,6 @@ export const SQUARE = definePaper({ id: "ex3/square", title: "ex3/square", size:
 export const GRID = defineSetting({
   id: "ex3/board.grid",
   title: "ex3/grid",
-  field: "ex3Grid",
   schema: z.boolean(),
   default: false,
 })

@@ -50,9 +50,11 @@ test("ボードは自分の紙（正方形）で始まり、星とビルトイ�
     expect(instance.actions.perform("line.connect", { page: page().id, from: s!, to: l! }, on)).toMatchObject({
       ok: true,
     })
-    expect(instance.actions.perform("book.update", { settings: { ex3Grid: true } }, on)).toMatchObject({ ok: true })
+    expect(instance.actions.perform("book.update", { settings: { "ex3/board.grid": true } }, on)).toMatchObject({
+      ok: true,
+    })
   })
-  expect(instance.state.getState().books[on.book]).toMatchObject({ ex3Grid: true })
+  expect(instance.state.getState().books[on.book]).toMatchObject({ settings: { "ex3/board.grid": true } })
   expect(document.querySelector("[data-ex3-star]")?.getAttribute("data-ex3-star")).toBe("6")
 })
 

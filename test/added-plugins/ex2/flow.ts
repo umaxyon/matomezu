@@ -64,7 +64,6 @@ export const FLOW_DIRECTIONS = ["down", "right"] as const
 export const FLOW_DIRECTION = defineSetting({
   id: "ex2/flow.direction",
   title: "ex2/flowDirection",
-  field: "ex2Direction",
   schema: z.enum(FLOW_DIRECTIONS),
   default: "down",
 })

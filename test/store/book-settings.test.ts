@@ -10,31 +10,33 @@ test("選んだ項目を、変えるときに渡す形にする: どれも書か
   const patch = settingsPatchOf(CORE_CATALOG, book, "book")
   if (!patch) throw new Error("no settings")
   expect(patch.safeParse({}).success).toBe(true)
-  expect(patch.safeParse({ lineRoute: null }).success).toBe(true)
-  expect(patch.safeParse({ lineRoute: "zigzag" }).success).toBe(false)
+  expect(patch.safeParse({ "line.route": null }).success).toBe(true)
+  expect(patch.safeParse({ "line.route": "zigzag" }).success).toBe(false)
   expect(patch.safeParse({ c: 1 }).success).toBe(false)
-  const before: Record<string, unknown> = { a: "x", b: 1, c: true }
-  expect(withSettings(before, { a: "y", b: null })).toEqual({ a: "y", c: true })
+  const before: object = { id: "p", settings: { a: "x", b: 1, c: true } }
+  expect(withSettings(before, { a: "y", b: null })).toEqual({ id: "p", settings: { a: "y", c: true } })
+  // 項目が 1 つも無くなれば settings の欄も消す
+  expect(withSettings<object>({ id: "p", settings: { a: "x" } }, { a: null })).toEqual({ id: "p" })
 })
 
 test("book.update・page.update は、ブックのタイプが宣言した項目だけを settings で受け付ける。宣言の無い項目・無いページは断る", () => {
   const store = newStore()
   const book = () => store.state.getState().books.b1 as BookOf<"drawing">
-  expect(store.actions.perform("book.update", { settings: { lineRoute: "straight" } }, { book: "b1" }).ok).toBe(true)
-  expect(book().lineRoute).toBe("straight")
+  expect(store.actions.perform("book.update", { settings: { "line.route": "straight" } }, { book: "b1" }).ok).toBe(true)
+  expect(book().settings?.["line.route"]).toBe("straight")
   expect(store.actions.perform("book.update", { settings: { color: "red" } }, { book: "b1" }).ok).toBe(false)
   expect(
-    store.actions.perform("page.update", { page: "p1", settings: { lineRoute: "elbow" } }, { book: "b1" }).ok,
+    store.actions.perform("page.update", { page: "p1", settings: { "line.route": "elbow" } }, { book: "b1" }).ok,
   ).toBe(true)
-  expect(book().pages[0]!.lineRoute).toBe("elbow")
+  expect(book().pages[0]!.settings?.["line.route"]).toBe("elbow")
   expect(
-    store.actions.perform("page.update", { page: "nope", settings: { lineRoute: "elbow" } }, { book: "b1" }).ok,
+    store.actions.perform("page.update", { page: "nope", settings: { "line.route": "elbow" } }, { book: "b1" }).ok,
   ).toBe(false)
   // 名前などの共通の項目と、タイプの項目を 1 回で変えられる
   expect(
-    store.actions.perform("book.update", { title: "新しい名前", settings: { lineRoute: null } }, { book: "b1" }).ok,
+    store.actions.perform("book.update", { title: "新しい名前", settings: { "line.route": null } }, { book: "b1" }).ok,
   ).toBe(true)
-  expect([book().title, "lineRoute" in book()]).toEqual(["新しい名前", false])
+  expect([book().title, "settings" in book()]).toEqual(["新しい名前", false])
 })
 
 test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）", () => {
@@ -43,5 +45,5 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
     properties?: object
   }
   expect(schema.description).toBe("settings of drawing books")
-  expect(Object.keys(schema.properties ?? {})).toEqual(["lineRoute"])
+  expect(Object.keys(schema.properties ?? {})).toEqual(["line.route"])
 })

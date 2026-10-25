@@ -1,5 +1,5 @@
-// ブックとページの設定の項目: ブックのタイプが設定の定義（core/def/setting.ts）を id で選び、機能台帳がその欄をブックとページの形に足す。
-// 変える base のアクション（book.update・page.update）は、名前などの共通の項目に加えて、選んだ項目を settings として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
+// ブックとページの設定の項目: ブックのタイプが設定の定義（core/def/setting.ts）を id で選び、機能台帳がブックとページの形に settings の欄（項目の id → 値）を足す。
+// 変える base のアクション（book.update・page.update）は、名前などの共通の項目に加えて、選んだ項目を settings（項目の id → 値）として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
 // 変えたあとはページを整える（settleBook）。値は ページ → ブック → 定義の既定 の順に、最初に値のある所で決まる（settingValue）。
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
 import { z } from "zod"
@@ -16,23 +16,24 @@ export function settingDefs(catalog: CoreCatalog, type: string, of: SettingsOf):
   return (bookType(catalog, type).settings?.[of] ?? []).map(id => catalog.settings.get(id) ?? fail("E113", { id }))
 }
 
-// 設定の定義の欄を、データの形の欄にする（どれも書かなくてよい）
-export const settingFields = (defs: readonly SettingDef[]): Record<string, z.ZodType> =>
-  Object.fromEntries(defs.map(d => [d.field, d.schema.optional()]))
-
-// 選んだ項目を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。欄の名前で渡す）
+// 選んだ項目を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。項目の id で渡す）
 function settingsPatch(defs: readonly SettingDef[]): z.ZodObject {
-  return z.strictObject(Object.fromEntries(defs.map(d => [d.field, d.schema.nullable().optional()])))
+  return z.strictObject(Object.fromEntries(defs.map(d => [d.id, d.schema.nullable().optional()])))
 }
 
-// 項目を変えた値（null の項目は消す）
+// ブックかページの settings の欄（無ければ空）
+const ownSettings = (target: object | null): Readonly<Record<string, unknown>> =>
+  (target as { settings?: Record<string, unknown> } | null)?.settings ?? {}
+
+// 項目を変えた値（null の項目は消す。項目が 1 つも無くなれば settings の欄も消す）
 export function withSettings<T extends object>(target: T, patch: Readonly<Record<string, unknown>>): T {
-  const next: Record<string, unknown> = { ...(target as Record<string, unknown>) }
+  const settings: Record<string, unknown> = { ...ownSettings(target) }
   for (const [k, v] of Object.entries(patch)) {
-    if (v === null) delete next[k]
-    else if (v !== undefined) next[k] = v
+    if (v === null) delete settings[k]
+    else if (v !== undefined) settings[k] = v
   }
-  return next as T
+  const { settings: _old, ...rest } = target as T & { settings?: unknown }
+  return (Object.keys(settings).length > 0 ? { ...rest, settings } : rest) as T
 }
 
 // ブックのタイプの、ブックかページの設定の項目を変えるときに渡す形（項目を選んでいなければ null）
@@ -54,8 +55,7 @@ export function settingsArgs(catalog: CoreCatalog, of: SettingsOf): z.ZodType {
 // 設定 id の値: ページの値、無ければブックの値、それも無ければ定義の既定（page は無くてよい）
 export function settingValue(catalog: CoreCatalog, book: Book, page: object | null, id: string): unknown {
   const def = catalog.settings.get(id) ?? fail("E113", { id })
-  const own = (at: object | null) => (at as Record<string, unknown> | null)?.[def.field]
-  return own(page) ?? own(book) ?? def.default
+  return ownSettings(page)[def.id] ?? ownSettings(book)[def.id] ?? def.default
 }
 
 // ページ page で効いている設定の値を読む関数

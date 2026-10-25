@@ -52,7 +52,6 @@ export const LinePatchSchema = z.strictObject(
 export const LINE_ROUTE = defineSetting({
   id: "line.route",
   title: "Line route",
-  field: "lineRoute",
   schema: z.enum(ROUTES),
   default: "elbow",
 })
