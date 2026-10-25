@@ -1,13 +1,13 @@
-// SDK の入口が出す名前（値）の一覧。外のプラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
+// プラグイン API の入口（と、アプリを組む側の入口）が出す名前（値）の一覧。外のプラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
-import * as app from "../web/src/sdk/app"
-import * as sdk from "../web/src/sdk/index"
-import * as ui from "../web/src/sdk/ui"
+import * as app from "../web/src/plugin-api/app"
+import * as api from "../web/src/plugin-api/index"
+import * as ui from "../web/src/plugin-api/ui"
 
 const names = (m: object) => Object.keys(m).sort()
 
 test("matomezu が出す名前", () => {
-  expect(names(sdk)).toEqual([
+  expect(names(api)).toEqual([
     "BookLookSchema",
     "defineAction",
     "defineBookType",

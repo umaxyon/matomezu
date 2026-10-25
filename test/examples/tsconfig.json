@@ -2,9 +2,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "matomezu": ["../../web/src/sdk/index.ts"],
-      "matomezu/ui": ["../../web/src/sdk/ui.ts"],
-      "matomezu/app": ["../../web/src/sdk/app.ts"],
+      "matomezu": ["../../web/src/plugin-api/index.ts"],
+      "matomezu/ui": ["../../web/src/plugin-api/ui.ts"],
+      "matomezu/app": ["../../web/src/plugin-api/app.ts"],
       "matomezu/tables": ["../../web/src/core/tables.ts"]
     }
   },
