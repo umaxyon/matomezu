@@ -132,7 +132,7 @@ function BoxDialog({
   const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
   const [theme, setTheme] = useState(start.theme ?? "")
   const [color, setColor] = useState(start.color)
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
   const looks = theme || bookTheme
   const swatches = useSwatches(looks, BOX_FILL)
@@ -211,7 +211,7 @@ function BoxDialog({
           {id => (
             <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
               <option value="">{t("Book's theme")}</option>
-              {[...registry.themes.values()].map(th => (
+              {[...catalog.themes.values()].map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}
                 </option>

@@ -7,11 +7,11 @@ import { fail } from "./errors"
 
 export type AutoSkin = Readonly<Record<Scheme, string>>
 
-export function autoSkin(reg: CoreCatalog, given: Partial<Record<Scheme, string>> = {}): AutoSkin | null {
+export function autoSkin(catalog: CoreCatalog, given: Partial<Record<Scheme, string>> = {}): AutoSkin | null {
   const pick = (scheme: Scheme) => {
     const id = given[scheme]
-    if (id === undefined) return [...reg.skins.values()].find(s => s.scheme === scheme)?.id
-    if (reg.skins.get(id)?.scheme !== scheme) return fail("E111", { id, scheme })
+    if (id === undefined) return [...catalog.skins.values()].find(s => s.scheme === scheme)?.id
+    if (catalog.skins.get(id)?.scheme !== scheme) return fail("E111", { id, scheme })
     return id
   }
   const light = pick("light")

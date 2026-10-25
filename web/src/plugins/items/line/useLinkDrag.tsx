@@ -22,7 +22,7 @@ export interface Link {
 
 const SLOP = 3
 
-export function useLinkDrag(stage: Stage, registry: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
+export function useLinkDrag(stage: Stage, catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
   const draw = useCommand(stage.id, "line.draw")
   const link = useRef<Link | null>(null)
   const [tip, setTip] = useState<{ at: Point; target: string | null } | null>(null) // 途中の線の先（紙の上）と、その下の引ける相手
@@ -49,7 +49,7 @@ export function useLinkDrag(stage: Stage, registry: CoreCatalog, localOf: (e: Po
         pointer: e.pointerId,
         from,
         side,
-        targets: targetsFrom(registry, page, from),
+        targets: targetsFrom(catalog, page, from),
         start: { x: e.clientX, y: e.clientY },
       }
       setTip({ at: portAt(rect, side, 0), target: null })

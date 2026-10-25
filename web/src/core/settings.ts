@@ -13,13 +13,13 @@ export interface Settings {
 
 // 残しておいた設定を、このインスタンスで使える項目だけ start に重ねる（無い言語・無いスキン・形の合わない値は捨てる）。
 // 残した設定は外から来る値なので、形を確かめてから使う
-export function restoreSettings(registry: CoreCatalog, start: Settings, saved: unknown): Settings {
+export function restoreSettings(catalog: CoreCatalog, start: Settings, saved: unknown): Settings {
   const parsed = SavedSettingsSchema.safeParse(saved)
   if (!parsed.success) return start
   const { lang, skin, keys } = parsed.data
   return {
-    lang: lang !== undefined && registry.languages.has(lang) ? lang : start.lang,
-    skin: skin !== undefined && (skin === "auto" || registry.skins.has(skin)) ? skin : start.skin,
+    lang: lang !== undefined && catalog.languages.has(lang) ? lang : start.lang,
+    skin: skin !== undefined && (skin === "auto" || catalog.skins.has(skin)) ? skin : start.skin,
     keys: keys ?? start.keys,
   }
 }

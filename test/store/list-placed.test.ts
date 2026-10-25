@@ -9,7 +9,7 @@ import { BOX } from "../../web/src/plugins/items/box/box"
 import { LIST } from "../../web/src/plugins/items/list/list"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../web/src/plugins/items/list/size"
 import { PLACE_OFFSET } from "../../web/src/plugins/paper/placing/items"
-import { newStore, REGISTRY } from "../support"
+import { CORE_CATALOG, newStore } from "../support"
 
 // 置いたリストの大きさ・押されたときの縮め方・コマンド・データの形（箱と同じ置き場の決まりを、リストも持つこと）
 const PAPER = { w: 1123, h: 794 } // A4 横
@@ -92,7 +92,7 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
     pages: [{ id: "p", title: "p", paper: "a4", orientation: "landscape", items: [{ id: "i", x: 0, y: 0, ...item }] }],
   })
   const row = { id: "r", item: "list.row", props: { caption: "行" } }
-  const ok = (item: Record<string, unknown>) => REGISTRY.bookSchema.safeParse(book(item)).success
+  const ok = (item: Record<string, unknown>) => CORE_CATALOG.bookSchema.safeParse(book(item)).success
   expect(ok({ item: "shape.list", props: {}, children: [row] })).toBe(true)
   expect(ok({ item: "shape.list", props: {} })).toBe(true)
   expect(ok({ item: "shape.box", props: {}, children: [row] })).toBe(false)
@@ -103,9 +103,9 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
 
 test("リストの塗り・文字・線・角・影の欄は、どのテーマでも箱の欄と同じ値（テーマは箱とリストを同じ見た目にする）", () => {
   const pairs = ["fill", "text", "line", "radius", "shadow"] as const
-  for (const theme of REGISTRY.themes.keys()) {
-    const box = resolveTokens(REGISTRY, theme, BOX.tokens)
-    const list = resolveTokens(REGISTRY, theme, LIST.tokens)
+  for (const theme of CORE_CATALOG.themes.keys()) {
+    const box = resolveTokens(CORE_CATALOG, theme, BOX.tokens)
+    const list = resolveTokens(CORE_CATALOG, theme, LIST.tokens)
     for (const k of pairs) expect([theme, k, list[`list.${k}`]]).toEqual([theme, k, box[`box.${k}`]])
   }
 })

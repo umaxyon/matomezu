@@ -29,7 +29,7 @@ export interface PluginParts {
   skins?: readonly SkinDef[]
   commands?: readonly CommandDef<never>[]
   dialogs?: readonly DialogDef<unknown>[] // 開くときに渡す値の型は、ダイアログごとに違う
-  messages?: MessageSet // このプラグインの文言（defineMessages で書き、型の表 MessageTable に書き足す）
+  messages?: MessageSet // このプラグインの文言（defineMessages で書き、機能台帳の型の側 MessageTable に書き足す）
   languages?: readonly LanguagePack[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // キーの既定の割り当て（結べるのは自分のコマンドだけ。store/keys.ts）
 }
@@ -126,7 +126,7 @@ export function assemble(
       for (const dialog of [i.dialogs.add, i.dialogs.edit])
         if (!dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
-  const registry = buildCoreCatalog({
+  const catalog = buildCoreCatalog({
     bookTypes: all("bookTypes"),
     items: all("items"),
     actions: all("actions"),
@@ -140,18 +140,18 @@ export function assemble(
   })
   // コマンドの名前も文言の表から引く
   const untitled = commands
-    .filter(c => !registry.messages.has(c.title))
+    .filter(c => !catalog.messages.has(c.title))
     .map(c => problem("E018", { kind: "command", id: c.id, title: c.title }))
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
   const keys = defaultKeys(plugins, new Set(commands.map(c => c.id)))
-  if (home !== null && registry.bookTypes.get(home)?.single !== true) fail("E110", { id: home })
+  if (home !== null && catalog.bookTypes.get(home)?.single !== true) fail("E110", { id: home })
   return {
     catalog: {
-      core: registry,
+      core: catalog,
       store: { commands: new Map(commands.map(c => [c.id, c])), dialogs: new Set(dialogs.map(d => d.id)), keys },
     },
     home,
-    autoSkin: autoSkin(registry, auto),
+    autoSkin: autoSkin(catalog, auto),
   }
 }
 

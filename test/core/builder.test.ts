@@ -1,4 +1,4 @@
-// 登録表が組み立てるブックの形: タイプが選んだアイテム・設定の項目・見せ方から作り、選んでいないものは受け付けない
+// 機能台帳が組み立てるブックの形: タイプが選んだアイテム・設定の項目・見せ方から作り、選んでいないものは受け付けない
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { restoreBooks } from "../../web/src/core/book"
@@ -8,7 +8,7 @@ import { defineSetting } from "../../web/src/core/def/setting"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble } from "../../web/src/store/plugin"
-import { BUILTIN_PARTS, REGISTRY } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing")!
 const withDrawing = (patch: object) => ({
@@ -30,20 +30,20 @@ const list = { id: "n2", x: 200, y: 10, item: "shape.list", props: {} }
 describe("組み立てたブックの形", () => {
   test("ページに置けるのは、タイプが選んだアイテムだけ", () => {
     const boxesOnly = buildCoreCatalog(withDrawing({ items: { allowed: ["shape.box"], defaults: ["shape.box"] } }))
-    expect(restoreBooks(REGISTRY, [book([page([box, list])])])).toHaveLength(1)
+    expect(restoreBooks(CORE_CATALOG, [book([page([box, list])])])).toHaveLength(1)
     expect(restoreBooks(boxesOnly, [book([page([box, list])])])).toHaveLength(0)
     expect(restoreBooks(boxesOnly, [book([page([box])])])).toHaveLength(1)
   })
 
   test("設定の項目の欄を持てるのは、タイプがその項目を選んだときだけ", () => {
     const noRoute = buildCoreCatalog(withDrawing({ settings: { book: [], page: ["line.route"] } }))
-    expect(restoreBooks(REGISTRY, [book([page([])], { lineRoute: "straight" })])).toHaveLength(1)
+    expect(restoreBooks(CORE_CATALOG, [book([page([])], { lineRoute: "straight" })])).toHaveLength(1)
     expect(restoreBooks(noRoute, [book([page([])], { lineRoute: "straight" })])).toHaveLength(0)
     expect(restoreBooks(noRoute, [book([page([], { lineRoute: "straight" })])])).toHaveLength(1)
   })
 
   test("保存したデータの欄の並び: タイプの頭の欄（type・id・title）・ページ・設定の項目・タイプのほかの欄", () => {
-    const [restored] = restoreBooks(REGISTRY, [{ ...book([page([])]), theme: "sticky", lineRoute: "straight" }])
+    const [restored] = restoreBooks(CORE_CATALOG, [{ ...book([page([])]), theme: "sticky", lineRoute: "straight" }])
     expect(Object.keys(restored!)).toEqual(["type", "id", "title", "pages", "lineRoute", "theme"])
     expect(Object.keys((restored as BookOf<"drawing">).pages[0]!)).toEqual([
       "id",
@@ -57,7 +57,7 @@ describe("組み立てたブックの形", () => {
   test("設定の値は、ページ → ブック → 定義の既定 の順に、最初に値のある所で決まる", () => {
     const b = book([page([], { lineRoute: "straight" }), { ...page([]), id: "p2" }], { lineRoute: "elbow" })
     const [p1, p2] = (b as { pages: object[] }).pages
-    const read = (target: object, at: object | null) => settingValue(REGISTRY, target as never, at, "line.route")
+    const read = (target: object, at: object | null) => settingValue(CORE_CATALOG, target as never, at, "line.route")
     expect(read(b, p1!)).toBe("straight")
     expect(read(b, p2!)).toBe("elbow")
     expect(read(book([page([])]), null)).toBe("elbow") // 定義の既定
@@ -66,7 +66,7 @@ describe("組み立てたブックの形", () => {
 })
 
 describe("組み立ての食い違い", () => {
-  test("タイプが自分の欄に、登録表が足す欄（pages・選んだ設定の項目の欄）を書くと誤り", () => {
+  test("タイプが自分の欄に、機能台帳が足す欄（pages・選んだ設定の項目の欄）を書くと誤り", () => {
     const own = drawing.schema.extend({ pages: z.array(z.unknown()) })
     expect(checkCoreCatalog(withDrawing({ schema: own })).map(p => p.code)).toContain("E025")
     const route = drawing.schema.extend({ lineRoute: z.string().optional() })

@@ -18,19 +18,19 @@ const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#
 export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const t = useT()
   const form = useId()
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const book = useApp(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined
   })
   const { perform, previewDialog } = useActions()
-  const startTheme = book ? bookTheme(registry, book) : ""
+  const startTheme = book ? bookTheme(catalog, book) : ""
   const startPaper = book ? (book as BookLook).paperColor : undefined
   const [title, setTitle] = useState(book && "title" in book ? book.title : "")
   const [theme, setTheme] = useState(startTheme)
   const [paperColor, setPaperColor] = useState(startPaper)
   const settings = useSettingControls(book, "book", null)
-  const typeTheme = book ? bookType(registry, book.type).theme : ""
+  const typeTheme = book ? bookType(catalog, book.type).theme : ""
   const id = book?.id
   const changed = theme !== startTheme || paperColor !== startPaper
   useEffect(() => {
@@ -40,9 +40,9 @@ export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const none = useMemo(
     () =>
       book
-        ? (bookTokens(registry, { ...book, theme, paperColor: undefined } as typeof book).paper?.light ?? "#ffffff")
+        ? (bookTokens(catalog, { ...book, theme, paperColor: undefined } as typeof book).paper?.light ?? "#ffffff")
         : "#ffffff",
-    [registry, book, theme],
+    [catalog, book, theme],
   )
   if (!book) return null
   const named = title.trim() !== ""
@@ -76,7 +76,7 @@ export function BookSettingsDialog({ stage, onClose }: DialogProps) {
         <Field label={t("Theme")}>
           {fid => (
             <select id={fid} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
-              {[...registry.themes.values()].map(th => (
+              {[...catalog.themes.values()].map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}
                 </option>

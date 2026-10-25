@@ -29,9 +29,9 @@ interface BookTypeBase<S extends z.ZodObject> {
   id: string // データの type の値
   version: number // データの形の版
   title: MessageKey // タイプの名前。題名を持たないブックは、この名前で呼ぶ
-  // そのタイプのブックが自分で持つ欄の形（type は id の値）。ページ（pages）と設定の項目の欄は書かず、登録表が選んだものから足す
+  // そのタイプのブックが自分で持つ欄の形（type は id の値）。ページ（pages）と設定の項目の欄は書かず、機能台帳が選んだものから足す
   schema: S
-  pages: PagesRule | null // ページを持つか（持つなら、登録表がページの欄を足す）
+  pages: PagesRule | null // ページを持つか（持つなら、機能台帳がページの欄を足す）
   items: Choice
   actions: Choice
   theme: string // 既定のテーマ
@@ -40,7 +40,7 @@ interface BookTypeBase<S extends z.ZodObject> {
   tools?: ToolSetId // ステージで使う道具の組（core/tools.ts。無ければ道具を使わない）
   // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
-  holds?(book: z.infer<S>, reg: CoreCatalog): boolean
+  holds?(book: z.infer<S>, catalog: CoreCatalog): boolean
   settings?: BookTypeSettings
 }
 

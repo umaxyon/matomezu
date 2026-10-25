@@ -23,25 +23,25 @@ export type Performed<Id extends ActionId> =
   | { ok: false; reason: Refusal }
 
 // ブックで使えるアクション（タイプの既定）
-export function actionsOf(reg: CoreCatalog, book: Book): readonly string[] {
-  return bookType(reg, book.type).actions.defaults
+export function actionsOf(catalog: CoreCatalog, book: Book): readonly string[] {
+  return bookType(catalog, book.type).actions.defaults
 }
 
 // ホームのブックで使えるアクション（ホームが無ければ無い）。ホームは 1 冊だけのタイプで、ブックの id はタイプの id
-export function homeActions(reg: CoreCatalog, home: string | null): readonly string[] {
-  return home === null ? [] : bookType(reg, home).actions.defaults
+export function homeActions(catalog: CoreCatalog, home: string | null): readonly string[] {
+  return home === null ? [] : bookType(catalog, home).actions.defaults
 }
 
 // ブックが、データの形の外の決まり（アイテムどうしの関係）を守っているか: タイプの決まりと、どのページもつなぐものの定義の決まり
-export function holds(reg: CoreCatalog, book: Book): boolean {
-  if (!(bookType(reg, book.type).holds?.(book, reg) ?? true)) return false
-  return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(reg, p))
+export function holds(catalog: CoreCatalog, book: Book): boolean {
+  if (!(bookType(catalog, book.type).holds?.(book, catalog) ?? true)) return false
+  return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(catalog, p))
 }
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）
 function allowed(ctx: ActionContext, action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
   const book = action.target === "book" ? (subject as Book) : undefined
-  return inspect(ctx.registry, { kind: "action", action: action.id, book }, ctx).value === true
+  return inspect(ctx.catalog, { kind: "action", action: action.id, book }, ctx).value === true
 }
 
 export function perform<Id extends ActionId>(
@@ -50,14 +50,14 @@ export function perform<Id extends ActionId>(
   args: ArgsOf<Id>,
   ctx: ActionContext,
 ): Performed<Id> {
-  const action: ActionDef | undefined = ctx.registry.actions.get(id)
+  const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
   if (!allowed(ctx, action, subject)) return { ok: false, reason: "not-allowed" }
   const parsed = action.args.safeParse(args)
   if (!parsed.success) return { ok: false, reason: "bad-args" }
   const done = action.run(subject, parsed.data, ctx)
   if (!done) return { ok: false, reason: "refused" }
-  if (action.target === "book" && !holds(ctx.registry, done.next as Book)) return { ok: false, reason: "refused" }
+  if (action.target === "book" && !holds(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }
 
@@ -81,7 +81,7 @@ export function performIn(
   on: { book: string } | undefined,
   ctx: ActionContext,
 ): PerformedIn {
-  const target: ActionTarget | undefined = ctx.registry.actions.get(id)?.target
+  const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   const loose = perform as (
     subject: unknown,
     id: string,

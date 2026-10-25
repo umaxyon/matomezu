@@ -6,7 +6,7 @@
 
 | 層 | 役割 | 読んでよいもの |
 |---|---|---|
-| `core` | データの形・定義の型・登録表・純粋な関数。React も状態も持たない | `core`・zod |
+| `core` | データの形・定義の型・機能台帳の core の段・純粋な関数。React も状態も持たない | `core`・zod |
 | `store` | 状態（Zustand）・コマンド・ダイアログの表・プラグインの組み立て | `core`・`store`・zustand |
 | `ui` | 画面の根と、プラグインが使う画面の口。画面に出る物は置かない | `core`・`store`・`ui`・React・zustand |
 | `host` | 外の世界（通信・保存・URL・クリップボード）に触る口 | `core`・`store`・`host`・zod |

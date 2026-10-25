@@ -36,18 +36,18 @@ const linesIn = (scene: ShapeScene): PlacedLine[] =>
 
 export function LineLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, rects, localOf } = scene
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
   const elbow = useApp(s => {
     const b = stage.opened ? s.books[stage.opened.book] : undefined
-    return b ? elbowAt(registry, b, page) : true
+    return b ? elbowAt(catalog, b, page) : true
   })
   const preview = useApp(s => s.dialog?.preview ?? null)
   const lineEdit = useCommand(stage.id, "line.edit")
   const openLineMenu = useContextMenu(stage.id, "line.context")
   const { select } = useActions()
-  const linkDrag = useLinkDrag(stage, registry, localOf)
-  const lineDrag = useLineEdit(stage, registry, localOf)
+  const linkDrag = useLinkDrag(stage, catalog, localOf)
+  const lineDrag = useLineEdit(stage, catalog, localOf)
   // 線の自由な端が前に描いた辺と位置（画面の中だけ。データには書かない）、線の道筋の覚え、前に描いた形の四角
   const memo = useRef(new Map<string, EndMemory>())
   const cache = useRef<LineCache>(new Map())
@@ -97,7 +97,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
       scene.busy ||
       scene.hover !== id ||
       stage.selection.includes(id) ||
-      !targetsFrom(registry, page, id).size
+      !targetsFrom(catalog, page, id).size
     )
       return []
     return SIDES

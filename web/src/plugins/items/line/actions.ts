@@ -16,19 +16,25 @@ type Drawing = PagedBook
 const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLine>
 
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
-const tidied = (reg: CoreCatalog, book: Drawing, page: ItemPage, line: PlacedLine): PlacedLine =>
-  tidyLines([line], rectsOf(reg, page), elbowAt(reg, book, page))[0] ?? line
+const tidied = (catalog: CoreCatalog, book: Drawing, page: ItemPage, line: PlacedLine): PlacedLine =>
+  tidyLines([line], rectsOf(catalog, page), elbowAt(catalog, book, page))[0] ?? line
 
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
-const viaDrawn = (reg: CoreCatalog, book: Drawing, page: ItemPage, line: PlacedLine): boolean =>
-  !line.props.via || tidied(reg, book, page, line).props.via !== undefined
+const viaDrawn = (catalog: CoreCatalog, book: Drawing, page: ItemPage, line: PlacedLine): boolean =>
+  !line.props.via || tidied(catalog, book, page, line).props.via !== undefined
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、stay の形（無ければ始点）はそのままでもう一方をどける
-function withLine(reg: CoreCatalog, book: Drawing, page: ItemPage, line: PlacedLine, stay = line.from): Drawing | null {
+function withLine(
+  catalog: CoreCatalog,
+  book: Drawing,
+  page: ItemPage,
+  line: PlacedLine,
+  stay = line.from,
+): Drawing | null {
   const items = pageItemsOf(page)
   const next = items.some(i => i.id === line.id) ? items.map(i => (i.id === line.id ? line : i)) : [...items, line]
   const changed = { ...book, pages: book.pages.map(p => (p.id === page.id ? { ...page, items: next } : p)) }
-  return keepApart(reg, changed, page.id, stay, stay === line.from ? line.to : line.from)
+  return keepApart(catalog, changed, page.id, stay, stay === line.from ? line.to : line.from)
 }
 
 // 形 from から to へ線を引く（同じ形なら自分に戻る線）。両端は同じページのつなげる形（箱・リスト。リストの行にはつながない）。
@@ -46,9 +52,9 @@ export const LINE_CONNECT = defineAction({
     props: LINE.props.optional(),
   }),
   run: (book, args, ctx) => {
-    if (!hasPages(book) || !usesLines(ctx.registry, book)) return null
+    if (!hasPages(book) || !usesLines(ctx.catalog, book)) return null
     const page = book.pages.find(p => p.id === args.page)
-    if (!page || !connectable(ctx.registry, page, args.from) || !connectable(ctx.registry, page, args.to)) return null
+    if (!page || !connectable(ctx.catalog, page, args.from) || !connectable(ctx.catalog, page, args.to)) return null
     if (!canConnect(linesOf(page), args.from, args.to)) return null
     const line = PlacedLineSchema.safeParse({
       id: nextItemId(book, ctx.newId),
@@ -57,8 +63,8 @@ export const LINE_CONNECT = defineAction({
       to: args.to,
       props: args.props ?? {},
     })
-    if (!line.success || !viaDrawn(ctx.registry, book, page, line.data)) return null
-    const next = withLine(ctx.registry, book, page, line.data)
+    if (!line.success || !viaDrawn(ctx.catalog, book, page, line.data)) return null
+    const next = withLine(ctx.catalog, book, page, line.data)
     return next && { next, result: { line: line.data.id } }
   },
 })
@@ -85,8 +91,8 @@ export const LINE_UPDATE = defineAction({
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const line = PlacedLineSchema.safeParse({ ...now, props })
     if (!line.success) return null
-    if (args.props.via != null && !viaDrawn(ctx.registry, book, page, line.data)) return null
-    const next = withLine(ctx.registry, book, page, tidied(ctx.registry, book, page, line.data))
+    if (args.props.via != null && !viaDrawn(ctx.catalog, book, page, line.data)) return null
+    const next = withLine(ctx.catalog, book, page, tidied(ctx.catalog, book, page, line.data))
     return next && { next, result: {} }
   },
 })
@@ -108,10 +114,10 @@ export const LINE_RECONNECT = defineAction({
     props: z.strictObject({ exitAt: LINE.props.shape.exitAt, enterAt: LINE.props.shape.enterAt }).optional(),
   }),
   run: (book, args, ctx) => {
-    if (!hasPages(book) || !usesLines(ctx.registry, book)) return null
+    if (!hasPages(book) || !usesLines(ctx.catalog, book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && linesOf(page).find(l => l.id === args.line)
-    if (!page || !now || now[args.end] === args.item || !connectable(ctx.registry, page, args.item)) return null
+    if (!page || !now || now[args.end] === args.item || !connectable(ctx.catalog, page, args.item)) return null
     const other = args.end === "from" ? now.to : now.from
     if (
       !canConnect(
@@ -128,7 +134,7 @@ export const LINE_RECONNECT = defineAction({
     if (loopChanged || args.end === "to") delete props.enterAt
     const line = PlacedLineSchema.safeParse({ ...moved, props: { ...props, ...args.props } })
     if (!line.success) return null
-    const next = withLine(ctx.registry, book, page, line.data, args.item)
+    const next = withLine(ctx.catalog, book, page, line.data, args.item)
     return next && { next, result: {} }
   },
 })

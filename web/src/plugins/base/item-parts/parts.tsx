@@ -35,20 +35,20 @@ export const useBookOf = (stage: string) => useApp(s => s.workspace.stages.find(
 
 // ブックのテーマの id
 export function useBookTheme(book: string | undefined) {
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   return useApp(s => {
     const b = book ? s.books[book] : undefined
-    return b ? bookTheme(registry, b) : undefined
+    return b ? bookTheme(catalog, b) : undefined
   })
 }
 
 // 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りの欄 fill の値）。表に無いテーマなら null
 export function useSwatches(looks: string | undefined, fill: TokenDecl) {
   const t = useT()
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   return useMemo(() => {
-    if (!looks || !registry.themes.has(looks)) return null
-    const tokens = resolveTokens(registry, looks, [fill])
+    if (!looks || !catalog.themes.has(looks)) return null
+    const tokens = resolveTokens(catalog, looks, [fill])
     // 役割の名前は出さない（意味を利用者に押し付けない）
     const palette = PALETTE.map((name, i) => ({
       name,
@@ -56,14 +56,14 @@ export function useSwatches(looks: string | undefined, fill: TokenDecl) {
       label: t("Theme color {n}", { n: i + 1 }),
     }))
     return { palette, none: tokens[fill.id]?.light ?? "#ffffff" }
-  }, [registry, looks, fill, t])
+  }, [catalog, looks, fill, t])
 }
 
 // 形に当てたテーマ theme の、欄 decls の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）
 export function useThemeVars(theme: string | undefined, decls: readonly TokenDecl[]) {
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   return useMemo(
-    () => (theme && registry.themes.has(theme) ? themeVars(resolveTokens(registry, theme, decls)) : undefined),
-    [registry, theme, decls],
+    () => (theme && catalog.themes.has(theme) ? themeVars(resolveTokens(catalog, theme, decls)) : undefined),
+    [catalog, theme, decls],
   )
 }

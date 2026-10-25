@@ -25,9 +25,9 @@ export const BOOK_UPDATE = defineAction({
   target: "book",
   needs: [],
   args: ARGS,
-  describeArgs: reg => ARGS.extend({ settings: settingsArgs(reg, "book").optional() }),
+  describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "book").optional() }),
   run: (book, args, ctx) => {
-    if (args.theme != null && !ctx.registry.themes.has(args.theme)) return null
+    if (args.theme != null && !ctx.catalog.themes.has(args.theme)) return null
     if (args.title !== undefined && !("title" in book)) return null // 名前を持たないブック
     const next: Book & BookLook = args.title === undefined ? { ...book } : ({ ...book, title: args.title } as Book)
     for (const key of ["theme", "paperColor"] as const) {
@@ -36,10 +36,10 @@ export const BOOK_UPDATE = defineAction({
       else if (value !== undefined) next[key] = key === "paperColor" ? value.toLowerCase() : value
     }
     if (args.settings === undefined) return { next, result: null }
-    const patch = settingsPatchOf(ctx.registry, book, "book")?.safeParse(args.settings)
+    const patch = settingsPatchOf(ctx.catalog, book, "book")?.safeParse(args.settings)
     if (!patch?.success) return null
     return {
-      next: settleBook(ctx.registry, withSettings<Book>(next, patch.data as Record<string, unknown>)),
+      next: settleBook(ctx.catalog, withSettings<Book>(next, patch.data as Record<string, unknown>)),
       result: null,
     }
   },
@@ -52,5 +52,5 @@ export const BOOK_SETTINGS = defineCommand({
   id: "book.settings",
   title: "Book settings",
   run: (ctx, a) => a.openDialog(ctx.stage.id, "book.settings"),
-  when: ctx => ctx.book !== null && actionsOf(ctx.registry, ctx.book).includes("book.update"),
+  when: ctx => ctx.book !== null && actionsOf(ctx.catalog, ctx.book).includes("book.update"),
 })

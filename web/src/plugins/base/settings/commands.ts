@@ -3,7 +3,7 @@ import type { Lang } from "../../../core/i18n/i18n"
 import { homeActions } from "../../../core/perform"
 import { type CommandContext, defineCommand } from "../../../store/commands/def"
 
-const allows = (action: string) => (ctx: CommandContext) => homeActions(ctx.registry, ctx.home).includes(action)
+const allows = (action: string) => (ctx: CommandContext) => homeActions(ctx.catalog, ctx.home).includes(action)
 
 export const SETTINGS_LANG = defineCommand({
   id: "settings.lang",

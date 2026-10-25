@@ -7,8 +7,8 @@ export const TOOL_NEXT = defineCommand({
   id: "tool.next",
   title: "Switch tool",
   run: (ctx, a) => {
-    const set = toolSetOf(ctx.registry, ctx.stage)
+    const set = toolSetOf(ctx.catalog, ctx.stage)
     if (set) a.setTool(ctx.stage.id, nextTool(set, toolIn(ctx.workspace.tools, set)))
   },
-  when: ctx => paperOf(ctx.stage) !== null && toolSetOf(ctx.registry, ctx.stage) !== null,
+  when: ctx => paperOf(ctx.stage) !== null && toolSetOf(ctx.catalog, ctx.stage) !== null,
 })

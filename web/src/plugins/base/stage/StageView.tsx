@@ -31,11 +31,11 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   })
   const preview = useApp(s => s.dialog?.preview ?? null)
   const look = preview && preview.item === undefined && preview.book === book?.id ? preview.props : null
-  const registry = useCatalog().core
-  const tool = useApp(s => toolOf(registry, s.workspace, id))
+  const catalog = useCatalog().core
+  const tool = useApp(s => toolOf(catalog, s.workspace, id))
   const vars = useMemo(
-    () => (book ? themeVars(bookTokens(registry, look ? ({ ...book, ...look } as Book) : book)) : undefined),
-    [registry, book, look],
+    () => (book ? themeVars(bookTokens(catalog, look ? ({ ...book, ...look } as Book) : book)) : undefined),
+    [catalog, book, look],
   )
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const t = useT()

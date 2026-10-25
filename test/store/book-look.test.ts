@@ -22,16 +22,16 @@ test("book.update でブックのテーマと紙の色を変える。渡さな�
 
 test("ブックのテーマは、ブックの theme（無いか表に無ければブックのタイプのテーマ）。紙の色は紙の欄を上書きする。箱の欄もブックのテーマで決まる", () => {
   const store = newStore()
-  const reg = store.catalog.core
-  expect(bookTheme(reg, book(store))).toBe("standard")
-  expect(bookTokens(reg, book(store))["box.fill"]).toEqual({ light: "#ffffff", dark: "#ffffff" })
+  const catalog = store.catalog.core
+  expect(bookTheme(catalog, book(store))).toBe("standard")
+  expect(bookTokens(catalog, book(store))["box.fill"]).toEqual({ light: "#ffffff", dark: "#ffffff" })
   update(store, { theme: "sticky" })
-  expect(bookTheme(reg, book(store))).toBe("sticky")
-  expect(bookTokens(reg, book(store))["box.fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })
-  expect(bookTokens(reg, book(store)).paper).toEqual({ light: "#f4efe4", dark: "#f4efe4" })
+  expect(bookTheme(catalog, book(store))).toBe("sticky")
+  expect(bookTokens(catalog, book(store))["box.fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })
+  expect(bookTokens(catalog, book(store)).paper).toEqual({ light: "#f4efe4", dark: "#f4efe4" })
   update(store, { paperColor: "#0f172a" })
-  expect(bookTokens(reg, book(store)).paper).toEqual({ light: "#0f172a", dark: "#0f172a" })
-  expect(bookTheme(reg, { ...book(store), theme: "nope" })).toBe("standard")
+  expect(bookTokens(catalog, book(store)).paper).toEqual({ light: "#0f172a", dark: "#0f172a" })
+  expect(bookTheme(catalog, { ...book(store), theme: "nope" })).toBe("standard")
 })
 
 test("ダイアログの下書きは、アイテムを指さなければブックそのものの下書き", () => {

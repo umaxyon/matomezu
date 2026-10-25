@@ -117,14 +117,14 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
 }
 
 // ブックのタイプのデータの形（組み立てたもの）
-export function bookSchemas(reg: CoreCatalog, id: string): BookSchemas {
-  return reg.schemas.get(id) ?? fail("E101", { id })
+export function bookSchemas(catalog: CoreCatalog, id: string): BookSchemas {
+  return catalog.schemas.get(id) ?? fail("E101", { id })
 }
 
-// ブックのタイプは、データのタイプが表に無ければ誤り。ほかの定義は reg.items.get(id) などで引き、知らない id なら undefined
+// ブックのタイプは、データのタイプが表に無ければ誤り。ほかの定義は catalog.items.get(id) などで引き、知らない id なら undefined
 // （データに残った、外したプラグインのアイテムなど）
-export function bookType(reg: CoreCatalog, id: string): BookTypeDef {
-  return reg.bookTypes.get(id) ?? fail("E101", { id })
+export function bookType(catalog: CoreCatalog, id: string): BookTypeDef {
+  return catalog.bookTypes.get(id) ?? fail("E101", { id })
 }
 
 const allMessages = (parts: CoreCatalogParts) => [MESSAGES, ...parts.messages]

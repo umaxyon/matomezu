@@ -10,7 +10,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { alignedEndsOf } from "../../web/src/plugins/items/line/drawn"
 import { elbowAt, usesLines } from "../../web/src/plugins/items/line/line"
 import { CAPTION_GAP, LINK_GAP, linesOf } from "../../web/src/plugins/items/line/placed"
-import { BUILTIN_PARTS, newStore, REGISTRY, sequence } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG, newStore, sequence } from "../support"
 
 function ready() {
   const store = newStore()
@@ -161,10 +161,10 @@ test("関係の決まりを守らないブック（線の端が無い・行に�
     pages: [{ ...good.pages[0]!, items: [...shapesOf(good.pages[0]!), ...items] }],
   })
   const line = (id: string, from: string, to: string) => ({ id, item: "connector.line", from, to, props: {} })
-  expect(restoreBooks(REGISTRY, [good])).toHaveLength(1)
-  expect(restoreBooks(REGISTRY, [withLines([line("l1", "n1", "zz")])])).toHaveLength(0)
-  expect(restoreBooks(REGISTRY, [withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")])])).toHaveLength(0)
-  expect(restoreBooks(REGISTRY, [withLines([line("l1", "n1", "n1"), line("l2", "n1", "n1")])])).toHaveLength(1)
+  expect(restoreBooks(CORE_CATALOG, [good])).toHaveLength(1)
+  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "zz")])])).toHaveLength(0)
+  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")])])).toHaveLength(0)
+  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n1"), line("l2", "n1", "n1")])])).toHaveLength(1)
 })
 
 test("line.update: via を持つ線を直線にする・端を自由に戻すと、引けなくなった via を消す（断らない）。via を書いて引けなければ断る", () => {
@@ -205,11 +205,11 @@ test("整列の位置: 横に並ぶ箱どうしは、向き合う辺の重なる
   place(store, 100, 100)
   place(store, 400, 120)
   connect(store, "n1", "n2", { exitAt: 104 / 328 }) // n1 の右の辺の上の端の近く（y = 104）
-  const rects = rectsOf(REGISTRY, page(store))
+  const rects = rectsOf(CORE_CATALOG, page(store))
   const ends = alignedEndsOf(lines(store)[0]!, rects, true)!
   expect(ends).toBeDefined()
   expect(update(store, "n3", ends).ok).toBe(true)
-  expect(alignedEndsOf(lines(store)[0]!, rectsOf(REGISTRY, page(store)), true)).toBeNull()
+  expect(alignedEndsOf(lines(store)[0]!, rectsOf(CORE_CATALOG, page(store)), true)).toBeNull()
 })
 
 test("線の既定の通り方は、ページ → ブック → 折れ線の順に決まる。ブックを直線にすると（book.update の設定の項目）、ページの既定の無いページの線が直線になり、引けなくなった via を消す", () => {
@@ -219,7 +219,7 @@ test("線の既定の通り方は、ページ → ブック → 折れ線の順�
   const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
   connect(store, "n1", "n2", { ...ends, via: [300] })
   const book = () => store.state.getState().books.b1 as BookOf<"drawing">
-  const elbow = () => elbowAt(REGISTRY, book(), page(store))
+  const elbow = () => elbowAt(CORE_CATALOG, book(), page(store))
   expect(elbow()).toBe(true)
   expect(store.actions.perform("book.update", { settings: { lineRoute: "straight" } }, { book: "b1" }).ok).toBe(true)
   expect(book().lineRoute).toBe("straight")
@@ -240,7 +240,7 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   place(store, 100, 100)
   place(store, 400, 100)
   const book = store.state.getState().books.b1 as BookOf<"drawing">
-  // 図面のタイプから、線と線の既定の通り方を外した登録表
+  // 図面のタイプから、線と線の既定の通り方を外した機能台帳
   const noLines = buildCoreCatalog({
     ...BUILTIN_PARTS,
     bookTypes: BUILTIN_PARTS.bookTypes.map(t =>
@@ -253,14 +253,14 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
         : t,
     ),
   })
-  const ctx = { registry: noLines, home: null, lang: "ja", newId: sequence("x") }
-  expect(usesLines(REGISTRY, book)).toBe(true)
+  const ctx = { catalog: noLines, home: null, lang: "ja", newId: sequence("x") }
+  expect(usesLines(CORE_CATALOG, book)).toBe(true)
   expect(usesLines(noLines, book)).toBe(false)
   expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)
   expect(perform(book, "book.update", { settings: { lineRoute: "straight" } }, ctx).ok).toBe(false)
   expect(perform(book, "page.update", { page: "p1", settings: { lineRoute: "straight" } }, ctx).ok).toBe(false)
   // 同じ操作は、線が使えるブックなら通る
-  const ok = { ...ctx, registry: REGISTRY }
+  const ok = { ...ctx, catalog: CORE_CATALOG }
   expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ok).ok).toBe(true)
   expect(perform(book, "book.update", { settings: { lineRoute: "straight" } }, ok).ok).toBe(true)
 })

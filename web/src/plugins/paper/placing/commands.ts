@@ -27,11 +27,11 @@ export const PAPER_PLACE = defineCommand({
     const { stage } = ctx
     const at = placeAt(ctx, pointer)
     const page = stage.opened?.page
-    const size = stage.placing && itemSize(ctx.registry, stage.placing)
+    const size = stage.placing && itemSize(ctx.catalog, stage.placing)
     const paper = paperOf(stage)
     if (!at || !page || !stage.placing || !stage.opened || !size || !paper || !fitsPaper(at, size, paper)) return
     // 形の定義が名指す追加のダイアログ（渡す値は { page, at }。名指したダイアログがあることは組み立てで確かめる）
-    const dialog = shapeDefOf(ctx.registry, stage.placing)?.dialogs.add
+    const dialog = shapeDefOf(ctx.catalog, stage.placing)?.dialogs.add
     if (dialog) {
       a.stopPlacing(stage.id)
       a.openDialog(stage.id, dialog as DialogTaking<{ page: string; at: Point }>, { page, at })
@@ -55,7 +55,7 @@ export const PAPER_EDIT = defineCommand({
     const book = pagedOf(ctx.book) ?? null
     const found = book?.pages.find(p => p.id === page)
     const placed = found && shapesOf(found).find(i => i.id === item)
-    const dialog = placed && shapeDefOf(ctx.registry, placed.item)?.dialogs.edit
+    const dialog = placed && shapeDefOf(ctx.catalog, placed.item)?.dialogs.edit
     if (!page || !dialog) return
     a.openDialog(ctx.stage.id, dialog as DialogTaking<{ page: string; item: string }>, { page, item })
   },
@@ -100,7 +100,7 @@ export const PAPER_RESIZE = defineCommand({
     const page = book?.pages.find(p => p.id === opened?.page)
     const placed = page && shapesOf(page).find(i => i.id === args.item)
     if (!opened?.page || !paper || !placed) return
-    const to = resizedBy(ctx.registry, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
+    const to = resizedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
     if (to) a.perform("item.resize", { page: opened.page, item: placed.id, ...to }, { book: opened.book })
   },
   when: onDrawingPage,

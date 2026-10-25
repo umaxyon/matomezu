@@ -4,6 +4,6 @@ import { bookItems } from "./book"
 import type { CoreCatalog, ItemId } from "./core-catalog"
 import type { Book } from "./schema/book"
 
-export function toolboxOf(reg: CoreCatalog, book: Book): readonly ItemId[] {
-  return bookItems(reg, book).filter((id): id is ItemId => reg.items.get(id)?.toolbox === true)
+export function toolboxOf(catalog: CoreCatalog, book: Book): readonly ItemId[] {
+  return bookItems(catalog, book).filter((id): id is ItemId => catalog.items.get(id)?.toolbox === true)
 }

@@ -4,7 +4,7 @@ import { GAP, type Rect } from "../../web/src/core/place/push"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { dragRects, dropManyRects, dropRects, track } from "../../web/src/plugins/paper/placing/drag"
-import { newStore, REGISTRY } from "../support"
+import { CORE_CATALOG, newStore } from "../support"
 
 const PAPER = { w: 1123, h: 794 } // A4 横
 const rects = (o: Record<string, Rect>) => new Map(Object.entries(o))
@@ -92,8 +92,13 @@ test("描いている形の四角: 左上と大きさに、ドラッグでずら
   )
   const page = (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
   const [box] = shapesOf(page)
-  expect(shownRects(REGISTRY, [{ item: box!, shift: null }]).get(box!.id)).toEqual({ x: 100, y: 100, w: 100, h: 64 })
-  expect(shownRects(REGISTRY, [{ item: box!, shift: { x: 30, y: -10 } }]).get(box!.id)).toEqual({
+  expect(shownRects(CORE_CATALOG, [{ item: box!, shift: null }]).get(box!.id)).toEqual({
+    x: 100,
+    y: 100,
+    w: 100,
+    h: 64,
+  })
+  expect(shownRects(CORE_CATALOG, [{ item: box!, shift: { x: 30, y: -10 } }]).get(box!.id)).toEqual({
     x: 130,
     y: 90,
     w: 100,

@@ -28,10 +28,10 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
   const { addPage } = useActions()
   const lang = useApp(s => s.settings.lang)
   const t = useT()
-  const registry = useCatalog().core
-  const { papers, orientations } = paperChoices(registry, book)
-  const [title, setTitle] = useState(() => nextPageTitle(registry, book, lang))
-  const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(registry, book))
+  const catalog = useCatalog().core
+  const { papers, orientations } = paperChoices(catalog, book)
+  const [title, setTitle] = useState(() => nextPageTitle(catalog, book, lang))
+  const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(catalog, book))
   return (
     <Form
       submit={t("Create")}
@@ -56,7 +56,7 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
             onChange={e => setChoice({ ...choice, paper: e.target.value })}
           >
             {papers.map(p => {
-              const def = registry.papers.get(p)
+              const def = catalog.papers.get(p)
               return (
                 <option key={p} value={p}>
                   {def ? t(def.title) : t("Unknown paper")}

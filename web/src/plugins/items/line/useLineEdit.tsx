@@ -43,7 +43,7 @@ export interface LineScene {
 
 const SLOP = 3 // 札は、これだけ動かすまではドラッグにしない（押して離せば線を選ぶだけ）
 
-export function useLineEdit(stage: Stage, registry: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
+export function useLineEdit(stage: Stage, catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
   const { perform } = useActions()
   const drop = useCommand(stage.id, "line.drop")
   const drag = useRef<Drag | null>(null)
@@ -91,7 +91,7 @@ export function useLineEdit(stage: Stage, registry: CoreCatalog, localOf: (e: Po
     dimming, // 端を運ぶ間、薄くしない形（null ならだれも薄くしない）
     startVia: (e: PointerEvent<Element>, line: string, index: number) => begin(e, line, { kind: "via", index }),
     startEnd: (e: PointerEvent<Element>, scene: LineScene, line: PlacedLine, end: LineEnd) =>
-      begin(e, line.id, { kind: "end", end, targets: reconnectTargets(registry, scene.page, line, end) }),
+      begin(e, line.id, { kind: "end", end, targets: reconnectTargets(catalog, scene.page, line, end) }),
     startCaption: (e: PointerEvent<Element>, line: string) => begin(e, line, { kind: "caption" }),
     move(e: PointerEvent<Element>, scene: LineScene) {
       const d = drag.current

@@ -1,4 +1,4 @@
-// 文言を言語に合わせて出す。文言は、インスタンスの登録表が持つ文言の表（土台の文言・プラグインの文言・言語パックの訳）から引く
+// 文言を言語に合わせて出す。文言は、インスタンスの機能台帳が持つ文言の表（土台の文言・プラグインの文言・言語パックの訳）から引く
 import type { Lang, MessageKey, Translations } from "./messages"
 
 export type { Lang, MessageKey }
@@ -6,7 +6,7 @@ export type Messages = ReadonlyMap<string, Translations>
 
 export type Params = Readonly<Record<string, string | number>>
 
-// 訳の無い言語と、表に無い鍵（型の表に書き足したのに、そのプラグインを渡していないインスタンスなど）は、英語の鍵をそのまま出す
+// 訳の無い言語と、表に無い鍵（機能台帳の型の側に書き足したのに、そのプラグインを渡していないインスタンスなど）は、英語の鍵をそのまま出す
 export function translate(messages: Messages, lang: Lang, key: MessageKey, params: Params = {}): string {
   const text: string = messages.get(key)?.[lang] ?? key
   return text.replace(/\{(\w+)\}/g, (whole, name: string) => (name in params ? String(params[name]) : whole))

@@ -19,15 +19,15 @@
 
 ## プラグインの中の形
 
-- 入口は `index.ts`（React なし。プラグインの定義と、末尾で型の表への書き足し）と `ui.tsx`（見た目を結ぶ `definePluginUi`）
+- 入口は `index.ts`（React なし。プラグインの定義と、末尾で機能台帳の型の側への書き足し）と `ui.tsx`（見た目を結ぶ `definePluginUi`）
 - 大きなプラグインは中を機能ごとのフォルダに分け、各フォルダにも同じ形（`index.ts`・`ui.tsx`・コンポーネント・`messages.ts`）で置く。プラグインの `index.ts`・`ui.tsx`・`messages.ts` が集める
 - ブックのビューは `view/` に置く
 - 同じプラグインの中は、下のフォルダも読める
-- フォルダを動かしたら、型の表への書き足し（`declare module`）のパスも直す（ずれても誤りにならず、型が never になる）
+- フォルダを動かしたら、機能台帳の型の側への書き足し（`declare module`）のパスも直す（ずれても誤りにならず、型が never になる）
 
-## 型の表
+## 機能台帳の型の側
 
-- 型の表（`core/tables.ts`・`store/tables.ts`・`ui/tables.ts`）の空の interface に、`declare module` で書き足す。id の型・ブックの型・引数の型はここから決まる
+- 機能台帳の型の側（`core/catalog.ts`。追加プラグインからは `matomezu/catalog`）の空の interface に、`declare module` で書き足す。id の型・ブックの型・引数の型はここから決まる
 - `createMatomezu` には、型を書き足したプラグインを全部渡す。わざと減らすインスタンス（テストなど）は `partial: true`
 
 ## 見た目と差し替え

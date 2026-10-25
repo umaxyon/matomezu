@@ -11,13 +11,13 @@ import styles from "./BookSearch.module.css"
 export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: string) => void; autoFocus?: boolean }) {
   const books = useApp(useShallow(s => Object.values(s.books)))
   const lang = useApp(s => s.settings.lang)
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const t = useT()
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
   const listId = useId()
   const activeRef = useRef<HTMLDivElement>(null)
-  const found = searchBooks(registry, books, query, lang)
+  const found = searchBooks(catalog, books, query, lang)
   const current = Math.min(active, found.length - 1)
   const optionId = (i: number) => `${listId}-${i}`
 
@@ -77,7 +77,7 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
               onPointerMove={() => setActive(i)}
               onClick={() => onSelect(b.id)}
             >
-              {bookTitle(registry, b, lang)}
+              {bookTitle(catalog, b, lang)}
             </div>
           ))}
         </div>

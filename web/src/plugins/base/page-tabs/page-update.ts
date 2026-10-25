@@ -18,12 +18,12 @@ export const PAGE_UPDATE = defineAction({
   target: "book",
   needs: [],
   args: ARGS,
-  describeArgs: reg => ARGS.extend({ settings: settingsArgs(reg, "page") }),
+  describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "page") }),
   run: (book, args, ctx) => {
     if (!hasPages(book) || !book.pages.some(p => p.id === args.page)) return null
-    const patch = settingsPatchOf(ctx.registry, book, "page")?.safeParse(args.settings)
+    const patch = settingsPatchOf(ctx.catalog, book, "page")?.safeParse(args.settings)
     if (!patch?.success) return null
     const pages = book.pages.map(p => (p.id === args.page ? withSettings(p, patch.data as Record<string, unknown>) : p))
-    return { next: settleBook(ctx.registry, { ...book, pages } as Book), result: {} }
+    return { next: settleBook(ctx.catalog, { ...book, pages } as Book), result: {} }
   },
 })

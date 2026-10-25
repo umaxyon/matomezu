@@ -1,6 +1,6 @@
 // matomezu の誤りの表。番号は一度付けたら変えず、消した番号も使い回さない（利用者が調べる手がかりと、テストの照合に使う）。
 // 文は開発者に向けたもので、画面には出さない（画面の文言は i18n の表）。{name} は渡す値で置き換える。
-// 番号の範囲: E0xx 定義の組の食い違い（登録表）、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン、E4xx ホスト（外の世界とのやり取り）
+// 番号の範囲: E0xx 定義の組の食い違い（機能台帳）、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン、E4xx ホスト（外の世界とのやり取り）
 export const ERRORS = {
   E001: "{kind} {id}: id is registered twice",
   E002: 'bookType {id}: schema.type must be the literal "{id}"',
@@ -14,8 +14,8 @@ export const ERRORS = {
   E011: "{owner}: token {token} is declared twice",
   E012: "{owner}: token {token} falls back to unknown {fallback}",
   E014: "paper {id}: size must be portrait (w <= h)",
-  E015: "registry has no book type",
-  E016: "registry has {count} problems",
+  E015: "core catalog has no book type",
+  E016: "catalog has {count} problems",
   E017: "message {key} has different {lang} translations",
   E018: "{kind} {id}: title {title} is not in the messages",
   E019: "bookType {id}: book must be a book of the schema whose id is {id}",
@@ -24,7 +24,7 @@ export const ERRORS = {
   E022: "key {key} of command {command} cannot be read",
   E023: "key {key} in scope {scope} is bound twice by the built-in plugins",
   E024: "key {key} binds unknown command {command}",
-  E025: "bookType {id}: schema must not have {field} (the registry adds it)",
+  E025: "bookType {id}: schema must not have {field} (the catalog adds it)",
   E026: "item {id}: unknown dialog {dialog}",
   E027: "setting {id}: field {field} is used by another setting",
 

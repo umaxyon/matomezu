@@ -137,8 +137,8 @@ function Ring({ at }: { at: Point }) {
 function Picker({ last }: { last: { current: Point | null } }) {
   const t = useT()
   const opened = useApp(s => s.workspace.stages.find(st => st.picker !== null))
-  const registry = useCatalog().core
-  const current = useApp(s => (opened ? toolOf(registry, s.workspace, opened.id) : null))
+  const catalog = useCatalog().core
+  const current = useApp(s => (opened ? toolOf(catalog, s.workspace, opened.id) : null))
   const { command, closePicker } = useActions()
   const [hover, setHover] = useState<number | null>(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])

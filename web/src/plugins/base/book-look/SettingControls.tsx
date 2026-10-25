@@ -11,17 +11,17 @@ export type SettingsPatch = Readonly<Record<string, unknown>>
 
 export function useSettingControls(book: Book | undefined, of: SettingsOf, page: object | null) {
   const t = useT()
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const ui = useUiCatalog()
   const [patch, setPatch] = useState<SettingsPatch>({})
-  const defs = book ? settingDefs(registry, book.type, of) : []
+  const defs = book ? settingDefs(catalog, book.type, of) : []
   const at = of === "page" ? page : book
   const controls = defs.flatMap(def => {
     const view = ui.settingViews.get(def.id)
     if (!view || !book) return []
     const own = (at as Record<string, unknown> | null | undefined)?.[def.field]
     const value = def.field in patch ? (patch[def.field] ?? undefined) : own
-    const inherited = of === "page" ? settingValue(registry, book, null, def.id) : def.default
+    const inherited = of === "page" ? settingValue(catalog, book, null, def.id) : def.default
     const Control = view.control
     return [
       <Control

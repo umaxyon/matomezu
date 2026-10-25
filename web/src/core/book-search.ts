@@ -7,11 +7,11 @@ import type { Book } from "./schema/book"
 
 const normalize = (s: string) => s.normalize("NFKC").toLowerCase()
 
-export function searchBooks(reg: CoreCatalog, books: readonly Book[], query: string, lang: Lang): Book[] {
+export function searchBooks(catalog: CoreCatalog, books: readonly Book[], query: string, lang: Lang): Book[] {
   const words = normalize(query).split(/\s+/).filter(Boolean)
   if (words.length === 0) return [...books]
   return books.filter(b => {
-    const title = normalize(bookTitle(reg, b, lang))
+    const title = normalize(bookTitle(catalog, b, lang))
     return words.every(w => title.includes(w))
   })
 }

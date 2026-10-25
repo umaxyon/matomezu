@@ -19,7 +19,7 @@ export interface Subjects {
 export type ActionTarget = keyof Subjects
 
 export interface ActionContext {
-  registry: CoreCatalog // 使う登録表（アクション・ブックのタイプ・紙など）
+  catalog: CoreCatalog // 使う機能台帳（アクション・ブックのタイプ・紙など）
   home: string | null // インスタンスのホームのブックの id（一覧と設定のアクションを許すかは、このブックのタイプが決める）。無ければ断る
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
@@ -37,8 +37,8 @@ export interface ActionDef<T extends ActionTarget = ActionTarget, A = unknown, R
   target: T
   needs: readonly Capability[] // 対象のアイテムに求める能力
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
-  // LLM に見せる引数の形を、登録表から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
-  describeArgs?(reg: CoreCatalog): z.ZodType
+  // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
+  describeArgs?(catalog: CoreCatalog): z.ZodType
   run(subject: Subjects[T], args: A, ctx: ActionContext): Done<T, R> | null
 }
 

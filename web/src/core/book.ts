@@ -15,16 +15,16 @@ export type PagedBook = Extract<Book, { pages: Page[] }>
 
 // 残しておいたブックのうち、このインスタンスのブックの形に合うものだけ（タイプの無いもの・形の合わないもの・アイテムどうしの関係の決まりを守らないものは捨てる）。
 // 残したブックは外から来る値なので、形を確かめてから使う
-export function restoreBooks(reg: CoreCatalog, saved: readonly unknown[]): Book[] {
+export function restoreBooks(catalog: CoreCatalog, saved: readonly unknown[]): Book[] {
   return saved.flatMap(b => {
-    const parsed = reg.bookSchema.safeParse(b)
-    return parsed.success && holds(reg, parsed.data as Book) ? [parsed.data as Book] : []
+    const parsed = catalog.bookSchema.safeParse(b)
+    return parsed.success && holds(catalog, parsed.data as Book) ? [parsed.data as Book] : []
   })
 }
 
 // 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの）
-export function singleBooks(reg: CoreCatalog): Book[] {
-  return reg.parts.bookTypes.flatMap(t => (t.single ? [t.book as Book] : []))
+export function singleBooks(catalog: CoreCatalog): Book[] {
+  return catalog.parts.bookTypes.flatMap(t => (t.single ? [t.book as Book] : []))
 }
 
 export function hasPages(book: Book): book is PagedBook {
@@ -36,26 +36,26 @@ export const pagedOf = (book: Book | null | undefined): PagedBook | undefined =>
   book && hasPages(book) ? book : undefined
 
 // 表の、何冊も作れるタイプの id（表の順）
-export function creatableTypes(reg: CoreCatalog): string[] {
-  return reg.parts.bookTypes.filter(t => !t.single).map(t => t.id)
+export function creatableTypes(catalog: CoreCatalog): string[] {
+  return catalog.parts.bookTypes.filter(t => !t.single).map(t => t.id)
 }
 
 // そのタイプの空のブック。何冊も作れるタイプでなければ誤り
-export function createBook(reg: CoreCatalog, type: string, init: NewBook): Book {
-  const def = bookType(reg, type)
+export function createBook(catalog: CoreCatalog, type: string, init: NewBook): Book {
+  const def = bookType(catalog, type)
   if (def.single) return fail("E104", { type })
   return def.create(init) as Book
 }
 
 // 画面に出すブックの名前。題名を持たないか空のブックは、タイプの名前で呼ぶ
-export function bookTitle(reg: CoreCatalog, book: Book, lang: Lang): string {
+export function bookTitle(catalog: CoreCatalog, book: Book, lang: Lang): string {
   return "title" in book && book.title.trim() !== ""
     ? book.title
-    : translate(reg.messages, lang, bookType(reg, book.type).title)
+    : translate(catalog.messages, lang, bookType(catalog, book.type).title)
 }
 
-function pagesRule(reg: CoreCatalog, book: PagedBook) {
-  const rule = bookType(reg, book.type).pages
+function pagesRule(catalog: CoreCatalog, book: PagedBook) {
+  const rule = bookType(catalog, book.type).pages
   if (!rule) return fail("E103", { type: book.type })
   return rule
 }
@@ -73,8 +73,8 @@ export function choosablePapers(rule: PaperRule, pages: readonly Page[]): PaperO
   return { papers: [first.paper], orientations: [first.orientation] }
 }
 
-export function paperChoices(reg: CoreCatalog, book: PagedBook): PaperOptions {
-  return choosablePapers(pagesRule(reg, book).paper, book.pages)
+export function paperChoices(catalog: CoreCatalog, book: PagedBook): PaperOptions {
+  return choosablePapers(pagesRule(catalog, book).paper, book.pages)
 }
 
 // 選べるものに入るか
@@ -83,9 +83,9 @@ export function canChoose(options: PaperOptions, choice: PaperChoice): boolean {
 }
 
 // 次のページの紙の既定（規定の既定を選べなければ、選べるものの最初）
-export function defaultPaper(reg: CoreCatalog, book: PagedBook): PaperChoice {
-  const rule = pagesRule(reg, book).paper
-  const { papers, orientations } = paperChoices(reg, book)
+export function defaultPaper(catalog: CoreCatalog, book: PagedBook): PaperChoice {
+  const rule = pagesRule(catalog, book).paper
+  const { papers, orientations } = paperChoices(catalog, book)
   return {
     paper: papers.includes(rule.default) ? rule.default : (papers[0] ?? rule.default),
     orientation: orientations.includes(rule.orientation) ? rule.orientation : (orientations[0] ?? rule.orientation),
@@ -93,18 +93,18 @@ export function defaultPaper(reg: CoreCatalog, book: PagedBook): PaperChoice {
 }
 
 // ブックで使えるアイテム（タイプの既定。置ける・引けるのはこの中だけ）
-export function bookItems(reg: CoreCatalog, book: Pick<Book, "type">): readonly string[] {
-  return bookType(reg, book.type).items.defaults
+export function bookItems(catalog: CoreCatalog, book: Pick<Book, "type">): readonly string[] {
+  return bookType(catalog, book.type).items.defaults
 }
 
 // タブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page.add が使える）
-export function addsFromTabs(reg: CoreCatalog, book: Book): boolean {
-  return hasPages(book) && pagesRule(reg, book).addFromTabs && actionsOf(reg, book).includes("page.add")
+export function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
+  return hasPages(book) && pagesRule(catalog, book).addFromTabs && actionsOf(catalog, book).includes("page.add")
 }
 
 // 次のページの題名の案
-export function nextPageTitle(reg: CoreCatalog, book: PagedBook, lang: Lang): string {
-  return translate(reg.messages, lang, "Page {n}", { n: book.pages.length + 1 })
+export function nextPageTitle(catalog: CoreCatalog, book: PagedBook, lang: Lang): string {
+  return translate(catalog.messages, lang, "Page {n}", { n: book.pages.length + 1 })
 }
 
 // ページを末尾に足す。id は newId から振る（ブックのほかのページと重ならない）

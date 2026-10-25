@@ -20,13 +20,13 @@ const OUTWARD: Record<Side, Point> = { t: { x: 0, y: -1 }, r: { x: 1, y: 0 }, b:
 export const connectable = connectableShape
 
 // 形 from から線を引ける相手（from 自身は自分に戻る線として入る）。from がつなげる形でなければ無い
-export function targetsFrom(reg: CoreCatalog, page: ItemPage, from: string): Set<string> {
-  if (!connectable(reg, page, from)) return new Set()
+export function targetsFrom(catalog: CoreCatalog, page: ItemPage, from: string): Set<string> {
+  if (!connectable(catalog, page, from)) return new Set()
   const lines = linesOf(page)
   return new Set(
     shapesOf(page)
       .map(s => s.id)
-      .filter(id => connectable(reg, page, id) && canConnect(lines, from, id)),
+      .filter(id => connectable(catalog, page, id) && canConnect(lines, from, id)),
   )
 }
 
@@ -90,13 +90,18 @@ export function drawnLineProps(
 
 // 線 line の端 end（始点 from か終点 to）をつなぎ替えられる形: もう一方の端と同じページのつなげる形で、今の形でなく、
 // もう一方の端との組にほかの線が無いもの（もう一方の端の形そのものなら、自分に戻る線になる）
-export function reconnectTargets(reg: CoreCatalog, page: ItemPage, line: PlacedLine, end: "from" | "to"): Set<string> {
+export function reconnectTargets(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  line: PlacedLine,
+  end: "from" | "to",
+): Set<string> {
   const own = line[end]
   const other = end === "from" ? line.to : line.from
   const lines = linesOf(page).filter(l => l.id !== line.id)
   return new Set(
     shapesOf(page)
       .map(s => s.id)
-      .filter(id => id !== own && connectable(reg, page, id) && canConnect(lines, other, id)),
+      .filter(id => id !== own && connectable(catalog, page, id) && canConnect(lines, other, id)),
   )
 }

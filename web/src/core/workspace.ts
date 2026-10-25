@@ -41,9 +41,9 @@ export interface Workspace {
 export const MAX_STAGES = 2
 
 // ステージ 1 つ。ブックを渡せばそれを開き、無ければ何も開かない
-export function newWorkspace(reg: CoreCatalog, book: Book | null): Workspace {
+export function newWorkspace(catalog: CoreCatalog, book: Book | null): Workspace {
   return {
-    stages: [book ? openBook(reg, newStage("s1"), book) : newStage("s1")],
+    stages: [book ? openBook(catalog, newStage("s1"), book) : newStage("s1")],
     current: "s1",
     arrangement: { direction: "row", share: EVEN_SHARE },
     issued: 1,
@@ -115,50 +115,50 @@ export function focus(ws: Workspace, id: string): Workspace {
 }
 
 // ステージの今の道具（無いステージや、道具を使わないステージは null）
-export function toolOf(reg: CoreCatalog, ws: Workspace, id: string): Tool | null {
+export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string): Tool | null {
   const stage = ws.stages.find(s => s.id === id)
-  const set = stage ? toolSetOf(reg, stage) : null
+  const set = stage ? toolSetOf(catalog, stage) : null
   return set ? toolIn(ws.tools, set) : null
 }
 
 // ステージが使う道具の組の道具を替える。同じ組を使うステージは、全部その道具になる。組に無い道具には替えない。
 // 置くのは選択の道具の仕事なので、その組を使うステージの置こうとしていたアイテムは、全部取り消す
-export function setTool(reg: CoreCatalog, ws: Workspace, id: string, tool: Tool): Workspace {
+export function setTool(catalog: CoreCatalog, ws: Workspace, id: string, tool: Tool): Workspace {
   const stage = ws.stages.find(s => s.id === id)
-  const set = stage ? toolSetOf(reg, stage) : null
+  const set = stage ? toolSetOf(catalog, stage) : null
   if (!set || !hasTool(set, tool)) return ws
-  const stages = ws.stages.map(s => (toolSetOf(reg, s) === set ? stopPlacing(s) : s))
+  const stages = ws.stages.map(s => (toolSetOf(catalog, s) === set ? stopPlacing(s) : s))
   if (toolIn(ws.tools, set) === tool && stages.every((s, i) => s === ws.stages[i])) return ws
   return { ...ws, stages, tools: { ...ws.tools, [set]: tool } }
 }
 
 // ステージでアイテムを置こうとする（同じアイテムなら取り消す）。置くのは選択の道具の仕事なので、そのステージの組の道具を選択にする。
 // ほかのステージの置こうとしているアイテムはそのまま
-export function togglePlacing(reg: CoreCatalog, ws: Workspace, id: string, item: ItemId): Workspace {
+export function togglePlacing(catalog: CoreCatalog, ws: Workspace, id: string, item: ItemId): Workspace {
   const next = mapStage(ws, id, s => togglePlacingOn(s, item))
   const stage = next.stages.find(s => s.id === id)
-  const set = stage ? toolSetOf(reg, stage) : null
+  const set = stage ? toolSetOf(catalog, stage) : null
   if (!stage?.placing || !set || toolIn(next.tools, set) === "select" || !hasTool(set, "select")) return next
   return { ...next, tools: { ...next.tools, [set]: "select" } }
 }
 
 // ステージに、開いているブックのページを開く
-export function showPage(reg: CoreCatalog, ws: Workspace, stage: string, book: PagedBook, page: string): Workspace {
-  return mapStage(ws, stage, s => openPage(reg, s, book, page))
+export function showPage(catalog: CoreCatalog, ws: Workspace, stage: string, book: PagedBook, page: string): Workspace {
+  return mapStage(ws, stage, s => openPage(catalog, s, book, page))
 }
 
 // ブックが変わったとき、そのブックを開いている全部のステージを合わせる（stage.ts の followBook）
-export function followBook(reg: CoreCatalog, ws: Workspace, book: Book): Workspace {
-  const stages = ws.stages.map(s => followStage(reg, s, book))
+export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book): Workspace {
+  const stages = ws.stages.map(s => followStage(catalog, s, book))
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
 
 // ブックの一覧が変わったとき: 無くなったブックを開いていたステージは何も開いていない状態にし、残ったブックには合わせる
-export function followLibrary(reg: CoreCatalog, ws: Workspace, books: Readonly<Record<string, Book>>): Workspace {
+export function followLibrary(catalog: CoreCatalog, ws: Workspace, books: Readonly<Record<string, Book>>): Workspace {
   const stages = ws.stages.map(s => {
     const book = s.opened ? books[s.opened.book] : undefined
     if (!s.opened) return s
-    return book ? followStage(reg, s, book) : closeBook(s)
+    return book ? followStage(catalog, s, book) : closeBook(s)
   })
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }

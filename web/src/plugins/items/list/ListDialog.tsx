@@ -167,7 +167,7 @@ function ListDialog({
 }) {
   const t = useT()
   const form = useId()
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const [caption, setCaption] = useState(start.caption)
   const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
   const aligns = useAligns()
@@ -261,7 +261,7 @@ function ListDialog({
             <span>{t("Theme")}</span>
             <select className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
               <option value="">{t("Book's theme")}</option>
-              {[...registry.themes.values()].map(th => (
+              {[...catalog.themes.values()].map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}
                 </option>

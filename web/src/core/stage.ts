@@ -79,7 +79,7 @@ export function panBy(stage: Stage, dx: number, dy: number): Stage {
 
 // ブックを開く（ページを持つなら最初のページ）。ずらす量は最初の位置に戻す。
 // ページを持たないブックがもう開いていれば、同じ値を返す
-export function openBook(reg: CoreCatalog, stage: Stage, book: Book): Stage {
+export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
   if (!hasPages(book)) {
     if (stage.opened?.book === book.id) return stage
     return settle(leave({ ...stage, opened: { type: book.type, book: book.id, page: null, paper: null } }), HOME)
@@ -89,28 +89,28 @@ export function openBook(reg: CoreCatalog, stage: Stage, book: Book): Stage {
     type: book.type,
     book: book.id,
     page: first?.id ?? null,
-    paper: first ? resolvePaper(reg, first) : null,
+    paper: first ? resolvePaper(catalog, first) : null,
   }
   return settle(leave({ ...stage, opened }), HOME)
 }
 
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は最初の位置に戻す
-export function openPage(reg: CoreCatalog, stage: Stage, book: PagedBook, page: string): Stage {
+export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, page: string): Stage {
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found || o.page === page) return stage
-  return settle(leave({ ...stage, opened: { ...o, page, paper: resolvePaper(reg, found) } }), HOME)
+  return settle(leave({ ...stage, opened: { ...o, page, paper: resolvePaper(catalog, found) } }), HOME)
 }
 
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
 // 無くなっていれば最初のページ（ページが無ければ開かない）。ページが変わったときだけ、ずらす量を最初の位置に戻し、選択を捨てる。
 // そのブックを開いていなければ、同じ値を返す
-export function followBook(reg: CoreCatalog, stage: Stage, book: Book): Stage {
+export function followBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
   const o = stage.opened
   if (!o || o.book !== book.id || !hasPages(book)) return stage
   const found = book.pages.find(p => p.id === o.page) ?? book.pages[0]
   const page = found?.id ?? null
-  const paper = found ? resolvePaper(reg, found) : null
+  const paper = found ? resolvePaper(catalog, found) : null
   if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) return stage
   const opened = { ...o, page, paper }
   return page === o.page ? settle({ ...stage, opened }, stage.pan) : settle(leave({ ...stage, opened }), HOME)

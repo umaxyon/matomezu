@@ -12,9 +12,9 @@ import { perform } from "../../web/src/core/perform"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
-import { BUILTIN_PARTS, REGISTRY } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
-describe("登録表", () => {
+describe("機能台帳", () => {
   test("ビルトインプラグインのテーマが上書きする欄は、どれもビルトインプラグインのアイテムかタイプが宣言している（インスタンスに無いアイテムの欄の上書きは誤りにせず、使わないだけ）", () => {
     const declared = new Set([...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens.map(k => k.id)))
     const unknown = BUILTIN_PARTS.themes.flatMap(th => Object.keys(th.tokens ?? {}).filter(id => !declared.has(id)))
@@ -52,7 +52,7 @@ describe("登録表", () => {
     expect(isMatomezuError(thrown) && thrown.code).toBe("E016")
     expect(isMatomezuError(thrown) && thrown.details).toEqual(problems)
     expect(String(thrown)).toContain("E008 bookType drawing: unknown item shape.box")
-    expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 registry has no book type")
+    expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 core catalog has no book type")
   })
 
   test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は誤り", () => {
@@ -71,15 +71,15 @@ describe("登録表", () => {
   test("言語パックは言語を足し、どのプラグインの文言にも訳を足す。パックの訳がプラグインの訳に勝つ", () => {
     const fr = defineLanguagePack({ lang: "fr", name: "Français", messages: { Master: "Maître", Box: "Boîte" } })
     const jaFix = defineLanguagePack({ lang: "ja", name: "日本語", messages: { Master: "親分" } })
-    const reg = buildCoreCatalog({ ...BUILTIN_PARTS, languages: [fr, jaFix] })
-    expect([...reg.languages]).toEqual([
+    const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, languages: [fr, jaFix] })
+    expect([...catalog.languages]).toEqual([
       ["en", "English"],
       ["ja", "日本語"],
       ["fr", "Français"],
     ])
-    expect(translate(reg.messages, "fr", "Box")).toBe("Boîte")
-    expect(translate(reg.messages, "fr", "Add page")).toBe("Add page")
-    expect(translate(reg.messages, "ja", "Master")).toBe("親分")
+    expect(translate(catalog.messages, "fr", "Box")).toBe("Boîte")
+    expect(translate(catalog.messages, "fr", "Add page")).toBe("Add page")
+    expect(translate(catalog.messages, "ja", "Master")).toBe("親分")
     // インスタンスに無い鍵の訳は使わない
     const stray = defineLanguagePack({ lang: "fr", name: "Français", messages: { ["Nope" as "Box"]: "Non" } })
     expect(buildCoreCatalog({ ...BUILTIN_PARTS, languages: [stray] }).messages.has("Nope")).toBe(false)
@@ -95,29 +95,29 @@ describe("登録表", () => {
   })
 
   test("作った表は id で引け、ブックのデータの形を持つ", () => {
-    const reg = buildCoreCatalog(BUILTIN_PARTS)
-    expect(reg.bookTypes.get("drawing")).toBe(BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing"))
-    expect(reg.items.get("nope")).toBeUndefined()
-    expect(reg.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
-    expect(reg.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
+    const catalog = buildCoreCatalog(BUILTIN_PARTS)
+    expect(catalog.bookTypes.get("drawing")).toBe(BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing"))
+    expect(catalog.items.get("nope")).toBeUndefined()
+    expect(catalog.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
+    expect(catalog.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
   })
 
   test("ブックの形・アイテムの項目・アクションの引数は、JSON Schema に書き出せる（LLM に見せる形）", () => {
-    expect(z.toJSONSchema(REGISTRY.bookSchema)).toBeTruthy()
+    expect(z.toJSONSchema(CORE_CATALOG.bookSchema)).toBeTruthy()
     for (const def of [...BUILTIN_PARTS.items.map(i => i.props), ...BUILTIN_PARTS.actions.map(a => a.args)])
       expect(z.toJSONSchema(def)).toBeTruthy()
   })
 
   test("ブックのデータは、そのタイプの形で検査する", () => {
     for (const t of BUILTIN_PARTS.bookTypes) expect(t.schema.shape.type.value).toBe(t.id)
-    expect(REGISTRY.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
-    expect(REGISTRY.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
+    expect(CORE_CATALOG.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
+    expect(CORE_CATALOG.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
   })
 })
 
 describe("アクションを行う", () => {
   const book = SAMPLE_BOOKS[0]!
-  const ctx = { registry: REGISTRY, home: "master", lang: "ja" as const, newId: () => "new" }
+  const ctx = { catalog: CORE_CATALOG, home: "master", lang: "ja" as const, newId: () => "new" }
   const library = { [MASTER_BOOK.id]: MASTER_BOOK, [book.id]: book }
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
@@ -175,13 +175,13 @@ describe("アクションを行う", () => {
 
 describe("テーマの値", () => {
   test("宣言された欄は、テーマが上書きしていなければ、宣言の既定（共通の欄）の値", () => {
-    const values = resolveTokens(REGISTRY, "standard", [{ id: "box.fill", fallback: "fill" }])
+    const values = resolveTokens(CORE_CATALOG, "standard", [{ id: "box.fill", fallback: "fill" }])
     expect(values["box.fill"]).toEqual(values.fill!)
   })
 
   test("ブックの値には、ブックで使えるアイテムの欄が入る", () => {
-    expect(Object.keys(bookTokens(REGISTRY, SAMPLE_BOOKS[0]!))).toContain("box.fill")
-    expect(Object.keys(bookTokens(REGISTRY, MASTER_BOOK))).not.toContain("box.fill")
+    expect(Object.keys(bookTokens(CORE_CATALOG, SAMPLE_BOOKS[0]!))).toContain("box.fill")
+    expect(Object.keys(bookTokens(CORE_CATALOG, MASTER_BOOK))).not.toContain("box.fill")
   })
 })
 
@@ -199,7 +199,7 @@ describe("誤りの表", () => {
   })
 })
 
-describe("登録表ごとに別の世界", () => {
+describe("機能台帳ごとに別の世界", () => {
   const NOTES = defineBookType({
     id: "notes",
     version: 1,
@@ -214,7 +214,7 @@ describe("登録表ごとに別の世界", () => {
     presentation: "master", // 画面に出さないので、見せ方は表にあるものを借りる
     tokens: [],
   })
-  const reg = buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })
+  const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })
   const library = { [MASTER_BOOK.id]: MASTER_BOOK }
 
   test("足したタイプのブックは、それを持つ表でだけ作れて、データの形もその表で通る", () => {
@@ -222,16 +222,16 @@ describe("登録表ごとに別の世界", () => {
       library,
       "book.create",
       { title: "メモ", type: "notes" },
-      { registry: reg, home: "master", lang: "ja", newId: () => "n1" },
+      { catalog: catalog, home: "master", lang: "ja", newId: () => "n1" },
     )
     expect(made).toMatchObject({ ok: true, result: { book: "n1" } })
-    expect(made.ok && reg.bookSchema.safeParse(made.next.n1).success).toBe(true)
-    expect(REGISTRY.bookSchema.safeParse({ type: "notes", id: "n1", title: "メモ" }).success).toBe(false)
+    expect(made.ok && catalog.bookSchema.safeParse(made.next.n1).success).toBe(true)
+    expect(CORE_CATALOG.bookSchema.safeParse({ type: "notes", id: "n1", title: "メモ" }).success).toBe(false)
     const refused = perform(
       library,
       "book.create",
       { title: "メモ", type: "notes" },
-      { registry: REGISTRY, home: "master", lang: "ja", newId: () => "n1" },
+      { catalog: CORE_CATALOG, home: "master", lang: "ja", newId: () => "n1" },
     )
     expect(refused).toEqual({ ok: false, reason: "refused" })
   })

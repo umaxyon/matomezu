@@ -10,7 +10,7 @@ import { defineDialog } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions } from "../../web/src/store/store"
 
-// 追加プラグインの見本。型の表には書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
+// 追加プラグインの見本。機能台帳の型の側には書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
 const NOTE = defineBookType({
   id: "notes/note",
   version: 1,
@@ -38,7 +38,7 @@ const notes = definePlugin({
   dialogs: [defineDialog({ id: "notes/shot" })],
 })
 
-// 型の表に書き足していない id で呼ぶ
+// 機能台帳の型の側に書き足していない id で呼ぶ
 const untyped = (a: Actions) =>
   a as unknown as { command(stage: string, id: string): boolean; openDialog(stage: string, id: string): void }
 
@@ -94,11 +94,11 @@ describe("app を組み立てる", () => {
     expect(isMatomezuError(e) && e.details.map(d => d.code)).toEqual(["E001"])
   })
 
-  test("型の表と渡したプラグインが合わなければ型の誤り（行わない）", () => {
+  test("機能台帳の型の側と渡したプラグインが合わなければ型の誤り（行わない）", () => {
     const typeOnly = () => {
       // @ts-expect-error ビルトインプラグインを渡していない（書き足した id が足りない）
       createMatomezu({ plugins: [] })
-      // @ts-expect-error 型の表に書き足していないプラグインを渡した
+      // @ts-expect-error 機能台帳の型の側に書き足していないプラグインを渡した
       createMatomezu({ plugins: [...BUILTIN, notes] })
       // @ts-expect-error ビルトインプラグインを 1 つの並びにしたものではない
       createMatomezu({ plugins: [{ ...BASE, commands: [] }, BUILTIN[1], BUILTIN[2]] })

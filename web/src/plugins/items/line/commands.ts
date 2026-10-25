@@ -23,8 +23,8 @@ export const LINE_DRAW = defineCommand({
     const page = book?.pages.find(p => p.id === opened?.page)
     const drop = toPaper(ctx.stage, args.at)
     if (!opened || !book || !page || !drop) return
-    const rects = rectsOf(ctx.registry, page)
-    const props = drawnLineProps(page, rects, elbowAt(ctx.registry, book, page), args.from, args.side, args.to, drop)
+    const rects = rectsOf(ctx.catalog, page)
+    const props = drawnLineProps(page, rects, elbowAt(ctx.catalog, book, page), args.from, args.side, args.to, drop)
     if (props) a.perform("line.connect", { page: page.id, from: args.from, to: args.to, props }, { book: opened.book })
   },
   when: onItemPage,
@@ -53,13 +53,13 @@ export const LINE_RECONNECT_DROP = defineCommand({
     const line = page && linesOf(page).find(l => l.id === args.line)
     const drop = toPaper(ctx.stage, args.at)
     if (!opened || !book || !page || !line || !drop) return
-    const rects = rectsOf(ctx.registry, page)
+    const rects = rectsOf(ctx.catalog, page)
     const to = rects.get(args.item)
     const other = args.end === "from" ? line.to : line.from
     if (!to) return
     const props =
       args.item === other
-        ? (loopEndsNear(page, rects, elbowAt(ctx.registry, book, page), args.item, drop, line.id) ?? undefined)
+        ? (loopEndsNear(page, rects, elbowAt(ctx.catalog, book, page), args.item, drop, line.id) ?? undefined)
         : { [args.end === "from" ? "exitAt" : "enterAt"]: nearestEnd(to, drop) }
     a.perform(
       "line.reconnect",

@@ -14,14 +14,14 @@ export function ToolboxView({ stage }: { stage: string }) {
   const placing = useApp(s => s.workspace.stages.find(st => st.id === stage)?.placing ?? null)
   const { togglePlacing } = useActions()
   const t = useT()
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const ui = useUiCatalog()
-  const tools = book ? toolboxOf(registry, book) : []
+  const tools = book ? toolboxOf(catalog, book) : []
   if (tools.length === 0) return null
   return (
     <div className={styles.toolbox} role="toolbar" aria-label={t("Tools")}>
       {tools.map(id => {
-        const def = registry.items.get(id)
+        const def = catalog.items.get(id)
         return (
           <button
             key={id}

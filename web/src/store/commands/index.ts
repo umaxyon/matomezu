@@ -20,7 +20,7 @@ export function commandDef(defs: Assembled, id: string): CommandDef<never> {
 
 // そのステージから呼んだときの様子。ステージが無ければ null
 export function commandContext(
-  registry: CoreCatalog,
+  catalog: CoreCatalog,
   home: string | null,
   state: AppState,
   stageId: string,
@@ -29,7 +29,7 @@ export function commandContext(
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
   const { workspace, settings, dialog, contextMenu } = state
-  return { registry, home, stage, book, workspace, settings, dialog, contextMenu }
+  return { catalog, home, stage, book, workspace, settings, dialog, contextMenu }
 }
 
 export function isShown(defs: Assembled, state: AppState, stageId: string, id: CommandId): boolean {

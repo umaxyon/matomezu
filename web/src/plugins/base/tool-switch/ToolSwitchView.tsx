@@ -31,11 +31,11 @@ const angle = (icon: number, front: number) => (((((icon - front) * 120 + 180) %
 export function ToolSwitchView({ stage }: { stage: string }) {
   const t = useT()
   const next = useCommand(stage, "tool.next")
-  const registry = useCatalog().core
-  const tool = useApp(s => toolOf(registry, s.workspace, stage)) ?? "select"
+  const catalog = useCatalog().core
+  const tool = useApp(s => toolOf(catalog, s.workspace, stage)) ?? "select"
   const set = useApp(s => {
     const st = s.workspace.stages.find(x => x.id === stage)
-    return st ? toolSetOf(registry, st) : null
+    return st ? toolSetOf(catalog, st) : null
   })
   const order: readonly Tool[] = set ? TOOL_SETS[set] : []
   const icons = useRef<(HTMLSpanElement | null)[]>([])

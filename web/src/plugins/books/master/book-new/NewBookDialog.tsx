@@ -20,8 +20,8 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const { createBook } = useActions()
   const t = useT()
   const [title, setTitle] = useState("")
-  const registry = useCatalog().core
-  const types = creatableTypes(registry)
+  const catalog = useCatalog().core
+  const types = creatableTypes(catalog)
   const [type, setType] = useState(types[0] ?? "")
   return (
     <Form
@@ -48,7 +48,7 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
           >
             {types.map(c => (
               <option key={c} value={c}>
-                {t(bookType(registry, c).title)}
+                {t(bookType(catalog, c).title)}
               </option>
             ))}
           </select>

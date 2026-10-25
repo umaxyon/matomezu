@@ -40,8 +40,8 @@ export function BookName({ stage }: { stage: string }) {
     cancelLeave()
     leave.current = setTimeout(() => setOpen(false), LEAVE_MS)
   }
-  const registry = useCatalog().core
-  const title = book ? bookTitle(registry, book, lang) : ""
+  const catalog = useCatalog().core
+  const title = book ? bookTitle(catalog, book, lang) : ""
   return (
     <>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: マウスが乗ったかを見るだけで、操作は中のボタンが受ける */}

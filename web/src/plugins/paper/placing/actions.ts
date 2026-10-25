@@ -20,8 +20,8 @@ import { moveItems } from "./items"
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
 // 置いた形のデータとして確かめる（形の定義の項目と中身の形。表に無い形は通らない）
-function parsePlaced(reg: CoreCatalog, value: { item: string; [field: string]: unknown }): PlacedShape | null {
-  const def = shapeDefOf(reg, value.item)
+function parsePlaced(catalog: CoreCatalog, value: { item: string; [field: string]: unknown }): PlacedShape | null {
+  const def = shapeDefOf(catalog, value.item)
   const parsed = def && shapeSchema(def).safeParse(value)
   return parsed?.success ? (parsed.data as PlacedShape) : null
 }
@@ -43,17 +43,17 @@ export const ITEM_PLACE = defineAction({
   }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
-    if (!bookItems(ctx.registry, book).includes(args.item)) return null
-    const props = ctx.registry.items.get(args.item)?.props.safeParse(args.props ?? {})
+    if (!bookItems(ctx.catalog, book).includes(args.item)) return null
+    const props = ctx.catalog.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
     const base = { id: nextItemId(book, ctx.newId), item: args.item, ...args.at, props: props.data }
-    const resizable = ctx.registry.items.get(args.item)?.capabilities.includes("resizable")
-    const draft = parsePlaced(ctx.registry, resizable && args.w !== undefined ? { ...base, w: args.w } : base)
+    const resizable = ctx.catalog.items.get(args.item)?.capabilities.includes("resizable")
+    const draft = parsePlaced(ctx.catalog, resizable && args.w !== undefined ? { ...base, w: args.w } : base)
     if (!draft) return null
-    const size = placedSize(ctx.registry, draft)
-    const item = resizable && size ? parsePlaced(ctx.registry, { ...draft, w: size.w, h: args.h ?? size.h }) : draft
-    if (!item || !knownTheme(ctx.registry, item)) return null
-    const next = placeItem(ctx.registry, book, args.page, item)
+    const size = placedSize(ctx.catalog, draft)
+    const item = resizable && size ? parsePlaced(ctx.catalog, { ...draft, w: size.w, h: args.h ?? size.h }) : draft
+    if (!item || !knownTheme(ctx.catalog, item)) return null
+    const next = placeItem(ctx.catalog, book, args.page, item)
     return next && { next, result: { item: item.id } }
   },
 })
@@ -72,7 +72,7 @@ export const ITEM_MOVE = defineAction({
   }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
-    const next = moveItems(ctx.registry, book, args.page, args.items, args.by, args.came)
+    const next = moveItems(ctx.catalog, book, args.page, args.items, args.by, args.came)
     return next && { next, result: {} }
   },
 })
@@ -96,13 +96,13 @@ export const ITEM_UPDATE = defineAction({
     const now = page && shapesOf(page).find(i => i.id === args.item)
     if (!now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
-    const parsed = parsePlaced(ctx.registry, { ...now, props })
-    if (!parsed || !page || !knownTheme(ctx.registry, parsed)) return null
-    const item = (shapeDefOf(ctx.registry, parsed.item)?.settle?.(parsed) as PlacedShape | undefined) ?? parsed
-    const wide = widenForCaption(ctx.registry, page, now, item)
+    const parsed = parsePlaced(ctx.catalog, { ...now, props })
+    if (!parsed || !page || !knownTheme(ctx.catalog, parsed)) return null
+    const item = (shapeDefOf(ctx.catalog, parsed.item)?.settle?.(parsed) as PlacedShape | undefined) ?? parsed
+    const wide = widenForCaption(ctx.catalog, page, now, item)
     const next =
-      replacePushing(ctx.registry, book, args.page, wide, false) ??
-      (wide !== item ? replacePushing(ctx.registry, book, args.page, item, false) : null)
+      replacePushing(ctx.catalog, book, args.page, wide, false) ??
+      (wide !== item ? replacePushing(ctx.catalog, book, args.page, item, false) : null)
     return next && { next, result: {} }
   },
 })
@@ -127,10 +127,10 @@ export const ITEM_RESIZE = defineAction({
     if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
     const now = page && shapesOf(page).find(i => i.id === args.item)
-    if (!now || !ctx.registry.items.get(now.item)?.capabilities.includes("resizable")) return null
-    const size = placedSize(ctx.registry, now)
+    if (!now || !ctx.catalog.items.get(now.item)?.capabilities.includes("resizable")) return null
+    const size = placedSize(ctx.catalog, now)
     if (!size) return null
-    const item = parsePlaced(ctx.registry, {
+    const item = parsePlaced(ctx.catalog, {
       ...now,
       x: args.x ?? now.x,
       y: args.y ?? now.y,
@@ -138,7 +138,7 @@ export const ITEM_RESIZE = defineAction({
       h: args.h ?? size.h,
     })
     if (!item) return null
-    const next = replacePushing(ctx.registry, book, args.page, item, true)
+    const next = replacePushing(ctx.catalog, book, args.page, item, true)
     return next && { next, result: {} }
   },
 })
@@ -152,7 +152,7 @@ export const ITEM_REMOVE = defineAction({
   args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
-    const next = removeItems(ctx.registry, book, args.page, args.items)
+    const next = removeItems(ctx.catalog, book, args.page, args.items)
     return next && { next, result: {} }
   },
 })

@@ -1,4 +1,4 @@
-// ブックを作る: 何冊も作れるタイプの空のブックを、ブックの一覧に足す。登録表に無いタイプと、1 冊だけのタイプは断る
+// ブックを作る: 何冊も作れるタイプの空のブックを、ブックの一覧に足す。機能台帳に無いタイプと、1 冊だけのタイプは断る
 import { z } from "zod"
 import { creatableTypes, createBook } from "../../../../core/book"
 import { defineAction } from "../../../../core/def/action"
@@ -13,8 +13,8 @@ export const BOOK_CREATE = defineAction({
     type: z.string().min(1), // ブックのタイプの id
   }),
   run: (library, args, ctx) => {
-    if (!creatableTypes(ctx.registry).includes(args.type)) return null
-    const book = createBook(ctx.registry, args.type, { id: ctx.newId(), title: args.title })
+    if (!creatableTypes(ctx.catalog).includes(args.type)) return null
+    const book = createBook(ctx.catalog, args.type, { id: ctx.newId(), title: args.title })
     if (book.id in library) return null
     return { next: { ...library, [book.id]: book }, result: { book: book.id } }
   },

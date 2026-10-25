@@ -117,7 +117,7 @@ interface Stretch {
 
 export function ListView({ props, size, id, stage, content }: ItemViewProps<ItemProps<"shape.list">>) {
   const t = useT()
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const rows = content as readonly ListRow[]
   const theme = props.theme
   const vars = useThemeVars(theme, LOOK_TOKENS)
@@ -129,10 +129,10 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
   const moveRow = useCommand(stage, "list.moveRow")
   // 写しに写し取るテーマの変数の名前（テーマが違っても欄は同じ）
   const ghostNames = useMemo(() => {
-    const any = [...registry.themes.keys()][0]
+    const any = [...catalog.themes.keys()][0]
     if (any === undefined) return []
-    return Object.keys(themeVars(resolveTokens(registry, any, LOOK_TOKENS))).filter(k => k.startsWith("--"))
-  }, [registry])
+    return Object.keys(themeVars(resolveTokens(catalog, any, LOOK_TOKENS))).filter(k => k.startsWith("--"))
+  }, [catalog])
   const carry = useRef<Carry | null>(null)
   const [carried, setCarried] = useState<{ x: number; y: number; drop: Drop | null } | null>(null)
   const edge = useRef(edgeScroller()).current

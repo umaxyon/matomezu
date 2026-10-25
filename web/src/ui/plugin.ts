@@ -107,7 +107,7 @@ export type PluginViews<P> = Field<
 // ウィジェットが受け取る値（そのウィジェットのコンポーネントの props）
 type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: infer P) => ReactNode } ? P : never
 
-// ほかのプラグインのビューとウィジェットの差し替え。型の表にある id だけ（ウィジェットは置けるスロットを変えず、描くコンポーネントだけを替える）
+// ほかのプラグインのビューとウィジェットの差し替え。機能台帳の型の側にある id だけ（ウィジェットは置けるスロットを変えず、描くコンポーネントだけを替える）
 export interface Overrides {
   presentationViews?: { [id in PresentationId]?: BookViewDef }
   dialogViews?: { [id in DialogId]?: ComponentType<DialogProps<DialogArgsOf<id>>> }

@@ -123,17 +123,12 @@ export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> exte
 }
 
 // 最初のブック（無ければホーム、それも無ければ何も開かない）を開いた状態。表にある 1 冊だけのタイプのブックはいつも持つ
-function initialState(
-  registry: CoreCatalog,
-  books: readonly Book[],
-  settings: Settings,
-  home: string | null,
-): AppState {
-  const all = [...singleBooks(registry), ...books]
+function initialState(catalog: CoreCatalog, books: readonly Book[], settings: Settings, home: string | null): AppState {
+  const all = [...singleBooks(catalog), ...books]
   const first = books[0] ?? all.find(b => b.id === home) ?? null
   return {
     books: Object.fromEntries(all.map(b => [b.id, b])),
-    workspace: newWorkspace(registry, first),
+    workspace: newWorkspace(catalog, first),
     settings,
     dialog: null,
     contextMenu: null,
@@ -153,28 +148,28 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
 }
 
-function startLang(registry: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
-  return detectLang(typeof lang === "string" ? [lang] : lang, [...registry.languages.keys()])
+function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
+  return detectLang(typeof lang === "string" ? [lang] : lang, [...catalog.languages.keys()])
 }
 
 export function createAppStore<const Ps extends readonly Plugin[]>(options: StoreOptions<Ps>): AppStore<Ps> {
   const { plugins } = options
   const defs = assemble(plugins, options.home ?? null, options.autoSkin)
-  const { catalog, home } = defs
-  const registry = catalog.core
-  const start: Settings = { lang: startLang(registry, options.lang), skin: "auto", keys: NO_KEY_CHANGES }
+  const { home } = defs
+  const catalog = defs.catalog.core
+  const start: Settings = { lang: startLang(catalog, options.lang), skin: "auto", keys: NO_KEY_CHANGES }
   const initial =
     options.initial ??
     initialState(
-      registry,
-      [...(options.books ?? []), ...restoreBooks(registry, options.savedBooks ?? [])],
-      restoreSettings(registry, start, options.settings),
+      catalog,
+      [...(options.books ?? []), ...restoreBooks(catalog, options.savedBooks ?? [])],
+      restoreSettings(catalog, start, options.settings),
       home,
     )
   const newId = options.newId ?? (() => crypto.randomUUID())
   const store = createStore<AppState>()(() => initial)
   const { getState, setState } = store
-  const ctx = (): ActionContext => ({ registry, home, lang: getState().settings.lang, newId })
+  const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId })
   // 残した・知らされたブックの、形を確かめた値（同じ値は確かめ直さない）
   const checked = new WeakMap<object, Book>()
   const restore = (saved: readonly unknown[]): Book[] =>
@@ -182,14 +177,14 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       if (typeof b !== "object" || b === null) return []
       const hit = checked.get(b)
       if (hit) return [hit]
-      const [book] = restoreBooks(registry, [b])
+      const [book] = restoreBooks(catalog, [b])
       if (book) checked.set(b, book)
       return book ? [book] : []
     })
   // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
   const keysFor = (changes: KeyChanges): KeyTable => {
-    if (keyCache?.changes !== changes) keyCache = { changes, table: keyTable(catalog.store.keys, changes) }
+    if (keyCache?.changes !== changes) keyCache = { changes, table: keyTable(defs.catalog.store.keys, changes) }
     return keyCache.table
   }
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {
@@ -219,11 +214,11 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     const next: Partial<AppState> = {}
     if (done.book) {
       next.books = { ...books, [done.book.id]: done.book }
-      next.workspace = followBook(registry, workspace, done.book)
+      next.workspace = followBook(catalog, workspace, done.book)
     }
     if (done.books) {
       next.books = done.books as AppState["books"]
-      next.workspace = followLibrary(registry, workspace, done.books as AppState["books"])
+      next.workspace = followLibrary(catalog, workspace, done.books as AppState["books"])
     }
     if (done.settings) next.settings = done.settings
     return { ok: true, result: done.result, next }
@@ -251,13 +246,13 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     command: (stage, id, ...args) => {
       const state = getState()
       const def = commandDef(defs, id)
-      const ctx = commandContext(registry, home, state, stage)
+      const ctx = commandContext(catalog, home, state, stage)
       if (!ctx || !isEnabled(defs, state, stage, id)) return false
       def.run(ctx, actions, args[0] as never)
       return true
     },
     openDialog: (stage, id, ...args) => {
-      if (!catalog.store.dialogs.has(id)) fail("E108", { id })
+      if (!defs.catalog.store.dialogs.has(id)) fail("E108", { id })
       if (getState().workspace.stages.some(s => s.id === stage))
         setState({ dialog: { id, stage, args: args[0], submitted: 0, preview: null } })
     },
@@ -302,12 +297,12 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     focusStage: id => withWorkspace(ws => focus(ws, id)),
     openBook: (stage, bookId) => {
       const book = getState().books[bookId]
-      if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(registry, s, book)))
+      if (book) withWorkspace(ws => mapStage(focus(ws, stage), stage, s => openBook(catalog, s, book)))
     },
     openPage: (stage, page) => {
       const { books, workspace } = getState()
       const book = books[workspace.stages.find(s => s.id === stage)?.opened?.book ?? ""]
-      if (book && hasPages(book)) withWorkspace(ws => showPage(registry, focus(ws, stage), stage, book, page))
+      if (book && hasPages(book)) withWorkspace(ws => showPage(catalog, focus(ws, stage), stage, book, page))
     },
     addPage: (stageId, args) => {
       const book = getState().workspace.stages.find(s => s.id === stageId)?.opened?.book
@@ -317,7 +312,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       const ws = done.next.workspace ?? getState().workspace
       if (!next || !hasPages(next)) return false
       const page = (done.result as ResultOf<"page.add">).page
-      commit({ ...done.next, workspace: showPage(registry, focus(ws, stageId), stageId, next, page) })
+      commit({ ...done.next, workspace: showPage(catalog, focus(ws, stageId), stageId, next, page) })
       return true
     },
     createBook: (stageId, args) => {
@@ -326,18 +321,18 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       const book = done.next.books?.[(done.result as ResultOf<"book.create">).book]
       const ws = done.next.workspace ?? getState().workspace
       if (!book) return false
-      commit({ ...done.next, workspace: mapStage(focus(ws, stageId), stageId, s => openBook(registry, s, book)) })
+      commit({ ...done.next, workspace: mapStage(focus(ws, stageId), stageId, s => openBook(catalog, s, book)) })
       return true
     },
     receive: (world, replay) => {
       let books: AppState["books"] = Object.fromEntries(
-        [...singleBooks(registry), ...restore(world.books)].map(b => [b.id, b]),
+        [...singleBooks(catalog), ...restore(world.books)].map(b => [b.id, b]),
       )
-      let settings = restoreSettings(registry, start, world.settings)
+      let settings = restoreSettings(catalog, start, world.settings)
       for (const done of replay) {
         const ids = [...done.ids]
         const next = performIn({ books, settings }, done.action, done.args, done.on, {
-          registry,
+          catalog,
           home,
           lang: done.lang,
           newId: () => ids.shift() ?? newId(),
@@ -358,7 +353,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
         Object.keys(books).length === Object.keys(now.books).length &&
         Object.entries(books).every(([id, b]) => now.books[id] === b)
       commit({
-        ...(same ? {} : { books, workspace: followLibrary(registry, now.workspace, books) }),
+        ...(same ? {} : { books, workspace: followLibrary(catalog, now.workspace, books) }),
         ...(settings === now.settings ? {} : { settings }),
       })
     },
@@ -366,8 +361,8 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
     setSkin: skin => actions.perform("settings.skin", { skin }).ok,
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
-    setTool: (id, tool) => withWorkspace(ws => setTool(registry, ws, id, tool)),
-    togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(registry, ws, id, item)),
+    setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),
+    togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),
     stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),
     select: (id, ids) => withWorkspace(ws => mapStage(ws, id, s => select(s, ids))),
     openPicker: (id, at) =>

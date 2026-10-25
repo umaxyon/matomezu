@@ -16,9 +16,9 @@ export const PAGE_ADD = defineAction({
   }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
-    const fallback = defaultPaper(ctx.registry, book)
+    const fallback = defaultPaper(ctx.catalog, book)
     const choice = { paper: args.paper ?? fallback.paper, orientation: args.orientation ?? fallback.orientation }
-    if (!canChoose(paperChoices(ctx.registry, book), choice)) return null
+    if (!canChoose(paperChoices(ctx.catalog, book), choice)) return null
     const done = addPage(book, { title: args.title, ...choice }, ctx.newId)
     return { next: done.book, result: { page: done.page.id } }
   },

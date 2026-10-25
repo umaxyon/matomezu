@@ -1,4 +1,4 @@
-// hoge を使わないアプリの型（tsc -p でこのプロジェクトを確かめる）。hoge の id は、このアプリの型の表に無い
+// hoge を使わないアプリの型（tsc -p でこのプロジェクトを確かめる）。hoge の id は、このアプリの機能台帳の型の側に無い
 import type { BookTypeId, ItemId } from "matomezu"
 import { makeApp } from "./App"
 

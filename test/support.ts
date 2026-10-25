@@ -4,8 +4,8 @@ import { SAMPLE_BOOKS } from "../web/src/sample-books"
 import { assemble } from "../web/src/store/plugin"
 import { createAppStore, type StoreOptions } from "../web/src/store/store"
 
-export const REGISTRY = assemble(BUILTIN).catalog.core
-export const BUILTIN_PARTS = REGISTRY.parts
+export const CORE_CATALOG = assemble(BUILTIN).catalog.core
+export const BUILTIN_PARTS = CORE_CATALOG.parts
 
 // 順に n1, n2, … を返す newId（振った id を読みやすく、決まった値にする）
 export function sequence(prefix = "n"): () => string {

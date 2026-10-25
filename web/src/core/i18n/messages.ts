@@ -1,5 +1,5 @@
 // 文言の表の型と、土台の文言。鍵は英語の文そのもので、ほかの言語の訳を持つ（訳の無い言語では英語の鍵を出す）。{name} は t() に渡す値で置き換える。
-// プラグインは自分の文言を defineMessages で書き、プラグインの messages に渡して、型の表（MessageTable）に書き足す。
+// プラグインは自分の文言を defineMessages で書き、プラグインの messages に渡して、機能台帳の型の側（MessageTable）に書き足す。
 // 言語は言語パック（LanguagePack）が持ち込む。パックは言語の名前と、どのプラグインの文言にでも足せる訳を持つ
 import type { MessageKey } from "../catalog"
 
@@ -9,7 +9,7 @@ export type Lang = string // 言語の id（BCP 47 の言語の部分。"en"・"
 export type Translations = Readonly<Record<Lang, string>>
 export type MessageSet = Readonly<Record<string, Translations>>
 
-// 書いた鍵と訳を文字のまま型に残す（型の表で、同じ鍵に違う訳を書き足すと型の誤りになる）
+// 書いた鍵と訳を文字のまま型に残す（機能台帳の型の側で、同じ鍵に違う訳を書き足すと型の誤りになる）
 export const defineMessages = <const M extends Record<string, Translations>>(messages: M): M => messages
 
 // 言語パック: 言語 1 つの名前（その言語自身の書き方）と、文言の鍵 → 訳。

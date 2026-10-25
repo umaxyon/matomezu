@@ -3,11 +3,11 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { settingsArgs, settingsPatchOf, withSettings } from "../../web/src/core/book-settings"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { newStore, REGISTRY } from "../support"
+import { CORE_CATALOG, newStore } from "../support"
 
 test("選んだ項目を、変えるときに渡す形にする: どれも書かなくてよく、null は消す。選んでいない項目は受け付けない", () => {
   const book = newStore().state.getState().books.b1 as BookOf<"drawing">
-  const patch = settingsPatchOf(REGISTRY, book, "book")
+  const patch = settingsPatchOf(CORE_CATALOG, book, "book")
   if (!patch) throw new Error("no settings")
   expect(patch.safeParse({}).success).toBe(true)
   expect(patch.safeParse({ lineRoute: null }).success).toBe(true)
@@ -38,7 +38,7 @@ test("book.update・page.update は、ブックのタイプが宣言した項目
 })
 
 test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）", () => {
-  const schema = z.toJSONSchema(settingsArgs(REGISTRY, "book"), { io: "input" }) as {
+  const schema = z.toJSONSchema(settingsArgs(CORE_CATALOG, "book"), { io: "input" }) as {
     description?: string
     properties?: object
   }

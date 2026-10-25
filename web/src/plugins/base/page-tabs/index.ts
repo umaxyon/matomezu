@@ -13,7 +13,7 @@ export const PAGE_NEW = defineCommand({
   id: "page.new",
   title: "New page",
   run: (ctx, a) => a.openDialog(ctx.stage.id, "page.new"),
-  when: ctx => ctx.book !== null && hasPages(ctx.book) && actionsOf(ctx.registry, ctx.book).includes("page.add"),
+  when: ctx => ctx.book !== null && hasPages(ctx.book) && actionsOf(ctx.catalog, ctx.book).includes("page.add"),
 })
 
 export const PAGE_OPEN = defineCommand({
@@ -37,6 +37,6 @@ export const PAGE_SETTINGS = defineCommand({
   when: ctx =>
     ctx.book !== null &&
     ctx.stage.opened?.page != null &&
-    actionsOf(ctx.registry, ctx.book).includes("page.update") &&
-    settingDefs(ctx.registry, ctx.book.type, "page").length > 0,
+    actionsOf(ctx.catalog, ctx.book).includes("page.update") &&
+    settingDefs(ctx.catalog, ctx.book.type, "page").length > 0,
 })

@@ -56,13 +56,13 @@ const HEAD_LABELS: Record<Head, MessageKey> = {
 export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useT()
   const form = useId()
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const book = useBookOf(stage)
   const drawing = useApp(s => (book ? pagedOf(s.books[book]) : undefined))
   const page = drawing?.pages.find(p => p.id === args.page)
   const line = page && linesOf(page).find(l => l.id === args.item)
   const { perform, previewDialog } = useActions()
-  const elbow = drawing && page ? elbowAt(registry, drawing, page) : true
+  const elbow = drawing && page ? elbowAt(catalog, drawing, page) : true
   const startRoute: LineRoute = line?.props.route ?? (elbow ? "elbow" : "straight")
   const [caption, setCaption] = useState(line?.props.caption ?? "")
   const [route, setRoute] = useState<LineRoute>(startRoute)
@@ -94,7 +94,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   }, [changed, route, dash, startHead, endHead, preview])
   if (!book || !page || !line) return null
   const self = line.from === line.to
-  const rects = rectsOf(registry, page)
+  const rects = rectsOf(catalog, page)
   const p = line.props
   const fixed = p.exitAt !== undefined || p.enterAt !== undefined
   const captionMoved = !!p.caption?.trim() && (p.captionAt !== undefined || p.captionOffset !== undefined)

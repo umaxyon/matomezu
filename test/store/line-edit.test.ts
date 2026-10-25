@@ -7,7 +7,7 @@ import { reconnectTargets } from "../../web/src/plugins/items/line/connect"
 import { drawLines } from "../../web/src/plugins/items/line/drawn"
 import { captionDragged, endDragged, viaDragged, viaSettled } from "../../web/src/plugins/items/line/edit"
 import { linesOf } from "../../web/src/plugins/items/line/placed"
-import { newStore, REGISTRY } from "../support"
+import { CORE_CATALOG, newStore } from "../support"
 
 function ready(boxes: [number, number][]) {
   const store = newStore()
@@ -22,7 +22,7 @@ const connect = (store: Store, from: string, to: string, props: Record<string, u
   store.actions.perform("line.connect", { page: "p1", from, to, props }, { book: "b1" })
 const scene = (store: Store) => {
   const p = page(store)
-  const rects = rectsOf(REGISTRY, p)
+  const rects = rectsOf(CORE_CATALOG, p)
   return { lines: linesOf(p), rects, drawn: drawLines(linesOf(p), rects, true) }
 }
 
@@ -95,8 +95,8 @@ test("つなぎ替え: 端を別の箱へ移し、キャプション・端の形
   connect(store, "n1", "n2", { exitAt: 132 / 328, enterAt: 296 / 328, via: [300], caption: "申請", endHead: "arrow" })
   connect(store, "n1", "n3")
   const line = () => linesOf(page(store)).find(l => l.id === "n4")!
-  expect([...reconnectTargets(REGISTRY, page(store), line(), "to")]).toEqual(["n1"]) // n3 は n1 と組の線がある
-  expect([...reconnectTargets(REGISTRY, page(store), line(), "from")]).toEqual(["n2", "n3"]) // n2 なら自分に戻る線
+  expect([...reconnectTargets(CORE_CATALOG, page(store), line(), "to")]).toEqual(["n1"]) // n3 は n1 と組の線がある
+  expect([...reconnectTargets(CORE_CATALOG, page(store), line(), "from")]).toEqual(["n2", "n3"]) // n2 なら自分に戻る線
   const re = (end: "from" | "to", item: string, props?: Record<string, number>) =>
     store.actions.perform(
       "line.reconnect",

@@ -17,7 +17,7 @@ import {
   split,
   unsplit,
 } from "../../web/src/core/workspace"
-import { REGISTRY } from "../support"
+import { CORE_CATALOG } from "../support"
 
 describe("workspace", () => {
   const book = {
@@ -29,7 +29,7 @@ describe("workspace", () => {
       { id: "p2", title: "ページ 2", paper: "a4", orientation: "landscape" as const },
     ],
   }
-  const ws = newWorkspace(REGISTRY, book)
+  const ws = newWorkspace(CORE_CATALOG, book)
 
   test("分けると、カレントの右に何も開いていないステージが増え、カレントは変わらない", () => {
     const two = split(ws)
@@ -53,7 +53,7 @@ describe("workspace", () => {
 
   test("ページを開くのも、ずらすのも、そのステージだけが変わり、ほかは同じものを使い回す", () => {
     const two = split(ws)
-    const opened = showPage(REGISTRY, two, "s1", book, "p2")
+    const opened = showPage(CORE_CATALOG, two, "s1", book, "p2")
     expect(currentStage(opened).opened).toMatchObject({ page: "p2" })
     expect(opened.stages[1]).toBe(two.stages[1]!)
     const panned = mapStage(two, "s1", s => panBy(s, -10, -20))
@@ -85,22 +85,22 @@ describe("workspace", () => {
   })
 
   test("ブックが変わると、開いているステージを合わせる。開いていたページが無くなれば最初のページ、紙が変われば紙を決め直す", () => {
-    const two = showPage(REGISTRY, split(ws), "s1", book, "p2")
+    const two = showPage(CORE_CATALOG, split(ws), "s1", book, "p2")
     const both = mapStage(two, "s2", s => ({ ...s, opened: two.stages[0]!.opened }))
     const removed = { ...book, pages: [book.pages[0]!] }
-    expect(followBook(REGISTRY, both, removed).stages.map(s => s.opened?.page)).toEqual(["p1", "p1"])
+    expect(followBook(CORE_CATALOG, both, removed).stages.map(s => s.opened?.page)).toEqual(["p1", "p1"])
     const a3 = { ...book, pages: [book.pages[0]!, { ...book.pages[1]!, paper: "a3" }] }
-    expect(followBook(REGISTRY, both, a3).stages[0]!.opened?.paper).toMatchObject({
+    expect(followBook(CORE_CATALOG, both, a3).stages[0]!.opened?.paper).toMatchObject({
       status: "known",
       size: { w: 1587, h: 1123 },
     })
-    expect(followBook(REGISTRY, both, book)).toBe(both)
+    expect(followBook(CORE_CATALOG, both, book)).toBe(both)
   })
 
   test("ブックの一覧が変わると、無くなったブックを開いていたステージは何も開かない", () => {
     const two = split(ws)
-    expect(followLibrary(REGISTRY, two, {}).stages.map(s => s.opened)).toEqual([null, null])
-    expect(followLibrary(REGISTRY, two, { b1: book })).toBe(two)
+    expect(followLibrary(CORE_CATALOG, two, {}).stages.map(s => s.opened)).toEqual([null, null])
+    expect(followLibrary(CORE_CATALOG, two, { b1: book })).toBe(two)
   })
 
   test("境目を動かすと左の幅の割合が変わり、端には寄り切らない。分割をやめても覚えていて、真ん中に戻せる", () => {

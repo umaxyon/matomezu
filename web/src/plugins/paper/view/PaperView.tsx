@@ -57,8 +57,8 @@ export function PaperView({ stage }: BookViewProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage.placing !== null
-  const registry = useCatalog().core
-  const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
+  const catalog = useCatalog().core
+  const hand = useApp(s => toolOf(catalog, s.workspace, stage.id) === "hand")
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
@@ -148,12 +148,12 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
 
 // ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューの層で包む
 function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; localOf: LocalOf }) {
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const ui = useUiCatalog()
   // ブックで使えるつなぐもののビュー
   const connectors = useApp(s => {
     const b = stage.opened ? s.books[stage.opened.book] : undefined
-    return b ? bookItems(registry, b).join(" ") : ""
+    return b ? bookItems(catalog, b).join(" ") : ""
   })
     .split(" ")
     .flatMap(id => {
@@ -170,7 +170,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; lo
   const preview = useApp(s => s.dialog?.preview ?? null)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
-  const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
+  const hand = useApp(s => toolOf(catalog, s.workspace, stage.id) === "hand")
   const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形
   // 離したばかりの形（離したあとの 1 回の描画だけ、つなぐもののビューに渡す）
   const settled = useRef<ReadonlySet<string>>(new Set())
@@ -199,10 +199,10 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; lo
     const by = toPaperDelta(stage, screen)
     if (d.items.length === 1) {
       const id = d.items[0] as string
-      d.came = trackDrag(registry, page, id, d.prev, by, d.came)
+      d.came = trackDrag(catalog, page, id, d.prev, by, d.came)
       // 入れ替えが起きたら覚える（このドラッグの終わりまで）
-      const now = rectsOf(registry, page)
-      const plan = dragging(registry, page, id, by, d.came)
+      const now = rectsOf(catalog, page)
+      const plan = dragging(catalog, page, id, by, d.came)
       if ([...(plan ?? [])].some(([k, r]) => k !== id && (r.x !== now.get(k)?.x || r.y !== now.get(k)?.y)))
         d.swapped = true
     }
@@ -220,7 +220,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; lo
   const shift = moved && toPaperDelta(stage, moved)
   const d = drag.current
   const dragged = shift && d ? d.items : []
-  const plan = shift && d?.items.length === 1 ? dragging(registry, page, d.items[0] as string, shift, d.came) : null
+  const plan = shift && d?.items.length === 1 ? dragging(catalog, page, d.items[0] as string, shift, d.came) : null
   // ドラッグ中にずらして描く量（紙の上）
   const shiftOf = (item: PlacedShape): Point | null => {
     if (!shift) return null
@@ -259,7 +259,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; lo
         : placed
     const st = stretch.current
     if (!st || st.item !== item.id || !paper) return item
-    const to = resizedBy(registry, item, st.edges, toPaperDelta(stage, stretched), paper)
+    const to = resizedBy(catalog, item, st.edges, toPaperDelta(stage, stretched), paper)
     return to ? { ...item, ...to } : item
   }
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
@@ -269,7 +269,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; lo
   const scene: ShapeScene = {
     stage,
     page,
-    rects: shownRects(registry, shapes),
+    rects: shownRects(catalog, shapes),
     dragged,
     pushed: shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id),
     swapped: d?.swapped ?? false,
@@ -290,7 +290,7 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; lo
         const Overlay = c.overlay
         return Overlay ? [<Overlay key={c.id} scene={scene} id={item.id} />] : []
       })}
-      stretchable={single && stage.selection[0] === item.id && minSize(registry, item) !== null}
+      stretchable={single && stage.selection[0] === item.id && minSize(catalog, item) !== null}
       onStretch={{
         down: (e, edges) => startStretch(e, item.id, edges),
         move: moveStretch,
@@ -375,7 +375,7 @@ function Item({
   resizing,
   ...handlers
 }: ItemProps) {
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const marks = useShapeMarks()
   // ドラッグ中の見た目: つなぐもののビューが薄くするよう求めた形は薄く。動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く
   const look = marks.keep
@@ -390,7 +390,7 @@ function Item({
         ? "faded"
         : undefined
   const ui = useUiCatalog().items.get(item.item)
-  const size = placedSize(registry, item)
+  const size = placedSize(catalog, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
   return (
     <div
@@ -441,9 +441,9 @@ function Item({
 
 // 置こうとしているアイテムの点線の箱。紙からはみ出す所では薄く出す
 function Ghost({ stage, pointer }: { stage: Stage; pointer: Point }) {
-  const registry = useCatalog().core
+  const catalog = useCatalog().core
   const at = placeAt({ stage }, pointer)
-  const size = stage.placing ? itemSize(registry, stage.placing) : null
+  const size = stage.placing ? itemSize(catalog, stage.placing) : null
   const paper = paperOf(stage)
   if (!at || !size || !paper) return null
   return (

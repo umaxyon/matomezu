@@ -1,5 +1,5 @@
 // base の見た目: 機能ごとのフォルダのダイアログ・ウィジェット・メニューのアイコンを集める。
-// 末尾で、骨組みが描くスロット・ウィジェット・メニューを型の表に書き足す
+// 末尾で、骨組みが描くスロット・ウィジェット・メニューを機能台帳の型の側に書き足す
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."
 import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS } from "./book-look/ui"

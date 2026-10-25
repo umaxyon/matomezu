@@ -5,13 +5,15 @@ import { skinCss } from "./css"
 
 export function SkinStyle() {
   const skin = useApp(s => s.settings.skin)
-  const { catalog, autoSkin } = useInstance()
-  const registry = catalog.core
-  const css = useMemo(() => skinCss(registry.skins, autoSkin), [registry, autoSkin])
+  const {
+    catalog: { core: catalog },
+    autoSkin,
+  } = useInstance()
+  const css = useMemo(() => skinCss(catalog.skins, autoSkin), [catalog, autoSkin])
   useEffect(() => {
     const root = document.documentElement
-    if (!registry.skins.has(skin)) delete root.dataset.skin
+    if (!catalog.skins.has(skin)) delete root.dataset.skin
     else root.dataset.skin = skin
-  }, [skin, registry])
+  }, [skin, catalog])
   return <style>{css}</style>
 }
