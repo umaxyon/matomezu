@@ -36,15 +36,15 @@ const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unkn
 
 describe("アクションの入口", () => {
   test("プラグインのアクションを行い、結果を状態に入れる", () => {
-    const app = createMatomezu({ plugins: [...BUILTIN, notes], partial: true, home: "master", newId: () => "n1" })
-    app.actions.createBook("s1", { title: "メモ", type: "notes/note" })
-    expect(untyped(app.actions).perform("notes/rename", { title: "新" }, { book: "n1" })).toEqual({
+    const instance = createMatomezu({ plugins: [...BUILTIN, notes], partial: true, home: "master", newId: () => "n1" })
+    instance.actions.createBook("s1", { title: "メモ", type: "notes/note" })
+    expect(untyped(instance.actions).perform("notes/rename", { title: "新" }, { book: "n1" })).toEqual({
       ok: true,
       result: { was: "メモ" },
     })
-    expect(app.state.getState().books.n1).toMatchObject({ title: "新" })
+    expect(instance.state.getState().books.n1).toMatchObject({ title: "新" })
     // ほかのタイプのブックには、そのタイプが許さないので使えない
-    expect(untyped(app.actions).perform("notes/rename", { title: "新" }, { book: "master" })).toEqual({
+    expect(untyped(instance.actions).perform("notes/rename", { title: "新" }, { book: "master" })).toEqual({
       ok: false,
       reason: "not-allowed",
     })

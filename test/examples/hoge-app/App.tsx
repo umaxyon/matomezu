@@ -12,7 +12,7 @@ import { FUGA_UI } from "../plugins/fuga/ui"
 import { HOGE_UI } from "../plugins/hoge/ui"
 import { HOGE_FLOW_UI } from "../plugins/hoge-flow/ui"
 
-export const makeApp = () =>
+export const makeInstance = () =>
   createMatomezu({
     plugins: [...BUILTIN_UI, HOGE_UI, HOGE_FLOW_UI, FUGA_UI],
     home: "master",
@@ -30,9 +30,9 @@ export const HOGE_LAYOUT = defineLayout({
   },
 })
 
-export function HogeApp({ app }: { app: ReturnType<typeof makeApp> }) {
+export function HogeApp({ instance }: { instance: ReturnType<typeof makeInstance> }) {
   return (
-    <MatomezuProvider app={app} layout={HOGE_LAYOUT}>
+    <MatomezuProvider instance={instance} layout={HOGE_LAYOUT}>
       <App />
     </MatomezuProvider>
   )

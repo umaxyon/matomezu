@@ -9,32 +9,32 @@ import { BUILTIN_PARTS, newStore } from "../support"
 
 describe("ホーム", () => {
   test("ホームのあるインスタンスは、1 冊だけのタイプのブックをいつも持ち、渡すブックが無ければホームを開く", () => {
-    const app = createMatomezu({ plugins: BUILTIN, home: "master" })
-    expect(Object.keys(app.state.getState().books)).toEqual(["master"])
-    expect(app.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "master", book: "master" })
+    const instance = createMatomezu({ plugins: BUILTIN, home: "master" })
+    expect(Object.keys(instance.state.getState().books)).toEqual(["master"])
+    expect(instance.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "master", book: "master" })
   })
 
   test("ホームを開くコマンドは、そのステージでホームを開き、開いている間は押されている", () => {
-    const app = newStore()
-    expect(app.actions.command("s1", "stage.home")).toBe(true)
-    expect(app.state.getState().workspace.stages[0]!.opened?.book).toBe("master")
-    expect(app.actions.createBook("s1", { title: "新しい図", type: "drawing" })).toBe(true)
+    const instance = newStore()
+    expect(instance.actions.command("s1", "stage.home")).toBe(true)
+    expect(instance.state.getState().workspace.stages[0]!.opened?.book).toBe("master")
+    expect(instance.actions.createBook("s1", { title: "新しい図", type: "drawing" })).toBe(true)
   })
 
   test("ホームの無いインスタンスは、ブックの一覧を変えるアクションを断り、ホームを開くコマンドを出さない", () => {
-    const app = createMatomezu({ plugins: BUILTIN, books: SAMPLE_BOOKS })
-    expect(app.home).toBeNull()
-    expect(app.actions.createBook("s1", { title: "新しい図", type: "drawing" })).toBe(false)
-    expect(isShown(app, app.state.getState(), "s1", "stage.home")).toBe(false)
+    const instance = createMatomezu({ plugins: BUILTIN, books: SAMPLE_BOOKS })
+    expect(instance.home).toBeNull()
+    expect(instance.actions.createBook("s1", { title: "新しい図", type: "drawing" })).toBe(false)
+    expect(isShown(instance, instance.state.getState(), "s1", "stage.home")).toBe(false)
     const empty = createMatomezu({ plugins: BUILTIN })
     expect(empty.state.getState().workspace.stages[0]!.opened).toBeNull()
   })
 
   test("マスターのプラグインが無くても、base と図面（と図面が選ぶもの）でインスタンスを作れる", () => {
     const plugins = BUILTIN.filter(p => p.id !== "@matomezu/master")
-    const app = createMatomezu({ plugins, partial: true, books: SAMPLE_BOOKS })
-    expect(app.catalog.core.bookTypes.has("master")).toBe(false)
-    expect(app.actions.command("s1", "stage.split")).toBe(true)
+    const instance = createMatomezu({ plugins, partial: true, books: SAMPLE_BOOKS })
+    expect(instance.catalog.core.bookTypes.has("master")).toBe(false)
+    expect(instance.actions.command("s1", "stage.split")).toBe(true)
   })
 
   test("ホームは 1 冊だけのタイプ。1 冊だけのタイプのブックは、そのタイプの id で形に合うもの", () => {
@@ -46,9 +46,9 @@ describe("ホーム", () => {
   })
 
   test("設定はアクションで変え、ホームのタイプが許さない設定は変えず、そのコマンドも出さない", () => {
-    const app = newStore()
-    expect(app.actions.command("s1", "settings.lang", "en")).toBe(true)
-    expect(app.state.getState().settings.lang).toBe("en")
+    const instance = newStore()
+    expect(instance.actions.command("s1", "settings.lang", "en")).toBe(true)
+    expect(instance.state.getState().settings.lang).toBe("en")
     // 言語だけを許すホーム
     const strict = { ...MASTER, actions: { allowed: ["settings.lang"], defaults: ["settings.lang"] } }
     const org = { ...BUILTIN[1], bookTypes: [strict] }

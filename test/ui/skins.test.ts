@@ -36,15 +36,15 @@ describe("スキン", () => {
   })
 
   test("プラグインのスキンを持ち込み、自動のスキンにでき、設定で選べる。インスタンスに無いスキンは選べない", () => {
-    const app = createMatomezu({
+    const instance = createMatomezu({
       plugins: [...BUILTIN, acme],
       partial: true,
       home: "master",
       autoSkin: { dark: "acme/dark" as "dark" },
     })
-    expect(app.autoSkin).toEqual({ light: "light", dark: "acme/dark" })
-    expect(app.actions.setSkin("acme/dark")).toBe(true)
-    expect(app.actions.setSkin("nope")).toBe(false)
-    expect(app.actions.setSkin("auto")).toBe(true)
+    expect(instance.autoSkin).toEqual({ light: "light", dark: "acme/dark" })
+    expect(instance.actions.setSkin("acme/dark")).toBe(true)
+    expect(instance.actions.setSkin("nope")).toBe(false)
+    expect(instance.actions.setSkin("auto")).toBe(true)
   })
 })

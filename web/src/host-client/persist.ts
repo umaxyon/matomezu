@@ -8,8 +8,8 @@ export interface Keeper {
   saveSettings(settings: Settings): void
 }
 
-export function persist(app: AppStore, keeper: Keeper): () => void {
-  return app.state.subscribe((state, prev) => {
+export function persist(instance: AppStore, keeper: Keeper): () => void {
+  return instance.state.subscribe((state, prev) => {
     if (state.books !== prev.books) {
       for (const book of Object.values(state.books)) if (prev.books[book.id] !== book) keeper.saveBook(book)
     }

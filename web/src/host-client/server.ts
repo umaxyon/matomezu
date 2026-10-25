@@ -72,8 +72,8 @@ const ShowSchema = z.object({
 })
 
 // 常駐が頼んだブックを出す。ステージが無ければカレント、split なら分けて右にできたステージに出す
-export function showIn(app: AppStore, show: z.infer<typeof ShowSchema>) {
-  const { actions, state } = app
+export function showIn(instance: AppStore, show: z.infer<typeof ShowSchema>) {
+  const { actions, state } = instance
   let stage = show.stage ?? state.getState().workspace.current
   if (show.split) {
     const before = state.getState().workspace.stages.map(s => s.id)
@@ -106,11 +106,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let pending: { seq: number; done: DoneAction }[] = []
   let client = ""
   let seq = 0
-  let app: AppStore | null = null
+  let instance: AppStore | null = null
   let events: Events | null = null
 
   const show = () =>
-    app?.actions.receive(
+    instance?.actions.receive(
       { books: [...confirmed.values()].map(e => e.book), settings },
       pending.map(p => p.done),
     )
@@ -166,7 +166,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         show()
       })
       source.on("show", data => {
-        if (app) showIn(app, ShowSchema.parse(JSON.parse(data)))
+        if (instance) showIn(instance, ShowSchema.parse(JSON.parse(data)))
       })
       source.on("ack", data => {
         settle({ client, seq: AckSchema.parse(JSON.parse(data)).seq })
@@ -193,7 +193,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
         .catch(() => {})
     },
     connect: next => {
-      app = next
+      instance = next
       show()
       let told = ""
       const tell = (focused: boolean) => {
@@ -214,7 +214,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       return () => {
         stopView()
         stopFocus()
-        app = null
+        instance = null
         events?.close()
       }
     },

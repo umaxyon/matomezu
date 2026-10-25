@@ -13,9 +13,9 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-const app = () => createMatomezu({ plugins: BUILTIN_UI, home: "master", books: SAMPLE_BOOKS, lang: "ja" })
+const instance = () => createMatomezu({ plugins: BUILTIN_UI, home: "master", books: SAMPLE_BOOKS, lang: "ja" })
 const ui = assembleUi(BUILTIN_UI)
-const commands = new Set(app().catalog.store.commands.keys())
+const commands = new Set(instance().catalog.store.commands.keys())
 
 // タブを上の行に移した配置
 const TABS_ON_TOP = defineLayout({
@@ -101,7 +101,7 @@ describe("配置", () => {
     let thrown: unknown
     try {
       render(
-        <MatomezuProvider app={app()} layout={bad}>
+        <MatomezuProvider instance={instance()} layout={bad}>
           <App />
         </MatomezuProvider>,
       )
@@ -124,16 +124,16 @@ describe("配置", () => {
   })
 
   test("配置を替えると、その場で組み直す（タブを上の行へ）", () => {
-    const a = app()
+    const a = instance()
     const { rerender } = render(
-      <MatomezuProvider app={a} layout={DEFAULT_LAYOUT}>
+      <MatomezuProvider instance={a} layout={DEFAULT_LAYOUT}>
         <App />
       </MatomezuProvider>,
     )
     const toolbar = () => screen.getByRole("toolbar", { name: "ツール" }).parentElement!
     expect(within(toolbar()).queryByRole("tablist")).toBeNull()
     rerender(
-      <MatomezuProvider app={a} layout={TABS_ON_TOP}>
+      <MatomezuProvider instance={a} layout={TABS_ON_TOP}>
         <App />
       </MatomezuProvider>,
     )

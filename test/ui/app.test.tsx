@@ -13,7 +13,7 @@ afterEach(cleanup)
 function renderApp(options: Omit<StoreOptions, "plugins"> = {}) {
   const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", ...options, plugins: BUILTIN_UI })
   render(
-    <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <App />
     </MatomezuProvider>,
   )
@@ -201,7 +201,7 @@ test("マスターの設定で言語とスキンを変える", () => {
   expect(document.documentElement.dataset.skin).toBe("light")
 })
 
-test("app に無いスキンは選べず、設定に残っていても自動のスキンで描く（data-skin を付けない）", () => {
+test("インスタンスに無いスキンは選べず、設定に残っていても自動のスキンで描く（data-skin を付けない）", () => {
   const store = renderApp()
   act(() => {
     store.actions.setSkin("light")
@@ -233,7 +233,7 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
   }
   const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: [locked, ...rest] })
   render(
-    <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <App />
     </MatomezuProvider>,
   )
@@ -256,7 +256,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
   render(
     <StrictMode>
-      <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
+      <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
         <App />
       </MatomezuProvider>
     </StrictMode>,
@@ -313,7 +313,7 @@ test("右クリックのメニューに出るコマンドが無ければ、メ�
     contextMenus: { "paper.context": ["stage.unsplit"] },
   } as const
   render(
-    <MatomezuProvider app={store} layout={layout}>
+    <MatomezuProvider instance={store} layout={layout}>
       <App />
     </MatomezuProvider>,
   )

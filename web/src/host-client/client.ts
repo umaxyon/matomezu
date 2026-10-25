@@ -11,5 +11,5 @@ export interface Loaded {
 export interface HostClient {
   load(): Promise<Loaded>
   observe(done: DoneAction): void // 画面で行ったアクション（createMatomezu の observe に渡す）
-  connect(app: AppStore): () => void // load で読んだもので作ったインスタンスとつなぐ（外の変化を入れ、残す）。切る関数を返す
+  connect(instance: AppStore): () => void // load で読んだもので作ったインスタンスとつなぐ（外の変化を入れ、残す）。切る関数を返す
 }

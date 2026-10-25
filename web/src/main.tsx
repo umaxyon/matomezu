@@ -29,7 +29,7 @@ if (!root) fail("E202")
 
 createRoot(root).render(
   <StrictMode>
-    <MatomezuProvider app={store} layout={DEFAULT_LAYOUT}>
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <App />
     </MatomezuProvider>
   </StrictMode>,

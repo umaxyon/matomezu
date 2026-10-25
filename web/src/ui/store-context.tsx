@@ -17,21 +17,21 @@ const Context = createContext<AppContext | null>(null)
 // 見た目を結んだプラグインだけで作ったインスタンスを、配置と一緒に置く（結んでいないプラグインがあれば型の誤り）。
 // 配置は渡すたびに確かめ（知らないウィジェット・置けないスロット・インスタンスに無いコマンド）、変えればその場で組み直す
 export function MatomezuProvider({
-  app,
+  instance,
   layout,
   children,
 }: {
-  app: AppStore<readonly AnyPluginUi[]>
+  instance: AppStore<readonly AnyPluginUi[]>
   layout: LayoutDef
   children: ReactNode
 }) {
-  const ui = useMemo(() => assembleUi(app.plugins), [app])
+  const ui = useMemo(() => assembleUi(instance.plugins), [instance])
   const value = useMemo(() => {
-    const problems = checkLayout(layout, ui, new Set(app.catalog.store.commands.keys()))
+    const problems = checkLayout(layout, ui, new Set(instance.catalog.store.commands.keys()))
     if (problems.length > 0)
       throw matomezuError(problem("E210", { layout: layout.id, count: problems.length }), problems)
-    return { store: app, ui, layout }
-  }, [app, ui, layout])
+    return { store: instance, ui, layout }
+  }, [instance, ui, layout])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 

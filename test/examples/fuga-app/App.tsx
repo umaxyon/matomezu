@@ -2,7 +2,7 @@
 import { App, BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, defineLayout, MatomezuProvider } from "matomezu/testing"
 import { FUGA_UI } from "../plugins/fuga/ui"
 
-export const makeApp = () => createMatomezu({ plugins: [...BUILTIN_UI, FUGA_UI], home: "master", lang: "ja" })
+export const makeInstance = () => createMatomezu({ plugins: [...BUILTIN_UI, FUGA_UI], home: "master", lang: "ja" })
 
 export const FUGA_LAYOUT = defineLayout({
   ...DEFAULT_LAYOUT,
@@ -10,9 +10,9 @@ export const FUGA_LAYOUT = defineLayout({
   slots: { ...DEFAULT_LAYOUT.slots, "stage.top": [...DEFAULT_LAYOUT.slots["stage.top"], "fuga/mint-button"] },
 })
 
-export function FugaApp({ app }: { app: ReturnType<typeof makeApp> }) {
+export function FugaApp({ instance }: { instance: ReturnType<typeof makeInstance> }) {
   return (
-    <MatomezuProvider app={app} layout={FUGA_LAYOUT}>
+    <MatomezuProvider instance={instance} layout={FUGA_LAYOUT}>
       <App />
     </MatomezuProvider>
   )

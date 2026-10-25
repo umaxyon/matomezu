@@ -5,22 +5,22 @@ import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
 import { FUGA } from "../plugins/fuga"
 import { HOGE } from "../plugins/hoge"
 import { HOGE_FLOW } from "../plugins/hoge-flow"
-import { makeApp } from "./App"
+import { makeInstance } from "./App"
 
 const translateKey = (key: MessageKey) => key
 
-const app = makeApp()
-app.actions.command("s1", "hoge/greet", "ja")
+const instance = makeInstance()
+instance.actions.command("s1", "hoge/greet", "ja")
 // @ts-expect-error 引数の要るコマンドに渡していない
-app.actions.command("s1", "hoge/greet")
+instance.actions.command("s1", "hoge/greet")
 // @ts-expect-error 引数の型が違う
-app.actions.command("s1", "hoge/greet", "fr")
+instance.actions.command("s1", "hoge/greet", "fr")
 // @ts-expect-error 知らないコマンド
-app.actions.command("s1", "hoge/nope")
+instance.actions.command("s1", "hoge/nope")
 // @ts-expect-error 追加プラグインを渡し忘れた
 createMatomezu({ plugins: BUILTIN_UI })
 // @ts-expect-error 文言の表に無い鍵
-app.catalog.core.messages.get("hoge") && translateKey("hoge の言葉")
+instance.catalog.core.messages.get("hoge") && translateKey("hoge の言葉")
 // 見た目を結ばないプラグインでも、React を使わないインスタンスなら作れる
 createMatomezu({ plugins: [...BUILTIN_UI, HOGE, HOGE_FLOW, FUGA] })
 // キーの既定: 引数の型はコマンドの引数の型

@@ -60,7 +60,7 @@ const thrown = (run: () => unknown) => {
 
 describe("見た目のプラグイン", () => {
   test("追加プラグインのビューで描き、差し替えたダイアログをビルトインプラグインのコマンドが開く", () => {
-    const app = createMatomezu({
+    const instance = createMatomezu({
       plugins: [...BUILTIN_UI, notesUi],
       partial: true,
       home: "master",
@@ -68,15 +68,15 @@ describe("見た目のプラグイン", () => {
       newId: () => "n1",
     })
     render(
-      <MatomezuProvider app={app} layout={DEFAULT_LAYOUT}>
+      <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
         <App />
       </MatomezuProvider>,
     )
     act(() => {
-      app.actions.createBook("s1", { title: "メモ", type: "notes/note" })
+      instance.actions.createBook("s1", { title: "メモ", type: "notes/note" })
     })
     expect(screen.getByText("note view")).toBeTruthy()
-    act(() => app.actions.command("s1", "stage.home"))
+    act(() => instance.actions.command("s1", "stage.home"))
     fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
     expect(screen.getByRole("button", { name: "my new book" })).toBeTruthy()
   })
@@ -107,10 +107,10 @@ describe("見た目のプラグイン", () => {
   })
 
   test("見た目を結んでいないプラグインのインスタンスは、画面に置けない（型の誤り）", () => {
-    const app = createMatomezu({ plugins: BUILTIN })
+    const instance = createMatomezu({ plugins: BUILTIN })
     const typeOnly = () => (
       // @ts-expect-error 見た目を結んでいない
-      <MatomezuProvider app={app} layout={DEFAULT_LAYOUT}>
+      <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
         {null}
       </MatomezuProvider>
     )

@@ -17,8 +17,8 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
     settings,
     load: async () => ({ books: [...kept.values()], settings: host.settings }),
     observe: () => {},
-    connect: app =>
-      persist(app, {
+    connect: instance =>
+      persist(instance, {
         saveBook: book => {
           kept.set(book.id, book)
         },
