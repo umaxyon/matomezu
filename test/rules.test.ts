@@ -156,8 +156,7 @@ const ENTRY_LAYERS = ["plugin-api", "testing"]
 const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
   "plugin-api/index.ts": t => ["core", "store"].includes(topOf(t)),
   "plugin-api/ui.ts": t => topOf(t) === "ui" || t === "plugins/base/ui",
-  "testing/index.ts": t =>
-    ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui" || t === "sample-books",
+  "testing/index.ts": t => ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui",
 }
 
 test("外に見せる入口は、決めた層だけを読み、中のコードは入口を読まない", () => {
