@@ -1,6 +1,7 @@
 // コマンドの定義: 画面の入口。ボタン・メニュー・キーなどから id で呼ぶ。
 // データを変えるのはアクションで、コマンドは store の操作（ステージ・ダイアログ・アクション）を呼ぶだけ
 
+import type { ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
@@ -29,12 +30,22 @@ export interface CommandDef<A = undefined> {
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない
   run(ctx: CommandContext, actions: Actions, args: A): void
+  // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる
+  place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[] }
+}
+
+// 入れてほしいメニュー: メニューは引数を取らないコマンドだけ、右クリックのメニューは受け取る物（右クリックされた物）を引数に取れるものだけ
+export interface CommandPlace<A> {
+  menus?: [A] extends [undefined] ? readonly MenuId[] : never
+  contextMenus?: readonly {
+    [M in ContextMenuId]: [A] extends [undefined] ? M : ContextMenuTable[M] extends A ? M : never
+  }[ContextMenuId][]
 }
 
 // run の 3 つ目の引数の型から A を決め、id は書いた文字のまま残す（引数が無ければ A は undefined）。
 // 型は書いた順に決まるので、run は when より前に書く（後ろに書くと、引数のあるコマンドが型の誤りになる）
 export function defineCommand<const Id extends string, A = undefined>(
-  def: CommandDef<A> & { id: Id },
+  def: CommandDef<A> & { id: Id; place?: CommandPlace<A> },
 ): CommandDef<A> & { id: Id } {
   return def
 }

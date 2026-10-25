@@ -6,6 +6,7 @@ import { AddStarDialog, EditStarDialog, GridSetting, MintButton, STAR_ICON, Star
 export const FUGA_MINT_BUTTON = defineWidget({
   id: "fuga/mint-button",
   slots: ["stage.top", "stage.bottom"],
+  place: "stage.bottom",
   view: MintButton,
 })
 

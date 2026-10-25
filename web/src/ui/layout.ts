@@ -12,6 +12,7 @@ import type {
 } from "../core/catalog"
 import { type Problem, problem } from "../core/errors"
 import type { CommandArgs } from "../store/commands"
+import type { Plugin } from "../store/plugin"
 
 // 置けるスロットと、描くコンポーネント。置けるスロットは、どれも同じ値（props）を渡すものだけにする。
 // スロットとメニューを開けるのはウィジェットとブックのビューだけで、コンポーネントの中で描くスロット（<Slot>）とメニュー（useMenu）、
@@ -20,6 +21,7 @@ import type { CommandArgs } from "../store/commands"
 export interface WidgetDef<S extends SlotId = SlotId> {
   id: string // 追加プラグインは「プラグインの id/名前」
   slots: readonly S[]
+  place?: NoInfer<S> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）
   opens?: readonly SlotId[]
   menus?: readonly MenuId[]
   contextMenus?: readonly ContextMenuId[]
@@ -29,6 +31,7 @@ export interface WidgetDef<S extends SlotId = SlotId> {
 export interface AnyWidgetDef {
   id: string
   slots: readonly SlotId[]
+  place?: SlotId
   opens?: readonly SlotId[]
   menus?: readonly MenuId[]
   contextMenus?: readonly ContextMenuId[]
@@ -78,6 +81,34 @@ export interface LayoutDef {
   contextMenus?: { [M in ContextMenuId]?: readonly ContextMenuEntry<M>[] } // 区切り線は SEPARATOR
 }
 export const defineLayout = <const L extends LayoutDef>(def: L): L => def
+
+// 配置に、プラグインが置いてほしいと書いたウィジェット（place）とコマンド（place）を足す。並べた順のプラグインごとに、スロットとメニューの末尾に足し、
+// 右クリックのメニューでは前の項目と区切り線で分ける。配置にもうあるものは足さない（動いている matomezu の画面が、取り込んだプラグインを置くのに使う）
+export function placeAdded(layout: LayoutDef, plugins: readonly Plugin[]): LayoutDef {
+  const slots = { ...layout.slots } as Record<string, readonly string[]>
+  const menus = { ...layout.menus } as Record<string, readonly MenuItem[]>
+  const contextMenus = { ...layout.contextMenus } as Record<string, readonly string[]>
+  for (const p of plugins) {
+    const widgets = ((p as { ui?: { widgets?: readonly AnyWidgetDef[] } }).ui?.widgets ?? []).filter(w => w.place)
+    for (const w of widgets) {
+      const slot = w.place as string
+      if (!slots[slot]?.includes(w.id)) slots[slot] = [...(slots[slot] ?? []), w.id]
+    }
+    const added = new Set<string>()
+    for (const c of p.commands ?? []) {
+      for (const menu of c.place?.menus ?? [])
+        if (!menus[menu]?.flatMap(menuCommands).includes(c.id as never))
+          menus[menu] = [...(menus[menu] ?? []), c.id as MenuCommandId]
+      for (const menu of c.place?.contextMenus ?? []) {
+        if (contextMenus[menu]?.includes(c.id)) continue
+        const before = added.has(menu) || !contextMenus[menu]?.length ? [] : [SEPARATOR]
+        added.add(menu)
+        contextMenus[menu] = [...(contextMenus[menu] ?? []), ...before, c.id]
+      }
+    }
+  }
+  return { ...layout, slots, menus, contextMenus } as LayoutDef
+}
 
 export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
   typeof item === "string" ? [item] : item.either

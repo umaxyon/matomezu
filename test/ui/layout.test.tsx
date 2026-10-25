@@ -4,10 +4,18 @@ import { isMatomezuError, problemText } from "../../web/src/core/errors"
 import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import { App } from "../../web/src/ui/App"
-import { checkLayout, defineLayout, defineWidget, type LayoutDef, tidySeparators } from "../../web/src/ui/layout"
+import {
+  checkLayout,
+  defineLayout,
+  defineWidget,
+  type LayoutDef,
+  placeAdded,
+  tidySeparators,
+} from "../../web/src/ui/layout"
 import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
@@ -167,4 +175,65 @@ describe("ウィジェット", () => {
 test("右クリックのメニューの区切り線は、先頭・末尾・続けてのものを消す", () => {
   expect(tidySeparators(["-", "a", "-", "-", "b", "-"])).toEqual(["a", "-", "b"])
   expect(tidySeparators(["-", "-"])).toEqual([])
+})
+
+describe("取り込んだプラグインの置き場所", () => {
+  const Ping = () => <p>ping</p>
+  const open = defineCommand({
+    id: "p/open",
+    title: "Open" as never,
+    run: () => {},
+    when: () => true,
+    place: { menus: ["stage.menu"] },
+  })
+  const edit = defineCommand({
+    id: "p/edit",
+    title: "Edit" as never,
+    run: () => {},
+    when: () => true,
+    place: { contextMenus: ["item.context", "paper.context"] },
+  })
+  const added = definePluginUi(definePlugin({ id: "p", commands: [open, edit] }), {
+    widgets: [defineWidget({ id: "p/ping", slots: ["stage.top", "stage.bottom"], place: "stage.bottom", view: Ping })],
+  })
+
+  test("置いてほしいと書いたウィジェットとコマンドを、既定の配置の末尾に足す。右クリックのメニューは区切り線で分け、もうあるものは足さない", () => {
+    const layout = placeAdded(DEFAULT_LAYOUT, [...BUILTIN_UI, added])
+    expect(layout.slots["stage.bottom"] as readonly unknown[] | undefined).toEqual([
+      ...DEFAULT_LAYOUT.slots["stage.bottom"],
+      "p/ping",
+    ])
+    expect(layout.slots["stage.top"] as readonly unknown[] | undefined).toEqual(DEFAULT_LAYOUT.slots["stage.top"])
+    expect(layout.menus["stage.menu"] as readonly unknown[] | undefined).toEqual([
+      ...DEFAULT_LAYOUT.menus["stage.menu"],
+      "p/open",
+    ])
+    expect(layout.contextMenus?.["item.context"] as readonly unknown[] | undefined).toEqual([
+      ...DEFAULT_LAYOUT.contextMenus["item.context"],
+      "-",
+      "p/edit",
+    ])
+    expect(layout.contextMenus?.["paper.context"] as readonly unknown[] | undefined).toEqual([
+      ...DEFAULT_LAYOUT.contextMenus["paper.context"],
+      "-",
+      "p/edit",
+    ])
+    expect(placeAdded(layout, [added])).toEqual(layout)
+    const all = assembleUi([...BUILTIN_UI, added])
+    const commandsWith = new Set([...commands, "p/open", "p/edit"])
+    expect(checkLayout(layout, all, commandsWith)).toEqual([])
+  })
+
+  test("置けないスロットと、引数の合わないメニューは型の誤り", () => {
+    // @ts-expect-error 置けるスロットに無い
+    defineWidget({ id: "p/x", slots: ["stage.top"], place: "stage.bottom", view: Ping })
+    defineCommand({
+      id: "p/arg",
+      title: "Arg" as never,
+      run: (_ctx, _a, _n: number) => {},
+      when: () => true,
+      // @ts-expect-error 引数を取るコマンドはメニューに入れられない
+      place: { menus: ["stage.menu"] },
+    })
+  })
 })

@@ -7,6 +7,7 @@ import { HogeDialog, MyNewBookDialog } from "./HogeDialog"
 export const HOGE_BUTTONS = defineWidget({
   id: "hoge/buttons",
   slots: ["stage.top", "stage.bottom"],
+  place: "stage.top",
   view: HogeButtons,
 })
 

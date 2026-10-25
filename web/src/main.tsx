@@ -12,6 +12,7 @@ import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
 import { App } from "./ui/App"
 import { loadFonts } from "./ui/fonts"
+import { placeAdded } from "./ui/layout"
 import { type AnyPluginUi, assembleUi } from "./ui/plugin"
 import { MatomezuProvider } from "./ui/store-context"
 import "./ui/skin.css"
@@ -36,7 +37,7 @@ if (!root) fail("E202")
 
 createRoot(root).render(
   <StrictMode>
-    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
+    <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)}>
       <App />
     </MatomezuProvider>
   </StrictMode>,

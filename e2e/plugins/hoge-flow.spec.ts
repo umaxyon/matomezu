@@ -115,3 +115,19 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
   const removed = await page.request.post("/api/plugins/remove", { headers: ai(), data: { id: "fuga" } })
   expect(await removed.json()).toEqual({ ok: true })
 })
+
+test("取り込んだプラグインが置いてほしいと書いたウィジェットは、既定の配置に足されて出る", async ({ page }) => {
+  await page.goto("/")
+  await expect(page.getByRole("button", { name: "hoge を開く" })).toHaveCount(0)
+  const mark = () => page.evaluate(() => Object.assign(window, { notReloaded: true }))
+  await mark()
+  const linked = await page.request.post("/api/plugins", {
+    headers: ai(),
+    data: { dir: resolve("test/examples/plugins/hoge") },
+  })
+  expect(await linked.json()).toEqual({ ok: true, id: "hoge" })
+  await page.waitForFunction(() => !("notReloaded" in window))
+  await expect(page.getByRole("button", { name: "hoge を開く" })).toBeVisible()
+  const removed = await page.request.post("/api/plugins/remove", { headers: ai(), data: { id: "hoge" } })
+  expect(await removed.json()).toEqual({ ok: true })
+})

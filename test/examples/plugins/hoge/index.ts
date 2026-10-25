@@ -12,6 +12,7 @@ export const HOGE_OPEN = defineCommand({
     a.command(ctx.stage.id, "stage.split")
     a.openDialog(ctx.stage.id, "hoge/dialog")
   },
+  place: { menus: ["stage.menu"] },
   when: () => true,
 })
 
