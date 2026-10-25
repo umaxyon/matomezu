@@ -9,8 +9,7 @@
 // 置くときは追加のダイアログ（list.add）、設定は編集のダイアログ（list.edit）。行は行の追加（row.add）・編集（row.edit）のダイアログで中身を決める
 import { z } from "zod"
 import { HEX, PALETTE } from "../../../core/color"
-import { defineShape } from "../../../core/def/item"
-import type { Point } from "../../../core/geom"
+import { defineShape, type ShapeAddArgs, type ShapeEditArgs } from "../../../core/def/item"
 import { AlignSchema, textProps } from "../../../core/text/fields"
 import { defineDialogWith } from "../../../store/dialogs"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, MAX_ROW_LINES, placedListWidth } from "./size"
@@ -32,9 +31,9 @@ export type ListRow = z.infer<typeof ListRowSchema>
 export const LIST_FILL = { id: "list.fill", fallback: "fill" } as const
 
 // リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
-export const LIST_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "list.add" })
+export const LIST_ADD_DIALOG = defineDialogWith<ShapeAddArgs>()({ id: "list.add" })
 // リストの設定のダイアログ
-export const LIST_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "list.edit" })
+export const LIST_EDIT_DIALOG = defineDialogWith<ShapeEditArgs>()({ id: "list.edit" })
 
 // チェックリストでないリストの行から、チェックの状態を消す（チェックリストをやめたとき）
 export function settleChecks<L extends { props: { checklist: boolean }; children?: ListRow[] }>(list: L): L {

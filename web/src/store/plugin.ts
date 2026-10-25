@@ -3,13 +3,14 @@
 
 import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
 import { buildCoreCatalog, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
+import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { Scheme } from "../core/def/skin"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePack, MessageSet } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
 import { type AutoSkin, autoSkin } from "../core/skin"
 import type { CommandDef } from "./commands/def"
-import type { DialogDef } from "./dialogs"
+import type { DialogDef, DialogTaking } from "./dialogs"
 import type { DefaultKey, KeyDef } from "./keys"
 
 // store の段の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
@@ -44,13 +45,30 @@ type PrefixCheck<P extends Plugin> = [Unprefixed<P>] extends [never]
   ? unknown
   : { [id in Unprefixed<P>]: "id の頭にプラグインの id と / を付ける" }
 
-// 追加プラグインを書く入口。id の頭を型で確かめる（組み立てでも確かめる）
-export const definePlugin = <const P extends Plugin>(plugin: P & PrefixCheck<P>): P => plugin
+// 形の定義が名指すダイアログのうち、受ける値が ShapeAddArgs（追加）・ShapeEditArgs（編集）でないもの
+type ShapeDialogsOf<P> = P extends { items?: readonly (infer D)[] }
+  ? D extends { kind: "shape"; dialogs?: infer G }
+    ? NonNullable<G>
+    : never
+  : never
+type AddOf<G> = G extends { add: infer A } ? A : never
+type EditOf<G> = G extends { edit: infer E } ? E : never
+type WrongAdd<P> = Exclude<AddOf<ShapeDialogsOf<P>>, DialogTaking<ShapeAddArgs> | undefined>
+type WrongEdit<P> = Exclude<EditOf<ShapeDialogsOf<P>>, DialogTaking<ShapeEditArgs> | undefined>
+type ShapeDialogCheck<P> = [WrongAdd<P> | WrongEdit<P>] extends [never]
+  ? unknown
+  : {
+      [id in (WrongAdd<P> | WrongEdit<P>) &
+        string]: "形の追加のダイアログは ShapeAddArgs、編集のダイアログは ShapeEditArgs を受ける"
+    }
+
+// 追加プラグインを書く入口。id の頭と、形が名指すダイアログの受ける値を型で確かめる（組み立てでも確かめる）
+export const definePlugin = <const P extends Plugin>(plugin: P & PrefixCheck<P> & ShapeDialogCheck<P>): P => plugin
 
 // ビルトインプラグインは、頭の無い短い id を使う（「/」を含まない id はビルトインプラグインだけのもの）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")
-export function defineBuiltin<const P extends Plugin>(plugin: P): P {
+export function defineBuiltin<const P extends Plugin>(plugin: P & ShapeDialogCheck<P>): P {
   return Object.assign(plugin, { [BUILTIN_MARK]: true })
 }
 export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
@@ -99,8 +117,8 @@ export function assemble(
   const dialogIds = new Set(dialogs.map(d => d.id))
   for (const i of all("items"))
     if (i.kind === "shape")
-      for (const dialog of [i.dialogs.add, i.dialogs.edit])
-        if (!dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
+      for (const dialog of [i.dialogs?.add, i.dialogs?.edit])
+        if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const catalog = buildCoreCatalog({
     ...(Object.fromEntries(partsOf("core").map(k => [k, all(k)])) as unknown as Pick<CoreCatalogParts, CorePart>),

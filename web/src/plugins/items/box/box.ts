@@ -4,8 +4,7 @@
 // 置くときは、置く所を覚えて追加のダイアログ（box.add）を開き、中身を決めてから置く。中身は編集のダイアログ（box.edit）で変える
 import { z } from "zod"
 import { HEX, PALETTE } from "../../../core/color"
-import { defineShape } from "../../../core/def/item"
-import type { Point } from "../../../core/geom"
+import { defineShape, type ShapeAddArgs, type ShapeEditArgs } from "../../../core/def/item"
 import { textProps } from "../../../core/text/fields"
 import { defineDialogWith } from "../../../store/dialogs"
 import { BOX_MIN, BOX_SIZE, placedHeight, placedWidth } from "./size"
@@ -14,10 +13,10 @@ import { BOX_MIN, BOX_SIZE, placedHeight, placedWidth } from "./size"
 export const BOX_FILL = { id: "box.fill", fallback: "fill" } as const
 
 // 箱の追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
-export const BOX_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "box.add" })
+export const BOX_ADD_DIALOG = defineDialogWith<ShapeAddArgs>()({ id: "box.add" })
 
 // 箱の編集のダイアログ。開いたステージのブックの、ページ page の箱 item の中身を変える
-export const BOX_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "box.edit" })
+export const BOX_EDIT_DIALOG = defineDialogWith<ShapeEditArgs>()({ id: "box.edit" })
 
 export const BoxPropsSchema = z.strictObject({
   ...textProps("center"), // キャプション・区切り線・本文と寄せ（キャプションは中央寄せ）

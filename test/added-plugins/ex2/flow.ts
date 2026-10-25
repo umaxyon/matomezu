@@ -7,12 +7,13 @@ import {
   defineDialogWith,
   defineSetting,
   defineShape,
-  type Point,
+  type ShapeAddArgs,
+  type ShapeEditArgs,
   z,
 } from "matomezu"
 
-export const DIAMOND_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "ex2/diamond.add" })
-export const DIAMOND_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "ex2/diamond.edit" })
+export const DIAMOND_ADD_DIALOG = defineDialogWith<ShapeAddArgs>()({ id: "ex2/diamond.add" })
+export const DIAMOND_EDIT_DIALOG = defineDialogWith<ShapeEditArgs>()({ id: "ex2/diamond.edit" })
 
 const DIAMOND_SIZE = { w: 96, h: 64 }
 

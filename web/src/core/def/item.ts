@@ -1,7 +1,7 @@
 // アイテムの定義: データに残り、画面に置かれるもの（名詞）。並べ方は知らず、自分の形・大きさ・能力・項目の形だけを持つ。
 // kind はアイテムのタイプで、kind ごとに持つ項目が変わる。置いたアイテムのデータの外枠（id・位置・つなぐ相手）は kind ごとに土台が決める（core/placed.ts）
 import type { z } from "zod"
-import type { Rect, Size } from "../geom"
+import type { Point, Rect, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
 import type { TokenDecl } from "./theme"
 
@@ -38,6 +38,17 @@ export interface ConnectorData<P = unknown> {
   props: P
 }
 
+// 形の追加のダイアログに渡す値: 置くページと、置こうとした左上（紙の上の px）
+export interface ShapeAddArgs {
+  page: string
+  at: Point
+}
+// 形の編集のダイアログに渡す値: ページと、置いた形の id
+export interface ShapeEditArgs {
+  page: string
+  item: string
+}
+
 // 2 つの形 a・b の間隔の下限
 export type Gap = (a: string, b: string) => number
 
@@ -50,7 +61,9 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData> extends ItemBase 
   sizeOf(item: D): Size // 置いたアイテムの大きさ（w・h が無ければ、項目から決まる幅と高さ）
   captionWidth(item: D): number // キャプションが切れずに見える幅（キャプションで広げる幅と、縮めてよい横の下限）
   settle?(item: D): D // 項目を変えたあとに、項目に合わせて中身を整える
-  dialogs: { add: string; edit: string } // 置く前に中身を決める追加のダイアログと、中身を変える編集のダイアログの id
+  // 置く前に中身を決める追加のダイアログ（ShapeAddArgs を受ける）と、中身を変える編集のダイアログ（ShapeEditArgs を受ける）の id。
+  // 追加が無ければそのまま置き、編集が無ければ「設定」を出さない。受ける値が合うかは definePlugin が型で確かめる
+  dialogs?: { add?: string; edit?: string }
 }
 
 // 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる。
@@ -77,14 +90,22 @@ export function defineShape<
   const Id extends string,
   P extends z.ZodType,
   const C extends Readonly<Record<string, z.ZodType>> = Record<never, never>,
+  const G extends { add?: string; edit?: string } = Record<never, never>,
 >(
-  def: Omit<ShapeItemDef<ShapeDataOf<P, C>>, "id" | "props" | "content" | "kind"> & {
+  def: Omit<ShapeItemDef<ShapeDataOf<P, C>>, "id" | "props" | "content" | "kind" | "dialogs"> & {
     id: Id
     kind: "shape"
     props: P
     content?: C
+    dialogs?: G
   },
-): Omit<ShapeItemDef<ShapeDataOf<P, C>>, "content"> & { id: Id; kind: "shape"; props: P; content?: C } {
+): Omit<ShapeItemDef<ShapeDataOf<P, C>>, "content" | "dialogs"> & {
+  id: Id
+  kind: "shape"
+  props: P
+  content?: C
+  dialogs?: G
+} {
   return def
 }
 

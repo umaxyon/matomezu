@@ -6,7 +6,7 @@ import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../..
 import { shapesOf } from "../../../core/placed"
 import { paperOf, toPaper, toPaperDelta } from "../../../core/stage"
 import { type CommandContext, defineCommand } from "../../../store/commands/def"
-import type { DialogTaking } from "../../../store/dialogs"
+import { shapeDialogs } from "../../../store/dialogs"
 import { defineKeys } from "../../../store/keys"
 import type { Came } from "./drag"
 import { PLACE_OFFSET } from "./items"
@@ -30,11 +30,12 @@ export const PAPER_PLACE = defineCommand({
     const size = stage.placing && itemSize(ctx.catalog, stage.placing)
     const paper = paperOf(stage)
     if (!at || !page || !stage.placing || !stage.opened || !size || !paper || !fitsPaper(at, size, paper)) return
-    // 形の定義が名指す追加のダイアログ（渡す値は { page, at }。名指したダイアログがあることは組み立てで確かめる）
-    const dialog = shapeDefOf(ctx.catalog, stage.placing)?.dialogs.add
+    // 形の定義が名指す追加のダイアログ（無ければそのまま置く）
+    const def = shapeDefOf(ctx.catalog, stage.placing)
+    const dialog = def && shapeDialogs(def).add
     if (dialog) {
       a.stopPlacing(stage.id)
-      a.openDialog(stage.id, dialog as DialogTaking<{ page: string; at: Point }>, { page, at })
+      a.openDialog(stage.id, dialog, { page, at })
       return
     }
     const done = a.perform("item.place", { page, item: stage.placing, at }, { book: stage.opened.book })
@@ -44,6 +45,16 @@ export const PAPER_PLACE = defineCommand({
   },
   when: ctx => onDrawingPage(ctx) && ctx.stage.placing !== null,
 })
+
+// 右クリックされた形が編集のダイアログを持つか（右クリックのメニューが開いていなければ、呼んだ所が形を選んでいる）
+function editable(ctx: CommandContext): boolean {
+  const target = ctx.contextMenu?.target as { item?: string } | undefined
+  if (target?.item === undefined) return true
+  const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+  const placed = page && shapesOf(page).find(i => i.id === target.item)
+  const def = placed && shapeDefOf(ctx.catalog, placed.item)
+  return def ? shapeDialogs(def).edit !== undefined : false
+}
 
 // アイテムの中身を変えるダイアログを開く（箱は box.edit、リストは list.edit）。開いているページに無いアイテムなら何もしない。
 // 右クリックのメニューでは「設定」として出す
@@ -55,11 +66,13 @@ export const PAPER_EDIT = defineCommand({
     const book = pagedOf(ctx.book) ?? null
     const found = book?.pages.find(p => p.id === page)
     const placed = found && shapesOf(found).find(i => i.id === item)
-    const dialog = placed && shapeDefOf(ctx.catalog, placed.item)?.dialogs.edit
+    const def = placed && shapeDefOf(ctx.catalog, placed.item)
+    const dialog = def && shapeDialogs(def).edit
     if (!page || !dialog) return
-    a.openDialog(ctx.stage.id, dialog as DialogTaking<{ page: string; item: string }>, { page, item })
+    a.openDialog(ctx.stage.id, dialog, { page, item })
   },
-  when: onDrawingPage,
+  // 右クリックのメニューでは、編集のダイアログを持つ形のときだけ出す
+  when: ctx => onDrawingPage(ctx) && editable(ctx),
 })
 
 // 選んでいるアイテムを消し、選択を外す（選んでいなければ出さない）

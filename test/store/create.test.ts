@@ -4,6 +4,7 @@ import { defineBookType } from "../../web/src/core/def/book-type"
 import { isMatomezuError, problemText } from "../../web/src/core/errors"
 import { BUILTIN } from "../../web/src/plugins"
 import { BASE } from "../../web/src/plugins/base"
+import { BOX } from "../../web/src/plugins/items/box/box"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog } from "../../web/src/store/dialogs"
@@ -92,6 +93,17 @@ describe("インスタンスを組み立てる", () => {
     const e = thrown(() => createMatomezu({ plugins: [...BUILTIN, notes, again], partial: true }))
     expect(isMatomezuError(e) && e.code).toBe("E016")
     expect(isMatomezuError(e) && e.details.map(d => d.code)).toEqual(["E001"])
+  })
+
+  test("形が名指すダイアログは、追加なら ShapeAddArgs、編集なら ShapeEditArgs を受けるものでなければ型の誤り", () => {
+    const shape = <const G extends { add?: string; edit?: string }>(dialogs: G) =>
+      ({ ...BOX, id: "notes/shape", dialogs }) as Omit<typeof BOX, "id" | "dialogs"> & { id: "notes/shape"; dialogs: G }
+    definePlugin({ id: "notes", items: [shape({ add: "box.add", edit: "box.edit" })] })
+    definePlugin({ id: "notes", items: [shape({})] })
+    // @ts-expect-error 行の追加のダイアログは { page, list } を受ける
+    definePlugin({ id: "notes", items: [shape({ add: "row.add" })] })
+    // @ts-expect-error 追加のダイアログを編集に名指している
+    definePlugin({ id: "notes", items: [shape({ edit: "box.add" })] })
   })
 
   test("機能台帳の型の側と渡したプラグインが合わなければ型の誤り（行わない）", () => {

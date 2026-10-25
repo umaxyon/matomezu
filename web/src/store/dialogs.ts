@@ -1,6 +1,7 @@
 // ダイアログ。定義は id と、開くときに渡す値の型だけを持ち、中身（ビュー）は ui が id に結ぶ（画面の無いインスタンスでも、コマンドがダイアログを開けるように）。
 // 画面に出すダイアログは 1 つだけで、どれを出すかは id、どこから開いたかは stage、何について開いたかは args で決まる
 import type { DialogId, DialogTable } from "../core/catalog"
+import type { ShapeAddArgs, ShapeEditArgs, ShapeItemDef } from "../core/def/item"
 
 declare const ARGS: unique symbol
 
@@ -25,6 +26,14 @@ export type DialogArgsOf<Id extends DialogId> = DialogTable[Id] extends DialogDe
 export type DialogTaking<A> = {
   [K in DialogId]: [DialogArgsOf<K>] extends [A] ? ([A] extends [DialogArgsOf<K>] ? K : never) : never
 }[DialogId]
+// 形の定義が名指す追加と編集のダイアログ（受ける値が ShapeAddArgs・ShapeEditArgs であることは definePlugin が型で、名指したダイアログがあることは組み立てが確かめる）
+export function shapeDialogs(def: ShapeItemDef): {
+  add?: DialogTaking<ShapeAddArgs>
+  edit?: DialogTaking<ShapeEditArgs>
+} {
+  return (def.dialogs ?? {}) as { add?: DialogTaking<ShapeAddArgs>; edit?: DialogTaking<ShapeEditArgs> }
+}
+
 export type DialogArgs<Id extends DialogId> = [DialogArgsOf<Id>] extends [undefined] ? [] : [DialogArgsOf<Id>]
 
 export interface OpenedDialog {

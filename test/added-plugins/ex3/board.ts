@@ -9,12 +9,13 @@ import {
   defineShape,
   defineSkin,
   defineTheme,
-  type Point,
+  type ShapeAddArgs,
+  type ShapeEditArgs,
   z,
 } from "matomezu"
 
-export const STAR_ADD_DIALOG = defineDialogWith<{ page: string; at: Point }>()({ id: "ex3/star.add" })
-export const STAR_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "ex3/star.edit" })
+export const STAR_ADD_DIALOG = defineDialogWith<ShapeAddArgs>()({ id: "ex3/star.add" })
+export const STAR_EDIT_DIALOG = defineDialogWith<ShapeEditArgs>()({ id: "ex3/star.edit" })
 
 const STAR_SIZE = { w: 72, h: 72 }
 

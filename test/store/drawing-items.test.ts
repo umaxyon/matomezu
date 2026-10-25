@@ -3,8 +3,14 @@ import type { Point } from "../../web/src/core/geom"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { placement } from "../../web/src/core/stage"
 import { toolOf } from "../../web/src/core/workspace"
+import { BUILTIN } from "../../web/src/plugins"
+import { BOX } from "../../web/src/plugins/items/box/box"
 import { PLACE_OFFSET } from "../../web/src/plugins/paper/placing/items"
-import { newStore } from "../support"
+import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { isShown } from "../../web/src/store/commands"
+import type { Plugin } from "../../web/src/store/plugin"
+import { createMatomezuInstance } from "../../web/src/store/store"
+import { newStore, sequence } from "../support"
 
 // 紙の上の点 at に箱の左上が来るポインタの位置（表示領域の左上から）
 function pointerFor(store: ReturnType<typeof newStore>, at: Point): Point {
@@ -174,6 +180,20 @@ test("箱を編集するコマンドは、そのページの箱を渡して編�
   expect(store.state.getState().dialog).toBeNull()
   store.actions.command("s1", "paper.edit", { item: "n1" })
   expect(store.state.getState().dialog).toMatchObject({ id: "box.edit", stage: "s1", args: { page: "p1", item: "n1" } })
+})
+
+test("追加と編集のダイアログを持たない形は、押した所にそのまま置き、右クリックのメニューに「設定」を出さない", () => {
+  const plain = { ...BOX, dialogs: undefined }
+  const plugins = BUILTIN.map(p => ((p as Plugin).items?.includes(BOX) ? { ...p, items: [plain] } : p))
+  const store = createMatomezuInstance({ plugins, home: "master", books: SAMPLE_BOOKS, lang: "ja", newId: sequence() })
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
+  store.actions.togglePlacing("s1", "shape.box")
+  store.actions.command("s1", "paper.place", pointerFor(store as never, { x: 100, y: 50 }))
+  expect(store.state.getState().dialog).toBeNull()
+  expect(page(store as never).items).toMatchObject([{ id: "n1", item: "shape.box", x: 100, y: 50 }])
+  store.actions.openContextMenu("s1", "item.context", { item: "n1" }, { x: 0, y: 0 })
+  expect(isShown(store, store.state.getState(), "s1", "paper.edit")).toBe(false)
+  expect(isShown(store, store.state.getState(), "s1", "paper.delete")).toBe(true)
 })
 
 test("選んでいるアイテムを消すと選択も外れる。選んでいなければ消すコマンドは出ない。無いアイテムは消さない", () => {
