@@ -3,8 +3,8 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
-import { memoryHost } from "./host-client/memory"
-import { startHost } from "./host-client/start"
+import { memoryClient } from "./host-client/memory"
+import { openClient } from "./host-client/open"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
 import { SAMPLE_BOOKS } from "./sample-books"
 import { createMatomezu } from "./store/create"
@@ -14,16 +14,16 @@ import { MatomezuProvider } from "./ui/store-context"
 import "./ui/skin.css"
 
 loadFonts()
-const { host, loaded: saved } = await startHost(() => memoryHost(SAMPLE_BOOKS))
+const { client, loaded: saved } = await openClient(() => memoryClient(SAMPLE_BOOKS))
 const store = createMatomezu({
   plugins: BUILTIN_UI,
   home: "master",
   savedBooks: saved.books,
   settings: saved.settings,
   lang: navigator.languages,
-  observe: done => host.observe(done),
+  observe: done => client.observe(done),
 })
-host.connect(store)
+client.connect(store)
 const root = document.getElementById("root")
 if (!root) fail("E202")
 

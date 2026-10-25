@@ -8,7 +8,7 @@ export interface Loaded {
   settings: unknown // 残しておいた設定（無ければ undefined）。使える項目かは store が確かめる（createMatomezu の settings）
 }
 
-export interface Host {
+export interface HostClient {
   load(): Promise<Loaded>
   observe(done: DoneAction): void // 画面で行ったアクション（createMatomezu の observe に渡す）
   connect(app: AppStore): () => void // load で読んだもので作った app とつなぐ（外の変化を入れ、残す）。切る関数を返す

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import type { Book } from "../../web/src/core/schema/book"
 import type { Settings } from "../../web/src/core/settings"
-import { memoryHost } from "../../web/src/host-client/memory"
+import { memoryClient } from "../../web/src/host-client/memory"
 import { persist } from "../../web/src/host-client/persist"
 import { newStore } from "../support"
 
@@ -50,7 +50,7 @@ test("止めたあとは頼まない", () => {
 })
 
 test("メモリのホストは残したものを次に読む", async () => {
-  const host = memoryHost([])
+  const host = memoryClient([])
   const store = newStore({ books: [], savedBooks: (await host.load()).books })
   host.connect(store)
   store.actions.createBook("s1", { title: "新しいブック", type: "drawing" })

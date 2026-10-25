@@ -1,4 +1,4 @@
-// 常駐に頼むホスト: 画面は自分で先にアクションを行い、同じアクションを常駐に送る（POST /api/perform）。
+// ホストに頼むホストクライアント: 画面は自分で先にアクションを行い、同じアクションを常駐に送る（POST /api/perform）。
 // 常駐はアクションを 1 つずつ順に行い、変わったブックと設定をつながっている全部の画面に知らせる（/api/events。internal/server/hub.go）。
 // 画面は、常駐が決めた世界（確かめた世界）の上で、まだ確かめられていない自分のアクションを行い直したものを出す（store の receive）。
 // 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。
@@ -9,7 +9,7 @@ import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type { AppState, AppStore, DoneAction } from "../store/store"
-import type { Host, Loaded } from "./host"
+import type { HostClient, Loaded } from "./client"
 
 // 常駐が答えなかった（常駐から開いていない）
 export class NoServer {}
@@ -96,11 +96,11 @@ const BookSchema = z.object({ book: z.object({ id: z.string() }).loose(), versio
 const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
 const AckSchema = z.object({ seq: z.number().int() })
 
-export interface ServerHost extends Host {
+export interface ServerClient extends HostClient {
   pending(): readonly DoneAction[] // まだ確かめられていない自分のアクション
 }
 
-export function serverHost(net: Net = browserNet): ServerHost {
+export function serverClient(net: Net = browserNet): ServerClient {
   const confirmed = new Map<string, { book: unknown; version: number }>()
   let settings: unknown
   let pending: { seq: number; done: DoneAction }[] = []

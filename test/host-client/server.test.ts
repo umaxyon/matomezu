@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { type Events, NoServer, serverHost } from "../../web/src/host-client/server"
+import { type Events, NoServer, serverClient } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { newStore } from "../support"
 
@@ -18,7 +18,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     },
     close: () => {},
   }
-  const host = serverHost({
+  const host = serverClient({
     fetch: async (url, init) => {
       if (url === "api/perform" || url === "api/view") sent.push({ url, ...JSON.parse(String(init?.body)) })
       if (url === "api/data") reads++
@@ -131,7 +131,7 @@ test("設定の知らせで設定を入れ替える", async () => {
 test("読んでいる間に届いた新しい版の知らせは、読んだ古い版で消さない", async () => {
   let answer = (_: Response) => {}
   const listeners = new Map<string, (data: string) => void>()
-  const host = serverHost({
+  const host = serverClient({
     fetch: () => new Promise<Response>(r => (answer = r)),
     events: () => ({ on: (name, l) => listeners.set(name, l), onError: () => {}, close: () => {} }),
     focused: () => false,
