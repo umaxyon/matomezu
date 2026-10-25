@@ -50,7 +50,7 @@ export const BASE = defineBuiltin({
   messages: BASE_MESSAGES,
 })
 
-declare module "../../core/tables" {
+declare module "../../core/catalog" {
   interface MessageTable extends Readonly<typeof BASE_MESSAGES> {}
   interface ActionTable {
     "page.add": typeof PAGE_ADD

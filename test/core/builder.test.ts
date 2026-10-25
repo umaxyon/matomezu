@@ -3,8 +3,8 @@ import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { restoreBooks } from "../../web/src/core/book"
 import { settingValue } from "../../web/src/core/book-settings"
+import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineSetting } from "../../web/src/core/def/setting"
-import { buildRegistry, checkRegistry } from "../../web/src/core/registry"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble } from "../../web/src/store/plugin"
@@ -29,14 +29,14 @@ const list = { id: "n2", x: 200, y: 10, item: "shape.list", props: {} }
 
 describe("組み立てたブックの形", () => {
   test("ページに置けるのは、タイプが選んだアイテムだけ", () => {
-    const boxesOnly = buildRegistry(withDrawing({ items: { allowed: ["shape.box"], defaults: ["shape.box"] } }))
+    const boxesOnly = buildCoreCatalog(withDrawing({ items: { allowed: ["shape.box"], defaults: ["shape.box"] } }))
     expect(restoreBooks(REGISTRY, [book([page([box, list])])])).toHaveLength(1)
     expect(restoreBooks(boxesOnly, [book([page([box, list])])])).toHaveLength(0)
     expect(restoreBooks(boxesOnly, [book([page([box])])])).toHaveLength(1)
   })
 
   test("設定の項目の欄を持てるのは、タイプがその項目を選んだときだけ", () => {
-    const noRoute = buildRegistry(withDrawing({ settings: { book: [], page: ["line.route"] } }))
+    const noRoute = buildCoreCatalog(withDrawing({ settings: { book: [], page: ["line.route"] } }))
     expect(restoreBooks(REGISTRY, [book([page([])], { lineRoute: "straight" })])).toHaveLength(1)
     expect(restoreBooks(noRoute, [book([page([])], { lineRoute: "straight" })])).toHaveLength(0)
     expect(restoreBooks(noRoute, [book([page([], { lineRoute: "straight" })])])).toHaveLength(1)
@@ -68,14 +68,14 @@ describe("組み立てたブックの形", () => {
 describe("組み立ての食い違い", () => {
   test("タイプが自分の欄に、登録表が足す欄（pages・選んだ設定の項目の欄）を書くと誤り", () => {
     const own = drawing.schema.extend({ pages: z.array(z.unknown()) })
-    expect(checkRegistry(withDrawing({ schema: own })).map(p => p.code)).toContain("E025")
+    expect(checkCoreCatalog(withDrawing({ schema: own })).map(p => p.code)).toContain("E025")
     const route = drawing.schema.extend({ lineRoute: z.string().optional() })
-    expect(checkRegistry(withDrawing({ schema: route })).map(p => p.code)).toContain("E025")
+    expect(checkCoreCatalog(withDrawing({ schema: route })).map(p => p.code)).toContain("E025")
   })
 
   test("表に無い設定の項目・見せ方を選ぶと誤り。2 つの設定の項目が同じ欄を使うと誤り", () => {
-    expect(checkRegistry(withDrawing({ settings: { book: ["nope.setting"] } })).map(p => p.code)).toContain("E008")
-    expect(checkRegistry(withDrawing({ presentation: "nope" })).map(p => p.code)).toContain("E008")
+    expect(checkCoreCatalog(withDrawing({ settings: { book: ["nope.setting"] } })).map(p => p.code)).toContain("E008")
+    expect(checkCoreCatalog(withDrawing({ presentation: "nope" })).map(p => p.code)).toContain("E008")
     const twin = defineSetting({
       id: "twin.route",
       title: "Line route",
@@ -84,7 +84,7 @@ describe("組み立ての食い違い", () => {
       default: "",
     })
     const parts = { ...BUILTIN_PARTS, settings: [...BUILTIN_PARTS.settings, twin] }
-    expect(checkRegistry(parts).map(p => p.code)).toContain("E027")
+    expect(checkCoreCatalog(parts).map(p => p.code)).toContain("E027")
   })
 
   test("形のアイテムが名指すダイアログがインスタンスに無ければ、組み立てで誤り", () => {

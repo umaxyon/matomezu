@@ -2,11 +2,11 @@
 // 外枠は kind ごとにここで決め、アイテムの定義は項目と中身の欄だけを持つ。ページの形は、ブックのタイプが選んだアイテムから登録表が組み立てる（registry.ts）。
 // 形が変わったあとの整えと関係の決まりは、ページのつなぐもの（線）の定義が持つものを全部かける
 import { z } from "zod"
+import type { ItemTable } from "./catalog"
+import type { CoreCatalog } from "./core-catalog"
 import type { ConnectorData, ConnectorItemDef, Gap, ItemDef, ShapeData, ShapeItemDef } from "./def/item"
 import type { Rect, Size } from "./geom"
-import type { Registry } from "./registry"
 import type { Page } from "./schema/page"
-import type { ItemTable } from "./tables"
 
 // 置いた形のデータの形。欄の並びは id・x・y・item・w・h・props・中身
 export function shapeSchema(def: ShapeItemDef): z.ZodObject {
@@ -55,11 +55,11 @@ export type PlacedConnector = Exclude<PlacedItem, { x: number }>
 // アイテムを置くページ（ページの形に、置いたアイテムの並び。重ねの順）
 export type ItemPage = Page & { items?: readonly PlacedItem[] }
 
-const shapeDef = (reg: Registry, item: string): ShapeItemDef | null => {
+const shapeDef = (reg: CoreCatalog, item: string): ShapeItemDef | null => {
   const def = reg.items.get(item)
   return def?.kind === "shape" ? def : null
 }
-const connectorDef = (reg: Registry, item: string): ConnectorItemDef | null => {
+const connectorDef = (reg: CoreCatalog, item: string): ConnectorItemDef | null => {
   const def = reg.items.get(item)
   return def?.kind === "connector" ? def : null
 }
@@ -73,12 +73,12 @@ export const connectorsOf = (page: ItemPage): PlacedConnector[] =>
   pageItemsOf(page).filter((i): i is PlacedConnector => !isShape(i))
 
 // 置いた形の大きさ（表に無いアイテムは null）
-export function placedSize(reg: Registry, item: PlacedShape): Size | null {
+export function placedSize(reg: CoreCatalog, item: PlacedShape): Size | null {
   return shapeDef(reg, item.item)?.sizeOf(item as ShapeData) ?? null
 }
 
 // ページの形の四角（大きさの分からない形は入れない）
-export function rectsOf(reg: Registry, page: ItemPage): Map<string, Rect> {
+export function rectsOf(reg: CoreCatalog, page: ItemPage): Map<string, Rect> {
   const rects = new Map<string, Rect>()
   for (const i of shapesOf(page)) {
     const size = placedSize(reg, i)
@@ -88,7 +88,7 @@ export function rectsOf(reg: Registry, page: ItemPage): Map<string, Rect> {
 }
 
 // つなぐものを種類ごとに分ける（表に無いものは入れない）
-function byConnector(reg: Registry, page: ItemPage): [ConnectorItemDef, PlacedConnector[]][] {
+function byConnector(reg: CoreCatalog, page: ItemPage): [ConnectorItemDef, PlacedConnector[]][] {
   const groups = new Map<string, PlacedConnector[]>()
   for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
   return [...groups].flatMap(([id, list]) => {
@@ -98,12 +98,12 @@ function byConnector(reg: Registry, page: ItemPage): [ConnectorItemDef, PlacedCo
 }
 
 // ページの、2 つの形の組の間隔の下限: base に、つなぐものの定義の間隔（gaps）を順に重ねる
-export function gapOf(reg: Registry, page: ItemPage, base: Gap): Gap {
+export function gapOf(reg: CoreCatalog, page: ItemPage, base: Gap): Gap {
   return byConnector(reg, page).reduce<Gap>((gap, [def, list]) => def.gaps?.(list as ConnectorData[], gap) ?? gap, base)
 }
 
 // 形が変わったあとのページ: つなぐものの定義の整え（tidy）を全部かける。setting はそのページで効いている設定の値。変わらなければそのまま
-export function tidyPage<P extends ItemPage>(reg: Registry, page: P, setting: (id: string) => unknown): P {
+export function tidyPage<P extends ItemPage>(reg: CoreCatalog, page: P, setting: (id: string) => unknown): P {
   const groups = byConnector(reg, page)
   if (groups.length === 0) return page
   const rects = rectsOf(reg, page)
@@ -122,13 +122,13 @@ export function tidyPage<P extends ItemPage>(reg: Registry, page: P, setting: (i
 }
 
 // ページの形 id が、つなげる形（connectable）か
-export function connectableShape(reg: Registry, page: ItemPage, id: string): boolean {
+export function connectableShape(reg: CoreCatalog, page: ItemPage, id: string): boolean {
   const shape = shapesOf(page).find(s => s.id === id)
   return !!shape && (reg.items.get(shape.item)?.capabilities.includes("connectable") ?? false)
 }
 
 // ページが、つなぐものの定義の関係の決まり（holds）を全部守っているか
-export function pageHolds(reg: Registry, page: ItemPage): boolean {
+export function pageHolds(reg: CoreCatalog, page: ItemPage): boolean {
   return byConnector(reg, page).every(
     ([def, list]) => def.holds?.(list as ConnectorData[], id => connectableShape(reg, page, id)) ?? true,
   )

@@ -15,7 +15,7 @@
 
 import { type CSSProperties, type PointerEvent, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import type { ItemProps } from "../../../core/registry"
+import type { ItemProps } from "../../../core/core-catalog"
 import { toPaperDelta } from "../../../core/stage"
 import { resolveTokens } from "../../../core/theme"
 import { useCommand } from "../../../ui/commands"

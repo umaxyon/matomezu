@@ -26,7 +26,7 @@ export const PAPER_PLUGIN = defineBuiltin({
   messages: PAPER_MESSAGES,
 })
 
-declare module "../../core/tables" {
+declare module "../../core/catalog" {
   interface PresentationTable {
     paper: typeof PAPER
   }

@@ -12,7 +12,7 @@ export const HOGE_FLOW = definePlugin({
   messages: FLOW_MESSAGES,
 })
 
-declare module "matomezu/tables" {
+declare module "matomezu/catalog" {
   interface BookTypeTable {
     "hoge-flow/flow": typeof FLOW
   }

@@ -1,6 +1,5 @@
 // ウィジェット（スロットに置けるコンポーネント）・配置（スロットごとに置くウィジェットの順と、メニューの中身）の定義と、配置の確かめ
 import type { ReactNode } from "react"
-import { type Problem, problem } from "../core/errors"
 import type {
   CommandId,
   ContextMenuId,
@@ -10,7 +9,8 @@ import type {
   SlotProps,
   WidgetId,
   WidgetTable,
-} from "../core/tables"
+} from "../core/catalog"
+import { type Problem, problem } from "../core/errors"
 import type { CommandArgs } from "../store/commands"
 
 // 置けるスロットと、描くコンポーネント。置けるスロットは、どれも同じ値（props）を渡すものだけにする。

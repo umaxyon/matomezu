@@ -2,9 +2,9 @@
 // 離すとその相手に引く（コマンド line.draw）。何も無い所・引けない相手の上で離す、Escape、3px 未満しか動かさないときは引かない。
 // ドラッグの間の途中の線の先と相手だけをビューに持つ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
+import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point, Rect } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
-import type { Registry } from "../../../core/registry"
 import type { Stage } from "../../../core/stage"
 import { toPaper } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
@@ -22,7 +22,7 @@ export interface Link {
 
 const SLOP = 3
 
-export function useLinkDrag(stage: Stage, registry: Registry, localOf: (e: PointerEvent<Element>) => Point | null) {
+export function useLinkDrag(stage: Stage, registry: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
   const draw = useCommand(stage.id, "line.draw")
   const link = useRef<Link | null>(null)
   const [tip, setTip] = useState<{ at: Point; target: string | null } | null>(null) // 途中の線の先（紙の上）と、その下の引ける相手

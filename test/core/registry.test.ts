@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { z } from "zod"
+import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import { defineLanguagePack } from "../../web/src/core/i18n/messages"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { perform } from "../../web/src/core/perform"
-import { buildRegistry, checkRegistry } from "../../web/src/core/registry"
 import { bookTokens, resolveTokens } from "../../web/src/core/theme"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
@@ -22,7 +22,7 @@ describe("登録表", () => {
   })
 
   test("表どうしの参照に食い違いが無い", () => {
-    expect(checkRegistry(BUILTIN_PARTS)).toEqual([])
+    expect(checkCoreCatalog(BUILTIN_PARTS)).toEqual([])
   })
 
   test("食い違いのある定義の組からは表を作らず、直す所を並べる", () => {
@@ -35,7 +35,7 @@ describe("登録表", () => {
       themes: BUILTIN_PARTS.themes.filter(th => !th.tokens), // 外したアイテムの欄を上書きするテーマも外す
       papers: BUILTIN_PARTS.papers.filter(p => p.id !== "a3"),
     }
-    const problems = checkRegistry(broken)
+    const problems = checkCoreCatalog(broken)
     expect(problems.map(p => p.code)).toEqual(["E001", "E004", "E008", "E008", "E008", "E004", "E008", "E008", "E008"])
     expect(problems.map(problemText).slice(0, 3)).toEqual([
       "E001 bookType drawing: id is registered twice",
@@ -44,7 +44,7 @@ describe("登録表", () => {
     ])
     const thrown = (() => {
       try {
-        buildRegistry(broken)
+        buildCoreCatalog(broken)
       } catch (e) {
         return e
       }
@@ -52,26 +52,26 @@ describe("登録表", () => {
     expect(isMatomezuError(thrown) && thrown.code).toBe("E016")
     expect(isMatomezuError(thrown) && thrown.details).toEqual(problems)
     expect(String(thrown)).toContain("E008 bookType drawing: unknown item shape.box")
-    expect(() => buildRegistry({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 registry has no book type")
+    expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 registry has no book type")
   })
 
   test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は誤り", () => {
     const conflict = { ...BUILTIN_PARTS, messages: [...BUILTIN_PARTS.messages, { Master: { ja: "親分" } }] }
-    expect(checkRegistry(conflict).map(problemText)).toEqual(["E017 message Master has different ja translations"])
+    expect(checkCoreCatalog(conflict).map(problemText)).toEqual(["E017 message Master has different ja translations"])
     // 同じ訳と、ほかの言語の訳を足すのはよい
     const more = {
       ...BUILTIN_PARTS,
       messages: [...BUILTIN_PARTS.messages, { Master: { ja: "マスター", fr: "Maître" } }],
     }
-    expect(checkRegistry(more)).toEqual([])
+    expect(checkCoreCatalog(more)).toEqual([])
     const untitled = { ...BUILTIN_PARTS, messages: [] }
-    expect(checkRegistry(untitled).map(p => p.code)).toContain("E018")
+    expect(checkCoreCatalog(untitled).map(p => p.code)).toContain("E018")
   })
 
   test("言語パックは言語を足し、どのプラグインの文言にも訳を足す。パックの訳がプラグインの訳に勝つ", () => {
     const fr = defineLanguagePack({ lang: "fr", name: "Français", messages: { Master: "Maître", Box: "Boîte" } })
     const jaFix = defineLanguagePack({ lang: "ja", name: "日本語", messages: { Master: "親分" } })
-    const reg = buildRegistry({ ...BUILTIN_PARTS, languages: [fr, jaFix] })
+    const reg = buildCoreCatalog({ ...BUILTIN_PARTS, languages: [fr, jaFix] })
     expect([...reg.languages]).toEqual([
       ["en", "English"],
       ["ja", "日本語"],
@@ -82,20 +82,20 @@ describe("登録表", () => {
     expect(translate(reg.messages, "ja", "Master")).toBe("親分")
     // インスタンスに無い鍵の訳は使わない
     const stray = defineLanguagePack({ lang: "fr", name: "Français", messages: { ["Nope" as "Box"]: "Non" } })
-    expect(buildRegistry({ ...BUILTIN_PARTS, languages: [stray] }).messages.has("Nope")).toBe(false)
+    expect(buildCoreCatalog({ ...BUILTIN_PARTS, languages: [stray] }).messages.has("Nope")).toBe(false)
   })
 
   test("名前の違う同じ言語と、パックどうしで違う訳は誤り", () => {
     const a = defineLanguagePack({ lang: "fr", name: "Français", messages: { Box: "Boîte" } })
     const b = defineLanguagePack({ lang: "fr", name: "French", messages: { Box: "Caisse" } })
-    expect(checkRegistry({ ...BUILTIN_PARTS, languages: [a, b] }).map(problemText)).toEqual([
+    expect(checkCoreCatalog({ ...BUILTIN_PARTS, languages: [a, b] }).map(problemText)).toEqual([
       "E020 language fr has different names",
       "E021 language packs give message Box different fr translations",
     ])
   })
 
   test("作った表は id で引け、ブックのデータの形を持つ", () => {
-    const reg = buildRegistry(BUILTIN_PARTS)
+    const reg = buildCoreCatalog(BUILTIN_PARTS)
     expect(reg.bookTypes.get("drawing")).toBe(BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing"))
     expect(reg.items.get("nope")).toBeUndefined()
     expect(reg.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
@@ -214,7 +214,7 @@ describe("登録表ごとに別の世界", () => {
     presentation: "master", // 画面に出さないので、見せ方は表にあるものを借りる
     tokens: [],
   })
-  const reg = buildRegistry({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })
+  const reg = buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })
   const library = { [MASTER_BOOK.id]: MASTER_BOOK }
 
   test("足したタイプのブックは、それを持つ表でだけ作れて、データの形もその表で通る", () => {

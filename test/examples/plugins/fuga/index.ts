@@ -24,7 +24,7 @@ export const FUGA = definePlugin({
   messages: FUGA_MESSAGES,
 })
 
-declare module "matomezu/tables" {
+declare module "matomezu/catalog" {
   interface BookTypeTable {
     "fuga/board": typeof BOARD
   }

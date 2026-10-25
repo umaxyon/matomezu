@@ -206,7 +206,7 @@ test("見本はプラグイン API の名前だけを読み、プラグインど
           const [top, name, ...rest] = target.split("/")
           return top !== "plugins" || !name || !(rest.length === 0 || ["index", "ui"].includes(rest.join("/")))
         }
-        const always = ["matomezu", "matomezu/tables", "zod"]
+        const always = ["matomezu", "matomezu/catalog", "zod"]
         const forViews = ["matomezu/ui", "react"]
         const forApps = ["matomezu/testing", "bun:test", "@testing-library/react"]
         if (always.includes(s)) return false

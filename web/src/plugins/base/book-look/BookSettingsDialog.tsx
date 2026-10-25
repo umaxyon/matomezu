@@ -2,7 +2,7 @@
 // テーマは表のテーマから選ぶ（ブックのタイプのテーマを選べば、ブックのテーマの項目を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）。
 // テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book.update（設定の項目は settings）を書き、キャンセルでは元のまま
 import { useEffect, useId, useMemo, useState } from "react"
-import { bookType } from "../../../core/registry"
+import { bookType } from "../../../core/core-catalog"
 import { type BookLook, bookTheme, bookTokens } from "../../../core/theme"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"

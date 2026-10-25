@@ -40,7 +40,7 @@ export const HOGE = definePlugin({
   messages: HOGE_MESSAGES,
 })
 
-declare module "matomezu/tables" {
+declare module "matomezu/catalog" {
   interface MessageTable extends Readonly<typeof HOGE_MESSAGES> {}
   interface CommandTable {
     "hoge/open": typeof HOGE_OPEN

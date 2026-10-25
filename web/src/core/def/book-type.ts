@@ -1,9 +1,9 @@
 // ブックのタイプの定義: データの形・並べ方の決まり・使えるアイテムとアクションの規定・既定のテーマ。
 // アイテム・アクション・テーマは id で参照する（アイテムとアクションはブックのタイプを知らない）
 import type { z } from "zod"
+import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
-import type { Registry } from "../registry"
 import type { ToolSetId } from "../tools"
 import type { TokenDecl } from "./theme"
 
@@ -40,7 +40,7 @@ interface BookTypeBase<S extends z.ZodObject> {
   tools?: ToolSetId // ステージで使う道具の組（core/tools.ts。無ければ道具を使わない）
   // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
-  holds?(book: z.infer<S>, reg: Registry): boolean
+  holds?(book: z.infer<S>, reg: CoreCatalog): boolean
   settings?: BookTypeSettings
 }
 

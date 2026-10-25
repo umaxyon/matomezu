@@ -1,5 +1,6 @@
 // ブックの操作（データを書き換えず、新しい値を返す）
 
+import { bookType, type CoreCatalog } from "./core-catalog"
 import type { NewBook } from "./def/book-type"
 import { ORIENTATIONS, type Orientation } from "./def/paper"
 import { fail } from "./errors"
@@ -8,14 +9,13 @@ import { translate } from "./i18n/i18n"
 import { freshId } from "./ids"
 import type { PaperChoice, PaperRule } from "./paper"
 import { actionsOf, holds } from "./perform"
-import { bookType, type Registry } from "./registry"
 import type { Book, Page } from "./schema/book"
 
 export type PagedBook = Extract<Book, { pages: Page[] }>
 
 // 残しておいたブックのうち、このインスタンスのブックの形に合うものだけ（タイプの無いもの・形の合わないもの・アイテムどうしの関係の決まりを守らないものは捨てる）。
 // 残したブックは外から来る値なので、形を確かめてから使う
-export function restoreBooks(reg: Registry, saved: readonly unknown[]): Book[] {
+export function restoreBooks(reg: CoreCatalog, saved: readonly unknown[]): Book[] {
   return saved.flatMap(b => {
     const parsed = reg.bookSchema.safeParse(b)
     return parsed.success && holds(reg, parsed.data as Book) ? [parsed.data as Book] : []
@@ -23,7 +23,7 @@ export function restoreBooks(reg: Registry, saved: readonly unknown[]): Book[] {
 }
 
 // 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの）
-export function singleBooks(reg: Registry): Book[] {
+export function singleBooks(reg: CoreCatalog): Book[] {
   return reg.parts.bookTypes.flatMap(t => (t.single ? [t.book as Book] : []))
 }
 
@@ -36,25 +36,25 @@ export const pagedOf = (book: Book | null | undefined): PagedBook | undefined =>
   book && hasPages(book) ? book : undefined
 
 // 表の、何冊も作れるタイプの id（表の順）
-export function creatableTypes(reg: Registry): string[] {
+export function creatableTypes(reg: CoreCatalog): string[] {
   return reg.parts.bookTypes.filter(t => !t.single).map(t => t.id)
 }
 
 // そのタイプの空のブック。何冊も作れるタイプでなければ誤り
-export function createBook(reg: Registry, type: string, init: NewBook): Book {
+export function createBook(reg: CoreCatalog, type: string, init: NewBook): Book {
   const def = bookType(reg, type)
   if (def.single) return fail("E104", { type })
   return def.create(init) as Book
 }
 
 // 画面に出すブックの名前。題名を持たないか空のブックは、タイプの名前で呼ぶ
-export function bookTitle(reg: Registry, book: Book, lang: Lang): string {
+export function bookTitle(reg: CoreCatalog, book: Book, lang: Lang): string {
   return "title" in book && book.title.trim() !== ""
     ? book.title
     : translate(reg.messages, lang, bookType(reg, book.type).title)
 }
 
-function pagesRule(reg: Registry, book: PagedBook) {
+function pagesRule(reg: CoreCatalog, book: PagedBook) {
   const rule = bookType(reg, book.type).pages
   if (!rule) return fail("E103", { type: book.type })
   return rule
@@ -73,7 +73,7 @@ export function choosablePapers(rule: PaperRule, pages: readonly Page[]): PaperO
   return { papers: [first.paper], orientations: [first.orientation] }
 }
 
-export function paperChoices(reg: Registry, book: PagedBook): PaperOptions {
+export function paperChoices(reg: CoreCatalog, book: PagedBook): PaperOptions {
   return choosablePapers(pagesRule(reg, book).paper, book.pages)
 }
 
@@ -83,7 +83,7 @@ export function canChoose(options: PaperOptions, choice: PaperChoice): boolean {
 }
 
 // 次のページの紙の既定（規定の既定を選べなければ、選べるものの最初）
-export function defaultPaper(reg: Registry, book: PagedBook): PaperChoice {
+export function defaultPaper(reg: CoreCatalog, book: PagedBook): PaperChoice {
   const rule = pagesRule(reg, book).paper
   const { papers, orientations } = paperChoices(reg, book)
   return {
@@ -93,17 +93,17 @@ export function defaultPaper(reg: Registry, book: PagedBook): PaperChoice {
 }
 
 // ブックで使えるアイテム（タイプの既定。置ける・引けるのはこの中だけ）
-export function bookItems(reg: Registry, book: Pick<Book, "type">): readonly string[] {
+export function bookItems(reg: CoreCatalog, book: Pick<Book, "type">): readonly string[] {
   return bookType(reg, book.type).items.defaults
 }
 
 // タブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page.add が使える）
-export function addsFromTabs(reg: Registry, book: Book): boolean {
+export function addsFromTabs(reg: CoreCatalog, book: Book): boolean {
   return hasPages(book) && pagesRule(reg, book).addFromTabs && actionsOf(reg, book).includes("page.add")
 }
 
 // 次のページの題名の案
-export function nextPageTitle(reg: Registry, book: PagedBook, lang: Lang): string {
+export function nextPageTitle(reg: CoreCatalog, book: PagedBook, lang: Lang): string {
   return translate(reg.messages, lang, "Page {n}", { n: book.pages.length + 1 })
 }
 

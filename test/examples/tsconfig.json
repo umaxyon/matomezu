@@ -5,7 +5,7 @@
       "matomezu": ["../../web/src/plugin-api/index.ts"],
       "matomezu/ui": ["../../web/src/plugin-api/ui.ts"],
       "matomezu/testing": ["../../web/src/testing/index.ts"],
-      "matomezu/tables": ["../../web/src/core/tables.ts"]
+      "matomezu/catalog": ["../../web/src/core/catalog.ts"]
     }
   },
   "include": [],

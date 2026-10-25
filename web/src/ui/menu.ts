@@ -1,6 +1,6 @@
 // メニュー: 配置のメニューの項目を、そのステージから見て出すコマンドにする。切り替え（either）は出ている最初の 1 つ
 
-import type { MenuId } from "../core/tables"
+import type { MenuId } from "../core/catalog"
 import { isShown } from "../store/commands"
 import { type MenuCommandId, type MenuItem, menuCommands } from "./layout"
 import { useApp, useDefs, useLayout } from "./store-context"

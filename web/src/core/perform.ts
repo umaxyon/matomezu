@@ -1,14 +1,14 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
 // 使えるかは、book が対象ならそのブックのタイプ、library と settings が対象ならインスタンスのホームのブックのタイプが決める（ホームが無ければ断る）
 import type { z } from "zod"
+import type { ActionId, ActionTable } from "./catalog"
+import { bookType, type CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef, ActionTarget, Subjects } from "./def/action"
 import { inspect } from "./inspect"
 import type { Library } from "./library"
 import { type ItemPage, pageHolds } from "./placed"
-import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 import type { Settings } from "./settings"
-import type { ActionId, ActionTable } from "./tables"
 
 type ActionOf<Id extends ActionId> = ActionTable[Id]
 export type TargetOf<Id extends ActionId> = ActionOf<Id>["target"]
@@ -23,17 +23,17 @@ export type Performed<Id extends ActionId> =
   | { ok: false; reason: Refusal }
 
 // ブックで使えるアクション（タイプの既定）
-export function actionsOf(reg: Registry, book: Book): readonly string[] {
+export function actionsOf(reg: CoreCatalog, book: Book): readonly string[] {
   return bookType(reg, book.type).actions.defaults
 }
 
 // ホームのブックで使えるアクション（ホームが無ければ無い）。ホームは 1 冊だけのタイプで、ブックの id はタイプの id
-export function homeActions(reg: Registry, home: string | null): readonly string[] {
+export function homeActions(reg: CoreCatalog, home: string | null): readonly string[] {
   return home === null ? [] : bookType(reg, home).actions.defaults
 }
 
 // ブックが、データの形の外の決まり（アイテムどうしの関係）を守っているか: タイプの決まりと、どのページもつなぐものの定義の決まり
-export function holds(reg: Registry, book: Book): boolean {
+export function holds(reg: CoreCatalog, book: Book): boolean {
   if (!(bookType(reg, book.type).holds?.(book, reg) ?? true)) return false
   return !("pages" in book) || (book.pages as readonly ItemPage[]).every(p => pageHolds(reg, p))
 }

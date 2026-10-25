@@ -3,7 +3,7 @@
 
 import { toolboxOf } from "../../../core/toolbox"
 import { useT } from "../../../ui/i18n"
-import { useActions, useApp, useRegistry, useUi } from "../../../ui/store-context"
+import { useActions, useApp, useRegistry, useUiCatalog } from "../../../ui/store-context"
 import styles from "./ToolboxView.module.css"
 
 export function ToolboxView({ stage }: { stage: string }) {
@@ -15,7 +15,7 @@ export function ToolboxView({ stage }: { stage: string }) {
   const { togglePlacing } = useActions()
   const t = useT()
   const registry = useRegistry()
-  const ui = useUi()
+  const ui = useUiCatalog()
   const tools = book ? toolboxOf(registry, book) : []
   if (tools.length === 0) return null
   return (

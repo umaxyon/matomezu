@@ -2,9 +2,9 @@
 // 〇は形の四辺の真ん中（の少し外）。引いた線の始点は〇の辺の真ん中、終点は離した所に一番近いふちの点に固定し、終点に矢印を付ける。
 // 同じ形で離せば自分に戻る線で、離した所に一番近い角が、自動で選ぶ角と違い、空いていれば、端をその角に固定する（同じなら自動のまま）
 
+import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point } from "../../../core/geom"
 import { connectableShape, type ItemPage, shapesOf } from "../../../core/placed"
-import type { Registry } from "../../../core/registry"
 import { drawLines } from "./drawn"
 import { nearestAt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"
@@ -20,7 +20,7 @@ const OUTWARD: Record<Side, Point> = { t: { x: 0, y: -1 }, r: { x: 1, y: 0 }, b:
 export const connectable = connectableShape
 
 // 形 from から線を引ける相手（from 自身は自分に戻る線として入る）。from がつなげる形でなければ無い
-export function targetsFrom(reg: Registry, page: ItemPage, from: string): Set<string> {
+export function targetsFrom(reg: CoreCatalog, page: ItemPage, from: string): Set<string> {
   if (!connectable(reg, page, from)) return new Set()
   const lines = linesOf(page)
   return new Set(
@@ -90,7 +90,7 @@ export function drawnLineProps(
 
 // 線 line の端 end（始点 from か終点 to）をつなぎ替えられる形: もう一方の端と同じページのつなげる形で、今の形でなく、
 // もう一方の端との組にほかの線が無いもの（もう一方の端の形そのものなら、自分に戻る線になる）
-export function reconnectTargets(reg: Registry, page: ItemPage, line: PlacedLine, end: "from" | "to"): Set<string> {
+export function reconnectTargets(reg: CoreCatalog, page: ItemPage, line: PlacedLine, end: "from" | "to"): Set<string> {
   const own = line[end]
   const other = end === "from" ? line.to : line.from
   const lines = linesOf(page).filter(l => l.id !== line.id)

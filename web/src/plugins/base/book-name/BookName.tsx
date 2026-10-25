@@ -6,7 +6,7 @@ import { useCommand } from "../../../ui/commands"
 import { useT } from "../../../ui/i18n"
 import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
 import { useMenu, useMenuCommand } from "../../../ui/menu"
-import { useApp, useRegistry, useUi } from "../../../ui/store-context"
+import { useApp, useRegistry, useUiCatalog } from "../../../ui/store-context"
 import styles from "./BookName.module.css"
 
 // 離れてからメニューが下がるまで（欄とメニューの間を動く間に下がらないように）
@@ -91,7 +91,7 @@ function MenuEntry({ stage, item, onPick }: { stage: string; item: MenuItem; onP
 // コマンドのボタン。アイコンが無ければ名前を出し、押されている状態はコマンドの active、押せるかは enabled
 function MenuButton({ stage, id, onPick }: { stage: string; id: MenuCommandId; onPick: () => void }) {
   const command = useCommand(stage, id)
-  const icon = useUi().commandIcons.get(id)
+  const icon = useUiCatalog().commandIcons.get(id)
   const t = useT()
   return (
     <button

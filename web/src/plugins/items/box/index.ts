@@ -10,7 +10,7 @@ export const BOX_PLUGIN = defineBuiltin({
   messages: BOX_MESSAGES,
 })
 
-declare module "../../../core/tables" {
+declare module "../../../core/catalog" {
   interface ItemTable {
     "shape.box": typeof BOX
   }

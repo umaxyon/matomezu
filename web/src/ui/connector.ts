@@ -4,10 +4,10 @@
 // つなぐもののビューは、形に求める見た目（ShapeMarks）を ShapeMarksContext で返す。
 // 形の要素は data-shape と data-item（形の id）を持つ（つなぐもののビューは、ポインタの下の形をこれで探す）
 import { type ComponentType, createContext, type PointerEvent, type ReactNode, useContext } from "react"
+import type { ContextMenuId } from "../core/catalog"
 import type { Point, Rect } from "../core/geom"
 import type { ItemPage } from "../core/placed"
 import type { Stage } from "../core/stage"
-import type { ContextMenuId } from "../core/tables"
 
 export interface ShapeScene {
   stage: Stage

@@ -1,12 +1,13 @@
 // インスタンスのコマンドを引き、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
+
+import type { CommandId, CommandTable } from "../../core/catalog"
+import type { CoreCatalog } from "../../core/core-catalog"
 import { fail } from "../../core/errors"
-import type { Registry } from "../../core/registry"
-import type { CommandId, CommandTable } from "../../core/tables"
 import type { AppDefs } from "../plugin"
 import type { AppState } from "../store"
 import type { CommandContext, CommandDef } from "./def"
 
-export type { CommandId } from "../../core/tables"
+export type { CommandId } from "../../core/catalog"
 
 type ArgOf<Id extends CommandId> = CommandTable[Id] extends CommandDef<infer A> ? A : never
 // コマンドを呼ぶときに渡す引数の並び（引数の無いコマンドには何も渡さない）
@@ -19,7 +20,7 @@ export function commandDef(defs: AppDefs, id: string): CommandDef<never> {
 
 // そのステージから呼んだときの様子。ステージが無ければ null
 export function commandContext(
-  registry: Registry,
+  registry: CoreCatalog,
   home: string | null,
   state: AppState,
   stageId: string,

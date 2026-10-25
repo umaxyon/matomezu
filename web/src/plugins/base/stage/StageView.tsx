@@ -2,14 +2,14 @@
 // ブックの中はブックのテーマの値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを選ぶ欄を真ん中に出す。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
+import { type BookTypeId, bookType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
-import { type BookTypeId, bookType } from "../../../core/registry"
 import type { Book } from "../../../core/schema/book"
 import { paperOf, type Stage } from "../../../core/stage"
 import { bookTokens } from "../../../core/theme"
 import { toolOf } from "../../../core/workspace"
 import { useT } from "../../../ui/i18n"
-import { useActions, useApp, useRegistry, useUi } from "../../../ui/store-context"
+import { useActions, useApp, useRegistry, useUiCatalog } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { useResize } from "../../../ui/use-resize"
 import { BookSearch } from "../book-open/BookSearch"
@@ -102,8 +102,9 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 // 開いたブックを、そのタイプが選んだ見せ方のビューで、テーマの値の中に描く
 function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
   const presentation = bookType(useRegistry(), type).presentation
-  const View = (useUi().presentationViews.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation }))
-    .view
+  const View = (
+    useUiCatalog().presentationViews.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })
+  ).view
   return (
     <div className={styles.book} style={vars}>
       <View stage={stage} />

@@ -21,7 +21,7 @@ export const MASTER_PLUGIN = defineBuiltin({
   messages: MASTER_MESSAGES,
 })
 
-declare module "../../../core/tables" {
+declare module "../../../core/catalog" {
   interface BookTypeTable {
     master: typeof MASTER
   }

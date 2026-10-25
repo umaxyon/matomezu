@@ -1,6 +1,6 @@
 // ダイアログ。定義は id と、開くときに渡す値の型だけを持ち、中身（ビュー）は ui が id に結ぶ（画面の無いインスタンスでも、コマンドがダイアログを開けるように）。
 // 画面に出すダイアログは 1 つだけで、どれを出すかは id、どこから開いたかは stage、何について開いたかは args で決まる
-import type { DialogId, DialogTable } from "../core/tables"
+import type { DialogId, DialogTable } from "../core/catalog"
 
 declare const ARGS: unique symbol
 

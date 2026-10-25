@@ -62,7 +62,7 @@
       }
     },
     {
-      "includes": ["web/src/**/tables.ts"],
+      "includes": ["web/src/core/catalog.ts"],
       "linter": {
         "rules": {
           "suspicious": {

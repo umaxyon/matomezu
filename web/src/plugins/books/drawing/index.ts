@@ -9,7 +9,7 @@ export const DRAWING_PLUGIN = defineBuiltin({
   messages: DRAWING_MESSAGES,
 })
 
-declare module "../../../core/tables" {
+declare module "../../../core/catalog" {
   interface BookTypeTable {
     drawing: typeof DRAWING
   }

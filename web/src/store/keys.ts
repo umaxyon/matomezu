@@ -1,9 +1,10 @@
 // キーの割り当て: プラグインの既定と利用者の変更から、効いている割り当ての表を作り、押したキーをコマンドに引く。
 // 勝つ順は 利用者 > ビルトインプラグイン > 追加プラグイン。ぶつかるのは同じ範囲・同じキーのときだけで、範囲が違えば狭いほうが勝つ（引く側が決める）。
 // 追加プラグインの既定は、ビルトインプラグインの既定とぶつかれば使わず、追加プラグインどうしでぶつかれば、どちらも使わない（利用者が自分で割り当てる）
+
+import type { CommandId, KeyScopeId } from "../core/catalog"
 import type { Inspected, Source, Step } from "../core/inspect"
 import { type KeyBinding, type KeyChanges, normalizeKey, sameBinding } from "../core/keys"
-import type { CommandId, KeyScopeId } from "../core/tables"
 import type { CommandArgs } from "./commands"
 
 // プラグインが書く既定の割り当て。コマンドの引数の型が、args の型になる（引数の無いコマンドには書かない）

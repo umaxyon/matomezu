@@ -1,5 +1,7 @@
 // プラグイン: 1 つの部品の定義の組（ブックのタイプ・アイテム・アクション・テーマ・紙・コマンド・ダイアログ・キーの既定の割り当て）。React を使わない部分だけを持つ。
 // インスタンスは渡されたプラグインを assemble で 1 つの定義の表（AppDefs）にし、作った後は変えない
+
+import { buildCoreCatalog, type CoreCatalog } from "../core/core-catalog"
 import type { ActionDef } from "../core/def/action"
 import type { BookTypeDef } from "../core/def/book-type"
 import type { ItemDef } from "../core/def/item"
@@ -11,7 +13,6 @@ import type { ThemeDef } from "../core/def/theme"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePack, MessageSet } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
-import { buildRegistry, type Registry } from "../core/registry"
 import { type AutoSkin, autoSkin } from "../core/skin"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef } from "./dialogs"
@@ -76,7 +77,7 @@ export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUIL
 
 // インスタンスが使う定義の表
 export interface AppDefs {
-  registry: Registry
+  registry: CoreCatalog
   home: string | null // インスタンスのホームのブックの id（1 冊だけのタイプ。無ければ null）
   autoSkin: AutoSkin | null // 自動のスキンで使う明と暗のスキン（スキンが無ければ null）
   commands: ReadonlyMap<string, CommandDef<never>>
@@ -115,7 +116,7 @@ export function assemble(
       for (const dialog of [i.dialogs.add, i.dialogs.edit])
         if (!dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
-  const registry = buildRegistry({
+  const registry = buildCoreCatalog({
     bookTypes: all("bookTypes"),
     items: all("items"),
     actions: all("actions"),

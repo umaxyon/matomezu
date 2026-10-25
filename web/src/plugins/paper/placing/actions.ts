@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { bookItems, hasPages } from "../../../core/book"
+import type { CoreCatalog } from "../../../core/core-catalog"
 import { defineAction } from "../../../core/def/action"
 import {
   knownTheme,
@@ -13,14 +14,13 @@ import {
   widenForCaption,
 } from "../../../core/place/items"
 import { type PlacedShape, placedSize, shapeSchema, shapesOf } from "../../../core/placed"
-import type { Registry } from "../../../core/registry"
 import { DIRS } from "./drag"
 import { moveItems } from "./items"
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
 // 置いた形のデータとして確かめる（形の定義の項目と中身の形。表に無い形は通らない）
-function parsePlaced(reg: Registry, value: { item: string; [field: string]: unknown }): PlacedShape | null {
+function parsePlaced(reg: CoreCatalog, value: { item: string; [field: string]: unknown }): PlacedShape | null {
   const def = shapeDefOf(reg, value.item)
   const parsed = def && shapeSchema(def).safeParse(value)
   return parsed?.success ? (parsed.data as PlacedShape) : null

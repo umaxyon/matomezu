@@ -5,11 +5,11 @@
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
 import { hasPages, type PagedBook } from "./book"
+import type { ItemId } from "./catalog"
+import type { BookTypeId, CoreCatalog } from "./core-catalog"
 import type { Point, Size } from "./geom"
 import { type ResolvedPaper, resolvePaper } from "./paper"
-import type { BookTypeId, Registry } from "./registry"
 import type { Book } from "./schema/book"
-import type { ItemId } from "./tables"
 import { clampPan, contentSize, paperOrigin } from "./viewport"
 
 // 開いているブック。ブックのタイプと、開いたページの紙を写して持つ（開くときに決まる）
@@ -79,7 +79,7 @@ export function panBy(stage: Stage, dx: number, dy: number): Stage {
 
 // ブックを開く（ページを持つなら最初のページ）。ずらす量は最初の位置に戻す。
 // ページを持たないブックがもう開いていれば、同じ値を返す
-export function openBook(reg: Registry, stage: Stage, book: Book): Stage {
+export function openBook(reg: CoreCatalog, stage: Stage, book: Book): Stage {
   if (!hasPages(book)) {
     if (stage.opened?.book === book.id) return stage
     return settle(leave({ ...stage, opened: { type: book.type, book: book.id, page: null, paper: null } }), HOME)
@@ -95,7 +95,7 @@ export function openBook(reg: Registry, stage: Stage, book: Book): Stage {
 }
 
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は最初の位置に戻す
-export function openPage(reg: Registry, stage: Stage, book: PagedBook, page: string): Stage {
+export function openPage(reg: CoreCatalog, stage: Stage, book: PagedBook, page: string): Stage {
   const o = stage.opened
   const found = book.pages.find(p => p.id === page)
   if (!o || o.book !== book.id || !found || o.page === page) return stage
@@ -105,7 +105,7 @@ export function openPage(reg: Registry, stage: Stage, book: PagedBook, page: str
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
 // 無くなっていれば最初のページ（ページが無ければ開かない）。ページが変わったときだけ、ずらす量を最初の位置に戻し、選択を捨てる。
 // そのブックを開いていなければ、同じ値を返す
-export function followBook(reg: Registry, stage: Stage, book: Book): Stage {
+export function followBook(reg: CoreCatalog, stage: Stage, book: Book): Stage {
   const o = stage.opened
   if (!o || o.book !== book.id || !hasPages(book)) return stage
   const found = book.pages.find(p => p.id === o.page) ?? book.pages[0]

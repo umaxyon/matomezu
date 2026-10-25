@@ -1,16 +1,16 @@
 // インスタンス（store・プラグインの見た目・配置）を画面の木に配る入れ物と、読む口・操作・表を取り出すフック
 import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
+import type { CoreCatalog } from "../core/core-catalog"
 import { fail, matomezuError, problem } from "../core/errors"
-import type { Registry } from "../core/registry"
 import type { AppDefs } from "../store/plugin"
 import type { Actions, AppState, AppStore } from "../store/store"
 import { checkLayout, type LayoutDef } from "./layout"
-import { type AnyPluginUi, assembleUi, type UiDefs } from "./plugin"
+import { type AnyPluginUi, assembleUi, type UiCatalog } from "./plugin"
 
 interface AppContext {
   store: AppStore
-  ui: UiDefs
+  ui: UiCatalog
   layout: LayoutDef
 }
 const Context = createContext<AppContext | null>(null)
@@ -54,12 +54,12 @@ export function useDefs(): AppDefs {
   return useAppContext().store
 }
 
-export function useRegistry(): Registry {
+export function useRegistry(): CoreCatalog {
   return useAppContext().store.registry
 }
 
 // インスタンスの見た目の表（ブックのタイプ・アイテム・ダイアログのビュー・ウィジェット・コマンドのアイコン）
-export function useUi(): UiDefs {
+export function useUiCatalog(): UiCatalog {
   return useAppContext().ui
 }
 

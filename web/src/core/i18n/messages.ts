@@ -1,7 +1,7 @@
 // 文言の表の型と、土台の文言。鍵は英語の文そのもので、ほかの言語の訳を持つ（訳の無い言語では英語の鍵を出す）。{name} は t() に渡す値で置き換える。
 // プラグインは自分の文言を defineMessages で書き、プラグインの messages に渡して、型の表（MessageTable）に書き足す。
 // 言語は言語パック（LanguagePack）が持ち込む。パックは言語の名前と、どのプラグインの文言にでも足せる訳を持つ
-import type { MessageKey } from "../tables"
+import type { MessageKey } from "../catalog"
 
 export type Lang = string // 言語の id（BCP 47 の言語の部分。"en"・"ja"・"fr" など）
 
@@ -44,8 +44,8 @@ export const MESSAGES = defineMessages({
   Menu: { ja: "メニュー" },
 })
 
-declare module "../tables" {
+declare module "../catalog" {
   interface MessageTable extends Readonly<typeof MESSAGES> {}
 }
 
-export type { MessageKey } from "../tables"
+export type { MessageKey } from "../catalog"

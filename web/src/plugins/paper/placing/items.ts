@@ -1,10 +1,10 @@
 // 紙のページに置いたアイテムのドラッグ（データを書き換えず、新しい値を返す）。置く・押す・消すなどは土台（core/place/items.ts）
 import type { PagedBook } from "../../../core/book"
+import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point } from "../../../core/geom"
 import { gapOf, type PagedPage, paperSize, placedAt, withPage } from "../../../core/place/items"
 import type { Rect } from "../../../core/place/push"
 import { rectsOf } from "../../../core/placed"
-import type { Registry } from "../../../core/registry"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 type Drawing = PagedBook
@@ -13,12 +13,18 @@ type Drawing = PagedBook
 export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）
-export function trackDrag(reg: Registry, page: PagedPage, id: string, prev: Point, by: Point, came: Came): Came {
+export function trackDrag(reg: CoreCatalog, page: PagedPage, id: string, prev: Point, by: Point, came: Came): Came {
   return track(rectsOf(reg, page), id, prev, by, came)
 }
 
 // ドラッグ中の、全部のアイテムの四角（drag.ts の dragRects。動かすアイテムと、その場で入れ替えた相手だけが動く）。描けない紙なら null
-export function dragging(reg: Registry, page: PagedPage, id: string, by: Point, came: Came): Map<string, Rect> | null {
+export function dragging(
+  reg: CoreCatalog,
+  page: PagedPage,
+  id: string,
+  by: Point,
+  came: Came,
+): Map<string, Rect> | null {
   const paper = paperSize(reg, page)
   return paper && dragRects(rectsOf(reg, page), id, by, came, paper, gapOf(reg, page))
 }
@@ -26,7 +32,7 @@ export function dragging(reg: Registry, page: PagedPage, id: string, by: Point, 
 // ページのアイテム ids を by だけ動かす（drag.ts。1 つなら入れ替え・向こう側へ寄せる・手前へ戻す、何個かならまとめて手前へ戻す）。
 // came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いページ・無いアイテム・収まらないなら null
 export function moveItems(
-  reg: Registry,
+  reg: CoreCatalog,
   book: Drawing,
   pageId: string,
   ids: readonly string[],

@@ -1,8 +1,9 @@
-// 登録表: ブックのタイプ・アイテム・アクション・設定の項目・テーマ・紙の表。定義の組（RegistryParts）から buildRegistry で作り、作った後は変えない。
-// 表どうしの参照（ブックのタイプが使うアイテムなど）が実在するかは checkRegistry が確かめ、食い違いがあれば作らない。
+// 機能台帳の core の段: ブックのタイプ・アイテム・アクション・設定の項目・テーマ・紙の表。定義の組（CoreCatalogParts）から buildCoreCatalog で作り、作った後は変えない。
+// 表どうしの参照（ブックのタイプが使うアイテムなど）が実在するかは checkCoreCatalog が確かめ、食い違いがあれば作らない。
 // ブックのデータの形は、ブックのタイプが自分で持つ欄に、タイプが選んだものから組み立てた欄（ページと、そこに置けるアイテム・設定の項目）を足して作る（buildBookSchemas）
 
 import { z } from "zod"
+import type { ItemId, ItemTable } from "./catalog"
 import type { ActionDef } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
@@ -16,15 +17,14 @@ import type { Messages } from "./i18n/i18n"
 import { LANGUAGES, type Lang, type LanguagePack, MESSAGES, type MessageSet } from "./i18n/messages"
 import { placedSchema } from "./placed"
 import { PageSchema } from "./schema/page"
-import type { ItemId, ItemTable } from "./tables"
 
-export type { ActionId, BookTypeId, ItemId, PaperId, SettingId, SkinId, ThemeId } from "./tables"
+export type { ActionId, BookTypeId, ItemId, PaperId, SettingId, SkinId, ThemeId } from "./catalog"
 
 // アイテムの、置いたものが持つ項目の型
 export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
 
 // 表を作るもとの、定義の組
-export interface RegistryParts {
+export interface CoreCatalogParts {
   bookTypes: readonly BookTypeDef[]
   items: readonly ItemDef[]
   actions: readonly ActionDef[]
@@ -44,8 +44,8 @@ export interface BookSchemas {
 }
 
 // 作った表。id で引く。bookSchema は、表のブックのタイプの形を 1 つに束ねた、ブックのデータの形
-export interface Registry {
-  parts: RegistryParts
+export interface CoreCatalog {
+  parts: CoreCatalogParts
   bookTypes: ReadonlyMap<string, BookTypeDef>
   schemas: ReadonlyMap<string, BookSchemas>
   items: ReadonlyMap<string, ItemDef>
@@ -63,8 +63,8 @@ export interface Registry {
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
 
 // 食い違いがあれば、直す所が分かる文を並べて誤りにする
-export function buildRegistry(parts: RegistryParts): Registry {
-  const problems = checkRegistry(parts)
+export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
+  const problems = checkCoreCatalog(parts)
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const schemas = new Map(parts.bookTypes.map(t => [t.id, buildBookSchemas(parts, t)]))
   const [first, ...rest] = [...schemas.values()].map(s => s.book)
@@ -91,7 +91,7 @@ const HEAD = ["type", "id", "title"]
 
 // タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目。
 // ブックの形は、タイプの頭の欄・ページの並び（pages）・ブックの設定の項目・タイプのほかの欄
-function buildBookSchemas(parts: RegistryParts, t: BookTypeDef): BookSchemas {
+function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas {
   const settings = byId(parts.settings)
   const fields = (ids: readonly string[] = []) =>
     Object.fromEntries(ids.flatMap(id => settings.get(id) ?? []).map(d => [d.field, d.schema.optional()]))
@@ -117,21 +117,21 @@ function buildBookSchemas(parts: RegistryParts, t: BookTypeDef): BookSchemas {
 }
 
 // ブックのタイプのデータの形（組み立てたもの）
-export function bookSchemas(reg: Registry, id: string): BookSchemas {
+export function bookSchemas(reg: CoreCatalog, id: string): BookSchemas {
   return reg.schemas.get(id) ?? fail("E101", { id })
 }
 
 // ブックのタイプは、データのタイプが表に無ければ誤り。ほかの定義は reg.items.get(id) などで引き、知らない id なら undefined
 // （データに残った、外したプラグインのアイテムなど）
-export function bookType(reg: Registry, id: string): BookTypeDef {
+export function bookType(reg: CoreCatalog, id: string): BookTypeDef {
   return reg.bookTypes.get(id) ?? fail("E101", { id })
 }
 
-const allMessages = (parts: RegistryParts) => [MESSAGES, ...parts.messages]
-const allLanguages = (parts: RegistryParts) => [...LANGUAGES, ...parts.languages]
+const allMessages = (parts: CoreCatalogParts) => [MESSAGES, ...parts.messages]
+const allLanguages = (parts: CoreCatalogParts) => [...LANGUAGES, ...parts.languages]
 
 // 文言の鍵 → 言語ごとの訳。プラグインの文言の訳に、言語パックの訳を重ねる（パックが勝つ）。インスタンスに無い鍵のパックの訳は使わない
-function mergeMessages(parts: RegistryParts): Messages {
+function mergeMessages(parts: CoreCatalogParts): Messages {
   const messages = new Map<string, Readonly<Record<Lang, string>>>()
   for (const set of allMessages(parts))
     for (const [key, t] of Object.entries(set)) messages.set(key, { ...messages.get(key), ...t })
@@ -144,7 +144,7 @@ function mergeMessages(parts: RegistryParts): Messages {
 }
 
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
-export function checkRegistry(parts: RegistryParts): Problem[] {
+export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   const problems: Problem[] = []
   const papers = byId(parts.papers)
   const items = byId(parts.items)

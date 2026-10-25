@@ -16,7 +16,7 @@ export const FUGA_UI = definePluginUi(FUGA, {
   widgets: [FUGA_MINT_BUTTON],
 })
 
-declare module "matomezu/tables" {
+declare module "matomezu/catalog" {
   interface WidgetTable {
     "fuga/mint-button": typeof FUGA_MINT_BUTTON
   }

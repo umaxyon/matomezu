@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineTheme } from "../../web/src/core/def/theme"
 import { inspect } from "../../web/src/core/inspect"
-import { buildRegistry } from "../../web/src/core/registry"
 import { shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
@@ -24,7 +24,7 @@ describe("inspect: テーマの値", () => {
 
   test("テーマが上書きした欄は、上書きで決まる。後の段も並べる", () => {
     const yellow = defineTheme({ ...STANDARD, tokens: { "box.fill": "#fff3c4" } })
-    const reg = buildRegistry({ ...BUILTIN_PARTS, themes: [yellow] })
+    const reg = buildCoreCatalog({ ...BUILTIN_PARTS, themes: [yellow] })
     const got = inspect(reg, { kind: "token", book: drawing, token: "box.fill" })
     expect(got.value).toEqual({ light: "#fff3c4", dark: "#fff3c4" })
     expect(got.decidedBy).toEqual({ source: "theme", id: "standard", field: "tokens", key: "box.fill" })

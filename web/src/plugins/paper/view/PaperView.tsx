@@ -40,7 +40,7 @@ import { type ShapeScene, useShapeMarks } from "../../../ui/connector"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
 import type { BookViewProps, ItemViewProps } from "../../../ui/plugin"
-import { useActions, useApp, useRegistry, useUi } from "../../../ui/store-context"
+import { useActions, useApp, useRegistry, useUiCatalog } from "../../../ui/store-context"
 import { type Came, dragging, placeAt, trackDrag } from "../placing"
 import styles from "./PaperView.module.css"
 
@@ -149,7 +149,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
 // ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューの層で包む
 function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; localOf: LocalOf }) {
   const registry = useRegistry()
-  const ui = useUi()
+  const ui = useUiCatalog()
   // ブックで使えるつなぐもののビュー
   const connectors = useApp(s => {
     const b = stage.opened ? s.books[stage.opened.book] : undefined
@@ -389,7 +389,7 @@ function Item({
       : resizing && item.id !== resizing
         ? "faded"
         : undefined
-  const ui = useUi().items.get(item.item)
+  const ui = useUiCatalog().items.get(item.item)
   const size = placedSize(registry, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
   return (

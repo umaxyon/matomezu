@@ -2,7 +2,7 @@
 // 道具は組にまとめ、ブックのタイプが使う組を名指す（BookTypeDef の tools）。今の道具は組ごとに窓の状態（Workspace の tools）が持つので、
 // 同じ組を使うステージどうしは、開いているブックやそのタイプが違っても同じ道具になる
 
-import { bookType, type Registry } from "./registry"
+import { bookType, type CoreCatalog } from "./core-catalog"
 import type { Stage } from "./stage"
 
 export type Tool = "select" | "reparent" | "hand"
@@ -18,7 +18,7 @@ export type ToolSetId = keyof typeof TOOL_SETS
 export type Tools = Readonly<Partial<Record<ToolSetId, Tool>>>
 
 // ステージで使う道具の組（何も開いていないか、開いているブックのタイプが道具を使わなければ null）
-export function toolSetOf(reg: Registry, stage: Stage): ToolSetId | null {
+export function toolSetOf(reg: CoreCatalog, stage: Stage): ToolSetId | null {
   return stage.opened ? (bookType(reg, stage.opened.type).tools ?? null) : null
 }
 

@@ -53,7 +53,7 @@ export const BASE_UI = definePluginUi(BASE, {
   commandIcons: { ...STAGE_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS },
 })
 
-declare module "../../core/tables" {
+declare module "../../core/catalog" {
   interface SlotTable {
     "stage.top": StageSlotProps
     "stage.body": StageSlotProps

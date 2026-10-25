@@ -16,7 +16,7 @@ export const HOGE_UI = definePluginUi(HOGE, {
   overrides: { dialogViews: { "book.new": MyNewBookDialog } },
 })
 
-declare module "matomezu/tables" {
+declare module "matomezu/catalog" {
   interface WidgetTable {
     "hoge/buttons": typeof HOGE_BUTTONS
   }

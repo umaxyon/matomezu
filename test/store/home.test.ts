@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { checkRegistry } from "../../web/src/core/registry"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { BUILTIN } from "../../web/src/plugins"
 import { MASTER } from "../../web/src/plugins/books/master/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
@@ -42,7 +42,7 @@ describe("ホーム", () => {
     expect(() => createMatomezu({ plugins: BUILTIN, home: "drawing" })).toThrow("E110")
     const bad = { ...MASTER, book: { type: "master" as const, id: "other" } }
     const parts = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t.id === "master" ? bad : t)) }
-    expect(checkRegistry(parts).map(p => p.code)).toEqual(["E019"])
+    expect(checkCoreCatalog(parts).map(p => p.code)).toEqual(["E019"])
   })
 
   test("設定はアクションで変え、ホームのタイプが許さない設定は変えず、そのコマンドも出さない", () => {

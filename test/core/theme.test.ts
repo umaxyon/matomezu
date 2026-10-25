@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
+import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineTheme } from "../../web/src/core/def/theme"
-import { buildRegistry } from "../../web/src/core/registry"
 import { resolveTokens, shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
 import { themeVars } from "../../web/src/ui/theme-vars"
@@ -15,7 +15,7 @@ test("欄の値は、色 1 つか片方だけなら明暗どちらでもその�
 
 test("明暗で違う色は light-dark() の CSS 変数になり、ブックの中身は OS の明暗に合わせる", () => {
   const night = defineTheme({ ...STANDARD, base: { ...STANDARD.base, paper: { light: "#ffffff", dark: "#26262b" } } })
-  const reg = buildRegistry({ ...BUILTIN_PARTS, themes: [night] })
+  const reg = buildCoreCatalog({ ...BUILTIN_PARTS, themes: [night] })
   const vars = themeVars(resolveTokens(reg, "standard", [{ id: "box.fill", fallback: "paper" }])) as Record<
     string,
     string

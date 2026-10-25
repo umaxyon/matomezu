@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
+import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineSkin, SKIN_TOKENS } from "../../web/src/core/def/skin"
-import { buildRegistry } from "../../web/src/core/registry"
 import { autoSkin } from "../../web/src/core/skin"
 import { BUILTIN } from "../../web/src/plugins"
 import { DARK } from "../../web/src/plugins/base/looks/dark"
@@ -23,16 +23,16 @@ describe("スキン", () => {
 
   test("自動のスキンは、決めなければ表で最初に出てくる明と暗。決めたものは明暗が合っていなければ誤り", () => {
     expect(autoSkin(REGISTRY)).toEqual({ light: "light", dark: "dark" })
-    const reg = buildRegistry({ ...BUILTIN_PARTS, skins: [...BUILTIN_PARTS.skins, ACME_DARK] })
+    const reg = buildCoreCatalog({ ...BUILTIN_PARTS, skins: [...BUILTIN_PARTS.skins, ACME_DARK] })
     expect(autoSkin(reg, { dark: "acme/dark" })).toEqual({ light: "light", dark: "acme/dark" })
     expect(() => autoSkin(reg, { light: "acme/dark" })).toThrow("E111")
     expect(() => autoSkin(reg, { dark: "nope" })).toThrow("E111")
   })
 
   test("片方の明暗のスキンしか無ければ、自動はそれを使う。スキンが無ければ自動も無い", () => {
-    const darkOnly = buildRegistry({ ...BUILTIN_PARTS, skins: [DARK] })
+    const darkOnly = buildCoreCatalog({ ...BUILTIN_PARTS, skins: [DARK] })
     expect(autoSkin(darkOnly)).toEqual({ light: "dark", dark: "dark" })
-    expect(autoSkin(buildRegistry({ ...BUILTIN_PARTS, skins: [] }))).toBeNull()
+    expect(autoSkin(buildCoreCatalog({ ...BUILTIN_PARTS, skins: [] }))).toBeNull()
   })
 
   test("プラグインのスキンを持ち込み、自動のスキンにでき、設定で選べる。インスタンスに無いスキンは選べない", () => {

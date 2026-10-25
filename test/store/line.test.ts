@@ -2,10 +2,10 @@
 
 import { expect, test } from "bun:test"
 import { restoreBooks } from "../../web/src/core/book"
+import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { perform } from "../../web/src/core/perform"
 import { GAP } from "../../web/src/core/place/push"
 import { rectsOf, shapesOf } from "../../web/src/core/placed"
-import { buildRegistry } from "../../web/src/core/registry"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { alignedEndsOf } from "../../web/src/plugins/items/line/drawn"
 import { elbowAt, usesLines } from "../../web/src/plugins/items/line/line"
@@ -241,7 +241,7 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   place(store, 400, 100)
   const book = store.state.getState().books.b1 as BookOf<"drawing">
   // 図面のタイプから、線と線の既定の通り方を外した登録表
-  const noLines = buildRegistry({
+  const noLines = buildCoreCatalog({
     ...BUILTIN_PARTS,
     bookTypes: BUILTIN_PARTS.bookTypes.map(t =>
       t.id === "drawing"

@@ -1,7 +1,7 @@
 // インスタンスを組み立てる入口: 渡したプラグインから定義の表と store を作る。作った後は、プラグインを足したり変えたりしない。
 // 型では、型の表に書き足した id と、渡したプラグインの id がそろっているかを確かめる（型と実物のずれを、書いた時点で捕まえる）。
 // 1 つのプロジェクトの createMatomezu には、型を書き足したプラグインを全部渡す。わざと減らすインスタンス（テストなど）は partial: true
-import type { MESSAGES } from "../core/i18n/messages"
+
 import type {
   ActionTable,
   BookTypeTable,
@@ -14,7 +14,8 @@ import type {
   SettingTable,
   SkinTable,
   ThemeTable,
-} from "../core/tables"
+} from "../core/catalog"
+import type { MESSAGES } from "../core/i18n/messages"
 import type { IdsOf, Part, Plugin } from "./plugin"
 import { type AppStore, createAppStore, type StoreOptions } from "./store"
 

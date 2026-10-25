@@ -1,7 +1,8 @@
 // コマンドの定義: 画面の入口。ボタン・メニュー・キーなどから id で呼ぶ。
 // データを変えるのはアクションで、コマンドは store の操作（ステージ・ダイアログ・アクション）を呼ぶだけ
+
+import type { CoreCatalog } from "../../core/core-catalog"
 import type { MessageKey } from "../../core/i18n/i18n"
-import type { Registry } from "../../core/registry"
 import type { Book } from "../../core/schema/book"
 import type { Stage } from "../../core/stage"
 import type { Workspace } from "../../core/workspace"
@@ -11,7 +12,7 @@ import type { Actions, Settings } from "../store"
 
 // コマンドが受け取る、呼ばれた場所の様子
 export interface CommandContext {
-  registry: Registry
+  registry: CoreCatalog
   home: string | null // インスタンスのホームのブックの id
   stage: Stage // 呼ばれた場所のステージ
   book: Book | null // そのステージで開いているブック

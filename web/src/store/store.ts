@@ -3,17 +3,17 @@
 
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { hasPages, restoreBooks, singleBooks } from "../core/book"
+import type { ActionId, DialogId, ItemId, SingleBookTypeId, SkinId } from "../core/catalog"
+import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang } from "../core/i18n/i18n"
 import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
 import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
-import type { Registry } from "../core/registry"
 import type { Book } from "../core/schema/book"
 import { restoreSettings, type Settings } from "../core/settings"
 import { closePicker, openBook, openPicker, panBy, resize, select, stopPlacing } from "../core/stage"
-import type { ActionId, DialogId, ItemId, SingleBookTypeId, SkinId } from "../core/tables"
 import type { Tool } from "../core/tools"
 import {
   close,
@@ -123,7 +123,12 @@ export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> exte
 }
 
 // 最初のブック（無ければホーム、それも無ければ何も開かない）を開いた状態。表にある 1 冊だけのタイプのブックはいつも持つ
-function initialState(registry: Registry, books: readonly Book[], settings: Settings, home: string | null): AppState {
+function initialState(
+  registry: CoreCatalog,
+  books: readonly Book[],
+  settings: Settings,
+  home: string | null,
+): AppState {
   const all = [...singleBooks(registry), ...books]
   const first = books[0] ?? all.find(b => b.id === home) ?? null
   return {
@@ -148,7 +153,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
 }
 
-function startLang(registry: Registry, lang: Lang | readonly string[] = []): Lang {
+function startLang(registry: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
   return detectLang(typeof lang === "string" ? [lang] : lang, [...registry.languages.keys()])
 }
 

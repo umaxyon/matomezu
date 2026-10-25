@@ -1,9 +1,9 @@
 // ブックのデータの型。形はブックのタイプ（type）ごとに違う。タイプが自分で持つ欄に、タイプが選んだものから決まる欄
-// （ページと、そこに置けるアイテム・設定の項目）を足す。ここは、型の表（core/tables.ts）に書き足したタイプの型を 1 つに束ねる。
-// データを検査する形は、登録表が同じ決まりで組み立てる（Registry の schemas と bookSchema）
+// （ページと、そこに置けるアイテム・設定の項目）を足す。ここは、機能台帳の型の側（core/catalog.ts）に書き足したタイプの型を 1 つに束ねる。
+// データを検査する形は、機能台帳の core の段が同じ決まりで組み立てる（CoreCatalog の schemas と bookSchema）
 import type { z } from "zod"
+import type { BookTypeId, BookTypeTable, SettingTable } from "../catalog"
 import type { PlacedOf } from "../placed"
-import type { BookTypeId, BookTypeTable, SettingTable } from "../tables"
 import type { Page } from "./page"
 
 // 選んだ設定の項目の欄（どれも書かなくてよい）

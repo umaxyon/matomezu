@@ -1,7 +1,7 @@
 // ブックを作るダイアログ: 名前とタイプを決めて作り（アクション book.create）、そのステージで開く
 import { useState } from "react"
 import { creatableTypes } from "../../../../core/book"
-import { bookType } from "../../../../core/registry"
+import { bookType } from "../../../../core/core-catalog"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
 import { useActions, useRegistry } from "../../../../ui/store-context"

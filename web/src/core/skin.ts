@@ -1,12 +1,13 @@
 // 自動のスキン（設定が "auto"）で使う、明と暗のスキン。インスタンスの組み立てで決め、決めなければ表で最初に出てくる明のスキンと暗のスキン。
 // 片方の明暗のスキンが無ければ、もう片方を使う（スキンが 1 つも無ければ null）
+
+import type { CoreCatalog } from "./core-catalog"
 import type { Scheme } from "./def/skin"
 import { fail } from "./errors"
-import type { Registry } from "./registry"
 
 export type AutoSkin = Readonly<Record<Scheme, string>>
 
-export function autoSkin(reg: Registry, given: Partial<Record<Scheme, string>> = {}): AutoSkin | null {
+export function autoSkin(reg: CoreCatalog, given: Partial<Record<Scheme, string>> = {}): AutoSkin | null {
   const pick = (scheme: Scheme) => {
     const id = given[scheme]
     if (id === undefined) return [...reg.skins.values()].find(s => s.scheme === scheme)?.id

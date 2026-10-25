@@ -4,7 +4,7 @@ import { useState } from "react"
 import { type SettingsOf, settingDefs, settingValue } from "../../../core/book-settings"
 import type { Book } from "../../../core/schema/book"
 import { useT } from "../../../ui/i18n"
-import { useRegistry, useUi } from "../../../ui/store-context"
+import { useRegistry, useUiCatalog } from "../../../ui/store-context"
 
 // 変えた項目（欄の名前 → 値。消すなら null）
 export type SettingsPatch = Readonly<Record<string, unknown>>
@@ -12,7 +12,7 @@ export type SettingsPatch = Readonly<Record<string, unknown>>
 export function useSettingControls(book: Book | undefined, of: SettingsOf, page: object | null) {
   const t = useT()
   const registry = useRegistry()
-  const ui = useUi()
+  const ui = useUiCatalog()
   const [patch, setPatch] = useState<SettingsPatch>({})
   const defs = book ? settingDefs(registry, book.type, of) : []
   const at = of === "page" ? page : book

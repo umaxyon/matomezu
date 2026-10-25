@@ -3,15 +3,15 @@
 // 外を押す・閉じるキー（キーの割り当ての menu.close。既定は Escape）・窓の大きさが変わると閉じ（窓から離れただけでは閉じない）、
 // 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import type { ContextMenuId } from "../../../core/catalog"
 import { fitInside, type Point } from "../../../core/geom"
-import type { ContextMenuId } from "../../../core/tables"
 import type { OpenedContextMenu } from "../../../store/context-menus"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenuItems } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
 import { useKeyLabel } from "../../../ui/keys"
 import { type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
-import { useActions, useApp, useUi } from "../../../ui/store-context"
+import { useActions, useApp, useUiCatalog } from "../../../ui/store-context"
 import styles from "./ContextMenuHost.module.css"
 
 export function ContextMenuHost() {
@@ -75,7 +75,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
 
 function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMenuCommandId<ContextMenuId> }) {
   const command = useCommand(menu.stage, id)
-  const icon = useUi().commandIcons.get(id)
+  const icon = useUiCatalog().commandIcons.get(id)
   const key = useKeyLabel(id)
   const { closeContextMenu } = useActions()
   const t = useT()

@@ -9,10 +9,10 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import { pagedOf } from "../../../core/book"
+import type { ItemProps } from "../../../core/core-catalog"
 import type { Point } from "../../../core/geom"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { shapesOf } from "../../../core/placed"
-import type { ItemProps } from "../../../core/registry"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useApp, useRegistry } from "../../../ui/store-context"

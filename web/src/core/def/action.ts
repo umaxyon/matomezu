@@ -1,9 +1,9 @@
 // アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も LLM の操作も同じものを通る。
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 import type { z } from "zod"
+import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
-import type { Registry } from "../registry"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
 import type { Capability } from "./item"
@@ -19,7 +19,7 @@ export interface Subjects {
 export type ActionTarget = keyof Subjects
 
 export interface ActionContext {
-  registry: Registry // 使う登録表（アクション・ブックのタイプ・紙など）
+  registry: CoreCatalog // 使う登録表（アクション・ブックのタイプ・紙など）
   home: string | null // インスタンスのホームのブックの id（一覧と設定のアクションを許すかは、このブックのタイプが決める）。無ければ断る
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
@@ -38,7 +38,7 @@ export interface ActionDef<T extends ActionTarget = ActionTarget, A = unknown, R
   needs: readonly Capability[] // 対象のアイテムに求める能力
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、登録表から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
-  describeArgs?(reg: Registry): z.ZodType
+  describeArgs?(reg: CoreCatalog): z.ZodType
   run(subject: Subjects[T], args: A, ctx: ActionContext): Done<T, R> | null
 }
 

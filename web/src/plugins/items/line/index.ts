@@ -15,7 +15,7 @@ export const LINE_PLUGIN = defineBuiltin({
   messages: LINE_MESSAGES,
 })
 
-declare module "../../../core/tables" {
+declare module "../../../core/catalog" {
   interface ItemTable {
     "connector.line": typeof LINE
   }

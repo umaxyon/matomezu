@@ -4,9 +4,9 @@
 
 import { z } from "zod"
 import { HEX, isLight, PALETTE } from "./color"
+import { bookType, type CoreCatalog } from "./core-catalog"
 import type { ThemeValue, TokenDecl } from "./def/theme"
 import { fail } from "./errors"
-import { bookType, type Registry } from "./registry"
 import type { Book } from "./schema/book"
 
 // 明暗ごとに決めた色（明暗で同じなら、どちらも同じ色）
@@ -23,7 +23,7 @@ export function shades(value: ThemeValue): Shades {
 
 const WHITE = "#ffffff"
 
-export function resolveTokens(reg: Registry, themeId: string, decls: readonly TokenDecl[]): Record<string, Shades> {
+export function resolveTokens(reg: CoreCatalog, themeId: string, decls: readonly TokenDecl[]): Record<string, Shades> {
   const theme = reg.themes.get(themeId)
   if (!theme) return fail("E102", { id: themeId })
   const values: Record<string, Shades> = {}
@@ -53,13 +53,13 @@ export interface BookLook {
 }
 
 // ブックのテーマの id: ブックの theme（表に無ければ使わない）か、ブックのタイプのテーマ
-export function bookTheme(reg: Registry, book: Book): string {
+export function bookTheme(reg: CoreCatalog, book: Book): string {
   const own = (book as BookLook).theme
   return own !== undefined && reg.themes.has(own) ? own : bookType(reg, book.type).theme
 }
 
 // ブックを描くのに使うテーマの値（ブックのタイプと、そのブックで使えるアイテムの欄）。紙の色があれば紙の欄をその色にする
-export function bookTokens(reg: Registry, book: Book): Record<string, Shades> {
+export function bookTokens(reg: CoreCatalog, book: Book): Record<string, Shades> {
   const type = bookType(reg, book.type)
   const items = type.items.defaults.flatMap(id => reg.items.get(id)?.tokens ?? [])
   const values = resolveTokens(reg, bookTheme(reg, book), [...type.tokens, ...items])

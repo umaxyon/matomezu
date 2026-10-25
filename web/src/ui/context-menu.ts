@@ -1,7 +1,7 @@
 // 右クリックのメニュー: コンポーネントが右クリックを受けてメニューを開く口と、配置に書いたメニューの中身を読む口
 import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
-import type { ContextMenuId, ContextMenuTable } from "../core/tables"
+import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
 import { isShown } from "../store/commands"
 import { type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
 import { useActions, useApp, useDefs, useLayout } from "./store-context"

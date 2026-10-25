@@ -3,10 +3,10 @@
 // ビューは、そのプラグインの id を全部持たないと型の誤り。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
 // 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
 import type { ComponentType, ReactNode } from "react"
+import type { ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import type { Stage } from "../core/stage"
-import type { ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/tables"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import { type IdsOf, isBuiltin, type Plugin } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
@@ -127,7 +127,7 @@ export type AnyPluginUi = Plugin & { ui: object }
 export const definePluginUi = <const P extends Plugin>(plugin: P, ui: UiParts<P>): PluginUi<P> => ({ ...plugin, ui })
 
 // インスタンスの見た目の表
-export interface UiDefs {
+export interface UiCatalog {
   presentationViews: ReadonlyMap<string, BookViewDef>
   items: ReadonlyMap<string, ItemUi>
   connectors: ReadonlyMap<string, ConnectorUi>
@@ -153,7 +153,7 @@ interface LooseUi {
 }
 
 // プラグインの見た目を 1 つの表にする。見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り
-export function assembleUi(plugins: readonly Plugin[]): UiDefs {
+export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
   const presentationViews = new Map<string, BookViewDef>()
   const items = new Map<string, ItemUi>()
   const connectors = new Map<string, ConnectorUi>()

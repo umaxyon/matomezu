@@ -14,7 +14,7 @@ export const LIST_PLUGIN = defineBuiltin({
   messages: LIST_MESSAGES,
 })
 
-declare module "../../../core/tables" {
+declare module "../../../core/catalog" {
   interface ItemTable {
     "shape.list": typeof LIST
   }

@@ -4,7 +4,7 @@
 // 色（color）があれば、塗りと文字の欄をその色で上書きする（paint.ts）
 
 import type { CSSProperties } from "react"
-import type { ItemProps } from "../../../core/registry"
+import type { ItemProps } from "../../../core/core-catalog"
 import type { ItemViewProps } from "../../../ui/plugin"
 import { useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"

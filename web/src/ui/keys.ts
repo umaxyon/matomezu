@@ -3,8 +3,8 @@
 // 焦点のあるボタン・リンクの Space と Enter は、それを押す動きに任せる。
 // 押した所の要素から外側へたどり、data-key-scope で名乗った範囲（プラグインの範囲）を狭いものから渡す
 import { useEffect, useMemo } from "react"
+import type { CommandId } from "../core/catalog"
 import { keyLabel, pressedKey, seenInText } from "../core/keys"
-import type { CommandId } from "../core/tables"
 import { keysOf, keyTable } from "../store/keys"
 import { useActions, useApp, useDefs } from "./store-context"
 
