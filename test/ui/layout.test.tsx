@@ -32,7 +32,7 @@ describe("配置", () => {
   test("知らないウィジェット・置けないスロット・app に無いコマンドは誤り", () => {
     const bad = {
       id: "bad",
-      slots: { app: ["workspace"], "stage.top": ["nope", "book-view"], "stage.bottom": ["book-name"] },
+      slots: { root: ["workspace"], "stage.top": ["nope", "book-view"], "stage.bottom": ["book-name"] },
       menus: { "stage.menu": [{ either: ["stage.split", "stage.nope"] }] },
     } as unknown as LayoutDef
     expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
@@ -47,7 +47,7 @@ describe("配置", () => {
     const noStages = defineLayout({
       ...DEFAULT_LAYOUT,
       id: "no-stages",
-      slots: { ...DEFAULT_LAYOUT.slots, app: ["dialog-host"] },
+      slots: { ...DEFAULT_LAYOUT.slots, root: ["dialog-host"] },
     })
     expect(checkLayout(noStages, ui, commands).map(problemText)).toEqual([
       "E211 layout no-stages: slot stage.top is not opened by any placed widget",
@@ -57,7 +57,7 @@ describe("配置", () => {
       "E212 layout no-stages: menu stage.menu is not shown by any placed widget",
     ])
     // 中身を書かなければ、ステージの無い画面にできる
-    const bare = defineLayout({ id: "bare", slots: { app: ["dialog-host"] }, menus: {} })
+    const bare = defineLayout({ id: "bare", slots: { root: ["dialog-host"] }, menus: {} })
     expect(checkLayout(bare, ui, commands)).toEqual([])
   })
 
@@ -70,7 +70,7 @@ describe("配置", () => {
     const layout = {
       ...DEFAULT_LAYOUT,
       id: "mine",
-      slots: { ...DEFAULT_LAYOUT.slots, app: ["w/workspace", "dialog-host"] },
+      slots: { ...DEFAULT_LAYOUT.slots, root: ["w/workspace", "dialog-host"] },
     }
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
   })
@@ -97,7 +97,7 @@ describe("配置", () => {
   })
 
   test("食い違いのある配置は、画面に置くときに誤り", () => {
-    const bad = { id: "bad", slots: { app: ["nope"] }, menus: {} } as unknown as LayoutDef
+    const bad = { id: "bad", slots: { root: ["nope"] }, menus: {} } as unknown as LayoutDef
     let thrown: unknown
     try {
       render(
@@ -146,14 +146,14 @@ describe("ウィジェット", () => {
 
   test("外のプラグインのウィジェットは、頭にプラグインの id と / を付ける", () => {
     const bad = definePluginUi(definePlugin({ id: "w" }), {
-      widgets: [defineWidget({ id: "ping", slots: ["app"], view: Ping })],
+      widgets: [defineWidget({ id: "ping", slots: ["root"], view: Ping })],
     })
     expect(() => assembleUi([...BUILTIN_UI, bad])).toThrow("E301")
   })
 
   test("同じ id のウィジェットは誤り。差し替えは overrides の widgets で、置けるスロットは変わらない", () => {
     const twice = definePluginUi(definePlugin({ id: "w" }), {
-      widgets: [defineWidget({ id: "w/ping", slots: ["app"], view: Ping })],
+      widgets: [defineWidget({ id: "w/ping", slots: ["root"], view: Ping })],
     })
     expect(() => assembleUi([...BUILTIN_UI, twice, twice])).toThrow("E001")
     const Tabs = () => <p>my tabs</p>

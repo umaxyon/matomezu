@@ -13,6 +13,6 @@ export const STAGE_BASE_SLOTS = ["stage.top", "stage.body", "stage.bottom", "sta
 
 // ステージの骨組みのウィジェット。根に置き、ベーススロットを全部開ける（view が列ごとに描く）。base の workspace の代わりを作るときもこれで作る
 export const defineWorkspace = <const Id extends string>(def: { id: Id; view: () => ReactNode }) =>
-  defineWidget({ id: def.id, slots: ["app"], opens: STAGE_BASE_SLOTS, view: def.view })
+  defineWidget({ id: def.id, slots: ["root"], opens: STAGE_BASE_SLOTS, view: def.view })
 
 export const WORKSPACE = defineWorkspace({ id: "workspace", view: WorkspaceView })

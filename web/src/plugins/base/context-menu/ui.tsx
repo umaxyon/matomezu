@@ -2,4 +2,4 @@
 import { defineWidget } from "../../../ui/layout"
 import { ContextMenuHost } from "./ContextMenuHost"
 
-export const MENU_HOST = defineWidget({ id: "menu-host", slots: ["app"], view: ContextMenuHost })
+export const MENU_HOST = defineWidget({ id: "menu-host", slots: ["root"], view: ContextMenuHost })

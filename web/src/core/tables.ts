@@ -25,7 +25,7 @@ export interface KeyScopeTable {
 
 // 画面の配置の分。スロットは「id → そこに置くウィジェットが受け取る値」。スロットを描くウィジェットを持つプラグインが、そのスロットを書き足す
 export interface SlotTable {
-  app: Record<string, never> // 画面の根（土台が描く、ただ 1 つのスロット）
+  root: Record<string, never> // 画面の根（土台が描く、ただ 1 つのスロット）
 }
 export interface WidgetTable {}
 export interface MenuTable {} // メニューの id → true

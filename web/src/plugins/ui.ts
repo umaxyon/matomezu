@@ -14,7 +14,7 @@ export const BUILTIN_UI = [BASE_UI, MASTER_UI, PAPER_UI, BOX_UI, LIST_UI, LINE_U
 export const DEFAULT_LAYOUT = defineLayout({
   id: "default",
   slots: {
-    app: ["workspace", "dialog-host", "menu-host", "tool-picker"],
+    root: ["workspace", "dialog-host", "menu-host", "tool-picker"],
     "stage.top": ["tool-switch", "toolbox"],
     "stage.body": ["book-view"],
     "stage.bottom": ["book-name", "page-tabs"],

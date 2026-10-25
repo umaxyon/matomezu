@@ -1,4 +1,4 @@
-// 画面の根: 言語とスキンを合わせ、キーの受け口を置き、根のスロット（app）を描く。何を置くか（ステージの列・ダイアログの置き場など）は配置が決める
+// 画面の根: 言語とスキンを合わせ、キーの受け口を置き、根のスロット（root）を描く。何を置くか（ステージの列・ダイアログの置き場など）は配置が決める
 import styles from "./App.module.css"
 import { KeyListener } from "./keys"
 import { LangSync } from "./LangSync"

@@ -2,4 +2,4 @@
 import { defineWidget } from "../../../ui/layout"
 import { DialogHost } from "./DialogHost"
 
-export const DIALOG_HOST = defineWidget({ id: "dialog-host", slots: ["app"], view: DialogHost })
+export const DIALOG_HOST = defineWidget({ id: "dialog-host", slots: ["root"], view: DialogHost })

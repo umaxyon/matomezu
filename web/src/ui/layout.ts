@@ -83,7 +83,7 @@ export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
   typeof item === "string" ? [item] : item.either
 
 // 根のスロット（土台が開ける）
-export const ROOT_SLOT = "app" satisfies SlotId
+export const ROOT_SLOT = "root" satisfies SlotId
 
 // 配置の食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・app に無いコマンド・
 // 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー、置いたウィジェットと見せ方・アイテムのビューのどれも開かない右クリックのメニュー（無ければ空）

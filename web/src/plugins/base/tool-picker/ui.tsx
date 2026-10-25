@@ -2,4 +2,4 @@
 import { defineWidget } from "../../../ui/layout"
 import { ToolPickerView } from "./ToolPickerView"
 
-export const TOOL_PICKER_WIDGET = defineWidget({ id: "tool-picker", slots: ["app"], view: ToolPickerView })
+export const TOOL_PICKER_WIDGET = defineWidget({ id: "tool-picker", slots: ["root"], view: ToolPickerView })
