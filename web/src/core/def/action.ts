@@ -23,6 +23,9 @@ export interface ActionContext {
   home: string | null // インスタンスのホームのブックの id（一覧と設定のアクションを許すかは、このブックのタイプが決める）。無ければ断る
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
+  // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。
+  // アクションは時刻や乱数を直に使わず、これと newId だけを使う（同じ入力なら同じ結果）
+  now: string
 }
 
 export interface Done<T extends ActionTarget, R> {

@@ -31,6 +31,7 @@ interface Input {
   on?: { book: string }
   lang: string
   ids?: string[]
+  now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
   books?: unknown[]
   settings: unknown
 }
@@ -54,6 +55,7 @@ function perform(input: Input): Output {
     home,
     lang,
     newId: () => ids.shift() ?? crypto.randomUUID(),
+    now: input.now ?? new Date().toISOString(),
   })
   if (!done.ok) return done
   const next = done.books

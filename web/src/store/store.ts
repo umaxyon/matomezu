@@ -111,6 +111,7 @@ export interface DoneAction {
   on?: { book: string }
   ids: readonly string[]
   lang: Lang
+  now: string // 行った時点（ActionContext の now）
 }
 
 export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
@@ -156,6 +157,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   settings?: unknown // 残しておいた設定（ホストが読んだもの）。このインスタンスで使える項目だけ、lang より優先して使う
   initial?: MatomezuState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
+  now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
 }
 
@@ -180,9 +182,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       home,
     )
   const newId = options.newId ?? (() => crypto.randomUUID())
+  const clock = options.now ?? (() => new Date().toISOString())
   const store = createStore<MatomezuState>()(() => initial)
   const { getState, setState } = store
-  const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId })
+  const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId, now: clock() })
   // 残した・知らされたブックの、形を確かめた値（同じ値は確かめ直さない）
   let checked = new WeakMap<object, Book>()
   const restore = (saved: readonly unknown[]): Book[] =>
@@ -223,7 +226,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       },
     })
     if (!done.ok) return done
-    options.observe?.({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang })
+    options.observe?.({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now })
     const next: Partial<MatomezuState> = {}
     if (done.book) {
       next.books = { ...books, [done.book.id]: done.book }
@@ -349,6 +352,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           home,
           lang: done.lang,
           newId: () => ids.shift() ?? newId(),
+          now: done.now,
         })
         if (!next.ok) continue
         if (next.book) books = { ...books, [next.book.id]: next.book }

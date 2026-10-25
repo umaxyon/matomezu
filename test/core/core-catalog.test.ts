@@ -117,7 +117,13 @@ describe("機能台帳", () => {
 
 describe("アクションを行う", () => {
   const book = SAMPLE_BOOKS[0]!
-  const ctx = { catalog: CORE_CATALOG, home: "master", lang: "ja" as const, newId: () => "new" }
+  const ctx = {
+    catalog: CORE_CATALOG,
+    home: "master",
+    lang: "ja" as const,
+    newId: () => "new",
+    now: "2026-10-26T00:00:00.000Z",
+  }
   const library = { [MASTER_BOOK.id]: MASTER_BOOK, [book.id]: book }
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
@@ -222,7 +228,7 @@ describe("機能台帳ごとに別の世界", () => {
       library,
       "book.create",
       { title: "メモ", type: "notes" as never },
-      { catalog: catalog, home: "master", lang: "ja", newId: () => "n1" },
+      { catalog: catalog, home: "master", lang: "ja", newId: () => "n1", now: "2026-10-26T00:00:00.000Z" },
     )
     expect(made).toMatchObject({ ok: true, result: { book: "n1" } })
     expect(made.ok && catalog.bookSchema.safeParse(made.next.n1).success).toBe(true)
@@ -231,7 +237,7 @@ describe("機能台帳ごとに別の世界", () => {
       library,
       "book.create",
       { title: "メモ", type: "notes" as never },
-      { catalog: CORE_CATALOG, home: "master", lang: "ja", newId: () => "n1" },
+      { catalog: CORE_CATALOG, home: "master", lang: "ja", newId: () => "n1", now: "2026-10-26T00:00:00.000Z" },
     )
     expect(refused).toEqual({ ok: false, reason: "refused" })
   })

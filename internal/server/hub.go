@@ -100,6 +100,7 @@ type Perform struct {
 	On     *engine.On      `json:"on,omitempty"`
 	Lang   string          `json:"lang"`
 	IDs    []string        `json:"ids,omitempty"`
+	Now    string          `json:"now,omitempty"`
 	Client string          `json:"client,omitempty"`
 	Seq    int64           `json:"seq,omitempty"`
 }
@@ -115,7 +116,7 @@ type Performed struct {
 func (h *Hub) Perform(p Perform) (Performed, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Settings: h.settings}
+	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings}
 	if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {
 			in.Books = []json.RawMessage{e.body}

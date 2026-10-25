@@ -27,6 +27,7 @@ type Input struct {
 	On       *On               `json:"on,omitempty"`
 	Lang     string            `json:"lang"`
 	IDs      []string          `json:"ids,omitempty"`
+	Now      string            `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
 	Books    []json.RawMessage `json:"books"`
 	Settings json.RawMessage   `json:"settings"`
 }

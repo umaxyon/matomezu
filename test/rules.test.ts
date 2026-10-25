@@ -234,3 +234,14 @@ test("追加プラグインの見本はプラグイン API の名前だけを読
   })
   expect(bad).toEqual([])
 })
+
+test("アクションは同じ入力なら同じ結果: アクションを定義するファイルは時刻と乱数を直に使わない（ctx.now と ctx.newId を使う）", () => {
+  const defining = [...sources, ...added].filter(
+    f => /\bdefineAction\s*\(/.test(f.text) && !f.path.endsWith("def/action.ts"),
+  )
+  expect(defining.length).toBeGreaterThan(0)
+  const bad = defining
+    .filter(f => /\bDate\b|\bMath\.random\b|\bcrypto\.|\bperformance\.now\b/.test(f.text.replace(/\/\/.*$/gm, "")))
+    .map(f => relative(ROOT, f.path))
+  expect(bad).toEqual([])
+})

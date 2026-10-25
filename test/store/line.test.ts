@@ -253,7 +253,7 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
         : t,
     ),
   })
-  const ctx = { catalog: noLines, home: null, lang: "ja", newId: sequence("x") }
+  const ctx = { catalog: noLines, home: null, lang: "ja", newId: sequence("x"), now: "2026-10-26T00:00:00.000Z" }
   expect(usesLines(CORE_CATALOG, book)).toBe(true)
   expect(usesLines(noLines, book)).toBe(false)
   expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)

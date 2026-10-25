@@ -5,7 +5,7 @@ import { defineBookType } from "../../web/src/core/def/book-type"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
-import type { Actions } from "../../web/src/store/store"
+import type { Actions, DoneAction } from "../../web/src/store/store"
 import { newStore } from "../support"
 
 // 追加プラグインの見本: 自分のブックのタイプと、そのタイプで使えるアクション（機能台帳の型の側には書き足さない）
@@ -18,7 +18,10 @@ const NOTE = defineBookType({
   create: init => ({ type: "notes/note" as const, ...init }),
   pages: null,
   items: { allowed: [], defaults: [] },
-  actions: { allowed: ["notes/rename", "notes/break"], defaults: ["notes/rename", "notes/break"] },
+  actions: {
+    allowed: ["notes/rename", "notes/break", "notes/stamp"],
+    defaults: ["notes/rename", "notes/break", "notes/stamp"],
+  },
   theme: "standard",
   presentation: "master", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],
@@ -42,7 +45,17 @@ const BREAK = defineAction({
   args: z.strictObject({}),
   run: book => ({ next: Object.assign({}, book, { color: "red" }), result: {} }),
 })
-const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME, BREAK] })
+// 行った時点を題名に書くアクション
+const STAMP = defineAction({
+  id: "notes/stamp",
+  title: "Drawing",
+  aiDescription: "Write the time into the notes book's title.",
+  target: "book",
+  needs: [],
+  args: z.strictObject({}),
+  run: (book, _args, ctx) => ({ next: { ...book, title: ctx.now }, result: {} }),
+})
+const notes = definePlugin({ id: "notes", bookTypes: [NOTE], actions: [RENAME, BREAK, STAMP] })
 const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unknown, on?: { book: string }): unknown }
 
 describe("アクションの入口", () => {
@@ -72,6 +85,27 @@ describe("アクションの入口", () => {
       reason: "refused",
     })
     expect(instance.state.getState().books.n1).toBe(before)
+  })
+
+  test("アクションは行った時点を ctx.now で受け取り、知らせにも載り、行い直しでも同じ時点を使う", () => {
+    const done: DoneAction[] = []
+    const times = ["2026-10-26T01:00:00.000Z", "2026-10-26T02:00:00.000Z"]
+    const instance = createMatomezu({
+      plugins: BUILTIN,
+      home: "master",
+      newId: () => "n1",
+      now: () => times.shift() ?? "later",
+      observe: d => done.push(d),
+    })
+    instance.use([notes])
+    instance.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })
+    untyped(instance.actions).perform("notes/stamp", {}, { book: "n1" })
+    expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
+    expect(done.at(-1)).toMatchObject({ action: "notes/stamp", now: "2026-10-26T02:00:00.000Z" })
+    // ホストから届いたブックに、まだ確かめられていないアクションを行い直す
+    const book = { type: "notes/note", id: "n1", title: "メモ" }
+    instance.actions.receive({ books: [book], settings: {} }, [done.at(-1)!])
+    expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
 
   test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
