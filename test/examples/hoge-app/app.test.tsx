@@ -37,7 +37,7 @@ test("外のタイプのブックを作り、外の形と中の箱を置いて�
     expect(app.actions.addPage("s1", { title: "p1" })).toBe(true)
   })
   const page = () => (app.state.getState().books[id] as { pages: { id: string; items?: { id: string }[] }[] }).pages[0]!
-  const placed = (item: string, x: number, props: object) => {
+  const placed = (item: string, x: number, props: Record<string, unknown>) => {
     let r: ReturnType<typeof app.actions.perform> | undefined
     act(() => {
       r = app.actions.perform("item.place", { page: page().id, item, at: { x, y: 40 }, props }, on)
