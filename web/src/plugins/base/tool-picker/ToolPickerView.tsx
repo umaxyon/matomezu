@@ -12,7 +12,7 @@ import type { Tool } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
-import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog } from "../../../ui/store-context"
 import { TOOL_ICONS, TOOL_NAMES } from "../tool-switch/icons"
 import { ICON, leftPicker, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
@@ -137,7 +137,7 @@ function Ring({ at }: { at: Point }) {
 function Picker({ last }: { last: { current: Point | null } }) {
   const t = useT()
   const opened = useApp(s => s.workspace.stages.find(st => st.picker !== null))
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const current = useApp(s => (opened ? toolOf(registry, s.workspace, opened.id) : null))
   const { command, closePicker } = useActions()
   const [hover, setHover] = useState<number | null>(null)

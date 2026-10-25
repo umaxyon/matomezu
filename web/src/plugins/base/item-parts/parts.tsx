@@ -7,7 +7,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import type { Align } from "../../../core/text/fields"
 import { bookTheme, resolveTokens } from "../../../core/theme"
 import { useT } from "../../../ui/i18n"
-import { useApp, useRegistry } from "../../../ui/store-context"
+import { useApp, useCatalog } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 
 // 寄せのアイコン（左・中央・右に寄せた横線）
@@ -35,7 +35,7 @@ export const useBookOf = (stage: string) => useApp(s => s.workspace.stages.find(
 
 // ブックのテーマの id
 export function useBookTheme(book: string | undefined) {
-  const registry = useRegistry()
+  const registry = useCatalog().core
   return useApp(s => {
     const b = book ? s.books[book] : undefined
     return b ? bookTheme(registry, b) : undefined
@@ -45,7 +45,7 @@ export function useBookTheme(book: string | undefined) {
 // 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りの欄 fill の値）。表に無いテーマなら null
 export function useSwatches(looks: string | undefined, fill: TokenDecl) {
   const t = useT()
-  const registry = useRegistry()
+  const registry = useCatalog().core
   return useMemo(() => {
     if (!looks || !registry.themes.has(looks)) return null
     const tokens = resolveTokens(registry, looks, [fill])
@@ -61,7 +61,7 @@ export function useSwatches(looks: string | undefined, fill: TokenDecl) {
 
 // 形に当てたテーマ theme の、欄 decls の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）
 export function useThemeVars(theme: string | undefined, decls: readonly TokenDecl[]) {
-  const registry = useRegistry()
+  const registry = useCatalog().core
   return useMemo(
     () => (theme && registry.themes.has(theme) ? themeVars(resolveTokens(registry, theme, decls)) : undefined),
     [registry, theme, decls],

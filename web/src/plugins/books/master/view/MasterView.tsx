@@ -3,7 +3,7 @@
 import type { Stage } from "../../../../core/stage"
 import { useCommand } from "../../../../ui/commands"
 import { useT } from "../../../../ui/i18n"
-import { useApp, useRegistry } from "../../../../ui/store-context"
+import { useApp, useCatalog } from "../../../../ui/store-context"
 import styles from "./MasterView.module.css"
 
 export function MasterView({ stage }: { stage: Stage }) {
@@ -31,7 +31,7 @@ export function MasterView({ stage }: { stage: Stage }) {
 function Settings({ stage }: { stage: string }) {
   const t = useT()
   const { lang, skin } = useApp(s => s.settings)
-  const { languages, skins } = useRegistry()
+  const { languages, skins } = useCatalog().core
   const setLang = useCommand(stage, "settings.lang")
   const setSkin = useCommand(stage, "settings.skin")
   return (

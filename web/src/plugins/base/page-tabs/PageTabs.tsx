@@ -3,7 +3,7 @@
 import { addsFromTabs, hasPages } from "../../../core/book"
 import { useCommand } from "../../../ui/commands"
 import { useT } from "../../../ui/i18n"
-import { useApp, useRegistry } from "../../../ui/store-context"
+import { useApp, useCatalog } from "../../../ui/store-context"
 import styles from "./PageTabs.module.css"
 
 export function PageTabs({ stage }: { stage: string }) {
@@ -11,7 +11,7 @@ export function PageTabs({ stage }: { stage: string }) {
   const book = useApp(s => (opened ? s.books[opened.book] : undefined))
   const openPage = useCommand(stage, "page.open")
   const newPage = useCommand(stage, "page.new")
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const t = useT()
   if (!book || !hasPages(book)) return <div className={styles.tabs} />
   return (

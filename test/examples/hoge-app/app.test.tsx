@@ -106,7 +106,7 @@ test("fuga のボードに fuga の星と中のリストを置いて線でつな
     expect(app.actions.perform("book.update", { settings: { fugaGrid: true } }, on)).toMatchObject({ ok: true })
   })
   expect(app.state.getState().books[id]).toMatchObject({ type: "fuga/board", fugaGrid: true })
-  expect(app.registry.bookTypes.get("fuga/board")?.theme).toBe("fuga/mint")
+  expect(app.catalog.core.bookTypes.get("fuga/board")?.theme).toBe("fuga/mint")
   expect(document.querySelector("[data-fuga-star]")?.getAttribute("data-fuga-star")).toBe("6")
 })
 

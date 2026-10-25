@@ -53,7 +53,7 @@ const thrown = (run: () => unknown) => {
 describe("app を組み立てる", () => {
   test("渡したプラグインの定義だけを使う", () => {
     const app = createMatomezu({ plugins: [...BUILTIN, notes], partial: true, home: "master", newId: () => "n1" })
-    expect(app.registry.bookTypes.has("notes/note")).toBe(true)
+    expect(app.catalog.core.bookTypes.has("notes/note")).toBe(true)
     expect(app.actions.createBook("s1", { title: "メモ", type: "notes/note" })).toBe(true)
     expect(app.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "notes/note", book: "n1" })
     expect(untyped(app.actions).command("s1", "notes/shoot")).toBe(true)
@@ -76,7 +76,7 @@ describe("app を組み立てる", () => {
   test("プラグインの文言はインスタンスの表に入り、コマンドの名前が文言の表に無ければ作らない", () => {
     const greet = definePlugin({ id: "greet", messages: { やあ: { en: "Hi" } } })
     const app = createMatomezu({ plugins: [...BUILTIN, greet], partial: true })
-    expect(app.registry.messages.get("やあ")).toEqual({ en: "Hi" })
+    expect(app.catalog.core.messages.get("やあ")).toEqual({ en: "Hi" })
     const nameless = definePlugin({
       id: "nameless",
       commands: [defineCommand({ id: "nameless/run", title: "無い名前" as never, run: () => {}, when: () => true })],

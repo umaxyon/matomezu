@@ -28,5 +28,5 @@ test("ビルトインプラグインと fuga だけのインスタンスでも�
   })
   fireEvent.click(screen.getByRole("button", { name: "fuga のミントにする" }))
   expect(app.state.getState().books[id]).toMatchObject({ theme: "fuga/mint" })
-  expect(app.registry.bookTypes.has("hoge-flow/flow")).toBe(false)
+  expect(app.catalog.core.bookTypes.has("hoge-flow/flow")).toBe(false)
 })

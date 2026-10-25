@@ -1,7 +1,7 @@
 // そのステージから呼ぶコマンド。出すか・押せるかが変わったときだけ描き直す。インスタンスに無いコマンドなら誤り
 import type { MessageKey } from "../core/i18n/i18n"
 import { type CommandArgs, type CommandId, commandDef, isActive, isEnabled, isShown } from "../store/commands"
-import { useActions, useApp, useDefs } from "./store-context"
+import { useActions, useApp, useInstance } from "./store-context"
 
 export interface CommandHandle<Id extends CommandId> {
   title: MessageKey
@@ -12,7 +12,7 @@ export interface CommandHandle<Id extends CommandId> {
 }
 
 export function useCommand<Id extends CommandId>(stage: string, id: Id): CommandHandle<Id> {
-  const defs = useDefs()
+  const defs = useInstance()
   const def = commandDef(defs, id)
   const shown = useApp(s => isShown(defs, s, stage, id))
   const enabled = useApp(s => isEnabled(defs, s, stage, id))

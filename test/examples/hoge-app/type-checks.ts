@@ -20,7 +20,7 @@ app.actions.command("s1", "hoge/nope")
 // @ts-expect-error 追加プラグインを渡し忘れた
 createMatomezu({ plugins: BUILTIN_UI })
 // @ts-expect-error 文言の表に無い鍵
-app.registry.messages.get("hoge") && translateKey("hoge の言葉")
+app.catalog.core.messages.get("hoge") && translateKey("hoge の言葉")
 // 見た目を結ばないプラグインでも、React を使わないインスタンスなら作れる
 createMatomezu({ plugins: [...BUILTIN_UI, HOGE, HOGE_FLOW, FUGA] })
 // キーの既定: 引数の型はコマンドの引数の型

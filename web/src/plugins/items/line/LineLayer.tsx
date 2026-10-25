@@ -10,7 +10,7 @@ import { useCommand } from "../../../ui/commands"
 import type { ShapeScene } from "../../../ui/connector"
 import { ShapeMarksContext } from "../../../ui/connector"
 import { useContextMenu } from "../../../ui/context-menu"
-import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog } from "../../../ui/store-context"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { drawLines, type LineCache } from "./drawn"
 import type { Rect } from "./geom"
@@ -36,7 +36,7 @@ const linesIn = (scene: ShapeScene): PlacedLine[] =>
 
 export function LineLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, rects, localOf } = scene
-  const registry = useRegistry()
+  const registry = useCatalog().core
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
   const elbow = useApp(s => {
     const b = stage.opened ? s.books[stage.opened.book] : undefined

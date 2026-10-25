@@ -22,7 +22,7 @@ test("book.update でブックのテーマと紙の色を変える。渡さな�
 
 test("ブックのテーマは、ブックの theme（無いか表に無ければブックのタイプのテーマ）。紙の色は紙の欄を上書きする。箱の欄もブックのテーマで決まる", () => {
   const store = newStore()
-  const reg = store.registry
+  const reg = store.catalog.core
   expect(bookTheme(reg, book(store))).toBe("standard")
   expect(bookTokens(reg, book(store))["box.fill"]).toEqual({ light: "#ffffff", dark: "#ffffff" })
   update(store, { theme: "sticky" })

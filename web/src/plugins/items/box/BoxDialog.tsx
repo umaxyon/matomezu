@@ -14,7 +14,7 @@ import { shapesOf } from "../../../core/placed"
 import { BODY_MAX } from "../../../core/text/fields"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog } from "../../../ui/store-context"
 import {
   ActionButton,
   Choices,
@@ -132,7 +132,7 @@ function BoxDialog({
   const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
   const [theme, setTheme] = useState(start.theme ?? "")
   const [color, setColor] = useState(start.color)
-  const registry = useRegistry()
+  const registry = useCatalog().core
   // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
   const looks = theme || bookTheme
   const swatches = useSwatches(looks, BOX_FILL)

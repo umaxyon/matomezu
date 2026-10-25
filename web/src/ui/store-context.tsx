@@ -1,9 +1,8 @@
 // インスタンス（store・プラグインの見た目・配置）を画面の木に配る入れ物と、読む口・操作・表を取り出すフック
 import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
-import type { CoreCatalog } from "../core/core-catalog"
 import { fail, matomezuError, problem } from "../core/errors"
-import type { AppDefs } from "../store/plugin"
+import type { Catalog } from "../store/plugin"
 import type { Actions, AppState, AppStore } from "../store/store"
 import { checkLayout, type LayoutDef } from "./layout"
 import { type AnyPluginUi, assembleUi, type UiCatalog } from "./plugin"
@@ -28,7 +27,7 @@ export function MatomezuProvider({
 }) {
   const ui = useMemo(() => assembleUi(app.plugins), [app])
   const value = useMemo(() => {
-    const problems = checkLayout(layout, ui, new Set(app.commands.keys()))
+    const problems = checkLayout(layout, ui, new Set(app.catalog.store.commands.keys()))
     if (problems.length > 0)
       throw matomezuError(problem("E210", { layout: layout.id, count: problems.length }), problems)
     return { store: app, ui, layout }
@@ -49,13 +48,14 @@ export function useActions(): Actions {
   return useAppContext().store.actions
 }
 
-// インスタンスが使う定義の表と登録表（作った後は変わらない）
-export function useDefs(): AppDefs {
+// インスタンス（機能台帳と組み立てで決まる値は、作った後は変わらない）
+export function useInstance(): AppStore {
   return useAppContext().store
 }
 
-export function useRegistry(): CoreCatalog {
-  return useAppContext().store.registry
+// インスタンスが持つ機能台帳（core と store の段）
+export function useCatalog(): Catalog {
+  return useAppContext().store.catalog
 }
 
 // インスタンスの見た目の表（ブックのタイプ・アイテム・ダイアログのビュー・ウィジェット・コマンドのアイコン）

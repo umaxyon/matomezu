@@ -10,7 +10,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import { rectsOf } from "../../../core/placed"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog } from "../../../ui/store-context"
 import {
   ActionButton,
   Choices,
@@ -56,7 +56,7 @@ const HEAD_LABELS: Record<Head, MessageKey> = {
 export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useT()
   const form = useId()
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const book = useBookOf(stage)
   const drawing = useApp(s => (book ? pagedOf(s.books[book]) : undefined))
   const page = drawing?.pages.find(p => p.id === args.page)

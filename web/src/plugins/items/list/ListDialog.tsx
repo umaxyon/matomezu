@@ -15,7 +15,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import { shapesOf } from "../../../core/placed"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog } from "../../../ui/store-context"
 import {
   ActionButton,
   Choices,
@@ -167,7 +167,7 @@ function ListDialog({
 }) {
   const t = useT()
   const form = useId()
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const [caption, setCaption] = useState(start.caption)
   const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
   const aligns = useAligns()

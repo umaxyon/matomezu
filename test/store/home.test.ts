@@ -33,7 +33,7 @@ describe("ホーム", () => {
   test("マスターのプラグインが無くても、base と図面（と図面が選ぶもの）でインスタンスを作れる", () => {
     const plugins = BUILTIN.filter(p => p.id !== "@matomezu/master")
     const app = createMatomezu({ plugins, partial: true, books: SAMPLE_BOOKS })
-    expect(app.registry.bookTypes.has("master")).toBe(false)
+    expect(app.catalog.core.bookTypes.has("master")).toBe(false)
     expect(app.actions.command("s1", "stage.split")).toBe(true)
   })
 

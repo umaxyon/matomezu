@@ -1,5 +1,5 @@
 // プラグイン: 1 つの部品の定義の組（ブックのタイプ・アイテム・アクション・テーマ・紙・コマンド・ダイアログ・キーの既定の割り当て）。React を使わない部分だけを持つ。
-// インスタンスは渡されたプラグインを assemble で 1 つの定義の表（AppDefs）にし、作った後は変えない
+// インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
 import { buildCoreCatalog, type CoreCatalog } from "../core/core-catalog"
 import type { ActionDef } from "../core/def/action"
@@ -75,14 +75,24 @@ export function defineBuiltin<const P extends Plugin>(plugin: P): P {
 }
 export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
 
-// インスタンスが使う定義の表
-export interface AppDefs {
-  registry: CoreCatalog
-  home: string | null // インスタンスのホームのブックの id（1 冊だけのタイプ。無ければ null）
-  autoSkin: AutoSkin | null // 自動のスキンで使う明と暗のスキン（スキンが無ければ null）
+// 機能台帳の store の段: コマンド・ダイアログ・キーの既定の割り当て
+export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlySet<string>
   keys: readonly DefaultKey[] // キーの既定の割り当て（キーはそろえた書き方）
+}
+
+// インスタンスが持つ機能台帳（core と store の段。ui の段は画面が持つ）
+export interface Catalog {
+  core: CoreCatalog
+  store: StoreCatalog
+}
+
+// 組み立てたもの: 機能台帳と、組み立てで決まる値
+export interface Assembled {
+  catalog: Catalog
+  home: string | null // インスタンスのホームのブックの id（1 冊だけのタイプ。無ければ null）
+  autoSkin: AutoSkin | null // 自動のスキンで使う明と暗のスキン（スキンが無ければ null）
 }
 
 // プラグインを 1 つの表にする。id の頭・同じ id の重なり・表どうしの参照・ホームが 1 冊だけのタイプか・自動のスキンの明暗を確かめ、食い違いがあれば作らない
@@ -90,7 +100,7 @@ export function assemble(
   plugins: readonly Plugin[],
   home: string | null = null,
   auto: Partial<Record<Scheme, string>> = {},
-): AppDefs {
+): Assembled {
   for (const p of plugins) {
     if (isBuiltin(p)) continue
     for (const kind of PARTS)
@@ -136,12 +146,12 @@ export function assemble(
   const keys = defaultKeys(plugins, new Set(commands.map(c => c.id)))
   if (home !== null && registry.bookTypes.get(home)?.single !== true) fail("E110", { id: home })
   return {
-    registry,
+    catalog: {
+      core: registry,
+      store: { commands: new Map(commands.map(c => [c.id, c])), dialogs: new Set(dialogs.map(d => d.id)), keys },
+    },
     home,
     autoSkin: autoSkin(registry, auto),
-    commands: new Map(commands.map(c => [c.id, c])),
-    dialogs: new Set(dialogs.map(d => d.id)),
-    keys,
   }
 }
 

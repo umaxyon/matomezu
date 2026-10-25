@@ -3,7 +3,7 @@
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import { fail } from "../../core/errors"
-import type { AppDefs } from "../plugin"
+import type { Assembled } from "../plugin"
 import type { AppState } from "../store"
 import type { CommandContext, CommandDef } from "./def"
 
@@ -14,8 +14,8 @@ type ArgOf<Id extends CommandId> = CommandTable[Id] extends CommandDef<infer A> 
 export type CommandArgs<Id extends CommandId> = [ArgOf<Id>] extends [undefined] ? [] : [ArgOf<Id>]
 
 // インスタンスのコマンド。知らない id なら誤り（型に書き足したのに、そのプラグインをインスタンスに渡していないとき）
-export function commandDef(defs: AppDefs, id: string): CommandDef<never> {
-  return defs.commands.get(id) ?? fail("E107", { id })
+export function commandDef(defs: Assembled, id: string): CommandDef<never> {
+  return defs.catalog.store.commands.get(id) ?? fail("E107", { id })
 }
 
 // そのステージから呼んだときの様子。ステージが無ければ null
@@ -32,18 +32,18 @@ export function commandContext(
   return { registry, home, stage, book, workspace, settings, dialog, contextMenu }
 }
 
-export function isShown(defs: AppDefs, state: AppState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.registry, defs.home, state, stageId)
+export function isShown(defs: Assembled, state: AppState, stageId: string, id: CommandId): boolean {
+  const ctx = commandContext(defs.catalog.core, defs.home, state, stageId)
   return ctx !== null && commandDef(defs, id).when(ctx)
 }
 
-export function isEnabled(defs: AppDefs, state: AppState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.registry, defs.home, state, stageId)
+export function isEnabled(defs: Assembled, state: AppState, stageId: string, id: CommandId): boolean {
+  const ctx = commandContext(defs.catalog.core, defs.home, state, stageId)
   const def = commandDef(defs, id)
   return ctx !== null && def.when(ctx) && (def.enabled?.(ctx) ?? true)
 }
 
-export function isActive(defs: AppDefs, state: AppState, stageId: string, id: CommandId): boolean {
-  const ctx = commandContext(defs.registry, defs.home, state, stageId)
+export function isActive(defs: Assembled, state: AppState, stageId: string, id: CommandId): boolean {
+  const ctx = commandContext(defs.catalog.core, defs.home, state, stageId)
   return ctx !== null && (commandDef(defs, id).active?.(ctx) ?? false)
 }

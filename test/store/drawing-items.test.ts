@@ -16,7 +16,7 @@ const page = (store: ReturnType<typeof newStore>, book = "b1", i = 0) =>
 
 // そのステージの今の道具
 const toolAt = (store: ReturnType<typeof newStore>, stage = "s1") =>
-  toolOf(store.registry, store.state.getState().workspace, stage)
+  toolOf(store.catalog.core, store.state.getState().workspace, stage)
 
 function ready() {
   const store = newStore()

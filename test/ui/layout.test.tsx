@@ -15,7 +15,7 @@ afterEach(cleanup)
 
 const app = () => createMatomezu({ plugins: BUILTIN_UI, home: "master", books: SAMPLE_BOOKS, lang: "ja" })
 const ui = assembleUi(BUILTIN_UI)
-const commands = new Set(app().commands.keys())
+const commands = new Set(app().catalog.store.commands.keys())
 
 // タブを上の行に移した配置
 const TABS_ON_TOP = defineLayout({

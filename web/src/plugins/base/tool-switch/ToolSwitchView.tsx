@@ -5,7 +5,7 @@ import { TOOL_SETS, type Tool, toolSetOf } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useT } from "../../../ui/i18n"
-import { useApp, useRegistry } from "../../../ui/store-context"
+import { useApp, useCatalog } from "../../../ui/store-context"
 import { TOOL_ICONS, TOOL_NAMES } from "./icons"
 import styles from "./ToolSwitchView.module.css"
 
@@ -31,7 +31,7 @@ const angle = (icon: number, front: number) => (((((icon - front) * 120 + 180) %
 export function ToolSwitchView({ stage }: { stage: string }) {
   const t = useT()
   const next = useCommand(stage, "tool.next")
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const tool = useApp(s => toolOf(registry, s.workspace, stage)) ?? "select"
   const set = useApp(s => {
     const st = s.workspace.stages.find(x => x.id === stage)

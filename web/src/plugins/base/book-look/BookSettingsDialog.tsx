@@ -6,7 +6,7 @@ import { bookType } from "../../../core/core-catalog"
 import { type BookLook, bookTheme, bookTokens } from "../../../core/theme"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog } from "../../../ui/store-context"
 import { ColorPicker } from "../dialog-host/ColorPicker"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
@@ -18,7 +18,7 @@ const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#
 export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const t = useT()
   const form = useId()
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const book = useApp(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined

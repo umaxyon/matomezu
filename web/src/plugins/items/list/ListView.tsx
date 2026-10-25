@@ -22,7 +22,7 @@ import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
 import type { ItemViewProps } from "../../../ui/plugin"
-import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { useThemeVars } from "../../base/ui"
 import { edgeScroller } from "./edge-scroll"
@@ -117,7 +117,7 @@ interface Stretch {
 
 export function ListView({ props, size, id, stage, content }: ItemViewProps<ItemProps<"shape.list">>) {
   const t = useT()
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const rows = content as readonly ListRow[]
   const theme = props.theme
   const vars = useThemeVars(theme, LOOK_TOKENS)

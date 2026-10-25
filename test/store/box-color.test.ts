@@ -32,7 +32,7 @@ test("箱の色は代表色の名前か #rrggbb。ほかは断り、null で消�
 
 test("テーマごとに代表色を持ち、その上の文字は明るい色ならテーマの文字の色、暗い色なら白", () => {
   const store = ready()
-  const tokens = (theme: string) => resolveTokens(store.registry, theme, BOX.tokens)
+  const tokens = (theme: string) => resolveTokens(store.catalog.core, theme, BOX.tokens)
   expect(tokens("standard")["palette.primary"]).toEqual({ light: "#3b82f6", dark: "#3b82f6" })
   expect(tokens("standard")["palette.primary.ink"]).toEqual({ light: "#ffffff", dark: "#ffffff" })
   expect(tokens("sticky")["palette.primary"]).toEqual({ light: "#cfe2ff", dark: "#cfe2ff" })

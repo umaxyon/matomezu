@@ -12,7 +12,8 @@ import { restoreSettings } from "../core/settings"
 import { BUILTIN } from "../plugins"
 import { assemble } from "../store/plugin"
 
-const { registry, home } = assemble(BUILTIN, "master")
+const { catalog, home } = assemble(BUILTIN, "master")
+const registry = catalog.core
 
 // 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
 interface Input {

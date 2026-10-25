@@ -40,7 +40,7 @@ import { type ShapeScene, useShapeMarks } from "../../../ui/connector"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useT } from "../../../ui/i18n"
 import type { BookViewProps, ItemViewProps } from "../../../ui/plugin"
-import { useActions, useApp, useRegistry, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { type Came, dragging, placeAt, trackDrag } from "../placing"
 import styles from "./PaperView.module.css"
 
@@ -57,7 +57,7 @@ export function PaperView({ stage }: BookViewProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage.placing !== null
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const hand = useApp(s => toolOf(registry, s.workspace, stage.id) === "hand")
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -148,7 +148,7 @@ function Items({ stage, localOf }: { stage: Stage; localOf: LocalOf }) {
 
 // ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューの層で包む
 function PageItems({ stage, page, localOf }: { stage: Stage; page: PagedPage; localOf: LocalOf }) {
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const ui = useUiCatalog()
   // ブックで使えるつなぐもののビュー
   const connectors = useApp(s => {
@@ -375,7 +375,7 @@ function Item({
   resizing,
   ...handlers
 }: ItemProps) {
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const marks = useShapeMarks()
   // ドラッグ中の見た目: つなぐもののビューが薄くするよう求めた形は薄く。動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く
   const look = marks.keep
@@ -441,7 +441,7 @@ function Item({
 
 // 置こうとしているアイテムの点線の箱。紙からはみ出す所では薄く出す
 function Ghost({ stage, pointer }: { stage: Stage; pointer: Point }) {
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const at = placeAt({ stage }, pointer)
   const size = stage.placing ? itemSize(registry, stage.placing) : null
   const paper = paperOf(stage)

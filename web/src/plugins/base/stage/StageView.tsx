@@ -9,7 +9,7 @@ import { paperOf, type Stage } from "../../../core/stage"
 import { bookTokens } from "../../../core/theme"
 import { toolOf } from "../../../core/workspace"
 import { useT } from "../../../ui/i18n"
-import { useActions, useApp, useRegistry, useUiCatalog } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
 import { useResize } from "../../../ui/use-resize"
 import { BookSearch } from "../book-open/BookSearch"
@@ -31,7 +31,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   })
   const preview = useApp(s => s.dialog?.preview ?? null)
   const look = preview && preview.item === undefined && preview.book === book?.id ? preview.props : null
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const tool = useApp(s => toolOf(registry, s.workspace, id))
   const vars = useMemo(
     () => (book ? themeVars(bookTokens(registry, look ? ({ ...book, ...look } as Book) : book)) : undefined),
@@ -101,7 +101,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 
 // 開いたブックを、そのタイプが選んだ見せ方のビューで、テーマの値の中に描く
 function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; vars: CSSProperties | undefined }) {
-  const presentation = bookType(useRegistry(), type).presentation
+  const presentation = bookType(useCatalog().core, type).presentation
   const View = (
     useUiCatalog().presentationViews.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })
   ).view

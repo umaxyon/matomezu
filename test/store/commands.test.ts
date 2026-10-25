@@ -26,7 +26,9 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
   test("無いステージからは、どのコマンドも出さない", () => {
     const store = newStore()
     const { state } = store
-    expect([...store.commands.keys()].filter(id => isShown(store, state.getState(), "nope", id as never))).toEqual([])
+    expect(
+      [...store.catalog.store.commands.keys()].filter(id => isShown(store, state.getState(), "nope", id as never)),
+    ).toEqual([])
   })
 })
 

@@ -36,7 +36,7 @@ import { type CommandArgs, type CommandId, commandContext, commandDef, isEnabled
 import type { OpenedContextMenu } from "./context-menus"
 import type { DialogArgs, DialogPreview, OpenedDialog } from "./dialogs"
 import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
-import { type AppDefs, assemble, type Plugin } from "./plugin"
+import { type Assembled, assemble, type Plugin } from "./plugin"
 
 export type { Settings } from "../core/settings"
 
@@ -115,8 +115,8 @@ export interface DoneAction {
 
 export type ReadonlyStore = Pick<StoreApi<AppState>, "getState" | "getInitialState" | "subscribe">
 
-// AppDefs は、この store が使う定義の表（登録表・コマンド・ダイアログ・ホーム）。plugins は、表のもとにしたプラグイン（画面の側が見た目を引く）
-export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> extends AppDefs {
+// インスタンス: 組み立てたもの（機能台帳と、組み立てで決まる値）と、状態と操作。plugins は、台帳のもとにしたプラグイン（画面の側が見た目を引く）
+export interface AppStore<Ps extends readonly Plugin[] = readonly Plugin[]> extends Assembled {
   plugins: Ps
   state: ReadonlyStore
   actions: Actions
@@ -160,7 +160,8 @@ function startLang(registry: CoreCatalog, lang: Lang | readonly string[] = []): 
 export function createAppStore<const Ps extends readonly Plugin[]>(options: StoreOptions<Ps>): AppStore<Ps> {
   const { plugins } = options
   const defs = assemble(plugins, options.home ?? null, options.autoSkin)
-  const { registry, home } = defs
+  const { catalog, home } = defs
+  const registry = catalog.core
   const start: Settings = { lang: startLang(registry, options.lang), skin: "auto", keys: NO_KEY_CHANGES }
   const initial =
     options.initial ??
@@ -188,7 +189,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
   // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
   const keysFor = (changes: KeyChanges): KeyTable => {
-    if (keyCache?.changes !== changes) keyCache = { changes, table: keyTable(defs.keys, changes) }
+    if (keyCache?.changes !== changes) keyCache = { changes, table: keyTable(catalog.store.keys, changes) }
     return keyCache.table
   }
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {
@@ -256,7 +257,7 @@ export function createAppStore<const Ps extends readonly Plugin[]>(options: Stor
       return true
     },
     openDialog: (stage, id, ...args) => {
-      if (!defs.dialogs.has(id)) fail("E108", { id })
+      if (!catalog.store.dialogs.has(id)) fail("E108", { id })
       if (getState().workspace.stages.some(s => s.id === stage))
         setState({ dialog: { id, stage, args: args[0], submitted: 0, preview: null } })
     },

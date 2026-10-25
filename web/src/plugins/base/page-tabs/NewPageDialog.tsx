@@ -6,7 +6,7 @@ import { ORIENTATION_TITLES, type Orientation } from "../../../core/def/paper"
 import type { PaperChoice } from "../../../core/paper"
 import { useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useApp, useRegistry } from "../../../ui/store-context"
+import { useActions, useApp, useCatalog } from "../../../ui/store-context"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 
@@ -28,7 +28,7 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
   const { addPage } = useActions()
   const lang = useApp(s => s.settings.lang)
   const t = useT()
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const { papers, orientations } = paperChoices(registry, book)
   const [title, setTitle] = useState(() => nextPageTitle(registry, book, lang))
   const [choice, setChoice] = useState<PaperChoice>(() => defaultPaper(registry, book))

@@ -4,7 +4,7 @@ import { creatableTypes } from "../../../../core/book"
 import { bookType } from "../../../../core/core-catalog"
 import { useT } from "../../../../ui/i18n"
 import type { DialogProps } from "../../../../ui/plugin"
-import { useActions, useRegistry } from "../../../../ui/store-context"
+import { useActions, useCatalog } from "../../../../ui/store-context"
 import { controlClass, Dialog, Field, Form } from "../../../base/ui"
 
 export function NewBookDialog({ stage, onClose }: DialogProps) {
@@ -20,7 +20,7 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
   const { createBook } = useActions()
   const t = useT()
   const [title, setTitle] = useState("")
-  const registry = useRegistry()
+  const registry = useCatalog().core
   const types = creatableTypes(registry)
   const [type, setType] = useState(types[0] ?? "")
   return (
