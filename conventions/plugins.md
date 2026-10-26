@@ -9,7 +9,7 @@
 - 追加プラグインは、プラグイン API（`matomezu`・`matomezu/ui`・`matomezu/catalog`）だけを読む。テストで組むときだけ `matomezu/testing` も読む（見本は `test/rules.test.ts` が見張る）
 - プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。見た目は、matomezu が渡すステージの id から、フックで約束のものだけを引く:
   - データ: `useBook(stage)`・`usePage(stage)`（開いているブックとページ）、`useItem(stage, page, item)`（項目の型はアイテムの id で決まる）、`useShownPage(stage)`（ダイアログの下書きを重ねたページ。見せ方が描くのに使う）
-  - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`）。ブックのビューにはステージの id を渡す
+  - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`）。ブックのビューにはステージの id を渡す。コマンドの `ctx.stage` も同じ `StageView`
   - 定義と設定: `useCoreCatalog()`・`useUiCatalog()`（読むだけ）、`useSettings()`（言語とスキン）
   - データを変えるのは `usePerform(stage)`（そのステージが開いているブックにアクションを行う）だけ。画面の状態（選択・ダイアログ・ページを開くなど）はコマンドと `useActions`
 - プラグイン API が出す名前の一覧は `test/plugin-api.test.ts` に書く。足すときも消すときもここを直し、わざと変えたと分かるようにする
