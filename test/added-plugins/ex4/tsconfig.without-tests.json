@@ -1,0 +1,5 @@
+{
+  // テストを除いたプラグインのファイルだけでも型が通るか（ビルトインの書き足しを matomezu の型がいつも含むか）
+  "extends": "../tsconfig.json",
+  "include": ["../../setup.ts", "../../../web/src/css.d.ts", "*.ts", "*.tsx"]
+}

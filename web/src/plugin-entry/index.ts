@@ -3,6 +3,11 @@
 // zod は matomezu の実物を使う（追加プラグインが自分で入れた zod は使わない）
 export { z } from "zod"
 export * from "../plugin-api"
+
+// ビルトインプラグインが機能台帳の型の側に書き足した物（ItemTable など）を、いつも型に含める（ビルトインは必ずいるので、
+// 追加プラグインのプロジェクトがビルトインのファイルを読まなくても、ビルトインの id と型が引ける）
+import type {} from "../plugins"
+
 // base の置く計算と文字（ビルトインプラグインは plugins/base から読む）
 export type { Axis, Edges, Gap } from "../plugins/base"
 export {

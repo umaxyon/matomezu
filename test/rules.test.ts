@@ -169,8 +169,9 @@ test("画面の文言は t() を通す（ui に日本語を直に書かない）
 // テストで組む入口（testing/。matomezu/testing）。中のコードは入口を読まない（入口が中を読む向きだけ）
 const ENTRY_LAYERS = ["plugin-entry", "testing"]
 const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
-  "plugin-entry/index.ts": t => t === "plugin-api" || t === "zod" || t === "plugins/base", // zod と base の置く計算・文字も出し直す
-  "plugin-entry/ui.ts": t => t === "plugin-api/ui" || t === "plugins/base/ui",
+  // zod と base の置く計算・文字も出し直す。plugins と plugins/ui は、ビルトインの型の書き足しを含めるための型だけの読み込み
+  "plugin-entry/index.ts": t => t === "plugin-api" || t === "zod" || t === "plugins/base" || t === "plugins",
+  "plugin-entry/ui.ts": t => t === "plugin-api/ui" || t === "plugins/base/ui" || t === "plugins/ui",
   "testing/index.ts": t => ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui",
 }
 
