@@ -1,5 +1,4 @@
 // ex4（2 つ目のつなぐもの）で、監査 E1〜E5 を確かめる（B5 は type-checks.ts）。
-// test.failing は監査の項目がまだ残っている所（あるべき動きを書き、直れば落ちて知らせる）
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render } from "@testing-library/react"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"

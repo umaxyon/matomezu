@@ -1,5 +1,4 @@
-// ex5（文字を持たず、中身の欄が children でない形）で、監査 B1〜B3 を確かめる。
-// test.failing は監査の項目がまだ残っている所（あるべき動きを書き、直れば落ちて知らせる）
+// ex5（文字を持たず、中身の欄が children でない形）で、監査 B1〜B3 を確かめる（themeProp の型は type-checks.ts）
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { nextItemId, type PagedBook } from "matomezu"
