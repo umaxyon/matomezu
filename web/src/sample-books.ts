@@ -12,9 +12,9 @@ const TITLES = [
   "Design Notes",
 ]
 
-export const SAMPLE_BOOKS: BookOf<"drawing">[] = TITLES.map((title, i) => ({
-  type: "drawing",
+export const SAMPLE_BOOKS: BookOf<"@matomezu/drawing:drawing">[] = TITLES.map((title, i) => ({
+  type: "@matomezu/drawing:drawing",
   id: `b${i + 1}`,
   title,
-  pages: [{ id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" }],
+  pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
 }))

@@ -11,7 +11,13 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 afterEach(cleanup)
 
 function renderScreen(options: Omit<StoreOptions, "plugins"> = {}) {
-  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", ...options, plugins: BUILTIN_UI })
+  const store = createMatomezu({
+    home: "@matomezu/master:master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    ...options,
+    plugins: BUILTIN_UI,
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -110,12 +116,12 @@ test("＋でページを作るダイアログが開き、名前と紙を決め�
   const dialog = screen.getByRole("dialog", { name: "新しいページ" })
   const name = within(dialog).getByLabelText("ページの名前") as HTMLInputElement
   expect(name.value).toBe("ページ 2")
-  expect((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).value).toBe("a4")
+  expect((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).value).toBe("@matomezu/base:a4")
   expect((within(dialog).getByLabelText("向き") as HTMLSelectElement).value).toBe("landscape")
   fireEvent.change(name, { target: { value: "  " } })
   expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
   fireEvent.change(name, { target: { value: "裏表紙" } })
-  fireEvent.change(within(dialog).getByLabelText("紙のサイズ"), { target: { value: "a5" } })
+  fireEvent.change(within(dialog).getByLabelText("紙のサイズ"), { target: { value: "@matomezu/base:a5" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
   const tabs = screen.getAllByRole("tab")
   expect(tabs.map(t => t.textContent)).toEqual(["ページ 1", "裏表紙"])
@@ -197,16 +203,16 @@ test("マスターの設定で言語とスキンを変える", () => {
   fireEvent.click(fromMenu("ホーム"))
   fireEvent.change(screen.getByLabelText("言語"), { target: { value: "en" } })
   expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy()
-  fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "light" } })
-  expect(document.documentElement.dataset.skin).toBe("light")
+  fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "@matomezu/base:light" } })
+  expect(document.documentElement.dataset.skin).toBe("@matomezu/base:light")
 })
 
 test("インスタンスに無いスキンは選べず、設定に残っていても自動のスキンで描く（data-skin を付けない）", () => {
   const store = renderScreen()
   act(() => {
-    store.actions.setSkin("light")
+    store.actions.setSkin("@matomezu/base:light")
   })
-  expect(document.documentElement.dataset.skin).toBe("light")
+  expect(document.documentElement.dataset.skin).toBe("@matomezu/base:light")
   expect(store.actions.setSkin("removed-skin")).toBe(false)
   cleanup()
   // 外したスキンが設定に残っている状態から描く
@@ -220,7 +226,7 @@ test("文字の変換中の Escape ではダイアログを閉じず、変換し
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   const name = within(screen.getByRole("dialog", { name: "新しいページ" })).getByRole("textbox")
   fireEvent.keyDown(name, { key: "Escape", isComposing: true })
-  expect(store.state.getState().dialog).toMatchObject({ id: "page.new" })
+  expect(store.state.getState().dialog).toMatchObject({ id: "@matomezu/base:page-new" })
   fireEvent.keyDown(name, { key: "Escape" })
   expect(store.state.getState().dialog).toBeNull()
 })
@@ -229,9 +235,14 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
   const [base, ...rest] = BUILTIN_UI
   const locked = {
     ...base,
-    commands: base.commands.map(c => (c.id === "stage.split" ? { ...c, enabled: () => false } : c)),
+    commands: base.commands.map(c => (c.id === "@matomezu/base:stage-split" ? { ...c, enabled: () => false } : c)),
   }
-  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: [locked, ...rest] })
+  const store = createMatomezu({
+    home: "@matomezu/master:master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    plugins: [locked, ...rest],
+  })
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <Screen />
@@ -242,7 +253,7 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
 
 test("表に無い紙のページは、代わりの紙に「不明な紙」と示して描き、データの紙の id は残す", () => {
   const book = {
-    type: "drawing" as const,
+    type: "@matomezu/drawing:drawing" as const,
     id: "x",
     title: "外した紙",
     pages: [{ id: "p1", title: "ページ 1", paper: "b5", orientation: "portrait" as const }],
@@ -253,7 +264,12 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
 })
 
 test("StrictMode で描いても、開いたダイアログは閉じない", async () => {
-  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
+  const store = createMatomezu({
+    home: "@matomezu/master:master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    plugins: BUILTIN_UI,
+  })
   render(
     <StrictMode>
       <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
@@ -263,7 +279,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   )
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   await new Promise(r => setTimeout(r, 50))
-  expect(store.state.getState().dialog).toMatchObject({ id: "page.new" })
+  expect(store.state.getState().dialog).toMatchObject({ id: "@matomezu/base:page-new" })
   expect(screen.getByRole("dialog", { name: "新しいページ" })).toBeTruthy()
 })
 
@@ -298,19 +314,24 @@ test("右クリックのメニューは、外を押すか Escape で閉じる", 
 
 test("マスターの画面には右クリックのメニューが無く、ブラウザのメニューを止めない", () => {
   const store = renderScreen()
-  act(() => store.actions.openBook("s1", "master"))
+  act(() => store.actions.openBook("s1", "@matomezu/master:master"))
   const notCanceled = fireEvent.contextMenu(screen.getByRole("region", { name: "マスター" }))
   expect(notCanceled).toBe(true)
   expect(screen.queryByRole("menu")).toBeNull()
 })
 
 test("右クリックのメニューに出るコマンドが無ければ、メニューは出さない（ブラウザのメニューも出さない）", () => {
-  const store = createMatomezu({ home: "master", books: SAMPLE_BOOKS, lang: "ja", plugins: BUILTIN_UI })
+  const store = createMatomezu({
+    home: "@matomezu/master:master",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+    plugins: BUILTIN_UI,
+  })
   // 分割をやめるは、分割していないと出ない
   const layout = {
     ...DEFAULT_LAYOUT,
     id: "unsplit-only",
-    contextMenus: { "paper.context": ["stage.unsplit"] },
+    contextMenus: { "@matomezu/paper:paper-context": ["@matomezu/base:stage-unsplit"] },
   } as const
   render(
     <MatomezuProvider instance={store} layout={layout}>

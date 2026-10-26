@@ -9,7 +9,7 @@ import { type StickyScene, stickyMemory } from "../../web/src/plugins/items/line
 const r = (x: number, y = 100): Rect => ({ x, y, w: 100, h: 64 })
 const line = (id: string, from: string, to: string, props: PlacedLine["props"] = {}): PlacedLine => ({
   id,
-  item: "connector.line",
+  item: "@matomezu/line:connector-line",
   from,
   to,
   props,

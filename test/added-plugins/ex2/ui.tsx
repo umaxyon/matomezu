@@ -4,9 +4,9 @@ import { EX2 } from "."
 import { AddDiamondDialog, DIAMOND_ICON, DiamondView, DirectionSetting, EditDiamondDialog } from "./views"
 
 export const EX2_UI = definePluginUi(EX2, {
-  items: { "ex2/diamond": { view: DiamondView, icon: DIAMOND_ICON } },
-  settingViews: { "ex2/flow.direction": { control: DirectionSetting } },
-  dialogViews: { "ex2/diamond.add": AddDiamondDialog, "ex2/diamond.edit": EditDiamondDialog },
+  items: { "ex2:diamond": { view: DiamondView, icon: DIAMOND_ICON } },
+  settingViews: { "ex2:flow-direction": { control: DirectionSetting } },
+  dialogViews: { "ex2:diamond-add": AddDiamondDialog, "ex2:diamond-edit": EditDiamondDialog },
 })
 
 export default EX2_UI

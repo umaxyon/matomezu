@@ -1,0 +1,181 @@
+// プラグインの定義の関数の組（pluginKit）: プラグインは自分の物を短い名前で書き、この組が頭（プラグインの id と :）を付けて返す。
+// 返した定義の id は本当の id（型も）で、自分の物はそれか kit.name(名前) で名指す。ほかのプラグインの物は本当の id で書く。
+// 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマの欄の id・テーマが上書きする自分の欄の鍵だけ
+import type { MessageKey } from "../core/catalog"
+import type { ActionDef, ActionTarget } from "../core/def/action"
+import {
+  type BookSchema,
+  type DataOf,
+  type ManyBookTypeDef,
+  type NewBook,
+  type SingleBookTypeDef,
+  type WithTypeField,
+  withTypeField,
+} from "../core/def/book-type"
+import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
+import type { PaperDef } from "../core/def/paper"
+import type { PresentationDef } from "../core/def/presentation"
+import type { SettingDef } from "../core/def/setting"
+import type { SkinDef } from "../core/def/skin"
+import type { ThemeDef, TokenDecl } from "../core/def/theme"
+import type { MessageSet } from "../core/i18n/messages"
+import { type Owned, owned } from "../core/names"
+import type { CommandDef, CommandPlace } from "./commands/def"
+import type { DialogDef } from "./dialogs"
+import type { PluginParts } from "./plugin"
+
+// 頭を付けた文言の表
+export type OwnedMessages<P extends string, M> = { readonly [K in keyof M & string as Owned<P, K>]: M[K] }
+// 名前（title）を自分の文言の短い鍵で書いた定義と、頭を付けた定義
+type Titled<D, K extends string> = Omit<D, "id" | "title"> & { title: K }
+type Placed<D, Id extends string> = Omit<D, "id" | "title"> & { id: Id; title: MessageKey }
+type ShapeProps = ShapeItemDef["props"]
+
+// ブックのタイプ（schema に type は書かない。1 冊だけのタイプのブックは id も書かない）。book と create の返すデータの形は、組み立てが schema で確かめる
+// （ここで schema から型を作って縛ると、型の推論が回って崩れる）
+type SingleIn<S extends BookSchema, K extends string> = Titled<Omit<SingleBookTypeDef<S>, "book">, K> & { book: object }
+type ManyIn<S extends BookSchema, K extends string> = Titled<Omit<ManyBookTypeDef<S>, "create">, K> & {
+  create(init: NewBook): object
+}
+type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<
+  T,
+  "id" | "title" | "schema" | "book" | "create"
+> & {
+  id: Id
+  title: MessageKey
+  schema: WithTypeField<S, Id>
+} & (T extends { single: true }
+    ? { book: DataOf<WithTypeField<S, Id>> }
+    : { create(init: NewBook): DataOf<WithTypeField<S, Id>> })
+
+// 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
+export interface PluginKit<P extends string, M extends MessageSet> {
+  id: P // プラグインの id
+  messages: OwnedMessages<P, M> // 頭を付けた文言（機能台帳の型の側 MessageTable に書き足す）
+  name<const N extends string>(name: N): Owned<P, N> // 自分の名前の本当の id
+  message<const K extends keyof M & string>(key: K): Owned<P, K> // 自分の文言の本当の鍵
+
+  // プラグインの束（id と頭を付けた文言を足す）
+  plugin<const D extends Omit<PluginParts, "messages">>(parts: D): D & { id: P; messages: OwnedMessages<P, M> }
+
+  defineShape<
+    const Id extends string,
+    Pr extends ShapeProps,
+    const C extends Readonly<Record<string, ShapeProps>> = Record<never, never>,
+    const G extends { add?: string; edit?: string } = Record<never, never>,
+  >(
+    def: Omit<ShapeItemDef<ShapeDataOf<Pr, C>, keyof M & string>, "id" | "props" | "content" | "kind" | "dialogs"> & {
+      id: Id
+      kind: "shape"
+      props: Pr
+      content?: C
+      dialogs?: G
+    },
+  ): Omit<ShapeItemDef<ShapeDataOf<Pr, C>>, "id" | "content" | "dialogs"> & {
+    id: Owned<P, Id>
+    kind: "shape"
+    props: Pr
+    content?: C
+    dialogs?: G
+  }
+
+  defineConnector<const Id extends string, Pr extends ShapeProps>(
+    def: Omit<ConnectorItemDef<ConnectorDataOf<Pr>, keyof M & string>, "id" | "props" | "kind"> & {
+      id: Id
+      kind: "connector"
+      props: Pr
+    },
+  ): Omit<ConnectorItemDef<ConnectorDataOf<Pr>>, "id"> & { id: Owned<P, Id>; kind: "connector"; props: Pr }
+
+  defineAction<const Id extends string, T extends ActionTarget, A, R, I>(
+    def: ActionDef<T, A, R, I, keyof M & string> & { id: Id },
+  ): Omit<ActionDef<T, A, R, I>, "id"> & { id: Owned<P, Id> }
+
+  defineSetting<const Id extends string, S extends SettingDef["schema"]>(
+    def: SettingDef<S, keyof M & string> & { id: Id },
+  ): Omit<SettingDef<S>, "id"> & { id: Owned<P, Id> }
+
+  definePresentation<const Id extends string>(def: { id: Id }): PresentationDef & { id: Owned<P, Id> }
+
+  // ブックのタイプ: データの type（と 1 冊だけのタイプのブックの id）は本当の id。schema に type は書かず、ここで足す
+  defineBookType<
+    const Id extends string,
+    const S extends BookSchema,
+    const T extends SingleIn<S, keyof M & string> | ManyIn<S, keyof M & string>,
+  >(def: T & { id: Id; schema: S }): BookTypeOut<T, S, Owned<P, Id>>
+
+  // テーマ: tokens の鍵のうち : の無いものは自分の欄
+  defineTheme<const Id extends string, const T extends Titled<ThemeDef, keyof M & string>>(
+    def: T & { id: Id },
+  ): Placed<T, Owned<P, Id>>
+
+  definePaper<const Id extends string, const T extends Titled<PaperDef, keyof M & string>>(
+    def: T & { id: Id },
+  ): Placed<T, Owned<P, Id>>
+
+  defineSkin<const Id extends string, const T extends Titled<SkinDef, keyof M & string>>(
+    def: T & { id: Id },
+  ): Placed<T, Owned<P, Id>>
+
+  // run の 3 つ目の引数の型から A を決める（defineCommand と同じく、run は when より前に書く）
+  defineCommand<const Id extends string, A = undefined>(
+    def: CommandDef<A, keyof M & string> & { id: Id; place?: CommandPlace<NoInfer<A>> },
+  ): Omit<CommandDef<A>, "id"> & { id: Owned<P, Id> }
+
+  defineDialog<const Id extends string>(def: { id: Id }): DialogDef & { id: Owned<P, Id> }
+
+  // 開くときに A の値を渡すダイアログ（kit.defineDialogWith<渡す値の型>()({ id })）
+  defineDialogWith<A>(): <const Id extends string>(def: { id: Id }) => DialogDef<A> & { id: Owned<P, Id> }
+}
+
+export function pluginKit<const P extends string, const M extends MessageSet = Record<never, never>>(
+  plugin: P,
+  messages: M = {} as M,
+): PluginKit<P, M> {
+  const ownMessages = Object.fromEntries(Object.entries(messages).map(([k, t]) => [`${plugin}:${k}`, t]))
+  const message = (key: string) => `${plugin}:${key}`
+  // 欄の宣言（短い名前か、kit.name で頭を付けた id）
+  const tokens = (decls: readonly TokenDecl[]): TokenDecl[] =>
+    decls.map(t => (t.id.includes(":") ? t : { ...t, id: owned(plugin, t.id) }))
+  // 定義の id・名前・欄の宣言に頭を付ける
+  const place = <D extends { id: string }>(def: D): D => {
+    const d = def as D & { title?: unknown; tokens?: unknown }
+    return {
+      ...def,
+      id: owned(plugin, def.id),
+      ...(typeof d.title === "string" ? { title: message(d.title) } : {}),
+      ...(Array.isArray(d.tokens) ? { tokens: tokens(d.tokens) } : {}),
+    }
+  }
+  const kit = {
+    id: plugin,
+    messages: ownMessages,
+    name: (name: string) => owned(plugin, name),
+    message,
+    plugin: (parts: object) => ({ ...parts, id: plugin, messages: ownMessages }),
+    defineShape: place,
+    defineConnector: place,
+    defineAction: place,
+    defineSetting: place,
+    definePresentation: place,
+    defineBookType: (def: { id: string; schema: BookSchema; book?: object; create?(init: NewBook): object }) => {
+      const id = owned(plugin, def.id)
+      const placed = { ...place(def), schema: withTypeField(def.schema, id) }
+      const { create, book } = def
+      if (book !== undefined) return { ...placed, book: { type: id, id, ...book } }
+      return { ...placed, create: (init: NewBook) => ({ type: id, ...create?.(init) }) }
+    },
+    defineTheme: (def: { id: string; tokens?: Record<string, unknown> }) => {
+      const placed = place(def)
+      if (!def.tokens) return placed
+      const own = Object.entries(def.tokens).map(([k, v]) => [k.includes(":") ? k : owned(plugin, k), v])
+      return { ...placed, tokens: Object.fromEntries(own) }
+    },
+    definePaper: place,
+    defineSkin: place,
+    defineCommand: place,
+    defineDialog: place,
+    defineDialogWith: () => place,
+  }
+  return kit as unknown as PluginKit<P, M>
+}

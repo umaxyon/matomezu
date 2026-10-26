@@ -1,15 +1,15 @@
 // リストのダイアログ: 追加と編集で同じ並び。キャプション（名前の右に左・中央・右の寄せ）、テーマ・色・行の色分けを横に並べた行、
 // チェックリストのスイッチと、入れたときだけ下に開く「チェック済みを」（グレーアウト・並べ替え）、行があるときの「行の高さ」。テーマと色は箱のダイアログと同じ。
 // 編集では、選んだ寄せ・テーマ・色・チェックリスト・行の色分け・チェック済みの見せ方・行の高さを決める前からリストに重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
-// チェックの入った行があるリストのチェックリストを切ろうとしたら、切る前に上に重ねたモーダルで確かめる（「チェックの状態が消えます」と、消す・戻すのボタン。base の Confirm）。確定すると行のチェックは消える（item.update）。
+// チェックの入った行があるリストのチェックリストを切ろうとしたら、切る前に上に重ねたモーダルで確かめる（「チェックの状態が消えます」と、消す・戻すのボタン。base の Confirm）。確定すると行のチェックは消える（item-update）。
 // 編集には「行の高さ」（どれも高さの書き換え。決まりではない）: 「中身が見える高さにそろえる」は行ごとにその行の本文が全部見える高さに（行ごとに違う）、
 // 「行にそろえる」は選んだ行数（「最大行」なら本文の一番長い行が全部見える行数）に、本文の量によらず全部の行を同じ高さにする。
-// これも下書きで見せ、確定で行の行数を書き換える（row.lines）。
-// 追加は開いたときに覚えた所にリストを置いて（item.place）選び、編集はリストの項目を書き換える（item.update）
+// これも下書きで見せ、確定で行の行数を書き換える（row-lines）。
+// 追加は開いたときに覚えた所にリストを置いて（item-place）選び、編集はリストの項目を書き換える（item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
 import { type ItemProps, type MessageKey, type Point, pagedOf, shapesOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useT } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useMessages } from "../../../plugin-api/ui"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
@@ -33,6 +33,7 @@ import {
   useBookTheme,
   useSwatches,
 } from "../../base/ui"
+import { kit } from "./kit"
 import { LIST, LIST_FILL, type ListRow } from "./list"
 import { withRowLines } from "./rows"
 import type { RowsLines } from "./size"
@@ -45,7 +46,7 @@ const DIALOG_WIDTH = 440
 // 全部の行をそろえる行数の選択肢（「最大行」のほか）
 const PICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
-type ListProps = ItemProps<"shape.list">
+type ListProps = ItemProps<"@matomezu/list:shape-list">
 
 // 選んだそばからリストに見せる項目
 type Look = Pick<ListProps, "captionAlign" | "theme" | "color" | "checklist" | "zebra" | "checkedGray" | "checkedOrder">
@@ -65,7 +66,7 @@ export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const { perform, select } = useActions()
   const add = (props: ListProps) => {
     if (!book) return false
-    const done = perform("item.place", { page: args.page, item: LIST.id, at: args.at, props }, { book })
+    const done = perform("@matomezu/paper:item-place", { page: args.page, item: LIST.id, at: args.at, props }, { book })
     if (!done.ok) return false
     select(stage, [done.result.item])
     onClose()
@@ -73,8 +74,8 @@ export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: stri
   }
   return (
     <ListDialog
-      title="Add list"
-      submit="Add"
+      title={kit.message("Add list")}
+      submit={kit.message("Add")}
       start={EMPTY}
       checked={false}
       bookTheme={bookTheme}
@@ -112,19 +113,19 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
   const update = (props: ListProps, rowLines?: RowsLines) => {
     // 「ブックのテーマ」・色の「なし」に戻したら、リストのテーマ・色の項目を消す
     const done = perform(
-      "item.update",
+      "@matomezu/paper:item-update",
       { page: args.page, item: args.item, props: { ...props, theme: props.theme ?? null, color: props.color ?? null } },
       { book },
     )
     if (done.ok && rowLines !== undefined && rows.length > 0)
-      perform("row.lines", { page: args.page, list: args.item, lines: rowLines }, { book })
+      perform("@matomezu/list:row-lines", { page: args.page, list: args.item, lines: rowLines }, { book })
     if (done.ok) onClose()
     return done.ok
   }
   return (
     <ListDialog
-      title="Edit list"
-      submit="OK"
+      title={kit.message("Edit list")}
+      submit={kit.message("OK")}
       start={found.props}
       checked={rows.some(r => r.props.checked === true)}
       hasRows={rows.length > 0}
@@ -160,7 +161,7 @@ function ListDialog({
   onPreview?: (look: Look | null, rowLines?: RowsLines) => void // テーマ・色・チェックリスト・行の色分け・行の高さを選んだ（元の値に戻せば null）
   onClose: () => void
 }) {
-  const t = useT()
+  const t = useMessages(kit)
   const form = useId()
   const catalog = useCatalog().core
   const [caption, setCaption] = useState(start.caption)

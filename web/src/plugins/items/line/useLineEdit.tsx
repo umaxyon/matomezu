@@ -1,6 +1,6 @@
 // 選んだ線をじかに直すドラッグ（線の層が使う）: 途中の区間・端・キャプションの札。
 // ドラッグの間は、動かした線の項目（下書き）と吸い付いた点・つなぎ替えの相手だけをビューに持ち、離したときに書く
-// （区間・端・札はアクション line.update、ほかの形の上で離した端はコマンド line.drop でつなぎ替え）。項目は edit.ts の純粋な関数で決める。
+// （区間・端・札はアクション line-update、ほかの形の上で離した端はコマンド line-drop でつなぎ替え）。項目は edit.ts の純粋な関数で決める。
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import { type CoreCatalog, type ItemPage, type Point, type Stage, toPaper } from "../../../plugin-api"
@@ -40,7 +40,7 @@ const SLOP = 3 // 札は、これだけ動かすまではドラッグにしな�
 
 export function useLineEdit(stage: Stage, catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
   const { perform } = useActions()
-  const drop = useCommand(stage.id, "line.drop")
+  const drop = useCommand(stage.id, "@matomezu/line:line-drop")
   const drag = useRef<Drag | null>(null)
   const [draft, setDraft] = useState<{ id: string; props: Props } | null>(null)
   const [snap, setSnap] = useState<Point | null>(null)
@@ -140,7 +140,7 @@ export function useLineEdit(stage: Stage, catalog: CoreCatalog, localOf: (e: Poi
             ? (["captionAt", "captionOffset"] as const)
             : ([w.end === "from" ? "exitAt" : "enterAt"] as const)
       const patch = Object.fromEntries(keys.map(k => [k, props[k] ?? null]))
-      perform("line.update", { page: scene.page.id, line: line.id, props: patch }, { book })
+      perform("@matomezu/line:line-update", { page: scene.page.id, line: line.id, props: patch }, { book })
     },
   }
 }

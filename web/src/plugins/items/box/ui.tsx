@@ -6,9 +6,9 @@ import { BoxView } from "./BoxView"
 import { BOX_ICON } from "./icons"
 
 export const BOX_ITEM_UI = { view: BoxView, icon: BOX_ICON }
-export const BOX_DIALOG_VIEWS = { "box.add": AddBoxDialog, "box.edit": EditBoxDialog }
+export const BOX_DIALOG_VIEWS = { "@matomezu/box:box-add": AddBoxDialog, "@matomezu/box:box-edit": EditBoxDialog }
 
 export const BOX_UI = definePluginUi(BOX_PLUGIN, {
-  items: { "shape.box": BOX_ITEM_UI },
+  items: { "@matomezu/box:shape-box": BOX_ITEM_UI },
   dialogViews: BOX_DIALOG_VIEWS,
 })

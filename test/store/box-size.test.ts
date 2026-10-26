@@ -7,7 +7,8 @@ import { BOX } from "../../web/src/plugins/items/box/box"
 import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/items/box/size"
 import { newStore } from "../support"
 
-const page = (store: ReturnType<typeof newStore>) => (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
+const page = (store: ReturnType<typeof newStore>) =>
+  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
 const items = (store: ReturnType<typeof newStore>) => shapesOf(page(store))
 const ALIGNS = { captionAlign: "center", bodyAlign: "left" } as const
 const box = (body: string, rule = true) => ({ caption: "見出し", rule, body, ...ALIGNS })
@@ -26,7 +27,12 @@ const place = (
   props: Record<string, unknown>,
   at = { x: 100, y: 100 },
   size: { w?: number; h?: number } = {},
-) => store.actions.perform("item.place", { page: "p1", item: "shape.box", at, props, ...size }, { book: "b1" })
+) =>
+  store.actions.perform(
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-box", at, props, ...size },
+    { book: "b1" },
+  )
 
 test("本文は高さに収まる行の数だけ出し、収まらない分は最後の行の終わりに … を付けて切る", () => {
   const all = boxLayout(box(LONG), { w: 160, h: 2000 }).body
@@ -84,15 +90,19 @@ test("本文は 2000 字まで", () => {
 test("本文を変えても大きさは変わらない", () => {
   const store = ready()
   place(store, box("短い"))
-  store.actions.perform("item.update", { page: "p1", item: "n1", props: { body: LONG } }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/paper:item-update",
+    { page: "p1", item: "n1", props: { body: LONG } },
+    { book: "b1" },
+  )
   expect(items(store)[0]).toMatchObject({ w: 64, h: 64, props: { body: LONG } })
 })
 
-test("item.resize で渡した値だけを変える。x・y を渡せば左上も動く。小さすぎる・紙の外へ出る大きさは断る", () => {
+test("@matomezu/paper:item-resize で渡した値だけを変える。x・y を渡せば左上も動く。小さすぎる・紙の外へ出る大きさは断る", () => {
   const store = ready()
   place(store, box("本文"))
   const resize = (args: { w?: number; h?: number; x?: number; y?: number }) =>
-    store.actions.perform("item.resize", { page: "p1", item: "n1", ...args }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n1", ...args }, { book: "b1" })
   expect(resize({ w: 300 }).ok).toBe(true)
   expect(items(store)[0]).toMatchObject({ x: 100, y: 100, w: 300, h: 64 })
   expect(resize({ h: 200, y: 50 }).ok).toBe(true)
@@ -108,7 +118,7 @@ test("画面から辺をつかんで大きさを変える: 辺はその辺だけ
   place(store, box("本文"))
   const zoom = store.state.getState().workspace.stages[0]!.zoom
   const drag = (edges: object, x: number, y: number) =>
-    store.actions.command("s1", "paper.resize", { item: "n1", edges, by: { x: x * zoom, y: y * zoom } })
+    store.actions.command("s1", "@matomezu/paper:paper-resize", { item: "n1", edges, by: { x: x * zoom, y: y * zoom } })
   drag({ x: "right" }, 40, 30)
   expect(items(store)[0]).toMatchObject({ x: 100, y: 100, w: 104, h: 64 })
   drag({ y: "bottom" }, 30, 36)
@@ -123,7 +133,7 @@ test("中身を変えてキャプションが長くなったら、20 字まで�
   const store = ready()
   place(store, box("本文"))
   const update = (props: Record<string, unknown>) =>
-    store.actions.perform("item.update", { page: "p1", item: "n1", props }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
   const twenty = "あ".repeat(20)
   expect(update({ caption: twenty }).ok).toBe(true)
   expect(items(store)[0]).toMatchObject({
@@ -135,7 +145,7 @@ test("中身を変えてキャプションが長くなったら、20 字まで�
   expect(wide).toBe(placedWidth({ caption: "あ".repeat(30), rule: true, body: "", ...ALIGNS }))
   update({ caption: "短い" })
   expect(items(store)[0]!.w).toBe(wide)
-  store.actions.perform("item.resize", { page: "p1", item: "n1", w: 64, x: 1123 - 100 }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n1", w: 64, x: 1123 - 100 }, { book: "b1" })
   update({ caption: twenty })
   expect(items(store)[0]).toMatchObject({ x: 1023, w: 100 })
 })
@@ -143,8 +153,12 @@ test("中身を変えてキャプションが長くなったら、20 字まで�
 test("キャプションを変えないなら、幅はそのまま", () => {
   const store = ready()
   place(store, box("本文"), { x: 100, y: 100 }, { w: 64 })
-  store.actions.perform("item.resize", { page: "p1", item: "n1", w: 64 }, { book: "b1" })
-  store.actions.perform("item.update", { page: "p1", item: "n1", props: { body: "変えた" } }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n1", w: 64 }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/paper:item-update",
+    { page: "p1", item: "n1", props: { body: "変えた" } },
+    { book: "b1" },
+  )
   expect(items(store)[0]!.w).toBe(64)
 })
 
@@ -153,7 +167,7 @@ test("寄せの項目は既定でキャプションが中央、本文が左。�
   place(store, { caption: "見出し" })
   expect(items(store)[0]!.props).toMatchObject({ captionAlign: "center", bodyAlign: "left" })
   const update = (props: Record<string, unknown>) =>
-    store.actions.perform("item.update", { page: "p1", item: "n1", props }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
   expect(update({ captionAlign: "right", bodyAlign: "center" }).ok).toBe(true)
   expect(items(store)[0]!.props).toMatchObject({ captionAlign: "right", bodyAlign: "center" })
   expect(update({ bodyAlign: "justify" }).ok).toBe(false)
@@ -161,31 +175,35 @@ test("寄せの項目は既定でキャプションが中央、本文が左。�
 
 test("箱にテーマを当てられる。表に無いテーマは断る。テーマの箱の欄は、宣言の値かテーマの上書きで決まる", () => {
   const store = ready()
-  expect(place(store, { caption: "付箋", theme: "sticky" }).ok).toBe(true)
-  expect(items(store)[0]!.props).toMatchObject({ theme: "sticky" })
+  expect(place(store, { caption: "付箋", theme: "@matomezu/base:sticky" }).ok).toBe(true)
+  expect(items(store)[0]!.props).toMatchObject({ theme: "@matomezu/base:sticky" })
   expect(place(store, { caption: "無い", theme: "nope" }, { x: 400, y: 100 }).ok).toBe(false)
   const update = (props: Record<string, unknown>) =>
-    store.actions.perform("item.update", { page: "p1", item: "n1", props }, { book: "b1" })
-  expect(update({ theme: "simple" }).ok).toBe(true)
+    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
+  expect(update({ theme: "@matomezu/base:simple" }).ok).toBe(true)
   expect(update({ theme: "nope" }).ok).toBe(false)
   expect(update({ theme: null }).ok).toBe(true)
   expect("theme" in items(store)[0]!.props).toBe(false)
   const tokens = (theme: string) => resolveTokens(store.catalog.core, theme, BOX.tokens)
-  expect(tokens("standard")["box.radius"]).toEqual({ light: "8px", dark: "8px" })
-  expect(tokens("standard")["box.fold"]).toEqual({ light: "0px", dark: "0px" })
-  expect(tokens("sticky")["box.fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })
-  expect(tokens("sticky")["box.fold"]).toEqual({ light: "12px", dark: "12px" })
-  expect(tokens("simple")["box.line"]).toEqual({ light: "#262626", dark: "#262626" })
+  expect(tokens("@matomezu/base:standard")["@matomezu/box:box-radius"]).toEqual({ light: "8px", dark: "8px" })
+  expect(tokens("@matomezu/base:standard")["@matomezu/box:box-fold"]).toEqual({ light: "0px", dark: "0px" })
+  expect(tokens("@matomezu/base:sticky")["@matomezu/box:box-fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })
+  expect(tokens("@matomezu/base:sticky")["@matomezu/box:box-fold"]).toEqual({ light: "12px", dark: "12px" })
+  expect(tokens("@matomezu/base:simple")["@matomezu/box:box-line"]).toEqual({ light: "#262626", dark: "#262626" })
 })
 
 test("ダイアログの下書きは開いているダイアログが持ち、閉じると消える。データは変えない", () => {
   const store = ready()
   place(store, { caption: "見出し" })
-  store.actions.previewDialog({ book: "b1", item: "n1", props: { theme: "sticky" } })
+  store.actions.previewDialog({ book: "b1", item: "n1", props: { theme: "@matomezu/base:sticky" } })
   expect(store.state.getState().dialog).toBeNull()
-  store.actions.openDialog("s1", "box.edit", { page: "p1", item: "n1" })
-  store.actions.previewDialog({ book: "b1", item: "n1", props: { theme: "sticky" } })
-  expect(store.state.getState().dialog?.preview).toEqual({ book: "b1", item: "n1", props: { theme: "sticky" } })
+  store.actions.openDialog("s1", "@matomezu/box:box-edit", { page: "p1", item: "n1" })
+  store.actions.previewDialog({ book: "b1", item: "n1", props: { theme: "@matomezu/base:sticky" } })
+  expect(store.state.getState().dialog?.preview).toEqual({
+    book: "b1",
+    item: "n1",
+    props: { theme: "@matomezu/base:sticky" },
+  })
   expect("theme" in items(store)[0]!.props).toBe(false)
   store.actions.closeDialog()
   expect(store.state.getState().dialog).toBeNull()

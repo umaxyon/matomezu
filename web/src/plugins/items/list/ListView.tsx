@@ -1,14 +1,14 @@
 // リストのアイテムのビュー: 上にキャプションの見出し、その下に行を並べ、最後に行を足す「＋」の行。行がリストの高さを超えたら、行の所だけをスクロールする
 // （スクロールできるときのホイールは紙に渡さない）。行の並びと高さは size.ts の listLayout のとおりに描く。
-// 行をダブルクリックすると行の編集、右クリックすると行のメニュー（row.context）。チェックリストなら、行の左のチェックを押すだけで入れ切りする。
+// 行をダブルクリックすると行の編集、右クリックすると行のメニュー（row-context）。チェックリストなら、行の左のチェックを押すだけで入れ切りする。
 // 行の中の操作（チェック・「＋」・行のダブルクリックと右クリック）は、リストを動かす・リストの設定を開く操作に渡さない（行を押すとリストを選ぶだけで、
 // リストを動かすのは見出しと枠をつかんだとき。行を押してドラッグを始めると、ダブルクリックがリストの方へ届いてしまうため）。
 // 行を押して少し動かすと行のドラッグになり（押しただけ・ダブルクリック・チェックは今まで通り）、行のカードの写しがポインタに付いてきて、
 // 落とす所の行と行の間に線が出る。チェック済みの行を寄せて見せているリストでは、チェック済みの行は動かせない。リストの行の並びの上か下の端へ寄せると、その向きへスクロールする（edge-scroll.ts）。つかんだ行は元の所では隠し（場所は空けたまま）、同じリストのほかの行を薄くする（アイテムのドラッグと同じ見せ方）。
 // 写しは画面の上の層に描くので、行の所のテーマと色の変数を写し取って当てる。
-// 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list.moveRow）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
+// 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list-move-row）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
 // ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外の層に描く）。
-// 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list.stretchRow。ドラッグの途中の動いた量だけはビューに持つ）。
+// 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list-stretch-row。ドラッグの途中の動いた量だけはビューに持つ）。
 // リストのテーマと色はリストの欄（list.*）で描き、行はリストに従う。
 // チェックリストでは、チェック済みの行を薄く描き（checkedGray）、先頭か最後に寄せて見せる（checkedOrder。見せる順と動かせる行は rows.ts）。
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
@@ -16,10 +16,18 @@
 import { type CSSProperties, type PointerEvent, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { type ItemProps, resolveTokens, toPaperDelta } from "../../../plugin-api"
-import { type ItemViewProps, themeVars, useActions, useCommand, useContextMenu, useT } from "../../../plugin-api/ui"
+import {
+  type ItemViewProps,
+  themeVars,
+  useActions,
+  useCommand,
+  useContextMenu,
+  useMessages,
+} from "../../../plugin-api/ui"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useThemeVars } from "../../base/ui"
 import { edgeScroller } from "./edge-scroll"
+import { kit } from "./kit"
 import styles from "./ListView.module.css"
 import { LIST, type ListRow } from "./list"
 import { listPaintVars } from "./paint"
@@ -109,18 +117,18 @@ interface Stretch {
   start: number
 }
 
-export function ListView({ props, size, id, stage, content }: ItemViewProps<ItemProps<"shape.list">>) {
-  const t = useT()
+export function ListView({ props, size, id, stage, content }: ItemViewProps<ItemProps<"@matomezu/list:shape-list">>) {
+  const t = useMessages(kit)
   const catalog = useCatalog().core
   const rows = content as readonly ListRow[]
   const theme = props.theme
   const vars = useThemeVars(theme, LOOK_TOKENS)
-  const add = useCommand(stage, "list.addRow")
-  const edit = useCommand(stage, "list.editRow")
-  const check = useCommand(stage, "list.check")
-  const openMenu = useContextMenu(stage, "row.context")
-  const stretchRow = useCommand(stage, "list.stretchRow")
-  const moveRow = useCommand(stage, "list.moveRow")
+  const add = useCommand(stage, "@matomezu/list:list-add-row")
+  const edit = useCommand(stage, "@matomezu/list:list-edit-row")
+  const check = useCommand(stage, "@matomezu/list:list-check")
+  const openMenu = useContextMenu(stage, "@matomezu/list:row-context")
+  const stretchRow = useCommand(stage, "@matomezu/list:list-stretch-row")
+  const moveRow = useCommand(stage, "@matomezu/list:list-move-row")
   // 写しに写し取るテーマの変数の名前（テーマが違っても欄は同じ）
   const ghostNames = useMemo(() => {
     const any = [...catalog.themes.keys()][0]

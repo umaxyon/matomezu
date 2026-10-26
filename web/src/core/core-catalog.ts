@@ -105,7 +105,7 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
       })
     : null
   const own = Object.entries(t.schema.shape)
-  const head = own.filter(([k]) => HEAD.includes(k))
+  const head = HEAD.flatMap(h => own.filter(([k]) => k === h)) // type・id・title の順（type は pluginKit が後から足す）
   const tail = own.filter(([k]) => !HEAD.includes(k))
   const book = z.strictObject({
     ...Object.fromEntries(head),
@@ -172,7 +172,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
       if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
     }
-    if (t.pages?.addFromTabs && !t.actions.defaults.includes("page.add")) problems.push(problem("E006", { id: t.id }))
+    if (t.pages?.addFromTabs && !t.actions.defaults.includes("@matomezu/base:page-add"))
+      problems.push(problem("E006", { id: t.id }))
     const built = buildBookSchemas(parts, t).book
     if (t.single && (t.book.id !== t.id || !built.safeParse(t.book).success))
       problems.push(problem("E019", { id: t.id }))

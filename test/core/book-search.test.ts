@@ -4,10 +4,10 @@ import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG } from "../support"
 
 const book = (id: string, title: string) => ({
-  type: "drawing" as const,
+  type: "@matomezu/drawing:drawing" as const,
   id,
   title,
-  pages: [{ id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" as const }],
+  pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
 })
 const books = [
   MASTER_BOOK,
@@ -18,7 +18,13 @@ const books = [
 ]
 
 test("言葉が無ければ全部を、並びを変えずに返す", () => {
-  expect(searchBooks(CORE_CATALOG, books, "  ", "ja").map(b => b.id)).toEqual(["master", "a", "b", "c", "d"])
+  expect(searchBooks(CORE_CATALOG, books, "  ", "ja").map(b => b.id)).toEqual([
+    "@matomezu/master:master",
+    "a",
+    "b",
+    "c",
+    "d",
+  ])
 })
 
 test("空白で区切った言葉が全部含まれるブックだけを返す", () => {
@@ -36,7 +42,7 @@ test("当てはまらなければ空", () => {
 })
 
 test("マスターは画面の言葉の名前で探す", () => {
-  expect(searchBooks(CORE_CATALOG, books, "マスター", "ja").map(b => b.id)).toEqual(["master"])
-  expect(searchBooks(CORE_CATALOG, books, "master", "en").map(b => b.id)).toEqual(["master"])
+  expect(searchBooks(CORE_CATALOG, books, "マスター", "ja").map(b => b.id)).toEqual(["@matomezu/master:master"])
+  expect(searchBooks(CORE_CATALOG, books, "master", "en").map(b => b.id)).toEqual(["@matomezu/master:master"])
   expect(searchBooks(CORE_CATALOG, books, "master", "ja")).toEqual([])
 })

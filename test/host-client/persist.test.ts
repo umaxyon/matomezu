@@ -26,7 +26,11 @@ test("アクションで変わったブックだけを残すように頼む。�
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.actions.select("s1", ["x"])
   expect(rec.books).toEqual([])
-  store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x: 0, y: 0 } }, { book: "b2" })
+  store.actions.perform(
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-box", at: { x: 0, y: 0 } },
+    { book: "b2" },
+  )
   expect(rec.books.map(b => b.id)).toEqual(["b2"])
   expect(rec.books[0]).toBe(store.state.getState().books.b2!)
 })
@@ -53,16 +57,16 @@ test("メモリのホストは残したものを次に読む", async () => {
   const host = memoryClient([])
   const store = newStore({ books: [], savedBooks: (await host.load()).books })
   host.connect(store)
-  store.actions.createBook("s1", { title: "新しいブック", type: "drawing" })
-  store.actions.setSkin("dark")
+  store.actions.createBook("s1", { title: "新しいブック", type: "@matomezu/drawing:drawing" })
+  store.actions.setSkin("@matomezu/base:dark")
   const again = await host.load()
   expect(again.books).toContainEqual(expect.objectContaining({ title: "新しいブック" }))
-  expect(again.settings).toMatchObject({ skin: "dark" })
+  expect(again.settings).toMatchObject({ skin: "@matomezu/base:dark" })
 })
 
 test("残した設定は、このインスタンスで使える項目だけ使う（無い言語・無いスキン・形の合わない値は捨てる）", () => {
   const pick = (settings: unknown) => newStore({ settings }).state.getState().settings
-  expect(pick({ lang: "en", skin: "dark" })).toMatchObject({ lang: "en", skin: "dark" })
+  expect(pick({ lang: "en", skin: "@matomezu/base:dark" })).toMatchObject({ lang: "en", skin: "@matomezu/base:dark" })
   expect(pick({ lang: "xx", skin: "nope", keys: { added: "bad" } })).toEqual(pick(undefined))
   expect(pick("broken")).toEqual(pick(undefined))
 })

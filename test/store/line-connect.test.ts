@@ -9,24 +9,25 @@ import { CORE_CATALOG, newStore } from "../support"
 function ready() {
   const store = newStore()
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  const place = (x: number, y: number, item = "shape.box") =>
+  const place = (x: number, y: number, item = "@matomezu/box:shape-box") =>
     store.actions.perform(
-      "item.place",
-      { page: "p1", item, at: { x, y }, ...(item === "shape.box" ? { w: 100, h: 64 } : {}) },
+      "@matomezu/paper:item-place",
+      { page: "p1", item, at: { x, y }, ...(item === "@matomezu/box:shape-box" ? { w: 100, h: 64 } : {}) },
       { book: "b1" },
     )
   place(100, 100) // n1
   place(400, 100) // n2
-  place(100, 300, "shape.list") // n3
-  store.actions.perform("row.add", { page: "p1", list: "n3" }, { book: "b1" }) // n4
+  place(100, 300, "@matomezu/list:shape-list") // n3
+  store.actions.perform("@matomezu/list:row-add", { page: "p1", list: "n3" }, { book: "b1" }) // n4
   return store
 }
-const page = (store: ReturnType<typeof ready>) => (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
+const page = (store: ReturnType<typeof ready>) =>
+  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
 
 test("引ける相手は、同じページのつなげる形（自分も入る）。同じ組の線がある相手と、リストの行は入らない", () => {
   const store = ready()
   expect([...targetsFrom(CORE_CATALOG, page(store), "n1")]).toEqual(["n1", "n2", "n3"])
-  store.actions.perform("line.connect", { page: "p1", from: "n2", to: "n1" }, { book: "b1" })
+  store.actions.perform("@matomezu/line:line-connect", { page: "p1", from: "n2", to: "n1" }, { book: "b1" })
   expect([...targetsFrom(CORE_CATALOG, page(store), "n1")]).toEqual(["n1", "n3"])
   expect([...targetsFrom(CORE_CATALOG, page(store), "n4")]).toEqual([])
 })

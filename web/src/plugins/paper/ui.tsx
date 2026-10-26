@@ -4,12 +4,12 @@ import { PAPER_PLUGIN } from "."
 import { PAPER_VIEW } from "./view/ui"
 
 export const PAPER_UI = definePluginUi(PAPER_PLUGIN, {
-  presentationViews: { paper: PAPER_VIEW },
+  presentationViews: { "@matomezu/paper:paper": PAPER_VIEW },
 })
 
 declare module "../../core/catalog" {
   interface ContextMenuTable {
-    "paper.context": Record<string, never> // 紙の画面（何も受け取らない）
-    "item.context": { item: string } // 置いたアイテム（右クリックしたアイテムの id）
+    "@matomezu/paper:paper-context": Record<string, never> // 紙の画面（何も受け取らない）
+    "@matomezu/paper:item-context": { item: string } // 置いたアイテム（右クリックしたアイテムの id）
   }
 }

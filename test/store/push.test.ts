@@ -46,20 +46,21 @@ function ready() {
   return store
 }
 const items = (store: ReturnType<typeof newStore>) =>
-  shapesOf((store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!)
+  shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!)
 const at = (store: ReturnType<typeof newStore>, id: string) => items(store).find(i => i.id === id)!
 const place = (store: ReturnType<typeof newStore>, x: number, y: number, w: number, caption = "") =>
   store.actions.perform(
-    "item.place",
-    { page: "p1", item: "shape.box", at: { x, y }, w, h: 64, props: { caption } },
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-box", at: { x, y }, w, h: 64, props: { caption } },
     { book: "b1" },
   )
 
-test("item.resize で広げると隣の箱を押し、紙の端で詰まれば押した箱を縮めて収める。縮めても収まらなければ断って何も変えない", () => {
+test("@matomezu/paper:item-resize で広げると隣の箱を押し、紙の端で詰まれば押した箱を縮めて収める。縮めても収まらなければ断って何も変えない", () => {
   const store = ready()
   place(store, 100, 100, 100)
   place(store, 220, 100, 100)
-  const resize = (w: number) => store.actions.perform("item.resize", { page: "p1", item: "n1", w }, { book: "b1" })
+  const resize = (w: number) =>
+    store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n1", w }, { book: "b1" })
   expect(resize(200).ok).toBe(true)
   expect(at(store, "n2")).toMatchObject({ x: 300 + GAP, y: 100 })
   expect(resize(940).ok).toBe(true)
@@ -73,7 +74,7 @@ test("キャプションで広がるときも隣を押す。押した箱が収�
   place(store, 100, 100, 64)
   place(store, 180, 100, 100)
   const update = (caption: string) =>
-    store.actions.perform("item.update", { page: "p1", item: "n1", props: { caption } }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props: { caption } }, { book: "b1" })
   const twenty = "あ".repeat(20)
   expect(update(twenty).ok).toBe(true)
   const w = placedWidth({ caption: twenty, rule: true, body: "", captionAlign: "center", bodyAlign: "left" })
@@ -81,10 +82,18 @@ test("キャプションで広がるときも隣を押す。押した箱が収�
   expect(at(store, "n2").x).toBe(100 + w + GAP)
   place(store, 1023 - 100, 300, 100)
   place(store, 100, 300, 64)
-  store.actions.perform("item.resize", { page: "p1", item: "n3", x: 1023 }, { book: "b1" })
-  store.actions.perform("item.resize", { page: "p1", item: "n4", x: 1023 - 100 - GAP - 64 }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n3", x: 1023 }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/paper:item-resize",
+    { page: "p1", item: "n4", x: 1023 - 100 - GAP - 64 },
+    { book: "b1" },
+  )
   expect(
-    store.actions.perform("item.update", { page: "p1", item: "n4", props: { caption: twenty } }, { book: "b1" }).ok,
+    store.actions.perform(
+      "@matomezu/paper:item-update",
+      { page: "p1", item: "n4", props: { caption: twenty } },
+      { book: "b1" },
+    ).ok,
   ).toBe(true)
   expect(at(store, "n4")).toMatchObject({ w: 64, props: { caption: twenty } })
 })

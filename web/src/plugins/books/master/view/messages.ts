@@ -2,6 +2,6 @@
 import { defineMessages } from "../../../../plugin-api"
 
 export const MASTER_VIEW_MESSAGES = defineMessages({
-  Settings: { ja: "設定" },
-  Auto: { ja: "自動" },
+  Settings: { en: "Settings", ja: "設定" },
+  Auto: { en: "Auto", ja: "自動" },
 })

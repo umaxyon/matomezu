@@ -55,24 +55,24 @@ export const BASE_UI = definePluginUi(BASE, {
 
 declare module "../../core/catalog" {
   interface SlotTable {
-    "stage.top": StageSlotProps
-    "stage.body": StageSlotProps
-    "stage.bottom": StageSlotProps
-    "stage.corner": StageSlotProps
+    "@matomezu/base:stage-top": StageSlotProps
+    "@matomezu/base:stage-body": StageSlotProps
+    "@matomezu/base:stage-bottom": StageSlotProps
+    "@matomezu/base:stage-corner": StageSlotProps
   }
   interface WidgetTable {
-    workspace: typeof WORKSPACE
-    "dialog-host": typeof DIALOG_HOST
-    "menu-host": typeof MENU_HOST
-    "tool-picker": typeof TOOL_PICKER_WIDGET
-    "book-view": typeof BOOK_VIEW
-    "tool-switch": typeof TOOL_SWITCH
-    toolbox: typeof TOOLBOX
-    "book-name": typeof BOOK_NAME
-    "page-tabs": typeof PAGE_TABS
-    "close-button": typeof CLOSE_BUTTON
+    "@matomezu/base:workspace": typeof WORKSPACE
+    "@matomezu/base:dialog-host": typeof DIALOG_HOST
+    "@matomezu/base:menu-host": typeof MENU_HOST
+    "@matomezu/base:tool-picker": typeof TOOL_PICKER_WIDGET
+    "@matomezu/base:book-view": typeof BOOK_VIEW
+    "@matomezu/base:tool-switch": typeof TOOL_SWITCH
+    "@matomezu/base:toolbox": typeof TOOLBOX
+    "@matomezu/base:book-name": typeof BOOK_NAME
+    "@matomezu/base:page-tabs": typeof PAGE_TABS
+    "@matomezu/base:close-button": typeof CLOSE_BUTTON
   }
   interface MenuTable {
-    "stage.menu": true
+    "@matomezu/base:stage-menu": true
   }
 }

@@ -1,22 +1,23 @@
 // ブックの設定のダイアログ: ブックの名前・テーマ・紙の色と、ブックのタイプが選んだブックの設定の項目。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
 // テーマは表のテーマから選ぶ（ブックのタイプのテーマを選べば、ブックのテーマの項目を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）。
-// テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book.update（設定の項目は settings）を書き、キャンセルでは元のまま
+// テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book-update（設定の項目は settings）を書き、キャンセルでは元のまま
 import { useEffect, useId, useMemo, useState } from "react"
 import { bookType } from "../../../core/core-catalog"
 import { type BookLook, bookTheme, bookTokens } from "../../../core/theme"
-import { useT } from "../../../ui/i18n"
+import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { ColorPicker } from "../dialog-host/ColorPicker"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
+import { kit } from "../kit"
 import { useSettingControls } from "./SettingControls"
 
 // 紙の色の見本（白・淡い灰・淡い黄・淡い緑・淡い青・濃い灰・濃い紺・濃い茶）
 const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"]
 
 export function BookSettingsDialog({ stage, onClose }: DialogProps) {
-  const t = useT()
+  const t = useMessages(kit)
   const form = useId()
   const catalog = useCatalog().core
   const book = useMatomezuState(s => {
@@ -50,7 +51,7 @@ export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const submit = () => {
     const patch = Object.keys(settings.patch).length > 0 ? { settings: settings.patch } : {}
     const done = perform(
-      "book.update",
+      "@matomezu/base:book-update",
       { title, theme: theme === typeTheme ? null : theme, paperColor: paperColor ?? null, ...patch },
       { book: book.id },
     )

@@ -8,10 +8,10 @@ import type { TokenDecl } from "./theme"
 // アイテムが持つ能力。アクションは、対象に求める能力で使えるかを決める（アクションはアイテムの一覧を持たない）
 export type Capability = "connectable" | "resizable" | "hasText"
 
-interface ItemBase {
-  id: string // 「kind.名前」（例: shape.box）。データはこれで参照する
+interface ItemBase<Tt extends string = MessageKey> {
+  id: string // 本当の id（「プラグインの id:名前」。例: @matomezu/box:shape-box）。データはこれで参照する
   version: number // 項目の形の版
-  title: MessageKey
+  title: Tt
   capabilities: readonly Capability[]
   toolbox: boolean // ツールボックスに出すか（出さないものは、ほかの操作で置く）
   props: z.ZodType // 置いたアイテムが持つ項目の形
@@ -53,7 +53,7 @@ export interface ShapeEditArgs {
 export type Gap = (a: string, b: string) => number
 
 // 画面に置ける形。D は置いたデータの型（項目と中身の型が決まったもの）
-export interface ShapeItemDef<D extends ShapeData = ShapeData> extends ItemBase {
+export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string = MessageKey> extends ItemBase<Tt> {
   kind: "shape"
   size: Size // 置くときの大きさ
   content?: Readonly<Record<string, z.ZodType>> // 項目のほかに持つ中身の欄（リストの行など。どれも書かなくてよい）
@@ -68,7 +68,8 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData> extends ItemBase 
 
 // 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる。
 // 置いた形との決まりを持つ: つないだ組の間隔の下限（gaps）、形が変わったあとの整え（tidy）、関係の決まり（holds）
-export interface ConnectorItemDef<D extends ConnectorData = ConnectorData> extends ItemBase {
+export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt extends string = MessageKey>
+  extends ItemBase<Tt> {
   kind: "connector"
   gaps?(lines: readonly D[], base: Gap): Gap
   // rects は形の四角、setting はそのページで効いている設定の値（設定の定義の id から）

@@ -1,8 +1,16 @@
 // 判断のひし形のビュー・追加と編集のダイアログ・流れの向きのコンポーネント
-import { themeVar, type z } from "matomezu"
-import { Dialog, type DialogProps, type ItemViewProps, type SettingControlProps, useCommand, useT } from "matomezu/ui"
+import type { z } from "matomezu"
+import {
+  Dialog,
+  type DialogProps,
+  type ItemViewProps,
+  type SettingControlProps,
+  useCommand,
+  useMessages,
+} from "matomezu/ui"
 import { useState } from "react"
 import type { DIAMOND } from "./flow"
+import { kit } from "./kit"
 
 type DiamondProps = z.output<(typeof DIAMOND)["props"]>
 
@@ -11,7 +19,7 @@ export function DiamondView({ props, size }: ItemViewProps<DiamondProps>) {
     <svg width={size.w} height={size.h} role="img" aria-label={props.caption} data-ex2-diamond={props.answer ?? ""}>
       <polygon
         points={`${size.w / 2},0 ${size.w},${size.h / 2} ${size.w / 2},${size.h} 0,${size.h / 2}`}
-        fill={themeVar("ex2/diamond.fill")}
+        fill={"var(--diamond-fill)"}
       />
       <text x={size.w / 2} y={size.h / 2} textAnchor="middle" dominantBaseline="middle">
         {props.caption}
@@ -31,45 +39,45 @@ export function AddDiamondDialog({
   args,
   onClose,
 }: DialogProps<{ page: string; at: { x: number; y: number } }>) {
-  const t = useT()
-  const add = useCommand(stage, "ex2/add")
+  const t = useMessages(kit)
+  const add = useCommand(stage, "ex2:add")
   const [caption, setCaption] = useState("")
   return (
-    <Dialog title={t("ex2/addDecision")} onClose={onClose}>
+    <Dialog title={t("addDecision")} onClose={onClose}>
       <label>
-        {t("ex2/caption")}
+        {t("caption")}
         <input value={caption} onChange={e => setCaption(e.target.value)} />
       </label>
       <button type="button" onClick={() => add.run({ ...args, caption })}>
-        {t("ex2/add")}
+        {t("add")}
       </button>
     </Dialog>
   )
 }
 
 export function EditDiamondDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const t = useT()
-  const answer = useCommand(stage, "ex2/answer")
+  const t = useMessages(kit)
+  const answer = useCommand(stage, "ex2:answer")
   return (
-    <Dialog title={t("ex2/editDecision")} onClose={onClose}>
+    <Dialog title={t("editDecision")} onClose={onClose}>
       <button type="button" onClick={() => answer.run({ ...args, answer: "yes" })}>
-        {t("ex2/yes")}
+        {t("yes")}
       </button>
       <button type="button" onClick={() => answer.run({ ...args, answer: "no" })}>
-        {t("ex2/no")}
+        {t("no")}
       </button>
     </Dialog>
   )
 }
 
 export function DirectionSetting({ label, value, inherited, onChange }: SettingControlProps<"down" | "right">) {
-  const t = useT()
+  const t = useMessages(kit)
   return (
     <label>
       {label}
       <select value={value ?? inherited} onChange={e => onChange(e.target.value as "down" | "right")}>
-        <option value="down">{t("ex2/down")}</option>
-        <option value="right">{t("ex2/right")}</option>
+        <option value="down">{t("down")}</option>
+        <option value="right">{t("right")}</option>
       </select>
     </label>
   )

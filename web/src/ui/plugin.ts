@@ -6,9 +6,10 @@ import type { ComponentType, ReactNode } from "react"
 import type { ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
+import { isOwnedBy } from "../core/names"
 import type { Stage } from "../core/stage"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
-import { type IdsOf, isBuiltin, type Plugin } from "../store/plugin"
+import type { IdsOf, Plugin } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
 import type { AnyWidgetDef } from "./layout"
 
@@ -195,7 +196,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
     need("setting", p.settings, ui.settingViews, settingViews)
     need("dialog", p.dialogs, ui.dialogViews, dialogViews)
     for (const w of ui.widgets ?? []) {
-      if (!isBuiltin(p) && !w.id.startsWith(`${p.id}/`)) fail("E301", { plugin: p.id, kind: "widget", id: w.id })
+      if (!isOwnedBy(p.id, w.id)) fail("E301", { plugin: p.id, kind: "widget", id: w.id })
       if (widgets.has(w.id)) fail("E001", { kind: "widget", id: w.id })
       widgets.set(w.id, w)
     }

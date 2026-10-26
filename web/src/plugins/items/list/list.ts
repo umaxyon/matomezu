@@ -6,18 +6,10 @@
 // 描くテーマの欄は、リストの欄（list.*）だけ。塗り・文字・線・角・影は箱の欄と同じ既定の値で（テーマは箱と同じ見た目にするなら両方を上書きする）、
 // 見出しの帯・台紙・行の付箋の欄は色を混ぜる割合などの値。台紙はリストの塗りから作り、行のカードはリストの塗り。色（color）を当てると台紙と見出しがその色になり、行のカードはテーマの地のまま（paint.ts）。
 // テーマは大きさを変えないので、どのテーマでも行の高さと折り返しは同じ。
-// 置くときは追加のダイアログ（list.add）、設定は編集のダイアログ（list.edit）。行は行の追加（row.add）・編集（row.edit）のダイアログで中身を決める
+// 置くときは追加のダイアログ（list-add）、設定は編集のダイアログ（list-edit）。行は行の追加（row-add）・編集（row-edit）のダイアログで中身を決める
 import { z } from "zod"
-import {
-  AlignSchema,
-  defineDialogWith,
-  defineShape,
-  HEX,
-  PALETTE,
-  type ShapeAddArgs,
-  type ShapeEditArgs,
-  textProps,
-} from "../../../plugin-api"
+import { AlignSchema, HEX, PALETTE, type ShapeAddArgs, type ShapeEditArgs, textProps } from "../../../plugin-api"
+import { kit } from "./kit"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, MAX_ROW_LINES, placedListWidth } from "./size"
 
 // 行の項目（箱の項目と同じ並びに、チェックの印）
@@ -34,12 +26,12 @@ export const ListRowSchema = z.strictObject({ id: z.string().min(1), item: z.lit
 export type ListRow = z.infer<typeof ListRowSchema>
 
 // リストの塗りの欄（行のカードの地。色の見本の「なし」もこの色）
-export const LIST_FILL = { id: "list.fill", fallback: "fill" } as const
+export const LIST_FILL = { id: "list-fill", fallback: "fill" } as const
 
 // リストの追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く
-export const LIST_ADD_DIALOG = defineDialogWith<ShapeAddArgs>()({ id: "list.add" })
+export const LIST_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "list-add" })
 // リストの設定のダイアログ
-export const LIST_EDIT_DIALOG = defineDialogWith<ShapeEditArgs>()({ id: "list.edit" })
+export const LIST_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "list-edit" })
 
 // チェックリストでないリストの行から、チェックの状態を消す（チェックリストをやめたとき）
 export function settleChecks<L extends { props: { checklist: boolean }; children?: ListRow[] }>(list: L): L {
@@ -54,8 +46,8 @@ export function settleChecks<L extends { props: { checklist: boolean }; children
 
 // 大きさは w・h（無ければキャプションの幅と、行 3 つぶんの空きの高さ）。中身は行（children の順）。
 // 項目を変えたら、チェックリストでなくなったリストの行からチェックを消す
-export const LIST = defineShape({
-  id: "shape.list",
+export const LIST = kit.defineShape({
+  id: "shape-list",
   kind: "shape",
   version: 1,
   title: "List",
@@ -80,24 +72,24 @@ export const LIST = defineShape({
   size: LIST_SIZE,
   tokens: [
     LIST_FILL,
-    { id: "list.text", fallback: "text" }, // 文字（チェックの印も）
-    { id: "list.line", value: "#cdcdd6" }, // 区切り線と行のカードの縁の線の色
-    { id: "list.radius", value: "8px" }, // リストの角の丸み
-    { id: "list.shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // リストの影（CSS の filter の値）
-    { id: "list.frame-line", value: "#cdcdd6" }, // リストの外枠の線
-    { id: "list.mount-tint", value: "#000000" }, // 台紙（リストの地）に混ぜる色
-    { id: "list.mount-mix", value: "5%" }, // 台紙に混ぜる割合（行のカードとの差）
-    { id: "list.head-tint", value: "#000000" }, // 見出しの帯に混ぜる色
-    { id: "list.head-mix", value: "0%" }, // 見出しの帯に混ぜる割合（0% なら帯なしで、台紙の上の文字）
-    { id: "list.head-ink", value: "0%" }, // 見出しの文字を白に寄せる割合（濃い帯の上の白い文字）
-    { id: "list.card-radius", value: "8px" }, // 行のカードの角の丸み
-    { id: "list.card-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // 行のカードの影（CSS の filter の値）
-    { id: "list.card-fold", value: "0px" }, // 行のカードの右上の折り返しの大きさ
-    { id: "list.card-line", value: "0%" }, // 行のカードの縁の線の濃さ（線の色の割合。0% なら線なし）
+    { id: "list-text", fallback: "text" }, // 文字（チェックの印も）
+    { id: "list-line", value: "#cdcdd6" }, // 区切り線と行のカードの縁の線の色
+    { id: "list-radius", value: "8px" }, // リストの角の丸み
+    { id: "list-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // リストの影（CSS の filter の値）
+    { id: "list-frame-line", value: "#cdcdd6" }, // リストの外枠の線
+    { id: "list-mount-tint", value: "#000000" }, // 台紙（リストの地）に混ぜる色
+    { id: "list-mount-mix", value: "5%" }, // 台紙に混ぜる割合（行のカードとの差）
+    { id: "list-head-tint", value: "#000000" }, // 見出しの帯に混ぜる色
+    { id: "list-head-mix", value: "0%" }, // 見出しの帯に混ぜる割合（0% なら帯なしで、台紙の上の文字）
+    { id: "list-head-ink", value: "0%" }, // 見出しの文字を白に寄せる割合（濃い帯の上の白い文字）
+    { id: "list-card-radius", value: "8px" }, // 行のカードの角の丸み
+    { id: "list-card-shadow", value: "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14))" }, // 行のカードの影（CSS の filter の値）
+    { id: "list-card-fold", value: "0px" }, // 行のカードの右上の折り返しの大きさ
+    { id: "list-card-line", value: "0%" }, // 行のカードの縁の線の濃さ（線の色の割合。0% なら線なし）
   ],
 })
 
 // 行の追加のダイアログ（リスト list の最後に足す）
-export const ROW_ADD_DIALOG = defineDialogWith<{ page: string; list: string }>()({ id: "row.add" })
+export const ROW_ADD_DIALOG = kit.defineDialogWith<{ page: string; list: string }>()({ id: "row-add" })
 // 行の編集のダイアログ
-export const ROW_EDIT_DIALOG = defineDialogWith<{ page: string; list: string; row: string }>()({ id: "row.edit" })
+export const ROW_EDIT_DIALOG = kit.defineDialogWith<{ page: string; list: string; row: string }>()({ id: "row-edit" })

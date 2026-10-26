@@ -2,8 +2,8 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const ITEM_PARTS_MESSAGES = defineMessages({
-  "Align left": { ja: "左寄せ" },
-  "Align center": { ja: "中央寄せ" },
-  "Align right": { ja: "右寄せ" },
-  "Theme color {n}": { ja: "テーマの色 {n}" },
+  "Align left": { en: "Align left", ja: "左寄せ" },
+  "Align center": { en: "Align center", ja: "中央寄せ" },
+  "Align right": { en: "Align right", ja: "右寄せ" },
+  "Theme color {n}": { en: "Theme color {n}", ja: "テーマの色 {n}" },
 })

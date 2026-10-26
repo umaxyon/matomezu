@@ -1,7 +1,7 @@
+import { kit } from "../kit"
 // 標準のテーマ: 白い紙に濃い文字
-import { defineTheme } from "../../../core/def/theme"
 
-export const STANDARD = defineTheme({
+export const STANDARD = kit.defineTheme({
   id: "standard",
   title: "Standard",
   base: {

@@ -12,11 +12,15 @@ function ready() {
   return store
 }
 const items = (store: ReturnType<typeof newStore>) =>
-  shapesOf((store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!)
+  shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!)
 const place = (store: ReturnType<typeof newStore>, props: Record<string, unknown>, x = 100) =>
-  store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x, y: 100 }, props }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-box", at: { x, y: 100 }, props },
+    { book: "b1" },
+  )
 const update = (store: ReturnType<typeof newStore>, props: Record<string, unknown>) =>
-  store.actions.perform("item.update", { page: "p1", item: "n1", props }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
 
 test("箱の色は代表色の名前か #rrggbb。ほかは断り、null で消す", () => {
   const store = ready()
@@ -33,19 +37,19 @@ test("箱の色は代表色の名前か #rrggbb。ほかは断り、null で消�
 test("テーマごとに代表色を持ち、その上の文字は明るい色ならテーマの文字の色、暗い色なら白", () => {
   const store = ready()
   const tokens = (theme: string) => resolveTokens(store.catalog.core, theme, BOX.tokens)
-  expect(tokens("standard")["palette.primary"]).toEqual({ light: "#3b82f6", dark: "#3b82f6" })
-  expect(tokens("standard")["palette.primary.ink"]).toEqual({ light: "#ffffff", dark: "#ffffff" })
-  expect(tokens("sticky")["palette.primary"]).toEqual({ light: "#cfe2ff", dark: "#cfe2ff" })
-  expect(tokens("sticky")["palette.primary.ink"]).toEqual({ light: "#3b3524", dark: "#3b3524" })
-  expect(tokens("simple")["palette.danger"]).toEqual({ light: "#fecaca", dark: "#fecaca" })
+  expect(tokens("@matomezu/base:standard")["palette.primary"]).toEqual({ light: "#3b82f6", dark: "#3b82f6" })
+  expect(tokens("@matomezu/base:standard")["palette.primary.ink"]).toEqual({ light: "#ffffff", dark: "#ffffff" })
+  expect(tokens("@matomezu/base:sticky")["palette.primary"]).toEqual({ light: "#cfe2ff", dark: "#cfe2ff" })
+  expect(tokens("@matomezu/base:sticky")["palette.primary.ink"]).toEqual({ light: "#3b3524", dark: "#3b3524" })
+  expect(tokens("@matomezu/base:simple")["palette.danger"]).toEqual({ light: "#fecaca", dark: "#fecaca" })
 })
 
 test("色は箱の塗りと文字の欄を上書きする。代表色はテーマの代表色の変数を指し、#rrggbb は暗ければ文字を白に", () => {
   expect(paintVars(undefined)).toBeUndefined()
   expect(paintVars("warn")).toEqual({
-    "--theme-box-fill": "var(--theme-palette-warn)",
-    "--theme-box-text": "var(--theme-palette-warn-ink)",
+    "--box-fill": "var(--theme-palette-warn)",
+    "--box-text": "var(--theme-palette-warn-ink)",
   })
-  expect(paintVars("#fde68a")).toEqual({ "--theme-box-fill": "#fde68a" })
-  expect(paintVars("#1e3a8a")).toEqual({ "--theme-box-fill": "#1e3a8a", "--theme-box-text": "#ffffff" })
+  expect(paintVars("#fde68a")).toEqual({ "--box-fill": "#fde68a" })
+  expect(paintVars("#1e3a8a")).toEqual({ "--box-fill": "#1e3a8a", "--box-text": "#ffffff" })
 })

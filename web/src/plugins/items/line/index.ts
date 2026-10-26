@@ -2,38 +2,38 @@
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { LINE_DRAW, LINE_EDIT, LINE_RECONNECT_DROP } from "./commands"
+import { kit } from "./kit"
 import { LINE, LINE_EDIT_DIALOG, LINE_ROUTE } from "./line"
-import { LINE_MESSAGES } from "./messages"
 
-export const LINE_PLUGIN = defineBuiltin({
-  id: "@matomezu/line",
-  items: [LINE],
-  settings: [LINE_ROUTE],
-  actions: [LINE_CONNECT, LINE_UPDATE, LINE_RECONNECT],
-  commands: [LINE_DRAW, LINE_EDIT, LINE_RECONNECT_DROP],
-  dialogs: [LINE_EDIT_DIALOG],
-  messages: LINE_MESSAGES,
-})
+export const LINE_PLUGIN = defineBuiltin(
+  kit.plugin({
+    items: [LINE],
+    settings: [LINE_ROUTE],
+    actions: [LINE_CONNECT, LINE_UPDATE, LINE_RECONNECT],
+    commands: [LINE_DRAW, LINE_EDIT, LINE_RECONNECT_DROP],
+    dialogs: [LINE_EDIT_DIALOG],
+  }),
+)
 
 declare module "../../../core/catalog" {
   interface ItemTable {
-    "connector.line": typeof LINE
+    "@matomezu/line:connector-line": typeof LINE
   }
   interface SettingTable {
-    "line.route": typeof LINE_ROUTE
+    "@matomezu/line:line-route": typeof LINE_ROUTE
   }
   interface ActionTable {
-    "line.connect": typeof LINE_CONNECT
-    "line.update": typeof LINE_UPDATE
-    "line.reconnect": typeof LINE_RECONNECT
+    "@matomezu/line:line-connect": typeof LINE_CONNECT
+    "@matomezu/line:line-update": typeof LINE_UPDATE
+    "@matomezu/line:line-reconnect": typeof LINE_RECONNECT
   }
-  interface MessageTable extends Readonly<typeof LINE_MESSAGES> {}
+  interface MessageTable extends Readonly<typeof kit.messages> {}
   interface CommandTable {
-    "line.draw": typeof LINE_DRAW
-    "line.edit": typeof LINE_EDIT
-    "line.drop": typeof LINE_RECONNECT_DROP
+    "@matomezu/line:line-draw": typeof LINE_DRAW
+    "@matomezu/line:line-edit": typeof LINE_EDIT
+    "@matomezu/line:line-drop": typeof LINE_RECONNECT_DROP
   }
   interface DialogTable {
-    "line.edit": typeof LINE_EDIT_DIALOG
+    "@matomezu/line:line-edit": typeof LINE_EDIT_DIALOG
   }
 }

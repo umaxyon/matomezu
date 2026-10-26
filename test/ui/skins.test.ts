@@ -10,7 +10,7 @@ import { skinCss } from "../../web/src/ui/skins/css"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 // 追加プラグインのスキン（機能台帳の型の側には書き足さない）
-const ACME_DARK = defineSkin({ ...DARK, id: "acme/dark" })
+const ACME_DARK = defineSkin({ ...DARK, id: "acme:dark" })
 const acme = definePlugin({ id: "acme", skins: [ACME_DARK] })
 
 describe("スキン", () => {
@@ -22,16 +22,16 @@ describe("スキン", () => {
   })
 
   test("自動のスキンは、決めなければ表で最初に出てくる明と暗。決めたものは明暗が合っていなければ誤り", () => {
-    expect(autoSkin(CORE_CATALOG)).toEqual({ light: "light", dark: "dark" })
+    expect(autoSkin(CORE_CATALOG)).toEqual({ light: "@matomezu/base:light", dark: "@matomezu/base:dark" })
     const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, skins: [...BUILTIN_PARTS.skins, ACME_DARK] })
-    expect(autoSkin(catalog, { dark: "acme/dark" })).toEqual({ light: "light", dark: "acme/dark" })
-    expect(() => autoSkin(catalog, { light: "acme/dark" })).toThrow("E111")
+    expect(autoSkin(catalog, { dark: "acme:dark" })).toEqual({ light: "@matomezu/base:light", dark: "acme:dark" })
+    expect(() => autoSkin(catalog, { light: "acme:dark" })).toThrow("E111")
     expect(() => autoSkin(catalog, { dark: "nope" })).toThrow("E111")
   })
 
   test("片方の明暗のスキンしか無ければ、自動はそれを使う。スキンが無ければ自動も無い", () => {
     const darkOnly = buildCoreCatalog({ ...BUILTIN_PARTS, skins: [DARK] })
-    expect(autoSkin(darkOnly)).toEqual({ light: "dark", dark: "dark" })
+    expect(autoSkin(darkOnly)).toEqual({ light: "@matomezu/base:dark", dark: "@matomezu/base:dark" })
     expect(autoSkin(buildCoreCatalog({ ...BUILTIN_PARTS, skins: [] }))).toBeNull()
   })
 
@@ -39,11 +39,11 @@ describe("スキン", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, acme],
       partial: true,
-      home: "master",
-      autoSkin: { dark: "acme/dark" as "dark" },
+      home: "@matomezu/master:master",
+      autoSkin: { dark: "acme:dark" as "@matomezu/base:dark" },
     })
-    expect(instance.autoSkin).toEqual({ light: "light", dark: "acme/dark" })
-    expect(instance.actions.setSkin("acme/dark")).toBe(true)
+    expect(instance.autoSkin).toEqual({ light: "@matomezu/base:light", dark: "acme:dark" })
+    expect(instance.actions.setSkin("acme:dark")).toBe(true)
     expect(instance.actions.setSkin("nope")).toBe(false)
     expect(instance.actions.setSkin("auto")).toBe(true)
   })

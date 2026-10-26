@@ -21,12 +21,12 @@ import { CORE_CATALOG } from "../support"
 
 describe("workspace", () => {
   const book = {
-    type: "drawing" as const,
+    type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
     pages: [
-      { id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" as const },
-      { id: "p2", title: "ページ 2", paper: "a4", orientation: "landscape" as const },
+      { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
+      { id: "p2", title: "ページ 2", paper: "@matomezu/base:a4", orientation: "landscape" as const },
     ],
   }
   const ws = newWorkspace(CORE_CATALOG, book)
@@ -89,7 +89,7 @@ describe("workspace", () => {
     const both = mapStage(two, "s2", s => ({ ...s, opened: two.stages[0]!.opened }))
     const removed = { ...book, pages: [book.pages[0]!] }
     expect(followBook(CORE_CATALOG, both, removed).stages.map(s => s.opened?.page)).toEqual(["p1", "p1"])
-    const a3 = { ...book, pages: [book.pages[0]!, { ...book.pages[1]!, paper: "a3" }] }
+    const a3 = { ...book, pages: [book.pages[0]!, { ...book.pages[1]!, paper: "@matomezu/base:a3" }] }
     expect(followBook(CORE_CATALOG, both, a3).stages[0]!.opened?.paper).toMatchObject({
       status: "known",
       size: { w: 1587, h: 1123 },

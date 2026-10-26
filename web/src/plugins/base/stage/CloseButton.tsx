@@ -1,11 +1,12 @@
-// ステージを閉じるボタン（ウィジェット close-button）: コマンド stage.close を出すときだけ描く
+// ステージを閉じるボタン（ウィジェット close-button）: コマンド stage-close を出すときだけ描く
 import { useCommand } from "../../../ui/commands"
-import { useT } from "../../../ui/i18n"
+import { useMessages } from "../../../ui/i18n"
+import { kit } from "../kit"
 import styles from "./CloseButton.module.css"
 
 export function CloseButton({ stage }: { stage: string }) {
-  const close = useCommand(stage, "stage.close")
-  const t = useT()
+  const close = useCommand(stage, "@matomezu/base:stage-close")
+  const t = useMessages(kit)
   if (!close.shown) return null
   return (
     <button type="button" className={styles.close} aria-label={t(close.title)} onClick={() => close.run()}>

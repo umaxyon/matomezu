@@ -2,6 +2,6 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const TOOL_PICKER_MESSAGES = defineMessages({
-  "Set tool": { ja: "ツールを選ぶ" },
-  "Tool picker": { ja: "ツールの切り替え" },
+  "Set tool": { en: "Set tool", ja: "ツールを選ぶ" },
+  "Tool picker": { en: "Tool picker", ja: "ツールの切り替え" },
 })

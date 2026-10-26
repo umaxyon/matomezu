@@ -22,7 +22,7 @@ loadFonts()
 const { client, loaded: saved } = await openClient(() => memoryClient(SAMPLE_BOOKS))
 const store = createMatomezu({
   plugins: BUILTIN_UI,
-  home: "master",
+  home: "@matomezu/master:master",
   savedBooks: saved.books,
   settings: saved.settings,
   lang: navigator.languages,

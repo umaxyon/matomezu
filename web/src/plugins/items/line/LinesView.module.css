@@ -11,7 +11,7 @@
 /* 見える線（太さ 1.5）。色はテーマの線の欄 */
 .stroke {
   fill: none;
-  stroke: var(--theme-line-color);
+  stroke: var(--line-color);
   stroke-width: 1.5;
   stroke-linejoin: round;
   transition:
@@ -23,12 +23,12 @@
 }
 /* 端の形: 塗る形と、線で描く形（線と同じ色と太さ） */
 .fill {
-  fill: var(--theme-line-color);
+  fill: var(--line-color);
   stroke: none;
 }
 .headStroke {
   fill: none;
-  stroke: var(--theme-line-color);
+  stroke: var(--line-color);
   stroke-width: 1.5;
   stroke-linejoin: round;
 }
@@ -60,7 +60,7 @@
   font-family: "Noto Sans JP", sans-serif;
   font-size: 11px;
   line-height: 1.35;
-  color: var(--theme-line-text);
+  color: var(--line-text);
   text-align: center;
   overflow-wrap: anywhere;
 }

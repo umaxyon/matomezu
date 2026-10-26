@@ -7,7 +7,7 @@ afterEach(cleanup)
 
 // ビルトインプラグインと ex1 だけで組み、動いている matomezu の画面と同じく、置いてほしい所に置いた配置で描く
 const make = () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX1_UI], home: "master", lang: "ja" })
+  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX1_UI], home: "@matomezu/master:master", lang: "ja" })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <Screen />
@@ -30,7 +30,7 @@ test("持ち込んだ言語で、自分の文言もビルトインの文言も�
   const instance = make()
   expect(instance.catalog.core.languages.get("fr")).toBe("Français")
   act(() => {
-    instance.actions.command("s1", "ex1/lang", "fr")
+    instance.actions.command("s1", "ex1:lang", "fr")
   })
   expect(screen.getByRole("button", { name: "Dire bonjour" })).toBeTruthy()
 })
@@ -38,21 +38,21 @@ test("持ち込んだ言語で、自分の文言もビルトインの文言も�
 test("右クリックされたアイテムを受け取るコマンドを、そのアイテムのダイアログに渡す", () => {
   const instance = make()
   act(() => {
-    instance.actions.command("s1", "ex1/inspect", { item: "a1" })
+    instance.actions.command("s1", "ex1:inspect", { item: "a1" })
   })
   expect(screen.getByRole("dialog", { name: "アイテムを調べる" }).textContent).toContain("アイテム a1")
 })
 
 test("ビルトインのダイアログを、自分のものに差し替えられる", () => {
   const instance = make()
-  act(() => instance.actions.openDialog("s1", "page.settings", { page: "p1" }))
+  act(() => instance.actions.openDialog("s1", "@matomezu/base:page-settings", { page: "p1" }))
   expect(screen.getByRole("dialog", { name: "ex1 のページの設定" })).toBeTruthy()
 })
 
 test("置いてほしいメニューと、既定のキーが入る", () => {
   const instance = make()
   const layout = placeAdded(DEFAULT_LAYOUT, instance.plugins)
-  expect(layout.menus["stage.menu"]?.at(-1)).toBe("ex1/hello")
-  expect(layout.contextMenus?.["item.context"]?.slice(-2)).toEqual(["-", "ex1/inspect"])
-  expect(instance.catalog.store.keys.map(k => k.binding.command)).toContain("ex1/hello")
+  expect(layout.menus["@matomezu/base:stage-menu"]?.at(-1)).toBe("ex1:hello")
+  expect(layout.contextMenus?.["@matomezu/paper:item-context"]?.slice(-2)).toEqual(["-", "ex1:inspect"])
+  expect(instance.catalog.store.keys.map(k => k.binding.command)).toContain("ex1:hello")
 })

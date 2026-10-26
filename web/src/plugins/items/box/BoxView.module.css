@@ -2,7 +2,7 @@
 .frame {
   width: 100%;
   height: 100%;
-  filter: var(--theme-box-shadow);
+  filter: var(--box-shadow);
 }
 /* 箱。本文が無ければキャプションを真ん中に置く。寸法は size.ts の BOX_LOOK と同じ値にする。
    字は同梱の Noto Sans JP で描き、字詰め・合字・字の形の切り替え・約物の詰め・和欧の間の空きを止める（幅は core/text が計算した値のとおりにする） */
@@ -15,10 +15,10 @@
   height: 100%;
   padding: 4px 8px;
   overflow: hidden;
-  border: 1px solid var(--theme-box-line);
-  border-radius: var(--theme-box-radius);
-  background: var(--theme-box-fill);
-  color: var(--theme-box-text);
+  border: 1px solid var(--box-line);
+  border-radius: var(--box-radius);
+  background: var(--box-fill);
+  color: var(--box-text);
   font-family: "Noto Sans JP", sans-serif;
   font-size: 13px;
   font-weight: 400;
@@ -36,16 +36,16 @@
 /* 右上の角の折り返し（テーマの box.fold の大きさ。0 なら折り返さない）: 角を切り欠き、塗りより少し濃い三角を重ねる */
 .box {
   position: relative;
-  clip-path: polygon(0 0, calc(100% - var(--theme-box-fold)) 0, 100% var(--theme-box-fold), 100% 100%, 0 100%);
+  clip-path: polygon(0 0, calc(100% - var(--box-fold)) 0, 100% var(--box-fold), 100% 100%, 0 100%);
 }
 .box::after {
   content: "";
   position: absolute;
   top: -1px;
   right: -1px;
-  width: var(--theme-box-fold);
-  height: var(--theme-box-fold);
-  background: linear-gradient(to bottom left, transparent 50%, color-mix(in srgb, var(--theme-box-fill), #000 14%) 50%);
+  width: var(--box-fold);
+  height: var(--box-fold);
+  background: linear-gradient(to bottom left, transparent 50%, color-mix(in srgb, var(--box-fill), #000 14%) 50%);
 }
 .box[data-body="true"] {
   justify-content: flex-start;
@@ -74,7 +74,7 @@
   width: 100%;
   margin: 3px 0;
   border: 0;
-  border-top: 1px solid var(--theme-box-line);
+  border-top: 1px solid var(--box-line);
 }
 /* 本文: 折り返した行を 1 行ずつ置く。行の中では折り返さない */
 .body {

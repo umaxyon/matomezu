@@ -34,9 +34,15 @@ export interface Done<T extends ActionTarget, R> {
 }
 
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）
-export interface ActionDef<T extends ActionTarget = ActionTarget, A = unknown, R = unknown, I = unknown> {
-  id: string // 「対象.動き」（例: page.add）
-  title: MessageKey
+export interface ActionDef<
+  T extends ActionTarget = ActionTarget,
+  A = unknown,
+  R = unknown,
+  I = unknown,
+  Tt extends string = MessageKey,
+> {
+  id: string // 本当の id。名前は「対象-動き」（例: page-add）
+  title: Tt
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
   needs: readonly Capability[] // 対象のアイテムに求める能力

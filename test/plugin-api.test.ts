@@ -64,6 +64,7 @@ test("matomezu が出す名前", () => {
     "placedAt",
     "placedSize",
     "placement",
+    "pluginKit",
     "putPage",
     "rectsOf",
     "removeItems",
@@ -91,7 +92,7 @@ test("matomezu が出す名前", () => {
   ])
 })
 
-test("ビルトインの印（defineBuiltin）は外に出さない（追加プラグインが短い id と頭の検査の抜けを使えないように）", () => {
+test("ビルトインの印（defineBuiltin）は外に出さない（追加プラグインがキーの割り当てでビルトインとして扱われないように）", () => {
   expect("defineBuiltin" in api).toBe(false)
 })
 
@@ -100,6 +101,7 @@ test("matomezu/ui が出す名前", () => {
     "Confirm",
     "Dialog",
     "ShapeMarksContext",
+    "TokenScope",
     "defineLayout",
     "definePluginUi",
     "defineWidget",
@@ -107,8 +109,10 @@ test("matomezu/ui が出す名前", () => {
     "useActions",
     "useCommand",
     "useContextMenu",
+    "useMessages",
     "useShapeMarks",
     "useT",
+    "useTokenScope",
   ])
 })
 

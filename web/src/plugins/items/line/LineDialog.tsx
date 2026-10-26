@@ -1,12 +1,12 @@
 // 線の編集のダイアログ: キャプション、通り方（折れ線・直線。自分に戻る線では出さない）と線の種類（実線・破線）、始点と終点の形、
 // 端の位置の一回きりの操作（整列・接辺の自動選択・折れ線を自動に戻す・キャプションの位置を自動に戻す。押すと印が付き、確定で行う）、線を消すボタン。
 // 通り方・線の種類・端の形は、選んだそばから線に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
-// 確定でアクション line.update（変えた項目だけ）。整列は、ほかの項目を変えたあとの形で両端の位置を決める（line/drawn.ts の alignedEndsOf）。
+// 確定でアクション line-update（変えた項目だけ）。整列は、ほかの項目を変えたあとの形で両端の位置を決める（line/drawn.ts の alignedEndsOf）。
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
 import { type MessageKey, pagedOf, rectsOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useT } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useMessages } from "../../../plugin-api/ui"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
@@ -26,6 +26,7 @@ import { alignedEndsOf } from "./drawn"
 import { type LineOnce, linePatch } from "./edit"
 import { HEADS, type Head } from "./heads"
 import { DASH_ICONS, ROUTE_ICONS } from "./icons"
+import { kit } from "./kit"
 import { elbowAt, type LineRoute } from "./line"
 import { linesOf, type PlacedLine } from "./placed"
 
@@ -38,20 +39,20 @@ type Once = LineOnce
 
 // 端の形の名前（選ぶ欄。"" は無し。記号は形の見当）
 const HEAD_LABELS: Record<Head, MessageKey> = {
-  arrow: "▶ Filled triangle",
-  open: "> Open arrowhead",
-  hollow: "▷ Hollow triangle",
-  diamond: "◆ Filled diamond",
-  hollowDiamond: "◇ Hollow diamond",
-  one: "ER: one",
-  many: "ER: many",
-  zeroOne: "ER: zero or one",
-  zeroMany: "ER: zero or more",
-  oneMany: "ER: one or more",
+  arrow: kit.message("▶ Filled triangle"),
+  open: kit.message("> Open arrowhead"),
+  hollow: kit.message("▷ Hollow triangle"),
+  diamond: kit.message("◆ Filled diamond"),
+  hollowDiamond: kit.message("◇ Hollow diamond"),
+  one: kit.message("ER: one"),
+  many: kit.message("ER: many"),
+  zeroOne: kit.message("ER: zero or one"),
+  zeroMany: kit.message("ER: zero or more"),
+  oneMany: kit.message("ER: one or more"),
 }
 
 export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const t = useT()
+  const t = useMessages(kit)
   const form = useId()
   const catalog = useCatalog().core
   const book = useBookOf(stage)
@@ -111,12 +112,12 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   const submit = () => {
     const patch = linePatch(line, { caption, route, dash, startHead, endHead, once }, rects, elbow)
     if (Object.keys(patch).length === 0) return onClose()
-    const done = perform("line.update", { page: page.id, line: line.id, props: patch }, { book })
+    const done = perform("@matomezu/line:line-update", { page: page.id, line: line.id, props: patch }, { book })
     if (done.ok) onClose()
     else setRefused(true)
   }
   const remove = () => {
-    perform("item.remove", { page: page.id, items: [line.id] }, { book })
+    perform("@matomezu/paper:item-remove", { page: page.id, items: [line.id] }, { book })
     onClose()
   }
   const heads = [{ value: "" as const, label: t("None") }, ...HEADS.map(h => ({ value: h, label: t(HEAD_LABELS[h]) }))]
@@ -216,21 +217,31 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
               {!self &&
                 onceButton(
                   "align",
-                  "Align ends",
-                  "Keeps the shape and fixes both ends at the middle of their sides, or straight across where the facing sides overlap",
+                  kit.message("Align ends"),
+                  kit.message(
+                    "Keeps the shape and fixes both ends at the middle of their sides, or straight across where the facing sides overlap",
+                  ),
                   aligned,
                 )}
               {!self &&
                 onceButton(
                   "free",
-                  "Free ends",
-                  "Stops fixing the ends: the sides and places are chosen from the items' positions",
+                  kit.message("Free ends"),
+                  kit.message("Stops fixing the ends: the sides and places are chosen from the items' positions"),
                   !fixed,
                 )}
               {p.via !== undefined &&
-                onceButton("via", "Auto bends", "Drops the moved middle segments and draws the bends automatically")}
+                onceButton(
+                  "via",
+                  kit.message("Auto bends"),
+                  kit.message("Drops the moved middle segments and draws the bends automatically"),
+                )}
               {captionMoved &&
-                onceButton("caption", "Auto caption place", "Puts the caption back at its automatic place on the line")}
+                onceButton(
+                  "caption",
+                  kit.message("Auto caption place"),
+                  kit.message("Puts the caption back at its automatic place on the line"),
+                )}
             </div>
           </Section>
         )}

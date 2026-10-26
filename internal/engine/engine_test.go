@@ -10,7 +10,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/plugin"
 )
 
-const book = `{"type":"drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"a4","orientation":"landscape"}]}`
+const book = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 func newEngine(t *testing.T) *Engine {
 	t.Helper()
@@ -23,8 +23,8 @@ func newEngine(t *testing.T) *Engine {
 
 func place(ids ...string) Input {
 	return Input{
-		Action: "item.place",
-		Args:   json.RawMessage(`{"page":"p1","item":"shape.box","at":{"x":10,"y":20},"props":{"caption":"c"}}`),
+		Action: "@matomezu/paper:item-place",
+		Args:   json.RawMessage(`{"page":"p1","item":"@matomezu/box:shape-box","at":{"x":10,"y":20},"props":{"caption":"c"}}`),
 		On:     &On{Book: "b1"},
 		Lang:   "ja",
 		IDs:    ids,
@@ -38,7 +38,7 @@ func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
 	if err != nil || !out.OK {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
-	if string(out.Result) != `{"item":"abc123"}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"shape.box"`) {
+	if string(out.Result) != `{"item":"abc123"}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-box"`) {
 		t.Fatalf("out = %s %s", out.Result, out.Books)
 	}
 	again, _ := e.Perform(place("abc-123"))
@@ -58,8 +58,8 @@ func TestRefusals(t *testing.T) {
 	e := newEngine(t)
 	cases := map[string]Input{
 		"unknown":  {Action: "nope", Lang: "ja"},
-		"no-book":  {Action: "item.place", Args: place().Args, On: &On{Book: "b9"}, Lang: "ja", Books: place().Books},
-		"bad-args": {Action: "item.place", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "ja", Books: place().Books},
+		"no-book":  {Action: "@matomezu/paper:item-place", Args: place().Args, On: &On{Book: "b9"}, Lang: "ja", Books: place().Books},
+		"bad-args": {Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "ja", Books: place().Books},
 	}
 	for want, in := range cases {
 		out, err := e.Perform(in)
@@ -72,18 +72,18 @@ func TestRefusals(t *testing.T) {
 func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
 	out, err := e.Perform(Input{
-		Action: "book.create",
-		Args:   json.RawMessage(`{"title":"New","type":"drawing"}`),
+		Action: "@matomezu/master:book-create",
+		Args:   json.RawMessage(`{"title":"New","type":"@matomezu/drawing:drawing"}`),
 		Lang:   "ja",
 		IDs:    []string{"nb"},
 		Books:  []json.RawMessage{json.RawMessage(book)},
 	})
-	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"type":"drawing","id":"nb","title":"New","pages":[]}` {
-		t.Fatalf("book.create = %+v %s, %v", out, out.Books, err)
+	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"type":"@matomezu/drawing:drawing","id":"nb","title":"New","pages":[]}` {
+		t.Fatalf("@matomezu/master:book-create = %+v %s, %v", out, out.Books, err)
 	}
-	out, err = e.Perform(Input{Action: "settings.lang", Args: json.RawMessage(`{"lang":"en"}`), Lang: "ja", Settings: json.RawMessage(`{"lang":"ja"}`)})
+	out, err = e.Perform(Input{Action: "@matomezu/base:settings-lang", Args: json.RawMessage(`{"lang":"en"}`), Lang: "ja", Settings: json.RawMessage(`{"lang":"ja"}`)})
 	if err != nil || !out.OK || !strings.Contains(string(out.Settings), `"lang":"en"`) {
-		t.Fatalf("settings.lang = %+v %s, %v", out, out.Settings, err)
+		t.Fatalf("@matomezu/base:settings-lang = %+v %s, %v", out, out.Settings, err)
 	}
 }
 
@@ -110,12 +110,12 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 		if a.Description == "" {
 			t.Errorf("%s has no description for the AI", a.ID)
 		}
-		if a.ID == "item.place" {
+		if a.ID == "@matomezu/paper:item-place" {
 			found = a.Target == "book" && strings.Contains(string(a.Args), `"page"`) && strings.Contains(string(a.Args), `"required"`)
 		}
 	}
 	if !found || len(c.Items) == 0 || !strings.Contains(string(c.Items[0].Props), `"caption"`) ||
-		strings.Join(c.Languages, ",") != "en,ja" || strings.Join(c.Skins, ",") != "dark,light" {
+		strings.Join(c.Languages, ",") != "en,ja" || strings.Join(c.Skins, ",") != "@matomezu/base:dark,@matomezu/base:light" {
 		t.Fatalf("ai catalog = %s", newEngine(t).AICatalog())
 	}
 }
@@ -144,8 +144,8 @@ func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
 	for _, i := range c.Items {
 		kinds[i.ID] = i.Kind
 	}
-	if !strings.HasPrefix(types["drawing"], "true true ") || !strings.Contains(types["drawing"], "shape.box") ||
-		!strings.HasPrefix(types["master"], "false ") || kinds["shape.box"] != "shape" || kinds["connector.line"] != "connector" {
+	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "true true ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-box") ||
+		!strings.HasPrefix(types["@matomezu/master:master"], "false ") || kinds["@matomezu/box:shape-box"] != "shape" || kinds["@matomezu/line:connector-line"] != "connector" {
 		t.Fatalf("book types = %v, item kinds = %v", types, kinds)
 	}
 }
@@ -164,14 +164,14 @@ func TestAICatalogDescribesListRows(t *testing.T) {
 	for _, a := range c.Actions {
 		args[a.ID] = string(a.Args)
 	}
-	for _, id := range []string{"row.add", "row.update", "row.remove", "row.check", "row.lines"} {
+	for _, id := range []string{"@matomezu/list:row-add", "@matomezu/list:row-update", "@matomezu/list:row-remove", "@matomezu/list:row-check", "@matomezu/list:row-lines"} {
 		if args[id] == "" {
 			t.Fatalf("%s is not in the ai catalog", id)
 		}
 	}
 	for _, field := range []string{`"caption"`, `"rule"`, `"bodyAlign"`} {
-		if !strings.Contains(args["row.add"], field) || !strings.Contains(args["row.update"], field) {
-			t.Fatalf("row props lack %s: %s", field, args["row.add"])
+		if !strings.Contains(args["@matomezu/list:row-add"], field) || !strings.Contains(args["@matomezu/list:row-update"], field) {
+			t.Fatalf("row props lack %s: %s", field, args["@matomezu/list:row-add"])
 		}
 	}
 }
@@ -179,11 +179,11 @@ func TestAICatalogDescribesListRows(t *testing.T) {
 // 線の道筋の計算（route）を通るアクションも、画面と同じに行える: つないだ箱が近ければどけ、手で直した区間が引けるかを確かめる
 func TestConnectsItemsWithALine(t *testing.T) {
 	e := newEngine(t)
-	two := `{"type":"drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"a4","orientation":"landscape","items":[` +
-		`{"id":"a","x":100,"y":100,"item":"shape.box","w":100,"h":64,"props":{}},` +
-		`{"id":"b","x":400,"y":300,"item":"shape.box","w":100,"h":64,"props":{}}]}]}`
+	two := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+		`{"id":"a","x":100,"y":100,"item":"@matomezu/box:shape-box","w":100,"h":64,"props":{}},` +
+		`{"id":"b","x":400,"y":300,"item":"@matomezu/box:shape-box","w":100,"h":64,"props":{}}]}]}`
 	out, err := e.Perform(Input{
-		Action: "line.connect",
+		Action: "@matomezu/line:line-connect",
 		Args:   json.RawMessage(`{"page":"p1","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`),
 		On:     &On{Book: "b1"},
 		Lang:   "ja",
@@ -193,7 +193,7 @@ func TestConnectsItemsWithALine(t *testing.T) {
 	if err != nil || !out.OK || string(out.Result) != `{"line":"l1"}` {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
-	if !strings.Contains(string(out.Books[0]), `{"id":"l1","item":"connector.line","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`) {
+	if !strings.Contains(string(out.Books[0]), `{"id":"l1","item":"@matomezu/line:connector-line","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`) {
 		t.Fatalf("book = %s", out.Books[0])
 	}
 }
@@ -216,23 +216,23 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 	if ids := usePlugin(t, e, "../../test/added-plugins/ex2"); len(ids) != 1 || ids[0] != "ex2" {
 		t.Fatalf("ids = %v", ids)
 	}
-	if c := string(e.AICatalog()); !strings.Contains(c, `"id":"ex2/diamond"`) || !strings.Contains(c, `"ex2/flow"`) {
+	if c := string(e.AICatalog()); !strings.Contains(c, `"id":"ex2:diamond"`) || !strings.Contains(c, `"ex2:flow"`) {
 		t.Fatalf("the AI catalog lacks the added plugin: %s", c)
 	}
 	out, err := e.Perform(Input{
-		Action: "book.create",
-		Args:   json.RawMessage(`{"title":"Flow","type":"ex2/flow"}`),
+		Action: "@matomezu/master:book-create",
+		Args:   json.RawMessage(`{"title":"Flow","type":"ex2:flow"}`),
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
 	})
-	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"type":"ex2/flow","id":"fb"`) {
-		t.Fatalf("book.create = %+v %s, %v", out, out.Books, err)
+	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"type":"ex2:flow","id":"fb"`) {
+		t.Fatalf("@matomezu/master:book-create = %+v %s, %v", out, out.Books, err)
 	}
 }
 
 func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
 	e := newEngine(t)
-	b := &plugin.Bundle{Dir: "bad", Manifest: plugin.Manifest{ID: "bad", Engine: "index.ts"}, Engine: `module.exports.default = { id: "bad", items: [{ id: "shape.box" }] }`}
+	b := &plugin.Bundle{Dir: "bad", Manifest: plugin.Manifest{ID: "bad", Engine: "index.ts"}, Engine: `module.exports.default = { id: "bad", items: [{ id: "@matomezu/box:shape-box" }] }`}
 	if _, err := e.Use([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "E301") {
 		t.Fatalf("err = %v", err)
 	}

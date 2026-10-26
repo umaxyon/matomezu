@@ -6,12 +6,12 @@ import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG } from "../support"
 
 const book = {
-  type: "drawing" as const,
+  type: "@matomezu/drawing:drawing" as const,
   id: "b1",
   title: "ブック",
   pages: [
-    { id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" as const },
-    { id: "p3", title: "ページ 3", paper: "a3", orientation: "portrait" as const },
+    { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
+    { id: "p3", title: "ページ 3", paper: "@matomezu/base:a3", orientation: "portrait" as const },
   ],
 }
 
@@ -19,36 +19,44 @@ test("ページを足すと、振った id で、決めた名前と紙のペー�
   const ids = ["p3", "p-2a"]
   const { book: next, page } = addPage(
     book,
-    { title: "表紙", paper: "a5", orientation: "portrait" },
+    { title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" },
     () => ids.shift()!,
   )
-  expect(page).toEqual({ id: "p2a", title: "表紙", paper: "a5", orientation: "portrait" })
+  expect(page).toEqual({ id: "p2a", title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" })
   expect(next.pages.map(p => p.id)).toEqual(["p1", "p3", "p2a"])
   expect(book.pages).toHaveLength(2)
 })
 
 test("作ったブックは、そのタイプの形の空のブック", () => {
-  const made = createBook(CORE_CATALOG, "drawing", { id: "x", title: "新しい図" })
-  expect(made).toEqual({ type: "drawing", id: "x", title: "新しい図", pages: [] })
+  const made = createBook(CORE_CATALOG, "@matomezu/drawing:drawing", { id: "x", title: "新しい図" })
+  expect(made).toEqual({ type: "@matomezu/drawing:drawing", id: "x", title: "新しい図", pages: [] })
   expect(CORE_CATALOG.bookSchema.safeParse(made).success).toBe(true)
 })
 
 describe("紙の規定（図面はページごとに選べる）", () => {
   test("どのページでも、規定の紙を全部選べ、既定は A4 横", () => {
     expect(paperChoices(CORE_CATALOG, book)).toEqual({ papers: PAPER_IDS, orientations: ["portrait", "landscape"] })
-    expect(defaultPaper(CORE_CATALOG, { ...book, pages: [] })).toEqual({ paper: "a4", orientation: "landscape" })
+    expect(defaultPaper(CORE_CATALOG, { ...book, pages: [] })).toEqual({
+      paper: "@matomezu/base:a4",
+      orientation: "landscape",
+    })
   })
 
   test("1 冊の紙をそろえる規定では、最初のページは規定から選び、後のページは最初のページの紙だけ", () => {
     const rule = {
-      allowed: ["a4", "a3"],
-      default: "a4",
+      allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
+      default: "@matomezu/base:a4",
       orientation: "landscape" as const,
       perPage: false,
     }
-    expect(choosablePapers(rule, [])).toEqual({ papers: ["a4", "a3"], orientations: ["portrait", "landscape"] })
-    expect(choosablePapers(rule, [{ id: "p1", title: "1", paper: "a3", orientation: "portrait" }])).toEqual({
-      papers: ["a3"],
+    expect(choosablePapers(rule, [])).toEqual({
+      papers: ["@matomezu/base:a4", "@matomezu/base:a3"],
+      orientations: ["portrait", "landscape"],
+    })
+    expect(
+      choosablePapers(rule, [{ id: "p1", title: "1", paper: "@matomezu/base:a3", orientation: "portrait" }]),
+    ).toEqual({
+      papers: ["@matomezu/base:a3"],
       orientations: ["portrait"],
     })
   })
@@ -61,10 +69,10 @@ describe("紙の規定（図面はページごとに選べる）", () => {
 
 test("ブックの形に無い項目は誤り。形はタイプで決まる", () => {
   const ok = {
-    type: "drawing",
+    type: "@matomezu/drawing:drawing",
     id: "b1",
     title: "ブック",
-    pages: [{ id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" }],
+    pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
   }
   expect(CORE_CATALOG.bookSchema.safeParse(ok).success).toBe(true)
   expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, extra: 1 }).success).toBe(false)
@@ -76,17 +84,25 @@ test("ブックの形に無い項目は誤り。形はタイプで決まる", ()
     false,
   )
   expect(CORE_CATALOG.bookSchema.safeParse({ id: "b1", title: "ブック", pages: ok.pages }).success).toBe(false)
-  expect(CORE_CATALOG.bookSchema.safeParse({ type: "master", id: "master" }).success).toBe(true)
-  expect(CORE_CATALOG.bookSchema.safeParse({ type: "master", id: "master", pages: ok.pages }).success).toBe(false)
+  expect(
+    CORE_CATALOG.bookSchema.safeParse({ type: "@matomezu/master:master", id: "@matomezu/master:master" }).success,
+  ).toBe(true)
+  expect(
+    CORE_CATALOG.bookSchema.safeParse({
+      type: "@matomezu/master:master",
+      id: "@matomezu/master:master",
+      pages: ok.pages,
+    }).success,
+  ).toBe(false)
 })
 
 describe("ページの紙を描く大きさ", () => {
   test("表にある紙は、その大きさを向きに合わせて描く", () => {
-    expect(resolvePaper(CORE_CATALOG, { paper: "a4", orientation: "landscape" })).toEqual({
+    expect(resolvePaper(CORE_CATALOG, { paper: "@matomezu/base:a4", orientation: "landscape" })).toEqual({
       status: "known",
       size: { w: 1123, h: 794 },
     })
-    expect(resolvePaper(CORE_CATALOG, { paper: "a4", orientation: "portrait" })).toEqual({
+    expect(resolvePaper(CORE_CATALOG, { paper: "@matomezu/base:a4", orientation: "portrait" })).toEqual({
       status: "known",
       size: { w: 794, h: 1123 },
     })

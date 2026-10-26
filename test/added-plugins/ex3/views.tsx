@@ -1,7 +1,15 @@
 // 星のビュー・ダイアログ、方眼のコンポーネント、ミントにするボタン
-import { themeVar, type z } from "matomezu"
-import { Dialog, type DialogProps, type ItemViewProps, type SettingControlProps, useCommand, useT } from "matomezu/ui"
+import type { z } from "matomezu"
+import {
+  Dialog,
+  type DialogProps,
+  type ItemViewProps,
+  type SettingControlProps,
+  useCommand,
+  useMessages,
+} from "matomezu/ui"
 import type { STAR } from "./board"
+import { kit } from "./kit"
 
 type StarProps = z.output<(typeof STAR)["props"]>
 
@@ -15,7 +23,7 @@ const starPoints = (n: number, w: number, h: number) =>
 export function StarView({ props, size }: ItemViewProps<StarProps>) {
   return (
     <svg width={size.w} height={size.h} role="img" aria-label={props.caption} data-ex3-star={props.points}>
-      <polygon points={starPoints(props.points, size.w, size.h)} fill={themeVar("ex3/star.fill")} />
+      <polygon points={starPoints(props.points, size.w, size.h)} fill={"var(--star-fill)"} />
       <text x={size.w / 2} y={size.h / 2} textAnchor="middle" dominantBaseline="middle">
         {props.caption}
       </text>
@@ -30,18 +38,18 @@ export const STAR_ICON = (
 )
 
 export function AddStarDialog({ onClose }: DialogProps<{ page: string; at: { x: number; y: number } }>) {
-  const t = useT()
+  const t = useMessages(kit)
   return (
-    <Dialog title={t("ex3/addStar")} onClose={onClose}>
+    <Dialog title={t("addStar")} onClose={onClose}>
       {null}
     </Dialog>
   )
 }
 
 export function EditStarDialog({ onClose }: DialogProps<{ page: string; item: string }>) {
-  const t = useT()
+  const t = useMessages(kit)
   return (
-    <Dialog title={t("ex3/editStar")} onClose={onClose}>
+    <Dialog title={t("editStar")} onClose={onClose}>
       {null}
     </Dialog>
   )
@@ -58,8 +66,8 @@ export function GridSetting({ label, value, inherited, onChange }: SettingContro
 
 // ステージの下の行に置くボタン。紙のあるブックを開いていなければ出ない
 export function MintButton({ stage }: { stage: string }) {
-  const mint = useCommand(stage, "ex3/mint")
-  const t = useT()
+  const mint = useCommand(stage, "ex3:mint")
+  const t = useMessages(kit)
   if (!mint.shown) return null
   return (
     <button type="button" onClick={() => mint.run()}>

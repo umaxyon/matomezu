@@ -2,13 +2,14 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const PAGE_MESSAGES = defineMessages({
-  "Open page": { ja: "ページを開く" },
-  Orientation: { ja: "向き" },
-  "Unknown paper": { ja: "不明な紙" },
-  "New page": { ja: "新しいページ" },
-  "Page name": { ja: "ページの名前" },
-  "Paper size": { ja: "紙のサイズ" },
-  Create: { ja: "作成" },
-  "Update page": { ja: "ページを変える" },
-  "Page settings": { ja: "ページの設定" },
+  "Open page": { en: "Open page", ja: "ページを開く" },
+  Orientation: { en: "Orientation", ja: "向き" },
+  "Unknown paper": { en: "Unknown paper", ja: "不明な紙" },
+  "New page": { en: "New page", ja: "新しいページ" },
+  "Page name": { en: "Page name", ja: "ページの名前" },
+  "Paper size": { en: "Paper size", ja: "紙のサイズ" },
+  Create: { en: "Create", ja: "作成" },
+  "Update page": { en: "Update page", ja: "ページを変える" },
+  "Page settings": { en: "Page settings", ja: "ページの設定" },
+  "Add page": { en: "Add page", ja: "ページを足す" },
 })

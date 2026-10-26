@@ -51,13 +51,22 @@ async function connected(server = fakeServer()) {
   return { ...server, store }
 }
 const itemsOf = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!.items?.map(i => i.id) ?? []
+  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!.items?.map(i => i.id) ?? []
 const place = (store: ReturnType<typeof newStore>) =>
-  store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x: 0, y: 0 } }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-box", at: { x: 0, y: 0 } },
+    { book: "b1" },
+  )
 // 常駐が知らせる、アイテムを足した b1
 const b1With = (...ids: string[]) => ({
   ...SAMPLE_BOOKS[0],
-  pages: [{ ...SAMPLE_BOOKS[0]!.pages[0], items: ids.map(id => ({ id, item: "shape.box", x: 0, y: 0, props: {} })) }],
+  pages: [
+    {
+      ...SAMPLE_BOOKS[0]!.pages[0],
+      items: ids.map(id => ({ id, item: "@matomezu/box:shape-box", x: 0, y: 0, props: {} })),
+    },
+  ],
 })
 
 test("知らせにつながらなければ NoServer", async () => {
@@ -121,7 +130,7 @@ test("画面で行ったアクションは、振った id と、つながりの 
   place(store)
   expect(sent.filter(x => x.url === "api/perform")).toEqual([
     expect.objectContaining({
-      action: "item.place",
+      action: "@matomezu/paper:item-place",
       on: { book: "b1" },
       ids: ["n1"],
       lang: "ja",
@@ -170,8 +179,8 @@ test("つなぎ直したら（2 度目の hello）、送ったアクションの
 
 test("設定の知らせで設定を入れ替える", async () => {
   const { store, emit } = await connected()
-  emit("settings", { settings: { lang: "en", skin: "dark" } })
-  expect(store.state.getState().settings).toMatchObject({ lang: "en", skin: "dark" })
+  emit("settings", { settings: { lang: "en", skin: "@matomezu/base:dark" } })
+  expect(store.state.getState().settings).toMatchObject({ lang: "en", skin: "@matomezu/base:dark" })
 })
 
 test("読んでいる間に届いた新しい版の知らせは、読んだ古い版で消さない", async () => {

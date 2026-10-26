@@ -1,22 +1,22 @@
 // 箱のプラグイン: 箱のアイテム（キャプションと本文の四角）と、その追加と編集のダイアログ
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { BOX, BOX_ADD_DIALOG, BOX_EDIT_DIALOG } from "./box"
-import { BOX_MESSAGES } from "./messages"
+import { kit } from "./kit"
 
-export const BOX_PLUGIN = defineBuiltin({
-  id: "@matomezu/box",
-  items: [BOX],
-  dialogs: [BOX_ADD_DIALOG, BOX_EDIT_DIALOG],
-  messages: BOX_MESSAGES,
-})
+export const BOX_PLUGIN = defineBuiltin(
+  kit.plugin({
+    items: [BOX],
+    dialogs: [BOX_ADD_DIALOG, BOX_EDIT_DIALOG],
+  }),
+)
 
 declare module "../../../core/catalog" {
   interface ItemTable {
-    "shape.box": typeof BOX
+    "@matomezu/box:shape-box": typeof BOX
   }
-  interface MessageTable extends Readonly<typeof BOX_MESSAGES> {}
+  interface MessageTable extends Readonly<typeof kit.messages> {}
   interface DialogTable {
-    "box.add": typeof BOX_ADD_DIALOG
-    "box.edit": typeof BOX_EDIT_DIALOG
+    "@matomezu/box:box-add": typeof BOX_ADD_DIALOG
+    "@matomezu/box:box-edit": typeof BOX_EDIT_DIALOG
   }
 }

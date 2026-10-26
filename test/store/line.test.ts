@@ -1,4 +1,4 @@
-// 線のアクション（line.connect・line.update）と、線と形の決まり（組ごとの間隔・消すと線も消える・引けなくなった区間・関係の検査）
+// 線のアクション（line-connect・line-update）と、線と形の決まり（組ごとの間隔・消すと線も消える・引けなくなった区間・関係の検査）
 
 import { expect, test } from "bun:test"
 import { restoreBooks } from "../../web/src/core/book"
@@ -18,20 +18,20 @@ function ready() {
   return store
 }
 type Store = ReturnType<typeof ready>
-const book = (store: Store) => store.state.getState().books.b1 as BookOf<"drawing">
+const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
 const page = (store: Store) => book(store).pages[0]!
 const shape = (store: Store, id: string) => shapesOf(page(store)).find(i => i.id === id)!
 const lines = (store: Store) => linesOf(page(store))
-const place = (store: Store, x: number, y: number, item = "shape.box") =>
+const place = (store: Store, x: number, y: number, item = "@matomezu/box:shape-box") =>
   store.actions.perform(
-    "item.place",
-    { page: "p1", item, at: { x, y }, ...(item === "shape.box" ? { w: 100, h: 64 } : {}) },
+    "@matomezu/paper:item-place",
+    { page: "p1", item, at: { x, y }, ...(item === "@matomezu/box:shape-box" ? { w: 100, h: 64 } : {}) },
     { book: "b1" },
   )
 const connect = (store: Store, from: string, to: string, props: Record<string, unknown> = {}) =>
-  store.actions.perform("line.connect", { page: "p1", from, to, props }, { book: "b1" })
+  store.actions.perform("@matomezu/line:line-connect", { page: "p1", from, to, props }, { book: "b1" })
 const update = (store: Store, line: string, props: Record<string, unknown>) =>
-  store.actions.perform("line.update", { page: "p1", line, props }, { book: "b1" })
+  store.actions.perform("@matomezu/line:line-update", { page: "p1", line, props }, { book: "b1" })
 
 test("線を引くと、ページの items に id・item・from・to・props の並びで残り、線の id を返す", () => {
   const store = ready()
@@ -40,7 +40,7 @@ test("線を引くと、ページの items に id・item・from・to・props の
   const done = connect(store, "n1", "n2", { endHead: "arrow" })
   expect(done).toMatchObject({ ok: true, result: { line: "n3" } })
   expect(lines(store)).toEqual([
-    { id: "n3", item: "connector.line", from: "n1", to: "n2", props: { endHead: "arrow" } },
+    { id: "n3", item: "@matomezu/line:connector-line", from: "n1", to: "n2", props: { endHead: "arrow" } },
   ])
   expect(Object.keys(lines(store)[0]!)).toEqual(["id", "item", "from", "to", "props"])
 })
@@ -49,8 +49,8 @@ test("引けない相手: 無い形・リストの行・同じ組の 2 本目（
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
-  expect(place(store, 100, 300, "shape.list").ok).toBe(true)
-  store.actions.perform("row.add", { page: "p1", list: "n3" }, { book: "b1" })
+  expect(place(store, 100, 300, "@matomezu/list:shape-list").ok).toBe(true)
+  store.actions.perform("@matomezu/list:row-add", { page: "p1", list: "n3" }, { book: "b1" })
   expect(connect(store, "n1", "x").ok).toBe(false)
   expect(connect(store, "n1", "n4").ok).toBe(false) // n4 はリストの行
   expect(connect(store, "n1", "n3").ok).toBe(true) // リストの枠にはつながる
@@ -86,7 +86,9 @@ test("線でつながった箱を押すときも、つながった組は 32 空�
   place(store, 240, 100)
   place(store, 380, 100)
   connect(store, "n1", "n2")
-  expect(store.actions.perform("item.resize", { page: "p1", item: "n1", w: 150 }, { book: "b1" }).ok).toBe(true)
+  expect(
+    store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n1", w: 150 }, { book: "b1" }).ok,
+  ).toBe(true)
   expect(shape(store, "n2").x).toBe(250 + LINK_GAP)
   expect(shape(store, "n3").x).toBe(250 + LINK_GAP + 100 + GAP)
 })
@@ -99,28 +101,40 @@ test("形を消すと、つながる線も消える。線だけを消すこと�
   connect(store, "n1", "n2")
   connect(store, "n1", "n3")
   connect(store, "n2", "n2")
-  expect(store.actions.perform("item.remove", { page: "p1", items: ["n2"] }, { book: "b1" }).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/paper:item-remove", { page: "p1", items: ["n2"] }, { book: "b1" }).ok).toBe(
+    true,
+  )
   expect(lines(store).map(l => l.id)).toEqual(["n5"])
-  expect(store.actions.perform("item.remove", { page: "p1", items: ["n5"] }, { book: "b1" }).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/paper:item-remove", { page: "p1", items: ["n5"] }, { book: "b1" }).ok).toBe(
+    true,
+  )
   expect(lines(store)).toEqual([])
   expect(shapesOf(page(store)).map(s => s.id)).toEqual(["n1", "n3"])
 })
 
-test("線は動かせず、大きさも項目（item.update）も変えられない", () => {
+test("線は動かせず、大きさも項目（@matomezu/paper:item-update）も変えられない", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
   connect(store, "n1", "n2")
   const p = { book: "b1" }
-  expect(store.actions.perform("item.move", { page: "p1", items: ["n3"], by: { x: 10, y: 0 } }, p).ok).toBe(false)
-  expect(store.actions.perform("item.resize", { page: "p1", item: "n3", w: 200 }, p).ok).toBe(false)
-  expect(store.actions.perform("item.update", { page: "p1", item: "n3", props: { caption: "x" } }, p).ok).toBe(false)
-  expect(store.actions.perform("item.place", { page: "p1", item: "connector.line", at: { x: 0, y: 0 } }, p).ok).toBe(
-    false,
-  )
+  expect(
+    store.actions.perform("@matomezu/paper:item-move", { page: "p1", items: ["n3"], by: { x: 10, y: 0 } }, p).ok,
+  ).toBe(false)
+  expect(store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n3", w: 200 }, p).ok).toBe(false)
+  expect(
+    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n3", props: { caption: "x" } }, p).ok,
+  ).toBe(false)
+  expect(
+    store.actions.perform(
+      "@matomezu/paper:item-place",
+      { page: "p1", item: "@matomezu/line:connector-line", at: { x: 0, y: 0 } },
+      p,
+    ).ok,
+  ).toBe(false)
 })
 
-test("line.update: 書いた項目だけを変え、null は消す。項目の形に合わなければ断る", () => {
+test("@matomezu/line:line-update: 書いた項目だけを変え、null は消す。項目の形に合わなければ断る", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
@@ -144,7 +158,11 @@ test("手で直した区間（via）は、両端が固定で引けるときだ�
   expect(lines(store)[0]!.props.via).toEqual([300])
   // n2 を n1 の左へ動かすと、右の辺から出て左の辺へ入る形は引けない
   expect(
-    store.actions.perform("item.move", { page: "p1", items: ["n2"], by: { x: -380, y: 0 } }, { book: "b1" }).ok,
+    store.actions.perform(
+      "@matomezu/paper:item-move",
+      { page: "p1", items: ["n2"], by: { x: -380, y: 0 } },
+      { book: "b1" },
+    ).ok,
   ).toBe(true)
   expect(lines(store)[0]!.props.via).toBeUndefined()
   expect(lines(store)[0]!.props.exitAt).toBe(132 / 328)
@@ -160,14 +178,20 @@ test("関係の決まりを守らないブック（線の端が無い・行に�
     ...good,
     pages: [{ ...good.pages[0]!, items: [...shapesOf(good.pages[0]!), ...items] }],
   })
-  const line = (id: string, from: string, to: string) => ({ id, item: "connector.line", from, to, props: {} })
+  const line = (id: string, from: string, to: string) => ({
+    id,
+    item: "@matomezu/line:connector-line",
+    from,
+    to,
+    props: {},
+  })
   expect(restoreBooks(CORE_CATALOG, [good])).toHaveLength(1)
   expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "zz")])])).toHaveLength(0)
   expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")])])).toHaveLength(0)
   expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n1"), line("l2", "n1", "n1")])])).toHaveLength(1)
 })
 
-test("line.update: via を持つ線を直線にする・端を自由に戻すと、引けなくなった via を消す（断らない）。via を書いて引けなければ断る", () => {
+test("@matomezu/line:line-update: via を持つ線を直線にする・端を自由に戻すと、引けなくなった via を消す（断らない）。via を書いて引けなければ断る", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 300)
@@ -182,21 +206,29 @@ test("line.update: via を持つ線を直線にする・端を自由に戻すと
   expect(lines(store)[0]!.props).toEqual({ enterAt: ends.enterAt })
 })
 
-test("page.update（ページの設定の項目 lineRoute）: ページの線の既定の通り方を直線にすると、通り方を持たない線が直線になり、引けなくなった via を消す。null で既定（折れ線）に戻す", () => {
+test("@matomezu/base:page-update（ページの設定の項目 lineRoute）: ページの線の既定の通り方を直線にすると、通り方を持たない線が直線になり、引けなくなった via を消す。null で既定（折れ線）に戻す", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 300)
   const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
   connect(store, "n1", "n2", { ...ends, via: [300] })
   const pageUpdate = (lineRoute: "elbow" | "straight" | null) =>
-    store.actions.perform("page.update", { page: "p1", settings: { "line.route": lineRoute } }, { book: "b1" })
+    store.actions.perform(
+      "@matomezu/base:page-update",
+      { page: "p1", settings: { "@matomezu/line:line-route": lineRoute } },
+      { book: "b1" },
+    )
   expect(pageUpdate("straight").ok).toBe(true)
-  expect(page(store).settings?.["line.route"]).toBe("straight")
+  expect(page(store).settings?.["@matomezu/line:line-route"]).toBe("straight")
   expect(lines(store)[0]!.props).toEqual(ends)
   expect(pageUpdate(null).ok).toBe(true)
   expect("settings" in page(store)).toBe(false)
   expect(
-    store.actions.perform("page.update", { page: "p1", settings: { "line.route": "curve" } }, { book: "b1" }).ok,
+    store.actions.perform(
+      "@matomezu/base:page-update",
+      { page: "p1", settings: { "@matomezu/line:line-route": "curve" } },
+      { book: "b1" },
+    ).ok,
   ).toBe(false)
 })
 
@@ -212,25 +244,45 @@ test("整列の位置: 横に並ぶ箱どうしは、向き合う辺の重なる
   expect(alignedEndsOf(lines(store)[0]!, rectsOf(CORE_CATALOG, page(store)), true)).toBeNull()
 })
 
-test("線の既定の通り方は、ページ → ブック → 折れ線の順に決まる。ブックを直線にすると（book.update の設定の項目）、ページの既定の無いページの線が直線になり、引けなくなった via を消す", () => {
+test("線の既定の通り方は、ページ → ブック → 折れ線の順に決まる。ブックを直線にすると（@matomezu/base:book-update の設定の項目）、ページの既定の無いページの線が直線になり、引けなくなった via を消す", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 300)
   const ends = { exitAt: 132 / 328, enterAt: 296 / 328 }
   connect(store, "n1", "n2", { ...ends, via: [300] })
-  const book = () => store.state.getState().books.b1 as BookOf<"drawing">
+  const book = () => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
   const elbow = () => elbowAt(CORE_CATALOG, book(), page(store))
   expect(elbow()).toBe(true)
-  expect(store.actions.perform("book.update", { settings: { "line.route": "straight" } }, { book: "b1" }).ok).toBe(true)
-  expect(book().settings?.["line.route"]).toBe("straight")
+  expect(
+    store.actions.perform(
+      "@matomezu/base:book-update",
+      { settings: { "@matomezu/line:line-route": "straight" } },
+      { book: "b1" },
+    ).ok,
+  ).toBe(true)
+  expect(book().settings?.["@matomezu/line:line-route"]).toBe("straight")
   expect(elbow()).toBe(false)
   expect(lines(store)[0]!.props).toEqual(ends)
   // ページの既定はブックより先
-  store.actions.perform("page.update", { page: "p1", settings: { "line.route": "elbow" } }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/base:page-update",
+    { page: "p1", settings: { "@matomezu/line:line-route": "elbow" } },
+    { book: "b1" },
+  )
   expect(elbow()).toBe(true)
-  store.actions.perform("page.update", { page: "p1", settings: { "line.route": null } }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/base:page-update",
+    { page: "p1", settings: { "@matomezu/line:line-route": null } },
+    { book: "b1" },
+  )
   expect(elbow()).toBe(false)
-  expect(store.actions.perform("book.update", { settings: { "line.route": null } }, { book: "b1" }).ok).toBe(true)
+  expect(
+    store.actions.perform(
+      "@matomezu/base:book-update",
+      { settings: { "@matomezu/line:line-route": null } },
+      { book: "b1" },
+    ).ok,
+  ).toBe(true)
   expect("settings" in book()).toBe(false)
   expect(elbow()).toBe(true)
 })
@@ -239,15 +291,18 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
-  const book = store.state.getState().books.b1 as BookOf<"drawing">
+  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
   // 図面のタイプから、線と線の既定の通り方を外した機能台帳
   const noLines = buildCoreCatalog({
     ...BUILTIN_PARTS,
     bookTypes: BUILTIN_PARTS.bookTypes.map(t =>
-      t.id === "drawing"
+      t.id === "@matomezu/drawing:drawing"
         ? {
             ...t,
-            items: { allowed: ["shape.box", "shape.list"], defaults: ["shape.box", "shape.list"] },
+            items: {
+              allowed: ["@matomezu/box:shape-box", "@matomezu/list:shape-list"],
+              defaults: ["@matomezu/box:shape-box", "@matomezu/list:shape-list"],
+            },
             settings: {},
           }
         : t,
@@ -256,11 +311,22 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
   const ctx = { catalog: noLines, home: null, lang: "ja", newId: sequence("x"), now: "2026-10-26T00:00:00.000Z" }
   expect(usesLines(CORE_CATALOG, book)).toBe(true)
   expect(usesLines(noLines, book)).toBe(false)
-  expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)
-  expect(perform(book, "book.update", { settings: { "line.route": "straight" } }, ctx).ok).toBe(false)
-  expect(perform(book, "page.update", { page: "p1", settings: { "line.route": "straight" } }, ctx).ok).toBe(false)
+  expect(perform(book, "@matomezu/line:line-connect", { page: "p1", from: "n1", to: "n2" }, ctx).ok).toBe(false)
+  expect(
+    perform(book, "@matomezu/base:book-update", { settings: { "@matomezu/line:line-route": "straight" } }, ctx).ok,
+  ).toBe(false)
+  expect(
+    perform(
+      book,
+      "@matomezu/base:page-update",
+      { page: "p1", settings: { "@matomezu/line:line-route": "straight" } },
+      ctx,
+    ).ok,
+  ).toBe(false)
   // 同じ操作は、線が使えるブックなら通る
   const ok = { ...ctx, catalog: CORE_CATALOG }
-  expect(perform(book, "line.connect", { page: "p1", from: "n1", to: "n2" }, ok).ok).toBe(true)
-  expect(perform(book, "book.update", { settings: { "line.route": "straight" } }, ok).ok).toBe(true)
+  expect(perform(book, "@matomezu/line:line-connect", { page: "p1", from: "n1", to: "n2" }, ok).ok).toBe(true)
+  expect(
+    perform(book, "@matomezu/base:book-update", { settings: { "@matomezu/line:line-route": "straight" } }, ok).ok,
+  ).toBe(true)
 })

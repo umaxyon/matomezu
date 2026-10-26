@@ -1,14 +1,15 @@
-// 線の既定の通り方の設定のコンポーネント（設定の項目 line.route のビュー）。ブックの設定では折れ線か直線を選び（既定を選べば値を消す）、
+// 線の既定の通り方の設定のコンポーネント（設定の項目 line-route のビュー）。ブックの設定では折れ線か直線を選び（既定を選べば値を消す）、
 // ページの設定では「ブックを継承」・折れ線・直線から選ぶ（継承の名前の後ろに、今のブックの既定を添える）
-import { type SettingControlProps, useT } from "../../../plugin-api/ui"
+import { type SettingControlProps, useMessages } from "../../../plugin-api/ui"
 import { Choices, controlClass, Field, rowClass } from "../../base/ui"
 import { ROUTE_ICONS } from "./icons"
+import { kit } from "./kit"
 import type { LineRoute } from "./line"
 
 const ROUTE_NAMES = { elbow: "Elbow", straight: "Straight" } as const
 
 export function RouteSetting({ of, label, value, inherited, onChange }: SettingControlProps<LineRoute>) {
-  const t = useT()
+  const t = useMessages(kit)
   if (of === "book")
     return (
       <div className={rowClass}>

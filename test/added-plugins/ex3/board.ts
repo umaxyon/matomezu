@@ -1,30 +1,19 @@
 // ex3 のブックのタイプ「ボード」: 自分の形（星）・紙（正方形）・設定の項目（方眼）・テーマ（ミント）を持ち、ビルトインの見せ方（紙）・リスト・線を id で選ぶ。
 // テーマはほかのタイプのブックにも id で選べ、スキンは見る人が設定で選ぶ
-import {
-  BookLookSchema,
-  defineBookType,
-  defineDialogWith,
-  definePaper,
-  defineSetting,
-  defineShape,
-  defineSkin,
-  defineTheme,
-  type ShapeAddArgs,
-  type ShapeEditArgs,
-  z,
-} from "matomezu"
+import { BookLookSchema, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
+import { kit } from "./kit"
 
-export const STAR_ADD_DIALOG = defineDialogWith<ShapeAddArgs>()({ id: "ex3/star.add" })
-export const STAR_EDIT_DIALOG = defineDialogWith<ShapeEditArgs>()({ id: "ex3/star.edit" })
+export const STAR_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "star-add" })
+export const STAR_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "star-edit" })
 
 const STAR_SIZE = { w: 72, h: 72 }
 
 // 星: キャプションと先の数を持つ。大きさは変えない
-export const STAR = defineShape({
-  id: "ex3/star",
+export const STAR = kit.defineShape({
+  id: "star",
   kind: "shape",
   version: 1,
-  title: "ex3/star",
+  title: "star",
   capabilities: ["connectable", "hasText"],
   toolbox: true,
   props: z.strictObject({ caption: z.string().default(""), points: z.number().int().min(3).max(12).default(5) }),
@@ -33,23 +22,23 @@ export const STAR = defineShape({
   sizeOf: () => STAR_SIZE,
   captionWidth: () => STAR_SIZE.w,
   dialogs: { add: STAR_ADD_DIALOG.id, edit: STAR_EDIT_DIALOG.id },
-  tokens: [{ id: "ex3/star.fill", fallback: "accent" }],
+  tokens: [{ id: "star-fill", fallback: "accent" }],
 })
 
 // 正方形の紙（縦横が同じなので、向きは見た目に効かない）
-export const SQUARE = definePaper({ id: "ex3/square", title: "ex3/square", size: { w: 640, h: 640 } })
+export const SQUARE = kit.definePaper({ id: "square", title: "square", size: { w: 640, h: 640 } })
 
 // 方眼を出すか（ブックに持たせる）
-export const GRID = defineSetting({
-  id: "ex3/board.grid",
-  title: "ex3/grid",
+export const GRID = kit.defineSetting({
+  id: "board-grid",
+  title: "grid",
   schema: z.boolean(),
   default: false,
 })
 
-export const MINT = defineTheme({
-  id: "ex3/mint",
-  title: "ex3/mint",
+export const MINT = kit.defineTheme({
+  id: "mint",
+  title: "mint",
   base: {
     surface: "#eef7f3",
     paper: "#fbfffd",
@@ -69,13 +58,13 @@ export const MINT = defineTheme({
     danger: "#ef4444",
     muted: "#64748b",
   },
-  tokens: { "ex3/star.fill": "#ffd34d" },
+  tokens: { "ex3:star-fill": "#ffd34d" },
 })
 
 // 夜のスキン（アプリの枠の見た目。ブックの中身には効かない）
-export const NIGHT = defineSkin({
-  id: "ex3/night",
-  title: "ex3/night",
+export const NIGHT = kit.defineSkin({
+  id: "night",
+  title: "night",
   scheme: "dark",
   tokens: {
     bg: "#0b1020",
@@ -100,39 +89,43 @@ export const NIGHT = defineSkin({
 })
 
 const BOARD_ACTIONS = [
-  "page.add",
-  "book.update",
-  "item.place",
-  "item.move",
-  "item.update",
-  "item.remove",
-  "line.connect",
+  "@matomezu/base:page-add",
+  "@matomezu/base:book-update",
+  "@matomezu/paper:item-place",
+  "@matomezu/paper:item-move",
+  "@matomezu/paper:item-update",
+  "@matomezu/paper:item-remove",
+  "@matomezu/line:line-connect",
 ] as const
 
-export const BOARD = defineBookType({
-  id: "ex3/board",
+export const BOARD = kit.defineBookType({
+  id: "board",
   version: 1,
-  title: "ex3/board",
+  title: "board",
   schema: z.strictObject({
-    type: z.literal("ex3/board"),
     id: z.string().min(1),
     title: z.string(),
     ...BookLookSchema,
   }),
   single: false,
-  create: init => ({ type: "ex3/board", ...init, pages: [] }),
+  create: init => ({ ...init, pages: [] }),
   pages: {
-    paper: { allowed: ["ex3/square", "a4"], default: "ex3/square", orientation: "portrait", perPage: true },
+    paper: {
+      allowed: ["ex3:square", "@matomezu/base:a4"],
+      default: "ex3:square",
+      orientation: "portrait",
+      perPage: true,
+    },
     addFromTabs: true,
   },
   items: {
-    allowed: ["ex3/star", "shape.list", "connector.line"],
-    defaults: ["ex3/star", "shape.list", "connector.line"],
+    allowed: ["ex3:star", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
+    defaults: ["ex3:star", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
   },
   actions: { allowed: BOARD_ACTIONS, defaults: BOARD_ACTIONS },
-  theme: "ex3/mint",
-  presentation: "paper",
+  theme: "ex3:mint",
+  presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "paper",
-  settings: { book: ["ex3/board.grid"], page: [] },
+  settings: { book: ["ex3:board-grid"], page: [] },
 })

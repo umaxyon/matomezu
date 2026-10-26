@@ -20,10 +20,10 @@ test("初めて開くと、ブックを持たずにマスターを出す", async
 test("マスターで変えた設定は常駐に残り、読み直しても同じ", async ({ page }) => {
   await page.goto("/")
   const skin = page.getByRole("region", { name: "マスター" }).getByLabel("スキン")
-  await skin.selectOption("dark")
-  await expect.poll(async () => (await data(page)).settings?.skin).toBe("dark")
+  await skin.selectOption("@matomezu/base:dark")
+  await expect.poll(async () => (await data(page)).settings?.skin).toBe("@matomezu/base:dark")
   await page.reload()
-  await expect(page.getByRole("region", { name: "マスター" }).getByLabel("スキン")).toHaveValue("dark")
+  await expect(page.getByRole("region", { name: "マスター" }).getByLabel("スキン")).toHaveValue("@matomezu/base:dark")
 })
 
 test("置いた箱は少し待って常駐に残り、読み直しても同じ所にある", async ({ page }) => {
@@ -85,8 +85,8 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
   const done = await page.request.post("/api/ai/perform", {
     headers: ai,
     data: {
-      action: "item.place",
-      args: { page: "p1", item: "shape.box", at: { x: 40, y: 400 }, props: { caption: "AI の箱" } },
+      action: "@matomezu/paper:item-place",
+      args: { page: "p1", item: "@matomezu/box:shape-box", at: { x: 40, y: 400 }, props: { caption: "AI の箱" } },
       on: { book: "e2e-1" },
     },
   })
@@ -107,7 +107,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
     })
   const made = await page.request.post("/api/ai/perform", {
     headers: ai,
-    data: { action: "book.create", args: { type: "drawing", title: "AI のブック" } },
+    data: { action: "@matomezu/master:book-create", args: { type: "@matomezu/drawing:drawing", title: "AI のブック" } },
   })
   const { result } = await made.json()
   const shown = await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book, split: true } })
@@ -120,22 +120,28 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
 
 // 線のあるブック: 箱 a・b・c と、a から b（終点に矢印・キャプション）・a から c・b から c の線
 const LINE_BOOK = {
-  type: "drawing",
+  type: "@matomezu/drawing:drawing",
   id: "e2e-line",
   title: "線",
   pages: [
     {
       id: "p1",
       title: "ページ 1",
-      paper: "a4",
+      paper: "@matomezu/base:a4",
       orientation: "landscape",
       items: [
-        { id: "a", x: 100, y: 100, item: "shape.box", w: 100, h: 64, props: { caption: "A" } },
-        { id: "b", x: 400, y: 100, item: "shape.box", w: 100, h: 64, props: { caption: "B" } },
-        { id: "c", x: 100, y: 400, item: "shape.box", w: 100, h: 64, props: { caption: "C" } },
-        { id: "l1", item: "connector.line", from: "a", to: "b", props: { endHead: "arrow", caption: "申請" } },
-        { id: "l2", item: "connector.line", from: "a", to: "c", props: {} },
-        { id: "l3", item: "connector.line", from: "b", to: "c", props: {} },
+        { id: "a", x: 100, y: 100, item: "@matomezu/box:shape-box", w: 100, h: 64, props: { caption: "A" } },
+        { id: "b", x: 400, y: 100, item: "@matomezu/box:shape-box", w: 100, h: 64, props: { caption: "B" } },
+        { id: "c", x: 100, y: 400, item: "@matomezu/box:shape-box", w: 100, h: 64, props: { caption: "C" } },
+        {
+          id: "l1",
+          item: "@matomezu/line:connector-line",
+          from: "a",
+          to: "b",
+          props: { endHead: "arrow", caption: "申請" },
+        },
+        { id: "l2", item: "@matomezu/line:connector-line", from: "a", to: "c", props: {} },
+        { id: "l3", item: "@matomezu/line:connector-line", from: "b", to: "c", props: {} },
       ],
     },
   ],

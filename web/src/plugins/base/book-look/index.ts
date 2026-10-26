@@ -1,14 +1,12 @@
-// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book.update（ブックの名前と、見た目のテーマと紙の色。見た目は core/theme の BookLook）と、
+// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book-update（ブックの名前と、見た目のテーマと紙の色。見た目は core/theme の BookLook）と、
 // ブックのタイプが選んだ設定の項目（settings。core/book-settings.ts）。使えるのは、見た目の項目を形に持つブックのタイプだけ（そのタイプが許す）
 import { z } from "zod"
 import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../../../core/book-settings"
 import { HEX } from "../../../core/color"
-import { defineAction } from "../../../core/def/action"
 import { actionsOf } from "../../../core/perform"
 import type { Book } from "../../../core/schema/book"
 import type { BookLook } from "../../../core/theme"
-import { defineCommand } from "../../../store/commands/def"
-import { defineDialog } from "../../../store/dialogs"
+import { kit } from "../kit"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
@@ -19,10 +17,10 @@ const ARGS = z.strictObject({
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。null は見た目の項目を消す（テーマはブックのタイプのテーマ、紙の色はテーマの紙の色に戻る）。表に無いテーマは断る。
 // settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す）。変えたらページを整える（settleBook）
-export const BOOK_UPDATE = defineAction({
-  id: "book.update",
+export const BOOK_UPDATE = kit.defineAction({
+  id: "book-update",
   aiDescription:
-    "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it), paperColor (#rrggbb, the paper's color) and settings, the ones its book type has, keyed by the setting's id (for a drawing, line.route: how lines run on pages without a route of their own, straight or elbow; without it, elbow). Only what is given changes; null removes it (back to the book type's theme, the theme's paper color, or the setting's default).",
+    "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it), paperColor (#rrggbb, the paper's color) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow; without it, elbow). Only what is given changes; null removes it (back to the book type's theme, the theme's paper color, or the setting's default).",
   title: "Change book",
   target: "book",
   needs: [],
@@ -47,12 +45,12 @@ export const BOOK_UPDATE = defineAction({
   },
 })
 
-export const BOOK_SETTINGS_DIALOG = defineDialog({ id: "book.settings" })
+export const BOOK_SETTINGS_DIALOG = kit.defineDialog({ id: "book-settings" })
 
-// ブックの設定のダイアログを開く（ブックのタイプが book.update を使える、名前と見た目を変えられるブックだけ）
-export const BOOK_SETTINGS = defineCommand({
-  id: "book.settings",
+// ブックの設定のダイアログを開く（ブックのタイプが book-update を使える、名前と見た目を変えられるブックだけ）
+export const BOOK_SETTINGS = kit.defineCommand({
+  id: "book-settings",
   title: "Book settings",
-  run: (ctx, a) => a.openDialog(ctx.stage.id, "book.settings"),
-  when: ctx => ctx.book !== null && actionsOf(ctx.catalog, ctx.book).includes("book.update"),
+  run: (ctx, a) => a.openDialog(ctx.stage.id, "@matomezu/base:book-settings"),
+  when: ctx => ctx.book !== null && actionsOf(ctx.catalog, ctx.book).includes("@matomezu/base:book-update"),
 })

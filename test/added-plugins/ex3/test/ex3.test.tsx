@@ -7,7 +7,7 @@ afterEach(cleanup)
 
 // ex3 だけでも組める（ほかの見本が無くても動く）
 const make = () => {
-  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX3_UI], home: "master", lang: "ja" })
+  const instance = createMatomezu({ plugins: [...BUILTIN_UI, EX3_UI], home: "@matomezu/master:master", lang: "ja" })
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <Screen />
@@ -18,7 +18,7 @@ const make = () => {
 
 const board = (instance: ReturnType<typeof make>) => {
   act(() => {
-    expect(instance.actions.createBook("s1", { title: "ボード", type: "ex3/board" })).toBe(true)
+    expect(instance.actions.createBook("s1", { title: "ボード", type: "ex3:board" })).toBe(true)
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   act(() => {
@@ -36,42 +36,50 @@ const board = (instance: ReturnType<typeof make>) => {
 test("ボードは自分の紙（正方形）で始まり、星とビルトインのリストを置いて線でつなぎ、方眼の設定を変えられる", () => {
   const instance = make()
   const { on, page } = board(instance)
-  expect(page().paper).toBe("ex3/square")
+  expect(page().paper).toBe("ex3:square")
   act(() => {
     instance.actions.perform(
-      "item.place",
-      { page: page().id, item: "ex3/star", at: { x: 40, y: 40 }, props: { caption: "目標", points: 6 } },
+      "@matomezu/paper:item-place",
+      { page: page().id, item: "ex3:star", at: { x: 40, y: 40 }, props: { caption: "目標", points: 6 } },
       on,
     )
-    instance.actions.perform("item.place", { page: page().id, item: "shape.list", at: { x: 300, y: 40 } }, on)
+    instance.actions.perform(
+      "@matomezu/paper:item-place",
+      { page: page().id, item: "@matomezu/list:shape-list", at: { x: 300, y: 40 } },
+      on,
+    )
   })
   const [s, l] = page().items!.map(i => i.id)
   act(() => {
-    expect(instance.actions.perform("line.connect", { page: page().id, from: s!, to: l! }, on)).toMatchObject({
+    expect(
+      instance.actions.perform("@matomezu/line:line-connect", { page: page().id, from: s!, to: l! }, on),
+    ).toMatchObject({
       ok: true,
     })
-    expect(instance.actions.perform("book.update", { settings: { "ex3/board.grid": true } }, on)).toMatchObject({
+    expect(
+      instance.actions.perform("@matomezu/base:book-update", { settings: { "ex3:board-grid": true } }, on),
+    ).toMatchObject({
       ok: true,
     })
   })
-  expect(instance.state.getState().books[on.book]).toMatchObject({ settings: { "ex3/board.grid": true } })
+  expect(instance.state.getState().books[on.book]).toMatchObject({ settings: { "ex3:board-grid": true } })
   expect(document.querySelector("[data-ex3-star]")?.getAttribute("data-ex3-star")).toBe("6")
 })
 
 test("既定のテーマはミントで、置いてほしいと書いたボタンで、開いているブックをミントにする", () => {
   const instance = make()
   act(() => {
-    instance.actions.createBook("s1", { title: "図面", type: "drawing" })
+    instance.actions.createBook("s1", { title: "図面", type: "@matomezu/drawing:drawing" })
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   fireEvent.click(screen.getByRole("button", { name: "ミントにする" }))
-  expect(instance.state.getState().books[book]).toMatchObject({ theme: "ex3/mint" })
+  expect(instance.state.getState().books[book]).toMatchObject({ theme: "ex3:mint" })
 })
 
 test("持ち込んだスキンを、見る人の設定で選べる", () => {
   const instance = make()
   act(() => {
-    expect(instance.actions.perform("settings.skin", { skin: "ex3/night" })).toMatchObject({ ok: true })
+    expect(instance.actions.perform("@matomezu/base:settings-skin", { skin: "ex3:night" })).toMatchObject({ ok: true })
   })
-  expect(instance.state.getState().settings.skin).toBe("ex3/night")
+  expect(instance.state.getState().settings.skin).toBe("ex3:night")
 })

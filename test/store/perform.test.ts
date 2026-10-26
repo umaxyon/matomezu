@@ -10,25 +10,25 @@ import { newStore } from "../support"
 
 // 追加プラグインの見本: 自分のブックのタイプと、そのタイプで使えるアクション（機能台帳の型の側には書き足さない）
 const NOTE = defineBookType({
-  id: "notes/note",
+  id: "notes:note",
   version: 1,
-  title: "Drawing",
-  schema: z.strictObject({ type: z.literal("notes/note"), id: z.string().min(1), title: z.string() }),
+  title: "@matomezu/drawing:Drawing",
+  schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1), title: z.string() }),
   single: false,
-  create: init => ({ type: "notes/note" as const, ...init }),
+  create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,
   items: { allowed: [], defaults: [] },
   actions: {
-    allowed: ["notes/rename", "notes/break", "notes/stamp"],
-    defaults: ["notes/rename", "notes/break", "notes/stamp"],
+    allowed: ["notes:rename", "notes:break", "notes:stamp"],
+    defaults: ["notes:rename", "notes:break", "notes:stamp"],
   },
-  theme: "standard",
-  presentation: "master", // 画面に出さないので、見せ方は表にあるものを借りる
+  theme: "@matomezu/base:standard",
+  presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],
 })
 const RENAME = defineAction({
-  id: "notes/rename",
-  title: "Drawing",
+  id: "notes:rename",
+  title: "@matomezu/drawing:Drawing",
   aiDescription: "Rename a notes book.",
   target: "book",
   needs: [],
@@ -37,8 +37,8 @@ const RENAME = defineAction({
 })
 // 型を言い張って、タイプの形に無い欄を書くアクション
 const BREAK = defineAction({
-  id: "notes/break",
-  title: "Drawing",
+  id: "notes:break",
+  title: "@matomezu/drawing:Drawing",
   aiDescription: "Write a field the notes book does not have.",
   target: "book",
   needs: [],
@@ -47,8 +47,8 @@ const BREAK = defineAction({
 })
 // 行った時点を題名に書くアクション
 const STAMP = defineAction({
-  id: "notes/stamp",
-  title: "Drawing",
+  id: "notes:stamp",
+  title: "@matomezu/drawing:Drawing",
   aiDescription: "Write the time into the notes book's title.",
   target: "book",
   needs: [],
@@ -60,27 +60,29 @@ const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unkn
 
 describe("アクションの入口", () => {
   test("プラグインのアクションを行い、結果を状態に入れる", () => {
-    const instance = createMatomezu({ plugins: BUILTIN, home: "master", newId: () => "n1" })
+    const instance = createMatomezu({ plugins: BUILTIN, home: "@matomezu/master:master", newId: () => "n1" })
     instance.use([notes])
-    instance.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })
-    expect(untyped(instance.actions).perform("notes/rename", { title: "新" }, { book: "n1" })).toEqual({
+    instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })
+    expect(untyped(instance.actions).perform("notes:rename", { title: "新" }, { book: "n1" })).toEqual({
       ok: true,
       result: { was: "メモ" },
     })
     expect(instance.state.getState().books.n1).toMatchObject({ title: "新" })
     // ほかのタイプのブックには、そのタイプが許さないので使えない
-    expect(untyped(instance.actions).perform("notes/rename", { title: "新" }, { book: "master" })).toEqual({
+    expect(
+      untyped(instance.actions).perform("notes:rename", { title: "新" }, { book: "@matomezu/master:master" }),
+    ).toEqual({
       ok: false,
       reason: "not-allowed",
     })
   })
 
   test("アクションが返したブックがタイプの形に合わなければ断り、ブックは変わらない", () => {
-    const instance = createMatomezu({ plugins: BUILTIN, home: "master", newId: () => "n1" })
+    const instance = createMatomezu({ plugins: BUILTIN, home: "@matomezu/master:master", newId: () => "n1" })
     instance.use([notes])
-    instance.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })
+    instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })
     const before = instance.state.getState().books.n1
-    expect(untyped(instance.actions).perform("notes/break", {}, { book: "n1" })).toEqual({
+    expect(untyped(instance.actions).perform("notes:break", {}, { book: "n1" })).toEqual({
       ok: false,
       reason: "refused",
     })
@@ -92,28 +94,28 @@ describe("アクションの入口", () => {
     const times = ["2026-10-26T01:00:00.000Z", "2026-10-26T02:00:00.000Z"]
     const instance = createMatomezu({
       plugins: BUILTIN,
-      home: "master",
+      home: "@matomezu/master:master",
       newId: () => "n1",
       now: () => times.shift() ?? "later",
       observe: d => done.push(d),
     })
     instance.use([notes])
-    instance.actions.createBook("s1", { title: "メモ", type: "notes/note" as never })
-    untyped(instance.actions).perform("notes/stamp", {}, { book: "n1" })
+    instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })
+    untyped(instance.actions).perform("notes:stamp", {}, { book: "n1" })
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
-    expect(done.at(-1)).toMatchObject({ action: "notes/stamp", now: "2026-10-26T02:00:00.000Z" })
+    expect(done.at(-1)).toMatchObject({ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" })
     // ホストから届いたブックに、まだ確かめられていないアクションを行い直す
-    const book = { type: "notes/note", id: "n1", title: "メモ" }
+    const book = { type: "notes:note", id: "n1", title: "メモ" }
     instance.actions.receive({ books: [book], settings: {} }, [done.at(-1)!])
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
 
   test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
     const { state, actions } = newStore({ newId: () => "made" })
-    actions.createBook("s1", { title: "空", type: "drawing" })
+    actions.createBook("s1", { title: "空", type: "@matomezu/drawing:drawing" })
     actions.split("s1")
     actions.openBook("s2", "made")
-    const done = actions.perform("page.add", { title: "最初" }, { book: "made" })
+    const done = actions.perform("@matomezu/base:page-add", { title: "最初" }, { book: "made" })
     expect(done).toEqual({ ok: true, result: { page: "made" } })
     expect(state.getState().workspace.stages.map(s => s.opened?.page)).toEqual(["made", "made"])
   })
@@ -121,12 +123,18 @@ describe("アクションの入口", () => {
   test("宛先のブックが無い・タイプが許さない・引数の形が違うときは断り、状態を変えない", () => {
     const { state, actions } = newStore()
     const before = state.getState()
-    expect(actions.perform("page.add", { title: "x" }, { book: "nope" })).toEqual({ ok: false, reason: "no-book" })
-    expect(actions.perform("page.add", { title: "x" }, { book: "master" })).toEqual({
+    expect(actions.perform("@matomezu/base:page-add", { title: "x" }, { book: "nope" })).toEqual({
+      ok: false,
+      reason: "no-book",
+    })
+    expect(actions.perform("@matomezu/base:page-add", { title: "x" }, { book: "@matomezu/master:master" })).toEqual({
       ok: false,
       reason: "not-allowed",
     })
-    expect(actions.perform("page.add", { title: "" }, { book: "b1" })).toEqual({ ok: false, reason: "bad-args" })
+    expect(actions.perform("@matomezu/base:page-add", { title: "" }, { book: "b1" })).toEqual({
+      ok: false,
+      reason: "bad-args",
+    })
     expect(state.getState()).toBe(before)
   })
 
@@ -134,9 +142,9 @@ describe("アクションの入口", () => {
     const { state, actions } = newStore()
     let calls = 0
     const off = state.subscribe(() => calls++)
-    expect(actions.perform("settings.lang", { lang: "ja" })).toEqual({ ok: true, result: {} })
+    expect(actions.perform("@matomezu/base:settings-lang", { lang: "ja" })).toEqual({ ok: true, result: {} })
     expect(calls).toBe(0)
-    expect(actions.perform("settings.lang", { lang: "en" }).ok).toBe(true)
+    expect(actions.perform("@matomezu/base:settings-lang", { lang: "en" }).ok).toBe(true)
     expect(calls).toBe(1)
     off()
   })
@@ -145,11 +153,11 @@ describe("アクションの入口", () => {
     const { actions } = newStore()
     const typeOnly = () => {
       // @ts-expect-error ブックが対象のアクションには宛先が要る
-      actions.perform("page.add", { title: "x" })
+      actions.perform("@matomezu/base:page-add", { title: "x" })
       // @ts-expect-error 設定のアクションに宛先は渡さない
-      actions.perform("settings.lang", { lang: "en" }, { book: "b1" })
+      actions.perform("@matomezu/base:settings-lang", { lang: "en" }, { book: "b1" })
       // @ts-expect-error 引数の型が違う
-      actions.perform("page.add", { title: 1 }, { book: "b1" })
+      actions.perform("@matomezu/base:page-add", { title: 1 }, { book: "b1" })
     }
     expect(typeof typeOnly).toBe("function")
   })

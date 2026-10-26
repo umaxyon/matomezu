@@ -83,7 +83,7 @@ export function Choices<V extends string>({
   )
 }
 
-// 欄を並べた form。決めるボタンか、決めるキー（キーの割り当ての dialog.submit）で onSubmit。ready でなければ送らない。
+// 欄を並べた form。決めるボタンか、決めるキー（キーの割り当ての dialog-submit）で onSubmit。ready でなければ送らない。
 // 1 行の欄の Enter でブラウザが送る動き（暗黙の送信）は止める（Enter はキーの割り当てが受ける）。
 // submit があれば最後の行の右に決めるボタンを置き、無ければ置かない（見出しの行に ActionButton で置くときは、id をその form に渡す）
 export function Form({

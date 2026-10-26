@@ -86,11 +86,11 @@ test("描いている形の四角: 左上と大きさに、ドラッグでずら
   const store = newStore()
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.actions.perform(
-    "item.place",
-    { page: "p1", item: "shape.box", at: { x: 100, y: 100 }, w: 100, h: 64 },
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/box:shape-box", at: { x: 100, y: 100 }, w: 100, h: 64 },
     { book: "b1" },
   )
-  const page = (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
+  const page = (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
   const [box] = shapesOf(page)
   expect(shownRects(CORE_CATALOG, [{ item: box!, shift: null }]).get(box!.id)).toEqual({
     x: 100,

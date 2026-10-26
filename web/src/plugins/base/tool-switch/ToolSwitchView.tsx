@@ -1,11 +1,12 @@
 // 道具の切り替えのボタン（ウィジェット tool-switch）: ステージの道具の組の 3 つの道具を輪に並べ、今の道具を手前に大きく、残りの 2 つを左右の奥に小さく薄く、少し下げて控えさせる。
-// 右が次（押すと来る）、左が前。道具が変わると、輪を近い向きへ 1 つ分回して入れ替える。押すとコマンド tool.next を呼ぶ
+// 右が次（押すと来る）、左が前。道具が変わると、輪を近い向きへ 1 つ分回して入れ替える。押すとコマンド tool-next を呼ぶ
 import { useEffect, useRef } from "react"
 import { TOOL_SETS, type Tool, toolSetOf } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
-import { useT } from "../../../ui/i18n"
+import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { kit } from "../kit"
 import { TOOL_ICONS, TOOL_NAMES } from "./icons"
 import styles from "./ToolSwitchView.module.css"
 
@@ -29,8 +30,8 @@ function look(deg: number) {
 const angle = (icon: number, front: number) => (((((icon - front) * 120 + 180) % 360) + 360) % 360) - 180
 
 export function ToolSwitchView({ stage }: { stage: string }) {
-  const t = useT()
-  const next = useCommand(stage, "tool.next")
+  const t = useMessages(kit)
+  const next = useCommand(stage, "@matomezu/base:tool-next")
   const catalog = useCatalog().core
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage)) ?? "select"
   const set = useMatomezuState(s => {

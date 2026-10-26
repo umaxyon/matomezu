@@ -8,6 +8,7 @@ import type { Scheme } from "../core/def/skin"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePack, MessageSet } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
+import { isOwnedBy, splitId } from "../core/names"
 import { type AutoSkin, autoSkin } from "../core/skin"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef, DialogTaking } from "./dialogs"
@@ -29,7 +30,7 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
 }
 
 export type Plugin = PluginParts & {
-  id: string // npm のパッケージ名。足す定義の id は、どれも頭に「この id と /」を付ける
+  id: string // npm のパッケージ名。足す物の id は、どれも「この id:名前」（pluginKit が頭を付ける。core/names.ts）
 }
 
 // プラグインが持つ、その種類の id
@@ -39,7 +40,7 @@ export type IdsOf<P, K extends Part> = P extends { [k in K]?: readonly (infer D)
     : never
   : never
 
-// 頭に「プラグインの id と /」が付いていない id と文言の鍵、英語の文（en）を持たない文言の鍵
+// 頭に「プラグインの id と :」が付いていない id と文言の鍵、英語の文（en）を持たない文言の鍵
 type MessagesOf<P> = P extends { messages?: infer M }
   ? M extends object
     ? M
@@ -49,12 +50,14 @@ type NoEnglish<P> = {
   [K in keyof MessagesOf<P>]: MessagesOf<P>[K] extends { en: string } ? never : K
 }[keyof MessagesOf<P>]
 type Unprefixed<P extends Plugin> =
-  | { [K in Part]: Exclude<IdsOf<P, K>, `${P["id"]}/${string}`> }[Part]
-  | Exclude<keyof MessagesOf<P> & string, `${P["id"]}/${string}`>
+  | { [K in Part]: Exclude<IdsOf<P, K>, `${P["id"]}:${string}`> }[Part]
+  | Exclude<keyof MessagesOf<P> & string, `${P["id"]}:${string}`>
   | (NoEnglish<P> & string)
 type PrefixCheck<P extends Plugin> = [Unprefixed<P>] extends [never]
   ? unknown
-  : { [id in Unprefixed<P>]: "id と文言の鍵の頭にプラグインの id と / を付け、文言は英語の文（en）を持つ" }
+  : {
+      [id in Unprefixed<P>]: "id と文言の鍵の頭にプラグインの id と : を付け（pluginKit で定義する）、文言は英語の文（en）を持つ"
+    }
 
 // 形の定義が名指すダイアログのうち、受ける値が ShapeAddArgs（追加）・ShapeEditArgs（編集）でないもの
 type ShapeDialogsOf<P> = P extends { items?: readonly (infer D)[] }
@@ -73,13 +76,13 @@ type ShapeDialogCheck<P> = [WrongAdd<P> | WrongEdit<P>] extends [never]
         string]: "形の追加のダイアログは ShapeAddArgs、編集のダイアログは ShapeEditArgs を受ける"
     }
 
-// 追加プラグインを書く入口。id の頭と、形が名指すダイアログの受ける値を型で確かめる（組み立てでも確かめる）
+// プラグインを書く入口。id の頭と、形が名指すダイアログの受ける値を型で確かめる（組み立てでも確かめる）
 export const definePlugin = <const P extends Plugin>(plugin: P & PrefixCheck<P> & ShapeDialogCheck<P>): P => plugin
 
-// ビルトインプラグインは、頭の無い短い id を使う（「/」を含まない id はビルトインプラグインだけのもの）。
+// ビルトインプラグインの印: キーの割り当てで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")
-export function defineBuiltin<const P extends Plugin>(plugin: P & ShapeDialogCheck<P>): P {
+export function defineBuiltin<const P extends Plugin>(plugin: P & PrefixCheck<P> & ShapeDialogCheck<P>): P {
   return Object.assign(plugin, { [BUILTIN_MARK]: true })
 }
 export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
@@ -111,11 +114,15 @@ export function assemble(
   auto: Partial<Record<Scheme, string>> = {},
 ): Assembled {
   for (const p of plugins) {
-    if (isBuiltin(p)) continue
     for (const kind of Object.keys(PARTS) as Part[])
-      for (const d of p[kind] ?? []) if (!d.id.startsWith(`${p.id}/`)) fail("E301", { plugin: p.id, kind, id: d.id })
+      for (const d of p[kind] ?? []) if (!isOwnedBy(p.id, d.id)) fail("E301", { plugin: p.id, kind, id: d.id })
+    for (const owner of [...(p.items ?? []), ...(p.bookTypes ?? [])])
+      for (const t of owner.tokens) {
+        if (!isOwnedBy(p.id, t.id)) fail("E301", { plugin: p.id, kind: "token", id: t.id })
+        if (/^(theme|skin)-/.test(splitId(t.id).name)) fail("E306", { plugin: p.id, token: t.id })
+      }
     for (const [key, t] of Object.entries(p.messages ?? {})) {
-      if (!key.startsWith(`${p.id}/`)) fail("E303", { plugin: p.id, key })
+      if (!key.startsWith(`${p.id}:`)) fail("E303", { plugin: p.id, key })
       if (t.en === undefined) fail("E304", { plugin: p.id, key })
     }
   }

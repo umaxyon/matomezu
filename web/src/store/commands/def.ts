@@ -23,9 +23,9 @@ export interface CommandContext {
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
 }
 
-export interface CommandDef<A = undefined> {
-  id: string // 「対象.動き」（例: stage.split）
-  title: MessageKey
+export interface CommandDef<A = undefined, Tt extends string = MessageKey> {
+  id: string // 本当の id。名前は「対象-動き」（例: stage-split）
+  title: Tt
   when(ctx: CommandContext): boolean // 出すか
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない

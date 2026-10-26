@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"net/url"
 )
 
 // instructions は、つないだ AI に渡す matomezu の説明
@@ -42,7 +43,7 @@ var readTools = []readTool{
 		},
 		func(api API, args map[string]any) (json.RawMessage, error) {
 			id, _ := args["book"].(string)
-			return api.Get("api/ai/books/" + id)
+			return api.Get("api/ai/books/" + url.PathEscape(id)) // 1 冊だけのブックの id は / を含む
 		},
 	},
 	{

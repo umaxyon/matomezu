@@ -3,11 +3,11 @@ import { type ConnectorData, connectorsOf, type ItemPage, type PlacedOf } from "
 import type { Rect } from "./geom"
 import { route } from "./route"
 
-export type PlacedLine = PlacedOf<"connector.line">
+export type PlacedLine = PlacedOf<"@matomezu/line:connector-line">
 
 // ページの線
 export const linesOf = (page: ItemPage): PlacedLine[] =>
-  connectorsOf(page).filter((i): i is PlacedLine => i.item === "connector.line")
+  connectorsOf(page).filter((i): i is PlacedLine => i.item === "@matomezu/line:connector-line")
 // 線の決まりが見る欄（置いたデータの型が決まる前の、線の定義からも呼ぶ）
 type LineLike = ConnectorData<{
   caption?: string

@@ -1,12 +1,13 @@
 // ブックの名前の欄（ウィジェット book-name）: ステージのブックの名前を出す。
-// 乗せるか押すと、上にメニュー（配置のメニュー stage.menu）がせり上がり、欄とメニューから離れると下がる。メニューの項目はコマンドを呼ぶ
+// 乗せるか押すと、上にメニュー（配置のメニュー stage-menu）がせり上がり、欄とメニューから離れると下がる。メニューの項目はコマンドを呼ぶ
 import { useEffect, useRef, useState } from "react"
 import { bookTitle } from "../../../core/book"
 import { useCommand } from "../../../ui/commands"
-import { useT } from "../../../ui/i18n"
+import { useMessages } from "../../../ui/i18n"
 import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
 import { useMenu, useMenuCommand } from "../../../ui/menu"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { kit } from "../kit"
 import styles from "./BookName.module.css"
 
 // 離れてからメニューが下がるまで（欄とメニューの間を動く間に下がらないように）
@@ -19,7 +20,7 @@ export function BookName({ stage }: { stage: string }) {
   })
   const lang = useMatomezuState(s => s.settings.lang)
   const current = useMatomezuState(s => s.workspace.current === stage)
-  const t = useT()
+  const t = useMessages(kit)
   const [open, setOpen] = useState(false)
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelLeave = () => {
@@ -72,7 +73,7 @@ export function BookName({ stage }: { stage: string }) {
 
 // せり上がるメニュー。閉じている間は見えず、押せず、読み上げにも出ない
 function StageMenu({ stage, open, onPick }: { stage: string; open: boolean; onPick: () => void }) {
-  const items = useMenu("stage.menu")
+  const items = useMenu("@matomezu/base:stage-menu")
   return (
     <div className={styles.menu} data-open={open} aria-hidden={!open} inert={!open}>
       {items.map(item => (
@@ -92,7 +93,7 @@ function MenuEntry({ stage, item, onPick }: { stage: string; item: MenuItem; onP
 function MenuButton({ stage, id, onPick }: { stage: string; id: MenuCommandId; onPick: () => void }) {
   const command = useCommand(stage, id)
   const icon = useUiCatalog().commandIcons.get(id)
-  const t = useT()
+  const t = useMessages(kit)
   return (
     <button
       type="button"

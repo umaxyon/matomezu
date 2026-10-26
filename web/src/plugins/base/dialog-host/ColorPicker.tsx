@@ -14,7 +14,8 @@ import {
   useState,
 } from "react"
 import { type Hsv, hexToHsv, hsvToHex, parseHex } from "../../../core/color"
-import { useT } from "../../../ui/i18n"
+import { useMessages } from "../../../ui/i18n"
+import { kit } from "../kit"
 import styles from "./ColorPicker.module.css"
 
 export interface Swatch {
@@ -88,7 +89,7 @@ function Popup({
   onChange: (value: string | undefined) => void
   onClose: () => void
 }) {
-  const t = useT()
+  const t = useMessages(kit)
   const ref = useRef<HTMLDivElement>(null)
   const [hsv, setHsv] = useState<Hsv>(() => hexToHsv(start))
   const [text, setText] = useState(value && !palette.some(p => p.name === value) ? value : hsvToHex(hexToHsv(start)))

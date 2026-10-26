@@ -17,7 +17,7 @@ export function sequence(prefix = "n"): () => string {
 export const newStore = (options: Omit<StoreOptions, "plugins"> = {}) =>
   createMatomezuInstance({
     plugins: BUILTIN,
-    home: "master",
+    home: "@matomezu/master:master",
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

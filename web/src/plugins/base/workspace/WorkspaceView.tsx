@@ -1,5 +1,5 @@
 // workspace のビュー（ウィジェット workspace）: ステージの列を並べ、列ごとにステージのスロットを描く。並べ方は workspace の arrangement に従う。
-// 列は、上の行（stage.top）・ステージの本体（stage.body）・下の行（stage.bottom）と、右上に浮かぶ角（stage.corner）。何を置くかは配置が決める。
+// 列は、上の行（stage-top）・ステージの本体（stage-body）・下の行（stage-bottom）と、右上に浮かぶ角（stage-corner）。何を置くかは配置が決める。
 // 上の行・下の行・角の右クリックでは、ブラウザのメニューを出さない（文字の入力欄の中は除く）。
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
 // ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（割合の計算と収め方は workspace の側）
@@ -50,18 +50,18 @@ export function WorkspaceView() {
           )}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
           <div className={styles.top} onContextMenu={noBrowserMenu}>
-            <Slot name="stage.top" props={{ stage }} />
+            <Slot name="@matomezu/base:stage-top" props={{ stage }} />
           </div>
           <div className={styles.cell}>
-            <Slot name="stage.body" props={{ stage }} />
+            <Slot name="@matomezu/base:stage-body" props={{ stage }} />
           </div>
           {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
           <div className={styles.bottom} onContextMenu={noBrowserMenu}>
-            <Slot name="stage.bottom" props={{ stage }} />
+            <Slot name="@matomezu/base:stage-bottom" props={{ stage }} />
           </div>
           {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
           <div className={styles.corner} onContextMenu={noBrowserMenu}>
-            <Slot name="stage.corner" props={{ stage }} />
+            <Slot name="@matomezu/base:stage-corner" props={{ stage }} />
           </div>
         </div>
       ))}

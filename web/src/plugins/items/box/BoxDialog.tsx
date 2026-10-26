@@ -3,11 +3,11 @@
 // 編集では、選んだ寄せ・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションの欄の Enter でも決める）。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
-// 追加は開いたときに覚えた所に箱を置いて（アクション item.place）選び、編集は箱の項目を書き換える（アクション item.update）
+// 追加は開いたときに覚えた所に箱を置いて（アクション item-place）選び、編集は箱の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
 import { BODY_MAX, type ItemProps, type MessageKey, type Point, pagedOf, shapesOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useT } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useMessages } from "../../../plugin-api/ui"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
@@ -26,8 +26,9 @@ import {
   useSwatches,
 } from "../../base/ui"
 import { BOX, BOX_FILL } from "./box"
+import { kit } from "./kit"
 
-type BoxProps = ItemProps<"shape.box">
+type BoxProps = ItemProps<"@matomezu/box:shape-box">
 
 // 選んだそばから箱に見せる項目（寄せ・テーマ・色。テーマの undefined はブックのテーマ、色の undefined はテーマの塗り）
 type Look = Pick<BoxProps, "captionAlign" | "bodyAlign" | "theme" | "color">
@@ -40,7 +41,7 @@ export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: strin
   const { perform, select } = useActions()
   const add = (props: BoxProps) => {
     if (!book) return false
-    const done = perform("item.place", { page: args.page, item: BOX.id, at: args.at, props }, { book })
+    const done = perform("@matomezu/paper:item-place", { page: args.page, item: BOX.id, at: args.at, props }, { book })
     if (!done.ok) return false
     select(stage, [done.result.item])
     onClose()
@@ -48,8 +49,8 @@ export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: strin
   }
   return (
     <BoxDialog
-      title="Add box"
-      submit="Add"
+      title={kit.message("Add box")}
+      submit={kit.message("Add")}
       start={EMPTY}
       bookTheme={bookTheme}
       ready={book !== undefined}
@@ -77,7 +78,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const update = (props: BoxProps) => {
     // 「ブックのテーマ」・色の「なし」に戻したら、箱のテーマ・色の項目を消す
     const done = perform(
-      "item.update",
+      "@matomezu/paper:item-update",
       { page: args.page, item: args.item, props: { ...props, theme: props.theme ?? null, color: props.color ?? null } },
       { book },
     )
@@ -86,8 +87,8 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   }
   return (
     <BoxDialog
-      title="Edit box"
-      submit="OK"
+      title={kit.message("Edit box")}
+      submit={kit.message("OK")}
       start={start}
       bookTheme={bookTheme}
       ready
@@ -117,7 +118,7 @@ function BoxDialog({
   onPreview?: (look: Look | null) => void // 寄せ・テーマ・色を選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
-  const t = useT()
+  const t = useMessages(kit)
   const form = useId()
   const [caption, setCaption] = useState(start.caption)
   const [body, setBody] = useState(start.body)

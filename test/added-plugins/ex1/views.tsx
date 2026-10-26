@@ -1,33 +1,34 @@
 // ex1 のダイアログ・ボタン・アイコン。枠は base のダイアログを使う
-import { Dialog, type DialogProps, useCommand, useT } from "matomezu/ui"
+import { Dialog, type DialogProps, useCommand, useMessages } from "matomezu/ui"
+import { kit } from "./kit"
 import { shout } from "./shout"
 import styles from "./views.module.css"
 
 export function HelloDialog({ onClose }: DialogProps) {
-  const t = useT()
+  const t = useMessages(kit)
   return (
-    <Dialog title={t("ex1/sayHello")} onClose={onClose}>
-      <p className={styles.greeting}>{t("ex1/helloName", { name: shout("matomezu") })}</p>
+    <Dialog title={t("sayHello")} onClose={onClose}>
+      <p className={styles.greeting}>{t("helloName", { name: shout("matomezu") })}</p>
     </Dialog>
   )
 }
 
 export function InspectDialog({ args, onClose }: DialogProps<{ item: string }>) {
-  const t = useT()
+  const t = useMessages(kit)
   return (
-    <Dialog title={t("ex1/inspectItem")} onClose={onClose}>
-      <p>{t("ex1/itemId", { id: args.item })}</p>
+    <Dialog title={t("inspectItem")} onClose={onClose}>
+      <p>{t("itemId", { id: args.item })}</p>
     </Dialog>
   )
 }
 
 // ビルトインのページの設定のダイアログの差し替え
 export function PageSettingsInstead({ onClose }: DialogProps<{ page: string }>) {
-  const t = useT()
+  const t = useMessages(kit)
   return (
-    <Dialog title={t("ex1/pageSettings")} onClose={onClose}>
+    <Dialog title={t("pageSettings")} onClose={onClose}>
       <button type="button" onClick={onClose}>
-        {t("ex1/close")}
+        {t("close")}
       </button>
     </Dialog>
   )
@@ -35,9 +36,9 @@ export function PageSettingsInstead({ onClose }: DialogProps<{ page: string }>) 
 
 // ステージの上の行に置くボタン: そのステージから自分のコマンドを呼ぶ
 export function Ex1Buttons({ stage }: { stage: string }) {
-  const hello = useCommand(stage, "ex1/hello")
-  const lang = useCommand(stage, "ex1/lang")
-  const t = useT()
+  const hello = useCommand(stage, "ex1:hello")
+  const lang = useCommand(stage, "ex1:lang")
+  const t = useMessages(kit)
   return (
     <div>
       <button type="button" onClick={() => hello.run()}>

@@ -1,4 +1,4 @@
-// 線をじかに直す決まり（drawing/line/edit.ts）と、端のつなぎ替え（line.reconnect）
+// 線をじかに直す決まり（drawing/line/edit.ts）と、端のつなぎ替え（line-reconnect）
 
 import { expect, test } from "bun:test"
 import { rectsOf, shapesOf } from "../../web/src/core/placed"
@@ -13,13 +13,17 @@ function ready(boxes: [number, number][]) {
   const store = newStore()
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   for (const [x, y] of boxes)
-    store.actions.perform("item.place", { page: "p1", item: "shape.box", at: { x, y }, w: 100, h: 64 }, { book: "b1" })
+    store.actions.perform(
+      "@matomezu/paper:item-place",
+      { page: "p1", item: "@matomezu/box:shape-box", at: { x, y }, w: 100, h: 64 },
+      { book: "b1" },
+    )
   return store
 }
 type Store = ReturnType<typeof ready>
-const page = (store: Store) => (store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!
+const page = (store: Store) => (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
 const connect = (store: Store, from: string, to: string, props: Record<string, unknown> = {}) =>
-  store.actions.perform("line.connect", { page: "p1", from, to, props }, { book: "b1" })
+  store.actions.perform("@matomezu/line:line-connect", { page: "p1", from, to, props }, { book: "b1" })
 const scene = (store: Store) => {
   const p = page(store)
   const rects = rectsOf(CORE_CATALOG, p)
@@ -99,7 +103,7 @@ test("つなぎ替え: 端を別の箱へ移し、キャプション・端の形
   expect([...reconnectTargets(CORE_CATALOG, page(store), line(), "from")]).toEqual(["n2", "n3"]) // n2 なら自分に戻る線
   const re = (end: "from" | "to", item: string, props?: Record<string, number>) =>
     store.actions.perform(
-      "line.reconnect",
+      "@matomezu/line:line-reconnect",
       { page: "p1", line: "n4", end, item, ...(props ? { props } : {}) },
       { book: "b1" },
     )
@@ -127,7 +131,11 @@ test("つなぎ替えた先の箱はそのままで、近すぎればもう一�
   connect(store, "n1", "n2") // 線は n4
   // n3 は n1 の右に 20 離れて並ぶ。n1 から n3 へつなぎ替えると 32 空けるので、n3 はそのままで n1 を左へどける
   expect(
-    store.actions.perform("line.reconnect", { page: "p1", line: "n4", end: "to", item: "n3" }, { book: "b1" }).ok,
+    store.actions.perform(
+      "@matomezu/line:line-reconnect",
+      { page: "p1", line: "n4", end: "to", item: "n3" },
+      { book: "b1" },
+    ).ok,
   ).toBe(true)
   expect(shapesOf(page(store)).find(s => s.id === "n3")).toMatchObject({ x: 220, y: 100 })
   expect(shapesOf(page(store)).find(s => s.id === "n1")).toMatchObject({ x: 220 - 32 - 100, y: 100 })

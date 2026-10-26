@@ -13,15 +13,16 @@ import type { Book } from "../core/schema/book"
 import { restoreSettings } from "../core/settings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
+import { MASTER_BOOK } from "../plugins/books/master"
 import { assemble, type Plugin } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
-let assembled = assemble(BUILTIN, "master")
+let assembled = assemble(BUILTIN, MASTER_BOOK.id)
 
 // 追加プラグインを足して組み直す。食い違いがあれば投げ、前の組み立てのまま
 function use(added: readonly Plugin[]) {
-  assembled = assemble([...BUILTIN, ...added], "master")
+  assembled = assemble([...BUILTIN, ...added], MASTER_BOOK.id)
 }
 
 // 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
@@ -84,7 +85,7 @@ function aiCatalog() {
     bookTypes: [...catalog.bookTypes.values()].map(t => ({
       id: t.id,
       title: en(t.title),
-      creatable: !t.single, // book.create で作れるか（1 冊だけのタイプは作れない）
+      creatable: !t.single, // book-create で作れるか（1 冊だけのタイプは作れない）
       pages: t.pages !== null,
       items: t.items.allowed, // ページに置けるアイテム
     })),

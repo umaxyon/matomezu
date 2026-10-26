@@ -14,19 +14,29 @@ export const BUILTIN_UI = [BASE_UI, MASTER_UI, PAPER_UI, BOX_UI, LIST_UI, LINE_U
 export const DEFAULT_LAYOUT = defineLayout({
   id: "default",
   slots: {
-    root: ["workspace", "dialog-host", "menu-host", "tool-picker"],
-    "stage.top": ["tool-switch", "toolbox"],
-    "stage.body": ["book-view"],
-    "stage.bottom": ["book-name", "page-tabs"],
-    "stage.corner": ["close-button"],
+    root: [
+      "@matomezu/base:workspace",
+      "@matomezu/base:dialog-host",
+      "@matomezu/base:menu-host",
+      "@matomezu/base:tool-picker",
+    ],
+    "@matomezu/base:stage-top": ["@matomezu/base:tool-switch", "@matomezu/base:toolbox"],
+    "@matomezu/base:stage-body": ["@matomezu/base:book-view"],
+    "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
+    "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
   },
   menus: {
-    "stage.menu": ["stage.home", { either: ["stage.split", "stage.unsplit"] }, "book.open", "book.settings"],
+    "@matomezu/base:stage-menu": [
+      "@matomezu/base:stage-home",
+      { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
+      "@matomezu/base:book-open",
+      "@matomezu/base:book-settings",
+    ],
   },
   contextMenus: {
-    "paper.context": ["page.settings", "book.settings"],
-    "item.context": ["paper.edit", "-", "paper.delete"],
-    "row.context": ["list.editRow", "-", "list.deleteRow"],
-    "line.context": ["line.edit", "-", "paper.delete"],
+    "@matomezu/paper:paper-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
+    "@matomezu/paper:item-context": ["@matomezu/paper:paper-edit", "-", "@matomezu/paper:paper-delete"],
+    "@matomezu/list:row-context": ["@matomezu/list:list-edit-row", "-", "@matomezu/list:list-delete-row"],
+    "@matomezu/line:line-context": ["@matomezu/line:line-edit", "-", "@matomezu/paper:paper-delete"],
   },
 })

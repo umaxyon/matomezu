@@ -6,12 +6,12 @@ import { CORE_CATALOG } from "../support"
 
 describe("stage", () => {
   const paged = {
-    type: "drawing" as const,
+    type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
     pages: [
-      { id: "p1", title: "ページ 1", paper: "a4", orientation: "landscape" as const },
-      { id: "p2", title: "ページ 2", paper: "a5", orientation: "portrait" as const },
+      { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
+      { id: "p2", title: "ページ 2", paper: "@matomezu/base:a5", orientation: "portrait" as const },
     ],
   }
   const stage = openBook(CORE_CATALOG, newStage("s1"), paged)
@@ -46,7 +46,12 @@ describe("stage", () => {
     const s = panBy(resize(stage, small), -200, -100)
     const next = openPage(CORE_CATALOG, s, paged, "p2")
     expect(next).toMatchObject({
-      opened: { type: "drawing", book: "b1", page: "p2", paper: { status: "known", size: { w: 559, h: 794 } } },
+      opened: {
+        type: "@matomezu/drawing:drawing",
+        book: "b1",
+        page: "p2",
+        paper: { status: "known", size: { w: 559, h: 794 } },
+      },
       pan: { x: 0, y: 0 },
     })
     expect(paperOf(next)).toMatchObject({ w: 559, h: 794 })
@@ -67,17 +72,17 @@ describe("stage", () => {
 
   test("ブックを開くと、最初のページを開き、ずらす量は範囲に収めた最初の位置", () => {
     const book = {
-      type: "drawing" as const,
+      type: "@matomezu/drawing:drawing" as const,
       id: "b9",
       title: "見本",
       pages: [
-        { id: "p4", title: "ページ 4", paper: "a4", orientation: "landscape" as const },
-        { id: "p5", title: "ページ 5", paper: "a4", orientation: "landscape" as const },
+        { id: "p4", title: "ページ 4", paper: "@matomezu/base:a4", orientation: "landscape" as const },
+        { id: "p5", title: "ページ 5", paper: "@matomezu/base:a4", orientation: "landscape" as const },
       ],
     }
     const opened = openBook(CORE_CATALOG, resize(newStage("s2"), small), book)
     expect(opened.opened).toEqual({
-      type: "drawing",
+      type: "@matomezu/drawing:drawing",
       book: "b9",
       page: "p4",
       paper: { status: "known", size: { w: 1123, h: 794 } },
@@ -87,14 +92,19 @@ describe("stage", () => {
 
   test("ページの無いブックを開くと、ページも紙も開かず、ずらせない", () => {
     const opened = openBook(CORE_CATALOG, resize(stage, small), { ...paged, id: "b0", pages: [] })
-    expect(opened.opened).toEqual({ type: "drawing", book: "b0", page: null, paper: null })
+    expect(opened.opened).toEqual({ type: "@matomezu/drawing:drawing", book: "b0", page: null, paper: null })
     expect(placement(opened)).toBeNull()
     expect(panBy(opened, -10, -10)).toBe(opened)
   })
 
   test("マスターのブックを開くと、紙が無く、ずらせず、ページも開けない。もう一度開いても同じ値", () => {
     const master = openBook(CORE_CATALOG, panBy(resize(stage, small), -30, -40), MASTER_BOOK)
-    expect(master.opened).toEqual({ type: "master", book: "master", page: null, paper: null })
+    expect(master.opened).toEqual({
+      type: "@matomezu/master:master",
+      book: "@matomezu/master:master",
+      page: null,
+      paper: null,
+    })
     expect(master.pan).toEqual({ x: 0, y: 0 })
     expect(paperOf(master)).toBeNull()
     expect(placement(master)).toBeNull()

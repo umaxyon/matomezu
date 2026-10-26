@@ -1,8 +1,8 @@
-// ページを変える: アクション page.update（ブックのタイプが選んだページの設定の項目。core/book-settings.ts）
+// ページを変える: アクション page-update（ブックのタイプが選んだページの設定の項目。core/book-settings.ts）
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
 import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../../../core/book-settings"
-import { defineAction } from "../../../core/def/action"
+import { kit } from "../kit"
 
 const ARGS = z.strictObject({
   page: z.string().min(1),
@@ -11,10 +11,10 @@ const ARGS = z.strictObject({
 
 // ページ page の、書いた項目だけを変える（null は消す）。ブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプ・無いページなら断る）。
 // 変えたらページを整える（settleBook）
-export const PAGE_UPDATE = defineAction({
-  id: "page.update",
+export const PAGE_UPDATE = kit.defineAction({
+  id: "page-update",
   aiDescription:
-    "Change a page's settings, the ones its book type has (settings, keyed by the setting's id; for a drawing, line.route: how its lines run when they have no route of their own, straight or elbow). Only what is given changes; null removes it (a drawing page then follows its book's line.route).",
+    "Change a page's settings, the ones its book type has (settings, keyed by the setting's id; for a drawing, @matomezu/line:line-route: how its lines run when they have no route of their own, straight or elbow). Only what is given changes; null removes it (a drawing page then follows its book's @matomezu/line:line-route).",
   title: "Update page",
   target: "book",
   needs: [],

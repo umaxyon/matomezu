@@ -11,7 +11,7 @@ const rects = new Map([
 ])
 const line = (id: string, from: string, to: string, props: PlacedLine["props"] = {}): PlacedLine => ({
   id,
-  item: "connector.line",
+  item: "@matomezu/line:connector-line",
   from,
   to,
   props,

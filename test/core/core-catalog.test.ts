@@ -26,21 +26,21 @@ describe("機能台帳", () => {
   })
 
   test("食い違いのある定義の組からは表を作らず、直す所を並べる", () => {
-    const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing")!
-    const master = BUILTIN_PARTS.bookTypes.find(t => t.id === "master")!
+    const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing")!
+    const master = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/master:master")!
     const broken = {
       ...BUILTIN_PARTS,
       bookTypes: [drawing, master, drawing],
       items: [],
       themes: BUILTIN_PARTS.themes.filter(th => !th.tokens), // 外したアイテムの欄を上書きするテーマも外す
-      papers: BUILTIN_PARTS.papers.filter(p => p.id !== "a3"),
+      papers: BUILTIN_PARTS.papers.filter(p => p.id !== "@matomezu/base:a3"),
     }
     const problems = checkCoreCatalog(broken)
     expect(problems.map(p => p.code)).toEqual(["E001", "E004", "E008", "E008", "E008", "E004", "E008", "E008", "E008"])
     expect(problems.map(problemText).slice(0, 3)).toEqual([
-      "E001 bookType drawing: id is registered twice",
-      "E004 bookType drawing: unknown paper a3",
-      "E008 bookType drawing: unknown item shape.box",
+      "E001 bookType @matomezu/drawing:drawing: id is registered twice",
+      "E004 bookType @matomezu/drawing:drawing: unknown paper @matomezu/base:a3",
+      "E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-box",
     ])
     const thrown = (() => {
       try {
@@ -51,13 +51,18 @@ describe("機能台帳", () => {
     })()
     expect(isMatomezuError(thrown) && thrown.code).toBe("E016")
     expect(isMatomezuError(thrown) && thrown.details).toEqual(problems)
-    expect(String(thrown)).toContain("E008 bookType drawing: unknown item shape.box")
+    expect(String(thrown)).toContain("E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-box")
     expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 core catalog has no book type")
   })
 
   test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は誤り", () => {
-    const conflict = { ...BUILTIN_PARTS, messages: [...BUILTIN_PARTS.messages, { Master: { ja: "親分" } }] }
-    expect(checkCoreCatalog(conflict).map(problemText)).toEqual(["E017 message Master has different ja translations"])
+    const conflict = {
+      ...BUILTIN_PARTS,
+      messages: [...BUILTIN_PARTS.messages, { "@matomezu/master:Master": { en: "Master", ja: "親分" } }],
+    }
+    expect(checkCoreCatalog(conflict).map(problemText)).toEqual([
+      "E017 message @matomezu/master:Master has different ja translations",
+    ])
     // 同じ訳と、ほかの言語の訳を足すのはよい
     const more = {
       ...BUILTIN_PARTS,
@@ -69,34 +74,44 @@ describe("機能台帳", () => {
   })
 
   test("言語パックは言語を足し、どのプラグインの文言にも訳を足す。パックの訳がプラグインの訳に勝つ", () => {
-    const fr = defineLanguagePack({ lang: "fr", name: "Français", messages: { Master: "Maître", Box: "Boîte" } })
-    const jaFix = defineLanguagePack({ lang: "ja", name: "日本語", messages: { Master: "親分" } })
+    const fr = defineLanguagePack({
+      lang: "fr",
+      name: "Français",
+      messages: { "@matomezu/master:Master": "Maître", "@matomezu/box:Box": "Boîte" },
+    })
+    const jaFix = defineLanguagePack({ lang: "ja", name: "日本語", messages: { "@matomezu/master:Master": "親分" } })
     const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, languages: [fr, jaFix] })
     expect([...catalog.languages]).toEqual([
       ["en", "English"],
       ["ja", "日本語"],
       ["fr", "Français"],
     ])
-    expect(translate(catalog.messages, "fr", "Box")).toBe("Boîte")
+    expect(translate(catalog.messages, "fr", "@matomezu/box:Box")).toBe("Boîte")
     expect(translate(catalog.messages, "fr", "Add page")).toBe("Add page")
-    expect(translate(catalog.messages, "ja", "Master")).toBe("親分")
+    expect(translate(catalog.messages, "ja", "@matomezu/master:Master")).toBe("親分")
     // インスタンスに無い鍵の訳は使わない
-    const stray = defineLanguagePack({ lang: "fr", name: "Français", messages: { ["Nope" as "Box"]: "Non" } })
+    const stray = defineLanguagePack({
+      lang: "fr",
+      name: "Français",
+      messages: { ["Nope" as "@matomezu/box:Box"]: "Non" },
+    })
     expect(buildCoreCatalog({ ...BUILTIN_PARTS, languages: [stray] }).messages.has("Nope")).toBe(false)
   })
 
   test("名前の違う同じ言語と、パックどうしで違う訳は誤り", () => {
-    const a = defineLanguagePack({ lang: "fr", name: "Français", messages: { Box: "Boîte" } })
-    const b = defineLanguagePack({ lang: "fr", name: "French", messages: { Box: "Caisse" } })
+    const a = defineLanguagePack({ lang: "fr", name: "Français", messages: { "@matomezu/box:Box": "Boîte" } })
+    const b = defineLanguagePack({ lang: "fr", name: "French", messages: { "@matomezu/box:Box": "Caisse" } })
     expect(checkCoreCatalog({ ...BUILTIN_PARTS, languages: [a, b] }).map(problemText)).toEqual([
       "E020 language fr has different names",
-      "E021 language packs give message Box different fr translations",
+      "E021 language packs give message @matomezu/box:Box different fr translations",
     ])
   })
 
   test("作った表は id で引け、ブックのデータの形を持つ", () => {
     const catalog = buildCoreCatalog(BUILTIN_PARTS)
-    expect(catalog.bookTypes.get("drawing")).toBe(BUILTIN_PARTS.bookTypes.find(t => t.id === "drawing"))
+    expect(catalog.bookTypes.get("@matomezu/drawing:drawing")).toBe(
+      BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing"),
+    )
     expect(catalog.items.get("nope")).toBeUndefined()
     expect(catalog.bookSchema.safeParse(SAMPLE_BOOKS[0]).success).toBe(true)
     expect(catalog.bookSchema.safeParse({ type: "nope", id: "x" }).success).toBe(false)
@@ -119,7 +134,7 @@ describe("アクションを行う", () => {
   const book = SAMPLE_BOOKS[0]!
   const ctx = {
     catalog: CORE_CATALOG,
-    home: "master",
+    home: "@matomezu/master:master",
     lang: "ja" as const,
     newId: () => "new",
     now: "2026-10-26T00:00:00.000Z",
@@ -127,53 +142,96 @@ describe("アクションを行う", () => {
   const library = { [MASTER_BOOK.id]: MASTER_BOOK, [book.id]: book }
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
-    const done = perform(book, "page.add", { title: " 表紙 ", paper: "a3", orientation: "portrait" }, ctx)
+    const done = perform(
+      book,
+      "@matomezu/base:page-add",
+      { title: " 表紙 ", paper: "@matomezu/base:a3", orientation: "portrait" },
+      ctx,
+    )
     expect(done).toMatchObject({ ok: true, result: { page: "new" } })
     expect(done.ok && "pages" in done.next && done.next.pages.at(-1)).toEqual({
       id: "new",
       title: "表紙",
-      paper: "a3",
+      paper: "@matomezu/base:a3",
       orientation: "portrait",
     })
     // 紙を決めなければ、規定の既定
-    const plain = perform(book, "page.add", { title: "次" }, ctx)
+    const plain = perform(book, "@matomezu/base:page-add", { title: "次" }, ctx)
     expect(plain.ok && "pages" in plain.next && plain.next.pages.at(-1)).toMatchObject({
-      paper: "a4",
+      paper: "@matomezu/base:a4",
       orientation: "landscape",
     })
   })
 
   test("名前が空のページとブックは断る", () => {
-    expect(perform(book, "page.add", { title: "  " }, ctx)).toEqual({ ok: false, reason: "bad-args" })
-    expect(perform(library, "book.create", { title: "", type: "drawing" }, ctx)).toEqual({
+    expect(perform(book, "@matomezu/base:page-add", { title: "  " }, ctx)).toEqual({ ok: false, reason: "bad-args" })
+    expect(
+      perform(library, "@matomezu/master:book-create", { title: "", type: "@matomezu/drawing:drawing" }, ctx),
+    ).toEqual({
       ok: false,
       reason: "bad-args",
     })
   })
 
   test("ブックを作ると、振った id で一覧に入り、その id を返す。同じ id があれば断る", () => {
-    const done = perform(library, "book.create", { title: "新しい図", type: "drawing" }, ctx)
+    const done = perform(
+      library,
+      "@matomezu/master:book-create",
+      { title: "新しい図", type: "@matomezu/drawing:drawing" },
+      ctx,
+    )
     expect(done).toMatchObject({ ok: true, result: { book: "new" } })
-    expect(done.ok && done.next.new).toEqual({ type: "drawing", id: "new", title: "新しい図", pages: [] })
-    const again = done.ok ? perform(done.next, "book.create", { title: "もう一つ", type: "drawing" }, ctx) : null
+    expect(done.ok && done.next.new).toEqual({
+      type: "@matomezu/drawing:drawing",
+      id: "new",
+      title: "新しい図",
+      pages: [],
+    })
+    const again = done.ok
+      ? perform(
+          done.next,
+          "@matomezu/master:book-create",
+          { title: "もう一つ", type: "@matomezu/drawing:drawing" },
+          ctx,
+        )
+      : null
     expect(again).toEqual({ ok: false, reason: "refused" })
   })
 
   test("ブックの一覧と設定を変えるアクションは、ホームのタイプが許すときだけ。ホームが無ければ断る", () => {
     const homeless = { ...ctx, home: null }
-    expect(perform({ [book.id]: book }, "book.create", { title: "x", type: "drawing" }, homeless)).toEqual({
+    expect(
+      perform(
+        { [book.id]: book },
+        "@matomezu/master:book-create",
+        { title: "x", type: "@matomezu/drawing:drawing" },
+        homeless,
+      ),
+    ).toEqual({
       ok: false,
       reason: "not-allowed",
     })
     const settings = { lang: "ja", skin: "auto", keys: NO_KEY_CHANGES }
-    expect(perform(settings, "settings.lang", { lang: "en" }, ctx)).toMatchObject({ ok: true, next: { lang: "en" } })
-    expect(perform(settings, "settings.lang", { lang: "en" }, homeless)).toEqual({ ok: false, reason: "not-allowed" })
+    expect(perform(settings, "@matomezu/base:settings-lang", { lang: "en" }, ctx)).toMatchObject({
+      ok: true,
+      next: { lang: "en" },
+    })
+    expect(perform(settings, "@matomezu/base:settings-lang", { lang: "en" }, homeless)).toEqual({
+      ok: false,
+      reason: "not-allowed",
+    })
     // インスタンスに無い言語は断る
-    expect(perform(settings, "settings.lang", { lang: "fr" }, ctx)).toEqual({ ok: false, reason: "refused" })
+    expect(perform(settings, "@matomezu/base:settings-lang", { lang: "fr" }, ctx)).toEqual({
+      ok: false,
+      reason: "refused",
+    })
   })
 
   test("タイプが許していないアクションと、知らないアクションは断る", () => {
-    expect(perform(MASTER_BOOK, "page.add", { title: "x" }, ctx)).toEqual({ ok: false, reason: "not-allowed" })
+    expect(perform(MASTER_BOOK, "@matomezu/base:page-add", { title: "x" }, ctx)).toEqual({
+      ok: false,
+      reason: "not-allowed",
+    })
     // @ts-expect-error 知らない id は型でも誤り
     expect(perform(book, "nope", {}, ctx)).toEqual({ ok: false, reason: "unknown" })
   })
@@ -181,13 +239,15 @@ describe("アクションを行う", () => {
 
 describe("テーマの値", () => {
   test("宣言された欄は、テーマが上書きしていなければ、宣言の既定（共通の欄）の値", () => {
-    const values = resolveTokens(CORE_CATALOG, "standard", [{ id: "box.fill", fallback: "fill" }])
-    expect(values["box.fill"]).toEqual(values.fill!)
+    const values = resolveTokens(CORE_CATALOG, "@matomezu/base:standard", [
+      { id: "@matomezu/box:box-fill", fallback: "fill" },
+    ])
+    expect(values["@matomezu/box:box-fill"]).toEqual(values.fill!)
   })
 
   test("ブックの値には、ブックで使えるアイテムの欄が入る", () => {
-    expect(Object.keys(bookTokens(CORE_CATALOG, SAMPLE_BOOKS[0]!))).toContain("box.fill")
-    expect(Object.keys(bookTokens(CORE_CATALOG, MASTER_BOOK))).not.toContain("box.fill")
+    expect(Object.keys(bookTokens(CORE_CATALOG, SAMPLE_BOOKS[0]!))).toContain("@matomezu/box:box-fill")
+    expect(Object.keys(bookTokens(CORE_CATALOG, MASTER_BOOK))).not.toContain("@matomezu/box:box-fill")
   })
 })
 
@@ -209,15 +269,15 @@ describe("機能台帳ごとに別の世界", () => {
   const NOTES = defineBookType({
     id: "notes",
     version: 1,
-    title: "Drawing",
+    title: "@matomezu/drawing:Drawing",
     schema: z.strictObject({ type: z.literal("notes"), id: z.string().min(1), title: z.string() }),
     single: false,
     create: init => ({ type: "notes" as const, ...init }),
     pages: null,
     items: { allowed: [], defaults: [] },
     actions: { allowed: [], defaults: [] },
-    theme: "standard",
-    presentation: "master", // 画面に出さないので、見せ方は表にあるものを借りる
+    theme: "@matomezu/base:standard",
+    presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
     tokens: [],
   })
   const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [...BUILTIN_PARTS.bookTypes, NOTES] })
@@ -226,18 +286,30 @@ describe("機能台帳ごとに別の世界", () => {
   test("足したタイプのブックは、それを持つ表でだけ作れて、データの形もその表で通る", () => {
     const made = perform(
       library,
-      "book.create",
+      "@matomezu/master:book-create",
       { title: "メモ", type: "notes" as never },
-      { catalog: catalog, home: "master", lang: "ja", newId: () => "n1", now: "2026-10-26T00:00:00.000Z" },
+      {
+        catalog: catalog,
+        home: "@matomezu/master:master",
+        lang: "ja",
+        newId: () => "n1",
+        now: "2026-10-26T00:00:00.000Z",
+      },
     )
     expect(made).toMatchObject({ ok: true, result: { book: "n1" } })
     expect(made.ok && catalog.bookSchema.safeParse(made.next.n1).success).toBe(true)
     expect(CORE_CATALOG.bookSchema.safeParse({ type: "notes", id: "n1", title: "メモ" }).success).toBe(false)
     const refused = perform(
       library,
-      "book.create",
+      "@matomezu/master:book-create",
       { title: "メモ", type: "notes" as never },
-      { catalog: CORE_CATALOG, home: "master", lang: "ja", newId: () => "n1", now: "2026-10-26T00:00:00.000Z" },
+      {
+        catalog: CORE_CATALOG,
+        home: "@matomezu/master:master",
+        lang: "ja",
+        newId: () => "n1",
+        now: "2026-10-26T00:00:00.000Z",
+      },
     )
     expect(refused).toEqual({ ok: false, reason: "refused" })
   })

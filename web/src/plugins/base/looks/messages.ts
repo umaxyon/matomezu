@@ -2,12 +2,12 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const LOOKS_MESSAGES = defineMessages({
-  Standard: { ja: "標準" },
-  "Sticky notes": { ja: "付箋紙" },
-  Simple: { ja: "シンプル" },
-  A5: { ja: "A5" },
-  A4: { ja: "A4" },
-  A3: { ja: "A3" },
-  Dark: { ja: "ダーク" },
-  Light: { ja: "ライト" },
+  Standard: { en: "Standard", ja: "標準" },
+  "Sticky notes": { en: "Sticky notes", ja: "付箋紙" },
+  Simple: { en: "Simple", ja: "シンプル" },
+  A5: { en: "A5", ja: "A5" },
+  A4: { en: "A4", ja: "A4" },
+  A3: { en: "A3", ja: "A3" },
+  Dark: { en: "Dark", ja: "ダーク" },
+  Light: { en: "Light", ja: "ライト" },
 })

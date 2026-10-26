@@ -3,17 +3,10 @@
 // 端は自由か、形のふちの上に固定（exitAt・enterAt。ふちを左上から時計回りに一周した割合）。手で直した折れ線の途中の区間（via）は、両端が固定のときだけ持つ。
 // 道筋は持たず、つないだ形の位置から描くたびに決める（route.ts）
 import { z } from "zod"
-import {
-  type Book,
-  bookItems,
-  type CoreCatalog,
-  defineConnector,
-  defineDialogWith,
-  defineSetting,
-  settingValue,
-} from "../../../plugin-api"
+import { type Book, bookItems, type CoreCatalog, settingValue } from "../../../plugin-api"
 import { CAPTION_OFFSET_MAX } from "./caption"
 import { HEADS } from "./heads"
+import { kit } from "./kit"
 import { lineGaps, linesHold, tidyLines } from "./placed"
 
 export const ROUTES = ["straight", "elbow"] as const
@@ -49,8 +42,8 @@ export const LinePatchSchema = z.strictObject(
 )
 
 // 線の既定の通り方（ブックとページの設定の項目。線が自分の通り方を持たなければこれ）
-export const LINE_ROUTE = defineSetting({
-  id: "line.route",
+export const LINE_ROUTE = kit.defineSetting({
+  id: "line-route",
   title: "Line route",
   schema: z.enum(ROUTES),
   default: "elbow",
@@ -58,8 +51,8 @@ export const LINE_ROUTE = defineSetting({
 
 // 線は置いた形と次の決まりを持つ: つないだ組は間隔を広げる（placed.ts の lineGaps）、形が変わったあと端の形が無くなった線と引けなくなった手直しを消す（tidyLines）、
 // 両端がつなげる形にあり同じ組に 2 本無い（linesHold）
-export const LINE = defineConnector({
-  id: "connector.line",
+export const LINE = kit.defineConnector({
+  id: "connector-line",
   kind: "connector",
   version: 1,
   title: "Line",
@@ -75,13 +68,13 @@ export const LINE = defineConnector({
   tokens: [
     // 線と端の形の色: 灰色を紙の色に 4 割混ぜた色（紙の色に合わせて変わる。半透明にしないのは、線が重なった区間だけ濃く見えないように）
     // （明暗で分けない。紙の色はテーマが決め、見る人の明暗では変わらないため）
-    { id: "line.color", value: "color-mix(in srgb, rgb(90, 90, 110) 40%, var(--theme-paper))" },
-    { id: "line.text", fallback: "text" }, // キャプションの文字の色
+    { id: "line-color", value: "color-mix(in srgb, rgb(90, 90, 110) 40%, var(--theme-paper))" },
+    { id: "line-text", fallback: "text" }, // キャプションの文字の色
   ],
 })
 
 // 線の編集のダイアログ。開いたステージのブックの、ページ page の線 item の項目を変える
-export const LINE_EDIT_DIALOG = defineDialogWith<{ page: string; item: string }>()({ id: "line.edit" })
+export const LINE_EDIT_DIALOG = kit.defineDialogWith<{ page: string; item: string }>()({ id: "line-edit" })
 
 // ページ page の線の既定が折れ線か（ページの既定、無ければブックの既定、それも無ければ設定の既定）
 export const elbowAt = (catalog: CoreCatalog, book: Book, page: object | null): boolean =>

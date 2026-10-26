@@ -9,12 +9,12 @@ const SPLIT = icon(
 )
 
 export const STAGE_ICONS = {
-  "stage.home": icon(
+  "@matomezu/base:stage-home": icon(
     <>
       <path d="M4 11 12 4l8 7" />
       <path d="M6 9.5V20h12V9.5" />
     </>,
   ),
-  "stage.split": SPLIT,
-  "stage.unsplit": SPLIT,
+  "@matomezu/base:stage-split": SPLIT,
+  "@matomezu/base:stage-unsplit": SPLIT,
 }

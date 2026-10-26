@@ -1,76 +1,79 @@
 // リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
-import { type CommandContext, defineCommand, type Point, pagedOf, toPaperDelta } from "../../../plugin-api"
+import { type CommandContext, type Point, pagedOf, toPaperDelta } from "../../../plugin-api"
+import { kit } from "./kit"
 import { linesFor } from "./size"
 
 const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
 
 // リスト list の最後に行を足すダイアログを開く
-export const LIST_ADD_ROW = defineCommand({
-  id: "list.addRow",
+export const LIST_ADD_ROW = kit.defineCommand({
+  id: "list-add-row",
   title: "Add row",
   run: (ctx, a, { list }: { list: string }) => {
     const page = ctx.stage.opened?.page
-    if (page) a.openDialog(ctx.stage.id, "row.add", { page, list })
+    if (page) a.openDialog(ctx.stage.id, "@matomezu/list:row-add", { page, list })
   },
   when: onDrawingPage,
 })
 
 // 行の中身を変えるダイアログを開く
-export const LIST_EDIT_ROW = defineCommand({
-  id: "list.editRow",
+export const LIST_EDIT_ROW = kit.defineCommand({
+  id: "list-edit-row",
   title: "Edit row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
     const page = ctx.stage.opened?.page
-    if (page) a.openDialog(ctx.stage.id, "row.edit", { page, list, row })
+    if (page) a.openDialog(ctx.stage.id, "@matomezu/list:row-edit", { page, list, row })
   },
   when: onDrawingPage,
 })
 
 // 行を消す
-export const LIST_DELETE_ROW = defineCommand({
-  id: "list.deleteRow",
+export const LIST_DELETE_ROW = kit.defineCommand({
+  id: "list-delete-row",
   title: "Delete row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
     const { opened } = ctx.stage
-    if (opened?.page) a.perform("row.remove", { page: opened.page, list, rows: [row] }, { book: opened.book })
+    if (opened?.page)
+      a.perform("@matomezu/list:row-remove", { page: opened.page, list, rows: [row] }, { book: opened.book })
   },
   when: onDrawingPage,
 })
 
 // 行のチェックを入れる・外す
-export const LIST_CHECK = defineCommand({
-  id: "list.check",
+export const LIST_CHECK = kit.defineCommand({
+  id: "list-check",
   title: "Check",
   run: (ctx, a, { list, row, checked }: { list: string; row: string; checked: boolean }) => {
     const { opened } = ctx.stage
-    if (opened?.page) a.perform("row.check", { page: opened.page, list, row, checked }, { book: opened.book })
+    if (opened?.page)
+      a.perform("@matomezu/list:row-check", { page: opened.page, list, row, checked }, { book: opened.book })
   },
   when: onDrawingPage,
 })
 
 // 行の下の端を、画面の上で by だけ動かしたとき: 高さ height（紙の上）の行を、一番近い行数の高さにする（size.ts の linesFor）
-export const LIST_STRETCH_ROW = defineCommand({
-  id: "list.stretchRow",
+export const LIST_STRETCH_ROW = kit.defineCommand({
+  id: "list-stretch-row",
   title: "Set row heights",
   run: (ctx, a, { list, row, height, by }: { list: string; row: string; height: number; by: Point }) => {
     const { opened } = ctx.stage
     if (!opened?.page) return
     const lines = linesFor(height + toPaperDelta(ctx.stage, by).y)
-    a.perform("row.lines", { page: opened.page, list, rows: [row], lines }, { book: opened.book })
+    a.perform("@matomezu/list:row-lines", { page: opened.page, list, rows: [row], lines }, { book: opened.book })
   },
   when: onDrawingPage,
 })
 
 // 行を動かす: リスト to（無ければ同じリスト）の行 before の前（無ければ最後）へ（行のドラッグで離したとき）
-export const LIST_MOVE_ROW = defineCommand({
-  id: "list.moveRow",
+export const LIST_MOVE_ROW = kit.defineCommand({
+  id: "list-move-row",
   title: "Move row",
   run: (ctx, a, args: { list: string; row: string; to: string; before?: string }) => {
     const { opened } = ctx.stage
     if (!opened?.page) return
     const before = args.before === undefined ? {} : { before: args.before }
     a.perform(
-      "row.move",
+      "@matomezu/list:row-move",
       { page: opened.page, list: args.list, row: args.row, to: args.to, ...before },
       { book: opened.book },
     )

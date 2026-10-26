@@ -6,7 +6,7 @@ export const ERRORS = {
   E002: 'bookType {id}: schema.type must be the literal "{id}"',
   E004: "bookType {id}: unknown paper {paper}",
   E005: "bookType {id}: default paper {paper} is not allowed",
-  E006: "bookType {id}: addFromTabs needs page.add in the default actions",
+  E006: "bookType {id}: addFromTabs needs @matomezu/base:page-add in the default actions",
   E007: "bookType {id}: create must return a book of the schema",
   E008: "bookType {id}: unknown {kind} {ref}",
   E009: "bookType {id}: default {kind} {ref} is not allowed",
@@ -54,10 +54,12 @@ export const ERRORS = {
   E212: "layout {layout}: menu {menu} is not shown by any placed widget",
   E213: "layout {layout}: context menu {menu} is not opened by any placed widget or book view",
 
-  E301: 'plugin {plugin}: {kind} {id} must start with "{plugin}/"',
+  E301: 'plugin {plugin}: {kind} {id} must be "{plugin}:<name>" (a name of a-z, 0-9 and -, starting with a-z)',
   E302: "plugin {plugin}: key {key} binds {command}, which is not its own command",
-  E303: 'plugin {plugin}: message key {key} must start with "{plugin}/"',
+  E303: 'plugin {plugin}: message key {key} must start with "{plugin}:"',
   E304: "plugin {plugin}: message {key} has no English text (en)",
+  E305: "plugin {plugin}: name {name} must be of a-z, 0-9 and -, starting with a-z",
+  E306: 'plugin {plugin}: token {token} must not start with "theme-" or "skin-" (the core\'s CSS variables)',
 
   E401: "the server could not give the data: {status}",
 } as const

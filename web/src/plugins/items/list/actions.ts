@@ -1,23 +1,24 @@
 // リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える・動かす（並べ替えと、同じページの別のリストへ）。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 
 import { z } from "zod"
-import { defineAction, hasPages, nextItemId, textNew, textPatch } from "../../../plugin-api"
+import { hasPages, nextItemId, textNew, textPatch } from "../../../plugin-api"
+import { kit } from "./kit"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "./list"
 import { findList, rowsOf, withList, withRowLines } from "./rows"
 import { MAX_ROW_LINES } from "./size"
 
 // 行の項目を変えるときに渡す形: 書いた項目だけを変え、null は消す（既定に戻す）。AI にもこの形で見せる。
-// チェック（checked）は row.check、行数（lines）は row.lines で変える
+// チェック（checked）は row-check、行数（lines）は row-lines で変える
 const RowPatchSchema = z.strictObject(textPatch())
 
 // 足す行の項目（書かなかった項目は既定）
 const RowNewSchema = z.strictObject(textNew())
 
 // リスト list の最後に行を足す
-export const ROW_ADD = defineAction({
-  id: "row.add",
+export const ROW_ADD = kit.defineAction({
+  id: "row-add",
   aiDescription:
-    "Add a row at the end of a list (an item shape.list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks.",
+    "Add a row at the end of a list (an item @matomezu/list:shape-list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks.",
   title: "Add row",
   target: "book",
   needs: [],
@@ -38,8 +39,8 @@ export const ROW_ADD = defineAction({
 })
 
 // 行の項目を変える。props に書いた項目だけを変え、null を書いた項目は消す（既定に戻す）。項目の形に合わなければ断る
-export const ROW_UPDATE = defineAction({
-  id: "row.update",
+export const ROW_UPDATE = kit.defineAction({
+  id: "row-update",
   aiDescription:
     "Change some props of a list's row. Props not given stay; a prop given as null is removed (back to its default).",
   title: "Update row",
@@ -65,8 +66,8 @@ export const ROW_UPDATE = defineAction({
 })
 
 // 行を消す。無い行を含むなら断る
-export const ROW_REMOVE = defineAction({
-  id: "row.remove",
+export const ROW_REMOVE = kit.defineAction({
+  id: "row-remove",
   aiDescription: "Remove rows from a list.",
   title: "Remove rows",
   target: "book",
@@ -87,10 +88,10 @@ export const ROW_REMOVE = defineAction({
 })
 
 // 行のチェックを入れる・外す（チェックリストのリストだけ）
-export const ROW_CHECK = defineAction({
-  id: "row.check",
+export const ROW_CHECK = kit.defineAction({
+  id: "row-check",
   aiDescription:
-    "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with item.update, and setting it false removes every row's check). The user checks rows too, so a check can carry their answer.",
+    "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with @matomezu/paper:item-update, and setting it false removes every row's check). The user checks rows too, so a check can carry their answer.",
   title: "Check row",
   target: "book",
   needs: [],
@@ -113,8 +114,8 @@ export const ROW_CHECK = defineAction({
 
 // 行の高さ（本文を見せる行数）を書き換える。rows が無ければ全部の行。lines は size.ts の RowsLines: 行数（同じ高さ）、"max"（本文の一番長い行に）、
 // "fit"（行ごとにその行の本文が全部見える高さ）、null（行数を消し、リストでそろえる高さに戻す）。無い行を含むなら断る
-export const ROW_LINES = defineAction({
-  id: "row.lines",
+export const ROW_LINES = kit.defineAction({
+  id: "row-lines",
   aiDescription:
     'Set how many body lines rows of a list show (rows given, or every row): a number gives them all that height whatever their body; "max" gives them all the height of the longest body; "fit" gives each row the height of its own body. null removes it: rows without it share the height of the most body lines among them, up to 5, and a longer body is cut with ….',
   title: "Set row heights",
@@ -137,8 +138,8 @@ export const ROW_LINES = defineAction({
 
 // 行を動かす: 同じページのリスト to（無ければ同じリスト）の、行 before の前（無ければ最後）へ。
 // 移した先がチェックリストでなければ、行のチェックを消す。無いリスト・無い行・自分の前へなら断る
-export const ROW_MOVE = defineAction({
-  id: "row.move",
+export const ROW_MOVE = kit.defineAction({
+  id: "row-move",
   aiDescription:
     "Move a row of a list before the row before (or to the end without it), in the same list or in another list (to) on the same page. A row moved to a list that is not a checklist loses its check.",
   title: "Move row",

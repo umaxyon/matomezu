@@ -1,12 +1,12 @@
 // 紙のビュー（見せ方 paper）: ステージの紙の置き場所（core/stage.ts の placement）に紙を描き、その上に開いたページのアイテムを置く。
-// ページが無ければ、真ん中にページを作るボタン（コマンド page.new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
-// 画面のどこを右クリックしても、紙のメニュー（paper.context）を開く。
-// アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（paper.place。紙からはみ出す所では薄く出し、置かない）。
-// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに paper.move）。ドラッグ中は、動かすアイテムを少し透かしてポインタに付け、
-// ほかのアイテムは薄くして動かさない。アイテム 1 つなら、通り道（items.ts の trackDrag）を覚え、正面から半分入った相手をその場で入れ替えて描く（dragging）。ダブルクリックで中身を編集する（paper.edit）。何も無い所を押すと選択を外す。
-// アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（item.context）を開く。
+// ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は代わりの紙に「不明な紙」と示し、描けない紙は知らせだけを出す。
+// 画面のどこを右クリックしても、紙のメニュー（paper-context）を開く。
+// アイテムを置こうとしている間は、ポインタに点線の箱が付いてきて、押すとそこに置く（paper-place。紙からはみ出す所では薄く出し、置かない）。
+// 選択の道具では、アイテムを押すと選び、ドラッグで動かす（離したときに paper-move）。ドラッグ中は、動かすアイテムを少し透かしてポインタに付け、
+// ほかのアイテムは薄くして動かさない。アイテム 1 つなら、通り道（items.ts の trackDrag）を覚え、正面から半分入った相手をその場で入れ替えて描く（dragging）。ダブルクリックで中身を編集する（paper-edit）。何も無い所を押すと選択を外す。
+// アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（item-context）を開く。
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
-// 辺はその辺だけ、角は 2 つの辺を動かす。離したときに paper.resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
+// 辺はその辺だけ、角は 2 つの辺を動かす。離したときに paper-resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
 // ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）の層で形の並びを包み、形ごとに重ねるコンポーネントを形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
@@ -45,13 +45,16 @@ import {
   type BookViewProps,
   type ItemViewProps,
   type ShapeScene,
+  TokenScope,
   useActions,
   useCommand,
   useContextMenu,
+  useMessages,
   useShapeMarks,
-  useT,
+  useTokenScope,
 } from "../../../plugin-api/ui"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { kit } from "../kit"
 import { type Came, dragging, placeAt, trackDrag } from "../placing"
 import styles from "./PaperView.module.css"
 
@@ -62,8 +65,8 @@ const local = (e: PointerEvent<Element>, el: Element): Point => {
 }
 
 export function PaperView({ stage }: BookViewProps) {
-  const openMenu = useContextMenu(stage.id, "paper.context")
-  const place = useCommand(stage.id, "paper.place")
+  const openMenu = useContextMenu(stage.id, "@matomezu/paper:paper-context")
+  const place = useCommand(stage.id, "@matomezu/paper:paper-place")
   const { select } = useActions()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
@@ -102,7 +105,7 @@ export function PaperView({ stage }: BookViewProps) {
 type LocalOf = (e: PointerEvent<Element>) => Point | null
 
 function Content({ stage, pointer, localOf }: { stage: Stage; pointer: Point | null; localOf: LocalOf }) {
-  const t = useT()
+  const t = useMessages(kit)
   const p = placement(stage)
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
@@ -171,13 +174,13 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: ItemPage; loc
       const c = ui.connectors.get(id)
       return c ? [{ id, ...c }] : []
     })
-  const move = useCommand(stage.id, "paper.move")
-  const edit = useCommand(stage.id, "paper.edit")
-  const openMenu = useContextMenu(stage.id, "item.context")
+  const move = useCommand(stage.id, "@matomezu/paper:paper-move")
+  const edit = useCommand(stage.id, "@matomezu/paper:paper-edit")
+  const openMenu = useContextMenu(stage.id, "@matomezu/paper:item-context")
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
-  const resize = useCommand(stage.id, "paper.resize")
+  const resize = useCommand(stage.id, "@matomezu/paper:paper-resize")
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
@@ -299,7 +302,13 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: ItemPage; loc
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
       overlays={connectors.flatMap(c => {
         const Overlay = c.overlay
-        return Overlay ? [<Overlay key={c.id} scene={scene} id={item.id} />] : []
+        return Overlay
+          ? [
+              <TokenScope key={c.id} def={c.id}>
+                <Overlay scene={scene} id={item.id} />
+              </TokenScope>,
+            ]
+          : []
       })}
       stretchable={single && stage.selection[0] === item.id && minSize(catalog, item) !== null}
       onStretch={{
@@ -329,9 +338,9 @@ function PageItems({ stage, page, localOf }: { stage: Stage; page: ItemPage; loc
   return connectors.reduceRight<ReactNode>((inner, c) => {
     const Layer = c.layer
     return (
-      <Layer key={c.id} scene={scene}>
-        {inner}
-      </Layer>
+      <TokenScope key={c.id} def={c.id}>
+        <Layer scene={scene}>{inner}</Layer>
+      </TokenScope>
     )
   }, items)
 }
@@ -403,6 +412,7 @@ function Item({
   const ui = useUiCatalog().items.get(item.item)
   const size = placedSize(catalog, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
+  const tokens = useTokenScope(item.item) // そのアイテムのプラグインの欄（--<名前>）
   return (
     <div
       data-item={item.id}
@@ -419,6 +429,7 @@ function Item({
         width: size?.w,
         height: size?.h,
         transform: shift ? `translate(${shift.x}px, ${shift.y}px)` : undefined,
+        ...tokens,
       }}
       {...handlers}
     >
@@ -467,8 +478,8 @@ function Ghost({ stage, pointer }: { stage: Stage; pointer: Point }) {
 }
 
 function NoPages({ stage }: { stage: Stage }) {
-  const t = useT()
-  const newPage = useCommand(stage.id, "page.new")
+  const t = useMessages(kit)
+  const newPage = useCommand(stage.id, "@matomezu/base:page-new")
   return (
     <div className={styles.empty}>
       <p className={styles.prompt}>{t("No pages")}</p>

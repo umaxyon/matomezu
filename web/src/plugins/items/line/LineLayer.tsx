@@ -1,6 +1,6 @@
 // 線の層（形を並べるビューに重ねる、つなぐもののビュー。ui/connector.ts）: 形の並びを包み、形より手前に線を描く。
 // 線は描いている形の四角（下書き・ドラッグでずらした所も）から道筋を決めて描く（drawn.ts の drawLines）。自由な端は前に描いた辺に留まる（sticky.ts）。
-// 選択の道具で線を押すと線を選び、ダブルクリックで線の編集のダイアログ（line.edit）、右クリックで線を選んで線のメニュー（line.context）を開く。
+// 選択の道具で線を押すと線を選び、ダブルクリックで線の編集のダイアログ（line-edit）、右クリックで線を選んで線のメニュー（line-context）を開く。
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
 // 形にポインタを乗せると四辺に〇を出し（PortOverlay）、〇から引くドラッグ（useLinkDrag.ts）の間は、引ける相手と引き始めた形のほかを薄くする
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
@@ -39,8 +39,8 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
     return b ? elbowAt(catalog, b, page) : true
   })
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
-  const lineEdit = useCommand(stage.id, "line.edit")
-  const openLineMenu = useContextMenu(stage.id, "line.context")
+  const lineEdit = useCommand(stage.id, "@matomezu/line:line-edit")
+  const openLineMenu = useContextMenu(stage.id, "@matomezu/line:line-context")
   const { select } = useActions()
   const linkDrag = useLinkDrag(stage, catalog, localOf)
   const lineDrag = useLineEdit(stage, catalog, localOf)

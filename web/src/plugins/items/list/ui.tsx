@@ -14,21 +14,21 @@ const LIST_ICON = (
   </svg>
 )
 
-export const LIST_ITEM_UI = { view: ListView, icon: LIST_ICON, contextMenus: ["row.context"] } as const
+export const LIST_ITEM_UI = { view: ListView, icon: LIST_ICON, contextMenus: ["@matomezu/list:row-context"] } as const
 export const LIST_DIALOG_VIEWS = {
-  "list.add": AddListDialog,
-  "list.edit": EditListDialog,
-  "row.add": AddRowDialog,
-  "row.edit": EditRowDialog,
+  "@matomezu/list:list-add": AddListDialog,
+  "@matomezu/list:list-edit": EditListDialog,
+  "@matomezu/list:row-add": AddRowDialog,
+  "@matomezu/list:row-edit": EditRowDialog,
 }
 
 export const LIST_UI = definePluginUi(LIST_PLUGIN, {
-  items: { "shape.list": LIST_ITEM_UI },
+  items: { "@matomezu/list:shape-list": LIST_ITEM_UI },
   dialogViews: LIST_DIALOG_VIEWS,
 })
 
 declare module "../../../core/catalog" {
   interface ContextMenuTable {
-    "row.context": { list: string; row: string } // リストの行（右クリックした行と、そのリストの id）
+    "@matomezu/list:row-context": { list: string; row: string } // リストの行（右クリックした行と、そのリストの id）
   }
 }

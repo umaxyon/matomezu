@@ -1,9 +1,9 @@
+import { kit } from "../kit"
 // 標準のテーマの組の付箋紙とシンプル。ブックにも箱 1 つにも当てられる（箱に当てたときは、箱の欄だけが効く）。
 // アイテムの欄（箱・リスト・線など）も上書きする（インスタンスに無いアイテムの欄は使われない）
-import { defineTheme } from "../../../core/def/theme"
 
 // 明るい紙の上に、淡い黄色の付箋を貼った見た目。角は小さく、影は薄く、右上の角を折り返す
-export const STICKY = defineTheme({
+export const STICKY = kit.defineTheme({
   id: "sticky",
   title: "Sticky notes",
   base: {
@@ -27,29 +27,29 @@ export const STICKY = defineTheme({
     muted: "#e9e3d5",
   },
   tokens: {
-    "box.fill": "#fff3a6",
-    "box.line": "#d9c873",
-    "box.text": "#3b3524",
-    "box.radius": "3px",
-    "box.shadow": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
-    "box.fold": "12px",
+    "@matomezu/box:box-fill": "#fff3a6",
+    "@matomezu/box:box-line": "#d9c873",
+    "@matomezu/box:box-text": "#3b3524",
+    "@matomezu/box:box-radius": "3px",
+    "@matomezu/box:box-shadow": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
+    "@matomezu/box:box-fold": "12px",
     // リストは明るいクラフト紙の台紙の上に、行を 1 枚ずつ付箋として貼る（見出しは帯にせず台紙の上の文字）
-    "list.fill": "#fff3a6",
-    "list.line": "#d9c873",
-    "list.text": "#3b3524",
-    "list.radius": "3px",
-    "list.shadow": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
-    "list.frame-line": "#b9ad8f",
-    "list.mount-tint": "#e7e0cf",
-    "list.mount-mix": "88%",
-    "list.card-radius": "2px",
-    "list.card-shadow": "drop-shadow(0 2px 3px rgba(70, 55, 20, 0.25))",
-    "list.card-fold": "10px",
+    "@matomezu/list:list-fill": "#fff3a6",
+    "@matomezu/list:list-line": "#d9c873",
+    "@matomezu/list:list-text": "#3b3524",
+    "@matomezu/list:list-radius": "3px",
+    "@matomezu/list:list-shadow": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
+    "@matomezu/list:list-frame-line": "#b9ad8f",
+    "@matomezu/list:list-mount-tint": "#e7e0cf",
+    "@matomezu/list:list-mount-mix": "88%",
+    "@matomezu/list:list-card-radius": "2px",
+    "@matomezu/list:list-card-shadow": "drop-shadow(0 2px 3px rgba(70, 55, 20, 0.25))",
+    "@matomezu/list:list-card-fold": "10px",
   },
 })
 
 // 白い背景に、白い箱と黒い枠線。飾りの少ない見た目で、資料に貼る・印刷する向け
-export const SIMPLE = defineTheme({
+export const SIMPLE = kit.defineTheme({
   id: "simple",
   title: "Simple",
   base: {
@@ -73,24 +73,24 @@ export const SIMPLE = defineTheme({
     muted: "#e5e7eb",
   },
   tokens: {
-    "box.fill": "#ffffff",
-    "box.line": "#262626",
-    "box.text": "#1a1a1a",
-    "box.radius": "4px",
-    "box.shadow": "none",
+    "@matomezu/box:box-fill": "#ffffff",
+    "@matomezu/box:box-line": "#262626",
+    "@matomezu/box:box-text": "#1a1a1a",
+    "@matomezu/box:box-radius": "4px",
+    "@matomezu/box:box-shadow": "none",
     // リストの見出しは黒い帯に白い文字、行のカードは黒い細い線で影なし（印刷向け）
-    "list.fill": "#ffffff",
-    "list.line": "#262626",
-    "list.text": "#1a1a1a",
-    "list.radius": "4px",
-    "list.shadow": "none",
-    "list.frame-line": "#262626",
-    "list.mount-mix": "3%",
-    "list.head-tint": "#262626",
-    "list.head-mix": "100%",
-    "list.head-ink": "100%",
-    "list.card-radius": "2px",
-    "list.card-shadow": "none",
-    "list.card-line": "100%",
+    "@matomezu/list:list-fill": "#ffffff",
+    "@matomezu/list:list-line": "#262626",
+    "@matomezu/list:list-text": "#1a1a1a",
+    "@matomezu/list:list-radius": "4px",
+    "@matomezu/list:list-shadow": "none",
+    "@matomezu/list:list-frame-line": "#262626",
+    "@matomezu/list:list-mount-mix": "3%",
+    "@matomezu/list:list-head-tint": "#262626",
+    "@matomezu/list:list-head-mix": "100%",
+    "@matomezu/list:list-head-ink": "100%",
+    "@matomezu/list:list-card-radius": "2px",
+    "@matomezu/list:list-card-shadow": "none",
+    "@matomezu/list:list-card-line": "100%",
   },
 })

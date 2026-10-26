@@ -129,7 +129,7 @@ export interface LineChoice {
 // 一回きりの操作: 整列・接辺の自動選択（端の固定をやめる）・折れ線を自動に戻す・キャプションの位置を自動に戻す
 export type LineOnce = "align" | "free" | "via" | "caption"
 
-// 線の編集のダイアログで選んだものを、line.update に渡す項目にする（変えた項目だけ。null は消す）。
+// 線の編集のダイアログで選んだものを、line-update に渡す項目にする（変えた項目だけ。null は消す）。
 // 自分に戻る線の通り方は変えない。接辺の自動選択は両端と区間を消し、整列はほかの項目を変えたあとの形で両端の位置を決めて区間を消す。
 // elbow はページの線の既定が折れ線か
 export function linePatch(

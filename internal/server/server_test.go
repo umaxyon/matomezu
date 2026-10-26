@@ -234,15 +234,15 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":1}` {
 		t.Fatalf("event = %s", got)
 	}
-	made := perform(`{"action":"book.create","args":{"title":"F","type":"ex2/flow"}}`)
+	made := perform(`{"action":"@matomezu/master:book-create","args":{"title":"F","type":"ex2:flow"}}`)
 	if !strings.Contains(made, `"ok":true`) {
-		t.Fatalf("book.create = %s", made)
+		t.Fatalf("@matomezu/master:book-create = %s", made)
 	}
 	var created struct{ Result struct{ Book string } }
 	_ = json.Unmarshal([]byte(made), &created)
 	next(t, screen) // book
-	if got := perform(`{"action":"page.add","args":{"title":"P"},"on":{"book":"` + created.Result.Book + `"}}`); !strings.Contains(got, `"ok":true`) {
-		t.Fatalf("page.add = %s", got)
+	if got := perform(`{"action":"@matomezu/base:page-add","args":{"title":"P"},"on":{"book":"` + created.Result.Book + `"}}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("@matomezu/base:page-add = %s", got)
 	}
 	next(t, screen) // book
 	_, read := get(t, s.URL+"/api/ai/books/"+created.Result.Book, "secret")
@@ -252,7 +252,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if json.Unmarshal([]byte(read), &book) != nil || len(book.Book.Pages) == 0 {
 		t.Fatalf("book = %s", read)
 	}
-	place := `{"action":"item.place","args":{"page":"` + book.Book.Pages[0].ID + `","item":"ex2/diamond","at":{"x":40,"y":40},"props":{"caption":"D"}},"on":{"book":"` + created.Result.Book + `"}}`
+	place := `{"action":"@matomezu/paper:item-place","args":{"page":"` + book.Book.Pages[0].ID + `","item":"ex2:diamond","at":{"x":40,"y":40},"props":{"caption":"D"}},"on":{"book":"` + created.Result.Book + `"}}`
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place = %s", got)
 	}
@@ -268,7 +268,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":2}` {
 		t.Fatalf("event = %s", got)
 	}
-	if c := catalog(); !strings.Contains(c, `"w":123`) || strings.Count(c, `"id":"ex2/diamond"`) != 1 {
+	if c := catalog(); !strings.Contains(c, `"w":123`) || strings.Count(c, `"id":"ex2:diamond"`) != 1 {
 		t.Fatalf("catalog after replacing = %s", c)
 	}
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
@@ -304,8 +304,8 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place after removing = %s", got)
 	}
-	if got := perform(`{"action":"book.create","args":{"title":"D","type":"drawing"}}`); !strings.Contains(got, `"ok":true`) {
-		t.Fatalf("book.create drawing = %s", got)
+	if got := perform(`{"action":"@matomezu/master:book-create","args":{"title":"D","type":"@matomezu/drawing:drawing"}}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("@matomezu/master:book-create drawing = %s", got)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); !strings.Contains(got, `"ok":false`) {
 		t.Fatalf("remove again = %s", got)
@@ -375,7 +375,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 	}
 }
 
-const drawing = `{"type":"drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"a4","orientation":"landscape"}]}`
+const drawing = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 // listen は /api/events につなぎ、届いたイベントを「名前 data」の行で返す通り道
 func listen(t *testing.T, url string) <-chan string {
@@ -422,7 +422,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	}
 	next(t, b)
 	code, body := send(t, "POST", s.URL+"/api/perform",
-		`{"action":"item.place","args":{"page":"p1","item":"shape.box","at":{"x":1,"y":2}},"on":{"book":"b1"},"lang":"ja","ids":["k1"],"client":"c1","seq":7}`, nil)
+		`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-box","at":{"x":1,"y":2}},"on":{"book":"b1"},"lang":"ja","ids":["k1"],"client":"c1","seq":7}`, nil)
 	if code != 200 || body != `{"ok":true,"result":{"item":"k1"}}` {
 		t.Fatalf("perform = %d %s", code, body)
 	}
@@ -447,7 +447,7 @@ func TestRefusedActionChangesNothing(t *testing.T) {
 	a := listen(t, s.URL)
 	next(t, a)
 	code, body := send(t, "POST", s.URL+"/api/perform",
-		`{"action":"item.update","args":{"page":"p1","item":"gone","props":{}},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`, nil)
+		`{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"gone","props":{}},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`, nil)
 	if code != 200 || body != `{"ok":false,"reason":"refused"}` {
 		t.Fatalf("perform = %d %s", code, body)
 	}
@@ -460,19 +460,19 @@ func TestSettingsActions(t *testing.T) {
 	s := newServer(t, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/perform", `{"action":"settings.skin","args":{"skin":"dark"},"lang":"ja"}`, nil)
-	if got := next(t, a); !strings.HasPrefix(got, `settings {`) || !strings.Contains(got, `"skin":"dark"`) {
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-skin","args":{"skin":"@matomezu/base:dark"},"lang":"ja"}`, nil)
+	if got := next(t, a); !strings.HasPrefix(got, `settings {`) || !strings.Contains(got, `"skin":"@matomezu/base:dark"`) {
 		t.Fatalf("settings = %s", got)
 	}
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"skin":"dark"`) {
+	if !strings.Contains(data, `"skin":"@matomezu/base:dark"`) {
 		t.Fatalf("data = %s", data)
 	}
 	// AI も設定を読んで変えられる
-	if _, got := send(t, "GET", s.URL+"/api/ai/settings", "", ai); !strings.Contains(got, `"skin":"dark"`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/settings", "", ai); !strings.Contains(got, `"skin":"@matomezu/base:dark"`) {
 		t.Fatalf("ai settings = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"settings.skin","args":{"skin":"light"}}`, ai); got != `{"ok":true,"result":{}}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:settings-skin","args":{"skin":"@matomezu/base:light"}}`, ai); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("ai perform = %s", got)
 	}
 }
@@ -512,10 +512,10 @@ func TestAIEntrancesNeedTheToken(t *testing.T) {
 			t.Errorf("%s without the token = %d", path, code)
 		}
 	}
-	if _, body := send(t, "GET", s.URL+"/api/ai/books", "", auth); body != `{"books":[{"id":"b1","type":"drawing","title":"T","version":1}]}` {
+	if _, body := send(t, "GET", s.URL+"/api/ai/books", "", auth); body != `{"books":[{"id":"b1","type":"@matomezu/drawing:drawing","title":"T","version":1}]}` {
 		t.Fatalf("books = %s", body)
 	}
-	code, body := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"page.add","args":{"title":"Two"},"on":{"book":"b1"}}`, auth)
+	code, body := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"title":"Two"},"on":{"book":"b1"}}`, auth)
 	if code != 200 || !strings.HasPrefix(body, `{"ok":true,"result":{"page":"`) {
 		t.Fatalf("perform = %d %s", code, body)
 	}

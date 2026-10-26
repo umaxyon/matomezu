@@ -21,7 +21,8 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-const instance = () => createMatomezu({ plugins: BUILTIN_UI, home: "master", books: SAMPLE_BOOKS, lang: "ja" })
+const instance = () =>
+  createMatomezu({ plugins: BUILTIN_UI, home: "@matomezu/master:master", books: SAMPLE_BOOKS, lang: "ja" })
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(instance().catalog.store.commands.keys())
 
@@ -29,7 +30,11 @@ const commands = new Set(instance().catalog.store.commands.keys())
 const TABS_ON_TOP = defineLayout({
   ...DEFAULT_LAYOUT,
   id: "tabs-on-top",
-  slots: { ...DEFAULT_LAYOUT.slots, "stage.top": ["toolbox", "page-tabs"], "stage.bottom": ["book-name"] },
+  slots: {
+    ...DEFAULT_LAYOUT.slots,
+    "@matomezu/base:stage-top": ["@matomezu/base:toolbox", "@matomezu/base:page-tabs"],
+    "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],
+  },
 })
 
 describe("配置", () => {
@@ -40,13 +45,17 @@ describe("配置", () => {
   test("知らないウィジェット・置けないスロット・インスタンスに無いコマンドは誤り", () => {
     const bad = {
       id: "bad",
-      slots: { root: ["workspace"], "stage.top": ["nope", "book-view"], "stage.bottom": ["book-name"] },
-      menus: { "stage.menu": [{ either: ["stage.split", "stage.nope"] }] },
+      slots: {
+        root: ["@matomezu/base:workspace"],
+        "@matomezu/base:stage-top": ["nope", "@matomezu/base:book-view"],
+        "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],
+      },
+      menus: { "@matomezu/base:stage-menu": [{ either: ["@matomezu/base:stage-split", "stage.nope"] }] },
     } as unknown as LayoutDef
     expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
-      "E207 layout bad: slot stage.top has unknown widget nope",
-      "E208 layout bad: widget book-view cannot be placed in slot stage.top",
-      "E209 layout bad: menu stage.menu has unknown command stage.nope",
+      "E207 layout bad: slot @matomezu/base:stage-top has unknown widget nope",
+      "E208 layout bad: widget @matomezu/base:book-view cannot be placed in slot @matomezu/base:stage-top",
+      "E209 layout bad: menu @matomezu/base:stage-menu has unknown command stage.nope",
     ])
   })
 
@@ -55,30 +64,30 @@ describe("配置", () => {
     const noStages = defineLayout({
       ...DEFAULT_LAYOUT,
       id: "no-stages",
-      slots: { ...DEFAULT_LAYOUT.slots, root: ["dialog-host"] },
+      slots: { ...DEFAULT_LAYOUT.slots, root: ["@matomezu/base:dialog-host"] },
     })
     expect(checkLayout(noStages, ui, commands).map(problemText)).toEqual([
-      "E211 layout no-stages: slot stage.top is not opened by any placed widget",
-      "E211 layout no-stages: slot stage.body is not opened by any placed widget",
-      "E211 layout no-stages: slot stage.bottom is not opened by any placed widget",
-      "E211 layout no-stages: slot stage.corner is not opened by any placed widget",
-      "E212 layout no-stages: menu stage.menu is not shown by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:stage-top is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:stage-body is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:stage-bottom is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:stage-corner is not opened by any placed widget",
+      "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
     ])
     // 中身を書かなければ、ステージの無い画面にできる
-    const bare = defineLayout({ id: "bare", slots: { root: ["dialog-host"] }, menus: {} })
+    const bare = defineLayout({ id: "bare", slots: { root: ["@matomezu/base:dialog-host"] }, menus: {} })
     expect(checkLayout(bare, ui, commands)).toEqual([])
   })
 
   test("ステージの骨組みは defineWorkspace で差し替えられる（ベーススロットを全部開ける）", () => {
     const MyWorkspace = () => <p>my workspace</p>
-    const MY_WORKSPACE = defineWorkspace({ id: "w/workspace", view: MyWorkspace })
+    const MY_WORKSPACE = defineWorkspace({ id: "w:workspace", view: MyWorkspace })
     expect(MY_WORKSPACE.opens).toEqual(STAGE_BASE_SLOTS)
     const mine = definePluginUi(definePlugin({ id: "w" }), { widgets: [MY_WORKSPACE] })
     const widgets = assembleUi([...BUILTIN_UI, mine]).widgets
     const layout = {
       ...DEFAULT_LAYOUT,
       id: "mine",
-      slots: { ...DEFAULT_LAYOUT.slots, root: ["w/workspace", "dialog-host"] },
+      slots: { ...DEFAULT_LAYOUT.slots, root: ["w:workspace", "@matomezu/base:dialog-host"] },
     }
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
   })
@@ -87,10 +96,13 @@ describe("配置", () => {
     const bad = {
       ...DEFAULT_LAYOUT,
       id: "bad",
-      contextMenus: { "paper.context": ["drawing.nope"], "other.context": ["stage.home"] },
+      contextMenus: {
+        "@matomezu/paper:paper-context": ["drawing.nope"],
+        "other.context": ["@matomezu/base:stage-home"],
+      },
     } as unknown as LayoutDef
     expect(checkLayout(bad, ui, commands).map(problemText)).toEqual([
-      "E209 layout bad: menu paper.context has unknown command drawing.nope",
+      "E209 layout bad: menu @matomezu/paper:paper-context has unknown command drawing.nope",
       "E213 layout bad: context menu other.context is not opened by any placed widget or book view",
     ])
   })
@@ -99,8 +111,8 @@ describe("配置", () => {
     defineLayout({
       ...DEFAULT_LAYOUT,
       id: "typed",
-      // @ts-expect-error page.open はページの id を受け取るが、図面のメニューは何も渡さない
-      contextMenus: { "paper.context": ["book.settings", "page.open"] },
+      // @ts-expect-error page-open はページの id を受け取るが、図面のメニューは何も渡さない
+      contextMenus: { "@matomezu/paper:paper-context": ["@matomezu/base:book-settings", "@matomezu/base:page-open"] },
     })
   })
 
@@ -122,11 +134,11 @@ describe("配置", () => {
   test("配置の型: 置けないスロット・知らないウィジェット・引数の要るコマンドは型の誤り（行わない）", () => {
     const typeOnly = () => {
       // @ts-expect-error ブックのビューの置き場は、ステージの本体にしか置けない
-      defineLayout({ id: "x", slots: { "stage.top": ["book-view"] }, menus: {} })
+      defineLayout({ id: "x", slots: { "@matomezu/base:stage-top": ["@matomezu/base:book-view"] }, menus: {} })
       // @ts-expect-error 知らないウィジェット
-      defineLayout({ id: "x", slots: { "stage.top": ["nope"] }, menus: {} })
-      // @ts-expect-error page.open はページの id を取るので、メニューに置けない
-      defineLayout({ id: "x", slots: {}, menus: { "stage.menu": ["page.open"] } })
+      defineLayout({ id: "x", slots: { "@matomezu/base:stage-top": ["nope"] }, menus: {} })
+      // @ts-expect-error page-open はページの id を取るので、メニューに置けない
+      defineLayout({ id: "x", slots: {}, menus: { "@matomezu/base:stage-menu": ["@matomezu/base:page-open"] } })
     }
     expect(typeOnly).toBeFunction()
   })
@@ -152,7 +164,7 @@ describe("配置", () => {
 describe("ウィジェット", () => {
   const Ping = () => <p>ping</p>
 
-  test("追加プラグインのウィジェットは、頭にプラグインの id と / を付ける", () => {
+  test("プラグインのウィジェットは、頭にプラグインの id と : を付ける", () => {
     const bad = definePluginUi(definePlugin({ id: "w" }), {
       widgets: [defineWidget({ id: "ping", slots: ["root"], view: Ping })],
     })
@@ -161,14 +173,16 @@ describe("ウィジェット", () => {
 
   test("同じ id のウィジェットは誤り。差し替えは overrides の widgets で、置けるスロットは変わらない", () => {
     const twice = definePluginUi(definePlugin({ id: "w" }), {
-      widgets: [defineWidget({ id: "w/ping", slots: ["root"], view: Ping })],
+      widgets: [defineWidget({ id: "w:ping", slots: ["root"], view: Ping })],
     })
     expect(() => assembleUi([...BUILTIN_UI, twice, twice])).toThrow("E001")
     const Tabs = () => <p>my tabs</p>
-    const replace = definePluginUi(definePlugin({ id: "w" }), { overrides: { widgets: { "page-tabs": Tabs } } })
-    const replaced = assembleUi([...BUILTIN_UI, replace]).widgets.get("page-tabs")
+    const replace = definePluginUi(definePlugin({ id: "w" }), {
+      overrides: { widgets: { "@matomezu/base:page-tabs": Tabs } },
+    })
+    const replaced = assembleUi([...BUILTIN_UI, replace]).widgets.get("@matomezu/base:page-tabs")
     expect(replaced?.view).toBe(Tabs)
-    expect(replaced?.slots).toEqual(ui.widgets.get("page-tabs")?.slots)
+    expect(replaced?.slots).toEqual(ui.widgets.get("@matomezu/base:page-tabs")?.slots)
   })
 })
 
@@ -180,60 +194,69 @@ test("右クリックのメニューの区切り線は、先頭・末尾・続�
 describe("取り込んだプラグインの置き場所", () => {
   const Ping = () => <p>ping</p>
   const open = defineCommand({
-    id: "p/open",
+    id: "p:open",
     title: "Open" as never,
     run: () => {},
     when: () => true,
-    place: { menus: ["stage.menu"] },
+    place: { menus: ["@matomezu/base:stage-menu"] },
   })
   const edit = defineCommand({
-    id: "p/edit",
+    id: "p:edit",
     title: "Edit" as never,
     run: () => {},
     when: () => true,
-    place: { contextMenus: ["item.context", "paper.context"] },
+    place: { contextMenus: ["@matomezu/paper:item-context", "@matomezu/paper:paper-context"] },
   })
   const added = definePluginUi(definePlugin({ id: "p", commands: [open, edit] }), {
-    widgets: [defineWidget({ id: "p/ping", slots: ["stage.top", "stage.bottom"], place: "stage.bottom", view: Ping })],
+    widgets: [
+      defineWidget({
+        id: "p:ping",
+        slots: ["@matomezu/base:stage-top", "@matomezu/base:stage-bottom"],
+        place: "@matomezu/base:stage-bottom",
+        view: Ping,
+      }),
+    ],
   })
 
   test("置いてほしいと書いたウィジェットとコマンドを、既定の配置の末尾に足す。右クリックのメニューは区切り線で分け、もうあるものは足さない", () => {
     const layout = placeAdded(DEFAULT_LAYOUT, [...BUILTIN_UI, added])
-    expect(layout.slots["stage.bottom"] as readonly unknown[] | undefined).toEqual([
-      ...DEFAULT_LAYOUT.slots["stage.bottom"],
-      "p/ping",
+    expect(layout.slots["@matomezu/base:stage-bottom"] as readonly unknown[] | undefined).toEqual([
+      ...DEFAULT_LAYOUT.slots["@matomezu/base:stage-bottom"],
+      "p:ping",
     ])
-    expect(layout.slots["stage.top"] as readonly unknown[] | undefined).toEqual(DEFAULT_LAYOUT.slots["stage.top"])
-    expect(layout.menus["stage.menu"] as readonly unknown[] | undefined).toEqual([
-      ...DEFAULT_LAYOUT.menus["stage.menu"],
-      "p/open",
+    expect(layout.slots["@matomezu/base:stage-top"] as readonly unknown[] | undefined).toEqual(
+      DEFAULT_LAYOUT.slots["@matomezu/base:stage-top"],
+    )
+    expect(layout.menus["@matomezu/base:stage-menu"] as readonly unknown[] | undefined).toEqual([
+      ...DEFAULT_LAYOUT.menus["@matomezu/base:stage-menu"],
+      "p:open",
     ])
-    expect(layout.contextMenus?.["item.context"] as readonly unknown[] | undefined).toEqual([
-      ...DEFAULT_LAYOUT.contextMenus["item.context"],
+    expect(layout.contextMenus?.["@matomezu/paper:item-context"] as readonly unknown[] | undefined).toEqual([
+      ...DEFAULT_LAYOUT.contextMenus["@matomezu/paper:item-context"],
       "-",
-      "p/edit",
+      "p:edit",
     ])
-    expect(layout.contextMenus?.["paper.context"] as readonly unknown[] | undefined).toEqual([
-      ...DEFAULT_LAYOUT.contextMenus["paper.context"],
+    expect(layout.contextMenus?.["@matomezu/paper:paper-context"] as readonly unknown[] | undefined).toEqual([
+      ...DEFAULT_LAYOUT.contextMenus["@matomezu/paper:paper-context"],
       "-",
-      "p/edit",
+      "p:edit",
     ])
     expect(placeAdded(layout, [added])).toEqual(layout)
     const all = assembleUi([...BUILTIN_UI, added])
-    const commandsWith = new Set([...commands, "p/open", "p/edit"])
+    const commandsWith = new Set([...commands, "p:open", "p:edit"])
     expect(checkLayout(layout, all, commandsWith)).toEqual([])
   })
 
   test("置けないスロットと、引数の合わないメニューは型の誤り", () => {
     // @ts-expect-error 置けるスロットに無い
-    defineWidget({ id: "p/x", slots: ["stage.top"], place: "stage.bottom", view: Ping })
+    defineWidget({ id: "p:x", slots: ["@matomezu/base:stage-top"], place: "@matomezu/base:stage-bottom", view: Ping })
     defineCommand({
-      id: "p/arg",
+      id: "p:arg",
       title: "Arg" as never,
       run: (_ctx, _a, _n: number) => {},
       when: () => true,
       // @ts-expect-error 引数を取るコマンドはメニューに入れられない
-      place: { menus: ["stage.menu"] },
+      place: { menus: ["@matomezu/base:stage-menu"] },
     })
   })
 })

@@ -8,16 +8,16 @@ test.describe.configure({ mode: "serial" })
 
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
 const flow = {
-  type: "ex2/flow",
+  type: "ex2:flow",
   id: "flow-1",
   title: "フロー",
   pages: [
     {
       id: "p1",
       title: "P",
-      paper: "a4",
+      paper: "@matomezu/base:a4",
       orientation: "landscape",
-      items: [{ id: "d1", item: "ex2/diamond", x: 40, y: 40, props: { caption: "判断" } }],
+      items: [{ id: "d1", item: "ex2:diamond", x: 40, y: 40, props: { caption: "判断" } }],
     },
   ],
 }
@@ -28,9 +28,9 @@ test("常駐が結んだ追加プラグインを画面に渡し、画面はそ�
   expect(put.ok()).toBe(true)
   await page.goto("/")
   await expect(page.locator("[data-ex2-diamond]")).toHaveAccessibleName("判断")
-  // ひし形はテーマの欄 ex2/diamond.fill の色で塗る（変数が無ければ黒になる）
+  // ひし形はテーマの欄 ex2:diamond-fill の色で塗る（見た目では --diamond-fill。変数が無ければ黒になる）
   const paint = await page.locator("[data-ex2-diamond] polygon").evaluate(el => ({
-    declared: getComputedStyle(el).getPropertyValue("--theme-ex2--diamond-fill").trim(),
+    declared: getComputedStyle(el).getPropertyValue("--diamond-fill").trim(),
     fill: getComputedStyle(el).fill,
   }))
   expect(paint.declared).not.toBe("")
@@ -106,7 +106,7 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
   const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
   cpSync(resolve("test/added-plugins/ex3"), dir, { recursive: true })
   const ui = join(dir, "ui.tsx")
-  writeFileSync(ui, readFileSync(ui, "utf8").replace(`items: { "ex3/star": { view: StarView, icon: STAR_ICON } },`, ""))
+  writeFileSync(ui, readFileSync(ui, "utf8").replace(`items: { "ex3:star": { view: StarView, icon: STAR_ICON } },`, ""))
   const errors: string[] = []
   page.on("console", m => {
     if (m.type() === "error") errors.push(m.text())
@@ -154,10 +154,10 @@ test("3 つを読ませると、作り手の違うプラグインのボタンが
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
   await expect(page.getByRole("button", { name: "あいさつする" })).toBeVisible()
   await page.getByRole("button", { name: "ミントにする" }).click()
-  await expect.poll(async () => (await saved(page, flow.id))?.theme).toBe("ex3/mint")
+  await expect.poll(async () => (await saved(page, flow.id))?.theme).toBe("ex3:mint")
   await page.reload()
   await expect(page.getByRole("button", { name: "ミントにする" })).toBeVisible()
-  expect((await saved(page, flow.id))?.theme).toBe("ex3/mint")
+  expect((await saved(page, flow.id))?.theme).toBe("ex3:mint")
 })
 
 test("AI は actions で追加プラグインのアクションを読み、perform で行える。形は選んだタイプのブックにだけ置ける", async ({
@@ -165,13 +165,13 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
 }) => {
   await page.goto("/")
   const catalog = await (await page.request.get("/api/ai/catalog", { headers: ai() })).json()
-  const answer = catalog.actions.find((a: { id: string }) => a.id === "ex2/diamond.answer")
+  const answer = catalog.actions.find((a: { id: string }) => a.id === "ex2:diamond-answer")
   expect(answer.description).toContain("Answer a decision")
   const perform = async (body: object) =>
     (await page.request.post("/api/ai/perform", { headers: ai(), data: body })).json()
   expect(
     await perform({
-      action: "ex2/diamond.answer",
+      action: "ex2:diamond-answer",
       args: { page: "p1", item: "d1", answer: "yes" },
       on: { book: flow.id },
     }),
@@ -180,8 +180,8 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
   // ex3 の星は、ex3 を選んでいない ex2 のフローには置けない
   expect(
     await perform({
-      action: "item.place",
-      args: { page: "p1", item: "ex3/star", at: { x: 300, y: 300 } },
+      action: "@matomezu/paper:item-place",
+      args: { page: "p1", item: "ex3:star", at: { x: 300, y: 300 } },
       on: { book: flow.id },
     }),
   ).toMatchObject({ ok: false })
@@ -210,8 +210,8 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   const board = async () =>
-    (await data(page)).books.find((b: { book: { type: string } }) => b.book.type === "ex3/board")?.book
-  await expect.poll(async () => (await board())?.pages?.[0]?.paper).toBe("ex3/square")
+    (await data(page)).books.find((b: { book: { type: string } }) => b.book.type === "ex3:board")?.book
+  await expect.poll(async () => (await board())?.pages?.[0]?.paper).toBe("ex3:square")
   await page.reload()
   expect((await board())?.title).toBe("星のボード")
 })

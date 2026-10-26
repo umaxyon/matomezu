@@ -13,15 +13,19 @@ function ready() {
   return store
 }
 const items = (store: ReturnType<typeof newStore>) =>
-  shapesOf((store.state.getState().books.b1 as BookOf<"drawing">).pages[0]!)
+  shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!)
 const list = (store: ReturnType<typeof newStore>) => {
-  const found = items(store).find(i => i.item === "shape.list")!
-  return found as Extract<typeof found, { item: "shape.list" }>
+  const found = items(store).find(i => i.item === "@matomezu/list:shape-list")!
+  return found as Extract<typeof found, { item: "@matomezu/list:shape-list" }>
 }
 const act = (store: ReturnType<typeof newStore>, id: string, args: Record<string, unknown>) =>
-  store.actions.perform(id as "row.add", { page: "p1", ...args } as never, { book: "b1" })
+  store.actions.perform(id as "@matomezu/list:row-add", { page: "p1", ...args } as never, { book: "b1" })
 const place = (store: ReturnType<typeof newStore>, props: Record<string, unknown> = {}) =>
-  store.actions.perform("item.place", { page: "p1", item: "shape.list", at: { x: 100, y: 100 }, props }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/list:shape-list", at: { x: 100, y: 100 }, props },
+    { book: "b1" },
+  )
 
 test("リストを置くと、幅は 240（長いキャプションならキャプションの幅）、高さは行 3 つぶんの空きで、行は無い", () => {
   const store = ready()
@@ -37,30 +41,40 @@ test("リストを置くと、幅は 240（長いキャプションならキャ�
 test("行を足す・変える・消す。行の id はアイテムの id と重ならない", () => {
   const store = ready()
   place(store)
-  const added = act(store, "row.add", { list: "n1", props: { caption: "牛乳" } })
+  const added = act(store, "@matomezu/list:row-add", { list: "n1", props: { caption: "牛乳" } })
   expect(added.ok).toBe(true)
-  act(store, "row.add", { list: "n1", props: { caption: "卵", body: "6 個" } })
+  act(store, "@matomezu/list:row-add", { list: "n1", props: { caption: "卵", body: "6 個" } })
   expect(list(store).children!.map(r => r.props.caption)).toEqual(["牛乳", "卵"])
   const ids = [list(store).id, ...list(store).children!.map(r => r.id)]
   expect(new Set(ids).size).toBe(3)
   const row = list(store).children![0]!.id
-  expect(act(store, "row.update", { list: "n1", row, props: { caption: "豆乳", body: null } }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-update", { list: "n1", row, props: { caption: "豆乳", body: null } }).ok).toBe(
+    true,
+  )
   expect(list(store).children![0]!.props.caption).toBe("豆乳")
-  expect(act(store, "row.remove", { list: "n1", rows: [row] }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-remove", { list: "n1", rows: [row] }).ok).toBe(true)
   expect(list(store).children!.map(r => r.props.caption)).toEqual(["卵"])
-  expect(act(store, "row.remove", { list: "n1", rows: ["nope"] }).ok).toBe(false)
+  expect(act(store, "@matomezu/list:row-remove", { list: "n1", rows: ["nope"] }).ok).toBe(false)
 })
 
 test("チェックはチェックリストのリストだけ。チェックリストをやめると行のチェックは消える", () => {
   const store = ready()
   place(store)
-  act(store, "row.add", { list: "n1", props: { caption: "牛乳" } })
+  act(store, "@matomezu/list:row-add", { list: "n1", props: { caption: "牛乳" } })
   const row = list(store).children![0]!.id
-  expect(act(store, "row.check", { list: "n1", row, checked: true }).ok).toBe(false)
-  store.actions.perform("item.update", { page: "p1", item: "n1", props: { checklist: true } }, { book: "b1" })
-  expect(act(store, "row.check", { list: "n1", row, checked: true }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-check", { list: "n1", row, checked: true }).ok).toBe(false)
+  store.actions.perform(
+    "@matomezu/paper:item-update",
+    { page: "p1", item: "n1", props: { checklist: true } },
+    { book: "b1" },
+  )
+  expect(act(store, "@matomezu/list:row-check", { list: "n1", row, checked: true }).ok).toBe(true)
   expect(list(store).children![0]!.props.checked).toBe(true)
-  store.actions.perform("item.update", { page: "p1", item: "n1", props: { checklist: false } }, { book: "b1" })
+  store.actions.perform(
+    "@matomezu/paper:item-update",
+    { page: "p1", item: "n1", props: { checklist: false } },
+    { book: "b1" },
+  )
   expect("checked" in list(store).children![0]!.props).toBe(false)
 })
 
@@ -111,48 +125,48 @@ test("ドラッグした高さに一番近い行数", () => {
   expect(linesFor(100000)).toBe(50)
 })
 
-test("row.lines で行の行数を書き換える。rows が無ければ全部の行、null なら行数を消す", () => {
+test("@matomezu/list:row-lines で行の行数を書き換える。rows が無ければ全部の行、null なら行数を消す", () => {
   const store = ready()
   place(store)
-  for (const c of ["a", "b"]) act(store, "row.add", { list: "n1", props: { caption: c } })
+  for (const c of ["a", "b"]) act(store, "@matomezu/list:row-add", { list: "n1", props: { caption: c } })
   const [a] = list(store).children!.map(r => r.id)
-  expect(act(store, "row.lines", { list: "n1", rows: [a], lines: 2 }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-lines", { list: "n1", rows: [a], lines: 2 }).ok).toBe(true)
   expect(list(store).children!.map(r => r.props.lines)).toEqual([2, undefined])
-  expect(act(store, "row.lines", { list: "n1", lines: 5 }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-lines", { list: "n1", lines: 5 }).ok).toBe(true)
   expect(list(store).children!.map(r => r.props.lines)).toEqual([5, 5])
-  act(store, "row.update", { list: "n1", row: a, props: { body: "一\n二\n三\n四\n五\n六\n七" } })
-  expect(act(store, "row.lines", { list: "n1", lines: "fit" }).ok).toBe(true)
+  act(store, "@matomezu/list:row-update", { list: "n1", row: a, props: { body: "一\n二\n三\n四\n五\n六\n七" } })
+  expect(act(store, "@matomezu/list:row-lines", { list: "n1", lines: "fit" }).ok).toBe(true)
   expect(list(store).children!.map(r => r.props.lines)).toEqual([7, 0])
-  expect(act(store, "row.lines", { list: "n1", lines: "max" }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-lines", { list: "n1", lines: "max" }).ok).toBe(true)
   expect(list(store).children!.map(r => r.props.lines)).toEqual([7, 7])
-  expect(act(store, "row.lines", { list: "n1", lines: null }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-lines", { list: "n1", lines: null }).ok).toBe(true)
   expect(list(store).children!.every(r => !("lines" in r.props))).toBe(true)
-  expect(act(store, "row.lines", { list: "n1", rows: ["nope"], lines: 1 }).ok).toBe(false)
+  expect(act(store, "@matomezu/list:row-lines", { list: "n1", rows: ["nope"], lines: 1 }).ok).toBe(false)
 })
 
-test("row.move で行を並べ替え、同じページの別のリストへ移す。チェックリストでないリストへ移すとチェックは消える", () => {
+test("@matomezu/list:row-move で行を並べ替え、同じページの別のリストへ移す。チェックリストでないリストへ移すとチェックは消える", () => {
   const store = ready()
   place(store, { checklist: true })
   store.actions.perform(
-    "item.place",
-    { page: "p1", item: "shape.list", at: { x: 500, y: 100 }, props: {} },
+    "@matomezu/paper:item-place",
+    { page: "p1", item: "@matomezu/list:shape-list", at: { x: 500, y: 100 }, props: {} },
     { book: "b1" },
   )
-  for (const c of ["一", "二", "三"]) act(store, "row.add", { list: "n1", props: { caption: c } })
+  for (const c of ["一", "二", "三"]) act(store, "@matomezu/list:row-add", { list: "n1", props: { caption: c } })
   const ids = list(store).children!.map(r => r.id)
   const captions = () => list(store).children!.map(r => r.props.caption)
-  expect(act(store, "row.move", { list: "n1", row: ids[2], before: ids[0] }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-move", { list: "n1", row: ids[2], before: ids[0] }).ok).toBe(true)
   expect(captions()).toEqual(["三", "一", "二"])
-  expect(act(store, "row.move", { list: "n1", row: ids[2] }).ok).toBe(true)
+  expect(act(store, "@matomezu/list:row-move", { list: "n1", row: ids[2] }).ok).toBe(true)
   expect(captions()).toEqual(["一", "二", "三"])
-  act(store, "row.check", { list: "n1", row: ids[0], checked: true })
-  expect(act(store, "row.move", { list: "n1", row: ids[0], to: "n2" }).ok).toBe(true)
+  act(store, "@matomezu/list:row-check", { list: "n1", row: ids[0], checked: true })
+  expect(act(store, "@matomezu/list:row-move", { list: "n1", row: ids[0], to: "n2" }).ok).toBe(true)
   expect(captions()).toEqual(["二", "三"])
   const other = items(store).find(i => i.id === "n2") as ReturnType<typeof list>
   expect(other.children!.map(r => r.props)).toEqual([expect.objectContaining({ caption: "一" })])
   expect("checked" in other.children![0]!.props).toBe(false)
-  expect(act(store, "row.move", { list: "n1", row: ids[1], before: ids[1] }).ok).toBe(false)
-  expect(act(store, "row.move", { list: "n1", row: ids[1], to: "nope" }).ok).toBe(false)
+  expect(act(store, "@matomezu/list:row-move", { list: "n1", row: ids[1], before: ids[1] }).ok).toBe(false)
+  expect(act(store, "@matomezu/list:row-move", { list: "n1", row: ids[1], to: "nope" }).ok).toBe(false)
 })
 
 test("見せる順: チェックリストでチェック済みを先頭か最後に寄せる（チェックリストでなければ、寄せの設定があってもデータの順）。寄せているとき、チェック済みの行は動かせない", () => {

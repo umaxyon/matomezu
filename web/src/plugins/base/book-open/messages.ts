@@ -2,5 +2,5 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const BOOK_OPEN_MESSAGES = defineMessages({
-  "Open book": { ja: "ブックを開く" },
+  "Open book": { en: "Open book", ja: "ブックを開く" },
 })

@@ -48,7 +48,7 @@ export function linesFor(height: number): number {
   return Math.min(MAX_ROW_LINES, Math.max(0, height < EMPTY_ROW + RULE / 2 ? 0 : lines))
 }
 
-// 行の行数の書き換え（そろえるボタンと AI の row.lines）: 決めた行数（全部の行が同じ高さ）、"max"（全部の行を本文の一番長い行が全部見える行数に）、
+// 行の行数の書き換え（そろえるボタンと AI の row-lines）: 決めた行数（全部の行が同じ高さ）、"max"（全部の行を本文の一番長い行が全部見える行数に）、
 // "fit"（行ごとに、その行の本文が全部見える行数に。高さは行ごとに違う）、null（行数を消し、行数を持たない行の決まりでそろえる）
 export type RowsLines = number | "max" | "fit" | null
 

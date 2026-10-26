@@ -184,8 +184,8 @@ test("マスターで新しいブックを作ると空のブックが開き、�
 test("マスターの設定で言語とスキンを変えると、画面がすぐに変わる", async ({ page }) => {
   await page.goto("/")
   await (await fromMenu(page, "ホーム")).click()
-  await page.getByLabel("スキン").selectOption("light")
-  await expect(page.locator("html")).toHaveAttribute("data-skin", "light")
+  await page.getByLabel("スキン").selectOption("@matomezu/base:light")
+  await expect(page.locator("html")).toHaveAttribute("data-skin", "@matomezu/base:light")
   await page.getByLabel("言語").selectOption("en")
   await expect(page.getByRole("button", { name: "New book" })).toBeVisible()
   await expect(page.locator("html")).toHaveAttribute("lang", "en")

@@ -19,7 +19,7 @@ import type { Plugin } from "../store/plugin"
 // 開く右クリックのメニュー（useContextMenu）は opens・menus・contextMenus に全部書く
 // （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（骨組みの差し替え）
 export interface WidgetDef<S extends SlotId = SlotId> {
-  id: string // 追加プラグインは「プラグインの id/名前」
+  id: string // 本当の id（「プラグインの id:名前」。kit.name で作る）
   slots: readonly S[]
   place?: NoInfer<S> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）
   opens?: readonly SlotId[]

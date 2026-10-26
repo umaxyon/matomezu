@@ -19,26 +19,23 @@
 .frame {
   width: 100%;
   height: 100%;
-  filter: var(--theme-list-shadow);
+  filter: var(--list-shadow);
 }
 /* リスト（台紙）。寸法は size.ts の LIST_LOOK と同じ値にする。
    台紙の色は、色（--list-mount）を当てていればその色、無ければ塗りにテーマの台紙の色を混ぜた色。台紙の上の文字は --list-ink（無ければテーマの文字の色） */
 .list {
-  --mount: var(
-    --list-mount,
-    color-mix(in srgb, var(--theme-list-fill), var(--theme-list-mount-tint) var(--theme-list-mount-mix))
-  );
-  --ink: var(--list-ink, var(--theme-list-text));
+  --mount: var(--list-mount, color-mix(in srgb, var(--list-fill), var(--list-mount-tint) var(--list-mount-mix)));
+  --ink: var(--list-ink, var(--list-text));
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border: 1px solid var(--theme-list-frame-line);
-  border-radius: var(--theme-list-radius);
+  border: 1px solid var(--list-frame-line);
+  border-radius: var(--list-radius);
   background: var(--mount);
-  color: var(--theme-list-text);
+  color: var(--list-text);
 }
 /* 見出し: キャプション 1 行（収まらない分は … で切る）。台紙にテーマの帯の色を混ぜ（混ぜなければ台紙の上の文字）、文字はテーマの割合だけ白に寄せる */
 .head {
@@ -48,8 +45,8 @@
   padding: 4px 8px;
   overflow: hidden;
   border-bottom: 1px solid transparent;
-  background: color-mix(in srgb, var(--mount), var(--theme-list-head-tint) var(--theme-list-head-mix));
-  color: color-mix(in srgb, var(--ink), #ffffff var(--theme-list-head-ink));
+  background: color-mix(in srgb, var(--mount), var(--list-head-tint) var(--list-head-mix));
+  color: color-mix(in srgb, var(--ink), #ffffff var(--list-head-ink));
   font-weight: 700;
   text-align: center;
   white-space: nowrap;
@@ -78,7 +75,7 @@
 }
 /* 行: 台紙の上の 1 枚のカード（下に隙間 6px、中の余白は上下 8px・左右 12px） */
 .row {
-  --row-fill: var(--theme-list-fill);
+  --row-fill: var(--list-fill);
   position: relative;
   display: flex;
   gap: 8px;
@@ -92,13 +89,13 @@
 }
 /* 行の色分け: 1 行おきにカードの地へ文字の色を少し混ぜる */
 .list[data-zebra="true"] .row:nth-child(even) {
-  --row-fill: color-mix(in srgb, var(--theme-list-fill), var(--theme-list-text) 7%);
+  --row-fill: color-mix(in srgb, var(--list-fill), var(--list-text) 7%);
 }
 /* 行のカードの地: テーマの角の丸み・縁の線・影・右上の折り返し。文字はこの上に置く */
 .cardShadow {
   position: absolute;
   inset: 0;
-  filter: var(--theme-list-card-shadow);
+  filter: var(--list-card-shadow);
   pointer-events: none;
 }
 .card {
@@ -106,24 +103,18 @@
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  border: 1px solid color-mix(in srgb, var(--theme-list-line) var(--theme-list-card-line), transparent);
-  border-radius: var(--theme-list-card-radius);
+  border: 1px solid color-mix(in srgb, var(--list-line) var(--list-card-line), transparent);
+  border-radius: var(--list-card-radius);
   background: var(--row-fill);
-  clip-path: polygon(
-    0 0,
-    calc(100% - var(--theme-list-card-fold)) 0,
-    100% var(--theme-list-card-fold),
-    100% 100%,
-    0 100%
-  );
+  clip-path: polygon(0 0, calc(100% - var(--list-card-fold)) 0, 100% var(--list-card-fold), 100% 100%, 0 100%);
 }
 .card::after {
   content: "";
   position: absolute;
   top: -1px;
   right: -1px;
-  width: var(--theme-list-card-fold);
-  height: var(--theme-list-card-fold);
+  width: var(--list-card-fold);
+  height: var(--list-card-fold);
   background: linear-gradient(to bottom left, transparent 50%, color-mix(in srgb, var(--row-fill), #000 14%) 50%);
 }
 .text {
@@ -151,7 +142,7 @@
   width: 100%;
   margin: 3px 0;
   border: 0;
-  border-top: 1px solid var(--theme-list-line);
+  border-top: 1px solid var(--list-line);
 }
 .line {
   height: 18px;
@@ -167,14 +158,14 @@
   height: 14px;
   margin: 2px 0 0;
   padding: 0;
-  border: 1.5px solid color-mix(in srgb, var(--theme-list-text) 55%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--list-text) 55%, transparent);
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
 }
 .check:checked {
-  border-color: var(--theme-list-text);
-  background: var(--theme-list-text);
+  border-color: var(--list-text);
+  background: var(--list-text);
 }
 .check:checked::after {
   content: "";
@@ -236,7 +227,7 @@
   transform-origin: 0 0;
   opacity: 0.9;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
-  color: var(--theme-list-text);
+  color: var(--list-text);
   pointer-events: none;
 }
 .ghost .row {

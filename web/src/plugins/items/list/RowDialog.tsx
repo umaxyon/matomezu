@@ -1,10 +1,10 @@
 // 行のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。テーマと色はリストに従うので持たない。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
-// 追加はリストの最後に行を足し（row.add）、編集は行の項目を書き換える（row.update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
+// 追加はリストの最後に行を足し（row-add）、編集は行の項目を書き換える（row-update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
 
 import { useId, useState } from "react"
 import { BODY_MAX, type MessageKey, pagedOf, shapesOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useT } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useMessages } from "../../../plugin-api/ui"
 import { useMatomezuState } from "../../../ui/store-context"
 import {
   ActionButton,
@@ -18,6 +18,7 @@ import {
   useAligns,
   useBookOf,
 } from "../../base/ui"
+import { kit } from "./kit"
 import { LIST, type RowProps } from "./list"
 
 type Text = Omit<RowProps, "checked">
@@ -29,10 +30,17 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
   const { perform } = useActions()
   const add = (props: Text) => {
     if (!book) return
-    if (perform("row.add", { page: args.page, list: args.list, props }, { book }).ok) onClose()
+    if (perform("@matomezu/list:row-add", { page: args.page, list: args.list, props }, { book }).ok) onClose()
   }
   return (
-    <RowDialog title="Add row" submit="Add" start={EMPTY} ready={book !== undefined} onSubmit={add} onClose={onClose} />
+    <RowDialog
+      title={kit.message("Add row")}
+      submit={kit.message("Add")}
+      start={EMPTY}
+      ready={book !== undefined}
+      onSubmit={add}
+      onClose={onClose}
+    />
   )
 }
 
@@ -47,9 +55,19 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const { perform } = useActions()
   if (!book || !start) return null
   const update = (props: Text) => {
-    if (perform("row.update", { page: args.page, list: args.list, row: args.row, props }, { book }).ok) onClose()
+    if (perform("@matomezu/list:row-update", { page: args.page, list: args.list, row: args.row, props }, { book }).ok)
+      onClose()
   }
-  return <RowDialog title="Edit row" submit="OK" start={start} ready onSubmit={update} onClose={onClose} />
+  return (
+    <RowDialog
+      title={kit.message("Edit row")}
+      submit={kit.message("OK")}
+      start={start}
+      ready
+      onSubmit={update}
+      onClose={onClose}
+    />
+  )
 }
 
 function RowDialog({
@@ -67,7 +85,7 @@ function RowDialog({
   onSubmit: (props: Text) => void
   onClose: () => void
 }) {
-  const t = useT()
+  const t = useMessages(kit)
   const form = useId()
   const aligns = useAligns()
   const [caption, setCaption] = useState(start.caption)

@@ -2,5 +2,5 @@
 import { defineMessages } from "../../../plugin-api"
 
 export const DRAWING_MESSAGES = defineMessages({
-  Drawing: { ja: "図面" },
+  Drawing: { en: "Drawing", ja: "図面" },
 })

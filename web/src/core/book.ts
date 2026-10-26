@@ -104,9 +104,13 @@ export function bookItems(catalog: CoreCatalog, book: Pick<Book, "type">): reado
   return bookType(catalog, book.type).items.defaults
 }
 
-// タブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page.add が使える）
+// タブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page-add が使える）
 export function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
-  return hasPages(book) && pagesRule(catalog, book).addFromTabs && actionsOf(catalog, book).includes("page.add")
+  return (
+    hasPages(book) &&
+    pagesRule(catalog, book).addFromTabs &&
+    actionsOf(catalog, book).includes("@matomezu/base:page-add")
+  )
 }
 
 // 次のページの題名の案

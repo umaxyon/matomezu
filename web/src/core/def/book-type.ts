@@ -1,6 +1,6 @@
 // ブックのタイプの定義: データの形・並べ方の決まり・使えるアイテムとアクションの規定・既定のテーマ。
 // アイテム・アクション・テーマは id で参照する（アイテムとアクションはブックのタイプを知らない）
-import type { z } from "zod"
+import { z } from "zod"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
@@ -13,7 +13,7 @@ export interface Choice {
   defaults: readonly string[]
 }
 
-// ページの決まり。addFromTabs はタブの横に、ページを足すボタン（page.add）を出すか
+// ページの決まり。addFromTabs はタブの横に、ページを足すボタン（page-add）を出すか
 export interface PagesRule {
   paper: PaperRule
   addFromTabs: boolean
@@ -44,7 +44,7 @@ interface BookTypeBase<S extends z.ZodObject> {
   settings?: BookTypeSettings
 }
 
-// ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。base のアクション book.update はブックの、page.update はページの項目を受け付ける
+// ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。base のアクション book-update はブックの、page-update はページの項目を受け付ける
 export interface BookTypeSettings {
   book?: readonly string[]
   page?: readonly string[]
@@ -69,3 +69,16 @@ export type BookTypeDef<S extends z.ZodObject = z.ZodObject> = SingleBookTypeDef
 export function defineBookType<const S extends z.ZodObject, const T extends BookTypeDef<S>>(def: T & { schema: S }): T {
   return def
 }
+
+// schema に、データの type の欄（タイプの本当の id の文字）を足す（pluginKit の defineBookType が使う）
+export type WithTypeField<S, Id extends string> =
+  S extends z.ZodObject<infer Shape, infer Config>
+    ? z.ZodObject<Omit<Shape, "type"> & { type: z.ZodLiteral<Id> }, Config>
+    : never
+export const withTypeField = <S extends z.ZodObject, const Id extends string>(
+  schema: S,
+  id: Id,
+): WithTypeField<S, Id> => schema.extend({ type: z.literal(id) }) as unknown as WithTypeField<S, Id>
+// schema に合うブックのデータの型（zod を読まない層が使う）
+export type DataOf<S extends z.ZodType> = z.infer<S>
+export type BookSchema = z.ZodObject

@@ -4,11 +4,13 @@ import { useMemo } from "react"
 import { PALETTE } from "../../../core/color"
 import type { TokenDecl } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
+import { splitId } from "../../../core/names"
 import type { Align } from "../../../core/text/fields"
 import { bookTheme, resolveTokens } from "../../../core/theme"
-import { useT } from "../../../ui/i18n"
+import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
+import { kit } from "../kit"
 
 // 寄せのアイコン（左・中央・右に寄せた横線）
 const lines = (x1: number, x2: number) => (
@@ -19,14 +21,14 @@ const lines = (x1: number, x2: number) => (
 export const ALIGN_ICONS = { left: lines(4, 14), center: lines(7, 17), right: lines(10, 20) }
 
 const ALIGNS = [
-  { value: "left", label: "Align left" },
-  { value: "center", label: "Align center" },
-  { value: "right", label: "Align right" },
+  { value: "left", label: kit.message("Align left") },
+  { value: "center", label: kit.message("Align center") },
+  { value: "right", label: kit.message("Align right") },
 ] as const satisfies readonly { value: Align; label: MessageKey }[]
 
 // 寄せの選択肢（左・中央・右のアイコンのボタン）
 export function useAligns() {
-  const t = useT()
+  const t = useMessages(kit)
   return ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
 }
 
@@ -45,7 +47,7 @@ export function useBookTheme(book: string | undefined) {
 
 // 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りの欄 fill の値）。表に無いテーマなら null
 export function useSwatches(looks: string | undefined, fill: TokenDecl) {
-  const t = useT()
+  const t = useMessages(kit)
   const catalog = useCatalog().core
   return useMemo(() => {
     if (!looks || !catalog.themes.has(looks)) return null
@@ -63,8 +65,10 @@ export function useSwatches(looks: string | undefined, fill: TokenDecl) {
 // 形に当てたテーマ theme の、欄 decls の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）
 export function useThemeVars(theme: string | undefined, decls: readonly TokenDecl[]) {
   const catalog = useCatalog().core
-  return useMemo(
-    () => (theme && catalog.themes.has(theme) ? themeVars(resolveTokens(catalog, theme, decls)) : undefined),
-    [catalog, theme, decls],
-  )
+  return useMemo(() => {
+    if (!theme || !catalog.themes.has(theme)) return undefined
+    const owners = new Set(decls.map(d => splitId(d.id).owner))
+    const [owner] = owners // 欄の持ち主（アイテムのプラグイン）は 1 つ
+    return themeVars(resolveTokens(catalog, theme, decls), owners.size === 1 && owner ? owner : undefined)
+  }, [catalog, theme, decls])
 }

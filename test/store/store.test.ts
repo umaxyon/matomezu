@@ -31,7 +31,12 @@ test("分けたステージは何も開いておらず、ブックを開くと�
   expect(state.getState().workspace.stages[1]!.opened).toBeNull()
   actions.openBook("s2", "b3")
   const ws = state.getState().workspace
-  expect(ws.stages[1]!.opened).toMatchObject({ type: "drawing", book: "b3", page: "p1", paper: { status: "known" } })
+  expect(ws.stages[1]!.opened).toMatchObject({
+    type: "@matomezu/drawing:drawing",
+    book: "b3",
+    page: "p1",
+    paper: { status: "known" },
+  })
   expect(ws.current).toBe("s2")
 })
 
@@ -56,9 +61,12 @@ test("マスターはカレントのステージで開き、ページは足せ�
   const { state, actions } = newStore()
   actions.split("s1")
   actions.focusStage("s2")
-  actions.command("s2", "stage.home")
+  actions.command("s2", "@matomezu/base:stage-home")
   const s = state.getState()
-  expect(s.workspace.stages.map(st => st.opened?.type)).toEqual(["drawing", "master"])
+  expect(s.workspace.stages.map(st => st.opened?.type)).toEqual([
+    "@matomezu/drawing:drawing",
+    "@matomezu/master:master",
+  ])
   expect(actions.addPage("s2", { title: "x" })).toBe(false)
   expect(state.getState()).toBe(s)
 })
@@ -66,13 +74,18 @@ test("マスターはカレントのステージで開き、ページは足せ�
 test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
   const { state, actions } = newStore({ newId: () => "made" })
   actions.split("s1")
-  expect(actions.createBook("s2", { title: " ", type: "drawing" })).toBe(false)
-  expect(actions.createBook("s2", { title: "新しい図", type: "drawing" })).toBe(true)
+  expect(actions.createBook("s2", { title: " ", type: "@matomezu/drawing:drawing" })).toBe(false)
+  expect(actions.createBook("s2", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
   const s = state.getState()
-  expect(s.books.made).toEqual({ type: "drawing", id: "made", title: "新しい図", pages: [] })
-  expect(s.workspace.stages[1]!.opened).toEqual({ type: "drawing", book: "made", page: null, paper: null })
+  expect(s.books.made).toEqual({ type: "@matomezu/drawing:drawing", id: "made", title: "新しい図", pages: [] })
+  expect(s.workspace.stages[1]!.opened).toEqual({
+    type: "@matomezu/drawing:drawing",
+    book: "made",
+    page: null,
+    paper: null,
+  })
   expect(s.workspace.current).toBe("s2")
-  actions.addPage("s2", { title: "最初", paper: "a3", orientation: "portrait" })
+  actions.addPage("s2", { title: "最初", paper: "@matomezu/base:a3", orientation: "portrait" })
   expect(state.getState().workspace.stages[1]!.opened).toMatchObject({
     page: "made",
     paper: { size: { w: 1123, h: 1587 } },
@@ -82,16 +95,16 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
 test("言語とスキンの設定を変える。同じ値なら知らせない", () => {
   const { state, actions } = newStore()
   actions.setLang("en")
-  actions.setSkin("light")
-  expect(state.getState().settings).toMatchObject({ lang: "en", skin: "light" })
+  actions.setSkin("@matomezu/base:light")
+  expect(state.getState().settings).toMatchObject({ lang: "en", skin: "@matomezu/base:light" })
   const s = state.getState()
-  actions.setSkin("light")
+  actions.setSkin("@matomezu/base:light")
   expect(state.getState()).toBe(s)
 })
 
 test("ページの無いブックを 2 つのステージで開いて最初のページを作ると、どちらのステージもそのページを開く", () => {
   const { state, actions } = newStore()
-  actions.createBook("s1", { title: "空", type: "drawing" })
+  actions.createBook("s1", { title: "空", type: "@matomezu/drawing:drawing" })
   actions.split("s1")
   actions.openBook("s2", "n1")
   actions.addPage("s2", { title: "最初" })
@@ -116,14 +129,19 @@ test("閉じたステージへの分割と分割の取りやめは、ほかの�
 test("右クリックのメニューは 1 つだけ出し、開いたステージが無くなれば閉じる。無いステージでは開かない", () => {
   const { state, actions } = newStore()
   actions.split("s1")
-  actions.openContextMenu("s1", "paper.context", {}, { x: 10, y: 20 })
-  actions.openContextMenu("s2", "paper.context", {}, { x: 30, y: 40 })
-  expect(state.getState().contextMenu).toEqual({ id: "paper.context", stage: "s2", target: {}, at: { x: 30, y: 40 } })
+  actions.openContextMenu("s1", "@matomezu/paper:paper-context", {}, { x: 10, y: 20 })
+  actions.openContextMenu("s2", "@matomezu/paper:paper-context", {}, { x: 30, y: 40 })
+  expect(state.getState().contextMenu).toEqual({
+    id: "@matomezu/paper:paper-context",
+    stage: "s2",
+    target: {},
+    at: { x: 30, y: 40 },
+  })
   actions.closeStage("s2")
   expect(state.getState().contextMenu).toBeNull()
-  actions.openContextMenu("s9", "paper.context", {}, { x: 0, y: 0 })
+  actions.openContextMenu("s9", "@matomezu/paper:paper-context", {}, { x: 0, y: 0 })
   expect(state.getState().contextMenu).toBeNull()
-  actions.openContextMenu("s1", "paper.context", {}, { x: 0, y: 0 })
+  actions.openContextMenu("s1", "@matomezu/paper:paper-context", {}, { x: 0, y: 0 })
   actions.closeContextMenu()
   expect(state.getState().contextMenu).toBeNull()
 })

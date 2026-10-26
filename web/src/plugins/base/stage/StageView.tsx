@@ -8,11 +8,12 @@ import type { Book } from "../../../core/schema/book"
 import { paperOf, type Stage } from "../../../core/stage"
 import { bookTokens } from "../../../core/theme"
 import { toolOf } from "../../../core/workspace"
-import { useT } from "../../../ui/i18n"
+import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { themeVars } from "../../../ui/theme-vars"
+import { themeVars, useTokenScope } from "../../../ui/theme-vars"
 import { useResize } from "../../../ui/use-resize"
 import { BookSearch } from "../book-open/BookSearch"
+import { kit } from "../kit"
 import styles from "./StageView.module.css"
 
 // ドラッグ中のポインタと、前に知らせた位置
@@ -38,7 +39,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     [catalog, book, look],
   )
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
-  const t = useT()
+  const t = useMessages(kit)
   const ref = useRef<HTMLElement>(null)
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -105,8 +106,9 @@ function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; va
   const View = (
     useUiCatalog().presentationViews.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })
   ).view
+  const tokens = useTokenScope(type) // ブックのタイプのプラグインの欄（--<名前>）
   return (
-    <div className={styles.book} style={vars}>
+    <div className={styles.book} style={{ ...vars, ...tokens }}>
       <View stage={stage} />
     </div>
   )

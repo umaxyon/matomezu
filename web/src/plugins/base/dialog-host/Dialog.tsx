@@ -41,7 +41,7 @@ export function Dialog({
     }
   }, [])
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: 外側を押して閉じるのはポインタの操作で、閉じるキーはキーの割り当て（dialog.close）が受ける
+    // biome-ignore lint/a11y/useKeyWithClickEvents: 外側を押して閉じるのはポインタの操作で、閉じるキーはキーの割り当て（dialog-close）が受ける
     <dialog
       ref={ref}
       className={styles.dialog}
@@ -54,7 +54,7 @@ export function Dialog({
       onClick={e => {
         if (e.target === e.currentTarget) onClose()
       }}
-      // 閉じるのはキーの割り当て（dialog.close）が受ける。ブラウザ自身の閉じ方（cancel）は止める
+      // 閉じるのはキーの割り当て（dialog-close）が受ける。ブラウザ自身の閉じ方（cancel）は止める
       onCancel={e => e.preventDefault()}
     >
       <div

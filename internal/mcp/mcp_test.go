@@ -15,10 +15,10 @@ type fakeAPI struct {
 }
 
 const aiCatalogJSON = `{"actions":[
- {"id":"item.place","target":"book","args":{"$schema":"x","type":"object","properties":{"page":{"type":"string"}},"required":["page"],"additionalProperties":false}},
- {"id":"book.create","target":"library","args":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}},
- {"id":"settings.lang","target":"settings","args":{"type":"object"}}],
- "items":[{"id":"shape.box","title":"Box","size":{"w":160,"h":96},"props":{"properties":{"caption":{"type":"string"}}}}]}`
+ {"id":"@matomezu/paper:item-place","target":"book","args":{"$schema":"x","type":"object","properties":{"page":{"type":"string"}},"required":["page"],"additionalProperties":false}},
+ {"id":"@matomezu/master:book-create","target":"library","args":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}},
+ {"id":"@matomezu/base:settings-lang","target":"settings","args":{"type":"object"}}],
+ "items":[{"id":"@matomezu/box:shape-box","title":"Box","size":{"w":160,"h":96},"props":{"properties":{"caption":{"type":"string"}}}}]}`
 
 func (f *fakeAPI) Get(path string) (json.RawMessage, error) {
 	switch path {
@@ -93,12 +93,12 @@ func TestActionsReturnsTheAICatalog(t *testing.T) {
 
 func TestPerformingAnAction(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"result":{"item":"k1"}}`}
-	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"perform","arguments":{"action":"item.place","args":{"page":"p1"},"on":{"book":"b1"}}}}`)
+	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"perform","arguments":{"action":"@matomezu/paper:item-place","args":{"page":"p1"},"on":{"book":"b1"}}}}`)
 	r := got[0]["result"].(map[string]any)
 	if r["isError"] != false || r["content"].([]any)[0].(map[string]any)["text"] != `{"item":"k1"}` {
 		t.Fatalf("call = %v", r)
 	}
-	if api.posts[0] != `api/ai/perform {"action":"item.place","args":{"page":"p1"},"on":{"book":"b1"}}` {
+	if api.posts[0] != `api/ai/perform {"action":"@matomezu/paper:item-place","args":{"page":"p1"},"on":{"book":"b1"}}` {
 		t.Fatalf("posted = %v", api.posts)
 	}
 	for answer, want := range map[string]string{`{"ok":false,"reason":"no-book"}`: "no-book:", `{"ok":false,"reason":"unknown"}`: "unknown:"} {
