@@ -592,7 +592,7 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 	}
 }
 
-// 読めないブックは、AI のブックの一覧に理由が付く。プラグインを足せば読めるようになり、外せばまた理由が付く（データはそのまま）
+// 読めないブックは、AI のブックの一覧に理由が付き、アクションはその理由で断る。プラグインを足せば読めるようになり、外せばまた理由が付く（データはそのまま）
 func TestListsWhyABookCannotBeRead(t *testing.T) {
 	s := newServer(t, nil)
 	flow := `{"type":"ex2:flow","id":"f1","title":"Flow","pages":[]}`
@@ -617,6 +617,11 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 	}
 	if got := problem(); got != "N004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog" {
 		t.Fatalf("before linking = %q", got)
+	}
+	// 読めないブックへのアクションは「無い」でなく、その理由で断る
+	page := `{"action":"@matomezu/base:page-add","args":{"title":"p"},"on":{"book":"f1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); got != `{"detail":"N004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog","ok":false,"reason":"unreadable"}` {
+		t.Fatalf("perform on an unreadable book = %s", got)
 	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link = %s", got)

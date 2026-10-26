@@ -6,7 +6,7 @@ import (
 )
 
 // instructions は、つないだ AI に渡す matomezu の説明
-const instructions = "matomezu shows diagrams (books of pages with boxes) to the user in a browser. " +
+const instructions = "matomezu shows books (such as diagrams) to the user in a browser. " +
 	"Use view to see what the user is looking at, list_books and read_book to read, actions to see what can be done, and perform to do it. " +
 	"Changes appear at once on screens showing that book; use show to put a book on the user's screen."
 
@@ -87,7 +87,7 @@ var showSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
 		"book":  map[string]any{"type": "string", "description": "The book's id."},
-		"page":  map[string]any{"type": "string", "description": "The page to show. Without it, the book opens as usual (a drawing at its first page)."},
+		"page":  map[string]any{"type": "string", "description": "The page to show. Without it, the book opens as usual."},
 		"stage": map[string]any{"type": "string", "description": "The id of the stage to show it on (see view). Without it, the current stage."},
 		"split": map[string]any{"type": "boolean", "description": "Split that stage and show the book on the new stage at its right."},
 	},
@@ -151,13 +151,14 @@ func perform(api API, args map[string]any) (string, bool) {
 	var done struct {
 		OK     bool            `json:"ok"`
 		Reason string          `json:"reason"`
+		Detail string          `json:"detail"`
 		Result json.RawMessage `json:"result"`
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
 	}
 	if !done.OK {
-		return refusalText(done.Reason), true
+		return refusalText(done.Reason, done.Detail), true
 	}
 	return string(done.Result), false
 }
@@ -191,13 +192,16 @@ func show(api API, args map[string]any) (string, bool) {
 	case done.Reason == "no-split":
 		return "no-split: the window cannot split more; give the stage to show it on instead (see view)", true
 	}
-	return refusalText(done.Reason), true
+	return refusalText(done.Reason, done.Detail), true
 }
 
-func refusalText(reason string) string {
+// refusalText は断った理由の、AI に返す 1 行。detail は理由に添える値（読めないブックの注意など）
+func refusalText(reason, detail string) string {
 	switch reason {
 	case "no-book":
 		return "no-book: there is no book with that id (see list_books)"
+	case "unreadable":
+		return "unreadable: the book cannot be read now (" + detail + "); it cannot be changed until that is fixed (see list_books)"
 	case "bad-args":
 		return "bad-args: the args do not match the action's args (see actions)"
 	case "not-allowed":
@@ -205,6 +209,6 @@ func refusalText(reason string) string {
 	case "unknown":
 		return "unknown: there is no action with that id (see actions)"
 	default:
-		return reason + ": it could not be done here (for example the page or item does not exist, or it would leave the paper; read_book to check)"
+		return reason + ": it could not be done here (for example the page or item does not exist, or the action's rules refuse it; read_book to check)"
 	}
 }
