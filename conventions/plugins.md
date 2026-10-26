@@ -11,11 +11,11 @@
   - データ: `useBook(stage)`・`usePage(stage)`（開いているブックとページ）、`useItem(stage, page, item)`（項目の型はアイテムの id で決まる）、`useShownPage(stage)`（ダイアログの下書きを重ねたページ。見せ方が描くのに使う）
   - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`）。ブックのビューにはステージの id を渡す。コマンドの `ctx.stage` も同じ `StageView`
   - 定義と設定: `useCoreCatalog()`・`useUiCatalog()`（読むだけ）、`useSettings()`（言語とスキン）
-  - データを変えるのは `usePerform(stage)`（そのステージが開いているブックにアクションを行う）だけ。画面の状態（選択・ダイアログ・ページを開くなど）はコマンドと `useActions`
+  - データを変えるのはアクションだけ。ステージが開いているブックには `usePerform(stage)`、ほかの対象（一覧・設定）には `useActions()` の `perform` で行う。画面の状態（選択・ダイアログ・ページを開くなど）はコマンドと `useActions`
 - プラグイン API が出す名前の一覧は `test/plugin-api.test.ts` に書く。足すときも消すときもここを直し、わざと変えたと分かるようにする
 - 例外は `base`。画面の骨組み・ダイアログの枠と入力のコンポーネント・紙・標準のテーマを持ち、ほかのプラグインは `base` の入口（`plugins/base/index`・`plugins/base/ui`）を読んでよい
 - ビルトインプラグインも、追加プラグインと同じプラグイン API で書く。base 以外は `plugin-api` と base の入口だけを読む（読み込みの向きは「構造と層」）。base は API の部品を作る側なので土台を読む
-- ビルトインプラグインが使う土台の名前は、状態を丸ごと読む物（`useMatomezuState`・`useCatalog`・`useUiCatalog`。代わりに上の状態を読むフックを使う）を除き、全部 `plugin-api` から出す。ビルトインの印（`defineBuiltin`）は `plugin-api/builtin` に置き、`plugin-entry` は出さない（印は、キーの割り当てでビルトインプラグインを先に扱うためだけのもので、id の決まりは変えない）
+- ビルトインプラグインが使う土台の名前は、状態を丸ごと読む `ui/store-context` の物（`useMatomezuState`・`useCatalog`・`useUiCatalog`。代わりに上の状態を読むフックを使う。読むだけの `useCoreCatalog`・`useUiCatalog` は `ui/view-hooks` の物を出す）を除き、全部 `plugin-api` から出す。ビルトインの印（`defineBuiltin`）は `plugin-api/builtin` に置き、`plugin-entry` は出さない（印は、キーの割り当てでビルトインプラグインを先に扱うためだけのもので、id の決まりは変えない）
 - base の入口には、プラグイン API に出してよい物だけを置く。迷う物は置く前にユーザーに確かめる
 - 別のプラグインの定義を使うときは、読むのではなく id で選ぶ（ブックのタイプがアイテム・アクション・道具の組を選ぶのと同じ形）
 - あるタイプを、ほかのタイプとの差分として作らない。タイプはそれぞれ、使う物を id で選んで持つ
@@ -54,7 +54,7 @@
 ## 見本
 
 - 追加プラグインの見本は `test/added-plugins/ex1`・`ex2`…（連番）。どれも開発者プロジェクトと同じ形（`matomezu.json`・入口・自分の `tsconfig.json`・matomezu/testing を使う自分のテストと型の確かめ `test/`）で、自分の書き足しだけが入る TypeScript のプロジェクトにする
-- プラグイン API の定義の種類は、どれかの見本が使う。作り手の違う見本どうしの確かめと保存・読み直しは、見本を常駐に読ませる e2e（`e2e/plugins`）で行う
+- プラグイン API の定義の種類は、どれかの見本が使う。【保留】見せ方（`definePresentation`）は、紙の無いページ（残課題図 D57）が決まるまで見本を持たない。作り手の違う見本どうしの確かめと保存・読み直しは、見本を常駐に読ませる e2e（`e2e/plugins`）で行う
 
 ## 動的に取り込む
 

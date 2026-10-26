@@ -39,7 +39,7 @@
 - データの形の外の決まり（アイテムどうしの関係）は `holds` に書く。アクションの結果が守らなければ断り、守らないブックは読めない（N006）
 - ブックが対象のアクションの結果は、`perform` が機能台帳のブックの形（`bookSchema`）と `holds` で確かめ直し、合わなければ断る（型を言い張った所があっても、ここで止める）
 - ページを持つブックを変える土台の関数は、渡されたブックの型のまま返す（`<B extends PagedBook>`）。ページを替えるのは `putPage` で、ページの中身がタイプの選んだアイテムかを型で示せない所の言い張りはここに閉じる。プラグインはブックを `{ ...book, pages }` で組み直さない
-- タイプだけの設定の項目は `settings`（book・page・settle）に宣言する。base の `book-update`・`page-update` が受け付ける。タイプごとの更新のアクションは作らない
+- タイプだけの設定の項目は `settings`（book・page）に宣言する。base の `book-update`・`page-update` が受け付ける。タイプごとの更新のアクションは作らない
 - ブックのテーマと紙の色は、base が定義する設定の項目（`@matomezu/base:book-theme`・`@matomezu/base:book-paper-color`）で、タイプが `settings.book` に id で選ぶ。名前は設定の項目ではなく、`book-update` の `title` で変える
 - 1 冊だけのタイプ（`single: true`）は、その 1 冊のデータを定義に持つ。何冊も作れるタイプは `create` で空のブックを作る
 
