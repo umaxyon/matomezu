@@ -226,10 +226,12 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       problems.push(problem("E008", { id: t.id, kind: "presentation", ref: t.presentation }))
   }
   for (const i of parts.items)
-    if (i.kind === "shape" && i.themeProp !== undefined) {
-      const shape = (i.props as { shape?: Record<string, unknown> }).shape
-      if (!shape || !(i.themeProp in shape)) problems.push(problem("E028", { id: i.id, prop: i.themeProp }))
-    }
+    if (i.kind === "shape")
+      for (const field of ["themeProp", "captionProp"] as const) {
+        const prop = i[field]
+        const shape = (i.props as { shape?: Record<string, unknown> }).shape
+        if (prop !== undefined && !(shape && prop in shape)) problems.push(problem("E028", { id: i.id, field, prop }))
+      }
   const decls = [...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k })))
   const declared = new Set<string>()
   for (const d of decls) {

@@ -110,8 +110,12 @@ describe("組み立ての食い違い", () => {
   })
 })
 
-test("形の themeProp が props に無い項目を名指したら E028。名指した項目だけをテーマの id として確かめる", () => {
+test("形の themeProp・captionProp が props に無い項目を名指したら E028。名指した項目だけをテーマの id として確かめる", () => {
   const items = BUILTIN_PARTS.items.map(i => (i.id === "@matomezu/box:shape-box" ? { ...i, themeProp: "look" } : i))
   expect(checkCoreCatalog({ ...BUILTIN_PARTS, items }).map(p => p.code)).toEqual(["E028"])
+  const captions = BUILTIN_PARTS.items.map(i =>
+    i.id === "@matomezu/list:shape-list" ? { ...i, captionProp: "name" } : i,
+  )
+  expect(checkCoreCatalog({ ...BUILTIN_PARTS, items: captions }).map(p => p.params.field)).toEqual(["captionProp"])
   expect(checkCoreCatalog(BUILTIN_PARTS)).toEqual([])
 })

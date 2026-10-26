@@ -66,7 +66,7 @@ export interface PluginKit<P extends string, M extends MessageSet> {
   >(
     def: Omit<
       ShapeItemDef<ShapeDataOf<Pr, C>, keyof M & string>,
-      "id" | "props" | "content" | "kind" | "dialogs" | "themeProp"
+      "id" | "props" | "content" | "kind" | "dialogs" | "themeProp" | "captionProp"
     > & {
       id: Id
       kind: "shape"
@@ -74,6 +74,7 @@ export interface PluginKit<P extends string, M extends MessageSet> {
       content?: C
       dialogs?: G
       themeProp?: keyof ShapeDataOf<Pr, C>["props"] & string // 個別のテーマを持つ項目（props にある名前だけ）
+      captionProp?: keyof ShapeDataOf<Pr, C>["props"] & string // キャプションの項目（props にある名前だけ）
     },
   ): Omit<ShapeItemDef<ShapeDataOf<Pr, C>>, "id" | "content" | "dialogs"> & {
     id: Owned<P, Id>

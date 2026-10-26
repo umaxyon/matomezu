@@ -5,8 +5,8 @@ import type { Point, Rect, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
 import type { TokenDecl } from "./theme"
 
-// アイテムが持つ能力（つなげる・大きさを変えられる・文字を持つ）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
-export type Capability = "connectable" | "resizable" | "hasText"
+// アイテムが持つ能力（つなげる・大きさを変えられる）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
+export type Capability = "connectable" | "resizable"
 
 interface ItemBase<Tt extends string = MessageKey> {
   id: string // 本当の id（「プラグインの id:名前」。例: @matomezu/box:shape-box）。データはこれで参照する
@@ -68,6 +68,8 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   dialogs?: { add?: string; edit?: string }
   // 個別のテーマ（この形だけ別のテーマで描く値）を持つ項目の名前。土台はこの項目だけをテーマの id として確かめる（無ければ見ない）
   themeProp?: string
+  // キャプション（形の名前として見せる文字）の項目の名前。土台はこの項目が変わったときだけ、見える幅まで形を広げる（無ければ広げない）
+  captionProp?: string
 }
 
 // 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる。
@@ -98,13 +100,17 @@ export function defineShape<
   const C extends Readonly<Record<string, z.ZodType>> = Record<never, never>,
   const G extends { add?: string; edit?: string } = Record<never, never>,
 >(
-  def: Omit<ShapeItemDef<ShapeDataOf<P, C>>, "id" | "props" | "content" | "kind" | "dialogs" | "themeProp"> & {
+  def: Omit<
+    ShapeItemDef<ShapeDataOf<P, C>>,
+    "id" | "props" | "content" | "kind" | "dialogs" | "themeProp" | "captionProp"
+  > & {
     id: Id
     kind: "shape"
     props: P
     content?: C
     dialogs?: G
     themeProp?: keyof z.output<P> & string
+    captionProp?: keyof z.output<P> & string
   },
 ): Omit<ShapeItemDef<ShapeDataOf<P, C>>, "content" | "dialogs"> & {
   id: Id

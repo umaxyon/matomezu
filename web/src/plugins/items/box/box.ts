@@ -29,8 +29,9 @@ export const BOX = kit.defineShape({
   kind: "shape",
   version: 1,
   title: "Box",
-  capabilities: ["connectable", "resizable", "hasText"],
+  capabilities: ["connectable", "resizable"],
   themeProp: "theme", // 個別のテーマ（この形だけ別のテーマで描く）
+  captionProp: "caption", // キャプション（変わったら見える幅まで広げる）
   toolbox: true,
   props: BoxPropsSchema,
   size: BOX_SIZE, // 幅の既定と、置いたときの一番低い高さ
