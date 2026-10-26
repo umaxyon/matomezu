@@ -2,7 +2,15 @@
 // 型では、機能台帳の型の側に書き足した id と、渡したプラグインの id がそろっているかを確かめる（型と実物のずれを、書いた時点で捕まえる）。
 // 1 つのプロジェクトの createMatomezu には、型を書き足したプラグインを全部渡す。わざと減らすインスタンス（テストなど）は partial: true
 
-import type { MessageTable, Part, PartTables } from "../core/catalog"
+import type {
+  ContextMenuTable,
+  KeyScopeTable,
+  MenuTable,
+  MessageTable,
+  Part,
+  PartTables,
+  SlotTable,
+} from "../core/catalog"
 import type { MESSAGES } from "../core/i18n/messages"
 import type { IdsOf, Plugin } from "./plugin"
 import { createMatomezuInstance, type MatomezuInstance, type StoreOptions } from "./store"
@@ -19,10 +27,23 @@ type Provided<P> = keyof typeof MESSAGES | MessageKeysOf<P>
 type MessageGaps<P> =
   | `messages:${Exclude<keyof MessageTable, Provided<P>> & string}`
   | `messages:${Exclude<MessageKeysOf<P>, keyof MessageTable> & string}`
+// 型の表だけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー）のうち、土台の言葉でも、渡したプラグインの id と : で始まる名前でもないもの
+type PluginIdOf<P> = P extends { id: infer I extends string } ? I : never
+type Unowned<P, Table, Base extends string, Kind extends string> =
+  Exclude<keyof Table & string, Base> extends infer N
+    ? N extends `${PluginIdOf<P>}:${string}`
+      ? never
+      : `${Kind}:${N & string}`
+    : never
+type NameGaps<P> =
+  | Unowned<P, KeyScopeTable, "global" | "stage" | "dialog" | "menu", "keyScope">
+  | Unowned<P, SlotTable, "root", "slot">
+  | Unowned<P, MenuTable, never, "menu">
+  | Unowned<P, ContextMenuTable, never, "contextMenu">
 // 合わない id を、渡す値に要る項目の名前にする（型の誤りの文に id がそのまま並ぶ）
-type Check<P> = [Gaps<P> | MessageGaps<P>] extends [never]
+type Check<P> = [Gaps<P> | MessageGaps<P> | NameGaps<P>] extends [never]
   ? unknown
-  : { [gap in Gaps<P> | MessageGaps<P>]: "機能台帳の型の側と合わない id" }
+  : { [gap in Gaps<P> | MessageGaps<P> | NameGaps<P>]: "機能台帳の型の側と合わない id" }
 
 export interface MatomezuOptions<Ps extends readonly Plugin[], Partial extends boolean> extends StoreOptions<Ps> {
   plugins: Ps

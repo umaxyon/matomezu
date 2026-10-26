@@ -1,0 +1,5 @@
+{
+  // 型の表に、頭の無い名前を書き足したプロジェクト（createMatomezu の型が誤りにするか）
+  "extends": "../../added-plugins/tsconfig.json",
+  "include": ["../../setup.ts", "../../../web/src/css.d.ts", "."]
+}

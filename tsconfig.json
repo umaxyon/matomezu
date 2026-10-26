@@ -15,5 +15,5 @@
     "skipLibCheck": true
   },
   "include": ["web/src", "test", "e2e", "playwright.config.ts"],
-  "exclude": ["test/added-plugins"]
+  "exclude": ["test/added-plugins", "test/type-checks"]
 }
