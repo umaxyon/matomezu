@@ -203,7 +203,7 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
   expect((await loading).books).toEqual([b1With("new")])
 })
 
-test("窓が見ているものと、窓がフォーカスされたことを知らせる。変わらなければ知らせない", async () => {
+test("窓が見ているものと、窓がフォーカスされたことを、増やす番号を付けて知らせる。変わらなければ知らせない", async () => {
   const s = await connected()
   const view = (selection: string[]) => ({
     book: "b1",
@@ -213,13 +213,13 @@ test("窓が見ているものと、窓がフォーカスされたことを知�
     stages: [{ id: "s1", book: "b1", page: "p1" }],
     canSplit: true,
   })
-  expect(s.sent).toEqual([{ url: "api/view", client: "c1", view: view([]), focused: true }])
+  expect(s.sent).toEqual([{ url: "api/view", client: "c1", view: view([]), focused: true, seq: 1 }])
   s.store.actions.select("s1", ["x"])
   s.store.actions.resizeStage("s1", { w: 100, h: 100 })
   s.focus()
   expect(s.sent.slice(1)).toEqual([
-    { url: "api/view", client: "c1", view: view(["x"]), focused: false },
-    { url: "api/view", client: "c1", view: view(["x"]), focused: true },
+    { url: "api/view", client: "c1", view: view(["x"]), focused: false, seq: 2 },
+    { url: "api/view", client: "c1", view: view(["x"]), focused: true, seq: 3 },
   ])
 })
 

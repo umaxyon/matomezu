@@ -541,6 +541,18 @@ func TestViewWaitsForTheLatestWindow(t *testing.T) {
 	}
 }
 
+// 窓の知らせは届く順が入れ替わることがあるので、受けたものより古い番号の見ているものは捨てる（フォーカスは数える）
+func TestViewKeepsTheNewestReport(t *testing.T) {
+	s := newServer(t, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stage":"s2"},"focused":true,"seq":2}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stage":"s1"},"seq":1}`, nil)
+	if _, got := send(t, "GET", s.URL+"/api/ai/view", "", map[string]string{"Authorization": "Bearer secret"}); got != `{"stage":"s2"}` {
+		t.Fatalf("view = %s; want the newer report", got)
+	}
+}
+
 func TestAIEntrancesNeedTheToken(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)

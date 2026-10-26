@@ -46,6 +46,7 @@ type client struct {
 	ch      chan event
 	view    json.RawMessage // 画面が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
 	focused int64           // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
+	viewSeq int64           // 受けた見ているものの番号（画面が知らせるたびに増やす。古い番号の知らせは捨てる）
 }
 
 // Hub は世界と画面をまとめる
@@ -277,15 +278,20 @@ func (h *Hub) Leave(c *client) {
 	}
 }
 
-// SetView は、画面が見ているものを覚える。focused なら、その画面がいちばん新しくフォーカスされた画面になる
-func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool) bool {
+// SetView は、画面が見ているものを覚える（seq が受けたものより古ければ覚えない）。focused なら、その画面がいちばん新しくフォーカスされた画面になる
+func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool, seq int64) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	c, ok := h.clients[clientID]
 	if !ok {
 		return false
 	}
-	if len(view) > 0 {
+	// 知らせは届く順が入れ替わることがあるので、受けたものより古い番号の見ているものは捨てる（番号 0 は比べない）
+	stale := seq > 0 && seq <= c.viewSeq
+	if seq > c.viewSeq {
+		c.viewSeq = seq
+	}
+	if len(view) > 0 && !stale {
 		c.view = view
 		close(h.viewed)
 		h.viewed = make(chan struct{})

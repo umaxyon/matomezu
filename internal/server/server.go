@@ -15,7 +15,8 @@
 //	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
 //	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}。
 //	                      今の機能台帳で読めないブック（注意 N004〜N006）は書かず、400 と理由  … 画面から
-//	POST /api/view        {"client", "view", "focused"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか  … 画面から
+//	POST /api/view        {"client", "view", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか。
+//	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view は捨てる（届く順が入れ替わるため）  … 画面から
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
@@ -319,11 +320,12 @@ func (o Options) view(w http.ResponseWriter, r *http.Request) {
 		Client  string          `json:"client"`
 		View    json.RawMessage `json:"view"`
 		Focused bool            `json:"focused"`
+		Seq     int64           `json:"seq"` // 窓ごとに増やす番号（古い番号の見ているものは捨てる）
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if !o.Hub.SetView(req.Client, req.View, req.Focused) {
+	if !o.Hub.SetView(req.Client, req.View, req.Focused, req.Seq) {
 		http.Error(w, "unknown client", http.StatusNotFound)
 		return
 	}

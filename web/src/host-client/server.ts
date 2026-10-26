@@ -219,15 +219,17 @@ export function serverClient(net: Net = browserNet): ServerClient {
       instance = next
       show()
       let told = ""
+      let viewSeq = 0 // 知らせの番号（届く順が入れ替わっても、常駐が古い方を捨てられるように増やす）
       const tell = (focused: boolean) => {
         const view = JSON.stringify(viewOf(next.state.getState()))
         if (view === told && !focused) return
         told = view
+        viewSeq += 1
         void net
           .fetch("api/view", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ client, view: JSON.parse(view), focused }),
+            body: JSON.stringify({ client, view: JSON.parse(view), focused, seq: viewSeq }),
           })
           .catch(() => {})
       }
