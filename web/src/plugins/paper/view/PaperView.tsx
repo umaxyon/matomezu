@@ -22,6 +22,7 @@ import {
 } from "react"
 import {
   bookItems,
+  type CoreCatalog,
   type ItemPage,
   type PlacedShape,
   type Point,
@@ -341,6 +342,13 @@ function PageItems({
   }, items)
 }
 
+// 形のビューに渡す中身: 形の定義の content に宣言した欄の名前 → その値
+function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<string, unknown>> {
+  const def = catalog.items.get(item.item)
+  const fields = def?.kind === "shape" ? Object.keys(def.content ?? {}) : []
+  return Object.fromEntries(fields.map(k => [k, (item as Record<string, unknown>)[k]]))
+}
+
 interface ItemProps {
   stage: string
   item: PlacedShape
@@ -430,13 +438,7 @@ function Item({
       {...handlers}
     >
       {View && size ? (
-        <View
-          props={item.props}
-          size={size}
-          id={item.id}
-          stage={stage}
-          content={"children" in item ? (item.children ?? []) : []}
-        />
+        <View props={item.props} size={size} id={item.id} stage={stage} content={contentOf(catalog, item)} />
       ) : (
         <div className={styles.unknownItem} />
       )}

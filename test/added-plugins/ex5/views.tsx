@@ -1,13 +1,13 @@
-// タイルのビュー: 中身の欄（content）に来た札を色の四角で並べる
+// タイルのビュー: 中身の欄 tiles（content.tiles）の札を色の四角で並べる
 import type { z } from "matomezu"
 import type { ItemViewProps } from "matomezu/ui"
 import type { TILES } from "./tiles"
 
 type TilesProps = z.output<(typeof TILES)["props"]>
-type Tile = { id: string; color: string }
+type TilesContent = { readonly tiles?: readonly { id: string; color: string }[] }
 
-export function TilesView({ props, size, content }: ItemViewProps<TilesProps>) {
-  const tiles = content as readonly Tile[]
+export function TilesView({ props, size, content }: ItemViewProps<TilesProps, TilesContent>) {
+  const tiles = content.tiles ?? []
   return (
     <div
       data-ex5-tiles={tiles.length}

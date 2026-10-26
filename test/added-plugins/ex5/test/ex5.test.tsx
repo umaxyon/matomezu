@@ -2,6 +2,7 @@
 // test.failing は監査の項目がまだ残っている所（あるべき動きを書き、直れば落ちて知らせる）
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
+import { nextItemId, type PagedBook } from "matomezu"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
 import EX5_UI from "../ui"
 
@@ -52,7 +53,7 @@ test("タイルを置き、札を足すと中身の欄 tiles に入る", () => {
   expect(page().items![0]!.tiles).toHaveLength(2)
 })
 
-test.failing("B3: ビューの content に、中身の欄 tiles の札が来る（children でなくても）", () => {
+test("B3: ビューの content に、中身の欄 tiles の札が来る（children でなくても）", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
   act(() => {
@@ -79,4 +80,18 @@ test("B2: 文字を持たない形は、caption の欄を変えても幅が変�
     ).toMatchObject({ ok: true })
   })
   expect(page().items![0]!.w).toBe(100)
+})
+
+test("B3: 次に置くアイテムの id は、中身の欄 tiles の札の id とも重ならない", () => {
+  const { instance, on, page, place } = shelf()
+  const item = (place({}) as { result: { item: string } }).result.item
+  let tile = ""
+  act(() => {
+    const r = instance.actions.perform("ex5:tile-add", { page: page().id, item, color: "#ff0000" }, on)
+    tile = (r as { result: { tile: string } }).result.tile
+  })
+  const book = instance.state.getState().books[on.book] as unknown as PagedBook
+  const ids = new Set<string>()
+  for (let k = 0; k < 20; k++) ids.add(nextItemId(book, () => tile))
+  expect(ids.has(tile)).toBe(false)
 })

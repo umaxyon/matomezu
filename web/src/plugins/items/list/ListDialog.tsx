@@ -99,7 +99,7 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
       const content =
         rowLines === undefined
           ? undefined
-          : withRowLines({ ...found, props: { ...found.props, ...look } }, rowLines).children
+          : { children: withRowLines({ ...found, props: { ...found.props, ...look } }, rowLines).children }
       previewDialog({ book, item: args.item, props: look, ...(content ? { content } : {}) })
     },
     [book, args.item, found, previewDialog],

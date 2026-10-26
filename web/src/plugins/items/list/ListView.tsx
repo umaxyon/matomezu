@@ -118,10 +118,16 @@ interface Stretch {
   start: number
 }
 
-export function ListView({ props, size, id, stage, content }: ItemViewProps<ItemProps<"@matomezu/list:shape-list">>) {
+export function ListView({
+  props,
+  size,
+  id,
+  stage,
+  content,
+}: ItemViewProps<ItemProps<"@matomezu/list:shape-list">, { readonly children?: readonly ListRow[] }>) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const rows = content as readonly ListRow[]
+  const rows: readonly ListRow[] = content.children ?? []
   const theme = props.theme
   const vars = useThemeVars(theme, LOOK_TOKENS)
   const add = useCommand(stage, "@matomezu/list:list-add-row")

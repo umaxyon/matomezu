@@ -32,18 +32,19 @@ export interface DialogProps<A = undefined> {
 // どのダイアログのビューも入る型（表に入れるときに使う。渡す値の型は id ごとに違うので、表の上では見ない）
 // biome-ignore lint/suspicious/noExplicitAny: 関数コンポーネントとクラスコンポーネントの両方を受けるには any しかない
 type AnyDialogView = ComponentType<DialogProps<any>>
-// アイテムのビューに渡す値: 項目（props）・大きさ（紙の上の px）・アイテムの id・描いているステージ・中身（中身を持つアイテムの children）
-export interface ItemViewProps<Props> {
+// アイテムのビューに渡す値: 項目（props）・大きさ（紙の上の px）・アイテムの id・描いているステージ・
+// 中身（形の定義の content に宣言した欄の名前 → その値。データに無い欄は undefined）
+export interface ItemViewProps<Props, Content = Readonly<Record<string, unknown>>> {
   props: Props
   size: Size
   id: string
   stage: string
-  content: readonly unknown[]
+  content: Content
 }
 
 // アイテムのビューは、そのアイテムの項目（props）のデータを受け取る
-export interface ItemUi<Props = never> {
-  view: ComponentType<ItemViewProps<Props>>
+export interface ItemUi<Props = never, Content = never> {
+  view: ComponentType<ItemViewProps<Props, Content>>
   icon: ReactNode // ツールボックスなどに出すアイコン
   contextMenus?: readonly ContextMenuId[] // ビューが開く右クリックのメニュー
 }
@@ -85,6 +86,13 @@ type ItemPropsOf<P, Id> = P extends { items?: readonly (infer D)[] }
     : never
   : never
 
+// 形の中身の欄（content）の、欄の名前 → 値の型（データに無ければ undefined）
+type ItemContentOf<P, Id> = P extends { items?: readonly (infer D)[] }
+  ? D extends { id: Id; content?: infer C }
+    ? { readonly [K in keyof NonNullable<C>]?: NonNullable<C>[K] extends { _zod: { output: infer O } } ? O : never }
+    : never
+  : never
+
 type DialogArgsOfPlugin<P, Id> = P extends { dialogs?: readonly (infer D)[] }
   ? D extends { id: Id } & DialogDef<infer A>
     ? A
@@ -99,7 +107,7 @@ export type PluginViews<P> = Field<
   "presentationViews",
   { [id in IdsOf<P, "presentations">]: BookViewDef }
 > &
-  Field<ShapeIdsOf<P>, "items", { [id in ShapeIdsOf<P>]: ItemUi<ItemPropsOf<P, id>> }> &
+  Field<ShapeIdsOf<P>, "items", { [id in ShapeIdsOf<P>]: ItemUi<ItemPropsOf<P, id>, ItemContentOf<P, id>> }> &
   Field<ConnectorIdsOf<P>, "connectors", { [id in ConnectorIdsOf<P>]: ConnectorUi }> &
   Field<IdsOf<P, "settings">, "settingViews", { [id in IdsOf<P, "settings">]: SettingUi }> &
   Field<

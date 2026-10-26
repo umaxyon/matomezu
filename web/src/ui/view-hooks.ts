@@ -57,7 +57,7 @@ export function useShownPage(stage: string): ItemPage | null {
         ? ({
             ...i,
             props: { ...(i.props as object), ...preview.props },
-            ...(preview.content ? { children: preview.content } : {}),
+            ...preview.content,
           } as PlacedItem)
         : i,
     )
