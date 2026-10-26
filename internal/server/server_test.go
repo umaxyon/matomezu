@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -317,20 +318,32 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"plugins":[],"settings":null}` {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
-	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b1","title":"A"},"base":0}`, nil); code != 200 || body != `{"version":1}` {
+	book := func(title string) string {
+		return `{"type":"@matomezu/drawing:drawing","id":"b1","title":"` + title + `","pages":[]}`
+	}
+	put := func(title string, base int) (int, string) {
+		return send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+book(title)+`,"base":`+strconv.Itoa(base)+`}`, nil)
+	}
+	if code, body := put("A", 0); code != 200 || body != `{"version":1}` {
 		t.Fatalf("add = %d %s", code, body)
 	}
-	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b1","title":"B"},"base":1}`, nil); code != 200 || body != `{"version":2}` {
+	if code, body := put("B", 1); code != 200 || body != `{"version":2}` {
 		t.Fatalf("update = %d %s", code, body)
 	}
-	code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b1","title":"C"},"base":1}`, nil)
-	if code != 409 || body != `{"id":"b1","book":{"id":"b1","title":"B"},"version":2}` {
+	if code, body := put("C", 1); code != 409 || body != `{"id":"b1","book":`+book("B")+`,"version":2}` {
 		t.Fatalf("stale update = %d %s", code, body)
 	}
 	if code, _ := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b2"},"base":2}`, nil); code != 400 {
 		t.Fatalf("a book of another id = %d", code)
 	}
-	want := `{"books":[{"id":"b1","book":{"id":"b1","title":"B"},"version":2}],"plugins":[],"settings":null}`
+	// 読めないブック（形に合わない・タイプが無い）は書かず、理由を返す
+	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b1","title":"X"},"base":2}`, nil); code != 400 || !strings.HasPrefix(body, "unreadable: N004") {
+		t.Fatalf("a book without a type = %d %s", code, body)
+	}
+	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"type":"@matomezu/drawing:drawing","id":"b1","title":"X"},"base":2}`, nil); code != 400 || !strings.HasPrefix(body, "unreadable: N005") {
+		t.Fatalf("a book that does not fit its type = %d %s", code, body)
+	}
+	want := `{"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"plugins":[],"settings":null}`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -595,9 +608,16 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 // 読めないブックは、AI のブックの一覧に理由が付き、アクションはその理由で断る。プラグインを足せば読めるようになり、外せばまた理由が付く（データはそのまま）
 func TestListsWhyABookCannotBeRead(t *testing.T) {
 	s := newServer(t, nil)
+	// ex2 を結んでいる間に書いたフローのブックは、ex2 を外すと読めなくなる（読めないブックは書けないので、結んでから書く）
 	flow := `{"type":"ex2:flow","id":"f1","title":"Flow","pages":[]}`
+	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
+		t.Fatalf("link = %s", got)
+	}
 	if code, body := send(t, "PUT", s.URL+"/api/books/f1", `{"book":`+flow+`,"base":0}`, nil); code != 200 {
 		t.Fatalf("put = %d %s", code, body)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
+		t.Fatalf("unlink = %s", got)
 	}
 	problem := func() string {
 		_, body := get(t, s.URL+"/api/ai/books", "secret")
@@ -616,7 +636,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		return "missing"
 	}
 	if got := problem(); got != "N004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog" {
-		t.Fatalf("before linking = %q", got)
+		t.Fatalf("after unlinking = %q", got)
 	}
 	// 読めないブックへのアクションは「無い」でなく、その理由で断る
 	page := `{"action":"@matomezu/base:page-add","args":{"title":"p"},"on":{"book":"f1"}}`
@@ -624,16 +644,16 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		t.Fatalf("perform on an unreadable book = %s", got)
 	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
-		t.Fatalf("link = %s", got)
+		t.Fatalf("link again = %s", got)
 	}
 	if got := problem(); got != "" {
-		t.Fatalf("after linking = %q", got)
+		t.Fatalf("after linking again = %q", got)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("unlink = %s", got)
 	}
 	if got := problem(); !strings.HasPrefix(got, "N004 ex2:") {
-		t.Fatalf("after unlinking = %q", got)
+		t.Fatalf("after unlinking again = %q", got)
 	}
 }
 

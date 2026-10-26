@@ -13,7 +13,8 @@
 //	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq"} アクションを行い、{"ok", "reason", "result"} を返す。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
-//	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}  … 画面から
+//	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}。
+//	                      今の機能台帳で読めないブック（注意 N004〜N006）は書かず、400 と理由  … 画面から
 //	POST /api/view        {"client", "view", "focused"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか  … 画面から
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
@@ -282,6 +283,11 @@ func (o Options) putBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	version, have, err := o.Hub.PutBook(id, req.Book, req.Base)
+	var unreadable UnreadableError
+	if errors.As(err, &unreadable) {
+		http.Error(w, unreadable.Error(), http.StatusBadRequest)
+		return
+	}
 	if errors.Is(err, ErrConflict) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)

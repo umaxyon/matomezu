@@ -221,10 +221,25 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 // ErrConflict は、置いてある版が添えた版と違うこと
 var ErrConflict = storage.ErrConflict
 
+// UnreadableError は、書こうとしたブックが今の機能台帳で読めない（注意 N004〜N006）ので書かなかったこと
+type UnreadableError struct{ Notice string }
+
+func (e UnreadableError) Error() string { return "unreadable: " + e.Notice }
+
 // PutBook はブックを丸ごと置く（読み込みなど、アクションを通さない入口）。置いてある版が base のときだけ書き、知らせる
 func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *storage.Book, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	// 読めないブック（タイプが無い・形に合わない・決まりを守らない）は書かない。一部のプラグインが無いだけ（N007）なら書く
+	found, err := h.engine.CheckBooks([]json.RawMessage{body})
+	if err != nil {
+		return 0, nil, err
+	}
+	for _, n := range found {
+		if n.Unreadable() {
+			return 0, nil, UnreadableError{n.Notice}
+		}
+	}
 	version, have, err := h.store.PutBook(id, body, base)
 	if errors.Is(err, storage.ErrConflict) || err != nil {
 		return 0, have, err
