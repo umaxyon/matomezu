@@ -64,10 +64,23 @@ type Options struct {
 	URL     string        // 画面の URL
 	Open    func() error  // 画面をブラウザで開く（無ければ開かない）
 	Wait    time.Duration // ブラウザで開いた画面がつながるのを待つ長さ（0 なら windowWait）
+	Latest  time.Duration // 最後にフォーカスされた窓が見ているものを知らせるのを待つ上限（0 なら latestWait）
 }
 
 // windowWait は、ブラウザで開いた画面がつながるのを待つ既定の長さ
 const windowWait = 20 * time.Second
+
+// latestWait は、最後にフォーカスされた窓が見ているものを知らせるのを待つ既定の上限（ふつうは数十ミリ秒で届く。画面が固まったときのため）
+const latestWait = 3 * time.Second
+
+// waitLatest は、AI に答える前に、最後にフォーカスされた窓が見ているものを知らせるのを待つ（開いた直後の窓を飛ばして、前の窓を選ばないため）
+func (o Options) waitLatest() {
+	d := o.Latest
+	if d == 0 {
+		d = latestWait
+	}
+	o.Hub.WaitLatest(d)
+}
 
 // 知らせが無いあいだ、つながりを保つために送る間隔
 const keepAlive = 25 * time.Second
@@ -318,6 +331,7 @@ func (o Options) view(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
+	o.waitLatest()
 	v := o.Hub.View()
 	if v == nil {
 		v = json.RawMessage("null")
@@ -386,6 +400,7 @@ func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
+	o.waitLatest()
 	err := o.Hub.Show(req)
 	opened := false
 	if errors.Is(err, ErrNoWindow) && o.Open != nil {

@@ -336,6 +336,36 @@ func (h *Hub) WaitWindow(d time.Duration) bool {
 	}
 }
 
+// WaitLatest は、最後にフォーカスされた窓がまだ見ているものを知らせていなければ（開いた直後など）、知らせるまで待つ。
+// 知らせが来たら起きる（くり返し見に行かない）。d は上限で、過ぎたら待たずに戻る（そのときは知らせた窓のうち最後のものが選ばれる）
+func (h *Hub) WaitLatest(d time.Duration) {
+	deadline := time.After(d)
+	for {
+		h.mu.Lock()
+		pending, viewed := h.latestPending(), h.viewed
+		h.mu.Unlock()
+		if !pending {
+			return
+		}
+		select {
+		case <-viewed:
+		case <-deadline:
+			return
+		}
+	}
+}
+
+// latestPending は、最後にフォーカスされた窓が、見ているものをまだ知らせていないか（h.mu を持って呼ぶ）
+func (h *Hub) latestPending() bool {
+	var last *client
+	for _, c := range h.clients {
+		if last == nil || c.focused > last.focused {
+			last = c
+		}
+	}
+	return last != nil && last.view == nil
+}
+
 // Show の頼み。Stage は出すステージの id（空ならカレント）、Split なら、そのステージを分けて右にできたステージに出す。
 // Page は出すページ（空ならブックを開いたときのページ）
 type Show struct {

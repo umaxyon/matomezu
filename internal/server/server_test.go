@@ -491,7 +491,7 @@ func TestSettingsActions(t *testing.T) {
 }
 
 func TestViewIsTheLastFocusedScreens(t *testing.T) {
-	s := newServer(t, nil)
+	s := newServerWith(t, Options{Latest: 50 * time.Millisecond})
 	a, b := listen(t, s.URL), listen(t, s.URL)
 	next(t, a)
 	next(t, b)
@@ -499,6 +499,7 @@ func TestViewIsTheLastFocusedScreens(t *testing.T) {
 		_, body := send(t, "GET", s.URL+"/api/ai/view", "", map[string]string{"Authorization": "Bearer secret"})
 		return body
 	}
+	// どの窓も知らせないまま上限を過ぎれば null
 	if got := ai(); got != "null" {
 		t.Fatalf("view before any report = %s", got)
 	}
@@ -513,6 +514,30 @@ func TestViewIsTheLastFocusedScreens(t *testing.T) {
 	}
 	if code, _ := send(t, "POST", s.URL+"/api/view", `{"client":"c9"}`, nil); code != 404 {
 		t.Fatalf("an unknown client = %d", code)
+	}
+}
+
+// 最後にフォーカスされた窓（つないだばかりの窓）がまだ知らせていなければ、AI の view は知らせが来るまで待ち、その窓の答えを返す（前の窓を選ばない）
+func TestViewWaitsForTheLatestWindow(t *testing.T) {
+	s := newServer(t, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"old"},"focused":true}`, nil)
+	b := listen(t, s.URL)
+	next(t, b)
+	got := make(chan string)
+	go func() {
+		_, body := send(t, "GET", s.URL+"/api/ai/view", "", map[string]string{"Authorization": "Bearer secret"})
+		got <- body
+	}()
+	time.Sleep(50 * time.Millisecond)
+	start := time.Now()
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":{"book":"new"}}`, nil)
+	if body := <-got; body != `{"book":"new"}` {
+		t.Fatalf("view = %s; want the latest window's", body)
+	}
+	if waited := time.Since(start); waited > time.Second {
+		t.Fatalf("answered %v after the report; want at once", waited)
 	}
 }
 
