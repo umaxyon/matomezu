@@ -2,20 +2,23 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
 import { fail, matomezuError, problem } from "../core/errors"
+import type { Notice } from "../core/notices"
 import type { Catalog } from "../store/plugin"
 import type { Actions, MatomezuInstance, MatomezuState } from "../store/store"
-import { checkLayout, type LayoutDef } from "./layout"
+import { checkLayout, type LayoutDef, skipAbsent } from "./layout"
 import { type AnyPluginUi, assembleUi, type UiCatalog } from "./plugin"
 
 interface MatomezuContext {
   store: MatomezuInstance
   ui: UiCatalog
-  layout: LayoutDef
+  layout: LayoutDef // 組み込まれていないプラグインの物を除いた配置
+  notices: readonly Notice[] // 配置の注意（除いた物）
 }
 const Context = createContext<MatomezuContext | null>(null)
 
 // 見た目を結んだプラグインだけで作ったインスタンスを、配置と一緒に置く（結んでいないプラグインがあれば型の誤り）。
-// 配置は渡すたびに確かめ（知らないウィジェット・置けないスロット・インスタンスに無いコマンド）、変えればその場で組み直す
+// 配置は渡すたびに確かめ（知らないウィジェット・置けないスロット・インスタンスに無いコマンド）、変えればその場で組み直す。
+// 持ち主のプラグインが組み込まれていない物は、確かめる前に除いて注意にする
 export function MatomezuProvider({
   instance,
   layout,
@@ -27,10 +30,11 @@ export function MatomezuProvider({
 }) {
   const ui = useMemo(() => assembleUi(instance.plugins), [instance])
   const value = useMemo(() => {
-    const problems = checkLayout(layout, ui, new Set(instance.catalog.store.commands.keys()))
+    const skipped = skipAbsent(layout, new Set(instance.plugins.map(p => p.id)))
+    const problems = checkLayout(skipped.layout, ui, new Set(instance.catalog.store.commands.keys()))
     if (problems.length > 0)
       throw matomezuError(problem("E210", { layout: layout.id, count: problems.length }), problems)
-    return { store: instance, ui, layout }
+    return { store: instance, ui, layout: skipped.layout, notices: skipped.notices }
   }, [instance, ui, layout])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
@@ -51,6 +55,11 @@ export function useActions(): Actions {
 // インスタンス（機能台帳と組み立てで決まる値は、作った後は変わらない）
 export function useInstance(): MatomezuInstance {
   return useMatomezuContext().store
+}
+
+// 配置の注意（持ち主のプラグインが組み込まれていないので除いた物。N010）
+export function useLayoutNotices(): readonly Notice[] {
+  return useMatomezuContext().notices
 }
 
 // インスタンスが持つ機能台帳（core と store の段）

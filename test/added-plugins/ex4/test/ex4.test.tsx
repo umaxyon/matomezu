@@ -88,7 +88,7 @@ test("E4: 端の形を消すと、端の無くなった関係線も消える（�
   expect(page().items!.filter(i => i.item === "ex4:relation")).toEqual([])
 })
 
-test.failing("E5: ビルトインの線（と線を選ぶ図面）を外しても、既定の配置で組める", () => {
+test("E5: ビルトインの線（と線を選ぶ図面）を外しても、既定の配置で組める", () => {
   const plugins = BUILTIN_UI.filter(ui => ui.id !== "@matomezu/line" && ui.id !== "@matomezu/drawing")
   const instance = createMatomezu({ plugins, home: "@matomezu/master:master", partial: true })
   expect(() =>

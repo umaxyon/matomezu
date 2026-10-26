@@ -11,6 +11,8 @@ import type {
   WidgetTable,
 } from "../core/catalog"
 import { type Problem, problem } from "../core/errors"
+import { splitId } from "../core/names"
+import { type Notice, notice } from "../core/notices"
 import type { CommandArgs } from "../store/commands"
 import type { Plugin } from "../store/plugin"
 
@@ -108,6 +110,44 @@ export function placeAdded(layout: LayoutDef, plugins: readonly Plugin[]): Layou
     }
   }
   return { ...layout, slots, menus, contextMenus } as LayoutDef
+}
+
+// 配置から、持ち主のプラグイン（id の頭）が組み込まれていない物を除く（ウィジェット・コマンド・スロット・メニュー・右クリックのメニュー）。
+// 除いた物ごとに注意 N010（plugin は無いプラグイン）。頭の無い名前（土台の言葉）と、持ち主がいる物は残す（無ければ checkLayout が誤りにする）
+export function skipAbsent(layout: LayoutDef, present: ReadonlySet<string>): { layout: LayoutDef; notices: Notice[] } {
+  const notices: Notice[] = []
+  const keep = (kind: string, id: string): boolean => {
+    const { owner } = splitId(id)
+    if (owner === null || present.has(owner)) return true
+    notices.push(notice("N010", owner, { layout: layout.id, kind, id }))
+    return false
+  }
+  const entries = <V>(table: object, kind: string) =>
+    (Object.entries(table) as [string, V][]).filter(([id]) => keep(kind, id))
+  const slots = entries<readonly string[]>(layout.slots, "slot").map(
+    ([slot, ids]) => [slot, ids.filter(id => keep("widget", id))] as const,
+  )
+  const menus = entries<readonly MenuItem[]>(layout.menus, "menu").map(
+    ([menu, items]) =>
+      [
+        menu,
+        items.flatMap((item): MenuItem[] => {
+          if (typeof item === "string") return keep("command", item) ? [item] : []
+          const either = item.either.filter(id => keep("command", id))
+          return either.length > 0 ? [{ either }] : []
+        }),
+      ] as const,
+  )
+  const contextMenus = entries<readonly string[]>(layout.contextMenus ?? {}, "contextMenu").map(
+    ([menu, ids]) => [menu, tidySeparators(ids.filter(id => id === SEPARATOR || keep("command", id)))] as const,
+  )
+  const skipped = {
+    ...layout,
+    slots: Object.fromEntries(slots),
+    menus: Object.fromEntries(menus),
+    contextMenus: Object.fromEntries(contextMenus),
+  } as LayoutDef
+  return { layout: notices.length > 0 ? skipped : layout, notices }
 }
 
 export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>

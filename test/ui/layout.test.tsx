@@ -13,6 +13,7 @@ import {
   defineWidget,
   type LayoutDef,
   placeAdded,
+  skipAbsent,
   tidySeparators,
 } from "../../web/src/ui/layout"
 import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
@@ -258,5 +259,29 @@ describe("取り込んだプラグインの置き場所", () => {
       // @ts-expect-error 引数を取るコマンドはメニューに入れられない
       place: { menus: ["@matomezu/base:stage-menu"] },
     })
+  })
+})
+
+describe("組み込まれていないプラグインの物", () => {
+  const LINE_CONTEXT = "@matomezu/line:line-context"
+  test("持ち主のプラグインが無い物は除いて注意 N010 にし、持ち主がいるのに無い物は今どおり誤り", () => {
+    const present = new Set(BUILTIN_UI.filter(ui => ui.id !== "@matomezu/line").map(ui => ui.id))
+    const { layout, notices } = skipAbsent(DEFAULT_LAYOUT, present)
+    expect(notices.map(n => [n.code, n.plugin, n.params.kind, n.params.id])).toEqual([
+      ["N010", "@matomezu/line", "contextMenu", LINE_CONTEXT],
+    ])
+    expect((layout.contextMenus as Record<string, unknown>)[LINE_CONTEXT]).toBeUndefined()
+    // 線があれば何も除かない
+    expect(skipAbsent(DEFAULT_LAYOUT, new Set(BUILTIN_UI.map(ui => ui.id))).notices).toEqual([])
+    // 持ち主の線はいるのに、無いコマンドを書いた（書き間違い）なら、除かずに誤りのまま
+    const typo = {
+      ...DEFAULT_LAYOUT,
+      contextMenus: { ...DEFAULT_LAYOUT.contextMenus, [LINE_CONTEXT]: ["@matomezu/line:line-edt"] },
+    }
+    const all = skipAbsent(typo as LayoutDef, new Set(BUILTIN_UI.map(ui => ui.id)))
+    expect(all.notices).toEqual([])
+    const ui = assembleUi(BUILTIN_UI)
+    const commands = new Set(createMatomezu({ plugins: BUILTIN_UI }).catalog.store.commands.keys())
+    expect(checkLayout(all.layout, ui, commands).map(p => p.code)).toEqual(["E209"])
   })
 })
