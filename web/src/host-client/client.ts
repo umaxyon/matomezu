@@ -7,6 +7,7 @@ export interface Loaded {
   books: readonly unknown[] // 残しておいたブック。形に合うかは store が確かめる（createMatomezu の savedBooks）
   settings: unknown // 残しておいた設定（無ければ undefined）。使える項目かは store が確かめる（createMatomezu の settings）
   plugins: readonly unknown[] // ホストが足した追加プラグイン（見た目を結んだもの）。プラグインかは組み立てが確かめる
+  failed: readonly { id: string; error: unknown }[] // 読み込めなかった追加プラグインと理由（ほかのプラグインとブックは読む）
 }
 
 export interface HostClient {

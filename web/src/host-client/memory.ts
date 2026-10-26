@@ -15,7 +15,7 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
   const host: MemoryClient = {
     books: kept,
     settings,
-    load: async () => ({ books: [...kept.values()], settings: host.settings, plugins: [] }),
+    load: async () => ({ books: [...kept.values()], settings: host.settings, plugins: [], failed: [] }),
     observe: () => {},
     connect: instance =>
       persist(instance, {

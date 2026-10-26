@@ -80,10 +80,10 @@ test("読むと、置いてあるブックと設定を返す", async () => {
   const s = fakeServer({ books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: { lang: "en" } })
   const loading = s.host.load()
   s.emit("hello", { client: "c1" })
-  expect(await loading).toEqual({ books: [SAMPLE_BOOKS[0]], settings: { lang: "en" }, plugins: [] })
+  expect(await loading).toEqual({ books: [SAMPLE_BOOKS[0]], settings: { lang: "en" }, plugins: [], failed: [] })
 })
 
-test("常駐が足した追加プラグインは、CSS を読み、見た目の JS を読んで default で出したものを返す", async () => {
+test("常駐が足した追加プラグインは、見た目の JS を読んで default で出したものを返し、CSS を読む。読み込めない物は外して理由を返す", async () => {
   const styles: string[] = []
   const imported: string[] = []
   const listeners = new Map<string, (data: string) => void>()
@@ -96,6 +96,7 @@ test("常駐が足した追加プラグインは、CSS を読み、見た目の 
           plugins: [
             { id: "a", ui: "api/plugins/0/ui.js", css: "api/plugins/0/ui.css" },
             { id: "b", ui: "api/plugins/1/ui.js" },
+            { id: "c", ui: "api/plugins/2/ui.js", css: "api/plugins/2/ui.css" },
           ],
         }),
       ),
@@ -104,6 +105,7 @@ test("常駐が足した追加プラグインは、CSS を読み、見た目の 
     onFocus: () => () => {},
     importModule: async url => {
       imported.push(url)
+      if (url === "api/plugins/2/ui.js") throw new Error("broken")
       return { default: { id: url } }
     },
     addStyle: url => styles.push(url),
@@ -111,8 +113,11 @@ test("常駐が足した追加プラグインは、CSS を読み、見た目の 
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
-  expect((await loading).plugins).toEqual([{ id: "api/plugins/0/ui.js" }, { id: "api/plugins/1/ui.js" }])
-  expect(imported).toEqual(["api/plugins/0/ui.js", "api/plugins/1/ui.js"])
+  const loaded = await loading
+  // 読み込めない c は外して理由を返し、ほかは読む（c の CSS は足さない）
+  expect(loaded.plugins).toEqual([{ id: "api/plugins/0/ui.js" }, { id: "api/plugins/1/ui.js" }])
+  expect(loaded.failed).toMatchObject([{ id: "c", error: { message: "broken" } }])
+  expect(imported).toEqual(["api/plugins/0/ui.js", "api/plugins/1/ui.js", "api/plugins/2/ui.js"])
   expect(styles).toEqual(["api/plugins/0/ui.css"])
 })
 

@@ -18,7 +18,7 @@ import {
 } from "../../web/src/ui/layout"
 import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
 import { Screen } from "../../web/src/ui/Screen"
-import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { MatomezuProvider, shownLayout } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
@@ -283,5 +283,38 @@ describe("組み込まれていないプラグインの物", () => {
     const ui = assembleUi(BUILTIN_UI)
     const commands = new Set(createMatomezu({ plugins: BUILTIN_UI }).catalog.store.commands.keys())
     expect(checkLayout(all.layout, ui, commands).map(p => p.code)).toEqual(["E209"])
+  })
+})
+
+describe("取り込むときの配置の確かめ", () => {
+  const Ping = () => <p>ping</p>
+  // どのウィジェットも開かないスロットに置いてほしいと書いたプラグイン（取り込んだあとに描くと E211 で画面が止まる）
+  const nowhere = definePluginUi(definePlugin({ id: "q" }), {
+    widgets: [defineWidget({ id: "q:ping", slots: ["q:nowhere" as never], place: "q:nowhere" as never, view: Ping })],
+  })
+  const fine = definePluginUi(definePlugin({ id: "r" }), {
+    widgets: [
+      defineWidget({
+        id: "r:ping",
+        slots: ["@matomezu/base:stage-bottom"],
+        place: "@matomezu/base:stage-bottom",
+        view: Ping,
+      }),
+    ],
+  })
+
+  test("配置が食い違うプラグインは取り込むときに外し、ほかのプラグインで画面を描く", () => {
+    const instance = createMatomezu({ plugins: BUILTIN_UI, home: "@matomezu/master:master" })
+    const { failed } = instance.use([nowhere, fine], all => {
+      shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
+    })
+    expect(failed.map(f => f.id)).toEqual(["q"])
+    expect(instance.plugins.map(p => p.id as string)).toContain("r")
+    render(
+      <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
+        <Screen />
+      </MatomezuProvider>,
+    )
+    expect(screen.getAllByText("ping").length).toBeGreaterThan(0)
   })
 })

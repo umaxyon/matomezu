@@ -14,7 +14,7 @@ import { loadFonts } from "./ui/fonts"
 import { placeAdded } from "./ui/layout"
 import { type AnyPluginUi, assembleUi } from "./ui/plugin"
 import { Screen } from "./ui/Screen"
-import { MatomezuProvider } from "./ui/store-context"
+import { MatomezuProvider, shownLayout } from "./ui/store-context"
 import "./ui/skin.css"
 
 loadFonts()
@@ -28,9 +28,12 @@ const store = createMatomezu({
   lang: navigator.languages,
   observe: done => client.observe(done),
 })
-// 追加プラグインは機能台帳の型の側に入らないので、型では確かめず、組み立てで確かめる（見た目も）。組み立てられないものは外す
-for (const { id, error } of store.use(saved.plugins as AnyPluginUi[], all => assembleUi(all)).failed)
-  console.error(`plugin ${id} is not added:`, error)
+// 追加プラグインは機能台帳の型の側に入らないので、型では確かめず、組み立てで確かめる（見た目と、置いた配置も）。
+// 読み込めないもの・組み立てられないもの・配置が食い違うものは外す（ほかのプラグインとブックは使える）
+const added = store.use(saved.plugins as AnyPluginUi[], all => {
+  shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
+})
+for (const { id, error } of [...saved.failed, ...added.failed]) console.error(`plugin ${id} is not added:`, error)
 client.connect(store)
 const root = document.getElementById("root")
 if (!root) fail("E202")

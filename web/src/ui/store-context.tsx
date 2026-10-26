@@ -3,7 +3,7 @@ import { createContext, type ReactNode, useContext, useMemo } from "react"
 import { useStore } from "zustand"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { Notice } from "../core/notices"
-import type { Catalog } from "../store/plugin"
+import type { Catalog, Plugin } from "../store/plugin"
 import type { Actions, MatomezuInstance, MatomezuState } from "../store/store"
 import { checkLayout, type LayoutDef, skipAbsent } from "./layout"
 import { type AnyPluginUi, assembleUi, type UiCatalog } from "./plugin"
@@ -15,6 +15,19 @@ interface MatomezuContext {
   notices: readonly Notice[] // 配置の注意（除いた物）
 }
 const Context = createContext<MatomezuContext | null>(null)
+
+// 画面に出す配置: 持ち主のプラグインが組み込まれていない物を除き（注意 N010）、残りを確かめる。食い違いがあれば投げる（E210）
+export function shownLayout(
+  layout: LayoutDef,
+  plugins: readonly Plugin[],
+  ui: UiCatalog,
+): { layout: LayoutDef; notices: Notice[] } {
+  const skipped = skipAbsent(layout, new Set(plugins.map(p => p.id)))
+  const commands = new Set(plugins.flatMap(p => (p.commands ?? []).map(c => c.id)))
+  const problems = checkLayout(skipped.layout, ui, commands)
+  if (problems.length > 0) throw matomezuError(problem("E210", { layout: layout.id, count: problems.length }), problems)
+  return skipped
+}
 
 // 見た目を結んだプラグインだけで作ったインスタンスを、配置と一緒に置く（結んでいないプラグインがあれば型の誤り）。
 // 配置は渡すたびに確かめ（知らないウィジェット・置けないスロット・インスタンスに無いコマンド）、変えればその場で組み直す。
@@ -30,11 +43,8 @@ export function MatomezuProvider({
 }) {
   const ui = useMemo(() => assembleUi(instance.plugins), [instance])
   const value = useMemo(() => {
-    const skipped = skipAbsent(layout, new Set(instance.plugins.map(p => p.id)))
-    const problems = checkLayout(skipped.layout, ui, new Set(instance.catalog.store.commands.keys()))
-    if (problems.length > 0)
-      throw matomezuError(problem("E210", { layout: layout.id, count: problems.length }), problems)
-    return { store: instance, ui, layout: skipped.layout, notices: skipped.notices }
+    const shown = shownLayout(layout, instance.plugins, ui)
+    return { store: instance, ui, layout: shown.layout, notices: shown.notices }
   }, [instance, ui, layout])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }

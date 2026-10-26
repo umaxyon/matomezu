@@ -196,13 +196,22 @@ export function serverClient(net: Net = browserNet): ServerClient {
     load: async (): Promise<Loaded> => {
       await listen()
       await read()
-      const added = await Promise.all(
+      // 1 つが読み込めなくても、ほかのプラグインとブックは読む（読み込めた物だけ CSS も足す）
+      const settled = await Promise.allSettled(
         plugins.map(async p => {
+          const ui = (await net.importModule(p.ui)).default
           if (p.css) net.addStyle(p.css)
-          return (await net.importModule(p.ui)).default
+          return ui
         }),
       )
-      return { books: [...confirmed.values()].map(e => e.book), settings, plugins: added }
+      const added: unknown[] = []
+      const failed: { id: string; error: unknown }[] = []
+      plugins.forEach((p, i) => {
+        const r = settled[i]
+        if (r?.status === "fulfilled") added.push(r.value)
+        else failed.push({ id: p.id, error: r?.reason })
+      })
+      return { books: [...confirmed.values()].map(e => e.book), settings, plugins: added, failed }
     },
     observe: done => {
       seq += 1
