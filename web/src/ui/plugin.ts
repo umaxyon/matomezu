@@ -33,13 +33,15 @@ export interface DialogProps<A = undefined> {
 // biome-ignore lint/suspicious/noExplicitAny: 関数コンポーネントとクラスコンポーネントの両方を受けるには any しかない
 type AnyDialogView = ComponentType<DialogProps<any>>
 // アイテムのビューに渡す値: 項目（props）・大きさ（紙の上の px）・アイテムの id・描いているステージ・
-// 中身（形の定義の content に宣言した欄の名前 → その値。データに無い欄は undefined）
+// 中身（形の定義の content に宣言した欄の名前 → その値。データに無い欄は undefined）・
+// 今の倍率（紙の上の 1px が画面の何 px か。倍率を変えると、新しい値で描き直す）
 export interface ItemViewProps<Props, Content = Readonly<Record<string, unknown>>> {
   props: Props
   size: Size
   id: string
   stage: string
   content: Content
+  zoom: number
 }
 
 // アイテムのビューは、そのアイテムの項目（props）のデータを受け取る

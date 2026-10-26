@@ -295,6 +295,7 @@ function PageItems({
     <Item
       key={item.id}
       stage={stage.id}
+      zoom={placement(stage)?.zoom ?? 1}
       item={item}
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
       overlays={connectors.flatMap(c => {
@@ -351,6 +352,7 @@ function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<str
 
 interface ItemProps {
   stage: string
+  zoom: number // ステージの今の倍率（形のビューに渡す）
   item: PlacedShape
   onHover(on: boolean): void
   overlays: ReactNode // つなぐもののビューが形の上に重ねるコンポーネント
@@ -388,6 +390,7 @@ const GRIPS: readonly { at: string; edges: Edges }[] = [
 // 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く
 function Item({
   stage,
+  zoom,
   item,
   onHover,
   overlays,
@@ -438,7 +441,14 @@ function Item({
       {...handlers}
     >
       {View && size ? (
-        <View props={item.props} size={size} id={item.id} stage={stage} content={contentOf(catalog, item)} />
+        <View
+          props={item.props}
+          size={size}
+          id={item.id}
+          stage={stage}
+          content={contentOf(catalog, item)}
+          zoom={zoom}
+        />
       ) : (
         <div className={styles.unknownItem} />
       )}

@@ -59,6 +59,8 @@ test("B3: ビューの content に、中身の欄 tiles の札が来る（childr
     instance.actions.perform("ex5:tile-add", { page: page().id, item, color: "#ff0000" }, on)
   })
   expect(document.querySelector("[data-ex5-tiles]")?.getAttribute("data-ex5-tiles")).toBe("1")
+  // 形のビューには、ステージの今の倍率も渡る（監査 B7）
+  expect(document.querySelector("[data-ex5-tiles]")?.getAttribute("data-ex5-zoom")).toBe("1")
 })
 
 test("B1: 自分の意味の theme の欄（札の色合い）を持つ形を置ける", () => {

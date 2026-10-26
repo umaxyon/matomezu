@@ -61,8 +61,8 @@ interface GhostLook {
   vars: Record<string, string>
 }
 
-// 行の要素 li から写しの見た目を取る。変数はテーマの欄（names）と、台紙・文字・行の地
-function ghostLook(li: HTMLElement, x: number, y: number, names: readonly string[]): GhostLook {
+// 行の要素 li から写しの見た目を取る。変数はテーマの欄（names）と、台紙・文字・行の地。scale はステージの倍率（写しも同じ倍率で描く）
+function ghostLook(li: HTMLElement, x: number, y: number, names: readonly string[], scale: number): GhostLook {
   const r = li.getBoundingClientRect()
   const css = getComputedStyle(li)
   const vars: Record<string, string> = {}
@@ -70,7 +70,6 @@ function ghostLook(li: HTMLElement, x: number, y: number, names: readonly string
     const v = css.getPropertyValue(name)
     if (v !== "") vars[name] = v
   }
-  const scale = li.offsetWidth > 0 ? r.width / li.offsetWidth : 1
   return { w: li.offsetWidth, h: li.offsetHeight, scale, grab: { x: x - r.left, y: y - r.top }, vars }
 }
 
@@ -124,6 +123,7 @@ export function ListView({
   id,
   stage,
   content,
+  zoom,
 }: ItemViewProps<ItemProps<"@matomezu/list:shape-list">, { readonly children?: readonly ListRow[] }>) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
@@ -174,7 +174,7 @@ export function ListView({
       if (!c.moving) {
         if (Math.hypot(e.clientX - c.start.x, e.clientY - c.start.y) < DRAG_START) return
         c.moving = true
-        c.look = ghostLook(e.currentTarget, c.start.x, c.start.y, ghostNames)
+        c.look = ghostLook(e.currentTarget, c.start.x, c.start.y, ghostNames, zoom)
         e.currentTarget.setPointerCapture(e.pointerId)
       }
       const { clientX: x, clientY: y } = e

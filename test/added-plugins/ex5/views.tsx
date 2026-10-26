@@ -6,12 +6,13 @@ import type { TILES } from "./tiles"
 type TilesProps = z.output<(typeof TILES)["props"]>
 type TilesContent = { readonly tiles?: readonly { id: string; color: string }[] }
 
-export function TilesView({ props, size, content }: ItemViewProps<TilesProps, TilesContent>) {
+export function TilesView({ props, size, content, zoom }: ItemViewProps<TilesProps, TilesContent>) {
   const tiles = content.tiles ?? []
   return (
     <div
       data-ex5-tiles={tiles.length}
       data-ex5-theme={props.theme}
+      data-ex5-zoom={zoom}
       style={{ width: size.w, height: size.h, background: "var(--tiles-fill)", display: "flex", gap: 4 }}
     >
       {tiles.map(t => (
