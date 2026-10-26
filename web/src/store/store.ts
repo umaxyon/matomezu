@@ -95,9 +95,6 @@ export interface Actions {
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
   closePicker(): void
-  // 外で決まったブックと設定（常駐が知らせたもの）に入れ替え、まだ確かめられていない自分のアクション replay をその上で行い直す。
-  // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす
-  receive(world: { books: readonly unknown[]; settings: unknown }, replay: readonly DoneAction[]): void
 }
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
@@ -117,6 +114,10 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   plugins: Ps
   state: ReadonlyStore
   actions: Actions
+  // 外で決まったブックと設定（常駐が知らせたもの）に入れ替え、まだ確かめられていない自分のアクション replay をその上で行い直す。
+  // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
+  // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
+  receive(world: { books: readonly unknown[]; settings: unknown }, replay: readonly DoneAction[]): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
   // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と誤りを返す
   use(
@@ -337,6 +338,24 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const book = books[workspace.stages.find(s => s.id === stage)?.opened?.book ?? ""]
       if (book && hasPages(book)) withWorkspace(ws => showPage(catalog, focus(ws, stage), stage, book, page))
     },
+    resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
+    panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
+    setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),
+    togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),
+    stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),
+    select: (id, ids) => withWorkspace(ws => mapStage(ws, id, s => select(s, ids))),
+    openPicker: (id, at) =>
+      withWorkspace(ws => {
+        const closed = ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)
+        return mapStage(closed, id, s => openPicker(s, at))
+      }),
+    closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
+  }
+  const instance: MatomezuInstance<Ps> = {
+    ...defs,
+    plugins,
+    state: store,
+    actions,
     receive: (world, replay) => {
       const found = restore(world.books)
       let books: MatomezuState["books"] = Object.fromEntries(
@@ -377,24 +396,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(partial === now.partial ? {} : { partial }),
       })
     },
-    resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
-    panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
-    setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),
-    togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),
-    stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),
-    select: (id, ids) => withWorkspace(ws => mapStage(ws, id, s => select(s, ids))),
-    openPicker: (id, at) =>
-      withWorkspace(ws => {
-        const closed = ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)
-        return mapStage(closed, id, s => openPicker(s, at))
-      }),
-    closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
-  }
-  const instance: MatomezuInstance<Ps> = {
-    ...defs,
-    plugins,
-    state: store,
-    actions,
     use: (added, check) => {
       const failed: { id: string; error: unknown }[] = []
       let used: Plugin[] = []

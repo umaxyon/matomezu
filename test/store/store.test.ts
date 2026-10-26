@@ -146,3 +146,9 @@ test("右クリックのメニューは 1 つだけ出し、開いたステー�
   actions.closeContextMenu()
   expect(state.getState().contextMenu).toBeNull()
 })
+
+test("ホストとの同期（receive）はインスタンスにあり、プラグインに渡す actions には無い（アクションを通さずに世界を入れ替えられないように）", () => {
+  const instance = newStore()
+  expect("receive" in instance.actions).toBe(false)
+  expect(typeof instance.receive).toBe("function")
+})

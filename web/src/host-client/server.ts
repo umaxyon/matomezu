@@ -125,7 +125,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let events: Events | null = null
 
   const show = () =>
-    instance?.actions.receive(
+    instance?.receive(
       { books: [...confirmed.values()].map(e => e.book), settings },
       pending.map(p => p.done),
     )
