@@ -3,7 +3,14 @@
 import type { z } from "zod"
 import type { ActionId, ActionTable } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
-import { type ActionContext, type ActionDef, type ActionTarget, allowedIn, type Subjects } from "./def/action"
+import {
+  type ActionContext,
+  type ActionDef,
+  type ActionTarget,
+  allowedIn,
+  pagedOnly,
+  type Subjects,
+} from "./def/action"
 import { inspect } from "./inspect"
 import type { Library } from "./library"
 import { type ItemPage, pageHolds } from "./placed"
@@ -63,7 +70,9 @@ export function perform<Id extends ActionId>(
   if (!allowed(ctx, action, subject)) return { ok: false, reason: "not-allowed" }
   const parsed = action.args.safeParse(args)
   if (!parsed.success) return { ok: false, reason: "bad-args" }
-  const done = action.run(subject, parsed.data, ctx)
+  // 付く先がページを持つタイプだけのアクションに、ページの無いブックは渡さない（run は PagedBook を受ける）
+  if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
+  const done = action.run(subject as never, parsed.data, ctx)
   if (!done) return { ok: false, reason: "refused" }
   if (action.target === "book" && !settles(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
   return { ok: true, next: done.next, result: done.result } as Performed<Id>

@@ -2,7 +2,7 @@
 // 返した定義の id は本当の id（型も）で、自分の物はそれか kit.name(名前) で名指す。ほかのプラグインの物は本当の id で書く。
 // 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマの欄の id・テーマが上書きする自分の欄の鍵だけ
 import type { MessageKey } from "../core/catalog"
-import type { ActionDef, ActionTarget } from "../core/def/action"
+import type { ActionAttach, ActionDef, ActionTarget } from "../core/def/action"
 import {
   type BookSchema,
   type DataOf,
@@ -87,9 +87,16 @@ export interface PluginKit<P extends string, M extends MessageSet> {
     },
   ): Omit<ConnectorItemDef<ConnectorDataOf<Pr>>, "id"> & { id: Owned<P, Id>; kind: "connector"; props: Pr }
 
-  defineAction<const Id extends string, T extends ActionTarget, A, R, I>(
-    def: ActionDef<T, A, R, I, keyof M & string> & { id: Id },
-  ): Omit<ActionDef<T, A, R, I>, "id"> & { id: Owned<P, Id> }
+  defineAction<
+    const Id extends string,
+    T extends ActionTarget,
+    A,
+    R,
+    I,
+    const At extends ActionAttach | undefined = undefined,
+  >(
+    def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id },
+  ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> }
 
   defineSetting<const Id extends string, S extends SettingDef["schema"]>(
     def: SettingDef<S, keyof M & string> & { id: Id },

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
-import { defineAction } from "../../web/src/core/def/action"
+import { defineAction, pagedOnly } from "../../web/src/core/def/action"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
@@ -157,5 +157,34 @@ describe("アクションの入口", () => {
       actions.perform("@matomezu/base:page-add", { title: 1 }, { book: "b1" })
     }
     expect(typeof typeOnly).toBe("function")
+  })
+})
+
+test("付く先がページを持つタイプだけ（pages・items）のアクションの run は PagedBook を受ける。books・presentations も書いたら Book のまま", () => {
+  expect(pagedOnly({ pages: true })).toBe(true)
+  expect(pagedOnly({ items: ["@matomezu/box:shape-box"] })).toBe(true)
+  expect(pagedOnly({ items: ["@matomezu/box:shape-box"], books: true })).toBe(false)
+  expect(pagedOnly({ presentations: ["@matomezu/paper:paper"] })).toBe(false)
+  expect(pagedOnly(undefined)).toBe(false)
+  defineAction({
+    id: "t:paged",
+    title: "@matomezu/master:Master",
+    attach: { pages: true },
+    aiDescription: "",
+    target: "book",
+    needs: [],
+    args: z.strictObject({}),
+    run: book => ({ next: book, result: book.pages.length }), // pages を言い張りなしで読める
+  })
+  defineAction({
+    id: "t:any",
+    title: "@matomezu/master:Master",
+    attach: { books: true },
+    aiDescription: "",
+    target: "book",
+    needs: [],
+    args: z.strictObject({}),
+    // @ts-expect-error どのタイプにも付くアクションには、ページの無いブックも来る
+    run: book => ({ next: book, result: book.pages.length }),
   })
 })

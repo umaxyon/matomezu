@@ -1,6 +1,7 @@
 // アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も LLM の操作も同じものを通る。
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 import type { z } from "zod"
+import type { PagedBook } from "../book"
 import type { ActionId } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
@@ -44,6 +45,22 @@ export interface ActionAttach {
   books?: true
 }
 
+// 付く先がページを持つタイプだけか（pages か items だけを書き、books・presentations を書いていない）。
+// そうなら run にはページを持つブックだけが来る（perform がページの無いブックには断る）
+type PagedOnly = ({ pages: true } | { items: readonly string[] }) & { books?: undefined; presentations?: undefined }
+export const pagedOnly = (attach: ActionAttach | undefined): boolean =>
+  attach !== undefined &&
+  attach.books === undefined &&
+  attach.presentations === undefined &&
+  (attach.pages === true || attach.items !== undefined)
+
+// run が受け取る対象: ブックが対象で、付く先がページを持つタイプだけなら PagedBook
+export type RunSubject<T extends ActionTarget, At> = T extends "book"
+  ? At extends PagedOnly
+    ? PagedBook
+    : Book
+  : Subjects[T]
+
 // アクションがタイプ type に付くか（attach のどれかに当てはまるか）
 export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): boolean {
   const a = def.attach
@@ -68,23 +85,30 @@ export interface ActionDef<
   R = unknown,
   I = unknown,
   Tt extends string = MessageKey,
+  At extends ActionAttach | undefined = ActionAttach | undefined,
 > {
   id: string // 本当の id。名前は「対象-動き」（例: page-add）
   title: Tt
   // ブックが対象のアクションの付く先。どれか 1 つに当てはまるタイプのブックで使える（無ければ、タイプの actions.add で選ばれたときだけ）
-  attach?: ActionAttach
+  attach?: At
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
   needs: readonly Capability[] // 対象のアイテムに求める能力
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
-  run(subject: Subjects[T], args: A, ctx: ActionContext): Done<T, R> | null
+  // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
+  run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | null
 }
 
 // target から run の対象の型を、args の形から引数の型を決め、id は書いた文字のまま残す
-export function defineAction<const Id extends string, T extends ActionTarget, A, R, I>(
-  def: ActionDef<T, A, R, I> & { id: Id },
-): ActionDef<T, A, R, I> & { id: Id } {
+export function defineAction<
+  const Id extends string,
+  T extends ActionTarget,
+  A,
+  R,
+  I,
+  const At extends ActionAttach | undefined = undefined,
+>(def: ActionDef<T, A, R, I, MessageKey, At> & { id: Id }): ActionDef<T, A, R, I, MessageKey, At> & { id: Id } {
   return def
 }
