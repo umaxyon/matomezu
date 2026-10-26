@@ -1,6 +1,6 @@
 // ex2 のブックのタイプ「フロー」: 自分の形（判断のひし形）と設定の項目（流れの向き）と自分のアクションを持ち、
 // ビルトインの見せ方（紙）・箱・線・線の設定を id で選ぶ
-import { BookLookSchema, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
+import { type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
 
 export const DIAMOND_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "diamond-add" })
@@ -78,11 +78,7 @@ export const FLOW = kit.defineBookType({
   id: "flow",
   version: 1,
   title: "flow",
-  schema: z.strictObject({
-    id: z.string().min(1),
-    title: z.string(),
-    ...BookLookSchema,
-  }),
+  schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
   pages: {
@@ -98,5 +94,8 @@ export const FLOW = kit.defineBookType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "paper",
-  settings: { book: ["@matomezu/line:line-route", "ex2:flow-direction"], page: ["@matomezu/line:line-route"] },
+  settings: {
+    book: ["@matomezu/base:book-theme", "@matomezu/line:line-route", "ex2:flow-direction"],
+    page: ["@matomezu/line:line-route"],
+  },
 })

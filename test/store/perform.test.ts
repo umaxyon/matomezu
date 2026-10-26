@@ -13,7 +13,7 @@ const NOTE = defineBookType({
   id: "notes:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1), title: z.string() }),
+  schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1) }),
   single: false,
   create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,

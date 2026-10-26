@@ -9,7 +9,12 @@ export const USE_MINT = kit.defineCommand({
   id: "mint",
   title: "useMint",
   run: (ctx, a) => {
-    if (ctx.book) a.perform("@matomezu/base:book-update", { theme: MINT.id }, { book: ctx.book.id })
+    if (ctx.book)
+      a.perform(
+        "@matomezu/base:book-update",
+        { settings: { "@matomezu/base:book-theme": MINT.id } },
+        { book: ctx.book.id },
+      )
   },
   when: ctx => ctx.book !== null && "pages" in ctx.book,
 })

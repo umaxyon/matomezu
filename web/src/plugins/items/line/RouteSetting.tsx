@@ -8,8 +8,9 @@ import type { LineRoute } from "./line"
 
 const ROUTE_NAMES = { elbow: "Elbow", straight: "Straight" } as const
 
-export function RouteSetting({ of, label, value, inherited, onChange }: SettingControlProps<LineRoute>) {
+export function RouteSetting({ of, label, value, inherited: given, onChange }: SettingControlProps<LineRoute>) {
   const t = useMessages(kit)
+  const inherited = given ?? "elbow" // 線の既定の通り方は既定を持つ
   if (of === "book")
     return (
       <div className={rowClass}>

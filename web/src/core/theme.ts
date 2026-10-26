@@ -1,13 +1,11 @@
 // テーマの値を決める: 宣言された欄（TokenDecl）ごとに、テーマの上書き → 宣言の既定（共通の欄）の順で値を選び、明暗ごとの色にする。
 // 代表色は欄 palette.<役割> と、その上に置く文字の色 palette.<役割>.ink（明るい色ならテーマの文字の色、暗い色なら白）。
-// ブックは見た目の項目（BookLook。テーマと紙の色）を持てる。無ければブックのタイプのテーマと、そのテーマの紙の色
+// ブックのテーマと紙の色（base の設定の項目）から、ブックを描く値を決めるのは base（plugins/base/book-look/look.ts）
 
-import { z } from "zod"
-import { HEX, isLight, PALETTE } from "./color"
-import { bookType, type CoreCatalog } from "./core-catalog"
+import { isLight, PALETTE } from "./color"
+import type { CoreCatalog } from "./core-catalog"
 import type { ThemeValue, TokenDecl } from "./def/theme"
 import { fail } from "./errors"
-import type { Book } from "./schema/book"
 
 // 明暗ごとに決めた色（明暗で同じなら、どちらも同じ色）
 export interface Shades {
@@ -44,29 +42,4 @@ export function resolveTokens(
   for (const d of decls)
     values[d.id] = shades(theme.tokens?.[d.id] ?? ("fallback" in d ? theme.base[d.fallback] : d.value))
   return values
-}
-
-// ブックの見た目の項目（見た目を変えられるタイプのブックの形に入れる）
-export const BookLookSchema = {
-  theme: z.string().min(1).optional(), // テーマの id（無ければブックのタイプのテーマ）
-  paperColor: z.string().regex(HEX).optional(), // 紙の色（#rrggbb。無ければテーマの紙の色）
-}
-export interface BookLook {
-  theme?: string
-  paperColor?: string
-}
-
-// ブックのテーマの id: ブックの theme（表に無ければ使わない）か、ブックのタイプのテーマ
-export function bookTheme(catalog: CoreCatalog, book: Book): string {
-  const own = (book as BookLook).theme
-  return own !== undefined && catalog.themes.has(own) ? own : bookType(catalog, book.type).theme
-}
-
-// ブックを描くのに使うテーマの値（ブックのタイプと、そのブックで使えるアイテムの欄）。紙の色があれば紙の欄をその色にする
-export function bookTokens(catalog: CoreCatalog, book: Book): Record<string, Shades> {
-  const type = bookType(catalog, book.type)
-  const items = type.items.defaults.flatMap(id => catalog.items.get(id)?.tokens ?? [])
-  const values = resolveTokens(catalog, bookTheme(catalog, book), [...type.tokens, ...items])
-  const paper = (book as BookLook).paperColor
-  return paper === undefined ? values : { ...values, paper: shades(paper) }
 }

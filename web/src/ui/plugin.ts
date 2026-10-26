@@ -7,6 +7,7 @@ import type { ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } f
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import { isOwnedBy } from "../core/names"
+import type { Book } from "../core/schema/book"
 import type { Stage } from "../core/stage"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import type { IdsOf, Plugin } from "../store/plugin"
@@ -48,12 +49,14 @@ export interface ItemUi<Props = never> {
 }
 
 // 設定の項目（core/def/setting.ts）を変えるコンポーネントに渡す値。of はブックかページか、value はその段の値（無ければ undefined）、
-// inherited は値が無いときに効く値（ページならブックの値か既定、ブックなら既定）。onChange の undefined は値を消す（上の段を継ぐ）
+// inherited は値が無いときに効く値（ページならブックの値か既定、ブックなら既定。既定の無い項目なら undefined のことがある）。onChange の undefined は値を消す（上の段を継ぐ）。
+// book は、ダイアログで変えている項目を重ねたブック（ほかの項目の値で見せ方が変わるコンポーネントが読む）
 export interface SettingControlProps<V = unknown> {
   of: "book" | "page"
   label: string
   value: V | undefined
-  inherited: V
+  inherited: V | undefined
+  book: Book
   onChange(value: V | undefined): void
 }
 // 設定の項目のビュー: 設定のダイアログに並べるコンポーネント

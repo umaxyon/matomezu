@@ -10,7 +10,6 @@ test("matomezu が出す名前", () => {
   expect(names(api)).toEqual([
     "AlignSchema",
     "BODY_MAX",
-    "BookLookSchema",
     "HEX",
     "LEN",
     "PALETTE",

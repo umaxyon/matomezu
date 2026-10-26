@@ -91,7 +91,7 @@ export {
   textProps,
 } from "../core/text/fields"
 export { clampLines, wrap } from "../core/text/text"
-export { BookLookSchema, resolveTokens } from "../core/theme"
+export { resolveTokens } from "../core/theme"
 export { toolOf } from "../core/workspace"
 export type { CommandContext } from "../store/commands/def"
 export { defineCommand } from "../store/commands/def"

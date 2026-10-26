@@ -9,7 +9,8 @@ import { translate } from "../../web/src/core/i18n/i18n"
 import { defineLanguagePack } from "../../web/src/core/i18n/messages"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { perform } from "../../web/src/core/perform"
-import { bookTokens, resolveTokens } from "../../web/src/core/theme"
+import { resolveTokens } from "../../web/src/core/theme"
+import { bookTokens } from "../../web/src/plugins/base/book-look/look"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
@@ -270,7 +271,7 @@ describe("機能台帳ごとに別の世界", () => {
     id: "notes",
     version: 1,
     title: "@matomezu/drawing:Drawing",
-    schema: z.strictObject({ type: z.literal("notes"), id: z.string().min(1), title: z.string() }),
+    schema: z.strictObject({ type: z.literal("notes"), id: z.string().min(1) }),
     single: false,
     create: init => ({ type: "notes" as const, ...init }),
     pages: null,

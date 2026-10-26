@@ -1,6 +1,6 @@
 // ブックの操作（データを書き換えず、新しい値を返す）
 
-import { bookType, type CoreCatalog } from "./core-catalog"
+import { bookSchemas, bookType, type CoreCatalog } from "./core-catalog"
 import type { NewBook } from "./def/book-type"
 import { ORIENTATIONS, type Orientation } from "./def/paper"
 import { fail } from "./errors"
@@ -23,9 +23,9 @@ export function restoreBooks(catalog: CoreCatalog, saved: readonly unknown[]): B
   })
 }
 
-// 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの）
+// 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの。土台の欄の既定を埋めた形）
 export function singleBooks(catalog: CoreCatalog): Book[] {
-  return catalog.parts.bookTypes.flatMap(t => (t.single ? [t.book as Book] : []))
+  return catalog.parts.bookTypes.flatMap(t => (t.single ? [bookSchemas(catalog, t.id).book.parse(t.book) as Book] : []))
 }
 
 // ブック book の、同じ id のページを page に替える。page に置いたアイテムがブックのタイプの選んだものかは型では確かめられないので、

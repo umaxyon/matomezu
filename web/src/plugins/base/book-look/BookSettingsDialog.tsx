@@ -1,58 +1,36 @@
-// ブックの設定のダイアログ: ブックの名前・テーマ・紙の色と、ブックのタイプが選んだブックの設定の項目。見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。
-// テーマは表のテーマから選ぶ（ブックのタイプのテーマを選べば、ブックのテーマの項目を消す）。紙の色は色を選ぶポップアップで、背景の見本か好きな色を選ぶ（「なし」はテーマの紙の色）。
-// テーマと紙の色は、選んだそばからブックに重ねて見せる（ダイアログの下書き。中の箱もそのテーマで描く。名前は見せない）。確定でアクション book-update（設定の項目は settings）を書き、キャンセルでは元のまま
-import { useEffect, useId, useMemo, useState } from "react"
-import { bookType } from "../../../core/core-catalog"
-import { type BookLook, bookTheme, bookTokens } from "../../../core/theme"
+// ブックの設定のダイアログ: ブックの名前と、ブックのタイプが選んだブックの設定の項目（テーマ・紙の色・線の既定の通り方など。項目のビューを並べる）。
+// 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからブックに重ねて見せる（ダイアログの下書き。名前は見せない）。
+// 確定でアクション book-update（設定の項目は settings）を書き、キャンセルでは元のまま
+import { useEffect, useId, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { ColorPicker } from "../dialog-host/ColorPicker"
+import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { Dialog } from "../dialog-host/Dialog"
-import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
+import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { useSettingControls } from "./SettingControls"
-
-// 紙の色の見本（白・淡い灰・淡い黄・淡い緑・淡い青・濃い灰・濃い紺・濃い茶）
-const PAPER_PRESETS = ["#ffffff", "#f8fafc", "#fefce8", "#f0fdf4", "#eff6ff", "#1e1e1e", "#0f172a", "#1c1917"]
 
 export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
   const form = useId()
-  const catalog = useCatalog().core
   const book = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined
   })
   const { perform, previewDialog } = useActions()
-  const startTheme = book ? bookTheme(catalog, book) : ""
-  const startPaper = book ? (book as BookLook).paperColor : undefined
-  const [title, setTitle] = useState(book && "title" in book ? book.title : "")
-  const [theme, setTheme] = useState(startTheme)
-  const [paperColor, setPaperColor] = useState(startPaper)
+  const [title, setTitle] = useState(book?.title ?? "")
   const settings = useSettingControls(book, "book", null)
-  const typeTheme = book ? bookType(catalog, book.type).theme : ""
   const id = book?.id
-  const changed = theme !== startTheme || paperColor !== startPaper
+  const changed = Object.keys(settings.patch).length > 0
   useEffect(() => {
-    previewDialog(changed && id ? { book: id, props: { theme, paperColor } } : null)
-  }, [changed, id, theme, paperColor, previewDialog])
-  // 「なし」のときの紙の色: 選んでいるテーマの紙の色
-  const none = useMemo(
-    () =>
-      book
-        ? (bookTokens(catalog, { ...book, theme, paperColor: undefined } as typeof book).paper?.light ?? "#ffffff")
-        : "#ffffff",
-    [catalog, book, theme],
-  )
+    previewDialog(changed && id ? { book: id, props: settings.patch } : null)
+  }, [changed, id, settings.patch, previewDialog])
   if (!book) return null
   const named = title.trim() !== ""
-  const swatches = PAPER_PRESETS.map(hex => ({ name: hex, hex, label: hex }))
   const submit = () => {
-    const patch = Object.keys(settings.patch).length > 0 ? { settings: settings.patch } : {}
     const done = perform(
       "@matomezu/base:book-update",
-      { title, theme: theme === typeTheme ? null : theme, paperColor: paperColor ?? null, ...patch },
+      { title, ...(changed ? { settings: settings.patch } : {}) },
       { book: book.id },
     )
     if (done.ok) onClose()
@@ -74,27 +52,6 @@ export function BookSettingsDialog({ stage, onClose }: DialogProps) {
         <Field label={t("Book name")}>
           {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
         </Field>
-        <Field label={t("Theme")}>
-          {fid => (
-            <select id={fid} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
-              {[...catalog.themes.values()].map(th => (
-                <option key={th.id} value={th.id}>
-                  {t(th.title)}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <div className={rowClass}>
-          <span>{t("Paper color")}</span>
-          <ColorPicker
-            label={t("Paper color")}
-            value={paperColor}
-            palette={swatches}
-            none={none}
-            onChange={setPaperColor}
-          />
-        </div>
         {settings.controls}
       </Form>
     </Dialog>

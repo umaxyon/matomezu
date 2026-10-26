@@ -82,7 +82,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
 }
 
 // ブックが自分の欄の後ろに持つ欄の前の、頭の欄（ここまでの後ろにページと設定の項目の欄 settings を入れる。保存したデータの欄の並びを変えない）
-const HEAD = ["type", "id", "title"]
+const HEAD = ["type", "id"]
 
 // タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
 // ブックの形は、タイプの頭の欄・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかの欄
@@ -105,7 +105,8 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
       })
     : null
   const own = Object.entries(t.schema.shape)
-  const head = HEAD.flatMap(h => own.filter(([k]) => k === h)) // type・id・title の順（type は pluginKit が後から足す）
+  // type・id・title の順（type は pluginKit が後から足す。名前 title は土台の欄で、どのタイプも持ち、空でもよい）
+  const head = [...HEAD.flatMap(h => own.filter(([k]) => k === h)), ["title", z.string().default("")] as const]
   const tail = own.filter(([k]) => !HEAD.includes(k))
   const book = z.strictObject({
     ...Object.fromEntries(head),
@@ -163,7 +164,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
     if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
       problems.push(problem("E002", { id: t.id }))
-    for (const field of ["pages", "settings"])
+    for (const field of ["title", "pages", "settings"])
       if (field in t.schema.shape) problems.push(problem("E025", { id: t.id, field }))
     for (const id of [...(t.settings?.book ?? []), ...(t.settings?.page ?? [])])
       if (!settings.has(id)) problems.push(problem("E008", { id: t.id, kind: "setting", ref: id }))

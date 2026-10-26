@@ -2,7 +2,7 @@
 // 末尾で、骨組みが描くスロット・ウィジェット・メニューを機能台帳の型の側に書き足す
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."
-import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS } from "./book-look/ui"
+import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from "./book-look/ui"
 import { BOOK_NAME } from "./book-name/ui"
 import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { MENU_HOST } from "./context-menu/ui"
@@ -38,6 +38,7 @@ export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./worksp
 
 export const BASE_UI = definePluginUi(BASE, {
   dialogViews: { ...BOOK_OPEN_DIALOG_VIEWS, ...PAGE_DIALOG_VIEWS, ...BOOK_LOOK_DIALOG_VIEWS },
+  settingViews: BOOK_LOOK_SETTING_VIEWS,
   widgets: [
     WORKSPACE,
     DIALOG_HOST,

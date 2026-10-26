@@ -43,7 +43,7 @@ test("ブックのタイプは schema に type を書かず、データの type�
     id: "board",
     version: 1,
     title: "Board",
-    schema: z.strictObject({ id: z.string(), title: z.string() }),
+    schema: z.strictObject({ id: z.string() }),
     single: false,
     create: init => ({ ...init }),
     pages: null,
@@ -53,8 +53,8 @@ test("ブックのタイプは schema に type を書かず、データの type�
     presentation: "@matomezu/paper:paper",
     tokens: [],
   })
-  expect(many.create({ id: "b1", title: "T" })).toEqual({ type: "@foo/stars:board", id: "b1", title: "T" })
-  expect(many.schema.parse({ type: "@foo/stars:board", id: "b1", title: "T" }).type).toBe("@foo/stars:board")
+  expect(many.create({ id: "b1", title: "T" }) as unknown).toEqual({ type: "@foo/stars:board", id: "b1", title: "T" })
+  expect(many.schema.parse({ type: "@foo/stars:board", id: "b1" }).type).toBe("@foo/stars:board")
   const single = kit.defineBookType({
     id: "home",
     version: 1,
@@ -69,7 +69,7 @@ test("ブックのタイプは schema に type を書かず、データの type�
     presentation: "@matomezu/paper:paper",
     tokens: [],
   })
-  expect(single.book).toEqual({ type: "@foo/stars:home", id: "@foo/stars:home" })
+  expect(single.book as unknown).toEqual({ type: "@foo/stars:home", id: "@foo/stars:home", title: "" })
 })
 
 test("名前に使えるのは英小文字・数字・- だけ（先頭は英小文字）", () => {

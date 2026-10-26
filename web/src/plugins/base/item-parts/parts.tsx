@@ -6,10 +6,11 @@ import type { TokenDecl } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import type { Align } from "../../../core/text/fields"
-import { bookTheme, resolveTokens } from "../../../core/theme"
+import { resolveTokens } from "../../../core/theme"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
+import { bookTheme } from "../book-look/look"
 import { kit } from "../kit"
 
 // 寄せのアイコン（左・中央・右に寄せた横線）

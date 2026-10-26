@@ -57,9 +57,9 @@ describe("組み立てたブックの形", () => {
 
   test("保存したデータの欄の並び: タイプの頭の欄（type・id・title）・ページ・設定の項目・タイプのほかの欄", () => {
     const [restored] = restoreBooks(CORE_CATALOG, [
-      { ...book([page([])]), theme: "@matomezu/base:sticky", settings: { "@matomezu/line:line-route": "straight" } },
+      { ...book([page([])]), settings: { "@matomezu/line:line-route": "straight" } },
     ])
-    expect(Object.keys(restored!)).toEqual(["type", "id", "title", "pages", "settings", "theme"])
+    expect(Object.keys(restored!)).toEqual(["type", "id", "title", "pages", "settings"])
     expect(Object.keys((restored as BookOf<"@matomezu/drawing:drawing">).pages[0]!)).toEqual([
       "id",
       "title",

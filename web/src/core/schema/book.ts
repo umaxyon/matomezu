@@ -18,9 +18,10 @@ export type PageOf<T> = Page & {
   items?: PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
 } & SettingFields<Selected<T, "page">>
 
-// タイプ T のブック
-export type BookData<T> = (T extends { schema: infer S extends z.ZodType } ? z.output<S> : never) &
-  (T extends { pages: null } ? unknown : { pages: PageOf<T>[] }) &
+// タイプ T のブック（名前 title は土台の欄で、どのタイプのブックも持つ。空でもよい）
+export type BookData<T> = (T extends { schema: infer S extends z.ZodType } ? z.output<S> : never) & {
+  title: string
+} & (T extends { pages: null } ? unknown : { pages: PageOf<T>[] }) &
   SettingFields<Selected<T, "book">>
 
 // 書き足したブックのタイプごとの、データの型の和

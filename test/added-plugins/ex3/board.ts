@@ -1,6 +1,6 @@
 // ex3 のブックのタイプ「ボード」: 自分の形（星）・紙（正方形）・設定の項目（方眼）・テーマ（ミント）を持ち、ビルトインの見せ方（紙）・リスト・線を id で選ぶ。
 // テーマはほかのタイプのブックにも id で選べ、スキンは見る人が設定で選ぶ
-import { BookLookSchema, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
+import { type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
 
 export const STAR_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "star-add" })
@@ -102,11 +102,7 @@ export const BOARD = kit.defineBookType({
   id: "board",
   version: 1,
   title: "board",
-  schema: z.strictObject({
-    id: z.string().min(1),
-    title: z.string(),
-    ...BookLookSchema,
-  }),
+  schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
   pages: {
@@ -127,5 +123,5 @@ export const BOARD = kit.defineBookType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "paper",
-  settings: { book: ["ex3:board-grid"], page: [] },
+  settings: { book: ["@matomezu/base:book-theme", "ex3:board-grid"], page: [] },
 })

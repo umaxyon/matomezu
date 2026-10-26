@@ -65,5 +65,9 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
     properties?: object
   }
   expect(schema.description).toBe("settings of @matomezu/drawing:drawing books")
-  expect(Object.keys(schema.properties ?? {})).toEqual(["@matomezu/line:line-route"])
+  expect(Object.keys(schema.properties ?? {})).toEqual([
+    "@matomezu/base:book-theme",
+    "@matomezu/base:book-paper-color",
+    "@matomezu/line:line-route",
+  ])
 })

@@ -1,47 +1,41 @@
-// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book-update（ブックの名前と、見た目のテーマと紙の色。見た目は core/theme の BookLook）と、
-// ブックのタイプが選んだ設定の項目（settings。core/book-settings.ts）。使えるのは、見た目の項目を形に持つブックのタイプだけ（そのタイプが許す）
+// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book-update（ブックの名前と、ブックのタイプが選んだ設定の項目 settings。core/book-settings.ts）。
+// テーマと紙の色も設定の項目（look.ts）で、選んだタイプのブックだけが持つ
 import { z } from "zod"
 import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../../../core/book-settings"
-import { HEX } from "../../../core/color"
 import { actionsOf } from "../../../core/perform"
 import type { Book } from "../../../core/schema/book"
-import type { BookLook } from "../../../core/theme"
 import { kit } from "../kit"
+import { BOOK_PAPER_COLOR, BOOK_THEME } from "./look"
+
+export { BOOK_PAPER_COLOR, BOOK_THEME, bookTheme, bookTokens } from "./look"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
-  theme: z.string().min(1).nullable().optional(),
-  paperColor: z.string().regex(HEX).nullable().optional(),
-  settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが足す項目（形はタイプが決める）
+  settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだ項目（形はタイプが決める）
 })
 
-// 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。null は見た目の項目を消す（テーマはブックのタイプのテーマ、紙の色はテーマの紙の色に戻る）。表に無いテーマは断る。
-// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す）。変えたらページを整える（settleBook）
+// 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
+// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す）。表に無いテーマは断り、紙の色は小文字にそろえる。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
   aiDescription:
-    "Change a book: title (not empty), theme (one of the themes; the boxes without a theme of their own follow it), paperColor (#rrggbb, the paper's color) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow; without it, elbow). Only what is given changes; null removes it (back to the book type's theme, the theme's paper color, or the setting's default).",
+    "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default).",
   title: "Change book",
   target: "book",
   needs: [],
   args: ARGS,
   describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "book").optional() }),
   run: (book, args, ctx) => {
-    if (args.theme != null && !ctx.catalog.themes.has(args.theme)) return null
-    if (args.title !== undefined && !("title" in book)) return null // 名前を持たないブック
-    const next: Book & BookLook = args.title === undefined ? { ...book } : ({ ...book, title: args.title } as Book)
-    for (const key of ["theme", "paperColor"] as const) {
-      const value = args[key]
-      if (value === null) delete next[key]
-      else if (value !== undefined) next[key] = key === "paperColor" ? value.toLowerCase() : value
-    }
+    const next: Book = args.title === undefined ? book : { ...book, title: args.title }
     if (args.settings === undefined) return { next, result: null }
     const patch = settingsPatchOf(ctx.catalog, book, "book")?.safeParse(args.settings)
     if (!patch?.success) return null
-    return {
-      next: settleBook(ctx.catalog, withSettings<Book>(next, patch.data as Record<string, unknown>)),
-      result: null,
-    }
+    const values = { ...(patch.data as Record<string, unknown>) }
+    const theme = values[BOOK_THEME.id]
+    if (typeof theme === "string" && !ctx.catalog.themes.has(theme)) return null
+    const paper = values[BOOK_PAPER_COLOR.id]
+    if (typeof paper === "string") values[BOOK_PAPER_COLOR.id] = paper.toLowerCase()
+    return { next: settleBook(ctx.catalog, withSettings<Book>(next, values)), result: null }
   },
 })
 

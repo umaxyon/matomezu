@@ -154,10 +154,10 @@ test("3 つを読ませると、作り手の違うプラグインのボタンが
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
   await expect(page.getByRole("button", { name: "あいさつする" })).toBeVisible()
   await page.getByRole("button", { name: "ミントにする" }).click()
-  await expect.poll(async () => (await saved(page, flow.id))?.theme).toBe("ex3:mint")
+  await expect.poll(async () => (await saved(page, flow.id))?.settings?.["@matomezu/base:book-theme"]).toBe("ex3:mint")
   await page.reload()
   await expect(page.getByRole("button", { name: "ミントにする" })).toBeVisible()
-  expect((await saved(page, flow.id))?.theme).toBe("ex3:mint")
+  expect((await saved(page, flow.id))?.settings?.["@matomezu/base:book-theme"]).toBe("ex3:mint")
 })
 
 test("AI は actions で追加プラグインのアクションを読み、perform で行える。形は選んだタイプのブックにだけ置ける", async ({

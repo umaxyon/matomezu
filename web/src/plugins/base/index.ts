@@ -1,7 +1,7 @@
 // base（ほかのプラグインが読んでよいプラグイン）: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）と、そのキーの既定の割り当て。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
-import { BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_UPDATE } from "./book-look"
+import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
 import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
@@ -16,12 +16,14 @@ import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_NEXT } from "./tool-switch"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 
+export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
 export { PAPER_IDS, PAPERS } from "./looks"
 export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin(
   kit.plugin({
     actions: [PAGE_ADD, PAGE_UPDATE, BOOK_UPDATE, SET_LANG, SET_SKIN, SET_KEYS],
+    settings: [BOOK_THEME, BOOK_PAPER_COLOR],
     themes: [STANDARD, STICKY, SIMPLE],
     papers: PAPERS,
     skins: [DARK, LIGHT],
@@ -52,6 +54,10 @@ export const BASE = defineBuiltin(
 
 declare module "../../core/catalog" {
   interface MessageTable extends Readonly<typeof kit.messages> {}
+  interface SettingTable {
+    "@matomezu/base:book-theme": typeof BOOK_THEME
+    "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
+  }
   interface ActionTable {
     "@matomezu/base:page-add": typeof PAGE_ADD
     "@matomezu/base:book-update": typeof BOOK_UPDATE

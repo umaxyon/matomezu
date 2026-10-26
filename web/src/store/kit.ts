@@ -31,7 +31,7 @@ type Titled<D, K extends string> = Omit<D, "id" | "title"> & { title: K }
 type Placed<D, Id extends string> = Omit<D, "id" | "title"> & { id: Id; title: MessageKey }
 type ShapeProps = ShapeItemDef["props"]
 
-// ブックのタイプ（schema に type は書かない。1 冊だけのタイプのブックは id も書かない）。book と create の返すデータの形は、組み立てが schema で確かめる
+// ブックのタイプ（schema に type は書かない。1 冊だけのタイプのブックは id と名前も書かない）。book と create の返すデータの形は、組み立てが schema で確かめる
 // （ここで schema から型を作って縛ると、型の推論が回って崩れる）
 type SingleIn<S extends BookSchema, K extends string> = Titled<Omit<SingleBookTypeDef<S>, "book">, K> & { book: object }
 type ManyIn<S extends BookSchema, K extends string> = Titled<Omit<ManyBookTypeDef<S>, "create">, K> & {
@@ -45,7 +45,7 @@ type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<
   title: MessageKey
   schema: WithTypeField<S, Id>
 } & (T extends { single: true }
-    ? { book: DataOf<WithTypeField<S, Id>> }
+    ? { book: DataOf<WithTypeField<S, Id>> & { title: string } }
     : { create(init: NewBook): DataOf<WithTypeField<S, Id>> })
 
 // 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
@@ -162,7 +162,7 @@ export function pluginKit<const P extends string, const M extends MessageSet = R
       const id = owned(plugin, def.id)
       const placed = { ...place(def), schema: withTypeField(def.schema, id) }
       const { create, book } = def
-      if (book !== undefined) return { ...placed, book: { type: id, id, ...book } }
+      if (book !== undefined) return { ...placed, book: { type: id, id, title: "", ...book } } // 名前は土台の欄（1 冊だけのブックは空）
       return { ...placed, create: (init: NewBook) => ({ type: id, ...create?.(init) }) }
     },
     defineTheme: (def: { id: string; tokens?: Record<string, unknown> }) => {

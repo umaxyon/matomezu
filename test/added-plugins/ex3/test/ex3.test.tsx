@@ -73,7 +73,7 @@ test("既定のテーマはミントで、置いてほしいと書いたボタ�
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   fireEvent.click(screen.getByRole("button", { name: "ミントにする" }))
-  expect(instance.state.getState().books[book]).toMatchObject({ theme: "ex3:mint" })
+  expect(instance.state.getState().books[book]).toMatchObject({ settings: { "@matomezu/base:book-theme": "ex3:mint" } })
 })
 
 test("持ち込んだスキンを、見る人の設定で選べる", () => {

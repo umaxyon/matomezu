@@ -1,7 +1,13 @@
-// ブックの設定の見た目: ブックの設定のダイアログと、それを開くコマンドのアイコン（歯車）
+// ブックの設定の見た目: ブックの設定のダイアログと、それを開くコマンドのアイコン（歯車）と、テーマと紙の色の設定の項目のビュー
 import { BookSettingsDialog } from "./BookSettingsDialog"
+import { PaperColorSetting, ThemeSetting } from "./LookSettings"
 
 export const BOOK_LOOK_DIALOG_VIEWS = { "@matomezu/base:book-settings": BookSettingsDialog }
+
+export const BOOK_LOOK_SETTING_VIEWS = {
+  "@matomezu/base:book-theme": { control: ThemeSetting },
+  "@matomezu/base:book-paper-color": { control: PaperColorSetting },
+}
 
 export const BOOK_LOOK_ICONS = {
   "@matomezu/base:book-settings": (
