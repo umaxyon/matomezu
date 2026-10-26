@@ -11,7 +11,6 @@ export const PAGE_ADD = kit.defineAction({
     "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id.",
   title: "Add page",
   target: "book",
-  needs: [],
   args: z.strictObject({
     title: z.string().trim().min(1),
     paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定

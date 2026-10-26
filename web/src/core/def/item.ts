@@ -5,7 +5,7 @@ import type { Point, Rect, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
 import type { TokenDecl } from "./theme"
 
-// アイテムが持つ能力。アクションは、対象に求める能力で使えるかを決める（アクションはアイテムの一覧を持たない）
+// アイテムが持つ能力（つなげる・大きさを変えられる・文字を持つ）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
 export type Capability = "connectable" | "resizable" | "hasText"
 
 interface ItemBase<Tt extends string = MessageKey> {

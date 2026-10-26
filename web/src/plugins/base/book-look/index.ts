@@ -22,7 +22,6 @@ export const BOOK_UPDATE = kit.defineAction({
     "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default).",
   title: "Change book",
   target: "book",
-  needs: [],
   args: ARGS,
   describeArgs: catalog => ARGS.extend({ settings: settingsArgs(catalog, "book").optional() }),
   run: (book, args, ctx) => {

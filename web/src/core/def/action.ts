@@ -9,7 +9,6 @@ import type { Library } from "../library"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
 import type { BookTypeDef } from "./book-type"
-import type { Capability } from "./item"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は見る人ごとの設定で、
 // この 2 つのアクションを使えるかはホームのブックのタイプが決める
@@ -93,7 +92,6 @@ export interface ActionDef<
   attach?: At
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
-  needs: readonly Capability[] // 対象のアイテムに求める能力
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType

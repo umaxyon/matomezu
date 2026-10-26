@@ -31,7 +31,6 @@ export const ANSWER = kit.defineAction({
   aiDescription:
     "Answer a decision (an item ex2/diamond) on a page: answer is yes or no. Refused when the item is not a decision on that page.",
   target: "book",
-  needs: [],
   args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), answer: z.enum(["yes", "no"]) }),
   run: (book, args) => {
     const page = book.pages.find(p => p.id === args.page)

@@ -26,7 +26,6 @@ export const ROW_ADD = kit.defineAction({
     "Add a row at the end of a list (an item @matomezu/list:shape-list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks.",
   title: "Add row",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     list: z.string().min(1),
@@ -51,7 +50,6 @@ export const ROW_UPDATE = kit.defineAction({
     "Change some props of a list's row. Props not given stay; a prop given as null is removed (back to its default).",
   title: "Update row",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     list: z.string().min(1),
@@ -78,7 +76,6 @@ export const ROW_REMOVE = kit.defineAction({
   aiDescription: "Remove rows from a list.",
   title: "Remove rows",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     list: z.string().min(1),
@@ -102,7 +99,6 @@ export const ROW_CHECK = kit.defineAction({
     "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with @matomezu/paper:item-update, and setting it false removes every row's check). The user checks rows too, so a check can carry their answer.",
   title: "Check row",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     list: z.string().min(1),
@@ -129,7 +125,6 @@ export const ROW_LINES = kit.defineAction({
     'Set how many body lines rows of a list show (rows given, or every row): a number gives them all that height whatever their body; "max" gives them all the height of the longest body; "fit" gives each row the height of its own body. null removes it: rows without it share the height of the most body lines among them, up to 5, and a longer body is cut with ….',
   title: "Set row heights",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     list: z.string().min(1),
@@ -154,7 +149,6 @@ export const ROW_MOVE = kit.defineAction({
     "Move a row of a list before the row before (or to the end without it), in the same list or in another list (to) on the same page. A row moved to a list that is not a checklist loses its check.",
   title: "Move row",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     list: z.string().min(1),

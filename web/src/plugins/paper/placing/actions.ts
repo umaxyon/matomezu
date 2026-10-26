@@ -36,7 +36,6 @@ export const ITEM_PLACE = kit.defineAction({
     "Place an item on a page with its top-left at at (in paper pixels). w and h set the size of an item that can be resized (a box, a list). A list (@matomezu/list:shape-list) starts empty, 240 wide at the least, and scrolls when its rows do not fit; add rows with @matomezu/list:row-add. Without w, a box is as wide as its caption up to 20 characters (64 at the least); without h, tall enough to show up to 5 lines of its body. A box's body wraps to the width and what does not fit in the height is cut with …. Boxes it would come within 8 pixels of are pushed right, or else down, or else shrunk as they are pushed. It is refused if it does not fit on the paper. Returns the new item's id. Two items joined by a line keep 32 pixels apart (40 when the line has a caption) instead of 8, here and in @matomezu/paper:item-move, @matomezu/paper:item-update and @matomezu/paper:item-resize. The items, their props and sizes, the themes and the colors are in actions.",
   title: "Place item",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     item: z.string().min(1),
@@ -70,7 +69,6 @@ export const ITEM_MOVE = kit.defineAction({
     "Move items of a page by (x, y) paper pixels. Other boxes are not pushed: moving one box at least half into the box ahead of it swaps them; coming within 8 pixels of a box otherwise stops it just before that box. It is refused if any would leave the paper.",
   title: "Move items",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     items: z.array(z.string().min(1)).min(1),
@@ -94,7 +92,6 @@ export const ITEM_UPDATE = kit.defineAction({
     "Change some props of an item (a box or a list; a line is changed with @matomezu/line:line-update). Props not given stay; a prop given as null is removed (back to its default). The item's size does not change, except that a box whose caption grows widens to show it up to 20 characters, pushing the boxes it would come too close to (when they would leave the paper, it stays as wide).",
   title: "Update item",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     item: z.string().min(1),
@@ -127,7 +124,6 @@ export const ITEM_RESIZE = kit.defineAction({
     "Change the size of an item that can be resized (a box): only w and h given change; x and y move its top-left too. Boxes it would come within 8 pixels of are pushed the way it grew; when they reach the paper's edge, the pushed boxes shrink (no narrower than their caption, no lower than one caption line). It is refused below the item's smallest size, off the paper, or when they cannot shrink enough.",
   title: "Resize item",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     item: z.string().min(1),
@@ -164,7 +160,6 @@ export const ITEM_REMOVE = kit.defineAction({
     "Remove items (boxes, lists, lines) from a page. Removing a box or a list removes the lines joined to it.",
   title: "Remove items",
   target: "book",
-  needs: [],
   args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null

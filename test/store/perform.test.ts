@@ -28,7 +28,6 @@ const RENAME = defineAction({
   title: "@matomezu/drawing:Drawing",
   aiDescription: "Rename a notes book.",
   target: "book",
-  needs: [],
   args: z.strictObject({ title: z.string().min(1) }),
   run: (book, args) => ({ next: { ...book, title: args.title }, result: { was: (book as { title?: string }).title } }),
 })
@@ -38,7 +37,6 @@ const BREAK = defineAction({
   title: "@matomezu/drawing:Drawing",
   aiDescription: "Write a field the notes book does not have.",
   target: "book",
-  needs: [],
   args: z.strictObject({}),
   run: book => ({ next: Object.assign({}, book, { color: "red" }), result: {} }),
 })
@@ -48,7 +46,6 @@ const STAMP = defineAction({
   title: "@matomezu/drawing:Drawing",
   aiDescription: "Write the time into the notes book's title.",
   target: "book",
-  needs: [],
   args: z.strictObject({}),
   run: (book, _args, ctx) => ({ next: { ...book, title: ctx.now }, result: {} }),
 })
@@ -172,7 +169,6 @@ test("付く先がページを持つタイプだけ（pages・items）のアク�
     attach: { pages: true },
     aiDescription: "",
     target: "book",
-    needs: [],
     args: z.strictObject({}),
     run: book => ({ next: book, result: book.pages.length }), // pages を言い張りなしで読める
   })
@@ -182,7 +178,6 @@ test("付く先がページを持つタイプだけ（pages・items）のアク�
     attach: { books: true },
     aiDescription: "",
     target: "book",
-    needs: [],
     args: z.strictObject({}),
     // @ts-expect-error どのタイプにも付くアクションには、ページの無いブックも来る
     run: book => ({ next: book, result: book.pages.length }),

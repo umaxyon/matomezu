@@ -26,7 +26,6 @@ const RENAME = defineAction({
   title: "@matomezu/drawing:Drawing",
   aiDescription: "Rename a notes book.",
   target: "book",
-  needs: [],
   args: z.strictObject({ title: z.string().min(1) }),
   run: (book, args) => ({ next: { ...book, title: args.title }, result: {} }),
 })

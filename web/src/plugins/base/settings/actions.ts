@@ -9,7 +9,6 @@ export const SET_LANG = kit.defineAction({
     "Change the language of the user's matomezu: lang is one of the languages in actions (a language it does not have is refused).",
   title: "Language",
   target: "settings",
-  needs: [],
   args: z.strictObject({ lang: z.string().min(1) }),
   // インスタンスに無い言語は断る（言語は言語パックで増えるので、表は機能台帳が持つ）
   run: (settings, args, ctx) =>
@@ -23,7 +22,6 @@ export const SET_SKIN = kit.defineAction({
     "Change how the user's matomezu looks: skin is auto (follow the OS's light or dark) or one of the skins in actions (a skin it does not have is refused).",
   title: "Skin",
   target: "settings",
-  needs: [],
   args: z.strictObject({ skin: z.string().min(1) }),
   run: (settings, args, ctx) =>
     args.skin === "auto" || ctx.catalog.skins.has(args.skin)
@@ -39,7 +37,6 @@ export const SET_KEYS = kit.defineAction({
     "Replace the user's changes to the shortcut keys as a whole: added are the rows added to the defaults, removed the default rows taken away. Read them first with read_settings and give them back with your change, or the other changes are lost.",
   title: "Shortcut keys",
   target: "settings",
-  needs: [],
   args: KeyChangesSchema,
   run: (settings, args) => ({ next: { ...settings, keys: args }, result: {} }),
 })

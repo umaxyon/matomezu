@@ -57,7 +57,6 @@ export const LINE_CONNECT = kit.defineAction({
     "Draw a line from the item from to the item to (boxes and lists on the same page, not a list's rows); from and to the same item draws a line looping back to it. Two items are joined by one line at most (either way); an item may loop back to itself any number of times. route is straight or elbow (without it, elbow); startHead and endHead put a shape on that end (arrow is a filled triangle); dash is solid or dashed. exitAt and enterAt fix where the line leaves from and enters to: a fraction (0 to 1) of the way clockwise round the item's edge from its top-left corner; without them the line picks its ends. via (elbow lines with both ends fixed) places the line's middle segments. If the two items are now too close (32 pixels, 40 with a caption), to is moved away. Returns the new line's id. read_book shows lines among a page's items.",
   title: "Connect items",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     from: z.string().min(1),
@@ -93,7 +92,6 @@ export const LINE_UPDATE = kit.defineAction({
     "Change some props of a line. Props not given stay; a prop given as null is removed (back to its default). A caption that widens the gap moves the end item away.",
   title: "Update line",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     line: z.string().min(1),
@@ -124,7 +122,6 @@ export const LINE_RECONNECT = kit.defineAction({
     "Move one end of a line (end is from or to) to another item on the page, keeping its caption, heads, style and route. Its hand-placed middle segments and the moved end's fixed place are dropped (both ends' places when it becomes or stops being a loop); props.exitAt or props.enterAt fix them again. The item and the other end must not be joined by another line. If they are now too close, the other end's item is moved away.",
   title: "Reconnect line",
   target: "book",
-  needs: [],
   args: z.strictObject({
     page: z.string().min(1),
     line: z.string().min(1),
