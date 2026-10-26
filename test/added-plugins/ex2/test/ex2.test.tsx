@@ -100,7 +100,7 @@ test("自分のアクションで判断に答える。判断のひし形でな�
   })
 })
 
-test("追加のダイアログで置き、編集のダイアログで答える（ダイアログはコマンドを通してアクションを行う）", () => {
+test("追加のダイアログで置き、編集のダイアログで答える（ダイアログは usePerform でアクションを行い、useItem で今の答えを読む）", () => {
   const instance = make()
   const { page } = flow(instance)
   act(() => instance.actions.openDialog("s1", "ex2:diamond-add", { page: page().id, at: { x: 40, y: 40 } }))
@@ -111,8 +111,14 @@ test("追加のダイアログで置き、編集のダイアログで答える�
   const item = page().items![0]!
   expect(item.props).toMatchObject({ caption: "続ける？" })
   act(() => instance.actions.openDialog("s1", "ex2:diamond-edit", { page: page().id, item: item.id }))
+  expect(screen.getByRole("button", { name: "いいえ" }).getAttribute("aria-pressed")).toBe("false")
   fireEvent.click(screen.getByRole("button", { name: "いいえ" }))
   expect(page().items![0]!.props).toMatchObject({ answer: "no" })
+  expect(screen.queryByRole("dialog")).toBeNull()
+  // 開き直すと、今の答えのボタンが押された見た目
+  act(() => instance.actions.openDialog("s1", "ex2:diamond-edit", { page: page().id, item: item.id }))
+  expect(screen.getByRole("button", { name: "いいえ" }).getAttribute("aria-pressed")).toBe("true")
+  expect(screen.getByRole("button", { name: "はい" }).getAttribute("aria-pressed")).toBe("false")
 })
 
 test("判断のひし形は、選んでいないビルトインのタイプ（図面）のブックには置けない", () => {

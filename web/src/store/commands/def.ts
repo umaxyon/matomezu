@@ -5,8 +5,7 @@ import type { ActionId, ContextMenuId, ContextMenuTable, MenuId } from "../../co
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
-import type { Stage } from "../../core/stage"
-import type { Workspace } from "../../core/workspace"
+import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
 import type { Actions, Settings } from "../store"
@@ -15,7 +14,7 @@ import type { Actions, Settings } from "../store"
 export interface CommandContext {
   catalog: CoreCatalog
   home: string | null // インスタンスのホームのブックの id
-  stage: Stage // 呼ばれた場所のステージ
+  stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
   book: Book | null // そのステージで開いているブック
   workspace: Workspace
   settings: Settings

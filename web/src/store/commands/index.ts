@@ -4,6 +4,7 @@ import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import { fail } from "../../core/errors"
 import { inspect } from "../../core/inspect"
+import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import type { MatomezuState } from "../store"
 import type { CommandContext, CommandDef } from "./def"
@@ -30,7 +31,16 @@ export function commandContext(
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
   const { workspace, settings, dialog, contextMenu } = state
-  return { catalog, home, stage, book, workspace, settings, dialog, contextMenu }
+  return {
+    catalog,
+    home,
+    stage: stageView(stage, toolOf(catalog, workspace, stageId)),
+    book,
+    workspace,
+    settings,
+    dialog,
+    contextMenu,
+  }
 }
 
 // コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければホームのタイプ）で使えるか

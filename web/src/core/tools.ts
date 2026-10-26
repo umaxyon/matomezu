@@ -18,7 +18,7 @@ export type ToolSetId = keyof typeof TOOL_SETS
 export type Tools = Readonly<Partial<Record<ToolSetId, Tool>>>
 
 // ステージで使う道具の組（何も開いていないか、開いているブックのタイプが道具を使わなければ null）
-export function toolSetOf(catalog: CoreCatalog, stage: Stage): ToolSetId | null {
+export function toolSetOf(catalog: CoreCatalog, stage: Pick<Stage, "opened">): ToolSetId | null {
   return stage.opened ? (bookType(catalog, stage.opened.type).tools ?? null) : null
 }
 

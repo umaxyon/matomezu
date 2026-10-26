@@ -1,38 +1,8 @@
 // ex2: 自分のブックのタイプと形と自分のアクションを持つ追加プラグイン（React なし）。
-// ダイアログはコマンドを通してアクションを行う（追加のダイアログは置き、編集のダイアログは答える）
-import { definePlugin, type Point } from "matomezu"
+// ダイアログは usePerform でアクションを行う（追加のダイアログは置き、編集のダイアログは答える。views.tsx）
+import { definePlugin } from "matomezu"
 import { ANSWER, DIAMOND, DIAMOND_ADD_DIALOG, DIAMOND_EDIT_DIALOG, FLOW, FLOW_DIRECTION } from "./flow"
 import { kit } from "./kit"
-
-// 判断のひし形を置いて、ダイアログを閉じる
-export const ADD = kit.defineCommand({
-  id: "add",
-  performs: ["@matomezu/paper:item-place"],
-  title: "addDecision",
-  run: (ctx, a, args: { page: string; at: Point; caption: string }) => {
-    if (!ctx.book) return
-    a.perform(
-      "@matomezu/paper:item-place",
-      { page: args.page, item: "ex2:diamond", at: args.at, props: { caption: args.caption } },
-      { book: ctx.book.id },
-    )
-    a.closeDialog()
-  },
-  when: ctx => ctx.book !== null,
-})
-
-// 判断に答えて、ダイアログを閉じる
-export const ANSWER_COMMAND = kit.defineCommand({
-  id: "answer",
-  performs: ["ex2:diamond-answer"],
-  title: "answerDecision",
-  run: (ctx, a, args: { page: string; item: string; answer: "yes" | "no" }) => {
-    if (!ctx.book) return
-    a.perform("ex2:diamond-answer", args, { book: ctx.book.id })
-    a.closeDialog()
-  },
-  when: ctx => ctx.book !== null,
-})
 
 export const EX2 = definePlugin(
   kit.plugin({
@@ -40,7 +10,6 @@ export const EX2 = definePlugin(
     items: [DIAMOND],
     actions: [ANSWER],
     settings: [FLOW_DIRECTION],
-    commands: [ADD, ANSWER_COMMAND],
     dialogs: [DIAMOND_ADD_DIALOG, DIAMOND_EDIT_DIALOG],
   }),
 )
@@ -59,10 +28,6 @@ declare module "matomezu/catalog" {
   }
   interface SettingTable {
     "ex2:flow-direction": typeof FLOW_DIRECTION
-  }
-  interface CommandTable {
-    "ex2:add": typeof ADD
-    "ex2:answer": typeof ANSWER_COMMAND
   }
   interface DialogTable {
     "ex2:diamond-add": typeof DIAMOND_ADD_DIALOG
