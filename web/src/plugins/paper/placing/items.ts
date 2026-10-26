@@ -3,8 +3,6 @@ import { type CoreCatalog, type ItemPage, type PagedBook, type Point, type Rect,
 import { gapOf, paperSize, placedAt, withPage } from "../../base"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 
-type Drawing = PagedBook
-
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
 export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
@@ -29,12 +27,12 @@ export function dragging(
 // came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いページ・無いアイテム・収まらないなら null
 export function moveItems(
   catalog: CoreCatalog,
-  book: Drawing,
+  book: PagedBook,
   pageId: string,
   ids: readonly string[],
   by: Point,
   came?: Came,
-): Drawing | null {
+): PagedBook | null {
   const page = book.pages.find(p => p.id === pageId)
   const paper = page && paperSize(catalog, page)
   if (!page || !paper) return null

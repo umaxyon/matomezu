@@ -17,27 +17,25 @@ import { kit } from "./kit"
 import { elbowAt, LINE, LinePatchSchema, usesLines } from "./line"
 import { canConnect, linesOf, type PlacedLine, tidyLines } from "./placed"
 
-type Drawing = PagedBook
-
 // 置いた線のデータの形
 const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLine>
 
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
-const tidied = (catalog: CoreCatalog, book: Drawing, page: ItemPage, line: PlacedLine): PlacedLine =>
+const tidied = (catalog: CoreCatalog, book: PagedBook, page: ItemPage, line: PlacedLine): PlacedLine =>
   tidyLines([line], rectsOf(catalog, page), elbowAt(catalog, book, page))[0] ?? line
 
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
-const viaDrawn = (catalog: CoreCatalog, book: Drawing, page: ItemPage, line: PlacedLine): boolean =>
+const viaDrawn = (catalog: CoreCatalog, book: PagedBook, page: ItemPage, line: PlacedLine): boolean =>
   !line.props.via || tidied(catalog, book, page, line).props.via !== undefined
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、stay の形（無ければ始点）はそのままでもう一方をどける
 function withLine(
   catalog: CoreCatalog,
-  book: Drawing,
+  book: PagedBook,
   page: ItemPage,
   line: PlacedLine,
   stay = line.from,
-): Drawing | null {
+): PagedBook | null {
   const items = pageItemsOf(page)
   const next = items.some(i => i.id === line.id) ? items.map(i => (i.id === line.id ? line : i)) : [...items, line]
   const changed = putPage(book, { ...page, items: next })

@@ -5,19 +5,17 @@ import { LIST, type ListRow, type RowProps } from "./list"
 import type { PlacedList } from "./placed"
 import { placedListWidth, type RowsLines, rewrittenLines } from "./size"
 
-type Drawing = PagedBook
-
 export const rowsOf = (list: PlacedList): readonly ListRow[] => list.children ?? []
 
 // ページのリスト list（無いか、リストでなければ null）
-export function findList(book: Drawing, pageId: string, list: string): { page: ItemPage; list: PlacedList } | null {
+export function findList(book: PagedBook, pageId: string, list: string): { page: ItemPage; list: PlacedList } | null {
   const page = book.pages.find(p => p.id === pageId)
   const found = page?.items?.find(i => i.id === list)
   return page && found?.item === LIST.id ? { page, list: found } : null
 }
 
 // ページのリストを next に置き換えたブック
-export function withList(book: Drawing, page: ItemPage, next: PlacedList): Drawing {
+export function withList(book: PagedBook, page: ItemPage, next: PlacedList): PagedBook {
   const items = (page.items ?? []).map(i => (i.id === next.id ? next : i))
   return putPage(book, { ...page, items })
 }
