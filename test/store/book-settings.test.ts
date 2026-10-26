@@ -59,15 +59,22 @@ test("@matomezu/base:book-update・@matomezu/base:page-update は、ブックの
   expect([book().title, "settings" in book()]).toEqual(["新しい名前", false])
 })
 
-test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）", () => {
+test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）。タイプがいくつもあれば、そのどれか", () => {
   const schema = z.toJSONSchema(settingsArgs(CORE_CATALOG, "book"), { io: "input" }) as {
-    description?: string
-    properties?: object
+    anyOf?: { description?: string; properties?: object }[]
   }
-  expect(schema.description).toBe("settings of @matomezu/drawing:drawing books")
-  expect(Object.keys(schema.properties ?? {})).toEqual([
-    "@matomezu/base:book-theme",
-    "@matomezu/base:book-paper-color",
-    "@matomezu/line:line-route",
-  ])
+  const byType = Object.fromEntries((schema.anyOf ?? []).map(s => [s.description, Object.keys(s.properties ?? {})]))
+  expect(byType).toEqual({
+    "settings of @matomezu/drawing:drawing books": [
+      "@matomezu/base:book-theme",
+      "@matomezu/base:book-paper-color",
+      "@matomezu/line:line-route",
+    ],
+    "settings of @matomezu/flowchart:flowchart books": [
+      "@matomezu/base:book-theme",
+      "@matomezu/base:book-paper-color",
+      "@matomezu/line:line-route",
+      "@matomezu/flowchart:flow-direction",
+    ],
+  })
 })

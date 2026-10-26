@@ -20,7 +20,7 @@
 | 言葉 | 意味 |
 |---|---|
 | プラグイン | 定義の束。登録の単位。「部品」は別名 |
-| ビルトインプラグイン | matomezu に同梱され、`BUILTIN` に並ぶプラグイン（base・master・paper・box・list・line・shape・drawing） |
+| ビルトインプラグイン | matomezu に同梱され、`BUILTIN` に並ぶプラグイン（base・master・paper・box・list・line・shape・drawing・flowchart） |
 | 追加プラグイン | インストールされたプラグイン。開発中に開発者プロジェクトを結んだ物も、完成品も同じ。作り手の属性は持たない。プラグイン API だけを読む |
 | 開発者プロジェクト | 追加プラグインを作るプロジェクト。matomezu の中（このリポジトリ）は含まない。利用者のローカルの Claude が作るときの作業の場所も同じ |
 | プラグイン API | 追加プラグインとビルトインプラグインが使ってよい名前と型の約束。`web/src/plugin-api` に集め、実装は動いている matomezu が渡す。入口は `matomezu`・`matomezu/ui`（`web/src/plugin-entry`）と `matomezu/catalog`（`core/catalog.ts`） |
