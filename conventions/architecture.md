@@ -19,7 +19,6 @@
 
 - 土台（`core`・`store`・`ui`）は、プラグインを受け取って組み立て・動かす枠と、その枠が決める言葉（ステージ・ページ・置いたアイテムの外枠など）を持ち、具体的な機能は持たない。プラグインを読まない
 - 土台の中に、プラグインしか使わない処理を置かない。置く計算（`plugins/base/place`）・文字の幅（`plugins/base/text`）・ツールボックスの並び（`plugins/base/toolbox`）は base が持つ。core のモジュールで、プラグインしか読んでいない物が無いことを `test/rules.test.ts` が見張る
-- 【未実装】道具の組（select・reparent・hand と組 paper）は、プラグインが定義する種類にし、paper が定義する
 - 入口（`plugin-entry`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない
 - 例外は `plugin-modules`。`plugin-entry` を読んでよいのは `plugin-modules` だけで、`plugin-modules` を読んでよいのはホストのエンジン（`engine/engine.ts`）と画面の入口（`main.tsx`）だけ
 - 向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の部品を出し直すのは `plugin-entry`）
