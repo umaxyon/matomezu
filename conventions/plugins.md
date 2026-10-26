@@ -7,7 +7,11 @@
 
 - プラグインは互いに独立している。ほかのプラグインを読まない
 - 追加プラグインは、プラグイン API（`matomezu`・`matomezu/ui`・`matomezu/catalog`）だけを読む。テストで組むときだけ `matomezu/testing` も読む（見本は `test/rules.test.ts` が見張る）
-- 【未実装】プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。読めるのは、すでに外への約束のデータ（ブック・ページ・アイテム）と、ステージが開いているブックとページだけで、それを読むフックを出す。書くのはアクションを行うフックで、データを変える入口はアクションのまま。ステージ・道具・ダイアログなどの中の状態は見せない（中を直してもプラグインが壊れないように）。名前と型は作るときに決める
+- 【未実装】プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。見た目は、matomezu が渡すステージの id から、フックで約束のものだけを引く:
+  - データ: `useBook(stage)`・`usePage(stage)`（開いているブックとページ）、`useItem(stage, page, item)`（項目の型はアイテムの id で決まる）、`useShownPage(stage)`（ダイアログの下書きを重ねたページ。見せ方が描くのに使う）
+  - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`）。ブックのビューにはステージの id を渡す
+  - 定義と設定: `useCoreCatalog()`・`useUiCatalog()`（読むだけ）、`useSettings()`（言語とスキン）
+  - データを変えるのは `usePerform(stage)`（そのステージが開いているブックにアクションを行う）だけ。画面の状態（選択・ダイアログ・ページを開くなど）はコマンドと `useActions`
 - プラグイン API が出す名前の一覧は `test/plugin-api.test.ts` に書く。足すときも消すときもここを直し、わざと変えたと分かるようにする
 - 例外は `base`。画面の骨組み・ダイアログの枠と入力のコンポーネント・紙・標準のテーマを持ち、ほかのプラグインは `base` の入口（`plugins/base/index`・`plugins/base/ui`）を読んでよい
 - ビルトインプラグインも、追加プラグインと同じプラグイン API で書く。base 以外は `plugin-api` と base の入口だけを読む（読み込みの向きは「構造と層」）。base は API の部品を作る側なので土台を読む
