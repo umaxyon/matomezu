@@ -15,16 +15,19 @@ import { restoreSettings } from "../core/settings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
 import { MASTER_BOOK } from "../plugins/books/master"
-import { assemble, noticesOf, type Plugin } from "../store/plugin"
+import { type Assembled, assemble, noticesOf, type Plugin } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
 let assembled = assemble(BUILTIN, MASTER_BOOK.id)
 
-// 追加プラグインを足して組み直す。食い違いがあれば投げ、前の組み立てのまま。返すのは注意の 1 行ずつ（常駐がログに書く）
-function use(added: readonly Plugin[]): string[] {
-  assembled = assemble([...BUILTIN, ...added], MASTER_BOOK.id)
-  return noticesOf(assembled.catalog).map(noticeText)
+// 追加プラグインを足して組み直す。新しい組で AI 向けの機能台帳まで作り終えてから入れ替える（途中で投げれば、前の組み立てのまま）。
+// 返すのは JSON: notices は注意の 1 行ずつ（常駐がログに書く）、ai は新しい組の AI 向けの機能台帳
+function use(added: readonly Plugin[]): string {
+  const next = assemble([...BUILTIN, ...added], MASTER_BOOK.id)
+  const ai = aiCatalog(next)
+  assembled = next
+  return JSON.stringify({ notices: noticesOf(next.catalog).map(noticeText), ai })
 }
 
 // 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
@@ -73,8 +76,8 @@ function perform(input: Input): Output {
   }
 }
 // AI 向けの機能台帳: 機能台帳から AI に見せるアクション・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
-function aiCatalog() {
-  const catalog = assembled.catalog.core
+function aiCatalog(of: Assembled = assembled) {
+  const catalog = of.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
   return {
     actions: [...catalog.actions.values()].map(a => ({
@@ -108,7 +111,7 @@ function aiCatalog() {
 ;(globalThis as { matomezuModuleNames?: () => string }).matomezuModuleNames = () =>
   JSON.stringify({ engine: Object.keys(MODULES), ui: UI_NAMES })
 
-;(globalThis as { matomezuUse?: (added: readonly Plugin[]) => string[] }).matomezuUse = use
+;(globalThis as { matomezuUse?: (added: readonly Plugin[]) => string }).matomezuUse = use
 
 ;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
 

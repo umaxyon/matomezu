@@ -132,16 +132,20 @@ func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 		plugins = append(plugins, v)
 		ids = append(ids, id)
 	}
+	// JS の側が、新しい組で AI 向けの機能台帳まで作り終えてから入れ替える（途中で失敗すれば前の組み立てのまま）
 	res, err := e.use(goja.Undefined(), e.vm.NewArray(plugins...))
 	if err != nil {
 		return nil, fmt.Errorf("plugins: %w", err)
 	}
-	var notices []string
-	if err := e.vm.ExportTo(res, &notices); err != nil {
+	var used struct {
+		Notices []string        `json:"notices"`
+		AI      json.RawMessage `json:"ai"`
+	}
+	if err := json.Unmarshal([]byte(res.String()), &used); err != nil {
 		return nil, fmt.Errorf("plugins: %w", err)
 	}
-	e.notices = notices
-	e.aiCatalog = json.RawMessage(e.readAI())
+	e.notices = used.Notices
+	e.aiCatalog = used.AI
 	return ids, nil
 }
 

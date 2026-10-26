@@ -248,3 +248,31 @@ func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
 		t.Fatalf("Perform after a refused plugin = %+v, %v", out, err)
 	}
 }
+
+// 新しい組で AI 向けの機能台帳を作る所（アクションの describeArgs）が投げたら、組み直しは失敗し、定義も機能台帳も前のまま
+func TestKeepsTheCatalogWhenTheAICatalogCannotBeMade(t *testing.T) {
+	e := newEngine(t)
+	before := string(e.AICatalog())
+	b := &plugin.Bundle{Dir: "thrower", Manifest: plugin.Manifest{ID: "thrower", Engine: "index.ts"}, Engine: `
+var m = globalThis.__matomezuModules["matomezu"];
+module.exports.default = {
+  id: "thrower",
+  messages: { "thrower:throw": { en: "Throw" } },
+  actions: [{
+    id: "thrower:boom", title: "thrower:throw", aiDescription: "", target: "book", attach: { books: true },
+    args: m.z.strictObject({}),
+    describeArgs: function () { throw new Error("boom") },
+    run: function (b) { return { next: b, result: {} } }
+  }]
+}`}
+	if _, err := e.Use([]*plugin.Bundle{b}); err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("err = %v", err)
+	}
+	if got := string(e.AICatalog()); got != before {
+		t.Fatalf("the AI catalog changed: %s", got)
+	}
+	out, err := e.Perform(Input{Action: "thrower:boom", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en"})
+	if err != nil || out.OK || out.Reason != "unknown" {
+		t.Fatalf("the failed plugin's action = %+v, %v; want unknown", out, err)
+	}
+}
