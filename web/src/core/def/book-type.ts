@@ -29,7 +29,7 @@ interface BookTypeBase<S extends z.ZodObject> {
   id: string // データの type の値
   version: number // データの形の版
   title: MessageKey // タイプの名前。題名を持たないブックは、この名前で呼ぶ
-  // そのタイプのブックが自分で持つ欄の形（type は id の値）。ページ（pages）と設定の項目の欄は書かず、機能台帳が選んだものから足す
+  // そのタイプのブックが自分で持つ欄の形（type は id の値。pluginKit で書くプラグインは type を書かず、kit が足す）。ページ（pages）と設定の項目の欄は書かず、機能台帳が選んだものから足す
   schema: S
   pages: PagesRule | null // ページを持つか（持つなら、機能台帳がページの欄を足す）
   items: Choice
