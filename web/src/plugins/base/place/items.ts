@@ -116,11 +116,13 @@ export function widenForCaption(
   return w > size.w ? { ...next, w } : next
 }
 
-// アイテムに当てたテーマが表にあるか（当てていなければ true）
+// 形の個別のテーマ（定義の themeProp が名指す項目）が表にあるか（themeProp の無い形と、値が無いときは true）
 export function knownTheme(catalog: CoreCatalog, item: PlacedShape): boolean {
-  // 形が theme の欄を持つかを土台が知らないまま読んでいる（監査 B1。形の約束で直すまで、欄があるものとして読む）
-  const theme = (item.props as { theme?: string }).theme
-  return theme === undefined || catalog.themes.has(theme)
+  const def = catalog.items.get(item.item)
+  const prop = def?.kind === "shape" ? def.themeProp : undefined
+  if (prop === undefined) return true
+  const theme = (item.props as Record<string, unknown>)[prop]
+  return theme === undefined || (typeof theme === "string" && catalog.themes.has(theme))
 }
 
 // 左上 at、大きさ size の四角が、紙からはみ出さないか

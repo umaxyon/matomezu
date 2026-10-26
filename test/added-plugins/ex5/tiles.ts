@@ -13,7 +13,7 @@ export const TILES = kit.defineShape({
   capabilities: ["resizable"],
   toolbox: true,
   props: z.strictObject({
-    theme: z.enum(["warm", "cool"]).optional(), // 既定を持たせると、監査 B1 で置けなくなる
+    theme: z.enum(["warm", "cool"]).default("warm"), // 札の色合い（個別のテーマではないので themeProp は書かない）
     caption: z.string().default(""),
   }),
   content: { tiles: z.array(z.strictObject({ id: z.string().min(1), color: z.string() })) },

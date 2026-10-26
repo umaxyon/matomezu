@@ -62,7 +62,7 @@ test("B3: ビューの content に、中身の欄 tiles の札が来る（childr
   expect(document.querySelector("[data-ex5-tiles]")?.getAttribute("data-ex5-tiles")).toBe("1")
 })
 
-test.failing("B1: 自分の意味の theme の欄（札の色合い）を持つ形を置ける", () => {
+test("B1: 自分の意味の theme の欄（札の色合い）を持つ形を置ける", () => {
   const { place } = shelf()
   expect(place({ theme: "cool" })).toMatchObject({ ok: true })
 })

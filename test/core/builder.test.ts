@@ -109,3 +109,9 @@ describe("組み立ての食い違い", () => {
     expect(code).toBe("E026")
   })
 })
+
+test("形の themeProp が props に無い項目を名指したら E028。名指した項目だけをテーマの id として確かめる", () => {
+  const items = BUILTIN_PARTS.items.map(i => (i.id === "@matomezu/box:shape-box" ? { ...i, themeProp: "look" } : i))
+  expect(checkCoreCatalog({ ...BUILTIN_PARTS, items }).map(p => p.code)).toEqual(["E028"])
+  expect(checkCoreCatalog(BUILTIN_PARTS)).toEqual([])
+})

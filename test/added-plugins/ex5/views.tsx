@@ -11,7 +11,7 @@ export function TilesView({ props, size, content }: ItemViewProps<TilesProps, Ti
   return (
     <div
       data-ex5-tiles={tiles.length}
-      data-ex5-theme={props.theme ?? "warm"}
+      data-ex5-theme={props.theme}
       style={{ width: size.w, height: size.h, background: "var(--tiles-fill)", display: "flex", gap: 4 }}
     >
       {tiles.map(t => (

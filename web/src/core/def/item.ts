@@ -66,6 +66,8 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   // 置く前に中身を決める追加のダイアログ（ShapeAddArgs を受ける）と、中身を変える編集のダイアログ（ShapeEditArgs を受ける）の id。
   // 追加が無ければそのまま置き、編集が無ければ「設定」を出さない。受ける値が合うかは definePlugin が型で確かめる
   dialogs?: { add?: string; edit?: string }
+  // 個別のテーマ（この形だけ別のテーマで描く値）を持つ項目の名前。土台はこの項目だけをテーマの id として確かめる（無ければ見ない）
+  themeProp?: string
 }
 
 // 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる。
@@ -96,12 +98,13 @@ export function defineShape<
   const C extends Readonly<Record<string, z.ZodType>> = Record<never, never>,
   const G extends { add?: string; edit?: string } = Record<never, never>,
 >(
-  def: Omit<ShapeItemDef<ShapeDataOf<P, C>>, "id" | "props" | "content" | "kind" | "dialogs"> & {
+  def: Omit<ShapeItemDef<ShapeDataOf<P, C>>, "id" | "props" | "content" | "kind" | "dialogs" | "themeProp"> & {
     id: Id
     kind: "shape"
     props: P
     content?: C
     dialogs?: G
+    themeProp?: keyof z.output<P> & string
   },
 ): Omit<ShapeItemDef<ShapeDataOf<P, C>>, "content" | "dialogs"> & {
   id: Id

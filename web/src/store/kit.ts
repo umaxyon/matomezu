@@ -64,12 +64,16 @@ export interface PluginKit<P extends string, M extends MessageSet> {
     const C extends Readonly<Record<string, ShapeProps>> = Record<never, never>,
     const G extends { add?: string; edit?: string } = Record<never, never>,
   >(
-    def: Omit<ShapeItemDef<ShapeDataOf<Pr, C>, keyof M & string>, "id" | "props" | "content" | "kind" | "dialogs"> & {
+    def: Omit<
+      ShapeItemDef<ShapeDataOf<Pr, C>, keyof M & string>,
+      "id" | "props" | "content" | "kind" | "dialogs" | "themeProp"
+    > & {
       id: Id
       kind: "shape"
       props: Pr
       content?: C
       dialogs?: G
+      themeProp?: keyof ShapeDataOf<Pr, C>["props"] & string // 個別のテーマを持つ項目（props にある名前だけ）
     },
   ): Omit<ShapeItemDef<ShapeDataOf<Pr, C>>, "id" | "content" | "dialogs"> & {
     id: Owned<P, Id>

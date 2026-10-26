@@ -53,6 +53,7 @@ export const LIST = kit.defineShape({
   version: 1,
   title: "List",
   capabilities: ["connectable", "resizable", "hasText"],
+  themeProp: "theme", // 個別のテーマ（この形だけ別のテーマで描く）
   toolbox: true,
   content: { children: z.array(ListRowSchema) },
   min: LIST_MIN,
