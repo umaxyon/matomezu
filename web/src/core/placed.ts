@@ -114,13 +114,16 @@ export function gapOf(catalog: CoreCatalog, page: ItemPage, base: Gap): Gap {
   )
 }
 
-// 形が変わったあとのページ: つなぐものの定義の整え（tidy）を全部かける。setting はそのページで効いている設定の値。変わらなければそのまま
+// 形が変わったあとのページ: 端の形が無くなったつなぐものを消し、残りにつなぐものの定義の整え（tidy）を全部かける。
+// setting はそのページで効いている設定の値。変わらなければそのまま
 export function tidyPage<P extends ItemPage>(catalog: CoreCatalog, page: P, setting: (id: string) => unknown): P {
   const groups = byConnector(catalog, page)
   if (groups.length === 0) return page
   const rects = rectsOf(catalog, page)
+  const shapes = new Set(shapesOf(page).map(s => s.id))
   const tidy = new Map<string, PlacedConnector>()
-  for (const [def, list] of groups) {
+  for (const [def, all] of groups) {
+    const list = all.filter(c => shapes.has(c.from) && shapes.has(c.to))
     const next = def.tidy ? def.tidy(list as ConnectorData[], rects, setting) : list
     for (const c of next) tidy.set(c.id, c as PlacedConnector)
   }

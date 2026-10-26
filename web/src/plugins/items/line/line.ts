@@ -50,7 +50,7 @@ export const LINE_ROUTE = kit.defineSetting({
   default: "elbow",
 })
 
-// 線は置いた形と次の決まりを持つ: つないだ組は間隔を広げる（placed.ts の lineGaps）、形が変わったあと端の形が無くなった線と引けなくなった手直しを消す（tidyLines）、
+// 線は置いた形と次の決まりを持つ: つないだ組は間隔を広げる（placed.ts の lineGaps）、形が変わったあと引けなくなった手直しを消す（tidyLines）、
 // 両端がつなげる形にあり同じ組に 2 本無い（linesHold）
 export const LINE = kit.defineConnector({
   id: "connector-line",

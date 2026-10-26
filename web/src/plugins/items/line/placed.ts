@@ -40,7 +40,7 @@ export function canConnect(lines: readonly LineLike[], from: string, to: string)
   return from === to || !lines.some(l => pairKey(l.from, l.to) === pairKey(from, to))
 }
 
-// 形が動いた・大きさが変わった・消えたあとの線: 端の形が無くなった線は消し、手で直した途中の区間（via）が引けなくなったら消す。
+// 形が動いた・大きさが変わったあとの線: 手で直した途中の区間（via）が引けなくなったら消す（端の形が無くなった線は、土台が先に消す）。
 // rects は形の四角、elbow はページの既定が折れ線か。変わらない線はそのまま返す
 export function tidyLines<L extends LineLike>(
   lines: readonly L[],

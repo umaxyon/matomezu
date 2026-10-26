@@ -78,7 +78,7 @@ test.failing("E1: 関係線の層が薄くするよう求めた形は薄くな�
   expect(el(c).getAttribute("data-look")).toBe("faded")
 })
 
-test.failing("E4: 端の形を消すと、端の無くなった関係線も消える（つなぐものが tidy を書かなくても）", () => {
+test("E4: 端の形を消すと、端の無くなった関係線も消える（つなぐものが tidy を書かなくても）", () => {
   const { instance, on, page, a } = map()
   act(() => {
     expect(instance.actions.perform("@matomezu/paper:item-remove", { page: page().id, items: [a] }, on)).toMatchObject({
