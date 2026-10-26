@@ -48,13 +48,12 @@ const pluginRoot = (rel: string) => {
 // base は土台を直に読む（プラグイン API の部品を作る側）。プラグイン API は読まない（plugin-api が base を読まないのと合わせて、輪を作らない）
 const baseAllowed = (rel: string) => (t: string) =>
   isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod"
-// base 以外のビルトインプラグインは、プラグイン API と zod だけ（見た目は plugin-api/ui と React も）。
-// 状態を丸ごと読むフック（ui/store-context の useMatomezuState・useCatalog・useUiCatalog）は、状態を読むフックができるまで見た目から直に読む
+// base 以外のビルトインプラグインは、プラグイン API と zod だけ（見た目は plugin-api/ui と React も）。状態は plugin-api/ui のフックで読む
 const apiAllowed = (rel: string) => (t: string) =>
   t === "plugin-api" ||
   t === "plugin-api/builtin" ||
   t === "zod" ||
-  (isView(rel) && ["plugin-api/ui", "ui/store-context", "react", "react-dom", "zustand/react/shallow"].includes(t))
+  (isView(rel) && ["plugin-api/ui", "react", "react-dom"].includes(t))
 
 describe("依存の向き", () => {
   for (const file of sources) {

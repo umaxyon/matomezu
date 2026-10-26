@@ -1,14 +1,12 @@
 // マスターのブックのビュー: ブックの一覧や設定などを集める、紙の無いただの画面。見た目はテーマで描く。
 // 設定（言語・スキン）と、ブックを作るボタンを置く。どれもコマンド（book-new・settings-lang・settings-skin）を呼ぶ
-import type { Stage } from "../../../../plugin-api"
-import { useCommand, useMessages } from "../../../../plugin-api/ui"
-import { useCatalog, useMatomezuState } from "../../../../ui/store-context"
+import { type BookViewProps, useCommand, useCoreCatalog, useMessages, useSettings } from "../../../../plugin-api/ui"
 import { kit } from "../kit"
 import styles from "./MasterView.module.css"
 
-export function MasterView({ stage }: { stage: Stage }) {
+export function MasterView({ stage }: BookViewProps) {
   const t = useMessages(kit)
-  const newBook = useCommand(stage.id, "@matomezu/master:book-new")
+  const newBook = useCommand(stage, "@matomezu/master:book-new")
   return (
     <section className={styles.master} aria-label={t("Master")}>
       <h1 className={styles.title}>{t("Master")}</h1>
@@ -22,7 +20,7 @@ export function MasterView({ stage }: { stage: Stage }) {
           )}
         </div>
       </div>
-      <Settings stage={stage.id} />
+      <Settings stage={stage} />
     </section>
   )
 }
@@ -30,8 +28,8 @@ export function MasterView({ stage }: { stage: Stage }) {
 // 設定の欄。ホームのタイプが変えるのを許さない設定は、選べなくする
 function Settings({ stage }: { stage: string }) {
   const t = useMessages(kit)
-  const { lang, skin } = useMatomezuState(s => s.settings)
-  const { languages, skins } = useCatalog().core
+  const { lang, skin } = useSettings()
+  const { languages, skins } = useCoreCatalog()
   const setLang = useCommand(stage, "@matomezu/base:settings-lang")
   const setSkin = useCommand(stage, "@matomezu/base:settings-skin")
   return (

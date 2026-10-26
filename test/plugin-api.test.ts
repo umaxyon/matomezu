@@ -106,12 +106,21 @@ test("matomezu/ui が出す名前", () => {
     "defineWidget",
     "themeVars",
     "useActions",
+    "useBook",
     "useCommand",
     "useContextMenu",
+    "useCoreCatalog",
+    "useItem",
     "useMessages",
+    "usePage",
+    "usePerform",
+    "useSettings",
     "useShapeMarks",
+    "useShownPage",
+    "useStage",
     "useT",
     "useTokenScope",
+    "useUiCatalog",
   ])
 })
 

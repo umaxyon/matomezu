@@ -10,6 +10,7 @@ import {
   pagedOf,
   paperOf,
   resizedBy,
+  type StageView,
   shapeDefOf,
   shapeDialogs,
   shapesOf,
@@ -23,7 +24,7 @@ import { PLACE_OFFSET } from "./items"
 const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所
-export function placeAt(ctx: Pick<CommandContext, "stage">, pointer: Point): Point | null {
+export function placeAt(ctx: { stage: Pick<StageView, "opened" | "pan" | "zoom"> }, pointer: Point): Point | null {
   return toPaper(ctx.stage, { x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
 }
 

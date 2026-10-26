@@ -8,9 +8,8 @@
 // 追加は開いたときに覚えた所にリストを置いて（item-place）選び、編集はリストの項目を書き換える（item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { type ItemProps, type MessageKey, type Point, pagedOf, shapesOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useMessages } from "../../../plugin-api/ui"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
+import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import {
   ActionButton,
   Choices,
@@ -63,10 +62,11 @@ const EMPTY: ListProps = {
 export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
-  const { perform, select } = useActions()
+  const { select } = useActions()
+  const perform = usePerform(stage)
   const add = (props: ListProps) => {
     if (!book) return false
-    const done = perform("@matomezu/paper:item-place", { page: args.page, item: LIST.id, at: args.at, props }, { book })
+    const done = perform("@matomezu/paper:item-place", { page: args.page, item: LIST.id, at: args.at, props })
     if (!done.ok) return false
     select(stage, [done.result.item])
     onClose()
@@ -89,13 +89,9 @@ export function AddListDialog({ stage, args, onClose }: DialogProps<{ page: stri
 export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
-  const found = useMatomezuState(s => {
-    const b = book ? pagedOf(s.books[book]) : undefined
-    const page = b?.pages.find(p => p.id === args.page)
-    const item = page && shapesOf(page).find(i => i.id === args.item)
-    return item?.item === LIST.id ? item : undefined
-  })
-  const { perform, previewDialog } = useActions()
+  const found = useItem(stage, args.page, args.item, LIST.id)
+  const { previewDialog } = useActions()
+  const perform = usePerform(stage)
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(
     (look: Look | null, rowLines?: RowsLines) => {
@@ -112,13 +108,13 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
   const rows: readonly ListRow[] = found.children ?? []
   const update = (props: ListProps, rowLines?: RowsLines) => {
     // 「ブックのテーマ」・色の「なし」に戻したら、リストのテーマ・色の項目を消す
-    const done = perform(
-      "@matomezu/paper:item-update",
-      { page: args.page, item: args.item, props: { ...props, theme: props.theme ?? null, color: props.color ?? null } },
-      { book },
-    )
+    const done = perform("@matomezu/paper:item-update", {
+      page: args.page,
+      item: args.item,
+      props: { ...props, theme: props.theme ?? null, color: props.color ?? null },
+    })
     if (done.ok && rowLines !== undefined && rows.length > 0)
-      perform("@matomezu/list:row-lines", { page: args.page, list: args.item, lines: rowLines }, { book })
+      perform("@matomezu/list:row-lines", { page: args.page, list: args.item, lines: rowLines })
     if (done.ok) onClose()
     return done.ok
   }
@@ -163,7 +159,7 @@ function ListDialog({
 }) {
   const t = useMessages(kit)
   const form = useId()
-  const catalog = useCatalog().core
+  const catalog = useCoreCatalog()
   const [caption, setCaption] = useState(start.caption)
   const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
   const aligns = useAligns()

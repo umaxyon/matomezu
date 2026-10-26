@@ -92,6 +92,7 @@ export {
 } from "../core/text/fields"
 export { clampLines, wrap } from "../core/text/text"
 export { resolveTokens } from "../core/theme"
+export type { StageView } from "../core/workspace"
 export { toolOf } from "../core/workspace"
 export type { CommandContext } from "../store/commands/def"
 export { defineCommand } from "../store/commands/def"

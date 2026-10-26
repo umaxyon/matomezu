@@ -5,8 +5,15 @@
 // 形にポインタを乗せると四辺に〇を出し（PortOverlay）、〇から引くドラッグ（useLinkDrag.ts）の間は、引ける相手と引き始めた形のほかを薄くする
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
 import { type PlacedConnector, placement } from "../../../plugin-api"
-import { ShapeMarksContext, type ShapeScene, useActions, useCommand, useContextMenu } from "../../../plugin-api/ui"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import {
+  ShapeMarksContext,
+  type ShapeScene,
+  useActions,
+  useBook,
+  useCommand,
+  useContextMenu,
+  useCoreCatalog,
+} from "../../../plugin-api/ui"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { drawLines, type LineCache } from "./drawn"
 import type { Rect } from "./geom"
@@ -32,13 +39,10 @@ const linesIn = (scene: ShapeScene): PlacedLine[] =>
 
 export function LineLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, rects, localOf } = scene
-  const catalog = useCatalog().core
+  const catalog = useCoreCatalog()
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
-  const elbow = useMatomezuState(s => {
-    const b = stage.opened ? s.books[stage.opened.book] : undefined
-    return b ? elbowAt(catalog, b, page) : true
-  })
-  const preview = useMatomezuState(s => s.dialog?.preview ?? null)
+  const book = useBook(stage.id)
+  const elbow = book ? elbowAt(catalog, book, page) : true
   const lineEdit = useCommand(stage.id, "@matomezu/line:line-edit")
   const openLineMenu = useContextMenu(stage.id, "@matomezu/line:line-context")
   const { select } = useActions()
@@ -54,14 +58,8 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
       .filter(l => scene.settled.has(l.from) || scene.settled.has(l.to))
       .map(l => l.id),
   )
-  // ダイアログの下書きのある線は、項目に下書きを重ねて描く。じかに直しているドラッグの線は、その途中の項目で描く
-  const drafted = linesIn(scene).map(l =>
-    lineDrag.draft?.id === l.id
-      ? { ...l, props: lineDrag.draft.props }
-      : preview?.item === l.id && preview.book === stage.opened?.book
-        ? ({ ...l, props: { ...l.props, ...preview.props } } as PlacedLine)
-        : l,
-  )
+  // ダイアログの下書きは、見せ方が渡すページ（下書きを重ねたページ）にもう入っている。じかに直しているドラッグの線は、その途中の項目で描く
+  const drafted = linesIn(scene).map(l => (lineDrag.draft?.id === l.id ? { ...l, props: lineDrag.draft.props } : l))
   const memory = stickyMemory({
     lines: drafted,
     memo: memo.current,

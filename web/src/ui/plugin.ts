@@ -8,14 +8,14 @@ import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import { isOwnedBy } from "../core/names"
 import type { Book } from "../core/schema/book"
-import type { Stage } from "../core/stage"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import type { IdsOf, Plugin } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
 import type { AnyWidgetDef } from "./layout"
 
+// stage はステージの id（中身は useStage などのフックで引く）
 export interface BookViewProps {
-  stage: Stage
+  stage: string
 }
 // ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネントで、ステージの真ん中に描く（配置には書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く

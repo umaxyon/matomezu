@@ -3,9 +3,8 @@
 // 追加はリストの最後に行を足し（row-add）、編集は行の項目を書き換える（row-update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
 
 import { useId, useState } from "react"
-import { BODY_MAX, type MessageKey, pagedOf, shapesOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useMessages } from "../../../plugin-api/ui"
-import { useMatomezuState } from "../../../ui/store-context"
+import { BODY_MAX, type MessageKey } from "../../../plugin-api"
+import { type DialogProps, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import {
   ActionButton,
   Choices,
@@ -27,10 +26,10 @@ const EMPTY: Text = { caption: "", rule: true, body: "", captionAlign: "left", b
 
 export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string }>) {
   const book = useBookOf(stage)
-  const { perform } = useActions()
+  const perform = usePerform(stage)
   const add = (props: Text) => {
     if (!book) return
-    if (perform("@matomezu/list:row-add", { page: args.page, list: args.list, props }, { book }).ok) onClose()
+    if (perform("@matomezu/list:row-add", { page: args.page, list: args.list, props }).ok) onClose()
   }
   return (
     <RowDialog
@@ -46,17 +45,11 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
 
 export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
   const book = useBookOf(stage)
-  const start = useMatomezuState(s => {
-    const b = book ? pagedOf(s.books[book]) : undefined
-    const page = b?.pages.find(p => p.id === args.page)
-    const list = page && shapesOf(page).find(i => i.id === args.list)
-    return list?.item === LIST.id ? list.children?.find(r => r.id === args.row)?.props : undefined
-  })
-  const { perform } = useActions()
+  const start = useItem(stage, args.page, args.list, LIST.id)?.children?.find(r => r.id === args.row)?.props
+  const perform = usePerform(stage)
   if (!book || !start) return null
   const update = (props: Text) => {
-    if (perform("@matomezu/list:row-update", { page: args.page, list: args.list, row: args.row, props }, { book }).ok)
-      onClose()
+    if (perform("@matomezu/list:row-update", { page: args.page, list: args.list, row: args.row, props }).ok) onClose()
   }
   return (
     <RowDialog

@@ -110,7 +110,7 @@ function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; va
   const tokens = useTokenScope(type) // ブックのタイプのプラグインの欄（--<名前>）
   return (
     <div className={styles.book} style={{ ...vars, ...tokens }}>
-      <View stage={stage} />
+      <View stage={stage.id} />
     </div>
   )
 }

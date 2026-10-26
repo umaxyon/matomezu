@@ -7,10 +7,10 @@ import { type ComponentType, createContext, type PointerEvent, type ReactNode, u
 import type { ContextMenuId } from "../core/catalog"
 import type { Point, Rect } from "../core/geom"
 import type { ItemPage } from "../core/placed"
-import type { Stage } from "../core/stage"
+import type { StageView } from "../core/workspace"
 
 export interface ShapeScene {
-  stage: Stage
+  stage: StageView // 描いているステージ（読むだけ）
   page: ItemPage
   rects: ReadonlyMap<string, Rect> // 描いている形の四角（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）
   dragged: readonly string[] // ドラッグで動かしている形

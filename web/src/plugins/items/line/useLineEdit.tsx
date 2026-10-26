@@ -3,7 +3,7 @@
 // （区間・端・札はアクション line-update、ほかの形の上で離した端はコマンド line-drop でつなぎ替え）。項目は edit.ts の純粋な関数で決める。
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
-import { type CoreCatalog, type ItemPage, type Point, type Stage, toPaper } from "../../../plugin-api"
+import { type CoreCatalog, type ItemPage, type Point, type StageView, toPaper } from "../../../plugin-api"
 import { useActions, useCommand } from "../../../plugin-api/ui"
 import { reconnectTargets } from "./connect"
 import type { DrawnLine } from "./drawn"
@@ -38,7 +38,11 @@ export interface LineScene {
 
 const SLOP = 3 // 札は、これだけ動かすまではドラッグにしない（押して離せば線を選ぶだけ）
 
-export function useLineEdit(stage: Stage, catalog: CoreCatalog, localOf: (e: PointerEvent<Element>) => Point | null) {
+export function useLineEdit(
+  stage: StageView,
+  catalog: CoreCatalog,
+  localOf: (e: PointerEvent<Element>) => Point | null,
+) {
   const { perform } = useActions()
   const drop = useCommand(stage.id, "@matomezu/line:line-drop")
   const drag = useRef<Drag | null>(null)

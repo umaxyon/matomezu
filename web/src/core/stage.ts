@@ -54,7 +54,7 @@ function leave(stage: Stage): Stage {
 }
 
 // ステージに出す紙の大きさ（ページを開いていないか、描けない紙なら null）
-export function paperOf(stage: Stage): Size | null {
+export function paperOf(stage: Pick<Stage, "opened">): Size | null {
   const paper = stage.opened?.paper
   return paper && paper.status !== "unshowable" ? paper.size : null
 }
@@ -145,7 +145,7 @@ export function select(stage: Stage, ids: readonly string[]): Stage {
 }
 
 // 紙の置き場所（何も開いていなければ null）
-export function placement(stage: Stage): Placement | null {
+export function placement(stage: Pick<Stage, "opened" | "pan" | "zoom">): Placement | null {
   const paper = paperOf(stage)
   if (!paper) return null
   const origin = paperOrigin(stage.pan)
@@ -153,13 +153,13 @@ export function placement(stage: Stage): Placement | null {
 }
 
 // 表示領域の中の点（左上から）を、紙の上の点に直す（紙が無ければ null）
-export function toPaper(stage: Stage, p: Point): Point | null {
+export function toPaper(stage: Pick<Stage, "opened" | "pan" | "zoom">, p: Point): Point | null {
   const at = placement(stage)
   if (!at) return null
   return { x: (p.x - at.x) / at.zoom, y: (p.y - at.y) / at.zoom }
 }
 
 // 画面の上で動いた量を、紙の上で動いた量に直す
-export function toPaperDelta(stage: Stage, d: Point): Point {
+export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
   return { x: d.x / stage.zoom, y: d.y / stage.zoom }
 }

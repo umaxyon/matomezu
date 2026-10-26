@@ -22,9 +22,10 @@ import {
   useActions,
   useCommand,
   useContextMenu,
+  useCoreCatalog,
   useMessages,
+  useStage,
 } from "../../../plugin-api/ui"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useThemeVars } from "../../base/ui"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
@@ -119,7 +120,7 @@ interface Stretch {
 
 export function ListView({ props, size, id, stage, content }: ItemViewProps<ItemProps<"@matomezu/list:shape-list">>) {
   const t = useMessages(kit)
-  const catalog = useCatalog().core
+  const catalog = useCoreCatalog()
   const rows = content as readonly ListRow[]
   const theme = props.theme
   const vars = useThemeVars(theme, LOOK_TOKENS)
@@ -181,7 +182,7 @@ export function ListView({ props, size, id, stage, content }: ItemViewProps<Item
     onPointerCancel: () => endCarry(false),
   })
   const { select } = useActions()
-  const at = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage))
+  const at = useStage(stage)
   const stretch = useRef<Stretch | null>(null)
   const [moved, setMoved] = useState(0) // 行の高さを変えているドラッグの、画面の上で動いた量
   const layout = listLayout(rows, size.w, props.checklist)

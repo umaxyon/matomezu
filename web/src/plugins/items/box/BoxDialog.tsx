@@ -6,9 +6,8 @@
 // 追加は開いたときに覚えた所に箱を置いて（アクション item-place）選び、編集は箱の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { BODY_MAX, type ItemProps, type MessageKey, type Point, pagedOf, shapesOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useMessages } from "../../../plugin-api/ui"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { BODY_MAX, type ItemProps, type MessageKey, type Point } from "../../../plugin-api"
+import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import {
   ActionButton,
   Choices,
@@ -38,10 +37,11 @@ const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "cent
 export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
-  const { perform, select } = useActions()
+  const { select } = useActions()
+  const perform = usePerform(stage)
   const add = (props: BoxProps) => {
     if (!book) return false
-    const done = perform("@matomezu/paper:item-place", { page: args.page, item: BOX.id, at: args.at, props }, { book })
+    const done = perform("@matomezu/paper:item-place", { page: args.page, item: BOX.id, at: args.at, props })
     if (!done.ok) return false
     select(stage, [done.result.item])
     onClose()
@@ -63,13 +63,9 @@ export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: strin
 export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
-  const start = useMatomezuState(s => {
-    const b = book ? pagedOf(s.books[book]) : undefined
-    const page = b?.pages.find(p => p.id === args.page)
-    const found = page && shapesOf(page).find(i => i.id === args.item)
-    return found?.item === BOX.id ? found.props : undefined
-  })
-  const { perform, previewDialog } = useActions()
+  const start = useItem(stage, args.page, args.item, BOX.id)?.props
+  const { previewDialog } = useActions()
+  const perform = usePerform(stage)
   const preview = useCallback(
     (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
     [book, args.item, previewDialog],
@@ -77,11 +73,11 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   if (!book || !start) return null
   const update = (props: BoxProps) => {
     // 「ブックのテーマ」・色の「なし」に戻したら、箱のテーマ・色の項目を消す
-    const done = perform(
-      "@matomezu/paper:item-update",
-      { page: args.page, item: args.item, props: { ...props, theme: props.theme ?? null, color: props.color ?? null } },
-      { book },
-    )
+    const done = perform("@matomezu/paper:item-update", {
+      page: args.page,
+      item: args.item,
+      props: { ...props, theme: props.theme ?? null, color: props.color ?? null },
+    })
     if (done.ok) onClose()
     return done.ok
   }
@@ -127,7 +123,7 @@ function BoxDialog({
   const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
   const [theme, setTheme] = useState(start.theme ?? "")
   const [color, setColor] = useState(start.color)
-  const catalog = useCatalog().core
+  const catalog = useCoreCatalog()
   // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
   const looks = theme || bookTheme
   const swatches = useSwatches(looks, BOX_FILL)

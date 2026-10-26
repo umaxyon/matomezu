@@ -6,8 +6,15 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import { type MessageKey, pagedOf, rectsOf } from "../../../plugin-api"
-import { type DialogProps, useActions, useMessages } from "../../../plugin-api/ui"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import {
+  type DialogProps,
+  useActions,
+  useBook,
+  useCoreCatalog,
+  useItem,
+  useMessages,
+  usePerform,
+} from "../../../plugin-api/ui"
 import {
   ActionButton,
   Choices,
@@ -27,8 +34,8 @@ import { type LineOnce, linePatch } from "./edit"
 import { HEADS, type Head } from "./heads"
 import { DASH_ICONS, ROUTE_ICONS } from "./icons"
 import { kit } from "./kit"
-import { elbowAt, type LineRoute } from "./line"
-import { linesOf, type PlacedLine } from "./placed"
+import { elbowAt, LINE, type LineRoute } from "./line"
+import type { PlacedLine } from "./placed"
 
 type LineProps = PlacedLine["props"]
 type Dash = "solid" | "dashed"
@@ -54,12 +61,13 @@ const HEAD_LABELS: Record<Head, MessageKey> = {
 export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useMessages(kit)
   const form = useId()
-  const catalog = useCatalog().core
+  const catalog = useCoreCatalog()
   const book = useBookOf(stage)
-  const drawing = useMatomezuState(s => (book ? pagedOf(s.books[book]) : undefined))
-  const page = drawing?.pages.find(p => p.id === args.page)
-  const line = page && linesOf(page).find(l => l.id === args.item)
-  const { perform, previewDialog } = useActions()
+  const drawing = useBook(stage)
+  const page = (drawing && pagedOf(drawing)?.pages.find(p => p.id === args.page)) || undefined
+  const line = useItem(stage, args.page, args.item, LINE.id)
+  const { previewDialog } = useActions()
+  const perform = usePerform(stage)
   const elbow = drawing && page ? elbowAt(catalog, drawing, page) : true
   const startRoute: LineRoute = line?.props.route ?? (elbow ? "elbow" : "straight")
   const [caption, setCaption] = useState(line?.props.caption ?? "")
@@ -112,12 +120,12 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   const submit = () => {
     const patch = linePatch(line, { caption, route, dash, startHead, endHead, once }, rects, elbow)
     if (Object.keys(patch).length === 0) return onClose()
-    const done = perform("@matomezu/line:line-update", { page: page.id, line: line.id, props: patch }, { book })
+    const done = perform("@matomezu/line:line-update", { page: page.id, line: line.id, props: patch })
     if (done.ok) onClose()
     else setRefused(true)
   }
   const remove = () => {
-    perform("@matomezu/paper:item-remove", { page: page.id, items: [line.id] }, { book })
+    perform("@matomezu/paper:item-remove", { page: page.id, items: [line.id] })
     onClose()
   }
   const heads = [{ value: "" as const, label: t("None") }, ...HEADS.map(h => ({ value: h, label: t(HEAD_LABELS[h]) }))]

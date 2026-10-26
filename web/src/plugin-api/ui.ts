@@ -11,3 +11,14 @@ export type { BookViewDef, BookViewProps, DialogProps, ItemUi, ItemViewProps, Se
 export { definePluginUi } from "../ui/plugin"
 export { useActions } from "../ui/store-context"
 export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"
+export {
+  useBook,
+  useCoreCatalog,
+  useItem,
+  usePage,
+  usePerform,
+  useSettings,
+  useShownPage,
+  useStage,
+  useUiCatalog,
+} from "../ui/view-hooks"

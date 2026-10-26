@@ -162,3 +162,12 @@ export function followLibrary(catalog: CoreCatalog, ws: Workspace, books: Readon
   })
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
+
+// プラグインの見た目に見せるステージ（読むだけ）: 開いているもの・倍率とずらす量・選んでいるアイテム・置こうとしているアイテム・今の道具。
+// 表示領域の大きさ・道具のアイコンなど、中の状態は見せない（matomezu/ui の useStage）
+export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "pan" | "selection" | "placing"> & { tool: Tool | null }
+
+export function stageView(stage: Stage, tool: Tool | null): StageView {
+  const { id, opened, zoom, pan, selection, placing } = stage
+  return { id, opened, zoom, pan, selection, placing, tool }
+}
