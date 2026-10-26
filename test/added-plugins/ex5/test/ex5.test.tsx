@@ -66,7 +66,7 @@ test.failing("B1: 自分の意味の theme の欄（札の色合い）を持つ�
   expect(place({ theme: "cool" })).toMatchObject({ ok: true })
 })
 
-test.failing("B2: 文字を持たない形は、caption の欄を変えても幅が変わらない", () => {
+test("B2: 文字を持たない形は、caption の欄を変えても幅が変わらない", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({ caption: "a" }, 100) as { result: { item: string } }).result.item
   act(() => {
