@@ -71,6 +71,9 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
   await b.mouse.move(box.x + 80, box.y + 60, { steps: 4 })
   await b.mouse.up()
   await expect.poll(async () => (await shared(a).boundingBox())!.x).toBeGreaterThan(before.x + 40)
+  // 開いた窓を閉じる（残すと、あとのテストで AI の view と show がこの窓を選ぶ）
+  await a.close()
+  await b.close()
 })
 
 test("AI の入口からは、最後にフォーカスした窓が見ているものが分かり、AI が置いた箱はすぐ窓に出る", async ({ page }) => {
