@@ -54,6 +54,7 @@ type Engine struct {
 	vm        *goja.Runtime
 	perform   func(string) string
 	readAI    func() string
+	check     func(string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
@@ -75,6 +76,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuAiCatalog"), &e.readAI); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuAiCatalog: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuCheckBooks"), &e.check); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuCheckBooks: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -163,6 +167,31 @@ func (e *Engine) Perform(in Input) (out Output, err error) {
 	}()
 	if err := json.Unmarshal([]byte(e.perform(string(b))), &out); err != nil {
 		return Output{}, err
+	}
+	return out, nil
+}
+
+// Unreadable は読めないブック: ブックの id と、その注意の 1 行（タイプが無い・形に合わない・決まりを守らない）
+type Unreadable struct {
+	Book   string `json:"book"`
+	Notice string `json:"notice"`
+}
+
+// CheckBooks はブックを今の機能台帳で確かめ、読めないものを返す（データには手を付けない）
+func (e *Engine) CheckBooks(books []json.RawMessage) (out []Unreadable, err error) {
+	b, err := json.Marshal(books)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	if err := json.Unmarshal([]byte(e.check(string(b))), &out); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

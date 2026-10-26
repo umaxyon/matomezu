@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"sync"
 	"time"
@@ -61,6 +62,9 @@ type Hub struct {
 	viewed         chan struct{}    // 画面が見ているものを知らせたら閉じて、作り直す（WaitWindow）
 	plugins        []*plugin.Bundle // 足した追加プラグイン（plugins.go）
 	pluginsVersion int64            // 追加プラグインが変わるたびに進む
+	// 読めないブックの id → その注意の 1 行。読めるかは今のプラグインで決まる値なので DB には残さず、
+	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
+	unreadable map[string]string
 }
 
 // NewHub は置き場所から世界を読む
@@ -73,12 +77,54 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{})}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), unreadable: map[string]string{}}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version}
 		h.order = append(h.order, b.ID)
 	}
+	if err := h.checkBooks(h.order); err != nil {
+		return nil, err
+	}
 	return h, nil
+}
+
+// checkBooks は ids のブックを今のプラグインで確かめ、読めないブックの一覧を直す。新しく読めなくなった物は常駐のログに書く（h.mu を持って呼ぶ）
+func (h *Hub) checkBooks(ids []string) error {
+	bodies := make([]json.RawMessage, 0, len(ids))
+	for _, id := range ids {
+		if e, ok := h.books[id]; ok {
+			bodies = append(bodies, e.body)
+		}
+	}
+	found, err := h.engine.CheckBooks(bodies)
+	if err != nil {
+		return err
+	}
+	before := map[string]string{}
+	for _, id := range ids {
+		if n, ok := h.unreadable[id]; ok {
+			before[id] = n
+		}
+		delete(h.unreadable, id)
+	}
+	for _, u := range found {
+		h.unreadable[u.Book] = u.Notice
+		if before[u.Book] != u.Notice {
+			fmt.Fprintln(os.Stderr, "notice:", u.Notice)
+		}
+	}
+	return nil
+}
+
+// Unreadable は読めないブックの id → その注意の 1 行
+func (h *Hub) Unreadable() map[string]string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := make(map[string]string, len(h.unreadable))
+	for id, n := range h.unreadable {
+		out[id] = n
+	}
+	return out
 }
 
 // Data は全部のブックと設定
@@ -169,7 +215,7 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 	}
 	h.books[head.ID] = entry{body, version}
 	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq})
-	return nil
+	return h.checkBooks([]string{head.ID})
 }
 
 // ErrConflict は、置いてある版が添えた版と違うこと
@@ -188,6 +234,9 @@ func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *stor
 	}
 	h.books[id] = entry{body, version}
 	h.broadcast("book", map[string]any{"book": body, "version": version})
+	if err := h.checkBooks([]string{id}); err != nil {
+		return 0, nil, err
+	}
 	return version, nil, nil
 }
 

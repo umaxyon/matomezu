@@ -4,7 +4,7 @@
 // 追加プラグインが借りる実物（plugin-modules）は、読み込んだときに globalThis.__matomezuModules に置く（変換した JS はここから取り出す）
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
 import { z } from "zod"
-import { restoreBooks } from "../core/book"
+import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { NO_KEY_CHANGES } from "../core/keys"
@@ -111,6 +111,12 @@ function aiCatalog() {
 ;(globalThis as { matomezuUse?: (added: readonly Plugin[]) => string[] }).matomezuUse = use
 
 ;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
+
+// 残したブックを今の機能台帳で確かめ、読めないブックの id と、その注意の 1 行を返す（常駐が問題の一覧に持つ）
+;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
+  const { notices } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
+  return JSON.stringify(notices.map(n => ({ book: n.params.book ?? "", notice: noticeText(n) })))
+}
 
 // 常駐が呼ぶ口: JSON の文字列で受けて返す
 ;(globalThis as { matomezuPerform?: (input: string) => string }).matomezuPerform = input =>

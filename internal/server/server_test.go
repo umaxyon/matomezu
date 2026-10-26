@@ -591,3 +591,43 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 		t.Fatalf("show = %s", got)
 	}
 }
+
+// 読めないブックは、AI のブックの一覧に理由が付く。プラグインを足せば読めるようになり、外せばまた理由が付く（データはそのまま）
+func TestListsWhyABookCannotBeRead(t *testing.T) {
+	s := newServer(t, nil)
+	flow := `{"type":"ex2:flow","id":"f1","title":"Flow","pages":[]}`
+	if code, body := send(t, "PUT", s.URL+"/api/books/f1", `{"book":`+flow+`,"base":0}`, nil); code != 200 {
+		t.Fatalf("put = %d %s", code, body)
+	}
+	problem := func() string {
+		_, body := get(t, s.URL+"/api/ai/books", "secret")
+		var got struct {
+			Books []struct {
+				ID      string `json:"id"`
+				Problem string `json:"problem"`
+			} `json:"books"`
+		}
+		_ = json.Unmarshal([]byte(body), &got)
+		for _, b := range got.Books {
+			if b.ID == "f1" {
+				return b.Problem
+			}
+		}
+		return "missing"
+	}
+	if got := problem(); got != "N004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog" {
+		t.Fatalf("before linking = %q", got)
+	}
+	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
+		t.Fatalf("link = %s", got)
+	}
+	if got := problem(); got != "" {
+		t.Fatalf("after linking = %q", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
+		t.Fatalf("unlink = %s", got)
+	}
+	if got := problem(); !strings.HasPrefix(got, "N004 ex2:") {
+		t.Fatalf("after unlinking = %q", got)
+	}
+}
