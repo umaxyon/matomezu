@@ -8,6 +8,8 @@ export const NOTICES = {
   N005: "book {book} ({title}): it does not fit its type {type}",
   N006: "book {book} ({title}): it breaks the rules of its type {type}",
   N007: "book {book} ({title}): it has {missing}, not in the catalog (kept as they are)",
+  N008: "key {key} in {scope} for {command}: a builtin plugin's key is there (not used)",
+  N009: "key {key} in {scope} for {command}: another added plugin {other} has the same key (neither is used)",
 } as const
 
 export type NoticeCode = keyof typeof NOTICES

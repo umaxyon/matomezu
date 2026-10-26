@@ -163,7 +163,7 @@ export function assemble(
         commands: new Map(commands.map(c => [c.id, c])),
         dialogs: new Map(dialogs.map(d => [d.id, d])),
         keys,
-        notices: performsNotices(plugins, catalog),
+        notices: [...performsNotices(plugins, catalog), ...keyNotices(keys)],
       },
     },
     home,
@@ -205,6 +205,19 @@ function performsNotices(plugins: readonly Plugin[], catalog: CoreCatalog): Noti
         .map(a => notice("N003", p.id, { command: c.id, action: a })),
     ),
   )
+}
+
+// 追加プラグインの既定のキーで使わない行: ビルトインプラグインのキーがある（N008）・ほかの追加プラグインと同じキー（N009。両方使わない）
+function keyNotices(keys: readonly DefaultKey[]): Notice[] {
+  const at = (k: DefaultKey) => `${k.binding.scope} ${k.binding.key}`
+  const builtin = new Set(keys.filter(k => k.builtin).map(at))
+  const added = keys.filter(k => !k.builtin)
+  return added.flatMap(k => {
+    const params = { key: k.binding.key, scope: k.binding.scope, command: k.binding.command }
+    if (builtin.has(at(k))) return [notice("N008", k.plugin, params)]
+    const other = added.find(o => o.plugin !== k.plugin && at(o) === at(k))
+    return other ? [notice("N009", k.plugin, { ...params, other: other.plugin })] : []
+  })
 }
 
 // 機能台帳の注意（core と store の段）

@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test"
 import { isMatomezuError } from "../../web/src/core/errors"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
+import { noticeText } from "../../web/src/core/notices"
 import { BUILTIN } from "../../web/src/plugins"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { type DefaultKey, inspectKey, keyScopes, keysOf, keyTable, shadowedKeys } from "../../web/src/store/keys"
-import { definePlugin } from "../../web/src/store/plugin"
+import { definePlugin, noticesOf } from "../../web/src/store/plugin"
 import { newStore } from "../support"
 
 const def = (key: string, command: string, plugin: string, builtin = false, scope = "stage"): DefaultKey => ({
@@ -136,4 +137,25 @@ test("組み立ては、読めないキー・無いコマンド・追加プラ�
   expect(thrown(make([{ key: "K", command: "k:none", scope: "stage" }]))).toEqual(["E024"])
   expect(thrown(make([{ key: "K", command: "@matomezu/paper:paper-delete", scope: "stage" }]))).toEqual(["E302"])
   expect(thrown(make([{ key: "Delete", command: "k:own", scope: "stage" }]))).toBeNull()
+})
+
+test("追加プラグインの既定のキーがビルトインに負けたら N008、ほかの追加プラグインとぶつかったら N009 の注意を残す（どちらもその行は使わない）", () => {
+  const command = (id: string) =>
+    defineCommand({ id, title: "@matomezu/master:Master", run: () => {}, when: () => true })
+  // id を引数で作るので、頭の確かめの型は外して渡す（組み立ての確かめは実行時に通る）
+  const plugin = (id: string, key: string) =>
+    definePlugin({
+      id,
+      commands: [command(`${id}:own`)],
+      keys: [{ key, command: `${id}:own`, scope: "stage" }],
+    } as never)
+  const instance = createMatomezu({
+    plugins: [...BUILTIN, plugin("a", "Delete"), plugin("b", "K"), plugin("c", "K"), plugin("d", "J")],
+    partial: true,
+  })
+  expect(noticesOf(instance.catalog).map(noticeText)).toEqual([
+    "N008 a: key Delete in stage for a:own: a builtin plugin's key is there (not used)",
+    "N009 b: key K in stage for b:own: another added plugin c has the same key (neither is used)",
+    "N009 c: key K in stage for c:own: another added plugin b has the same key (neither is used)",
+  ])
 })
