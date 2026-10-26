@@ -13,6 +13,7 @@ const onItemPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && c
 // 引けない相手なら何もしない
 export const LINE_DRAW = kit.defineCommand({
   id: "line-draw",
+  performs: ["@matomezu/line:line-connect"],
   title: "Connect items",
   run: (ctx, a, args: { from: string; side: Side; to: string; at: Point }) => {
     const { opened } = ctx.stage
@@ -35,6 +36,7 @@ export const LINE_DRAW = kit.defineCommand({
 // 線の編集のダイアログを開く。右クリックのメニューでは「設定」として出す
 export const LINE_EDIT = kit.defineCommand({
   id: "line-edit",
+  performs: ["@matomezu/line:line-update"],
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     const page = ctx.stage.opened?.page
@@ -47,6 +49,7 @@ export const LINE_EDIT = kit.defineCommand({
 // つなぎ替えた端は、離した所に一番近いふちの点に固定する。自分に戻る線になるなら、離した所に近い角が自動の角と違って空いていればその角に固定する
 export const LINE_RECONNECT_DROP = kit.defineCommand({
   id: "line-drop",
+  performs: ["@matomezu/line:line-reconnect"],
   title: "Reconnect line",
   run: (ctx, a, args: { line: string; end: "from" | "to"; item: string; at: Point }) => {
     const { opened } = ctx.stage

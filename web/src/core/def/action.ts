@@ -1,11 +1,13 @@
 // アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も LLM の操作も同じものを通る。
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 import type { z } from "zod"
+import type { ActionId } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
 import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
+import type { BookTypeDef } from "./book-type"
 import type { Capability } from "./item"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は見る人ごとの設定で、
@@ -34,6 +36,32 @@ export interface Done<T extends ActionTarget, R> {
 }
 
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）
+// 付く先: items はそのアイテムを置けるタイプ、presentations はその見せ方のタイプ、pages はページを持つタイプ、books はどのタイプも
+export interface ActionAttach {
+  items?: readonly string[]
+  presentations?: readonly string[]
+  pages?: true
+  books?: true
+}
+
+// アクションがタイプ type に付くか（attach のどれかに当てはまるか）
+export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): boolean {
+  const a = def.attach
+  if (!a) return false
+  return (
+    a.books === true ||
+    (a.pages === true && type.pages !== null) ||
+    (a.items?.some(id => type.items.allowed.includes(id)) ?? false) ||
+    (a.presentations?.includes(type.presentation) ?? false)
+  )
+}
+
+// タイプ type でアクションを使えるか: タイプが外していなければ、タイプが足したか、付く先が当てはまるか（core/inspect.ts の段と同じ決まり）
+export function allowedIn(def: Pick<ActionDef, "id" | "attach">, type: BookTypeDef): boolean {
+  if (type.actions.without?.includes(def.id as ActionId)) return false
+  return (type.actions.add?.includes(def.id as ActionId) ?? false) || attachedTo(def, type)
+}
+
 export interface ActionDef<
   T extends ActionTarget = ActionTarget,
   A = unknown,
@@ -43,6 +71,8 @@ export interface ActionDef<
 > {
   id: string // 本当の id。名前は「対象-動き」（例: page-add）
   title: Tt
+  // ブックが対象のアクションの付く先。どれか 1 つに当てはまるタイプのブックで使える（無ければ、タイプの actions.add で選ばれたときだけ）
+  attach?: ActionAttach
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
   needs: readonly Capability[] // 対象のアイテムに求める能力

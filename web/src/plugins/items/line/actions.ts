@@ -48,8 +48,12 @@ function withLine(
 // 形 from から to へ線を引く（同じ形なら自分に戻る線）。両端は同じページのつなげる形（箱・リスト。リストの行にはつながない）。
 // 線が使えるブック（usesLines）だけ。同じ組（向きは問わない）には 1 本だけ、自分に戻る線は何本でも。props は線の項目（書かなかった項目は既定）。
 // 線でつながった 2 つの形は間隔の下限が広がる（32px、キャプションがあれば 40px）ので、近すぎれば終点の側をどける。どけられなければ断る
+// 線のアクションは、線を置けるタイプについて来る
+const ON_LINES = { items: [kit.name("connector-line")] }
+
 export const LINE_CONNECT = kit.defineAction({
   id: "line-connect",
+  attach: ON_LINES,
   aiDescription:
     "Draw a line from the item from to the item to (boxes and lists on the same page, not a list's rows); from and to the same item draws a line looping back to it. Two items are joined by one line at most (either way); an item may loop back to itself any number of times. route is straight or elbow (without it, elbow); startHead and endHead put a shape on that end (arrow is a filled triangle); dash is solid or dashed. exitAt and enterAt fix where the line leaves from and enters to: a fraction (0 to 1) of the way clockwise round the item's edge from its top-left corner; without them the line picks its ends. via (elbow lines with both ends fixed) places the line's middle segments. If the two items are now too close (32 pixels, 40 with a caption), to is moved away. Returns the new line's id. read_book shows lines among a page's items.",
   title: "Connect items",
@@ -85,6 +89,7 @@ export const LINE_CONNECT = kit.defineAction({
 // キャプションを付けて間隔の下限が広がれば、終点の側をどける
 export const LINE_UPDATE = kit.defineAction({
   id: "line-update",
+  attach: ON_LINES,
   aiDescription:
     "Change some props of a line. Props not given stay; a prop given as null is removed (back to its default). A caption that widens the gap moves the end item away.",
   title: "Update line",
@@ -115,6 +120,7 @@ export const LINE_UPDATE = kit.defineAction({
 // つなぎ替えた先の形はそのままで、近すぎればもう一方の形をどける
 export const LINE_RECONNECT = kit.defineAction({
   id: "line-reconnect",
+  attach: ON_LINES,
   aiDescription:
     "Move one end of a line (end is from or to) to another item on the page, keeping its caption, heads, style and route. Its hand-placed middle segments and the moved end's fixed place are dropped (both ends' places when it becomes or stops being a loop); props.exitAt or props.enterAt fix them again. The item and the other end must not be joined by another line. If they are now too close, the other end's item is moved away.",
   title: "Reconnect line",

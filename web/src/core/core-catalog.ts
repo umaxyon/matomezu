@@ -4,7 +4,7 @@
 
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
-import type { ActionDef } from "./def/action"
+import { type ActionDef, allowedIn, attachedTo } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
@@ -15,6 +15,8 @@ import { THEME_TOKENS, type ThemeDef } from "./def/theme"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
 import { LANGUAGES, type Lang, type LanguagePack, MESSAGES, type MessageSet } from "./i18n/messages"
+import { splitId } from "./names"
+import { type Notice, notice } from "./notices"
 import { placedSchema } from "./placed"
 import { PageSchema } from "./schema/page"
 
@@ -56,6 +58,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   messages: Messages
   languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語の id → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
+  notices: readonly Notice[] // 組み立てで見つけた、止めるほどではない間違い（core/notices.ts）
 }
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
@@ -78,6 +81,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     messages: mergeMessages(parts),
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
+    notices: coreNotices(parts),
   }
 }
 
@@ -145,6 +149,24 @@ function mergeMessages(parts: CoreCatalogParts): Messages {
 }
 
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
+// タイプの actions の、効かない行: without に付いていないアクション（N001）、add にすでに付いているアクション（N002）。注意はタイプのプラグインのもの
+function coreNotices(parts: CoreCatalogParts): Notice[] {
+  const actions = byId(parts.actions)
+  return parts.bookTypes.flatMap(t => {
+    const plugin = splitId(t.id).owner ?? ""
+    const attached = (id: string) => {
+      const a = actions.get(id)
+      return a !== undefined && attachedTo(a, t)
+    }
+    return [
+      ...(t.actions.without ?? [])
+        .filter(id => !attached(id) && !(t.actions.add ?? []).includes(id))
+        .map(id => notice("N001", plugin, { type: t.id, action: id })),
+      ...(t.actions.add ?? []).filter(attached).map(id => notice("N002", plugin, { type: t.id, action: id })),
+    ]
+  })
+}
+
 export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   const problems: Problem[] = []
   const papers = byId(parts.papers)
@@ -173,21 +195,19 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
       if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
     }
-    if (t.pages?.addFromTabs && !t.actions.defaults.includes("@matomezu/base:page-add"))
-      problems.push(problem("E006", { id: t.id }))
+    const pageAdd = actions.get("@matomezu/base:page-add")
+    if (t.pages?.addFromTabs && !(pageAdd && allowedIn(pageAdd, t))) problems.push(problem("E006", { id: t.id }))
     const built = buildBookSchemas(parts, t).book
     if (t.single && (t.book.id !== t.id || !built.safeParse(t.book).success))
       problems.push(problem("E019", { id: t.id }))
     if (!t.single && !built.safeParse(t.create({ id: "check", title: "check" })).success)
       problems.push(problem("E007", { id: t.id }))
-    for (const [kind, choice, table] of [
-      ["item", t.items, items],
-      ["action", t.actions, actions],
-    ] as const) {
-      for (const id of choice.allowed) if (!table.has(id)) problems.push(problem("E008", { id: t.id, kind, ref: id }))
-      for (const id of choice.defaults)
-        if (!choice.allowed.includes(id)) problems.push(problem("E009", { id: t.id, kind, ref: id }))
-    }
+    for (const id of t.items.allowed)
+      if (!items.has(id)) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
+    for (const id of t.items.defaults)
+      if (!t.items.allowed.includes(id)) problems.push(problem("E009", { id: t.id, kind: "item", ref: id }))
+    for (const id of t.actions.add ?? [])
+      if (!actions.has(id)) problems.push(problem("E008", { id: t.id, kind: "action", ref: id }))
     if (!themes.has(t.theme)) problems.push(problem("E010", { id: t.id, theme: t.theme }))
     if (!parts.presentations.some(p => p.id === t.presentation))
       problems.push(problem("E008", { id: t.id, kind: "presentation", ref: t.presentation }))

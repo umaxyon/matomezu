@@ -3,7 +3,7 @@
 import type { z } from "zod"
 import type { ActionId, ActionTable } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
-import type { ActionContext, ActionDef, ActionTarget, Subjects } from "./def/action"
+import { type ActionContext, type ActionDef, type ActionTarget, allowedIn, type Subjects } from "./def/action"
 import { inspect } from "./inspect"
 import type { Library } from "./library"
 import { type ItemPage, pageHolds } from "./placed"
@@ -22,15 +22,18 @@ export type Performed<Id extends ActionId> =
   | { ok: true; next: SubjectOf<Id>; result: ResultOf<Id> }
   | { ok: false; reason: Refusal }
 
-// ブックで使えるアクション（タイプの既定）
-export function actionsOf(catalog: CoreCatalog, book: Book): readonly string[] {
-  return bookType(catalog, book.type).actions.defaults
+// タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
+function typeActions(catalog: CoreCatalog, type: string): readonly string[] {
+  const t = bookType(catalog, type)
+  return [...catalog.actions.values()].filter(a => allowedIn(a, t)).map(a => a.id)
 }
 
+// ブックで使えるアクション
+export const actionsOf = (catalog: CoreCatalog, book: Book): readonly string[] => typeActions(catalog, book.type)
+
 // ホームのブックで使えるアクション（ホームが無ければ無い）。ホームは 1 冊だけのタイプで、ブックの id はタイプの id
-export function homeActions(catalog: CoreCatalog, home: string | null): readonly string[] {
-  return home === null ? [] : bookType(catalog, home).actions.defaults
-}
+export const homeActions = (catalog: CoreCatalog, home: string | null): readonly string[] =>
+  home === null ? [] : typeActions(catalog, home)
 
 // ブックが、データの形の外の決まり（アイテムどうしの関係）を守っているか: タイプの決まりと、どのページもつなぐものの定義の決まり
 export function holds(catalog: CoreCatalog, book: Book): boolean {

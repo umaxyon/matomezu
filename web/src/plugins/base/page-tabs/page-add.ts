@@ -6,6 +6,7 @@ import { kit } from "../kit"
 
 export const PAGE_ADD = kit.defineAction({
   id: "page-add",
+  attach: { pages: true },
   aiDescription:
     "Add a page at the end of a book. Paper and orientation default to the book type's. Returns the new page's id.",
   title: "Add page",

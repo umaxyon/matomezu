@@ -6,6 +6,7 @@ package server
 
 import (
 	"fmt"
+	"os"
 	"slices"
 
 	"github.com/umaxyon/matomezu/internal/plugin"
@@ -53,6 +54,10 @@ func (h *Hub) UnlinkPlugin(id string) error {
 func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	if _, err := h.engine.Use(next); err != nil {
 		return err
+	}
+	// 注意は止めずに、常駐のログ（標準エラー）に書く
+	for _, n := range h.engine.Notices() {
+		fmt.Fprintln(os.Stderr, "notice:", n)
 	}
 	h.plugins = next
 	h.pluginsVersion++

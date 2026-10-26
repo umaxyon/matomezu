@@ -9,6 +9,7 @@ import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePack, MessageSet } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
 import { isOwnedBy, splitId } from "../core/names"
+import { type Notice, notice } from "../core/notices"
 import { type AutoSkin, autoSkin } from "../core/skin"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef, DialogTaking } from "./dialogs"
@@ -92,6 +93,7 @@ export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
   keys: readonly DefaultKey[] // キーの既定の割り当て（キーはそろえた書き方）
+  notices: readonly Notice[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs。core/notices.ts）
 }
 
 // インスタンスが持つ機能台帳（core と store の段。ui の段は画面が持つ）
@@ -157,7 +159,12 @@ export function assemble(
   return {
     catalog: {
       core: catalog,
-      store: { commands: new Map(commands.map(c => [c.id, c])), dialogs: new Map(dialogs.map(d => [d.id, d])), keys },
+      store: {
+        commands: new Map(commands.map(c => [c.id, c])),
+        dialogs: new Map(dialogs.map(d => [d.id, d])),
+        keys,
+        notices: performsNotices(plugins, catalog),
+      },
     },
     home,
     autoSkin: autoSkin(catalog, auto),
@@ -188,6 +195,20 @@ function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>):
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   return keys
 }
+
+// コマンドの performs に書いた、表に無いアクション（N003。その行のコマンドは出ない）
+function performsNotices(plugins: readonly Plugin[], catalog: CoreCatalog): Notice[] {
+  return plugins.flatMap(p =>
+    (p.commands ?? []).flatMap(c =>
+      (c.performs ?? [])
+        .filter(a => !catalog.actions.has(a))
+        .map(a => notice("N003", p.id, { command: c.id, action: a })),
+    ),
+  )
+}
+
+// 機能台帳の注意（core と store の段）
+export const noticesOf = (catalog: Catalog): readonly Notice[] => [...catalog.core.notices, ...catalog.store.notices]
 
 function duplicates(kind: string, ids: readonly string[]) {
   const seen = new Set<string>()

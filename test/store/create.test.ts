@@ -22,7 +22,7 @@ const NOTE = defineBookType({
   create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,
   items: { allowed: [], defaults: [] },
-  actions: { allowed: [], defaults: [] },
+  actions: {},
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
   tokens: [],

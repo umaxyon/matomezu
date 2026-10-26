@@ -276,7 +276,7 @@ describe("機能台帳ごとに別の世界", () => {
     create: init => ({ type: "notes" as const, ...init }),
     pages: null,
     items: { allowed: [], defaults: [] },
-    actions: { allowed: [], defaults: [] },
+    actions: {},
     theme: "@matomezu/base:standard",
     presentation: "@matomezu/master:master", // 画面に出さないので、見せ方は表にあるものを借りる
     tokens: [],

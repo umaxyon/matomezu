@@ -15,20 +15,17 @@ export const MASTER = kit.defineBookType({
   book: {},
   pages: null,
   items: { allowed: [], defaults: [] },
+  // ブックの一覧と設定を変えるアクションを足し、名前の欄を出さないので book-update を外す
   actions: {
-    allowed: [
+    add: [
       "@matomezu/master:book-create",
       "@matomezu/base:settings-lang",
       "@matomezu/base:settings-skin",
       "@matomezu/base:settings-keys",
     ],
-    defaults: [
-      "@matomezu/master:book-create",
-      "@matomezu/base:settings-lang",
-      "@matomezu/base:settings-skin",
-      "@matomezu/base:settings-keys",
-    ],
+    without: ["@matomezu/base:book-update"],
   },
+
   theme: "@matomezu/base:standard",
   presentation: MASTER_PRESENTATION.id,
   tokens: [],

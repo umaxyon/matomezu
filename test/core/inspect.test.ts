@@ -58,7 +58,19 @@ describe("inspect: アクションの許可", () => {
   test("ブックが対象のアクションは、そのブックのタイプが決める", () => {
     expect(inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:page-add", book: drawing })).toMatchObject({
       value: true,
-      decidedBy: { source: "bookType", id: "@matomezu/drawing:drawing", field: "actions.defaults" },
+      decidedBy: {
+        source: "action",
+        id: "@matomezu/base:page-add",
+        field: "attach",
+        bookType: "@matomezu/drawing:drawing",
+      },
+    })
+    // マスターは book-update を外す（付く先はどのブックも）
+    expect(
+      inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:book-update", book: MASTER_BOOK }),
+    ).toMatchObject({
+      value: false,
+      decidedBy: { source: "bookType", id: "@matomezu/master:master", field: "actions.without" },
     })
     expect(inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:page-add", book: MASTER_BOOK }).value).toBe(
       false,
@@ -74,13 +86,13 @@ describe("inspect: アクションの許可", () => {
       ),
     ).toMatchObject({
       value: true,
-      decidedBy: { source: "home", id: "@matomezu/master:master", field: "actions.defaults" },
+      decidedBy: { source: "bookType", id: "@matomezu/master:master", field: "actions.add" },
     })
     expect(
       inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/master:book-create" }, { home: null }),
     ).toMatchObject({
       value: false,
-      decidedBy: { source: "home", id: null, field: "actions.defaults" },
+      decidedBy: { source: "home", id: null },
     })
   })
 

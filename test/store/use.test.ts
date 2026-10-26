@@ -16,7 +16,7 @@ const NOTE = defineBookType({
   create: init => ({ type: "notes:note" as const, ...init }),
   pages: null,
   items: { allowed: [], defaults: [] },
-  actions: { allowed: ["notes:rename"], defaults: ["notes:rename"] },
+  actions: { add: ["notes:rename" as never] },
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/master:master",
   tokens: [],

@@ -31,6 +31,7 @@ export function placeAt(ctx: Pick<CommandContext, "stage">, pointer: Point): Poi
 // 追加のダイアログのあるアイテム（箱・リスト）は、置くのをやめて追加のダイアログを開き、中身を決めてから置く
 export const PAPER_PLACE = kit.defineCommand({
   id: "paper-place",
+  performs: ["@matomezu/paper:item-place"],
   title: "Place item",
   run: (ctx, a, pointer: Point) => {
     const { stage } = ctx
@@ -69,6 +70,7 @@ function editable(ctx: CommandContext): boolean {
 // 右クリックのメニューでは「設定」として出す
 export const PAPER_EDIT = kit.defineCommand({
   id: "paper-edit",
+  performs: ["@matomezu/paper:item-update"],
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     const page = ctx.stage.opened?.page
@@ -87,6 +89,7 @@ export const PAPER_EDIT = kit.defineCommand({
 // 選んでいるアイテムを消し、選択を外す（選んでいなければ出さない）
 export const PAPER_DELETE = kit.defineCommand({
   id: "paper-delete",
+  performs: ["@matomezu/paper:item-remove"],
   title: "Delete",
   run: (ctx, a) => {
     const { opened, selection, id } = ctx.stage
@@ -104,6 +107,7 @@ export const PAPER_DELETE = kit.defineCommand({
 // アイテムを、画面の上で動いた量だけ動かす（came はドラッグの通り道で覚えた、相手ごとの先端が来た向き）。収まらなければ動かさない
 export const PAPER_MOVE = kit.defineCommand({
   id: "paper-move",
+  performs: ["@matomezu/paper:item-move"],
   title: "Move items",
   run: (ctx, a, args: { items: readonly string[]; by: Point; came?: Came }) => {
     const { opened } = ctx.stage
@@ -122,6 +126,7 @@ export const PAPER_MOVE = kit.defineCommand({
 // アイテムの辺（角なら 2 つの辺）をつかんで、画面の上で動いた量だけ大きさを変える（items.ts の resizedBy）
 export const PAPER_RESIZE = kit.defineCommand({
   id: "paper-resize",
+  performs: ["@matomezu/paper:item-resize"],
   title: "Resize item",
   run: (ctx, a, args: { item: string; edges: Edges; by: Point }) => {
     const { opened } = ctx.stage

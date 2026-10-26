@@ -7,6 +7,7 @@ import { kit } from "./kit"
 // 開いているブックのテーマをミントにする（ほかの作り手のタイプのブックにも使える）
 export const USE_MINT = kit.defineCommand({
   id: "mint",
+  performs: ["@matomezu/base:book-update"],
   title: "useMint",
   run: (ctx, a) => {
     if (ctx.book)

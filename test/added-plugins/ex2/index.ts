@@ -7,6 +7,7 @@ import { kit } from "./kit"
 // 判断のひし形を置いて、ダイアログを閉じる
 export const ADD = kit.defineCommand({
   id: "add",
+  performs: ["@matomezu/paper:item-place"],
   title: "addDecision",
   run: (ctx, a, args: { page: string; at: Point; caption: string }) => {
     if (!ctx.book) return
@@ -23,6 +24,7 @@ export const ADD = kit.defineCommand({
 // 判断に答えて、ダイアログを閉じる
 export const ANSWER_COMMAND = kit.defineCommand({
   id: "answer",
+  performs: ["ex2:diamond-answer"],
   title: "answerDecision",
   run: (ctx, a, args: { page: string; item: string; answer: "yes" | "no" }) => {
     if (!ctx.book) return

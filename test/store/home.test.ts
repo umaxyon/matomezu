@@ -58,7 +58,7 @@ describe("ホーム", () => {
     // 言語だけを許すホーム
     const strict = {
       ...MASTER,
-      actions: { allowed: ["@matomezu/base:settings-lang"], defaults: ["@matomezu/base:settings-lang"] },
+      actions: { add: ["@matomezu/base:settings-lang"] as const },
     }
     const org = { ...BUILTIN[1], bookTypes: [strict] }
     const locked = createMatomezu({ plugins: [BUILTIN[0], org, ...BUILTIN.slice(2)], home: "@matomezu/master:master" })

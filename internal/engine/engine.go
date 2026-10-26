@@ -57,6 +57,7 @@ type Engine struct {
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
+	notices   []string
 }
 
 // New は core を読み込む
@@ -127,11 +128,24 @@ func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 		plugins = append(plugins, v)
 		ids = append(ids, id)
 	}
-	if _, err := e.use(goja.Undefined(), e.vm.NewArray(plugins...)); err != nil {
+	res, err := e.use(goja.Undefined(), e.vm.NewArray(plugins...))
+	if err != nil {
 		return nil, fmt.Errorf("plugins: %w", err)
 	}
+	var notices []string
+	if err := e.vm.ExportTo(res, &notices); err != nil {
+		return nil, fmt.Errorf("plugins: %w", err)
+	}
+	e.notices = notices
 	e.aiCatalog = json.RawMessage(e.readAI())
 	return ids, nil
+}
+
+// Notices は、最後に組み直したときの注意（止めるほどではない間違い。1 行ずつ）
+func (e *Engine) Notices() []string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.notices
 }
 
 // Perform はアクションを行う

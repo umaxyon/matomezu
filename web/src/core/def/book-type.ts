@@ -1,6 +1,7 @@
 // ブックのタイプの定義: データの形・並べ方の決まり・使えるアイテムとアクションの規定・既定のテーマ。
 // アイテム・アクション・テーマは id で参照する（アイテムとアクションはブックのタイプを知らない）
 import { z } from "zod"
+import type { ActionId } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
@@ -11,6 +12,12 @@ import type { TokenDecl } from "./theme"
 export interface Choice {
   allowed: readonly string[]
   defaults: readonly string[]
+}
+
+// タイプが足す・外すアクション
+export interface ActionChoice {
+  add?: readonly ActionId[]
+  without?: readonly ActionId[]
 }
 
 // ページの決まり。addFromTabs はタブの横に、ページを足すボタン（page-add）を出すか
@@ -33,7 +40,8 @@ interface BookTypeBase<S extends z.ZodObject> {
   schema: S
   pages: PagesRule | null // ページを持つか（持つなら、機能台帳がページの欄を足す）
   items: Choice
-  actions: Choice
+  // 使えるアクションは、タイプが選んだ物に付いて来る（アクションの attach）。add はそのタイプだけのアクション、without は使わせないアクション
+  actions: ActionChoice
   theme: string // 既定のテーマ
   presentation: string // 見せ方（core/def/presentation.ts。描くビューは見せ方の id で結ぶ）
   tokens: readonly TokenDecl[] // ブックの画面を描くのに使うテーマの欄

@@ -2,8 +2,10 @@
 // 口はこの inspect 1 つで、問い合わせの種類（kind）ごとに調べ方を足す。
 // 段（steps）は見る順に並べ、最初に値のあった段で決まる（決まった後の段も並べる）。段の出どころは文ではなくデータで返す
 
+import type { ActionId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
-import type { ActionContext, ActionDef } from "./def/action"
+import { type ActionContext, type ActionDef, attachedTo } from "./def/action"
+import type { BookTypeDef } from "./def/book-type"
 import type { ThemeToken } from "./def/theme"
 import { THEME_TOKENS } from "./def/theme"
 import type { KeyBinding } from "./keys"
@@ -15,8 +17,9 @@ export type Source =
   | { source: "theme"; id: string; field: "tokens" | "base"; key: string } // テーマの上書き・共通の欄
   | { source: "token"; id: string } // 欄の宣言に書いた値
   | { source: "catalog"; table: "actions"; id: string } // 表にその定義があるか
-  | { source: "bookType"; id: string; field: "actions.defaults" } // ブックのタイプが使えるアクション
-  | { source: "home"; id: string | null; field: "actions.defaults" } // ホームのタイプが使えるアクション（ホームが無ければ id は null）
+  | { source: "bookType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
+  | { source: "action"; id: string; field: "attach"; bookType: string } // アクションの付く先が、そのタイプに当てはまるか
+  | { source: "home"; id: null } // ホームが無い（一覧と設定のアクションは使えない）
   // キーの割り当ての行（誰の行か・書いたプラグイン・使わなかった理由。store/keys.ts の inspectKey）
   | {
       source: "key"
@@ -76,7 +79,22 @@ function token(catalog: CoreCatalog, q: { book: Book; token: string }): Inspecte
   ])
 }
 
-// アクションの許可: 表にあるか → ブックが対象ならそのブックのタイプ、一覧と設定が対象ならホームのタイプが使えるとするか
+// タイプ type でアクションを使えるかの段: タイプが外す（without）→ タイプが足す（add）→ アクションの付く先（attach）
+export function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
+  return [
+    {
+      from: { source: "bookType", id: type.id, field: "actions.without" },
+      value: type.actions.without?.includes(def.id as ActionId) ? false : null,
+    },
+    {
+      from: { source: "bookType", id: type.id, field: "actions.add" },
+      value: type.actions.add?.includes(def.id as ActionId) ? true : null,
+    },
+    { from: { source: "action", id: def.id, field: "attach", bookType: type.id }, value: attachedTo(def, type) },
+  ]
+}
+
+// アクションの許可: 表にあるか → ブックが対象ならそのブックのタイプ、一覧と設定が対象ならホームのタイプで使えるか
 function action(catalog: CoreCatalog, q: { action: string; book?: Book }, home: string | null): Inspected<boolean> {
   const def: ActionDef | undefined = catalog.actions.get(q.action)
   const known: Step<boolean> = {
@@ -84,13 +102,8 @@ function action(catalog: CoreCatalog, q: { action: string; book?: Book }, home: 
     value: def ? null : false,
   }
   if (!def) return decide([known])
-  if (def.target === "book") {
-    if (!q.book) return decide([known])
-    const type = bookType(catalog, q.book.type)
-    const from: Source = { source: "bookType", id: type.id, field: "actions.defaults" }
-    return decide([known, { from, value: type.actions.defaults.includes(def.id) }])
-  }
-  const from: Source = { source: "home", id: home, field: "actions.defaults" }
-  const usable = home === null ? false : bookType(catalog, home).actions.defaults.includes(def.id)
-  return decide([known, { from, value: usable }])
+  if (def.target === "book")
+    return q.book ? decide([known, ...typeSteps(def, bookType(catalog, q.book.type))]) : decide([known])
+  if (home === null) return decide([known, { from: { source: "home", id: null }, value: false }])
+  return decide([known, ...typeSteps(def, bookType(catalog, home))])
 }

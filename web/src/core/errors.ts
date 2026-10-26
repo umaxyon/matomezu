@@ -6,7 +6,7 @@ export const ERRORS = {
   E002: 'bookType {id}: schema.type must be the literal "{id}"',
   E004: "bookType {id}: unknown paper {paper}",
   E005: "bookType {id}: default paper {paper} is not allowed",
-  E006: "bookType {id}: addFromTabs needs @matomezu/base:page-add in the default actions",
+  E006: "bookType {id}: addFromTabs needs @matomezu/base:page-add to be usable in it",
   E007: "bookType {id}: create must return a book of the schema",
   E008: "bookType {id}: unknown {kind} {ref}",
   E009: "bookType {id}: default {kind} {ref} is not allowed",

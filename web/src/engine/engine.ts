@@ -8,21 +8,23 @@ import { restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { NO_KEY_CHANGES } from "../core/keys"
+import { noticeText } from "../core/notices"
 import { performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { restoreSettings } from "../core/settings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
 import { MASTER_BOOK } from "../plugins/books/master"
-import { assemble, type Plugin } from "../store/plugin"
+import { assemble, noticesOf, type Plugin } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
 let assembled = assemble(BUILTIN, MASTER_BOOK.id)
 
-// 追加プラグインを足して組み直す。食い違いがあれば投げ、前の組み立てのまま
-function use(added: readonly Plugin[]) {
+// 追加プラグインを足して組み直す。食い違いがあれば投げ、前の組み立てのまま。返すのは注意の 1 行ずつ（常駐がログに書く）
+function use(added: readonly Plugin[]): string[] {
   assembled = assemble([...BUILTIN, ...added], MASTER_BOOK.id)
+  return noticesOf(assembled.catalog).map(noticeText)
 }
 
 // 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
@@ -106,7 +108,7 @@ function aiCatalog() {
 ;(globalThis as { matomezuModuleNames?: () => string }).matomezuModuleNames = () =>
   JSON.stringify({ engine: Object.keys(MODULES), ui: UI_NAMES })
 
-;(globalThis as { matomezuUse?: (added: readonly Plugin[]) => void }).matomezuUse = use
+;(globalThis as { matomezuUse?: (added: readonly Plugin[]) => string[] }).matomezuUse = use
 
 ;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
 

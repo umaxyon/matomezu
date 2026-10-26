@@ -1,7 +1,7 @@
 // コマンドの定義: 画面の入口。ボタン・メニュー・キーなどから id で呼ぶ。
 // データを変えるのはアクションで、コマンドは store の操作（ステージ・ダイアログ・アクション）を呼ぶだけ
 
-import type { ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
+import type { ActionId, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
@@ -30,6 +30,8 @@ export interface CommandDef<A = undefined, Tt extends string = MessageKey> {
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない
   run(ctx: CommandContext, actions: Actions, args: A): void
+  // 行うアクション。どれかが今のブック（ブックが対象でなければホームのタイプ）で使えなければ、土台はこのコマンドを出さない
+  performs?: readonly ActionId[]
   // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる
   place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[] }
 }

@@ -13,6 +13,7 @@ const ARGS = z.strictObject({
 // 変えたらページを整える（settleBook）
 export const PAGE_UPDATE = kit.defineAction({
   id: "page-update",
+  attach: { pages: true },
   aiDescription:
     "Change a page's settings, the ones its book type has (settings, keyed by the setting's id; for a drawing, @matomezu/line:line-route: how its lines run when they have no route of their own, straight or elbow). Only what is given changes; null removes it (a drawing page then follows its book's @matomezu/line:line-route).",
   title: "Update page",

@@ -15,8 +15,12 @@ const RowPatchSchema = z.strictObject(textPatch())
 const RowNewSchema = z.strictObject(textNew())
 
 // リスト list の最後に行を足す
+// 行のアクションは、リストを置けるタイプについて来る
+const ON_LISTS = { items: [kit.name("shape-list")] }
+
 export const ROW_ADD = kit.defineAction({
   id: "row-add",
+  attach: ON_LISTS,
   aiDescription:
     "Add a row at the end of a list (an item @matomezu/list:shape-list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. Returns the new row's id. read_book shows a list's rows in its children, in order, with their checks.",
   title: "Add row",
@@ -41,6 +45,7 @@ export const ROW_ADD = kit.defineAction({
 // 行の項目を変える。props に書いた項目だけを変え、null を書いた項目は消す（既定に戻す）。項目の形に合わなければ断る
 export const ROW_UPDATE = kit.defineAction({
   id: "row-update",
+  attach: ON_LISTS,
   aiDescription:
     "Change some props of a list's row. Props not given stay; a prop given as null is removed (back to its default).",
   title: "Update row",
@@ -68,6 +73,7 @@ export const ROW_UPDATE = kit.defineAction({
 // 行を消す。無い行を含むなら断る
 export const ROW_REMOVE = kit.defineAction({
   id: "row-remove",
+  attach: ON_LISTS,
   aiDescription: "Remove rows from a list.",
   title: "Remove rows",
   target: "book",
@@ -90,6 +96,7 @@ export const ROW_REMOVE = kit.defineAction({
 // 行のチェックを入れる・外す（チェックリストのリストだけ）
 export const ROW_CHECK = kit.defineAction({
   id: "row-check",
+  attach: ON_LISTS,
   aiDescription:
     "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with @matomezu/paper:item-update, and setting it false removes every row's check). The user checks rows too, so a check can carry their answer.",
   title: "Check row",
@@ -116,6 +123,7 @@ export const ROW_CHECK = kit.defineAction({
 // "fit"（行ごとにその行の本文が全部見える高さ）、null（行数を消し、リストでそろえる高さに戻す）。無い行を含むなら断る
 export const ROW_LINES = kit.defineAction({
   id: "row-lines",
+  attach: ON_LISTS,
   aiDescription:
     'Set how many body lines rows of a list show (rows given, or every row): a number gives them all that height whatever their body; "max" gives them all the height of the longest body; "fit" gives each row the height of its own body. null removes it: rows without it share the height of the most body lines among them, up to 5, and a longer body is cut with ….',
   title: "Set row heights",
@@ -140,6 +148,7 @@ export const ROW_LINES = kit.defineAction({
 // 移した先がチェックリストでなければ、行のチェックを消す。無いリスト・無い行・自分の前へなら断る
 export const ROW_MOVE = kit.defineAction({
   id: "row-move",
+  attach: ON_LISTS,
   aiDescription:
     "Move a row of a list before the row before (or to the end without it), in the same list or in another list (to) on the same page. A row moved to a list that is not a checklist loses its check.",
   title: "Move row",

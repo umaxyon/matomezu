@@ -32,6 +32,7 @@ interface FlowPage {
 }
 export const ANSWER = kit.defineAction({
   id: "diamond-answer",
+  attach: { items: [kit.name("diamond")] }, // 判断のひし形を置けるタイプで使える
   title: "answerDecision",
   aiDescription:
     "Answer a decision (an item ex2/diamond) on a page: answer is yes or no. Refused when the item is not a decision on that page.",
@@ -59,21 +60,6 @@ export const FLOW_DIRECTION = kit.defineSetting({
   default: "down",
 })
 
-const FLOW_ACTIONS = [
-  "@matomezu/base:page-add",
-  "@matomezu/base:book-update",
-  "@matomezu/base:page-update",
-  "@matomezu/paper:item-place",
-  "@matomezu/paper:item-move",
-  "@matomezu/paper:item-update",
-  "@matomezu/paper:item-resize",
-  "@matomezu/paper:item-remove",
-  "@matomezu/line:line-connect",
-  "@matomezu/line:line-update",
-  "@matomezu/line:line-reconnect",
-  "ex2:diamond-answer",
-] as const
-
 export const FLOW = kit.defineBookType({
   id: "flow",
   version: 1,
@@ -89,7 +75,7 @@ export const FLOW = kit.defineBookType({
     allowed: ["ex2:diamond", "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
     defaults: ["ex2:diamond", "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },
-  actions: { allowed: FLOW_ACTIONS, defaults: FLOW_ACTIONS },
+  actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る（自分の判断のアクションも、ひし形について来る）
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],

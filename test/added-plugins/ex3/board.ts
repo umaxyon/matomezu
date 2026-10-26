@@ -88,16 +88,6 @@ export const NIGHT = kit.defineSkin({
   },
 })
 
-const BOARD_ACTIONS = [
-  "@matomezu/base:page-add",
-  "@matomezu/base:book-update",
-  "@matomezu/paper:item-place",
-  "@matomezu/paper:item-move",
-  "@matomezu/paper:item-update",
-  "@matomezu/paper:item-remove",
-  "@matomezu/line:line-connect",
-] as const
-
 export const BOARD = kit.defineBookType({
   id: "board",
   version: 1,
@@ -118,7 +108,7 @@ export const BOARD = kit.defineBookType({
     allowed: ["ex3:star", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
     defaults: ["ex3:star", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
   },
-  actions: { allowed: BOARD_ACTIONS, defaults: BOARD_ACTIONS },
+  actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
   theme: "ex3:mint",
   presentation: "@matomezu/paper:paper",
   tokens: [],

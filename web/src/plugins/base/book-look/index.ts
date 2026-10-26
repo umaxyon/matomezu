@@ -2,7 +2,6 @@
 // テーマと紙の色も設定の項目（look.ts）で、選んだタイプのブックだけが持つ
 import { z } from "zod"
 import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../../../core/book-settings"
-import { actionsOf } from "../../../core/perform"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { BOOK_PAPER_COLOR, BOOK_THEME } from "./look"
@@ -18,6 +17,7 @@ const ARGS = z.strictObject({
 // settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す）。表に無いテーマは断り、紙の色は小文字にそろえる。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
+  attach: { books: true },
   aiDescription:
     "Change a book: title (not empty) and settings, the ones its book type has, keyed by the setting's id (for a drawing, @matomezu/base:book-theme: one of the themes, the boxes without a theme of their own follow it; @matomezu/base:book-paper-color: #rrggbb, the paper's color; @matomezu/line:line-route: how lines run on pages without a route of their own, straight or elbow, elbow without it). Only what is given changes; null removes a setting (back to the book type's theme, the theme's paper color, or the setting's default).",
   title: "Change book",
@@ -44,7 +44,8 @@ export const BOOK_SETTINGS_DIALOG = kit.defineDialog({ id: "book-settings" })
 // ブックの設定のダイアログを開く（ブックのタイプが book-update を使える、名前と見た目を変えられるブックだけ）
 export const BOOK_SETTINGS = kit.defineCommand({
   id: "book-settings",
+  performs: ["@matomezu/base:book-update"],
   title: "Book settings",
   run: (ctx, a) => a.openDialog(ctx.stage.id, "@matomezu/base:book-settings"),
-  when: ctx => ctx.book !== null && actionsOf(ctx.catalog, ctx.book).includes("@matomezu/base:book-update"),
+  when: () => true,
 })
