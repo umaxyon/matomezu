@@ -1,9 +1,10 @@
 // 箱の大きさと中身の並び: 幅と高さは置いたアイテムの w・h（利用者が決める。本文では伸び縮みしない）。
 // 上にキャプションを 1 行（隠れない。一番低い高さはキャプション 1 行ぶん）、本文があれば区切り線と、幅で折り返した本文の行を、高さに収まる数だけ出す。
 // 収まらない本文は、最後に出す行の終わりに … を付けて切る。本文が 1 行も出ない高さなら、区切り線も出さない。
-// 文字の幅と折り返しは core/text で計算するので、画面でも常駐でも同じ行になる。画面（BoxView）はこの値のとおりに描く
+// 文字の幅と折り返しは base の text で計算するので、画面でも常駐でも同じ行になる。画面（BoxView）はこの値のとおりに描く
 import type { z } from "zod"
-import { captionTextWidth, clampLines, PLACE_LINES, type Size, TEXT_LOOK, wrap } from "../../../plugin-api"
+import type { Size } from "../../../plugin-api"
+import { captionTextWidth, clampLines, PLACE_LINES, TEXT_LOOK, wrap } from "../../base"
 import type { BoxPropsSchema } from "./box"
 
 type BoxProps = z.infer<typeof BoxPropsSchema>

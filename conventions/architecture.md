@@ -13,12 +13,13 @@
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
 | `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけの層（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`。キーの割り当てでビルトインを先に扱う） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
-| `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api` と zod（`z` を出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui` |
+| `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（置く計算と文字を出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui` |
 | `testing` | テストで組む入口（`matomezu/testing`） | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
 | `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`index.ts` はホストのエンジン用、`ui.ts` は画面用） | `plugin-entry`・React |
 
 - 土台（`core`・`store`・`ui`）は、プラグインを受け取って組み立て・動かす枠と、その枠が決める言葉（ステージ・ページ・置いたアイテムの外枠など）を持ち、具体的な機能は持たない。プラグインを読まない
-- 【未実装】土台の中の、プラグインしか使っていない処理（`core/place`・`core/text`・`core/toolbox`）は base へ移し、道具の中身（select・reparent・hand と組 paper）は paper が定義する。core のモジュールで、プラグインしか読んでいない物が無いことを `test/rules.test.ts` が見張る
+- 土台の中に、プラグインしか使わない処理を置かない。置く計算（`plugins/base/place`）・文字の幅（`plugins/base/text`）・ツールボックスの並び（`plugins/base/toolbox`）は base が持つ。core のモジュールで、プラグインしか読んでいない物が無いことを `test/rules.test.ts` が見張る
+- 【未実装】道具の組（select・reparent・hand と組 paper）は、プラグインが定義する種類にし、paper が定義する
 - 入口（`plugin-entry`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない
 - 例外は `plugin-modules`。`plugin-entry` を読んでよいのは `plugin-modules` だけで、`plugin-modules` を読んでよいのはホストのエンジン（`engine/engine.ts`）と画面の入口（`main.tsx`）だけ
 - 向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の部品を出し直すのは `plugin-entry`）

@@ -8,7 +8,8 @@
 // テーマは大きさを変えないので、どのテーマでも行の高さと折り返しは同じ。
 // 置くときは追加のダイアログ（list-add）、設定は編集のダイアログ（list-edit）。行は行の追加（row-add）・編集（row-edit）のダイアログで中身を決める
 import { z } from "zod"
-import { AlignSchema, HEX, PALETTE, type ShapeAddArgs, type ShapeEditArgs, textProps } from "../../../plugin-api"
+import { HEX, PALETTE, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
+import { AlignSchema, textProps } from "../../base"
 import { kit } from "./kit"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, MAX_ROW_LINES, placedListWidth } from "./size"
 

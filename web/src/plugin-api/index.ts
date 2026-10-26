@@ -3,7 +3,6 @@
 
 export type { PagedBook } from "../core/book"
 export { bookItems, creatableTypes, createBook, hasPages, pagedOf, putPage } from "../core/book"
-export { settingValue } from "../core/book-settings"
 export type {
   ActionId,
   BookTypeId,
@@ -44,28 +43,6 @@ export type { Point, Rect, Size } from "../core/geom"
 export { defineLanguagePack, defineMessages } from "../core/i18n/messages"
 export type { Owned } from "../core/names"
 export { actionsOf } from "../core/perform"
-export type { Edges } from "../core/place/items"
-export {
-  fitsPaper,
-  gapOf,
-  itemSize,
-  keepApart,
-  knownTheme,
-  minSize,
-  nextItemId,
-  paperSize,
-  placedAt,
-  placeItem,
-  removeItems,
-  replacePushing,
-  resizedBy,
-  shapeDefOf,
-  shownRects,
-  widenForCaption,
-  withPage,
-} from "../core/place/items"
-export type { Axis, Gap } from "../core/place/push"
-export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "../core/place/push"
 export type { ItemPage, PlacedConnector, PlacedOf, PlacedShape } from "../core/placed"
 export {
   connectableShape,
@@ -80,17 +57,6 @@ export {
 export type { Book } from "../core/schema/book"
 export type { Stage } from "../core/stage"
 export { paperOf, placement, toPaper, toPaperDelta } from "../core/stage"
-export {
-  AlignSchema,
-  BODY_MAX,
-  captionTextWidth,
-  PLACE_LINES,
-  TEXT_LOOK,
-  textNew,
-  textPatch,
-  textProps,
-} from "../core/text/fields"
-export { clampLines, wrap } from "../core/text/text"
 export { resolveTokens } from "../core/theme"
 export type { StageView } from "../core/workspace"
 export { toolOf } from "../core/workspace"

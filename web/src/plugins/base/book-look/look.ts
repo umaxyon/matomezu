@@ -1,11 +1,11 @@
 // ブックの見た目: テーマと紙の色の設定の項目（ブックのタイプが settings.book に id で選ぶ）と、ブックを描くテーマの値。
 // どちらも既定を持たず、値が無ければテーマはブックのタイプのテーマ、紙の色はテーマの紙の色
 import { z } from "zod"
-import { settingValue } from "../../../core/book-settings"
 import { HEX } from "../../../core/color"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { resolveTokens, type Shades, shades } from "../../../core/theme"
+import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 
 // ブックのテーマ（テーマの id。表に無いテーマは book-update が断り、残っていても使わない）

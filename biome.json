@@ -14,7 +14,7 @@
       "*.ts",
       "*.json",
       "!!web/dist",
-      "!!web/src/core/text/noto-sans-jp.ts"
+      "!!web/src/plugins/base/text/noto-sans-jp.ts"
     ]
   },
   "formatter": {

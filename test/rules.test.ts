@@ -169,7 +169,7 @@ test("画面の文言は t() を通す（ui に日本語を直に書かない）
 // テストで組む入口（testing/。matomezu/testing）。中のコードは入口を読まない（入口が中を読む向きだけ）
 const ENTRY_LAYERS = ["plugin-entry", "testing"]
 const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
-  "plugin-entry/index.ts": t => t === "plugin-api" || t === "zod", // zod は matomezu から出し直す
+  "plugin-entry/index.ts": t => t === "plugin-api" || t === "zod" || t === "plugins/base", // zod と base の置く計算・文字も出し直す
   "plugin-entry/ui.ts": t => t === "plugin-api/ui" || t === "plugins/base/ui",
   "testing/index.ts": t => ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui",
 }
@@ -279,4 +279,22 @@ test("アクションは同じ入力なら同じ結果: アクションを定義
     .filter(f => /\bDate\b|\bMath\.random\b|\bcrypto\.|\bperformance\.now\b/.test(f.text.replace(/\/\/.*$/gm, "")))
     .map(f => relative(ROOT, f.path))
   expect(bad).toEqual([])
+})
+
+// 土台に、プラグインしか使わない処理を置かない（プラグインだけが使う物は base が持つ）。プラグイン API が出し直すだけの物も、土台の中で使っていなければ当たる
+test("core のモジュールで、プラグインとプラグイン API しか読んでいない物は無い", () => {
+  const readers = new Map<string, Set<string>>()
+  for (const f of sources)
+    for (const t of importsOf(f)) {
+      const key = t.replace(/\/index$/, "")
+      readers.set(key, (readers.get(key) ?? new Set()).add(layerOf(f.rel)))
+    }
+  const pluginsOnly = sources
+    .filter(f => layerOf(f.rel) === "core")
+    .map(f => f.rel.replace(/\.tsx?$/, ""))
+    .filter(m => {
+      const by = [...(readers.get(m) ?? [])]
+      return by.length > 0 && by.every(l => l === "plugins" || l === "plugin-api" || l === "plugin-entry")
+    })
+  expect(pluginsOnly).toEqual([])
 })

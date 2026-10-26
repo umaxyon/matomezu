@@ -12,19 +12,8 @@
 //   それでも紙からはみ出す・近すぎる組が残るなら、動かさない（元の位置に戻る）
 // - 何個かまとめて動かすときは入れ替えず、近すぎる相手の手前へまとめて戻すだけ
 
-import {
-  type Axis,
-  apart,
-  evenGap,
-  type Gap,
-  inPaper,
-  LEN,
-  newClash,
-  type Point,
-  type Rect,
-  type Size,
-  tooClose,
-} from "../../../plugin-api"
+import type { Point, Rect, Size } from "../../../plugin-api"
+import { type Axis, apart, evenGap, type Gap, inPaper, LEN, newClash, tooClose } from "../../base"
 
 export type Dir = "left" | "right" | "up" | "down"
 export const DIRS = ["left", "right", "up", "down"] as const

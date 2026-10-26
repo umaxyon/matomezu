@@ -2,10 +2,10 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { restoreBooks } from "../../web/src/core/book"
-import { settingValue } from "../../web/src/core/book-settings"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
+import { settingValue } from "../../web/src/plugins/base/book-settings"
 import { assemble } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 

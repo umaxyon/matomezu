@@ -1,5 +1,5 @@
 // アイテムの定義: データに残り、画面に置かれるもの（名詞）。並べ方は知らず、自分の形・大きさ・能力・項目の形だけを持つ。
-// kind はアイテムのタイプで、kind ごとに持つ項目が変わる。置いたアイテムのデータの外枠（id・位置・つなぐ相手）は kind ごとに土台が決める（core/placed.ts）
+// kind はアイテムのタイプで、kind ごとに持つ項目が変わる。置いたアイテムのデータの外枠（id・位置・つなぐ相手）は kind ごとに土台が決める（base の placed.ts）
 import type { z } from "zod"
 import type { Point, Rect, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"

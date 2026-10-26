@@ -1,16 +1,6 @@
-// 紙のページに置いたアイテムのドラッグ（データを書き換えず、新しい値を返す）。置く・押す・消すなどは土台（core/place/items.ts）
-import {
-  type CoreCatalog,
-  gapOf,
-  type ItemPage,
-  type PagedBook,
-  type Point,
-  paperSize,
-  placedAt,
-  type Rect,
-  rectsOf,
-  withPage,
-} from "../../../plugin-api"
+// 紙のページに置いたアイテムのドラッグ（データを書き換えず、新しい値を返す）。置く・押す・消すなどはbase（place/items.ts）
+import { type CoreCatalog, type ItemPage, type PagedBook, type Point, type Rect, rectsOf } from "../../../plugin-api"
+import { gapOf, paperSize, placedAt, withPage } from "../../base"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 type Drawing = PagedBook

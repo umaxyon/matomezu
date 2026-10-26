@@ -1,9 +1,9 @@
 // ブックを名前（bookTitle）で探す。空白で区切った言葉が全部含まれるブックを、並びを変えずに返す（言葉が無ければ全部）。
 // 全角と半角、大文字と小文字は区別しない
-import { bookTitle } from "./book"
-import type { CoreCatalog } from "./core-catalog"
-import type { Lang } from "./i18n/i18n"
-import type { Book } from "./schema/book"
+import { bookTitle } from "../../../core/book"
+import type { CoreCatalog } from "../../../core/core-catalog"
+import type { Lang } from "../../../core/i18n/i18n"
+import type { Book } from "../../../core/schema/book"
 
 const normalize = (s: string) => s.normalize("NFKC").toLowerCase()
 

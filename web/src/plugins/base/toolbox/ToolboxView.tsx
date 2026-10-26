@@ -1,11 +1,11 @@
-// ツールボックスのビュー（ウィジェット toolbox）: ステージのブックのツールボックス（core/toolbox.ts）を横に並べる。出すツールが無ければ何も描かない。
+// ツールボックスのビュー（ウィジェット toolbox）: ステージのブックのツールボックス（toolbox.ts）を横に並べる。出すツールが無ければ何も描かない。
 // 押すとそのアイテムを置こうとし（もう一度押すと取り消す）、置こうとしているものは押されている見た目にする
 
-import { toolboxOf } from "../../../core/toolbox"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
+import { toolboxOf } from "./toolbox"
 
 export function ToolboxView({ stage }: { stage: string }) {
   const book = useMatomezuState(s => {

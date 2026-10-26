@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { searchBooks } from "../../web/src/core/book-search"
+import { searchBooks } from "../../web/src/plugins/base/book-open/book-search"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG } from "../support"
 

@@ -6,8 +6,9 @@
 // 追加は開いたときに覚えた所に箱を置いて（アクション item-place）選び、編集は箱の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { BODY_MAX, type ItemProps, type MessageKey, type Point } from "../../../plugin-api"
+import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { BODY_MAX } from "../../base"
 import {
   ActionButton,
   Choices,

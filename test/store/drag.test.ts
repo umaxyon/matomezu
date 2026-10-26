@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
-import { shownRects } from "../../web/src/core/place/items"
-import { GAP, type Rect } from "../../web/src/core/place/push"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { shownRects } from "../../web/src/plugins/base/place/items"
+import { GAP, type Rect } from "../../web/src/plugins/base/place/push"
 import { dragRects, dropManyRects, dropRects, track } from "../../web/src/plugins/paper/placing/drag"
 import { CORE_CATALOG, newStore } from "../support"
 

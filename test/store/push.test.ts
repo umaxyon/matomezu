@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
-import { GAP, planPlace, pushFrom, pushShrinking, type Rect } from "../../web/src/core/place/push"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { GAP, planPlace, pushFrom, pushShrinking, type Rect } from "../../web/src/plugins/base/place/push"
 import { placedWidth } from "../../web/src/plugins/items/box/size"
 import { newStore } from "../support"
 

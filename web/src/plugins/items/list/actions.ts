@@ -1,7 +1,8 @@
 // リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える・動かす（並べ替えと、同じページの別のリストへ）。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 
 import { z } from "zod"
-import { hasPages, nextItemId, textNew, textPatch } from "../../../plugin-api"
+import { hasPages } from "../../../plugin-api"
+import { nextItemId, textNew, textPatch } from "../../base"
 import { kit } from "./kit"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "./list"
 import { findList, rowsOf, withList, withRowLines } from "./rows"

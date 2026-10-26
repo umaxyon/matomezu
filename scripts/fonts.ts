@@ -1,6 +1,6 @@
 // 箱の文字のフォント Noto Sans JP（@fontsource/noto-sans-jp。字の範囲ごとに分けた woff2）を画面に配り、字の幅の表を作る（OVERHAUL 4.12）。
 //   bun scripts/fonts.ts copy <dir>  ふつう（400）と太字（700）の woff2 と、それを読む noto-sans-jp.css を <dir> に置く
-//   bun scripts/fonts.ts widths [<file>]  字の幅の表（無ければ web/src/core/text/noto-sans-jp.ts）を、配る woff2 から作り直す
+//   bun scripts/fonts.ts widths [<file>]  字の幅の表（無ければ web/src/plugins/base/text/noto-sans-jp.ts）を、配る woff2 から作り直す
 // 幅は配るファイルそのものから読むので、測る字と描く字が同じになる
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
@@ -8,7 +8,7 @@ import * as fontkit from "fontkit"
 
 const PACKAGE = "node_modules/@fontsource/noto-sans-jp"
 const WEIGHTS = [400, 700] as const
-const TABLE = "web/src/core/text/noto-sans-jp.ts"
+const TABLE = "web/src/plugins/base/text/noto-sans-jp.ts"
 
 // その太さの woff2 の @font-face（woff の予備は外す。配るのは woff2 だけ）
 function faces(weight: number): string {

@@ -22,21 +22,15 @@ import {
 } from "react"
 import {
   bookItems,
-  type Edges,
-  fitsPaper,
   type ItemPage,
-  itemSize,
-  minSize,
   type PlacedShape,
   type Point,
   paperOf,
   placedSize,
   placement,
   rectsOf,
-  resizedBy,
   type StageView,
   shapesOf,
-  shownRects,
   toPaperDelta,
 } from "../../../plugin-api"
 import {
@@ -57,6 +51,7 @@ import {
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
+import { type Edges, fitsPaper, itemSize, minSize, resizedBy, shownRects } from "../../base"
 import { kit } from "../kit"
 import { type Came, dragging, placeAt, trackDrag } from "../placing"
 import styles from "./PaperView.module.css"

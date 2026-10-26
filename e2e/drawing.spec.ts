@@ -247,7 +247,7 @@ async function zoomOf(page: Page) {
 test("本文は折り返した行ごとに描き（置いたときは 5 行まで）、描いた字の幅は core の計算（フォントの表）と 1px 未満で合う", async ({
   page,
 }) => {
-  const { textWidth } = await import("../web/src/core/text/text")
+  const { textWidth } = await import("../web/src/plugins/base/text/text")
   await page.goto("/")
   await addBodyBox(page)
   await page.evaluate(() => document.fonts.ready)

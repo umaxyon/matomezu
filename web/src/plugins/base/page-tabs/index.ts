@@ -1,6 +1,6 @@
 // ページ: ページを作る・開くコマンドと、ページを作るダイアログ（作るものはダイアログで決める）。ページの設定のダイアログと、それを開くコマンド
 import { hasPages } from "../../../core/book"
-import { settingDefs } from "../../../core/book-settings"
+import { settingDefs } from "../book-settings"
 import { kit } from "../kit"
 
 export { PAGE_ADD } from "./page-add"

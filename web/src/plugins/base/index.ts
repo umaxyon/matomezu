@@ -19,7 +19,43 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
 export { NEW_BOOK_DIALOG } from "./book-new"
+export { settingValue } from "./book-settings"
 export { PAPER_IDS, PAPERS } from "./looks"
+// 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
+export type { Edges } from "./place/items"
+export {
+  fitsPaper,
+  gapOf,
+  itemSize,
+  keepApart,
+  knownTheme,
+  minSize,
+  nextItemId,
+  paperSize,
+  placedAt,
+  placeItem,
+  removeItems,
+  replacePushing,
+  resizedBy,
+  shapeDefOf,
+  shownRects,
+  widenForCaption,
+  withPage,
+} from "./place/items"
+export type { Axis, Gap } from "./place/push"
+export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
+export {
+  AlignSchema,
+  BODY_MAX,
+  captionTextWidth,
+  PLACE_LINES,
+  TEXT_LOOK,
+  textNew,
+  textPatch,
+  textProps,
+} from "./text/fields"
+export { clampLines, wrap } from "./text/text"
+export { toolboxOf } from "./toolbox/toolbox"
 export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin(

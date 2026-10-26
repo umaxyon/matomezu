@@ -1,13 +1,12 @@
 // ページに置いたアイテムの操作（データを書き換えず、新しい値を返す）。
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）。
 // 形が変わったあとは、ページのつなぐものの決まりで整える（core/placed.ts の tidyPage）
-import { type PagedBook, putPage } from "../book"
-import { settingsAt } from "../book-settings"
-import type { CoreCatalog } from "../core-catalog"
-import type { ShapeItemDef } from "../def/item"
-import type { Point, Size } from "../geom"
-import { freshId } from "../ids"
-import { resolvePaper } from "../paper"
+import { type PagedBook, putPage } from "../../../core/book"
+import type { CoreCatalog } from "../../../core/core-catalog"
+import type { ShapeItemDef } from "../../../core/def/item"
+import type { Point, Size } from "../../../core/geom"
+import { freshId } from "../../../core/ids"
+import { resolvePaper } from "../../../core/paper"
 import {
   gapOf as connectorGaps,
   type ItemPage,
@@ -19,7 +18,8 @@ import {
   rectsOf,
   shapesOf,
   tidyPage as tidyItems,
-} from "../placed"
+} from "../../../core/placed"
+import { settingsAt } from "../book-settings"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
 // 置いた形の定義（表に無い形は null）

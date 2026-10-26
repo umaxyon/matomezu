@@ -6,9 +6,9 @@ import { join, resolve } from "node:path"
 
 const ROOT = resolve(import.meta.dir, "..")
 
-test("web/src/core/text/noto-sans-jp.ts は配るフォントから作り直したものと同じ", async () => {
+test("web/src/plugins/base/text/noto-sans-jp.ts は配るフォントから作り直したものと同じ", async () => {
   const out = join(mkdtempSync(join(tmpdir(), "fonts-")), "noto-sans-jp.ts")
   const run = Bun.spawn(["bun", "scripts/fonts.ts", "widths", out], { cwd: ROOT, stdout: "ignore", stderr: "inherit" })
   expect(await run.exited).toBe(0)
-  expect(readFileSync(join(ROOT, "web/src/core/text/noto-sans-jp.ts"), "utf8")).toBe(readFileSync(out, "utf8"))
+  expect(readFileSync(join(ROOT, "web/src/plugins/base/text/noto-sans-jp.ts"), "utf8")).toBe(readFileSync(out, "utf8"))
 })

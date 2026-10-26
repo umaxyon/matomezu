@@ -5,18 +5,12 @@ import {
   bookItems,
   type CoreCatalog,
   hasPages,
-  knownTheme,
-  nextItemId,
   type PlacedShape,
   placedSize,
-  placeItem,
-  removeItems,
-  replacePushing,
-  shapeDefOf,
   shapeSchema,
   shapesOf,
-  widenForCaption,
 } from "../../../plugin-api"
+import { knownTheme, nextItemId, placeItem, removeItems, replacePushing, shapeDefOf, widenForCaption } from "../../base"
 import { kit } from "../kit"
 import { DIRS } from "./drag"
 import { moveItems } from "./items"

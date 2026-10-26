@@ -1,8 +1,8 @@
 // ブックのタイプが足す設定の項目（core/book-settings.ts）と、それを受け付ける base のアクション book-update・page-update
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { settingsArgs, settingsPatchOf, withSettings } from "../../web/src/core/book-settings"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { settingsArgs, settingsPatchOf, withSettings } from "../../web/src/plugins/base/book-settings"
 import { CORE_CATALOG, newStore } from "../support"
 
 test("選んだ項目を、変えるときに渡す形にする: どれも書かなくてよく、null は消す。選んでいない項目は受け付けない", () => {

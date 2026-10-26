@@ -3,8 +3,9 @@
 // 追加はリストの最後に行を足し（row-add）、編集は行の項目を書き換える（row-update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
 
 import { useId, useState } from "react"
-import { BODY_MAX, type MessageKey } from "../../../plugin-api"
+import type { MessageKey } from "../../../plugin-api"
 import { type DialogProps, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { BODY_MAX } from "../../base"
 import {
   ActionButton,
   Choices,

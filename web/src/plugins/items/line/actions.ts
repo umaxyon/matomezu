@@ -6,13 +6,12 @@ import {
   connectorSchema,
   hasPages,
   type ItemPage,
-  keepApart,
-  nextItemId,
   type PagedBook,
   pageItemsOf,
   putPage,
   rectsOf,
 } from "../../../plugin-api"
+import { keepApart, nextItemId } from "../../base"
 import { connectable } from "./connect"
 import { kit } from "./kit"
 import { elbowAt, LINE, LinePatchSchema, usesLines } from "./line"

@@ -3,11 +3,11 @@
 // 変えたあとはページを整える（settleBook）。値は ページ → ブック → 定義の既定 の順に、最初に値のある所で決まる（settingValue）。
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
 import { z } from "zod"
-import { bookType, type CoreCatalog } from "./core-catalog"
-import type { SettingDef } from "./def/setting"
-import { fail } from "./errors"
-import { type ItemPage, tidyPage } from "./placed"
-import type { Book } from "./schema/book"
+import { bookType, type CoreCatalog } from "../../core/core-catalog"
+import type { SettingDef } from "../../core/def/setting"
+import { fail } from "../../core/errors"
+import { type ItemPage, tidyPage } from "../../core/placed"
+import type { Book } from "../../core/schema/book"
 
 export type SettingsOf = "book" | "page"
 

@@ -1,7 +1,7 @@
-// ページを変える: アクション page-update（ブックのタイプが選んだページの設定の項目。core/book-settings.ts）
+// ページを変える: アクション page-update（ブックのタイプが選んだページの設定の項目。plugins/base/book-settings.ts）
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
-import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../../../core/book-settings"
+import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../book-settings"
 import { kit } from "../kit"
 
 const ARGS = z.strictObject({

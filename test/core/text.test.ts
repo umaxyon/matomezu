@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { clampLines, type Font, textWidth, wrap } from "../../web/src/core/text/text"
+import { clampLines, type Font, textWidth, wrap } from "../../web/src/plugins/base/text/text"
 
 const F: Font = { size: 10, weight: 400 }
 const B: Font = { size: 10, weight: 700 }

@@ -3,11 +3,11 @@
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookTitle } from "../../../core/book"
-import { searchBooks } from "../../../core/book-search"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "./BookSearch.module.css"
+import { searchBooks } from "./book-search"
 
 export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: string) => void; autoFocus?: boolean }) {
   const books = useMatomezuState(useShallow(s => Object.values(s.books)))

@@ -3,20 +3,16 @@
 import {
   type CommandContext,
   defineKeys,
-  type Edges,
-  fitsPaper,
-  itemSize,
   type Point,
   pagedOf,
   paperOf,
-  resizedBy,
   type StageView,
-  shapeDefOf,
   shapeDialogs,
   shapesOf,
   toPaper,
   toPaperDelta,
 } from "../../../plugin-api"
+import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import type { Came } from "./drag"
 import { PLACE_OFFSET } from "./items"

@@ -3,7 +3,8 @@
 // 端は自由か、形のふちの上に固定（exitAt・enterAt。ふちを左上から時計回りに一周した割合）。手で直した折れ線の途中の区間（via）は、両端が固定のときだけ持つ。
 // 道筋は持たず、つないだ形の位置から描くたびに決める（route.ts）
 import { z } from "zod"
-import { type Book, bookItems, type CoreCatalog, settingValue } from "../../../plugin-api"
+import { type Book, bookItems, type CoreCatalog } from "../../../plugin-api"
+import { settingValue } from "../../base"
 import { CAPTION_OFFSET_MAX } from "./caption"
 import { HEADS } from "./heads"
 import { kit } from "./kit"
