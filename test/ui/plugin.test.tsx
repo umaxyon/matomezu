@@ -88,6 +88,13 @@ describe("見た目のプラグイン", () => {
     expect(ui.dialogViews.get("@matomezu/base:book-open")).toBe(BASE_UI.ui.dialogViews["@matomezu/base:book-open"])
   })
 
+  test("コマンドのアイコンは自分のコマンドにだけ付けられる（ほかのプラグインのコマンドなら E307）", () => {
+    const icons = definePluginUi(definePlugin({ id: "icons" }), {
+      commandIcons: { "@matomezu/paper:paper-delete": <span /> },
+    })
+    expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E307" })
+  })
+
   test("見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, notes]))).toMatchObject({ code: "E203" })
     // @ts-expect-error ダイアログのビューが無い

@@ -60,6 +60,7 @@ export const ERRORS = {
   E304: "plugin {plugin}: message {key} has no English text (en)",
   E305: "plugin {plugin}: name {name} must be of a-z, 0-9 and -, starting with a-z",
   E306: 'plugin {plugin}: token {token} must not start with "theme-" or "skin-" (the core\'s CSS variables)',
+  E307: "plugin {plugin}: commandIcons has {command}, which is not its own command",
 
   E401: "the server could not give the data: {status}",
 } as const

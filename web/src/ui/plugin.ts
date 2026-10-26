@@ -203,7 +203,11 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
       if (widgets.has(w.id)) fail("E001", { kind: "widget", id: w.id })
       widgets.set(w.id, w)
     }
-    for (const [id, icon] of Object.entries(ui.commandIcons ?? {})) commandIcons.set(id, icon)
+    const own = new Set((p.commands ?? []).map(c => c.id))
+    for (const [id, icon] of Object.entries(ui.commandIcons ?? {})) {
+      if (!own.has(id)) fail("E307", { plugin: p.id, command: id })
+      commandIcons.set(id, icon)
+    }
   }
   const overridden = new Set<string>()
   for (const { p, ui } of uis)
