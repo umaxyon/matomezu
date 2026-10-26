@@ -1,10 +1,8 @@
-// ex4（2 つ目のつなぐもの）で、監査 E1〜E5・B5 を確かめる。
+// ex4（2 つ目のつなぐもの）で、監査 E1〜E5 を確かめる（B5 は type-checks.ts）。
 // test.failing は監査の項目がまだ残っている所（あるべき動きを書き、直れば落ちて知らせる）
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render } from "@testing-library/react"
-import { defineMessages, definePlugin, pluginKit, z } from "matomezu"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
-import { definePluginUi } from "matomezu/ui"
 import EX4_UI from "../ui"
 
 afterEach(cleanup)
@@ -100,25 +98,4 @@ test.failing("E5: ビルトインの線（と線を選ぶ図面）を外して�
       </MatomezuProvider>,
     ),
   ).not.toThrow()
-})
-
-test.failing("B5: つなぐものに toolbox: true を書くと、組み立てで誤りになる", () => {
-  const kit = pluginKit("ex4-b5", defineMessages({ dot: { en: "Dot" } }))
-  const DOT = kit.defineConnector({
-    id: "dot",
-    kind: "connector",
-    version: 1,
-    title: "dot",
-    capabilities: [],
-    toolbox: true,
-    props: z.strictObject({}),
-    tokens: [],
-  })
-  // 型の表に書き足さない試しのプラグインなので、見た目の欄は型を外して渡す
-  const ui = definePluginUi(definePlugin(kit.plugin({ items: [DOT] })), {
-    connectors: { [DOT.id]: { layer: ({ children }: { children: unknown }) => children } },
-  } as never)
-  expect(() =>
-    createMatomezu({ plugins: [...BUILTIN_UI, ui], home: "@matomezu/master:master", partial: true }),
-  ).toThrow()
 })

@@ -13,7 +13,6 @@ interface ItemBase<Tt extends string = MessageKey> {
   version: number // 項目の形の版
   title: Tt
   capabilities: readonly Capability[]
-  toolbox: boolean // ツールボックスに出すか（出さないものは、ほかの操作で置く）
   props: z.ZodType // 置いたアイテムが持つ項目の形
   tokens: readonly TokenDecl[] // 描くのに使うテーマの欄
 }
@@ -55,6 +54,7 @@ export type Gap = (a: string, b: string) => number
 // 画面に置ける形。D は置いたデータの型（項目と中身の型が決まったもの）
 export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string = MessageKey> extends ItemBase<Tt> {
   kind: "shape"
+  toolbox: boolean // ツールボックスに出すか（出さないものは、ほかの操作で置く）
   size: Size // 置くときの大きさ
   content?: Readonly<Record<string, z.ZodType>> // 項目のほかに持つ中身の欄（リストの行など。どれも書かなくてよい）
   min?: Size // 一番小さい大きさ（大きさを変えられるアイテムだけ）
@@ -73,6 +73,7 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
 export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt extends string = MessageKey>
   extends ItemBase<Tt> {
   kind: "connector"
+  toolbox: false // つなぐものはツールボックスに出さない（形どうしを結ぶ操作で引く）
   gaps?(lines: readonly D[], base: Gap): Gap
   // rects は形の四角、setting はそのページで効いている設定の値（設定の定義の id から）
   tidy?(lines: readonly D[], rects: ReadonlyMap<string, Rect>, setting: (id: string) => unknown): D[]
