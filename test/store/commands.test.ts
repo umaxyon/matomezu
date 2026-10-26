@@ -18,10 +18,10 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
   test("ブックを作るのはマスター、ページを作るのはページを足せるブックを開いているときだけ", () => {
     const store = newStore()
     const { state, actions } = store
-    expect(isShown(store, state.getState(), "s1", "@matomezu/master:book-new")).toBe(false)
+    expect(isShown(store, state.getState(), "s1", "@matomezu/base:book-new")).toBe(false)
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:page-new")).toBe(true)
     actions.command("s1", "@matomezu/base:stage-home")
-    expect(isShown(store, state.getState(), "s1", "@matomezu/master:book-new")).toBe(true)
+    expect(isShown(store, state.getState(), "s1", "@matomezu/base:book-new")).toBe(true)
     expect(isShown(store, state.getState(), "s1", "@matomezu/base:page-new")).toBe(false)
   })
 
@@ -38,7 +38,7 @@ describe("コマンドを行う", () => {
   test("出ていないコマンドは行わない", () => {
     const { state, actions } = newStore()
     expect(actions.command("s1", "@matomezu/base:stage-unsplit")).toBe(false)
-    expect(actions.command("s1", "@matomezu/master:book-new")).toBe(false)
+    expect(actions.command("s1", "@matomezu/base:book-new")).toBe(false)
     expect(state.getState().dialog).toBeNull()
   })
 

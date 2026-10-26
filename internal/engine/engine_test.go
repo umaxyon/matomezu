@@ -72,14 +72,14 @@ func TestRefusals(t *testing.T) {
 func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
 	out, err := e.Perform(Input{
-		Action: "@matomezu/master:book-create",
+		Action: "@matomezu/base:book-create",
 		Args:   json.RawMessage(`{"title":"New","type":"@matomezu/drawing:drawing"}`),
 		Lang:   "ja",
 		IDs:    []string{"nb"},
 		Books:  []json.RawMessage{json.RawMessage(book)},
 	})
 	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"type":"@matomezu/drawing:drawing","id":"nb","title":"New","pages":[]}` {
-		t.Fatalf("@matomezu/master:book-create = %+v %s, %v", out, out.Books, err)
+		t.Fatalf("@matomezu/base:book-create = %+v %s, %v", out, out.Books, err)
 	}
 	out, err = e.Perform(Input{Action: "@matomezu/base:settings-lang", Args: json.RawMessage(`{"lang":"en"}`), Lang: "ja", Settings: json.RawMessage(`{"lang":"ja"}`)})
 	if err != nil || !out.OK || !strings.Contains(string(out.Settings), `"lang":"en"`) {
@@ -220,13 +220,13 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 		t.Fatalf("the AI catalog lacks the added plugin: %s", c)
 	}
 	out, err := e.Perform(Input{
-		Action: "@matomezu/master:book-create",
+		Action: "@matomezu/base:book-create",
 		Args:   json.RawMessage(`{"title":"Flow","type":"ex2:flow"}`),
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
 	})
 	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"type":"ex2:flow","id":"fb"`) {
-		t.Fatalf("@matomezu/master:book-create = %+v %s, %v", out, out.Books, err)
+		t.Fatalf("@matomezu/base:book-create = %+v %s, %v", out, out.Books, err)
 	}
 }
 

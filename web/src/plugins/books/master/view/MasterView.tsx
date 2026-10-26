@@ -6,7 +6,7 @@ import styles from "./MasterView.module.css"
 
 export function MasterView({ stage }: BookViewProps) {
   const t = useMessages(kit)
-  const newBook = useCommand(stage, "@matomezu/master:book-new")
+  const newBook = useCommand(stage, "@matomezu/base:book-new")
   return (
     <section className={styles.master} aria-label={t("Master")}>
       <h1 className={styles.title}>{t("Master")}</h1>

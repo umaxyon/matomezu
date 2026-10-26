@@ -85,7 +85,7 @@ export interface Actions {
   // そのステージのブックにページを足して（アクション page-add）、そのステージで開き、カレントにする。足せたか返す
   addPage(stage: string, args: ArgsOf<"@matomezu/base:page-add">): boolean
   // ブックを作って（アクション book-create）、そのステージで開き、カレントにする。作れたか返す
-  createBook(stage: string, args: ArgsOf<"@matomezu/master:book-create">): boolean
+  createBook(stage: string, args: ArgsOf<"@matomezu/base:book-create">): boolean
   // 設定を変える（アクション settings-lang・settings-skin）。ホームのタイプが許さなければ変えない。変えたか返す
   setLang(lang: Lang): boolean
   setSkin(skin: string): boolean
@@ -332,9 +332,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return true
     },
     createBook: (stageId, args) => {
-      const done = run("@matomezu/master:book-create", args)
+      const done = run("@matomezu/base:book-create", args)
       if (!done.ok) return false
-      const book = done.next.books?.[(done.result as ResultOf<"@matomezu/master:book-create">).book]
+      const book = done.next.books?.[(done.result as ResultOf<"@matomezu/base:book-create">).book]
       const ws = done.next.workspace ?? getState().workspace
       if (!book) return false
       commit({ ...done.next, workspace: mapStage(focus(ws, stageId), stageId, s => openBook(catalog, s, book)) })

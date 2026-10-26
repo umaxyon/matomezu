@@ -234,9 +234,9 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":1}` {
 		t.Fatalf("event = %s", got)
 	}
-	made := perform(`{"action":"@matomezu/master:book-create","args":{"title":"F","type":"ex2:flow"}}`)
+	made := perform(`{"action":"@matomezu/base:book-create","args":{"title":"F","type":"ex2:flow"}}`)
 	if !strings.Contains(made, `"ok":true`) {
-		t.Fatalf("@matomezu/master:book-create = %s", made)
+		t.Fatalf("@matomezu/base:book-create = %s", made)
 	}
 	var created struct{ Result struct{ Book string } }
 	_ = json.Unmarshal([]byte(made), &created)
@@ -304,8 +304,8 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place after removing = %s", got)
 	}
-	if got := perform(`{"action":"@matomezu/master:book-create","args":{"title":"D","type":"@matomezu/drawing:drawing"}}`); !strings.Contains(got, `"ok":true`) {
-		t.Fatalf("@matomezu/master:book-create drawing = %s", got)
+	if got := perform(`{"action":"@matomezu/base:book-create","args":{"title":"D","type":"@matomezu/drawing:drawing"}}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("@matomezu/base:book-create drawing = %s", got)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); !strings.Contains(got, `"ok":false`) {
 		t.Fatalf("remove again = %s", got)

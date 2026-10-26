@@ -58,8 +58,10 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   size: Size // 置くときの大きさ
   content?: Readonly<Record<string, z.ZodType>> // 項目のほかに持つ中身の欄（リストの行など。どれも書かなくてよい）
   min?: Size // 一番小さい大きさ（大きさを変えられるアイテムだけ）
-  sizeOf(item: D): Size // 置いたアイテムの大きさ（w・h が無ければ、項目から決まる幅と高さ）
-  captionWidth(item: D): number // キャプションが切れずに見える幅（キャプションで広げる幅と、縮めてよい横の下限）
+  // 置いたアイテムの大きさ（w・h が無ければ、項目から決まる幅と高さ）。無ければ置いたときの w・h、それも無ければ size
+  sizeOf?(item: D): Size
+  // キャプションが切れずに見える幅（キャプションで広げる幅と、縮めてよい横の下限）。無ければ size.w
+  captionWidth?(item: D): number
   settle?(item: D): D // 項目を変えたあとに、項目に合わせて中身を整える
   // 置く前に中身を決める追加のダイアログ（ShapeAddArgs を受ける）と、中身を変える編集のダイアログ（ShapeEditArgs を受ける）の id。
   // 追加が無ければそのまま置き、編集が無ければ「設定」を出さない。受ける値が合うかは definePlugin が型で確かめる

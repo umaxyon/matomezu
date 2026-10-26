@@ -1,8 +1,13 @@
 // ブックを作るダイアログ: 名前とタイプを決めて作り（アクション book-create）、そのステージで開く
 import { useState } from "react"
-import { bookType, creatableTypes } from "../../../../plugin-api"
-import { type DialogProps, useActions, useCoreCatalog, useMessages } from "../../../../plugin-api/ui"
-import { controlClass, Dialog, Field, Form } from "../../../base/ui"
+import { creatableTypes } from "../../../core/book"
+import { bookType } from "../../../core/core-catalog"
+import { useMessages } from "../../../ui/i18n"
+import type { DialogProps } from "../../../ui/plugin"
+import { useActions } from "../../../ui/store-context"
+import { useCoreCatalog } from "../../../ui/view-hooks"
+import { Dialog } from "../dialog-host/Dialog"
+import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 
 export function NewBookDialog({ stage, onClose }: DialogProps) {

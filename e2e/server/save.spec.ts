@@ -107,7 +107,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
     })
   const made = await page.request.post("/api/ai/perform", {
     headers: ai,
-    data: { action: "@matomezu/master:book-create", args: { type: "@matomezu/drawing:drawing", title: "AI のブック" } },
+    data: { action: "@matomezu/base:book-create", args: { type: "@matomezu/drawing:drawing", title: "AI のブック" } },
   })
   const { result } = await made.json()
   const shown = await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book, split: true } })

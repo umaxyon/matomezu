@@ -167,7 +167,7 @@ describe("アクションを行う", () => {
   test("名前が空のページとブックは断る", () => {
     expect(perform(book, "@matomezu/base:page-add", { title: "  " }, ctx)).toEqual({ ok: false, reason: "bad-args" })
     expect(
-      perform(library, "@matomezu/master:book-create", { title: "", type: "@matomezu/drawing:drawing" }, ctx),
+      perform(library, "@matomezu/base:book-create", { title: "", type: "@matomezu/drawing:drawing" }, ctx),
     ).toEqual({
       ok: false,
       reason: "bad-args",
@@ -177,7 +177,7 @@ describe("アクションを行う", () => {
   test("ブックを作ると、振った id で一覧に入り、その id を返す。同じ id があれば断る", () => {
     const done = perform(
       library,
-      "@matomezu/master:book-create",
+      "@matomezu/base:book-create",
       { title: "新しい図", type: "@matomezu/drawing:drawing" },
       ctx,
     )
@@ -189,12 +189,7 @@ describe("アクションを行う", () => {
       pages: [],
     })
     const again = done.ok
-      ? perform(
-          done.next,
-          "@matomezu/master:book-create",
-          { title: "もう一つ", type: "@matomezu/drawing:drawing" },
-          ctx,
-        )
+      ? perform(done.next, "@matomezu/base:book-create", { title: "もう一つ", type: "@matomezu/drawing:drawing" }, ctx)
       : null
     expect(again).toEqual({ ok: false, reason: "refused" })
   })
@@ -204,7 +199,7 @@ describe("アクションを行う", () => {
     expect(
       perform(
         { [book.id]: book },
-        "@matomezu/master:book-create",
+        "@matomezu/base:book-create",
         { title: "x", type: "@matomezu/drawing:drawing" },
         homeless,
       ),
@@ -287,7 +282,7 @@ describe("機能台帳ごとに別の世界", () => {
   test("足したタイプのブックは、それを持つ表でだけ作れて、データの形もその表で通る", () => {
     const made = perform(
       library,
-      "@matomezu/master:book-create",
+      "@matomezu/base:book-create",
       { title: "メモ", type: "notes" as never },
       {
         catalog: catalog,
@@ -302,7 +297,7 @@ describe("機能台帳ごとに別の世界", () => {
     expect(CORE_CATALOG.bookSchema.safeParse({ type: "notes", id: "n1", title: "メモ" }).success).toBe(false)
     const refused = perform(
       library,
-      "@matomezu/master:book-create",
+      "@matomezu/base:book-create",
       { title: "メモ", type: "notes" as never },
       {
         catalog: CORE_CATALOG,

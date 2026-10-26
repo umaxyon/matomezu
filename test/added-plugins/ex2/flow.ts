@@ -19,8 +19,6 @@ export const DIAMOND = kit.defineShape({
   props: z.strictObject({ caption: z.string().default(""), answer: z.enum(["yes", "no"]).optional() }),
   size: DIAMOND_SIZE,
   min: DIAMOND_SIZE,
-  sizeOf: d => ({ w: d.w ?? DIAMOND_SIZE.w, h: d.h ?? DIAMOND_SIZE.h }),
-  captionWidth: () => DIAMOND_SIZE.w,
   dialogs: { add: DIAMOND_ADD_DIALOG.id, edit: DIAMOND_EDIT_DIALOG.id },
   tokens: [{ id: "diamond-fill", fallback: "fill" }],
 })

@@ -47,7 +47,7 @@ const MyNewBook = ({ onClose }: DialogProps) => (
 const notesUi = definePluginUi(notes, {
   presentationViews: { "notes:note": { view: NoteView } },
   dialogViews: { "notes:shot": ShotDialog },
-  overrides: { dialogViews: { "@matomezu/master:book-new": MyNewBook } },
+  overrides: { dialogViews: { "@matomezu/base:book-new": MyNewBook } },
 })
 
 const thrown = (run: () => unknown) => {
@@ -84,7 +84,7 @@ describe("見た目のプラグイン", () => {
   test("見た目の表は、プラグインのビューと差し替えから作る", () => {
     const ui = assembleUi([...BUILTIN_UI, notesUi])
     expect(ui.presentationViews.get("notes:note")?.view).toBe(NoteView)
-    expect(ui.dialogViews.get("@matomezu/master:book-new")).toBe(MyNewBook)
+    expect(ui.dialogViews.get("@matomezu/base:book-new")).toBe(MyNewBook)
     expect(ui.dialogViews.get("@matomezu/base:book-open")).toBe(BASE_UI.ui.dialogViews["@matomezu/base:book-open"])
   })
 
@@ -101,7 +101,7 @@ describe("見た目のプラグイン", () => {
     })
     expect(thrown(() => assembleUi([...BUILTIN_UI, unknown]))).toMatchObject({ code: "E205" })
     const again = definePluginUi(definePlugin({ id: "again" }), {
-      overrides: { dialogViews: { "@matomezu/master:book-new": MyNewBook } },
+      overrides: { dialogViews: { "@matomezu/base:book-new": MyNewBook } },
     })
     expect(thrown(() => assembleUi([...BUILTIN_UI, notesUi, again]))).toMatchObject({ code: "E206" })
   })

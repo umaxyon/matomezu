@@ -19,8 +19,6 @@ export const STAR = kit.defineShape({
   props: z.strictObject({ caption: z.string().default(""), points: z.number().int().min(3).max(12).default(5) }),
   size: STAR_SIZE,
   min: STAR_SIZE,
-  sizeOf: () => STAR_SIZE,
-  captionWidth: () => STAR_SIZE.w,
   dialogs: { add: STAR_ADD_DIALOG.id, edit: STAR_EDIT_DIALOG.id },
   tokens: [{ id: "star-fill", fallback: "accent" }],
 })

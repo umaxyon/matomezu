@@ -57,8 +57,10 @@ export function minSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
 }
 
 // キャプションが切れずに見える幅（編集で縮めてよい横の下限と、キャプションで広げる幅。表に無いアイテムは 0）
-const captionWidth = (catalog: CoreCatalog, item: PlacedShape): number =>
-  shapeDefOf(catalog, item.item)?.captionWidth(item) ?? 0
+const captionWidth = (catalog: CoreCatalog, item: PlacedShape): number => {
+  const def = shapeDefOf(catalog, item.item)
+  return def ? (def.captionWidth?.(item) ?? def.size.w) : 0
+}
 
 // つかんだ辺（x は左か右、y は上か下。角なら両方）
 export interface Edges {

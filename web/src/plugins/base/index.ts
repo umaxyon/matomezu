@@ -2,6 +2,7 @@
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
+import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
@@ -17,17 +18,19 @@ import { TOOL_NEXT } from "./tool-switch"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
+export { NEW_BOOK_DIALOG } from "./book-new"
 export { PAPER_IDS, PAPERS } from "./looks"
 export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin(
   kit.plugin({
-    actions: [PAGE_ADD, PAGE_UPDATE, BOOK_UPDATE, SET_LANG, SET_SKIN, SET_KEYS],
+    actions: [PAGE_ADD, PAGE_UPDATE, BOOK_UPDATE, BOOK_CREATE, SET_LANG, SET_SKIN, SET_KEYS],
     settings: [BOOK_THEME, BOOK_PAPER_COLOR],
     themes: [STANDARD, STICKY, SIMPLE],
     papers: PAPERS,
     skins: [DARK, LIGHT],
     commands: [
+      BOOK_NEW,
       STAGE_HOME,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
@@ -47,7 +50,7 @@ export const BASE = defineBuiltin(
       SETTINGS_LANG,
       SETTINGS_SKIN,
     ],
-    dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG],
+    dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG, NEW_BOOK_DIALOG],
     keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...DIALOG_KEYS, ...MENU_KEYS],
   }),
 )
@@ -59,6 +62,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
   }
   interface ActionTable {
+    "@matomezu/base:book-create": typeof BOOK_CREATE
     "@matomezu/base:page-add": typeof PAGE_ADD
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE
@@ -81,6 +85,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:a3": typeof A3
   }
   interface CommandTable {
+    "@matomezu/base:book-new": typeof BOOK_NEW
     "@matomezu/base:stage-home": typeof STAGE_HOME
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
@@ -101,6 +106,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:settings-skin": typeof SETTINGS_SKIN
   }
   interface DialogTable {
+    "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS_DIALOG

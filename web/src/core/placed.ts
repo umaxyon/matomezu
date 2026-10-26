@@ -74,7 +74,9 @@ export const connectorsOf = (page: ItemPage): PlacedConnector[] =>
 
 // 置いた形の大きさ（表に無いアイテムは null）
 export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
-  return shapeDef(catalog, item.item)?.sizeOf(item as ShapeData) ?? null
+  const def = shapeDef(catalog, item.item)
+  if (!def) return null
+  return def.sizeOf?.(item as ShapeData) ?? { w: item.w ?? def.size.w, h: item.h ?? def.size.h }
 }
 
 // ページの形の四角（大きさの分からない形は入れない）

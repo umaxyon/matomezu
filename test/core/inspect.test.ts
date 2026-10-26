@@ -81,7 +81,7 @@ describe("inspect: アクションの許可", () => {
     expect(
       inspect(
         CORE_CATALOG,
-        { kind: "action", action: "@matomezu/master:book-create" },
+        { kind: "action", action: "@matomezu/base:book-create" },
         { home: "@matomezu/master:master" },
       ),
     ).toMatchObject({
@@ -89,7 +89,7 @@ describe("inspect: アクションの許可", () => {
       decidedBy: { source: "bookType", id: "@matomezu/master:master", field: "actions.add" },
     })
     expect(
-      inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/master:book-create" }, { home: null }),
+      inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:book-create" }, { home: null }),
     ).toMatchObject({
       value: false,
       decidedBy: { source: "home", id: null },

@@ -1,5 +1,6 @@
 // base の文言（各フォルダの文言を集めたもの）
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
+import { BOOK_NEW_MESSAGES } from "./book-new/messages"
 import { BOOK_OPEN_MESSAGES } from "./book-open/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
@@ -21,6 +22,7 @@ export const BASE_MESSAGES = {
   ...MENU_MESSAGES,
   ...BOOK_OPEN_MESSAGES,
   ...BOOK_LOOK_MESSAGES,
+  ...BOOK_NEW_MESSAGES,
   ...PAGE_MESSAGES,
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,
