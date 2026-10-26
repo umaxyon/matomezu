@@ -6,7 +6,7 @@
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
 import { type PlacedConnector, placement } from "../../../plugin-api"
 import {
-  ShapeMarksContext,
+  ShapeMarksProvider,
   type ShapeScene,
   useActions,
   useBook,
@@ -106,7 +106,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const zoom = placement(stage)?.zoom ?? 1
 
   return (
-    <ShapeMarksContext.Provider value={marks}>
+    <ShapeMarksProvider value={marks}>
       <LinkingContext.Provider value={{ scene, link: linkDrag, portsOf }}>
         {children}
         <LinesView
@@ -145,7 +145,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
         />
         {linkDrag.tip && from && l && <LinkPreview from={portAt(from, l.side, PORT_OUT / zoom)} to={linkDrag.tip.at} />}
       </LinkingContext.Provider>
-    </ShapeMarksContext.Provider>
+    </ShapeMarksProvider>
   )
 }
 

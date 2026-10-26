@@ -1,7 +1,7 @@
 // 関係線の層と〇: 関係線を点線で描き、ポインタを乗せた形と関係のある形のほかを薄くするよう求める（ShapeMarks）。
 // 〇は形ごとに右上の小さな点（引く操作は持たない。ビルトインの線の〇と重なるかを見るため）
 import { connectorsOf } from "matomezu"
-import { ShapeMarksContext, type ShapeScene } from "matomezu/ui"
+import { ShapeMarksProvider, type ShapeScene } from "matomezu/ui"
 import type { ReactNode } from "react"
 import { RELATION } from "./relation"
 
@@ -18,7 +18,7 @@ export function RelationLayer({ scene, children }: { scene: ShapeScene; children
     return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : null
   }
   return (
-    <ShapeMarksContext.Provider value={{ keep, target: null }}>
+    <ShapeMarksProvider value={{ keep, target: null }}>
       {children}
       <svg
         aria-hidden="true"
@@ -42,7 +42,7 @@ export function RelationLayer({ scene, children }: { scene: ShapeScene; children
           ) : null
         })}
       </svg>
-    </ShapeMarksContext.Provider>
+    </ShapeMarksProvider>
   )
 }
 

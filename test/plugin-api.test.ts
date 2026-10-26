@@ -99,7 +99,7 @@ test("matomezu/ui が出す名前", () => {
   expect(names(ui)).toEqual([
     "Confirm",
     "Dialog",
-    "ShapeMarksContext",
+    "ShapeMarksProvider",
     "TokenScope",
     "defineLayout",
     "definePluginUi",

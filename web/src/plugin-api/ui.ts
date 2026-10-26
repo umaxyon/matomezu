@@ -3,7 +3,7 @@
 
 export { useCommand } from "../ui/commands"
 export type { ConnectorUi, ShapeScene } from "../ui/connector"
-export { ShapeMarksContext, useShapeMarks } from "../ui/connector"
+export { ShapeMarksProvider, useShapeMarks } from "../ui/connector"
 export { useContextMenu } from "../ui/context-menu"
 export { useMessages, useT } from "../ui/i18n"
 export { defineLayout, defineWidget } from "../ui/layout"
