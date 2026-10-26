@@ -16,4 +16,5 @@ export const BOOK_OPEN_MESSAGES = defineMessages({
     ja: "開けません: ブックのタイプ {type} の決まりを守っていません",
   },
   "Untitled ({id})": { en: "Untitled ({id})", ja: "名前なし（{id}）" },
+  "Some parts cannot be shown": { en: "Some parts cannot be shown", ja: "一部表示できない物があります" },
 })

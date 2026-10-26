@@ -112,10 +112,12 @@ function aiCatalog() {
 
 ;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
 
-// 残したブックを今の機能台帳で確かめ、読めないブックの id と、その注意の 1 行を返す（常駐が問題の一覧に持つ）
+// 残したブックを今の機能台帳で確かめ、注意のあるブック（読めない N004〜N006・一部に無い物がある N007）の id・番号・注意の 1 行を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
-  const { notices } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
-  return JSON.stringify(notices.map(n => ({ book: n.params.book ?? "", notice: noticeText(n) })))
+  const { notices, partial } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
+  return JSON.stringify(
+    [...notices, ...partial].map(n => ({ book: n.params.book ?? "", code: n.code, notice: noticeText(n) })),
+  )
 }
 
 // 常駐が呼ぶ口: JSON の文字列で受けて返す

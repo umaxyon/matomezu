@@ -44,6 +44,7 @@ export type { Settings } from "../core/settings"
 export interface MatomezuState {
   books: Record<string, Book> // ブックの id ごと
   unreadable: readonly Notice[] // 残したブックのうち読めないもの（注意 N004〜N006。データには手を付けず、開けない）
+  partial: readonly Notice[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（注意 N007。無い物はそのまま残す）
   workspace: Workspace
   settings: Settings
   dialog: OpenedDialog | null
@@ -138,12 +139,14 @@ function initialState(
   settings: Settings,
   home: string | null,
   unreadable: readonly Notice[] = [],
+  partial: readonly Notice[] = [],
 ): MatomezuState {
   const all = [...singleBooks(catalog), ...books]
   const first = books[0] ?? all.find(b => b.id === home) ?? null
   return {
     books: Object.fromEntries(all.map(b => [b.id, b])),
     unreadable,
+    partial,
     workspace: newWorkspace(catalog, first),
     settings,
     dialog: null,
@@ -186,6 +189,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       restoreSettings(catalog, start, options.settings),
       home,
       saved.notices,
+      saved.partial,
     )
   const newId = options.newId ?? (() => crypto.randomUUID())
   const clock = options.now ?? (() => new Date().toISOString())
@@ -193,10 +197,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId, now: clock() })
   // 残した・知らされたブックを確かめた値（読めたブックか、読めない注意。同じ値は確かめ直さない）
-  let checked = new WeakMap<object, { book: Book } | { notice: Notice }>()
-  const restore = (saved: readonly unknown[]): { books: Book[]; notices: Notice[] } => {
+  let checked = new WeakMap<object, { book: Book; partial?: Notice } | { notice: Notice }>()
+  const restore = (saved: readonly unknown[]): { books: Book[]; notices: Notice[]; partial: Notice[] } => {
     const books: Book[] = []
     const notices: Notice[] = []
+    const partial: Notice[] = []
     for (const b of saved) {
       if (typeof b !== "object" || b === null) continue
       let hit = checked.get(b)
@@ -204,14 +209,17 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const done = checkBooks(catalog, [b])
         const [book] = done.books
         const [notice] = done.notices
-        hit = book ? { book } : notice ? { notice } : undefined
+        const [part] = done.partial
+        hit = book ? { book, ...(part ? { partial: part } : {}) } : notice ? { notice } : undefined
         if (!hit) continue
         checked.set(b, hit)
       }
-      if ("book" in hit) books.push(hit.book)
-      else notices.push(hit.notice)
+      if ("book" in hit) {
+        books.push(hit.book)
+        if (hit.partial) partial.push(hit.partial)
+      } else notices.push(hit.notice)
     }
-    return { books, notices }
+    return { books, notices, partial }
   }
   // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
@@ -388,10 +396,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         Object.entries(books).every(([id, b]) => now.books[id] === b)
       const unreadable =
         JSON.stringify(found.notices) === JSON.stringify(now.unreadable) ? now.unreadable : found.notices
+      const partial = JSON.stringify(found.partial) === JSON.stringify(now.partial) ? now.partial : found.partial
       commit({
         ...(same ? {} : { books, workspace: followLibrary(catalog, now.workspace, books) }),
         ...(settings === now.settings ? {} : { settings }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
+        ...(partial === now.partial ? {} : { partial }),
       })
     },
     setLang: lang => actions.perform("@matomezu/base:settings-lang", { lang }).ok,
@@ -437,7 +447,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       Object.assign(instance, next, { plugins: [...plugins, ...used] })
       const { settings } = getState()
       const again = checkBooks(catalog, options.savedBooks ?? [])
-      setState(initialState(catalog, [...(options.books ?? []), ...again.books], settings, home, again.notices), true)
+      setState(
+        initialState(catalog, [...(options.books ?? []), ...again.books], settings, home, again.notices, again.partial),
+        true,
+      )
       return { failed }
     },
   }

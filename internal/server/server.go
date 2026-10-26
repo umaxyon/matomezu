@@ -322,19 +322,25 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 
 func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
 	books, _ := o.Hub.Data()
-	unreadable := o.Hub.Unreadable()
+	notices := o.Hub.BookNotices()
 	type head struct {
 		ID      string `json:"id"`
 		Type    string `json:"type"`
 		Title   string `json:"title"`
 		Version int64  `json:"version"`
 		Problem string `json:"problem,omitempty"` // 読めないブックの理由（注意の 1 行。開けず、アクションも行えない）
+		Notice  string `json:"notice,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目を持つ（そのまま残っている）
 	}
 	heads := make([]head, 0, len(books))
 	for _, b := range books {
 		h := head{ID: b.ID, Version: b.Version}
 		_ = json.Unmarshal(b.Body, &h)
-		h.ID, h.Version, h.Problem = b.ID, b.Version, unreadable[b.ID]
+		h.ID, h.Version = b.ID, b.Version
+		if n, ok := notices[b.ID]; ok && n.Unreadable() {
+			h.Problem = n.Notice
+		} else if ok {
+			h.Notice = n.Notice
+		}
 		heads = append(heads, h)
 	}
 	writeJSON(w, map[string]any{"books": heads})

@@ -19,3 +19,36 @@ test("読めるブックと、読めないブックの注意（タイプが無�
     "N006 @matomezu/drawing: book x3 (線だけ): it breaks the rules of its type @matomezu/drawing:drawing",
   ])
 })
+
+test("機能台帳に無いアイテムと設定の項目は、ブックを読めるまま残し、注意 N007 を付ける。あるのに選んでいない物は読めない", () => {
+  const ok = SAMPLE_BOOKS[0]!
+  const page = { id: "p1", title: "P", paper: "@matomezu/base:a4", orientation: "landscape" as const }
+  const star = { id: "s", item: "@foo/stars:star", x: 10, y: 10, props: { points: 5 } }
+  const withStar = {
+    ...ok,
+    id: "y1",
+    title: "星",
+    settings: { "@foo/stars:sky": "night" },
+    pages: [{ ...page, items: [star] }],
+  }
+  const done = checkBooks(CORE_CATALOG, [withStar])
+  expect(done.books).toHaveLength(1)
+  expect(done.books[0]).toMatchObject({ settings: { "@foo/stars:sky": "night" }, pages: [{ items: [star] }] })
+  expect(done.partial.map(noticeText)).toEqual([
+    "N007 @foo/stars: book y1 (星): it has @foo/stars:sky, @foo/stars:star, not in the catalog (kept as they are)",
+  ])
+  // 機能台帳にあって、図面が選んでいない設定の項目（ページのテーマ）と、項目の形が合わないアイテムは読めない
+  const unselected = {
+    ...ok,
+    id: "y2",
+    title: "選んでいない",
+    pages: [{ ...page, settings: { "@matomezu/base:book-theme": "x" } }],
+  }
+  const misfit = {
+    ...ok,
+    id: "y3",
+    title: "形違い",
+    pages: [{ ...page, items: [{ ...star, item: "@matomezu/box:shape-box", props: { nope: 1 } }] }],
+  }
+  expect(checkBooks(CORE_CATALOG, [unselected, misfit]).notices.map(n => n.code)).toEqual(["N005", "N005"])
+})

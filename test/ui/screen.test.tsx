@@ -378,3 +378,32 @@ test("読めないブックは、ブックを開くの一覧に押せない行�
       .map(o => o.getAttribute("aria-disabled")),
   ).toEqual(["true"])
 })
+
+test("一部のプラグインが無いブックは開け、知らない形は枠だけで描き、ダブルクリックしても編集のダイアログは出ない。一覧の名前の横に印が付く", () => {
+  const book = {
+    type: "@matomezu/drawing:drawing",
+    id: "u1",
+    title: "星の残る図",
+    pages: [
+      {
+        id: "p1",
+        title: "P",
+        paper: "@matomezu/base:a4",
+        orientation: "landscape",
+        items: [{ id: "s", item: "@foo/stars:star", x: 40, y: 40, props: {} }],
+      },
+    ],
+  }
+  const store = renderScreen({ books: [], savedBooks: [book] })
+  act(() => store.actions.openBook("s1", "u1"))
+  const star = document.querySelector<HTMLElement>('[data-item="s"]')!
+  expect(star.style.width).toBe("64px")
+  expect(star.textContent).toBe("") // ビューは無く、枠だけ
+  fireEvent.doubleClick(star)
+  expect(screen.queryByRole("dialog")).toBeNull()
+  fireEvent.click(fromMenu("ブックを開く"))
+  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
+  expect(within(dialog).getByRole("option", { name: /星の残る図/ }).textContent).toBe(
+    "星の残る図一部表示できない物があります",
+  )
+})

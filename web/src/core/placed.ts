@@ -72,8 +72,15 @@ export const shapesOf = (page: ItemPage): PlacedShape[] => pageItemsOf(page).fil
 export const connectorsOf = (page: ItemPage): PlacedConnector[] =>
   pageItemsOf(page).filter((i): i is PlacedConnector => !isShape(i))
 
-// 置いた形の大きさ（表に無いアイテムは null）
+// 機能台帳に無いアイテム（プラグインを外したなど）の形の大きさ（データに w・h が無いとき）
+export const UNKNOWN_SIZE: Size = { w: 64, h: 64 }
+
+// 機能台帳に無いアイテムか
+export const isUnknownItem = (catalog: CoreCatalog, item: { item: string }): boolean => !catalog.items.has(item.item)
+
+// 置いた形の大きさ（機能台帳に無いアイテムは、データの w・h か UNKNOWN_SIZE。形でないアイテムは null）
 export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
+  if (isUnknownItem(catalog, item)) return { w: item.w ?? UNKNOWN_SIZE.w, h: item.h ?? UNKNOWN_SIZE.h }
   const def = shapeDef(catalog, item.item)
   if (!def) return null
   return def.sizeOf?.(item as ShapeData) ?? { w: item.w ?? def.size.w, h: item.h ?? def.size.h }
@@ -127,9 +134,12 @@ export function tidyPage<P extends ItemPage>(catalog: CoreCatalog, page: P, sett
 }
 
 // ページの形 id が、つなげる形（connectable）か
+// 機能台帳に無い形は、何ができるか分からないので、つなげる物として扱う（前につないだ線のあるブックを読めるように）
 export function connectableShape(catalog: CoreCatalog, page: ItemPage, id: string): boolean {
   const shape = shapesOf(page).find(s => s.id === id)
-  return !!shape && (catalog.items.get(shape.item)?.capabilities.includes("connectable") ?? false)
+  if (!shape) return false
+  const def = catalog.items.get(shape.item)
+  return def ? def.capabilities.includes("connectable") : true
 }
 
 // ページが、つなぐものの定義の関係の決まり（holds）を全部守っているか

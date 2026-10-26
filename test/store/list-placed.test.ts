@@ -116,7 +116,8 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
   expect(
     ok({ item: "@matomezu/list:shape-list", props: {}, children: [{ ...row, item: "@matomezu/box:shape-box" }] }),
   ).toBe(false)
-  expect(ok({ item: "shape.nope", props: {} })).toBe(false)
+  // 機能台帳に無いアイテムは、そのまま残す（プラグインを外したなど）
+  expect(ok({ item: "shape.nope", props: {} })).toBe(true)
 })
 
 test("リストの塗り・文字・線・角・影の欄は、どのテーマでも箱の欄と同じ値（テーマは箱とリストを同じ見た目にする）", () => {

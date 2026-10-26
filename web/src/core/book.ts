@@ -17,10 +17,15 @@ import type { Book, Page } from "./schema/book"
 export type PagedBook = Extract<Book, { pages: Page[] }>
 
 // 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは注意（タイプが無い N004・形が合わない N005・
-// アイテムどうしの関係の決まりを守らない N006）にする。残したブックは外から来る値なので、形を確かめてから使う。読めないブックのデータには手を付けない
-export function checkBooks(catalog: CoreCatalog, saved: readonly unknown[]): { books: Book[]; notices: Notice[] } {
+// アイテムどうしの関係の決まりを守らない N006）にする。読めるが、機能台帳に無いアイテムや設定の項目を持つブックは partial に注意 N007 を足す。
+// 残したブックは外から来る値なので、形を確かめてから使う。読めないブックのデータには手を付けない
+export function checkBooks(
+  catalog: CoreCatalog,
+  saved: readonly unknown[],
+): { books: Book[]; notices: Notice[]; partial: Notice[] } {
   const books: Book[] = []
   const notices: Notice[] = []
+  const partial: Notice[] = []
   for (const b of saved) {
     const raw = (typeof b === "object" && b !== null ? b : {}) as { id?: unknown; title?: unknown; type?: unknown }
     const type = typeof raw.type === "string" ? raw.type : ""
@@ -33,9 +38,27 @@ export function checkBooks(catalog: CoreCatalog, saved: readonly unknown[]): { b
     const parsed = catalog.bookSchema.safeParse(b)
     if (!parsed.success) notices.push(notice("N005", plugin, params))
     else if (!holds(catalog, parsed.data as Book)) notices.push(notice("N006", plugin, params))
-    else books.push(parsed.data as Book)
+    else {
+      const book = parsed.data as Book
+      books.push(book)
+      const missing = missingIn(catalog, book)
+      const [first] = missing
+      if (first) partial.push(notice("N007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") }))
+    }
   }
-  return { books, notices }
+  return { books, notices, partial }
+}
+
+// ブックが持つ、機能台帳に無いアイテムと設定の項目の id（重ねずに、見つけた順）
+function missingIn(catalog: CoreCatalog, book: Book): string[] {
+  const found = new Set<string>()
+  const settingsOf = (o: object) => Object.keys((o as { settings?: object }).settings ?? {})
+  for (const k of settingsOf(book)) if (!catalog.settings.has(k)) found.add(k)
+  for (const page of "pages" in book ? (book.pages as readonly ItemPage[]) : []) {
+    for (const k of settingsOf(page)) if (!catalog.settings.has(k)) found.add(k)
+    for (const i of page.items ?? []) if (!catalog.items.has(i.item)) found.add(i.item)
+  }
+  return [...found]
 }
 
 // 残しておいたブックのうち、読めるものだけ（checkBooks の books）

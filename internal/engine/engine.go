@@ -171,14 +171,19 @@ func (e *Engine) Perform(in Input) (out Output, err error) {
 	return out, nil
 }
 
-// Unreadable は読めないブック: ブックの id と、その注意の 1 行（タイプが無い・形に合わない・決まりを守らない）
-type Unreadable struct {
+// BookNotice は注意のあるブック: ブックの id・注意の番号・注意の 1 行。
+// 読めない（N004 タイプが無い・N005 形に合わない・N006 決まりを守らない）か、読めるが機能台帳に無い物を持つ（N007）
+type BookNotice struct {
 	Book   string `json:"book"`
+	Code   string `json:"code"`
 	Notice string `json:"notice"`
 }
 
-// CheckBooks はブックを今の機能台帳で確かめ、読めないものを返す（データには手を付けない）
-func (e *Engine) CheckBooks(books []json.RawMessage) (out []Unreadable, err error) {
+// Unreadable は、そのブックが読めない注意か
+func (n BookNotice) Unreadable() bool { return n.Code != "N007" }
+
+// CheckBooks はブックを今の機能台帳で確かめ、注意のあるものを返す（データには手を付けない）
+func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookNotice, err error) {
 	b, err := json.Marshal(books)
 	if err != nil {
 		return nil, err

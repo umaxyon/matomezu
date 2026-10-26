@@ -28,7 +28,7 @@ var readTools = []readTool{
 	},
 	{
 		"list_books",
-		"List the books: id, type, title and version. A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed.",
+		"List the books: id, type, title and version. A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has notice; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/books") },
 	},

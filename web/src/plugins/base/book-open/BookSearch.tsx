@@ -1,6 +1,7 @@
 // ブックを探して選ぶコンポーネント: 打つたびに題名で絞り込み、↑↓で選び、Enter かクリックで決める。
 // 候補の欄は高さが決まっていて、絞り込んでもコンポーネントの大きさは変わらない（真ん中に置いても探す欄が動かない）。
-// 読めないブック（プラグインが無いなど）も名前で絞り込んで後ろに並べ、押せない行として開けない理由を添える
+// 読めないブック（プラグインが無いなど）も名前で絞り込んで後ろに並べ、押せない行として開けない理由を添える。
+// 読めるが一部のプラグインが無いブックは、名前の横に印を付ける
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookTitle } from "../../../core/book"
@@ -14,6 +15,7 @@ import { matchesQuery, searchBooks } from "./book-search"
 export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: string) => void; autoFocus?: boolean }) {
   const books = useMatomezuState(useShallow(s => Object.values(s.books)))
   const unreadable = useMatomezuState(s => s.unreadable)
+  const partial = useMatomezuState(s => s.partial)
   const lang = useMatomezuState(s => s.settings.lang)
   const catalog = useCatalog().core
   const t = useMessages(kit)
@@ -89,6 +91,9 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
               onClick={() => onSelect(b.id)}
             >
               {bookTitle(catalog, b, lang)}
+              {partial.some(n => n.params.book === b.id) && (
+                <span className={styles.partial}>{t("Some parts cannot be shown")}</span>
+              )}
             </div>
           ))}
           {broken.map(n => (

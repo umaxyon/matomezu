@@ -92,19 +92,32 @@ const HEAD = ["type", "id"]
 // ブックの形は、タイプの頭の欄・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかの欄
 function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas {
   const settings = byId(parts.settings)
-  // 選んだ設定の項目を、項目の id を鍵にした settings の欄にする（選んでいなければ欄を足さない）
+  // 選んだ設定の項目を、項目の id を鍵にした settings の欄にする（選んでいなければ欄を足さない）。
+  // 機能台帳に無い項目（プラグインを外したなど）は、そのまま残す（機能台帳にあって選んでいない項目は誤り）
   const fields = (ids: readonly string[] = []) => {
     const defs = ids.flatMap(id => settings.get(id) ?? [])
-    return defs.length > 0
-      ? { settings: z.strictObject(Object.fromEntries(defs.map(d => [d.id, d.schema.optional()]))).optional() }
-      : {}
+    return {
+      settings: z
+        .object(Object.fromEntries(defs.map(d => [d.id, d.schema.optional()])))
+        .catchall(z.unknown())
+        .superRefine((v, ctx) => {
+          for (const k of Object.keys(v))
+            if (!ids.includes(k) && settings.has(k))
+              ctx.addIssue({ code: "custom", path: [k], message: "not selected" })
+        })
+        .optional(),
+    }
   }
   const items = byId(parts.items)
   const placed = t.items.allowed.flatMap(id => items.get(id) ?? []).map(placedSchema)
+  // 機能台帳に無いアイテム（プラグインを外したなど）: id と item だけを確かめ、ほかの欄はそのまま残す
+  const unknownItem = z.looseObject({ id: z.string().min(1), item: z.string().refine(id => !items.has(id)) })
   const [one, ...more] = placed
   const page = t.pages
     ? PageSchema.extend({
-        items: z.array(one ? z.discriminatedUnion("item", [one, ...more]) : z.never()).optional(),
+        items: z
+          .array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknownItem]) : unknownItem)
+          .optional(),
         ...fields(t.settings?.page),
       })
     : null

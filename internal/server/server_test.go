@@ -631,3 +631,16 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		t.Fatalf("after unlinking = %q", got)
 	}
 }
+
+// 一部のプラグインが無いだけのブックは読め、AI のブックの一覧には notice が付く（problem は付かない）
+func TestListsANoticeForAPartlyKnownBook(t *testing.T) {
+	s := newServer(t, nil)
+	book := `{"type":"@matomezu/drawing:drawing","id":"u1","title":"Stars","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":0,"y":0,"props":{}}]}]}`
+	if code, body := send(t, "PUT", s.URL+"/api/books/u1", `{"book":`+book+`,"base":0}`, nil); code != 200 {
+		t.Fatalf("put = %d %s", code, body)
+	}
+	_, body := get(t, s.URL+"/api/ai/books", "secret")
+	if !strings.Contains(body, `"notice":"N007 @foo/stars: book u1 (Stars): it has @foo/stars:star, not in the catalog (kept as they are)"`) || strings.Contains(body, `"problem"`) {
+		t.Fatalf("books = %s", body)
+	}
+}

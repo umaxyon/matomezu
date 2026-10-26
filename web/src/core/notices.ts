@@ -7,6 +7,7 @@ export const NOTICES = {
   N004: "book {book} ({title}): its type {type} is not in the catalog",
   N005: "book {book} ({title}): it does not fit its type {type}",
   N006: "book {book} ({title}): it breaks the rules of its type {type}",
+  N007: "book {book} ({title}): it has {missing}, not in the catalog (kept as they are)",
 } as const
 
 export type NoticeCode = keyof typeof NOTICES
