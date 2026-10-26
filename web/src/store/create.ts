@@ -3,6 +3,7 @@
 // 1 つのプロジェクトの createMatomezu には、型を書き足したプラグインを全部渡す。わざと減らすインスタンス（テストなど）は partial: true
 
 import type {
+  CapabilityTable,
   ContextMenuTable,
   KeyScopeTable,
   MenuTable,
@@ -27,7 +28,7 @@ type Provided<P> = keyof typeof MESSAGES | MessageKeysOf<P>
 type MessageGaps<P> =
   | `messages:${Exclude<keyof MessageTable, Provided<P>> & string}`
   | `messages:${Exclude<MessageKeysOf<P>, keyof MessageTable> & string}`
-// 型の表だけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー）のうち、土台の言葉でも、渡したプラグインの id と : で始まる名前でもないもの
+// 型の表だけで作る名前（キーの範囲・スロット・メニュー・右クリックのメニュー・能力）のうち、土台の言葉でも、渡したプラグインの id と : で始まる名前でもないもの
 type PluginIdOf<P> = P extends { id: infer I extends string } ? I : never
 type Unowned<P, Table, Base extends string, Kind extends string> =
   Exclude<keyof Table & string, Base> extends infer N
@@ -40,6 +41,7 @@ type NameGaps<P> =
   | Unowned<P, SlotTable, "root", "slot">
   | Unowned<P, MenuTable, never, "menu">
   | Unowned<P, ContextMenuTable, never, "contextMenu">
+  | Unowned<P, CapabilityTable, "connectable" | "resizable", "capability">
 // 合わない id を、渡す値に要る項目の名前にする（型の誤りの文に id がそのまま並ぶ）
 type Check<P> = [Gaps<P> | MessageGaps<P> | NameGaps<P>] extends [never]
   ? unknown

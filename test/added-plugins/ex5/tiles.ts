@@ -10,7 +10,7 @@ export const TILES = kit.defineShape({
   kind: "shape",
   version: 1,
   title: "tiles",
-  capabilities: ["resizable"],
+  capabilities: ["resizable", "ex5:stackable"], // 自分で足した能力（index.ts の CapabilityTable）
   toolbox: true,
   props: z.strictObject({
     theme: z.enum(["warm", "cool"]).default("warm"), // 札の色合い（個別のテーマではないので themeProp は書かない）

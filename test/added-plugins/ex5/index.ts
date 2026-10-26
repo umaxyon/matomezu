@@ -8,6 +8,9 @@ export const EX5 = definePlugin(kit.plugin({ bookTypes: [SHELF], items: [TILES],
 export default EX5
 
 declare module "matomezu/catalog" {
+  interface CapabilityTable {
+    "ex5:stackable": true // 札を積める（ex5 だけが読む能力の見本）
+  }
   interface BookTypeTable {
     "ex5:shelf": typeof SHELF
   }

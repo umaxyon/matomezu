@@ -1,12 +1,13 @@
 // アイテムの定義: データに残り、画面に置かれるもの（名詞）。並べ方は知らず、自分の形・大きさ・能力・項目の形だけを持つ。
 // kind はアイテムのタイプで、kind ごとに持つ項目が変わる。置いたアイテムのデータの外枠（id・位置・つなぐ相手）は kind ごとに土台が決める（base の placed.ts）
 import type { z } from "zod"
+import type { CapabilityTable } from "../catalog"
 import type { Point, Rect, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
 import type { TokenDecl } from "./theme"
 
-// アイテムが持つ能力（つなげる・大きさを変えられる）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
-export type Capability = "connectable" | "resizable"
+// アイテムが持つ能力（型の表 CapabilityTable の名前）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
+export type Capability = keyof CapabilityTable & string
 
 interface ItemBase<Tt extends string = MessageKey> {
   id: string // 本当の id（「プラグインの id:名前」。例: @matomezu/box:shape-box）。データはこれで参照する
