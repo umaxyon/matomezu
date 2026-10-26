@@ -3,6 +3,7 @@
 // 変えたあとはページを整える（settleBook）。値は ページ → ブック → 定義の既定 の順に、最初に値のある所で決まる（settingValue）。
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
 import { z } from "zod"
+import { hasPages, putPage } from "../../core/book"
 import { bookType, type CoreCatalog } from "../../core/core-catalog"
 import type { SettingDef } from "../../core/def/setting"
 import { fail } from "../../core/errors"
@@ -64,9 +65,13 @@ export const settingsAt =
   (id: string): unknown =>
     settingValue(catalog, book, page, id)
 
-// 設定を変えたあとのブック: どのページも整える（core/placed.ts の tidyPage）。ページを持たないブックはそのまま
+// 設定を変えたあとのブック: どのページも整える（core/placed.ts の tidyPage）。変わったページは putPage で替える。ページを持たないブックはそのまま
 export function settleBook<B extends Book>(catalog: CoreCatalog, book: B): B {
-  if (!("pages" in book)) return book
-  const pages = (book.pages as readonly ItemPage[]).map(p => tidyPage(catalog, p, settingsAt(catalog, book, p)))
-  return pages.every((p, i) => p === book.pages[i]) ? book : { ...book, pages }
+  if (!hasPages(book)) return book
+  let next = book
+  for (const page of book.pages as readonly ItemPage[]) {
+    const tidy = tidyPage(catalog, page, settingsAt(catalog, book, page))
+    if (tidy !== page) next = putPage(next, tidy)
+  }
+  return next
 }

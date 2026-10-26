@@ -299,3 +299,12 @@ test("core のモジュールで、プラグインとプラグイン API しか�
     })
   expect(pluginsOnly).toEqual([])
 })
+
+// ページを替えるのは土台の putPage だけ。プラグイン（ビルトインと見本）はブックを { ...book, pages } で組み直さない（新しいブックを作る create の pages: [] は除く）
+test("プラグインはブックのページを { ...book, pages } で組み直さない（putPage を使う）", () => {
+  const rebuild = /\.\.\.\s*\w+\s*,\s*pages\s*(?:[,}]|:(?!\s*\[\s*\]))/
+  const offenders = [...sources.filter(f => layerOf(f.rel) === "plugins"), ...added]
+    .filter(f => rebuild.test(f.text))
+    .map(f => f.rel)
+  expect(offenders).toEqual([])
+})
