@@ -1,12 +1,13 @@
 import { expect, test } from "bun:test"
 import { currentStage } from "../../web/src/core/workspace"
+import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { newStore } from "../support"
 
 test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
   const { state, actions } = newStore()
   actions.split("s1")
   actions.openBook("s2", "b1")
-  actions.addPage("s2", { title: "ページ 2" })
+  addPageIn({ state, actions }, "s2", { title: "ページ 2" })
   const s = state.getState()
   expect(s.books.b1).toMatchObject({ pages: [{ id: "p1" }, { id: "n1" }] })
   expect(s.workspace.stages.map(st => st.opened)).toMatchObject([{ page: "p1" }, { page: "n1" }])
@@ -15,7 +16,7 @@ test("ページを足すと、そのステージのブックに入り、その�
 
 test("ページを開くのは指定したステージで、そのステージがカレントになる", () => {
   const { state, actions } = newStore()
-  actions.addPage("s1", { title: "ページ 2" })
+  addPageIn({ state, actions }, "s1", { title: "ページ 2" })
   actions.split("s1")
   actions.openBook("s2", "b1")
   actions.openPage("s2", "p1")
@@ -67,15 +68,15 @@ test("マスターはカレントのステージで開き、ページは足せ�
     "@matomezu/drawing:drawing",
     "@matomezu/master:master",
   ])
-  expect(actions.addPage("s2", { title: "x" })).toBe(false)
+  expect(addPageIn({ state, actions }, "s2", { title: "x" })).toBe(false)
   expect(state.getState()).toBe(s)
 })
 
 test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
   const { state, actions } = newStore({ newId: () => "made" })
   actions.split("s1")
-  expect(actions.createBook("s2", { title: " ", type: "@matomezu/drawing:drawing" })).toBe(false)
-  expect(actions.createBook("s2", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
+  expect(createBookIn({ state, actions }, "s2", { title: " ", type: "@matomezu/drawing:drawing" })).toBe(false)
+  expect(createBookIn({ state, actions }, "s2", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
   const s = state.getState()
   expect(s.books.made).toEqual({ type: "@matomezu/drawing:drawing", id: "made", title: "新しい図", pages: [] })
   expect(s.workspace.stages[1]!.opened).toEqual({
@@ -85,7 +86,7 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
     paper: null,
   })
   expect(s.workspace.current).toBe("s2")
-  actions.addPage("s2", { title: "最初", paper: "@matomezu/base:a3", orientation: "portrait" })
+  addPageIn({ state, actions }, "s2", { title: "最初", paper: "@matomezu/base:a3", orientation: "portrait" })
   expect(state.getState().workspace.stages[1]!.opened).toMatchObject({
     page: "made",
     paper: { size: { w: 1123, h: 1587 } },
@@ -94,23 +95,23 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
 
 test("言語とスキンの設定を変える。同じ値なら知らせない", () => {
   const { state, actions } = newStore()
-  actions.setLang("en")
-  actions.setSkin("@matomezu/base:light")
+  actions.perform("@matomezu/base:settings-lang", { lang: "en" })
+  actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:light" })
   expect(state.getState().settings).toMatchObject({ lang: "en", skin: "@matomezu/base:light" })
   const s = state.getState()
-  actions.setSkin("@matomezu/base:light")
+  actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:light" })
   expect(state.getState()).toBe(s)
 })
 
 test("ページの無いブックを 2 つのステージで開いて最初のページを作ると、どちらのステージもそのページを開く", () => {
   const { state, actions } = newStore()
-  actions.createBook("s1", { title: "空", type: "@matomezu/drawing:drawing" })
+  createBookIn({ state, actions }, "s1", { title: "空", type: "@matomezu/drawing:drawing" })
   actions.split("s1")
   actions.openBook("s2", "n1")
-  actions.addPage("s2", { title: "最初" })
+  addPageIn({ state, actions }, "s2", { title: "最初" })
   expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["n2", "n2"])
   // ほかのページを見ているステージは変えない
-  actions.addPage("s2", { title: "次" })
+  addPageIn({ state, actions }, "s2", { title: "次" })
   expect(state.getState().workspace.stages.map(st => st.opened?.page)).toEqual(["n2", "n3"])
 })
 

@@ -10,7 +10,7 @@ import { freshId } from "./ids"
 import { splitId } from "./names"
 import { type Notice, notice } from "./notices"
 import type { PaperChoice, PaperRule } from "./paper"
-import { actionsOf, holds } from "./perform"
+import { holds } from "./perform"
 import type { ItemPage } from "./placed"
 import type { Book, Page } from "./schema/book"
 
@@ -144,15 +144,6 @@ export function defaultPaper(catalog: CoreCatalog, book: PagedBook): PaperChoice
 // ブックで使えるアイテム（タイプの既定。置ける・引けるのはこの中だけ）
 export function bookItems(catalog: CoreCatalog, book: Pick<Book, "type">): readonly string[] {
   return bookType(catalog, book.type).items.defaults
-}
-
-// タブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page-add が使える）
-export function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
-  return (
-    hasPages(book) &&
-    pagesRule(catalog, book).addFromTabs &&
-    actionsOf(catalog, book).includes("@matomezu/base:page-add")
-  )
 }
 
 // 次のページの題名の案

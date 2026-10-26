@@ -1,11 +1,23 @@
 // ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
 // 押したページをそのステージで開く（コマンド page-open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page-new）
-import { addsFromTabs, hasPages } from "../../../core/book"
+import { hasPages } from "../../../core/book"
+import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { actionsOf } from "../../../core/perform"
+import type { Book } from "../../../core/schema/book"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "./PageTabs.module.css"
+
+// ページタブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page-add が使える）
+function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
+  return (
+    hasPages(book) &&
+    bookType(catalog, book.type).pages?.addFromTabs === true &&
+    actionsOf(catalog, book).includes("@matomezu/base:page-add")
+  )
+}
 
 export function PageTabs({ stage }: { stage: string }) {
   const opened = useMatomezuState(s => s.workspace.stages.find(x => x.id === stage)?.opened)

@@ -85,13 +85,6 @@ export interface Actions {
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（図面は最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
-  // そのステージのブックにページを足して（アクション page-add）、そのステージで開き、カレントにする。足せたか返す
-  addPage(stage: string, args: ArgsOf<"@matomezu/base:page-add">): boolean
-  // ブックを作って（アクション book-create）、そのステージで開き、カレントにする。作れたか返す
-  createBook(stage: string, args: ArgsOf<"@matomezu/base:book-create">): boolean
-  // 設定を変える（アクション settings-lang・settings-skin）。ホームのタイプが許さなければ変えない。変えたか返す
-  setLang(lang: Lang): boolean
-  setSkin(skin: string): boolean
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
@@ -344,26 +337,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const book = books[workspace.stages.find(s => s.id === stage)?.opened?.book ?? ""]
       if (book && hasPages(book)) withWorkspace(ws => showPage(catalog, focus(ws, stage), stage, book, page))
     },
-    addPage: (stageId, args) => {
-      const book = getState().workspace.stages.find(s => s.id === stageId)?.opened?.book
-      const done = book ? run("@matomezu/base:page-add", args, { book }) : null
-      if (!done?.ok) return false
-      const next = done.next.books?.[book as string]
-      const ws = done.next.workspace ?? getState().workspace
-      if (!next || !hasPages(next)) return false
-      const page = (done.result as ResultOf<"@matomezu/base:page-add">).page
-      commit({ ...done.next, workspace: showPage(catalog, focus(ws, stageId), stageId, next, page) })
-      return true
-    },
-    createBook: (stageId, args) => {
-      const done = run("@matomezu/base:book-create", args)
-      if (!done.ok) return false
-      const book = done.next.books?.[(done.result as ResultOf<"@matomezu/base:book-create">).book]
-      const ws = done.next.workspace ?? getState().workspace
-      if (!book) return false
-      commit({ ...done.next, workspace: mapStage(focus(ws, stageId), stageId, s => openBook(catalog, s, book)) })
-      return true
-    },
     receive: (world, replay) => {
       const found = restore(world.books)
       let books: MatomezuState["books"] = Object.fromEntries(
@@ -404,8 +377,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(partial === now.partial ? {} : { partial }),
       })
     },
-    setLang: lang => actions.perform("@matomezu/base:settings-lang", { lang }).ok,
-    setSkin: skin => actions.perform("@matomezu/base:settings-skin", { skin }).ok,
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
     setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),

@@ -43,8 +43,8 @@ describe("スキン", () => {
       autoSkin: { dark: "acme:dark" as "@matomezu/base:dark" },
     })
     expect(instance.autoSkin).toEqual({ light: "@matomezu/base:light", dark: "acme:dark" })
-    expect(instance.actions.setSkin("acme:dark")).toBe(true)
-    expect(instance.actions.setSkin("nope")).toBe(false)
-    expect(instance.actions.setSkin("auto")).toBe(true)
+    expect(instance.actions.perform("@matomezu/base:settings-skin", { skin: "acme:dark" }).ok).toBe(true)
+    expect(instance.actions.perform("@matomezu/base:settings-skin", { skin: "nope" }).ok).toBe(false)
+    expect(instance.actions.perform("@matomezu/base:settings-skin", { skin: "auto" }).ok).toBe(true)
   })
 })

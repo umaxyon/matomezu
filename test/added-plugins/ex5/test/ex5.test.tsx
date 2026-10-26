@@ -1,7 +1,7 @@
 // ex5（文字を持たず、中身の欄が children でない形）で、監査 B1〜B3 を確かめる（themeProp の型は type-checks.ts）
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { nextItemId, type PagedBook } from "matomezu"
+import { addPageIn, createBookIn, nextItemId, type PagedBook } from "matomezu"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
 import EX5_UI from "../ui"
 
@@ -20,11 +20,11 @@ const shelf = () => {
     </MatomezuProvider>,
   )
   act(() => {
-    expect(instance.actions.createBook("s1", { title: "棚", type: "ex5:shelf" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "棚", type: "ex5:shelf" })).toBe(true)
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   act(() => {
-    expect(instance.actions.addPage("s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const on = { book }
   const page = () => (instance.state.getState().books[book] as unknown as { pages: Page[] }).pages[0]!

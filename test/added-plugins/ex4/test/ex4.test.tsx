@@ -1,6 +1,8 @@
 // ex4（2 つ目のつなぐもの）で、監査 E1〜E5 を確かめる（B5 は type-checks.ts）。
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render } from "@testing-library/react"
+import { addPageIn, createBookIn } from "matomezu"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
 import EX4_UI from "../ui"
 
@@ -25,11 +27,11 @@ interface Page {
 const map = () => {
   const instance = make()
   act(() => {
-    expect(instance.actions.createBook("s1", { title: "関係図", type: "ex4:map" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "関係図", type: "ex4:map" })).toBe(true)
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   act(() => {
-    expect(instance.actions.addPage("s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const on = { book }
   const page = () => (instance.state.getState().books[book] as unknown as { pages: Page[] }).pages[0]!

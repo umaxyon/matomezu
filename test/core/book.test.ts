@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { addPage, addsFromTabs, choosablePapers, createBook, defaultPaper, paperChoices } from "../../web/src/core/book"
+import { addPage, choosablePapers, createBook, defaultPaper, paperChoices } from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
-import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG } from "../support"
 
 const book = {
@@ -59,11 +58,6 @@ describe("紙の規定（図面はページごとに選べる）", () => {
       papers: ["@matomezu/base:a3"],
       orientations: ["portrait"],
     })
-  })
-
-  test("図面は、タブの横でページを足せる。マスターはページを持たない", () => {
-    expect(addsFromTabs(CORE_CATALOG, book)).toBe(true)
-    expect(addsFromTabs(CORE_CATALOG, MASTER_BOOK)).toBe(false)
   })
 })
 

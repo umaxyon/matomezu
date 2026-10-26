@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { addPageIn, createBookIn } from "matomezu"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
 import EX3_UI from "../ui"
 
@@ -18,11 +19,11 @@ const make = () => {
 
 const board = (instance: ReturnType<typeof make>) => {
   act(() => {
-    expect(instance.actions.createBook("s1", { title: "ボード", type: "ex3:board" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "ボード", type: "ex3:board" })).toBe(true)
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   act(() => {
-    expect(instance.actions.addPage("s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const page = () =>
     (
@@ -69,7 +70,7 @@ test("ボードは自分の紙（正方形）で始まり、星とビルトイ�
 test("既定のテーマはミントで、置いてほしいと書いたボタンで、開いているブックをミントにする", () => {
   const instance = make()
   act(() => {
-    instance.actions.createBook("s1", { title: "図面", type: "@matomezu/drawing:drawing" })
+    createBookIn(instance, "s1", { title: "図面", type: "@matomezu/drawing:drawing" })
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   fireEvent.click(screen.getByRole("button", { name: "ミントにする" }))

@@ -7,7 +7,7 @@ export const SETTINGS_LANG = kit.defineCommand({
   performs: ["@matomezu/base:settings-lang"],
   title: "Language",
   run: (_ctx, a, lang: Lang) => {
-    a.setLang(lang)
+    a.perform("@matomezu/base:settings-lang", { lang })
   },
   when: () => true,
 })
@@ -17,7 +17,7 @@ export const SETTINGS_SKIN = kit.defineCommand({
   performs: ["@matomezu/base:settings-skin"],
   title: "Skin",
   run: (_ctx, a, skin: string) => {
-    a.setSkin(skin)
+    a.perform("@matomezu/base:settings-skin", { skin })
   },
   when: () => true,
 })

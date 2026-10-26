@@ -4,11 +4,12 @@ import { creatableTypes } from "../../../core/book"
 import { bookType } from "../../../core/core-catalog"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions } from "../../../ui/store-context"
+import { useInstance } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { createBookIn } from "./create-book"
 
 export function NewBookDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
@@ -20,7 +21,7 @@ export function NewBookDialog({ stage, onClose }: DialogProps) {
 }
 
 function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
-  const { createBook } = useActions()
+  const instance = useInstance()
   const t = useMessages(kit)
   const [title, setTitle] = useState("")
   const catalog = useCoreCatalog()
@@ -32,7 +33,7 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
       ready={title.trim() !== ""}
       onSubmit={() => {
         // 選べるタイプは動いている機能台帳から来る（型の側に無い追加プラグインのタイプもある）ので、型を外して渡す
-        if (createBook(stage, { title, type: type as never })) onDone()
+        if (createBookIn(instance, stage, { title, type: type as never })) onDone()
       }}
     >
       <Field label={t("Book name")}>

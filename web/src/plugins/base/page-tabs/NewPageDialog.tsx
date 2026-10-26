@@ -6,10 +6,11 @@ import { ORIENTATION_TITLES, type Orientation } from "../../../core/def/paper"
 import type { PaperChoice } from "../../../core/paper"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useCatalog, useInstance, useMatomezuState } from "../../../ui/store-context"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { addPageIn } from "./add-page"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
@@ -26,7 +27,7 @@ export function NewPageDialog({ stage, onClose }: DialogProps) {
 }
 
 function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; onDone: () => void }) {
-  const { addPage } = useActions()
+  const instance = useInstance()
   const lang = useMatomezuState(s => s.settings.lang)
   const t = useMessages(kit)
   const catalog = useCatalog().core
@@ -38,7 +39,7 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        if (addPage(stage, { title, ...choice })) onDone()
+        if (addPageIn(instance, stage, { title, ...choice })) onDone()
       }}
     >
       <Field label={t("Page name")}>

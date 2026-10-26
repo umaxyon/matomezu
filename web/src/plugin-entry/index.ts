@@ -12,10 +12,12 @@ import type {} from "../plugins"
 export type { Axis, Edges, Gap } from "../plugins/base"
 export {
   AlignSchema,
+  addPageIn,
   apart,
   BODY_MAX,
   captionTextWidth,
   clampLines,
+  createBookIn,
   evenGap,
   fitsPaper,
   gapOf,

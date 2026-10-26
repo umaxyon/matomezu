@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { BUILTIN } from "../../web/src/plugins"
+import { createBookIn } from "../../web/src/plugins/base"
 import { MASTER } from "../../web/src/plugins/books/master/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { isShown } from "../../web/src/store/commands"
@@ -21,13 +22,13 @@ describe("ホーム", () => {
     const instance = newStore()
     expect(instance.actions.command("s1", "@matomezu/base:stage-home")).toBe(true)
     expect(instance.state.getState().workspace.stages[0]!.opened?.book).toBe("@matomezu/master:master")
-    expect(instance.actions.createBook("s1", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
   })
 
   test("ホームの無いインスタンスは、ブックの一覧を変えるアクションを断り、ホームを開くコマンドを出さない", () => {
     const instance = createMatomezu({ plugins: BUILTIN, books: SAMPLE_BOOKS })
     expect(instance.home).toBeNull()
-    expect(instance.actions.createBook("s1", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(false)
+    expect(createBookIn(instance, "s1", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(false)
     expect(isShown(instance, instance.state.getState(), "s1", "@matomezu/base:stage-home")).toBe(false)
     const empty = createMatomezu({ plugins: BUILTIN })
     expect(empty.state.getState().workspace.stages[0]!.opened).toBeNull()
@@ -62,10 +63,10 @@ describe("ホーム", () => {
     }
     const org = { ...BUILTIN[1], bookTypes: [strict] }
     const locked = createMatomezu({ plugins: [BUILTIN[0], org, ...BUILTIN.slice(2)], home: "@matomezu/master:master" })
-    expect(locked.actions.setSkin("@matomezu/base:dark")).toBe(false)
+    expect(locked.actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:dark" }).ok).toBe(false)
     expect(locked.state.getState().settings.skin).toBe("auto")
     expect(isShown(locked, locked.state.getState(), "s1", "@matomezu/base:settings-skin")).toBe(false)
     expect(isShown(locked, locked.state.getState(), "s1", "@matomezu/base:settings-lang")).toBe(true)
-    expect(locked.actions.createBook("s1", { title: "x", type: "@matomezu/drawing:drawing" })).toBe(false)
+    expect(createBookIn(locked, "s1", { title: "x", type: "@matomezu/drawing:drawing" })).toBe(false)
   })
 })

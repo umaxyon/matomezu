@@ -3,6 +3,7 @@ import type { Book } from "../../web/src/core/schema/book"
 import type { Settings } from "../../web/src/core/settings"
 import { memoryClient } from "../../web/src/host-client/memory"
 import { persist } from "../../web/src/host-client/persist"
+import { createBookIn } from "../../web/src/plugins/base"
 import { newStore } from "../support"
 
 // 頼まれた順に残す中身を覚える
@@ -39,9 +40,9 @@ test("設定が変われば残すように頼む。同じ値では頼まない",
   const store = newStore()
   const rec = recording()
   persist(store, rec.host)
-  store.actions.setLang("ja")
+  store.actions.perform("@matomezu/base:settings-lang", { lang: "ja" }).ok
   expect(rec.settings).toEqual([])
-  store.actions.setLang("en")
+  store.actions.perform("@matomezu/base:settings-lang", { lang: "en" }).ok
   expect(rec.settings.map(s => s.lang)).toEqual(["en"])
 })
 
@@ -49,7 +50,7 @@ test("止めたあとは頼まない", () => {
   const store = newStore()
   const rec = recording()
   persist(store, rec.host)()
-  store.actions.setLang("en")
+  store.actions.perform("@matomezu/base:settings-lang", { lang: "en" }).ok
   expect(rec.settings).toEqual([])
 })
 
@@ -57,8 +58,8 @@ test("メモリのホストは残したものを次に読む", async () => {
   const host = memoryClient([])
   const store = newStore({ books: [], savedBooks: (await host.load()).books })
   host.connect(store)
-  store.actions.createBook("s1", { title: "新しいブック", type: "@matomezu/drawing:drawing" })
-  store.actions.setSkin("@matomezu/base:dark")
+  createBookIn(store, "s1", { title: "新しいブック", type: "@matomezu/drawing:drawing" })
+  store.actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:dark" }).ok
   const again = await host.load()
   expect(again.books).toContainEqual(expect.objectContaining({ title: "新しいブック" }))
   expect(again.settings).toMatchObject({ skin: "@matomezu/base:dark" })

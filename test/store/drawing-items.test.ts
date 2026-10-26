@@ -4,6 +4,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { placement } from "../../web/src/core/stage"
 import { toolOf } from "../../web/src/core/workspace"
 import { BUILTIN } from "../../web/src/plugins"
+import { addPageIn } from "../../web/src/plugins/base"
 import { BOX } from "../../web/src/plugins/items/box/box"
 import { PLACE_OFFSET } from "../../web/src/plugins/paper/placing/items"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
@@ -86,7 +87,7 @@ test("アイテムの id は振った値から作り、ブックのどのペー�
   const ids = ["p2", "x", "x", "y"]
   const store = newStore({ newId: () => ids.shift()! })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  store.actions.addPage("s1", { title: "ページ 2" })
+  addPageIn(store, "s1", { title: "ページ 2" })
   store.actions.perform(
     "@matomezu/paper:item-place",
     { page: "p1", item: "@matomezu/box:shape-box", at: { x: 0, y: 0 } },
@@ -146,7 +147,7 @@ test("ハンドの道具でアイテムを置こうとすると、選択の道�
 
 test("ページを替えると、選択と置こうとしていたアイテムを捨てる。紙の無いマスターでは道具の切り替えを出さない", () => {
   const store = ready()
-  store.actions.addPage("s1", { title: "ページ 2" })
+  addPageIn(store, "s1", { title: "ページ 2" })
   store.actions.select("s1", ["b9"])
   store.actions.togglePlacing("s1", "@matomezu/box:shape-box")
   store.actions.openPage("s1", "p1")

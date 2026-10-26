@@ -4,7 +4,7 @@
 
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
-import { type ActionDef, allowedIn, attachedTo } from "./def/action"
+import { type ActionDef, attachedTo } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
@@ -208,8 +208,6 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
       if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
     }
-    const pageAdd = actions.get("@matomezu/base:page-add")
-    if (t.pages?.addFromTabs && !(pageAdd && allowedIn(pageAdd, t))) problems.push(problem("E006", { id: t.id }))
     const built = buildBookSchemas(parts, t).book
     if (t.single && (t.book.id !== t.id || !built.safeParse(t.book).success))
       problems.push(problem("E019", { id: t.id }))

@@ -210,10 +210,10 @@ test("マスターの設定で言語とスキンを変える", () => {
 test("インスタンスに無いスキンは選べず、設定に残っていても自動のスキンで描く（data-skin を付けない）", () => {
   const store = renderScreen()
   act(() => {
-    store.actions.setSkin("@matomezu/base:light")
+    store.actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:light" }).ok
   })
   expect(document.documentElement.dataset.skin).toBe("@matomezu/base:light")
-  expect(store.actions.setSkin("removed-skin")).toBe(false)
+  expect(store.actions.perform("@matomezu/base:settings-skin", { skin: "removed-skin" }).ok).toBe(false)
   cleanup()
   // 外したスキンが設定に残っている状態から描く
   const kept = store.state.getState()

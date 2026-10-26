@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { addPageIn, createBookIn } from "matomezu"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, Screen } from "matomezu/testing"
 import EX2_UI from "../ui"
 
@@ -18,11 +19,11 @@ const make = () => {
 // フローのブックを作って開き、ページを 1 つ足す
 const flow = (instance: ReturnType<typeof make>) => {
   act(() => {
-    expect(instance.actions.createBook("s1", { title: "フロー", type: "ex2:flow" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "フロー", type: "ex2:flow" })).toBe(true)
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   act(() => {
-    expect(instance.actions.addPage("s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
   })
   const page = () =>
     (
@@ -124,11 +125,11 @@ test("追加のダイアログで置き、編集のダイアログで答える�
 test("判断のひし形は、選んでいないビルトインのタイプ（図面）のブックには置けない", () => {
   const instance = make()
   act(() => {
-    instance.actions.createBook("s1", { title: "図面", type: "@matomezu/drawing:drawing" })
+    createBookIn(instance, "s1", { title: "図面", type: "@matomezu/drawing:drawing" })
   })
   const book = (instance.state.getState().workspace.stages[0]!.opened as { book: string }).book
   act(() => {
-    instance.actions.addPage("s1", { title: "p1" })
+    addPageIn(instance, "s1", { title: "p1" })
   })
   const page = (instance.state.getState().books[book] as { pages: { id: string }[] }).pages[0]!
   const r = instance.actions.perform(

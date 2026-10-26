@@ -3,6 +3,7 @@ import { z } from "zod"
 import { noticeText } from "../../web/src/core/notices"
 import { actionsOf } from "../../web/src/core/perform"
 import { BUILTIN } from "../../web/src/plugins"
+import { createBookIn } from "../../web/src/plugins/base"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
@@ -70,7 +71,7 @@ test("without・add・performs の間違いは注意（N001〜N003）で、そ�
     "N002 notes: bookType notes:note: add names @matomezu/base:page-add, which is already attached to it",
     "N003 notes: command notes:ghost: performs notes:nothing, which is not in the catalog",
   ])
-  expect(instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })).toBe(true)
+  expect(createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })).toBe(true)
   // 表に無いアクションを行うコマンドは出ない
   expect(isShown(instance, instance.state.getState(), "s1", "notes:ghost" as never)).toBe(false)
 })

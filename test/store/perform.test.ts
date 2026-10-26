@@ -3,6 +3,7 @@ import { z } from "zod"
 import { defineAction, pagedOnly } from "../../web/src/core/def/action"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { BUILTIN } from "../../web/src/plugins"
+import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions, DoneAction } from "../../web/src/store/store"
@@ -56,7 +57,7 @@ describe("アクションの入口", () => {
   test("プラグインのアクションを行い、結果を状態に入れる", () => {
     const instance = createMatomezu({ plugins: BUILTIN, home: "@matomezu/master:master", newId: () => "n1" })
     instance.use([notes])
-    instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
     expect(untyped(instance.actions).perform("notes:rename", { title: "新" }, { book: "n1" })).toEqual({
       ok: true,
       result: { was: "メモ" },
@@ -74,7 +75,7 @@ describe("アクションの入口", () => {
   test("アクションが返したブックがタイプの形に合わなければ断り、ブックは変わらない", () => {
     const instance = createMatomezu({ plugins: BUILTIN, home: "@matomezu/master:master", newId: () => "n1" })
     instance.use([notes])
-    instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
     const before = instance.state.getState().books.n1
     expect(untyped(instance.actions).perform("notes:break", {}, { book: "n1" })).toEqual({
       ok: false,
@@ -94,7 +95,7 @@ describe("アクションの入口", () => {
       observe: d => done.push(d),
     })
     instance.use([notes])
-    instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })
+    createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
     untyped(instance.actions).perform("notes:stamp", {}, { book: "n1" })
     expect(instance.state.getState().books.n1).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
     expect(done.at(-1)).toMatchObject({ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" })
@@ -106,7 +107,7 @@ describe("アクションの入口", () => {
 
   test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
     const { state, actions } = newStore({ newId: () => "made" })
-    actions.createBook("s1", { title: "空", type: "@matomezu/drawing:drawing" })
+    createBookIn({ state, actions }, "s1", { title: "空", type: "@matomezu/drawing:drawing" })
     actions.split("s1")
     actions.openBook("s2", "made")
     const done = actions.perform("@matomezu/base:page-add", { title: "最初" }, { book: "made" })

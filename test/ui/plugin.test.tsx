@@ -4,6 +4,7 @@ import { z } from "zod"
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { BUILTIN } from "../../web/src/plugins"
+import { createBookIn } from "../../web/src/plugins/base"
 import { BASE_UI } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -73,7 +74,7 @@ describe("見た目のプラグイン", () => {
       </MatomezuProvider>,
     )
     act(() => {
-      instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })
+      createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })
     })
     expect(screen.getByText("note view")).toBeTruthy()
     act(() => instance.actions.command("s1", "@matomezu/base:stage-home"))

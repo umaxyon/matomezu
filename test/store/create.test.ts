@@ -4,7 +4,7 @@ import { defineBookType } from "../../web/src/core/def/book-type"
 import { isMatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import { BUILTIN } from "../../web/src/plugins"
-import { BASE } from "../../web/src/plugins/base"
+import { BASE, createBookIn } from "../../web/src/plugins/base"
 import { BOX } from "../../web/src/plugins/items/box/box"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
@@ -61,13 +61,13 @@ describe("インスタンスを組み立てる", () => {
       newId: () => "n1",
     })
     expect(instance.catalog.core.bookTypes.has("notes:note")).toBe(true)
-    expect(instance.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })).toBe(true)
     expect(instance.state.getState().workspace.stages[0]!.opened).toMatchObject({ type: "notes:note", book: "n1" })
     expect(untyped(instance.actions).command("s1", "notes:shoot")).toBe(true)
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:shot", stage: "s1" })
 
     const plain = createMatomezu({ plugins: BUILTIN })
-    expect(plain.actions.createBook("s1", { title: "メモ", type: "notes:note" as never })).toBe(false)
+    expect(createBookIn(plain, "s1", { title: "メモ", type: "notes:note" as never })).toBe(false)
     expect(thrown(() => untyped(plain.actions).command("s1", "notes:shoot"))).toMatchObject({ code: "E107" })
     expect(thrown(() => untyped(plain.actions).openDialog("s1", "notes:shot"))).toMatchObject({ code: "E108" })
   })
