@@ -21,7 +21,7 @@ async function addRow(page: Page, list: ReturnType<Page["locator"]>, caption: st
   await expect(dialog).toBeHidden()
 }
 
-test("ツールボックスのリストで置くと、キャプションの見出しと「＋」の行だけのリストが出る。「＋」で行を足し、ダブルクリックで行を変え、右クリックで消す", async ({
+test("ツールボックスのリストで置くと、キャプションの見出しと「＋」の行だけのリストが出る。「＋」で行を足し、ダブルクリックで行を変え、右クリックや編集のダイアログの「行を削除」で消す", async ({
   page,
 }) => {
   await page.goto("/")
@@ -43,6 +43,13 @@ test("ツールボックスのリストで置くと、キャプションの見�
   await expect(menu.getByRole("menuitem")).toHaveText(["行の編集", "行を削除"])
   await menu.getByRole("menuitem", { name: "行を削除" }).click()
   await expect(list.getByRole("listitem")).toHaveText(["卵6 個"])
+  // 編集のダイアログの「行を削除」は、確かめずに行を消して閉じる。追加のダイアログには無い
+  await list.getByRole("listitem").first().dblclick()
+  await edit.getByRole("button", { name: "行を削除" }).click()
+  await expect(edit).toBeHidden()
+  await expect(list.getByRole("listitem")).toHaveCount(0)
+  await list.getByRole("button", { name: "行の追加" }).click()
+  await expect(page.getByRole("dialog", { name: "行の追加" }).getByRole("button", { name: "行を削除" })).toHaveCount(0)
 })
 
 test("チェックリストにすると行の左にチェックが出て、押すだけで入れ切りする。チェックの入ったリストでチェックリストを切ろうとすると、その場で確かめる", async ({

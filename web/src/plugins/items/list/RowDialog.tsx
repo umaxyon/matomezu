@@ -1,6 +1,7 @@
 // 行のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。テーマと色はリストに従うので持たない。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
 // 追加はリストの最後に行を足し（row-add）、編集は行の項目を書き換える（row-update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
+// 編集だけに「行を削除」があり、押すと確かめずに行を消して閉じる（row-remove）
 
 import { useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
@@ -18,6 +19,7 @@ import {
   useAligns,
   useBookOf,
 } from "../../base/ui"
+import { ROW_ADD, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { LIST, type RowProps } from "./list"
 
@@ -30,7 +32,7 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
   const perform = usePerform(stage)
   const add = (props: Text) => {
     if (!book) return
-    if (perform("@matomezu/list:row-add", { page: args.page, list: args.list, props }).ok) onClose()
+    if (perform(ROW_ADD.id, { page: args.page, list: args.list, props }).ok) onClose()
   }
   return (
     <RowDialog
@@ -50,7 +52,10 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
   const perform = usePerform(stage)
   if (!book || !start) return null
   const update = (props: Text) => {
-    if (perform("@matomezu/list:row-update", { page: args.page, list: args.list, row: args.row, props }).ok) onClose()
+    if (perform(ROW_UPDATE.id, { page: args.page, list: args.list, row: args.row, props }).ok) onClose()
+  }
+  const remove = () => {
+    if (perform(ROW_REMOVE.id, { page: args.page, list: args.list, rows: [args.row] }).ok) onClose()
   }
   return (
     <RowDialog
@@ -59,6 +64,7 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
       start={start}
       ready
       onSubmit={update}
+      onRemove={remove}
       onClose={onClose}
     />
   )
@@ -70,6 +76,7 @@ function RowDialog({
   start,
   ready,
   onSubmit,
+  onRemove,
   onClose,
 }: {
   title: MessageKey
@@ -77,6 +84,7 @@ function RowDialog({
   start: Text
   ready: boolean
   onSubmit: (props: Text) => void
+  onRemove?: () => void
   onClose: () => void
 }) {
   const t = useMessages(kit)
@@ -132,6 +140,13 @@ function RowDialog({
             />
           )}
         </Field>
+        {onRemove && (
+          <div className={rowClass}>
+            <ActionButton danger onClick={onRemove}>
+              {t("Delete row")}
+            </ActionButton>
+          </div>
+        )}
       </Form>
     </Dialog>
   )
