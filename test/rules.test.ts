@@ -1,6 +1,6 @@
 // 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、外の世界に触る所、コメントの言葉
 import { describe, expect, test } from "bun:test"
-import { readdirSync, readFileSync } from "node:fs"
+import { readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, relative, resolve } from "node:path"
 
 const ROOT = resolve(import.meta.dir, "..")
@@ -307,4 +307,32 @@ test("プラグインはブックのページを { ...book, pages } で組み直
     .filter(f => rebuild.test(f.text))
     .map(f => f.rel)
   expect(offenders).toEqual([])
+})
+
+// Go の側の層（conventions/architecture.md の「Go の側の層」）: internal/ のパッケージは、決めたパッケージだけを読む（テストのファイルは除く）
+const GO_ALLOWED: Record<string, readonly string[]> = {
+  storage: [],
+  plugin: [],
+  engine: ["plugin"],
+  server: ["engine", "plugin", "storage"],
+  mcp: [],
+  home: [],
+  browser: [],
+}
+
+test("Go の internal のパッケージは、決めたパッケージだけを読む", () => {
+  const internal = join(ROOT, "internal")
+  const packages = readdirSync(internal).filter(d => statSync(join(internal, d)).isDirectory())
+  expect(packages.sort()).toEqual(Object.keys(GO_ALLOWED).sort())
+  const bad = packages.flatMap(pkg =>
+    readdirSync(join(internal, pkg))
+      .filter(f => f.endsWith(".go") && !f.endsWith("_test.go"))
+      .flatMap(f =>
+        [...readFileSync(join(internal, pkg, f), "utf8").matchAll(/"github\.com\/umaxyon\/matomezu\/internal\/(\w+)"/g)]
+          .map(m => m[1]!)
+          .filter(dep => !GO_ALLOWED[pkg]!.includes(dep))
+          .map(dep => `${pkg}/${f} → ${dep}`),
+      ),
+  )
+  expect(bad).toEqual([])
 })
