@@ -7,11 +7,13 @@ import type { Book } from "../../../core/schema/book"
 
 const normalize = (s: string) => s.normalize("NFKC").toLowerCase()
 
-export function searchBooks(catalog: CoreCatalog, books: readonly Book[], query: string, lang: Lang): Book[] {
+// 名前が、空白で区切った言葉を全部含むか（言葉が無ければ含む）
+export function matchesQuery(title: string, query: string): boolean {
   const words = normalize(query).split(/\s+/).filter(Boolean)
-  if (words.length === 0) return [...books]
-  return books.filter(b => {
-    const title = normalize(bookTitle(catalog, b, lang))
-    return words.every(w => title.includes(w))
-  })
+  const t = normalize(title)
+  return words.every(w => t.includes(w))
+}
+
+export function searchBooks(catalog: CoreCatalog, books: readonly Book[], query: string, lang: Lang): Book[] {
+  return books.filter(b => matchesQuery(bookTitle(catalog, b, lang), query))
 }

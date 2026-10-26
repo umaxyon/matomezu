@@ -38,6 +38,22 @@
 .option[aria-selected="true"] {
   background: var(--skin-btn-hover);
 }
+/* 読めないブック: 押せない行。名前の下に開けない理由 */
+.broken {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  color: var(--skin-hint);
+  cursor: not-allowed;
+}
+.broken > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reason {
+  font-size: 12px;
+}
 .empty {
   margin: 4px 10px;
   color: var(--skin-hint);

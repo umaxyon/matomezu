@@ -4,6 +4,9 @@ export const NOTICES = {
   N001: "bookType {type}: without names {action}, which is not attached to it",
   N002: "bookType {type}: add names {action}, which is already attached to it",
   N003: "command {command}: performs {action}, which is not in the catalog",
+  N004: "book {book} ({title}): its type {type} is not in the catalog",
+  N005: "book {book} ({title}): it does not fit its type {type}",
+  N006: "book {book} ({title}): it breaks the rules of its type {type}",
 } as const
 
 export type NoticeCode = keyof typeof NOTICES

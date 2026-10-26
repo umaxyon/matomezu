@@ -2,7 +2,7 @@
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
 
 import { createStore, type StoreApi } from "zustand/vanilla"
-import { hasPages, restoreBooks, singleBooks } from "../core/book"
+import { checkBooks, hasPages, singleBooks } from "../core/book"
 import type { ActionId, DialogId, ItemId, SingleBookTypeId, SkinId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext } from "../core/def/action"
@@ -10,6 +10,7 @@ import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang } from "../core/i18n/i18n"
 import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
+import type { Notice } from "../core/notices"
 import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { restoreSettings, type Settings } from "../core/settings"
@@ -42,6 +43,7 @@ export type { Settings } from "../core/settings"
 
 export interface MatomezuState {
   books: Record<string, Book> // ブックの id ごと
+  unreadable: readonly Notice[] // 残したブックのうち読めないもの（注意 N004〜N006。データには手を付けず、開けない）
   workspace: Workspace
   settings: Settings
   dialog: OpenedDialog | null
@@ -135,11 +137,13 @@ function initialState(
   books: readonly Book[],
   settings: Settings,
   home: string | null,
+  unreadable: readonly Notice[] = [],
 ): MatomezuState {
   const all = [...singleBooks(catalog), ...books]
   const first = books[0] ?? all.find(b => b.id === home) ?? null
   return {
     books: Object.fromEntries(all.map(b => [b.id, b])),
+    unreadable,
     workspace: newWorkspace(catalog, first),
     settings,
     dialog: null,
@@ -173,30 +177,42 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   let { home } = defs
   let catalog = defs.catalog.core
   const start: Settings = { lang: startLang(catalog, options.lang), skin: "auto", keys: NO_KEY_CHANGES }
+  const saved = checkBooks(catalog, options.savedBooks ?? [])
   const initial =
     options.initial ??
     initialState(
       catalog,
-      [...(options.books ?? []), ...restoreBooks(catalog, options.savedBooks ?? [])],
+      [...(options.books ?? []), ...saved.books],
       restoreSettings(catalog, start, options.settings),
       home,
+      saved.notices,
     )
   const newId = options.newId ?? (() => crypto.randomUUID())
   const clock = options.now ?? (() => new Date().toISOString())
   const store = createStore<MatomezuState>()(() => initial)
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId, now: clock() })
-  // 残した・知らされたブックの、形を確かめた値（同じ値は確かめ直さない）
-  let checked = new WeakMap<object, Book>()
-  const restore = (saved: readonly unknown[]): Book[] =>
-    saved.flatMap(b => {
-      if (typeof b !== "object" || b === null) return []
-      const hit = checked.get(b)
-      if (hit) return [hit]
-      const [book] = restoreBooks(catalog, [b])
-      if (book) checked.set(b, book)
-      return book ? [book] : []
-    })
+  // 残した・知らされたブックを確かめた値（読めたブックか、読めない注意。同じ値は確かめ直さない）
+  let checked = new WeakMap<object, { book: Book } | { notice: Notice }>()
+  const restore = (saved: readonly unknown[]): { books: Book[]; notices: Notice[] } => {
+    const books: Book[] = []
+    const notices: Notice[] = []
+    for (const b of saved) {
+      if (typeof b !== "object" || b === null) continue
+      let hit = checked.get(b)
+      if (!hit) {
+        const done = checkBooks(catalog, [b])
+        const [book] = done.books
+        const [notice] = done.notices
+        hit = book ? { book } : notice ? { notice } : undefined
+        if (!hit) continue
+        checked.set(b, hit)
+      }
+      if ("book" in hit) books.push(hit.book)
+      else notices.push(hit.notice)
+    }
+    return { books, notices }
+  }
   // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
   const keysFor = (changes: KeyChanges): KeyTable => {
@@ -341,8 +357,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return true
     },
     receive: (world, replay) => {
+      const found = restore(world.books)
       let books: MatomezuState["books"] = Object.fromEntries(
-        [...singleBooks(catalog), ...restore(world.books)].map(b => [b.id, b]),
+        [...singleBooks(catalog), ...found.books].map(b => [b.id, b]),
       )
       let settings = restoreSettings(catalog, start, world.settings)
       for (const done of replay) {
@@ -369,9 +386,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const same =
         Object.keys(books).length === Object.keys(now.books).length &&
         Object.entries(books).every(([id, b]) => now.books[id] === b)
+      const unreadable =
+        JSON.stringify(found.notices) === JSON.stringify(now.unreadable) ? now.unreadable : found.notices
       commit({
         ...(same ? {} : { books, workspace: followLibrary(catalog, now.workspace, books) }),
         ...(settings === now.settings ? {} : { settings }),
+        ...(unreadable === now.unreadable ? {} : { unreadable }),
       })
     },
     setLang: lang => actions.perform("@matomezu/base:settings-lang", { lang }).ok,
@@ -416,15 +436,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       keyCache = null
       Object.assign(instance, next, { plugins: [...plugins, ...used] })
       const { settings } = getState()
-      setState(
-        initialState(
-          catalog,
-          [...(options.books ?? []), ...restoreBooks(catalog, options.savedBooks ?? [])],
-          settings,
-          home,
-        ),
-        true,
-      )
+      const again = checkBooks(catalog, options.savedBooks ?? [])
+      setState(initialState(catalog, [...(options.books ?? []), ...again.books], settings, home, again.notices), true)
       return { failed }
     },
   }

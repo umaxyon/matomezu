@@ -3,4 +3,17 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const BOOK_OPEN_MESSAGES = defineMessages({
   "Open book": { en: "Open book", ja: "ブックを開く" },
+  "Cannot open: there is no book type {type}": {
+    en: "Cannot open: there is no book type {type}",
+    ja: "開けません: ブックのタイプ {type} がありません",
+  },
+  "Cannot open: it does not fit the book type {type}": {
+    en: "Cannot open: it does not fit the book type {type}",
+    ja: "開けません: ブックのタイプ {type} の形に合いません",
+  },
+  "Cannot open: it breaks the rules of the book type {type}": {
+    en: "Cannot open: it breaks the rules of the book type {type}",
+    ja: "開けません: ブックのタイプ {type} の決まりを守っていません",
+  },
+  "Untitled ({id})": { en: "Untitled ({id})", ja: "名前なし（{id}）" },
 })

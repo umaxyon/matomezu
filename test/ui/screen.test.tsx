@@ -352,3 +352,29 @@ test("ステージの上の行と下の行を右クリックしても、ブラ�
   expect(fireEvent.contextMenu(tool)).toBe(false)
   expect(screen.queryByRole("menu")).toBeNull()
 })
+
+test("読めないブックは、ブックを開くの一覧に押せない行として、開けない理由を添えて出る（データには手を付けない）", () => {
+  const gone = { type: "@foo/stamps:board", id: "x1", title: "スタンプ帳", pages: [] }
+  const broken = { type: "@matomezu/drawing:drawing", id: "x2", title: "壊れた図面", pages: "?" }
+  const store = renderScreen({ savedBooks: [gone, broken] })
+  expect(store.state.getState().books.x1).toBeUndefined()
+  fireEvent.click(fromMenu("ブックを開く"))
+  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
+  const rows = within(dialog)
+    .getAllByRole("option")
+    .filter(o => o.getAttribute("aria-disabled") === "true")
+  expect(rows.map(r => r.textContent)).toEqual([
+    "スタンプ帳開けません: ブックのタイプ @foo/stamps:board がありません",
+    "壊れた図面開けません: ブックのタイプ @matomezu/drawing:drawing の形に合いません",
+  ])
+  // 押しても開かない
+  fireEvent.click(rows[0]!)
+  expect(screen.getByRole("dialog", { name: "ブックを開く" })).toBeTruthy()
+  // 名前で絞り込める
+  fireEvent.change(within(dialog).getByRole("combobox", { name: "ブックを探す" }), { target: { value: "スタンプ" } })
+  expect(
+    within(dialog)
+      .getAllByRole("option")
+      .map(o => o.getAttribute("aria-disabled")),
+  ).toEqual(["true"])
+})

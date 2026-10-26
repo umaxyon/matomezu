@@ -7,6 +7,8 @@ import { fail } from "./errors"
 import type { Lang } from "./i18n/i18n"
 import { translate } from "./i18n/i18n"
 import { freshId } from "./ids"
+import { splitId } from "./names"
+import { type Notice, notice } from "./notices"
 import type { PaperChoice, PaperRule } from "./paper"
 import { actionsOf, holds } from "./perform"
 import type { ItemPage } from "./placed"
@@ -14,14 +16,31 @@ import type { Book, Page } from "./schema/book"
 
 export type PagedBook = Extract<Book, { pages: Page[] }>
 
-// 残しておいたブックのうち、このインスタンスのブックの形に合うものだけ（タイプの無いもの・形の合わないもの・アイテムどうしの関係の決まりを守らないものは捨てる）。
-// 残したブックは外から来る値なので、形を確かめてから使う
-export function restoreBooks(catalog: CoreCatalog, saved: readonly unknown[]): Book[] {
-  return saved.flatMap(b => {
+// 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは注意（タイプが無い N004・形が合わない N005・
+// アイテムどうしの関係の決まりを守らない N006）にする。残したブックは外から来る値なので、形を確かめてから使う。読めないブックのデータには手を付けない
+export function checkBooks(catalog: CoreCatalog, saved: readonly unknown[]): { books: Book[]; notices: Notice[] } {
+  const books: Book[] = []
+  const notices: Notice[] = []
+  for (const b of saved) {
+    const raw = (typeof b === "object" && b !== null ? b : {}) as { id?: unknown; title?: unknown; type?: unknown }
+    const type = typeof raw.type === "string" ? raw.type : ""
+    const params = { book: String(raw.id ?? ""), title: typeof raw.title === "string" ? raw.title : "", type }
+    const plugin = splitId(type).owner ?? ""
+    if (!catalog.bookTypes.has(type)) {
+      notices.push(notice("N004", plugin, params))
+      continue
+    }
     const parsed = catalog.bookSchema.safeParse(b)
-    return parsed.success && holds(catalog, parsed.data as Book) ? [parsed.data as Book] : []
-  })
+    if (!parsed.success) notices.push(notice("N005", plugin, params))
+    else if (!holds(catalog, parsed.data as Book)) notices.push(notice("N006", plugin, params))
+    else books.push(parsed.data as Book)
+  }
+  return { books, notices }
 }
+
+// 残しておいたブックのうち、読めるものだけ（checkBooks の books）
+export const restoreBooks = (catalog: CoreCatalog, saved: readonly unknown[]): Book[] =>
+  checkBooks(catalog, saved).books
 
 // 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの。土台の欄の既定を埋めた形）
 export function singleBooks(catalog: CoreCatalog): Book[] {

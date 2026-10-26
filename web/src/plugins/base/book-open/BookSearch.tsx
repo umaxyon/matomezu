@@ -1,16 +1,19 @@
 // ブックを探して選ぶコンポーネント: 打つたびに題名で絞り込み、↑↓で選び、Enter かクリックで決める。
-// 候補の欄は高さが決まっていて、絞り込んでもコンポーネントの大きさは変わらない（真ん中に置いても探す欄が動かない）
+// 候補の欄は高さが決まっていて、絞り込んでもコンポーネントの大きさは変わらない（真ん中に置いても探す欄が動かない）。
+// 読めないブック（プラグインが無いなど）も名前で絞り込んで後ろに並べ、押せない行として開けない理由を添える
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookTitle } from "../../../core/book"
+import type { Notice } from "../../../core/notices"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "./BookSearch.module.css"
-import { searchBooks } from "./book-search"
+import { matchesQuery, searchBooks } from "./book-search"
 
 export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: string) => void; autoFocus?: boolean }) {
   const books = useMatomezuState(useShallow(s => Object.values(s.books)))
+  const unreadable = useMatomezuState(s => s.unreadable)
   const lang = useMatomezuState(s => s.settings.lang)
   const catalog = useCatalog().core
   const t = useMessages(kit)
@@ -19,6 +22,13 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
   const listId = useId()
   const activeRef = useRef<HTMLDivElement>(null)
   const found = searchBooks(catalog, books, query, lang)
+  const broken = unreadable.filter(n => matchesQuery(n.params.title ?? "", query))
+  const reason = (n: Notice) =>
+    n.code === "N004"
+      ? t("Cannot open: there is no book type {type}", { type: n.params.type ?? "" })
+      : n.code === "N005"
+        ? t("Cannot open: it does not fit the book type {type}", { type: n.params.type ?? "" })
+        : t("Cannot open: it breaks the rules of the book type {type}", { type: n.params.type ?? "" })
   const current = Math.min(active, found.length - 1)
   const optionId = (i: number) => `${listId}-${i}`
 
@@ -81,8 +91,21 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
               {bookTitle(catalog, b, lang)}
             </div>
           ))}
+          {broken.map(n => (
+            <div
+              key={n.params.book}
+              role="option"
+              tabIndex={-1}
+              aria-disabled="true"
+              aria-selected={false}
+              className={styles.broken}
+            >
+              <span>{n.params.title || t("Untitled ({id})", { id: n.params.book ?? "" })}</span>
+              <span className={styles.reason}>{reason(n)}</span>
+            </div>
+          ))}
         </div>
-        {found.length === 0 && <p className={styles.empty}>{t("No matching books")}</p>}
+        {found.length === 0 && broken.length === 0 && <p className={styles.empty}>{t("No matching books")}</p>}
       </div>
     </div>
   )
