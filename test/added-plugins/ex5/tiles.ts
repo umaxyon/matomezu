@@ -19,8 +19,11 @@ export const TILES = kit.defineShape({
   content: { tiles: z.array(z.strictObject({ id: z.string().min(1), color: z.string() })) },
   size: TILES_SIZE,
   min: { w: 80, h: 48 },
-  tokens: [{ id: "tiles-fill", fallback: "fill" }],
+  tokens: [], // テーマキーはプラグインが持つ（index.ts。いくつものアイテムで共に使う形の見本）
 })
+
+// タイルのテーマキー（プラグインが持つ。id は kit.name で長い形に書く）
+export const TILES_TOKENS = [{ id: kit.name("tiles-fill"), fallback: "fill" }] as const
 
 // タイルに札を 1 枚足す
 export const TILE_ADD = kit.defineAction({

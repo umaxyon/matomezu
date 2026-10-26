@@ -46,7 +46,7 @@ export function useBookTheme(book: string | undefined) {
   })
 }
 
-// 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りの欄 fill の値）。表に無いテーマなら null
+// 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りのテーマキー fill の値）。表に無いテーマなら null
 export function useSwatches(looks: string | undefined, fill: TokenDecl) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
@@ -63,13 +63,13 @@ export function useSwatches(looks: string | undefined, fill: TokenDecl) {
   }, [catalog, looks, fill, t])
 }
 
-// 形に当てたテーマ theme の、欄 decls の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）
+// 形に当てたテーマ theme の、テーマキー decls の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）
 export function useThemeVars(theme: string | undefined, decls: readonly TokenDecl[]) {
   const catalog = useCatalog().core
   return useMemo(() => {
     if (!theme || !catalog.themes.has(theme)) return undefined
     const owners = new Set(decls.map(d => splitId(d.id).owner))
-    const [owner] = owners // 欄の持ち主（アイテムのプラグイン）は 1 つ
+    const [owner] = owners // テーマキーの持ち主（アイテムのプラグイン）は 1 つ
     return themeVars(resolveTokens(catalog, theme, decls), owners.size === 1 && owner ? owner : undefined)
   }, [catalog, theme, decls])
 }

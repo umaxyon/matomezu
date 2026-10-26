@@ -107,7 +107,7 @@ function BookContent({ stage, type, vars }: { stage: Stage; type: BookTypeId; va
   const View = (
     useUiCatalog().presentationViews.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })
   ).view
-  const tokens = useTokenScope(type) // ブックのタイプのプラグインの欄（--<名前>）
+  const tokens = useTokenScope(type) // ブックのタイプのプラグインのテーマキー（--<名前>）
   return (
     <div className={styles.book} style={{ ...vars, ...tokens }}>
       <View stage={stage.id} />

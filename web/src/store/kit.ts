@@ -1,6 +1,6 @@
 // プラグインの定義の関数の組（pluginKit）: プラグインは自分の物を短い名前で書き、この組が頭（プラグインの id と :）を付けて返す。
 // 返した定義の id は本当の id（型も）で、自分の物はそれか kit.name(名前) で名指す。ほかのプラグインの物は本当の id で書く。
-// 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマの欄の id・テーマが上書きする自分の欄の鍵だけ
+// 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマキーの id・テーマが上書きする自分のテーマキーだけ
 import type { MessageKey } from "../core/catalog"
 import type { ActionAttach, ActionDef, ActionTarget } from "../core/def/action"
 import {
@@ -146,10 +146,10 @@ export function pluginKit<const P extends string, const M extends MessageSet = R
 ): PluginKit<P, M> {
   const ownMessages = Object.fromEntries(Object.entries(messages).map(([k, t]) => [`${plugin}:${k}`, t]))
   const message = (key: string) => `${plugin}:${key}`
-  // 欄の宣言（短い名前か、kit.name で頭を付けた id）
+  // テーマキーの宣言（短い名前か、kit.name で頭を付けた id）
   const tokens = (decls: readonly TokenDecl[]): TokenDecl[] =>
     decls.map(t => (t.id.includes(":") ? t : { ...t, id: owned(plugin, t.id) }))
-  // 定義の id・名前・欄の宣言に頭を付ける
+  // 定義の id・名前・テーマキーの宣言に頭を付ける
   const place = <D extends { id: string }>(def: D): D => {
     const d = def as D & { title?: unknown; tokens?: unknown }
     return {
@@ -164,7 +164,12 @@ export function pluginKit<const P extends string, const M extends MessageSet = R
     messages: ownMessages,
     name: (name: string) => owned(plugin, name),
     message,
-    plugin: (parts: object) => ({ ...parts, id: plugin, messages: ownMessages }),
+    plugin: (parts: { tokens?: readonly TokenDecl[] }) => ({
+      ...parts,
+      ...(parts.tokens ? { tokens: tokens(parts.tokens) } : {}),
+      id: plugin,
+      messages: ownMessages,
+    }),
     defineShape: place,
     defineConnector: place,
     defineAction: place,

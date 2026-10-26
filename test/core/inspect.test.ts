@@ -11,7 +11,7 @@ import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 const drawing = SAMPLE_BOOKS[0]!
 
 describe("inspect: テーマの値", () => {
-  test("宣言された欄は、テーマが上書きしなければ既定の共通の欄で決まり、見た段を順に返す", () => {
+  test("宣言されたテーマキーは、テーマが上書きしなければ既定の共通のテーマキーで決まり、見た段を順に返す", () => {
     expect(inspect(CORE_CATALOG, { kind: "token", book: drawing, token: "@matomezu/box:box-fill" })).toEqual({
       value: shades(STANDARD.base.fill),
       decidedBy: { source: "theme", id: "@matomezu/base:standard", field: "base", key: "fill" },
@@ -28,7 +28,7 @@ describe("inspect: テーマの値", () => {
     })
   })
 
-  test("テーマが上書きした欄は、上書きで決まる。後の段も並べる", () => {
+  test("テーマが上書きしたテーマキーは、上書きで決まる。後の段も並べる", () => {
     const yellow = defineTheme({ ...STANDARD, tokens: { "@matomezu/box:box-fill": "#fff3c4" } })
     const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, themes: [yellow] })
     const got = inspect(catalog, { kind: "token", book: drawing, token: "@matomezu/box:box-fill" })
@@ -42,7 +42,7 @@ describe("inspect: テーマの値", () => {
     expect(got.steps).toHaveLength(2)
   })
 
-  test("共通の欄はテーマの値。どれでもない欄は値が無い", () => {
+  test("共通のテーマキーはテーマの値。どれでもないテーマキーは値が無い", () => {
     expect(inspect(CORE_CATALOG, { kind: "token", book: drawing, token: "paper" }).value).toEqual(
       shades(STANDARD.base.paper),
     )

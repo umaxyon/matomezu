@@ -8,7 +8,7 @@ import { STANDARD } from "../../web/src/plugins/base/looks/standard"
 import { ownTokenVars, themeVars } from "../../web/src/ui/theme-vars"
 import { BUILTIN_PARTS } from "../support"
 
-test("欄の値は、色 1 つか片方だけなら明暗どちらでもその色、両方なら明暗ごとの色", () => {
+test("テーマキーの値は、色 1 つか片方だけなら明暗どちらでもその色、両方なら明暗ごとの色", () => {
   expect(shades("#fff")).toEqual({ light: "#fff", dark: "#fff" })
   expect(shades({ light: "#fff" })).toEqual({ light: "#fff", dark: "#fff" })
   expect(shades({ dark: "#222" })).toEqual({ light: "#222", dark: "#222" })
@@ -27,7 +27,7 @@ test("明暗で違う色は light-dark() の CSS 変数になり、ブックの�
   expect(vars.colorScheme).toBe("light dark")
 })
 
-test("欄の CSS 変数の名前: 土台の欄は --theme-<名前>、プラグインの欄は中だけの名前（id ごとに別）で、見た目では --<名前>", () => {
+test("テーマキーの CSS 変数の名前: 土台のテーマキーは --theme-<名前>、プラグインのテーマキーは中だけの名前（id ごとに別）で、見た目では --<名前>", () => {
   expect(tokenVarName("paper")).toBe("--theme-paper")
   expect(tokenVarName("palette.primary.ink")).toBe("--theme-palette-primary-ink")
   expect(tokenVarName("@matomezu/box:box-fill")).toBe("--theme-_40matomezu_2fbox_3abox-fill")
@@ -35,22 +35,24 @@ test("欄の CSS 変数の名前: 土台の欄は --theme-<名前>、プラグ�
   expect(themeVar("palette.primary.ink")).toBe("var(--theme-palette-primary-ink)")
   expect(themeVar("ex3:star-fill")).toBe("var(--star-fill)")
   expect(Object.keys(themeVars({ "ex3:star-fill": shades("#ffd34d") }))).toContain(tokenVarName("ex3:star-fill"))
-  // プラグインの見た目に置くのは、そのプラグインの欄だけ
+  // プラグインの見た目に置くのは、そのプラグインのテーマキーだけ
   expect(ownTokenVars(["ex3:star-fill", "ex2:diamond-fill", "accent"], "ex3") as Record<string, string>).toEqual({
     "--star-fill": `var(${tokenVarName("ex3:star-fill")})`,
   })
 })
 
-test("ビルトインプラグインと画面の CSS とビューが書いた --theme-… は土台の欄、var(--…) は自分の欄か自分で置く変数", async () => {
+test("ビルトインプラグインと画面の CSS とビューが書いた --theme-… は土台のテーマキー、var(--…) は自分のテーマキーか自分で置く変数", async () => {
   const core = new Set(
     [...THEME_TOKENS, ...PALETTE.flatMap(name => [`palette.${name}`, `palette.${name}.ink`])].map(tokenVarName),
   )
-  const own = new Map<string, Set<string>>() // プラグインのフォルダ → 自分の欄の --名前
-  for (const d of [...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items])
-    for (const t of d.tokens) {
-      const dir = dirOf(t.id)
-      own.set(dir, (own.get(dir) ?? new Set()).add(`--${t.id.split(":")[1]}`))
-    }
+  const own = new Map<string, Set<string>>() // プラグインのフォルダ → 自分のテーマキーの --名前（アイテム・タイプ・プラグインが持つもの）
+  for (const t of [
+    ...[...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens),
+    ...BUILTIN_PARTS.tokens,
+  ]) {
+    const dir = dirOf(t.id)
+    own.set(dir, (own.get(dir) ?? new Set()).add(`--${t.id.split(":")[1]}`))
+  }
   const unknown: string[] = []
   const sources = new Map<string, string>()
   for await (const file of new Glob("web/src/{plugins,ui}/**/*.{ts,tsx,css}").scan())
@@ -78,10 +80,11 @@ test("ビルトインプラグインと画面の CSS とビューが書いた --
   expect(unknown).toEqual([])
 })
 
-// 欄の持ち主のビルトインプラグインのフォルダ
+// テーマキーの持ち主のビルトインプラグインのフォルダ
 const dirOf = (id: string) =>
   ({
     "@matomezu/box": "web/src/plugins/items/box",
     "@matomezu/list": "web/src/plugins/items/list",
     "@matomezu/line": "web/src/plugins/items/line",
+    "@matomezu/shape": "web/src/plugins/items/shape",
   })[id.split(":")[0]!] ?? "web/src/plugins/none"

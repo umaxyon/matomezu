@@ -9,7 +9,7 @@
 // 離すと、同じページのリスト（自分のリストも）のその位置へ動かす（list-move-row）。落とす所はポインタの下のリストの行の並びで決め、見せる順のとおりの位置にする。
 // ドラッグの途中の行と、光る所はビューに持つ（画面の上に重ねて描く。紙は拡大縮小されているので、紙の外の層に描く）。
 // 行の下の端をつかんでドラッグすると、その行の高さを 1 行刻みで変える（離したときに list-stretch-row。ドラッグの途中の動いた量だけはビューに持つ）。
-// リストのテーマと色はリストの欄（list.*）で描き、行はリストに従う。
+// リストのテーマと色はリストのテーマキー（list.*）で描き、行はリストに従う。
 // チェックリストでは、チェック済みの行を薄く描き（checkedGray）、先頭か最後に寄せて見せる（checkedOrder。見せる順と動かせる行は rows.ts）。
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 
@@ -35,7 +35,7 @@ import { listPaintVars } from "./paint"
 import { canCarry, shownOrder } from "./rows"
 import { linesFor, listLayout, type RowLayout, rowHeight } from "./size"
 
-// リストを描くテーマの欄
+// リストを描くテーマキー
 const LOOK_TOKENS = LIST.tokens
 
 const inside = { onPointerDown: (e: { stopPropagation(): void }) => e.stopPropagation() }
@@ -61,7 +61,7 @@ interface GhostLook {
   vars: Record<string, string>
 }
 
-// 行の要素 li から写しの見た目を取る。変数はテーマの欄（names）と、台紙・文字・行の地。scale はステージの倍率（写しも同じ倍率で描く）
+// 行の要素 li から写しの見た目を取る。変数はテーマキー（names）と、台紙・文字・行の地。scale はステージの倍率（写しも同じ倍率で描く）
 function ghostLook(li: HTMLElement, x: number, y: number, names: readonly string[], scale: number): GhostLook {
   const r = li.getBoundingClientRect()
   const css = getComputedStyle(li)
@@ -136,7 +136,7 @@ export function ListView({
   const openMenu = useContextMenu(stage, "@matomezu/list:row-context")
   const stretchRow = useCommand(stage, "@matomezu/list:list-stretch-row")
   const moveRow = useCommand(stage, "@matomezu/list:list-move-row")
-  // 写しに写し取るテーマの変数の名前（テーマが違っても欄は同じ）
+  // 写しに写し取るテーマの変数の名前（テーマが違ってもテーマキーは同じ）
   const ghostNames = useMemo(() => {
     const any = [...catalog.themes.keys()][0]
     if (any === undefined) return []

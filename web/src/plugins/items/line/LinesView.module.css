@@ -8,7 +8,7 @@
   overflow: visible;
   pointer-events: none;
 }
-/* 見える線（太さ 1.5）。色はテーマの線の欄 */
+/* 見える線（太さ 1.5）。色はテーマの線のテーマキー */
 .stroke {
   fill: none;
   stroke: var(--line-color);

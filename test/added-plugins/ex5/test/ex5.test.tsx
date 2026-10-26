@@ -50,6 +50,8 @@ test("タイルを置き、札を足すと中身の欄 tiles に入る", () => {
       expect(instance.actions.perform("ex5:tile-add", { page: page().id, item, color }, on)).toMatchObject({ ok: true })
   })
   expect(page().items![0]!.tiles).toHaveLength(2)
+  // プラグインが持つテーマキーも、タイルの要素で --tiles-fill として読める
+  expect(document.querySelector<HTMLElement>("[data-item]")?.style.getPropertyValue("--tiles-fill")).not.toBe("")
 })
 
 test("B3: ビューの content に、中身の欄 tiles の札が来る（children でなくても）", () => {

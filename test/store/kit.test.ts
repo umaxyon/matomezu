@@ -17,7 +17,7 @@ const thrown = (f: () => unknown) => {
   return null
 }
 
-test("短い名前に、プラグインの id と : の頭を付けて返す（id・名前・欄の宣言・文言の鍵）", () => {
+test("短い名前に、プラグインの id と : の頭を付けて返す（id・名前・テーマキーの宣言・文言の鍵）", () => {
   const dialog = kit.defineDialog({ id: "star-edit" })
   expect(dialog.id).toBe("@foo/stars:star-edit")
   const paper = kit.definePaper({ id: "square", title: "Star", size: { w: 100, h: 100 } })
@@ -27,7 +27,7 @@ test("短い名前に、プラグインの id と : の頭を付けて返す（i
   expect(Object.keys(kit.messages)).toEqual(["@foo/stars:Star", "@foo/stars:Board"])
 })
 
-test("テーマが上書きする欄の鍵は、: が無ければ自分の欄", () => {
+test("テーマが上書きするテーマキーは、: が無ければ自分のテーマキー", () => {
   const theme = kit.defineTheme({
     id: "night",
     title: "Star",

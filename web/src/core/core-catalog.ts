@@ -11,7 +11,7 @@ import type { PaperDef } from "./def/paper"
 import type { PresentationDef } from "./def/presentation"
 import type { SettingDef } from "./def/setting"
 import type { SkinDef } from "./def/skin"
-import { THEME_TOKENS, type ThemeDef } from "./def/theme"
+import { THEME_TOKENS, type ThemeDef, type TokenDecl } from "./def/theme"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
 import { LANGUAGES, type Lang, type LanguagePack, MESSAGES, type MessageSet } from "./i18n/messages"
@@ -43,6 +43,7 @@ declare module "./catalog" {
 export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable[K][] } & {
   messages: readonly MessageSet[] // 土台の文言（MESSAGES）は、いつも表に入る
   languages: readonly LanguagePack[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
+  tokens: readonly TokenDecl[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムやタイプが共に使う）
 }
 
 // ブックのタイプごとに組み立てたデータの形（ページを持たないタイプは page が null）
@@ -59,6 +60,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語の id → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
   notices: readonly Notice[] // 組み立てで見つけた、止めるほどではない間違い（core/notices.ts）
+  tokens: readonly TokenDecl[] // プラグインが持つテーマキー
 }
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
@@ -82,6 +84,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
     notices: coreNotices(parts),
+    tokens: parts.tokens,
   }
 }
 
@@ -230,7 +233,10 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
         const shape = (i.props as { shape?: Record<string, unknown> }).shape
         if (prop !== undefined && !(shape && prop in shape)) problems.push(problem("E028", { id: i.id, field, prop }))
       }
-  const decls = [...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k })))
+  const decls = [
+    ...[...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k }))),
+    ...parts.tokens.map(k => ({ owner: splitId(k.id).owner ?? k.id, ...k })),
+  ]
   const declared = new Set<string>()
   for (const d of decls) {
     if (declared.has(d.id)) problems.push(problem("E011", { owner: d.owner, token: d.id }))

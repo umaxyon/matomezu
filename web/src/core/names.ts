@@ -1,5 +1,5 @@
 // プラグインが足す物の名前: 本当の id は「プラグインの id:名前」。名前は英小文字・数字・- だけで、先頭は英小文字。
-// : の無い名前は土台の言葉（スロットの root、キーの範囲の stage、土台の欄の accent など）
+// : の無い名前は土台の言葉（スロットの root、キーの範囲の stage、土台のテーマキーの accent など）
 import { fail } from "./errors"
 
 export const NAME = /^[a-z][a-z0-9-]*$/

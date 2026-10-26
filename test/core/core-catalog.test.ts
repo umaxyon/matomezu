@@ -9,15 +9,19 @@ import { translate } from "../../web/src/core/i18n/i18n"
 import { defineLanguagePack } from "../../web/src/core/i18n/messages"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { perform } from "../../web/src/core/perform"
-import { resolveTokens } from "../../web/src/core/theme"
+import { resolveTokens, tokenDeclsOf } from "../../web/src/core/theme"
 import { bookTokens } from "../../web/src/plugins/base/book-look/look"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 describe("機能台帳", () => {
-  test("ビルトインプラグインのテーマが上書きする欄は、どれもビルトインプラグインのアイテムかタイプが宣言している（インスタンスに無いアイテムの欄の上書きは誤りにせず、使わないだけ）", () => {
-    const declared = new Set([...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens.map(k => k.id)))
+  test("ビルトインプラグインのテーマが上書きするテーマキーは、どれもビルトインプラグインのアイテム・タイプ・プラグインが宣言している（インスタンスに無いアイテムのテーマキーの上書きは誤りにせず、使わないだけ）", () => {
+    const declared = new Set(
+      [...[...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens), ...BUILTIN_PARTS.tokens].map(
+        k => k.id,
+      ),
+    )
     const unknown = BUILTIN_PARTS.themes.flatMap(th => Object.keys(th.tokens ?? {}).filter(id => !declared.has(id)))
     expect(unknown).toEqual([])
   })
@@ -37,7 +41,9 @@ describe("機能台帳", () => {
       papers: BUILTIN_PARTS.papers.filter(p => p.id !== "@matomezu/base:a3"),
     }
     const problems = checkCoreCatalog(broken)
-    expect(problems.map(p => p.code)).toEqual(["E001", "E004", "E008", "E008", "E008", "E004", "E008", "E008", "E008"])
+    // 図面は置けるアイテムが全部無いので、その数だけ E008（同じタイプが 2 つあるので 2 回）
+    const drawingProblems = ["E004" as const, ...Array.from(drawing.items.allowed, () => "E008" as const)]
+    expect(problems.map(p => p.code)).toEqual(["E001", ...drawingProblems, ...drawingProblems])
     expect(problems.map(problemText).slice(0, 3)).toEqual([
       "E001 bookType @matomezu/drawing:drawing: id is registered twice",
       "E004 bookType @matomezu/drawing:drawing: unknown paper @matomezu/base:a3",
@@ -309,4 +315,23 @@ describe("機能台帳ごとに別の世界", () => {
     )
     expect(refused).toEqual({ ok: false, reason: "refused" })
   })
+})
+
+test("ブックのタイプのテーマキーは、データに置けるアイテム（allowed）のテーマキーと、その持ち主のプラグインが持つテーマキーを含む", () => {
+  const base = CORE_CATALOG.bookTypes.get("@matomezu/drawing:drawing")!
+  // 形をデータに置けるが、道具箱には出さない（defaults に無い）タイプ。形のテーマキーはプラグインが持つ
+  const drawing = {
+    ...base,
+    items: { ...base.items, allowed: [...base.items.allowed, "@matomezu/shape:shape-rounded"] },
+  }
+  const ids = tokenDeclsOf(CORE_CATALOG, drawing).map(d => d.id)
+  expect(ids).toContain("@matomezu/shape:shape-fill")
+  expect(ids).toContain("@matomezu/box:box-fill")
+  expect(new Set(ids).size).toBe(ids.length)
+})
+
+test("プラグインが持つテーマキーを、アイテムでも宣言したら E011", () => {
+  const box = BUILTIN_PARTS.items.find(i => i.id === "@matomezu/box:shape-box")!
+  const twice = { ...BUILTIN_PARTS, tokens: [...BUILTIN_PARTS.tokens, box.tokens[0]!] }
+  expect(checkCoreCatalog(twice).map(p => p.code)).toEqual(["E011"])
 })

@@ -6,9 +6,10 @@ import { MASTER_UI } from "./books/master/ui"
 import { BOX_UI } from "./items/box/ui"
 import { LINE_UI } from "./items/line/ui"
 import { LIST_UI } from "./items/list/ui"
+import { SHAPE_UI } from "./items/shape/ui"
 import { PAPER_UI } from "./paper/ui"
 
-export const BUILTIN_UI = [BASE_UI, MASTER_UI, PAPER_UI, BOX_UI, LIST_UI, LINE_UI, DRAWING_UI] as const
+export const BUILTIN_UI = [BASE_UI, MASTER_UI, PAPER_UI, BOX_UI, LIST_UI, LINE_UI, SHAPE_UI, DRAWING_UI] as const
 
 // 既定の配置（今の画面の形）。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
 export const DEFAULT_LAYOUT = defineLayout({

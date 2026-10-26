@@ -5,6 +5,7 @@ import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../
 import { buildCoreCatalog, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { Scheme } from "../core/def/skin"
+import type { TokenDecl } from "../core/def/theme"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePack, MessageSet } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
@@ -28,6 +29,7 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   messages?: MessageSet // このプラグインの文言（defineMessages で書き、機能台帳の型の側 MessageTable に書き足す）
   languages?: readonly LanguagePack[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // キーの既定の割り当て（結べるのは自分のコマンドだけ。store/keys.ts）
+  tokens?: readonly TokenDecl[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
 }
 
 export type Plugin = PluginParts & {
@@ -118,11 +120,10 @@ export function assemble(
   for (const p of plugins) {
     for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!isOwnedBy(p.id, d.id)) fail("E301", { plugin: p.id, kind, id: d.id })
-    for (const owner of [...(p.items ?? []), ...(p.bookTypes ?? [])])
-      for (const t of owner.tokens) {
-        if (!isOwnedBy(p.id, t.id)) fail("E301", { plugin: p.id, kind: "token", id: t.id })
-        if (/^(theme|skin)-/.test(splitId(t.id).name)) fail("E306", { plugin: p.id, token: t.id })
-      }
+    for (const t of [...(p.items ?? []), ...(p.bookTypes ?? [])].flatMap(o => o.tokens).concat(p.tokens ?? [])) {
+      if (!isOwnedBy(p.id, t.id)) fail("E301", { plugin: p.id, kind: "token", id: t.id })
+      if (/^(theme|skin)-/.test(splitId(t.id).name)) fail("E306", { plugin: p.id, token: t.id })
+    }
     for (const [key, t] of Object.entries(p.messages ?? {})) {
       if (!key.startsWith(`${p.id}:`)) fail("E303", { plugin: p.id, key })
       if (t.en === undefined) fail("E304", { plugin: p.id, key })
@@ -148,6 +149,7 @@ export function assemble(
     ...(Object.fromEntries(partsOf("core").map(k => [k, all(k)])) as unknown as Pick<CoreCatalogParts, CorePart>),
     messages: plugins.flatMap(p => (p.messages ? [p.messages] : [])),
     languages: plugins.flatMap(p => p.languages ?? []),
+    tokens: plugins.flatMap(p => p.tokens ?? []),
   })
   // コマンドの名前も文言の表から引く
   const untitled = commands

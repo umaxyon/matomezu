@@ -8,7 +8,7 @@ import { textProps } from "../../base"
 import { kit } from "./kit"
 import { BOX_MIN, BOX_SIZE, placedHeight, placedWidth } from "./size"
 
-// 箱の塗りの欄（色の見本の「なし」もこの色）
+// 箱の塗りのテーマキー（色の見本の「なし」もこの色）
 export const BOX_FILL = { id: "box-fill", fallback: "fill" } as const
 
 // 箱の追加のダイアログ。開いたステージのブックの、ページ page の at（紙の上の左上）に置く

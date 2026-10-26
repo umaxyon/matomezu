@@ -1,0 +1,58 @@
+/* 形の外枠: テーマの影（filter。輪郭に沿って影を落とす） */
+.frame {
+  width: 100%;
+  height: 100%;
+  filter: var(--shape-shadow);
+}
+/* 形。寸法は size.ts の SHAPE_LOOK と同じ値にする。字は箱と同じ（同梱の Noto Sans JP、字詰めなどを止める） */
+.shape {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--shape-text);
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  letter-spacing: 0;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "kern" 0,
+    "liga" 0,
+    "palt" 0;
+  text-spacing-trim: space-all;
+  text-autospace: no-autospace;
+}
+/* 輪郭: 塗りと線はテーマの形のテーマキー */
+.outline {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.outline polygon,
+.outline rect,
+.outline ellipse {
+  fill: var(--shape-fill);
+  stroke: var(--shape-line);
+  stroke-width: 1;
+}
+/* キャプション: 1 行で、形の真ん中に置き、収まらない分は … で切る */
+.caption {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.caption[data-align="left"] {
+  text-align: left;
+}
+.caption[data-align="center"] {
+  text-align: center;
+}
+.caption[data-align="right"] {
+  text-align: right;
+}

@@ -419,7 +419,7 @@ function Item({
   const ui = useUiCatalog().items.get(item.item)
   const size = placedSize(catalog, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
-  const tokens = useTokenScope(item.item) // そのアイテムのプラグインの欄（--<名前>）
+  const tokens = useTokenScope(item.item) // そのアイテムのプラグインのテーマキー（--<名前>）
   return (
     <div
       data-item={item.id}

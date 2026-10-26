@@ -1,9 +1,11 @@
 // ex5: 文字を持たず、中身の欄の名前が children でない形（タイル）を持つ追加プラグイン
 import { definePlugin } from "matomezu"
 import { kit } from "./kit"
-import { SHELF, TILE_ADD, TILES } from "./tiles"
+import { SHELF, TILE_ADD, TILES, TILES_TOKENS } from "./tiles"
 
-export const EX5 = definePlugin(kit.plugin({ bookTypes: [SHELF], items: [TILES], actions: [TILE_ADD] }))
+export const EX5 = definePlugin(
+  kit.plugin({ bookTypes: [SHELF], items: [TILES], actions: [TILE_ADD], tokens: TILES_TOKENS }),
+)
 
 export default EX5
 

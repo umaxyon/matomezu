@@ -15,7 +15,7 @@ interface ItemBase<Tt extends string = MessageKey> {
   title: Tt
   capabilities: readonly Capability[]
   props: z.ZodType // 置いたアイテムが持つ項目の形
-  tokens: readonly TokenDecl[] // 描くのに使うテーマの欄
+  tokens: readonly TokenDecl[] // 描くのに使うテーマキー
 }
 
 // 置いた形のデータ（外枠の id・左上・大きさと、項目 props と中身の欄）

@@ -20,7 +20,7 @@
 | 言葉 | 意味 |
 |---|---|
 | プラグイン | 定義の束。登録の単位。「部品」は別名 |
-| ビルトインプラグイン | matomezu に同梱され、`BUILTIN` に並ぶプラグイン（base・master・paper・box・list・line・drawing） |
+| ビルトインプラグイン | matomezu に同梱され、`BUILTIN` に並ぶプラグイン（base・master・paper・box・list・line・shape・drawing） |
 | 追加プラグイン | インストールされたプラグイン。開発中に開発者プロジェクトを結んだ物も、完成品も同じ。作り手の属性は持たない。プラグイン API だけを読む |
 | 開発者プロジェクト | 追加プラグインを作るプロジェクト。matomezu の中（このリポジトリ）は含まない。利用者のローカルの Claude が作るときの作業の場所も同じ |
 | プラグイン API | 追加プラグインとビルトインプラグインが使ってよい名前と型の約束。`web/src/plugin-api` に集め、実装は動いている matomezu が渡す。入口は `matomezu`・`matomezu/ui`（`web/src/plugin-entry`）と `matomezu/catalog`（`core/catalog.ts`） |
@@ -46,6 +46,7 @@
 | コンポーネント | 画面の React のコンポーネント。部品（プラグイン）とは別の物 |
 | ビュー | コンポーネントのうち、定義に結んで描く物（`XView`・`presentationViews`・`dialogViews`・`settingViews` など） |
 | スロット | ウィジェットを差し込む場所の id。ウィジェットの中にも作れ、描くプラグインが自分の名前で足す（例: `@matomezu/base:stage-top`）。いちばん外の 1 つだけが `root` |
+| テーマキー | アイテム・ブックのタイプ・プラグインが宣言する、テーマの値の名前（`@matomezu/box:box-fill` など）。どんなテーマキーがあるかはテーマごとに変わらず、値がテーマごとに決まる。コードでは `tokens`・`TokenDecl`。「欄」とだけ呼ばない |
 | キーの範囲 | キーの割り当てが効く場面の名前（`KeyScopeTable`）。土台の `stage`・`dialog`・`menu`・`global` と、プラグインが足す範囲（`<プラグインの id>:<名前>`）。`global` は、ダイアログもメニューも開いていないとき、`stage` の次に探す |
 | 窓 | matomezu の画面を開いているタブ 1 つ（いま前に出ているタブとは限らない）。ホストは、つながっている窓ごとに、見ているものとフォーカスの順を覚える |
 | タブ | ブラウザのタブ（一般の言葉。窓だけを指すのではない）。「タブ」とだけ言えばこちら |

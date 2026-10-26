@@ -5,6 +5,7 @@ import { MASTER_PLUGIN } from "./books/master"
 import { BOX_PLUGIN } from "./items/box"
 import { LINE_PLUGIN } from "./items/line"
 import { LIST_PLUGIN } from "./items/list"
+import { SHAPE_PLUGIN } from "./items/shape"
 import { PAPER_PLUGIN } from "./paper"
 
 export const BUILTIN = [
@@ -14,5 +15,6 @@ export const BUILTIN = [
   BOX_PLUGIN,
   LIST_PLUGIN,
   LINE_PLUGIN,
+  SHAPE_PLUGIN,
   DRAWING_PLUGIN,
 ] as const

@@ -10,12 +10,12 @@ import type { ThemeToken } from "./def/theme"
 import { THEME_TOKENS } from "./def/theme"
 import type { KeyBinding } from "./keys"
 import type { Book } from "./schema/book"
-import { type Shades, shades } from "./theme"
+import { type Shades, shades, tokenDeclsOf } from "./theme"
 
 // 段の出どころ
 export type Source =
-  | { source: "theme"; id: string; field: "tokens" | "base"; key: string } // テーマの上書き・共通の欄
-  | { source: "token"; id: string } // 欄の宣言に書いた値
+  | { source: "theme"; id: string; field: "tokens" | "base"; key: string } // テーマの上書き・共通のテーマキー
+  | { source: "token"; id: string } // テーマキーの宣言に書いた値
   | { source: "catalog"; table: "actions"; id: string } // 表にその定義があるか
   | { source: "bookType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
   | { source: "action"; id: string; field: "attach"; bookType: string } // アクションの付く先が、そのタイプに当てはまるか
@@ -41,7 +41,7 @@ export interface Inspected<V> {
 }
 
 export type Query =
-  | { kind: "token"; book: Book; token: string } // ブックを描くテーマの欄の値
+  | { kind: "token"; book: Book; token: string } // ブックを描くテーマキーの値
   | { kind: "action"; action: string; book?: Book } // アクションを使えるか（ブックが対象のアクションは、そのブック）
 
 type Answer<Q extends Query> = Q extends { kind: "token" } ? Inspected<Shades> : Inspected<boolean>
@@ -56,7 +56,7 @@ const decide = <V>(steps: Step<V>[]): Inspected<V> => {
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }
 
-// テーマの値（明暗ごとの色）: 宣言された欄は テーマの上書き → 宣言の既定の共通の欄、共通の欄はテーマの値。どちらでもない欄は値が無い
+// テーマの値（明暗ごとの色）: 宣言されたテーマキーは テーマの上書き → 宣言の既定の共通のテーマキー、共通のテーマキーはテーマの値。どちらでもないテーマキーは値が無い
 function token(catalog: CoreCatalog, q: { book: Book; token: string }): Inspected<Shades> {
   const type = bookType(catalog, q.book.type)
   const theme = catalog.themes.get(type.theme)
@@ -66,8 +66,7 @@ function token(catalog: CoreCatalog, q: { book: Book; token: string }): Inspecte
     value: shades(theme.base[key]),
   })
   if ((THEME_TOKENS as readonly string[]).includes(q.token)) return decide([base(q.token as ThemeToken)])
-  const items = type.items.defaults.flatMap(id => catalog.items.get(id)?.tokens ?? [])
-  const decl = [...type.tokens, ...items].find(d => d.id === q.token)
+  const decl = tokenDeclsOf(catalog, type).find(d => d.id === q.token)
   if (!decl) return decide([])
   const own = theme.tokens?.[decl.id]
   return decide([
