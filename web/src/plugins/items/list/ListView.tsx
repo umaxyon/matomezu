@@ -190,7 +190,7 @@ export function ListView({
   })
   const { select } = useActions()
   const at = useStage(stage)
-  // ハンドツールの間は、行を運ぶことも行の高さを変えることもしない（つまみも出さない）
+  // ハンドツールの間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
   const hand = at?.tool === "hand"
   const stretch = useRef<Stretch | null>(null)
   const [moved, setMoved] = useState(0) // 行の高さを変えているドラッグの、画面の上で動いた量
@@ -258,6 +258,7 @@ export function ListView({
                   {...carrying(row)}
                   style={{ height: heightOf(row.id, look?.height ?? 0) }}
                   onDoubleClick={e => {
+                    if (hand) return
                     e.stopPropagation()
                     edit.run({ list: id, row: row.id })
                   }}

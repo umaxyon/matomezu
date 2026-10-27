@@ -221,7 +221,7 @@ test("リストのキャプションも、箱と同じく左・中央・右に�
   await expect(head).toHaveCSS("text-align", "left")
 })
 
-test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは今まで通り。ハンドツールの間は行を運ばず、行の高さも変えず、紙がずれる", async ({
+test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは今まで通り。ハンドツールの間は行を運ばず、行の高さも変えず、紙がずれる。ダブルクリックでダイアログも開かない", async ({
   page,
 }) => {
   await page.goto("/")
@@ -284,6 +284,11 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   expect((await rows(first).nth(0).boundingBox())!.height).toBe(height)
   const panned = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   expect(Math.round(panned.y - after.y)).toBe(42)
+  // ダブルクリックでも、行の編集もリストの設定も開かない
+  // （開くなら描き直しの後なので、少し待ってから無いことを見る）
+  await rows(first).nth(0).dblclick()
+  await page.waitForTimeout(300)
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 })
 
 test("行をドラッグして行の並びの下の端へ寄せると、ポインタを止めていても一番下までスクロールし続け、上の端へ寄せると上へ戻る。光る線は行の並びの外に出ない", async ({
