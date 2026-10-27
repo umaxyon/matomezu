@@ -274,3 +274,16 @@ test("画面が見つけた注意は、つながりの id を添えて常駐に�
     { url: "api/notices", client: "c2", notices: [n011] },
   ])
 })
+
+test("ブックに触れた時刻は、読んだ一覧と touched の知らせで持ち、store に入れる（古い知らせでは戻さない）", async () => {
+  const server = fakeServer({
+    books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }],
+    settings: null,
+    touched: { b1: "2026-10-27T01:00:00Z" },
+  })
+  const { store, emit } = await connected(server)
+  expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z" })
+  emit("touched", { book: "master", at: "2026-10-27T02:00:00Z" })
+  emit("touched", { book: "b1", at: "2026-10-27T00:00:00Z" })
+  expect(store.state.getState().touched).toEqual({ b1: "2026-10-27T01:00:00Z", master: "2026-10-27T02:00:00Z" })
+})

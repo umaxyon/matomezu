@@ -61,6 +61,8 @@ export {
 } from "./text/fields"
 export { clampLines, wrap } from "./text/text"
 export { toolboxOf } from "./toolbox/toolbox"
+// プラグインに公開する共通の処理（utils。ビルトインプラグインもここから使う）
+export * from "./utils"
 export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin(

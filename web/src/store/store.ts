@@ -51,6 +51,8 @@ export interface MatomezuState {
   dialog: OpenedDialog | null
   contextMenu: OpenedContextMenu | null
   toasts: readonly Toast[] // 出しているトースト（古い順）
+  // ブックの id → 触れた（開いたか書いた）時刻（ISO 8601 の UTC）。ホストが知らせたもの（receive）で、無ければ空
+  touched: Readonly<Record<string, string>>
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、warn は断りや注意、error は直るまで出しておく誤り
@@ -132,7 +134,10 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 外で決まったブックと設定（常駐が知らせたもの）に入れ替え、まだ確かめられていない自分のアクション replay をその上で行い直す。
   // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
-  receive(world: { books: readonly unknown[]; settings: unknown }, replay: readonly DoneAction[]): void
+  receive(
+    world: { books: readonly unknown[]; settings: unknown; touched?: Readonly<Record<string, string>> },
+    replay: readonly DoneAction[],
+  ): void
   // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
   // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）
   locate(address: Address): void
@@ -164,6 +169,7 @@ function initialState(
     dialog: null,
     contextMenu: null,
     toasts: [],
+    touched: {},
   }
 }
 
@@ -418,7 +424,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const unreadable =
         JSON.stringify(found.notices) === JSON.stringify(now.unreadable) ? now.unreadable : found.notices
       const partial = JSON.stringify(found.partial) === JSON.stringify(now.partial) ? now.partial : found.partial
+      const touched =
+        world.touched === undefined || JSON.stringify(world.touched) === JSON.stringify(now.touched)
+          ? now.touched
+          : world.touched
       commit({
+        ...(touched === now.touched ? {} : { touched }),
         ...(same ? {} : { books, workspace: followLibrary(catalog, now.workspace, books) }),
         ...(settings === now.settings ? {} : { settings }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),

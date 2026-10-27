@@ -104,12 +104,14 @@ const DataSchema = z.object({
   books: z.array(z.object({ id: z.string(), book: z.unknown(), version: z.number().int() })),
   settings: z.unknown(),
   plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
+  touched: z.record(z.string(), z.string()).optional(),
 })
 const HelloSchema = z.object({ client: z.string() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
 const BookSchema = z.object({ book: z.object({ id: z.string() }).loose(), version: z.number().int(), ...Mark })
 const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
 const AckSchema = z.object({ seq: z.number().int() })
+const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 
 export interface ServerClient extends HostClient {
   pending(): readonly DoneAction[] // まだ確かめられていない自分のアクション
@@ -118,6 +120,7 @@ export interface ServerClient extends HostClient {
 export function serverClient(net: Net = browserNet): ServerClient {
   const confirmed = new Map<string, { book: unknown; version: number }>()
   let settings: unknown
+  let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: { seq: number; done: DoneAction }[] = []
   let client = ""
@@ -138,7 +141,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
 
   const show = () =>
     instance?.receive(
-      { books: [...confirmed.values()].map(e => e.book), settings },
+      { books: [...confirmed.values()].map(e => e.book), settings, touched },
       pending.map(p => p.done),
     )
   const settle = (mark: { client?: string; seq?: number }) => {
@@ -156,6 +159,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
     }
     settings = data.settings ?? undefined
     plugins = data.plugins ?? []
+    // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
+    for (const [id, at] of Object.entries(data.touched ?? {}))
+      if ((touched[id] ?? "") < at) touched = { ...touched, [id]: at }
   }
 
   // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
@@ -196,6 +202,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
       })
       source.on("show", data => {
         if (instance) showIn(instance, ShowSchema.parse(JSON.parse(data)))
+      })
+      source.on("touched", data => {
+        const e = TouchedSchema.parse(JSON.parse(data))
+        if ((touched[e.book] ?? "") >= e.at) return
+        touched = { ...touched, [e.book]: e.at }
+        show()
       })
       source.on("plugins", () => net.reload())
       source.on("ack", data => {

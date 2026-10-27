@@ -17,6 +17,7 @@
 - ビルトインプラグインも、追加プラグインと同じプラグイン API で書く。base 以外は `plugin-api` と base の入口だけを読む（読み込みの向きは「構造と層」）。base は API の部品を作る側なので土台を読む
 - ビルトインプラグインが使う土台の名前は、状態を丸ごと読む `ui/store-context` の物（`useMatomezuState`・`useCatalog`・`useUiCatalog`。代わりに上の状態を読むフックを使う。読むだけの `useCoreCatalog`・`useUiCatalog` は `ui/view-hooks` の物を出す）を除き、全部 `plugin-api` から出す。ビルトインの印（`defineBuiltin`）は `plugin-api/builtin` に置き、`plugin-entry` は出さない（印は、キーの割り当てでビルトインプラグインを先に扱うためだけのもので、id の決まりは変えない）
 - base の入口には、プラグイン API に出してよい物だけを置く。迷う物は置く前にユーザーに確かめる
+- プラグインに公開する共通の処理（ユーティリティ。経った時間の `elapsedOf` など）は、base の `utils` に置く。`utils/index.ts` で書き出した物は `matomezu` から、見た目の物（フックなど）を `utils/ui.ts` で書き出した物は `matomezu/ui` から、そのまま出る（入口は丸ごと出し直す）。`utils` に置かない base の物は出ない。足すときは置くだけで、出す物ごとに規約は書かない（出す名前の増減は `test/plugin-api.test.ts` の一覧で見える）
 - 別のプラグインの定義を使うときは、読むのではなく id で選ぶ（ブックのタイプがアイテム・アクション・道具の組を選ぶのと同じ形）
 - あるタイプを、ほかのタイプとの差分として作らない。タイプはそれぞれ、使う物を id で選んで持つ
 

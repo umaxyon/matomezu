@@ -12,6 +12,7 @@ import { STAGE_MESSAGES } from "./stage/messages"
 import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
+import { ELAPSED_MESSAGES } from "./utils/messages"
 
 export const BASE_MESSAGES = {
   ...STAGE_MESSAGES,
@@ -27,4 +28,5 @@ export const BASE_MESSAGES = {
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,
   ...ITEM_PARTS_MESSAGES,
+  ...ELAPSED_MESSAGES,
 }

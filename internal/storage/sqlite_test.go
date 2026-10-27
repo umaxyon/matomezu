@@ -81,3 +81,32 @@ func TestReopenKeepsDataAndRefusesNewerForm(t *testing.T) {
 		t.Fatalf("books after reopen = %+v", books)
 	}
 }
+
+func TestTouchedIsTheNewerOfOpenedAndWritten(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "data.db"))
+	if _, _, err := s.PutBook("b1", json.RawMessage(`{"id":"b1"}`), 0); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Touched()
+	if err != nil || got["b1"] == "" {
+		t.Fatalf("touched after writing = %v, %v", got, err)
+	}
+	written := got["b1"]
+	// 開いた時刻は、DB に無いブック（マスター）にも残る。書いた時刻より新しければ、そちら
+	if err := s.Open("master", "2030-01-01T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Open("b1", "2030-01-02T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = s.Touched(); got["master"] != "2030-01-01T00:00:00Z" || got["b1"] != "2030-01-02T00:00:00Z" {
+		t.Fatalf("touched after opening = %v", got)
+	}
+	// 書いた時刻の方が新しければ、書いた時刻
+	if err := s.Open("b1", "2000-01-01T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = s.Touched(); got["b1"] != written {
+		t.Fatalf("touched = %v; want the written time %s", got, written)
+	}
+}

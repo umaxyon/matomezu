@@ -46,3 +46,14 @@ test("マスターは画面の言葉の名前で探す", () => {
   expect(searchBooks(CORE_CATALOG, books, "master", "en").map(b => b.id)).toEqual(["@matomezu/master:master"])
   expect(searchBooks(CORE_CATALOG, books, "master", "ja")).toEqual([])
 })
+
+test("触れた時刻があれば新しい順に並べ、時刻の無いブックは後ろに元の並びのまま", () => {
+  const touched = { c: "2026-10-27T01:00:00Z", a: "2026-10-27T02:00:00Z" }
+  expect(searchBooks(CORE_CATALOG, books, "", "ja", touched).map(b => b.id)).toEqual([
+    "a",
+    "c",
+    MASTER_BOOK.id,
+    "b",
+    "d",
+  ])
+})

@@ -52,3 +52,6 @@ export {
   withPage,
   wrap,
 } from "../plugins/base"
+
+// プラグインに公開する共通の処理（base の utils に書き出した物は、そのまま出る）
+export * from "../plugins/base/utils"

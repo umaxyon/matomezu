@@ -1,7 +1,8 @@
 // ブックを探して選ぶコンポーネント: 打つたびに題名で絞り込み、↑↓で選び、Enter かクリックで決める。
 // 候補の欄は高さが決まっていて、絞り込んでもコンポーネントの大きさは変わらない（真ん中に置いても探す欄が動かない）。
 // 読めないブック（プラグインが無いなど）も名前で絞り込んで後ろに並べ、押せない行として開けない理由を添える。
-// 読めるが一部のプラグインが無いブックは、名前の横に印を付ける
+// 読めるが一部のプラグインが無いブックは、名前の横に印を付ける。
+// 並びは触れた（開いたか書いた）時刻の新しい順で、右の列にその時刻を「〜前」で出す（時刻を知らないブックは出さない）
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookTitle } from "../../../core/book"
@@ -9,6 +10,7 @@ import type { Notice } from "../../../core/notices"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
+import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
 import { matchesQuery, searchBooks } from "./book-search"
 
@@ -17,13 +19,15 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
   const unreadable = useMatomezuState(s => s.unreadable)
   const partial = useMatomezuState(s => s.partial)
   const lang = useMatomezuState(s => s.settings.lang)
+  const touched = useMatomezuState(s => s.touched)
+  const elapsed = useElapsed()
   const catalog = useCatalog().core
   const t = useMessages(kit)
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
   const listId = useId()
   const activeRef = useRef<HTMLDivElement>(null)
-  const found = searchBooks(catalog, books, query, lang)
+  const found = searchBooks(catalog, books, query, lang, touched)
   const broken = unreadable.filter(n => matchesQuery(n.params.title ?? "", query))
   const reason = (n: Notice) =>
     n.code === "N004"
@@ -90,10 +94,13 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
               onPointerMove={() => setActive(i)}
               onClick={() => onSelect(b.id)}
             >
-              {bookTitle(catalog, b, lang)}
-              {partial.some(n => n.params.book === b.id) && (
-                <span className={styles.partial}>{t("Some parts cannot be shown")}</span>
-              )}
+              <span className={styles.title}>
+                {bookTitle(catalog, b, lang)}
+                {partial.some(n => n.params.book === b.id) && (
+                  <span className={styles.partial}>{t("Some parts cannot be shown")}</span>
+                )}
+              </span>
+              {touched[b.id] !== undefined && <span className={styles.when}>{elapsed(touched[b.id] as string)}</span>}
             </div>
           ))}
           {broken.map(n => (

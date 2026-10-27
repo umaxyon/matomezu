@@ -28,12 +28,25 @@
   overflow-y: auto;
 }
 .option {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
   padding: 6px 10px;
   border-radius: 5px;
   cursor: pointer;
   white-space: nowrap;
+}
+/* 名前（収まらない分は … で切る）と、右の列の触れた時刻（「〜前」） */
+.title {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.when {
+  flex: none;
+  color: var(--skin-hint);
+  font-size: 12px;
 }
 .option[aria-selected="true"] {
   background: var(--skin-btn-hover);

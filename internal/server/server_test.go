@@ -316,7 +316,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"plugins":[],"settings":null}` {
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"plugins":[],"settings":null,"touched":{}}` {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
@@ -344,8 +344,9 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"type":"@matomezu/drawing:drawing","id":"b1","title":"X"},"base":2}`, nil); code != 400 || !strings.HasPrefix(body, "unreadable: N005") {
 		t.Fatalf("a book that does not fit its type = %d %s", code, body)
 	}
-	want := `{"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"plugins":[],"settings":null}`
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
+	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
+	want := `{"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"plugins":[],"settings":null,"touched":{"b1":"`
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) {
 		t.Fatalf("data = %d %s", code, body)
 	}
 }
@@ -416,7 +417,18 @@ func listen(t *testing.T, url string) <-chan string {
 	return lines
 }
 
+// next は次の知らせ（ブックに触れた時刻の知らせ touched は飛ばす。touched は nextTouched で読む）
 func next(t *testing.T, lines <-chan string) string {
+	t.Helper()
+	for {
+		l := nextAny(t, lines)
+		if !strings.HasPrefix(l, "touched ") {
+			return l
+		}
+	}
+}
+
+func nextAny(t *testing.T, lines <-chan string) string {
 	t.Helper()
 	select {
 	case l := <-lines:
@@ -424,6 +436,16 @@ func next(t *testing.T, lines <-chan string) string {
 	case <-time.After(3 * time.Second):
 		t.Fatal("no event")
 		return ""
+	}
+}
+
+// nextTouched は次の、ブックに触れた時刻の知らせ（ほかの知らせは飛ばす）
+func nextTouched(t *testing.T, lines <-chan string) string {
+	t.Helper()
+	for {
+		if l := nextAny(t, lines); strings.HasPrefix(l, "touched ") {
+			return l
+		}
 	}
 }
 
@@ -743,5 +765,34 @@ func TestScreenNoticesAreGatheredForAI(t *testing.T) {
 	}
 	if code, _ := send(t, "POST", s.URL+"/api/notices", `{"client":"c1","notices":[]}`, map[string]string{"Origin": "https://evil.example"}); code != 403 {
 		t.Fatalf("from another site = %d", code)
+	}
+}
+
+func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
+	s := newServer(t, nil)
+	screen := listen(t, s.URL)
+	next(t, screen)
+	// 書くと、そのブックに触れた時刻を知らせ、/api/data にも出る
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"b1"`) {
+		t.Fatalf("touched after writing = %s", got)
+	}
+	// 窓が見ているものに出たブックは開いた時刻を残す（マスターのように DB に無いブックも）。同じブックは 1 分に 1 度だけ
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"master","stages":[{"id":"s1","book":"master"}]},"seq":1}`, nil)
+	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"master"`) {
+		t.Fatalf("touched after opening = %s", got)
+	}
+	_, body := send(t, "GET", s.URL+"/api/data", "", nil)
+	var data struct {
+		Touched map[string]string `json:"touched"`
+	}
+	if err := json.Unmarshal([]byte(body), &data); err != nil || data.Touched["b1"] == "" || data.Touched["master"] == "" {
+		t.Fatalf("data touched = %s", body)
+	}
+	before := data.Touched["master"]
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"master","stages":[{"id":"s1","book":"master"}]},"seq":2}`, nil)
+	_, body = send(t, "GET", s.URL+"/api/data", "", nil)
+	if err := json.Unmarshal([]byte(body), &data); err != nil || data.Touched["master"] != before {
+		t.Fatalf("opened again within a minute = %s", body)
 	}
 }

@@ -29,5 +29,9 @@ type Storage interface {
 	// Settings は利用者の設定（無ければ nil）
 	Settings(user string) (json.RawMessage, error)
 	PutSettings(user string, body json.RawMessage) error
+	// Touched はブックの id ごとの、開いたか書いた時刻の新しい方（Stamp の形）。開いた時刻は、DB に無いブック（1 冊だけのタイプのブック）にも残る
+	Touched() (map[string]string, error)
+	// Open は、ブック id を開いた時刻を at にする
+	Open(id, at string) error
 	Close() error
 }

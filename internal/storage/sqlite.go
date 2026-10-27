@@ -23,6 +23,11 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// ブックを開いた時刻（ブックの id ごと。ブックのデータとは別に持ち、ブックの版は進めない）
+	`CREATE TABLE opened (
+		id TEXT PRIMARY KEY,
+		at TEXT NOT NULL
+	);`,
 }
 
 type sqliteStorage struct {
@@ -79,7 +84,32 @@ func migrate(db *sql.DB) error {
 	return nil
 }
 
-func now() string { return time.Now().UTC().Format(time.RFC3339Nano) }
+// Stamp は時刻を、桁の決まった RFC 3339 の UTC にする（ミリ秒まで。文字のまま比べても新しい順になり、画面の toISOString と同じ形）
+func Stamp(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
+
+func now() string { return Stamp(time.Now()) }
+
+func (s *sqliteStorage) Touched() (map[string]string, error) {
+	rows, err := s.db.Query(`SELECT id, MAX(t) FROM (SELECT id, updated_at AS t FROM books UNION ALL SELECT id, at AS t FROM opened) GROUP BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var id, at string
+		if err := rows.Scan(&id, &at); err != nil {
+			return nil, err
+		}
+		out[id] = at
+	}
+	return out, rows.Err()
+}
+
+func (s *sqliteStorage) Open(id, at string) error {
+	_, err := s.db.Exec(`INSERT INTO opened (id, at) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET at = excluded.at`, id, at)
+	return err
+}
 
 func (s *sqliteStorage) Books() ([]Book, error) {
 	rows, err := s.db.Query(`SELECT id, body, version FROM books ORDER BY id`)

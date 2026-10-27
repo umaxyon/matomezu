@@ -407,3 +407,23 @@ test("一部のプラグインが無いブックは開け、知らない形は�
     "星の残る図一部表示できない物があります",
   )
 })
+
+test("ブックを選ぶ一覧は、触れた（開いたか書いた）時刻の新しい順で、右の列に「〜前」を出す。時刻の無いブックは後ろで、右の列も出さない", () => {
+  const store = renderScreen()
+  const now = Date.now()
+  act(() =>
+    store.receive(
+      {
+        books: SAMPLE_BOOKS,
+        settings: undefined,
+        touched: { b4: new Date(now - 5 * 60_000).toISOString(), b2: new Date(now - 3 * 3_600_000).toISOString() },
+      },
+      [],
+    ),
+  )
+  fireEvent.click(fromMenu("画面を分割"))
+  const right = stages()[1]!
+  const options = within(right).getAllByRole("option")
+  expect(options.slice(0, 2).map(o => o.textContent)).toEqual(["週次の振り返り5 分前", "画面の構成3 時間前"])
+  expect(options[2]!.textContent).not.toMatch(/前$/)
+})

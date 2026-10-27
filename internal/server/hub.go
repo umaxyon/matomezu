@@ -68,6 +68,7 @@ type Hub struct {
 	bookNotices map[string]engine.BookNotice
 	// 画面が見つけて知らせた注意（画面のつながりの id → 注意の 1 行ずつ。notices.go）。画面が離れたら消す
 	screenNotices map[string][]string
+	touched       map[string]string // ブックの id → 触れた時刻（touched.go）
 }
 
 // NewHub は置き場所から世界を読む
@@ -80,7 +81,11 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookNotices: map[string]engine.BookNotice{}, screenNotices: map[string][]string{}}
+	touched, err := store.Touched()
+	if err != nil {
+		return nil, err
+	}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookNotices: map[string]engine.BookNotice{}, screenNotices: map[string][]string{}, touched: touched}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version}
 		h.order = append(h.order, b.ID)
@@ -218,6 +223,7 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 	}
 	h.books[head.ID] = entry{body, version}
 	h.broadcast("book", map[string]any{"book": body, "version": version, "client": client, "seq": seq})
+	h.touch(head.ID, stamp())
 	return h.checkBooks([]string{head.ID})
 }
 
@@ -252,6 +258,7 @@ func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *stor
 	}
 	h.books[id] = entry{body, version}
 	h.broadcast("book", map[string]any{"book": body, "version": version})
+	h.touch(id, stamp())
 	if err := h.checkBooks([]string{id}); err != nil {
 		return 0, nil, err
 	}
@@ -296,6 +303,7 @@ func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool, seq i
 	}
 	if len(view) > 0 && !stale {
 		c.view = view
+		h.opened(view)
 		close(h.viewed)
 		h.viewed = make(chan struct{})
 	}
