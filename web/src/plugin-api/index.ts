@@ -27,7 +27,7 @@ export type { ActionDef } from "../core/def/action"
 export { defineAction } from "../core/def/action"
 export type { BookTypeDef } from "../core/def/book-type"
 export { defineBookType } from "../core/def/book-type"
-export type { ConnectorData, ItemDef, ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
+export type { ConnectorData, ItemDef, PortArea, Ports, ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 export { defineConnector, defineShape } from "../core/def/item"
 export type { PaperDef } from "../core/def/paper"
 export { definePaper } from "../core/def/paper"
@@ -50,6 +50,7 @@ export {
   connectorsOf,
   pageItemsOf,
   placedSize,
+  portAreasOf,
   rectsOf,
   shapeSchema,
   shapesOf,

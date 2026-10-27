@@ -56,6 +56,7 @@ export const LINE_MESSAGES = defineMessages({
   Cancel: { en: "Cancel", ja: "キャンセル" },
   OK: { en: "OK", ja: "確定" },
   Caption: { en: "Caption", ja: "キャプション" },
+  Suggestions: { en: "Suggestions", ja: "候補" },
   "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に収まりません" },
   Settings: { en: "Settings", ja: "設定" },
 })

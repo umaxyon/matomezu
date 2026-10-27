@@ -220,6 +220,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       if (!items.has(id)) problems.push(problem("E008", { id: t.id, kind: "item", ref: id }))
     for (const id of t.items.defaults)
       if (!t.items.allowed.includes(id)) problems.push(problem("E009", { id: t.id, kind: "item", ref: id }))
+    for (const id of Object.keys(t.items.options ?? {}))
+      if (!t.items.allowed.includes(id)) problems.push(problem("E029", { id: t.id, ref: id }))
     for (const id of t.actions.add ?? [])
       if (!actions.has(id)) problems.push(problem("E008", { id: t.id, kind: "action", ref: id }))
     if (!themes.has(t.theme)) problems.push(problem("E010", { id: t.id, theme: t.theme }))

@@ -4,7 +4,7 @@
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
 // 形にポインタを乗せると四辺に〇を出し（PortOverlay）、〇から引くドラッグ（useLinkDrag.ts）の間は、引ける相手と引き始めた形のほかを薄くする
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
-import { type PlacedConnector, placement } from "../../../plugin-api"
+import { type PlacedConnector, type PortArea, placement, portAreasOf } from "../../../plugin-api"
 import {
   ShapeMarksProvider,
   type ShapeScene,
@@ -29,6 +29,7 @@ import { useLinkDrag } from "./useLinkDrag"
 // 層と〇が共に見る、〇から引くドラッグ
 interface Linking {
   scene: ShapeScene
+  areas: ReadonlyMap<string, PortArea> // 形のつながる範囲
   link: ReturnType<typeof useLinkDrag>
   portsOf(id: string): readonly Side[]
 }
@@ -38,8 +39,10 @@ const linesIn = (scene: ShapeScene): PlacedLine[] =>
   (scene.page.items ?? []).filter((i): i is PlacedConnector & PlacedLine => i.item === LINE.id)
 
 export function LineLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
-  const { stage, page, rects, localOf } = scene
+  const { stage, page, localOf } = scene
   const catalog = useCoreCatalog()
+  // 線は形のつながる範囲（つなぎ口で縮めた四角）につなぐ
+  const rects = portAreasOf(catalog, page, scene.rects)
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
   const book = useBook(stage.id)
   const elbow = book ? elbowAt(catalog, book, page) : true
@@ -107,7 +110,7 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
 
   return (
     <ShapeMarksProvider value={marks}>
-      <LinkingContext.Provider value={{ scene, link: linkDrag, portsOf }}>
+      <LinkingContext.Provider value={{ scene, areas: rects, link: linkDrag, portsOf }}>
         {children}
         <LinesView
           lines={lines}
@@ -153,14 +156,16 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
 export function PortOverlay({ id }: { scene: ShapeScene; id: string }) {
   const linking = useContext(LinkingContext)
   if (!linking) return null
-  const { scene, link, portsOf } = linking
+  const { scene, areas, link, portsOf } = linking
+  const area = areas.get(id)
+  const shape = scene.rects.get(id)
   return (
     <Ports
       sides={portsOf(id)}
+      inset={area && shape ? area.x - shape.x : 0}
       active={link.link !== null}
       onStart={(e, side) => {
-        const r = scene.rects.get(id)
-        if (r) link.start(e, scene.page, r, id, side)
+        if (area) link.start(e, scene.page, area, id, side)
       }}
       onPointerMove={link.move}
       onPointerUp={e => link.end(e, true)}

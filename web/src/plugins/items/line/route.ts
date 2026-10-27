@@ -428,10 +428,7 @@ function elbowRoute(r: RouteInput, arrangement: Arrangement, fix: RouteFix): Rou
     hb = hard(fixed.b, r.bVertex)
   const finish = (out: Route): Route => {
     out.fix = fix
-    out.memory = {
-      exit: fixed.a ? null : placeOf(a, out.points[0] as Point, endSide(a, out.points, false)),
-      enter: fixed.b ? null : placeOf(b, out.points[out.points.length - 1] as Point, endSide(b, out.points, true)),
-    }
+    out.memory = memoryOf(r, out.points)
     return out
   }
 
@@ -469,6 +466,71 @@ function elbowRoute(r: RouteInput, arrangement: Arrangement, fix: RouteFix): Rou
     fit(r, arrangement, ha, hb, MAX_BENDS, []) ??
     autoRoute(r, arrangement, ha, hb)
   return finish(out)
+}
+
+// 描いた点の並び pts の、自由な端の辺と位置（固定の端は null）
+function memoryOf(r: RouteInput, pts: Point[]): EndMemory {
+  const fixed = fixedPlaces(r)
+  return {
+    exit: fixed.a ? null : placeOf(r.a, pts[0] as Point, endSide(r.a, pts, false)),
+    enter: fixed.b ? null : placeOf(r.b, pts[pts.length - 1] as Point, endSide(r.b, pts, true)),
+  }
+}
+
+// 折れ目の一番少ない形: 一番よい形（route）より折れ目の少ない候補があれば、その候補（斜めに並ぶ形どうしを Z 字でなく L 字で結ぶ）。
+// 折れ線でない・手で直した区間がある・重なっている箱どうしなら、一番よい形のまま
+export function fewestRoute(r: RouteInput): Route {
+  const base = route(r)
+  if (!r.elbow || r.via || base.arrangement === "overlap") return base
+  const best = pickCandidate(routeCandidates(r))
+  if (!best || best.bends >= base.bends) return base
+  const out = drawn(r, base.arrangement, best.shape, best.points)
+  out.fix = base.fix
+  out.memory = memoryOf(r, out.points)
+  return out
+}
+
+// 端 end（始点 exit か終点 enter）を辺 sides のどれかから出入りさせる形のうち、折れ目の一番少ない形（同じなら短い形）。
+// もう一方の端の条件は変えない。折れ線でない・重なっている箱どうし・どの辺からも引けなければ null
+export function routeOnSides(r: RouteInput, end: "exit" | "enter", sides: readonly Side[]): Route | null {
+  const arrangement = arrangementOf(r.a, r.b)
+  if (!r.elbow || arrangement === "overlap") return null
+  const fixed = fixedPlaces(r)
+  const hard = (f: EndPlace | null, vertex: boolean | undefined): EndSpec =>
+    f ?? { side: null, at: vertex ? 0.5 : null }
+  const ha = hard(fixed.a, r.aVertex),
+    hb = hard(fixed.b, r.bVertex)
+  let best: Route | null = null
+  for (const side of sides) {
+    const spec: EndSpec = { side, at: (end === "exit" ? r.aVertex : r.bVertex) ? 0.5 : null }
+    const sa = end === "exit" ? spec : ha,
+      sb = end === "enter" ? spec : hb
+    // 自動の形が条件を満たしても、折れ目のもっと少ない候補があればそちらにする（fit は自動の形を先に使うため）
+    const ok = (pts: Point[]) =>
+      (!sa.side || endSide(r.a, pts, false) === sa.side) && (!sb.side || endSide(r.b, pts, true) === sb.side)
+    const fewest = pickCandidate(
+      candidatesWith(
+        r,
+        { exitAt: sa.at, enterAt: sb.at },
+        sa.side ? axisOfSide(sa.side) : null,
+        sb.side ? axisOfSide(sb.side) : null,
+      ).filter(c => ok(c.points)),
+    )
+    for (const out of [
+      fit(r, arrangement, sa, sb, MAX_BENDS, r.obstacles),
+      fewest && drawn(r, arrangement, fewest.shape, fewest.points),
+    ]) {
+      if (!out) continue
+      if (
+        !best ||
+        out.bends < best.bends ||
+        (out.bends === best.bends && lengthOf(out.points) < lengthOf(best.points) - 0.5)
+      )
+        best = out
+    }
+  }
+  if (best) best.memory = memoryOf(r, best.points)
+  return best
 }
 
 // 端の条件 sa / sb を満たす形。自動の形が満たせばそれ、だめなら候補から（折れ目 maxBends まで、obstacles を通らない）。無ければ null

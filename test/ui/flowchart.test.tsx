@@ -1,10 +1,11 @@
-// フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・道具箱に形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き
+// フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・道具箱に形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
-import { shapesOf } from "../../web/src/core/placed"
+import { portAreasOf, shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
-import { SHAPE_RULES } from "../../web/src/plugins/items/shape/outline"
+import { linesOf } from "../../web/src/plugins/items/line/placed"
+import { SHAPE_RULES, SLANT } from "../../web/src/plugins/items/shape/outline"
 import { SHAPES } from "../../web/src/plugins/items/shape/shapes"
 import { placedWidth } from "../../web/src/plugins/items/shape/size"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -85,4 +86,47 @@ test("流れの向きはブックの設定で、既定は下へ。右へに変�
     ).toBe(true)
   })
   expect(book().settings).toMatchObject({ "@matomezu/flowchart:flow-direction": "right" })
+})
+
+test("形は辺の真ん中（頂点）だけに線をつなぎ、平行四辺形と台形は食い込みの半分だけ内側につなぐ。箱はふち全体", () => {
+  const { store, on, page } = flowchart()
+  const place = (item: string, x: number) =>
+    store.actions.perform("@matomezu/paper:item-place", { page: page().id, item, at: { x, y: 40 } }, on)
+  act(() => {
+    place("@matomezu/shape:shape-diamond", 40)
+    place("@matomezu/shape:shape-parallelogram", 240)
+    place("@matomezu/box:shape-box", 440)
+  })
+  const [diamond, para, box] = shapesOf(page())
+  const areas = portAreasOf(store.catalog.core, page())
+  expect(areas.get(diamond!.id)).toMatchObject({ x: diamond!.x, midpoints: true })
+  expect(areas.get(para!.id)).toMatchObject({ x: para!.x + SLANT / 2, midpoints: true })
+  expect(areas.get(box!.id)).toMatchObject({ x: box!.x, midpoints: false })
+})
+
+test("ひし形から出る線の編集のダイアログに、キャプションの候補 Yes / No を出し、押すとキャプションに入る", () => {
+  const { store, on, page } = flowchart()
+  act(() => {
+    for (const [item, x] of [
+      ["@matomezu/shape:shape-diamond", 40],
+      ["@matomezu/box:shape-box", 300],
+      ["@matomezu/box:shape-box", 560],
+    ] as const)
+      store.actions.perform("@matomezu/paper:item-place", { page: page().id, item, at: { x, y: 40 } }, on)
+  })
+  const [diamond, box, other] = shapesOf(page())
+  const connect = (from: string, to: string) =>
+    expect(store.actions.perform("@matomezu/line:line-connect", { page: page().id, from, to }, on).ok).toBe(true)
+  act(() => {
+    connect(diamond!.id, box!.id)
+    connect(other!.id, diamond!.id)
+  })
+  const [out, back] = linesOf(page())
+  act(() => store.actions.openDialog("s1", "@matomezu/line:line-edit", { page: page().id, item: back!.id }))
+  expect(screen.queryByRole("button", { name: "Yes" })).toBeNull()
+  fireEvent.click(screen.getByRole("button", { name: "キャンセル" }))
+  act(() => store.actions.openDialog("s1", "@matomezu/line:line-edit", { page: page().id, item: out!.id }))
+  const dialog = screen.getByRole("dialog", { name: "線の編集" })
+  fireEvent.click(within(dialog).getByRole("button", { name: "No" }))
+  expect((within(dialog).getByLabelText("キャプション") as HTMLInputElement).value).toBe("No")
 })

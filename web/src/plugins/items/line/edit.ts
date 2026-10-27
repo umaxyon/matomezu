@@ -1,6 +1,6 @@
 // 線をじかに直す決まり（純粋な関数）: 途中の区間・端・キャプションの札を動かしたあとの線の項目と、線の編集のダイアログで選んだものから変える項目。
 // どれも、描いている線（drawLines の結果）と、ポインタの位置（紙の座標）から決める
-import type { Point } from "../../../plugin-api"
+import type { Point, PortArea } from "../../../plugin-api"
 import { clampCaptionOffset } from "./caption"
 import { alignedEndsOf, type DrawnLine, routeInputOf } from "./drawn"
 import { leftNormalAt, nearestAt, pointAt, type Rect } from "./geom"
@@ -131,12 +131,13 @@ export type LineOnce = "align" | "free" | "via" | "caption"
 
 // 線の編集のダイアログで選んだものを、line-update に渡す項目にする（変えた項目だけ。null は消す）。
 // 自分に戻る線の通り方は変えない。接辺の自動選択は両端と区間を消し、整列はほかの項目を変えたあとの形で両端の位置を決めて区間を消す。
-// elbow はページの線の既定が折れ線か
+// rects は形のつながる範囲、elbow はページの線の既定が折れ線か、lines はページの線（整列は、ほかの線と描いた形で決める）
 export function linePatch(
   line: PlacedLine,
   choice: LineChoice,
-  rects: ReadonlyMap<string, Rect>,
+  rects: ReadonlyMap<string, PortArea>,
   elbow: boolean,
+  lines: readonly PlacedLine[] = [line],
 ): Record<string, unknown> {
   const p = line.props
   const patch: Record<string, unknown> = {}
@@ -151,7 +152,7 @@ export function linePatch(
   if (choice.once.has("caption")) Object.assign(patch, { captionAt: null, captionOffset: null })
   if (choice.once.has("align")) {
     const props = Object.fromEntries(Object.entries({ ...p, ...patch }).filter(([, v]) => v !== null))
-    const ends = alignedEndsOf({ ...line, props: { ...props, via: undefined } }, rects, elbow)
+    const ends = alignedEndsOf({ ...line, props: { ...props, via: undefined } }, rects, elbow, lines)
     if (ends) Object.assign(patch, ends, { via: null })
   }
   return patch

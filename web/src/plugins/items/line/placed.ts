@@ -1,6 +1,5 @@
 // 線のデータと、ページの上での線の決まり: 線でつながった形の組の間隔、引ける相手、形が変わったあとの整え、関係の決まり
-import { type ConnectorData, connectorsOf, type ItemPage, type PlacedOf } from "../../../plugin-api"
-import type { Rect } from "./geom"
+import { type ConnectorData, connectorsOf, type ItemPage, type PlacedOf, type PortArea } from "../../../plugin-api"
 import { route } from "./route"
 
 export type PlacedLine = PlacedOf<"@matomezu/line:connector-line">
@@ -41,10 +40,10 @@ export function canConnect(lines: readonly LineLike[], from: string, to: string)
 }
 
 // 形が動いた・大きさが変わったあとの線: 手で直した途中の区間（via）が引けなくなったら消す（端の形が無くなった線は、土台が先に消す）。
-// rects は形の四角、elbow はページの既定が折れ線か。変わらない線はそのまま返す
+// rects は形のつながる範囲、elbow はページの既定が折れ線か。変わらない線はそのまま返す
 export function tidyLines<L extends LineLike>(
   lines: readonly L[],
-  rects: ReadonlyMap<string, Rect>,
+  rects: ReadonlyMap<string, PortArea>,
   elbow: boolean,
 ): L[] {
   return lines.flatMap(l => {
@@ -64,6 +63,8 @@ export function tidyLines<L extends LineLike>(
         margin: BEND_MARGIN,
         exitAt,
         enterAt,
+        aVertex: a.midpoints ?? false,
+        bVertex: b.midpoints ?? false,
       }).fix.clearVia
     if (drawn) return [l]
     const { via: _, ...props } = l.props

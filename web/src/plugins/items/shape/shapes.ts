@@ -49,6 +49,7 @@ function shape<const Id extends string, const Title extends keyof typeof SHAPE_M
     props: ShapePropsSchema,
     size: SHAPE_RULES[kind].size,
     min: SHAPE_MIN,
+    ports: SHAPE_RULES[kind].ports,
     sizeOf: s => ({ w: s.w ?? placedWidth(kind, s.props.caption), h: s.h ?? SHAPE_RULES[kind].size.h }),
     captionWidth: s => placedWidth(kind, s.props.caption),
     dialogs: { add: add.id, edit: SHAPE_EDIT_DIALOG.id },

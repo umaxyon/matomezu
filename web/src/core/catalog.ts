@@ -14,6 +14,10 @@ export interface MessageTable {} // 文言の鍵 → 訳
 export interface CommandTable {}
 export interface DialogTable {}
 
+// タイプが選んだアイテムに渡す指定: アイテムの id → 指定の形。アイテムを作ったプラグインが自分のアイテムの指定の形を書き足し、
+// 自分の処理で読む（土台は意味を知らない）
+export interface ItemOptionTable {}
+
 // アイテムの能力 → true。土台は connectable（線などでつなげる）・resizable（大きさを変えられる）。
 // プラグインは自分の id を頭に付けた能力を書き足し、自分の処理で読む（土台は意味を知らない）
 export interface CapabilityTable {

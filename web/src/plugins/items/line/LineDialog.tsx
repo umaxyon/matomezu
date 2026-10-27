@@ -5,7 +5,7 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { type MessageKey, pagedOf, rectsOf } from "../../../plugin-api"
+import { type MessageKey, pagedOf, portAreasOf } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -34,8 +34,8 @@ import { type LineOnce, linePatch } from "./edit"
 import { HEADS, type Head } from "./heads"
 import { DASH_ICONS, ROUTE_ICONS } from "./icons"
 import { kit } from "./kit"
-import { elbowAt, LINE, type LineRoute } from "./line"
-import type { PlacedLine } from "./placed"
+import { captionWordsOf, elbowAt, LINE, type LineRoute } from "./line"
+import { linesOf, type PlacedLine } from "./placed"
 
 type LineProps = PlacedLine["props"]
 type Dash = "solid" | "dashed"
@@ -100,11 +100,14 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   }, [changed, route, dash, startHead, endHead, preview])
   if (!book || !page || !line) return null
   const self = line.from === line.to
-  const rects = rectsOf(catalog, page)
+  // キャプションの候補: ブックのタイプが、始点のアイテムに決めたもの
+  const fromItem = page.items?.find(i => i.id === line.from)?.item
+  const words = !self && fromItem && drawing ? captionWordsOf(catalog, drawing, fromItem) : []
+  const rects = portAreasOf(catalog, page)
   const p = line.props
   const fixed = p.exitAt !== undefined || p.enterAt !== undefined
   const captionMoved = !!p.caption?.trim() && (p.captionAt !== undefined || p.captionOffset !== undefined)
-  const aligned = alignedEndsOf(line, rects, elbow) === null
+  const aligned = alignedEndsOf(line, rects, elbow, linesOf(page)) === null
   // 押した印を入り切りする（整列と接辺の自動選択は、どちらか 1 つ）
   const toggle = (k: Once) =>
     setOnce(now => {
@@ -118,7 +121,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
       return next
     })
   const submit = () => {
-    const patch = linePatch(line, { caption, route, dash, startHead, endHead, once }, rects, elbow)
+    const patch = linePatch(line, { caption, route, dash, startHead, endHead, once }, rects, elbow, linesOf(page))
     if (Object.keys(patch).length === 0) return onClose()
     const done = perform("@matomezu/line:line-update", { page: page.id, line: line.id, props: patch })
     if (done.ok) onClose()
@@ -159,6 +162,18 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
             />
           )}
         </Field>
+        {words.length > 0 && (
+          <div className={inlineClass}>
+            <span className={pairClass}>
+              <span>{t("Suggestions")}</span>
+              {words.map(w => (
+                <ActionButton key={w} onClick={() => setCaption(t(w))}>
+                  {t(w)}
+                </ActionButton>
+              ))}
+            </span>
+          </div>
+        )}
         <div className={inlineClass}>
           {!self && (
             <span className={pairClass}>

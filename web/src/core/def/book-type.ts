@@ -1,7 +1,7 @@
 // ブックのタイプの定義: データの形・並べ方の決まり・使えるアイテムとアクションの規定・既定のテーマ。
 // アイテム・アクション・テーマは id で参照する（アイテムとアクションはブックのタイプを知らない）
 import { z } from "zod"
-import type { ActionId } from "../catalog"
+import type { ActionId, ItemOptionTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
@@ -12,6 +12,14 @@ import type { TokenDecl } from "./theme"
 export interface Choice {
   allowed: readonly string[]
   defaults: readonly string[]
+}
+
+// タイプが選んだアイテムに渡す指定（アイテムの id → 指定。指定の形は、アイテムを作ったプラグインが ItemOptionTable に書き足して決める）
+export type ItemOptions = { readonly [K in keyof ItemOptionTable]?: ItemOptionTable[K] }
+
+// 使えるアイテムの規定と、アイテムへの指定（渡せるのは allowed のアイテムだけ）
+export interface ItemChoice extends Choice {
+  options?: ItemOptions
 }
 
 // タイプが足す・外すアクション
@@ -39,7 +47,7 @@ interface BookTypeBase<S extends z.ZodObject> {
   // そのタイプのブックが自分で持つ欄の形（type は id の値。pluginKit で書くプラグインは type を書かず、kit が足す）。ページ（pages）と設定の項目の欄は書かず、機能台帳が選んだものから足す
   schema: S
   pages: PagesRule | null // ページを持つか（持つなら、機能台帳がページの欄を足す）
-  items: Choice
+  items: ItemChoice
   // 使えるアクションは、タイプが選んだ物に付いて来る（アクションの attach）。add はそのタイプだけのアクション、without は使わせないアクション
   actions: ActionChoice
   theme: string // 既定のテーマ

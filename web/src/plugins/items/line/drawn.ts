@@ -1,22 +1,26 @@
 // ページの線を描く形にする純粋な関数: 形の四角から、線ごとの点の並び・見える線（端の形の付け根で止めた点の並び）・端の形・キャプションの札の枠を決める。
 // 2 つの形を結ぶ線は道筋の計算（route.ts。ほかの形は、道筋に関わりうるものだけを避ける）、自分に戻る線は形の角の輪（selfloop.ts）。
 // 自分に戻る線は、ほかの線を描いたあとに、ほかの形とほかの線を避ける角に描く（同じ形の 2 本目からは、同じ角で輪を大きくする）
-import type { Point } from "../../../plugin-api"
+import type { Point, PortArea } from "../../../plugin-api"
 import { captionBox } from "./caption"
-import type { Rect } from "./geom"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"
 import {
   alignedEnds,
   type EndMemory,
+  fewestRoute,
   isAligned,
+  perimeterAt,
+  type Route,
   type RouteInput,
   type RouteShape,
   route,
   type Segment,
   scopeObstacles,
+  vertexAt,
 } from "./route"
 import { selfLoop } from "./selfloop"
+import { type Routed, separateEnds, splitVertices } from "./spread"
 
 export interface DrawnLine {
   id: string
@@ -47,7 +51,7 @@ export interface DrawOptions {
 }
 
 // 線ごとの道筋の覚え（描く側が持つ）
-export type LineCache = Map<string, { key: string; geo: Geometry }>
+export type LineCache = Map<string, { key: string; route: Route }>
 
 // p から q へ向かって d だけ進んだ点
 function toward(p: Point, q: Point, d: number): Point {
@@ -70,8 +74,9 @@ function painted(points: Point[], start: Head | undefined, end: Head | undefined
   }
 }
 
-// 2 つの形を結ぶ線の道筋を決める入力（ほかの形は、道筋に関わりうるものだけ）。両端の形の四角が無い線と、自分に戻る線は null
-export function routeInputOf(l: PlacedLine, rects: ReadonlyMap<string, Rect>, elbow: boolean): RouteInput | null {
+// 2 つの形を結ぶ線の道筋を決める入力（ほかの形は、道筋に関わりうるものだけ）。rects は形のつながる範囲（辺の真ん中だけにつなぐ形は、端を頂点に限る）。
+// 両端の形の四角が無い線と、自分に戻る線は null
+export function routeInputOf(l: PlacedLine, rects: ReadonlyMap<string, PortArea>, elbow: boolean): RouteInput | null {
   const a = rects.get(l.from)
   const b = rects.get(l.to)
   if (!a || !b || l.from === l.to) return null
@@ -84,51 +89,68 @@ export function routeInputOf(l: PlacedLine, rects: ReadonlyMap<string, Rect>, el
     margin: BEND_MARGIN,
     exitAt: l.props.exitAt ?? null,
     enterAt: l.props.enterAt ?? null,
+    aVertex: a.midpoints ?? false,
+    bVertex: b.midpoints ?? false,
   }
   return { ...input, obstacles: scopeObstacles(input) }
 }
 
 // 整列: 線 l の今の形のまま、両端をその辺の一番よい位置（向き合う辺どうしでまっすぐ結べるならその位置、そうでなければ辺の真ん中）に置いた端の位置。
-// もう整列していて手で直した区間も無ければ null（自分に戻る線・描けない線も null）
+// 今の形は、ページの線 lines（l は今の項目に置き換える）を描いた形。もう整列していて手で直した区間も無ければ null（自分に戻る線・描けない線も null）
 export function alignedEndsOf(
   l: PlacedLine,
-  rects: ReadonlyMap<string, Rect>,
+  rects: ReadonlyMap<string, PortArea>,
   elbow: boolean,
+  lines: readonly PlacedLine[] = [l],
 ): { exitAt: number; enterAt: number } | null {
   const input = routeInputOf(l, rects, elbow)
-  if (!input) return null
-  const pts = route(input).points
+  const pts = drawLines(
+    lines.map(x => (x.id === l.id ? l : x)),
+    rects,
+    elbow,
+  ).find(d => d.id === l.id)?.points
+  if (!input || !pts) return null
   return isAligned(input, pts) ? null : alignedEnds(input, pts)
 }
 
-// ページの線を描く形にする。rects は形の四角（紙の座標）、elbow はページの既定が折れ線か。両端の形の四角が無い線は描かない
+// ページの線を描く形にする。rects は形のつながる範囲（紙の座標。portAreasOf）、elbow はページの既定が折れ線か。両端の形の四角が無い線は描かない
 export function drawLines(
   lines: readonly PlacedLine[],
-  rects: ReadonlyMap<string, Rect>,
+  rects: ReadonlyMap<string, PortArea>,
   elbow: boolean,
   options: DrawOptions = {},
 ): DrawnLine[] {
   const geos = new Map<string, Geometry>()
   const others = (ids: readonly string[]) => [...rects].filter(([id]) => !ids.includes(id)).map(([, r]) => r)
+  // 辺の真ん中だけにつなぐ形から出る線の頂点（spread.ts）
+  const split = splitVertices(lines, rects)
+  const routed: Routed[] = []
   for (const l of lines) {
-    const base = routeInputOf(l, rects, elbow)
-    if (!base) continue
+    const found = routeInputOf(l, rects, elbow)
+    if (!found) continue
+    const v = split.get(l.id)
+    const base = v && found.exitAt == null ? { ...found, exitAt: perimeterAt(found.a, vertexAt(found.a, v)) } : found
     const memory = options.memory?.get(l.id) ?? null
     const loose = options.loose?.has(l.id) ?? false
     const key = JSON.stringify([base, memory, loose])
     const hit = options.cache?.get(l.id)
     if (hit?.key === key) {
-      geos.set(l.id, hit.geo)
+      routed.push({ line: l, input: base, route: hit.route })
       continue
     }
-    let r = route({ ...base, memory })
+    // 留まる辺が無ければ、折れ目の一番少ない形
+    let r = memory ? route({ ...base, memory }) : fewestRoute(base)
     if (memory && loose) {
-      const best = route(base)
+      const best = fewestRoute(base)
       if (r.bends - best.bends >= LOOSEN_BENDS) r = best
     }
-    const geo = { points: r.points, shape: r.shape, segments: r.segments, ends: r.ends, memory: r.memory }
-    options.cache?.set(l.id, { key, geo })
-    geos.set(l.id, geo)
+    options.cache?.set(l.id, { key, route: r })
+    routed.push({ line: l, input: base, route: r })
+  }
+  // 同じ形の同じ所に入る線を散らす（spread.ts）
+  separateEnds(routed)
+  for (const { line, route: r } of routed) {
+    geos.set(line.id, { points: r.points, shape: r.shape, segments: r.segments, ends: r.ends, memory: r.memory })
   }
   const loops = new Map<string, number>()
   for (const l of lines) {

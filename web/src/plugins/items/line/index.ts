@@ -3,7 +3,7 @@ import { defineBuiltin } from "../../../plugin-api/builtin"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { LINE_DRAW, LINE_EDIT, LINE_RECONNECT_DROP } from "./commands"
 import { kit } from "./kit"
-import { LINE, LINE_EDIT_DIALOG, LINE_ROUTE } from "./line"
+import { LINE, LINE_EDIT_DIALOG, LINE_ROUTE, type LineOptions } from "./line"
 
 export const LINE_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -21,6 +21,9 @@ declare module "../../../core/catalog" {
   }
   interface SettingTable {
     "@matomezu/line:line-route": typeof LINE_ROUTE
+  }
+  interface ItemOptionTable {
+    "@matomezu/line:connector-line": LineOptions
   }
   interface ActionTable {
     "@matomezu/line:line-connect": typeof LINE_CONNECT

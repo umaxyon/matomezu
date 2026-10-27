@@ -4,7 +4,7 @@
 import { z } from "zod"
 import type { ItemTable } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
-import type { ConnectorData, ConnectorItemDef, Gap, ItemDef, ShapeData, ShapeItemDef } from "./def/item"
+import type { ConnectorData, ConnectorItemDef, Gap, ItemDef, PortArea, ShapeData, ShapeItemDef } from "./def/item"
 import type { Rect, Size } from "./geom"
 import type { Page } from "./schema/page"
 
@@ -96,6 +96,24 @@ export function rectsOf(catalog: CoreCatalog, page: ItemPage): Map<string, Rect>
   return rects
 }
 
+// ページの形のつながる範囲: 形の四角 rects（無ければデータの位置と大きさ）を、形の定義のつなぎ口で縮めたもの。
+// 機能台帳に無い形は、四角のふち全体
+export function portAreasOf(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  rects: ReadonlyMap<string, Rect> = rectsOf(catalog, page),
+): Map<string, PortArea> {
+  const items = new Map(shapesOf(page).map(s => [s.id, s.item]))
+  const areas = new Map<string, PortArea>()
+  for (const [id, r] of rects) {
+    const item = items.get(id)
+    const ports = item ? shapeDef(catalog, item)?.ports : undefined
+    const inset = Math.min(ports?.inset ?? 0, Math.max(0, (r.w - 1) / 2))
+    areas.set(id, { x: r.x + inset, y: r.y, w: r.w - inset * 2, h: r.h, midpoints: ports?.midpoints ?? false })
+  }
+  return areas
+}
+
 // つなぐものを種類ごとに分ける（表に無いものは入れない）
 function byConnector(catalog: CoreCatalog, page: ItemPage): [ConnectorItemDef, PlacedConnector[]][] {
   const groups = new Map<string, PlacedConnector[]>()
@@ -119,12 +137,12 @@ export function gapOf(catalog: CoreCatalog, page: ItemPage, base: Gap): Gap {
 export function tidyPage<P extends ItemPage>(catalog: CoreCatalog, page: P, setting: (id: string) => unknown): P {
   const groups = byConnector(catalog, page)
   if (groups.length === 0) return page
-  const rects = rectsOf(catalog, page)
+  const areas = portAreasOf(catalog, page)
   const shapes = new Set(shapesOf(page).map(s => s.id))
   const tidy = new Map<string, PlacedConnector>()
   for (const [def, all] of groups) {
     const list = all.filter(c => shapes.has(c.from) && shapes.has(c.to))
-    const next = def.tidy ? def.tidy(list as ConnectorData[], rects, setting) : list
+    const next = def.tidy ? def.tidy(list as ConnectorData[], areas, setting) : list
     for (const c of next) tidy.set(c.id, c as PlacedConnector)
   }
   const now = pageItemsOf(page)

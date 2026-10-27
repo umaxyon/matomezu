@@ -335,3 +335,11 @@ test("プラグインが持つテーマキーを、アイテムでも宣言し�
   const twice = { ...BUILTIN_PARTS, tokens: [...BUILTIN_PARTS.tokens, box.tokens[0]!] }
   expect(checkCoreCatalog(twice).map(p => p.code)).toEqual(["E011"])
 })
+
+test("タイプが allowed に無いアイテムへ指定を渡したら E029", () => {
+  const flowchart = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/flowchart:flowchart")!
+  const without = flowchart.items.allowed.filter(id => id !== "@matomezu/line:connector-line")
+  const bad = { ...flowchart, items: { ...flowchart.items, allowed: without, defaults: without } }
+  const parts = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === flowchart ? bad : t)) }
+  expect(checkCoreCatalog(parts).map(p => p.code)).toEqual(["E029"])
+})

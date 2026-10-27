@@ -66,6 +66,7 @@ test("matomezu が出す名前", () => {
     "placedSize",
     "placement",
     "pluginKit",
+    "portAreasOf",
     "putPage",
     "rectsOf",
     "removeItems",

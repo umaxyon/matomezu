@@ -44,8 +44,13 @@ test("区間のドラッグ: 自動の形なら両端を今の位置に固定し
   expect(viaDragged(line, d, rects, 0, 900)!.via).toEqual([388]) // 範囲に収める
   expect(viaDragged(line, d, rects, 3, 260)).toBeNull()
   // 自動の形（端が自由）でも、両端を今の位置に固定してから動かす
-  // n2 を、横の隙間に比べて縦の隙間が小さい所に置くと、自動の形は Z 字
-  const zRects = new Map([...rects, ["n2", { x: 400, y: 200, w: 100, h: 64 }]])
+  // n2 を右下に置き、2 つの L 字の道をほかの形でふさぐと、自動の形は Z 字（線は折れ目の一番少ない形を選ぶため）
+  const zRects = new Map([
+    ...rects,
+    ["n2", { x: 400, y: 200, w: 100, h: 64 }],
+    ["o1", { x: 420, y: 120, w: 60, h: 30 }], // 右へ出て上から入る L 字の道
+    ["o2", { x: 120, y: 200, w: 60, h: 50 }], // 下へ出て左から入る L 字の道
+  ])
   const free = { ...line, props: {} }
   const fd = drawLines([free], zRects, true)[0]!
   expect(fd.segments).toHaveLength(1)

@@ -3,7 +3,7 @@
 // 端は自由か、形のふちの上に固定（exitAt・enterAt。ふちを左上から時計回りに一周した割合）。手で直した折れ線の途中の区間（via）は、両端が固定のときだけ持つ。
 // 道筋は持たず、つないだ形の位置から描くたびに決める（route.ts）
 import { z } from "zod"
-import { type Book, bookItems, type CoreCatalog } from "../../../plugin-api"
+import { type Book, bookItems, type CoreCatalog, type ItemId, type MessageKey } from "../../../plugin-api"
 import { settingValue } from "../../base"
 import { CAPTION_OFFSET_MAX } from "./caption"
 import { HEADS } from "./heads"
@@ -73,6 +73,21 @@ export const LINE = kit.defineConnector({
     { id: "line-text", fallback: "text" }, // キャプションの文字の色
   ],
 })
+
+// タイプが線に渡す指定（ItemOptionTable）。captions は、始点が from のアイテムの線の、編集のダイアログに出すキャプションの候補（文言の鍵）
+export interface LineOptions {
+  captions?: readonly { from: readonly ItemId[]; words: readonly MessageKey[] }[]
+}
+
+// ブックのタイプが線に渡す指定（無ければ空）
+export const lineOptionsOf = (catalog: CoreCatalog, book: Pick<Book, "type">): LineOptions =>
+  catalog.bookTypes.get(book.type)?.items.options?.[LINE.id] ?? {}
+
+// 始点が from のアイテムの線の、キャプションの候補（文言の鍵）
+export const captionWordsOf = (catalog: CoreCatalog, book: Pick<Book, "type">, from: string): readonly MessageKey[] =>
+  (lineOptionsOf(catalog, book).captions ?? []).flatMap(c =>
+    (c.from as readonly string[]).includes(from) ? c.words : [],
+  )
 
 // 線の編集のダイアログ。開いたステージのブックの、ページ page の線 item の項目を変える
 export const LINE_EDIT_DIALOG = kit.defineDialogWith<{ page: string; item: string }>()({ id: "line-edit" })

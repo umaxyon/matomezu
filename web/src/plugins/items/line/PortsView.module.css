@@ -1,4 +1,4 @@
-/* 線を引く〇: 押せる所は 20px、見える〇は 10px。中心を辺の真ん中から 10px 外に置く（connect.ts の PORT_OUT）（どれも画面の上の大きさ。紙の倍率で打ち消す） */
+/* 線を引く〇: 押せる所は 20px、見える〇は 10px。中心を辺の真ん中（つなぎ口で縮めた範囲の辺。--port-inset）から 10px 外に置く（connect.ts の PORT_OUT）（どれも画面の上の大きさ。紙の倍率で打ち消す） */
 .port {
   --s: calc(1 / var(--paper-zoom, 1));
   position: absolute;
@@ -14,7 +14,7 @@
   top: calc(-10px * var(--s));
 }
 .port[data-port="r"] {
-  left: calc(100% + 10px * var(--s));
+  left: calc(100% - var(--port-inset, 0px) + 10px * var(--s));
   top: 50%;
 }
 .port[data-port="b"] {
@@ -22,7 +22,7 @@
   top: calc(100% + 10px * var(--s));
 }
 .port[data-port="l"] {
-  left: calc(-10px * var(--s));
+  left: calc(var(--port-inset, 0px) - 10px * var(--s));
   top: 50%;
 }
 .port::after {

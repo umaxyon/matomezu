@@ -1,4 +1,4 @@
-// フローチャートのプラグインの文言（ブックのタイプの名前と、流れの向きの設定）
+// フローチャートのプラグインの文言（ブックのタイプの名前、流れの向きの設定、分岐から出る線のキャプションの候補）
 import { defineMessages } from "../../../plugin-api"
 
 export const FLOWCHART_MESSAGES = defineMessages({
@@ -6,4 +6,6 @@ export const FLOWCHART_MESSAGES = defineMessages({
   "Flow direction": { en: "Flow direction", ja: "流れの向き" },
   Down: { en: "Down", ja: "下へ" },
   Right: { en: "Right", ja: "右へ" },
+  Yes: { en: "Yes", ja: "Yes" },
+  No: { en: "No", ja: "No" },
 })

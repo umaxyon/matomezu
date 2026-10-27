@@ -26,6 +26,7 @@ export const ERRORS = {
   E025: "bookType {id}: schema must not have {field} (the catalog adds it)",
   E026: "item {id}: unknown dialog {dialog}",
   E028: "item {id}: {field} names {prop}, which is not in its props",
+  E029: "bookType {id}: options for item {ref}, which is not allowed",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",

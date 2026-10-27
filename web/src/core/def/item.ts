@@ -49,6 +49,17 @@ export interface ShapeEditArgs {
   item: string
 }
 
+// つなぎ口: つなぐもの（線）が、形のどこにつながるか。書かなければ、形の四角のふち全体
+export interface Ports {
+  midpoints?: boolean // 辺の真ん中だけにつなぐ（ひし形の頂点のように、辺の途中が形の外になる形）
+  inset?: number // つながる範囲を、左右からこれだけ内側に縮める（左右の辺の真ん中が四角より内側にある形）
+}
+
+// 形のつながる範囲（紙の座標）: つなぎ口で縮めた四角と、辺の真ん中だけにつなぐか
+export interface PortArea extends Rect {
+  midpoints?: boolean
+}
+
 // 2 つの形 a・b の間隔の下限
 export type Gap = (a: string, b: string) => number
 
@@ -58,6 +69,7 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   toolbox: boolean // ツールボックスに出すか（出さないものは、ほかの操作で置く）
   size: Size // 置くときの大きさ
   content?: Readonly<Record<string, z.ZodType>> // 項目のほかに持つ中身の欄（リストの行など。どれも書かなくてよい）
+  ports?: Ports // つなぎ口（無ければ、四角のふち全体）
   min?: Size // 一番小さい大きさ（大きさを変えられるアイテムだけ）
   // 置いたアイテムの大きさ（w・h が無ければ、項目から決まる幅と高さ）。無ければ置いたときの w・h、それも無ければ size
   sizeOf?(item: D): Size
@@ -80,8 +92,8 @@ export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt ex
   kind: "connector"
   toolbox: false // つなぐものはツールボックスに出さない（形どうしを結ぶ操作で引く）
   gaps?(lines: readonly D[], base: Gap): Gap
-  // rects は形の四角、setting はそのページで効いている設定の値（設定の定義の id から）
-  tidy?(lines: readonly D[], rects: ReadonlyMap<string, Rect>, setting: (id: string) => unknown): D[]
+  // areas は形のつながる範囲、setting はそのページで効いている設定の値（設定の定義の id から）
+  tidy?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: (id: string) => unknown): D[]
   holds?(lines: readonly D[], connectable: (id: string) => boolean): boolean
 }
 

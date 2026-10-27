@@ -8,8 +8,8 @@ import {
   type ItemPage,
   type PagedBook,
   pageItemsOf,
+  portAreasOf,
   putPage,
-  rectsOf,
 } from "../../../plugin-api"
 import { keepApart, nextItemId } from "../../base"
 import { connectable } from "./connect"
@@ -22,7 +22,7 @@ const PlacedLineSchema = connectorSchema(LINE) as unknown as z.ZodType<PlacedLin
 
 // 線を今の形の位置で整えたもの: 手で直した途中の区間（via）が引けなければ消す（両端が固定でない・直線・形の位置で引けない）
 const tidied = (catalog: CoreCatalog, book: PagedBook, page: ItemPage, line: PlacedLine): PlacedLine =>
-  tidyLines([line], rectsOf(catalog, page), elbowAt(catalog, book, page))[0] ?? line
+  tidyLines([line], portAreasOf(catalog, page), elbowAt(catalog, book, page))[0] ?? line
 
 // 手で直した途中の区間（via）が、今の形の位置で引けるか（無ければ引ける）
 const viaDrawn = (catalog: CoreCatalog, book: PagedBook, page: ItemPage, line: PlacedLine): boolean =>
