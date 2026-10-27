@@ -80,7 +80,7 @@ export const PAGE_ALIGN = kit.defineAction({
 
 const onPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
 
-// 開いているページを自動で整列する（紙の右クリックのメニュー）。紙に収まらなければ何も変えない
+// 開いているページを自動で整列する（紙の右クリックのメニュー）。紙に収まらなければ何も変えず、注意のトーストで知らせる
 export const PAGE_ALIGN_COMMAND = kit.defineCommand({
   id: "page-align",
   performs: [PAGE_ALIGN.id],
@@ -88,7 +88,8 @@ export const PAGE_ALIGN_COMMAND = kit.defineCommand({
   run: (ctx, a) => {
     const { opened } = ctx.stage
     if (!opened?.page) return
-    a.perform(PAGE_ALIGN.id, { page: opened.page }, { book: opened.book })
+    const done = a.perform(PAGE_ALIGN.id, { page: opened.page }, { book: opened.book })
+    if (!done.ok) a.showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
   },
   when: onPage,
 })

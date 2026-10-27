@@ -83,6 +83,7 @@ export const NIGHT = kit.defineSkin({
     "float-hover": "#28356b",
     "on-accent": "#0b1020",
     danger: "#ff8a8a",
+    warn: "#ffcc66",
     font: 'system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif',
   },
 })

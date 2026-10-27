@@ -23,6 +23,7 @@ export const DARK = kit.defineSkin({
     "float-hover": "#45405a",
     "on-accent": "#ffffff",
     danger: "#f87171",
+    warn: "#fbbf24",
     font: 'system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif',
   },
 })

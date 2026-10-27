@@ -237,3 +237,31 @@ test("紙の右クリックのメニューに「自動で整列」が出る（�
   const rects = rectsOf(f.store.catalog.core, f.page())
   expect(new Set([...rects.values()].slice(0, 4).map(r => r.x + r.w / 2)).size).toBe(1)
 })
+
+test("右クリックのメニューの「自動で整列」が紙に収まらず断られたら、注意のトーストで知らせ、押すと消える", () => {
+  const { store, on, page } = flowchart()
+  act(() => {
+    for (let i = 0; i < 20; i++)
+      store.actions.perform(
+        "@matomezu/paper:item-place",
+        {
+          page: page().id,
+          item: "@matomezu/box:shape-box",
+          at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 },
+        },
+        on,
+      )
+  })
+  const ids = shapesOf(page()).map(s => s.id)
+  act(() => {
+    for (let i = 1; i < ids.length; i++)
+      store.actions.perform("@matomezu/line:line-connect", { page: page().id, from: ids[i - 1]!, to: ids[i]! }, on)
+  })
+  fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }), { clientX: 300, clientY: 300 })
+  fireEvent.click(screen.getByRole("menuitem", { name: "自動で整列" }))
+  const toast = screen.getByRole("alert")
+  expect(toast.textContent).toBe("紙に収まりません")
+  expect(toast.dataset.kind).toBe("warn")
+  fireEvent.click(toast)
+  expect(screen.queryByRole("alert")).toBeNull()
+})

@@ -10,6 +10,7 @@ import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { BOOK_VIEW, CLOSE_BUTTON, STAGE_ICONS } from "./stage/ui"
+import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
 import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
@@ -44,6 +45,7 @@ export const BASE_UI = definePluginUi(BASE, {
     WORKSPACE,
     DIALOG_HOST,
     MENU_HOST,
+    TOAST_HOST,
     TOOL_PICKER_WIDGET,
     BOOK_VIEW,
     TOOL_SWITCH,
@@ -66,6 +68,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:workspace": typeof WORKSPACE
     "@matomezu/base:dialog-host": typeof DIALOG_HOST
     "@matomezu/base:menu-host": typeof MENU_HOST
+    "@matomezu/base:toast-host": typeof TOAST_HOST
     "@matomezu/base:tool-picker": typeof TOOL_PICKER_WIDGET
     "@matomezu/base:book-view": typeof BOOK_VIEW
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH

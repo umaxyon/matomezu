@@ -9,4 +9,5 @@ export const FLOWCHART_MESSAGES = defineMessages({
   Yes: { en: "Yes", ja: "Yes" },
   No: { en: "No", ja: "No" },
   "Auto align": { en: "Auto align", ja: "自動で整列" },
+  "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に収まりません" },
 })

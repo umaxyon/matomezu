@@ -30,6 +30,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:workspace",
       "@matomezu/base:dialog-host",
       "@matomezu/base:menu-host",
+      "@matomezu/base:toast-host",
       "@matomezu/base:tool-picker",
     ],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch", "@matomezu/base:toolbox"],

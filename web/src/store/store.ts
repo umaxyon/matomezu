@@ -3,12 +3,12 @@
 
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { checkBooks, hasPages, singleBooks } from "../core/book"
-import type { ActionId, DialogId, ItemId, SingleBookTypeId, SkinId } from "../core/catalog"
+import type { ActionId, DialogId, ItemId, MessageKey, SingleBookTypeId, SkinId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
-import { detectLang, type Lang } from "../core/i18n/i18n"
+import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
 import type { Notice } from "../core/notices"
 import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
@@ -49,7 +49,19 @@ export interface MatomezuState {
   settings: Settings
   dialog: OpenedDialog | null
   contextMenu: OpenedContextMenu | null
+  toasts: readonly Toast[] // 出しているトースト（古い順）
 }
+
+// トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、warn は断りや注意、error は直るまで出しておく誤り
+// （時間では消えず、出した側か見る人が消す）。文言は鍵で持ち、画面が今の言語で出す
+export interface Toast {
+  id: string
+  kind: "info" | "warn" | "error"
+  message: MessageKey
+  params?: Params
+}
+// トーストを出しておく時間（ms）。null は時間では消さない
+export const TOAST_MS: Readonly<Record<Toast["kind"], number | null>> = { info: 3500, warn: 7000, error: null }
 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
 export type PerformArgs<Id extends ActionId> =
@@ -77,6 +89,8 @@ export interface Actions {
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
   openContextMenu(stage: string, id: string, target: unknown, at: Point): void
   closeContextMenu(): void
+  showToast(toast: Omit<Toast, "id">): string // トーストを出し、その id を返す
+  dismissToast(id: string): void // トーストを消す（もう無ければ何もしない）
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
   moveDivider(x: number, width: number): void // 分けている境目を、並べた幅 width の左から x の所へ（ドラッグした位置）
@@ -145,6 +159,7 @@ function initialState(
     settings,
     dialog: null,
     contextMenu: null,
+    toasts: [],
   }
 }
 
@@ -270,6 +285,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       ...(gone(contextMenu) ? { contextMenu: null } : {}),
     })
   }
+  let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   const actions: Actions = {
     perform: (id, ...[args, on]) => {
       const done = run(id, args, on)
@@ -321,6 +337,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     closeContextMenu: () => {
       if (getState().contextMenu) setState({ contextMenu: null })
+    },
+    showToast: toast => {
+      const id = `toast-${++toasts}`
+      setState({ toasts: [...getState().toasts, { ...toast, id }] })
+      return id
+    },
+    dismissToast: id => {
+      const { toasts: now } = getState()
+      if (now.some(t => t.id === id)) setState({ toasts: now.filter(t => t.id !== id) })
     },
     // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
     split: stage => withWorkspace(ws => (hasStage(ws, stage) ? split(focus(ws, stage)) : ws)),

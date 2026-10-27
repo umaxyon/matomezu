@@ -25,6 +25,7 @@ export const LIGHT = kit.defineSkin({
     "float-hover": "#ece8fb",
     "on-accent": "#ffffff",
     danger: "#dc2626",
+    warn: "#d97706",
     font: DARK.tokens.font,
   },
 })

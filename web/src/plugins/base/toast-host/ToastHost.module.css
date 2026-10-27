@@ -1,0 +1,38 @@
+/* トースト: 画面の下の真ん中に、ほかのコンポーネントより手前に積む。印の色は種類ごと（info は強調、warn は注意、error は取り消せない操作の色） */
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 44px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: min(560px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.toast {
+  --mark: var(--skin-accent);
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--skin-line);
+  border-left: 4px solid var(--mark);
+  border-radius: 10px;
+  background: var(--skin-bar);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  color: var(--skin-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.toast[data-kind="warn"] {
+  --mark: var(--skin-warn);
+}
+.toast[data-kind="error"] {
+  --mark: var(--skin-danger);
+}

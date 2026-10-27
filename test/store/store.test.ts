@@ -152,3 +152,14 @@ test("ホストとの同期（receive）はインスタンスにあり、プラ�
   expect("receive" in instance.actions).toBe(false)
   expect(typeof instance.receive).toBe("function")
 })
+
+test("トーストは出した順に積み、id で消す（もう無い id なら何もしない）", () => {
+  const { state, actions } = newStore()
+  const a = actions.showToast({ kind: "warn", message: "@matomezu/flowchart:Does not fit on the paper" })
+  const b = actions.showToast({ kind: "info", message: "@matomezu/flowchart:Auto align" })
+  expect(a).not.toBe(b)
+  expect(state.getState().toasts.map(t => t.id)).toEqual([a, b])
+  actions.dismissToast(a)
+  actions.dismissToast(a)
+  expect(state.getState().toasts.map(t => t.id)).toEqual([b])
+})

@@ -19,7 +19,8 @@ export const SKIN_TOKENS = [
   "float-line", // 浮かぶボタンの縁
   "float-hover", // 浮かぶボタンにポインタを乗せたときの地
   "on-accent", // 強調の色の地の上の文字とアイコン
-  "danger", // 取り消せない操作（消すなど）のボタンの文字と縁
+  "danger", // 取り消せない操作（消すなど）のボタンの文字と縁。誤りのトーストの印
+  "warn", // 断りや注意のトーストの印
   "font",
 ] as const
 
