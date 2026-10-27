@@ -28,6 +28,13 @@ const ITEMS = [
   "@matomezu/shape:shape-circle",
   "@matomezu/line:connector-line",
 ] as const
+type FlowItemId = (typeof ITEMS)[number]
+
+// 流れの役: 開始の形（整列で本筋の始まりにする）と、分岐の形（整列で枝を分け、出る線にキャプションの候補を出す）。選んだアイテムの中から決める
+const START_ITEMS: readonly FlowItemId[] = ["@matomezu/shape:shape-rounded", "@matomezu/shape:shape-circle"]
+const BRANCH_ITEMS: readonly FlowItemId[] = ["@matomezu/shape:shape-diamond"]
+export const isStart = (item: string): boolean => (START_ITEMS as readonly string[]).includes(item)
+export const isBranch = (item: string): boolean => (BRANCH_ITEMS as readonly string[]).includes(item)
 
 export const FLOWCHART = kit.defineBookType({
   id: "flowchart",
@@ -46,11 +53,11 @@ export const FLOWCHART = kit.defineBookType({
     // 分岐（ひし形）から出る線は、キャプションの候補に Yes / No を出す
     options: {
       "@matomezu/line:connector-line": {
-        captions: [{ from: ["@matomezu/shape:shape-diamond"], words: [kit.message("Yes"), kit.message("No")] }],
+        captions: [{ from: BRANCH_ITEMS, words: [kit.message("Yes"), kit.message("No")] }],
       },
     },
   },
-  actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
+  actions: { add: [kit.name("page-align")] }, // ほかに使うアクションは、選んだアイテム・見せ方・ページについて来る
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],

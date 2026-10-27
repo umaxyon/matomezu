@@ -8,7 +8,7 @@ import { settingValue } from "../../base"
 import { CAPTION_OFFSET_MAX } from "./caption"
 import { HEADS } from "./heads"
 import { kit } from "./kit"
-import { lineGaps, linesHold, tidyLines } from "./placed"
+import { lineGaps, linesHold, tidyLines, unpinLines } from "./placed"
 
 export const ROUTES = ["straight", "elbow"] as const
 export type LineRoute = (typeof ROUTES)[number]
@@ -51,7 +51,7 @@ export const LINE_ROUTE = kit.defineSetting({
 })
 
 // 線は置いた形と次の決まりを持つ: つないだ組は間隔を広げる（placed.ts の lineGaps）、形が変わったあと引けなくなった手直しを消す（tidyLines）、
-// 両端がつなげる形にあり同じ組に 2 本無い（linesHold）
+// 形を並べ直したら端の固定と手直しを外す（unpinLines）、両端がつなげる形にあり同じ組に 2 本無い（linesHold）
 export const LINE = kit.defineConnector({
   id: "connector-line",
   kind: "connector",
@@ -65,6 +65,7 @@ export const LINE = kit.defineConnector({
     return (a, b) => Math.max(base(a, b), linked(a, b))
   },
   tidy: (lines, rects, setting) => tidyLines(lines, rects, setting(LINE_ROUTE.id) === "elbow"),
+  unpin: unpinLines,
   holds: linesHold,
   tokens: [
     // 線と端の形の色: 灰色を紙の色に 4 割混ぜた色（紙の色に合わせて変わる。半透明にしないのは、線が重なった区間だけ濃く見えないように）

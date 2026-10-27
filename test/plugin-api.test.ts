@@ -87,6 +87,7 @@ test("matomezu が出す名前", () => {
     "toPaperDelta",
     "tooClose",
     "toolOf",
+    "unpinPage",
     "widenForCaption",
     "withPage",
     "wrap",

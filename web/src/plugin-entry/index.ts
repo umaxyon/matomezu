@@ -44,6 +44,7 @@ export {
   textPatch,
   textProps,
   tooClose,
+  unpinPage,
   widenForCaption,
   withPage,
   wrap,

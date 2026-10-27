@@ -46,7 +46,12 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
   },
   contextMenus: {
-    "@matomezu/paper:paper-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
+    "@matomezu/paper:paper-context": [
+      "@matomezu/base:page-settings",
+      "@matomezu/base:book-settings",
+      "-",
+      "@matomezu/flowchart:page-align",
+    ],
     "@matomezu/paper:item-context": ["@matomezu/paper:paper-edit", "-", "@matomezu/paper:paper-delete"],
     "@matomezu/list:row-context": ["@matomezu/list:list-edit-row", "-", "@matomezu/list:list-delete-row"],
     "@matomezu/line:line-context": ["@matomezu/line:line-edit", "-", "@matomezu/paper:paper-delete"],

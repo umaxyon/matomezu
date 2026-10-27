@@ -1,9 +1,10 @@
-// フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・道具箱に形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補
+// フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・道具箱に形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補・自動で整列
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
-import { portAreasOf, shapesOf } from "../../web/src/core/placed"
+import { portAreasOf, rectsOf, shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
+import { ALIGN_MARGIN } from "../../web/src/plugins/books/flowchart/actions"
 import { linesOf } from "../../web/src/plugins/items/line/placed"
 import { SHAPE_RULES, SLANT } from "../../web/src/plugins/items/shape/outline"
 import { SHAPES } from "../../web/src/plugins/items/shape/shapes"
@@ -129,4 +130,110 @@ test("ひし形から出る線の編集のダイアログに、キャプショ�
   const dialog = screen.getByRole("dialog", { name: "線の編集" })
   fireEvent.click(within(dialog).getByRole("button", { name: "No" }))
   expect((within(dialog).getByLabelText("キャプション") as HTMLInputElement).value).toBe("No")
+})
+
+// 開始 → 処理 → 分岐 → (Yes) 終了 / (No) 処理 2 の流れを置き、線でつなぐ（端は固定して引く）
+function chart(f: ReturnType<typeof flowchart>) {
+  const { store, on, page } = f
+  const place = (item: string, x: number, y: number, caption: string) =>
+    store.actions.perform("@matomezu/paper:item-place", { page: page().id, item, at: { x, y }, props: { caption } }, on)
+  act(() => {
+    place("@matomezu/shape:shape-rounded", 20, 20, "開始")
+    place("@matomezu/box:shape-box", 300, 120, "処理")
+    place("@matomezu/shape:shape-diamond", 20, 300, "分岐")
+    place("@matomezu/shape:shape-rounded", 400, 500, "終了")
+    place("@matomezu/box:shape-box", 20, 600, "処理 2")
+  })
+  const [start, work, branch, end, work2] = shapesOf(page()).map(s => s.id)
+  const connect = (from: string, to: string) =>
+    expect(
+      store.actions.perform(
+        "@matomezu/line:line-connect",
+        { page: page().id, from, to, props: { exitAt: 0.3, enterAt: 0.7 } },
+        on,
+      ).ok,
+    ).toBe(true)
+  act(() => {
+    connect(start!, work!)
+    connect(work!, branch!)
+    connect(branch!, end!)
+    connect(branch!, work2!)
+  })
+  return { start: start!, work: work!, branch: branch!, end: end!, work2: work2! }
+}
+
+test("自動で整列: 本筋を紙の左右の真ん中の縦の線にそろえ、分岐の枝は右に置き、線の端の固定を外す", () => {
+  const f = flowchart()
+  const { store, on, page } = f
+  const ids = chart(f)
+  act(() => {
+    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+  })
+  const rects = rectsOf(store.catalog.core, page())
+  const cx = (id: string) => rects.get(id)!.x + rects.get(id)!.w / 2
+  const paper = 794 // A4 の縦の幅
+  const main = [ids.start, ids.work, ids.branch, ids.end].map(cx)
+  expect(new Set(main).size).toBe(1)
+  expect(Math.abs(main[0]! - paper / 2)).toBeLessThan(paper / 4)
+  expect(cx(ids.work2)).toBeGreaterThan(main[0]!)
+  expect(rects.get(ids.start)!.y).toBe(ALIGN_MARGIN)
+  for (const l of linesOf(page())) expect(l.props).not.toHaveProperty("exitAt")
+})
+
+test("流れの向きが右へのブックの自動で整列は、本筋を横にそろえ、分岐の枝は下に置く", () => {
+  const f = flowchart()
+  const { store, on, page } = f
+  const ids = chart(f)
+  act(() => {
+    store.actions.perform(
+      "@matomezu/base:book-update",
+      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      on,
+    )
+  })
+  act(() => {
+    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+  })
+  const rects = rectsOf(store.catalog.core, page())
+  const cy = (id: string) => rects.get(id)!.y + rects.get(id)!.h / 2
+  const main = [ids.start, ids.work, ids.branch, ids.end].map(cy)
+  expect(new Set(main).size).toBe(1)
+  expect(cy(ids.work2)).toBeGreaterThan(main[0]!)
+  expect(rects.get(ids.start)!.x).toBe(ALIGN_MARGIN)
+})
+
+test("自動で整列は、紙に収まらなければ断って何も変えない", () => {
+  const { store, on, page } = flowchart()
+  // 縦に 20 段の流れは A4 の縦に収まらない
+  act(() => {
+    for (let i = 0; i < 20; i++)
+      store.actions.perform(
+        "@matomezu/paper:item-place",
+        {
+          page: page().id,
+          item: "@matomezu/box:shape-box",
+          at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 },
+        },
+        on,
+      )
+  })
+  const ids = shapesOf(page()).map(s => s.id)
+  act(() => {
+    for (let i = 1; i < ids.length; i++)
+      store.actions.perform("@matomezu/line:line-connect", { page: page().id, from: ids[i - 1]!, to: ids[i]! }, on)
+  })
+  const before = page()
+  act(() => {
+    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(false)
+  })
+  expect(page()).toBe(before)
+})
+
+test("紙の右クリックのメニューに「自動で整列」が出る（図面のメニューに出ないことは screen.test.tsx）", () => {
+  const f = flowchart()
+  chart(f)
+  fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }), { clientX: 300, clientY: 300 })
+  fireEvent.click(screen.getByRole("menuitem", { name: "自動で整列" }))
+  const rects = rectsOf(f.store.catalog.core, f.page())
+  expect(new Set([...rects.values()].slice(0, 4).map(r => r.x + r.w / 2)).size).toBe(1)
 })

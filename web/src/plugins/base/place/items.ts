@@ -3,14 +3,16 @@
 // 形が変わったあとは、ページのつなぐものの決まりで整える（core/placed.ts の tidyPage）
 import { type PagedBook, putPage } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { ShapeItemDef } from "../../../core/def/item"
+import type { ConnectorData, ShapeItemDef } from "../../../core/def/item"
 import type { Point, Size } from "../../../core/geom"
 import { freshId } from "../../../core/ids"
 import { resolvePaper } from "../../../core/paper"
 import {
   gapOf as connectorGaps,
+  connectorsOf,
   type ItemPage,
   isShape,
+  type PlacedConnector,
   type PlacedItem,
   type PlacedShape,
   pageItemsOf,
@@ -142,6 +144,21 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
 // ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
 export function withPage<B extends PagedBook>(catalog: CoreCatalog, book: B, page: ItemPage): B {
   return putPage(book, tidyPage(catalog, book, page))
+}
+
+// 形を並べ直したページ（整列など）: つなぐものに、定義の固定の外し（unpin）を種類ごとにかける（前の並びに合わせて手で決めた形を外す）。
+// 変わらなければそのまま
+export function unpinPage<P extends ItemPage>(catalog: CoreCatalog, page: P): P {
+  const groups = new Map<string, PlacedConnector[]>()
+  for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
+  const unpinned = new Map<string, PlacedConnector>()
+  for (const [id, list] of groups) {
+    const def = catalog.items.get(id)
+    if (def?.kind !== "connector" || !def.unpin) continue
+    for (const c of def.unpin(list as ConnectorData[])) unpinned.set(c.id, c as PlacedConnector)
+  }
+  if (unpinned.size === 0) return page
+  return { ...page, items: pageItemsOf(page).map(i => unpinned.get(i.id) ?? i) }
 }
 
 // ページにアイテムを置く（id は nextItemId で振ったもの）。重なった相手は右へ、駄目なら下へ押し、それも駄目なら押した列を縮めて右へ・下へ（push.ts の planPlace）。

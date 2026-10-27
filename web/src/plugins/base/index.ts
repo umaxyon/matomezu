@@ -41,6 +41,7 @@ export {
   resizedBy,
   shapeDefOf,
   shownRects,
+  unpinPage,
   widenForCaption,
   withPage,
 } from "./place/items"

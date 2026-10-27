@@ -86,7 +86,7 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
 }
 
 // 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる。
-// 置いた形との決まりを持つ: つないだ組の間隔の下限（gaps）、形が変わったあとの整え（tidy）、関係の決まり（holds）
+// 置いた形との決まりを持つ: つないだ組の間隔の下限（gaps）、形が変わったあとの整え（tidy）、形を並べ直したときの固定の外し（unpin）、関係の決まり（holds）
 export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt extends string = MessageKey>
   extends ItemBase<Tt> {
   kind: "connector"
@@ -94,6 +94,9 @@ export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt ex
   gaps?(lines: readonly D[], base: Gap): Gap
   // areas は形のつながる範囲、setting はそのページで効いている設定の値（設定の定義の id から）
   tidy?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: (id: string) => unknown): D[]
+  // 形を並べ直したとき（整列など）のつなぐもの: 前の並びに合わせて手で決めた形（端の固定など）を外す。無ければそのまま。
+  // 並べ直すアクションが base の unpinPage でかける
+  unpin?(lines: readonly D[]): D[]
   holds?(lines: readonly D[], connectable: (id: string) => boolean): boolean
 }
 

@@ -72,6 +72,15 @@ export function tidyLines<L extends LineLike>(
   })
 }
 
+// 形を並べ直したあとの線: 端の固定（exitAt・enterAt）と手で直した途中の区間（via）を外し、並べ直した位置での一番よい形で描かせる。
+// 外すものの無い線はそのまま返す
+export function unpinLines<L extends LineLike>(lines: readonly L[]): L[] {
+  return lines.map(l => {
+    const { exitAt, enterAt, via, ...props } = l.props
+    return exitAt === undefined && enterAt === undefined && via === undefined ? l : { ...l, props }
+  })
+}
+
 // 線の関係の決まり: 両端が同じページの、つなげる形（connectable）にあり、同じ組に 2 本無い
 export function linesHold(lines: readonly LineLike[], connectable: (id: string) => boolean): boolean {
   const pairs = new Set<string>()
