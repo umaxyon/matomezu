@@ -28,7 +28,9 @@ export interface Stage {
   view: Size | null // 表示領域の大きさ（測るまでは null）
   placing: ItemId | null // 置こうとしているアイテム（ツールボックスで選んだもの。置くか取り消すまで）
   selection: readonly string[] // 選んでいるアイテムの id（開いているページのもの）
-  picker: { at: Point | null } | null // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める）
+  // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める。map ならアイコンの代わりにミニマップを出している）
+  picker: { at: Point | null; map: boolean } | null
+  minimap: boolean // ステージの左下にミニマップを出しているか（紙が表示領域に収まると閉じる）
 }
 
 // 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ
@@ -44,7 +46,17 @@ const HOME: Point = { x: 0, y: 0 }
 const NONE: readonly string[] = []
 
 export function newStage(id: string, opened: Opened | null = null): Stage {
-  return { id, opened, zoom: 1, pan: HOME, view: null, placing: null, selection: NONE, picker: null }
+  return {
+    id,
+    opened,
+    zoom: 1,
+    pan: HOME,
+    view: null,
+    placing: null,
+    selection: NONE,
+    picker: null,
+    minimap: false,
+  }
 }
 
 // 開くものが変わったときに、置こうとしているアイテムと選択を捨て、道具のアイコンを閉じる
@@ -59,11 +71,21 @@ export function paperOf(stage: Pick<Stage, "opened">): Size | null {
   return paper && paper.status !== "unshowable" ? paper.size : null
 }
 
-// ずらす量を pan にして、範囲に収める
+// 紙が表示領域に収まらず、ずらして見る所があるか（紙の周りの余白は数えない。表示領域を測るまでは無い）
+export function scrolls(stage: Pick<Stage, "opened" | "view" | "zoom">): boolean {
+  const paper = paperOf(stage)
+  const view = stage.view
+  if (!paper || !view) return false
+  return paper.w * stage.zoom > view.w || paper.h * stage.zoom > view.h
+}
+
+// ずらす量を pan にして、範囲に収める。紙が収まればミニマップを閉じる（また収まらなくなっても、自分では開かない）
 function settle(stage: Stage, pan: Point): Stage {
   const paper = paperOf(stage)
   const next = stage.view && paper ? clampPan(stage.view, contentSize(paper, stage.zoom), pan) : pan
-  return next.x === stage.pan.x && next.y === stage.pan.y ? stage : { ...stage, pan: next }
+  const minimap = stage.minimap && (stage.view === null || scrolls(stage))
+  if (next.x === stage.pan.x && next.y === stage.pan.y && minimap === stage.minimap) return stage
+  return { ...stage, pan: next, minimap }
 }
 
 export function resize(stage: Stage, view: Size): Stage {
@@ -132,7 +154,18 @@ export function stopPlacing(stage: Stage): Stage {
 
 // 道具のアイコンを開く（紙が無ければ開かない）・閉じる
 export function openPicker(stage: Stage, at: Point | null): Stage {
-  return paperOf(stage) ? { ...stage, picker: { at } } : stage
+  return paperOf(stage) ? { ...stage, picker: { at, map: false } } : stage
+}
+
+// 開いている道具のアイコンを、ミニマップに替える（開いていなければ何もしない）
+export function showPickerMap(stage: Stage): Stage {
+  return stage.picker && !stage.picker.map ? { ...stage, picker: { ...stage.picker, map: true } } : stage
+}
+
+// ステージの左下のミニマップを開く・閉じる（紙が収まっていれば開かない）
+export function setMinimap(stage: Stage, open: boolean): Stage {
+  const next = open && scrolls(stage)
+  return next === stage.minimap ? stage : { ...stage, minimap: next }
 }
 
 export function closePicker(stage: Stage): Stage {

@@ -50,8 +50,10 @@ export function moved(a: Address, b: Address): boolean {
 // ステージ stage に、場所 place を当てはめる（無いブック・ページは開かず、開けたものに倍率とずらす量を戻す）
 function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, stage: Stage, place: StagePlace): Stage {
   const book = place.book === null ? undefined : books[place.book]
-  if (!book) return { ...newStage(stage.id), view: stage.view }
-  let next = openBook(catalog, { ...newStage(stage.id), view: stage.view }, book)
+  // 表示領域の大きさと、ミニマップを出しているか（URL には書かない）はステージのまま
+  const fresh = { ...newStage(stage.id), view: stage.view, minimap: stage.minimap }
+  if (!book) return fresh
+  let next = openBook(catalog, fresh, book)
   if (place.page !== null && hasPages(book)) next = openPage(catalog, next, book, place.page)
   // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）
   const zoomed = { ...next, zoom: place.zoom }

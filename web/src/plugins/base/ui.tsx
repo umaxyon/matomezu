@@ -8,6 +8,7 @@ import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
+import { MINIMAP_ICONS, MINIMAP_WIDGET } from "./minimap/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { BOOK_VIEW, CLOSE_BUTTON, STAGE_ICONS } from "./stage/ui"
 import { TOAST_HOST } from "./toast-host/ui"
@@ -50,13 +51,14 @@ export const BASE_UI = definePluginUi(BASE, {
     TOAST_HOST,
     TOOL_PICKER_WIDGET,
     BOOK_VIEW,
+    MINIMAP_WIDGET,
     TOOL_SWITCH,
     TOOLBOX,
     BOOK_NAME,
     PAGE_TABS,
     CLOSE_BUTTON,
   ],
-  commandIcons: { ...STAGE_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS },
+  commandIcons: { ...STAGE_ICONS, ...MINIMAP_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS },
 })
 
 declare module "../../core/catalog" {
@@ -73,6 +75,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:toast-host": typeof TOAST_HOST
     "@matomezu/base:tool-picker": typeof TOOL_PICKER_WIDGET
     "@matomezu/base:book-view": typeof BOOK_VIEW
+    "@matomezu/base:minimap": typeof MINIMAP_WIDGET
     "@matomezu/base:tool-switch": typeof TOOL_SWITCH
     "@matomezu/base:toolbox": typeof TOOLBOX
     "@matomezu/base:book-name": typeof BOOK_NAME

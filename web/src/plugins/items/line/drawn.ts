@@ -1,7 +1,7 @@
 // ページの線を描く形にする純粋な関数: 形の四角から、線ごとの点の並び・見える線（端の形の付け根で止めた点の並び）・端の形・キャプションの札の枠を決める。
 // 2 つの形を結ぶ線は道筋の計算（route.ts。ほかの形は、道筋に関わりうるものだけを避ける）、自分に戻る線は形の角の輪（selfloop.ts）。
 // 自分に戻る線は、ほかの線を描いたあとに、ほかの形とほかの線を避ける角に描く（同じ形の 2 本目からは、同じ角で輪を大きくする）
-import type { ConnectorData, Point, PortArea } from "../../../plugin-api"
+import type { ConnectorData, MinimapMark, Point, PortArea } from "../../../plugin-api"
 import { captionBox } from "./caption"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"
@@ -209,4 +209,13 @@ export function linesBounds(
   const x = Math.min(...pts.map(p => p.x))
   const y = Math.min(...pts.map(p => p.y))
   return { x, y, w: Math.max(...pts.map(p => p.x)) - x, h: Math.max(...pts.map(p => p.y)) - y }
+}
+
+// ページの線のミニマップの絵: 線ごとの点の並びの折れ線（端の形とキャプションは描かない）。引数は linesBounds と同じ
+export function linesMinimap(
+  lines: readonly ConnectorData[],
+  rects: ReadonlyMap<string, PortArea>,
+  elbow: boolean,
+): MinimapMark[] {
+  return drawLines(lines as readonly PlacedLine[], rects, elbow).map(d => ({ kind: "polyline", points: d.points }))
 }

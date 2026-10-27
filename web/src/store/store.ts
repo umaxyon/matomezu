@@ -15,7 +15,17 @@ import type { Notice } from "../core/notices"
 import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { restoreSettings, type Settings } from "../core/settings"
-import { closePicker, openBook, openPicker, panBy, resize, select, stopPlacing } from "../core/stage"
+import {
+  closePicker,
+  openBook,
+  openPicker,
+  panBy,
+  resize,
+  select,
+  setMinimap,
+  showPickerMap,
+  stopPlacing,
+} from "../core/stage"
 import type { Tool } from "../core/tools"
 import {
   close,
@@ -112,6 +122,8 @@ export interface Actions {
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
   closePicker(): void
+  showPickerMap(stage: string): void // そのステージで開いている道具のアイコンを、ミニマップに替える
+  setMinimap(stage: string, open: boolean): void // そのステージの左下のミニマップを開く・閉じる（紙が収まっていれば開かない）
 }
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
@@ -385,6 +397,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         return mapStage(closed, id, s => openPicker(s, at))
       }),
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
+    showPickerMap: id => withWorkspace(ws => mapStage(ws, id, showPickerMap)),
+    setMinimap: (id, open) => withWorkspace(ws => mapStage(ws, id, s => setMinimap(s, open))),
   }
   const instance: MatomezuInstance<Ps> = {
     ...defs,

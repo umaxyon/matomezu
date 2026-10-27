@@ -1,0 +1,121 @@
+// ミニマップの絵: ステージの紙の全体を、幅 width・高さ height に収まるように縮めて描き（アイテムは marks.ts の絵）、見えている範囲を四角で重ねる。
+// 四角をドラッグすると、ステージの見る所がついて動く。四角の外を押すと、そこが真ん中に来るように飛んでから、そのままドラッグできる。
+// 紙の色と絵の色はブックのテーマの値で描く
+import { type PointerEvent, useMemo, useRef } from "react"
+import type { MinimapMark } from "../../../core/def/item"
+import type { Point } from "../../../core/geom"
+import { paperOf } from "../../../core/stage"
+import { useMessages } from "../../../ui/i18n"
+import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { themeVars } from "../../../ui/theme-vars"
+import { useShownPage } from "../../../ui/view-hooks"
+import { bookTokens } from "../book-look/look"
+import { settingsAt } from "../book-settings"
+import { kit } from "../kit"
+import { fitScale, grabAt, panFor, seenRect } from "./geometry"
+import styles from "./MinimapView.module.css"
+import { minimapMarks } from "./marks"
+
+export function MinimapView({ stage: id, width, height }: { stage: string; width: number; height: number }) {
+  const t = useMessages(kit)
+  const catalog = useCatalog().core
+  const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
+  const book = useMatomezuState(s => {
+    const o = s.workspace.stages.find(st => st.id === id)?.opened
+    return o ? s.books[o.book] : undefined
+  })
+  const page = useShownPage(id)
+  const { panStageBy, focusStage } = useActions()
+  const latest = useRef(stage)
+  latest.current = stage
+  const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
+  const vars = useMemo(() => (book ? themeVars(bookTokens(catalog, book)) : undefined), [catalog, book])
+  const marks = useMemo(
+    () => (book && page ? minimapMarks(catalog, page, settingsAt(catalog, book, page)) : []),
+    [catalog, book, page],
+  )
+  const paper = stage ? paperOf(stage) : null
+  if (!stage || !book || !paper) return null
+  const scale = fitScale(paper, width, height)
+  const seen = stage.view ? seenRect(paper, stage.view, stage.pan, stage.zoom) : null
+
+  // 押した所（紙の座標）
+  const at = (e: PointerEvent<SVGSVGElement>): Point => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }
+  }
+  // 見えている範囲の左上を紙の点 to にする
+  const lookAt = (to: Point) => {
+    const s = latest.current
+    if (!s) return
+    const want = panFor(to, s.zoom)
+    panStageBy(id, want.x - s.pan.x, want.y - s.pan.y)
+  }
+  const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    focusStage(id)
+    if (!seen) return
+    const { to, grab: g } = grabAt(seen, at(e))
+    if (to) lookAt(to)
+    e.currentTarget.setPointerCapture(e.pointerId)
+    grab.current = { pointer: e.pointerId, dx: g.x, dy: g.y }
+  }
+  const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
+    const g = grab.current
+    if (!g || g.pointer !== e.pointerId) return
+    const p = at(e)
+    lookAt({ x: p.x - g.dx, y: p.y - g.dy })
+  }
+  const release = (e: PointerEvent<SVGSVGElement>) => {
+    if (grab.current?.pointer === e.pointerId) grab.current = null
+  }
+  const line = 1 / scale // 画面で 1px の線
+  return (
+    <div className={styles.minimap} style={vars}>
+      <svg
+        className={styles.map}
+        role="img"
+        aria-label={t("Minimap")}
+        width={Math.round(paper.w * scale)}
+        height={Math.round(paper.h * scale)}
+        viewBox={`0 0 ${paper.w} ${paper.h}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={release}
+        onPointerCancel={release}
+      >
+        <rect className={styles.paper} x={0} y={0} width={paper.w} height={paper.h} />
+        {marks.map((m, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 絵は描くたびに作り直し、順番だけが手がかり
+          <Mark key={i} mark={m} />
+        ))}
+        {seen && (
+          <rect
+            className={styles.seen}
+            x={seen.x + line / 2}
+            y={seen.y + line / 2}
+            width={Math.max(0, seen.w - line)}
+            height={Math.max(0, seen.h - line)}
+            data-minimap-seen=""
+          />
+        )}
+      </svg>
+    </div>
+  )
+}
+
+function Mark({ mark: m }: { mark: MinimapMark }) {
+  const pts = (list: readonly Point[]) => list.map(p => `${p.x},${p.y}`).join(" ")
+  switch (m.kind) {
+    case "rect":
+      return <rect className={styles.shape} x={m.x} y={m.y} width={m.w} height={m.h} rx={m.rx} />
+    case "ellipse":
+      return <ellipse className={styles.shape} cx={m.x + m.w / 2} cy={m.y + m.h / 2} rx={m.w / 2} ry={m.h / 2} />
+    case "polygon":
+      return <polygon className={styles.shape} points={pts(m.points)} />
+    case "polyline":
+      return <polyline className={styles.line} points={pts(m.points)} />
+  }
+}

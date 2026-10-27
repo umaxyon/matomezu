@@ -23,7 +23,7 @@ test("紙の上で右ボタンを長押しすると、ポインタの近くに�
   await page.mouse.up({ button: "right" })
   await expect(page.getByRole("menu")).toHaveCount(0)
   const buttons = picker(page).getByRole("button")
-  await expect(buttons).toHaveCount(3)
+  await expect(buttons).toHaveCount(4) // 道具 3 つとミニマップ
   await expect(picker(page).getByRole("button", { name: "選択ツール" })).toHaveAttribute("aria-pressed", "true")
   // 横並びでポインタの上
   const hand = (await picker(page).getByRole("button", { name: "ハンドツール" }).boundingBox())!

@@ -6,6 +6,7 @@ import { MENU_MESSAGES } from "./context-menu/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
 import { ITEM_PARTS_MESSAGES } from "./item-parts/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
+import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
 import { STAGE_MESSAGES } from "./stage/messages"
@@ -18,6 +19,7 @@ export const BASE_MESSAGES = {
   ...STAGE_MESSAGES,
   ...TOOL_SWITCH_MESSAGES,
   ...TOOL_PICKER_MESSAGES,
+  ...MINIMAP_MESSAGES,
   ...TOOLBOX_MESSAGES,
   ...DIALOG_MESSAGES,
   ...MENU_MESSAGES,

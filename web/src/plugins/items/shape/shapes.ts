@@ -15,6 +15,7 @@ import {
 import { AlignSchema, pageContext } from "../../base"
 import { kit } from "./kit"
 import type { SHAPE_MESSAGES } from "./messages"
+import { shapeMinimap } from "./minimap"
 import type { ShapeKind } from "./outline"
 import { SHAPE_RULES } from "./outline"
 import { placedWidth, SHAPE_MIN } from "./size"
@@ -77,6 +78,7 @@ function shape<const Id extends string, const Title extends keyof typeof SHAPE_M
     ports: rule.ports,
     sizeOf: s => ({ w: s.w ?? placedWidth(kind, s.props.caption), h: s.h ?? rule.size.h }),
     captionWidth: s => placedWidth(kind, s.props.caption),
+    minimap: (_, r) => shapeMinimap(kind, r),
     dialogs: { add: add.id, edit: SHAPE_EDIT_DIALOG.id },
     tokens: [],
   })
@@ -130,6 +132,7 @@ function turnable<const Id extends string, const Title extends keyof typeof SHAP
       const want = (option as ShapeOptions | undefined)?.turned?.(setting) ?? false
       return s.props.turned === want ? s : reshaped({ ...s, props: { ...s.props, turned: want } }, s)
     },
+    minimap: (s, r) => shapeMinimap(kind, r, s.props.turned),
     dialogs: { add: add.id, edit: SHAPE_EDIT_DIALOG.id },
     tokens: [],
   })

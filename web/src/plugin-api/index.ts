@@ -30,6 +30,7 @@ export { defineBookType } from "../core/def/book-type"
 export type {
   ConnectorData,
   ItemDef,
+  MinimapMark,
   PageContext,
   PortArea,
   Ports,

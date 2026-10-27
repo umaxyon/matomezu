@@ -67,6 +67,14 @@ export interface PortArea extends Rect {
   midpoints?: boolean
 }
 
+// ミニマップに描く簡単な絵 1 つ（紙の座標）。色と線の太さはミニマップが決める。
+// 四角（rx は角の丸み）・楕円・多角形は塗り、折れ線は線で描く
+export type MinimapMark =
+  | { kind: "rect"; x: number; y: number; w: number; h: number; rx?: number }
+  | { kind: "ellipse"; x: number; y: number; w: number; h: number }
+  | { kind: "polygon"; points: readonly Point[] }
+  | { kind: "polyline"; points: readonly Point[] }
+
 // 2 つの形 a・b の間隔の下限
 export type Gap = (a: string, b: string) => number
 
@@ -98,6 +106,8 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   themeProp?: string
   // キャプション（形の名前として見せる文字）の項目の名前。土台はこの項目が変わったときだけ、見える幅まで形を広げる（無ければ広げない）
   captionProp?: string
+  // ミニマップに描く絵（rect は置いた形の四角。紙の座標）。無ければ、その四角を描く
+  minimap?(item: D, rect: Rect): readonly MinimapMark[]
 }
 
 // 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる。
@@ -116,6 +126,12 @@ export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt ex
   // setting はそのページで効いている設定の値。並べるアクションが、形とつなぐものを合わせた広さを測るのに使う（base の extentOf）
   bounds?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: (id: string) => unknown): Rect | null
   holds?(lines: readonly D[], connectable: (id: string) => boolean): boolean
+  // ミニマップに描く、つなぐもの全部の絵（紙の座標）。引数は bounds と同じ。無ければ描かない
+  minimap?(
+    lines: readonly D[],
+    areas: ReadonlyMap<string, PortArea>,
+    setting: (id: string) => unknown,
+  ): readonly MinimapMark[]
 }
 
 // 表に入れるときの型（関数はメソッドの形なので、置いたデータの型の決まった定義も入る）

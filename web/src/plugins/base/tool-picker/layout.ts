@@ -32,6 +32,34 @@ export function pickerSlots(at: Point, n: number, view: Size): PickerLayout {
   return { lay, slots: Array.from({ length: n }, (_, i) => ({ x: left + i * (ICON + GAP), y })) }
 }
 
+// ミニマップのボタンの左上: 並びの外側（ポインタと反対の側）の、真ん中のアイコンの隣。上の並びは、もう 1 段分入るときだけなので収まる
+export function mapSlot(layout: PickerLayout, at: Point): Point {
+  const mid = layout.slots[Math.floor((layout.slots.length - 1) / 2)] ?? at
+  if (layout.lay === "left") return { x: mid.x - ICON - GAP, y: mid.y }
+  if (layout.lay === "right") return { x: mid.x + ICON + GAP, y: mid.y }
+  return { x: mid.x, y: mid.y < at.y ? mid.y - ICON - GAP : mid.y + ICON + GAP }
+}
+
+// その場に出すミニマップ（大きさ size）の左上: 並び layout があった所に、ポインタ at と反対の側へ広げて置き、画面 view からはみ出すなら内へ寄せる
+export function mapPlace(layout: PickerLayout, at: Point, size: Size, view: Size): Point {
+  const xs = layout.slots.map(s => s.x)
+  const ys = layout.slots.map(s => s.y)
+  const x0 = Math.min(...xs)
+  const y0 = Math.min(...ys)
+  const x1 = Math.max(...xs) + ICON
+  const y1 = Math.max(...ys) + ICON
+  const cx = (x0 + x1) / 2
+  const cy = (y0 + y1) / 2
+  const p =
+    layout.lay === "left"
+      ? { x: x1 - size.w, y: cy - size.h / 2 }
+      : layout.lay === "right"
+        ? { x: x0, y: cy - size.h / 2 }
+        : { x: cx - size.w / 2, y: y1 <= at.y ? y1 - size.h : y0 }
+  const clamp = (v: number, len: number, room: number) => Math.max(MARGIN, Math.min(v, room - len - MARGIN))
+  return { x: clamp(p.x, size.w, view.w), y: clamp(p.y, size.h, view.h) }
+}
+
 // ポインタ p がアイコンの並びから離れたか（並びから LEAVE_DIST より遠いか、ポインタから見て向こう側へ PASS_DIST より通り過ぎたか）
 export function leftPicker(layout: PickerLayout, at: Point, p: Point): boolean {
   const xs = layout.slots.map(s => s.x)

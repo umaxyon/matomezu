@@ -88,3 +88,7 @@
 .tip[data-lay="right"] {
   transform: translate(0, -50%);
 }
+/* その場に出すミニマップ（位置は測ってから決める） */
+.map {
+  position: fixed;
+}

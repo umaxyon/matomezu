@@ -36,7 +36,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:tool-picker",
     ],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch", "@matomezu/base:toolbox"],
-    "@matomezu/base:stage-body": ["@matomezu/base:book-view"],
+    "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:minimap"],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
   },
@@ -44,6 +44,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:stage-menu": [
       "@matomezu/base:stage-home",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
+      "@matomezu/base:minimap-toggle",
       "@matomezu/base:book-open",
       "@matomezu/base:book-settings",
     ],

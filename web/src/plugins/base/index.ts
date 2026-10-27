@@ -9,6 +9,7 @@ import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { kit } from "./kit"
 import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
 import type { A3, A4, A5 } from "./looks/papers"
+import { MINIMAP_TOGGLE } from "./minimap"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
@@ -81,6 +82,7 @@ export const BASE = defineBuiltin(
       TOOL_NEXT,
       TOOL_SET,
       TOOL_PICKER,
+      MINIMAP_TOGGLE,
       TOOLBOX_CANCEL,
       DIALOG_SUBMIT,
       DIALOG_CLOSE,
@@ -136,6 +138,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-next": typeof TOOL_NEXT
     "@matomezu/base:tool-set": typeof TOOL_SET
     "@matomezu/base:tool-picker": typeof TOOL_PICKER
+    "@matomezu/base:minimap-toggle": typeof MINIMAP_TOGGLE
     "@matomezu/base:toolbox-cancel": typeof TOOLBOX_CANCEL
     "@matomezu/base:dialog-submit": typeof DIALOG_SUBMIT
     "@matomezu/base:dialog-close": typeof DIALOG_CLOSE
