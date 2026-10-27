@@ -1,0 +1,92 @@
+/* ツリーのビューの全体（右クリックを受ける）。紙・知らせはこの中に置く */
+.tree {
+  position: absolute;
+  inset: 0;
+}
+.paper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  background: var(--theme-paper);
+  box-shadow:
+    0 0 0 1px var(--theme-paper-line),
+    0 6px 24px var(--theme-paper-shadow);
+}
+/* 親から子への線（紙と同じ大きさの層。節の下に描く） */
+.lines {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.lines line {
+  stroke: var(--tree-line);
+  stroke-width: 1.5;
+}
+/* 節: キャプション 1 行。長いキャプションは … で切る */
+.node {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border: 1px solid var(--tree-node-line);
+  border-radius: var(--tree-node-radius);
+  background: var(--tree-node-fill);
+  color: var(--tree-node-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+/* ページが無いとき: 真ん中に知らせとページを作るボタン */
+.empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+.prompt {
+  margin: 0;
+  font-size: 14px;
+  color: var(--skin-hint);
+}
+.create {
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--skin-accent);
+  color: var(--skin-bg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* 表に無い紙の印（紙の左上） */
+.unknown {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--theme-accent);
+  color: var(--theme-paper);
+  font-size: 12px;
+}
+.error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  color: var(--skin-hint);
+  font-size: 14px;
+}

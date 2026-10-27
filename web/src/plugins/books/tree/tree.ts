@@ -1,7 +1,19 @@
-// ツリーのブック: ページごとに紙を置く。紙に置けるアイテムは無い。見た目（テーマと紙の色）は base の設定の項目で変えられる
+// ツリーのブック: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分の見せ方（tree）で紙に描く。紙に置けるアイテムは無い。
+// 伸びる向きはブックとページの設定の項目（grow.ts）。新しいページは自分のダイアログで作る（ページ名・伸びる向き・根のキャプション）。
+// 見た目（テーマと紙の色）は base の設定の項目で変えられる
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
+import { TreeRootSchema } from "./node"
+
+// ツリーの見せ方: 紙の上に、根から伸びる木を描く
+export const TREE_PRESENTATION = kit.definePresentation({ id: "tree" })
+
+// ツリーのページを作るダイアログ（ページ名・伸びる向き・根のキャプション）
+export const NEW_TREE_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
+
+// ツリーのビューが開く右クリックのメニュー: 紙の画面（ui.tsx で core/catalog.ts に書き足す）
+export const TREE_CONTEXT = kit.name("tree-context")
 
 export const TREE = kit.defineBookType({
   id: "tree",
@@ -13,12 +25,23 @@ export const TREE = kit.defineBookType({
   addPagesFromTabs: true,
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+    fields: { root: TreeRootSchema },
+    dialogs: { add: NEW_TREE_PAGE_DIALOG.id },
   },
   items: { allowed: [], defaults: [] },
-  actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
+  actions: {}, // 使うアクションは、見せ方・ページについて来る
   theme: "@matomezu/base:standard",
-  presentation: "@matomezu/paper:paper",
-  tokens: [],
+  presentation: TREE_PRESENTATION.id,
+  tokens: [
+    { id: "tree-node-fill", fallback: "fill" },
+    { id: "tree-node-line", value: "#cdcdd6" }, // 節の枠線（標準は淡い灰色。テーマが上書きする）
+    { id: "tree-node-text", fallback: "text" },
+    { id: "tree-node-radius", value: "6px" }, // 節の角の丸み
+    { id: "tree-line", fallback: "line" }, // 親から子への線
+  ],
   tools: "@matomezu/paper:paper",
-  settings: { book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id] },
+  settings: {
+    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, kit.name("grow")],
+    page: [kit.name("grow")],
+  },
 })

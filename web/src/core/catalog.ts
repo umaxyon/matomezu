@@ -67,9 +67,7 @@ export type Part = keyof typeof PARTS
 export type CorePart = { [K in Part]: (typeof PARTS)[K]["catalog"] extends "core" ? K : never }[Part]
 export type StorePart = Exclude<Part, CorePart>
 export const partsOf = <S extends "core" | "store">(name: S) =>
-  (Object.keys(PARTS) as Part[]).filter(k => PARTS[k].catalog === name) as (S extends "core"
-    ? CorePart
-    : StorePart)[]
+  (Object.keys(PARTS) as Part[]).filter(k => PARTS[k].catalog === name) as (S extends "core" ? CorePart : StorePart)[]
 
 // 種類ごとの id の表（PARTS と同じ種類を並べる。足りなければ、種類ごとに引く所 PartTables[Part] が型の誤りになる）
 export interface PartTables {
