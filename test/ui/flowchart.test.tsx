@@ -265,3 +265,51 @@ test("右クリックのメニューの「自動で整列」が紙に収まら�
   fireEvent.click(toast)
   expect(screen.queryByRole("alert")).toBeNull()
 })
+
+// 開始の形と箱をつないだチャートを n 個置く（チャートどうしはつながない）
+function charts(f: ReturnType<typeof flowchart>, n: number) {
+  const { store, on, page } = f
+  act(() => {
+    for (let i = 0; i < n; i++) {
+      for (const [item, y] of [
+        ["@matomezu/shape:shape-rounded", 20],
+        ["@matomezu/box:shape-box", 200],
+      ] as const)
+        store.actions.perform(
+          "@matomezu/paper:item-place",
+          { page: page().id, item, at: { x: 20 + i * 140, y: y + (i % 2) * 300 }, props: { caption: `c${i}` } },
+          on,
+        )
+    }
+  })
+  const ids = shapesOf(page()).map(s => s.id)
+  act(() => {
+    for (let i = 0; i < n; i++)
+      store.actions.perform(
+        "@matomezu/line:line-connect",
+        { page: page().id, from: ids[i * 2]!, to: ids[i * 2 + 1]! },
+        on,
+      )
+  })
+  return Array.from({ length: n }, (_, i) => [ids[i * 2]!, ids[i * 2 + 1]!] as const)
+}
+
+test("自動で整列: つながっていないチャートは、上をそろえて左右に並べ、紙の幅を超えるなら折り返して下の段に置く", () => {
+  const f = flowchart()
+  const { store, on, page } = f
+  const list = charts(f, 6)
+  act(() => {
+    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+  })
+  const rects = rectsOf(store.catalog.core, page())
+  const starts = list.map(([s]) => rects.get(s)!)
+  // 1 段目のチャートは上をそろえ、左から順に並ぶ
+  expect(starts[1]!.y).toBe(starts[0]!.y)
+  expect(starts[1]!.x).toBeGreaterThan(starts[0]!.x)
+  // どこかで折り返し、下の段に置く
+  const wrapped = starts.findIndex(r => r.y > starts[0]!.y)
+  expect(wrapped).toBeGreaterThan(1)
+  expect(starts[wrapped]!.x).toBeLessThan(starts[wrapped - 1]!.x)
+  // 紙の外には出ない
+  for (const r of rects.values()) expect(r.x + r.w).toBeLessThanOrEqual(794)
+})

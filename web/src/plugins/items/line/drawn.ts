@@ -1,7 +1,7 @@
 // ページの線を描く形にする純粋な関数: 形の四角から、線ごとの点の並び・見える線（端の形の付け根で止めた点の並び）・端の形・キャプションの札の枠を決める。
 // 2 つの形を結ぶ線は道筋の計算（route.ts。ほかの形は、道筋に関わりうるものだけを避ける）、自分に戻る線は形の角の輪（selfloop.ts）。
 // 自分に戻る線は、ほかの線を描いたあとに、ほかの形とほかの線を避ける角に描く（同じ形の 2 本目からは、同じ角で輪を大きくする）
-import type { Point, PortArea } from "../../../plugin-api"
+import type { ConnectorData, Point, PortArea } from "../../../plugin-api"
 import { captionBox } from "./caption"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"
@@ -191,4 +191,22 @@ export function drawLines(
       },
     ]
   })
+}
+
+// ページの線を描いたときの外枠（線の点の並びとキャプションの札。紙の座標）。描く線が無ければ null。
+// 描くときにだけある状態（前に描いた辺など）は使わない。rects は形のつながる範囲、elbow はページの既定が折れ線か。
+// 受け取る線は置いた線のデータ（線の定義の bounds から呼ぶので、型は線の定義に頼らない形で受ける）
+export function linesBounds(
+  lines: readonly ConnectorData[],
+  rects: ReadonlyMap<string, PortArea>,
+  elbow: boolean,
+): { x: number; y: number; w: number; h: number } | null {
+  const pts = drawLines(lines as readonly PlacedLine[], rects, elbow).flatMap(d => {
+    const c = d.caption?.box
+    return c ? [...d.points, { x: c.x, y: c.y }, { x: c.x + c.w, y: c.y + c.h }] : d.points
+  })
+  if (pts.length === 0) return null
+  const x = Math.min(...pts.map(p => p.x))
+  const y = Math.min(...pts.map(p => p.y))
+  return { x, y, w: Math.max(...pts.map(p => p.x)) - x, h: Math.max(...pts.map(p => p.y)) - y }
 }

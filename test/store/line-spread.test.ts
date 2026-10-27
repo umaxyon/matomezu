@@ -1,7 +1,7 @@
 // 線の端を散らす決まり（line/spread.ts）と、折れ目の一番少ない形（line/route.ts の fewestRoute）を、線を描く形（drawLines）で確かめる
 import { expect, test } from "bun:test"
 import type { Point, PortArea } from "../../web/src/plugin-api"
-import { drawLines } from "../../web/src/plugins/items/line/drawn"
+import { drawLines, linesBounds } from "../../web/src/plugins/items/line/drawn"
 import type { PlacedLine } from "../../web/src/plugins/items/line/placed"
 import { assignVertices } from "../../web/src/plugins/items/line/spread"
 
@@ -111,4 +111,15 @@ test("回す先は、ほかの線と交わらず折れ目の少ない組み合�
   expect(round(last(drawn.find(d => d.id === "l3")!.points))).toEqual({ x: 120, y: 240 })
   expect(round(first(back.points))).toEqual({ x: 200, y: 240 })
   expect(round(last(back.points))).toEqual({ x: 200, y: 80 })
+})
+
+test("線を描いたときの外枠（linesBounds）は、線の点の並びとキャプションの札を含む", () => {
+  const rects = new Map<string, PortArea>([
+    ["a", { x: 100, y: 100, w: 120, h: 48 }],
+    ["g", { x: 120, y: 260, w: 80, h: 80 }],
+  ])
+  const b = linesBounds([line("l1", "a", "g"), line("l2", "g", "a")], rects, true)!
+  // 戻る線は g の左から a の左へ回るので、外枠は形の左より外へ出る
+  expect(b.x).toBeLessThan(100)
+  expect(linesBounds([], rects, true)).toBeNull()
 })

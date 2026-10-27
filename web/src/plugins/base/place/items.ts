@@ -17,6 +17,7 @@ import {
   type PlacedShape,
   pageItemsOf,
   placedSize,
+  portAreasOf,
   rectsOf,
   shapesOf,
   tidyPage as tidyItems,
@@ -144,6 +145,25 @@ export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
 // ページを page に替える。形が変わったあとの線を整えてから（tidyPage）
 export function withPage<B extends PagedBook>(catalog: CoreCatalog, book: B, page: ItemPage): B {
   return putPage(book, tidyPage(catalog, book, page))
+}
+
+// ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ null。
+// setting はそのページで効いている設定の値
+export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: (id: string) => unknown): Rect | null {
+  const rects = rectsOf(catalog, page)
+  const boxes: Rect[] = [...rects.values()]
+  const areas = portAreasOf(catalog, page, rects)
+  const groups = new Map<string, PlacedConnector[]>()
+  for (const c of connectorsOf(page)) groups.set(c.item, [...(groups.get(c.item) ?? []), c])
+  for (const [id, list] of groups) {
+    const def = catalog.items.get(id)
+    const b = def?.kind === "connector" ? def.bounds?.(list as ConnectorData[], areas, setting) : null
+    if (b) boxes.push(b)
+  }
+  if (boxes.length === 0) return null
+  const x = Math.min(...boxes.map(b => b.x))
+  const y = Math.min(...boxes.map(b => b.y))
+  return { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y }
 }
 
 // 形を並べ直したページ（整列など）: つなぐものに、定義の固定の外し（unpin）を種類ごとにかける（前の並びに合わせて手で決めた形を外す）。

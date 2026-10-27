@@ -45,6 +45,7 @@ test("matomezu が出す名前", () => {
     "defineSkin",
     "defineTheme",
     "evenGap",
+    "extentOf",
     "fitsPaper",
     "gapOf",
     "hasPages",

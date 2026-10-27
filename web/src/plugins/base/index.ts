@@ -26,6 +26,7 @@ export { addPageIn } from "./page-tabs/add-page"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Edges } from "./place/items"
 export {
+  extentOf,
   fitsPaper,
   gapOf,
   itemSize,

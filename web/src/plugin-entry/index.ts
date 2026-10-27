@@ -19,6 +19,7 @@ export {
   clampLines,
   createBookIn,
   evenGap,
+  extentOf,
   fitsPaper,
   gapOf,
   inPaper,
