@@ -1,6 +1,7 @@
 // ex3 の見た目を結ぶ: 星のビュー・ダイアログ・方眼のコンポーネント・ステージの下の行に置いてほしいボタン。紙の見せ方はビルトインプラグインのものを使う
 import { definePluginUi, defineWidget } from "matomezu/ui"
 import { EX3 } from "."
+import { GRID, STAR, STAR_ADD_DIALOG, STAR_EDIT_DIALOG } from "./board"
 import { kit } from "./kit"
 import { AddStarDialog, EditStarDialog, GridSetting, MintButton, STAR_ICON, StarView } from "./views"
 
@@ -12,9 +13,9 @@ export const EX3_MINT_BUTTON = defineWidget({
 })
 
 export const EX3_UI = definePluginUi(EX3, {
-  items: { "ex3:star": { view: StarView, icon: STAR_ICON } },
-  settingViews: { "ex3:board-grid": { control: GridSetting } },
-  dialogViews: { "ex3:star-add": AddStarDialog, "ex3:star-edit": EditStarDialog },
+  items: { [STAR.id]: { view: StarView, icon: STAR_ICON } },
+  settingViews: { [GRID.id]: { control: GridSetting } },
+  dialogViews: { [STAR_ADD_DIALOG.id]: AddStarDialog, [STAR_EDIT_DIALOG.id]: EditStarDialog },
   widgets: [EX3_MINT_BUTTON],
 })
 

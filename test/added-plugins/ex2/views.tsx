@@ -10,7 +10,7 @@ import {
   usePerform,
 } from "matomezu/ui"
 import { useState } from "react"
-import { DIAMOND } from "./flow"
+import { ANSWER, DIAMOND } from "./flow"
 import { kit } from "./kit"
 
 type DiamondProps = z.output<(typeof DIAMOND)["props"]>
@@ -71,7 +71,7 @@ export function EditDiamondDialog({ stage, args, onClose }: DialogProps<{ page: 
   const diamond = useItem(stage, args.page, args.item, DIAMOND.id)
   const perform = usePerform(stage)
   const answer = (value: "yes" | "no") => {
-    if (perform("ex2:diamond-answer", { ...args, answer: value }).ok) onClose()
+    if (perform(ANSWER.id, { ...args, answer: value }).ok) onClose()
   }
   return (
     <Dialog title={t("editDecision")} onClose={onClose}>

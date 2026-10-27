@@ -29,6 +29,7 @@ import {
   Section,
   useBookOf,
 } from "../../base/ui"
+import { LINE_UPDATE } from "./actions"
 import { alignedEndsOf } from "./drawn"
 import { type LineOnce, linePatch } from "./edit"
 import { HEADS, type Head } from "./heads"
@@ -123,7 +124,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   const submit = () => {
     const patch = linePatch(line, { caption, route, dash, startHead, endHead, once }, rects, elbow, linesOf(page))
     if (Object.keys(patch).length === 0) return onClose()
-    const done = perform("@matomezu/line:line-update", { page: page.id, line: line.id, props: patch })
+    const done = perform(LINE_UPDATE.id, { page: page.id, line: line.id, props: patch })
     if (done.ok) onClose()
     else setRefused(true)
   }

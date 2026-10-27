@@ -336,3 +336,51 @@ test("Go の internal のパッケージは、決めたパッケージだけを�
   )
   expect(bad).toEqual([])
 })
+
+// 自分の物は返した定義（STAR.id）か kit.name(名前) で名指す（conventions/definitions.md の「id」）。プラグイン（ビルトインと見本）のコードに、
+// 自分の id で始まる文字列を書かない。機能台帳の型の側への書き足し（declare module の中）と文言（messages.ts）、見本のテスト（test/）は除く
+function withoutDeclareModule(text: string): string {
+  let out = ""
+  let at = 0
+  for (const m of text.matchAll(/declare module\s+["'][^"']+["']\s*\{/g)) {
+    if (m.index < at) continue
+    out += text.slice(at, m.index)
+    let depth = 0
+    let i = m.index + m[0].length - 1
+    for (; i < text.length; i++) {
+      if (text[i] === "{") depth++
+      else if (text[i] === "}" && --depth === 0) break
+    }
+    // 行番号がずれないよう、取り除いた塊の改行は残す
+    out += text.slice(m.index, i + 1).replace(/[^\n]/g, "")
+    at = i + 1
+  }
+  return out + text.slice(at)
+}
+const kitIdOf = (dir: string): string | null => {
+  try {
+    return /pluginKit\(\s*["']([^"']+)["']/.exec(readFileSync(join(dir, "kit.ts"), "utf8"))?.[1] ?? null
+  } catch {
+    return null
+  }
+}
+
+test("プラグインは自分の物を、自分の id で始まる文字列で名指さない（返した定義の id か kit.name を使う）", () => {
+  const files = [
+    ...sources
+      .filter(f => layerOf(f.rel) === "plugins" && f.rel.split("/").length > 2)
+      .map(f => ({ ...f, root: join(SRC, pluginRoot(f.rel)) })),
+    ...added.filter(f => f.rel.split("/")[1] !== "test").map(f => ({ ...f, root: join(ADDED, f.rel.split("/")[0]!) })),
+  ]
+  // どのプラグインも kit.ts から id が読める（読めないプラグインを見張りから黙って外さない）
+  expect([...new Set(files.map(f => f.root))].filter(root => kitIdOf(root) === null)).toEqual([])
+  const offenders = files.flatMap(f => {
+    const id = kitIdOf(f.root)
+    if (id === null || basename(f.rel) === "messages.ts") return []
+    const own = new RegExp(`["'\`]${id.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}:`)
+    return withoutDeclareModule(f.text)
+      .split("\n")
+      .flatMap((line, i) => (own.test(line) ? [`${f.rel}:${i + 1}: ${line.trim()}`] : []))
+  })
+  expect(offenders).toEqual([])
+})

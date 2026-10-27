@@ -11,7 +11,7 @@ export const INSPECT_DIALOG = kit.defineDialogWith<{ item: string }>()({ id: "in
 export const HELLO = kit.defineCommand({
   id: "hello",
   title: "sayHello",
-  run: (ctx, a) => a.openDialog(ctx.stage.id, "ex1:hello"),
+  run: (ctx, a) => a.openDialog(ctx.stage.id, HELLO_DIALOG.id),
   when: () => true,
   place: { menus: ["@matomezu/base:stage-menu"] },
 })
@@ -30,15 +30,15 @@ export const SWITCH_LANG = kit.defineCommand({
 export const INSPECT = kit.defineCommand({
   id: "inspect",
   title: "inspectItem",
-  run: (ctx, a, target: { item: string }) => a.openDialog(ctx.stage.id, "ex1:inspect", target),
+  run: (ctx, a, target: { item: string }) => a.openDialog(ctx.stage.id, INSPECT_DIALOG.id, target),
   when: () => true,
   place: { contextMenus: ["@matomezu/paper:item-context"] },
 })
 
 // 既定のキー。結べるのは自分のコマンドだけで、引数のあるコマンドには args に決まった値を書く
 export const EX1_KEYS = defineKeys([
-  { key: "Mod+Shift+H", command: "ex1:hello", scope: "stage" },
-  { key: "Mod+Shift+J", command: "ex1:lang", scope: "global", args: "ja" },
+  { key: "Mod+Shift+H", command: HELLO.id, scope: "stage" },
+  { key: "Mod+Shift+J", command: SWITCH_LANG.id, scope: "global", args: "ja" },
 ])
 
 export const EX1 = definePlugin(

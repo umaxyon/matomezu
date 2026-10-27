@@ -8,10 +8,10 @@ import { useThemeVars } from "../../base/ui"
 import type { Outline, ShapeKind } from "./outline"
 import { paintVars } from "./paint"
 import styles from "./ShapeView.module.css"
-import { SHAPE_TOKENS } from "./shapes"
+import { type ROUNDED, SHAPE_TOKENS } from "./shapes"
 import { shapeLayout } from "./size"
 
-type ShapeProps = ItemProps<"@matomezu/shape:shape-rounded">
+type ShapeProps = ItemProps<typeof ROUNDED.item.id>
 
 // 輪郭の図形（線の太さの半分だけ内側に描き、四角からはみ出さない）
 export function OutlineShape({ outline: o }: { outline: Outline }) {

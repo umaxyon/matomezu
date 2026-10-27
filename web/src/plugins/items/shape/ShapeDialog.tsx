@@ -23,9 +23,9 @@ import {
   useSwatches,
 } from "../../base/ui"
 import { kit } from "./kit"
-import { SHAPE_FILL } from "./shapes"
+import { type ROUNDED, SHAPE_FILL } from "./shapes"
 
-type ShapeProps = ItemProps<"@matomezu/shape:shape-rounded">
+type ShapeProps = ItemProps<typeof ROUNDED.item.id>
 
 // 選んだそばから形に見せる項目（寄せ・テーマ・色）
 type Look = Pick<ShapeProps, "captionAlign" | "theme" | "color">

@@ -14,11 +14,13 @@ import {
   useContextMenu,
   useCoreCatalog,
 } from "../../../plugin-api/ui"
+import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { drawLines, type LineCache } from "./drawn"
 import type { Rect } from "./geom"
 import { LinesView } from "./LinesView"
 import { elbowAt, LINE } from "./line"
+import { LINE_CONTEXT } from "./menu"
 import { LinkPreview, Ports } from "./PortsView"
 import type { PlacedLine } from "./placed"
 import type { EndMemory, Side } from "./route"
@@ -46,8 +48,8 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
   const book = useBook(stage.id)
   const elbow = book ? elbowAt(catalog, book, page) : true
-  const lineEdit = useCommand(stage.id, "@matomezu/line:line-edit")
-  const openLineMenu = useContextMenu(stage.id, "@matomezu/line:line-context")
+  const lineEdit = useCommand(stage.id, LINE_EDIT.id)
+  const openLineMenu = useContextMenu(stage.id, LINE_CONTEXT)
   const { select } = useActions()
   const linkDrag = useLinkDrag(stage, catalog, localOf)
   const lineDrag = useLineEdit(stage, catalog, localOf)
