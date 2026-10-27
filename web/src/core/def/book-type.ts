@@ -28,10 +28,12 @@ export interface ActionChoice {
   without?: readonly ActionId[]
 }
 
-// ページの決まり。addFromTabs はタブの横に、ページを足すボタン（page-add）を出すか
+// ページの決まり。addFromTabs はタブの横に、ページを足すボタン（page-add）を出すか。
+// fields は、そのタイプのページが土台の欄のほかに持つ欄（ツリーの根など。土台の欄 id・title・paper・orientation・items・settings とは別の名前）
 export interface PagesRule {
   paper: PaperRule
   addFromTabs: boolean
+  fields?: Readonly<Record<string, z.ZodType>>
 }
 
 // 大きさが変わるときに保つ所。start は左（上）、center は真ん中

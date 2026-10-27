@@ -343,3 +343,21 @@ test("タイプが allowed に無いアイテムへ指定を渡したら E029", 
   const parts = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === flowchart ? bad : t)) }
   expect(checkCoreCatalog(parts).map(p => p.code)).toEqual(["E029"])
 })
+
+test("タイプがページに足す欄（pages.fields）は、そのタイプのページの形に入る。土台のページの欄と同じ名前なら E030", () => {
+  const tree = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/tree:tree")!
+  const pages = tree.pages!
+  const withRoot = { ...tree, pages: { ...pages, fields: { root: z.strictObject({ caption: z.string() }) } } }
+  const parts = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === tree ? withRoot : t)) }
+  expect(checkCoreCatalog(parts)).toEqual([])
+  const page = buildCoreCatalog(parts).schemas.get(tree.id)!.page!
+  const base = { id: "p1", title: "p", paper: "@matomezu/base:a4", orientation: "landscape" }
+  expect(page.safeParse({ ...base, root: { caption: "根" } }).success).toBe(true)
+  expect(page.safeParse(base).success).toBe(false)
+  const clash = { ...tree, pages: { ...pages, fields: { title: z.string(), items: z.array(z.unknown()) } } }
+  const bad = { ...BUILTIN_PARTS, bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === tree ? clash : t)) }
+  expect(checkCoreCatalog(bad).map(p => [p.code, p.params.field])).toEqual([
+    ["E030", "title"],
+    ["E030", "items"],
+  ])
+})

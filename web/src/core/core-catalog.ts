@@ -91,7 +91,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
 // ブックが自分の欄の後ろに持つ欄の前の、頭の欄（ここまでの後ろにページと設定の項目の欄 settings を入れる。保存したデータの欄の並びを変えない）
 const HEAD = ["type", "id"]
 
-// タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
+// タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプがページに足す欄（pages.fields）・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
 // ブックの形は、タイプの頭の欄・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかの欄
 function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas {
   const settings = byId(parts.settings)
@@ -118,6 +118,7 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
   const [one, ...more] = placed
   const page = t.pages
     ? PageSchema.extend({
+        ...t.pages.fields,
         items: z
           .array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknownItem]) : unknownItem)
           .optional(),
@@ -210,6 +211,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       const rule = t.pages.paper
       for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
       if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
+      for (const field of [...Object.keys(PageSchema.shape), "items", "settings"])
+        if (field in (t.pages.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
     }
     const built = buildBookSchemas(parts, t).book
     if (t.single && (t.book.id !== t.id || !built.safeParse(t.book).success))

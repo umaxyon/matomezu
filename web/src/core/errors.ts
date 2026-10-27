@@ -27,6 +27,7 @@ export const ERRORS = {
   E026: "item {id}: unknown dialog {dialog}",
   E028: "item {id}: {field} names {prop}, which is not in its props",
   E029: "bookType {id}: options for item {ref}, which is not allowed",
+  E030: "bookType {id}: pages.fields must not have {field} (a page has it already)",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
