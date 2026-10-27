@@ -1,5 +1,6 @@
 // ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
-// 押したページをそのステージで開く（コマンド page-open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page-new）
+// 押したページをそのステージで開く（コマンド page-open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page-new）。
+// タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import { actionsOf } from "../../../core/perform"
@@ -21,6 +22,19 @@ function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
   )
 }
 
+// 横にあふれた要素の上で、ホイールの縦の回転を横のスクロールにする（あふれていない・横に回したときは、そのまま）。
+// 止める（preventDefault）ために、React の onWheel ではなく passive でない受け手を付ける
+function sideways(el: HTMLElement | null): (() => void) | undefined {
+  if (!el) return
+  const onWheel = (e: WheelEvent) => {
+    if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+    e.preventDefault()
+    el.scrollLeft += e.deltaY
+  }
+  el.addEventListener("wheel", onWheel, { passive: false })
+  return () => el.removeEventListener("wheel", onWheel)
+}
+
 export function PageTabs({ stage }: { stage: string }) {
   const opened = useMatomezuState(s => s.workspace.stages.find(x => x.id === stage)?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
@@ -30,7 +44,7 @@ export function PageTabs({ stage }: { stage: string }) {
   const t = useMessages(kit)
   if (!book || !hasPages(book)) return <div className={styles.tabs} />
   return (
-    <div className={styles.tabs} role="tablist" aria-label={book.title}>
+    <div className={styles.tabs} role="tablist" aria-label={book.title} ref={sideways}>
       {book.pages.map(p => (
         <button
           key={p.id}

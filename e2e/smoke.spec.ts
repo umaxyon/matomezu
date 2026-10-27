@@ -141,6 +141,23 @@ test("＋で開くダイアログでページを作るとタブが増え、そ�
   await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
 })
 
+test("ページが多くてタブが横にあふれているとき、タブの上でホイールを回すと横にスクロールする", async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 600 })
+  await page.goto("/")
+  // タブは縮んで「…」になってから、横にあふれる
+  for (let i = 0; i < 24; i++) {
+    await page.getByRole("button", { name: "ページを足す" }).click()
+    await page.keyboard.press("Enter")
+    await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
+  }
+  const tabs = page.getByRole("tablist").first()
+  expect(await tabs.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true)
+  const before = await tabs.evaluate(el => el.scrollLeft)
+  await tabs.hover()
+  await page.mouse.wheel(0, 200)
+  await expect.poll(() => tabs.evaluate(el => el.scrollLeft)).toBeGreaterThan(before)
+})
+
 test("分割して右で同じブックを開くと右にもタブがあり、右で足したページは右だけで開く", async ({ page }) => {
   await page.goto("/")
   await (await fromMenu(page, "画面を分割")).click()
