@@ -112,6 +112,6 @@ export const BOARD = kit.defineBookType({
   theme: MINT.id,
   presentation: "@matomezu/paper:paper",
   tokens: [],
-  tools: "paper",
+  tools: "@matomezu/paper:paper",
   settings: { book: ["@matomezu/base:book-theme", GRID.id], page: [] },
 })

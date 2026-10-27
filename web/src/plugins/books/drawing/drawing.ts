@@ -23,7 +23,7 @@ export const DRAWING = kit.defineBookType({
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],
-  tools: "paper",
+  tools: "@matomezu/paper:paper",
   // テーマ・紙の色・線の既定の通り方（ページは線の既定の通り方を持たなければブックの既定を継ぐ）
   settings: {
     book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, "@matomezu/line:line-route"],

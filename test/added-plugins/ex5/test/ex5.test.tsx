@@ -98,3 +98,18 @@ test("B3: 次に置くアイテムの id は、中身の欄 tiles の札の id �
   for (let k = 0; k < 20; k++) ids.add(nextItemId(book, () => tile))
   expect(ids.has(tile)).toBe(false)
 })
+
+test("自分の道具の組: 棚の図の道具は、選択・仕分け・ハンドの順に回り、道具の切り替えのボタンに仕分けの道具の名前とアイコンが出る", () => {
+  const { instance } = shelf()
+  const tools = [1, 2, 3].map(() => {
+    act(() => {
+      instance.actions.command("s1", "@matomezu/base:tool-next")
+    })
+    return document.querySelector("[data-stage='s1']")?.getAttribute("data-tool")
+  })
+  expect(tools).toEqual(["ex5:sort", "@matomezu/base:hand", "@matomezu/base:select"])
+  act(() => {
+    instance.actions.command("s1", "@matomezu/base:tool-next")
+  })
+  expect(document.querySelector("button[aria-label='仕分けツール'] svg")).not.toBeNull()
+})

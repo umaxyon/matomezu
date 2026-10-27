@@ -5,7 +5,7 @@
 // 操作はデータを書き換えず、新しい値を返す（変わらないステージは同じものを使い回す）
 
 import type { PagedBook } from "./book"
-import type { ItemId } from "./catalog"
+import type { ItemId, ToolId } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
 import type { Book } from "./schema/book"
@@ -19,7 +19,7 @@ import {
   stopPlacing,
   togglePlacing as togglePlacingOn,
 } from "./stage"
-import { hasTool, type Tool, type Tools, toolIn, toolSetOf } from "./tools"
+import { hasTool, placingTool, type Tools, toolDef, toolIn, toolSetOf } from "./tools"
 
 // 横に並べる。share は分割したときの左のステージの幅の割合（分割をやめても覚えていて、次に分割したときもその割合で分ける）
 export interface Arrangement {
@@ -115,31 +115,32 @@ export function focus(ws: Workspace, id: string): Workspace {
 }
 
 // ステージの今の道具（無いステージや、道具を使わないステージは null）
-export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string): Tool | null {
+export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string): ToolId | null {
   const stage = ws.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
-  return set ? toolIn(ws.tools, set) : null
+  return set ? toolIn(catalog, ws.tools, set) : null
 }
 
 // ステージが使う道具の組の道具を替える。同じ組を使うステージは、全部その道具になる。組に無い道具には替えない。
-// 置くのは選択の道具の仕事なので、その組を使うステージの置こうとしていたアイテムは、全部取り消す
-export function setTool(catalog: CoreCatalog, ws: Workspace, id: string, tool: Tool): Workspace {
+// 道具を替えたら置くのはやめるので、その組を使うステージの置こうとしていたアイテムは、全部取り消す
+export function setTool(catalog: CoreCatalog, ws: Workspace, id: string, tool: string): Workspace {
   const stage = ws.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
-  if (!set || !hasTool(set, tool)) return ws
+  if (!set || !hasTool(catalog, set, tool)) return ws
   const stages = ws.stages.map(s => (toolSetOf(catalog, s) === set ? stopPlacing(s) : s))
-  if (toolIn(ws.tools, set) === tool && stages.every((s, i) => s === ws.stages[i])) return ws
+  if (toolIn(catalog, ws.tools, set) === tool && stages.every((s, i) => s === ws.stages[i])) return ws
   return { ...ws, stages, tools: { ...ws.tools, [set]: tool } }
 }
 
-// ステージでアイテムを置こうとする（同じアイテムなら取り消す）。置くのは選択の道具の仕事なので、そのステージの組の道具を選択にする。
+// ステージでアイテムを置こうとする（同じアイテムなら取り消す）。置くのは置く道具（places）の仕事なので、そのステージの組の道具を置く道具にする。
 // ほかのステージの置こうとしているアイテムはそのまま
 export function togglePlacing(catalog: CoreCatalog, ws: Workspace, id: string, item: ItemId): Workspace {
   const next = mapStage(ws, id, s => togglePlacingOn(s, item))
   const stage = next.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
-  if (!stage?.placing || !set || toolIn(next.tools, set) === "select" || !hasTool(set, "select")) return next
-  return { ...next, tools: { ...next.tools, [set]: "select" } }
+  const places = set ? placingTool(catalog, set) : null
+  if (!stage?.placing || !set || !places || toolIn(catalog, next.tools, set) === places) return next
+  return { ...next, tools: { ...next.tools, [set]: places } }
 }
 
 // ステージに、開いているブックのページを開く
@@ -163,11 +164,24 @@ export function followLibrary(catalog: CoreCatalog, ws: Workspace, books: Readon
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
 
-// プラグインの見た目に見せるステージ（読むだけ）: 開いているもの・倍率とずらす量・選んでいるアイテム・置こうとしているアイテム・今の道具。
+// プラグインの見た目に見せるステージ（読むだけ）: 開いているもの・倍率とずらす量・選んでいるアイテム・置こうとしているアイテム・今の道具と、
+// それがドラッグで紙をずらす道具か（pans。そのあいだ、ビューはアイテムを選んだり動かしたりしない）。
 // 表示領域の大きさ・道具のアイコンなど、中の状態は見せない（matomezu/ui の useStage）
-export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "pan" | "selection" | "placing"> & { tool: Tool | null }
+export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "pan" | "selection" | "placing"> & {
+  tool: ToolId | null
+  pans: boolean
+}
 
-export function stageView(stage: Stage, tool: Tool | null): StageView {
+export function stageView(catalog: CoreCatalog, stage: Stage, tool: ToolId | null): StageView {
   const { id, opened, zoom, pan, selection, placing } = stage
-  return { id, opened, zoom, pan, selection, placing, tool }
+  return {
+    id,
+    opened,
+    zoom,
+    pan,
+    selection,
+    placing,
+    tool,
+    pans: tool !== null && toolDef(catalog, tool).pans === true,
+  }
 }

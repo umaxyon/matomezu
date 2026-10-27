@@ -4,7 +4,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla"
 import { type Address, addressOf, placeAt } from "../core/address"
 import { checkBooks, hasPages, singleBooks } from "../core/book"
-import type { ActionId, DialogId, ItemId, MessageKey, SingleBookTypeId, SkinId } from "../core/catalog"
+import type { ActionId, DialogId, ItemId, MessageKey, SingleBookTypeId, SkinId, ToolId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
@@ -16,7 +16,6 @@ import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } fr
 import type { Book } from "../core/schema/book"
 import { restoreSettings, type Settings } from "../core/settings"
 import { closePicker, openBook, openPicker, panBy, resize, select, stopPlacing } from "../core/stage"
-import type { Tool } from "../core/tools"
 import {
   close,
   evenDivider,
@@ -105,7 +104,7 @@ export interface Actions {
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
-  setTool(stage: string, tool: Tool): void
+  setTool(stage: string, tool: ToolId): void
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
   stopPlacing(stage: string): void
   select(stage: string, ids: readonly string[]): void // そのステージで選ぶアイテム（開いているページのもの）

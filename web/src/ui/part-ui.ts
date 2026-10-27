@@ -20,6 +20,8 @@ export const PART_UI = {
   actions: { views: [], define: ["defineAction"] },
   settings: { views: ["settingViews"], define: ["defineSetting"] },
   presentations: { views: ["presentationViews"], define: ["definePresentation"] },
+  tools: { views: ["toolIcons"], define: ["defineTool"] },
+  toolSets: { views: [], define: ["defineToolSet"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
   skins: { views: [], define: ["defineSkin"] },

@@ -18,6 +18,7 @@ import type { PresentationDef } from "../core/def/presentation"
 import type { SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
 import type { ThemeDef, TokenDecl } from "../core/def/theme"
+import type { ToolDef, ToolSetDef } from "../core/def/tool"
 import type { MessageSet } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
 import type { CommandDef, CommandPlace } from "./commands/def"
@@ -109,6 +110,16 @@ export interface PluginKit<P extends string, M extends MessageSet> {
 
   definePresentation<const Id extends string>(def: { id: Id }): PresentationDef & { id: Owned<P, Id> }
 
+  defineTool<const Id extends string, const T extends Titled<ToolDef, keyof M & string>>(
+    def: T & { id: Id },
+  ): Placed<T, Owned<P, Id>>
+
+  // 道具の組: tools はほかのプラグインの道具も並べられるので、本当の id で書く
+  defineToolSet<const Id extends string, const T extends readonly string[]>(def: {
+    id: Id
+    tools: T
+  }): ToolSetDef & { id: Owned<P, Id>; tools: T }
+
   // ブックのタイプ: データの type（と 1 冊だけのタイプのブックの id）は本当の id。schema に type は書かず、ここで足す
   defineBookType<
     const Id extends string,
@@ -175,6 +186,8 @@ export function pluginKit<const P extends string, const M extends MessageSet = R
     defineAction: place,
     defineSetting: place,
     definePresentation: place,
+    defineTool: place,
+    defineToolSet: place,
     defineBookType: (def: { id: string; schema: BookSchema; book?: object; create?(init: NewBook): object }) => {
       const id = owned(plugin, def.id)
       const placed = { ...place(def), schema: withTypeField(def.schema, id) }

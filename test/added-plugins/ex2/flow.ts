@@ -71,7 +71,7 @@ export const FLOW = kit.defineBookType({
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],
-  tools: "paper",
+  tools: "@matomezu/paper:paper",
   settings: {
     book: ["@matomezu/base:book-theme", "@matomezu/line:line-route", FLOW_DIRECTION.id],
     page: ["@matomezu/line:line-route"],

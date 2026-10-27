@@ -67,7 +67,7 @@ export const FLOWCHART = kit.defineBookType({
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],
-  tools: "paper",
+  tools: "@matomezu/paper:paper",
   // キャプションで形が広がるときは、流れが下へなら横の真ん中を保ち（本筋の縦の線がずれない）、右へなら左を保つ
   growFrom: setting => (turnedRight(setting) ? { x: "start", y: "center" } : { x: "center", y: "start" }),
   settings: {

@@ -6,6 +6,7 @@ import { type BookTypeId, bookType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
 import type { Book } from "../../../core/schema/book"
 import { paperOf, type Stage } from "../../../core/stage"
+import { toolDef } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
@@ -35,6 +36,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const look = preview && preview.item === undefined && preview.book === book?.id ? preview.props : null
   const catalog = useCatalog().core
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id))
+  const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
   const vars = useMemo(
     () => (book ? themeVars(bookTokens(catalog, look ? withSettings<Book>(book, look) : book)) : undefined),
     [catalog, book, look],
@@ -50,7 +52,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     focusStage(id)
-    if (e.button !== 0 || !hasPaper || tool !== "hand") return
+    if (e.button !== 0 || !hasPaper || !pans) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY }
     setDragging(true)

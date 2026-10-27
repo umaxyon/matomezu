@@ -1,14 +1,15 @@
-// 道具の切り替えのボタン（ウィジェット tool-switch）: ステージの道具の組の 3 つの道具を輪に並べ、今の道具を手前に大きく、残りの 2 つを左右の奥に小さく薄く、少し下げて控えさせる。
+// 道具の切り替えのボタン（ウィジェット tool-switch）: ステージの道具の組の道具を輪に並べ、今の道具を手前に大きく、残りを奥に小さく薄く、少し下げて控えさせる
+// （3 つなら左右の奥に）。
 // 右が次（押すと来る）、左が前。道具が変わると、輪を近い向きへ 1 つ分回して入れ替える。押すとコマンド tool-next を呼ぶ
 import { useEffect, useRef } from "react"
-import { TOOL_SETS, type Tool, toolSetOf } from "../../../core/tools"
+import type { ToolId } from "../../../core/catalog"
+import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { TOOL_NEXT } from "."
-import { TOOL_ICONS, TOOL_NAMES } from "./icons"
 import styles from "./ToolSwitchView.module.css"
 
 // 左右の控え（手前から 120 度）が、真ん中から 20px 横・4px 下になる輪の半径と、真後ろで下げる量（px）
@@ -27,41 +28,43 @@ function look(deg: number) {
   }
 }
 
-// 手前から見た角度を -180〜180 に収める
-const angle = (icon: number, front: number) => (((((icon - front) * 120 + 180) % 360) + 360) % 360) - 180
+// 手前から見た角度を -180〜180 に収める（道具が count 個なら、隣どうしは 360 / count 度）
+const angle = (icon: number, front: number, count: number) =>
+  (((((icon - front) * (360 / count) + 180) % 360) + 360) % 360) - 180
 
 export function ToolSwitchView({ stage }: { stage: string }) {
   const t = useMessages(kit)
   const next = useCommand(stage, TOOL_NEXT.id)
   const catalog = useCatalog().core
-  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage)) ?? "select"
+  const toolIcons = useUiCatalog().toolIcons
   const set = useMatomezuState(s => {
     const st = s.workspace.stages.find(x => x.id === stage)
     return st ? toolSetOf(catalog, st) : null
   })
-  const order: readonly Tool[] = set ? TOOL_SETS[set] : []
+  const order: readonly ToolId[] = set ? toolsIn(catalog, set) : []
+  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage)) ?? order[0] ?? null
   const icons = useRef<(HTMLSpanElement | null)[]>([])
-  const shown = useRef<Tool>(tool)
+  const shown = useRef<ToolId | null>(tool)
 
   useEffect(() => {
-    const from = order.indexOf(shown.current)
-    const to = order.indexOf(tool)
+    const from = shown.current === null ? -1 : order.indexOf(shown.current)
+    const to = tool === null ? -1 : order.indexOf(tool)
     shown.current = tool
     if (from === to) return
     const step = to === (from + 1) % order.length ? 1 : -1 // 次なら右から、前なら左から
     icons.current.forEach((el, i) => {
       if (!el || typeof el.animate !== "function") return
-      const a0 = angle(i, from)
+      const a0 = angle(i, from, order.length)
       const frames = Array.from({ length: 7 }, (_, k) => {
-        const { zIndex, ...rest } = look(a0 - (step * 120 * k) / 6)
+        const { zIndex, ...rest } = look(a0 - (step * (360 / order.length) * k) / 6)
         return { ...rest, zIndex: String(zIndex) }
       })
       el.animate(frames, { duration: TURN_MS, easing: "cubic-bezier(0.3, 0.7, 0.3, 1)" })
     })
   }, [tool, order])
 
-  if (!next.shown) return null
-  const name = t(TOOL_NAMES[tool])
+  if (!next.shown || !tool) return null
+  const name = t(toolDef(catalog, tool).title)
   return (
     <button
       type="button"
@@ -79,9 +82,9 @@ export function ToolSwitchView({ stage }: { stage: string }) {
             icons.current[i] = el
           }}
           className={styles.icon}
-          style={look(angle(i, order.indexOf(tool)))}
+          style={look(angle(i, order.indexOf(tool), order.length))}
         >
-          {TOOL_ICONS[id]}
+          {toolIcons.get(id)}
         </span>
       ))}
     </button>

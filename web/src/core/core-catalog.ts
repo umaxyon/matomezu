@@ -12,6 +12,7 @@ import type { PresentationDef } from "./def/presentation"
 import type { SettingDef } from "./def/setting"
 import type { SkinDef } from "./def/skin"
 import { THEME_TOKENS, type ThemeDef, type TokenDecl } from "./def/theme"
+import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
 import { LANGUAGES, type Lang, type LanguagePack, MESSAGES, type MessageSet } from "./i18n/messages"
@@ -36,6 +37,8 @@ declare module "./catalog" {
     themes: ThemeDef
     papers: PaperDef
     skins: SkinDef
+    tools: ToolDef
+    toolSets: ToolSetDef
   }
 }
 
@@ -230,6 +233,13 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (!themes.has(t.theme)) problems.push(problem("E010", { id: t.id, theme: t.theme }))
     if (!parts.presentations.some(p => p.id === t.presentation))
       problems.push(problem("E008", { id: t.id, kind: "presentation", ref: t.presentation }))
+    if (t.tools !== undefined && !parts.toolSets.some(s => s.id === t.tools))
+      problems.push(problem("E008", { id: t.id, kind: "toolSet", ref: t.tools }))
+  }
+  const tools = byId(parts.tools)
+  for (const s of parts.toolSets) {
+    if (s.tools.length === 0) problems.push(problem("E033", { id: s.id }))
+    for (const tool of s.tools) if (!tools.has(tool)) problems.push(problem("E032", { id: s.id, tool }))
   }
   for (const i of parts.items)
     if (i.kind === "shape")
@@ -280,6 +290,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     ["theme", parts.themes],
     ["paper", parts.papers],
     ["skin", parts.skins],
+    ["tool", parts.tools],
   ] as const
   for (const [kind, defs] of named)
     for (const d of defs as readonly { id: string; title: string }[])

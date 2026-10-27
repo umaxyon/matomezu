@@ -361,3 +361,21 @@ test("タイプがページに足す欄（pages.fields）は、そのタイプ�
     ["E030", "items"],
   ])
 })
+
+test("道具の組に無い道具を並べたら E032、道具の無い組は E033、ブックのタイプが無い組を名指したら E008", () => {
+  const set = BUILTIN_PARTS.toolSets.find(s => s.id === "@matomezu/paper:paper")!
+  const unknown = { ...set, tools: [...set.tools, "@matomezu/base:pencil"] }
+  const empty = { id: "@matomezu/paper:empty", tools: [] }
+  const tree = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/tree:tree")!
+  const lost = { ...tree, tools: "@matomezu/tree:none" }
+  const parts = {
+    ...BUILTIN_PARTS,
+    toolSets: [unknown, empty],
+    bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === tree ? lost : t)),
+  }
+  expect(checkCoreCatalog(parts).map(problemText)).toEqual([
+    "E008 bookType @matomezu/tree:tree: unknown toolSet @matomezu/tree:none",
+    "E032 toolSet @matomezu/paper:paper: unknown tool @matomezu/base:pencil",
+    "E033 toolSet @matomezu/paper:empty: has no tools",
+  ])
+})

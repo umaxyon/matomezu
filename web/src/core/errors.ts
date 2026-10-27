@@ -29,6 +29,8 @@ export const ERRORS = {
   E029: "bookType {id}: options for item {ref}, which is not allowed",
   E030: "bookType {id}: pages.fields must not have {field} (a page has it already)",
   E031: "bookType {id}: unknown dialog {dialog}",
+  E032: "toolSet {id}: unknown tool {tool}",
+  E033: "toolSet {id}: has no tools",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
@@ -42,6 +44,8 @@ export const ERRORS = {
   E111: "auto skin {id} is not a {scheme} skin",
   E112: "could not make a new id",
   E113: "unknown setting: {id}",
+  E114: "unknown tool set: {id}",
+  E115: "unknown tool: {id}",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",
