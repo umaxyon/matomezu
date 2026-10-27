@@ -28,7 +28,7 @@ const page = (store: ReturnType<typeof newStore>) =>
 
 test("機能台帳に無いアイテムのあるブックも読め、知らない形は 64×64 の四角として並べ、動かし・消せる。知らない物のデータはそのまま残る", () => {
   const store = newStore({ savedBooks: [book] })
-  expect(store.state.getState().partial.map(n => n.code)).toEqual(["N007"])
+  expect(store.state.getState().partial.map(n => n.code)).toEqual(["W007"])
   expect(rectsOf(store.catalog.core, page(store)).get("s")).toEqual({ x: 40, y: 40, w: 64, h: 64 })
   const on = { book: "u1" }
   expect(

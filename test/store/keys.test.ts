@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test"
 import { isMatomezuError } from "../../web/src/core/errors"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
-import { noticeText } from "../../web/src/core/notices"
+import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { type DefaultKey, inspectKey, keyScopes, keysOf, keyTable, shadowedKeys } from "../../web/src/store/keys"
-import { definePlugin, noticesOf } from "../../web/src/store/plugin"
+import { definePlugin, warningsOf } from "../../web/src/store/plugin"
 import { newStore } from "../support"
 
 const def = (key: string, command: string, plugin: string, builtin = false, scope = "stage"): DefaultKey => ({
@@ -130,7 +130,7 @@ const thrown = (run: () => unknown) => {
   return null
 }
 
-test("組み立ては、読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行を誤りにする", () => {
+test("組み立ては、読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行を error にする", () => {
   const own = defineCommand({ id: "k:own", title: "@matomezu/master:Master", run: () => {}, when: () => true })
   const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })
@@ -142,7 +142,7 @@ test("組み立ては、読めないキー・無いコマンド・追加プラ�
   expect(thrown(make([{ id: "k:a", key: "Delete", command: "k:own", scope: "stage" }]))).toBeNull()
 })
 
-test("追加プラグインの既定のキーがビルトインに負けたら N008、ほかの追加プラグインとぶつかったら N009 の注意を残す（どちらもその行は使わない）", () => {
+test("追加プラグインの既定のキーがビルトインに負けたら W008、ほかの追加プラグインとぶつかったら W009 の warning を残す（どちらもその行は使わない）", () => {
   const command = (id: string) =>
     defineCommand({ id, title: "@matomezu/master:Master", run: () => {}, when: () => true })
   // id を引数で作るので、頭の確かめの型は外して渡す（組み立ての確かめは実行時に通る）
@@ -156,14 +156,14 @@ test("追加プラグインの既定のキーがビルトインに負けたら N
     plugins: [...BUILTIN, plugin("a", "Delete"), plugin("b", "K"), plugin("c", "K"), plugin("d", "J")],
     partial: true,
   })
-  expect(noticesOf(instance.catalog).map(noticeText)).toEqual([
-    "N008 a: key Delete in stage for a:own: a builtin plugin's key is there (not used)",
-    "N009 b: key K in stage for b:own: another added plugin c has the same key (neither is used)",
-    "N009 c: key K in stage for c:own: another added plugin b has the same key (neither is used)",
+  expect(warningsOf(instance.catalog).map(warningText)).toEqual([
+    "W008 a: key Delete in stage for a:own: a builtin plugin's key is there (not used)",
+    "W009 b: key K in stage for b:own: another added plugin c has the same key (neither is used)",
+    "W009 c: key K in stage for c:own: another added plugin b has the same key (neither is used)",
   ])
 })
 
-test("既定の割り当ては id で機能台帳に並び、同じ id は誤り。頭が自分のプラグインの id でない id も誤り", () => {
+test("既定の割り当ては id で機能台帳に並び、同じ id は error。頭が自分のプラグインの id でない id も error", () => {
   const own = defineCommand({ id: "k:own", title: "@matomezu/master:Master", run: () => {}, when: () => true })
   const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })

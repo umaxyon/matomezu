@@ -16,7 +16,7 @@ import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 describe("機能台帳", () => {
-  test("ビルトインプラグインのテーマが上書きするテーマキーは、どれもビルトインプラグインのアイテム・タイプ・プラグインが宣言している（インスタンスに無いアイテムのテーマキーの上書きは誤りにせず、使わないだけ）", () => {
+  test("ビルトインプラグインのテーマが上書きするテーマキーは、どれもビルトインプラグインのアイテム・タイプ・プラグインが宣言している（インスタンスに無いアイテムのテーマキーの上書きは error にせず、使わないだけ）", () => {
     const declared = new Set(
       [...[...BUILTIN_PARTS.bookTypes, ...BUILTIN_PARTS.items].flatMap(d => d.tokens), ...BUILTIN_PARTS.tokens].map(
         k => k.id,
@@ -62,7 +62,7 @@ describe("機能台帳", () => {
     expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 core catalog has no book type")
   })
 
-  test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は誤り", () => {
+  test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は error", () => {
     const conflict = {
       ...BUILTIN_PARTS,
       messages: [
@@ -118,7 +118,7 @@ describe("機能台帳", () => {
     expect(buildCoreCatalog({ ...BUILTIN_PARTS, languages: [stray] }).messages.has("Nope")).toBe(false)
   })
 
-  test("文言の組・言語パック・テーマキーは id で機能台帳に並ぶ（土台の物の頭は matomezu）。同じ id は誤り", () => {
+  test("文言の組・言語パック・テーマキーは id で機能台帳に並ぶ（土台の物の頭は matomezu）。同じ id は error", () => {
     const catalog = buildCoreCatalog(BUILTIN_PARTS)
     expect(catalog.messageSets.has("matomezu:messages")).toBe(true)
     expect(catalog.messageSets.has("@matomezu/base:messages")).toBe(true)
@@ -130,7 +130,7 @@ describe("機能台帳", () => {
     ])
   })
 
-  test("名前の違う同じ言語と、パックどうしで違う訳は誤り", () => {
+  test("名前の違う同じ言語と、パックどうしで違う訳は error", () => {
     const a: LanguagePackDef = { id: "a:fr", lang: "fr", name: "Français", messages: { "@matomezu/box:Box": "Boîte" } }
     const b: LanguagePackDef = { id: "b:fr", lang: "fr", name: "French", messages: { "@matomezu/box:Box": "Caisse" } }
     expect(checkCoreCatalog({ ...BUILTIN_PARTS, languages: [a, b] }).map(problemText)).toEqual([
@@ -151,7 +151,7 @@ describe("機能台帳", () => {
 
   test("ブックの形・アイテムの項目・アクションの引数は、JSON Schema に書き出せる（LLM に見せる形）", () => {
     expect(z.toJSONSchema(CORE_CATALOG.bookSchema)).toBeTruthy()
-    const shown = BUILTIN_PARTS.actions.map(a => a.describeArgs?.(CORE_CATALOG) ?? a.args) // AI 向けの機能台帳と同じ形
+    const shown = BUILTIN_PARTS.actions.map(a => a.describeArgs?.(CORE_CATALOG) ?? a.args) // MCP 公開ツールの actions が返す物と同じ形
     for (const def of [...BUILTIN_PARTS.items.map(i => i.props), ...shown]) expect(z.toJSONSchema(def)).toBeTruthy()
   })
 
@@ -278,7 +278,7 @@ describe("テーマの値", () => {
   })
 })
 
-describe("誤りの表", () => {
+describe("error の表", () => {
   test("番号は E と 3 桁で、どの番号もソースのどこかで使う", () => {
     const dir = join(import.meta.dir, "../../web/src")
     const files = (readdirSync(dir, { recursive: true }) as string[]).filter(

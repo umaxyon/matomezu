@@ -10,13 +10,13 @@ import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePackDef, MessageSetDef } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
 import { isOwnedBy, splitId } from "../core/names"
-import { type Notice, notice } from "../core/notices"
 import { type AutoSkin, autoSkin } from "../core/skin"
+import { type Warning, warning } from "../core/warnings"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef, DialogTaking, PageSettingsArgs } from "./dialogs"
 import type { DefaultKey, KeyDef } from "./keys"
 
-// store の段の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
+// store 台帳の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
 declare module "../core/catalog" {
   interface PartDefTable {
     commands: CommandDef<never>
@@ -115,15 +115,15 @@ export function defineBuiltin<const P extends Plugin>(
 }
 export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
 
-// 機能台帳の store の段: コマンド・ダイアログ・キーの既定の割り当て
+// store 台帳: コマンド・ダイアログ・キーの既定の割り当て
 export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
   keys: ReadonlyMap<string, DefaultKey> // キーの既定の割り当て（id → 割り当て。キーはそろえた書き方）
-  notices: readonly Notice[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs。core/notices.ts）
+  warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs。core/warnings.ts）
 }
 
-// インスタンスが持つ機能台帳（core と store の段。ui の段は画面が持つ）
+// インスタンスが持つ機能台帳（core 台帳と store 台帳。ui 台帳は画面が持つ）
 export interface Catalog {
   core: CoreCatalog
   store: StoreCatalog
@@ -164,7 +164,7 @@ export function assemble(
   const all = <K extends Part>(kind: K) => plugins.flatMap(p => (p[kind] ?? []) as readonly PartDefTable[K][])
   const commands = all("commands")
   const dialogs = all("dialogs")
-  // core の段の種類の重なりは buildCoreCatalog が確かめる
+  // core 台帳の種類の重なりは buildCoreCatalog が確かめる
   const problems = [
     ...partsOf("store").flatMap(k =>
       duplicates(
@@ -209,7 +209,7 @@ export function assemble(
         commands: new Map(commands.map(c => [c.id, c])),
         dialogs: new Map(dialogs.map(d => [d.id, d])),
         keys: new Map(keys.map(k => [k.id, k])),
-        notices: [...performsNotices(plugins, catalog), ...keyNotices(keys)],
+        warnings: [...performsWarnings(plugins, catalog), ...keyWarnings(keys)],
       },
     },
     home,
@@ -217,7 +217,7 @@ export function assemble(
   }
 }
 
-// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは誤り
+// プラグインの既定の割り当てを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは error
 function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>): DefaultKey[] {
   const keys: DefaultKey[] = []
   const problems = []
@@ -245,32 +245,35 @@ function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>):
   return keys
 }
 
-// コマンドの performs に書いた、表に無いアクション（N003。その行のコマンドは出ない）
-function performsNotices(plugins: readonly Plugin[], catalog: CoreCatalog): Notice[] {
+// コマンドの performs に書いた、表に無いアクション（W003。その行のコマンドは出ない）
+function performsWarnings(plugins: readonly Plugin[], catalog: CoreCatalog): Warning[] {
   return plugins.flatMap(p =>
     (p.commands ?? []).flatMap(c =>
       (c.performs ?? [])
         .filter(a => !catalog.actions.has(a))
-        .map(a => notice("N003", p.id, { command: c.id, action: a })),
+        .map(a => warning("W003", p.id, { command: c.id, action: a })),
     ),
   )
 }
 
-// 追加プラグインの既定のキーで使わない行: ビルトインプラグインのキーがある（N008）・ほかの追加プラグインと同じキー（N009。両方使わない）
-function keyNotices(keys: readonly DefaultKey[]): Notice[] {
+// 追加プラグインの既定のキーで使わない行: ビルトインプラグインのキーがある（W008）・ほかの追加プラグインと同じキー（W009。両方使わない）
+function keyWarnings(keys: readonly DefaultKey[]): Warning[] {
   const at = (k: DefaultKey) => `${k.binding.scope} ${k.binding.key}`
   const builtin = new Set(keys.filter(k => k.builtin).map(at))
   const added = keys.filter(k => !k.builtin)
   return added.flatMap(k => {
     const params = { key: k.binding.key, scope: k.binding.scope, command: k.binding.command }
-    if (builtin.has(at(k))) return [notice("N008", k.plugin, params)]
+    if (builtin.has(at(k))) return [warning("W008", k.plugin, params)]
     const other = added.find(o => o.plugin !== k.plugin && at(o) === at(k))
-    return other ? [notice("N009", k.plugin, { ...params, other: other.plugin })] : []
+    return other ? [warning("W009", k.plugin, { ...params, other: other.plugin })] : []
   })
 }
 
-// 機能台帳の注意（core と store の段）
-export const noticesOf = (catalog: Catalog): readonly Notice[] => [...catalog.core.notices, ...catalog.store.notices]
+// 機能台帳の warning（core 台帳と store 台帳）
+export const warningsOf = (catalog: Catalog): readonly Warning[] => [
+  ...catalog.core.warnings,
+  ...catalog.store.warnings,
+]
 
 function duplicates(kind: string, ids: readonly string[]) {
   const seen = new Set<string>()

@@ -1,4 +1,4 @@
-// 機能台帳の core の段: ブックのタイプ・アイテム・アクション・設定の項目・テーマ・紙の表。定義の組（CoreCatalogParts）から buildCoreCatalog で作り、作った後は変えない。
+// core 台帳: ブックのタイプ・アイテム・アクション・設定の項目・テーマ・紙の表。定義の組（CoreCatalogParts）から buildCoreCatalog で作り、作った後は変えない。
 // 表どうしの参照（ブックのタイプが使うアイテムなど）が実在するかは checkCoreCatalog が確かめ、食い違いがあれば作らない。
 // ブックのデータの形は、ブックのタイプが自分で持つフィールドに、タイプが選んだものから組み立てたフィールド（ページと、そこに置けるアイテム・設定の項目）を足して作る（buildBookSchemas）
 
@@ -17,16 +17,16 @@ import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
 import { CORE_MESSAGES, LANGUAGES, type Lang, type LanguagePackDef, type MessageSetDef } from "./i18n/messages"
 import { splitId } from "./names"
-import { type Notice, notice } from "./notices"
 import { placedSchema } from "./placed"
 import { PageSchema } from "./schema/page"
+import { type Warning, warning } from "./warnings"
 
 export type { ActionId, BookTypeId, ItemId, PaperId, SettingId, SkinId, ThemeId } from "./catalog"
 
 // アイテムの、置いたものが持つ項目の型
 export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
 
-// core の段の定義の種類の、定義の型（スキンはアプリの枠の見た目で、見る人の設定で選ぶ）
+// core 台帳の定義の種類の、定義の型（スキンはアプリの枠の見た目で、見る人の設定で選ぶ）
 declare module "./catalog" {
   interface PartDefTable {
     bookTypes: BookTypeDef
@@ -42,7 +42,7 @@ declare module "./catalog" {
   }
 }
 
-// 表を作るもとの、定義の組: core の段の種類ごとの定義の並びと、文言・言語
+// 表を作るもとの、定義の組: core 台帳の種類ごとの定義の並びと、文言・言語
 export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable[K][] } & {
   messages: readonly MessageSetDef[] // 土台の文言（CORE_MESSAGES）は、いつも表に入る
   languages: readonly LanguagePackDef[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
@@ -64,17 +64,17 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   messages: Messages // 文言の組と言語パックを重ねた、文言の鍵 → 言語ごとの訳
   languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語 → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
-  notices: readonly Notice[] // 組み立てで見つけた、止めるほどではない間違い（core/notices.ts）
+  warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとブックのタイプのテーマキーは、その定義の tokens）
 }
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
 
-// 組み立てのときの確かめ: 作った機能台帳を受けて、問題（誤りの番号は E の表）を返す。ビルトインプラグインだけが持てる
+// 組み立てのときの確かめ: 作った機能台帳を受けて、問題（error の番号は E の表）を返す。ビルトインプラグインだけが持てる
 // （プラグインの checks。ビルトインプラグインが拡張ポイントに書き足したフィールドを確かめる）
 export type CatalogCheck = (catalog: CoreCatalog) => readonly Problem[]
 
-// 食い違いがあれば、直す所が分かる文を並べて誤りにする
+// 食い違いがあれば、直す所が分かる文を並べて error にする
 export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   const problems = checkCoreCatalog(parts)
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
@@ -94,7 +94,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     messages: mergeMessages(parts),
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
-    notices: coreNotices(parts),
+    warnings: coreWarnings(parts),
     tokens: byId(parts.tokens),
   }
 }
@@ -107,7 +107,7 @@ const HEAD = ["type", "id"]
 function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas {
   const settings = byId(parts.settings)
   // 選んだ設定の項目を、項目の id を鍵にした settings のフィールドにする（選んでいなければフィールドを足さない）。
-  // 機能台帳に無い項目（プラグインを外したなど）は、そのまま残す（機能台帳にあって選んでいない項目は誤り）
+  // 機能台帳に無い項目（プラグインを外したなど）は、そのまま残す（機能台帳にあって選んでいない項目があれば形に合わない）
   const fields = (ids: readonly string[] = []) => {
     const defs = ids.flatMap(id => settings.get(id) ?? [])
     return {
@@ -154,7 +154,7 @@ export function bookSchemas(catalog: CoreCatalog, id: string): BookSchemas {
   return catalog.schemas.get(id) ?? fail("E101", { id })
 }
 
-// ブックのタイプは、データのタイプが表に無ければ誤り。ほかの定義は catalog.items.get(id) などで引き、知らない id なら undefined
+// ブックのタイプは、データのタイプが表に無ければ error。ほかの定義は catalog.items.get(id) などで引き、知らない id なら undefined
 // （データに残った、外したプラグインのアイテムなど）
 export function bookType(catalog: CoreCatalog, id: string): BookTypeDef {
   return catalog.bookTypes.get(id) ?? fail("E101", { id })
@@ -177,8 +177,8 @@ function mergeMessages(parts: CoreCatalogParts): Messages {
 }
 
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
-// タイプの actions の、効かない行: without に付いていないアクション（N001）、add にすでに付いているアクション（N002）。注意はタイプのプラグインのもの
-function coreNotices(parts: CoreCatalogParts): Notice[] {
+// タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの
+function coreWarnings(parts: CoreCatalogParts): Warning[] {
   const actions = byId(parts.actions)
   return parts.bookTypes.flatMap(t => {
     const plugin = splitId(t.id).owner ?? ""
@@ -189,8 +189,8 @@ function coreNotices(parts: CoreCatalogParts): Notice[] {
     return [
       ...(t.actions.without ?? [])
         .filter(id => !attached(id) && !(t.actions.add ?? []).includes(id))
-        .map(id => notice("N001", plugin, { type: t.id, action: id })),
-      ...(t.actions.add ?? []).filter(attached).map(id => notice("N002", plugin, { type: t.id, action: id })),
+        .map(id => warning("W001", plugin, { type: t.id, action: id })),
+      ...(t.actions.add ?? []).filter(attached).map(id => warning("W002", plugin, { type: t.id, action: id })),
     ]
   })
 }

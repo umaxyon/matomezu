@@ -21,7 +21,7 @@ describe("スキン", () => {
     for (const k of SKIN_TOKENS) expect(css).toContain(`--skin-${k}:`)
   })
 
-  test("自動のスキンは、決めなければ表で最初に出てくる明と暗。決めたものは明暗が合っていなければ誤り", () => {
+  test("自動のスキンは、決めなければ表で最初に出てくる明と暗。決めたものは明暗が合っていなければ error", () => {
     expect(autoSkin(CORE_CATALOG)).toEqual({ light: "@matomezu/base:light", dark: "@matomezu/base:dark" })
     const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, skins: [...BUILTIN_PARTS.skins, ACME_DARK] })
     expect(autoSkin(catalog, { dark: "acme:dark" })).toEqual({ light: "@matomezu/base:light", dark: "acme:dark" })

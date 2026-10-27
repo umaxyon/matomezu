@@ -14,8 +14,8 @@
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
 //	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}。
-//	                      今の機能台帳で読めないブック（注意 N004〜N006）は書かず、400 と理由  … 画面から
-//	POST /api/notices     {"client", "notices": [{"code", "plugin", "params"}]} 画面が見つけた注意（その画面の分を入れ替える）。常駐が集めてログと AI の機能台帳に出す
+//	                      今の機能台帳で読めないブック（warning W004〜W006）は書かず、400 と理由  … 画面から
+//	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 画面が見つけた warning（その画面の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/view        {"client", "view", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view は捨てる（届く順が入れ替わるため）  … 画面から
 //
@@ -25,7 +25,7 @@
 //	GET  /api/ai/books       {"books": [{"id", "type", "title", "version"}]}
 //	GET  /api/ai/books/{id}  {"id", "book", "version"}
 //	GET  /api/ai/settings    利用者の設定（{"lang", "skin", "keys"}。変えていなければ null）
-//	GET  /api/ai/catalog     AI 向けの機能台帳（engine.AICatalog）
+//	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "result"} を返す
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた画面にブックを出す（Hub.Show）。
 //	                         画面が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
@@ -107,7 +107,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/perform", sameOrigin(o.perform))
 	mux.Handle("PUT /api/books/{id}", sameOrigin(o.putBook))
 	mux.Handle("POST /api/view", sameOrigin(o.view))
-	mux.Handle("POST /api/notices", sameOrigin(o.notices))
+	mux.Handle("POST /api/warnings", sameOrigin(o.warnings))
 	mux.Handle("GET /api/ai/view", o.auth(o.aiView))
 	mux.Handle("GET /api/ai/books", o.auth(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
@@ -334,15 +334,15 @@ func (o Options) view(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{})
 }
 
-func (o Options) notices(w http.ResponseWriter, r *http.Request) {
+func (o Options) warnings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Client  string          `json:"client"`
-		Notices json.RawMessage `json:"notices"`
+		Client   string          `json:"client"`
+		Warnings json.RawMessage `json:"warnings"`
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
-	ok, err := o.Hub.SetScreenNotices(req.Client, req.Notices)
+	ok, err := o.Hub.SetScreenWarnings(req.Client, req.Warnings)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -366,24 +366,24 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 
 func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
 	books, _ := o.Hub.Data()
-	notices := o.Hub.BookNotices()
+	warnings := o.Hub.BookWarnings()
 	type head struct {
 		ID      string `json:"id"`
 		Type    string `json:"type"`
 		Title   string `json:"title"`
 		Version int64  `json:"version"`
-		Problem string `json:"problem,omitempty"` // 読めないブックの理由（注意の 1 行。開けず、アクションも行えない）
-		Notice  string `json:"notice,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目を持つ（そのまま残っている）
+		Problem string `json:"problem,omitempty"` // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）
+		Warning string `json:"warning,omitempty"` // 読めるが、機能台帳に無いアイテムや設定の項目を持つ（そのまま残っている）
 	}
 	heads := make([]head, 0, len(books))
 	for _, b := range books {
 		h := head{ID: b.ID, Version: b.Version}
 		_ = json.Unmarshal(b.Body, &h)
 		h.ID, h.Version = b.ID, b.Version
-		if n, ok := notices[b.ID]; ok && n.Unreadable() {
-			h.Problem = n.Notice
+		if n, ok := warnings[b.ID]; ok && n.Unreadable() {
+			h.Problem = n.Warning
 		} else if ok {
-			h.Notice = n.Notice
+			h.Warning = n.Warning
 		}
 		heads = append(heads, h)
 	}
@@ -411,8 +411,8 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	}
 	// 読めないブック（保存はあるが今のプラグインで読めない）は「無い」でなく、その理由で断る
 	if !done.OK && done.Reason == "no-book" && p.On != nil {
-		if n, ok := o.Hub.BookNotices()[p.On.Book]; ok && n.Unreadable() {
-			writeJSON(w, map[string]any{"ok": false, "reason": "unreadable", "detail": n.Notice})
+		if n, ok := o.Hub.BookWarnings()[p.On.Book]; ok && n.Unreadable() {
+			writeJSON(w, map[string]any{"ok": false, "reason": "unreadable", "detail": n.Warning})
 			return
 		}
 	}

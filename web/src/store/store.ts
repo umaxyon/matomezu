@@ -11,7 +11,6 @@ import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
-import type { Notice } from "../core/notices"
 import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { restoreSettings, type Settings } from "../core/settings"
@@ -26,6 +25,7 @@ import {
   showPickerMap,
   stopPlacing,
 } from "../core/stage"
+import type { Warning } from "../core/warnings"
 import {
   close,
   evenDivider,
@@ -53,8 +53,8 @@ export type { Settings } from "../core/settings"
 
 export interface MatomezuState {
   books: Record<string, Book> // ブックの id ごと
-  unreadable: readonly Notice[] // 残したブックのうち読めないもの（注意 N004〜N006。データには手を付けず、開けない）
-  partial: readonly Notice[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（注意 N007。無い物はそのまま残す）
+  unreadable: readonly Warning[] // 残したブックのうち読めないもの（warning W004〜W006。データには手を付けず、開けない）
+  partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
   workspace: Workspace
   settings: Settings
   dialog: OpenedDialog | null
@@ -64,7 +64,7 @@ export interface MatomezuState {
   touched: Readonly<Record<string, string>>
 }
 
-// トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、warn は断りや注意、error は直るまで出しておく誤り
+// トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
 // （時間では消えず、出した側か見る人が消す）。文言は鍵で持ち、画面が今の言語で出す
 export interface Toast {
   id: string
@@ -153,7 +153,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）
   locate(address: Address): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
-  // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と誤りを返す
+  // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と error を返す
   use(
     added: readonly Plugin[],
     check?: (plugins: readonly Plugin[]) => void,
@@ -166,8 +166,8 @@ function initialState(
   books: readonly Book[],
   settings: Settings,
   home: string | null,
-  unreadable: readonly Notice[] = [],
-  partial: readonly Notice[] = [],
+  unreadable: readonly Warning[] = [],
+  partial: readonly Warning[] = [],
 ): MatomezuState {
   const all = [...singleBooks(catalog), ...books]
   const first = books[0] ?? all.find(b => b.id === home) ?? null
@@ -218,7 +218,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       [...(options.books ?? []), ...saved.books],
       restoreSettings(catalog, start, options.settings),
       home,
-      saved.notices,
+      saved.warnings,
       saved.partial,
     )
   const newId = options.newId ?? (() => crypto.randomUUID())
@@ -226,30 +226,30 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const store = createStore<MatomezuState>()(() => initial)
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId, now: clock() })
-  // 残した・知らされたブックを確かめた値（読めたブックか、読めない注意。同じ値は確かめ直さない）
-  let checked = new WeakMap<object, { book: Book; partial?: Notice } | { notice: Notice }>()
-  const restore = (saved: readonly unknown[]): { books: Book[]; notices: Notice[]; partial: Notice[] } => {
+  // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）
+  let checked = new WeakMap<object, { book: Book; partial?: Warning } | { warning: Warning }>()
+  const restore = (saved: readonly unknown[]): { books: Book[]; warnings: Warning[]; partial: Warning[] } => {
     const books: Book[] = []
-    const notices: Notice[] = []
-    const partial: Notice[] = []
+    const warnings: Warning[] = []
+    const partial: Warning[] = []
     for (const b of saved) {
       if (typeof b !== "object" || b === null) continue
       let hit = checked.get(b)
       if (!hit) {
         const done = checkBooks(catalog, [b])
         const [book] = done.books
-        const [notice] = done.notices
+        const [warning] = done.warnings
         const [part] = done.partial
-        hit = book ? { book, ...(part ? { partial: part } : {}) } : notice ? { notice } : undefined
+        hit = book ? { book, ...(part ? { partial: part } : {}) } : warning ? { warning } : undefined
         if (!hit) continue
         checked.set(b, hit)
       }
       if ("book" in hit) {
         books.push(hit.book)
         if (hit.partial) partial.push(hit.partial)
-      } else notices.push(hit.notice)
+      } else warnings.push(hit.warning)
     }
-    return { books, notices, partial }
+    return { books, warnings, partial }
   }
   // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
@@ -436,7 +436,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         Object.keys(books).length === Object.keys(now.books).length &&
         Object.entries(books).every(([id, b]) => now.books[id] === b)
       const unreadable =
-        JSON.stringify(found.notices) === JSON.stringify(now.unreadable) ? now.unreadable : found.notices
+        JSON.stringify(found.warnings) === JSON.stringify(now.unreadable) ? now.unreadable : found.warnings
       const partial = JSON.stringify(found.partial) === JSON.stringify(now.partial) ? now.partial : found.partial
       const touched =
         world.touched === undefined || JSON.stringify(world.touched) === JSON.stringify(now.touched)
@@ -480,7 +480,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { settings } = getState()
       const again = checkBooks(catalog, options.savedBooks ?? [])
       setState(
-        initialState(catalog, [...(options.books ?? []), ...again.books], settings, home, again.notices, again.partial),
+        initialState(
+          catalog,
+          [...(options.books ?? []), ...again.books],
+          settings,
+          home,
+          again.warnings,
+          again.partial,
+        ),
         true,
       )
       return { failed }

@@ -17,7 +17,7 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
     settings,
     load: async () => ({ books: [...kept.values()], settings: host.settings, plugins: [], failed: [] }),
     observe: () => {},
-    reportNotices: () => {}, // ホストがいないので、知らせる先が無い（注意は画面の中で見る）
+    reportWarnings: () => {}, // ホストがいないので、知らせる先が無い（warning は画面の中で見る）
     connect: instance =>
       persist(instance, {
         saveBook: book => {

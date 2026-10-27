@@ -8,45 +8,45 @@ import type { Lang } from "./i18n/i18n"
 import { translate } from "./i18n/i18n"
 import { freshId } from "./ids"
 import { splitId } from "./names"
-import { type Notice, notice } from "./notices"
 import type { PaperChoice, PaperRule } from "./paper"
 import { holds } from "./perform"
 import type { ItemPage } from "./placed"
 import type { Book, Page } from "./schema/book"
+import { type Warning, warning } from "./warnings"
 
 export type PagedBook = Extract<Book, { pages: Page[] }>
 
-// 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは注意（タイプが無い N004・形が合わない N005・
-// アイテムどうしの関係の決まりを守らない N006）にする。読めるが、機能台帳に無いアイテムや設定の項目を持つブックは partial に注意 N007 を足す。
+// 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは warning（タイプが無い W004・形が合わない W005・
+// アイテムどうしの関係の決まりを守らない W006）にする。読めるが、機能台帳に無いアイテムや設定の項目を持つブックは partial に warning W007 を足す。
 // 残したブックは外から来る値なので、形を確かめてから使う。読めないブックのデータには手を付けない
 export function checkBooks(
   catalog: CoreCatalog,
   saved: readonly unknown[],
-): { books: Book[]; notices: Notice[]; partial: Notice[] } {
+): { books: Book[]; warnings: Warning[]; partial: Warning[] } {
   const books: Book[] = []
-  const notices: Notice[] = []
-  const partial: Notice[] = []
+  const warnings: Warning[] = []
+  const partial: Warning[] = []
   for (const b of saved) {
     const raw = (typeof b === "object" && b !== null ? b : {}) as { id?: unknown; title?: unknown; type?: unknown }
     const type = typeof raw.type === "string" ? raw.type : ""
     const params = { book: String(raw.id ?? ""), title: typeof raw.title === "string" ? raw.title : "", type }
     const plugin = splitId(type).owner ?? ""
     if (!catalog.bookTypes.has(type)) {
-      notices.push(notice("N004", plugin, params))
+      warnings.push(warning("W004", plugin, params))
       continue
     }
     const parsed = catalog.bookSchema.safeParse(b)
-    if (!parsed.success) notices.push(notice("N005", plugin, params))
-    else if (!holds(catalog, parsed.data as Book)) notices.push(notice("N006", plugin, params))
+    if (!parsed.success) warnings.push(warning("W005", plugin, params))
+    else if (!holds(catalog, parsed.data as Book)) warnings.push(warning("W006", plugin, params))
     else {
       const book = parsed.data as Book
       books.push(book)
       const missing = missingIn(catalog, book)
       const [first] = missing
-      if (first) partial.push(notice("N007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") }))
+      if (first) partial.push(warning("W007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") }))
     }
   }
-  return { books, notices, partial }
+  return { books, warnings, partial }
 }
 
 // ブックが持つ、機能台帳に無いアイテムと設定の項目の id（重ねずに、見つけた順）
@@ -89,7 +89,7 @@ export function creatableTypes(catalog: CoreCatalog): string[] {
   return catalog.parts.bookTypes.filter(t => !t.single).map(t => t.id)
 }
 
-// そのタイプの空のブック。何冊も作れるタイプでなければ誤り
+// そのタイプの空のブック。何冊も作れるタイプでなければ error
 export function createBook(catalog: CoreCatalog, type: string, init: NewBook): Book {
   const def = bookType(catalog, type)
   if (def.single) return fail("E104", { type })

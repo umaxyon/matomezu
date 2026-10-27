@@ -141,7 +141,7 @@ test("matomezu/ui が出す名前", () => {
     "useCoreCatalog",
     "useElapsed",
     "useItem",
-    "useLayoutNotices",
+    "useLayoutWarnings",
     "useMenu",
     "useMenuCommand",
     "useMessages",

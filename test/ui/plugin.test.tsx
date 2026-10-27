@@ -96,7 +96,7 @@ describe("見た目のプラグイン", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E307" })
   })
 
-  test("見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り", () => {
+  test("見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは error", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, notes]))).toMatchObject({ code: "E203" })
     // @ts-expect-error ダイアログのビューが無い
     const missing = definePluginUi(notes, { presentationViews: { "notes:note": { view: NoteView } } })

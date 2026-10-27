@@ -59,7 +59,7 @@ type Engine struct {
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
-	notices   []string
+	warnings  []string
 }
 
 // New は core を読み込む
@@ -81,8 +81,8 @@ func New() (*Engine, error) {
 	if err := vm.ExportTo(vm.Get("matomezuCheckBooks"), &e.check); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuCheckBooks: %w", err)
 	}
-	if err := vm.ExportTo(vm.Get("matomezuNoticeLines"), &e.lines); err != nil {
-		return nil, fmt.Errorf("engine.js has no matomezuNoticeLines: %w", err)
+	if err := vm.ExportTo(vm.Get("matomezuWarningLines"), &e.lines); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuWarningLines: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -106,7 +106,7 @@ func (e *Engine) Modules() plugin.Modules {
 }
 
 // Use は追加プラグインを動かして受け取り、ビルトインプラグインに足して組み直す。返すのはプラグインの id（bundles の順）。
-// 動かせない・default でプラグインを出していない・manifest と id が違う・組み立てで食い違うなら誤りで、前の組み立てのまま
+// 動かせない・default でプラグインを出していない・manifest と id が違う・組み立てで食い違うなら error で、前の組み立てのまま
 func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -136,28 +136,28 @@ func (e *Engine) Use(bundles []*plugin.Bundle) (ids []string, err error) {
 		plugins = append(plugins, v)
 		ids = append(ids, id)
 	}
-	// JS の側が、新しい組で AI 向けの機能台帳まで作り終えてから入れ替える（途中で失敗すれば前の組み立てのまま）
+	// JS の側が、新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で失敗すれば前の組み立てのまま）
 	res, err := e.use(goja.Undefined(), e.vm.NewArray(plugins...))
 	if err != nil {
 		return nil, fmt.Errorf("plugins: %w", err)
 	}
 	var used struct {
-		Notices []string        `json:"notices"`
-		AI      json.RawMessage `json:"ai"`
+		Warnings []string        `json:"warnings"`
+		AI       json.RawMessage `json:"ai"`
 	}
 	if err := json.Unmarshal([]byte(res.String()), &used); err != nil {
 		return nil, fmt.Errorf("plugins: %w", err)
 	}
-	e.notices = used.Notices
+	e.warnings = used.Warnings
 	e.aiCatalog = used.AI
 	return ids, nil
 }
 
-// Notices は、最後に組み直したときの注意（止めるほどではない間違い。1 行ずつ）
-func (e *Engine) Notices() []string {
+// Warnings は、最後に組み直したときの warning（止めるほどではない間違い。1 行ずつ）
+func (e *Engine) Warnings() []string {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.notices
+	return e.warnings
 }
 
 // Perform はアクションを行う
@@ -179,19 +179,19 @@ func (e *Engine) Perform(in Input) (out Output, err error) {
 	return out, nil
 }
 
-// BookNotice は注意のあるブック: ブックの id・注意の番号・注意の 1 行。
-// 読めない（N004 タイプが無い・N005 形に合わない・N006 決まりを守らない）か、読めるが機能台帳に無い物を持つ（N007）
-type BookNotice struct {
-	Book   string `json:"book"`
-	Code   string `json:"code"`
-	Notice string `json:"notice"`
+// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行。
+// 読めない（W004 タイプが無い・W005 形に合わない・W006 決まりを守らない）か、読めるが機能台帳に無い物を持つ（W007）
+type BookWarning struct {
+	Book    string `json:"book"`
+	Code    string `json:"code"`
+	Warning string `json:"warning"`
 }
 
-// Unreadable は、そのブックが読めない注意か
-func (n BookNotice) Unreadable() bool { return n.Code != "N007" }
+// Unreadable は、そのブックが読めない warning か
+func (n BookWarning) Unreadable() bool { return n.Code != "W007" }
 
-// CheckBooks はブックを今の機能台帳で確かめ、注意のあるものを返す（データには手を付けない）
-func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookNotice, err error) {
+// CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）
+func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err error) {
 	b, err := json.Marshal(books)
 	if err != nil {
 		return nil, err
@@ -209,9 +209,9 @@ func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookNotice, err erro
 	return out, nil
 }
 
-// NoticeLines は、画面が見つけて送ってきた注意（{code, plugin, params} の並び）を、注意の表の 1 行ずつにする。
+// WarningLines は、画面が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする。
 // 表に無い番号・形の合わないものは捨てる（画面が作った文は使わない）
-func (e *Engine) NoticeLines(notices json.RawMessage) (out []string, err error) {
+func (e *Engine) WarningLines(warnings json.RawMessage) (out []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	defer func() {
@@ -219,13 +219,13 @@ func (e *Engine) NoticeLines(notices json.RawMessage) (out []string, err error) 
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	if err := json.Unmarshal([]byte(e.lines(string(notices))), &out); err != nil {
+	if err := json.Unmarshal([]byte(e.lines(string(warnings))), &out); err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// AICatalog は AI 向けの機能台帳（アクションとアイテムなど） {"actions": [{"id", "target", "title", "args"}], "items": [{"id", "title", "size", "props"}]}。
+// AICatalog は MCP 公開ツールの actions が返す物（アクションとアイテムなど） {"actions": [{"id", "target", "title", "args"}], "items": [{"id", "title", "size", "props"}]}。
 // args と props は JSON Schema
 func (e *Engine) AICatalog() json.RawMessage {
 	e.mu.Lock()

@@ -47,27 +47,29 @@ export interface MenuTable {} // メニューの id → true
 // 右クリックのメニューの id → 受け取る物（右クリックされた物。項目のコマンドに引数として渡す。何も受け取らなければ Record<string, never>）
 export interface ContextMenuTable {}
 
-// 定義の種類: プラグインが持てる定義のフィールドの名前 → その種類が入る機能台帳の段（core か store）と、誤りの文に使う名前。
-// 種類を足すときは、ここに 1 行と、下の PartTables に id の表を足し、定義の型をその段の層から PartDefTable に書き足す（core の種類は core/core-catalog.ts、store の種類は store/plugin.ts）
+// 定義の種類: プラグインが持てる定義のフィールドの名前 → その種類が入る台帳（core 台帳か store 台帳）と、error の文に使う名前。
+// 種類を足すときは、ここに 1 行と、下の PartTables に id の表を足し、定義の型をその台帳の層から PartDefTable に書き足す（core の種類は core/core-catalog.ts、store の種類は store/plugin.ts）
 export const PARTS = {
-  bookTypes: { stage: "core", label: "bookType" },
-  items: { stage: "core", label: "item" },
-  actions: { stage: "core", label: "action" },
-  settings: { stage: "core", label: "setting" },
-  presentations: { stage: "core", label: "presentation" },
-  tools: { stage: "core", label: "tool" },
-  toolSets: { stage: "core", label: "toolSet" },
-  themes: { stage: "core", label: "theme" },
-  papers: { stage: "core", label: "paper" },
-  skins: { stage: "core", label: "skin" },
-  commands: { stage: "store", label: "command" },
-  dialogs: { stage: "store", label: "dialog" },
+  bookTypes: { catalog: "core", label: "bookType" },
+  items: { catalog: "core", label: "item" },
+  actions: { catalog: "core", label: "action" },
+  settings: { catalog: "core", label: "setting" },
+  presentations: { catalog: "core", label: "presentation" },
+  tools: { catalog: "core", label: "tool" },
+  toolSets: { catalog: "core", label: "toolSet" },
+  themes: { catalog: "core", label: "theme" },
+  papers: { catalog: "core", label: "paper" },
+  skins: { catalog: "core", label: "skin" },
+  commands: { catalog: "store", label: "command" },
+  dialogs: { catalog: "store", label: "dialog" },
 } as const
 export type Part = keyof typeof PARTS
-export type CorePart = { [K in Part]: (typeof PARTS)[K]["stage"] extends "core" ? K : never }[Part]
+export type CorePart = { [K in Part]: (typeof PARTS)[K]["catalog"] extends "core" ? K : never }[Part]
 export type StorePart = Exclude<Part, CorePart>
-export const partsOf = <S extends "core" | "store">(stage: S) =>
-  (Object.keys(PARTS) as Part[]).filter(k => PARTS[k].stage === stage) as (S extends "core" ? CorePart : StorePart)[]
+export const partsOf = <S extends "core" | "store">(name: S) =>
+  (Object.keys(PARTS) as Part[]).filter(k => PARTS[k].catalog === name) as (S extends "core"
+    ? CorePart
+    : StorePart)[]
 
 // 種類ごとの id の表（PARTS と同じ種類を並べる。足りなければ、種類ごとに引く所 PartTables[Part] が型の誤りになる）
 export interface PartTables {
@@ -84,7 +86,7 @@ export interface PartTables {
   commands: CommandTable
   dialogs: DialogTable
 }
-// 種類ごとの定義の型。その段の層が書き足す（ここは空。書き足し忘れは、種類ごとに引く所 PartDefTable[Part] が型の誤りになる）
+// 種類ごとの定義の型。その台帳の層が書き足す（ここは空。書き足し忘れは、種類ごとに引く所 PartDefTable[Part] が型の誤りになる）
 export interface PartDefTable {}
 
 export type BookTypeId = keyof BookTypeTable & string

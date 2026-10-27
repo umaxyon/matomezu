@@ -2,7 +2,7 @@
 //
 // フォルダには matomezu.json（Manifest）を置き、入口を 2 つ指す: engine（React なし。プラグインを default で出す）と ui（見た目を結んだプラグインを default で出す）。
 // 追加プラグインが借りる名前（plugin-modules の表の名前。matomezu・react など）は取り込まず、
-// 動いている matomezu が globalThis.__matomezuModules に置いた実物から取り出す形にする。表に無い名前の import は誤り。
+// 動いている matomezu が globalThis.__matomezuModules に置いた実物から取り出す形にする。表に無い名前の import は error。
 // 変換は Go に組み込んだ esbuild で行うので、利用者が esbuild を別に入れる必要は無い。
 package plugin
 
@@ -67,7 +67,7 @@ func Build(dir string, modules Modules) (*Bundle, error) {
 	return b, nil
 }
 
-// readManifest は dir の matomezu.json を読む。フィールドが足りない・知らないフィールドがある・入口がフォルダの外を指すなら誤り
+// readManifest は dir の matomezu.json を読む。フィールドが足りない・知らないフィールドがある・入口がフォルダの外を指すなら error
 func readManifest(dir string) (Manifest, error) {
 	var m Manifest
 	f, err := os.Open(filepath.Join(dir, ManifestFile))
@@ -123,7 +123,7 @@ func build(dir, entry string, format api.Format, borrow []string) (map[string][]
 	return out, nil
 }
 
-// borrowing は、借りる名前の import を globalThis.__matomezuModules から取り出す形にし、ほかのパッケージの import を誤りにする
+// borrowing は、借りる名前の import を globalThis.__matomezuModules から取り出す形にし、ほかのパッケージの import を error にする
 func borrowing(names []string) api.Plugin {
 	known := map[string]bool{}
 	for _, n := range names {

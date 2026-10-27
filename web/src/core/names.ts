@@ -9,7 +9,7 @@ export type Owned<P extends string, N extends string> = `${P}:${N}`
 
 export const isName = (name: string): boolean => NAME.test(name)
 
-// 名前に頭を付ける（名前が決まりの字でなければ誤り）
+// 名前に頭を付ける（名前が決まりの字でなければ error）
 export function owned<const P extends string, const N extends string>(plugin: P, name: N): Owned<P, N> {
   if (!isName(name)) fail("E305", { plugin, name })
   return `${plugin}:${name}`

@@ -1,4 +1,4 @@
-// matomezu の誤りの表。番号は一度付けたら変えず、消した番号も使い回さない（利用者が調べる手がかりと、テストの照合に使う）。
+// matomezu の error の表。番号は一度付けたら変えず、消した番号も使い回さない（利用者が調べる手がかりと、テストの照合に使う）。
 // 文は開発者に向けたもので、画面には出さない（画面の文言は i18n の表）。{name} は渡す値で置き換える。
 // 番号の範囲: E0xx 定義の組の食い違い（機能台帳）、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン、E4xx ホスト（外の世界とのやり取り）
 export const ERRORS = {
@@ -78,10 +78,10 @@ export type ErrorCode = keyof typeof ERRORS
 // 文の {name} の名前
 type Names<S extends string> = S extends `${string}{${infer N}}${infer Rest}` ? N | Names<Rest> : never
 export type ErrorParams<C extends ErrorCode> = Readonly<Record<Names<(typeof ERRORS)[C]>, string | number>>
-// 値を渡す誤りには値を、渡さない誤りには何も渡さない
+// 値を渡す error には値を、渡さない error には何も渡さない
 type ParamsArg<C extends ErrorCode> = [Names<(typeof ERRORS)[C]>] extends [never] ? [] : [ErrorParams<C>]
 
-// 起きた誤り 1 つ（番号と、文に入れる値）
+// 起きた error 1 つ（番号と、文に入れる値）
 export interface Problem {
   code: ErrorCode
   params: Readonly<Record<string, string | number>>
@@ -97,7 +97,7 @@ export function problemText(p: Problem): string {
   return `${p.code} ${text}`
 }
 
-// 投げる誤り。code で見分け、details は束ねた誤り（定義の組の食い違いの一覧など）
+// 投げる error。code で見分け、details は束ねた error（定義の組の食い違いの一覧など）
 export interface MatomezuError extends Error {
   code: ErrorCode
   details: readonly Problem[]

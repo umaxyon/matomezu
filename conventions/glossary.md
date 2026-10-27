@@ -8,9 +8,9 @@
 |---|---|
 | matomezu | 製品全体 |
 | 土台 | 層の `core`・`store`・`ui`。プラグインを受け取って組み立て・動かす枠と、その枠が決める言葉（ステージ・ページ・置いたアイテムの外枠など）。具体的な機能は持たない。base は含めない |
-| core | フォルダ `web/src/core`。土台の層の 1 つ（データの形・定義の型・機能台帳の core の段・純粋な関数） |
+| core | フォルダ `web/src/core`。土台の層の 1 つ（データの形・定義の型・core 台帳・純粋な関数） |
 | base | プラグイン `plugins/base`（`@matomezu/base`）。ビルトインプラグインの 1 つで、ほかのプラグインが読んでよい例外。「土台」と呼ばない |
-| インスタンス | `createMatomezu` が生成した `MatomezuInstance` のインスタンス。機能台帳（core と store の段）・組み立てで決まる値（`home`・`autoSkin`）・状態・操作を持つ、動いている matomezu 1 つ分。画面に 1 つ、テストごとに 1 つ |
+| インスタンス | `createMatomezu` が生成した `MatomezuInstance` のインスタンス。機能台帳（core 台帳と store 台帳）・組み立てで決まる値（`home`・`autoSkin`）・状態・操作を持つ、動いている matomezu 1 つ分。画面に 1 つ、テストごとに 1 つ |
 | ホスト | 常駐サーバーそのもの（Go。`internal/`）。「常駐」はホストと同じ意味 |
 | ホストクライアント | 画面の中で、ホストと外の世界に頼む口（`web/src/host-client`。`HostClient`・`serverClient`・`memoryClient`・`openClient`） |
 | ホストのエンジン | `web/src/engine`。ホストの goja で、画面と同じアクションを行う入口（`internal/engine/engine.js` にまとめて埋め込む） |
@@ -32,12 +32,12 @@
 | 言葉 | 意味 |
 |---|---|
 | 機能台帳（catalog） | 部品が足せる定義の種類ごとに、足された定義を並べた全体。利用者に価値を届ける最小の単位の全部 |
-| core の段 | `CoreCatalog`（`core/core-catalog.ts`）。画面とホストが共に使う定義（ブックのタイプ・アイテム・アクション・設定の項目・見せ方・道具・道具の組・テーマ・紙・スキン・文言の組・言語パック・プラグインが持つテーマキー） |
-| store の段 | `StoreCatalog`。画面だけが使う、React の無い定義（コマンド・ダイアログ・キーの既定の割り当て） |
-| ui の段 | `UiCatalog`。画面だけが使う、React の定義（ビュー・ウィジェット・コマンドのアイコン・道具のアイコン・差し替え）。実体は `MatomezuProvider` が持つ |
+| core 台帳 | `CoreCatalog`（`core/core-catalog.ts`）。画面とホストが共に使う定義（ブックのタイプ・アイテム・アクション・設定の項目・見せ方・道具・道具の組・テーマ・紙・スキン・文言の組・言語パック・プラグインが持つテーマキー） |
+| store 台帳 | `StoreCatalog`。画面だけが使う、React の無い定義（コマンド・ダイアログ・キーの既定の割り当て） |
+| ui 台帳 | `UiCatalog`。画面だけが使う、React の定義（ビュー・ウィジェット・コマンドのアイコン・道具のアイコン・差し替え）。実体は `MatomezuProvider` が持つ |
 | MCP 公開ツール | AI が MCP で呼べる処理（`actions`・`perform`・`view`・`list_books`・`read_book`・`read_settings`・`show`）。いつも「MCP 公開ツール」と呼び、「道具」とは呼ばない |
-| 注意 | 組み立てで見つけた、止めるほどではない間違い（その行だけ効かない）。番号は N と 3 桁。誤り（止めるもの）とは別 |
-| AI 向けの機能台帳（AI catalog） | 機能台帳から AI に見せる種類を絞って書き出した物（ホストのエンジンの `aiCatalog()`・`/api/ai/catalog`・MCP 公開ツール `actions` が返す物の元） |
+| error | その状態では matomezu が進めない間違い。組み立てでも実行中でも、投げて止める（組み立てなら、ビルトインプラグインはインスタンスを作らず、追加プラグインはそのプラグインを外す。実行中なら、その操作を止める）。番号は E と 3 桁で、一覧は `core/errors.ts` |
+| warning | 止めるほどではない間違い。止めずに、その物（定義の 1 行・ブック 1 冊・画面が組めずに外した追加プラグインなど）だけを効かなくし、一覧に残す（常駐のログ・画面・AI）。番号は W と 3 桁で、一覧は `core/warnings.ts` |
 
 ## 定義とデータ
 

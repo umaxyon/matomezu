@@ -28,7 +28,7 @@ var readTools = []readTool{
 	},
 	{
 		"list_books",
-		"List the books: id, type, title and version. A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has notice; it can be read and changed, and those parts are kept as they are.",
+		"List the books: id, type, title and version. A book that cannot be read now (its book type is not installed, or it does not fit the type) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/books") },
 	},
@@ -56,8 +56,8 @@ var readTools = []readTool{
 		"actions",
 		"List what can be done now (it changes when plugins are added or removed): the actions (id, target, title, description, and args as JSON Schema) to call with perform, " +
 			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the languages and the skins. " +
-			"notices (only when there are some) lists the problems that hold now, one line each with its code (N and 3 digits), found by the host or by the user's screens: " +
-			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (N011: their actions still work, but the user does not see what they draw).",
+			"warnings (only when there are some) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
+			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
 	},
@@ -197,7 +197,7 @@ func show(api API, args map[string]any) (string, bool) {
 	return refusalText(done.Reason, done.Detail), true
 }
 
-// refusalText は断った理由の、AI に返す 1 行。detail は理由に添える値（読めないブックの注意など）
+// refusalText は断った理由の、AI に返す 1 行。detail は理由に添える値（読めないブックの warning など）
 func refusalText(reason, detail string) string {
 	switch reason {
 	case "no-book":

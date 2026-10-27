@@ -8,8 +8,8 @@
 // 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（組み立て直すため）
 import { z } from "zod"
 import { fail } from "../core/errors"
-import type { Notice } from "../core/notices"
 import type { Stage } from "../core/stage"
+import type { Warning } from "../core/warnings"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type { DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
 import type { HostClient, Loaded } from "./client"
@@ -124,14 +124,14 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: { seq: number; done: DoneAction }[] = []
   let client = ""
-  let notices: readonly Notice[] = [] // 画面が見つけた注意（つなぎ直すたびに知らせ直す）
-  const tellNotices = () => {
+  let warnings: readonly Warning[] = [] // 画面が見つけた warning（つなぎ直すたびに知らせ直す）
+  const tellWarnings = () => {
     if (!client) return
     void net
-      .fetch("api/notices", {
+      .fetch("api/warnings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client, notices }),
+        body: JSON.stringify({ client, warnings }),
       })
       .catch(() => {})
   }
@@ -182,9 +182,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
           resolve()
           return
         }
-        // つなぎ直した: 前のつながりで送ったアクションの答えは届かないので、読み直した世界から出し直す。注意は新しいつながりで知らせ直す
+        // つなぎ直した: 前のつながりで送ったアクションの答えは届かないので、読み直した世界から出し直す。warning は新しいつながりで知らせ直す
         pending = []
-        tellNotices()
+        tellWarnings()
         void read().then(show, () => {})
       })
       source.on("book", data => {
@@ -249,9 +249,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
         })
         .catch(() => {})
     },
-    reportNotices: list => {
-      notices = list
-      tellNotices()
+    reportWarnings: list => {
+      warnings = list
+      tellWarnings()
     },
     connect: next => {
       instance = next

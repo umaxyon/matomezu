@@ -115,7 +115,7 @@ test("外の世界（通信・保存・URL・クリップボード）に触る�
   expect(offenders).toEqual([])
 })
 
-test("誤りは誤りの表（core/errors.ts）の番号で投げる（ほかで Error を作らない）", () => {
+test("error は error の表（core/errors.ts）の番号で投げる（ほかで Error を作らない）", () => {
   const offenders = sources.filter(f => f.rel !== "core/errors.ts" && /\bnew Error\(/.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])
 })

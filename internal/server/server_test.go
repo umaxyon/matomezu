@@ -300,8 +300,8 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":3}` {
 		t.Fatalf("event = %s", got)
 	}
-	// 定義から消える（読めなくなったブックの注意 N004 には ex2 の名前が残る）
-	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "N004 ex2") {
+	// 定義から消える（読めなくなったブックの warning W004 には ex2 の名前が残る）
+	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "W004 ex2") {
 		t.Fatalf("catalog after removing = %s", c)
 	}
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
@@ -339,10 +339,10 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("a book of another id = %d", code)
 	}
 	// 読めないブック（形に合わない・タイプが無い）は書かず、理由を返す
-	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b1","title":"X"},"base":2}`, nil); code != 400 || !strings.HasPrefix(body, "unreadable: N004") {
+	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"id":"b1","title":"X"},"base":2}`, nil); code != 400 || !strings.HasPrefix(body, "unreadable: W004") {
 		t.Fatalf("a book without a type = %d %s", code, body)
 	}
-	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"type":"@matomezu/drawing:drawing","id":"b1","title":"X"},"base":2}`, nil); code != 400 || !strings.HasPrefix(body, "unreadable: N005") {
+	if code, body := send(t, "PUT", s.URL+"/api/books/b1", `{"book":{"type":"@matomezu/drawing:drawing","id":"b1","title":"X"},"base":2}`, nil); code != 400 || !strings.HasPrefix(body, "unreadable: W005") {
 		t.Fatalf("a book that does not fit its type = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
@@ -703,12 +703,12 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		}
 		return "missing"
 	}
-	if got := problem(); got != "N004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog" {
+	if got := problem(); got != "W004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog" {
 		t.Fatalf("after unlinking = %q", got)
 	}
 	// 読めないブックへのアクションは「無い」でなく、その理由で断る
 	page := `{"action":"@matomezu/base:page-add","args":{"title":"p"},"on":{"book":"f1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); got != `{"detail":"N004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog","ok":false,"reason":"unreadable"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); got != `{"detail":"W004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog","ok":false,"reason":"unreadable"}` {
 		t.Fatalf("perform on an unreadable book = %s", got)
 	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
@@ -720,25 +720,25 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("unlink = %s", got)
 	}
-	if got := problem(); !strings.HasPrefix(got, "N004 ex2:") {
+	if got := problem(); !strings.HasPrefix(got, "W004 ex2:") {
 		t.Fatalf("after unlinking again = %q", got)
 	}
 }
 
-// 一部のプラグインが無いだけのブックは読め、AI のブックの一覧には notice が付く（problem は付かない）
-func TestListsANoticeForAPartlyKnownBook(t *testing.T) {
+// 一部のプラグインが無いだけのブックは読め、AI のブックの一覧には warning が付く（problem は付かない）
+func TestListsAWarningForAPartlyKnownBook(t *testing.T) {
 	s := newServer(t, nil)
 	book := `{"type":"@matomezu/drawing:drawing","id":"u1","title":"Stars","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":0,"y":0,"props":{}}]}]}`
 	if code, body := send(t, "PUT", s.URL+"/api/books/u1", `{"book":`+book+`,"base":0}`, nil); code != 200 {
 		t.Fatalf("put = %d %s", code, body)
 	}
 	_, body := get(t, s.URL+"/api/ai/books", "secret")
-	if !strings.Contains(body, `"notice":"N007 @foo/stars: book u1 (Stars): it has @foo/stars:star, not in the catalog (kept as they are)"`) || strings.Contains(body, `"problem"`) {
+	if !strings.Contains(body, `"warning":"W007 @foo/stars: book u1 (Stars): it has @foo/stars:star, not in the catalog (kept as they are)"`) || strings.Contains(body, `"problem"`) {
 		t.Fatalf("books = %s", body)
 	}
 }
 
-func TestScreenNoticesAreGatheredForAI(t *testing.T) {
+func TestScreenWarningsAreGatheredForAI(t *testing.T) {
 	s := newServer(t, nil)
 	a, b := listen(t, s.URL), listen(t, s.URL)
 	next(t, a)
@@ -748,30 +748,30 @@ func TestScreenNoticesAreGatheredForAI(t *testing.T) {
 		_, body := send(t, "GET", s.URL+"/api/ai/catalog", "", auth)
 		return body
 	}
-	if strings.Contains(catalog(), `"notices"`) {
+	if strings.Contains(catalog(), `"warnings"`) {
 		t.Fatalf("catalog before = %s", catalog())
 	}
-	// 2 つの窓が同じ注意を知らせても 1 つ。表に無い番号は捨てる
-	n011 := `{"code":"N011","plugin":"acme","params":{"reason":"E301"}}`
-	send(t, "POST", s.URL+"/api/notices", `{"client":"c1","notices":[`+n011+`,{"code":"N999","plugin":"x","params":{}}]}`, nil)
-	send(t, "POST", s.URL+"/api/notices", `{"client":"c2","notices":[`+n011+`]}`, nil)
+	// 2 つの窓が同じ warning を知らせても 1 つ。表に無い番号は捨てる
+	w011 := `{"code":"W011","plugin":"acme","params":{"reason":"E301"}}`
+	send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[`+w011+`,{"code":"W999","plugin":"x","params":{}}]}`, nil)
+	send(t, "POST", s.URL+"/api/warnings", `{"client":"c2","warnings":[`+w011+`]}`, nil)
 	body := catalog()
-	if strings.Count(body, "N011 acme: the screen did not add it (E301)") != 1 || strings.Contains(body, "N999") {
+	if strings.Count(body, "W011 acme: the screen did not add it (E301)") != 1 || strings.Contains(body, "W999") {
 		t.Fatalf("catalog after = %s", body)
 	}
-	// 窓が注意は無いと知らせれば、その窓の分が消える（ほかの窓の分は残る）
-	send(t, "POST", s.URL+"/api/notices", `{"client":"c1","notices":[]}`, nil)
-	if !strings.Contains(catalog(), "N011 acme") {
-		t.Fatalf("c2's notice is gone: %s", catalog())
+	// 窓が warning は無いと知らせれば、その窓の分が消える（ほかの窓の分は残る）
+	send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[]}`, nil)
+	if !strings.Contains(catalog(), "W011 acme") {
+		t.Fatalf("c2's warning is gone: %s", catalog())
 	}
-	send(t, "POST", s.URL+"/api/notices", `{"client":"c2","notices":[]}`, nil)
-	if strings.Contains(catalog(), `"notices"`) {
+	send(t, "POST", s.URL+"/api/warnings", `{"client":"c2","warnings":[]}`, nil)
+	if strings.Contains(catalog(), `"warnings"`) {
 		t.Fatalf("catalog cleared = %s", catalog())
 	}
-	if code, _ := send(t, "POST", s.URL+"/api/notices", `{"client":"c9","notices":[]}`, nil); code != 404 {
+	if code, _ := send(t, "POST", s.URL+"/api/warnings", `{"client":"c9","warnings":[]}`, nil); code != 404 {
 		t.Fatalf("an unknown client = %d", code)
 	}
-	if code, _ := send(t, "POST", s.URL+"/api/notices", `{"client":"c1","notices":[]}`, map[string]string{"Origin": "https://evil.example"}); code != 403 {
+	if code, _ := send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[]}`, map[string]string{"Origin": "https://evil.example"}); code != 403 {
 		t.Fatalf("from another site = %d", code)
 	}
 }

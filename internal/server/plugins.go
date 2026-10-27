@@ -55,9 +55,9 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	if _, err := h.engine.Use(next); err != nil {
 		return err
 	}
-	// 注意は止めずに、常駐のログ（標準エラー）に書く。読めるブックも今のプラグインで確かめ直す
-	for _, n := range h.engine.Notices() {
-		fmt.Fprintln(os.Stderr, "notice:", n)
+	// warning は止めずに、常駐のログ（標準エラー）に書く。読めるブックも今のプラグインで確かめ直す
+	for _, n := range h.engine.Warnings() {
+		fmt.Fprintln(os.Stderr, "warning:", n)
 	}
 	if err := h.checkBooks(h.order); err != nil {
 		return err

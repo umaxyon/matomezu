@@ -1,6 +1,6 @@
 // ブックのデータの型。形はブックのタイプ（type）ごとに違う。タイプが自分で持つフィールドに、タイプが選んだものから決まるフィールド
 // （ページと、そこに置けるアイテム・設定の項目）を足す。ここは、core/catalog.ts の BookTypeTable に書き足したタイプの型を 1 つに束ねる。
-// データを検査する形は、機能台帳の core の段が同じ決まりで組み立てる（CoreCatalog の schemas と bookSchema）
+// データを検査する形は、core 台帳が同じ決まりで組み立てる（CoreCatalog の schemas と bookSchema）
 import type { z } from "zod"
 import type { BookTypeId, BookTypeTable, SettingTable } from "../catalog"
 import type { PlacedOf } from "../placed"

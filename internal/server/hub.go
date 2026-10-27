@@ -64,12 +64,12 @@ type Hub struct {
 	viewed         chan struct{}    // 画面が見ているものを知らせたら閉じて、作り直す（WaitWindow）
 	plugins        []*plugin.Bundle // 足した追加プラグイン（plugins.go）
 	pluginsVersion int64            // 追加プラグインが変わるたびに進む
-	// 注意のあるブックの id → その注意（読めない N004〜N006・一部に無い物がある N007）。読めるかは今のプラグインで決まる値なので DB には残さず、
+	// warning のあるブックの id → その warning（読めない W004〜W006・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
-	bookNotices map[string]engine.BookNotice
-	// 画面が見つけて知らせた注意（画面のつながりの id → 注意の 1 行ずつ。notices.go）。画面が離れたら消す
-	screenNotices map[string][]string
-	touched       map[string]string // ブックの id → 触れた時刻（touched.go）
+	bookWarnings map[string]engine.BookWarning
+	// 画面が見つけて知らせた warning（画面のつながりの id → warning の 1 行ずつ。warnings.go）。画面が離れたら消す
+	screenWarnings map[string][]string
+	touched        map[string]string // ブックの id → 触れた時刻（touched.go）
 }
 
 // NewHub は置き場所から世界を読む
@@ -86,7 +86,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookNotices: map[string]engine.BookNotice{}, screenNotices: map[string][]string{}, touched: touched}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version}
 		h.order = append(h.order, b.ID)
@@ -97,7 +97,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	return h, nil
 }
 
-// checkBooks は ids のブックを今のプラグインで確かめ、注意のあるブックの一覧を直す。新しい注意は常駐のログに書く（h.mu を持って呼ぶ）
+// checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
 func (h *Hub) checkBooks(ids []string) error {
 	bodies := make([]json.RawMessage, 0, len(ids))
 	for _, id := range ids {
@@ -111,26 +111,26 @@ func (h *Hub) checkBooks(ids []string) error {
 	}
 	before := map[string]string{}
 	for _, id := range ids {
-		if n, ok := h.bookNotices[id]; ok {
-			before[id] = n.Notice
+		if n, ok := h.bookWarnings[id]; ok {
+			before[id] = n.Warning
 		}
-		delete(h.bookNotices, id)
+		delete(h.bookWarnings, id)
 	}
 	for _, n := range found {
-		h.bookNotices[n.Book] = n
-		if before[n.Book] != n.Notice {
-			fmt.Fprintln(os.Stderr, "notice:", n.Notice)
+		h.bookWarnings[n.Book] = n
+		if before[n.Book] != n.Warning {
+			fmt.Fprintln(os.Stderr, "warning:", n.Warning)
 		}
 	}
 	return nil
 }
 
-// BookNotices は注意のあるブックの id → その注意
-func (h *Hub) BookNotices() map[string]engine.BookNotice {
+// BookWarnings は warning のあるブックの id → その warning
+func (h *Hub) BookWarnings() map[string]engine.BookWarning {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	out := make(map[string]engine.BookNotice, len(h.bookNotices))
-	for id, n := range h.bookNotices {
+	out := make(map[string]engine.BookWarning, len(h.bookWarnings))
+	for id, n := range h.bookWarnings {
 		out[id] = n
 	}
 	return out
@@ -231,23 +231,23 @@ func (h *Hub) putBook(body json.RawMessage, client string, seq int64) error {
 // ErrConflict は、置いてある版が添えた版と違うこと
 var ErrConflict = storage.ErrConflict
 
-// UnreadableError は、書こうとしたブックが今の機能台帳で読めない（注意 N004〜N006）ので書かなかったこと
-type UnreadableError struct{ Notice string }
+// UnreadableError は、書こうとしたブックが今の機能台帳で読めない（warning W004〜W006）ので書かなかったこと
+type UnreadableError struct{ Warning string }
 
-func (e UnreadableError) Error() string { return "unreadable: " + e.Notice }
+func (e UnreadableError) Error() string { return "unreadable: " + e.Warning }
 
 // PutBook はブックを丸ごと置く（読み込みなど、アクションを通さない入口）。置いてある版が base のときだけ書き、知らせる
 func (h *Hub) PutBook(id string, body json.RawMessage, base int64) (int64, *storage.Book, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	// 読めないブック（タイプが無い・形に合わない・決まりを守らない）は書かない。一部のプラグインが無いだけ（N007）なら書く
+	// 読めないブック（タイプが無い・形に合わない・決まりを守らない）は書かない。一部のプラグインが無いだけ（W007）なら書く
 	found, err := h.engine.CheckBooks([]json.RawMessage{body})
 	if err != nil {
 		return 0, nil, err
 	}
 	for _, n := range found {
 		if n.Unreadable() {
-			return 0, nil, UnreadableError{n.Notice}
+			return 0, nil, UnreadableError{n.Warning}
 		}
 	}
 	version, have, err := h.store.PutBook(id, body, base)
@@ -284,7 +284,7 @@ func (h *Hub) Leave(c *client) {
 	defer h.mu.Unlock()
 	if _, ok := h.clients[c.id]; ok {
 		delete(h.clients, c.id)
-		delete(h.screenNotices, c.id)
+		delete(h.screenWarnings, c.id)
 		close(c.ch)
 	}
 }
@@ -456,9 +456,9 @@ func (h *Hub) Lang() string {
 	return s.Lang
 }
 
-// AICatalog は AI 向けの機能台帳（engine.AICatalog）
+// AICatalog は MCP 公開ツールの actions が返す物（engine.AICatalog）
 func (h *Hub) AICatalog() json.RawMessage {
-	return withNotices(h.engine.AICatalog(), h.Notices())
+	return withWarnings(h.engine.AICatalog(), h.Warnings())
 }
 
 // CloseAll は全部の画面を外す（常駐を止めるとき。知らせの通り道を閉じると、画面とのつながりが終わる）
@@ -467,7 +467,7 @@ func (h *Hub) CloseAll() {
 	defer h.mu.Unlock()
 	for id, c := range h.clients {
 		delete(h.clients, id)
-		delete(h.screenNotices, id)
+		delete(h.screenWarnings, id)
 		close(c.ch)
 	}
 }

@@ -249,7 +249,7 @@ func TestKeepsTheCatalogWhenAnAddedPluginDoesNotAssemble(t *testing.T) {
 	}
 }
 
-// 新しい組で AI 向けの機能台帳を作る所（アクションの describeArgs）が投げたら、組み直しは失敗し、定義も機能台帳も前のまま
+// 新しい組で MCP 公開ツールの actions が返す物を作る所（アクションの describeArgs）が投げたら、組み直しは失敗し、定義も機能台帳も前のまま
 func TestKeepsTheCatalogWhenTheAICatalogCannotBeMade(t *testing.T) {
 	e := newEngine(t)
 	before := string(e.AICatalog())
@@ -277,22 +277,22 @@ module.exports.default = {
 	}
 }
 
-func TestNoticeLinesUseTheTable(t *testing.T) {
+func TestWarningLinesUseTheTable(t *testing.T) {
 	e, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	lines, err := e.NoticeLines(json.RawMessage(`[
-		{"code":"N011","plugin":"acme","params":{"reason":"E301"}},
-		{"code":"N999","plugin":"x","params":{}},
-		{"code":"N010","plugin":"acme","params":{"layout":"default","kind":"widget","id":"acme:w"}},
+	lines, err := e.WarningLines(json.RawMessage(`[
+		{"code":"W011","plugin":"acme","params":{"reason":"E301"}},
+		{"code":"W999","plugin":"x","params":{}},
+		{"code":"W010","plugin":"acme","params":{"layout":"default","kind":"widget","id":"acme:w"}},
 		"broken"
 	]`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(lines) != 2 || !strings.HasPrefix(lines[0], "N011 acme: the screen did not add it (E301)") ||
-		lines[1] != "N010 acme: layout default: widget acme:w is skipped, as its plugin is not there" {
+	if len(lines) != 2 || !strings.HasPrefix(lines[0], "W011 acme: the screen did not add it (E301)") ||
+		lines[1] != "W010 acme: layout default: widget acme:w is skipped, as its plugin is not there" {
 		t.Fatalf("lines = %q", lines)
 	}
 }

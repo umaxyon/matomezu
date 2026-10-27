@@ -15,7 +15,7 @@ type ArgOf<Id extends CommandId> = CommandTable[Id] extends CommandDef<infer A> 
 // コマンドを呼ぶときに渡す引数の並び（引数の無いコマンドには何も渡さない）
 export type CommandArgs<Id extends CommandId> = [ArgOf<Id>] extends [undefined] ? [] : [ArgOf<Id>]
 
-// インスタンスのコマンド。知らない id なら誤り（型に書き足したのに、そのプラグインをインスタンスに渡していないとき）
+// インスタンスのコマンド。知らない id なら error（型に書き足したのに、そのプラグインをインスタンスに渡していないとき）
 export function commandDef(defs: Assembled, id: string): CommandDef<never> {
   return defs.catalog.store.commands.get(id) ?? fail("E107", { id })
 }

@@ -6,7 +6,7 @@
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookTitle } from "../../../core/book"
-import type { Notice } from "../../../core/notices"
+import type { Warning } from "../../../core/warnings"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
@@ -29,10 +29,10 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
   const activeRef = useRef<HTMLDivElement>(null)
   const found = searchBooks(catalog, books, query, lang, touched)
   const broken = unreadable.filter(n => matchesQuery(n.params.title ?? "", query))
-  const reason = (n: Notice) =>
-    n.code === "N004"
+  const reason = (n: Warning) =>
+    n.code === "W004"
       ? t("Cannot open: there is no book type {type}", { type: n.params.type ?? "" })
-      : n.code === "N005"
+      : n.code === "W005"
         ? t("Cannot open: it does not fit the book type {type}", { type: n.params.type ?? "" })
         : t("Cannot open: it breaks the rules of the book type {type}", { type: n.params.type ?? "" })
   const current = Math.min(active, found.length - 1)

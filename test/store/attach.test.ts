@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { noticeText } from "../../web/src/core/notices"
 import { actionsOf } from "../../web/src/core/perform"
+import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
-import { definePlugin, noticesOf } from "../../web/src/store/plugin"
+import { definePlugin, warningsOf } from "../../web/src/store/plugin"
 import { CORE_CATALOG, newStore } from "../support"
 
 const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", pages: [] }
@@ -32,8 +32,8 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
   ])
 })
 
-test("ビルトインプラグインは注意を出さない", () => {
-  expect(noticesOf(newStore().catalog).map(noticeText)).toEqual([])
+test("ビルトインプラグインは warning を出さない", () => {
+  expect(warningsOf(newStore().catalog).map(warningText)).toEqual([])
 })
 
 // 間違いを含むプラグイン: タイプの without に付いていないアクション、add にすでに付いているアクション、コマンドの performs に表に無いアクション
@@ -64,12 +64,12 @@ const GHOST = notes.defineCommand({
 })
 const PLUGIN = definePlugin(notes.plugin({ bookTypes: [NOTE], commands: [GHOST] }))
 
-test("without・add・performs の間違いは注意（N001〜N003）で、その行だけ効かず、プラグインのほかは動く", () => {
+test("without・add・performs の間違いは warning（W001〜W003）で、その行だけ効かず、プラグインのほかは動く", () => {
   const instance = createMatomezu({ plugins: [...BUILTIN, PLUGIN], partial: true, home: "@matomezu/master:master" })
-  expect(noticesOf(instance.catalog).map(noticeText)).toEqual([
-    "N001 notes: bookType notes:note: without names @matomezu/list:row-add, which is not attached to it",
-    "N002 notes: bookType notes:note: add names @matomezu/base:page-add, which is already attached to it",
-    "N003 notes: command notes:ghost: performs notes:nothing, which is not in the catalog",
+  expect(warningsOf(instance.catalog).map(warningText)).toEqual([
+    "W001 notes: bookType notes:note: without names @matomezu/list:row-add, which is not attached to it",
+    "W002 notes: bookType notes:note: add names @matomezu/base:page-add, which is already attached to it",
+    "W003 notes: command notes:ghost: performs notes:nothing, which is not in the catalog",
   ])
   expect(createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })).toBe(true)
   // 表に無いアクションを行うコマンドは出ない

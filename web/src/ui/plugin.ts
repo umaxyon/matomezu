@@ -169,7 +169,7 @@ interface LooseUi {
   }
 }
 
-// プラグインの見た目を 1 つの表にする。見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは誤り
+// プラグインの見た目を 1 つの表にする。見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは error
 export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
   const presentationViews = new Map<string, BookViewDef>()
   const items = new Map<string, ItemUi>()

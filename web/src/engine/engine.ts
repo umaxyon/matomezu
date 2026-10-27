@@ -8,26 +8,26 @@ import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { NO_KEY_CHANGES } from "../core/keys"
-import { NOTICES, notice, noticeText } from "../core/notices"
 import { performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { restoreSettings } from "../core/settings"
+import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
 import { MASTER_BOOK } from "../plugins/books/master"
-import { type Assembled, assemble, noticesOf, type Plugin } from "../store/plugin"
+import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
 let assembled = assemble(BUILTIN, MASTER_BOOK.id)
 
-// 追加プラグインを足して組み直す。新しい組で AI 向けの機能台帳まで作り終えてから入れ替える（途中で投げれば、前の組み立てのまま）。
-// 返すのは JSON: notices は注意の 1 行ずつ（常駐がログに書く）、ai は新しい組の AI 向けの機能台帳
+// 追加プラグインを足して組み直す。新しい組で MCP 公開ツールの actions が返す物まで作り終えてから入れ替える（途中で投げれば、前の組み立てのまま）。
+// 返すのは JSON: warnings は warning の 1 行ずつ（常駐がログに書く）、ai は新しい組の MCP 公開ツールの actions が返す物
 function use(added: readonly Plugin[]): string {
   const next = assemble([...BUILTIN, ...added], MASTER_BOOK.id)
   const ai = aiCatalog(next)
   assembled = next
-  return JSON.stringify({ notices: noticesOf(next.catalog).map(noticeText), ai })
+  return JSON.stringify({ warnings: warningsOf(next.catalog).map(warningText), ai })
 }
 
 // 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
@@ -75,7 +75,7 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
-// AI 向けの機能台帳: 機能台帳から AI に見せるアクション・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの（MCP 公開ツール actions が返す物の元）。args と props は JSON Schema。名前は英語
+// MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの。args と props は JSON Schema。名前は英語
 function aiCatalog(of: Assembled = assembled) {
   const catalog = of.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
@@ -115,27 +115,27 @@ function aiCatalog(of: Assembled = assembled) {
 
 ;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
 
-// 残したブックを今の機能台帳で確かめ、注意のあるブック（読めない N004〜N006・一部に無い物がある N007）の id・番号・注意の 1 行を返す（常駐が一覧に持つ）
+// 残したブックを今の機能台帳で確かめ、warning のあるブック（読めない W004〜W006・一部に無い物がある W007）の id・番号・warning の 1 行を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
-  const { notices, partial } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
+  const { warnings, partial } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
   return JSON.stringify(
-    [...notices, ...partial].map(n => ({ book: n.params.book ?? "", code: n.code, notice: noticeText(n) })),
+    [...warnings, ...partial].map(n => ({ book: n.params.book ?? "", code: n.code, warning: warningText(n) })),
   )
 }
 
-// 画面が見つけて送ってきた注意（{code, plugin, params} の並び）を、注意の表の 1 行ずつにする（常駐が集めてログと AI に出す）。
+// 画面が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする（常駐が集めてログと AI に出す）。
 // 表に無い番号・形の合わないものは捨てる（画面が作った文は使わない）
-const ScreenNoticeSchema = z.object({
+const ScreenWarningSchema = z.object({
   code: z.string(),
   plugin: z.string(),
   params: z.record(z.string(), z.string()),
 })
-;(globalThis as { matomezuNoticeLines?: (notices: string) => string }).matomezuNoticeLines = notices => {
+;(globalThis as { matomezuWarningLines?: (warnings: string) => string }).matomezuWarningLines = warnings => {
   const lines: string[] = []
-  for (const raw of z.array(z.unknown()).catch([]).parse(JSON.parse(notices))) {
-    const n = ScreenNoticeSchema.safeParse(raw)
-    if (n.success && n.data.code in NOTICES)
-      lines.push(noticeText(notice(n.data.code as keyof typeof NOTICES, n.data.plugin, n.data.params)))
+  for (const raw of z.array(z.unknown()).catch([]).parse(JSON.parse(warnings))) {
+    const n = ScreenWarningSchema.safeParse(raw)
+    if (n.success && n.data.code in WARNINGS)
+      lines.push(warningText(warning(n.data.code as keyof typeof WARNINGS, n.data.plugin, n.data.params)))
   }
   return JSON.stringify(lines)
 }

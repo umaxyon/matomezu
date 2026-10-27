@@ -84,19 +84,19 @@ describe("組み立てたブックの形", () => {
 })
 
 describe("組み立ての食い違い", () => {
-  test("タイプが自分のフィールドに、機能台帳が足すフィールド（pages・settings）を書くと誤り", () => {
+  test("タイプが自分のフィールドに、機能台帳が足すフィールド（pages・settings）を書くと error", () => {
     const own = drawing.schema.extend({ pages: z.array(z.unknown()) })
     expect(checkCoreCatalog(withDrawing({ schema: own })).map(p => p.code)).toContain("E025")
     const route = drawing.schema.extend({ settings: z.object({}).optional() })
     expect(checkCoreCatalog(withDrawing({ schema: route })).map(p => p.code)).toContain("E025")
   })
 
-  test("表に無い設定の項目・見せ方を選ぶと誤り", () => {
+  test("表に無い設定の項目・見せ方を選ぶと error", () => {
     expect(checkCoreCatalog(withDrawing({ settings: { book: ["nope.setting"] } })).map(p => p.code)).toContain("E008")
     expect(checkCoreCatalog(withDrawing({ presentation: "nope" })).map(p => p.code)).toContain("E008")
   })
 
-  test("形のアイテムが名指すダイアログがインスタンスに無ければ、組み立てで誤り", () => {
+  test("形のアイテムが名指すダイアログがインスタンスに無ければ、組み立てで error", () => {
     const box = BUILTIN.find(p => p.id === "@matomezu/box")!
     const broken = { ...box, dialogs: [] }
     const plugins = BUILTIN.map(p => (p === box ? broken : p))

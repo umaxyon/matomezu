@@ -43,7 +43,7 @@ describe("配置", () => {
     expect(checkLayout(DEFAULT_LAYOUT, ui, commands)).toEqual([])
   })
 
-  test("知らないウィジェット・置けないスロット・インスタンスに無いコマンドは誤り", () => {
+  test("知らないウィジェット・置けないスロット・インスタンスに無いコマンドは error", () => {
     const bad = {
       id: "bad",
       slots: {
@@ -60,7 +60,7 @@ describe("配置", () => {
     ])
   })
 
-  test("中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニューは誤り", () => {
+  test("中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニューは error", () => {
     // 根にステージの骨組みが無いので、ステージのスロットもメニューも画面に出ない
     const noStages = defineLayout({
       ...DEFAULT_LAYOUT,
@@ -93,7 +93,7 @@ describe("配置", () => {
     expect(checkLayout(layout as unknown as LayoutDef, { ...ui, widgets }, commands)).toEqual([])
   })
 
-  test("右クリックのメニューのインスタンスに無いコマンドと、どのコンポーネントも開かないメニューは誤り", () => {
+  test("右クリックのメニューのインスタンスに無いコマンドと、どのコンポーネントも開かないメニューは error", () => {
     const bad = {
       ...DEFAULT_LAYOUT,
       id: "bad",
@@ -117,7 +117,7 @@ describe("配置", () => {
     })
   })
 
-  test("食い違いのある配置は、画面に置くときに誤り", () => {
+  test("食い違いのある配置は、画面に置くときに error", () => {
     const bad = { id: "bad", slots: { root: ["nope"] }, menus: {} } as unknown as LayoutDef
     let thrown: unknown
     try {
@@ -172,7 +172,7 @@ describe("ウィジェット", () => {
     expect(() => assembleUi([...BUILTIN_UI, bad])).toThrow("E301")
   })
 
-  test("同じ id のウィジェットは誤り。差し替えは overrides の widgets で、置けるスロットは変わらない", () => {
+  test("同じ id のウィジェットは error。差し替えは overrides の widgets で、置けるスロットは変わらない", () => {
     const twice = definePluginUi(definePlugin({ id: "w" }), {
       widgets: [defineWidget({ id: "w:ping", slots: ["root"], view: Ping })],
     })
@@ -264,22 +264,22 @@ describe("取り込んだプラグインの置き場所", () => {
 
 describe("組み込まれていないプラグインの物", () => {
   const LINE_CONTEXT = "@matomezu/line:line-context"
-  test("持ち主のプラグインが無い物は除いて注意 N010 にし、持ち主がいるのに無い物は今どおり誤り", () => {
+  test("持ち主のプラグインが無い物は除いて warning W010 にし、持ち主がいるのに無い物は今どおり error", () => {
     const present = new Set(BUILTIN_UI.filter(ui => ui.id !== "@matomezu/line").map(ui => ui.id))
-    const { layout, notices } = skipAbsent(DEFAULT_LAYOUT, present)
-    expect(notices.map(n => [n.code, n.plugin, n.params.kind, n.params.id])).toEqual([
-      ["N010", "@matomezu/line", "contextMenu", LINE_CONTEXT],
+    const { layout, warnings } = skipAbsent(DEFAULT_LAYOUT, present)
+    expect(warnings.map(n => [n.code, n.plugin, n.params.kind, n.params.id])).toEqual([
+      ["W010", "@matomezu/line", "contextMenu", LINE_CONTEXT],
     ])
     expect((layout.contextMenus as Record<string, unknown>)[LINE_CONTEXT]).toBeUndefined()
     // 線があれば何も除かない
-    expect(skipAbsent(DEFAULT_LAYOUT, new Set(BUILTIN_UI.map(ui => ui.id))).notices).toEqual([])
-    // 持ち主の線はいるのに、無いコマンドを書いた（書き間違い）なら、除かずに誤りのまま
+    expect(skipAbsent(DEFAULT_LAYOUT, new Set(BUILTIN_UI.map(ui => ui.id))).warnings).toEqual([])
+    // 持ち主の線はいるのに、無いコマンドを書いた（書き間違い）なら、除かずに error のまま
     const typo = {
       ...DEFAULT_LAYOUT,
       contextMenus: { ...DEFAULT_LAYOUT.contextMenus, [LINE_CONTEXT]: ["@matomezu/line:line-edt"] },
     }
     const all = skipAbsent(typo as LayoutDef, new Set(BUILTIN_UI.map(ui => ui.id)))
-    expect(all.notices).toEqual([])
+    expect(all.warnings).toEqual([])
     const ui = assembleUi(BUILTIN_UI)
     const commands = new Set(createMatomezu({ plugins: BUILTIN_UI }).catalog.store.commands.keys())
     expect(checkLayout(all.layout, ui, commands).map(p => p.code)).toEqual(["E209"])
