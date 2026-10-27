@@ -6,7 +6,7 @@ import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-cata
 import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { settingValue } from "../../web/src/plugins/base/book-settings"
-import { assemble } from "../../web/src/store/plugin"
+import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const drawing = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/drawing:drawing")!
@@ -110,12 +110,36 @@ describe("組み立ての食い違い", () => {
   })
 })
 
-test("形の themeProp・captionProp が props に無い項目を名指したら E028。名指した項目だけをテーマの id として確かめる", () => {
-  const items = BUILTIN_PARTS.items.map(i => (i.id === "@matomezu/box:shape-box" ? { ...i, themeProp: "look" } : i))
-  expect(checkCoreCatalog({ ...BUILTIN_PARTS, items }).map(p => p.code)).toEqual(["E028"])
-  const captions = BUILTIN_PARTS.items.map(i =>
-    i.id === "@matomezu/list:shape-list" ? { ...i, captionProp: "name" } : i,
+// プラグインのアイテムを差し替えて組み立てたときの問題（base とフローチャートの組み立てのときの確かめ）
+const problemsWith = (plugin: string, item: string, patch: object) => {
+  const plugins = (BUILTIN as readonly Plugin[]).map(p =>
+    p.id === plugin ? { ...p, items: (p.items ?? []).map(i => (i.id === item ? { ...i, ...patch } : i)) } : p,
   )
-  expect(checkCoreCatalog({ ...BUILTIN_PARTS, items: captions }).map(p => p.params.field)).toEqual(["captionProp"])
-  expect(checkCoreCatalog(BUILTIN_PARTS)).toEqual([])
+  try {
+    assemble(plugins)
+    return []
+  } catch (e) {
+    return (e as { details?: { code: string; params: Record<string, unknown> }[] }).details ?? []
+  }
+}
+
+test("形の themeProp・captionProp が props に無い項目を名指したら E028（base の組み立てのときの確かめ）", () => {
+  expect(problemsWith("@matomezu/box", "@matomezu/box:shape-box", { themeProp: "look" }).map(p => p.code)).toEqual([
+    "E028",
+  ])
+  expect(
+    problemsWith("@matomezu/list", "@matomezu/list:shape-list", { captionProp: "name" }).map(p => p.params.field),
+  ).toEqual(["captionProp"])
+  expect(() => assemble(BUILTIN)).not.toThrow()
+})
+
+test("形の仲間の名前が文言の表に無ければ E018（フローチャートの組み立てのときの確かめ）", () => {
+  const found = problemsWith("@matomezu/shape", "@matomezu/shape:shape-diamond", {
+    "@matomezu/flowchart:family-title": "no such message",
+  })
+  expect(found.map(p => p.code)).toEqual(["E018"])
+})
+
+test("追加プラグインは組み立てのときの確かめを持てない（E308）", () => {
+  expect(() => assemble([...BUILTIN, { id: "extra", checks: [() => []] }])).toThrow(/E308|only built-in/)
 })

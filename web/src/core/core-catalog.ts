@@ -70,6 +70,10 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
 
+// 組み立てのときの確かめ: 作った機能台帳を受けて、問題（誤りの番号は E の表）を返す。ビルトインプラグインだけが持てる
+// （プラグインの checks。ビルトインプラグインが拡張ポイントに書き足したフィールドを確かめる）
+export type CatalogCheck = (catalog: CoreCatalog) => readonly Problem[]
+
 // 食い違いがあれば、直す所が分かる文を並べて誤りにする
 export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   const problems = checkCoreCatalog(parts)
@@ -255,13 +259,6 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (s.tools.length === 0) problems.push(problem("E033", { id: s.id }))
     for (const tool of s.tools) if (!tools.has(tool)) problems.push(problem("E032", { id: s.id, tool }))
   }
-  for (const i of parts.items)
-    if (i.kind === "shape")
-      for (const field of ["themeProp", "captionProp"] as const) {
-        const prop = i[field]
-        const shape = (i.props as { shape?: Record<string, unknown> }).shape
-        if (prop !== undefined && !(shape && prop in shape)) problems.push(problem("E028", { id: i.id, field, prop }))
-      }
   const defs = [
     ...[...parts.bookTypes, ...parts.items].flatMap(d => d.tokens.map(k => ({ owner: d.id, ...k }))),
     ...parts.tokens.map(k => ({ owner: splitId(k.id).owner ?? k.id, ...k })),
@@ -309,8 +306,5 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   for (const [kind, defs] of named)
     for (const d of defs as readonly { id: string; title: string }[])
       if (!messages.has(d.title)) problems.push(problem("E018", { kind, id: d.id, title: d.title }))
-  for (const d of parts.items)
-    if (d.kind === "shape" && d.familyTitle !== undefined && !messages.has(d.familyTitle))
-      problems.push(problem("E018", { kind: "item", id: d.id, title: d.familyTitle }))
   return problems
 }

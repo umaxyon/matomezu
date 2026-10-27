@@ -12,6 +12,7 @@ import type { A3, A4, A5 } from "./looks/papers"
 import { MINIMAP_TOGGLE } from "./minimap"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
+import { PROP_NAMES_CHECK } from "./place/items"
 import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
@@ -22,6 +23,7 @@ import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
 export { NEW_BOOK_DIALOG } from "./book-new"
 export { createBookIn } from "./book-new/create-book"
+export type { PageContext } from "./book-settings"
 export { pageContext, settingValue } from "./book-settings"
 export { PAPER_IDS, PAPERS } from "./looks"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
@@ -51,6 +53,8 @@ export {
   widenForCaption,
   withPage,
 } from "./place/items"
+export type { PortArea, Ports } from "./place/placed"
+export { placedSize, portAreasOf, rectsOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export {
@@ -77,6 +81,7 @@ export const BASE = defineBuiltin(
     papers: PAPERS,
     skins: [DARK, LIGHT],
     tools: [SELECT_TOOL, HAND_TOOL],
+    checks: [PROP_NAMES_CHECK],
     commands: [
       BOOK_NEW,
       STAGE_HOME,

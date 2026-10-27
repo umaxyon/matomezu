@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { ItemPage } from "../../web/src/core/placed"
-import { rectsOf } from "../../web/src/core/placed"
+import { rectsOf } from "../../web/src/plugins/base"
 import { newStore } from "../support"
 
 // 外したプラグインの星（大きさ無し）と、外したプラグインの線（星から箱へ）が残る図面

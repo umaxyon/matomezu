@@ -1,14 +1,14 @@
 // ページに置いたアイテムの操作（データを書き換えず、新しい値を返す）。
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）。
-// 形が変わったあとは、ページのつなぐものの決まりで整える（core/placed.ts の tidyPage）
+// 形が変わったあとは、ページのつなぐものの決まりで整える（placed.ts の tidyConnectors）
 import { type PagedBook, putPage } from "../../../core/book"
-import type { CoreCatalog } from "../../../core/core-catalog"
-import type { ConnectorData, PageContext, PortArea, ShapeData, ShapeItemDef } from "../../../core/def/item"
+import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
+import type { ConnectorData, ShapeData, ShapeItemDef } from "../../../core/def/item"
+import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
 import { freshId } from "../../../core/ids"
 import { resolvePaper } from "../../../core/paper"
 import {
-  gapOf as connectorGaps,
   connectorsOf,
   type ItemPage,
   isShape,
@@ -16,22 +16,40 @@ import {
   type PlacedItem,
   type PlacedShape,
   pageItemsOf,
-  placedSize,
-  portAreasOf,
-  rectsOf,
   shapesOf,
-  tidyPage as tidyItems,
 } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
-import { settingsAt } from "../book-settings"
+import { type PageContext, settingsAt } from "../book-settings"
+import { connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, tidyConnectors as tidyItems } from "./placed"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
+
+// 形の captionProp・themeProp が、その形の props にある項目を名指しているか（組み立てのときの確かめ）
+export const PROP_NAMES_CHECK: CatalogCheck = catalog =>
+  [...catalog.items.values()].flatMap(i =>
+    i.kind !== "shape"
+      ? []
+      : (["themeProp", "captionProp"] as const).flatMap(field => {
+          const prop = i[field]
+          const shape = (i.props as { shape?: Record<string, unknown> }).shape
+          return prop !== undefined && !(shape && prop in shape) ? [problem("E028", { id: i.id, field, prop })] : []
+        }),
+  )
 
 // 大きさが変わるときに保つ所。start は左（上）、center は真ん中
 export type GrowFrom = "start" | "center"
 
 // 置く・広げる・並べ直すときに base が読む、定義オブジェクトのメソッド（定義オブジェクトの拡張ポイントに書き足す）
+// 置いた形のデータ D の項目の名前（データの型が決まっていなければ、どの名前でも）
+type PropName<D extends ShapeData> = unknown extends D["props"] ? string : keyof D["props"] & string
+
 declare module "../../../core/catalog" {
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
+    // キャプション（形の名前として見せる文字）の項目の名前。その項目が変わったときだけ、見える幅まで形を広げる（無ければ広げない）。
+    // props にある名前かは、base の組み立ての確かめが見る（E028）
+    captionProp?: PropName<D>
+    // 個別のテーマ（この形だけ別のテーマで描く値）を持つ項目の名前。この項目だけをテーマの id として確かめる（無ければ見ない）。
+    // props にある名前かは、base の組み立ての確かめが見る（E028）
+    themeProp?: PropName<D>
     // キャプションが切れずに見える幅（キャプションで広げる幅と、縮めてよい横の下限）。無ければ size.w
     captionWidth?(item: D): number
     // キャプションが切れずに見える高さ（キャプションで縦に広げる高さと、縮めてよい縦の下限。文字を縦に置く形）。無いか null なら縦には広げない

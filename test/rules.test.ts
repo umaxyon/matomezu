@@ -238,7 +238,7 @@ test("plugin-modules は入口と React だけを読み、ホストのエンジ�
 })
 
 // 追加プラグインの見本（test/added-plugins/exN。それぞれ開発者プロジェクトの形）: 中（web/src）を直に読まず、プラグイン API の名前だけを読む。
-// 見本どうしは読まない。読んでよいのは仕様だけのパッケージ（matomezu.json の無いフォルダ。例 ex6-spec）を、パッケージの名前で型だけ（import type）。
+// 見本どうしは読まない。読んでよいのは連携ポイント（matomezu.json の無いフォルダ。例 ex6-spec）を、パッケージの名前で型だけ（import type）。
 // 見た目でないファイルは matomezu/ui も React も読まない。テスト（test/）は matomezu/testing と、自分のプラグインのファイルも読み、
 // ほかの見本と一緒に組むテストは、その見本の本体もパッケージの名前で読む（ex7 のテストが ex6/ui を読む）
 const ADDED = join(ROOT, "test/added-plugins")
@@ -247,7 +247,7 @@ const added = filesUnder(ADDED)
   .map(path => ({ path, rel: relative(ADDED, path), text: readFileSync(path, "utf8") }))
 const folders = readdirSync(ADDED).filter(name => statSync(join(ADDED, name)).isDirectory())
 const plugins = folders.filter(name => existsSync(join(ADDED, name, "matomezu.json"))) // 見本のプラグイン（フォルダの名前が id）
-// 仕様だけのパッケージ: 名前が「<見本>-spec」で、matomezu.json を持たず、対になる見本（その仕様の持ち主）がある
+// 連携ポイント: 名前が「<見本>-spec」で、matomezu.json を持たず、対になる見本（その連携ポイントの持ち主）がある
 const SPEC = /^(.+)-spec$/
 const specs = folders.filter(name => !plugins.includes(name) && plugins.includes(SPEC.exec(name)?.[1] ?? ""))
 const specOwner = (spec: string) => SPEC.exec(spec)![1]!
@@ -261,7 +261,7 @@ const readsOf = (text: string) =>
     }),
   )
 
-// 見本が答える仕様の持ち主（自分のテストだけが、一緒に組むために本体を読んでよい。ex7 → ex6）
+// 見本が答える連携ポイントの持ち主（自分のテストだけが、一緒に組むために本体を読んでよい。ex7 → ex6）
 const answers = (own: string) =>
   added
     .filter(f => f.rel.split("/")[0] === own && f.rel.split("/")[1] !== "test")
@@ -269,11 +269,11 @@ const answers = (own: string) =>
     .filter(spec => specs.includes(spec))
     .map(specOwner)
 
-test("見本のフォルダは、見本（matomezu.json）か、対になる見本のある仕様だけのパッケージ（<見本>-spec）", () => {
+test("見本のフォルダは、見本（matomezu.json）か、対になる見本のある連携ポイント（<見本>-spec）", () => {
   expect(folders.filter(name => !plugins.includes(name) && !specs.includes(name))).toEqual([])
 })
 
-test("追加プラグインの見本はプラグイン API と仕様だけのパッケージ（型だけ）を読み、見本どうしは読まない", () => {
+test("追加プラグインの見本はプラグイン API と連携ポイント（型だけ）を読み、見本どうしは読まない", () => {
   expect(added.length).toBeGreaterThan(0)
   expect(specs.length).toBeGreaterThan(0)
   const bad = added.flatMap(f => {
@@ -291,7 +291,7 @@ test("追加プラグインの見本はプラグイン API と仕様だけのパ
         const forViews = ["matomezu/ui", "react"]
         const forTests = ["matomezu/testing", "matomezu/ui", "bun:test", "@testing-library/react"]
         if (always.includes(s)) return false
-        if (named(specs, s)) return !typeOnly // 仕様だけのパッケージは型だけ
+        if (named(specs, s)) return !typeOnly // 連携ポイントは型だけ
         if (isTest) return !(forTests.includes(s) || named(answers(own!), s))
         return !(forViews.includes(s) && view)
       })
@@ -300,7 +300,7 @@ test("追加プラグインの見本はプラグイン API と仕様だけのパ
   expect(bad).toEqual([])
 })
 
-test("仕様だけのパッケージは型の宣言だけを持つ（最上位は declare module・import type・export type だけ）", () => {
+test("連携ポイントは型の宣言だけを持つ（最上位は declare module・import type・export type だけ）", () => {
   const files = added.filter(f => named(specs, f.rel.split("/")[0]!))
   expect(files.length).toBeGreaterThan(0)
   const bad = files.flatMap(f =>
@@ -414,7 +414,7 @@ test("プラグインは自分の物を、自分の id で始まる文字列で�
       .filter(f => layerOf(f.rel) === "plugins" && f.rel.split("/").length > 2)
       .map(f => ({ ...f, root: join(SRC, pluginRoot(f.rel)) })),
     ...added
-      .filter(f => f.rel.split("/")[1] !== "test" && plugins.includes(f.rel.split("/")[0]!)) // 仕様だけのパッケージは kit を持たない
+      .filter(f => f.rel.split("/")[1] !== "test" && plugins.includes(f.rel.split("/")[0]!)) // 連携ポイントは kit を持たない
       .map(f => ({ ...f, root: join(ADDED, f.rel.split("/")[0]!) })),
   ]
   // どのプラグインも kit.ts から id が読める（読めないプラグインを見張りから黙って外さない）
@@ -431,8 +431,8 @@ test("プラグインは自分の物を、自分の id で始まる文字列で�
 })
 
 // 定義オブジェクトの拡張ポイント（core/catalog.ts の …Extras）への書き足しの名前（conventions/definitions.md の「拡張ポイント」）:
-// base は短い名前、ほかのプラグイン（ビルトイン・見本・仕様だけのパッケージ）は自分の id で始まる "<id>:<名前>" だけ。
-// 仕様だけのパッケージは、持ち主の見本（ex6-spec → ex6）の id で、拡張ポイントにだけ書き足す
+// base は短い名前、ほかのプラグイン（ビルトイン・見本・連携ポイント）は自分の id で始まる "<id>:<名前>" だけ。
+// 連携ポイントは、持ち主の見本（ex6-spec → ex6）の id で、拡張ポイントにだけ書き足す
 const EXTRAS = new Set(
   [...readFileSync(join(SRC, "core/catalog.ts"), "utf8").matchAll(/^export interface (\w+Extras)\b/gm)].map(m => m[1]!),
 )
@@ -473,14 +473,13 @@ test("拡張ポイントへの書き足しは、base は短い名前、ほかの
   ]
   const bad = owners.flatMap(({ f, id, spec }) =>
     augmented(f.text).flatMap(({ name, members }) => {
-      if (!EXTRAS.has(name))
-        return spec ? [`${f.rel}: ${name}（仕様だけのパッケージは拡張ポイントにだけ書き足す）`] : []
+      if (!EXTRAS.has(name)) return spec ? [`${f.rel}: ${name}（連携ポイントは拡張ポイントにだけ書き足す）`] : []
       return members
         .filter(m => (id === "@matomezu/base" ? !/^[A-Za-z_$]/.test(m) : !m.startsWith(`"${id}:`)))
         .map(m => `${f.rel}: ${name}.${m}`)
     }),
   )
-  // 見張りが空振りしていない（base・紙・見本の仕様の書き足しを見ている）
+  // 見張りが空振りしていない（base・紙・見本の連携ポイントの書き足しを見ている）
   expect(owners.some(({ f }) => augmented(f.text).some(a => EXTRAS.has(a.name)))).toBe(true)
   expect(bad).toEqual([])
 })

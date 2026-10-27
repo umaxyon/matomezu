@@ -1,8 +1,8 @@
 // 形の〇から線を引くときの決まり（drawing/line/connect.ts）
 
 import { expect, test } from "bun:test"
-import { rectsOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { rectsOf } from "../../web/src/plugins/base"
 import { drawnLineProps, portAt, targetsFrom } from "../../web/src/plugins/items/line/connect"
 import { CORE_CATALOG, newStore } from "../support"
 

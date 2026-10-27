@@ -8,10 +8,9 @@ import {
   type ItemPage,
   type PagedBook,
   pageItemsOf,
-  portAreasOf,
   putPage,
 } from "../../../plugin-api"
-import { keepApart, nextItemId } from "../../base"
+import { keepApart, nextItemId, portAreasOf } from "../../base"
 import { connectable } from "./connect"
 import { kit } from "./kit"
 import { elbowAt, LINE, LinePatchSchema, usesLines } from "./line"

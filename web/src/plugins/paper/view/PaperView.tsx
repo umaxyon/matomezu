@@ -27,9 +27,7 @@ import {
   type PlacedShape,
   type Point,
   paperOf,
-  placedSize,
   placement,
-  rectsOf,
   type StageView,
   shapesOf,
   toPaperDelta,
@@ -52,7 +50,7 @@ import {
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { type Edges, fitsPaper, itemSize, minSize, resizedBy, shownRects } from "../../base"
+import { type Edges, fitsPaper, itemSize, minSize, placedSize, rectsOf, resizedBy, shownRects } from "../../base"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import { type Came, dragging, PAPER_EDIT, PAPER_MOVE, PAPER_PLACE, PAPER_RESIZE, placeAt, trackDrag } from "../placing"

@@ -2,14 +2,8 @@
 // 〇は形の四辺の真ん中（の少し外）。引いた線の始点は〇の辺の真ん中、終点は離した所に一番近いふちの点に固定し、終点に矢印を付ける。
 // 同じ形で離せば自分に戻る線で、離した所に一番近い角が、自動で選ぶ角と違い、空いていれば、端をその角に固定する（同じなら自動のまま）
 
-import {
-  type CoreCatalog,
-  connectableShape,
-  type ItemPage,
-  type Point,
-  type PortArea,
-  shapesOf,
-} from "../../../plugin-api"
+import { type CoreCatalog, connectableShape, type ItemPage, type Point, shapesOf } from "../../../plugin-api"
+import type { PortArea } from "../../base"
 import { drawLines } from "./drawn"
 import { nearestAt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"

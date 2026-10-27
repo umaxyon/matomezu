@@ -1,5 +1,5 @@
 // ex6 の重さ: ページの形の重さを足し合わせるアクション。形の重さは、機能台帳の形の定義オブジェクトのメソッド（kit.name("weight")）
-// （ex6 の仕様 ex6-spec が拡張ポイントに書き足したもの）に聞く。答えない形は 0
+// （ex6 の連携ポイント ex6-spec が拡張ポイントに書き足したもの）に聞く。答えない形は 0
 import type {} from "ex6-spec"
 import { shapesOf, z } from "matomezu"
 import { kit } from "./kit"

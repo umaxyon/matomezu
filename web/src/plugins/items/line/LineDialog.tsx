@@ -5,7 +5,7 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { type MessageKey, pagedOf, portAreasOf } from "../../../plugin-api"
+import { type MessageKey, pagedOf } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -15,6 +15,7 @@ import {
   useMessages,
   usePerform,
 } from "../../../plugin-api/ui"
+import { portAreasOf } from "../../base"
 import {
   ActionButton,
   Choices,

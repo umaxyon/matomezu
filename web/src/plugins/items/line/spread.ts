@@ -4,7 +4,8 @@
 // - 線の始点か終点が、ほかの線の端（出る端と入る端）と同じ所にあれば、後の線を空いている辺へ回す。始点は反時計回り、終点は時計回りの順に
 //   候補を並べ、ほかの線と交わらない・折れ目の少ない組み合わせを選ぶ（keepApart）
 // どれも描くときだけ決め、データは書き換えない。端を固定した線は動かさない
-import type { Point, PortArea } from "../../../plugin-api"
+import type { Point } from "../../../plugin-api"
+import type { PortArea } from "../../base"
 import { centerOf } from "./geom"
 import type { PlacedLine } from "./placed"
 import {

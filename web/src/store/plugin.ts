@@ -2,7 +2,7 @@
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
 import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
-import { buildCoreCatalog, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
+import { buildCoreCatalog, type CatalogCheck, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { Scheme } from "../core/def/skin"
 import type { TokenDef } from "../core/def/theme"
@@ -30,6 +30,7 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   languages?: readonly LanguagePackDef[] // 持ち込む言語（kit.defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // キーの既定の割り当て（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
+  checks?: readonly CatalogCheck[] // 組み立てのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と組み立て E308 で止める）
 }
 
 export type Plugin = PluginParts & {
@@ -97,8 +98,12 @@ type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [neve
 
 // プラグインを書く入口。id の頭と、形とブックのタイプが名指すダイアログの受ける値を型で確かめる（組み立てでも確かめる）
 export const definePlugin = <const P extends Plugin>(
-  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P>,
+  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never },
 ): P => plugin
+
+// ビルトインプラグインが組み立てのときの確かめ（checks）を書くための型と、問題の作り方（plugin-api/builtin が出し直す）
+export type { CatalogCheck }
+export { problem }
 
 // ビルトインプラグインの印: キーの割り当てで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
@@ -138,6 +143,7 @@ export function assemble(
   auto: Partial<Record<Scheme, string>> = {},
 ): Assembled {
   for (const p of plugins) {
+    if (p.checks !== undefined && !isBuiltin(p)) fail("E308", { plugin: p.id })
     for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!isOwnedBy(p.id, d.id)) fail("E301", { plugin: p.id, kind, id: d.id })
     for (const t of [...(p.items ?? []), ...(p.bookTypes ?? [])].flatMap(o => o.tokens).concat(p.tokens ?? [])) {
@@ -186,10 +192,13 @@ export function assemble(
     languages: plugins.flatMap(p => p.languages ?? []),
     tokens: plugins.flatMap(p => p.tokens ?? []),
   })
-  // コマンドの名前も文言の表から引く
-  const untitled = commands
-    .filter(c => !catalog.messages.has(c.title))
-    .map(c => problem("E018", { kind: "command", id: c.id, title: c.title }))
+  // コマンドの名前も文言の表から引く。ビルトインプラグインの組み立てのときの確かめもかける
+  const untitled = [
+    ...commands
+      .filter(c => !catalog.messages.has(c.title))
+      .map(c => problem("E018", { kind: "command", id: c.id, title: c.title })),
+    ...plugins.filter(isBuiltin).flatMap(p => (p.checks ?? []).flatMap(check => check(catalog))),
+  ]
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
   const keys = defaultKeys(plugins, new Set(commands.map(c => c.id)))
   if (home !== null && catalog.bookTypes.get(home)?.single !== true) fail("E110", { id: home })

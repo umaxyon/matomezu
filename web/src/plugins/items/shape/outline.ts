@@ -1,6 +1,7 @@
 // 形の輪郭と、文字を置ける幅と、線のつなぎ口: 形の種類ごとの決まりは、この表に 1 行ずつ書く（ほかのファイルで種類の名前を比べない）。
 // 輪郭は幅 w・高さ h の四角の中の SVG の図形。inset は文字の左右に空ける幅（斜めの辺や丸い縁に文字が掛からないように）
-import type { Ports, Size } from "../../../plugin-api"
+import type { Size } from "../../../plugin-api"
+import type { Ports } from "../../base"
 
 export const SHAPE_KINDS = [
   "rounded",

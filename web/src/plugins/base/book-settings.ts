@@ -5,11 +5,11 @@
 import { z } from "zod"
 import { hasPages, putPage } from "../../core/book"
 import { bookType, type CoreCatalog } from "../../core/core-catalog"
-import type { PageContext } from "../../core/def/item"
 import type { SettingDef } from "../../core/def/setting"
 import { fail } from "../../core/errors"
-import { type ItemPage, tidyPage } from "../../core/placed"
+import type { ItemPage } from "../../core/placed"
 import type { Book } from "../../core/schema/book"
+import { tidyConnectors } from "./place/placed"
 
 export type SettingsOf = "book" | "page"
 
@@ -66,18 +66,24 @@ export const settingsAt =
   (id: string): unknown =>
     settingValue(catalog, book, page, id)
 
+// 形の置かれたページの事情: ブックのタイプと、そのページで効いている設定の値
+export interface PageContext {
+  type: string
+  setting(id: string): unknown
+}
+
 // ページ page の事情（ブックのタイプと、そのページで効いている設定の値）。ブックによって変わるつなぎ口などを決めるのに渡す
 export const pageContext = (catalog: CoreCatalog, book: Book, page: object | null): PageContext => ({
   type: book.type,
   setting: settingsAt(catalog, book, page),
 })
 
-// 設定を変えたあとのブック: どのページも整える（core/placed.ts の tidyPage）。変わったページは putPage で替える。ページを持たないブックはそのまま
+// 設定を変えたあとのブック: どのページも整える（place/placed.ts の tidyConnectors）。変わったページは putPage で替える。ページを持たないブックはそのまま
 export function settleBook<B extends Book>(catalog: CoreCatalog, book: B): B {
   if (!hasPages(book)) return book
   let next = book
   for (const page of book.pages as readonly ItemPage[]) {
-    const tidy = tidyPage(catalog, page, settingsAt(catalog, book, page))
+    const tidy = tidyConnectors(catalog, page, settingsAt(catalog, book, page))
     if (tidy !== page) next = putPage(next, tidy)
   }
   return next

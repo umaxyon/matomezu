@@ -1,5 +1,5 @@
 {
-  // 仕様だけのパッケージ ex6-spec を、パッケージの名前で型だけ読む（見本では paths が隣のフォルダを指す）
+  // 連携ポイント ex6-spec を、パッケージの名前で型だけ読む（見本では paths が隣のフォルダを指す）
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "paths": {

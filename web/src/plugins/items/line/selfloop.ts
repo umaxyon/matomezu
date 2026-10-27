@@ -7,7 +7,8 @@
 // 辺の真ん中だけにつなぐ形（ひし形・円など。PortArea の midpoints）は、角の両側の 2 つの頂点を端にし、その間を外へふくらむ半円で結ぶ
 // （角は形の外なので）。端の位置の指定は一番近い頂点として読み、2 つが隣り合う頂点でなければ使わない
 
-import type { Point, PortArea } from "../../../plugin-api"
+import type { Point } from "../../../plugin-api"
+import type { PortArea } from "../../base"
 import { centerOf, nearestAt, pointAt, type Rect, rectsOverlap, segmentsOf, segmentThroughRect } from "./geom"
 
 export type { Rect }

@@ -1,6 +1,7 @@
 // 線をじかに直す決まり（純粋な関数）: 途中の区間・端・キャプションの札を動かしたあとの線の項目と、線の編集のダイアログで選んだものから変える項目。
 // どれも、描いている線（drawLines の結果）と、ポインタの位置（紙の座標）から決める
-import type { Point, PortArea } from "../../../plugin-api"
+import type { Point } from "../../../plugin-api"
+import type { PortArea } from "../../base"
 import { clampCaptionOffset } from "./caption"
 import { alignedEndsOf, type DrawnLine, routeInputOf } from "./drawn"
 import { leftNormalAt, nearestAt, pointAt, type Rect } from "./geom"

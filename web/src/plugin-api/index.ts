@@ -30,9 +30,6 @@ export { defineBookType } from "../core/def/book-type"
 export type {
   ConnectorData,
   ItemDef,
-  PageContext,
-  PortArea,
-  Ports,
   ShapeAddArgs,
   ShapeData,
   ShapeEditArgs,
@@ -58,9 +55,6 @@ export {
   connectorSchema,
   connectorsOf,
   pageItemsOf,
-  placedSize,
-  portAreasOf,
-  rectsOf,
   shapeSchema,
   shapesOf,
 } from "../core/placed"

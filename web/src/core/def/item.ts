@@ -1,8 +1,8 @@
 // アイテムの定義: データに残り、画面に置かれるもの（名詞）。並べ方は知らず、自分の形・大きさ・能力・項目の形だけを持つ。
-// kind はアイテムのタイプで、kind ごとに持つ項目が変わる。置いたアイテムのデータの外枠（id・位置・つなぐ相手）は kind ごとに土台が決める（base の placed.ts）
+// kind はアイテムのタイプで、kind ごとに持つ項目が変わる。置いたアイテムのデータの外枠（id・位置・つなぐ相手）は kind ごとに土台が決める（core/placed.ts のスキーマ）
 import type { z } from "zod"
 import type { CapabilityTable, ConnectorItemExtras, ShapeItemExtras } from "../catalog"
-import type { Point, Rect, Size } from "../geom"
+import type { Point, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
 import type { TokenDef } from "./theme"
 
@@ -49,27 +49,6 @@ export interface ShapeEditArgs {
   item: string
 }
 
-// つなぎ口: つなぐもの（線）が、形のどこにつながるか。書かなければ、形の四角のふち全体
-export interface Ports {
-  midpoints?: boolean // 辺の真ん中だけにつなぐ（ひし形の頂点のように、辺の途中が形の外になる形）
-  insetX?: number // つながる範囲を、左右からこれだけ内側に縮める（左右の辺の真ん中が四角より内側にある形）
-  insetY?: number // つながる範囲を、上下からこれだけ内側に縮める
-}
-
-// 形の置かれたページの事情: ブックのタイプと、そのページで効いている設定の値
-export interface PageContext {
-  type: string
-  setting(id: string): unknown
-}
-
-// 形のつながる範囲（紙の座標）: つなぎ口で縮めた四角と、辺の真ん中だけにつなぐか
-export interface PortArea extends Rect {
-  midpoints?: boolean
-}
-
-// 2 つの形 a・b の間隔の下限
-export type Gap = (a: string, b: string) => number
-
 // 画面に置ける形。D は置いたデータの型（項目と中身の型が決まったもの）
 export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string = MessageKey>
   extends ItemBase<Tt>,
@@ -77,33 +56,18 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   kind: "shape"
   size: Size // 置くときの大きさ
   content?: Readonly<Record<string, z.ZodType>> // 項目のほかに持つ中身のフィールド（リストの行など。どれも書かなくてよい）
-  // 向きなどが違うだけの仲間の形をまとめて呼ぶ名前（台形と台形（逆）なら「台形」。文言の本当の鍵）。無ければ title
-  familyTitle?: MessageKey
-  ports?: Ports // つなぎ口（無ければ、四角のふち全体）
-  portsOf?(item: D): Ports // 置いた形のデータで変わるつなぎ口（あれば ports より先に使う）
   min?: Size // 一番小さい大きさ（大きさを変えられるアイテムだけ）
-  // 置いたアイテムの大きさ（w・h が無ければ、項目から決まる幅と高さ）。無ければ置いたときの w・h、それも無ければ size
-  sizeOf?(item: D): Size
   // 置く前に中身を決める追加のダイアログ（ShapeAddArgs を受ける）と、中身を変える編集のダイアログ（ShapeEditArgs を受ける）の id。
   // 追加が無ければそのまま置き、編集が無ければ「設定」を出さない。受ける値が合うかは definePlugin が型で確かめる
   dialogs?: { add?: string; edit?: string }
-  // 個別のテーマ（この形だけ別のテーマで描く値）を持つ項目の名前。base はこの項目だけをテーマの id として確かめる（無ければ見ない）。
-  // props にある名前かは、組み立てが確かめる（E028）
-  themeProp?: string
-  // キャプション（形の名前として見せる文字）の項目の名前。base はこの項目が変わったときだけ、見える幅まで形を広げる（無ければ広げない）。
-  // props にある名前かは、組み立てが確かめる（E028）
-  captionProp?: string
 }
 
 // 2 つの形をつなぐもの（線）。大きさを持たず、つないだ形の位置から形が決まる。
-// 置いた形との決まりを持つ: つないだ組の間隔の下限（gaps）、形が変わったあとの整え（tidy）、関係の決まり（holds）
+// 置いた形との関係の決まり（holds）を持つ
 export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt extends string = MessageKey>
   extends ItemBase<Tt>,
     ConnectorItemExtras<D> {
   kind: "connector"
-  gaps?(lines: readonly D[], base: Gap): Gap
-  // areas は形のつながる範囲、setting はそのページで効いている設定の値（設定の定義の id から）
-  tidy?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: (id: string) => unknown): D[]
   holds?(lines: readonly D[], connectable: (id: string) => boolean): boolean
 }
 
@@ -123,17 +87,12 @@ export function defineShape<
   const C extends Readonly<Record<string, z.ZodType>> = Record<never, never>,
   const G extends { add?: string; edit?: string } = Record<never, never>,
 >(
-  def: Omit<
-    ShapeItemDef<ShapeDataOf<P, C>>,
-    "id" | "props" | "content" | "kind" | "dialogs" | "themeProp" | "captionProp"
-  > & {
+  def: Omit<ShapeItemDef<ShapeDataOf<P, C>>, "id" | "props" | "content" | "kind" | "dialogs"> & {
     id: Id
     kind: "shape"
     props: P
     content?: C
     dialogs?: G
-    themeProp?: keyof z.output<P> & string
-    captionProp?: keyof z.output<P> & string
   },
 ): Omit<ShapeItemDef<ShapeDataOf<P, C>>, "content" | "dialogs"> & {
   id: Id

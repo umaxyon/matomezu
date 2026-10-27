@@ -6,12 +6,20 @@ import {
   type CoreCatalog,
   hasPages,
   type PlacedShape,
-  placedSize,
   type ShapeData,
   shapeSchema,
   shapesOf,
 } from "../../../plugin-api"
-import { knownTheme, nextItemId, placeItem, removeItems, replacePushing, shapeDefOf, widenForCaption } from "../../base"
+import {
+  knownTheme,
+  nextItemId,
+  placedSize,
+  placeItem,
+  removeItems,
+  replacePushing,
+  shapeDefOf,
+  widenForCaption,
+} from "../../base"
 import { kit } from "../kit"
 import { DIRS } from "./drag"
 import { moveItems } from "./items"

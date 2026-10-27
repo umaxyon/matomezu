@@ -1,6 +1,7 @@
 // 線の端を散らす決まり（line/spread.ts）と、折れ目の一番少ない形（line/route.ts の fewestRoute）を、線を描く形（drawLines）で確かめる
 import { expect, test } from "bun:test"
-import type { Point, PortArea } from "../../web/src/plugin-api"
+import type { Point } from "../../web/src/plugin-api"
+import type { PortArea } from "../../web/src/plugins/base"
 import { drawLines, linesBounds } from "../../web/src/plugins/items/line/drawn"
 import type { PlacedLine } from "../../web/src/plugins/items/line/placed"
 import { assignVertices } from "../../web/src/plugins/items/line/spread"

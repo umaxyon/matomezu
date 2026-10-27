@@ -1,9 +1,10 @@
 // ミニマップに描く、ページのアイテムの絵（紙の座標）: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
 // つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { ConnectorData, PortArea, ShapeData } from "../../../core/def/item"
+import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import type { Point, Rect } from "../../../core/geom"
-import { connectorsOf, type ItemPage, type PlacedConnector, portAreasOf, rectsOf, shapesOf } from "../../../core/placed"
+import { connectorsOf, type ItemPage, type PlacedConnector, shapesOf } from "../../../core/placed"
+import { type PortArea, portAreasOf, rectsOf } from "../place/placed"
 
 // ミニマップに描く簡単な絵 1 つ（紙の座標）。色と線の太さはミニマップが決める。
 // 四角（rx は角の丸み）・楕円・多角形は塗り、折れ線は線で描く

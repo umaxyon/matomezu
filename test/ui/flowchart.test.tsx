@@ -1,9 +1,9 @@
 // フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・道具箱に形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補・自動で整列
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
-import { portAreasOf, rectsOf, shapesOf } from "../../web/src/core/placed"
+import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { addPageIn, createBookIn } from "../../web/src/plugins/base"
+import { addPageIn, createBookIn, portAreasOf, rectsOf } from "../../web/src/plugins/base"
 import { floorsOf } from "../../web/src/plugins/base/place/items"
 import { ALIGN_MARGIN } from "../../web/src/plugins/books/flowchart/actions"
 import { linesOf } from "../../web/src/plugins/items/line/placed"

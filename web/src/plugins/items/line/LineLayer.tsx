@@ -4,7 +4,7 @@
 // 1 本だけ選んだ線は、端・途中の区間・キャプションの札をドラッグしてじかに直せる（useLineEdit.ts）。
 // 形にポインタを乗せると四辺に〇を出し（PortOverlay）、〇から引くドラッグ（useLinkDrag.ts）の間は、引ける相手と引き始めた形のほかを薄くする
 import { createContext, type ReactNode, useContext, useLayoutEffect, useRef } from "react"
-import { type PlacedConnector, type PortArea, placement, portAreasOf } from "../../../plugin-api"
+import { type PlacedConnector, placement } from "../../../plugin-api"
 import {
   ShapeMarksProvider,
   type ShapeScene,
@@ -14,6 +14,7 @@ import {
   useContextMenu,
   useCoreCatalog,
 } from "../../../plugin-api/ui"
+import { type PortArea, portAreasOf } from "../../base"
 import { LINE_EDIT } from "./commands"
 import { PORT_OUT, portAt, SIDES, targetsFrom } from "./connect"
 import { drawLines, type LineCache } from "./drawn"

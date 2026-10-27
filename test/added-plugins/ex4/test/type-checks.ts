@@ -1,5 +1,5 @@
 // 型が誤りにする場面（tsc -p でこのプロジェクトを確かめる。@ts-expect-error の行が誤りにならなければ、確かめが落ちる）
-import { z } from "matomezu"
+import { definePlugin, z } from "matomezu"
 import { kit } from "../kit"
 
 kit.defineConnector({
@@ -13,3 +13,6 @@ kit.defineConnector({
   props: z.strictObject({}),
   tokens: [],
 })
+
+// @ts-expect-error 追加プラグインは組み立てのときの確かめ（checks）を持てない（ビルトインプラグインだけ）
+definePlugin(kit.plugin({ checks: [() => []] }))

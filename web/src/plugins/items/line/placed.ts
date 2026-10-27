@@ -1,5 +1,6 @@
 // 線のデータと、ページの上での線の決まり: 線でつながった形の組の間隔、引ける相手、形が変わったあとの整え、関係の決まり
-import { type ConnectorData, connectorsOf, type ItemPage, type PlacedOf, type PortArea } from "../../../plugin-api"
+import { type ConnectorData, connectorsOf, type ItemPage, type PlacedOf } from "../../../plugin-api"
+import type { PortArea } from "../../base"
 import { kit } from "./kit"
 import type { LINE } from "./line"
 import { route } from "./route"

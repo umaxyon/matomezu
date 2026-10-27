@@ -1,6 +1,7 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（線の層から呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import { type CommandContext, type Point, pagedOf, portAreasOf, toPaper } from "../../../plugin-api"
+import { type CommandContext, type Point, pagedOf, toPaper } from "../../../plugin-api"
+import { portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
 import { kit } from "./kit"
