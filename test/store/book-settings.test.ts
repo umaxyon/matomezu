@@ -57,6 +57,15 @@ test("@matomezu/base:book-update・@matomezu/base:page-update は、ブックの
     ).ok,
   ).toBe(true)
   expect([book().title, "settings" in book()]).toEqual(["新しい名前", false])
+  // ページの名前も page-update で変える（settings は書かなくてよい。空の名前は断る）
+  expect(store.actions.perform("@matomezu/base:page-update", { page: "p1", title: "表紙" }, { book: "b1" }).ok).toBe(
+    true,
+  )
+  expect(book().pages[0]!.title).toBe("表紙")
+  expect(store.actions.perform("@matomezu/base:page-update", { page: "p1", title: "  " }, { book: "b1" }).ok).toBe(
+    false,
+  )
+  expect(book().pages[0]!.settings?.["@matomezu/line:line-route"]).toBe("elbow")
 })
 
 test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）。タイプがいくつもあれば、そのどれか", () => {
