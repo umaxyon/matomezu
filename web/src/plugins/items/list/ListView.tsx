@@ -157,7 +157,8 @@ export function ListView({
   }
   const carrying = (row: ListRow) => ({
     onPointerDown: (e: PointerEvent<HTMLLIElement>) => {
-      if (e.button !== 0) return
+      // ハンドツールの間は行を運ばず、押したことを紙へ渡す（紙をずらす）
+      if (e.button !== 0 || hand) return
       e.stopPropagation()
       select(stage, [id])
       if (!canCarry({ props }, row)) return
@@ -189,6 +190,8 @@ export function ListView({
   })
   const { select } = useActions()
   const at = useStage(stage)
+  // ハンドツールの間は、行を運ぶことも行の高さを変えることも、ダブルクリックで行の編集を開くこともしない（つまみも出さない）
+  const hand = at?.tool === "hand"
   const stretch = useRef<Stretch | null>(null)
   const [moved, setMoved] = useState(0) // 行の高さを変えているドラッグの、画面の上で動いた量
   const layout = listLayout(rows, size.w, props.checklist)
@@ -255,6 +258,7 @@ export function ListView({
                   {...carrying(row)}
                   style={{ height: heightOf(row.id, look?.height ?? 0) }}
                   onDoubleClick={e => {
+                    if (hand) return
                     e.stopPropagation()
                     edit.run({ list: id, row: row.id })
                   }}
@@ -272,7 +276,7 @@ export function ListView({
                     />
                   )}
                   <RowFace row={row} look={look} />
-                  <div className={styles.grip} data-grip="row" {...grip(row.id, look?.height ?? 0)} />
+                  {!hand && <div className={styles.grip} data-grip="row" {...grip(row.id, look?.height ?? 0)} />}
                 </li>
               )
             })}
