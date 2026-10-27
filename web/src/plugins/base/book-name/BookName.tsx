@@ -9,6 +9,7 @@ import { useMenu, useMenuCommand } from "../../../ui/menu"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import styles from "./BookName.module.css"
+import { STAGE_MENU } from "./menu"
 
 // 離れてからメニューが下がるまで（欄とメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
@@ -73,7 +74,7 @@ export function BookName({ stage }: { stage: string }) {
 
 // せり上がるメニュー。閉じている間は見えず、押せず、読み上げにも出ない
 function StageMenu({ stage, open, onPick }: { stage: string; open: boolean; onPick: () => void }) {
-  const items = useMenu("@matomezu/base:stage-menu")
+  const items = useMenu(STAGE_MENU)
   return (
     <div className={styles.menu} data-open={open} aria-hidden={!open} inert={!open}>
       {items.map(item => (

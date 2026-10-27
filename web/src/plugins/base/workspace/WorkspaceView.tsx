@@ -7,6 +7,7 @@ import { type MouseEvent, type PointerEvent, useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import styles from "./WorkspaceView.module.css"
 
 const noBrowserMenu = (e: MouseEvent) => {
@@ -50,18 +51,18 @@ export function WorkspaceView() {
           )}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
           <div className={styles.top} onContextMenu={noBrowserMenu}>
-            <Slot name="@matomezu/base:stage-top" props={{ stage }} />
+            <Slot name={STAGE_TOP} props={{ stage }} />
           </div>
           <div className={styles.cell}>
-            <Slot name="@matomezu/base:stage-body" props={{ stage }} />
+            <Slot name={STAGE_BODY} props={{ stage }} />
           </div>
           {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
           <div className={styles.bottom} onContextMenu={noBrowserMenu}>
-            <Slot name="@matomezu/base:stage-bottom" props={{ stage }} />
+            <Slot name={STAGE_BOTTOM} props={{ stage }} />
           </div>
           {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
           <div className={styles.corner} onContextMenu={noBrowserMenu}>
-            <Slot name="@matomezu/base:stage-corner" props={{ stage }} />
+            <Slot name={STAGE_CORNER} props={{ stage }} />
           </div>
         </div>
       ))}

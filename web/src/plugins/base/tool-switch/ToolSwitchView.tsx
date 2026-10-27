@@ -7,6 +7,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
+import { TOOL_NEXT } from "."
 import { TOOL_ICONS, TOOL_NAMES } from "./icons"
 import styles from "./ToolSwitchView.module.css"
 
@@ -31,7 +32,7 @@ const angle = (icon: number, front: number) => (((((icon - front) * 120 + 180) %
 
 export function ToolSwitchView({ stage }: { stage: string }) {
   const t = useMessages(kit)
-  const next = useCommand(stage, "@matomezu/base:tool-next")
+  const next = useCommand(stage, TOOL_NEXT.id)
   const catalog = useCatalog().core
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage)) ?? "select"
   const set = useMatomezuState(s => {

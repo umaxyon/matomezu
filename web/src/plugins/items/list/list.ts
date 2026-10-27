@@ -96,3 +96,5 @@ export const LIST = kit.defineShape({
 export const ROW_ADD_DIALOG = kit.defineDialogWith<{ page: string; list: string }>()({ id: "row-add" })
 // 行の編集のダイアログ
 export const ROW_EDIT_DIALOG = kit.defineDialogWith<{ page: string; list: string; row: string }>()({ id: "row-edit" })
+// 行の右クリックのメニュー（ui.tsx で機能台帳の型の側に書き足す）
+export const ROW_CONTEXT = kit.name("row-context")

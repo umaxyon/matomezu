@@ -1,5 +1,6 @@
 // ステージのコマンドのアイコン
 import { icon } from "../icon"
+import { STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "."
 
 const SPLIT = icon(
   <>
@@ -9,12 +10,12 @@ const SPLIT = icon(
 )
 
 export const STAGE_ICONS = {
-  "@matomezu/base:stage-home": icon(
+  [STAGE_HOME.id]: icon(
     <>
       <path d="M4 11 12 4l8 7" />
       <path d="M6 9.5V20h12V9.5" />
     </>,
   ),
-  "@matomezu/base:stage-split": SPLIT,
-  "@matomezu/base:stage-unsplit": SPLIT,
+  [STAGE_SPLIT.id]: SPLIT,
+  [STAGE_UNSPLIT.id]: SPLIT,
 }

@@ -8,22 +8,24 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
+import { PAGE_NEW, PAGE_OPEN } from "."
 import styles from "./PageTabs.module.css"
+import { PAGE_ADD } from "./page-add"
 
 // ページタブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page-add が使える）
 function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
   return (
     hasPages(book) &&
     bookType(catalog, book.type).pages?.addFromTabs === true &&
-    actionsOf(catalog, book).includes("@matomezu/base:page-add")
+    actionsOf(catalog, book).includes(PAGE_ADD.id)
   )
 }
 
 export function PageTabs({ stage }: { stage: string }) {
   const opened = useMatomezuState(s => s.workspace.stages.find(x => x.id === stage)?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
-  const openPage = useCommand(stage, "@matomezu/base:page-open")
-  const newPage = useCommand(stage, "@matomezu/base:page-new")
+  const openPage = useCommand(stage, PAGE_OPEN.id)
+  const newPage = useCommand(stage, PAGE_NEW.id)
   const catalog = useCatalog().core
   const t = useMessages(kit)
   if (!book || !hasPages(book)) return <div className={styles.tabs} />

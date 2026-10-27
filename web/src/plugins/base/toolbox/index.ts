@@ -9,4 +9,4 @@ export const TOOLBOX_CANCEL = kit.defineCommand({
   when: ctx => ctx.stage.placing !== null,
 })
 
-export const TOOLBOX_KEYS = defineKeys([{ key: "Escape", command: "@matomezu/base:toolbox-cancel", scope: "stage" }])
+export const TOOLBOX_KEYS = defineKeys([{ key: "Escape", command: TOOLBOX_CANCEL.id, scope: "stage" }])
