@@ -4,7 +4,7 @@ import type { z } from "zod"
 import type { CapabilityTable } from "../catalog"
 import type { Point, Rect, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
-import type { TokenDecl } from "./theme"
+import type { TokenDef } from "./theme"
 
 // アイテムが持つ能力（型の表 CapabilityTable の名前）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
 export type Capability = keyof CapabilityTable & string
@@ -15,7 +15,7 @@ interface ItemBase<Tt extends string = MessageKey> {
   title: Tt
   capabilities: readonly Capability[]
   props: z.ZodType // 置いたアイテムが持つ項目の形
-  tokens: readonly TokenDecl[] // 描くのに使うテーマキー
+  tokens: readonly TokenDef[] // 描くのに使うテーマキー
 }
 
 // 置いた形のデータ（外枠の id・左上・大きさと、項目 props と中身のフィールド）

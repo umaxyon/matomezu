@@ -5,7 +5,7 @@ import { type CorePart, PARTS, type Part, type PartDefTable, partsOf } from "../
 import { buildCoreCatalog, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { Scheme } from "../core/def/skin"
-import type { TokenDecl } from "../core/def/theme"
+import type { TokenDef } from "../core/def/theme"
 import { fail, matomezuError, problem } from "../core/errors"
 import type { LanguagePackDef, MessageSetDef } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
@@ -29,7 +29,7 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   messages?: MessageSetDef // このプラグインの文言（defineMessages で書き、機能台帳の型の側 MessageTable に書き足す）
   languages?: readonly LanguagePackDef[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // キーの既定の割り当て（結べるのは自分のコマンドだけ。store/keys.ts）
-  tokens?: readonly TokenDecl[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
+  tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
 }
 
 export type Plugin = PluginParts & {

@@ -4,7 +4,7 @@ import { z } from "zod"
 import { HEX } from "../../../core/color"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
-import { resolveTokens, type Shades, shades, tokenDeclsOf } from "../../../core/theme"
+import { resolveTokens, type Shades, shades, tokenDefsOf } from "../../../core/theme"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 
@@ -24,10 +24,10 @@ export function bookTheme(catalog: CoreCatalog, book: Book): string {
   return own !== undefined && catalog.themes.has(own) ? own : bookType(catalog, book.type).theme
 }
 
-// ブックを描くのに使うテーマの値（ブックのタイプのテーマキー。core の tokenDeclsOf）。紙の色があれば紙のテーマキーをその色にする
+// ブックを描くのに使うテーマの値（ブックのタイプのテーマキー。core の tokenDefsOf）。紙の色があれば紙のテーマキーをその色にする
 export function bookTokens(catalog: CoreCatalog, book: Book): Record<string, Shades> {
   const type = bookType(catalog, book.type)
-  const values = resolveTokens(catalog, bookTheme(catalog, book), tokenDeclsOf(catalog, type))
+  const values = resolveTokens(catalog, bookTheme(catalog, book), tokenDefsOf(catalog, type))
   const paper = settingValue(catalog, book, null, BOOK_PAPER_COLOR.id) as string | undefined
   return paper === undefined ? values : { ...values, paper: shades(paper) }
 }

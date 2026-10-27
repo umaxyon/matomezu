@@ -10,7 +10,7 @@ import type { ThemeToken } from "./def/theme"
 import { THEME_TOKENS } from "./def/theme"
 import type { KeyBinding } from "./keys"
 import type { Book } from "./schema/book"
-import { type Shades, shades, tokenDeclsOf } from "./theme"
+import { type Shades, shades, tokenDefsOf } from "./theme"
 
 // 段の出どころ
 export type Source =
@@ -66,15 +66,15 @@ function token(catalog: CoreCatalog, q: { book: Book; token: string }): Inspecte
     value: shades(theme.base[key]),
   })
   if ((THEME_TOKENS as readonly string[]).includes(q.token)) return decide([base(q.token as ThemeToken)])
-  const decl = tokenDeclsOf(catalog, type).find(d => d.id === q.token)
-  if (!decl) return decide([])
-  const own = theme.tokens?.[decl.id]
+  const def = tokenDefsOf(catalog, type).find(d => d.id === q.token)
+  if (!def) return decide([])
+  const own = theme.tokens?.[def.id]
   return decide([
     {
-      from: { source: "theme", id: theme.id, field: "tokens", key: decl.id },
+      from: { source: "theme", id: theme.id, field: "tokens", key: def.id },
       value: own === undefined ? null : shades(own),
     },
-    "fallback" in decl ? base(decl.fallback) : { from: { source: "token", id: decl.id }, value: shades(decl.value) },
+    "fallback" in def ? base(def.fallback) : { from: { source: "token", id: def.id }, value: shades(def.value) },
   ])
 }
 

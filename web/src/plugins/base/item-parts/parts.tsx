@@ -2,7 +2,7 @@
 // 形に当てたテーマの値を CSS 変数にするフック
 import { useMemo } from "react"
 import { PALETTE } from "../../../core/color"
-import type { TokenDecl } from "../../../core/def/theme"
+import type { TokenDef } from "../../../core/def/theme"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import { resolveTokens } from "../../../core/theme"
@@ -47,7 +47,7 @@ export function useBookTheme(book: string | undefined) {
 }
 
 // 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りのテーマキー fill の値）。表に無いテーマなら null
-export function useSwatches(looks: string | undefined, fill: TokenDecl) {
+export function useSwatches(looks: string | undefined, fill: TokenDef) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   return useMemo(() => {
@@ -63,13 +63,13 @@ export function useSwatches(looks: string | undefined, fill: TokenDecl) {
   }, [catalog, looks, fill, t])
 }
 
-// 形に当てたテーマ theme の、テーマキー decls の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）
-export function useThemeVars(theme: string | undefined, decls: readonly TokenDecl[]) {
+// 形に当てたテーマ theme の、テーマキー defs の値の CSS 変数（当てていないか、表に無いテーマなら undefined。ブックのテーマのまま描く）
+export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]) {
   const catalog = useCatalog().core
   return useMemo(() => {
     if (!theme || !catalog.themes.has(theme)) return undefined
-    const owners = new Set(decls.map(d => splitId(d.id).owner))
+    const owners = new Set(defs.map(d => splitId(d.id).owner))
     const [owner] = owners // テーマキーの持ち主（アイテムのプラグイン）は 1 つ
-    return themeVars(resolveTokens(catalog, theme, decls), owners.size === 1 && owner ? owner : undefined)
-  }, [catalog, theme, decls])
+    return themeVars(resolveTokens(catalog, theme, defs), owners.size === 1 && owner ? owner : undefined)
+  }, [catalog, theme, defs])
 }

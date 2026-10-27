@@ -9,7 +9,7 @@ import { translate } from "../../web/src/core/i18n/i18n"
 import { defineLanguagePack } from "../../web/src/core/i18n/messages"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { perform } from "../../web/src/core/perform"
-import { resolveTokens, tokenDeclsOf } from "../../web/src/core/theme"
+import { resolveTokens, tokenDefsOf } from "../../web/src/core/theme"
 import { bookTokens } from "../../web/src/plugins/base/book-look/look"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
@@ -324,7 +324,7 @@ test("ブックのタイプのテーマキーは、データに置けるアイ�
     ...base,
     items: { ...base.items, allowed: [...base.items.allowed, "@matomezu/shape:shape-rounded"] },
   }
-  const ids = tokenDeclsOf(CORE_CATALOG, drawing).map(d => d.id)
+  const ids = tokenDefsOf(CORE_CATALOG, drawing).map(d => d.id)
   expect(ids).toContain("@matomezu/shape:shape-fill")
   expect(ids).toContain("@matomezu/box:box-fill")
   expect(new Set(ids).size).toBe(ids.length)

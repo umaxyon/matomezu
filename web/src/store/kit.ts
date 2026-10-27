@@ -17,7 +17,7 @@ import type { PaperDef } from "../core/def/paper"
 import type { PresentationDef } from "../core/def/presentation"
 import type { SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
-import type { ThemeDef, TokenDecl } from "../core/def/theme"
+import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
 import type { MessageSetDef } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
@@ -158,8 +158,8 @@ export function pluginKit<const P extends string, const M extends MessageSetDef 
   const ownMessages = Object.fromEntries(Object.entries(messages).map(([k, t]) => [`${plugin}:${k}`, t]))
   const message = (key: string) => `${plugin}:${key}`
   // テーマキーの宣言（短い名前か、kit.name で頭を付けた id）
-  const tokens = (decls: readonly TokenDecl[]): TokenDecl[] =>
-    decls.map(t => (t.id.includes(":") ? t : { ...t, id: owned(plugin, t.id) }))
+  const tokens = (defs: readonly TokenDef[]): TokenDef[] =>
+    defs.map(t => (t.id.includes(":") ? t : { ...t, id: owned(plugin, t.id) }))
   // 定義の id・名前・テーマキーの宣言に頭を付ける
   const place = <D extends { id: string }>(def: D): D => {
     const d = def as D & { title?: unknown; tokens?: unknown }
@@ -175,7 +175,7 @@ export function pluginKit<const P extends string, const M extends MessageSetDef 
     messages: ownMessages,
     name: (name: string) => owned(plugin, name),
     message,
-    plugin: (parts: { tokens?: readonly TokenDecl[] }) => ({
+    plugin: (parts: { tokens?: readonly TokenDef[] }) => ({
       ...parts,
       ...(parts.tokens ? { tokens: tokens(parts.tokens) } : {}),
       id: plugin,
