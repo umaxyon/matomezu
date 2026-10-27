@@ -1,5 +1,5 @@
 // 形の色（color）を塗る CSS 変数: 形の塗りと文字のテーマキー（--shape-fill・--shape-text）を上書きする。線はテーマのまま。
-// 代表色の名前は、形かブックのテーマの代表色のテーマキー（palette.<役割>）とその上の文字の色を指す。
+// 代表色の名前は、ブックのテーマの代表色のテーマキー（palette.<役割>）とその上の文字の色を指す。
 // #rrggbb はその色で塗り、暗い色なら文字を白にする
 import { isLight, isPaletteName, themeVar } from "../../../plugin-api"
 

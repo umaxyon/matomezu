@@ -313,3 +313,22 @@ test("自動で整列: つながっていないチャートは、上をそろえ
   // 紙の外には出ない
   for (const r of rects.values()) expect(r.x + r.w).toBeLessThanOrEqual(794)
 })
+
+test("形は個別のテーマを持たない: 追加と編集のダイアログにテーマの欄は無く、テーマを書いて置くと断る", () => {
+  const { store, on, page } = flowchart()
+  act(() => store.actions.openDialog("s1", "@matomezu/shape:diamond-add", { page: page().id, at: { x: 40, y: 40 } }))
+  const add = screen.getByRole("dialog", { name: "形の追加" })
+  expect(within(add).queryByLabelText("テーマ")).toBeNull()
+  fireEvent.click(within(add).getByRole("button", { name: "キャンセル" }))
+  const placed = store.actions.perform(
+    "@matomezu/paper:item-place",
+    {
+      page: page().id,
+      item: "@matomezu/shape:shape-diamond",
+      at: { x: 40, y: 40 },
+      props: { theme: "@matomezu/base:sticky" },
+    },
+    on,
+  )
+  expect(placed.ok).toBe(false)
+})

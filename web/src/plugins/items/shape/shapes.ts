@@ -1,6 +1,6 @@
 // 形のアイテム: キャプションを 1 行持つ、輪郭の違う 8 つの形（角丸・ひし形・平行四辺形とその逆・台形とその逆・六角形・円）。
 // 向きが逆の形は、反転の項目ではなく別のアイテムにする。本文は持たない。大きさの決まりは箱と同じ（w・h を利用者が変える）。
-// 項目は箱と同じく、キャプションと寄せ・色（代表色の名前か #rrggbb）・個別のテーマ。テーマキーは 8 つの形で共通の 1 組。
+// 項目はキャプションと寄せ・色（代表色の名前か #rrggbb）。個別のテーマは持たない（いつもブックのテーマで描く）。テーマキーは 8 つの形で共通の 1 組。
 // 置くときは形ごとの追加のダイアログでキャプションと色を聞いてから置き、中身は 1 つの編集のダイアログで変える
 import { z } from "zod"
 import { HEX, PALETTE, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
@@ -23,7 +23,6 @@ export const SHAPE_TOKENS = [
 export const ShapePropsSchema = z.strictObject({
   caption: z.string().default(""),
   captionAlign: AlignSchema.default("center"),
-  theme: z.string().min(1).optional(), // 形に当てるテーマの id（無ければブックのテーマ）
   color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
 })
 
@@ -43,7 +42,6 @@ function shape<const Id extends string, const Title extends keyof typeof SHAPE_M
     version: 1,
     title,
     capabilities: ["connectable", "resizable"],
-    themeProp: "theme",
     captionProp: "caption",
     toolbox: true,
     props: ShapePropsSchema,

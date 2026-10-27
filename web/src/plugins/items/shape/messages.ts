@@ -14,8 +14,6 @@ export const SHAPE_MESSAGES = defineMessages({
   "Edit shape": { en: "Edit shape", ja: "形の編集" },
   Caption: { en: "Caption", ja: "キャプション" },
   "Caption alignment": { en: "Caption alignment", ja: "キャプションの寄せ" },
-  Theme: { en: "Theme", ja: "テーマ" },
-  "Book's theme": { en: "Book's theme", ja: "ブックを継承" },
   Color: { en: "Color", ja: "色" },
   Cancel: { en: "Cancel", ja: "キャンセル" },
   Add: { en: "Add", ja: "追加" },
