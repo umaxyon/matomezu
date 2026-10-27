@@ -26,7 +26,7 @@ declare module "../core/catalog" {
 
 // プラグインが持つ定義: 定義の種類ごとの並び（core/catalog.ts の PARTS）と、文言・言語・キーの既定の割り当て
 export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } & {
-  messages?: MessageSetDef // このプラグインの文言（defineMessages で書いて pluginKit に渡し、機能台帳の型の側 MessageTable に書き足す）
+  messages?: MessageSetDef // このプラグインの文言（defineMessages で書いて pluginKit に渡し、core/catalog.ts の MessageTable に書き足す）
   languages?: readonly LanguagePackDef[] // 持ち込む言語（kit.defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // キーの既定の割り当て（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）

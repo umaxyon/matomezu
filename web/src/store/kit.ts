@@ -53,7 +53,7 @@ type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<
 // 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
 export interface PluginKit<P extends string, M extends MessageMap> {
   id: P // プラグインの id
-  messages: OwnedMessages<P, M> // 頭を付けた文言（機能台帳の型の側 MessageTable に書き足す）
+  messages: OwnedMessages<P, M> // 頭を付けた文言（core/catalog.ts の MessageTable に書き足す）
   name<const N extends string>(name: N): Owned<P, N> // 自分の名前の本当の id
   message<const K extends keyof M & string>(key: K): Owned<P, K> // 自分の文言の本当の鍵
 

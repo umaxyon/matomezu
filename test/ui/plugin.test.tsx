@@ -16,7 +16,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 
 afterEach(cleanup)
 
-// 追加プラグインの見本（機能台帳の型の側には書き足さないので、インスタンスは partial で作る）
+// 追加プラグインの見本（core/catalog.ts には書き足さないので、インスタンスは partial で作る）
 const NOTE_LOOK = definePresentation({ id: "notes:note" })
 const NOTE = defineBookType({
   id: "notes:note",
@@ -104,7 +104,7 @@ describe("見た目のプラグイン", () => {
     const unknown = definePluginUi(notes, {
       presentationViews: { "notes:note": { view: NoteView } },
       dialogViews: { "notes:shot": ShotDialog },
-      // @ts-expect-error 機能台帳の型の側に無い id は差し替えられない
+      // @ts-expect-error core/catalog.ts に無い id は差し替えられない
       overrides: { dialogViews: { "book.nope": MyNewBook } },
     })
     expect(thrown(() => assembleUi([...BUILTIN_UI, unknown]))).toMatchObject({ code: "E205" })

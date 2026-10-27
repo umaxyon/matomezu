@@ -1,5 +1,5 @@
 // 文言の表の型と、土台の文言。鍵は英語の文そのもので、ほかの言語の訳を持つ（訳の無い言語では英語の鍵を出す）。{name} は t() に渡す値で置き換える。
-// プラグインは自分の文言を defineMessages で書いて pluginKit に渡し、機能台帳の型の側（MessageTable）に書き足す。pluginKit が id を付けた文言の組（MessageSetDef）にする。
+// プラグインは自分の文言を defineMessages で書いて pluginKit に渡し、core/catalog.ts（MessageTable）に書き足す。pluginKit が id を付けた文言の組（MessageSetDef）にする。
 // 言語は言語パック（LanguagePackDef。kit.defineLanguagePack）が持ち込む。パックは言語の名前と、どのプラグインの文言にでも足せる訳を持つ。
 // 土台の文言と言語の id の頭は matomezu（id が matomezu のプラグインを入れると、同じ id の重なり E001 で止まる）
 import type { MessageKey } from "../catalog"
@@ -17,7 +17,7 @@ export interface MessageSetDef {
   messages: MessageMap
 }
 
-// 書いた鍵と訳を文字のまま型に残す（機能台帳の型の側で、同じ鍵に違う訳を書き足すと型の誤りになる）
+// 書いた鍵と訳を文字のまま型に残す（core/catalog.ts の MessageTable で、同じ鍵に違う訳を書き足すと型の誤りになる）
 export const defineMessages = <const M extends Record<string, Translations>>(messages: M): M => messages
 
 // 言語パック: 言語 1 つの名前（その言語自身の書き方）と、文言の鍵 → 訳。

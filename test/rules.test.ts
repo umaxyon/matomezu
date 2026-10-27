@@ -340,7 +340,7 @@ test("Go の internal のパッケージは、決めたパッケージだけを�
 })
 
 // 自分の物は返した定義（STAR.id）か kit.name(名前) で名指す（conventions/definitions.md の「id」）。プラグイン（ビルトインと見本）のコードに、
-// 自分の id で始まる文字列を書かない。機能台帳の型の側への書き足し（declare module の中）と文言（messages.ts）、見本のテスト（test/）は除く
+// 自分の id で始まる文字列を書かない。core/catalog.ts への書き足し（declare module の中）と文言（messages.ts）、見本のテスト（test/）は除く
 function withoutDeclareModule(text: string): string {
   let out = ""
   let at = 0

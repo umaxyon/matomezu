@@ -1,10 +1,10 @@
-// プラグイン API の入口 matomezu（React なし）: プラグイン API（plugin-api）の名前を外に出す。機能台帳の型の側への書き足しは matomezu/catalog（core/catalog.ts）に向ける
+// プラグイン API の入口 matomezu（React なし）: プラグイン API（plugin-api）の名前を外に出す。型の書き足しは matomezu/catalog（core/catalog.ts）に向ける
 
 // zod は matomezu の実物を使う（追加プラグインが自分で入れた zod は使わない）
 export { z } from "zod"
 export * from "../plugin-api"
 
-// ビルトインプラグインが機能台帳の型の側に書き足した物（ItemTable など）を、いつも型に含める（ビルトインは必ずいるので、
+// ビルトインプラグインが core/catalog.ts に書き足した物（ItemTable など）を、いつも型に含める（ビルトインは必ずいるので、
 // 追加プラグインのプロジェクトがビルトインのファイルを読まなくても、ビルトインの id と型が引ける）
 import type {} from "../plugins"
 

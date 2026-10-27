@@ -34,5 +34,5 @@ export {
 // プラグインに公開する共通の処理のうち見た目の物（base の utils/ui に書き出した物は、そのまま出る）
 export * from "../plugins/base/utils/ui"
 
-// ビルトインプラグインの見た目が機能台帳の型の側に書き足した物（右クリックのメニューなど）も、いつも型に含める
+// ビルトインプラグインの見た目が core/catalog.ts に書き足した物（右クリックのメニューなど）も、いつも型に含める
 import type {} from "../plugins/ui"

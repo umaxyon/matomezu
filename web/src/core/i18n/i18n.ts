@@ -6,7 +6,7 @@ export type Messages = ReadonlyMap<string, Translations>
 
 export type Params = Readonly<Record<string, string | number>>
 
-// 訳の無い言語と、表に無い鍵（機能台帳の型の側に書き足したのに、そのプラグインを渡していないインスタンスなど）は、英語の鍵をそのまま出す
+// 訳の無い言語と、表に無い鍵（core/catalog.ts に書き足したのに、そのプラグインを渡していないインスタンスなど）は、英語の鍵をそのまま出す
 export function translate(messages: Messages, lang: Lang, key: MessageKey, params: Params = {}): string {
   // 訳の無い言語では英語の文（プラグインの文言は必ず en を持つ。土台の鍵は英語の文そのもの）
   const t = messages.get(key)

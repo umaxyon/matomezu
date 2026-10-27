@@ -4,7 +4,7 @@ import { creatableTypes, createBook } from "../../../core/book"
 import type { BookTypeId, SingleBookTypeId } from "../../../core/catalog"
 import { kit } from "../kit"
 
-// 何冊も作れるブックのタイプの id（機能台帳の型の側から決まる。表に無いタイプは run が断る）
+// 何冊も作れるブックのタイプの id（core/catalog.ts の BookTypeTable から決まる。表に無いタイプは run が断る）
 type ManyBookTypeId = Exclude<BookTypeId, SingleBookTypeId>
 
 const ARGS = z.strictObject({

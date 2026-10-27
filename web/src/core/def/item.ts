@@ -6,7 +6,7 @@ import type { Point, Rect, Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
 import type { TokenDef } from "./theme"
 
-// アイテムが持つ能力（型の表 CapabilityTable の名前）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
+// アイテムが持つ能力（core/catalog.ts の CapabilityTable の名前）。土台とプラグインの処理が、アイテムに何ができるかを見るのに使う
 export type Capability = keyof CapabilityTable & string
 
 interface ItemBase<Tt extends string = MessageKey> {

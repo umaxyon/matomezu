@@ -12,7 +12,7 @@ import { defineDialog, defineDialogWith, type PageSettingsArgs } from "../../web
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions } from "../../web/src/store/store"
 
-// 追加プラグインの見本。機能台帳の型の側には書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
+// 追加プラグインの見本。core/catalog.ts には書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
 const NOTE = defineBookType({
   id: "notes:note",
   version: 1,
@@ -56,7 +56,7 @@ const LEAF = defineBookType({
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
     addFromTabs: true,
     fields: { root: z.strictObject({ caption: z.string() }) },
-    // 機能台帳の型の側に書き足していないダイアログは、型では名指せないので言い張る
+    // core/catalog.ts に書き足していないダイアログは、型では名指せないので言い張る
     dialogs: { add: "notes:leaf-new" as never, settings: "notes:leaf-settings" as never },
   },
   items: { allowed: [], defaults: [] },
@@ -66,7 +66,7 @@ const LEAF = defineBookType({
   tokens: [],
 })
 
-// 機能台帳の型の側に書き足していない id で呼ぶ
+// core/catalog.ts に書き足していない id で呼ぶ
 const untyped = (a: Actions) =>
   a as unknown as { command(stage: string, id: string): boolean; openDialog(stage: string, id: string): void }
 
@@ -206,11 +206,11 @@ describe("インスタンスを組み立てる", () => {
     ])
   })
 
-  test("機能台帳の型の側と渡したプラグインが合わなければ型の誤り（行わない）", () => {
+  test("core/catalog.ts と渡したプラグインが合わなければ型の誤り（行わない）", () => {
     const typeOnly = () => {
       // @ts-expect-error ビルトインプラグインを渡していない（書き足した id が足りない）
       createMatomezu({ plugins: [] })
-      // @ts-expect-error 機能台帳の型の側に書き足していないプラグインを渡した
+      // @ts-expect-error core/catalog.ts に書き足していないプラグインを渡した
       createMatomezu({ plugins: [...BUILTIN, notes] })
       // @ts-expect-error ビルトインプラグインを 1 つの並びにしたものではない
       createMatomezu({ plugins: [{ ...BASE, commands: [] }, BUILTIN[1], BUILTIN[2]] })

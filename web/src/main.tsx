@@ -30,7 +30,7 @@ const store = createMatomezu({
   lang: navigator.languages,
   observe: done => client.observe(done),
 })
-// 追加プラグインは機能台帳の型の側に入らないので、型では確かめず、組み立てで確かめる（見た目と、置いた配置も）。
+// 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、組み立てで確かめる（見た目と、置いた配置も）。
 // 読み込めないもの・組み立てられないもの・配置が食い違うものは外す（ほかのプラグインとブックは使える）
 const added = store.use(saved.plugins as AnyPluginUi[], all => {
   shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))

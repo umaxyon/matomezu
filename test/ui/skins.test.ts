@@ -9,7 +9,7 @@ import { definePlugin } from "../../web/src/store/plugin"
 import { skinCss } from "../../web/src/ui/skins/css"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
-// 追加プラグインのスキン（機能台帳の型の側には書き足さない）
+// 追加プラグインのスキン（core/catalog.ts には書き足さない）
 const ACME_DARK = defineSkin({ ...DARK, id: "acme:dark" })
 const acme = definePlugin({ id: "acme", skins: [ACME_DARK] })
 

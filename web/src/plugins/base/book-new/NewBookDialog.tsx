@@ -32,7 +32,7 @@ function NewBookForm({ stage, onDone }: { stage: string; onDone: () => void }) {
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        // 選べるタイプは動いている機能台帳から来る（型の側に無い追加プラグインのタイプもある）ので、型を外して渡す
+        // 選べるタイプは動いている機能台帳から来る（core/catalog.ts に無い追加プラグインのタイプもある）ので、型を外して渡す
         if (createBookIn(instance, stage, { title, type: type as never })) onDone()
       }}
     >

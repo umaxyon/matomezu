@@ -3,6 +3,6 @@ import { kit } from "./kit"
 
 export const PAPER = kit.definePresentation({ id: "paper" })
 
-// 紙のビューが開く右クリックのメニュー: 紙の画面と、置いたアイテム（ui.tsx で機能台帳の型の側に書き足す）
+// 紙のビューが開く右クリックのメニュー: 紙の画面と、置いたアイテム（ui.tsx で core/catalog.ts に書き足す）
 export const PAPER_CONTEXT = kit.name("paper-context")
 export const ITEM_CONTEXT = kit.name("item-context")

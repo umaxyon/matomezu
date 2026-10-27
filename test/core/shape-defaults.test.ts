@@ -23,7 +23,7 @@ const PLUGIN = definePlugin(dots.plugin({ items: [DOT] }))
 
 test("sizeOf を書かない形の大きさは、置いたときの w・h、無ければ定義の size", () => {
   const catalog = createMatomezu({ plugins: [...BUILTIN, PLUGIN], partial: true }).catalog.core
-  // 型の側に書き足していない追加プラグインのアイテムなので、置いた形の型は言い張る
+  // core/catalog.ts に書き足していない追加プラグインのアイテムなので、置いた形の型は言い張る
   const placed = (more: object) => ({ id: "a", x: 0, y: 0, item: DOT.id, props: {}, ...more }) as unknown as PlacedShape
   expect(placedSize(catalog, placed({}))).toEqual({ w: 40, h: 30 })
   expect(placedSize(catalog, placed({ w: 80 }))).toEqual({ w: 80, h: 30 })

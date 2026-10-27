@@ -9,7 +9,7 @@ import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions, DoneAction } from "../../web/src/store/store"
 import { newStore } from "../support"
 
-// 追加プラグインの見本: 自分のブックのタイプと、そのタイプで使えるアクション（機能台帳の型の側には書き足さない）
+// 追加プラグインの見本: 自分のブックのタイプと、そのタイプで使えるアクション（core/catalog.ts には書き足さない）
 const NOTE = defineBookType({
   id: "notes:note",
   version: 1,

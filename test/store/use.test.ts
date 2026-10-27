@@ -6,7 +6,7 @@ import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 
-// 取り込んだ追加プラグインの見本: 自分のブックのタイプとアクション（機能台帳の型の側には書き足さない）
+// 取り込んだ追加プラグインの見本: 自分のブックのタイプとアクション（core/catalog.ts には書き足さない）
 const NOTE = defineBookType({
   id: "notes:note",
   version: 1,
