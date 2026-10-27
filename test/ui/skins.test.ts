@@ -14,7 +14,7 @@ const ACME_DARK = defineSkin({ ...DARK, id: "acme:dark" })
 const acme = definePlugin({ id: "acme", skins: [ACME_DARK] })
 
 describe("スキン", () => {
-  test("スキンの CSS は、data-skin で選ぶ規則と、OS に合わせる規則を持ち、フィールドを全部出す", () => {
+  test("スキンの CSS は、data-skin で選ぶ規則と、OS に合わせる規則を持ち、スキンキーを全部出す", () => {
     const css = skinCss(CORE_CATALOG.skins, autoSkin(CORE_CATALOG))
     for (const id of CORE_CATALOG.skins.keys()) expect(css).toContain(`:root[data-skin="${id}"]`)
     expect(css).toContain("prefers-color-scheme: light")
