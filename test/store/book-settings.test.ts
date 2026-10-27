@@ -88,3 +88,14 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
     "settings of @matomezu/tree:tree books": ["@matomezu/base:book-theme", "@matomezu/base:book-paper-color"],
   })
 })
+
+test("@matomezu/base:page-add も、ページの設定の項目を settings で受け付けて作る。選んでいない項目は断る", () => {
+  const store = newStore()
+  const book = () => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+  const add = (settings: unknown) =>
+    store.actions.perform("@matomezu/base:page-add", { title: "直線", settings } as never, { book: "b1" })
+  expect(add({ "@matomezu/flowchart:flow-direction": "right" }).ok).toBe(false)
+  const done = add({ "@matomezu/line:line-route": "straight" })
+  expect(done.ok).toBe(true)
+  expect(book().pages.at(-1)).toMatchObject({ title: "直線", settings: { "@matomezu/line:line-route": "straight" } })
+})
