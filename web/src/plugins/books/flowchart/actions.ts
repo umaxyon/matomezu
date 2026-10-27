@@ -12,10 +12,8 @@ import {
   type PagedBook,
   pagedOf,
   type Rect,
-  type ShapeData,
   shapesOf,
 } from "../../../plugin-api"
-import { type CatalogCheck, problem } from "../../../plugin-api/builtin"
 import {
   adaptPage,
   extentOf,
@@ -30,23 +28,6 @@ import {
 import { alignFlow, type FlowAlignOptions, type FlowItem } from "./align"
 import { FLOW_DIRECTION, type FlowDirection, isBranch, isStart } from "./flowchart"
 import { kit } from "./kit"
-
-// 向きなどが違うだけの仲間の形をまとめて呼ぶ名前（台形と台形（逆）なら「台形」。文言の本当の鍵）。無ければ title。
-// 形の定義オブジェクトの拡張ポイントに、フローチャートのプラグインの id を頭に付けて書き足す（文言の表にあるかは、フローチャートの組み立ての確かめが見る）
-declare module "../../../core/catalog" {
-  interface ShapeItemExtras<D extends ShapeData = ShapeData> {
-    "@matomezu/flowchart:family-title"?: MessageKey
-  }
-}
-
-// 形の仲間の名前が文言の表にあるか（組み立てのときの確かめ）
-export const FAMILY_TITLE_CHECK: CatalogCheck = catalog =>
-  [...catalog.items.values()].flatMap(i => {
-    const title = i.kind === "shape" ? i[kit.name("family-title")] : undefined
-    return title !== undefined && !catalog.messages.has(title)
-      ? [problem("E018", { kind: "item", id: i.id, title })]
-      : []
-  })
 
 // 間隔（線のキャプション Yes / No が入るくらい）。収まらなければ次の詰めた間隔で試す
 const GAPS: readonly Omit<FlowAlignOptions, "centerX" | "top">[] = [
@@ -162,7 +143,7 @@ export function alignedRects(
   return null
 }
 
-// ページ page をそのページに合わせたとき（adaptPage）に変わる形の名前（文言の鍵）。仲間の形はまとめた名前（下の family-title。台形と台形（逆）は「台形」）、
+// ページ page をそのページに合わせたとき（adaptPage）に変わる形の名前（文言の鍵）。仲間の形はまとめた名前（base が書き足した familyTitle。台形と台形（逆）は「台形」）、
 // 同じ名前は 1 つで、ページの順。変わる形が無ければ空
 export function adaptedTitles(catalog: CoreCatalog, book: PagedBook, page: ItemPage): MessageKey[] {
   const adapted = adaptPage(catalog, page, pageContext(catalog, book, page))
@@ -171,7 +152,7 @@ export function adaptedTitles(catalog: CoreCatalog, book: PagedBook, page: ItemP
     .filter(s => before.get(s.id) !== s)
     .flatMap(s => {
       const def = catalog.items.get(s.item)
-      const title = def?.kind === "shape" ? (def[kit.name("family-title")] ?? def.title) : def?.title
+      const title = def?.kind === "shape" ? (def.familyTitle ?? def.title) : def?.title
       return title ? [title] : []
     })
   return [...new Set(titles)]

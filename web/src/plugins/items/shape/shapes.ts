@@ -59,7 +59,7 @@ function shape<const Id extends string, const Title extends keyof typeof SHAPE_M
   name: Id,
   kind: ShapeKind,
   title: Title,
-  family?: keyof typeof SHAPE_MESSAGES & string, // 向きが逆の形の仲間の名前（フローチャートの family-title）
+  family?: keyof typeof SHAPE_MESSAGES & string, // 向きが逆の形の仲間の名前（base の familyTitle）
 ) {
   const add = kit.defineDialogWith<ShapeAddArgs>()({ id: `${name}-add` })
   const rule = SHAPE_RULES[kind]
@@ -71,7 +71,7 @@ function shape<const Id extends string, const Title extends keyof typeof SHAPE_M
     capabilities: ["connectable", "resizable"],
     captionProp: "caption",
     toolbox: true,
-    ...(family ? { "@matomezu/flowchart:family-title": kit.message(family) } : {}),
+    ...(family ? { familyTitle: kit.message(family) } : {}),
     props: ShapePropsSchema,
     size: rule.size,
     min: SHAPE_MIN,
@@ -117,7 +117,7 @@ function turnable<const Id extends string, const Title extends keyof typeof SHAP
     capabilities: ["connectable", "resizable"],
     captionProp: "caption",
     toolbox: true,
-    "@matomezu/flowchart:family-title": kit.message(family),
+    familyTitle: kit.message(family),
     props: TurnablePropsSchema,
     size: rule.size,
     min: { w: SHAPE_MIN.h, h: SHAPE_MIN.h }, // 縦向きでも横向きでも、キャプション 1 行の高さまで

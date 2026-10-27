@@ -1,5 +1,5 @@
 // ex6 と ex7 で、定義オブジェクトの拡張ポイントを確かめる: ex6-spec が形の拡張ポイントに書き足したメソッド "ex6:weight" に ex7 の木箱が答え、
-// ex6 のアクションが機能台帳から引いて使う。ex6 と ex7 を一緒に組むので、このテストだけは ex6 の本体（ex6/ui）を読む
+// ex6 のアクションが機能台帳から引いて使う。ex6 と ex7 を一緒に組むので、このテストだけは ex6 のコード（ex6/ui）を読む
 import { expect, test } from "bun:test"
 import { act } from "@testing-library/react"
 import EX6_UI from "ex6/ui"

@@ -133,9 +133,9 @@ test("形の themeProp・captionProp が props に無い項目を名指したら
   expect(() => assemble(BUILTIN)).not.toThrow()
 })
 
-test("形の仲間の名前が文言の表に無ければ E018（フローチャートの組み立てのときの確かめ）", () => {
+test("形の仲間の名前が文言の表に無ければ E018（base の組み立てのときの確かめ）", () => {
   const found = problemsWith("@matomezu/shape", "@matomezu/shape:shape-diamond", {
-    "@matomezu/flowchart:family-title": "no such message",
+    familyTitle: "no such message",
   })
   expect(found.map(p => p.code)).toEqual(["E018"])
 })

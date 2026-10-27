@@ -240,7 +240,7 @@ test("plugin-modules は入口と React だけを読み、ホストのエンジ�
 // 追加プラグインの見本（test/added-plugins/exN。それぞれ開発者プロジェクトの形）: 中（web/src）を直に読まず、プラグイン API の名前だけを読む。
 // 見本どうしは読まない。読んでよいのは連携ポイント（matomezu.json の無いフォルダ。例 ex6-spec）を、パッケージの名前で型だけ（import type）。
 // 見た目でないファイルは matomezu/ui も React も読まない。テスト（test/）は matomezu/testing と、自分のプラグインのファイルも読み、
-// ほかの見本と一緒に組むテストは、その見本の本体もパッケージの名前で読む（ex7 のテストが ex6/ui を読む）
+// ほかの見本と一緒に組むテストは、その見本のコードもパッケージの名前で読む（ex7 のテストが ex6/ui を読む）
 const ADDED = join(ROOT, "test/added-plugins")
 const added = filesUnder(ADDED)
   .filter(path => /\.tsx?$/.test(path))
@@ -261,7 +261,7 @@ const readsOf = (text: string) =>
     }),
   )
 
-// 見本が答える連携ポイントの持ち主（自分のテストだけが、一緒に組むために本体を読んでよい。ex7 → ex6）
+// 見本が答える連携ポイントの持ち主（自分のテストだけが、一緒に組むためにコードを読んでよい。ex7 → ex6）
 const answers = (own: string) =>
   added
     .filter(f => f.rel.split("/")[0] === own && f.rel.split("/")[1] !== "test")

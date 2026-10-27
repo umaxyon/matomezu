@@ -23,6 +23,15 @@ import { type PageContext, settingsAt } from "../book-settings"
 import { connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, tidyConnectors as tidyItems } from "./placed"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
+// 形の仲間の名前（familyTitle）が文言の表にあるか（組み立てのときの確かめ）
+export const FAMILY_TITLE_CHECK: CatalogCheck = catalog =>
+  [...catalog.items.values()].flatMap(i => {
+    const title = i.kind === "shape" ? i.familyTitle : undefined
+    return title !== undefined && !catalog.messages.has(title)
+      ? [problem("E018", { kind: "item", id: i.id, title })]
+      : []
+  })
+
 // 形の captionProp・themeProp が、その形の props にある項目を名指しているか（組み立てのときの確かめ）
 export const PROP_NAMES_CHECK: CatalogCheck = catalog =>
   [...catalog.items.values()].flatMap(i =>
@@ -50,6 +59,9 @@ declare module "../../../core/catalog" {
     // 個別のテーマ（この形だけ別のテーマで描く値）を持つ項目の名前。この項目だけをテーマの id として確かめる（無ければ見ない）。
     // props にある名前かは、base の組み立ての確かめが見る（E028）
     themeProp?: PropName<D>
+    // 向きなどが違うだけの仲間の形をまとめて呼ぶ名前（台形と台形（逆）なら「台形」。文言の本当の鍵）。いくつものプラグインが使う見込みなので base が書き足す。
+    // 文言の表にあるかは、base の組み立ての確かめが見る（E018）
+    familyTitle?: MessageKey
     // キャプションが切れずに見える幅（キャプションで広げる幅と、縮めてよい横の下限）。無ければ size.w
     captionWidth?(item: D): number
     // キャプションが切れずに見える高さ（キャプションで縦に広げる高さと、縮めてよい縦の下限。文字を縦に置く形）。無いか null なら縦には広げない

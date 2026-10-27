@@ -5,7 +5,7 @@
 
 ## プラグインどうしの関係
 
-- プラグインどうしは、本体を読み合わない。読んでよいのは、プラグイン API（ビルトインプラグインは base の入口も）と、ほかのプラグインの連携ポイント（`import type` で、型だけ）
+- プラグインは、ほかのプラグインのコードを読まない。読んでよいのは、プラグイン API（ビルトインプラグインは base の入口も）と、ほかのプラグインの連携ポイント（`import type` で、型だけ）
 - 追加プラグインが読むプラグイン API は `matomezu`・`matomezu/ui`・`matomezu/catalog`。テストで組むときだけ `matomezu/testing` も読む（見本は `test/rules.test.ts` が見張る）
 - プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。見た目は、matomezu が渡すステージの id から、フックで約束のものだけを引く:
   - データ: `useBook(stage)`・`usePage(stage)`（開いているブックとページ）、`useItem(stage, page, item)`（項目の型はアイテムの id で決まる）、`useShownPage(stage)`（ダイアログの下書きを重ねたページ。見せ方が描くのに使う）
