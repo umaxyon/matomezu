@@ -221,7 +221,7 @@ test("リストのキャプションも、箱と同じく左・中央・右に�
   await expect(head).toHaveCSS("text-align", "left")
 })
 
-test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは今まで通り。ハンドツールの間は行を運ばず紙がずれる", async ({
+test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは今まで通り。ハンドツールの間は行を運ばず、行の高さも変えず、紙がずれる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -276,6 +276,14 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   await expect(rows(first)).toHaveText(["三", "二"])
   const after = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   expect(Math.round(before.y - after.y)).toBe(70)
+  // 行の高さを変えるつまみも出ず、行の下の端を押してドラッグしても紙がずれる
+  await expect(first.locator('[data-grip="row"]')).toHaveCount(0)
+  const edge = (await rows(first).nth(0).boundingBox())!
+  const height = edge.height
+  await drag({ x: edge.x + 40, y: edge.y + edge.height - 2 }, { x: edge.x + 40, y: edge.y + edge.height + 40 })
+  expect((await rows(first).nth(0).boundingBox())!.height).toBe(height)
+  const panned = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  expect(Math.round(panned.y - after.y)).toBe(42)
 })
 
 test("行をドラッグして行の並びの下の端へ寄せると、ポインタを止めていても一番下までスクロールし続け、上の端へ寄せると上へ戻る。光る線は行の並びの外に出ない", async ({
