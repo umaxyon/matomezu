@@ -1,9 +1,10 @@
-// 画面の入口: ホストクライアント（ホストから開いていればホストに頼むもの、そうでなければ見本のブックを持つメモリ）から残したブックと設定を読み、ビルトインプラグインと見た目でインスタンスを作り、React の根に Screen を描く。行ったアクションと外の変化はホストクライアントを通してやり取りする。
+// 画面の入口: ホストクライアント（ホストから開いていればホストに頼むもの、そうでなければ見本のブックを持つメモリ）から残したブックと設定を読み、ビルトインプラグインと見た目でインスタンスを作り、React の根に Screen を描く。行ったアクションと外の変化はホストクライアントを通してやり取りし、画面の場所は URL と行き来させる。
 // ホストが足した追加プラグインも、ホストクライアントが読んだものをビルトインプラグインの後ろに足す。追加プラグインが借りる実物（plugin-modules）は、読む前に globalThis.__matomezuModules に置く
 
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
+import { followLocation } from "./host-client/location"
 import { memoryClient } from "./host-client/memory"
 import { openClient } from "./host-client/open"
 import { UI_MODULES } from "./plugin-modules/ui"
@@ -35,6 +36,8 @@ const added = store.use(saved.plugins as AnyPluginUi[], all => {
 })
 for (const { id, error } of [...saved.failed, ...added.failed]) console.error(`plugin ${id} is not added:`, error)
 client.connect(store)
+// 画面の場所を URL と行き来させる（読み直しても同じ所が開き、ブラウザの戻る・進むで移動を戻る）
+followLocation(store)
 const root = document.getElementById("root")
 if (!root) fail("E202")
 

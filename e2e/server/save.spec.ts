@@ -199,3 +199,16 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
     })
     .toEqual(["a", "c"])
 })
+
+test("開いているブックとページは URL に入り、読み直しても同じものが開く（戻る・進むは host-client/location.test.ts）", async ({
+  page,
+}) => {
+  const book = { ...SAMPLE_BOOKS[1]!, id: "e2e-url" }
+  const put = await page.request.put(`/api/books/${book.id}`, { data: { book, base: 0 } })
+  expect(put.ok()).toBe(true)
+  await page.goto(`/?b0=${book.id}&p0=p1&v0=1,0,0&c=0&r=0.5`)
+  await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
+  expect(new URL(page.url()).searchParams.get("b0")).toBe(book.id)
+})

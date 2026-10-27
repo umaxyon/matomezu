@@ -2,6 +2,7 @@
 // 画面には読む口（state）と操作（actions）だけを渡し、setState は渡さない。計算は core の純粋な関数に任せる
 
 import { createStore, type StoreApi } from "zustand/vanilla"
+import { type Address, addressOf, placeAt } from "../core/address"
 import { checkBooks, hasPages, singleBooks } from "../core/book"
 import type { ActionId, DialogId, ItemId, MessageKey, SingleBookTypeId, SkinId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -132,6 +133,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(world: { books: readonly unknown[]; settings: unknown }, replay: readonly DoneAction[]): void
+  // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
+  // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）
+  locate(address: Address): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
   // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と誤りを返す
   use(
@@ -420,6 +424,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
       })
+    },
+    locate: address => {
+      const now = getState()
+      if (JSON.stringify(addressOf(now.workspace)) === JSON.stringify(address)) return
+      const workspace = placeAt(catalog, now.books, now.workspace, address)
+      if (workspace !== now.workspace) commit({ workspace })
     },
     use: (added, check) => {
       const failed: { id: string; error: unknown }[] = []
