@@ -70,7 +70,7 @@ export function useStage(stage: string): StageView | null {
   const catalog = useCatalog().core
   const found = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage))
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage))
-  return useMemo(() => (found ? stageView(found, tool) : null), [found, tool])
+  return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 
 // 機能台帳（定義の表。読むだけ。コマンドの ctx.catalog と同じ物）

@@ -13,10 +13,16 @@ type SettingValuesOf<Ids> = {
 }
 type Selected<T, Of extends "book" | "page"> = T extends { settings: { [k in Of]: readonly (infer I)[] } } ? I : never
 
+// タイプがページに足す欄（pages.fields）
+type PageFields<T> = T extends { pages: { fields: infer F extends Readonly<Record<string, z.ZodType>> } }
+  ? z.output<z.ZodObject<{ -readonly [K in keyof F]: F[K] }>>
+  : unknown
+
 // タイプ T のページ（置けるのは、タイプが選んだアイテムだけ）
-export type PageOf<T> = Page & {
-  items?: PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
-} & SettingFields<Selected<T, "page">>
+export type PageOf<T> = Page &
+  PageFields<T> & {
+    items?: PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
+  } & SettingFields<Selected<T, "page">>
 
 // タイプ T のブック（名前 title は土台の欄で、どのタイプのブックも持つ。空でもよい）
 export type BookData<T> = (T extends { schema: infer S extends z.ZodType } ? z.output<S> : never) & {

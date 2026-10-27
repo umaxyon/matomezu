@@ -28,3 +28,9 @@ export const TILES_ICON = (
     <rect x="14" y="8" width="6" height="8" />
   </svg>
 )
+
+export const SORT_ICON = (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 7h16M7 12h10M10 17h4" />
+  </svg>
+)

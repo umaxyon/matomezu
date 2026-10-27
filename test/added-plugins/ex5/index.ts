@@ -1,10 +1,17 @@
-// ex5: 文字を持たず、中身の欄の名前が children でない形（タイル）を持つ追加プラグイン
+// ex5: 文字を持たず、中身の欄の名前が children でない形（タイル）と、自分の道具と道具の組を持つ追加プラグイン
 import { definePlugin } from "matomezu"
 import { kit } from "./kit"
-import { SHELF, TILE_ADD, TILES, TILES_TOKENS } from "./tiles"
+import { SHELF, SHELF_TOOLS, SORT_TOOL, TILE_ADD, TILES, TILES_TOKENS } from "./tiles"
 
 export const EX5 = definePlugin(
-  kit.plugin({ bookTypes: [SHELF], items: [TILES], actions: [TILE_ADD], tokens: TILES_TOKENS }),
+  kit.plugin({
+    bookTypes: [SHELF],
+    items: [TILES],
+    actions: [TILE_ADD],
+    tools: [SORT_TOOL],
+    toolSets: [SHELF_TOOLS],
+    tokens: TILES_TOKENS,
+  }),
 )
 
 export default EX5
@@ -21,6 +28,12 @@ declare module "matomezu/catalog" {
   }
   interface ActionTable {
     "ex5:tile-add": typeof TILE_ADD
+  }
+  interface ToolTable {
+    "ex5:sort": typeof SORT_TOOL
+  }
+  interface ToolSetTable {
+    "ex5:shelf-tools": typeof SHELF_TOOLS
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

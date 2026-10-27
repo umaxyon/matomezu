@@ -9,7 +9,7 @@
 - 追加プラグインは、プラグイン API（`matomezu`・`matomezu/ui`・`matomezu/catalog`）だけを読む。テストで組むときだけ `matomezu/testing` も読む（見本は `test/rules.test.ts` が見張る）
 - プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。見た目は、matomezu が渡すステージの id から、フックで約束のものだけを引く:
   - データ: `useBook(stage)`・`usePage(stage)`（開いているブックとページ）、`useItem(stage, page, item)`（項目の型はアイテムの id で決まる）、`useShownPage(stage)`（ダイアログの下書きを重ねたページ。見せ方が描くのに使う）
-  - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`）。ブックのビューにはステージの id を渡す。コマンドの `ctx.stage` も同じ `StageView`
+  - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`・`pans`）。ブックのビューにはステージの id を渡す。コマンドの `ctx.stage` も同じ `StageView`
   - 定義と設定: `useCoreCatalog()`・`useUiCatalog()`（読むだけ）、`useSettings()`（言語とスキン）
   - データを変えるのはアクションだけ。ステージが開いているブックには `usePerform(stage)`、ほかの対象（一覧・設定）には `useActions()` の `perform` で行う。画面の状態（選択・ダイアログ・ページを開くなど）はコマンドと `useActions`
 - プラグイン API が出す名前の一覧は `test/plugin-api.test.ts` に書く。足すときも消すときもここを直し、わざと変えたと分かるようにする
@@ -45,7 +45,7 @@
 
 ## 見た目と差し替え
 
-- `definePluginUi(plugin, { presentationViews, items, settingViews, dialogViews, widgets, commandIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ダイアログに、ビューが無いと型の誤り
+- `definePluginUi(plugin, { presentationViews, items, settingViews, dialogViews, widgets, commandIcons, toolIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ダイアログ・道具に、ビューやアイコンが無いと型の誤り
 - 差し替えられるのはビュー（ブック・ダイアログ・ウィジェット）だけで、`overrides` に書く。アクションやブックのタイプなど中身は差し替えない
 - 画面の配置（スロットにどのウィジェットを置くか、メニューの中身）は配置（`defineLayout`）に書く。matomezu/testing でアプリを組むときは、配置は丸ごと替え、差分を重ねて混ぜない
 - 配置が名指したウィジェット・コマンド・スロット・メニューのうち、持ち主のプラグイン（id の頭）が組み込まれていない物は、その行だけ飛ばし、注意 N010 を残す。持ち主が組み込まれているのに無い物は誤り（E207〜E213）。画面の注意は `useLayoutNotices` で読む
@@ -62,7 +62,7 @@
 
 - 追加プラグインのフォルダには `matomezu.json` を置く。欄は `id`（プラグインの id）・`engine`（ホストのエンジンで動かす入口）・`ui`（画面で読む入口）・`pluginApi`（作ったときのプラグイン API の版）。入口はフォルダからのパスで、フォルダの外は指せない。知らない欄は誤り
 - `engine` の入口はプラグインを、`ui` の入口は見た目を結んだプラグインを `export default` で出す。`engine` の入口は React と `matomezu/ui` を読まない。`id` は `engine` の入口が出すプラグインの id と同じにする（組み立てで確かめる）
-- 追加プラグインは、動いている常駐に足す・入れ替える（同じ id）・外すことができる。変えるたびにホストのエンジンを組み直し、画面は読み直す。組み直せなければ前のまま。起動のときに読めない追加プラグインは外して立て、理由を常駐のログに残す。AI は MCP の道具 `actions` で今使えるアクションを読み直す（MCP の道具の一覧は変わらない。definitions の「AI に見せる」）
+- 追加プラグインは、動いている常駐に足す・入れ替える（同じ id）・外すことができる。変えるたびにホストのエンジンを組み直し、画面は読み直す。組み直せなければ前のまま。起動のときに読めない追加プラグインは外して立て、理由を常駐のログに残す。AI は MCP 公開ツール `actions` で今使えるアクションを読み直す（MCP 公開ツールの一覧は変わらない。definitions の「AI に見せる」）
 - 追加プラグインは、プラグイン API の実装を中に持たない。ホストが変換する（Go に組み込んだ esbuild）とき、`plugin-modules` の表にある名前（`matomezu`・`matomezu/ui`・`react`・`react/jsx-runtime`）は取り込まず、動いている matomezu が渡す実物を使う（zod や React が 2 つになると動かないため）
 - zod は `matomezu` から読む（`import { z } from "matomezu"`）。表に無い名前の import は、変換で誤りにする（zod の版も matomezu の約束に収めるため）
 

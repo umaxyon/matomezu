@@ -25,10 +25,10 @@ test("紙の上で右ボタンを長押しすると、ポインタの近くに�
   const buttons = picker(page).getByRole("button")
   await expect(buttons).toHaveCount(4) // 道具 3 つとミニマップ
   await expect(picker(page).getByRole("button", { name: "選択ツール" })).toHaveAttribute("aria-pressed", "true")
-  // 横並びでポインタの上
-  const hand = (await picker(page).getByRole("button", { name: "ハンドツール" }).boundingBox())!
-  expect(hand.y + hand.height).toBeLessThan(at.y)
-  expect(Math.abs(hand.x + hand.width / 2 - at.x)).toBeLessThan(30)
+  // 道具の組の並び（選択・付け替え・ハンド）で、横並びでポインタの上（真ん中が付け替え）
+  const middle = (await picker(page).getByRole("button", { name: "付け替えツール" }).boundingBox())!
+  expect(middle.y + middle.height).toBeLessThan(at.y)
+  expect(Math.abs(middle.x + middle.width / 2 - at.x)).toBeLessThan(30)
   await picker(page).getByRole("button", { name: "ハンドツール" }).click()
   await expect(picker(page)).toHaveCount(0)
   await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()
@@ -51,7 +51,7 @@ test("短い右クリックはメニューを出す。押している間に動�
   await expect(page.getByRole("menu")).toBeVisible()
 })
 
-test("付け替えは道具を変えずに閉じる。Escape・離れる・外を押すと閉じる。Space で開いて、もう一度 Space で閉じる", async ({
+test("付け替えを押すと付け替えになる。Escape・離れる・外を押すと閉じる。Space で開いて、もう一度 Space で閉じる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -60,7 +60,7 @@ test("付け替えは道具を変えずに閉じる。Escape・離れる・外�
   await page.mouse.up({ button: "right" })
   await picker(page).getByRole("button", { name: "付け替えツール" }).click()
   await expect(picker(page)).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "選択ツール" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "付け替えツール" })).toBeVisible()
 
   await longPress(page, at)
   await page.mouse.up({ button: "right" })
@@ -101,7 +101,7 @@ test("分けて別の図面を開いても、道具は左右で同じ。左で�
   await longPress(page, { x: left.x + 200, y: left.y + 200 })
   await page.mouse.up({ button: "right" })
   await picker(page).getByRole("button", { name: "ハンドツール" }).click()
-  await expect(stages.nth(0)).toHaveAttribute("data-tool", "hand")
-  await expect(stages.nth(1)).toHaveAttribute("data-tool", "hand")
+  await expect(stages.nth(0)).toHaveAttribute("data-tool", "@matomezu/base:hand")
+  await expect(stages.nth(1)).toHaveAttribute("data-tool", "@matomezu/base:hand")
   await expect(page.getByRole("button", { name: "ハンドツール" })).toHaveCount(2)
 })

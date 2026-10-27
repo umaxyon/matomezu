@@ -1,14 +1,15 @@
 // 道具のアイコン: ポインタのすぐ近くに道具のアイコンを並べて出し、押した道具にする（右ボタンの長押しか Space で開く）。
 // 道具を替えるコマンドと、開くコマンド（キーの既定は、ステージの範囲の Space）
+
+import type { ToolId } from "../../../core/catalog"
 import { paperOf } from "../../../core/stage"
-import type { Tool } from "../../../core/tools"
 import { defineKeys } from "../../../store/keys"
 import { kit } from "../kit"
 
 export const TOOL_SET = kit.defineCommand({
   id: "tool-set",
   title: "Set tool",
-  run: (ctx, a, tool: Tool) => a.setTool(ctx.stage.id, tool),
+  run: (ctx, a, tool: ToolId) => a.setTool(ctx.stage.id, tool),
   when: ctx => paperOf(ctx.stage) !== null,
 })
 

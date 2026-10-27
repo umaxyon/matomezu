@@ -1,24 +1,24 @@
 // 道具のアイコンのビュー（ウィジェット tool-picker）: 紙のあるステージで右ボタンを押し続けると、押している間はポインタの周りに輪が満ちていき、
-// LONG_PRESS_MS で道具のアイコン（選択・ハンド・付け替え）をポインタのすぐ近くに並べて出す（core/stage.ts の picker）。
+// LONG_PRESS_MS で、そのステージの道具の組の道具のアイコンをポインタのすぐ近くに並べて出す（core/stage.ts の picker）。
 // 押し続けている間に MOVE_SLOP より動いたら取り消す。長押しで出したら、右クリックのメニューは出さない。Space（コマンド tool-picker）でも開く。
-// 出ている間は画面に薄い幕を掛けてほかの操作を止める。アイコンを押すとその道具にして閉じる（付け替えは道具を変えずに閉じる）。
+// 出ている間は画面に薄い幕を掛けてほかの操作を止める。アイコンを押すとその道具にして閉じる。
 // アイコンの外を押す・閉じるキー（menu-close。既定は Escape と Space）・並びから離れる・窓の大きさが変わる・窓から焦点が外れると、何もせずに閉じる。
 // アイコンはポインタの位置から回りながら広がり、乗ると名前を出す。並びの外側の真ん中にはミニマップのボタンがあり、押すとアイコンを消して、
 // その場所にミニマップ（base/minimap の MinimapView）を、ポインタと反対の側へ広げて出す（紙が収まっていても出す）。閉じ方はアイコンと同じで、
 // 離れたかはミニマップの枠から測る（ボタンを押している間は、離れても閉じない。四角をドラッグするため）。押し続けの途中の様子・最後のポインタの位置・その場に出したミニマップの置き場所と枠だけはビューに持つ
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import type { ToolId } from "../../../core/catalog"
 import type { Point, Rect } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
-import type { Tool } from "../../../core/tools"
+import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { MINIMAP } from "../minimap/icons"
 import { MinimapView } from "../minimap/MinimapView"
-import { TOOL_ICONS, TOOL_NAMES } from "../tool-switch/icons"
 import { TOOL_SET } from "."
 import { ICON, leftBox, leftPicker, mapPlace, mapSlot, type PickerLayout, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
@@ -27,7 +27,6 @@ export const LONG_PRESS_MS = 250 // 長押しの時間
 const MOVE_SLOP = 5 // 長押しを取り消さない動きの遊び（px）
 const RING_R = 14 // 押している間の輪の半径
 const RING_SHOW = 120 // 輪を出し始めるまで（ふつうの右クリックで輪がちらつかないように）
-const PICKS: readonly Tool[] = ["select", "hand", "reparent"]
 const MAP_SIZE = 240 // その場に出すミニマップの、紙を収める大きさ（px）
 
 // 右ボタンの押し続け
@@ -145,7 +144,10 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const t = useMessages(kit)
   const opened = useMatomezuState(s => s.workspace.stages.find(st => st.picker !== null))
   const catalog = useCatalog().core
+  const toolIcons = useUiCatalog().toolIcons
   const current = useMatomezuState(s => (opened ? toolOf(catalog, s.workspace, opened.id) : null))
+  const set = opened ? toolSetOf(catalog, opened) : null
+  const picks: readonly ToolId[] = set ? toolsIn(catalog, set) : []
   const { command, closePicker, showPickerMap } = useActions()
   const [hover, setHover] = useState<number | null>(null)
   const [mapBox, setMapBox] = useState<Rect | null>(null) // その場に出したミニマップの枠（置いてから決まる）
@@ -164,7 +166,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
       const inside = r && p && p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom
       at = inside ? p : r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 0, y: 0 }
     }
-    const layout = pickerSlots(at, PICKS.length, { w: window.innerWidth, h: window.innerHeight })
+    const layout = pickerSlots(at, picks.length, { w: window.innerWidth, h: window.innerHeight })
     const mapAt = mapSlot(layout, at)
     // 離れたかは、ミニマップのボタンも含めた並びで見る
     return { at, layout, mapAt, all: { ...layout, slots: [...layout.slots, mapAt] } }
@@ -213,12 +215,13 @@ function Picker({ last }: { last: { current: Point | null } }) {
 
   if (!opened || !placed) return null
   const { layout } = placed
-  const pick = (tool: Tool) => {
+  const pick = (tool: ToolId) => {
     closePicker()
-    if (tool !== "reparent" && tool !== current) command(opened.id, TOOL_SET.id, tool)
+    if (tool !== current) command(opened.id, TOOL_SET.id, tool)
   }
   const tip = hover === null ? null : (placed.all.slots[hover] ?? null)
-  const tipName = hover === PICKS.length ? t("Minimap") : t(TOOL_NAMES[PICKS[hover ?? 0] ?? "select"])
+  const hovered = hover === null ? undefined : picks[hover]
+  const tipName = hovered ? t(toolDef(catalog, hovered).title) : t("Minimap")
   return (
     <div
       className={styles.overlay}
@@ -233,7 +236,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
     >
       {map && <PickerMap stage={opened.id} at={placed.at} layout={placed.all} onPlaced={setMapBox} />}
       {!map &&
-        PICKS.map((tool, i) => {
+        picks.map((tool, i) => {
           const slot = layout.slots[i]
           if (!slot) return null
           return (
@@ -244,21 +247,21 @@ function Picker({ last }: { last: { current: Point | null } }) {
               }}
               type="button"
               className={styles.button}
-              aria-label={t(TOOL_NAMES[tool])}
+              aria-label={t(toolDef(catalog, tool).title)}
               aria-pressed={current === tool}
               style={{ left: slot.x, top: slot.y, width: ICON, height: ICON }}
               onClick={() => pick(tool)}
               onPointerMove={() => setHover(i)}
               onPointerLeave={() => setHover(null)}
             >
-              {TOOL_ICONS[tool]}
+              {toolIcons.get(tool)}
             </button>
           )
         })}
       {!map && (
         <button
           ref={el => {
-            buttons.current[PICKS.length] = el
+            buttons.current[picks.length] = el
           }}
           type="button"
           className={styles.button}
@@ -268,7 +271,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
             setHover(null)
             showPickerMap(opened.id)
           }}
-          onPointerMove={() => setHover(PICKS.length)}
+          onPointerMove={() => setHover(picks.length)}
           onPointerLeave={() => setHover(null)}
         >
           {MINIMAP}

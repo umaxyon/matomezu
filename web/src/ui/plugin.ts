@@ -116,7 +116,8 @@ export type PluginViews<P> = Field<
     IdsOf<P, "dialogs">,
     "dialogViews",
     { [id in IdsOf<P, "dialogs">]: ComponentType<DialogProps<DialogArgsOfPlugin<P, id>>> }
-  >
+  > &
+  Field<IdsOf<P, "tools">, "toolIcons", { [id in IdsOf<P, "tools">]: ReactNode }>
 
 // ウィジェットが受け取る値（そのウィジェットのコンポーネントの props）
 type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: infer P) => ReactNode } ? P : never
@@ -149,6 +150,7 @@ export interface UiCatalog {
   dialogViews: ReadonlyMap<string, AnyDialogView>
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
+  toolIcons: ReadonlyMap<string, ReactNode>
 }
 
 interface LooseUi {
@@ -159,6 +161,7 @@ interface LooseUi {
   dialogViews?: Record<string, AnyDialogView>
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
+  toolIcons?: Record<string, ReactNode>
   overrides?: {
     presentationViews?: Record<string, BookViewDef>
     dialogViews?: Record<string, AnyDialogView>
@@ -175,6 +178,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
   const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
+  const toolIcons = new Map<string, ReactNode>()
   const uis = plugins.map(p => {
     const ui = (p as Partial<AnyPluginUi>).ui as LooseUi | undefined
     if (!ui) return fail("E203", { plugin: p.id })
@@ -208,6 +212,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
     )
     need("setting", p.settings, ui.settingViews, settingViews)
     need("dialog", p.dialogs, ui.dialogViews, dialogViews)
+    need("tool", p.tools, ui.toolIcons, toolIcons)
     for (const w of ui.widgets ?? []) {
       if (!isOwnedBy(p.id, w.id)) fail("E301", { plugin: p.id, kind: "widget", id: w.id })
       if (widgets.has(w.id)) fail("E001", { kind: "widget", id: w.id })
@@ -239,5 +244,5 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
       overridden.add(`widget:${id}`)
       widgets.set(id, { ...w, view })
     }
-  return { presentationViews, items, connectors, settingViews, dialogViews, widgets, commandIcons }
+  return { presentationViews, items, connectors, settingViews, dialogViews, widgets, commandIcons, toolIcons }
 }

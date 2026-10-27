@@ -5,7 +5,6 @@ import type { ActionId, ItemOptionTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
-import type { ToolSetId } from "../tools"
 import type { TokenDecl } from "./theme"
 
 // 使えるものの規定。ブックは allowed の中から選び、選んでいなければ defaults を使う
@@ -28,10 +27,15 @@ export interface ActionChoice {
   without?: readonly ActionId[]
 }
 
-// ページの決まり。addFromTabs はタブの横に、ページを足すボタン（page-add）を出すか
+// ページの決まり。addFromTabs はタブの横に、ページを足すボタンを出すか。
+// fields は、そのタイプのページが土台の欄のほかに持つ欄（ツリーの根など。土台の欄 id・title・paper・orientation・items・settings とは別の名前）。
+// dialogs は、ページを作るダイアログ（add。値を受けない）とページの設定のダイアログ（settings。PageSettingsArgs を受ける）の id で、タイプが自分のものにする。
+// 無ければ、ページを受け持つプラグインの既定のダイアログを使う。受ける値が合うかは definePlugin が型で、あるかは組み立てが確かめる
 export interface PagesRule {
   paper: PaperRule
   addFromTabs: boolean
+  fields?: Readonly<Record<string, z.ZodType>>
+  dialogs?: { add?: string; settings?: string }
 }
 
 // 大きさが変わるときに保つ所。start は左（上）、center は真ん中
@@ -56,7 +60,7 @@ interface BookTypeBase<S extends z.ZodObject> {
   theme: string // 既定のテーマ
   presentation: string // 見せ方（core/def/presentation.ts。描くビューは見せ方の id で結ぶ）
   tokens: readonly TokenDecl[] // ブックの画面を描くのに使うテーマキー
-  tools?: ToolSetId // ステージで使う道具の組（core/tools.ts。無ければ道具を使わない）
+  tools?: string // ステージで使う道具の組の id（core/def/tool.ts。無ければ道具を使わない）
   // データの形（schema）の外の決まり（線の端が同じページにあるかなど、アイテムどうしの関係）。守っていれば true。
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
   holds?(book: z.infer<S>, catalog: CoreCatalog): boolean

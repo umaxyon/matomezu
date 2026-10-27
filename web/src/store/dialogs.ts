@@ -34,6 +34,11 @@ export function shapeDialogs(def: ShapeItemDef): {
   return (def.dialogs ?? {}) as { add?: DialogTaking<ShapeAddArgs>; edit?: DialogTaking<ShapeEditArgs> }
 }
 
+// ページの設定のダイアログが受ける値
+export interface PageSettingsArgs {
+  page: string
+}
+
 export type DialogArgs<Id extends DialogId> = [DialogArgsOf<Id>] extends [undefined] ? [] : [DialogArgsOf<Id>]
 
 export interface OpenedDialog {

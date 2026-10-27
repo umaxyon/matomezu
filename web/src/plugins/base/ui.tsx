@@ -13,6 +13,7 @@ import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { BOOK_VIEW, CLOSE_BUTTON, STAGE_ICONS } from "./stage/ui"
 import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
+import { TOOL_ICONS } from "./tool-switch/icons"
 import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
@@ -59,6 +60,7 @@ export const BASE_UI = definePluginUi(BASE, {
     CLOSE_BUTTON,
   ],
   commandIcons: { ...STAGE_ICONS, ...MINIMAP_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS },
+  toolIcons: TOOL_ICONS,
 })
 
 declare module "../../core/catalog" {

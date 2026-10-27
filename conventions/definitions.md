@@ -14,6 +14,8 @@
 | 紙（`PaperDef`） | ページに置く紙の大きさ | `core/def/paper.ts` |
 | 設定の項目（`SettingDef`） | ブックやページに持たせる 1 つの値（線の既定の通り方など） | `core/def/setting.ts` |
 | 見せ方（`PresentationDef`） | ブックをステージにどう見せ、どう触るか（紙など） | `core/def/presentation.ts` |
+| 道具（`ToolDef`） | ステージでポインタが何をするか（選択・ハンドなど） | `core/def/tool.ts` |
+| 道具の組（`ToolSetDef`） | ステージで切り替える道具の並び | `core/def/tool.ts` |
 | コマンド（`CommandDef`） | 画面の入口（ボタン・メニュー・キーから呼ぶ） | `store/commands/def.ts` |
 | ダイアログ（`DialogDef`） | 開くダイアログの id | `store/dialogs.ts` |
 | 文言（`MessageSet`） | 画面に出す文と訳 | `core/i18n` |
@@ -35,11 +37,13 @@
 - 使えるアイテムは、タイプが候補（`allowed`。データに置ける物）と既定（`defaults`。ツールボックスに出す物）を持つ
 - 使えるアクションは、タイプが選んだ物について来る（アクションの `attach`）。タイプの `actions` は、そのタイプだけのアクションを足す `add` と、使わせない `without` だけを書く（アクションを並べる `allowed`・`defaults` は持たない）
 - 名前（`title`）は土台の言葉で、どのタイプのブックも持つ（空でもよい。空なら画面はタイプの名前で呼ぶ）。欄は機能台帳が足し、タイプは schema に名前・テーマ・紙の色を書かない（E025）
-- 道具の組は `tools` で名指す（`core/tools.ts`）。同じ組を名指すタイプは、同じ道具を共有する
+- 道具の組は、プラグインが `defineToolSet` で持ち、タイプは `tools` で id で名指す。同じ組を名指すタイプは、同じ道具を共有する。道具の定義（`ToolDef`）に持つのは、土台が意味を知る欄（`pans`・`places` など）だけで、ほかの動きはビューが今の道具を見て決める
 - データの形の外の決まり（アイテムどうしの関係）は `holds` に書く。アクションの結果が守らなければ断り、守らないブックは読めない（N006）
 - ブックが対象のアクションの結果は、`perform` が機能台帳のブックの形（`bookSchema`）と `holds` で確かめ直し、合わなければ断る（型を言い張った所があっても、ここで止める）
 - ページを持つブックを変える土台の関数は、渡されたブックの型のまま返す（`<B extends PagedBook>`）。ページを替えるのは `putPage` で、ページの中身がタイプの選んだアイテムかを型で示せない所の言い張りはここに閉じる。プラグインはブックを `{ ...book, pages }` で組み直さない
-- タイプだけの設定の項目は `settings`（book・page）に宣言する。base の `book-update`・`page-update` が受け付ける。タイプごとの更新のアクションは作らない
+- タイプはページに自分の欄を足せる（`pages.fields`。ページがすでに持つ欄と同じ名前は誤り）。ページ → ブック → 既定と引き継ぐ値は設定の項目（`settings`）にし、引き継がない、そのタイプのページだけのデータは `pages.fields` にする
+- タイプだけの設定の項目（`settings` の book・page）とページの欄（`pages.fields`）は base のアクションが受け付け、タイプの宣言した形で確かめる。ブックの設定の項目は `book-update`、ページの設定の項目とページの欄は `page-add`・`page-update`。タイプごとの作る・更新のアクションは作らない
+- タイプは、ページを作るダイアログとページの設定のダイアログを id で名指せる（`pages.dialogs`。名指さなければ base のもの）。作るほうは値を受けず、設定のほうは土台が決めた `PageSettingsArgs` を受ける。名指したダイアログがそうなっているかを型で確かめる。行うのは base の `page-add`・`page-update` で、ダイアログのために別のアクションを作らない
 - ブックのテーマと紙の色は、base が定義する設定の項目（`@matomezu/base:book-theme`・`@matomezu/base:book-paper-color`）で、タイプが `settings.book` に id で選ぶ。名前は設定の項目ではなく、`book-update` の `title` で変える
 - 1 冊だけのタイプ（`single: true`）は、その 1 冊のデータを定義に持つ。何冊も作れるタイプは `create` で空のブックを作る
 
@@ -83,7 +87,7 @@
 
 ## AI に見せる
 
-- AI（MCP）には、アクションを 1 つずつ道具にしない。決まった道具で渡す: 今使えるアクションの一覧（id・引数の JSON Schema・AI 向けの説明）とアイテム・テーマ・代表色・言語・スキンを返す `actions`（今の注意があれば `notices` も。architecture の「注意」）と、`{ action, args, on }` で行う `perform`。ほかは読む道具（`view`・`list_books`・`read_book`・`read_settings`）と `show`。追加プラグインを足し・外しても、MCP の道具の一覧は変わらない
+- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションの一覧（id・引数の JSON Schema・AI 向けの説明）とアイテム・テーマ・代表色・言語・スキンを返す `actions`（今の注意があれば `notices` も。architecture の「注意」）と、`{ action, args, on }` で行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_settings`）と `show`。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
 - アクションは全部 AI に見せる（利用者の設定のアクションも。行えるかは画面と同じく、ホームのブックのタイプが決める）
 - MCP で AI に見せるもの（アクション・アイテム・タイプの名前、アクションの説明、断った理由の文）は英語に固定し、利用者の言語に合わせない。名前は英語の文言（`en`）で引く
 - AI 向けの説明（英語）は、アクションの定義の `aiDescription` に書く（どう変わるか・何を返すか・断る場合）。追加プラグインも自分のアクションの説明を書く

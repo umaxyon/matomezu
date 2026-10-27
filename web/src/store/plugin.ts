@@ -13,7 +13,7 @@ import { isOwnedBy, splitId } from "../core/names"
 import { type Notice, notice } from "../core/notices"
 import { type AutoSkin, autoSkin } from "../core/skin"
 import type { CommandDef } from "./commands/def"
-import type { DialogDef, DialogTaking } from "./dialogs"
+import type { DialogDef, DialogTaking, PageSettingsArgs } from "./dialogs"
 import type { DefaultKey, KeyDef } from "./keys"
 
 // store の段の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
@@ -79,13 +79,33 @@ type ShapeDialogCheck<P> = [WrongAdd<P> | WrongEdit<P>] extends [never]
         string]: "形の追加のダイアログは ShapeAddArgs、編集のダイアログは ShapeEditArgs を受ける"
     }
 
-// プラグインを書く入口。id の頭と、形が名指すダイアログの受ける値を型で確かめる（組み立てでも確かめる）
-export const definePlugin = <const P extends Plugin>(plugin: P & PrefixCheck<P> & ShapeDialogCheck<P>): P => plugin
+// ブックのタイプが名指すページを作るダイアログとページの設定のダイアログのうち、受ける値が合わないもの（ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs）
+type PageDialogsOf<P> = P extends { bookTypes?: readonly (infer T)[] }
+  ? T extends { pages: { dialogs?: infer G } }
+    ? NonNullable<G>
+    : never
+  : never
+type WrongPageAdd<P> = Exclude<AddOf<PageDialogsOf<P>>, DialogTaking<undefined> | undefined>
+type SettingsDialogOf<G> = G extends { settings: infer S } ? S : never
+type WrongPageSettings<P> = Exclude<SettingsDialogOf<PageDialogsOf<P>>, DialogTaking<PageSettingsArgs> | undefined>
+type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [never]
+  ? unknown
+  : {
+      [id in (WrongPageAdd<P> | WrongPageSettings<P>) &
+        string]: "ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs を受ける"
+    }
+
+// プラグインを書く入口。id の頭と、形とブックのタイプが名指すダイアログの受ける値を型で確かめる（組み立てでも確かめる）
+export const definePlugin = <const P extends Plugin>(
+  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P>,
+): P => plugin
 
 // ビルトインプラグインの印: キーの割り当てで、ビルトインプラグインを先に扱う（id の決まりはほかのプラグインと同じ）。
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")
-export function defineBuiltin<const P extends Plugin>(plugin: P & PrefixCheck<P> & ShapeDialogCheck<P>): P {
+export function defineBuiltin<const P extends Plugin>(
+  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P>,
+): P {
   return Object.assign(plugin, { [BUILTIN_MARK]: true })
 }
 export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUILTIN_MARK] === true
@@ -144,6 +164,9 @@ export function assemble(
     if (i.kind === "shape")
       for (const dialog of [i.dialogs?.add, i.dialogs?.edit])
         if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
+  for (const t of all("bookTypes"))
+    for (const dialog of [t.pages?.dialogs?.add, t.pages?.dialogs?.settings])
+      if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E031", { id: t.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const catalog = buildCoreCatalog({
     ...(Object.fromEntries(partsOf("core").map(k => [k, all(k)])) as unknown as Pick<CoreCatalogParts, CorePart>),

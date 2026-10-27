@@ -44,6 +44,13 @@ export const TILE_ADD = kit.defineAction({
   },
 })
 
+// 仕分けの道具（自分の道具の見本。ドラッグで紙をずらさず、置く道具でもない）と、ビルトインの選択とハンドに挟んだ棚の道具の組
+export const SORT_TOOL = kit.defineTool({ id: "sort", title: "sortTool" })
+export const SHELF_TOOLS = kit.defineToolSet({
+  id: "shelf-tools",
+  tools: ["@matomezu/base:select", kit.name("sort"), "@matomezu/base:hand"],
+})
+
 // 棚の図: タイルとビルトインの箱を置くタイプ
 export const SHELF = kit.defineBookType({
   id: "shelf",
@@ -64,6 +71,6 @@ export const SHELF = kit.defineBookType({
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],
-  tools: "paper",
+  tools: kit.name("shelf-tools"),
   settings: { book: ["@matomezu/base:book-theme"], page: [] },
 })

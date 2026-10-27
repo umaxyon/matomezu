@@ -19,6 +19,6 @@ export const TREE = kit.defineBookType({
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],
-  tools: "paper",
+  tools: "@matomezu/paper:paper",
   settings: { book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id] },
 })

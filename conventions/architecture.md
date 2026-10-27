@@ -39,7 +39,7 @@
 | `plugin` | 追加プラグインのフォルダ（`matomezu.json`）を読み、Go に組み込んだ esbuild で変換する | なし |
 | `engine` | ホストのエンジン: `engine.js` を goja で動かし、アクション・組み直し・ブックの確かめを行う | `plugin` |
 | `server` | ホスト: HTTP の口・知らせ（SSE）・窓・ブックと設定をまとめる Hub | `engine`・`plugin`・`storage` |
-| `mcp` | AI に matomezu を道具として渡す MCP のサーバー。ホストの AI の口（`/api/ai/...`）にだけ話す | なし |
+| `mcp` | AI に matomezu を MCP 公開ツールとして渡すサーバー。ホストの AI の口（`/api/ai/...`）にだけ話す | なし |
 | `home` | アプリのフォルダ（利用者ごとに 1 つ）。常駐が 1 つだけ立つための鍵と、立っている常駐のつなぎ方を置く | なし |
 | `browser` | URL を既定のブラウザで開く | なし |
 | `cmd/matomezu` | 実行ファイルの入口。上のパッケージを組み合わせる | 全部 |

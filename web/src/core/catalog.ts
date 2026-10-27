@@ -10,6 +10,8 @@ export interface PaperTable {}
 export interface SkinTable {}
 export interface SettingTable {}
 export interface PresentationTable {}
+export interface ToolTable {}
+export interface ToolSetTable {}
 export interface MessageTable {} // 文言の鍵 → 訳
 export interface CommandTable {}
 export interface DialogTable {}
@@ -51,6 +53,8 @@ export const PARTS = {
   actions: { stage: "core", label: "action" },
   settings: { stage: "core", label: "setting" },
   presentations: { stage: "core", label: "presentation" },
+  tools: { stage: "core", label: "tool" },
+  toolSets: { stage: "core", label: "toolSet" },
   themes: { stage: "core", label: "theme" },
   papers: { stage: "core", label: "paper" },
   skins: { stage: "core", label: "skin" },
@@ -70,6 +74,8 @@ export interface PartTables {
   actions: ActionTable
   settings: SettingTable
   presentations: PresentationTable
+  tools: ToolTable
+  toolSets: ToolSetTable
   themes: ThemeTable
   papers: PaperTable
   skins: SkinTable
@@ -89,6 +95,8 @@ export type PaperId = keyof PaperTable & string
 export type SkinId = keyof SkinTable & string
 export type SettingId = keyof SettingTable & string
 export type PresentationId = keyof PresentationTable & string
+export type ToolId = keyof ToolTable & string
+export type ToolSetId = keyof ToolSetTable & string
 export type MessageKey = keyof MessageTable & string
 export type CommandId = keyof CommandTable & string
 export type KeyScopeId = keyof KeyScopeTable & string

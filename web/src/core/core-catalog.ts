@@ -12,6 +12,7 @@ import type { PresentationDef } from "./def/presentation"
 import type { SettingDef } from "./def/setting"
 import type { SkinDef } from "./def/skin"
 import { THEME_TOKENS, type ThemeDef, type TokenDecl } from "./def/theme"
+import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
 import { LANGUAGES, type Lang, type LanguagePack, MESSAGES, type MessageSet } from "./i18n/messages"
@@ -36,6 +37,8 @@ declare module "./catalog" {
     themes: ThemeDef
     papers: PaperDef
     skins: SkinDef
+    tools: ToolDef
+    toolSets: ToolSetDef
   }
 }
 
@@ -91,7 +94,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
 // ブックが自分の欄の後ろに持つ欄の前の、頭の欄（ここまでの後ろにページと設定の項目の欄 settings を入れる。保存したデータの欄の並びを変えない）
 const HEAD = ["type", "id"]
 
-// タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
+// タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプがページに足す欄（pages.fields）・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
 // ブックの形は、タイプの頭の欄・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかの欄
 function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas {
   const settings = byId(parts.settings)
@@ -118,6 +121,7 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
   const [one, ...more] = placed
   const page = t.pages
     ? PageSchema.extend({
+        ...t.pages.fields,
         items: z
           .array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknownItem]) : unknownItem)
           .optional(),
@@ -210,6 +214,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       const rule = t.pages.paper
       for (const id of rule.allowed) if (!papers.has(id)) problems.push(problem("E004", { id: t.id, paper: id }))
       if (!rule.allowed.includes(rule.default)) problems.push(problem("E005", { id: t.id, paper: rule.default }))
+      for (const field of [...Object.keys(PageSchema.shape), "items", "settings"])
+        if (field in (t.pages.fields ?? {})) problems.push(problem("E030", { id: t.id, field }))
     }
     const built = buildBookSchemas(parts, t).book
     if (t.single && (t.book.id !== t.id || !built.safeParse(t.book).success))
@@ -227,6 +233,13 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (!themes.has(t.theme)) problems.push(problem("E010", { id: t.id, theme: t.theme }))
     if (!parts.presentations.some(p => p.id === t.presentation))
       problems.push(problem("E008", { id: t.id, kind: "presentation", ref: t.presentation }))
+    if (t.tools !== undefined && !parts.toolSets.some(s => s.id === t.tools))
+      problems.push(problem("E008", { id: t.id, kind: "toolSet", ref: t.tools }))
+  }
+  const tools = byId(parts.tools)
+  for (const s of parts.toolSets) {
+    if (s.tools.length === 0) problems.push(problem("E033", { id: s.id }))
+    for (const tool of s.tools) if (!tools.has(tool)) problems.push(problem("E032", { id: s.id, tool }))
   }
   for (const i of parts.items)
     if (i.kind === "shape")
@@ -277,6 +290,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     ["theme", parts.themes],
     ["paper", parts.papers],
     ["skin", parts.skins],
+    ["tool", parts.tools],
   ] as const
   for (const [kind, defs] of named)
     for (const d of defs as readonly { id: string; title: string }[])

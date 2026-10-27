@@ -53,6 +53,6 @@ export const MAP = kit.defineBookType({
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],
-  tools: "paper",
+  tools: "@matomezu/paper:paper",
   settings: { book: [], page: [] },
 })

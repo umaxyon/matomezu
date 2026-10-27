@@ -72,7 +72,7 @@ export function PaperView({ stage: id }: BookViewProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage?.placing != null
-  const hand = stage?.tool === "hand"
+  const pans = stage?.pans === true
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
@@ -82,7 +82,7 @@ export function PaperView({ stage: id }: BookViewProps) {
     if (placing) {
       e.preventDefault() // 置いて開いたダイアログから、押した続きで焦点を移さない
       place.run(local(e, ref.current))
-    } else if (!hand && !(e.target as Element).closest("[data-item]")) select(id, [])
+    } else if (!pans && !(e.target as Element).closest("[data-item]")) select(id, [])
   }
   if (!stage) return null
 
@@ -188,7 +188,7 @@ function PageItems({
   const resize = useCommand(stage.id, PAPER_RESIZE.id)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
-  const hand = stage.tool === "hand"
+  const pans = stage.pans
   const [hover, setHover] = useState<string | null>(null) // ポインタを乗せている形
   // 離したばかりの形（離したあとの 1 回の描画だけ、つなぐもののビューに渡す）
   const settled = useRef<ReadonlySet<string>>(new Set())
@@ -197,7 +197,7 @@ function PageItems({
   })
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
-    if (e.button !== 0 || hand || stage.placing !== null) return
+    if (e.button !== 0 || pans || stage.placing !== null) return
     const items = stage.selection.includes(id) ? stage.selection : [id]
     select(stage.id, items)
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -275,7 +275,7 @@ function PageItems({
     return to ? { ...item, ...to } : item
   }
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
-  const single = stage.selection.length === 1 && !hand && stage.placing === null
+  const single = stage.selection.length === 1 && !pans && stage.placing === null
   // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）
   const shapes = shapesOf(page).map(item => ({ item: shown(item), shift: shiftOf(item) }))
   const scene: ShapeScene = {
@@ -287,7 +287,7 @@ function PageItems({
     swapped: d?.swapped ?? false,
     settled: settled.current,
     busy: dragged.length > 0 || resizing !== null,
-    selectable: !hand && stage.placing === null,
+    selectable: !pans && stage.placing === null,
     hover,
     localOf,
   }
@@ -325,7 +325,7 @@ function PageItems({
       onPointerUp={e => endDrag(e, true)}
       onPointerCancel={e => endDrag(e, false)}
       onDoubleClick={() => {
-        if (!hand && stage.placing === null) edit.run({ item: item.id })
+        if (!pans && stage.placing === null) edit.run({ item: item.id })
       }}
       onContextMenu={e => {
         if (stage.placing !== null) return

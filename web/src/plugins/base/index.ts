@@ -16,6 +16,7 @@ import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./se
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_NEXT } from "./tool-switch"
+import { HAND_TOOL, SELECT_TOOL } from "./tool-switch/tools"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
@@ -73,6 +74,7 @@ export const BASE = defineBuiltin(
     themes: [STANDARD, STICKY, SIMPLE],
     papers: PAPERS,
     skins: [DARK, LIGHT],
+    tools: [SELECT_TOOL, HAND_TOOL],
     commands: [
       BOOK_NEW,
       STAGE_HOME,
@@ -119,6 +121,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:standard": typeof STANDARD
     "@matomezu/base:sticky": typeof STICKY
     "@matomezu/base:simple": typeof SIMPLE
+  }
+  interface ToolTable {
+    "@matomezu/base:select": typeof SELECT_TOOL
+    "@matomezu/base:hand": typeof HAND_TOOL
   }
   interface SkinTable {
     "@matomezu/base:dark": typeof DARK

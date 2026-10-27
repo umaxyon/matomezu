@@ -1,9 +1,8 @@
 // ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
-// 押したページをそのステージで開く（コマンド page-open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page-new）。
+// 押したページをそのステージで開く（コマンド page-open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page-new。開くダイアログはタイプが決められる）。
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import { actionsOf } from "../../../core/perform"
 import type { Book } from "../../../core/schema/book"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -11,15 +10,10 @@ import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { PAGE_NEW, PAGE_OPEN } from "."
 import styles from "./PageTabs.module.css"
-import { PAGE_ADD } from "./page-add"
 
-// ページタブの横に、ページを足すボタンを出すか（タイプが出すと決め、ブックで page-add が使える）
+// ページタブの横に、ページを足すボタンを出すか（タイプが出すと決める。ページを作れるかはコマンド page-new が決める）
 function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
-  return (
-    hasPages(book) &&
-    bookType(catalog, book.type).pages?.addFromTabs === true &&
-    actionsOf(catalog, book).includes(PAGE_ADD.id)
-  )
+  return bookType(catalog, book.type).pages?.addFromTabs === true
 }
 
 // 横にあふれた要素の上で、ホイールの縦の回転を横のスクロールにする（あふれていない・横に回したときは、そのまま）。
