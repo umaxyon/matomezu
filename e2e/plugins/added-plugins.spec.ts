@@ -72,7 +72,7 @@ const loaded = (page: Page) =>
     performance
       .getEntriesByType("resource")
       .map(e => new URL(e.name).pathname)
-      .filter(p => p.startsWith("/api/plugins/")),
+      .filter(p => /^\/api\/plugins\/\d+\//.test(p)),
   )
 
 test("動いている常駐にプラグインを足すと、開いている画面が読み直して取り込む。外すと読み直して消える", async ({
@@ -101,7 +101,9 @@ test("動いている常駐にプラグインを足すと、開いている画�
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2"])
 })
 
-test("見た目の組み立てで食い違う追加プラグインは、画面が外して、ほかはそのまま使える", async ({ page }) => {
+test("見た目の組み立てで食い違う追加プラグインは、画面が外して、ほかはそのまま使える。外したことは注意 N011 として常駐に知らせ、AI の actions の notices に出る", async ({
+  page,
+}) => {
   // 星のビューを結んでいない ex3（ホストのエンジンでは組み立てられ、画面の見た目の組み立てで食い違う）
   const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
   cpSync(resolve("test/added-plugins/ex3"), dir, { recursive: true })
@@ -116,6 +118,10 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
   expect(await linked.json()).toEqual({ ok: true, id: "ex3" })
   await expect.poll(() => errors.some(e => e.includes("plugin ex3 is not added"))).toBe(true)
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
+  // 常駐のエンジンには入っているので AI は使えるが、画面には出ない。そのことを注意として AI の機能台帳に添える
+  await expect
+    .poll(async () => (await (await page.request.get("/api/ai/catalog", { headers: ai() })).json()).notices)
+    .toEqual(expect.arrayContaining([expect.stringMatching(/^N011 ex3: /)]))
   const removed = await page.request.post("/api/plugins/remove", { headers: ai(), data: { id: "ex3" } })
   expect(await removed.json()).toEqual({ ok: true })
 })

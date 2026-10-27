@@ -66,6 +66,8 @@ type Hub struct {
 	// 注意のあるブックの id → その注意（読めない N004〜N006・一部に無い物がある N007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookNotices map[string]engine.BookNotice
+	// 画面が見つけて知らせた注意（画面のつながりの id → 注意の 1 行ずつ。notices.go）。画面が離れたら消す
+	screenNotices map[string][]string
 }
 
 // NewHub は置き場所から世界を読む
@@ -78,7 +80,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookNotices: map[string]engine.BookNotice{}}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookNotices: map[string]engine.BookNotice{}, screenNotices: map[string][]string{}}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version}
 		h.order = append(h.order, b.ID)
@@ -274,6 +276,7 @@ func (h *Hub) Leave(c *client) {
 	defer h.mu.Unlock()
 	if _, ok := h.clients[c.id]; ok {
 		delete(h.clients, c.id)
+		delete(h.screenNotices, c.id)
 		close(c.ch)
 	}
 }
@@ -446,7 +449,7 @@ func (h *Hub) Lang() string {
 
 // AICatalog は AI 向けの機能台帳（engine.AICatalog）
 func (h *Hub) AICatalog() json.RawMessage {
-	return h.engine.AICatalog()
+	return withNotices(h.engine.AICatalog(), h.Notices())
 }
 
 // CloseAll は全部の画面を外す（常駐を止めるとき。知らせの通り道を閉じると、画面とのつながりが終わる）
@@ -455,6 +458,7 @@ func (h *Hub) CloseAll() {
 	defer h.mu.Unlock()
 	for id, c := range h.clients {
 		delete(h.clients, id)
+		delete(h.screenNotices, id)
 		close(c.ch)
 	}
 }

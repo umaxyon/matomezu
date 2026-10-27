@@ -276,3 +276,23 @@ module.exports.default = {
 		t.Fatalf("the failed plugin's action = %+v, %v; want unknown", out, err)
 	}
 }
+
+func TestNoticeLinesUseTheTable(t *testing.T) {
+	e, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := e.NoticeLines(json.RawMessage(`[
+		{"code":"N011","plugin":"acme","params":{"reason":"E301"}},
+		{"code":"N999","plugin":"x","params":{}},
+		{"code":"N010","plugin":"acme","params":{"layout":"default","kind":"widget","id":"acme:w"}},
+		"broken"
+	]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lines) != 2 || !strings.HasPrefix(lines[0], "N011 acme: the screen did not add it (E301)") ||
+		lines[1] != "N010 acme: layout default: widget acme:w is skipped, as its plugin is not there" {
+		t.Fatalf("lines = %q", lines)
+	}
+}

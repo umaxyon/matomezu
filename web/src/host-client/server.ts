@@ -8,6 +8,7 @@
 // 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（組み立て直すため）
 import { z } from "zod"
 import { fail } from "../core/errors"
+import type { Notice } from "../core/notices"
 import type { Stage } from "../core/stage"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type { DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
@@ -120,6 +121,17 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: { seq: number; done: DoneAction }[] = []
   let client = ""
+  let notices: readonly Notice[] = [] // 画面が見つけた注意（つなぎ直すたびに知らせ直す）
+  const tellNotices = () => {
+    if (!client) return
+    void net
+      .fetch("api/notices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client, notices }),
+      })
+      .catch(() => {})
+  }
   let seq = 0
   let instance: MatomezuInstance | null = null
   let events: Events | null = null
@@ -164,8 +176,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
           resolve()
           return
         }
-        // つなぎ直した: 前のつながりで送ったアクションの答えは届かないので、読み直した世界から出し直す
+        // つなぎ直した: 前のつながりで送ったアクションの答えは届かないので、読み直した世界から出し直す。注意は新しいつながりで知らせ直す
         pending = []
+        tellNotices()
         void read().then(show, () => {})
       })
       source.on("book", data => {
@@ -223,6 +236,10 @@ export function serverClient(net: Net = browserNet): ServerClient {
           body: JSON.stringify({ ...done, client, seq }),
         })
         .catch(() => {})
+    },
+    reportNotices: list => {
+      notices = list
+      tellNotices()
     },
     connect: next => {
       instance = next

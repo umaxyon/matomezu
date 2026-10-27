@@ -21,7 +21,8 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   }
   const host = serverClient({
     fetch: async (url, init) => {
-      if (url === "api/perform" || url === "api/view") sent.push({ url, ...JSON.parse(String(init?.body)) })
+      if (url === "api/perform" || url === "api/view" || url === "api/notices")
+        sent.push({ url, ...JSON.parse(String(init?.body)) })
       if (url === "api/data") reads++
       return new Response(JSON.stringify(data))
     },
@@ -260,4 +261,16 @@ test("show の split は、そのステージを分けて右にできたステ�
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
   expect(ws.stages[1]?.opened?.book).toBe("b1")
+})
+
+test("画面が見つけた注意は、つながりの id を添えて常駐に知らせ、つなぎ直すたびに知らせ直す", async () => {
+  const { host, sent, emit } = await connected()
+  const n011 = { code: "N011" as const, plugin: "acme", params: { reason: "E301" } }
+  host.reportNotices([n011])
+  emit("hello", { client: "c2" })
+  await Promise.resolve()
+  expect(sent.filter(x => x.url === "api/notices")).toEqual([
+    { url: "api/notices", client: "c1", notices: [n011] },
+    { url: "api/notices", client: "c2", notices: [n011] },
+  ])
 })

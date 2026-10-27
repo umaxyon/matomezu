@@ -11,6 +11,7 @@ export const NOTICES = {
   N008: "key {key} in {scope} for {command}: a builtin plugin's key is there (not used)",
   N009: "key {key} in {scope} for {command}: another added plugin {other} has the same key (neither is used)",
   N010: "layout {layout}: {kind} {id} is skipped, as its plugin is not there",
+  N011: "the screen did not add it ({reason}); its actions still work on the host, but nothing it draws is shown",
 } as const
 
 export type NoticeCode = keyof typeof NOTICES

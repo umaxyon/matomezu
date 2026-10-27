@@ -299,7 +299,8 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":3}` {
 		t.Fatalf("event = %s", got)
 	}
-	if c := catalog(); strings.Contains(c, "ex2") {
+	// 定義から消える（読めなくなったブックの注意 N004 には ex2 の名前が残る）
+	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "N004 ex2") {
 		t.Fatalf("catalog after removing = %s", c)
 	}
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
@@ -704,5 +705,43 @@ func TestListsANoticeForAPartlyKnownBook(t *testing.T) {
 	_, body := get(t, s.URL+"/api/ai/books", "secret")
 	if !strings.Contains(body, `"notice":"N007 @foo/stars: book u1 (Stars): it has @foo/stars:star, not in the catalog (kept as they are)"`) || strings.Contains(body, `"problem"`) {
 		t.Fatalf("books = %s", body)
+	}
+}
+
+func TestScreenNoticesAreGatheredForAI(t *testing.T) {
+	s := newServer(t, nil)
+	a, b := listen(t, s.URL), listen(t, s.URL)
+	next(t, a)
+	next(t, b)
+	auth := map[string]string{"Authorization": "Bearer secret"}
+	catalog := func() string {
+		_, body := send(t, "GET", s.URL+"/api/ai/catalog", "", auth)
+		return body
+	}
+	if strings.Contains(catalog(), `"notices"`) {
+		t.Fatalf("catalog before = %s", catalog())
+	}
+	// 2 つの窓が同じ注意を知らせても 1 つ。表に無い番号は捨てる
+	n011 := `{"code":"N011","plugin":"acme","params":{"reason":"E301"}}`
+	send(t, "POST", s.URL+"/api/notices", `{"client":"c1","notices":[`+n011+`,{"code":"N999","plugin":"x","params":{}}]}`, nil)
+	send(t, "POST", s.URL+"/api/notices", `{"client":"c2","notices":[`+n011+`]}`, nil)
+	body := catalog()
+	if strings.Count(body, "N011 acme: the screen did not add it (E301)") != 1 || strings.Contains(body, "N999") {
+		t.Fatalf("catalog after = %s", body)
+	}
+	// 窓が注意は無いと知らせれば、その窓の分が消える（ほかの窓の分は残る）
+	send(t, "POST", s.URL+"/api/notices", `{"client":"c1","notices":[]}`, nil)
+	if !strings.Contains(catalog(), "N011 acme") {
+		t.Fatalf("c2's notice is gone: %s", catalog())
+	}
+	send(t, "POST", s.URL+"/api/notices", `{"client":"c2","notices":[]}`, nil)
+	if strings.Contains(catalog(), `"notices"`) {
+		t.Fatalf("catalog cleared = %s", catalog())
+	}
+	if code, _ := send(t, "POST", s.URL+"/api/notices", `{"client":"c9","notices":[]}`, nil); code != 404 {
+		t.Fatalf("an unknown client = %d", code)
+	}
+	if code, _ := send(t, "POST", s.URL+"/api/notices", `{"client":"c1","notices":[]}`, map[string]string{"Origin": "https://evil.example"}); code != 403 {
+		t.Fatalf("from another site = %d", code)
 	}
 }

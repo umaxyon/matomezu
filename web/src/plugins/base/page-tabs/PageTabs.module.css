@@ -8,6 +8,23 @@
   padding: 0 8px;
   overflow-x: auto;
 }
+/* タブが多いときの横のスクロールバー: タブ（高さ 24px）の下の空き（行の高さ 30px）に収まる細さにし、タブの文字に重ねない。
+   Chromium（Electron も）は ::-webkit-scrollbar で 4px、それの無いブラウザは細い既定のバー */
+.tabs::-webkit-scrollbar {
+  height: 4px;
+}
+.tabs::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--skin-text) 28%, transparent);
+}
+.tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .tabs {
+    scrollbar-width: thin;
+  }
+}
 .tab {
   max-width: 200px;
   height: 25px;

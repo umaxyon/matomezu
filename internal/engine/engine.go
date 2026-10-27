@@ -55,6 +55,7 @@ type Engine struct {
 	perform   func(string) string
 	readAI    func() string
 	check     func(string) string
+	lines     func(string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
@@ -79,6 +80,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuCheckBooks"), &e.check); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuCheckBooks: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuNoticeLines"), &e.lines); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuNoticeLines: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -200,6 +204,22 @@ func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookNotice, err erro
 		}
 	}()
 	if err := json.Unmarshal([]byte(e.check(string(b))), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// NoticeLines は、画面が見つけて送ってきた注意（{code, plugin, params} の並び）を、注意の表の 1 行ずつにする。
+// 表に無い番号・形の合わないものは捨てる（画面が作った文は使わない）
+func (e *Engine) NoticeLines(notices json.RawMessage) (out []string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	if err := json.Unmarshal([]byte(e.lines(string(notices))), &out); err != nil {
 		return nil, err
 	}
 	return out, nil

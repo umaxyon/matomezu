@@ -4,6 +4,7 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { fail } from "./core/errors"
+import { notice } from "./core/notices"
 import { followLocation } from "./host-client/location"
 import { memoryClient } from "./host-client/memory"
 import { openClient } from "./host-client/open"
@@ -34,7 +35,17 @@ const store = createMatomezu({
 const added = store.use(saved.plugins as AnyPluginUi[], all => {
   shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
 })
-for (const { id, error } of [...saved.failed, ...added.failed]) console.error(`plugin ${id} is not added:`, error)
+const failed = [...saved.failed, ...added.failed]
+for (const { id, error } of failed) console.error(`plugin ${id} is not added:`, error)
+const layout = placeAdded(DEFAULT_LAYOUT, store.plugins)
+// 外した理由を文にする（注意 N011 の値）
+const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+// 画面が見つけた注意をホストに知らせる（ホストが集めてログと AI に出す）: 配置で飛ばした物（N010）と、外した追加プラグイン（N011。
+// ホストのエンジンには入っているので、AI は使えるのに画面には出ない）
+client.reportNotices([
+  ...shownLayout(layout, store.plugins, assembleUi(store.plugins)).notices,
+  ...failed.map(f => notice("N011", f.id, { reason: reasonOf(f.error) })),
+])
 client.connect(store)
 // 画面の場所を URL と行き来させる（読み直しても同じ所が開き、ブラウザの戻る・進むで移動を戻る）
 followLocation(store)
@@ -43,7 +54,7 @@ if (!root) fail("E202")
 
 createRoot(root).render(
   <StrictMode>
-    <MatomezuProvider instance={store} layout={placeAdded(DEFAULT_LAYOUT, store.plugins)}>
+    <MatomezuProvider instance={store} layout={layout}>
       <Screen />
     </MatomezuProvider>
   </StrictMode>,

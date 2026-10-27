@@ -8,7 +8,7 @@ import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { NO_KEY_CHANGES } from "../core/keys"
-import { noticeText } from "../core/notices"
+import { NOTICES, notice, noticeText } from "../core/notices"
 import { performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { restoreSettings } from "../core/settings"
@@ -121,6 +121,23 @@ function aiCatalog(of: Assembled = assembled) {
   return JSON.stringify(
     [...notices, ...partial].map(n => ({ book: n.params.book ?? "", code: n.code, notice: noticeText(n) })),
   )
+}
+
+// 画面が見つけて送ってきた注意（{code, plugin, params} の並び）を、注意の表の 1 行ずつにする（常駐が集めてログと AI に出す）。
+// 表に無い番号・形の合わないものは捨てる（画面が作った文は使わない）
+const ScreenNoticeSchema = z.object({
+  code: z.string(),
+  plugin: z.string(),
+  params: z.record(z.string(), z.string()),
+})
+;(globalThis as { matomezuNoticeLines?: (notices: string) => string }).matomezuNoticeLines = notices => {
+  const lines: string[] = []
+  for (const raw of z.array(z.unknown()).catch([]).parse(JSON.parse(notices))) {
+    const n = ScreenNoticeSchema.safeParse(raw)
+    if (n.success && n.data.code in NOTICES)
+      lines.push(noticeText(notice(n.data.code as keyof typeof NOTICES, n.data.plugin, n.data.params)))
+  }
+  return JSON.stringify(lines)
 }
 
 // 常駐が呼ぶ口: JSON の文字列で受けて返す

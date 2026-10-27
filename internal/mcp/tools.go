@@ -55,7 +55,9 @@ var readTools = []readTool{
 	{
 		"actions",
 		"List what can be done now (it changes when plugins are added or removed): the actions (id, target, title, description, and args as JSON Schema) to call with perform, " +
-			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the languages and the skins.",
+			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the languages and the skins. " +
+			"notices (only when there are some) lists the problems that hold now, one line each with its code (N and 3 digits), found by the host or by the user's screens: " +
+			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (N011: their actions still work, but the user does not see what they draw).",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/catalog") },
 	},

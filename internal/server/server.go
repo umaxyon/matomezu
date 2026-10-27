@@ -15,6 +15,7 @@
 //	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
 //	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}。
 //	                      今の機能台帳で読めないブック（注意 N004〜N006）は書かず、400 と理由  … 画面から
+//	POST /api/notices     {"client", "notices": [{"code", "plugin", "params"}]} 画面が見つけた注意（その画面の分を入れ替える）。常駐が集めてログと AI の機能台帳に出す
 //	POST /api/view        {"client", "view", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view は捨てる（届く順が入れ替わるため）  … 画面から
 //
@@ -106,6 +107,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/perform", sameOrigin(o.perform))
 	mux.Handle("PUT /api/books/{id}", sameOrigin(o.putBook))
 	mux.Handle("POST /api/view", sameOrigin(o.view))
+	mux.Handle("POST /api/notices", sameOrigin(o.notices))
 	mux.Handle("GET /api/ai/view", o.auth(o.aiView))
 	mux.Handle("GET /api/ai/books", o.auth(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
@@ -326,6 +328,26 @@ func (o Options) view(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !o.Hub.SetView(req.Client, req.View, req.Focused, req.Seq) {
+		http.Error(w, "unknown client", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, map[string]any{})
+}
+
+func (o Options) notices(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Client  string          `json:"client"`
+		Notices json.RawMessage `json:"notices"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	ok, err := o.Hub.SetScreenNotices(req.Client, req.Notices)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !ok {
 		http.Error(w, "unknown client", http.StatusNotFound)
 		return
 	}
