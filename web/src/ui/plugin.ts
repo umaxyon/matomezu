@@ -33,7 +33,7 @@ export interface DialogProps<A = undefined> {
 // biome-ignore lint/suspicious/noExplicitAny: 関数コンポーネントとクラスコンポーネントの両方を受けるには any しかない
 type AnyDialogView = ComponentType<DialogProps<any>>
 // アイテムのビューに渡す値: 項目（props）・大きさ（紙の上の px）・アイテムの id・描いているステージ・
-// 中身（形の定義の content に宣言した欄の名前 → その値。データに無い欄は undefined）・
+// 中身（形の定義の content に宣言したフィールドの名前 → その値。データに無いフィールドは undefined）・
 // 今の倍率（紙の上の 1px が画面の何 px か。倍率を変えると、新しい値で描き直す）
 export interface ItemViewProps<Props, Content = Readonly<Record<string, unknown>>> {
   props: Props
@@ -88,7 +88,7 @@ type ItemPropsOf<P, Id> = P extends { items?: readonly (infer D)[] }
     : never
   : never
 
-// 形の中身の欄（content）の、欄の名前 → 値の型（データに無ければ undefined）
+// 形の中身のフィールド（content）の、フィールドの名前 → 値の型（データに無ければ undefined）
 type ItemContentOf<P, Id> = P extends { items?: readonly (infer D)[] }
   ? D extends { id: Id; content?: infer C }
     ? { readonly [K in keyof NonNullable<C>]?: NonNullable<C>[K] extends { _zod: { output: infer O } } ? O : never }
@@ -101,7 +101,7 @@ type DialogArgsOfPlugin<P, Id> = P extends { dialogs?: readonly (infer D)[] }
     : never
   : never
 
-// そのプラグインに id が無ければ、その欄は書かなくてよい
+// そのプラグインに id が無ければ、そのフィールドは書かなくてよい
 type Field<Ids, Name extends string, V> = [Ids] extends [never] ? { [n in Name]?: never } : { [n in Name]: V }
 
 export type PluginViews<P> = Field<

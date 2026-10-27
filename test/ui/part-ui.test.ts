@@ -6,7 +6,7 @@ import { assembleUi } from "../../web/src/ui/plugin"
 
 const kit = pluginKit("check")
 
-test("どの種類にも、見た目の欄と定義を書く関数を書いている（PARTS と同じ種類）", () => {
+test("どの種類にも、見た目のフィールドと定義を書く関数を書いている（PARTS と同じ種類）", () => {
   expect(Object.keys(PART_UI).sort()).toEqual(Object.keys(PARTS).sort())
 })
 
@@ -17,7 +17,7 @@ test("書いた定義の関数は pluginKit にあり、pluginKit の定義の�
   expect(listed.sort()).toEqual(defines.sort())
 })
 
-test("書いた見た目の欄は見た目の表にあり、見た目の表の欄（ウィジェットのほか）はどれもどこかの種類に書いてある", () => {
+test("書いた見た目のフィールドは見た目の表にあり、見た目の表のフィールド（ウィジェットのほか）はどれもどこかの種類に書いてある", () => {
   const listed: string[] = Object.values(PART_UI).flatMap(p => [...p.views])
   const fields = Object.keys(assembleUi([])).filter(k => k !== "widgets")
   expect(listed.sort()).toEqual(fields.sort())

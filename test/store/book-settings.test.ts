@@ -15,7 +15,7 @@ test("選んだ項目を、変えるときに渡す形にする: どれも書か
   expect(patch.safeParse({ c: 1 }).success).toBe(false)
   const before: object = { id: "p", settings: { a: "x", b: 1, c: true } }
   expect(withSettings(before, { a: "y", b: null })).toEqual({ id: "p", settings: { a: "y", c: true } })
-  // 項目が 1 つも無くなれば settings の欄も消す
+  // 項目が 1 つも無くなれば settings のフィールドも消す
   expect(withSettings<object>({ id: "p", settings: { a: "x" } }, { a: null })).toEqual({ id: "p" })
 })
 

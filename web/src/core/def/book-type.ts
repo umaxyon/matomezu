@@ -28,7 +28,7 @@ export interface ActionChoice {
 }
 
 // ページの決まり。addFromTabs はタブの横に、ページを足すボタンを出すか。
-// fields は、そのタイプのページが土台の欄のほかに持つ欄（ツリーの根など。土台の欄 id・title・paper・orientation・items・settings とは別の名前）。
+// fields は、そのタイプのページが土台のフィールドのほかに持つフィールド（ツリーの根など。土台のフィールド id・title・paper・orientation・items・settings とは別の名前）。
 // dialogs は、ページを作るダイアログ（add。値を受けない）とページの設定のダイアログ（settings。PageSettingsArgs を受ける）の id で、タイプが自分のものにする。
 // 無ければ、ページを受け持つプラグインの既定のダイアログを使う。受ける値が合うかは definePlugin が型で、あるかは組み立てが確かめる
 export interface PagesRule {
@@ -51,9 +51,9 @@ interface BookTypeBase<S extends z.ZodObject> {
   id: string // データの type の値
   version: number // データの形の版
   title: MessageKey // タイプの名前。題名を持たないブックは、この名前で呼ぶ
-  // そのタイプのブックが自分で持つ欄の形（type は id の値。pluginKit で書くプラグインは type を書かず、kit が足す）。ページ（pages）と設定の項目の欄は書かず、機能台帳が選んだものから足す
+  // そのタイプのブックが自分で持つフィールドの形（type は id の値。pluginKit で書くプラグインは type を書かず、kit が足す）。ページ（pages）と設定の項目のフィールドは書かず、機能台帳が選んだものから足す
   schema: S
-  pages: PagesRule | null // ページを持つか（持つなら、機能台帳がページの欄を足す）
+  pages: PagesRule | null // ページを持つか（持つなら、機能台帳がページのフィールドを足す）
   items: ItemChoice
   // 使えるアクションは、タイプが選んだ物に付いて来る（アクションの attach）。add はそのタイプだけのアクション、without は使わせないアクション
   actions: ActionChoice
@@ -96,7 +96,7 @@ export function defineBookType<const S extends z.ZodObject, const T extends Book
   return def
 }
 
-// schema に、データの type の欄（タイプの本当の id の文字）を足す（pluginKit の defineBookType が使う）
+// schema に、データの type のフィールド（タイプの本当の id の文字）を足す（pluginKit の defineBookType が使う）
 export type WithTypeField<S, Id extends string> =
   S extends z.ZodObject<infer Shape, infer Config>
     ? z.ZodObject<Omit<Shape, "type"> & { type: z.ZodLiteral<Id> }, Config>

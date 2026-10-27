@@ -1,7 +1,7 @@
 /* ダイアログと設定の画面の決まり（どのダイアログもこのコンポーネントと値で組む）:
-   - 文字: 欄の名前はどれも 13px・薄い色（--skin-hint）、値と入力は --skin-text。区分の見出しは 12px・薄い色・太字で、右に線を伸ばす
-   - 余白: 欄どうしは 14px、区分（Section）の前はさらに 6px、区分の中は 10px、横に並べる物どうしは 12px、名前と入力の間は 8px
-   - 区分: 大きな区分は Section（見出しと線）、スイッチに属する欄は SwitchPanel（スイッチの下に開く地の色の違う枠）の 2 つだけ
+   - 文字: 入力Formの名前はどれも 13px・薄い色（--skin-hint）、値と入力は --skin-text。区分の見出しは 12px・薄い色・太字で、右に線を伸ばす
+   - 余白: 入力Formどうしは 14px、区分（Section）の前はさらに 6px、区分の中は 10px、横に並べる物どうしは 12px、名前と入力の間は 8px
+   - 区分: 大きな区分は Section（見出しと線）、スイッチに属する入力Formは SwitchPanel（スイッチの下に開く地の色の違う枠）の 2 つだけ
    - ボタン: 強調の色のボタン（.submit）はダイアログを決める 1 つだけ。ほかのボタンは、つなげたコンポーネントの中も含めて縁取りのボタン（.plain と同じ見た目） */
 .dialog {
   padding: 0;
@@ -52,7 +52,7 @@
   font-size: 14px;
   font-weight: 600;
 }
-/* 入力のダイアログ: 名前の付いた欄を縦に並べ、最後の行の右に決めるボタン */
+/* 入力のダイアログ: 名前の付いた入力Formを縦に並べ、最後の行の右に決めるボタン */
 .form {
   display: flex;
   flex-direction: column;
@@ -74,7 +74,7 @@
   color: var(--skin-text);
   font: inherit;
 }
-/* 複数行の欄は縦にだけ伸ばせる */
+/* 複数行のテキストFormは縦にだけ伸ばせる */
 textarea.control {
   resize: vertical;
 }
@@ -186,7 +186,7 @@ textarea.control {
   color: var(--skin-accent);
   font-size: 12px;
 }
-/* 欄の名前の行（右に寄せなどのコンポーネントを置ける） */
+/* 入力Formの名前の行（右に寄せなどのコンポーネントを置ける） */
 .labelRow {
   display: flex;
   align-items: center;
@@ -259,7 +259,7 @@ textarea.control {
 .confirmText {
   margin: 0;
 }
-/* 選ぶ欄とボタンをつなげたコンポーネント: 1 つの枠の中に、左に選ぶ欄、仕切りの線、右にボタン */
+/* セレクトFormとボタンをつなげたコンポーネント: 1 つの枠の中に、左にセレクトForm、仕切りの線、右にボタン */
 .selectButton {
   display: inline-flex;
   flex: none;
@@ -268,7 +268,7 @@ textarea.control {
   border: 1px solid var(--skin-line);
   border-radius: 6px;
 }
-/* 選ぶ欄の地はスキンの地にする（透明だと、開いた選択肢の一覧がブラウザの明るい地に明るい文字で描かれて見えない） */
+/* セレクトFormの地はスキンの地にする（透明だと、開いた選択肢の一覧がブラウザの明るい地に明るい文字で描かれて見えない） */
 .selectButton > select {
   padding: 6px 4px 6px 10px;
   border: 0;
@@ -351,7 +351,7 @@ textarea.control {
     transition: none;
   }
 }
-/* 区分: 見出し（12px・薄い色・太字）と右へ伸びる線、その下に欄（間 10px）。区分の前は欄どうしより 6px 広く */
+/* 区分: 見出し（12px・薄い色・太字）と右へ伸びる線、その下に入力Form（間 10px）。区分の前は入力Formどうしより 6px 広く */
 .section {
   display: flex;
   flex-direction: column;

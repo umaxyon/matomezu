@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test"
 
-// i 番目のステージの下の行の名前の欄にマウスを乗せ、せり上がったメニューの中のボタンを返す
+// i 番目のステージの下の行のブックの名前のボタンにマウスを乗せ、せり上がったメニューの中のボタンを返す
 async function fromMenu(page: Page, name: string, i = 0) {
   const trigger = page.locator("button[aria-expanded]").nth(i)
   await trigger.hover()
@@ -40,7 +40,9 @@ test("タブの左のボタンでダイアログが開き、打った文字で�
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "Design Notes")
 })
 
-test("絞り込んで候補が減っても、探す欄の位置は変わらない（ステージの真ん中とダイアログ）", async ({ page }) => {
+test("絞り込んで候補が減っても、探すテキストFormの位置は変わらない（ステージの真ん中とダイアログ）", async ({
+  page,
+}) => {
   await page.goto("/")
   await (await fromMenu(page, "画面を分割")).click()
   const stage = page.getByRole("region", { name: "ステージ" }).nth(1)
@@ -82,7 +84,7 @@ test("マスターのボタンで、カレントのステージがマスター�
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "残課題")
 })
 
-test("分割した右のステージで探す欄からマスターを選ぶと、右にマスターが開く", async ({ page }) => {
+test("分割した右のステージで探すテキストFormからマスターを選ぶと、右にマスターが開く", async ({ page }) => {
   await page.goto("/")
   await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
@@ -169,7 +171,7 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
-  // 右のタブは、右のステージの真下で、ブックの名前の欄（156px）の右にある
+  // 右のタブは、右のステージの真下で、ブックの名前のボタン（156px）の右にある
   const bar = (await lists.nth(1).boundingBox())!
   const stage = (await right.boundingBox())!
   expect(bar.y).toBeGreaterThanOrEqual(stage.y + stage.height - 1)
@@ -192,7 +194,7 @@ test("マスターで新しいブックを作ると空のブックが開き、�
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(page.getByRole("tab")).toHaveText(["ページ 1"])
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
-  // 作ったブックは探す欄にも出る
+  // 作ったブックは探すテキストFormにも出る
   await (await fromMenu(page, "ブックを開く")).click()
   await page.keyboard.type("新しい")
   await expect(page.getByRole("dialog", { name: "ブックを開く" }).getByRole("option")).toHaveText(["新しい図"])
@@ -208,7 +210,7 @@ test("マスターの設定で言語とスキンを変えると、画面がす�
   await expect(page.locator("html")).toHaveAttribute("lang", "en")
 })
 
-test("名前の欄にマウスを乗せるとメニューがせり上がり、離れると下がる。押しても出る", async ({ page }) => {
+test("ブックの名前のボタンにマウスを乗せるとメニューがせり上がり、離れると下がる。押しても出る", async ({ page }) => {
   await page.goto("/")
   const trigger = page.getByRole("button", { name: "まとめ図の構想" })
   const menu = trigger.locator("xpath=following-sibling::div[1]")
@@ -233,7 +235,7 @@ test("分割すると、ツールボックスの無いステージでも右上�
 }) => {
   await page.goto("/")
   await (await fromMenu(page, "画面を分割")).click()
-  // 何も開いていないステージの名前の欄は空。空でも下の行からはみ出さない
+  // 何も開いていないステージのブックの名前のボタンは空。空でも下の行からはみ出さない
   expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBe(0)
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   const close = (await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).boundingBox())!

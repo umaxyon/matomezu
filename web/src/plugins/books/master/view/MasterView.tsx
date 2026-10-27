@@ -25,7 +25,7 @@ export function MasterView({ stage }: BookViewProps) {
   )
 }
 
-// 設定の欄。ホームのタイプが変えるのを許さない設定は、選べなくする
+// 設定の区分。ホームのタイプが変えるのを許さない設定は、選べなくする
 function Settings({ stage }: { stage: string }) {
   const t = useMessages(kit)
   const { lang, skin } = useSettings()

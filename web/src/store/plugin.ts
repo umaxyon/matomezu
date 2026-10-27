@@ -7,7 +7,7 @@ import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { Scheme } from "../core/def/skin"
 import type { TokenDecl } from "../core/def/theme"
 import { fail, matomezuError, problem } from "../core/errors"
-import type { LanguagePack, MessageSet } from "../core/i18n/messages"
+import type { LanguagePackDef, MessageSetDef } from "../core/i18n/messages"
 import { normalizeKey } from "../core/keys"
 import { isOwnedBy, splitId } from "../core/names"
 import { type Notice, notice } from "../core/notices"
@@ -26,8 +26,8 @@ declare module "../core/catalog" {
 
 // プラグインが持つ定義: 定義の種類ごとの並び（core/catalog.ts の PARTS）と、文言・言語・キーの既定の割り当て
 export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } & {
-  messages?: MessageSet // このプラグインの文言（defineMessages で書き、機能台帳の型の側 MessageTable に書き足す）
-  languages?: readonly LanguagePack[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
+  messages?: MessageSetDef // このプラグインの文言（defineMessages で書き、機能台帳の型の側 MessageTable に書き足す）
+  languages?: readonly LanguagePackDef[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
   keys?: readonly KeyDef[] // キーの既定の割り当て（結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDecl[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
 }

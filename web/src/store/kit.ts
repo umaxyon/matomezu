@@ -19,7 +19,7 @@ import type { SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
 import type { ThemeDef, TokenDecl } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
-import type { MessageSet } from "../core/i18n/messages"
+import type { MessageSetDef } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
 import type { CommandDef, CommandPlace } from "./commands/def"
 import type { DialogDef } from "./dialogs"
@@ -50,7 +50,7 @@ type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<
     : { create(init: NewBook): DataOf<WithTypeField<S, Id>> })
 
 // 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
-export interface PluginKit<P extends string, M extends MessageSet> {
+export interface PluginKit<P extends string, M extends MessageSetDef> {
   id: P // プラグインの id
   messages: OwnedMessages<P, M> // 頭を付けた文言（機能台帳の型の側 MessageTable に書き足す）
   name<const N extends string>(name: N): Owned<P, N> // 自分の名前の本当の id
@@ -127,7 +127,7 @@ export interface PluginKit<P extends string, M extends MessageSet> {
     const T extends SingleIn<S, keyof M & string> | ManyIn<S, keyof M & string>,
   >(def: T & { id: Id; schema: S }): BookTypeOut<T, S, Owned<P, Id>>
 
-  // テーマ: tokens の鍵のうち : の無いものは自分の欄
+  // テーマ: tokens の鍵のうち : の無いものは自分のテーマキー
   defineTheme<const Id extends string, const T extends Titled<ThemeDef, keyof M & string>>(
     def: T & { id: Id },
   ): Placed<T, Owned<P, Id>>
@@ -151,7 +151,7 @@ export interface PluginKit<P extends string, M extends MessageSet> {
   defineDialogWith<A>(): <const Id extends string>(def: { id: Id }) => DialogDef<A> & { id: Owned<P, Id> }
 }
 
-export function pluginKit<const P extends string, const M extends MessageSet = Record<never, never>>(
+export function pluginKit<const P extends string, const M extends MessageSetDef = Record<never, never>>(
   plugin: P,
   messages: M = {} as M,
 ): PluginKit<P, M> {
@@ -192,7 +192,7 @@ export function pluginKit<const P extends string, const M extends MessageSet = R
       const id = owned(plugin, def.id)
       const placed = { ...place(def), schema: withTypeField(def.schema, id) }
       const { create, book } = def
-      if (book !== undefined) return { ...placed, book: { type: id, id, title: "", ...book } } // 名前は土台の欄（1 冊だけのブックは空）
+      if (book !== undefined) return { ...placed, book: { type: id, id, title: "", ...book } } // 名前は土台のフィールド（1 冊だけのブックは空）
       return { ...placed, create: (init: NewBook) => ({ type: id, ...create?.(init) }) }
     },
     defineTheme: (def: { id: string; tokens?: Record<string, unknown> }) => {

@@ -46,7 +46,7 @@ test("同じ行かは、そろえたキー・コマンド・範囲・引数で�
   expect(sameBinding(a, { ...a, args: { n: 2 } })).toBe(false)
 })
 
-test("文字の入力欄の中で見るのは Escape と、1 行の欄の Enter だけ", () => {
+test("テキストFormの中で見るのは Escape と、1 行のテキストFormの Enter だけ", () => {
   expect([seenInText("Escape", "multi"), seenInText("Enter", "line"), seenInText("Enter", "multi")]).toEqual([
     true,
     true,

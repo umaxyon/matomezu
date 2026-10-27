@@ -32,7 +32,7 @@ const RENAME = defineAction({
   args: z.strictObject({ title: z.string().min(1) }),
   run: (book, args) => ({ next: { ...book, title: args.title }, result: { was: (book as { title?: string }).title } }),
 })
-// 型を言い張って、タイプの形に無い欄を書くアクション
+// 型を言い張って、タイプの形に無いフィールドを書くアクション
 const BREAK = defineAction({
   id: "notes:break",
   title: "@matomezu/drawing:Drawing",

@@ -1,5 +1,5 @@
 // ブックを探して選ぶコンポーネント: 打つたびに題名で絞り込み、↑↓で選び、Enter かクリックで決める。
-// 候補の欄は高さが決まっていて、絞り込んでもコンポーネントの大きさは変わらない（真ん中に置いても探す欄が動かない）。
+// 候補の一覧は高さが決まっていて、絞り込んでもコンポーネントの大きさは変わらない（真ん中に置いても探すテキストFormが動かない）。
 // 読めないブック（プラグインが無いなど）も名前で絞り込んで後ろに並べ、押せない行として開けない理由を添える。
 // 読めるが一部のプラグインが無いブックは、名前の横に印を付ける。
 // 並びは触れた（開いたか書いた）時刻の新しい順で、右の列にその時刻を「〜前」で出す（時刻を知らないブックは出さない）
@@ -69,7 +69,7 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
         aria-activedescendant={current >= 0 ? optionId(current) : undefined}
         placeholder={t("Search by book name")}
         autoComplete="off"
-        // biome-ignore lint/a11y/noAutofocus: 探す欄を出したら、すぐ打てるようにする
+        // biome-ignore lint/a11y/noAutofocus: 探すテキストFormを出したら、すぐ打てるようにする
         autoFocus={autoFocus}
         value={query}
         onChange={e => {
@@ -81,7 +81,7 @@ export function BookSearch({ onSelect, autoFocus = false }: { onSelect: (book: s
       <div className={styles.results}>
         <div className={styles.list} id={listId} role="listbox" aria-label={t("Books")}>
           {found.map((b, i) => (
-            // biome-ignore lint/a11y/useKeyWithClickEvents: キーでの操作は探す欄（combobox）が受け持つ
+            // biome-ignore lint/a11y/useKeyWithClickEvents: キーでの操作は探すテキストForm（combobox）が受け持つ
             <div
               key={b.id}
               ref={i === current ? activeRef : undefined}

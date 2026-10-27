@@ -1,4 +1,4 @@
-// ページを変える: アクション page-update（ページの名前と、ブックのタイプが選んだページの設定の項目（plugins/base/book-settings.ts）と、タイプがページに足した欄（page-fields.ts））
+// ページを変える: アクション page-update（ページの名前と、ブックのタイプが選んだページの設定の項目（plugins/base/book-settings.ts）と、タイプがページに足したフィールド（page-fields.ts））
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
 import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../book-settings"
@@ -9,12 +9,12 @@ const ARGS = z.strictObject({
   page: z.string().min(1),
   title: z.string().trim().min(1).optional(),
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが足す項目（形はタイプが決める）
-  fields: z.record(z.string(), z.unknown()).optional(), // ブックのタイプがページに足した欄（形はタイプが決める）
+  fields: z.record(z.string(), z.unknown()).optional(), // ブックのタイプがページに足したフィールド（形はタイプが決める）
 })
 
 // ページ page の、渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
 // settings はブックのタイプが選んだ項目だけ（null は消す。形に合わない・選んでいないタイプ・無いページなら断る）。設定を変えたらページを整える（settleBook）。
-// fields はタイプがページに足した欄だけで、書いた欄を丸ごと替える（形に合わない・欄の無いタイプなら断る）
+// fields はタイプがページに足したフィールドだけで、書いたフィールドを丸ごと替える（形に合わない・フィールドの無いタイプなら断る）
 export const PAGE_UPDATE = kit.defineAction({
   id: "page-update",
   attach: { pages: true },

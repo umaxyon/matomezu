@@ -1,6 +1,6 @@
 // ページを足す: ページを持つブックの最後に、名前と紙を決めたページを足す。紙と向きはブックのタイプの規定（paperChoices）の中から選ぶ。
-// タイプがページに足した欄（fields。page-fields.ts）と、ページの設定の項目（settings。plugins/base/book-settings.ts）も一緒に決められる
-// （タイプの欄で要るものを渡さなければ、ブックのデータの形に合わず断られる）
+// タイプがページに足したフィールド（fields。page-fields.ts）と、ページの設定の項目（settings。plugins/base/book-settings.ts）も一緒に決められる
+// （タイプのフィールドで要るものを渡さなければ、ブックのデータの形に合わず断られる）
 import { z } from "zod"
 import { addPage, canChoose, defaultPaper, hasPages, paperChoices, putPage } from "../../../core/book"
 import { ORIENTATIONS } from "../../../core/def/paper"
@@ -13,7 +13,7 @@ const ARGS = z.strictObject({
   paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定
   orientation: z.enum(ORIENTATIONS).optional(), // 無ければ規定の既定
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだページの設定の項目（形はタイプが決める）
-  fields: z.record(z.string(), z.unknown()).optional(), // ブックのタイプがページに足した欄（形はタイプが決める）
+  fields: z.record(z.string(), z.unknown()).optional(), // ブックのタイプがページに足したフィールド（形はタイプが決める）
 })
 
 export const PAGE_ADD = kit.defineAction({

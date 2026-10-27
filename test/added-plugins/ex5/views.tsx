@@ -1,4 +1,4 @@
-// タイルのビュー: 中身の欄 tiles（content.tiles）の札を色の四角で並べる
+// タイルのビュー: 中身のフィールド tiles（content.tiles）の札を色の四角で並べる
 import type { z } from "matomezu"
 import type { ItemViewProps } from "matomezu/ui"
 import type { TILES } from "./tiles"

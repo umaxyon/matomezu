@@ -1,5 +1,5 @@
 // キーの受け口: 画面で押したキーを 1 か所で受け、store の割り当てで引いてコマンドを行う（行ったらブラウザの動きを止める）。
-// 日本語の変換中のキーは見ない。文字の入力欄の中では、Escape と 1 行の欄の Enter だけを見る（ほかは入力欄に任せる）。
+// 日本語の変換中のキーは見ない。テキストFormの中では、Escape と 1 行のテキストFormの Enter だけを見る（ほかはテキストFormに任せる）。
 // 焦点のあるボタン・リンクの Space と Enter は、それを押す動きに任せる。
 // 押した所の要素から外側へたどり、data-key-scope で名乗った範囲（プラグインの範囲）を狭いものから渡す
 import { useEffect, useMemo } from "react"
@@ -11,7 +11,7 @@ import { useActions, useInstance, useMatomezuState } from "./store-context"
 // Mac か（Mod を Cmd にし、キーの名前を記号で出す）
 export const isMac = (): boolean => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
 
-// 文字の入力欄なら、1 行か複数行か
+// 文字を打つ入力Form（テキストForm・セレクトForm・contenteditable。チェックボックスなどは除く）なら、1 行か複数行か
 function textField(el: Element | null): "line" | "multi" | null {
   const field = el?.closest("input, textarea, select, [contenteditable]")
   if (!field) return null

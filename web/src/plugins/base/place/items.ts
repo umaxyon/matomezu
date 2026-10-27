@@ -39,7 +39,7 @@ export const gapOf = (catalog: CoreCatalog, page: ItemPage): Gap => connectorGap
 export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, book: PagedBook, page: P): P =>
   tidyItems(catalog, page, settingsAt(catalog, book, page))
 
-// アイテムの中身の欄（項目 props のほかの、id を持つ物の並び。リストの行など）に入っている物の id
+// アイテムの中身のフィールド（項目 props のほかの、id を持つ物の並び。リストの行など）に入っている物の id
 function innerIds(item: PlacedItem): string[] {
   return Object.entries(item).flatMap(([key, value]) =>
     key !== "props" && Array.isArray(value)
@@ -48,7 +48,7 @@ function innerIds(item: PlacedItem): string[] {
   )
 }
 
-// 次に置くアイテム（リストの行など、中身の欄の物も）の id（newId から振る。ブックの全部のページの、アイテムとその中身で重ならない）
+// 次に置くアイテム（リストの行など、中身のフィールドの物も）の id（newId から振る。ブックの全部のページの、アイテムとその中身で重ならない）
 export function nextItemId(book: PagedBook, newId: () => string): string {
   return freshId(
     newId,

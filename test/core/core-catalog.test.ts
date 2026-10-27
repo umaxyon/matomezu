@@ -37,7 +37,7 @@ describe("機能台帳", () => {
       ...BUILTIN_PARTS,
       bookTypes: [drawing, master, drawing],
       items: [],
-      themes: BUILTIN_PARTS.themes.filter(th => !th.tokens), // 外したアイテムの欄を上書きするテーマも外す
+      themes: BUILTIN_PARTS.themes.filter(th => !th.tokens), // 外したアイテムのテーマキーを上書きするテーマも外す
       papers: BUILTIN_PARTS.papers.filter(p => p.id !== "@matomezu/base:a3"),
     }
     const problems = checkCoreCatalog(broken)
@@ -240,14 +240,14 @@ describe("アクションを行う", () => {
 })
 
 describe("テーマの値", () => {
-  test("宣言された欄は、テーマが上書きしていなければ、宣言の既定（共通の欄）の値", () => {
+  test("宣言されたテーマキーは、テーマが上書きしていなければ、宣言の既定（共通のテーマキー）の値", () => {
     const values = resolveTokens(CORE_CATALOG, "@matomezu/base:standard", [
       { id: "@matomezu/box:box-fill", fallback: "fill" },
     ])
     expect(values["@matomezu/box:box-fill"]).toEqual(values.fill!)
   })
 
-  test("ブックの値には、ブックで使えるアイテムの欄が入る", () => {
+  test("ブックの値には、ブックで使えるアイテムのテーマキーが入る", () => {
     expect(Object.keys(bookTokens(CORE_CATALOG, SAMPLE_BOOKS[0]!))).toContain("@matomezu/box:box-fill")
     expect(Object.keys(bookTokens(CORE_CATALOG, MASTER_BOOK))).not.toContain("@matomezu/box:box-fill")
   })
@@ -344,7 +344,7 @@ test("タイプが allowed に無いアイテムへ指定を渡したら E029", 
   expect(checkCoreCatalog(parts).map(p => p.code)).toEqual(["E029"])
 })
 
-test("タイプがページに足す欄（pages.fields）は、そのタイプのページの形に入る。土台のページの欄と同じ名前なら E030", () => {
+test("タイプがページに足すフィールド（pages.fields）は、そのタイプのページの形に入る。土台のページのフィールドと同じ名前なら E030", () => {
   const tree = BUILTIN_PARTS.bookTypes.find(t => t.id === "@matomezu/tree:tree")!
   const pages = tree.pages!
   const withRoot = { ...tree, pages: { ...pages, fields: { root: z.strictObject({ caption: z.string() }) } } }

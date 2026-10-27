@@ -15,7 +15,7 @@ export const MASTER = kit.defineBookType({
   book: {},
   pages: null,
   items: { allowed: [], defaults: [] },
-  // ブックの一覧と設定を変えるアクションを足し、名前の欄を出さないので book-update を外す
+  // ブックの一覧と設定を変えるアクションを足し、名前の入力Formを出さないので book-update を外す
   actions: {
     add: [
       "@matomezu/base:book-create",

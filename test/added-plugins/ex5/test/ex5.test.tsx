@@ -1,4 +1,4 @@
-// ex5（文字を持たず、中身の欄が children でない形）で、監査 B1〜B3 を確かめる（themeProp の型は type-checks.ts）
+// ex5（文字を持たず、中身のフィールドが children でない形）で、監査 B1〜B3 を確かめる（themeProp の型は type-checks.ts）
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { addPageIn, createBookIn, nextItemId, type PagedBook } from "matomezu"
@@ -42,7 +42,7 @@ const shelf = () => {
   return { instance, on, page, place }
 }
 
-test("タイルを置き、札を足すと中身の欄 tiles に入る", () => {
+test("タイルを置き、札を足すと中身のフィールド tiles に入る", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
   act(() => {
@@ -54,7 +54,7 @@ test("タイルを置き、札を足すと中身の欄 tiles に入る", () => {
   expect(document.querySelector<HTMLElement>("[data-item]")?.style.getPropertyValue("--tiles-fill")).not.toBe("")
 })
 
-test("B3: ビューの content に、中身の欄 tiles の札が来る（children でなくても）", () => {
+test("B3: ビューの content に、中身のフィールド tiles の札が来る（children でなくても）", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
   act(() => {
@@ -65,12 +65,12 @@ test("B3: ビューの content に、中身の欄 tiles の札が来る（childr
   expect(document.querySelector("[data-ex5-tiles]")?.getAttribute("data-ex5-zoom")).toBe("1")
 })
 
-test("B1: 自分の意味の theme の欄（札の色合い）を持つ形を置ける", () => {
+test("B1: 自分の意味の theme の項目（札の色合い）を持つ形を置ける", () => {
   const { place } = shelf()
   expect(place({ theme: "cool" })).toMatchObject({ ok: true })
 })
 
-test("B2: 文字を持たない形は、caption の欄を変えても幅が変わらない", () => {
+test("B2: 文字を持たない形は、caption の項目を変えても幅が変わらない", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({ caption: "a" }, 100) as { result: { item: string } }).result.item
   act(() => {
@@ -85,7 +85,7 @@ test("B2: 文字を持たない形は、caption の欄を変えても幅が変�
   expect(page().items![0]!.w).toBe(100)
 })
 
-test("B3: 次に置くアイテムの id は、中身の欄 tiles の札の id とも重ならない", () => {
+test("B3: 次に置くアイテムの id は、中身のフィールド tiles の札の id とも重ならない", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
   let tile = ""

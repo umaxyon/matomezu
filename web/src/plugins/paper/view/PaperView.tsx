@@ -344,7 +344,7 @@ function PageItems({
   }, items)
 }
 
-// 形のビューに渡す中身: 形の定義の content に宣言した欄の名前 → その値
+// 形のビューに渡す中身: 形の定義の content に宣言したフィールドの名前 → その値
 function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<string, unknown>> {
   const def = catalog.items.get(item.item)
   const fields = def?.kind === "shape" ? Object.keys(def.content ?? {}) : []

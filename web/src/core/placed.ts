@@ -1,5 +1,5 @@
 // ページに置いたアイテムのデータ: 外枠（形は id・左上・大きさ、つなぐものは id・つなぐ相手）と、アイテムの項目と中身。
-// 外枠は kind ごとにここで決め、アイテムの定義は項目と中身の欄だけを持つ。ページの形は、ブックのタイプが選んだアイテムから機能台帳が組み立てる（catalog.ts）。
+// 外枠は kind ごとにここで決め、アイテムの定義は項目と中身のフィールドだけを持つ。ページの形は、ブックのタイプが選んだアイテムから機能台帳が組み立てる（catalog.ts）。
 // 形が変わったあとの整えと関係の決まりは、ページのつなぐもの（線）の定義が持つものを全部かける
 import { z } from "zod"
 import type { ItemTable } from "./catalog"
@@ -17,7 +17,7 @@ import type {
 import type { Rect, Size } from "./geom"
 import type { Page } from "./schema/page"
 
-// 置いた形のデータの形。欄の並びは id・x・y・item・w・h・props・中身
+// 置いた形のデータの形。フィールドの並びは id・x・y・item・w・h・props・中身
 export function shapeSchema(def: ShapeItemDef): z.ZodObject {
   const len = (min: number | undefined) => (min === undefined ? z.number() : z.number().min(min)).optional()
   return z.strictObject({
@@ -32,7 +32,7 @@ export function shapeSchema(def: ShapeItemDef): z.ZodObject {
   })
 }
 
-// 置いたつなぐもののデータの形。欄の並びは id・item・from・to・props
+// 置いたつなぐもののデータの形。フィールドの並びは id・item・from・to・props
 export function connectorSchema(def: ConnectorItemDef): z.ZodObject {
   return z.strictObject({
     id: z.string().min(1),

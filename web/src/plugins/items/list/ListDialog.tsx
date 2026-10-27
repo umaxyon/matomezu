@@ -38,7 +38,7 @@ import { LIST, LIST_FILL, type ListRow } from "./list"
 import { withRowLines } from "./rows"
 import type { RowsLines } from "./size"
 
-// ダイアログの高さ（全部の欄が出たときの高さ。チェックリストなどで欄が増えても大きさを変えない）
+// ダイアログの高さ（全部の入力Formが出たときの高さ。チェックリストなどで入力Formが増えても大きさを変えない）
 const DIALOG_HEIGHT = 480
 // ダイアログの幅（行の高さの 2 つの操作が 1 行に並ぶ幅）
 const DIALOG_WIDTH = 440

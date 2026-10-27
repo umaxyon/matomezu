@@ -78,7 +78,7 @@ test("名前に使えるのは英小文字・数字・- だけ（先頭は英小
   expect(thrown(() => kit.defineDialog({ id: "1star" }))).toMatchObject({ code: "E305" })
 })
 
-test("組み立ては、名前の字と、欄の名前が土台の CSS 変数の頭（theme-・skin-）で始まらないかを確かめる", () => {
+test("組み立ては、名前の字と、テーマキーの名前が土台の CSS 変数の頭（theme-・skin-）で始まらないかを確かめる", () => {
   const badName = definePlugin({ id: "notes", dialogs: [{ id: "notes:Shot" }] })
   expect(thrown(() => createMatomezu({ plugins: [...BUILTIN, badName], partial: true }))).toMatchObject({
     code: "E301",

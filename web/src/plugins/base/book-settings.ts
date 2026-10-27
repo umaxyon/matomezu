@@ -1,4 +1,4 @@
-// ブックとページの設定の項目: ブックのタイプが設定の定義（core/def/setting.ts）を id で選び、機能台帳がブックとページの形に settings の欄（項目の id → 値）を足す。
+// ブックとページの設定の項目: ブックのタイプが設定の定義（core/def/setting.ts）を id で選び、機能台帳がブックとページの形に settings のフィールド（項目の id → 値）を足す。
 // 変える base のアクション（book-update・page-update）は、名前などの共通の項目に加えて、選んだ項目を settings（項目の id → 値）として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
 // 変えたあとはページを整える（settleBook）。値は ページ → ブック → 定義の既定 の順に、最初に値のある所で決まる（settingValue）。
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
@@ -23,11 +23,11 @@ function settingsPatch(defs: readonly SettingDef[]): z.ZodObject {
   return z.strictObject(Object.fromEntries(defs.map(d => [d.id, d.schema.nullable().optional()])))
 }
 
-// ブックかページの settings の欄（無ければ空）
+// ブックかページの settings のフィールド（無ければ空）
 const ownSettings = (target: object | null): Readonly<Record<string, unknown>> =>
   (target as { settings?: Record<string, unknown> } | null)?.settings ?? {}
 
-// 項目を変えた値（null の項目は消す。項目が 1 つも無くなれば settings の欄も消す）
+// 項目を変えた値（null の項目は消す。項目が 1 つも無くなれば settings のフィールドも消す）
 export function withSettings<T extends object>(target: T, patch: Readonly<Record<string, unknown>>): T {
   const settings: Record<string, unknown> = { ...ownSettings(target) }
   for (const [k, v] of Object.entries(patch)) {

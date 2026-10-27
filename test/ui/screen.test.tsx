@@ -28,7 +28,7 @@ function renderScreen(options: Omit<StoreOptions, "plugins"> = {}) {
 
 const stages = () => screen.getAllByRole("region", { name: "ステージ" })
 
-// i 番目のステージの下の行の名前の欄を押してメニューを出し、その中のボタンを返す（閉じたメニューのボタンは見えない）
+// i 番目のステージの下の行のブックの名前のボタンを押してメニューを出し、その中のボタンを返す（閉じたメニューのボタンは見えない）
 function fromMenu(name: string, i = 0): HTMLElement {
   const triggers = [...document.querySelectorAll<HTMLElement>("button[aria-expanded]")]
   const trigger = triggers[i]!
@@ -150,7 +150,7 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
   expect(document.documentElement.lang).toBe("en")
 })
 
-test("名前の欄のメニューのマスターで、そのステージにマスターの画面が出る。紙もページのタブもツールも無い", () => {
+test("ブックの名前のボタンのメニューのマスターで、そのステージにマスターの画面が出る。紙もページのタブもツールも無い", () => {
   renderScreen()
   const button = fromMenu("ホーム")
   expect(button.getAttribute("aria-pressed")).toBe("false")

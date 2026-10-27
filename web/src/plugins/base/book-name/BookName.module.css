@@ -1,4 +1,4 @@
-/* ブックの名前の欄。色の帯で行の頭と分かるようにする（左端の強調の線はカレントのステージだけ） */
+/* ブックの名前のボタン。色の帯で行の頭と分かるようにする（左端の強調の線はカレントのステージだけ） */
 .name {
   flex: none;
   position: relative;
@@ -33,7 +33,7 @@
   outline: 2px solid var(--skin-accent);
   outline-offset: -2px;
 }
-/* せり上がるメニュー。名前の欄の真上に出し、下から上がってくる */
+/* せり上がるメニュー。ボタンの真上に出し、下から上がってくる */
 .menu {
   position: absolute;
   left: 4px;
@@ -54,7 +54,7 @@
     transform 0.16s ease,
     visibility 0s linear 0.16s;
 }
-/* メニューと欄の間の隙間でも離れたことにしない */
+/* メニューとボタンの間の隙間でも離れたことにしない */
 .menu::after {
   content: "";
   position: absolute;

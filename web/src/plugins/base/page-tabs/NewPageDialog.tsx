@@ -44,7 +44,7 @@ function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; 
     >
       <Field label={t("Page name")}>
         {id => (
-          // biome-ignore lint/a11y/noAutofocus: 開いたダイアログの最初の欄
+          // biome-ignore lint/a11y/noAutofocus: 開いたダイアログの最初の入力Form
           <input id={id} className={controlClass} value={title} autoFocus onChange={e => setTitle(e.target.value)} />
         )}
       </Field>

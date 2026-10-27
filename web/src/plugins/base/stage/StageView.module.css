@@ -20,7 +20,7 @@
 .book {
   display: contents;
 }
-/* 何も開いていないとき: 真ん中にブックを選ぶ欄 */
+/* 何も開いていないとき: 真ん中にブックを探すコンポーネント */
 .empty {
   position: absolute;
   top: 50%;

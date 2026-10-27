@@ -81,7 +81,7 @@ test("チェックリストにすると行の左にチェックが出て、押�
   await expect(dialog).toBeVisible()
   await dialog.getByRole("switch", { name: "チェックリスト" }).click()
   await confirm.getByRole("button", { name: "消す" }).click()
-  expect(await dialog.boundingBox()).toEqual(size) // 欄が減ってもダイアログの大きさは変わらない
+  expect(await dialog.boundingBox()).toEqual(size) // 入力Formが減ってもダイアログの大きさは変わらない
   await expect(list.getByRole("checkbox")).toHaveCount(0) // 下書きで見せる
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(dialog).toBeHidden()
@@ -163,7 +163,7 @@ test("行の下の端をドラッグすると、その行の高さが 1 行刻�
   await expect.poll(() => height(0)).toBe(start)
 })
 
-test("チェックリストにすると「チェック済みを」の欄が出て、チェック済みの行を薄くし、先頭か最後に寄せて見せる（データの順は変えない）。寄せているときチェック済みの行はドラッグできない", async ({
+test("チェックリストにすると「チェック済みを」の入力Formが出て、チェック済みの行を薄くし、先頭か最後に寄せて見せる（データの順は変えない）。寄せているときチェック済みの行はドラッグできない", async ({
   page,
 }) => {
   await page.goto("/")

@@ -149,12 +149,12 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
   await expect(box).toContainText("後")
   await expect(box).toContainText("本文")
   await expect(box.locator("hr")).toHaveCount(1)
-  // 本文の欄は縦にだけ伸ばせる
+  // 本文のテキストFormは縦にだけ伸ばせる
   await box.dblclick()
   await expect(dialog.getByLabel("本文", { exact: true })).toHaveCSS("resize", "vertical")
 })
 
-test("選んだ箱は Delete で消える。ダイアログの入力欄の中の Delete では消えない", async ({ page }) => {
+test("選んだ箱は Delete で消える。ダイアログの入力Formの中の Delete では消えない", async ({ page }) => {
   await page.goto("/")
   await page.getByRole("button", { name: "箱" }).click()
   const at = await onPaper(page, 200, 150)
@@ -198,7 +198,7 @@ test("箱を右クリックすると選ばれ、設定・区切り線・削除�
   await expect(items(page)).toHaveText(["一"])
 })
 
-test("キーは割り当ての表で効く: 本文の欄の Enter は改行、キャプションの欄の Enter で決める、メニューは Escape で閉じる", async ({
+test("キーは割り当ての表で効く: 本文のテキストFormの Enter は改行、キャプションのテキストFormの Enter で決める、メニューは Escape で閉じる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -472,7 +472,7 @@ test("編集のダイアログの色のボタンでポップアップを開き�
   await expect.poll(look).toEqual({ fill: "rgb(255, 255, 255)", text: "rgb(27, 27, 31)" })
 })
 
-test("テーマの色はテーマを変えるとそのテーマの色になり、値の欄に書いた色はどのテーマでもその色。なしで元の塗りに戻る", async ({
+test("テーマの色はテーマを変えるとそのテーマの色になり、値のテキストFormに書いた色はどのテーマでもその色。なしで元の塗りに戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -552,7 +552,7 @@ test("設定のダイアログでブックのテーマと紙の色を選ぶと�
   expect(await look()).toEqual({ paper: "rgb(239, 246, 255)", box: "rgb(255, 243, 166)" })
 })
 
-test("ブックの名前の欄のメニューからブックの設定を開いて名前を変えると、欄の名前が変わる。空の間は確定できない", async ({
+test("ブックの名前のボタンのメニューからブックの設定を開いて名前を変えると、ボタンの名前が変わる。空の間は確定できない", async ({
   page,
 }) => {
   await page.goto("/")

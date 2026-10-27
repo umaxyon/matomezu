@@ -1,5 +1,5 @@
-// ブックの名前の欄（ウィジェット book-name）: ステージのブックの名前を出す。
-// 乗せるか押すと、上にメニュー（配置のメニュー stage-menu）がせり上がり、欄とメニューから離れると下がる。メニューの項目はコマンドを呼ぶ
+// ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前を出す。
+// 乗せるか押すと、上にメニュー（配置のメニュー stage-menu）がせり上がり、ボタンとメニューから離れると下がる。メニューの項目はコマンドを呼ぶ
 import { useEffect, useRef, useState } from "react"
 import { bookTitle } from "../../../core/book"
 import { useCommand } from "../../../ui/commands"
@@ -11,7 +11,7 @@ import { kit } from "../kit"
 import styles from "./BookName.module.css"
 import { STAGE_MENU } from "./menu"
 
-// 離れてからメニューが下がるまで（欄とメニューの間を動く間に下がらないように）
+// 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
 
 export function BookName({ stage }: { stage: string }) {

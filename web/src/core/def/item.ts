@@ -18,7 +18,7 @@ interface ItemBase<Tt extends string = MessageKey> {
   tokens: readonly TokenDecl[] // 描くのに使うテーマキー
 }
 
-// 置いた形のデータ（外枠の id・左上・大きさと、項目 props と中身の欄）
+// 置いた形のデータ（外枠の id・左上・大きさと、項目 props と中身のフィールド）
 export interface ShapeData<P = unknown> {
   id: string
   x: number
@@ -83,7 +83,7 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   kind: "shape"
   toolbox: boolean // ツールボックスに出すか（出さないものは、ほかの操作で置く）
   size: Size // 置くときの大きさ
-  content?: Readonly<Record<string, z.ZodType>> // 項目のほかに持つ中身の欄（リストの行など。どれも書かなくてよい）
+  content?: Readonly<Record<string, z.ZodType>> // 項目のほかに持つ中身のフィールド（リストの行など。どれも書かなくてよい）
   // 向きなどが違うだけの仲間の形をまとめて呼ぶ名前（台形と台形（逆）なら「台形」。文言の本当の鍵）。無ければ title
   familyTitle?: MessageKey
   ports?: Ports // つなぎ口（無ければ、四角のふち全体）
@@ -138,7 +138,7 @@ export interface ConnectorItemDef<D extends ConnectorData = ConnectorData, Tt ex
 export type ItemDef = ShapeItemDef | ConnectorItemDef
 export type ItemKind = ItemDef["kind"]
 
-// 項目の形 P と中身の欄 C から、置いたデータの型
+// 項目の形 P と中身のフィールド C から、置いたデータの型
 type ContentOf<C> = { [K in keyof C]?: C[K] extends z.ZodType ? z.output<C[K]> : never }
 export type ShapeDataOf<P extends z.ZodType, C = object> = ShapeData<z.output<P>> & ContentOf<C>
 export type ConnectorDataOf<P extends z.ZodType> = ConnectorData<z.output<P>>

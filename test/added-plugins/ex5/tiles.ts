@@ -1,5 +1,5 @@
 // ex5 の形「タイル」: 色の札（tiles）を並べる入れ物。文字は持たない（captionProp なし）。
-// 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身の欄は children でなく tiles
+// 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身のフィールドは children でなく tiles
 import { putPage, z } from "matomezu"
 import { kit } from "./kit"
 

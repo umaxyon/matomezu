@@ -1,4 +1,4 @@
-// 入力のダイアログのコンポーネント: 名前の付いた欄と、決めるボタンの行・見出しの行に置くボタン、区分・横に並べる行・名前と入力の組。
+// 入力のダイアログのコンポーネント: 名前の付いた入力Formと、決めるボタンの行・見出しの行に置くボタン、区分・横に並べる行・名前と入力の組。
 // 見た目の決まり（文字・余白・区分・ボタン）は Dialog.module.css の冒頭
 import { type ReactNode, useId } from "react"
 import styles from "./Dialog.module.css"
@@ -9,7 +9,7 @@ export const inlineClass = styles.inline // 横に並べる行（入らなけれ
 export const pairClass = styles.pair // 名前と入力の組
 export const dividerClass = styles.divider // 横に並べた物の間の縦の線
 
-// 区分: 見出しと右へ伸びる線、その下に欄（Dialog.module.css の冒頭の決まり）
+// 区分: 見出しと右へ伸びる線、その下に入力Form（Dialog.module.css の冒頭の決まり）
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <fieldset className={styles.section}>
@@ -28,7 +28,7 @@ export function Problem({ children }: { children: ReactNode }) {
   )
 }
 
-// children は欄の id を受け取って、入力のコンポーネントを返す。aside は名前の行の右に置くコンポーネント
+// children は入力Formの id を受け取って、入力のコンポーネントを返す。aside は名前の行の右に置くコンポーネント
 export function Field({
   label,
   aside,
@@ -105,8 +105,8 @@ export function InheritChoices<V extends string>({
   return <Choices<V | ""> label={label} value={value ?? ""} options={all} onChange={v => onChange(v || undefined)} />
 }
 
-// 欄を並べた form。決めるボタンか、決めるキー（キーの割り当ての dialog-submit）で onSubmit。ready でなければ送らない。
-// 1 行の欄の Enter でブラウザが送る動き（暗黙の送信）は止める（Enter はキーの割り当てが受ける）。
+// 入力Formを並べた form。決めるボタンか、決めるキー（キーの割り当ての dialog-submit）で onSubmit。ready でなければ送らない。
+// 1 行のテキストFormの Enter でブラウザが送る動き（暗黙の送信）は止める（Enter はキーの割り当てが受ける）。
 // submit があれば最後の行の右に決めるボタンを置き、無ければ置かない（見出しの行に ActionButton で置くときは、id をその form に渡す）
 export function Form({
   id,
@@ -207,7 +207,7 @@ export function ActionButton({
   )
 }
 
-// 選ぶ欄とボタンをつなげたコンポーネント: 選んだ値でボタンの動きをする（例: [最大行 ▾](にそろえる)）。label は選ぶ欄の名前
+// セレクトFormとボタンをつなげたコンポーネント: 選んだ値でボタンの動きをする（例: [最大行 ▾](にそろえる)）。label はセレクトFormの名前
 export function SelectButton<V extends string>({
   label,
   value,
@@ -239,7 +239,7 @@ export function SelectButton<V extends string>({
   )
 }
 
-// スイッチと、入れているときだけその下に開く枠（スイッチに属する欄。地の色を変えた四角い枠で、サブメニューと分かるように）。
+// スイッチと、入れているときだけその下に開く枠（スイッチに属する入力Form。地の色を変えた四角い枠で、サブメニューと分かるように）。
 // 開け閉めは高さを滑らかに変える。onChange はスイッチを押したとき（入れるか切るかは使う側が決める）
 export function SwitchPanel({
   label,

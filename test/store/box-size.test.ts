@@ -173,7 +173,7 @@ test("寄せの項目は既定でキャプションが中央、本文が左。�
   expect(update({ bodyAlign: "justify" }).ok).toBe(false)
 })
 
-test("箱にテーマを当てられる。表に無いテーマは断る。テーマの箱の欄は、宣言の値かテーマの上書きで決まる", () => {
+test("箱にテーマを当てられる。表に無いテーマは断る。テーマの箱のテーマキーは、宣言の値かテーマの上書きで決まる", () => {
   const store = ready()
   expect(place(store, { caption: "付箋", theme: "@matomezu/base:sticky" }).ok).toBe(true)
   expect(items(store)[0]!.props).toMatchObject({ theme: "@matomezu/base:sticky" })

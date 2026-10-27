@@ -87,7 +87,7 @@ export function sameBinding(a: KeyBinding, b: KeyBinding): boolean {
   )
 }
 
-// 文字の入力欄の中で見るキー（ほかのキーは入力欄に任せる）。1 行の欄の Enter と、Escape
+// テキストFormの中で見るキー（ほかのキーはテキストFormに任せる）。1 行のテキストFormの Enter と、Escape
 export function seenInText(key: string, field: "line" | "multi"): boolean {
   return key === "Escape" || (key === "Enter" && field === "line")
 }

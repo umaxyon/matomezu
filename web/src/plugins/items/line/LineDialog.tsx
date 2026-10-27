@@ -45,7 +45,7 @@ type Look = Pick<LineProps, "route" | "dash" | "startHead" | "endHead">
 // 一回きりの操作
 type Once = LineOnce
 
-// 端の形の名前（選ぶ欄。"" は無し。記号は形の見当）
+// 端の形の名前（セレクトForm。"" は無し。記号は形の見当）
 const HEAD_LABELS: Record<Head, MessageKey> = {
   arrow: kit.message("▶ Filled triangle"),
   open: kit.message("> Open arrowhead"),

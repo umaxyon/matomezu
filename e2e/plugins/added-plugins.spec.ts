@@ -28,7 +28,7 @@ test("常駐が結んだ追加プラグインを画面に渡し、画面はそ�
   expect(put.ok()).toBe(true)
   await page.goto("/")
   await expect(page.locator("[data-ex2-diamond]")).toHaveAccessibleName("判断")
-  // ひし形はテーマの欄 ex2:diamond-fill の色で塗る（見た目では --diamond-fill。変数が無ければ黒になる）
+  // ひし形はテーマキー ex2:diamond-fill の色で塗る（見た目では --diamond-fill。変数が無ければ黒になる）
   const paint = await page.locator("[data-ex2-diamond] polygon").evaluate(el => ({
     declared: getComputedStyle(el).getPropertyValue("--diamond-fill").trim(),
     fill: getComputedStyle(el).fill,

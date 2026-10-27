@@ -18,7 +18,7 @@
   outline: 2px solid var(--skin-accent);
   outline-offset: -1px;
 }
-/* 候補の欄: 候補の数によらず同じ高さ */
+/* 候補の一覧: 候補の数によらず同じ高さ */
 .results {
   height: 240px;
 }

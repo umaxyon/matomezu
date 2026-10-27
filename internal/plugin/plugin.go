@@ -67,7 +67,7 @@ func Build(dir string, modules Modules) (*Bundle, error) {
 	return b, nil
 }
 
-// readManifest は dir の matomezu.json を読む。欄が足りない・知らない欄がある・入口がフォルダの外を指すなら誤り
+// readManifest は dir の matomezu.json を読む。フィールドが足りない・知らないフィールドがある・入口がフォルダの外を指すなら誤り
 func readManifest(dir string) (Manifest, error) {
 	var m Manifest
 	f, err := os.Open(filepath.Join(dir, ManifestFile))

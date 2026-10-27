@@ -65,7 +65,7 @@ function missingIn(catalog: CoreCatalog, book: Book): string[] {
 export const restoreBooks = (catalog: CoreCatalog, saved: readonly unknown[]): Book[] =>
   checkBooks(catalog, saved).books
 
-// 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの。土台の欄の既定を埋めた形）
+// 表にある 1 冊だけのタイプのブック（インスタンスがいつも持つもの。土台のフィールドの既定を埋めた形）
 export function singleBooks(catalog: CoreCatalog): Book[] {
   return catalog.parts.bookTypes.flatMap(t => (t.single ? [bookSchemas(catalog, t.id).book.parse(t.book) as Book] : []))
 }

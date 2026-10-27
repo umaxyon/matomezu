@@ -120,7 +120,7 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
   expect(ok({ item: "shape.nope", props: {} })).toBe(true)
 })
 
-test("リストの塗り・文字・線・角・影の欄は、どのテーマでも箱の欄と同じ値（テーマは箱とリストを同じ見た目にする）", () => {
+test("リストの塗り・文字・線・角・影のテーマキーは、どのテーマでも箱のテーマキーと同じ値（テーマは箱とリストを同じ見た目にする）", () => {
   const pairs = ["fill", "text", "line", "radius", "shadow"] as const
   for (const theme of CORE_CATALOG.themes.keys()) {
     const box = resolveTokens(CORE_CATALOG, theme, BOX.tokens)

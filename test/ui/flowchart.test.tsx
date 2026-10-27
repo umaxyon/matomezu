@@ -335,7 +335,7 @@ test("自動で整列: つながっていないチャートは、上をそろえ
   for (const r of rects.values()) expect(r.x + r.w).toBeLessThanOrEqual(794)
 })
 
-test("形は個別のテーマを持たない: 追加と編集のダイアログにテーマの欄は無く、テーマを書いて置くと断る", () => {
+test("形は個別のテーマを持たない: 追加と編集のダイアログにテーマの入力Formは無く、テーマを書いて置くと断る", () => {
   const { store, on, page } = flowchart()
   act(() => store.actions.openDialog("s1", "@matomezu/shape:diamond-add", { page: page().id, at: { x: 40, y: 40 } }))
   const add = screen.getByRole("dialog", { name: "形の追加" })

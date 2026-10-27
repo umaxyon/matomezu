@@ -42,7 +42,7 @@ describe("組み立てたブックの形", () => {
     expect(restoreBooks(boxesOnly, [book([page([box])])])).toHaveLength(1)
   })
 
-  test("設定の項目の欄を持てるのは、タイプがその項目を選んだときだけ", () => {
+  test("設定の項目のフィールドを持てるのは、タイプがその項目を選んだときだけ", () => {
     const noRoute = buildCoreCatalog(withDrawing({ settings: { book: [], page: ["@matomezu/line:line-route"] } }))
     expect(
       restoreBooks(CORE_CATALOG, [book([page([])], { settings: { "@matomezu/line:line-route": "straight" } })]),
@@ -55,7 +55,7 @@ describe("組み立てたブックの形", () => {
     ).toHaveLength(1)
   })
 
-  test("保存したデータの欄の並び: タイプの頭の欄（type・id・title）・ページ・設定の項目・タイプのほかの欄", () => {
+  test("保存したデータのフィールドの並び: タイプの頭のフィールド（type・id・title）・ページ・設定の項目・タイプのほかのフィールド", () => {
     const [restored] = restoreBooks(CORE_CATALOG, [
       { ...book([page([])]), settings: { "@matomezu/line:line-route": "straight" } },
     ])
@@ -84,7 +84,7 @@ describe("組み立てたブックの形", () => {
 })
 
 describe("組み立ての食い違い", () => {
-  test("タイプが自分の欄に、機能台帳が足す欄（pages・settings）を書くと誤り", () => {
+  test("タイプが自分のフィールドに、機能台帳が足すフィールド（pages・settings）を書くと誤り", () => {
     const own = drawing.schema.extend({ pages: z.array(z.unknown()) })
     expect(checkCoreCatalog(withDrawing({ schema: own })).map(p => p.code)).toContain("E025")
     const route = drawing.schema.extend({ settings: z.object({}).optional() })

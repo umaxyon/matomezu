@@ -45,7 +45,7 @@ export interface MenuTable {} // メニューの id → true
 // 右クリックのメニューの id → 受け取る物（右クリックされた物。項目のコマンドに引数として渡す。何も受け取らなければ Record<string, never>）
 export interface ContextMenuTable {}
 
-// 定義の種類: プラグインが持てる定義の欄の名前 → その種類が入る機能台帳の段（core か store）と、誤りの文に使う名前。
+// 定義の種類: プラグインが持てる定義のフィールドの名前 → その種類が入る機能台帳の段（core か store）と、誤りの文に使う名前。
 // 種類を足すときは、ここに 1 行と、下の PartTables に id の表を足し、定義の型をその段の層から PartDefTable に書き足す（core の種類は core/core-catalog.ts、store の種類は store/plugin.ts）
 export const PARTS = {
   bookTypes: { stage: "core", label: "bookType" },

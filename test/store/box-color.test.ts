@@ -44,7 +44,7 @@ test("テーマごとに代表色を持ち、その上の文字は明るい色�
   expect(tokens("@matomezu/base:simple")["palette.danger"]).toEqual({ light: "#fecaca", dark: "#fecaca" })
 })
 
-test("色は箱の塗りと文字の欄を上書きする。代表色はテーマの代表色の変数を指し、#rrggbb は暗ければ文字を白に", () => {
+test("色は箱の塗りと文字のテーマキーを上書きする。代表色はテーマの代表色の変数を指し、#rrggbb は暗ければ文字を白に", () => {
   expect(paintVars(undefined)).toBeUndefined()
   expect(paintVars("warn")).toEqual({
     "--box-fill": "var(--theme-palette-warn)",

@@ -26,7 +26,7 @@ test("ブックのテーマと紙の色は base の設定の項目で、@matomez
   expect(update(store, { theme: "@matomezu/base:sticky" }).ok).toBe(false)
 })
 
-test("ブックのテーマは、テーマの項目（無いか表に無ければブックのタイプのテーマ）。紙の色は紙の欄を上書きする。箱の欄もブックのテーマで決まる", () => {
+test("ブックのテーマは、テーマの項目（無いか表に無ければブックのタイプのテーマ）。紙の色は紙のテーマキーを上書きする。箱のテーマキーもブックのテーマで決まる", () => {
   const store = newStore()
   const catalog = store.catalog.core
   expect(bookTheme(catalog, book(store))).toBe("@matomezu/base:standard")

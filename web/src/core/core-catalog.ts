@@ -1,6 +1,6 @@
 // 機能台帳の core の段: ブックのタイプ・アイテム・アクション・設定の項目・テーマ・紙の表。定義の組（CoreCatalogParts）から buildCoreCatalog で作り、作った後は変えない。
 // 表どうしの参照（ブックのタイプが使うアイテムなど）が実在するかは checkCoreCatalog が確かめ、食い違いがあれば作らない。
-// ブックのデータの形は、ブックのタイプが自分で持つ欄に、タイプが選んだものから組み立てた欄（ページと、そこに置けるアイテム・設定の項目）を足して作る（buildBookSchemas）
+// ブックのデータの形は、ブックのタイプが自分で持つフィールドに、タイプが選んだものから組み立てたフィールド（ページと、そこに置けるアイテム・設定の項目）を足して作る（buildBookSchemas）
 
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
@@ -15,7 +15,7 @@ import { THEME_TOKENS, type ThemeDef, type TokenDecl } from "./def/theme"
 import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
-import { LANGUAGES, type Lang, type LanguagePack, MESSAGES, type MessageSet } from "./i18n/messages"
+import { LANGUAGES, type Lang, type LanguagePackDef, MESSAGES, type MessageSetDef } from "./i18n/messages"
 import { splitId } from "./names"
 import { type Notice, notice } from "./notices"
 import { placedSchema } from "./placed"
@@ -44,8 +44,8 @@ declare module "./catalog" {
 
 // 表を作るもとの、定義の組: core の段の種類ごとの定義の並びと、文言・言語
 export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable[K][] } & {
-  messages: readonly MessageSet[] // 土台の文言（MESSAGES）は、いつも表に入る
-  languages: readonly LanguagePack[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
+  messages: readonly MessageSetDef[] // 土台の文言（MESSAGES）は、いつも表に入る
+  languages: readonly LanguagePackDef[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
   tokens: readonly TokenDecl[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムやタイプが共に使う）
 }
 
@@ -75,7 +75,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   const schemas = new Map(parts.bookTypes.map(t => [t.id, buildBookSchemas(parts, t)]))
   const [first, ...rest] = [...schemas.values()].map(s => s.book)
   if (!first) return fail("E015")
-  // 種類ごとの表（Object.fromEntries は欄の型を残さないので、種類ごとの定義の型を言い張る）
+  // 種類ごとの表（Object.fromEntries はフィールドの型を残さないので、種類ごとの定義の型を言い張る）
   const tables = Object.fromEntries(partsOf("core").map(k => [k, byId<{ id: string }>(parts[k])])) as unknown as {
     [K in CorePart]: ReadonlyMap<string, PartDefTable[K]>
   }
@@ -91,14 +91,14 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
   }
 }
 
-// ブックが自分の欄の後ろに持つ欄の前の、頭の欄（ここまでの後ろにページと設定の項目の欄 settings を入れる。保存したデータの欄の並びを変えない）
+// ブックが自分のフィールドの後ろに持つフィールドの前の、頭のフィールド（ここまでの後ろにページと設定の項目のフィールド settings を入れる。保存したデータのフィールドの並びを変えない）
 const HEAD = ["type", "id"]
 
-// タイプのブックとページのデータの形: ページの形は、土台のページの欄・タイプがページに足す欄（pages.fields）・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
-// ブックの形は、タイプの頭の欄・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかの欄
+// タイプのブックとページのデータの形: ページの形は、土台のページのフィールド・タイプがページに足すフィールド（pages.fields）・タイプが選んだアイテムを置いた並び（items）・ページの設定の項目（settings）。
+// ブックの形は、タイプの頭のフィールド・ページの並び（pages）・ブックの設定の項目（settings）・タイプのほかのフィールド
 function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas {
   const settings = byId(parts.settings)
-  // 選んだ設定の項目を、項目の id を鍵にした settings の欄にする（選んでいなければ欄を足さない）。
+  // 選んだ設定の項目を、項目の id を鍵にした settings のフィールドにする（選んでいなければフィールドを足さない）。
   // 機能台帳に無い項目（プラグインを外したなど）は、そのまま残す（機能台帳にあって選んでいない項目は誤り）
   const fields = (ids: readonly string[] = []) => {
     const defs = ids.flatMap(id => settings.get(id) ?? [])
@@ -116,7 +116,7 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
   }
   const items = byId(parts.items)
   const placed = t.items.allowed.flatMap(id => items.get(id) ?? []).map(placedSchema)
-  // 機能台帳に無いアイテム（プラグインを外したなど）: id と item だけを確かめ、ほかの欄はそのまま残す
+  // 機能台帳に無いアイテム（プラグインを外したなど）: id と item だけを確かめ、ほかのフィールドはそのまま残す
   const unknownItem = z.looseObject({ id: z.string().min(1), item: z.string().refine(id => !items.has(id)) })
   const [one, ...more] = placed
   const page = t.pages
@@ -129,7 +129,7 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
       })
     : null
   const own = Object.entries(t.schema.shape)
-  // type・id・title の順（type は pluginKit が後から足す。名前 title は土台の欄で、どのタイプも持ち、空でもよい）
+  // type・id・title の順（type は pluginKit が後から足す。名前 title は土台のフィールドで、どのタイプも持ち、空でもよい）
   const head = [...HEAD.flatMap(h => own.filter(([k]) => k === h)), ["title", z.string().default("")] as const]
   const tail = own.filter(([k]) => !HEAD.includes(k))
   const book = z.strictObject({

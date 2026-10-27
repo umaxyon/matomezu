@@ -40,7 +40,7 @@ const notes = definePlugin({
   dialogs: [defineDialog({ id: "notes:shot" })],
 })
 
-// ページに自分の欄（根）を足し、ページを作るダイアログとページの設定のダイアログを自分のものにするタイプ
+// ページに自分のフィールド（根）を足し、ページを作るダイアログとページの設定のダイアログを自分のものにするタイプ
 const LEAF_DIALOGS = [
   defineDialog({ id: "notes:leaf-new" }),
   defineDialogWith<PageSettingsArgs>()({ id: "notes:leaf-settings" }),
@@ -162,7 +162,7 @@ describe("インスタンスを組み立てる", () => {
     definePlugin({ id: "notes", bookTypes: [paged({ settings: add })] })
   })
 
-  test("ブックのタイプがページのダイアログを名指すと、ページを作る・ページの設定のコマンドはそのダイアログを開く。ページは base の page-add・page-update で、タイプがページに足した欄ごと作り変える", () => {
+  test("ブックのタイプがページのダイアログを名指すと、ページを作る・ページの設定のコマンドはそのダイアログを開く。ページは base の page-add・page-update で、タイプがページに足したフィールドごと作り変える", () => {
     const plugin = definePlugin({ id: "notes", bookTypes: [LEAF], dialogs: LEAF_DIALOGS })
     const instance = createMatomezu({
       plugins: [...BUILTIN, plugin],
@@ -174,7 +174,7 @@ describe("インスタンスを組み立てる", () => {
     expect(createBookIn(instance, "s1", { title: "葉", type: "notes:leaf" as never })).toBe(true)
     expect(untyped(instance.actions).command("s1", "@matomezu/base:page-new")).toBe(true)
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:leaf-new", stage: "s1" })
-    // 要る欄（根）を渡さなければ、ブックのデータの形に合わず断る。タイプに無い欄も断る
+    // 要るフィールド（根）を渡さなければ、ブックのデータの形に合わず断る。タイプに無いフィールドも断る
     expect(perform("@matomezu/base:page-add", { title: "p" }, { book: "n1" }).ok).toBe(false)
     expect(perform("@matomezu/base:page-add", { title: "p", fields: { stem: {} } }, { book: "n1" }).ok).toBe(false)
     expect(
