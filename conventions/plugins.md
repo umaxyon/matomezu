@@ -9,7 +9,7 @@
 - 追加プラグインは、プラグイン API（`matomezu`・`matomezu/ui`・`matomezu/catalog`）だけを読む。テストで組むときだけ `matomezu/testing` も読む（見本は `test/rules.test.ts` が見張る）
 - プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。見た目は、matomezu が渡すステージの id から、フックで約束のものだけを引く:
   - データ: `useBook(stage)`・`usePage(stage)`（開いているブックとページ）、`useItem(stage, page, item)`（項目の型はアイテムの id で決まる）、`useShownPage(stage)`（ダイアログの下書きを重ねたページ。見せ方が描くのに使う）
-  - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`）。ブックのビューにはステージの id を渡す。コマンドの `ctx.stage` も同じ `StageView`
+  - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`・`pans`）。ブックのビューにはステージの id を渡す。コマンドの `ctx.stage` も同じ `StageView`
   - 定義と設定: `useCoreCatalog()`・`useUiCatalog()`（読むだけ）、`useSettings()`（言語とスキン）
   - データを変えるのはアクションだけ。ステージが開いているブックには `usePerform(stage)`、ほかの対象（一覧・設定）には `useActions()` の `perform` で行う。画面の状態（選択・ダイアログ・ページを開くなど）はコマンドと `useActions`
 - プラグイン API が出す名前の一覧は `test/plugin-api.test.ts` に書く。足すときも消すときもここを直し、わざと変えたと分かるようにする
@@ -45,7 +45,7 @@
 
 ## 見た目と差し替え
 
-- `definePluginUi(plugin, { presentationViews, items, settingViews, dialogViews, widgets, commandIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ダイアログに、ビューが無いと型の誤り
+- `definePluginUi(plugin, { presentationViews, items, settingViews, dialogViews, widgets, commandIcons, toolIcons, overrides })` でビューを結ぶ。そのプラグインのブックのタイプ・アイテム・ダイアログ・道具に、ビューやアイコンが無いと型の誤り
 - 差し替えられるのはビュー（ブック・ダイアログ・ウィジェット）だけで、`overrides` に書く。アクションやブックのタイプなど中身は差し替えない
 - 画面の配置（スロットにどのウィジェットを置くか、メニューの中身）は配置（`defineLayout`）に書く。matomezu/testing でアプリを組むときは、配置は丸ごと替え、差分を重ねて混ぜない
 - 配置が名指したウィジェット・コマンド・スロット・メニューのうち、持ち主のプラグイン（id の頭）が組み込まれていない物は、その行だけ飛ばし、注意 N010 を残す。持ち主が組み込まれているのに無い物は誤り（E207〜E213）。画面の注意は `useLayoutNotices` で読む
