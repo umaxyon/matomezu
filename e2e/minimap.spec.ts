@@ -47,6 +47,29 @@ test("フッタのメニューで開くと、ステージの左下に紙の全�
   await expect(corner(page)).toHaveCount(0)
 })
 
+test("左下のミニマップは、ポインタが近づいたあと枠から離れると閉じる。ドラッグの間は離れても閉じない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await expect(paper(page)).toBeVisible()
+  await (await toggle(page)).click()
+  await expect(corner(page)).toBeVisible()
+  const map = (await corner(page).boundingBox())!
+  const box = (await seen(page, "corner").boundingBox())!
+  // 四角をつかんだまま枠の外へ出ても閉じない
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(map.x + map.width + 150, box.y + box.height / 2, { steps: 5 })
+  await expect(corner(page)).toBeVisible()
+  await page.mouse.move(map.x + map.width / 2, map.y + map.height / 2, { steps: 5 })
+  await page.mouse.up()
+  // 枠から 80px 以内なら閉じない
+  await page.mouse.move(map.x + map.width + 60, map.y + map.height / 2, { steps: 3 })
+  await expect(corner(page)).toBeVisible()
+  await page.mouse.move(map.x + map.width + 150, map.y + map.height / 2, { steps: 3 })
+  await expect(corner(page)).toHaveCount(0)
+})
+
 test("紙が収まっていると押せない。開いたあと収まると閉じる", async ({ page }) => {
   await page.goto("/")
   await expect(paper(page)).toBeVisible()

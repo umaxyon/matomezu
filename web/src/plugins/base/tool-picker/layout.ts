@@ -6,7 +6,7 @@ export const ICON = 40 // アイコンの大きさ
 const GAP = 6 // アイコンの間
 const AWAY = 16 // ポインタからの離れ
 const MARGIN = 6 // 画面の端との間
-const LEAVE_DIST = 80 // アイコンの並び（その場に出したミニマップなら、その枠）からこれより離れたら、押さずに閉じる
+const LEAVE_DIST = 80 // アイコンの並び（ミニマップなら、その枠）からこれより離れたら、押さずに閉じる
 const PASS_DIST = 40 // ポインタから見てアイコンの向こう側へ、これより通り過ぎたら閉じる
 
 export type Lay = "row" | "left" | "right"
@@ -76,8 +76,13 @@ export function leftBox(box: Rect, lay: Lay, at: Point, p: Point): boolean {
   const y0 = box.y
   const x1 = box.x + box.w
   const y1 = box.y + box.h
-  const dx = Math.max(x0 - p.x, 0, p.x - x1)
-  const dy = Math.max(y0 - p.y, 0, p.y - y1)
   const past = lay === "left" ? x0 - p.x : lay === "right" ? p.x - x1 : y1 <= at.y ? y0 - p.y : p.y - y1
-  return Math.hypot(dx, dy) > LEAVE_DIST || past > PASS_DIST
+  return farFrom(box, p) || past > PASS_DIST
+}
+
+// ポインタ p が四角 box から LEAVE_DIST より遠いか
+export function farFrom(box: Rect, p: Point): boolean {
+  const dx = Math.max(box.x - p.x, 0, p.x - (box.x + box.w))
+  const dy = Math.max(box.y - p.y, 0, p.y - (box.y + box.h))
+  return Math.hypot(dx, dy) > LEAVE_DIST
 }
