@@ -4,11 +4,11 @@
 // 出ている間は画面に薄い幕を掛けてほかの操作を止める。アイコンを押すとその道具にして閉じる（付け替えは道具を変えずに閉じる）。
 // アイコンの外を押す・閉じるキー（menu-close。既定は Escape と Space）・並びから離れる・窓の大きさが変わる・窓から焦点が外れると、何もせずに閉じる。
 // アイコンはポインタの位置から回りながら広がり、乗ると名前を出す。並びの外側の真ん中にはミニマップのボタンがあり、押すとアイコンを消して、
-// その場所にミニマップ（base/minimap の MinimapView）を、ポインタと反対の側へ広げて出す（紙が収まっていても出す）。ミニマップを出している間は、
-// 並びから離れても閉じない（ドラッグで見る所を動かすため）。閉じ方はほかはアイコンと同じ。押し続けの途中の様子と、最後のポインタの位置だけはビューに持つ
+// その場所にミニマップ（base/minimap の MinimapView）を、ポインタと反対の側へ広げて出す（紙が収まっていても出す）。閉じ方はアイコンと同じで、
+// 離れたかはミニマップの枠から測る（ボタンを押している間は、離れても閉じない。四角をドラッグするため）。押し続けの途中の様子・最後のポインタの位置・その場に出したミニマップの置き場所と枠だけはビューに持つ
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import type { Point } from "../../../core/geom"
+import type { Point, Rect } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import type { Tool } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
@@ -20,7 +20,7 @@ import { MINIMAP } from "../minimap/icons"
 import { MinimapView } from "../minimap/MinimapView"
 import { TOOL_ICONS, TOOL_NAMES } from "../tool-switch/icons"
 import { TOOL_SET } from "."
-import { ICON, leftPicker, mapPlace, mapSlot, type PickerLayout, pickerSlots } from "./layout"
+import { ICON, leftBox, leftPicker, mapPlace, mapSlot, type PickerLayout, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
 
 export const LONG_PRESS_MS = 250 // 長押しの時間
@@ -148,6 +148,8 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const current = useMatomezuState(s => (opened ? toolOf(catalog, s.workspace, opened.id) : null))
   const { command, closePicker, showPickerMap } = useActions()
   const [hover, setHover] = useState<number | null>(null)
+  const [mapBox, setMapBox] = useState<Rect | null>(null) // その場に出したミニマップの枠（置いてから決まる）
+  if (!opened?.picker?.map && mapBox !== null) setMapBox(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
   const stage = opened?.id
   const asked = opened?.picker?.at ?? null
@@ -171,7 +173,12 @@ function Picker({ last }: { last: { current: Point | null } }) {
   useEffect(() => {
     if (!placed) return
     const onMove = (e: PointerEvent) => {
-      if (!map && e.buttons === 0 && leftPicker(placed.all, placed.at, { x: e.clientX, y: e.clientY })) closePicker()
+      if (e.buttons !== 0) return
+      const p = { x: e.clientX, y: e.clientY }
+      const left = map
+        ? mapBox !== null && leftBox(mapBox, placed.layout.lay, placed.at, p)
+        : leftPicker(placed.all, placed.at, p)
+      if (left) closePicker()
     }
     const onWheel = (e: WheelEvent) => e.preventDefault()
     window.addEventListener("pointermove", onMove)
@@ -184,7 +191,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
       window.removeEventListener("resize", closePicker)
       window.removeEventListener("blur", closePicker)
     }
-  }, [placed, map, closePicker])
+  }, [placed, map, mapBox, closePicker])
 
   // ポインタの位置から、回りながら定位置へ広がる
   useLayoutEffect(() => {
@@ -224,7 +231,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
       }}
       onContextMenu={e => e.preventDefault()}
     >
-      {map && <PickerMap stage={opened.id} at={placed.at} layout={placed.all} />}
+      {map && <PickerMap stage={opened.id} at={placed.at} layout={placed.all} onPlaced={setMapBox} />}
       {!map &&
         PICKS.map((tool, i) => {
           const slot = layout.slots[i]
@@ -286,20 +293,28 @@ function tipPlace(lay: "row" | "left" | "right", slot: Point) {
 }
 
 // その場に出すミニマップ: アイコンの並び layout があった所に、ポインタ at と反対の側へ広げて置く（layout.ts の mapPlace。大きさは描いてから測る）
-function PickerMap({ stage, at, layout }: { stage: string; at: Point; layout: PickerLayout }) {
+// 置いた枠を onPlaced で知らせる
+function PickerMap({
+  stage,
+  at,
+  layout,
+  onPlaced,
+}: {
+  stage: string
+  at: Point
+  layout: PickerLayout
+  onPlaced: (box: Rect) => void
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState<CSSProperties>({ visibility: "hidden" })
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const p = mapPlace(
-      layout,
-      at,
-      { w: el.offsetWidth, h: el.offsetHeight },
-      { w: window.innerWidth, h: window.innerHeight },
-    )
+    const size = { w: el.offsetWidth, h: el.offsetHeight }
+    const p = mapPlace(layout, at, size, { w: window.innerWidth, h: window.innerHeight })
     setPlace({ left: p.x, top: p.y })
-  }, [layout, at])
+    onPlaced({ ...p, ...size })
+  }, [layout, at, onPlaced])
   return (
     <div ref={ref} className={styles.map} style={place} data-minimap="picker">
       <MinimapView stage={stage} width={MAP_SIZE} height={MAP_SIZE} />

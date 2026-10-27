@@ -1,12 +1,12 @@
 // 道具のアイコンの置き方（画面の px）。基本はポインタの上に横並び、上端で入らなければ下。
 // 左右の端で横に入らなければ縦並びにして、右端ならポインタの左（left）、左端なら右（right）
-import type { Point, Size } from "../../../core/geom"
+import type { Point, Rect, Size } from "../../../core/geom"
 
 export const ICON = 40 // アイコンの大きさ
 const GAP = 6 // アイコンの間
 const AWAY = 16 // ポインタからの離れ
 const MARGIN = 6 // 画面の端との間
-const LEAVE_DIST = 80 // アイコンの並びからこれより離れたら、押さずに閉じる
+const LEAVE_DIST = 80 // アイコンの並び（その場に出したミニマップなら、その枠）からこれより離れたら、押さずに閉じる
 const PASS_DIST = 40 // ポインタから見てアイコンの向こう側へ、これより通り過ぎたら閉じる
 
 export type Lay = "row" | "left" | "right"
@@ -64,12 +64,20 @@ export function mapPlace(layout: PickerLayout, at: Point, size: Size, view: Size
 export function leftPicker(layout: PickerLayout, at: Point, p: Point): boolean {
   const xs = layout.slots.map(s => s.x)
   const ys = layout.slots.map(s => s.y)
-  const x0 = Math.min(...xs)
-  const y0 = Math.min(...ys)
-  const x1 = Math.max(...xs) + ICON
-  const y1 = Math.max(...ys) + ICON
+  const box = { x: Math.min(...xs), y: Math.min(...ys), w: 0, h: 0 }
+  box.w = Math.max(...xs) + ICON - box.x
+  box.h = Math.max(...ys) + ICON - box.y
+  return leftBox(box, layout.lay, at, p)
+}
+
+// ポインタ p が四角 box（アイコンの並びか、その場に出したミニマップ。並べ方 lay で、ポインタ at から広げた物）から離れたか
+export function leftBox(box: Rect, lay: Lay, at: Point, p: Point): boolean {
+  const x0 = box.x
+  const y0 = box.y
+  const x1 = box.x + box.w
+  const y1 = box.y + box.h
   const dx = Math.max(x0 - p.x, 0, p.x - x1)
   const dy = Math.max(y0 - p.y, 0, p.y - y1)
-  const past = layout.lay === "left" ? x0 - p.x : layout.lay === "right" ? p.x - x1 : y1 <= at.y ? y0 - p.y : p.y - y1
+  const past = lay === "left" ? x0 - p.x : lay === "right" ? p.x - x1 : y1 <= at.y ? y0 - p.y : p.y - y1
   return Math.hypot(dx, dy) > LEAVE_DIST || past > PASS_DIST
 }

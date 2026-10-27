@@ -16,7 +16,7 @@ import {
 } from "../../web/src/core/stage"
 import { fitScale, grabAt, panFor, seenRect } from "../../web/src/plugins/base/minimap/geometry"
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
-import { mapPlace, mapSlot, pickerSlots } from "../../web/src/plugins/base/tool-picker/layout"
+import { leftBox, mapPlace, mapSlot, pickerSlots } from "../../web/src/plugins/base/tool-picker/layout"
 import { CORE_CATALOG } from "../support"
 
 const paged = {
@@ -202,4 +202,15 @@ describe("右の長押しのミニマップの置き場所", () => {
     const left = pickerSlots(edge, 3, view)
     expect(mapPlace(left, edge, size, view).x + size.w).toBeLessThanOrEqual(view.w - 6)
   })
+})
+
+test("その場に出したミニマップは、枠から 80px より離れるか、ポインタから見て向こう側へ 40px より通り過ぎると離れた", () => {
+  const box = { x: 100, y: 100, w: 200, h: 150 } // ポインタ (200, 300) の上に広げた
+  const at = { x: 200, y: 300 }
+  expect(leftBox(box, "row", at, { x: 150, y: 150 })).toBe(false)
+  expect(leftBox(box, "row", at, { x: 200, y: 320 })).toBe(false)
+  expect(leftBox(box, "row", at, { x: 200, y: 340 })).toBe(true)
+  expect(leftBox(box, "row", at, { x: 200, y: 59 })).toBe(true)
+  expect(leftBox(box, "row", at, { x: 370, y: 150 })).toBe(false)
+  expect(leftBox(box, "row", at, { x: 390, y: 150 })).toBe(true)
 })

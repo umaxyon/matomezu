@@ -59,7 +59,7 @@ test("紙が収まっていると押せない。開いたあと収まると閉�
   await expect(button).toHaveAttribute("aria-pressed", "false")
 })
 
-test("右ボタンの長押しのアイコンのミニマップを押すと、アイコンの代わりにその場にミニマップが出る。ドラッグで紙が動き、Escape で閉じる", async ({
+test("右ボタンの長押しのアイコンのミニマップを押すと、アイコンの代わりにその場にミニマップが出る。ドラッグで紙が動き、ミニマップから離れると閉じる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -74,10 +74,18 @@ test("右ボタンの長押しのアイコンのミニマップを押すと、�
   await expect(page.locator("[data-minimap=picker]")).toBeVisible()
   await expect(picker.getByRole("button")).toHaveCount(0)
   const before = (await paper(page).boundingBox())!.y
-  // 並びから離れてドラッグしても閉じない
-  await dragSeen(page, "picker", 30)
-  await expect.poll(async () => (await paper(page).boundingBox())!.y).toBeLessThan(before - 20)
+  // ドラッグしている間は、ミニマップの外へ出ても閉じない
+  const box = (await seen(page, "picker").boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 200, { steps: 8 })
   await expect(page.locator("[data-minimap=picker]")).toBeVisible()
-  await page.keyboard.press("Escape")
+  await page.mouse.up()
+  await expect.poll(async () => (await paper(page).boundingBox())!.y).toBeLessThan(before - 20)
+  // ミニマップの中で動かしても閉じず、枠から離れると閉じる
+  const map = (await page.locator("[data-minimap=picker]").boundingBox())!
+  await page.mouse.move(map.x + 20, map.y + 20, { steps: 3 })
+  await expect(page.locator("[data-minimap=picker]")).toBeVisible()
+  await page.mouse.move(map.x + 20, map.y - 150, { steps: 5 })
   await expect(picker).toHaveCount(0)
 })
