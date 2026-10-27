@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -627,10 +628,17 @@ func TestShowGoesToTheLastFocusedWindow(t *testing.T) {
 			t.Errorf("show %s = %s; want %s", body, got, reason)
 		}
 	}
-	select {
-	case l := <-a:
-		t.Fatalf("a window not focused last got %s", l)
-	default:
+	// ブックに触れた時刻の知らせ（窓が b1 を開いた）はどの窓にも届くので飛ばす
+	for {
+		select {
+		case l := <-a:
+			if strings.HasPrefix(l, "touched ") {
+				continue
+			}
+			t.Fatalf("a window not focused last got %s", l)
+		default:
+		}
+		break
 	}
 }
 
@@ -777,22 +785,46 @@ func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
 	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"b1"`) {
 		t.Fatalf("touched after writing = %s", got)
 	}
-	// 窓が見ているものに出たブックは開いた時刻を残す（マスターのように DB に無いブックも）。同じブックは 1 分に 1 度だけ
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"master","stages":[{"id":"s1","book":"master"}]},"seq":1}`, nil)
-	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"master"`) {
+	// 窓に新しく出たブックは開いた時刻を残す（マスターのように DB に無いブックも）
+	view := func(seq int, books ...string) {
+		stages := ""
+		for i, b := range books {
+			if i > 0 {
+				stages += ","
+			}
+			stages += fmt.Sprintf(`{"id":"s%d","book":"%s"}`, i+1, b)
+		}
+		send(t, "POST", s.URL+"/api/view", fmt.Sprintf(`{"client":"c1","view":{"book":"%s","stages":[%s]},"seq":%d}`, books[0], stages, seq), nil)
+	}
+	touched := func() map[string]string {
+		_, body := send(t, "GET", s.URL+"/api/data", "", nil)
+		var data struct {
+			Touched map[string]string `json:"touched"`
+		}
+		if err := json.Unmarshal([]byte(body), &data); err != nil {
+			t.Fatal(err)
+		}
+		return data.Touched
+	}
+	view(1, "master", "b1")
+	if got := nextTouched(t, screen); !strings.Contains(got, `"book":"master"`) && !strings.Contains(got, `"book":"b1"`) {
 		t.Fatalf("touched after opening = %s", got)
 	}
-	_, body := send(t, "GET", s.URL+"/api/data", "", nil)
-	var data struct {
-		Touched map[string]string `json:"touched"`
+	first := touched()
+	if first["master"] == "" || first["b1"] == "" {
+		t.Fatalf("touched = %v", first)
 	}
-	if err := json.Unmarshal([]byte(body), &data); err != nil || data.Touched["b1"] == "" || data.Touched["master"] == "" {
-		t.Fatalf("data touched = %s", body)
+	// 出したままのブックは、ほかの知らせ（カレントの操作など）があっても開き直さない
+	time.Sleep(5 * time.Millisecond)
+	view(2, "master", "b1")
+	if got := touched(); got["master"] != first["master"] || got["b1"] != first["b1"] {
+		t.Fatalf("kept on screen = %v; want %v", got, first)
 	}
-	before := data.Touched["master"]
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"master","stages":[{"id":"s1","book":"master"}]},"seq":2}`, nil)
-	_, body = send(t, "GET", s.URL+"/api/data", "", nil)
-	if err := json.Unmarshal([]byte(body), &data); err != nil || data.Touched["master"] != before {
-		t.Fatalf("opened again within a minute = %s", body)
+	// 一度消えてまた出たら、開き直した
+	view(3, "master")
+	time.Sleep(5 * time.Millisecond)
+	view(4, "master", "b1")
+	if got := touched(); got["b1"] <= first["b1"] || got["master"] != first["master"] {
+		t.Fatalf("shown again = %v; was %v", got, first)
 	}
 }

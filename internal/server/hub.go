@@ -47,6 +47,7 @@ type client struct {
 	view    json.RawMessage // 画面が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
 	focused int64           // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
 	viewSeq int64           // 受けた見ているものの番号（画面が知らせるたびに増やす。古い番号の知らせは捨てる）
+	shown   []string        // いまその画面に出ているブック（touched.go。新しく出たブックだけを「開いた」とする）
 }
 
 // Hub は世界と画面をまとめる
@@ -303,7 +304,7 @@ func (h *Hub) SetView(clientID string, view json.RawMessage, focused bool, seq i
 	}
 	if len(view) > 0 && !stale {
 		c.view = view
-		h.opened(view)
+		h.opened(c, view)
 		close(h.viewed)
 		h.viewed = make(chan struct{})
 	}
