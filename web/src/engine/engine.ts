@@ -75,7 +75,7 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
-// AI 向けの機能台帳: 機能台帳から AI に見せるアクション・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの（AI に見せる道具の形の元）。args と props は JSON Schema。名前は英語
+// AI 向けの機能台帳: 機能台帳から AI に見せるアクション・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの（MCP 公開ツール actions が返す物の元）。args と props は JSON Schema。名前は英語
 function aiCatalog(of: Assembled = assembled) {
   const catalog = of.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)

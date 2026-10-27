@@ -100,7 +100,7 @@ var showSchema = map[string]any{
 const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
-// listTools は道具の一覧（読む道具・show・perform）。追加プラグインを足しても変わらない
+// listTools は MCP 公開ツールの一覧（読む MCP 公開ツール・show・perform）。追加プラグインを足しても変わらない
 func listTools() []map[string]any {
 	tools := []map[string]any{}
 	for _, t := range readTools {
@@ -113,7 +113,7 @@ func listTools() []map[string]any {
 	return tools
 }
 
-// callTool は道具を呼び、AI に返す文と、失敗したかを返す
+// callTool は MCP 公開ツールを呼び、AI に返す文と、失敗したかを返す
 func callTool(api API, name string, raw json.RawMessage) (string, bool) {
 	args := map[string]any{}
 	if len(raw) > 0 {

@@ -1,7 +1,7 @@
-// Package mcp は、AI に matomezu を道具として渡す MCP のサーバー（標準入出力で 1 行 1 つの JSON-RPC 2.0）。
+// Package mcp は、AI に matomezu を MCP 公開ツールとして渡す MCP のサーバー（標準入出力で 1 行 1 つの JSON-RPC 2.0）。
 //
-// 道具は常駐の AI の入口（/api/ai/...）を呼ぶ。アクションは 1 つずつ道具にせず、actions（AI 向けの機能台帳）で今使えるものを読み、
-// perform で行う。追加プラグインを足し・外しても、道具の一覧は変わらない。
+// MCP 公開ツールは常駐の AI の入口（/api/ai/...）を呼ぶ。アクションは 1 つずつ MCP 公開ツールにせず、actions（AI 向けの機能台帳）で今使えるものを読み、
+// perform で行う。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない。
 package mcp
 
 import (

@@ -3,7 +3,7 @@
 // フォルダには matomezu.json（Manifest）を置き、入口を 2 つ指す: engine（React なし。プラグインを default で出す）と ui（見た目を結んだプラグインを default で出す）。
 // 追加プラグインが借りる名前（plugin-modules の表の名前。matomezu・react など）は取り込まず、
 // 動いている matomezu が globalThis.__matomezuModules に置いた実物から取り出す形にする。表に無い名前の import は誤り。
-// 変換は Go に組み込んだ esbuild で行うので、利用者にビルドの道具は要らない。
+// 変換は Go に組み込んだ esbuild で行うので、利用者が esbuild を別に入れる必要は無い。
 package plugin
 
 import (
