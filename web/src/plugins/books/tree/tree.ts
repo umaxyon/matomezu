@@ -10,9 +10,9 @@ export const TREE = kit.defineBookType({
   schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
+  addPagesFromTabs: true,
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-    addFromTabs: true,
   },
   items: { allowed: [], defaults: [] },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る

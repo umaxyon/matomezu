@@ -95,6 +95,7 @@ export const BOARD = kit.defineBookType({
   schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
+  addPagesFromTabs: true,
   pages: {
     paper: {
       allowed: [SQUARE.id, "@matomezu/base:a4"],
@@ -102,7 +103,6 @@ export const BOARD = kit.defineBookType({
       orientation: "portrait",
       perPage: true,
     },
-    addFromTabs: true,
   },
   items: {
     allowed: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],

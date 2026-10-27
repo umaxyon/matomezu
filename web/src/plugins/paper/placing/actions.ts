@@ -7,6 +7,7 @@ import {
   hasPages,
   type PlacedShape,
   placedSize,
+  type ShapeData,
   shapeSchema,
   shapesOf,
 } from "../../../plugin-api"
@@ -14,6 +15,14 @@ import { knownTheme, nextItemId, placeItem, removeItems, replacePushing, shapeDe
 import { kit } from "../kit"
 import { DIRS } from "./drag"
 import { moveItems } from "./items"
+
+// 項目を変えたあとに形が中身を整えるメソッド（定義オブジェクトの拡張ポイントに、紙のプラグインの id を頭に付けて書き足す）。
+// before は変える前の形。無ければそのまま
+declare module "../../../core/catalog" {
+  interface ShapeItemExtras<D extends ShapeData = ShapeData> {
+    "@matomezu/paper:settle"?(item: D, before?: D): D
+  }
+}
 
 const PointSchema = z.strictObject({ x: z.number(), y: z.number() })
 
@@ -105,7 +114,8 @@ export const ITEM_UPDATE = kit.defineAction({
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const parsed = parsePlaced(ctx.catalog, { ...now, props })
     if (!parsed || !page || !knownTheme(ctx.catalog, parsed)) return null
-    const item = (shapeDefOf(ctx.catalog, parsed.item)?.settle?.(parsed, now) as PlacedShape | undefined) ?? parsed
+    const item =
+      (shapeDefOf(ctx.catalog, parsed.item)?.[kit.name("settle")]?.(parsed, now) as PlacedShape | undefined) ?? parsed
     const wide = widenForCaption(ctx.catalog, book, page, now, item)
     const next =
       replacePushing(ctx.catalog, book, args.page, wide, false) ??

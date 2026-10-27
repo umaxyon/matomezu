@@ -8,8 +8,8 @@ export * from "../plugin-api"
 // 追加プラグインのプロジェクトがビルトインのファイルを読まなくても、ビルトインの id と型が引ける）
 import type {} from "../plugins"
 
-// base の置く計算と文字（ビルトインプラグインは plugins/base から読む）
-export type { Axis, Edges, Gap } from "../plugins/base"
+// base の置く計算・文字と、base が拡張ポイントに書き足した物の型（ビルトインプラグインは plugins/base から読む）
+export type { Axis, Edges, Gap, GrowFrom, MinimapMark } from "../plugins/base"
 export {
   AlignSchema,
   adaptPage,

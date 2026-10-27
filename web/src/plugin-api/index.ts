@@ -30,11 +30,11 @@ export { defineBookType } from "../core/def/book-type"
 export type {
   ConnectorData,
   ItemDef,
-  MinimapMark,
   PageContext,
   PortArea,
   Ports,
   ShapeAddArgs,
+  ShapeData,
   ShapeEditArgs,
 } from "../core/def/item"
 export { defineConnector, defineShape } from "../core/def/item"

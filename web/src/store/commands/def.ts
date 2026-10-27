@@ -1,7 +1,7 @@
 // コマンドの定義: 画面の入口。ボタン・メニュー・キーなどから id で呼ぶ。
 // データを変えるのはアクションで、コマンドは store の操作（ステージ・ダイアログ・アクション）を呼ぶだけ
 
-import type { ActionId, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
+import type { ActionId, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
@@ -22,7 +22,7 @@ export interface CommandContext {
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
 }
 
-export interface CommandDef<A = undefined, Tt extends string = MessageKey> {
+export interface CommandDef<A = undefined, Tt extends string = MessageKey> extends CommandExtras {
   id: string // 本当の id。名前は「対象-動き」（例: stage-split）
   title: Tt
   when(ctx: CommandContext): boolean // 出すか

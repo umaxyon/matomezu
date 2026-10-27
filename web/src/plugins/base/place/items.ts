@@ -3,7 +3,7 @@
 // 形が変わったあとは、ページのつなぐものの決まりで整える（core/placed.ts の tidyPage）
 import { type PagedBook, putPage } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { ConnectorData, PageContext, ShapeItemDef } from "../../../core/def/item"
+import type { ConnectorData, PageContext, PortArea, ShapeData, ShapeItemDef } from "../../../core/def/item"
 import type { Point, Size } from "../../../core/geom"
 import { freshId } from "../../../core/ids"
 import { resolvePaper } from "../../../core/paper"
@@ -25,6 +25,35 @@ import {
 import type { Book } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
+
+// 大きさが変わるときに保つ所。start は左（上）、center は真ん中
+export type GrowFrom = "start" | "center"
+
+// 置く・広げる・並べ直すときに base が読む、定義オブジェクトのメソッド（定義オブジェクトの拡張ポイントに書き足す）
+declare module "../../../core/catalog" {
+  interface ShapeItemExtras<D extends ShapeData = ShapeData> {
+    // キャプションが切れずに見える幅（キャプションで広げる幅と、縮めてよい横の下限）。無ければ size.w
+    captionWidth?(item: D): number
+    // キャプションが切れずに見える高さ（キャプションで縦に広げる高さと、縮めてよい縦の下限。文字を縦に置く形）。無いか null なら縦には広げない
+    captionHeight?(item: D): number | null
+    // 形をそのブックに合わせた形（並べ直すアクションが adaptPage でかける）。option はタイプがこのアイテムに渡す指定（items.options）、
+    // setting はそのページで効いている設定の値。合わせることが無ければそのまま返す
+    adapt?(item: D, option: unknown, setting: (id: string) => unknown): D
+  }
+  interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
+    // 形を並べ直したとき（整列など）のつなぐもの: 前の並びに合わせて手で決めた形（端の固定など）を外す。無ければそのまま。
+    // 並べ直すアクションが unpinPage でかける
+    unpin?(lines: readonly D[]): D[]
+    // 形をつながる範囲 areas の所に置いて描いたときの、つなぐもの全部の外枠（紙の座標。描くものが無ければ null）。
+    // setting はそのページで効いている設定の値。並べるアクションが、形とつなぐものを合わせた広さを測るのに使う（extentOf）
+    bounds?(lines: readonly D[], areas: ReadonlyMap<string, PortArea>, setting: (id: string) => unknown): Rect | null
+  }
+  interface BookTypeExtras {
+    // 中身（キャプション）で形の大きさが変わるときに、横と縦で保つ所。setting はそのページで効いている設定の値（設定で変えてよい）。
+    // 無ければ左と上を保つ
+    growFrom?(setting: (id: string) => unknown): { x: GrowFrom; y: GrowFrom }
+  }
+}
 
 // 置いた形の定義（表に無い形は null）
 export function shapeDefOf(catalog: CoreCatalog, item: string): ShapeItemDef | null {

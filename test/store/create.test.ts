@@ -52,9 +52,9 @@ const LEAF = defineBookType({
   schema: z.strictObject({ type: z.literal("notes:leaf"), id: z.string().min(1) }),
   single: false,
   create: init => ({ type: "notes:leaf" as const, ...init, pages: [] }),
+  addPagesFromTabs: true,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-    addFromTabs: true,
     fields: { root: z.strictObject({ caption: z.string() }) },
     // core/catalog.ts に書き足していないダイアログは、型では名指せないので言い張る
     dialogs: { add: "notes:leaf-new" as never, settings: "notes:leaf-settings" as never },

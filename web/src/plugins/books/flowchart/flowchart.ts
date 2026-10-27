@@ -46,9 +46,9 @@ export const FLOWCHART = kit.defineBookType({
   schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
+  addPagesFromTabs: true,
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
-    addFromTabs: true,
   },
   items: {
     allowed: ITEMS,

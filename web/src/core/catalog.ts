@@ -1,3 +1,5 @@
+import type { ConnectorData, ShapeData } from "./def/item"
+
 // 定義の種類ごとの id と定義の型を、プラグインが書き足す所（空の interface は、書き足しを受けるためのもの。type にすると書き足せない）。定義・コマンド・ダイアログ・ウィジェットなどを足すプラグインは、自分の足す id と定義の型（typeof 定義）を、ここに declare module で書き足す。
 // ビルトインプラグインも追加プラグインも同じ口を使う（追加プラグインからは matomezu/catalog の名前で、このファイルを指す）。ここから id の型・ブックの型・アクションの引数の型などが決まる。
 // 書き足しは、このファイルに向ける。このファイルを読み直して出す別のファイルに向けると、ほかの書き足しと合わさらない。
@@ -106,3 +108,35 @@ export type WidgetId = keyof WidgetTable & string
 export type MenuId = keyof MenuTable & string
 export type ContextMenuId = keyof ContextMenuTable & string
 export type SlotProps<S extends SlotId> = SlotTable[S]
+
+// 定義オブジェクトの拡張ポイント: どの定義オブジェクトの型も、種類ごとの拡張ポイントを 1 つ含む（ここは空）。
+// 土台の定義オブジェクトの型に書くのは土台が読むフィールド・メソッドだけで、ほかのプラグインが読むものは、読む側のプラグインが
+// ここに declare module で書き足す（base も追加プラグインも。追加プラグインからは matomezu/catalog）。定義を書くプラグインは、書き足されたものを
+// 自分の定義オブジェクトに書く（型が効く）。base は短い名前、base 以外は "<プラグインの id>:<名前>"（例 "@foo/pdf:draw"）で書き足す
+export interface BookTypeExtras {}
+// 形とつなぐものの拡張ポイントは、書き足すメソッドが置いたデータの型 D を使えるように型引数を持つ（書き足すときも同じ型引数で書く）。
+// dataOf は D を拡張ポイントに結ぶためだけの型の印で、値は持たない
+declare const dataOf: unique symbol
+export interface ShapeItemExtras<D extends ShapeData = ShapeData> {
+  readonly [dataOf]?: D
+}
+export interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
+  readonly [dataOf]?: D
+}
+export interface ActionExtras {}
+export interface ThemeExtras {}
+export interface TokenExtras {}
+export interface PaperExtras {}
+export interface SkinExtras {}
+export interface SettingExtras {}
+export interface PresentationExtras {}
+export interface ToolExtras {}
+export interface ToolSetExtras {}
+export interface MessageSetExtras {}
+export interface LanguagePackExtras {}
+export interface CommandExtras {}
+export interface DialogExtras {}
+export interface KeyExtras {}
+export interface WidgetExtras {}
+export interface LayoutExtras {}
+export interface BookViewExtras {}

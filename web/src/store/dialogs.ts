@@ -1,12 +1,12 @@
 // ダイアログ。定義は id と、開くときに渡す値の型だけを持ち、中身（ビュー）は ui が id に結ぶ（画面の無いインスタンスでも、コマンドがダイアログを開けるように）。
 // 画面に出すダイアログは 1 つだけで、どれを出すかは id、どこから開いたかは stage、何について開いたかは args で決まる
-import type { DialogId, DialogTable } from "../core/catalog"
+import type { DialogExtras, DialogId, DialogTable } from "../core/catalog"
 import type { ShapeAddArgs, ShapeEditArgs, ShapeItemDef } from "../core/def/item"
 
 declare const ARGS: unique symbol
 
 // A は開くときに渡す値の型（値を持たない印。渡さないダイアログは undefined）
-export interface DialogDef<A = undefined> {
+export interface DialogDef<A = undefined> extends DialogExtras {
   id: string
   readonly [ARGS]?: A
 }

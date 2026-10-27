@@ -221,3 +221,36 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await page.reload()
   expect((await board())?.title).toBe("星のボード")
 })
+
+test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイントのメソッドに答え、ex6 のアクションがその答えを使う（ex7 は ex6 の仕様だけを読む）", async ({
+  page,
+}) => {
+  await link(page, "test/added-plugins/ex6", "test/added-plugins/ex7")
+  const yard = {
+    type: "ex7:yard",
+    id: "yard-1",
+    title: "置き場",
+    pages: [
+      {
+        id: "p1",
+        title: "P",
+        paper: "@matomezu/base:a4",
+        orientation: "landscape",
+        items: [
+          { id: "c1", item: "ex7:crate", x: 40, y: 40, props: { load: 3 } },
+          { id: "c2", item: "ex7:crate", x: 240, y: 40, props: { load: 4 } },
+        ],
+      },
+    ],
+  }
+  expect((await page.request.put(`/api/books/${yard.id}`, { data: { book: yard, base: 0 } })).ok()).toBe(true)
+  const perform = async (body: object) =>
+    (await page.request.post("/api/ai/perform", { headers: ai(), data: body })).json()
+  expect(await perform({ action: "ex6:page-weight", args: { page: "p1" }, on: { book: yard.id } })).toMatchObject({
+    ok: true,
+    result: { weight: 7 },
+  })
+  // 画面も ex7 の見た目を読み、置き場の木箱を描く
+  await page.goto(`/?b0=${yard.id}&p0=p1`)
+  await expect(page.locator("[data-ex7-crate]")).toHaveCount(2)
+})

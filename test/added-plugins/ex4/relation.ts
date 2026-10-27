@@ -41,9 +41,9 @@ export const MAP = kit.defineBookType({
   schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
+  addPagesFromTabs: true,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-    addFromTabs: true,
   },
   items: {
     allowed: [kit.name("relation"), "@matomezu/box:shape-box", "@matomezu/line:connector-line"],

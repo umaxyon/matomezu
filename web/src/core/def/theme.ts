@@ -2,6 +2,7 @@
 // どのテーマも共通のテーマキー（ThemeToken）を全部埋める。アイテムとブックのタイプは自分の使うテーマキーを宣言し（TokenDef）、
 // 既定の値は共通のテーマキーか、宣言に書いた値から取る。テーマは知っているテーマキーだけを上書きする。
 // どのテーマも代表色（core/color の PALETTE の役割ごとの色）を持つ
+import type { ThemeExtras, TokenExtras } from "../catalog"
 import type { PaletteName } from "../color"
 import type { MessageKey } from "../i18n/i18n"
 import { splitId } from "../names"
@@ -22,7 +23,7 @@ export type ThemeToken = (typeof THEME_TOKENS)[number]
 
 // アイテムやブックのタイプが使うテーマキー。id は本当の id（例: @matomezu/box:box-fill。pluginKit が頭を付ける）。値はテーマが上書きしなければ、fallback の共通のテーマキーか、
 // value に書いた値（共通のテーマキーに当たるものが無いテーマキー。角の丸み・影など）
-export type TokenDef = { id: string; fallback: ThemeToken } | { id: string; value: ThemeValue }
+export type TokenDef = ({ id: string; fallback: ThemeToken } | { id: string; value: ThemeValue }) & TokenExtras
 
 // テーマキーの値を入れる CSS 変数の名前（matomezu の中だけのもの）。土台のテーマキーは --theme-<名前>（「.」は「-」。例: palette.primary → --theme-palette-primary）、
 // プラグインのテーマキーは本当の id の英小文字・数字・- 以外を _ と 16 進にした名前（どの id も別の名前になる）
@@ -43,7 +44,7 @@ export type ThemeValue =
   | Readonly<{ light: string; dark?: string }>
   | Readonly<{ light?: string; dark: string }>
 
-export interface ThemeDef {
+export interface ThemeDef extends ThemeExtras {
   id: string
   title: MessageKey
   base: Readonly<Record<ThemeToken, ThemeValue>>

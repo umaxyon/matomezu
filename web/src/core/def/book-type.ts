@@ -1,7 +1,7 @@
 // ブックのタイプの定義: データの形・並べ方の決まり・使えるアイテムとアクションの規定・既定のテーマ。
 // アイテム・アクション・テーマは id で参照する（アイテムとアクションはブックのタイプを知らない）
 import { z } from "zod"
-import type { ActionId, ItemOptionTable } from "../catalog"
+import type { ActionId, BookTypeExtras, ItemOptionTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 import type { PaperRule } from "../paper"
@@ -27,19 +27,15 @@ export interface ActionChoice {
   without?: readonly ActionId[]
 }
 
-// ページの決まり。addFromTabs はタブの横に、ページを足すボタンを出すか。
+// ページの決まり。
 // fields は、そのタイプのページが土台のフィールドのほかに持つフィールド（ツリーの根など。土台のフィールド id・title・paper・orientation・items・settings とは別の名前）。
 // dialogs は、ページを作るダイアログ（add。値を受けない）とページの設定のダイアログ（settings。PageSettingsArgs を受ける）の id で、タイプが自分のものにする。
 // 無ければ、ページを受け持つプラグインの既定のダイアログを使う。受ける値が合うかは definePlugin が型で、あるかは組み立てが確かめる
 export interface PagesRule {
   paper: PaperRule
-  addFromTabs: boolean
   fields?: Readonly<Record<string, z.ZodType>>
   dialogs?: { add?: string; settings?: string }
 }
-
-// 大きさが変わるときに保つ所。start は左（上）、center は真ん中
-export type GrowFrom = "start" | "center"
 
 // 新しいブックを作るときに渡すもの
 export interface NewBook {
@@ -47,7 +43,7 @@ export interface NewBook {
   title: string
 }
 
-interface BookTypeBase<S extends z.ZodObject> {
+interface BookTypeBase<S extends z.ZodObject> extends BookTypeExtras {
   id: string // データの type の値
   version: number // データの形の版
   title: MessageKey // タイプの名前。題名を持たないブックは、この名前で呼ぶ
@@ -65,9 +61,6 @@ interface BookTypeBase<S extends z.ZodObject> {
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
   holds?(book: z.infer<S>, catalog: CoreCatalog): boolean
   settings?: BookTypeSettings
-  // 中身（キャプション）で形の大きさが変わるときに、横と縦で保つ所。setting はそのページで効いている設定の値（設定で変えてよい）。
-  // 無ければ左と上を保つ
-  growFrom?(setting: (id: string) => unknown): { x: GrowFrom; y: GrowFrom }
 }
 
 // ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。base のアクション book-update はブックの、page-update はページの項目を受け付ける

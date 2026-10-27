@@ -13,7 +13,7 @@ import styles from "./PageTabs.module.css"
 
 // ページタブの横に、ページを足すボタンを出すか（タイプが出すと決める。ページを作れるかはコマンド page-new が決める）
 function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
-  return bookType(catalog, book.type).pages?.addFromTabs === true
+  return hasPages(book) && bookType(catalog, book.type).addPagesFromTabs === true
 }
 
 // 横にあふれた要素の上で、ホイールの縦の回転を横のスクロールにする（あふれていない・横に回したときは、そのまま）。

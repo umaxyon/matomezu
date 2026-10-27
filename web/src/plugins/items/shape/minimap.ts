@@ -1,5 +1,6 @@
 // 形のミニマップの絵: 輪郭（outline.ts）を、置いた四角 rect の所に置いたもの（紙の座標）
-import type { MinimapMark, Point, Rect } from "../../../plugin-api"
+import type { Point, Rect } from "../../../plugin-api"
+import type { MinimapMark } from "../../base"
 import { type Outline, SHAPE_RULES, type ShapeKind, SLANT } from "./outline"
 
 // 多角形の点の並び（"x,y x,y …"）を、left・top だけずらした点にする

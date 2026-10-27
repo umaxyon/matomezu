@@ -2,7 +2,7 @@
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 import type { z } from "zod"
 import type { PagedBook } from "../book"
-import type { ActionId } from "../catalog"
+import type { ActionExtras, ActionId } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
@@ -85,7 +85,7 @@ export interface ActionDef<
   I = unknown,
   Tt extends string = MessageKey,
   At extends ActionAttach | undefined = ActionAttach | undefined,
-> {
+> extends ActionExtras {
   id: string // 本当の id。名前は「対象-動き」（例: page-add）
   title: Tt
   // ブックが対象のアクションの付く先。どれか 1 つに当てはまるタイプのブックで使える（無ければ、タイプの actions.add で選ばれたときだけ）

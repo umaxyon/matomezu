@@ -2,9 +2,10 @@
 // 値はブック（ページ）のデータの settings のフィールドに、項目の id を鍵にして入れ、どれも書かなくてよい（例: settings: { "@matomezu/line:line-route": "elbow" }）。読むときは ページ → ブック → 既定（default）の順に、最初に値のある所で決まる（plugins/base/book-settings.ts の settingValue）。
 // 既定を持たない項目は、どこにも値が無ければ undefined で、読む側が決める（base のテーマはブックのタイプのテーマ、紙の色はテーマの紙の色）
 import type { z } from "zod"
+import type { SettingExtras } from "../catalog"
 import type { MessageKey } from "../i18n/i18n"
 
-export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> {
+export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> extends SettingExtras {
   id: string // 本当の id（例: @matomezu/line:line-route）
   title: Tt
   schema: S // 値の形

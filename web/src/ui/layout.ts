@@ -4,9 +4,11 @@ import type {
   CommandId,
   ContextMenuId,
   ContextMenuTable,
+  LayoutExtras,
   MenuId,
   SlotId,
   SlotProps,
+  WidgetExtras,
   WidgetId,
   WidgetTable,
 } from "../core/catalog"
@@ -20,7 +22,7 @@ import type { Plugin } from "../store/plugin"
 // スロットとメニューを開けるのはウィジェットとブックのビューだけで、コンポーネントの中で描くスロット（<Slot>）とメニュー（useMenu）、
 // 開く右クリックのメニュー（useContextMenu）は opens・menus・contextMenus に全部書く
 // （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（骨組みの差し替え）
-export interface WidgetDef<S extends SlotId = SlotId> {
+export interface WidgetDef<S extends SlotId = SlotId> extends WidgetExtras {
   id: string // 本当の id（「プラグインの id:名前」。kit.name で作る）
   slots: readonly S[]
   place?: NoInfer<S> // 追加プラグインが置いてほしいスロット（slots のうち 1 つ）。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）
@@ -30,7 +32,7 @@ export interface WidgetDef<S extends SlotId = SlotId> {
   view: (props: SlotProps<S>) => ReactNode
 }
 // どれかのウィジェット（表に入れるときの形）
-export interface AnyWidgetDef {
+export interface AnyWidgetDef extends WidgetExtras {
   id: string
   slots: readonly SlotId[]
   place?: SlotId
@@ -76,7 +78,7 @@ export function tidySeparators<T extends string>(entries: readonly (T | typeof S
   return out
 }
 
-export interface LayoutDef {
+export interface LayoutDef extends LayoutExtras {
   id: string
   slots: { [S in SlotId]?: readonly WidgetsFor<S>[] }
   menus: { [M in MenuId]?: readonly MenuItem[] }

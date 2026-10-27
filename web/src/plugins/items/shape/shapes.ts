@@ -127,7 +127,7 @@ function turnable<const Id extends string, const Title extends keyof typeof SHAP
     // 横向きはキャプションが縦に並ぶので、見える幅は一番小さい幅、見える高さがキャプションで決まる
     captionWidth: s => (s.props.turned ? SHAPE_MIN.h : placedWidth(kind, s.props.caption)),
     captionHeight: s => (s.props.turned ? placedWidth(kind, s.props.caption) : null),
-    settle: (s, before) => (before ? reshaped(s, before) : s),
+    "@matomezu/paper:settle": (s, before) => (before ? reshaped(s, before) : s),
     adapt: (s, option, setting) => {
       const want = (option as ShapeOptions | undefined)?.turned?.(setting) ?? false
       return s.props.turned === want ? s : reshaped({ ...s, props: { ...s.props, turned: want } }, s)

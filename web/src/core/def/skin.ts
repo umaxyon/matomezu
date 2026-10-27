@@ -1,5 +1,6 @@
 // スキンの定義: アプリの枠（上の行・タブ・ダイアログ・ステージの地）の見た目。見る人の設定で選び、ブックの中身（テーマ）には効かない。
 // どのスキンも土台が決めたスキンキー（SkinToken）の値を全部埋める（抜けると型の誤り）。スキンキーは CSS 変数 --skin-<スキンキー> になり、ウィジェットはこのスキンキーだけで色を付ける
+import type { SkinExtras } from "../catalog"
 import type { MessageKey } from "../i18n/i18n"
 
 export const SKIN_TOKENS = [
@@ -27,7 +28,7 @@ export const SKIN_TOKENS = [
 export type SkinToken = (typeof SKIN_TOKENS)[number]
 export type Scheme = "light" | "dark"
 
-export interface SkinDef {
+export interface SkinDef extends SkinExtras {
   id: string
   title: MessageKey
   scheme: Scheme // 入力Formやスクロールバーの明暗。自動のスキンは、OS の明暗と同じ明暗のスキンから選ぶ

@@ -1,0 +1,14 @@
+{
+  // 仕様だけのパッケージ ex6-spec を、パッケージの名前で型だけ読む（見本では paths が隣のフォルダを指す）
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "matomezu": ["../../../web/src/plugin-entry/index.ts"],
+      "matomezu/ui": ["../../../web/src/plugin-entry/ui.ts"],
+      "matomezu/testing": ["../../../web/src/testing/index.ts"],
+      "matomezu/catalog": ["../../../web/src/core/catalog.ts"],
+      "ex6-spec": ["../ex6-spec/index.ts"]
+    }
+  },
+  "include": ["../../setup.ts", "../../../web/src/css.d.ts", "."]
+}

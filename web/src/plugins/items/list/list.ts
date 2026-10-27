@@ -60,7 +60,7 @@ export const LIST = kit.defineShape({
   min: LIST_MIN,
   sizeOf: list => ({ w: list.w ?? placedListWidth(list.props.caption), h: list.h ?? LIST_SIZE.h }),
   captionWidth: list => listCaptionWidth(list.props.caption),
-  settle: settleChecks,
+  "@matomezu/paper:settle": settleChecks,
   dialogs: { add: LIST_ADD_DIALOG.id, edit: LIST_EDIT_DIALOG.id },
   props: z.strictObject({
     caption: z.string().default(""),

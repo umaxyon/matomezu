@@ -13,14 +13,14 @@
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の「プラグインの読み込み」 |
 | `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけの層（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`。キーの割り当てでビルトインを先に扱う） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
-| `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（置く計算と文字を出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
+| `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（置く計算・文字と、base が拡張ポイントに書き足した物の型を出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
 | `testing` | テストで組む入口（`matomezu/testing`） | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
 | `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`index.ts` はホストのエンジン用、`ui.ts` は画面用） | `plugin-entry`・React |
 
 - 土台（`core`・`store`・`ui`）は、プラグインを受け取って組み立て・動かす枠と、その枠が決める言葉（ステージ・ページ・置いたアイテムの外枠など）を持ち、具体的な機能は持たない。プラグインを読まない
 - 土台の中に、プラグインしか使わない処理を置かない。置く計算（`plugins/base/place`）・文字の幅（`plugins/base/text`）・ツールボックスの並び（`plugins/base/toolbox`）は base が持つ。core のモジュールで、プラグインしか読んでいない物が無いことを `test/rules.test.ts` が見張る
 - ステージの見え方の状態（道具のアイコン・ミニマップを開いているか）と、その開閉の決まり（紙が表示領域に収まるとミニマップを閉じるなど）は、ステージの言葉として土台に置く。土台自身も読む状態で、上の行の「プラグインしか使わない処理」には当たらない
-- アイテムの定義のメソッドの口（`bounds`・`minimap` など）は、読むのが base の処理だけでも土台の定義に置く。どのアイテムのプラグインも書けるようにするため（口は定義の型で、上の行の「処理」には当たらない）
+- 土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールドとメソッドだけ。ほかのプラグインが読むもの（base のミニマップが読む `minimap` など）は、読む側のプラグインが自分のファイルで拡張ポイント（definitions の「拡張ポイント」）に書き足す。base も追加プラグインも同じで、どのプラグインの定義オブジェクトにも書ける
 - 入口（`plugin-entry`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない
 - 例外は `plugin-modules`。`plugin-entry` を読んでよいのは `plugin-modules` だけで、`plugin-modules` を読んでよいのはホストのエンジン（`engine/engine.ts`）と画面の入口（`main.tsx`）だけ
 - 向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の部品を出し直すのは `plugin-entry`）

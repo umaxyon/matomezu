@@ -2,7 +2,7 @@
 // 勝つ順は 利用者 > ビルトインプラグイン > 追加プラグイン。ぶつかるのは同じ範囲・同じキーのときだけで、範囲が違えば狭いほうが勝つ（引く側が決める）。
 // 追加プラグインの既定は、ビルトインプラグインの既定とぶつかれば使わず、追加プラグインどうしでぶつかれば、どちらも使わない（利用者が自分で割り当てる）
 
-import type { CommandId, KeyScopeId } from "../core/catalog"
+import type { CommandId, KeyExtras, KeyScopeId } from "../core/catalog"
 import type { Inspected, Source, Step } from "../core/inspect"
 import { type KeyBinding, type KeyChanges, normalizeKey, sameBinding } from "../core/keys"
 import type { CommandArgs } from "./commands"
@@ -11,7 +11,8 @@ import type { CommandArgs } from "./commands"
 export type KeyDef = {
   [C in CommandId]: { id: string; key: string; command: C; scope: KeyScopeId } & (CommandArgs<C> extends []
     ? { args?: undefined }
-    : { args: CommandArgs<C>[0] })
+    : { args: CommandArgs<C>[0] }) &
+    KeyExtras
 }[CommandId]
 
 // 既定の 1 行と、それを書いたプラグイン（キーはそろえた書き方）

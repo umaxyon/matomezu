@@ -3,7 +3,7 @@
 // ビューは、そのプラグインの id を全部持たないと型の誤り。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
 // 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
 import type { ComponentType, ReactNode } from "react"
-import type { ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
+import type { BookViewExtras, ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import { isOwnedBy } from "../core/names"
@@ -19,7 +19,7 @@ export interface BookViewProps {
 }
 // ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネントで、ステージの真ん中に描く（配置には書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
-export interface BookViewDef {
+export interface BookViewDef extends BookViewExtras {
   view: ComponentType<BookViewProps>
   contextMenus?: readonly ContextMenuId[]
 }

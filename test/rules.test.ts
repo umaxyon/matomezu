@@ -1,6 +1,6 @@
 // 構造の決まりを見張る: フォルダごとに読み込んでよいもの、状態を変える入口、外の世界に触る所、コメントの言葉
 import { describe, expect, test } from "bun:test"
-import { readdirSync, readFileSync, statSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, relative, resolve } from "node:path"
 
 const ROOT = resolve(import.meta.dir, "..")
@@ -238,24 +238,50 @@ test("plugin-modules は入口と React だけを読み、ホストのエンジ�
 })
 
 // 追加プラグインの見本（test/added-plugins/exN。それぞれ開発者プロジェクトの形）: 中（web/src）を直に読まず、プラグイン API の名前だけを読む。
-// 見本どうしは読まない。見た目でないファイルは matomezu/ui も React も読まない。テスト（test/）は matomezu/testing と、自分のプラグインのファイルも読む
+// 見本どうしは読まない。読んでよいのは仕様だけのパッケージ（matomezu.json の無いフォルダ。例 ex6-spec）を、パッケージの名前で型だけ（import type）。
+// 見た目でないファイルは matomezu/ui も React も読まない。テスト（test/）は matomezu/testing と、自分のプラグインのファイルも読み、
+// ほかの見本と一緒に組むテストは、その見本の本体もパッケージの名前で読む（ex7 のテストが ex6/ui を読む）
 const ADDED = join(ROOT, "test/added-plugins")
 const added = filesUnder(ADDED)
   .filter(path => /\.tsx?$/.test(path))
   .map(path => ({ path, rel: relative(ADDED, path), text: readFileSync(path, "utf8") }))
-const specsOf = (text: string) =>
-  [...text.matchAll(/(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']/g)].map(
-    m => (m[1] ?? m[2])!,
+const folders = readdirSync(ADDED).filter(name => statSync(join(ADDED, name)).isDirectory())
+const plugins = folders.filter(name => existsSync(join(ADDED, name, "matomezu.json"))) // 見本のプラグイン（フォルダの名前が id）
+// 仕様だけのパッケージ: 名前が「<見本>-spec」で、matomezu.json を持たず、対になる見本（その仕様の持ち主）がある
+const SPEC = /^(.+)-spec$/
+const specs = folders.filter(name => !plugins.includes(name) && plugins.includes(SPEC.exec(name)?.[1] ?? ""))
+const specOwner = (spec: string) => SPEC.exec(spec)![1]!
+const named = (names: readonly string[], s: string) => names.some(n => s === n || s.startsWith(`${n}/`))
+// 読み込みの名前と、型だけ（import type・export type）か
+const readsOf = (text: string) =>
+  [...text.matchAll(/(?:import|export)\s+(type\s+)?[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']/g)].map(
+    m => ({
+      spec: (m[2] ?? m[3])!,
+      typeOnly: m[1] !== undefined,
+    }),
   )
 
-test("追加プラグインの見本はプラグイン API の名前だけを読み、見本どうしは読まない", () => {
+// 見本が答える仕様の持ち主（自分のテストだけが、一緒に組むために本体を読んでよい。ex7 → ex6）
+const answers = (own: string) =>
+  added
+    .filter(f => f.rel.split("/")[0] === own && f.rel.split("/")[1] !== "test")
+    .flatMap(f => readsOf(f.text).map(r => r.spec))
+    .filter(spec => specs.includes(spec))
+    .map(specOwner)
+
+test("見本のフォルダは、見本（matomezu.json）か、対になる見本のある仕様だけのパッケージ（<見本>-spec）", () => {
+  expect(folders.filter(name => !plugins.includes(name) && !specs.includes(name))).toEqual([])
+})
+
+test("追加プラグインの見本はプラグイン API と仕様だけのパッケージ（型だけ）を読み、見本どうしは読まない", () => {
   expect(added.length).toBeGreaterThan(0)
+  expect(specs.length).toBeGreaterThan(0)
   const bad = added.flatMap(f => {
     const [own, ...rest] = f.rel.split("/")
     const isTest = rest[0] === "test"
     const view = isView(f.rel) && !isTest
-    return specsOf(f.text)
-      .filter(s => {
+    return readsOf(f.text)
+      .filter(({ spec: s, typeOnly }) => {
         if (s.startsWith(".")) {
           const target = relative(ADDED, resolve(dirname(f.path), s))
           if (target.split("/")[0] !== own) return true
@@ -265,11 +291,26 @@ test("追加プラグインの見本はプラグイン API の名前だけを読
         const forViews = ["matomezu/ui", "react"]
         const forTests = ["matomezu/testing", "matomezu/ui", "bun:test", "@testing-library/react"]
         if (always.includes(s)) return false
-        if (isTest) return !forTests.includes(s)
+        if (named(specs, s)) return !typeOnly // 仕様だけのパッケージは型だけ
+        if (isTest) return !(forTests.includes(s) || named(answers(own!), s))
         return !(forViews.includes(s) && view)
       })
-      .map(s => `${f.rel} → ${s}`)
+      .map(({ spec }) => `${f.rel} → ${spec}`)
   })
+  expect(bad).toEqual([])
+})
+
+test("仕様だけのパッケージは型の宣言だけを持つ（最上位は declare module・import type・export type だけ）", () => {
+  const files = added.filter(f => named(specs, f.rel.split("/")[0]!))
+  expect(files.length).toBeGreaterThan(0)
+  const bad = files.flatMap(f =>
+    withoutDeclareModule(f.text)
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .map(line => line.replace(/\/\/.*$/, "").trim())
+      .filter(line => line !== "" && !/^(import|export) type\b/.test(line))
+      .map(line => `${f.rel}: ${line}`),
+  )
   expect(bad).toEqual([])
 })
 
@@ -372,7 +413,9 @@ test("プラグインは自分の物を、自分の id で始まる文字列で�
     ...sources
       .filter(f => layerOf(f.rel) === "plugins" && f.rel.split("/").length > 2)
       .map(f => ({ ...f, root: join(SRC, pluginRoot(f.rel)) })),
-    ...added.filter(f => f.rel.split("/")[1] !== "test").map(f => ({ ...f, root: join(ADDED, f.rel.split("/")[0]!) })),
+    ...added
+      .filter(f => f.rel.split("/")[1] !== "test" && plugins.includes(f.rel.split("/")[0]!)) // 仕様だけのパッケージは kit を持たない
+      .map(f => ({ ...f, root: join(ADDED, f.rel.split("/")[0]!) })),
   ]
   // どのプラグインも kit.ts から id が読める（読めないプラグインを見張りから黙って外さない）
   expect([...new Set(files.map(f => f.root))].filter(root => kitIdOf(root) === null)).toEqual([])
@@ -385,4 +428,59 @@ test("プラグインは自分の物を、自分の id で始まる文字列で�
       .flatMap((line, i) => (own.test(line) ? [`${f.rel}:${i + 1}: ${line.trim()}`] : []))
   })
   expect(offenders).toEqual([])
+})
+
+// 定義オブジェクトの拡張ポイント（core/catalog.ts の …Extras）への書き足しの名前（conventions/definitions.md の「拡張ポイント」）:
+// base は短い名前、ほかのプラグイン（ビルトイン・見本・仕様だけのパッケージ）は自分の id で始まる "<id>:<名前>" だけ。
+// 仕様だけのパッケージは、持ち主の見本（ex6-spec → ex6）の id で、拡張ポイントにだけ書き足す
+const EXTRAS = new Set(
+  [...readFileSync(join(SRC, "core/catalog.ts"), "utf8").matchAll(/^export interface (\w+Extras)\b/gm)].map(m => m[1]!),
+)
+// 波かっこの組の中身（start は開きかっこの位置）
+const braced = (text: string, start: number): string => {
+  let depth = 0
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === "{") depth++
+    else if (text[i] === "}" && --depth === 0) return text.slice(start + 1, i)
+  }
+  return ""
+}
+// declare module の中の interface の名前と、その中の最上位の名前
+const augmented = (text: string) =>
+  [...text.matchAll(/declare module\s+["'][^"']+["']\s*\{/g)].flatMap(m => {
+    const body = braced(text, m.index + m[0].length - 1)
+    return [...body.matchAll(/interface\s+(\w+)[^{]*\{/g)].map(i => ({
+      name: i[1]!,
+      members: [
+        ...braced(body, i.index + i[0].length - 1).matchAll(
+          /^\s*(?:readonly\s+)?("[^"]+"|[A-Za-z_$][\w$]*|\[[^\]]+\])\??\s*[(:<]/gm,
+        ),
+      ].map(x => x[1]!),
+    }))
+  })
+
+test("拡張ポイントへの書き足しは、base は短い名前、ほかのプラグインは自分の id で始まる名前だけ", () => {
+  expect(EXTRAS.size).toBeGreaterThan(0)
+  const owners = [
+    ...sources
+      .filter(f => layerOf(f.rel) === "plugins" && f.rel.split("/").length > 2)
+      .map(f => ({ f, id: kitIdOf(join(SRC, pluginRoot(f.rel))), spec: false })),
+    ...added.map(f => {
+      const folder = f.rel.split("/")[0]!
+      const spec = specs.includes(folder)
+      return { f, id: kitIdOf(join(ADDED, spec ? specOwner(folder) : folder)), spec }
+    }),
+  ]
+  const bad = owners.flatMap(({ f, id, spec }) =>
+    augmented(f.text).flatMap(({ name, members }) => {
+      if (!EXTRAS.has(name))
+        return spec ? [`${f.rel}: ${name}（仕様だけのパッケージは拡張ポイントにだけ書き足す）`] : []
+      return members
+        .filter(m => (id === "@matomezu/base" ? !/^[A-Za-z_$]/.test(m) : !m.startsWith(`"${id}:`)))
+        .map(m => `${f.rel}: ${name}.${m}`)
+    }),
+  )
+  // 見張りが空振りしていない（base・紙・見本の仕様の書き足しを見ている）
+  expect(owners.some(({ f }) => augmented(f.text).some(a => EXTRAS.has(a.name)))).toBe(true)
+  expect(bad).toEqual([])
 })

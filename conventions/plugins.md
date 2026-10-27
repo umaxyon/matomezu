@@ -6,7 +6,7 @@
 ## プラグインどうしの関係
 
 - プラグインは互いに独立している。ほかのプラグインを読まない
-- 追加プラグインは、プラグイン API（`matomezu`・`matomezu/ui`・`matomezu/catalog`）だけを読む。テストで組むときだけ `matomezu/testing` も読む（見本は `test/rules.test.ts` が見張る）
+- 追加プラグインは、プラグイン API（`matomezu`・`matomezu/ui`・`matomezu/catalog`）だけを読む。テストで組むときだけ `matomezu/testing` も読む。ほかのプラグインが拡張ポイントに書き足したものに答えるときと、自分の書き足しを使うときは、その仕様だけのパッケージを型だけ（`import type`）読む（definitions の「拡張ポイント」。見本は `test/rules.test.ts` が見張る）
 - プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。見た目は、matomezu が渡すステージの id から、フックで約束のものだけを引く:
   - データ: `useBook(stage)`・`usePage(stage)`（開いているブックとページ）、`useItem(stage, page, item)`（項目の型はアイテムの id で決まる）、`useShownPage(stage)`（ダイアログの下書きを重ねたページ。見せ方が描くのに使う）
   - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`placing`・`tool`・`pans`）。ブックのビューにはステージの id を渡す。コマンドの `ctx.stage` も同じ `StageView`

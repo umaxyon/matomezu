@@ -2,7 +2,6 @@
 // 四角をドラッグすると、ステージの見る所がついて動く。四角の外を押すと、そこが真ん中に来るように飛んでから、そのままドラッグできる。
 // 紙の色と絵の色はブックのテーマの値で描く
 import { type PointerEvent, useMemo, useRef } from "react"
-import type { MinimapMark } from "../../../core/def/item"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
@@ -14,7 +13,7 @@ import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
 import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
-import { minimapMarks } from "./marks"
+import { type MinimapMark, minimapMarks } from "./marks"
 
 export function MinimapView({ stage: id, width, height }: { stage: string; width: number; height: number }) {
   const t = useMessages(kit)

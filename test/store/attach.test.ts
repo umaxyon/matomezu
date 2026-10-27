@@ -45,9 +45,9 @@ const NOTE = notes.defineBookType({
   schema: z.strictObject({ id: z.string() }),
   single: false,
   create: init => ({ ...init, pages: [] }),
+  addPagesFromTabs: false,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
-    addFromTabs: false,
   },
   items: { allowed: [], defaults: [] },
   actions: { add: ["@matomezu/base:page-add"], without: ["@matomezu/list:row-add"] },

@@ -2,7 +2,7 @@
 // プラグインは自分の文言を defineMessages で書いて pluginKit に渡し、core/catalog.ts（MessageTable）に書き足す。pluginKit が id を付けた文言の組（MessageSetDef）にする。
 // 言語は言語パック（LanguagePackDef。kit.defineLanguagePack）が持ち込む。パックは言語の名前と、どのプラグインの文言にでも足せる訳を持つ。
 // 土台の文言と言語の id の頭は matomezu（id が matomezu のプラグインを入れると、同じ id の重なり E001 で止まる）
-import type { MessageKey } from "../catalog"
+import type { LanguagePackExtras, MessageKey, MessageSetExtras } from "../catalog"
 
 export type Lang = string // 言語の id（BCP 47 の言語の部分。"en"・"ja"・"fr" など）
 
@@ -12,7 +12,7 @@ export type Translations = Readonly<Record<Lang, string>>
 export type MessageMap = Readonly<Record<string, Translations>>
 
 // 文言の組: プラグイン 1 つの文言（id は「プラグインの id:messages」。pluginKit が付ける）
-export interface MessageSetDef {
+export interface MessageSetDef extends MessageSetExtras {
   id: string
   messages: MessageMap
 }
@@ -22,7 +22,7 @@ export const defineMessages = <const M extends Record<string, Translations>>(mes
 
 // 言語パック: 言語 1 つの名前（その言語自身の書き方）と、文言の鍵 → 訳。
 // プラグインが自分の文言に持つ訳より、パックの訳が勝つ。インスタンスに無い鍵の訳は使わない
-export interface LanguagePackDef {
+export interface LanguagePackDef extends LanguagePackExtras {
   id: string // 「プラグインの id:言語」（kit.defineLanguagePack が付ける。1 つのプラグインは同じ言語を 2 組持たない）
   lang: Lang
   name: string

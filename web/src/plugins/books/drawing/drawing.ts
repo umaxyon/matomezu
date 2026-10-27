@@ -10,9 +10,9 @@ export const DRAWING = kit.defineBookType({
   schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
+  addPagesFromTabs: true,
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-    addFromTabs: true,
   },
   items: {
     allowed: ["@matomezu/box:shape-box", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],

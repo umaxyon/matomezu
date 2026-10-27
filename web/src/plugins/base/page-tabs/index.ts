@@ -12,6 +12,13 @@ import { PAGE_UPDATE } from "./page-update"
 
 export { PAGE_ADD } from "./page-add"
 
+// ページタブの横に、ページを足すボタンを出すか（定義オブジェクトの拡張ポイントに書き足す。無ければ出さない。ページを持つタイプだけが使う）
+declare module "../../../core/catalog" {
+  interface BookTypeExtras {
+    addPagesFromTabs?: boolean
+  }
+}
+
 export const NEW_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
 
 // ページの設定のダイアログ。開いたステージのブックの、ページ page の設定の項目を変える

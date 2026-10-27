@@ -1,7 +1,8 @@
 // ページの線を描く形にする純粋な関数: 形の四角から、線ごとの点の並び・見える線（端の形の付け根で止めた点の並び）・端の形・キャプションの札の枠を決める。
 // 2 つの形を結ぶ線は道筋の計算（route.ts。ほかの形は、道筋に関わりうるものだけを避ける）、自分に戻る線は形の角の輪（selfloop.ts）。
 // 自分に戻る線は、ほかの線を描いたあとに、ほかの形とほかの線を避ける角に描く（同じ形の 2 本目からは、同じ角で輪を大きくする）
-import type { ConnectorData, MinimapMark, Point, PortArea } from "../../../plugin-api"
+import type { ConnectorData, Point, PortArea } from "../../../plugin-api"
+import type { MinimapMark } from "../../base"
 import { captionBox } from "./caption"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"

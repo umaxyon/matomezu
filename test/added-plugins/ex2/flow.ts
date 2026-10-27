@@ -59,9 +59,9 @@ export const FLOW = kit.defineBookType({
   schema: z.strictObject({ id: z.string().min(1) }),
   single: false,
   create: init => ({ ...init, pages: [] }),
+  addPagesFromTabs: true,
   pages: {
     paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
-    addFromTabs: true,
   },
   items: {
     allowed: [DIAMOND.id, "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
