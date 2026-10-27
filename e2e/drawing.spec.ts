@@ -570,6 +570,26 @@ test("ブックの名前の欄のメニューからブックの設定を開い�
   await expect(trigger).toHaveText("新しい名前")
 })
 
+test("紙の右クリックの「ページの設定」でページの名前を変えると、ページタブの名前が変わる。空の間は確定できない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const tab = page.getByRole("tab", { selected: true })
+  const before = await tab.textContent()
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  const name = dialog.getByLabel("ページの名前")
+  await expect(name).toHaveValue(before!)
+  await name.fill("  ")
+  await expect(dialog.getByRole("button", { name: "確定" })).toBeDisabled()
+  await name.fill("表紙")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(tab).toHaveText("表紙")
+})
+
 test("箱の右の辺を右の箱へ向けて広げると、手を離したときに右の箱が押されて右へずれる", async ({ page }) => {
   await page.goto("/")
   for (const [x, caption] of [
