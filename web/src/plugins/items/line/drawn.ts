@@ -20,7 +20,7 @@ import {
   vertexAt,
 } from "./route"
 import { selfLoop } from "./selfloop"
-import { type Routed, separateEnds, splitVertices } from "./spread"
+import { keepApart, type Routed, separateEnds, splitVertices } from "./spread"
 
 export interface DrawnLine {
   id: string
@@ -149,6 +149,8 @@ export function drawLines(
   }
   // 同じ形の同じ所に入る線を散らす（spread.ts）
   separateEnds(routed)
+  // 先の線の端と同じ所にある端を、空いている辺へ回す（spread.ts）
+  keepApart(routed)
   for (const { line, route: r } of routed) {
     geos.set(line.id, { points: r.points, shape: r.shape, segments: r.segments, ends: r.ends, memory: r.memory })
   }

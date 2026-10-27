@@ -1,11 +1,22 @@
 // 線の端を散らす決まり（純粋な関数）: 1 つの形の同じ所に、線の端を重ねない。
 // - 辺の真ん中だけにつなぐ形（ひし形など）から出る線は、1 つの頂点から 2 本出さない（splitVertices）
 // - 同じ形の同じ所に入る線が 2 本以上あれば、1 本だけ残し、ほかは空いている辺へ逃がす（separateEnds）
-// どちらも描くときだけ決め、データは書き換えない。端を固定した線は動かさない
+// - 線の始点か終点が、ほかの線の端（出る端と入る端）と同じ所にあれば、後の線を空いている辺へ回す。始点は反時計回り、終点は時計回りの順に
+//   候補を並べ、ほかの線と交わらない・折れ目の少ない組み合わせを選ぶ（keepApart）
+// どれも描くときだけ決め、データは書き換えない。端を固定した線は動かさない
 import type { Point, PortArea } from "../../../plugin-api"
 import { centerOf } from "./geom"
 import type { PlacedLine } from "./placed"
-import { type Route, type RouteInput, routeOnSides, type Side, sideAt } from "./route"
+import {
+  fewestRoute,
+  perimeterAt,
+  type Route,
+  type RouteInput,
+  routeOnSides,
+  type Side,
+  sideAt,
+  vertexAt,
+} from "./route"
 
 const VERTEX_DIR: Record<Side, Point> = { t: { x: 0, y: -1 }, r: { x: 1, y: 0 }, b: { x: 0, y: 1 }, l: { x: -1, y: 0 } }
 // 頂点を割り当てる線の数の上限（頂点は 4 つ）
@@ -132,4 +143,84 @@ export function separateEnds(routed: Routed[]): void {
       used.add(sideAt(rim, better.points[better.points.length - 1] as Point))
     }
   }
+}
+
+// 辺を時計回りに並べた順
+const CLOCKWISE: readonly Side[] = ["t", "r", "b", "l"]
+
+// side から回る向き（1 は時計回り、-1 は反時計回り）にたどった、ほかの 3 つの辺
+const turning = (side: Side, dir: 1 | -1): Side[] =>
+  [1, 2, 3].map(k => CLOCKWISE[(CLOCKWISE.indexOf(side) + dir * k + 4) % 4] as Side)
+
+// 2 つの線分が、端以外の所で交わるか（触れるだけ・重なって続くものは数えない）
+function crossing([p1, p2]: [Point, Point], [q1, q2]: [Point, Point]): boolean {
+  const turn = (a: Point, b: Point, c: Point) => Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x))
+  const d1 = turn(q1, q2, p1),
+    d2 = turn(q1, q2, p2),
+    d3 = turn(p1, p2, q1),
+    d4 = turn(p1, p2, q2)
+  return d1 * d2 < 0 && d3 * d4 < 0
+}
+const pieces = (pts: Point[]): [Point, Point][] => pts.slice(1).map((q, i) => [pts[i] as Point, q])
+// 点の並び pts が、ほかの線 others と交わる数
+const crossings = (pts: Point[], others: Point[][]): number =>
+  others.reduce((n, o) => n + pieces(pts).filter(a => pieces(o).some(b => crossing(a, b))).length, 0)
+
+// 線の始点か終点が、先の線の端（出る端と入る端）と同じ所にあれば、その端を、形のどの線の端もつながっていない辺の真ん中へ回す。
+// 候補の辺は、始点は今の辺から反時計回り、終点は時計回りの順に並べ、組み合わせのうち、ほかの線と交わる数が少ない形、
+// 同じなら折れ目の少ない形、それも同じなら並べた順の先の形にする（素直につなぐ）。空いている辺が無ければ重ねたまま。
+// 入る端どうしの重なりは separateEnds が見るので、出る端が関わる重なりだけ。端を固定した側は動かさない。routed の route を置き換える
+export function keepApart(routed: Routed[]): void {
+  const ends = (x: Routed) => ({
+    exit: x.route.points[0] as Point,
+    enter: x.route.points[x.route.points.length - 1] as Point,
+  })
+  const near = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y) < SAME_END
+  // 形 box の、線 skip のほかの線の端がつながっている辺
+  const usedSides = (box: string, rim: RouteInput["a"], skip: Routed) =>
+    new Set(
+      routed.flatMap(y => {
+        if (y === skip || y.route.arrangement === "overlap") return []
+        const e = ends(y)
+        return [
+          ...(y.line.from === box ? [sideAt(rim, e.exit)] : []),
+          ...(y.line.to === box ? [sideAt(rim, e.enter)] : []),
+        ]
+      }),
+    )
+  routed.forEach((x, i) => {
+    if (x.route.arrangement === "overlap") return
+    const before = routed.slice(0, i).filter(y => y.route.arrangement !== "overlap")
+    const e = ends(x)
+    // この形のこの点に、先の線の端があるか（入る端どうしは除く）
+    const clash = (box: string, p: Point, entering: boolean) =>
+      before.some(y => {
+        const f = ends(y)
+        return (y.line.from === box && near(f.exit, p)) || (!entering && y.line.to === box && near(f.enter, p))
+      })
+    // 回す先の候補（ふち一周の割合）。空いている辺が無ければ null
+    const choices = (box: string, rim: RouteInput["a"], p: Point, dir: 1 | -1): number[] | null => {
+      const side = sideAt(rim, p)
+      if (!side) return null
+      const used = usedSides(box, rim, x)
+      const free = turning(side, dir).filter(s => !used.has(s))
+      return free.length ? free.map(s => perimeterAt(rim, vertexAt(rim, s))) : null
+    }
+    const { exitAt, enterAt } = x.line.props
+    const exits =
+      exitAt === undefined && clash(x.line.from, e.exit, false) ? choices(x.line.from, x.input.a, e.exit, -1) : null
+    const enters =
+      enterAt === undefined && clash(x.line.to, e.enter, true) ? choices(x.line.to, x.input.b, e.enter, 1) : null
+    if (exits === null && enters === null) return
+    const others = routed.filter(y => y !== x).map(y => y.route.points)
+    let best: { route: Route; cross: number } | null = null
+    for (const ex of exits ?? [x.input.exitAt ?? null])
+      for (const en of enters ?? [x.input.enterAt ?? null]) {
+        const route = fewestRoute({ ...x.input, exitAt: ex, enterAt: en })
+        const cross = crossings(route.points, others)
+        if (!best || cross < best.cross || (cross === best.cross && route.bends < best.route.bends))
+          best = { route, cross }
+      }
+    if (best) x.route = best.route
+  })
 }
