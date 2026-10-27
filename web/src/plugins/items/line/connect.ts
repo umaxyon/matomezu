@@ -94,7 +94,7 @@ export function drawnLineProps(
 }
 
 // 線 line の端 end（始点 from か終点 to）をつなぎ替えられる形: もう一方の端と同じページのつなげる形で、今の形でなく、
-// もう一方の端との組にほかの線が無いもの（もう一方の端の形そのものなら、自分に戻る線になる）
+// つなぎ替えた向きの線がほかに無いもの（もう一方の端の形そのものなら、自分に戻る線になる）
 export function reconnectTargets(
   catalog: CoreCatalog,
   page: ItemPage,
@@ -102,11 +102,11 @@ export function reconnectTargets(
   end: "from" | "to",
 ): Set<string> {
   const own = line[end]
-  const other = end === "from" ? line.to : line.from
   const lines = linesOf(page).filter(l => l.id !== line.id)
+  const free = (id: string) => (end === "from" ? canConnect(lines, id, line.to) : canConnect(lines, line.from, id))
   return new Set(
     shapesOf(page)
       .map(s => s.id)
-      .filter(id => id !== own && connectable(catalog, page, id) && canConnect(lines, other, id)),
+      .filter(id => id !== own && connectable(catalog, page, id) && free(id)),
   )
 }

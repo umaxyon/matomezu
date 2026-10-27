@@ -24,11 +24,12 @@ function ready() {
 const page = (store: ReturnType<typeof ready>) =>
   (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
 
-test("引ける相手は、同じページのつなげる形（自分も入る）。同じ組の線がある相手と、リストの行は入らない", () => {
+test("引ける相手は、同じページのつなげる形（自分も入る）。同じ向きの線がある相手と、リストの行は入らない。逆向きの線があっても引ける", () => {
   const store = ready()
   expect([...targetsFrom(CORE_CATALOG, page(store), "n1")]).toEqual(["n1", "n2", "n3"])
-  store.actions.perform("@matomezu/line:line-connect", { page: "p1", from: "n2", to: "n1" }, { book: "b1" })
+  store.actions.perform("@matomezu/line:line-connect", { page: "p1", from: "n1", to: "n2" }, { book: "b1" })
   expect([...targetsFrom(CORE_CATALOG, page(store), "n1")]).toEqual(["n1", "n3"])
+  expect([...targetsFrom(CORE_CATALOG, page(store), "n2")]).toContain("n1")
   expect([...targetsFrom(CORE_CATALOG, page(store), "n4")]).toEqual([])
 })
 

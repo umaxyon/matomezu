@@ -45,7 +45,7 @@ test("線を引くと、ページの items に id・item・from・to・props の
   expect(Object.keys(lines(store)[0]!)).toEqual(["id", "item", "from", "to", "props"])
 })
 
-test("引けない相手: 無い形・リストの行・同じ組の 2 本目（向きは問わない）。自分に戻る線は何本でも引ける", () => {
+test("引けない相手: 無い形・リストの行・同じ向きの 2 本目。逆向きの線は別に引け、自分に戻る線は何本でも引ける", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
@@ -55,12 +55,14 @@ test("引けない相手: 無い形・リストの行・同じ組の 2 本目（
   expect(connect(store, "n1", "n4").ok).toBe(false) // n4 はリストの行
   expect(connect(store, "n1", "n3").ok).toBe(true) // リストの枠にはつながる
   expect(connect(store, "n1", "n2").ok).toBe(true)
-  expect(connect(store, "n2", "n1").ok).toBe(false)
+  expect(connect(store, "n1", "n2").ok).toBe(false)
+  expect(connect(store, "n2", "n1").ok).toBe(true)
   expect(connect(store, "n1", "n1").ok).toBe(true)
   expect(connect(store, "n1", "n1").ok).toBe(true)
   expect(lines(store).map(l => [l.from, l.to])).toEqual([
     ["n1", "n3"],
     ["n1", "n2"],
+    ["n2", "n1"],
     ["n1", "n1"],
     ["n1", "n1"],
   ])
@@ -168,7 +170,7 @@ test("手で直した区間（via）は、両端が固定で引けるときだ�
   expect(lines(store)[0]!.props.exitAt).toBe(132 / 328)
 })
 
-test("関係の決まりを守らないブック（線の端が無い・行につながる・同じ組に 2 本）は、読み込むときに捨てる", () => {
+test("関係の決まりを守らないブック（線の端が無い・行につながる・同じ向きに 2 本）は、読み込むときに捨てる", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
@@ -187,7 +189,8 @@ test("関係の決まりを守らないブック（線の端が無い・行に�
   })
   expect(restoreBooks(CORE_CATALOG, [good])).toHaveLength(1)
   expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "zz")])])).toHaveLength(0)
-  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")])])).toHaveLength(0)
+  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n2"), line("l2", "n1", "n2")])])).toHaveLength(0)
+  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")])])).toHaveLength(1)
   expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n1"), line("l2", "n1", "n1")])])).toHaveLength(1)
 })
 

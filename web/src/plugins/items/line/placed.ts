@@ -36,9 +36,9 @@ export function lineGaps(lines: readonly LineLike[], base: number): (a: string, 
   return (a, b) => gaps.get(pairKey(a, b)) ?? base
 }
 
-// 形 from から to へ、もう 1 本引けるか: 同じ組（向きは問わない）には 1 本だけ。自分に戻る線は何本でも
+// 形 from から to へ、もう 1 本引けるか: 同じ向きには 1 本だけ（逆向きの線は別に引ける）。自分に戻る線は何本でも
 export function canConnect(lines: readonly LineLike[], from: string, to: string): boolean {
-  return from === to || !lines.some(l => pairKey(l.from, l.to) === pairKey(from, to))
+  return from === to || !lines.some(l => l.from === from && l.to === to)
 }
 
 // 形が動いた・大きさが変わったあとの線: 手で直した途中の区間（via）が引けなくなったら消す（端の形が無くなった線は、土台が先に消す）。
@@ -83,13 +83,13 @@ export function unpinLines<L extends LineLike>(lines: readonly L[]): L[] {
   })
 }
 
-// 線の関係の決まり: 両端が同じページの、つなげる形（connectable）にあり、同じ組に 2 本無い
+// 線の関係の決まり: 両端が同じページの、つなげる形（connectable）にあり、同じ向きの線が 2 本無い
 export function linesHold(lines: readonly LineLike[], connectable: (id: string) => boolean): boolean {
   const pairs = new Set<string>()
   for (const l of lines) {
     if (!connectable(l.from) || !connectable(l.to)) return false
     if (l.from === l.to) continue
-    const k = pairKey(l.from, l.to)
+    const k = `${l.from}\n${l.to}`
     if (pairs.has(k)) return false
     pairs.add(k)
   }

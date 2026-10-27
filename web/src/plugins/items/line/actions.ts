@@ -43,7 +43,7 @@ function withLine(
 }
 
 // 形 from から to へ線を引く（同じ形なら自分に戻る線）。両端は同じページのつなげる形（箱・リスト。リストの行にはつながない）。
-// 線が使えるブック（usesLines）だけ。同じ組（向きは問わない）には 1 本だけ、自分に戻る線は何本でも。props は線の項目（書かなかった項目は既定）。
+// 線が使えるブック（usesLines）だけ。同じ向きには 1 本だけ（逆向きは別に引ける）、自分に戻る線は何本でも。props は線の項目（書かなかった項目は既定）。
 // 線でつながった 2 つの形は間隔の下限が広がる（32px、キャプションがあれば 40px）ので、近すぎれば終点の側をどける。どけられなければ断る
 // 線のアクションは、線を置けるタイプについて来る
 const ON_LINES = { items: [kit.name("connector-line")] }
@@ -52,7 +52,7 @@ export const LINE_CONNECT = kit.defineAction({
   id: "line-connect",
   attach: ON_LINES,
   aiDescription:
-    "Draw a line from the item from to the item to (boxes and lists on the same page, not a list's rows); from and to the same item draws a line looping back to it. Two items are joined by one line at most (either way); an item may loop back to itself any number of times. route is straight or elbow (without it, elbow); startHead and endHead put a shape on that end (arrow is a filled triangle); dash is solid or dashed. exitAt and enterAt fix where the line leaves from and enters to: a fraction (0 to 1) of the way clockwise round the item's edge from its top-left corner; without them the line picks its ends. via (elbow lines with both ends fixed) places the line's middle segments. If the two items are now too close (32 pixels, 40 with a caption), to is moved away. Returns the new line's id. read_book shows lines among a page's items.",
+    "Draw a line from the item from to the item to (boxes and lists on the same page, not a list's rows); from and to the same item draws a line looping back to it. Two items are joined by one line at most each way (a line back the other way is a separate line); an item may loop back to itself any number of times. route is straight or elbow (without it, elbow); startHead and endHead put a shape on that end (arrow is a filled triangle); dash is solid or dashed. exitAt and enterAt fix where the line leaves from and enters to: a fraction (0 to 1) of the way clockwise round the item's edge from its top-left corner; without them the line picks its ends. via (elbow lines with both ends fixed) places the line's middle segments. If the two items are now too close (32 pixels, 40 with a caption), to is moved away. Returns the new line's id. read_book shows lines among a page's items.",
   title: "Connect items",
   target: "book",
   args: z.strictObject({
@@ -111,13 +111,13 @@ export const LINE_UPDATE = kit.defineAction({
 
 // 線の端 end（始点 from か終点 to）を形 item へつなぎ替える。キャプション・端の形・線の種類・通り方はそのまま。
 // 手で直した途中の区間とつなぎ替えた端の位置は捨て、自分に戻る線になる・でなくなるときは両端の位置を捨てる（意味が変わるため）。
-// props の exitAt・enterAt を書けば、その位置に固定する。つなぎ替えられる相手は線を引くときと同じ決まり（もう一方の端との組にほかの線が無い）。
+// props の exitAt・enterAt を書けば、その位置に固定する。つなぎ替えられる相手は線を引くときと同じ決まり（つなぎ替えた向きの線がほかに無い）。
 // つなぎ替えた先の形はそのままで、近すぎればもう一方の形をどける
 export const LINE_RECONNECT = kit.defineAction({
   id: "line-reconnect",
   attach: ON_LINES,
   aiDescription:
-    "Move one end of a line (end is from or to) to another item on the page, keeping its caption, heads, style and route. Its hand-placed middle segments and the moved end's fixed place are dropped (both ends' places when it becomes or stops being a loop); props.exitAt or props.enterAt fix them again. The item and the other end must not be joined by another line. If they are now too close, the other end's item is moved away.",
+    "Move one end of a line (end is from or to) to another item on the page, keeping its caption, heads, style and route. Its hand-placed middle segments and the moved end's fixed place are dropped (both ends' places when it becomes or stops being a loop); props.exitAt or props.enterAt fix them again. There must be no other line the same way between the item and the other end. If they are now too close, the other end's item is moved away.",
   title: "Reconnect line",
   target: "book",
   args: z.strictObject({
@@ -132,16 +132,15 @@ export const LINE_RECONNECT = kit.defineAction({
     const page = book.pages.find(p => p.id === args.page)
     const now = page && linesOf(page).find(l => l.id === args.line)
     if (!page || !now || now[args.end] === args.item || !connectable(ctx.catalog, page, args.item)) return null
-    const other = args.end === "from" ? now.to : now.from
+    const moved = { ...now, [args.end]: args.item }
     if (
       !canConnect(
         linesOf(page).filter(l => l.id !== now.id),
-        other,
-        args.item,
+        moved.from,
+        moved.to,
       )
     )
       return null
-    const moved = { ...now, [args.end]: args.item }
     const loopChanged = (now.from === now.to) !== (moved.from === moved.to)
     const { via: _, ...props } = now.props
     if (loopChanged || args.end === "from") delete props.exitAt
