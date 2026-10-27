@@ -4,6 +4,7 @@ import { BASE_UI } from "./base/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
 import { FLOWCHART_UI } from "./books/flowchart/ui"
 import { MASTER_UI } from "./books/master/ui"
+import { TREE_UI } from "./books/tree/ui"
 import { BOX_UI } from "./items/box/ui"
 import { LINE_UI } from "./items/line/ui"
 import { LIST_UI } from "./items/list/ui"
@@ -20,6 +21,7 @@ export const BUILTIN_UI = [
   SHAPE_UI,
   DRAWING_UI,
   FLOWCHART_UI,
+  TREE_UI,
 ] as const
 
 // 既定の配置（今の画面の形）。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
