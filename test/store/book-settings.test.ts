@@ -85,5 +85,6 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
       "@matomezu/line:line-route",
       "@matomezu/flowchart:flow-direction",
     ],
+    "settings of @matomezu/tree:tree books": ["@matomezu/base:book-theme", "@matomezu/base:book-paper-color"],
   })
 })
