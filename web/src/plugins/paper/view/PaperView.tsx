@@ -54,7 +54,8 @@ import {
 } from "../../../plugin-api/ui"
 import { type Edges, fitsPaper, itemSize, minSize, resizedBy, shownRects } from "../../base"
 import { kit } from "../kit"
-import { type Came, dragging, placeAt, trackDrag } from "../placing"
+import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
+import { type Came, dragging, PAPER_EDIT, PAPER_MOVE, PAPER_PLACE, PAPER_RESIZE, placeAt, trackDrag } from "../placing"
 import styles from "./PaperView.module.css"
 
 // 要素の左上から見たポインタの位置
@@ -65,8 +66,8 @@ const local = (e: PointerEvent<Element>, el: Element): Point => {
 
 export function PaperView({ stage: id }: BookViewProps) {
   const stage = useStage(id)
-  const openMenu = useContextMenu(id, "@matomezu/paper:paper-context")
-  const place = useCommand(id, "@matomezu/paper:paper-place")
+  const openMenu = useContextMenu(id, PAPER_CONTEXT)
+  const place = useCommand(id, PAPER_PLACE.id)
   const { select } = useActions()
   const ref = useRef<HTMLDivElement>(null)
   const [pointer, setPointer] = useState<Point | null>(null)
@@ -178,13 +179,13 @@ function PageItems({
     const c = ui.connectors.get(id)
     return c ? [{ id, ...c }] : []
   })
-  const move = useCommand(stage.id, "@matomezu/paper:paper-move")
-  const edit = useCommand(stage.id, "@matomezu/paper:paper-edit")
-  const openMenu = useContextMenu(stage.id, "@matomezu/paper:item-context")
+  const move = useCommand(stage.id, PAPER_MOVE.id)
+  const edit = useCommand(stage.id, PAPER_EDIT.id)
+  const openMenu = useContextMenu(stage.id, ITEM_CONTEXT)
   const { select } = useActions()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
-  const resize = useCommand(stage.id, "@matomezu/paper:paper-resize")
+  const resize = useCommand(stage.id, PAPER_RESIZE.id)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
   const hand = stage.tool === "hand"

@@ -14,6 +14,7 @@ import {
 } from "../../../plugin-api"
 import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
+import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import type { Came } from "./drag"
 import { PLACE_OFFSET } from "./items"
 
@@ -28,7 +29,7 @@ export function placeAt(ctx: { stage: Pick<StageView, "opened" | "pan" | "zoom">
 // 追加のダイアログのあるアイテム（箱・リスト）は、置くのをやめて追加のダイアログを開き、中身を決めてから置く
 export const PAPER_PLACE = kit.defineCommand({
   id: "paper-place",
-  performs: ["@matomezu/paper:item-place"],
+  performs: [ITEM_PLACE.id],
   title: "Place item",
   run: (ctx, a, pointer: Point) => {
     const { stage } = ctx
@@ -45,7 +46,7 @@ export const PAPER_PLACE = kit.defineCommand({
       a.openDialog(stage.id, dialog, { page, at })
       return
     }
-    const done = a.perform("@matomezu/paper:item-place", { page, item: stage.placing, at }, { book: stage.opened.book })
+    const done = a.perform(ITEM_PLACE.id, { page, item: stage.placing, at }, { book: stage.opened.book })
     if (!done.ok) return
     a.stopPlacing(stage.id)
     a.select(stage.id, [done.result.item])
@@ -67,7 +68,7 @@ function editable(ctx: CommandContext): boolean {
 // 右クリックのメニューでは「設定」として出す
 export const PAPER_EDIT = kit.defineCommand({
   id: "paper-edit",
-  performs: ["@matomezu/paper:item-update"],
+  performs: [ITEM_UPDATE.id],
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     const page = ctx.stage.opened?.page
@@ -86,16 +87,12 @@ export const PAPER_EDIT = kit.defineCommand({
 // 選んでいるアイテムを消し、選択を外す（選んでいなければ出さない）
 export const PAPER_DELETE = kit.defineCommand({
   id: "paper-delete",
-  performs: ["@matomezu/paper:item-remove"],
+  performs: [ITEM_REMOVE.id],
   title: "Delete",
   run: (ctx, a) => {
     const { opened, selection, id } = ctx.stage
     if (!opened?.page || selection.length === 0) return
-    const done = a.perform(
-      "@matomezu/paper:item-remove",
-      { page: opened.page, items: [...selection] },
-      { book: opened.book },
-    )
+    const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
     if (done.ok) a.select(id, [])
   },
   when: ctx => onDrawingPage(ctx) && ctx.stage.selection.length > 0,
@@ -104,18 +101,14 @@ export const PAPER_DELETE = kit.defineCommand({
 // アイテムを、画面の上で動いた量だけ動かす（came はドラッグの通り道で覚えた、相手ごとの先端が来た向き）。収まらなければ動かさない
 export const PAPER_MOVE = kit.defineCommand({
   id: "paper-move",
-  performs: ["@matomezu/paper:item-move"],
+  performs: [ITEM_MOVE.id],
   title: "Move items",
   run: (ctx, a, args: { items: readonly string[]; by: Point; came?: Came }) => {
     const { opened } = ctx.stage
     if (!opened?.page || args.items.length === 0) return
     const by = toPaperDelta(ctx.stage, args.by)
     const came = args.came && { came: { ...args.came } }
-    a.perform(
-      "@matomezu/paper:item-move",
-      { page: opened.page, items: [...args.items], by, ...came },
-      { book: opened.book },
-    )
+    a.perform(ITEM_MOVE.id, { page: opened.page, items: [...args.items], by, ...came }, { book: opened.book })
   },
   when: onDrawingPage,
 })
@@ -123,7 +116,7 @@ export const PAPER_MOVE = kit.defineCommand({
 // アイテムの辺（角なら 2 つの辺）をつかんで、画面の上で動いた量だけ大きさを変える（items.ts の resizedBy）
 export const PAPER_RESIZE = kit.defineCommand({
   id: "paper-resize",
-  performs: ["@matomezu/paper:item-resize"],
+  performs: [ITEM_RESIZE.id],
   title: "Resize item",
   run: (ctx, a, args: { item: string; edges: Edges; by: Point }) => {
     const { opened } = ctx.stage
@@ -133,14 +126,13 @@ export const PAPER_RESIZE = kit.defineCommand({
     const placed = page && shapesOf(page).find(i => i.id === args.item)
     if (!opened?.page || !paper || !placed) return
     const to = resizedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
-    if (to)
-      a.perform("@matomezu/paper:item-resize", { page: opened.page, item: placed.id, ...to }, { book: opened.book })
+    if (to) a.perform(ITEM_RESIZE.id, { page: opened.page, item: placed.id, ...to }, { book: opened.book })
   },
   when: onDrawingPage,
 })
 
 // 選んでいるアイテムを消すキー（Mac の delete キーは Backspace として届く）
 export const ITEM_KEYS = defineKeys([
-  { key: "Delete", command: "@matomezu/paper:paper-delete", scope: "stage" },
-  { key: "Backspace", command: "@matomezu/paper:paper-delete", scope: "stage" },
+  { key: "Delete", command: PAPER_DELETE.id, scope: "stage" },
+  { key: "Backspace", command: PAPER_DELETE.id, scope: "stage" },
 ])

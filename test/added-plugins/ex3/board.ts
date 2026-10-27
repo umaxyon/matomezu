@@ -57,7 +57,7 @@ export const MINT = kit.defineTheme({
     danger: "#ef4444",
     muted: "#64748b",
   },
-  tokens: { "ex3:star-fill": "#ffd34d" },
+  tokens: { "star-fill": "#ffd34d" },
 })
 
 // 夜のスキン（アプリの枠の見た目。ブックの中身には効かない）
@@ -96,21 +96,21 @@ export const BOARD = kit.defineBookType({
   create: init => ({ ...init, pages: [] }),
   pages: {
     paper: {
-      allowed: ["ex3:square", "@matomezu/base:a4"],
-      default: "ex3:square",
+      allowed: [SQUARE.id, "@matomezu/base:a4"],
+      default: SQUARE.id,
       orientation: "portrait",
       perPage: true,
     },
     addFromTabs: true,
   },
   items: {
-    allowed: ["ex3:star", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
-    defaults: ["ex3:star", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
+    allowed: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
+    defaults: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
-  theme: "ex3:mint",
+  theme: MINT.id,
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "paper",
-  settings: { book: ["@matomezu/base:book-theme", "ex3:board-grid"], page: [] },
+  settings: { book: ["@matomezu/base:book-theme", GRID.id], page: [] },
 })

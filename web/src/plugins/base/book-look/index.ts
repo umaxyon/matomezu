@@ -43,8 +43,8 @@ export const BOOK_SETTINGS_DIALOG = kit.defineDialog({ id: "book-settings" })
 // ブックの設定のダイアログを開く（ブックのタイプが book-update を使える、名前と見た目を変えられるブックだけ）
 export const BOOK_SETTINGS = kit.defineCommand({
   id: "book-settings",
-  performs: ["@matomezu/base:book-update"],
+  performs: [BOOK_UPDATE.id],
   title: "Book settings",
-  run: (ctx, a) => a.openDialog(ctx.stage.id, "@matomezu/base:book-settings"),
+  run: (ctx, a) => a.openDialog(ctx.stage.id, BOOK_SETTINGS_DIALOG.id),
   when: () => true,
 })

@@ -8,6 +8,7 @@ import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { BOOK_UPDATE } from "."
 import { useSettingControls } from "./SettingControls"
 
 export function BookSettingsDialog({ stage, onClose }: DialogProps) {
@@ -28,11 +29,7 @@ export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   if (!book) return null
   const named = title.trim() !== ""
   const submit = () => {
-    const done = perform(
-      "@matomezu/base:book-update",
-      { title, ...(changed ? { settings: settings.patch } : {}) },
-      { book: book.id },
-    )
+    const done = perform(BOOK_UPDATE.id, { title, ...(changed ? { settings: settings.patch } : {}) }, { book: book.id })
     if (done.ok) onClose()
   }
   return (

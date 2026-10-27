@@ -18,7 +18,7 @@ func TestBuildsAnExamplePluginBorrowingTheModules(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, js := range map[string]string{"engine": b.Engine, "ui": string(b.UI)} {
-		if !strings.Contains(js, `globalThis.__matomezuModules["matomezu"]`) || !strings.Contains(js, "ex2:diamond") {
+		if !strings.Contains(js, `globalThis.__matomezuModules["matomezu"]`) || !strings.Contains(js, `id: "diamond"`) {
 			t.Fatalf("%s does not borrow matomezu or lacks the plugin:\n%s", name, js)
 		}
 		// 借りた物（zod・React）を取り込んでいない

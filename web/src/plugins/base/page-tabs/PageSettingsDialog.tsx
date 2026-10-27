@@ -9,6 +9,7 @@ import { useSettingControls } from "../book-look/SettingControls"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { PAGE_UPDATE } from "./page-update"
 
 export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
@@ -22,7 +23,7 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
   const { perform } = useActions()
   if (!book || !page) return null
   const submit = () => {
-    const done = perform("@matomezu/base:page-update", { page: page.id, settings: settings.patch }, { book: book.id })
+    const done = perform(PAGE_UPDATE.id, { page: page.id, settings: settings.patch }, { book: book.id })
     if (done.ok) onClose()
   }
   return (

@@ -2,24 +2,16 @@
 import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
+import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import { WorkspaceView } from "./WorkspaceView"
 
 // ステージの列のスロット。どれも、そのステージの id を渡す
 export interface StageSlotProps {
   stage: string
 }
-export const STAGE_SLOTS = [
-  "@matomezu/base:stage-top",
-  "@matomezu/base:stage-bottom",
-  "@matomezu/base:stage-corner",
-] as const
+export const STAGE_SLOTS = [STAGE_TOP, STAGE_BOTTOM, STAGE_CORNER] as const
 // ステージのベーススロット: ステージの骨組み（根に置き、ステージの列を並べるウィジェット）が、列ごとに必ず開けるスロット
-export const STAGE_BASE_SLOTS = [
-  "@matomezu/base:stage-top",
-  "@matomezu/base:stage-body",
-  "@matomezu/base:stage-bottom",
-  "@matomezu/base:stage-corner",
-] as const
+export const STAGE_BASE_SLOTS = [STAGE_TOP, STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER] as const
 
 // ステージの骨組みのウィジェット。根に置き、ベーススロットを全部開ける（view が列ごとに描く）。base の workspace の代わりを作るときもこれで作る
 export const defineWorkspace = <const Id extends string>(def: { id: Id; view: () => ReactNode }) =>

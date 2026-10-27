@@ -12,7 +12,7 @@ import { BOX } from "./box"
 import { paintVars } from "./paint"
 import { boxLayout } from "./size"
 
-export function BoxView({ props, size }: ItemViewProps<ItemProps<"@matomezu/box:shape-box">>) {
+export function BoxView({ props, size }: ItemViewProps<ItemProps<typeof BOX.id>>) {
   const theme = props.theme
   const vars = useThemeVars(theme, BOX.tokens)
   const { body, rule } = boxLayout(props, size)

@@ -15,6 +15,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { TOOL_ICONS, TOOL_NAMES } from "../tool-switch/icons"
+import { TOOL_SET } from "."
 import { ICON, leftPicker, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
 
@@ -198,7 +199,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const { layout } = placed
   const pick = (tool: Tool) => {
     closePicker()
-    if (tool !== "reparent" && tool !== current) command(opened.id, "@matomezu/base:tool-set", tool)
+    if (tool !== "reparent" && tool !== current) command(opened.id, TOOL_SET.id, tool)
   }
   const tip = hover === null ? null : layout.slots[hover]
   return (

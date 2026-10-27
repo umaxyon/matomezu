@@ -64,8 +64,8 @@ export const FLOW = kit.defineBookType({
     addFromTabs: true,
   },
   items: {
-    allowed: ["ex2:diamond", "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
-    defaults: ["ex2:diamond", "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
+    allowed: [DIAMOND.id, "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
+    defaults: [DIAMOND.id, "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る（自分の判断のアクションも、ひし形について来る）
   theme: "@matomezu/base:standard",
@@ -73,7 +73,7 @@ export const FLOW = kit.defineBookType({
   tokens: [],
   tools: "paper",
   settings: {
-    book: ["@matomezu/base:book-theme", "@matomezu/line:line-route", "ex2:flow-direction"],
+    book: ["@matomezu/base:book-theme", "@matomezu/line:line-route", FLOW_DIRECTION.id],
     page: ["@matomezu/line:line-route"],
   },
 })

@@ -27,10 +27,11 @@ import {
   useStage,
 } from "../../../plugin-api/ui"
 import { useThemeVars } from "../../base/ui"
+import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
 import styles from "./ListView.module.css"
-import { LIST, type ListRow } from "./list"
+import { LIST, type ListRow, ROW_CONTEXT } from "./list"
 import { listPaintVars } from "./paint"
 import { canCarry, shownOrder } from "./rows"
 import { linesFor, listLayout, type RowLayout, rowHeight } from "./size"
@@ -124,18 +125,18 @@ export function ListView({
   stage,
   content,
   zoom,
-}: ItemViewProps<ItemProps<"@matomezu/list:shape-list">, { readonly children?: readonly ListRow[] }>) {
+}: ItemViewProps<ItemProps<typeof LIST.id>, { readonly children?: readonly ListRow[] }>) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const rows: readonly ListRow[] = content.children ?? []
   const theme = props.theme
   const vars = useThemeVars(theme, LOOK_TOKENS)
-  const add = useCommand(stage, "@matomezu/list:list-add-row")
-  const edit = useCommand(stage, "@matomezu/list:list-edit-row")
-  const check = useCommand(stage, "@matomezu/list:list-check")
-  const openMenu = useContextMenu(stage, "@matomezu/list:row-context")
-  const stretchRow = useCommand(stage, "@matomezu/list:list-stretch-row")
-  const moveRow = useCommand(stage, "@matomezu/list:list-move-row")
+  const add = useCommand(stage, LIST_ADD_ROW.id)
+  const edit = useCommand(stage, LIST_EDIT_ROW.id)
+  const check = useCommand(stage, LIST_CHECK.id)
+  const openMenu = useContextMenu(stage, ROW_CONTEXT)
+  const stretchRow = useCommand(stage, LIST_STRETCH_ROW.id)
+  const moveRow = useCommand(stage, LIST_MOVE_ROW.id)
   // 写しに写し取るテーマの変数の名前（テーマが違ってもテーマキーは同じ）
   const ghostNames = useMemo(() => {
     const any = [...catalog.themes.keys()][0]

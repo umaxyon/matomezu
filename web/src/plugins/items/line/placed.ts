@@ -1,12 +1,14 @@
 // 線のデータと、ページの上での線の決まり: 線でつながった形の組の間隔、引ける相手、形が変わったあとの整え、関係の決まり
 import { type ConnectorData, connectorsOf, type ItemPage, type PlacedOf, type PortArea } from "../../../plugin-api"
+import { kit } from "./kit"
+import type { LINE } from "./line"
 import { route } from "./route"
 
-export type PlacedLine = PlacedOf<"@matomezu/line:connector-line">
+export type PlacedLine = PlacedOf<typeof LINE.id>
 
 // ページの線
 export const linesOf = (page: ItemPage): PlacedLine[] =>
-  connectorsOf(page).filter((i): i is PlacedLine => i.item === "@matomezu/line:connector-line")
+  connectorsOf(page).filter((i): i is PlacedLine => i.item === kit.name("connector-line"))
 // 線の決まりが見る欄（置いたデータの型が決まる前の、線の定義からも呼ぶ）
 type LineLike = ConnectorData<{
   caption?: string

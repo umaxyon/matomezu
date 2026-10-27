@@ -4,6 +4,7 @@ import { definePluginUi } from "../../../plugin-api/ui"
 import { LIST_PLUGIN } from "."
 import { AddListDialog, EditListDialog } from "./ListDialog"
 import { ListView } from "./ListView"
+import { LIST, LIST_ADD_DIALOG, LIST_EDIT_DIALOG, ROW_ADD_DIALOG, ROW_CONTEXT, ROW_EDIT_DIALOG } from "./list"
 import { AddRowDialog, EditRowDialog } from "./RowDialog"
 
 // ツールボックスのアイコン（見出しの帯と、点の付いた行）
@@ -14,16 +15,16 @@ const LIST_ICON = (
   </svg>
 )
 
-export const LIST_ITEM_UI = { view: ListView, icon: LIST_ICON, contextMenus: ["@matomezu/list:row-context"] } as const
+export const LIST_ITEM_UI = { view: ListView, icon: LIST_ICON, contextMenus: [ROW_CONTEXT] } as const
 export const LIST_DIALOG_VIEWS = {
-  "@matomezu/list:list-add": AddListDialog,
-  "@matomezu/list:list-edit": EditListDialog,
-  "@matomezu/list:row-add": AddRowDialog,
-  "@matomezu/list:row-edit": EditRowDialog,
+  [LIST_ADD_DIALOG.id]: AddListDialog,
+  [LIST_EDIT_DIALOG.id]: EditListDialog,
+  [ROW_ADD_DIALOG.id]: AddRowDialog,
+  [ROW_EDIT_DIALOG.id]: EditRowDialog,
 }
 
 export const LIST_UI = definePluginUi(LIST_PLUGIN, {
-  items: { "@matomezu/list:shape-list": LIST_ITEM_UI },
+  items: { [LIST.id]: LIST_ITEM_UI },
   dialogViews: LIST_DIALOG_VIEWS,
 })
 

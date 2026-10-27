@@ -5,6 +5,8 @@
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import { type CoreCatalog, type ItemPage, type Point, type StageView, toPaper } from "../../../plugin-api"
 import { useActions, useCommand } from "../../../plugin-api/ui"
+import { LINE_UPDATE } from "./actions"
+import { LINE_RECONNECT_DROP } from "./commands"
 import { reconnectTargets } from "./connect"
 import type { DrawnLine } from "./drawn"
 import { captionDragged, endDragged, viaDragged, viaSettled } from "./edit"
@@ -44,7 +46,7 @@ export function useLineEdit(
   localOf: (e: PointerEvent<Element>) => Point | null,
 ) {
   const { perform } = useActions()
-  const drop = useCommand(stage.id, "@matomezu/line:line-drop")
+  const drop = useCommand(stage.id, LINE_RECONNECT_DROP.id)
   const drag = useRef<Drag | null>(null)
   const [draft, setDraft] = useState<{ id: string; props: Props } | null>(null)
   const [snap, setSnap] = useState<Point | null>(null)
@@ -144,7 +146,7 @@ export function useLineEdit(
             ? (["captionAt", "captionOffset"] as const)
             : ([w.end === "from" ? "exitAt" : "enterAt"] as const)
       const patch = Object.fromEntries(keys.map(k => [k, props[k] ?? null]))
-      perform("@matomezu/line:line-update", { page: scene.page.id, line: line.id, props: patch }, { book })
+      perform(LINE_UPDATE.id, { page: scene.page.id, line: line.id, props: patch }, { book })
     },
   }
 }

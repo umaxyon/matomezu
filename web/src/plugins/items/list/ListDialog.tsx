@@ -32,6 +32,7 @@ import {
   useBookTheme,
   useSwatches,
 } from "../../base/ui"
+import { ROW_LINES } from "./actions"
 import { kit } from "./kit"
 import { LIST, LIST_FILL, type ListRow } from "./list"
 import { withRowLines } from "./rows"
@@ -45,7 +46,7 @@ const DIALOG_WIDTH = 440
 // 全部の行をそろえる行数の選択肢（「最大行」のほか）
 const PICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
-type ListProps = ItemProps<"@matomezu/list:shape-list">
+type ListProps = ItemProps<typeof LIST.id>
 
 // 選んだそばからリストに見せる項目
 type Look = Pick<ListProps, "captionAlign" | "theme" | "color" | "checklist" | "zebra" | "checkedGray" | "checkedOrder">
@@ -114,7 +115,7 @@ export function EditListDialog({ stage, args, onClose }: DialogProps<{ page: str
       props: { ...props, theme: props.theme ?? null, color: props.color ?? null },
     })
     if (done.ok && rowLines !== undefined && rows.length > 0)
-      perform("@matomezu/list:row-lines", { page: args.page, list: args.item, lines: rowLines })
+      perform(ROW_LINES.id, { page: args.page, list: args.item, lines: rowLines })
     if (done.ok) onClose()
     return done.ok
   }

@@ -14,6 +14,6 @@ export const MENU_CLOSE = kit.defineCommand({
 
 // Space で開いた道具のアイコンは、もう一度 Space で閉じる
 export const MENU_KEYS = defineKeys([
-  { key: "Escape", command: "@matomezu/base:menu-close", scope: "menu" },
-  { key: "Space", command: "@matomezu/base:menu-close", scope: "menu" },
+  { key: "Escape", command: MENU_CLOSE.id, scope: "menu" },
+  { key: "Space", command: MENU_CLOSE.id, scope: "menu" },
 ])

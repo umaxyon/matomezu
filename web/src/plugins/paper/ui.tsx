@@ -1,10 +1,11 @@
 // 紙のプラグインの見た目: 紙のビュー。末尾で、紙のビューが開く右クリックのメニューを機能台帳の型の側に書き足す
 import { definePluginUi } from "../../plugin-api/ui"
 import { PAPER_PLUGIN } from "."
+import { PAPER } from "./paper"
 import { PAPER_VIEW } from "./view/ui"
 
 export const PAPER_UI = definePluginUi(PAPER_PLUGIN, {
-  presentationViews: { "@matomezu/paper:paper": PAPER_VIEW },
+  presentationViews: { [PAPER.id]: PAPER_VIEW },
 })
 
 declare module "../../core/catalog" {

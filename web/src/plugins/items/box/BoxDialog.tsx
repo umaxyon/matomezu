@@ -28,7 +28,7 @@ import {
 import { BOX, BOX_FILL } from "./box"
 import { kit } from "./kit"
 
-type BoxProps = ItemProps<"@matomezu/box:shape-box">
+type BoxProps = ItemProps<typeof BOX.id>
 
 // 選んだそばから箱に見せる項目（寄せ・テーマ・色。テーマの undefined はブックのテーマ、色の undefined はテーマの塗り）
 type Look = Pick<BoxProps, "captionAlign" | "bodyAlign" | "theme" | "color">

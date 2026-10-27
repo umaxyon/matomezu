@@ -20,4 +20,4 @@ export const TOOL_PICKER = kit.defineCommand({
   when: ctx => paperOf(ctx.stage) !== null,
 })
 
-export const TOOL_PICKER_KEYS = defineKeys([{ key: "Space", command: "@matomezu/base:tool-picker", scope: "stage" }])
+export const TOOL_PICKER_KEYS = defineKeys([{ key: "Space", command: TOOL_PICKER.id, scope: "stage" }])

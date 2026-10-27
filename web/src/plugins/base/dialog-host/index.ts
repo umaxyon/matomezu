@@ -17,6 +17,6 @@ export const DIALOG_CLOSE = kit.defineCommand({
 })
 
 export const DIALOG_KEYS = defineKeys([
-  { key: "Enter", command: "@matomezu/base:dialog-submit", scope: "dialog" },
-  { key: "Escape", command: "@matomezu/base:dialog-close", scope: "dialog" },
+  { key: "Enter", command: DIALOG_SUBMIT.id, scope: "dialog" },
+  { key: "Escape", command: DIALOG_CLOSE.id, scope: "dialog" },
 ])

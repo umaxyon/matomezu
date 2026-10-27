@@ -2,10 +2,11 @@
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
+import { STAGE_CLOSE } from "."
 import styles from "./CloseButton.module.css"
 
 export function CloseButton({ stage }: { stage: string }) {
-  const close = useCommand(stage, "@matomezu/base:stage-close")
+  const close = useCommand(stage, STAGE_CLOSE.id)
   const t = useMessages(kit)
   if (!close.shown) return null
   return (

@@ -1,5 +1,6 @@
 // ex1 のダイアログ・ボタン・アイコン。枠は base のダイアログを使う
 import { Dialog, type DialogProps, useCommand, useMessages } from "matomezu/ui"
+import { HELLO, SWITCH_LANG } from "."
 import { kit } from "./kit"
 import { shout } from "./shout"
 import styles from "./views.module.css"
@@ -36,8 +37,8 @@ export function PageSettingsInstead({ onClose }: DialogProps<{ page: string }>) 
 
 // ステージの上の行に置くボタン: そのステージから自分のコマンドを呼ぶ
 export function Ex1Buttons({ stage }: { stage: string }) {
-  const hello = useCommand(stage, "ex1:hello")
-  const lang = useCommand(stage, "ex1:lang")
+  const hello = useCommand(stage, HELLO.id)
+  const lang = useCommand(stage, SWITCH_LANG.id)
   const t = useMessages(kit)
   return (
     <div>

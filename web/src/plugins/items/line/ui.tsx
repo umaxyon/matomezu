@@ -3,20 +3,22 @@ import { type ConnectorUi, definePluginUi } from "../../../plugin-api/ui"
 import { LINE_PLUGIN } from "."
 import { EditLineDialog } from "./LineDialog"
 import { LineLayer, PortOverlay } from "./LineLayer"
+import { LINE, LINE_EDIT_DIALOG, LINE_ROUTE } from "./line"
+import { LINE_CONTEXT } from "./menu"
 import { RouteSetting } from "./RouteSetting"
 
 export const LINE_CONNECTOR_UI = {
   layer: LineLayer,
   overlay: PortOverlay,
-  contextMenus: ["@matomezu/line:line-context"],
+  contextMenus: [LINE_CONTEXT],
 } as const satisfies ConnectorUi
 
-export const LINE_DIALOG_VIEWS = { "@matomezu/line:line-edit": EditLineDialog }
+export const LINE_DIALOG_VIEWS = { [LINE_EDIT_DIALOG.id]: EditLineDialog }
 
-export const LINE_SETTING_VIEWS = { "@matomezu/line:line-route": { control: RouteSetting } }
+export const LINE_SETTING_VIEWS = { [LINE_ROUTE.id]: { control: RouteSetting } }
 
 export const LINE_UI = definePluginUi(LINE_PLUGIN, {
-  connectors: { "@matomezu/line:connector-line": LINE_CONNECTOR_UI },
+  connectors: { [LINE.id]: LINE_CONNECTOR_UI },
   settingViews: LINE_SETTING_VIEWS,
   dialogViews: LINE_DIALOG_VIEWS,
 })

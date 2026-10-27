@@ -1,6 +1,6 @@
 // ex1 の見た目を結ぶ: ダイアログの中身・ビルトインのページの設定の差し替え・ステージの上の行に置いてほしいボタン・コマンドのアイコン
 import { definePluginUi, defineWidget } from "matomezu/ui"
-import { EX1 } from "."
+import { EX1, HELLO, HELLO_DIALOG, INSPECT_DIALOG } from "."
 import { kit } from "./kit"
 import { Ex1Buttons, HELLO_ICON, HelloDialog, InspectDialog, PageSettingsInstead } from "./views"
 
@@ -12,9 +12,9 @@ export const EX1_BUTTONS = defineWidget({
 })
 
 export const EX1_UI = definePluginUi(EX1, {
-  dialogViews: { "ex1:hello": HelloDialog, "ex1:inspect": InspectDialog },
+  dialogViews: { [HELLO_DIALOG.id]: HelloDialog, [INSPECT_DIALOG.id]: InspectDialog },
   widgets: [EX1_BUTTONS],
-  commandIcons: { "ex1:hello": HELLO_ICON },
+  commandIcons: { [HELLO.id]: HELLO_ICON },
   overrides: { dialogViews: { "@matomezu/base:page-settings": PageSettingsInstead } },
 })
 

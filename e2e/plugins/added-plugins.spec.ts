@@ -106,7 +106,7 @@ test("見た目の組み立てで食い違う追加プラグインは、画面�
   const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
   cpSync(resolve("test/added-plugins/ex3"), dir, { recursive: true })
   const ui = join(dir, "ui.tsx")
-  writeFileSync(ui, readFileSync(ui, "utf8").replace(`items: { "ex3:star": { view: StarView, icon: STAR_ICON } },`, ""))
+  writeFileSync(ui, readFileSync(ui, "utf8").replace(`items: { [STAR.id]: { view: StarView, icon: STAR_ICON } },`, ""))
   const errors: string[] = []
   page.on("console", m => {
     if (m.type() === "error") errors.push(m.text())
