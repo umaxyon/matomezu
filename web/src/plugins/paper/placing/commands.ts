@@ -2,7 +2,6 @@
 
 import {
   type CommandContext,
-  defineKeys,
   type Point,
   pagedOf,
   paperOf,
@@ -132,7 +131,7 @@ export const PAPER_RESIZE = kit.defineCommand({
 })
 
 // 選んでいるアイテムを消すキー（Mac の delete キーは Backspace として届く）
-export const ITEM_KEYS = defineKeys([
-  { key: "Delete", command: PAPER_DELETE.id, scope: "stage" },
-  { key: "Backspace", command: PAPER_DELETE.id, scope: "stage" },
-])
+export const ITEM_KEYS = [
+  kit.defineKey({ id: "paper-delete-delete", key: "Delete", command: PAPER_DELETE.id, scope: "stage" }),
+  kit.defineKey({ id: "paper-delete-backspace", key: "Backspace", command: PAPER_DELETE.id, scope: "stage" }),
+]

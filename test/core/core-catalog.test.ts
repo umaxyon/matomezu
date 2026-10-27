@@ -6,7 +6,7 @@ import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-cata
 import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
-import { defineLanguagePack } from "../../web/src/core/i18n/messages"
+import type { LanguagePackDef } from "../../web/src/core/i18n/messages"
 import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { perform } from "../../web/src/core/perform"
 import { resolveTokens, tokenDefsOf } from "../../web/src/core/theme"
@@ -65,7 +65,10 @@ describe("機能台帳", () => {
   test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は誤り", () => {
     const conflict = {
       ...BUILTIN_PARTS,
-      messages: [...BUILTIN_PARTS.messages, { "@matomezu/master:Master": { en: "Master", ja: "親分" } }],
+      messages: [
+        ...BUILTIN_PARTS.messages,
+        { id: "test:messages", messages: { "@matomezu/master:Master": { en: "Master", ja: "親分" } } },
+      ],
     }
     expect(checkCoreCatalog(conflict).map(problemText)).toEqual([
       "E017 message @matomezu/master:Master has different ja translations",
@@ -73,7 +76,10 @@ describe("機能台帳", () => {
     // 同じ訳と、ほかの言語の訳を足すのはよい
     const more = {
       ...BUILTIN_PARTS,
-      messages: [...BUILTIN_PARTS.messages, { Master: { ja: "マスター", fr: "Maître" } }],
+      messages: [
+        ...BUILTIN_PARTS.messages,
+        { id: "test:messages", messages: { Master: { ja: "マスター", fr: "Maître" } } },
+      ],
     }
     expect(checkCoreCatalog(more)).toEqual([])
     const untitled = { ...BUILTIN_PARTS, messages: [] }
@@ -81,12 +87,18 @@ describe("機能台帳", () => {
   })
 
   test("言語パックは言語を足し、どのプラグインの文言にも訳を足す。パックの訳がプラグインの訳に勝つ", () => {
-    const fr = defineLanguagePack({
+    const fr: LanguagePackDef = {
+      id: "test:fr",
       lang: "fr",
       name: "Français",
       messages: { "@matomezu/master:Master": "Maître", "@matomezu/box:Box": "Boîte" },
-    })
-    const jaFix = defineLanguagePack({ lang: "ja", name: "日本語", messages: { "@matomezu/master:Master": "親分" } })
+    }
+    const jaFix: LanguagePackDef = {
+      id: "test:ja",
+      lang: "ja",
+      name: "日本語",
+      messages: { "@matomezu/master:Master": "親分" },
+    }
     const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, languages: [fr, jaFix] })
     expect([...catalog.languages]).toEqual([
       ["en", "English"],
@@ -97,17 +109,30 @@ describe("機能台帳", () => {
     expect(translate(catalog.messages, "fr", "Add page")).toBe("Add page")
     expect(translate(catalog.messages, "ja", "@matomezu/master:Master")).toBe("親分")
     // インスタンスに無い鍵の訳は使わない
-    const stray = defineLanguagePack({
+    const stray: LanguagePackDef = {
+      id: "test:fr",
       lang: "fr",
       name: "Français",
       messages: { ["Nope" as "@matomezu/box:Box"]: "Non" },
-    })
+    }
     expect(buildCoreCatalog({ ...BUILTIN_PARTS, languages: [stray] }).messages.has("Nope")).toBe(false)
   })
 
+  test("文言の組・言語パック・テーマキーは id で機能台帳に並ぶ（土台の物の頭は matomezu）。同じ id は誤り", () => {
+    const catalog = buildCoreCatalog(BUILTIN_PARTS)
+    expect(catalog.messageSets.has("matomezu:messages")).toBe(true)
+    expect(catalog.messageSets.has("@matomezu/base:messages")).toBe(true)
+    expect([...catalog.languagePacks.keys()].slice(0, 2)).toEqual(["matomezu:en", "matomezu:ja"])
+    expect([...catalog.tokens.values()].every(t => catalog.tokens.get(t.id) === t)).toBe(true)
+    const fr: LanguagePackDef = { id: "a:fr", lang: "fr", name: "Français", messages: {} }
+    expect(checkCoreCatalog({ ...BUILTIN_PARTS, languages: [fr, fr] }).map(problemText)).toEqual([
+      "E001 language a:fr: id is registered twice",
+    ])
+  })
+
   test("名前の違う同じ言語と、パックどうしで違う訳は誤り", () => {
-    const a = defineLanguagePack({ lang: "fr", name: "Français", messages: { "@matomezu/box:Box": "Boîte" } })
-    const b = defineLanguagePack({ lang: "fr", name: "French", messages: { "@matomezu/box:Box": "Caisse" } })
+    const a: LanguagePackDef = { id: "a:fr", lang: "fr", name: "Français", messages: { "@matomezu/box:Box": "Boîte" } }
+    const b: LanguagePackDef = { id: "b:fr", lang: "fr", name: "French", messages: { "@matomezu/box:Box": "Caisse" } }
     expect(checkCoreCatalog({ ...BUILTIN_PARTS, languages: [a, b] }).map(problemText)).toEqual([
       "E020 language fr has different names",
       "E021 language packs give message @matomezu/box:Box different fr translations",

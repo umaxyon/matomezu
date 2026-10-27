@@ -18,9 +18,13 @@
 | 道具の組（`ToolSetDef`） | ステージで切り替える道具の並び | `core/def/tool.ts` |
 | コマンド（`CommandDef`） | 画面の入口（ボタン・メニュー・キーから呼ぶ） | `store/commands/def.ts` |
 | ダイアログ（`DialogDef`） | 開くダイアログの id | `store/dialogs.ts` |
-| 文言（`MessageSetDef`） | 画面に出す文と訳 | `core/i18n` |
+| 文言の組（`MessageSetDef`） | プラグイン 1 つの、画面に出す文と訳（id は `<プラグインの id>:messages`） | `core/i18n/messages.ts` |
+| 言語パック（`LanguagePackDef`） | 言語 1 つの名前と、どのプラグインの文言にも足せる訳（id は `<プラグインの id>:<言語>`） | `core/i18n/messages.ts` |
+| テーマキー（`TokenDef`） | テーマの値の名前と既定 | `core/def/theme.ts` |
+| キーの既定の割り当て（`KeyDef`） | キーとコマンドの組 1 つ | `store/keys.ts` |
 
-- 定義の種類（文言と言語と、プラグインが持つテーマキーを除く上の表）の一覧は `core/catalog.ts` の `PARTS`（フィールドの名前・機能台帳の段・誤りの文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その段の層が `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインのフィールド（`PluginParts`）・機能台帳の core と store の段・id の頭と重なりの検査は、この一覧から作る。種類ごとに意味の違う見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く（種類が抜けると型の誤り。書いたフィールドと関数があることはテストが確かめる）
+- 定義の種類（文言の組・言語パック・テーマキー・キーの既定の割り当てを除く上の表）の一覧は `core/catalog.ts` の `PARTS`（フィールドの名前・機能台帳の段・誤りの文の名前）と `PartTables`（id の表）だけに書く。定義の型は、その段の層が `PartDefTable` に書き足す（core の種類は `core/core-catalog.ts`、store の種類は `store/plugin.ts`）。プラグインのフィールド（`PluginParts`）・機能台帳の core と store の段・id の頭と重なりの検査は、この一覧から作る。種類ごとに意味の違う見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く（種類が抜けると型の誤り。書いたフィールドと関数があることはテストが確かめる）
+- 文言の組・言語パック・テーマキー・キーの既定の割り当ては、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとブックのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（core の段の `messageSets`・`languagePacks`・`tokens`、store の段の `keys`。core の段の `tokens` はプラグインの `tokens` の物で、アイテムとブックのタイプのテーマキーはその定義の `tokens` から引く）。同じ id は誤り。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `OTHER_DEFINES` に書く。文言の組は `pluginKit` が作り、土台の文言の組と言語の id の頭は `matomezu`（`matomezu:messages`・`matomezu:en`・`matomezu:ja`）
 - 定義は `defineX()` で書く。React を使わない（描き方はプラグインの見た目で結ぶ）
 - 機能台帳の core の段は定義の組から `buildCoreCatalog` で作り、作ったあとは変えない。`checkCoreCatalog` が表どうしの参照を確かめ、食い違えば作らない
 - core の関数は使う表を最初の引数（`catalog`。機能台帳の core の段）で受け取り、アクションは `ctx.catalog` で受け取る
@@ -109,7 +113,7 @@
 - 1 つのインスタンスの中で、種類ごとに一意。データに残る id は、ほかのマシンやほかの人の matomezu でも同じものを指す
 - プラグインが足す物の id は `<プラグインの id>:<名前>`（例: `@foo/stars:star`・`@matomezu/box:shape-box`）。ビルトインプラグインも同じ。定義の種類・テーマキー・ウィジェット・スロット・キーの範囲・メニュー・右クリックのメニュー・能力のどれも
 - 名前に使える字は英小文字・数字・`-` だけで、先頭は英小文字（kebab-case）。プラグインの id（npm のパッケージ名）は `:` を含まないので、区切りを見誤らない
-- `:` の無い名前は土台の言葉（スロットの `root`、キーの範囲の `stage`・`dialog`・`menu`・`global`、土台のテーマキーの `accent` など）
+- `:` の無い名前は土台の言葉（スロットの `root`、キーの範囲の `stage`・`dialog`・`menu`・`global`、土台のテーマキーの `accent` など）。土台の文言の組と言語パックの id だけは `matomezu:<名前>`（`matomezu:messages`・`matomezu:en`）
 - キーの範囲・スロット・メニュー・右クリックのメニュー・能力の名前は、型の表（`KeyScopeTable`・`SlotTable`・`MenuTable`・`ContextMenuTable`・`CapabilityTable`）に書き足して作る。土台の言葉のほかは `<プラグインの id>:<名前>` で、渡したプラグインの id で始まるかを `createMatomezu` の型が確かめる
 - プラグインは自分の物を短い名前で定義する。プラグイン API の `pluginKit(プラグインの id, 文言)` が返す定義の関数（`kit.defineShape` など）が頭を付け、返した定義の id は長い形（型も）。自分の物は返した定義（`STAR.id`）か `kit.name(名前)` で名指し、ほかのプラグインの物は長い id で書く
 - ブックのタイプの `schema` に `type` は書かず、`create` の返すブックにも書かない。1 冊だけのタイプの `book` には `type`・`id` を書かない（`kit.defineBookType` が本当の id で足す）

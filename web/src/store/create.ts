@@ -23,7 +23,7 @@ type Gaps<P> = {
     | `${K}:${Exclude<IdsOf<P, K>, keyof PartTables[K]> & string}`
 }[Part]
 // 文言の鍵の食い違い（土台の文言は、いつも表に入る）
-type MessageKeysOf<P> = P extends { messages?: infer M } ? (M extends object ? keyof M : never) : never
+type MessageKeysOf<P> = P extends { messages?: { messages: infer M } } ? (M extends object ? keyof M : never) : never
 type Provided<P> = keyof typeof MESSAGES | MessageKeysOf<P>
 type MessageGaps<P> =
   | `messages:${Exclude<keyof MessageTable, Provided<P>> & string}`

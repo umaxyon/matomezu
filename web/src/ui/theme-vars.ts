@@ -35,7 +35,7 @@ export function useTokenScope(def: string): CSSProperties {
     if (owner === null) return {}
     const declared = [
       ...[...catalog.bookTypes.values(), ...catalog.items.values()].flatMap(d => d.tokens.map(t => t.id)),
-      ...catalog.tokens.map(t => t.id),
+      ...catalog.tokens.keys(),
     ]
     return ownTokenVars(declared, owner)
   }, [catalog, def])

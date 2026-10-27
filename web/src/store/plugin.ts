@@ -26,9 +26,9 @@ declare module "../core/catalog" {
 
 // プラグインが持つ定義: 定義の種類ごとの並び（core/catalog.ts の PARTS）と、文言・言語・キーの既定の割り当て
 export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } & {
-  messages?: MessageSetDef // このプラグインの文言（defineMessages で書き、機能台帳の型の側 MessageTable に書き足す）
-  languages?: readonly LanguagePackDef[] // 持ち込む言語（defineLanguagePack。ほかのプラグインの文言の訳も持てる）
-  keys?: readonly KeyDef[] // キーの既定の割り当て（結べるのは自分のコマンドだけ。store/keys.ts）
+  messages?: MessageSetDef // このプラグインの文言（defineMessages で書いて pluginKit に渡し、機能台帳の型の側 MessageTable に書き足す）
+  languages?: readonly LanguagePackDef[] // 持ち込む言語（kit.defineLanguagePack。ほかのプラグインの文言の訳も持てる）
+  keys?: readonly KeyDef[] // キーの既定の割り当て（kit.defineKey。結べるのは自分のコマンドだけ。store/keys.ts）
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
 }
 
@@ -44,7 +44,7 @@ export type IdsOf<P, K extends Part> = P extends { [k in K]?: readonly (infer D)
   : never
 
 // 頭に「プラグインの id と :」が付いていない id と文言の鍵、英語の文（en）を持たない文言の鍵
-type MessagesOf<P> = P extends { messages?: infer M }
+type MessagesOf<P> = P extends { messages?: { messages: infer M } }
   ? M extends object
     ? M
     : Record<never, never>
@@ -114,7 +114,7 @@ export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUIL
 export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
-  keys: readonly DefaultKey[] // キーの既定の割り当て（キーはそろえた書き方）
+  keys: ReadonlyMap<string, DefaultKey> // キーの既定の割り当て（id → 割り当て。キーはそろえた書き方）
   notices: readonly Notice[] // 組み立てで見つけた、止めるほどではない間違い（コマンドの performs。core/notices.ts）
 }
 
@@ -144,7 +144,13 @@ export function assemble(
       if (!isOwnedBy(p.id, t.id)) fail("E301", { plugin: p.id, kind: "token", id: t.id })
       if (/^(theme|skin)-/.test(splitId(t.id).name)) fail("E306", { plugin: p.id, token: t.id })
     }
-    for (const [key, t] of Object.entries(p.messages ?? {})) {
+    const own: [string, string][] = [
+      ...(p.messages ? [["messages", p.messages.id] as [string, string]] : []),
+      ...(p.languages ?? []).map(l => ["language", l.id] as [string, string]),
+      ...(p.keys ?? []).map(k => ["key", k.id] as [string, string]),
+    ]
+    for (const [kind, id] of own) if (!isOwnedBy(p.id, id)) fail("E301", { plugin: p.id, kind, id })
+    for (const [key, t] of Object.entries(p.messages?.messages ?? {})) {
       if (!key.startsWith(`${p.id}:`)) fail("E303", { plugin: p.id, key })
       if (t.en === undefined) fail("E304", { plugin: p.id, key })
     }
@@ -153,12 +159,18 @@ export function assemble(
   const commands = all("commands")
   const dialogs = all("dialogs")
   // core の段の種類の重なりは buildCoreCatalog が確かめる
-  const problems = partsOf("store").flatMap(k =>
-    duplicates(
-      PARTS[k].label,
-      all(k).map(d => d.id),
+  const problems = [
+    ...partsOf("store").flatMap(k =>
+      duplicates(
+        PARTS[k].label,
+        all(k).map(d => d.id),
+      ),
     ),
-  )
+    ...duplicates(
+      "key",
+      plugins.flatMap(p => (p.keys ?? []).map(k => k.id)),
+    ),
+  ]
   const dialogIds = new Set(dialogs.map(d => d.id))
   for (const i of all("items"))
     if (i.kind === "shape")
@@ -187,7 +199,7 @@ export function assemble(
       store: {
         commands: new Map(commands.map(c => [c.id, c])),
         dialogs: new Map(dialogs.map(d => [d.id, d])),
-        keys,
+        keys: new Map(keys.map(k => [k.id, k])),
         notices: [...performsNotices(plugins, catalog), ...keyNotices(keys)],
       },
     },
@@ -208,7 +220,10 @@ function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>):
       else if (!commands.has(k.command)) problems.push(problem("E024", { key: k.key, command: k.command }))
       else if (!isBuiltin(p) && !own.has(k.command))
         problems.push(problem("E302", { plugin: p.id, key: k.key, command: k.command }))
-      else keys.push({ binding: { ...k, key }, plugin: p.id, builtin: isBuiltin(p) })
+      else {
+        const { id, ...binding } = k
+        keys.push({ id, binding: { ...binding, key }, plugin: p.id, builtin: isBuiltin(p) })
+      }
     }
   }
   const seen = new Set<string>()

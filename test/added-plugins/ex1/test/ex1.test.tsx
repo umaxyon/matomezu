@@ -54,5 +54,5 @@ test("置いてほしいメニューと、既定のキーが入る", () => {
   const layout = placeAdded(DEFAULT_LAYOUT, instance.plugins)
   expect(layout.menus["@matomezu/base:stage-menu"]?.at(-1)).toBe("ex1:hello")
   expect(layout.contextMenus?.["@matomezu/paper:item-context"]?.slice(-2)).toEqual(["-", "ex1:inspect"])
-  expect(instance.catalog.store.keys.map(k => k.binding.command)).toContain("ex1:hello")
+  expect([...instance.catalog.store.keys.values()].map(k => k.binding.command)).toContain("ex1:hello")
 })

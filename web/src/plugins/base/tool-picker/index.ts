@@ -3,7 +3,6 @@
 
 import type { ToolId } from "../../../core/catalog"
 import { paperOf } from "../../../core/stage"
-import { defineKeys } from "../../../store/keys"
 import { kit } from "../kit"
 
 export const TOOL_SET = kit.defineCommand({
@@ -21,4 +20,6 @@ export const TOOL_PICKER = kit.defineCommand({
   when: ctx => paperOf(ctx.stage) !== null,
 })
 
-export const TOOL_PICKER_KEYS = defineKeys([{ key: "Space", command: TOOL_PICKER.id, scope: "stage" }])
+export const TOOL_PICKER_KEYS = [
+  kit.defineKey({ id: "tool-picker-space", key: "Space", command: TOOL_PICKER.id, scope: "stage" }),
+]

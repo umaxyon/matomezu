@@ -7,17 +7,16 @@ import type { Inspected, Source, Step } from "../core/inspect"
 import { type KeyBinding, type KeyChanges, normalizeKey, sameBinding } from "../core/keys"
 import type { CommandArgs } from "./commands"
 
-// プラグインが書く既定の割り当て。コマンドの引数の型が、args の型になる（引数の無いコマンドには書かない）
+// プラグインが書く既定の割り当て 1 つ（kit.defineKey で書き、id に頭が付く）。コマンドの引数の型が、args の型になる（引数の無いコマンドには書かない）
 export type KeyDef = {
-  [C in CommandId]: { key: string; command: C; scope: KeyScopeId } & (CommandArgs<C> extends []
+  [C in CommandId]: { id: string; key: string; command: C; scope: KeyScopeId } & (CommandArgs<C> extends []
     ? { args?: undefined }
     : { args: CommandArgs<C>[0] })
 }[CommandId]
 
-export const defineKeys = <const K extends readonly KeyDef[]>(keys: K): K => keys
-
 // 既定の 1 行と、それを書いたプラグイン（キーはそろえた書き方）
 export interface DefaultKey {
+  id: string // 既定の割り当ての id（KeyDef の id）
   binding: KeyBinding
   plugin: string
   builtin: boolean

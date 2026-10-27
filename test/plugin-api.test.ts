@@ -35,8 +35,6 @@ test("matomezu が出す名前", () => {
     "defineConnector",
     "defineDialog",
     "defineDialogWith",
-    "defineKeys",
-    "defineLanguagePack",
     "defineMessages",
     "definePaper",
     "definePlugin",

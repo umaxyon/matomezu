@@ -107,7 +107,10 @@ describe("インスタンスを組み立てる", () => {
   })
 
   test("プラグインの文言はインスタンスの表に入り、コマンドの名前が文言の表に無ければ作らない", () => {
-    const greet = definePlugin({ id: "greet", messages: { "greet:hi": { en: "Hi", ja: "やあ" } } })
+    const greet = definePlugin({
+      id: "greet",
+      messages: { id: "greet:messages", messages: { "greet:hi": { en: "Hi", ja: "やあ" } } },
+    })
     const instance = createMatomezu({ plugins: [...BUILTIN, greet], partial: true })
     expect(instance.catalog.core.messages.get("greet:hi")).toEqual({ en: "Hi", ja: "やあ" })
     // 訳の無い言語では英語の文を出す
@@ -124,9 +127,12 @@ describe("インスタンスを組み立てる", () => {
 
   test("プラグインの文言の鍵は頭にプラグインの id と : を付け、英語の文（en）を持つ。そうでなければ型の誤りで、作らない", () => {
     // @ts-expect-error 頭が無い鍵
-    const bare = definePlugin({ id: "greet", messages: { hi: { en: "Hi" } } })
+    const bare = definePlugin({ id: "greet", messages: { id: "greet:messages", messages: { hi: { en: "Hi" } } } })
     // @ts-expect-error 英語の文が無い
-    const noEnglish = definePlugin({ id: "greet", messages: { "greet:hi": { ja: "やあ" } } })
+    const noEnglish = definePlugin({
+      id: "greet",
+      messages: { id: "greet:messages", messages: { "greet:hi": { ja: "やあ" } } },
+    })
     expect(thrown(() => createMatomezu({ plugins: [...BUILTIN, bare], partial: true }))).toMatchObject({ code: "E303" })
     expect(thrown(() => createMatomezu({ plugins: [...BUILTIN, noEnglish], partial: true }))).toMatchObject({
       code: "E304",

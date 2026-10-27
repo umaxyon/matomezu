@@ -254,7 +254,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
   const keysFor = (changes: KeyChanges): KeyTable => {
-    if (keyCache?.changes !== changes) keyCache = { changes, table: keyTable(defs.catalog.store.keys, changes) }
+    if (keyCache?.changes !== changes)
+      keyCache = { changes, table: keyTable([...defs.catalog.store.keys.values()], changes) }
     return keyCache.table
   }
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {

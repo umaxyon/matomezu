@@ -19,10 +19,11 @@ import type { SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
 import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
-import type { MessageSetDef } from "../core/i18n/messages"
+import type { LanguagePackDef, MessageMap } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
 import type { CommandDef, CommandPlace } from "./commands/def"
 import type { DialogDef } from "./dialogs"
+import type { KeyDef } from "./keys"
 import type { PluginParts } from "./plugin"
 
 // 頭を付けた文言の表
@@ -50,14 +51,16 @@ type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<
     : { create(init: NewBook): DataOf<WithTypeField<S, Id>> })
 
 // 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
-export interface PluginKit<P extends string, M extends MessageSetDef> {
+export interface PluginKit<P extends string, M extends MessageMap> {
   id: P // プラグインの id
   messages: OwnedMessages<P, M> // 頭を付けた文言（機能台帳の型の側 MessageTable に書き足す）
   name<const N extends string>(name: N): Owned<P, N> // 自分の名前の本当の id
   message<const K extends keyof M & string>(key: K): Owned<P, K> // 自分の文言の本当の鍵
 
-  // プラグインの束（id と頭を付けた文言を足す）
-  plugin<const D extends Omit<PluginParts, "messages">>(parts: D): D & { id: P; messages: OwnedMessages<P, M> }
+  // プラグインの束（id と、頭を付けた文言の組を足す。文言の組の id は「プラグインの id:messages」）
+  plugin<const D extends Omit<PluginParts, "messages">>(
+    parts: D,
+  ): D & { id: P; messages: { id: Owned<P, "messages">; messages: OwnedMessages<P, M> } }
 
   defineShape<
     const Id extends string,
@@ -147,11 +150,17 @@ export interface PluginKit<P extends string, M extends MessageSetDef> {
 
   defineDialog<const Id extends string>(def: { id: Id }): DialogDef & { id: Owned<P, Id> }
 
+  // キーの既定の割り当て 1 つ（command はコマンドの本当の id。args はそのコマンドの引数の型）
+  defineKey<const K extends KeyDef>(def: K): Omit<K, "id"> & { id: Owned<P, K["id"]> }
+
+  // 言語パック: id は言語から付ける（「プラグインの id:言語」）
+  defineLanguagePack<const L extends Omit<LanguagePackDef, "id">>(def: L): L & { id: Owned<P, L["lang"]> }
+
   // 開くときに A の値を渡すダイアログ（kit.defineDialogWith<渡す値の型>()({ id })）
   defineDialogWith<A>(): <const Id extends string>(def: { id: Id }) => DialogDef<A> & { id: Owned<P, Id> }
 }
 
-export function pluginKit<const P extends string, const M extends MessageSetDef = Record<never, never>>(
+export function pluginKit<const P extends string, const M extends MessageMap = Record<never, never>>(
   plugin: P,
   messages: M = {} as M,
 ): PluginKit<P, M> {
@@ -179,7 +188,7 @@ export function pluginKit<const P extends string, const M extends MessageSetDef 
       ...parts,
       ...(parts.tokens ? { tokens: tokens(parts.tokens) } : {}),
       id: plugin,
-      messages: ownMessages,
+      messages: { id: owned(plugin, "messages"), messages: ownMessages },
     }),
     defineShape: place,
     defineConnector: place,
@@ -206,6 +215,8 @@ export function pluginKit<const P extends string, const M extends MessageSetDef 
     defineCommand: place,
     defineDialog: place,
     defineDialogWith: () => place,
+    defineKey: (def: { id: string }) => ({ ...def, id: owned(plugin, def.id) }),
+    defineLanguagePack: (def: { lang: string }) => ({ ...def, id: owned(plugin, def.lang) }),
   }
   return kit as unknown as PluginKit<P, M>
 }

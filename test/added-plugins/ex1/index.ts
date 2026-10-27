@@ -1,6 +1,6 @@
 // ex1: 自分のブックのタイプを持たず、画面に足すだけの追加プラグイン（React なし）
 // コマンド（引数なし・あり・右クリックされたアイテムを受け取る）・置いてほしいメニュー・キーの既定の割り当て・ダイアログ・文言と言語
-import { defineKeys, defineLanguagePack, definePlugin } from "matomezu"
+import { definePlugin } from "matomezu"
 import { kit } from "./kit"
 import { EX1_FRENCH } from "./messages"
 
@@ -36,17 +36,17 @@ export const INSPECT = kit.defineCommand({
 })
 
 // 既定のキー。結べるのは自分のコマンドだけで、引数のあるコマンドには args に決まった値を書く
-export const EX1_KEYS = defineKeys([
-  { key: "Mod+Shift+H", command: HELLO.id, scope: "stage" },
-  { key: "Mod+Shift+J", command: SWITCH_LANG.id, scope: "global", args: "ja" },
-])
+export const EX1_KEYS = [
+  kit.defineKey({ id: "hello-key", key: "Mod+Shift+H", command: HELLO.id, scope: "stage" }),
+  kit.defineKey({ id: "lang-ja-key", key: "Mod+Shift+J", command: SWITCH_LANG.id, scope: "global", args: "ja" }),
+]
 
 export const EX1 = definePlugin(
   kit.plugin({
     commands: [HELLO, SWITCH_LANG, INSPECT],
     keys: EX1_KEYS,
     dialogs: [HELLO_DIALOG, INSPECT_DIALOG],
-    languages: [defineLanguagePack(EX1_FRENCH)],
+    languages: [kit.defineLanguagePack(EX1_FRENCH)],
   }),
 )
 

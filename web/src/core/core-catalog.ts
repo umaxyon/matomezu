@@ -15,7 +15,7 @@ import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
 import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail, matomezuError, type Problem, problem } from "./errors"
 import type { Messages } from "./i18n/i18n"
-import { LANGUAGES, type Lang, type LanguagePackDef, MESSAGES, type MessageSetDef } from "./i18n/messages"
+import { CORE_MESSAGES, LANGUAGES, type Lang, type LanguagePackDef, type MessageSetDef } from "./i18n/messages"
 import { splitId } from "./names"
 import { type Notice, notice } from "./notices"
 import { placedSchema } from "./placed"
@@ -44,7 +44,7 @@ declare module "./catalog" {
 
 // 表を作るもとの、定義の組: core の段の種類ごとの定義の並びと、文言・言語
 export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable[K][] } & {
-  messages: readonly MessageSetDef[] // 土台の文言（MESSAGES）は、いつも表に入る
+  messages: readonly MessageSetDef[] // 土台の文言（CORE_MESSAGES）は、いつも表に入る
   languages: readonly LanguagePackDef[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
   tokens: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムやタイプが共に使う）
 }
@@ -59,11 +59,13 @@ export interface BookSchemas {
 export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDefTable[K]> } & {
   parts: CoreCatalogParts
   schemas: ReadonlyMap<string, BookSchemas>
-  messages: Messages
-  languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語の id → 名前（土台の言語が先、あとはパックの順）
+  messageSets: ReadonlyMap<string, MessageSetDef> // 文言の組（土台の組を含む）
+  languagePacks: ReadonlyMap<string, LanguagePackDef> // 言語パック（土台の言語を含む）
+  messages: Messages // 文言の組と言語パックを重ねた、文言の鍵 → 言語ごとの訳
+  languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語 → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
   notices: readonly Notice[] // 組み立てで見つけた、止めるほどではない間違い（core/notices.ts）
-  tokens: readonly TokenDef[] // プラグインが持つテーマキー
+  tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとブックのタイプのテーマキーは、その定義の tokens）
 }
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
@@ -83,11 +85,13 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     ...tables,
     parts,
     schemas,
+    messageSets: byId(allMessages(parts)),
+    languagePacks: byId(allLanguages(parts)),
     messages: mergeMessages(parts),
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
     notices: coreNotices(parts),
-    tokens: parts.tokens,
+    tokens: byId(parts.tokens),
   }
 }
 
@@ -152,14 +156,14 @@ export function bookType(catalog: CoreCatalog, id: string): BookTypeDef {
   return catalog.bookTypes.get(id) ?? fail("E101", { id })
 }
 
-const allMessages = (parts: CoreCatalogParts) => [MESSAGES, ...parts.messages]
+const allMessages = (parts: CoreCatalogParts) => [CORE_MESSAGES, ...parts.messages]
 const allLanguages = (parts: CoreCatalogParts) => [...LANGUAGES, ...parts.languages]
 
 // 文言の鍵 → 言語ごとの訳。プラグインの文言の訳に、言語パックの訳を重ねる（パックが勝つ）。インスタンスに無い鍵のパックの訳は使わない
 function mergeMessages(parts: CoreCatalogParts): Messages {
   const messages = new Map<string, Readonly<Record<Lang, string>>>()
   for (const set of allMessages(parts))
-    for (const [key, t] of Object.entries(set)) messages.set(key, { ...messages.get(key), ...t })
+    for (const [key, t] of Object.entries(set.messages)) messages.set(key, { ...messages.get(key), ...t })
   for (const pack of allLanguages(parts))
     for (const [key, text] of Object.entries(pack.messages)) {
       const known = messages.get(key)
@@ -198,6 +202,16 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     const seen = new Set<string>()
     for (const d of parts[k] as readonly { id: string }[]) {
       if (seen.has(d.id)) problems.push(problem("E001", { kind: PARTS[k].label, id: d.id }))
+      seen.add(d.id)
+    }
+  }
+  for (const [kind, defs] of [
+    ["messages", allMessages(parts)],
+    ["language", allLanguages(parts)],
+  ] as const) {
+    const seen = new Set<string>()
+    for (const d of defs) {
+      if (seen.has(d.id)) problems.push(problem("E001", { kind, id: d.id }))
       seen.add(d.id)
     }
   }
@@ -263,7 +277,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   // 同じ鍵の同じ言語に違う訳を持つ文言（プラグインの文言どうし・言語パックどうし）、名前の違う同じ言語、文言の表に無い名前
   const messages = new Map<string, Record<Lang, string>>()
   for (const set of allMessages(parts))
-    for (const [key, t] of Object.entries(set)) {
+    for (const [key, t] of Object.entries(set.messages)) {
       const known = (messages.get(key) ?? messages.set(key, {}).get(key)) as Record<Lang, string>
       for (const [lang, text] of Object.entries(t)) {
         if (known[lang] !== undefined && known[lang] !== text) problems.push(problem("E017", { key, lang }))

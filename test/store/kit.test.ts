@@ -102,3 +102,17 @@ test("組み立ては、名前の字と、テーマキーの名前が土台の C
     code: "E306",
   })
 })
+
+test("文言の組・言語パック・キーの既定の割り当ても id を持つ（文言の組は「プラグインの id:messages」、言語パックは「プラグインの id:言語」）", () => {
+  expect(kit.plugin({}).messages.id).toBe("@foo/stars:messages")
+  expect(kit.plugin({}).messages.messages).toEqual(kit.messages)
+  const fr = kit.defineLanguagePack({ lang: "fr", name: "Français", messages: { "Add page": "Ajouter une page" } })
+  expect(fr.id).toBe("@foo/stars:fr")
+  const key = kit.defineKey({
+    id: "close-escape",
+    key: "Escape",
+    command: "@matomezu/base:dialog-close",
+    scope: "dialog",
+  })
+  expect(key.id).toBe("@foo/stars:close-escape")
+})

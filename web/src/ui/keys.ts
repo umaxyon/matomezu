@@ -53,7 +53,10 @@ export function KeyListener() {
 export function useKeyLabel(command: CommandId): string | null {
   const defs = useInstance()
   const changes = useMatomezuState(s => s.settings.keys)
-  const table = useMemo(() => keyTable(defs.catalog.store.keys, changes), [defs.catalog.store.keys, changes])
+  const table = useMemo(
+    () => keyTable([...defs.catalog.store.keys.values()], changes),
+    [defs.catalog.store.keys, changes],
+  )
   const first = keysOf(table, command)[0]
   return first ? keyLabel(first.binding.key, isMac()) : null
 }

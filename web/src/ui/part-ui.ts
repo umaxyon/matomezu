@@ -28,3 +28,6 @@ export const PART_UI = {
   commands: { views: ["commandIcons"], define: ["defineCommand"] },
   dialogs: { views: ["dialogViews"], define: ["defineDialog", "defineDialogWith"] },
 } as const satisfies Record<Part, PartUi>
+
+// 定義の種類（PARTS）に入らない定義オブジェクトを書く関数（キーの既定の割り当て・言語パック。プラグインの keys・languages に渡す。見た目は無い）
+export const OTHER_DEFINES = ["defineKey", "defineLanguagePack"] as const satisfies readonly DefineName[]

@@ -54,7 +54,7 @@ export function tokenDefsOf(catalog: CoreCatalog, type: BookTypeDef): TokenDef[]
   const defs = [
     ...type.tokens,
     ...items.flatMap(i => i.tokens),
-    ...catalog.tokens.filter(t => owners.has(splitId(t.id).owner)),
+    ...[...catalog.tokens.values()].filter(t => owners.has(splitId(t.id).owner)),
   ]
   return [...new Map(defs.map(d => [d.id, d])).values()]
 }

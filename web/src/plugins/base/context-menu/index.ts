@@ -1,5 +1,4 @@
 // メニューのコマンド: 開いているメニュー（右クリックのメニュー・道具のアイコン）を閉じる（キーの既定は Escape と Space）
-import { defineKeys } from "../../../store/keys"
 import { kit } from "../kit"
 
 export const MENU_CLOSE = kit.defineCommand({
@@ -13,7 +12,7 @@ export const MENU_CLOSE = kit.defineCommand({
 })
 
 // Space で開いた道具のアイコンは、もう一度 Space で閉じる
-export const MENU_KEYS = defineKeys([
-  { key: "Escape", command: MENU_CLOSE.id, scope: "menu" },
-  { key: "Space", command: MENU_CLOSE.id, scope: "menu" },
-])
+export const MENU_KEYS = [
+  kit.defineKey({ id: "menu-close-escape", key: "Escape", command: MENU_CLOSE.id, scope: "menu" }),
+  kit.defineKey({ id: "menu-close-space", key: "Space", command: MENU_CLOSE.id, scope: "menu" }),
+]

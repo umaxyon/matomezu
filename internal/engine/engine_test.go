@@ -257,7 +257,7 @@ func TestKeepsTheCatalogWhenTheAICatalogCannotBeMade(t *testing.T) {
 var m = globalThis.__matomezuModules["matomezu"];
 module.exports.default = {
   id: "thrower",
-  messages: { "thrower:throw": { en: "Throw" } },
+  messages: { id: "thrower:messages", messages: { "thrower:throw": { en: "Throw" } } },
   actions: [{
     id: "thrower:boom", title: "thrower:throw", aiDescription: "", target: "book", attach: { books: true },
     args: m.z.strictObject({}),

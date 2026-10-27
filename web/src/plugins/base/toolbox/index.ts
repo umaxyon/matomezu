@@ -1,5 +1,4 @@
 // ツールボックスのコマンド: 置こうとしているアイテムを取り消す（キーの既定は Escape）
-import { defineKeys } from "../../../store/keys"
 import { kit } from "../kit"
 
 export const TOOLBOX_CANCEL = kit.defineCommand({
@@ -9,4 +8,6 @@ export const TOOLBOX_CANCEL = kit.defineCommand({
   when: ctx => ctx.stage.placing !== null,
 })
 
-export const TOOLBOX_KEYS = defineKeys([{ key: "Escape", command: TOOLBOX_CANCEL.id, scope: "stage" }])
+export const TOOLBOX_KEYS = [
+  kit.defineKey({ id: "toolbox-cancel-escape", key: "Escape", command: TOOLBOX_CANCEL.id, scope: "stage" }),
+]
