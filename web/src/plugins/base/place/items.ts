@@ -3,7 +3,7 @@
 // 形が変わったあとは、ページのつなぐものの決まりで整える（core/placed.ts の tidyPage）
 import { type PagedBook, putPage } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { ConnectorData, ShapeItemDef } from "../../../core/def/item"
+import type { ConnectorData, PageContext, ShapeItemDef } from "../../../core/def/item"
 import type { Point, Size } from "../../../core/geom"
 import { freshId } from "../../../core/ids"
 import { resolvePaper } from "../../../core/paper"
@@ -22,6 +22,7 @@ import {
   shapesOf,
   tidyPage as tidyItems,
 } from "../../../core/placed"
+import type { Book } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
@@ -72,6 +73,10 @@ const captionWidth = (catalog: CoreCatalog, item: PlacedShape): number => {
   return def ? (def.captionWidth?.(item) ?? def.size.w) : 0
 }
 
+// キャプションが切れずに見える高さ（定義の captionHeight。無ければ null で、縦にはキャプションで広げない）
+const captionHeight = (catalog: CoreCatalog, item: PlacedShape): number | null =>
+  shapeDefOf(catalog, item.item)?.captionHeight?.(item) ?? null
+
 // つかんだ辺（x は左か右、y は上か下。角なら両方）
 export interface Edges {
   x?: "left" | "right"
@@ -102,10 +107,13 @@ export function resizedBy(
   return { x: h.at, y: v.at, w: h.len, h: v.len }
 }
 
-// 中身を変えた形 next の幅: キャプションの項目（定義の captionProp）が変わって、キャプションが見える幅（20 字まで）より狭ければ、そこまで右へ広げる（紙の右の端で止める）。
+// 中身を変えた形 next の大きさ: キャプションの項目（定義の captionProp）が変わって、キャプションが見える幅（20 字まで）より狭ければ、そこまで広げる。
+// 文字を縦に置く形（定義の captionHeight を持つ形）は、見える高さまで縦にも広げる。
+// 広げる向きはブックのタイプの growFrom（無ければ左・上を保って右・下へ。center なら真ん中を保って両側へ）で、紙からははみ出さない。
 // 狭めはしない。キャプションが変わらないか、captionProp の無い形ならそのまま
 export function widenForCaption(
   catalog: CoreCatalog,
+  book: Book,
   page: ItemPage,
   before: PlacedShape,
   next: PlacedShape,
@@ -118,8 +126,18 @@ export function widenForCaption(
   const size = placedSize(catalog, next)
   const paper = paperSize(catalog, page)
   if (!size || !paper) return next
-  const w = Math.min(captionWidth(catalog, next), paper.w - next.x)
-  return w > size.w ? { ...next, w } : next
+  const from = catalog.bookTypes.get(book.type)?.growFrom?.(settingsAt(catalog, book, page))
+  // 1 つの向きに、want まで広げた位置と長さ（at は左か上、len は今の長さ、room は紙の長さ）
+  const grow = (at: number, len: number, want: number, room: number, center: boolean) => {
+    const to = Math.min(want, center ? room : room - at)
+    if (to <= len) return { at, len }
+    return { at: center ? Math.min(Math.max(0, Math.round(at - (to - len) / 2)), room - to) : at, len: to }
+  }
+  const x = grow(next.x, size.w, captionWidth(catalog, next), paper.w, from?.x === "center")
+  const tall = captionHeight(catalog, next)
+  const y = tall === null ? { at: next.y, len: size.h } : grow(next.y, size.h, tall, paper.h, from?.y === "center")
+  if (x.len === size.w && y.len === size.h) return next
+  return { ...next, x: x.at, y: y.at, w: x.len, h: y.len }
 }
 
 // 形の個別のテーマ（定義の themeProp が名指す項目）が表にあるか（themeProp の無い形と、値が無いときは true）
@@ -164,6 +182,22 @@ export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: (id: str
   const x = Math.min(...boxes.map(b => b.x))
   const y = Math.min(...boxes.map(b => b.y))
   return { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y }
+}
+
+// 形をそのブックに合わせたページ（整列など）: 形に、定義のブックへの合わせ（adapt）をかける。タイプがその形に渡す指定と、
+// そのページで効いている設定の値で合わせる（context）。変わらなければそのまま
+export function adaptPage<P extends ItemPage>(catalog: CoreCatalog, page: P, context: PageContext): P {
+  const options = catalog.bookTypes.get(context.type)?.items.options as Record<string, unknown> | undefined
+  let changed = false
+  const items = pageItemsOf(page).map(i => {
+    if (!isShape(i)) return i
+    const def = catalog.items.get(i.item)
+    const next =
+      def?.kind === "shape" && def.adapt ? (def.adapt(i, options?.[i.item], context.setting) as PlacedShape) : i
+    if (next !== i) changed = true
+    return next
+  })
+  return changed ? { ...page, items } : page
 }
 
 // 形を並べ直したページ（整列など）: つなぐものに、定義の固定の外し（unpin）を種類ごとにかける（前の並びに合わせて手で決めた形を外す）。
@@ -217,7 +251,8 @@ export function shownRects(
   return rects
 }
 
-// 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行）。
+// 編集で縮めてよい下限（OVERHAUL の「紙に収める」）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行。
+// 文字を縦に置く形はキャプションが全部見える高さ）。
 // 今それより小さければ今の大きさ
 export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
   const floors = new Map<string, Size>()
@@ -226,7 +261,7 @@ export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
     if (!size) continue
     floors.set(i.id, {
       w: Math.min(size.w, captionWidth(catalog, i)),
-      h: Math.min(size.h, (minSize(catalog, i) ?? size).h),
+      h: Math.min(size.h, captionHeight(catalog, i) ?? (minSize(catalog, i) ?? size).h),
     })
   }
   return floors

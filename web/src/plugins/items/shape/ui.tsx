@@ -17,26 +17,26 @@ import {
   TRAPEZOID_REVERSED,
 } from "./shapes"
 
-const ui = (kind: ShapeKind) => ({ view: shapeView(kind), icon: shapeIcon(kind) })
+const ui = (shape: { kind: ShapeKind }) => ({ view: shapeView(shape.kind), icon: shapeIcon(shape.kind) })
 
 export const SHAPE_UI = definePluginUi(SHAPE_PLUGIN, {
   items: {
-    [ROUNDED.item.id]: ui(ROUNDED.kind),
-    [DIAMOND.item.id]: ui(DIAMOND.kind),
-    [PARALLELOGRAM.item.id]: ui(PARALLELOGRAM.kind),
-    [PARALLELOGRAM_REVERSED.item.id]: ui(PARALLELOGRAM_REVERSED.kind),
-    [TRAPEZOID.item.id]: ui(TRAPEZOID.kind),
-    [TRAPEZOID_REVERSED.item.id]: ui(TRAPEZOID_REVERSED.kind),
-    [HEXAGON.item.id]: ui(HEXAGON.kind),
-    [CIRCLE.item.id]: ui(CIRCLE.kind),
+    [ROUNDED.item.id]: ui(ROUNDED),
+    [DIAMOND.item.id]: ui(DIAMOND),
+    [PARALLELOGRAM.item.id]: ui(PARALLELOGRAM),
+    [PARALLELOGRAM_REVERSED.item.id]: ui(PARALLELOGRAM_REVERSED),
+    [TRAPEZOID.item.id]: ui(TRAPEZOID),
+    [TRAPEZOID_REVERSED.item.id]: ui(TRAPEZOID_REVERSED),
+    [HEXAGON.item.id]: ui(HEXAGON),
+    [CIRCLE.item.id]: ui(CIRCLE),
   },
   dialogViews: {
     [ROUNDED.add.id]: addShapeDialog(ROUNDED.item.id),
     [DIAMOND.add.id]: addShapeDialog(DIAMOND.item.id),
     [PARALLELOGRAM.add.id]: addShapeDialog(PARALLELOGRAM.item.id),
     [PARALLELOGRAM_REVERSED.add.id]: addShapeDialog(PARALLELOGRAM_REVERSED.item.id),
-    [TRAPEZOID.add.id]: addShapeDialog(TRAPEZOID.item.id),
-    [TRAPEZOID_REVERSED.add.id]: addShapeDialog(TRAPEZOID_REVERSED.item.id),
+    [TRAPEZOID.add.id]: addShapeDialog(TRAPEZOID.item.id, true),
+    [TRAPEZOID_REVERSED.add.id]: addShapeDialog(TRAPEZOID_REVERSED.item.id, true),
     [HEXAGON.add.id]: addShapeDialog(HEXAGON.item.id),
     [CIRCLE.add.id]: addShapeDialog(CIRCLE.item.id),
     [SHAPE_EDIT_DIALOG.id]: EditShapeDialog,

@@ -13,6 +13,7 @@ export {
   dividerClass,
   Field,
   Form,
+  InheritChoices,
   inlineClass,
   Problem,
   pairClass,

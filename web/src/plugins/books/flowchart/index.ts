@@ -1,7 +1,7 @@
-// フローチャートのプラグイン: フローチャートのブックのタイプと、流れの向きの設定の項目、自動で整列するアクションとコマンド。
+// フローチャートのプラグイン: フローチャートのブックのタイプと、流れの向きの設定の項目、自動で整列するアクションとコマンドと確認のダイアログ。
 // 形・箱・線・見せ方・ほかの設定の項目は、ほかのプラグインの定義を id で選ぶ（flowchart.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
-import { PAGE_ALIGN, PAGE_ALIGN_COMMAND } from "./actions"
+import { PAGE_ALIGN, PAGE_ALIGN_COMMAND, PAGE_ALIGN_DIALOG } from "./actions"
 import { FLOW_DIRECTION, FLOWCHART } from "./flowchart"
 import { kit } from "./kit"
 
@@ -11,6 +11,7 @@ export const FLOWCHART_PLUGIN = defineBuiltin(
     settings: [FLOW_DIRECTION],
     actions: [PAGE_ALIGN],
     commands: [PAGE_ALIGN_COMMAND],
+    dialogs: [PAGE_ALIGN_DIALOG],
   }),
 )
 
@@ -26,6 +27,9 @@ declare module "../../../core/catalog" {
   }
   interface CommandTable {
     "@matomezu/flowchart:page-align": typeof PAGE_ALIGN_COMMAND
+  }
+  interface DialogTable {
+    "@matomezu/flowchart:page-align": typeof PAGE_ALIGN_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

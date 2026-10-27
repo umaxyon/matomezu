@@ -24,8 +24,11 @@ export function placedWidth(kind: ShapeKind, caption: string): number {
   return Math.max(rule.size.w, Math.ceil((text + 2 * rule.inset) / rule.textRatio))
 }
 
-// 形を描く値: 輪郭（線の太さの半分だけ内側に描くので、四角より 1px ずつ小さい）と、キャプションの左右の空き
-export function shapeLayout(kind: ShapeKind, size: Size): { outline: Outline; inset: number } {
+// 形を描く値: 輪郭（線の太さの半分だけ内側に描くので、四角より 1px ずつ小さい）と、キャプションの両端の空き。
+// turned なら回した輪郭（回せる形だけ）で、キャプションは縦に置くので、両端の空きは高さから決める
+export function shapeLayout(kind: ShapeKind, size: Size, turned = false): { outline: Outline; inset: number } {
   const inner = { w: Math.max(size.w - 2, 0), h: Math.max(size.h - 2, 0) }
-  return { outline: SHAPE_RULES[kind].outline(inner, SLANT), inset: textInset(kind, size.w) }
+  const rule = SHAPE_RULES[kind]
+  const outline = turned && rule.turned ? rule.turned.outline(inner) : rule.outline(inner, SLANT)
+  return { outline, inset: textInset(kind, turned && rule.turned ? size.h : size.w) }
 }

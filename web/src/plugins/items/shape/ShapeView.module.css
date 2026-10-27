@@ -37,7 +37,7 @@
   stroke: var(--shape-line);
   stroke-width: 1;
 }
-/* キャプション: 1 行で、形の真ん中に置き、収まらない分は … で切る */
+/* キャプション: 1 行で、形の真ん中に置き、収まらない分は … で切る。横向きの形は、真ん中で反時計回りに 90 度回す（幅は形の高さから決める） */
 .caption {
   position: absolute;
   top: 50%;
@@ -55,4 +55,8 @@
 }
 .caption[data-align="right"] {
   text-align: right;
+}
+.caption[data-turned] {
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
 }

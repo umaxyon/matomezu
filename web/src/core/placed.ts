@@ -4,7 +4,16 @@
 import { z } from "zod"
 import type { ItemTable } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
-import type { ConnectorData, ConnectorItemDef, Gap, ItemDef, PortArea, ShapeData, ShapeItemDef } from "./def/item"
+import type {
+  ConnectorData,
+  ConnectorItemDef,
+  Gap,
+  ItemDef,
+  PortArea,
+  Ports,
+  ShapeData,
+  ShapeItemDef,
+} from "./def/item"
 import type { Rect, Size } from "./geom"
 import type { Page } from "./schema/page"
 
@@ -96,6 +105,12 @@ export function rectsOf(catalog: CoreCatalog, page: ItemPage): Map<string, Rect>
   return rects
 }
 
+// 置いた形 item のつなぎ口（形の定義の portsOf があればそれ、無ければ ports）
+function portsOf(catalog: CoreCatalog, item: PlacedShape): Ports | undefined {
+  const def = shapeDef(catalog, item.item)
+  return def?.portsOf ? def.portsOf(item as ShapeData) : def?.ports
+}
+
 // ページの形のつながる範囲: 形の四角 rects（無ければデータの位置と大きさ）を、形の定義のつなぎ口で縮めたもの。
 // 機能台帳に無い形は、四角のふち全体
 export function portAreasOf(
@@ -103,13 +118,14 @@ export function portAreasOf(
   page: ItemPage,
   rects: ReadonlyMap<string, Rect> = rectsOf(catalog, page),
 ): Map<string, PortArea> {
-  const items = new Map(shapesOf(page).map(s => [s.id, s.item]))
+  const items = new Map(shapesOf(page).map(s => [s.id, s]))
   const areas = new Map<string, PortArea>()
   for (const [id, r] of rects) {
     const item = items.get(id)
-    const ports = item ? shapeDef(catalog, item)?.ports : undefined
-    const inset = Math.min(ports?.inset ?? 0, Math.max(0, (r.w - 1) / 2))
-    areas.set(id, { x: r.x + inset, y: r.y, w: r.w - inset * 2, h: r.h, midpoints: ports?.midpoints ?? false })
+    const ports = item ? portsOf(catalog, item) : undefined
+    const ix = Math.min(ports?.insetX ?? 0, Math.max(0, (r.w - 1) / 2))
+    const iy = Math.min(ports?.insetY ?? 0, Math.max(0, (r.h - 1) / 2))
+    areas.set(id, { x: r.x + ix, y: r.y + iy, w: r.w - ix * 2, h: r.h - iy * 2, midpoints: ports?.midpoints ?? false })
   }
   return areas
 }

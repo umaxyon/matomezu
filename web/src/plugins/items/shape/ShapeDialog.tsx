@@ -1,4 +1,4 @@
-// 形のダイアログ: 追加と編集で同じ並び（キャプション・色。キャプションの名前の右に、左・中央・右の寄せ）。形は聞かない（置く形は道具箱で決まっている）。
+// 形のダイアログ: 追加と編集で同じ並び（キャプション・色、回せる形は 90 度回転の切り替え。キャプションの名前の右に、左・中央・右の寄せ）。形は聞かない（置く形は道具箱で決まっている）。
 // 色は色を選ぶポップアップで、ブックのテーマの代表色か、好きな色を選ぶ。
 // 編集では、選んだ寄せ・色を決める前から形に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
@@ -6,7 +6,15 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, Point } from "../../../plugin-api"
-import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import {
+  type DialogProps,
+  useActions,
+  useBook,
+  useCoreCatalog,
+  useItem,
+  useMessages,
+  usePerform,
+} from "../../../plugin-api/ui"
 import {
   ActionButton,
   Choices,
@@ -17,26 +25,31 @@ import {
   Form,
   Problem,
   rowClass,
+  Switch,
   useAligns,
   useBookOf,
   useBookTheme,
   useSwatches,
 } from "../../base/ui"
 import { kit } from "./kit"
-import { type ROUNDED, SHAPE_FILL } from "./shapes"
+import { type ROUNDED, SHAPE_FILL, startTurned, TURNABLE } from "./shapes"
 
-type ShapeProps = ItemProps<typeof ROUNDED.item.id>
+// 形の項目（回せる形は向き turned も持つ）
+type ShapeProps = ItemProps<typeof ROUNDED.item.id> & { turned?: boolean }
 
 // 選んだそばから形に見せる項目（寄せ・色）
 type Look = Pick<ShapeProps, "captionAlign" | "color">
 
 const EMPTY: ShapeProps = { caption: "", captionAlign: "center" }
 
-// 形 item を置く追加のダイアログ
-export function addShapeDialog(item: string) {
+// 形 item を置く追加のダイアログ。回せる形（turnable）は、ブックのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
+export function addShapeDialog(item: string, turnable = false) {
   return function AddShapeDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
     const book = useBookOf(stage)
     const bookTheme = useBookTheme(book)
+    const catalog = useCoreCatalog()
+    const opened = useBook(stage)
+    const turned = opened ? startTurned(catalog, opened, args.page, item) : false
     const { select } = useActions()
     const perform = usePerform(stage)
     const add = (props: ShapeProps) => {
@@ -51,7 +64,7 @@ export function addShapeDialog(item: string) {
       <ShapeDialog
         title={kit.message("Add shape")}
         submit={kit.message("Add")}
-        start={EMPTY}
+        start={turnable ? { ...EMPTY, turned } : EMPTY}
         bookTheme={bookTheme}
         ready={book !== undefined}
         onSubmit={add}
@@ -64,7 +77,10 @@ export function addShapeDialog(item: string) {
 export function EditShapeDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
-  const start = useItem(stage, args.page, args.item)?.props as ShapeProps | undefined
+  const placed = useItem(stage, args.page, args.item)
+  // 回せる形は、向きの切り替えを出す（向きを書いていないデータは縦向き）
+  const props = placed?.props as ShapeProps | undefined
+  const start = props && placed && TURNABLE.includes(placed.item) ? { ...props, turned: props.turned ?? false } : props
   const { previewDialog } = useActions()
   const perform = usePerform(stage)
   const preview = useCallback(
@@ -120,6 +136,7 @@ function ShapeDialog({
   const [caption, setCaption] = useState(start.caption)
   const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
   const [color, setColor] = useState(start.color)
+  const [turned, setTurned] = useState(start.turned)
   // 色の見本: ブックのテーマの代表色と塗り
   const swatches = useSwatches(bookTheme, SHAPE_FILL)
   const changed = captionAlign !== start.captionAlign || color !== start.color
@@ -144,7 +161,16 @@ function ShapeDialog({
       <Form
         id={form}
         ready={ready}
-        onSubmit={() => setRefused(!onSubmit({ caption, captionAlign, ...(color ? { color } : {}) }))}
+        onSubmit={() =>
+          setRefused(
+            !onSubmit({
+              caption,
+              captionAlign,
+              ...(color ? { color } : {}),
+              ...(turned === undefined ? {} : { turned }),
+            }),
+          )
+        }
       >
         <Field
           label={t("Caption")}
@@ -164,6 +190,12 @@ function ShapeDialog({
               none={swatches.none}
               onChange={setColor}
             />
+          </div>
+        )}
+        {turned !== undefined && (
+          <div className={rowClass}>
+            <span>{t("Rotate 90°")}</span>
+            <Switch label={t("Rotate 90°")} checked={turned} onChange={setTurned} />
           </div>
         )}
         {refused && <Problem>{t("Does not fit on the paper")}</Problem>}

@@ -12,6 +12,7 @@ import {
   SHAPE_EDIT_DIALOG,
   SHAPE_TOKENS,
   SHAPES,
+  type ShapeOptions,
   type TRAPEZOID,
   type TRAPEZOID_REVERSED,
 } from "./shapes"
@@ -34,6 +35,10 @@ declare module "../../../core/catalog" {
     "@matomezu/shape:shape-trapezoid-reversed": typeof TRAPEZOID_REVERSED.item
     "@matomezu/shape:shape-hexagon": typeof HEXAGON.item
     "@matomezu/shape:shape-circle": typeof CIRCLE.item
+  }
+  interface ItemOptionTable {
+    "@matomezu/shape:shape-trapezoid": ShapeOptions
+    "@matomezu/shape:shape-trapezoid-reversed": ShapeOptions
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
   interface DialogTable {

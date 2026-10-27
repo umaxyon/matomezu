@@ -7,7 +7,7 @@ import type { Side } from "./route"
 
 interface PortsProps {
   sides: readonly Side[] // 〇を出す辺
-  inset: number // つながる範囲を左右から縮めた幅（左右の〇をその分だけ内側に出す）
+  inset: { x: number; y: number } // つながる範囲を左右（上下）から縮めた幅（左右の〇と上下の〇を、その分だけ内側に出す）
   active: boolean // 線を引いている間（出している〇は押した〇）
   onStart(e: PointerEvent<HTMLDivElement>, side: Side): void
   onPointerMove(e: PointerEvent<HTMLDivElement>): void
@@ -20,7 +20,7 @@ export function Ports({ sides, inset, active, onStart, ...handlers }: PortsProps
     <div
       key={side}
       className={styles.port}
-      style={{ "--port-inset": `${inset}px` } as CSSProperties}
+      style={{ "--port-inset": `${inset.x}px`, "--port-inset-y": `${inset.y}px` } as CSSProperties}
       data-port={side}
       data-on={active}
       onPointerDown={e => onStart(e, side)}

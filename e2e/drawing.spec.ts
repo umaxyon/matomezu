@@ -863,10 +863,11 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
   await page.mouse.click(empty.x, empty.y, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ページの設定" })
-  // 既定は「ブックを継承」（ブックの既定は折れ線）
-  await expect(dialog.getByLabel("線の既定の通り方")).toHaveValue("")
-  await expect(dialog.getByLabel("線の既定の通り方").locator("option").first()).toHaveText("ブックを継承（折れ線）")
-  await dialog.getByLabel("線の既定の通り方").selectOption("straight")
+  // 既定は「ブック継承」（ブックの既定は折れ線。ボタンの名前に添える）
+  const inherit = dialog.getByRole("radio", { name: "ブックを継承（折れ線）" })
+  await expect(inherit).toBeChecked()
+  await expect(dialog.getByText("ブック継承")).toBeVisible()
+  await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2)
 })
@@ -1060,9 +1061,9 @@ test("ブックの設定で線の既定の通り方を直線にすると、ペ�
   await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2)
-  // ページの設定の「ブックを継承」に、今のブックの既定が添えてある
+  // ページの設定の「ブック継承」のボタンの名前に、今のブックの既定が添えてある
   await page.mouse.click(empty.x, empty.y, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
   const pageDialog = page.getByRole("dialog", { name: "ページの設定" })
-  await expect(pageDialog.getByLabel("線の既定の通り方").locator("option").first()).toHaveText("ブックを継承（直線）")
+  await expect(pageDialog.getByRole("radio", { name: "ブックを継承（直線）" })).toBeChecked()
 })

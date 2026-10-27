@@ -43,10 +43,10 @@ const linesIn = (scene: ShapeScene): PlacedLine[] =>
 export function LineLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, localOf } = scene
   const catalog = useCoreCatalog()
+  const book = useBook(stage.id)
   // 線は形のつながる範囲（つなぎ口で縮めた四角）につなぐ
   const rects = portAreasOf(catalog, page, scene.rects)
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）
-  const book = useBook(stage.id)
   const elbow = book ? elbowAt(catalog, book, page) : true
   const lineEdit = useCommand(stage.id, LINE_EDIT.id)
   const openLineMenu = useContextMenu(stage.id, LINE_CONTEXT)
@@ -164,7 +164,7 @@ export function PortOverlay({ id }: { scene: ShapeScene; id: string }) {
   return (
     <Ports
       sides={portsOf(id)}
-      inset={area && shape ? area.x - shape.x : 0}
+      inset={area && shape ? { x: area.x - shape.x, y: area.y - shape.y } : { x: 0, y: 0 }}
       active={link.link !== null}
       onStart={(e, side) => {
         if (area) link.start(e, scene.page, area, id, side)

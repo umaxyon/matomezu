@@ -11,6 +11,7 @@ export const LINE_MESSAGES = defineMessages({
   Elbow: { en: "Elbow", ja: "折れ線" },
   Straight: { en: "Straight", ja: "直線" },
   "Line route": { en: "Line route", ja: "線の既定の通り方" },
+  "Inherit from book": { en: "Book", ja: "ブック継承" },
   "Inherit from book ({route})": { en: "Inherit from book ({route})", ja: "ブックを継承（{route}）" },
   "Line style": { en: "Line style", ja: "線の種類" },
   Solid: { en: "Solid", ja: "実線" },

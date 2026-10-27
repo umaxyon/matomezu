@@ -83,6 +83,28 @@ export function Choices<V extends string>({
   )
 }
 
+// 継承できる設定の、選択肢から 1 つを選ぶボタンの並び（ページの設定がブックの設定を継承するときなど）。左端に継承のボタン
+// （文字で inherit.label、ポインタを乗せた名前は inherit.title。選ぶと値は undefined）を置き、続けて選択肢を Choices と同じに並べる
+export function InheritChoices<V extends string>({
+  label,
+  inherit,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  inherit: { label: string; title: string }
+  value: V | undefined
+  options: readonly { value: V; label: string; icon: ReactNode }[]
+  onChange: (value: V | undefined) => void
+}) {
+  const all = [
+    { value: "" as const, label: inherit.title, icon: <span className={styles.choiceText}>{inherit.label}</span> },
+    ...options,
+  ]
+  return <Choices<V | ""> label={label} value={value ?? ""} options={all} onChange={v => onChange(v || undefined)} />
+}
+
 // 欄を並べた form。決めるボタンか、決めるキー（キーの割り当ての dialog-submit）で onSubmit。ready でなければ送らない。
 // 1 行の欄の Enter でブラウザが送る動き（暗黙の送信）は止める（Enter はキーの割り当てが受ける）。
 // submit があれば最後の行の右に決めるボタンを置き、無ければ置かない（見出しの行に ActionButton で置くときは、id をその form に渡す）

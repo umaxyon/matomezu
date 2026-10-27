@@ -222,6 +222,15 @@ textarea.control {
   stroke-width: 2;
   stroke-linecap: round;
 }
+/* 文字の選択肢（継承のボタン）: 文字の幅だけ広げる */
+.choice:has(.choiceText) {
+  width: auto;
+  padding: 0 8px;
+}
+.choiceText {
+  font-size: 12px;
+  white-space: nowrap;
+}
 .radio {
   position: absolute;
   opacity: 0;

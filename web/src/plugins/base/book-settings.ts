@@ -5,6 +5,7 @@
 import { z } from "zod"
 import { hasPages, putPage } from "../../core/book"
 import { bookType, type CoreCatalog } from "../../core/core-catalog"
+import type { PageContext } from "../../core/def/item"
 import type { SettingDef } from "../../core/def/setting"
 import { fail } from "../../core/errors"
 import { type ItemPage, tidyPage } from "../../core/placed"
@@ -64,6 +65,12 @@ export const settingsAt =
   (catalog: CoreCatalog, book: Book, page: object | null) =>
   (id: string): unknown =>
     settingValue(catalog, book, page, id)
+
+// ページ page の事情（ブックのタイプと、そのページで効いている設定の値）。ブックによって変わるつなぎ口などを決めるのに渡す
+export const pageContext = (catalog: CoreCatalog, book: Book, page: object | null): PageContext => ({
+  type: book.type,
+  setting: settingsAt(catalog, book, page),
+})
 
 // 設定を変えたあとのブック: どのページも整える（core/placed.ts の tidyPage）。変わったページは putPage で替える。ページを持たないブックはそのまま
 export function settleBook<B extends Book>(catalog: CoreCatalog, book: B): B {

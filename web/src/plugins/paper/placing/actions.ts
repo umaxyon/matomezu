@@ -105,8 +105,8 @@ export const ITEM_UPDATE = kit.defineAction({
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const parsed = parsePlaced(ctx.catalog, { ...now, props })
     if (!parsed || !page || !knownTheme(ctx.catalog, parsed)) return null
-    const item = (shapeDefOf(ctx.catalog, parsed.item)?.settle?.(parsed) as PlacedShape | undefined) ?? parsed
-    const wide = widenForCaption(ctx.catalog, page, now, item)
+    const item = (shapeDefOf(ctx.catalog, parsed.item)?.settle?.(parsed, now) as PlacedShape | undefined) ?? parsed
+    const wide = widenForCaption(ctx.catalog, book, page, now, item)
     const next =
       replacePushing(ctx.catalog, book, args.page, wide, false) ??
       (wide !== item ? replacePushing(ctx.catalog, book, args.page, item, false) : null)

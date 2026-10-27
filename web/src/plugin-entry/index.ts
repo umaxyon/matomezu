@@ -12,6 +12,7 @@ import type {} from "../plugins"
 export type { Axis, Edges, Gap } from "../plugins/base"
 export {
   AlignSchema,
+  adaptPage,
   addPageIn,
   apart,
   BODY_MAX,
@@ -31,6 +32,7 @@ export {
   newClash,
   nextItemId,
   PLACE_LINES,
+  pageContext,
   paperSize,
   placedAt,
   placeItem,

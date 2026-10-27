@@ -2,6 +2,7 @@
 import { defineMessages } from "../../../plugin-api"
 
 export const SHAPE_MESSAGES = defineMessages({
+  "Rotate 90°": { en: "Rotate 90°", ja: "90 度回転" },
   Rounded: { en: "Rounded", ja: "角丸" },
   Diamond: { en: "Diamond", ja: "ひし形" },
   Parallelogram: { en: "Parallelogram", ja: "平行四辺形" },

@@ -52,7 +52,14 @@ export interface ShapeEditArgs {
 // つなぎ口: つなぐもの（線）が、形のどこにつながるか。書かなければ、形の四角のふち全体
 export interface Ports {
   midpoints?: boolean // 辺の真ん中だけにつなぐ（ひし形の頂点のように、辺の途中が形の外になる形）
-  inset?: number // つながる範囲を、左右からこれだけ内側に縮める（左右の辺の真ん中が四角より内側にある形）
+  insetX?: number // つながる範囲を、左右からこれだけ内側に縮める（左右の辺の真ん中が四角より内側にある形）
+  insetY?: number // つながる範囲を、上下からこれだけ内側に縮める
+}
+
+// 形の置かれたページの事情: ブックのタイプと、そのページで効いている設定の値
+export interface PageContext {
+  type: string
+  setting(id: string): unknown
 }
 
 // 形のつながる範囲（紙の座標）: つなぎ口で縮めた四角と、辺の真ん中だけにつなぐか
@@ -69,13 +76,21 @@ export interface ShapeItemDef<D extends ShapeData = ShapeData, Tt extends string
   toolbox: boolean // ツールボックスに出すか（出さないものは、ほかの操作で置く）
   size: Size // 置くときの大きさ
   content?: Readonly<Record<string, z.ZodType>> // 項目のほかに持つ中身の欄（リストの行など。どれも書かなくてよい）
+  // 向きなどが違うだけの仲間の形をまとめて呼ぶ名前（台形と台形（逆）なら「台形」。文言の本当の鍵）。無ければ title
+  familyTitle?: MessageKey
   ports?: Ports // つなぎ口（無ければ、四角のふち全体）
+  portsOf?(item: D): Ports // 置いた形のデータで変わるつなぎ口（あれば ports より先に使う）
   min?: Size // 一番小さい大きさ（大きさを変えられるアイテムだけ）
   // 置いたアイテムの大きさ（w・h が無ければ、項目から決まる幅と高さ）。無ければ置いたときの w・h、それも無ければ size
   sizeOf?(item: D): Size
   // キャプションが切れずに見える幅（キャプションで広げる幅と、縮めてよい横の下限）。無ければ size.w
   captionWidth?(item: D): number
-  settle?(item: D): D // 項目を変えたあとに、項目に合わせて中身を整える
+  // キャプションが切れずに見える高さ（キャプションで縦に広げる高さと、縮めてよい縦の下限。文字を縦に置く形）。無いか null なら縦には広げない
+  captionHeight?(item: D): number | null
+  settle?(item: D, before?: D): D // 項目を変えたあとに、項目に合わせて中身を整える（before は変える前の形）
+  // 形をそのブックに合わせた形（並べ直すアクションが base の adaptPage でかける）。option はタイプがこのアイテムに渡す指定（items.options）、
+  // setting はそのページで効いている設定の値。合わせることが無ければそのまま返す
+  adapt?(item: D, option: unknown, setting: (id: string) => unknown): D
   // 置く前に中身を決める追加のダイアログ（ShapeAddArgs を受ける）と、中身を変える編集のダイアログ（ShapeEditArgs を受ける）の id。
   // 追加が無ければそのまま置き、編集が無ければ「設定」を出さない。受ける値が合うかは definePlugin が型で確かめる
   dialogs?: { add?: string; edit?: string }

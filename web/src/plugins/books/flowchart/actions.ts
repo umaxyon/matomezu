@@ -1,4 +1,4 @@
-// フローチャートのアクションとコマンド: ページの形を流れに沿って並べ直す（自動で整列）。
+// フローチャートのアクションとコマンドとダイアログ: ページの形を流れに沿って並べ直す（自動で整列。確かめてから行う）。
 // 開始の形・分岐の形は、タイプが選んだアイテムの中から決めたもの（flowchart.ts の START_ITEMS・BRANCH_ITEMS）。並べ方は align.ts の alignFlow で、流れの向きが右へなら縦と横を入れ替えて使う。
 // 線でつながった形のまとまり（チャート）ごとに並べ、線を含めた広さで左右に並べて、紙の幅を超えたら折り返す。
 // 並べ直したら線の端の固定と手直しを外す（つなぐものの定義の unpin）。紙に収まらなければ間隔を詰めて試し、それでも収まらなければ断る
@@ -8,13 +8,14 @@ import {
   type CoreCatalog,
   connectorsOf,
   type ItemPage,
+  type MessageKey,
   type PagedBook,
   pagedOf,
   type Rect,
   rectsOf,
   shapesOf,
 } from "../../../plugin-api"
-import { extentOf, paperSize, placedAt, settingValue, unpinPage, withPage } from "../../base"
+import { adaptPage, extentOf, pageContext, paperSize, placedAt, settingValue, unpinPage, withPage } from "../../base"
 import { alignFlow, type FlowAlignOptions, type FlowItem } from "./align"
 import { FLOW_DIRECTION, type FlowDirection, isBranch, isStart } from "./flowchart"
 import { kit } from "./kit"
@@ -97,9 +98,10 @@ export function alignedRects(
       const real = new Map([...placed].map(([id, r]) => [id, turn(r, dir)]))
       const alone = unpinPage(catalog, {
         ...page,
-        items: placedAt(catalog, page, real).filter(
-          i => members.has(i.id) || ("from" in i && members.has(i.from) && members.has(i.to)),
-        ),
+        items: placedAt(catalog, page, real).filter(i => {
+          const ends = i as { from?: string; to?: string }
+          return members.has(i.id) || (ends.from !== undefined && members.has(ends.from) && members.has(ends.to ?? ""))
+        }),
       })
       const ext = extentOf(catalog, alone, setting)
       return { placed, ext: turn(ext ?? { x: 0, y: 0, w: 0, h: 0 }, dir) }
@@ -132,24 +134,41 @@ export function alignedRects(
   return null
 }
 
+// ページ page をそのページに合わせたとき（adaptPage）に変わる形の名前（文言の鍵）。仲間の形はまとめた名前（familyTitle。台形と台形（逆）は「台形」）、
+// 同じ名前は 1 つで、ページの順。変わる形が無ければ空
+export function adaptedTitles(catalog: CoreCatalog, book: PagedBook, page: ItemPage): MessageKey[] {
+  const adapted = adaptPage(catalog, page, pageContext(catalog, book, page))
+  const before = new Map(shapesOf(page).map(s => [s.id, s]))
+  const titles = shapesOf(adapted)
+    .filter(s => before.get(s.id) !== s)
+    .flatMap(s => {
+      const def = catalog.items.get(s.item)
+      const title = def?.kind === "shape" ? (def.familyTitle ?? def.title) : def?.title
+      return title ? [title] : []
+    })
+  return [...new Set(titles)]
+}
+
 export const PAGE_ALIGN = kit.defineAction({
   id: "page-align",
   aiDescription:
-    "Arrange the shapes of a flowchart page along its lines: starting from a rounded or circle shape with no line coming in, the main path is lined up on the middle of the paper and branches go beside it (right first; for a book whose flow direction is right, the main path runs left to right and branches go below first). A line from one diamond to another puts the second diamond beside the first. Shapes not joined by lines make separate charts, placed side by side with their tops level (rows centered on the paper; for the flow direction right, one below another with their left ends level) and wrapped to a new row when the next one would not fit. Lines lose their fixed ends and hand-set routes. It is refused if the shapes do not fit on the paper even with smaller gaps.",
+    "Arrange the shapes of a flowchart page along its lines: starting from a rounded or circle shape with no line coming in, the main path is lined up on the middle of the paper and branches go beside it (right first; for a page whose flow direction is right (the page's own, or else its book's), the main path runs left to right and branches go below first). A line from one diamond to another puts the second diamond beside the first. Shapes not joined by lines make separate charts, placed side by side with their tops level (rows centered on the paper; for the flow direction right, one below another with their left ends level) and wrapped to a new row when the next one would not fit. With adapt true, the shapes are first made to suit the page (trapezoids turn sideways for the flow direction right and upright for down); without it they keep their orientation. Lines lose their fixed ends and hand-set routes. It is refused if the shapes do not fit on the paper even with smaller gaps.",
   title: "Auto align",
   target: "book",
-  args: z.strictObject({ page: z.string().min(1) }),
+  args: z.strictObject({ page: z.string().min(1), adapt: z.boolean().optional() }),
   run: (subject, args, ctx) => {
     const book = pagedOf(subject)
     const page = book?.pages.find(p => p.id === args.page)
     if (!book || !page) return null
     const dir = settingValue(ctx.catalog, book, page, FLOW_DIRECTION.id) as FlowDirection
-    const rects = alignedRects(ctx.catalog, page, dir, id => settingValue(ctx.catalog, book, page, id))
+    // adapt なら、先に形をそのページに合わせる（台形の向きをページの流れの向きにそろえる）
+    const shaped = args.adapt ? adaptPage(ctx.catalog, page, pageContext(ctx.catalog, book, page)) : page
+    const rects = alignedRects(ctx.catalog, shaped, dir, id => settingValue(ctx.catalog, book, page, id))
     if (!rects) return null
     const next: PagedBook = withPage(
       ctx.catalog,
       book,
-      unpinPage(ctx.catalog, { ...page, items: placedAt(ctx.catalog, page, rects) }),
+      unpinPage(ctx.catalog, { ...shaped, items: placedAt(ctx.catalog, shaped, rects) }),
     )
     return { next, result: {} }
   },
@@ -157,16 +176,17 @@ export const PAGE_ALIGN = kit.defineAction({
 
 const onPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
 
-// 開いているページを自動で整列する（紙の右クリックのメニュー）。紙に収まらなければ何も変えず、注意のトーストで知らせる
+// 自動で整列の確認のダイアログ（ページ page を整える）
+export const PAGE_ALIGN_DIALOG = kit.defineDialogWith<{ page: string }>()({ id: "page-align" })
+
+// 開いているページを自動で整列する確認のダイアログを開く（紙の右クリックのメニュー）
 export const PAGE_ALIGN_COMMAND = kit.defineCommand({
   id: "page-align",
   performs: [PAGE_ALIGN.id],
   title: "Auto align",
   run: (ctx, a) => {
-    const { opened } = ctx.stage
-    if (!opened?.page) return
-    const done = a.perform(PAGE_ALIGN.id, { page: opened.page }, { book: opened.book })
-    if (!done.ok) a.showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
+    const page = ctx.stage.opened?.page
+    if (page) a.openDialog(ctx.stage.id, PAGE_ALIGN_DIALOG.id, { page })
   },
   when: onPage,
 })

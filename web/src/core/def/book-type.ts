@@ -34,6 +34,9 @@ export interface PagesRule {
   addFromTabs: boolean
 }
 
+// 大きさが変わるときに保つ所。start は左（上）、center は真ん中
+export type GrowFrom = "start" | "center"
+
 // 新しいブックを作るときに渡すもの
 export interface NewBook {
   id: string
@@ -58,6 +61,9 @@ interface BookTypeBase<S extends z.ZodObject> {
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
   holds?(book: z.infer<S>, catalog: CoreCatalog): boolean
   settings?: BookTypeSettings
+  // 中身（キャプション）で形の大きさが変わるときに、横と縦で保つ所。setting はそのページで効いている設定の値（設定で変えてよい）。
+  // 無ければ左と上を保つ
+  growFrom?(setting: (id: string) => unknown): { x: GrowFrom; y: GrowFrom }
 }
 
 // ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。base のアクション book-update はブックの、page-update はページの項目を受け付ける

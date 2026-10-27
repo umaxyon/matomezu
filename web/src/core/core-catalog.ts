@@ -281,5 +281,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   for (const [kind, defs] of named)
     for (const d of defs as readonly { id: string; title: string }[])
       if (!messages.has(d.title)) problems.push(problem("E018", { kind, id: d.id, title: d.title }))
+  for (const d of parts.items)
+    if (d.kind === "shape" && d.familyTitle !== undefined && !messages.has(d.familyTitle))
+      problems.push(problem("E018", { kind: "item", id: d.id, title: d.familyTitle }))
   return problems
 }
