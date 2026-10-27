@@ -221,7 +221,7 @@ test("リストのキャプションも、箱と同じく左・中央・右に�
   await expect(head).toHaveCSS("text-align", "left")
 })
 
-test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは今まで通り", async ({
+test("行を押して動かすと行のドラッグになり、行の間に光る線が出て、離すとそこへ動く。別のリストへも移せる。押しただけ・ダブルクリックは今まで通り。ハンドツールの間は行を運ばず紙がずれる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -258,7 +258,24 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   await expect(rows(second)).toHaveText(["一"])
   // ダブルクリックは行の編集のまま
   await rows(second).first().dblclick()
-  await expect(page.getByRole("dialog", { name: "行の編集" })).toBeVisible()
+  const edit = page.getByRole("dialog", { name: "行の編集" })
+  await expect(edit).toBeVisible()
+  await edit.getByRole("button", { name: "キャンセル" }).click()
+  await expect(edit).toBeHidden()
+  // ハンドツールの間は行を運ばず、紙がずれる
+  await page.mouse.move(paper.x + 400, paper.y + 600)
+  await page.mouse.down({ button: "right" })
+  await page.waitForTimeout(350)
+  await page.mouse.up({ button: "right" })
+  await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name: "ハンドツール" }).click()
+  const before = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  const two = (await rows(first).nth(1).boundingBox())!
+  await drag({ x: two.x + 40, y: two.y + 10 }, { x: two.x + 40, y: two.y - 60 }, async () => {
+    await expect(page.locator("[data-drop-bar]")).toHaveCount(0)
+  })
+  await expect(rows(first)).toHaveText(["三", "二"])
+  const after = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  expect(Math.round(before.y - after.y)).toBe(70)
 })
 
 test("行をドラッグして行の並びの下の端へ寄せると、ポインタを止めていても一番下までスクロールし続け、上の端へ寄せると上へ戻る。光る線は行の並びの外に出ない", async ({

@@ -157,7 +157,8 @@ export function ListView({
   }
   const carrying = (row: ListRow) => ({
     onPointerDown: (e: PointerEvent<HTMLLIElement>) => {
-      if (e.button !== 0) return
+      // ハンドツールの間は行を運ばず、押したことを紙へ渡す（紙をずらす）
+      if (e.button !== 0 || at?.tool === "hand") return
       e.stopPropagation()
       select(stage, [id])
       if (!canCarry({ props }, row)) return
