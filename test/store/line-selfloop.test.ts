@@ -176,3 +176,21 @@ test("cornerAt: 角に描くときの端の位置（一周の割合）。その�
     expect(outsideBox(selfLoop(box, [], 1, [], at).points)).toBe(true)
   }
 })
+
+test("辺の真ん中だけにつなぐ形（ひし形）の自分に戻る線は、角の両側の頂点を端にして、形の外へふくらむ。2 本目はさらに大きくふくらむ", () => {
+  const d = { x: 100, y: 100, w: 112, h: 64, midpoints: true }
+  const first = selfLoop(d, [], 0)
+  expect(first.corner).toBe("topRight")
+  expect(first.points[0]).toEqual({ x: 156, y: 100 })
+  expect(first.points.at(-1)).toEqual({ x: 212, y: 132 })
+  // どの点もひし形の外（中心からの |dx|/(w/2) + |dy|/(h/2) が 1 以上）
+  const outside = (p: { x: number; y: number }) => Math.abs(p.x - 156) / 56 + Math.abs(p.y - 132) / 32 >= 1 - 1e-6
+  expect(first.points.every(outside)).toBe(true)
+  const second = selfLoop(d, [], 1)
+  const reach = (pts: { x: number; y: number }[]) => Math.max(...pts.map(p => p.x - p.y))
+  expect(reach(second.points)).toBeGreaterThan(reach(first.points))
+  // 端の位置の指定は一番近い頂点として読み、隣り合う頂点（左と上）ならその角に描く
+  const left = selfLoop(d, [], 0, [], { exit: 0.9, enter: 0.1 })
+  expect(left.points[0]).toEqual({ x: 100, y: 132 })
+  expect(left.points.at(-1)).toEqual({ x: 156, y: 100 })
+})

@@ -3,9 +3,11 @@
 // 端の位置の指定が無ければ、箱の角に描く。既定は右上で、輪の範囲がほかの箱や線とぶつかるなら、
 // 右上 → 左上 → 右下 → 左下の順に空いている角を選ぶ。
 // 端の位置（exitAt / enterAt）は、箱のふちを左上から時計回りに一周した割合（0〜1）。2 つの端は、同じ辺か
-// 隣り合う辺に置く（向かいの辺だと円が箱を横切るため。その指定は使わず、角に描く）
+// 隣り合う辺に置く（向かいの辺だと円が箱を横切るため。その指定は使わず、角に描く）。
+// 辺の真ん中だけにつなぐ形（ひし形・円など。PortArea の midpoints）は、角の両側の 2 つの頂点を端にし、その間を外へふくらむ半円で結ぶ
+// （角は形の外なので）。端の位置の指定は一番近い頂点として読み、2 つが隣り合う頂点でなければ使わない
 
-import type { Point } from "../../../plugin-api"
+import type { Point, PortArea } from "../../../plugin-api"
 import { centerOf, nearestAt, pointAt, type Rect, rectsOverlap, segmentsOf, segmentThroughRect } from "./geom"
 
 export type { Rect }
@@ -42,9 +44,9 @@ function around(r: Rect, side: Side): Point[] {
 }
 
 // a から b へ、2 点を通る円の、箱の外を回る側の弧。中心は 2 点を結ぶ線の真ん中から、箱から離れる向きへ
-// 2 点の間の長さだけ出す（角に描くときは、角の斜め外に中心が来る）。この円は辺の延長と、箱の外でもう一度ずつ
-// 交わるだけなので、2 点が同じ辺か隣り合う辺にあれば、弧は箱の中に入らない
-function arc(r: Rect, a: Point, b: Point): Point[] {
+// 2 点の間の長さの away 倍だけ出す（既定の 1 なら、角に描くときは角の斜め外に中心が来る）。この円は辺の延長と、箱の外でもう一度ずつ
+// 交わるだけなので、2 点が同じ辺か隣り合う辺にあれば、弧は箱の中に入らない。away が 0 なら半円で、大きいほど大きくふくらむ
+function arc(r: Rect, a: Point, b: Point, away = 1): Point[] {
   let { x: bx, y: by } = b
   if (Math.hypot(bx - a.x, by - a.y) < 2) {
     bx += 4
@@ -56,7 +58,7 @@ function arc(r: Rect, a: Point, b: Point): Point[] {
   const { x: cx, y: cy } = centerOf(r)
   const out: Point = { x: m.x - cx, y: m.y - cy }
   if (n.x * out.x + n.y * out.y < 0) n = { x: -n.x, y: -n.y }
-  const c: Point = { x: m.x + n.x * len, y: m.y + n.y * len }
+  const c: Point = { x: m.x + n.x * len * away, y: m.y + n.y * len * away }
   const R = Math.hypot(a.x - c.x, a.y - c.y)
   const ang = (p: Point) => Math.atan2(p.y - c.y, p.x - c.x)
   const a0 = ang(a),
@@ -76,8 +78,29 @@ function arc(r: Rect, a: Point, b: Point): Point[] {
   return pts
 }
 
-// 角の輪の両端。index は同じ箱の何本目か（2 本目以降は輪を大きくして重ねない）
-function cornerEnds(r: Rect, corner: Corner, index: number): [Point, Point] {
+// 辺の真ん中（頂点）
+const MIDPOINTS: Record<Side, (r: Rect) => Point> = {
+  t: r => ({ x: r.x + r.w / 2, y: r.y }),
+  r: r => ({ x: r.x + r.w, y: r.y + r.h / 2 }),
+  b: r => ({ x: r.x + r.w / 2, y: r.y + r.h }),
+  l: r => ({ x: r.x, y: r.y + r.h / 2 }),
+}
+// 角の両側の辺（横の辺、縦の辺の順）
+const CORNER_SIDES: Record<Corner, [Side, Side]> = {
+  topRight: ["t", "r"],
+  topLeft: ["t", "l"],
+  bottomRight: ["b", "r"],
+  bottomLeft: ["b", "l"],
+}
+// 辺の真ん中だけにつなぐ形の輪のふくらみ（arc の away）。1 本目は半円、2 本目からは大きくして重ねない
+const vertexAway = (index: number) => 0.3 * index
+
+// 角の輪の両端。index は同じ箱の何本目か（2 本目以降は輪を大きくして重ねない）。辺の真ん中だけにつなぐ形は、角の両側の頂点
+function cornerEnds(r: PortArea, corner: Corner, index: number): [Point, Point] {
+  if (r.midpoints) {
+    const [h, v] = CORNER_SIDES[corner]
+    return [MIDPOINTS[h](r), MIDPOINTS[v](r)]
+  }
   const right = corner === "topRight" || corner === "bottomRight"
   const top = corner === "topRight" || corner === "topLeft"
   const cx = right ? r.x + r.w : r.x,
@@ -105,9 +128,13 @@ const hits = (a: Rect, b: Rect) => rectsOverlap(a, b, MARGIN)
 // 線（点の並び）のどこかの区間が、矩形を通るか（折れ点が矩形の外でも、横切っていれば通る）
 const crosses = (b: Rect, line: Point[]) => segmentsOf(line).some(s => segmentThroughRect(s, b))
 
+// 箱 r の p から q への輪（index は同じ箱の何本目か）
+const loopArc = (r: PortArea, p: Point, q: Point, index: number): Point[] =>
+  r.midpoints ? arc(r, p, q, vertexAway(index)) : arc(r, p, q)
+
 // p から q への輪の範囲が、ほかの箱か線とぶつかるか
-function taken(r: Rect, p: Point, q: Point, boxes: Rect[], lines: Point[][]): boolean {
-  const box = bounds(arc(r, p, q))
+function taken(r: PortArea, p: Point, q: Point, index: number, boxes: Rect[], lines: Point[][]): boolean {
+  const box = bounds(loopArc(r, p, q, index))
   return boxes.some(o => hits(box, o)) || lines.some(l => crosses(box, l))
 }
 
@@ -115,7 +142,7 @@ function taken(r: Rect, p: Point, q: Point, boxes: Rect[], lines: Point[][]): bo
 // その両隣をたどる道）。boxes はほかの箱（同じページ。紙の座標）、lines はほかの線の点の並び。
 // at は端の位置の指定（片方だけでもよい。無い方は角に描くときの位置）
 export function selfLoop(
-  r: Rect,
+  r: PortArea,
   boxes: Rect[],
   index: number,
   lines: Point[][] = [],
@@ -125,7 +152,7 @@ export function selfLoop(
   let [a, b] = cornerEnds(r, corner, index)
   for (const c of CORNERS) {
     const [p, q] = cornerEnds(r, c, index)
-    if (taken(r, p, q, boxes, lines)) continue
+    if (taken(r, p, q, index, boxes, lines)) continue
     ;[corner, a, b] = [c, p, q]
     break
   }
@@ -135,11 +162,27 @@ export function selfLoop(
     const q = at.enter != null ? pointAt(ring, at.enter) : b
     const fp = nearestAt(ring, p),
       fq = nearestAt(ring, q)
-    if (OPPOSITE[sideAt(r, fp)] !== sideAt(r, fq)) [a, b] = [p, q]
+    if (r.midpoints) {
+      // 一番近い頂点として読み、隣り合う頂点なら使う
+      const sp = nearestSide(r, p),
+        sq = nearestSide(r, q)
+      if (sp !== sq && OPPOSITE[sp] !== sq) [a, b] = [MIDPOINTS[sp](r), MIDPOINTS[sq](r)]
+    } else if (OPPOSITE[sideAt(r, fp)] !== sideAt(r, fq)) [a, b] = [p, q]
   }
   const fa = nearestAt(ring, a),
     fb = nearestAt(ring, b)
-  return { points: arc(r, a, b), corner, ends: { exit: around(r, sideAt(r, fb)), enter: around(r, sideAt(r, fa)) } }
+  return {
+    points: loopArc(r, a, b, index),
+    corner,
+    ends: { exit: around(r, sideAt(r, fb)), enter: around(r, sideAt(r, fa)) },
+  }
+}
+
+// 点 p に一番近い頂点の辺
+function nearestSide(r: Rect, p: Point): Side {
+  const sides: Side[] = ["t", "r", "b", "l"]
+  const d = (s: Side) => Math.hypot(MIDPOINTS[s](r).x - p.x, MIDPOINTS[s](r).y - p.y)
+  return sides.reduce((best, s) => (d(s) < d(best) ? s : best))
 }
 
 // 点 p に一番近い角
@@ -151,14 +194,14 @@ export function nearestCorner(r: Rect, p: Point): Corner {
 
 // corner の角に輪を描くときの端の位置（箱のふちを一周した割合）。その角がほかの箱や線とぶつかるなら null
 export function cornerAt(
-  r: Rect,
+  r: PortArea,
   boxes: Rect[],
   index: number,
   lines: Point[][],
   corner: Corner,
 ): { exit: number; enter: number } | null {
   const [p, q] = cornerEnds(r, corner, index)
-  if (taken(r, p, q, boxes, lines)) return null
+  if (taken(r, p, q, index, boxes, lines)) return null
   const ring = perimeter(r)
   return { exit: nearestAt(ring, p), enter: nearestAt(ring, q) }
 }

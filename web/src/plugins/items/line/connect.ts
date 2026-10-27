@@ -2,7 +2,14 @@
 // 〇は形の四辺の真ん中（の少し外）。引いた線の始点は〇の辺の真ん中、終点は離した所に一番近いふちの点に固定し、終点に矢印を付ける。
 // 同じ形で離せば自分に戻る線で、離した所に一番近い角が、自動で選ぶ角と違い、空いていれば、端をその角に固定する（同じなら自動のまま）
 
-import { type CoreCatalog, connectableShape, type ItemPage, type Point, shapesOf } from "../../../plugin-api"
+import {
+  type CoreCatalog,
+  connectableShape,
+  type ItemPage,
+  type Point,
+  type PortArea,
+  shapesOf,
+} from "../../../plugin-api"
 import { drawLines } from "./drawn"
 import { nearestAt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"
@@ -45,7 +52,7 @@ export function nearestEnd(r: Rect, p: Point): number {
 // 角は、線を描くとき（drawLines）と同じ入力で選ぶ: ほかの形と、同じ形の自分に戻る線を除いたほかの線。skip の線は数えない（つなぎ替えている線）
 export function loopEndsNear(
   page: ItemPage,
-  rects: ReadonlyMap<string, Rect>,
+  rects: ReadonlyMap<string, PortArea>,
   elbow: boolean,
   id: string,
   drop: Point,
@@ -69,10 +76,10 @@ export function loopEndsNear(
 
 // 〇から引いた線の項目: 始点は from の side の辺の真ん中、終点は to の、離した所 drop に一番近いふちの点（どちらもふち一周の割合）。終点に矢印。
 // 自分に戻る線は、drop に一番近い角が自動の角と違い、空いていればその角の端の位置（同じ角・ふさがっていれば端は自由）。
-// rects は形の四角、elbow はページの既定が折れ線か
+// rects は形のつながる範囲、elbow はページの既定が折れ線か
 export function drawnLineProps(
   page: ItemPage,
-  rects: ReadonlyMap<string, Rect>,
+  rects: ReadonlyMap<string, PortArea>,
   elbow: boolean,
   from: string,
   side: Side,
