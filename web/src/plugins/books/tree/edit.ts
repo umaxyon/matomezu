@@ -116,3 +116,21 @@ export function moveFrom(root: TreeRoot, grow: Grow, id: string, arrow: Arrow): 
   const to = arrow === across.prev ? kids[i - 1] : arrow === across.next ? kids[i + 1] : undefined
   return to?.id ?? id
 }
+
+// 選んでいる節: ステージの選択の最初の節（ページの木に無ければ根）。編集の道具の間は、いつもどれかの節を選んでいる
+export function selectedIn(root: TreeRoot, selection: readonly string[]): string {
+  const first = selection[0]
+  return first !== undefined && pathTo(root, first) ? first : root.id
+}
+
+// 紙の上の四角 rect の真ん中を、大きさ view のビューの真ん中に持ってくる、ずらす量（at は紙の置き場所。紙の端で止めるのはステージの側）。
+// 1px 未満しかずれていなければ null（ずらさない）
+export function centerShift(
+  rect: { x: number; y: number; w: number; h: number },
+  view: { w: number; h: number },
+  at: { x: number; y: number; zoom: number },
+): { dx: number; dy: number } | null {
+  const dx = view.w / 2 - (at.x + (rect.x + rect.w / 2) * at.zoom)
+  const dy = view.h / 2 - (at.y + (rect.y + rect.h / 2) * at.zoom)
+  return Math.abs(dx) >= 1 || Math.abs(dy) >= 1 ? { dx, dy } : null
+}

@@ -1,6 +1,14 @@
 // ツリーを組み立てる計算（plugins/books/tree/edit.ts）: 節を足す・キャプションを替える・子孫ごと消す、と、上下左右のキーで動いた先の節
 import { expect, test } from "bun:test"
-import { addNodes, afterRemove, captionNode, moveFrom, pathTo, removeNode } from "../../web/src/plugins/books/tree/edit"
+import {
+  addNodes,
+  afterRemove,
+  captionNode,
+  centerShift,
+  moveFrom,
+  pathTo,
+  removeNode,
+} from "../../web/src/plugins/books/tree/edit"
 
 // 根 r の子 a（孫 a1・a2）と b
 const tree = {
@@ -78,4 +86,12 @@ test("右へ・左へ・上へ・中央の木: 伸びる向きのキーで子へ
   expect(moveFrom(tree, "up", "a", "right")).toBe("b")
   expect(moveFrom(tree, "center", "r", "right")).toBe("a")
   expect(moveFrom(tree, "center", "b", "up")).toBe("a")
+})
+
+test("centerShift は、紙の上の四角の真ん中をビューの真ん中に持ってくるずらす量（倍率込み）。1px 未満なら null", () => {
+  expect(centerShift({ x: 100, y: 50, w: 40, h: 20 }, { w: 800, h: 600 }, { x: 10, y: 20, zoom: 2 })).toEqual({
+    dx: 400 - (10 + 120 * 2),
+    dy: 300 - (20 + 60 * 2),
+  })
+  expect(centerShift({ x: 0, y: 0, w: 100, h: 100 }, { w: 100, h: 100 }, { x: 0.4, y: 0, zoom: 1 })).toBeNull()
 })

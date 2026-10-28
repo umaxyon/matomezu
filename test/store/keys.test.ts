@@ -71,6 +71,14 @@ test("範囲は狭いものから引き、メニューとダイアログが開�
   expect(keyScopes({ menu: false, dialog: false }, ["a:panel"])).toEqual(["a:panel", "stage", "global"])
   expect(keyScopes({ menu: false, dialog: true })).toEqual(["dialog"])
   expect(keyScopes({ menu: true, dialog: true })).toEqual(["menu"])
+  // カレントのステージの見せ方が名乗った範囲は、押した所の範囲のあと、ステージの範囲の前（ダイアログ・メニューの間は探さない）
+  expect(keyScopes({ menu: false, dialog: false }, ["a:panel"], "b:view")).toEqual([
+    "a:panel",
+    "b:view",
+    "stage",
+    "global",
+  ])
+  expect(keyScopes({ menu: false, dialog: true }, [], "b:view")).toEqual(["dialog"])
   const table = keyTable(
     [
       def("D", "app:thing", "@matomezu/base", true, "global"),

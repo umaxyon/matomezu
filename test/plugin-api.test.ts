@@ -149,6 +149,7 @@ test("matomezu/ui が出す名前", () => {
     "useMessages",
     "usePage",
     "usePerform",
+    "useResize",
     "useSettings",
     "useShapeMarks",
     "useShownBook",

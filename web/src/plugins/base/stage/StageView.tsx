@@ -12,11 +12,11 @@ import { toolOf } from "../../../core/workspace"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { themeVars, useTokenScope } from "../../../ui/theme-vars"
-import { useResize } from "../../../ui/use-resize"
 import { bookTokens } from "../book-look/look"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
 import { keepsPan } from "../tool-switch/tools"
+import { useResize } from "../utils/useResize"
 import styles from "./StageView.module.css"
 
 // ドラッグ中のポインタと、前に知らせた位置

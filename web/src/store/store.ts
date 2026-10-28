@@ -345,7 +345,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const picker = workspace.stages.find(s => s.picker !== null)?.id
       const stage = contextMenu?.stage ?? picker ?? dialog?.stage ?? workspace.current
       const menu = contextMenu !== null || picker !== undefined
-      for (const scope of keyScopes({ menu, dialog: dialog !== null }, scopes)) {
+      const type = workspace.stages.find(s => s.id === stage)?.opened?.type
+      const presentation = type && catalog.bookTypes.get(type)?.presentation
+      const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
+      for (const scope of keyScopes({ menu, dialog: dialog !== null }, scopes, shown)) {
         const hit = findKey(table, scope, key)
         if (!hit) continue
         const { command, args } = hit.binding

@@ -8,8 +8,11 @@ import { TreeRootSchema } from "./node"
 import { pageFieldsInput } from "./page-fields"
 import { TREE_TOOLS } from "./tools"
 
-// ツリーの見せ方: 紙の上に、根から伸びる木を描く
-export const TREE_PRESENTATION = kit.definePresentation({ id: "tree" })
+// ツリーのキーの範囲（ツリーの見せ方で描いている間に探す）
+export const TREE_KEYS_SCOPE = kit.name("tree")
+
+// ツリーの見せ方: 紙の上に、根から伸びる木を描く。カレントのステージがこれで描いている間は、ツリーのキーの範囲を探す
+export const TREE_PRESENTATION = kit.definePresentation({ id: "tree", keyScope: TREE_KEYS_SCOPE })
 
 // ツリーのページを作るダイアログ（ページ名・伸びる向き・根のキャプション）
 export const NEW_TREE_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })

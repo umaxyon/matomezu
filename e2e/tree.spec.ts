@@ -9,8 +9,8 @@ async function fromMenu(page: Page, name: string) {
   return trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name })
 }
 
-// マスターでツリーのブックを作り、根だけのページを作る
-async function treeBook(page: Page) {
+// マスターでツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければブック継承）
+async function treeBook(page: Page, grow?: string) {
   await page.goto("/")
   await (await fromMenu(page, "ホーム")).click()
   await page.getByRole("button", { name: "新しいブック" }).click()
@@ -20,6 +20,7 @@ async function treeBook(page: Page) {
   await dialog.getByRole("button", { name: "作成" }).click()
   await page.getByRole("button", { name: "ページを作る" }).click()
   const add = page.getByRole("dialog", { name: "新しいページ" })
+  if (grow) await add.getByRole("radio", { name: grow }).check({ force: true })
   await add.getByLabel("根のキャプション").fill("根")
   await add.getByRole("button", { name: "作る" }).click()
   await expect(paper(page)).toBeVisible()
@@ -73,4 +74,26 @@ test("編集の間は、左下のミニマップの四角をドラッグして�
   if (!(await seen.isVisible())) await (await fromMenu(page, "ミニマップ")).click()
   await drag()
   await expect.poll(async () => (await paperAt(page)).y).toBeLessThan(before.y - 20)
+})
+
+test("編集の道具の間は、選んでいる節がステージの真ん中に来る。ハンドで紙をずらしても、編集に戻すと真ん中に戻る", async ({
+  page,
+}) => {
+  await treeBook(page, "中央")
+  const root = page.locator('[data-root="true"]')
+  const stage = page.getByRole("region", { name: "ステージ" })
+  const offset = async () => {
+    const r = (await root.boundingBox())!
+    const s = (await stage.boundingBox())!
+    return { x: r.x + r.width / 2 - (s.x + s.width / 2), y: r.y + r.height / 2 - (s.y + s.height / 2) }
+  }
+  await expect(root).toHaveAttribute("data-selected", "true")
+  await expect.poll(async () => Math.abs((await offset()).x) + Math.abs((await offset()).y)).toBeLessThan(2)
+  await page.getByRole("button", { name: "編集ツール" }).click()
+  const s = (await stage.boundingBox())!
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  await page.mouse.wheel(0, 150)
+  await expect.poll(async () => Math.abs((await offset()).y)).toBeGreaterThan(20)
+  await page.getByRole("button", { name: "ハンドツール" }).click()
+  await expect.poll(async () => Math.abs((await offset()).x) + Math.abs((await offset()).y)).toBeLessThan(2)
 })

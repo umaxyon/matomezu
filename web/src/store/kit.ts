@@ -106,7 +106,9 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: SettingDef<S, keyof M & string> & { id: Id },
   ): Omit<SettingDef<S>, "id"> & { id: Owned<P, Id> }
 
-  definePresentation<const Id extends string>(def: { id: Id }): PresentationDef & { id: Owned<P, Id> }
+  definePresentation<const Id extends string>(
+    def: Omit<PresentationDef, "id"> & { id: Id },
+  ): PresentationDef & { id: Owned<P, Id> }
 
   defineTool<const Id extends string, const T extends Titled<ToolDef, keyof M & string>>(
     def: T & { id: Id },

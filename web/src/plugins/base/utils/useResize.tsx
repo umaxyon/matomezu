@@ -1,6 +1,6 @@
-// 要素の中の大きさ（枠線を除く）を測って知らせ、変わるたびに知らせ直す
+// 要素の中の大きさ（枠線を除く）を測って知らせ、変わるたびに知らせ直す（測れるようになったらすぐに 1 度知らせる）
 import { type RefObject, useEffectEvent, useLayoutEffect } from "react"
-import type { Size } from "../core/geom"
+import type { Size } from "../../../core/geom"
 
 export function useResize(ref: RefObject<HTMLElement | null>, onResize: (size: Size) => void): void {
   const report = useEffectEvent(onResize)

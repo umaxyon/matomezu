@@ -90,3 +90,8 @@
   color: var(--skin-hint);
   font-size: 14px;
 }
+/* 編集の道具で選んでいる節 */
+.node[data-selected="true"] {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 1px;
+}

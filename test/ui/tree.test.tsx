@@ -286,3 +286,30 @@ test("node-update は子のキャプションを替え（根は断る）、node-
   })
   expect(book().pages[0]).not.toHaveProperty("root.children")
 })
+
+test("編集の道具の間は、選んでいる節（初めは根）に印が付く。押した節を選び、上下左右のキーで伸びる向きに沿って動かす。ハンドでは印を出さない", () => {
+  const { store, id } = setup()
+  const done = addTree(store, id, {
+    caption: "根",
+    children: [{ caption: "子 A", children: [{ caption: "孫" }] }, { caption: "子 B" }],
+  })
+  const root = done.fields!.root
+  const [a, b] = root.children
+  const paper = screen.getByRole("img", { name: "紙" })
+  const selected = () => [...paper.querySelectorAll('[data-selected="true"]')].map(e => e.getAttribute("data-node"))
+  expect(selected()).toEqual([root.id])
+  const press = (key: string) => fireEvent.keyDown(window, { key })
+  press("ArrowDown") // 下へ伸びる木: 下で最初の子
+  expect(selected()).toEqual([a!.id])
+  press("ArrowRight") // 右の兄弟
+  expect(selected()).toEqual([b!.id])
+  press("ArrowUp") // 親
+  expect(selected()).toEqual([root.id])
+  fireEvent.pointerDown(paper.querySelector(`[data-node="${a!.children![0]!.id}"]`)!, { button: 0 })
+  expect(selected()).toEqual([a!.children![0]!.id])
+  fireEvent.click(screen.getByRole("button", { name: "編集ツール" }))
+  expect(selected()).toEqual([])
+  press("ArrowUp") // ハンドでは動かさない
+  fireEvent.click(screen.getByRole("button", { name: "ハンドツール" }))
+  expect(selected()).toEqual([a!.children![0]!.id])
+})
