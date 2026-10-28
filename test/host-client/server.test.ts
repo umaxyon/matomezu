@@ -1,12 +1,16 @@
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
-import { type Events, NoServer, serverClient } from "../../web/src/host-client/server"
+import { type Events, NoServer, OFFLINE_MS, serverClient } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { newStore } from "../support"
 
-// 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る
+// 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る。perform はアクションを送られたときの答え（null は送れない）、
+// 待ち（later）は tick で進める
 function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: null }) {
   const sent: Record<string, unknown>[] = []
+  const answer: { perform: () => number | null } = { perform: () => 200 }
+  let timers: { run: () => void; ms: number }[] = []
+  let keys = 0
   const listeners = new Map<string, (data: string) => void>()
   let onError = () => {}
   let reads = 0
@@ -24,6 +28,11 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
       if (url === "api/perform" || url === "api/view" || url === "api/warnings")
         sent.push({ url, ...JSON.parse(String(init?.body)) })
       if (url === "api/data") reads++
+      if (url === "api/perform") {
+        const status = answer.perform()
+        if (status === null) throw new TypeError("Failed to fetch")
+        return new Response("{}", { status })
+      }
       return new Response(JSON.stringify(data))
     },
     events: () => events,
@@ -37,10 +46,38 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
     reload: () => {
       reloads++
     },
+    later: (run, ms) => {
+      const timer = { run, ms }
+      timers.push(timer)
+      return () => {
+        timers = timers.filter(t => t !== timer)
+      }
+    },
+    newKey: () => `k${++keys}`,
   })
   const emit = (name: string, v: unknown) => listeners.get(name)?.(JSON.stringify(v))
-  return { host, sent, emit, fail: () => onError(), reads: () => reads, focus: () => focus(), reloads: () => reloads }
+  // ms 以下の待ちを全部進める
+  const tick = (ms = Number.POSITIVE_INFINITY) => {
+    const due = timers.filter(t => t.ms <= ms)
+    timers = timers.filter(t => t.ms > ms)
+    for (const t of due) t.run()
+  }
+  const performs = () => sent.filter(x => x.url === "api/perform")
+  return {
+    host,
+    sent,
+    answer,
+    performs,
+    emit,
+    tick,
+    fail: () => onError(),
+    reads: () => reads,
+    focus: () => focus(),
+    reloads: () => reloads,
+  }
 }
+// 送る・読むのを済ませる
+const flush = () => Bun.sleep(1)
 
 // 常駐から読んで作った store。最初の知らせ hello を先に送る
 async function connected(server = fakeServer()) {
@@ -111,6 +148,8 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
     },
     addStyle: url => styles.push(url),
     reload: () => {},
+    later: () => () => {},
+    newKey: () => "k",
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
@@ -134,6 +173,7 @@ test("画面で行ったアクションは、振った id と、つながりの 
   sent.length = 0
   place(store)
   place(store)
+  await flush()
   expect(sent.filter(x => x.url === "api/perform")).toEqual([
     expect.objectContaining({
       action: "@matomezu/paper:item-place",
@@ -142,8 +182,9 @@ test("画面で行ったアクションは、振った id と、つながりの 
       lang: "ja",
       client: "c1",
       seq: 1,
+      key: "k1",
     }),
-    expect.objectContaining({ ids: ["n2"], seq: 2 }),
+    expect.objectContaining({ ids: ["n2"], seq: 2, key: "k2" }),
   ])
 })
 
@@ -173,14 +214,86 @@ test("断られた（ack で確かめ終わり、変わったブックが来な�
   expect(itemsOf(store)).toEqual([])
 })
 
-test("つなぎ直したら（2 度目の hello）、送ったアクションの答えを待たず、読み直した世界を出す", async () => {
+test("つなぎ直したら（2 度目の hello）、読み直した世界の上に確かめられていないアクションを出し、新しいつながりで同じ番号で送り直す", async () => {
   const s = await connected()
   place(s.store)
+  await flush()
+  s.fail()
   s.emit("hello", { client: "c9" })
-  await Bun.sleep(0)
+  await flush()
   expect(s.reads()).toBe(2)
+  expect(itemsOf(s.store)).toEqual(["n1"])
+  expect(s.performs().map(p => [p.client, p.seq, p.key])).toEqual([
+    ["c1", 1, "k1"],
+    ["c9", 1, "k1"],
+  ])
+  s.emit("ack", { seq: 1, ok: true })
+  expect(s.host.pending()).toEqual([])
+})
+
+test("送れなかったアクションは消さず、切れている間の編集とまとめて、つながったら順に送る", async () => {
+  const s = await connected()
+  s.answer.perform = () => null
+  place(s.store)
+  await flush()
+  s.fail()
+  place(s.store)
+  await flush()
+  expect(s.performs()).toHaveLength(1) // 切れている間は送らない
+  expect(itemsOf(s.store)).toEqual(["n1", "n2"])
+  s.answer.perform = () => 200
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(
+    s
+      .performs()
+      .slice(1)
+      .map(p => [p.client, p.seq, p.key]),
+  ).toEqual([
+    ["c2", 1, "k1"],
+    ["c2", 2, "k2"],
+  ])
+})
+
+test("常駐が 5xx を返したアクションは、しばらくして送り直し、何度も返したら外してトーストで知らせる", async () => {
+  const s = await connected()
+  s.answer.perform = () => 500
+  place(s.store)
+  await flush()
+  s.tick()
+  await flush()
+  expect(s.performs()).toHaveLength(2)
+  expect(s.host.pending()).toHaveLength(1)
+  s.tick()
+  await flush()
+  expect(s.performs()).toHaveLength(3)
   expect(s.host.pending()).toEqual([])
   expect(itemsOf(s.store)).toEqual([])
+  expect(s.store.state.getState().toasts).toMatchObject([{ kind: "warn", message: "An edit could not be saved" }])
+})
+
+test("断られたアクションは、つなぎ直しても送り直さない", async () => {
+  const s = await connected()
+  place(s.store)
+  await flush()
+  s.emit("ack", { seq: 1, ok: false, reason: "refused" })
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  await flush()
+  expect(s.performs()).toHaveLength(1)
+})
+
+test("つながりが長く切れたままなら store に知らせ、つながったら戻す（一瞬切れただけなら知らせない）", async () => {
+  const s = await connected()
+  s.fail()
+  s.emit("hello", { client: "c2" })
+  s.tick()
+  expect(s.store.state.getState().offline).toBe(false)
+  s.fail()
+  s.tick(OFFLINE_MS)
+  expect(s.store.state.getState().offline).toBe(true)
+  s.emit("hello", { client: "c3" })
+  expect(s.store.state.getState().offline).toBe(false)
 })
 
 test("設定の知らせで設定を入れ替える", async () => {
@@ -200,6 +313,8 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
     importModule: async () => ({}),
     addStyle: () => {},
     reload: () => {},
+    later: () => () => {},
+    newKey: () => "k",
   })
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))

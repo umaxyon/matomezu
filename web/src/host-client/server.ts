@@ -2,6 +2,10 @@
 // 常駐はアクションを 1 つずつ順に行い、変わったブックと設定をつながっている全部の画面に知らせる（/api/events。internal/server/hub.go）。
 // 画面は、常駐が決めた世界（確かめた世界）の上で、まだ確かめられていない自分のアクションを行い直したものを出す（store の receive）。
 // 自分のアクションは、その番号（seq）が知らせに返ってきたら確かめ終わり。断られたものは行い直さないので、画面から消える。
+// アクションは 1 つずつ順に送る。届かなかったもの（送れなかった・常駐が 5xx を返した）は消さずに送り直し、つなぎ直したら、確かめられていないものを全部
+// 新しいつながりで送り直す。常駐が同じアクションを二度行わないように、アクションごとに一意の番号（key）を振り、送り直しても変えない。
+// 送り直しても届かなかったものだけを外してトーストで知らせる。つながりが OFFLINE_MS より長く切れたままなら store に知らせる（setOffline）。
+// つながっていない間も画面の編集は止めず、つながったらまとめて送る。
 // 窓が見ているもの（ステージごとのブックとページ、カレントのステージの選択）と、窓がフォーカスされたことも知らせる（AI が「今の画面」を知るため）。
 // 常駐から「ブックを出して」（show）と届いたら、言われたステージ（分けるなら、分けてできたステージ）でそのブックを開く。
 // 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）。
@@ -26,6 +30,8 @@ export interface Net {
   importModule(url: string): Promise<{ default?: unknown }> // ES モジュールを読む
   addStyle(url: string): void // CSS を読む
   reload(): void // 画面を読み直す
+  later(run: () => void, ms: number): () => void // ms 後に run を呼ぶ。取り消す関数を返す
+  newKey(): string // アクションの一意の番号
 }
 export interface Events {
   on(name: string, listener: (data: string) => void): void
@@ -58,6 +64,24 @@ const browserNet: Net = {
     document.head.append(link)
   },
   reload: () => window.location.reload(),
+  later: (run, ms) => {
+    const timer = setTimeout(run, ms)
+    return () => clearTimeout(timer)
+  },
+  newKey: () => crypto.randomUUID(),
+}
+
+const RETRY_MS = 2000 // 届かなかったアクションを送り直すまで
+const MAX_TRIES = 3 // 常駐が 5xx を返したアクションを送る回数（超えたら外す）
+export const OFFLINE_MS = 10_000 // つながりがこれより長く切れたままなら、切れていると見せる
+
+// まだ確かめられていない自分のアクション。sentTo は送り届けたつながりの id（まだなら空）、tries は常駐が 5xx を返した回数
+interface Pending {
+  seq: number
+  key: string
+  done: DoneAction
+  sentTo: string
+  tries: number
 }
 
 const openedOf = (stage: Stage) => {
@@ -122,8 +146,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let settings: unknown
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let plugins: { id: string; ui: string; css?: string }[] = []
-  let pending: { seq: number; done: DoneAction }[] = []
+  let pending: Pending[] = []
   let client = ""
+  let online = false // 知らせにつながっているか
+  let sending = false // 送っている途中か（1 つずつ順に送る）
+  let retry: (() => void) | null = null // 送り直しの待ち（取り消す関数）
+  let offlineTimer: (() => void) | null = null // 切れていると見せるまでの待ち
   let warnings: readonly Warning[] = [] // 画面が見つけた warning（つなぎ直すたびに知らせ直す）
   const tellWarnings = () => {
     if (!client) return
@@ -146,6 +174,58 @@ export function serverClient(net: Net = browserNet): ServerClient {
     )
   const settle = (mark: { client?: string; seq?: number }) => {
     if (mark.client === client && mark.seq !== undefined) pending = pending.filter(p => p.seq > (mark.seq as number))
+  }
+  // 送り直しても届かなかったアクションを外し、トーストで知らせる
+  const drop = (p: Pending, why: string) => {
+    console.warn(`action ${p.done.action} is not saved:`, why)
+    pending = pending.filter(q => q !== p)
+    show()
+    instance?.actions.showToast({ kind: "warn", message: "An edit could not be saved" })
+  }
+  const later = (ms: number) => {
+    retry?.()
+    retry = net.later(() => {
+      retry = null
+      void pump()
+    }, ms)
+  }
+  // まだ送り届けていないアクションを、今のつながりで 1 つずつ順に送る
+  const pump = async () => {
+    if (sending) return
+    sending = true
+    try {
+      for (;;) {
+        const next = pending.find(p => p.sentTo !== client)
+        if (!online || !next) return
+        const to = client
+        const res = await net
+          .fetch("api/perform", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...next.done, client: to, seq: next.seq, key: next.key }),
+          })
+          .catch(() => null)
+        if (!pending.includes(next)) continue // 送っている間に確かめ終わった
+        // 送れなかった: つなぎ直したら送り直す（つながったままなら、しばらくして送り直す）
+        if (!res) {
+          later(RETRY_MS)
+          return
+        }
+        if (res.ok) {
+          next.sentTo = to // 送っている間につなぎ直したなら、前のつながりの答えは届かないので、新しいつながりで送り直す
+          continue
+        }
+        next.tries += 1
+        if (res.status < 500 || next.tries >= MAX_TRIES) {
+          drop(next, `${res.status}`)
+          continue
+        }
+        later(RETRY_MS)
+        return
+      }
+    } finally {
+      sending = false
+    }
   }
   const read = async () => {
     const res = await net.fetch("api/data").catch(() => null)
@@ -171,21 +251,37 @@ export function serverClient(net: Net = browserNet): ServerClient {
       events = source
       let first = true
       source.onError(() => {
-        if (!first) return // つなぎ直しはブラウザに任せる（つながると hello が来る）
-        source.close()
-        reject(new NoServer())
+        if (first) {
+          source.close()
+          reject(new NoServer())
+          return
+        }
+        // つなぎ直しはブラウザに任せる（つながると hello が来る）。長く切れたままなら、切れていると見せる
+        if (online) console.info("lost the connection to the server")
+        online = false
+        offlineTimer ??= net.later(() => instance?.setOffline(true), OFFLINE_MS)
       })
       source.on("hello", data => {
         client = HelloSchema.parse(JSON.parse(data)).client
+        online = true
         if (first) {
           first = false
           resolve()
           return
         }
-        // つなぎ直した: 前のつながりで送ったアクションの答えは届かないので、読み直した世界から出し直す。warning は新しいつながりで知らせ直す
-        pending = []
+        // つなぎ直した: 読み直した世界の上に、まだ確かめられていないアクションを出し、新しいつながりで全部送り直す（送ったものの答えは前のつながりに届くので）。
+        // warning は新しいつながりで知らせ直す
+        offlineTimer?.()
+        offlineTimer = null
+        instance?.setOffline(false)
+        if (pending.length > 0) console.info(`reconnected: sending ${pending.length} actions again`)
         tellWarnings()
-        void read().then(show, () => {})
+        void read()
+          .catch(() => {})
+          .then(() => {
+            show()
+            void pump()
+          })
       })
       source.on("book", data => {
         const e = BookSchema.parse(JSON.parse(data))
@@ -220,7 +316,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
     pending: () => pending.map(p => p.done),
     load: async (): Promise<Loaded> => {
       await listen()
-      await read()
+      // 知らせにはつながったが読めなかったら、つながりを閉じる（読み直すときは新しく作る）
+      await read().catch(e => {
+        events?.close()
+        throw e
+      })
       // 1 つが読み込めなくても、ほかのプラグインとブックは読む（読み込めた物だけ CSS も足す）
       const settled = await Promise.allSettled(
         plugins.map(async p => {
@@ -240,14 +340,8 @@ export function serverClient(net: Net = browserNet): ServerClient {
     },
     observe: done => {
       seq += 1
-      pending.push({ seq, done })
-      void net
-        .fetch("api/perform", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...done, client, seq }),
-        })
-        .catch(() => {})
+      pending.push({ seq, key: net.newKey(), done, sentTo: "", tries: 0 })
+      void pump()
     },
     reportWarnings: list => {
       warnings = list

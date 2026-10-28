@@ -31,6 +31,9 @@ import (
 // 画面へ知らせを貯めておける数。超えた画面は切る（つなぎ直して読み直す）
 const clientBuffer = 256
 
+// 覚えておく、行ったアクションの番号（key）の数。画面は答えが届かなかったアクションを同じ番号で送り直すので、同じ番号は二度行わない
+const performedKeys = 1024
+
 type entry struct {
 	body    json.RawMessage
 	version int64
@@ -69,7 +72,9 @@ type Hub struct {
 	bookWarnings map[string]engine.BookWarning
 	// 画面が見つけて知らせた warning（画面のつながりの id → warning の 1 行ずつ。warnings.go）。画面が離れたら消す
 	screenWarnings map[string][]string
-	touched        map[string]string // ブックの id → 触れた時刻（touched.go）
+	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
+	performed      map[string]Performed // 最近行ったアクションの番号（Perform の Key）→ その結果
+	performedOrder []string             // performed の番号を行った順に（古いものから忘れる）
 }
 
 // NewHub は置き場所から世界を読む
@@ -86,7 +91,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, screenWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}}
 	for _, b := range books {
 		h.books[b.ID] = entry{b.Body, b.Version}
 		h.order = append(h.order, b.ID)
@@ -148,7 +153,8 @@ func (h *Hub) Data() ([]storage.Book, json.RawMessage) {
 	return books, h.settings
 }
 
-// Perform の頼み。Client と Seq は送った画面とその番号（画面の外からなら空）
+// Perform の頼み。Client と Seq は送った画面とその番号（画面の外からなら空）。
+// Key は画面がアクションごとに振る一意の番号（つなぎ直しても変えない）。同じ番号のアクションは二度行わない
 type Perform struct {
 	Action string          `json:"action"`
 	Args   json.RawMessage `json:"args"`
@@ -158,6 +164,7 @@ type Perform struct {
 	Now    string          `json:"now,omitempty"`
 	Client string          `json:"client,omitempty"`
 	Seq    int64           `json:"seq,omitempty"`
+	Key    string          `json:"key,omitempty"`
 }
 
 // Performed は行った結果
@@ -167,10 +174,14 @@ type Performed struct {
 	Result json.RawMessage `json:"result,omitempty"`
 }
 
-// Perform はアクションを行い、変わったものを書いて知らせる
+// Perform はアクションを行い、変わったものを書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
 func (h *Hub) Perform(p Perform) (Performed, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if done, ok := h.performed[p.Key]; ok && p.Key != "" {
+		h.ack(p, done)
+		return done, nil
+	}
 	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings}
 	if p.On != nil {
 		if e, ok := h.books[p.On.Book]; ok {
@@ -200,10 +211,29 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			h.broadcast("settings", map[string]any{"settings": out.Settings, "client": p.Client, "seq": p.Seq})
 		}
 	}
+	h.remember(p.Key, done)
+	h.ack(p, done)
+	return done, nil
+}
+
+// ack は、アクションを送った画面に行い終えたことを知らせる（h.mu を持って呼ぶ）
+func (h *Hub) ack(p Perform, done Performed) {
 	if c, ok := h.clients[p.Client]; ok {
 		h.send(c, "ack", map[string]any{"seq": p.Seq, "ok": done.OK, "reason": done.Reason})
 	}
-	return done, nil
+}
+
+// remember は、行い終えたアクションの番号と結果を覚える。performedKeys を超えたら古いものから忘れる（h.mu を持って呼ぶ）
+func (h *Hub) remember(key string, done Performed) {
+	if key == "" {
+		return
+	}
+	h.performed[key] = done
+	h.performedOrder = append(h.performedOrder, key)
+	if len(h.performedOrder) > performedKeys {
+		delete(h.performed, h.performedOrder[0])
+		h.performedOrder = h.performedOrder[1:]
+	}
 }
 
 // putBook は、アクションが変えたブックを今の版の上に書いて知らせる（h.mu を持って呼ぶ）

@@ -65,6 +65,7 @@ export interface MatomezuState {
   toasts: readonly Toast[] // 出しているトースト（古い順）
   // ブックの id → 触れた（開いたか書いた）時刻（ISO 8601 の UTC）。ホストが知らせたもの（receive）で、無ければ空
   touched: Readonly<Record<string, string>>
+  offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる。サーバーなしなら false）
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
@@ -159,6 +160,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
   // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）
   locate(address: Address): void
+  // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setOffline(offline: boolean): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
   // 組み立てられない追加プラグイン（check が投げたものも）は外し、その id と error を返す
   use(
@@ -188,6 +191,7 @@ function initialState(
     contextMenu: null,
     toasts: [],
     touched: {},
+    offline: false,
   }
 }
 
@@ -474,6 +478,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (JSON.stringify(addressOf(now.workspace)) === JSON.stringify(address)) return
       const workspace = placeAt(catalog, now.books, now.workspace, address)
       if (workspace !== now.workspace) commit({ workspace })
+    },
+    setOffline: offline => {
+      if (getState().offline !== offline) setState({ offline })
     },
     use: (added, check) => {
       const failed: { id: string; error: unknown }[] = []
