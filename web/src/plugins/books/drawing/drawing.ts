@@ -1,6 +1,6 @@
-// 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）は base の設定の項目で変えられる
+// 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
 import { z } from "zod"
-import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
+import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 
 export const DRAWING = kit.defineBookType({
@@ -26,7 +26,7 @@ export const DRAWING = kit.defineBookType({
   tools: "@matomezu/paper:paper",
   // テーマ・紙の色・線の既定の通り方（ページは線の既定の通り方を持たなければブックの既定を継ぐ）
   settings: {
-    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, "@matomezu/line:line-route"],
+    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, "@matomezu/line:line-route", BOOK_TEXT_COLORS.id],
     page: ["@matomezu/line:line-route"],
   },
 })

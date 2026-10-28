@@ -62,53 +62,76 @@ const NO_END = new Set("「『（［｛〈《【〔〘〖“‘([{")
 // 折り返しの単位: 英数字の続き（語）は切らずに 1 つ、空白は 1 字ずつ、ほかの字（和文など）は 1 字ずつ
 const WORD = /[\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{Nd}'’\-_/@#$&*+=<>^`|~"]/u
 
-function unitsOf(paragraph: string): string[] {
-  const out: string[] = []
-  let word = ""
-  for (const ch of paragraph) {
+// 字の並びの、始めと終わり（終わりは含まない）
+export type Span = readonly [number, number]
+
+function unitsOf(chars: readonly string[]): Span[] {
+  const out: Span[] = []
+  let word = -1
+  chars.forEach((ch, i) => {
     if (WORD.test(ch)) {
-      word += ch
-      continue
+      if (word < 0) word = i
+      return
     }
-    if (word) out.push(word)
-    word = ""
-    out.push(ch)
-  }
-  if (word) out.push(word)
+    if (word >= 0) out.push([word, i])
+    word = -1
+    out.push([i, i + 1])
+  })
+  if (word >= 0) out.push([word, chars.length])
   return out
 }
 
 // 単位の間で折り返してよいか（前の単位の終わりの字と、次の単位の頭の字で決める）
-function canBreak(prev: string, next: string): boolean {
-  const last = [...prev].at(-1) as string
-  const first = [...next][0] as string
+function canBreak(last: string, first: string): boolean {
   return !NO_END.has(last) && !NO_START.has(first)
 }
 
 const trimEnd = (s: string) => s.replace(/ +$/, "")
 
 // 幅を足し合わせたときの小数の誤差で、ちょうど収まる行をはみ出しにしないための遊び（px）
-const SLACK = 0.001
+export const SLACK = 0.001
 
-// 1 段落を幅 width（px）の行に分ける。行の終わりの空白は数えずに落とし、折り返した行の頭の空白も落とす。
-// 禁則に合う切れ目が無いか、禁則で次の行へ送ると次の行に収まらなければ、禁則を見ずに折る。1 行に収まらない語は字で切る
-function wrapParagraph(paragraph: string, width: number, font: Font): string[] {
-  const lines: string[] = []
-  let line: string[] = [] // 今の行の単位
-  let lineWidth = 0
-  const breakAt = (at: number) => {
-    lines.push(trimEnd(line.slice(0, at).join("")))
-    line = line.slice(at)
-    while (line[0] === " ") line.shift()
-    lineWidth = textWidth(line.join(""), font)
+// 1 字の幅（px）
+export const charWidth = (ch: string, font: Font) =>
+  (units(ch.codePointAt(0) as number, font.weight) * font.size) / 1000
+
+// 1 段落の字 chars（字ごとの幅 widths）を幅 width（px）の行に分け、行ごとの字の範囲を返す。行の終わりの空白は数えずに落とし、
+// 折り返した行の頭の空白も落とす。禁則に合う切れ目が無いか、禁則で次の行へ送ると次の行に収まらなければ、禁則を見ずに折る。1 行に収まらない語は字で切る
+export function breakParagraph(chars: readonly string[], widths: readonly number[], width: number): Span[] {
+  const sum = (from: number, to: number) => {
+    let w = 0
+    for (let i = from; i < to; i++) w += widths[i] as number
+    return w
   }
-  const add = (unit: string, w: number) => {
+  const lines: Span[] = []
+  let line: Span[] = [] // 今の行の単位
+  let lineWidth = 0
+  let at0 = 0 // 今の行の頭の字（行に単位が無いときの範囲に使う）
+  const spanOf = (units: readonly Span[], fallback: number): Span => {
+    const first = units[0]
+    const last = units.at(-1)
+    if (!first || !last) return [fallback, fallback]
+    let end = last[1]
+    while (end > first[0] && chars[end - 1] === " ") end--
+    return [first[0], end]
+  }
+  const breakAt = (at: number) => {
+    lines.push(spanOf(line.slice(0, at), at0))
+    line = line.slice(at)
+    while (line[0] && chars[line[0][0]] === " ") line.shift()
+    at0 = line[0]?.[0] ?? at0
+    lineWidth = line.reduce((w, u) => w + sum(u[0], u[1]), 0)
+  }
+  const add = (unit: Span, w: number) => {
+    if (line.length === 0) at0 = unit[0]
     line.push(unit)
     lineWidth += w
   }
-  for (const unit of unitsOf(paragraph)) {
-    const w = textWidth(unit, font)
-    if (unit === " ") {
+  const lastOf = (u: Span) => chars[u[1] - 1] as string
+  const firstOf = (u: Span) => chars[u[0]] as string
+  for (const unit of unitsOf(chars)) {
+    const w = sum(unit[0], unit[1])
+    if (chars[unit[0]] === " ") {
       if (line.length > 0 || lines.length === 0) add(unit, w)
       continue
     }
@@ -118,30 +141,35 @@ function wrapParagraph(paragraph: string, width: number, font: Font): string[] {
     }
     if (line.length > 0) {
       let at = line.length
-      while (at > 0 && !canBreak(line[at - 1] as string, at === line.length ? unit : (line[at] as string))) at--
-      const carried = at > 0 ? textWidth(line.slice(at).join(""), font) : Infinity
+      while (at > 0 && !canBreak(lastOf(line[at - 1] as Span), firstOf(at === line.length ? unit : (line[at] as Span))))
+        at--
+      const carried = at > 0 ? line.slice(at).reduce((s, u) => s + sum(u[0], u[1]), 0) : Infinity
       breakAt(at > 0 && carried + w <= width + SLACK ? at : line.length)
     }
-    if (lineWidth + w <= width + SLACK || [...unit].length === 1) {
+    if (lineWidth + w <= width + SLACK || unit[1] - unit[0] === 1) {
       add(unit, w)
       continue
     }
-    for (const ch of unit) {
-      const cw = textWidth(ch, font)
+    for (let i = unit[0]; i < unit[1]; i++) {
+      const cw = widths[i] as number
       if (lineWidth + cw > width + SLACK && line.length > 0) breakAt(line.length)
-      add(ch, cw)
+      add([i, i + 1], cw)
     }
   }
-  lines.push(trimEnd(line.join("")))
+  lines.push(spanOf(line, at0))
   return lines
 }
 
 // 文を幅 width（px）の行に分ける。改行はそのまま行を分ける
 export function wrap(text: string, width: number, font: Font): string[] {
-  return text.split("\n").flatMap(p => wrapParagraph(p, width, font))
+  return text.split("\n").flatMap(p => {
+    const chars = [...p]
+    const widths = chars.map(ch => charWidth(ch, font))
+    return breakParagraph(chars, widths, width).map(([a, b]) => chars.slice(a, b).join(""))
+  })
 }
 
-const ELLIPSIS = "…"
+export const ELLIPSIS = "…"
 
 // 行を max 行までにする。超えたら最後の行を、… を足して幅 width に収まるまで縮める
 export function clampLines(lines: readonly string[], max: number, width: number, font: Font): string[] {

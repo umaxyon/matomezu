@@ -1,12 +1,12 @@
 // 箱のアイテムのビュー: 上にキャプション（1 行で、収まらなければ … で切る）、本文が出るなら区切り線と本文。寄せはそれぞれの項目（captionAlign・bodyAlign）。
-// 本文は size.ts の boxLayout が折り返して高さに収めた行を、そのまま 1 行ずつ描く（ブラウザには折り返させない）。
+// 本文は size.ts の boxLayout が折り返して高さに収めた行を、そのまま 1 行ずつ、装飾（太字・文字の色）を付けて描く（ブラウザには折り返させない）。
 // 箱にテーマ（theme）を当てていれば、そのテーマの箱のテーマキー（塗り・線・文字・角の丸み・影・角の折り返し）で描く。表に無いテーマならブックのテーマのまま。
 // 色（color）があれば、塗りと文字のテーマキーをその色で上書きする（paint.ts）
 
 import type { CSSProperties } from "react"
 import type { ItemProps } from "../../../plugin-api"
 import type { ItemViewProps } from "../../../plugin-api/ui"
-import { useThemeVars } from "../../base/ui"
+import { RichText, useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"
 import { type BOX, BOX_TOKENS } from "./box"
 import { paintVars } from "./paint"
@@ -36,7 +36,7 @@ export function BoxView({ props, size }: ItemViewProps<ItemProps<typeof BOX.id>>
             {body.map((line, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
               <div key={i} className={styles.line} data-line>
-                {line}
+                <RichText line={line} />
               </div>
             ))}
           </div>

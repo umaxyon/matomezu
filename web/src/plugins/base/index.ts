@@ -16,6 +16,7 @@ import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
+import { BOOK_TEXT_COLORS, TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_NEXT } from "./tool-switch"
 import { HAND_TOOL, SELECT_TOOL } from "./tool-switch/tools"
@@ -65,6 +66,18 @@ export { placedSize, portAreasOf, rectsOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export {
+  BOOK_TEXT_COLORS,
+  clampRich,
+  parseRich,
+  plainOf,
+  type RichLine,
+  type Run,
+  textColorId,
+  textColorRef,
+  textColorsOf,
+  wrapRich,
+} from "./text"
+export {
   AlignSchema,
   BODY_MAX,
   captionTextWidth,
@@ -84,9 +97,10 @@ export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 export const BASE = defineBuiltin(
   kit.plugin({
     actions: [PAGE_ADD, PAGE_UPDATE, PAGE_REMOVE, BOOK_UPDATE, BOOK_CREATE, SET_LANG, SET_SKIN, SET_KEYS],
-    settings: [BOOK_THEME, BOOK_PAPER_COLOR],
+    settings: [BOOK_THEME, BOOK_PAPER_COLOR, BOOK_TEXT_COLORS],
     themes: [STANDARD, STICKY, SIMPLE],
     papers: PAPERS,
+    textColors: TEXT_COLORS,
     skins: [DARK, LIGHT],
     tools: [SELECT_TOOL, HAND_TOOL],
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK],
@@ -125,6 +139,7 @@ declare module "../../core/catalog" {
   interface SettingTable {
     "@matomezu/base:book-theme": typeof BOOK_THEME
     "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
+    "@matomezu/base:text-colors": typeof BOOK_TEXT_COLORS
   }
   interface ActionTable {
     "@matomezu/base:book-create": typeof BOOK_CREATE
@@ -148,6 +163,12 @@ declare module "../../core/catalog" {
   interface SkinTable {
     "@matomezu/base:dark": typeof DARK
     "@matomezu/base:light": typeof LIGHT
+  }
+  interface TextColorTable {
+    "@matomezu/base:success": (typeof TEXT_COLORS)[0]
+    "@matomezu/base:info": (typeof TEXT_COLORS)[1]
+    "@matomezu/base:warn": (typeof TEXT_COLORS)[2]
+    "@matomezu/base:error": (typeof TEXT_COLORS)[3]
   }
   interface PaperTable {
     "@matomezu/base:a5": typeof A5

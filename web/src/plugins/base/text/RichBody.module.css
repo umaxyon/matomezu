@@ -1,0 +1,59 @@
+/* 本文の入力Form: 装飾のボックスとテキストエリアの枠をつなげる */
+.joined {
+  display: flex;
+  flex-direction: column;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border: 1px solid var(--skin-line);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--skin-btn);
+}
+.area {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.bold {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-weight: 700;
+  color: var(--skin-text);
+  cursor: pointer;
+}
+.bold:hover {
+  background: var(--skin-btn-hover);
+}
+.gap {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--skin-line);
+}
+.dot {
+  all: unset;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.dot:hover {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
+}
+/* 色なし: 白地に斜めの線 */
+.none {
+  border: 1px solid var(--skin-line);
+  background:
+    linear-gradient(135deg, transparent 45%, var(--skin-hint) 45%, var(--skin-hint) 55%, transparent 55%),
+    var(--skin-bg);
+}

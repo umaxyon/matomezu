@@ -1,7 +1,7 @@
 // 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ・色。キャプションと本文の名前の右に、左・中央・右の寄せ）。
 // テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
-// 編集では、選んだ寄せ・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
-// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
+// 編集では、書いた本文と選んだ寄せ・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
+// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで、上の装飾のボックスで太字と文字の色を付けられる（base の RichBody）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は開いたときに覚えた所に箱を置いて（アクション item-place）選び、編集は箱の項目を書き換える（アクション item-update）
 
@@ -18,6 +18,7 @@ import {
   Field,
   Form,
   Problem,
+  RichBody,
   rowClass,
   Switch,
   useAligns,
@@ -30,8 +31,8 @@ import { kit } from "./kit"
 
 type BoxProps = ItemProps<typeof BOX.id>
 
-// 選んだそばから箱に見せる項目（寄せ・テーマ・色。テーマの undefined はブックのテーマ、色の undefined はテーマの塗り）
-type Look = Pick<BoxProps, "captionAlign" | "bodyAlign" | "theme" | "color">
+// 選んだそばから箱に見せる項目（本文・寄せ・テーマ・色。テーマの undefined はブックのテーマ、色の undefined はテーマの塗り）
+type Look = Pick<BoxProps, "body" | "captionAlign" | "bodyAlign" | "theme" | "color">
 
 const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "center", bodyAlign: "left" }
 
@@ -64,6 +65,7 @@ function AddBox({
   }
   return (
     <BoxDialog
+      stage={stage}
       title={kit.message("Add box")}
       submit={kit.message("Add")}
       start={EMPTY}
@@ -101,6 +103,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
   }
   return (
     <BoxDialog
+      stage={stage}
       title={kit.message("Edit box")}
       submit={kit.message("OK")}
       start={start}
@@ -114,6 +117,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
 }
 
 function BoxDialog({
+  stage,
   title,
   submit,
   start,
@@ -123,13 +127,14 @@ function BoxDialog({
   onPreview,
   onClose,
 }: {
+  stage: string
   title: MessageKey
   submit: MessageKey
   start: BoxProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
   onSubmit: (props: BoxProps) => boolean // 決められたか
-  onPreview?: (look: Look | null) => void // 寄せ・テーマ・色を選んだ（元の値に戻せば null。無ければ見せない）
+  onPreview?: (look: Look | null) => void // 本文・寄せ・テーマ・色を変えた（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
   const t = useMessages(kit)
@@ -146,13 +151,14 @@ function BoxDialog({
   const looks = theme || bookTheme
   const swatches = useSwatches(looks, BOX_FILL)
   const changed =
+    body !== start.body ||
     captionAlign !== start.captionAlign ||
     bodyAlign !== start.bodyAlign ||
     theme !== (start.theme ?? "") ||
     color !== start.color
   useEffect(() => {
-    onPreview?.(changed ? { captionAlign, bodyAlign, theme: theme || undefined, color } : null)
-  }, [changed, captionAlign, bodyAlign, theme, color, onPreview])
+    onPreview?.(changed ? { body, captionAlign, bodyAlign, theme: theme || undefined, color } : null)
+  }, [changed, body, captionAlign, bodyAlign, theme, color, onPreview])
   const aligns = useAligns()
   const [refused, setRefused] = useState(false)
   const hasBody = body !== ""
@@ -203,15 +209,15 @@ function BoxDialog({
           aside={<Choices label={t("Body alignment")} value={bodyAlign} options={aligns} onChange={setBodyAlign} />}
         >
           {id => (
-            <textarea
+            <RichBody
               id={id}
-              className={controlClass}
+              stage={stage}
               rows={4}
               maxLength={BODY_MAX}
               value={body}
-              onChange={e => {
-                if (!hasBody && e.target.value !== "") setRule(true)
-                setBody(e.target.value)
+              onChange={text => {
+                if (!hasBody && text !== "") setRule(true)
+                setBody(text)
               }}
             />
           )}

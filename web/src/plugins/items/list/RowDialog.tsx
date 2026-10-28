@@ -1,5 +1,5 @@
 // 行のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。テーマと色はリストに従うので持たない。
-// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで。
+// 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで、上の装飾のボックスで太字と文字の色を付けられる（base の RichBody）。
 // 追加はリストの最後に行を足し（row-add）、編集は行の項目を書き換える（row-update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
 // 編集だけに「行を削除」があり、押すと確かめずに行を消して閉じる（row-remove）
 
@@ -14,6 +14,7 @@ import {
   Dialog,
   Field,
   Form,
+  RichBody,
   rowClass,
   Switch,
   useAligns,
@@ -36,6 +37,7 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
   }
   return (
     <RowDialog
+      stage={stage}
       title={kit.message("Add row")}
       submit={kit.message("Add")}
       start={EMPTY}
@@ -59,6 +61,7 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
   }
   return (
     <RowDialog
+      stage={stage}
       title={kit.message("Edit row")}
       submit={kit.message("OK")}
       start={start}
@@ -71,6 +74,7 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
 }
 
 function RowDialog({
+  stage,
   title,
   submit,
   start,
@@ -79,6 +83,7 @@ function RowDialog({
   onRemove,
   onClose,
 }: {
+  stage: string
   title: MessageKey
   submit: MessageKey
   start: Text
@@ -127,15 +132,15 @@ function RowDialog({
           aside={<Choices label={t("Body alignment")} value={bodyAlign} options={aligns} onChange={setBodyAlign} />}
         >
           {id => (
-            <textarea
+            <RichBody
               id={id}
-              className={controlClass}
+              stage={stage}
               rows={4}
               maxLength={BODY_MAX}
               value={body}
-              onChange={e => {
-                if (!hasBody && e.target.value !== "") setRule(true)
-                setBody(e.target.value)
+              onChange={text => {
+                if (!hasBody && text !== "") setRule(true)
+                setBody(text)
               }}
             />
           )}

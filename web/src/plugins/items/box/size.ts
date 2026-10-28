@@ -4,7 +4,7 @@
 // 文字の幅と折り返しは base の text で計算するので、画面でも常駐でも同じ行になる。画面（BoxView）はこの値のとおりに描く
 import type { z } from "zod"
 import type { Size } from "../../../plugin-api"
-import { captionTextWidth, clampLines, PLACE_LINES, TEXT_LOOK, wrap } from "../../base"
+import { captionTextWidth, clampRich, PLACE_LINES, type RichLine, TEXT_LOOK, wrapRich } from "../../base"
 import type { BoxPropsSchema } from "./box"
 
 type BoxProps = z.infer<typeof BoxPropsSchema>
@@ -20,7 +20,7 @@ export const BOX_SIZE: Size = { w: 64, h: 64 } // 置いたときの一番小さ
 export const BOX_MIN: Size = { w: 64, h: HEAD } // 一番狭い幅と、一番低い高さ（キャプション 1 行）
 
 export interface BoxLayout {
-  body: string[] // 描く本文の行（本文が無いか、1 行も出ない高さなら空）
+  body: RichLine[] // 描く本文の行（装飾の区切りの並び。本文が無いか、1 行も出ない高さなら空）
   rule: boolean // 区切り線を引くか
 }
 
@@ -33,7 +33,7 @@ export function boxLayout(props: BoxProps, size: Size): BoxLayout {
   const fits = Math.floor((size.h - HEAD - rule) / L.line)
   if (fits <= 0) return { body: [], rule: false }
   const inner = innerWidth(size.w)
-  return { body: clampLines(wrap(props.body, inner, L.body), fits, inner, L.body), rule: props.rule }
+  return { body: clampRich(wrapRich(props.body, inner, L.body), fits, inner, L.body), rule: props.rule }
 }
 
 // 置いたときの幅: キャプションが PLACE_CAPTION 字まで切れずに見える幅（超えるなら、その字数と … が見える幅。一番狭くて BOX_SIZE の幅）
@@ -44,6 +44,6 @@ export function placedWidth(props: BoxProps): number {
 // 置いたときの高さ: 本文が PLACE_LINES 行まで見える高さ（一番低くて BOX_SIZE の高さ）
 export function placedHeight(props: BoxProps, w: number): number {
   if (props.body === "") return BOX_SIZE.h
-  const lines = Math.min(wrap(props.body, innerWidth(w), L.body).length, PLACE_LINES)
+  const lines = Math.min(wrapRich(props.body, innerWidth(w), L.body).length, PLACE_LINES)
   return Math.max(BOX_SIZE.h, HEAD + (props.rule ? RULE : 0) + lines * L.line)
 }

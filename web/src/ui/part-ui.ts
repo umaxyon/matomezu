@@ -24,6 +24,7 @@ export const PART_UI = {
   toolSets: { views: [], define: ["defineToolSet"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
+  textColors: { views: [], define: ["defineTextColor"] },
   skins: { views: [], define: ["defineSkin"] },
   commands: { views: ["commandIcons"], define: ["defineCommand"] },
   dialogs: { views: ["dialogViews"], define: ["defineDialog", "defineDialogWith"] },

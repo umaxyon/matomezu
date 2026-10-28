@@ -47,6 +47,7 @@ test("matomezu が出す名前", () => {
     "defineSetting",
     "defineShape",
     "defineSkin",
+    "defineTextColor",
     "defineTheme",
     "elapsedOf",
     "evenGap",

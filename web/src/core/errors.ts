@@ -31,6 +31,7 @@ export const ERRORS = {
   E031: "bookType {id}: unknown dialog {dialog}",
   E032: "toolSet {id}: unknown tool {tool}",
   E033: "toolSet {id}: has no tools",
+  E034: "textColor {id}: color {color} is not #rrggbb",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
