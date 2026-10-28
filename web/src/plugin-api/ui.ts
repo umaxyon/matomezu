@@ -21,6 +21,7 @@ export {
   usePage,
   usePerform,
   useSettings,
+  useShownBook,
   useShownPage,
   useStage,
   useUiCatalog,

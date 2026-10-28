@@ -6,11 +6,11 @@ import type { CSSProperties } from "react"
 import { placement, type StageView } from "../../../../plugin-api"
 import {
   type BookViewProps,
-  useBook,
   useCommand,
   useContextMenu,
   useCoreCatalog,
   useMessages,
+  useShownBook,
   useShownPage,
   useStage,
 } from "../../../../plugin-api/ui"
@@ -63,7 +63,7 @@ function Content({ stage }: { stage: StageView }) {
 // 開いたページの木（根の無いページは何も描かない）
 function Tree({ stage, paper }: { stage: StageView; paper: { w: number; h: number } }) {
   const catalog = useCoreCatalog()
-  const book = useBook(stage.id)
+  const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
   if (!book || !page || !root.success) return null

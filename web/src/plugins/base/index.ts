@@ -67,7 +67,8 @@ export {
   textPatch,
   textProps,
 } from "./text/fields"
-export { clampLines, wrap } from "./text/text"
+export type { Font, Weight } from "./text/text"
+export { clampLines, textWidth, wrap } from "./text/text"
 export { toolboxOf } from "./toolbox/toolbox"
 // プラグインに公開する共通の処理（utils。ビルトインプラグインもここから使う）
 export * from "./utils"

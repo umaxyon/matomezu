@@ -166,3 +166,15 @@ export function addPage<B extends PagedBook>(
   }
   return { book: { ...book, pages: [...book.pages, page] }, page }
 }
+
+// ブックかページの設定の項目（settings のフィールド）を変えた値: patch（項目の id → 値）の null の項目は消し、undefined の項目は変えない。
+// 項目が 1 つも無くなれば settings のフィールドも消す
+export function withSettings<T extends object>(target: T, patch: Readonly<Record<string, unknown>>): T {
+  const settings: Record<string, unknown> = { ...(target as { settings?: Record<string, unknown> }).settings }
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) delete settings[k]
+    else if (v !== undefined) settings[k] = v
+  }
+  const { settings: _old, ...rest } = target as T & { settings?: unknown }
+  return (Object.keys(settings).length > 0 ? { ...rest, settings } : rest) as T
+}

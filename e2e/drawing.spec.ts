@@ -843,7 +843,7 @@ test("線をダブルクリックすると線の編集のダイアログが開�
   await expect(line).toHaveCount(0)
 })
 
-test("紙の右クリックの「ページの設定」で、線の既定の通り方を直線にすると、斜めに離れた箱どうしの線が 2 点の直線になる", async ({
+test("紙の右クリックの「ページの設定」で、線の既定の通り方を直線にすると、確定の前から、斜めに離れた箱どうしの線が 2 点の直線になる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -868,6 +868,7 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
   await expect(inherit).toBeChecked()
   await expect(dialog.getByText("ブック継承")).toBeVisible()
   await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
+  await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2) // ダイアログの下書き
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2)
 })

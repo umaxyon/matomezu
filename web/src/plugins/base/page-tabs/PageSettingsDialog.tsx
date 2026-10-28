@@ -1,6 +1,7 @@
 // ページの設定のダイアログ: 開いているページの名前と、ブックのタイプが選んだページの設定の項目（値が無ければブックの値を継ぐ）。
-// 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。確定でアクション page-update（設定の項目は settings）を書く
-import { useId, useState } from "react"
+// 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからページに重ねて見せる（ダイアログの下書き。名前は見せない）。
+// 確定でアクション page-update（設定の項目は settings）を書き、キャンセルでは元のまま
+import { useEffect, useId, useState } from "react"
 import { pagedOf } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -21,7 +22,13 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
   const page = book?.pages.find(p => p.id === args.page)
   const [title, setTitle] = useState(page?.title ?? "")
   const settings = useSettingControls(book, "page", page ?? null)
-  const { perform } = useActions()
+  const { perform, previewDialog } = useActions()
+  const bookId = book?.id
+  const pageId = page?.id
+  const changed = Object.keys(settings.patch).length > 0
+  useEffect(() => {
+    previewDialog(changed && bookId && pageId ? { book: bookId, page: pageId, props: settings.patch } : null)
+  }, [changed, bookId, pageId, settings.patch, previewDialog])
   if (!book || !page) return null
   const named = title.trim() !== ""
   const submit = () => {

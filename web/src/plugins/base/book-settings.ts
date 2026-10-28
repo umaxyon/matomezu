@@ -4,6 +4,7 @@
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
 import { z } from "zod"
 import { hasPages, putPage } from "../../core/book"
+
 import { bookType, type CoreCatalog } from "../../core/core-catalog"
 import type { SettingDef } from "../../core/def/setting"
 import { fail } from "../../core/errors"
@@ -26,17 +27,6 @@ function settingsPatch(defs: readonly SettingDef[]): z.ZodObject {
 // ブックかページの settings のフィールド（無ければ空）
 const ownSettings = (target: object | null): Readonly<Record<string, unknown>> =>
   (target as { settings?: Record<string, unknown> } | null)?.settings ?? {}
-
-// 項目を変えた値（null の項目は消す。項目が 1 つも無くなれば settings のフィールドも消す）
-export function withSettings<T extends object>(target: T, patch: Readonly<Record<string, unknown>>): T {
-  const settings: Record<string, unknown> = { ...ownSettings(target) }
-  for (const [k, v] of Object.entries(patch)) {
-    if (v === null) delete settings[k]
-    else if (v !== undefined) settings[k] = v
-  }
-  const { settings: _old, ...rest } = target as T & { settings?: unknown }
-  return (Object.keys(settings).length > 0 ? { ...rest, settings } : rest) as T
-}
 
 // ブックのタイプの、ブックかページの設定の項目を変えるときに渡す形（項目を選んでいなければ null）
 export function settingsPatchOf(catalog: CoreCatalog, book: Book, of: SettingsOf): z.ZodObject | null {

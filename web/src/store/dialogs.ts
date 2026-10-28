@@ -50,11 +50,12 @@ export interface OpenedDialog {
 }
 
 // ダイアログの下書き: ブック book のアイテム item の項目に props を重ねて描く（データは変えない。この窓の中だけ）。
-// item が無ければブックそのもので、props はブックの設定の項目の変更（項目の id → 値。null は消す）
+// item が無く page があればそのページの、どちらも無ければブックの、設定の項目の変更が props（項目の id → 値。null は消す）
 // content があれば、アイテムの中身のフィールド（フィールドの名前 → 値。リストの行など）をそれに替えて描く
 export interface DialogPreview {
   book: string
   item?: string
+  page?: string
   props: Readonly<Record<string, unknown>>
   content?: Readonly<Record<string, unknown>>
 }

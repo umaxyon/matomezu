@@ -9,10 +9,10 @@ import {
   ShapeMarksProvider,
   type ShapeScene,
   useActions,
-  useBook,
   useCommand,
   useContextMenu,
   useCoreCatalog,
+  useShownBook,
 } from "../../../plugin-api/ui"
 import { type PortArea, portAreasOf } from "../../base"
 import { LINE_EDIT } from "./commands"
@@ -44,7 +44,7 @@ const linesIn = (scene: ShapeScene): PlacedLine[] =>
 export function LineLayer({ scene, children }: { scene: ShapeScene; children: ReactNode }) {
   const { stage, page, localOf } = scene
   const catalog = useCoreCatalog()
-  const book = useBook(stage.id)
+  const book = useShownBook(stage.id)
   // 線は形のつながる範囲（つなぎ口で縮めた四角）につなぐ
   const rects = portAreasOf(catalog, page, scene.rects)
   // ページの線の既定が折れ線か（ページ → ブック → 設定の既定）

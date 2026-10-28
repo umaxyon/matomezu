@@ -2,6 +2,7 @@
 // ブックの中はブックのテーマの値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
+import { withSettings } from "../../../core/book"
 import { type BookTypeId, bookType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
 import type { Book } from "../../../core/schema/book"
@@ -14,7 +15,6 @@ import { themeVars, useTokenScope } from "../../../ui/theme-vars"
 import { useResize } from "../../../ui/use-resize"
 import { bookTokens } from "../book-look/look"
 import { BookSearch } from "../book-open/BookSearch"
-import { withSettings } from "../book-settings"
 import { kit } from "../kit"
 import styles from "./StageView.module.css"
 
@@ -33,7 +33,10 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     return o ? s.books[o.book] : undefined
   })
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
-  const look = preview && preview.item === undefined && preview.book === book?.id ? preview.props : null
+  const look =
+    preview && preview.item === undefined && preview.page === undefined && preview.book === book?.id
+      ? preview.props
+      : null
   const catalog = useCatalog().core
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id))
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具

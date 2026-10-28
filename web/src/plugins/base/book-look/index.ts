@@ -1,8 +1,9 @@
 // ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book-update（ブックの名前と、ブックのタイプが選んだ設定の項目 settings。plugins/base/book-settings.ts）。
 // テーマと紙の色も設定の項目（look.ts）で、選んだタイプのブックだけが持つ
 import { z } from "zod"
+import { withSettings } from "../../../core/book"
 import type { Book } from "../../../core/schema/book"
-import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../book-settings"
+import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_PAPER_COLOR, BOOK_THEME } from "./look"
 

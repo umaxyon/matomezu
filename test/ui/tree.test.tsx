@@ -49,6 +49,54 @@ test("ページを作るボタンでツリーのダイアログが開き、ペ�
   expect(Number.parseFloat(root.style.left)).toBe(24) // 右へ伸びる木の根は、紙の左辺の中央
 })
 
+test("新しいページの伸びる向きは「ブック継承」から始まり、そのままならページに書かない（あとでブックの向きを変えると、ページも従う）", () => {
+  const { store, id, book } = setup()
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+  })
+  fireEvent.click(screen.getByRole("button", { name: "ページを作る" }))
+  const dialog = screen.getByRole("dialog", { name: "新しいページ" })
+  const inherit = within(dialog).getByRole("radio", { name: "ブックを継承（右へ）" }) as HTMLInputElement
+  expect(inherit.checked).toBe(true)
+  fireEvent.change(within(dialog).getByLabelText("根のキャプション"), { target: { value: "社長" } })
+  fireEvent.click(within(dialog).getByRole("button", { name: "作る" }))
+  expect(book().pages[0]).not.toHaveProperty("settings")
+  const root = () => screen.getByRole("img", { name: "紙" }).querySelector('[data-root="true"]') as HTMLElement
+  expect(Number.parseFloat(root().style.left)).toBe(24) // ブックの右へ
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "down" } }, { book: id })
+  })
+  expect(Number.parseFloat(root().style.top)).toBe(24) // ブックの下へに従う
+})
+
+test("ページとブックの設定のダイアログで伸びる向きを選ぶと、確定の前から並べ直して見せ、キャンセルで元に戻す", () => {
+  const { store, id } = setup()
+  act(() => {
+    expect(addPageIn(store, "s1", { title: "p1", fields: { root: { caption: "根" } } })).toBe(true)
+  })
+  const page = (store.state.getState().books[id] as { pages: { id: string }[] }).pages[0]!.id
+  const top = () =>
+    Number.parseFloat(
+      (screen.getByRole("img", { name: "紙" }).querySelector('[data-root="true"]') as HTMLElement).style.top,
+    )
+  expect(top()).toBe(24) // 既定は下へ（根は上辺の中央）
+  act(() => store.actions.openDialog("s1", "@matomezu/base:page-settings", { page }))
+  let dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  fireEvent.click(within(dialog).getByRole("radio", { name: "上へ" }))
+  expect(top()).toBeGreaterThan(24) // 上へ（根は下辺の中央）を、確定の前から見せる
+  expect(store.state.getState().books[id]).not.toHaveProperty("pages.0.settings")
+  fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
+  expect(top()).toBe(24)
+  act(() => store.actions.openDialog("s1", "@matomezu/base:book-settings"))
+  dialog = screen.getByRole("dialog", { name: "ブックの設定" })
+  fireEvent.click(
+    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "上へ" }),
+  )
+  expect(top()).toBeGreaterThan(24)
+  fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
+  expect(top()).toBe(24)
+})
+
 test("根を渡さずにページは作れない（根はツリーのページのフィールド）", () => {
   const { store } = setup()
   act(() => {

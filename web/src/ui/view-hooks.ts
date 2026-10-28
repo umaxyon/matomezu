@@ -1,7 +1,7 @@
 // プラグインの見た目が使うフック（matomezu/ui）: matomezu が渡すステージの id から、約束のものだけを引く。状態を丸ごとは見せない。
 // データはブック・ページ・アイテム、ステージは読むだけの StageView、ほかに機能台帳と見る人の設定。データを変えるのは usePerform（アクション）だけ
 import { useMemo } from "react"
-import { pagedOf } from "../core/book"
+import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { Lang } from "../core/i18n/i18n"
@@ -45,13 +45,28 @@ export function useItem<Id extends ItemId>(
   })
 }
 
-// そのステージが開いているページに、ダイアログの下書き（選んでいて、まだ確定していない値）を重ねたページ。見せ方が描くのに使う
+// そのステージが開いているブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。見せ方が描くのに使う
+export function useShownBook(stage: string): Book | null {
+  const book = useBook(stage)
+  const preview = useMatomezuState(s => s.dialog?.preview ?? null)
+  return useMemo(() => {
+    if (!book || !preview || preview.book !== book.id || preview.item !== undefined || preview.page !== undefined)
+      return book
+    return withSettings(book, preview.props)
+  }, [book, preview])
+}
+
+// そのステージが開いているページに、ダイアログの下書き（選んでいて、まだ確定していない値。アイテムの項目と、ページの設定の項目）を重ねたページ。
+// 見せ方が描くのに使う
 export function useShownPage(stage: string): ItemPage | null {
   const page = usePage(stage)
   const book = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.opened?.book)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
-    if (!page?.items || preview?.item === undefined || preview.book !== book) return page
+    if (!page || !preview || preview.book !== book) return page
+    if (preview.item === undefined)
+      return preview.page === (page as { id?: string }).id ? withSettings(page, preview.props) : page
+    if (!page.items) return page
     const items = page.items.map(i =>
       i.id === preview.item
         ? ({

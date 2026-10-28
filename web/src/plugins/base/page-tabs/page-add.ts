@@ -2,9 +2,9 @@
 // タイプがページに足したフィールド（fields。page-fields.ts）と、ページの設定の項目（settings。plugins/base/book-settings.ts）も一緒に決められる
 // （タイプのフィールドで要るものを渡さなければ、ブックのデータの形に合わず断られる）
 import { z } from "zod"
-import { addPage, canChoose, defaultPaper, hasPages, paperChoices, putPage } from "../../../core/book"
+import { addPage, canChoose, defaultPaper, hasPages, paperChoices, putPage, withSettings } from "../../../core/book"
 import { ORIENTATIONS } from "../../../core/def/paper"
-import { settingsArgs, settingsPatchOf, settleBook, withSettings } from "../book-settings"
+import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, parseFields } from "./page-fields"
 

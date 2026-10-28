@@ -1,10 +1,11 @@
 // 設定の項目のコンポーネントの並び: ブックのタイプが選んだ設定の項目（ブックかページ）ごとに、項目のビューのコンポーネントを出す（ビューの無い項目は出さない）。
 // 変えた項目だけを、項目の id ごとの値（消すなら null）にして、アクション book-update・page-update の settings に渡す
 import { useState } from "react"
+import { withSettings } from "../../../core/book"
 import type { Book } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { type SettingsOf, settingDefs, settingValue, withSettings } from "../book-settings"
+import { type SettingsOf, settingDefs, settingValue } from "../book-settings"
 import { kit } from "../kit"
 
 // 変えた項目（項目の id → 値。消すなら null）
