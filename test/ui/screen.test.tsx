@@ -110,13 +110,16 @@ test("タブの左のボタンでダイアログを開き、選んだブック�
   expect(screen.queryByRole("combobox", { name: "ブックを探す" })).toBeNull()
 })
 
-test("＋でページを作るダイアログが開き、名前と紙を決めて作ると、そのタブが選ばれる。名前が空なら作れない", () => {
+test("＋でページを作るダイアログが開き（紙は A 判とレター・タブロイド）、名前と紙を決めて作ると、そのタブが選ばれる。名前が空なら作れない", () => {
   renderScreen()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   const dialog = screen.getByRole("dialog", { name: "新しいページ" })
   const name = within(dialog).getByLabelText("ページの名前") as HTMLInputElement
   expect(name.value).toBe("ページ 2")
   expect((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).value).toBe("@matomezu/base:a4")
+  expect(
+    Array.from((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).options).map(o => o.textContent),
+  ).toEqual(["A5", "A4", "A3", "レター", "タブロイド"])
   expect((within(dialog).getByLabelText("向き") as HTMLSelectElement).value).toBe("landscape")
   fireEvent.change(name, { target: { value: "  " } })
   expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)

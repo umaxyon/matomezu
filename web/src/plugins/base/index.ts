@@ -8,7 +8,7 @@ import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { kit } from "./kit"
 import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
-import type { A3, A4, A5 } from "./looks/papers"
+import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MINIMAP_TOGGLE } from "./minimap"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
@@ -146,6 +146,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:a5": typeof A5
     "@matomezu/base:a4": typeof A4
     "@matomezu/base:a3": typeof A3
+    "@matomezu/base:letter": typeof LETTER
+    "@matomezu/base:tabloid": typeof TABLOID
   }
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW

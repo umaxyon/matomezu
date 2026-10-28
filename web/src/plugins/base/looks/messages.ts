@@ -8,6 +8,8 @@ export const LOOKS_MESSAGES = defineMessages({
   A5: { en: "A5", ja: "A5" },
   A4: { en: "A4", ja: "A4" },
   A3: { en: "A3", ja: "A3" },
+  Letter: { en: "Letter", ja: "レター" },
+  Tabloid: { en: "Tabloid", ja: "タブロイド" },
   Dark: { en: "Dark", ja: "ダーク" },
   Light: { en: "Light", ja: "ライト" },
 })
