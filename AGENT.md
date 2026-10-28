@@ -18,5 +18,12 @@ AI と人が同じ図（ブック）を見て、直し合うための図エデ�
 
 ## 規約でない資料
 
-- `docs/`（git に入れない）: 計画（`*-plan.md`）・引き継ぎ（`HANDOFF.md`）・経緯（`OVERHAUL.md`）。規約と食い違うときは規約が正
+- `docs/`（git に入れない）: 計画（`*-plan.md`）・引き継ぎ（`HANDOFF.md`）・経緯（`OVERHAUL.md`）・指摘改善事例（`shiteki-kaizen.md`）。規約と食い違うときは規約が正
 - `_old_docs/` とタグ `pre-overhaul`: 作り直す前の資料とコード。ユーザーが指示したものだけ見る
+
+## 指摘改善事例
+
+AI が案（案 1・案 2 など）を出したあと、ユーザーの指摘で方向や中身が変わったら、`docs/shiteki-kaizen.md` に事例を 1 つ足す。案から選んだだけのときは足さない。
+
+- 書く項目は、事例 No・提案内容・私からの返信指摘（「私」はユーザー）・結果・学び。番号は最後の事例の次
+- 平行作業の worktree からも、main の worktree（`git worktree list` の最初の行）の `docs/shiteki-kaizen.md` に足す
