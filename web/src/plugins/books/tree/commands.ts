@@ -9,7 +9,7 @@ import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
 import { EDIT_TOOL } from "./tools"
-import { NODE_COLOR_DIALOG, NODE_SIZE_DIALOG, TREE_KEYS_SCOPE } from "./tree"
+import { NODE_COLOR_DIALOG, NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./tree"
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
 function treeAt(ctx: CommandContext) {
@@ -33,14 +33,16 @@ export const NODE_SELECT_MOVE = kit.defineCommand({
   when: editingTree,
 })
 
-// 選んでいる節（何も選んでいなければ根）を、その場で編集し始める
+// 選んでいる節（何も選んでいなければ根）を編集し始める。子はその場で、根はページの設定のダイアログ（根のダイアログを兼ねる）で
 export const NODE_EDIT = kit.defineCommand({
   id: "node-edit",
   title: "Edit caption",
   run: (ctx, a) => {
     const tree = treeAt(ctx)
     if (!tree) return
-    a.select(ctx.stage.id, [selectedIn(tree.root, ctx.stage.selection)])
+    const node = selectedIn(tree.root, ctx.stage.selection)
+    if (node === tree.root.id) return a.openDialog(ctx.stage.id, TREE_PAGE_SETTINGS_DIALOG.id, { page: tree.page.id })
+    a.select(ctx.stage.id, [node])
     a.setEditing(ctx.stage.id, true)
   },
   when: editingTree,

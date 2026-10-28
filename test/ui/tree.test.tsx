@@ -354,19 +354,13 @@ test("選んでいる節の＋で空の子を足してその場で書き、Enter
   expect(rootId).not.toBe(a.id)
 })
 
-test("Enter かダブルクリックで、選んでいる節をその場で書き換える。根は根のキャプション、空のまま確定しても元のまま、Escape は取り消し", () => {
+test("Enter かダブルクリックで、選んでいる子の節をその場で書き換える。空のまま確定しても元のまま、Escape は取り消し", () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
   const a = done.fields!.root.children[0]!.id
   const paper = () => screen.getByRole("img", { name: "紙" })
-  fireEvent.keyDown(window, { key: "Enter" }) // 根を書き換え
-  let input = within(paper()).getByRole("textbox", { name: "キャプション" }) as HTMLInputElement
-  expect(input.value).toBe("根")
-  fireEvent.change(input, { target: { value: "代表" } })
-  fireEvent.keyDown(input, { key: "Enter" })
-  expect(book().pages[0]).toMatchObject({ root: { caption: "代表" } })
   fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
-  input = within(paper()).getByRole("textbox") as HTMLInputElement
+  let input = within(paper()).getByRole("textbox") as HTMLInputElement
   expect(input.value).toBe("子 A")
   fireEvent.change(input, { target: { value: "" } })
   fireEvent.keyDown(input, { key: "Enter" })
@@ -381,8 +375,14 @@ test("Enter かダブルクリックで、選んでいる節をその場で書�
 
 test("その場の編集は、同じ道具を選び直しても続き、道具が替わると終わる", () => {
   const { store, id } = setup()
-  addTree(store, id, { caption: "根" })
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
   const editing = () => store.state.getState().workspace.stages[0]!.editing
+  fireEvent.pointerDown(
+    screen.getByRole("img", { name: "紙" }).querySelector(`[data-node="${done.fields!.root.children[0]!.id}"]`)!,
+    {
+      button: 0,
+    },
+  )
   fireEvent.keyDown(window, { key: "Enter" })
   expect(editing()).toBe(true)
   act(() => store.actions.setTool("s1", "@matomezu/tree:edit"))
@@ -590,4 +590,49 @@ test("節の色: 節のメニューの「節の色」で子も根も色を選べ
   expect(book().pages[0]).toMatchObject({
     root: { children: [{ id: a, children: [{ caption: "孫", color: "#ff0000" }] }] },
   })
+})
+
+test("根は Enter・ダブルクリック・紙の右クリックの「ページの設定」で根のダイアログ（ツリーのページの設定）を開き、キャプション・本文・本文を描くかを直せる。本文を描けば根の中に出る", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const rootEl = () => paper().querySelector('[data-root="true"]') as HTMLElement
+  fireEvent.keyDown(window, { key: "Enter" })
+  let dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  expect(within(paper()).queryByRole("textbox")).toBeNull() // 根はその場で書かない
+  fireEvent.change(within(dialog).getByLabelText("根のキャプション"), { target: { value: "代表" } })
+  fireEvent.change(within(dialog).getByLabelText("根の本文"), { target: { value: "本文の一行目" } })
+  fireEvent.click(within(dialog).getByRole("switch", { name: "本文を紙に描く" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).toMatchObject({
+    id: done.page,
+    root: { caption: "代表", body: "本文の一行目", showBody: true },
+  })
+  expect(rootEl().textContent).toBe("代表本文の一行目")
+  const before = Number.parseFloat(rootEl().style.height)
+  fireEvent.doubleClick(rootEl())
+  dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  fireEvent.click(within(dialog).getByRole("switch", { name: "本文を紙に描く" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(Number.parseFloat(rootEl().style.height)).toBeLessThan(before)
+  expect(book().pages[0]).not.toHaveProperty("root.showBody")
+  fireEvent.contextMenu(paper())
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /^ページの設定/ }))
+  dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  expect(within(dialog).getByRole("button", { name: "ページを削除" })).toBeTruthy()
+})
+
+test("ツリーのページの設定でも、選んでいる値で木が紙に入らなければ、確定の前から知らせを出して確定できない", () => {
+  const { store, id } = setup()
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+  })
+  const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
+  act(() => store.actions.openDialog("s1", "@matomezu/tree:page-settings", { page: done.page }))
+  const dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  fireEvent.click(
+    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "下へ" }),
+  )
+  expect(within(dialog).getByRole("alert").textContent).toBe("p1：紙に入りません")
+  expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(true)
 })

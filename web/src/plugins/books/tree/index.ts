@@ -8,14 +8,21 @@ import { GROW } from "./grow"
 import { kit } from "./kit"
 import { NODE_SIZE } from "./size"
 import { EDIT_TOOL, TREE_TOOLS } from "./tools"
-import { NEW_TREE_PAGE_DIALOG, NODE_COLOR_DIALOG, NODE_SIZE_DIALOG, TREE, TREE_PRESENTATION } from "./tree"
+import {
+  NEW_TREE_PAGE_DIALOG,
+  NODE_COLOR_DIALOG,
+  NODE_SIZE_DIALOG,
+  TREE,
+  TREE_PAGE_SETTINGS_DIALOG,
+  TREE_PRESENTATION,
+} from "./tree"
 
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [TREE],
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE],
-    dialogs: [NEW_TREE_PAGE_DIALOG, NODE_SIZE_DIALOG, NODE_COLOR_DIALOG],
+    dialogs: [NEW_TREE_PAGE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, NODE_SIZE_DIALOG, NODE_COLOR_DIALOG],
     actions: [NODE_ADD, NODE_UPDATE, NODE_REMOVE],
     commands: [NODE_SELECT_MOVE, NODE_EDIT, NODE_COLOR_EDIT, NODE_SIZE_EDIT, NODE_DELETE],
     keys: TREE_KEYS,
@@ -58,6 +65,7 @@ declare module "../../../core/catalog" {
   }
   interface DialogTable {
     "@matomezu/tree:page-new": typeof NEW_TREE_PAGE_DIALOG
+    "@matomezu/tree:page-settings": typeof TREE_PAGE_SETTINGS_DIALOG
     "@matomezu/tree:node-size-edit": typeof NODE_SIZE_DIALOG
     "@matomezu/tree:node-color-edit": typeof NODE_COLOR_DIALOG
   }

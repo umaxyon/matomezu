@@ -2,7 +2,7 @@
 // 外から読む入口は plugin-entry（matomezu）。名前の一覧は test/plugin-api.test.ts
 
 export type { PagedBook } from "../core/book"
-export { bookItems, creatableTypes, createBook, hasPages, pagedOf, putPage } from "../core/book"
+export { bookItems, creatableTypes, createBook, hasPages, pagedOf, putPage, withSettings } from "../core/book"
 export type {
   ActionId,
   BookTypeId,

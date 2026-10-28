@@ -40,6 +40,7 @@ export const TreeRootSchema = z.strictObject({
   id: z.string().min(1),
   caption: z.string(),
   body: z.string().max(BODY_MAX).optional(),
+  showBody: z.boolean().optional(), // 本文を紙の上に描くか（無ければ描かない）
   color: NodeColorSchema.optional(),
   children: z.array(TreeNodeSchema).optional(),
 })

@@ -1,7 +1,8 @@
 // ツリーのブック: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分の見せ方（tree）で紙に描く。紙に置けるアイテムは無い。
-// 伸びる向きと節の大きさの選び方は、ブックとページの設定の項目（grow.ts・size.ts）。新しいページは自分のダイアログで作る（ページ名・伸びる向き・根のキャプション）。道具は自分の組（tools.ts。編集とハンド）。
+// 伸びる向きと節の大きさの選び方は、ブックとページの設定の項目（grow.ts・size.ts）。新しいページを作るダイアログと、ページの設定のダイアログ（根のダイアログを兼ねる）は自分の物を名指す。道具は自分の組（tools.ts。編集とハンド）。
 // 見た目（テーマと紙の色）は base の設定の項目で変えられる
 import { z } from "zod"
+import type { PageSettingsArgs } from "../../../plugin-api"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
@@ -14,6 +15,9 @@ export const TREE_KEYS_SCOPE = kit.name("tree")
 
 // ツリーの見せ方: 紙の上に、根から伸びる木を描く。カレントのステージがこれで描いている間は、ツリーのキーの範囲を探す
 export const TREE_PRESENTATION = kit.definePresentation({ id: "tree", keyScope: TREE_KEYS_SCOPE })
+
+// ツリーのページの設定のダイアログ（根のダイアログを兼ねる。ページ名・伸びる向き・節の大きさ・根のキャプションと本文と、本文を描くか）
+export const TREE_PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({ id: "page-settings" })
 
 // ツリーのページを作るダイアログ（ページ名・伸びる向き・根のキャプション）
 export const NEW_TREE_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
@@ -41,14 +45,14 @@ export const TREE = kit.defineBookType({
   single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
-  pageFieldsInput, // 根は作るときに子ごと受けて id を振り、直すときは根のキャプションと本文だけ
+  pageFieldsInput, // 根は作るときに子ごと受けて id を振り、直すときは根のキャプション・本文・本文を描くか・色だけ
   // 木が紙に入らないページは問題（base のページ・ブックのアクションは書かない）
   pageProblem: (catalog, page, setting) =>
     treeFits(catalog, page, setting) ? null : { message: kit.message("Does not fit on the paper") },
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
     fields: { root: TreeRootSchema },
-    dialogs: { add: NEW_TREE_PAGE_DIALOG.id },
+    dialogs: { add: NEW_TREE_PAGE_DIALOG.id, settings: TREE_PAGE_SETTINGS_DIALOG.id },
   },
   items: { allowed: [], defaults: [] },
   actions: {}, // 使うアクションは、見せ方・ページについて来る

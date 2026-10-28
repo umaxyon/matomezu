@@ -22,6 +22,7 @@ export interface LaidNode {
   id: string
   caption: string
   lines: string[] // 見せる行（折り返した行・… で切った行）
+  body?: string[] // 根の本文の行（本文を描くときだけ）
   color?: string // 節の色（無ければテーマの塗り）
   x: number
   y: number
@@ -129,9 +130,28 @@ function branch(parent: Rect, kids: readonly TreeNode[], side: Side, size: NodeS
   }
 }
 
-// 根の四角（伸びる向きで、紙の辺の中央か真ん中）
-function rootRect(root: TreeRoot, grow: Grow, paper: { w: number; h: number }, size: NodeSize): Rect {
-  const { w, h } = nodeSize(root.caption, size)
+const BODY_FONT = TEXT_LOOK.body
+const BODY_GROWS_AT = 30 // 伸びる根の本文を折り返す字の数
+
+// 根のキャプションの行と、本文を描くなら本文の行（大きさの選び方の N 字で折り返す。伸びるなら 30 字）と、根の大きさ
+export function rootBox(root: TreeRoot, size: NodeSize): { w: number; h: number; lines: string[]; body?: string[] } {
+  const head = nodeSize(root.caption, size)
+  if (!root.showBody || !root.body) return head
+  const chars = sizeRule(size).chars ?? BODY_GROWS_AT
+  const max = textWidth(FULL_WIDTH.repeat(chars), BODY_FONT)
+  const body = wrap(root.body, max, BODY_FONT)
+  const widest = Math.max(...body.map(l => textWidth(l, BODY_FONT)))
+  return {
+    w: Math.max(head.w, Math.ceil(Math.min(max, widest)) + TEXT_LOOK.padX * 2),
+    h: head.h + TEXT_LOOK.line * body.length + TEXT_LOOK.ruleGap * 2 + 1,
+    lines: head.lines,
+    body,
+  }
+}
+
+// 根の四角（伸びる向きで、紙の辺の中央か真ん中。大きさは box）
+function rootRect(box: { w: number; h: number }, grow: Grow, paper: { w: number; h: number }): Rect {
+  const { w, h } = box
   if (grow === "down") return { x: (paper.w - w) / 2, y: MARGIN, w, h }
   if (grow === "up") return { x: (paper.w - w) / 2, y: paper.h - MARGIN - h, w, h }
   if (grow === "right") return { x: MARGIN, y: (paper.h - h) / 2, w, h }
@@ -185,13 +205,15 @@ export function layoutTree(
   paper: { w: number; h: number },
   size: NodeSize = DEFAULT_NODE_SIZE,
 ): TreeLayout {
-  const r = rootRect(root, grow, paper, size)
+  const box = rootBox(root, size)
+  const r = rootRect(box, grow, paper)
   const out: TreeLayout = {
     nodes: [
       {
         id: root.id,
         caption: root.caption,
-        lines: nodeSize(root.caption, size).lines,
+        lines: box.lines,
+        ...(box.body ? { body: box.body } : {}),
         ...(root.color ? { color: root.color } : {}),
         ...r,
       },

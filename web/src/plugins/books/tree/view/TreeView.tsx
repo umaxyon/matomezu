@@ -3,7 +3,8 @@
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす。
-// 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める。
+// 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める
+// （根はページの設定のダイアログを開く）。
 // その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
 // 足す・書き換えるのが紙に入らないので断られたら、トーストで知らせる
 import { type CSSProperties, useEffect, useRef, useState } from "react"
@@ -30,7 +31,7 @@ import { layoutTree } from "../layout"
 import { TreeRootSchema } from "../node"
 import { DEFAULT_NODE_SIZE, NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
-import { NODE_CONTEXT, TREE_CONTEXT } from "../tree"
+import { NODE_CONTEXT, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
 import { nodePaint } from "./paint"
 import styles from "./TreeView.module.css"
 
@@ -93,7 +94,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
-  const { select, setEditing, panStageBy, showToast } = useActions()
+  const { select, setEditing, panStageBy, showToast, openDialog } = useActions()
   // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、断られるのは紙に入らないとき）
   const refused = () => showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
@@ -185,10 +186,12 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
           onDoubleClick={() => {
             if (!usingEdit) return
             select(stage.id, [n.id])
-            setEditing(stage.id, true)
+            if (n.id === tree.id) openDialog(stage.id, TREE_PAGE_SETTINGS_DIALOG.id, { page: pageId })
+            else setEditing(stage.id, true)
           }}
         >
           {n.lines.join("\n")}
+          {n.body && <div className={styles.body}>{n.body.join("\n")}</div>}
         </div>
       ))}
       {writing && at && (

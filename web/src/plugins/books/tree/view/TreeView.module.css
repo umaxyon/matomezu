@@ -125,3 +125,10 @@
   line-height: 18px;
   cursor: pointer;
 }
+/* 根の本文（キャプションの下に、区切り線を挟んで） */
+.body {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid var(--tree-node-line);
+  font-weight: 400;
+}
