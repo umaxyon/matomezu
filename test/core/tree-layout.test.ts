@@ -93,3 +93,48 @@ test("中央の木は、根の直系の子をそれぞれの向き（無けれ�
   expect(l.lines).toHaveLength(5)
   expect(l.fits).toBe(true)
 })
+
+// 四角どうしが重なるか
+const overlap = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+
+test("横長の紙の中央の木: 上下の枝が広がって右の枝とぶつかるなら、上下の枝は根の近くのまま、右の枝を重ならない所まで離す", () => {
+  const ups = Array.from({ length: 12 }, (_, i) => ({ id: `u${i}`, caption: `上の子 ${i}`, side: "up" as const }))
+  const rights = Array.from({ length: 12 }, (_, i) => ({ id: `x${i}`, caption: `右 ${i}` }))
+  const tree = { id: "r", caption: "根", children: [...ups, ...rights] }
+  const plain = layoutTree({ id: "r", caption: "根", children: ups }, "center", PAPER)
+  const l = layoutTree(tree, "center", PAPER)
+  // 上の枝の位置は、右の枝が無いときと同じ
+  for (const u of ups) expect(at(l, u.id)).toEqual(at(plain, u.id))
+  for (const u of ups) for (const x of rights) expect(overlap(at(l, x.id), at(l, u.id))).toBe(false)
+  expect(at(l, "x0").x).toBeGreaterThan(at(l, "r").x + at(l, "r").w + 40) // いつもの間（40）より離れる
+})
+
+test("縦長の紙の中央の木: 左右の枝は根の近くのまま、上下の枝を離す", () => {
+  const tall = { w: 794, h: 1123 }
+  const lefts = Array.from({ length: 30 }, (_, i) => ({ id: `l${i}`, caption: `左 ${i}`, side: "left" as const }))
+  const grand = Array.from({ length: 8 }, (_, i) => ({ id: `g${i}`, caption: `上の孫 ${i}` }))
+  const up = { id: "u", caption: "上の子", side: "up" as const, children: grand }
+  const tree = { id: "r", caption: "根", children: [...lefts, up] }
+  const l = layoutTree(tree, "center", tall)
+  for (const n of lefts) for (const m of [up, ...grand]) expect(overlap(at(l, m.id), at(l, n.id))).toBe(false)
+  expect(at(l, "u").y + at(l, "u").h).toBeLessThan(at(l, "r").y - 40) // いつもの間（40）より離れる
+})
+
+test("中央の木が紙からはみ出るとき、木全体が入るなら、根ごと余裕のある側へずらす。入らなければ fits が false", () => {
+  const long = (n: number) => ({
+    id: "r",
+    caption: "根",
+    children: [
+      {
+        id: "a",
+        caption: "とても長いキャプションの右の子",
+        children: Array.from({ length: n }, (_, i) => ({ id: `g${i}`, caption: "とても長いキャプションの孫の節" })),
+      },
+    ],
+  })
+  const one = layoutTree(long(1), "center", { w: 700, h: 400 })
+  expect(one.fits).toBe(true)
+  expect(at(one, "r").x).toBeLessThan((700 - at(one, "r").w) / 2) // 根が左へずれた
+  expect(layoutTree(long(1), "center", { w: 300, h: 400 }).fits).toBe(false)
+})
