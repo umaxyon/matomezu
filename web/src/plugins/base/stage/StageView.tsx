@@ -1,5 +1,6 @@
 // ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
 // ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
+// 紙をずらす道具（pans）の間は、ステージの中のどこでもポインタを手にする（中のアイテムのカーソルより強い。ドラッグ中は握った手）。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
 // Ctrl+ホイール（Mac は Cmd も）は、回した量が WHEEL_STEP に届くたびに、ポインタの位置を付けてコマンド zoom-in・zoom-out を呼ぶ（拡大できるステージならブラウザの拡大は止める。回した量は回している間だけビューに持つ）
 import {
@@ -131,6 +132,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       data-current={isCurrent}
       data-paper={hasPaper}
       data-tool={tool ?? undefined}
+      data-pans={hasPaper && pans}
       data-dragging={dragging}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

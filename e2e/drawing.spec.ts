@@ -89,6 +89,31 @@ test("選択の道具で箱をドラッグすると動き、何も無い所を�
   expect(Math.round(moved.y - after.y)).toBe(Math.round(p1.y - p0.y))
 })
 
+test("ハンドの道具の間は、紙の外でも箱の上でもポインタが手になり、押している間は握った手になる", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "箱" }).click()
+  const at = await onPaper(page, 200, 150)
+  await addBox(page, at.x, at.y, "見出し")
+  const cursor = (selector: string) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate(el => getComputedStyle(el).cursor)
+  expect(await cursor("[data-item]")).not.toBe("grab")
+  await page.getByRole("button", { name: "選択ツール" }).click()
+  await page.getByRole("button", { name: "付け替えツール" }).click()
+  const stage = 'section[data-tool="@matomezu/base:hand"]'
+  for (const selector of [stage, `${stage} [data-item]`, `${stage} [data-item] *`])
+    expect(await cursor(selector)).toBe("grab")
+  const box = (await items(page).boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await expect(page.locator(stage)).toHaveAttribute("data-dragging", "true")
+  expect(await cursor(`${stage} [data-item]`)).toBe("grabbing")
+  await page.mouse.up()
+  expect(await cursor(`${stage} [data-item]`)).toBe("grab")
+})
+
 test("追加のダイアログは見出しの右にキャンセルと追加を並べ、キャンセルでは置かない。区切り線は本文を書くと押せて入り、Enter で追加する", async ({
   page,
 }) => {

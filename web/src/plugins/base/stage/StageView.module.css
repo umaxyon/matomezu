@@ -5,16 +5,21 @@
   touch-action: none;
   user-select: none;
 }
-/* 紙があるとき: 点の格子の上に紙を置く。ハンドの道具では、マウスは手のひら（ドラッグで紙をずらす） */
+/* 紙があるとき: 点の格子の上に紙を置く */
 .stage[data-paper="true"] {
   background-image: radial-gradient(var(--skin-grid) 1px, transparent 1px);
   background-size: 22px 22px;
 }
-.stage[data-paper="true"][data-tool="hand"] {
-  cursor: grab;
+/* 紙をずらす道具の間は、中のアイテムが何のカーソルを持っていても手のひら（ドラッグで紙をずらす。ドラッグ中は握った手） */
+.stage[data-pans="true"],
+.stage[data-pans="true"] * {
+  /* biome-ignore lint/complexity/noImportantStyles: 中のアイテムが自分で決めたカーソルより強くするため */
+  cursor: grab !important;
 }
-.stage[data-paper="true"][data-dragging="true"] {
-  cursor: grabbing;
+.stage[data-pans="true"][data-dragging="true"],
+.stage[data-pans="true"][data-dragging="true"] * {
+  /* biome-ignore lint/complexity/noImportantStyles: 中のアイテムが自分で決めたカーソルより強くするため */
+  cursor: grabbing !important;
 }
 /* 開いたブックの中身。テーマの値（--theme-）をここに置き、中のコンポーネントが使う。枠の大きさには加わらない */
 .book {
