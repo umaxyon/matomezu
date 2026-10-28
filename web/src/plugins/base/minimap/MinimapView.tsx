@@ -1,10 +1,11 @@
 // ミニマップの絵: ステージの紙の全体を、幅 width・高さ height に収まるように縮めて描き（アイテムは marks.ts の絵）、見えている範囲を四角で重ねる。
 // 四角をドラッグすると、ステージの見る所がついて動く。四角の外を押すと、そこが真ん中に来るように飛んでから、そのままドラッグできる
-// （紙をずらさない道具の間は、押しても動かさない）。
+// （紙をずらさない道具の間に押すと、組の紙をずらす道具に替えてから動かす。組にそれが無ければ動かさない）。
 // 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）
 import { type PointerEvent, type ReactNode, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
+import { toolSetOf } from "../../../core/tools"
 import { toolOf } from "../../../core/workspace"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
@@ -13,7 +14,7 @@ import { useShownPage } from "../../../ui/view-hooks"
 import { bookTokens } from "../book-look/look"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
-import { keepsPan } from "../tool-switch/tools"
+import { keepsPan, panningTool } from "../tool-switch/tools"
 import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
 import { type MinimapMark, minimapMarks } from "./marks"
@@ -38,7 +39,7 @@ export function MinimapView({
   })
   const page = useShownPage(id)
   const held = useMatomezuState(s => keepsPan(catalog, toolOf(catalog, s.workspace, id)))
-  const { panStageBy, focusStage } = useActions()
+  const { panStageBy, focusStage, setTool } = useActions()
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
@@ -69,7 +70,13 @@ export function MinimapView({
     e.preventDefault()
     e.stopPropagation()
     focusStage(id)
-    if (!seen || held) return
+    if (!seen) return
+    if (held) {
+      const set = stage ? toolSetOf(catalog, stage) : null
+      const hand = set ? panningTool(catalog, set) : null
+      if (!hand) return
+      setTool(id, hand)
+    }
     const { to, grab: g } = grabAt(seen, at(e))
     if (to) lookAt(to)
     e.currentTarget.setPointerCapture(e.pointerId)

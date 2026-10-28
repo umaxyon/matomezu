@@ -1,4 +1,4 @@
-// ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイール・ミニマップ・紙のドラッグのどれでも紙をずらさず、ハンドで紙をずらして見る
+// ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
 import { expect, type Page, test } from "@playwright/test"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })
@@ -66,7 +66,7 @@ test("ツリーの道具は編集とハンド。編集の間は、ホイール�
   await expect.poll(async () => (await paperAt(page)).y).toBeLessThan(before.y)
 })
 
-test("編集の間は、左下のミニマップの四角をドラッグしても紙が動かない。ハンドにすると動く", async ({ page }) => {
+test("編集の間に左下のミニマップを押すと、ハンドの道具に替わり、そのままドラッグで紙が動く", async ({ page }) => {
   await treeBook(page)
   await (await fromMenu(page, "ミニマップ")).click()
   const seen = page.locator("[data-minimap=corner] [data-minimap-seen]")
@@ -78,12 +78,11 @@ test("編集の間は、左下のミニマップの四角をドラッグして�
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 15, { steps: 5 })
     await page.mouse.up()
   }
-  const before = await paperAt(page)
+  await settled(page)
   await drag()
-  await page.waitForTimeout(100)
-  expect((await paperAt(page)).y).toBe(before.y)
-  await page.getByRole("button", { name: "編集ツール" }).click()
   await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()
+  await settled(page) // ハンドの倍率（100%）になるまで
+  const before = await paperAt(page)
   // ポインタが離れて閉じたミニマップを、もう一度開く
   if (!(await seen.isVisible())) await (await fromMenu(page, "ミニマップ")).click()
   await drag()
