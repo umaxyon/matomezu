@@ -140,6 +140,7 @@ test("matomezu/ui が出す名前", () => {
     "InheritChoices",
     "PageProblemsView",
     "Problem",
+    "RichBar",
     "RichBody",
     "RichText",
     "STAGE_BASE_SLOTS",

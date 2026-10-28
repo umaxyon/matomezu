@@ -56,12 +56,13 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const catalog = useCatalog().core
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id))
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
-  // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）
+  // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる。文字の色は見る人の上書きがいちばん強い）
+  const viewerColors = useMatomezuState(s => s.settings.textColors)
   const vars = useMemo(() => {
     if (!book) return undefined
     const shown = look ? withSettings<Book>(book, look) : book
-    return { ...themeVars(bookTokens(catalog, shown)), ...textColorVars(textColorsOf(catalog, shown)) }
-  }, [catalog, book, look])
+    return { ...themeVars(bookTokens(catalog, shown)), ...textColorVars(textColorsOf(catalog, shown, viewerColors)) }
+  }, [catalog, book, look, viewerColors])
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const zoomIn = useCommand(id, ZOOM_IN.id)
   const zoomOut = useCommand(id, ZOOM_OUT.id)

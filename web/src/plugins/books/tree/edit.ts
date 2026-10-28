@@ -1,5 +1,6 @@
 // ツリーを組み立てる計算（データを書き換えず、新しい根を返す）: 節を足す・子のキャプションを替える・子孫ごと消す、と、
 // 上下左右のキーで動いた先の節（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ。中央の木の根からは、押した向きへ伸びる最初の子へ）
+import { parseRich, plainOf } from "../../base"
 import type { Grow } from "./grow"
 import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
 import type { NodeSize } from "./size"
@@ -232,7 +233,9 @@ export type EditEnd = { kind: "remove" } | { kind: "root" | "child"; caption: st
 export function editEnd(root: TreeRoot, id: string, text: string | null): EditEnd {
   const old = captionOf(root, id)
   const isRoot = root.id === id
-  const next = text ?? old
+  // 記号だけで字の無いキャプション（新しい節の **** など）は空とみなす
+  const written = text ?? old
+  const next = parseRich(written).every(l => plainOf(l) === "") ? "" : written
   if (next === "") return !isRoot && old === "" ? { kind: "remove" } : { kind: "none" }
   if (next === old) return { kind: "none" }
   return { kind: isRoot ? "root" : "child", caption: next }

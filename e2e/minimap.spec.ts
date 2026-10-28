@@ -8,7 +8,7 @@ const seen = (page: Page, where: "corner" | "picker") => page.locator(`[data-min
 
 // フッタのブック名に乗せて、せり上がるメニューのミニマップのボタン
 async function toggle(page: Page) {
-  const trigger = page.locator("button[aria-expanded]").first()
+  const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await trigger.hover()
   return trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ミニマップ" })
 }

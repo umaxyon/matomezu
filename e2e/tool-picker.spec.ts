@@ -88,7 +88,7 @@ test("付け替えを押すと付け替えになる。Escape・離れる・外�
 
 test("分けて別の図面を開いても、道具は左右で同じ。左でハンドにすると右もハンドになる", async ({ page }) => {
   await page.goto("/")
-  const trigger = page.locator("button[aria-expanded]").first()
+  const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await trigger.hover()
   await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "画面を分割" }).click()
   const stages = page.getByRole("region", { name: "ステージ" })

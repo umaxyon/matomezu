@@ -15,6 +15,7 @@ import {
   Field,
   Form,
   PageProblemsView,
+  RichBody,
   rowClass,
   Switch,
   usePageProblems,
@@ -92,16 +93,7 @@ export function TreePageSettingsDialog({ stage, args, onClose }: DialogProps<Pag
           )}
         </Field>
         <Field label={t("Root body")}>
-          {fid => (
-            <textarea
-              id={fid}
-              className={controlClass}
-              rows={4}
-              maxLength={BODY_MAX}
-              value={body}
-              onChange={e => setBody(e.target.value)}
-            />
-          )}
+          {fid => <RichBody id={fid} stage={stage} rows={4} maxLength={BODY_MAX} value={body} onChange={setBody} />}
         </Field>
         <div className={rowClass}>
           <span>{t("Show the body on the paper")}</span>

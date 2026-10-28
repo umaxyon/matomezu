@@ -5,9 +5,9 @@
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす。
 // 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める
 // （根はページの設定のダイアログを開く）。
-// その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
+// その場で編集中は、書いている字で節の大きさを決め直し、テキストFormのすぐ上に装飾のボックス（base の RichBar。太字と文字の色）を出す（押しても焦点は外れない）。＋で足した節は太字の記号の間から書き始める。キャプションは普通の太さで、装飾して描く。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
 // 足す・書き換えるのが紙に入らないので断られたら、トーストで知らせる
-import { type CSSProperties, useEffect, useRef, useState } from "react"
+import { type CSSProperties, Fragment, useEffect, useRef, useState } from "react"
 import { placement, type Size, type StageView } from "../../../../plugin-api"
 import {
   type BookViewProps,
@@ -22,12 +22,12 @@ import {
   useStage,
 } from "../../../../plugin-api/ui"
 import { settingValue } from "../../../base"
-import { useResize, useZoomMotion } from "../../../base/ui"
+import { RichBar, RichText, useResize, useZoomMotion } from "../../../base/ui"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { afterRemove, centerShift, editEnd, type Plus, plusesOf, plusPoint, selectedIn, withCaption } from "../edit"
 import { GROW } from "../grow"
 import { kit } from "../kit"
-import { layoutTree } from "../layout"
+import { editorWidth, layoutTree } from "../layout"
 import { DEFAULT_LINE_SHAPE, LINE_SHAPE, treePath } from "../line-shape"
 import { TreeRootSchema } from "../node"
 import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "../shape"
@@ -36,6 +36,9 @@ import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
 import { nodePaint } from "./paint"
 import styles from "./TreeView.module.css"
+
+// ＋で足した節の、書き始めのキャプション（太字の記号の組）
+const NEW_CAPTION = "****"
 
 export function TreeView({ stage: id }: BookViewProps) {
   const stage = useStage(id)
@@ -111,6 +114,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   // 書いている字（どの節のものか）と、テキストFormを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
   const ended = useRef(false)
+  const editor = useRef<HTMLInputElement>(null)
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
@@ -142,7 +146,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
     setDraft(null)
     setEditing(stage.id, false)
   }
-  // ＋: 空の節を足して選び、その場で編集し始める
+  // ＋: 空の節を足して選び、その場で編集し始める（新しい節は太字で始める: 太字の記号の間から書く。キャプションの標準は普通の太さ）
   const add = (plus: Plus) => {
     const done = perform(NODE_ADD.id, {
       page: pageId,
@@ -154,6 +158,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
     if (!id) return refused()
     select(stage.id, [id])
     setEditing(stage.id, true)
+    setDraft({ node: id, text: NEW_CAPTION })
   }
   const { nodes, lines } = laid
   return (
@@ -191,21 +196,50 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
             else setEditing(stage.id, true)
           }}
         >
-          {n.lines.join("\n")}
-          {n.body && <div className={styles.body}>{n.body.join("\n")}</div>}
+          {n.lines.map((line, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
+            <Fragment key={i}>
+              {i > 0 && "\n"}
+              <RichText line={line} />
+            </Fragment>
+          ))}
+          {n.body && (
+            <div className={styles.body}>
+              {n.body.map((line, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
+                <div key={i}>
+                  <RichText line={line} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
       {writing && at && (
+        <RichBar
+          stage={stage.id}
+          target={editor}
+          value={text ?? at.caption}
+          maxLength={Number.POSITIVE_INFINITY}
+          onChange={next => setDraft({ node: selected, text: next })}
+          className={styles.editorBar}
+          style={{ left: at.x, top: at.y }}
+        />
+      )}
+      {writing && at && (
         <input
+          ref={editor}
           className={styles.editor}
           aria-label={t("Caption")}
           // biome-ignore lint/a11y/noAutofocus: その場で編集し始めたら、すぐに書ける
           autoFocus
           value={text ?? at.caption}
-          style={{ left: at.x, top: at.y, width: at.w, height: at.h }}
+          style={{ left: at.x, top: at.y, width: editorWidth(text ?? at.caption, at.w), height: at.h }}
           onChange={e => setDraft({ node: selected, text: e.target.value })}
-          onFocus={() => {
+          onFocus={e => {
             ended.current = false
+            // ＋で足した節は、太字の記号の間から書く
+            if (e.currentTarget.value === NEW_CAPTION) e.currentTarget.setSelectionRange(2, 2)
           }}
           onPointerDown={e => e.stopPropagation()}
           onKeyDown={e => {

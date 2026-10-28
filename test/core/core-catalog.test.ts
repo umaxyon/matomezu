@@ -240,7 +240,7 @@ describe("アクションを行う", () => {
       ok: false,
       reason: "not-allowed",
     })
-    const settings = { lang: "ja", skin: "auto", keys: NO_KEY_CHANGES }
+    const settings = { lang: "ja", skin: "auto", keys: NO_KEY_CHANGES, textColors: {} }
     expect(perform(settings, "@matomezu/base:settings-lang", { lang: "en" }, ctx)).toMatchObject({
       ok: true,
       next: { lang: "en" },

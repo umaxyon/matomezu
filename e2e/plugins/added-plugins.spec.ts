@@ -197,9 +197,9 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   page,
 }) => {
   await page.goto("/")
-  await page.locator("button[aria-expanded]").first().hover()
+  await page.locator('button[aria-haspopup="menu"]').first().hover()
   await page
-    .locator("button[aria-expanded]")
+    .locator('button[aria-haspopup="menu"]')
     .first()
     .locator("xpath=following-sibling::div[1]")
     .getByRole("button", { name: "ホーム" })

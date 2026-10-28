@@ -30,7 +30,7 @@ const stages = () => screen.getAllByRole("region", { name: "ステージ" })
 
 // i 番目のステージの下の行のブックの名前のボタンを押してメニューを出し、その中のボタンを返す（閉じたメニューのボタンは見えない）
 function fromMenu(name: string, i = 0): HTMLElement {
-  const triggers = [...document.querySelectorAll<HTMLElement>("button[aria-expanded]")]
+  const triggers = [...document.querySelectorAll<HTMLElement>('button[aria-haspopup="menu"]')]
   const trigger = triggers[i]!
   fireEvent.click(trigger)
   return within(trigger.nextElementSibling as HTMLElement).getByRole("button", { name })

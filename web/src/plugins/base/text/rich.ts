@@ -123,6 +123,9 @@ export function wrapRich(text: string, width: number, font: Font): RichLine[] {
 
 const runWidth = (r: Run, font: Font) => [...r.text].reduce((w, ch) => w + charWidth(ch, fontOf(font, r.bold)), 0)
 
+// 1 行の幅（px。太字は太字の幅）
+export const richWidth = (line: RichLine, font: Font) => line.reduce((w, r) => w + runWidth(r, font), 0)
+
 // 行を max 行までにする。超えたら最後の行を、… を足して幅 width に収まるまで縮める（… は最後に残った字の装飾）
 export function clampRich(lines: readonly RichLine[], max: number, width: number, font: Font): RichLine[] {
   if (lines.length <= max) return [...lines]

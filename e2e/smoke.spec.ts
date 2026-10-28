@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test"
 
 // i 番目のステージの下の行のブックの名前のボタンにマウスを乗せ、せり上がったメニューの中のボタンを返す
 async function fromMenu(page: Page, name: string, i = 0) {
-  const trigger = page.locator("button[aria-expanded]").nth(i)
+  const trigger = page.locator('button[aria-haspopup="menu"]').nth(i)
   await trigger.hover()
   return trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name })
 }

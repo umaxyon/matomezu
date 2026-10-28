@@ -556,7 +556,7 @@ test("ブックの名前のボタンのメニューからブックの設定を�
   page,
 }) => {
   await page.goto("/")
-  const trigger = page.locator("button[aria-expanded]").first()
+  const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await trigger.hover()
   await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ブックの設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ブックの設定" })

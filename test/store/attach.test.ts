@@ -29,6 +29,7 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
     "@matomezu/base:settings-lang",
     "@matomezu/base:settings-skin",
     "@matomezu/base:settings-keys",
+    "@matomezu/base:settings-text-colors",
   ])
 })
 
