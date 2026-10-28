@@ -4,6 +4,7 @@ import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PAGE_ALIGN, PAGE_ALIGN_COMMAND, PAGE_ALIGN_DIALOG } from "./actions"
 import { FLOW_DIRECTION, FLOWCHART } from "./flowchart"
 import { kit } from "./kit"
+import { FLOWCHART_TOOLS } from "./tools"
 
 export const FLOWCHART_PLUGIN = defineBuiltin(
   kit.plugin({
@@ -12,6 +13,7 @@ export const FLOWCHART_PLUGIN = defineBuiltin(
     actions: [PAGE_ALIGN],
     commands: [PAGE_ALIGN_COMMAND],
     dialogs: [PAGE_ALIGN_DIALOG],
+    toolSets: [FLOWCHART_TOOLS],
   }),
 )
 
@@ -30,6 +32,9 @@ declare module "../../../core/catalog" {
   }
   interface DialogTable {
     "@matomezu/flowchart:page-align": typeof PAGE_ALIGN_DIALOG
+  }
+  interface ToolSetTable {
+    "@matomezu/flowchart:flowchart": typeof FLOWCHART_TOOLS
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

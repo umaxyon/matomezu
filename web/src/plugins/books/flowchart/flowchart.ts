@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
+import { FLOWCHART_TOOLS } from "./tools"
 
 export const FLOW_DIRECTIONS = ["down", "right"] as const
 export type FlowDirection = (typeof FLOW_DIRECTIONS)[number]
@@ -67,7 +68,7 @@ export const FLOWCHART = kit.defineBookType({
   theme: "@matomezu/base:standard",
   presentation: "@matomezu/paper:paper",
   tokens: [],
-  tools: "@matomezu/paper:paper",
+  tools: FLOWCHART_TOOLS.id,
   // キャプションで形が広がるときは、流れが下へなら横の真ん中を保ち（本筋の縦の線がずれない）、右へなら左を保つ
   growFrom: setting => (turnedRight(setting) ? { x: "start", y: "center" } : { x: "center", y: "start" }),
   settings: {

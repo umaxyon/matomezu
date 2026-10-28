@@ -387,6 +387,15 @@ test("タイプがページに足すフィールド（pages.fields）は、そ�
   ])
 })
 
+test("付け替えの道具は図面の道具の組だけにあり、フローチャートの組は選択とハンド（形が子を持たない）", () => {
+  const toolsOf = (type: string) => {
+    const set = BUILTIN_PARTS.bookTypes.find(t => t.id === type)!.tools
+    return BUILTIN_PARTS.toolSets.find(s => s.id === set)!.tools
+  }
+  expect(toolsOf("@matomezu/drawing:drawing")).toContain("@matomezu/paper:reparent")
+  expect(toolsOf("@matomezu/flowchart:flowchart")).toEqual(["@matomezu/base:select", "@matomezu/base:hand"])
+})
+
 test("道具の組に無い道具を並べたら E032、道具の無い組は E033、ブックのタイプが無い組を名指したら E008", () => {
   const set = BUILTIN_PARTS.toolSets.find(s => s.id === "@matomezu/paper:paper")!
   const unknown = { ...set, tools: [...set.tools, "@matomezu/base:pencil"] }
@@ -395,7 +404,7 @@ test("道具の組に無い道具を並べたら E032、道具の無い組は E0
   const lost = { ...tree, tools: "@matomezu/tree:none" }
   const parts = {
     ...BUILTIN_PARTS,
-    toolSets: [unknown, empty],
+    toolSets: [...BUILTIN_PARTS.toolSets.filter(s => s !== set), unknown, empty],
     bookTypes: BUILTIN_PARTS.bookTypes.map(t => (t === tree ? lost : t)),
   }
   expect(checkCoreCatalog(parts).map(problemText)).toEqual([
