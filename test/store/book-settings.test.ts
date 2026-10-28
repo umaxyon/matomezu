@@ -92,6 +92,7 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
       "@matomezu/tree:grow",
       "@matomezu/tree:node-size",
       "@matomezu/tree:node-shape",
+      "@matomezu/tree:line-shape",
     ],
   })
 })

@@ -33,7 +33,7 @@ export interface LaidNode {
 
 export interface TreeLayout {
   nodes: LaidNode[]
-  lines: { from: Point; to: Point }[]
+  lines: { from: Point; to: Point; side: Side }[] // 親から子への線（side はその枝の伸びる向き）
   fits: boolean // どの節も紙に収まるか
 }
 
@@ -127,7 +127,7 @@ function branch(
     const color = n.color ? { color: n.color } : {}
     out.nodes.push({ id: n.id, caption: n.caption, lines: n.lines, ...color, ...rectOf(at, across, n) })
     const join = onLine ? n.cross : n.cross / 2
-    out.lines.push({ from, to: toPaper(at, across + join) })
+    out.lines.push({ from, to: toPaper(at, across + join), side })
     const tip = toPaper(at + n.main, across + join)
     let next = start + (n.span - spanOf(n.children, side)) / 2
     for (const c of n.children) {
@@ -207,6 +207,7 @@ function shiftInto(out: TreeLayout, paper: { w: number; h: number }) {
   out.lines = out.lines.map(l => ({
     from: { x: l.from.x + dx, y: l.from.y + dy },
     to: { x: l.to.x + dx, y: l.to.y + dy },
+    side: l.side,
   }))
 }
 

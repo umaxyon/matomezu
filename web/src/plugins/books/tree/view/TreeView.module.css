@@ -21,7 +21,8 @@
   overflow: visible;
   pointer-events: none;
 }
-.lines line {
+.lines path {
+  fill: none;
   stroke: var(--tree-line);
   stroke-width: 1.5;
 }

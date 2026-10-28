@@ -1,6 +1,7 @@
 // ツリーの並べ方（plugins/books/tree/layout.ts）: 根は伸びる向きで紙の辺の中央（中央なら紙の真ん中）に置き、子は伸びる向きへ、兄弟は横に並べる
 import { expect, test } from "bun:test"
 import { layoutTree, MARGIN, nodeSize } from "../../web/src/plugins/books/tree/layout"
+import { treePath } from "../../web/src/plugins/books/tree/line-shape"
 
 const PAPER = { w: 1123, h: 794 }
 const root = { id: "r", caption: "根", children: [] }
@@ -40,7 +41,11 @@ test("下へ伸びる木: 子は親の下に、兄弟は左右に並び、親は
   expect(a1.x + a1.w / 2).toBeCloseTo(a.x + a.w / 2)
   expect(r.x + r.w / 2).toBeCloseTo((a.x + b.x + b.w) / 2)
   expect(l.lines).toHaveLength(3)
-  expect(l.lines).toContainEqual({ from: { x: r.x + r.w / 2, y: r.y + r.h }, to: { x: a.x + a.w / 2, y: a.y } })
+  expect(l.lines).toContainEqual({
+    from: { x: r.x + r.w / 2, y: r.y + r.h },
+    to: { x: a.x + a.w / 2, y: a.y },
+    side: "down",
+  })
   expect(l.fits).toBe(true)
 })
 
@@ -176,9 +181,19 @@ test("節の形が下線で左右へ伸びる枝は、線を節の下の辺（�
   const line = layoutTree(tree, "right", PAPER, "fixed-20", "underline")
   const a = at(line, "a")
   const r = at(line, "r")
-  expect(line.lines[0]).toEqual({ from: { x: r.x + r.w, y: r.y + r.h }, to: { x: a.x, y: a.y + a.h } })
+  expect(line.lines[0]).toEqual({ from: { x: r.x + r.w, y: r.y + r.h }, to: { x: a.x, y: a.y + a.h }, side: "right" })
   expect(box.lines[0]!.to.y).toBe(a.y + a.h / 2)
   expect(layoutTree(tree, "down", PAPER, "fixed-20", "underline").lines).toEqual(
     layoutTree(tree, "down", PAPER, "fixed-20", "box").lines,
   )
+})
+
+test("線の形: まっすぐは 2 点の直線、折れ線は伸びる向きに半分進んで曲がり、曲線は伸びる向きに膨らむ", () => {
+  const down = { from: { x: 0, y: 0 }, to: { x: 40, y: 100 }, side: "down" as const }
+  const right = { from: { x: 0, y: 0 }, to: { x: 100, y: 40 }, side: "right" as const }
+  expect(treePath(down, "straight")).toBe("M0,0 L40,100")
+  expect(treePath(down, "elbow")).toBe("M0,0 V50 H40 V100")
+  expect(treePath(right, "elbow")).toBe("M0,0 H50 V40 H100")
+  expect(treePath(down, "curve")).toBe("M0,0 C0,50 40,50 40,100")
+  expect(treePath(right, "curve")).toBe("M0,0 C50,0 50,40 100,40")
 })

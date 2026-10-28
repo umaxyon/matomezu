@@ -28,6 +28,7 @@ import { afterRemove, centerShift, editEnd, type Plus, plusesOf, plusPoint, sele
 import { GROW } from "../grow"
 import { kit } from "../kit"
 import { layoutTree } from "../layout"
+import { DEFAULT_LINE_SHAPE, LINE_SHAPE, treePath } from "../line-shape"
 import { TreeRootSchema } from "../node"
 import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "../shape"
 import { DEFAULT_NODE_SIZE, NODE_SIZE } from "../size"
@@ -112,6 +113,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
   const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
+  const lineShape = LINE_SHAPE.schema.safeParse(setting(LINE_SHAPE.id)).data ?? DEFAULT_LINE_SHAPE
   const laid = shown ? layoutTree(shown, grow, paper, size, shape) : null
   const at = laid?.nodes.find(n => n.id === selected)
   useCentered(stage, usingEdit ? at : undefined, view, panStageBy)
@@ -156,13 +158,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
     <>
       <svg className={styles.lines} width={paper.w} height={paper.h} aria-hidden="true">
         {lines.map(l => (
-          <line
-            key={`${l.from.x},${l.from.y}-${l.to.x},${l.to.y}`}
-            x1={l.from.x}
-            y1={l.from.y}
-            x2={l.to.x}
-            y2={l.to.y}
-          />
+          <path key={`${l.from.x},${l.from.y}-${l.to.x},${l.to.y}`} d={treePath(l, lineShape)} />
         ))}
       </svg>
       {nodes.map(n => (
