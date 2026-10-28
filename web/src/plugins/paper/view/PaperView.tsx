@@ -23,6 +23,7 @@ import {
 import {
   bookItems,
   type CoreCatalog,
+  findShape,
   type ItemPage,
   type PlacedShape,
   type Point,
@@ -266,10 +267,9 @@ function PageItems({
     if (drop && (stretched.x !== 0 || stretched.y !== 0)) resize.run({ item: st.item, edges: st.edges, by: stretched })
   }
   const paper = paperOf(stage)
-  // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きは、下書きを重ねたページ（useShownPage）のアイテムで描く
-  const drafts = shapesOf(shownPage)
+  // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きは、下書きを重ねたページ（useShownPage）のアイテムで描く（子の形も）
   const shown = (placed: PlacedShape): PlacedShape => {
-    const item = drafts.find(i => i.id === placed.id) ?? placed
+    const item = findShape(shownPage, placed.id)?.shape ?? placed
     const st = stretch.current
     if (!st || st.item !== item.id || !paper) return item
     const to = resizedBy(catalog, item, st.edges, toPaperDelta(stage, stretched), paper)
@@ -293,22 +293,31 @@ function PageItems({
     localOf,
   }
 
-  const items = shapes.map(({ item, shift }) => (
+  // 形 1 つと、その中の子の形（子は親の左上からの位置で、親の中に描く。つなぐもののビューは、ページの形にだけ重ねる）
+  const render = (item: PlacedShape, shift: Point | null, child: boolean): ReactNode => (
     <Item
       key={item.id}
       stage={stage.id}
       zoom={placement(stage)?.zoom ?? 1}
       item={item}
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
-      overlays={connectors.flatMap(c => {
-        const Overlay = c.overlay
-        return Overlay
-          ? [
-              <TokenScope key={c.id} def={c.id}>
-                <Overlay scene={scene} id={item.id} />
-              </TokenScope>,
-            ]
-          : []
+      overlays={
+        child
+          ? null
+          : connectors.flatMap(c => {
+              const Overlay = c.overlay
+              return Overlay
+                ? [
+                    <TokenScope key={c.id} def={c.id}>
+                      <Overlay scene={scene} id={item.id} />
+                    </TokenScope>,
+                  ]
+                : []
+            })
+      }
+      nested={(item.shapes ?? []).map(c => {
+        const shape = shown(c as PlacedShape)
+        return render(shape, shiftOf(shape), true)
       })}
       stretchable={single && stage.selection[0] === item.id && minSize(catalog, item) !== null}
       onStretch={{
@@ -334,7 +343,8 @@ function PageItems({
         openMenu(e, { item: item.id })
       }}
     />
-  ))
+  )
+  const items = shapes.map(({ item, shift }) => render(item, shift, false))
   return connectors.reduceRight<ReactNode>((inner, c) => {
     const Layer = c.layer
     return (
@@ -358,6 +368,7 @@ interface ItemProps {
   item: PlacedShape
   onHover(on: boolean): void
   overlays: ReactNode // つなぐもののビューが形の上に重ねるコンポーネント
+  nested: ReactNode // 子の形（形の中に描く）
   stretchable: boolean // 四辺と四隅をつかんで大きさを変えられるか
   onStretch: {
     down(e: PointerEvent<HTMLDivElement>, edges: Edges): void
@@ -373,8 +384,27 @@ interface ItemProps {
   onPointerMove(e: PointerEvent<HTMLDivElement>): void
   onPointerUp(e: PointerEvent<HTMLDivElement>): void
   onPointerCancel(e: PointerEvent<HTMLDivElement>): void
-  onDoubleClick(): void
+  onDoubleClick(e: MouseEvent<HTMLDivElement>): void
   onContextMenu(e: MouseEvent<HTMLDivElement>): void
+}
+
+// ポインタの操作を受けるのは、押した所の一番内側の形だけ（子の形の上の操作は、親の形に渡さない）
+const innermost = (e: { target: EventTarget; currentTarget: Element }) =>
+  (e.target as Element).closest("[data-item]") === e.currentTarget
+function ownHandlers(
+  handlers: Pick<
+    ItemProps,
+    "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onDoubleClick" | "onContextMenu"
+  >,
+) {
+  return Object.fromEntries(
+    Object.entries(handlers).map(([k, f]) => [
+      k,
+      (e: PointerEvent<HTMLDivElement> & MouseEvent<HTMLDivElement>) => {
+        if (innermost(e)) (f as (e: unknown) => void)(e)
+      },
+    ]),
+  ) as typeof handlers
 }
 
 // 大きさを変えるためにつかめる所: 四辺と四隅（角は 2 つの辺を動かす）
@@ -396,6 +426,7 @@ function Item({
   item,
   onHover,
   overlays,
+  nested,
   stretchable,
   onStretch,
   selected,
@@ -440,7 +471,7 @@ function Item({
         transform: shift ? `translate(${shift.x}px, ${shift.y}px)` : undefined,
         ...tokens,
       }}
-      {...handlers}
+      {...ownHandlers(handlers)}
     >
       {View && size ? (
         <View
@@ -454,6 +485,7 @@ function Item({
       ) : (
         <div className={styles.unknownItem} />
       )}
+      {nested}
       {overlays}
       {stretchable &&
         GRIPS.map(g => (

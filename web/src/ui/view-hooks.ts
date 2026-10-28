@@ -6,7 +6,7 @@ import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { Lang } from "../core/i18n/i18n"
 import type { ArgsOf } from "../core/perform"
-import type { ItemPage, PlacedItem, PlacedOf } from "../core/placed"
+import { findShape, type ItemPage, type PlacedItem, type PlacedOf } from "../core/placed"
 import type { Book } from "../core/schema/book"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { Performed } from "../store/store"
@@ -30,7 +30,7 @@ export function usePage(stage: string): ItemPage | null {
   })
 }
 
-// そのステージが開いているブックの、ページ page のアイテム item（無いか、id が Id のアイテムでなければ undefined）
+// そのステージが開いているブックの、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
 export function useItem<Id extends ItemId>(
   stage: string,
   page: string,
@@ -40,7 +40,9 @@ export function useItem<Id extends ItemId>(
   return useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     const book = o ? pagedOf(s.books[o.book]) : undefined
-    const found = (book?.pages.find(p => p.id === page) as ItemPage | undefined)?.items?.find(i => i.id === item)
+    const p = book?.pages.find(p => p.id === page) as ItemPage | undefined
+    // ページのアイテムか、どの深さの子の形も
+    const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
     return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : undefined
   })
 }

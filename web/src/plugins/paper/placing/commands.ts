@@ -2,12 +2,12 @@
 
 import {
   type CommandContext,
+  findShape,
   type Point,
   pagedOf,
   paperOf,
   type StageView,
   shapeDialogs,
-  shapesOf,
   toPaper,
   toPaperDelta,
 } from "../../../plugin-api"
@@ -58,12 +58,12 @@ function editable(ctx: CommandContext): boolean {
   const target = ctx.contextMenu?.target as { item?: string } | undefined
   if (target?.item === undefined) return true
   const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
-  const placed = page && shapesOf(page).find(i => i.id === target.item)
+  const placed = page && findShape(page, target.item)?.shape
   const def = placed && shapeDefOf(ctx.catalog, placed.item)
   return def ? shapeDialogs(def).edit !== undefined : false
 }
 
-// アイテムの中身を変えるダイアログを開く（箱は box-edit、リストは list-edit）。開いているページに無いアイテムなら何もしない。
+// アイテムの中身を変えるダイアログを開く（箱は box-edit、リストは list-edit。どの深さの子の形も）。開いているページに無いアイテムなら何もしない。
 // 右クリックのメニューでは「設定」として出す
 export const PAPER_EDIT = kit.defineCommand({
   id: "paper-edit",
@@ -73,7 +73,7 @@ export const PAPER_EDIT = kit.defineCommand({
     const page = ctx.stage.opened?.page
     const book = pagedOf(ctx.book) ?? null
     const found = book?.pages.find(p => p.id === page)
-    const placed = found && shapesOf(found).find(i => i.id === item)
+    const placed = found && findShape(found, item)?.shape
     const def = placed && shapeDefOf(ctx.catalog, placed.item)
     const dialog = def && shapeDialogs(def).edit
     if (!page || !dialog) return
@@ -122,7 +122,7 @@ export const PAPER_RESIZE = kit.defineCommand({
     const paper = paperOf(ctx.stage)
     const book = pagedOf(ctx.book) ?? null
     const page = book?.pages.find(p => p.id === opened?.page)
-    const placed = page && shapesOf(page).find(i => i.id === args.item)
+    const placed = page && findShape(page, args.item)?.shape
     if (!opened?.page || !paper || !placed) return
     const to = resizedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
     if (to) a.perform(ITEM_RESIZE.id, { page: opened.page, item: placed.id, ...to }, { book: opened.book })
