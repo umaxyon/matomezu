@@ -1,15 +1,19 @@
 // ページの設定のダイアログ: 開いているページの名前と、ブックのタイプが選んだページの設定の項目（値が無ければブックの値を継ぐ）。
 // 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからページに重ねて見せる（ダイアログの下書き。名前は見せない）。
-// 確定でアクション page-update（設定の項目は settings）を書き、キャンセルでは元のまま
+// 確定でアクション page-update（設定の項目は settings）を書き、キャンセルでは元のまま。
+// ページを削除するボタンは、上に重ねたモーダルで確かめてから page-remove を行う（中身ごと消え、戻せないため）
 import { useEffect, useId, useState } from "react"
 import { pagedOf } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
+import { usePerform } from "../../../ui/view-hooks"
 import { useSettingControls } from "../book-look/SettingControls"
+import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
-import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
+import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { PAGE_REMOVE } from "./page-remove"
 import { PAGE_UPDATE } from "./page-update"
 
 export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
@@ -21,8 +25,10 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
   })
   const page = book?.pages.find(p => p.id === args.page)
   const [title, setTitle] = useState(page?.title ?? "")
+  const [confirming, setConfirming] = useState(false)
   const settings = useSettingControls(book, "page", page ?? null)
-  const { perform, previewDialog } = useActions()
+  const { previewDialog } = useActions()
+  const perform = usePerform(stage)
   const bookId = book?.id
   const pageId = page?.id
   const changed = Object.keys(settings.patch).length > 0
@@ -32,8 +38,12 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
   if (!book || !page) return null
   const named = title.trim() !== ""
   const submit = () => {
-    const done = perform(PAGE_UPDATE.id, { page: page.id, title, settings: settings.patch }, { book: book.id })
+    const done = perform(PAGE_UPDATE.id, { page: page.id, title, settings: settings.patch })
     if (done.ok) onClose()
+  }
+  const remove = () => {
+    perform(PAGE_REMOVE.id, { page: page.id })
+    onClose()
   }
   return (
     <Dialog
@@ -53,6 +63,20 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
           {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
         </Field>
         {settings.controls}
+        <div className={rowClass}>
+          <ActionButton danger onClick={() => setConfirming(true)}>
+            {t("Delete page")}
+          </ActionButton>
+        </div>
+        {confirming && (
+          <Confirm
+            message={t("The page and its contents will be deleted")}
+            ok={t("Delete")}
+            cancel={t("Cancel")}
+            onOk={remove}
+            onCancel={() => setConfirming(false)}
+          />
+        )}
       </Form>
     </Dialog>
   )

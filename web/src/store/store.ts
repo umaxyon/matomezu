@@ -285,11 +285,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const next: Partial<MatomezuState> = {}
     if (done.book) {
       next.books = { ...books, [done.book.id]: done.book }
-      next.workspace = followBook(catalog, workspace, done.book)
+      next.workspace = followBook(catalog, workspace, done.book, books[done.book.id])
     }
     if (done.books) {
       next.books = done.books as MatomezuState["books"]
-      next.workspace = followLibrary(catalog, workspace, done.books as MatomezuState["books"])
+      next.workspace = followLibrary(catalog, workspace, done.books as MatomezuState["books"], books)
     }
     if (done.settings) next.settings = done.settings
     return { ok: true, result: done.result, next }
@@ -444,7 +444,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           : world.touched
       commit({
         ...(touched === now.touched ? {} : { touched }),
-        ...(same ? {} : { books, workspace: followLibrary(catalog, now.workspace, books) }),
+        ...(same ? {} : { books, workspace: followLibrary(catalog, now.workspace, books, now.books) }),
         ...(settings === now.settings ? {} : { settings }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),

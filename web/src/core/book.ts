@@ -76,6 +76,11 @@ export function putPage<B extends PagedBook>(book: B, page: ItemPage): B {
   return { ...book, pages: book.pages.map((p: ItemPage) => (p.id === page.id ? page : p)) } as B
 }
 
+// ブック book から、id が page のページを除く（型は putPage と同じく渡されたブックの型）
+export function removePage<B extends PagedBook>(book: B, page: string): B {
+  return { ...book, pages: book.pages.filter((p: ItemPage) => p.id !== page) } as B
+}
+
 export function hasPages(book: Book): book is PagedBook {
   return "pages" in book
 }

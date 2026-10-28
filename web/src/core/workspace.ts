@@ -148,18 +148,23 @@ export function showPage(catalog: CoreCatalog, ws: Workspace, stage: string, boo
   return mapStage(ws, stage, s => openPage(catalog, s, book, page))
 }
 
-// ブックが変わったとき、そのブックを開いている全部のステージを合わせる（stage.ts の followBook）
-export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book): Workspace {
-  const stages = ws.stages.map(s => followStage(catalog, s, book))
+// ブックが変わったとき、そのブックを開いている全部のステージを合わせる（stage.ts の followBook。before は変わる前のブック）
+export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book, before?: Book): Workspace {
+  const stages = ws.stages.map(s => followStage(catalog, s, book, before))
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
 
-// ブックの一覧が変わったとき: 無くなったブックを開いていたステージは何も開いていない状態にし、残ったブックには合わせる
-export function followLibrary(catalog: CoreCatalog, ws: Workspace, books: Readonly<Record<string, Book>>): Workspace {
+// ブックの一覧が変わったとき: 無くなったブックを開いていたステージは何も開いていない状態にし、残ったブックには合わせる（before は変わる前の一覧）
+export function followLibrary(
+  catalog: CoreCatalog,
+  ws: Workspace,
+  books: Readonly<Record<string, Book>>,
+  before?: Readonly<Record<string, Book>>,
+): Workspace {
   const stages = ws.stages.map(s => {
     const book = s.opened ? books[s.opened.book] : undefined
     if (!s.opened) return s
-    return book ? followStage(catalog, s, book) : closeBook(s)
+    return book ? followStage(catalog, s, book, before?.[s.opened.book]) : closeBook(s)
   })
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }

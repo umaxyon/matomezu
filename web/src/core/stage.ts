@@ -125,17 +125,31 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: PagedBook, pa
 }
 
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（紙は決め直す）、
-// 無くなっていれば最初のページ（ページが無ければ開かない）。ページが変わったときだけ、ずらす量を最初の位置に戻し、選択を捨てる。
-// そのブックを開いていなければ、同じ値を返す
-export function followBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
+// 無くなっていれば隣のページ（変わる前のブック before で後ろにあったページ、無ければ前のページ。before が無ければ最初のページ。ページが無ければ開かない）。
+// ページが変わったときだけ、ずらす量を最初の位置に戻し、選択を捨てる。そのブックを開いていなければ、同じ値を返す
+export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const o = stage.opened
   if (!o || o.book !== book.id || !hasPages(book)) return stage
-  const found = book.pages.find(p => p.id === o.page) ?? book.pages[0]
+  const found = book.pages.find(p => p.id === o.page) ?? neighbourOf(book, o.page, before)
   const page = found?.id ?? null
   const paper = found ? resolvePaper(catalog, found) : null
   if (page === o.page && JSON.stringify(paper) === JSON.stringify(o.paper)) return stage
   const opened = { ...o, page, paper }
   return page === o.page ? settle({ ...stage, opened }, stage.pan) : settle(leave({ ...stage, opened }), HOME)
+}
+
+// 無くなったページ page の隣: 変わる前のブックで後ろにあった残りのページ、無ければ前にあった残りのページ（分からなければ最初のページ）
+function neighbourOf(book: PagedBook, page: string | null, before?: Book): PagedBook["pages"][number] | undefined {
+  const was = before && hasPages(before) ? before.pages.map(p => p.id) : []
+  const at = page === null ? -1 : was.indexOf(page)
+  if (at < 0) return book.pages[0]
+  const left = new Map(book.pages.map(p => [p.id, p]))
+  const after = was.slice(at + 1).find(id => left.has(id))
+  const prior = was
+    .slice(0, at)
+    .reverse()
+    .find(id => left.has(id))
+  return left.get(after ?? prior ?? "") ?? book.pages[0]
 }
 
 // 何も開いていない状態にする（開いていたブックが無くなったときなど）

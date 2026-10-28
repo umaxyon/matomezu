@@ -12,4 +12,11 @@ export const PAGE_MESSAGES = defineMessages({
   "Update page": { en: "Update page", ja: "ページを変える" },
   "Page settings": { en: "Page settings", ja: "ページの設定" },
   "Add page": { en: "Add page", ja: "ページを足す" },
+  "Remove page": { en: "Remove page", ja: "ページを消す" },
+  "Delete page": { en: "Delete page", ja: "ページを削除" },
+  "The page and its contents will be deleted": {
+    en: "The page and its contents will be deleted",
+    ja: "ページと中身が消えます",
+  },
+  Delete: { en: "Delete", ja: "削除" },
 })
