@@ -354,7 +354,7 @@ test("選んでいる節の＋で空の子を足してその場で書き、Enter
   expect(rootId).not.toBe(a.id)
 })
 
-test("Enter かダブルクリックで、選んでいる子の節をその場で書き換える。空のまま確定しても元のまま、Escape は取り消し", () => {
+test("F2 かダブルクリックで、選んでいる子の節をその場で書き換える。空のまま確定しても元のまま、Escape は取り消し", () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
   const a = done.fields!.root.children[0]!.id
@@ -365,12 +365,52 @@ test("Enter かダブルクリックで、選んでいる子の節をその場�
   fireEvent.change(input, { target: { value: "" } })
   fireEvent.keyDown(input, { key: "Enter" })
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
-  fireEvent.keyDown(window, { key: "Enter" })
+  fireEvent.keyDown(window, { key: "F2" })
   input = within(paper()).getByRole("textbox") as HTMLInputElement
   fireEvent.change(input, { target: { value: "子 B" } })
   fireEvent.keyDown(input, { key: "Escape" })
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
   expect(within(paper()).queryByRole("textbox")).toBeNull()
+})
+
+test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足して、太字の記号の間から書き始める。根では Enter で兄弟を足さない", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }, { caption: "子 B" }] })
+  const [a, b] = done.fields!.root.children.map(n => n.id) as [string, string]
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const kids = () => (book().pages[0] as { root: { children: { id: string; caption: string }[] } }).root.children
+  fireEvent.keyDown(window, { key: "Enter" }) // 根
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+  expect(kids()).toHaveLength(2)
+  fireEvent.pointerDown(paper().querySelector(`[data-node="${a}"]`)!, { button: 0 })
+  fireEvent.keyDown(window, { key: "Enter" })
+  const input = within(paper()).getByRole("textbox") as HTMLInputElement
+  expect(input.value).toBe("****")
+  fireEvent.change(input, { target: { value: "**子 A2**" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  expect(kids().map(k => k.caption)).toEqual(["子 A", "**子 A2**", "子 B"])
+  fireEvent.keyDown(window, { key: "Tab" })
+  fireEvent.change(within(paper()).getByRole("textbox"), { target: { value: "孫" } })
+  fireEvent.keyDown(within(paper()).getByRole("textbox"), { key: "Enter" })
+  expect(kids()[1]).toMatchObject({ children: [{ caption: "孫" }] })
+  expect(kids()[2]!.id).toBe(b)
+})
+
+test("中央の木の根で Tab を押すと、子の少ない向きへ子を足す", () => {
+  const { store, id, book } = setup()
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "center" } }, { book: id })
+  })
+  addTree(store, id, { caption: "根", children: [{ caption: "上", side: "up" }] })
+  fireEvent.keyDown(window, { key: "Tab" })
+  fireEvent.keyDown(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), { key: "Escape" })
+  expect((book().pages[0] as { root: { children: unknown[] } }).root.children).toHaveLength(1) // 空のまま取り消せば消す
+  fireEvent.keyDown(window, { key: "Tab" })
+  fireEvent.change(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), { target: { value: "下" } })
+  fireEvent.keyDown(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), { key: "Enter" })
+  expect((book().pages[0] as { root: { children: { side?: string }[] } }).root.children[1]).toMatchObject({
+    side: "down",
+  })
 })
 
 test("その場の編集は、同じ道具を選び直しても続き、道具が替わると終わる", () => {
@@ -383,7 +423,7 @@ test("その場の編集は、同じ道具を選び直しても続き、道具�
       button: 0,
     },
   )
-  fireEvent.keyDown(window, { key: "Enter" })
+  fireEvent.keyDown(window, { key: "F2" })
   expect(editing()).toBe(true)
   act(() => store.actions.setTool("s1", "@matomezu/tree:edit"))
   expect(editing()).toBe(true)
@@ -414,11 +454,11 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
     within(menu)
       .getAllByRole("menuitem")
       .map(m => m.textContent),
-  ).toEqual(["キャプションを書くEnter", "節の色", "節の大きさ", "削除Delete"]) // キーを添える
+  ).toEqual(["キャプションを書くF2", "節の色", "節の大きさ", "削除Delete"]) // キーを添える
   fireEvent.click(within(menu).getByRole("menuitem", { name: /^削除/ }))
   expect(kids()).toEqual([a])
   expect(selected()).toBe(a)
-  fireEvent.keyDown(window, { key: "Enter" })
+  fireEvent.keyDown(window, { key: "F2" })
   const input = within(paper()).getByRole("textbox")
   fireEvent.keyDown(input, { key: "Backspace" })
   expect(kids()).toEqual([a])
@@ -592,12 +632,12 @@ test("節の色: 節のメニューの「節の色」で子も根も色を選べ
   })
 })
 
-test("根は Enter・ダブルクリック・紙の右クリックの「ページの設定」で根のダイアログ（ツリーのページの設定）を開き、キャプション・本文・本文を描くかを直せる。本文を描けば根の中に出る", () => {
+test("根は F2・ダブルクリック・紙の右クリックの「ページの設定」で根のダイアログ（ツリーのページの設定）を開き、キャプション・本文・本文を描くかを直せる。本文を描けば根の中に出る", () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
   const paper = () => screen.getByRole("img", { name: "紙" })
   const rootEl = () => paper().querySelector('[data-root="true"]') as HTMLElement
-  fireEvent.keyDown(window, { key: "Enter" })
+  fireEvent.keyDown(window, { key: "F2" })
   let dialog = screen.getByRole("dialog", { name: "ページの設定" })
   expect(within(paper()).queryByRole("textbox")).toBeNull() // 根はその場で書かない
   fireEvent.change(within(dialog).getByLabelText("根のキャプション"), { target: { value: "代表" } })
@@ -637,7 +677,7 @@ test("ツリーのページの設定でも、選んでいる値で木が紙に�
   expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-test("節の形: ページの設定で下線を選ぶと、節を下線の形で描く", () => {
+test("節の形: ページの設定で下線を選ぶと、子の節を下線の形で描く（根は箱のまま）", () => {
   const { store, id } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
   const paper = () => screen.getByRole("img", { name: "紙" })
@@ -650,7 +690,7 @@ test("節の形: ページの設定で下線を選ぶと、節を下線の形で
     )
   })
   expect([...paper().querySelectorAll("[data-node]")].map(n => n.getAttribute("data-shape"))).toEqual([
-    "underline",
+    "box",
     "underline",
   ])
 })

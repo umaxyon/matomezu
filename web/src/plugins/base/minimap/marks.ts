@@ -1,6 +1,7 @@
 // ミニマップに描く、ページのアイテムの絵（紙の座標）: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
-// つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角
-import type { CoreCatalog } from "../../../core/core-catalog"
+// つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角。
+// アイテムを置かずに自分の見せ方で描くタイプ（ツリーなど）は、ブックのタイプの minimap がページの絵を決める
+import { bookType, type CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import type { Point, Rect } from "../../../core/geom"
 import { connectorsOf, type ItemPage, type PlacedConnector, shapesOf } from "../../../core/placed"
@@ -16,6 +17,10 @@ export type MinimapMark =
 
 // ミニマップが読む、定義オブジェクトのメソッド（定義オブジェクトの拡張ポイントに書き足す）
 declare module "../../../core/catalog" {
+  interface BookTypeExtras {
+    // ページ page に描く絵（紙の座標。page で効いている設定の値は setting で読む）。無ければ、置いたアイテムの絵
+    minimap?(catalog: CoreCatalog, page: ItemPage, setting: (id: string) => unknown): readonly MinimapMark[]
+  }
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     // ミニマップに描く絵（rect は置いた形の四角。紙の座標）。無ければ、その四角を描く
     minimap?(item: D, rect: Rect): readonly MinimapMark[]
@@ -32,7 +37,18 @@ declare module "../../../core/catalog" {
 
 const rectMark = (r: Rect): MinimapMark => ({ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h })
 
-export function minimapMarks(catalog: CoreCatalog, page: ItemPage, setting: (id: string) => unknown): MinimapMark[] {
+// タイプ type のブックのページ page の絵
+export function minimapMarks(
+  catalog: CoreCatalog,
+  type: string,
+  page: ItemPage,
+  setting: (id: string) => unknown,
+): readonly MinimapMark[] {
+  const own = bookType(catalog, type).minimap
+  return own ? own(catalog, page, setting) : itemMarks(catalog, page, setting)
+}
+
+function itemMarks(catalog: CoreCatalog, page: ItemPage, setting: (id: string) => unknown): MinimapMark[] {
   const rects = rectsOf(catalog, page)
   const areas = portAreasOf(catalog, page, rects)
   const marks: MinimapMark[] = []

@@ -201,6 +201,21 @@ export function plusesOf(root: TreeRoot, grow: Grow, id: string): Plus[] {
   ]
 }
 
+// キーで足すときの＋: 子（kind child）か、すぐ後ろの兄弟（kind after。根には無い）。中央の木の根の子は、子の少ない向き（同じなら上・下・左・右の順）へ
+export function keyPlus(root: TreeRoot, grow: Grow, id: string, kind: "child" | "after"): Plus | null {
+  const found = plusesOf(root, grow, id).filter(p => p.kind === kind)
+  const count = (side?: Side) => (root.children ?? []).filter(c => sideOf(c) === side).length
+  return found.reduce<Plus | null>((best, p) => (best && count(best.towards) <= count(p.towards) ? best : p), null)
+}
+
+// ＋ plus で、ページ page に空の節を 1 つ足すアクション node-add の引数
+export const addArgs = (page: string, plus: Plus) => ({
+  page,
+  parent: plus.parent,
+  ...(plus.index === undefined ? {} : { index: plus.index }),
+  nodes: [{ caption: "", ...(plus.towards ? { side: plus.towards } : {}) }],
+})
+
 // 節 id のキャプション（根も。無ければ空）
 export function captionOf(root: TreeRoot, id: string): string {
   if (root.id === id) return root.caption
