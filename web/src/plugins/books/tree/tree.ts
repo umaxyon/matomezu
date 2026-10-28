@@ -1,10 +1,11 @@
 // ツリーのブック: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分の見せ方（tree）で紙に描く。紙に置けるアイテムは無い。
-// 伸びる向きはブックとページの設定の項目（grow.ts）。新しいページは自分のダイアログで作る（ページ名・伸びる向き・根のキャプション）。
+// 伸びる向きはブックとページの設定の項目（grow.ts）。新しいページは自分のダイアログで作る（ページ名・伸びる向き・根のキャプション）。道具は自分の組（tools.ts。編集とハンド）。
 // 見た目（テーマと紙の色）は base の設定の項目で変えられる
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
+import { TREE_TOOLS } from "./tools"
 
 // ツリーの見せ方: 紙の上に、根から伸びる木を描く
 export const TREE_PRESENTATION = kit.definePresentation({ id: "tree" })
@@ -39,7 +40,7 @@ export const TREE = kit.defineBookType({
     { id: "tree-node-radius", value: "6px" }, // 節の角の丸み
     { id: "tree-line", fallback: "line" }, // 親から子への線
   ],
-  tools: "@matomezu/paper:paper",
+  tools: TREE_TOOLS.id,
   settings: {
     book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, kit.name("grow")],
     page: [kit.name("grow")],

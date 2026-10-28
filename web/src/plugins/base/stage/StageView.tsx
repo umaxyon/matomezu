@@ -1,6 +1,6 @@
 // ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
 // ブックの中はブックのテーマの値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
-// 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイールで動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
+// 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）
 import { type CSSProperties, memo, type PointerEvent, useMemo, useRef, useState, type WheelEvent } from "react"
 import { withSettings } from "../../../core/book"
 import { type BookTypeId, bookType } from "../../../core/core-catalog"
@@ -16,6 +16,7 @@ import { useResize } from "../../../ui/use-resize"
 import { bookTokens } from "../book-look/look"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
+import { keepsPan } from "../tool-switch/tools"
 import styles from "./StageView.module.css"
 
 // ドラッグ中のポインタと、前に知らせた位置
@@ -73,6 +74,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
     setDragging(false)
   }
   const onWheel = (e: WheelEvent<HTMLElement>) => {
+    if (keepsPan(catalog, tool)) return
     const dx = e.shiftKey ? e.deltaY : e.deltaX
     const dy = e.shiftKey ? e.deltaX : e.deltaY
     panStageBy(id, -dx, -dy)

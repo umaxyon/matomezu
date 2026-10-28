@@ -3,6 +3,7 @@ import { defineMessages } from "../../../plugin-api"
 
 export const TREE_MESSAGES = defineMessages({
   Tree: { en: "Tree", ja: "ツリー" },
+  "Edit tool": { en: "Edit tool", ja: "編集ツール" },
   "Grow direction": { en: "Grow direction", ja: "伸びる向き" },
   Up: { en: "Up", ja: "上へ" },
   Down: { en: "Down", ja: "下へ" },

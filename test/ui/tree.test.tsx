@@ -2,8 +2,10 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { z } from "zod"
+import { toolsIn } from "../../web/src/core/tools"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { fieldsArgs } from "../../web/src/plugins/base/page-tabs/page-fields"
+import { keepsPan } from "../../web/src/plugins/base/tool-switch/tools"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { Screen } from "../../web/src/ui/Screen"
@@ -95,6 +97,18 @@ test("ページとブックの設定のダイアログで伸びる向きを選�
   expect(top()).toBeGreaterThan(24)
   fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
   expect(top()).toBe(24)
+})
+
+test("ツリーの道具の組は編集とハンド（初めは編集）。編集の道具の間は紙をずらさない", () => {
+  const { store } = setup()
+  act(() => {
+    expect(addPageIn(store, "s1", { title: "p1", fields: { root: { caption: "根" } } })).toBe(true)
+  })
+  expect(toolsIn(store.catalog.core, "@matomezu/tree:tree")).toEqual(["@matomezu/tree:edit", "@matomezu/base:hand"])
+  expect(keepsPan(store.catalog.core, "@matomezu/tree:edit")).toBe(true)
+  expect(keepsPan(store.catalog.core, "@matomezu/base:hand")).toBe(false)
+  fireEvent.click(screen.getByRole("button", { name: "編集ツール" }))
+  expect(screen.getByRole("button", { name: "ハンドツール" })).toBeTruthy()
 })
 
 test("根を渡さずにページは作れない（根はツリーのページのフィールド）", () => {
