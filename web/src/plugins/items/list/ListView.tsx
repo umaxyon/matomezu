@@ -26,7 +26,7 @@ import {
   useMessages,
   useStage,
 } from "../../../plugin-api/ui"
-import { useThemeVars } from "../../base/ui"
+import { RichText, useThemeVars } from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
@@ -338,7 +338,7 @@ function RowFace({ row, look }: { row: ListRow; look: RowLayout | undefined }) {
             {look.body.map((line, n) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
               <div key={n} className={styles.line}>
-                {line}
+                <RichText line={line} />
               </div>
             ))}
           </div>

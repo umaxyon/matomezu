@@ -4,7 +4,7 @@
 // 持たない行はそろえる: 行数を持たない行の本文の折り返した行数のうち一番多い数と PLACE_LINES の小さい方（本文の無い行も同じ高さ）。収まらない本文は … で切る。
 // 文字の幅と折り返しは base の text で計算するので、画面でも常駐でも同じ行になる。画面（ListView）はこの値のとおりに描く
 import type { Size } from "../../../plugin-api"
-import { captionTextWidth, clampLines, PLACE_LINES, TEXT_LOOK, wrap } from "../../base"
+import { captionTextWidth, clampRich, PLACE_LINES, type RichLine, TEXT_LOOK, wrapRich } from "../../base"
 import type { ListRow } from "./list"
 
 // リストの見た目の寸法（px。どのテーマでも同じ）。ListView.module.css と同じ値にする。文字の寸法は形で共通（shape の TEXT_LOOK）
@@ -34,7 +34,7 @@ export const LIST_MIN: Size = { w: 64, h: 2 * L.border + HEAD + L.inset + L.add 
 export interface RowLayout {
   lines: number // 本文を見せる行数
   height: number // 行のカードの高さ（下の隙間は含まない）
-  body: string[] // 描く本文の行（行数で切る。本文が無ければ空）
+  body: RichLine[] // 描く本文の行（装飾の区切りの並び。行数で切る。本文が無ければ空）
   rule: boolean // 区切り線を引くか
 }
 
@@ -59,7 +59,7 @@ const textWidthOf = (w: number, checklist: boolean) =>
 
 // 幅 w のリストの行ごとの本文の折り返し
 const wrapAll = (rows: readonly ListRow[], inner: number) =>
-  rows.map(r => (r.props.body === "" ? [] : wrap(r.props.body, inner, TEXT_LOOK.body)))
+  rows.map(r => (r.props.body === "" ? [] : wrapRich(r.props.body, inner, TEXT_LOOK.body)))
 
 // 書き換え all を当てたときの、行ごとの行数（行数を持たない行は undefined。all が無ければ行の持つ行数のまま）
 export function rewrittenLines(
@@ -88,7 +88,7 @@ export function listLayout(rows: readonly ListRow[], w: number, checklist: boole
     return {
       lines,
       height: rowHeight(lines),
-      body: body.length > 0 && lines > 0 ? clampLines(body, lines, inner, TEXT_LOOK.body) : [],
+      body: body.length > 0 && lines > 0 ? clampRich(body, lines, inner, TEXT_LOOK.body) : [],
       rule: r.props.rule && body.length > 0 && lines > 0,
     }
   })

@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
+import { plainOf } from "../../web/src/plugins/base/text/rich"
 import { BOX_LOOK } from "../../web/src/plugins/items/box/size"
 import type { ListRow } from "../../web/src/plugins/items/list/list"
 import { canCarry, shownOrder } from "../../web/src/plugins/items/list/rows"
@@ -94,11 +95,11 @@ const row = (caption: string, body: string, lines?: number): ListRow => ({
 test("行数を持たない行はそろえる: 本文の行数の一番多い数と 5 行の小さい方まで本文を出し、本文の無い行も同じ高さ", () => {
   const two = listLayout([row("a", "一\n二"), row("b", "")], 240, false)
   expect(two.map(r => r.lines)).toEqual([2, 2])
-  expect(two[0]!.body).toEqual(["一", "二"])
+  expect(two[0]!.body.map(plainOf)).toEqual(["一", "二"])
   expect(two[1]).toMatchObject({ body: [], rule: false, height: two[0]!.height })
   const long = listLayout([row("a", "あ".repeat(400)), row("b", "")], 240, false)
   expect(long[0]!.lines).toBe(5)
-  expect(long[0]!.body.at(-1)).toMatch(/…$/)
+  expect(plainOf(long[0]!.body.at(-1)!)).toMatch(/…$/)
   expect(long[0]!.height).toBe(rowHeight(5))
   expect(rowHeight(5)).toBe(rowHeight(2) + 3 * BOX_LOOK.line)
   // チェックリストなら印の分だけ狭く、折り返しが増える
@@ -110,7 +111,7 @@ test("行数を持つ行は、本文の量によらずその高さ。そろえ�
   const rows = [row("a", "一", 4), row("b", "一\n二\n三"), row("c", "")]
   const got = listLayout(rows, 240, false)
   expect(got.map(r => r.lines)).toEqual([4, 3, 3])
-  expect(got[0]!.body).toEqual(["一"])
+  expect(got[0]!.body.map(plainOf)).toEqual(["一"])
   expect(listLayout(rows, 240, false, 1).map(r => r.lines)).toEqual([1, 1, 1])
   expect(listLayout(rows, 240, false, null).map(r => r.lines)).toEqual([3, 3, 3])
   expect(listLayout(rows, 240, false, "fit").map(r => r.lines)).toEqual([1, 3, 0])

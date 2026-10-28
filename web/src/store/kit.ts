@@ -17,6 +17,7 @@ import type { PaperDef } from "../core/def/paper"
 import type { PresentationDef } from "../core/def/presentation"
 import type { SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
+import type { TextColorDef } from "../core/def/text-color"
 import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
 import type { LanguagePackDef, MessageMap } from "../core/i18n/messages"
@@ -136,6 +137,10 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: T & { id: Id },
   ): Placed<T, Owned<P, Id>>
 
+  defineTextColor<const Id extends string, const T extends Titled<TextColorDef, keyof M & string>>(
+    def: T & { id: Id },
+  ): Placed<T, Owned<P, Id>>
+
   defineSkin<const Id extends string, const T extends Titled<SkinDef, keyof M & string>>(
     def: T & { id: Id },
   ): Placed<T, Owned<P, Id>>
@@ -208,6 +213,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
       return { ...placed, tokens: Object.fromEntries(own) }
     },
     definePaper: place,
+    defineTextColor: place,
     defineSkin: place,
     defineCommand: place,
     defineDialog: place,

@@ -14,6 +14,7 @@ import { restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
+import { textColorRef } from "../plugins/base"
 import { MASTER_BOOK } from "../plugins/books/master"
 import { type Assembled, assemble, type Plugin, warningsOf } from "../store/plugin"
 
@@ -105,6 +106,12 @@ function aiCatalog(of: Assembled = assembled) {
     languages: [...catalog.languages.keys()],
     skins: [...catalog.skins.keys()],
     colors: PALETTE.map(id => ({ id, meaning: PALETTE_MEANINGS[id] })),
+    // 本文の装飾の文字の色（name は本文に書く名前: {name:文字}）
+    textColors: [...catalog.textColors.values()].map(c => ({
+      id: c.id,
+      name: textColorRef(c.id),
+      meaning: c.aiDescription,
+    })),
   }
 }
 

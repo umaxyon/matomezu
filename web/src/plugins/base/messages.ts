@@ -10,6 +10,7 @@ import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
 import { STAGE_MESSAGES } from "./stage/messages"
+import { TEXT_MESSAGES } from "./text/messages"
 import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
@@ -32,5 +33,6 @@ export const BASE_MESSAGES = {
   ...SETTINGS_MESSAGES,
   ...LOOKS_MESSAGES,
   ...ITEM_PARTS_MESSAGES,
+  ...TEXT_MESSAGES,
   ...ELAPSED_MESSAGES,
 }

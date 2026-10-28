@@ -11,6 +11,7 @@ import { DIALOG_HOST } from "./dialog-host/ui"
 import { MINIMAP_ICONS, MINIMAP_WIDGET } from "./minimap/ui"
 import { PAGE_DIALOG_VIEWS, PAGE_TABS } from "./page-tabs/ui"
 import { BOOK_VIEW, CLOSE_BUTTON, STAGE_ICONS } from "./stage/ui"
+import { TEXT_SETTING_VIEWS } from "./text/ui"
 import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
 import { TOOL_ICONS } from "./tool-switch/icons"
@@ -40,12 +41,13 @@ export {
   SwitchPanel,
 } from "./dialog-host/FormParts"
 export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
+export { RichBody, RichText } from "./text/ui"
 export * from "./utils/ui"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 
 export const BASE_UI = definePluginUi(BASE, {
   dialogViews: { ...BOOK_OPEN_DIALOG_VIEWS, ...PAGE_DIALOG_VIEWS, ...BOOK_LOOK_DIALOG_VIEWS, ...BOOK_NEW_DIALOG_VIEWS },
-  settingViews: BOOK_LOOK_SETTING_VIEWS,
+  settingViews: { ...BOOK_LOOK_SETTING_VIEWS, ...TEXT_SETTING_VIEWS },
   widgets: [
     WORKSPACE,
     DIALOG_HOST,

@@ -9,6 +9,7 @@ export interface ItemTable {}
 export interface ActionTable {}
 export interface ThemeTable {}
 export interface PaperTable {}
+export interface TextColorTable {}
 export interface SkinTable {}
 export interface SettingTable {}
 export interface PresentationTable {}
@@ -60,6 +61,7 @@ export const PARTS = {
   toolSets: { catalog: "core", label: "toolSet" },
   themes: { catalog: "core", label: "theme" },
   papers: { catalog: "core", label: "paper" },
+  textColors: { catalog: "core", label: "textColor" },
   skins: { catalog: "core", label: "skin" },
   commands: { catalog: "store", label: "command" },
   dialogs: { catalog: "store", label: "dialog" },
@@ -81,6 +83,7 @@ export interface PartTables {
   toolSets: ToolSetTable
   themes: ThemeTable
   papers: PaperTable
+  textColors: TextColorTable
   skins: SkinTable
   commands: CommandTable
   dialogs: DialogTable
@@ -95,6 +98,7 @@ export type ItemId = keyof ItemTable & string
 export type ActionId = keyof ActionTable & string
 export type ThemeId = keyof ThemeTable & string
 export type PaperId = keyof PaperTable & string
+export type TextColorId = keyof TextColorTable & string
 export type SkinId = keyof SkinTable & string
 export type SettingId = keyof SettingTable & string
 export type PresentationId = keyof PresentationTable & string
@@ -128,6 +132,7 @@ export interface ActionExtras {}
 export interface ThemeExtras {}
 export interface TokenExtras {}
 export interface PaperExtras {}
+export interface TextColorExtras {}
 export interface SkinExtras {}
 export interface SettingExtras {}
 export interface PresentationExtras {}

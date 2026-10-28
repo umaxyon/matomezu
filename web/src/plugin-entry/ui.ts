@@ -1,4 +1,4 @@
-// プラグイン API の入口 matomezu/ui: プラグイン API の見た目の側（plugin-api/ui）の名前と、base の見た目の部品（ダイアログの枠と入力・色・テーマキー・画面の骨組み）を外に出す
+// プラグイン API の入口 matomezu/ui: プラグイン API の見た目の側（plugin-api/ui）の名前と、base の見た目の部品（ダイアログの枠と入力・色・テーマキー・本文の装飾・画面の骨組み）を外に出す
 
 export * from "../plugin-api/ui"
 export {
@@ -17,6 +17,8 @@ export {
   inlineClass,
   Problem,
   pairClass,
+  RichBody,
+  RichText,
   rowClass,
   Section,
   SelectButton,

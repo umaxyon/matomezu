@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { resolveTokens } from "../../web/src/core/theme"
+import { plainOf } from "../../web/src/plugins/base/text/rich"
 import { textWidth } from "../../web/src/plugins/base/text/text"
 import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
 import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/items/box/size"
@@ -35,13 +36,13 @@ const place = (
   )
 
 test("本文は高さに収まる行の数だけ出し、収まらない分は最後の行の終わりに … を付けて切る", () => {
-  const all = boxLayout(box(LONG), { w: 160, h: 2000 }).body
+  const all = boxLayout(box(LONG), { w: 160, h: 2000 }).body.map(plainOf)
   expect(all.join("")).toBe(LONG)
   const three = boxLayout(box(LONG), { w: 160, h: heightOf(3) })
   expect(three.body).toHaveLength(3)
-  expect(three.body[2]).toMatch(/…$/)
+  expect(plainOf(three.body[2]!)).toMatch(/…$/)
   expect(boxLayout(box(LONG), { w: 160, h: heightOf(3) + 17 }).body).toHaveLength(3)
-  expect(boxLayout(box("一\n二"), { w: 160, h: heightOf(3) }).body).toEqual(["一", "二"])
+  expect(boxLayout(box("一\n二"), { w: 160, h: heightOf(3) }).body.map(plainOf)).toEqual(["一", "二"])
 })
 
 test("本文が 1 行も出ない高さなら、区切り線も出さない。一番低い高さはキャプション 1 行ぶん", () => {

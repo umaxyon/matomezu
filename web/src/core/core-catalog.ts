@@ -4,6 +4,7 @@
 
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
+import { HEX } from "./color"
 import { type ActionDef, attachedTo } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
@@ -11,6 +12,7 @@ import type { PaperDef } from "./def/paper"
 import type { PresentationDef } from "./def/presentation"
 import type { SettingDef } from "./def/setting"
 import type { SkinDef } from "./def/skin"
+import type { TextColorDef } from "./def/text-color"
 import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
 import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail, matomezuError, type Problem, problem } from "./errors"
@@ -36,6 +38,7 @@ declare module "./catalog" {
     presentations: PresentationDef
     themes: ThemeDef
     papers: PaperDef
+    textColors: TextColorDef
     skins: SkinDef
     tools: ToolDef
     toolSets: ToolSetDef
@@ -278,6 +281,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       problems.push(problem("E012", { owner: d.owner, token: d.id, fallback: d.fallback }))
   }
   for (const p of parts.papers) if (p.size.w > p.size.h) problems.push(problem("E014", { id: p.id }))
+  for (const c of parts.textColors) if (!HEX.test(c.color)) problems.push(problem("E034", { id: c.id, color: c.color }))
   // 同じ鍵の同じ言語に違う訳を持つ文言（プラグインの文言どうし・言語パックどうし）、名前の違う同じ言語、文言の表に無い名前
   const messages = new Map<string, Record<Lang, string>>()
   for (const set of allMessages(parts))
@@ -307,6 +311,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     ["setting", parts.settings],
     ["theme", parts.themes],
     ["paper", parts.papers],
+    ["textColor", parts.textColors],
     ["skin", parts.skins],
     ["tool", parts.tools],
   ] as const

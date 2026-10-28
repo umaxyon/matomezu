@@ -21,6 +21,8 @@ export type {
   PageProblem,
   PortArea,
   Ports,
+  RichLine,
+  Run,
 } from "../plugins/base"
 export {
   AlignSchema,
@@ -32,6 +34,7 @@ export {
   captionTextWidth,
   childOrigin,
   clampLines,
+  clampRich,
   commitChildren,
   createBookIn,
   evenGap,
@@ -53,10 +56,12 @@ export {
   pageContext,
   pageFieldsWay,
   paperSize,
+  parseRich,
   placeChild,
   placedAt,
   placedSize,
   placeItem,
+  plainOf,
   portAreasOf,
   rectsOf,
   removeItems,
@@ -79,6 +84,7 @@ export {
   widenForCaption,
   withPage,
   wrap,
+  wrapRich,
 } from "../plugins/base"
 
 // プラグインに公開する共通の処理（base の utils に書き出した物は、そのまま出る）

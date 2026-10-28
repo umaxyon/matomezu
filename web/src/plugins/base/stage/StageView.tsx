@@ -1,5 +1,5 @@
 // ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、そのタイプのビュー（プラグインが結んだもの）で描く。
-// ブックの中はブックのテーマの値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
+// ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを探すコンポーネントを真ん中に出す。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
 // Ctrl+ホイール（Mac は Cmd も）は、回した量が WHEEL_STEP に届くたびに、ポインタの位置を付けてコマンド zoom-in・zoom-out を呼ぶ（拡大できるステージならブラウザの拡大は止める。回した量は回している間だけビューに持つ）
 import {
@@ -26,6 +26,7 @@ import { themeVars, useTokenScope } from "../../../ui/theme-vars"
 import { bookTokens } from "../book-look/look"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
+import { textColorsOf, textColorVars } from "../text"
 import { keepsPan } from "../tool-switch/tools"
 import { useResize } from "../utils/useResize"
 import { ZOOM_IN, ZOOM_OUT } from "../zoom"
@@ -55,10 +56,12 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const catalog = useCatalog().core
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id))
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
-  const vars = useMemo(
-    () => (book ? themeVars(bookTokens(catalog, look ? withSettings<Book>(book, look) : book)) : undefined),
-    [catalog, book, look],
-  )
+  // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる）
+  const vars = useMemo(() => {
+    if (!book) return undefined
+    const shown = look ? withSettings<Book>(book, look) : book
+    return { ...themeVars(bookTokens(catalog, shown)), ...textColorVars(textColorsOf(catalog, shown)) }
+  }, [catalog, book, look])
   const { focusStage, resizeStage, panStageBy, openBook } = useActions()
   const zoomIn = useCommand(id, ZOOM_IN.id)
   const zoomOut = useCommand(id, ZOOM_OUT.id)
