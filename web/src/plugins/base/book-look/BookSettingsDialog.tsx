@@ -9,9 +9,9 @@ import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { PageProblemsView, usePageProblems } from "../page-tabs/PageProblems"
+import { PageProblemsView, usePageProblems } from "../utils/PageProblems"
+import { useSettingControls } from "../utils/SettingControls"
 import { BOOK_UPDATE } from "."
-import { useSettingControls } from "./SettingControls"
 
 export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)

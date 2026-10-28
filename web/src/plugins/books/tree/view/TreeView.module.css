@@ -21,7 +21,8 @@
   overflow: visible;
   pointer-events: none;
 }
-.lines line {
+.lines path {
+  fill: none;
   stroke: var(--tree-line);
   stroke-width: 1.5;
 }
@@ -37,9 +38,8 @@
   font-size: 13px;
   font-weight: 700;
   line-height: 18px;
-  white-space: nowrap;
+  white-space: pre; /* 行は並べ方が決める（折り返し・… で切るのも並べ方） */
   overflow: hidden;
-  text-overflow: ellipsis;
   text-align: center;
 }
 /* ページが無いとき: 真ん中に知らせとページを作るボタン */
@@ -125,4 +125,19 @@
   font-size: 14px;
   line-height: 18px;
   cursor: pointer;
+}
+/* 根の本文（キャプションの下に、区切り線を挟んで） */
+.body {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid var(--tree-node-line);
+  font-weight: 400;
+}
+/* 節の形が下線: 塗りと枠を描かず、キャプションの下に線を引く（線の色は節の色、無ければ節の枠線の色。文字はテーマの文字の色） */
+.node[data-shape="underline"] {
+  border: 0;
+  border-bottom: 2px solid var(--underline-color, var(--tree-node-line));
+  border-radius: 0;
+  background: transparent;
+  color: var(--theme-text);
 }

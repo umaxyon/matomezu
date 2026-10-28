@@ -1,6 +1,8 @@
-// 伸びる向きのアイコン（上へ・下へ・左へ・右へ・中央から）と、編集の道具のアイコン（鉛筆。24 の四角の中に描く線）
+// ツリーのアイコン: 伸びる向き（上へ・下へ・左へ・右へ・中央から）・編集の道具（鉛筆）・節の形（箱・下線）・線の形（直線・折れ線・曲線）。24 の四角の中に描く線
 import type { ReactNode } from "react"
 import type { Grow } from "./grow"
+import type { LineShape } from "./line-shape"
+import type { NodeShape } from "./shape"
 import { EDIT_TOOL } from "./tools"
 
 const arrow = (d: string) => (
@@ -24,4 +26,25 @@ export const TREE_TOOL_ICONS = {
       <path d="M13.5 6.5l4 4" />
     </svg>
   ),
+}
+
+// 節の形のアイコン（箱・下線）
+export const SHAPE_ICONS: Readonly<Record<NodeShape, ReactNode>> = {
+  box: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="7" width="16" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  ),
+  underline: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 17H20M7 12H17" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  ),
+}
+
+// 線の形のアイコン（直線・折れ線・曲線）
+export const LINE_ICONS: Readonly<Record<LineShape, ReactNode>> = {
+  straight: arrow("M5 19L19 5"),
+  elbow: arrow("M5 19V12H19V5"),
+  curve: arrow("M5 19C5 10 19 14 19 5"),
 }

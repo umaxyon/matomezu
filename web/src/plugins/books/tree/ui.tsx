@@ -1,18 +1,43 @@
-// ツリーのプラグインの見た目: ツリーのビュー・伸びる向きの設定のコンポーネント・ページを作るダイアログ・編集の道具のアイコン。
+// ツリーのプラグインの見た目: ツリーのビュー・伸びる向き・節の大きさ・節の形・線の形の設定のコンポーネント・ページを作るダイアログ・節の大きさと色のダイアログ・編集の道具のアイコン。
 // 末尾で、ツリーのビューが開く右クリックのメニューを core/catalog.ts に書き足す
 import { definePluginUi } from "../../../plugin-api/ui"
 import { TREE_PLUGIN } from "."
 import { GrowSetting } from "./GrowSetting"
 import { GROW } from "./grow"
 import { TREE_TOOL_ICONS } from "./icons"
+import { LineShapeSetting } from "./LineShapeSetting"
+import { LINE_SHAPE } from "./line-shape"
 import { NewTreePageDialog } from "./NewTreePageDialog"
-import { NEW_TREE_PAGE_DIALOG, TREE_PRESENTATION } from "./tree"
+import { NodeColorDialog } from "./NodeColorDialog"
+import { NodeShapeSetting } from "./NodeShapeSetting"
+import { NodeSizeDialog } from "./NodeSizeDialog"
+import { NodeSizeSetting } from "./NodeSizeSetting"
+import { NODE_SHAPE } from "./shape"
+import { NODE_SIZE } from "./size"
+import { TreePageSettingsDialog } from "./TreePageSettingsDialog"
+import {
+  NEW_TREE_PAGE_DIALOG,
+  NODE_COLOR_DIALOG,
+  NODE_SIZE_DIALOG,
+  TREE_PAGE_SETTINGS_DIALOG,
+  TREE_PRESENTATION,
+} from "./tree"
 import { TREE_VIEW } from "./view/ui"
 
 export const TREE_UI = definePluginUi(TREE_PLUGIN, {
   presentationViews: { [TREE_PRESENTATION.id]: TREE_VIEW },
-  settingViews: { [GROW.id]: { control: GrowSetting } },
-  dialogViews: { [NEW_TREE_PAGE_DIALOG.id]: NewTreePageDialog },
+  settingViews: {
+    [GROW.id]: { control: GrowSetting },
+    [NODE_SIZE.id]: { control: NodeSizeSetting },
+    [NODE_SHAPE.id]: { control: NodeShapeSetting },
+    [LINE_SHAPE.id]: { control: LineShapeSetting },
+  },
+  dialogViews: {
+    [NEW_TREE_PAGE_DIALOG.id]: NewTreePageDialog,
+    [TREE_PAGE_SETTINGS_DIALOG.id]: TreePageSettingsDialog,
+    [NODE_SIZE_DIALOG.id]: NodeSizeDialog,
+    [NODE_COLOR_DIALOG.id]: NodeColorDialog,
+  },
   toolIcons: TREE_TOOL_ICONS,
 })
 

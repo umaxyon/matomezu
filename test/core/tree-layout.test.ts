@@ -1,6 +1,7 @@
 // ツリーの並べ方（plugins/books/tree/layout.ts）: 根は伸びる向きで紙の辺の中央（中央なら紙の真ん中）に置き、子は伸びる向きへ、兄弟は横に並べる
 import { expect, test } from "bun:test"
 import { layoutTree, MARGIN, nodeSize } from "../../web/src/plugins/books/tree/layout"
+import { treePath } from "../../web/src/plugins/books/tree/line-shape"
 
 const PAPER = { w: 1123, h: 794 }
 const root = { id: "r", caption: "根", children: [] }
@@ -40,7 +41,11 @@ test("下へ伸びる木: 子は親の下に、兄弟は左右に並び、親は
   expect(a1.x + a1.w / 2).toBeCloseTo(a.x + a.w / 2)
   expect(r.x + r.w / 2).toBeCloseTo((a.x + b.x + b.w) / 2)
   expect(l.lines).toHaveLength(3)
-  expect(l.lines).toContainEqual({ from: { x: r.x + r.w / 2, y: r.y + r.h }, to: { x: a.x + a.w / 2, y: a.y } })
+  expect(l.lines).toContainEqual({
+    from: { x: r.x + r.w / 2, y: r.y + r.h },
+    to: { x: a.x + a.w / 2, y: a.y },
+    side: "down",
+  })
   expect(l.fits).toBe(true)
 })
 
@@ -137,4 +142,58 @@ test("中央の木が紙からはみ出るとき、木全体が入るなら、�
   expect(one.fits).toBe(true)
   expect(at(one, "r").x).toBeLessThan((700 - at(one, "r").w) / 2) // 根が左へずれた
   expect(layoutTree(long(1), "center", { w: 300, h: 400 }).fits).toBe(false)
+})
+
+test("節の大きさの選び方: 伸びるは 1 行の幅、N 字で固定は N 字の幅までで超えた分を … で切り、N 字で折り返すは N 字の幅で折り返して高くなる", () => {
+  const long = "とても長いキャプションでこの節の幅を広げてしまう文"
+  const grow = nodeSize(long, "grow")
+  const fixed = nodeSize(long, "fixed-10")
+  const wrapped = nodeSize(long, "wrap-10")
+  expect(grow.lines).toEqual([long])
+  expect(fixed.lines).toHaveLength(1)
+  expect(fixed.lines[0]!.endsWith("…")).toBe(true)
+  expect(fixed.w).toBeLessThan(grow.w)
+  expect(wrapped.lines.length).toBeGreaterThan(1)
+  expect(wrapped.lines.join("")).toBe(long)
+  expect(wrapped.h).toBeGreaterThan(fixed.h)
+  expect(wrapped.w).toBe(fixed.w) // どちらも 10 字の幅まで
+  expect(nodeSize("短い", "fixed-10")).toEqual(nodeSize("短い", "grow")) // 幅に収まれば同じ
+})
+
+test("節の大きさは、節が選んでいればそれ、無ければページで効いている選び方で決める", () => {
+  const long = "とても長いキャプションでこの節の幅を広げてしまう文"
+  const tree = {
+    id: "r",
+    caption: "根",
+    children: [
+      { id: "a", caption: long },
+      { id: "b", caption: long, size: "grow" as const },
+    ],
+  }
+  const l = layoutTree(tree, "down", PAPER, "wrap-10")
+  expect(at(l, "a").h).toBeGreaterThan(at(l, "b").h)
+  expect(at(l, "b").w).toBe(nodeSize(long, "grow").w)
+})
+
+test("節の形が下線で左右へ伸びる枝は、線を節の下の辺（下線）の端につなぐ。上下へ伸びる枝は箱と同じ", () => {
+  const tree = { id: "r", caption: "根", children: [{ id: "a", caption: "子 A" }] }
+  const box = layoutTree(tree, "right", PAPER, "fixed-20", "box")
+  const line = layoutTree(tree, "right", PAPER, "fixed-20", "underline")
+  const a = at(line, "a")
+  const r = at(line, "r")
+  expect(line.lines[0]).toEqual({ from: { x: r.x + r.w, y: r.y + r.h }, to: { x: a.x, y: a.y + a.h }, side: "right" })
+  expect(box.lines[0]!.to.y).toBe(a.y + a.h / 2)
+  expect(layoutTree(tree, "down", PAPER, "fixed-20", "underline").lines).toEqual(
+    layoutTree(tree, "down", PAPER, "fixed-20", "box").lines,
+  )
+})
+
+test("線の形: まっすぐは 2 点の直線、折れ線は伸びる向きに半分進んで曲がり、曲線は伸びる向きに膨らむ", () => {
+  const down = { from: { x: 0, y: 0 }, to: { x: 40, y: 100 }, side: "down" as const }
+  const right = { from: { x: 0, y: 0 }, to: { x: 100, y: 40 }, side: "right" as const }
+  expect(treePath(down, "straight")).toBe("M0,0 L40,100")
+  expect(treePath(down, "elbow")).toBe("M0,0 V50 H40 V100")
+  expect(treePath(right, "elbow")).toBe("M0,0 H50 V40 H100")
+  expect(treePath(down, "curve")).toBe("M0,0 C0,50 40,50 40,100")
+  expect(treePath(right, "curve")).toBe("M0,0 C50,0 50,40 100,40")
 })

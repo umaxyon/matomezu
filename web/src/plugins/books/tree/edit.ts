@@ -2,6 +2,7 @@
 // 上下左右のキーで動いた先の節（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ。中央の木の根からは、押した向きへ伸びる最初の子へ）
 import type { Grow } from "./grow"
 import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
+import type { NodeSize } from "./size"
 
 // 根も子も、id と子の並びで扱う
 type Node = TreeRoot | TreeNode
@@ -30,7 +31,7 @@ export function pathTo(root: TreeRoot, id: string): Node[] | null {
 }
 
 // 節 id（根を除く）
-function nodeOf(root: TreeRoot, id: string): TreeNode | null {
+export function nodeOf(root: TreeRoot, id: string): TreeNode | null {
   const parent = pathTo(root, id)?.at(-1)
   return parent?.children?.find(c => c.id === id) ?? null
 }
@@ -65,7 +66,21 @@ export function addNodes(root: TreeRoot, parent: string, nodes: readonly TreeNod
 
 // 子の節 id のキャプションを替えた根（根のキャプションはページのフィールドの受け方で替える。無ければ null）
 export function captionNode(root: TreeRoot, id: string, caption: string): TreeRoot | null {
-  const next = mapIn(root.children ?? [], id, n => ({ ...n, caption }))
+  return changeNode(root, id, { caption })
+}
+
+// 子の節 id のフィールドを patch で替えた根（書いたフィールドだけ替え、大きさの選び方と色の null は消す。根と無い節は null）
+export function changeNode(
+  root: TreeRoot,
+  id: string,
+  patch: { caption?: string; size?: NodeSize | null; color?: string | null },
+): TreeRoot | null {
+  const next = mapIn(root.children ?? [], id, n => {
+    const { size: _size, color: _color, ...rest } = n
+    const size = patch.size === undefined ? n.size : (patch.size ?? undefined)
+    const color = patch.color === undefined ? n.color : (patch.color ?? undefined)
+    return { ...rest, caption: patch.caption ?? n.caption, ...(size ? { size } : {}), ...(color ? { color } : {}) }
+  })
   return next && withKids(root, next)
 }
 

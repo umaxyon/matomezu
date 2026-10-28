@@ -5,7 +5,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { Problem } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { pageProblems } from "./page-problems"
+import { pageProblems } from "../page-tabs/page-problems"
 
 export function usePageProblems(draft: Book | undefined, pages?: readonly string[]) {
   const catalog = useCatalog().core

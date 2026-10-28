@@ -140,7 +140,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
   const node = (n: string) => paper.querySelector(`[data-node="${n}"]`) as HTMLElement
   expect(node(a!).textContent).toBe("子 A")
   expect(node(b!).textContent).toBe("子 B")
-  expect(paper.querySelectorAll("line")).toHaveLength(2)
+  expect(paper.querySelectorAll("svg path")).toHaveLength(2)
   const top = (n: string) => Number.parseFloat(node(n).style.top)
   expect(top(a!)).toBeGreaterThan(top(done.fields!.root.id)) // 既定は下へ
   const page = (store.state.getState().books[id] as { pages: { id: string }[] }).pages[0]!.id
@@ -354,19 +354,13 @@ test("選んでいる節の＋で空の子を足してその場で書き、Enter
   expect(rootId).not.toBe(a.id)
 })
 
-test("Enter かダブルクリックで、選んでいる節をその場で書き換える。根は根のキャプション、空のまま確定しても元のまま、Escape は取り消し", () => {
+test("Enter かダブルクリックで、選んでいる子の節をその場で書き換える。空のまま確定しても元のまま、Escape は取り消し", () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
   const a = done.fields!.root.children[0]!.id
   const paper = () => screen.getByRole("img", { name: "紙" })
-  fireEvent.keyDown(window, { key: "Enter" }) // 根を書き換え
-  let input = within(paper()).getByRole("textbox", { name: "キャプション" }) as HTMLInputElement
-  expect(input.value).toBe("根")
-  fireEvent.change(input, { target: { value: "代表" } })
-  fireEvent.keyDown(input, { key: "Enter" })
-  expect(book().pages[0]).toMatchObject({ root: { caption: "代表" } })
   fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
-  input = within(paper()).getByRole("textbox") as HTMLInputElement
+  let input = within(paper()).getByRole("textbox") as HTMLInputElement
   expect(input.value).toBe("子 A")
   fireEvent.change(input, { target: { value: "" } })
   fireEvent.keyDown(input, { key: "Enter" })
@@ -381,8 +375,14 @@ test("Enter かダブルクリックで、選んでいる節をその場で書�
 
 test("その場の編集は、同じ道具を選び直しても続き、道具が替わると終わる", () => {
   const { store, id } = setup()
-  addTree(store, id, { caption: "根" })
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
   const editing = () => store.state.getState().workspace.stages[0]!.editing
+  fireEvent.pointerDown(
+    screen.getByRole("img", { name: "紙" }).querySelector(`[data-node="${done.fields!.root.children[0]!.id}"]`)!,
+    {
+      button: 0,
+    },
+  )
   fireEvent.keyDown(window, { key: "Enter" })
   expect(editing()).toBe(true)
   act(() => store.actions.setTool("s1", "@matomezu/tree:edit"))
@@ -414,7 +414,7 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
     within(menu)
       .getAllByRole("menuitem")
       .map(m => m.textContent),
-  ).toEqual(["キャプションを書くEnter", "削除Delete"]) // キーを添える
+  ).toEqual(["キャプションを書くEnter", "節の色", "節の大きさ", "削除Delete"]) // キーを添える
   fireEvent.click(within(menu).getByRole("menuitem", { name: /^削除/ }))
   expect(kids()).toEqual([a])
   expect(selected()).toBe(a)
@@ -527,4 +527,145 @@ test("向きを変えると紙に入らなくなるなら、ページとブッ�
   )
   expect(within(dialog).queryByRole("alert")).toBeNull()
   expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+test("節の大きさ: ページの設定で選び方を変えると並べ直し、節のメニューの「節の大きさ」でその節だけ選べる（根には出さない）", () => {
+  const { store, id, book } = setup()
+  const long = "とても長いキャプションでこの節の幅を広げてしまう文"
+  const done = addTree(store, id, { caption: "根", children: [{ caption: long }] })
+  const a = done.fields!.root.children[0]!.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const node = () => paper().querySelector(`[data-node="${a}"]`) as HTMLElement
+  expect(node().textContent!.endsWith("…")).toBe(true) // 既定は 20 字で固定
+  act(() => {
+    store.actions.perform(
+      "@matomezu/base:page-update",
+      { page: done.page, settings: { "@matomezu/tree:node-size": "wrap-10" } },
+      { book: id },
+    )
+  })
+  expect(node().textContent).toContain("\n")
+  fireEvent.contextMenu(paper().querySelector('[data-root="true"]')!)
+  expect(within(screen.getByRole("menu")).queryByRole("menuitem", { name: /^節の大きさ/ })).toBeNull()
+  fireEvent.keyDown(window, { key: "Escape" })
+  fireEvent.contextMenu(node())
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /^節の大きさ/ }))
+  const dialog = screen.getByRole("dialog", { name: "節の大きさ" })
+  const select = within(dialog).getByRole("combobox", { name: "節の大きさ" }) as HTMLSelectElement
+  expect(select.value).toBe("") // 継承
+  expect(select.options[0]!.textContent).toBe("ページを継承（10 字で折り返す）")
+  fireEvent.change(select, { target: { value: "grow" } })
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, size: "grow" }] } })
+  expect(node().textContent).toBe(long)
+})
+
+test("節の色: 節のメニューの「節の色」で子も根も色を選べ、選んだ色で塗る。足した子は親の色を写す", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  const root = done.fields!.root
+  const a = root.children[0]!.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const nodeEl = (n: string) => paper().querySelector(`[data-node="${n}"]`) as HTMLElement
+  const pick = (n: string, color: string) => {
+    fireEvent.contextMenu(nodeEl(n))
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /^節の色/ }))
+    const dialog = screen.getByRole("dialog", { name: "節の色" })
+    fireEvent.click(within(dialog).getByRole("button", { name: "色" }))
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: color } })
+    fireEvent.keyDown(within(dialog).getByRole("textbox"), { key: "Enter" })
+    fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  }
+  pick(a, "#ff0000")
+  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "#ff0000" }] } })
+  expect(nodeEl(a).style.getPropertyValue("--tree-node-fill")).toBe("#ff0000")
+  pick(root.id, "#00ff00")
+  expect(book().pages[0]).toMatchObject({ root: { color: "#00ff00" } })
+  // 子 A を選んで、子を足す（親の色を写す）
+  fireEvent.pointerDown(nodeEl(a), { button: 0 })
+  fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
+  const input = within(paper()).getByRole("textbox")
+  fireEvent.change(input, { target: { value: "孫" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  expect(book().pages[0]).toMatchObject({
+    root: { children: [{ id: a, children: [{ caption: "孫", color: "#ff0000" }] }] },
+  })
+})
+
+test("根は Enter・ダブルクリック・紙の右クリックの「ページの設定」で根のダイアログ（ツリーのページの設定）を開き、キャプション・本文・本文を描くかを直せる。本文を描けば根の中に出る", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const rootEl = () => paper().querySelector('[data-root="true"]') as HTMLElement
+  fireEvent.keyDown(window, { key: "Enter" })
+  let dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  expect(within(paper()).queryByRole("textbox")).toBeNull() // 根はその場で書かない
+  fireEvent.change(within(dialog).getByLabelText("根のキャプション"), { target: { value: "代表" } })
+  fireEvent.change(within(dialog).getByLabelText("根の本文"), { target: { value: "本文の一行目" } })
+  fireEvent.click(within(dialog).getByRole("switch", { name: "本文を紙に描く" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).toMatchObject({
+    id: done.page,
+    root: { caption: "代表", body: "本文の一行目", showBody: true },
+  })
+  expect(rootEl().textContent).toBe("代表本文の一行目")
+  const before = Number.parseFloat(rootEl().style.height)
+  fireEvent.doubleClick(rootEl())
+  dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  fireEvent.click(within(dialog).getByRole("switch", { name: "本文を紙に描く" }))
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(Number.parseFloat(rootEl().style.height)).toBeLessThan(before)
+  expect(book().pages[0]).not.toHaveProperty("root.showBody")
+  fireEvent.contextMenu(paper())
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /^ページの設定/ }))
+  dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  expect(within(dialog).getByRole("button", { name: "ページを削除" })).toBeTruthy()
+})
+
+test("ツリーのページの設定でも、選んでいる値で木が紙に入らなければ、確定の前から知らせを出して確定できない", () => {
+  const { store, id } = setup()
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+  })
+  const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
+  act(() => store.actions.openDialog("s1", "@matomezu/tree:page-settings", { page: done.page }))
+  const dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  fireEvent.click(
+    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "下へ" }),
+  )
+  expect(within(dialog).getByRole("alert").textContent).toBe("p1：紙に入りません")
+  expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+test("節の形: ページの設定で下線を選ぶと、節を下線の形で描く", () => {
+  const { store, id } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  expect(paper().querySelector('[data-root="true"]')!.getAttribute("data-shape")).toBe("box")
+  act(() => {
+    store.actions.perform(
+      "@matomezu/base:page-update",
+      { page: done.page, settings: { "@matomezu/tree:node-shape": "underline" } },
+      { book: id },
+    )
+  })
+  expect([...paper().querySelectorAll("[data-node]")].map(n => n.getAttribute("data-shape"))).toEqual([
+    "underline",
+    "underline",
+  ])
+})
+
+test("線の形: ページの設定で曲線を選ぶと、親から子への線を曲線で描く", () => {
+  const { store, id } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
+  const path = () => screen.getByRole("img", { name: "紙" }).querySelector("svg path")!.getAttribute("d")!
+  expect(path()).toContain(" L")
+  act(() => {
+    store.actions.perform(
+      "@matomezu/base:page-update",
+      { page: done.page, settings: { "@matomezu/tree:line-shape": "curve" } },
+      { book: id },
+    )
+  })
+  expect(path()).toContain(" C")
 })

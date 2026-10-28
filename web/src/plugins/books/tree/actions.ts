@@ -1,13 +1,15 @@
-// ツリーの節のアクション: 節を足す（id の無い入れ子で受け、全部に id を振って返す）・子のキャプションを替える・子孫ごと消す（根は消せない）。
+// ツリーの節のアクション: 節を足す（id の無い入れ子で受け、全部に id を振って返す。色の無い節は親の色を写す）・子のキャプションと大きさの選び方と色を替える・
+// 子孫ごと消す（根は消せない）。
 // 根のキャプションと本文は、ページのフィールドの受け方（page-fields.ts）で base の page-update が替える。
 // ページのフィールド root を書き換える。書き換えた木が紙に入らなければ断る。ツリーの見せ方について来る
 import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
 import { contentIdMaker, settingValue } from "../../base"
-import { addNodes, captionNode, removeNode } from "./edit"
+import { addNodes, changeNode, nodeOf, removeNode } from "./edit"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
-import { giveIds, NewNodeSchema, type TreeRoot, TreeRootSchema } from "./node"
+import { giveIds, NewNodeSchema, NodeColorSchema, type TreeRoot, TreeRootSchema } from "./node"
+import { NODE_SIZES } from "./size"
 
 const ON_TREES = { presentations: [kit.name("tree")] }
 
@@ -31,7 +33,7 @@ export const NODE_ADD = kit.defineAction({
   id: "node-add",
   attach: ON_TREES,
   aiDescription:
-    "Add nodes to a tree page under the node parent (the root's id for its children), at index among its children (the end without it). nodes are nested (write no ids); every node gets an id, returned in nodes in the same nesting. In a center tree, side tells which way a direct child of the root grows (right without it); it is not used elsewhere. Refused if the page is not a tree page, parent is not in it, or index is past the end.",
+    "Add nodes to a tree page under the node parent (the root's id for its children), at index among its children (the end without it). nodes are nested (write no ids); every node gets an id, returned in nodes in the same nesting. A node without color takes its parent's. In a center tree, side tells which way a direct child of the root grows (right without it); it is not used elsewhere. Refused if the page is not a tree page, parent is not in it, or index is past the end.",
   title: "Add nodes",
   target: "book",
   args: z.strictObject({
@@ -44,7 +46,8 @@ export const NODE_ADD = kit.defineAction({
     if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
     if (!tree) return null
-    const given = giveIds(args.nodes, contentIdMaker(book, ctx.newId))
+    const parent = args.parent === tree.root.id ? tree.root : nodeOf(tree.root, args.parent)
+    const given = giveIds(args.nodes, contentIdMaker(book, ctx.newId), parent?.color)
     const next = addNodes(tree.root, args.parent, given.nodes, args.index)
     const written = next && tree.put(next)
     return written && { next: written, result: { nodes: given.ids } }
@@ -55,14 +58,20 @@ export const NODE_UPDATE = kit.defineAction({
   id: "node-update",
   attach: ON_TREES,
   aiDescription:
-    "Change the caption of a child node of a tree page. Returns nothing. Refused for the root (change it with @matomezu/base:page-update) or a node not in the page.",
+    "Change a child node of a tree page: its caption, its size (how it is sized; null follows the page's @matomezu/tree:node-size) and its color (a palette name or #rrggbb; null for the theme's fill). Only what is given changes. Returns nothing. Refused for the root (change it with @matomezu/base:page-update), a node not in the page, or when the tree would not fit on the paper.",
   title: "Update node",
   target: "book",
-  args: z.strictObject({ page: z.string().min(1), node: z.string().min(1), caption: z.string() }),
+  args: z.strictObject({
+    page: z.string().min(1),
+    node: z.string().min(1),
+    caption: z.string().optional(),
+    size: z.enum(NODE_SIZES).nullable().optional(),
+    color: NodeColorSchema.nullable().optional(),
+  }),
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
-    const next = tree && captionNode(tree.root, args.node, args.caption)
+    const next = tree && changeNode(tree.root, args.node, { caption: args.caption, size: args.size, color: args.color })
     const written = next && tree?.put(next)
     return written ? { next: written, result: {} } : null
   },

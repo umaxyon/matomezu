@@ -3,7 +3,8 @@
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす。
-// 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める。
+// 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める
+// （根はページの設定のダイアログを開く）。
 // その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
 // 足す・書き換えるのが紙に入らないので断られたら、トーストで知らせる
 import { type CSSProperties, useEffect, useRef, useState } from "react"
@@ -24,12 +25,16 @@ import { settingValue } from "../../../base"
 import { useResize, useZoomMotion } from "../../../base/ui"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { afterRemove, centerShift, editEnd, type Plus, plusesOf, plusPoint, selectedIn, withCaption } from "../edit"
-import { GROW, type Grow } from "../grow"
+import { GROW } from "../grow"
 import { kit } from "../kit"
 import { layoutTree } from "../layout"
+import { DEFAULT_LINE_SHAPE, LINE_SHAPE, treePath } from "../line-shape"
 import { TreeRootSchema } from "../node"
+import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "../shape"
+import { DEFAULT_NODE_SIZE, NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
-import { NODE_CONTEXT, TREE_CONTEXT } from "../tree"
+import { NODE_CONTEXT, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
+import { nodePaint } from "./paint"
 import styles from "./TreeView.module.css"
 
 export function TreeView({ stage: id }: BookViewProps) {
@@ -93,12 +98,13 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
-  const { select, setEditing, panStageBy, showToast } = useActions()
+  const { select, setEditing, panStageBy, showToast, openDialog } = useActions()
   // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、断られるのは紙に入らないとき）
   const refused = () => showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
-  const grow = book && page ? (settingValue(catalog, book, page, GROW.id) as Grow) : "down"
+  const setting = (id: string) => (book && page ? settingValue(catalog, book, page, id) : undefined)
+  const grow = GROW.schema.safeParse(setting(GROW.id)).data ?? "down"
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root.success ? selectedIn(root.data, stage.selection) : null
   const writing = usingEdit && stage.editing && selected !== null
@@ -107,7 +113,10 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const ended = useRef(false)
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
-  const laid = shown ? layoutTree(shown, grow, paper) : null
+  const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
+  const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
+  const lineShape = LINE_SHAPE.schema.safeParse(setting(LINE_SHAPE.id)).data ?? DEFAULT_LINE_SHAPE
+  const laid = shown ? layoutTree(shown, grow, paper, size, shape) : null
   const at = laid?.nodes.find(n => n.id === selected)
   useCentered(stage, usingEdit ? at : undefined, view, panStageBy)
   if (!book || !page || !root.success || !laid || !selected) return null
@@ -151,13 +160,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
     <>
       <svg className={styles.lines} width={paper.w} height={paper.h} aria-hidden="true">
         {lines.map(l => (
-          <line
-            key={`${l.from.x},${l.from.y}-${l.to.x},${l.to.y}`}
-            x1={l.from.x}
-            y1={l.from.y}
-            x2={l.to.x}
-            y2={l.to.y}
-          />
+          <path key={`${l.from.x},${l.from.y}-${l.to.x},${l.to.y}`} d={treePath(l, lineShape)} />
         ))}
       </svg>
       {nodes.map(n => (
@@ -167,8 +170,9 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
           className={styles.node}
           data-node={n.id}
           data-root={n.id === tree.id}
+          data-shape={shape}
           data-selected={usingEdit && n.id === selected}
-          style={{ left: n.x, top: n.y, width: n.w, height: n.h }}
+          style={{ left: n.x, top: n.y, width: n.w, height: n.h, ...nodePaint(n.color) }}
           onPointerDown={e => {
             if (e.button !== 0 || !usingEdit) return
             if (writing) end(true) // テキストFormが外れるより先に選びが替わるので、ここで確定する
@@ -183,10 +187,12 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
           onDoubleClick={() => {
             if (!usingEdit) return
             select(stage.id, [n.id])
-            setEditing(stage.id, true)
+            if (n.id === tree.id) openDialog(stage.id, TREE_PAGE_SETTINGS_DIALOG.id, { page: pageId })
+            else setEditing(stage.id, true)
           }}
         >
-          {n.caption}
+          {n.lines.join("\n")}
+          {n.body && <div className={styles.body}>{n.body.join("\n")}</div>}
         </div>
       ))}
       {writing && at && (
