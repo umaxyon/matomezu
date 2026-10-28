@@ -24,7 +24,7 @@ export const MASTER = kit.defineBookType({
       "@matomezu/base:settings-keys",
       "@matomezu/base:settings-text-colors",
     ],
-    without: ["@matomezu/base:book-update"],
+    without: ["@matomezu/base:book-update", "@matomezu/base:book-lock", "@matomezu/base:book-unlock"],
   },
 
   theme: "@matomezu/base:standard",

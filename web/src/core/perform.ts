@@ -24,7 +24,8 @@ export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
 
-export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
+// locked はロック中のブック・ページを変えようとしたこと
+export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused" | "locked"
 export type Performed<Id extends ActionId> =
   | { ok: true; next: SubjectOf<Id>; result: ResultOf<Id> }
   | { ok: false; reason: Refusal }
@@ -53,6 +54,33 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
   return catalog.bookSchema.safeParse(book).success && holds(catalog, book)
 }
 
+// ロックの印を除いた中身（ロックの掛け外しのほかに違いがあるかを比べる）
+function withoutLock(v: { locked?: true }): string {
+  const { locked: _, ...rest } = v
+  return JSON.stringify(rest)
+}
+
+const pagesOf = (book: Book): readonly { id: string; locked?: true }[] =>
+  "pages" in book ? (book.pages as readonly { id: string; locked?: true }[]) : []
+
+// アクションの結果が、ブック before のロックを守っているか（after が無ければ、ブックは一覧から無くなった）。
+// ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さない。ロックを外せるのは利用者だけ
+export function keepsLocks(before: Book, after: Book | undefined, by: ActionContext["by"]): boolean {
+  const locked = pagesOf(before).filter(p => p.locked)
+  if (!before.locked && locked.length === 0) return true
+  if (!after) return false
+  if (before.locked && (withoutLock(before) !== withoutLock(after) || (!after.locked && by === "ai"))) return false
+  const pages = new Map(pagesOf(after).map(p => [p.id, p]))
+  return locked.every(p => {
+    const next = pages.get(p.id)
+    return next !== undefined && withoutLock(p) === withoutLock(next) && (next.locked || by !== "ai")
+  })
+}
+
+// 一覧が対象のアクションの結果が、どのブックのロックも守っているか
+const libraryKeepsLocks = (before: Library, after: Library, by: ActionContext["by"]): boolean =>
+  Object.values(before).every(b => b === after[b.id] || keepsLocks(b, after[b.id], by))
+
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）
 function allowed(ctx: ActionContext, action: ActionDef, subject: Subjects[keyof Subjects]): boolean {
   const book = action.target === "book" ? (subject as Book) : undefined
@@ -67,6 +95,7 @@ export function perform<Id extends ActionId>(
 ): Performed<Id> {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
+  if (action.userOnly && ctx.by === "ai") return { ok: false, reason: "not-allowed" }
   if (!allowed(ctx, action, subject)) return { ok: false, reason: "not-allowed" }
   const parsed = action.args.safeParse(args)
   if (!parsed.success) return { ok: false, reason: "bad-args" }
@@ -74,6 +103,10 @@ export function perform<Id extends ActionId>(
   if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
   const done = action.run(subject as never, parsed.data, ctx)
   if (!done) return { ok: false, reason: "refused" }
+  if (action.target === "book" && !keepsLocks(subject as Book, done.next as Book, ctx.by))
+    return { ok: false, reason: "locked" }
+  if (action.target === "library" && !libraryKeepsLocks(subject as Library, done.next as Library, ctx.by))
+    return { ok: false, reason: "locked" }
   if (action.target === "book" && !settles(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }

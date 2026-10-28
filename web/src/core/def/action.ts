@@ -28,6 +28,7 @@ export interface ActionContext {
   // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。
   // アクションは時刻や乱数を直に使わず、これと newId だけを使う（同じ入力なら同じ結果）
   now: string
+  by?: "ai" // 頼んだのが AI か（無ければ利用者。AI には userOnly のアクションとロックを外すことを断る）
 }
 
 export interface Done<T extends ActionTarget, R> {
@@ -90,6 +91,7 @@ export interface ActionDef<
   title: Tt
   // ブックが対象のアクションの付く先。どれか 1 つに当てはまるタイプのブックで使える（無ければ、タイプの actions.add で選ばれたときだけ）
   attach?: At
+  userOnly?: true // 利用者だけが行える（AI には断り、MCP 公開ツールの actions に出さない）
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）

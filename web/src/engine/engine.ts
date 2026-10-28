@@ -41,6 +41,7 @@ interface Input {
   now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
   books?: unknown[]
   settings: unknown
+  by?: "ai" // 頼んだのが AI か（無ければ利用者）
 }
 
 // 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック
@@ -67,6 +68,7 @@ function perform(input: Input): Output {
     lang,
     newId: () => ids.shift() ?? crypto.randomUUID(),
     now: input.now ?? new Date().toISOString(),
+    ...(input.by === "ai" ? { by: "ai" as const } : {}),
   })
   if (!done.ok) return done
   const next = done.books
@@ -80,18 +82,20 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
-// MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの。args と props は JSON Schema。名前は英語
+// MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの。args と props は JSON Schema。名前は英語
 function aiCatalog(of: Assembled = assembled) {
   const catalog = of.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
   return {
-    actions: [...catalog.actions.values()].map(a => ({
-      id: a.id,
-      target: a.target,
-      title: en(a.title),
-      description: a.aiDescription,
-      args: z.toJSONSchema(a.describeArgs?.(catalog) ?? a.args, { io: "input", unrepresentable: "any" }),
-    })),
+    actions: [...catalog.actions.values()]
+      .filter(a => !a.userOnly)
+      .map(a => ({
+        id: a.id,
+        target: a.target,
+        title: en(a.title),
+        description: a.aiDescription,
+        args: z.toJSONSchema(a.describeArgs?.(catalog) ?? a.args, { io: "input", unrepresentable: "any" }),
+      })),
     bookTypes: [...catalog.bookTypes.values()].map(t => ({
       id: t.id,
       title: en(t.title),

@@ -147,8 +147,12 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
       })
     : null
   const own = Object.entries(t.schema.shape)
-  // type・id・title の順（type は pluginKit が後から足す。名前 title は土台のフィールドで、どのタイプも持ち、空でもよい）
-  const head = [...HEAD.flatMap(h => own.filter(([k]) => k === h)), ["title", z.string().default("")] as const]
+  // type・id・title・locked の順（type は pluginKit が後から足す。名前 title とロック locked は土台のフィールドで、どのタイプも持つ。名前は空でもよい）
+  const head = [
+    ...HEAD.flatMap(h => own.filter(([k]) => k === h)),
+    ["title", z.string().default("")] as const,
+    ["locked", z.literal(true).optional()] as const,
+  ]
   const tail = own.filter(([k]) => !HEAD.includes(k))
   const book = z.strictObject({
     ...Object.fromEntries(head),
@@ -234,7 +238,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     // id だけを通す形か（ほかの文字も通すなら literal ではない）
     if (literal?.safeParse(t.id).success !== true || literal.safeParse(`${t.id}-other`).success)
       problems.push(problem("E002", { id: t.id }))
-    for (const field of ["title", "pages", "settings"])
+    for (const field of ["title", "locked", "pages", "settings"])
       if (field in t.schema.shape) problems.push(problem("E025", { id: t.id, field }))
     for (const id of [...(t.settings?.book ?? []), ...(t.settings?.page ?? [])])
       if (!settings.has(id)) problems.push(problem("E008", { id: t.id, kind: "setting", ref: id }))

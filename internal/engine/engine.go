@@ -30,6 +30,7 @@ type Input struct {
 	Now      string            `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
 	Books    []json.RawMessage `json:"books"`
 	Settings json.RawMessage   `json:"settings"`
+	By       string            `json:"by,omitempty"` // 頼んだのが AI なら "ai"（空なら利用者）
 }
 
 // On はアクションの宛先のブック

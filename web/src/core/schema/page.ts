@@ -8,6 +8,7 @@ export const PageSchema = z.strictObject({
   title: z.string(),
   paper: z.string().min(1),
   orientation: z.enum(ORIENTATIONS),
+  locked: z.literal(true).optional(), // ロック中（利用者も AI も中身を変えられない。外せるのは利用者だけ）
 })
 
 export type Page = z.infer<typeof PageSchema>

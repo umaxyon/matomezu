@@ -404,7 +404,7 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &p) {
 		return
 	}
-	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, Lang: o.Hub.Lang()})
+	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, Lang: o.Hub.Lang(), By: "ai"})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

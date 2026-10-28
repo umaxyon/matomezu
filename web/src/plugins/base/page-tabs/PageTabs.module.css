@@ -25,6 +25,35 @@
     scrollbar-width: thin;
   }
 }
+/* タブ 1 つの置き場所。ロック中は、鍵のボタンをタブの左の余白に重ねる */
+.slot {
+  position: relative;
+  display: flex;
+  flex: none;
+}
+.lock {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--skin-hint);
+  cursor: pointer;
+}
+.lock:hover:not(:disabled) {
+  color: var(--skin-accent);
+}
+.lock:disabled {
+  cursor: default;
+}
+.tab[data-locked="true"] {
+  padding-left: 24px;
+}
 .tab {
   max-width: 200px;
   height: 25px;

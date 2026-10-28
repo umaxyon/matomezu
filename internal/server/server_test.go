@@ -542,6 +542,29 @@ func TestSettingsActions(t *testing.T) {
 	}
 }
 
+// AI はロックを掛けられるが外せない（外すアクションは画面からだけ）。ロック中のブックは AI も変えられない
+func TestAICanLockButNotUnlock(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	on := `,"args":{},"on":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-lock"`+on, ai); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("lock = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"}}`, ai); got != `{"ok":false,"reason":"locked"}` {
+		t.Fatalf("update = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-unlock"`+on, ai); got != `{"ok":false,"reason":"not-allowed"}` {
+		t.Fatalf("ai unlock = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-unlock","lang":"ja"`+on, nil); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("unlock = %s", got)
+	}
+	// 外すアクションは AI の actions に出さない
+	if _, got := send(t, "GET", s.URL+"/api/ai/catalog", "", ai); strings.Contains(got, "book-unlock") || !strings.Contains(got, "book-lock") {
+		t.Fatalf("catalog lists book-unlock or misses book-lock")
+	}
+}
+
 func TestViewIsTheLastFocusedScreens(t *testing.T) {
 	s := newServerWith(t, Options{Latest: 50 * time.Millisecond})
 	a, b := listen(t, s.URL), listen(t, s.URL)

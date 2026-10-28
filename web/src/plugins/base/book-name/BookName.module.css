@@ -23,6 +23,31 @@
   text-overflow: ellipsis;
   cursor: pointer;
 }
+.trigger[data-locked="true"] {
+  padding-left: 28px;
+}
+/* ロック中の鍵。名前のボタンの左の余白に重ねる */
+.lock {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--skin-hint);
+  cursor: pointer;
+}
+.lock:hover:not(:disabled) {
+  color: var(--skin-accent);
+}
+.lock:disabled {
+  cursor: default;
+}
 .trigger[data-current="true"] {
   box-shadow: inset 3px 0 0 var(--skin-accent);
 }

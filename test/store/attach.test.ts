@@ -13,7 +13,7 @@ import { CORE_CATALOG, newStore } from "../support"
 
 const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", pages: [] }
 
-test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。マスターは足すアクションと外す book-update で決まる", () => {
+test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。マスターは足すアクションと外す book-update・book-lock・book-unlock で決まる", () => {
   const ids = actionsOf(CORE_CATALOG, drawing)
   for (const id of [
     "@matomezu/base:page-add",

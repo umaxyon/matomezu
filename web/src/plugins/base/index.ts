@@ -8,6 +8,7 @@ import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { kit } from "./kit"
+import { BOOK_LOCK, BOOK_UNLOCK, BOOK_UNLOCK_COMMAND, PAGE_LOCK, PAGE_UNLOCK, PAGE_UNLOCK_COMMAND } from "./lock"
 import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MINIMAP_TOGGLE } from "./minimap"
@@ -123,7 +124,11 @@ export const BASE = defineBuiltin(
       PAGE_ADD,
       PAGE_UPDATE,
       PAGE_REMOVE,
+      PAGE_LOCK,
+      PAGE_UNLOCK,
       BOOK_UPDATE,
+      BOOK_LOCK,
+      BOOK_UNLOCK,
       BOOK_CREATE,
       SET_LANG,
       SET_SKIN,
@@ -139,6 +144,8 @@ export const BASE = defineBuiltin(
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK],
     commands: [
       BOOK_NEW,
+      BOOK_UNLOCK_COMMAND,
+      PAGE_UNLOCK_COMMAND,
       STAGE_HOME,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
@@ -181,6 +188,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE
     "@matomezu/base:page-remove": typeof PAGE_REMOVE
+    "@matomezu/base:page-lock": typeof PAGE_LOCK
+    "@matomezu/base:page-unlock": typeof PAGE_UNLOCK
+    "@matomezu/base:book-lock": typeof BOOK_LOCK
+    "@matomezu/base:book-unlock": typeof BOOK_UNLOCK
     "@matomezu/base:settings-lang": typeof SET_LANG
     "@matomezu/base:settings-skin": typeof SET_SKIN
     "@matomezu/base:settings-keys": typeof SET_KEYS
@@ -214,6 +225,8 @@ declare module "../../core/catalog" {
   }
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW
+    "@matomezu/base:book-unlock": typeof BOOK_UNLOCK_COMMAND
+    "@matomezu/base:page-unlock": typeof PAGE_UNLOCK_COMMAND
     "@matomezu/base:stage-home": typeof STAGE_HOME
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
