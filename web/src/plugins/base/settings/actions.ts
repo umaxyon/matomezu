@@ -1,5 +1,6 @@
-// 設定のアクション: 言語・スキン・キーの割り当ての変更を変える。使えるかはホームのブックのタイプが決める（組織のホームで、変えさせない設定を決められる）
+// 設定のアクション: 言語・スキン・キーの割り当ての変更・文字の色の上書きを変える。使えるかはホームのブックのタイプが決める（組織のホームで、変えさせない設定を決められる）
 import { z } from "zod"
+import { HEX } from "../../../core/color"
 import { KeyChangesSchema } from "../../../core/keys"
 import { kit } from "../kit"
 
@@ -27,6 +28,25 @@ export const SET_SKIN = kit.defineAction({
     args.skin === "auto" || ctx.catalog.skins.has(args.skin)
       ? { next: { ...settings, skin: args.skin }, result: {} }
       : null,
+})
+
+// 文字の色の、見る人の上書きを変える: 書いた色だけを変え、null は上書きを消す（ブックの色に戻る）。無い色の id・形の合わない色は断る
+export const SET_TEXT_COLORS = kit.defineAction({
+  id: "settings-text-colors",
+  aiDescription:
+    "Change the user's own text colors, which win over the book's and the text color's (keyed by the text color's id from textColors in actions, #rrggbb). Only what is given changes; null removes the user's color.",
+  title: "Text colors",
+  target: "settings",
+  args: z.strictObject({ colors: z.record(z.string(), z.string().regex(HEX).nullable()) }),
+  run: (settings, args, ctx) => {
+    if (Object.keys(args.colors).some(id => !ctx.catalog.textColors.has(id))) return null
+    const next: Record<string, string> = { ...settings.textColors }
+    for (const [id, hex] of Object.entries(args.colors)) {
+      if (hex === null) delete next[id]
+      else next[id] = hex.toLowerCase()
+    }
+    return { next: { ...settings, textColors: next }, result: {} }
+  },
 })
 
 // キーの割り当ての、利用者の変更（足した行・外した既定の行）を丸ごと置き換える。

@@ -10,7 +10,7 @@ import { detectLang, translate } from "../core/i18n/i18n"
 import { NO_KEY_CHANGES } from "../core/keys"
 import { performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
-import { restoreSettings } from "../core/settings"
+import { NO_TEXT_COLORS, restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
@@ -56,7 +56,11 @@ function perform(input: Input): Output {
   const lang = detectLang([input.lang], [...catalog.languages.keys()])
   const ids = [...(input.ids ?? [])]
   const books = Object.fromEntries(restoreBooks(catalog, input.books ?? []).map(b => [b.id, b]))
-  const settings = restoreSettings(catalog, { lang, skin: "auto", keys: NO_KEY_CHANGES }, input.settings)
+  const settings = restoreSettings(
+    catalog,
+    { lang, skin: "auto", keys: NO_KEY_CHANGES, textColors: NO_TEXT_COLORS },
+    input.settings,
+  )
   const done = performIn({ books, settings }, input.action, input.args, input.on, {
     catalog,
     home,

@@ -1,4 +1,4 @@
-// 文字の色の値: 文字の色の定義の色を、ブックの設定の項目 text-colors（文字の色の id → #rrggbb）で上書きし、見る人の上書きがあればさらに重ねる。
+// 文字の色の値: 文字の色の定義の色を、ブックの設定の項目 text-colors（文字の色の id → #rrggbb）で上書きし、見る人の上書き（見る人の設定の textColors。アクション settings-text-colors）をさらに重ねる。
 // ブックのタイプが settings.book に選んだブックだけが上書きを持てる（選ばなければ定義の色）
 import { z } from "zod"
 import { HEX } from "../../../core/color"

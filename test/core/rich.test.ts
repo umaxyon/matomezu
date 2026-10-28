@@ -1,11 +1,12 @@
 // 本文の装飾（base の text/rich.ts・edit.ts・text-colors.ts）
 import { expect, test } from "bun:test"
 import type { Book } from "../../web/src/core/schema/book"
+import { restoreSettings } from "../../web/src/core/settings"
 import { TEXT_LOOK, wrap } from "../../web/src/plugins/base"
 import { decorate } from "../../web/src/plugins/base/text/edit"
 import { clampRich, parseRich, plainOf, textColorRef, wrapRich } from "../../web/src/plugins/base/text/rich"
 import { textColorsOf } from "../../web/src/plugins/base/text/text-colors"
-import { CORE_CATALOG } from "../support"
+import { CORE_CATALOG, newStore } from "../support"
 
 const W = "@matomezu/base:warn"
 
@@ -83,4 +84,23 @@ test("文字の色は定義の色を、ブックの設定、見る人の上書�
     W,
     "@matomezu/base:error",
   ])
+})
+
+test("見る人の文字の色は settings-text-colors で変え（null で消す）、ブックの色より強い。無い色の id・形の合わない色は断る", () => {
+  const store = newStore()
+  const { state, actions } = store
+  const set = (colors: Record<string, string | null>) =>
+    actions.perform("@matomezu/base:settings-text-colors", { colors }).ok
+  expect(set({ [W]: "#ABCDEF" })).toBe(true)
+  expect(state.getState().settings.textColors).toEqual({ [W]: "#abcdef" })
+  const book = state.getState().books.b1 as Book
+  expect(textColorsOf(CORE_CATALOG, book, state.getState().settings.textColors).get(W)).toBe("#abcdef")
+  expect(set({ "@ex/p:none": "#000000" })).toBe(false)
+  expect(set({ [W]: "red" })).toBe(false)
+  expect(set({ [W]: null })).toBe(true)
+  expect(state.getState().settings.textColors).toEqual({})
+  // 残した設定の文字の色は、形が合えば戻す（無い色の id も残す）
+  const restored = restoreSettings(CORE_CATALOG, state.getState().settings, { textColors: { "@ex/p:none": "#000000" } })
+  expect(restored.textColors).toEqual({ "@ex/p:none": "#000000" })
+  expect(restoreSettings(CORE_CATALOG, state.getState().settings, { textColors: { a: 1 } }).textColors).toEqual({})
 })

@@ -1,5 +1,5 @@
 // 本文の入力Form: 上の辺に枠のつながった装飾のボックス（太字のボタンと、文字の色の丸・色なし）を付けたテキストエリア。
-// 押すと、選んだ範囲を記号で囲む（もう囲んでいれば外す。範囲が無ければカーソルの所に記号の組を入れる。edit.ts）。色の丸はブックで効いている色（ステージが開いているブックの上書き）
+// 押すと、選んだ範囲を記号で囲む（もう囲んでいれば外す。範囲が無ければカーソルの所に記号の組を入れる。edit.ts）。色の丸は効いている色（ステージが開いているブックの上書きと、見る人の上書き）
 import { useMemo, useRef } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
@@ -31,7 +31,8 @@ export function RichBody({
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined
   })
-  const colors = useMemo(() => (book ? textColorsOf(catalog, book) : null), [catalog, book])
+  const viewer = useMatomezuState(s => s.settings.textColors)
+  const colors = useMemo(() => (book ? textColorsOf(catalog, book, viewer) : null), [catalog, book, viewer])
   const ref = useRef<HTMLTextAreaElement>(null)
   const apply = (d: Decoration) => {
     const el = ref.current

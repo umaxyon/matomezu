@@ -24,7 +24,7 @@
 //	GET  /api/ai/view        最後にフォーカスされた画面が見ているもの（{"book", "page", "selection"}。無ければ null）
 //	GET  /api/ai/books       {"books": [{"id", "type", "title", "version"}]}
 //	GET  /api/ai/books/{id}  {"id", "book", "version"}
-//	GET  /api/ai/settings    利用者の設定（{"lang", "skin", "keys"}。変えていなければ null）
+//	GET  /api/ai/settings    利用者の設定（{"lang", "skin", "keys", "textColors"}。変えていなければ null）
 //	GET  /api/ai/catalog     MCP 公開ツールの actions が返す物（engine.AICatalog）
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "result"} を返す
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた画面にブックを出す（Hub.Show）。

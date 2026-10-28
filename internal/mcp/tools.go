@@ -48,7 +48,7 @@ var readTools = []readTool{
 	},
 	{
 		"read_settings",
-		"Read the user's settings: lang, skin and keys (their changes to the shortcut keys). null when they have changed nothing.",
+		"Read the user's settings: lang, skin, keys (their changes to the shortcut keys) and textColors (their own text colors, by the text color's id). null when they have changed nothing.",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
 	},

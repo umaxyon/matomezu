@@ -14,7 +14,7 @@ import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SET
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
-import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
+import { SET_KEYS, SET_LANG, SET_SKIN, SET_TEXT_COLORS, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { BOOK_TEXT_COLORS, TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
@@ -110,7 +110,17 @@ export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin(
   kit.plugin({
-    actions: [PAGE_ADD, PAGE_UPDATE, PAGE_REMOVE, BOOK_UPDATE, BOOK_CREATE, SET_LANG, SET_SKIN, SET_KEYS],
+    actions: [
+      PAGE_ADD,
+      PAGE_UPDATE,
+      PAGE_REMOVE,
+      BOOK_UPDATE,
+      BOOK_CREATE,
+      SET_LANG,
+      SET_SKIN,
+      SET_KEYS,
+      SET_TEXT_COLORS,
+    ],
     settings: [BOOK_THEME, BOOK_PAPER_COLOR, BOOK_TEXT_COLORS],
     themes: [STANDARD, STICKY, SIMPLE],
     papers: PAPERS,
@@ -164,6 +174,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:settings-lang": typeof SET_LANG
     "@matomezu/base:settings-skin": typeof SET_SKIN
     "@matomezu/base:settings-keys": typeof SET_KEYS
+    "@matomezu/base:settings-text-colors": typeof SET_TEXT_COLORS
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD

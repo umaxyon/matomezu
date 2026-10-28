@@ -22,6 +22,7 @@ export const MASTER = kit.defineBookType({
       "@matomezu/base:settings-lang",
       "@matomezu/base:settings-skin",
       "@matomezu/base:settings-keys",
+      "@matomezu/base:settings-text-colors",
     ],
     without: ["@matomezu/base:book-update"],
   },

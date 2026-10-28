@@ -13,7 +13,7 @@ import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
 import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
-import { restoreSettings, type Settings } from "../core/settings"
+import { NO_TEXT_COLORS, restoreSettings, type Settings } from "../core/settings"
 import {
   closePicker,
   openBook,
@@ -216,7 +216,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   let defs = assemble(plugins, options.home ?? null, options.autoSkin)
   let { home } = defs
   let catalog = defs.catalog.core
-  const start: Settings = { lang: startLang(catalog, options.lang), skin: "auto", keys: NO_KEY_CHANGES }
+  const start: Settings = {
+    lang: startLang(catalog, options.lang),
+    skin: "auto",
+    keys: NO_KEY_CHANGES,
+    textColors: NO_TEXT_COLORS,
+  }
   const saved = checkBooks(catalog, options.savedBooks ?? [])
   const initial =
     options.initial ??
