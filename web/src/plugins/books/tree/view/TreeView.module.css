@@ -127,29 +127,34 @@
 .plusMark {
   display: grid;
   place-items: center;
-  width: 6px;
-  height: 6px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--theme-accent);
-  color: transparent;
-  font-size: 0;
-  line-height: 1;
   box-shadow: 0 0 0 2px var(--theme-paper);
+  transform: scale(0.4); /* ふだんは 6px ほどの点 */
   transition:
-    width 0.12s ease-out,
-    height 0.12s ease-out,
-    font-size 0.12s ease-out;
+    transform 0.12s ease-out,
+    box-shadow 0.12s ease-out;
+}
+/* ＋の線（点のときは見せない） */
+.plusMark svg {
+  stroke: var(--theme-paper);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
 }
 .plus:hover .plusMark,
 .plus:focus-visible .plusMark {
-  width: 16px;
-  height: 16px;
-  color: var(--theme-paper);
-  font-size: 13px;
-  font-weight: 600;
+  transform: scale(1);
   box-shadow:
     0 0 0 2px var(--theme-paper),
     0 1px 3px rgb(0 0 0 / 0.25);
+}
+.plus:hover .plusMark svg,
+.plus:focus-visible .plusMark svg {
+  opacity: 1;
 }
 .plus:focus-visible {
   outline: none;
