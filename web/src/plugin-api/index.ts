@@ -49,14 +49,16 @@ export type { Point, Rect, Size } from "../core/geom"
 export { defineMessages } from "../core/i18n/messages"
 export type { Owned } from "../core/names"
 export { actionsOf } from "../core/perform"
-export type { ItemPage, PlacedConnector, PlacedOf, PlacedShape } from "../core/placed"
+export type { ItemPage, PlacedConnector, PlacedOf, PlacedShape, ShapeOnPage } from "../core/placed"
 export {
   connectableShape,
   connectorSchema,
   connectorsOf,
+  findShape,
   pageItemsOf,
   shapeSchema,
   shapesOf,
+  walkShapes,
 } from "../core/placed"
 export type { Book } from "../core/schema/book"
 export type { Stage } from "../core/stage"

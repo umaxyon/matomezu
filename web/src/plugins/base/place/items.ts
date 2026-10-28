@@ -9,6 +9,7 @@ import type { Point, Size } from "../../../core/geom"
 import { resolvePaper } from "../../../core/paper"
 import {
   connectorsOf,
+  findShape,
   type ItemPage,
   isShape,
   type PlacedConnector,
@@ -355,7 +356,8 @@ export function placedAt(catalog: CoreCatalog, page: ItemPage, rects: ReadonlyMa
   })
 }
 
-// ページのアイテム ids（形も線も）を消す。消した形につながる線も消える（tidyPage）。無いページ・無いアイテムを含むなら null
+// ページのアイテム ids（形も線も、どの深さの子の形も）を消す。形は子孫ごと消え、消した形につながる線も消える（tidyPage）。
+// 無いページ・無いアイテムを含むなら null
 export function removeItems<B extends PagedBook>(
   catalog: CoreCatalog,
   book: B,
@@ -364,10 +366,37 @@ export function removeItems<B extends PagedBook>(
 ): B | null {
   const page = book.pages.find(p => p.id === pageId)
   if (!page) return null
-  const items = pageItemsOf(page)
   const targets = new Set(ids)
-  if (![...targets].every(id => items.some(i => i.id === id))) return null
-  return withPage(catalog, book, { ...page, items: items.filter(i => !targets.has(i.id)) })
+  const found = (p: ItemPage, id: string) => pageItemsOf(p).some(i => i.id === id) || findShape(p, id) !== undefined
+  if (![...targets].every(id => found(page, id))) return null
+  // ページのアイテムはまとめて除き、子の形は 1 つずつ除く（先に除いた祖先の子孫は、もう無い）
+  let next: ItemPage = { ...page, items: pageItemsOf(page).filter(i => !targets.has(i.id)) }
+  for (const id of targets) next = replaceShape(next, id, () => null) ?? next
+  return withPage(catalog, book, next)
+}
+
+// ページの形 id の、一番上の祖先（ページの形）の id。ページの形なら自分。無ければ null
+export function rootOf(page: ItemPage, id: string): string | null {
+  const found = findShape(page, id)
+  if (!found) return null
+  return found.parent === null ? id : rootOf(page, found.parent)
+}
+
+// ページのどの深さの形 id も f の返す形に置き換え、変えたあとの一番上の祖先の大きさで、近づきすぎたページの形を押してどける（縮めない。replacePushing）。
+// f が null を返せば子孫ごと除く（祖先は縮むだけなので押さない）。無いページ・無い形・はみ出す・押した相手が紙に収まらないなら null
+export function replaceShapePushing<B extends PagedBook>(
+  catalog: CoreCatalog,
+  book: B,
+  pageId: string,
+  id: string,
+  f: (shape: PlacedShape) => PlacedShape | null,
+): B | null {
+  const page = book.pages.find(p => p.id === pageId)
+  const root = page && rootOf(page, id)
+  const next = page && replaceShape(page, id, f)
+  if (!page || !root || !next) return null
+  const grown = shapesOf(next).find(s => s.id === root)
+  return grown ? replacePushing(catalog, book, pageId, grown, false) : withPage(catalog, book, next)
 }
 
 // ページの形 a と b の組が、間隔の下限（gapOf。線でつないだあとなど）より近ければ、a はそのままで b の側をどける

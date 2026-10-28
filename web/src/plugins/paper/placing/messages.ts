@@ -7,6 +7,7 @@ export const PLACING_MESSAGES = defineMessages({
   "Update item": { en: "Update item", ja: "アイテムを変える" },
   "Resize item": { en: "Resize item", ja: "アイテムの幅を変える" },
   "Remove items": { en: "Remove items", ja: "アイテムを消す" },
+  "Reparent item": { en: "Reparent item", ja: "アイテムを付け替える" },
   Delete: { en: "Delete", ja: "削除" },
   Settings: { en: "Settings", ja: "設定" },
 })

@@ -8,6 +8,7 @@ import {
   ITEM_MOVE,
   ITEM_PLACE,
   ITEM_REMOVE,
+  ITEM_REPARENT,
   ITEM_RESIZE,
   ITEM_UPDATE,
   PAPER_DELETE,
@@ -23,7 +24,7 @@ export const PAPER_PLUGIN = defineBuiltin(
     presentations: [PAPER],
     tools: [REPARENT_TOOL],
     toolSets: [PAPER_TOOLS],
-    actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE],
+    actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE, ITEM_REPARENT],
     commands: [PAPER_PLACE, PAPER_MOVE, PAPER_RESIZE, PAPER_EDIT, PAPER_DELETE],
     keys: ITEM_KEYS,
   }),
@@ -45,6 +46,7 @@ declare module "../../core/catalog" {
     "@matomezu/paper:item-update": typeof ITEM_UPDATE
     "@matomezu/paper:item-resize": typeof ITEM_RESIZE
     "@matomezu/paper:item-remove": typeof ITEM_REMOVE
+    "@matomezu/paper:item-reparent": typeof ITEM_REPARENT
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
   interface CommandTable {

@@ -12,6 +12,7 @@ import {
   type PlacedShape,
   pageItemsOf,
   shapesOf,
+  walkShapes,
 } from "../../../core/placed"
 import type { Gap } from "./push"
 
@@ -74,12 +75,22 @@ export function placedSize(catalog: CoreCatalog, item: PlacedShape): Size | null
   }, own)
 }
 
-// ページの形の四角（大きさの分からない形は入れない）
+// ページの形の四角（大きさの分からない形は入れない。子の形は入れない）
 export function rectsOf(catalog: CoreCatalog, page: ItemPage): Map<string, Rect> {
   const rects = new Map<string, Rect>()
   for (const i of shapesOf(page)) {
     const size = placedSize(catalog, i)
     if (size) rects.set(i.id, { x: i.x, y: i.y, ...size })
+  }
+  return rects
+}
+
+// ページの形の四角を、子の形まで（紙の上の位置。大きさの分からない形は入れない）
+export function allRectsOf(catalog: CoreCatalog, page: ItemPage): Map<string, Rect> {
+  const rects = new Map<string, Rect>()
+  for (const { shape, at } of walkShapes(page)) {
+    const size = placedSize(catalog, shape)
+    if (size) rects.set(shape.id, { ...at, ...size })
   }
   return rects
 }
@@ -90,14 +101,14 @@ function portsOf(catalog: CoreCatalog, item: PlacedShape): Ports | undefined {
   return def?.portsOf ? def.portsOf(item as ShapeData) : def?.ports
 }
 
-// ページの形のつながる範囲: 形の四角 rects（無ければデータの位置と大きさ）を、形の定義のつなぎ口で縮めたもの。
+// ページの形のつながる範囲: 形の四角 rects（無ければ子の形までの、紙の上の位置と大きさ）を、形の定義のつなぎ口で縮めたもの。
 // 機能台帳に無い形は、四角のふち全体
 export function portAreasOf(
   catalog: CoreCatalog,
   page: ItemPage,
-  rects: ReadonlyMap<string, Rect> = rectsOf(catalog, page),
+  rects: ReadonlyMap<string, Rect> = allRectsOf(catalog, page),
 ): Map<string, PortArea> {
-  const items = new Map(shapesOf(page).map(s => [s.id, s]))
+  const items = new Map(walkShapes(page).map(({ shape }) => [shape.id, shape]))
   const areas = new Map<string, PortArea>()
   for (const [id, r] of rects) {
     const item = items.get(id)
@@ -133,7 +144,7 @@ export function tidyConnectors<P extends ItemPage>(catalog: CoreCatalog, page: P
   const groups = byConnector(catalog, page)
   if (groups.length === 0) return page
   const areas = portAreasOf(catalog, page)
-  const shapes = new Set(shapesOf(page).map(s => s.id))
+  const shapes = new Set(walkShapes(page).map(({ shape }) => shape.id))
   const tidy = new Map<string, PlacedConnector>()
   for (const [def, all] of groups) {
     const list = all.filter(c => shapes.has(c.from) && shapes.has(c.to))
