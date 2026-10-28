@@ -49,3 +49,34 @@ test("付け替えの道具で箱を内包ボックスの上へドラッグす�
   expect(out).toBe(0)
   await expect(item(page, "親").locator("[data-item]")).toHaveCount(0)
 })
+
+test("選択の道具で親をドラッグすると子もついて動き、子をドラッグすると親の中で子だけが動く", async ({ page }) => {
+  await page.goto("/")
+  await addBox(page, 100, 100, "親")
+  await addBox(page, 500, 100, "子")
+  await page.getByRole("button", { name: "選択ツール" }).click()
+  const parent = (await item(page, "親").boundingBox())!
+  const child = (await item(page, "子").boundingBox())!
+  await drag(page, "子", parent.x + parent.width / 2 - child.x - 10, parent.y + parent.height / 2 - child.y - 10)
+  await expect(item(page, "親").locator("[data-item]")).toHaveCount(1)
+  // 選択の道具に戻す（付け替え → ハンド → 選択）
+  await page.getByRole("button", { name: "付け替えツール" }).click()
+  await page.getByRole("button", { name: "ハンドツール" }).click()
+  await expect(page.locator('section[data-tool="@matomezu/base:select"]')).toHaveCount(1)
+  const p0 = (await item(page, "親").boundingBox())!
+  const c0 = (await item(page, "子").boundingBox())!
+  await page.mouse.move(p0.x + 6, p0.y + 6)
+  await page.mouse.down()
+  await page.mouse.move(p0.x + 6 + 100, p0.y + 6 + 120, { steps: 8 })
+  await page.mouse.up()
+  const p1 = (await item(page, "親").boundingBox())!
+  const c1 = (await item(page, "子").boundingBox())!
+  expect(Math.round(c1.x - c0.x)).toBe(Math.round(p1.x - p0.x))
+  expect(Math.round(c1.y - c0.y)).toBe(Math.round(p1.y - p0.y))
+  await drag(page, "子", 60, 40)
+  const p2 = (await item(page, "親").boundingBox())!
+  const c2 = (await item(page, "子").boundingBox())!
+  expect(Math.round(p2.x)).toBe(Math.round(p1.x))
+  expect(Math.round(c2.x - c1.x)).toBeGreaterThan(0)
+  await expect(item(page, "親").locator("[data-item]")).toHaveCount(1)
+})
