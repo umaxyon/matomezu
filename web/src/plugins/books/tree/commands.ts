@@ -1,6 +1,6 @@
 // ツリーのコマンド: 上下左右のキーで、選んでいる節を動かす（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ）と、
 // Enter で、選んでいる節のキャプションをその場で書き始める。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
-// 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーの見せ方の範囲（ステージの範囲より先に探す）
+// 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、節の色と、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーの見せ方の範囲（ステージの範囲より先に探す）
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { settingValue } from "../../base"
 import { NODE_REMOVE, NODE_UPDATE } from "./actions"
@@ -9,7 +9,7 @@ import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
 import { EDIT_TOOL } from "./tools"
-import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE } from "./tree"
+import { NODE_COLOR_DIALOG, NODE_SIZE_DIALOG, TREE_KEYS_SCOPE } from "./tree"
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
 function treeAt(ctx: CommandContext) {
@@ -84,6 +84,22 @@ export const NODE_SIZE_EDIT = kit.defineCommand({
     const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null
     return tree !== null && selectedIn(tree.root, ctx.stage.selection) !== tree.root.id
   },
+})
+
+// 選んでいる節（根も）の色を変えるダイアログを開く（その場の編集中は出さない）
+export const NODE_COLOR_EDIT = kit.defineCommand({
+  id: "node-color-edit",
+  performs: [NODE_UPDATE.id, "@matomezu/base:page-update"],
+  title: "Node color",
+  run: (ctx, a) => {
+    const tree = treeAt(ctx)
+    if (!tree) return
+    a.openDialog(ctx.stage.id, NODE_COLOR_DIALOG.id, {
+      page: tree.page.id,
+      node: selectedIn(tree.root, ctx.stage.selection),
+    })
+  },
+  when: ctx => editingTree(ctx) && !ctx.stage.editing && treeAt(ctx) !== null,
 })
 
 export const TREE_KEYS = [

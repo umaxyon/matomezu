@@ -59,6 +59,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/tree:tree-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
     "@matomezu/tree:node-context": [
       "@matomezu/tree:node-edit",
+      "@matomezu/tree:node-color-edit",
       "@matomezu/tree:node-size-edit",
       "-",
       "@matomezu/tree:node-delete",

@@ -20,6 +20,8 @@ export const TREE_MESSAGES = defineMessages({
   Delete: { en: "Delete", ja: "削除" },
   "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に入りません" },
   "Node size": { en: "Node size", ja: "節の大きさ" },
+  "Node color": { en: "Node color", ja: "節の色" },
+  Color: { en: "Color", ja: "色" },
   Cancel: { en: "Cancel", ja: "キャンセル" },
   OK: { en: "OK", ja: "確定" },
   Grows: { en: "Grows", ja: "伸びる" },

@@ -27,6 +27,12 @@ export const NODE_CONTEXT = kit.name("node-context")
 // 子の節の大きさの選び方を変えるダイアログ（開いたステージのブックの、ページ page の節 node）
 export const NODE_SIZE_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({ id: "node-size-edit" })
 
+// 節の塗りのテーマキー（無ければテーマの塗り。節の色を選ぶときの「なし」の色）
+export const NODE_FILL = { id: "tree-node-fill", fallback: "fill" } as const
+
+// 節の色を変えるダイアログ（開いたステージのブックの、ページ page の節 node。根も）
+export const NODE_COLOR_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({ id: "node-color-edit" })
+
 export const TREE = kit.defineBookType({
   id: "tree",
   version: 1,
@@ -49,7 +55,7 @@ export const TREE = kit.defineBookType({
   theme: "@matomezu/base:standard",
   presentation: TREE_PRESENTATION.id,
   tokens: [
-    { id: "tree-node-fill", fallback: "fill" },
+    NODE_FILL,
     { id: "tree-node-line", value: "#cdcdd6" }, // 節の枠線（標準は淡い灰色。テーマが上書きする）
     { id: "tree-node-text", fallback: "text" },
     { id: "tree-node-radius", value: "6px" }, // 節の角の丸み

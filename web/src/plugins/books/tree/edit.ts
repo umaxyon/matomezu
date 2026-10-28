@@ -69,16 +69,17 @@ export function captionNode(root: TreeRoot, id: string, caption: string): TreeRo
   return changeNode(root, id, { caption })
 }
 
-// 子の節 id のフィールドを patch で替えた根（書いたフィールドだけ替え、大きさの選び方の null は消す。根と無い節は null）
+// 子の節 id のフィールドを patch で替えた根（書いたフィールドだけ替え、大きさの選び方と色の null は消す。根と無い節は null）
 export function changeNode(
   root: TreeRoot,
   id: string,
-  patch: { caption?: string; size?: NodeSize | null },
+  patch: { caption?: string; size?: NodeSize | null; color?: string | null },
 ): TreeRoot | null {
   const next = mapIn(root.children ?? [], id, n => {
-    const { size: _old, ...rest } = n
+    const { size: _size, color: _color, ...rest } = n
     const size = patch.size === undefined ? n.size : (patch.size ?? undefined)
-    return { ...rest, caption: patch.caption ?? n.caption, ...(size ? { size } : {}) }
+    const color = patch.color === undefined ? n.color : (patch.color ?? undefined)
+    return { ...rest, caption: patch.caption ?? n.caption, ...(size ? { size } : {}), ...(color ? { color } : {}) }
   })
   return next && withKids(root, next)
 }

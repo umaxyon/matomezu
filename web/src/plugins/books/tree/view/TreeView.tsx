@@ -31,6 +31,7 @@ import { TreeRootSchema } from "../node"
 import { DEFAULT_NODE_SIZE, NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, TREE_CONTEXT } from "../tree"
+import { nodePaint } from "./paint"
 import styles from "./TreeView.module.css"
 
 export function TreeView({ stage: id }: BookViewProps) {
@@ -169,7 +170,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
           data-node={n.id}
           data-root={n.id === tree.id}
           data-selected={usingEdit && n.id === selected}
-          style={{ left: n.x, top: n.y, width: n.w, height: n.h }}
+          style={{ left: n.x, top: n.y, width: n.w, height: n.h, ...nodePaint(n.color) }}
           onPointerDown={e => {
             if (e.button !== 0 || !usingEdit) return
             if (writing) end(true) // テキストFormが外れるより先に選びが替わるので、ここで確定する

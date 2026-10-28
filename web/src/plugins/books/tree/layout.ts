@@ -22,6 +22,7 @@ export interface LaidNode {
   id: string
   caption: string
   lines: string[] // 見せる行（折り返した行・… で切った行）
+  color?: string // 節の色（無ければテーマの塗り）
   x: number
   y: number
   w: number
@@ -70,6 +71,7 @@ interface Measured {
   id: string
   caption: string
   lines: string[]
+  color?: string
   main: number
   cross: number
   span: number
@@ -86,7 +88,8 @@ function measure(node: TreeNode, side: Side, size: NodeSize): Measured {
   const cross = vertical(side) ? box.w : box.h
   const children = (node.children ?? []).map(c => measure(c, side, size))
   const span = Math.max(cross, spanOf(children, side))
-  return { id: node.id, caption: node.caption, lines: box.lines, main, cross, span, children }
+  const color = node.color ? { color: node.color } : {}
+  return { id: node.id, caption: node.caption, lines: box.lines, ...color, main, cross, span, children }
 }
 
 // 四角 parent の side の辺から、子の並び kids を伸ばした節と線（parent 自身は含めない）。extra は、最初の段だけ parent から余分に離す長さ
@@ -109,7 +112,8 @@ function branch(parent: Rect, kids: readonly TreeNode[], side: Side, size: NodeS
   }
   const place = (n: Measured, at: number, start: number, from: Point) => {
     const across = start + (n.span - n.cross) / 2
-    out.nodes.push({ id: n.id, caption: n.caption, lines: n.lines, ...rectOf(at, across, n) })
+    const color = n.color ? { color: n.color } : {}
+    out.nodes.push({ id: n.id, caption: n.caption, lines: n.lines, ...color, ...rectOf(at, across, n) })
     out.lines.push({ from, to: toPaper(at, across + n.cross / 2) })
     const tip = toPaper(at + n.main, across + n.cross / 2)
     let next = start + (n.span - spanOf(n.children, side)) / 2
@@ -183,7 +187,15 @@ export function layoutTree(
 ): TreeLayout {
   const r = rootRect(root, grow, paper, size)
   const out: TreeLayout = {
-    nodes: [{ id: root.id, caption: root.caption, lines: nodeSize(root.caption, size).lines, ...r }],
+    nodes: [
+      {
+        id: root.id,
+        caption: root.caption,
+        lines: nodeSize(root.caption, size).lines,
+        ...(root.color ? { color: root.color } : {}),
+        ...r,
+      },
+    ],
     lines: [],
     fits: true,
   }
