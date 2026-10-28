@@ -4,6 +4,7 @@ import { hasPages, putPage, withSettings } from "../../../core/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, writeFields } from "./page-fields"
+import { pageProblems } from "./page-problems"
 
 const ARGS = z.strictObject({
   page: z.string().min(1),
@@ -15,7 +16,7 @@ const ARGS = z.strictObject({
 // ページ page の、渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
 // settings はブックのタイプが選んだ項目だけ（null は消す。形に合わない・選んでいないタイプ・無いページなら断る）。設定を変えたらページを整える（settleBook）。
 // fields はタイプがページに足したフィールドだけで、受け方はタイプが決められる（決めていなければ、書いたフィールドを丸ごと替える。形に合わない・フィールドの無いタイプなら断る）。
-// 受け方が結果を返せば、結果の fields に入れて返す
+// 受け方が結果を返せば、結果の fields に入れて返す。変えたページにタイプが問題を知らせれば断る（page-problems.ts）
 export const PAGE_UPDATE = kit.defineAction({
   id: "page-update",
   attach: { pages: true },
@@ -36,12 +37,13 @@ export const PAGE_UPDATE = kit.defineAction({
     if (!written) return null
     const page = { ...written.page, ...(args.title === undefined ? {} : { title: args.title }) }
     const result = written.result === undefined ? {} : { fields: written.result }
-    if (args.settings === undefined) return { next: putPage(book, page), result }
-    const patch = settingsPatchOf(ctx.catalog, book, "page")?.safeParse(args.settings)
-    if (!patch?.success) return null
-    return {
-      next: settleBook(ctx.catalog, putPage(book, withSettings(page, patch.data as Record<string, unknown>))),
-      result,
-    }
+    const patch =
+      args.settings === undefined ? null : settingsPatchOf(ctx.catalog, book, "page")?.safeParse(args.settings)
+    if (patch === undefined || patch?.success === false) return null
+    const next = patch
+      ? settleBook(ctx.catalog, putPage(book, withSettings(page, patch.data as Record<string, unknown>)))
+      : putPage(book, page)
+    if (pageProblems(ctx.catalog, next, [found.id]).length > 0) return null
+    return { next, result }
   },
 })

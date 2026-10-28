@@ -4,7 +4,8 @@
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす。
 // 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める。
-// その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す
+// その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
+// 足す・書き換えるのが紙に入らないので断られたら、トーストで知らせる
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import { placement, type Size, type StageView } from "../../../../plugin-api"
 import {
@@ -90,7 +91,9 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
-  const { select, setEditing, panStageBy } = useActions()
+  const { select, setEditing, panStageBy, showToast } = useActions()
+  // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、断られるのは紙に入らないとき）
+  const refused = () => showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
   const grow = book && page ? (settingValue(catalog, book, page, GROW.id) as Grow) : "down"
@@ -118,9 +121,13 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
       const next = afterRemove(tree, grow, selected)
       if (perform(NODE_REMOVE.id, { page: pageId, node: selected }).ok && next) select(stage.id, [next])
     }
-    if (todo.kind === "root")
-      perform("@matomezu/base:page-update", { page: pageId, fields: { root: { caption: todo.caption } } })
-    if (todo.kind === "child") perform(NODE_UPDATE.id, { page: pageId, node: selected, caption: todo.caption })
+    const done =
+      todo.kind === "root"
+        ? perform("@matomezu/base:page-update", { page: pageId, fields: { root: { caption: todo.caption } } })
+        : todo.kind === "child"
+          ? perform(NODE_UPDATE.id, { page: pageId, node: selected, caption: todo.caption })
+          : null
+    if (done && !done.ok) refused() // 紙に入らない字は書かず、元のキャプションのまま
     setDraft(null)
     setEditing(stage.id, false)
   }
@@ -133,7 +140,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
       nodes: [{ caption: "", ...(plus.towards ? { side: plus.towards } : {}) }],
     })
     const id = done.ok ? done.result.nodes[0]?.id : undefined
-    if (!id) return
+    if (!id) return refused()
     select(stage.id, [id])
     setEditing(stage.id, true)
   }

@@ -18,6 +18,7 @@ export const TREE_MESSAGES = defineMessages({
   "Add child right": { en: "Add child right", ja: "右に子を足す" },
   Caption: { en: "Caption", ja: "キャプション" },
   Delete: { en: "Delete", ja: "削除" },
+  "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に入りません" },
   "Grow direction": { en: "Grow direction", ja: "伸びる向き" },
   Up: { en: "Up", ja: "上へ" },
   Down: { en: "Down", ja: "下へ" },

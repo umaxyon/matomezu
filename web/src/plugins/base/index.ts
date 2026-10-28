@@ -30,6 +30,7 @@ export { PAPER_IDS, PAPERS } from "./looks"
 export type { MinimapMark } from "./minimap/marks"
 export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
+export type { PageProblem } from "./page-tabs/page-problems"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Edges, GrowFrom } from "./place/items"
 export {

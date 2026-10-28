@@ -3,6 +3,7 @@
 // 見た目（テーマと紙の色）は base の設定の項目で変えられる
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
+import { treeFits } from "./fit"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
 import { pageFieldsInput } from "./page-fields"
@@ -32,6 +33,9 @@ export const TREE = kit.defineBookType({
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
   pageFieldsInput, // 根は作るときに子ごと受けて id を振り、直すときは根のキャプションと本文だけ
+  // 木が紙に入らないページは問題（base のページ・ブックのアクションは書かない）
+  pageProblem: (catalog, page, setting) =>
+    treeFits(catalog, page, setting) ? null : { message: kit.message("Does not fit on the paper") },
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
     fields: { root: TreeRootSchema },
