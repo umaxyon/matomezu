@@ -176,12 +176,13 @@ test("節をドラッグして、ほかの節の子にも、兄弟の間にも�
     return { x: b.x + b.width / 2, y: b.y + b.height / 2, b }
   }
   await settled(page)
-  // 子 B を子 A の真ん中へ: 子 A の子になる
+  // 子 B を子 A の真ん中へ: 子 A の子になる（動かし始めると倍率が変わるので、止まってから落とす先を測る）
   const from = await center("子 B")
-  const to = await center("子 A")
   await page.mouse.move(from.x, from.y)
   await page.mouse.down()
   await page.mouse.move(from.x - 20, from.y + 10, { steps: 3 })
+  await settled(page)
+  const to = await center("子 A")
   await page.mouse.move(to.x, to.y, { steps: 5 })
   await expect(node("子 A")).toHaveAttribute("data-drop", "true")
   await expect(node("子 B").first()).toHaveAttribute("data-dragging", "true")
@@ -196,11 +197,38 @@ test("節をドラッグして、ほかの節の子にも、兄弟の間にも�
   await page.mouse.move(b.x, b.y)
   await page.mouse.down()
   await page.mouse.move(b.x + 10, b.y - 10, { steps: 3 })
-  await page.mouse.move(a.b.x + 2, a.y, { steps: 5 })
+  await settled(page)
+  const a1 = await center("子 A")
+  await page.mouse.move(a1.b.x + 2, a1.y, { steps: 5 })
   await expect(paperEl.locator("[data-drop-line]")).toHaveCount(1)
   await page.mouse.up()
+  await settled(page)
   const a2 = await center("子 A")
   const b2 = await center("子 B")
   expect(Math.abs(b2.y - a2.y)).toBeLessThan(2) // 同じ段
   expect(b2.x).toBeLessThan(a2.x) // 前
+})
+
+test("節のドラッグの間は 100% に戻り、ステージの端へ寄せると紙がずれる。落とすと編集の倍率に戻る", async ({ page }) => {
+  await treeBook(page)
+  const paperEl = paper(page)
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("子")
+  await page.keyboard.press("Enter")
+  await settled(page)
+  const zoomed = await paperAt(page)
+  const child = (await paperEl.locator("[data-node]", { hasText: "子" }).first().boundingBox())!
+  const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
+  await page.mouse.move(child.x + child.width / 2, child.y + child.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(child.x + child.width / 2 + 10, child.y + child.height / 2 + 10, { steps: 3 })
+  await expect.poll(async () => (await paperAt(page)).width).toBeLessThan(zoomed.width - 10) // 100% へ
+  await settled(page)
+  const before = await paperAt(page)
+  // 紙が上にはみ出していれば上の端へ（紙は下へずれる）、でなければ下の端へ（紙は上へずれる）
+  const up = before.y < stage.y
+  await page.mouse.move(stage.x + stage.width / 2, up ? stage.y + 2 : stage.y + stage.height - 2, { steps: 5 })
+  await expect.poll(async () => ((await paperAt(page)).y - before.y) * (up ? 1 : -1)).toBeGreaterThan(20)
+  await page.mouse.up()
+  await expect.poll(async () => Math.round((await paperAt(page)).width)).toBe(Math.round(zoomed.width))
 })
