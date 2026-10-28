@@ -97,3 +97,23 @@ test("編集の道具の間は、選んでいる節がステージの真ん中�
   await page.getByRole("button", { name: "ハンドツール" }).click()
   await expect.poll(async () => Math.abs((await offset()).x) + Math.abs((await offset()).y)).toBeLessThan(2)
 })
+
+test("＋で子を足してその場で書き、Enter で確定する。書いている間は字に合わせて節が広がり、確定したら矢印キーで根へ戻れる", async ({
+  page,
+}) => {
+  await treeBook(page)
+  const paperEl = paper(page)
+  await paperEl.getByRole("button", { name: "子を足す" }).click()
+  const input = paperEl.getByRole("textbox", { name: "キャプション" })
+  await expect(input).toBeFocused()
+  const before = (await input.boundingBox())!.width
+  await page.keyboard.type("とても長いキャプションの子")
+  await expect.poll(async () => (await input.boundingBox())!.width).toBeGreaterThan(before)
+  await page.keyboard.press("Enter")
+  await expect(input).toHaveCount(0)
+  const child = paperEl.locator('[data-node]:not([data-root="true"])')
+  await expect(child).toHaveText("とても長いキャプションの子")
+  await expect(child).toHaveAttribute("data-selected", "true")
+  await page.keyboard.press("ArrowUp")
+  await expect(paperEl.locator('[data-root="true"]')).toHaveAttribute("data-selected", "true")
+})

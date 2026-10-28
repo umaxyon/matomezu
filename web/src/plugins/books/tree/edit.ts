@@ -134,3 +134,66 @@ export function centerShift(
   const dy = view.h / 2 - (at.y + (rect.y + rect.h / 2) * at.zoom)
   return Math.abs(dx) >= 1 || Math.abs(dy) >= 1 ? { dx, dy } : null
 }
+
+// 節 id の＋: どの辺（side）に出し、押すとどの親（parent）の子の何番目（index。無ければ末尾）に足すか。
+// 伸びる向きの辺は子を足す（子があれば、その末尾に）。根でない節は、横の 2 辺に、すぐ前とすぐ後ろに兄弟を足す＋も出す
+export interface Plus {
+  kind: "child" | "before" | "after"
+  side: Arrow
+  parent: string
+  index?: number
+}
+
+export function plusesOf(root: TreeRoot, grow: Grow, id: string): Plus[] {
+  const path = pathTo(root, id)
+  if (!path) return []
+  const forward = FORWARD[grow]
+  const child: Plus = { kind: "child", side: forward, parent: id }
+  const parent = path.at(-1)
+  if (!parent) return [child]
+  const i = (parent.children ?? []).findIndex(c => c.id === id)
+  const across: [Arrow, Arrow] = forward === "up" || forward === "down" ? ["left", "right"] : ["up", "down"]
+  return [
+    child,
+    { kind: "before", side: across[0], parent: parent.id, index: i },
+    { kind: "after", side: across[1], parent: parent.id, index: i + 1 },
+  ]
+}
+
+// 節 id のキャプション（根も。無ければ空）
+export function captionOf(root: TreeRoot, id: string): string {
+  if (root.id === id) return root.caption
+  return (
+    pathTo(root, id)
+      ?.at(-1)
+      ?.children?.find(c => c.id === id)?.caption ?? ""
+  )
+}
+
+// 節 id（根も）のキャプションを caption に替えた根（書いている字で並べるため。無い節なら元の根）
+export const withCaption = (root: TreeRoot, id: string, caption: string): TreeRoot =>
+  root.id === id ? { ...root, caption } : (captionNode(root, id, caption) ?? root)
+
+// ＋を出す所: 節の四角 rect の辺 side の真ん中から、外へ PLUS_GAP 離した所
+export const PLUS_GAP = 14
+export function plusPoint(rect: { x: number; y: number; w: number; h: number }, side: Arrow): { x: number; y: number } {
+  const cx = rect.x + rect.w / 2
+  const cy = rect.y + rect.h / 2
+  if (side === "up") return { x: cx, y: rect.y - PLUS_GAP }
+  if (side === "down") return { x: cx, y: rect.y + rect.h + PLUS_GAP }
+  if (side === "left") return { x: rect.x - PLUS_GAP, y: cy }
+  return { x: rect.x + rect.w + PLUS_GAP, y: cy }
+}
+
+// その場の編集を終えたときにすること: 書いた字 text（取り消しなら null）で、節 id を
+// 消す（キャプションの空の子が空のまま終わった）・根のキャプションを替える・子のキャプションを替える・何もしない（変わらない・今ある節を空にした）
+export type EditEnd = { kind: "remove" } | { kind: "root" | "child"; caption: string } | { kind: "none" }
+
+export function editEnd(root: TreeRoot, id: string, text: string | null): EditEnd {
+  const old = captionOf(root, id)
+  const isRoot = root.id === id
+  const next = text ?? old
+  if (next === "") return !isRoot && old === "" ? { kind: "remove" } : { kind: "none" }
+  if (next === old) return { kind: "none" }
+  return { kind: isRoot ? "root" : "child", caption: next }
+}

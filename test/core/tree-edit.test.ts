@@ -4,10 +4,16 @@ import {
   addNodes,
   afterRemove,
   captionNode,
+  captionOf,
   centerShift,
+  editEnd,
   moveFrom,
+  PLUS_GAP,
   pathTo,
+  plusesOf,
+  plusPoint,
   removeNode,
+  withCaption,
 } from "../../web/src/plugins/books/tree/edit"
 
 // 根 r の子 a（孫 a1・a2）と b
@@ -94,4 +100,38 @@ test("centerShift は、紙の上の四角の真ん中をビューの真ん中�
     dy: 300 - (20 + 60 * 2),
   })
   expect(centerShift({ x: 0, y: 0, w: 100, h: 100 }, { w: 100, h: 100 }, { x: 0.4, y: 0, zoom: 1 })).toBeNull()
+})
+
+test("plusesOf: 根は伸びる向きの辺に子の＋だけ。子は、伸びる向きに子の＋、横の 2 辺に前と後ろの兄弟の＋（親の子の何番目に足すか）", () => {
+  expect(plusesOf(tree, "down", "r")).toEqual([{ kind: "child", side: "down", parent: "r" }])
+  expect(plusesOf(tree, "down", "a2")).toEqual([
+    { kind: "child", side: "down", parent: "a2" },
+    { kind: "before", side: "left", parent: "a", index: 1 },
+    { kind: "after", side: "right", parent: "a", index: 2 },
+  ])
+  expect(plusesOf(tree, "right", "b").map(p => p.side)).toEqual(["right", "up", "down"])
+  expect(plusesOf(tree, "center", "r")).toEqual([{ kind: "child", side: "right", parent: "r" }])
+  expect(plusesOf(tree, "down", "x")).toEqual([])
+})
+
+test("editEnd: 空の子が空のまま終われば消す。今ある節を空にしたら何もしない。替われば根か子のキャプションを替える。取り消しは元のまま", () => {
+  const withEmpty = addNodes(tree, "a", [{ id: "e", caption: "" }])!
+  expect(editEnd(withEmpty, "e", "")).toEqual({ kind: "remove" })
+  expect(editEnd(withEmpty, "e", null)).toEqual({ kind: "remove" })
+  expect(editEnd(withEmpty, "e", "新")).toEqual({ kind: "child", caption: "新" })
+  expect(editEnd(tree, "a1", "")).toEqual({ kind: "none" })
+  expect(editEnd(tree, "a1", "A1")).toEqual({ kind: "none" })
+  expect(editEnd(tree, "a1", null)).toEqual({ kind: "none" })
+  expect(editEnd(tree, "r", "代表")).toEqual({ kind: "root", caption: "代表" })
+  expect(editEnd(tree, "r", "")).toEqual({ kind: "none" })
+})
+
+test("captionOf・withCaption は根も子も扱い、plusPoint は辺の真ん中から外へ離した所", () => {
+  expect(captionOf(tree, "r")).toBe("根")
+  expect(captionOf(tree, "a2")).toBe("A2")
+  expect(withCaption(tree, "r", "新").caption).toBe("新")
+  expect(captionOf(withCaption(tree, "b", "新"), "b")).toBe("新")
+  const rect = { x: 10, y: 20, w: 40, h: 30 }
+  expect(plusPoint(rect, "down")).toEqual({ x: 30, y: 50 + PLUS_GAP })
+  expect(plusPoint(rect, "left")).toEqual({ x: 10 - PLUS_GAP, y: 35 })
 })

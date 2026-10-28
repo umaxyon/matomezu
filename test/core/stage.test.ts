@@ -1,5 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { newStage, openBook, openPage, panBy, paperOf, placement, resize } from "../../web/src/core/stage"
+import {
+  newStage,
+  openBook,
+  openPage,
+  panBy,
+  paperOf,
+  placement,
+  resize,
+  select,
+  setEditing,
+} from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG } from "../support"
@@ -112,4 +122,15 @@ describe("stage", () => {
     expect(openPage(CORE_CATALOG, master, paged, "p1")).toBe(master)
     expect(openBook(CORE_CATALOG, master, MASTER_BOOK)).toBe(master)
   })
+})
+
+test("その場で編集中（editing）は、選んでいる物があるときだけ始められ、選びが替わると終わる", () => {
+  const stage = newStage("s1")
+  expect(setEditing(stage, true).editing).toBe(false) // 何も選んでいない
+  const picked = select(stage, ["a"])
+  const editing = setEditing(picked, true)
+  expect(editing.editing).toBe(true)
+  expect(select(editing, ["a"]).editing).toBe(true) // 同じ選びなら続く
+  expect(select(editing, ["b"]).editing).toBe(false)
+  expect(setEditing(editing, false).editing).toBe(false)
 })

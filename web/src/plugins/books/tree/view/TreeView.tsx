@@ -2,7 +2,9 @@
 // （節の位置と線は layout.ts が伸びる向きから決める）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。
-// 編集の道具の間は、選んでいる節（無ければ根）に印を付け、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす
+// 編集の道具の間は、選んでいる節（無ければ根）に印を付け、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす。
+// 選んでいる節には＋（子・前と後ろの兄弟）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める。
+// その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import { placement, type Size, type StageView } from "../../../../plugin-api"
 import {
@@ -12,13 +14,15 @@ import {
   useContextMenu,
   useCoreCatalog,
   useMessages,
+  usePerform,
   useShownBook,
   useShownPage,
   useStage,
 } from "../../../../plugin-api/ui"
 import { settingValue } from "../../../base"
 import { useResize } from "../../../base/ui"
-import { centerShift, selectedIn } from "../edit"
+import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "../actions"
+import { afterRemove, centerShift, editEnd, type Plus, plusesOf, plusPoint, selectedIn, withCaption } from "../edit"
 import { GROW, type Grow } from "../grow"
 import { kit } from "../kit"
 import { layoutTree } from "../layout"
@@ -68,20 +72,61 @@ function Content({ stage, view }: { stage: StageView; view: Size | null }) {
   )
 }
 
+const PLUS_NAMES = { child: "Add child", before: "Add sibling before", after: "Add sibling after" } as const
+
 // 開いたページの木（根の無いページは何も描かない）
 function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Size | null }) {
+  const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
-  const { select, panStageBy } = useActions()
+  const perform = usePerform(stage.id)
+  const { select, setEditing, panStageBy } = useActions()
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
   const grow = book && page ? (settingValue(catalog, book, page, GROW.id) as Grow) : "down"
-  const laid = root.success ? layoutTree(root.data, grow, paper) : null
-  const editing = stage.tool === EDIT_TOOL.id
+  const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root.success ? selectedIn(root.data, stage.selection) : null
+  const writing = usingEdit && stage.editing && selected !== null
+  // 書いている字（どの節のものか）と、テキストFormを出してから終えたか（Enter のあとの blur で 2 度終えない）
+  const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
+  const ended = useRef(false)
+  const text = writing && draft?.node === selected ? draft.text : null
+  const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
+  const laid = shown ? layoutTree(shown, grow, paper) : null
   const at = laid?.nodes.find(n => n.id === selected)
-  useCentered(stage, editing ? at : undefined, view, panStageBy)
-  if (!book || !page || !root.success || !laid) return null
+  useCentered(stage, usingEdit ? at : undefined, view, panStageBy)
+  if (!book || !page || !root.success || !laid || !selected) return null
+  const tree = root.data
+  const pageId = page.id
+
+  // その場の編集を終える（commit なら書いた字を確定する。することは edit.ts の editEnd が決める）
+  const end = (commit: boolean) => {
+    if (ended.current) return
+    ended.current = true
+    const todo = editEnd(tree, selected, commit ? text : null)
+    if (todo.kind === "remove") {
+      const next = afterRemove(tree, selected)
+      if (perform(NODE_REMOVE.id, { page: pageId, node: selected }).ok && next) select(stage.id, [next])
+    }
+    if (todo.kind === "root")
+      perform("@matomezu/base:page-update", { page: pageId, fields: { root: { caption: todo.caption } } })
+    if (todo.kind === "child") perform(NODE_UPDATE.id, { page: pageId, node: selected, caption: todo.caption })
+    setDraft(null)
+    setEditing(stage.id, false)
+  }
+  // ＋: 空の節を足して選び、その場で編集し始める
+  const add = (plus: Plus) => {
+    const done = perform(NODE_ADD.id, {
+      page: pageId,
+      parent: plus.parent,
+      ...(plus.index === undefined ? {} : { index: plus.index }),
+      nodes: [{ caption: "" }],
+    })
+    const id = done.ok ? done.result.nodes[0]?.id : undefined
+    if (!id) return
+    select(stage.id, [id])
+    setEditing(stage.id, true)
+  }
   const { nodes, lines } = laid
   return (
     <>
@@ -97,20 +142,71 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
         ))}
       </svg>
       {nodes.map(n => (
+        // biome-ignore lint/a11y/noStaticElementInteractions: 節はポインタで選び・編集し始め、キーの操作はコマンドが受ける
         <div
           key={n.id}
           className={styles.node}
           data-node={n.id}
-          data-root={n.id === root.data.id}
-          data-selected={editing && n.id === selected}
+          data-root={n.id === tree.id}
+          data-selected={usingEdit && n.id === selected}
           style={{ left: n.x, top: n.y, width: n.w, height: n.h }}
           onPointerDown={e => {
-            if (e.button === 0 && editing) select(stage.id, [n.id])
+            if (e.button !== 0 || !usingEdit) return
+            if (writing) end(true) // テキストFormが外れるより先に選びが替わるので、ここで確定する
+            select(stage.id, [n.id])
+          }}
+          onDoubleClick={() => {
+            if (!usingEdit) return
+            select(stage.id, [n.id])
+            setEditing(stage.id, true)
           }}
         >
           {n.caption}
         </div>
       ))}
+      {writing && at && (
+        <input
+          className={styles.editor}
+          aria-label={t("Caption")}
+          // biome-ignore lint/a11y/noAutofocus: その場で編集し始めたら、すぐに書ける
+          autoFocus
+          value={text ?? at.caption}
+          style={{ left: at.x, top: at.y, width: at.w, height: at.h }}
+          onChange={e => setDraft({ node: selected, text: e.target.value })}
+          onFocus={() => {
+            ended.current = false
+          }}
+          onPointerDown={e => e.stopPropagation()}
+          onKeyDown={e => {
+            if (e.nativeEvent.isComposing) return
+            if (e.key !== "Enter" && e.key !== "Escape") return
+            e.preventDefault()
+            e.stopPropagation()
+            end(e.key === "Enter")
+          }}
+          onBlur={() => end(true)}
+        />
+      )}
+      {usingEdit &&
+        !writing &&
+        at &&
+        plusesOf(tree, grow, selected).map(plus => {
+          const p = plusPoint(at, plus.side)
+          return (
+            <button
+              key={plus.kind}
+              type="button"
+              className={styles.plus}
+              aria-label={t(PLUS_NAMES[plus.kind])}
+              title={t(PLUS_NAMES[plus.kind])}
+              style={{ left: p.x, top: p.y }}
+              onPointerDown={e => e.stopPropagation()}
+              onClick={() => add(plus)}
+            >
+              +
+            </button>
+          )
+        })}
     </>
   )
 }

@@ -21,6 +21,7 @@ import {
   panBy,
   resize,
   select,
+  setEditing,
   setMinimap,
   showPickerMap,
   stopPlacing,
@@ -117,7 +118,8 @@ export interface Actions {
   setTool(stage: string, tool: ToolId): void
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
   stopPlacing(stage: string): void
-  select(stage: string, ids: readonly string[]): void // そのステージで選ぶアイテム（開いているページのもの）
+  select(stage: string, ids: readonly string[]): void // そのステージで選ぶ物（開いているページのもの）
+  setEditing(stage: string, editing: boolean): void // そのステージで選んでいる物を、その場で編集し始める・終える
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
   closePicker(): void
@@ -394,6 +396,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),
     stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),
     select: (id, ids) => withWorkspace(ws => mapStage(ws, id, s => select(s, ids))),
+    setEditing: (id, editing) => withWorkspace(ws => mapStage(ws, id, s => setEditing(s, editing))),
     openPicker: (id, at) =>
       withWorkspace(ws => {
         const closed = ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)

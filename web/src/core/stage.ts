@@ -27,7 +27,8 @@ export interface Stage {
   pan: Point // ずらす量（viewport.ts）
   view: Size | null // 表示領域の大きさ（測るまでは null）
   placing: ItemId | null // 置こうとしているアイテム（ツールボックスで選んだもの。置くか取り消すまで）
-  selection: readonly string[] // 選んでいるアイテムの id（開いているページのもの）
+  selection: readonly string[] // 選んでいる物の id（開いているページのアイテムや、ページのフィールドの中の物）
+  editing: boolean // 選んでいる物を、今その場で編集中か（選びが替わる・開くものが変わる・道具を替えると終わる）
   // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める。map ならアイコンの代わりにミニマップを出している）
   picker: { at: Point | null; map: boolean } | null
   minimap: boolean // ステージの左下にミニマップを出しているか（紙が表示領域に収まると閉じる）
@@ -54,15 +55,16 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
     view: null,
     placing: null,
     selection: NONE,
+    editing: false,
     picker: null,
     minimap: false,
   }
 }
 
-// 開くものが変わったときに、置こうとしているアイテムと選択を捨て、道具のアイコンを閉じる
+// 開くものが変わったときに、置こうとしているアイテムと選択を捨て（その場の編集も終える）、道具のアイコンを閉じる
 function leave(stage: Stage): Stage {
-  if (stage.placing === null && stage.selection.length === 0 && stage.picker === null) return stage
-  return { ...stage, placing: null, selection: NONE, picker: null }
+  if (stage.placing === null && stage.selection.length === 0 && stage.picker === null && !stage.editing) return stage
+  return { ...stage, placing: null, selection: NONE, editing: false, picker: null }
 }
 
 // ステージに出す紙の大きさ（ページを開いていないか、描けない紙なら null）
@@ -172,9 +174,16 @@ export function closePicker(stage: Stage): Stage {
   return stage.picker === null ? stage : { ...stage, picker: null }
 }
 
+// 選ぶ物を替える（替われば、その場の編集は終える）
 export function select(stage: Stage, ids: readonly string[]): Stage {
   const same = ids.length === stage.selection.length && ids.every((id, i) => stage.selection[i] === id)
-  return same ? stage : { ...stage, selection: ids.length === 0 ? NONE : [...ids] }
+  return same ? stage : { ...stage, selection: ids.length === 0 ? NONE : [...ids], editing: false }
+}
+
+// 選んでいる物を、その場で編集し始める・終える（何も選んでいなければ始めない）
+export function setEditing(stage: Stage, editing: boolean): Stage {
+  const next = editing && stage.selection.length > 0
+  return next === stage.editing ? stage : { ...stage, editing: next }
 }
 
 // 紙の置き場所（何も開いていなければ null）

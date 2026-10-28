@@ -16,6 +16,7 @@ import {
   openBook,
   openPage,
   type Stage,
+  setEditing,
   stopPlacing,
   togglePlacing as togglePlacingOn,
 } from "./stage"
@@ -122,13 +123,16 @@ export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string): ToolId 
 }
 
 // ステージが使う道具の組の道具を替える。同じ組を使うステージは、全部その道具になる。組に無い道具には替えない。
-// 道具を替えたら置くのはやめるので、その組を使うステージの置こうとしていたアイテムは、全部取り消す
+// 道具を替えたら置くのはやめるので、その組を使うステージの置こうとしていたアイテムは、全部取り消す。道具が替わったときは、その場の編集も終える
 export function setTool(catalog: CoreCatalog, ws: Workspace, id: string, tool: string): Workspace {
   const stage = ws.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
   if (!set || !hasTool(catalog, set, tool)) return ws
-  const stages = ws.stages.map(s => (toolSetOf(catalog, s) === set ? stopPlacing(s) : s))
-  if (toolIn(catalog, ws.tools, set) === tool && stages.every((s, i) => s === ws.stages[i])) return ws
+  const same = toolIn(catalog, ws.tools, set) === tool
+  const stages = ws.stages.map(s =>
+    toolSetOf(catalog, s) !== set ? s : same ? stopPlacing(s) : setEditing(stopPlacing(s), false),
+  )
+  if (same && stages.every((s, i) => s === ws.stages[i])) return ws
   return { ...ws, stages, tools: { ...ws.tools, [set]: tool } }
 }
 
@@ -164,22 +168,23 @@ export function followLibrary(catalog: CoreCatalog, ws: Workspace, books: Readon
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
 
-// プラグインの見た目に見せるステージ（読むだけ）: 開いているもの・倍率とずらす量・選んでいるアイテム・置こうとしているアイテム・今の道具と、
+// プラグインの見た目に見せるステージ（読むだけ）: 開いているもの・倍率とずらす量・選んでいる物とその場の編集中か・置こうとしているアイテム・今の道具と、
 // それがドラッグで紙をずらす道具か（pans。そのあいだ、ビューはアイテムを選んだり動かしたりしない）。
 // 表示領域の大きさ・道具のアイコンなど、中の状態は見せない（matomezu/ui の useStage）
-export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "pan" | "selection" | "placing"> & {
+export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "pan" | "selection" | "editing" | "placing"> & {
   tool: ToolId | null
   pans: boolean
 }
 
 export function stageView(catalog: CoreCatalog, stage: Stage, tool: ToolId | null): StageView {
-  const { id, opened, zoom, pan, selection, placing } = stage
+  const { id, opened, zoom, pan, selection, editing, placing } = stage
   return {
     id,
     opened,
     zoom,
     pan,
     selection,
+    editing,
     placing,
     tool,
     pans: tool !== null && toolDef(catalog, tool).pans === true,

@@ -313,3 +313,79 @@ test("編集の道具の間は、選んでいる節（初めは根）に印が�
   fireEvent.click(screen.getByRole("button", { name: "ハンドツール" }))
   expect(selected()).toEqual([a!.children![0]!.id])
 })
+
+test("選んでいる節の＋で空の子を足してその場で書き、Enter で確定する。Escape か空のままなら、足した子を消して親を選ぶ", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根" })
+  const rootId = done.fields!.root.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const selected = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")
+  // 根は伸びる向き（下）の＋だけ
+  expect(
+    within(paper())
+      .getAllByRole("button")
+      .map(b => b.getAttribute("aria-label")),
+  ).toEqual(["子を足す"])
+  fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
+  const input = within(paper()).getByRole("textbox", { name: "キャプション" })
+  expect(document.activeElement).toBe(input)
+  fireEvent.change(input, { target: { value: "子 A" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+  const a = (book().pages[0] as { root: { children: { id: string; caption: string }[] } }).root.children[0]!
+  expect(a.caption).toBe("子 A")
+  expect(selected()).toBe(a.id)
+  // 子には、子の＋と、前と後ろの兄弟の＋
+  expect(
+    within(paper())
+      .getAllByRole("button")
+      .map(b => b.getAttribute("aria-label")),
+  ).toEqual(["子を足す", "前に兄弟を足す", "後ろに兄弟を足す"])
+  fireEvent.click(within(paper()).getByRole("button", { name: "後ろに兄弟を足す" }))
+  fireEvent.keyDown(within(paper()).getByRole("textbox"), { key: "Escape" })
+  expect((book().pages[0] as { root: { children: unknown[] } }).root.children).toHaveLength(1)
+  expect(selected()).toBe(a.id) // 前の兄弟
+  fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
+  fireEvent.keyDown(within(paper()).getByRole("textbox"), { key: "Enter" }) // 空のまま確定
+  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a.id, caption: "子 A" }] } })
+  expect(book().pages[0]).not.toHaveProperty("root.children.0.children")
+  expect(selected()).toBe(a.id) // 親
+  expect(rootId).not.toBe(a.id)
+})
+
+test("Enter かダブルクリックで、選んでいる節をその場で書き換える。根は根のキャプション、空のまま確定しても元のまま、Escape は取り消し", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  const a = done.fields!.root.children[0]!.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  fireEvent.keyDown(window, { key: "Enter" }) // 根を書き換え
+  let input = within(paper()).getByRole("textbox", { name: "キャプション" }) as HTMLInputElement
+  expect(input.value).toBe("根")
+  fireEvent.change(input, { target: { value: "代表" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  expect(book().pages[0]).toMatchObject({ root: { caption: "代表" } })
+  fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
+  input = within(paper()).getByRole("textbox") as HTMLInputElement
+  expect(input.value).toBe("子 A")
+  fireEvent.change(input, { target: { value: "" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
+  fireEvent.keyDown(window, { key: "Enter" })
+  input = within(paper()).getByRole("textbox") as HTMLInputElement
+  fireEvent.change(input, { target: { value: "子 B" } })
+  fireEvent.keyDown(input, { key: "Escape" })
+  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+})
+
+test("その場の編集は、同じ道具を選び直しても続き、道具が替わると終わる", () => {
+  const { store, id } = setup()
+  addTree(store, id, { caption: "根" })
+  const editing = () => store.state.getState().workspace.stages[0]!.editing
+  fireEvent.keyDown(window, { key: "Enter" })
+  expect(editing()).toBe(true)
+  act(() => store.actions.setTool("s1", "@matomezu/tree:edit"))
+  expect(editing()).toBe(true)
+  act(() => store.actions.setTool("s1", "@matomezu/base:hand"))
+  expect(editing()).toBe(false)
+})
