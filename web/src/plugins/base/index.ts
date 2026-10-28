@@ -3,6 +3,7 @@
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
+import { CREATE_SETTINGS_CHECK } from "./book-new/book-create"
 import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
@@ -115,7 +116,7 @@ export const BASE = defineBuiltin(
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT],
     tools: [SELECT_TOOL, HAND_TOOL],
-    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK],
+    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK],
     commands: [
       BOOK_NEW,
       STAGE_HOME,

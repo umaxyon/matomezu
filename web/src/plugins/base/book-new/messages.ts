@@ -6,4 +6,5 @@ export const BOOK_NEW_MESSAGES = defineMessages({
   "Book name": { en: "Book name", ja: "ブックの名前" },
   "Book type": { en: "Book type", ja: "ブックのタイプ" },
   Create: { en: "Create", ja: "作成" },
+  "{type} settings": { en: "{type} settings", ja: "{type}の設定" },
 })

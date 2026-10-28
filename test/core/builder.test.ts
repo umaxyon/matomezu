@@ -140,6 +140,21 @@ test("形の仲間の名前が文言の表に無ければ E018（base の組み�
   expect(found.map(p => p.code)).toEqual(["E018"])
 })
 
+test("ブックのタイプの createSettings がブックの設定の項目に無い項目を名指したら E035（base の組み立てのときの確かめ）", () => {
+  const plugins = (BUILTIN as readonly Plugin[]).map(p =>
+    p.id === "@matomezu/tree"
+      ? { ...p, bookTypes: (p.bookTypes ?? []).map(t => ({ ...t, createSettings: ["@matomezu/tree:no-such"] })) }
+      : p,
+  )
+  let found: { code: string }[] = []
+  try {
+    assemble(plugins)
+  } catch (e) {
+    found = (e as { details?: { code: string }[] }).details ?? []
+  }
+  expect(found.map(p => p.code)).toEqual(["E035"])
+})
+
 test("追加プラグインは組み立てのときの確かめを持てない（E308）", () => {
   expect(() => assemble([...BUILTIN, { id: "extra", checks: [() => []] }])).toThrow(/E308|only built-in/)
 })

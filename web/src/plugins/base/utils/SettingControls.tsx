@@ -11,12 +11,18 @@ import { kit } from "../kit"
 // 変えた項目（項目の id → 値。消すなら null）
 export type SettingsPatch = Readonly<Record<string, unknown>>
 
-export function useSettingControls(book: Book | undefined, of: SettingsOf, page: object | null) {
+// only を渡せば、その id の項目だけを並べる
+export function useSettingControls(
+  book: Book | undefined,
+  of: SettingsOf,
+  page: object | null,
+  only?: readonly string[],
+) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const ui = useUiCatalog()
   const [patch, setPatch] = useState<SettingsPatch>({})
-  const defs = book ? settingDefs(catalog, book.type, of) : []
+  const defs = (book ? settingDefs(catalog, book.type, of) : []).filter(d => !only || only.includes(d.id))
   const at = of === "page" ? page : book
   const draft = book && of === "book" ? withSettings<Book>(book, patch) : book // 変えている項目を重ねたブック
   const controls = defs.flatMap(def => {

@@ -45,6 +45,7 @@ export const TREE = kit.defineBookType({
   single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
+  createSettings: [kit.name("grow")], // ブックを作るダイアログで、伸びる向きを聞く
   pageFieldsInput, // 根は作るときに子ごと受けて id を振り、直すときは根のキャプション・本文・本文を描くか・色だけ
   // 木が紙に入らないページは問題（base のページ・ブックのアクションは書かない）
   pageProblem: (catalog, page, setting) =>
