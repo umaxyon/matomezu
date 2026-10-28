@@ -22,11 +22,12 @@ export interface DialogTable {}
 // 自分の処理で読む（土台は意味を知らない）
 export interface ItemOptionTable {}
 
-// アイテムの能力 → true。土台は connectable（線などでつなげる）・resizable（大きさを変えられる）。
+// アイテムの能力 → true。土台は connectable（線などでつなげる）・resizable（大きさを変えられる）・nests（子の形の並び shapes を持てる）。
 // プラグインは自分の id を頭に付けた能力を書き足し、自分の処理で読む（土台は意味を知らない）
 export interface CapabilityTable {
   connectable: true
   resizable: true
+  nests: true
 }
 
 // キーの範囲（割り当てが効く所）→ true。土台は global（ダイアログもメニューも開いていないとき、ステージに結び付かない画面全体のキー）・stage（カレントのステージ）・dialog・menu（開いているメニュー: 右クリックのメニューと道具のアイコン）。

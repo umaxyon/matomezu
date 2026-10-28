@@ -123,9 +123,16 @@ function buildBookSchemas(parts: CoreCatalogParts, t: BookTypeDef): BookSchemas 
     }
   }
   const items = byId(parts.items)
-  const placed = t.items.allowed.flatMap(id => items.get(id) ?? []).map(placedSchema)
+  const allowed = t.items.allowed.flatMap(id => items.get(id) ?? [])
   // 機能台帳に無いアイテム（プラグインを外したなど）: id と item だけを確かめ、ほかのフィールドはそのまま残す
   const unknownItem = z.looseObject({ id: z.string().min(1), item: z.string().refine(id => !items.has(id)) })
+  // 子の形（shapes の中）に入るのは、タイプが選んだ形と機能台帳に無いアイテム（何段でも同じ）
+  const child: z.ZodType = z.lazy(() => childShape)
+  const placed = allowed.map(def => placedSchema(def, child))
+  const [firstShape, ...moreShapes] = placed.filter((_, i) => allowed[i]?.kind === "shape")
+  const childShape = firstShape
+    ? z.union([z.discriminatedUnion("item", [firstShape, ...moreShapes]), unknownItem])
+    : unknownItem
   const [one, ...more] = placed
   const page = t.pages
     ? PageSchema.extend({

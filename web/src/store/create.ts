@@ -41,7 +41,7 @@ type NameGaps<P> =
   | Unowned<P, SlotTable, "root", "slot">
   | Unowned<P, MenuTable, never, "menu">
   | Unowned<P, ContextMenuTable, never, "contextMenu">
-  | Unowned<P, CapabilityTable, "connectable" | "resizable", "capability">
+  | Unowned<P, CapabilityTable, "connectable" | "resizable" | "nests", "capability">
 // 合わない id を、渡す値に要る項目の名前にする（型の誤りの文に id がそのまま並ぶ）
 type Check<P> = [Gaps<P> | MessageGaps<P> | NameGaps<P>] extends [never]
   ? unknown

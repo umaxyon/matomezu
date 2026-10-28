@@ -395,3 +395,35 @@ export function keepApart<B extends PagedBook>(
   if (!after || newClash(before, after, gap)) return null
   return withPage(catalog, book, { ...page, items: placedAt(catalog, page, after) })
 }
+
+// id の形を f の返す形に置き換えたページ（どの深さでも。f が null を返せば子孫ごと除く）。形が無ければ null
+export function replaceShape(
+  page: ItemPage,
+  id: string,
+  f: (shape: PlacedShape) => PlacedShape | null,
+): ItemPage | null {
+  const items = replaceIn(pageItemsOf(page), id, f)
+  return items && { ...page, items }
+}
+
+// 並びの中の id の形を置き換えた並び（子の並びもたどる。子の並びが空になれば shapes を持たない）。無ければ null
+function replaceIn<T extends { id: string }>(
+  list: readonly T[],
+  id: string,
+  f: (shape: PlacedShape) => PlacedShape | null,
+): T[] | null {
+  for (const [i, item] of list.entries()) {
+    if (!("x" in item)) continue
+    const shape = item as unknown as ShapeData
+    if (shape.id === id) {
+      const next = f(shape as PlacedShape)
+      return [...list.slice(0, i), ...(next ? [next as unknown as T] : []), ...list.slice(i + 1)]
+    }
+    const shapes = shape.shapes && replaceIn(shape.shapes, id, f)
+    if (!shapes) continue
+    const { shapes: _, ...rest } = shape
+    const changed = (shapes.length > 0 ? { ...rest, shapes } : rest) as unknown as T
+    return [...list.slice(0, i), changed, ...list.slice(i + 1)]
+  }
+  return null
+}

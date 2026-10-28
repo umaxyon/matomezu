@@ -18,15 +18,16 @@ interface ItemBase<Tt extends string = MessageKey> {
   tokens: readonly TokenDef[] // 描くのに使うテーマキー
 }
 
-// 置いた形のデータ（外枠の id・左上・大きさと、項目 props と中身のフィールド）
+// 置いた形のデータ（外枠の id・左上・大きさ・子の形と、項目 props と中身のフィールド）
 export interface ShapeData<P = unknown> {
   id: string
-  x: number
+  x: number // 子の形は親の左上から、ページの形は紙の左上から
   y: number
   item: string
   w?: number
   h?: number
   props: P
+  shapes?: readonly ShapeData[] // 子の形の並び（重ねの順）。持てるのは能力 nests のある形だけ
 }
 
 // 置いた線のデータ（from から to へ。同じ形なら自分に戻る線）
