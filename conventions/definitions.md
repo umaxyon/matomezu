@@ -12,6 +12,7 @@
 | テーマ（`ThemeDef`） | ブックの中身の見た目 | `core/def/theme.ts` |
 | スキン（`SkinDef`） | アプリの枠の見た目（見る人の設定） | `core/def/skin.ts` |
 | 紙（`PaperDef`） | ページに置く紙の大きさ | `core/def/paper.ts` |
+| 文字の色（`TextColorDef`） | 本文の一部に付ける、意味の役割の色（成功・注意など）。テーマに寄らない色を持つ | `core/def/text-color.ts` |
 | 設定の項目（`SettingDef`） | ブックやページに持たせる 1 つの値（線の既定の通り方など） | `core/def/setting.ts` |
 | 見せ方（`PresentationDef`） | ブックをステージにどう見せ、どう触るか（紙など） | `core/def/presentation.ts` |
 | 道具（`ToolDef`） | ステージでポインタが何をするか（選択・ハンドなど） | `core/def/tool.ts` |
@@ -33,7 +34,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `BookTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`WidgetExtras`・`LayoutExtras`・`BookViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う
@@ -59,6 +60,7 @@
 - タイプだけの設定の項目（`settings` の book・page）とページのフィールド（`pages.fields`）は base のアクションが受け付け、タイプの宣言した形で確かめる。ブックの設定の項目は `book-update`、ページの設定の項目とページのフィールドは `page-add`・`page-update`。ページのフィールドの受け方（受ける形と、ページへの書き方）は、タイプが決められる。タイプは、ページに問題があることを知らせられる（知らせの文言は任意）。base のアクションは、問題のあるページを書かない。断ったことを利用者に知らせるか、どう知らせるかは、呼んだ側が決める。タイプごとの作る・更新のアクションは作らない
 - タイプは、ページを作るダイアログとページの設定のダイアログを id で名指せる（`pages.dialogs`。名指さなければ base のもの）。作るほうは値を受けず、設定のほうは土台が決めた `PageSettingsArgs` を受ける。名指したダイアログがそうなっているかを型で確かめる。行うのは base の `page-add`・`page-update` で、ダイアログのために別のアクションを作らない
 - ブックのテーマと紙の色は、base が定義する設定の項目（`@matomezu/base:book-theme`・`@matomezu/base:book-paper-color`）で、タイプが `settings.book` に id で選ぶ。名前は設定の項目ではなく、`book-update` の `title` で変える
+- 文字の色の値は、定義の色を、base が定義するブックの設定の項目（`@matomezu/base:text-colors`。文字の色の id → 色）で上書きする。上書きできるのは、タイプが `settings.book` に選んだブックだけ
 - 1 冊だけのタイプ（`single: true`）は、その 1 冊のデータを定義に持つ。何冊も作れるタイプは `create` で空のブックを作る
 
 ## アイテム
@@ -101,10 +103,11 @@
 
 ## AI に見せる
 
-- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションの一覧（id・引数の JSON Schema・AI 向けの説明）とアイテム・テーマ・代表色・言語・スキンを返す `actions`（今の warning も。architecture の「warning」）と、アクションを行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_settings`）と `show`。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
+- AI（MCP）には、アクションを 1 つずつ MCP 公開ツールにしない。決まった MCP 公開ツールで渡す: 今使えるアクションの一覧（id・引数の JSON Schema・AI 向けの説明）とアイテム・テーマ・代表色・文字の色・言語・スキンを返す `actions`（今の warning も。architecture の「warning」）と、アクションを行う `perform`。ほかは読む MCP 公開ツール（`view`・`list_books`・`read_book`・`read_settings`）と `show`。追加プラグインを足し・外しても、MCP 公開ツールの一覧は変わらない
 - アクションは全部 AI に見せる（利用者の設定のアクションも。行えるかは画面と同じく、ホームのブックのタイプが決める）
 - MCP で AI に見せるもの（アクション・アイテム・タイプの名前、アクションの説明、断った理由の文）は英語に固定し、利用者の言語に合わせない。名前は英語の文言（`en`）で引く
 - AI 向けの説明（英語）は、アクションの定義の `aiDescription` に書く（どう変わるか・何を返すか・断る場合）。追加プラグインも自分のアクションの説明を書く
+- 文字の色の意味（英語）は、文字の色の定義の `aiDescription` に書く。本文の装飾の書き方は、本文の項目の形の説明（`describe`）で AI に見せる
 
 ## テーマ
 
