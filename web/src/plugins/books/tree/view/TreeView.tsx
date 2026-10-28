@@ -21,7 +21,7 @@ import {
   useStage,
 } from "../../../../plugin-api/ui"
 import { settingValue } from "../../../base"
-import { useResize } from "../../../base/ui"
+import { useResize, useZoomMotion } from "../../../base/ui"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { afterRemove, centerShift, editEnd, type Plus, plusesOf, plusPoint, selectedIn, withCaption } from "../edit"
 import { GROW, type Grow } from "../grow"
@@ -50,6 +50,7 @@ export function TreeView({ stage: id }: BookViewProps) {
 function Content({ stage, view }: { stage: StageView; view: Size | null }) {
   const t = useMessages(kit)
   const p = placement(stage)
+  const motion = useZoomMotion(stage.zoom)
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
@@ -64,6 +65,7 @@ function Content({ stage, view }: { stage: StageView; view: Size | null }) {
           width: p.w,
           height: p.h,
           transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})`,
+          transition: motion,
         } as CSSProperties
       }
     >

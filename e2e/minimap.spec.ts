@@ -155,3 +155,24 @@ test("右ボタンの長押しのミニマップの下の帯で拡大縮小す�
   await page.keyboard.press("Home")
   await expect.poll(width).toBeCloseTo(p.width, 0)
 })
+
+test("拡大縮小はなめらかに移り、途中でもポインタの下の紙の点は動かない。ずらすときはなめらかにしない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const p = (await paper(page).boundingBox())!
+  const at = { x: p.x + 300, y: p.y + 200 }
+  await page.mouse.move(at.x, at.y)
+  await page.keyboard.down("Control")
+  await page.mouse.wheel(0, -100)
+  await page.keyboard.up("Control")
+  await page.waitForTimeout(60)
+  const mid = (await paper(page).boundingBox())!
+  expect(mid.width).toBeGreaterThan(p.width + 1)
+  expect(mid.width).toBeLessThan(p.width * 1.25 - 1)
+  const k = mid.width / p.width
+  expect(at.x - mid.x).toBeCloseTo((at.x - p.x) * k, 0)
+  await expect.poll(async () => (await paper(page).boundingBox())!.width).toBeCloseTo(p.width * 1.25, 0)
+  await page.waitForTimeout(250)
+  await expect(paper(page)).not.toHaveCSS("transition-duration", "0.2s")
+})

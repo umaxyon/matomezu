@@ -164,6 +164,7 @@ test("matomezu/ui が出す名前", () => {
     "useThemeVars",
     "useTokenScope",
     "useUiCatalog",
+    "useZoomMotion",
   ])
 })
 
