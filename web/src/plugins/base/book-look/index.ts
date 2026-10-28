@@ -5,6 +5,7 @@ import { withSettings } from "../../../core/book"
 import type { Book } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
+import { pageProblems } from "../page-tabs/page-problems"
 import { BOOK_PAPER_COLOR, BOOK_THEME } from "./look"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME, bookTheme, bookTokens } from "./look"
@@ -35,7 +36,9 @@ export const BOOK_UPDATE = kit.defineAction({
     if (typeof theme === "string" && !ctx.catalog.themes.has(theme)) return null
     const paper = values[BOOK_PAPER_COLOR.id]
     if (typeof paper === "string") values[BOOK_PAPER_COLOR.id] = paper.toLowerCase()
-    return { next: settleBook(ctx.catalog, withSettings<Book>(next, values)), result: null }
+    const settled = settleBook(ctx.catalog, withSettings<Book>(next, values))
+    if (pageProblems(ctx.catalog, settled).length > 0) return null // 変えた設定で問題の出るページがあれば断る
+    return { next: settled, result: null }
   },
 })
 

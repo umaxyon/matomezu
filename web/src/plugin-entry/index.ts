@@ -17,6 +17,7 @@ export type {
   MinimapMark,
   PageContext,
   PageFieldsWay,
+  PageProblem,
   PortArea,
   Ports,
 } from "../plugins/base"

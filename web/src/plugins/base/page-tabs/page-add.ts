@@ -1,12 +1,14 @@
 // ページを足す: ページを持つブックの最後に、名前と紙を決めたページを足す。紙と向きはブックのタイプの規定（paperChoices）の中から選ぶ。
 // タイプがページに足したフィールド（fields。page-fields.ts）と、ページの設定の項目（settings。plugins/base/book-settings.ts）も一緒に決められる
-// （タイプのフィールドで要るものを渡さなければ、ブックのデータの形に合わず断られる）。フィールドの受け方が結果を返せば、結果の fields に入れて返す
+// （タイプのフィールドで要るものを渡さなければ、ブックのデータの形に合わず断られる）。フィールドの受け方が結果を返せば、結果の fields に入れて返す。
+// 足したページにタイプが問題を知らせれば断る（page-problems.ts）
 import { z } from "zod"
 import { addPage, canChoose, defaultPaper, hasPages, paperChoices, putPage, withSettings } from "../../../core/book"
 import { ORIENTATIONS } from "../../../core/def/paper"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { fieldsArgs, writeFields } from "./page-fields"
+import { pageProblems } from "./page-problems"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),
@@ -38,8 +40,13 @@ export const PAGE_ADD = kit.defineAction({
     const written = writeFields(ctx.catalog, done.book, done.page, args.fields, "add", ctx.newId)
     if (!written) return null
     const result = { page: done.page.id, ...(written.result === undefined ? {} : { fields: written.result }) }
-    if (!settings) return { next: putPage(done.book, written.page), result }
-    const next = putPage(done.book, withSettings(written.page, settings.data as Record<string, unknown>))
-    return { next: settleBook(ctx.catalog, next), result }
+    const next = settings
+      ? settleBook(
+          ctx.catalog,
+          putPage(done.book, withSettings(written.page, settings.data as Record<string, unknown>)),
+        )
+      : putPage(done.book, written.page)
+    if (pageProblems(ctx.catalog, next, [done.page.id]).length > 0) return null
+    return { next, result }
   },
 })

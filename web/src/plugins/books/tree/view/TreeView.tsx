@@ -3,8 +3,9 @@
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす。
-// 選んでいる節には＋（子・前と後ろの兄弟）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める。
-// その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す
+// 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める。
+// その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
+// 足す・書き換えるのが紙に入らないので断られたら、トーストで知らせる
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import { placement, type Size, type StageView } from "../../../../plugin-api"
 import {
@@ -73,6 +74,15 @@ function Content({ stage, view }: { stage: StageView; view: Size | null }) {
 }
 
 const PLUS_NAMES = { child: "Add child", before: "Add sibling before", after: "Add sibling after" } as const
+const TOWARDS_NAMES = {
+  up: "Add child above",
+  down: "Add child below",
+  left: "Add child left",
+  right: "Add child right",
+} as const
+// ＋の名前（中央の木の根の子の＋は、向きごと）
+const plusName = (plus: Plus) =>
+  plus.kind === "child" && plus.towards ? TOWARDS_NAMES[plus.towards] : PLUS_NAMES[plus.kind]
 
 // 開いたページの木（根の無いページは何も描かない）
 function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Size | null }) {
@@ -81,7 +91,9 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
-  const { select, setEditing, panStageBy } = useActions()
+  const { select, setEditing, panStageBy, showToast } = useActions()
+  // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、断られるのは紙に入らないとき）
+  const refused = () => showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
   const grow = book && page ? (settingValue(catalog, book, page, GROW.id) as Grow) : "down"
@@ -106,12 +118,16 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
     ended.current = true
     const todo = editEnd(tree, selected, commit ? text : null)
     if (todo.kind === "remove") {
-      const next = afterRemove(tree, selected)
+      const next = afterRemove(tree, grow, selected)
       if (perform(NODE_REMOVE.id, { page: pageId, node: selected }).ok && next) select(stage.id, [next])
     }
-    if (todo.kind === "root")
-      perform("@matomezu/base:page-update", { page: pageId, fields: { root: { caption: todo.caption } } })
-    if (todo.kind === "child") perform(NODE_UPDATE.id, { page: pageId, node: selected, caption: todo.caption })
+    const done =
+      todo.kind === "root"
+        ? perform("@matomezu/base:page-update", { page: pageId, fields: { root: { caption: todo.caption } } })
+        : todo.kind === "child"
+          ? perform(NODE_UPDATE.id, { page: pageId, node: selected, caption: todo.caption })
+          : null
+    if (done && !done.ok) refused() // 紙に入らない字は書かず、元のキャプションのまま
     setDraft(null)
     setEditing(stage.id, false)
   }
@@ -121,10 +137,10 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
       page: pageId,
       parent: plus.parent,
       ...(plus.index === undefined ? {} : { index: plus.index }),
-      nodes: [{ caption: "" }],
+      nodes: [{ caption: "", ...(plus.towards ? { side: plus.towards } : {}) }],
     })
     const id = done.ok ? done.result.nodes[0]?.id : undefined
-    if (!id) return
+    if (!id) return refused()
     select(stage.id, [id])
     setEditing(stage.id, true)
   }
@@ -201,11 +217,11 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
           const p = plusPoint(at, plus.side)
           return (
             <button
-              key={plus.kind}
+              key={`${plus.kind}-${plus.side}`}
               type="button"
               className={styles.plus}
-              aria-label={t(PLUS_NAMES[plus.kind])}
-              title={t(PLUS_NAMES[plus.kind])}
+              aria-label={t(plusName(plus))}
+              title={t(plusName(plus))}
               style={{ left: p.x, top: p.y }}
               onPointerDown={e => e.stopPropagation()}
               onClick={() => add(plus)}

@@ -6,6 +6,7 @@ import { toolsIn } from "../../web/src/core/tools"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { fieldsArgs } from "../../web/src/plugins/base/page-tabs/page-fields"
 import { keepsPan } from "../../web/src/plugins/base/tool-switch/tools"
+import { layoutTree } from "../../web/src/plugins/books/tree/layout"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { Screen } from "../../web/src/ui/Screen"
@@ -429,4 +430,101 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
   fireEvent.keyDown(window, { key: "Delete" })
   expect(kids()).toEqual([])
   expect(selected()).toBe(root.id) // 親
+})
+
+test("中央の木の根には上下左右の 4 つの＋が出て、押した向きへ伸びる子を足す", () => {
+  const { store, id, book } = setup()
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "center" } }, { book: id })
+  })
+  addTree(store, id, { caption: "根" })
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  expect(
+    within(paper())
+      .getAllByRole("button")
+      .map(b => b.getAttribute("aria-label")),
+  ).toEqual(["上に子を足す", "下に子を足す", "左に子を足す", "右に子を足す"])
+  fireEvent.click(within(paper()).getByRole("button", { name: "上に子を足す" }))
+  const input = within(paper()).getByRole("textbox")
+  fireEvent.change(input, { target: { value: "上の子" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  const child = (book().pages[0] as { root: { children: { id: string; side?: string }[] } }).root.children[0]!
+  expect(child.side).toBe("up")
+  const top = (n: string) => Number.parseFloat((paper().querySelector(`[data-node="${n}"]`) as HTMLElement).style.top)
+  const rootTop = Number.parseFloat((paper().querySelector('[data-root="true"]') as HTMLElement).style.top)
+  expect(top(child.id)).toBeLessThan(rootTop)
+})
+
+// A4 横の紙で、grow の向きなら入り、ほかの向きなら入らない子の数（なるべく多く）と、grow の向きで入る一番多い数
+const A4 = { w: 1123, h: 794 }
+const kids = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `k${i}`, caption: `子 ${i}` }))
+const fitsWith = (n: number, grow: "down" | "right") =>
+  layoutTree({ id: "r", caption: "根", children: kids(n) }, grow, A4).fits
+const MOST_RIGHT = (() => {
+  let n = 1
+  while (fitsWith(n + 1, "right")) n++
+  return n
+})()
+
+test("節を足すのが紙に入らなければ、node-add は断る。＋で断られたらトースト「紙に入りません」を出し、空の子は残らない", () => {
+  const { store, id, book } = setup()
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+  })
+  const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
+  const root = done.fields!.root
+  const count = () => (book().pages[0] as { root: { children: unknown[] } }).root.children.length
+  act(() => {
+    expect(
+      store.actions.perform(
+        "@matomezu/tree:node-add",
+        { page: done.page, parent: root.id, nodes: [{ caption: "もう 1 つ" }] },
+        { book: id },
+      ).ok,
+    ).toBe(false)
+  })
+  const paper = screen.getByRole("img", { name: "紙" })
+  fireEvent.click(within(paper).getByRole("button", { name: "子を足す" }))
+  expect(screen.getByRole("alert").textContent).toContain("紙に入りません")
+  expect(count()).toBe(MOST_RIGHT)
+  expect(within(paper).queryByRole("textbox")).toBeNull()
+})
+
+test("向きを変えると紙に入らなくなるなら、ページとブックの設定の変更は断る。設定のダイアログは、確定の前から入らないページの名前と知らせを出し、確定できない", () => {
+  const { store, id, book } = setup()
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
+  })
+  expect(fitsWith(MOST_RIGHT, "down")).toBe(false) // 右へなら入り、下へなら入らない数
+  const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
+  act(() => {
+    expect(
+      store.actions.perform(
+        "@matomezu/base:page-update",
+        { page: done.page, settings: { "@matomezu/tree:grow": "down" } },
+        { book: id },
+      ).ok,
+    ).toBe(false)
+    expect(
+      store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "down" } }, { book: id })
+        .ok,
+    ).toBe(false)
+  })
+  expect(book()).toMatchObject({ settings: { "@matomezu/tree:grow": "right" } })
+  act(() => store.actions.openDialog("s1", "@matomezu/base:book-settings"))
+  const dialog = screen.getByRole("dialog", { name: "ブックの設定" })
+  fireEvent.click(
+    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "下へ" }),
+  )
+  expect(within(dialog).getByRole("alert").textContent).toBe("p1：紙に入りません")
+  expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.click(
+    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "上へ" }),
+  )
+  expect(within(dialog).getByRole("alert")).toBeTruthy() // 上へも入らない
+  fireEvent.click(
+    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "左へ" }),
+  )
+  expect(within(dialog).queryByRole("alert")).toBeNull()
+  expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(false)
 })

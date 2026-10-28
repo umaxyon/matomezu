@@ -11,12 +11,13 @@ import { TreeRootSchema } from "./node"
 import { EDIT_TOOL } from "./tools"
 import { TREE_KEYS_SCOPE } from "./tree"
 
-// 開いているページと、その根（ツリーのページでなければ null）
+// 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
 function treeAt(ctx: CommandContext) {
   const book = pagedOf(ctx.book)
   const page = book?.pages.find(p => p.id === ctx.stage.opened?.page)
   const root = TreeRootSchema.safeParse(page && "root" in page ? page.root : undefined)
-  return book && page && root.success ? { book, page, root: root.data } : null
+  if (!book || !page || !root.success) return null
+  return { book, page, root: root.data, grow: settingValue(ctx.catalog, book, page, GROW.id) as Grow }
 }
 
 const editingTree = (ctx: CommandContext) => ctx.stage.tool === EDIT_TOOL.id && ctx.stage.opened?.page != null
@@ -27,8 +28,7 @@ export const NODE_SELECT_MOVE = kit.defineCommand({
   run: (ctx, a, args: { to: Arrow }) => {
     const tree = treeAt(ctx)
     if (!tree) return
-    const grow = settingValue(ctx.catalog, tree.book, tree.page, GROW.id) as Grow
-    a.select(ctx.stage.id, [moveFrom(tree.root, grow, selectedIn(tree.root, ctx.stage.selection), args.to)])
+    a.select(ctx.stage.id, [moveFrom(tree.root, tree.grow, selectedIn(tree.root, ctx.stage.selection), args.to)])
   },
   when: editingTree,
 })
@@ -56,7 +56,7 @@ export const NODE_DELETE = kit.defineCommand({
     const opened = ctx.stage.opened
     if (!tree || !opened) return
     const node = selectedIn(tree.root, ctx.stage.selection)
-    const next = afterRemove(tree.root, node)
+    const next = afterRemove(tree.root, tree.grow, node)
     if (!next) return
     if (a.perform(NODE_REMOVE.id, { page: tree.page.id, node }, { book: opened.book }).ok)
       a.select(ctx.stage.id, [next])

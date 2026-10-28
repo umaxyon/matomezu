@@ -1,7 +1,7 @@
 // ツリーを組み立てる計算（データを書き換えず、新しい根を返す）: 節を足す・子のキャプションを替える・子孫ごと消す、と、
-// 上下左右のキーで動いた先の節（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ）
+// 上下左右のキーで動いた先の節（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ。中央の木の根からは、押した向きへ伸びる最初の子へ）
 import type { Grow } from "./grow"
-import type { TreeNode, TreeRoot } from "./node"
+import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
 
 // 根も子も、id と子の並びで扱う
 type Node = TreeRoot | TreeNode
@@ -85,35 +85,57 @@ export function removeNode(root: TreeRoot, id: string): TreeRoot | null {
   return next && withKids(root, next)
 }
 
-// 節 id を消したあとに選ぶ節: 前の兄弟、無ければ親（根と無い節は null）
-export function afterRemove(root: TreeRoot, id: string): string | null {
+// 節 id の枝が伸びる向き（path は pathTo の結果）: 中央の木では根の直系の子の向き（根は null。4 つの向きに伸びる）、ほかは木の向き
+function branchOf(root: TreeRoot, grow: Grow, path: readonly Node[], id: string): Side | null {
+  if (grow !== "center") return grow
+  if (path.length === 0) return null
+  const top = nodeOf(root, path.length === 1 ? id : (path[1]?.id ?? id))
+  return top ? sideOf(top) : null
+}
+
+// 節 id の兄弟の並び（親 parent の子。中央の木の根の直系の子は、同じ向きの物だけ）
+function siblingsOf(root: TreeRoot, grow: Grow, parent: Node, id: string): readonly TreeNode[] {
+  const kids = parent.children ?? []
+  if (grow !== "center" || parent.id !== root.id) return kids
+  const side = sideOf(kids.find(c => c.id === id) ?? {})
+  return kids.filter(c => sideOf(c) === side)
+}
+
+// 節 id を消したあとに選ぶ節: 前の兄弟（中央の木の根の直系の子は、同じ向きの物）、無ければ親（根と無い節は null）
+export function afterRemove(root: TreeRoot, grow: Grow, id: string): string | null {
   const parent = pathTo(root, id)?.at(-1)
   if (!parent) return null
-  const kids = parent.children ?? []
+  const kids = siblingsOf(root, grow, parent, id)
   const i = kids.findIndex(c => c.id === id)
   return kids[i - 1]?.id ?? parent.id
 }
 
-export type Arrow = "up" | "down" | "left" | "right"
+export type Arrow = Side
 
-// 伸びる向きのキー（中央の木は右へ伸ばすので右）
-const FORWARD: Record<Grow, Arrow> = { up: "up", down: "down", left: "left", right: "right", center: "right" }
 const BACK: Record<Arrow, Arrow> = { up: "down", down: "up", left: "right", right: "left" }
+const ACROSS: Record<Arrow, [Arrow, Arrow]> = {
+  up: ["left", "right"],
+  down: ["left", "right"],
+  left: ["up", "down"],
+  right: ["up", "down"],
+}
 
-// 節 id から、キー arrow で動いた先の節（動けなければ id のまま）。兄弟は並べた順（上・下の木は左から、左・右・中央の木は上から）
+// 節 id から、キー arrow で動いた先の節（動けなければ id のまま）。伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ
+// （兄弟は並べた順で、上・下へ伸びる枝は左から、左・右へ伸びる枝は上から）。中央の木の根からは、その向きへ伸びる最初の子へ
 export function moveFrom(root: TreeRoot, grow: Grow, id: string, arrow: Arrow): string {
   const path = pathTo(root, id)
   if (!path) return id
-  const forward = FORWARD[grow]
+  const dir = branchOf(root, grow, path, id)
+  if (dir === null) return root.children?.find(c => sideOf(c) === arrow)?.id ?? id
   const node = path.length === 0 ? root : nodeOf(root, id)
-  if (arrow === forward) return node?.children?.[0]?.id ?? id
+  if (arrow === dir) return node?.children?.[0]?.id ?? id
   const parent = path.at(-1)
   if (!parent) return id
-  if (arrow === BACK[forward]) return parent.id
-  const kids = parent.children ?? []
+  if (arrow === BACK[dir]) return parent.id
+  const kids = siblingsOf(root, grow, parent, id)
   const i = kids.findIndex(c => c.id === id)
-  const across = forward === "up" || forward === "down" ? { prev: "left", next: "right" } : { prev: "up", next: "down" }
-  const to = arrow === across.prev ? kids[i - 1] : arrow === across.next ? kids[i + 1] : undefined
+  const [prev, next] = ACROSS[dir]
+  const to = arrow === prev ? kids[i - 1] : arrow === next ? kids[i + 1] : undefined
   return to?.id ?? id
 }
 
@@ -135,28 +157,31 @@ export function centerShift(
   return Math.abs(dx) >= 1 || Math.abs(dy) >= 1 ? { dx, dy } : null
 }
 
-// 節 id の＋: どの辺（side）に出し、押すとどの親（parent）の子の何番目（index。無ければ末尾）に足すか。
-// 伸びる向きの辺は子を足す（子があれば、その末尾に）。根でない節は、横の 2 辺に、すぐ前とすぐ後ろに兄弟を足す＋も出す
+// 節 id の＋: どの辺（side）に出し、押すとどの親（parent）の子の何番目（index。無ければ末尾）に、どの向き（towards。中央の木の根の直系の子だけ）で足すか。
+// 伸びる向きの辺は子を足す（子があれば、その末尾に）。根でない節は、横の 2 辺に、すぐ前とすぐ後ろに兄弟を足す＋も出す。中央の木の根は 4 つの辺に子の＋
 export interface Plus {
   kind: "child" | "before" | "after"
   side: Arrow
   parent: string
   index?: number
+  towards?: Side
 }
 
 export function plusesOf(root: TreeRoot, grow: Grow, id: string): Plus[] {
   const path = pathTo(root, id)
   if (!path) return []
-  const forward = FORWARD[grow]
-  const child: Plus = { kind: "child", side: forward, parent: id }
+  const dir = branchOf(root, grow, path, id)
+  if (dir === null) return SIDE_NAMES.map(side => ({ kind: "child", side, parent: id, towards: side }))
+  const child: Plus = { kind: "child", side: dir, parent: id }
   const parent = path.at(-1)
   if (!parent) return [child]
   const i = (parent.children ?? []).findIndex(c => c.id === id)
-  const across: [Arrow, Arrow] = forward === "up" || forward === "down" ? ["left", "right"] : ["up", "down"]
+  const towards = grow === "center" && parent.id === root.id ? { towards: dir } : {}
+  const [prev, next] = ACROSS[dir]
   return [
     child,
-    { kind: "before", side: across[0], parent: parent.id, index: i },
-    { kind: "after", side: across[1], parent: parent.id, index: i + 1 },
+    { kind: "before", side: prev, parent: parent.id, index: i, ...towards },
+    { kind: "after", side: next, parent: parent.id, index: i + 1, ...towards },
   ]
 }
 
