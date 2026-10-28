@@ -118,7 +118,7 @@ test("＋で子を足してその場で書き、Enter で確定する。書い�
   await expect(paperEl.locator('[data-root="true"]')).toHaveAttribute("data-selected", "true")
 })
 
-test("キャプションは普通の太さ。＋で足した節は太字で書き始め、入力欄のすぐ上のボックスで色を付けられる（押しても編集は続く）", async ({
+test("キャプションは普通の太さ。＋で足した節は空から書き始め、入力欄のすぐ上のボックスで太字と色を付けられる（押しても編集は続く）", async ({
   page,
 }) => {
   await treeBook(page)
@@ -126,11 +126,13 @@ test("キャプションは普通の太さ。＋で足した節は太字で書�
   await expect(paperEl.locator('[data-root="true"]')).toHaveCSS("font-weight", "400")
   await paperEl.getByRole("button", { name: "子を足す" }).click()
   const input = paperEl.getByRole("textbox", { name: "キャプション" })
-  await expect(input).toHaveValue("****")
+  await expect(input).toHaveValue("")
   await page.keyboard.type("大事")
+  await input.evaluate((el: HTMLInputElement) => el.setSelectionRange(0, 2))
+  const bar = paperEl.getByRole("toolbar", { name: "本文の装飾" })
+  await bar.getByRole("button", { name: "太字" }).click()
   await expect(input).toHaveValue("**大事**")
   await input.evaluate((el: HTMLInputElement) => el.setSelectionRange(2, 4))
-  const bar = paperEl.getByRole("toolbar", { name: "本文の装飾" })
   const box = (await bar.boundingBox())!
   const field = (await input.boundingBox())!
   expect(box.y + box.height).toBeLessThanOrEqual(field.y)

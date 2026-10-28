@@ -248,7 +248,7 @@ export type EditEnd = { kind: "remove" } | { kind: "root" | "child"; caption: st
 export function editEnd(root: TreeRoot, id: string, text: string | null): EditEnd {
   const old = captionOf(root, id)
   const isRoot = root.id === id
-  // 記号だけで字の無いキャプション（新しい節の **** など）は空とみなす
+  // 記号だけで字の無いキャプション（**** など）は空とみなす
   const written = text ?? old
   const next = parseRich(written).every(l => plainOf(l) === "") ? "" : written
   if (next === "") return !isRoot && old === "" ? { kind: "remove" } : { kind: "none" }

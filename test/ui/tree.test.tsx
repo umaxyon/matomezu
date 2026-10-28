@@ -373,7 +373,7 @@ test("F2 かダブルクリックで、選んでいる子の節をその場で�
   expect(within(paper()).queryByRole("textbox")).toBeNull()
 })
 
-test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足して、太字の記号の間から書き始める。根では Enter で兄弟を足さない", () => {
+test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足して、空のキャプションから書き始める。根では Enter で兄弟を足さない", () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }, { caption: "子 B" }] })
   const [a, b] = done.fields!.root.children.map(n => n.id) as [string, string]
@@ -385,7 +385,7 @@ test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足�
   fireEvent.pointerDown(paper().querySelector(`[data-node="${a}"]`)!, { button: 0 })
   fireEvent.keyDown(window, { key: "Enter" })
   const input = within(paper()).getByRole("textbox") as HTMLInputElement
-  expect(input.value).toBe("****")
+  expect(input.value).toBe("")
   fireEvent.change(input, { target: { value: "**子 A2**" } })
   fireEvent.keyDown(input, { key: "Enter" })
   expect(kids().map(k => k.caption)).toEqual(["子 A", "**子 A2**", "子 B"])
@@ -677,7 +677,7 @@ test("ツリーのページの設定でも、選んでいる値で木が紙に�
   expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-test("節の形: ページの設定で下線を選ぶと、子の節を下線の形で描く（根は箱のまま）", () => {
+test("節の形: ページの設定で下線を選ぶと、子の節を下線の形で描き、その場で書く間も下線（根は箱のまま）", () => {
   const { store, id } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
   const paper = () => screen.getByRole("img", { name: "紙" })
@@ -693,6 +693,9 @@ test("節の形: ページの設定で下線を選ぶと、子の節を下線の
     "box",
     "underline",
   ])
+  fireEvent.pointerDown(paper().querySelector(`[data-node="${done.fields!.root.children[0]!.id}"]`)!, { button: 0 })
+  fireEvent.keyDown(window, { key: "F2" })
+  expect(within(paper()).getByRole("textbox").getAttribute("data-shape")).toBe("underline") // 書いている間も下線
 })
 
 test("線の形: ページの設定で曲線を選ぶと、親から子への線を曲線で描く", () => {
