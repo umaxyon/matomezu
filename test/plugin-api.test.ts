@@ -1,8 +1,12 @@
-// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧。追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
+// プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）のフィールドの一覧。
+// 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
+import { newStage } from "../web/src/core/stage"
+import { stageView } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
 import * as testing from "../web/src/testing"
+import { CORE_CATALOG } from "./support"
 
 const names = (m: object) => Object.keys(m).sort()
 
@@ -173,5 +177,19 @@ test("matomezu/testing が出す名前", () => {
     "createMatomezu",
     "defineLayout",
     "placeAdded",
+  ])
+})
+
+test("プラグインに見せるステージ（StageView）のフィールド", () => {
+  expect(names(stageView(CORE_CATALOG, newStage("s1"), null))).toEqual([
+    "editing",
+    "id",
+    "opened",
+    "pan",
+    "pans",
+    "placing",
+    "selection",
+    "tool",
+    "zoom",
   ])
 })

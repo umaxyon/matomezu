@@ -7,15 +7,15 @@
 
 - プラグインは、ほかのプラグインのコードを読まない。読んでよいのは、プラグイン API（ビルトインプラグインは base の入口も）と、ほかのプラグインの連携ポイント（`import type` で、型だけ）
 - 追加プラグインが読むプラグイン API は `matomezu`・`matomezu/ui`・`matomezu/catalog`。テストで組むときだけ `matomezu/testing` も読む（見本は `test/rules.test.ts` が見張る）
-- プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。見た目は、matomezu が渡すステージの id から、フックで約束のものだけを引く:
-  - データ: `useBook(stage)`・`usePage(stage)`（開いているブックとページ）、`useItem(stage, page, item)`（項目の型はアイテムの id で決まる）、`useShownPage(stage)`（ダイアログの下書きを重ねたページ。見せ方が描くのに使う）
-  - ステージ: `useStage(stage)` は読むだけの `StageView`（`id`・`opened`・`zoom`・`pan`・`selection`・`editing`・`placing`・`tool`・`pans`）。ブックのビューにはステージの id を渡す。コマンドの `ctx.stage` も同じ `StageView`
-  - 定義と設定: `useCoreCatalog()`・`useUiCatalog()`（読むだけ）、`useSettings()`（言語とスキン）
-  - データを変えるのはアクションだけ。ステージが開いているブックには `usePerform(stage)`、ほかの対象（一覧・設定）には `useActions()` の `perform` で行う。画面の状態（選択・ダイアログ・ページを開くなど）はコマンドと `useActions`
-- プラグイン API が出す名前の一覧は `test/plugin-api.test.ts` に書く。足すときも消すときもここを直し、わざと変えたと分かるようにする
+- プラグイン API の見た目の側（`matomezu/ui`）は、状態を丸ごと見せない。そこを使うコンポーネントは、matomezu が渡すステージの id から、フックで約束の物だけを引く（ブックのビューにはステージの id を渡す）
+- ステージは、読み取り専用でプラグインに提供される。提供されるのは、コンポーネントとコマンドが描く・決めるのに要る物だけで、ステージのそれ以外の状態（表示領域の大きさ・道具のアイコン・ミニマップを開いているかなど）は提供されない。コマンドが受け取るステージも同じ物
+- 見せ方は、ダイアログの下書き（設定の項目と形の項目の、まだ確定していない値）を重ねたブックとページで描く
+- 機能台帳と、見る人の設定（言語とスキン）も、読み取り専用でプラグインに提供される
+- データを変えるのはアクションだけ。画面の状態（選択・その場の編集・ダイアログ・ページを開くなど）は、コマンドと `useActions` で変える
+- プラグイン API が出す名前と、見せるステージのフィールドの一覧は `test/plugin-api.test.ts` に書く。足すときも消すときもここを直し、わざと変えたと分かるようにする
 - 例外は `base`。画面の骨組み・ダイアログの枠と入力のコンポーネント・紙・標準のテーマを持ち、ほかのプラグインは `base` の入口（`plugins/base/index`・`plugins/base/ui`）を読んでよい
 - ビルトインプラグインも、追加プラグインと同じプラグイン API で書く。base 以外は `plugin-api` と base の入口だけを読む（読み込みの向きは「構造と層」）。base は API の部品を作る側なので土台を読む
-- ビルトインプラグインが使う土台の名前は、状態を丸ごと読む `ui/store-context` の物（`useMatomezuState`・`useCatalog`・`useUiCatalog`。代わりに上の状態を読むフックを使う。読むだけの `useCoreCatalog`・`useUiCatalog` は `ui/view-hooks` の物を出す）を除き、全部 `plugin-api` から出す。ビルトインの印（`defineBuiltin`）は `plugin-api/builtin` に置き、`plugin-entry` は出さない（印は、キーの割り当てでビルトインプラグインを先に扱うためだけのもので、id の決まりは変えない）
+- プラグイン API は、状態を丸ごと読むフックを出さない（base 以外のビルトインプラグインも、状態は上のフックで約束の物だけを引く）。ビルトインの印（`defineBuiltin`）は `plugin-api/builtin` に置き、`plugin-entry` からは出さない（印は、キーの割り当てでビルトインプラグインを先に扱うためだけのもので、id の決まりは変えない）
 - base の入口には、プラグイン API に出してよい物だけを置く。迷う物は置く前にユーザーに確かめる
 - プラグインに公開する共通の処理（ユーティリティ。経った時間の `elapsedOf` など）は、base の `utils` に置く。`utils/index.ts` で書き出した物は `matomezu` から、見た目の物（フックなど）を `utils/ui.ts` で書き出した物は `matomezu/ui` から、そのまま出る（入口は丸ごと出し直す）。`utils` に置かない base の物は出ない。足すときは置くだけで、出す物ごとに規約は書かない（出す名前の増減は `test/plugin-api.test.ts` の一覧で見える）
 - 別のプラグインの定義を使うときは、読むのではなく id で選ぶ（ブックのタイプがアイテム・アクション・道具の組を選ぶのと同じ形）
