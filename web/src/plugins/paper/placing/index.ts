@@ -7,8 +7,9 @@ export {
   PAPER_EDIT,
   PAPER_MOVE,
   PAPER_PLACE,
+  PAPER_REPARENT,
   PAPER_RESIZE,
   placeAt,
 } from "./commands"
 export { type Came, DIRS, type Dir } from "./drag"
-export { dragging, trackDrag } from "./items"
+export { dragging, dropTarget, trackDrag } from "./items"

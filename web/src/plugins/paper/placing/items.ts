@@ -1,7 +1,7 @@
 // 紙のページに置いたアイテムのドラッグ（データを書き換えず、新しい値を返す）。置く・押す・消すなどはbase（place/items.ts）。
 // ページの形は紙の中で、子の形は親の子の領域の中で動かす（base の place/frame.ts の Frame。決まりは同じ）
-import type { CoreCatalog, ItemPage, PagedBook, Point, Rect } from "../../../plugin-api"
-import { commitChildren, frameAround, gapOf, placedAt, toData, withPage } from "../../base"
+import { type CoreCatalog, type ItemPage, type PagedBook, type Point, type Rect, walkShapes } from "../../../plugin-api"
+import { commitChildren, frameAround, gapOf, placedAt, placedSize, toData, withPage } from "../../base"
 import { type Came, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
@@ -50,4 +50,18 @@ export function moveItems(
   return frame.parent === null
     ? withPage(catalog, book, { ...page, items: placedAt(catalog, page, after) })
     : commitChildren(catalog, book, pageId, { ...frame, parent: frame.parent }, after)
+}
+
+// 付け替えの道具で形 id を落とす先: 紙の上の点 at の下で一番内側の、子を持てる形の id（id と、その子孫は除く）。無ければ null（ページ）
+export function dropTarget(catalog: CoreCatalog, page: ItemPage, id: string, at: Point): string | null {
+  const shapes = walkShapes(page)
+  const own = new Set([id])
+  for (const s of shapes) if (s.parent !== null && own.has(s.parent)) own.add(s.shape.id)
+  let target: string | null = null
+  for (const { shape, at: p } of shapes) {
+    if (own.has(shape.id) || !catalog.items.get(shape.item)?.capabilities.includes("nests")) continue
+    const size = placedSize(catalog, shape)
+    if (size && at.x >= p.x && at.y >= p.y && at.x < p.x + size.w && at.y < p.y + size.h) target = shape.id
+  }
+  return target
 }

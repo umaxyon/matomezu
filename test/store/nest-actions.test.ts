@@ -4,6 +4,7 @@ import { findShape, type ItemPage, walkShapes } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { childOrigin } from "../../web/src/plugins/base/place/frame"
 import { NEST_PADDING } from "../../web/src/plugins/base/place/placed"
+import { dropTarget } from "../../web/src/plugins/paper/placing/items"
 import { CORE_CATALOG, newStore } from "../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
@@ -164,4 +165,32 @@ test("自分か自分の子孫の中へ・子を持てない形の中へ・今�
     [b, a],
     [l, null],
   ])
+})
+
+test("付け替えの道具で落とす先は、点の下で一番内側の子を持てる形。動かす形とその子孫・子を持てない形は除き、無ければページ", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
+  const b = place(store, { at: { x: 20, y: 60 }, parent: a, w: 200, h: 150 })!
+  const list = run(store, "@matomezu/paper:item-place", { item: LIST, at: { x: 600, y: 0 } })
+  const l = (list as { result: { item: string } }).result.item
+  const p = page(store)
+  const inB = { x: 30, y: 70 }
+  expect(dropTarget(CORE_CATALOG, p, l, inB)).toBe(b)
+  expect(dropTarget(CORE_CATALOG, p, l, { x: 300, y: 250 })).toBe(a)
+  expect(dropTarget(CORE_CATALOG, p, b, inB)).toBe(a)
+  expect(dropTarget(CORE_CATALOG, p, a, inB)).toBeNull()
+  expect(dropTarget(CORE_CATALOG, p, b, { x: 610, y: 10 })).toBeNull()
+})
+
+test("付け替えのコマンドは、動いた所で別の親へ入れ、同じ親ならその中で動かすだけ", () => {
+  const store = newStore()
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
+  const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
+  const b = place(store, { at: { x: 500, y: 100 }, w: 80, h: 40 })!
+  const zoom = store.state.getState().workspace.stages[0]!.zoom
+  const screen = (x: number, y: number) => ({ x: x * zoom, y: y * zoom })
+  store.actions.command("s1", "@matomezu/paper:paper-reparent", { item: b, parent: a, by: screen(-400, 0) })
+  expect(at(store, b)).toMatchObject({ parent: a, at: { x: 100, y: 100 } })
+  store.actions.command("s1", "@matomezu/paper:paper-reparent", { item: b, parent: a, by: screen(50, 0) })
+  expect(at(store, b)).toMatchObject({ parent: a, at: { x: 150, y: 100 } })
 })

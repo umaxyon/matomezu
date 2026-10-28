@@ -126,20 +126,21 @@ export const ITEM_MOVE = kit.defineAction({
   },
 })
 
-// 形を、子を持てる形の中へ移す・ページへ出す（付け替え）。紙の上の位置は変えず、子孫と、つながる線も一緒に移る。
+// 形を、子を持てる形の中へ移す・ページへ出す（付け替え）。紙の上の位置は変えず（at を渡せば、紙の上のそこへ）、子孫と、つながる線も一緒に移る。
 // 中では、子の領域より左や上なら子の領域の左上へ寄せ、兄弟を押す（placeChild）。親は子が入る大きさに育ち、ページの形を押す。
 // 自分か自分の子孫の中へ・子を持てない形の中へ・今と同じ親へは断る。紙に収まらなければ断る
 export const ITEM_REPARENT = kit.defineAction({
   id: "item-reparent",
   attach: ON_PAPER,
   aiDescription:
-    "Move a shape into a shape that can hold children (parent: its id) or out to the page (parent: null), keeping where it is on the paper; its children and the lines joined to them come along. Inside, it goes in the parent's child area (moved there if it is left of or above it), pushing the other children as in @matomezu/paper:item-place. The parent grows to hold it and pushes the page's boxes; on the page, boxes it comes within 8 pixels of are pushed as in @matomezu/paper:item-place. It is refused into itself or its children, into a shape that cannot hold children, into the parent it is already in, or when it does not fit on the paper.",
+    "Move a shape into a shape that can hold children (parent: its id) or out to the page (parent: null), keeping where it is on the paper (or putting its top-left at at, in paper pixels); its children and the lines joined to them come along. Inside, it goes in the parent's child area (moved there if it is left of or above it), pushing the other children as in @matomezu/paper:item-place. The parent grows to hold it and pushes the page's boxes; on the page, boxes it comes within 8 pixels of are pushed as in @matomezu/paper:item-place. It is refused into itself or its children, into a shape that cannot hold children, into the parent it is already in, or when it does not fit on the paper.",
   title: "Reparent item",
   target: "book",
   args: z.strictObject({
     page: z.string().min(1),
     item: z.string().min(1),
     parent: z.string().min(1).nullable(), // 入れる先の形の id（null はページ）
+    at: PointSchema.optional(), // 移したあとの左上（紙の上。無ければ今の所）
   }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
@@ -151,14 +152,15 @@ export const ITEM_REPARENT = kit.defineAction({
     const without = out && putPage(book, out)
     if (!out || !without) return null
     const shape = found.shape
+    const where = args.at ?? found.at
     if (args.parent === null) {
-      const next = placeItem(ctx.catalog, without, args.page, { ...shape, ...found.at })
+      const next = placeItem(ctx.catalog, without, args.page, { ...shape, ...where })
       return next && { next, result: {} }
     }
     // 入れる先は抜いたあとのページで探す（自分か自分の子孫の中へは、見つからないので断る）
     const into = findShape(out, args.parent)
     if (!into) return null
-    const at = { x: found.at.x - into.at.x, y: found.at.y - into.at.y }
+    const at = { x: where.x - into.at.x, y: where.y - into.at.y }
     const next = placeChild(ctx.catalog, without, args.page, args.parent, shape, at)
     return next && { next, result: {} }
   },

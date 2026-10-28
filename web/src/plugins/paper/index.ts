@@ -15,6 +15,7 @@ import {
   PAPER_EDIT,
   PAPER_MOVE,
   PAPER_PLACE,
+  PAPER_REPARENT,
   PAPER_RESIZE,
 } from "./placing"
 import { PAPER_TOOLS, REPARENT_TOOL } from "./tools"
@@ -25,7 +26,7 @@ export const PAPER_PLUGIN = defineBuiltin(
     tools: [REPARENT_TOOL],
     toolSets: [PAPER_TOOLS],
     actions: [ITEM_PLACE, ITEM_MOVE, ITEM_UPDATE, ITEM_RESIZE, ITEM_REMOVE, ITEM_REPARENT],
-    commands: [PAPER_PLACE, PAPER_MOVE, PAPER_RESIZE, PAPER_EDIT, PAPER_DELETE],
+    commands: [PAPER_PLACE, PAPER_MOVE, PAPER_REPARENT, PAPER_RESIZE, PAPER_EDIT, PAPER_DELETE],
     keys: ITEM_KEYS,
   }),
 )
@@ -52,6 +53,7 @@ declare module "../../core/catalog" {
   interface CommandTable {
     "@matomezu/paper:paper-place": typeof PAPER_PLACE
     "@matomezu/paper:paper-move": typeof PAPER_MOVE
+    "@matomezu/paper:paper-reparent": typeof PAPER_REPARENT
     "@matomezu/paper:paper-resize": typeof PAPER_RESIZE
     "@matomezu/paper:paper-edit": typeof PAPER_EDIT
     "@matomezu/paper:paper-delete": typeof PAPER_DELETE

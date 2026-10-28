@@ -81,6 +81,11 @@
   outline: 2px solid var(--theme-accent);
   outline-offset: 2px;
 }
+/* 付け替えの道具のドラッグで、離すと入る先の形 */
+.item[data-drop-target="true"] {
+  outline: 2px dashed var(--theme-accent);
+  outline-offset: 2px;
+}
 /* 〇から引いている線の、今の相手 */
 .item[data-target="true"] {
   outline: 3px solid var(--theme-accent);

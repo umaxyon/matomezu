@@ -32,6 +32,7 @@ import {
   type Rect,
   type StageView,
   shapesOf,
+  toPaper,
   toPaperDelta,
 } from "../../../plugin-api"
 import {
@@ -56,7 +57,19 @@ import { type Edges, fitsPaper, itemSize, minSize, placedSize, resizedBy, shownR
 import { useZoomMotion } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
-import { type Came, dragging, PAPER_EDIT, PAPER_MOVE, PAPER_PLACE, PAPER_RESIZE, placeAt, trackDrag } from "../placing"
+import {
+  type Came,
+  dragging,
+  dropTarget,
+  PAPER_EDIT,
+  PAPER_MOVE,
+  PAPER_PLACE,
+  PAPER_REPARENT,
+  PAPER_RESIZE,
+  placeAt,
+  trackDrag,
+} from "../placing"
+import { REPARENT_TOOL } from "../tools"
 import styles from "./PaperView.module.css"
 
 // 要素の左上から見たポインタの位置
@@ -144,6 +157,7 @@ interface Drag {
   came: Came
   prev: Point
   swapped: boolean // このドラッグで入れ替えが起きたか（起きたら、動かす形の線は留まらずに一番よい形を追う）
+  reparent: boolean // 付け替えの道具のドラッグか（入れ替えずに、離した所の下の形の中へ入れる）
 }
 
 // 大きさを変えているドラッグ: つかんだ辺と、押したときのポインタの位置
@@ -183,6 +197,9 @@ function PageItems({
     return c ? [{ id, ...c }] : []
   })
   const move = useCommand(stage.id, PAPER_MOVE.id)
+  const reparent = useCommand(stage.id, PAPER_REPARENT.id)
+  // 付け替えの道具のドラッグで、離すと入れる先（形の id。null はページ。ドラッグしていなければ undefined）
+  const [target, setTarget] = useState<string | null | undefined>(undefined)
   const edit = useCommand(stage.id, PAPER_EDIT.id)
   const openMenu = useContextMenu(stage.id, ITEM_CONTEXT)
   const { select } = useActions()
@@ -201,7 +218,9 @@ function PageItems({
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
     if (e.button !== 0 || pans || stage.placing !== null) return
-    const items = stage.selection.includes(id) ? stage.selection : [id]
+    const reparenting = stage.tool === REPARENT_TOOL.id
+    // 付け替えは押した形 1 つだけを動かす
+    const items = !reparenting && stage.selection.includes(id) ? stage.selection : [id]
     select(stage.id, items)
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = {
@@ -211,6 +230,7 @@ function PageItems({
       came: {},
       prev: { x: 0, y: 0 },
       swapped: false,
+      reparent: reparenting,
     }
   }
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -218,7 +238,11 @@ function PageItems({
     if (d?.pointer !== e.pointerId) return
     const screen = { x: e.clientX - d.start.x, y: e.clientY - d.start.y }
     const by = toPaperDelta(stage, screen)
-    if (d.items.length === 1) {
+    if (d.reparent) {
+      const at = localOf(e)
+      const point = at && toPaper(stage, at)
+      setTarget(point ? dropTarget(catalog, page, d.items[0] as string, point) : null)
+    } else if (d.items.length === 1) {
       const id = d.items[0] as string
       d.came = trackDrag(catalog, page, id, d.prev, by, d.came)
       // 入れ替えが起きたら覚える（このドラッグの終わりまで）
@@ -237,13 +261,17 @@ function PageItems({
     if (d?.pointer !== e.pointerId) return
     drag.current = null
     setMoved(null)
+    setTarget(undefined)
     settled.current = new Set(d.items)
-    if (drop && moved && (moved.x !== 0 || moved.y !== 0)) move.run({ items: d.items, by: moved, came: d.came })
+    if (!drop || !moved || (moved.x === 0 && moved.y === 0)) return
+    if (d.reparent) reparent.run({ item: d.items[0] as string, parent: target ?? null, by: moved })
+    else move.run({ items: d.items, by: moved, came: d.came })
   }
   const shift = moved && toPaperDelta(stage, moved)
   const d = drag.current
   const dragged = shift && d ? d.items : []
-  const plan = shift && d?.items.length === 1 ? dragging(catalog, page, d.items[0] as string, shift, d.came) : null
+  const plan =
+    shift && d?.items.length === 1 && !d.reparent ? dragging(catalog, page, d.items[0] as string, shift, d.came) : null
   // ドラッグ中にずらして描く量（紙の上）
   const shiftOf = (item: PlacedShape): Point | null => {
     if (!shift) return null
@@ -330,6 +358,7 @@ function PageItems({
         cancel: e => endStretch(e, false),
       }}
       selected={stage.selection.includes(item.id)}
+      dropTarget={target === item.id}
       shift={shift}
       dragged={dragged}
       resizing={resizing}
@@ -380,6 +409,7 @@ interface ItemProps {
     cancel(e: PointerEvent<HTMLDivElement>): void
   }
   selected: boolean
+  dropTarget: boolean // 付け替えの道具のドラッグで、離すと入る先か
   shift: Point | null // ドラッグ中にずらして描く量（紙の上）
   dragged: readonly string[] // ドラッグで動かしているアイテム
   resizing: string | null // 大きさを変えているアイテム
@@ -433,6 +463,7 @@ function Item({
   stretchable,
   onStretch,
   selected,
+  dropTarget,
   shift,
   dragged,
   resizing,
@@ -465,6 +496,7 @@ function Item({
       onPointerEnter={() => onHover(true)}
       onPointerLeave={() => onHover(false)}
       data-selected={selected}
+      data-drop-target={dropTarget}
       data-look={look}
       style={{
         left: item.x,

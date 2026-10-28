@@ -13,7 +13,7 @@ import {
 } from "../../../plugin-api"
 import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
-import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
+import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import type { Came } from "./drag"
 import { PLACE_OFFSET } from "./items"
 
@@ -108,6 +108,29 @@ export const PAPER_MOVE = kit.defineCommand({
     const by = toPaperDelta(ctx.stage, args.by)
     const came = args.came && { came: { ...args.came } }
     a.perform(ITEM_MOVE.id, { page: opened.page, items: [...args.items], by, ...came }, { book: opened.book })
+  },
+  when: onDrawingPage,
+})
+
+// 付け替えの道具のドラッグを離したとき: 形 item を、画面の上で動いた量 by だけ動かした所で、形 parent の中へ入れる（null はページへ出す）。
+// 今と同じ親なら、その中で動かすだけ（item-move）。入れられなければ何もしない
+export const PAPER_REPARENT = kit.defineCommand({
+  id: "paper-reparent",
+  performs: [ITEM_REPARENT.id, ITEM_MOVE.id],
+  title: "Reparent item",
+  run: (ctx, a, args: { item: string; parent: string | null; by: Point }) => {
+    const { opened } = ctx.stage
+    const page = pagedOf(ctx.book)?.pages.find(p => p.id === opened?.page)
+    const found = page && findShape(page, args.item)
+    if (!opened?.page || !found) return
+    const by = toPaperDelta(ctx.stage, args.by)
+    const on = { book: opened.book }
+    if (found.parent === args.parent) {
+      a.perform(ITEM_MOVE.id, { page: opened.page, items: [args.item], by }, on)
+      return
+    }
+    const at = { x: found.at.x + by.x, y: found.at.y + by.y }
+    a.perform(ITEM_REPARENT.id, { page: opened.page, item: args.item, parent: args.parent, at }, on)
   },
   when: onDrawingPage,
 })
