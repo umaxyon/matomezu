@@ -36,7 +36,7 @@
   background: var(--tree-node-fill);
   color: var(--tree-node-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 18px;
   white-space: pre; /* 行は並べ方が決める（折り返し・… で切るのも並べ方） */
   overflow: hidden;
@@ -95,7 +95,7 @@
   outline: 2px solid var(--theme-accent);
   outline-offset: 1px;
 }
-/* その場で編集している節のテキストForm（節と同じ所・同じ大きさ） */
+/* その場で編集している節のテキストForm（節と同じ所・同じ大きさ。記号もそのまま書く） */
 .editor {
   position: absolute;
   box-sizing: border-box;
@@ -107,7 +107,7 @@
   color: var(--tree-node-text);
   font: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 18px;
   outline: none;
 }
@@ -140,4 +140,10 @@
   border-radius: 0;
   background: transparent;
   color: var(--theme-text);
+}
+/* その場の編集の装飾のボックス（テキストFormのすぐ上） */
+.editorBar {
+  position: absolute;
+  transform: translateY(calc(-100% - 4px));
+  white-space: nowrap;
 }

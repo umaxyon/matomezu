@@ -1,6 +1,7 @@
 // ツリーの並べ方（plugins/books/tree/layout.ts）: 根は伸びる向きで紙の辺の中央（中央なら紙の真ん中）に置き、子は伸びる向きへ、兄弟は横に並べる
 import { expect, test } from "bun:test"
 import { plainOf } from "../../web/src/plugins/base/text/rich"
+import { editEnd } from "../../web/src/plugins/books/tree/edit"
 import { layoutTree, MARGIN, nodeSize, rootBox } from "../../web/src/plugins/books/tree/layout"
 import { treePath } from "../../web/src/plugins/books/tree/line-shape"
 import { DEFAULT_NODE_SIZE } from "../../web/src/plugins/books/tree/size"
@@ -151,12 +152,12 @@ test("節の大きさの選び方: 伸びるは 1 行の幅、N 字で固定は 
   const grow = nodeSize(long, "grow")
   const fixed = nodeSize(long, "fixed-10")
   const wrapped = nodeSize(long, "wrap-10")
-  expect(grow.lines).toEqual([long])
+  expect(grow.lines.map(plainOf)).toEqual([long])
   expect(fixed.lines).toHaveLength(1)
-  expect(fixed.lines[0]!.endsWith("…")).toBe(true)
+  expect(plainOf(fixed.lines[0]!).endsWith("…")).toBe(true)
   expect(fixed.w).toBeLessThan(grow.w)
   expect(wrapped.lines.length).toBeGreaterThan(1)
-  expect(wrapped.lines.join("")).toBe(long)
+  expect(wrapped.lines.map(plainOf).join("")).toBe(long)
   expect(wrapped.h).toBeGreaterThan(fixed.h)
   expect(wrapped.w).toBe(fixed.w) // どちらも 10 字の幅まで
   expect(nodeSize("短い", "fixed-10")).toEqual(nodeSize("短い", "grow")) // 幅に収まれば同じ
@@ -206,4 +207,16 @@ test("根の本文は装飾を区切りに分けて折り返し、幅は太字�
   expect(bold.body?.map(plainOf)).toEqual(["大事な所"])
   expect(bold.body?.[0]?.[0]).toMatchObject({ bold: true })
   expect(bold.w).toBeGreaterThanOrEqual(plain.w)
+})
+
+test("節のキャプションの標準は普通の太さで、**…** の所だけ太字の幅で測る。記号だけのキャプションは空とみなす", () => {
+  const plain = nodeSize("ブランチ")
+  const bold = nodeSize("**ブランチ**")
+  expect(bold.lines.map(plainOf)).toEqual(["ブランチ"])
+  expect(bold.lines[0]![0]).toMatchObject({ bold: true })
+  expect(plain.lines[0]![0]).toMatchObject({ bold: false })
+  expect(bold.w).toBeGreaterThanOrEqual(plain.w)
+  const root = { id: "r", caption: "根", children: [{ id: "a", caption: "" }] }
+  expect(editEnd(root, "a", "****")).toEqual({ kind: "remove" })
+  expect(editEnd(root, "a", "**子**")).toEqual({ kind: "child", caption: "**子**" })
 })

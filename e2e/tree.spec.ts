@@ -117,3 +117,29 @@ test("＋で子を足してその場で書き、Enter で確定する。書い�
   await page.keyboard.press("ArrowUp")
   await expect(paperEl.locator('[data-root="true"]')).toHaveAttribute("data-selected", "true")
 })
+
+test("キャプションは普通の太さ。＋で足した節は太字で書き始め、入力欄のすぐ上のボックスで色を付けられる（押しても編集は続く）", async ({
+  page,
+}) => {
+  await treeBook(page)
+  const paperEl = paper(page)
+  await expect(paperEl.locator('[data-root="true"]')).toHaveCSS("font-weight", "400")
+  await paperEl.getByRole("button", { name: "子を足す" }).click()
+  const input = paperEl.getByRole("textbox", { name: "キャプション" })
+  await expect(input).toHaveValue("****")
+  await page.keyboard.type("大事")
+  await expect(input).toHaveValue("**大事**")
+  await input.evaluate((el: HTMLInputElement) => el.setSelectionRange(2, 4))
+  const bar = paperEl.getByRole("toolbar", { name: "本文の装飾" })
+  const box = (await bar.boundingBox())!
+  const field = (await input.boundingBox())!
+  expect(box.y + box.height).toBeLessThanOrEqual(field.y)
+  await bar.getByRole("button", { name: "エラー" }).click()
+  await expect(input).toHaveValue("**{error:大事}**")
+  await expect(input).toBeFocused()
+  await page.keyboard.press("Enter")
+  const span = paperEl.locator('[data-node]:not([data-root="true"]) span').first()
+  await expect(span).toHaveText("大事")
+  await expect(span).toHaveCSS("font-weight", "700")
+  await expect(span).toHaveCSS("color", "rgb(220, 38, 38)")
+})

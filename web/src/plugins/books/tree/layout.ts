@@ -7,7 +7,7 @@
 // 節の大きさは、節の大きさの選び方（節の size、無ければページで効いている選び方 size.ts）で決める: 伸びるはキャプション 1 行の幅、
 // 折り返すは N 字の幅で折り返した行、最大で固定は N 字の幅まで（超えた分は … で切る）
 import type { Point } from "../../../plugin-api"
-import { clampLines, type RichLine, richWidth, TEXT_LOOK, textWidth, wrap, wrapRich } from "../../base"
+import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, textWidth, wrapRich } from "../../base"
 import type { Grow } from "./grow"
 import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
 import { DEFAULT_NODE_SHAPE, type NodeShape } from "./shape"
@@ -22,7 +22,7 @@ const MIN_W = 32
 export interface LaidNode {
   id: string
   caption: string
-  lines: string[] // 見せる行（折り返した行・… で切った行）
+  lines: RichLine[] // 見せる行（装飾の区切りの並び。折り返した行・… で切った行）
   body?: RichLine[] // 根の本文の行（装飾の区切りの並び。本文を描くときだけ）
   color?: string // 節の色（無ければテーマの塗り）
   x: number
@@ -39,31 +39,36 @@ export interface TreeLayout {
 
 type Rect = { x: number; y: number; w: number; h: number }
 
-const FONT = TEXT_LOOK.caption
+// キャプションの字（標準は普通の太さ。**…** で囲んだ所が太字）
+const FONT = { size: TEXT_LOOK.caption.size, weight: 400 } as const
 const FULL_WIDTH = "国" // 字の数で幅を決めるときの 1 字（全角）
 
-// キャプションを大きさの選び方 size で見せる行と、節の大きさ
+// キャプションを大きさの選び方 size で見せる行（装飾を区切りに分け、太字は太字の幅で測る）と、節の大きさ
 export function nodeSize(
   caption: string,
   size: NodeSize = DEFAULT_NODE_SIZE,
-): { w: number; h: number; lines: string[] } {
+): { w: number; h: number; lines: RichLine[] } {
   const { mode, chars } = sizeRule(size)
   const max = chars === null ? Number.POSITIVE_INFINITY : textWidth(FULL_WIDTH.repeat(chars), FONT)
   const one = caption.replace(/\n/g, " ")
   const lines =
     mode === "wrap"
-      ? wrap(caption, max, FONT)
+      ? wrapRich(caption, max, FONT)
       : mode === "fixed"
-        ? clampLines(wrap(one, max, FONT), 1, max, FONT)
-        : [one]
-  const shown = lines.length > 0 ? lines : [""]
-  const w = Math.min(max, Math.max(...shown.map(l => textWidth(l, FONT))))
+        ? clampRich(wrapRich(one, max, FONT), 1, max, FONT)
+        : parseRich(one)
+  const shown = lines.length > 0 ? lines : [[]]
+  const w = Math.min(max, Math.max(...shown.map(l => richWidth(l, FONT))))
   return {
     w: Math.max(MIN_W, Math.ceil(w) + TEXT_LOOK.padX * 2),
     h: TEXT_LOOK.line * shown.length + TEXT_LOOK.padY * 2,
     lines: shown,
   }
 }
+
+// その場の編集のテキストFormの幅: 節の幅 w か、記号も含めて書いた字 raw の幅（余白とテキストFormの枠を足す）の広いほう
+export const editorWidth = (raw: string, w: number) =>
+  Math.max(w, Math.ceil(textWidth(raw, FONT)) + TEXT_LOOK.padX * 2 + 4)
 
 const vertical = (side: Side) => side === "up" || side === "down"
 const gapOf = (side: Side) => (vertical(side) ? SIBLING_ACROSS_COLUMNS : SIBLING_ACROSS_ROWS)
@@ -72,7 +77,7 @@ const gapOf = (side: Side) => (vertical(side) ? SIBLING_ACROSS_COLUMNS : SIBLING
 interface Measured {
   id: string
   caption: string
-  lines: string[]
+  lines: RichLine[]
   color?: string
   main: number
   cross: number
@@ -146,7 +151,10 @@ const BODY_FONT = TEXT_LOOK.body
 const BODY_GROWS_AT = 30 // 伸びる根の本文を折り返す字の数
 
 // 根のキャプションの行と、本文を描くなら本文の行（大きさの選び方の N 字で折り返す。伸びるなら 30 字）と、根の大きさ
-export function rootBox(root: TreeRoot, size: NodeSize): { w: number; h: number; lines: string[]; body?: RichLine[] } {
+export function rootBox(
+  root: TreeRoot,
+  size: NodeSize,
+): { w: number; h: number; lines: RichLine[]; body?: RichLine[] } {
   const head = nodeSize(root.caption, size)
   if (!root.showBody || !root.body) return head
   const chars = sizeRule(size).chars ?? BODY_GROWS_AT

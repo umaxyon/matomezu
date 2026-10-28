@@ -17,6 +17,7 @@ export {
   inlineClass,
   Problem,
   pairClass,
+  RichBar,
   RichBody,
   RichText,
   rowClass,

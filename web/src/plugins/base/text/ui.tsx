@@ -1,8 +1,9 @@
-// 文字の見た目: 文字の色の設定の項目のビューと、装飾した本文を描くコンポーネント・本文の入力Form
+// 文字の見た目: 文字の色の設定の項目のビューと、装飾した本文を描くコンポーネント・装飾のボックス・本文の入力Form
 
 import { TextColorsSetting } from "./TextColorsSetting"
 import { BOOK_TEXT_COLORS } from "./text-colors"
 
+export { RichBar } from "./RichBar"
 export { RichBody } from "./RichBody"
 export { RichText } from "./RichText"
 
