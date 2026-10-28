@@ -5,6 +5,7 @@ import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
+import { pageFieldsInput } from "./page-fields"
 import { TREE_TOOLS } from "./tools"
 
 // ツリーの見せ方: 紙の上に、根から伸びる木を描く
@@ -24,6 +25,7 @@ export const TREE = kit.defineBookType({
   single: false,
   create: init => ({ ...init, pages: [] }),
   addPagesFromTabs: true,
+  pageFieldsInput, // 根は作るときに子ごと受けて id を振り、直すときは根のキャプションと本文だけ
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
     fields: { root: TreeRootSchema },

@@ -314,9 +314,9 @@ test("連携ポイントは型の宣言だけを持つ（最上位は declare mo
   expect(bad).toEqual([])
 })
 
-test("アクションは同じ入力なら同じ結果: アクションを定義するファイルは時刻と乱数を直に使わない（ctx.now と ctx.newId を使う）", () => {
+test("アクションは同じ入力なら同じ結果: アクションと、アクションの中で動くページのフィールドの受け方を定義するファイルは、時刻と乱数を直に使わない（ctx.now と ctx.newId を使う）", () => {
   const defining = [...sources, ...added].filter(
-    f => /\bdefineAction\s*\(/.test(f.text) && !f.path.endsWith("def/action.ts"),
+    f => /\bdefineAction\s*\(|\bpageFieldsInput\b|\bpageFieldsWay\b/.test(f.text) && !f.path.endsWith("def/action.ts"),
   )
   expect(defining.length).toBeGreaterThan(0)
   const bad = defining

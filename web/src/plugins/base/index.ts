@@ -29,6 +29,7 @@ export { PAPER_IDS, PAPERS } from "./looks"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export type { MinimapMark } from "./minimap/marks"
 export { addPageIn } from "./page-tabs/add-page"
+export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Edges, GrowFrom } from "./place/items"
 export {

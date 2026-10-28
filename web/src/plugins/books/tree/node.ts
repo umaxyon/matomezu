@@ -1,5 +1,5 @@
 // ツリーの節のデータ: ページのフィールド root（根）に、子を children の入れ子で持つ。位置は持たず、並べ方から決める（layout.ts）。
-// 根はキャプションと本文を持ち、子は id とキャプションを持つ
+// 根はキャプションと本文を持ち、子は id とキャプションを持つ。子の id は呼び出す側が書かず、アクションが振る（page-fields.ts）
 import { z } from "zod"
 import { BODY_MAX } from "../../base"
 

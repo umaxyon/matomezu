@@ -118,30 +118,27 @@ test("根を渡さずにページは作れない（根はツリーのページ�
   })
 })
 
+// ページを作る（base の page-add）。結果の fields に、振った子の id が同じ入れ子で返る
+function addTree(store: ReturnType<typeof setup>["store"], id: string, root: unknown) {
+  let done: ReturnType<typeof store.actions.perform> | undefined
+  act(() => {
+    done = store.actions.perform("@matomezu/base:page-add", { title: "p1", fields: { root } }, { book: id })
+  })
+  if (!done?.ok) throw new Error("page-add refused")
+  return done.result as { page: string; fields?: { root: { children: { id: string; children?: { id: string }[] }[] } } }
+}
+
 test("子は根から伸びる向きへ描き、親から子へ線を引く。伸びる向きを変えると並べ直す", () => {
   const { store, id } = setup()
-  act(() => {
-    expect(
-      addPageIn(store, "s1", {
-        title: "p1",
-        fields: {
-          root: {
-            caption: "根",
-            children: [
-              { id: "a", caption: "子 A" },
-              { id: "b", caption: "子 B" },
-            ],
-          },
-        },
-      }),
-    ).toBe(true)
-  })
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }, { caption: "子 B" }] })
+  const [a, b] = done.fields!.root.children.map(c => c.id)
   const paper = screen.getByRole("img", { name: "紙" })
   const node = (n: string) => paper.querySelector(`[data-node="${n}"]`) as HTMLElement
-  expect(node("a").textContent).toBe("子 A")
+  expect(node(a!).textContent).toBe("子 A")
+  expect(node(b!).textContent).toBe("子 B")
   expect(paper.querySelectorAll("line")).toHaveLength(2)
   const top = (n: string) => Number.parseFloat(node(n).style.top)
-  expect(top("a")).toBeGreaterThan(top("root")) // 既定は下へ
+  expect(top(a!)).toBeGreaterThan(top("root")) // 既定は下へ
   const page = (store.state.getState().books[id] as { pages: { id: string }[] }).pages[0]!.id
   act(() => {
     store.actions.perform(
@@ -150,12 +147,91 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
       { book: id },
     )
   })
-  expect(top("a")).toBeLessThan(top("root"))
+  expect(top(a!)).toBeLessThan(top("root"))
 })
 
-test("AI に見せる page-add の fields には、ツリーの根の形（入れ子の子）が入る", () => {
+test("ページを作るとき、根の子は id を書かずに入れ子で渡し、ツリーが全部に重ならない id を振って、結果に同じ入れ子で返す。id を書いた子は断る", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, {
+    caption: "根",
+    body: "本文",
+    children: [{ caption: "子 A", children: [{ caption: "孫" }] }, { caption: "子 B" }],
+  })
+  const ids = done.fields!.root.children
+  const all = [ids[0]!.id, ids[0]!.children![0]!.id, ids[1]!.id]
+  expect(new Set(all).size).toBe(3)
+  expect(book().pages[0]).toMatchObject({
+    id: done.page,
+    root: {
+      caption: "根",
+      body: "本文",
+      children: [
+        { id: all[0], caption: "子 A", children: [{ id: all[1], caption: "孫" }] },
+        { id: all[2], caption: "子 B" },
+      ],
+    },
+  })
+  act(() => {
+    const given = { caption: "根", children: [{ id: "x", caption: "子" }] }
+    expect(
+      store.actions.perform("@matomezu/base:page-add", { title: "p2", fields: { root: given } }, { book: id }).ok,
+    ).toBe(false)
+  })
+})
+
+test("ページを直すとき、根は書いたキャプションと本文だけが替わり（本文の null は消す）、子はそのまま残る。子は渡せない", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "社長", body: "本文", children: [{ caption: "子 A" }] })
+  const update = (root: Record<string, unknown>) =>
+    store.actions.perform("@matomezu/base:page-update", { page: done.page, fields: { root } }, { book: id }).ok
+  act(() => {
+    expect(update({ caption: "代表" })).toBe(true)
+  })
+  expect(book().pages[0]).toMatchObject({ root: { caption: "代表", body: "本文", children: [{ caption: "子 A" }] } })
+  act(() => {
+    expect(update({ body: null })).toBe(true)
+    expect(update({ children: [] })).toBe(false)
+  })
+  expect(book().pages[0]).toMatchObject({ root: { caption: "代表", children: [{ caption: "子 A" }] } })
+  expect(book().pages[0]).not.toHaveProperty("root.body")
+})
+
+test("AI に見せる fields は、作るときは id の無い入れ子の子を含み、直すときは根のキャプションと本文だけ", () => {
   const { store } = setup()
-  const schema = JSON.stringify(z.toJSONSchema(fieldsArgs(store.catalog.core), { io: "input" }))
-  expect(schema).toContain("page fields of @matomezu/tree:tree books")
-  expect(schema).toContain("children")
+  const add = JSON.stringify(z.toJSONSchema(fieldsArgs(store.catalog.core, "add"), { io: "input" }))
+  expect(add).toContain("page fields of @matomezu/tree:tree books")
+  expect(add).toContain("children")
+  expect(add).not.toContain('"id"')
+  const update = JSON.stringify(z.toJSONSchema(fieldsArgs(store.catalog.core, "update"), { io: "input" }))
+  expect(update).toContain("Children do not change here")
+  expect(update).not.toContain("children")
+})
+
+test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のもとの並びで作ると、同じ id の木になる", () => {
+  const make = () => {
+    let n = 0
+    const store = createMatomezu({
+      home: "@matomezu/master:master",
+      lang: "ja",
+      plugins: BUILTIN_UI,
+      newId: () => `id${String(n++).padStart(8, "0")}`,
+    })
+    let book = ""
+    act(() => {
+      const made = store.actions.perform("@matomezu/base:book-create", { title: "木", type: "@matomezu/tree:tree" })
+      book = (made as { result: { book: string } }).result.book
+      store.actions.perform(
+        "@matomezu/base:page-add",
+        {
+          title: "p1",
+          fields: { root: { caption: "根", children: [{ caption: "子", children: [{ caption: "孫" }] }] } },
+        },
+        { book },
+      )
+    })
+    return store.state.getState().books[book]
+  }
+  const first = make()
+  expect(first).toMatchObject({ pages: [{ root: { children: [{ caption: "子", children: [{ caption: "孫" }] }] } }] })
+  expect(make()).toEqual(first)
 })

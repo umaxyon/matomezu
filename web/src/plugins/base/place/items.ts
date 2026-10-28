@@ -6,7 +6,6 @@ import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData, ShapeItemDef } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
-import { freshId } from "../../../core/ids"
 import { resolvePaper } from "../../../core/paper"
 import {
   connectorsOf,
@@ -20,6 +19,7 @@ import {
 } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { type PageContext, settingsAt } from "../book-settings"
+import { contentIdMaker } from "../utils/ids"
 import { connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, tidyConnectors as tidyItems } from "./placed"
 import { apart, evenGap, type Floors, type Gap, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
 
@@ -98,21 +98,9 @@ export const gapOf = (catalog: CoreCatalog, page: ItemPage): Gap => connectorGap
 export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, book: PagedBook, page: P): P =>
   tidyItems(catalog, page, settingsAt(catalog, book, page))
 
-// アイテムの中身のフィールド（項目 props のほかの、id を持つ物の並び。リストの行など）に入っている物の id
-function innerIds(item: PlacedItem): string[] {
-  return Object.entries(item).flatMap(([key, value]) =>
-    key !== "props" && Array.isArray(value)
-      ? value.flatMap(c => (typeof (c as { id?: unknown })?.id === "string" ? [(c as { id: string }).id] : []))
-      : [],
-  )
-}
-
-// 次に置くアイテム（リストの行など、中身のフィールドの物も）の id（newId から振る。ブックの全部のページの、アイテムとその中身で重ならない）
+// 次に置くアイテムの id（newId から振る。ブックの全部のページの中身の、どの深さの id とも重ならない。utils/ids.ts の contentIdMaker で振る）
 export function nextItemId(book: PagedBook, newId: () => string): string {
-  return freshId(
-    newId,
-    book.pages.flatMap(p => pageItemsOf(p).flatMap(i => [i.id, ...innerIds(i)])),
-  )
+  return contentIdMaker(book, newId)()
 }
 
 // 置く前のアイテムの大きさ（定義の大きさ。表に無いアイテムと、大きさを持たないアイテムは null）

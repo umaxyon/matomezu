@@ -9,7 +9,17 @@ export * from "../plugin-api"
 import type {} from "../plugins"
 
 // base の置く計算・文字と、base が拡張ポイントに書き足した物の型（ビルトインプラグインは plugins/base から読む）
-export type { Axis, Edges, Gap, GrowFrom, MinimapMark, PageContext, PortArea, Ports } from "../plugins/base"
+export type {
+  Axis,
+  Edges,
+  Gap,
+  GrowFrom,
+  MinimapMark,
+  PageContext,
+  PageFieldsWay,
+  PortArea,
+  Ports,
+} from "../plugins/base"
 export {
   AlignSchema,
   adaptPage,
@@ -33,6 +43,7 @@ export {
   nextItemId,
   PLACE_LINES,
   pageContext,
+  pageFieldsWay,
   paperSize,
   placedAt,
   placedSize,
