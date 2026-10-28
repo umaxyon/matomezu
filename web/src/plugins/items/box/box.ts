@@ -4,9 +4,9 @@
 // 置くときは、置く所を覚えて追加のダイアログ（box-add）を開き、中身を決めてから置く。中身は編集のダイアログ（box-edit）で変える
 import { z } from "zod"
 import { HEX, PALETTE, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
-import { textProps } from "../../base"
+import { NEST_PADDING, textProps } from "../../base"
 import { kit } from "./kit"
-import { BOX_MIN, BOX_SIZE, placedHeight, placedWidth } from "./size"
+import { BOX_MIN, BOX_SIZE, headHeight, placedHeight, placedWidth } from "./size"
 
 // 箱の塗りのテーマキー（色の見本の「なし」もこの色）
 export const BOX_FILL = { id: kit.name("box-fill"), fallback: "fill" } as const
@@ -62,10 +62,12 @@ export const BOX = kit.defineShape({
   dialogs: { add: BOX_ADD_DIALOG.id, edit: BOX_EDIT_DIALOG.id },
 })
 
-// 内包ボックス: 箱と同じ見た目で、子の形を持てる（能力 nests）。子があれば、w・h は大きさの下限になる（子まで入る大きさは base が決める）
+// 内包ボックス: 箱と同じ見た目で、子の形を持てる（能力 nests）。子があれば、w・h は大きさの下限になる（子まで入る大きさは base が決める）。
+// 子の領域は、キャプションと本文を全部出した下から（左は NEST_PADDING）
 export const NEST_BOX = kit.defineShape({
   ...BOX_BASE,
   id: "shape-nest-box",
   capabilities: ["connectable", "resizable", "nests"],
   dialogs: { add: NEST_BOX_ADD_DIALOG.id, edit: BOX_EDIT_DIALOG.id },
+  childOrigin: box => ({ x: NEST_PADDING, y: headHeight(box.props, box.w ?? placedWidth(box.props)) }),
 })

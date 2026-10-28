@@ -33,6 +33,18 @@ export type { MinimapMark } from "./minimap/marks"
 export { addPageIn } from "./page-tabs/add-page"
 export { type PageFieldsWay, pageFieldsWay } from "./page-tabs/page-fields"
 export type { PageProblem } from "./page-tabs/page-problems"
+export type { Frame } from "./place/frame"
+export {
+  CHILD_AREA,
+  childOrigin,
+  commitChildren,
+  frameAround,
+  frameOf,
+  placeChild,
+  replaceChild,
+  settleChildren,
+  toData,
+} from "./place/frame"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Edges, GrowFrom } from "./place/items"
 export {
@@ -61,7 +73,7 @@ export {
   withPage,
 } from "./place/items"
 export type { PortArea, Ports } from "./place/placed"
-export { placedSize, portAreasOf, rectsOf } from "./place/placed"
+export { NEST_PADDING, placedSize, portAreasOf, rectsOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
 export {

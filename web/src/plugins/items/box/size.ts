@@ -47,3 +47,9 @@ export function placedHeight(props: BoxProps, w: number): number {
   const lines = Math.min(wrap(props.body, innerWidth(w), L.body).length, PLACE_LINES)
   return Math.max(BOX_SIZE.h, HEAD + (props.rule ? RULE : 0) + lines * L.line)
 }
+
+// キャプションと本文を全部出す高さ（本文は幅 w で折り返す。内包ボックスの子の領域はこの下から）
+export function headHeight(props: BoxProps, w: number): number {
+  if (props.body === "") return HEAD
+  return HEAD + (props.rule ? RULE : 0) + wrap(props.body, innerWidth(w), L.body).length * L.line
+}

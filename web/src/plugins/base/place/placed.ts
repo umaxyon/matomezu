@@ -2,7 +2,7 @@
 // 形とつなぐものの定義オブジェクトに、ここで読むフィールドとメソッドを書き足す（定義オブジェクトの拡張ポイント）
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ConnectorItemDef, ShapeData, ShapeItemDef } from "../../../core/def/item"
-import type { Rect, Size } from "../../../core/geom"
+import type { Point, Rect, Size } from "../../../core/geom"
 import {
   connectorsOf,
   type ItemPage,
@@ -34,6 +34,8 @@ declare module "../../../core/catalog" {
     portsOf?(item: D): Ports // 置いた形のデータで変わるつなぎ口（あれば ports より先に使う）
     // 置いたアイテムの大きさ（w・h が無ければ、項目から決まる幅と高さ）。無ければ置いたときの w・h、それも無ければ size
     sizeOf?(item: D): Size
+    // 子の形を持つ形の、子の領域の左上（形の左上から。キャプションや本文の下など）。無ければ左と上から NEST_PADDING
+    childOrigin?(item: D): Point
   }
   interface ConnectorItemExtras<D extends ConnectorData = ConnectorData> {
     gaps?(lines: readonly D[], base: Gap): Gap // つないだ組の間隔の下限（base に重ねる）

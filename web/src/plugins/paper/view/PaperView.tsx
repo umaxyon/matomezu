@@ -29,6 +29,7 @@ import {
   type Point,
   paperOf,
   placement,
+  type Rect,
   type StageView,
   shapesOf,
   toPaperDelta,
@@ -51,7 +52,7 @@ import {
   useTokenScope,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { type Edges, fitsPaper, itemSize, minSize, placedSize, rectsOf, resizedBy, shownRects } from "../../base"
+import { type Edges, fitsPaper, itemSize, minSize, placedSize, resizedBy, shownRects } from "../../base"
 import { useZoomMotion } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
@@ -221,10 +222,12 @@ function PageItems({
       const id = d.items[0] as string
       d.came = trackDrag(catalog, page, id, d.prev, by, d.came)
       // 入れ替えが起きたら覚える（このドラッグの終わりまで）
-      const now = rectsOf(catalog, page)
       const plan = dragging(catalog, page, id, by, d.came)
-      if ([...(plan ?? [])].some(([k, r]) => k !== id && (r.x !== now.get(k)?.x || r.y !== now.get(k)?.y)))
-        d.swapped = true
+      const moved = ([k, r]: [string, Rect]) => {
+        const now = findShape(page, k)?.shape
+        return k !== id && (r.x !== now?.x || r.y !== now?.y)
+      }
+      if ([...(plan ?? [])].some(moved)) d.swapped = true
     }
     d.prev = by
     setMoved(screen)
