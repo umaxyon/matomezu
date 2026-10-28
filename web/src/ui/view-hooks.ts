@@ -100,11 +100,12 @@ export function useUiCatalog(): UiCatalog {
   return useUi()
 }
 
-// 見る人の設定（言語とスキン）
-export function useSettings(): { lang: Lang; skin: string } {
+// 見る人の設定（言語・スキン・文字の色の上書き）
+export function useSettings(): { lang: Lang; skin: string; textColors: Readonly<Record<string, string>> } {
   const lang = useMatomezuState(s => s.settings.lang)
   const skin = useMatomezuState(s => s.settings.skin)
-  return useMemo(() => ({ lang, skin }), [lang, skin])
+  const textColors = useMatomezuState(s => s.settings.textColors)
+  return useMemo(() => ({ lang, skin, textColors }), [lang, skin, textColors])
 }
 
 // そのステージが開いているブックにアクションを行う関数（ブックが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ

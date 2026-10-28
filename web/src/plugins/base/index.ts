@@ -14,7 +14,15 @@ import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SET
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
-import { SET_KEYS, SET_LANG, SET_SKIN, SET_TEXT_COLORS, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
+import {
+  SET_KEYS,
+  SET_LANG,
+  SET_SKIN,
+  SET_TEXT_COLORS,
+  SETTINGS_LANG,
+  SETTINGS_SKIN,
+  SETTINGS_TEXT_COLOR,
+} from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { BOOK_TEXT_COLORS, TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
@@ -152,6 +160,7 @@ export const BASE = defineBuiltin(
       BOOK_SETTINGS,
       SETTINGS_LANG,
       SETTINGS_SKIN,
+      SETTINGS_TEXT_COLOR,
     ],
     dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG, NEW_BOOK_DIALOG],
     keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...ZOOM_KEYS, ...DIALOG_KEYS, ...MENU_KEYS],
@@ -226,6 +235,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS
     "@matomezu/base:settings-lang": typeof SETTINGS_LANG
     "@matomezu/base:settings-skin": typeof SETTINGS_SKIN
+    "@matomezu/base:settings-text-color": typeof SETTINGS_TEXT_COLOR
   }
   interface DialogTable {
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG

@@ -53,6 +53,7 @@ export function BookName({ stage }: { stage: string }) {
           className={styles.trigger}
           data-current={current}
           aria-label={title || t("Book menu")}
+          aria-haspopup="menu"
           aria-expanded={open}
           title={title || undefined}
           onClick={show}
