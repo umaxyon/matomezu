@@ -4,11 +4,13 @@
 // 中央の木は、根の直系の子がそれぞれの向き（side。無ければ右）へ伸び、孫より下は親の枝の向きに伸びる。
 // 中央の木で隣り合う向きの枝が重なるときは、紙の縦と横の短い方へ伸びる枝（横長の紙なら上下）を根の近くに置いたまま、
 // 長い方へ伸びる枝（横長の紙なら左右）を、重ならない所まで根から離す。それで紙から出るなら、入る限り木全体を余裕のある側へずらす。
-// 節の大きさはキャプション 1 行の幅（base のキャプションの幅。長いキャプションは … で切る）
+// 節の大きさは、節の大きさの選び方（節の size、無ければページで効いている選び方 size.ts）で決める: 伸びるはキャプション 1 行の幅、
+// 折り返すは N 字の幅で折り返した行、最大で固定は N 字の幅まで（超えた分は … で切る）
 import type { Point } from "../../../plugin-api"
-import { captionTextWidth, TEXT_LOOK } from "../../base"
+import { clampLines, TEXT_LOOK, textWidth, wrap } from "../../base"
 import type { Grow } from "./grow"
 import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
+import { DEFAULT_NODE_SIZE, type NodeSize, sizeRule } from "./size"
 
 export const MARGIN = 24 // 根と紙の辺の間
 const LEVEL = 40 // 親と子の間（伸びる向き）
@@ -19,6 +21,7 @@ const MIN_W = 32
 export interface LaidNode {
   id: string
   caption: string
+  lines: string[] // 見せる行（折り返した行・… で切った行）
   x: number
   y: number
   w: number
@@ -33,10 +36,29 @@ export interface TreeLayout {
 
 type Rect = { x: number; y: number; w: number; h: number }
 
-export function nodeSize(caption: string): { w: number; h: number } {
+const FONT = TEXT_LOOK.caption
+const FULL_WIDTH = "国" // 字の数で幅を決めるときの 1 字（全角）
+
+// キャプションを大きさの選び方 size で見せる行と、節の大きさ
+export function nodeSize(
+  caption: string,
+  size: NodeSize = DEFAULT_NODE_SIZE,
+): { w: number; h: number; lines: string[] } {
+  const { mode, chars } = sizeRule(size)
+  const max = chars === null ? Number.POSITIVE_INFINITY : textWidth(FULL_WIDTH.repeat(chars), FONT)
+  const one = caption.replace(/\n/g, " ")
+  const lines =
+    mode === "wrap"
+      ? wrap(caption, max, FONT)
+      : mode === "fixed"
+        ? clampLines(wrap(one, max, FONT), 1, max, FONT)
+        : [one]
+  const shown = lines.length > 0 ? lines : [""]
+  const w = Math.min(max, Math.max(...shown.map(l => textWidth(l, FONT))))
   return {
-    w: Math.max(MIN_W, captionTextWidth(caption) + TEXT_LOOK.padX * 2),
-    h: TEXT_LOOK.line + TEXT_LOOK.padY * 2,
+    w: Math.max(MIN_W, Math.ceil(w) + TEXT_LOOK.padX * 2),
+    h: TEXT_LOOK.line * shown.length + TEXT_LOOK.padY * 2,
+    lines: shown,
   }
 }
 
@@ -47,6 +69,7 @@ const gapOf = (side: Side) => (vertical(side) ? SIBLING_ACROSS_COLUMNS : SIBLING
 interface Measured {
   id: string
   caption: string
+  lines: string[]
   main: number
   cross: number
   span: number
@@ -56,17 +79,19 @@ interface Measured {
 const spanOf = (kids: readonly Measured[], side: Side) =>
   kids.reduce((sum, c) => sum + c.span, 0) + gapOf(side) * Math.max(0, kids.length - 1)
 
-function measure(node: TreeNode, side: Side): Measured {
-  const size = nodeSize(node.caption)
-  const main = vertical(side) ? size.h : size.w
-  const cross = vertical(side) ? size.w : size.h
-  const children = (node.children ?? []).map(c => measure(c, side))
-  return { id: node.id, caption: node.caption, main, cross, span: Math.max(cross, spanOf(children, side)), children }
+// 節 node（大きさの選び方は節の size、無ければ size）を測る
+function measure(node: TreeNode, side: Side, size: NodeSize): Measured {
+  const box = nodeSize(node.caption, node.size ?? size)
+  const main = vertical(side) ? box.h : box.w
+  const cross = vertical(side) ? box.w : box.h
+  const children = (node.children ?? []).map(c => measure(c, side, size))
+  const span = Math.max(cross, spanOf(children, side))
+  return { id: node.id, caption: node.caption, lines: box.lines, main, cross, span, children }
 }
 
 // 四角 parent の side の辺から、子の並び kids を伸ばした節と線（parent 自身は含めない）。extra は、最初の段だけ parent から余分に離す長さ
-function branch(parent: Rect, kids: readonly TreeNode[], side: Side, out: TreeLayout, extra = 0) {
-  const measured = kids.map(k => measure(k, side))
+function branch(parent: Rect, kids: readonly TreeNode[], side: Side, size: NodeSize, out: TreeLayout, extra = 0) {
+  const measured = kids.map(k => measure(k, side, size))
   if (measured.length === 0) return
   // 伸びる向きの位置 at（parent の辺から）と横の位置 across（parent の横の真ん中から）を、紙の上の点にする
   const toPaper = (at: number, across: number): Point => {
@@ -84,7 +109,7 @@ function branch(parent: Rect, kids: readonly TreeNode[], side: Side, out: TreeLa
   }
   const place = (n: Measured, at: number, start: number, from: Point) => {
     const across = start + (n.span - n.cross) / 2
-    out.nodes.push({ id: n.id, caption: n.caption, ...rectOf(at, across, n) })
+    out.nodes.push({ id: n.id, caption: n.caption, lines: n.lines, ...rectOf(at, across, n) })
     out.lines.push({ from, to: toPaper(at, across + n.cross / 2) })
     const tip = toPaper(at + n.main, across + n.cross / 2)
     let next = start + (n.span - spanOf(n.children, side)) / 2
@@ -101,8 +126,8 @@ function branch(parent: Rect, kids: readonly TreeNode[], side: Side, out: TreeLa
 }
 
 // 根の四角（伸びる向きで、紙の辺の中央か真ん中）
-function rootRect(root: TreeRoot, grow: Grow, paper: { w: number; h: number }): Rect {
-  const { w, h } = nodeSize(root.caption)
+function rootRect(root: TreeRoot, grow: Grow, paper: { w: number; h: number }, size: NodeSize): Rect {
+  const { w, h } = nodeSize(root.caption, size)
   if (grow === "down") return { x: (paper.w - w) / 2, y: MARGIN, w, h }
   if (grow === "up") return { x: (paper.w - w) / 2, y: paper.h - MARGIN - h, w, h }
   if (grow === "right") return { x: MARGIN, y: (paper.h - h) / 2, w, h }
@@ -149,22 +174,32 @@ function shiftInto(out: TreeLayout, paper: { w: number; h: number }) {
   }))
 }
 
-export function layoutTree(root: TreeRoot, grow: Grow, paper: { w: number; h: number }): TreeLayout {
-  const r = rootRect(root, grow, paper)
-  const out: TreeLayout = { nodes: [{ id: root.id, caption: root.caption, ...r }], lines: [], fits: true }
+// size はページで効いている節の大きさの選び方（節が自分で選んでいなければ、これに従う）
+export function layoutTree(
+  root: TreeRoot,
+  grow: Grow,
+  paper: { w: number; h: number },
+  size: NodeSize = DEFAULT_NODE_SIZE,
+): TreeLayout {
+  const r = rootRect(root, grow, paper, size)
+  const out: TreeLayout = {
+    nodes: [{ id: root.id, caption: root.caption, lines: nodeSize(root.caption, size).lines, ...r }],
+    lines: [],
+    fits: true,
+  }
   const kids = root.children ?? []
   if (grow === "center") {
     const group = (side: Side) => kids.filter(k => sideOf(k) === side)
     const stays: Side[] = paper.w >= paper.h ? ["up", "down"] : ["left", "right"]
-    for (const side of stays) branch(r, group(side), side, out)
+    for (const side of stays) branch(r, group(side), side, size, out)
     const near = out.nodes.slice(1)
     for (const side of SIDE_NAMES.filter(s => !stays.includes(s))) {
       const trial: TreeLayout = { nodes: [], lines: [], fits: true }
-      branch(r, group(side), side, trial)
-      branch(r, group(side), side, out, pushOut(trial.nodes, near, side))
+      branch(r, group(side), side, size, trial)
+      branch(r, group(side), side, size, out, pushOut(trial.nodes, near, side))
     }
     shiftInto(out, paper)
-  } else branch(r, kids, grow, out)
+  } else branch(r, kids, grow, size, out)
   out.fits = out.nodes.every(n => n.x >= 0 && n.y >= 0 && n.x + n.w <= paper.w && n.y + n.h <= paper.h)
   return out
 }

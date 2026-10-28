@@ -1,5 +1,5 @@
 // ツリーのブック: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分の見せ方（tree）で紙に描く。紙に置けるアイテムは無い。
-// 伸びる向きはブックとページの設定の項目（grow.ts）。新しいページは自分のダイアログで作る（ページ名・伸びる向き・根のキャプション）。道具は自分の組（tools.ts。編集とハンド）。
+// 伸びる向きと節の大きさの選び方は、ブックとページの設定の項目（grow.ts・size.ts）。新しいページは自分のダイアログで作る（ページ名・伸びる向き・根のキャプション）。道具は自分の組（tools.ts。編集とハンド）。
 // 見た目（テーマと紙の色）は base の設定の項目で変えられる
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_THEME, PAPER_IDS } from "../../base"
@@ -23,6 +23,9 @@ export const TREE_CONTEXT = kit.name("tree-context")
 
 // 節の右クリックのメニュー（右クリックした節を選んでから開く。ui.tsx で core/catalog.ts に書き足す）
 export const NODE_CONTEXT = kit.name("node-context")
+
+// 子の節の大きさの選び方を変えるダイアログ（開いたステージのブックの、ページ page の節 node）
+export const NODE_SIZE_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({ id: "node-size-edit" })
 
 export const TREE = kit.defineBookType({
   id: "tree",
@@ -54,7 +57,7 @@ export const TREE = kit.defineBookType({
   ],
   tools: TREE_TOOLS.id,
   settings: {
-    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, kit.name("grow")],
-    page: [kit.name("grow")],
+    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, kit.name("grow"), kit.name("node-size")],
+    page: [kit.name("grow"), kit.name("node-size")],
   },
 })

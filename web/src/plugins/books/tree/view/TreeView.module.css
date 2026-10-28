@@ -37,9 +37,8 @@
   font-size: 13px;
   font-weight: 700;
   line-height: 18px;
-  white-space: nowrap;
+  white-space: pre; /* 行は並べ方が決める（折り返し・… で切るのも並べ方） */
   overflow: hidden;
-  text-overflow: ellipsis;
   text-align: center;
 }
 /* ページが無いとき: 真ん中に知らせとページを作るボタン */

@@ -1,15 +1,15 @@
 // ツリーのコマンド: 上下左右のキーで、選んでいる節を動かす（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ）と、
 // Enter で、選んでいる節のキャプションをその場で書き始める。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
-// 消したら、前の兄弟、無ければ親を選ぶ）。編集の道具の間だけ。キーはツリーの見せ方の範囲（ステージの範囲より先に探す）
+// 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーの見せ方の範囲（ステージの範囲より先に探す）
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { settingValue } from "../../base"
-import { NODE_REMOVE } from "./actions"
+import { NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { type Arrow, afterRemove, moveFrom, selectedIn } from "./edit"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
 import { EDIT_TOOL } from "./tools"
-import { TREE_KEYS_SCOPE } from "./tree"
+import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE } from "./tree"
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
 function treeAt(ctx: CommandContext) {
@@ -60,6 +60,25 @@ export const NODE_DELETE = kit.defineCommand({
     if (!next) return
     if (a.perform(NODE_REMOVE.id, { page: tree.page.id, node }, { book: opened.book }).ok)
       a.select(ctx.stage.id, [next])
+  },
+  when: ctx => {
+    const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null
+    return tree !== null && selectedIn(tree.root, ctx.stage.selection) !== tree.root.id
+  },
+})
+
+// 選んでいる子の節の大きさの選び方を変えるダイアログを開く（根を選んでいるときと、その場の編集中は出さない。根はページの設定で変える）
+export const NODE_SIZE_EDIT = kit.defineCommand({
+  id: "node-size-edit",
+  performs: [NODE_UPDATE.id],
+  title: "Node size",
+  run: (ctx, a) => {
+    const tree = treeAt(ctx)
+    if (!tree) return
+    a.openDialog(ctx.stage.id, NODE_SIZE_DIALOG.id, {
+      page: tree.page.id,
+      node: selectedIn(tree.root, ctx.stage.selection),
+    })
   },
   when: ctx => {
     const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null

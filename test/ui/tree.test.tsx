@@ -414,7 +414,7 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
     within(menu)
       .getAllByRole("menuitem")
       .map(m => m.textContent),
-  ).toEqual(["キャプションを書くEnter", "削除Delete"]) // キーを添える
+  ).toEqual(["キャプションを書くEnter", "節の大きさ", "削除Delete"]) // キーを添える
   fireEvent.click(within(menu).getByRole("menuitem", { name: /^削除/ }))
   expect(kids()).toEqual([a])
   expect(selected()).toBe(a)
@@ -527,4 +527,35 @@ test("向きを変えると紙に入らなくなるなら、ページとブッ�
   )
   expect(within(dialog).queryByRole("alert")).toBeNull()
   expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+test("節の大きさ: ページの設定で選び方を変えると並べ直し、節のメニューの「節の大きさ」でその節だけ選べる（根には出さない）", () => {
+  const { store, id, book } = setup()
+  const long = "とても長いキャプションでこの節の幅を広げてしまう文"
+  const done = addTree(store, id, { caption: "根", children: [{ caption: long }] })
+  const a = done.fields!.root.children[0]!.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const node = () => paper().querySelector(`[data-node="${a}"]`) as HTMLElement
+  expect(node().textContent!.endsWith("…")).toBe(true) // 既定は 20 字で固定
+  act(() => {
+    store.actions.perform(
+      "@matomezu/base:page-update",
+      { page: done.page, settings: { "@matomezu/tree:node-size": "wrap-10" } },
+      { book: id },
+    )
+  })
+  expect(node().textContent).toContain("\n")
+  fireEvent.contextMenu(paper().querySelector('[data-root="true"]')!)
+  expect(within(screen.getByRole("menu")).queryByRole("menuitem", { name: /^節の大きさ/ })).toBeNull()
+  fireEvent.keyDown(window, { key: "Escape" })
+  fireEvent.contextMenu(node())
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /^節の大きさ/ }))
+  const dialog = screen.getByRole("dialog", { name: "節の大きさ" })
+  const select = within(dialog).getByRole("combobox", { name: "節の大きさ" }) as HTMLSelectElement
+  expect(select.value).toBe("") // 継承
+  expect(select.options[0]!.textContent).toBe("ページを継承（10 字で折り返す）")
+  fireEvent.change(select, { target: { value: "grow" } })
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, size: "grow" }] } })
+  expect(node().textContent).toBe(long)
 })

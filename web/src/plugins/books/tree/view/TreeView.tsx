@@ -24,10 +24,11 @@ import { settingValue } from "../../../base"
 import { useResize } from "../../../base/ui"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { afterRemove, centerShift, editEnd, type Plus, plusesOf, plusPoint, selectedIn, withCaption } from "../edit"
-import { GROW, type Grow } from "../grow"
+import { GROW } from "../grow"
 import { kit } from "../kit"
 import { layoutTree } from "../layout"
 import { TreeRootSchema } from "../node"
+import { DEFAULT_NODE_SIZE, NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, TREE_CONTEXT } from "../tree"
 import styles from "./TreeView.module.css"
@@ -96,7 +97,8 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const refused = () => showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
-  const grow = book && page ? (settingValue(catalog, book, page, GROW.id) as Grow) : "down"
+  const setting = (id: string) => (book && page ? settingValue(catalog, book, page, id) : undefined)
+  const grow = GROW.schema.safeParse(setting(GROW.id)).data ?? "down"
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root.success ? selectedIn(root.data, stage.selection) : null
   const writing = usingEdit && stage.editing && selected !== null
@@ -105,7 +107,8 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const ended = useRef(false)
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
-  const laid = shown ? layoutTree(shown, grow, paper) : null
+  const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
+  const laid = shown ? layoutTree(shown, grow, paper, size) : null
   const at = laid?.nodes.find(n => n.id === selected)
   useCentered(stage, usingEdit ? at : undefined, view, panStageBy)
   if (!book || !page || !root.success || !laid || !selected) return null
@@ -184,7 +187,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
             setEditing(stage.id, true)
           }}
         >
-          {n.caption}
+          {n.lines.join("\n")}
         </div>
       ))}
       {writing && at && (

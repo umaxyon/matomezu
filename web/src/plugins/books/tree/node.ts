@@ -1,8 +1,10 @@
 // ツリーの節のデータ: ページのフィールド root（根）に、子を children の入れ子で持つ。位置は持たず、並べ方から決める（layout.ts）。
 // 根は id・キャプション・本文を持ち、子は id とキャプションを持つ。id は呼び出す側が書かず、アクションが振る（足すときに受ける形は NewNodeSchema）。
-// 根の直系の子は、中央の木でどの向きへ伸びるか（side。無ければ右）を持てる。ほかの向きの木と、孫より下では使わない
+// 根の直系の子は、中央の木でどの向きへ伸びるか（side。無ければ右）を持てる。ほかの向きの木と、孫より下では使わない。
+// 子は大きさの選び方（size。無ければページで効いている選び方）を持てる
 import { z } from "zod"
 import { BODY_MAX } from "../../base"
+import { NODE_SIZES, type NodeSize } from "./size"
 
 export const SIDE_NAMES = ["up", "down", "left", "right"] as const
 export type Side = (typeof SIDE_NAMES)[number]
@@ -11,6 +13,7 @@ export interface TreeNode {
   id: string
   caption: string
   side?: Side
+  size?: NodeSize
   children?: TreeNode[]
 }
 
@@ -21,6 +24,7 @@ export const TreeNodeSchema: z.ZodType<TreeNode> = z.strictObject({
   id: z.string().min(1),
   caption: z.string(),
   side: z.enum(SIDE_NAMES).optional(),
+  size: z.enum(NODE_SIZES).optional(),
   get children() {
     return z.array(TreeNodeSchema).optional()
   },

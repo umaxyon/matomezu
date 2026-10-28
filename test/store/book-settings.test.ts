@@ -90,6 +90,7 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
       "@matomezu/base:book-theme",
       "@matomezu/base:book-paper-color",
       "@matomezu/tree:grow",
+      "@matomezu/tree:node-size",
     ],
   })
 })

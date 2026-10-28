@@ -138,3 +138,34 @@ test("中央の木が紙からはみ出るとき、木全体が入るなら、�
   expect(at(one, "r").x).toBeLessThan((700 - at(one, "r").w) / 2) // 根が左へずれた
   expect(layoutTree(long(1), "center", { w: 300, h: 400 }).fits).toBe(false)
 })
+
+test("節の大きさの選び方: 伸びるは 1 行の幅、N 字で固定は N 字の幅までで超えた分を … で切り、N 字で折り返すは N 字の幅で折り返して高くなる", () => {
+  const long = "とても長いキャプションでこの節の幅を広げてしまう文"
+  const grow = nodeSize(long, "grow")
+  const fixed = nodeSize(long, "fixed-10")
+  const wrapped = nodeSize(long, "wrap-10")
+  expect(grow.lines).toEqual([long])
+  expect(fixed.lines).toHaveLength(1)
+  expect(fixed.lines[0]!.endsWith("…")).toBe(true)
+  expect(fixed.w).toBeLessThan(grow.w)
+  expect(wrapped.lines.length).toBeGreaterThan(1)
+  expect(wrapped.lines.join("")).toBe(long)
+  expect(wrapped.h).toBeGreaterThan(fixed.h)
+  expect(wrapped.w).toBe(fixed.w) // どちらも 10 字の幅まで
+  expect(nodeSize("短い", "fixed-10")).toEqual(nodeSize("短い", "grow")) // 幅に収まれば同じ
+})
+
+test("節の大きさは、節が選んでいればそれ、無ければページで効いている選び方で決める", () => {
+  const long = "とても長いキャプションでこの節の幅を広げてしまう文"
+  const tree = {
+    id: "r",
+    caption: "根",
+    children: [
+      { id: "a", caption: long },
+      { id: "b", caption: long, size: "grow" as const },
+    ],
+  }
+  const l = layoutTree(tree, "down", PAPER, "wrap-10")
+  expect(at(l, "a").h).toBeGreaterThan(at(l, "b").h)
+  expect(at(l, "b").w).toBe(nodeSize(long, "grow").w)
+})
