@@ -9,7 +9,7 @@ export const LINE_SHAPES = ["straight", "elbow", "curve"] as const
 export type LineShape = (typeof LINE_SHAPES)[number]
 
 // 何も選んでいないときの形
-export const DEFAULT_LINE_SHAPE: LineShape = "straight"
+export const DEFAULT_LINE_SHAPE: LineShape = "elbow"
 
 export const LINE_SHAPE = kit.defineSetting({
   id: "line-shape",

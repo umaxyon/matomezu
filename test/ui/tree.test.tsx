@@ -659,7 +659,7 @@ test("線の形: ページの設定で曲線を選ぶと、親から子への線
   const { store, id } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
   const path = () => screen.getByRole("img", { name: "紙" }).querySelector("svg path")!.getAttribute("d")!
-  expect(path()).toContain(" L")
+  expect(path()).toContain(" V") // 既定は折れ線
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",
@@ -668,4 +668,26 @@ test("線の形: ページの設定で曲線を選ぶと、親から子への線
     )
   })
   expect(path()).toContain(" C")
+})
+
+test("編集の道具では 125% で、選んでいる節のほかを少し暗くし、Home で根を選ぶ。ハンドにすると 100% に戻り、暗くしない", () => {
+  const { store, id } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子", children: [{ caption: "孫" }] }] })
+  const zoom = () => store.state.getState().workspace.stages[0]!.zoom
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const selected = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")
+  expect(zoom()).toBe(1.25)
+  expect(paper().querySelectorAll("[data-spotlight]")).toHaveLength(1)
+  const grand = done.fields!.root.children[0]!.children![0]!.id
+  fireEvent.pointerDown(paper().querySelector(`[data-node="${grand}"]`)!, { button: 0 })
+  expect(selected()).toBe(grand)
+  fireEvent.keyDown(window, { key: "Home" })
+  expect(selected()).toBe(done.fields!.root.id)
+  fireEvent.click(screen.getByRole("button", { name: "編集ツール" }))
+  expect(zoom()).toBe(1)
+  expect(paper().querySelectorAll("[data-spotlight]")).toHaveLength(0)
+  // ハンドでは根を選ぶコマンドが使えないので、Home はステージの範囲の「見え方を戻す」に進む
+  act(() => store.actions.zoomStage("s1", 0.75))
+  fireEvent.keyDown(window, { key: "Home" })
+  expect(zoom()).toBe(1)
 })

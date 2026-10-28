@@ -175,13 +175,17 @@ test("節の大きさは、節が選んでいればそれ、無ければペー�
   expect(at(l, "b").w).toBe(nodeSize(long, "grow").w)
 })
 
-test("節の形が下線で左右へ伸びる枝は、線を節の下の辺（下線）の端につなぐ。上下へ伸びる枝は箱と同じ", () => {
+test("節の形が下線で左右へ伸びる枝は、線を子の節の下の辺（下線）の端につなぐ（根からは根の辺の真ん中から）。上下へ伸びる枝は箱と同じ", () => {
   const tree = { id: "r", caption: "根", children: [{ id: "a", caption: "子 A" }] }
   const box = layoutTree(tree, "right", PAPER, "fixed-20", "box")
   const line = layoutTree(tree, "right", PAPER, "fixed-20", "underline")
   const a = at(line, "a")
   const r = at(line, "r")
-  expect(line.lines[0]).toEqual({ from: { x: r.x + r.w, y: r.y + r.h }, to: { x: a.x, y: a.y + a.h }, side: "right" })
+  expect(line.lines[0]).toEqual({
+    from: { x: r.x + r.w, y: r.y + r.h / 2 },
+    to: { x: a.x, y: a.y + a.h },
+    side: "right",
+  })
   expect(box.lines[0]!.to.y).toBe(a.y + a.h / 2)
   expect(layoutTree(tree, "down", PAPER, "fixed-20", "underline").lines).toEqual(
     layoutTree(tree, "down", PAPER, "fixed-20", "box").lines,
