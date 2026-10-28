@@ -4,7 +4,7 @@
 // 子は大きさの選び方（size。無ければページで効いている選び方）を持てる。どの節も色（color。代表色の名前か #rrggbb。無ければテーマの塗り）を持てる
 import { z } from "zod"
 import { HEX, PALETTE } from "../../../plugin-api"
-import { BODY_MAX } from "../../base"
+import { bodyText } from "../../base"
 import { NODE_SIZES, type NodeSize } from "./size"
 
 export const SIDE_NAMES = ["up", "down", "left", "right"] as const
@@ -39,7 +39,7 @@ export const TreeNodeSchema: z.ZodType<TreeNode> = z.strictObject({
 export const TreeRootSchema = z.strictObject({
   id: z.string().min(1),
   caption: z.string(),
-  body: z.string().max(BODY_MAX).optional(),
+  body: bodyText().optional(),
   showBody: z.boolean().optional(), // 本文を紙の上に描くか（無ければ描かない）
   color: NodeColorSchema.optional(),
   children: z.array(TreeNodeSchema).optional(),

@@ -7,7 +7,7 @@
 // 節の大きさは、節の大きさの選び方（節の size、無ければページで効いている選び方 size.ts）で決める: 伸びるはキャプション 1 行の幅、
 // 折り返すは N 字の幅で折り返した行、最大で固定は N 字の幅まで（超えた分は … で切る）
 import type { Point } from "../../../plugin-api"
-import { clampLines, TEXT_LOOK, textWidth, wrap } from "../../base"
+import { clampLines, type RichLine, richWidth, TEXT_LOOK, textWidth, wrap, wrapRich } from "../../base"
 import type { Grow } from "./grow"
 import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
 import { DEFAULT_NODE_SHAPE, type NodeShape } from "./shape"
@@ -23,7 +23,7 @@ export interface LaidNode {
   id: string
   caption: string
   lines: string[] // 見せる行（折り返した行・… で切った行）
-  body?: string[] // 根の本文の行（本文を描くときだけ）
+  body?: RichLine[] // 根の本文の行（装飾の区切りの並び。本文を描くときだけ）
   color?: string // 節の色（無ければテーマの塗り）
   x: number
   y: number
@@ -146,13 +146,13 @@ const BODY_FONT = TEXT_LOOK.body
 const BODY_GROWS_AT = 30 // 伸びる根の本文を折り返す字の数
 
 // 根のキャプションの行と、本文を描くなら本文の行（大きさの選び方の N 字で折り返す。伸びるなら 30 字）と、根の大きさ
-export function rootBox(root: TreeRoot, size: NodeSize): { w: number; h: number; lines: string[]; body?: string[] } {
+export function rootBox(root: TreeRoot, size: NodeSize): { w: number; h: number; lines: string[]; body?: RichLine[] } {
   const head = nodeSize(root.caption, size)
   if (!root.showBody || !root.body) return head
   const chars = sizeRule(size).chars ?? BODY_GROWS_AT
   const max = textWidth(FULL_WIDTH.repeat(chars), BODY_FONT)
-  const body = wrap(root.body, max, BODY_FONT)
-  const widest = Math.max(...body.map(l => textWidth(l, BODY_FONT)))
+  const body = wrapRich(root.body, max, BODY_FONT)
+  const widest = Math.max(...body.map(l => richWidth(l, BODY_FONT)))
   return {
     w: Math.max(head.w, Math.ceil(Math.min(max, widest)) + TEXT_LOOK.padX * 2),
     h: head.h + TEXT_LOOK.line * body.length + TEXT_LOOK.ruleGap * 2 + 1,

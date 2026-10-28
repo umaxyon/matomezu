@@ -21,17 +21,20 @@ export const TEXT_LOOK = {
   body: { size: 13, weight: 400 } satisfies Font,
 } as const
 
-// 文字の項目の形（既定を付ける前）。使う側が既定を付ける（キャプションの寄せの既定は形ごとに違う）
-export const textFields = () => ({
-  caption: z.string(),
-  rule: z.boolean(), // キャプションと本文の間の区切り線（本文があるときだけ引く）
-  // 本文の装飾（rich.ts）の書き方は、AI に形の説明で見せる
-  body: z
+// 本文の形（装飾の書き方を AI に見せる。本文を持つ形とブックのタイプが共に使う）
+export const bodyText = () =>
+  z
     .string()
     .max(BODY_MAX)
     .describe(
       "Text with line breaks. **bold** makes it bold and {name:text} colors it with a text color (name from textColors, such as {warn:text}); unpaired marks stay as they are",
-    ),
+    )
+
+// 文字の項目の形（既定を付ける前）。使う側が既定を付ける（キャプションの寄せの既定は形ごとに違う）
+export const textFields = () => ({
+  caption: z.string(),
+  rule: z.boolean(), // キャプションと本文の間の区切り線（本文があるときだけ引く）
+  body: bodyText(),
   captionAlign: AlignSchema, // キャプションの寄せ
   bodyAlign: AlignSchema, // 本文の寄せ
 })

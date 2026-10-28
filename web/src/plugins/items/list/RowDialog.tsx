@@ -1,11 +1,11 @@
 // 行のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文。キャプションと本文の名前の右に、左・中央・右の寄せ）。テーマと色はリストに従うので持たない。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで、上の装飾のボックスで太字と文字の色を付けられる（base の RichBody）。
-// 追加はリストの最後に行を足し（row-add）、編集は行の項目を書き換える（row-update）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
+// 追加はリストの最後に行を足し（row-add）、編集は行の項目を書き換える（row-update。書いた値は確定の前から行に重ねて見せる。ダイアログの下書き）。チェックはダイアログでは変えない（行の印を押して入れ切りする）
 // 編集だけに「行を削除」があり、押すと確かめずに行を消して閉じる（row-remove）
 
-import { useId, useState } from "react"
+import { useCallback, useEffect, useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
-import { type DialogProps, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
 import { BODY_MAX } from "../../base"
 import {
   ActionButton,
@@ -50,8 +50,27 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
 
 export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
   const book = useBookOf(stage)
-  const start = useItem(stage, args.page, args.list, LIST.id)?.children?.find(r => r.id === args.row)?.props
+  const rows = useItem(stage, args.page, args.list, LIST.id)?.children
+  const start = rows?.find(r => r.id === args.row)?.props
   const perform = usePerform(stage)
+  const { previewDialog } = useActions()
+  // 書いている行の項目を、リストの行に重ねて見せる
+  const preview = useCallback(
+    (text: Text | null) =>
+      previewDialog(
+        text && book && rows
+          ? {
+              book,
+              item: args.list,
+              props: {},
+              content: {
+                children: rows.map(r => (r.id === args.row ? { ...r, props: { ...r.props, ...text } } : r)),
+              },
+            }
+          : null,
+      ),
+    [book, rows, args.list, args.row, previewDialog],
+  )
   if (!book || !start) return null
   const update = (props: Text) => {
     if (perform(ROW_UPDATE.id, { page: args.page, list: args.list, row: args.row, props }).ok) onClose()
@@ -67,6 +86,7 @@ export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: stri
       start={start}
       ready
       onSubmit={update}
+      onPreview={preview}
       onRemove={remove}
       onClose={onClose}
     />
@@ -80,6 +100,7 @@ function RowDialog({
   start,
   ready,
   onSubmit,
+  onPreview,
   onRemove,
   onClose,
 }: {
@@ -89,6 +110,7 @@ function RowDialog({
   start: Text
   ready: boolean
   onSubmit: (props: Text) => void
+  onPreview?: (text: Text | null) => void // 書き換えた（元の値に戻せば null。無ければ見せない）
   onRemove?: () => void
   onClose: () => void
 }) {
@@ -101,6 +123,15 @@ function RowDialog({
   const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
   const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
   const hasBody = body !== ""
+  const changed =
+    caption !== start.caption ||
+    body !== start.body ||
+    rule !== start.rule ||
+    captionAlign !== start.captionAlign ||
+    bodyAlign !== start.bodyAlign
+  useEffect(() => {
+    onPreview?.(changed ? { caption, rule, body, captionAlign, bodyAlign } : null)
+  }, [changed, caption, rule, body, captionAlign, bodyAlign, onPreview])
   return (
     <Dialog
       title={t(title)}

@@ -84,6 +84,7 @@ export {
   plainOf,
   type RichLine,
   type Run,
+  richWidth,
   textColorId,
   textColorRef,
   textColorsOf,
@@ -92,6 +93,7 @@ export {
 export {
   AlignSchema,
   BODY_MAX,
+  bodyText,
   captionTextWidth,
   PLACE_LINES,
   TEXT_LOOK,

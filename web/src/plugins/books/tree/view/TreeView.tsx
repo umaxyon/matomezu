@@ -22,7 +22,7 @@ import {
   useStage,
 } from "../../../../plugin-api/ui"
 import { settingValue } from "../../../base"
-import { useResize, useZoomMotion } from "../../../base/ui"
+import { RichText, useResize, useZoomMotion } from "../../../base/ui"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { afterRemove, centerShift, editEnd, type Plus, plusesOf, plusPoint, selectedIn, withCaption } from "../edit"
 import { GROW } from "../grow"
@@ -192,7 +192,16 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
           }}
         >
           {n.lines.join("\n")}
-          {n.body && <div className={styles.body}>{n.body.join("\n")}</div>}
+          {n.body && (
+            <div className={styles.body}>
+              {n.body.map((line, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
+                <div key={i}>
+                  <RichText line={line} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
       {writing && at && (

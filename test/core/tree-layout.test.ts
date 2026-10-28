@@ -1,7 +1,9 @@
 // ツリーの並べ方（plugins/books/tree/layout.ts）: 根は伸びる向きで紙の辺の中央（中央なら紙の真ん中）に置き、子は伸びる向きへ、兄弟は横に並べる
 import { expect, test } from "bun:test"
-import { layoutTree, MARGIN, nodeSize } from "../../web/src/plugins/books/tree/layout"
+import { plainOf } from "../../web/src/plugins/base/text/rich"
+import { layoutTree, MARGIN, nodeSize, rootBox } from "../../web/src/plugins/books/tree/layout"
 import { treePath } from "../../web/src/plugins/books/tree/line-shape"
+import { DEFAULT_NODE_SIZE } from "../../web/src/plugins/books/tree/size"
 
 const PAPER = { w: 1123, h: 794 }
 const root = { id: "r", caption: "根", children: [] }
@@ -196,4 +198,12 @@ test("線の形: まっすぐは 2 点の直線、折れ線は伸びる向きに
   expect(treePath(right, "elbow")).toBe("M0,0 H50 V40 H100")
   expect(treePath(down, "curve")).toBe("M0,0 C0,50 40,50 40,100")
   expect(treePath(right, "curve")).toBe("M0,0 C50,0 50,40 100,40")
+})
+
+test("根の本文は装飾を区切りに分けて折り返し、幅は太字の幅で測る", () => {
+  const plain = rootBox({ id: "r", caption: "根", body: "大事な所", showBody: true }, DEFAULT_NODE_SIZE)
+  const bold = rootBox({ id: "r", caption: "根", body: "**大事な所**", showBody: true }, DEFAULT_NODE_SIZE)
+  expect(bold.body?.map(plainOf)).toEqual(["大事な所"])
+  expect(bold.body?.[0]?.[0]).toMatchObject({ bold: true })
+  expect(bold.w).toBeGreaterThanOrEqual(plain.w)
 })
