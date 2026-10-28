@@ -240,3 +240,7 @@ export function editEnd(root: TreeRoot, id: string, text: string | null): EditEn
   if (next === old) return { kind: "none" }
   return { kind: isRoot ? "root" : "child", caption: next }
 }
+
+// 道具の倍率: 編集の道具では選んでいる節を大きく見せる（拡大縮小の段の 125%）、ほかの道具では 100%
+export const EDIT_ZOOM = 1.25
+export const toolZoom = (usingEdit: boolean): number => (usingEdit ? EDIT_ZOOM : 1)

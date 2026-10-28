@@ -32,6 +32,7 @@ export const ERRORS = {
   E032: "toolSet {id}: unknown tool {tool}",
   E033: "toolSet {id}: has no tools",
   E034: "textColor {id}: color {color} is not #rrggbb",
+  E035: "bookType {id}: createSettings has {setting}, which is not one of its book settings",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",

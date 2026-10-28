@@ -147,3 +147,10 @@
   transform: translateY(calc(-100% - 4px));
   white-space: nowrap;
 }
+/* 編集の道具で選んでいる節のほかを少し暗くする（節の周りに大きな影。押すのは下の節が受ける） */
+.spotlight {
+  position: absolute;
+  border-radius: var(--tree-node-radius);
+  box-shadow: 0 0 0 100000px rgb(0 0 0 / 0.12);
+  pointer-events: none;
+}

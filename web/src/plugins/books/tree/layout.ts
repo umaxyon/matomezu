@@ -100,7 +100,7 @@ function measure(node: TreeNode, side: Side, size: NodeSize): Measured {
 }
 
 // 四角 parent の side の辺から、子の並び kids を伸ばした節と線（parent 自身は含めない）。extra は、最初の段だけ parent から余分に離す長さ。
-// 節の形が下線で左右へ伸びる枝は、線を節の下の辺（下線）の端につなぐ
+// 節の形が下線で左右へ伸びる枝は、線を子の節の下の辺（下線）の端につなぐ（根から出る線は、根の辺の真ん中から）
 function branch(
   parent: Rect,
   kids: readonly TreeNode[],
@@ -142,7 +142,7 @@ function branch(
   }
   let next = -spanOf(measured, side) / 2
   for (const m of measured) {
-    place(m, LEVEL + extra, next, toPaper(0, onLine ? parent.h / 2 : 0))
+    place(m, LEVEL + extra, next, toPaper(0, 0))
     next += m.span + gapOf(side)
   }
 }

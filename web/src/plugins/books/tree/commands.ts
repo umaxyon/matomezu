@@ -1,5 +1,5 @@
 // ツリーのコマンド: 上下左右のキーで、選んでいる節を動かす（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ）と、
-// Enter で、選んでいる節のキャプションをその場で書き始める。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
+// Home で根を選び、Enter で、選んでいる節のキャプションをその場で書き始める。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
 // 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、節の色と、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーの見せ方の範囲（ステージの範囲より先に探す）
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { settingValue } from "../../base"
@@ -29,6 +29,17 @@ export const NODE_SELECT_MOVE = kit.defineCommand({
     const tree = treeAt(ctx)
     if (!tree) return
     a.select(ctx.stage.id, [moveFrom(tree.root, tree.grow, selectedIn(tree.root, ctx.stage.selection), args.to)])
+  },
+  when: editingTree,
+})
+
+// 根を選ぶ
+export const NODE_SELECT_ROOT = kit.defineCommand({
+  id: "node-select-root",
+  title: "Select root",
+  run: (ctx, a) => {
+    const tree = treeAt(ctx)
+    if (tree) a.select(ctx.stage.id, [tree.root.id])
   },
   when: editingTree,
 })
@@ -105,6 +116,7 @@ export const NODE_COLOR_EDIT = kit.defineCommand({
 })
 
 export const TREE_KEYS = [
+  kit.defineKey({ id: "node-select-root-home", key: "Home", command: NODE_SELECT_ROOT.id, scope: TREE_KEYS_SCOPE }),
   kit.defineKey({ id: "node-delete-delete", key: "Delete", command: NODE_DELETE.id, scope: TREE_KEYS_SCOPE }),
   kit.defineKey({ id: "node-delete-backspace", key: "Backspace", command: NODE_DELETE.id, scope: TREE_KEYS_SCOPE }),
   kit.defineKey({ id: "node-edit-enter", key: "Enter", command: NODE_EDIT.id, scope: TREE_KEYS_SCOPE }),

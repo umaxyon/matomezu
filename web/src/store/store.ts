@@ -365,7 +365,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (!hit) continue
         const { command, args } = hit.binding
         const call = actions.command as (stage: string, id: string, ...args: unknown[]) => boolean
-        return call(stage, command, ...(args === undefined ? [] : [args]))
+        // その場で使えないコマンドなら、次の範囲の同じキーを探す
+        if (call(stage, command, ...(args === undefined ? [] : [args]))) return true
       }
       return false
     },

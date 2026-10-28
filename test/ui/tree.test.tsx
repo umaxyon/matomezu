@@ -659,7 +659,7 @@ test("線の形: ページの設定で曲線を選ぶと、親から子への線
   const { store, id } = setup()
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
   const path = () => screen.getByRole("img", { name: "紙" }).querySelector("svg path")!.getAttribute("d")!
-  expect(path()).toContain(" L")
+  expect(path()).toContain(" V") // 既定は折れ線
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",
@@ -668,4 +668,72 @@ test("線の形: ページの設定で曲線を選ぶと、親から子への線
     )
   })
   expect(path()).toContain(" C")
+})
+
+test("編集の道具では 125% で、選んでいる節のほかを少し暗くし、Home で根を選ぶ。ハンドにすると 100% に戻り、暗くしない", () => {
+  const { store, id } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子", children: [{ caption: "孫" }] }] })
+  const zoom = () => store.state.getState().workspace.stages[0]!.zoom
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const selected = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")
+  expect(zoom()).toBe(1.25)
+  expect(paper().querySelectorAll("[data-spotlight]")).toHaveLength(1)
+  const grand = done.fields!.root.children[0]!.children![0]!.id
+  fireEvent.pointerDown(paper().querySelector(`[data-node="${grand}"]`)!, { button: 0 })
+  expect(selected()).toBe(grand)
+  fireEvent.keyDown(window, { key: "Home" })
+  expect(selected()).toBe(done.fields!.root.id)
+  fireEvent.click(screen.getByRole("button", { name: "編集ツール" }))
+  expect(zoom()).toBe(1)
+  expect(paper().querySelectorAll("[data-spotlight]")).toHaveLength(0)
+  // ハンドでは根を選ぶコマンドが使えないので、Home はステージの範囲の「見え方を戻す」に進む
+  act(() => store.actions.zoomStage("s1", 0.75))
+  fireEvent.keyDown(window, { key: "Home" })
+  expect(zoom()).toBe(1)
+})
+
+test("ブックを作るダイアログでツリーを選ぶと、伸びる向きを聞く項目が開き、選んだ向きをブックの設定に書く。図面では開かない", () => {
+  const { store } = setup()
+  act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
+  const dialog = screen.getByRole("dialog", { name: "新しいブック" })
+  const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
+  fireEvent.change(type, { target: { value: "@matomezu/drawing:drawing" } })
+  expect(within(dialog).queryByRole("group", { name: "伸びる向き" })).toBeNull()
+  fireEvent.change(type, { target: { value: "@matomezu/tree:tree" } })
+  expect(within(dialog).getByText("ツリーの設定")).toBeTruthy()
+  fireEvent.click(
+    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "右へ" }),
+  )
+  fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "右の木" } })
+  fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
+  const made = Object.values(store.state.getState().books).find(b => b.title === "右の木")
+  expect(made).toMatchObject({ type: "@matomezu/tree:tree", settings: { "@matomezu/tree:grow": "right" } })
+})
+
+test("book-create は、タイプが選んだブックの設定の項目を受け、形に合わない値は断る", () => {
+  const { store } = setup()
+  act(() => {
+    const ok = store.actions.perform("@matomezu/base:book-create", {
+      title: "左の木",
+      type: "@matomezu/tree:tree",
+      settings: { "@matomezu/tree:grow": "left" },
+    })
+    expect(ok.ok).toBe(true)
+    const bad = store.actions.perform("@matomezu/base:book-create", {
+      title: "変な木",
+      type: "@matomezu/tree:tree",
+      settings: { "@matomezu/tree:grow": "sideways" },
+    })
+    expect(bad.ok).toBe(false)
+    // 確かめと整え方は book-update と同じ（表に無いテーマは断る）
+    const theme = store.actions.perform("@matomezu/base:book-create", {
+      title: "テーマの無い木",
+      type: "@matomezu/tree:tree",
+      settings: { "@matomezu/base:book-theme": "no-such-theme" },
+    })
+    expect(theme.ok).toBe(false)
+  })
+  expect(Object.values(store.state.getState().books).find(b => b.title === "左の木")).toMatchObject({
+    settings: { "@matomezu/tree:grow": "left" },
+  })
 })

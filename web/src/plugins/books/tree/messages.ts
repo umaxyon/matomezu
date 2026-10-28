@@ -8,6 +8,7 @@ export const TREE_MESSAGES = defineMessages({
   "Update node": { en: "Update node", ja: "節を書き換える" },
   "Remove node": { en: "Remove node", ja: "節を消す" },
   "Move selection": { en: "Move selection", ja: "選ぶ節を替える" },
+  "Select root": { en: "Select root", ja: "根を選ぶ" },
   "Edit caption": { en: "Edit caption", ja: "キャプションを書く" },
   "Add child": { en: "Add child", ja: "子を足す" },
   "Add sibling before": { en: "Add sibling before", ja: "前に兄弟を足す" },

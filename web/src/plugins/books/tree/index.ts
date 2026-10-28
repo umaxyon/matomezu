@@ -3,7 +3,15 @@
 // テーマと紙の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（tree.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
-import { NODE_COLOR_EDIT, NODE_DELETE, NODE_EDIT, NODE_SELECT_MOVE, NODE_SIZE_EDIT, TREE_KEYS } from "./commands"
+import {
+  NODE_COLOR_EDIT,
+  NODE_DELETE,
+  NODE_EDIT,
+  NODE_SELECT_MOVE,
+  NODE_SELECT_ROOT,
+  NODE_SIZE_EDIT,
+  TREE_KEYS,
+} from "./commands"
 import { GROW } from "./grow"
 import { kit } from "./kit"
 import { LINE_SHAPE } from "./line-shape"
@@ -26,7 +34,7 @@ export const TREE_PLUGIN = defineBuiltin(
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],
     dialogs: [NEW_TREE_PAGE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, NODE_SIZE_DIALOG, NODE_COLOR_DIALOG],
     actions: [NODE_ADD, NODE_UPDATE, NODE_REMOVE],
-    commands: [NODE_SELECT_MOVE, NODE_EDIT, NODE_COLOR_EDIT, NODE_SIZE_EDIT, NODE_DELETE],
+    commands: [NODE_SELECT_MOVE, NODE_SELECT_ROOT, NODE_EDIT, NODE_COLOR_EDIT, NODE_SIZE_EDIT, NODE_DELETE],
     keys: TREE_KEYS,
     tools: [EDIT_TOOL],
     toolSets: [TREE_TOOLS],
@@ -53,6 +61,7 @@ declare module "../../../core/catalog" {
   }
   interface CommandTable {
     "@matomezu/tree:node-select-move": typeof NODE_SELECT_MOVE
+    "@matomezu/tree:node-select-root": typeof NODE_SELECT_ROOT
     "@matomezu/tree:node-edit": typeof NODE_EDIT
     "@matomezu/tree:node-delete": typeof NODE_DELETE
     "@matomezu/tree:node-size-edit": typeof NODE_SIZE_EDIT

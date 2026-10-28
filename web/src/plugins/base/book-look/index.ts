@@ -2,6 +2,7 @@
 // テーマと紙の色も設定の項目（look.ts）で、選んだタイプのブックだけが持つ
 import { z } from "zod"
 import { withSettings } from "../../../core/book"
+import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
@@ -14,6 +15,20 @@ const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
   settings: z.record(z.string(), z.unknown()).optional(), // ブックのタイプが選んだ項目（形はタイプが決める）
 })
+
+// ブック book に、ブックの設定の項目 settings（ブックのタイプが選んだ項目だけ。null は消す）を当てたブック。形に合わない・選んでいないタイプなら null。
+// 表に無いテーマは断り、紙の色は小文字にそろえ、ページを整え（settleBook）、問題の出るページがあれば断る（book-update と book-create が使う）
+export function withBookSettings(catalog: CoreCatalog, book: Book, settings: unknown): Book | null {
+  const patch = settingsPatchOf(catalog, book, "book")?.safeParse(settings)
+  if (!patch?.success) return null
+  const values = { ...(patch.data as Record<string, unknown>) }
+  const theme = values[BOOK_THEME.id]
+  if (typeof theme === "string" && !catalog.themes.has(theme)) return null
+  const paper = values[BOOK_PAPER_COLOR.id]
+  if (typeof paper === "string") values[BOOK_PAPER_COLOR.id] = paper.toLowerCase()
+  const settled = settleBook(catalog, withSettings<Book>(book, values))
+  return pageProblems(catalog, settled).length > 0 ? null : settled
+}
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
 // settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す）。表に無いテーマは断り、紙の色は小文字にそろえる。変えたらページを整える（settleBook）
@@ -29,16 +44,8 @@ export const BOOK_UPDATE = kit.defineAction({
   run: (book, args, ctx) => {
     const next: Book = args.title === undefined ? book : { ...book, title: args.title }
     if (args.settings === undefined) return { next, result: null }
-    const patch = settingsPatchOf(ctx.catalog, book, "book")?.safeParse(args.settings)
-    if (!patch?.success) return null
-    const values = { ...(patch.data as Record<string, unknown>) }
-    const theme = values[BOOK_THEME.id]
-    if (typeof theme === "string" && !ctx.catalog.themes.has(theme)) return null
-    const paper = values[BOOK_PAPER_COLOR.id]
-    if (typeof paper === "string") values[BOOK_PAPER_COLOR.id] = paper.toLowerCase()
-    const settled = settleBook(ctx.catalog, withSettings<Book>(next, values))
-    if (pageProblems(ctx.catalog, settled).length > 0) return null // 変えた設定で問題の出るページがあれば断る
-    return { next: settled, result: null }
+    const settled = withBookSettings(ctx.catalog, next, args.settings)
+    return settled && { next: settled, result: null }
   },
 })
 
