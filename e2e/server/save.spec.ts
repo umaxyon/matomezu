@@ -212,3 +212,63 @@ test("開いているブックとページは URL に入り、読み直しても
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   expect(new URL(page.url()).searchParams.get("b0")).toBe(book.id)
 })
+
+test("ブックを開くダイアログで、行のゴミ箱のボタンでゴミ箱に入れ、ゴミ箱の一覧から戻す・消すができる。ロック中のブックにはボタンが出ない", async ({
+  page,
+}) => {
+  const base = SAMPLE_BOOKS[0]!
+  for (const [id, title, locked] of [
+    ["e2e-trash", "捨てるブック", false],
+    ["e2e-locked", "鍵のブック", true],
+  ] as const) {
+    const book = { ...base, id, title, ...(locked ? { locked: true } : {}) }
+    expect((await page.request.put(`/api/books/${id}`, { data: { book, base: 0 } })).ok()).toBe(true)
+  }
+  await page.goto("/")
+  const trigger = page.locator('button[aria-haspopup="menu"]').first()
+  const openDialog = async () => {
+    await trigger.hover()
+    await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ブックを開く" }).click()
+    return page.getByRole("dialog", { name: "ブックを開く" })
+  }
+  let dialog = await openDialog()
+  const row = (name: string) => dialog.getByRole("option", { name })
+  await row("鍵のブック").hover()
+  await expect(row("鍵のブック").getByRole("button", { name: "ゴミ箱に入れる" })).toHaveCount(0)
+  await row("捨てるブック").hover()
+  await row("捨てるブック").getByRole("button", { name: "ゴミ箱に入れる" }).click()
+  await expect(row("捨てるブック")).toHaveCount(0)
+  await expect.poll(async () => (await data(page)).trash.map((b: { id: string }) => b.id)).toEqual(["e2e-trash"])
+  await dialog.getByText("ゴミ箱 1").click()
+  const trash = dialog.getByRole("list", { name: "ゴミ箱" })
+  await expect(trash.getByRole("listitem")).toHaveText([/捨てるブック/])
+  await trash.getByRole("button", { name: "戻す" }).click()
+  await expect(trash.getByRole("listitem")).toHaveCount(0)
+  await expect.poll(async () => (await data(page)).books.some((b: { id: string }) => b.id === "e2e-trash")).toBe(true)
+  await page.keyboard.press("Escape")
+  dialog = await openDialog()
+  await row("捨てるブック").hover()
+  await row("捨てるブック").getByRole("button", { name: "ゴミ箱に入れる" }).click()
+  await dialog.getByText("ゴミ箱 1").click()
+  await dialog.getByRole("list", { name: "ゴミ箱" }).getByRole("button", { name: "削除" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "削除" }).last().click()
+  await expect.poll(async () => (await data(page)).trash).toEqual([])
+  expect((await data(page)).books.some((b: { id: string }) => b.id === "e2e-trash")).toBe(false)
+})
+
+test("ロック中のブックの名前とページタブに鍵が出て、押すとロックが外れる", async ({ page }) => {
+  // 前のテストで置いたロック中のブック（e2e-locked）の最初のページにもロックを掛ける
+  const have = (await data(page)).books.find((b: { id: string }) => b.id === "e2e-locked")
+  const pages = have.book.pages.map((p: object, i: number) => (i === 0 ? { ...p, locked: true } : p))
+  await page.request.put("/api/books/e2e-locked", { data: { book: { ...have.book, pages }, base: have.version } })
+  await page.goto("/?b0=e2e-locked")
+  await page.getByRole("button", { name: "ブックのロックを外す" }).click()
+  await page.getByRole("button", { name: "ページのロックを外す" }).click()
+  await expect(page.getByRole("button", { name: /のロックを外す/ })).toHaveCount(0)
+  await expect
+    .poll(async () => {
+      const b = (await data(page)).books.find((x: { id: string }) => x.id === "e2e-locked").book
+      return [b.locked, b.pages[0].locked]
+    })
+    .toEqual([undefined, undefined])
+})

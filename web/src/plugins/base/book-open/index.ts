@@ -9,3 +9,5 @@ export const BOOK_OPEN = kit.defineCommand({
   run: (ctx, a) => a.openDialog(ctx.stage.id, OPEN_BOOK_DIALOG.id),
   when: () => true,
 })
+
+export { BOOK_TRASH } from "./book-trash"

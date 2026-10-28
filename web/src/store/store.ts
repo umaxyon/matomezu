@@ -65,7 +65,22 @@ export interface MatomezuState {
   toasts: readonly Toast[] // 出しているトースト（古い順）
   // ブックの id → 触れた（開いたか書いた）時刻（ISO 8601 の UTC）。ホストが知らせたもの（receive）で、無ければ空
   touched: Readonly<Record<string, string>>
+  trash: readonly TrashEntry[] // ゴミ箱のブック（入れた時刻の新しい順）。ホストが知らせたもの（receive）で、無ければ空
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる。サーバーなしなら false）
+}
+
+// ゴミ箱のブック 1 冊（一覧に出すもの）。at はゴミ箱に入れた時刻（ISO 8601 の UTC）
+export interface TrashEntry {
+  id: string
+  type: string
+  title: string
+  at: string
+}
+
+// ゴミ箱を変える頼み（ゴミ箱はブックの一覧の外にあり、ホストが持つ）
+export interface TrashKeeper {
+  restore(book: string): void // ゴミ箱のブックを一覧に戻す
+  purge(books: readonly string[]): void // ゴミ箱のブックを消す（戻せない。空ならゴミ箱を空にする）
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
@@ -131,6 +146,8 @@ export interface Actions {
   closePicker(): void
   showPickerMap(stage: string): void // そのステージで開いている道具のアイコンを、ミニマップに替える
   setMinimap(stage: string, open: boolean): void // そのステージの左下のミニマップを開く・閉じる（紙が収まっていれば開かない）
+  restoreBook(book: string): void // ゴミ箱のブックを一覧に戻す（ホストに頼む。戻ると receive で一覧に入る）
+  purgeBooks(books: readonly string[]): void // ゴミ箱のブックを消す（戻せない。空ならゴミ箱を空にする。ホストに頼む）
 }
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
@@ -154,7 +171,12 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(
-    world: { books: readonly unknown[]; settings: unknown; touched?: Readonly<Record<string, string>> },
+    world: {
+      books: readonly unknown[]
+      settings: unknown
+      touched?: Readonly<Record<string, string>>
+      trash?: readonly TrashEntry[]
+    },
     replay: readonly DoneAction[],
   ): void
   // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
@@ -191,6 +213,7 @@ function initialState(
     contextMenu: null,
     toasts: [],
     touched: {},
+    trash: [],
     offline: false,
   }
 }
@@ -207,6 +230,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
+  trash?: TrashKeeper // ゴミ箱を変える頼みの宛先（無ければ、ゴミ箱を変えても何もしない）
 }
 
 function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
@@ -422,6 +446,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
     showPickerMap: id => withWorkspace(ws => mapStage(ws, id, showPickerMap)),
     setMinimap: (id, open) => withWorkspace(ws => mapStage(ws, id, s => setMinimap(s, open))),
+    restoreBook: book => options.trash?.restore(book),
+    purgeBooks: books => options.trash?.purge(books),
   }
   const instance: MatomezuInstance<Ps> = {
     ...defs,
@@ -465,8 +491,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         world.touched === undefined || JSON.stringify(world.touched) === JSON.stringify(now.touched)
           ? now.touched
           : world.touched
+      const trash =
+        world.trash === undefined || JSON.stringify(world.trash) === JSON.stringify(now.trash) ? now.trash : world.trash
       commit({
         ...(touched === now.touched ? {} : { touched }),
+        ...(trash === now.trash ? {} : { trash }),
         ...(same ? {} : { books, workspace: followLibrary(catalog, now.workspace, books, now.books) }),
         ...(settings === now.settings ? {} : { settings }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),

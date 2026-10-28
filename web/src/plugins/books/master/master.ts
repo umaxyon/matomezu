@@ -19,6 +19,7 @@ export const MASTER = kit.defineBookType({
   actions: {
     add: [
       "@matomezu/base:book-create",
+      "@matomezu/base:book-trash",
       "@matomezu/base:settings-lang",
       "@matomezu/base:settings-skin",
       "@matomezu/base:settings-keys",

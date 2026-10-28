@@ -210,6 +210,8 @@ func refusalText(reason, detail string) string {
 		return "not-allowed: this book's type (or, for the library and the settings, the home book's type) does not allow it"
 	case "unknown":
 		return "unknown: there is no action with that id (see actions)"
+	case "open-on-screen":
+		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
 	case "locked":
 		return "locked: the book or a page it would change is locked; only the user can unlock it, so ask the user in the chat"
 	default:

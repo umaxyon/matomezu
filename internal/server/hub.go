@@ -13,6 +13,8 @@ package server
 //	ack       {"seq", "ok", "reason"} 送った画面にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた画面にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。画面は読み直す
+//	removed   {"book", "client", "seq"} ブックが一覧から外れ、ゴミ箱に入った（trash.go）
+//	trash     {"trash": [{"id", "type", "title", "at"}]} ゴミ箱の一覧が変わった
 
 import (
 	"encoding/json"
@@ -198,9 +200,28 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		return Performed{}, err
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Result: out.Result}
+	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
+	if out.OK && p.By == "ai" && h.shownSomewhere(out.Removed) {
+		done = Performed{OK: false, Reason: "open-on-screen"}
+		out.OK = false
+	}
 	if out.OK {
 		for _, body := range out.Books {
 			if err := h.putBook(body, p.Client, p.Seq); err != nil {
+				return Performed{}, err
+			}
+		}
+		at := p.Now
+		if at == "" {
+			at = stamp()
+		}
+		for _, id := range out.Removed {
+			if err := h.trash(id, at, p.Client, p.Seq); err != nil {
+				return Performed{}, err
+			}
+		}
+		if len(out.Removed) > 0 {
+			if err := h.tellTrash(); err != nil {
 				return Performed{}, err
 			}
 		}

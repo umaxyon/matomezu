@@ -25,7 +25,7 @@ function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0],
   }
   const host = serverClient({
     fetch: async (url, init) => {
-      if (url === "api/perform" || url === "api/view" || url === "api/warnings")
+      if (url === "api/perform" || url === "api/view" || url === "api/warnings" || url.startsWith("api/trash/"))
         sent.push({ url, ...JSON.parse(String(init?.body)) })
       if (url === "api/data") reads++
       if (url === "api/perform") {
@@ -198,6 +198,22 @@ test("ほかから変わったブックの上で、まだ確かめられてい�
   emit("book", { book: b1With("o1", "n1"), version: 3, client: "c1", seq: 1 })
   expect(itemsOf(store)).toEqual(["o1", "n1"])
   expect(host.pending()).toEqual([])
+})
+
+test("ゴミ箱に入ったと届いたブックは一覧から外れ、ゴミ箱の知らせは状態に入る。戻す・消すは常駐に頼む", async () => {
+  const { store, emit, host, sent } = await connected()
+  const entry = { id: "b1", type: "@matomezu/drawing:drawing", title: "T", at: "2026-10-29T00:00:00.000Z" }
+  emit("removed", { book: "b1" })
+  emit("trash", { trash: [entry] })
+  expect("b1" in store.state.getState().books).toBe(false)
+  expect(store.state.getState().trash).toEqual([entry])
+  host.restore("b1")
+  host.purge([])
+  await flush()
+  expect(sent.filter(x => String(x.url).startsWith("api/trash/"))).toEqual([
+    { url: "api/trash/restore", book: "b1" },
+    { url: "api/trash/purge", books: [] },
+  ])
 })
 
 test("古い版の知らせは使わない", async () => {

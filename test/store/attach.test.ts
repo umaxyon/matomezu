@@ -26,6 +26,7 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
   expect(ids).not.toContain("@matomezu/base:book-create")
   expect(actionsOf(CORE_CATALOG, MASTER_BOOK)).toEqual([
     "@matomezu/base:book-create",
+    "@matomezu/base:book-trash",
     "@matomezu/base:settings-lang",
     "@matomezu/base:settings-skin",
     "@matomezu/base:settings-keys",

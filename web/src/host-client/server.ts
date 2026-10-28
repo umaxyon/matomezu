@@ -15,7 +15,7 @@ import { fail } from "../core/errors"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { currentStage, MAX_STAGES } from "../core/workspace"
-import type { DoneAction, MatomezuInstance, MatomezuState } from "../store/store"
+import type { DoneAction, MatomezuInstance, MatomezuState, TrashEntry } from "../store/store"
 import type { HostClient, Loaded } from "./client"
 
 // 常駐が答えなかった（常駐から開いていない）
@@ -124,11 +124,13 @@ export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSche
   if (show.page) actions.openPage(stage, show.page)
 }
 
+const TrashSchema = z.object({ id: z.string(), type: z.string(), title: z.string(), at: z.string() })
 const DataSchema = z.object({
   books: z.array(z.object({ id: z.string(), book: z.unknown(), version: z.number().int() })),
   settings: z.unknown(),
   plugins: z.array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional() })).optional(),
   touched: z.record(z.string(), z.string()).optional(),
+  trash: z.array(TrashSchema).optional(),
 })
 const HelloSchema = z.object({ client: z.string() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
@@ -136,6 +138,8 @@ const BookSchema = z.object({ book: z.object({ id: z.string() }).loose(), versio
 const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
 const AckSchema = z.object({ seq: z.number().int() })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
+const RemovedSchema = z.object({ book: z.string(), ...Mark })
+const TrashListSchema = z.object({ trash: z.array(TrashSchema) })
 
 export interface ServerClient extends HostClient {
   pending(): readonly DoneAction[] // まだ確かめられていない自分のアクション
@@ -145,6 +149,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   const confirmed = new Map<string, { book: unknown; version: number }>()
   let settings: unknown
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
+  let trash: TrashEntry[] = [] // ゴミ箱のブック
   let plugins: { id: string; ui: string; css?: string }[] = []
   let pending: Pending[] = []
   let client = ""
@@ -169,7 +174,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
 
   const show = () =>
     instance?.receive(
-      { books: [...confirmed.values()].map(e => e.book), settings, touched },
+      { books: [...confirmed.values()].map(e => e.book), settings, touched, trash },
       pending.map(p => p.done),
     )
   const settle = (mark: { client?: string; seq?: number }) => {
@@ -239,6 +244,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
     }
     settings = data.settings ?? undefined
     plugins = data.plugins ?? []
+    trash = data.trash ?? []
     // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
     for (const [id, at] of Object.entries(data.touched ?? {}))
       if ((touched[id] ?? "") < at) touched = { ...touched, [id]: at }
@@ -290,6 +296,16 @@ export function serverClient(net: Net = browserNet): ServerClient {
         settle(e)
         show()
       })
+      source.on("removed", data => {
+        const e = RemovedSchema.parse(JSON.parse(data))
+        confirmed.delete(e.book)
+        settle(e)
+        show()
+      })
+      source.on("trash", data => {
+        trash = TrashListSchema.parse(JSON.parse(data)).trash
+        show()
+      })
       source.on("settings", data => {
         const e = SettingsSchema.parse(JSON.parse(data))
         settings = e.settings
@@ -312,8 +328,16 @@ export function serverClient(net: Net = browserNet): ServerClient {
       })
     })
 
+  // ゴミ箱を変えるように頼む（結果はゴミ箱と一覧の知らせで届く）
+  const askTrash = (path: string, body: unknown) =>
+    void net
+      .fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .catch(() => {})
+
   return {
     pending: () => pending.map(p => p.done),
+    restore: book => askTrash("api/trash/restore", { book }),
+    purge: books => askTrash("api/trash/purge", { books }),
     load: async (): Promise<Loaded> => {
       await listen()
       // 知らせにはつながったが読めなかったら、つながりを閉じる（読み直すときは新しく作る）

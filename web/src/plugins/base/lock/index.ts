@@ -1,4 +1,4 @@
-// ロック: ブックとページに掛ける「変えない」印（locked は土台のフィールド）。ロック中は利用者も AI も中身を変えられない（断るのは core の perform）。
+// ロック: ブックとページに掛ける「変えない」印（locked は土台のフィールド）。ロック中は利用者も AI も中身を変えられず、ゴミ箱へも入れられない（断るのは core の perform）。
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
@@ -49,7 +49,7 @@ export const BOOK_LOCK = kit.defineAction({
   id: "book-lock",
   attach: { books: true },
   aiDescription:
-    "Lock the book: while locked, nothing in it can be changed, by the user or by AI (actions on it are refused with locked). Only the user can unlock it. Refused if it is already locked.",
+    "Lock the book: while locked, nothing in it can be changed and it cannot be moved to the trash, by the user or by AI (refused with locked). Only the user can unlock it. Refused if it is already locked.",
   title: "Lock book",
   target: "book",
   args: z.strictObject({}),
@@ -77,7 +77,7 @@ export const PAGE_LOCK = kit.defineAction({
   id: "page-lock",
   attach: { pages: true },
   aiDescription:
-    "Lock a page: while locked, the page and everything on it cannot be changed or removed, by the user or by AI (actions that would are refused with locked). Only the user can unlock it. Refused if the page does not exist or is already locked.",
+    "Lock a page: while locked, the page and everything on it cannot be changed or removed and its book cannot be moved to the trash, by the user or by AI (refused with locked). Only the user can unlock it. Refused if the page does not exist or is already locked.",
   title: "Lock page",
   target: "book",
   args: PAGE_ARGS,

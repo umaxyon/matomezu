@@ -110,3 +110,49 @@ func TestTouchedIsTheNewerOfOpenedAndWritten(t *testing.T) {
 		t.Fatalf("touched = %v; want the written time %s", got, written)
 	}
 }
+
+// ゴミ箱に入れたブックは Books に出ず、TrashedBooks に入れた時刻と出る。戻すと Books に戻り、消すと行も開いた時刻も無くなる
+func TestTrashRestoreAndPurge(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "data.db"))
+	for _, id := range []string{"b1", "b2"} {
+		if _, _, err := s.PutBook(id, json.RawMessage(`{"id":"`+id+`"}`), 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Open("b2", "2026-10-29T00:00:00.000Z"); err != nil {
+		t.Fatal(err)
+	}
+	for id, at := range map[string]string{"b1": "2026-10-29T01:00:00.000Z", "b2": "2026-10-29T02:00:00.000Z"} {
+		if err := s.Trash(id, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if books, _ := s.Books(); len(books) != 0 {
+		t.Fatalf("books with all trashed = %+v", books)
+	}
+	trashed, err := s.TrashedBooks()
+	if err != nil || len(trashed) != 2 || trashed[0].ID != "b2" || trashed[0].At != "2026-10-29T02:00:00.000Z" {
+		t.Fatalf("trashed = %+v, %v; want b2 first", trashed, err)
+	}
+	if b, err := s.Restore("b1"); err != nil || b.ID != "b1" || b.Version != 1 {
+		t.Fatalf("restore = %+v, %v", b, err)
+	}
+	if _, err := s.Restore("b1"); !errors.Is(err, ErrNotTrashed) {
+		t.Fatalf("restoring a book not in the trash = %v", err)
+	}
+	if err := s.Purge("b1"); !errors.Is(err, ErrNotTrashed) {
+		t.Fatalf("purging a book not in the trash = %v", err)
+	}
+	if err := s.Purge("b2"); err != nil {
+		t.Fatal(err)
+	}
+	if books, _ := s.Books(); len(books) != 1 || books[0].ID != "b1" {
+		t.Fatalf("books = %+v", books)
+	}
+	if trashed, _ := s.TrashedBooks(); len(trashed) != 0 {
+		t.Fatalf("trashed after purge = %+v", trashed)
+	}
+	if touched, _ := s.Touched(); touched["b2"] != "" {
+		t.Fatalf("touched keeps a purged book: %v", touched)
+	}
+}

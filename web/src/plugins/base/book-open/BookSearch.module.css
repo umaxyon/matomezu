@@ -48,6 +48,29 @@
   color: var(--skin-hint);
   font-size: 12px;
 }
+/* ゴミ箱に入れるボタン: 行にポインタを乗せている間だけ出す */
+.trash {
+  flex: none;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--skin-hint);
+  cursor: pointer;
+  visibility: hidden;
+}
+.option:hover .trash {
+  visibility: visible;
+}
+.trash:hover {
+  color: var(--skin-danger);
+  background: var(--skin-btn);
+}
 .option[aria-selected="true"] {
   background: var(--skin-btn-hover);
 }
@@ -76,4 +99,26 @@
 .empty {
   margin: 4px 10px;
   color: var(--skin-hint);
+}
+/* ゴミ箱の一覧の上の行（右にゴミ箱を空にするボタン） */
+.trashHead {
+  display: flex;
+  justify-content: flex-end;
+}
+/* ゴミ箱のブック 1 冊: 名前・入れた時刻・戻すボタン・消すボタン */
+.trashed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+ul.list {
+  margin: 0;
+  list-style: none;
+}
+/* ブックの一覧とゴミ箱の切り替えの名前 */
+.viewName {
+  padding: 0 10px;
+  font-size: 12px;
 }

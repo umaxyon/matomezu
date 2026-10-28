@@ -317,7 +317,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"plugins":[],"settings":null,"touched":{}}` {
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"plugins":[],"settings":null,"touched":{},"trash":[]}` {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
@@ -539,6 +539,69 @@ func TestSettingsActions(t *testing.T) {
 	}
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:settings-skin","args":{"skin":"@matomezu/base:light"}}`, ai); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("ai perform = %s", got)
+	}
+}
+
+// book-trash は一覧から外してゴミ箱に入れ（removed と trash を知らせる）、/api/data にはゴミ箱に出る。戻す・消すは画面の口から
+func TestTrashABook(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-trash","args":{"book":"b1"},"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`, nil); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("trash = %s", got)
+	}
+	if got := next(t, a); got != `removed {"book":"b1","client":"","seq":0}` {
+		t.Fatalf("removed = %s", got)
+	}
+	trash := `[{"id":"b1","type":"@matomezu/drawing:drawing","title":"T","at":"2026-10-29T00:00:00.000Z"}]`
+	if got := next(t, a); got != `trash {"trash":`+trash+`}` {
+		t.Fatalf("trash = %s", got)
+	}
+	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"books":[]`) || !strings.Contains(data, `"trash":`+trash) {
+		t.Fatalf("data = %s", data)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); got != `{"books":[]}` {
+		t.Fatalf("ai books = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/trash/restore", `{"book":"b1"}`, nil); got != `{"ok":true}` {
+		t.Fatalf("restore = %s", got)
+	}
+	if got := next(t, a); !strings.HasPrefix(got, `book {"book":{"type":"@matomezu/drawing:drawing","id":"b1"`) {
+		t.Fatalf("book after restore = %s", got)
+	}
+	if got := next(t, a); got != `trash {"trash":[]}` {
+		t.Fatalf("trash after restore = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/trash/restore", `{"book":"b1"}`, nil); got != `{"ok":false,"reason":"no-book"}` {
+		t.Fatalf("restore again = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-trash","args":{"book":"b1"},"lang":"ja"}`, nil)
+	if _, got := send(t, "POST", s.URL+"/api/trash/purge", `{"books":[]}`, nil); got != `{"ok":true}` {
+		t.Fatalf("purge = %s", got)
+	}
+	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"books":[]`) || !strings.Contains(data, `"trash":[]`) {
+		t.Fatalf("data after purge = %s", data)
+	}
+}
+
+// AI は、どこかの窓に出ているブックをゴミ箱に入れられない（open-on-screen）。出ていなければ入れられる
+func TestAICannotTrashABookOnAScreen(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"focused":true}`, nil)
+	trash := `{"action":"@matomezu/base:book-trash","args":{"book":"b1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
+		t.Fatalf("ai trash on a screen = %s", got)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"id":"b1"`) {
+		t.Fatalf("the book left: %s", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":null,"stages":[{"id":"s1","book":null}]}}`, nil)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("ai trash = %s", got)
 	}
 }
 
