@@ -41,6 +41,7 @@
   white-space: pre; /* 行は並べ方が決める（折り返し・… で切るのも並べ方） */
   overflow: hidden;
   text-align: center;
+  user-select: none; /* 押して動かすとドラッグ */
 }
 /* ページが無いとき: 真ん中に知らせとページを作るボタン */
 .empty {
@@ -197,5 +198,25 @@
   position: absolute;
   border-radius: var(--tree-node-radius);
   box-shadow: 0 0 0 100000px rgb(0 0 0 / 0.12);
+  pointer-events: none;
+}
+/* 節のドラッグ: 動かしている節と子孫は薄く、ポインタに付く写しは影を付けて上に、子として入る節には点線の枠、兄弟の間に入る所には濃い線に紙の色の縁 */
+.node[data-dragging="true"] {
+  opacity: 0.35;
+}
+.node[data-drop="true"] {
+  outline: 2px dashed var(--theme-accent);
+  outline-offset: 3px;
+}
+.ghost {
+  pointer-events: none;
+  opacity: 0.7;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+.dropLine {
+  position: absolute;
+  border-radius: 2px;
+  background: var(--theme-accent);
+  box-shadow: 0 0 0 1px var(--theme-paper);
   pointer-events: none;
 }

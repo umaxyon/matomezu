@@ -1,4 +1,4 @@
-// ツリーを組み立てる計算（plugins/books/tree/edit.ts）: 節を足す・キャプションを替える・子孫ごと消す、と、上下左右のキーで動いた先の節
+// ツリーを組み立てる計算（plugins/books/tree/edit.ts）: 節を足す・キャプションを替える・子孫ごと消す・付け替える、と、上下左右のキーで動いた先の節
 import { expect, test } from "bun:test"
 import {
   addNodes,
@@ -8,6 +8,7 @@ import {
   centerShift,
   editEnd,
   moveFrom,
+  moveNode,
   PLUS_GAP,
   pathTo,
   plusesOf,
@@ -170,4 +171,22 @@ test("中央の木: 根の直系の子の兄弟の＋は、その子の向きで
     { kind: "after", side: "right", parent: "c", index: 3, towards: "up" },
   ])
   expect(plusesOf(star, "center", "g").map(p => p.towards)).toEqual([undefined, undefined, undefined])
+})
+
+test("付け替え: 子孫ごとほかの親の下へ、または兄弟の間へ移す（index は動かす節を除いた並びで数える）。根・自分と子孫の中へは断る", () => {
+  const under = moveNode(tree, "a", "b")
+  expect(under?.children?.map(c => c.id)).toEqual(["b"])
+  expect(under?.children?.[0]?.children?.map(c => c.id)).toEqual(["a"])
+  expect(under?.children?.[0]?.children?.[0]?.children?.map(c => c.id)).toEqual(["a1", "a2"])
+  expect(moveNode(tree, "a", "r", 1)?.children?.map(c => c.id)).toEqual(["b", "a"]) // 兄弟の順番の入れ替え
+  expect(moveNode(tree, "a2", "r", 0)?.children?.map(c => c.id)).toEqual(["a2", "a", "b"])
+  expect(moveNode(tree, "a1", "a", 1)?.children?.[0]?.children?.map(c => c.id)).toEqual(["a2", "a1"])
+  expect(moveNode(tree, "r", "a")).toBeNull()
+  expect(moveNode(tree, "a", "a")).toBeNull()
+  expect(moveNode(tree, "a", "a1")).toBeNull()
+  expect(moveNode(tree, "a", "r", 5)).toBeNull()
+  // 中央の木の根の直系の子になるときだけ向きを持つ
+  const sided = moveNode(tree, "a1", "r", 0, "up")
+  expect(sided?.children?.[0]).toEqual({ id: "a1", caption: "A1", side: "up" })
+  expect(moveNode(sided!, "a1", "b")?.children?.[1]?.children?.[0]).toEqual({ id: "a1", caption: "A1" })
 })

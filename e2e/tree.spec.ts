@@ -28,12 +28,26 @@ async function treeBook(page: Page, grow?: string) {
 
 const paperAt = async (page: Page) => (await paper(page).boundingBox())!
 
+// 選んだ節を真ん中へ持ってくる紙の動きが止まるのを待つ
+async function settled(page: Page) {
+  let last = ""
+  await expect
+    .poll(async () => {
+      const now = JSON.stringify(await paperAt(page))
+      const same = now === last
+      last = now
+      return same
+    })
+    .toBe(true)
+}
+
 test("ツリーの道具は編集とハンド。編集の間は、ホイールでも紙のドラッグでも紙が動かず、ハンドにすると動く", async ({
   page,
 }) => {
   await treeBook(page)
   const tool = page.getByRole("button", { name: "編集ツール" })
   await expect(tool).toBeVisible()
+  await settled(page)
   const before = await paperAt(page)
   const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
   const x = stage.x + stage.width / 2
@@ -144,4 +158,50 @@ test("キャプションは普通の太さ。＋で足した節は空から書�
   await expect(span).toHaveText("大事")
   await expect(span).toHaveCSS("font-weight", "700")
   await expect(span).toHaveCSS("color", "rgb(220, 38, 38)")
+})
+
+test("節をドラッグして、ほかの節の子にも、兄弟の間にも付け替えられる。写しがポインタに付き、落とす先に印が出る", async ({
+  page,
+}) => {
+  await treeBook(page)
+  const paperEl = paper(page)
+  for (const caption of ["子 A", "子 B"]) {
+    await page.keyboard.press("Home")
+    await page.keyboard.press("Tab")
+    await page.keyboard.type(caption)
+    await page.keyboard.press("Enter")
+  }
+  const node = (caption: string) => paperEl.locator("[data-node]", { hasText: caption })
+  const center = async (caption: string) => {
+    const b = (await node(caption).boundingBox())!
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2, b }
+  }
+  await settled(page)
+  // 子 B を子 A の真ん中へ: 子 A の子になる
+  const from = await center("子 B")
+  const to = await center("子 A")
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  await page.mouse.move(from.x - 20, from.y + 10, { steps: 3 })
+  await page.mouse.move(to.x, to.y, { steps: 5 })
+  await expect(node("子 A")).toHaveAttribute("data-drop", "true")
+  await expect(node("子 B").first()).toHaveAttribute("data-dragging", "true")
+  await page.mouse.up()
+  await expect(paperEl.locator("[data-dragging=true]")).toHaveCount(0)
+  await settled(page)
+  const a = await center("子 A")
+  const b = await center("子 B")
+  expect(b.y).toBeGreaterThan(a.b.y + a.b.height) // 一段下
+  await settled(page)
+  // 子 B を子 A の左の端へ: 子 A の前の兄弟になる
+  await page.mouse.move(b.x, b.y)
+  await page.mouse.down()
+  await page.mouse.move(b.x + 10, b.y - 10, { steps: 3 })
+  await page.mouse.move(a.b.x + 2, a.y, { steps: 5 })
+  await expect(paperEl.locator("[data-drop-line]")).toHaveCount(1)
+  await page.mouse.up()
+  const a2 = await center("子 A")
+  const b2 = await center("子 B")
+  expect(Math.abs(b2.y - a2.y)).toBeLessThan(2) // 同じ段
+  expect(b2.x).toBeLessThan(a2.x) // 前
 })

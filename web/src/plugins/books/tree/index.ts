@@ -2,7 +2,7 @@
 // 節のアクションとコマンド・道具の組（編集とハンド）。
 // テーマと紙の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（tree.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
-import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
+import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import {
   NODE_ADD_CHILD,
   NODE_ADD_SIBLING,
@@ -35,7 +35,7 @@ export const TREE_PLUGIN = defineBuiltin(
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],
     dialogs: [NEW_TREE_PAGE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, NODE_SIZE_DIALOG, NODE_COLOR_DIALOG],
-    actions: [NODE_ADD, NODE_UPDATE, NODE_REMOVE],
+    actions: [NODE_ADD, NODE_UPDATE, NODE_REMOVE, NODE_MOVE],
     commands: [
       NODE_SELECT_MOVE,
       NODE_SELECT_ROOT,
@@ -69,6 +69,7 @@ declare module "../../../core/catalog" {
     "@matomezu/tree:node-add": typeof NODE_ADD
     "@matomezu/tree:node-update": typeof NODE_UPDATE
     "@matomezu/tree:node-remove": typeof NODE_REMOVE
+    "@matomezu/tree:node-move": typeof NODE_MOVE
   }
   interface CommandTable {
     "@matomezu/tree:node-select-move": typeof NODE_SELECT_MOVE

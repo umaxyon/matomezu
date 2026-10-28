@@ -288,6 +288,31 @@ test("node-update は子のキャプションを替え（根は断る）、node-
   expect(book().pages[0]).not.toHaveProperty("root.children")
 })
 
+test("node-move は子孫ごと付け替え、兄弟の順番を入れ替える。根・自分の子孫の下へは断る", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, {
+    caption: "根",
+    children: [{ caption: "子 A", children: [{ caption: "孫" }] }, { caption: "子 B" }],
+  })
+  const root = done.fields!.root
+  const [a, b] = root.children.map(n => n.id) as [string, string]
+  const grand = root.children[0]!.children![0]!.id
+  const move = (args: object) =>
+    store.actions.perform("@matomezu/tree:node-move", { page: done.page, ...args } as never, { book: id }).ok
+  act(() => {
+    expect(move({ node: root.id, parent: a })).toBe(false)
+    expect(move({ node: a, parent: grand })).toBe(false)
+    expect(move({ node: a, parent: b })).toBe(true)
+  })
+  expect(book().pages[0]).toMatchObject({
+    root: { children: [{ id: b, children: [{ id: a, children: [{ id: grand }] }] }] },
+  })
+  act(() => {
+    expect(move({ node: a, parent: root.id, index: 0 })).toBe(true)
+  })
+  expect((book().pages[0] as { root: { children: { id: string }[] } }).root.children.map(n => n.id)).toEqual([a, b])
+})
+
 test("編集の道具の間は、選んでいる節（初めは根）に印が付く。押した節を選び、上下左右のキーで伸びる向きに沿って動かす。ハンドでは印を出さない", () => {
   const { store, id } = setup()
   const done = addTree(store, id, {

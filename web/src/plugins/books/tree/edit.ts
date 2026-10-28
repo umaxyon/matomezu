@@ -101,6 +101,17 @@ export function removeNode(root: TreeRoot, id: string): TreeRoot | null {
   return next && withKids(root, next)
 }
 
+// 子の節 id を子孫ごと、節 parent（根も）の子の index の所（id を除いた並びで数える。無ければ末尾）へ移した根（付け替えと、兄弟の順番の入れ替え）。
+// side は中央の木の根の直系の子になるときの向き（無ければ消す。ほかの所では使わない）。根・無い節・自分か子孫の中へ・index が範囲の外なら null
+export function moveNode(root: TreeRoot, id: string, parent: string, index?: number, side?: Side): TreeRoot | null {
+  const node = nodeOf(root, id)
+  if (!node || id === parent || pathTo(root, parent)?.some(n => n.id === id)) return null
+  const removed = removeNode(root, id)
+  if (!removed) return null
+  const { side: _side, ...rest } = node
+  return addNodes(removed, parent, [side ? { ...rest, side } : rest], index)
+}
+
 // 節 id の枝が伸びる向き（path は pathTo の結果）: 中央の木では根の直系の子の向き（根は null。4 つの向きに伸びる）、ほかは木の向き
 function branchOf(root: TreeRoot, grow: Grow, path: readonly Node[], id: string): Side | null {
   if (grow !== "center") return grow
