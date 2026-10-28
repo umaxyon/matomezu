@@ -430,3 +430,26 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
   expect(kids()).toEqual([])
   expect(selected()).toBe(root.id) // 親
 })
+
+test("中央の木の根には上下左右の 4 つの＋が出て、押した向きへ伸びる子を足す", () => {
+  const { store, id, book } = setup()
+  act(() => {
+    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "center" } }, { book: id })
+  })
+  addTree(store, id, { caption: "根" })
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  expect(
+    within(paper())
+      .getAllByRole("button")
+      .map(b => b.getAttribute("aria-label")),
+  ).toEqual(["上に子を足す", "下に子を足す", "左に子を足す", "右に子を足す"])
+  fireEvent.click(within(paper()).getByRole("button", { name: "上に子を足す" }))
+  const input = within(paper()).getByRole("textbox")
+  fireEvent.change(input, { target: { value: "上の子" } })
+  fireEvent.keyDown(input, { key: "Enter" })
+  const child = (book().pages[0] as { root: { children: { id: string; side?: string }[] } }).root.children[0]!
+  expect(child.side).toBe("up")
+  const top = (n: string) => Number.parseFloat((paper().querySelector(`[data-node="${n}"]`) as HTMLElement).style.top)
+  const rootTop = Number.parseFloat((paper().querySelector('[data-root="true"]') as HTMLElement).style.top)
+  expect(top(child.id)).toBeLessThan(rootTop)
+})

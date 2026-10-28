@@ -29,7 +29,7 @@ export const NODE_ADD = kit.defineAction({
   id: "node-add",
   attach: ON_TREES,
   aiDescription:
-    "Add nodes to a tree page under the node parent (the root's id for its children), at index among its children (the end without it). nodes are nested (write no ids); every node gets an id, returned in nodes in the same nesting. Refused if the page is not a tree page, parent is not in it, or index is past the end.",
+    "Add nodes to a tree page under the node parent (the root's id for its children), at index among its children (the end without it). nodes are nested (write no ids); every node gets an id, returned in nodes in the same nesting. In a center tree, side tells which way a direct child of the root grows (right without it); it is not used elsewhere. Refused if the page is not a tree page, parent is not in it, or index is past the end.",
   title: "Add nodes",
   target: "book",
   args: z.strictObject({

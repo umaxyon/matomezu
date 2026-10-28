@@ -64,10 +64,10 @@ test("removeNode は子孫ごと消し、子が無くなれば children も消�
 })
 
 test("afterRemove は前の兄弟、無ければ親", () => {
-  expect(afterRemove(tree, "a2")).toBe("a1")
-  expect(afterRemove(tree, "a1")).toBe("a")
-  expect(afterRemove(tree, "b")).toBe("a")
-  expect(afterRemove(tree, "r")).toBeNull()
+  expect(afterRemove(tree, "down", "a2")).toBe("a1")
+  expect(afterRemove(tree, "down", "a1")).toBe("a")
+  expect(afterRemove(tree, "down", "b")).toBe("a")
+  expect(afterRemove(tree, "down", "r")).toBeNull()
 })
 
 test("下へ伸びる木: 下で最初の子、上で親、左右で隣の兄弟。動けなければそのまま", () => {
@@ -110,7 +110,9 @@ test("plusesOf: 根は伸びる向きの辺に子の＋だけ。子は、伸び�
     { kind: "after", side: "right", parent: "a", index: 2 },
   ])
   expect(plusesOf(tree, "right", "b").map(p => p.side)).toEqual(["right", "up", "down"])
-  expect(plusesOf(tree, "center", "r")).toEqual([{ kind: "child", side: "right", parent: "r" }])
+  expect(plusesOf(tree, "center", "r")).toEqual(
+    (["up", "down", "left", "right"] as const).map(side => ({ kind: "child", side, parent: "r", towards: side })),
+  )
   expect(plusesOf(tree, "down", "x")).toEqual([])
 })
 
@@ -134,4 +136,38 @@ test("captionOf・withCaption は根も子も扱い、plusPoint は辺の真ん�
   const rect = { x: 10, y: 20, w: 40, h: 30 }
   expect(plusPoint(rect, "down")).toEqual({ x: 30, y: 50 + PLUS_GAP })
   expect(plusPoint(rect, "left")).toEqual({ x: 10 - PLUS_GAP, y: 35 })
+})
+
+// 中央の木: 根 c の直系の子 u1・u2 は上、d は下、x は向きが無い（右）。u1 の下に孫 g
+const star = {
+  id: "c",
+  caption: "根",
+  children: [
+    { id: "u1", caption: "U1", side: "up" as const, children: [{ id: "g", caption: "G" }] },
+    { id: "d", caption: "D", side: "down" as const },
+    { id: "u2", caption: "U2", side: "up" as const },
+    { id: "x", caption: "X" },
+  ],
+}
+
+test("中央の木: 根からは押した向きへ伸びる最初の子へ。根の直系の子は自分の向きに沿って動き、兄弟は同じ向きの物だけ", () => {
+  expect(moveFrom(star, "center", "c", "up")).toBe("u1")
+  expect(moveFrom(star, "center", "c", "down")).toBe("d")
+  expect(moveFrom(star, "center", "c", "right")).toBe("x")
+  expect(moveFrom(star, "center", "c", "left")).toBe("c")
+  expect(moveFrom(star, "center", "u1", "up")).toBe("g") // 上へ伸びる枝: 上で子へ
+  expect(moveFrom(star, "center", "u1", "down")).toBe("c") // 下で親（根）へ
+  expect(moveFrom(star, "center", "u1", "right")).toBe("u2") // 横は同じ向きの兄弟
+  expect(moveFrom(star, "center", "g", "down")).toBe("u1")
+  expect(afterRemove(star, "center", "u2")).toBe("u1")
+  expect(afterRemove(star, "center", "d")).toBe("c") // 下の向きに前の兄弟は無い
+})
+
+test("中央の木: 根の直系の子の兄弟の＋は、その子の向きで足す。孫の＋は向きを持たない", () => {
+  expect(plusesOf(star, "center", "u2")).toEqual([
+    { kind: "child", side: "up", parent: "u2" },
+    { kind: "before", side: "left", parent: "c", index: 2, towards: "up" },
+    { kind: "after", side: "right", parent: "c", index: 3, towards: "up" },
+  ])
+  expect(plusesOf(star, "center", "g").map(p => p.towards)).toEqual([undefined, undefined, undefined])
 })

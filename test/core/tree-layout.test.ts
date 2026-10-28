@@ -71,3 +71,25 @@ test("紙からはみ出る木は fits が false", () => {
   }
   expect(layoutTree(many, "right", PAPER).fits).toBe(false)
 })
+
+test("中央の木は、根の直系の子をそれぞれの向き（無ければ右）へ伸ばし、孫は親の枝の向きに伸びる", () => {
+  const star = {
+    id: "r",
+    caption: "根",
+    children: [
+      { id: "u", caption: "上", side: "up" as const, children: [{ id: "g", caption: "孫" }] },
+      { id: "d", caption: "下", side: "down" as const },
+      { id: "l", caption: "左", side: "left" as const },
+      { id: "x", caption: "右" },
+    ],
+  }
+  const l = layoutTree(star, "center", PAPER)
+  const r = at(l, "r")
+  expect(at(l, "u").y + at(l, "u").h).toBeLessThan(r.y)
+  expect(at(l, "g").y + at(l, "g").h).toBeLessThan(at(l, "u").y)
+  expect(at(l, "d").y).toBeGreaterThan(r.y + r.h)
+  expect(at(l, "l").x + at(l, "l").w).toBeLessThan(r.x)
+  expect(at(l, "x").x).toBeGreaterThan(r.x + r.w)
+  expect(l.lines).toHaveLength(5)
+  expect(l.fits).toBe(true)
+})
