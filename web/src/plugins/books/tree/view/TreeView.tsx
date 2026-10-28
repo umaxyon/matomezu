@@ -1,7 +1,7 @@
 // ツリーのビュー（見せ方 tree）: ステージの紙の置き場所（placement）に紙を描き、その上に開いたページの根から伸びる木を描く
 // （節の位置と線は layout.ts が伸びる向きから決める）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
-// 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。
+// 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす。
 // 選んでいる節には＋（子・前と後ろの兄弟）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める。
 // その場で編集中は、書いている字で節の大きさを決め直す。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す
@@ -28,7 +28,7 @@ import { kit } from "../kit"
 import { layoutTree } from "../layout"
 import { TreeRootSchema } from "../node"
 import { EDIT_TOOL } from "../tools"
-import { TREE_CONTEXT } from "../tree"
+import { NODE_CONTEXT, TREE_CONTEXT } from "../tree"
 import styles from "./TreeView.module.css"
 
 export function TreeView({ stage: id }: BookViewProps) {
@@ -82,6 +82,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
   const { select, setEditing, panStageBy } = useActions()
+  const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
   const grow = book && page ? (settingValue(catalog, book, page, GROW.id) as Grow) : "down"
   const usingEdit = stage.tool === EDIT_TOOL.id
@@ -154,6 +155,12 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
             if (e.button !== 0 || !usingEdit) return
             if (writing) end(true) // テキストFormが外れるより先に選びが替わるので、ここで確定する
             select(stage.id, [n.id])
+          }}
+          onContextMenu={e => {
+            if (!usingEdit) return
+            if (writing) end(true)
+            select(stage.id, [n.id])
+            openNodeMenu(e, {})
           }}
           onDoubleClick={() => {
             if (!usingEdit) return

@@ -57,6 +57,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/flowchart:page-align",
     ],
     "@matomezu/tree:tree-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
+    "@matomezu/tree:node-context": ["@matomezu/tree:node-edit", "-", "@matomezu/tree:node-delete"],
     "@matomezu/paper:item-context": ["@matomezu/paper:paper-edit", "-", "@matomezu/paper:paper-delete"],
     "@matomezu/list:row-context": ["@matomezu/list:list-edit-row", "-", "@matomezu/list:list-delete-row"],
     "@matomezu/line:line-context": ["@matomezu/line:line-edit", "-", "@matomezu/paper:paper-delete"],

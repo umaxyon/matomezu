@@ -389,3 +389,44 @@ test("その場の編集は、同じ道具を選び直しても続き、道具�
   act(() => store.actions.setTool("s1", "@matomezu/base:hand"))
   expect(editing()).toBe(false)
 })
+
+test("Delete（Backspace）と節の右クリックのメニューの「削除」で、選んでいる節を子孫ごと消し、前の兄弟（無ければ親）を選ぶ。根は消せず、書いている間の Backspace は字を消すだけ", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, {
+    caption: "根",
+    children: [{ caption: "子 A" }, { caption: "子 B", children: [{ caption: "孫" }] }, { caption: "子 C" }],
+  })
+  const root = done.fields!.root
+  const [a, b, c] = root.children.map(n => n.id) as [string, string, string]
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  const selected = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")
+  const kids = () => ((book().pages[0] as { root: { children?: { id: string }[] } }).root.children ?? []).map(n => n.id)
+  fireEvent.keyDown(window, { key: "Delete" }) // 根は消せない
+  expect(kids()).toEqual([a, b, c])
+  fireEvent.pointerDown(paper().querySelector(`[data-node="${b}"]`)!, { button: 0 })
+  fireEvent.keyDown(window, { key: "Backspace" })
+  expect(kids()).toEqual([a, c])
+  expect(selected()).toBe(a) // 前の兄弟
+  fireEvent.contextMenu(paper().querySelector(`[data-node="${c}"]`)!)
+  const menu = screen.getByRole("menu")
+  expect(
+    within(menu)
+      .getAllByRole("menuitem")
+      .map(m => m.textContent),
+  ).toEqual(["キャプションを書くEnter", "削除Delete"]) // キーを添える
+  fireEvent.click(within(menu).getByRole("menuitem", { name: /^削除/ }))
+  expect(kids()).toEqual([a])
+  expect(selected()).toBe(a)
+  fireEvent.keyDown(window, { key: "Enter" })
+  const input = within(paper()).getByRole("textbox")
+  fireEvent.keyDown(input, { key: "Backspace" })
+  expect(kids()).toEqual([a])
+  fireEvent.keyDown(input, { key: "Delete" })
+  expect(kids()).toEqual([a])
+  fireEvent.keyDown(window, { key: "Delete" }) // その場の編集中は消さない
+  expect(kids()).toEqual([a])
+  fireEvent.keyDown(input, { key: "Escape" })
+  fireEvent.keyDown(window, { key: "Delete" })
+  expect(kids()).toEqual([])
+  expect(selected()).toBe(root.id) // 親
+})

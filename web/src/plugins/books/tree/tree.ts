@@ -20,6 +20,9 @@ export const NEW_TREE_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
 // ツリーのビューが開く右クリックのメニュー: 紙の画面（ui.tsx で core/catalog.ts に書き足す）
 export const TREE_CONTEXT = kit.name("tree-context")
 
+// 節の右クリックのメニュー（右クリックした節を選んでから開く。ui.tsx で core/catalog.ts に書き足す）
+export const NODE_CONTEXT = kit.name("node-context")
+
 export const TREE = kit.defineBookType({
   id: "tree",
   version: 1,

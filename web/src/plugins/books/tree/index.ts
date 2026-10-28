@@ -2,7 +2,7 @@
 // テーマと紙の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（tree.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
-import { NODE_EDIT, NODE_SELECT_MOVE, TREE_KEYS } from "./commands"
+import { NODE_DELETE, NODE_EDIT, NODE_SELECT_MOVE, TREE_KEYS } from "./commands"
 import { GROW } from "./grow"
 import { kit } from "./kit"
 import { EDIT_TOOL, TREE_TOOLS } from "./tools"
@@ -15,7 +15,7 @@ export const TREE_PLUGIN = defineBuiltin(
     settings: [GROW],
     dialogs: [NEW_TREE_PAGE_DIALOG],
     actions: [NODE_ADD, NODE_UPDATE, NODE_REMOVE],
-    commands: [NODE_SELECT_MOVE, NODE_EDIT],
+    commands: [NODE_SELECT_MOVE, NODE_EDIT, NODE_DELETE],
     keys: TREE_KEYS,
     tools: [EDIT_TOOL],
     toolSets: [TREE_TOOLS],
@@ -40,6 +40,7 @@ declare module "../../../core/catalog" {
   interface CommandTable {
     "@matomezu/tree:node-select-move": typeof NODE_SELECT_MOVE
     "@matomezu/tree:node-edit": typeof NODE_EDIT
+    "@matomezu/tree:node-delete": typeof NODE_DELETE
   }
   interface KeyScopeTable {
     "@matomezu/tree:tree": true // ツリーの見せ方で描いている間のキー

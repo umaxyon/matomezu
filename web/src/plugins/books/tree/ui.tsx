@@ -19,5 +19,6 @@ export const TREE_UI = definePluginUi(TREE_PLUGIN, {
 declare module "../../../core/catalog" {
   interface ContextMenuTable {
     "@matomezu/tree:tree-context": Record<string, never> // 紙の画面（何も受け取らない）
+    "@matomezu/tree:node-context": Record<string, never> // 節（右クリックした節を選んでから開くので、何も受け取らない）
   }
 }

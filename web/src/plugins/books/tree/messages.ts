@@ -13,6 +13,7 @@ export const TREE_MESSAGES = defineMessages({
   "Add sibling before": { en: "Add sibling before", ja: "前に兄弟を足す" },
   "Add sibling after": { en: "Add sibling after", ja: "後ろに兄弟を足す" },
   Caption: { en: "Caption", ja: "キャプション" },
+  Delete: { en: "Delete", ja: "削除" },
   "Grow direction": { en: "Grow direction", ja: "伸びる向き" },
   Up: { en: "Up", ja: "上へ" },
   Down: { en: "Down", ja: "下へ" },
