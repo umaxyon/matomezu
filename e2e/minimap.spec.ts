@@ -95,7 +95,9 @@ test("右ボタンの長押しのアイコンのミニマップを押すと、�
   const picker = page.getByRole("toolbar", { name: "ツールの切り替え" })
   await picker.getByRole("button", { name: "ミニマップ" }).click()
   await expect(page.locator("[data-minimap=picker]")).toBeVisible()
-  await expect(picker.getByRole("button")).toHaveCount(0)
+  // 道具のアイコンは消え、ミニマップの下の拡大縮小の帯のボタンだけ
+  await expect(picker.getByRole("button")).toHaveText(["", "", ""])
+  await expect(picker.getByRole("button", { name: "ハンドツール" })).toHaveCount(0)
   const before = (await paper(page).boundingBox())!.y
   // ドラッグしている間は、ミニマップの外へ出ても閉じない
   const box = (await seen(page, "picker").boundingBox())!
@@ -111,4 +113,45 @@ test("右ボタンの長押しのアイコンのミニマップを押すと、�
   await expect(page.locator("[data-minimap=picker]")).toBeVisible()
   await page.mouse.move(map.x + 20, map.y - 150, { steps: 5 })
   await expect(picker).toHaveCount(0)
+})
+
+test("右ボタンの長押しのミニマップの下の帯で拡大縮小する（50〜125%、端では押せない）。初めの位置に戻すと 100%。Ctrl+ホイールと Home キーでも", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const p = (await paper(page).boundingBox())!
+  await page.mouse.move(p.x + 400, p.y + 300)
+  await page.mouse.down({ button: "right" })
+  await page.waitForTimeout(350)
+  await page.mouse.up({ button: "right" })
+  await page.getByRole("toolbar", { name: "ツールの切り替え" }).getByRole("button", { name: "ミニマップ" }).click()
+  const map = page.locator("[data-minimap=picker]")
+  const level = map.getByTitle("倍率")
+  const width = async () => (await paper(page).boundingBox())!.width
+  await expect(level).toHaveText("100%")
+  await expect(map.getByRole("button", { name: "初めの位置に戻す" })).toBeDisabled()
+  await map.getByRole("button", { name: "拡大" }).click()
+  await expect(level).toHaveText("125%")
+  await expect(map.getByRole("button", { name: "拡大" })).toBeDisabled()
+  await expect.poll(width).toBeCloseTo(p.width * 1.25, 0)
+  for (const _ of [1, 2, 3]) await map.getByRole("button", { name: "縮小" }).click()
+  await expect(level).toHaveText("50%")
+  await expect(map.getByRole("button", { name: "縮小" })).toBeDisabled()
+  await map.getByRole("button", { name: "初めの位置に戻す" }).click()
+  await expect(level).toHaveText("100%")
+  await expect.poll(width).toBeCloseTo(p.width, 0)
+  // Ctrl+ホイールはポインタの下の紙の点を動かさない
+  await page.keyboard.press("Escape")
+  await expect(map).toHaveCount(0)
+  const at = { x: p.x + 300, y: p.y + 200 }
+  await page.mouse.move(at.x, at.y)
+  await page.keyboard.down("Control")
+  await page.mouse.wheel(0, -100)
+  await page.keyboard.up("Control")
+  await expect.poll(width).toBeCloseTo(p.width * 1.25, 0)
+  const q = (await paper(page).boundingBox())!
+  expect((at.x - q.x) / 1.25).toBeCloseTo(at.x - p.x, 0)
+  expect((at.y - q.y) / 1.25).toBeCloseTo(at.y - p.y, 0)
+  await page.keyboard.press("Home")
+  await expect.poll(width).toBeCloseTo(p.width, 0)
 })

@@ -4,7 +4,7 @@
 // 出ている間は画面に薄い幕を掛けてほかの操作を止める。アイコンを押すとその道具にして閉じる。
 // アイコンの外を押す・閉じるキー（menu-close。既定は Escape と Space）・並びから離れる・窓の大きさが変わる・窓から焦点が外れると、何もせずに閉じる。
 // アイコンはポインタの位置から回りながら広がり、乗ると名前を出す。並びの外側の真ん中にはミニマップのボタンがあり、押すとアイコンを消して、
-// その場所にミニマップ（base/minimap の MinimapView）を、ポインタと反対の側へ広げて出す（紙が収まっていても出す）。閉じ方はアイコンと同じで、
+// その場所にミニマップ（base/minimap の MinimapView）と、その下に拡大縮小の帯（base/zoom の ZoomBar）を、ポインタと反対の側へ広げて出す（紙が収まっていても出す）。閉じ方はアイコンと同じで、
 // 離れたかはミニマップの枠から測る（ボタンを押している間は、離れても閉じない。四角をドラッグするため）。押し続けの途中の様子・最後のポインタの位置・その場に出したミニマップの置き場所と枠だけはビューに持つ
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -19,6 +19,7 @@ import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../..
 import { kit } from "../kit"
 import { MINIMAP } from "../minimap/icons"
 import { MinimapView } from "../minimap/MinimapView"
+import { ZoomBar } from "../zoom/ZoomBar"
 import { TOOL_SET } from "."
 import { ICON, leftBox, leftPicker, mapPlace, mapSlot, type PickerLayout, pickerSlots } from "./layout"
 import styles from "./ToolPickerView.module.css"
@@ -320,7 +321,9 @@ function PickerMap({
   }, [layout, at, onPlaced])
   return (
     <div ref={ref} className={styles.map} style={place} data-minimap="picker">
-      <MinimapView stage={stage} width={MAP_SIZE} height={MAP_SIZE} />
+      <MinimapView stage={stage} width={MAP_SIZE} height={MAP_SIZE}>
+        <ZoomBar stage={stage} />
+      </MinimapView>
     </div>
   )
 }

@@ -1,8 +1,8 @@
 // ミニマップの絵: ステージの紙の全体を、幅 width・高さ height に収まるように縮めて描き（アイテムは marks.ts の絵）、見えている範囲を四角で重ねる。
 // 四角をドラッグすると、ステージの見る所がついて動く。四角の外を押すと、そこが真ん中に来るように飛んでから、そのままドラッグできる
 // （紙をずらさない道具の間は、押しても動かさない）。
-// 紙の色と絵の色はブックのテーマの値で描く
-import { type PointerEvent, useMemo, useRef } from "react"
+// 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）
+import { type PointerEvent, type ReactNode, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolOf } from "../../../core/workspace"
@@ -18,7 +18,17 @@ import { fitScale, grabAt, panFor, seenRect } from "./geometry"
 import styles from "./MinimapView.module.css"
 import { type MinimapMark, minimapMarks } from "./marks"
 
-export function MinimapView({ stage: id, width, height }: { stage: string; width: number; height: number }) {
+export function MinimapView({
+  stage: id,
+  width,
+  height,
+  children,
+}: {
+  stage: string
+  width: number
+  height: number
+  children?: ReactNode
+}) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const stage = useMatomezuState(s => s.workspace.stages.find(st => st.id === id))
@@ -105,6 +115,7 @@ export function MinimapView({ stage: id, width, height }: { stage: string; width
           />
         )}
       </svg>
+      {children}
     </div>
   )
 }
