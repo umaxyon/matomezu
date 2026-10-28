@@ -283,7 +283,11 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
               onPointerDown={e => e.stopPropagation()}
               onClick={() => add(plus)}
             >
-              <span className={styles.plusMark}>+</span>
+              <span className={styles.plusMark}>
+                <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M5 1V9M1 5H9" />
+                </svg>
+              </span>
             </button>
           )
         })}
