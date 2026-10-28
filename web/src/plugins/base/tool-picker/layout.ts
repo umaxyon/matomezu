@@ -32,9 +32,11 @@ export function pickerSlots(at: Point, n: number, view: Size): PickerLayout {
   return { lay, slots: Array.from({ length: n }, (_, i) => ({ x: left + i * (ICON + GAP), y })) }
 }
 
-// ミニマップのボタンの左上: 並びの外側（ポインタと反対の側）の、真ん中のアイコンの隣。上の並びは、もう 1 段分入るときだけなので収まる
+// ミニマップのボタンの左上: 並びの外側（ポインタと反対の側）の、並びの真ん中（アイコンが偶数なら、真ん中の 2 つの間）。上の並びは、もう 1 段分入るときだけなので収まる
 export function mapSlot(layout: PickerLayout, at: Point): Point {
-  const mid = layout.slots[Math.floor((layout.slots.length - 1) / 2)] ?? at
+  const first = layout.slots[0] ?? at
+  const last = layout.slots[layout.slots.length - 1] ?? at
+  const mid = { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 }
   if (layout.lay === "left") return { x: mid.x - ICON - GAP, y: mid.y }
   if (layout.lay === "right") return { x: mid.x + ICON + GAP, y: mid.y }
   return { x: mid.x, y: mid.y < at.y ? mid.y - ICON - GAP : mid.y + ICON + GAP }

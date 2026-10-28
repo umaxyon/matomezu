@@ -193,6 +193,14 @@ describe("右の長押しのミニマップの置き場所", () => {
     const low = pickerSlots({ x: 600, y: 20 }, 3, view) // 上に入らなければ下に並び、ボタンはさらに下
     expect(mapSlot(low, { x: 600, y: 20 }).y).toBeGreaterThan(low.slots[1]!.y)
   })
+  test("アイコンが偶数なら、ボタンは真ん中の 2 つの間", () => {
+    const at = { x: 600, y: 400 }
+    const two = pickerSlots(at, 2, view)
+    expect(mapSlot(two, at).x).toBe((two.slots[0]!.x + two.slots[1]!.x) / 2)
+    const edge = { x: 1190, y: 400 }
+    const left = pickerSlots(edge, 2, view)
+    expect(mapSlot(left, edge).y).toBe((left.slots[0]!.y + left.slots[1]!.y) / 2)
+  })
   test("並びがあった所から、ポインタと反対の側へ広げ、画面からはみ出すなら内へ寄せる", () => {
     const at = { x: 600, y: 400 }
     const row = pickerSlots(at, 3, view)
