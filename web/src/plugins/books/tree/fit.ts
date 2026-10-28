@@ -4,6 +4,7 @@ import { paperSize } from "../../base"
 import { GROW } from "./grow"
 import { layoutTree } from "./layout"
 import { type TreeRoot, TreeRootSchema } from "./node"
+import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "./shape"
 import { DEFAULT_NODE_SIZE, NODE_SIZE } from "./size"
 
 // setting は、そのページで効いている設定の値を読む関数
@@ -19,5 +20,6 @@ export function treeFits(
   if (!found) return false
   const grow = GROW.schema.safeParse(setting(GROW.id)).data ?? "down"
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
-  return layoutTree(found, grow, paper, size).fits
+  const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
+  return layoutTree(found, grow, paper, size, shape).fits
 }

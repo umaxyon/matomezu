@@ -1,5 +1,5 @@
 // ツリーのブック: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分の見せ方（tree）で紙に描く。紙に置けるアイテムは無い。
-// 伸びる向きと節の大きさの選び方は、ブックとページの設定の項目（grow.ts・size.ts）。新しいページを作るダイアログと、ページの設定のダイアログ（根のダイアログを兼ねる）は自分の物を名指す。道具は自分の組（tools.ts。編集とハンド）。
+// 伸びる向き・節の大きさの選び方・節の形は、ブックとページの設定の項目（grow.ts・size.ts・shape.ts）。新しいページを作るダイアログと、ページの設定のダイアログ（根のダイアログを兼ねる）は自分の物を名指す。道具は自分の組（tools.ts。編集とハンド）。
 // 見た目（テーマと紙の色）は base の設定の項目で変えられる
 import { z } from "zod"
 import type { PageSettingsArgs } from "../../../plugin-api"
@@ -67,7 +67,7 @@ export const TREE = kit.defineBookType({
   ],
   tools: TREE_TOOLS.id,
   settings: {
-    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, kit.name("grow"), kit.name("node-size")],
-    page: [kit.name("grow"), kit.name("node-size")],
+    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, kit.name("grow"), kit.name("node-size"), kit.name("node-shape")],
+    page: [kit.name("grow"), kit.name("node-size"), kit.name("node-shape")],
   },
 })

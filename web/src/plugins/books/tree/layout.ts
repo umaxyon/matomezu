@@ -10,6 +10,7 @@ import type { Point } from "../../../plugin-api"
 import { clampLines, TEXT_LOOK, textWidth, wrap } from "../../base"
 import type { Grow } from "./grow"
 import { SIDE_NAMES, type Side, sideOf, type TreeNode, type TreeRoot } from "./node"
+import { DEFAULT_NODE_SHAPE, type NodeShape } from "./shape"
 import { DEFAULT_NODE_SIZE, type NodeSize, sizeRule } from "./size"
 
 export const MARGIN = 24 // 根と紙の辺の間
@@ -93,8 +94,18 @@ function measure(node: TreeNode, side: Side, size: NodeSize): Measured {
   return { id: node.id, caption: node.caption, lines: box.lines, ...color, main, cross, span, children }
 }
 
-// 四角 parent の side の辺から、子の並び kids を伸ばした節と線（parent 自身は含めない）。extra は、最初の段だけ parent から余分に離す長さ
-function branch(parent: Rect, kids: readonly TreeNode[], side: Side, size: NodeSize, out: TreeLayout, extra = 0) {
+// 四角 parent の side の辺から、子の並び kids を伸ばした節と線（parent 自身は含めない）。extra は、最初の段だけ parent から余分に離す長さ。
+// 節の形が下線で左右へ伸びる枝は、線を節の下の辺（下線）の端につなぐ
+function branch(
+  parent: Rect,
+  kids: readonly TreeNode[],
+  side: Side,
+  look: { size: NodeSize; shape: NodeShape },
+  out: TreeLayout,
+  extra = 0,
+) {
+  const { size } = look
+  const onLine = look.shape === "underline" && !vertical(side) // 線を下線の端につなぐか
   const measured = kids.map(k => measure(k, side, size))
   if (measured.length === 0) return
   // 伸びる向きの位置 at（parent の辺から）と横の位置 across（parent の横の真ん中から）を、紙の上の点にする
@@ -115,8 +126,9 @@ function branch(parent: Rect, kids: readonly TreeNode[], side: Side, size: NodeS
     const across = start + (n.span - n.cross) / 2
     const color = n.color ? { color: n.color } : {}
     out.nodes.push({ id: n.id, caption: n.caption, lines: n.lines, ...color, ...rectOf(at, across, n) })
-    out.lines.push({ from, to: toPaper(at, across + n.cross / 2) })
-    const tip = toPaper(at + n.main, across + n.cross / 2)
+    const join = onLine ? n.cross : n.cross / 2
+    out.lines.push({ from, to: toPaper(at, across + join) })
+    const tip = toPaper(at + n.main, across + join)
     let next = start + (n.span - spanOf(n.children, side)) / 2
     for (const c of n.children) {
       place(c, at + n.main + LEVEL, next, tip)
@@ -125,7 +137,7 @@ function branch(parent: Rect, kids: readonly TreeNode[], side: Side, size: NodeS
   }
   let next = -spanOf(measured, side) / 2
   for (const m of measured) {
-    place(m, LEVEL + extra, next, toPaper(0, 0))
+    place(m, LEVEL + extra, next, toPaper(0, onLine ? parent.h / 2 : 0))
     next += m.span + gapOf(side)
   }
 }
@@ -198,13 +210,15 @@ function shiftInto(out: TreeLayout, paper: { w: number; h: number }) {
   }))
 }
 
-// size はページで効いている節の大きさの選び方（節が自分で選んでいなければ、これに従う）
+// size はページで効いている節の大きさの選び方（節が自分で選んでいなければ、これに従う）、shape は節の形
 export function layoutTree(
   root: TreeRoot,
   grow: Grow,
   paper: { w: number; h: number },
   size: NodeSize = DEFAULT_NODE_SIZE,
+  shape: NodeShape = DEFAULT_NODE_SHAPE,
 ): TreeLayout {
+  const look = { size, shape }
   const box = rootBox(root, size)
   const r = rootRect(box, grow, paper)
   const out: TreeLayout = {
@@ -225,15 +239,15 @@ export function layoutTree(
   if (grow === "center") {
     const group = (side: Side) => kids.filter(k => sideOf(k) === side)
     const stays: Side[] = paper.w >= paper.h ? ["up", "down"] : ["left", "right"]
-    for (const side of stays) branch(r, group(side), side, size, out)
+    for (const side of stays) branch(r, group(side), side, look, out)
     const near = out.nodes.slice(1)
     for (const side of SIDE_NAMES.filter(s => !stays.includes(s))) {
       const trial: TreeLayout = { nodes: [], lines: [], fits: true }
-      branch(r, group(side), side, size, trial)
-      branch(r, group(side), side, size, out, pushOut(trial.nodes, near, side))
+      branch(r, group(side), side, look, trial)
+      branch(r, group(side), side, look, out, pushOut(trial.nodes, near, side))
     }
     shiftInto(out, paper)
-  } else branch(r, kids, grow, size, out)
+  } else branch(r, kids, grow, look, out)
   out.fits = out.nodes.every(n => n.x >= 0 && n.y >= 0 && n.x + n.w <= paper.w && n.y + n.h <= paper.h)
   return out
 }

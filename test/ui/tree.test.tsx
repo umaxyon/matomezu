@@ -636,3 +636,21 @@ test("ツリーのページの設定でも、選んでいる値で木が紙に�
   expect(within(dialog).getByRole("alert").textContent).toBe("p1：紙に入りません")
   expect((within(dialog).getByRole("button", { name: "確定" }) as HTMLButtonElement).disabled).toBe(true)
 })
+
+test("節の形: ページの設定で下線を選ぶと、節を下線の形で描く", () => {
+  const { store, id } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子" }] })
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  expect(paper().querySelector('[data-root="true"]')!.getAttribute("data-shape")).toBe("box")
+  act(() => {
+    store.actions.perform(
+      "@matomezu/base:page-update",
+      { page: done.page, settings: { "@matomezu/tree:node-shape": "underline" } },
+      { book: id },
+    )
+  })
+  expect([...paper().querySelectorAll("[data-node]")].map(n => n.getAttribute("data-shape"))).toEqual([
+    "underline",
+    "underline",
+  ])
+})

@@ -1,4 +1,4 @@
-// ツリーのプラグイン: ツリーのブックのタイプと、その見せ方・伸びる向きと節の大きさの設定の項目・ページを作るダイアログ・節の大きさと色のダイアログ・
+// ツリーのプラグイン: ツリーのブックのタイプと、その見せ方・伸びる向き・節の大きさ・節の形の設定の項目・ページを作るダイアログ・節の大きさと色のダイアログ・
 // 節のアクションとコマンド・道具の組（編集とハンド）。
 // テーマと紙の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（tree.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
@@ -6,6 +6,7 @@ import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { NODE_COLOR_EDIT, NODE_DELETE, NODE_EDIT, NODE_SELECT_MOVE, NODE_SIZE_EDIT, TREE_KEYS } from "./commands"
 import { GROW } from "./grow"
 import { kit } from "./kit"
+import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 import { EDIT_TOOL, TREE_TOOLS } from "./tools"
 import {
@@ -21,7 +22,7 @@ export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [TREE],
     presentations: [TREE_PRESENTATION],
-    settings: [GROW, NODE_SIZE],
+    settings: [GROW, NODE_SIZE, NODE_SHAPE],
     dialogs: [NEW_TREE_PAGE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, NODE_SIZE_DIALOG, NODE_COLOR_DIALOG],
     actions: [NODE_ADD, NODE_UPDATE, NODE_REMOVE],
     commands: [NODE_SELECT_MOVE, NODE_EDIT, NODE_COLOR_EDIT, NODE_SIZE_EDIT, NODE_DELETE],
@@ -41,6 +42,7 @@ declare module "../../../core/catalog" {
   interface SettingTable {
     "@matomezu/tree:grow": typeof GROW
     "@matomezu/tree:node-size": typeof NODE_SIZE
+    "@matomezu/tree:node-shape": typeof NODE_SHAPE
   }
   interface ActionTable {
     "@matomezu/tree:node-add": typeof NODE_ADD

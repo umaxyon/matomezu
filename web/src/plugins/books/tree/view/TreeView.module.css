@@ -132,3 +132,11 @@
   border-top: 1px solid var(--tree-node-line);
   font-weight: 400;
 }
+/* 節の形が下線: 塗りと枠を描かず、キャプションの下に線を引く（線の色は節の色、無ければ節の枠線の色。文字はテーマの文字の色） */
+.node[data-shape="underline"] {
+  border: 0;
+  border-bottom: 2px solid var(--underline-color, var(--tree-node-line));
+  border-radius: 0;
+  background: transparent;
+  color: var(--theme-text);
+}

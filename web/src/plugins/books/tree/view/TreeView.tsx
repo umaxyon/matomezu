@@ -29,6 +29,7 @@ import { GROW } from "../grow"
 import { kit } from "../kit"
 import { layoutTree } from "../layout"
 import { TreeRootSchema } from "../node"
+import { DEFAULT_NODE_SHAPE, NODE_SHAPE } from "../shape"
 import { DEFAULT_NODE_SIZE, NODE_SIZE } from "../size"
 import { EDIT_TOOL } from "../tools"
 import { NODE_CONTEXT, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from "../tree"
@@ -110,7 +111,8 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
-  const laid = shown ? layoutTree(shown, grow, paper, size) : null
+  const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
+  const laid = shown ? layoutTree(shown, grow, paper, size, shape) : null
   const at = laid?.nodes.find(n => n.id === selected)
   useCentered(stage, usingEdit ? at : undefined, view, panStageBy)
   if (!book || !page || !root.success || !laid || !selected) return null
@@ -170,6 +172,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
           className={styles.node}
           data-node={n.id}
           data-root={n.id === tree.id}
+          data-shape={shape}
           data-selected={usingEdit && n.id === selected}
           style={{ left: n.x, top: n.y, width: n.w, height: n.h, ...nodePaint(n.color) }}
           onPointerDown={e => {
