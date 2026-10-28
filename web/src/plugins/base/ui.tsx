@@ -17,6 +17,7 @@ import { TOOL_ICONS } from "./tool-switch/icons"
 import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import { type StageSlotProps, WORKSPACE } from "./workspace/ui"
+import { ZOOM_ICONS } from "./zoom/icons"
 
 export { ColorPicker, type Swatch } from "./dialog-host/ColorPicker"
 export { Confirm } from "./dialog-host/Confirm"
@@ -59,7 +60,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PAGE_TABS,
     CLOSE_BUTTON,
   ],
-  commandIcons: { ...STAGE_ICONS, ...MINIMAP_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS },
+  commandIcons: { ...STAGE_ICONS, ...MINIMAP_ICONS, ...ZOOM_ICONS, ...BOOK_OPEN_ICONS, ...BOOK_LOOK_ICONS },
   toolIcons: TOOL_ICONS,
 })
 

@@ -154,6 +154,23 @@ function neighbourOf(book: PagedBook, page: string | null, before?: Book): Paged
   return left.get(after ?? prior ?? "") ?? book.pages[0]
 }
 
+// 倍率を zoom にする。表示領域の中の点 at（無ければ真ん中）の下にある紙の点が動かないように、ずらす量を合わせる（紙が無ければ変えない）
+export function zoomTo(stage: Stage, zoom: number, at?: Point): Stage {
+  if (!paperOf(stage) || zoom === stage.zoom) return stage
+  const view = stage.view
+  if (!view) return settle({ ...stage, zoom }, stage.pan)
+  const p = at ?? { x: view.w / 2, y: view.h / 2 }
+  const origin = paperOrigin(stage.pan)
+  const k = zoom / stage.zoom
+  const pan = { x: stage.pan.x + (p.x - origin.x) * (1 - k), y: stage.pan.y + (p.y - origin.y) * (1 - k) }
+  return settle({ ...stage, zoom }, pan)
+}
+
+// 開いたときの見え方（倍率 1、ずらす量は最初の位置）に戻す
+export function resetView(stage: Stage): Stage {
+  return stage.zoom === 1 ? settle(stage, HOME) : settle({ ...stage, zoom: 1 }, HOME)
+}
+
 // 何も開いていない状態にする（開いていたブックが無くなったときなど）
 export function closeBook(stage: Stage): Stage {
   return stage.opened ? settle(leave({ ...stage, opened: null }), HOME) : stage

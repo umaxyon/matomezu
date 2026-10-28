@@ -8,7 +8,7 @@ import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { kit } from "./kit"
 import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
-import type { A3, A4, A5 } from "./looks/papers"
+import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MINIMAP_TOGGLE } from "./minimap"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
@@ -20,6 +20,7 @@ import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_NEXT } from "./tool-switch"
 import { HAND_TOOL, SELECT_TOOL } from "./tool-switch/tools"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
+import { ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
 export { NEW_BOOK_DIALOG } from "./book-new"
@@ -99,6 +100,9 @@ export const BASE = defineBuiltin(
       TOOL_SET,
       TOOL_PICKER,
       MINIMAP_TOGGLE,
+      ZOOM_IN,
+      ZOOM_OUT,
+      ZOOM_RESET,
       TOOLBOX_CANCEL,
       DIALOG_SUBMIT,
       DIALOG_CLOSE,
@@ -112,7 +116,7 @@ export const BASE = defineBuiltin(
       SETTINGS_SKIN,
     ],
     dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG, NEW_BOOK_DIALOG],
-    keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...DIALOG_KEYS, ...MENU_KEYS],
+    keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...ZOOM_KEYS, ...DIALOG_KEYS, ...MENU_KEYS],
   }),
 )
 
@@ -149,6 +153,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:a5": typeof A5
     "@matomezu/base:a4": typeof A4
     "@matomezu/base:a3": typeof A3
+    "@matomezu/base:letter": typeof LETTER
+    "@matomezu/base:tabloid": typeof TABLOID
   }
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW
@@ -160,6 +166,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-set": typeof TOOL_SET
     "@matomezu/base:tool-picker": typeof TOOL_PICKER
     "@matomezu/base:minimap-toggle": typeof MINIMAP_TOGGLE
+    "@matomezu/base:zoom-in": typeof ZOOM_IN
+    "@matomezu/base:zoom-out": typeof ZOOM_OUT
+    "@matomezu/base:zoom-reset": typeof ZOOM_RESET
     "@matomezu/base:toolbox-cancel": typeof TOOLBOX_CANCEL
     "@matomezu/base:dialog-submit": typeof DIALOG_SUBMIT
     "@matomezu/base:dialog-close": typeof DIALOG_CLOSE

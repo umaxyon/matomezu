@@ -1,0 +1,44 @@
+/* 拡大縮小の帯（ミニマップの下） */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 6px;
+  line-height: normal;
+  color: var(--skin-text);
+}
+.button {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.button:hover:not(:disabled) {
+  background: var(--skin-float-hover);
+}
+.button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.reset {
+  margin-right: auto;
+}
+.level {
+  min-width: 38px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}

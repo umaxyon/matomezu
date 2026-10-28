@@ -51,6 +51,7 @@ import {
   useUiCatalog,
 } from "../../../plugin-api/ui"
 import { type Edges, fitsPaper, itemSize, minSize, placedSize, rectsOf, resizedBy, shownRects } from "../../base"
+import { useZoomMotion } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import { type Came, dragging, PAPER_EDIT, PAPER_MOVE, PAPER_PLACE, PAPER_RESIZE, placeAt, trackDrag } from "../placing"
@@ -106,6 +107,7 @@ type LocalOf = (e: PointerEvent<Element>) => Point | null
 function Content({ stage, pointer, localOf }: { stage: StageView; pointer: Point | null; localOf: LocalOf }) {
   const t = useMessages(kit)
   const p = placement(stage)
+  const motion = useZoomMotion(stage.zoom)
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
@@ -120,6 +122,7 @@ function Content({ stage, pointer, localOf }: { stage: StageView; pointer: Point
           width: p.w,
           height: p.h,
           transform: `translate(${p.x}px, ${p.y}px) scale(${p.zoom})`,
+          transition: motion,
           "--paper-zoom": p.zoom,
         } as CSSProperties
       }

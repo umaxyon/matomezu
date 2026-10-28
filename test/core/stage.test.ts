@@ -6,9 +6,12 @@ import {
   panBy,
   paperOf,
   placement,
+  resetView,
   resize,
   select,
   setEditing,
+  toPaper,
+  zoomTo,
 } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
@@ -70,6 +73,21 @@ describe("stage", () => {
   test("紙は、ずらす量から余白の分だけ内側に置く", () => {
     const s = panBy(resize(stage, small), -30, -40)
     expect(placement(s)).toEqual({ x: MARGIN - 30, y: MARGIN - 40, ...paperOf(s)!, zoom: 1 })
+  })
+
+  test("倍率を変えても、渡した点（無ければ表示領域の真ん中）の下の紙の点は動かない。開いたときの見え方に戻せる", () => {
+    const s = panBy(resize(stage, small), -200, -100)
+    const at = { x: 120, y: 80 }
+    const under = toPaper(s, at)
+    const big = zoomTo(s, 1.25, at)
+    expect(big.zoom).toBe(1.25)
+    expect(toPaper(big, at)).toEqual(under)
+    const mid = { x: small.w / 2, y: small.h / 2 }
+    expect(toPaper(zoomTo(s, 0.75), mid)).toEqual(toPaper(s, mid))
+    expect(zoomTo(s, 1)).toBe(s)
+    const home = resetView(big)
+    expect(home).toMatchObject({ zoom: 1, pan: { x: 0, y: 0 } })
+    expect(resetView(home)).toBe(home)
   })
 
   test("何も開いていないステージは、紙が無く、ずらせない", () => {

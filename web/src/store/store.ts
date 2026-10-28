@@ -19,12 +19,14 @@ import {
   openBook,
   openPicker,
   panBy,
+  resetView,
   resize,
   select,
   setEditing,
   setMinimap,
   showPickerMap,
   stopPlacing,
+  zoomTo,
 } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import {
@@ -114,6 +116,9 @@ export interface Actions {
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにする
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   panStageBy(id: string, dx: number, dy: number): void
+  // そのステージの倍率を zoom にする（表示領域の中の点 at、無ければ真ん中の下の紙の点は動かさない）
+  zoomStage(id: string, zoom: number, at?: Point): void
+  resetStageView(id: string): void // そのステージを、開いたときの見え方（倍率 1・最初の位置）に戻す
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
@@ -392,6 +397,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     resizeStage: (id, view) => withWorkspace(ws => mapStage(ws, id, s => resize(s, view))),
     panStageBy: (id, dx, dy) => withWorkspace(ws => mapStage(ws, id, s => panBy(s, dx, dy))),
+    zoomStage: (id, zoom, at) => withWorkspace(ws => mapStage(ws, id, s => zoomTo(s, zoom, at))),
+    resetStageView: id => withWorkspace(ws => mapStage(ws, id, resetView)),
     setTool: (id, tool) => withWorkspace(ws => setTool(catalog, ws, id, tool)),
     togglePlacing: (id, item) => withWorkspace(ws => togglePlacing(catalog, ws, id, item)),
     stopPlacing: id => withWorkspace(ws => mapStage(ws, id, s => stopPlacing(s))),

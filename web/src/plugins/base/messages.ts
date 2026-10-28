@@ -14,12 +14,14 @@ import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
 import { ELAPSED_MESSAGES } from "./utils/messages"
+import { ZOOM_MESSAGES } from "./zoom/messages"
 
 export const BASE_MESSAGES = {
   ...STAGE_MESSAGES,
   ...TOOL_SWITCH_MESSAGES,
   ...TOOL_PICKER_MESSAGES,
   ...MINIMAP_MESSAGES,
+  ...ZOOM_MESSAGES,
   ...TOOLBOX_MESSAGES,
   ...DIALOG_MESSAGES,
   ...MENU_MESSAGES,
