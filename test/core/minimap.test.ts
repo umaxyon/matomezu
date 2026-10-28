@@ -118,6 +118,7 @@ describe("ページの絵", () => {
   test("線を先に（下に）、形をあとに描く。形は定義の輪郭、定義の無い形は置いた四角", () => {
     const marks = minimapMarks(
       CORE_CATALOG,
+      "@matomezu/drawing:drawing",
       page([
         { id: "a", item: "@matomezu/shape:shape-diamond", x: 100, y: 100, w: 120, h: 60, props: { caption: "" } },
         { id: "b", item: "@matomezu/box:shape-nest-box", x: 400, y: 100, w: 100, h: 60, props: {} },
@@ -153,6 +154,7 @@ describe("ページの絵", () => {
   test("横向きの台形は、回した輪郭で描く", () => {
     const [up, turned] = minimapMarks(
       CORE_CATALOG,
+      "@matomezu/drawing:drawing",
       page([
         {
           id: "a",
@@ -213,4 +215,17 @@ test("その場に出したミニマップは、枠から 80px より離れる�
   expect(leftBox(box, "row", at, { x: 200, y: 59 })).toBe(true)
   expect(leftBox(box, "row", at, { x: 370, y: 150 })).toBe(false)
   expect(leftBox(box, "row", at, { x: 390, y: 150 })).toBe(true)
+})
+
+test("アイテムを置かないツリーのページは、タイプの minimap が節を四角で、線を両端を結ぶ線で描く", () => {
+  const tree = {
+    id: "p1",
+    title: "",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape",
+    items: [],
+    root: { id: "r", caption: "根", children: [{ id: "a", caption: "子" }] },
+  } as ItemPage
+  const marks = minimapMarks(CORE_CATALOG, "@matomezu/tree:tree", tree, () => undefined)
+  expect(marks.map(m => m.kind)).toEqual(["polyline", "rect", "rect"])
 })

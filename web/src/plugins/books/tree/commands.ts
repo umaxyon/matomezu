@@ -1,10 +1,10 @@
 // ツリーのコマンド: 上下左右のキーで、選んでいる節を動かす（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ）と、
-// Home で根を選び、Enter で、選んでいる節のキャプションをその場で書き始める。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
+// Home で根を選び、F2 で、選んでいる節のキャプションをその場で書き始める。Tab で子を、Enter ですぐ後ろの兄弟を足して、その場で書き始める（根に兄弟は足せない）。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
 // 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、節の色と、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーの見せ方の範囲（ステージの範囲より先に探す）
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { settingValue } from "../../base"
-import { NODE_REMOVE, NODE_UPDATE } from "./actions"
-import { type Arrow, afterRemove, moveFrom, selectedIn } from "./edit"
+import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
+import { type Arrow, addArgs, afterRemove, keyPlus, moveFrom, selectedIn } from "./edit"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
@@ -57,6 +57,49 @@ export const NODE_EDIT = kit.defineCommand({
     a.setEditing(ctx.stage.id, true)
   },
   when: editingTree,
+})
+
+// 選んでいる節に、空の子（kind child）か、すぐ後ろの兄弟（kind after）を足して選び、その場で書き始めるコマンド。紙に入らず断られたら、トーストで知らせる
+function addCommand<const Id extends string>(
+  id: Id,
+  title: "Add child" | "Add sibling after",
+  kind: "child" | "after",
+  when: (ctx: CommandContext) => boolean,
+) {
+  return kit.defineCommand({
+    id,
+    performs: [NODE_ADD.id],
+    title,
+    run: (ctx, a) => {
+      const tree = treeAt(ctx)
+      const opened = ctx.stage.opened
+      if (!tree || !opened) return
+      const plus = keyPlus(tree.root, tree.grow, selectedIn(tree.root, ctx.stage.selection), kind)
+      if (!plus) return
+      const done = a.perform(NODE_ADD.id, addArgs(tree.page.id, plus), { book: opened.book })
+      const added = done.ok ? done.result.nodes[0]?.id : undefined
+      if (!added) {
+        a.showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
+        return
+      }
+      a.select(ctx.stage.id, [added])
+      a.setEditing(ctx.stage.id, true)
+    },
+    when,
+  })
+}
+
+export const NODE_ADD_CHILD = addCommand(
+  "node-add-child",
+  "Add child",
+  "child",
+  ctx => editingTree(ctx) && !ctx.stage.editing && treeAt(ctx) !== null,
+)
+
+// 根を選んでいるときは出さない
+export const NODE_ADD_SIBLING = addCommand("node-add-sibling", "Add sibling after", "after", ctx => {
+  const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null
+  return tree !== null && selectedIn(tree.root, ctx.stage.selection) !== tree.root.id
 })
 
 // 選んでいる節を子孫ごと消し、前の兄弟（無ければ親）を選ぶ（根を選んでいるときと、その場の編集中は出さない）
@@ -119,7 +162,9 @@ export const TREE_KEYS = [
   kit.defineKey({ id: "node-select-root-home", key: "Home", command: NODE_SELECT_ROOT.id, scope: TREE_KEYS_SCOPE }),
   kit.defineKey({ id: "node-delete-delete", key: "Delete", command: NODE_DELETE.id, scope: TREE_KEYS_SCOPE }),
   kit.defineKey({ id: "node-delete-backspace", key: "Backspace", command: NODE_DELETE.id, scope: TREE_KEYS_SCOPE }),
-  kit.defineKey({ id: "node-edit-enter", key: "Enter", command: NODE_EDIT.id, scope: TREE_KEYS_SCOPE }),
+  kit.defineKey({ id: "node-edit-f2", key: "F2", command: NODE_EDIT.id, scope: TREE_KEYS_SCOPE }),
+  kit.defineKey({ id: "node-add-child-tab", key: "Tab", command: NODE_ADD_CHILD.id, scope: TREE_KEYS_SCOPE }),
+  kit.defineKey({ id: "node-add-sibling-enter", key: "Enter", command: NODE_ADD_SIBLING.id, scope: TREE_KEYS_SCOPE }),
   kit.defineKey({
     id: "node-select-up",
     key: "ArrowUp",

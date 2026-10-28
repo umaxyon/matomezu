@@ -6,6 +6,7 @@ import type { PageSettingsArgs } from "../../../plugin-api"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
+import { treeMinimap } from "./minimap"
 import { TreeRootSchema } from "./node"
 import { pageFieldsInput } from "./page-fields"
 import { TREE_TOOLS } from "./tools"
@@ -50,6 +51,7 @@ export const TREE = kit.defineBookType({
   // 木が紙に入らないページは問題（base のページ・ブックのアクションは書かない）
   pageProblem: (catalog, page, setting) =>
     treeFits(catalog, page, setting) ? null : { message: kit.message("Does not fit on the paper") },
+  minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
   pages: {
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
     fields: { root: TreeRootSchema },

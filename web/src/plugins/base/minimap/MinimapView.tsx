@@ -44,7 +44,7 @@ export function MinimapView({
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
   const vars = useMemo(() => (book ? themeVars(bookTokens(catalog, book)) : undefined), [catalog, book])
   const marks = useMemo(
-    () => (book && page ? minimapMarks(catalog, page, settingsAt(catalog, book, page)) : []),
+    () => (book && page ? minimapMarks(catalog, book.type, page, settingsAt(catalog, book, page)) : []),
     [catalog, book, page],
   )
   const paper = stage ? paperOf(stage) : null

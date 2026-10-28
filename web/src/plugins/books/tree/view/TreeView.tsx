@@ -4,9 +4,9 @@
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、ほかを少し暗くし、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす
 // （編集の道具では 125%、ほかの道具では 100% に。選ぶ節が替わると紙の動きをなめらかにする）。
-// 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と Enter のコマンド）でも編集し始める
-// （根はページの設定のダイアログを開く）。
-// その場で編集中は、書いている字で節の大きさを決め直し、テキストFormのすぐ上に装飾のボックス（base の RichBar。太字と文字の色）を出す（押しても焦点は外れない）。＋で足した節は太字の記号の間から書き始める。キャプションは普通の太さで、装飾して描く。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
+// 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子。ふだんは小さな点で、ポインタを近づけると＋の丸に開く）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と F2 のコマンド）でも編集し始める
+// （根はページの設定のダイアログを開く）。節の形が下線でも、根は箱で描く。
+// その場で編集中は、書いている字で節の大きさを決め直し、テキストFormのすぐ上に装飾のボックス（base の RichBar。太字と文字の色）を出す（押しても焦点は外れない）。キャプションの空の節（＋やキーで足した節）は太字の記号の間から書き始める。キャプションは普通の太さで、装飾して描く。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
 // 足す・書き換えるのが紙に入らないので断られたら、トーストで知らせる
 import { type CSSProperties, Fragment, useEffect, useRef, useState } from "react"
 import { placement, type Size, type StageView } from "../../../../plugin-api"
@@ -26,7 +26,9 @@ import { settingValue } from "../../../base"
 import { RichBar, RichText, useResize, useZoomMotion } from "../../../base/ui"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import {
+  addArgs,
   afterRemove,
+  captionOf,
   centerShift,
   editEnd,
   type Plus,
@@ -127,7 +129,9 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
   const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
   const ended = useRef(false)
   const editor = useRef<HTMLInputElement>(null)
-  const text = writing && draft?.node === selected ? draft.text : null
+  // 書き始めの字: キャプションの空の節は、太字の記号の組から
+  const blank = writing && selected && root.success && captionOf(root.data, selected) === "" ? NEW_CAPTION : null
+  const text = writing ? (draft?.node === selected ? draft.text : blank) : null
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
   const size = NODE_SIZE.schema.safeParse(setting(NODE_SIZE.id)).data ?? DEFAULT_NODE_SIZE
   const shape = NODE_SHAPE.schema.safeParse(setting(NODE_SHAPE.id)).data ?? DEFAULT_NODE_SHAPE
@@ -159,19 +163,13 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
     setDraft(null)
     setEditing(stage.id, false)
   }
-  // ＋: 空の節を足して選び、その場で編集し始める（新しい節は太字で始める: 太字の記号の間から書く。キャプションの標準は普通の太さ）
+  // ＋: 空の節を足して選び、その場で編集し始める
   const add = (plus: Plus) => {
-    const done = perform(NODE_ADD.id, {
-      page: pageId,
-      parent: plus.parent,
-      ...(plus.index === undefined ? {} : { index: plus.index }),
-      nodes: [{ caption: "", ...(plus.towards ? { side: plus.towards } : {}) }],
-    })
+    const done = perform(NODE_ADD.id, addArgs(pageId, plus))
     const id = done.ok ? done.result.nodes[0]?.id : undefined
     if (!id) return refused()
     select(stage.id, [id])
     setEditing(stage.id, true)
-    setDraft({ node: id, text: NEW_CAPTION })
   }
   const { nodes, lines } = laid
   return (
@@ -188,7 +186,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
           className={styles.node}
           data-node={n.id}
           data-root={n.id === tree.id}
-          data-shape={shape}
+          data-shape={n.id === tree.id ? "box" : shape}
           data-selected={usingEdit && n.id === selected}
           style={{ left: n.x, top: n.y, width: n.w, height: n.h, ...nodePaint(n.color) }}
           onPointerDown={e => {
@@ -285,7 +283,7 @@ function Tree({ stage, paper, view }: { stage: StageView; paper: Size; view: Siz
               onPointerDown={e => e.stopPropagation()}
               onClick={() => add(plus)}
             >
-              +
+              <span className={styles.plusMark}>+</span>
             </button>
           )
         })}
