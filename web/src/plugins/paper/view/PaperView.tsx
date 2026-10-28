@@ -313,7 +313,10 @@ function PageItems({
   const scene: ShapeScene = {
     stage,
     page: shownPage,
-    rects: shownRects(catalog, shapes),
+    rects: shownRects(catalog, shapes, c => {
+      const item = shown(c)
+      return { item, shift: shiftOf(item) }
+    }),
     dragged,
     pushed: shapes.filter(({ item, shift }) => shift && !dragged.includes(item.id)).map(({ item }) => item.id),
     swapped: d?.swapped ?? false,
@@ -324,31 +327,27 @@ function PageItems({
     localOf,
   }
 
-  // 形 1 つと、その中の子の形（子は親の左上からの位置で、親の中に描く。つなぐもののビューは、ページの形にだけ重ねる）
-  const render = (item: PlacedShape, shift: Point | null, child: boolean): ReactNode => (
+  // 形 1 つと、その中の子の形（子は親の左上からの位置で、親の中に描く）
+  const render = (item: PlacedShape, shift: Point | null): ReactNode => (
     <Item
       key={item.id}
       stage={stage.id}
       zoom={placement(stage)?.zoom ?? 1}
       item={item}
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
-      overlays={
-        child
-          ? null
-          : connectors.flatMap(c => {
-              const Overlay = c.overlay
-              return Overlay
-                ? [
-                    <TokenScope key={c.id} def={c.id}>
-                      <Overlay scene={scene} id={item.id} />
-                    </TokenScope>,
-                  ]
-                : []
-            })
-      }
+      overlays={connectors.flatMap(c => {
+        const Overlay = c.overlay
+        return Overlay
+          ? [
+              <TokenScope key={c.id} def={c.id}>
+                <Overlay scene={scene} id={item.id} />
+              </TokenScope>,
+            ]
+          : []
+      })}
       nested={(item.shapes ?? []).map(c => {
         const shape = shown(c as PlacedShape)
-        return render(shape, shiftOf(shape), true)
+        return render(shape, shiftOf(shape))
       })}
       stretchable={single && stage.selection[0] === item.id && minSize(catalog, item) !== null}
       onStretch={{
@@ -376,7 +375,7 @@ function PageItems({
       }}
     />
   )
-  const items = shapes.map(({ item, shift }) => render(item, shift, false))
+  const items = shapes.map(({ item, shift }) => render(item, shift))
   return connectors.reduceRight<ReactNode>((inner, c) => {
     const Layer = c.layer
     return (

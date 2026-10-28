@@ -26,6 +26,7 @@ export interface Ports {
 // 形のつながる範囲（紙の座標）: つなぎ口で縮めた四角と、辺の真ん中だけにつなぐか
 export interface PortArea extends Rect {
   midpoints?: boolean
+  ancestors?: readonly string[] // この形を中に持つ形の id（親から順に。つなぐものは、端の形の先祖を避けない）
 }
 
 declare module "../../../core/catalog" {
@@ -110,14 +111,28 @@ export function portAreasOf(
   page: ItemPage,
   rects: ReadonlyMap<string, Rect> = allRectsOf(catalog, page),
 ): Map<string, PortArea> {
-  const items = new Map(walkShapes(page).map(({ shape }) => [shape.id, shape]))
+  const walked = walkShapes(page)
+  const items = new Map(walked.map(({ shape }) => [shape.id, shape]))
+  const parents = new Map(walked.map(({ shape, parent }) => [shape.id, parent]))
+  const ancestorsOf = (id: string): string[] => {
+    const parent = parents.get(id)
+    return parent ? [parent, ...ancestorsOf(parent)] : []
+  }
   const areas = new Map<string, PortArea>()
   for (const [id, r] of rects) {
     const item = items.get(id)
     const ports = item ? portsOf(catalog, item) : undefined
     const ix = Math.min(ports?.insetX ?? 0, Math.max(0, (r.w - 1) / 2))
     const iy = Math.min(ports?.insetY ?? 0, Math.max(0, (r.h - 1) / 2))
-    areas.set(id, { x: r.x + ix, y: r.y + iy, w: r.w - ix * 2, h: r.h - iy * 2, midpoints: ports?.midpoints ?? false })
+    const ancestors = ancestorsOf(id)
+    areas.set(id, {
+      x: r.x + ix,
+      y: r.y + iy,
+      w: r.w - ix * 2,
+      h: r.h - iy * 2,
+      midpoints: ports?.midpoints ?? false,
+      ...(ancestors.length > 0 ? { ancestors } : {}),
+    })
   }
   return areas
 }

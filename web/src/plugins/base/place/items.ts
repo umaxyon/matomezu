@@ -286,16 +286,24 @@ export function placeItem<B extends PagedBook>(
   return after && withPage(catalog, book, { ...page, items: [...placedAt(catalog, page, after), item] })
 }
 
-// 描いている形の四角: 形ごとの左上と大きさに、ドラッグでずらして描く量（shift）を足したもの（大きさの分からない形は入れない）
+// 描いている形の四角（紙の上）: 形ごとの左上と大きさに、ドラッグでずらして描く量（shift）を足したもの（大きさの分からない形は入れない）。
+// 子の形も入れる。子は child で描く形とずらす量にし（無ければデータのまま、ずらさない）、親の左上と、親をずらして描く量を足す
 export function shownRects(
   catalog: CoreCatalog,
   shapes: readonly { item: PlacedShape; shift: Point | null }[],
+  child: (shape: PlacedShape) => { item: PlacedShape; shift: Point | null } = item => ({ item, shift: null }),
 ): Map<string, Rect> {
   const rects = new Map<string, Rect>()
-  for (const { item, shift } of shapes) {
-    const size = placedSize(catalog, item)
-    if (size) rects.set(item.id, { x: item.x + (shift?.x ?? 0), y: item.y + (shift?.y ?? 0), ...size })
+  const walk = (list: readonly { item: PlacedShape; shift: Point | null }[], origin: Point, carried: Point) => {
+    for (const { item, shift } of list) {
+      const moved = { x: carried.x + (shift?.x ?? 0), y: carried.y + (shift?.y ?? 0) }
+      const at = { x: origin.x + item.x, y: origin.y + item.y }
+      const size = placedSize(catalog, item)
+      if (size) rects.set(item.id, { x: at.x + moved.x, y: at.y + moved.y, ...size })
+      walk(((item.shapes ?? []) as PlacedShape[]).map(child), at, moved)
+    }
   }
+  walk(shapes, { x: 0, y: 0 }, { x: 0, y: 0 })
   return rects
 }
 

@@ -2,7 +2,7 @@
 // 〇は形の四辺の真ん中（の少し外）。引いた線の始点は〇の辺の真ん中、終点は離した所に一番近いふちの点に固定し、終点に矢印を付ける。
 // 同じ形で離せば自分に戻る線で、離した所に一番近い角が、自動で選ぶ角と違い、空いていれば、端をその角に固定する（同じなら自動のまま）
 
-import { type CoreCatalog, connectableShape, type ItemPage, type Point, shapesOf } from "../../../plugin-api"
+import { type CoreCatalog, connectableShape, type ItemPage, type Point, walkShapes } from "../../../plugin-api"
 import type { PortArea } from "../../base"
 import { drawLines } from "./drawn"
 import { nearestAt, pointAt, type Rect } from "./geom"
@@ -18,13 +18,13 @@ const OUTWARD: Record<Side, Point> = { t: { x: 0, y: -1 }, r: { x: 1, y: 0 }, b:
 // ページの、線をつなげる形（connectable の形）か
 export const connectable = connectableShape
 
-// 形 from から線を引ける相手（from 自身は自分に戻る線として入る）。from がつなげる形でなければ無い
+// 形 from から線を引ける相手（どの深さの子の形も。from 自身は自分に戻る線として入る）。from がつなげる形でなければ無い
 export function targetsFrom(catalog: CoreCatalog, page: ItemPage, from: string): Set<string> {
   if (!connectable(catalog, page, from)) return new Set()
   const lines = linesOf(page)
   return new Set(
-    shapesOf(page)
-      .map(s => s.id)
+    walkShapes(page)
+      .map(s => s.shape.id)
       .filter(id => connectable(catalog, page, id) && canConnect(lines, from, id)),
   )
 }
@@ -99,8 +99,8 @@ export function reconnectTargets(
   const lines = linesOf(page).filter(l => l.id !== line.id)
   const free = (id: string) => (end === "from" ? canConnect(lines, id, line.to) : canConnect(lines, line.from, id))
   return new Set(
-    shapesOf(page)
-      .map(s => s.id)
+    walkShapes(page)
+      .map(s => s.shape.id)
       .filter(id => id !== own && connectable(catalog, page, id) && free(id)),
   )
 }

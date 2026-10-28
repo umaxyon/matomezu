@@ -75,6 +75,11 @@ function painted(points: Point[], start: Head | undefined, end: Head | undefined
   }
 }
 
+// 形 ids と、その先祖の id（つながる範囲の ancestors）
+function ownersOf(ids: readonly string[], rects: ReadonlyMap<string, PortArea>): Set<string> {
+  return new Set(ids.flatMap(id => [id, ...(rects.get(id)?.ancestors ?? [])]))
+}
+
 // 2 つの形を結ぶ線の道筋を決める入力（ほかの形は、道筋に関わりうるものだけ）。rects は形のつながる範囲（辺の真ん中だけにつなぐ形は、端を頂点に限る）。
 // 両端の形の四角が無い線と、自分に戻る線は null
 export function routeInputOf(l: PlacedLine, rects: ReadonlyMap<string, PortArea>, elbow: boolean): RouteInput | null {
@@ -86,7 +91,8 @@ export function routeInputOf(l: PlacedLine, rects: ReadonlyMap<string, PortArea>
     b,
     elbow: (l.props.route ?? (elbow ? "elbow" : "straight")) === "elbow",
     via: l.props.via ?? null,
-    obstacles: [...rects].filter(([id]) => id !== l.from && id !== l.to).map(([, r]) => r),
+    // 両端の形と、その先祖（端の形を中に持つ形。線はその枠を越えて出る）は避けない
+    obstacles: [...rects].filter(([id]) => !ownersOf([l.from, l.to], rects).has(id)).map(([, r]) => r),
     margin: BEND_MARGIN,
     exitAt: l.props.exitAt ?? null,
     enterAt: l.props.enterAt ?? null,
@@ -122,7 +128,10 @@ export function drawLines(
   options: DrawOptions = {},
 ): DrawnLine[] {
   const geos = new Map<string, Geometry>()
-  const others = (ids: readonly string[]) => [...rects].filter(([id]) => !ids.includes(id)).map(([, r]) => r)
+  const others = (ids: readonly string[]) => {
+    const own = ownersOf(ids, rects)
+    return [...rects].filter(([id]) => !own.has(id)).map(([, r]) => r)
+  }
   // 辺の真ん中だけにつなぐ形から出る線の頂点（spread.ts）
   const split = splitVertices(lines, rects)
   const routed: Routed[] = []

@@ -452,7 +452,7 @@ test("ブックを選ぶ一覧は、触れた（開いたか書いた）時刻�
   expect(options[2]!.textContent).not.toMatch(/前$/)
 })
 
-test("内包ボックスの子は親の中に描き、押すと一番内側の子だけを選び、ダブルクリックで子の編集のダイアログを開く", () => {
+test("内包ボックスの子は親の中に描き、子に付いた線も描く。押すと一番内側の子だけを選び、ダブルクリックで子の編集のダイアログを開く", () => {
   const box = (id: string, x: number, y: number, w: number, h: number, shapes?: unknown[]) => ({
     id,
     item: "@matomezu/box:shape-nest-box",
@@ -473,7 +473,11 @@ test("内包ボックスの子は親の中に描き、押すと一番内側の�
         title: "P",
         paper: "@matomezu/base:a4",
         orientation: "landscape",
-        items: [box("a", 40, 40, 400, 300, [box("b", 20, 60, 200, 150, [box("c", 10, 50, 100, 60)])])],
+        items: [
+          box("a", 40, 40, 400, 300, [box("b", 20, 60, 200, 150, [box("c", 10, 50, 100, 60)])]),
+          box("d", 600, 40, 100, 60),
+          { id: "l1", item: "@matomezu/line:connector-line", from: "d", to: "c", props: {} },
+        ],
       },
     ],
   }
@@ -483,6 +487,8 @@ test("内包ボックスの子は親の中に描き、押すと一番内側の�
   expect(item("a").contains(item("b"))).toBe(true)
   expect(item("b").contains(item("c"))).toBe(true)
   expect([item("c").style.left, item("c").style.top]).toEqual(["10px", "50px"])
+  // 子に付いた線も描く
+  expect(document.querySelector('svg [data-item="l1"]')).not.toBeNull()
   fireEvent.pointerDown(item("c"), { button: 0, pointerId: 1 })
   expect(store.state.getState().workspace.stages[0]!.selection).toEqual(["c"])
   fireEvent.pointerUp(item("c"), { button: 0, pointerId: 1 })

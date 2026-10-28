@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test"
 import { pagedOf, restoreBooks } from "../../web/src/core/book"
 import { findShape, type ItemPage, type PlacedShape, walkShapes } from "../../web/src/core/placed"
-import { replaceShape } from "../../web/src/plugins/base/place/items"
+import { replaceShape, shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
 import { CORE_CATALOG } from "../support"
 
@@ -110,5 +110,17 @@ describe("子の形を持つ形の大きさ", () => {
       w: 300 + NEST_PADDING * 2,
       h: 140 + NEST_PADDING,
     })
+  })
+})
+
+describe("描いている形の四角", () => {
+  test("子の形も紙の上の位置で入れ、親をずらして描く量を子にも足す", () => {
+    const parent = { ...box("a", 100, 50, [{ ...box("b", 10, 20), w: 80, h: 40 }]), w: 200, h: 100 }
+    const rects = shownRects(CORE_CATALOG, [{ item: parent as unknown as PlacedShape, shift: { x: 5, y: 0 } }], c => ({
+      item: c,
+      shift: { x: 0, y: 3 },
+    }))
+    expect(rects.get("a")).toMatchObject({ x: 105, y: 50 })
+    expect(rects.get("b")).toEqual({ x: 115, y: 73, w: 80, h: 40 })
   })
 })

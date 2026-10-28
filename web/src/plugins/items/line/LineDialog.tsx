@@ -5,7 +5,7 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { type MessageKey, pagedOf } from "../../../plugin-api"
+import { findShape, type MessageKey, pagedOf } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -103,7 +103,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   if (!book || !page || !line) return null
   const self = line.from === line.to
   // キャプションの候補: ブックのタイプが、始点のアイテムに決めたもの
-  const fromItem = page.items?.find(i => i.id === line.from)?.item
+  const fromItem = findShape(page, line.from)?.shape.item
   const words = !self && fromItem && drawing ? captionWordsOf(catalog, drawing, fromItem) : []
   const rects = portAreasOf(catalog, page)
   const p = line.props

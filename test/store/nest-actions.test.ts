@@ -3,7 +3,9 @@ import { expect, test } from "bun:test"
 import { findShape, type ItemPage, walkShapes } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { childOrigin } from "../../web/src/plugins/base/place/frame"
-import { NEST_PADDING } from "../../web/src/plugins/base/place/placed"
+import { NEST_PADDING, portAreasOf } from "../../web/src/plugins/base/place/placed"
+import { targetsFrom } from "../../web/src/plugins/items/line/connect"
+import { routeInputOf } from "../../web/src/plugins/items/line/drawn"
 import { dropTarget } from "../../web/src/plugins/paper/placing/items"
 import { CORE_CATALOG, newStore } from "../support"
 
@@ -193,4 +195,23 @@ test("付け替えのコマンドは、動いた所で別の親へ入れ、同�
   expect(at(store, b)).toMatchObject({ parent: a, at: { x: 100, y: 100 } })
   store.actions.command("s1", "@matomezu/paper:paper-reparent", { item: b, parent: a, by: screen(50, 0) })
   expect(at(store, b)).toMatchObject({ parent: a, at: { x: 150, y: 100 } })
+})
+
+test("子に付いた線は、端の形の先祖を避けずに通り、別の箱の中の子は避ける。子の上でも線を引ける相手になる", () => {
+  const store = newStore()
+  const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
+  const c = place(store, { at: { x: 20, y: 60 }, parent: a, w: 80, h: 40 })!
+  const b = place(store, { at: { x: 500, y: 0 }, w: 300, h: 300 })!
+  const e = place(store, { at: { x: 20, y: 60 }, parent: b, w: 80, h: 40 })!
+  const d = place(store, { at: { x: 900, y: 0 }, w: 80, h: 40 })!
+  expect(targetsFrom(CORE_CATALOG, page(store), d).has(c)).toBe(true)
+  expect(run(store, "@matomezu/line:line-connect", { from: d, to: c }).ok).toBe(true)
+  const areas = portAreasOf(CORE_CATALOG, page(store))
+  expect(areas.get(c)?.ancestors).toEqual([a])
+  const line = page(store).items!.find(i => !("x" in i)) as never
+  const input = routeInputOf(line, areas, true)!
+  const area = (id: string) => areas.get(id)!
+  expect(input.obstacles).not.toContainEqual(area(a))
+  expect(input.obstacles).toContainEqual(area(e))
+  expect(input.obstacles).toContainEqual(area(b))
 })
