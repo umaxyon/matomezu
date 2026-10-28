@@ -140,7 +140,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
   const node = (n: string) => paper.querySelector(`[data-node="${n}"]`) as HTMLElement
   expect(node(a!).textContent).toBe("子 A")
   expect(node(b!).textContent).toBe("子 B")
-  expect(paper.querySelectorAll("svg path")).toHaveLength(2)
+  expect(paper.querySelector("svg")!.querySelectorAll("path")).toHaveLength(2) // 線の層（＋ の印の svg は数えない）
   const top = (n: string) => Number.parseFloat(node(n).style.top)
   expect(top(a!)).toBeGreaterThan(top(done.fields!.root.id)) // 既定は下へ
   const page = (store.state.getState().books[id] as { pages: { id: string }[] }).pages[0]!.id
