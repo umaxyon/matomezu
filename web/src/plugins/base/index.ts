@@ -11,6 +11,7 @@ import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
 import type { A3, A4, A5 } from "./looks/papers"
 import { MINIMAP_TOGGLE } from "./minimap"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
+import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
 import { SET_KEYS, SET_LANG, SET_SKIN, SETTINGS_LANG, SETTINGS_SKIN } from "./settings"
@@ -78,7 +79,7 @@ export { NEW_PAGE_DIALOG, OPEN_BOOK_DIALOG }
 
 export const BASE = defineBuiltin(
   kit.plugin({
-    actions: [PAGE_ADD, PAGE_UPDATE, BOOK_UPDATE, BOOK_CREATE, SET_LANG, SET_SKIN, SET_KEYS],
+    actions: [PAGE_ADD, PAGE_UPDATE, PAGE_REMOVE, BOOK_UPDATE, BOOK_CREATE, SET_LANG, SET_SKIN, SET_KEYS],
     settings: [BOOK_THEME, BOOK_PAPER_COLOR],
     themes: [STANDARD, STICKY, SIMPLE],
     papers: PAPERS,
@@ -123,6 +124,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-add": typeof PAGE_ADD
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE
+    "@matomezu/base:page-remove": typeof PAGE_REMOVE
     "@matomezu/base:settings-lang": typeof SET_LANG
     "@matomezu/base:settings-skin": typeof SET_SKIN
     "@matomezu/base:settings-keys": typeof SET_KEYS

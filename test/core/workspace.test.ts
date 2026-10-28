@@ -97,6 +97,16 @@ describe("workspace", () => {
     expect(followBook(CORE_CATALOG, both, book)).toBe(both)
   })
 
+  test("変わる前のブックを渡すと、開いていたページが無くなったときは隣のページ（後ろ、無ければ前）を開く", () => {
+    const page = (id: string) => ({ ...book.pages[0]!, id })
+    const three = { ...book, pages: [page("p1"), page("p2"), page("p3")] }
+    const at = (id: string) => showPage(CORE_CATALOG, ws, "s1", three, id)
+    const without = (id: string) => ({ ...three, pages: three.pages.filter(p => p.id !== id) })
+    expect(followBook(CORE_CATALOG, at("p2"), without("p2"), three).stages[0]!.opened?.page).toBe("p3")
+    expect(followBook(CORE_CATALOG, at("p3"), without("p3"), three).stages[0]!.opened?.page).toBe("p2")
+    expect(followBook(CORE_CATALOG, at("p1"), { ...three, pages: [] }, three).stages[0]!.opened?.page).toBeNull()
+  })
+
   test("ブックの一覧が変わると、無くなったブックを開いていたステージは何も開かない", () => {
     const two = split(ws)
     expect(followLibrary(CORE_CATALOG, two, {}).stages.map(s => s.opened)).toEqual([null, null])

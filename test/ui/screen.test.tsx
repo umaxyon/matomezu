@@ -301,6 +301,27 @@ test("図面の画面を右クリックすると押した位置にメニュー�
   expect(screen.queryByRole("dialog")).toBeNull()
 })
 
+test("ページの設定のダイアログの「ページを削除」は、確かめてからページを消す。やめれば消さない", () => {
+  const store = renderScreen()
+  const pages = () => (store.state.getState().books.b1 as { pages: unknown[] }).pages.length
+  const before = pages()
+  const open = () => {
+    fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))
+    fireEvent.click(screen.getByRole("menuitem", { name: "ページの設定" }))
+    fireEvent.click(screen.getByRole("button", { name: "ページを削除" }))
+    return screen.getByRole("alertdialog", { name: "ページと中身が消えます" })
+  }
+  fireEvent.click(within(open()).getByRole("button", { name: "キャンセル" }))
+  expect(screen.queryByRole("alertdialog")).toBeNull()
+  expect(pages()).toBe(before)
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "ページの設定" })).getByRole("button", { name: "キャンセル" }),
+  )
+  fireEvent.click(within(open()).getByRole("button", { name: "削除" }))
+  expect(screen.queryByRole("dialog")).toBeNull()
+  expect(pages()).toBe(before - 1)
+})
+
 test("右クリックのメニューは、外を押すか Escape で閉じる", () => {
   renderScreen()
   const paper = screen.getByRole("img", { name: "紙" })
