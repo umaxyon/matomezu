@@ -478,6 +478,34 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	}
 }
 
+func TestSameKeyIsPerformedOnce(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	place := func(client string, seq int) string {
+		_, body := send(t, "POST", s.URL+"/api/perform",
+			fmt.Sprintf(`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}},"on":{"book":"b1"},"lang":"ja","ids":["k1"],"client":%q,"seq":%d,"key":"x1"}`, client, seq), nil)
+		return body
+	}
+	first := place("c1", 1)
+	next(t, a) // book
+	next(t, a) // ack
+	// 答えが届かずつなぎ直した画面が、同じ番号で送り直す: 行わずに前の結果を返し、新しいつながりに ack だけを送る
+	b := listen(t, s.URL)
+	next(t, b)
+	if again := place("c2", 1); again != first {
+		t.Fatalf("again = %s, first = %s", again, first)
+	}
+	if got := next(t, b); got != `ack {"ok":true,"reason":"","seq":1}` {
+		t.Fatalf("ack = %s", got)
+	}
+	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
+	if strings.Count(data, `"id":"k1"`) != 1 || !strings.Contains(data, `"version":2`) {
+		t.Fatalf("data = %s", data)
+	}
+}
+
 func TestRefusedActionChangesNothing(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)

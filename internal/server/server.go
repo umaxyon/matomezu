@@ -10,7 +10,7 @@
 //	POST /api/plugins        {"dir"} 開発者プロジェクトのフォルダの追加プラグインを足す（同じ id なら入れ替える）。{"ok", "id"} か {"ok": false, "reason"}  … 要合言葉
 //	POST /api/plugins/remove {"id"} 追加プラグインを外す。{"ok"} か {"ok": false, "reason"}                     … 要合言葉
 //	GET  /api/events      SSE。世界の変わり目の知らせ（hub.go）                                    … 画面から
-//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq"} アクションを行い、{"ok", "reason", "result"} を返す。
+//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "result"} を返す。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
 //	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}。

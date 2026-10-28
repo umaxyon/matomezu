@@ -50,6 +50,7 @@ export const MESSAGES = defineMessages({
   "Book menu": { ja: "ブックのメニュー" },
   Tools: { ja: "ツール" },
   Menu: { ja: "メニュー" },
+  "An edit could not be saved": { ja: "編集を反映できませんでした" },
 })
 
 // 土台の文言の組
