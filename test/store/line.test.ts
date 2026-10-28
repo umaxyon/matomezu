@@ -23,10 +23,10 @@ const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matom
 const page = (store: Store) => book(store).pages[0]!
 const shape = (store: Store, id: string) => shapesOf(page(store)).find(i => i.id === id)!
 const lines = (store: Store) => linesOf(page(store))
-const place = (store: Store, x: number, y: number, item = "@matomezu/box:shape-box") =>
+const place = (store: Store, x: number, y: number, item = "@matomezu/box:shape-nest-box") =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item, at: { x, y }, ...(item === "@matomezu/box:shape-box" ? { w: 100, h: 64 } : {}) },
+    { page: "p1", item, at: { x, y }, ...(item === "@matomezu/box:shape-nest-box" ? { w: 100, h: 64 } : {}) },
     { book: "b1" },
   )
 const connect = (store: Store, from: string, to: string, props: Record<string, unknown> = {}) =>
@@ -304,8 +304,8 @@ test("線と線の既定の通り方を選ばないタイプのブックでは�
         ? {
             ...t,
             items: {
-              allowed: ["@matomezu/box:shape-box", "@matomezu/list:shape-list"],
-              defaults: ["@matomezu/box:shape-box", "@matomezu/list:shape-list"],
+              allowed: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list"],
+              defaults: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list"],
             },
             settings: {},
           }

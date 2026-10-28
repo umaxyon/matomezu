@@ -51,7 +51,7 @@ const at = (store: ReturnType<typeof newStore>, id: string) => items(store).find
 const place = (store: ReturnType<typeof newStore>, x: number, y: number, w: number, caption = "") =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-box", at: { x, y }, w, h: 64, props: { caption } },
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x, y }, w, h: 64, props: { caption } },
     { book: "b1" },
   )
 

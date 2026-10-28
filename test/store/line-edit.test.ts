@@ -16,7 +16,7 @@ function ready(boxes: [number, number][]) {
   for (const [x, y] of boxes)
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item: "@matomezu/box:shape-box", at: { x, y }, w: 100, h: 64 },
+      { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x, y }, w: 100, h: 64 },
       { book: "b1" },
     )
   return store

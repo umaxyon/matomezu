@@ -1,22 +1,17 @@
-// 子の形（能力 nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す関数（core/placed.ts）・置き換える関数（base の place/items.ts）
+// 子の形（能力 nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す関数（core/placed.ts）・置き換える関数（base の place/items.ts）・子を持つ形の大きさ（base の place/placed.ts）
 import { describe, expect, test } from "bun:test"
 import { pagedOf, restoreBooks } from "../../web/src/core/book"
-import { buildCoreCatalog } from "../../web/src/core/core-catalog"
-import { findShape, type ItemPage, walkShapes } from "../../web/src/core/placed"
+import { findShape, type ItemPage, type PlacedShape, walkShapes } from "../../web/src/core/placed"
 import { replaceShape } from "../../web/src/plugins/base/place/items"
-import { BUILTIN_PARTS } from "../support"
+import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
+import { CORE_CATALOG } from "../support"
 
-const BOX = "@matomezu/box:shape-box"
+const BOX = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
 const LINE = "@matomezu/line:connector-line"
 
-// 箱が子を持てる機能台帳（図面のブックは箱・リスト・線を使う）
-const nesting = buildCoreCatalog({
-  ...BUILTIN_PARTS,
-  items: BUILTIN_PARTS.items.map(i =>
-    i.id === BOX ? { ...i, capabilities: [...i.capabilities, "nests" as const] } : i,
-  ),
-})
+// 図面のブックは内包ボックス（能力 nests）・リスト・線を使う
+const nesting = CORE_CATALOG
 
 const book = (items: unknown[]) => ({
   type: "@matomezu/drawing:drawing",
@@ -43,7 +38,6 @@ describe("子の形を受け付けるブックの形", () => {
 
   test("能力 nests の無い形は子を持てない", () => {
     expect(reads([{ ...list("a"), shapes: [box("b", 0, 0)] }])).toBe(false)
-    expect(restoreBooks(buildCoreCatalog(BUILTIN_PARTS), [book([box("a", 0, 0, [box("b", 0, 0)])])])).toHaveLength(0)
   })
 
   test("子に線は入らない。空の子の並びは持たない", () => {
@@ -101,5 +95,20 @@ describe("子までたどる・探す・置き換える", () => {
     expect(empty.items?.[0]).not.toHaveProperty("shapes")
     expect(replaceShape(page, "z", s => s)).toBeNull()
     expect(replaceShape(page, "l1", s => s)).toBeNull()
+  })
+})
+
+describe("子の形を持つ形の大きさ", () => {
+  test("自分の大きさ（w・h は下限）と、子がみな入る大きさ（子の右と下の端から NEST_PADDING）の大きい方", () => {
+    const size = (shapes?: unknown[]) =>
+      placedSize(CORE_CATALOG, { ...box("a", 0, 0, shapes), w: 200, h: 100 } as unknown as PlacedShape)
+    const child = (x: number, y: number) => ({ ...box("b", x, y), w: 120, h: 60 })
+    expect(size()).toEqual({ w: 200, h: 100 })
+    expect(size([child(10, 10)])).toEqual({ w: 200, h: 100 })
+    expect(size([child(100, 80)])).toEqual({ w: 220 + NEST_PADDING, h: 140 + NEST_PADDING })
+    expect(size([{ ...child(100, 80), shapes: [{ ...box("c", 150, 0), w: 50, h: 10 }] }])).toEqual({
+      w: 300 + NEST_PADDING * 2,
+      h: 140 + NEST_PADDING,
+    })
   })
 })

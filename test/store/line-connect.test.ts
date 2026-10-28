@@ -9,10 +9,10 @@ import { CORE_CATALOG, newStore } from "../support"
 function ready() {
   const store = newStore()
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  const place = (x: number, y: number, item = "@matomezu/box:shape-box") =>
+  const place = (x: number, y: number, item = "@matomezu/box:shape-nest-box") =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item, at: { x, y }, ...(item === "@matomezu/box:shape-box" ? { w: 100, h: 64 } : {}) },
+      { page: "p1", item, at: { x, y }, ...(item === "@matomezu/box:shape-nest-box" ? { w: 100, h: 64 } : {}) },
       { book: "b1" },
     )
   place(100, 100) // n1

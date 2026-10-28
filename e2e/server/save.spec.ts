@@ -89,7 +89,7 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
     headers: ai,
     data: {
       action: "@matomezu/paper:item-place",
-      args: { page: "p1", item: "@matomezu/box:shape-box", at: { x: 40, y: 400 }, props: { caption: "AI の箱" } },
+      args: { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 400 }, props: { caption: "AI の箱" } },
       on: { book: "e2e-1" },
     },
   })
@@ -133,9 +133,9 @@ const LINE_BOOK = {
       paper: "@matomezu/base:a4",
       orientation: "landscape",
       items: [
-        { id: "a", x: 100, y: 100, item: "@matomezu/box:shape-box", w: 100, h: 64, props: { caption: "A" } },
-        { id: "b", x: 400, y: 100, item: "@matomezu/box:shape-box", w: 100, h: 64, props: { caption: "B" } },
-        { id: "c", x: 100, y: 400, item: "@matomezu/box:shape-box", w: 100, h: 64, props: { caption: "C" } },
+        { id: "a", x: 100, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "A" } },
+        { id: "b", x: 400, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "B" } },
+        { id: "c", x: 100, y: 400, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "C" } },
         {
           id: "l1",
           item: "@matomezu/line:connector-line",

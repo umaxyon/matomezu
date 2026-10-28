@@ -160,8 +160,8 @@ describe("アクションの入口", () => {
 
 test("付く先がページを持つタイプだけ（pages・items）のアクションの run は PagedBook を受ける。books・presentations も書いたら Book のまま", () => {
   expect(pagedOnly({ pages: true })).toBe(true)
-  expect(pagedOnly({ items: ["@matomezu/box:shape-box"] })).toBe(true)
-  expect(pagedOnly({ items: ["@matomezu/box:shape-box"], books: true })).toBe(false)
+  expect(pagedOnly({ items: ["@matomezu/box:shape-nest-box"] })).toBe(true)
+  expect(pagedOnly({ items: ["@matomezu/box:shape-nest-box"], books: true })).toBe(false)
   expect(pagedOnly({ presentations: ["@matomezu/paper:paper"] })).toBe(false)
   expect(pagedOnly(undefined)).toBe(false)
   defineAction({

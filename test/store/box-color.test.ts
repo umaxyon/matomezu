@@ -16,7 +16,7 @@ const items = (store: ReturnType<typeof newStore>) =>
 const place = (store: ReturnType<typeof newStore>, props: Record<string, unknown>, x = 100) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-box", at: { x, y: 100 }, props },
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props },
     { book: "b1" },
   )
 const update = (store: ReturnType<typeof newStore>, props: Record<string, unknown>) =>

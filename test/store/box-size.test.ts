@@ -3,7 +3,7 @@ import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { resolveTokens } from "../../web/src/core/theme"
 import { textWidth } from "../../web/src/plugins/base/text/text"
-import { BOX } from "../../web/src/plugins/items/box/box"
+import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
 import { BOX_LOOK, BOX_MIN, boxLayout, placedHeight, placedWidth } from "../../web/src/plugins/items/box/size"
 import { newStore } from "../support"
 
@@ -30,7 +30,7 @@ const place = (
 ) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-box", at, props, ...size },
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at, props, ...size },
     { book: "b1" },
   )
 
@@ -184,7 +184,7 @@ test("箱にテーマを当てられる。表に無いテーマは断る。テ�
   expect(update({ theme: "nope" }).ok).toBe(false)
   expect(update({ theme: null }).ok).toBe(true)
   expect("theme" in items(store)[0]!.props).toBe(false)
-  const tokens = (theme: string) => resolveTokens(store.catalog.core, theme, BOX.tokens)
+  const tokens = (theme: string) => resolveTokens(store.catalog.core, theme, BOX_TOKENS)
   expect(tokens("@matomezu/base:standard")["@matomezu/box:box-radius"]).toEqual({ light: "8px", dark: "8px" })
   expect(tokens("@matomezu/base:standard")["@matomezu/box:box-fold"]).toEqual({ light: "0px", dark: "0px" })
   expect(tokens("@matomezu/base:sticky")["@matomezu/box:box-fill"]).toEqual({ light: "#fff3a6", dark: "#fff3a6" })

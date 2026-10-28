@@ -48,7 +48,7 @@ test("機能台帳に無いアイテムと設定の項目は、ブックを読�
     ...ok,
     id: "y3",
     title: "形違い",
-    pages: [{ ...page, items: [{ ...star, item: "@matomezu/box:shape-box", props: { nope: 1 } }] }],
+    pages: [{ ...page, items: [{ ...star, item: "@matomezu/box:shape-nest-box", props: { nope: 1 } }] }],
   }
   expect(checkBooks(CORE_CATALOG, [unselected, misfit]).warnings.map(n => n.code)).toEqual(["W005", "W005"])
 })

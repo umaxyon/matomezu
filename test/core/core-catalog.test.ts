@@ -47,7 +47,7 @@ describe("機能台帳", () => {
     expect(problems.map(problemText).slice(0, 3)).toEqual([
       "E001 bookType @matomezu/drawing:drawing: id is registered twice",
       "E004 bookType @matomezu/drawing:drawing: unknown paper @matomezu/base:a3",
-      "E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-box",
+      "E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-nest-box",
     ])
     const thrown = (() => {
       try {
@@ -58,7 +58,9 @@ describe("機能台帳", () => {
     })()
     expect(isMatomezuError(thrown) && thrown.code).toBe("E016")
     expect(isMatomezuError(thrown) && thrown.details).toEqual(problems)
-    expect(String(thrown)).toContain("E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-box")
+    expect(String(thrown)).toContain(
+      "E008 bookType @matomezu/drawing:drawing: unknown item @matomezu/box:shape-nest-box",
+    )
     expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, bookTypes: [] })).toThrow("E015 core catalog has no book type")
   })
 
@@ -356,8 +358,8 @@ test("ブックのタイプのテーマキーは、データに置けるアイ�
 })
 
 test("プラグインが持つテーマキーを、アイテムでも宣言したら E011", () => {
-  const box = BUILTIN_PARTS.items.find(i => i.id === "@matomezu/box:shape-box")!
-  const twice = { ...BUILTIN_PARTS, tokens: [...BUILTIN_PARTS.tokens, box.tokens[0]!] }
+  const list = BUILTIN_PARTS.items.find(i => i.id === "@matomezu/list:shape-list")!
+  const twice = { ...BUILTIN_PARTS, tokens: [...BUILTIN_PARTS.tokens, list.tokens[0]!] }
   expect(checkCoreCatalog(twice).map(p => p.code)).toEqual(["E011"])
 })
 

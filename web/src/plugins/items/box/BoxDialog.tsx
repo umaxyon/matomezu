@@ -25,7 +25,7 @@ import {
   useBookTheme,
   useSwatches,
 } from "../../base/ui"
-import { BOX, BOX_FILL } from "./box"
+import { BOX, BOX_FILL, NEST_BOX } from "./box"
 import { kit } from "./kit"
 
 type BoxProps = ItemProps<typeof BOX.id>
@@ -35,14 +35,28 @@ type Look = Pick<BoxProps, "captionAlign" | "bodyAlign" | "theme" | "color">
 
 const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "center", bodyAlign: "left" }
 
-export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; at: Point }>) {
+// 追加のダイアログ: 置くアイテム item（箱か内包ボックス）を、中身を決めてから置く
+const addDialog = (item: typeof BOX.id | typeof NEST_BOX.id) =>
+  function AddDialog(props: DialogProps<{ page: string; at: Point }>) {
+    return <AddBox {...props} item={item} />
+  }
+
+export const AddBoxDialog = addDialog(BOX.id)
+export const AddNestBoxDialog = addDialog(NEST_BOX.id)
+
+function AddBox({
+  stage,
+  args,
+  onClose,
+  item,
+}: DialogProps<{ page: string; at: Point }> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
   const { select } = useActions()
   const perform = usePerform(stage)
   const add = (props: BoxProps) => {
     if (!book) return false
-    const done = perform("@matomezu/paper:item-place", { page: args.page, item: BOX.id, at: args.at, props })
+    const done = perform("@matomezu/paper:item-place", { page: args.page, item, at: args.at, props })
     if (!done.ok) return false
     select(stage, [done.result.item])
     onClose()
@@ -64,7 +78,10 @@ export function AddBoxDialog({ stage, args, onClose }: DialogProps<{ page: strin
 export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf(stage)
   const bookTheme = useBookTheme(book)
-  const start = useItem(stage, args.page, args.item, BOX.id)?.props
+  // 編集するのは箱か内包ボックス（項目は同じ）
+  const box = useItem(stage, args.page, args.item, BOX.id)
+  const nestBox = useItem(stage, args.page, args.item, NEST_BOX.id)
+  const start = (box ?? nestBox)?.props
   const { previewDialog } = useActions()
   const perform = usePerform(stage)
   const preview = useCallback(

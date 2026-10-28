@@ -29,13 +29,13 @@ const book = (pages: unknown[], extra: object = {}) => ({
   pages,
   ...extra,
 })
-const box = { id: "n1", x: 10, y: 10, item: "@matomezu/box:shape-box", props: {} }
+const box = { id: "n1", x: 10, y: 10, item: "@matomezu/box:shape-nest-box", props: {} }
 const list = { id: "n2", x: 200, y: 10, item: "@matomezu/list:shape-list", props: {} }
 
 describe("組み立てたブックの形", () => {
   test("ページに置けるのは、タイプが選んだアイテムだけ", () => {
     const boxesOnly = buildCoreCatalog(
-      withDrawing({ items: { allowed: ["@matomezu/box:shape-box"], defaults: ["@matomezu/box:shape-box"] } }),
+      withDrawing({ items: { allowed: ["@matomezu/box:shape-nest-box"], defaults: ["@matomezu/box:shape-nest-box"] } }),
     )
     expect(restoreBooks(CORE_CATALOG, [book([page([box, list])])])).toHaveLength(1)
     expect(restoreBooks(boxesOnly, [book([page([box, list])])])).toHaveLength(0)
@@ -124,9 +124,9 @@ const problemsWith = (plugin: string, item: string, patch: object) => {
 }
 
 test("形の themeProp・captionProp が props に無い項目を名指したら E028（base の組み立てのときの確かめ）", () => {
-  expect(problemsWith("@matomezu/box", "@matomezu/box:shape-box", { themeProp: "look" }).map(p => p.code)).toEqual([
-    "E028",
-  ])
+  expect(problemsWith("@matomezu/box", "@matomezu/box:shape-nest-box", { themeProp: "look" }).map(p => p.code)).toEqual(
+    ["E028"],
+  )
   expect(
     problemsWith("@matomezu/list", "@matomezu/list:shape-list", { captionProp: "name" }).map(p => p.params.field),
   ).toEqual(["captionProp"])

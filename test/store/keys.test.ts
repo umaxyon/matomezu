@@ -95,7 +95,7 @@ test("押したキーは、当たった範囲のコマンドを行い、押せ�
   const store = newStore()
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-box", at: { x: 0, y: 0 } },
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
     { book: "b1" },
   )
   expect(store.actions.pressKey("Delete")).toBe(false)
@@ -113,7 +113,7 @@ test("利用者のキーの変更は @matomezu/base:settings-keys で入れ、�
   const store = newStore()
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-box", at: { x: 0, y: 0 } },
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
     { book: "b1" },
   )
   store.actions.select("s1", ["b1"])

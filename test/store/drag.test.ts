@@ -87,7 +87,7 @@ test("描いている形の四角: 左上と大きさに、ドラッグでずら
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-box", at: { x: 100, y: 100 }, w: 100, h: 64 },
+    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 100, y: 100 }, w: 100, h: 64 },
     { book: "b1" },
   )
   const page = (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!

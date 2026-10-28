@@ -20,7 +20,7 @@ test("答える形の無いページの重さは 0", () => {
     expect(
       instance.actions.perform(
         "@matomezu/paper:item-place",
-        { page, item: "@matomezu/box:shape-box", at: { x: 40, y: 40 } },
+        { page, item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 } },
         on,
       ),
     ).toMatchObject({ ok: true })

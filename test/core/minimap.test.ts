@@ -120,7 +120,7 @@ describe("ページの絵", () => {
       CORE_CATALOG,
       page([
         { id: "a", item: "@matomezu/shape:shape-diamond", x: 100, y: 100, w: 120, h: 60, props: { caption: "" } },
-        { id: "b", item: "@matomezu/box:shape-box", x: 400, y: 100, w: 100, h: 60, props: {} },
+        { id: "b", item: "@matomezu/box:shape-nest-box", x: 400, y: 100, w: 100, h: 60, props: {} },
         { id: "c", item: "@matomezu/shape:shape-circle", x: 100, y: 300, w: 80, h: 80, props: { caption: "" } },
         { id: "l", item: "@matomezu/line:connector-line", from: "a", to: "b", props: { route: "straight" } },
         { id: "z", item: "@other:gone", x: 600, y: 300, w: 40, h: 30, props: {} },

@@ -15,8 +15,8 @@ export const DRAWING = kit.defineBookType({
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   },
   items: {
-    allowed: ["@matomezu/box:shape-box", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
-    defaults: ["@matomezu/box:shape-box", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
+    allowed: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
+    defaults: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
 

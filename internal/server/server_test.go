@@ -459,7 +459,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	}
 	next(t, b)
 	code, body := send(t, "POST", s.URL+"/api/perform",
-		`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-box","at":{"x":1,"y":2}},"on":{"book":"b1"},"lang":"ja","ids":["k1"],"client":"c1","seq":7}`, nil)
+		`{"action":"@matomezu/paper:item-place","args":{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}},"on":{"book":"b1"},"lang":"ja","ids":["k1"],"client":"c1","seq":7}`, nil)
 	if code != 200 || body != `{"ok":true,"result":{"item":"k1"}}` {
 		t.Fatalf("perform = %d %s", code, body)
 	}

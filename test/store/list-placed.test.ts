@@ -5,7 +5,7 @@ import type { BookOf } from "../../web/src/core/schema/book"
 import { placement } from "../../web/src/core/stage"
 import { resolveTokens } from "../../web/src/core/theme"
 import { GAP } from "../../web/src/plugins/base/place/push"
-import { BOX } from "../../web/src/plugins/items/box/box"
+import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
 import { LIST } from "../../web/src/plugins/items/list/list"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../web/src/plugins/items/list/size"
 import { PLACE_OFFSET } from "../../web/src/plugins/paper/placing/items"
@@ -52,7 +52,7 @@ test("リストのキャプションを長くすると、キャプションが�
 
 test("押されたリストを縮めるときは、横はキャプションが見える幅、縦は見出しと「＋」の行の高さまで", () => {
   const store = ready()
-  place(store, "@matomezu/box:shape-box", 100, 100, { w: 100, h: 60 })
+  place(store, "@matomezu/box:shape-nest-box", 100, 100, { w: 100, h: 60 })
   place(store, "@matomezu/list:shape-list", 220, 100, { props: { caption: "L" } })
   const floor = listCaptionWidth("L")
   expect(resize(store, "n1", { w: PAPER.w - 100 - GAP - floor }).ok).toBe(true)
@@ -60,7 +60,7 @@ test("押されたリストを縮めるときは、横はキャプションが�
   expect(resize(store, "n1", { w: PAPER.w - 100 - GAP - floor + 1 }).ok).toBe(false)
 
   const down = ready()
-  place(down, "@matomezu/box:shape-box", 100, 100, { w: 100, h: 60 })
+  place(down, "@matomezu/box:shape-nest-box", 100, 100, { w: 100, h: 60 })
   place(down, "@matomezu/list:shape-list", 100, 200)
   expect(resize(down, "n1", { h: PAPER.h - 100 - GAP - LIST_MIN.h }).ok).toBe(true)
   expect(at(down, "n2")).toMatchObject({ y: PAPER.h - LIST_MIN.h, h: LIST_MIN.h })
@@ -109,12 +109,12 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
   const ok = (item: Record<string, unknown>) => CORE_CATALOG.bookSchema.safeParse(book(item)).success
   expect(ok({ item: "@matomezu/list:shape-list", props: {}, children: [row] })).toBe(true)
   expect(ok({ item: "@matomezu/list:shape-list", props: {} })).toBe(true)
-  expect(ok({ item: "@matomezu/box:shape-box", props: {}, children: [row] })).toBe(false)
+  expect(ok({ item: "@matomezu/box:shape-nest-box", props: {}, children: [row] })).toBe(false)
   expect(ok({ item: "@matomezu/list:shape-list", props: {}, children: [{ ...row, props: { caption: 1 } }] })).toBe(
     false,
   )
   expect(
-    ok({ item: "@matomezu/list:shape-list", props: {}, children: [{ ...row, item: "@matomezu/box:shape-box" }] }),
+    ok({ item: "@matomezu/list:shape-list", props: {}, children: [{ ...row, item: "@matomezu/box:shape-nest-box" }] }),
   ).toBe(false)
   // 機能台帳に無いアイテムは、そのまま残す（プラグインを外したなど）
   expect(ok({ item: "shape.nope", props: {} })).toBe(true)
@@ -123,8 +123,11 @@ test("図面のデータの形: 行（children）を持てるのはリストだ�
 test("リストの塗り・文字・線・角・影のテーマキーは、どのテーマでも箱のテーマキーと同じ値（テーマは箱とリストを同じ見た目にする）", () => {
   const pairs = ["fill", "text", "line", "radius", "shadow"] as const
   for (const theme of CORE_CATALOG.themes.keys()) {
-    const box = resolveTokens(CORE_CATALOG, theme, BOX.tokens)
+    const box = resolveTokens(CORE_CATALOG, theme, BOX_TOKENS)
     const list = resolveTokens(CORE_CATALOG, theme, LIST.tokens)
-    for (const k of pairs) expect([theme, k, list[`list.${k}`]]).toEqual([theme, k, box[`box.${k}`]])
+    for (const k of pairs) {
+      expect(box[`@matomezu/box:box-${k}`]).toBeDefined()
+      expect([theme, k, list[`@matomezu/list:list-${k}`]]).toEqual([theme, k, box[`@matomezu/box:box-${k}`]])
+    }
   }
 })

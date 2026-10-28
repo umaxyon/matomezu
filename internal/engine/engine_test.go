@@ -24,7 +24,7 @@ func newEngine(t *testing.T) *Engine {
 func place(ids ...string) Input {
 	return Input{
 		Action: "@matomezu/paper:item-place",
-		Args:   json.RawMessage(`{"page":"p1","item":"@matomezu/box:shape-box","at":{"x":10,"y":20},"props":{"caption":"c"}}`),
+		Args:   json.RawMessage(`{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":10,"y":20},"props":{"caption":"c"}}`),
 		On:     &On{Book: "b1"},
 		Lang:   "ja",
 		IDs:    ids,
@@ -38,7 +38,7 @@ func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
 	if err != nil || !out.OK {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
-	if string(out.Result) != `{"item":"abc123"}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-box"`) {
+	if string(out.Result) != `{"item":"abc123"}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-nest-box"`) {
 		t.Fatalf("out = %s %s", out.Result, out.Books)
 	}
 	again, _ := e.Perform(place("abc-123"))
@@ -144,7 +144,7 @@ func TestAICatalogDescribesBookTypesAndItemKinds(t *testing.T) {
 	for _, i := range c.Items {
 		kinds[i.ID] = i.Kind
 	}
-	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "true true ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-box") ||
+	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "true true ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
 		!strings.HasPrefix(types["@matomezu/master:master"], "false ") || kinds["@matomezu/box:shape-box"] != "shape" || kinds["@matomezu/line:connector-line"] != "connector" {
 		t.Fatalf("book types = %v, item kinds = %v", types, kinds)
 	}
@@ -180,8 +180,8 @@ func TestAICatalogDescribesListRows(t *testing.T) {
 func TestConnectsItemsWithALine(t *testing.T) {
 	e := newEngine(t)
 	two := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
-		`{"id":"a","x":100,"y":100,"item":"@matomezu/box:shape-box","w":100,"h":64,"props":{}},` +
-		`{"id":"b","x":400,"y":300,"item":"@matomezu/box:shape-box","w":100,"h":64,"props":{}}]}]}`
+		`{"id":"a","x":100,"y":100,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}},` +
+		`{"id":"b","x":400,"y":300,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}}]}]}`
 	out, err := e.Perform(Input{
 		Action: "@matomezu/line:line-connect",
 		Args:   json.RawMessage(`{"page":"p1","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`),

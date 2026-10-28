@@ -8,13 +8,13 @@ import type { ItemProps } from "../../../plugin-api"
 import type { ItemViewProps } from "../../../plugin-api/ui"
 import { useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"
-import { BOX } from "./box"
+import { type BOX, BOX_TOKENS } from "./box"
 import { paintVars } from "./paint"
 import { boxLayout } from "./size"
 
 export function BoxView({ props, size }: ItemViewProps<ItemProps<typeof BOX.id>>) {
   const theme = props.theme
-  const vars = useThemeVars(theme, BOX.tokens)
+  const vars = useThemeVars(theme, BOX_TOKENS)
   const { body, rule } = boxLayout(props, size)
   const hasBody = body.length > 0
   return (

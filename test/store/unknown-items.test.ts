@@ -16,7 +16,7 @@ const book = {
       orientation: "landscape",
       items: [
         { id: "s", item: "@foo/stars:star", x: 40, y: 40, props: { points: 5 } },
-        { id: "b", item: "@matomezu/box:shape-box", x: 400, y: 40, props: { caption: "箱" } },
+        { id: "b", item: "@matomezu/box:shape-nest-box", x: 400, y: 40, props: { caption: "箱" } },
         { id: "l", item: "@foo/stars:beam", from: "s", to: "b", props: {} },
       ],
     },
