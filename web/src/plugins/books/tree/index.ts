@@ -1,6 +1,7 @@
 // ツリーのプラグイン: ツリーのブックのタイプと、その見せ方・伸びる向きの設定の項目・ページを作るダイアログ・道具の組（編集とハンド）。
 // テーマと紙の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（tree.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
+import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { GROW } from "./grow"
 import { kit } from "./kit"
 import { EDIT_TOOL, TREE_TOOLS } from "./tools"
@@ -12,6 +13,7 @@ export const TREE_PLUGIN = defineBuiltin(
     presentations: [TREE_PRESENTATION],
     settings: [GROW],
     dialogs: [NEW_TREE_PAGE_DIALOG],
+    actions: [NODE_ADD, NODE_UPDATE, NODE_REMOVE],
     tools: [EDIT_TOOL],
     toolSets: [TREE_TOOLS],
   }),
@@ -26,6 +28,11 @@ declare module "../../../core/catalog" {
   }
   interface SettingTable {
     "@matomezu/tree:grow": typeof GROW
+  }
+  interface ActionTable {
+    "@matomezu/tree:node-add": typeof NODE_ADD
+    "@matomezu/tree:node-update": typeof NODE_UPDATE
+    "@matomezu/tree:node-remove": typeof NODE_REMOVE
   }
   interface ToolTable {
     "@matomezu/tree:edit": typeof EDIT_TOOL

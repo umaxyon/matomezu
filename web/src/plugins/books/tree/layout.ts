@@ -15,7 +15,7 @@ const SIBLING_ACROSS_COLUMNS = 16 // 兄弟の間（上・下の木。左右に�
 const MIN_W = 32
 
 export interface LaidNode {
-  id: string | null // 根は null
+  id: string
   caption: string
   x: number
   y: number
@@ -38,7 +38,7 @@ export function nodeSize(caption: string): { w: number; h: number } {
 
 // 伸びる向きに沿った長さ（main）と、横の長さ（cross）で測った節と、その下の木の横の幅（span）
 interface Measured {
-  id: string | null
+  id: string
   caption: string
   main: number
   cross: number
@@ -48,7 +48,7 @@ interface Measured {
 
 const vertical = (grow: Grow) => grow === "up" || grow === "down"
 
-function measure(node: { id: string | null; caption: string; children?: TreeNode[] }, grow: Grow): Measured {
+function measure(node: { id: string; caption: string; children?: TreeNode[] }, grow: Grow): Measured {
   const size = nodeSize(node.caption)
   const main = vertical(grow) ? size.h : size.w
   const cross = vertical(grow) ? size.w : size.h
@@ -60,7 +60,7 @@ function measure(node: { id: string | null; caption: string; children?: TreeNode
 
 // 根から伸びる向きに沿った位置（at。根の手前の辺が 0）と、横の位置（across。根の横の真ん中が 0）で置いた節
 interface Placed {
-  id: string | null
+  id: string
   caption: string
   at: number
   across: number // 節の横の始まり
@@ -69,7 +69,7 @@ interface Placed {
 }
 
 export function layoutTree(root: TreeRoot, grow: Grow, paper: { w: number; h: number }): TreeLayout {
-  const m = measure({ id: null, caption: root.caption, children: root.children }, grow)
+  const m = measure(root, grow)
   const gap = vertical(grow) ? SIBLING_ACROSS_COLUMNS : SIBLING_ACROSS_ROWS
   const placed: Placed[] = []
   const links: [Placed, Placed][] = []

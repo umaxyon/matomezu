@@ -125,7 +125,10 @@ function addTree(store: ReturnType<typeof setup>["store"], id: string, root: unk
     done = store.actions.perform("@matomezu/base:page-add", { title: "p1", fields: { root } }, { book: id })
   })
   if (!done?.ok) throw new Error("page-add refused")
-  return done.result as { page: string; fields?: { root: { children: { id: string; children?: { id: string }[] }[] } } }
+  return done.result as {
+    page: string
+    fields?: { root: { id: string; children: { id: string; children?: { id: string }[] }[] } }
+  }
 }
 
 test("子は根から伸びる向きへ描き、親から子へ線を引く。伸びる向きを変えると並べ直す", () => {
@@ -138,7 +141,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
   expect(node(b!).textContent).toBe("子 B")
   expect(paper.querySelectorAll("line")).toHaveLength(2)
   const top = (n: string) => Number.parseFloat(node(n).style.top)
-  expect(top(a!)).toBeGreaterThan(top("root")) // 既定は下へ
+  expect(top(a!)).toBeGreaterThan(top(done.fields!.root.id)) // 既定は下へ
   const page = (store.state.getState().books[id] as { pages: { id: string }[] }).pages[0]!.id
   act(() => {
     store.actions.perform(
@@ -147,7 +150,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
       { book: id },
     )
   })
-  expect(top(a!)).toBeLessThan(top("root"))
+  expect(top(a!)).toBeLessThan(top(done.fields!.root.id))
 })
 
 test("ページを作るとき、根の子は id を書かずに入れ子で渡し、ツリーが全部に重ならない id を振って、結果に同じ入れ子で返す。id を書いた子は断る", () => {
@@ -234,4 +237,52 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
   const first = make()
   expect(first).toMatchObject({ pages: [{ root: { children: [{ caption: "子", children: [{ caption: "孫" }] }] } }] })
   expect(make()).toEqual(first)
+})
+
+test("node-add は親の子に id の無い入れ子で足し、全部にほかと重ならない id を振って同じ入れ子で返す。index で並びの位置を決められる", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  const root = done.fields!.root
+  const run = (args: Record<string, unknown>) =>
+    store.actions.perform("@matomezu/tree:node-add", { page: done.page, ...args } as never, { book: id })
+  let added: ReturnType<typeof run> | undefined
+  act(() => {
+    added = run({ parent: root.id, index: 0, nodes: [{ caption: "子 0", children: [{ caption: "孫" }] }] })
+  })
+  expect(added?.ok).toBe(true)
+  const given = (added as { result: { nodes: { id: string; children: { id: string }[] }[] } }).result.nodes
+  const ids = [root.id, root.children[0]!.id, given[0]!.id, given[0]!.children[0]!.id]
+  expect(new Set(ids).size).toBe(4)
+  expect(book().pages[0]).toMatchObject({
+    root: {
+      children: [
+        { id: given[0]!.id, caption: "子 0", children: [{ id: given[0]!.children[0]!.id, caption: "孫" }] },
+        { caption: "子 A" },
+      ],
+    },
+  })
+  act(() => {
+    expect(run({ parent: "x", nodes: [{ caption: "?" }] }).ok).toBe(false)
+    expect(run({ parent: root.id, index: 9, nodes: [{ caption: "?" }] }).ok).toBe(false)
+    expect(run({ parent: root.id, nodes: [{ id: "x", caption: "?" }] }).ok).toBe(false)
+  })
+})
+
+test("node-update は子のキャプションを替え（根は断る）、node-remove は子孫ごと消す。根は消せない", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A", children: [{ caption: "孫" }] }] })
+  const root = done.fields!.root
+  const a = root.children[0]!.id
+  const perform = (action: "@matomezu/tree:node-update" | "@matomezu/tree:node-remove", args: object) =>
+    store.actions.perform(action, { page: done.page, ...args } as never, { book: id }).ok
+  act(() => {
+    expect(perform("@matomezu/tree:node-update", { node: a, caption: "子 A'" })).toBe(true)
+    expect(perform("@matomezu/tree:node-update", { node: root.id, caption: "代表" })).toBe(false)
+  })
+  expect(book().pages[0]).toMatchObject({ root: { caption: "根", children: [{ caption: "子 A'" }] } })
+  act(() => {
+    expect(perform("@matomezu/tree:node-remove", { node: root.id })).toBe(false)
+    expect(perform("@matomezu/tree:node-remove", { node: a })).toBe(true)
+  })
+  expect(book().pages[0]).not.toHaveProperty("root.children")
 })

@@ -4,6 +4,9 @@ import { defineMessages } from "../../../plugin-api"
 export const TREE_MESSAGES = defineMessages({
   Tree: { en: "Tree", ja: "ツリー" },
   "Edit tool": { en: "Edit tool", ja: "編集ツール" },
+  "Add nodes": { en: "Add nodes", ja: "節を足す" },
+  "Update node": { en: "Update node", ja: "節を書き換える" },
+  "Remove node": { en: "Remove node", ja: "節を消す" },
   "Grow direction": { en: "Grow direction", ja: "伸びる向き" },
   Up: { en: "Up", ja: "上へ" },
   Down: { en: "Down", ja: "下へ" },

@@ -84,10 +84,10 @@ function Tree({ stage, paper }: { stage: StageView; paper: { w: number; h: numbe
       </svg>
       {nodes.map(n => (
         <div
-          key={n.id ?? ""}
+          key={n.id}
           className={styles.node}
-          data-node={n.id ?? "root"}
-          data-root={n.id === null}
+          data-node={n.id}
+          data-root={n.id === root.data.id}
           style={{ left: n.x, top: n.y, width: n.w, height: n.h }}
         >
           {n.caption}
