@@ -1,10 +1,15 @@
 import { expect, test } from "bun:test"
+import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import type { Book } from "../../web/src/core/schema/book"
-import type { Settings } from "../../web/src/core/settings"
+import { keyChangesOf, type Settings, skinOf } from "../../web/src/core/settings"
 import { memoryClient } from "../../web/src/host-client/memory"
 import { persist } from "../../web/src/host-client/persist"
 import { createBookIn } from "../../web/src/plugins/base"
-import { newStore } from "../support"
+import { CORE_CATALOG, newStore } from "../support"
+
+const LANG = "@matomezu/base:lang"
+const SKIN = "@matomezu/base:skin"
+const KEYS = "@matomezu/base:keys"
 
 // 頼まれた順に残す中身を覚える
 function recording() {
@@ -41,17 +46,16 @@ test("設定が変われば残すように頼む。同じ値では頼まない",
   const store = newStore()
   const rec = recording()
   persist(store, rec.host)
-  store.actions.perform("@matomezu/base:settings-lang", { lang: "ja" }).ok
-  expect(rec.settings).toEqual([])
-  store.actions.perform("@matomezu/base:settings-lang", { lang: "en" }).ok
-  expect(rec.settings.map(s => s.lang)).toEqual(["en"])
+  store.actions.perform("@matomezu/base:settings-set", { values: { [LANG]: "matomezu:en" } }).ok
+  store.actions.perform("@matomezu/base:settings-set", { values: { [LANG]: "matomezu:en" } }).ok
+  expect(rec.settings.map(s => s[LANG])).toEqual(["matomezu:en"])
 })
 
 test("止めたあとは頼まない", () => {
   const store = newStore()
   const rec = recording()
   persist(store, rec.host)()
-  store.actions.perform("@matomezu/base:settings-lang", { lang: "en" }).ok
+  store.actions.perform("@matomezu/base:settings-set", { values: { [LANG]: "matomezu:en" } }).ok
   expect(rec.settings).toEqual([])
 })
 
@@ -60,15 +64,22 @@ test("メモリのホストは残したものを次に読む", async () => {
   const store = newStore({ books: [], savedBooks: (await host.load()).books })
   host.connect(store)
   createBookIn(store, "s1", { title: "新しいブック", type: "@matomezu/drawing:drawing" })
-  store.actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:dark" }).ok
+  store.actions.perform("@matomezu/base:settings-set", { values: { [SKIN]: "@matomezu/base:dark" } }).ok
   const again = await host.load()
   expect(again.books).toContainEqual(expect.objectContaining({ title: "新しいブック" }))
-  expect(again.settings).toMatchObject({ skin: "@matomezu/base:dark" })
+  expect(again.settings).toEqual({ [SKIN]: "@matomezu/base:dark" })
 })
 
-test("残した設定は、このインスタンスで使える項目だけ使う（無い言語・無いスキン・形の合わない値は捨てる）", () => {
-  const pick = (settings: unknown) => newStore({ settings }).state.getState().settings
-  expect(pick({ lang: "en", skin: "@matomezu/base:dark" })).toMatchObject({ lang: "en", skin: "@matomezu/base:dark" })
-  expect(pick({ lang: "xx", skin: "nope", keys: { added: "bad" } })).toEqual(pick(undefined))
-  expect(pick("broken")).toEqual(pick(undefined))
+test("残した設定は捨てずに持ち、このインスタンスで使えない値（無い言語パック・無いスキン・形の合わない値）は、読むときに既定にする", () => {
+  const pick = (settings: unknown) => newStore({ settings, lang: "ja" }).state.getState()
+  const good = pick({ [LANG]: "matomezu:en", [SKIN]: "@matomezu/base:dark" })
+  expect(good.lang).toBe("en")
+  expect(skinOf(CORE_CATALOG, good.settings)).toBe("@matomezu/base:dark")
+  const bad = { [LANG]: "matomezu:xx", [SKIN]: "nope", [KEYS]: { added: "bad" }, "@gone/x:y": 1 }
+  const kept = pick(bad)
+  expect(kept.settings).toEqual(bad)
+  expect(kept.lang).toBe("ja")
+  expect(skinOf(CORE_CATALOG, kept.settings)).toBe("auto")
+  expect(keyChangesOf(CORE_CATALOG, kept.settings)).toEqual(NO_KEY_CHANGES)
+  expect(pick("broken").settings).toEqual({})
 })

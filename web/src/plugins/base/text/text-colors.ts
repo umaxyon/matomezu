@@ -1,4 +1,4 @@
-// 文字の色の値: 文字の色の定義の色を、ブックの設定の項目 book-text-colors（文字の色の id → #rrggbb）で上書きし、見る人の上書き（見る人の設定の textColors。アクション settings-text-colors）をさらに重ねる。
+// 文字の色の値: 文字の色の定義の色を、ブックの設定の項目 book-text-colors（文字の色の id → #rrggbb）で上書きし、見る人の上書き（利用者の設定の項目 text-colors）をさらに重ねる。
 // ブックのタイプが settings.book に選んだブックだけが上書きを持てる（選ばなければ定義の色）
 import { z } from "zod"
 import { HEX } from "../../../core/color"
@@ -13,6 +13,20 @@ export const BOOK_TEXT_COLORS = kit.defineSetting({
   title: "Text colors",
   schema: z.record(z.string(), z.string().regex(HEX)),
 })
+
+// 見る人の文字の色の上書き（利用者の設定の項目。無い色の id は使わずに残す）
+export const USER_TEXT_COLORS = kit.defineSetting({
+  id: "text-colors",
+  title: "Text colors",
+  schema: z.record(z.string(), z.string().regex(HEX)),
+  default: {},
+})
+
+// 見る人の上書き own の、文字の色 id を color にした値（null は上書きを消す）。項目の値は丸ごと置き換わるので、ほかの色の上書きも残す
+export function withTextColor(own: TextColorValues, id: string, color: string | null): TextColorValues {
+  const { [id]: _, ...rest } = own
+  return color === null ? rest : { ...rest, [id]: color }
+}
 
 // 文字の色の値を置く CSS 変数の名前（ステージがブックの要素に置く。id の英数字と - のほかは _ と 16 進にする）
 export const textColorVarName = (id: string) =>

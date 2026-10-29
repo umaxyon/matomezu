@@ -33,6 +33,8 @@ export const ERRORS = {
   E033: "toolSet {id}: has no tools",
   E034: "textColor {id}: color {color} is not #rrggbb",
   E035: "bookType {id}: createSettings has {setting}, which is not one of its book settings",
+  E036: "setting {id}: only a user setting may have {field}",
+  E037: "userSetting {id}: role {role} is held by {other} too",
 
   E101: "unknown book type: {id}",
   E102: "unknown theme: {id}",
@@ -71,6 +73,7 @@ export const ERRORS = {
   E306: 'plugin {plugin}: token {token} must not start with "theme-" or "skin-" (the core\'s CSS variables)',
   E307: "plugin {plugin}: commandIcons has {command}, which is not its own command",
   E308: "plugin {plugin}: only built-in plugins may have checks",
+  E309: "plugin {plugin}: only built-in plugins may give a user setting a role ({id})",
 
   E401: "the server could not give the data: {status}",
 } as const

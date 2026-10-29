@@ -93,14 +93,26 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
   })
 })
 
-test("言語とスキンの設定を変える。同じ値なら知らせない", () => {
+test("言語とスキンの設定を変える（書いた項目だけ変わり、null は既定に戻す）。同じ値なら知らせない", () => {
   const { state, actions } = newStore()
-  actions.perform("@matomezu/base:settings-lang", { lang: "en" })
-  actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:light" })
-  expect(state.getState().settings).toMatchObject({ lang: "en", skin: "@matomezu/base:light" })
+  const set = (values: Record<string, unknown>) => actions.perform("@matomezu/base:settings-set", { values }).ok
+  expect(set({ "@matomezu/base:lang": "matomezu:en" })).toBe(true)
+  expect(set({ "@matomezu/base:skin": "@matomezu/base:light" })).toBe(true)
+  expect(state.getState().settings).toEqual({
+    "@matomezu/base:lang": "matomezu:en",
+    "@matomezu/base:skin": "@matomezu/base:light",
+  })
+  expect(state.getState().lang).toBe("en")
   const s = state.getState()
-  actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:light" })
+  expect(set({ "@matomezu/base:skin": "@matomezu/base:light" })).toBe(true)
   expect(state.getState()).toBe(s)
+  // 無い項目・形の合わない値は断り、どれも変えない
+  expect(set({ "@matomezu/base:lang": "matomezu:ja", "@gone/x:y": 1 })).toBe(false)
+  expect(set({ "@matomezu/base:lang": "matomezu:ja", "@matomezu/base:skin": "nope" })).toBe(false)
+  expect(state.getState()).toBe(s)
+  expect(set({ "@matomezu/base:lang": null })).toBe(true)
+  expect(state.getState().settings).toEqual({ "@matomezu/base:skin": "@matomezu/base:light" })
+  expect(state.getState().lang).toBe("ja")
 })
 
 test("ページの無いブックを 2 つのステージで開いて最初のページを作ると、どちらのステージもそのページを開く", () => {

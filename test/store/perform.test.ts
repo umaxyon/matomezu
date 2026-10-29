@@ -137,9 +137,10 @@ describe("アクションの入口", () => {
     const { state, actions } = newStore()
     let calls = 0
     const off = state.subscribe(() => calls++)
-    expect(actions.perform("@matomezu/base:settings-lang", { lang: "ja" })).toEqual({ ok: true, result: {} })
-    expect(calls).toBe(0)
-    expect(actions.perform("@matomezu/base:settings-lang", { lang: "en" }).ok).toBe(true)
+    const lang = { values: { "@matomezu/base:lang": "matomezu:en" } }
+    expect(actions.perform("@matomezu/base:settings-set", lang).ok).toBe(true)
+    expect(calls).toBe(1)
+    expect(actions.perform("@matomezu/base:settings-set", lang)).toEqual({ ok: true, result: {} })
     expect(calls).toBe(1)
     off()
   })

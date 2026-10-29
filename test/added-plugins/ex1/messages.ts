@@ -9,6 +9,7 @@ export const EX1_MESSAGES = defineMessages({
   itemId: { en: "Item {id}", ja: "アイテム {id}" },
   pageSettings: { en: "Page settings by ex1", ja: "ex1 のページの設定" },
   close: { en: "Close", ja: "閉じる" },
+  greetingName: { en: "Name to greet", ja: "あいさつで呼ぶ名前" },
 })
 
 // フランス語を持ち込む（自分の文言と、ビルトインの文言の訳）

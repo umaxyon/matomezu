@@ -17,7 +17,7 @@ export function TrashList() {
   const { perform } = useActions()
   const elapsed = useElapsed()
   const catalog = useCatalog().core
-  const lang = useMatomezuState(s => s.settings.lang)
+  const lang = useMatomezuState(s => s.lang)
   const t = useMessages(kit)
   // 確かめている削除（ブック 1 冊か、ゴミ箱を空にする）
   const [confirming, setConfirming] = useState<{ book: string } | "all" | null>(null)

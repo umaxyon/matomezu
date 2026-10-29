@@ -10,11 +10,10 @@ import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
-import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
 import { type Library, splitTrash } from "../core/library"
 import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
-import { NO_TEXT_COLORS, restoreSettings, type Settings } from "../core/settings"
+import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
 import {
   closePicker,
   openBook,
@@ -61,6 +60,7 @@ export interface MatomezuState {
   partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
   workspace: Workspace
   settings: Settings
+  lang: Lang // 今の言語（設定の言語の項目が選んだ言語パックの言語。選んでいない・使えなければ、インスタンスを作ったときに決めた言語）
   dialog: OpenedDialog | null
   contextMenu: OpenedContextMenu | null
   toasts: readonly Toast[] // 出しているトースト（古い順）
@@ -177,6 +177,7 @@ function initialState(
   catalog: CoreCatalog,
   books: readonly Book[],
   settings: Settings,
+  lang: Lang,
   home: string | null,
   unreadable: readonly Warning[] = [],
   partial: readonly Warning[] = [],
@@ -189,6 +190,7 @@ function initialState(
     partial,
     workspace: newWorkspace(catalog, first),
     settings,
+    lang,
     dialog: null,
     contextMenu: null,
     toasts: [],
@@ -205,7 +207,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。インスタンスにある最初の言語を使い、無ければ英語
   savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。このインスタンスのブックの形に合うものだけを、books のあとに持つ
-  settings?: unknown // 残しておいた設定（ホストが読んだもの）。このインスタンスで使える項目だけ、lang より優先して使う
+  settings?: unknown // 残しておいた設定（ホストが読んだもの）。言語の項目が選んだ言語パックは、lang より優先して使う
   initial?: MatomezuState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
@@ -235,19 +237,17 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   let defs = assemble(plugins, options.home ?? null, options.autoSkin)
   let { home } = defs
   let catalog = defs.catalog.core
-  const start: Settings = {
-    lang: startLang(catalog, options.lang),
-    skin: "auto",
-    keys: NO_KEY_CHANGES,
-    textColors: NO_TEXT_COLORS,
-  }
+  // 設定の言語の項目が選んでいないときの言語
+  let fallback = startLang(catalog, options.lang)
   const saved = checkBooks(catalog, options.savedBooks ?? [])
+  const savedSettings = restoreSettings(options.settings)
   const initial =
     options.initial ??
     initialState(
       catalog,
       [...(options.books ?? []), ...saved.books],
-      restoreSettings(catalog, start, options.settings),
+      savedSettings,
+      langOf(catalog, savedSettings, fallback),
       home,
       saved.warnings,
       saved.partial,
@@ -256,7 +256,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const clock = options.now ?? (() => new Date().toISOString())
   const store = createStore<MatomezuState>()(() => initial)
   const { getState, setState } = store
-  const ctx = (): ActionContext => ({ catalog, home, lang: getState().settings.lang, newId, now: clock() })
+  const ctx = (): ActionContext => ({ catalog, home, lang: getState().lang, newId, now: clock() })
   // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）
   let checked = new WeakMap<object, { book: Book; partial?: Warning } | { warning: Warning }>()
   const restore = (saved: readonly unknown[]): { books: Book[]; warnings: Warning[]; partial: Warning[] } => {
@@ -283,10 +283,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     return { books, warnings, partial }
   }
   // キーの割り当ての表（利用者の変更が変わったときだけ作り直す）
-  let keyCache: { changes: KeyChanges; table: KeyTable } | null = null
-  const keysFor = (changes: KeyChanges): KeyTable => {
-    if (keyCache?.changes !== changes)
-      keyCache = { changes, table: keyTable([...defs.catalog.store.keys.values()], changes) }
+  let keyCache: { settings: Settings; table: KeyTable } | null = null
+  const keysFor = (settings: Settings): KeyTable => {
+    if (keyCache?.settings !== settings)
+      keyCache = { settings, table: keyTable([...defs.catalog.store.keys.values()], keyChangesOf(catalog, settings)) }
     return keyCache.table
   }
   const withWorkspace = (change: (ws: Workspace) => Workspace) => {
@@ -324,7 +324,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.trash = { ...split.trash }
       next.workspace = followLibrary(catalog, workspace, split.books, books)
     }
-    if (done.settings) next.settings = done.settings
+    if (done.settings) {
+      next.settings = done.settings
+      next.lang = langOf(catalog, done.settings, fallback)
+    }
     return { ok: true, result: done.result, next }
   }
   // 状態の差分を入れる（何も変わらなければ知らせない）。開いたステージが無くなったダイアログと右クリックのメニューは閉じる
@@ -374,7 +377,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     pressKey: (key, scopes) => {
       const { contextMenu, dialog, workspace, settings } = getState()
-      const table = keysFor(settings.keys)
+      const table = keysFor(settings)
       const picker = workspace.stages.find(s => s.picker !== null)?.id
       const stage = contextMenu?.stage ?? picker ?? dialog?.stage ?? workspace.current
       const menu = contextMenu !== null || picker !== undefined
@@ -448,7 +451,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     receive: (world, replay) => {
       const found = restore(world.books)
       let library: Library = Object.fromEntries([...singleBooks(catalog), ...found.books].map(b => [b.id, b]))
-      let settings = restoreSettings(catalog, start, world.settings)
+      let settings = restoreSettings(world.settings)
       for (const done of replay) {
         const ids = [...done.ids]
         const next = performIn({ books: library, settings }, done.action, done.args, done.on, {
@@ -479,7 +482,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(touched === now.touched ? {} : { touched }),
         ...(trash === now.trash ? {} : { trash }),
         ...(books === now.books ? {} : { books, workspace: followLibrary(catalog, now.workspace, books, now.books) }),
-        ...(settings === now.settings ? {} : { settings }),
+        ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
       })
@@ -513,6 +516,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       catalog = next.catalog.core
       checked = new WeakMap()
       keyCache = null
+      fallback = startLang(catalog, options.lang)
       Object.assign(instance, next, { plugins: [...plugins, ...used] })
       const { settings } = getState()
       const again = checkBooks(catalog, options.savedBooks ?? [])
@@ -521,6 +525,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           catalog,
           [...(options.books ?? []), ...again.books],
           settings,
+          langOf(catalog, settings, fallback),
           home,
           again.warnings,
           again.partial,

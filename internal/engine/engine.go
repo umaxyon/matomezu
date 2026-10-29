@@ -25,7 +25,7 @@ type Input struct {
 	Action   string            `json:"action"`
 	Args     json.RawMessage   `json:"args"`
 	On       *On               `json:"on,omitempty"`
-	Lang     string            `json:"lang"`
+	Lang     string            `json:"lang,omitempty"` // 画面で先に行ったときの言語（空ならエンジンが設定の言語の項目で決める）
 	IDs      []string          `json:"ids,omitempty"`
 	Now      string            `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
 	Books    []json.RawMessage `json:"books"`
@@ -57,6 +57,7 @@ type Engine struct {
 	readAI    func() string
 	check     func(string) string
 	lines     func(string) string
+	settings  func(string) string
 	use       goja.Callable
 	aiCatalog json.RawMessage
 	modules   plugin.Modules
@@ -84,6 +85,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuWarningLines"), &e.lines); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuWarningLines: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuReadSettings"), &e.settings); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuReadSettings: %w", err)
 	}
 	use, ok := goja.AssertFunction(vm.Get("matomezuUse"))
 	if !ok {
@@ -224,6 +228,22 @@ func (e *Engine) WarningLines(warnings json.RawMessage) (out []string, err error
 		return nil, err
 	}
 	return out, nil
+}
+
+// AISettings は AI が読む設定（MCP 公開ツールの read_settings）: 残した設定 settings から、利用者だけが変える項目と機能台帳に無い項目を除き、
+// 値が無いか形に合わない項目は既定にしたもの（項目の id → 値）
+func (e *Engine) AISettings(settings json.RawMessage) (out json.RawMessage, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return json.RawMessage(e.settings(string(settings))), nil
 }
 
 // AICatalog は MCP 公開ツールの actions が返す物（アクションとアイテムなど） {"actions": [{"id", "target", "title", "args"}], "items": [{"id", "title", "size", "props"}]}。

@@ -25,4 +25,5 @@ export {
   useShownPage,
   useStage,
   useUiCatalog,
+  useUserSetting,
 } from "../ui/view-hooks"

@@ -7,7 +7,6 @@ import { defineBookType } from "../../web/src/core/def/book-type"
 import { ERRORS, isMatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import type { LanguagePackDef } from "../../web/src/core/i18n/messages"
-import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { perform } from "../../web/src/core/perform"
 import { resolveTokens, tokenDefsOf } from "../../web/src/core/theme"
 import { bookTokens } from "../../web/src/plugins/base/book-look/look"
@@ -240,17 +239,18 @@ describe("アクションを行う", () => {
       ok: false,
       reason: "not-allowed",
     })
-    const settings = { lang: "ja", skin: "auto", keys: NO_KEY_CHANGES, textColors: {} }
-    expect(perform(settings, "@matomezu/base:settings-lang", { lang: "en" }, ctx)).toMatchObject({
+    const settings = { "@matomezu/base:lang": "matomezu:ja" }
+    const lang = (pack: string) => ({ values: { "@matomezu/base:lang": pack } })
+    expect(perform(settings, "@matomezu/base:settings-set", lang("matomezu:en"), ctx)).toMatchObject({
       ok: true,
-      next: { lang: "en" },
+      next: { "@matomezu/base:lang": "matomezu:en" },
     })
-    expect(perform(settings, "@matomezu/base:settings-lang", { lang: "en" }, homeless)).toEqual({
+    expect(perform(settings, "@matomezu/base:settings-set", lang("matomezu:en"), homeless)).toEqual({
       ok: false,
       reason: "not-allowed",
     })
-    // インスタンスに無い言語は断る
-    expect(perform(settings, "@matomezu/base:settings-lang", { lang: "fr" }, ctx)).toEqual({
+    // インスタンスに無い言語パックは断る
+    expect(perform(settings, "@matomezu/base:settings-set", lang("matomezu:fr"), ctx)).toEqual({
       ok: false,
       reason: "refused",
     })

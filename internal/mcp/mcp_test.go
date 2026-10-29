@@ -17,7 +17,7 @@ type fakeAPI struct {
 const aiCatalogJSON = `{"actions":[
  {"id":"@matomezu/paper:item-place","target":"book","args":{"$schema":"x","type":"object","properties":{"page":{"type":"string"}},"required":["page"],"additionalProperties":false}},
  {"id":"@matomezu/base:book-create","target":"library","args":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}},
- {"id":"@matomezu/base:settings-lang","target":"settings","args":{"type":"object"}}],
+ {"id":"@matomezu/base:settings-set","target":"settings","args":{"type":"object"}}],
  "items":[{"id":"@matomezu/box:shape-box","title":"Box","size":{"w":160,"h":96},"props":{"properties":{"caption":{"type":"string"}}}}]}`
 
 func (f *fakeAPI) Get(path string) (json.RawMessage, error) {

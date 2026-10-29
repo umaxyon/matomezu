@@ -52,21 +52,35 @@ describe("ホーム", () => {
     expect(checkCoreCatalog(parts).map(p => p.code)).toEqual(["E019"])
   })
 
-  test("設定はアクションで変え、ホームのタイプが許さない設定は変えず、そのコマンドも出さない", () => {
+  test("設定はアクションで変え、ホームのタイプが許さなければ変えず、そのコマンドも出さない。fixedSettings の項目だけを変えさせないこともできる", () => {
+    const lang = { "@matomezu/base:lang": "matomezu:en" }
+    const skin = { "@matomezu/base:skin": "@matomezu/base:dark" }
     const instance = newStore()
-    expect(instance.actions.command("s1", "@matomezu/base:settings-lang", "en")).toBe(true)
-    expect(instance.state.getState().settings.lang).toBe("en")
-    // 言語だけを許すホーム
-    const strict = {
-      ...MASTER,
-      actions: { add: ["@matomezu/base:settings-lang"] as const },
-    }
+    expect(instance.actions.command("s1", "@matomezu/base:settings-set", lang)).toBe(true)
+    expect(instance.state.getState().lang).toBe("en")
+    // 設定を変えさせないホーム
+    const strict = { ...MASTER, actions: { add: [] } }
     const org = { ...BUILTIN[1], bookTypes: [strict] }
     const locked = createMatomezu({ plugins: [BUILTIN[0], org, ...BUILTIN.slice(2)], home: "@matomezu/master:master" })
-    expect(locked.actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:dark" }).ok).toBe(false)
-    expect(locked.state.getState().settings.skin).toBe("auto")
-    expect(isShown(locked, locked.state.getState(), "s1", "@matomezu/base:settings-skin")).toBe(false)
-    expect(isShown(locked, locked.state.getState(), "s1", "@matomezu/base:settings-lang")).toBe(true)
+    expect(locked.actions.perform("@matomezu/base:settings-set", { values: skin }).ok).toBe(false)
+    expect(isShown(locked, locked.state.getState(), "s1", "@matomezu/base:settings-set")).toBe(false)
     expect(createBookIn(locked, "s1", { title: "x", type: "@matomezu/drawing:drawing" })).toBe(false)
+    // スキンだけを変えさせないホーム: 言語は変えられ、スキンは断る（一緒に頼んだ言語も変えない）
+    const fixed = { ...MASTER, fixedSettings: ["@matomezu/base:skin"] }
+    const some = createMatomezu({
+      plugins: [BUILTIN[0], { ...BUILTIN[1], bookTypes: [fixed] }, ...BUILTIN.slice(2)],
+      home: "@matomezu/master:master",
+    })
+    expect(some.actions.perform("@matomezu/base:settings-set", { values: { ...lang, ...skin } }).ok).toBe(false)
+    expect(some.state.getState().settings).toEqual({})
+    expect(some.actions.perform("@matomezu/base:settings-set", { values: lang }).ok).toBe(true)
+    // fixedSettings に利用者の設定の項目でない id を書くと、組み立てで誤り
+    const wrong = { ...MASTER, fixedSettings: ["@matomezu/base:book-theme"] }
+    expect(() =>
+      createMatomezu({
+        plugins: [BUILTIN[0], { ...BUILTIN[1], bookTypes: [wrong] }, ...BUILTIN.slice(2)],
+        home: "@matomezu/master:master",
+      }),
+    ).toThrow("E016")
   })
 })

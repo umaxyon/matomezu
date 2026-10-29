@@ -1,6 +1,6 @@
 // ex1: 自分のブックのタイプを持たず、画面に足すだけの追加プラグイン（React なし）
-// コマンド（引数なし・あり・右クリックされたアイテムを受け取る）・置いてほしいメニュー・キーの既定の割り当て・ダイアログ・文言と言語
-import { definePlugin } from "matomezu"
+// コマンド（引数なし・あり・右クリックされたアイテムを受け取る）・置いてほしいメニュー・キーの既定の割り当て・ダイアログ・文言と言語・利用者の設定の項目
+import { definePlugin, z } from "matomezu"
 import { kit } from "./kit"
 import { EX1_FRENCH } from "./messages"
 
@@ -16,12 +16,27 @@ export const HELLO = kit.defineCommand({
   place: { menus: ["@matomezu/base:stage-menu"] },
 })
 
+// 利用者の設定の項目: あいさつで呼ぶ名前。利用者だけが変える（AI には変えさせず、AI が読む設定にも出さない）
+export const GREETING_NAME = kit.defineSetting({
+  id: "greeting-name",
+  title: "greetingName",
+  schema: z.string().min(1).max(20),
+  default: "matomezu",
+  userOnly: true,
+})
+
+// フランス語の言語パック
+const FRENCH = kit.defineLanguagePack(EX1_FRENCH)
+
+// 言語 → その言語パックの id
+const PACKS = { ja: "matomezu:ja", en: "matomezu:en", fr: FRENCH.id } as const
+
 // 引数のあるコマンド: 言語を変える（ビルトインプラグインのコマンドも型のまま呼べる）
 export const SWITCH_LANG = kit.defineCommand({
   id: "lang",
   title: "switchLanguage",
-  run: (ctx, a, lang: "ja" | "en" | "fr") => {
-    a.command(ctx.stage.id, "@matomezu/base:settings-lang", lang)
+  run: (ctx, a, lang: keyof typeof PACKS) => {
+    a.command(ctx.stage.id, "@matomezu/base:settings-set", { "@matomezu/base:lang": PACKS[lang] })
   },
   when: () => true,
 })
@@ -46,7 +61,8 @@ export const EX1 = definePlugin(
     commands: [HELLO, SWITCH_LANG, INSPECT],
     keys: EX1_KEYS,
     dialogs: [HELLO_DIALOG, INSPECT_DIALOG],
-    languages: [kit.defineLanguagePack(EX1_FRENCH)],
+    userSettings: [GREETING_NAME],
+    languages: [FRENCH],
   }),
 )
 
@@ -58,6 +74,9 @@ declare module "matomezu/catalog" {
     "ex1:hello": typeof HELLO
     "ex1:lang": typeof SWITCH_LANG
     "ex1:inspect": typeof INSPECT
+  }
+  interface UserSettingTable {
+    "ex1:greeting-name": typeof GREETING_NAME
   }
   interface DialogTable {
     "ex1:hello": typeof HELLO_DIALOG

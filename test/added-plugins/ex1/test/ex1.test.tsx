@@ -22,7 +22,7 @@ test("置いてほしいと書いたボタンがステージの上の行に出�
   expect(screen.getByRole("dialog", { name: "あいさつする" }).textContent).toContain("こんにちは、MATOMEZU")
   // 引数のあるコマンドで言語を変えると、自分の文言も変わる
   fireEvent.click(screen.getByRole("button", { name: "言語を切り替える" }))
-  expect(instance.state.getState().settings.lang).toBe("en")
+  expect(instance.state.getState().lang).toBe("en")
   expect(screen.getByRole("dialog", { name: "Say hello" }).textContent).toContain("Hello, MATOMEZU")
 })
 
@@ -33,6 +33,18 @@ test("持ち込んだ言語で、自分の文言もビルトインの文言も�
     instance.actions.command("s1", "ex1:lang", "fr")
   })
   expect(screen.getByRole("button", { name: "Dire bonjour" })).toBeTruthy()
+})
+
+test("足した利用者の設定の項目を、利用者は変えられ、自分の見た目で読める", () => {
+  const instance = make()
+  const name = { "ex1:greeting-name": "taro" }
+  expect(instance.actions.perform("@matomezu/base:settings-set", { values: name }).ok).toBe(true)
+  fireEvent.click(screen.getByRole("button", { name: "あいさつする" }))
+  expect(screen.getByRole("dialog", { name: "あいさつする" }).textContent).toContain("こんにちは、TARO")
+  // 形に合わない値は断る
+  expect(instance.actions.perform("@matomezu/base:settings-set", { values: { "ex1:greeting-name": "" } }).ok).toBe(
+    false,
+  )
 })
 
 test("右クリックされたアイテムを受け取るコマンドを、そのアイテムのダイアログに渡す", () => {

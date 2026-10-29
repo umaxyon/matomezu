@@ -44,9 +44,9 @@ describe("コマンドを行う", () => {
 
   test("引数のあるコマンドは、その値で行う", () => {
     const { state, actions } = newStore()
-    expect(actions.command("s1", "@matomezu/base:settings-lang", "en")).toBe(true)
+    expect(actions.command("s1", "@matomezu/base:settings-set", { "@matomezu/base:lang": "matomezu:en" })).toBe(true)
     expect(actions.command("s1", "@matomezu/base:page-open", "p1")).toBe(true)
-    expect(state.getState().settings.lang).toBe("en")
+    expect(state.getState().lang).toBe("en")
   })
 
   test("ダイアログのコマンドは、呼んだステージから開いたダイアログにする", () => {

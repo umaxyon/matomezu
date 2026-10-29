@@ -3,7 +3,7 @@ import { useEffect } from "react"
 import { useMatomezuState } from "./store-context"
 
 export function LangSync() {
-  const lang = useMatomezuState(s => s.settings.lang)
+  const lang = useMatomezuState(s => s.lang)
   useEffect(() => {
     document.documentElement.lang = lang
   }, [lang])

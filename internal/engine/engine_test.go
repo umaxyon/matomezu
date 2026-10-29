@@ -81,9 +81,21 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"type":"@matomezu/drawing:drawing","id":"nb","title":"New","pages":[]}` {
 		t.Fatalf("@matomezu/base:book-create = %+v %s, %v", out, out.Books, err)
 	}
-	out, err = e.Perform(Input{Action: "@matomezu/base:settings-lang", Args: json.RawMessage(`{"lang":"en"}`), Lang: "ja", Settings: json.RawMessage(`{"lang":"ja"}`)})
-	if err != nil || !out.OK || !strings.Contains(string(out.Settings), `"lang":"en"`) {
-		t.Fatalf("@matomezu/base:settings-lang = %+v %s, %v", out, out.Settings, err)
+	out, err = e.Perform(Input{Action: "@matomezu/base:settings-set", Args: json.RawMessage(`{"values":{"@matomezu/base:lang":"matomezu:en"}}`), Lang: "ja", Settings: json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja"}`)})
+	if err != nil || !out.OK || string(out.Settings) != `{"@matomezu/base:lang":"matomezu:en"}` {
+		t.Fatalf("@matomezu/base:settings-set = %+v %s, %v", out, out.Settings, err)
+	}
+}
+
+// AI が読む設定は、利用者の設定の項目の値（無いか形に合わなければ既定）で、機能台帳に無い項目は出さない
+func TestAISettings(t *testing.T) {
+	e := newEngine(t)
+	got, err := e.AISettings(json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja","@gone/x:y":1,"@matomezu/base:skin":"nothing"}`))
+	if err != nil || string(got) != `{"@matomezu/base:lang":"matomezu:ja","@matomezu/base:skin":"auto","@matomezu/base:keys":{"added":[],"removed":[]},"@matomezu/base:text-colors":{}}` {
+		t.Fatalf("ai settings = %s, %v", got, err)
+	}
+	if got, err := e.AISettings(nil); err != nil || !strings.Contains(string(got), `"@matomezu/base:skin":"auto"`) {
+		t.Fatalf("ai settings of nothing = %s, %v", got, err)
 	}
 }
 
@@ -99,8 +111,15 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 			ID    string          `json:"id"`
 			Props json.RawMessage `json:"props"`
 		} `json:"items"`
-		Languages []string `json:"languages"`
-		Skins     []string `json:"skins"`
+		Languages []struct {
+			ID   string `json:"id"`
+			Lang string `json:"lang"`
+		} `json:"languages"`
+		Skins    []string `json:"skins"`
+		Settings []struct {
+			ID     string          `json:"id"`
+			Schema json.RawMessage `json:"schema"`
+		} `json:"settings"`
 	}
 	if err := json.Unmarshal(newEngine(t).AICatalog(), &c); err != nil {
 		t.Fatal(err)
@@ -114,8 +133,18 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 			found = a.Target == "book" && strings.Contains(string(a.Args), `"page"`) && strings.Contains(string(a.Args), `"required"`)
 		}
 	}
+	langs := []string{}
+	for _, l := range c.Languages {
+		langs = append(langs, l.ID+"="+l.Lang)
+	}
+	schemas := map[string]string{}
+	for _, s := range c.Settings {
+		schemas[s.ID] = string(s.Schema)
+	}
 	if !found || len(c.Items) == 0 || !strings.Contains(string(c.Items[0].Props), `"caption"`) ||
-		strings.Join(c.Languages, ",") != "en,ja" || strings.Join(c.Skins, ",") != "@matomezu/base:dark,@matomezu/base:light" {
+		strings.Join(langs, ",") != "matomezu:en=en,matomezu:ja=ja" || strings.Join(c.Skins, ",") != "@matomezu/base:dark,@matomezu/base:light" ||
+		!strings.Contains(schemas["@matomezu/base:lang"], `"enum":["matomezu:en","matomezu:ja"]`) ||
+		!strings.Contains(schemas["@matomezu/base:skin"], `"enum":["auto","@matomezu/base:dark","@matomezu/base:light"]`) {
 		t.Fatalf("ai catalog = %s", newEngine(t).AICatalog())
 	}
 }

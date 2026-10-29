@@ -8,6 +8,8 @@ import type { StoreOptions } from "../../web/src/store/store"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 
+const SKIN = "@matomezu/base:skin"
+
 afterEach(cleanup)
 
 function renderScreen(options: Omit<StoreOptions, "plugins"> = {}) {
@@ -204,7 +206,7 @@ test("マスターで新しいブックを作ると、そのステージでペ�
 test("マスターの設定で言語とスキンを変える", () => {
   renderScreen()
   fireEvent.click(fromMenu("ホーム"))
-  fireEvent.change(screen.getByLabelText("言語"), { target: { value: "en" } })
+  fireEvent.change(screen.getByLabelText("言語"), { target: { value: "matomezu:en" } })
   expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy()
   fireEvent.change(screen.getByLabelText("Skin"), { target: { value: "@matomezu/base:light" } })
   expect(document.documentElement.dataset.skin).toBe("@matomezu/base:light")
@@ -213,14 +215,14 @@ test("マスターの設定で言語とスキンを変える", () => {
 test("インスタンスに無いスキンは選べず、設定に残っていても自動のスキンで描く（data-skin を付けない）", () => {
   const store = renderScreen()
   act(() => {
-    store.actions.perform("@matomezu/base:settings-skin", { skin: "@matomezu/base:light" }).ok
+    store.actions.perform("@matomezu/base:settings-set", { values: { [SKIN]: "@matomezu/base:light" } }).ok
   })
   expect(document.documentElement.dataset.skin).toBe("@matomezu/base:light")
-  expect(store.actions.perform("@matomezu/base:settings-skin", { skin: "removed-skin" }).ok).toBe(false)
+  expect(store.actions.perform("@matomezu/base:settings-set", { values: { [SKIN]: "removed-skin" } }).ok).toBe(false)
   cleanup()
   // 外したスキンが設定に残っている状態から描く
   const kept = store.state.getState()
-  renderScreen({ initial: { ...kept, settings: { ...kept.settings, skin: "removed-skin" } } })
+  renderScreen({ initial: { ...kept, settings: { ...kept.settings, [SKIN]: "removed-skin" } } })
   expect(document.documentElement.dataset.skin).toBeUndefined()
 })
 
