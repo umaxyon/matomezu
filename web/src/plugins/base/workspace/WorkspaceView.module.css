@@ -77,11 +77,11 @@
 .column[data-current="true"] .bottom {
   background: var(--skin-current);
 }
-/* 列の右上の角（ステージの上に浮かぶ） */
+/* 列の右上の角（ステージの上に浮かぶ。中身のスクロールバーに重ならないよう、その幅だけ内側） */
 .corner {
   position: absolute;
   top: 7px;
-  right: 7px;
+  right: calc(7px + var(--scrollbar-w, 0px));
   z-index: 4;
   display: flex;
   gap: 4px;
