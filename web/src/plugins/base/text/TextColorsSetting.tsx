@@ -1,4 +1,4 @@
-// 文字の色の設定のコンポーネント（設定の項目 text-colors のビュー）: 文字の色ごとに、色を選ぶポップアップ（「なし」は定義の色）
+// 文字の色の設定のコンポーネント（設定の項目 book-text-colors のビュー）: 文字の色ごとに、色を選ぶポップアップ（「なし」は定義の色）
 import { useMessages } from "../../../ui/i18n"
 import type { SettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"

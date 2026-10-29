@@ -184,7 +184,7 @@ declare module "../../core/catalog" {
   interface SettingTable {
     "@matomezu/base:book-theme": typeof BOOK_THEME
     "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
-    "@matomezu/base:text-colors": typeof BOOK_TEXT_COLORS
+    "@matomezu/base:book-text-colors": typeof BOOK_TEXT_COLORS
   }
   interface ActionTable {
     "@matomezu/base:book-create": typeof BOOK_CREATE

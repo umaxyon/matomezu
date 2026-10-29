@@ -72,7 +72,7 @@ test("文字の色は定義の色を、ブックの設定、見る人の上書�
     id: "b",
     title: "",
     pages: [],
-    settings: { "@matomezu/base:text-colors": { [W]: "#111111" } },
+    settings: { "@matomezu/base:book-text-colors": { [W]: "#111111" } },
   } as unknown as Book
   const plain = { ...book, settings: undefined } as unknown as Book
   expect(textColorsOf(CORE_CATALOG, plain).get(W)).toBe("#d97706")
