@@ -441,7 +441,7 @@ function ownHandlers(
   ) as typeof handlers
 }
 
-// 大きさを変えるためにつかめる所: 四辺と四隅（角は 2 つの辺を動かす）
+// 大きさを変えるためにつかめる所: 四辺と四隅（角は 2 つの辺を動かす。幅だけを変えられる形は左右の辺だけ）
 const GRIPS: readonly { at: string; edges: Edges }[] = [
   { at: "left", edges: { x: "left" } },
   { at: "right", edges: { x: "right" } },
@@ -488,6 +488,9 @@ function Item({
   const size = placedSize(catalog, item)
   const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
   const tokens = useTokenScope(item.item) // そのアイテムのプラグインのテーマキー（--<名前>）
+  // 幅だけを変えられる形（@matomezu/paper:stretch）は、左右の辺だけをつかめる
+  const def = catalog.items.get(item.item)
+  const grips = def?.kind === "shape" && def[kit.name("stretch")] === "width" ? GRIPS.filter(g => !g.edges.y) : GRIPS
   return (
     <div
       data-item={item.id}
@@ -524,7 +527,7 @@ function Item({
       {nested}
       {overlays}
       {stretchable &&
-        GRIPS.map(g => (
+        grips.map(g => (
           <div
             key={g.at}
             className={styles.grip}

@@ -38,7 +38,7 @@ function fromMenu(name: string, i = 0): HTMLElement {
   return within(trigger.parentElement?.nextElementSibling as HTMLElement).getByRole("button", { name })
 }
 
-test("ステージに紙が 1 枚あり、下の行のドロワーにツールボックスがある", () => {
+test("ステージに紙が 1 枚あり、下の行のドロワーにツールボックス（箱・リストと、絵の形のパネルを開く「形」）がある", () => {
   renderScreen()
   expect(stages()).toHaveLength(1)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
@@ -49,7 +49,7 @@ test("ステージに紙が 1 枚あり、下の行のドロワーにツール�
     within(tools)
       .getAllByRole("button", { hidden: true })
       .map(b => b.getAttribute("aria-label")),
-  ).toEqual(["箱", "リスト"])
+  ).toEqual(["箱", "リスト", "形"])
   expect(screen.getByRole("button", { name: "まとめ図の構想" }).getAttribute("aria-expanded")).toBe("false")
 })
 

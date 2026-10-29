@@ -16,7 +16,7 @@ export const FLOW_DIRECTION = kit.defineSetting({
   default: "down",
 })
 
-// 道具箱に出す順: 始まりと終わりの角丸、処理の箱、分岐のひし形、ほかの形、線
+// 道具箱に出す順: 始まりと終わりの角丸、処理の箱、分岐のひし形、ほかの形、絵の形（形は形のパネルに並ぶ）、線
 const ITEMS = [
   "@matomezu/shape:shape-rounded",
   "@matomezu/box:shape-box",
@@ -27,6 +27,21 @@ const ITEMS = [
   "@matomezu/shape:shape-trapezoid-reversed",
   "@matomezu/shape:shape-hexagon",
   "@matomezu/shape:shape-circle",
+  "@matomezu/art:shape-person",
+  "@matomezu/art:shape-db",
+  "@matomezu/art:shape-server",
+  "@matomezu/art:shape-pc",
+  "@matomezu/art:shape-factory",
+  "@matomezu/art:shape-document",
+  "@matomezu/art:shape-trash",
+  "@matomezu/art:shape-robot",
+  "@matomezu/art:shape-cat",
+  "@matomezu/art:shape-heart",
+  "@matomezu/art:shape-bulb",
+  "@matomezu/art:shape-dog",
+  "@matomezu/art:shape-forest",
+  "@matomezu/art:shape-house",
+  "@matomezu/art:shape-family",
   "@matomezu/line:connector-line",
 ] as const
 type FlowItemId = (typeof ITEMS)[number]

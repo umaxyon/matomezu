@@ -1,5 +1,7 @@
-// 形のパネル（base のツールボックス）: ドロワーの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く
+// 形のパネル（base のツールボックス）: ドロワーの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く。
+// 図面のパネルには絵の形（@matomezu/art）が並ぶ
 import { expect, type Page, test } from "@playwright/test"
+import { drawerTool } from "./drawer"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 
@@ -43,4 +45,22 @@ test("「形」のボタンでパネルを開き、乗せたまま形を押す�
   await expect(add).toBeVisible()
   await add.getByRole("button", { name: "追加" }).click()
   await expect(page.locator('[data-shape-kind="diamond"]')).toHaveCount(1)
+})
+
+test("図面のパネルの絵の形を置くと、絵の足元にキャプションを出し、つかめるのは左右の辺だけ", async ({ page }) => {
+  await page.goto("/")
+  await (await drawerTool(page, "形")).click()
+  const panel = page.getByRole("toolbar", { name: "ツール" }).getByRole("group", { name: "形" })
+  await panel.getByRole("button", { name: "スティックマン" }).click()
+  const p = (await paper(page).boundingBox())!
+  await page.mouse.click(p.x + 200, p.y + 150)
+  const add = page.getByRole("dialog", { name: "絵の追加" })
+  await add.getByLabel("キャプション").fill("利用者")
+  await add.getByRole("button", { name: "追加" }).click()
+  const item = page.locator("[data-item]").first()
+  await expect(item.locator('[data-part="figure"]').first()).toBeVisible()
+  await expect(item).toContainText("利用者")
+  const grips = item.locator("[data-grip]")
+  await expect(grips).toHaveCount(2)
+  expect(await grips.evaluateAll(gs => gs.map(g => g.getAttribute("data-grip")))).toEqual(["left", "right"])
 })

@@ -3,6 +3,28 @@ import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 
+// 道具箱に出す順: 内包ボックス・リスト・絵の形（形のパネルに並ぶ）、線
+const ITEMS = [
+  "@matomezu/box:shape-nest-box",
+  "@matomezu/list:shape-list",
+  "@matomezu/art:shape-person",
+  "@matomezu/art:shape-db",
+  "@matomezu/art:shape-server",
+  "@matomezu/art:shape-pc",
+  "@matomezu/art:shape-factory",
+  "@matomezu/art:shape-document",
+  "@matomezu/art:shape-trash",
+  "@matomezu/art:shape-robot",
+  "@matomezu/art:shape-cat",
+  "@matomezu/art:shape-heart",
+  "@matomezu/art:shape-bulb",
+  "@matomezu/art:shape-dog",
+  "@matomezu/art:shape-forest",
+  "@matomezu/art:shape-house",
+  "@matomezu/art:shape-family",
+  "@matomezu/line:connector-line",
+] as const
+
 export const DRAWING = kit.defineBookType({
   id: "drawing",
   version: 1,
@@ -15,8 +37,8 @@ export const DRAWING = kit.defineBookType({
     paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
   },
   items: {
-    allowed: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
-    defaults: ["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
+    allowed: ITEMS,
+    defaults: ITEMS,
   },
   actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
 

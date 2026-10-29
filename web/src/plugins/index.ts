@@ -5,6 +5,7 @@ import { DRAWING_PLUGIN } from "./books/drawing"
 import { FLOWCHART_PLUGIN } from "./books/flowchart"
 import { MASTER_PLUGIN } from "./books/master"
 import { TREE_PLUGIN } from "./books/tree"
+import { ART_PLUGIN } from "./items/art"
 import { BOX_PLUGIN } from "./items/box"
 import { LINE_PLUGIN } from "./items/line"
 import { LIST_PLUGIN } from "./items/list"
@@ -19,6 +20,7 @@ export const BUILTIN = [
   LIST_PLUGIN,
   LINE_PLUGIN,
   SHAPE_PLUGIN,
+  ART_PLUGIN,
   DRAWING_PLUGIN,
   FLOWCHART_PLUGIN,
   TREE_PLUGIN,
