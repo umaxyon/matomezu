@@ -8,7 +8,7 @@ import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRAS
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { kit } from "./kit"
-import { BOOK_LOCK, BOOK_UNLOCK, PAGE_LOCK, PAGE_UNLOCK, PAGE_UNLOCK_COMMAND } from "./lock"
+import { BOOK_LOCK, BOOK_UNLOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MINIMAP_TOGGLE } from "./minimap"
@@ -148,7 +148,6 @@ export const BASE = defineBuiltin(
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK],
     commands: [
       BOOK_NEW,
-      PAGE_UNLOCK_COMMAND,
       STAGE_HOME,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
@@ -232,7 +231,6 @@ declare module "../../core/catalog" {
   }
   interface CommandTable {
     "@matomezu/base:book-new": typeof BOOK_NEW
-    "@matomezu/base:page-unlock": typeof PAGE_UNLOCK_COMMAND
     "@matomezu/base:stage-home": typeof STAGE_HOME
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT

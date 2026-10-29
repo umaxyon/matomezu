@@ -25,7 +25,7 @@
     scrollbar-width: thin;
   }
 }
-/* タブ 1 つの置き場所。ロック中は、鍵のボタンをタブの左の余白に重ねる */
+/* タブ 1 つの置き場所。ロック中は、鍵の印（押せない）をタブの左の余白に重ね、押すのはタブが受ける */
 .slot {
   position: relative;
   display: flex;
@@ -39,17 +39,8 @@
   place-items: center;
   width: 14px;
   height: 14px;
-  padding: 0;
-  border: 0;
-  background: transparent;
   color: var(--skin-hint);
-  cursor: pointer;
-}
-.lock:hover:not(:disabled) {
-  color: var(--skin-accent);
-}
-.lock:disabled {
-  cursor: default;
+  pointer-events: none;
 }
 .tab[data-locked="true"] {
   padding-left: 24px;

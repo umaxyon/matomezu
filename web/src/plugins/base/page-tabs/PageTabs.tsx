@@ -1,6 +1,6 @@
 // ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
 // 押したページをそのステージで開く（コマンド page-open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page-new。開くダイアログはタイプが決められる）。
-// ロック中のページのタブには鍵を出し、押すとロックを外す（コマンド page-unlock）。
+// ロック中のページのタブには鍵の印を出す（押せない。外すのはページの設定のダイアログ）。
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
@@ -9,7 +9,6 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { PAGE_UNLOCK_COMMAND } from "../lock"
 import { LockIcon } from "../lock/LockIcon"
 import { PAGE_NEW, PAGE_OPEN } from "."
 import styles from "./PageTabs.module.css"
@@ -37,7 +36,6 @@ export function PageTabs({ stage }: { stage: string }) {
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const openPage = useCommand(stage, PAGE_OPEN.id)
   const newPage = useCommand(stage, PAGE_NEW.id)
-  const unlock = useCommand(stage, PAGE_UNLOCK_COMMAND.id)
   const catalog = useCatalog().core
   const t = useMessages(kit)
   if (!book || !hasPages(book)) return <div className={styles.tabs} />
@@ -56,16 +54,9 @@ export function PageTabs({ stage }: { stage: string }) {
             {p.title}
           </button>
           {p.locked && (
-            <button
-              type="button"
-              className={styles.lock}
-              aria-label={t("Unlock page")}
-              title={t("Locked")}
-              disabled={!unlock.shown}
-              onClick={() => unlock.run(p.id)}
-            >
+            <span className={styles.lock} role="img" aria-label={t("Locked")}>
               <LockIcon />
-            </button>
+            </span>
           )}
         </span>
       ))}
