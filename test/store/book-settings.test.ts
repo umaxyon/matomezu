@@ -115,3 +115,16 @@ test("@matomezu/base:page-add も、ページの設定の項目を settings で�
   expect(done.ok).toBe(true)
   expect(book().pages.at(-1)).toMatchObject({ title: "直線", settings: { "@matomezu/line:line-route": "straight" } })
 })
+
+test("ブックの設定の項目も、変えるときの値の形は機能台帳から組み立てた形（describe）。テーマは表にあるテーマのどれかで、AI にもその形で見せる", () => {
+  const store = newStore()
+  const theme = (id: string) =>
+    store.actions.perform(
+      "@matomezu/base:book-update",
+      { settings: { "@matomezu/base:book-theme": id } },
+      { book: "b1" },
+    ).ok
+  expect(theme("@matomezu/base:sticky")).toBe(true)
+  expect(theme("@ex/gone:theme")).toBe(false)
+  expect(JSON.stringify(z.toJSONSchema(settingsArgs(CORE_CATALOG, "book")))).toContain("@matomezu/base:sticky")
+})

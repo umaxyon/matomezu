@@ -38,7 +38,7 @@ type On struct {
 	Book string `json:"book"`
 }
 
-// Output は行った結果。断ったときは OK が false で Reason に理由（認可ステップが止めた denied なら、Permission にそのステップの id、Detail にそのステップの AI への説明）。
+// Output は行った結果。断ったときは OK が false で Reason に理由（認可ステップが止めた denied なら、Permission にそのステップの id、Detail にそのステップの AI への説明。利用者の設定の項目で使えない not-allowed なら、Detail にその項目と理由）。
 // Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）
 type Output struct {
 	OK         bool              `json:"ok"`

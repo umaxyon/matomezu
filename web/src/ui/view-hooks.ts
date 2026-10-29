@@ -1,5 +1,5 @@
 // プラグインの見た目が使うフック（matomezu/ui）: matomezu が渡すステージの id から、約束のものだけを引く。状態を丸ごとは見せない。
-// データはブック・ページ・アイテム、ステージは読むだけの StageView、ほかに機能台帳と見る人の設定。データを変えるのは usePerform（アクション）だけ
+// データはブック・ページ・アイテム、ステージは読むだけの StageView、ほかに機能台帳と利用者の設定。データを変えるのは usePerform（アクション）だけ
 import { useMemo } from "react"
 import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
@@ -87,21 +87,25 @@ export function useShownPage(stage: string): ItemPage | null {
 
 // アクションを行えるか（認可ステップも見る）: 使えれば ok、認可ステップが止めたなら permission にそのステップの id（タイプなどで使えなければ null）。
 // ブックが対象のアクションは、そのステージで開いているブックの where の所で問う（where を渡さなければ、開いているページ）。
+// 利用者の設定が対象のアクションは、where に変える項目の id（settings）を渡して問う。
 // 止められたときに、薄くする・消すなどをどうするかは、使う側が決める
 export type Allowed = { ok: true } | { ok: false; permission: string | null }
 
-export function useAllowed(stage: string, action: ActionId, where?: Where): Allowed {
+export function useAllowed(stage: string, action: ActionId, where?: Where | { settings: readonly string[] }): Allowed {
   const catalog = useCatalog().core
   const home = useHome()
-  const items = where?.items?.join("\n")
+  const settings = where && "settings" in where ? where.settings.join("\n") : undefined
+  const place = where && !("settings" in where) ? where : undefined
+  const items = place?.items?.join("\n")
   // 答えを文字にして比べ、変わったときだけ描き直す（"" は使える、"-" はタイプなどで使えない、ほかは止めた認可ステップの id）
   const answer = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     const onBook = catalog.actions.get(action)?.target === "book"
     const book = onBook && o ? s.books[o.book] : undefined
-    const page = where?.page ?? o?.page ?? undefined
+    const page = place?.page ?? o?.page ?? undefined
     const at = { ...(page ? { page } : {}), ...(items ? { items: items.split("\n") } : {}) }
-    const done = inspect(catalog, { kind: "action", action, book, ...(book ? { where: at } : {}) }, { home })
+    const ids = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
+    const done = inspect(catalog, { kind: "action", action, book, ...(book ? { where: at } : {}), ...ids }, { home })
     return done.value === true ? "" : (deniedBy(done) ?? "-")
   })
   return answer === "" ? { ok: true } : { ok: false, permission: answer === "-" ? null : answer }
@@ -125,7 +129,7 @@ export function useUiCatalog(): UiCatalog {
   return useUi()
 }
 
-// 見る人の設定: 今の言語と、利用者の設定の項目の id → 残した値（機能台帳に無い項目・形に合わない値もそのまま）
+// 利用者の設定: 今の言語と、利用者の設定の項目の id → 残した値（機能台帳に無い項目・形に合わない値もそのまま）
 export function useSettings(): { lang: Lang; values: Settings } {
   const lang = useMatomezuState(s => s.lang)
   const values = useMatomezuState(s => s.settings)

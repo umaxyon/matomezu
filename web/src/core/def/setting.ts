@@ -7,7 +7,7 @@ import type { SettingExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { MessageKey } from "../i18n/i18n"
 
-// 土台が読む利用者の設定の項目の役: lang は言語（値は言語パックの id）、skin はスキン（スキンの id か "auto"）、keys はキーの割り当ての、利用者の変更
+// 土台が読む利用者の設定の項目の role: lang は言語（値は言語パックの id）、skin はスキン（スキンの id か "auto"）、keys はキーの割り当ての、利用者の変更
 export type SettingRole = "lang" | "skin" | "keys"
 
 export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> extends SettingExtras {
@@ -15,10 +15,11 @@ export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string =
   title: Tt
   schema: S // 値の形
   default?: z.output<S> // どこにも値が無いときの値
-  // 値の形を、機能台帳から組み立てる（入れてある言語パックのどれかなど）。無ければ schema。受け付けるか・読んだ値を使うかは、この形で決める
+  // 値の形を、機能台帳から組み立てる（入れてある言語パックのどれかなど）。無ければ schema。変えるときに受け付けるか（ブックの設定も利用者の設定も）と、利用者の設定で読んだ値を使うかは、この形で決める。
+  // ブック（ページ）のデータを読むときの形は schema（機能台帳の物が減っても、ブックは読める）
   describe?(catalog: CoreCatalog): z.ZodType
   userOnly?: true // 利用者の設定の項目で、利用者だけが変える（AI には断り、AI が読む設定にも出さない）
-  role?: SettingRole // 土台が読む利用者の設定の項目（ビルトインプラグインの利用者の設定の項目だけが持ち、1 つの役は 1 つの項目だけ）
+  role?: SettingRole // 土台が読む利用者の設定の項目（ビルトインプラグインの利用者の設定の項目だけが持ち、1 つの role は 1 つの項目だけ）
 }
 
 export function defineSetting<const Id extends string, S extends z.ZodType>(

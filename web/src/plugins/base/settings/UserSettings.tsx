@@ -1,6 +1,6 @@
 // 利用者の設定の並び: 機能台帳の利用者の設定の項目を、プラグインごとに並べる（base の項目が先で見出しなし、ほかは見出しにプラグインの id）。
 // 項目のビューがあればそれを、無ければ値の形から作った入力Form（真偽はスイッチ、選択肢はセレクトForm、数と文字はテキストForm）を出し、どちらも作れない項目は出さない。
-// 変えるとコマンド settings-set を呼ぶ。コマンドが押せないときと、ホームのタイプが変えさせない項目は、灰色で押せない
+// 変えるとコマンド settings-set を呼ぶ。コマンドが押せないときと、アクション settings-set がその項目で使えないとき（ホームのタイプが変えさせない項目）は、灰色で押せない
 import { type ReactNode, useState } from "react"
 import type { SettingDef } from "../../../core/def/setting"
 import type { MessageKey } from "../../../core/i18n/i18n"
@@ -8,11 +8,11 @@ import { splitId } from "../../../core/names"
 import { userSetting } from "../../../core/settings"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useInstance, useUiCatalog } from "../../../ui/store-context"
-import { useSettings } from "../../../ui/view-hooks"
+import { useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useAllowed, useSettings } from "../../../ui/view-hooks"
 import { Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { fixedSettingsOf } from "./actions"
+import { SETTINGS_SET } from "./actions"
 import { SETTINGS_SET_COMMAND } from "./commands"
 import styles from "./UserSettings.module.css"
 import { type AutoInput, autoInputOf } from "./user-settings"
@@ -21,10 +21,8 @@ export function UserSettings({ stage }: { stage: string }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().userSettingViews
-  const { home } = useInstance()
   const { values } = useSettings()
   const set = useCommand(stage, SETTINGS_SET_COMMAND.id)
-  const fixed = fixedSettingsOf(catalog, home)
   const groups = new Map<string, ReactNode[]>()
   for (const def of catalog.userSettings.values()) {
     const label = t(def.title)
@@ -36,7 +34,7 @@ export function UserSettings({ stage }: { stage: string }) {
     const owner = splitId(def.id).owner ?? ""
     groups.set(owner, [
       ...(groups.get(owner) ?? []),
-      <fieldset key={def.id} className={styles.item} disabled={!set.enabled || fixed.includes(def.id)}>
+      <SettingItem key={def.id} stage={stage} id={def.id} enabled={set.enabled}>
         {View ? (
           <View label={label} value={value} onChange={onChange} />
         ) : (
@@ -45,7 +43,7 @@ export function UserSettings({ stage }: { stage: string }) {
             {input && <AutoControl input={input} def={def} label={label} value={value} onChange={onChange} />}
           </div>
         )}
-      </fieldset>,
+      </SettingItem>,
     ])
   }
   return [...groups].map(([owner, rows]) => (
@@ -54,6 +52,26 @@ export function UserSettings({ stage }: { stage: string }) {
       {rows}
     </div>
   ))
+}
+
+// 項目ごとの囲み: その項目を変えられるか（ホームのタイプが変えさせない項目でないか）を問い、変えられなければまとめて押せなくする
+function SettingItem({
+  stage,
+  id,
+  enabled,
+  children,
+}: {
+  stage: string
+  id: string
+  enabled: boolean
+  children: ReactNode
+}) {
+  const allowed = useAllowed(stage, SETTINGS_SET.id, { settings: [id] })
+  return (
+    <fieldset className={styles.item} disabled={!enabled || !allowed.ok}>
+      {children}
+    </fieldset>
+  )
 }
 
 // 値の形から作った入力Form

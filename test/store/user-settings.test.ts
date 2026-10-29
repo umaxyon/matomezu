@@ -1,4 +1,4 @@
-// 利用者の設定の項目: プラグインの userSettings が持ち、settings-set で変える。役は土台が読む項目の印で、ビルトインプラグインだけが持てる
+// 利用者の設定の項目: プラグインの userSettings が持ち、settings-set で変える。role は土台が読む項目の印で、ビルトインプラグインだけが持てる
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
@@ -37,6 +37,15 @@ test("利用者だけが変える項目は、AI には変えさせず、AI が�
     performIn(world, "@matomezu/base:settings-set", { values }, undefined, ctx(catalog, by)).ok
   expect(set({ "@ex/u:secret": "t" })).toBe(true)
   expect(set({ "@ex/u:secret": "t" }, "ai")).toBe(false)
+  // 断りには、利用者だけが変える項目だと分かる理由が付く（利用者だけのアクションと同じ not-allowed）
+  expect(
+    performIn(world, "@matomezu/base:settings-set", { values: { "@ex/u:secret": "t" } }, undefined, ctx(catalog, "ai")),
+  ).toEqual({
+    ok: false,
+    reason: "not-allowed",
+    setting: "@ex/u:secret",
+    because: "user-only",
+  })
   expect(set({ "@ex/u:open": 2 }, "ai")).toBe(true)
   expect(aiSettings(catalog, world.settings)).toMatchObject({ "@ex/u:open": 1 })
   expect(aiSettings(catalog, world.settings)).not.toHaveProperty("@ex/u:secret")
@@ -53,7 +62,7 @@ test("値の形は機能台帳から組み立て（言語は入れてある言�
   expect(userSetting(CORE_CATALOG, {}, "@ex/gone:x")).toBeUndefined()
 })
 
-test("役と userOnly は利用者の設定の項目だけが持ち、1 つの役は 1 つの項目だけ。ブックの設定の項目と同じ id は持てない", () => {
+test("role と userOnly は利用者の設定の項目だけが持ち、1 つの role は 1 つの項目だけ。ブックの設定の項目と同じ id は持てない", () => {
   const lang = BUILTIN_PARTS.userSettings.find(d => d.role === "lang") as SettingDef
   const codes = (parts: Partial<typeof BUILTIN_PARTS>) =>
     checkCoreCatalog({ ...BUILTIN_PARTS, ...parts }).map(p => p.code)
@@ -63,11 +72,11 @@ test("役と userOnly は利用者の設定の項目だけが持ち、1 つの�
   expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, BUILTIN_PARTS.settings[0] as SettingDef] })).toEqual([
     "E001",
   ])
-  // 役の無い組み立ても作れる（土台は既定で読む）
+  // role の無い組み立ても作れる（土台は既定で読む）
   expect(buildCoreCatalog({ ...BUILTIN_PARTS, userSettings: [] }).roles.size).toBe(0)
 })
 
-test("追加プラグインの項目は役を持てない", () => {
+test("追加プラグインの項目は role を持てない", () => {
   const bad: Plugin = { id: "@ex/r", userSettings: [{ ...OPEN, id: "@ex/r:lang", role: "lang" }] }
   expect(() => assemble([...BUILTIN, bad])).toThrow("E309")
 })

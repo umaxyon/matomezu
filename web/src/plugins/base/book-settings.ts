@@ -10,6 +10,7 @@ import type { SettingDef } from "../../core/def/setting"
 import { fail } from "../../core/errors"
 import type { ItemPage } from "../../core/placed"
 import type { Book } from "../../core/schema/book"
+import { settingSchema } from "../../core/settings"
 import { tidyConnectors } from "./place/placed"
 
 export type SettingsOf = "book" | "page"
@@ -19,9 +20,9 @@ export function settingDefs(catalog: CoreCatalog, type: string, of: SettingsOf):
   return (bookType(catalog, type).settings?.[of] ?? []).map(id => catalog.settings.get(id) ?? fail("E113", { id }))
 }
 
-// 選んだ項目を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。項目の id で渡す）
-function settingsPatch(defs: readonly SettingDef[]): z.ZodObject {
-  return z.strictObject(Object.fromEntries(defs.map(d => [d.id, d.schema.nullable().optional()])))
+// 選んだ項目を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。項目の id で渡す。値の形は機能台帳から組み立てた形か schema）
+function settingsPatch(catalog: CoreCatalog, defs: readonly SettingDef[]): z.ZodObject {
+  return z.strictObject(Object.fromEntries(defs.map(d => [d.id, settingSchema(catalog, d).nullable().optional()])))
 }
 
 // ブックかページの settings のフィールド（無ければ空）
@@ -31,14 +32,14 @@ const ownSettings = (target: object | null): Readonly<Record<string, unknown>> =
 // ブックのタイプの、ブックかページの設定の項目を変えるときに渡す形（項目を選んでいなければ null）
 export function settingsPatchOf(catalog: CoreCatalog, book: Book, of: SettingsOf): z.ZodObject | null {
   const defs = settingDefs(catalog, book.type, of)
-  return defs.length > 0 ? settingsPatch(defs) : null
+  return defs.length > 0 ? settingsPatch(catalog, defs) : null
 }
 
 // AI に見せる settings の形: 項目を選んだタイプごとの形のどれか（説明にタイプの id）
 export function settingsArgs(catalog: CoreCatalog, of: SettingsOf): z.ZodType {
   const each = [...catalog.bookTypes.values()].flatMap(t => {
     const defs = settingDefs(catalog, t.id, of)
-    return defs.length > 0 ? [settingsPatch(defs).describe(`settings of ${t.id} books`)] : []
+    return defs.length > 0 ? [settingsPatch(catalog, defs).describe(`settings of ${t.id} books`)] : []
   })
   const [first, ...rest] = each
   return first ? (rest.length ? z.union([first, ...rest]) : first) : z.strictObject({})

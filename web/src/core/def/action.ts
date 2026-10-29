@@ -10,7 +10,7 @@ import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
 import type { BookTypeDef } from "./book-type"
 
-// 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は見る人ごとの設定で、
+// 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはホームのブックのタイプが決める
 export interface Subjects {
   library: Library
@@ -102,10 +102,21 @@ export type AnyPermissionScope =
   | { page: string; item?: string | undefined; items?: string | undefined }
   | ((args: never) => Where)
 
-// ブックが対象のアクションは、許可の範囲を必ず書く（defineAction の型が求める）
+// 利用者の設定が対象のアクションの許可の範囲: どの項目を変えるかの宣言。使えるかは、行う前に項目ごとに問う（core/inspect.ts）。
+// settings には、変える項目の id を鍵に持つ引数の名前を書く。引数の名前で言えなければ、引数から変える項目の id を返す関数を書く
+export type SettingsScope<A = unknown> =
+  | { settings: ArgsOfType<A, Readonly<Record<string, unknown>>> }
+  | ((args: A) => readonly string[])
+
+// 表に並べたアクションの、利用者の設定の許可の範囲（引数の形を問わない形）
+export type AnySettingsScope = { settings: string } | ((args: never) => readonly string[])
+
+// ブックが対象と利用者の設定が対象のアクションは、許可の範囲を必ず書く（defineAction の型が求める）
 export type ScopeRequired<T extends ActionTarget, A> = T extends "book"
   ? { permissionScope: PermissionScope<A> }
-  : unknown
+  : T extends "settings"
+    ? { permissionScope: SettingsScope<A> }
+    : unknown
 
 // 許可の範囲から、引数 args での所を出す
 export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): Where | undefined {
@@ -120,6 +131,14 @@ export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): W
   return { ...(page ? { page } : {}), ...(item ? { items: [item] } : items ? { items } : {}) }
 }
 
+// 利用者の設定の許可の範囲から、引数 args で変える項目の id を出す
+export function settingsScopeOf(scope: AnySettingsScope | undefined, args: unknown): readonly string[] | undefined {
+  if (scope === undefined) return undefined
+  if (typeof scope === "function") return (scope as (args: unknown) => readonly string[])(args)
+  const values = (args as Record<string, unknown>)[scope.settings]
+  return typeof values === "object" && values !== null ? Object.keys(values) : undefined
+}
+
 export interface ActionDef<
   T extends ActionTarget = ActionTarget,
   A = unknown,
@@ -132,14 +151,15 @@ export interface ActionDef<
   title: Tt
   // ブックが対象のアクションの付く先。どれか 1 つに当てはまるタイプのブックで使える（無ければ、タイプの actions.add で選ばれたときだけ）
   attach?: At
-  userOnly?: true // 利用者だけが行える（AI には断り、MCP 公開ツールの actions に出さない）
+  userOnly?: true // 利用者だけが行える（AI には断り、MCP 公開ツールの actions に出さない。core/inspect.ts のステップ）
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
-  // 許可の範囲（ブックが対象のアクションは必ず書く）。守るのは、認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
-  permissionScope?: AnyPermissionScope
+  // 許可の範囲（ブックが対象と利用者の設定が対象のアクションは必ず書く。どちらの形かは target で決まる）。
+  // ブックでは、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
+  permissionScope?: AnyPermissionScope | AnySettingsScope
   // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | null
 }

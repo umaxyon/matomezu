@@ -8,8 +8,13 @@ import { resolveTokens, type Shades, shades, tokenDefsOf } from "../../../core/t
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 
-// ブックのテーマ（テーマの id。表に無いテーマは book-update が断り、残っていても使わない）
-export const BOOK_THEME = kit.defineSetting({ id: "book-theme", title: "Theme", schema: z.string().min(1) })
+// ブックのテーマ（テーマの id。変えるときは表にあるテーマのどれかで、残っていても表に無ければ使わない）
+export const BOOK_THEME = kit.defineSetting({
+  id: "book-theme",
+  title: "Theme",
+  schema: z.string().min(1),
+  describe: catalog => z.enum([...catalog.themes.keys()] as [string, ...string[]]),
+})
 
 // 紙の色（#rrggbb。book-update が小文字にそろえる）
 export const BOOK_PAPER_COLOR = kit.defineSetting({

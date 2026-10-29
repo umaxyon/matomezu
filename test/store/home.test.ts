@@ -6,6 +6,7 @@ import { MASTER } from "../../web/src/plugins/books/master/master"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
 import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
+import { warningsOf } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, newStore } from "../support"
 
 describe("ホーム", () => {
@@ -52,7 +53,7 @@ describe("ホーム", () => {
     expect(checkCoreCatalog(parts).map(p => p.code)).toEqual(["E019"])
   })
 
-  test("設定はアクションで変え、ホームのタイプが許さなければ変えず、そのコマンドも出さない。fixedSettings の項目だけを変えさせないこともできる", () => {
+  test("設定はアクションで変え、ホームのタイプが許さなければ変えず、そのコマンドも出さない。fixedUserSettings の項目だけを変えさせないこともできる", () => {
     const lang = { "@matomezu/base:lang": "matomezu:en" }
     const skin = { "@matomezu/base:skin": "@matomezu/base:dark" }
     const instance = newStore()
@@ -66,7 +67,7 @@ describe("ホーム", () => {
     expect(isShown(locked, locked.state.getState(), "s1", "@matomezu/base:settings-set")).toBe(false)
     expect(createBookIn(locked, "s1", { title: "x", type: "@matomezu/drawing:drawing" })).toBe(false)
     // スキンだけを変えさせないホーム: 言語は変えられ、スキンは断る（一緒に頼んだ言語も変えない）
-    const fixed = { ...MASTER, fixedSettings: ["@matomezu/base:skin"] }
+    const fixed = { ...MASTER, fixedUserSettings: ["@matomezu/base:skin"] }
     const some = createMatomezu({
       plugins: [BUILTIN[0], { ...BUILTIN[1], bookTypes: [fixed] }, ...BUILTIN.slice(2)],
       home: "@matomezu/master:master",
@@ -74,13 +75,19 @@ describe("ホーム", () => {
     expect(some.actions.perform("@matomezu/base:settings-set", { values: { ...lang, ...skin } }).ok).toBe(false)
     expect(some.state.getState().settings).toEqual({})
     expect(some.actions.perform("@matomezu/base:settings-set", { values: lang }).ok).toBe(true)
-    // fixedSettings に利用者の設定の項目でない id を書くと、組み立てで誤り
-    const wrong = { ...MASTER, fixedSettings: ["@matomezu/base:book-theme"] }
-    expect(() =>
-      createMatomezu({
-        plugins: [BUILTIN[0], { ...BUILTIN[1], bookTypes: [wrong] }, ...BUILTIN.slice(2)],
-        home: "@matomezu/master:master",
-      }),
-    ).toThrow("E016")
+    // fixedUserSettings に利用者の設定の項目でない id を書いても組み立てられ、その行だけ効かず warning を残す
+    const wrong = { ...MASTER, fixedUserSettings: ["@matomezu/base:book-theme"] }
+    const warned = createMatomezu({
+      plugins: [BUILTIN[0], { ...BUILTIN[1], bookTypes: [wrong] }, ...BUILTIN.slice(2)],
+      home: "@matomezu/master:master",
+    })
+    expect(warningsOf(warned.catalog).map(w => w.code)).toContain("W013")
+    // 断りには、使えない項目と理由が付く
+    expect(some.actions.perform("@matomezu/base:settings-set", { values: skin })).toEqual({
+      ok: false,
+      reason: "not-allowed",
+      setting: "@matomezu/base:skin",
+      because: "fixed",
+    })
   })
 })

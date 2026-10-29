@@ -29,7 +29,7 @@ export type { ActionId, BookTypeId, ItemId, PaperId, SettingId, SkinId, ThemeId 
 // アイテムの、置いたものが持つ項目の型
 export type ItemProps<K extends ItemId> = z.infer<ItemTable[K]["props"]>
 
-// core 台帳の定義の種類の、定義の型（スキンはアプリの枠の見た目で、見る人の設定で選ぶ）
+// core 台帳の定義の種類の、定義の型（スキンはアプリの枠の見た目で、利用者の設定で選ぶ）
 declare module "./catalog" {
   interface PartDefTable {
     bookTypes: BookTypeDef
@@ -72,7 +72,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   bookSchema: z.ZodType
   warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとブックのタイプのテーマキーは、その定義の tokens）
-  roles: ReadonlyMap<SettingRole, SettingDef> // 役 → 役を持つ利用者の設定の項目（土台は役で引く）
+  roles: ReadonlyMap<SettingRole, SettingDef> // role → その role を持つ利用者の設定の項目（土台は role で引く）
 }
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
@@ -198,9 +198,11 @@ function mergeMessages(parts: CoreCatalogParts): Messages {
 
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
 // タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの。
-// 道具の performs の、表に無いアクション（W012。その行だけ効かない）。warning は道具のプラグインのもの
+// 道具の performs の、表に無いアクション（W012。その行だけ効かない）。warning は道具のプラグインのもの。
+// タイプの fixedUserSettings の、利用者の設定の項目でない id（W013。その行だけ効かない）
 function coreWarnings(parts: CoreCatalogParts): Warning[] {
   const actions = byId(parts.actions)
+  const userSettings = byId(parts.userSettings)
   const tools = parts.tools.flatMap(tool =>
     (tool.performs ?? [])
       .filter(a => !actions.has(a))
@@ -219,6 +221,9 @@ function coreWarnings(parts: CoreCatalogParts): Warning[] {
           .filter(id => !attached(id) && !(t.actions.add ?? []).includes(id))
           .map(id => warning("W001", plugin, { type: t.id, action: id })),
         ...(t.actions.add ?? []).filter(attached).map(id => warning("W002", plugin, { type: t.id, action: id })),
+        ...(t.fixedUserSettings ?? [])
+          .filter(id => !userSettings.has(id))
+          .map(id => warning("W013", plugin, { type: t.id, setting: id })),
       ]
     }),
   ]
@@ -238,7 +243,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       seen.add(d.id)
     }
   }
-  // ブックの設定の項目と利用者の設定の項目は、同じ id を持たない。役と userOnly は利用者の設定の項目だけが持ち、1 つの役は 1 つの項目だけ
+  // ブックの設定の項目と利用者の設定の項目は、同じ id を持たない。role と userOnly は利用者の設定の項目だけが持ち、1 つの role は 1 つの項目だけ
   for (const d of parts.userSettings)
     if (settings.has(d.id)) problems.push(problem("E001", { kind: PARTS.settings.label, id: d.id }))
   for (const d of parts.settings)

@@ -103,7 +103,7 @@ test("値の形から入力Form を作る: 真偽はスイッチ、選択肢は�
 })
 
 test("ホームのタイプが変えさせない項目は、灰色で押せない", () => {
-  const fixed = { ...MASTER, fixedSettings: ["@matomezu/base:skin", "@ex/s:on"] }
+  const fixed = { ...MASTER, fixedUserSettings: ["@matomezu/base:skin", "@ex/s:on"] }
   const [base, master, ...rest] = BUILTIN_UI
   const { master: view } = renderMaster([base, { ...master, bookTypes: [fixed] } as AnyPluginUi, ...rest, EX])
   expect((within(view).getByLabelText("スキン") as HTMLSelectElement).closest("fieldset")?.disabled).toBe(true)

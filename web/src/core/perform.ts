@@ -9,10 +9,13 @@ import {
   type ActionContext,
   type ActionDef,
   type ActionTarget,
+  type AnyPermissionScope,
+  type AnySettingsScope,
   allowedIn,
   pagedOnly,
   type Subjects,
   scopeOf,
+  settingsScopeOf,
 } from "./def/action"
 import { deniedBy, inspect } from "./inspect"
 import type { Library } from "./library"
@@ -27,9 +30,14 @@ export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
 
-// denied は認可ステップが止めたこと（permission はそのステップの id）
+// denied は認可ステップが止めたこと（permission はそのステップの id）。not-allowed で止めたのが利用者の設定の項目ごとのステップなら、
+// setting にその項目の id、because に理由（user-only は利用者だけが変える項目、fixed はホームのタイプが変えさせない項目）
 export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
-export type Refused = { ok: false; reason: Refusal } | { ok: false; reason: "denied"; permission: string }
+export type NotAllowed = { ok: false; reason: "not-allowed"; setting?: string; because?: "user-only" | "fixed" }
+export type Refused =
+  | { ok: false; reason: Exclude<Refusal, "not-allowed"> }
+  | NotAllowed
+  | { ok: false; reason: "denied"; permission: string }
 export type Performed<Id extends ActionId> = { ok: true; next: SubjectOf<Id>; result: ResultOf<Id> } | Refused
 
 // タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
@@ -74,7 +82,7 @@ function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after:
   return null
 }
 
-// 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。
+// 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可の範囲で引数から出した変える項目の id も渡す。
 // 認可ステップに渡す所は、ブックが対象ならそのブックと、アクションの許可の範囲（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
 // 一覧が対象のアクションは変えるブックが前に分からないので、認可ステップは行った後の keeps だけで見る
 function permits(
@@ -82,17 +90,34 @@ function permits(
   action: ActionDef,
   subject: Subjects[keyof Subjects],
   args: { success: true; data: unknown } | { success: false },
-): { ok: true } | { ok: false; reason: "not-allowed" } | { ok: false; reason: "denied"; permission: string } {
+): { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string } {
   const book = action.target === "book" ? (subject as Book) : undefined
-  const where = args.success ? scopeOf(action.permissionScope, args.data) : undefined
+  const where = args.success && book ? scopeOf(action.permissionScope as AnyPermissionScope, args.data) : undefined
+  const settings =
+    args.success && action.target === "settings"
+      ? settingsScopeOf(action.permissionScope as AnySettingsScope, args.data)
+      : undefined
   const answer = inspect(
     ctx.catalog,
-    { kind: "action", action: action.id, book, ...(where ? { where } : {}), ...(ctx.by ? { by: ctx.by } : {}) },
+    {
+      kind: "action",
+      action: action.id,
+      book,
+      ...(where ? { where } : {}),
+      ...(settings ? { settings } : {}),
+      ...(ctx.by ? { by: ctx.by } : {}),
+    },
     ctx,
   )
   if (answer.value === true) return { ok: true }
   const permission = deniedBy(answer)
-  return permission ? { ok: false, reason: "denied", permission } : { ok: false, reason: "not-allowed" }
+  if (permission) return { ok: false, reason: "denied", permission }
+  const from = answer.decidedBy
+  if (from?.source === "userSetting")
+    return { ok: false, reason: "not-allowed", setting: from.id, because: "user-only" }
+  if (from?.source === "bookType" && from.field === "fixedUserSettings")
+    return { ok: false, reason: "not-allowed", setting: from.setting, because: "fixed" }
+  return { ok: false, reason: "not-allowed" }
 }
 
 export function perform<Id extends ActionId>(
@@ -103,7 +128,6 @@ export function perform<Id extends ActionId>(
 ): Performed<Id> {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  if (action.userOnly && ctx.by === "ai") return { ok: false, reason: "not-allowed" }
   const parsed = action.args.safeParse(args)
   const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
@@ -123,7 +147,7 @@ export function perform<Id extends ActionId>(
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }
 
-// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、見る人の設定
+// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定
 export interface World {
   books: Library
   settings: Settings

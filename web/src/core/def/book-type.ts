@@ -61,6 +61,8 @@ interface BookTypeBase<S extends z.ZodObject> extends BookTypeExtras {
   // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、ブックは捨てる）
   holds?(book: z.infer<S>, catalog: CoreCatalog): boolean
   settings?: BookTypeSettings
+  // ホームにしたときに、利用者の設定の項目のうち変えさせない物の id（利用者にも AI にも。組織のホームで決める）。actions.without の、項目ごとの版
+  fixedUserSettings?: readonly string[]
 }
 
 // ブックとページに持たせる設定の項目（設定の定義の id。core/def/setting.ts）。base のアクション book-update はブックの、page-update はページの項目を受け付ける
