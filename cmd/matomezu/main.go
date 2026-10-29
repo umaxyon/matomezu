@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -205,7 +206,7 @@ func (c *mcpCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, httpAPI{s}, version)
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version)
 }
 
 // ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ
@@ -246,16 +247,20 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 	}
 }
 
-// httpAPI は、合言葉を付けて常駐の AI の入口を呼ぶ
+// httpAPI は、合言葉を付けて常駐の AI の入口を呼ぶ。
+// 常駐を立て直すと合言葉もアドレスの先も変わるので、401 か、つなげなかった（送る前に断られた）ときは、
+// reconnect でつなぎ方を取り直して（止まっていれば立て直して）1 度だけやり直す
 type httpAPI struct {
-	s *home.Server
+	mu        sync.Mutex
+	s         *home.Server
+	reconnect func() (*home.Server, error)
 }
 
-func (a httpAPI) Get(path string) (json.RawMessage, error) {
+func (a *httpAPI) Get(path string) (json.RawMessage, error) {
 	return a.do(http.MethodGet, path, nil)
 }
 
-func (a httpAPI) Post(path string, body any) (json.RawMessage, error) {
+func (a *httpAPI) Post(path string, body any) (json.RawMessage, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -263,28 +268,47 @@ func (a httpAPI) Post(path string, body any) (json.RawMessage, error) {
 	return a.do(http.MethodPost, path, b)
 }
 
-func (a httpAPI) do(method, path string, body []byte) (json.RawMessage, error) {
-	req, err := http.NewRequest(method, a.s.URL+path, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
+func (a *httpAPI) do(method, path string, body []byte) (json.RawMessage, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out, stale, err := send(a.s, method, path, body)
+	if !stale {
+		return out, err
 	}
-	req.Header.Set("Authorization", "Bearer "+a.s.Token)
+	s, rerr := a.reconnect()
+	if rerr != nil {
+		return nil, errors.Join(err, rerr)
+	}
+	a.s = s
+	out, _, err = send(a.s, method, path, body)
+	return out, err
+}
+
+// send は 1 度だけ呼ぶ。stale は、つなぎ方が古いかもしれない（401 か、つなげなかった）とき。
+// 送ったあとに答えが来なかったときは、常駐がもう行ったかもしれないので stale にしない
+func send(s *home.Server, method, path string, body []byte) (out json.RawMessage, stale bool, err error) {
+	req, err := http.NewRequest(method, s.URL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, false, err
+	}
+	req.Header.Set("Authorization", "Bearer "+s.Token)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	res, err := (&http.Client{Timeout: 60 * time.Second}).Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("the matomezu server did not answer: %w", err)
+		var op *net.OpError
+		return nil, errors.As(err, &op) && op.Op == "dial", fmt.Errorf("the matomezu server did not answer: %w", err)
 	}
 	defer res.Body.Close()
-	out, err := io.ReadAll(res.Body)
+	out, err = io.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s %s: %s %s", method, path, res.Status, bytes.TrimSpace(out))
+		return nil, res.StatusCode == http.StatusUnauthorized, fmt.Errorf("%s %s: %s %s", method, path, res.Status, bytes.TrimSpace(out))
 	}
-	return out, nil
+	return out, false, nil
 }
 
 // running は、立っていて答える常駐のつなぎ方。立っていなければ nil
