@@ -43,22 +43,25 @@
   flex: 1;
   min-height: 0;
 }
-/* 上の行。置いたウィジェットを左から横に並べる。右端はステージを閉じるボタンの場所を空ける。何も置かれなければ出さない */
+/* 上の行。バーは持たず、置いたウィジェットをステージの左上に浮かべて左から横に並べる（並べた物の間の何も無い所は、下の紙へ通す） */
 .top {
-  flex: none;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 40px;
-  padding: 0 40px 0 8px;
-  background: var(--skin-tools);
-  border-bottom: 1px solid var(--skin-line);
+  pointer-events: none;
   user-select: none;
+}
+.top > * {
+  pointer-events: auto;
 }
 .top:empty {
   display: none;
 }
-/* 下の行。上の行より細い */
+/* 下の行 */
 .bottom {
   flex: none;
   position: relative;
@@ -74,7 +77,7 @@
 .column[data-current="true"] .bottom {
   background: var(--skin-current);
 }
-/* 列の右上の角（上の行があればその右端、無ければステージの上に浮かぶ） */
+/* 列の右上の角（ステージの上に浮かぶ） */
 .corner {
   position: absolute;
   top: 7px;

@@ -70,21 +70,23 @@ test("編集の間にドロワーのミニマップを押すと、ハンドの�
   await treeBook(page)
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   const seen = page.locator("[data-minimap=drawer] [data-minimap-seen]")
-  const drag = async () => {
+  // 四角をつかんで dy だけ縦にドラッグする
+  const drag = async (dy: number) => {
     await trigger.hover()
     await seen.hover() // 上がり終えるまで待つ
     const box = (await seen.boundingBox())!
     await page.mouse.down()
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 15, { steps: 5 })
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + dy, { steps: 5 })
     await page.mouse.up()
   }
   await settled(page)
-  await drag()
+  await drag(15)
   await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()
   await settled(page) // ハンドの倍率（100%）になるまで
   const before = await paperAt(page)
-  await drag()
-  await expect.poll(async () => (await paperAt(page)).y).toBeLessThan(before.y - 20)
+  // 前のドラッグで下の端まで見ているので、戻す向きに動かす
+  await drag(-15)
+  await expect.poll(async () => (await paperAt(page)).y).toBeGreaterThan(before.y + 20)
 })
 
 test("編集の道具の間は、選んでいる節がステージの真ん中に来る。ハンドで紙をずらしても、編集に戻すと真ん中に戻る", async ({
