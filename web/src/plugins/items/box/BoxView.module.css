@@ -4,7 +4,7 @@
   height: 100%;
   filter: var(--box-shadow);
 }
-/* 箱。本文が無ければキャプションを真ん中に置く。寸法は size.ts の BOX_LOOK と同じ値にする。
+/* 箱。本文も子も無ければキャプションを真ん中に置く（子があれば、子の領域の上に置く）。寸法は size.ts の BOX_LOOK と同じ値にする。
    字は同梱の Noto Sans JP で描き、字詰め・合字・字の形の切り替え・約物の詰め・和欧の間の空きを止める（幅は core/text が計算した値のとおりにする） */
 .box {
   display: flex;
@@ -47,7 +47,8 @@
   height: var(--box-fold);
   background: linear-gradient(to bottom left, transparent 50%, color-mix(in srgb, var(--box-fill), #000 14%) 50%);
 }
-.box[data-body="true"] {
+.box[data-body="true"],
+.box[data-children="true"] {
   justify-content: flex-start;
 }
 /* キャプションと本文の寄せ */

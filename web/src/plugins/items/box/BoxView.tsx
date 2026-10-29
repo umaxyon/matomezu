@@ -1,4 +1,4 @@
-// 箱のアイテムのビュー: 上にキャプション（1 行で、収まらなければ … で切る）、本文が出るなら区切り線と本文。寄せはそれぞれの項目（captionAlign・bodyAlign）。
+// 箱のアイテムのビュー（箱と内包ボックス）: 上にキャプション（1 行で、収まらなければ … で切る）、本文が出るなら区切り線と本文。寄せはそれぞれの項目（captionAlign・bodyAlign）。
 // 本文は size.ts の boxLayout が折り返して高さに収めた行を、そのまま 1 行ずつ、装飾（太字・文字の色）を付けて描く（ブラウザには折り返させない）。
 // 箱にテーマ（theme）を当てていれば、そのテーマの箱のテーマキー（塗り・線・文字・角の丸み・影・角の折り返し）で描く。表に無いテーマならブックのテーマのまま。
 // 色（color）があれば、塗りと文字のテーマキーをその色で上書きする（paint.ts）
@@ -12,7 +12,7 @@ import { type BOX, BOX_TOKENS } from "./box"
 import { paintVars } from "./paint"
 import { boxLayout } from "./size"
 
-export function BoxView({ props, size }: ItemViewProps<ItemProps<typeof BOX.id>>) {
+export function BoxView({ props, size, hasChildren }: ItemViewProps<ItemProps<typeof BOX.id>>) {
   const theme = props.theme
   const vars = useThemeVars(theme, BOX_TOKENS)
   const { body, rule } = boxLayout(props, size)
@@ -23,6 +23,7 @@ export function BoxView({ props, size }: ItemViewProps<ItemProps<typeof BOX.id>>
         className={styles.box}
         style={paintVars(props.color) as CSSProperties}
         data-body={hasBody}
+        data-children={hasChildren}
         data-color={props.color}
       >
         {(props.caption !== "" || hasBody) && (

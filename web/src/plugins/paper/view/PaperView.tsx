@@ -520,6 +520,7 @@ function Item({
           stage={stage}
           content={contentOf(catalog, item)}
           zoom={zoom}
+          hasChildren={(item.shapes?.length ?? 0) > 0}
         />
       ) : (
         <div className={styles.unknownItem} />

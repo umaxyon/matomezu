@@ -27,7 +27,7 @@ async function drag(page: Page, caption: string, dx: number, dy: number) {
   return target
 }
 
-test("付け替えの道具で箱を内包ボックスの上へドラッグすると、入る先に枠が出て、離すとその中に入る。紙へドラッグすると外へ出る", async ({
+test("付け替えの道具で箱を内包ボックスの上へドラッグすると、入る先に枠が出て、離すとその中に入り、親のキャプションは子の上に出る。紙へドラッグすると外へ出る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -46,6 +46,9 @@ test("付け替えの道具で箱を内包ボックスの上へドラッグす�
   )
   expect(into).toBe(1)
   await expect(item(page, "親").locator("[data-item]")).toHaveCount(1)
+  // 子を持つ親は、キャプションを真ん中ではなく子の上に置く（子に重ねない）
+  const caption = (await item(page, "親").getByText("親", { exact: true }).boundingBox())!
+  expect(caption.y + caption.height).toBeLessThanOrEqual((await item(page, "子").boundingBox())!.y)
   const out = await drag(page, "子", 0, 300)
   expect(out).toBe(0)
   await expect(item(page, "親").locator("[data-item]")).toHaveCount(0)

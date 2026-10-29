@@ -42,6 +42,7 @@ export interface ItemViewProps<Props, Content = Readonly<Record<string, unknown>
   stage: string
   content: Content
   zoom: number
+  hasChildren: boolean // 子の形を 1 つ以上持っているか（子はビューの外で、子の領域に描く）
 }
 
 // アイテムのビューは、そのアイテムの項目（props）のデータを受け取る
