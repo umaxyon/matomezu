@@ -222,7 +222,7 @@ textarea.control {
   stroke-width: 2;
   stroke-linecap: round;
 }
-/* 文字の選択肢（継承のボタン）: 文字の幅だけ広げる */
+/* 文字の選択肢（ChoiceText）: 文字の幅だけ広げる */
 .choice:has(.choiceText) {
   width: auto;
   padding: 0 8px;

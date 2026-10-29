@@ -83,6 +83,11 @@ export function Choices<V extends string>({
   )
 }
 
+// 文字の選択肢の中身（Choices の icon に渡す。ボタンは文字の幅だけ広がる）
+export function ChoiceText({ children }: { children: ReactNode }) {
+  return <span className={styles.choiceText}>{children}</span>
+}
+
 // 継承できる設定の、選択肢から 1 つを選ぶボタンの並び（ページの設定がブックの設定を継承するときなど）。左端に継承のボタン
 // （文字で inherit.label、ポインタを乗せた名前は inherit.title。選ぶと値は undefined）を置き、続けて選択肢を Choices と同じに並べる
 export function InheritChoices<V extends string>({
@@ -98,10 +103,7 @@ export function InheritChoices<V extends string>({
   options: readonly { value: V; label: string; icon: ReactNode }[]
   onChange: (value: V | undefined) => void
 }) {
-  const all = [
-    { value: "" as const, label: inherit.title, icon: <span className={styles.choiceText}>{inherit.label}</span> },
-    ...options,
-  ]
+  const all = [{ value: "" as const, label: inherit.title, icon: <ChoiceText>{inherit.label}</ChoiceText> }, ...options]
   return <Choices<V | ""> label={label} value={value ?? ""} options={all} onChange={v => onChange(v || undefined)} />
 }
 

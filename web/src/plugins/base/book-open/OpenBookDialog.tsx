@@ -6,10 +6,9 @@ import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { Dialog } from "../dialog-host/Dialog"
-import { Choices } from "../dialog-host/FormParts"
+import { Choices, ChoiceText } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { BookSearch } from "./BookSearch"
-import styles from "./BookSearch.module.css"
 import { BOOK_TRASH, trashable } from "./book-trash"
 import { TrashList } from "./TrashList"
 
@@ -21,19 +20,21 @@ export function OpenBookDialog({ stage, onClose }: DialogProps) {
   const [view, setView] = useState<"books" | "trash">("books")
   return (
     <Dialog title={t("Open book")} onClose={onClose}>
-      <Choices
-        label={t("Open book")}
-        value={view}
-        onChange={setView}
-        options={[
-          { value: "books", label: t("Books"), icon: <span className={styles.viewName}>{t("Books")}</span> },
-          {
-            value: "trash",
-            label: t("Trash"),
-            icon: <span className={styles.viewName}>{t("Trash {count}", { count: `${count}` })}</span>,
-          },
-        ]}
-      />
+      <div>
+        <Choices
+          label={t("Open book")}
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "books", label: t("Books"), icon: <ChoiceText>{t("Books")}</ChoiceText> },
+            {
+              value: "trash",
+              label: t("Trash"),
+              icon: <ChoiceText>{t("Trash {count}", { count: `${count}` })}</ChoiceText>,
+            },
+          ]}
+        />
+      </div>
       {view === "books" ? (
         <BookSearch
           autoFocus

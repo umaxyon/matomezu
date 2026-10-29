@@ -117,8 +117,3 @@ ul.list {
   margin: 0;
   list-style: none;
 }
-/* ブックの一覧とゴミ箱の切り替えの名前 */
-.viewName {
-  padding: 0 10px;
-  font-size: 12px;
-}
