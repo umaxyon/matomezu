@@ -66,9 +66,9 @@ export function nodeSize(
   }
 }
 
-// その場の編集のテキストFormの幅: 節の幅 w か、記号も含めて書いた字 raw の幅（余白とテキストFormの枠を足す）の広いほう
+// その場の編集の入力Formの幅: 節の幅 w か、書いた字 raw を 1 行で描いた幅（記号は外し、太字は太字の幅。余白と入力Formの枠を足す）の広いほう
 export const editorWidth = (raw: string, w: number) =>
-  Math.max(w, Math.ceil(textWidth(raw, FONT)) + TEXT_LOOK.padX * 2 + 4)
+  Math.max(w, Math.ceil(richWidth(parseRich(raw).flat(), FONT)) + TEXT_LOOK.padX * 2 + 4)
 
 const vertical = (side: Side) => side === "up" || side === "down"
 const gapOf = (side: Side) => (vertical(side) ? SIBLING_ACROSS_COLUMNS : SIBLING_ACROSS_ROWS)

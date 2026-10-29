@@ -18,7 +18,8 @@ function textField(el: Element | null): "line" | "multi" | null {
   if (!field) return null
   if (field instanceof HTMLInputElement)
     return ["checkbox", "radio", "button", "submit"].includes(field.type) ? null : "line"
-  return "multi"
+  // contenteditable は、1 行と名乗っていれば（aria-multiline="false"）1 行
+  return field.getAttribute("aria-multiline") === "false" ? "line" : "multi"
 }
 
 function scopesOf(el: Element | null): string[] {

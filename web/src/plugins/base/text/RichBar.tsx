@@ -1,52 +1,30 @@
-// 装飾のボックス: 太字のボタンと、文字の色の丸・色なし。押すと、入力Form target の選んだ範囲を記号で囲む（もう囲んでいれば外す。
-// 範囲が無ければカーソルの所に記号の組を入れる。edit.ts）。押しても入力Form から焦点を外さない（その場の編集は焦点が外れると終わるため）。
+// 装飾のボックス: 太字のボタンと、文字の色の丸・色なし。押すと、入力Form target（RichInput）の選んだ範囲に装飾を付ける（もう付いていれば外す。
+// 範囲が無ければ、次に書く字に付ける。edit.ts）。押しても入力Form から焦点を外さない（その場の編集は焦点が外れると終わるため）。
 // 色の丸は効いている色（ステージが開いているブックの上書きと、見る人の上書き）
-import { type CSSProperties, type RefObject, useMemo } from "react"
+import type { CSSProperties, RefObject } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useUserSetting } from "../../../ui/view-hooks"
+import { useCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { type Decoration, decorate } from "./edit"
+import type { Decoration } from "./edit"
 import styles from "./RichBar.module.css"
-import { textColorRef } from "./rich"
-import { type TextColorValues, textColorsOf, USER_TEXT_COLORS } from "./text-colors"
+import type { RichInputHandle } from "./RichInput"
+import { useTextColors } from "./use-text-colors"
 
 export function RichBar({
   stage,
   target,
-  value,
-  maxLength,
-  onChange,
   className,
   style,
 }: {
   stage: string // 色を決めるブックを開いているステージ
-  target: RefObject<HTMLTextAreaElement | HTMLInputElement | null>
-  value: string
-  maxLength: number
-  onChange: (text: string) => void
+  target: RefObject<RichInputHandle | null>
   className?: string
   style?: CSSProperties
 }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const book = useMatomezuState(s => {
-    const o = s.workspace.stages.find(st => st.id === stage)?.opened
-    return o ? s.books[o.book] : undefined
-  })
-  const viewer = useUserSetting(USER_TEXT_COLORS.id) as TextColorValues
-  const colors = useMemo(() => (book ? textColorsOf(catalog, book, viewer) : null), [catalog, book, viewer])
-  const apply = (d: Decoration) => {
-    const el = target.current
-    if (!el) return
-    const done = decorate(value, el.selectionStart ?? value.length, el.selectionEnd ?? value.length, d)
-    if (done.text.length > maxLength) return
-    onChange(done.text)
-    requestAnimationFrame(() => {
-      el.focus()
-      el.setSelectionRange(done.start, done.end)
-    })
-  }
+  const colors = useTextColors(stage)
+  const apply = (d: Decoration) => target.current?.decorate(d)
   // 押しても焦点を移さない
   const keep = (e: { preventDefault(): void; stopPropagation(): void }) => {
     e.preventDefault()
@@ -79,7 +57,7 @@ export function RichBar({
           title={t(c.title)}
           aria-label={t(c.title)}
           style={{ background: colors?.get(c.id) ?? c.color }}
-          onClick={() => apply({ color: textColorRef(c.id) })}
+          onClick={() => apply({ color: c.id })}
         />
       ))}
       <button

@@ -31,7 +31,7 @@ const captionText = () =>
   z
     .string()
     .describe(
-      "Caption, drawn in normal weight. **bold** makes it bold and {name:text} colors it with a text color (name from textColors); unpaired marks stay as they are",
+      "Caption, drawn in normal weight. **bold** makes it bold and {name:text} colors it with a text color (name from textColors); unpaired marks stay as they are, and a \\ before *, {, } or \\ keeps that character as it is",
     )
 
 export const TreeNodeSchema: z.ZodType<TreeNode> = z.strictObject({

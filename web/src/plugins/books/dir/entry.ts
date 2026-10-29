@@ -37,7 +37,7 @@ const nameText = () =>
   z
     .string()
     .describe(
-      "Name. **bold** makes it bold and {name:text} colors it with a text color (name from textColors); unpaired marks stay as they are",
+      "Name. **bold** makes it bold and {name:text} colors it with a text color (name from textColors); unpaired marks stay as they are, and a \\ before *, {, } or \\ keeps that character as it is",
     )
 
 // 説明の形（行の右に並べて見せる 1 行。装飾の書き方を AI に見せる）

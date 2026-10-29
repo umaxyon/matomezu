@@ -6,7 +6,7 @@
 // 行が紙の幅の NOTE_LIMIT を超えて右へ伸びていれば、説明はどれも出さない。
 // ページの設定の項目（notes.ts）で、説明を出さない・説明の前に「・・・」を付ける・説明の列の左から DIVIDER_GAP 空けた所に紙を縦に分ける区切り線を引く、を選べる
 import type { Point } from "../../../plugin-api"
-import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, textWidth, wrapRich } from "../../base"
+import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, wrapRich } from "../../base"
 import { rowsOf } from "./edit"
 import type { DirFolder, Kind } from "./entry"
 import type { NoteLook } from "./notes"
@@ -61,9 +61,9 @@ export const nameWidth = (name: string): number => {
 // 名前の行の左（アイコンの左 x から）
 export const nameLeft = (x: number): number => x + ICON + NAME_GAP
 
-// その場の編集のテキストFormの幅: 見せている名前の幅 shown か、記号も含めて書いた字 raw の幅の広いほうに、余白とテキストFormの枠を足す
+// その場の編集の入力Formの幅: 見せている名前の幅 shown か、書いた字 raw を 1 行で描いた幅（記号は外し、太字は太字の幅）の広いほうに、余白と入力Formの枠を足す
 export const editorWidth = (raw: string, shown: number): number =>
-  Math.max(shown, Math.ceil(textWidth(raw, FONT))) + EDITOR_PAD * 2 + 16
+  Math.max(shown, Math.ceil(richWidth(parseRich(raw).flat(), FONT))) + EDITOR_PAD * 2 + 16
 const EDITOR_PAD = 4
 
 const NOTE_DEFAULT: NoteLook = { shown: true, dots: false, divider: false }

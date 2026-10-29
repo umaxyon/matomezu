@@ -1,14 +1,19 @@
-/* 本文の入力Form: 装飾のボックスとテキストエリアの枠をつなげる */
+/* 本文の入力Form: 装飾のボックスと入力Form の枠をつなげる */
 .joined {
   display: flex;
   flex-direction: column;
 }
-/* ボックスの下の辺を消し、テキストエリアの上の角を四角に */
+/* ボックスの下の辺を消し、入力Form の上の角を四角に */
 .joined .top {
   border-bottom: 0;
   border-radius: 6px 6px 0 0;
 }
+/* 入力Form は縦にだけ伸ばせ、長い語も枠の中で折り返す */
 .area {
+  box-sizing: border-box;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
+  overflow: auto;
+  resize: vertical;
+  overflow-wrap: anywhere;
 }

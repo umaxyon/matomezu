@@ -1,6 +1,7 @@
 // 本文の装飾: 本文の文字列の中に書く Markdown の一部。**太字** と、{色:文字}（色は文字の色の id。base の色は名前だけで書ける: {warn:注意}）。
 // 対にならない記号・閉じていない記号は、ただの文字。色の id が機能台帳に無くても記号は外し、色を付けずに描く（プラグインを外しても文字は読める）。
 // 色の中に色は入れられない（中の { はただの文字）。太字と色は重ねられる。記号は段落（改行まで）の中でだけ対にする。
+// 記号の字（* { } と \）の前に \ を置くと、その字はただの文字（\ は描かない）。ほかの字の前の \ はただの文字。
 // 太字の字は太字の幅で測って折り返す（text.ts）。HTML としては描かず、描く側が区切り（Run）ごとに文字として描く
 import { splitId } from "../../../core/names"
 import { kit } from "../kit"
@@ -22,6 +23,9 @@ export const textColorRef = (id: string): string => {
   return kit.name(name) === id ? name : id
 }
 
+// 前に \ を置くとただの文字になる字
+const ESCAPED = "*{}\\"
+
 const COLOR_OPEN = /^\{((?:@[a-z0-9-]+\/[a-z0-9-]+:)?[a-z][a-z0-9-]*):/
 
 // 段落の字ごとの装飾
@@ -34,7 +38,7 @@ interface Styled {
 interface Mark {
   at: number // 字の位置
   len: number // 記号の字数
-  kind: "bold" | "open" | "close"
+  kind: "bold" | "open" | "close" | "escape"
   color?: string
 }
 
@@ -43,7 +47,10 @@ function parseParagraph(text: string): Styled {
   const marks: Mark[] = []
   for (let i = 0; i < src.length; i++) {
     const ch = src[i]
-    if (ch === "*" && src[i + 1] === "*") {
+    if (ch === "\\" && ESCAPED.includes(src[i + 1] ?? "")) {
+      marks.push({ at: i, len: 1, kind: "escape" })
+      i++
+    } else if (ch === "*" && src[i + 1] === "*") {
       marks.push({ at: i, len: 2, kind: "bold" })
       i++
     } else if (ch === "{") {
@@ -55,7 +62,7 @@ function parseParagraph(text: string): Styled {
     } else if (ch === "}") marks.push({ at: i, len: 1, kind: "close" })
   }
   // 対になる記号だけを残す: 太字は前から 2 つずつ、色は開いたあとの最初の閉じ
-  const kept = new Set<Mark>()
+  const kept = new Set<Mark>(marks.filter(m => m.kind === "escape"))
   const bolds = marks.filter(m => m.kind === "bold")
   for (let i = 0; i + 1 < bolds.length; i += 2) {
     kept.add(bolds[i] as Mark)
@@ -78,6 +85,7 @@ function parseParagraph(text: string): Styled {
     const m = byAt.get(i)
     if (m) {
       if (m.kind === "bold") bold = !bold
+      else if (m.kind === "escape") continue
       else color = m.kind === "open" ? (m.color ?? null) : null
       i += m.len - 1
       continue
@@ -155,3 +163,48 @@ export function clampRich(lines: readonly RichLine[], max: number, width: number
 
 // 区切りの並びの文字だけ（記号を外したもの）
 export const plainOf = (line: RichLine) => line.map(r => r.text).join("")
+
+// 区切りの並びを、本文の文字列に戻す（parseRich の逆。読み直すと同じ区切りになる）。太字の記号を外に、色の記号を中に書き、
+// 記号と読まれる字の前に \ を置く（読み直して記号にならない字には置かない）
+export function stringifyRich(lines: readonly RichLine[]): string {
+  return lines.map(stringifyLine).join("\n")
+}
+
+function stringifyLine(line: RichLine): string {
+  // 同じ装飾の続きをまとめる（隣の区切りとの間には、いつも記号が入る）
+  const runs: Run[] = []
+  for (const r of line) {
+    const last = runs.at(-1)
+    if (r.text === "") continue
+    if (last && last.bold === r.bold && last.color === r.color) last.text += r.text
+    else runs.push({ ...r })
+  }
+  let out = ""
+  for (let i = 0; i < runs.length; ) {
+    const bold = (runs[i] as Run).bold
+    let inner = ""
+    for (; i < runs.length && (runs[i] as Run).bold === bold; i++) {
+      const r = runs[i] as Run
+      inner += r.color === null ? escaped(r.text, false) : `{${textColorRef(r.color)}:${escaped(r.text, true)}}`
+    }
+    out += bold ? `**${inner}**` : inner
+  }
+  return out
+}
+
+// 区切りの字に \ を置く: \ は記号の字の前と区切りの終わり、* は隣が * か区切りの端、{ は色の記号の始まりに読めるとき、} は色の中
+function escaped(text: string, colored: boolean): string {
+  const src = [...text]
+  return src
+    .map((ch, k) => {
+      const prev = src[k - 1]
+      const next = src[k + 1]
+      const marked =
+        (ch === "\\" && (next === undefined || ESCAPED.includes(next))) ||
+        (ch === "*" && (prev === undefined || next === undefined || prev === "*" || next === "*")) ||
+        (ch === "{" && COLOR_OPEN.test(src.slice(k, k + 80).join(""))) ||
+        (ch === "}" && colored)
+      return marked ? `\\${ch}` : ch
+    })
+    .join("")
+}

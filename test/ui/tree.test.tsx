@@ -11,6 +11,7 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { Screen } from "../../web/src/ui/Screen"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { writeRich } from "./rich-input"
 
 afterEach(cleanup)
 
@@ -355,7 +356,7 @@ test("選んでいる節の＋で空の子を足してその場で書き、Enter
   fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
   const input = within(paper()).getByRole("textbox", { name: "キャプション" })
   expect(document.activeElement).toBe(input)
-  fireEvent.change(input, { target: { value: "子 A" } })
+  writeRich(input, "子 A")
   fireEvent.keyDown(input, { key: "Enter" })
   expect(within(paper()).queryByRole("textbox")).toBeNull()
   const a = (book().pages[0] as { root: { children: { id: string; caption: string }[] } }).root.children[0]!
@@ -385,14 +386,14 @@ test("F2 かダブルクリックで、選んでいる子の節をその場で�
   const a = done.fields!.root.children[0]!.id
   const paper = () => screen.getByRole("img", { name: "紙" })
   fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
-  let input = within(paper()).getByRole("textbox") as HTMLInputElement
-  expect(input.value).toBe("子 A")
-  fireEvent.change(input, { target: { value: "" } })
+  let input = within(paper()).getByRole("textbox")
+  expect(input.textContent).toBe("子 A")
+  writeRich(input, "")
   fireEvent.keyDown(input, { key: "Enter" })
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
   fireEvent.keyDown(window, { key: "F2" })
-  input = within(paper()).getByRole("textbox") as HTMLInputElement
-  fireEvent.change(input, { target: { value: "子 B" } })
+  input = within(paper()).getByRole("textbox")
+  writeRich(input, "子 B")
   fireEvent.keyDown(input, { key: "Escape" })
   expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
   expect(within(paper()).queryByRole("textbox")).toBeNull()
@@ -409,13 +410,13 @@ test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足�
   expect(kids()).toHaveLength(2)
   fireEvent.pointerDown(paper().querySelector(`[data-node="${a}"]`)!, { button: 0 })
   fireEvent.keyDown(window, { key: "Enter" })
-  const input = within(paper()).getByRole("textbox") as HTMLInputElement
-  expect(input.value).toBe("")
-  fireEvent.change(input, { target: { value: "**子 A2**" } })
+  const input = within(paper()).getByRole("textbox")
+  expect(input.textContent).toBe("")
+  writeRich(input, [["子 A2", true]])
   fireEvent.keyDown(input, { key: "Enter" })
   expect(kids().map(k => k.caption)).toEqual(["子 A", "**子 A2**", "子 B"])
   fireEvent.keyDown(window, { key: "Tab" })
-  fireEvent.change(within(paper()).getByRole("textbox"), { target: { value: "孫" } })
+  writeRich(within(paper()).getByRole("textbox"), "孫")
   fireEvent.keyDown(within(paper()).getByRole("textbox"), { key: "Enter" })
   expect(kids()[1]).toMatchObject({ children: [{ caption: "孫" }] })
   expect(kids()[2]!.id).toBe(b)
@@ -431,7 +432,7 @@ test("中央の木の根で Tab を押すと、子の少ない向きへ子を足
   fireEvent.keyDown(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), { key: "Escape" })
   expect((book().pages[0] as { root: { children: unknown[] } }).root.children).toHaveLength(1) // 空のまま取り消せば消す
   fireEvent.keyDown(window, { key: "Tab" })
-  fireEvent.change(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), { target: { value: "下" } })
+  writeRich(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), "下")
   fireEvent.keyDown(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), { key: "Enter" })
   expect((book().pages[0] as { root: { children: { side?: string }[] } }).root.children[1]).toMatchObject({
     side: "down",
@@ -511,7 +512,7 @@ test("中央の木の根には上下左右の 4 つの＋が出て、押した�
   ).toEqual(["上に子を足す", "下に子を足す", "左に子を足す", "右に子を足す"])
   fireEvent.click(within(paper()).getByRole("button", { name: "上に子を足す" }))
   const input = within(paper()).getByRole("textbox")
-  fireEvent.change(input, { target: { value: "上の子" } })
+  writeRich(input, "上の子")
   fireEvent.keyDown(input, { key: "Enter" })
   const child = (book().pages[0] as { root: { children: { id: string; side?: string }[] } }).root.children[0]!
   expect(child.side).toBe("up")
@@ -673,7 +674,7 @@ test("節の色: 節のメニューの「節の色」で子も根も色を選べ
   fireEvent.pointerDown(nodeEl(a), { button: 0 })
   fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
   const input = within(paper()).getByRole("textbox")
-  fireEvent.change(input, { target: { value: "孫" } })
+  writeRich(input, "孫")
   fireEvent.keyDown(input, { key: "Enter" })
   expect(book().pages[0]).toMatchObject({
     root: { children: [{ id: a, children: [{ caption: "孫", color: "#ff0000" }] }] },
@@ -689,7 +690,7 @@ test("根は F2・ダブルクリック・紙の右クリックの「ページ�
   let dialog = screen.getByRole("dialog", { name: "ページの設定" })
   expect(within(paper()).queryByRole("textbox")).toBeNull() // 根はその場で書かない
   fireEvent.change(within(dialog).getByLabelText("根のキャプション"), { target: { value: "代表" } })
-  fireEvent.change(within(dialog).getByLabelText("根の本文"), { target: { value: "本文の一行目" } })
+  writeRich(within(dialog).getByLabelText("根の本文"), "本文の一行目")
   fireEvent.click(within(dialog).getByRole("switch", { name: "本文を紙に描く" }))
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
   expect(book().pages[0]).toMatchObject({

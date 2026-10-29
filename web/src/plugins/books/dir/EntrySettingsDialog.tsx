@@ -13,6 +13,8 @@ import {
   Form,
   Problem,
   RichBar,
+  RichInput,
+  type RichInputHandle,
   rowClass,
   useBookTheme,
   useSwatches,
@@ -64,10 +66,18 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
     >
       <Form id={form} ready={name.trim() !== ""} onSubmit={submit}>
         <Field label={t("Name")}>
-          {id => <RichLineInput id={id} stage={stage} value={name} onChange={setName} autoFocus />}
+          {id => <RichLineInput id={id} stage={stage} label={t("Name")} value={name} onChange={setName} autoFocus />}
         </Field>
         <Field label={t("Description")}>
-          {id => <RichLineInput id={id} stage={stage} value={description} onChange={setDescription} />}
+          {id => (
+            <RichLineInput
+              id={id}
+              stage={stage}
+              label={t("Description")}
+              value={description}
+              onChange={setDescription}
+            />
+          )}
         </Field>
         {swatches && (
           <div className={rowClass}>
@@ -87,32 +97,36 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
   )
 }
 
-// 1 行のテキストFormと、その上の装飾のボックス
+// 1 行の見たまま編集の入力Formと、その上の装飾のボックス
 function RichLineInput({
   id,
   stage,
+  label,
   value,
   onChange,
   autoFocus,
 }: {
   id: string
   stage: string
+  label: string
   value: string
   onChange: (text: string) => void
   autoFocus?: boolean
 }) {
-  const ref = useRef<HTMLInputElement>(null)
+  const ref = useRef<RichInputHandle>(null)
   return (
     <div>
-      <RichBar stage={stage} target={ref} value={value} maxLength={Number.POSITIVE_INFINITY} onChange={onChange} />
-      <input
+      <RichBar stage={stage} target={ref} />
+      <RichInput
         ref={ref}
+        stage={stage}
         id={id}
+        label={label}
+        multiline={false}
         className={controlClass}
         value={value}
-        // biome-ignore lint/a11y/noAutofocus: 開いたらすぐに名前を書ける
         autoFocus={autoFocus}
-        onChange={e => onChange(e.target.value)}
+        onChange={onChange}
       />
     </div>
   )

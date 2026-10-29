@@ -3,7 +3,15 @@ import { expect, test } from "bun:test"
 import type { Book } from "../../web/src/core/schema/book"
 import { restoreSettings, userSetting } from "../../web/src/core/settings"
 import { TEXT_LOOK, wrap } from "../../web/src/plugins/base"
-import { decorate } from "../../web/src/plugins/base/text/edit"
+import {
+  charsOf,
+  type Decoration,
+  insertChars,
+  restyle,
+  styleAt,
+  styled,
+  textOf,
+} from "../../web/src/plugins/base/text/edit"
 import { clampRich, parseRich, plainOf, textColorRef, wrapRich } from "../../web/src/plugins/base/text/rich"
 import { type TextColorValues as TextColors, textColorsOf } from "../../web/src/plugins/base/text/text-colors"
 import { CORE_CATALOG, newStore } from "../support"
@@ -53,17 +61,44 @@ test("装飾の無い本文は、今までの折り返しと同じ行。太字�
   expect(two[1]!.at(-1)!.color).toBe(W)
 })
 
-test("選んだ範囲に太字・色を付け、もう付いていれば外す。違う色なら替える", () => {
-  expect(decorate("abc", 1, 2, { bold: true })).toEqual({ text: "a**b**c", start: 3, end: 4 })
-  expect(decorate("a**b**c", 3, 4, { bold: true })).toEqual({ text: "abc", start: 1, end: 2 })
-  expect(decorate("abc", 1, 2, { color: "warn" })).toEqual({ text: "a{warn:b}c", start: 7, end: 8 })
-  expect(decorate("a{warn:b}c", 7, 8, { color: "info" })).toEqual({ text: "a{info:b}c", start: 7, end: 8 })
-  expect(decorate("a{warn:b}c", 7, 8, { color: "warn" })).toEqual({ text: "abc", start: 1, end: 2 })
-  expect(decorate("a{warn:b}c", 7, 8, { color: null })).toEqual({ text: "abc", start: 1, end: 2 })
-  expect(decorate("abc", 1, 2, { color: null })).toEqual({ text: "abc", start: 1, end: 2 })
-  expect(decorate("ab", 1, 1, { bold: true })).toEqual({ text: "a****b", start: 3, end: 3 })
+test("選んだ範囲に太字・色を付け、もう付いていれば外す。違う色なら替える。位置は記号を数えない字の位置", () => {
+  const I = "@matomezu/base:info"
+  const deco = (text: string, start: number, end: number, d: Decoration) =>
+    textOf(restyle(charsOf(text), start, end, d))
+  expect(deco("abc", 1, 2, { bold: true })).toBe("a**b**c")
+  expect(deco("a**b**c", 1, 2, { bold: true })).toBe("abc")
+  expect(deco("a**b**c", 0, 2, { bold: true })).toBe("**ab**c")
+  expect(deco("abc", 1, 2, { color: W })).toBe("a{warn:b}c")
+  expect(deco("a{warn:b}c", 1, 2, { color: I })).toBe("a{info:b}c")
+  expect(deco("a{warn:b}c", 1, 2, { color: W })).toBe("abc")
+  expect(deco("a{warn:b}c", 1, 2, { color: null })).toBe("abc")
+  expect(deco("abc", 1, 1, { bold: true })).toBe("abc")
+  expect(deco("気をつける所", 0, 3, { bold: true })).toBe("**気をつ**ける所")
+  expect(deco("**気をつ**ける所", 0, 3, { color: W })).toBe("**{warn:気をつ}**ける所")
+  // 改行をまたいでも、段落ごとに記号を書く
+  expect(deco("ab\ncd", 1, 4, { bold: true })).toBe("a**b**\n**c**d")
+  expect(styled({ bold: false, color: W }, { color: W })).toEqual({ bold: false, color: null })
+  const typed = insertChars(charsOf("**a**"), 1, 1, "b", styleAt(charsOf("**a**"), 1))
+  expect(textOf(typed)).toBe("**ab**")
   expect(textColorRef(W)).toBe("warn")
   expect(textColorRef("@ex/p:mark")).toBe("@ex/p:mark")
+})
+
+test("記号の字の前の \\ でただの文字になり、戻すときは記号に読める字にだけ \\ を置く", () => {
+  expect(parseRich("\\*\\*a\\*\\*").map(plainOf)).toEqual(["**a**"])
+  expect(parseRich("\\{warn:a\\}").map(plainOf)).toEqual(["{warn:a}"])
+  expect(parseRich("C:\\path\\\\x").map(plainOf)).toEqual(["C:\\path\\x"])
+  expect(parseRich("{warn:a\\}b}")[0]).toEqual([{ text: "a}b", bold: false, color: W }])
+  const plain = (text: string) => textOf([...text].map(ch => ({ ch, bold: false, color: null })))
+  expect(plain("2*3 {a} C:\\x")).toBe("2*3 {a} C:\\x")
+  expect(plain("**a**")).toBe("\\*\\*a\\*\\*")
+  expect(plain("{warn:a}")).toBe("\\{warn:a}")
+  expect(plain("a\\")).toBe("a\\\\")
+  // 読み直すと同じ字と装飾になる
+  for (const text of ["*a*", "a\\*b", "{x:}", "}", "\\", "**", "a{warn:b"]) {
+    const chars = [...text].map((ch, i) => ({ ch, bold: i % 2 === 0, color: i % 3 === 0 ? W : null }))
+    expect(charsOf(textOf(chars))).toEqual(chars)
+  }
 })
 
 test("文字の色は定義の色を、ブックの設定、見る人の上書きの順に上書きする", () => {
