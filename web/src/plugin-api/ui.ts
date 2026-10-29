@@ -15,6 +15,8 @@ export { Slot } from "../ui/Slot"
 export { useActions, useLayoutWarnings } from "../ui/store-context"
 export { TokenScope, themeVars, useTokenScope } from "../ui/theme-vars"
 export {
+  type Allowed,
+  useAllowed,
   useBook,
   useCoreCatalog,
   useItem,

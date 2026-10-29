@@ -59,6 +59,10 @@
   gap: 14px;
   font-size: 13px;
 }
+/* フォームの項目をまとめて押せなくするための入れ物（並べ方には加わらない） */
+.fields {
+  display: contents;
+}
 .field {
   display: flex;
   flex-direction: column;

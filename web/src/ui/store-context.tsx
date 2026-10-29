@@ -58,6 +58,11 @@ export function useMatomezuState<T>(selector: (s: MatomezuState) => T): T {
   return useStore(useMatomezuContext().store.state, selector)
 }
 
+// インスタンスのホームのブックの id（一覧と設定のアクションを使えるかを決める）
+export function useHome(): string | null {
+  return useMatomezuContext().store.home
+}
+
 export function useActions(): Actions {
   return useMatomezuContext().store.actions
 }

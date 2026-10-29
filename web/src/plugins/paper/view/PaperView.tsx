@@ -222,6 +222,8 @@ function PageItems({
     // 付け替えは押した形 1 つだけを動かす
     const items = !reparenting && stage.selection.includes(id) ? stage.selection : [id]
     select(stage.id, items)
+    // 動かせないとき（許可の段が止めるなど、コマンドを押せない）は選ぶだけ
+    if (!(reparenting ? reparent.enabled : move.enabled)) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = {
       pointer: e.pointerId,
@@ -349,7 +351,7 @@ function PageItems({
         const shape = shown(c as PlacedShape)
         return render(shape, shiftOf(shape))
       })}
-      stretchable={single && stage.selection[0] === item.id && minSize(catalog, item) !== null}
+      stretchable={single && stage.selection[0] === item.id && minSize(catalog, item) !== null && resize.enabled}
       onStretch={{
         down: (e, edges) => startStretch(e, item.id, edges),
         move: moveStretch,

@@ -168,6 +168,7 @@ test("matomezu/ui が出す名前", () => {
     "themeVars",
     "useActions",
     "useAligns",
+    "useAllowed",
     "useBook",
     "useBookOf",
     "useBookTheme",

@@ -42,7 +42,7 @@ export function useLinkDrag(
     link: active ? link.current : null, // 引いているドラッグ（引いていなければ null）
     tip,
     start(e: PointerEvent<Element>, page: ItemPage, rect: Rect, from: string, side: Side) {
-      if (e.button !== 0) return
+      if (e.button !== 0 || !draw.enabled) return
       e.stopPropagation()
       e.preventDefault()
       e.currentTarget.setPointerCapture(e.pointerId)
