@@ -336,11 +336,11 @@ test("右クリックのメニューは、外を押すか Escape で閉じる", 
   expect(screen.queryByRole("menu")).toBeNull()
 })
 
-test("マスターの画面には右クリックのメニューが無く、ブラウザのメニューを止めない", () => {
+test("マスターの画面には右クリックのメニューが無く、ブラウザのメニューも出さない", () => {
   const store = renderScreen()
   act(() => store.actions.openBook("s1", "@matomezu/master:master"))
   const notCanceled = fireEvent.contextMenu(screen.getByRole("region", { name: "マスター" }))
-  expect(notCanceled).toBe(true)
+  expect(notCanceled).toBe(false)
   expect(screen.queryByRole("menu")).toBeNull()
 })
 

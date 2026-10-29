@@ -54,14 +54,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   }, [])
   if (empty) return null
   return (
-    <div
-      ref={ref}
-      className={styles.menu}
-      role="menu"
-      aria-label={t("Menu")}
-      style={{ left: at.x, top: at.y }}
-      onContextMenu={e => e.preventDefault()}
-    >
+    <div ref={ref} className={styles.menu} role="menu" aria-label={t("Menu")} style={{ left: at.x, top: at.y }}>
       {items.map((id, i) =>
         id === SEPARATOR ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: 区切り線は id を持たず、並びの位置で見分ける

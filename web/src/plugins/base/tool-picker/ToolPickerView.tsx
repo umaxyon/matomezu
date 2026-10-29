@@ -233,7 +233,6 @@ function Picker({ last }: { last: { current: Point | null } }) {
         if (e.button === 2) suppressContextMenu()
         closePicker()
       }}
-      onContextMenu={e => e.preventDefault()}
     >
       {map && <PickerMap stage={opened.id} at={placed.at} layout={placed.all} onPlaced={setMapBox} />}
       {!map &&

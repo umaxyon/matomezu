@@ -1,18 +1,13 @@
 // workspace のビュー（ウィジェット workspace）: ステージの列を並べ、列ごとにステージのスロットを描く。並べ方は workspace の arrangement に従う。
 // 列は、上の行（stage-top）・ステージの本体（stage-body）・下の行（stage-bottom）と、右上に浮かぶ角（stage-corner）。何を置くかは配置が決める。
-// 上の行・下の行・角の右クリックでは、ブラウザのメニューを出さない（テキストFormの中は除く）。
 // 分けているときは、カレントのステージの下の行の色を少し変えて示す。左の列の幅を arrangement の share の割合にし、列の境目をドラッグすると share が変わる（ダブルクリックで真ん中に戻る）。
 // ドラッグでは、並べた枠の左からポインタまでの長さと枠の幅をそのまま store に渡す（割合の計算と収め方は workspace の側）
-import { type MouseEvent, type PointerEvent, useRef } from "react"
+import { type PointerEvent, useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { Slot } from "../../../ui/Slot"
 import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_TOP } from "./slots"
 import styles from "./WorkspaceView.module.css"
-
-const noBrowserMenu = (e: MouseEvent) => {
-  if (!(e.target instanceof Element && e.target.closest("input, textarea, [contenteditable]"))) e.preventDefault()
-}
 
 export function WorkspaceView() {
   const ids = useMatomezuState(useShallow(s => s.workspace.stages.map(st => st.id)))
@@ -49,19 +44,16 @@ export function WorkspaceView() {
               onDoubleClick={() => evenDivider()}
             />
           )}
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
-          <div className={styles.top} onContextMenu={noBrowserMenu}>
+          <div className={styles.top}>
             <Slot name={STAGE_TOP} props={{ stage }} />
           </div>
           <div className={styles.cell}>
             <Slot name={STAGE_BODY} props={{ stage }} />
           </div>
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
-          <div className={styles.bottom} onContextMenu={noBrowserMenu}>
+          <div className={styles.bottom}>
             <Slot name={STAGE_BOTTOM} props={{ stage }} />
           </div>
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: ブラウザのメニューを止めるだけで、操作は持たない */}
-          <div className={styles.corner} onContextMenu={noBrowserMenu}>
+          <div className={styles.corner}>
             <Slot name={STAGE_CORNER} props={{ stage }} />
           </div>
         </div>
