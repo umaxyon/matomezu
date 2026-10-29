@@ -168,7 +168,7 @@ function Rows({
             d={`M${l.from.x} ${l.from.y}L${l.to.x} ${l.to.y}`}
           />
         ))}
-        {divider !== null && <path data-divider d={`M${divider} 0V${paper.h}`} />}
+        {divider && <path data-divider d={`M${divider.from.x} ${divider.from.y}L${divider.to.x} ${divider.to.y}`} />}
       </svg>
       {rows.map(r => (
         <Row

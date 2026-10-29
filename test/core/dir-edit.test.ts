@@ -245,6 +245,7 @@ test("説明の見せ方: 出さないなら列も無い。「・・・」を付
       ?.note?.map(r => r.text)
       .join(""),
   ).toBe("・・・ 説明です")
-  expect(laid.divider).toBe(laid.notes!.x - DIVIDER_GAP)
+  const x = laid.notes!.x - DIVIDER_GAP
+  expect(laid.divider).toEqual({ from: { x, y: MARGIN }, to: { x, y: paper.h - MARGIN } }) // 上下は紙の辺から空ける
   expect(layoutDir(noted, paper).divider).toBeNull() // 既定は引かない
 })
