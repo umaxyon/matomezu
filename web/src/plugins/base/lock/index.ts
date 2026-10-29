@@ -3,26 +3,16 @@
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
 import type { Book } from "../../../core/schema/book"
+import { setField } from "../fields"
 import { kit } from "../kit"
 
-// key の値を value にする（無ければ after の後ろに足す。undefined なら消す）。保存されるフィールドの並びを保つため
-function setField<T extends object>(v: T, after: string, key: string, value: true | undefined): T {
-  const out: Record<string, unknown> = {}
-  for (const [k, x] of Object.entries(v)) {
-    if (k === key) continue
-    out[k] = x
-    if (k === after && value !== undefined) out[key] = value
-  }
-  return out as T
-}
-
 const lockBook = (book: Book, on: boolean): Book | null =>
-  !!book.locked === on ? null : setField(book, "title", "locked", on ? true : undefined)
+  !!book.locked === on ? null : setField(book, ["title"], "locked", on ? true : undefined)
 
 function lockPage(book: Book, page: string, on: boolean): Book | null {
   const found = hasPages(book) ? book.pages.find(p => p.id === page) : undefined
   if (!hasPages(book) || !found || !!found.locked === on) return null
-  return putPage(book, setField(found, "orientation", "locked", on ? true : undefined))
+  return putPage(book, setField(found, ["orientation"], "locked", on ? true : undefined))
 }
 
 // ロックを切り替えながら change を行う（設定のダイアログの確定）: 外すなら先に外し、change が断られたら掛け直す。掛けるなら change の後に掛ける。

@@ -13,8 +13,7 @@ package server
 //	ack       {"seq", "ok", "reason"} 送った画面にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた画面にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。画面は読み直す
-//	removed   {"book", "client", "seq"} ブックが一覧から外れ、ゴミ箱に入った（trash.go）
-//	trash     {"trash": [{"id", "type", "title", "at"}]} ゴミ箱の一覧が変わった
+//	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
 
 import (
 	"encoding/json"
@@ -143,7 +142,7 @@ func (h *Hub) BookWarnings() map[string]engine.BookWarning {
 	return out
 }
 
-// Data は全部のブックと設定
+// Data は全部のブック（ゴミ箱のブックも）と設定
 func (h *Hub) Data() ([]storage.Book, json.RawMessage) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -201,7 +200,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Result: out.Result}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
-	if out.OK && p.By == "ai" && h.shownSomewhere(out.Removed) {
+	if out.OK && p.By == "ai" && h.trashesShown(out.Books) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
 		out.OK = false
 	}
@@ -211,17 +210,8 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 				return Performed{}, err
 			}
 		}
-		at := p.Now
-		if at == "" {
-			at = stamp()
-		}
 		for _, id := range out.Removed {
-			if err := h.trash(id, at, p.Client, p.Seq); err != nil {
-				return Performed{}, err
-			}
-		}
-		if len(out.Removed) > 0 {
-			if err := h.tellTrash(); err != nil {
+			if err := h.remove(id, p.Client, p.Seq); err != nil {
 				return Performed{}, err
 			}
 		}
@@ -458,7 +448,7 @@ var (
 func (h *Hub) Show(s Show) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if _, ok := h.books[s.Book]; !ok {
+	if e, ok := h.books[s.Book]; !ok || trashed(e.body) {
 		return ErrNoBook
 	}
 	c := h.window()
@@ -486,12 +476,12 @@ func (h *Hub) Show(s Show) error {
 	return nil
 }
 
-// Book は 1 冊のブック（無ければ nil）
+// Book は 1 冊のブック（無いかゴミ箱のブックなら nil）
 func (h *Hub) Book(id string) *storage.Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	e, ok := h.books[id]
-	if !ok {
+	if !ok || trashed(e.body) {
 		return nil
 	}
 	return &storage.Book{ID: id, Body: e.body, Version: e.version}

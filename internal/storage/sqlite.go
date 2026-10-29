@@ -30,6 +30,9 @@ var migrations = []string{
 	);`,
 	// ゴミ箱に入れた時刻（NULL ならふつうのブック）
 	`ALTER TABLE books ADD COLUMN trashed_at TEXT;`,
+	// ゴミ箱に入れた時刻は、ブックのデータ（土台のフィールド trashed）に移す
+	`UPDATE books SET body = json_set(body, '$.trashed', trashed_at) WHERE trashed_at IS NOT NULL;
+	ALTER TABLE books DROP COLUMN trashed_at;`,
 }
 
 type sqliteStorage struct {
@@ -114,7 +117,7 @@ func (s *sqliteStorage) Open(id, at string) error {
 }
 
 func (s *sqliteStorage) Books() ([]Book, error) {
-	rows, err := s.db.Query(`SELECT id, body, version FROM books WHERE trashed_at IS NULL ORDER BY id`)
+	rows, err := s.db.Query(`SELECT id, body, version FROM books ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -164,64 +167,14 @@ func (s *sqliteStorage) PutBook(id string, body json.RawMessage, base int64) (in
 	return next, nil, tx.Commit()
 }
 
-func (s *sqliteStorage) Trash(id, at string) error {
-	_, err := s.db.Exec(`UPDATE books SET trashed_at = ? WHERE id = ? AND trashed_at IS NULL`, at, id)
-	return err
-}
-
-func (s *sqliteStorage) TrashedBooks() ([]Trashed, error) {
-	rows, err := s.db.Query(`SELECT id, body, version, trashed_at FROM books WHERE trashed_at IS NOT NULL ORDER BY trashed_at DESC, id`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []Trashed{}
-	for rows.Next() {
-		var t Trashed
-		var body string
-		if err := rows.Scan(&t.ID, &body, &t.Version, &t.At); err != nil {
-			return nil, err
-		}
-		t.Body = json.RawMessage(body)
-		out = append(out, t)
-	}
-	return out, rows.Err()
-}
-
-func (s *sqliteStorage) Restore(id string) (*Book, error) {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	var b Book
-	var body string
-	err = tx.QueryRow(`SELECT id, body, version FROM books WHERE id = ? AND trashed_at IS NOT NULL`, id).Scan(&b.ID, &body, &b.Version)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotTrashed
-	}
-	if err != nil {
-		return nil, err
-	}
-	if _, err := tx.Exec(`UPDATE books SET trashed_at = NULL WHERE id = ?`, id); err != nil {
-		return nil, err
-	}
-	b.Body = json.RawMessage(body)
-	return &b, tx.Commit()
-}
-
-func (s *sqliteStorage) Purge(id string) error {
+func (s *sqliteStorage) DeleteBook(id string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	done, err := tx.Exec(`DELETE FROM books WHERE id = ? AND trashed_at IS NOT NULL`, id)
-	if err != nil {
+	if _, err := tx.Exec(`DELETE FROM books WHERE id = ?`, id); err != nil {
 		return err
-	}
-	if n, _ := done.RowsAffected(); n == 0 {
-		return ErrNotTrashed
 	}
 	if _, err := tx.Exec(`DELETE FROM opened WHERE id = ?`, id); err != nil {
 		return err

@@ -4,7 +4,7 @@ import { defineBuiltin } from "../../store/plugin"
 import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { CREATE_SETTINGS_CHECK } from "./book-new/book-create"
-import { BOOK_OPEN, BOOK_TRASH, OPEN_BOOK_DIALOG } from "./book-open"
+import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRASH_EMPTY } from "./book-open"
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { kit } from "./kit"
@@ -131,6 +131,9 @@ export const BASE = defineBuiltin(
       BOOK_UNLOCK,
       BOOK_CREATE,
       BOOK_TRASH,
+      BOOK_RESTORE,
+      BOOK_PURGE,
+      TRASH_EMPTY,
       SET_LANG,
       SET_SKIN,
       SET_KEYS,
@@ -194,6 +197,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-lock": typeof BOOK_LOCK
     "@matomezu/base:book-unlock": typeof BOOK_UNLOCK
     "@matomezu/base:book-trash": typeof BOOK_TRASH
+    "@matomezu/base:book-restore": typeof BOOK_RESTORE
+    "@matomezu/base:book-purge": typeof BOOK_PURGE
+    "@matomezu/base:trash-empty": typeof TRASH_EMPTY
     "@matomezu/base:settings-lang": typeof SET_LANG
     "@matomezu/base:settings-skin": typeof SET_SKIN
     "@matomezu/base:settings-keys": typeof SET_KEYS

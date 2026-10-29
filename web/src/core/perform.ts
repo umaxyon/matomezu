@@ -64,11 +64,11 @@ const pagesOf = (book: Book): readonly { id: string; locked?: true }[] =>
   "pages" in book ? (book.pages as readonly { id: string; locked?: true }[]) : []
 
 // アクションの結果が、ブック before のロックを守っているか（after が無ければ、ブックは一覧から無くなった）。
-// ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さない。ロックを外せるのは利用者だけ
+// ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、ブックごとゴミ箱にも入れない。ロックを外せるのは利用者だけ
 export function keepsLocks(before: Book, after: Book | undefined, by: ActionContext["by"]): boolean {
   const locked = pagesOf(before).filter(p => p.locked)
   if (!before.locked && locked.length === 0) return true
-  if (!after) return false
+  if (!after || after.trashed !== before.trashed) return false
   if (before.locked && (withoutLock(before) !== withoutLock(after) || (!after.locked && by === "ai"))) return false
   const pages = new Map(pagesOf(after).map(p => [p.id, p]))
   return locked.every(p => {
@@ -111,7 +111,7 @@ export function perform<Id extends ActionId>(
   return { ok: true, next: done.next, result: done.result } as Performed<Id>
 }
 
-// アクションが変えるもの全部: ブックの一覧と、見る人の設定
+// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、見る人の設定
 export interface World {
   books: Library
   settings: Settings
@@ -123,7 +123,7 @@ export type PerformedIn =
   | { ok: false; reason: Refusal | "no-book" }
 
 // 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
-// ブックが対象なら on のブックで、id を変えたら断る。同じ値の設定は変わらなかったとみなす
+// ブックが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、id を変えたら断る。同じ値の設定は変わらなかったとみなす
 export function performIn(
   world: World,
   id: string,
@@ -140,7 +140,7 @@ export function performIn(
   ) => ReturnType<typeof perform>
   if (target === "book") {
     const book = world.books[on?.book ?? ""]
-    if (!book) return { ok: false, reason: "no-book" }
+    if (!book || book.trashed !== undefined) return { ok: false, reason: "no-book" }
     const done = loose(book, id, args, ctx)
     if (!done.ok) return done
     const next = done.next as Book

@@ -24,10 +24,11 @@ export type PageOf<T> = Page &
     items?: PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
   } & SettingFields<Selected<T, "page">>
 
-// タイプ T のブック（名前 title とロック locked は土台のフィールドで、どのタイプのブックも持つ。名前は空でもよい）
+// タイプ T のブック（名前 title・ロック locked・ゴミ箱に入れた時刻 trashed は土台のフィールドで、どのタイプのブックも持つ。名前は空でもよい）
 export type BookData<T> = (T extends { schema: infer S extends z.ZodType } ? z.output<S> : never) & {
   title: string
   locked?: true
+  trashed?: string
 } & (T extends { pages: null } ? unknown : { pages: PageOf<T>[] }) &
   SettingFields<Selected<T, "book">>
 

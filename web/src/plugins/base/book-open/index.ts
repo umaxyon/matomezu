@@ -10,4 +10,4 @@ export const BOOK_OPEN = kit.defineCommand({
   when: () => true,
 })
 
-export { BOOK_TRASH } from "./book-trash"
+export { BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, TRASH_EMPTY } from "./book-trash"

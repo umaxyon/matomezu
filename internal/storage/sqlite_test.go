@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -111,8 +112,8 @@ func TestTouchedIsTheNewerOfOpenedAndWritten(t *testing.T) {
 	}
 }
 
-// ゴミ箱に入れたブックは Books に出ず、TrashedBooks に入れた時刻と出る。戻すと Books に戻り、消すと行も開いた時刻も無くなる
-func TestTrashRestoreAndPurge(t *testing.T) {
+// DeleteBook はブックと開いた時刻を消す
+func TestDeleteBook(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	for _, id := range []string{"b1", "b2"} {
 		if _, _, err := s.PutBook(id, json.RawMessage(`{"id":"`+id+`"}`), 0); err != nil {
@@ -122,37 +123,39 @@ func TestTrashRestoreAndPurge(t *testing.T) {
 	if err := s.Open("b2", "2026-10-29T00:00:00.000Z"); err != nil {
 		t.Fatal(err)
 	}
-	for id, at := range map[string]string{"b1": "2026-10-29T01:00:00.000Z", "b2": "2026-10-29T02:00:00.000Z"} {
-		if err := s.Trash(id, at); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if books, _ := s.Books(); len(books) != 0 {
-		t.Fatalf("books with all trashed = %+v", books)
-	}
-	trashed, err := s.TrashedBooks()
-	if err != nil || len(trashed) != 2 || trashed[0].ID != "b2" || trashed[0].At != "2026-10-29T02:00:00.000Z" {
-		t.Fatalf("trashed = %+v, %v; want b2 first", trashed, err)
-	}
-	if b, err := s.Restore("b1"); err != nil || b.ID != "b1" || b.Version != 1 {
-		t.Fatalf("restore = %+v, %v", b, err)
-	}
-	if _, err := s.Restore("b1"); !errors.Is(err, ErrNotTrashed) {
-		t.Fatalf("restoring a book not in the trash = %v", err)
-	}
-	if err := s.Purge("b1"); !errors.Is(err, ErrNotTrashed) {
-		t.Fatalf("purging a book not in the trash = %v", err)
-	}
-	if err := s.Purge("b2"); err != nil {
+	if err := s.DeleteBook("b2"); err != nil {
 		t.Fatal(err)
 	}
 	if books, _ := s.Books(); len(books) != 1 || books[0].ID != "b1" {
 		t.Fatalf("books = %+v", books)
 	}
-	if trashed, _ := s.TrashedBooks(); len(trashed) != 0 {
-		t.Fatalf("trashed after purge = %+v", trashed)
-	}
 	if touched, _ := s.Touched(); touched["b2"] != "" {
-		t.Fatalf("touched keeps a purged book: %v", touched)
+		t.Fatalf("touched keeps a deleted book: %v", touched)
+	}
+}
+
+// ゴミ箱に入れた時刻の列（trashed_at）を持っていた置き場所は、時刻をブックのデータの trashed に移す
+func TestTrashedAtMovesIntoTheBook(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range append(migrations[:3:3],
+		`PRAGMA user_version = 3`,
+		`INSERT INTO books (id, body, version, updated_at, trashed_at) VALUES ('b1', '{"id":"b1"}', 1, 'x', '2026-10-29T01:00:00.000Z'), ('b2', '{"id":"b2"}', 1, 'x', NULL)`,
+	) {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s := open(t, path)
+	books, err := s.Books()
+	if err != nil || len(books) != 2 {
+		t.Fatalf("books = %+v, %v", books, err)
+	}
+	if string(books[0].Body) != `{"id":"b1","trashed":"2026-10-29T01:00:00.000Z"}` || string(books[1].Body) != `{"id":"b2"}` {
+		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
 	}
 }

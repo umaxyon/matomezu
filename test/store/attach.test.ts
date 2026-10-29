@@ -27,6 +27,9 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
   expect(actionsOf(CORE_CATALOG, MASTER_BOOK)).toEqual([
     "@matomezu/base:book-create",
     "@matomezu/base:book-trash",
+    "@matomezu/base:book-restore",
+    "@matomezu/base:book-purge",
+    "@matomezu/base:trash-empty",
     "@matomezu/base:settings-lang",
     "@matomezu/base:settings-skin",
     "@matomezu/base:settings-keys",

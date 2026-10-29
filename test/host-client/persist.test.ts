@@ -13,6 +13,7 @@ function recording() {
   return {
     host: {
       saveBook: (b: Book) => books.push(b),
+      removeBook: () => {},
       saveSettings: (s: Settings) => settings.push(s),
     },
     books,

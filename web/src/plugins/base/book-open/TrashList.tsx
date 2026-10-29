@@ -1,6 +1,8 @@
 // ゴミ箱の一覧: ゴミ箱のブックを入れた時刻の新しい順に並べ、右の列にその時刻を「〜前」で出す。
-// 行ごとに戻すボタンと消すボタン（消すのは上に重ねたモーダルで確かめてから。戻せないため）、上の行にゴミ箱を空にするボタン（同じく確かめる）
+// 行ごとに戻すボタン（book-restore）と消すボタン（book-purge。上に重ねたモーダルで確かめてから。戻せないため）、
+// 上の行にゴミ箱を空にするボタン（trash-empty。同じく確かめる）
 import { useState } from "react"
+import { bookTitle } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { Confirm } from "../dialog-host/Confirm"
@@ -8,11 +10,11 @@ import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
-import { trashTitle } from "./book-trash"
+import { BOOK_PURGE, BOOK_RESTORE, TRASH_EMPTY, trashOrder } from "./book-trash"
 
 export function TrashList() {
-  const trash = useMatomezuState(s => s.trash)
-  const { restoreBook, purgeBooks } = useActions()
+  const trash = trashOrder(useMatomezuState(s => s.trash))
+  const { perform } = useActions()
   const elapsed = useElapsed()
   const catalog = useCatalog().core
   const lang = useMatomezuState(s => s.settings.lang)
@@ -30,9 +32,9 @@ export function TrashList() {
         <ul className={styles.list} aria-label={t("Trash")}>
           {trash.map(b => (
             <li key={b.id} className={styles.trashed}>
-              <span className={styles.title}>{trashTitle(catalog, b, lang) ?? t("Untitled ({id})", { id: b.id })}</span>
-              <span className={styles.when}>{elapsed(b.at)}</span>
-              <ActionButton onClick={() => restoreBook(b.id)}>{t("Restore")}</ActionButton>
+              <span className={styles.title}>{bookTitle(catalog, b, lang)}</span>
+              <span className={styles.when}>{elapsed(b.trashed ?? "")}</span>
+              <ActionButton onClick={() => perform(BOOK_RESTORE.id, { book: b.id })}>{t("Restore")}</ActionButton>
               <ActionButton danger onClick={() => setConfirming({ book: b.id })}>
                 {t("Delete")}
               </ActionButton>
@@ -51,7 +53,8 @@ export function TrashList() {
           ok={t("Delete")}
           cancel={t("Cancel")}
           onOk={() => {
-            purgeBooks(confirming === "all" ? [] : [confirming.book])
+            if (confirming === "all") perform(TRASH_EMPTY.id, {})
+            else perform(BOOK_PURGE.id, { books: [confirming.book] })
             setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}

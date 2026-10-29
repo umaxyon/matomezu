@@ -16,7 +16,7 @@ import { TrashList } from "./TrashList"
 export function OpenBookDialog({ stage, onClose }: DialogProps) {
   const { openBook, perform } = useActions()
   const catalog = useCatalog().core
-  const count = useMatomezuState(s => s.trash.length)
+  const count = useMatomezuState(s => Object.keys(s.trash).length)
   const t = useMessages(kit)
   const [view, setView] = useState<"books" | "trash">("books")
   return (

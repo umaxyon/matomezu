@@ -7,6 +7,9 @@ test.describe.configure({ mode: "serial" })
 
 // 常駐に置いてあるもの
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
+// 置いてあるブック id のデータ（無ければ undefined）
+const bookIn = async (page: Page, id: string): Promise<{ trashed?: string } | undefined> =>
+  (await data(page)).books.find((b: { id: string }) => b.id === id)?.book
 // AI の入口の合言葉（常駐のアプリのフォルダはポートごと。scripts/e2e-server.ts）
 const aiToken = (): string =>
   JSON.parse(readFileSync(`e2e/.home-${new URL(test.info().project.use.baseURL ?? "").port}/server.json`, "utf8")).token
@@ -238,13 +241,13 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
   await row("捨てるブック").hover()
   await row("捨てるブック").getByRole("button", { name: "ゴミ箱に入れる" }).click()
   await expect(row("捨てるブック")).toHaveCount(0)
-  await expect.poll(async () => (await data(page)).trash.map((b: { id: string }) => b.id)).toEqual(["e2e-trash"])
+  await expect.poll(async () => (await bookIn(page, "e2e-trash"))?.trashed).toBeTruthy()
   await dialog.getByText("ゴミ箱 1").click()
   const trash = dialog.getByRole("list", { name: "ゴミ箱" })
   await expect(trash.getByRole("listitem")).toHaveText([/捨てるブック/])
   await trash.getByRole("button", { name: "戻す" }).click()
   await expect(trash.getByRole("listitem")).toHaveCount(0)
-  await expect.poll(async () => (await data(page)).books.some((b: { id: string }) => b.id === "e2e-trash")).toBe(true)
+  await expect.poll(async () => (await bookIn(page, "e2e-trash"))?.trashed).toBeUndefined()
   await page.keyboard.press("Escape")
   dialog = await openDialog()
   await row("捨てるブック").hover()
@@ -252,8 +255,7 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
   await dialog.getByText("ゴミ箱 1").click()
   await dialog.getByRole("list", { name: "ゴミ箱" }).getByRole("button", { name: "削除" }).click()
   await page.getByRole("dialog").getByRole("button", { name: "削除" }).last().click()
-  await expect.poll(async () => (await data(page)).trash).toEqual([])
-  expect((await data(page)).books.some((b: { id: string }) => b.id === "e2e-trash")).toBe(false)
+  await expect.poll(async () => await bookIn(page, "e2e-trash")).toBeUndefined()
 })
 
 test("ロック中のブックの名前とページタブに鍵が出て、押すとロックが外れる", async ({ page }) => {

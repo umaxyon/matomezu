@@ -317,7 +317,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"plugins":[],"settings":null,"touched":{},"trash":[]}` {
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != `{"books":[],"plugins":[],"settings":null,"touched":{}}` {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
@@ -548,40 +548,57 @@ func TestTrashABook(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-trash","args":{"book":"b1"},"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`, nil); got != `{"ok":true,"result":{}}` {
+	perform := func(action, args string) string {
+		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`, nil)
+		return got
+	}
+	if got := perform("book-trash", `{"book":"b1"}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("trash = %s", got)
 	}
-	if got := next(t, a); got != `removed {"book":"b1","client":"","seq":0}` {
-		t.Fatalf("removed = %s", got)
+	if got := next(t, a); !strings.Contains(got, `"title":"T","trashed":"2026-10-29T00:00:00.000Z"`) {
+		t.Fatalf("book after trash = %s", got)
 	}
-	trash := `[{"id":"b1","type":"@matomezu/drawing:drawing","title":"T","at":"2026-10-29T00:00:00.000Z"}]`
-	if got := next(t, a); got != `trash {"trash":`+trash+`}` {
-		t.Fatalf("trash = %s", got)
-	}
-	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"books":[]`) || !strings.Contains(data, `"trash":`+trash) {
+	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"trashed":"2026-10-29T00:00:00.000Z"`) {
 		t.Fatalf("data = %s", data)
 	}
 	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); got != `{"books":[]}` {
 		t.Fatalf("ai books = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/trash/restore", `{"book":"b1"}`, nil); got != `{"ok":true}` {
+	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); code != 404 {
+		t.Fatalf("ai book = %d", code)
+	}
+	if got := perform("book-restore", `{"book":"b1"}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("restore = %s", got)
 	}
-	if got := next(t, a); !strings.HasPrefix(got, `book {"book":{"type":"@matomezu/drawing:drawing","id":"b1"`) {
+	if got := next(t, a); strings.Contains(got, `"trashed"`) {
 		t.Fatalf("book after restore = %s", got)
 	}
-	if got := next(t, a); got != `trash {"trash":[]}` {
-		t.Fatalf("trash after restore = %s", got)
+	perform("book-trash", `{"book":"b1"}`)
+	next(t, a)
+	if got := perform("trash-empty", `{}`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("empty = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/trash/restore", `{"book":"b1"}`, nil); got != `{"ok":false,"reason":"no-book"}` {
-		t.Fatalf("restore again = %s", got)
+	if got := next(t, a); got != `removed {"book":"b1","client":"","seq":0}` {
+		t.Fatalf("removed = %s", got)
 	}
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-trash","args":{"book":"b1"},"lang":"ja"}`, nil)
-	if _, got := send(t, "POST", s.URL+"/api/trash/purge", `{"books":[]}`, nil); got != `{"ok":true}` {
-		t.Fatalf("purge = %s", got)
+	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"books":[]`) {
+		t.Fatalf("data after empty = %s", data)
 	}
-	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"books":[]`) || !strings.Contains(data, `"trash":[]`) {
-		t.Fatalf("data after purge = %s", data)
+}
+
+// AI はゴミ箱から戻せず、消せない（利用者だけのアクション）
+func TestAICannotRestoreOrPurge(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-trash","args":{"book":"b1"}}`, ai)
+	for _, req := range []string{
+		`{"action":"@matomezu/base:book-restore","args":{"book":"b1"}}`,
+		`{"action":"@matomezu/base:book-purge","args":{"books":["b1"]}}`,
+		`{"action":"@matomezu/base:trash-empty","args":{}}`,
+	} {
+		if _, got := send(t, "POST", s.URL+"/api/ai/perform", req, ai); got != `{"ok":false,"reason":"not-allowed"}` {
+			t.Fatalf("ai %s = %s", req, got)
+		}
 	}
 }
 

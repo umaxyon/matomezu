@@ -3,8 +3,8 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "trash": [{"id", "type", "title", "at"}]} 置いてあるブックと設定、
-//	                      追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）、ゴミ箱（trash.go）  … 画面から
+//	GET  /api/data        {"books": [{"id", "book", "version"}], "settings", "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}} 置いてあるブック（ゴミ箱のブックも）と設定、
+//	                      追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
 //	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS（道には ?v= で追加プラグインの版を付けて配る）  … 画面から
 //	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
 //	POST /api/plugins        {"dir"} 開発者プロジェクトのフォルダの追加プラグインを足す（同じ id なら入れ替える）。{"ok", "id"} か {"ok": false, "reason"}  … 要合言葉
@@ -15,8 +15,6 @@
 //	PUT  /api/books/{id}  {"book", "base"} アクションを通さずにブックを丸ごと置く。置いてある版が base のときだけ書き、{"version"} を返す。
 //	                      base が 0 なら新しいブック。違えば 409 と、置いてある {"id", "book", "version"}。
 //	                      今の機能台帳で読めないブック（warning W004〜W006）は書かず、400 と理由  … 画面から
-//	POST /api/trash/restore {"book"} ゴミ箱のブックを戻す。{"ok"} か、ゴミ箱に無ければ {"ok": false, "reason": "no-book"}（trash.go）  … 画面から
-//	POST /api/trash/purge   {"books"} ゴミ箱のブックを消す（戻せない。books が空ならゴミ箱を空にする）。{"ok"}                  … 画面から
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 画面が見つけた warning（その画面の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/view        {"client", "view", "focused", "seq"} 画面のカレントのステージが見ているもの（view）と、その画面がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view は捨てる（届く順が入れ替わるため）  … 画面から
@@ -110,8 +108,6 @@ func Handler(o Options) http.Handler {
 	mux.Handle("PUT /api/books/{id}", sameOrigin(o.putBook))
 	mux.Handle("POST /api/view", sameOrigin(o.view))
 	mux.Handle("POST /api/warnings", sameOrigin(o.warnings))
-	mux.Handle("POST /api/trash/restore", sameOrigin(o.restore))
-	mux.Handle("POST /api/trash/purge", sameOrigin(o.purge))
 	mux.Handle("GET /api/ai/view", o.auth(o.aiView))
 	mux.Handle("GET /api/ai/books", o.auth(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.auth(o.aiBook))
@@ -190,45 +186,7 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 			plugins[i].CSS = fmt.Sprintf("api/plugins/%d/ui.css?v=%d", i, v)
 		}
 	}
-	trash, err := o.Hub.Trash()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, map[string]any{"books": books, "settings": settings, "plugins": plugins, "touched": o.Hub.Touched(), "trash": trash})
-}
-
-func (o Options) restore(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Book string `json:"book"`
-	}
-	if !readJSON(w, r, &req) {
-		return
-	}
-	err := o.Hub.Restore(req.Book)
-	if errors.Is(err, ErrNotTrashed) {
-		writeJSON(w, map[string]any{"ok": false, "reason": "no-book"})
-		return
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, map[string]any{"ok": true})
-}
-
-func (o Options) purge(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Books []string `json:"books"`
-	}
-	if !readJSON(w, r, &req) {
-		return
-	}
-	if err := o.Hub.Purge(req.Books); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, map[string]any{"ok": true})
+	writeJSON(w, map[string]any{"books": books, "settings": settings, "plugins": plugins, "touched": o.Hub.Touched()})
 }
 
 func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {
@@ -419,6 +377,9 @@ func (o Options) aiBooks(w http.ResponseWriter, _ *http.Request) {
 	}
 	heads := make([]head, 0, len(books))
 	for _, b := range books {
+		if trashed(b.Body) {
+			continue
+		}
 		h := head{ID: b.ID, Version: b.Version}
 		_ = json.Unmarshal(b.Body, &h)
 		h.ID, h.Version = b.ID, b.Version

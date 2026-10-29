@@ -30,7 +30,6 @@ const store = createMatomezu({
   settings: saved.settings,
   lang: navigator.languages,
   observe: done => client.observe(done),
-  trash: client,
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、組み立てで確かめる（見た目と、置いた配置も）。
 // 読み込めないもの・組み立てられないもの・配置が食い違うものは外す（ほかのプラグインとブックは使える）

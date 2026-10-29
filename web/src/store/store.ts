@@ -11,6 +11,7 @@ import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type KeyChanges, NO_KEY_CHANGES } from "../core/keys"
+import { type Library, splitTrash } from "../core/library"
 import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { NO_TEXT_COLORS, restoreSettings, type Settings } from "../core/settings"
@@ -55,7 +56,7 @@ import { type Assembled, assemble, type Plugin } from "./plugin"
 export type { Settings } from "../core/settings"
 
 export interface MatomezuState {
-  books: Record<string, Book> // ブックの id ごと
+  books: Record<string, Book> // ブックの id ごと（ゴミ箱のブックは除く）
   unreadable: readonly Warning[] // 残したブックのうち読めないもの（warning W004〜W006。データには手を付けず、開けない）
   partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
   workspace: Workspace
@@ -65,22 +66,8 @@ export interface MatomezuState {
   toasts: readonly Toast[] // 出しているトースト（古い順）
   // ブックの id → 触れた（開いたか書いた）時刻（ISO 8601 の UTC）。ホストが知らせたもの（receive）で、無ければ空
   touched: Readonly<Record<string, string>>
-  trash: readonly TrashEntry[] // ゴミ箱のブック（入れた時刻の新しい順）。ホストが知らせたもの（receive）で、無ければ空
+  trash: Record<string, Book> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる。サーバーなしなら false）
-}
-
-// ゴミ箱のブック 1 冊（一覧に出すもの）。at はゴミ箱に入れた時刻（ISO 8601 の UTC）
-export interface TrashEntry {
-  id: string
-  type: string
-  title: string
-  at: string
-}
-
-// ゴミ箱を変える頼み（ゴミ箱はブックの一覧の外にあり、ホストが持つ）
-export interface TrashKeeper {
-  restore(book: string): void // ゴミ箱のブックを一覧に戻す
-  purge(books: readonly string[]): void // ゴミ箱のブックを消す（戻せない。空ならゴミ箱を空にする）
 }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
@@ -146,8 +133,6 @@ export interface Actions {
   closePicker(): void
   showPickerMap(stage: string): void // そのステージで開いている道具のアイコンを、ミニマップに替える
   setMinimap(stage: string, open: boolean): void // そのステージの左下のミニマップを開く・閉じる（紙が収まっていれば開かない）
-  restoreBook(book: string): void // ゴミ箱のブックを一覧に戻す（ホストに頼む。戻ると receive で一覧に入る）
-  purgeBooks(books: readonly string[]): void // ゴミ箱のブックを消す（戻せない。空ならゴミ箱を空にする。ホストに頼む）
 }
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
@@ -171,12 +156,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(
-    world: {
-      books: readonly unknown[]
-      settings: unknown
-      touched?: Readonly<Record<string, string>>
-      trash?: readonly TrashEntry[]
-    },
+    world: { books: readonly unknown[]; settings: unknown; touched?: Readonly<Record<string, string>> },
     replay: readonly DoneAction[],
   ): void
   // 画面の場所（開いているブック・ページ・倍率・ずらす量・分割）を address にする（core/address.ts の placeAt）。
@@ -201,10 +181,10 @@ function initialState(
   unreadable: readonly Warning[] = [],
   partial: readonly Warning[] = [],
 ): MatomezuState {
-  const all = [...singleBooks(catalog), ...books]
-  const first = books[0] ?? all.find(b => b.id === home) ?? null
+  const { books: open, trash } = splitTrash(Object.fromEntries([...singleBooks(catalog), ...books].map(b => [b.id, b])))
+  const first = books.find(b => b.id in open) ?? open[home ?? ""] ?? null
   return {
-    books: Object.fromEntries(all.map(b => [b.id, b])),
+    books: { ...open },
     unreadable,
     partial,
     workspace: newWorkspace(catalog, first),
@@ -213,7 +193,7 @@ function initialState(
     contextMenu: null,
     toasts: [],
     touched: {},
-    trash: [],
+    trash: { ...trash },
     offline: false,
   }
 }
@@ -230,7 +210,18 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
   observe?: (done: DoneAction) => void // アクションを行えたときに知らせる（行い直しは知らせない）
-  trash?: TrashKeeper // ゴミ箱を変える頼みの宛先（無ければ、ゴミ箱を変えても何もしない）
+}
+
+// 知らされた一覧 next を、今の一覧 now に寄せる: 中身の同じブックは前の値を使い（描き直しと、保存の知らせを減らす）、全部同じなら now を返す
+function sameAs(next: Library, now: Record<string, Book>): Record<string, Book> {
+  const kept: Record<string, Book> = {}
+  for (const [id, b] of Object.entries(next)) {
+    const old = now[id]
+    kept[id] = old && old !== b && JSON.stringify(old) === JSON.stringify(b) ? old : b
+  }
+  const same =
+    Object.keys(kept).length === Object.keys(now).length && Object.entries(kept).every(([id, b]) => now[id] === b)
+  return same ? now : kept
 }
 
 function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
@@ -309,10 +300,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     args: unknown,
     on?: { book: string },
   ): { ok: true; result: unknown; next: Partial<MatomezuState> } | { ok: false; reason: Refusal | "no-book" } => {
-    const { books, workspace, settings } = getState()
+    const { books, trash, workspace, settings } = getState()
     const ids: string[] = []
     const c = ctx()
-    const done = performIn({ books, settings }, id, args, on, {
+    const done = performIn({ books: { ...books, ...trash }, settings }, id, args, on, {
       ...c,
       newId: () => {
         const made = c.newId()
@@ -328,8 +319,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.workspace = followBook(catalog, workspace, done.book, books[done.book.id])
     }
     if (done.books) {
-      next.books = done.books as MatomezuState["books"]
-      next.workspace = followLibrary(catalog, workspace, done.books as MatomezuState["books"], books)
+      const split = splitTrash(done.books)
+      next.books = { ...split.books }
+      next.trash = { ...split.trash }
+      next.workspace = followLibrary(catalog, workspace, split.books, books)
     }
     if (done.settings) next.settings = done.settings
     return { ok: true, result: done.result, next }
@@ -446,8 +439,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
     showPickerMap: id => withWorkspace(ws => mapStage(ws, id, showPickerMap)),
     setMinimap: (id, open) => withWorkspace(ws => mapStage(ws, id, s => setMinimap(s, open))),
-    restoreBook: book => options.trash?.restore(book),
-    purgeBooks: books => options.trash?.purge(books),
   }
   const instance: MatomezuInstance<Ps> = {
     ...defs,
@@ -456,13 +447,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     actions,
     receive: (world, replay) => {
       const found = restore(world.books)
-      let books: MatomezuState["books"] = Object.fromEntries(
-        [...singleBooks(catalog), ...found.books].map(b => [b.id, b]),
-      )
+      let library: Library = Object.fromEntries([...singleBooks(catalog), ...found.books].map(b => [b.id, b]))
       let settings = restoreSettings(catalog, start, world.settings)
       for (const done of replay) {
         const ids = [...done.ids]
-        const next = performIn({ books, settings }, done.action, done.args, done.on, {
+        const next = performIn({ books: library, settings }, done.action, done.args, done.on, {
           catalog,
           home,
           lang: done.lang,
@@ -470,20 +459,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           now: done.now,
         })
         if (!next.ok) continue
-        if (next.book) books = { ...books, [next.book.id]: next.book }
-        if (next.books) books = next.books as MatomezuState["books"]
+        if (next.book) library = { ...library, [next.book.id]: next.book }
+        if (next.books) library = next.books
         if (next.settings) settings = next.settings
       }
       const now = getState()
-      // 中身の同じブック・設定は前の値を使う（描き直しと、保存の知らせを減らす）
-      for (const [id, b] of Object.entries(books)) {
-        const old = now.books[id]
-        if (old && old !== b && JSON.stringify(old) === JSON.stringify(b)) books = { ...books, [id]: old }
-      }
+      const split = splitTrash(library)
+      const books = sameAs(split.books, now.books)
+      const trash = sameAs(split.trash, now.trash)
       if (JSON.stringify(settings) === JSON.stringify(now.settings)) settings = now.settings
-      const same =
-        Object.keys(books).length === Object.keys(now.books).length &&
-        Object.entries(books).every(([id, b]) => now.books[id] === b)
       const unreadable =
         JSON.stringify(found.warnings) === JSON.stringify(now.unreadable) ? now.unreadable : found.warnings
       const partial = JSON.stringify(found.partial) === JSON.stringify(now.partial) ? now.partial : found.partial
@@ -491,12 +475,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         world.touched === undefined || JSON.stringify(world.touched) === JSON.stringify(now.touched)
           ? now.touched
           : world.touched
-      const trash =
-        world.trash === undefined || JSON.stringify(world.trash) === JSON.stringify(now.trash) ? now.trash : world.trash
       commit({
         ...(touched === now.touched ? {} : { touched }),
         ...(trash === now.trash ? {} : { trash }),
-        ...(same ? {} : { books, workspace: followLibrary(catalog, now.workspace, books, now.books) }),
+        ...(books === now.books ? {} : { books, workspace: followLibrary(catalog, now.workspace, books, now.books) }),
         ...(settings === now.settings ? {} : { settings }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
