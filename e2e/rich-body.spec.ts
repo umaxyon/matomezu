@@ -84,7 +84,7 @@ test("マスターの設定で文字の色を自分用に変えると、図面�
   await trigger.hover()
   await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ホーム" }).click()
   const master = page.getByRole("region", { name: "マスター" })
-  await master.getByRole("button", { name: "文字の色: 注意" }).click()
+  await master.getByRole("button", { name: "注意" }).click()
   const picker = page.getByRole("dialog", { name: "色を選ぶ" })
   await picker.getByLabel("色の値（#rrggbb）").fill("#7c3aed")
   await picker.getByLabel("色の値（#rrggbb）").press("Enter")

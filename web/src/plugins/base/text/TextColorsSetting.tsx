@@ -1,13 +1,13 @@
-// 文字の色の設定のコンポーネント（設定の項目 book-text-colors のビュー）: 文字の色ごとに、色を選ぶポップアップ（「なし」は定義の色）
+// 文字の色の設定のコンポーネント（設定の項目 book-text-colors と、利用者の設定の項目 text-colors のビュー）: 文字の色ごとに、色を選ぶポップアップ（「なし」は定義の色）
 import { useMessages } from "../../../ui/i18n"
-import type { SettingControlProps } from "../../../ui/plugin"
+import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
 import { ColorPicker } from "../dialog-host/ColorPicker"
 import { rowClass, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { TextColorValues } from "./text-colors"
 
-export function TextColorsSetting({ label, value, onChange }: SettingControlProps<TextColorValues>) {
+export function TextColorsSetting({ label, value, onChange }: UserSettingControlProps<TextColorValues>) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const set = (id: string, hex: string | undefined) => {

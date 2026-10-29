@@ -16,7 +16,15 @@ import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SET
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
-import { FIXED_SETTINGS_CHECK, KEYS, LANG, SETTINGS_SET, SETTINGS_SET_COMMAND, SKIN } from "./settings"
+import {
+  FIXED_SETTINGS_CHECK,
+  KEYS,
+  LANG,
+  OPTION_TITLES_CHECK,
+  SETTINGS_SET,
+  SETTINGS_SET_COMMAND,
+  SKIN,
+} from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
 import { BOOK_TEXT_COLORS, TEXT_COLORS, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
@@ -138,7 +146,7 @@ export const BASE = defineBuiltin(
     skins: [DARK, LIGHT],
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
-    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, FIXED_SETTINGS_CHECK],
+    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, FIXED_SETTINGS_CHECK, OPTION_TITLES_CHECK],
     commands: [
       BOOK_NEW,
       STAGE_HOME,

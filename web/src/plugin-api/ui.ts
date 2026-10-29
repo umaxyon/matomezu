@@ -9,7 +9,15 @@ export { useMessages, useT } from "../ui/i18n"
 export type { ContextMenuEntry, LayoutDef, MenuItem, WidgetDef } from "../ui/layout"
 export { defineLayout, defineWidget } from "../ui/layout"
 export { useMenu, useMenuCommand } from "../ui/menu"
-export type { BookViewDef, BookViewProps, DialogProps, ItemUi, ItemViewProps, SettingControlProps } from "../ui/plugin"
+export type {
+  BookViewDef,
+  BookViewProps,
+  DialogProps,
+  ItemUi,
+  ItemViewProps,
+  SettingControlProps,
+  UserSettingControlProps,
+} from "../ui/plugin"
 export { definePluginUi } from "../ui/plugin"
 export { Slot } from "../ui/Slot"
 export { useActions, useLayoutWarnings } from "../ui/store-context"
