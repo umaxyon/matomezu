@@ -422,7 +422,9 @@ function Row({
           aria-label={t(r.closed ? "Open" : "Close")}
           aria-expanded={!r.closed}
           disabled={!toggle.enabled}
+          tabIndex={-1} // 押しても焦点を取らない（矢印のキーは行を選ぶ・開け閉めするコマンドが受ける）
           style={{ left: r.toggle.x, top: r.toggle.y }}
+          onMouseDown={e => e.preventDefault()} // 押しても焦点を取らない
           onPointerDown={e => e.stopPropagation()}
           onClick={() => toggle.run({ folder: r.id })}
         >

@@ -6,15 +6,16 @@ import {
   DIR_KEYS,
   ENTRY_DELETE,
   ENTRY_KIND_PICK,
+  ENTRY_LEFT,
   ENTRY_RENAME,
   ENTRY_SELECT_MOVE,
-  ENTRY_SELECT_PARENT,
   ENTRY_SELECT_ROOT,
   ENTRY_SETTINGS,
   FILE_ADD,
   FILE_ADD_BELOW,
   FOLDER_ADD,
   FOLDER_ADD_BELOW,
+  FOLDER_OPEN,
   FOLDER_SORT_ASC,
   FOLDER_SORT_DESC,
   FOLDER_TOGGLE,
@@ -32,7 +33,8 @@ export const DIR_PLUGIN = defineBuiltin(
     commands: [
       FOLDER_TOGGLE,
       ENTRY_SELECT_MOVE,
-      ENTRY_SELECT_PARENT,
+      ENTRY_LEFT,
+      FOLDER_OPEN,
       ENTRY_SELECT_ROOT,
       ENTRY_RENAME,
       FOLDER_ADD,
@@ -70,7 +72,8 @@ declare module "../../../core/catalog" {
   interface CommandTable {
     "@matomezu/dir:folder-toggle": typeof FOLDER_TOGGLE
     "@matomezu/dir:entry-select-move": typeof ENTRY_SELECT_MOVE
-    "@matomezu/dir:entry-select-parent": typeof ENTRY_SELECT_PARENT
+    "@matomezu/dir:entry-close-or-parent": typeof ENTRY_LEFT
+    "@matomezu/dir:folder-open": typeof FOLDER_OPEN
     "@matomezu/dir:entry-select-root": typeof ENTRY_SELECT_ROOT
     "@matomezu/dir:entry-rename": typeof ENTRY_RENAME
     "@matomezu/dir:folder-add": typeof FOLDER_ADD

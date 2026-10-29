@@ -1,5 +1,5 @@
 // ディレクトリ構成図のコマンド: フォルダを開け閉めする（▸・▾ が呼ぶ。鉛筆でもハンドでも。編集のロックなどでアクションが止められていれば押せない）と、鉛筆の間のコマンド。
-// 鉛筆の間は、↑・↓ で選ぶ行を替え、← で親のフォルダを選び、Home で根を選び、Enter と F2 で選んでいる行の名前をその場で書き始める。
+// 鉛筆の間は、↑・↓ で選ぶ行を替え、← で開いたフォルダを閉じ（ほかは親のフォルダを選び）、→ で閉じたフォルダを開き、Home で根を選び、Enter と F2 で選んでいる行の名前をその場で書き始める。
 // d と f で、すぐ下に兄弟のフォルダとファイルを足し（根では根の中の末尾に）、その場で名前を書き始める。
 // 選んでいる行の＋が、フォルダとファイルを足す（フォルダの行は中の末尾に。閉じていれば開く。ファイルの行はすぐ下に）。
 // 行の右クリックのメニューで、ノードの設定のダイアログを開き、フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。
@@ -103,15 +103,42 @@ export const ENTRY_SELECT_MOVE = kit.defineCommand({
   when: penciling,
 })
 
-// 親のフォルダを選ぶ（根ではそのまま）
-export const ENTRY_SELECT_PARENT = kit.defineCommand({
-  id: "entry-select-parent",
-  title: "Select parent",
+// 開いた中身のあるフォルダなら閉じ、ほかは親のフォルダを選ぶ（根ではそのまま）。閉じるアクションを行うので、ロックなどで止められていれば押せない
+export const ENTRY_LEFT = kit.defineCommand({
+  id: "entry-close-or-parent",
+  performs: [FOLDER_CLOSE.id],
+  permissionScope: "opened-page",
+  title: "Close or select parent",
   run: (ctx, a) => {
     const s = selected(ctx)
-    if (s) a.select(ctx.stage.id, [parentOf(s.root, s.id)])
+    const opened = ctx.stage.opened
+    if (!s || !opened) return
+    const e = entryOf(s.root, s.id)
+    if (e?.kind === "folder" && !e.closed && (e.children?.length ?? 0) > 0)
+      a.perform(FOLDER_CLOSE.id, { page: s.page.id, folder: s.id, closed: true }, { book: opened.book })
+    else a.select(ctx.stage.id, [parentOf(s.root, s.id)])
   },
   when: penciling,
+})
+
+// 閉じた中身のあるフォルダを選んでいれば開く（開くと紙に入らず断られたら、トーストで知らせる）
+export const FOLDER_OPEN = kit.defineCommand({
+  id: "folder-open",
+  performs: [FOLDER_CLOSE.id],
+  permissionScope: "opened-page",
+  title: "Open folder",
+  run: (ctx, a) => {
+    const s = selected(ctx)
+    const opened = ctx.stage.opened
+    if (!s || !opened) return
+    const done = a.perform(FOLDER_CLOSE.id, { page: s.page.id, folder: s.id, closed: false }, { book: opened.book })
+    if (!done.ok) refused(ctx, a, done)
+  },
+  when: ctx => {
+    const s = penciling(ctx) ? selected(ctx) : null
+    const e = s && entryOf(s.root, s.id)
+    return e?.kind === "folder" && e.closed === true && (e.children?.length ?? 0) > 0
+  },
 })
 
 export const ENTRY_SELECT_ROOT = kit.defineCommand({
@@ -268,12 +295,8 @@ export const DIR_KEYS = [
     args: { to: "down" },
     scope: DIR_KEYS_SCOPE,
   }),
-  kit.defineKey({
-    id: "entry-select-parent-left",
-    key: "ArrowLeft",
-    command: ENTRY_SELECT_PARENT.id,
-    scope: DIR_KEYS_SCOPE,
-  }),
+  kit.defineKey({ id: "entry-close-or-parent-left", key: "ArrowLeft", command: ENTRY_LEFT.id, scope: DIR_KEYS_SCOPE }),
+  kit.defineKey({ id: "folder-open-right", key: "ArrowRight", command: FOLDER_OPEN.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "entry-select-root-home", key: "Home", command: ENTRY_SELECT_ROOT.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "entry-rename-enter", key: "Enter", command: ENTRY_RENAME.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "entry-rename-f2", key: "F2", command: ENTRY_RENAME.id, scope: DIR_KEYS_SCOPE }),

@@ -140,7 +140,7 @@ const selectedRow = () => paper().querySelector('[data-selected="true"]')?.getAt
 const row = (id: string) => paper().querySelector(`[data-entry="${id}"]`) as HTMLElement
 const press = (key: string) => fireEvent.keyDown(window, { key })
 
-test("鉛筆では初めは根を選び、押した行・↑↓ で選ぶ行を替える。← で親のフォルダ、Home で根に戻る。ハンドでは選んだ印を出さない", () => {
+test("鉛筆では初めは根を選び、押した行・↑↓ で選ぶ行を替える。← で開いたフォルダを閉じ（ほかは親のフォルダ）、→ で閉じたフォルダを開き、Home で根に戻る。ハンドでは選んだ印を出さない", () => {
   const { store, perform } = setup()
   const ids = addProject(perform)
   expect(selectedRow()).toBe(ids.root)
@@ -150,13 +150,23 @@ test("鉛筆では初めは根を選び、押した行・↑↓ で選ぶ行を�
   expect(selectedRow()).toBe(ids.readme)
   press("ArrowUp")
   expect(selectedRow()).toBe(ids.a)
-  press("ArrowLeft") // 親のフォルダ
+  press("ArrowLeft") // ファイルからは親のフォルダ
+  expect(selectedRow()).toBe(ids.src)
+  press("ArrowLeft") // 開いたフォルダは閉じる
+  expect(selectedRow()).toBe(ids.src)
+  expect(rowNames()).toEqual(["proj", "src", "README.md"])
+  press("ArrowRight") // 閉じたフォルダは開く
+  expect(rowNames()).toEqual(["proj", "src", "a.ts", "README.md"])
+  press("ArrowRight") // 開いていれば何もしない
   expect(selectedRow()).toBe(ids.src)
   press("ArrowLeft")
+  press("ArrowLeft") // 閉じたフォルダからは親
   expect(selectedRow()).toBe(ids.root)
-  press("ArrowLeft") // 根はそのまま
+  press("ArrowLeft") // 根も開いていれば閉じる
+  expect(rowNames()).toEqual(["proj"])
+  press("ArrowLeft") // 閉じた根はそのまま
   expect(selectedRow()).toBe(ids.root)
-  press("ArrowDown")
+  press("ArrowRight")
   press("Home")
   expect(selectedRow()).toBe(ids.root)
   act(() => store.actions.command("s1", "@matomezu/base:tool-set", "@matomezu/base:hand"))
