@@ -6,8 +6,9 @@
 import { z } from "zod"
 import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
+import type { CoreCatalog } from "../core/core-catalog"
 import { detectLang, translate } from "../core/i18n/i18n"
-import { performIn } from "../core/perform"
+import { type PerformedIn, performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
@@ -44,12 +45,26 @@ interface Input {
 }
 
 // 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック。
-// 認可ステップが止めたら（denied）、permission にそのステップの id、detail にそのステップの AI への説明
+// 認可ステップが止めたら（denied）、permission にそのステップの id、detail にそのステップの AI への説明。
+// 利用者の設定の項目で使えなければ（not-allowed）、detail にその項目と理由
 type Output =
   | { ok: true; result: unknown; books: Book[]; removed: string[]; settings?: unknown }
   | { ok: false; reason: string; permission?: string; detail?: string }
 
 declare const crypto: { randomUUID(): string }
+
+// 断りに、AI への説明を添える
+function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>): Output {
+  if ("permission" in done) return { ...done, detail: catalog.permissions.get(done.permission)?.aiDescription }
+  if ("setting" in done && done.setting !== undefined) {
+    const detail =
+      done.because === "user-only"
+        ? `the setting ${done.setting} is changed only by the user; ask the user in the chat`
+        : `the home book's type keeps the setting ${done.setting} fixed`
+    return { ok: false, reason: done.reason, detail }
+  }
+  return done
+}
 
 function perform(input: Input): Output {
   const { home } = assembled
@@ -66,8 +81,7 @@ function perform(input: Input): Output {
     now: input.now ?? new Date().toISOString(),
     ...(input.by === "ai" ? { by: "ai" as const } : {}),
   })
-  if (!done.ok)
-    return "permission" in done ? { ...done, detail: catalog.permissions.get(done.permission)?.aiDescription } : done
+  if (!done.ok) return refusal(catalog, done)
   const next = done.books
   const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
   const removed = next ? Object.keys(books).filter(id => !(id in next)) : []

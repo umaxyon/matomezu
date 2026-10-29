@@ -8,7 +8,7 @@ import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../page-tabs/page-problems"
-import { BOOK_PAPER_COLOR, BOOK_THEME } from "./look"
+import { BOOK_PAPER_COLOR } from "./look"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME, bookTheme, bookTokens } from "./look"
 
@@ -18,13 +18,11 @@ const ARGS = z.strictObject({
 })
 
 // ブック book に、ブックの設定の項目 settings（ブックのタイプが選んだ項目だけ。null は消す）を当てたブック。形に合わない・選んでいないタイプなら null。
-// 表に無いテーマは断り、紙の色は小文字にそろえ、ページを整え（settleBook）、問題の出るページがあれば断る（book-update と book-create が使う）
+// 紙の色は小文字にそろえ、ページを整え（settleBook）、問題の出るページがあれば断る（book-update と book-create が使う）
 export function withBookSettings(catalog: CoreCatalog, book: Book, settings: unknown): Book | null {
   const patch = settingsPatchOf(catalog, book, "book")?.safeParse(settings)
   if (!patch?.success) return null
   const values = { ...(patch.data as Record<string, unknown>) }
-  const theme = values[BOOK_THEME.id]
-  if (typeof theme === "string" && !catalog.themes.has(theme)) return null
   const paper = values[BOOK_PAPER_COLOR.id]
   if (typeof paper === "string") values[BOOK_PAPER_COLOR.id] = paper.toLowerCase()
   const settled = settleBook(catalog, withSettings<Book>(book, values))
@@ -32,7 +30,7 @@ export function withBookSettings(catalog: CoreCatalog, book: Book, settings: unk
 }
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
-// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す）。表に無いテーマは断り、紙の色は小文字にそろえる。変えたらページを整える（settleBook）
+// settings はブックのタイプが選んだ項目だけ（形に合わない・選んでいないタイプなら断る。null は消す。テーマは表にあるテーマのどれか）。紙の色は小文字にそろえる。変えたらページを整える（settleBook）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
   attach: { books: true },

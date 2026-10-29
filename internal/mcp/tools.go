@@ -201,7 +201,7 @@ func show(api API, args map[string]any) (string, bool) {
 	return refusalText(done.Reason, done.Detail), true
 }
 
-// refusalText は断った理由の、AI に返す 1 行。detail は理由に添える値（読めないブックの warning など）
+// refusalText は断った理由の、AI に返す 1 行。detail は理由に添える値（読めないブックの warning、使えない利用者の設定の項目と理由など）
 func refusalText(reason, detail string) string {
 	switch reason {
 	case "no-book":
@@ -211,6 +211,9 @@ func refusalText(reason, detail string) string {
 	case "bad-args":
 		return "bad-args: the args do not match the action's args (see actions)"
 	case "not-allowed":
+		if detail != "" {
+			return "not-allowed: " + detail
+		}
 		return "not-allowed: this book's type (or, for the library and the settings, the home book's type) does not allow it"
 	case "unknown":
 		return "unknown: there is no action with that id (see actions)"

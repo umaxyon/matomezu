@@ -77,7 +77,7 @@ test("既定のテーマはミントで、置いてほしいと書いたボタ�
   expect(instance.state.getState().books[book]).toMatchObject({ settings: { "@matomezu/base:book-theme": "ex3:mint" } })
 })
 
-test("持ち込んだスキンを、見る人の設定で選べる", () => {
+test("持ち込んだスキンを、利用者の設定で選べる", () => {
   const instance = make()
   act(() => {
     const values = { "@matomezu/base:skin": "ex3:night" }

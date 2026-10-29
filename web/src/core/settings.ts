@@ -1,4 +1,4 @@
-// 見る人ごとの設定: 利用者の設定の項目の id → 値。ブックのデータではなく、変えるのは対象 settings のアクション（使えるかはホームのブックのタイプが決める）。
+// 利用者の設定: 利用者の設定の項目の id → 値。ブックのデータではなく、変えるのは対象 settings のアクション（使えるかはホームのブックのタイプが決める）。
 // 項目はプラグインの userSettings が持つ（core/def/setting.ts）。機能台帳に無い項目・今の形に合わない値も捨てずに残し（プラグインを戻せばまた効く）、読むときに形に合わなければ既定を使う
 import { z } from "zod"
 import type { CoreCatalog } from "./core-catalog"
@@ -31,19 +31,19 @@ const byRole = (catalog: CoreCatalog, settings: Settings, role: SettingRole): un
   return def ? userSetting(catalog, settings, def.id) : undefined
 }
 
-// 今の言語: 役 lang の項目が選んだ言語パックの言語。選んでいない・使えなければ fallback（インスタンスを作ったときに決めた言語）
+// 今の言語: role が lang の項目が選んだ言語パックの言語。選んでいない・使えなければ fallback（インスタンスを作ったときに決めた言語）
 export function langOf(catalog: CoreCatalog, settings: Settings, fallback: Lang): Lang {
   const pack = byRole(catalog, settings, "lang")
   return (typeof pack === "string" ? catalog.languagePacks.get(pack)?.lang : undefined) ?? fallback
 }
 
-// 今のスキン: 役 skin の項目の値（スキンの id か、OS の明暗に合わせる "auto"）。無ければ "auto"
+// 今のスキン: role が skin の項目の値（スキンの id か、OS の明暗に合わせる "auto"）。無ければ "auto"
 export function skinOf(catalog: CoreCatalog, settings: Settings): string {
   const skin = byRole(catalog, settings, "skin")
   return typeof skin === "string" ? skin : "auto"
 }
 
-// キーの割り当ての、利用者の変更: 役 keys の項目の値。無ければ変更なし
+// キーの割り当ての、利用者の変更: role が keys の項目の値。無ければ変更なし
 export function keyChangesOf(catalog: CoreCatalog, settings: Settings): KeyChanges {
   const parsed = KeyChangesSchema.safeParse(byRole(catalog, settings, "keys"))
   return parsed.success ? parsed.data : NO_KEY_CHANGES
