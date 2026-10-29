@@ -40,6 +40,7 @@ export function useLinkDrag(
   }, [active])
   return {
     link: active ? link.current : null, // 引いているドラッグ（引いていなければ null）
+    usable: draw.enabled, // 線を引けるか（認可ステップが止めていれば引けない）
     tip,
     start(e: PointerEvent<Element>, page: ItemPage, rect: Rect, from: string, side: Side) {
       if (e.button !== 0 || !draw.enabled) return
