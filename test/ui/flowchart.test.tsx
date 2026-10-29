@@ -37,10 +37,22 @@ function flowchart() {
   return { store, on: { book: id }, book, page }
 }
 
-test("フローチャートの道具箱（下の行のドロワー）には、形・箱・線が並ぶ", () => {
-  flowchart()
-  for (const name of ["角丸", "箱", "ひし形", "平行四辺形", "平行四辺形（逆）", "台形", "台形（逆）", "六角形", "円"])
-    expect(screen.getByRole("button", { name, hidden: true })).toBeTruthy()
+test("フローチャートの道具箱（下の行のドロワー）には箱と「形」のボタンが並び、「形」で開くパネルに 8 つの形が並ぶ。形を押すとパネルを閉じてその形を置こうとする", () => {
+  const { store } = flowchart()
+  expect(screen.getByRole("button", { name: "箱", hidden: true })).toBeTruthy()
+  expect(screen.queryByRole("button", { name: "角丸", hidden: true })).toBeNull()
+  fireEvent.click(screen.getByRole("button", { name: "形", hidden: true }))
+  const panel = screen.getByRole("group", { name: "形", hidden: true })
+  const names = ["角丸", "ひし形", "平行四辺形", "平行四辺形（逆）", "台形", "台形（逆）", "六角形", "円"]
+  expect(
+    within(panel)
+      .getAllByRole("button", { hidden: true })
+      .map(b => b.getAttribute("aria-label")),
+  ).toEqual(names)
+  fireEvent.click(within(panel).getByRole("button", { name: "ひし形", hidden: true }))
+  expect(screen.queryByRole("group", { name: "形", hidden: true })).toBeNull()
+  expect(store.state.getState().workspace.stages[0]!.placing).toBe("@matomezu/shape:shape-diamond")
+  expect(screen.getByRole("button", { name: "形", hidden: true }).getAttribute("aria-pressed")).toBe("true")
 })
 
 test("8 つの形を置け、形ごとの輪郭で描く。置いたときの幅はキャプションが見える幅（一番狭くて形の大きさ）", () => {
