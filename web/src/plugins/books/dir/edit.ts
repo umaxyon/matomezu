@@ -71,16 +71,22 @@ export function addEntries(
   })
 }
 
-// 中身 id（根も）の名前と色を patch で替えた根（書いた所だけ替え、色の null は消す。無ければ null）
+// 中身 id（根も）の名前・説明・色を patch で替えた根（書いた所だけ替え、説明と色の null は消す。空の説明も消す。無ければ null）
 export function changeEntry(
   root: DirFolder,
   id: string,
-  patch: { name?: string; color?: string | null },
+  patch: { name?: string; description?: string | null; color?: string | null },
 ): DirFolder | null {
   return mapEntry(root, id, e => {
-    const { color: _color, ...rest } = e
+    const { color: _color, description: _description, ...rest } = e
     const color = patch.color === undefined ? e.color : (patch.color ?? undefined)
-    return { ...rest, name: patch.name ?? e.name, ...(color ? { color } : {}) }
+    const description = patch.description === undefined ? e.description : (patch.description ?? undefined)
+    return {
+      ...rest,
+      name: patch.name ?? e.name,
+      ...(description ? { description } : {}),
+      ...(color ? { color } : {}),
+    }
   })
 }
 

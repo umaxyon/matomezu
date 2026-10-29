@@ -2,7 +2,7 @@
 // 鉛筆の間は、↑・↓ で選ぶ行を替え、← で親のフォルダを選び、Home で根を選び、Enter と F2 で選んでいる行の名前をその場で書き始める。
 // d と f で、すぐ下に兄弟のフォルダとファイルを足し（根では根の中の末尾に）、その場で名前を書き始める。
 // 選んでいる行の＋が、フォルダとファイルを足す（フォルダの行は中の末尾に。閉じていれば開く。ファイルの行はすぐ下に）。
-// 行の右クリックのメニューで、名前を書き、設定のダイアログを開き、フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。
+// 行の右クリックのメニューで、ノードの設定のダイアログを開き、フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。
 // フォルダを選んで Tab を押すと、中に足す種類を選び始める（その場の編集の名前 KIND_PICK。選ぶ枠はビューが出す）。キーはディレクトリ構成図の見せ方の範囲
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { refusalMessage } from "../../base"
@@ -198,7 +198,7 @@ export const ENTRY_KIND_PICK = kit.defineCommand({
   },
 })
 
-// 選んでいる行（根も）の設定のダイアログ（名前と色）を開く
+// 選んでいる行（根も）のノードの設定のダイアログ（名前・説明・色）を開く
 export const ENTRY_SETTINGS = kit.defineCommand({
   id: "entry-settings",
   performs: [ENTRY_UPDATE.id],

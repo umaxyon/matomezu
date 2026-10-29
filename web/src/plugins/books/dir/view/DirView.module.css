@@ -295,3 +295,17 @@
   box-shadow: 0 0 0 1px var(--theme-paper);
   pointer-events: none;
 }
+/* 説明（行の右にそろえた列。1 行。名前より薄い字） */
+.note {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  color: var(--dir-text);
+  opacity: 0.7;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}

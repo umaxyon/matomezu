@@ -1,9 +1,11 @@
 // ディレクトリ構成図の並べ方: 根のフォルダと中身の入れ子から、紙の上の行と罫線を決める（データに位置は持たない）。
 // 上から下へ 1 行ずつ並べ、中身は深さごとに字下げする（閉じたフォルダの中身は並べない）。行は、アイコンとその右の名前（1 行。折り返さない）。
 // 罫線は、フォルダのアイコンの真ん中から下へ、最後の中身の行まで縦に引き、そこから中身ごとにアイコンの手前まで横に引く。
-// フォルダの開け閉めの印（▸・▾）は、その行へ横に引く線の付け根（根は、根のアイコンの左）に置く
+// フォルダの開け閉めの印（▸・▾）は、その行へ横に引く線の付け根（根は、根のアイコンの左）に置く。
+// 説明は、いちばん右まで伸びた行の右から NOTE_GAP 空けた所に、どの行もそろえて 1 行で置く。紙の右に収まらない分は … で切り、
+// 行が紙の幅の NOTE_LIMIT を超えて右へ伸びていれば、説明はどれも出さない
 import type { Point } from "../../../plugin-api"
-import { parseRich, type RichLine, richWidth, TEXT_LOOK, textWidth } from "../../base"
+import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, textWidth, wrapRich } from "../../base"
 import { rowsOf } from "./edit"
 import type { DirFolder, Kind } from "./entry"
 
@@ -13,6 +15,8 @@ export const INDENT = 24 // 1 段の字下げ
 export const ICON = 16 // アイコンの大きさ
 const NAME_GAP = 6 // アイコンと名前の間
 const TICK_GAP = 3 // 横の罫線の端と、アイコンの間
+export const NOTE_GAP = 50 // いちばん右まで伸びた行と、説明の間
+export const NOTE_LIMIT = 0.8 // 行がこの割合より紙の右へ伸びたら、説明を出さない
 
 // 名前の字（標準は普通の太さ。**…** で囲んだ所が太字）
 const FONT = { size: TEXT_LOOK.caption.size, weight: 400 } as const
@@ -30,11 +34,13 @@ export interface LaidRow {
   w: number // アイコンから名前の右まで
   h: number
   toggle: Point | null // 開け閉めの印の真ん中（フォルダだけ）
+  note: RichLine | null // 見せる説明（装飾の区切りの並び。… で切った物。無い・出さないなら null）
 }
 
 export interface DirLayout {
   rows: LaidRow[]
   lines: { from: Point; to: Point }[] // 罫線（縦か横の線分）
+  notes: { x: number; w: number } | null // 説明の列の左と幅（出さないなら null）
   fits: boolean // どの行も紙に収まるか
 }
 
@@ -76,6 +82,7 @@ export function layoutDir(root: DirFolder, paper: { w: number; h: number }): Dir
       w: ICON + NAME_GAP + nameWidth(entry.name),
       h: ROW,
       toggle: folder ? { x: x - INDENT + ICON / 2, y: y + ROW / 2 } : null,
+      note: null,
     }
   })
   const at = new Map(rows.map((r, i) => [r.entry.id, i]))
@@ -96,5 +103,20 @@ export function layoutDir(root: DirFolder, paper: { w: number; h: number }): Dir
     }
   }
   const fits = laid.every(r => r.x + r.w <= paper.w - MARGIN && r.y + r.h <= paper.h - MARGIN)
-  return { rows: laid, lines, fits }
+  const notes = notesOf(laid, paper.w)
+  if (notes)
+    for (const [i, r] of rows.entries()) {
+      const row = laid[i]
+      const text = r.entry.description?.replace(/\n/g, " ")
+      if (row && text) row.note = clampRich(wrapRich(text, notes.w, FONT), 1, notes.w, FONT)[0] ?? null
+    }
+  return { rows: laid, lines, notes, fits }
+}
+
+// 説明の列（いちばん右まで伸びた行の右から NOTE_GAP。紙の右の余白まで）。行が紙の幅の NOTE_LIMIT を超えて伸びた・列の幅が無ければ null
+function notesOf(rows: readonly LaidRow[], paperW: number): { x: number; w: number } | null {
+  const right = Math.max(...rows.map(r => r.x + r.w))
+  const x = right + NOTE_GAP
+  const w = paperW - MARGIN - x
+  return right > paperW * NOTE_LIMIT || w <= 0 ? null : { x, w }
 }

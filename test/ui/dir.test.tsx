@@ -231,7 +231,7 @@ test("行の右クリックでその行を選んでメニューを開く。並�
     within(screen.getByRole("menu"))
       .getAllByRole("menuitem")
       .map(m => m.textContent)
-  expect(items()).toEqual(["名前を変えるEnter", "設定…", "昇順で並べる", "降順で並べる", "削除Delete"])
+  expect(items()).toEqual(["設定…", "昇順で並べる", "降順で並べる", "削除Delete"])
   fireEvent.keyDown(window, { key: "Escape" })
   fireEvent.contextMenu(row(ids.a))
   expect(items()).not.toContain("昇順で並べる")
@@ -243,17 +243,30 @@ test("行の右クリックでその行を選んでメニューを開く。並�
   expect(rowNames()).toEqual(["proj", "src", "README.md"])
 })
 
-test("設定のダイアログで名前と色を替える（ファイルは「ファイルの設定」）", () => {
+test("右クリックの「設定…」で、フォルダもファイルも同じノードの設定のダイアログを開き、名前と説明を替える（空の説明は消す）", () => {
   const { book, perform } = setup()
   const ids = addProject(perform)
   fireEvent.contextMenu(row(ids.readme))
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "設定…" }))
-  const dialog = screen.getByRole("dialog", { name: "ファイルの設定" })
+  let dialog = screen.getByRole("dialog", { name: "ノードの設定" })
   fireEvent.change(within(dialog).getByLabelText("名前"), { target: { value: "README.txt" } })
+  fireEvent.change(within(dialog).getByLabelText("説明"), { target: { value: "はじめに読む" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
   expect(screen.queryByRole("dialog")).toBeNull()
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "README.txt"])
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ kind: "folder" }, { name: "README.txt" }] } })
+  expect(book().pages[0]).toMatchObject({
+    root: { children: [{ kind: "folder" }, { name: "README.txt", description: "はじめに読む" }] },
+  })
+  expect(paper().querySelector(`[data-note="${ids.readme}"]`)?.textContent).toBe("はじめに読む")
+  fireEvent.contextMenu(row(ids.src))
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "設定…" }))
+  dialog = screen.getByRole("dialog", { name: "ノードの設定" })
+  fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
+  fireEvent.contextMenu(row(ids.readme))
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "設定…" }))
+  fireEvent.change(within(screen.getByRole("dialog")).getByLabelText("説明"), { target: { value: " " } })
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).not.toHaveProperty("root.children.1.description")
 })
 
 test("フォルダを選んで Tab で、行のすぐ右に種類を選ぶ枠を出す。↑↓ と Enter で選んだ種類を中の末尾に足して書き始め、Escape でやめる。ファイルでは出さない", () => {

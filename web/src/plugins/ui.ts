@@ -60,7 +60,6 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     "@matomezu/dir:dir-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
     "@matomezu/dir:entry-context": [
-      "@matomezu/dir:entry-rename",
       "@matomezu/dir:entry-settings",
       "@matomezu/dir:folder-sort-asc",
       "@matomezu/dir:folder-sort-desc",

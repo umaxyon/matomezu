@@ -1,11 +1,11 @@
-// ディレクトリ構成図のアクション: 中身を足す（id の無い入れ子で受け、全部に id を振って返す）・パスの並びから組み立てる・名前と色を替える（根も）・
+// ディレクトリ構成図のアクション: 中身を足す（id の無い入れ子で受け、全部に id を振って返す）・パスの並びから組み立てる・名前と説明と色を替える（根も）・
 // 中身ごと消す（根は消せない）・中身ごとほかのフォルダへ移す（付け替えと並びの入れ替え）・フォルダを開け閉めする・フォルダの直下を名前で並べる。
 // ページのフィールド root を書き換える。書き換えた行が紙に入らなければ断る。ディレクトリ構成図の見せ方について来る
 import { z } from "zod"
 import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
 import { contentIdMaker } from "../../base"
 import { addEntries, buildPaths, changeEntry, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
-import { type DirFolder, DirFolderSchema, EntryColorSchema, giveIds, NewEntrySchema } from "./entry"
+import { type DirFolder, DirFolderSchema, descriptionText, EntryColorSchema, giveIds, NewEntrySchema } from "./entry"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 
@@ -79,20 +79,22 @@ export const ENTRY_UPDATE = kit.defineAction({
   id: "entry-update",
   attach: ON_DIRS,
   aiDescription:
-    "Change a folder or file of a directory page (the root too): its name and its color (a palette name or #rrggbb; null for the theme's color). Only what is given changes. Returns nothing. Refused for an entry not in the page or when the rows would not fit on the paper.",
+    "Change a folder or file of a directory page (the root too): its name, its description (null or empty removes it) and its color (a palette name or #rrggbb; null for the theme's color). Only what is given changes. Returns nothing. Refused for an entry not in the page or when the rows would not fit on the paper.",
   title: "Update entry",
   target: "book",
   args: z.strictObject({
     page: PAGE,
     entry: z.string().min(1),
     name: z.string().optional(),
+    description: descriptionText().nullable().optional(),
     color: EntryColorSchema.nullable().optional(),
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
-    const next = dir && changeEntry(dir.root, args.entry, { name: args.name, color: args.color })
+    const next =
+      dir && changeEntry(dir.root, args.entry, { name: args.name, description: args.description, color: args.color })
     const written = next && dir?.put(next)
     return written ? { next: written, result: {} } : null
   },

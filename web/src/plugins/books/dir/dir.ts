@@ -23,7 +23,7 @@ export const NEW_DIR_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
 export const DIR_CONTEXT = kit.name("dir-context")
 export const ENTRY_CONTEXT = kit.name("entry-context")
 
-// 中身（根も）の設定のダイアログ（開いたステージのブックの、ページ page の中身 entry の名前と色）
+// ノード（中身。根も）の設定のダイアログ（開いたステージのブックの、ページ page の中身 entry の名前・説明・色）
 export const ENTRY_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; entry: string }>()({ id: "entry-settings" })
 
 // 中身の色（無ければテーマの色）のテーマキー

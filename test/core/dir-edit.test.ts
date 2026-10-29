@@ -16,7 +16,7 @@ import {
 } from "../../web/src/plugins/books/dir/edit"
 import type { DirEntry, DirFolder } from "../../web/src/plugins/books/dir/entry"
 import { giveIds } from "../../web/src/plugins/books/dir/entry"
-import { ICON, INDENT, layoutDir, MARGIN, ROW } from "../../web/src/plugins/books/dir/layout"
+import { ICON, INDENT, layoutDir, MARGIN, NOTE_GAP, NOTE_LIMIT, ROW } from "../../web/src/plugins/books/dir/layout"
 
 // 根 r の中に フォルダ src（a.ts・ui（b.tsx））と README.md
 const dir: DirFolder = {
@@ -199,4 +199,25 @@ test("ドラッグで落とす先: フォルダの行の真ん中は中の末尾
   expect(where("r", "readme", 0.5)).toBeNull() // 根は動かせない
   // 同じフォルダの中の並べ替えは、動かす物を除いた並びで数える
   expect(where("src", "readme", 0.9)).toEqual({ parent: "r", index: 1, mark: "between" })
+})
+
+test("説明は、いちばん右まで伸びた行の右から 50 空けた所にそろえて置き、紙に入らない分は … で切る。行が紙の幅の 8 割を超えたら出さない", () => {
+  const noted = changeEntry(changeEntry(dir, "a", { description: "説明です" })!, "r", {
+    description: "長い".repeat(200),
+  })!
+  const laid = layoutDir(noted, { w: 794, h: 1123 })
+  const right = Math.max(...laid.rows.map(r => r.x + r.w))
+  expect(laid.notes).toEqual({ x: right + NOTE_GAP, w: 794 - MARGIN - (right + NOTE_GAP) })
+  const note = (id: string) =>
+    laid.rows
+      .find(r => r.id === id)
+      ?.note?.map(r => r.text)
+      .join("")
+  expect(note("a")).toBe("説明です")
+  expect(note("r")?.endsWith("…")).toBe(true)
+  expect(note("src")).toBeUndefined()
+  const wide = { w: Math.floor(right / NOTE_LIMIT) - 1, h: 1123 }
+  expect(layoutDir(noted, wide).notes).toBeNull()
+  expect(layoutDir(noted, wide).rows.every(r => r.note === null)).toBe(true)
+  expect(entryOf(changeEntry(noted, "a", { description: null })!, "a")).not.toHaveProperty("description")
 })
