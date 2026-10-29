@@ -1,5 +1,6 @@
 // ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
 import { expect, type Page, test } from "@playwright/test"
+import { selectText } from "./rich"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 
@@ -137,18 +138,19 @@ test("キャプションは普通の太さ。＋で足した節は空から書�
   await expect(paperEl.locator('[data-root="true"]')).toHaveCSS("font-weight", "400")
   await paperEl.getByRole("button", { name: "子を足す" }).click()
   const input = paperEl.getByRole("textbox", { name: "キャプション" })
-  await expect(input).toHaveValue("")
+  await expect(input).toHaveText("")
   await page.keyboard.type("大事")
-  await input.evaluate((el: HTMLInputElement) => el.setSelectionRange(0, 2))
+  await selectText(input, 0, 2)
   const bar = paperEl.getByRole("toolbar", { name: "本文の装飾" })
   await bar.getByRole("button", { name: "太字" }).click()
-  await expect(input).toHaveValue("**大事**")
-  await input.evaluate((el: HTMLInputElement) => el.setSelectionRange(2, 4))
+  // 記号は見せず、太字で描く
+  await expect(input).toHaveText("大事")
+  await expect(input.locator("[data-bold]")).toHaveText("大事")
   const box = (await bar.boundingBox())!
   const field = (await input.boundingBox())!
   expect(box.y + box.height).toBeLessThanOrEqual(field.y)
   await bar.getByRole("button", { name: "エラー" }).click()
-  await expect(input).toHaveValue("**{error:大事}**")
+  await expect(input.locator('[data-bold][data-color="@matomezu/base:error"]')).toHaveText("大事")
   await expect(input).toBeFocused()
   await page.keyboard.press("Enter")
   const span = paperEl.locator('[data-node]:not([data-root="true"]) span').first()

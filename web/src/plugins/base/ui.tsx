@@ -42,7 +42,7 @@ export {
 } from "./dialog-host/FormParts"
 export { ALIGN_ICONS, useAligns, useBookOf, useBookTheme, useSwatches, useThemeVars } from "./item-parts/parts"
 export { UserSettings } from "./settings/ui"
-export { RichBar, RichBody, RichText } from "./text/ui"
+export { RichBar, RichBody, RichInput, type RichInputHandle, RichText } from "./text/ui"
 export * from "./utils/ui"
 export { defineWorkspace, STAGE_BASE_SLOTS, type StageSlotProps } from "./workspace/ui"
 

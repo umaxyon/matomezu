@@ -27,7 +27,7 @@ export const bodyText = () =>
     .string()
     .max(BODY_MAX)
     .describe(
-      "Text with line breaks. **bold** makes it bold and {name:text} colors it with a text color (name from textColors, such as {warn:text}); unpaired marks stay as they are",
+      "Text with line breaks. **bold** makes it bold and {name:text} colors it with a text color (name from textColors, such as {warn:text}); unpaired marks stay as they are, and a \\ before *, {, } or \\ keeps that character as it is",
     )
 
 // 文字の項目の形（既定を付ける前）。使う側が既定を付ける（キャプションの寄せの既定は形ごとに違う）

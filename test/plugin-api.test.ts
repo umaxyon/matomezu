@@ -148,6 +148,7 @@ test("matomezu/ui が出す名前", () => {
     "Problem",
     "RichBar",
     "RichBody",
+    "RichInput",
     "RichText",
     "STAGE_BASE_SLOTS",
     "Section",

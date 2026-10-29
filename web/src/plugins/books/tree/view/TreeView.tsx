@@ -6,7 +6,7 @@
 // （編集の道具では 125%、ほかの道具では 100% に。選ぶ節が替わると紙の動きをなめらかにする）。
 // 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子。ふだんは小さな点で、ポインタを近づけると＋の丸に開く）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と F2 のコマンド）でも編集し始める
 // （根はページの設定のダイアログを開く）。節の形が下線でも、根は箱で描く。
-// その場で編集中は、書いている字で節の大きさを決め直し、テキストFormのすぐ上に装飾のボックス（base の RichBar。太字と文字の色）を出す（押しても焦点は外れない）。キャプションは普通の太さで、装飾して描く。節の形が下線なら、テキストFormと選んでいる印も下線で描く。Enter かテキストFormの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
+// その場で編集中は、書いている字で節の大きさを決め直し、装飾を見たまま書く入力Form（base の RichInput）と、そのすぐ上に装飾のボックス（base の RichBar。太字と文字の色）を出す（押しても焦点は外れない）。キャプションは普通の太さで、装飾して描く。節の形が下線なら、入力Formと選んでいる印も下線で描く。Enter か入力Formの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
 // 編集の道具の間は、根でない節を押して動かすとドラッグになり、落とした所で子孫ごと付け替える（落とす先は drag.ts が決める。節の写しがポインタに付き、元の節と子孫は薄く、
 // 子として入る節には点線の枠、兄弟の間に入る所には線を出す）。押している間は、選んだ節を真ん中に持ってこない（離してから）。
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
@@ -26,7 +26,7 @@ import {
   useStage,
 } from "../../../../plugin-api/ui"
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
-import { RichBar, RichText, useResize, useZoomMotion } from "../../../base/ui"
+import { RichBar, RichInput, type RichInputHandle, RichText, useResize, useZoomMotion } from "../../../base/ui"
 import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { dropAt, subtreeIds } from "../drag"
 import {
@@ -146,10 +146,10 @@ function Tree({
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root.success ? selectedIn(root.data, stage.selection) : null
   const writing = usingEdit && stage.editing && selected !== null
-  // 書いている字（どの節のものか）と、テキストFormを出してから終えたか（Enter のあとの blur で 2 度終えない）
+  // 書いている字（どの節のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
   const ended = useRef(false)
-  const editor = useRef<HTMLInputElement>(null)
+  const editor = useRef<RichInputHandle>(null)
   const drag = useNodeDrag(stage, area)
   const text = writing && draft?.node === selected ? draft.text : null
   const shown = root.success && selected && text !== null ? withCaption(root.data, selected, text) : root.data
@@ -225,7 +225,7 @@ function Tree({
           style={{ left: n.x, top: n.y, width: n.w, height: n.h, ...nodePaint(n.color) }}
           onPointerDown={e => {
             if (e.button !== 0 || !usingEdit) return
-            if (writing) end(true) // テキストFormが外れるより先に選びが替わるので、ここで確定する
+            if (writing) end(true) // 入力Formが外れるより先に選びが替わるので、ここで確定する
             select(stage.id, [n.id])
             if (n.id !== tree.id) drag.start(n, e.clientX, e.clientY)
           }}
@@ -278,27 +278,20 @@ function Tree({
         <div data-spotlight className={styles.spotlight} style={{ left: at.x, top: at.y, width: at.w, height: at.h }} />
       )}
       {writing && at && (
-        <RichBar
-          stage={stage.id}
-          target={editor}
-          value={text ?? at.caption}
-          maxLength={Number.POSITIVE_INFINITY}
-          onChange={next => setDraft({ node: selected, text: next })}
-          className={styles.editorBar}
-          style={{ left: at.x, top: at.y }}
-        />
+        <RichBar stage={stage.id} target={editor} className={styles.editorBar} style={{ left: at.x, top: at.y }} />
       )}
       {writing && at && (
-        <input
+        <RichInput
           ref={editor}
+          stage={stage.id}
           className={styles.editor}
-          data-shape={selected === tree.id ? "box" : shape}
-          aria-label={t("Caption")}
-          // biome-ignore lint/a11y/noAutofocus: その場で編集し始めたら、すぐに書ける
+          data={{ "data-shape": selected === tree.id ? "box" : shape }}
+          label={t("Caption")}
+          multiline={false}
           autoFocus
           value={text ?? at.caption}
           style={{ left: at.x, top: at.y, width: editorWidth(text ?? at.caption, at.w), height: at.h }}
-          onChange={e => setDraft({ node: selected, text: e.target.value })}
+          onChange={next => setDraft({ node: selected, text: next })}
           onFocus={() => {
             ended.current = false
           }}

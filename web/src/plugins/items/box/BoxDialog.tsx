@@ -212,6 +212,7 @@ function BoxDialog({
             <RichBody
               id={id}
               stage={stage}
+              label={t("Body")}
               rows={4}
               maxLength={BODY_MAX}
               value={body}

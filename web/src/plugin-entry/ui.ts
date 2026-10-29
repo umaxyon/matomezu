@@ -19,6 +19,8 @@ export {
   pairClass,
   RichBar,
   RichBody,
+  RichInput,
+  type RichInputHandle,
   RichText,
   rowClass,
   Section,

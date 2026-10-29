@@ -35,7 +35,9 @@ export function Dialog({
     unmounting.current = false
     if (!d.open) {
       d.showModal()
-      d.querySelector<HTMLElement>(`.${styles.content} :is(input:not([type="radio"]), textarea, select)`)?.focus()
+      d.querySelector<HTMLElement>(
+        `.${styles.content} :is(input:not([type="radio"]), textarea, select, [contenteditable])`,
+      )?.focus()
     }
     return () => {
       unmounting.current = true

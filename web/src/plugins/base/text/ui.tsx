@@ -5,6 +5,7 @@ import { BOOK_TEXT_COLORS } from "./text-colors"
 
 export { RichBar } from "./RichBar"
 export { RichBody } from "./RichBody"
+export { RichInput, type RichInputHandle } from "./RichInput"
 export { RichText } from "./RichText"
 
 export const TEXT_SETTING_VIEWS = { [BOOK_TEXT_COLORS.id]: { control: TextColorsSetting } }

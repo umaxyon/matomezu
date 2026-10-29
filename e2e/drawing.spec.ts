@@ -237,7 +237,7 @@ test("キーは割り当ての表で効く: 本文のテキストFormの Enter �
   await page.keyboard.type("一")
   await page.keyboard.press("Enter")
   await page.keyboard.type("二")
-  await expect(body).toHaveValue("一\n二")
+  await expect(body).toHaveText("一\n二")
   await expect(dialog).toBeVisible()
   await dialog.getByLabel("キャプション", { exact: true }).press("Enter")
   await expect(dialog).toBeHidden()

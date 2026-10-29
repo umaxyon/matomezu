@@ -152,7 +152,7 @@
   background: color-mix(in srgb, var(--theme-accent) 12%, transparent);
   box-shadow: inset 0 -1px 0 var(--theme-accent);
 }
-/* その場で編集している名前のテキストForm（名前と同じ所・同じ高さ。記号もそのまま書く） */
+/* その場で編集している名前の入力Form（名前と同じ所・同じ高さ。装飾は見たまま） */
 .editor {
   position: absolute;
   box-sizing: border-box;
@@ -168,7 +168,7 @@
   line-height: 18px;
   outline: none;
 }
-/* その場の編集の装飾のボックス（テキストFormのすぐ上） */
+/* その場の編集の装飾のボックス（入力Formのすぐ上） */
 .editorBar {
   position: absolute;
   transform: translateY(calc(-100% - 4px));

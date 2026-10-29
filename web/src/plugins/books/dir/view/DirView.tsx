@@ -6,8 +6,8 @@
 // 画面のどこを右クリックしても、ディレクトリ構成図のメニュー（dir-context）を開く。
 // 鉛筆の間は、選んでいる行（無ければ根）に印を付け、押した行を選ぶ。行を右クリックすると、その行を選んで行のメニュー（entry-context）を開く。
 // 選んでいる行の右には＋（フォルダとファイル。フォルダの行は中の末尾に、ファイルの行はすぐ下に足す。コマンド folder-add・file-add）を出す。
-// ダブルクリック（と Enter・F2 のコマンド）で、名前をその場で書き始める。書いている字で行の幅を決め直し、テキストFormのすぐ上に装飾のボックス（base の RichBar）を出す。
-// Enter かテキストFormの外を押すと確定、Escape で取り消す。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
+// ダブルクリック（と Enter・F2 のコマンド）で、名前をその場で書き始める。書いている字で行の幅を決め直し、装飾を見たまま書く入力Form（base の RichInput）と、そのすぐ上に装飾のボックス（base の RichBar）を出す。
+// Enter か入力Formの外を押すと確定、Escape で取り消す。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
 // 中に足す種類を選んでいる間（その場の編集の名前 KIND_PICK。Tab のコマンド）は、選んでいるフォルダの行のすぐ右に、フォルダとファイルを縦に並べた枠を出す。
 // ↑・↓ で選び、Enter か押して、その種類を中の末尾に足して名前を書き始める（コマンド folder-add・file-add）。Escape か枠の外へ焦点が移ると、やめる。
 // 鉛筆の間は、根でない行を押して動かすとドラッグになり、落とした所で中身ごと付け替える（落とす先は drag.ts が決める。行の写しがポインタに付き、元の行と中身は薄く、
@@ -35,7 +35,7 @@ import {
   useStage,
 } from "../../../../plugin-api/ui"
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
-import { RichBar, RichText, useZoomMotion } from "../../../base/ui"
+import { RichBar, RichInput, type RichInputHandle, RichText, useZoomMotion } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
 import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
@@ -108,10 +108,10 @@ function Rows({
   const addFolder = useCommand(stage.id, FOLDER_ADD.id)
   const addFile = useCommand(stage.id, FILE_ADD.id)
   const openEntryMenu = useContextMenu(stage.id, ENTRY_CONTEXT)
-  // 書いている字（どの中身のものか）と、テキストFormを出してから終えたか（Enter のあとの blur で 2 度終えない）
+  // 書いている字（どの中身のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ entry: string; text: string } | null>(null)
   const ended = useRef(false)
-  const editor = useRef<HTMLInputElement>(null)
+  const editor = useRef<RichInputHandle>(null)
   const drag = useRowDrag(stage, area)
   const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
   if (!page || !root.success) return null
@@ -180,7 +180,7 @@ function Rows({
           dropInto={drop?.mark.kind === "into" && drop.mark.entry === r.id}
           onPointerDown={e => {
             if (e.button !== 0 || !usingPencil) return
-            if (writing) end(true) // テキストFormが外れるより先に選びが替わるので、ここで確定する
+            if (writing) end(true) // 入力Formが外れるより先に選びが替わるので、ここで確定する
             select(stage.id, [r.id])
             if (r.id !== dir.id) drag.start(r, e.clientX, e.clientY)
           }}
@@ -201,19 +201,17 @@ function Rows({
         <RichBar
           stage={stage.id}
           target={editor}
-          value={text ?? at.name}
-          maxLength={Number.POSITIVE_INFINITY}
-          onChange={next => setDraft({ entry: selected, text: next })}
           className={styles.editorBar}
           style={{ left: nameLeft(at.x) - EDITOR_INSET, top: at.y }}
         />
       )}
       {writing && at && (
-        <input
+        <RichInput
           ref={editor}
+          stage={stage.id}
           className={styles.editor}
-          aria-label={t("Name")}
-          // biome-ignore lint/a11y/noAutofocus: その場で編集し始めたら、すぐに書ける
+          label={t("Name")}
+          multiline={false}
           autoFocus
           value={text ?? at.name}
           style={{
@@ -222,7 +220,7 @@ function Rows({
             width: editorWidth(text ?? at.name, at.w - (nameLeft(at.x) - at.x)),
             height: at.h,
           }}
-          onChange={e => setDraft({ entry: selected, text: e.target.value })}
+          onChange={next => setDraft({ entry: selected, text: next })}
           onFocus={() => {
             ended.current = false
           }}
@@ -371,7 +369,7 @@ function KindPicker({
   )
 }
 
-// テキストFormの左を、名前の左から内へ寄せる長さ（テキストFormの余白と枠の分。字が動かないように）
+// 入力Formの左を、名前の左から内へ寄せる長さ（入力Formの余白と枠の分。字が動かないように）
 const EDITOR_INSET = 6
 // 選んでいる行の右と＋の間
 const PLUS_GAP = 2
