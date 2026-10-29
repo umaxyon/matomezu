@@ -1,4 +1,4 @@
-// ブックの変化: アクションの前と後のブックを比べ、変わったフィールド・ページ・アイテムを求める（許可の段が行った後に見る）
+// ブックの変化: アクションの前と後のブックを比べ、変わったフィールド・ページ・アイテムを求める（認可ステップが行った後に見る）
 import type { Changes, PageChange } from "./def/permission"
 import type { Book } from "./schema/book"
 

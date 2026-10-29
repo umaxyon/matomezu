@@ -84,7 +84,7 @@ export const TOAST_MS: Readonly<Record<Toast["kind"], number | null>> = { info: 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
 export type PerformArgs<Id extends ActionId> =
   TargetOf<Id> extends "book" ? [args: ArgsOf<Id>, on: { book: string }] : [args: ArgsOf<Id>]
-// 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は許可の段が止めたとき（permission はその段の id）
+// 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は認可ステップが止めたとき（permission はそのステップの id）
 export type Performed<Id extends ActionId> =
   | { ok: true; result: ResultOf<Id> }
   | Refused

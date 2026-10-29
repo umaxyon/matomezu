@@ -2,7 +2,7 @@
 import type { MessageKey } from "../../../core/catalog"
 import type { CoreCatalog } from "../../../core/core-catalog"
 
-// 許可の段が止めたならその段の名前、ほかの理由なら fallback（呼ぶ側がその操作で断られるわけを言う文言）
+// 認可ステップが止めたならそのステップの名前、ほかの理由なら fallback（呼ぶ側がその操作で断られるわけを言う文言）
 export function refusalMessage(
   catalog: CoreCatalog,
   done: { reason: string; permission?: string },

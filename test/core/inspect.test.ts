@@ -55,7 +55,7 @@ describe("inspect: テーマの値", () => {
 })
 
 describe("inspect: アクションの許可", () => {
-  test("許可の段が止めれば、その段で決まる（ロック中のブック・ページに対して。ページは where で渡したときだけ見る）", () => {
+  test("認可ステップが止めれば、そのステップで決まる（ロック中のブック・ページに対して。ページは where で渡したときだけ見る）", () => {
     const locked = { ...drawing, locked: true as const }
     const lock = { source: "permission", id: "@matomezu/base:lock" }
     const answer = inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:page-add", book: locked })

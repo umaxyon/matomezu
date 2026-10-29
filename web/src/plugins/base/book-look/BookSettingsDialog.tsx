@@ -2,7 +2,7 @@
 // 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからブックに重ねて見せる（ダイアログの下書き。名前は見せない）。
 // 確定でアクション book-update（設定の項目は settings）を書き、キャンセルでは元のまま。見出しの右の鍵でロックを切り替え、確定で book-lock・book-unlock を行う
 // （外すのは書く前、掛けるのは書いた後）。選んでいる値で問題の出るページがあれば、その知らせを出して確定できない。
-// 許可の段が book-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）
+// 認可ステップが book-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）
 import { useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
@@ -29,7 +29,7 @@ export function BookSettingsDialog({ stage, onClose }: DialogProps) {
   const perform = usePerform(stage)
   const [title, setTitle] = useState(book?.title ?? "")
   const [locked, setLocked] = useState(book?.locked === true)
-  // 許可の段が止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
+  // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(stage, BOOK_UPDATE.id)
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
   const settings = useSettingControls(book, "book", null)

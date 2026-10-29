@@ -1,6 +1,6 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
 // 使えるかは、book が対象ならそのブックのタイプ、library と settings が対象ならインスタンスのホームのブックのタイプが決める（ホームが無ければ断る）。
-// その前に許可の段（core/def/permission.ts）が止められ、run の結果も許可の段が守らせることを守っていなければ断る（denied）
+// その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
@@ -27,7 +27,7 @@ export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
 
-// denied は許可の段が止めたこと（permission はその段の id）
+// denied は認可ステップが止めたこと（permission はそのステップの id）
 export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
 export type Refused = { ok: false; reason: Refusal } | { ok: false; reason: "denied"; permission: string }
 export type Performed<Id extends ActionId> = { ok: true; next: SubjectOf<Id>; result: ResultOf<Id> } | Refused
@@ -56,7 +56,7 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
   return catalog.bookSchema.safeParse(book).success && holds(catalog, book)
 }
 
-// アクションの結果が、許可の段の守らせること（keeps）を守っているか。守っていなければ、守らせた段の id
+// アクションの結果が、認可ステップの守らせること（keeps）を守っているか。守っていなければ、守らせたステップの id
 function broken(ctx: ActionContext, action: ActionDef, before: Book, after: Book | undefined): string | null {
   const changes = changesOf(before, after)
   const by = ctx.by ? { by: ctx.by } : {}
@@ -65,7 +65,7 @@ function broken(ctx: ActionContext, action: ActionDef, before: Book, after: Book
   return null
 }
 
-// 一覧が対象のアクションの結果で、変わったブックのどれかが守っていなければ、守らせた段の id
+// 一覧が対象のアクションの結果で、変わったブックのどれかが守っていなければ、守らせたステップの id
 function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after: Library): string | null {
   for (const b of Object.values(before)) {
     const id = b === after[b.id] ? null : broken(ctx, action, b, after[b.id])
@@ -75,8 +75,8 @@ function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after:
 }
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。
-// 許可の段に渡す所は、ブックが対象ならそのブックと、アクションの許可の範囲（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
-// 一覧が対象のアクションは変えるブックが前に分からないので、許可の段は行った後の keeps だけで見る
+// 認可ステップに渡す所は、ブックが対象ならそのブックと、アクションの許可の範囲（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
+// 一覧が対象のアクションは変えるブックが前に分からないので、認可ステップは行った後の keeps だけで見る
 function permits(
   ctx: ActionContext,
   action: ActionDef,

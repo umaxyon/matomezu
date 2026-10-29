@@ -1,7 +1,7 @@
 // 自動で整列の確認のダイアログ: 「レイアウトを自動で整えてもよいですか？」と聞き、実行でアクション page-align を行う。
 // ページに合わせると変わる形（形の定義の adapt で変わる形）があるときだけ、それも合わせるかの切り替えを、変わる形の名前を並べて出す
 // （最初はオフ。置いたときのままを保つ）。
-// 断られたら、閉じずに理由を出す（許可の段が止めたならその段の名前、ほかは紙に収まらない）
+// 断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に収まらない）
 import { useId, useState } from "react"
 import { type MessageKey, pagedOf } from "../../../plugin-api"
 import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"

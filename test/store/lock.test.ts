@@ -1,4 +1,4 @@
-// ロック: ロック中のブック・ページは利用者も AI も変えられない（許可の段 lock が止める）。外せるのは利用者だけ
+// ロック: ロック中のブック・ページは利用者も AI も変えられない（認可ステップ lock が止める）。外せるのは利用者だけ
 import { expect, test } from "bun:test"
 import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
@@ -14,7 +14,7 @@ import { CORE_CATALOG, newStore } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
 
-test("ロック中のブックは変えられず（許可の段 lock が止める）、外せば変えられる。locked は title の次に並ぶ", () => {
+test("ロック中のブックは変えられず（認可ステップ lock が止める）、外せば変えられる。locked は title の次に並ぶ", () => {
   const { state, actions } = newStore()
   const book = () => state.getState().books.b1 as Drawing
   expect(actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
@@ -86,7 +86,7 @@ test("変える所を言わないアクションは、行う前にはページ�
   expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked), by: "ai" })).toBe(false)
 })
 
-test("ロック中は、行うアクションをどれも許可の段に止められるコマンドを押せない。設定のダイアログはロックを外すために押せる", () => {
+test("ロック中は、行うアクションをどれも認可ステップに止められるコマンドを押せない。設定のダイアログはロックを外すために押せる", () => {
   const store = newStore()
   const { state, actions } = store
   addPageIn(store, "s1", { title: "ページ 2" })
@@ -117,7 +117,7 @@ test("ロック中は、行うアクションをどれも許可の段に止め�
   )
 })
 
-test("断りの文言は、許可の段が止めたならその段の名前、ほかの理由なら呼ぶ側の文言", () => {
+test("断りの文言は、認可ステップが止めたならそのステップの名前、ほかの理由なら呼ぶ側の文言", () => {
   const { actions } = newStore()
   expect(actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
   const done = actions.perform("@matomezu/base:book-update", { title: "x" }, { book: "b1" })

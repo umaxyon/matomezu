@@ -45,7 +45,7 @@ export const TILE_ADD = kit.defineAction({
   },
 })
 
-// 札の数の上限（自分の許可の段の見本）: 1 ページの札が TILE_LIMIT 枚になったら、そのページに札を足すことを止める。
+// 札の数の上限（自分の認可ステップの見本）: 1 ページの札が TILE_LIMIT 枚になったら、そのページに札を足すことを止める。
 // 行う前に止めるのは自分のアクションだけ。行った後は、どのアクションでも上限を超えたら止める
 const TILE_LIMIT = 6
 type TilesPage = { id: string; items?: readonly { tiles?: readonly unknown[] }[] }

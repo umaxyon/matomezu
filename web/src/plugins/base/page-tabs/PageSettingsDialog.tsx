@@ -1,7 +1,7 @@
 // ページの設定のダイアログ: 開いているページの名前と、ブックのタイプが選んだページの設定の項目（値が無ければブックの値を継ぐ）。
 // 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからページに重ねて見せる（ダイアログの下書き。名前は見せない）。
 // 確定でアクション page-update（設定の項目は settings）を書き、キャンセルでは元のまま。選んでいる値でページに問題が出れば、その知らせを出して確定できない
-// 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。ロック中のページは削除のボタンを押せない。許可の段が page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）。
+// 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。ロック中のページは削除のボタンを押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）。
 // ページを削除するボタンは、上に重ねたモーダルで確かめてから page-remove を行う（中身ごと消え、戻せないため）
 import { useEffect, useId, useState } from "react"
 import { pagedOf, putPage, withSettings } from "../../../core/book"
@@ -30,7 +30,7 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
   const page = book?.pages.find(p => p.id === args.page)
   const [title, setTitle] = useState(page?.title ?? "")
   const [locked, setLocked] = useState(page?.locked === true)
-  // 許可の段が止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
+  // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(stage, PAGE_UPDATE.id, { page: args.page })
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
   const [confirming, setConfirming] = useState(false)

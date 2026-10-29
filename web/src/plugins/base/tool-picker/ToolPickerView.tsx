@@ -149,7 +149,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const current = useMatomezuState(s => (opened ? toolOf(catalog, s.workspace, opened.id, s.books) : null))
   const set = opened ? toolSetOf(catalog, opened) : null
   const picks: readonly ToolId[] = set ? toolsIn(catalog, set) : []
-  // 使えない道具（開いているページで、行うアクションをどれも許可の段に止められる）。並びを文字で比べて、変わったときだけ描き直す
+  // 使えない道具（開いているページで、行うアクションをどれも認可ステップに止められる）。並びを文字で比べて、変わったときだけ描き直す
   const unusable = useMatomezuState(s =>
     opened ? unusableTools(catalog, s.workspace, opened.id, s.books).join("\n") : "",
   ).split("\n")

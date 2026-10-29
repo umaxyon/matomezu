@@ -44,7 +44,7 @@ interface Input {
 }
 
 // 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック。
-// 許可の段が止めたら（denied）、permission にその段の id、detail にその段の AI への説明
+// 認可ステップが止めたら（denied）、permission にそのステップの id、detail にそのステップの AI への説明
 type Output =
   | { ok: true; result: unknown; books: Book[]; removed: string[]; settings?: unknown }
   | { ok: false; reason: string; permission?: string; detail?: string }

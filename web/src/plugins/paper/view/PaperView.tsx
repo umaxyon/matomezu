@@ -222,7 +222,7 @@ function PageItems({
     // 付け替えは押した形 1 つだけを動かす
     const items = !reparenting && stage.selection.includes(id) ? stage.selection : [id]
     select(stage.id, items)
-    // 動かせないとき（許可の段が止めるなど、コマンドを押せない）は選ぶだけ
+    // 動かせないとき（認可ステップが止めるなど、コマンドを押せない）は選ぶだけ
     if (!(reparenting ? reparent.enabled : move.enabled)) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = {

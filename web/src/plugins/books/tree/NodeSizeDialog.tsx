@@ -1,5 +1,5 @@
 // 節の大きさのダイアログ: 子の節の大きさの選び方を、先頭の「ページを継承（ページで効いている選び方）」か、伸びる・N 字で折り返す・N 字で固定から選ぶ。
-// 確定でアクション node-update を行う（継承は size を消す）。断られたら、閉じずに理由を出す（許可の段が止めたならその段の名前、ほかは紙に入らない）
+// 確定でアクション node-update を行う（継承は size を消す）。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useState } from "react"
 import { type MessageKey, pagedOf } from "../../../plugin-api"
 import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"

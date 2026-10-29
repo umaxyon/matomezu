@@ -121,7 +121,7 @@ export function Form({
   id?: string
   submit?: string
   ready: boolean
-  disabled?: boolean // 中の項目を全部押せなくする（許可の段が止めているときなど）
+  disabled?: boolean // 中の項目を全部押せなくする（認可ステップが止めているときなど）
   onSubmit: () => void
   children: ReactNode
 }) {

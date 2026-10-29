@@ -1,6 +1,6 @@
 // 道具（core/def/tool.ts）の組と、今の道具。今の道具は組ごとに窓の状態（Workspace の tools）が持つので、
 // 同じ組を使うステージどうしは、開いているブックやそのタイプが違っても同じ道具になる。
-// 道具の行うアクション（performs）がどれも許可の段に止められるステージでは、その道具は使えず、組の使える道具を使う（覚えている道具は変えない）
+// 道具の行うアクション（performs）がどれも認可ステップに止められるステージでは、その道具は使えず、組の使える道具を使う（覚えている道具は変えない）
 
 import type { ToolId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
@@ -33,7 +33,7 @@ export function toolIn(catalog: CoreCatalog, tools: Tools, set: string): ToolId 
   return order.find(id => id === tools[set]) ?? order[0] ?? fail("E114", { id: set })
 }
 
-// 道具を、ブック book のページ page で使えるか: 行うアクションが無いか、どれかを許可の段が止めない（ブックが無ければ使える）
+// 道具を、ブック book のページ page で使えるか: 行うアクションが無いか、どれかを認可ステップが止めない（ブックが無ければ使える）
 export function toolUsable(catalog: CoreCatalog, tool: string, book: Book | null, page: string | null): boolean {
   const performs = toolDef(catalog, tool).performs ?? []
   if (!book || performs.length === 0) return true

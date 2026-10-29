@@ -1,6 +1,6 @@
 // ゴミ箱: ブックをゴミ箱に入れる book-trash（入れた時刻 trashed を付ける）、戻す book-restore（trashed を外す）、
 // 消す book-purge と、ゴミ箱を空にする trash-empty（一覧から消す。戻せない）。戻す・消す・空にするのは利用者だけ（userOnly）。
-// 1 冊だけのタイプのブックと、無いブックは入れない。ロック中のブック・ロック中のページを持つブックは、許可の段 lock が止める
+// 1 冊だけのタイプのブックと、無いブックは入れない。ロック中のブック・ロック中のページを持つブックは、認可ステップ lock が止める
 import { z } from "zod"
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"

@@ -88,7 +88,7 @@ export interface Where {
 // 引数の形 A のうち、値の型が V に当たる引数の名前
 type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> extends V ? K : never }[keyof A & string]
 
-// 許可の範囲: ブックが対象のアクションが、ブックのどこを変えるかの宣言。許可の段は、行う前にこの所で問う。
+// 許可の範囲: ブックが対象のアクションが、ブックのどこを変えるかの宣言。認可ステップは、行う前にこの所で問う。
 // "book" はページもアイテムも変えない。page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く。
 // 引数の名前で言えなければ、引数から所を返す関数を書く
 export type PermissionScope<A = unknown> =
@@ -138,7 +138,7 @@ export interface ActionDef<
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
-  // 許可の範囲（ブックが対象のアクションは必ず書く）。守るのは、許可の段が行った後に見る実際の変化（PermissionDef の keeps）
+  // 許可の範囲（ブックが対象のアクションは必ず書く）。守るのは、認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
   permissionScope?: AnyPermissionScope
   // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | null

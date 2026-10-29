@@ -1,5 +1,5 @@
 // 節の色のダイアログ: 節（根も）の色を、ブックのテーマの代表色・好きな色・「なし」（テーマの塗り）から選ぶ。
-// 確定で、子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）を行う。断られたら、閉じずに理由を出す（許可の段が止めたならその段の名前、ほかは紙に入らない）
+// 確定で、子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useState } from "react"
 import { type MessageKey, pagedOf } from "../../../plugin-api"
 import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"

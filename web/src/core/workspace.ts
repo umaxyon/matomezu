@@ -138,7 +138,7 @@ export function unusableTools(catalog: CoreCatalog, ws: Workspace, id: string, b
   return toolsIn(catalog, set).filter(tool => !usable(tool))
 }
 
-// ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを許可の段が止めない）
+// ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを認可ステップが止めない）
 export function usableIn(catalog: CoreCatalog, stage: Stage, books: Library): (tool: string) => boolean {
   const book = stage.opened ? (books[stage.opened.book] ?? null) : null
   return tool => toolUsable(catalog, tool, book, stage.opened?.page ?? null)

@@ -43,7 +43,7 @@ export function commandContext(
   }
 }
 
-// コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければホームのタイプ）で使えるか（許可の段が止めているかは見ない）
+// コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければホームのタイプ）で使えるか（認可ステップが止めているかは見ない）
 function performable(def: CommandDef<never>, ctx: CommandContext): boolean {
   return (def.performs ?? []).every(
     action =>
@@ -59,7 +59,7 @@ export function isShown(defs: Assembled, state: MatomezuState, stageId: string, 
   return ctx !== null && performable(def, ctx) && def.when(ctx)
 }
 
-// 行うアクションのどれかを、許可の段が止めないか（行うアクションが無ければ止められない）。ブックが対象のアクションは、今のブックの許可の範囲の所で問う
+// 行うアクションのどれかを、認可ステップが止めないか（行うアクションが無ければ止められない）。ブックが対象のアクションは、今のブックの許可の範囲の所で問う
 function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
   const actions = def.performs ?? []
   const where = commandScopeOf(def.permissionScope, ctx)
@@ -76,7 +76,7 @@ function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
   )
 }
 
-// 押せるか: 出していて、行うアクションのどれかを許可の段が止めず、enabled が押せるとするとき
+// 押せるか: 出していて、行うアクションのどれかを認可ステップが止めず、enabled が押せるとするとき
 export function isEnabled(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
   const ctx = commandContext(defs.catalog.core, defs.home, state, stageId)
   const def = commandDef(defs, id)

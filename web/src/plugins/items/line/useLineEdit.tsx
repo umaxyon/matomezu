@@ -47,7 +47,7 @@ export function useLineEdit(
 ) {
   const { perform } = useActions()
   const drop = useCommand(stage.id, LINE_RECONNECT_DROP.id)
-  // 線を直せるか（許可の段が止めていれば、札・折れ目・端を動かし始めない）
+  // 線を直せるか（認可ステップが止めていれば、札・折れ目・端を動かし始めない）
   const editable = useAllowed(stage.id, LINE_UPDATE.id).ok
   const drag = useRef<Drag | null>(null)
   const [draft, setDraft] = useState<{ id: string; props: Props } | null>(null)

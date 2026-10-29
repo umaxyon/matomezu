@@ -169,7 +169,7 @@ type Perform struct {
 	By     string          `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。画面からは受けない）
 }
 
-// Performed は行った結果（許可の段が止めたら Permission にその段の id、Detail にその段の AI への説明）
+// Performed は行った結果（認可ステップが止めたら Permission にそのステップの id、Detail にそのステップの AI への説明）
 type Performed struct {
 	OK         bool            `json:"ok"`
 	Reason     string          `json:"reason,omitempty"`

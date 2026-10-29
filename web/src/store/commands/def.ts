@@ -45,9 +45,9 @@ export interface CommandDef<A = undefined, Tt extends string = MessageKey> exten
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない
   run(ctx: CommandContext, actions: Actions, args: A): void
   // 行うアクション。どれかが今のブック（ブックが対象でなければホームのタイプ）で使えなければ、土台はこのコマンドを出さない。
-  // どれも許可の段に止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
+  // どれも認可ステップに止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
   performs?: readonly ActionId[]
-  // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（許可の段に渡す）。ブックが対象のアクションを行うなら必ず書く（defineCommand の型が求める）
+  // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（認可ステップに渡す）。ブックが対象のアクションを行うなら必ず書く（defineCommand の型が求める）
   permissionScope?: CommandScope
   // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる
   place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[] }

@@ -136,7 +136,7 @@ function Tree({
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog } = useActions()
-  // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、許可の段が止めたのでなければ、断られるのは紙に入らないとき）
+  // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)

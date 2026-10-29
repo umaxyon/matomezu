@@ -85,7 +85,7 @@ export function useShownPage(stage: string): ItemPage | null {
   }, [page, book, preview])
 }
 
-// アクションを行えるか（許可の段も見る）: 使えれば ok、許可の段が止めたなら permission にその段の id（タイプなどで使えなければ null）。
+// アクションを行えるか（認可ステップも見る）: 使えれば ok、認可ステップが止めたなら permission にそのステップの id（タイプなどで使えなければ null）。
 // ブックが対象のアクションは、そのステージで開いているブックの where の所で問う（where を渡さなければ、開いているページ）。
 // 止められたときに、薄くする・消すなどをどうするかは、使う側が決める
 export type Allowed = { ok: true } | { ok: false; permission: string | null }
@@ -94,7 +94,7 @@ export function useAllowed(stage: string, action: ActionId, where?: Where): Allo
   const catalog = useCatalog().core
   const home = useHome()
   const items = where?.items?.join("\n")
-  // 答えを文字にして比べ、変わったときだけ描き直す（"" は使える、"-" はタイプなどで使えない、ほかは止めた許可の段の id）
+  // 答えを文字にして比べ、変わったときだけ描き直す（"" は使える、"-" はタイプなどで使えない、ほかは止めた認可ステップの id）
   const answer = useMatomezuState(s => {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     const onBook = catalog.actions.get(action)?.target === "book"
