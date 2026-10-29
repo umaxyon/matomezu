@@ -145,11 +145,11 @@
   cursor: default;
   opacity: 0.4;
 }
-/* 鉛筆で選んでいる行 */
+/* 鉛筆で選んでいる行: 下線と、うすく色を付けた背景 */
 .row[data-selected="true"] {
-  border-radius: 4px;
-  outline: 2px solid var(--theme-accent);
-  outline-offset: 1px;
+  border-radius: 3px 3px 0 0;
+  background: color-mix(in srgb, var(--theme-accent) 12%, transparent);
+  box-shadow: inset 0 -2px 0 var(--theme-accent);
 }
 /* その場で編集している名前のテキストForm（名前と同じ所・同じ高さ。記号もそのまま書く） */
 .editor {
@@ -188,14 +188,15 @@
   width: 26px;
   height: 22px;
   padding: 0;
-  border: 1px solid var(--dir-line);
+  border: 0;
   border-radius: 5px;
-  background: var(--theme-paper);
+  background: transparent;
   cursor: pointer;
 }
 .plus:hover:not(:disabled),
 .plus:focus-visible {
-  border-color: var(--theme-accent);
+  outline: none;
+  background: color-mix(in srgb, var(--theme-accent) 14%, transparent);
 }
 .plus:disabled {
   cursor: default;

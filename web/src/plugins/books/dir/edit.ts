@@ -212,10 +212,13 @@ export function rowsOf(root: DirFolder): Row[] {
   return rows
 }
 
-// 選んでいる中身: ステージの選択の最初の物（見せている行に無ければ根）。鉛筆の間は、いつもどれかの行を選んでいる
+// 選んでいる中身: ステージの選択の最初の物。閉じたフォルダの中に隠れていれば、その中身を隠しているいちばん外のフォルダ（見えている中でいちばん近いフォルダ）。
+// ページに無ければ根。鉛筆の間は、いつもどれかの行を選んでいる
 export function selectedIn(root: DirFolder, selection: readonly string[]): string {
   const first = selection[0]
-  return first !== undefined && rowsOf(root).some(r => r.entry.id === first) ? first : root.id
+  const path = first === undefined ? null : pathTo(root, first)
+  if (!first || !path) return root.id
+  return path.find(f => f.closed)?.id ?? first
 }
 
 // 行 id から上（up）か下（down）の行（端なら id のまま）

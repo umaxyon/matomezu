@@ -283,3 +283,13 @@ test("フォルダを選んで Tab で、行のすぐ右に種類を選ぶ枠を
   press("Tab")
   expect(within(paper()).queryByRole("menu")).toBeNull()
 })
+
+test("選んでいる行が、閉じたフォルダの中に隠れたら、見えている中でいちばん近いフォルダを選ぶ", () => {
+  const { perform } = setup()
+  const ids = addProject(perform)
+  fireEvent.pointerDown(row(ids.a), { button: 0 })
+  fireEvent.click(within(paper()).getAllByRole("button", { name: "閉じる" })[1]!)
+  expect(selectedRow()).toBe(ids.src)
+  press("ArrowDown")
+  expect(selectedRow()).toBe(ids.readme)
+})
