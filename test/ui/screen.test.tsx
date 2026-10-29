@@ -30,12 +30,12 @@ function renderScreen(options: Omit<StoreOptions, "plugins"> = {}) {
 
 const stages = () => screen.getAllByRole("region", { name: "ステージ" })
 
-// i 番目のステージの下の行のブックの名前のボタンを押してメニューを出し、その中のボタンを返す（閉じたメニューのボタンは見えない）
+// i 番目のステージの下の行のブックの名前のボタンを押してドロワーを出し、その中のボタンを返す（閉じたドロワーのボタンは見えない）
 function fromMenu(name: string, i = 0): HTMLElement {
   const triggers = [...document.querySelectorAll<HTMLElement>('button[aria-haspopup="menu"]')]
   const trigger = triggers[i]!
   fireEvent.click(trigger)
-  return within(trigger.nextElementSibling as HTMLElement).getByRole("button", { name })
+  return within(trigger.parentElement?.nextElementSibling as HTMLElement).getByRole("button", { name })
 }
 
 test("ステージに紙が 1 枚あり、上にツールボックス、下の行の左にブックの名前がある", () => {

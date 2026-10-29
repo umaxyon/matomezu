@@ -90,7 +90,7 @@ test("分けて別の図面を開いても、道具は左右で同じ。左で�
   await page.goto("/")
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await trigger.hover()
-  await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "画面を分割" }).click()
+  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "画面を分割" }).click()
   const stages = page.getByRole("region", { name: "ステージ" })
   const input = stages.nth(1).getByRole("combobox", { name: "ブックを探す" })
   await input.click()

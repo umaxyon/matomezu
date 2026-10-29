@@ -1,8 +1,11 @@
 // ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前を出す。
 // ロック中のブックは名前の左に鍵を出す（印だけ。外すのはブックの設定のダイアログ）。
-// 乗せるか押すと、上にメニュー（配置のメニュー stage-menu）がせり上がり、ボタンとメニューから離れると下がる。メニューの項目はコマンドを呼ぶ
+// 乗せるか押すと、下の行の真上に、行の幅いっぱいのドロワー（配置のメニュー stage-menu）が下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
+// 下の行から離れると下がる（ドロワーは下の行の中に描くので、ドロワーに乗っている間も下の行に乗っている）。ドロワーの項目はコマンドを呼ぶ。
+// ドロワーの行の左端に拡大縮小の帯（base/zoom の ZoomBar）を入れ、その真上にミニマップ（base/minimap の MinimapView）を行にぴったり付けて載せる（紙の無いステージでは、どちらも出さない）
 import { useEffect, useRef, useState } from "react"
 import { bookTitle } from "../../../core/book"
+import { paperOf } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
@@ -10,11 +13,16 @@ import { useMenu, useMenuCommand } from "../../../ui/menu"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
+import { MinimapView } from "../minimap/MinimapView"
+import { useBottomHover } from "../workspace/bottom-hover"
+import { ZoomBar } from "../zoom/ZoomBar"
 import styles from "./BookName.module.css"
 import { STAGE_MENU } from "./menu"
 
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
+const MAP_SIZE = 200 // ドロワーのミニマップの、紙を収める大きさ（px）
+const MAP_BOX = MAP_SIZE + 14 // ミニマップの台と、その下の拡大縮小の幅（紙を収める大きさと、内側の余白・枠の線）
 
 export function BookName({ stage }: { stage: string }) {
   const book = useMatomezuState(s => {
@@ -44,12 +52,21 @@ export function BookName({ stage }: { stage: string }) {
     cancelLeave()
     leave.current = setTimeout(() => setOpen(false), LEAVE_MS)
   }
+  // 下の行に置かれていれば、下の行に乗ったかで出し下げする（名前のボタンだけを見ない）
+  const bottom = useBottomHover()
+  const toggles = useRef({ show, hide })
+  toggles.current = { show, hide }
+  useEffect(() => {
+    if (bottom === null) return
+    if (bottom > 0) toggles.current.show()
+    else toggles.current.hide()
+  }, [bottom])
+  const own = bottom === null ? { onMouseEnter: show, onMouseLeave: hide } : {}
   const catalog = useCatalog().core
   const title = book ? bookTitle(catalog, book, lang) : ""
   return (
     <>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: マウスが乗ったかを見るだけで、操作は中のボタンが受ける */}
-      <div className={styles.name} onMouseEnter={show} onMouseLeave={hide}>
+      <div className={styles.name} {...own}>
         <button
           type="button"
           className={styles.trigger}
@@ -68,27 +85,58 @@ export function BookName({ stage }: { stage: string }) {
             <LockIcon />
           </span>
         )}
-        <StageMenu
-          stage={stage}
-          open={open}
-          onPick={() => {
-            cancelLeave()
-            setOpen(false)
-          }}
-        />
       </div>
+      <StageMenu
+        stage={stage}
+        open={open}
+        own={own}
+        onPick={() => {
+          cancelLeave()
+          setOpen(false)
+        }}
+      />
     </>
   )
 }
 
-// せり上がるメニュー。閉じている間は見えず、押せず、読み上げにも出ない
-function StageMenu({ stage, open, onPick }: { stage: string; open: boolean; onPick: () => void }) {
+// 下から上がるドロワー。閉じている間は見えず、押せず、読み上げにも出ない。own は下の行の外に置かれたときの、乗ったかを見る受け取り
+function StageMenu({
+  stage,
+  open,
+  own,
+  onPick,
+}: {
+  stage: string
+  open: boolean
+  own: { onMouseEnter?: () => void; onMouseLeave?: () => void }
+  onPick: () => void
+}) {
   const items = useMenu(STAGE_MENU)
+  const hasPaper = useMatomezuState(s => {
+    const st = s.workspace.stages.find(x => x.id === stage)
+    return st !== undefined && paperOf(st) !== null
+  })
   return (
-    <div className={styles.menu} data-open={open} aria-hidden={!open} inert={!open}>
-      {items.map(item => (
-        <MenuEntry key={menuCommands(item).join(" ")} stage={stage} item={item} onPick={onPick} />
-      ))}
+    <div className={styles.drawer} data-open={open} aria-hidden={!open} inert={!open} {...own}>
+      <div className={styles.slide} style={{ ["--map-box" as string]: `${MAP_BOX}px` }}>
+        {hasPaper && (
+          <div className={styles.map} data-minimap="drawer">
+            <MinimapView stage={stage} width={MAP_SIZE} height={MAP_SIZE} className={styles.mapView} />
+          </div>
+        )}
+        <div className={styles.row}>
+          {hasPaper && (
+            <div className={styles.zoom}>
+              <ZoomBar stage={stage} className={styles.zoomBar} />
+            </div>
+          )}
+          <div className={styles.menu}>
+            {items.map(item => (
+              <MenuEntry key={menuCommands(item).join(" ")} stage={stage} item={item} onPick={onPick} />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

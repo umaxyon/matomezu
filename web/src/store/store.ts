@@ -23,7 +23,6 @@ import {
   resize,
   select,
   setEditing,
-  setMinimap,
   showPickerMap,
   stopPlacing,
   zoomTo,
@@ -134,7 +133,6 @@ export interface Actions {
   openPicker(stage: string, at: Point | null): void
   closePicker(): void
   showPickerMap(stage: string): void // そのステージで開いている道具のアイコンを、ミニマップに替える
-  setMinimap(stage: string, open: boolean): void // そのステージの左下のミニマップを開く・閉じる（紙が収まっていれば開かない）
 }
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
@@ -443,7 +441,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }),
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
     showPickerMap: id => withWorkspace(ws => mapStage(ws, id, showPickerMap)),
-    setMinimap: (id, open) => withWorkspace(ws => mapStage(ws, id, s => setMinimap(s, open))),
   }
   const instance: MatomezuInstance<Ps> = {
     ...defs,

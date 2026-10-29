@@ -583,7 +583,7 @@ test("ブックの名前のボタンのメニューからブックの設定を�
   await page.goto("/")
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await trigger.hover()
-  await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ブックの設定" }).click()
+  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ブックの設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ブックの設定" })
   const name = dialog.getByLabel("ブックの名前")
   await expect(name).toHaveValue("まとめ図の構想")

@@ -201,7 +201,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await page
     .locator('button[aria-haspopup="menu"]')
     .first()
-    .locator("xpath=following-sibling::div[1]")
+    .locator("xpath=../following-sibling::div[1]")
     .getByRole("button", { name: "ホーム" })
     .click()
   await page.getByRole("button", { name: "新しいブック" }).click()

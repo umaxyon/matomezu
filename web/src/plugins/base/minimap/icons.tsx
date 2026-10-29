@@ -1,6 +1,5 @@
-// ミニマップのコマンドのアイコン（紙の中に、見えている範囲の四角）
+// ミニマップのアイコン（紙の中に、見えている範囲の四角）。右ボタンの長押しの道具のアイコンの並びで、ミニマップに替えるボタンに使う
 import { icon } from "../icon"
-import { MINIMAP_TOGGLE } from "."
 
 export const MINIMAP = icon(
   <>
@@ -8,5 +7,3 @@ export const MINIMAP = icon(
     <rect x="12" y="7" width="6" height="5" rx="1" />
   </>,
 )
-
-export const MINIMAP_ICONS = { [MINIMAP_TOGGLE.id]: MINIMAP }

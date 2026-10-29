@@ -52,43 +52,81 @@
   outline: 2px solid var(--skin-accent);
   outline-offset: -2px;
 }
-/* せり上がるメニュー。ボタンの真上に出し、下から上がってくる */
-.menu {
-  position: absolute;
-  left: 4px;
-  bottom: calc(100% + 6px);
-  z-index: 5;
-  display: flex;
-  gap: 2px;
-  padding: 4px;
-  border: 1px solid var(--skin-line);
-  border-radius: 8px;
-  background: var(--skin-bar);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  transform: translateY(12px);
-  visibility: hidden;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease,
-    visibility 0s linear 0.16s;
-}
-/* メニューとボタンの間の隙間でも離れたことにしない */
-.menu::after {
-  content: "";
+/* 下から上がるドロワー。下の行の真上に、行の幅いっぱいの行（高さは下の行の 1.3 倍）を出し、その左端の拡大縮小の真上に、
+   ミニマップの台を行にぴったり付けて載せる。中身は下の行の後ろから上がってくる（ドロワーの外の紙は押せるまま） */
+.drawer {
   position: absolute;
   left: 0;
   right: 0;
-  top: 100%;
-  height: 8px;
+  bottom: 100%;
+  z-index: 5;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear 0.16s;
 }
-.menu[data-open="true"] {
-  opacity: 1;
-  transform: none;
+.drawer[data-open="true"] {
   visibility: visible;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
+  transition: none;
+}
+.slide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transform: translateY(100%);
+  transition: transform 0.16s ease;
+}
+.drawer[data-open="true"] .slide {
+  transform: none;
+}
+/* ミニマップの台: 上の角だけ丸め、下は行の上の線を隠して行とつなげる */
+.map {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: var(--map-box);
+  margin-bottom: -1px;
+  padding: 6px 6px 4px;
+  border: 1px solid var(--skin-line);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--skin-bar);
+}
+.mapView {
+  display: flex;
+  justify-content: center;
+  line-height: 0;
+}
+.row {
+  align-self: stretch;
+  display: flex;
+  height: 39px;
+  border-top: 1px solid var(--skin-line);
+  background: var(--skin-bar);
+}
+.zoom {
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: var(--map-box);
+  padding: 0 8px;
+  border-right: 1px solid var(--skin-line);
+}
+.zoomBar {
+  flex: 1;
+  margin-top: 0;
+}
+.menu {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+}
+.drawer[data-open="true"] .map,
+.drawer[data-open="true"] .row {
+  pointer-events: auto;
 }
 .item {
   display: grid;
@@ -126,8 +164,8 @@
   stroke-linecap: round;
 }
 @media (prefers-reduced-motion: reduce) {
-  .menu,
-  .menu[data-open="true"] {
+  .drawer,
+  .slide {
     transition: none;
   }
 }
