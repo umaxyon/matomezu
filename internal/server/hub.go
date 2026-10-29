@@ -169,11 +169,13 @@ type Perform struct {
 	By     string          `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。画面からは受けない）
 }
 
-// Performed は行った結果
+// Performed は行った結果（許可の段が止めたら Permission にその段の id、Detail にその段の AI への説明）
 type Performed struct {
-	OK     bool            `json:"ok"`
-	Reason string          `json:"reason,omitempty"`
-	Result json.RawMessage `json:"result,omitempty"`
+	OK         bool            `json:"ok"`
+	Reason     string          `json:"reason,omitempty"`
+	Permission string          `json:"permission,omitempty"`
+	Detail     string          `json:"detail,omitempty"`
+	Result     json.RawMessage `json:"result,omitempty"`
 }
 
 // Perform はアクションを行い、変わったものを書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
@@ -198,7 +200,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if err != nil {
 		return Performed{}, err
 	}
-	done := Performed{OK: out.OK, Reason: out.Reason, Result: out.Result}
+	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Result: out.Result}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
 	if out.OK && p.By == "ai" && h.trashesShown(out.Books) {
 		done = Performed{OK: false, Reason: "open-on-screen"}

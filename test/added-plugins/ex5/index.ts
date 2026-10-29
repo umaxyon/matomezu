@@ -1,7 +1,7 @@
-// ex5: 文字を持たず、中身のフィールドの名前が children でない形（タイル）と、自分の道具と道具の組を持つ追加プラグイン
+// ex5: 文字を持たず、中身のフィールドの名前が children でない形（タイル）と、自分の道具と道具の組と、自分の許可の段（札の数の上限）を持つ追加プラグイン
 import { definePlugin } from "matomezu"
 import { kit } from "./kit"
-import { SHELF, SHELF_TOOLS, SORT_TOOL, TILE_ADD, TILES, TILES_TOKENS } from "./tiles"
+import { SHELF, SHELF_TOOLS, SORT_TOOL, TILE_ADD, TILE_LIMIT_PERMISSION, TILES, TILES_TOKENS } from "./tiles"
 
 export const EX5 = definePlugin(
   kit.plugin({
@@ -10,6 +10,7 @@ export const EX5 = definePlugin(
     actions: [TILE_ADD],
     tools: [SORT_TOOL],
     toolSets: [SHELF_TOOLS],
+    permissions: [TILE_LIMIT_PERMISSION],
     tokens: TILES_TOKENS,
   }),
 )
@@ -34,6 +35,9 @@ declare module "matomezu/catalog" {
   }
   interface ToolSetTable {
     "ex5:shelf-tools": typeof SHELF_TOOLS
+  }
+  interface PermissionTable {
+    "ex5:tile-limit": typeof TILE_LIMIT_PERMISSION
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

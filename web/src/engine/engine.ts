@@ -43,10 +43,11 @@ interface Input {
   by?: "ai" // 頼んだのが AI か（無ければ利用者）
 }
 
-// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック
+// 返すもの。books は変わった・足したブック、removed は一覧から無くなったブック。
+// 許可の段が止めたら（denied）、permission にその段の id、detail にその段の AI への説明
 type Output =
   | { ok: true; result: unknown; books: Book[]; removed: string[]; settings?: unknown }
-  | { ok: false; reason: string }
+  | { ok: false; reason: string; permission?: string; detail?: string }
 
 declare const crypto: { randomUUID(): string }
 
@@ -65,7 +66,8 @@ function perform(input: Input): Output {
     now: input.now ?? new Date().toISOString(),
     ...(input.by === "ai" ? { by: "ai" as const } : {}),
   })
-  if (!done.ok) return done
+  if (!done.ok)
+    return "permission" in done ? { ...done, detail: catalog.permissions.get(done.permission)?.aiDescription } : done
   const next = done.books
   const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
   const removed = next ? Object.keys(books).filter(id => !(id in next)) : []

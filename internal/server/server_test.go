@@ -630,7 +630,7 @@ func TestAICanLockButNotUnlock(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-lock"`+on, ai); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("lock = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"}}`, ai); got != `{"ok":false,"reason":"locked"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"}}`, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"the book or a page it would change is locked`) {
 		t.Fatalf("update = %s", got)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-unlock"`+on, ai); got != `{"ok":false,"reason":"not-allowed"}` {

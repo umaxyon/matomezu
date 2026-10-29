@@ -151,13 +151,17 @@ func perform(api API, args map[string]any) (string, bool) {
 		return err.Error(), true
 	}
 	var done struct {
-		OK     bool            `json:"ok"`
-		Reason string          `json:"reason"`
-		Detail string          `json:"detail"`
-		Result json.RawMessage `json:"result"`
+		OK         bool            `json:"ok"`
+		Reason     string          `json:"reason"`
+		Permission string          `json:"permission"`
+		Detail     string          `json:"detail"`
+		Result     json.RawMessage `json:"result"`
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
+	}
+	if done.Reason == "denied" {
+		return "denied by " + done.Permission + ": " + done.Detail, true
 	}
 	if !done.OK {
 		return refusalText(done.Reason, done.Detail), true
@@ -212,8 +216,6 @@ func refusalText(reason, detail string) string {
 		return "unknown: there is no action with that id (see actions)"
 	case "open-on-screen":
 		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
-	case "locked":
-		return "locked: the book or a page it would change is locked; only the user can unlock it, so ask the user in the chat"
 	default:
 		return reason + ": it could not be done here (for example the page or item does not exist, or the action's rules refuse it; read_book to check)"
 	}

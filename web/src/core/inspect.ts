@@ -6,6 +6,7 @@ import type { ActionId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
 import { type ActionContext, type ActionDef, attachedTo } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
+import type { PermissionQuery } from "./def/permission"
 import type { ThemeToken } from "./def/theme"
 import { THEME_TOKENS } from "./def/theme"
 import type { KeyBinding } from "./keys"
@@ -20,6 +21,7 @@ export type Source =
   | { source: "bookType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
   | { source: "action"; id: string; field: "attach"; bookType: string } // アクションの付く先が、そのタイプに当てはまるか
   | { source: "home"; id: null } // ホームが無い（一覧と設定のアクションは使えない）
+  | { source: "permission"; id: string } // 許可の段が止めた（core/def/permission.ts）
   // キーの割り当ての行（誰の行か・書いたプラグイン・使わなかった理由。store/keys.ts の inspectKey）
   | {
       source: "key"
@@ -42,7 +44,9 @@ export interface Inspected<V> {
 
 export type Query =
   | { kind: "token"; book: Book; token: string } // ブックを描くテーマキーの値
-  | { kind: "action"; action: string; book?: Book } // アクションを使えるか（ブックが対象のアクションは、そのブック）
+  // アクションを使えるか。book はアクションが変えるブック（ブックが対象のアクションは、そのブック）、page と items はその中の所、by は誰が行うか。
+  // 許可の段は book があるときだけ見る
+  | ({ kind: "action"; action: string; book?: Book } & Partial<Pick<PermissionQuery, "page" | "items" | "by">>)
 
 type Answer<Q extends Query> = Q extends { kind: "token" } ? Inspected<Shades> : Inspected<boolean>
 
@@ -93,16 +97,34 @@ export function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
   ]
 }
 
-// アクションの許可: 表にあるか → ブックが対象ならそのブックのタイプ、一覧と設定が対象ならホームのタイプで使えるか
-function action(catalog: CoreCatalog, q: { action: string; book?: Book }, home: string | null): Inspected<boolean> {
+// 許可の段: 表の並びで、止めるなら false（許すことはしないので、ほかは null）
+function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean>[] {
+  return [...catalog.permissions.values()].map(p => ({
+    from: { source: "permission", id: p.id },
+    value: p.denies(q) ? false : null,
+  }))
+}
+
+// アクションの許可: 表にあるか → 許可の段（ブックがあるとき）→ ブックが対象ならそのブックのタイプ、一覧と設定が対象ならホームのタイプで使えるか
+function action(catalog: CoreCatalog, q: Extract<Query, { kind: "action" }>, home: string | null): Inspected<boolean> {
   const def: ActionDef | undefined = catalog.actions.get(q.action)
   const known: Step<boolean> = {
     from: { source: "catalog", table: "actions", id: q.action },
     value: def ? null : false,
   }
   if (!def) return decide([known])
+  const { kind: _, action: __, book, ...where } = q
+  const permitted = book ? permissionSteps(catalog, { ...where, action: def, book }) : []
   if (def.target === "book")
-    return q.book ? decide([known, ...typeSteps(def, bookType(catalog, q.book.type))]) : decide([known])
+    return book ? decide([known, ...permitted, ...typeSteps(def, bookType(catalog, book.type))]) : decide([known])
   if (home === null) return decide([known, { from: { source: "home", id: null }, value: false }])
-  return decide([known, ...typeSteps(def, bookType(catalog, home))])
+  return decide([known, ...permitted, ...typeSteps(def, bookType(catalog, home))])
 }
+
+// 許可の段を除いて決めた答え（タイプなどで使えるか。許可の段が止めているかは見ない）
+export const withoutPermissions = (answer: Inspected<boolean>): Inspected<boolean> =>
+  decide(answer.steps.filter(s => s.from.source !== "permission"))
+
+// 答えを止めたのが許可の段なら、その段の id（使えるか、ほかの段が止めたなら null）
+export const deniedBy = (answer: Inspected<boolean>): string | null =>
+  answer.value === false && answer.decidedBy?.source === "permission" ? answer.decidedBy.id : null

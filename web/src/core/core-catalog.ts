@@ -9,6 +9,7 @@ import { type ActionDef, attachedTo } from "./def/action"
 import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
+import type { PermissionDef } from "./def/permission"
 import type { PresentationDef } from "./def/presentation"
 import type { SettingDef, SettingRole } from "./def/setting"
 import type { SkinDef } from "./def/skin"
@@ -43,6 +44,7 @@ declare module "./catalog" {
     skins: SkinDef
     tools: ToolDef
     toolSets: ToolSetDef
+    permissions: PermissionDef
   }
 }
 
@@ -336,6 +338,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     ["textColor", parts.textColors],
     ["skin", parts.skins],
     ["tool", parts.tools],
+    ["permission", parts.permissions],
   ] as const
   for (const [kind, defs] of named)
     for (const d of defs as readonly { id: string; title: string }[])

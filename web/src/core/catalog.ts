@@ -16,6 +16,7 @@ export interface UserSettingTable {}
 export interface PresentationTable {}
 export interface ToolTable {}
 export interface ToolSetTable {}
+export interface PermissionTable {}
 export interface MessageTable {} // 文言の鍵 → 訳
 export interface CommandTable {}
 export interface DialogTable {}
@@ -61,6 +62,7 @@ export const PARTS = {
   presentations: { catalog: "core", label: "presentation" },
   tools: { catalog: "core", label: "tool" },
   toolSets: { catalog: "core", label: "toolSet" },
+  permissions: { catalog: "core", label: "permission" },
   themes: { catalog: "core", label: "theme" },
   papers: { catalog: "core", label: "paper" },
   textColors: { catalog: "core", label: "textColor" },
@@ -84,6 +86,7 @@ export interface PartTables {
   presentations: PresentationTable
   tools: ToolTable
   toolSets: ToolSetTable
+  permissions: PermissionTable
   themes: ThemeTable
   papers: PaperTable
   textColors: TextColorTable
@@ -108,6 +111,7 @@ export type UserSettingId = keyof UserSettingTable & string
 export type PresentationId = keyof PresentationTable & string
 export type ToolId = keyof ToolTable & string
 export type ToolSetId = keyof ToolSetTable & string
+export type PermissionId = keyof PermissionTable & string
 export type MessageKey = keyof MessageTable & string
 export type CommandId = keyof CommandTable & string
 export type KeyScopeId = keyof KeyScopeTable & string
@@ -142,6 +146,7 @@ export interface SettingExtras {}
 export interface PresentationExtras {}
 export interface ToolExtras {}
 export interface ToolSetExtras {}
+export interface PermissionExtras {}
 export interface MessageSetExtras {}
 export interface LanguagePackExtras {}
 export interface CommandExtras {}

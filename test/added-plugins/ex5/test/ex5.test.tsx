@@ -54,6 +54,17 @@ test("タイルを置き、札を足すと中身のフィールド tiles に入�
   expect(document.querySelector<HTMLElement>("[data-item]")?.style.getPropertyValue("--tiles-fill")).not.toBe("")
 })
 
+test("自分の許可の段: 1 ページの札が 6 枚になると、そのページに札を足すのを止め、止めた段の id を返す", () => {
+  const { instance, on, page, place } = shelf()
+  const item = (place({}) as { result: { item: string } }).result.item
+  const add = () => instance.actions.perform("ex5:tile-add", { page: page().id, item, color: "#ff0000" }, on)
+  act(() => {
+    for (let i = 0; i < 6; i++) expect(add()).toMatchObject({ ok: true })
+    expect(add()).toEqual({ ok: false, reason: "denied", permission: "ex5:tile-limit" })
+  })
+  expect(page().items![0]!.tiles).toHaveLength(6)
+})
+
 test("B3: ビューの content に、中身のフィールド tiles の札が来る（children でなくても）", () => {
   const { instance, on, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item

@@ -6,4 +6,5 @@ export const EX5_MESSAGES = defineMessages({
   tiles: { en: "Tiles", ja: "タイル" },
   addTile: { en: "Add tile", ja: "タイルを足す" },
   sortTool: { en: "Sort tool", ja: "仕分けツール" },
+  tileLimit: { en: "Tile limit", ja: "札の上限" },
 })

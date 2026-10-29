@@ -1,6 +1,6 @@
 // ex5 の形「タイル」: 色の札（tiles）を並べる入れ物。文字は持たない（captionProp なし）。
 // 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身のフィールドは children でなく tiles
-import { putPage, z } from "matomezu"
+import { hasPages, putPage, z } from "matomezu"
 import { kit } from "./kit"
 
 const TILES_SIZE = { w: 160, h: 96 }
@@ -42,6 +42,22 @@ export const TILE_ADD = kit.defineAction({
     const items = page.items?.map(i => (i === item ? { ...item, tiles } : i))
     return { next: putPage(book, { ...page, items }), result: { tile: id } }
   },
+})
+
+// 札の数の上限（自分の許可の段の見本）: 1 ページの札が TILE_LIMIT 枚になったら、そのページに札を足すことを止める。
+// 止めるのは自分のアクションだけで、ほかのアクションには口を出さない
+const TILE_LIMIT = 6
+type TilesPage = { id: string; items?: readonly { tiles?: readonly unknown[] }[] }
+const tilesOn = (page: TilesPage | undefined) => (page?.items ?? []).reduce((n, i) => n + (i.tiles?.length ?? 0), 0)
+
+export const TILE_LIMIT_PERMISSION = kit.definePermission({
+  id: "tile-limit",
+  title: "tileLimit",
+  aiDescription: `a page can hold at most ${TILE_LIMIT} tiles; make a new page for more`,
+  denies: ({ action, book, page }) =>
+    action.id === TILE_ADD.id &&
+    hasPages(book) &&
+    tilesOn((book.pages as readonly TilesPage[]).find(p => p.id === page)) >= TILE_LIMIT,
 })
 
 // 仕分けの道具（自分の道具の見本。ドラッグで紙をずらさず、置く道具でもない）と、ビルトインの選択とハンドに挟んだ棚の道具の組

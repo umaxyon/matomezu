@@ -11,7 +11,7 @@ import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
-import { type ArgsOf, performIn, type Refusal, type ResultOf, type TargetOf } from "../core/perform"
+import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
 import {
@@ -84,10 +84,11 @@ export const TOAST_MS: Readonly<Record<Toast["kind"], number | null>> = { info: 
 // アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
 export type PerformArgs<Id extends ActionId> =
   TargetOf<Id> extends "book" ? [args: ArgsOf<Id>, on: { book: string }] : [args: ArgsOf<Id>]
-// 行ったアクションの結果。no-book は宛先のブックが無いとき
+// 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は許可の段が止めたとき（permission はその段の id）
 export type Performed<Id extends ActionId> =
   | { ok: true; result: ResultOf<Id> }
-  | { ok: false; reason: Refusal | "no-book" }
+  | Refused
+  | { ok: false; reason: "no-book" }
 
 export interface Actions {
   // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも追加プラグインのアクションも、画面と AI から同じ入口を通る）。
@@ -299,7 +300,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     id: string,
     args: unknown,
     on?: { book: string },
-  ): { ok: true; result: unknown; next: Partial<MatomezuState> } | { ok: false; reason: Refusal | "no-book" } => {
+  ): { ok: true; result: unknown; next: Partial<MatomezuState> } | Refused | { ok: false; reason: "no-book" } => {
     const { books, trash, workspace, settings } = getState()
     const ids: string[] = []
     const c = ctx()

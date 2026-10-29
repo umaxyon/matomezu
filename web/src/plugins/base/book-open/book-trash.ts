@@ -1,6 +1,6 @@
 // ゴミ箱: ブックをゴミ箱に入れる book-trash（入れた時刻 trashed を付ける）、戻す book-restore（trashed を外す）、
 // 消す book-purge と、ゴミ箱を空にする trash-empty（一覧から消す。戻せない）。戻す・消す・空にするのは利用者だけ（userOnly）。
-// 1 冊だけのタイプのブックと、無いブックは入れない。ロック中のブック・ロック中のページを持つブックは、core の perform が断る（locked）
+// 1 冊だけのタイプのブックと、無いブックは入れない。ロック中のブック・ロック中のページを持つブックは、許可の段 lock が止める
 import { z } from "zod"
 import { hasPages } from "../../../core/book"
 import { bookType, type CoreCatalog } from "../../../core/core-catalog"
@@ -32,8 +32,7 @@ function purge(library: Library, ids: readonly string[]): Library {
 
 export const BOOK_TRASH = kit.defineAction({
   id: "book-trash",
-  aiDescription:
-    "Move a book to the trash: it leaves the list of books (list_books no longer shows it); only the user can bring it back or delete it for good. Refused for a book type that has only one book, for a book that is locked or has a locked page (locked), and for a book shown on a screen now (open-on-screen: ask the user in the chat).",
+  aiDescription: `Move a book to the trash: it leaves the list of books (list_books no longer shows it); only the user can bring it back or delete it for good. Refused for a book type that has only one book, for a book that is locked or has a locked page (denied by ${kit.name("lock")}), and for a book shown on a screen now (open-on-screen: ask the user in the chat).`,
   title: "Move to trash",
   target: "library",
   args: z.strictObject({ book: z.string().min(1) }),

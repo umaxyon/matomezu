@@ -38,15 +38,17 @@ type On struct {
 	Book string `json:"book"`
 }
 
-// Output は行った結果。断ったときは OK が false で Reason に理由。
+// Output は行った結果。断ったときは OK が false で Reason に理由（許可の段が止めた denied なら、Permission にその段の id、Detail にその段の AI への説明）。
 // Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）
 type Output struct {
-	OK       bool              `json:"ok"`
-	Reason   string            `json:"reason,omitempty"`
-	Result   json.RawMessage   `json:"result,omitempty"`
-	Books    []json.RawMessage `json:"books,omitempty"`
-	Removed  []string          `json:"removed,omitempty"`
-	Settings json.RawMessage   `json:"settings,omitempty"`
+	OK         bool              `json:"ok"`
+	Reason     string            `json:"reason,omitempty"`
+	Permission string            `json:"permission,omitempty"`
+	Detail     string            `json:"detail,omitempty"`
+	Result     json.RawMessage   `json:"result,omitempty"`
+	Books      []json.RawMessage `json:"books,omitempty"`
+	Removed    []string          `json:"removed,omitempty"`
+	Settings   json.RawMessage   `json:"settings,omitempty"`
 }
 
 // Engine は読み込んだ core

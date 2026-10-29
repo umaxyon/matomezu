@@ -8,7 +8,7 @@ import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRAS
 import { MENU_CLOSE, MENU_KEYS } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { kit } from "./kit"
-import { BOOK_LOCK, BOOK_UNLOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
+import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
 import { MINIMAP_TOGGLE } from "./minimap"
@@ -137,6 +137,7 @@ export const BASE = defineBuiltin(
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT],
     tools: [SELECT_TOOL, HAND_TOOL],
+    permissions: [LOCK],
     checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, FIXED_SETTINGS_CHECK],
     commands: [
       BOOK_NEW,
@@ -200,6 +201,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:standard": typeof STANDARD
     "@matomezu/base:sticky": typeof STICKY
     "@matomezu/base:simple": typeof SIMPLE
+  }
+  interface PermissionTable {
+    "@matomezu/base:lock": typeof LOCK
   }
   interface ToolTable {
     "@matomezu/base:select": typeof SELECT_TOOL

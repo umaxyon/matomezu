@@ -14,6 +14,7 @@ import {
 } from "../core/def/book-type"
 import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
 import type { PaperDef } from "../core/def/paper"
+import type { PermissionDef } from "../core/def/permission"
 import type { PresentationDef } from "../core/def/presentation"
 import type { SettingDef } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
@@ -121,6 +122,10 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     tools: T
   }): ToolSetDef & { id: Owned<P, Id>; tools: T }
 
+  definePermission<const Id extends string, const T extends Titled<PermissionDef, keyof M & string>>(
+    def: T & { id: Id },
+  ): Placed<T, Owned<P, Id>>
+
   // ブックのタイプ: データの type（と 1 冊だけのタイプのブックの id）は本当の id。schema に type は書かず、ここで足す
   defineBookType<
     const Id extends string,
@@ -199,6 +204,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     definePresentation: place,
     defineTool: place,
     defineToolSet: place,
+    definePermission: place,
     defineBookType: (def: { id: string; schema: BookSchema; book?: object; create?(init: NewBook): object }) => {
       const id = owned(plugin, def.id)
       const placed = { ...place(def), schema: withTypeField(def.schema, id) }

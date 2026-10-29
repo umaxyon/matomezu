@@ -35,10 +35,18 @@ test("ロック中のブックと、ロック中のページを持つブック�
   addPageIn(store, "s1", { title: "ページ 2" })
   const page = (store.state.getState().books.b1 as { pages: { id: string }[] }).pages[1]?.id as string
   actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
-  expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({ ok: false, reason: "locked" })
+  expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
+    ok: false,
+    reason: "denied",
+    permission: "@matomezu/base:lock",
+  })
   actions.perform("@matomezu/base:page-unlock", { page }, { book: "b1" })
   actions.perform("@matomezu/base:book-lock", {}, { book: "b1" })
-  expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({ ok: false, reason: "locked" })
+  expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
+    ok: false,
+    reason: "denied",
+    permission: "@matomezu/base:lock",
+  })
 })
 
 test("戻す・消す・空にする。ゴミ箱に無いブックは戻さず消さない。メモリのホストは残したブックを合わせる", async () => {

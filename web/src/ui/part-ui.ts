@@ -23,6 +23,7 @@ export const PART_UI = {
   presentations: { views: ["presentationViews"], define: ["definePresentation"] },
   tools: { views: ["toolIcons"], define: ["defineTool"] },
   toolSets: { views: [], define: ["defineToolSet"] },
+  permissions: { views: [], define: ["definePermission"] },
   themes: { views: [], define: ["defineTheme"] },
   papers: { views: [], define: ["definePaper"] },
   textColors: { views: [], define: ["defineTextColor"] },

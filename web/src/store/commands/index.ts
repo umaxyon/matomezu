@@ -3,7 +3,7 @@
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import { fail } from "../../core/errors"
-import { inspect } from "../../core/inspect"
+import { inspect, withoutPermissions } from "../../core/inspect"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import type { MatomezuState } from "../store"
@@ -43,10 +43,12 @@ export function commandContext(
   }
 }
 
-// コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければホームのタイプ）で使えるか
+// コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければホームのタイプ）で使えるか（許可の段が止めているかは見ない）
 function performable(def: CommandDef<never>, ctx: CommandContext): boolean {
   return (def.performs ?? []).every(
-    action => inspect(ctx.catalog, { kind: "action", action, book: ctx.book ?? undefined }, ctx).value === true,
+    action =>
+      withoutPermissions(inspect(ctx.catalog, { kind: "action", action, book: ctx.book ?? undefined }, ctx)).value ===
+      true,
   )
 }
 
