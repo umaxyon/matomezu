@@ -7,15 +7,13 @@ import { EntrySettingsDialog } from "./EntrySettingsDialog"
 import { DIR_TOOL_ICONS } from "./icons"
 import { NewDirPageDialog } from "./NewDirPageDialog"
 import { NoteSetting } from "./NoteSetting"
-import { NOTE_DIVIDER, NOTE_DOTS, NOTES_SHOWN } from "./notes"
+import { NOTES } from "./notes"
 import { DIR_VIEW } from "./view/ui"
 
 export const DIR_UI = definePluginUi(DIR_PLUGIN, {
   presentationViews: { [DIR_PRESENTATION.id]: DIR_VIEW },
   settingViews: {
-    [NOTES_SHOWN.id]: { control: NoteSetting },
-    [NOTE_DOTS.id]: { control: NoteSetting },
-    [NOTE_DIVIDER.id]: { control: NoteSetting },
+    [NOTES.id]: { control: NoteSetting },
   },
   dialogViews: { [NEW_DIR_PAGE_DIALOG.id]: NewDirPageDialog, [ENTRY_SETTINGS_DIALOG.id]: EntrySettingsDialog },
   toolIcons: DIR_TOOL_ICONS,

@@ -8,12 +8,15 @@
 // 選んでいる行の右には＋（フォルダとファイル。フォルダの行は中の末尾に、ファイルの行はすぐ下に足す。コマンド folder-add・file-add）を出す。
 // ダブルクリック（と Enter・F2 のコマンド）で、名前をその場で書き始める。書いている字で行の幅を決め直し、装飾を見たまま書く入力Form（base の RichInput）と、そのすぐ上に装飾のボックス（base の RichBar）を出す。
 // Enter か入力Formの外を押すと確定、Escape で取り消す。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
+// 説明を出している間は、説明の列（説明の無い行は、その行の高さの空き）をダブルクリックすると、説明をその場で書き始める（その場の編集の名前 NOTE_EDIT）。
+// 入力Formは説明の列の幅で、確定のしかたは名前と同じ。空にして確定すると説明を消す。
 // 中に足す種類を選んでいる間（その場の編集の名前 KIND_PICK。Tab のコマンド）は、選んでいるフォルダの行のすぐ右に、フォルダとファイルを縦に並べた枠を出す。
 // ↑・↓ で選び、Enter か押して、その種類を中の末尾に足して名前を書き始める（コマンド folder-add・file-add）。Escape か枠の外へ焦点が移ると、やめる。
 // 鉛筆の間は、根でない行を押して動かすとドラッグになり、落とした所で中身ごと付け替える（落とす先は drag.ts が決める。行の写しがポインタに付き、元の行と中身は薄く、
 // 中へ入るフォルダの行には点線の枠、行の間に入る所には線を出す）。ポインタが端に近ければ紙をずらす。付け替えが紙に入らず断られたら、トーストで知らせる
 import {
   type CSSProperties,
+  type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
   type RefObject,
@@ -25,6 +28,7 @@ import { isPaletteName, type Point, placement, type StageView, themeVar, toPaper
 import {
   type BookViewProps,
   useActions,
+  useAllowed,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -40,13 +44,16 @@ import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
 import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
 import { dropAt, subtreeIds } from "../drag"
-import { afterRemove, changeEntry, editEnd, entryOf, selectedIn } from "../edit"
+import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from "../edit"
 import { type DirFolder, DirFolderSchema } from "../entry"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, layoutDir, nameLeft } from "../layout"
 import { noteLookOf } from "../notes"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
+
+// 説明をその場で書いている間の、その場の編集の名前
+const NOTE_EDIT = kit.name("note-edit")
 
 export function DirView({ stage: id }: BookViewProps) {
   const stage = useStage(id)
@@ -110,9 +117,11 @@ function Rows({
   const openEntryMenu = useContextMenu(stage.id, ENTRY_CONTEXT)
   // 書いている字（どの中身のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ entry: string; text: string } | null>(null)
+  const [noteDraft, setNoteDraft] = useState<{ entry: string; text: string } | null>(null) // 書いている説明
   const ended = useRef(false)
   const editor = useRef<RichInputHandle>(null)
   const drag = useRowDrag(stage, area)
+  const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
   const root = DirFolderSchema.safeParse((page as { root?: unknown } | null)?.root)
   if (!page || !root.success) return null
   const dir = root.data
@@ -125,6 +134,9 @@ function Rows({
   const look = noteLookOf(id => (book ? settingValue(catalog, book, page, id) : undefined))
   const { rows, lines, notes, divider } = layoutDir(shown, paper, look)
   const at = rows.find(r => r.id === selected)
+  const noting = usingPencil && stage.editing === NOTE_EDIT && notes !== null
+  const noteText = noting && noteDraft?.entry === selected ? noteDraft.text : null
+  const description = entryOf(dir, selected)?.description ?? ""
   // ドラッグで動かしている行（押しただけでまだ動かしていなければ null）と、落とす先
   const dragging = drag.state?.moved ? drag.state : null
   const moving = dragging
@@ -151,6 +163,31 @@ function Rows({
     }
     setDraft(null)
     setEditing(stage.id, false)
+  }
+  // 説明のその場の編集を終える（commit なら書いた字を確定する。することは edit.ts の noteEnd が決める）
+  const endNote = (commit: boolean) => {
+    if (ended.current) return
+    ended.current = true
+    const next = commit ? noteEnd(dir, selected, noteText) : undefined
+    if (next !== undefined) {
+      const done = perform(ENTRY_UPDATE.id, { page: pageId, entry: selected, description: next })
+      if (!done.ok) refused(done)
+    }
+    setNoteDraft(null)
+    setEditing(stage.id, false)
+  }
+  // 書いている途中の名前か説明を確定する（入力Formが外れるより先に選びが替わるので、押したときに確定する）
+  const settle = () => {
+    if (writing) end(true)
+    if (noting) endNote(true)
+  }
+  // 入力Formのキー: Enter で確定、Escape で取り消す
+  const keys = (finish: (commit: boolean) => void) => (e: KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return
+    if (e.key !== "Enter" && e.key !== "Escape") return
+    e.preventDefault()
+    e.stopPropagation()
+    finish(e.key === "Enter")
   }
   drag.onDrop.current = (entry, point) => {
     const target = dropAt(dir, rows, entry, point)
@@ -180,18 +217,18 @@ function Rows({
           dropInto={drop?.mark.kind === "into" && drop.mark.entry === r.id}
           onPointerDown={e => {
             if (e.button !== 0 || !usingPencil) return
-            if (writing) end(true) // 入力Formが外れるより先に選びが替わるので、ここで確定する
+            settle()
             select(stage.id, [r.id])
             if (r.id !== dir.id) drag.start(r, e.clientX, e.clientY)
           }}
           onDoubleClick={() => {
-            if (!usingPencil) return
+            if (!usingPencil || !renamable) return
             select(stage.id, [r.id])
             setEditing(stage.id, true)
           }}
           onContextMenu={e => {
             if (!usingPencil) return
-            if (writing) end(true)
+            settle()
             select(stage.id, [r.id])
             openEntryMenu(e, {})
           }}
@@ -225,19 +262,34 @@ function Rows({
             ended.current = false
           }}
           onPointerDown={e => e.stopPropagation()}
-          onKeyDown={e => {
-            if (e.nativeEvent.isComposing) return
-            if (e.key !== "Enter" && e.key !== "Escape") return
-            e.preventDefault()
-            e.stopPropagation()
-            end(e.key === "Enter")
-          }}
+          onKeyDown={keys(end)}
           onBlur={() => end(true)}
         />
       )}
       {notes &&
+        usingPencil &&
+        rows.map(r => (
+          // biome-ignore lint/a11y/noStaticElementInteractions: 説明を書き始めるのはポインタの操作で、キーの操作は行のコマンドが受ける
+          <div
+            key={`note-cell-${r.id}`}
+            className={styles.noteCell}
+            data-note-cell={r.id}
+            style={{ left: notes.x, top: r.y, width: notes.w, height: r.h }}
+            onPointerDown={e => {
+              if (e.button !== 0) return
+              settle()
+              select(stage.id, [r.id])
+            }}
+            onDoubleClick={() => {
+              if (!renamable) return
+              select(stage.id, [r.id])
+              setEditing(stage.id, NOTE_EDIT)
+            }}
+          />
+        ))}
+      {notes &&
         rows.map(r =>
-          r.note ? (
+          r.note && !(noting && r.id === selected) ? (
             <span
               key={`note-${r.id}`}
               className={styles.note}
@@ -249,6 +301,33 @@ function Rows({
             </span>
           ) : null,
         )}
+      {noting && notes && at && (
+        <RichBar
+          stage={stage.id}
+          target={editor}
+          className={styles.editorBar}
+          style={{ left: notes.x - EDITOR_INSET, top: at.y }}
+        />
+      )}
+      {noting && notes && at && (
+        <RichInput
+          ref={editor}
+          stage={stage.id}
+          className={styles.editor}
+          label={t("Description")}
+          multiline={false}
+          autoFocus
+          value={noteText ?? description}
+          style={{ left: notes.x - EDITOR_INSET, top: at.y, width: notes.w + EDITOR_INSET, height: at.h }}
+          onChange={next => setNoteDraft({ entry: selected, text: next })}
+          onFocus={() => {
+            ended.current = false
+          }}
+          onPointerDown={e => e.stopPropagation()}
+          onKeyDown={keys(endNote)}
+          onBlur={() => endNote(true)}
+        />
+      )}
       {ghost && dragging && (
         <div
           className={`${styles.row} ${styles.ghost}`}
