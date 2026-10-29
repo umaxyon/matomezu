@@ -128,7 +128,8 @@ export interface Actions {
   togglePlacing(stage: string, item: ItemId): void // そのステージでアイテムを置こうとする（同じものなら取り消す）
   stopPlacing(stage: string): void
   select(stage: string, ids: readonly string[]): void // そのステージで選ぶ物（開いているページのもの）
-  setEditing(stage: string, editing: boolean): void // そのステージで選んでいる物を、その場で編集し始める・終える
+  // そのステージで選んでいる物を、その場で編集し始める・終える（何をするかを名前で分けるときは、その名前で始める）
+  setEditing(stage: string, editing: boolean | string): void
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
   closePicker(): void

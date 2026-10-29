@@ -28,7 +28,9 @@ export interface Stage {
   view: Size | null // 表示領域の大きさ（測るまでは null）
   placing: ItemId | null // 置こうとしているアイテム（ツールボックスで選んだもの。置くか取り消すまで）
   selection: readonly string[] // 選んでいる物の id（開いているページのアイテムや、ページのフィールドの中の物）
-  editing: boolean // 選んでいる物を、今その場で編集中か（選びが替わる・開くものが変わる・道具を替えると終わる）
+  // 選んでいる物を、今その場で編集中か（選びが替わる・開くものが変わる・道具を替えると終わる）。
+  // 何をしているかをプラグインが名前で分けるときは、その名前（種類を選ぶなど。true は名前を分けない編集）
+  editing: boolean | string
   // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める。map ならアイコンの代わりにミニマップを出している）
   picker: { at: Point | null; map: boolean } | null
   minimap: boolean // ステージの左下にミニマップを出しているか（紙が表示領域に収まると閉じる）
@@ -212,8 +214,8 @@ export function select(stage: Stage, ids: readonly string[]): Stage {
 }
 
 // 選んでいる物を、その場で編集し始める・終える（何も選んでいなければ始めない）
-export function setEditing(stage: Stage, editing: boolean): Stage {
-  const next = editing && stage.selection.length > 0
+export function setEditing(stage: Stage, editing: boolean | string): Stage {
+  const next = stage.selection.length > 0 ? editing : false
   return next === stage.editing ? stage : { ...stage, editing: next }
 }
 

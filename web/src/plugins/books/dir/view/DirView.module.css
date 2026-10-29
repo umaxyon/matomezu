@@ -118,7 +118,7 @@
   top: 50%;
   transform: translateY(-50%);
 }
-/* フォルダの開け閉めの印（罫線の付け根。真ん中を置き場所に合わせる）。押せないときは薄く */
+/* フォルダの開け閉めの印（罫線の付け根。真ん中を置き場所に合わせる。枠は描かず、紙の色で下の罫線を隠す）。押せないときは薄く */
 .toggle {
   position: absolute;
   display: flex;
@@ -128,7 +128,7 @@
   height: 14px;
   margin: -7px 0 0 -7px;
   padding: 0;
-  border: 1px solid var(--dir-line);
+  border: 0;
   border-radius: 3px;
   background: var(--theme-paper);
   color: var(--dir-text);
@@ -144,4 +144,126 @@
 .toggle:disabled {
   cursor: default;
   opacity: 0.4;
+}
+/* 鉛筆で選んでいる行 */
+.row[data-selected="true"] {
+  border-radius: 4px;
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 1px;
+}
+/* その場で編集している名前のテキストForm（名前と同じ所・同じ高さ。記号もそのまま書く） */
+.editor {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 4px;
+  border: 2px solid var(--theme-accent);
+  border-radius: 4px;
+  background: var(--theme-paper);
+  color: var(--dir-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  outline: none;
+}
+/* その場の編集の装飾のボックス（テキストFormのすぐ上） */
+.editorBar {
+  position: absolute;
+  transform: translateY(calc(-100% - 4px));
+  white-space: nowrap;
+}
+/* 選んでいる行の右の＋（フォルダとファイル。真ん中を行の真ん中に合わせる） */
+.pluses {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  transform: translateY(-50%);
+}
+.plus {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--dir-line);
+  border-radius: 5px;
+  background: var(--theme-paper);
+  cursor: pointer;
+}
+.plus:hover:not(:disabled),
+.plus:focus-visible {
+  border-color: var(--theme-accent);
+}
+.plus:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.plusIcon {
+  width: 14px;
+  height: 14px;
+}
+.plusIcon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.plus[data-kind="folder"] {
+  --dir-icon: var(--dir-folder);
+}
+.plus[data-kind="file"] {
+  --dir-icon: var(--dir-file);
+}
+/* ＋の印（アイコンの右下） */
+.plusMark {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 8px;
+  height: 8px;
+  fill: none;
+  stroke: var(--theme-accent);
+  stroke-width: 2.4;
+}
+/* 中に足す種類を選ぶ枠（選んでいるフォルダの行のすぐ右。フォルダとファイルを縦に並べる） */
+.picker {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--dir-line);
+  border-radius: 6px;
+  background: var(--theme-paper);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+}
+.pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+.pick svg {
+  width: 16px;
+  height: 16px;
+}
+.pick[data-kind="folder"] {
+  --dir-icon: var(--dir-folder);
+}
+.pick[data-kind="file"] {
+  --dir-icon: var(--dir-file);
+}
+.pick:hover,
+.pick:focus-visible,
+.pick:focus {
+  outline: none;
+  background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
 }

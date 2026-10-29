@@ -19,8 +19,12 @@ export const DIR_PRESENTATION = kit.definePresentation({ id: "dir", keyScope: DI
 // ディレクトリ構成図のページを作るダイアログ（ページ名・根のフォルダの名前）
 export const NEW_DIR_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
 
-// ビューが開く右クリックのメニュー: 紙の画面（ui.tsx で core/catalog.ts に書き足す）
+// ビューが開く右クリックのメニュー: 紙の画面と、行（右クリックした行を選んでから開く）（ui.tsx で core/catalog.ts に書き足す）
 export const DIR_CONTEXT = kit.name("dir-context")
+export const ENTRY_CONTEXT = kit.name("entry-context")
+
+// 中身（根も）の設定のダイアログ（開いたステージのブックの、ページ page の中身 entry の名前と色）
+export const ENTRY_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; entry: string }>()({ id: "entry-settings" })
 
 // 中身の色（無ければテーマの色）のテーマキー
 export const FOLDER_COLOR = { id: "dir-folder", value: "#d9a441" } as const // フォルダのアイコン（標準は黄土色。テーマが上書きする）

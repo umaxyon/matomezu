@@ -211,3 +211,61 @@ export function rowsOf(root: DirFolder): Row[] {
   walk(root, 0)
   return rows
 }
+
+// 選んでいる中身: ステージの選択の最初の物（見せている行に無ければ根）。鉛筆の間は、いつもどれかの行を選んでいる
+export function selectedIn(root: DirFolder, selection: readonly string[]): string {
+  const first = selection[0]
+  return first !== undefined && rowsOf(root).some(r => r.entry.id === first) ? first : root.id
+}
+
+// 行 id から上（up）か下（down）の行（端なら id のまま）
+export function rowFrom(root: DirFolder, id: string, to: "up" | "down"): string {
+  const rows = rowsOf(root)
+  const i = rows.findIndex(r => r.entry.id === id)
+  return rows[to === "up" ? i - 1 : i + 1]?.entry.id ?? id
+}
+
+// 中身 id を消したあとに選ぶ行: すぐ上の行（根は消せないので、いつもある。無い中身は null）
+export function afterRemove(root: DirFolder, id: string): string | null {
+  if (root.id === id || !pathTo(root, id)) return null
+  return rowFrom(root, id, "up")
+}
+
+// 足す所: フォルダ parent の index 番目（無ければ末尾）。open は先に開くフォルダ（閉じたフォルダの中に足すとき）
+export interface AddAt {
+  parent: string
+  index?: number
+  open?: string
+}
+
+// 行 id の＋と右クリックの「足す」の足す所: フォルダなら中の末尾（閉じていれば開く）、ファイルならすぐ下（無い中身は null）
+export function addInto(root: DirFolder, id: string): AddAt | null {
+  const e = entryOf(root, id)
+  if (!e) return null
+  if (e.kind === "folder") return { parent: id, ...(e.closed ? { open: id } : {}) }
+  return addAfter(root, id)
+}
+
+// 行 id のすぐ下に兄弟として足す所（キーの d・f）。根には兄弟が無いので、根の中の末尾（閉じていれば開く。無い中身は null）
+export function addAfter(root: DirFolder, id: string): AddAt | null {
+  if (root.id === id) return { parent: id, ...(root.closed ? { open: id } : {}) }
+  const parent = pathTo(root, id)?.at(-1)
+  if (!parent) return null
+  return { parent: parent.id, index: (parent.children ?? []).findIndex(c => c.id === id) + 1 }
+}
+
+// 中身 id の名前（無ければ空）
+export const nameOf = (root: DirFolder, id: string): string => entryOf(root, id)?.name ?? ""
+
+// その場の編集を終えたときにすること: 書いた字 text（取り消しなら null）で、中身 id を
+// 消す（名前の空の中身が空のまま終わった。根は消さない）・名前を替える・何もしない（変わらない・今ある名前を空にした）
+export type EditEnd = { kind: "remove" } | { kind: "rename"; name: string } | { kind: "none" }
+
+export function editEnd(root: DirFolder, id: string, text: string | null): EditEnd {
+  const old = nameOf(root, id)
+  // 記号だけで字の無い名前（**** など）は空とみなす
+  const written = text ?? old
+  const next = plainName(written).trim() === "" ? "" : written
+  if (next === "") return root.id !== id && plainName(old).trim() === "" ? { kind: "remove" } : { kind: "none" }
+  return next === old ? { kind: "none" } : { kind: "rename", name: next }
+}
