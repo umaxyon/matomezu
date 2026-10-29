@@ -258,15 +258,25 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
   await expect.poll(async () => await bookIn(page, "e2e-trash")).toBeUndefined()
 })
 
-test("ロック中のブックの名前とページタブに鍵が出て、押すとロックが外れる", async ({ page }) => {
+test("ロック中のブックの名前とページタブに鍵が出る。ページタブの鍵は押すと外れ、ブックは設定のダイアログの見出しの鍵で外す", async ({
+  page,
+}) => {
   // 前のテストで置いたロック中のブック（e2e-locked）の最初のページにもロックを掛ける
   const have = (await data(page)).books.find((b: { id: string }) => b.id === "e2e-locked")
   const pages = have.book.pages.map((p: object, i: number) => (i === 0 ? { ...p, locked: true } : p))
   await page.request.put("/api/books/e2e-locked", { data: { book: { ...have.book, pages }, base: have.version } })
   await page.goto("/?b0=e2e-locked")
-  await page.getByRole("button", { name: "ブックのロックを外す" }).click()
+  await expect(page.getByRole("img", { name: "ロック中" })).toBeVisible()
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  await page.mouse.click(paper.x + 30, paper.y + 40, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ブックの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  await dialog.getByRole("button", { name: "ブックのロックを外す" }).click()
+  await expect(dialog.getByRole("button", { name: "ブックをロックする" })).toBeVisible()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(0)
   await page.getByRole("button", { name: "ページのロックを外す" }).click()
-  await expect(page.getByRole("button", { name: /のロックを外す/ })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "ページのロックを外す" })).toHaveCount(0)
   await expect
     .poll(async () => {
       const b = (await data(page)).books.find((x: { id: string }) => x.id === "e2e-locked").book

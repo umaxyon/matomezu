@@ -1,5 +1,5 @@
 // ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前を出す。
-// ロック中のブックは名前の左に鍵を出し、押すとロックを外す（コマンド book-unlock）。
+// ロック中のブックは名前の左に鍵を出す（印だけ。外すのはブックの設定のダイアログ）。
 // 乗せるか押すと、上にメニュー（配置のメニュー stage-menu）がせり上がり、ボタンとメニューから離れると下がる。メニューの項目はコマンドを呼ぶ
 import { useEffect, useRef, useState } from "react"
 import { bookTitle } from "../../../core/book"
@@ -9,7 +9,6 @@ import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/lay
 import { useMenu, useMenuCommand } from "../../../ui/menu"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { BOOK_UNLOCK_COMMAND } from "../lock"
 import { LockIcon } from "../lock/LockIcon"
 import styles from "./BookName.module.css"
 import { STAGE_MENU } from "./menu"
@@ -25,7 +24,6 @@ export function BookName({ stage }: { stage: string }) {
   const lang = useMatomezuState(s => s.settings.lang)
   const current = useMatomezuState(s => s.workspace.current === stage)
   const t = useMessages(kit)
-  const unlock = useCommand(stage, BOOK_UNLOCK_COMMAND.id)
   const [open, setOpen] = useState(false)
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelLeave = () => {
@@ -66,16 +64,9 @@ export function BookName({ stage }: { stage: string }) {
           {title}
         </button>
         {book?.locked && (
-          <button
-            type="button"
-            className={styles.lock}
-            aria-label={t("Unlock book")}
-            title={t("Locked")}
-            disabled={!unlock.shown}
-            onClick={() => unlock.run()}
-          >
+          <span className={styles.lock} role="img" aria-label={t("Locked")}>
             <LockIcon />
-          </button>
+          </span>
         )}
         <StageMenu
           stage={stage}

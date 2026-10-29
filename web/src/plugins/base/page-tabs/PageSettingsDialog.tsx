@@ -1,7 +1,7 @@
 // ページの設定のダイアログ: 開いているページの名前と、ブックのタイプが選んだページの設定の項目（値が無ければブックの値を継ぐ）。
 // 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからページに重ねて見せる（ダイアログの下書き。名前は見せない）。
 // 確定でアクション page-update（設定の項目は settings）を書き、キャンセルでは元のまま。選んでいる値でページに問題が出れば、その知らせを出して確定できない
-// ロックの切り替えは確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。ロック中のページは削除のボタンを押せない。
+// 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。ロック中のページは削除のボタンを押せない。
 // ページを削除するボタンは、上に重ねたモーダルで確かめてから page-remove を行う（中身ごと消え、戻せないため）
 import { useEffect, useId, useState } from "react"
 import { pagedOf, putPage, withSettings } from "../../../core/book"
@@ -11,9 +11,10 @@ import { useActions, useMatomezuState } from "../../../ui/store-context"
 import { usePerform } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
-import { ActionButton, controlClass, Field, Form, rowClass, Switch } from "../dialog-host/FormParts"
+import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { changeWithLock, PAGE_LOCK, PAGE_UNLOCK } from "../lock"
+import { LockToggle } from "../lock/LockToggle"
 import { PageProblemsView, usePageProblems } from "../utils/PageProblems"
 import { useSettingControls } from "../utils/SettingControls"
 import { PAGE_REMOVE } from "./page-remove"
@@ -62,6 +63,7 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
   return (
     <Dialog
       title={t("Page settings")}
+      aside={<LockToggle locked={locked} label={t(locked ? "Unlock page" : "Lock page")} onChange={setLocked} />}
       onClose={onClose}
       actions={
         <>
@@ -77,9 +79,6 @@ export function PageSettingsDialog({ stage, args, onClose }: DialogProps<{ page:
           {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
         </Field>
         {settings.controls}
-        <Field label={t("Lock")}>
-          {fid => <Switch id={fid} label={t("Lock")} checked={locked} onChange={setLocked} />}
-        </Field>
         <PageProblemsView problems={problems} />
         <div className={rowClass}>
           <ActionButton danger disabled={page.locked === true} onClick={() => setConfirming(true)}>

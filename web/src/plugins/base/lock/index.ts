@@ -91,17 +91,6 @@ export const PAGE_UNLOCK = kit.defineAction({
   },
 })
 
-// 鍵のアイコンを押したときのコマンド: ステージのブックのロックを外す
-export const BOOK_UNLOCK_COMMAND = kit.defineCommand({
-  id: "book-unlock",
-  performs: [BOOK_UNLOCK.id],
-  title: "Unlock book",
-  run: (ctx, a) => {
-    if (ctx.book) a.perform(BOOK_UNLOCK.id, {}, { book: ctx.book.id })
-  },
-  when: ctx => ctx.book?.locked === true,
-})
-
 // 鍵のアイコンを押したときのコマンド: ステージのブックのページ page のロックを外す
 export const PAGE_UNLOCK_COMMAND = kit.defineCommand({
   id: "page-unlock",

@@ -7,5 +7,4 @@ export const LOCK_MESSAGES = defineMessages({
   "Lock page": { en: "Lock page", ja: "ページをロックする" },
   "Unlock page": { en: "Unlock page", ja: "ページのロックを外す" },
   Locked: { en: "Locked", ja: "ロック中" },
-  Lock: { en: "Lock", ja: "ロック" },
 })

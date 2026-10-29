@@ -26,7 +26,7 @@
 .trigger[data-locked="true"] {
   padding-left: 28px;
 }
-/* ロック中の鍵。名前のボタンの左の余白に重ねる */
+/* ロック中の鍵（印だけ）。名前のボタンの左の余白に重ね、押すのは名前のボタンが受ける */
 .lock {
   position: absolute;
   left: 10px;
@@ -40,13 +40,7 @@
   border: 0;
   background: transparent;
   color: var(--skin-hint);
-  cursor: pointer;
-}
-.lock:hover:not(:disabled) {
-  color: var(--skin-accent);
-}
-.lock:disabled {
-  cursor: default;
+  pointer-events: none;
 }
 .trigger[data-current="true"] {
   box-shadow: inset 3px 0 0 var(--skin-accent);
