@@ -2,7 +2,7 @@
 // 返した定義の id は本当の id（型も）で、自分の物はそれか kit.name(名前) で名指す。ほかのプラグインの物は本当の id で書く。
 // 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマキーの id・テーマが上書きする自分のテーマキーだけ
 import type { MessageKey } from "../core/catalog"
-import type { ActionAttach, ActionDef, ActionTarget } from "../core/def/action"
+import type { ActionAttach, ActionDef, ActionTarget, ScopeRequired } from "../core/def/action"
 import {
   type BookSchema,
   type DataOf,
@@ -101,7 +101,7 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     I,
     const At extends ActionAttach | undefined = undefined,
   >(
-    def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id },
+    def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id } & ScopeRequired<T, A>,
   ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> }
 
   defineSetting<const Id extends string, S extends SettingDef["schema"]>(

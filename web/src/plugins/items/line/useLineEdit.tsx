@@ -4,7 +4,7 @@
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import { type CoreCatalog, type ItemPage, type Point, type StageView, toPaper } from "../../../plugin-api"
-import { useActions, useCommand } from "../../../plugin-api/ui"
+import { useActions, useAllowed, useCommand } from "../../../plugin-api/ui"
 import { LINE_UPDATE } from "./actions"
 import { LINE_RECONNECT_DROP } from "./commands"
 import { reconnectTargets } from "./connect"
@@ -47,6 +47,8 @@ export function useLineEdit(
 ) {
   const { perform } = useActions()
   const drop = useCommand(stage.id, LINE_RECONNECT_DROP.id)
+  // 線を直せるか（許可の段が止めていれば、札・折れ目・端を動かし始めない）
+  const editable = useAllowed(stage.id, LINE_UPDATE.id).ok
   const drag = useRef<Drag | null>(null)
   const [draft, setDraft] = useState<{ id: string; props: Props } | null>(null)
   const [snap, setSnap] = useState<Point | null>(null)
@@ -79,7 +81,7 @@ export function useLineEdit(
     return at && toPaper(stage, at)
   }
   const begin = (e: PointerEvent<Element>, line: string, what: Kind) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 || !editable) return
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { pointer: e.pointerId, line, start: { x: e.clientX, y: e.clientY }, moved: false, what }

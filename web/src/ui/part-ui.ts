@@ -19,7 +19,7 @@ export const PART_UI = {
   items: { views: ["items", "connectors"], define: ["defineShape", "defineConnector"] },
   actions: { views: [], define: ["defineAction"] },
   settings: { views: ["settingViews"], define: ["defineSetting"] },
-  userSettings: { views: ["settingViews"], define: ["defineSetting"] },
+  userSettings: { views: ["userSettingViews"], define: ["defineSetting"] },
   presentations: { views: ["presentationViews"], define: ["definePresentation"] },
   tools: { views: ["toolIcons"], define: ["defineTool"] },
   toolSets: { views: [], define: ["defineToolSet"] },

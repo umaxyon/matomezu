@@ -258,7 +258,7 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
   await expect.poll(async () => await bookIn(page, "e2e-trash")).toBeUndefined()
 })
 
-test("ロック中のブックの名前とページタブに鍵が出る。鍵は押せず、ブックとページは設定のダイアログの見出しの鍵で外す", async ({
+test("ロック中のブックの名前とページタブに鍵が出る。鍵は押せず、ブックとページは設定のダイアログの見出しの鍵で外す（ロック中は項目を押せない）", async ({
   page,
 }) => {
   // 前のテストで置いたロック中のブック（e2e-locked）の最初のページにもロックを掛ける
@@ -271,8 +271,11 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
   await page.mouse.click(paper.x + 30, paper.y + 40, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "ブックの設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  // ロック中は項目を押せず、鍵を外す方にすると押せる
+  await expect(dialog.getByRole("textbox", { name: "ブックの名前" })).toBeDisabled()
   await dialog.getByRole("button", { name: "ブックのロックを外す" }).click()
   await expect(dialog.getByRole("button", { name: "ブックをロックする" })).toBeVisible()
+  await expect(dialog.getByRole("textbox", { name: "ブックの名前" })).toBeEnabled()
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(1)
   // ページタブの鍵を押しても外れない（押すのはタブが受ける）

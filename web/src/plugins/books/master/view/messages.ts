@@ -3,5 +3,5 @@ import { defineMessages } from "../../../../plugin-api"
 
 export const MASTER_VIEW_MESSAGES = defineMessages({
   Settings: { en: "Settings", ja: "設定" },
-  Auto: { en: "Auto", ja: "自動" },
+  "(The settings screen is provisional)": { en: "(The settings screen is provisional)", ja: "（設定画面は暫定）" },
 })

@@ -162,7 +162,7 @@ export function ListView({
       if (e.button !== 0 || pans) return
       e.stopPropagation()
       select(stage, [id])
-      if (!canCarry({ props }, row)) return
+      if (!moveRow.enabled || !canCarry({ props }, row)) return
       carry.current = {
         pointer: e.pointerId,
         row,
@@ -270,6 +270,7 @@ export function ListView({
                       type="checkbox"
                       className={styles.check}
                       checked={row.props.checked === true}
+                      disabled={!check.enabled}
                       aria-label={t("Check")}
                       {...inside}
                       onDoubleClick={e => e.stopPropagation()}
@@ -277,21 +278,25 @@ export function ListView({
                     />
                   )}
                   <RowFace row={row} look={look} />
-                  {!pans && <div className={styles.grip} data-grip="row" {...grip(row.id, look?.height ?? 0)} />}
+                  {!pans && stretchRow.enabled && (
+                    <div className={styles.grip} data-grip="row" {...grip(row.id, look?.height ?? 0)} />
+                  )}
                 </li>
               )
             })}
           </ul>
-          <button
-            type="button"
-            className={styles.add}
-            aria-label={t("Add row")}
-            {...inside}
-            onDoubleClick={e => e.stopPropagation()}
-            onClick={() => add.run({ list: id })}
-          >
-            +
-          </button>
+          {add.enabled && (
+            <button
+              type="button"
+              className={styles.add}
+              aria-label={t("Add row")}
+              {...inside}
+              onDoubleClick={e => e.stopPropagation()}
+              onClick={() => add.run({ list: id })}
+            >
+              +
+            </button>
+          )}
         </div>
       </div>
       {carried &&

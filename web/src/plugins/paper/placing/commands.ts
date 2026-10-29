@@ -11,7 +11,7 @@ import {
   toPaper,
   toPaperDelta,
 } from "../../../plugin-api"
-import { type Edges, fitsPaper, itemSize, openedPage, resizedBy, shapeDefOf } from "../../base"
+import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import type { Came } from "./drag"
@@ -29,7 +29,7 @@ export function placeAt(ctx: { stage: Pick<StageView, "opened" | "pan" | "zoom">
 export const PAPER_PLACE = kit.defineCommand({
   id: "paper-place",
   performs: [ITEM_PLACE.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Place item",
   run: (ctx, a, pointer: Point) => {
     const { stage } = ctx
@@ -69,7 +69,7 @@ function editable(ctx: CommandContext): boolean {
 export const PAPER_EDIT = kit.defineCommand({
   id: "paper-edit",
   performs: [ITEM_UPDATE.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     const page = ctx.stage.opened?.page
@@ -89,7 +89,7 @@ export const PAPER_EDIT = kit.defineCommand({
 export const PAPER_DELETE = kit.defineCommand({
   id: "paper-delete",
   performs: [ITEM_REMOVE.id],
-  touches: openedPage,
+  permissionScope: "selection",
   title: "Delete",
   run: (ctx, a) => {
     const { opened, selection, id } = ctx.stage
@@ -104,7 +104,7 @@ export const PAPER_DELETE = kit.defineCommand({
 export const PAPER_MOVE = kit.defineCommand({
   id: "paper-move",
   performs: [ITEM_MOVE.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Move items",
   run: (ctx, a, args: { items: readonly string[]; by: Point; came?: Came }) => {
     const { opened } = ctx.stage
@@ -121,7 +121,7 @@ export const PAPER_MOVE = kit.defineCommand({
 export const PAPER_REPARENT = kit.defineCommand({
   id: "paper-reparent",
   performs: [ITEM_REPARENT.id, ITEM_MOVE.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Reparent item",
   run: (ctx, a, args: { item: string; parent: string | null; by: Point }) => {
     const { opened } = ctx.stage
@@ -144,7 +144,7 @@ export const PAPER_REPARENT = kit.defineCommand({
 export const PAPER_RESIZE = kit.defineCommand({
   id: "paper-resize",
   performs: [ITEM_RESIZE.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Resize item",
   run: (ctx, a, args: { item: string; edges: Edges; by: Point }) => {
     const { opened } = ctx.stage

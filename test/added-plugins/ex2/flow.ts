@@ -33,7 +33,7 @@ export const ANSWER = kit.defineAction({
     "Answer a decision (an item ex2/diamond) on a page: answer is yes or no. Refused when the item is not a decision on that page.",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), answer: z.enum(["yes", "no"]) }),
-  touches: args => ({ page: args.page, items: [args.item] }),
+  permissionScope: { page: "page", item: "item" },
   run: (book, args) => {
     const page = book.pages.find(p => p.id === args.page)
     const item = page?.items?.find(i => i.id === args.item)

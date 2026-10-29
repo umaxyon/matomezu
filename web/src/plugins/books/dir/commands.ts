@@ -1,6 +1,6 @@
 // ディレクトリ構成図のコマンド: フォルダを開け閉めする（▸・▾ が呼ぶ。鉛筆でもハンドでも。編集のロックなどでアクションが止められていれば押せない）
 import { type CommandContext, pagedOf } from "../../../plugin-api"
-import { openedPage, refusalMessage } from "../../base"
+import { refusalMessage } from "../../base"
 import { FOLDER_CLOSE } from "./actions"
 import { entryOf } from "./edit"
 import { DirFolderSchema } from "./entry"
@@ -19,7 +19,7 @@ export function dirAt(ctx: CommandContext) {
 export const FOLDER_TOGGLE = kit.defineCommand({
   id: "folder-toggle",
   performs: [FOLDER_CLOSE.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Open or close folder",
   run: (ctx, a, args: { folder: string }) => {
     const dir = dirAt(ctx)

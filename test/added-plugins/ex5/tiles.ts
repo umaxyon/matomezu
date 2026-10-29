@@ -33,7 +33,7 @@ export const TILE_ADD = kit.defineAction({
   aiDescription: "Add a tile of color (#rrggbb) at the end of the item (an ex5:tiles). Returns the tile's id.",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), color: z.string() }),
-  touches: args => ({ page: args.page, items: [args.item] }),
+  permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
     const page = book.pages.find(p => p.id === args.page)
     const item = page?.items?.find(i => i.id === args.item)

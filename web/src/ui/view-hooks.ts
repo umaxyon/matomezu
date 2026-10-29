@@ -4,7 +4,9 @@ import { useMemo } from "react"
 import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
+import type { Where } from "../core/def/action"
 import type { Lang } from "../core/i18n/i18n"
+import { deniedBy, inspect } from "../core/inspect"
 import type { ArgsOf } from "../core/perform"
 import { findShape, type ItemPage, type PlacedItem, type PlacedOf } from "../core/placed"
 import type { Book } from "../core/schema/book"
@@ -12,7 +14,7 @@ import { type Settings, userSetting } from "../core/settings"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { Performed } from "../store/store"
 import type { UiCatalog } from "./plugin"
-import { useActions, useCatalog, useMatomezuState, useUiCatalog as useUi } from "./store-context"
+import { useActions, useCatalog, useHome, useMatomezuState, useUiCatalog as useUi } from "./store-context"
 
 // そのステージが開いているブック（何も開いていなければ null）
 export function useBook(stage: string): Book | null {
@@ -81,6 +83,28 @@ export function useShownPage(stage: string): ItemPage | null {
     )
     return { ...page, items }
   }, [page, book, preview])
+}
+
+// アクションを行えるか（許可の段も見る）: 使えれば ok、許可の段が止めたなら permission にその段の id（タイプなどで使えなければ null）。
+// ブックが対象のアクションは、そのステージで開いているブックの where の所で問う（where を渡さなければ、開いているページ）。
+// 止められたときに、薄くする・消すなどをどうするかは、使う側が決める
+export type Allowed = { ok: true } | { ok: false; permission: string | null }
+
+export function useAllowed(stage: string, action: ActionId, where?: Where): Allowed {
+  const catalog = useCatalog().core
+  const home = useHome()
+  const items = where?.items?.join("\n")
+  // 答えを文字にして比べ、変わったときだけ描き直す（"" は使える、"-" はタイプなどで使えない、ほかは止めた許可の段の id）
+  const answer = useMatomezuState(s => {
+    const o = s.workspace.stages.find(st => st.id === stage)?.opened
+    const onBook = catalog.actions.get(action)?.target === "book"
+    const book = onBook && o ? s.books[o.book] : undefined
+    const page = where?.page ?? o?.page ?? undefined
+    const at = { ...(page ? { page } : {}), ...(items ? { items: items.split("\n") } : {}) }
+    const done = inspect(catalog, { kind: "action", action, book, ...(book ? { where: at } : {}) }, { home })
+    return done.value === true ? "" : (deniedBy(done) ?? "-")
+  })
+  return answer === "" ? { ok: true } : { ok: false, permission: answer === "-" ? null : answer }
 }
 
 // そのステージ（読むだけ。無いステージなら null）

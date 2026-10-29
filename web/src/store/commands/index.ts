@@ -7,7 +7,7 @@ import { inspect, withoutPermissions } from "../../core/inspect"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import type { MatomezuState } from "../store"
-import type { CommandContext, CommandDef } from "./def"
+import { type CommandContext, type CommandDef, commandScopeOf } from "./def"
 
 export type { CommandId } from "../../core/catalog"
 
@@ -59,10 +59,10 @@ export function isShown(defs: Assembled, state: MatomezuState, stageId: string, 
   return ctx !== null && performable(def, ctx) && def.when(ctx)
 }
 
-// 行うアクションのどれかを、許可の段が止めないか（行うアクションが無ければ止められない）。ブックが対象のアクションは、今のブックの touches の所で問う
+// 行うアクションのどれかを、許可の段が止めないか（行うアクションが無ければ止められない）。ブックが対象のアクションは、今のブックの許可の範囲の所で問う
 function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
   const actions = def.performs ?? []
-  const where = def.touches?.(ctx)
+  const where = commandScopeOf(def.permissionScope, ctx)
   return (
     actions.length === 0 ||
     actions.some(action => {

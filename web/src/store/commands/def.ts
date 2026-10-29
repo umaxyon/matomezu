@@ -11,6 +11,20 @@ import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
 import type { Actions, Settings } from "../store"
 
+// コマンドの許可の範囲: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいるアイテム。
+// 言葉で言えなければ、呼ばれた場所の様子から所を返す関数
+export type CommandScope = "book" | "opened-page" | "selection" | ((ctx: CommandContext) => Where)
+
+// 呼ばれた場所の様子 ctx での、コマンドの許可の範囲の所
+export function commandScopeOf(scope: CommandScope | undefined, ctx: CommandContext): Where | undefined {
+  if (scope === undefined) return undefined
+  if (scope === "book") return {}
+  if (typeof scope === "function") return scope(ctx)
+  const page = ctx.stage.opened?.page ?? undefined
+  const on = page ? { page } : {}
+  return scope === "opened-page" ? on : { ...on, items: ctx.stage.selection }
+}
+
 // コマンドが受け取る、呼ばれた場所の様子
 export interface CommandContext {
   catalog: CoreCatalog
@@ -33,8 +47,8 @@ export interface CommandDef<A = undefined, Tt extends string = MessageKey> exten
   // 行うアクション。どれかが今のブック（ブックが対象でなければホームのタイプ）で使えなければ、土台はこのコマンドを出さない。
   // どれも許可の段に止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
   performs?: readonly ActionId[]
-  // 行うアクションが、ブックが対象ならそのブックのどこを変えるか（許可の段に渡す。無ければ分からないとして渡す）
-  touches?(ctx: CommandContext): Where
+  // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（許可の段に渡す。無ければ分からないとして渡す）
+  permissionScope?: CommandScope
   // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる
   place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[] }
 }

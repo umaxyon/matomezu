@@ -114,12 +114,14 @@ export function Form({
   id,
   submit,
   ready,
+  disabled = false,
   onSubmit,
   children,
 }: {
   id?: string
   submit?: string
   ready: boolean
+  disabled?: boolean // 中の項目を全部押せなくする（許可の段が止めているときなど）
   onSubmit: () => void
   children: ReactNode
 }) {
@@ -135,7 +137,9 @@ export function Form({
         if (ready) onSubmit()
       }}
     >
-      {children}
+      <fieldset className={styles.fields} disabled={disabled}>
+        {children}
+      </fieldset>
       {submit && (
         <div className={styles.actions}>
           <button type="submit" className={styles.submit} disabled={!ready}>

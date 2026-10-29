@@ -17,7 +17,6 @@ import {
 import {
   adaptPage,
   extentOf,
-  openedPage,
   pageContext,
   paperSize,
   placedAt,
@@ -166,7 +165,7 @@ export const PAGE_ALIGN = kit.defineAction({
   title: "Auto align",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), adapt: z.boolean().optional() }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (subject, args, ctx) => {
     const book = pagedOf(subject)
     const page = book?.pages.find(p => p.id === args.page)
@@ -194,7 +193,7 @@ export const PAGE_ALIGN_DIALOG = kit.defineDialogWith<{ page: string }>()({ id: 
 export const PAGE_ALIGN_COMMAND = kit.defineCommand({
   id: "page-align",
   performs: [PAGE_ALIGN.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Auto align",
   run: (ctx, a) => {
     const page = ctx.stage.opened?.page

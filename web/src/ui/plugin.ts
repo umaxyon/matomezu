@@ -1,6 +1,6 @@
 // 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインの見せ方・アイテム・設定の項目・ダイアログのビューを結び、
 // ウィジェット（スロットに置けるコンポーネント）とコマンドのアイコンを足す。
-// ビューは、そのプラグインの id を全部持たないと型の誤り。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
+// ビューは、そのプラグインの id を全部持たないと型の誤り（利用者の設定の項目のビューは書かなくてよい）。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
 // 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と組み立てで確かめる）
 import type { ComponentType, ReactNode } from "react"
 import type { BookViewExtras, ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
@@ -51,21 +51,31 @@ export interface ItemUi<Props = never, Content = never> {
   contextMenus?: readonly ContextMenuId[] // ビューが開く右クリックのメニュー
 }
 
+// 利用者の設定の項目を変えるコンポーネントに渡す値。value は今の値（値が無いか形に合わなければ既定）、onChange の undefined は値を消す（既定に戻す）。
+// 変えさせないときは、並べる側がまとめて押せなくする（コンポーネントは見なくてよい）
+export interface UserSettingControlProps<V = unknown> {
+  label: string
+  value: V | undefined
+  onChange(value: V | undefined): void
+}
 // 設定の項目（core/def/setting.ts）を変えるコンポーネントに渡す値。of はブックかページか、value はその段の値（無ければ undefined）、
 // inherited は値が無いときに効く値（ページならブックの値か既定、ブックなら既定。既定の無い項目なら undefined のことがある）。onChange の undefined は値を消す（上の段を継ぐ）。
 // book は、ダイアログで変えている項目を重ねたブック（ほかの項目の値で見せ方が変わるコンポーネントが読む）
-export interface SettingControlProps<V = unknown> {
+export interface SettingControlProps<V = unknown> extends UserSettingControlProps<V> {
   of: "book" | "page"
-  label: string
-  value: V | undefined
   inherited: V | undefined
   book: Book
-  onChange(value: V | undefined): void
 }
 // 設定の項目のビュー: 設定のダイアログに並べるコンポーネント
 export interface SettingUi {
   // biome-ignore lint/suspicious/noExplicitAny: 値の型は項目ごとに違うので、表の上では見ない
   control: ComponentType<SettingControlProps<any>>
+}
+
+// 利用者の設定の項目のビュー: 設定の画面に並べるコンポーネント（無ければ、値の形から作った入力を出す）
+export interface UserSettingUi {
+  // biome-ignore lint/suspicious/noExplicitAny: 値の型は項目ごとに違うので、表の上では見ない
+  control: ComponentType<UserSettingControlProps<any>>
 }
 
 // 画面に置く形（kind が shape）のアイテムの id。線（connector）はブックのビューが描くので、アイテムのビューを持たない
@@ -111,8 +121,9 @@ export type PluginViews<P> = Field<
 > &
   Field<ShapeIdsOf<P>, "items", { [id in ShapeIdsOf<P>]: ItemUi<ItemPropsOf<P, id>, ItemContentOf<P, id>> }> &
   Field<ConnectorIdsOf<P>, "connectors", { [id in ConnectorIdsOf<P>]: ConnectorUi }> &
-  Field<IdsOf<P, "settings">, "settingViews", { [id in IdsOf<P, "settings">]: SettingUi }> &
-  Field<
+  Field<IdsOf<P, "settings">, "settingViews", { [id in IdsOf<P, "settings">]: SettingUi }> & {
+    userSettingViews?: { [id in IdsOf<P, "userSettings">]?: UserSettingUi }
+  } & Field<
     IdsOf<P, "dialogs">,
     "dialogViews",
     { [id in IdsOf<P, "dialogs">]: ComponentType<DialogProps<DialogArgsOfPlugin<P, id>>> }
@@ -147,6 +158,7 @@ export interface UiCatalog {
   items: ReadonlyMap<string, ItemUi>
   connectors: ReadonlyMap<string, ConnectorUi>
   settingViews: ReadonlyMap<string, SettingUi>
+  userSettingViews: ReadonlyMap<string, UserSettingUi>
   dialogViews: ReadonlyMap<string, AnyDialogView>
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
@@ -158,6 +170,7 @@ interface LooseUi {
   items?: Record<string, ItemUi>
   connectors?: Record<string, ConnectorUi>
   settingViews?: Record<string, SettingUi>
+  userSettingViews?: Record<string, UserSettingUi>
   dialogViews?: Record<string, AnyDialogView>
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
@@ -175,6 +188,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
   const items = new Map<string, ItemUi>()
   const connectors = new Map<string, ConnectorUi>()
   const settingViews = new Map<string, SettingUi>()
+  const userSettingViews = new Map<string, UserSettingUi>()
   const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
@@ -211,6 +225,10 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
       connectors,
     )
     need("setting", p.settings, ui.settingViews, settingViews)
+    for (const d of p.userSettings ?? []) {
+      const v = ui.userSettingViews?.[d.id]
+      if (v) userSettingViews.set(d.id, v)
+    }
     need("dialog", p.dialogs, ui.dialogViews, dialogViews)
     need("tool", p.tools, ui.toolIcons, toolIcons)
     for (const w of ui.widgets ?? []) {
@@ -244,5 +262,15 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
       overridden.add(`widget:${id}`)
       widgets.set(id, { ...w, view })
     }
-  return { presentationViews, items, connectors, settingViews, dialogViews, widgets, commandIcons, toolIcons }
+  return {
+    presentationViews,
+    items,
+    connectors,
+    settingViews,
+    userSettingViews,
+    dialogViews,
+    widgets,
+    commandIcons,
+    toolIcons,
+  }
 }

@@ -41,7 +41,7 @@ export const ENTRY_ADD = kit.defineAction({
     index: z.number().int().min(0).optional(),
     entries: z.array(NewEntrySchema).min(1),
   }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
@@ -65,7 +65,7 @@ export const PATHS_ADD = kit.defineAction({
     parent: z.string().min(1),
     paths: z.array(z.string().min(1)).min(1),
   }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
@@ -88,7 +88,7 @@ export const ENTRY_UPDATE = kit.defineAction({
     name: z.string().optional(),
     color: EntryColorSchema.nullable().optional(),
   }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
@@ -106,7 +106,7 @@ export const ENTRY_REMOVE = kit.defineAction({
   title: "Remove entry",
   target: "book",
   args: z.strictObject({ page: PAGE, entry: z.string().min(1) }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
@@ -129,7 +129,7 @@ export const ENTRY_MOVE = kit.defineAction({
     parent: z.string().min(1),
     index: z.number().int().min(0).optional(),
   }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
@@ -147,7 +147,7 @@ export const FOLDER_CLOSE = kit.defineAction({
   title: "Open or close folder",
   target: "book",
   args: z.strictObject({ page: PAGE, folder: z.string().min(1), closed: z.boolean() }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
@@ -165,7 +165,7 @@ export const FOLDER_SORT = kit.defineAction({
   title: "Sort folder",
   target: "book",
   args: z.strictObject({ page: PAGE, folder: z.string().min(1), order: z.enum(["asc", "desc"]) }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)

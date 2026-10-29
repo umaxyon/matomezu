@@ -60,7 +60,7 @@ export const LINE_CONNECT = kit.defineAction({
     to: z.string().min(1),
     props: LINE.props.optional(),
   }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     if (!hasPages(book) || !usesLines(ctx.catalog, book)) return null
     const page = book.pages.find(p => p.id === args.page)
@@ -95,7 +95,7 @@ export const LINE_UPDATE = kit.defineAction({
     line: z.string().min(1),
     props: LinePatchSchema,
   }),
-  touches: args => ({ page: args.page, items: [args.line] }),
+  permissionScope: { page: "page", item: "line" },
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
@@ -128,7 +128,7 @@ export const LINE_RECONNECT = kit.defineAction({
     item: z.string().min(1),
     props: z.strictObject({ exitAt: LINE.props.shape.exitAt, enterAt: LINE.props.shape.enterAt }).optional(),
   }),
-  touches: args => ({ page: args.page, items: [args.line] }),
+  permissionScope: { page: "page", item: "line" },
   run: (book, args, ctx) => {
     if (!hasPages(book) || !usesLines(ctx.catalog, book)) return null
     const page = book.pages.find(p => p.id === args.page)

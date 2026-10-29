@@ -12,6 +12,7 @@ import {
   allowedIn,
   pagedOnly,
   type Subjects,
+  scopeOf,
 } from "./def/action"
 import { deniedBy, inspect } from "./inspect"
 import type { Library } from "./library"
@@ -74,7 +75,7 @@ function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after:
 }
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。
-// 許可の段に渡す所は、ブックが対象ならそのブックと、アクションが touches で言う所（言わなければ分からないとして渡す）。
+// 許可の段に渡す所は、ブックが対象ならそのブックと、アクションの許可の範囲（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
 // 一覧が対象のアクションは変えるブックが前に分からないので、許可の段は行った後の keeps だけで見る
 function permits(
   ctx: ActionContext,
@@ -83,7 +84,7 @@ function permits(
   args: { success: true; data: unknown } | { success: false },
 ): { ok: true } | { ok: false; reason: "not-allowed" } | { ok: false; reason: "denied"; permission: string } {
   const book = action.target === "book" ? (subject as Book) : undefined
-  const where = args.success ? action.touches?.(args.data) : undefined
+  const where = args.success ? scopeOf(action.permissionScope, args.data) : undefined
   const answer = inspect(
     ctx.catalog,
     { kind: "action", action: action.id, book, ...(where ? { where } : {}), ...(ctx.by ? { by: ctx.by } : {}) },
