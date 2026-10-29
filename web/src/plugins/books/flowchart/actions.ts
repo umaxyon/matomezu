@@ -165,6 +165,7 @@ export const PAGE_ALIGN = kit.defineAction({
   title: "Auto align",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), adapt: z.boolean().optional() }),
+  touches: args => ({ page: args.page }),
   run: (subject, args, ctx) => {
     const book = pagedOf(subject)
     const page = book?.pages.find(p => p.id === args.page)

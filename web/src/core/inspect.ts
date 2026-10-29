@@ -44,9 +44,9 @@ export interface Inspected<V> {
 
 export type Query =
   | { kind: "token"; book: Book; token: string } // ブックを描くテーマキーの値
-  // アクションを使えるか。book はアクションが変えるブック（ブックが対象のアクションは、そのブック）、page と items はその中の所、by は誰が行うか。
+  // アクションを使えるか。book はアクションが変えるブック（ブックが対象のアクションは、そのブック）、where はその中の所（分からなければ無い）、by は誰が行うか。
   // 許可の段は book があるときだけ見る
-  | ({ kind: "action"; action: string; book?: Book } & Partial<Pick<PermissionQuery, "page" | "items" | "by">>)
+  | ({ kind: "action"; action: string; book?: Book } & Pick<PermissionQuery, "where" | "by">)
 
 type Answer<Q extends Query> = Q extends { kind: "token" } ? Inspected<Shades> : Inspected<boolean>
 

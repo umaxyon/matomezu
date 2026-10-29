@@ -33,6 +33,7 @@ export const TILE_ADD = kit.defineAction({
   aiDescription: "Add a tile of color (#rrggbb) at the end of the item (an ex5:tiles). Returns the tile's id.",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), color: z.string() }),
+  touches: args => ({ page: args.page, items: [args.item] }),
   run: (book, args, ctx) => {
     const page = book.pages.find(p => p.id === args.page)
     const item = page?.items?.find(i => i.id === args.item)
@@ -45,7 +46,7 @@ export const TILE_ADD = kit.defineAction({
 })
 
 // 札の数の上限（自分の許可の段の見本）: 1 ページの札が TILE_LIMIT 枚になったら、そのページに札を足すことを止める。
-// 止めるのは自分のアクションだけで、ほかのアクションには口を出さない
+// 行う前に止めるのは自分のアクションだけ。行った後は、どのアクションでも上限を超えたら止める
 const TILE_LIMIT = 6
 type TilesPage = { id: string; items?: readonly { tiles?: readonly unknown[] }[] }
 const tilesOn = (page: TilesPage | undefined) => (page?.items ?? []).reduce((n, i) => n + (i.tiles?.length ?? 0), 0)
@@ -54,10 +55,15 @@ export const TILE_LIMIT_PERMISSION = kit.definePermission({
   id: "tile-limit",
   title: "tileLimit",
   aiDescription: `a page can hold at most ${TILE_LIMIT} tiles; make a new page for more`,
-  denies: ({ action, book, page }) =>
+  denies: ({ action, book, where }) =>
     action.id === TILE_ADD.id &&
     hasPages(book) &&
-    tilesOn((book.pages as readonly TilesPage[]).find(p => p.id === page)) >= TILE_LIMIT,
+    tilesOn((book.pages as readonly TilesPage[]).find(p => p.id === where?.page)) >= TILE_LIMIT,
+  // 札を足すほかのアクションも、行った後の変化で止める（変わったページの札が上限を超えたら守っていない）
+  keeps: ({ after, changes }) =>
+    !after ||
+    !hasPages(after) ||
+    changes.pages.every(c => tilesOn((after.pages as readonly TilesPage[]).find(p => p.id === c.id)) <= TILE_LIMIT),
 })
 
 // 仕分けの道具（自分の道具の見本。ドラッグで紙をずらさず、置く道具でもない）と、ビルトインの選択とハンドに挟んだ棚の道具の組

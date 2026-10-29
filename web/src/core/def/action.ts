@@ -79,6 +79,12 @@ export function allowedIn(def: Pick<ActionDef, "id" | "attach">, type: BookTypeD
   return (type.actions.add?.includes(def.id as ActionId) ?? false) || attachedTo(def, type)
 }
 
+// ブックの中の所: page はページの id、items はそのページのアイテムの id
+export interface Where {
+  page?: string
+  items?: readonly string[]
+}
+
 export interface ActionDef<
   T extends ActionTarget = ActionTarget,
   A = unknown,
@@ -97,6 +103,9 @@ export interface ActionDef<
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
+  // ブックが対象のアクションが、引数 args でブックのどこを変えるか。許可の段が行う前に見る（無ければ分からないとして渡す）。
+  // 守るのは、許可の段が行った後に見る実際の変化（PermissionDef の keeps）
+  touches?(args: A): Where
   // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | null
 }

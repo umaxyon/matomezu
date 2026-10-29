@@ -22,6 +22,7 @@ export const RELATE = kit.defineAction({
   aiDescription: "Join the items from and to (shapes on the same page) with a dotted relation line. Returns its id.",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), from: z.string().min(1), to: z.string().min(1) }),
+  touches: args => ({ page: args.page }),
   run: (book, args, ctx) => {
     const page = book.pages.find(p => p.id === args.page)
     if (!page) return null

@@ -85,6 +85,7 @@ export const ITEM_PLACE = kit.defineAction({
     h: z.number().optional(),
     props: z.record(z.string(), z.unknown()).optional(),
   }),
+  touches: args => ({ page: args.page }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
     if (!bookItems(ctx.catalog, book).includes(args.item)) return null
@@ -119,6 +120,7 @@ export const ITEM_MOVE = kit.defineAction({
     by: PointSchema,
     came: z.record(z.string(), z.enum(DIRS)).optional(), // ドラッグの通り道で覚えた、相手ごとの先端が来た向き（drag.ts）
   }),
+  touches: args => ({ page: args.page, items: args.items }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
     const next = moveItems(ctx.catalog, book, args.page, args.items, args.by, args.came)
@@ -142,6 +144,7 @@ export const ITEM_REPARENT = kit.defineAction({
     parent: z.string().min(1).nullable(), // 入れる先の形の id（null はページ）
     at: PointSchema.optional(), // 移したあとの左上（紙の上。無ければ今の所）
   }),
+  touches: args => ({ page: args.page, items: [args.item] }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
@@ -181,6 +184,7 @@ export const ITEM_UPDATE = kit.defineAction({
     item: z.string().min(1),
     props: z.record(z.string(), z.unknown()),
   }),
+  touches: args => ({ page: args.page, items: [args.item] }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
@@ -217,6 +221,7 @@ export const ITEM_RESIZE = kit.defineAction({
     x: z.number().optional(),
     y: z.number().optional(),
   }),
+  touches: args => ({ page: args.page, items: [args.item] }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
     const page = book.pages.find(p => p.id === args.page)
@@ -246,6 +251,7 @@ export const ITEM_REMOVE = kit.defineAction({
   title: "Remove items",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),
+  touches: args => ({ page: args.page, items: args.items }),
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
     const next = removeItems(ctx.catalog, book, args.page, args.items)

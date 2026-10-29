@@ -2,6 +2,7 @@
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
 import { hasPages, putPage } from "../../../core/book"
+import type { PermissionCheck } from "../../../core/def/permission"
 import type { Book } from "../../../core/schema/book"
 import { setField } from "../fields"
 import { kit } from "../kit"
@@ -69,6 +70,7 @@ export const PAGE_LOCK = kit.defineAction({
   title: "Lock page",
   target: "book",
   args: PAGE_ARGS,
+  touches: args => ({ page: args.page }),
   run: (book, args) => {
     const next = lockPage(book, args.page, true)
     return next ? { next, result: {} } : null
@@ -83,17 +85,12 @@ export const PAGE_UNLOCK = kit.defineAction({
   title: "Unlock page",
   target: "book",
   args: PAGE_ARGS,
+  touches: args => ({ page: args.page }),
   run: (book, args) => {
     const next = lockPage(book, args.page, false)
     return next ? { next, result: {} } : null
   },
 })
-
-// ロックの印を除いた中身（ロックの掛け外しのほかに違いがあるかを比べる）
-function withoutLock(v: { locked?: true }): string {
-  const { locked: _, ...rest } = v
-  return JSON.stringify(rest)
-}
 
 const pagesOf = (book: Book): readonly { id: string; locked?: true }[] => (hasPages(book) ? book.pages : [])
 
@@ -101,27 +98,33 @@ const pagesOf = (book: Book): readonly { id: string; locked?: true }[] => (hasPa
 const BOOK_SWITCHES: readonly string[] = [BOOK_LOCK.id, BOOK_UNLOCK.id]
 const PAGE_SWITCHES: readonly string[] = [PAGE_LOCK.id, PAGE_UNLOCK.id]
 
+// 変わったのがロックの印だけで、AI がロックを外していないか（next は変わった後のブックかページ）
+const onlySwitched = (fields: readonly string[], next: { locked?: true } | undefined, by: PermissionCheck["by"]) =>
+  fields.every(f => f === "locked") && !(by === "ai" && fields.includes("locked") && !next?.locked)
+
 export const LOCK = kit.definePermission({
   id: "lock",
   title: "Locked",
   aiDescription:
     "the book or a page it would change is locked; nothing in it can be changed until it is unlocked, and only the user can unlock it, so ask the user in the chat",
-  denies: ({ action, book, page }) => {
+  // 変える所が分からないアクションは、ページのロックでは止めない（行った後の keeps が止める）
+  denies: ({ action, book, where }) => {
     if (book.locked) return !BOOK_SWITCHES.includes(action.id)
+    const page = where?.page
     const locked = page !== undefined && pagesOf(book).some(p => p.id === page && p.locked)
     return locked && !PAGE_SWITCHES.includes(action.id)
   },
-  // 前に分からなかった所も守る: ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
+  // ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
   // ブックごとゴミ箱にも入れない。ロックを外せるのは利用者だけ
-  keeps: (before, after, by) => {
+  keeps: ({ before, after, changes, by }) => {
     const locked = pagesOf(before).filter(p => p.locked)
     if (!before.locked && locked.length === 0) return true
-    if (!after || after.trashed !== before.trashed) return false
-    if (before.locked && (withoutLock(before) !== withoutLock(after) || (!after.locked && by === "ai"))) return false
-    const pages = new Map(pagesOf(after).map(p => [p.id, p]))
+    if (changes.gone || changes.fields.includes("trashed")) return false
+    if (before.locked && (changes.pages.length > 0 || !onlySwitched(changes.fields, after, by))) return false
+    const next = new Map((after ? pagesOf(after) : []).map(p => [p.id, p]))
     return locked.every(p => {
-      const next = pages.get(p.id)
-      return next !== undefined && withoutLock(p) === withoutLock(next) && (next.locked || by !== "ai")
+      const c = changes.pages.find(x => x.id === p.id)
+      return !c || (c.change === "changed" && c.items.length === 0 && onlySwitched(c.fields, next.get(p.id), by))
     })
   },
 })

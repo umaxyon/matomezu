@@ -55,7 +55,7 @@ describe("inspect: テーマの値", () => {
 })
 
 describe("inspect: アクションの許可", () => {
-  test("許可の段が止めれば、その段で決まる（ロック中のブック・ページに対して。ページは渡したときだけ見る）", () => {
+  test("許可の段が止めれば、その段で決まる（ロック中のブック・ページに対して。ページは where で渡したときだけ見る）", () => {
     const locked = { ...drawing, locked: true as const }
     const lock = { source: "permission", id: "@matomezu/base:lock" }
     const answer = inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:page-add", book: locked })
@@ -71,9 +71,9 @@ describe("inspect: アクションの許可", () => {
       pages: drawing.pages.map((p, i) => (i === 0 ? { ...p, locked: true as const } : p)),
     }
     const update = { kind: "action", action: "@matomezu/base:page-update", book: pageLocked } as const
-    expect(inspect(CORE_CATALOG, { ...update, page })).toMatchObject({ value: false, decidedBy: lock })
+    expect(inspect(CORE_CATALOG, { ...update, where: { page } })).toMatchObject({ value: false, decidedBy: lock })
     expect(inspect(CORE_CATALOG, update).value).toBe(true)
-    expect(inspect(CORE_CATALOG, { ...update, action: "@matomezu/base:page-unlock", page }).value).toBe(true)
+    expect(inspect(CORE_CATALOG, { ...update, action: "@matomezu/base:page-unlock", where: { page } }).value).toBe(true)
     // タイプが止めるものは、タイプの段で決まる
     expect(
       deniedBy(inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:book-update", book: MASTER_BOOK })),

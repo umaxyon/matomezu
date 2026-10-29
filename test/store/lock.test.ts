@@ -1,7 +1,9 @@
 // ロック: ロック中のブック・ページは利用者も AI も変えられない（許可の段 lock が止める）。外せるのは利用者だけ
 import { expect, test } from "bun:test"
+import { changesOf } from "../../web/src/core/changes"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
-import type { BookOf } from "../../web/src/core/schema/book"
+import type { Book, BookOf } from "../../web/src/core/schema/book"
+import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
 import { CORE_CATALOG, newStore } from "../support"
@@ -65,4 +67,17 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
   expect(run("@matomezu/base:book-lock", "ai").ok).toBe(true)
   expect(run("@matomezu/base:book-unlock", "ai")).toEqual({ ok: false, reason: "not-allowed" })
   expect(run("@matomezu/base:book-unlock").ok).toBe(true)
+})
+
+test("変える所を言わないアクションは、行う前にはページのロックで止めず、行った後の変化で止める", () => {
+  const page = { id: "p1", title: "1", locked: true as const }
+  const before = { type: "t", id: "b1", title: "", pages: [page] } as unknown as Book
+  const action = CORE_CATALOG.actions.get("@matomezu/base:page-update")!
+  expect(LOCK.denies({ action, book: before })).toBe(false)
+  expect(LOCK.denies({ action, book: before, where: { page: "p1" } })).toBe(true)
+  const after = { ...before, pages: [{ ...page, title: "x" }] } as unknown as Book
+  expect(LOCK.keeps!({ action, before, after, changes: changesOf(before, after) })).toBe(false)
+  const unlocked = { ...before, pages: [{ id: "p1", title: "1" }] } as unknown as Book
+  expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked) })).toBe(true)
+  expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked), by: "ai" })).toBe(false)
 })

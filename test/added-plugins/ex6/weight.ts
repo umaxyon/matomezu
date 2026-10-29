@@ -13,6 +13,7 @@ export const PAGE_WEIGHT = kit.defineAction({
     "Sum the weight of the shapes on the page (shapes that do not tell their weight count as 0). Returns the sum.",
   target: "book",
   args: z.strictObject({ page: z.string().min(1) }),
+  touches: args => ({ page: args.page }),
   run: (book, args, ctx) => {
     const page = book.pages.find(p => p.id === args.page)
     if (!page) return null

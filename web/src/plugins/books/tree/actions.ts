@@ -42,6 +42,7 @@ export const NODE_ADD = kit.defineAction({
     index: z.number().int().min(0).optional(),
     nodes: z.array(NewNodeSchema).min(1),
   }),
+  touches: args => ({ page: args.page }),
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
@@ -68,6 +69,7 @@ export const NODE_UPDATE = kit.defineAction({
     size: z.enum(NODE_SIZES).nullable().optional(),
     color: NodeColorSchema.nullable().optional(),
   }),
+  touches: args => ({ page: args.page }),
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
@@ -85,6 +87,7 @@ export const NODE_REMOVE = kit.defineAction({
   title: "Remove node",
   target: "book",
   args: z.strictObject({ page: z.string().min(1), node: z.string().min(1) }),
+  touches: args => ({ page: args.page }),
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)
@@ -108,6 +111,7 @@ export const NODE_MOVE = kit.defineAction({
     index: z.number().int().min(0).optional(),
     side: z.enum(SIDE_NAMES).optional(),
   }),
+  touches: args => ({ page: args.page }),
   run: (book, args, ctx) => {
     if (!("pages" in book)) return null
     const tree = treeOf(book, args.page, ctx.catalog)

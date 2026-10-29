@@ -3,6 +3,7 @@
 // その前に許可の段（core/def/permission.ts）が止められ、run の結果も許可の段が守らせることを守っていなければ断る（denied）
 import type { z } from "zod"
 import type { ActionId, ActionTable } from "./catalog"
+import { changesOf } from "./changes"
 import { bookType, type CoreCatalog } from "./core-catalog"
 import {
   type ActionContext,
@@ -55,40 +56,37 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
 }
 
 // アクションの結果が、許可の段の守らせること（keeps）を守っているか。守っていなければ、守らせた段の id
-function broken(catalog: CoreCatalog, before: Book, after: Book | undefined, by: ActionContext["by"]): string | null {
-  for (const p of catalog.permissions.values()) if (p.keeps && !p.keeps(before, after, by)) return p.id
+function broken(ctx: ActionContext, action: ActionDef, before: Book, after: Book | undefined): string | null {
+  const changes = changesOf(before, after)
+  const by = ctx.by ? { by: ctx.by } : {}
+  for (const p of ctx.catalog.permissions.values())
+    if (p.keeps && !p.keeps({ action, before, after, changes, ...by })) return p.id
   return null
 }
 
 // 一覧が対象のアクションの結果で、変わったブックのどれかが守っていなければ、守らせた段の id
-function brokenIn(catalog: CoreCatalog, before: Library, after: Library, by: ActionContext["by"]): string | null {
+function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after: Library): string | null {
   for (const b of Object.values(before)) {
-    const id = b === after[b.id] ? null : broken(catalog, b, after[b.id], by)
+    const id = b === after[b.id] ? null : broken(ctx, action, b, after[b.id])
     if (id) return id
   }
   return null
 }
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。
-// 許可の段に渡す所は、ブックが対象ならそのブックと、引数の page（ページの id を page で受けるアクションは、そのページを変える）。
+// 許可の段に渡す所は、ブックが対象ならそのブックと、アクションが touches で言う所（言わなければ分からないとして渡す）。
 // 一覧が対象のアクションは変えるブックが前に分からないので、許可の段は行った後の keeps だけで見る
 function permits(
   ctx: ActionContext,
   action: ActionDef,
   subject: Subjects[keyof Subjects],
-  args: unknown,
+  args: { success: true; data: unknown } | { success: false },
 ): { ok: true } | { ok: false; reason: "not-allowed" } | { ok: false; reason: "denied"; permission: string } {
   const book = action.target === "book" ? (subject as Book) : undefined
-  const page = (args as { page?: unknown } | null)?.page
+  const where = args.success ? action.touches?.(args.data) : undefined
   const answer = inspect(
     ctx.catalog,
-    {
-      kind: "action",
-      action: action.id,
-      book,
-      ...(typeof page === "string" ? { page } : {}),
-      ...(ctx.by ? { by: ctx.by } : {}),
-    },
+    { kind: "action", action: action.id, book, ...(where ? { where } : {}), ...(ctx.by ? { by: ctx.by } : {}) },
     ctx,
   )
   if (answer.value === true) return { ok: true }
@@ -106,7 +104,7 @@ export function perform<Id extends ActionId>(
   if (!action) return { ok: false, reason: "unknown" }
   if (action.userOnly && ctx.by === "ai") return { ok: false, reason: "not-allowed" }
   const parsed = action.args.safeParse(args)
-  const permitted = permits(ctx, action, subject, parsed.data)
+  const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
   // 付く先がページを持つタイプだけのアクションに、ページの無いブックは渡さない（run は PagedBook を受ける）
@@ -115,9 +113,9 @@ export function perform<Id extends ActionId>(
   if (!done) return { ok: false, reason: "refused" }
   const permission =
     action.target === "book"
-      ? broken(ctx.catalog, subject as Book, done.next as Book, ctx.by)
+      ? broken(ctx, action, subject as Book, done.next as Book)
       : action.target === "library"
-        ? brokenIn(ctx.catalog, subject as Library, done.next as Library, ctx.by)
+        ? brokenIn(ctx, action, subject as Library, done.next as Library)
         : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (action.target === "book" && !settles(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
