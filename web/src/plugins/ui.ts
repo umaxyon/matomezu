@@ -59,6 +59,16 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/flowchart:page-align",
     ],
     "@matomezu/dir:dir-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
+    "@matomezu/dir:entry-context": [
+      "@matomezu/dir:folder-add",
+      "@matomezu/dir:file-add",
+      "@matomezu/dir:entry-rename",
+      "@matomezu/dir:entry-settings",
+      "@matomezu/dir:folder-sort-asc",
+      "@matomezu/dir:folder-sort-desc",
+      "-",
+      "@matomezu/dir:entry-delete",
+    ],
     "@matomezu/tree:tree-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
     "@matomezu/tree:node-context": [
       "@matomezu/tree:node-edit",

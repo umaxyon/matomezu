@@ -3,7 +3,7 @@
 // 罫線は、フォルダのアイコンの真ん中から下へ、最後の中身の行まで縦に引き、そこから中身ごとにアイコンの手前まで横に引く。
 // フォルダの開け閉めの印（▸・▾）は、その行へ横に引く線の付け根（根は、根のアイコンの左）に置く
 import type { Point } from "../../../plugin-api"
-import { parseRich, type RichLine, richWidth, TEXT_LOOK } from "../../base"
+import { parseRich, type RichLine, richWidth, TEXT_LOOK, textWidth } from "../../base"
 import { rowsOf } from "./edit"
 import type { DirFolder, Kind } from "./entry"
 
@@ -49,6 +49,11 @@ export const nameWidth = (name: string): number => {
 
 // 名前の行の左（アイコンの左 x から）
 export const nameLeft = (x: number): number => x + ICON + NAME_GAP
+
+// その場の編集のテキストFormの幅: 見せている名前の幅 shown か、記号も含めて書いた字 raw の幅の広いほうに、余白とテキストFormの枠を足す
+export const editorWidth = (raw: string, shown: number): number =>
+  Math.max(shown, Math.ceil(textWidth(raw, FONT))) + EDITOR_PAD * 2 + 16
+const EDITOR_PAD = 4
 
 // 根 root を大きさ paper の紙に並べる
 export function layoutDir(root: DirFolder, paper: { w: number; h: number }): DirLayout {
