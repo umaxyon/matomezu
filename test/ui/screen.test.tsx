@@ -38,7 +38,7 @@ function fromMenu(name: string, i = 0): HTMLElement {
   return within(trigger.parentElement?.nextElementSibling as HTMLElement).getByRole("button", { name })
 }
 
-test("ステージに紙が 1 枚あり、下の行のドロワーにツールボックス（箱・リストと、絵の形のパネルを開く「形」）がある", () => {
+test("ステージに紙が 1 枚あり、下の行のドロワーにツールボックス（箱・リストと、シェイプパネルを開く「形」）がある", () => {
   renderScreen()
   expect(stages()).toHaveLength(1)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)

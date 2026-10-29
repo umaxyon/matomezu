@@ -1,4 +1,4 @@
-// 絵の形（@matomezu/art）: 図面に置け、絵は決まった大きさで、キャプションは足元で幅に合わせて折り返す。変えられるのは幅だけ
+// シェイプ（@matomezu/art）: 図面に置け、絵は決まった大きさで、キャプションは足元で幅に合わせて折り返す。変えられるのは幅だけ
 import { expect, test } from "bun:test"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
@@ -27,14 +27,14 @@ const resize = (store: Store, item: string, size: { w?: number; h?: number; y?: 
 const update = (store: Store, item: string, props: Record<string, unknown>) =>
   store.actions.perform("@matomezu/paper:item-update", { page: "p1", item, props }, { book: "b1" })
 
-test("図面の道具箱は箱とリストのボタンで、絵の形 15 は形のパネルに並ぶ（8 つの形は図面には無い）", () => {
+test("図面のツールボックスは箱とリストのボタンで、シェイプ 15 はシェイプパネルに並ぶ（8 つの形は図面には無い）", () => {
   const store = ready()
   expect(toolboxOf(CORE_CATALOG, book(store))).toEqual(["@matomezu/box:shape-nest-box", "@matomezu/list:shape-list"])
   expect(panelOf(CORE_CATALOG, book(store))).toEqual(ART_ITEMS)
   expect(ART_ITEMS).toHaveLength(15)
 })
 
-test("絵の形の高さは、絵と、幅で折り返したキャプションの行から決まる。置いたときの幅はキャプションが 1 行で見える幅（上限 160px）", () => {
+test("シェイプの高さは、絵と、幅で折り返したキャプションの行から決まる。置いたときの幅はキャプションが 1 行で見える幅（上限 160px）", () => {
   const store = ready()
   const person = PICTURES.person
   expect(place(store, PERSON.item.id, { caption: "" }).ok).toBe(true)

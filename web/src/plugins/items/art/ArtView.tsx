@@ -1,4 +1,4 @@
-// 絵の形のアイテムのビュー: 絵（pictures.ts）を上の真ん中に決まった大きさで描き、足元にキャプションを、形の幅で折り返した行（size.ts）で真ん中に置く。
+// シェイプのアイテムのビュー: 絵（pictures.ts）を上の真ん中に決まった大きさで描き、足元にキャプションを、形の幅で折り返した行（size.ts）で真ん中に置く。
 // 絵は部品の役割で塗り分ける（ArtView.module.css）。色（color）があれば、絵の色のテーマキーをその色で上書きする（色の無いスティックマンは文字の色）
 import type { CSSProperties } from "react"
 import type { ItemProps } from "../../../plugin-api"
@@ -44,7 +44,7 @@ export function artView(picture: Picture) {
   }
 }
 
-// 道具箱のアイコン: 絵を 24×24 の中に縮めて描く
+// ツールボックスのアイコン: 絵を 24×24 の中に縮めて描く
 export function artIcon(picture: Picture) {
   return <PictureSvg picture={picture} className={styles.icon} />
 }

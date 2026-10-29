@@ -1,5 +1,5 @@
-// 形のパネル（base のツールボックス）: ドロワーの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く。
-// 図面のパネルには絵の形（@matomezu/art）が並ぶ
+// シェイプパネル（base のツールボックス）: ドロワーの「形」のボタンで形のアイコンの格子を開き、形を押してから紙を押すと、その形の追加のダイアログが開く。
+// 図面のパネルにはシェイプ（@matomezu/art）が並ぶ
 import { expect, type Page, test } from "@playwright/test"
 import { drawerTool } from "./drawer"
 
@@ -47,7 +47,7 @@ test("「形」のボタンでパネルを開き、乗せたまま形を押す�
   await expect(page.locator('[data-shape-kind="diamond"]')).toHaveCount(1)
 })
 
-test("図面のパネルの絵の形を置くと、絵の足元にキャプションを出し、つかめるのは左右の辺だけ", async ({ page }) => {
+test("図面のパネルのシェイプを置くと、絵の足元にキャプションを出し、つかめるのは左右の辺だけ", async ({ page }) => {
   await page.goto("/")
   await (await drawerTool(page, "形")).click()
   const panel = page.getByRole("toolbar", { name: "ツール" }).getByRole("group", { name: "形" })

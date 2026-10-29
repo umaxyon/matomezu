@@ -1,4 +1,4 @@
-/* 絵の形。寸法は size.ts の ART_LOOK と同じ値にする（上下の余白 4px・絵とキャプションの間 2px・行の高さ 18px）。字は形と同じ */
+/* シェイプ。寸法は size.ts の ART_LOOK と同じ値にする（上下の余白 4px・絵とキャプションの間 2px・行の高さ 18px）。字は形と同じ */
 .art {
   display: flex;
   flex-direction: column;
@@ -67,7 +67,7 @@
   stroke-width: 2.5;
   stroke-linecap: round;
 }
-/* アイコン: 道具箱の 24×24 に収め、線は縮めずに細く。塗りは道具箱の文字の色を薄くした色 */
+/* アイコン: ツールボックスの 24×24 に収め、線は縮めずに細く。塗りはツールボックスの文字の色を薄くした色 */
 .icon {
   --art-fill: color-mix(in srgb, currentColor 18%, transparent);
   --art-line: currentColor;

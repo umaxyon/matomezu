@@ -1,4 +1,4 @@
-// 絵の形の文言
+// シェイプの文言
 import { defineMessages } from "../../../plugin-api"
 
 export const ART_MESSAGES = defineMessages({

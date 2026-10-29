@@ -3,7 +3,7 @@ import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 
-// 道具箱に出す順: 内包ボックス・リスト・絵の形（形のパネルに並ぶ）、線
+// ツールボックスに出す順: 内包ボックス・リスト・シェイプ（シェイプパネルに並ぶ）、線
 const ITEMS = [
   "@matomezu/box:shape-nest-box",
   "@matomezu/list:shape-list",

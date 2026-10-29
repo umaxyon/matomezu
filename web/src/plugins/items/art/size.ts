@@ -1,4 +1,4 @@
-// 絵の形の大きさ: 絵は決まった大きさで上の真ん中に置き、キャプションは絵の足元に、形の幅で折り返して真ん中に置く。
+// シェイプの大きさ: 絵は決まった大きさで上の真ん中に置き、キャプションは絵の足元に、形の幅で折り返して真ん中に置く。
 // 変えられるのは幅だけ（キャプションを折り返す幅）。高さは絵とキャプションの行数から決まる
 import type { Size } from "../../../plugin-api"
 import { captionTextWidth, TEXT_LOOK, wrap } from "../../base"
@@ -33,7 +33,7 @@ export function artHeight(p: Picture, caption: string, w: number): number {
   return L.padY + p.size.h + (lines > 0 ? L.gap + lines * L.line : 0) + L.padY
 }
 
-// 置いた絵の形の大きさ（w が無ければ置いたときの幅。高さはいつも中身から決める）
+// 置いたシェイプの大きさ（w が無ければ置いたときの幅。高さはいつも中身から決める）
 export function artSize(p: Picture, caption: string, w: number | undefined): Size {
   const width = Math.max(w ?? placedWidth(p, caption), minWidth(p))
   return { w: width, h: artHeight(p, caption, width) }

@@ -1,6 +1,6 @@
-// 絵の形のアイテム: 決まった大きさの絵（pictures.ts）と、その足元に折り返すキャプションを持つ形。15 の絵ごとに 1 つのアイテム。
+// シェイプのアイテム: 決まった大きさの絵（pictures.ts）と、その足元に折り返すキャプションを持つ形。15 の絵ごとに 1 つのアイテム。
 // 項目はキャプションと色（代表色の名前か #rrggbb。無ければテーマの絵の色）。大きさは幅だけを利用者が変え、高さは中身から決まる（size.ts）。
-// 道具箱では形のパネルに並べる。置くときは絵ごとの追加のダイアログでキャプションと色を聞いてから置き、中身は 1 つの編集のダイアログで変える。
+// ツールボックスではシェイプパネルに並べる。置くときは絵ごとの追加のダイアログでキャプションと色を聞いてから置き、中身は 1 つの編集のダイアログで変える。
 // 線は絵とキャプションを合わせた四角のふちにつなぐ
 import { z } from "zod"
 import { HEX, type MessageKey, PALETTE, type ShapeAddArgs, type ShapeEditArgs } from "../../../plugin-api"
@@ -10,7 +10,7 @@ import { PICTURES, type PictureName } from "./pictures"
 import { ART_LOOK, artSize, minWidth } from "./size"
 
 export const ART_FILL = { id: kit.name("art-fill"), fallback: "fill" } as const
-// 15 の絵で共通のテーマキー（プラグインが持つ。絵の形のアイテムは自分のテーマキーを持たない）
+// 15 の絵で共通のテーマキー（プラグインが持つ。シェイプのアイテムは自分のテーマキーを持たない）
 export const ART_TOKENS = [
   ART_FILL,
   { id: kit.name("art-line"), value: "#5f5f6b" }, // 絵の線と印
@@ -25,7 +25,7 @@ export const ArtPropsSchema = z.strictObject({
 // 編集のダイアログ（どの絵も同じ）
 export const ART_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "art-edit" })
 
-// 絵 1 つの定義と、その追加のダイアログ（置く絵は道具箱で決まっているので、絵ごとに 1 つ）
+// 絵 1 つの定義と、その追加のダイアログ（置く絵はツールボックスで決まっているので、絵ごとに 1 つ）
 function art<const Name extends PictureName, const Title extends keyof typeof ART_MESSAGES & string>(
   name: Name,
   title: Title,
@@ -89,5 +89,5 @@ export const ARTS = [
   FAMILY,
 ] as const
 
-// 絵の形のアイテムの id（道具箱に並べる順）
+// シェイプのアイテムの id（ツールボックスに並べる順）
 export const ART_ITEMS = ARTS.map(a => a.item.id)

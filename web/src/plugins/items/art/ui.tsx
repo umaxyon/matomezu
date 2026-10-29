@@ -1,4 +1,4 @@
-// 絵の形の見た目: 絵ごとのビューとアイコン、追加のダイアログ（絵ごと）と編集のダイアログ（共通）
+// シェイプの見た目: 絵ごとのビューとアイコン、追加のダイアログ（絵ごと）と編集のダイアログ（共通）
 import { definePluginUi } from "../../../plugin-api/ui"
 import { ART_PLUGIN } from "."
 import { addArtDialog, EditArtDialog } from "./ArtDialog"

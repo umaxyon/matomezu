@@ -16,7 +16,7 @@ export const FLOW_DIRECTION = kit.defineSetting({
   default: "down",
 })
 
-// 道具箱に出す順: 始まりと終わりの角丸、処理の箱、分岐のひし形、ほかの形、絵の形（形は形のパネルに並ぶ）、線
+// ツールボックスに出す順: 始まりと終わりの角丸、処理の箱、分岐のひし形、ほかの形、シェイプ（形はシェイプパネルに並ぶ）、線
 const ITEMS = [
   "@matomezu/shape:shape-rounded",
   "@matomezu/box:shape-box",

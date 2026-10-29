@@ -1,4 +1,4 @@
-// 絵の形の絵: 絵ごとの大きさ（px）と、SVG の部品の並び（描く順）。部品は役割で塗り分ける（ArtView.module.css）:
+// シェイプの絵: 絵ごとの大きさ（px）と、SVG の部品の並び（描く順）。部品は役割で塗り分ける（ArtView.module.css）:
 //   body … 形の色で塗る / light … 形の色を明るくして塗る（立体の上面や光る所） / dark … 形の色を暗くして塗る（側面や台座）
 //   line … 塗らずに線だけ（溝やひげ） / dot … 線の色で塗りつぶし、線は引かない（目やランプ） / figure … 線だけの人の絵（スティックマン）
 export type PicturePart = "body" | "light" | "dark" | "line" | "dot" | "figure"

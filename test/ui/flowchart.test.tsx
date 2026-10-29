@@ -1,4 +1,4 @@
-// フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・道具箱に形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補・自動で整列
+// フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・ツールボックスに形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補・自動で整列
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { shapesOf } from "../../web/src/core/placed"
@@ -37,7 +37,7 @@ function flowchart() {
   return { store, on: { book: id }, book, page }
 }
 
-test("フローチャートの道具箱（下の行のドロワー）には箱と「形」のボタンが並び、「形」で開くパネルに 8 つの形と 15 の絵の形が並ぶ。形を押すとパネルを閉じてその形を置こうとする", () => {
+test("フローチャートのツールボックス（下の行のドロワー）には箱と「形」のボタンが並び、「形」で開くパネルに 8 つの形と 15 のシェイプが並ぶ。形を押すとパネルを閉じてその形を置こうとする", () => {
   const { store } = flowchart()
   expect(screen.getByRole("button", { name: "箱", hidden: true })).toBeTruthy()
   expect(screen.queryByRole("button", { name: "角丸", hidden: true })).toBeNull()
