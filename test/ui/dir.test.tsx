@@ -337,3 +337,31 @@ test("右クリックの並べ替えで、直下を名前の昇順・降順に�
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "降順で並べる" }))
   expect(rowNames()).toEqual(["proj", "src", "ホゲ", "イヌ", "a.ts", "README.md"])
 })
+
+test("紙の右クリックの「ページの設定」で、ページ名と削除のほかに、説明の表示・前の「・・・」・左の区切り線を切り替える（確定の前から見せる）", () => {
+  const { book, perform } = setup()
+  const ids = addProject(perform)
+  perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.a, description: "説明" })
+  fireEvent.contextMenu(paper())
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "ページの設定" }))
+  const dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  expect(within(dialog).getByLabelText("ページの名前")).toBeTruthy()
+  expect(within(dialog).getByRole("button", { name: "ページを削除" })).toBeTruthy()
+  const note = () => paper().querySelector(`[data-note="${ids.a}"]`)?.textContent
+  expect(note()).toBe("説明")
+  fireEvent.click(within(dialog).getByRole("switch", { name: "説明の前に「・・・」" }))
+  expect(note()).toBe("・・・ 説明")
+  fireEvent.click(within(dialog).getByRole("switch", { name: "説明の左に区切り線" }))
+  expect(paper().querySelector("[data-divider]")).not.toBeNull()
+  fireEvent.click(within(dialog).getByRole("switch", { name: "説明を表示" }))
+  expect(note()).toBeUndefined()
+  expect(paper().querySelector("[data-divider]")).toBeNull()
+  fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
+  expect(book().pages[0]).toMatchObject({
+    settings: {
+      "@matomezu/dir:notes-shown": false,
+      "@matomezu/dir:note-dots": true,
+      "@matomezu/dir:note-divider": true,
+    },
+  })
+})

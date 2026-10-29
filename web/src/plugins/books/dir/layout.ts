@@ -3,11 +3,13 @@
 // 罫線は、フォルダのアイコンの真ん中から下へ、最後の中身の行まで縦に引き、そこから中身ごとにアイコンの手前まで横に引く。
 // フォルダの開け閉めの印（▸・▾）は、その行へ横に引く線の付け根（根は、根のアイコンの左）に置く。
 // 説明は、いちばん右まで伸びた行の右から NOTE_GAP 空けた所に、どの行もそろえて 1 行で置く。紙の右に収まらない分は … で切り、
-// 行が紙の幅の NOTE_LIMIT を超えて右へ伸びていれば、説明はどれも出さない
+// 行が紙の幅の NOTE_LIMIT を超えて右へ伸びていれば、説明はどれも出さない。
+// ページの設定の項目（notes.ts）で、説明を出さない・説明の前に「・・・」を付ける・説明の列の左から DIVIDER_GAP 空けた所に紙を縦に分ける区切り線を引く、を選べる
 import type { Point } from "../../../plugin-api"
 import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, textWidth, wrapRich } from "../../base"
 import { rowsOf } from "./edit"
 import type { DirFolder, Kind } from "./entry"
+import type { NoteLook } from "./notes"
 
 export const MARGIN = 24 // 紙の辺と、いちばん外の行の間
 export const ROW = 24 // 1 行の高さ
@@ -17,6 +19,8 @@ const NAME_GAP = 6 // アイコンと名前の間
 const TICK_GAP = 3 // 横の罫線の端と、アイコンの間
 export const NOTE_GAP = 70 // いちばん右まで伸びた行と、説明の間
 export const NOTE_LIMIT = 0.8 // 行がこの割合より紙の右へ伸びたら、説明を出さない
+export const DIVIDER_GAP = 10 // 区切り線と、説明の列の左の間
+const DOTS = "・・・ " // 説明の前に付ける印
 
 // 名前の字（標準は普通の太さ。**…** で囲んだ所が太字）
 const FONT = { size: TEXT_LOOK.caption.size, weight: 400 } as const
@@ -41,6 +45,7 @@ export interface DirLayout {
   rows: LaidRow[]
   lines: { from: Point; to: Point }[] // 罫線（縦か横の線分）
   notes: { x: number; w: number } | null // 説明の列の左と幅（出さないなら null）
+  divider: number | null // 紙を縦に分ける区切り線の x（引かないなら null）
   fits: boolean // どの行も紙に収まるか
 }
 
@@ -61,8 +66,10 @@ export const editorWidth = (raw: string, shown: number): number =>
   Math.max(shown, Math.ceil(textWidth(raw, FONT))) + EDITOR_PAD * 2 + 16
 const EDITOR_PAD = 4
 
-// 根 root を大きさ paper の紙に並べる
-export function layoutDir(root: DirFolder, paper: { w: number; h: number }): DirLayout {
+const NOTE_DEFAULT: NoteLook = { shown: true, dots: false, divider: false }
+
+// 根 root を大きさ paper の紙に並べる（look は説明の見せ方。無ければ既定）
+export function layoutDir(root: DirFolder, paper: { w: number; h: number }, look: NoteLook = NOTE_DEFAULT): DirLayout {
   const rows = rowsOf(root)
   const laid = rows.map(({ entry, depth }, i): LaidRow => {
     const x = iconX(depth)
@@ -103,14 +110,16 @@ export function layoutDir(root: DirFolder, paper: { w: number; h: number }): Dir
     }
   }
   const fits = laid.every(r => r.x + r.w <= paper.w - MARGIN && r.y + r.h <= paper.h - MARGIN)
-  const notes = notesOf(laid, paper.w)
+  const notes = look.shown ? notesOf(laid, paper.w) : null
   if (notes)
     for (const [i, r] of rows.entries()) {
       const row = laid[i]
       const text = r.entry.description?.replace(/\n/g, " ")
-      if (row && text) row.note = clampRich(wrapRich(text, notes.w, FONT), 1, notes.w, FONT)[0] ?? null
+      const shown = text && (look.dots ? DOTS + text : text)
+      if (row && shown) row.note = clampRich(wrapRich(shown, notes.w, FONT), 1, notes.w, FONT)[0] ?? null
     }
-  return { rows: laid, lines, notes, fits }
+  const divider = notes && look.divider ? notes.x - DIVIDER_GAP : null
+  return { rows: laid, lines, notes, divider, fits }
 }
 
 // 説明の列（いちばん右まで伸びた行の右から NOTE_GAP。紙の右の余白まで）。行が紙の幅の NOTE_LIMIT を超えて伸びた・列の幅が無ければ null

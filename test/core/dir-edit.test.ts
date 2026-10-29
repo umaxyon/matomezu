@@ -16,7 +16,16 @@ import {
 } from "../../web/src/plugins/books/dir/edit"
 import type { DirEntry, DirFolder } from "../../web/src/plugins/books/dir/entry"
 import { giveIds } from "../../web/src/plugins/books/dir/entry"
-import { ICON, INDENT, layoutDir, MARGIN, NOTE_GAP, NOTE_LIMIT, ROW } from "../../web/src/plugins/books/dir/layout"
+import {
+  DIVIDER_GAP,
+  ICON,
+  INDENT,
+  layoutDir,
+  MARGIN,
+  NOTE_GAP,
+  NOTE_LIMIT,
+  ROW,
+} from "../../web/src/plugins/books/dir/layout"
 
 // 根 r の中に フォルダ src（a.ts・ui（b.tsx））と README.md
 const dir: DirFolder = {
@@ -220,4 +229,22 @@ test("説明は、いちばん右まで伸びた行の右から 70 空けた所�
   expect(layoutDir(noted, wide).notes).toBeNull()
   expect(layoutDir(noted, wide).rows.every(r => r.note === null)).toBe(true)
   expect(entryOf(changeEntry(noted, "a", { description: null })!, "a")).not.toHaveProperty("description")
+})
+
+test("説明の見せ方: 出さないなら列も無い。「・・・」を付けると説明の前に付く。区切り線は説明の列の左から 10 空けた所", () => {
+  const noted = changeEntry(dir, "a", { description: "説明です" })!
+  const paper = { w: 794, h: 1123 }
+  expect(layoutDir(noted, paper, { shown: false, dots: false, divider: true })).toMatchObject({
+    notes: null,
+    divider: null,
+  })
+  const laid = layoutDir(noted, paper, { shown: true, dots: true, divider: true })
+  expect(
+    laid.rows
+      .find(r => r.id === "a")
+      ?.note?.map(r => r.text)
+      .join(""),
+  ).toBe("・・・ 説明です")
+  expect(laid.divider).toBe(laid.notes!.x - DIVIDER_GAP)
+  expect(layoutDir(noted, paper).divider).toBeNull() // 既定は引かない
 })

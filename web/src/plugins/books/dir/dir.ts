@@ -1,5 +1,5 @@
 // ディレクトリ構成図のブック: ページごとに紙を置き、ページのフィールド root（根のフォルダ）から下の中身を、自分の見せ方（dir）で上から下へ並べて描く。紙に置けるアイテムは無い。
-// 新しいページを作るダイアログは自分の物（根のフォルダの名前を聞く）、ページの設定のダイアログは base の物。道具は自分の組（tools.ts。鉛筆とハンド）。
+// 新しいページを作るダイアログは自分の物（根のフォルダの名前を聞く）、ページの設定のダイアログは base の物（ページ名・削除と、説明の見せ方の設定の項目）。道具は自分の組（tools.ts。鉛筆とハンド）。
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
 import { z } from "zod"
 import { BOOK_PAPER_COLOR, BOOK_TEXT_COLORS, BOOK_THEME, PAPER_IDS } from "../../base"
@@ -59,5 +59,8 @@ export const DIR = kit.defineBookType({
     { id: "dir-line", fallback: "line" }, // 罫線
   ],
   tools: DIR_TOOLS.id,
-  settings: { book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, BOOK_TEXT_COLORS.id], page: [] },
+  settings: {
+    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, BOOK_TEXT_COLORS.id],
+    page: [kit.name("notes-shown"), kit.name("note-dots"), kit.name("note-divider")], // 説明の見せ方（notes.ts）
+  },
 })
