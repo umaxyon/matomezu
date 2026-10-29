@@ -1,14 +1,14 @@
 // ディレクトリ構成図のコマンド: フォルダを開け閉めする（▸・▾ が呼ぶ。鉛筆でもハンドでも。編集のロックなどでアクションが止められていれば押せない）と、鉛筆の間のコマンド。
-// 鉛筆の間は、↑・↓ で選ぶ行を替え、Home で根を選び、Enter と F2 で選んでいる行の名前をその場で書き始める。
+// 鉛筆の間は、↑・↓ で選ぶ行を替え、← で親のフォルダを選び、Home で根を選び、Enter と F2 で選んでいる行の名前をその場で書き始める。
 // d と f で、すぐ下に兄弟のフォルダとファイルを足し（根では根の中の末尾に）、その場で名前を書き始める。
-// 行の右クリックのメニューで、フォルダとファイルを足し（フォルダの行は中の末尾に。閉じていれば開く。ファイルの行はすぐ下に）、名前を書き、設定のダイアログを開き、
-// フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。
+// 選んでいる行の＋が、フォルダとファイルを足す（フォルダの行は中の末尾に。閉じていれば開く。ファイルの行はすぐ下に）。
+// 行の右クリックのメニューで、名前を書き、設定のダイアログを開き、フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。
 // フォルダを選んで Tab を押すと、中に足す種類を選び始める（その場の編集の名前 KIND_PICK。選ぶ枠はビューが出す）。キーはディレクトリ構成図の見せ方の範囲
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { refusalMessage } from "../../base"
 import { ENTRY_ADD, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT } from "./actions"
 import { DIR_KEYS_SCOPE, ENTRY_SETTINGS_DIALOG } from "./dir"
-import { type AddAt, addAfter, addInto, afterRemove, entryOf, type Order, rowFrom, selectedIn } from "./edit"
+import { type AddAt, addAfter, addInto, afterRemove, entryOf, type Order, parentOf, rowFrom, selectedIn } from "./edit"
 import { DirFolderSchema, type Kind } from "./entry"
 import { kit } from "./kit"
 import { PENCIL_TOOL } from "./tools"
@@ -99,6 +99,17 @@ export const ENTRY_SELECT_MOVE = kit.defineCommand({
   run: (ctx, a, args: { to: "up" | "down" }) => {
     const s = selected(ctx)
     if (s) a.select(ctx.stage.id, [rowFrom(s.root, s.id, args.to)])
+  },
+  when: penciling,
+})
+
+// 親のフォルダを選ぶ（根ではそのまま）
+export const ENTRY_SELECT_PARENT = kit.defineCommand({
+  id: "entry-select-parent",
+  title: "Select parent",
+  run: (ctx, a) => {
+    const s = selected(ctx)
+    if (s) a.select(ctx.stage.id, [parentOf(s.root, s.id)])
   },
   when: penciling,
 })
@@ -255,6 +266,12 @@ export const DIR_KEYS = [
     key: "ArrowDown",
     command: ENTRY_SELECT_MOVE.id,
     args: { to: "down" },
+    scope: DIR_KEYS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "entry-select-parent-left",
+    key: "ArrowLeft",
+    command: ENTRY_SELECT_PARENT.id,
     scope: DIR_KEYS_SCOPE,
   }),
   kit.defineKey({ id: "entry-select-root-home", key: "Home", command: ENTRY_SELECT_ROOT.id, scope: DIR_KEYS_SCOPE }),

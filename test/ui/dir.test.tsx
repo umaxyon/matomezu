@@ -140,7 +140,7 @@ const selectedRow = () => paper().querySelector('[data-selected="true"]')?.getAt
 const row = (id: string) => paper().querySelector(`[data-entry="${id}"]`) as HTMLElement
 const press = (key: string) => fireEvent.keyDown(window, { key })
 
-test("鉛筆では初めは根を選び、押した行・↑↓ で選ぶ行を替える。Home で根に戻る。ハンドでは選んだ印を出さない", () => {
+test("鉛筆では初めは根を選び、押した行・↑↓ で選ぶ行を替える。← で親のフォルダ、Home で根に戻る。ハンドでは選んだ印を出さない", () => {
   const { store, perform } = setup()
   const ids = addProject(perform)
   expect(selectedRow()).toBe(ids.root)
@@ -150,6 +150,13 @@ test("鉛筆では初めは根を選び、押した行・↑↓ で選ぶ行を�
   expect(selectedRow()).toBe(ids.readme)
   press("ArrowUp")
   expect(selectedRow()).toBe(ids.a)
+  press("ArrowLeft") // 親のフォルダ
+  expect(selectedRow()).toBe(ids.src)
+  press("ArrowLeft")
+  expect(selectedRow()).toBe(ids.root)
+  press("ArrowLeft") // 根はそのまま
+  expect(selectedRow()).toBe(ids.root)
+  press("ArrowDown")
   press("Home")
   expect(selectedRow()).toBe(ids.root)
   act(() => store.actions.command("s1", "@matomezu/base:tool-set", "@matomezu/base:hand"))
@@ -224,15 +231,7 @@ test("行の右クリックでその行を選んでメニューを開く。並�
     within(screen.getByRole("menu"))
       .getAllByRole("menuitem")
       .map(m => m.textContent)
-  expect(items()).toEqual([
-    "フォルダを足す",
-    "ファイルを足す",
-    "名前を変えるEnter",
-    "設定…",
-    "昇順で並べる",
-    "降順で並べる",
-    "削除Delete",
-  ])
+  expect(items()).toEqual(["名前を変えるEnter", "設定…", "昇順で並べる", "降順で並べる", "削除Delete"])
   fireEvent.keyDown(window, { key: "Escape" })
   fireEvent.contextMenu(row(ids.a))
   expect(items()).not.toContain("昇順で並べる")
@@ -292,4 +291,24 @@ test("選んでいる行が、閉じたフォルダの中に隠れたら、見�
   expect(selectedRow()).toBe(ids.src)
   press("ArrowDown")
   expect(selectedRow()).toBe(ids.readme)
+})
+
+test("右クリックの並べ替えで、直下を名前の昇順・降順に並べる（フォルダが先）", () => {
+  const { perform } = setup()
+  const ids = addProject(perform)
+  perform("@matomezu/dir:entry-add", {
+    page: ids.page,
+    parent: ids.src,
+    entries: [
+      { kind: "file", name: "ホゲ" },
+      { kind: "file", name: "イヌ" },
+    ],
+  })
+  expect(rowNames()).toEqual(["proj", "src", "a.ts", "ホゲ", "イヌ", "README.md"])
+  fireEvent.contextMenu(row(ids.src))
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "昇順で並べる" }))
+  expect(rowNames()).toEqual(["proj", "src", "a.ts", "イヌ", "ホゲ", "README.md"])
+  fireEvent.contextMenu(row(ids.src))
+  fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "降順で並べる" }))
+  expect(rowNames()).toEqual(["proj", "src", "ホゲ", "イヌ", "a.ts", "README.md"])
 })

@@ -228,6 +228,9 @@ export function rowFrom(root: DirFolder, id: string, to: "up" | "down"): string 
   return rows[to === "up" ? i - 1 : i + 1]?.entry.id ?? id
 }
 
+// 中身 id の親のフォルダ（根は根のまま。無い中身も id のまま）
+export const parentOf = (root: DirFolder, id: string): string => pathTo(root, id)?.at(-1)?.id ?? id
+
 // 中身 id を消したあとに選ぶ行: すぐ上の行（根は消せないので、いつもある。無い中身は null）
 export function afterRemove(root: DirFolder, id: string): string | null {
   if (root.id === id || !pathTo(root, id)) return null
