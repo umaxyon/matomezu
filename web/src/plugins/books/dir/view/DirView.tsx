@@ -1,6 +1,6 @@
 // ディレクトリ構成図のビュー（見せ方 dir）: ステージの紙の置き場所（placement）に紙を描き、その上に開いたページの根のフォルダから下の中身を、
 // 上から下へ並べて描く（行と罫線は layout.ts が決める）。行は、アイコン（フォルダは開・閉、ファイル）と、その右の名前（装飾して描く）。
-// 説明は、行の右にそろえた列に 1 行で描く（列の位置・… で切るか・出さないかは layout.ts）。
+// 説明は、行の右にそろえた列に 1 行で描く（列の位置・… で切るか・出さないかは layout.ts）。選んでいる行の説明にも、行と同じ印を付ける。
 // フォルダには開け閉めの印（▸・▾）を出し、押すとコマンド folder-toggle で開け閉めする（鉛筆でもハンドでも。アクションが止められていれば押せない形で描く）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、ディレクトリ構成図のメニュー（dir-context）を開く。
@@ -239,7 +239,8 @@ function Rows({
               key={`note-${r.id}`}
               className={styles.note}
               data-note={r.id}
-              style={{ left: notes.x, top: r.y, width: notes.w, height: r.h }}
+              data-selected={usingPencil && r.id === selected}
+              style={{ left: notes.x, top: r.y, maxWidth: notes.w, height: r.h }}
             >
               <RichText line={r.note} />
             </span>

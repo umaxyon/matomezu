@@ -257,7 +257,9 @@ test("右クリックの「設定…」で、フォルダもファイルも同�
   expect(book().pages[0]).toMatchObject({
     root: { children: [{ kind: "folder" }, { name: "README.txt", description: "はじめに読む" }] },
   })
-  expect(paper().querySelector(`[data-note="${ids.readme}"]`)?.textContent).toBe("はじめに読む")
+  const note = paper().querySelector(`[data-note="${ids.readme}"]`)
+  expect(note?.textContent).toBe("はじめに読む")
+  expect(note?.getAttribute("data-selected")).toBe("true") // 選んでいる行の説明にも印
   fireEvent.contextMenu(row(ids.src))
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "設定…" }))
   dialog = screen.getByRole("dialog", { name: "ノードの設定" })
