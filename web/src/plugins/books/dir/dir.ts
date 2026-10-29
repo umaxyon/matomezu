@@ -61,6 +61,6 @@ export const DIR = kit.defineBookType({
   tools: DIR_TOOLS.id,
   settings: {
     book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, BOOK_TEXT_COLORS.id],
-    page: [kit.name("notes-shown"), kit.name("note-dots"), kit.name("note-divider")], // 説明の見せ方（notes.ts）
+    page: [kit.name("notes")], // 説明の見せ方（notes.ts）
   },
 })

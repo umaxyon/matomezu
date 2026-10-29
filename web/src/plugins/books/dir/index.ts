@@ -22,14 +22,14 @@ import {
 } from "./commands"
 import { DIR, DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
 import { kit } from "./kit"
-import { NOTE_DIVIDER, NOTE_DOTS, NOTES_SHOWN } from "./notes"
+import { NOTES } from "./notes"
 import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
 
 export const DIR_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [DIR],
     presentations: [DIR_PRESENTATION],
-    settings: [NOTES_SHOWN, NOTE_DOTS, NOTE_DIVIDER],
+    settings: [NOTES],
     dialogs: [NEW_DIR_PAGE_DIALOG, ENTRY_SETTINGS_DIALOG],
     actions: [ENTRY_ADD, PATHS_ADD, ENTRY_UPDATE, ENTRY_REMOVE, ENTRY_MOVE, FOLDER_CLOSE, FOLDER_SORT],
     commands: [
@@ -63,9 +63,7 @@ declare module "../../../core/catalog" {
     "@matomezu/dir:dir": typeof DIR_PRESENTATION
   }
   interface SettingTable {
-    "@matomezu/dir:notes-shown": typeof NOTES_SHOWN
-    "@matomezu/dir:note-dots": typeof NOTE_DOTS
-    "@matomezu/dir:note-divider": typeof NOTE_DIVIDER
+    "@matomezu/dir:notes": typeof NOTES
   }
   interface ActionTable {
     "@matomezu/dir:entry-add": typeof ENTRY_ADD

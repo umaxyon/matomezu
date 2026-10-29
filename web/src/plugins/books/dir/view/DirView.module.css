@@ -301,6 +301,10 @@
   box-shadow: 0 0 0 1px var(--theme-paper);
   pointer-events: none;
 }
+/* 説明の列の、行ごとの押せる所（鉛筆の間。説明の無い行でもダブルクリックで書き始められる） */
+.noteCell {
+  position: absolute;
+}
 /* 説明（行の右にそろえた列。1 行。名前より薄い字） */
 .note {
   position: absolute;

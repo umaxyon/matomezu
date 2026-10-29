@@ -342,7 +342,7 @@ test("右クリックの並べ替えで、直下を名前の昇順・降順に�
   expect(rowNames()).toEqual(["proj", "src", "ホゲ", "イヌ", "a.ts", "README.md"])
 })
 
-test("紙の右クリックの「ページの設定」で、ページ名と削除のほかに、説明の表示・前の「・・・」・左の区切り線を切り替える（確定の前から見せる）", () => {
+test("紙の右クリックの「ページの設定」で、ページ名と削除のほかに、説明の表示と、その下に開く枠の前の「・・・」・左の区切り線を切り替える（確定の前から見せる。表示を切ると枠を閉じる）", () => {
   const { book, perform } = setup()
   const ids = addProject(perform)
   perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.a, description: "説明" })
@@ -357,15 +357,43 @@ test("紙の右クリックの「ページの設定」で、ページ名と削�
   expect(note()).toBe("・・・ 説明")
   fireEvent.click(within(dialog).getByRole("switch", { name: "説明の左に区切り線" }))
   expect(paper().querySelector("[data-divider]")).not.toBeNull()
+  const panel = () =>
+    within(dialog).getByRole("switch", { name: "説明の前に「・・・」", hidden: true }).closest("[data-open]") // 閉じた枠の中も見る
+  expect(panel()?.getAttribute("data-open")).toBe("true")
   fireEvent.click(within(dialog).getByRole("switch", { name: "説明を表示" }))
   expect(note()).toBeUndefined()
   expect(paper().querySelector("[data-divider]")).toBeNull()
+  expect(panel()?.getAttribute("data-open")).toBe("false")
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
   expect(book().pages[0]).toMatchObject({
-    settings: {
-      "@matomezu/dir:notes-shown": false,
-      "@matomezu/dir:note-dots": true,
-      "@matomezu/dir:note-divider": true,
-    },
+    settings: { "@matomezu/dir:notes": { shown: false, dots: true, divider: true } },
   })
+})
+
+test("説明を出している間は、説明の列をダブルクリックして説明をその場で書く（説明の無い行も）。Enter で確定、Escape で取り消し、空にすると消す。ハンドと、説明を出さないページでは書けない", () => {
+  const { book, perform } = setup()
+  const ids = addProject(perform)
+  perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.a, description: "説明" })
+  const note = (id: string) => paper().querySelector(`[data-note="${id}"]`)?.textContent
+  const cell = (id: string) => paper().querySelector(`[data-note-cell="${id}"]`) as HTMLElement
+  const input = () => within(paper()).getByRole("textbox", { name: "説明" })
+  fireEvent.doubleClick(cell(ids.readme)) // 説明の無い行
+  expect(selectedRow()).toBe(ids.readme)
+  writeRich(input(), "はじめに")
+  fireEvent.keyDown(input(), { key: "Enter" })
+  expect(note(ids.readme)).toBe("はじめに")
+  fireEvent.doubleClick(cell(ids.a))
+  writeRich(input(), "替えた")
+  fireEvent.keyDown(input(), { key: "Escape" })
+  expect(note(ids.a)).toBe("説明")
+  fireEvent.doubleClick(cell(ids.a))
+  writeRich(input(), "")
+  fireEvent.blur(input())
+  expect(note(ids.a)).toBeUndefined()
+  expect(JSON.stringify(book().pages[0])).not.toContain('"説明"') // データからも消す
+  perform("@matomezu/base:page-update", {
+    page: ids.page,
+    settings: { "@matomezu/dir:notes": { shown: false, dots: false, divider: false } },
+  })
+  expect(cell(ids.a)).toBeNull()
 })

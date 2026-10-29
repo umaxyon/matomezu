@@ -281,3 +281,12 @@ export function editEnd(root: DirFolder, id: string, text: string | null): EditE
   if (next === "") return root.id !== id && plainName(old).trim() === "" ? { kind: "remove" } : { kind: "none" }
   return next === old ? { kind: "none" } : { kind: "rename", name: next }
 }
+
+// 説明のその場の編集を中身 id の上で書いた字 text（書いていなければ null）で終えたとき、説明をどうするか:
+// 替える字・消す（null。記号だけで字の無いものも空とみなす）・何もしない（undefined。変わらない）
+export function noteEnd(root: DirFolder, id: string, text: string | null): string | null | undefined {
+  const old = entryOf(root, id)?.description
+  if (text === null) return undefined
+  const next = plainName(text).trim() === "" ? null : text
+  return next === (old ?? null) ? undefined : next
+}

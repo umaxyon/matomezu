@@ -8,6 +8,7 @@ import {
   compareNames,
   entryOf,
   moveEntry,
+  noteEnd,
   pathTo,
   removeEntry,
   rowsOf,
@@ -248,4 +249,23 @@ test("説明の見せ方: 出さないなら列も無い。「・・・」を付
   const x = laid.notes!.x - DIVIDER_GAP
   expect(laid.divider).toEqual({ from: { x, y: MARGIN }, to: { x, y: paper.h - MARGIN } }) // 上下は紙の辺から空ける
   expect(layoutDir(noted, paper).divider).toBeNull() // 既定は引かない
+})
+
+test("説明のその場の編集を終えると、書いた字に替える。空（記号だけも）なら消し、変わらないか書いていなければ何もしない", () => {
+  const root: DirFolder = {
+    id: "r",
+    kind: "folder",
+    name: "r",
+    children: [
+      { id: "a", kind: "file", name: "a", description: "説明" },
+      { id: "b", kind: "file", name: "b" },
+    ],
+  }
+  expect(noteEnd(root, "a", "替えた")).toBe("替えた")
+  expect(noteEnd(root, "a", "説明")).toBeUndefined()
+  expect(noteEnd(root, "a", null)).toBeUndefined()
+  expect(noteEnd(root, "a", " ")).toBeNull()
+  expect(noteEnd(root, "a", "****")).toBeNull()
+  expect(noteEnd(root, "b", "")).toBeUndefined() // 無い説明を空のまま
+  expect(noteEnd(root, "b", "書いた")).toBe("書いた")
 })

@@ -9,7 +9,7 @@ import type { Point } from "../../../plugin-api"
 import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, wrapRich } from "../../base"
 import { rowsOf } from "./edit"
 import type { DirFolder, Kind } from "./entry"
-import type { NoteLook } from "./notes"
+import { NOTE_DEFAULT, type NoteLook } from "./notes"
 
 export const MARGIN = 24 // 紙の辺と、いちばん外の行の間
 export const ROW = 24 // 1 行の高さ
@@ -65,8 +65,6 @@ export const nameLeft = (x: number): number => x + ICON + NAME_GAP
 export const editorWidth = (raw: string, shown: number): number =>
   Math.max(shown, Math.ceil(richWidth(parseRich(raw).flat(), FONT))) + EDITOR_PAD * 2 + 16
 const EDITOR_PAD = 4
-
-const NOTE_DEFAULT: NoteLook = { shown: true, dots: false, divider: false }
 
 // 根 root を大きさ paper の紙に並べる（look は説明の見せ方。無ければ既定）
 export function layoutDir(root: DirFolder, paper: { w: number; h: number }, look: NoteLook = NOTE_DEFAULT): DirLayout {
