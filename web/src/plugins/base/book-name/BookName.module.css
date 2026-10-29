@@ -94,7 +94,10 @@
 }
 .mapView {
   display: flex;
+  align-items: center;
   justify-content: center;
+  width: var(--map-w);
+  height: var(--map-h);
   line-height: 0;
 }
 .row {

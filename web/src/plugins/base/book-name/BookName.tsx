@@ -21,8 +21,9 @@ import { STAGE_MENU } from "./menu"
 
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
-const MAP_SIZE = 200 // ドロワーのミニマップの、紙を収める大きさ（px）
-const MAP_BOX = MAP_SIZE + 14 // ミニマップの台と、その下の拡大縮小の幅（紙を収める大きさと、内側の余白・枠の線）
+// ドロワーのミニマップの絵の枠（px）。紙の形によらずこの大きさで、紙は縦長でも横長でもこの中に収めて真ん中に描く
+const MAP = { w: 156, h: 110 }
+const MAP_BOX = MAP.w + 14 // ミニマップの台と、その下の拡大縮小の幅（絵の枠と、内側の余白・枠の線）
 
 export function BookName({ stage }: { stage: string }) {
   const book = useMatomezuState(s => {
@@ -118,10 +119,17 @@ function StageMenu({
   })
   return (
     <div className={styles.drawer} data-open={open} aria-hidden={!open} inert={!open} {...own}>
-      <div className={styles.slide} style={{ ["--map-box" as string]: `${MAP_BOX}px` }}>
+      <div
+        className={styles.slide}
+        style={{
+          ["--map-box" as string]: `${MAP_BOX}px`,
+          ["--map-w" as string]: `${MAP.w}px`,
+          ["--map-h" as string]: `${MAP.h}px`,
+        }}
+      >
         {hasPaper && (
           <div className={styles.map} data-minimap="drawer">
-            <MinimapView stage={stage} width={MAP_SIZE} height={MAP_SIZE} className={styles.mapView} />
+            <MinimapView stage={stage} width={MAP.w} height={MAP.h} className={styles.mapView} />
           </div>
         )}
         <div className={styles.row}>
