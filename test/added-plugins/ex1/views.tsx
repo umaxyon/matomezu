@@ -1,15 +1,16 @@
 // ex1 のダイアログ・ボタン・アイコン。枠は base のダイアログを使う
-import { Dialog, type DialogProps, useCommand, useMessages } from "matomezu/ui"
-import { HELLO, SWITCH_LANG } from "."
+import { Dialog, type DialogProps, useCommand, useMessages, useUserSetting } from "matomezu/ui"
+import { GREETING_NAME, HELLO, SWITCH_LANG } from "."
 import { kit } from "./kit"
 import { shout } from "./shout"
 import styles from "./views.module.css"
 
 export function HelloDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
+  const name = useUserSetting(GREETING_NAME.id) as string
   return (
     <Dialog title={t("sayHello")} onClose={onClose}>
-      <p className={styles.greeting}>{t("helloName", { name: shout("matomezu") })}</p>
+      <p className={styles.greeting}>{t("helloName", { name: shout(name) })}</p>
     </Dialog>
   )
 }

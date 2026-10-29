@@ -12,6 +12,7 @@ export interface PaperTable {}
 export interface TextColorTable {}
 export interface SkinTable {}
 export interface SettingTable {}
+export interface UserSettingTable {}
 export interface PresentationTable {}
 export interface ToolTable {}
 export interface ToolSetTable {}
@@ -56,6 +57,7 @@ export const PARTS = {
   items: { catalog: "core", label: "item" },
   actions: { catalog: "core", label: "action" },
   settings: { catalog: "core", label: "setting" },
+  userSettings: { catalog: "core", label: "userSetting" },
   presentations: { catalog: "core", label: "presentation" },
   tools: { catalog: "core", label: "tool" },
   toolSets: { catalog: "core", label: "toolSet" },
@@ -78,6 +80,7 @@ export interface PartTables {
   items: ItemTable
   actions: ActionTable
   settings: SettingTable
+  userSettings: UserSettingTable
   presentations: PresentationTable
   tools: ToolTable
   toolSets: ToolSetTable
@@ -101,6 +104,7 @@ export type PaperId = keyof PaperTable & string
 export type TextColorId = keyof TextColorTable & string
 export type SkinId = keyof SkinTable & string
 export type SettingId = keyof SettingTable & string
+export type UserSettingId = keyof UserSettingTable & string
 export type PresentationId = keyof PresentationTable & string
 export type ToolId = keyof ToolTable & string
 export type ToolSetId = keyof ToolSetTable & string

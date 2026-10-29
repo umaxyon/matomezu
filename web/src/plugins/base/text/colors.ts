@@ -1,4 +1,4 @@
-// base の文字の色: 本文の一部に付ける、意味の役割の色（成功・情報・注意・誤り）。テーマに寄らない色で、ブックの設定（text-colors）で上書きできる
+// base の文字の色: 本文の一部に付ける、意味の役割の色（成功・情報・注意・誤り）。テーマに寄らない色で、ブックの設定（book-text-colors）で上書きできる
 import { kit } from "../kit"
 
 export const TEXT_SUCCESS = kit.defineTextColor({

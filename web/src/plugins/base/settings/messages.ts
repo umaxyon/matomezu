@@ -5,4 +5,5 @@ export const SETTINGS_MESSAGES = defineMessages({
   Language: { en: "Language", ja: "言語" },
   Skin: { en: "Skin", ja: "スキン" },
   "Shortcut keys": { en: "Shortcut keys", ja: "ショートカットキー" },
+  Settings: { en: "Settings", ja: "設定" },
 })

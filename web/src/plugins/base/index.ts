@@ -1,4 +1,4 @@
-// base（ほかのプラグインが読んでよいプラグイン）: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・設定・標準のテーマ・スキン（ダーク・ライト）と、そのキーの既定の割り当て。
+// base（ほかのプラグインが読んでよいプラグイン）: ステージ（ホームを開く・分割・閉じる）・道具の切り替え（回転ボタンと、長押しで出すアイコン）・置くのの取り消し・ダイアログと右クリックのメニューを閉じる・ブックを開く・ページ・紙・利用者の設定（言語・スキン・キーの割り当て・文字の色）・標準のテーマ・スキン（ダーク・ライト）と、そのキーの既定の割り当て。
 // 機能ごとのフォルダの定義を集めて 1 つのプラグインにする。画面の骨組みのウィジェット（ui.tsx）がここのコマンドを呼ぶ
 import { defineBuiltin } from "../../store/plugin"
 import { BOOK_PAPER_COLOR, BOOK_SETTINGS, BOOK_SETTINGS_DIALOG, BOOK_THEME, BOOK_UPDATE } from "./book-look"
@@ -16,17 +16,9 @@ import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SET
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
 import { FAMILY_TITLE_CHECK, PROP_NAMES_CHECK } from "./place/items"
-import {
-  SET_KEYS,
-  SET_LANG,
-  SET_SKIN,
-  SET_TEXT_COLORS,
-  SETTINGS_LANG,
-  SETTINGS_SKIN,
-  SETTINGS_TEXT_COLOR,
-} from "./settings"
+import { FIXED_SETTINGS_CHECK, KEYS, LANG, SETTINGS_SET, SETTINGS_SET_COMMAND, SKIN } from "./settings"
 import { STAGE_CLOSE, STAGE_HOME, STAGE_SPLIT, STAGE_UNSPLIT } from "./stage"
-import { BOOK_TEXT_COLORS, TEXT_COLORS } from "./text"
+import { BOOK_TEXT_COLORS, TEXT_COLORS, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_NEXT } from "./tool-switch"
 import { HAND_TOOL, SELECT_TOOL } from "./tool-switch/tools"
@@ -87,6 +79,7 @@ export type { PortArea, Ports } from "./place/placed"
 export { NEST_PADDING, placedSize, portAreasOf, rectsOf } from "./place/placed"
 export type { Axis, Gap } from "./place/push"
 export { apart, evenGap, inPaper, LEN, newClash, tooClose } from "./place/push"
+export { shownLanguagePack } from "./settings"
 export {
   BOOK_TEXT_COLORS,
   clampRich,
@@ -98,6 +91,7 @@ export {
   textColorId,
   textColorRef,
   textColorsOf,
+  withTextColor,
   wrapRich,
 } from "./text"
 export {
@@ -134,18 +128,16 @@ export const BASE = defineBuiltin(
       BOOK_RESTORE,
       BOOK_PURGE,
       TRASH_EMPTY,
-      SET_LANG,
-      SET_SKIN,
-      SET_KEYS,
-      SET_TEXT_COLORS,
+      SETTINGS_SET,
     ],
     settings: [BOOK_THEME, BOOK_PAPER_COLOR, BOOK_TEXT_COLORS],
+    userSettings: [LANG, SKIN, KEYS, USER_TEXT_COLORS],
     themes: [STANDARD, STICKY, SIMPLE],
     papers: PAPERS,
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT],
     tools: [SELECT_TOOL, HAND_TOOL],
-    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK],
+    checks: [PROP_NAMES_CHECK, FAMILY_TITLE_CHECK, CREATE_SETTINGS_CHECK, FIXED_SETTINGS_CHECK],
     commands: [
       BOOK_NEW,
       STAGE_HOME,
@@ -168,9 +160,7 @@ export const BASE = defineBuiltin(
       PAGE_OPEN,
       PAGE_SETTINGS,
       BOOK_SETTINGS,
-      SETTINGS_LANG,
-      SETTINGS_SKIN,
-      SETTINGS_TEXT_COLOR,
+      SETTINGS_SET_COMMAND,
     ],
     dialogs: [OPEN_BOOK_DIALOG, NEW_PAGE_DIALOG, PAGE_SETTINGS_DIALOG, BOOK_SETTINGS_DIALOG, NEW_BOOK_DIALOG],
     keys: [...TOOLBOX_KEYS, ...TOOL_PICKER_KEYS, ...ZOOM_KEYS, ...DIALOG_KEYS, ...MENU_KEYS],
@@ -182,7 +172,13 @@ declare module "../../core/catalog" {
   interface SettingTable {
     "@matomezu/base:book-theme": typeof BOOK_THEME
     "@matomezu/base:book-paper-color": typeof BOOK_PAPER_COLOR
-    "@matomezu/base:text-colors": typeof BOOK_TEXT_COLORS
+    "@matomezu/base:book-text-colors": typeof BOOK_TEXT_COLORS
+  }
+  interface UserSettingTable {
+    "@matomezu/base:lang": typeof LANG
+    "@matomezu/base:skin": typeof SKIN
+    "@matomezu/base:keys": typeof KEYS
+    "@matomezu/base:text-colors": typeof USER_TEXT_COLORS
   }
   interface ActionTable {
     "@matomezu/base:book-create": typeof BOOK_CREATE
@@ -198,10 +194,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-restore": typeof BOOK_RESTORE
     "@matomezu/base:book-purge": typeof BOOK_PURGE
     "@matomezu/base:trash-empty": typeof TRASH_EMPTY
-    "@matomezu/base:settings-lang": typeof SET_LANG
-    "@matomezu/base:settings-skin": typeof SET_SKIN
-    "@matomezu/base:settings-keys": typeof SET_KEYS
-    "@matomezu/base:settings-text-colors": typeof SET_TEXT_COLORS
+    "@matomezu/base:settings-set": typeof SETTINGS_SET
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD
@@ -251,9 +244,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-open": typeof PAGE_OPEN
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS
-    "@matomezu/base:settings-lang": typeof SETTINGS_LANG
-    "@matomezu/base:settings-skin": typeof SETTINGS_SKIN
-    "@matomezu/base:settings-text-color": typeof SETTINGS_TEXT_COLOR
+    "@matomezu/base:settings-set": typeof SETTINGS_SET_COMMAND
   }
   interface DialogTable {
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG

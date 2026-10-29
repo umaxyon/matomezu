@@ -8,6 +8,7 @@ import type { Lang } from "../core/i18n/i18n"
 import type { ArgsOf } from "../core/perform"
 import { findShape, type ItemPage, type PlacedItem, type PlacedOf } from "../core/placed"
 import type { Book } from "../core/schema/book"
+import { type Settings, userSetting } from "../core/settings"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { Performed } from "../store/store"
 import type { UiCatalog } from "./plugin"
@@ -100,12 +101,18 @@ export function useUiCatalog(): UiCatalog {
   return useUi()
 }
 
-// 見る人の設定（言語・スキン・文字の色の上書き）
-export function useSettings(): { lang: Lang; skin: string; textColors: Readonly<Record<string, string>> } {
-  const lang = useMatomezuState(s => s.settings.lang)
-  const skin = useMatomezuState(s => s.settings.skin)
-  const textColors = useMatomezuState(s => s.settings.textColors)
-  return useMemo(() => ({ lang, skin, textColors }), [lang, skin, textColors])
+// 見る人の設定: 今の言語と、利用者の設定の項目の id → 残した値（機能台帳に無い項目・形に合わない値もそのまま）
+export function useSettings(): { lang: Lang; values: Settings } {
+  const lang = useMatomezuState(s => s.lang)
+  const values = useMatomezuState(s => s.settings)
+  return useMemo(() => ({ lang, values }), [lang, values])
+}
+
+// 利用者の設定の項目 id の値（値が無いか形に合わなければ既定。既定も無い・機能台帳に無い項目なら undefined）
+export function useUserSetting(id: string): unknown {
+  const catalog = useCatalog().core
+  const values = useMatomezuState(s => s.settings)
+  return useMemo(() => userSetting(catalog, values, id), [catalog, values, id])
 }
 
 // そのステージが開いているブックにアクションを行う関数（ブックが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ

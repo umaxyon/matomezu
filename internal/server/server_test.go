@@ -525,19 +525,19 @@ func TestSettingsActions(t *testing.T) {
 	s := newServer(t, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-skin","args":{"skin":"@matomezu/base:dark"},"lang":"ja"}`, nil)
-	if got := next(t, a); !strings.HasPrefix(got, `settings {`) || !strings.Contains(got, `"skin":"@matomezu/base:dark"`) {
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`, nil)
+	if got := next(t, a); !strings.HasPrefix(got, `settings {`) || !strings.Contains(got, `"@matomezu/base:skin":"@matomezu/base:dark"`) {
 		t.Fatalf("settings = %s", got)
 	}
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"skin":"@matomezu/base:dark"`) {
+	if !strings.Contains(data, `"@matomezu/base:skin":"@matomezu/base:dark"`) {
 		t.Fatalf("data = %s", data)
 	}
 	// AI も設定を読んで変えられる
-	if _, got := send(t, "GET", s.URL+"/api/ai/settings", "", ai); !strings.Contains(got, `"skin":"@matomezu/base:dark"`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/settings", "", ai); !strings.Contains(got, `"@matomezu/base:skin":"@matomezu/base:dark"`) {
 		t.Fatalf("ai settings = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:settings-skin","args":{"skin":"@matomezu/base:light"}}`, ai); got != `{"ok":true,"result":{}}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:light"}}}`, ai); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("ai perform = %s", got)
 	}
 }

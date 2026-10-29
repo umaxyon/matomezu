@@ -4,11 +4,12 @@
 import { type CSSProperties, type RefObject, useMemo } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
+import { useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { type Decoration, decorate } from "./edit"
 import styles from "./RichBar.module.css"
 import { textColorRef } from "./rich"
-import { textColorsOf } from "./text-colors"
+import { type TextColorValues, textColorsOf, USER_TEXT_COLORS } from "./text-colors"
 
 export function RichBar({
   stage,
@@ -33,7 +34,7 @@ export function RichBar({
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined
   })
-  const viewer = useMatomezuState(s => s.settings.textColors)
+  const viewer = useUserSetting(USER_TEXT_COLORS.id) as TextColorValues
   const colors = useMemo(() => (book ? textColorsOf(catalog, book, viewer) : null), [catalog, book, viewer])
   const apply = (d: Decoration) => {
     const el = target.current

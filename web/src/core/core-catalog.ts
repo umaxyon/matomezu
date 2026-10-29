@@ -10,7 +10,7 @@ import type { BookTypeDef } from "./def/book-type"
 import type { ItemDef } from "./def/item"
 import type { PaperDef } from "./def/paper"
 import type { PresentationDef } from "./def/presentation"
-import type { SettingDef } from "./def/setting"
+import type { SettingDef, SettingRole } from "./def/setting"
 import type { SkinDef } from "./def/skin"
 import type { TextColorDef } from "./def/text-color"
 import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
@@ -35,6 +35,7 @@ declare module "./catalog" {
     items: ItemDef
     actions: ActionDef
     settings: SettingDef
+    userSettings: SettingDef
     presentations: PresentationDef
     themes: ThemeDef
     papers: PaperDef
@@ -69,6 +70,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   bookSchema: z.ZodType
   warnings: readonly Warning[] // 組み立てで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとブックのタイプのテーマキーは、その定義の tokens）
+  roles: ReadonlyMap<SettingRole, SettingDef> // 役 → 役を持つ利用者の設定の項目（土台は役で引く）
 }
 
 const byId = <T extends { id: string }>(defs: readonly T[]) => new Map<string, T>(defs.map(d => [d.id, d]))
@@ -99,6 +101,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     bookSchema: z.discriminatedUnion("type", [first, ...rest]),
     warnings: coreWarnings(parts),
     tokens: byId(parts.tokens),
+    roles: new Map(parts.userSettings.flatMap(d => (d.role ? [[d.role, d] as const] : []))),
   }
 }
 
@@ -224,6 +227,19 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       seen.add(d.id)
     }
   }
+  // ブックの設定の項目と利用者の設定の項目は、同じ id を持たない。役と userOnly は利用者の設定の項目だけが持ち、1 つの役は 1 つの項目だけ
+  for (const d of parts.userSettings)
+    if (settings.has(d.id)) problems.push(problem("E001", { kind: PARTS.settings.label, id: d.id }))
+  for (const d of parts.settings)
+    for (const field of ["role", "userOnly"] as const)
+      if (d[field] !== undefined) problems.push(problem("E036", { id: d.id, field }))
+  const roles = new Map<SettingRole, string>()
+  for (const d of parts.userSettings) {
+    if (!d.role) continue
+    const other = roles.get(d.role)
+    if (other !== undefined) problems.push(problem("E037", { id: d.id, role: d.role, other }))
+    roles.set(d.role, d.id)
+  }
   for (const [kind, defs] of [
     ["messages", allMessages(parts)],
     ["language", allLanguages(parts)],
@@ -314,6 +330,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     ["item", parts.items],
     ["action", parts.actions],
     ["setting", parts.settings],
+    ["userSetting", parts.userSettings],
     ["theme", parts.themes],
     ["paper", parts.papers],
     ["textColor", parts.textColors],

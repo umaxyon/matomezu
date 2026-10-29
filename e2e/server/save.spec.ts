@@ -24,7 +24,7 @@ test("マスターで変えた設定は常駐に残り、読み直しても同�
   await page.goto("/")
   const skin = page.getByRole("region", { name: "マスター" }).getByLabel("スキン")
   await skin.selectOption("@matomezu/base:dark")
-  await expect.poll(async () => (await data(page)).settings?.skin).toBe("@matomezu/base:dark")
+  await expect.poll(async () => (await data(page)).settings?.["@matomezu/base:skin"]).toBe("@matomezu/base:dark")
   await page.reload()
   await expect(page.getByRole("region", { name: "マスター" }).getByLabel("スキン")).toHaveValue("@matomezu/base:dark")
 })

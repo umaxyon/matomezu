@@ -60,7 +60,7 @@
 - タイプだけの設定の項目（`settings` の book・page）とページのフィールド（`pages.fields`）は base のアクションが受け付け、タイプの宣言した形で確かめる。ブックの設定の項目は `book-create`・`book-update`、ページの設定の項目とページのフィールドは `page-add`・`page-update`。ページのフィールドの受け方（受ける形と、ページへの書き方）は、タイプが決められる。タイプは、ページに問題があることを知らせられる（知らせの文言は任意）。base のアクションは、問題のあるページを書かない。断ったことを利用者に知らせるか、どう知らせるかは、呼んだ側が決める。タイプごとの作る・更新のアクションは作らない
 - タイプは、ページを作るダイアログとページの設定のダイアログを id で名指せる（`pages.dialogs`。名指さなければ base のもの）。作るほうは値を受けず、設定のほうは土台が決めた `PageSettingsArgs` を受ける。名指したダイアログがそうなっているかを型で確かめる。行うのは base の `page-add`・`page-update` で、ダイアログのために別のアクションを作らない
 - ブックのテーマと紙の色は、base が定義する設定の項目（`@matomezu/base:book-theme`・`@matomezu/base:book-paper-color`）で、タイプが `settings.book` に id で選ぶ。名前は設定の項目ではなく、`book-update` の `title` で変える
-- 文字の色の値は、定義の色を、base が定義するブックの設定の項目（`@matomezu/base:text-colors`。文字の色の id → 色）で上書きする。上書きできるのは、タイプが `settings.book` に選んだブックだけ
+- 文字の色の値は、定義の色を、base が定義するブックの設定の項目（`@matomezu/base:book-text-colors`。文字の色の id → 色）で上書きする。上書きできるのは、タイプが `settings.book` に選んだブックだけ
 - 1 冊だけのタイプ（`single: true`）は、その 1 冊のデータを定義に持つ。何冊も作れるタイプは `create` で空のブックを作る
 
 ## アイテム

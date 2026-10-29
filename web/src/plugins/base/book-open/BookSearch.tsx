@@ -31,7 +31,7 @@ export function BookSearch({
   const books = useMatomezuState(useShallow(s => Object.values(s.books)))
   const unreadable = useMatomezuState(s => s.unreadable)
   const partial = useMatomezuState(s => s.partial)
-  const lang = useMatomezuState(s => s.settings.lang)
+  const lang = useMatomezuState(s => s.lang)
   const touched = useMatomezuState(s => s.touched)
   const elapsed = useElapsed()
   const catalog = useCatalog().core

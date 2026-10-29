@@ -205,7 +205,7 @@ test("マスターの設定で言語とスキンを変えると、画面がす�
   await (await fromMenu(page, "ホーム")).click()
   await page.getByLabel("スキン").selectOption("@matomezu/base:light")
   await expect(page.locator("html")).toHaveAttribute("data-skin", "@matomezu/base:light")
-  await page.getByLabel("言語").selectOption("en")
+  await page.getByLabel("言語").selectOption("matomezu:en")
   await expect(page.getByRole("button", { name: "New book" })).toBeVisible()
   await expect(page.locator("html")).toHaveAttribute("lang", "en")
 })

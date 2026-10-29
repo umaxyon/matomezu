@@ -48,14 +48,14 @@ var readTools = []readTool{
 	},
 	{
 		"read_settings",
-		"Read the user's settings: lang, skin, keys (their changes to the shortcut keys) and textColors (their own text colors, by the text color's id). null when they have changed nothing.",
+		"Read the user's settings: the value of each setting in actions, keyed by the setting's id (a setting the user has not changed has its default, or is left out when it has none).",
 		noArgs,
 		func(api API, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") },
 	},
 	{
 		"actions",
 		"List what can be done now (it changes when plugins are added or removed): the actions (id, target, title, description, and args as JSON Schema) to call with perform, " +
-			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the languages and the skins. " +
+			"the book types (which can be created, whether they have pages and which items they place), the items (shape or connector) with their props and default sizes, the themes, the colors by role, the language packs (the language setting takes a pack id), the skins, and the user settings with their schemas. " +
 			"warnings (only when there are some) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",
 		noArgs,

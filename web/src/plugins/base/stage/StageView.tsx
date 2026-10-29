@@ -24,10 +24,12 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { themeVars, useTokenScope } from "../../../ui/theme-vars"
+import { useUserSetting } from "../../../ui/view-hooks"
 import { bookTokens } from "../book-look/look"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
-import { textColorsOf, textColorVars } from "../text"
+import { textColorsOf, textColorVars, USER_TEXT_COLORS } from "../text"
+import type { TextColorValues } from "../text/text-colors"
 import { keepsPan } from "../tool-switch/tools"
 import { useResize } from "../utils/useResize"
 import { ZOOM_IN, ZOOM_OUT } from "../zoom"
@@ -58,7 +60,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id))
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
   // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる。文字の色は見る人の上書きがいちばん強い）
-  const viewerColors = useMatomezuState(s => s.settings.textColors)
+  const viewerColors = useUserSetting(USER_TEXT_COLORS.id) as TextColorValues
   const vars = useMemo(() => {
     if (!book) return undefined
     const shown = look ? withSettings<Book>(book, look) : book

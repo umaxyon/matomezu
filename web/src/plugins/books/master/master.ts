@@ -1,5 +1,5 @@
 // マスターのブック: ブックの一覧や設定などを集める、紙もページも無い画面。名前はタイプの名前で呼ぶ（題名を持たない）。
-// インスタンスのホームにすると、ブックの一覧と設定を変えるアクション（book-create・settings-lang など）を許すかは、このタイプが決める
+// インスタンスのホームにすると、ブックの一覧と設定を変えるアクション（book-create・settings-set など）を許すかは、このタイプが決める
 import { z } from "zod"
 import { kit } from "./kit"
 
@@ -23,10 +23,7 @@ export const MASTER = kit.defineBookType({
       "@matomezu/base:book-restore",
       "@matomezu/base:book-purge",
       "@matomezu/base:trash-empty",
-      "@matomezu/base:settings-lang",
-      "@matomezu/base:settings-skin",
-      "@matomezu/base:settings-keys",
-      "@matomezu/base:settings-text-colors",
+      "@matomezu/base:settings-set",
     ],
     without: ["@matomezu/base:book-update", "@matomezu/base:book-lock", "@matomezu/base:book-unlock"],
   },

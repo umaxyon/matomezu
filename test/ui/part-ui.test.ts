@@ -11,14 +11,15 @@ test("どの種類にも、見た目のフィールドと定義を書く関数�
 })
 
 test("書いた定義の関数は pluginKit にあり、pluginKit の定義の関数はどれもどこかの種類か NON_PART_DEFINES に書いてある", () => {
-  const listed: string[] = [...Object.values(PART_UI).flatMap(p => [...p.define]), ...NON_PART_DEFINES]
+  // 同じ関数で書く種類がある（ブックの設定の項目と利用者の設定の項目）
+  const listed: string[] = [...new Set([...Object.values(PART_UI).flatMap(p => [...p.define]), ...NON_PART_DEFINES])]
   const defines = Object.keys(kit).filter(k => k.startsWith("define"))
   for (const name of listed) expect(typeof (kit as unknown as Record<string, unknown>)[name]).toBe("function")
   expect(listed.sort()).toEqual(defines.sort())
 })
 
 test("書いた見た目のフィールドは見た目の表にあり、見た目の表のフィールド（ウィジェットのほか）はどれもどこかの種類に書いてある", () => {
-  const listed: string[] = Object.values(PART_UI).flatMap(p => [...p.views])
+  const listed: string[] = [...new Set(Object.values(PART_UI).flatMap(p => [...p.views]))]
   const fields = Object.keys(assembleUi([])).filter(k => k !== "widgets")
   expect(listed.sort()).toEqual(fields.sort())
 })

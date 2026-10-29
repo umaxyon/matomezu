@@ -7,10 +7,9 @@ import { z } from "zod"
 import { checkBooks, restoreBooks } from "../core/book"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import { detectLang, translate } from "../core/i18n/i18n"
-import { NO_KEY_CHANGES } from "../core/keys"
 import { performIn } from "../core/perform"
 import type { Book } from "../core/schema/book"
-import { NO_TEXT_COLORS, restoreSettings } from "../core/settings"
+import { aiSettings, langOf, restoreSettings, settingSchema } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN } from "../plugins"
@@ -36,7 +35,7 @@ interface Input {
   action: string
   args: unknown
   on?: { book: string }
-  lang: string
+  lang?: string // 画面で先に行ったときの言語。無ければ（AI が頼んだときなど）設定の言語の項目で決める
   ids?: string[]
   now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
   books?: unknown[]
@@ -54,14 +53,10 @@ declare const crypto: { randomUUID(): string }
 function perform(input: Input): Output {
   const { home } = assembled
   const catalog = assembled.catalog.core
-  const lang = detectLang([input.lang], [...catalog.languages.keys()])
+  const settings = restoreSettings(input.settings)
+  const lang = input.lang ? detectLang([input.lang], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
   const ids = [...(input.ids ?? [])]
   const books = Object.fromEntries(restoreBooks(catalog, input.books ?? []).map(b => [b.id, b]))
-  const settings = restoreSettings(
-    catalog,
-    { lang, skin: "auto", keys: NO_KEY_CHANGES, textColors: NO_TEXT_COLORS },
-    input.settings,
-  )
   const done = performIn({ books, settings }, input.action, input.args, input.on, {
     catalog,
     home,
@@ -82,7 +77,8 @@ function perform(input: Input): Output {
     ...(done.settings ? { settings: done.settings } : {}),
   }
 }
-// MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・テーマ・代表色を絞って書き出したもの。args と props は JSON Schema。名前は英語
+// MCP 公開ツールの actions が返す物: 機能台帳から AI に見せるアクション（利用者だけのアクションは除く）・ブックのタイプ・アイテム・利用者の設定の項目（利用者だけが変える項目は除く）・テーマ・代表色を絞って書き出したもの。
+// args・props・設定の項目の schema は JSON Schema。名前は英語
 function aiCatalog(of: Assembled = assembled) {
   const catalog = of.catalog.core
   const en = (key: string) => translate(catalog.messages, "en", key as never)
@@ -110,8 +106,17 @@ function aiCatalog(of: Assembled = assembled) {
       size: i.kind === "shape" ? i.size : null,
       props: z.toJSONSchema(i.props, { io: "input", unrepresentable: "any" }),
     })),
+    // 利用者の設定の項目（settings-set で変え、read_settings で読む）
+    settings: [...catalog.userSettings.values()]
+      .filter(d => !d.userOnly)
+      .map(d => ({
+        id: d.id,
+        title: en(d.title),
+        schema: z.toJSONSchema(settingSchema(catalog, d), { io: "input", unrepresentable: "any" }),
+      })),
     themes: [...catalog.themes.values()].map(th => ({ id: th.id, title: en(th.title) })),
-    languages: [...catalog.languages.keys()],
+    // 言語パック（言語の項目の値は、この id）とスキン
+    languages: [...catalog.languagePacks.values()].map(p => ({ id: p.id, lang: p.lang, name: p.name })),
     skins: [...catalog.skins.keys()],
     colors: PALETTE.map(id => ({ id, meaning: PALETTE_MEANINGS[id] })),
     // 本文の装飾の文字の色（name は本文に書く名前: {name:文字}）
@@ -129,6 +134,10 @@ function aiCatalog(of: Assembled = assembled) {
 ;(globalThis as { matomezuUse?: (added: readonly Plugin[]) => string }).matomezuUse = use
 
 ;(globalThis as { matomezuAiCatalog?: () => string }).matomezuAiCatalog = () => JSON.stringify(aiCatalog())
+
+// AI が読む設定（MCP 公開ツールの read_settings）: 残した設定から、利用者だけが変える項目と機能台帳に無い項目を除き、値が無いか形に合わない項目は既定にする
+;(globalThis as { matomezuReadSettings?: (settings: string) => string }).matomezuReadSettings = settings =>
+  JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
 // 残したブックを今の機能台帳で確かめ、warning のあるブック（読めない W004〜W006・一部に無い物がある W007）の id・番号・warning の 1 行を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {

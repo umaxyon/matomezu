@@ -80,7 +80,8 @@ test("既定のテーマはミントで、置いてほしいと書いたボタ�
 test("持ち込んだスキンを、見る人の設定で選べる", () => {
   const instance = make()
   act(() => {
-    expect(instance.actions.perform("@matomezu/base:settings-skin", { skin: "ex3:night" })).toMatchObject({ ok: true })
+    const values = { "@matomezu/base:skin": "ex3:night" }
+    expect(instance.actions.perform("@matomezu/base:settings-set", { values })).toMatchObject({ ok: true })
   })
-  expect(instance.state.getState().settings.skin).toBe("ex3:night")
+  expect(document.documentElement.dataset.skin).toBe("ex3:night")
 })

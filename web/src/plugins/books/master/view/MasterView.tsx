@@ -1,10 +1,22 @@
 // マスターのブックのビュー: ブックの一覧や設定などを集める、紙の無いただの画面。見た目はテーマで描く。
-// 設定（言語・スキン・文字の色の上書き）と、ブックを作るボタンを置く。どれもコマンド（book-new・settings-lang・settings-skin・settings-text-color）を呼ぶ。
+// 設定（言語・スキン・文字の色の上書き）と、ブックを作るボタンを置く。どれもコマンド（book-new・settings-set）を呼ぶ。
 // 文字の色の上書きは見る人のもので、どのブックでもいちばん強い（「なし」は上書きを消し、ブックの色か定義の色に戻る）
-import { type BookViewProps, useCommand, useCoreCatalog, useMessages, useSettings } from "../../../../plugin-api/ui"
+import {
+  type BookViewProps,
+  useCommand,
+  useCoreCatalog,
+  useMessages,
+  useSettings,
+  useUserSetting,
+} from "../../../../plugin-api/ui"
+import { shownLanguagePack, withTextColor } from "../../../base"
 import { ColorPicker } from "../../../base/ui"
 import { kit } from "../kit"
 import styles from "./MasterView.module.css"
+
+const LANG = "@matomezu/base:lang"
+const SKIN = "@matomezu/base:skin"
+const TEXT_COLORS = "@matomezu/base:text-colors"
 
 export function MasterView({ stage }: BookViewProps) {
   const t = useMessages(kit)
@@ -27,39 +39,41 @@ export function MasterView({ stage }: BookViewProps) {
   )
 }
 
-// 設定の区分。ホームのタイプが変えるのを許さない設定は、選べなくする
+// 設定の区分: 言語・スキン・文字の色の上書き（利用者の設定の項目）。ホームのタイプが設定を変えるのを許さなければ、選べなくする
 function Settings({ stage }: { stage: string }) {
   const t = useMessages(kit)
-  const { lang, skin, textColors: own } = useSettings()
-  const { languages, skins, textColors } = useCoreCatalog()
-  const setLang = useCommand(stage, "@matomezu/base:settings-lang")
-  const setSkin = useCommand(stage, "@matomezu/base:settings-skin")
-  const setColor = useCommand(stage, "@matomezu/base:settings-text-color")
+  const { lang, values } = useSettings()
+  const catalog = useCoreCatalog()
+  const { languagePacks, skins, textColors, userSettings } = catalog
+  const skin = useUserSetting(SKIN) as string
+  const own = useUserSetting(TEXT_COLORS) as Readonly<Record<string, string>>
+  const set = useCommand(stage, "@matomezu/base:settings-set")
+  const title = (id: string) => t(userSettings.get(id)?.title ?? "Settings")
   return (
     <div className={styles.group}>
       <h2 className={styles.heading}>{t("Settings")}</h2>
       <label className={styles.row}>
-        <span className={styles.label}>{t(setLang.title)}</span>
+        <span className={styles.label}>{title(LANG)}</span>
         <select
           className={styles.select}
-          value={lang}
-          disabled={!setLang.enabled}
-          onChange={e => setLang.run(e.target.value)}
+          value={shownLanguagePack(catalog, values, lang)}
+          disabled={!set.enabled}
+          onChange={e => set.run({ [LANG]: e.target.value })}
         >
-          {[...languages].map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
+          {[...languagePacks.values()].map(p => (
+            <option key={p.id} value={p.id}>
+              {p.name}
             </option>
           ))}
         </select>
       </label>
       <label className={styles.row}>
-        <span className={styles.label}>{t(setSkin.title)}</span>
+        <span className={styles.label}>{title(SKIN)}</span>
         <select
           className={styles.select}
           value={skin}
-          disabled={!setSkin.enabled}
-          onChange={e => setSkin.run(e.target.value)}
+          disabled={!set.enabled}
+          onChange={e => set.run({ [SKIN]: e.target.value })}
         >
           <option value="auto">{t("Auto")}</option>
           {[...skins.values()].map(s => (
@@ -69,16 +83,16 @@ function Settings({ stage }: { stage: string }) {
           ))}
         </select>
       </label>
-      {setColor.shown &&
+      {set.shown &&
         [...textColors.values()].map(c => (
           <div key={c.id} className={styles.row}>
             <span className={styles.label}>{t(c.title)}</span>
             <ColorPicker
-              label={`${t(setColor.title)}: ${t(c.title)}`}
+              label={`${title(TEXT_COLORS)}: ${t(c.title)}`}
               value={own[c.id]}
               palette={[]}
               none={c.color}
-              onChange={color => setColor.run({ id: c.id, color: color ?? null })}
+              onChange={color => set.run({ [TEXT_COLORS]: withTextColor(own, c.id, color ?? null) })}
             />
           </div>
         ))}

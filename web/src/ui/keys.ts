@@ -5,6 +5,7 @@
 import { useEffect, useMemo } from "react"
 import type { CommandId } from "../core/catalog"
 import { keyLabel, pressedKey, seenInText } from "../core/keys"
+import { keyChangesOf } from "../core/settings"
 import { keysOf, keyTable } from "../store/keys"
 import { useActions, useInstance, useMatomezuState } from "./store-context"
 
@@ -52,10 +53,10 @@ export function KeyListener() {
 // コマンドに効いているキーの、画面に出す名前（無ければ null。いくつもあれば勝つ順の最初）
 export function useKeyLabel(command: CommandId): string | null {
   const defs = useInstance()
-  const changes = useMatomezuState(s => s.settings.keys)
+  const settings = useMatomezuState(s => s.settings)
   const table = useMemo(
-    () => keyTable([...defs.catalog.store.keys.values()], changes),
-    [defs.catalog.store.keys, changes],
+    () => keyTable([...defs.catalog.store.keys.values()], keyChangesOf(defs.catalog.core, settings)),
+    [defs.catalog, settings],
   )
   const first = keysOf(table, command)[0]
   return first ? keyLabel(first.binding.key, isMac()) : null

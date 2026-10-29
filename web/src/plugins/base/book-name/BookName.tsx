@@ -21,7 +21,7 @@ export function BookName({ stage }: { stage: string }) {
     const o = s.workspace.stages.find(st => st.id === stage)?.opened
     return o ? s.books[o.book] : undefined
   })
-  const lang = useMatomezuState(s => s.settings.lang)
+  const lang = useMatomezuState(s => s.lang)
   const current = useMatomezuState(s => s.workspace.current === stage)
   const t = useMessages(kit)
   const [open, setOpen] = useState(false)

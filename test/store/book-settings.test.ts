@@ -79,14 +79,14 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
       "@matomezu/base:book-theme",
       "@matomezu/base:book-paper-color",
       "@matomezu/line:line-route",
-      "@matomezu/base:text-colors",
+      "@matomezu/base:book-text-colors",
     ],
     "settings of @matomezu/flowchart:flowchart books": [
       "@matomezu/base:book-theme",
       "@matomezu/base:book-paper-color",
       "@matomezu/line:line-route",
       "@matomezu/flowchart:flow-direction",
-      "@matomezu/base:text-colors",
+      "@matomezu/base:book-text-colors",
     ],
     "settings of @matomezu/tree:tree books": [
       "@matomezu/base:book-theme",
@@ -95,7 +95,7 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
       "@matomezu/tree:node-size",
       "@matomezu/tree:node-shape",
       "@matomezu/tree:line-shape",
-      "@matomezu/base:text-colors",
+      "@matomezu/base:book-text-colors",
     ],
   })
 })

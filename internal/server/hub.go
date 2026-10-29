@@ -487,15 +487,10 @@ func (h *Hub) Book(id string) *storage.Book {
 	return &storage.Book{ID: id, Body: e.body, Version: e.version}
 }
 
-// Lang は利用者の設定の言語（無ければ空。core が決める）
-func (h *Hub) Lang() string {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	var s struct {
-		Lang string `json:"lang"`
-	}
-	_ = json.Unmarshal(h.settings, &s)
-	return s.Lang
+// AISettings は AI が読む設定（engine.AISettings）
+func (h *Hub) AISettings() (json.RawMessage, error) {
+	_, settings := h.Data()
+	return h.engine.AISettings(settings)
 }
 
 // AICatalog は MCP 公開ツールの actions が返す物（engine.AICatalog）

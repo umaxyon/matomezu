@@ -30,10 +30,7 @@ test("アクションは、タイプが選んだアイテム・見せ方・ペ�
     "@matomezu/base:book-restore",
     "@matomezu/base:book-purge",
     "@matomezu/base:trash-empty",
-    "@matomezu/base:settings-lang",
-    "@matomezu/base:settings-skin",
-    "@matomezu/base:settings-keys",
-    "@matomezu/base:settings-text-colors",
+    "@matomezu/base:settings-set",
   ])
 })
 
@@ -88,5 +85,5 @@ test("コマンドは、行うアクションが今のブックで使えなけ�
   store.actions.command("s1", "@matomezu/base:stage-home")
   expect(shown("@matomezu/base:book-settings")).toBe(false)
   expect(shown("@matomezu/base:page-new")).toBe(false)
-  expect(shown("@matomezu/base:settings-lang")).toBe(true)
+  expect(shown("@matomezu/base:settings-set")).toBe(true)
 })

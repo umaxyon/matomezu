@@ -1,35 +1,13 @@
-// 見る人ごとの設定のコマンド: 言語・スキン・文字の色 1 つの上書きを変える（アクション settings-lang・settings-skin・settings-text-colors）。ホームのタイプが許すときだけ出す
-import type { Lang } from "../../../core/i18n/i18n"
+// 利用者の設定のコマンド: 項目の id → 値（null は既定に戻す）を変える（アクション settings-set）。ホームのタイプが許すときだけ出す
 import { kit } from "../kit"
-import { SET_LANG, SET_SKIN, SET_TEXT_COLORS } from "./actions"
+import { SETTINGS_SET } from "./actions"
 
-export const SETTINGS_LANG = kit.defineCommand({
-  id: "settings-lang",
-  performs: [SET_LANG.id],
-  title: "Language",
-  run: (_ctx, a, lang: Lang) => {
-    a.perform(SET_LANG.id, { lang })
-  },
-  when: () => true,
-})
-
-export const SETTINGS_SKIN = kit.defineCommand({
-  id: "settings-skin",
-  performs: [SET_SKIN.id],
-  title: "Skin",
-  run: (_ctx, a, skin: string) => {
-    a.perform(SET_SKIN.id, { skin })
-  },
-  when: () => true,
-})
-
-// 文字の色 id の見る人の上書きを color にする（null は上書きを消す）
-export const SETTINGS_TEXT_COLOR = kit.defineCommand({
-  id: "settings-text-color",
-  performs: [SET_TEXT_COLORS.id],
-  title: "Text colors",
-  run: (_ctx, a, change: { id: string; color: string | null }) => {
-    a.perform(SET_TEXT_COLORS.id, { colors: { [change.id]: change.color } })
+export const SETTINGS_SET_COMMAND = kit.defineCommand({
+  id: "settings-set",
+  performs: [SETTINGS_SET.id],
+  title: "Settings",
+  run: (_ctx, a, values: Readonly<Record<string, unknown>>) => {
+    a.perform(SETTINGS_SET.id, { values })
   },
   when: () => true,
 })

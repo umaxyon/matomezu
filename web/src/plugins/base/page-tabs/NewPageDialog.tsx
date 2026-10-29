@@ -28,7 +28,7 @@ export function NewPageDialog({ stage, onClose }: DialogProps) {
 
 function NewPageForm({ stage, book, onDone }: { stage: string; book: PagedBook; onDone: () => void }) {
   const instance = useInstance()
-  const lang = useMatomezuState(s => s.settings.lang)
+  const lang = useMatomezuState(s => s.lang)
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const { papers, orientations } = paperChoices(catalog, book)

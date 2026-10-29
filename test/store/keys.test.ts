@@ -109,7 +109,7 @@ test("押したキーは、当たった範囲のコマンドを行い、押せ�
   expect(store.state.getState().books.b1).toMatchObject({ pages: [{ items: [] }] })
 })
 
-test("利用者のキーの変更は @matomezu/base:settings-keys で入れ、表に効く", () => {
+test("利用者のキーの変更は利用者の設定の項目 @matomezu/base:keys に入れ、表に効く", () => {
   const store = newStore()
   store.actions.perform(
     "@matomezu/paper:item-place",
@@ -117,12 +117,16 @@ test("利用者のキーの変更は @matomezu/base:settings-keys で入れ、�
     { book: "b1" },
   )
   store.actions.select("s1", ["b1"])
-  const done = store.actions.perform("@matomezu/base:settings-keys", {
-    added: [{ key: "X", command: "@matomezu/paper:paper-delete", scope: "stage" }],
-    removed: [
-      { key: "Delete", command: "@matomezu/paper:paper-delete", scope: "stage" },
-      { key: "Backspace", command: "@matomezu/paper:paper-delete", scope: "stage" },
-    ],
+  const done = store.actions.perform("@matomezu/base:settings-set", {
+    values: {
+      "@matomezu/base:keys": {
+        added: [{ key: "X", command: "@matomezu/paper:paper-delete", scope: "stage" }],
+        removed: [
+          { key: "Delete", command: "@matomezu/paper:paper-delete", scope: "stage" },
+          { key: "Backspace", command: "@matomezu/paper:paper-delete", scope: "stage" },
+        ],
+      },
+    },
   })
   expect(done.ok).toBe(true)
   expect(store.actions.pressKey("Delete")).toBe(false)
