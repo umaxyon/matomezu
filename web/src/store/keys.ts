@@ -99,7 +99,7 @@ const sourceOf = (e: KeyEntry, dropped?: DroppedKey["reason"]): Source => ({
   ...(dropped ? { dropped } : {}),
 })
 
-// 問い合わせ: その範囲のそのキーが、どのコマンドに決まったか。段は勝つ順の行と、使わなかった既定の行（値は null）
+// 問い合わせ: その範囲のそのキーが、どのコマンドに決まったか。ステップは勝つ順の行と、使わなかった既定の行（値は null）
 export function inspectKey(table: KeyTable, q: { scope: string; key: string }): Inspected<string> {
   const key = normalizeKey(q.key)
   const hits = (e: KeyEntry) => e.binding.scope === q.scope && e.binding.key === key

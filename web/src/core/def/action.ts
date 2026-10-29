@@ -73,7 +73,7 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: BookTypeDef): b
   )
 }
 
-// タイプ type でアクションを使えるか: タイプが外していなければ、タイプが足したか、付く先が当てはまるか（core/inspect.ts の段と同じ決まり）
+// タイプ type でアクションを使えるか: タイプが外していなければ、タイプが足したか、付く先が当てはまるか（core/inspect.ts のステップと同じ決まり）
 export function allowedIn(def: Pick<ActionDef, "id" | "attach">, type: BookTypeDef): boolean {
   if (type.actions.without?.includes(def.id as ActionId)) return false
   return (type.actions.add?.includes(def.id as ActionId) ?? false) || attachedTo(def, type)

@@ -1,6 +1,6 @@
 // 問い合わせ: ある値や許可が、どの決まりからどの順で決まったかを返す（デバッグと AI の問い合わせに使う）。
 // 口はこの inspect 1 つで、問い合わせの種類（kind）ごとに調べ方を足す。
-// 段（steps）は見る順に並べ、最初に値のあった段で決まる（決まった後の段も並べる）。段の出どころは文ではなくデータで返す
+// ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
 import type { ActionId } from "./catalog"
 import { bookType, type CoreCatalog } from "./core-catalog"
@@ -13,7 +13,7 @@ import type { KeyBinding } from "./keys"
 import type { Book } from "./schema/book"
 import { type Shades, shades, tokenDefsOf } from "./theme"
 
-// 段の出どころ
+// ステップの出どころ
 export type Source =
   | { source: "theme"; id: string; field: "tokens" | "base"; key: string } // テーマの上書き・共通のテーマキー
   | { source: "token"; id: string } // テーマキーの宣言に書いた値
@@ -33,11 +33,11 @@ export type Source =
 
 export interface Step<V> {
   from: Source
-  value: V | null // その段に値が無ければ null
+  value: V | null // そのステップに値が無ければ null
 }
 
 export interface Inspected<V> {
-  value: V | null // 決まった値（どの段にも無ければ null）
+  value: V | null // 決まった値（どのステップにも無ければ null）
   decidedBy: Source | null
   steps: Step<V>[]
 }
@@ -82,7 +82,7 @@ function token(catalog: CoreCatalog, q: { book: Book; token: string }): Inspecte
   ])
 }
 
-// タイプ type でアクションを使えるかの段: タイプが外す（without）→ タイプが足す（add）→ アクションの付く先（attach）
+// タイプ type でアクションを使えるかのステップ: タイプが外す（without）→ タイプが足す（add）→ アクションの付く先（attach）
 export function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
   return [
     {
@@ -125,6 +125,6 @@ function action(catalog: CoreCatalog, q: Extract<Query, { kind: "action" }>, hom
 export const withoutPermissions = (answer: Inspected<boolean>): Inspected<boolean> =>
   decide(answer.steps.filter(s => s.from.source !== "permission"))
 
-// 答えを止めたのが認可ステップなら、そのステップの id（使えるか、ほかの段が止めたなら null）
+// 答えを止めたのが認可ステップなら、そのステップの id（使えるか、ほかのステップが止めたなら null）
 export const deniedBy = (answer: Inspected<boolean>): string | null =>
   answer.value === false && answer.decidedBy?.source === "permission" ? answer.decidedBy.id : null

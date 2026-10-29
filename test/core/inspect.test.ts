@@ -11,7 +11,7 @@ import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 const drawing = SAMPLE_BOOKS[0]!
 
 describe("inspect: テーマの値", () => {
-  test("宣言されたテーマキーは、テーマが上書きしなければ既定の共通のテーマキーで決まり、見た段を順に返す", () => {
+  test("宣言されたテーマキーは、テーマが上書きしなければ既定の共通のテーマキーで決まり、見たステップを順に返す", () => {
     expect(inspect(CORE_CATALOG, { kind: "token", book: drawing, token: "@matomezu/box:box-fill" })).toEqual({
       value: shades(STANDARD.base.fill),
       decidedBy: { source: "theme", id: "@matomezu/base:standard", field: "base", key: "fill" },
@@ -28,7 +28,7 @@ describe("inspect: テーマの値", () => {
     })
   })
 
-  test("テーマが上書きしたテーマキーは、上書きで決まる。後の段も並べる", () => {
+  test("テーマが上書きしたテーマキーは、上書きで決まる。後のステップも並べる", () => {
     const yellow = defineTheme({ ...STANDARD, tokens: { "@matomezu/box:box-fill": "#fff3c4" } })
     const catalog = buildCoreCatalog({ ...BUILTIN_PARTS, themes: [yellow] })
     const got = inspect(catalog, { kind: "token", book: drawing, token: "@matomezu/box:box-fill" })
@@ -74,7 +74,7 @@ describe("inspect: アクションの許可", () => {
     expect(inspect(CORE_CATALOG, { ...update, where: { page } })).toMatchObject({ value: false, decidedBy: lock })
     expect(inspect(CORE_CATALOG, update).value).toBe(true)
     expect(inspect(CORE_CATALOG, { ...update, action: "@matomezu/base:page-unlock", where: { page } }).value).toBe(true)
-    // タイプが止めるものは、タイプの段で決まる
+    // タイプが止めるものは、タイプのステップで決まる
     expect(
       deniedBy(inspect(CORE_CATALOG, { kind: "action", action: "@matomezu/base:book-update", book: MASTER_BOOK })),
     ).toBe(null)
