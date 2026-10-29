@@ -6,7 +6,9 @@
 // 鉛筆の間は、選んでいる行（無ければ根）に印を付け、押した行を選ぶ。行を右クリックすると、その行を選んで行のメニュー（entry-context）を開く。
 // 選んでいる行の右には＋（フォルダとファイル。フォルダの行は中の末尾に、ファイルの行はすぐ下に足す。コマンド folder-add・file-add）を出す。
 // ダブルクリック（と Enter・F2 のコマンド）で、名前をその場で書き始める。書いている字で行の幅を決め直し、テキストFormのすぐ上に装飾のボックス（base の RichBar）を出す。
-// Enter かテキストFormの外を押すと確定、Escape で取り消す。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる
+// Enter かテキストFormの外を押すと確定、Escape で取り消す。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
+// 中に足す種類を選んでいる間（その場の編集の名前 KIND_PICK。Tab のコマンド）は、選んでいるフォルダの行のすぐ右に、フォルダとファイルを縦に並べた枠を出す。
+// ↑・↓ で選び、Enter か押して、その種類を中の末尾に足して名前を書き始める（コマンド folder-add・file-add）。Escape か枠の外へ焦点が移ると、やめる
 import { type CSSProperties, type MouseEvent, type PointerEvent, useRef, useState } from "react"
 import { isPaletteName, placement, type StageView, themeVar } from "../../../../plugin-api"
 import {
@@ -23,7 +25,7 @@ import {
 import { refusalMessage } from "../../../base"
 import { RichBar, RichText, useZoomMotion } from "../../../base/ui"
 import { ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
-import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE } from "../commands"
+import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
 import { afterRemove, changeEntry, editEnd, selectedIn } from "../edit"
 import { type DirFolder, DirFolderSchema } from "../entry"
@@ -90,7 +92,8 @@ function Rows({ stage, paper }: { stage: StageView; paper: { w: number; h: numbe
   const dir = root.data
   const usingPencil = stage.tool === PENCIL_TOOL.id
   const selected = selectedIn(dir, stage.selection)
-  const writing = usingPencil && stage.editing
+  const writing = usingPencil && stage.editing === true
+  const picking = usingPencil && stage.editing === KIND_PICK
   const text = writing && draft?.entry === selected ? draft.text : null
   const shown: DirFolder = text === null ? dir : (changeEntry(dir, selected, { name: text }) ?? dir)
   const { rows, lines } = layoutDir(shown, paper)
@@ -189,7 +192,17 @@ function Rows({ stage, paper }: { stage: StageView; paper: { w: number; h: numbe
           onBlur={() => end(true)}
         />
       )}
-      {usingPencil && !writing && at && (
+      {picking && at && (
+        <KindPicker
+          at={{ x: at.x + at.w + PLUS_GAP, y: at.y }}
+          onPick={kind => {
+            setEditing(stage.id, false)
+            ;(kind === "folder" ? addFolder : addFile).run()
+          }}
+          onCancel={() => setEditing(stage.id, false)}
+        />
+      )}
+      {usingPencil && !writing && !picking && at && (
         <div className={styles.pluses} style={{ left: at.x + at.w + PLUS_GAP, top: at.y + at.h / 2 }}>
           {[
             { command: addFolder, kind: "folder", label: "Add folder", icon: FOLDER_ICON },
@@ -217,6 +230,63 @@ function Rows({ stage, paper }: { stage: StageView; paper: { w: number; h: numbe
         </div>
       )}
     </>
+  )
+}
+
+// 中に足す種類を選ぶ枠: フォルダとファイルを縦に並べ、初めはフォルダに焦点を置く。↑・↓ で焦点を動かし、Enter か押して onPick、Escape か枠の外へ焦点が移ると onCancel
+function KindPicker({
+  at,
+  onPick,
+  onCancel,
+}: {
+  at: { x: number; y: number }
+  onPick: (kind: "folder" | "file") => void
+  onCancel: () => void
+}) {
+  const t = useMessages(kit)
+  const ref = useRef<HTMLDivElement>(null)
+  const buttons = () => [...(ref.current?.querySelectorAll("button") ?? [])]
+  return (
+    <div
+      ref={ref}
+      className={styles.picker}
+      role="menu"
+      aria-label={t("Add inside")}
+      style={{ left: at.x, top: at.y }}
+      onPointerDown={e => e.stopPropagation()}
+      onBlur={e => {
+        if (!ref.current?.contains(e.relatedTarget as Node | null)) onCancel()
+      }}
+      onKeyDown={e => {
+        if (e.nativeEvent.isComposing) return
+        const all = buttons()
+        const i = all.indexOf(document.activeElement as HTMLButtonElement)
+        if (e.key === "ArrowDown" || e.key === "ArrowUp")
+          all[(i + (e.key === "ArrowDown" ? 1 : all.length - 1)) % all.length]?.focus()
+        else if (e.key === "Escape") onCancel()
+        else if (e.key !== "Enter") return
+        else all[i]?.click()
+        e.preventDefault()
+        e.stopPropagation()
+      }}
+    >
+      {(["folder", "file"] as const).map((kind, i) => (
+        <button
+          key={kind}
+          type="button"
+          role="menuitem"
+          className={styles.pick}
+          data-kind={kind}
+          aria-label={t(kind === "folder" ? "Folder" : "File")}
+          title={t(kind === "folder" ? "Folder" : "File")}
+          // biome-ignore lint/a11y/noAutofocus: Tab で開いたら、すぐに ↑・↓ で選べる
+          autoFocus={i === 0}
+          onClick={() => onPick(kind)}
+        >
+          {kind === "folder" ? FOLDER_ICON : FILE_ICON}
+        </button>
+      ))}
+    </div>
   )
 }
 

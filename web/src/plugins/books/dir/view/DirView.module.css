@@ -227,3 +227,43 @@
   stroke: var(--theme-accent);
   stroke-width: 2.4;
 }
+/* 中に足す種類を選ぶ枠（選んでいるフォルダの行のすぐ右。フォルダとファイルを縦に並べる） */
+.picker {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--dir-line);
+  border-radius: 6px;
+  background: var(--theme-paper);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+}
+.pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+.pick svg {
+  width: 16px;
+  height: 16px;
+}
+.pick[data-kind="folder"] {
+  --dir-icon: var(--dir-folder);
+}
+.pick[data-kind="file"] {
+  --dir-icon: var(--dir-file);
+}
+.pick:hover,
+.pick:focus-visible,
+.pick:focus {
+  outline: none;
+  background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+}

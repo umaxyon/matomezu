@@ -5,6 +5,7 @@ import { ENTRY_ADD, ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER
 import {
   DIR_KEYS,
   ENTRY_DELETE,
+  ENTRY_KIND_PICK,
   ENTRY_RENAME,
   ENTRY_SELECT_MOVE,
   ENTRY_SELECT_ROOT,
@@ -36,6 +37,7 @@ export const DIR_PLUGIN = defineBuiltin(
       FILE_ADD,
       FOLDER_ADD_BELOW,
       FILE_ADD_BELOW,
+      ENTRY_KIND_PICK,
       ENTRY_SETTINGS,
       FOLDER_SORT_ASC,
       FOLDER_SORT_DESC,
@@ -72,6 +74,7 @@ declare module "../../../core/catalog" {
     "@matomezu/dir:file-add": typeof FILE_ADD
     "@matomezu/dir:folder-add-below": typeof FOLDER_ADD_BELOW
     "@matomezu/dir:file-add-below": typeof FILE_ADD_BELOW
+    "@matomezu/dir:entry-kind-pick": typeof ENTRY_KIND_PICK
     "@matomezu/dir:entry-settings": typeof ENTRY_SETTINGS
     "@matomezu/dir:folder-sort-asc": typeof FOLDER_SORT_ASC
     "@matomezu/dir:folder-sort-desc": typeof FOLDER_SORT_DESC

@@ -16,6 +16,7 @@ export const DIR_MESSAGES = defineMessages({
   Rename: { en: "Rename", ja: "名前を変える" },
   "Add folder": { en: "Add folder", ja: "フォルダを足す" },
   "Add file": { en: "Add file", ja: "ファイルを足す" },
+  "Add inside": { en: "Add inside", ja: "中に足す" },
   "Add folder below": { en: "Add folder below", ja: "下にフォルダを足す" },
   "Add file below": { en: "Add file below", ja: "下にファイルを足す" },
   "Settings…": { en: "Settings…", ja: "設定…" },

@@ -2,7 +2,8 @@
 // 鉛筆の間は、↑・↓ で選ぶ行を替え、Home で根を選び、Enter と F2 で選んでいる行の名前をその場で書き始める。
 // d と f で、すぐ下に兄弟のフォルダとファイルを足し（根では根の中の末尾に）、その場で名前を書き始める。
 // 行の右クリックのメニューで、フォルダとファイルを足し（フォルダの行は中の末尾に。閉じていれば開く。ファイルの行はすぐ下に）、名前を書き、設定のダイアログを開き、
-// フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。キーはディレクトリ構成図の見せ方の範囲
+// フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。
+// フォルダを選んで Tab を押すと、中に足す種類を選び始める（その場の編集の名前 KIND_PICK。選ぶ枠はビューが出す）。キーはディレクトリ構成図の見せ方の範囲
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { refusalMessage } from "../../base"
 import { ENTRY_ADD, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT } from "./actions"
@@ -165,6 +166,27 @@ function addIntoCommand<const Id extends string>(id: Id, title: "Add folder" | "
 export const FOLDER_ADD = addIntoCommand("folder-add", "Add folder", "folder")
 export const FILE_ADD = addIntoCommand("file-add", "Add file", "file")
 
+// その場の編集の名前: 選んでいるフォルダの中に足す種類を選んでいる
+export const KIND_PICK = kit.name("kind-pick")
+
+// 選んでいるフォルダの中に足す種類を選び始める（フォルダを選んでいるときだけ出す）
+export const ENTRY_KIND_PICK = kit.defineCommand({
+  id: "entry-kind-pick",
+  performs: [ENTRY_ADD.id],
+  permissionScope: "opened-page",
+  title: "Add inside",
+  run: (ctx, a) => {
+    const s = selected(ctx)
+    if (!s) return
+    a.select(ctx.stage.id, [s.id])
+    a.setEditing(ctx.stage.id, KIND_PICK)
+  },
+  when: ctx => {
+    const s = penciling(ctx) ? selected(ctx) : null
+    return s !== null && entryOf(s.root, s.id)?.kind === "folder"
+  },
+})
+
 // 選んでいる行（根も）の設定のダイアログ（名前と色）を開く
 export const ENTRY_SETTINGS = kit.defineCommand({
   id: "entry-settings",
@@ -240,6 +262,7 @@ export const DIR_KEYS = [
   kit.defineKey({ id: "entry-rename-f2", key: "F2", command: ENTRY_RENAME.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "folder-add-below-d", key: "D", command: FOLDER_ADD_BELOW.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "file-add-below-f", key: "F", command: FILE_ADD_BELOW.id, scope: DIR_KEYS_SCOPE }),
+  kit.defineKey({ id: "entry-kind-pick-tab", key: "Tab", command: ENTRY_KIND_PICK.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "entry-delete-delete", key: "Delete", command: ENTRY_DELETE.id, scope: DIR_KEYS_SCOPE }),
   kit.defineKey({ id: "entry-delete-backspace", key: "Backspace", command: ENTRY_DELETE.id, scope: DIR_KEYS_SCOPE }),
 ]
