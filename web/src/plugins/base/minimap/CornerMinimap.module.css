@@ -1,7 +1,0 @@
-/* ステージの左下に浮かべる（紙の上の文字が透けて読みにくくならないよう、透かさない） */
-.corner {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
-  z-index: 3;
-}

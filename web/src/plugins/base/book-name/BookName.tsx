@@ -1,9 +1,11 @@
 // ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前を出す。
 // ロック中のブックは名前の左に鍵を出す（印だけ。外すのはブックの設定のダイアログ）。
 // 乗せるか押すと、下の行の真上に、行の幅いっぱいのドロワー（配置のメニュー stage-menu）が下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
-// 下の行から離れると下がる（ドロワーは下の行の中に描くので、ドロワーに乗っている間も下の行に乗っている）。ドロワーの項目はコマンドを呼ぶ
+// 下の行から離れると下がる（ドロワーは下の行の中に描くので、ドロワーに乗っている間も下の行に乗っている）。ドロワーの項目はコマンドを呼ぶ。
+// ドロワーの行の左端に拡大縮小の帯（base/zoom の ZoomBar）を入れ、その真上にミニマップ（base/minimap の MinimapView）を行にぴったり付けて載せる（紙の無いステージでは、どちらも出さない）
 import { useEffect, useRef, useState } from "react"
 import { bookTitle } from "../../../core/book"
+import { paperOf } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
@@ -11,12 +13,16 @@ import { useMenu, useMenuCommand } from "../../../ui/menu"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
+import { MinimapView } from "../minimap/MinimapView"
 import { useBottomHover } from "../workspace/bottom-hover"
+import { ZoomBar } from "../zoom/ZoomBar"
 import styles from "./BookName.module.css"
 import { STAGE_MENU } from "./menu"
 
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
+const MAP_SIZE = 200 // ドロワーのミニマップの、紙を収める大きさ（px）
+const MAP_BOX = MAP_SIZE + 14 // ミニマップの台と、その下の拡大縮小の幅（紙を収める大きさと、内側の余白・枠の線）
 
 export function BookName({ stage }: { stage: string }) {
   const book = useMatomezuState(s => {
@@ -52,7 +58,7 @@ export function BookName({ stage }: { stage: string }) {
   toggles.current = { show, hide }
   useEffect(() => {
     if (bottom === null) return
-    if (bottom) toggles.current.show()
+    if (bottom > 0) toggles.current.show()
     else toggles.current.hide()
   }, [bottom])
   const own = bottom === null ? { onMouseEnter: show, onMouseLeave: hide } : {}
@@ -106,12 +112,30 @@ function StageMenu({
   onPick: () => void
 }) {
   const items = useMenu(STAGE_MENU)
+  const hasPaper = useMatomezuState(s => {
+    const st = s.workspace.stages.find(x => x.id === stage)
+    return st !== undefined && paperOf(st) !== null
+  })
   return (
     <div className={styles.drawer} data-open={open} aria-hidden={!open} inert={!open} {...own}>
-      <div className={styles.menu}>
-        {items.map(item => (
-          <MenuEntry key={menuCommands(item).join(" ")} stage={stage} item={item} onPick={onPick} />
-        ))}
+      <div className={styles.slide} style={{ ["--map-box" as string]: `${MAP_BOX}px` }}>
+        {hasPaper && (
+          <div className={styles.map} data-minimap="drawer">
+            <MinimapView stage={stage} width={MAP_SIZE} height={MAP_SIZE} className={styles.mapView} />
+          </div>
+        )}
+        <div className={styles.row}>
+          {hasPaper && (
+            <div className={styles.zoom}>
+              <ZoomBar stage={stage} className={styles.zoomBar} />
+            </div>
+          )}
+          <div className={styles.menu}>
+            {items.map(item => (
+              <MenuEntry key={menuCommands(item).join(" ")} stage={stage} item={item} onPick={onPick} />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

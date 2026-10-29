@@ -1,19 +1,8 @@
-// ミニマップ: 開閉の決まり（core/stage.ts の scrolls・setMinimap・showPickerMap）・紙の範囲の計算（base/minimap/geometry.ts）・
+// ミニマップ: 道具のアイコンからの開閉（core/stage.ts の showPickerMap）・紙の範囲の計算（base/minimap/geometry.ts）・
 // ページの絵（base/minimap/marks.ts と、形・線の定義の minimap）
 import { describe, expect, test } from "bun:test"
 import type { ItemPage } from "../../web/src/core/placed"
-import {
-  closePicker,
-  newStage,
-  openBook,
-  openPage,
-  openPicker,
-  panBy,
-  resize,
-  scrolls,
-  setMinimap,
-  showPickerMap,
-} from "../../web/src/core/stage"
+import { closePicker, newStage, openBook, openPicker, resize, showPickerMap } from "../../web/src/core/stage"
 import { fitScale, grabAt, panFor, seenRect } from "../../web/src/plugins/base/minimap/geometry"
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
 import { leftBox, mapPlace, mapSlot, pickerSlots } from "../../web/src/plugins/base/tool-picker/layout"
@@ -30,34 +19,8 @@ const paged = {
 }
 const opened = openBook(CORE_CATALOG, newStage("s1"), paged)
 const small = resize(opened, { w: 400, h: 300 }) // 紙（A4 横）が収まらない
-const wide = { w: 3000, h: 3000 } // どの紙も収まる
 
 describe("開閉", () => {
-  test("紙が表示領域に収まらないときだけ、ずらして見る所がある（余白は数えない。測る前は無い）", () => {
-    expect(scrolls(opened)).toBe(false)
-    expect(scrolls(small)).toBe(true)
-    expect(scrolls(resize(opened, wide))).toBe(false)
-    expect(scrolls(newStage("s2"))).toBe(false)
-  })
-
-  test("収まっていれば開かない。開いたあと収まると閉じ、また収まらなくなっても自分では開かない", () => {
-    expect(setMinimap(resize(opened, wide), true).minimap).toBe(false)
-    const open = setMinimap(small, true)
-    expect(open.minimap).toBe(true)
-    expect(setMinimap(open, false).minimap).toBe(false)
-    const fit = resize(open, wide)
-    expect(fit.minimap).toBe(false)
-    expect(resize(fit, { w: 400, h: 300 }).minimap).toBe(false)
-  })
-
-  test("小さい紙のページを開いて収まれば閉じる。ずらしても開いたまま", () => {
-    const open = setMinimap(small, true)
-    expect(panBy(open, -50, -50).minimap).toBe(true)
-    const roomy = resize(open, { w: 1000, h: 800 })
-    expect(roomy.minimap).toBe(true)
-    expect(openPage(CORE_CATALOG, roomy, paged, "p2").minimap).toBe(false)
-  })
-
   test("道具のアイコンをミニマップに替える（開いていなければ何もしない）。閉じればアイコンも消える", () => {
     expect(showPickerMap(small)).toBe(small)
     const picked = openPicker(small, { x: 10, y: 20 })

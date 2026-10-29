@@ -1,85 +1,55 @@
-// ミニマップ（base/minimap）: フッタのメニューで開閉するステージの左下のものと、右ボタンの長押しのアイコンから出すもの。
+// ミニマップ（base/minimap）: 下の行に乗ると上がるドロワーのものと、右ボタンの長押しのアイコンから出すもの。
 // 見えている範囲の四角をドラッグすると、紙がついて動く
 import { expect, type Page, test } from "@playwright/test"
 
 const paper = (page: Page) => page.getByRole("img", { name: "紙" })
-const corner = (page: Page) => page.locator("[data-minimap=corner]")
-const seen = (page: Page, where: "corner" | "picker") => page.locator(`[data-minimap=${where}] [data-minimap-seen]`)
+const seen = (page: Page, where: "drawer" | "picker") => page.locator(`[data-minimap=${where}] [data-minimap-seen]`)
 
-// フッタのブック名に乗せて、せり上がるメニューのミニマップのボタン
-async function toggle(page: Page) {
+// 下の行に乗せて、ドロワーを上げる
+async function drawer(page: Page) {
+  const tabs = (await page.getByRole("tablist").first().boundingBox())!
+  await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
+  await expect(page.locator('button[aria-haspopup="menu"]').first()).toHaveAttribute("aria-expanded", "true")
+}
+
+test("ドロワーの行の左端に拡大縮小、その真上にミニマップが出る。四角をドラッグすると紙が動き、ドロワーから出ても下がらない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await expect(paper(page)).toBeVisible()
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await trigger.hover()
-  return trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ミニマップ" })
-}
-
-// 四角の真ん中をつかんで、下へ dy だけドラッグする
-async function dragSeen(page: Page, where: "corner" | "picker", dy: number) {
-  const box = (await seen(page, where).boundingBox())!
-  const x = box.x + box.width / 2
-  const y = box.y + box.height / 2
-  await page.mouse.move(x, y)
-  await page.mouse.down()
-  await page.mouse.move(x, y + dy, { steps: 5 })
-  await page.mouse.up()
-}
-
-test("フッタのメニューで開くと、ステージの左下に紙の全体と見えている範囲が出る。四角をドラッグすると紙が動き、もう一度押すと閉じる", async ({
-  page,
-}) => {
-  await page.goto("/")
-  await expect(paper(page)).toBeVisible()
-  const button = await toggle(page)
-  await expect(button).toBeEnabled()
-  await expect(button).toHaveAttribute("aria-pressed", "false")
-  await button.click()
-  await expect(corner(page)).toBeVisible()
-  // ステージの左下
-  const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
-  const map = (await corner(page).boundingBox())!
-  expect(map.x - stage.x).toBeLessThan(20)
-  expect(stage.y + stage.height - (map.y + map.height)).toBeLessThan(20)
+  await drawer(page)
+  const map = page.locator("[data-minimap=drawer]")
+  await expect(map.getByRole("img", { name: "ミニマップ" })).toBeVisible()
+  // ミニマップは拡大縮小の真上に、同じ幅で付いている
+  const zoom = (await page.getByTitle("倍率").first().boundingBox())!
+  const m = (await map.boundingBox())!
+  expect(zoom.y).toBeGreaterThan(m.y + m.height - 2)
+  expect(zoom.x).toBeLessThan(m.x + m.width)
   const before = (await paper(page).boundingBox())!.y
-  await dragSeen(page, "corner", 15)
-  await expect.poll(async () => (await paper(page).boundingBox())!.y).toBeLessThan(before - 20)
-  await expect(await toggle(page)).toHaveAttribute("aria-pressed", "true")
-  await (await toggle(page)).click()
-  await expect(corner(page)).toHaveCount(0)
-})
-
-test("左下のミニマップは、ポインタが近づいたあと枠から離れると閉じる。ドラッグの間は離れても閉じない", async ({
-  page,
-}) => {
-  await page.goto("/")
-  await expect(paper(page)).toBeVisible()
-  await (await toggle(page)).click()
-  await expect(corner(page)).toBeVisible()
-  const map = (await corner(page).boundingBox())!
-  const box = (await seen(page, "corner").boundingBox())!
-  // 四角をつかんだまま枠の外へ出ても閉じない
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  // 四角をつかんで、ドロワーの外（紙の上）まで動かしても下がらない
+  await seen(page, "drawer").hover() // 上がり終えるまで待つ
+  const box = (await seen(page, "drawer").boundingBox())!
   await page.mouse.down()
-  await page.mouse.move(map.x + map.width + 150, box.y + box.height / 2, { steps: 5 })
-  await expect(corner(page)).toBeVisible()
-  await page.mouse.move(map.x + map.width / 2, map.y + map.height / 2, { steps: 5 })
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 15, { steps: 5 })
+  await expect.poll(async () => (await paper(page).boundingBox())!.y).toBeLessThan(before - 20)
+  const p = (await paper(page).boundingBox())!
+  await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2, { steps: 5 })
+  await expect(trigger).toHaveAttribute("aria-expanded", "true")
   await page.mouse.up()
-  // 枠から 80px 以内なら閉じない
-  await page.mouse.move(map.x + map.width + 60, map.y + map.height / 2, { steps: 3 })
-  await expect(corner(page)).toBeVisible()
-  await page.mouse.move(map.x + map.width + 150, map.y + map.height / 2, { steps: 3 })
-  await expect(corner(page)).toHaveCount(0)
+  await page.mouse.move(p.x + p.width / 2, p.y + p.height / 3)
+  await expect(trigger).toHaveAttribute("aria-expanded", "false")
 })
 
-test("紙が収まっていると押せない。開いたあと収まると閉じる", async ({ page }) => {
+test("ドロワーの拡大縮小で倍率が変わる", async ({ page }) => {
   await page.goto("/")
   await expect(paper(page)).toBeVisible()
-  await (await toggle(page)).click()
-  await expect(corner(page)).toBeVisible()
-  await page.setViewportSize({ width: 2000, height: 1400 })
-  await expect(corner(page)).toHaveCount(0)
-  const button = await toggle(page)
-  await expect(button).toBeDisabled()
-  await expect(button).toHaveAttribute("aria-pressed", "false")
+  await drawer(page)
+  const level = page.getByTitle("倍率").first()
+  await expect(level).toHaveText("100%")
+  await page.getByRole("button", { name: "拡大" }).first().click()
+  await drawer(page)
+  await expect(level).toHaveText("125%")
 })
 
 test("右ボタンの長押しのアイコンのミニマップを押すと、アイコンの代わりにその場にミニマップが出る。ドラッグで紙が動き、ミニマップから離れると閉じる", async ({

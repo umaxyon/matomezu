@@ -64,10 +64,9 @@ export function WorkspaceView() {
 
 // 下の行。ポインタが乗っているかを中のウィジェットに渡す
 function Bottom({ stage }: { stage: string }) {
-  const [hover, setHover] = useState(false)
+  const [hover, setHover] = useState(0)
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: マウスが乗ったかを見るだけで、操作は中のウィジェットが受ける
-    <div className={styles.bottom} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+    <div className={styles.bottom} onPointerOver={() => setHover(n => n + 1)} onPointerLeave={() => setHover(0)}>
       <BottomHoverContext.Provider value={hover}>
         <Slot name={STAGE_BOTTOM} props={{ stage }} />
       </BottomHoverContext.Provider>

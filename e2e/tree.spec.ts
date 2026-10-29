@@ -66,14 +66,14 @@ test("ツリーの道具は編集とハンド。編集の間は、ホイール�
   await expect.poll(async () => (await paperAt(page)).y).toBeLessThan(before.y)
 })
 
-test("編集の間に左下のミニマップを押すと、ハンドの道具に替わり、そのままドラッグで紙が動く", async ({ page }) => {
+test("編集の間にドロワーのミニマップを押すと、ハンドの道具に替わり、そのままドラッグで紙が動く", async ({ page }) => {
   await treeBook(page)
-  await (await fromMenu(page, "ミニマップ")).click()
-  const seen = page.locator("[data-minimap=corner] [data-minimap-seen]")
-  await expect(seen).toBeVisible()
+  const trigger = page.locator('button[aria-haspopup="menu"]').first()
+  const seen = page.locator("[data-minimap=drawer] [data-minimap-seen]")
   const drag = async () => {
+    await trigger.hover()
+    await seen.hover() // 上がり終えるまで待つ
     const box = (await seen.boundingBox())!
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
     await page.mouse.down()
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 15, { steps: 5 })
     await page.mouse.up()
@@ -83,8 +83,6 @@ test("編集の間に左下のミニマップを押すと、ハンドの道具�
   await expect(page.getByRole("button", { name: "ハンドツール" })).toBeVisible()
   await settled(page) // ハンドの倍率（100%）になるまで
   const before = await paperAt(page)
-  // ポインタが離れて閉じたミニマップを、もう一度開く
-  if (!(await seen.isVisible())) await (await fromMenu(page, "ミニマップ")).click()
   await drag()
   await expect.poll(async () => (await paperAt(page)).y).toBeLessThan(before.y - 20)
 })

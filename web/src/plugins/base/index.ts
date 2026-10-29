@@ -11,7 +11,6 @@ import { kit } from "./kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import { DARK, LIGHT, PAPERS, SIMPLE, STANDARD, STICKY } from "./looks"
 import type { A3, A4, A5, LETTER, TABLOID } from "./looks/papers"
-import { MINIMAP_TOGGLE } from "./minimap"
 import { NEW_PAGE_DIALOG, PAGE_ADD, PAGE_NEW, PAGE_OPEN, PAGE_SETTINGS, PAGE_SETTINGS_DIALOG } from "./page-tabs"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
 import { PAGE_UPDATE } from "./page-tabs/page-update"
@@ -156,7 +155,6 @@ export const BASE = defineBuiltin(
       TOOL_NEXT,
       TOOL_SET,
       TOOL_PICKER,
-      MINIMAP_TOGGLE,
       ZOOM_IN,
       ZOOM_OUT,
       ZOOM_RESET,
@@ -243,7 +241,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-next": typeof TOOL_NEXT
     "@matomezu/base:tool-set": typeof TOOL_SET
     "@matomezu/base:tool-picker": typeof TOOL_PICKER
-    "@matomezu/base:minimap-toggle": typeof MINIMAP_TOGGLE
     "@matomezu/base:zoom-in": typeof ZOOM_IN
     "@matomezu/base:zoom-out": typeof ZOOM_OUT
     "@matomezu/base:zoom-reset": typeof ZOOM_RESET

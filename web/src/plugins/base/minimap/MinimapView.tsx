@@ -1,7 +1,7 @@
 // ミニマップの絵: ステージの紙の全体を、幅 width・高さ height に収まるように縮めて描き（アイテムは marks.ts の絵）、見えている範囲を四角で重ねる。
 // 四角をドラッグすると、ステージの見る所がついて動く。四角の外を押すと、そこが真ん中に来るように飛んでから、そのままドラッグできる
 // （紙をずらさない道具の間に押すと、組の紙をずらす道具に替えてから動かす。組にそれが無ければ動かさない）。
-// 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）
+// 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）。className は枠の見た目を替える（無ければ浮かぶ枠）
 import { type PointerEvent, type ReactNode, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
@@ -23,11 +23,13 @@ export function MinimapView({
   stage: id,
   width,
   height,
+  className,
   children,
 }: {
   stage: string
   width: number
   height: number
+  className?: string
   children?: ReactNode
 }) {
   const t = useMessages(kit)
@@ -93,7 +95,7 @@ export function MinimapView({
   }
   const line = 1 / scale // 画面で 1px の線
   return (
-    <div className={styles.minimap} style={vars}>
+    <div className={className ?? styles.minimap} style={vars}>
       <svg
         className={styles.map}
         role="img"

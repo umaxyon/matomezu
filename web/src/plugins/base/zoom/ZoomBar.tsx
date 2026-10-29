@@ -9,14 +9,15 @@ import { ZOOM_IN, ZOOM_OUT, ZOOM_RESET } from "."
 import { ZOOM_ICONS } from "./icons"
 import styles from "./ZoomBar.module.css"
 
-export function ZoomBar({ stage }: { stage: string }) {
+// className は帯に足す見た目（置く所に合わせた余白など）
+export function ZoomBar({ stage, className }: { stage: string; className?: string }) {
   const t = useMessages(kit)
   const zoom = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage)?.zoom ?? 1)
   const reset = useCommand(stage, ZOOM_RESET.id)
   const out = useCommand(stage, ZOOM_OUT.id)
   const zin = useCommand(stage, ZOOM_IN.id)
   return (
-    <div className={styles.bar} onPointerDown={e => e.stopPropagation()}>
+    <div className={className ? `${styles.bar} ${className}` : styles.bar} onPointerDown={e => e.stopPropagation()}>
       <Button command={reset} icon={ZOOM_ICONS[ZOOM_RESET.id]} className={styles.reset} />
       <Button command={{ ...out, run: () => out.run(null) }} icon={ZOOM_ICONS[ZOOM_OUT.id]} />
       <span className={styles.level} title={t("Zoom")}>{`${Math.round(zoom * 100)}%`}</span>

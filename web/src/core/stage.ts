@@ -33,7 +33,6 @@ export interface Stage {
   editing: boolean | string
   // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める。map ならアイコンの代わりにミニマップを出している）
   picker: { at: Point | null; map: boolean } | null
-  minimap: boolean // ステージの左下にミニマップを出しているか（紙が表示領域に収まると閉じる）
 }
 
 // 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ
@@ -59,7 +58,6 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
     selection: NONE,
     editing: false,
     picker: null,
-    minimap: false,
   }
 }
 
@@ -75,21 +73,12 @@ export function paperOf(stage: Pick<Stage, "opened">): Size | null {
   return paper && paper.status !== "unshowable" ? paper.size : null
 }
 
-// 紙が表示領域に収まらず、ずらして見る所があるか（紙の周りの余白は数えない。表示領域を測るまでは無い）
-export function scrolls(stage: Pick<Stage, "opened" | "view" | "zoom">): boolean {
-  const paper = paperOf(stage)
-  const view = stage.view
-  if (!paper || !view) return false
-  return paper.w * stage.zoom > view.w || paper.h * stage.zoom > view.h
-}
-
-// ずらす量を pan にして、範囲に収める。紙が収まればミニマップを閉じる（また収まらなくなっても、自分では開かない）
+// ずらす量を pan にして、範囲に収める
 function settle(stage: Stage, pan: Point): Stage {
   const paper = paperOf(stage)
   const next = stage.view && paper ? clampPan(stage.view, contentSize(paper, stage.zoom), pan) : pan
-  const minimap = stage.minimap && (stage.view === null || scrolls(stage))
-  if (next.x === stage.pan.x && next.y === stage.pan.y && minimap === stage.minimap) return stage
-  return { ...stage, pan: next, minimap }
+  if (next.x === stage.pan.x && next.y === stage.pan.y) return stage
+  return { ...stage, pan: next }
 }
 
 export function resize(stage: Stage, view: Size): Stage {
@@ -195,12 +184,6 @@ export function openPicker(stage: Stage, at: Point | null): Stage {
 // 開いている道具のアイコンを、ミニマップに替える（開いていなければ何もしない）
 export function showPickerMap(stage: Stage): Stage {
   return stage.picker && !stage.picker.map ? { ...stage, picker: { ...stage.picker, map: true } } : stage
-}
-
-// ステージの左下のミニマップを開く・閉じる（紙が収まっていれば開かない）
-export function setMinimap(stage: Stage, open: boolean): Stage {
-  const next = open && scrolls(stage)
-  return next === stage.minimap ? stage : { ...stage, minimap: next }
 }
 
 export function closePicker(stage: Stage): Stage {
