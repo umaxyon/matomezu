@@ -1,6 +1,6 @@
 // ディレクトリ構成図のビュー（見せ方 dir）: ステージの紙の置き場所（placement）に紙を描き、その上に開いたページの根のフォルダから下の中身を、
 // 上から下へ並べて描く（行と罫線は layout.ts が決める）。行は、アイコン（フォルダは開・閉、ファイル）と、その右の名前（装飾して描く）。
-// 説明は、行の右にそろえた列に 1 行で描く（列の位置・… で切るか・出さないかは layout.ts）。選んでいる行の説明にも、行と同じ印を付ける。
+// 説明は、行の右にそろえた列に 1 行で描く（列の位置・… で切るか・出さないか・前の「・・・」・紙を縦に分ける区切り線は、ページの設定の項目から layout.ts が決める）。選んでいる行の説明にも、行と同じ印を付ける。
 // フォルダには開け閉めの印（▸・▾）を出し、押すとコマンド folder-toggle で開け閉めする（鉛筆でもハンドでも。アクションが止められていれば押せない形で描く）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
 // 画面のどこを右クリックしても、ディレクトリ構成図のメニュー（dir-context）を開く。
@@ -30,10 +30,11 @@ import {
   useCoreCatalog,
   useMessages,
   usePerform,
+  useShownBook,
   useShownPage,
   useStage,
 } from "../../../../plugin-api/ui"
-import { edgePanner, refusalMessage } from "../../../base"
+import { edgePanner, refusalMessage, settingValue } from "../../../base"
 import { RichBar, RichText, useZoomMotion } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
 import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
@@ -43,6 +44,7 @@ import { afterRemove, changeEntry, editEnd, entryOf, selectedIn } from "../edit"
 import { type DirFolder, DirFolderSchema } from "../entry"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, layoutDir, nameLeft } from "../layout"
+import { noteLookOf } from "../notes"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
 
@@ -98,6 +100,7 @@ function Rows({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
+  const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
   const { select, setEditing, showToast } = useActions()
@@ -119,7 +122,8 @@ function Rows({
   const picking = usingPencil && stage.editing === KIND_PICK
   const text = writing && draft?.entry === selected ? draft.text : null
   const shown: DirFolder = text === null ? dir : (changeEntry(dir, selected, { name: text }) ?? dir)
-  const { rows, lines, notes } = layoutDir(shown, paper)
+  const look = noteLookOf(id => (book ? settingValue(catalog, book, page, id) : undefined))
+  const { rows, lines, notes, divider } = layoutDir(shown, paper, look)
   const at = rows.find(r => r.id === selected)
   // ドラッグで動かしている行（押しただけでまだ動かしていなければ null）と、落とす先
   const dragging = drag.state?.moved ? drag.state : null
@@ -164,6 +168,7 @@ function Rows({
             d={`M${l.from.x} ${l.from.y}L${l.to.x} ${l.to.y}`}
           />
         ))}
+        {divider !== null && <path data-divider d={`M${divider} 0V${paper.h}`} />}
       </svg>
       {rows.map(r => (
         <Row

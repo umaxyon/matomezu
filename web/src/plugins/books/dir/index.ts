@@ -1,4 +1,4 @@
-// ディレクトリ構成図のプラグイン: ディレクトリ構成図のブックのタイプと、その見せ方・ページを作るダイアログ・中身のアクションとコマンド・道具の組（鉛筆とハンド）。
+// ディレクトリ構成図のプラグイン: ディレクトリ構成図のブックのタイプと、その見せ方・説明の見せ方の設定の項目・ページを作るダイアログ・中身のアクションとコマンド・道具の組（鉛筆とハンド）。
 // テーマと紙の色と文字の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（dir.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { ENTRY_ADD, ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT, PATHS_ADD } from "./actions"
@@ -22,12 +22,14 @@ import {
 } from "./commands"
 import { DIR, DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
 import { kit } from "./kit"
+import { NOTE_DIVIDER, NOTE_DOTS, NOTES_SHOWN } from "./notes"
 import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
 
 export const DIR_PLUGIN = defineBuiltin(
   kit.plugin({
     bookTypes: [DIR],
     presentations: [DIR_PRESENTATION],
+    settings: [NOTES_SHOWN, NOTE_DOTS, NOTE_DIVIDER],
     dialogs: [NEW_DIR_PAGE_DIALOG, ENTRY_SETTINGS_DIALOG],
     actions: [ENTRY_ADD, PATHS_ADD, ENTRY_UPDATE, ENTRY_REMOVE, ENTRY_MOVE, FOLDER_CLOSE, FOLDER_SORT],
     commands: [
@@ -59,6 +61,11 @@ declare module "../../../core/catalog" {
   }
   interface PresentationTable {
     "@matomezu/dir:dir": typeof DIR_PRESENTATION
+  }
+  interface SettingTable {
+    "@matomezu/dir:notes-shown": typeof NOTES_SHOWN
+    "@matomezu/dir:note-dots": typeof NOTE_DOTS
+    "@matomezu/dir:note-divider": typeof NOTE_DIVIDER
   }
   interface ActionTable {
     "@matomezu/dir:entry-add": typeof ENTRY_ADD
