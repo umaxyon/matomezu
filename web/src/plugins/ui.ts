@@ -1,6 +1,7 @@
 // ビルトインプラグインの一覧（画面のあるインスタンス用。どのプラグインにも見た目を結んだもの）と、それを渡したインスタンスの既定の配置
 import { defineLayout } from "../plugin-api/ui"
 import { BASE_UI } from "./base/ui"
+import { DIR_UI } from "./books/dir/ui"
 import { DRAWING_UI } from "./books/drawing/ui"
 import { FLOWCHART_UI } from "./books/flowchart/ui"
 import { MASTER_UI } from "./books/master/ui"
@@ -22,6 +23,7 @@ export const BUILTIN_UI = [
   DRAWING_UI,
   FLOWCHART_UI,
   TREE_UI,
+  DIR_UI,
 ] as const
 
 // 既定の配置（今の画面の形）。インスタンスは MatomezuProvider にこれか、これを写して直したものを渡す
@@ -56,6 +58,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/flowchart:page-align",
     ],
+    "@matomezu/dir:dir-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
     "@matomezu/tree:tree-context": ["@matomezu/base:page-settings", "@matomezu/base:book-settings"],
     "@matomezu/tree:node-context": [
       "@matomezu/tree:node-edit",

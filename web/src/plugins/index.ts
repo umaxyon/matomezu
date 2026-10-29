@@ -1,5 +1,6 @@
 // ビルトインプラグインの一覧（React を使わないインスタンス用）。matomezu が何でできているかは、ここの並びと、それぞれの index.ts で分かる
 import { BASE } from "./base"
+import { DIR_PLUGIN } from "./books/dir"
 import { DRAWING_PLUGIN } from "./books/drawing"
 import { FLOWCHART_PLUGIN } from "./books/flowchart"
 import { MASTER_PLUGIN } from "./books/master"
@@ -21,4 +22,5 @@ export const BUILTIN = [
   DRAWING_PLUGIN,
   FLOWCHART_PLUGIN,
   TREE_PLUGIN,
+  DIR_PLUGIN,
 ] as const

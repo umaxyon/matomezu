@@ -187,7 +187,7 @@ test("マスターで新しいブックを作ると、そのステージでペ�
   fireEvent.click(screen.getByRole("button", { name: "新しいブック" }))
   const dialog = screen.getByRole("dialog", { name: "新しいブック" })
   const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
-  expect([...type.options].map(o => o.textContent)).toEqual(["図面", "フローチャート", "ツリー"])
+  expect([...type.options].map(o => o.textContent)).toEqual(["図面", "フローチャート", "ツリー", "ディレクトリ構成図"])
   expect((within(dialog).getByRole("button", { name: "作成" }) as HTMLButtonElement).disabled).toBe(true)
   fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "新しい図" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))

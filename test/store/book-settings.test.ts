@@ -75,6 +75,11 @@ test("AI に見せる settings の形は、項目を宣言したタイプごと�
   }
   const byType = Object.fromEntries((schema.anyOf ?? []).map(s => [s.description, Object.keys(s.properties ?? {})]))
   expect(byType).toEqual({
+    "settings of @matomezu/dir:dir books": [
+      "@matomezu/base:book-theme",
+      "@matomezu/base:book-paper-color",
+      "@matomezu/base:book-text-colors",
+    ],
     "settings of @matomezu/drawing:drawing books": [
       "@matomezu/base:book-theme",
       "@matomezu/base:book-paper-color",

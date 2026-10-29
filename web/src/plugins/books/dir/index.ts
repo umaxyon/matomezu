@@ -1,0 +1,54 @@
+// ディレクトリ構成図のプラグイン: ディレクトリ構成図のブックのタイプと、その見せ方・ページを作るダイアログ・中身のアクションとコマンド・道具の組（鉛筆とハンド）。
+// テーマと紙の色と文字の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（dir.ts・tools.ts）
+import { defineBuiltin } from "../../../plugin-api/builtin"
+import { ENTRY_ADD, ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT, PATHS_ADD } from "./actions"
+import { FOLDER_TOGGLE } from "./commands"
+import { DIR, DIR_PRESENTATION, NEW_DIR_PAGE_DIALOG } from "./dir"
+import { kit } from "./kit"
+import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
+
+export const DIR_PLUGIN = defineBuiltin(
+  kit.plugin({
+    bookTypes: [DIR],
+    presentations: [DIR_PRESENTATION],
+    dialogs: [NEW_DIR_PAGE_DIALOG],
+    actions: [ENTRY_ADD, PATHS_ADD, ENTRY_UPDATE, ENTRY_REMOVE, ENTRY_MOVE, FOLDER_CLOSE, FOLDER_SORT],
+    commands: [FOLDER_TOGGLE],
+    tools: [PENCIL_TOOL],
+    toolSets: [DIR_TOOLS],
+  }),
+)
+
+declare module "../../../core/catalog" {
+  interface BookTypeTable {
+    "@matomezu/dir:dir": typeof DIR
+  }
+  interface PresentationTable {
+    "@matomezu/dir:dir": typeof DIR_PRESENTATION
+  }
+  interface ActionTable {
+    "@matomezu/dir:entry-add": typeof ENTRY_ADD
+    "@matomezu/dir:paths-add": typeof PATHS_ADD
+    "@matomezu/dir:entry-update": typeof ENTRY_UPDATE
+    "@matomezu/dir:entry-remove": typeof ENTRY_REMOVE
+    "@matomezu/dir:entry-move": typeof ENTRY_MOVE
+    "@matomezu/dir:folder-close": typeof FOLDER_CLOSE
+    "@matomezu/dir:folder-sort": typeof FOLDER_SORT
+  }
+  interface CommandTable {
+    "@matomezu/dir:folder-toggle": typeof FOLDER_TOGGLE
+  }
+  interface KeyScopeTable {
+    "@matomezu/dir:dir": true // ディレクトリ構成図の見せ方で描いている間のキー
+  }
+  interface ToolTable {
+    "@matomezu/dir:pencil": typeof PENCIL_TOOL
+  }
+  interface ToolSetTable {
+    "@matomezu/dir:dir": typeof DIR_TOOLS
+  }
+  interface DialogTable {
+    "@matomezu/dir:page-new": typeof NEW_DIR_PAGE_DIALOG
+  }
+  interface MessageTable extends Readonly<typeof kit.messages> {}
+}

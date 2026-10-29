@@ -1,0 +1,147 @@
+/* ディレクトリ構成図のビューの全体（右クリックを受ける）。紙・知らせはこの中に置く */
+.dir {
+  position: absolute;
+  inset: 0;
+}
+.paper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  background: var(--theme-paper);
+  box-shadow:
+    0 0 0 1px var(--theme-paper-line),
+    0 6px 24px var(--theme-paper-shadow);
+}
+/* ページが無いとき: 真ん中に知らせとページを作るボタン */
+.empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+.prompt {
+  margin: 0;
+  font-size: 14px;
+  color: var(--skin-hint);
+}
+.create {
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--skin-accent);
+  color: var(--skin-bg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* 表に無い紙の印（紙の左上） */
+.unknown {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--theme-accent);
+  color: var(--theme-paper);
+  font-size: 12px;
+}
+.error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  color: var(--skin-hint);
+  font-size: 14px;
+}
+/* 罫線（紙と同じ大きさの層。行の下に描く） */
+.lines {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.lines path {
+  fill: none;
+  stroke: var(--dir-line);
+  stroke-width: 1;
+}
+/* 行: アイコンと、その右の名前 1 行 */
+.row {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--dir-text);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  white-space: pre; /* 名前は 1 行（並べ方が幅を決める） */
+  user-select: none;
+}
+.row[data-kind="folder"] {
+  --dir-icon: var(--dir-folder);
+}
+.row[data-kind="file"] {
+  --dir-icon: var(--dir-file);
+}
+.icon {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* フォルダのアイコンは中身の色で塗り、ファイルのアイコンは線を中身の色で */
+.fill {
+  fill: var(--dir-icon);
+  stroke: none;
+}
+.page {
+  fill: var(--theme-paper);
+  stroke: var(--dir-icon);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+.name {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+/* フォルダの開け閉めの印（罫線の付け根。真ん中を置き場所に合わせる）。押せないときは薄く */
+.toggle {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  padding: 0;
+  border: 1px solid var(--dir-line);
+  border-radius: 3px;
+  background: var(--theme-paper);
+  color: var(--dir-text);
+  cursor: pointer;
+}
+.toggle svg {
+  width: 8px;
+  height: 8px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.toggle:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
