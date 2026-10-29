@@ -45,7 +45,7 @@ export interface DirLayout {
   rows: LaidRow[]
   lines: { from: Point; to: Point }[] // 罫線（縦か横の線分）
   notes: { x: number; w: number } | null // 説明の列の左と幅（出さないなら null）
-  divider: number | null // 紙を縦に分ける区切り線の x（引かないなら null）
+  divider: { from: Point; to: Point } | null // 紙を縦に分ける区切り線（上下は紙の辺から MARGIN 空ける。引かないなら null）
   fits: boolean // どの行も紙に収まるか
 }
 
@@ -118,7 +118,8 @@ export function layoutDir(root: DirFolder, paper: { w: number; h: number }, look
       const shown = text && (look.dots ? DOTS + text : text)
       if (row && shown) row.note = clampRich(wrapRich(shown, notes.w, FONT), 1, notes.w, FONT)[0] ?? null
     }
-  const divider = notes && look.divider ? notes.x - DIVIDER_GAP : null
+  const x = notes ? notes.x - DIVIDER_GAP : 0
+  const divider = notes && look.divider ? { from: { x, y: MARGIN }, to: { x, y: paper.h - MARGIN } } : null
   return { rows: laid, lines, notes, divider, fits }
 }
 

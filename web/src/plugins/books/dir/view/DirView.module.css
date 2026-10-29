@@ -74,6 +74,11 @@
   stroke: var(--dir-line);
   stroke-width: 1;
 }
+/* 区切り線は罫線より細く薄く */
+.lines path[data-divider] {
+  stroke: color-mix(in srgb, var(--dir-line) 50%, transparent);
+  stroke-width: 0.5;
+}
 /* 行: アイコンと、その右の名前 1 行 */
 .row {
   position: absolute;
