@@ -238,12 +238,10 @@ test("ブックの名前のボタンにマウスを乗せるとメニューが�
   await expect(menu).toBeHidden()
   await trigger.dispatchEvent("click")
   await expect(menu).toBeVisible()
-  // 下の行はステージの下にあり、上の行（ツールボックス）より細い
+  // 下の行はステージの下にある
   const footer = (await trigger.boundingBox())!
-  const tools = (await page.getByRole("toolbar", { name: "ツール" }).boundingBox())!
   const stage = (await page.getByRole("region", { name: "ステージ" }).boundingBox())!
   expect(footer.y).toBeGreaterThanOrEqual(stage.y + stage.height)
-  expect(footer.height).toBeLessThan(tools.height)
   expect(footer.width).toBe(156)
 })
 

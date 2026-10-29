@@ -1,0 +1,31 @@
+/* 地図: 拡大縮小の帯を左に寄せ、その真上に、帯の左端にそろえてミニマップの台を載せる */
+.cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+/* ミニマップの台: 上の角だけ丸め、下は行の上の線を隠して行とつなげる。左はドロワーの左端まで */
+.map {
+  position: absolute;
+  left: -6px;
+  bottom: 100%;
+  z-index: 1;
+  box-sizing: border-box;
+  padding: 6px 6px 4px;
+  border: 1px solid var(--skin-line);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--skin-bar);
+}
+.mapView {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--map-w);
+  height: var(--map-h);
+  line-height: 0;
+}
+.zoomBar {
+  margin-top: 0;
+}

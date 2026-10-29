@@ -37,10 +37,13 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:toast-host",
       "@matomezu/base:tool-picker",
     ],
-    "@matomezu/base:stage-top": ["@matomezu/base:tool-switch", "@matomezu/base:toolbox"],
+    "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view"],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
+    "@matomezu/base:drawer-map": ["@matomezu/base:drawer-minimap"],
+    "@matomezu/base:drawer-basics": ["@matomezu/base:stage-menu-buttons"],
+    "@matomezu/base:drawer-book-tools": ["@matomezu/base:toolbox"],
   },
   menus: {
     "@matomezu/base:stage-menu": [

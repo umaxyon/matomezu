@@ -37,10 +37,10 @@ function flowchart() {
   return { store, on: { book: id }, book, page }
 }
 
-test("フローチャートの道具箱には、形・箱・線が並ぶ", () => {
+test("フローチャートの道具箱（下の行のドロワー）には、形・箱・線が並ぶ", () => {
   flowchart()
   for (const name of ["角丸", "箱", "ひし形", "平行四辺形", "平行四辺形（逆）", "台形", "台形（逆）", "六角形", "円"])
-    expect(screen.getByRole("button", { name })).toBeTruthy()
+    expect(screen.getByRole("button", { name, hidden: true })).toBeTruthy()
 })
 
 test("8 つの形を置け、形ごとの輪郭で描く。置いたときの幅はキャプションが見える幅（一番狭くて形の大きさ）", () => {

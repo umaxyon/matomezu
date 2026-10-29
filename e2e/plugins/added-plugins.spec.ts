@@ -2,6 +2,7 @@ import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { expect, type Page, test } from "@playwright/test"
+import { drawerTool } from "../drawer"
 
 // 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐を順に使う（途中で ex1・ex3 を足し、最後は 3 つを一緒に確かめる）
 test.describe.configure({ mode: "serial" })
@@ -57,7 +58,7 @@ test("追加プラグインの形を動かすと、常駐のエンジンも同�
 
 test("追加プラグインの形の道具を使うと、その形の追加のダイアログ（追加プラグインのビュー）が開く", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "判断", exact: true }).click()
+  await (await drawerTool(page, "判断")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 400, paper.y + 300)
   await expect(page.getByRole("dialog", { name: "判断の追加" })).toBeVisible()

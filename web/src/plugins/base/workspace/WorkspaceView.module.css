@@ -1,7 +1,9 @@
+/* 並べた枠の外へ出る物（下の行の後ろに隠したドロワーなど）は切り、画面をスクロールさせない */
 .workspace {
   flex: 1;
   min-height: 0;
   display: flex;
+  overflow: clip;
 }
 .row {
   flex-direction: row;

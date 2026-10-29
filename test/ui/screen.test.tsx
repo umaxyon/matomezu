@@ -38,14 +38,16 @@ function fromMenu(name: string, i = 0): HTMLElement {
   return within(trigger.parentElement?.nextElementSibling as HTMLElement).getByRole("button", { name })
 }
 
-test("ステージに紙が 1 枚あり、上にツールボックス、下の行の左にブックの名前がある", () => {
+test("ステージに紙が 1 枚あり、下の行のドロワーにツールボックスがある", () => {
   renderScreen()
   expect(stages()).toHaveLength(1)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
-  const tools = screen.getByRole("toolbar", { name: "ツール" })
+  // ドロワーは閉じているので、読み上げには出ていない
+  expect(screen.queryByRole("toolbar", { name: "ツール" })).toBeNull()
+  const tools = screen.getByRole("toolbar", { name: "ツール", hidden: true })
   expect(
     within(tools)
-      .getAllByRole("button")
+      .getAllByRole("button", { hidden: true })
       .map(b => b.getAttribute("aria-label")),
   ).toEqual(["箱", "リスト"])
   expect(screen.getByRole("button", { name: "まとめ図の構想" }).getAttribute("aria-expanded")).toBe("false")
@@ -374,7 +376,7 @@ test("ステージの上の行と下の行を右クリックしても、ブラ�
   renderScreen()
   const tab = screen.getAllByRole("tab")[0]!
   expect(fireEvent.contextMenu(tab)).toBe(false)
-  const tool = screen.getByRole("button", { name: "箱" })
+  const tool = screen.getByRole("button", { name: "選択ツール" })
   expect(fireEvent.contextMenu(tool)).toBe(false)
   expect(screen.queryByRole("menu")).toBeNull()
 })

@@ -1,29 +1,23 @@
 // ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前を出す。
 // ロック中のブックは名前の左に鍵を出す（印だけ。外すのはブックの設定のダイアログ）。
-// 乗せるか押すと、下の行の真上に、行の幅いっぱいのドロワー（配置のメニュー stage-menu）が下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
-// 下の行から離れると下がる（ドロワーは下の行の中に描くので、ドロワーに乗っている間も下の行に乗っている）。ドロワーの項目はコマンドを呼ぶ。
-// ドロワーの行の左端に拡大縮小の帯（base/zoom の ZoomBar）を入れ、その真上にミニマップ（base/minimap の MinimapView）を行にぴったり付けて載せる（紙の無いステージでは、どちらも出さない）
+// 乗せるか押すと、下の行の真上に、行の幅いっぱいのドロワーが下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
+// 下の行から離れると下がる（ドロワーは下の行の中に描くので、ドロワーに乗っている間も下の行に乗っている）。
+// ドロワーには、左から地図・基本・ブックの道具の 3 つのスロット（drawer.ts）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
+// 中のウィジェットは、項目を選んだらドロワーを下げられる（drawer-context.tsx）
 import { useEffect, useRef, useState } from "react"
 import { bookTitle } from "../../../core/book"
-import { paperOf } from "../../../core/stage"
-import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { type MenuCommandId, type MenuItem, menuCommands } from "../../../ui/layout"
-import { useMenu, useMenuCommand } from "../../../ui/menu"
-import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { Slot } from "../../../ui/Slot"
+import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
-import { MinimapView } from "../minimap/MinimapView"
 import { useBottomHover } from "../workspace/bottom-hover"
-import { ZoomBar } from "../zoom/ZoomBar"
 import styles from "./BookName.module.css"
-import { STAGE_MENU } from "./menu"
+import { DRAWER_SLOTS } from "./drawer"
+import { DrawerContext } from "./drawer-context"
 
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250
-// ドロワーのミニマップの絵の枠（px）。紙の形によらずこの大きさで、紙は縦長でも横長でもこの中に収めて真ん中に描く
-const MAP = { w: 156, h: 110 }
-const MAP_BOX = MAP.w + 14 // ミニマップの台と、その下の拡大縮小の幅（絵の枠と、内側の余白・枠の線）
 
 export function BookName({ stage }: { stage: string }) {
   const book = useMatomezuState(s => {
@@ -87,7 +81,7 @@ export function BookName({ stage }: { stage: string }) {
           </span>
         )}
       </div>
-      <StageMenu
+      <Drawer
         stage={stage}
         open={open}
         own={own}
@@ -101,7 +95,7 @@ export function BookName({ stage }: { stage: string }) {
 }
 
 // 下から上がるドロワー。閉じている間は見えず、押せず、読み上げにも出ない。own は下の行の外に置かれたときの、乗ったかを見る受け取り
-function StageMenu({
+function Drawer({
   stage,
   open,
   own,
@@ -112,67 +106,17 @@ function StageMenu({
   own: { onMouseEnter?: () => void; onMouseLeave?: () => void }
   onPick: () => void
 }) {
-  const items = useMenu(STAGE_MENU)
-  const hasPaper = useMatomezuState(s => {
-    const st = s.workspace.stages.find(x => x.id === stage)
-    return st !== undefined && paperOf(st) !== null
-  })
   return (
     <div className={styles.drawer} data-open={open} aria-hidden={!open} inert={!open} {...own}>
-      <div
-        className={styles.slide}
-        style={{
-          ["--map-box" as string]: `${MAP_BOX}px`,
-          ["--map-w" as string]: `${MAP.w}px`,
-          ["--map-h" as string]: `${MAP.h}px`,
-        }}
-      >
-        {hasPaper && (
-          <div className={styles.map} data-minimap="drawer">
-            <MinimapView stage={stage} width={MAP.w} height={MAP.h} className={styles.mapView} />
-          </div>
-        )}
+      <DrawerContext.Provider value={onPick}>
         <div className={styles.row}>
-          {hasPaper && (
-            <div className={styles.zoom}>
-              <ZoomBar stage={stage} className={styles.zoomBar} />
+          {DRAWER_SLOTS.map(name => (
+            <div key={name} className={styles.part}>
+              <Slot name={name} props={{ stage }} />
             </div>
-          )}
-          <div className={styles.menu}>
-            {items.map(item => (
-              <MenuEntry key={menuCommands(item).join(" ")} stage={stage} item={item} onPick={onPick} />
-            ))}
-          </div>
+          ))}
         </div>
-      </div>
+      </DrawerContext.Provider>
     </div>
-  )
-}
-
-// 項目 1 つ。切り替えなら出ているコマンドを出し、どれも出ていなければ描かない
-function MenuEntry({ stage, item, onPick }: { stage: string; item: MenuItem; onPick: () => void }) {
-  const id = useMenuCommand(stage, item)
-  return id ? <MenuButton stage={stage} id={id} onPick={onPick} /> : null
-}
-
-// コマンドのボタン。アイコンが無ければ名前を出し、押されている状態はコマンドの active、押せるかは enabled
-function MenuButton({ stage, id, onPick }: { stage: string; id: MenuCommandId; onPick: () => void }) {
-  const command = useCommand(stage, id)
-  const icon = useUiCatalog().commandIcons.get(id)
-  const t = useMessages(kit)
-  return (
-    <button
-      type="button"
-      className={styles.item}
-      aria-label={t(command.title)}
-      aria-pressed={command.active}
-      disabled={!command.enabled}
-      onClick={() => {
-        command.run()
-        onPick()
-      }}
-    >
-      {icon ?? t(command.title)}
-    </button>
   )
 }
