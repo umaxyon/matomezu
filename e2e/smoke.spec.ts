@@ -345,3 +345,25 @@ test("分割すると、カレントのステージの下の行だけ色が少�
   expect(await accent(0)).toBe("none")
   expect(await accent(1)).not.toBe("none")
 })
+
+// locator の物に右クリック（contextmenu）を送り、既定の動き（ブラウザのメニュー）が止められたかを返す
+const browserMenuStopped = (target: import("@playwright/test").Locator) =>
+  target.evaluate(el => !el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })))
+
+test("ブックを選ぶ画面と、ブックを開くダイアログ（幕も）の右クリックではブラウザのメニューを出さず、テキストFormの中では出す", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await (await fromMenu(page, "画面を分割")).click()
+  const stage = page.getByRole("region", { name: "ステージ" }).nth(1)
+  await expect(stage.getByText("ブックを選択してください")).toBeVisible()
+  expect(await browserMenuStopped(stage)).toBe(true)
+  expect(await browserMenuStopped(stage.getByRole("option").first())).toBe(true)
+  expect(await browserMenuStopped(stage.getByRole("combobox", { name: "ブックを探す" }))).toBe(false)
+  await (await fromMenu(page, "ブックを開く")).click()
+  const dialog = page.getByRole("dialog", { name: "ブックを開く" })
+  await expect(dialog).toBeVisible()
+  expect(await browserMenuStopped(dialog)).toBe(true)
+  expect(await browserMenuStopped(dialog.getByRole("option").first())).toBe(true)
+  expect(await browserMenuStopped(dialog.getByRole("combobox", { name: "ブックを探す" }))).toBe(false)
+})
