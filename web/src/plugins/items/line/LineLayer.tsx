@@ -80,7 +80,8 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
   const { selectable } = scene
   const lineScene = { page, lines: drafted, drawn: lines, rects, elbow }
   const only = stage.selection.length === 1 ? stage.selection[0] : undefined
-  const editing = selectable && only && drafted.some(l => l.id === only) ? only : null
+  // つまむ印を出す線: 直せるときの、1 本だけ選んでいる線
+  const editing = selectable && lineDrag.editable && only && drafted.some(l => l.id === only) ? only : null
 
   // 描き終えたら、次に描くときのために、線の記憶と形の四角を覚える
   useLayoutEffect(() => {
@@ -88,11 +89,12 @@ export function LineLayer({ scene, children }: { scene: ShapeScene; children: Re
     drawnRects.current = rects
   })
 
-  // 〇を出す形: 選択の道具で、ポインタを乗せている選んでいない形（ドラッグ・大きさを変えている間は出さない）。線を引いている間は、引き始めた形の押した〇だけ
+  // 〇を出す形: 線を引けるときの、選択の道具で、ポインタを乗せている選んでいない形（ドラッグ・大きさを変えている間は出さない）。線を引いている間は、引き始めた形の押した〇だけ
   const portsOf = (id: string): readonly Side[] => {
     const l = linkDrag.link
     if (l) return l.from === id ? [l.side] : []
     if (
+      !linkDrag.usable ||
       !selectable ||
       scene.busy ||
       scene.hover !== id ||

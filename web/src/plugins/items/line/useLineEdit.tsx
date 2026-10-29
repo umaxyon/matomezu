@@ -88,6 +88,7 @@ export function useLineEdit(
   }
 
   return {
+    editable, // 線を直せるか（認可ステップが止めていれば直せない）
     draft, // ドラッグしている線の項目（下書き。描くときに線に重ねる）
     snap, // 端が吸い付いた点
     target, // 端を運んでいる先の、つなぎ替えられる形

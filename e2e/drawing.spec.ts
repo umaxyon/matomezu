@@ -828,6 +828,50 @@ async function drawLine(page: Page, from: string, to: string) {
   await page.mouse.up()
 }
 
+test("ロック中のページでは、箱にポインタを乗せても線を引く〇が出ず、選んだ線の両端に丸が出ない", async ({ page }) => {
+  await page.goto("/")
+  for (const [x, caption] of [
+    [150, "始"],
+    [550, "終"],
+  ] as const) {
+    await page.getByRole("button", { name: "箱" }).click()
+    const at = await onPaper(page, x, 150)
+    await addBox(page, at.x, at.y, caption)
+  }
+  const empty = await onPaper(page, 600, 500)
+  await page.mouse.click(empty.x, empty.y)
+  await drawLine(page, "始", "終")
+  const line = page.locator("[data-item]:not([data-shape])")
+  const ends = line.locator("circle[data-end]")
+  // 線の最初の区間の真ん中を押して選ぶ
+  const pts = (await line.locator("polyline").last().getAttribute("points"))!
+    .split(" ")
+    .map(p => p.split(",").map(Number))
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  const zoom = paper.width / Number(await page.getByRole("img", { name: "紙" }).evaluate(el => el.clientWidth))
+  const onLine = {
+    x: paper.x + ((pts[0]![0]! + pts[1]![0]!) / 2) * zoom,
+    y: paper.y + ((pts[0]![1]! + pts[1]![1]!) / 2) * zoom,
+  }
+  await page.mouse.click(onLine.x, onLine.y)
+  await expect(ends).toHaveCount(2)
+  // ページの設定の見出しの鍵でロックする
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByRole("button", { name: "ページをロックする" }).click()
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toHaveCount(0)
+  await page.mouse.click(onLine.x, onLine.y)
+  await expect(line).toHaveAttribute("data-selected", "true")
+  await expect(ends).toHaveCount(0)
+  await page.mouse.click(empty.x, empty.y)
+  const start = items(page).filter({ hasText: "始" })
+  const s = (await start.boundingBox())!
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  await expect(start.locator("[data-port]")).toHaveCount(0)
+})
+
 test("線をダブルクリックすると線の編集のダイアログが開き、線の種類と端の形を変えて確定すると線が変わる。「線を消す」で消える", async ({
   page,
 }) => {
