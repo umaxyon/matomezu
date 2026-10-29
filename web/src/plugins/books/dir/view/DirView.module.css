@@ -178,7 +178,7 @@
 .pluses {
   position: absolute;
   display: flex;
-  gap: 4px;
+  gap: 0;
   transform: translateY(-50%);
 }
 .plus {
@@ -186,7 +186,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
+  width: 22px;
   height: 22px;
   padding: 0;
   border: 0;

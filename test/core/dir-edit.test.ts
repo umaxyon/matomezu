@@ -201,7 +201,7 @@ test("ドラッグで落とす先: フォルダの行の真ん中は中の末尾
   expect(where("src", "readme", 0.9)).toEqual({ parent: "r", index: 1, mark: "between" })
 })
 
-test("説明は、いちばん右まで伸びた行の右から 50 空けた所にそろえて置き、紙に入らない分は … で切る。行が紙の幅の 8 割を超えたら出さない", () => {
+test("説明は、いちばん右まで伸びた行の右から 70 空けた所にそろえて置き、紙に入らない分は … で切る。行が紙の幅の 8 割を超えたら出さない", () => {
   const noted = changeEntry(changeEntry(dir, "a", { description: "説明です" })!, "r", {
     description: "長い".repeat(200),
   })!

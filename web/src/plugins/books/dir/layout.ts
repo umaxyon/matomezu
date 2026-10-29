@@ -15,7 +15,7 @@ export const INDENT = 24 // 1 段の字下げ
 export const ICON = 16 // アイコンの大きさ
 const NAME_GAP = 6 // アイコンと名前の間
 const TICK_GAP = 3 // 横の罫線の端と、アイコンの間
-export const NOTE_GAP = 50 // いちばん右まで伸びた行と、説明の間
+export const NOTE_GAP = 70 // いちばん右まで伸びた行と、説明の間
 export const NOTE_LIMIT = 0.8 // 行がこの割合より紙の右へ伸びたら、説明を出さない
 
 // 名前の字（標準は普通の太さ。**…** で囲んだ所が太字）
