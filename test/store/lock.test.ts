@@ -6,6 +6,8 @@ import type { Book, BookOf } from "../../web/src/core/schema/book"
 import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
+import type { CommandId } from "../../web/src/store/commands"
+import { isEnabled } from "../../web/src/store/commands"
 import { CORE_CATALOG, newStore } from "../support"
 
 type Drawing = BookOf<"@matomezu/drawing:drawing">
@@ -80,4 +82,35 @@ test("変える所を言わないアクションは、行う前にはページ�
   const unlocked = { ...before, pages: [{ id: "p1", title: "1" }] } as unknown as Book
   expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked) })).toBe(true)
   expect(LOCK.keeps!({ action, before, after: unlocked, changes: changesOf(before, unlocked), by: "ai" })).toBe(false)
+})
+
+test("ロック中は、行うアクションをどれも許可の段に止められるコマンドを押せない。設定のダイアログはロックを外すために押せる", () => {
+  const store = newStore()
+  const { state, actions } = store
+  addPageIn(store, "s1", { title: "ページ 2" })
+  const enabled = (id: CommandId) => isEnabled(store, state.getState(), "s1", id)
+  // 箱を置こうとしている（paper-place を出す）
+  const placing = () => {
+    if (!state.getState().workspace.stages[0]!.placing) actions.togglePlacing("s1", "@matomezu/box:shape-box")
+  }
+  const first = (state.getState().books.b1 as Drawing).pages[0]!.id
+  actions.openPage("s1", first)
+  expect(actions.perform("@matomezu/base:page-lock", { page: first }, { book: "b1" }).ok).toBe(true)
+  // 開いているページのロック: そのページを変えるコマンドは押せず、ブック単位のコマンドは押せる
+  placing()
+  expect(enabled("@matomezu/paper:paper-place")).toBe(false)
+  expect(enabled("@matomezu/base:page-new")).toBe(true)
+  expect(enabled("@matomezu/base:page-settings")).toBe(true)
+  actions.openPage("s1", (state.getState().books.b1 as Drawing).pages[1]!.id)
+  placing()
+  expect(enabled("@matomezu/paper:paper-place")).toBe(true)
+  // ブックのロック: ブック単位のコマンドも押せない。ブックの設定は押せる
+  expect(actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
+  expect(enabled("@matomezu/base:page-new")).toBe(false)
+  expect(enabled("@matomezu/paper:paper-place")).toBe(false)
+  expect(enabled("@matomezu/base:book-settings")).toBe(true)
+  // 一覧のアクションは開いているブックのロックで止めない
+  expect(enabled("@matomezu/base:book-new")).toBe(
+    isEnabled(newStore(), newStore().state.getState(), "s1", "@matomezu/base:book-new"),
+  )
 })

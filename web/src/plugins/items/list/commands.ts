@@ -1,5 +1,6 @@
 // リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
 import { type CommandContext, type Point, pagedOf, toPaperDelta } from "../../../plugin-api"
+import { openedPage } from "../../base"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
@@ -11,6 +12,7 @@ const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined &
 export const LIST_ADD_ROW = kit.defineCommand({
   id: "list-add-row",
   performs: [ROW_ADD.id],
+  touches: openedPage,
   title: "Add row",
   run: (ctx, a, { list }: { list: string }) => {
     const page = ctx.stage.opened?.page
@@ -23,6 +25,7 @@ export const LIST_ADD_ROW = kit.defineCommand({
 export const LIST_EDIT_ROW = kit.defineCommand({
   id: "list-edit-row",
   performs: [ROW_UPDATE.id],
+  touches: openedPage,
   title: "Edit row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
     const page = ctx.stage.opened?.page
@@ -35,6 +38,7 @@ export const LIST_EDIT_ROW = kit.defineCommand({
 export const LIST_DELETE_ROW = kit.defineCommand({
   id: "list-delete-row",
   performs: [ROW_REMOVE.id],
+  touches: openedPage,
   title: "Delete row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
     const { opened } = ctx.stage
@@ -47,6 +51,7 @@ export const LIST_DELETE_ROW = kit.defineCommand({
 export const LIST_CHECK = kit.defineCommand({
   id: "list-check",
   performs: [ROW_CHECK.id],
+  touches: openedPage,
   title: "Check",
   run: (ctx, a, { list, row, checked }: { list: string; row: string; checked: boolean }) => {
     const { opened } = ctx.stage
@@ -59,6 +64,7 @@ export const LIST_CHECK = kit.defineCommand({
 export const LIST_STRETCH_ROW = kit.defineCommand({
   id: "list-stretch-row",
   performs: [ROW_LINES.id],
+  touches: openedPage,
   title: "Set row heights",
   run: (ctx, a, { list, row, height, by }: { list: string; row: string; height: number; by: Point }) => {
     const { opened } = ctx.stage
@@ -73,6 +79,7 @@ export const LIST_STRETCH_ROW = kit.defineCommand({
 export const LIST_MOVE_ROW = kit.defineCommand({
   id: "list-move-row",
   performs: [ROW_MOVE.id],
+  touches: openedPage,
   title: "Move row",
   run: (ctx, a, args: { list: string; row: string; to: string; before?: string }) => {
     const { opened } = ctx.stage

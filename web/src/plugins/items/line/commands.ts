@@ -1,7 +1,7 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（線の層から呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
 import { type CommandContext, type Point, pagedOf, toPaper } from "../../../plugin-api"
-import { portAreasOf } from "../../base"
+import { openedPage, portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
 import { kit } from "./kit"
@@ -16,6 +16,7 @@ const onItemPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && c
 export const LINE_DRAW = kit.defineCommand({
   id: "line-draw",
   performs: [LINE_CONNECT.id],
+  touches: openedPage,
   title: "Connect items",
   run: (ctx, a, args: { from: string; side: Side; to: string; at: Point }) => {
     const { opened } = ctx.stage
@@ -34,6 +35,7 @@ export const LINE_DRAW = kit.defineCommand({
 export const LINE_EDIT = kit.defineCommand({
   id: "line-edit",
   performs: [LINE_UPDATE.id],
+  touches: openedPage,
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
     const page = ctx.stage.opened?.page
@@ -47,6 +49,7 @@ export const LINE_EDIT = kit.defineCommand({
 export const LINE_RECONNECT_DROP = kit.defineCommand({
   id: "line-drop",
   performs: [LINE_RECONNECT.id],
+  touches: openedPage,
   title: "Reconnect line",
   run: (ctx, a, args: { line: string; end: "from" | "to"; item: string; at: Point }) => {
     const { opened } = ctx.stage

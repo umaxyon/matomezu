@@ -7,6 +7,8 @@ import type { Book } from "../../../core/schema/book"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { settingDefs } from "../book-settings"
 import { kit } from "../kit"
+import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
+import { openedPage } from "../utils"
 import { PAGE_ADD } from "./page-add"
 import { PAGE_UPDATE } from "./page-update"
 
@@ -55,7 +57,8 @@ export const PAGE_OPEN = kit.defineCommand({
 // base のダイアログなら、ページの設定の項目を選んでいるタイプだけ）
 export const PAGE_SETTINGS = kit.defineCommand({
   id: "page-settings",
-  performs: [PAGE_UPDATE.id],
+  performs: [PAGE_UPDATE.id, PAGE_LOCK.id, PAGE_UNLOCK.id],
+  touches: openedPage,
   title: "Page settings",
   run: (ctx, a) => {
     const page = ctx.stage.opened?.page

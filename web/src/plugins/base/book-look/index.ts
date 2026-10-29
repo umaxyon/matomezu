@@ -6,6 +6,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
+import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../page-tabs/page-problems"
 import { BOOK_PAPER_COLOR, BOOK_THEME } from "./look"
 
@@ -54,7 +55,7 @@ export const BOOK_SETTINGS_DIALOG = kit.defineDialog({ id: "book-settings" })
 // ブックの設定のダイアログを開く（ブックのタイプが book-update を使える、名前と見た目を変えられるブックだけ）
 export const BOOK_SETTINGS = kit.defineCommand({
   id: "book-settings",
-  performs: [BOOK_UPDATE.id],
+  performs: [BOOK_UPDATE.id, BOOK_LOCK.id, BOOK_UNLOCK.id],
   title: "Book settings",
   run: (ctx, a) => a.openDialog(ctx.stage.id, BOOK_SETTINGS_DIALOG.id),
   when: () => true,

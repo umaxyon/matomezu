@@ -17,6 +17,7 @@ import {
 import {
   adaptPage,
   extentOf,
+  openedPage,
   pageContext,
   paperSize,
   placedAt,
@@ -193,6 +194,7 @@ export const PAGE_ALIGN_DIALOG = kit.defineDialogWith<{ page: string }>()({ id: 
 export const PAGE_ALIGN_COMMAND = kit.defineCommand({
   id: "page-align",
   performs: [PAGE_ALIGN.id],
+  touches: openedPage,
   title: "Auto align",
   run: (ctx, a) => {
     const page = ctx.stage.opened?.page

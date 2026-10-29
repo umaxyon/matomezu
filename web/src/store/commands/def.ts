@@ -3,6 +3,7 @@
 
 import type { ActionId, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
+import type { Where } from "../../core/def/action"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
 import type { StageView, Workspace } from "../../core/workspace"
@@ -29,8 +30,11 @@ export interface CommandDef<A = undefined, Tt extends string = MessageKey> exten
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない
   run(ctx: CommandContext, actions: Actions, args: A): void
-  // 行うアクション。どれかが今のブック（ブックが対象でなければホームのタイプ）で使えなければ、土台はこのコマンドを出さない
+  // 行うアクション。どれかが今のブック（ブックが対象でなければホームのタイプ）で使えなければ、土台はこのコマンドを出さない。
+  // どれも許可の段に止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
   performs?: readonly ActionId[]
+  // 行うアクションが、ブックが対象ならそのブックのどこを変えるか（許可の段に渡す。無ければ分からないとして渡す）
+  touches?(ctx: CommandContext): Where
   // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる
   place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[] }
 }

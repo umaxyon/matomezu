@@ -59,10 +59,28 @@ export function isShown(defs: Assembled, state: MatomezuState, stageId: string, 
   return ctx !== null && performable(def, ctx) && def.when(ctx)
 }
 
+// 行うアクションのどれかを、許可の段が止めないか（行うアクションが無ければ止められない）。ブックが対象のアクションは、今のブックの touches の所で問う
+function permitted(def: CommandDef<never>, ctx: CommandContext): boolean {
+  const actions = def.performs ?? []
+  const where = def.touches?.(ctx)
+  return (
+    actions.length === 0 ||
+    actions.some(action => {
+      const onBook = ctx.catalog.actions.get(action)?.target === "book"
+      const book = onBook ? (ctx.book ?? undefined) : undefined
+      return (
+        inspect(ctx.catalog, { kind: "action", action, book, ...(onBook && where ? { where } : {}) }, ctx).value ===
+        true
+      )
+    })
+  )
+}
+
+// 押せるか: 出していて、行うアクションのどれかを許可の段が止めず、enabled が押せるとするとき
 export function isEnabled(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
   const ctx = commandContext(defs.catalog.core, defs.home, state, stageId)
   const def = commandDef(defs, id)
-  return ctx !== null && performable(def, ctx) && def.when(ctx) && (def.enabled?.(ctx) ?? true)
+  return ctx !== null && performable(def, ctx) && def.when(ctx) && permitted(def, ctx) && (def.enabled?.(ctx) ?? true)
 }
 
 export function isActive(defs: Assembled, state: MatomezuState, stageId: string, id: CommandId): boolean {
