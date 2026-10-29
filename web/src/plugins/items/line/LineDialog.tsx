@@ -15,7 +15,7 @@ import {
   useMessages,
   usePerform,
 } from "../../../plugin-api/ui"
-import { portAreasOf } from "../../base"
+import { portAreasOf, refusalMessage } from "../../base"
 import {
   ActionButton,
   Choices,
@@ -78,7 +78,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
   const [startHead, setStartHead] = useState<Head | "">(line?.props.startHead ?? "")
   const [endHead, setEndHead] = useState<Head | "">(line?.props.endHead ?? "")
   const [once, setOnce] = useState<ReadonlySet<Once>>(new Set())
-  const [refused, setRefused] = useState(false)
+  const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   const changed =
     route !== startRoute ||
     dash !== (line?.props.dash ?? "solid") ||
@@ -127,7 +127,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
     if (Object.keys(patch).length === 0) return onClose()
     const done = perform(LINE_UPDATE.id, { page: page.id, line: line.id, props: patch })
     if (done.ok) onClose()
-    else setRefused(true)
+    else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
   }
   const remove = () => {
     perform("@matomezu/paper:item-remove", { page: page.id, items: [line.id] })
@@ -275,7 +275,7 @@ export function EditLineDialog({ stage, args, onClose }: DialogProps<{ page: str
             {t("Delete line")}
           </ActionButton>
         </div>
-        {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
+        {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
   )

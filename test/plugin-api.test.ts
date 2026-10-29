@@ -92,6 +92,7 @@ test("matomezu が出す名前", () => {
     "portAreasOf",
     "putPage",
     "rectsOf",
+    "refusalMessage",
     "removeItems",
     "replaceChild",
     "replacePushing",

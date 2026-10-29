@@ -25,7 +25,7 @@ import {
   useShownPage,
   useStage,
 } from "../../../../plugin-api/ui"
-import { settingValue } from "../../../base"
+import { refusalMessage, settingValue } from "../../../base"
 import { RichBar, RichText, useResize, useZoomMotion } from "../../../base/ui"
 import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { dropAt, edgePanner, subtreeIds } from "../drag"
@@ -136,8 +136,9 @@ function Tree({
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog } = useActions()
-  // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、断られるのは紙に入らないとき）
-  const refused = () => showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
+  // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、許可の段が止めたのでなければ、断られるのは紙に入らないとき）
+  const refused = (done: Parameters<typeof refusalMessage>[1]) =>
+    showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
   const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
   const root = TreeRootSchema.safeParse((page as { root?: unknown } | null)?.root)
   const setting = (id: string) => (book && page ? settingValue(catalog, book, page, id) : undefined)
@@ -178,7 +179,7 @@ function Tree({
         : todo.kind === "child"
           ? perform(NODE_UPDATE.id, { page: pageId, node: selected, caption: todo.caption })
           : null
-    if (done && !done.ok) refused() // 紙に入らない字は書かず、元のキャプションのまま
+    if (done && !done.ok) refused(done) // 書けない字は書かず、元のキャプションのまま
     setDraft(null)
     setEditing(stage.id, false)
   }
@@ -186,7 +187,7 @@ function Tree({
   const add = (plus: Plus) => {
     const done = perform(NODE_ADD.id, addArgs(pageId, plus))
     const id = done.ok ? done.result.nodes[0]?.id : undefined
-    if (!id) return refused()
+    if (!id) return refused(done.ok ? { reason: "refused" } : done)
     select(stage.id, [id])
     setEditing(stage.id, true)
   }
@@ -200,7 +201,8 @@ function Tree({
     const target = dropAt(tree, grow, nodes, node, at)
     if (!target) return
     const { mark: _mark, ...where } = target
-    if (!perform(NODE_MOVE.id, { page: pageId, node, ...where }).ok) refused()
+    const moved = perform(NODE_MOVE.id, { page: pageId, node, ...where })
+    if (!moved.ok) refused(moved)
   }
   return (
     <>

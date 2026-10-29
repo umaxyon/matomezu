@@ -1,10 +1,11 @@
 // 自動で整列の確認のダイアログ: 「レイアウトを自動で整えてもよいですか？」と聞き、実行でアクション page-align を行う。
 // ページに合わせると変わる形（形の定義の adapt で変わる形）があるときだけ、それも合わせるかの切り替えを、変わる形の名前を並べて出す
 // （最初はオフ。置いたときのままを保つ）。
-// 紙に収まらず断られたら、閉じずに理由を出す
+// 断られたら、閉じずに理由を出す（許可の段が止めたならその段の名前、ほかは紙に収まらない）
 import { useId, useState } from "react"
-import { pagedOf } from "../../../plugin-api"
+import { type MessageKey, pagedOf } from "../../../plugin-api"
 import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"
+import { refusalMessage } from "../../base"
 import { ActionButton, Dialog, Form, Problem, rowClass, Switch } from "../../base/ui"
 import { adaptedTitles, PAGE_ALIGN } from "./actions"
 import { kit } from "./kit"
@@ -17,7 +18,7 @@ export function AlignDialog({ stage, args, onClose }: DialogProps<{ page: string
   const page = book?.pages.find(p => p.id === args.page)
   const perform = usePerform(stage)
   const [adapt, setAdapt] = useState(false)
-  const [refused, setRefused] = useState(false)
+  const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page) return null
   const titles = [...new Set(adaptedTitles(catalog, book, page).map(k => t(k)))]
   const adaptable = titles.length > 0
@@ -25,7 +26,7 @@ export function AlignDialog({ stage, args, onClose }: DialogProps<{ page: string
   const run = () => {
     const done = perform(PAGE_ALIGN.id, { page: page.id, ...(adapt && adaptable ? { adapt: true } : {}) })
     if (done.ok) onClose()
-    else setRefused(true)
+    else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
   }
   return (
     <Dialog
@@ -48,7 +49,7 @@ export function AlignDialog({ stage, args, onClose }: DialogProps<{ page: string
             <Switch label={label} checked={adapt} onChange={setAdapt} />
           </div>
         )}
-        {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
+        {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
   )

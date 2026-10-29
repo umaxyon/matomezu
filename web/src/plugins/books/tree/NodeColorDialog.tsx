@@ -1,8 +1,9 @@
 // 節の色のダイアログ: 節（根も）の色を、ブックのテーマの代表色・好きな色・「なし」（テーマの塗り）から選ぶ。
-// 確定で、子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）を行う。紙に入らず断られたら、閉じずに理由を出す
+// 確定で、子はアクション node-update、根は base の page-update（ページのフィールドの受け方で根の色だけ）を行う。断られたら、閉じずに理由を出す（許可の段が止めたならその段の名前、ほかは紙に入らない）
 import { useId, useState } from "react"
-import { pagedOf } from "../../../plugin-api"
-import { type DialogProps, useBook, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type MessageKey, pagedOf } from "../../../plugin-api"
+import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"
+import { refusalMessage } from "../../base"
 import { ActionButton, ColorPicker, Dialog, Form, Problem, rowClass, useBookTheme, useSwatches } from "../../base/ui"
 import { NODE_UPDATE } from "./actions"
 import { nodeOf } from "./edit"
@@ -21,14 +22,15 @@ export function NodeColorDialog({ stage, args, onClose }: DialogProps<{ page: st
   const perform = usePerform(stage)
   const swatches = useSwatches(useBookTheme(book?.id), NODE_FILL)
   const [color, setColor] = useState<string | undefined>(node?.color)
-  const [refused, setRefused] = useState(false)
+  const catalog = useCoreCatalog()
+  const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !node) return null
   const submit = () => {
     const done = isRoot
       ? perform("@matomezu/base:page-update", { page: page.id, fields: { root: { color: color ?? null } } })
       : perform(NODE_UPDATE.id, { page: page.id, node: node.id, color: color ?? null })
     if (done.ok) onClose()
-    else setRefused(true)
+    else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
   }
   return (
     <Dialog
@@ -56,7 +58,7 @@ export function NodeColorDialog({ stage, args, onClose }: DialogProps<{ page: st
             />
           </div>
         )}
-        {refused && <Problem>{t("Does not fit on the paper")}</Problem>}
+        {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
   )

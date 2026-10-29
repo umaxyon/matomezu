@@ -520,6 +520,18 @@ test("中央の木の根には上下左右の 4 つの＋が出て、押した�
   expect(top(child.id)).toBeLessThan(rootTop)
 })
 
+test("ロック中のブックで＋が断られたら、トーストは止めた許可の段の名前「ロック中」を出す", () => {
+  const { store, id } = setup()
+  addTree(store, id, { caption: "根" })
+  act(() => {
+    expect(store.actions.perform("@matomezu/base:book-lock", {}, { book: id }).ok).toBe(true)
+  })
+  const paper = screen.getByRole("img", { name: "紙" })
+  fireEvent.click(within(paper).getAllByRole("button", { name: /子を足す/ })[0]!)
+  expect(screen.getByRole("alert").textContent).toContain("ロック中")
+  expect(screen.getByRole("alert").textContent).not.toContain("紙に入りません")
+})
+
 // A4 横の紙で、grow の向きなら入り、ほかの向きなら入らない子の数（なるべく多く）と、grow の向きで入る一番多い数
 const A4 = { w: 1123, h: 794 }
 const kids = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `k${i}`, caption: `子 ${i}` }))
