@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs"
 import { expect, type Page, test } from "@playwright/test"
 import { SAMPLE_BOOKS } from "../../web/src/sample-books"
+import { drawerTool } from "../drawer"
 
 // 1 つの常駐（空のアプリのフォルダ）を順に使う
 test.describe.configure({ mode: "serial" })
@@ -34,7 +35,7 @@ test("置いた箱は少し待って常駐に残り、読み直しても同じ�
   const put = await page.request.put(`/api/books/${book.id}`, { data: { book, base: 0 } })
   expect(put.ok()).toBe(true)
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 200, paper.y + 150)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -59,7 +60,7 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
     await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", SAMPLE_BOOKS[0]!.title)
     await expect(page.locator("[data-item]")).toHaveCount(1)
   }
-  await a.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(a, "箱")).click()
   const paper = (await a.getByRole("img", { name: "紙" }).boundingBox())!
   await a.mouse.click(paper.x + 500, paper.y + 300)
   const dialog = a.getByRole("dialog", { name: "ボックスの追加" })

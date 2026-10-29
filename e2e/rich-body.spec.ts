@@ -1,5 +1,6 @@
 // 本文の装飾（base の RichBody・RichText）: 本文のテキストFormの上のボックスで、選んだ範囲を太字・文字の色にし、箱に装飾して描く
 import { expect, type Page, test } from "@playwright/test"
+import { drawerTool } from "./drawer"
 
 async function onPaper(page: Page, x: number, y: number) {
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
@@ -10,7 +11,7 @@ test("本文の上のボックスで、選んだ範囲を太字と注意の色�
   page,
 }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -32,7 +33,7 @@ test("本文の上のボックスで、選んだ範囲を太字と注意の色�
 
 test("範囲を囲んだ色の中で色なしを押すと色が外れ、太字を押し直すと太字が外れる", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -50,7 +51,7 @@ test("範囲を囲んだ色の中で色なしを押すと色が外れ、太字�
 
 test("行の編集で書いた本文は、確定の前からリストの行に重ねて見せ、キャンセルでは元に戻る", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "リスト", exact: true }).click()
+  await (await drawerTool(page, "リスト")).click()
   const at = await onPaper(page, 120, 120)
   await page.mouse.click(at.x, at.y)
   const add = page.getByRole("dialog", { name: "リストの追加" })
@@ -72,7 +73,7 @@ test("行の編集で書いた本文は、確定の前からリストの行に�
 
 test("マスターの設定で文字の色を自分用に変えると、図面の本文のその色が変わる", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const add = page.getByRole("dialog", { name: "ボックスの追加" })

@@ -1,8 +1,9 @@
 import { expect, type Page, test } from "@playwright/test"
+import { drawerTool } from "./drawer"
 
 // リストを置こうとして紙の (x, y) で押し、追加のダイアログでキャプションを入れて追加する
 async function addList(page: Page, caption: string) {
-  await page.getByRole("button", { name: "リスト", exact: true }).click()
+  await (await drawerTool(page, "リスト")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 120, paper.y + 120)
   const dialog = page.getByRole("dialog", { name: "リストの追加" })
@@ -227,7 +228,7 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
   await page.goto("/")
   const first = await addList(page, "左")
   for (const c of ["一", "二", "三"]) await addRow(page, first, c)
-  await page.getByRole("button", { name: "リスト", exact: true }).click()
+  await (await drawerTool(page, "リスト")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 520, paper.y + 120)
   const add = page.getByRole("dialog", { name: "リストの追加" })

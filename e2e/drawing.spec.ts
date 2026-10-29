@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test"
+import { drawerTool } from "./drawer"
 
 const items = (page: Page) => page.locator("[data-item]")
 
@@ -21,8 +22,8 @@ test("箱のツールを押すとポインタに点線の箱が付き、紙の�
   page,
 }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
-  await expect(page.getByRole("button", { name: "箱" })).toHaveAttribute("aria-pressed", "true")
+  await (await drawerTool(page, "箱")).click()
+  await expect(await drawerTool(page, "箱")).toHaveAttribute("aria-pressed", "true")
   const at = await onPaper(page, 200, 150)
   await page.mouse.move(at.x, at.y)
   const ghost = page.locator("[data-fits]")
@@ -36,13 +37,13 @@ test("箱のツールを押すとポインタに点線の箱が付き、紙の�
   await expect(items(page)).toHaveAttribute("data-selected", "true")
   await expect(items(page)).toHaveText("見出し")
   await expect(ghost).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "箱" })).toHaveAttribute("aria-pressed", "false")
+  await expect(await drawerTool(page, "箱")).toHaveAttribute("aria-pressed", "false")
   await expect(page.getByRole("button", { name: "選択ツール" })).toBeVisible()
 })
 
 test("紙からはみ出す所では点線の箱が薄くなり、押しても置かない。Escape で取り消す", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 5, 5)
   await page.mouse.move(at.x, at.y)
   await expect(page.locator("[data-fits]")).toHaveAttribute("data-fits", "false")
@@ -51,14 +52,14 @@ test("紙からはみ出す所では点線の箱が薄くなり、押しても�
   await expect(items(page)).toHaveCount(0)
   await page.keyboard.press("Escape")
   await expect(page.locator("[data-fits]")).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "箱" })).toHaveAttribute("aria-pressed", "false")
+  await expect(await drawerTool(page, "箱")).toHaveAttribute("aria-pressed", "false")
 })
 
 test("選択の道具で箱をドラッグすると動き、何も無い所を押すと選択が外れる。ハンドの道具では箱ごと紙がずれる", async ({
   page,
 }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await addBox(page, at.x, at.y)
   const box = items(page)
@@ -91,7 +92,7 @@ test("選択の道具で箱をドラッグすると動き、何も無い所を�
 
 test("ハンドの道具の間は、紙の外でも箱の上でもポインタが手になり、押している間は握った手になる", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await addBox(page, at.x, at.y, "見出し")
   const cursor = (selector: string) =>
@@ -118,7 +119,7 @@ test("追加のダイアログは見出しの右にキャンセルと追加を�
   page,
 }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -132,9 +133,9 @@ test("追加のダイアログは見出しの右にキャンセルと追加を�
   await dialog.getByRole("button", { name: "キャンセル" }).click()
   await expect(dialog).toBeHidden()
   await expect(items(page)).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "箱" })).toHaveAttribute("aria-pressed", "false")
+  await expect(await drawerTool(page, "箱")).toHaveAttribute("aria-pressed", "false")
 
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   await page.mouse.click(at.x, at.y)
   const rule = dialog.getByRole("switch", { name: "区切り線" })
   await expect(rule).toBeDisabled()
@@ -154,7 +155,7 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
   page,
 }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await addBox(page, at.x, at.y, "前")
   const box = items(page)
@@ -181,7 +182,7 @@ test("選択の道具で箱をダブルクリックすると、今の中身の�
 
 test("選んだ箱は Delete で消える。ダイアログの入力Formの中の Delete では消えない", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await addBox(page, at.x, at.y, "消す")
   await items(page).dblclick()
@@ -201,7 +202,7 @@ test("箱を右クリックすると選ばれ、設定・区切り線・削除�
     [200, "一"],
     [450, "二"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, 150)
     await addBox(page, at.x, at.y, caption)
   }
@@ -227,7 +228,7 @@ test("キーは割り当ての表で効く: 本文のテキストFormの Enter �
   page,
 }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 200, 150)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -254,7 +255,7 @@ const BODY =
 
 // 本文を入れた箱を置き、選んだままにする
 async function addBodyBox(page: Page) {
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 120, 120)
   await page.mouse.click(at.x, at.y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
@@ -355,7 +356,7 @@ test("置いた箱の幅はキャプションに合わせ、20 字までは切�
     [0, "あいうえおかきくけこさしすせそたちつてと", 100],
     [1, "あいうえおかきくけこさしすせそたちつてとなにぬねの", 200],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, 100, y)
     await addBox(page, at.x, at.y, text)
     await page.evaluate(() => document.fonts.ready)
@@ -371,7 +372,7 @@ test("置いた箱の幅はキャプションに合わせ、20 字までは切�
 
 test("編集でキャプションを長くすると、20 字が見える幅まで箱が右へ広がる", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 100, 100)
   await addBox(page, at.x, at.y, "短い")
   const box = page.locator("[data-item]")
@@ -621,7 +622,7 @@ test("箱の右の辺を右の箱へ向けて広げると、手を離したと�
     [120, "左"],
     [260, "右"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, 120)
     await addBox(page, at.x, at.y, caption)
   }
@@ -646,7 +647,7 @@ test("ドラッグ中はほかの箱が薄くなって動かず、右の箱に�
     [120, "左"],
     [260, "右"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, 120)
     await addBox(page, at.x, at.y, caption)
   }
@@ -692,7 +693,7 @@ test("箱を右へ広げて、押した右の箱が紙の右の端で詰まる�
     [120, "左"],
     [260, "右"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, 120)
     await addBox(page, at.x, at.y, caption)
   }
@@ -718,7 +719,7 @@ test("箱の大きさを変えるドラッグの間は、ほかの箱が薄く�
     [120, "左"],
     [260, "右"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, 120)
     await addBox(page, at.x, at.y, caption)
   }
@@ -743,7 +744,7 @@ test("選択の道具で、選んでいない箱にポインタを乗せると�
     [150, "始"],
     [550, "終"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, 150)
     await addBox(page, at.x, at.y, caption)
   }
@@ -797,7 +798,7 @@ test("選択の道具で、選んでいない箱にポインタを乗せると�
 
 test("〇から同じ箱へ戻して離すと、自分に戻る線が引かれる", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const at = await onPaper(page, 300, 250)
   await addBox(page, at.x, at.y, "輪")
   const empty = await onPaper(page, 700, 600)
@@ -834,7 +835,7 @@ test("ロック中のページでは、箱にポインタを乗せても線を�
     [150, "始"],
     [550, "終"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, 150)
     await addBox(page, at.x, at.y, caption)
   }
@@ -880,7 +881,7 @@ test("線をダブルクリックすると線の編集のダイアログが開�
     [150, 150, "始"],
     [550, 350, "終"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, y)
     await addBox(page, at.x, at.y, caption)
   }
@@ -920,7 +921,7 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
     [150, 150, "始"],
     [550, 350, "終"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, y)
     await addBox(page, at.x, at.y, caption)
   }
@@ -951,7 +952,7 @@ test("選んだ線の両端に丸が出る。終点の丸を別の箱へ運ん�
     [550, 250, "終"],
     [550, 500, "先"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, y)
     await addBox(page, at.x, at.y, caption)
   }
@@ -1006,7 +1007,7 @@ test("箱をドラッグしている間、つながる線はその箱に付い�
     [150, 150, "始"],
     [500, 150, "終"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, y)
     await addBox(page, at.x, at.y, caption)
   }
@@ -1044,7 +1045,7 @@ test("線のキャプションを押すと線が選ばれ、ドラッグする�
     [150, 150, "始"],
     [550, 150, "終"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, y)
     await addBox(page, at.x, at.y, caption)
   }
@@ -1087,7 +1088,7 @@ test("線の色は、灰色を紙の色に 4 割混ぜた色。見る人の OS �
     [150, 150, "始"],
     [550, 150, "終"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, y)
     await addBox(page, at.x, at.y, caption)
   }
@@ -1116,7 +1117,7 @@ test("ブックの設定で線の既定の通り方を直線にすると、ペ�
     [150, 150, "始"],
     [550, 350, "終"],
   ] as const) {
-    await page.getByRole("button", { name: "箱" }).click()
+    await (await drawerTool(page, "箱")).click()
     const at = await onPaper(page, x, y)
     await addBox(page, at.x, at.y, caption)
   }

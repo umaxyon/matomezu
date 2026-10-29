@@ -35,6 +35,7 @@ const TABS_ON_TOP = defineLayout({
     ...DEFAULT_LAYOUT.slots,
     "@matomezu/base:stage-top": ["@matomezu/base:toolbox", "@matomezu/base:page-tabs"],
     "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],
+    "@matomezu/base:drawer-book-tools": [],
   },
 })
 
@@ -57,6 +58,7 @@ describe("配置", () => {
       "E207 layout bad: slot @matomezu/base:stage-top has unknown widget nope",
       "E208 layout bad: widget @matomezu/base:book-view cannot be placed in slot @matomezu/base:stage-top",
       "E209 layout bad: menu @matomezu/base:stage-menu has unknown command stage.nope",
+      "E212 layout bad: menu @matomezu/base:stage-menu is not shown by any placed widget",
     ])
   })
 
@@ -72,6 +74,9 @@ describe("配置", () => {
       "E211 layout no-stages: slot @matomezu/base:stage-body is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-bottom is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-corner is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:drawer-map is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:drawer-basics is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:drawer-book-tools is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
     ])
     // 中身を書かなければ、ステージの無い画面にできる
@@ -151,7 +156,7 @@ describe("配置", () => {
         <Screen />
       </MatomezuProvider>,
     )
-    const toolbar = () => screen.getByRole("toolbar", { name: "ツール" }).parentElement!
+    const toolbar = () => screen.getByRole("toolbar", { name: "ツール", hidden: true }).parentElement!
     expect(within(toolbar()).queryByRole("tablist")).toBeNull()
     rerender(
       <MatomezuProvider instance={a} layout={TABS_ON_TOP}>

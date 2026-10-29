@@ -1,12 +1,13 @@
 // 内包: 付け替えの道具のドラッグで、箱を内包ボックスの中へ入れ、外へ出す
 import { expect, type Page, test } from "@playwright/test"
+import { drawerTool } from "./drawer"
 
 // キャプションの文字を含む形のうち、一番内側の形（親は子の文字も含むので、並びの最後）
 const item = (page: Page, caption: string) => page.locator("[data-item]").filter({ hasText: caption }).last()
 
 // 箱を置こうとして紙の左上から (x, y) で押し、開いた追加のダイアログでキャプションを入れて追加する
 async function addBox(page: Page, x: number, y: number, caption: string) {
-  await page.getByRole("button", { name: "箱" }).click()
+  await (await drawerTool(page, "箱")).click()
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + x, paper.y + y)
   const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
