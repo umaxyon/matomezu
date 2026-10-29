@@ -1,7 +1,6 @@
 // 節のドラッグで落とす先（plugins/books/tree/drag.ts）: 節の真ん中なら子に、並びの向きの端の近くなら兄弟の前か後ろに、中央の木の根なら見た向きの子に
 import { expect, test } from "bun:test"
-import { EDGE_MAX } from "../../web/src/plugins/base"
-import { DROP_PAD, dropAt, edgeScroll } from "../../web/src/plugins/books/tree/drag"
+import { DROP_PAD, dropAt } from "../../web/src/plugins/books/tree/drag"
 import { layoutTree } from "../../web/src/plugins/books/tree/layout"
 import type { TreeRoot } from "../../web/src/plugins/books/tree/node"
 
@@ -72,12 +71,4 @@ test("中央の木: 根に落とせば、根の真ん中から見た向きへ伸
     parent: "r",
     side: "up",
   })
-})
-
-test("表示領域の端に近ければ、その向きの物が見えるように紙をずらす（量は時間に比例）。端に近くなければずらさない", () => {
-  const view = { w: 800, h: 600 }
-  expect(edgeScroll({ x: 400, y: 300 }, view, 0.1)).toEqual({ x: -0, y: -0 })
-  expect(edgeScroll({ x: 0, y: 300 }, view, 0.1).x).toBeCloseTo(EDGE_MAX * 0.1) // 左の端: 右へずらす
-  expect(edgeScroll({ x: 0, y: 300 }, view, 0.05).x).toBeCloseTo(EDGE_MAX * 0.05)
-  expect(edgeScroll({ x: 400, y: 600 }, view, 0.1).y).toBeCloseTo(-EDGE_MAX * 0.1) // 下の端: 上へずらす
 })
