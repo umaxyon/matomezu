@@ -1,9 +1,10 @@
 // 道具の定義: ステージでポインタが何をするか。道具は組（ToolSetDef）にまとめ、ブックのタイプが使う組を id で名指す（BookTypeDef の tools）。
-// 道具で何をするかは、ステージを描くビュー（見せ方・アイテム）が今の道具の定義を見て決める。土台が見るのは pans と places だけ:
-// pans はステージをドラッグすると紙をずらす道具、places はアイテムを置く道具（置こうとすると、組のこの道具に替える）。
+// 道具で何をするかは、ステージを描くビュー（見せ方・アイテム）が今の道具の定義を見て決める。土台が見るのは pans・places・performs だけ:
+// pans はステージをドラッグすると紙をずらす道具、places はアイテムを置く道具（置こうとすると、組のこの道具に替える）、
+// performs はその道具で行うアクション（開いているブックのページで、どれも許可の段に止められるなら、その道具は使えず、組の使える道具に替わる。表に無いアクションは W012）。
 // ほかのプラグインが道具ごとに読むものは、読む側が ToolExtras（定義オブジェクトの拡張ポイント）に書き足す。
 // アイコンは、見た目を結ぶとき（ui/plugin.ts の toolIcons）にこの id で結ぶ
-import type { ToolExtras, ToolSetExtras } from "../catalog"
+import type { ActionId, ToolExtras, ToolSetExtras } from "../catalog"
 import type { MessageKey } from "../i18n/i18n"
 
 export interface ToolDef<Tt extends string = MessageKey> extends ToolExtras {
@@ -11,6 +12,7 @@ export interface ToolDef<Tt extends string = MessageKey> extends ToolExtras {
   title: Tt
   pans?: boolean
   places?: boolean
+  performs?: readonly ActionId[]
 }
 
 // 道具の組。並びは回す順で、先頭が初めの道具（ほかのプラグインの道具も、本当の id で並べられる）

@@ -38,7 +38,7 @@ export function MinimapView({
     return o ? s.books[o.book] : undefined
   })
   const page = useShownPage(id)
-  const held = useMatomezuState(s => keepsPan(catalog, toolOf(catalog, s.workspace, id)))
+  const held = useMatomezuState(s => keepsPan(catalog, toolOf(catalog, s.workspace, id, s.books)))
   const { panStageBy, focusStage, setTool } = useActions()
   const latest = useRef(stage)
   latest.current = stage

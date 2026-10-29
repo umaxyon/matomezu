@@ -1,8 +1,10 @@
 // ロック: ロック中のブック・ページは利用者も AI も変えられない（許可の段 lock が止める）。外せるのは利用者だけ
 import { expect, test } from "bun:test"
+import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
 import type { Book, BookOf } from "../../web/src/core/schema/book"
+import { refusalMessage } from "../../web/src/plugins/base"
 import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { MASTER_BOOK } from "../../web/src/plugins/books/master"
@@ -113,4 +115,13 @@ test("ロック中は、行うアクションをどれも許可の段に止め�
   expect(enabled("@matomezu/base:book-new")).toBe(
     isEnabled(newStore(), newStore().state.getState(), "s1", "@matomezu/base:book-new"),
   )
+})
+
+test("断りの文言は、許可の段が止めたならその段の名前、ほかの理由なら呼ぶ側の文言", () => {
+  const { actions } = newStore()
+  expect(actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
+  const done = actions.perform("@matomezu/base:book-update", { title: "x" }, { book: "b1" })
+  const fallback = "@matomezu/tree:Does not fit on the paper" as MessageKey
+  expect(done.ok || refusalMessage(CORE_CATALOG, done, fallback)).toBe(LOCK.title)
+  expect(refusalMessage(CORE_CATALOG, { reason: "refused" }, fallback)).toBe(fallback)
 })

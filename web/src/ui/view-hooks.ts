@@ -87,7 +87,7 @@ export function useShownPage(stage: string): ItemPage | null {
 export function useStage(stage: string): StageView | null {
   const catalog = useCatalog().core
   const found = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage))
-  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage))
+  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage, s.books))
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 

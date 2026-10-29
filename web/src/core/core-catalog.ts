@@ -197,22 +197,31 @@ function mergeMessages(parts: CoreCatalogParts): Messages {
 }
 
 // 定義の組の食い違いを返す（無ければ空）。文は problemText で、直す所が分かる形になる
-// タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの
+// タイプの actions の、効かない行: without に付いていないアクション（W001）、add にすでに付いているアクション（W002）。warning はタイプのプラグインのもの。
+// 道具の performs の、表に無いアクション（W012。その行だけ効かない）。warning は道具のプラグインのもの
 function coreWarnings(parts: CoreCatalogParts): Warning[] {
   const actions = byId(parts.actions)
-  return parts.bookTypes.flatMap(t => {
-    const plugin = splitId(t.id).owner ?? ""
-    const attached = (id: string) => {
-      const a = actions.get(id)
-      return a !== undefined && attachedTo(a, t)
-    }
-    return [
-      ...(t.actions.without ?? [])
-        .filter(id => !attached(id) && !(t.actions.add ?? []).includes(id))
-        .map(id => warning("W001", plugin, { type: t.id, action: id })),
-      ...(t.actions.add ?? []).filter(attached).map(id => warning("W002", plugin, { type: t.id, action: id })),
-    ]
-  })
+  const tools = parts.tools.flatMap(tool =>
+    (tool.performs ?? [])
+      .filter(a => !actions.has(a))
+      .map(a => warning("W012", splitId(tool.id).owner ?? "", { tool: tool.id, action: a })),
+  )
+  return [
+    ...tools,
+    ...parts.bookTypes.flatMap(t => {
+      const plugin = splitId(t.id).owner ?? ""
+      const attached = (id: string) => {
+        const a = actions.get(id)
+        return a !== undefined && attachedTo(a, t)
+      }
+      return [
+        ...(t.actions.without ?? [])
+          .filter(id => !attached(id) && !(t.actions.add ?? []).includes(id))
+          .map(id => warning("W001", plugin, { type: t.id, action: id })),
+        ...(t.actions.add ?? []).filter(attached).map(id => warning("W002", plugin, { type: t.id, action: id })),
+      ]
+    }),
+  ]
 }
 
 export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {

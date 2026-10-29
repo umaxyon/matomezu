@@ -34,7 +34,7 @@ export function commandContext(
   return {
     catalog,
     home,
-    stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId)),
+    stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
     book,
     workspace,
     settings,

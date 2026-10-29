@@ -41,6 +41,17 @@
   line-height: 0;
   pointer-events: none;
 }
+/* 使えない道具: 斜めの線を引く */
+.icon[data-unusable="true"]::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 8px;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
 .icon svg {
   width: 18px;
   height: 18px;

@@ -46,10 +46,26 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
-.button:hover,
+.button:hover:not(:disabled),
 .button:focus-visible {
   background: var(--skin-float-hover);
   outline: none;
+}
+/* 使えない道具: 押せず、斜めの線を引く */
+.button:disabled {
+  color: var(--skin-hint);
+  cursor: default;
+}
+.button:disabled::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  height: 2px;
+  margin: -1px 0 0 -35%;
+  background: currentColor;
+  transform: rotate(-45deg);
 }
 .button[aria-pressed="true"] {
   background: var(--skin-accent);

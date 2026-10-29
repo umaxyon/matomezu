@@ -64,11 +64,13 @@ const GHOST = notes.defineCommand({
   run: () => {},
   when: () => true,
 })
-const PLUGIN = definePlugin(notes.plugin({ bookTypes: [NOTE], commands: [GHOST] }))
+const SCRIBBLE = notes.defineTool({ id: "scribble", title: "Note", performs: ["notes:nothing" as never] })
+const PLUGIN = definePlugin(notes.plugin({ bookTypes: [NOTE], commands: [GHOST], tools: [SCRIBBLE] }))
 
-test("without・add・performs の間違いは warning（W001〜W003）で、その行だけ効かず、プラグインのほかは動く", () => {
+test("without・add・performs の間違いは warning（W001〜W003・W012）で、その行だけ効かず、プラグインのほかは動く", () => {
   const instance = createMatomezu({ plugins: [...BUILTIN, PLUGIN], partial: true, home: "@matomezu/master:master" })
   expect(warningsOf(instance.catalog).map(warningText)).toEqual([
+    "W012 notes: tool notes:scribble: performs notes:nothing, which is not in the catalog",
     "W001 notes: bookType notes:note: without names @matomezu/list:row-add, which is not attached to it",
     "W002 notes: bookType notes:note: add names @matomezu/base:page-add, which is already attached to it",
     "W003 notes: command notes:ghost: performs notes:nothing, which is not in the catalog",

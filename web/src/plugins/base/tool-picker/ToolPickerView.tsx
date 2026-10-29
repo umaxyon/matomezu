@@ -12,7 +12,7 @@ import type { ToolId } from "../../../core/catalog"
 import type { Point, Rect } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
-import { toolOf } from "../../../core/workspace"
+import { toolOf, unusableTools } from "../../../core/workspace"
 import { suppressContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useActions, useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
@@ -146,9 +146,13 @@ function Picker({ last }: { last: { current: Point | null } }) {
   const opened = useMatomezuState(s => s.workspace.stages.find(st => st.picker !== null))
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
-  const current = useMatomezuState(s => (opened ? toolOf(catalog, s.workspace, opened.id) : null))
+  const current = useMatomezuState(s => (opened ? toolOf(catalog, s.workspace, opened.id, s.books) : null))
   const set = opened ? toolSetOf(catalog, opened) : null
   const picks: readonly ToolId[] = set ? toolsIn(catalog, set) : []
+  // 使えない道具（開いているページで、行うアクションをどれも許可の段に止められる）。並びを文字で比べて、変わったときだけ描き直す
+  const unusable = useMatomezuState(s =>
+    opened ? unusableTools(catalog, s.workspace, opened.id, s.books).join("\n") : "",
+  ).split("\n")
   const { command, closePicker, showPickerMap } = useActions()
   const [hover, setHover] = useState<number | null>(null)
   const [mapBox, setMapBox] = useState<Rect | null>(null) // その場に出したミニマップの枠（置いてから決まる）
@@ -249,6 +253,7 @@ function Picker({ last }: { last: { current: Point | null } }) {
               className={styles.button}
               aria-label={t(toolDef(catalog, tool).title)}
               aria-pressed={current === tool}
+              disabled={unusable.includes(tool)}
               style={{ left: slot.x, top: slot.y, width: ICON, height: ICON }}
               onClick={() => pick(tool)}
               onPointerMove={() => setHover(i)}

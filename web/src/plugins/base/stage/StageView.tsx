@@ -57,7 +57,7 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
       ? preview.props
       : null
   const catalog = useCatalog().core
-  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id))
+  const tool = useMatomezuState(s => toolOf(catalog, s.workspace, id, s.books))
   const pans = tool !== null && toolDef(catalog, tool).pans === true // ドラッグで紙をずらす道具
   // ブックのテーマの値と、文字の色の値（どちらもブックの設定のダイアログの下書きを重ねる。文字の色は見る人の上書きがいちばん強い）
   const viewerColors = useUserSetting(USER_TEXT_COLORS.id) as TextColorValues

@@ -8,6 +8,7 @@ import type { PagedBook } from "./book"
 import type { ItemId, ToolId } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
+import type { Library } from "./library"
 import type { Book } from "./schema/book"
 import {
   closeBook,
@@ -20,7 +21,7 @@ import {
   stopPlacing,
   togglePlacing as togglePlacingOn,
 } from "./stage"
-import { hasTool, placingTool, type Tools, toolDef, toolIn, toolSetOf } from "./tools"
+import { hasTool, nextTool, placingTool, type Tools, toolDef, toolIn, toolSetOf, toolsIn, toolUsable } from "./tools"
 
 // 横に並べる。share は分割したときの左のステージの幅の割合（分割をやめても覚えていて、次に分割したときもその割合で分ける）
 export interface Arrangement {
@@ -115,11 +116,32 @@ export function focus(ws: Workspace, id: string): Workspace {
   return { ...ws, current: id }
 }
 
-// ステージの今の道具（無いステージや、道具を使わないステージは null）
-export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string): ToolId | null {
+// ステージの今の道具（無いステージや、道具を使わないステージは null）。覚えている道具を、開いているブック（books のもの）のページで使えなければ、
+// 組の回す順で次の使える道具（どれも使えなければ null）
+export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: Library): ToolId | null {
   const stage = ws.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
-  return set ? toolIn(catalog, ws.tools, set) : null
+  if (!stage || !set) return null
+  const usable = usableIn(catalog, stage, books)
+  const tool = toolIn(catalog, ws.tools, set)
+  if (usable(tool)) return tool
+  const next = nextTool(catalog, set, tool, usable)
+  return usable(next) ? next : null
+}
+
+// ステージ id の道具の組の、使えない道具（回す順）
+export function unusableTools(catalog: CoreCatalog, ws: Workspace, id: string, books: Library): readonly ToolId[] {
+  const stage = ws.stages.find(s => s.id === id)
+  const set = stage ? toolSetOf(catalog, stage) : null
+  if (!stage || !set) return []
+  const usable = usableIn(catalog, stage, books)
+  return toolsIn(catalog, set).filter(tool => !usable(tool))
+}
+
+// ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを許可の段が止めない）
+export function usableIn(catalog: CoreCatalog, stage: Stage, books: Library): (tool: string) => boolean {
+  const book = stage.opened ? (books[stage.opened.book] ?? null) : null
+  return tool => toolUsable(catalog, tool, book, stage.opened?.page ?? null)
 }
 
 // ステージが使う道具の組の道具を替える。同じ組を使うステージは、全部その道具になる。組に無い道具には替えない。

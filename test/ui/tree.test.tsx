@@ -520,16 +520,27 @@ test("中央の木の根には上下左右の 4 つの＋が出て、押した�
   expect(top(child.id)).toBeLessThan(rootTop)
 })
 
-test("ロック中のブックで＋が断られたら、トーストは止めた許可の段の名前「ロック中」を出す", () => {
+test("ロック中のブックでは編集の道具を使えず（斜めの線）、ハンドになって＋を出さない。外せば編集の道具に戻り、ロック中に切り替えてもハンドのまま", () => {
   const { store, id } = setup()
   addTree(store, id, { caption: "根" })
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  expect(within(paper()).getAllByRole("button", { name: /子を足す/ }).length).toBeGreaterThan(0)
   act(() => {
     expect(store.actions.perform("@matomezu/base:book-lock", {}, { book: id }).ok).toBe(true)
   })
-  const paper = screen.getByRole("img", { name: "紙" })
-  fireEvent.click(within(paper).getAllByRole("button", { name: /子を足す/ })[0]!)
-  expect(screen.getByRole("alert").textContent).toContain("ロック中")
-  expect(screen.getByRole("alert").textContent).not.toContain("紙に入りません")
+  const wheel = screen.getByRole("button", { name: "ハンドツール" })
+  expect(wheel.querySelector('[data-unusable="true"]')).not.toBeNull()
+  expect(within(paper()).queryAllByRole("button", { name: /子を足す/ })).toHaveLength(0)
+  act(() => {
+    expect(store.actions.perform("@matomezu/base:book-unlock", {}, { book: id }).ok).toBe(true)
+  })
+  expect(screen.getByRole("button", { name: "編集ツール" })).toBeTruthy()
+  // ロック中に切り替えても、次の使える道具はハンド
+  act(() => {
+    expect(store.actions.perform("@matomezu/base:book-lock", {}, { book: id }).ok).toBe(true)
+  })
+  fireEvent.click(screen.getByRole("button", { name: "ハンドツール" }))
+  expect(screen.getByRole("button", { name: "ハンドツール" })).toBeTruthy()
 })
 
 // A4 横の紙で、grow の向きなら入り、ほかの向きなら入らない子の数（なるべく多く）と、grow の向きで入る一番多い数
