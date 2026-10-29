@@ -1,7 +1,7 @@
 // コマンドの定義: 画面の入口。ボタン・メニュー・キーなどから id で呼ぶ。
 // データを変えるのはアクションで、コマンドは store の操作（ステージ・ダイアログ・アクション）を呼ぶだけ
 
-import type { ActionId, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
+import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { Where } from "../../core/def/action"
 import type { MessageKey } from "../../core/i18n/i18n"
@@ -47,7 +47,7 @@ export interface CommandDef<A = undefined, Tt extends string = MessageKey> exten
   // 行うアクション。どれかが今のブック（ブックが対象でなければホームのタイプ）で使えなければ、土台はこのコマンドを出さない。
   // どれも許可の段に止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるものだけ行うコマンドがある）
   performs?: readonly ActionId[]
-  // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（許可の段に渡す。無ければ分からないとして渡す）
+  // 許可の範囲: 行うアクションが、呼ばれた場所のブックのどこを変えるか（許可の段に渡す）。ブックが対象のアクションを行うなら必ず書く（defineCommand の型が求める）
   permissionScope?: CommandScope
   // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の配置の末尾に足す（placeAdded）。引数と合うかは defineCommand が確かめる
   place?: { menus?: readonly MenuId[]; contextMenus?: readonly ContextMenuId[] }
@@ -61,10 +61,27 @@ export interface CommandPlace<A> {
   }[ContextMenuId][]
 }
 
+// 行うアクション P にブックが対象のものがあれば、許可の範囲を必ず書く（defineCommand の型が求める）。表に無いアクション（W003）は数えない
+export type CommandScopeRequired<P extends readonly ActionId[] | undefined> = true extends {
+  [I in keyof P]: [P[I]] extends [never]
+    ? false
+    : P[I] extends ActionId
+      ? ActionTable[P[I]] extends { target: "book" }
+        ? true
+        : false
+      : false
+}[number & keyof P]
+  ? { permissionScope: CommandScope }
+  : unknown
+
 // run の 3 つ目の引数の型から A を決め、id は書いた文字のまま残す（引数が無ければ A は undefined）。
 // 型は書いた順に決まるので、run は when より前に書く（後ろに書くと、引数のあるコマンドが型の誤りになる）
-export function defineCommand<const Id extends string, A = undefined>(
-  def: CommandDef<A> & { id: Id; place?: CommandPlace<NoInfer<A>> },
+export function defineCommand<
+  const Id extends string,
+  A = undefined,
+  const P extends readonly ActionId[] | undefined = undefined,
+>(
+  def: CommandDef<A> & { id: Id; performs?: P; place?: CommandPlace<NoInfer<A>> } & CommandScopeRequired<P>,
 ): CommandDef<A> & { id: Id } {
   return def
 }

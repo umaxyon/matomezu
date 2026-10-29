@@ -1,7 +1,7 @@
 // プラグインの定義の関数の組（pluginKit）: プラグインは自分の物を短い名前で書き、この組が頭（プラグインの id と :）を付けて返す。
 // 返した定義の id は本当の id（型も）で、自分の物はそれか kit.name(名前) で名指す。ほかのプラグインの物は本当の id で書く。
 // 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマキーの id・テーマが上書きする自分のテーマキーだけ
-import type { MessageKey } from "../core/catalog"
+import type { ActionId, MessageKey } from "../core/catalog"
 import type { ActionAttach, ActionDef, ActionTarget, ScopeRequired } from "../core/def/action"
 import {
   type BookSchema,
@@ -23,7 +23,7 @@ import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
 import type { LanguagePackDef, MessageMap } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
-import type { CommandDef, CommandPlace } from "./commands/def"
+import type { CommandDef, CommandPlace, CommandScopeRequired } from "./commands/def"
 import type { DialogDef } from "./dialogs"
 import type { KeyDef } from "./keys"
 import type { PluginParts } from "./plugin"
@@ -151,8 +151,12 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   ): Placed<T, Owned<P, Id>>
 
   // run の 3 つ目の引数の型から A を決める（defineCommand と同じく、run は when より前に書く）
-  defineCommand<const Id extends string, A = undefined>(
-    def: CommandDef<A, keyof M & string> & { id: Id; place?: CommandPlace<NoInfer<A>> },
+  defineCommand<const Id extends string, A = undefined, const Ps extends readonly ActionId[] | undefined = undefined>(
+    def: CommandDef<A, keyof M & string> & {
+      id: Id
+      performs?: Ps
+      place?: CommandPlace<NoInfer<A>>
+    } & CommandScopeRequired<Ps>,
   ): Omit<CommandDef<A>, "id"> & { id: Owned<P, Id> }
 
   defineDialog<const Id extends string>(def: { id: Id }): DialogDef & { id: Owned<P, Id> }
