@@ -25,10 +25,10 @@ import {
   useShownPage,
   useStage,
 } from "../../../../plugin-api/ui"
-import { refusalMessage, settingValue } from "../../../base"
+import { edgePanner, refusalMessage, settingValue } from "../../../base"
 import { RichBar, RichText, useResize, useZoomMotion } from "../../../base/ui"
 import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "../actions"
-import { dropAt, edgePanner, subtreeIds } from "../drag"
+import { dropAt, subtreeIds } from "../drag"
 import {
   addArgs,
   afterRemove,
@@ -380,7 +380,7 @@ interface NodeDrag {
 
 // 節のドラッグ: start で押した節を覚え、動かすと紙の座標の位置を追い、離したら onDrop に渡す（動かさずに離せば何もしない）。
 // 押した所は、ステージ stage の表示領域の要素 area から見た点にして、紙の座標に直す。
-// 動かし始めたら、ポインタの所を中心に倍率を 100% にし、ポインタが表示領域の端に近い間は、その向きへ紙をずらし続ける（drag.ts の edgeScroll）。
+// 動かし始めたら、ポインタの所を中心に倍率を 100% にし、ポインタが表示領域の端に近い間は、その向きへ紙をずらし続ける（base の edgePanner）。
 // 終えたら（落としても、やめても）編集の道具の倍率に戻す
 function useNodeDrag(stage: StageView, area: RefObject<HTMLDivElement | null>) {
   const { zoomStage, panStageBy } = useActions()

@@ -1,5 +1,6 @@
 // ディレクトリ構成図を組み立てる計算（plugins/books/dir/edit.ts）と並べ方（layout.ts）: 足す・名前と色・消す・付け替える・開け閉め・並べ替え・パスから組み立てる、行と罫線
 import { expect, test } from "bun:test"
+import { dropAt } from "../../web/src/plugins/books/dir/drag"
 import {
   addEntries,
   buildPaths,
@@ -175,4 +176,27 @@ test("行は上から 1 行ずつ、深さごとに字下げ。罫線はフォ�
   expect(laid.fits).toBe(true)
   expect(layoutDir(dir, { w: 794, h: MARGIN * 2 + ROW * 5 }).fits).toBe(false)
   expect(layoutDir(setClosed(dir, "src", true)!, { w: 794, h: MARGIN * 2 + ROW * 3 }).fits).toBe(true)
+})
+
+test("ドラッグで落とす先: フォルダの行の真ん中は中の末尾、上下の端は前後（開いたフォルダの下の端は中の先頭）。ファイルの行は上半分で前・下半分で後ろ。根は中へだけ。自分と中身の行には落とせない", () => {
+  const rows = layoutDir(dir, { w: 794, h: 1123 }).rows
+  const at = (id: string, t: number) => {
+    const r = rows.find(x => x.id === id)!
+    return { x: r.x + 4, y: r.y + r.h * t }
+  }
+  const where = (dragged: string, id: string, t: number) => {
+    const d = dropAt(dir, rows, dragged, at(id, t))
+    return d && { parent: d.parent, index: d.index, mark: d.mark.kind }
+  }
+  expect(where("readme", "ui", 0.5)).toEqual({ parent: "ui", index: undefined, mark: "into" })
+  expect(where("readme", "ui", 0.1)).toEqual({ parent: "src", index: 1, mark: "between" })
+  expect(where("readme", "ui", 0.9)).toEqual({ parent: "ui", index: 0, mark: "between" }) // 開いたフォルダの下の端は中の先頭
+  expect(where("readme", "a", 0.4)).toEqual({ parent: "src", index: 0, mark: "between" })
+  expect(where("readme", "a", 0.6)).toEqual({ parent: "src", index: 1, mark: "between" })
+  expect(where("a", "r", 0.1)).toEqual({ parent: "r", index: undefined, mark: "into" })
+  expect(where("src", "b", 0.5)).toBeNull() // 自分の中身の行
+  expect(where("src", "src", 0.5)).toBeNull()
+  expect(where("r", "readme", 0.5)).toBeNull() // 根は動かせない
+  // 同じフォルダの中の並べ替えは、動かす物を除いた並びで数える
+  expect(where("src", "readme", 0.9)).toEqual({ parent: "r", index: 1, mark: "between" })
 })

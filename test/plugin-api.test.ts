@@ -56,6 +56,8 @@ test("matomezu が出す名前", () => {
     "defineSkin",
     "defineTextColor",
     "defineTheme",
+    "edgePanner",
+    "edgeScroll",
     "edgeSpeed",
     "elapsedOf",
     "evenGap",

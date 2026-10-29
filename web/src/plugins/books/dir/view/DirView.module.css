@@ -267,3 +267,30 @@
   outline: none;
   background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
 }
+/* 行のドラッグ: 動かしている行と中身は薄く、ポインタに付く写しは上に、中へ入るフォルダの行には点線の枠、行の間に入る所には濃い線に紙の色の縁 */
+.row[data-dragging="true"] {
+  opacity: 0.35;
+}
+.row[data-drop="true"] {
+  border-radius: 4px;
+  outline: 2px dashed var(--theme-accent);
+  outline-offset: 1px;
+}
+.ghost {
+  z-index: 1;
+  box-sizing: content-box;
+  padding: 0 6px;
+  margin-left: -6px;
+  border-radius: 4px;
+  background: var(--theme-paper);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+  pointer-events: none;
+  opacity: 0.92;
+}
+.dropLine {
+  position: absolute;
+  height: 2px;
+  background: var(--theme-accent);
+  box-shadow: 0 0 0 1px var(--theme-paper);
+  pointer-events: none;
+}
