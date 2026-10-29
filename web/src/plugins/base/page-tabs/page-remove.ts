@@ -14,7 +14,7 @@ export const PAGE_REMOVE = kit.defineAction({
   title: "Remove page",
   target: "book",
   args: ARGS,
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args) => {
     if (!hasPages(book) || !book.pages.some(p => p.id === args.page)) return null
     return { next: removePage(book, args.page), result: {} }

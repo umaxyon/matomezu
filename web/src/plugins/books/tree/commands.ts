@@ -2,7 +2,7 @@
 // Home で根を選び、F2 で、選んでいる節のキャプションをその場で書き始める。Tab で子を、Enter ですぐ後ろの兄弟を足して、その場で書き始める（根に兄弟は足せない）。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
 // 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、節の色と、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーの見せ方の範囲（ステージの範囲より先に探す）
 import { type CommandContext, pagedOf } from "../../../plugin-api"
-import { openedPage, refusalMessage, settingValue } from "../../base"
+import { refusalMessage, settingValue } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { type Arrow, addArgs, afterRemove, keyPlus, moveFrom, selectedIn } from "./edit"
 import { GROW, type Grow } from "./grow"
@@ -69,7 +69,7 @@ function addCommand<const Id extends string>(
   return kit.defineCommand({
     id,
     performs: [NODE_ADD.id],
-    touches: openedPage,
+    permissionScope: "opened-page",
     title,
     run: (ctx, a) => {
       const tree = treeAt(ctx)
@@ -112,7 +112,7 @@ export const NODE_ADD_SIBLING = addCommand("node-add-sibling", "Add sibling afte
 export const NODE_DELETE = kit.defineCommand({
   id: "node-delete",
   performs: [NODE_REMOVE.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Delete",
   run: (ctx, a) => {
     const tree = treeAt(ctx)
@@ -134,7 +134,7 @@ export const NODE_DELETE = kit.defineCommand({
 export const NODE_SIZE_EDIT = kit.defineCommand({
   id: "node-size-edit",
   performs: [NODE_UPDATE.id],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Node size",
   run: (ctx, a) => {
     const tree = treeAt(ctx)
@@ -154,7 +154,7 @@ export const NODE_SIZE_EDIT = kit.defineCommand({
 export const NODE_COLOR_EDIT = kit.defineCommand({
   id: "node-color-edit",
   performs: [NODE_UPDATE.id, "@matomezu/base:page-update"],
-  touches: openedPage,
+  permissionScope: "opened-page",
   title: "Node color",
   run: (ctx, a) => {
     const tree = treeAt(ctx)

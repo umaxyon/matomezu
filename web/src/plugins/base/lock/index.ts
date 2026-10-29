@@ -42,6 +42,7 @@ export const BOOK_LOCK = kit.defineAction({
   aiDescription: `Lock the book: while locked, nothing in it can be changed and it cannot be moved to the trash, by the user or by AI (denied by ${kit.name("lock")}). Only the user can unlock it. Refused if it is already locked.`,
   title: "Lock book",
   target: "book",
+  permissionScope: "book",
   args: z.strictObject({}),
   run: book => {
     const next = lockBook(book, true)
@@ -56,6 +57,7 @@ export const BOOK_UNLOCK = kit.defineAction({
   aiDescription: "Unlock the book (only the user can).",
   title: "Unlock book",
   target: "book",
+  permissionScope: "book",
   args: z.strictObject({}),
   run: book => {
     const next = lockBook(book, false)
@@ -70,7 +72,7 @@ export const PAGE_LOCK = kit.defineAction({
   title: "Lock page",
   target: "book",
   args: PAGE_ARGS,
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args) => {
     const next = lockPage(book, args.page, true)
     return next ? { next, result: {} } : null
@@ -85,7 +87,7 @@ export const PAGE_UNLOCK = kit.defineAction({
   title: "Unlock page",
   target: "book",
   args: PAGE_ARGS,
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args) => {
     const next = lockPage(book, args.page, false)
     return next ? { next, result: {} } : null

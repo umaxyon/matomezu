@@ -75,7 +75,6 @@ test("matomezu が出す名前", () => {
     "minSize",
     "newClash",
     "nextItemId",
-    "openedPage",
     "pageContext",
     "pageFieldsWay",
     "pageItemsOf",

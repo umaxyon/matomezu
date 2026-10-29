@@ -25,6 +25,7 @@ export const PAGE_ADD = kit.defineAction({
     "Add a page at the end of a book. Paper and orientation default to the book type's. fields are the page's own fields its book type adds (required ones must be given), settings the page settings it has. Returns the new page's id, and in fields what the book type returns for its fields (such as the ids it gave).",
   title: "Add page",
   target: "book",
+  permissionScope: "book",
   args: ARGS,
   describeArgs: catalog =>
     ARGS.extend({ settings: settingsArgs(catalog, "page").optional(), fields: fieldsArgs(catalog, "add").optional() }),

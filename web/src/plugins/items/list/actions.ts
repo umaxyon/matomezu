@@ -31,7 +31,7 @@ export const ROW_ADD = kit.defineAction({
     list: z.string().min(1),
     props: RowNewSchema.optional(),
   }),
-  touches: args => ({ page: args.page, items: [args.list] }),
+  permissionScope: { page: "page", item: "list" },
   run: (book, args, ctx) => {
     if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
@@ -57,7 +57,7 @@ export const ROW_UPDATE = kit.defineAction({
     row: z.string().min(1),
     props: RowPatchSchema,
   }),
-  touches: args => ({ page: args.page, items: [args.list] }),
+  permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
     if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
@@ -83,7 +83,7 @@ export const ROW_REMOVE = kit.defineAction({
     list: z.string().min(1),
     rows: z.array(z.string().min(1)).min(1),
   }),
-  touches: args => ({ page: args.page, items: [args.list] }),
+  permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
     if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
@@ -108,7 +108,7 @@ export const ROW_CHECK = kit.defineAction({
     row: z.string().min(1),
     checked: z.boolean(),
   }),
-  touches: args => ({ page: args.page, items: [args.list] }),
+  permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
     if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
@@ -135,7 +135,7 @@ export const ROW_LINES = kit.defineAction({
     rows: z.array(z.string().min(1)).min(1).optional(),
     lines: z.union([z.number().int().min(0).max(MAX_ROW_LINES), z.literal("max"), z.literal("fit")]).nullable(),
   }),
-  touches: args => ({ page: args.page, items: [args.list] }),
+  permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
     if (!hasPages(book)) return null
     const found = findList(book, args.page, args.list)
@@ -161,7 +161,7 @@ export const ROW_MOVE = kit.defineAction({
     to: z.string().min(1).optional(),
     before: z.string().min(1).optional(),
   }),
-  touches: args => ({ page: args.page, items: [args.list] }),
+  permissionScope: { page: "page", item: "list" },
   run: (book, args) => {
     if (!hasPages(book)) return null
     const from = findList(book, args.page, args.list)

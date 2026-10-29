@@ -3,5 +3,4 @@
 export { EDGE_MAX, EDGE_ZONE, edgeSpeed } from "./edge-speed"
 export { type Elapsed, elapsedOf } from "./elapsed"
 export { contentIdMaker } from "./ids"
-export { openedPage } from "./opened-page"
 export { refusalMessage } from "./refusal"

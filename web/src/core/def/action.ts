@@ -85,6 +85,41 @@ export interface Where {
   items?: readonly string[]
 }
 
+// 引数の形 A のうち、値の型が V に当たる引数の名前
+type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> extends V ? K : never }[keyof A & string]
+
+// 許可の範囲: ブックが対象のアクションが、ブックのどこを変えるかの宣言。許可の段は、行う前にこの所で問う。
+// "book" はページもアイテムも変えない。page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く。
+// 引数の名前で言えなければ、引数から所を返す関数を書く
+export type PermissionScope<A = unknown> =
+  | "book"
+  | { page: ArgsOfType<A, string>; item?: ArgsOfType<A, string>; items?: ArgsOfType<A, readonly string[]> }
+  | ((args: A) => Where)
+
+// 表に並べたアクションの許可の範囲（引数の形を問わない形。書くときの型は PermissionScope<A>）
+export type AnyPermissionScope =
+  | "book"
+  | { page: string; item?: string | undefined; items?: string | undefined }
+  | ((args: never) => Where)
+
+// ブックが対象のアクションは、許可の範囲を必ず書く（defineAction の型が求める）
+export type ScopeRequired<T extends ActionTarget, A> = T extends "book"
+  ? { permissionScope: PermissionScope<A> }
+  : unknown
+
+// 許可の範囲から、引数 args での所を出す
+export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): Where | undefined {
+  if (scope === undefined) return undefined
+  if (scope === "book") return {}
+  if (typeof scope === "function") return (scope as (args: unknown) => Where)(args)
+  const a = args as Record<string, unknown>
+  const id = (k: string | undefined) => (k !== undefined && typeof a[k] === "string" ? (a[k] as string) : undefined)
+  const page = id(scope.page)
+  const item = id(scope.item)
+  const items = scope.items !== undefined && Array.isArray(a[scope.items]) ? (a[scope.items] as string[]) : undefined
+  return { ...(page ? { page } : {}), ...(item ? { items: [item] } : items ? { items } : {}) }
+}
+
 export interface ActionDef<
   T extends ActionTarget = ActionTarget,
   A = unknown,
@@ -103,9 +138,8 @@ export interface ActionDef<
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ブックのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
-  // ブックが対象のアクションが、引数 args でブックのどこを変えるか。許可の段が行う前に見る（無ければ分からないとして渡す）。
-  // 守るのは、許可の段が行った後に見る実際の変化（PermissionDef の keeps）
-  touches?(args: A): Where
+  // 許可の範囲（ブックが対象のアクションは必ず書く）。守るのは、許可の段が行った後に見る実際の変化（PermissionDef の keeps）
+  permissionScope?: AnyPermissionScope
   // 付く先がページを持つタイプだけ（pages・items）なら、ブックは PagedBook で来る
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | null
 }
@@ -118,6 +152,8 @@ export function defineAction<
   R,
   I,
   const At extends ActionAttach | undefined = undefined,
->(def: ActionDef<T, A, R, I, MessageKey, At> & { id: Id }): ActionDef<T, A, R, I, MessageKey, At> & { id: Id } {
+>(
+  def: ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & ScopeRequired<T, A>,
+): ActionDef<T, A, R, I, MessageKey, At> & { id: Id } {
   return def
 }

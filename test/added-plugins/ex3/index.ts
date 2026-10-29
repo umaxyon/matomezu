@@ -8,6 +8,7 @@ import { kit } from "./kit"
 export const USE_MINT = kit.defineCommand({
   id: "mint",
   performs: ["@matomezu/base:book-update"],
+  permissionScope: "book",
   title: "useMint",
   run: (ctx, a) => {
     if (ctx.book)

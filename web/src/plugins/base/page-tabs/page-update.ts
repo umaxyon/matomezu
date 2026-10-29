@@ -30,7 +30,7 @@ export const PAGE_UPDATE = kit.defineAction({
       settings: settingsArgs(catalog, "page").optional(),
       fields: fieldsArgs(catalog, "update").optional(),
     }),
-  touches: args => ({ page: args.page }),
+  permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     const found = hasPages(book) ? book.pages.find(p => p.id === args.page) : undefined
     if (!hasPages(book) || !found) return null
