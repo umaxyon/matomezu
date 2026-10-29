@@ -82,7 +82,7 @@ test("マスターの設定で文字の色を自分用に変えると、図面�
   await expect(span).toHaveCSS("color", "rgb(217, 119, 6)")
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await trigger.hover()
-  await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ホーム" }).click()
+  await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ホーム" }).click()
   const master = page.getByRole("region", { name: "マスター" })
   await master.getByRole("button", { name: "注意" }).click()
   const picker = page.getByRole("dialog", { name: "色を選ぶ" })

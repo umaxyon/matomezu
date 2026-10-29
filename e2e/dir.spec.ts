@@ -8,7 +8,7 @@ const row = (page: Page, name: string) => rows(page).filter({ hasText: new RegEx
 async function fromMenu(page: Page, name: string) {
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await trigger.hover()
-  return trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name })
+  return trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name })
 }
 
 // マスターでディレクトリ構成図のブックを作り、根のフォルダ proj だけのページを作る

@@ -4,8 +4,25 @@ import { expect, type Page, test } from "@playwright/test"
 async function fromMenu(page: Page, name: string, i = 0) {
   const trigger = page.locator('button[aria-haspopup="menu"]').nth(i)
   await trigger.hover()
-  return trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name })
+  return trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name })
 }
+
+test("下の行のどこに乗せても、ブックの名前のメニューがせり上がり、下の行から離れると下がる", async ({ page }) => {
+  await page.goto("/")
+  const trigger = page.locator('button[aria-haspopup="menu"]').first()
+  // ページタブの右の空いた所に乗せる（名前のボタンには乗せない）
+  const tabs = (await page.getByRole("tablist").first().boundingBox())!
+  await page.mouse.move(tabs.x + tabs.width - 20, tabs.y + tabs.height / 2)
+  await expect(trigger).toHaveAttribute("aria-expanded", "true")
+  // 下の行からメニューへ動いても下がらず、メニューのボタンを押せる
+  const open = trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ブックを開く" })
+  await open.hover()
+  await expect(trigger).toHaveAttribute("aria-expanded", "true")
+  // 紙の真ん中へ離れると下がる
+  const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
+  await page.mouse.move(paper.x + paper.width / 2, paper.y + paper.height / 2)
+  await expect(trigger).toHaveAttribute("aria-expanded", "false")
+})
 
 test("分割すると、右のステージは何も開かず真ん中でブックを選べ、選ぶと右に紙が出る", async ({ page }) => {
   await page.goto("/")
@@ -213,7 +230,7 @@ test("マスターの設定で言語とスキンを変えると、画面がす�
 test("ブックの名前のボタンにマウスを乗せるとメニューがせり上がり、離れると下がる。押しても出る", async ({ page }) => {
   await page.goto("/")
   const trigger = page.getByRole("button", { name: "まとめ図の構想" })
-  const menu = trigger.locator("xpath=following-sibling::div[1]")
+  const menu = trigger.locator("xpath=../following-sibling::div[1]")
   await expect(menu).toBeHidden()
   await trigger.hover()
   await expect(menu).toBeVisible()

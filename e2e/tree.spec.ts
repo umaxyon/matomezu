@@ -6,7 +6,7 @@ const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 async function fromMenu(page: Page, name: string) {
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   await trigger.hover()
-  return trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name })
+  return trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name })
 }
 
 // マスターでツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければブック継承）

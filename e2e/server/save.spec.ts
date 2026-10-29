@@ -231,7 +231,7 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
   const openDialog = async () => {
     await trigger.hover()
-    await trigger.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "ブックを開く" }).click()
+    await trigger.locator("xpath=../following-sibling::div[1]").getByRole("button", { name: "ブックを開く" }).click()
     return page.getByRole("dialog", { name: "ブックを開く" })
   }
   let dialog = await openDialog()
