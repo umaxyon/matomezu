@@ -369,7 +369,7 @@ function KindPicker({
 // テキストFormの左を、名前の左から内へ寄せる長さ（テキストFormの余白と枠の分。字が動かないように）
 const EDITOR_INSET = 6
 // 選んでいる行の右と＋の間
-const PLUS_GAP = 10
+const PLUS_GAP = 2
 
 // 中身の色（color）を塗る CSS 変数: アイコンの色（--dir-icon）を上書きする。代表色の名前は、ブックのテーマの代表色のテーマキーを指す
 const paint = (color: string | undefined): CSSProperties | undefined =>
