@@ -32,22 +32,9 @@
   font-weight: 600;
   color: var(--theme-hint);
 }
-.row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.label {
-  width: 80px;
-}
-.select {
-  flex: 1;
-  padding: 5px 8px;
-  border: 1px solid var(--theme-line);
-  border-radius: 6px;
-  background: var(--theme-paper);
-  color: var(--theme-text);
-  font: inherit;
+.note {
+  margin: 0;
+  color: var(--theme-hint);
 }
 .button {
   padding: 6px 14px;
@@ -59,7 +46,6 @@
   font-weight: 600;
   cursor: pointer;
 }
-.select:focus-visible,
 .button:focus-visible {
   outline: 2px solid var(--theme-accent);
   outline-offset: 1px;

@@ -1,6 +1,6 @@
 // 利用者の設定のアクション: 書いた項目の値だけを丸ごと置き換える。使えるかはホームのブックのタイプが決め、ホームのタイプが fixedSettings に挙げた項目は変えさせない
 import { z } from "zod"
-import type { CatalogCheck } from "../../../core/core-catalog"
+import type { CatalogCheck, CoreCatalog } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
 import { settingSchema } from "../../../core/settings"
 import { kit } from "../kit"
@@ -32,7 +32,7 @@ export const SETTINGS_SET = kit.defineAction({
     }),
   // 無い項目・形の合わない値・ホームが変えさせない項目・AI が頼んだ利用者だけの項目があれば、どれも変えずに断る
   run: (settings, args, ctx) => {
-    const fixed = (ctx.home !== null && ctx.catalog.bookTypes.get(ctx.home)?.fixedSettings) || []
+    const fixed = fixedSettingsOf(ctx.catalog, ctx.home)
     const next: Record<string, unknown> = { ...settings }
     for (const [id, value] of Object.entries(args.values)) {
       const def = ctx.catalog.userSettings.get(id)
@@ -48,6 +48,11 @@ export const SETTINGS_SET = kit.defineAction({
     return { next, result: {} }
   },
 })
+
+// ホーム home のタイプが変えさせない利用者の設定の項目の id
+export function fixedSettingsOf(catalog: CoreCatalog, home: string | null): readonly string[] {
+  return (home !== null && catalog.bookTypes.get(home)?.fixedSettings) || []
+}
 
 // fixedSettings に挙げた id が、利用者の設定の項目か（組み立てのときの確かめ）
 export const FIXED_SETTINGS_CHECK: CatalogCheck = catalog =>

@@ -1,0 +1,43 @@
+/* 項目ごとの囲み（押せないときは、まとめて灰色にする） */
+.item {
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.item:disabled {
+  opacity: 0.5;
+}
+/* ほかのプラグインの項目の見出し */
+.heading {
+  margin: 16px 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-hint);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.label {
+  width: 120px;
+  flex: none;
+}
+.control {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--theme-line);
+  border-radius: 6px;
+  background: var(--theme-paper);
+  color: var(--theme-text);
+  font: inherit;
+}
+.control:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 1px;
+}
+.hint {
+  color: var(--theme-hint);
+}

@@ -71,3 +71,11 @@ test("追加プラグインの項目は役を持てない", () => {
   const bad: Plugin = { id: "@ex/r", userSettings: [{ ...OPEN, id: "@ex/r:lang", role: "lang" }] }
   expect(() => assemble([...BUILTIN, bad])).toThrow("E309")
 })
+
+test("選択肢の名前（optionTitles）の文言の鍵が文言に無ければ、組み立てで誤り", () => {
+  const named: Plugin = {
+    id: "@ex/o",
+    userSettings: [{ ...OPEN, id: "@ex/o:mode", schema: z.enum(["a"]), optionTitles: { a: "@ex/o:none" } }],
+  }
+  expect(() => assemble([...BUILTIN, named])).toThrow("E018")
+})
