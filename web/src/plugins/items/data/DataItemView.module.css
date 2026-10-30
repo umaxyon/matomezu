@@ -28,14 +28,18 @@
   border: 1px solid var(--data-line);
   background: var(--data-fill);
 }
+/* 表: 列の幅と行の高さは DataItemView が size.ts の値で決める（罫線を含む大きさ）。枠のほうが広ければ、列を広げて枠を埋める */
 .table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
   min-width: 100%;
 }
 .table th,
 .table td {
+  box-sizing: border-box;
   padding: 2px 8px;
-  border-bottom: 1px solid var(--data-line);
+  overflow: hidden;
   white-space: nowrap;
   text-align: left;
 }
@@ -46,9 +50,9 @@
 .table td + td {
   border-left: 1px solid var(--data-line);
 }
+.table tbody td {
+  border-top: 1px solid var(--data-line);
+}
 .table [data-type="number"] {
   text-align: right;
-}
-.table tbody tr:last-child td {
-  border-bottom: none;
 }

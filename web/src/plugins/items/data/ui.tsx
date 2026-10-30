@@ -1,8 +1,9 @@
-// データの見た目: データのビューとアイコン
+// データの見た目: データのビューとアイコン、編集のダイアログ
 import { definePluginUi } from "../../../plugin-api/ui"
 import { DATA_PLUGIN } from "."
+import { EditDataDialog } from "./DataDialog"
 import { DataItemView } from "./DataItemView"
-import { DATA } from "./data"
+import { DATA, DATA_EDIT_DIALOG } from "./data"
 
 // ツールボックスのアイコン（見出しの行と罫線の表）
 const DATA_ICON = (
@@ -14,4 +15,5 @@ const DATA_ICON = (
 
 export const DATA_UI = definePluginUi(DATA_PLUGIN, {
   items: { [DATA.id]: { view: DataItemView, icon: DATA_ICON } },
+  dialogViews: { [DATA_EDIT_DIALOG.id]: EditDataDialog },
 })
