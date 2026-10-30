@@ -1,6 +1,6 @@
-// ブラウザの URL と画面の場所（core/address.ts）の行き来（OVERHAUL 4.5: ルーターは入れない。移動の履歴は store が持ち、URL はそれを映す）。
+// ブラウザの URL と画面の場所（core/address.ts）の行き来（OVERHAUL 4.5: ルーターは入れない。開いている場所は store が持ち、URL はそれを映す）。
 // 開いたときは URL の場所を当てはめ（store の locate）、見ているものが変わったら URL に書く。移動（ステージの数か、ブック・ページが変わった）
-// なら履歴に積み（pushState）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。ブラウザの戻る・進む（popstate）は、
+// ならブラウザの履歴に積み（pushState）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。ブラウザの戻る・進む（popstate）は、
 // その URL の場所を当てはめる。
 // URL の形: ステージごとに b0（ブックの id。何も開いていなければ空）・p0（ページの id。無ければ書かない）・v0（倍率,横,縦）、
 // 続けて b1・p1・v1 …、c（カレントの番号）・r（境目の割合）。id にどの文字が入っても読み戻せるように、ステージの値ごとに分けて書く
@@ -10,8 +10,8 @@ import type { MatomezuInstance } from "../store/store"
 // URL とのやり取り（テストでは差し替える）
 export interface Place {
   search(): string // 今の URL の ? から後ろ
-  push(search: string): void // 履歴に積む
-  replace(search: string): void // 今の履歴を書き換える
+  push(search: string): void // ブラウザの履歴に積む
+  replace(search: string): void // 今のブラウザの履歴を書き換える
   onPop(listener: () => void): () => void // 戻る・進むで URL が変わったら呼ぶ。止める関数を返す
   later(run: () => void): () => void // しばらくしてから run を呼ぶ（書き換えをまとめる）。取り消す関数を返す
 }

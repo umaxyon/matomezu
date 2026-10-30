@@ -1,5 +1,5 @@
-// 画面の履歴: 利用者が画面で行ったアクションを、同じ処理の中のものは 1 段にまとめて、ブックごとに覚える。元に戻す（undo）は段が変えた所を前の値に、
-// やり直す（redo）は後の値に置き直す（book-revert を同じ道で送る）。ロックの掛け外しは覚えない。新しい段を入れると、そのブックのやり直せる段は消える
+// 画面の履歴: 利用者が画面で行ったアクションを、同じ処理の中のものは 1 つの画面の履歴の段にまとめて、ブックごとに覚える。元に戻す（undo）は画面の履歴の段が変えた所を前の値に、
+// やり直す（redo）は後の値に置き直す（book-revert を同じ道で送る）。ロックの掛け外しは覚えない。新しい画面の履歴の段を入れると、そのブックのやり直せる画面の履歴の段は消える
 import { expect, test } from "bun:test"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { isEnabled } from "../../web/src/store/commands"
@@ -10,7 +10,7 @@ type Drawing = BookOf<"@matomezu/drawing:drawing">
 const bookOf = (store: ReturnType<typeof newStore>, id = "b1") => store.state.getState().books[id] as Drawing
 const itemsOf = (store: ReturnType<typeof newStore>, i = 0) => (bookOf(store).pages[i]?.items ?? []).map(x => x.id)
 const historyOf = (store: ReturnType<typeof newStore>, id = "b1") => store.state.getState().history[id]
-// 同じ処理が終わる（開いている段が履歴に入る）のを待つ
+// 同じ処理が終わる（開いている画面の履歴の段が画面の履歴に入る）のを待つ
 const settled = () => Promise.resolve()
 
 function ready() {
@@ -25,7 +25,7 @@ const place = (store: ReturnType<typeof newStore>, x: number, caption = "箱") =
     { book: "b1" },
   )
 
-test("箱を置いた段を元に戻すと箱が消え、やり直すと同じ id の箱が同じ所に戻る", async () => {
+test("箱を置いた画面の履歴の段を元に戻すと箱が消え、やり直すと同じ id の箱が同じ所に戻る", async () => {
   const store = ready()
   const before = itemsOf(store)
   expect(place(store, 40).ok).toBe(true)
@@ -40,7 +40,7 @@ test("箱を置いた段を元に戻すと箱が消え、やり直すと同じ i
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
 })
 
-test("同じ処理の中で行ったアクションは 1 段にまとまり、1 回の元に戻すで全部戻る", async () => {
+test("同じ処理の中で行ったアクションは 1 つの画面の履歴の段にまとまり、1 回の元に戻すで全部戻る", async () => {
   const store = ready()
   const before = itemsOf(store)
   place(store, 40, "1")
@@ -51,18 +51,18 @@ test("同じ処理の中で行ったアクションは 1 段にまとまり、1 
   expect(itemsOf(store)).toEqual(before)
 })
 
-test("別の処理で行ったアクションは別の段。コマンドを行う前にも段を閉じる", async () => {
+test("別の処理で行ったアクションは別の画面の履歴の段。コマンドを行う前にも画面の履歴の段を閉じる", async () => {
   const store = ready()
   place(store, 40, "1")
   await settled()
   place(store, 400, "2")
-  // 同じ処理の中で戻す: すぐ前の操作の段を閉じてから戻す
+  // 同じ処理の中で戻す: すぐ前の操作の画面の履歴の段を閉じてから戻す
   store.actions.command("s1", "@matomezu/base:undo")
   expect(itemsOf(store)).toHaveLength(itemsOf(newStore()).length + 1)
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [{}] })
 })
 
-test("新しい段を入れると、そのブックのやり直せる段は消える", async () => {
+test("新しい画面の履歴の段を入れると、そのブックのやり直せる画面の履歴の段は消える", async () => {
   const store = ready()
   place(store, 40)
   await settled()
@@ -74,7 +74,7 @@ test("新しい段を入れると、そのブックのやり直せる段は消�
   expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:redo")).toBe(false)
 })
 
-test("ロックの掛け外しは履歴に入らない。ロック中のブックでは元に戻すが押せない", async () => {
+test("ロックの掛け外しは画面の履歴に入らない。ロック中のブックでは元に戻すが押せない", async () => {
   const store = ready()
   place(store, 40)
   await settled()
@@ -88,7 +88,7 @@ test("ロックの掛け外しは履歴に入らない。ロック中のブッ�
   expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:undo")).toBe(true)
 })
 
-test("ロック中のページを変えた段は、元に戻すとトーストで断り、段は残る", async () => {
+test("ロック中のページを変えた画面の履歴の段は、元に戻すとトーストで断り、画面の履歴の段は残る", async () => {
   const store = ready()
   place(store, 40)
   await settled()
@@ -99,7 +99,7 @@ test("ロック中のページを変えた段は、元に戻すとトースト�
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
 })
 
-test("ページを消した段を元に戻すと、同じ id のページが元の並びの所に戻り、そのページを開く", async () => {
+test("ページを消した画面の履歴の段を元に戻すと、同じ id のページが元の並びの所に戻り、そのページを開く", async () => {
   const store = ready()
   const pages = bookOf(store).pages.map(p => p.id)
   store.actions.perform("@matomezu/base:page-add", { title: "2 枚目" }, { book: "b1" })
@@ -112,7 +112,7 @@ test("ページを消した段を元に戻すと、同じ id のページが元�
   expect(store.state.getState().workspace.stages[0]?.opened?.page).toBe(pages[0])
 })
 
-test("ブックの名前を変えた段を戻すと、前の名前に戻る", async () => {
+test("ブックの名前を変えた画面の履歴の段を戻すと、前の名前に戻る", async () => {
   const store = ready()
   const title = bookOf(store).title
   store.actions.perform("@matomezu/base:book-update", { title: "新しい名前" }, { book: "b1" })
@@ -121,7 +121,7 @@ test("ブックの名前を変えた段を戻すと、前の名前に戻る", as
   expect(bookOf(store).title).toBe(title)
 })
 
-test("戻すまでの間に AI が変えた所は、段が変えた所なら上書きし、そうでなければ残す。AI の変更は履歴に入らない", async () => {
+test("戻すまでの間に AI が変えた所は、画面の履歴の段が変えた所なら上書きし、そうでなければ残す。AI の変更は画面の履歴に入らない", async () => {
   const store = ready()
   place(store, 40, "1")
   await settled()
@@ -139,7 +139,7 @@ test("戻すまでの間に AI が変えた所は、段が変えた所なら上�
   expect(bookOf(store).title).toBe("AI の名前")
 })
 
-test("continueStep のあとに同じ処理で行ったアクションは、そのブックの最後の段に足される。続けて何も変わらなければ段ごと無くなる", async () => {
+test("continueStep のあとに同じ処理で行ったアクションは、そのブックの最後の画面の履歴の段に足される。続けて何も変わらなければ画面の履歴の段ごと無くなる", async () => {
   const store = ready()
   const before = itemsOf(store)
   place(store, 40, "足した")
@@ -152,7 +152,7 @@ test("continueStep のあとに同じ処理で行ったアクションは、そ�
   expect(historyOf(store)?.undo).toHaveLength(1)
   store.actions.command("s1", "@matomezu/base:undo")
   expect(itemsOf(store)).toEqual(before)
-  // ページを足して、続けてそのページを消すと、何も変わらないので段は無くなる
+  // ページを足して、続けてそのページを消すと、何も変わらないので画面の履歴の段は無くなる
   store.actions.perform("@matomezu/base:page-add", { title: "足した" }, { book: "b1" })
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)

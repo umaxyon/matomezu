@@ -71,7 +71,9 @@ test("Tab の枠と f で中身を足して名前を書き、行をフォルダ�
   await expect(rows(page)).toHaveText(["proj", "src", "a.ts", "README.md"])
 })
 
-test("足して名前を書いた行は、1 回の Ctrl+Z で消える。あとで書き直したのは、書き直しだけが 1 段", async ({ page }) => {
+test("足して名前を書いた行は、1 回の Ctrl+Z で消える。あとで書き直したのは、書き直しだけが 1 つの画面の履歴の段", async ({
+  page,
+}) => {
   await dirBook(page)
   await page.keyboard.press("f")
   await write(page, "a.ts")

@@ -1,6 +1,6 @@
-// 画面の履歴（Undo・Redo）: 戻す・やり直すコマンドと、段が変えた所を置き直すアクション（book-revert）。履歴は store が、利用者が画面で
+// 画面の履歴（Undo・Redo）: 戻す・やり直すコマンドと、画面の履歴の段が変えた所を置き直すアクション（book-revert）。履歴は store が、利用者が画面で
 // 行ったアクションから作る（AI の変更は入らない。ロックの掛け外しのように history: false のアクションも入らない）。
-// 戻すのは、カレントのステージで開いているブックの最後の段。段がいくつかのブックを変えていれば、その全部を戻す
+// 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す
 import { z } from "zod"
 import type { HistoryStep } from "../../../core/history"
 import type { CommandContext } from "../../../store/commands/def"
@@ -46,10 +46,10 @@ export const HISTORY_RESTORE = kit.defineAction({
   run: (book, args) => ({ next: applyRestore(book, args), result: {} }),
 })
 
-// 置き直したあと、開いていたいページ: 段がそのブックで変えたページのうち、置き直したあとも残る最初のページ
+// 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとも残る最初のページ
 const pageOf = (args: RestoreArgs): string | undefined => args.pages.find(p => !("page" in p) || p.page !== null)?.id
 
-// 段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ、段は動かさない
+// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ、画面の履歴の段は動かさない
 function restore(ctx: CommandContext, a: Actions, from: "undo" | "redo"): void {
   const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
   const opened = ctx.stage.opened

@@ -69,7 +69,7 @@ export interface MatomezuState {
   touched: Readonly<Record<string, string>>
   trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる。サーバーなしなら false）
-  // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。1 段がいくつかのブックを変えたら、その全部のブックに同じ段が入る
+  // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのブックを変えたら、その全部のブックに同じ画面の履歴の段が入る
   history: Readonly<Record<string, BookHistory>>
 }
 
@@ -137,11 +137,11 @@ export interface Actions {
   openPicker(stage: string, at: Point | null): void
   closePicker(): void
   showPickerMap(stage: string): void // そのステージで開いている道具のアイコンを、ミニマップに替える
-  // ブック book の履歴の、戻せる段（from が undo）かやり直せる段（redo）の最後の段を、反対の側へ移す。段が変えたほかのブックの履歴でも移す。
-  // 段を戻す・やり直すアクションを行えたあとに呼ぶ
+  // ブック book の画面の履歴の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
+  // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
   moveHistory(book: string, from: "undo" | "redo"): void
-  // 同じ処理の中でこのあと行うアクションを、ブック book の最後の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 段にする）。
-  // 足したあと何も変わらなければ（足した物を書かずに消したなど）、段ごと無くなる
+  // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
+  // 足したあと何も変わらなければ（足した物を書かずに消したなど）、その画面の履歴の段ごと無くなる
   continueStep(book: string): void
 }
 
@@ -307,15 +307,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const next = change(ws)
     if (next !== ws) commit({ workspace: next })
   }
-  // 開いている段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 段にまとめ、処理が終わったら
-  // 履歴に入れる（入れた段が変えたブックの、やり直せる段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
+  // 開いている画面の履歴の段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 つの画面の履歴の段にまとめ、処理が終わったら
+  // 画面の履歴に入れる（入れた画面の履歴の段が変えたブックの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
   let open: { at: string; books: Record<string, { before: Book; after: Book }>; continued?: true } | null = null
   const closeStep = () => {
     if (!open) return
     const { at, books, continued } = open
     const step: HistoryStep = { at, books }
     open = null
-    // 続けた段で何も変わらなかった（足した物を書かずに消したなど）なら入れない
+    // 続けた画面の履歴の段で何も変わらなかった（足した物を書かずに消したなど）なら入れない
     if (continued && Object.values(books).every(b => JSON.stringify(b.before) === JSON.stringify(b.after))) return
     const history = { ...getState().history }
     for (const id of Object.keys(step.books))

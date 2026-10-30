@@ -152,7 +152,7 @@ export interface ActionDef<
   // ブックが対象のアクションの付く先。どれか 1 つに当てはまるタイプのブックで使える（無ければ、タイプの actions.add で選ばれたときだけ）
   attach?: At
   userOnly?: true // 利用者だけが行える（AI には断り、MCP 公開ツールの actions に出さない。core/inspect.ts のステップ）
-  history?: false // 画面の履歴（Undo）に残さない（ブックの中身ではない物を変えるアクション。ロックの掛け外しなど）
+  history?: false // 画面の履歴（Undo）に入れない（図の内容でなくブックの扱いを変えるアクション。ロックの掛け外しなど）
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
   target: T
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）

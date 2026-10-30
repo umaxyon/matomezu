@@ -1,4 +1,4 @@
-// URL と画面の場所の行き来（host-client/location.ts）: 開いたときに URL の場所を当てはめ、移動は履歴に積み、ほかは待ってまとめて書き換え、
+// URL と画面の場所の行き来（host-client/location.ts）: 開いたときに URL の場所を当てはめ、移動はブラウザの履歴に積み、ほかは待ってまとめて書き換え、
 // 戻る・進むはその場所を当てはめる
 import { expect, test } from "bun:test"
 import { followLocation, type Place, parseSearch, searchOf } from "../../web/src/host-client/location"
@@ -72,7 +72,7 @@ test("開いたときは URL の場所を当てはめる（読み直しても同
   expect(store.state.getState().workspace.stages[0]!.opened?.book).toBe("b3")
 })
 
-test("ブック・ページの移動と分割は履歴に積み、境目などは待ってまとめて書き換える。戻るとその場所に戻り、履歴には積まない", () => {
+test("ブック・ページの移動と分割はブラウザの履歴に積み、境目などは待ってまとめて書き換える。戻るとその場所に戻り、ブラウザの履歴には積まない", () => {
   const store = newStore()
   const f = fakePlace()
   followLocation(store, f.place)
