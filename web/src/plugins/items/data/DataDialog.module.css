@@ -66,3 +66,28 @@
   display: flex;
   justify-content: flex-start;
 }
+/* 見た目と軸: 入る数だけ横に並べる */
+.axes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+  align-items: start;
+}
+/* 値の列: チェックボックスを横に並べる */
+.values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.values legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+.values label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}

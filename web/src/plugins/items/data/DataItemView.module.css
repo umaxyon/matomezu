@@ -1,6 +1,7 @@
 /* データの字: 箱と同じく同梱の Noto Sans JP で、字詰めなどを止める */
 .empty,
-.frame {
+.frame,
+.chartFrame {
   font-family: "Noto Sans JP", sans-serif;
   font-size: 13px;
   font-weight: 400;
@@ -21,6 +22,12 @@
   justify-content: center;
   border: 1.5px dashed var(--data-empty);
   color: var(--data-empty);
+}
+/* グラフ: 枠の中に描く（はみ出さない） */
+.chartFrame {
+  overflow: hidden;
+  border: 1px solid var(--data-line);
+  background: var(--data-fill);
 }
 /* 表: 枠の中でスクロールする */
 .frame {

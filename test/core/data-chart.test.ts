@@ -1,0 +1,174 @@
+// データのグラフの計算: 目盛り・軸の合わせ方・項目の並べ方と飛ばし方・棒と折れ線・円・散布図の寸法・ダイアログの軸の下書き
+import { expect, test } from "bun:test"
+import { settleAxes } from "../../web/src/plugins/items/data/axes"
+import { CHART_LOOK, cartesianLayout, evenShown, fitText, rowOrder } from "../../web/src/plugins/items/data/cartesian"
+import { type DataProps, DataPropsSchema } from "../../web/src/plugins/items/data/data"
+import { axesProps, axesWithout, toAxesDraft, toggleValue, withView } from "../../web/src/plugins/items/data/draft"
+import { MAX_SLICES, pieLayout } from "../../web/src/plugins/items/data/pie"
+import { formatNumber, niceTicks } from "../../web/src/plugins/items/data/scale"
+import { scatterLayout } from "../../web/src/plugins/items/data/scatter"
+import type { Table } from "../../web/src/plugins/items/data/table"
+import { cartesianTip, pieTip, scatterTip, seriesNames } from "../../web/src/plugins/items/data/tips"
+
+const props = (p: Record<string, unknown>): DataProps => DataPropsSchema.parse(p)
+
+// 月（文字）・売上・目標（数）の表
+const TABLE: Table = {
+  columns: [
+    { id: "m", name: "月", type: "text" },
+    { id: "s", name: "売上", type: "number" },
+    { id: "g", name: "目標", type: "number" },
+  ],
+  rows: [
+    { id: "r1", cells: ["1月", 12, 15] },
+    { id: "r2", cells: ["2月", 30, 20] },
+    { id: "r3", cells: ["3月", 22, 25] },
+  ],
+}
+const SIZE = { w: 320, h: 200 }
+
+test("目盛りは 1・2・5 の刻みで値を含み、棒なら 0 も含める。数は 3 桁ごとに , で区切る", () => {
+  expect(niceTicks(12, 41, true)).toMatchObject({ min: 0, max: 50, step: 10, values: [0, 10, 20, 30, 40, 50] })
+  expect(niceTicks(103, 117, false, 4)).toMatchObject({ min: 100, max: 120, step: 5 })
+  expect(niceTicks(0.1, 0.3, false, 2)).toMatchObject({ max: 0.3, values: [0.1, 0.2, 0.3] })
+  expect(niceTicks(7, 7, false).values.length).toBeGreaterThan(1)
+  expect(formatNumber(1234567.5)).toBe("1,234,567.5")
+  expect(formatNumber(-1200)).toBe("-1,200")
+})
+
+test("軸は、表に無い列・数でない値の列を外し、グラフで軸が無ければ既定の列を選ぶ（散布図は数の列 2 つ）", () => {
+  expect(settleAxes(props({ view: "bar" }), TABLE)).toMatchObject({ x: "m", series: [{ column: "s" }] })
+  expect(settleAxes(props({ view: "scatter" }), TABLE)).toMatchObject({ x: "s", series: [{ column: "g" }] })
+  expect(settleAxes(props({ view: "table" }), TABLE).x).toBeUndefined()
+  const kept = settleAxes(
+    props({ view: "bar", x: "gone", series: [{ column: "m" }, { column: "g" }, { column: "g" }], sortBy: "s" }),
+    TABLE,
+  )
+  expect(kept.x).toBeUndefined()
+  expect(kept.series).toEqual([{ column: "g" }])
+  expect(kept.sortBy).toBeUndefined()
+  // 散布図の X が文字の列なら外す
+  expect(settleAxes(props({ view: "scatter", x: "m", series: [{ column: "s" }] }), TABLE).x).toBeUndefined()
+})
+
+test("並べ方: 表の順か、選んだ値（無ければ 1 つ目の系列）の多い順・少ない順。同じ値は表の順", () => {
+  const base = { view: "bar", x: "m", series: [{ column: "s" }, { column: "g" }] }
+  expect(rowOrder(TABLE, props(base))).toEqual([0, 1, 2])
+  expect(rowOrder(TABLE, props({ ...base, sort: "desc" }))).toEqual([1, 2, 0])
+  expect(rowOrder(TABLE, props({ ...base, sort: "asc", sortBy: "g" }))).toEqual([0, 1, 2])
+  expect(rowOrder(TABLE, props({ ...base, sort: "desc", sortBy: "g" }))).toEqual([2, 1, 0])
+})
+
+test("項目の文字を飛ばすときは最初と最後を必ず出し、最後に近すぎる手前の項目は出さない。入らない文字は … で切る", () => {
+  expect(evenShown(5, 1)).toEqual([true, true, true, true, true])
+  expect(evenShown(7, 3)).toEqual([true, false, false, true, false, false, true])
+  expect(evenShown(6, 3)).toEqual([true, false, false, false, false, true])
+  expect(fitText("とても長い項目の名前", 40)).toMatch(/…$/)
+  expect(fitText("短い", 200)).toBe("短い")
+})
+
+test("棒: 系列ごとに 0 から伸び、項目の中で 2px 空けて並び、太さは 24px まで。系列が 2 つなら凡例を出す", () => {
+  const c = cartesianLayout(TABLE, props({ view: "bar", x: "m", series: [{ column: "s" }, { column: "g" }] }), SIZE)!
+  expect(c.bars).toHaveLength(6)
+  expect(c.legend.map(l => l.name)).toEqual(["売上", "目標"])
+  const [a, b] = c.bars
+  expect(b!.x - (a!.x + a!.w)).toBeCloseTo(CHART_LOOK.gap)
+  expect(Math.max(...c.bars.map(x => x.w))).toBeLessThanOrEqual(CHART_LOOK.barMax)
+  for (const bar of c.bars) expect(bar.y + bar.h).toBeCloseTo(c.zero)
+  // 折れ線の系列を重ねると、その系列は点を結ぶ
+  const mixed = cartesianLayout(
+    TABLE,
+    props({ view: "bar", x: "m", series: [{ column: "s" }, { column: "g", chart: "line" }] }),
+    SIZE,
+  )!
+  expect(mixed.bars).toHaveLength(3)
+  expect(mixed.lines[0]!.points).toHaveLength(3)
+  // 系列が 1 つなら凡例は無い。軸が無ければ描かない
+  expect(cartesianLayout(TABLE, props({ view: "line", x: "m", series: [{ column: "s" }] }), SIZE)!.legend).toEqual([])
+  expect(cartesianLayout(TABLE, props({ view: "bar" }), SIZE)).toBeNull()
+})
+
+test("横向きの棒は左から右へ伸び、折れ線を重ねない", () => {
+  const c = cartesianLayout(
+    TABLE,
+    props({ view: "bar", bar: "horizontal", x: "m", series: [{ column: "s" }, { column: "g", chart: "line" }] }),
+    SIZE,
+  )!
+  expect(c.horizontal).toBe(true)
+  expect(c.lines).toEqual([])
+  expect(c.bars).toHaveLength(6)
+  for (const bar of c.bars) expect(bar.x).toBeCloseTo(c.zero)
+})
+
+test("円: 負の値や合計 0 は描かない。9 つ以上の扇は大きい 7 つとその他にまとめる", () => {
+  const pie = pieLayout(TABLE, props({ view: "pie", x: "m", series: [{ column: "s" }] }), SIZE, "その他")!
+  expect(pie.ok).toBe(true)
+  if (pie.ok) expect(pie.slices.map(s => s.share).reduce((a, b) => a + b, 0)).toBeCloseTo(1)
+  const neg = { ...TABLE, rows: [...TABLE.rows, { id: "r4", cells: ["4月", -1, 0] }] }
+  expect(pieLayout(neg, props({ view: "pie", x: "m", series: [{ column: "s" }] }), SIZE, "")).toEqual({
+    ok: false,
+    problem: "negative",
+  })
+  const zero = { ...TABLE, rows: TABLE.rows.map(r => ({ ...r, cells: [r.cells[0]!, 0, 0] })) }
+  expect(pieLayout(zero, props({ view: "pie", x: "m", series: [{ column: "s" }] }), SIZE, "")).toEqual({
+    ok: false,
+    problem: "zero",
+  })
+  const many = { ...TABLE, rows: Array.from({ length: 12 }, (_, i) => ({ id: `q${i}`, cells: [`${i}`, i + 1, 0] })) }
+  const folded = pieLayout(many, props({ view: "pie", x: "m", series: [{ column: "s" }] }), SIZE, "その他")!
+  expect(folded.ok && folded.slices.length).toBe(MAX_SLICES)
+  if (folded.ok) expect(folded.slices.at(-1)).toMatchObject({ label: "その他", value: 1 + 2 + 3 + 4 + 5 })
+})
+
+test("散布図: 行ごとに点を打ち、X が数の列でなければ描かない", () => {
+  const sc = scatterLayout(TABLE, props({ view: "scatter", x: "s", series: [{ column: "g" }], label: "m" }), SIZE)!
+  expect(sc.dots.map(d => d.label)).toEqual(["1月", "2月", "3月"])
+  expect(sc.dots[1]!.x).toBeGreaterThan(sc.dots[0]!.x)
+  expect(scatterLayout(TABLE, props({ view: "scatter", x: "m", series: [{ column: "g" }] }), SIZE)).toBeNull()
+})
+
+test("ダイアログの軸の下書き: 見た目を変えると合わない軸を選び直し、列を消すと軸を詰め、確定で列の id に直す", () => {
+  const draft = { columns: TABLE.columns, rows: [] }
+  let a = toAxesDraft(props({ view: "table" }), TABLE)
+  a = withView(a, draft, "pie")
+  expect(a).toMatchObject({ x: 0, values: [1] })
+  // 円から散布図へは、X を数の列にする
+  a = withView(a, draft, "scatter")
+  expect(a).toMatchObject({ x: 2, values: [1] })
+  a = withView(a, draft, "bar")
+  a = toggleValue(a, 2)
+  expect(a.values).toEqual([1, 2])
+  expect(axesWithout(a, 1)).toMatchObject({ x: 1, values: [1] })
+  expect(axesProps({ ...a, sortBy: 2 }, ["m", "s", "g"])).toMatchObject({
+    view: "bar",
+    x: "g",
+    series: [{ column: "s" }, { column: "g" }],
+    sortBy: "g",
+    label: null,
+  })
+  // 円と散布図の値は 1 つ目だけ
+  expect(axesProps({ ...a, view: "pie" }, ["m", "s", "g"]).series).toEqual([{ column: "s" }])
+})
+
+test("吹き出し: 棒と折れ線は項目の名前と全部の系列の値、円は割合と値、散布図は X と Y", () => {
+  const p = props({ view: "bar", x: "m", series: [{ column: "s" }, { column: "g", chart: "line" }] })
+  const c = cartesianLayout(TABLE, p, SIZE)!
+  expect(cartesianTip(c, "r2", seriesNames(TABLE, p))).toEqual({
+    title: "2月",
+    lines: [
+      { color: 0, name: "売上", value: "30" },
+      { color: 1, name: "目標", value: "20" },
+    ],
+  })
+  const pie = pieLayout(TABLE, props({ view: "pie", x: "m", series: [{ column: "s" }] }), SIZE, "")!
+  if (pie.ok)
+    expect(pieTip(pie.slices[1]!)).toEqual({ title: "2月", lines: [{ color: 1, name: "46.9%", value: "30" }] })
+  const sc = scatterLayout(TABLE, props({ view: "scatter", x: "s", series: [{ column: "g" }], label: "m" }), SIZE)!
+  expect(scatterTip(sc, sc.dots[0]!)).toEqual({
+    title: "1月",
+    lines: [
+      { name: "売上", value: "12" },
+      { name: "目標", value: "15" },
+    ],
+  })
+})

@@ -1,0 +1,84 @@
+/* グラフの枠: 吹き出しの位置の基準 */
+.chart {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.svg {
+  display: block;
+  overflow: visible;
+}
+/* 軸と凡例の字（寸法は cartesian.ts の CHART_LOOK と同じ値にする） */
+.text {
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 11px;
+  font-kerning: none;
+  fill: var(--data-axis);
+}
+/* 目盛りの線（細い実線で、目立たせない） */
+.grid {
+  stroke: var(--data-grid);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+/* 値 0 の線 */
+.base {
+  stroke: var(--data-axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+/* 点と扇: 地の色の 2px の輪と隙間 */
+.dot,
+.slice {
+  stroke: var(--data-fill);
+  stroke-width: 2;
+}
+/* 理由（軸が足りないなど）: 真ん中に */
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  color: var(--data-axis);
+  text-align: center;
+}
+/* 吹き出し */
+.tip {
+  position: absolute;
+  z-index: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--data-line);
+  border-radius: 6px;
+  background: var(--data-fill);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  color: var(--data-text);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.tipTitle {
+  font-weight: 700;
+}
+.tipLine {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.tipKey {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.tipValue {
+  margin-left: auto;
+  padding-left: 8px;
+}
