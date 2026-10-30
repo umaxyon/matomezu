@@ -1,4 +1,4 @@
-// データのグラフの計算: 目盛り・軸の合わせ方・項目の並べ方と飛ばし方・棒と折れ線・円・散布図の寸法・ダイアログの軸の下書き
+// データのグラフの計算: 目盛り・軸の合わせ方・項目の並べ方と飛ばし方・棒と折れ線・円・散布図の寸法・ダイアログの軸の下書き・動き
 import { expect, test } from "bun:test"
 import { AREA_LOOK, areasOf, CONTENT_MIN } from "../../web/src/plugins/items/data/areas"
 import { settleAxes } from "../../web/src/plugins/items/data/axes"
@@ -14,6 +14,7 @@ import {
 } from "../../web/src/plugins/items/data/cartesian"
 import { type DataProps, DataPropsSchema } from "../../web/src/plugins/items/data/data"
 import { axesProps, axesWithout, toAxesDraft, toggleValue, withView } from "../../web/src/plugins/items/data/draft"
+import { chartMotions, cssPx, motionOf, motionState } from "../../web/src/plugins/items/data/motion"
 import { MAX_SLICES, pieLayout } from "../../web/src/plugins/items/data/pie"
 import { formatNumber, niceTicks } from "../../web/src/plugins/items/data/scale"
 import { scatterLayout } from "../../web/src/plugins/items/data/scatter"
@@ -278,4 +279,27 @@ test("表の見た目の大きさは、表と、本文を全部出した文字�
   })
   expect(titled.h).toBeGreaterThan(plain.h)
   expect(titled.w).toBeGreaterThanOrEqual(plain.w)
+})
+
+test("動きのきっかけ: 初めて描いたとき・表を入れ替えたとき・見た目や軸を変えたとき。大きさや文字の領域を変えても動かない", () => {
+  const bar = props({ view: "bar", x: "m", series: [{ column: "s" }] })
+  const first = motionState(TABLE, bar)
+  expect(motionOf(undefined, first)).toBe("draw")
+  expect(motionOf(undefined, motionState(undefined, bar))).toBeNull() // 表の無い間は動かない
+  expect(motionOf(null, first)).toBe("data") // 表が入った
+  expect(motionOf(first, motionState({ ...TABLE, rows: TABLE.rows.slice(1) }, bar))).toBe("data")
+  expect(motionOf(first, motionState(TABLE, { ...bar, view: "line" }))).toBe("look")
+  expect(motionOf(first, motionState(TABLE, { ...bar, sort: "desc" }))).toBe("look")
+  expect(motionOf(first, motionState(TABLE, { ...bar, labelSize: 40, caption: "売上", bodyWidth: 80 }))).toBeNull()
+})
+
+test("動き方はテーマキーの言葉から選び、知らない言葉なら動かさない。長さの値は px の数にする", () => {
+  const tokens: Record<string, string> = {
+    "data-motion-bar": " fade",
+    "data-motion-line": "sweep", // 折れ線には無い動き
+    "data-motion-dot": "pop",
+  }
+  expect(chartMotions(name => tokens[name] ?? "")).toEqual({ bar: "fade", line: "none", dot: "pop", pie: "none" })
+  expect(cssPx(" 6px", 4)).toBe(6)
+  expect(cssPx("", 4)).toBe(4)
 })

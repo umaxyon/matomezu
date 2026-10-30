@@ -22,7 +22,6 @@ export const CHART_LOOK = {
   legendGap: 12, // 凡例の項目の間
   barMax: 24, // 棒の太さの上限
   gap: 2, // 並んだ棒の間
-  dot: 4, // 折れ線の点の半径
   labelGap: 6, // 並んだ項目の文字の間
 } as const
 
@@ -317,18 +316,18 @@ export function cartesianLayout(table: Table, props: DataProps, size: Size): Car
   }
 }
 
-// 棒の形の path: 値の先の角を半径 4px（棒の太さの半分まで）で丸め、根元は四角のまま
-export function barPath(bar: Bar, horizontal: boolean, zero: number): string {
+// 棒の形の path: 値の先の角を半径 radius（テーマキー data-bar-radius。棒の太さの半分まで）で丸め、根元は四角のまま
+export function barPath(bar: Bar, horizontal: boolean, zero: number, radius: number): string {
   const { x, y, w, h } = bar
   if (w <= 0 || h <= 0) return ""
   if (horizontal) {
-    const r = Math.min(4, h / 2, w)
+    const r = Math.min(radius, h / 2, w)
     // 根元が左（正の値）なら右の角を、根元が右（負の値）なら左の角を丸める
     return x >= zero - 0.5
       ? `M${x},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + h - r}A${r},${r} 0 0 1 ${x + w - r},${y + h}H${x}Z`
       : `M${x + w},${y}H${x + r}A${r},${r} 0 0 0 ${x},${y + r}V${y + h - r}A${r},${r} 0 0 0 ${x + r},${y + h}H${x + w}Z`
   }
-  const r = Math.min(4, w / 2, h)
+  const r = Math.min(radius, w / 2, h)
   // 根元が下（正の値）なら上の角を、根元が上（負の値）なら下の角を丸める
   return y + h <= zero + 0.5
     ? `M${x},${y + h}V${y + r}A${r},${r} 0 0 1 ${x + r},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + h}Z`

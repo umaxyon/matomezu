@@ -54,6 +54,11 @@ export const MATOMEZU_THEME = kit.defineTheme({
     "@matomezu/dir:dir-file": "#8a8178",
     // 線は文鳥の色を紙に混ぜた落ち着いた色（強調したい線は、線の色で緑などにする）
     "@matomezu/line:line-color": `color-mix(in srgb, ${CHARCOAL} 55%, var(--theme-paper))`,
+    // データは箱と同じクリーム色の線と薄い影、見出しの行はクリーム色の地
+    "@matomezu/data:data-line": CREAM_LINE,
+    "@matomezu/data:data-shadow": "drop-shadow(0 1px 3px rgba(90, 60, 30, 0.14))",
+    "@matomezu/data:data-head-fill": CREAM,
+    "@matomezu/data:data-grid": "#efe9e1",
   },
 })
 

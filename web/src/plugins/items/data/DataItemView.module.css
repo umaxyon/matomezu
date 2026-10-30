@@ -10,6 +10,7 @@
   border: 1px solid var(--data-line);
   border-radius: var(--data-radius);
   background: var(--data-fill);
+  filter: var(--data-shadow);
   color: var(--data-text);
   font-family: "Noto Sans JP", sans-serif;
   font-size: 13px;
@@ -74,6 +75,7 @@
   text-align: left;
 }
 .table th {
+  background: var(--data-head-fill);
   font-weight: 700;
 }
 .table th + th,

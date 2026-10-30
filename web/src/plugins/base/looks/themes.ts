@@ -45,6 +45,15 @@ export const STICKY = kit.defineTheme({
     "@matomezu/list:list-card-radius": "2px",
     "@matomezu/list:list-card-shadow": "drop-shadow(0 2px 3px rgba(70, 55, 20, 0.25))",
     "@matomezu/list:list-card-fold": "10px",
+    // データは付箋の地に、茶色の線と淡い目盛り
+    "@matomezu/data:data-fill": "#fff3a6",
+    "@matomezu/data:data-line": "#d9c873",
+    "@matomezu/data:data-text": "#3b3524",
+    "@matomezu/data:data-radius": "3px",
+    "@matomezu/data:data-shadow": "drop-shadow(0 3px 5px rgba(70, 55, 20, 0.28))",
+    "@matomezu/data:data-head-fill": "#f7e98a",
+    "@matomezu/data:data-grid": "#eadc93",
+    "@matomezu/data:data-zero": "#8a7a4a",
   },
 })
 
@@ -92,5 +101,14 @@ export const SIMPLE = kit.defineTheme({
     "@matomezu/list:list-card-radius": "2px",
     "@matomezu/list:list-card-shadow": "none",
     "@matomezu/list:list-card-line": "100%",
+    // データは黒い線と濃い軸、薄い灰色の目盛り（印刷向け）
+    "@matomezu/data:data-fill": "#ffffff",
+    "@matomezu/data:data-line": "#262626",
+    "@matomezu/data:data-text": "#1a1a1a",
+    "@matomezu/data:data-radius": "4px",
+    "@matomezu/data:data-head-fill": "#f2f2f2",
+    "@matomezu/data:data-axis": "#1a1a1a",
+    "@matomezu/data:data-grid": "#d9d9d9",
+    "@matomezu/data:data-zero": "#262626",
   },
 })
