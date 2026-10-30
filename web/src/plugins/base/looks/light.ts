@@ -29,6 +29,8 @@ export const LIGHT = kit.defineSkin({
     "on-accent": "#ffffff",
     danger: "#dc2626",
     warn: "#d97706",
+    info: "#4f6bd8",
+    success: "#2f9e6a",
     font: DARK.tokens.font,
   },
 })

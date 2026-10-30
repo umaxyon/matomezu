@@ -27,6 +27,8 @@ export const DARK = kit.defineSkin({
     "on-accent": "#ffffff",
     danger: "#f87171",
     warn: "#fbbf24",
+    info: "#4f6bd8",
+    success: "#2f9e6a",
     font: 'system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif',
   },
 })

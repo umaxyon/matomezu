@@ -12,4 +12,5 @@ export const LOOKS_MESSAGES = defineMessages({
   Tabloid: { en: "Tabloid", ja: "タブロイド" },
   Dark: { en: "Dark", ja: "ダーク" },
   Light: { en: "Light", ja: "ライト" },
+  matomezu: { en: "matomezu", ja: "matomezu" },
 })
