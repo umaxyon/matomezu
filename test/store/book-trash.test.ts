@@ -33,7 +33,7 @@ test("ロック中のブックと、ロック中のページを持つブック�
   const store = newStore()
   const { actions } = store
   addPageIn(store, "s1", { title: "ページ 2" })
-  const page = (store.state.getState().books.b1 as { pages: { id: string }[] }).pages[1]?.id as string
+  const page = (store.state.getState().books.b1 as { pages: readonly { id: string }[] }).pages[1]?.id as string
   actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
     ok: false,

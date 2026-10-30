@@ -26,7 +26,7 @@ function setup() {
     expect(createBookIn(store, "s1", { title: "木", type: "@matomezu/tree:tree" })).toBe(true)
   })
   const id = (store.state.getState().workspace.stages[0]!.opened as { book: string }).book
-  const book = () => store.state.getState().books[id] as { pages: Record<string, unknown>[] }
+  const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }
   return { store, id, book }
 }
 
@@ -78,7 +78,7 @@ test("ページとブックの設定のダイアログで伸びる向きを選�
   act(() => {
     expect(addPageIn(store, "s1", { title: "p1", fields: { root: { caption: "根" } } })).toBe(true)
   })
-  const page = (store.state.getState().books[id] as { pages: { id: string }[] }).pages[0]!.id
+  const page = (store.state.getState().books[id] as { pages: readonly { id: string }[] }).pages[0]!.id
   const top = () =>
     Number.parseFloat(
       (screen.getByRole("img", { name: "紙" }).querySelector('[data-root="true"]') as HTMLElement).style.top,
@@ -144,7 +144,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
   expect(paper.querySelector("svg")!.querySelectorAll("path")).toHaveLength(2) // 線の層（＋ の印の svg は数えない）
   const top = (n: string) => Number.parseFloat(node(n).style.top)
   expect(top(a!)).toBeGreaterThan(top(done.fields!.root.id)) // 既定は下へ
-  const page = (store.state.getState().books[id] as { pages: { id: string }[] }).pages[0]!.id
+  const page = (store.state.getState().books[id] as { pages: readonly { id: string }[] }).pages[0]!.id
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",

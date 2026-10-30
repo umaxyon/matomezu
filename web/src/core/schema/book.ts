@@ -21,7 +21,7 @@ type PageFields<T> = T extends { pages: { fields: infer F extends Readonly<Recor
 // タイプ T のページ（置けるのは、タイプが選んだアイテムだけ）
 export type PageOf<T> = Page &
   PageFields<T> & {
-    items?: PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
+    items?: readonly PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
   } & SettingFields<Selected<T, "page">>
 
 // タイプ T のブック（名前 title・ロック locked・ゴミ箱に入れた時刻 trashed は土台のフィールドで、どのタイプのブックも持つ。名前は空でもよい）
@@ -29,7 +29,7 @@ export type BookData<T> = (T extends { schema: infer S extends z.ZodType } ? z.o
   title: string
   locked?: true
   trashed?: string
-} & (T extends { pages: null } ? unknown : { pages: PageOf<T>[] }) &
+} & (T extends { pages: null } ? unknown : { pages: readonly PageOf<T>[] }) &
   SettingFields<Selected<T, "book">>
 
 // 書き足したブックのタイプごとの、データの型の和
