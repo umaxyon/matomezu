@@ -142,9 +142,9 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 		schemas[s.ID] = string(s.Schema)
 	}
 	if !found || len(c.Items) == 0 || !strings.Contains(string(c.Items[0].Props), `"caption"`) ||
-		strings.Join(langs, ",") != "matomezu:en=en,matomezu:ja=ja" || strings.Join(c.Skins, ",") != "@matomezu/base:dark,@matomezu/base:light" ||
+		strings.Join(langs, ",") != "matomezu:en=en,matomezu:ja=ja" || strings.Join(c.Skins, ",") != "@matomezu/base:dark,@matomezu/base:light,@matomezu/base:matomezu" ||
 		!strings.Contains(schemas["@matomezu/base:lang"], `"enum":["matomezu:en","matomezu:ja"]`) ||
-		!strings.Contains(schemas["@matomezu/base:skin"], `"enum":["auto","@matomezu/base:dark","@matomezu/base:light"]`) {
+		!strings.Contains(schemas["@matomezu/base:skin"], `"enum":["auto","@matomezu/base:dark","@matomezu/base:light","@matomezu/base:matomezu"]`) {
 		t.Fatalf("ai catalog = %s", newEngine(t).AICatalog())
 	}
 }
