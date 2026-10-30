@@ -8,6 +8,7 @@ import type { ActionId, DialogId, ItemId, MessageKey, SingleBookTypeId, SkinId, 
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext } from "../core/def/action"
 import { fail } from "../core/errors"
+import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
@@ -54,7 +55,7 @@ import { type Assembled, assemble, type Plugin } from "./plugin"
 export type { Settings } from "../core/settings"
 
 export interface MatomezuState {
-  books: Record<string, Book> // ブックの id ごと（ゴミ箱のブックは除く）
+  books: Readonly<Record<string, Book>> // ブックの id ごと（ゴミ箱のブックは除く）
   unreadable: readonly Warning[] // 残したブックのうち読めないもの（warning W004〜W006。データには手を付けず、開けない）
   partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
   workspace: Workspace
@@ -65,7 +66,7 @@ export interface MatomezuState {
   toasts: readonly Toast[] // 出しているトースト（古い順）
   // ブックの id → 触れた（開いたか書いた）時刻（ISO 8601 の UTC）。ホストが知らせたもの（receive）で、無ければ空
   touched: Readonly<Record<string, string>>
-  trash: Record<string, Book> // ゴミ箱のブック（trashed のあるブック）の id ごと
+  trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる。サーバーなしなら false）
 }
 
@@ -254,7 +255,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     )
   const newId = options.newId ?? (() => crypto.randomUUID())
   const clock = options.now ?? (() => new Date().toISOString())
-  const store = createStore<MatomezuState>()(() => initial)
+  // 状態は書き換えさせない（前の状態と変わらない所を共有しているので、その場で書き換えると前の状態まで変わる）。入れるたびに変わった所を凍らせる
+  const store = createStore<MatomezuState>()(() => deepFreeze(initial))
+  store.subscribe(deepFreeze)
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, home, lang: getState().lang, newId, now: clock() })
   // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）

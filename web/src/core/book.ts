@@ -14,7 +14,7 @@ import type { ItemPage } from "./placed"
 import type { Book, Page } from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
-export type PagedBook = Extract<Book, { pages: Page[] }>
+export type PagedBook = Extract<Book, { pages: readonly Page[] }>
 
 // 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは warning（タイプが無い W004・形が合わない W005・
 // アイテムどうしの関係の決まりを守らない W006）にする。読めるが、機能台帳に無いアイテムや設定の項目を持つブックは partial に warning W007 を足す。

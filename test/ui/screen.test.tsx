@@ -310,7 +310,7 @@ test("図面の画面を右クリックすると押した位置にメニュー�
 
 test("ページの設定のダイアログの「ページを削除」は、確かめてからページを消す。やめれば消さない", () => {
   const store = renderScreen()
-  const pages = () => (store.state.getState().books.b1 as { pages: unknown[] }).pages.length
+  const pages = () => (store.state.getState().books.b1 as { pages: readonly unknown[] }).pages.length
   const before = pages()
   const open = () => {
     fireEvent.contextMenu(screen.getByRole("img", { name: "紙" }))

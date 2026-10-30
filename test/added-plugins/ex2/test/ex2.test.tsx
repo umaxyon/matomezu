@@ -131,7 +131,7 @@ test("判断のひし形は、選んでいないビルトインのタイプ（�
   act(() => {
     addPageIn(instance, "s1", { title: "p1" })
   })
-  const page = (instance.state.getState().books[book] as { pages: { id: string }[] }).pages[0]!
+  const page = (instance.state.getState().books[book] as { pages: readonly { id: string }[] }).pages[0]!
   const r = instance.actions.perform(
     "@matomezu/paper:item-place",
     { page: page.id, item: "ex2:diamond", at: { x: 0, y: 0 } },

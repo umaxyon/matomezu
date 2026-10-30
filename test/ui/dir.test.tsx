@@ -22,7 +22,7 @@ function setup() {
     expect(createBookIn(store, "s1", { title: "構成", type: "@matomezu/dir:dir" })).toBe(true)
   })
   const id = (store.state.getState().workspace.stages[0]!.opened as { book: string }).book
-  const book = () => store.state.getState().books[id] as { pages: Record<string, unknown>[] }
+  const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }
   const perform = (action: string, args: unknown) => {
     let done: ReturnType<typeof store.actions.perform> | undefined
     act(() => {
