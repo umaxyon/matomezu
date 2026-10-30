@@ -22,7 +22,7 @@ import { TOOL_PICKER, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { TOOL_NEXT } from "./tool-switch"
 import { HAND_TOOL, SELECT_TOOL } from "./tool-switch/tools"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
-import { ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET } from "./zoom"
+import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { BOOK_PAPER_COLOR, BOOK_THEME } from "./book-look"
 export { NEW_BOOK_DIALOG } from "./book-new"
@@ -150,6 +150,8 @@ export const BASE = defineBuiltin(
       ZOOM_IN,
       ZOOM_OUT,
       ZOOM_RESET,
+      ZOOM_FIT,
+      ZOOM_WHEEL,
       TOOLBOX_CANCEL,
       DIALOG_SUBMIT,
       DIALOG_CLOSE,
@@ -236,6 +238,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:zoom-in": typeof ZOOM_IN
     "@matomezu/base:zoom-out": typeof ZOOM_OUT
     "@matomezu/base:zoom-reset": typeof ZOOM_RESET
+    "@matomezu/base:zoom-fit": typeof ZOOM_FIT
+    "@matomezu/base:zoom-wheel": typeof ZOOM_WHEEL
     "@matomezu/base:toolbox-cancel": typeof TOOLBOX_CANCEL
     "@matomezu/base:dialog-submit": typeof DIALOG_SUBMIT
     "@matomezu/base:dialog-close": typeof DIALOG_CLOSE
