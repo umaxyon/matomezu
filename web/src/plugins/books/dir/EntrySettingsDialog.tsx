@@ -1,5 +1,5 @@
 // ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、色をブックのテーマの代表色・好きな色・「なし」（テーマのアイコンの色）から選ぶ。
-// 確定でアクション entry-update を行う。断られたら、閉じずに理由を出す（許可の段が止めたならその段の名前、ほかは紙に入らない）
+// 確定でアクション entry-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
 import { type MessageKey, pagedOf } from "../../../plugin-api"
 import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"

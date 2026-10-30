@@ -51,7 +51,7 @@ type CommandActions = Parameters<typeof FOLDER_TOGGLE.run>[1]
 const penciling = (ctx: CommandContext) =>
   ctx.stage.tool === PENCIL_TOOL.id && !ctx.stage.editing && dirAt(ctx) !== null
 
-// 断られたわけをトーストで知らせる（許可の段が止めたのでなければ、断られるのは紙に入らないとき）
+// 断られたわけをトーストで知らせる（認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
 const refused = (ctx: CommandContext, a: CommandActions, done: Parameters<typeof refusalMessage>[1]) =>
   a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Does not fit on the paper")) })
 
@@ -206,7 +206,7 @@ export const FILE_ADD = addIntoCommand("file-add", "Add file", "file")
 
 // その場の編集の名前: 選んでいるフォルダの中に足す種類を選んでいる
 export const KIND_PICK = kit.name("kind-pick")
-// その場の編集の名前: 足した行の名前を書いている（終えるとき、書いたのを足した段に続ける。足すのと書くのが 1 段）
+// その場の編集の名前: 足した行の名前を書いている（終えるとき、書いたのを足した画面の履歴の段に続ける。足すのと書くのが 1 つの画面の履歴の段）
 export const ADDED_EDIT = kit.name("added-edit")
 
 // 選んでいるフォルダの中に足す種類を選び始める（フォルダを選んでいるときだけ出す）

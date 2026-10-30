@@ -1,4 +1,4 @@
-// 履歴の置き直し: restoreArgs は 2 つのブックの違う所（フィールド・ページ・最上位のアイテム）だけを、片方の値にする値を作り、applyRestore が今のブックの上で行う
+// 画面の履歴の段の置き直し: restoreArgs は 2 つのブックの違う所（フィールド・ページ・最上位のアイテム）だけを、片方の値にする値を作り、applyRestore が今のブックの上で行う
 import { expect, test } from "bun:test"
 import type { Book } from "../../web/src/core/schema/book"
 import { applyRestore, restoreArgs } from "../../web/src/plugins/base/history/restore"
@@ -32,7 +32,7 @@ test("消したページは元の並びの所に戻し、足したページは�
   expect(applyRestore(after, restoreArgs(after, before))).toEqual(before)
 })
 
-test("段の間にほかで変わった所は、段が変えた所でなければ残す。段が変えたページが無くなっていれば飛ばす", () => {
+test("画面の履歴の段の間にほかで変わった所は、画面の履歴の段が変えた所でなければ残す。画面の履歴の段が変えたページが無くなっていれば飛ばす", () => {
   const before = book({}, [page("p", [item("a")]), page("q", [item("x")])])
   const after = book({}, [page("p", [item("a", "A")]), page("q", [item("x", "X")])])
   const now = book({ title: "AI" }, [page("p", [item("a", "A"), item("ai")])])

@@ -48,7 +48,7 @@ test("ドロワーの元に戻す・やり直すのボタンで戻し、やり�
   await expect(items(page)).toHaveText("1")
 })
 
-test("ツリーで＋で足して書いた節は、1 回の Ctrl+Z で消える。あとで書き直したのは、書き直しだけが 1 段", async ({
+test("ツリーで＋で足して書いた節は、1 回の Ctrl+Z で消える。あとで書き直したのは、書き直しだけが 1 つの画面の履歴の段", async ({
   page,
 }) => {
   await page.goto("/")
