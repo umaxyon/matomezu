@@ -138,3 +138,26 @@ test("戻すまでの間に AI が変えた所は、段が変えた所なら上�
   expect(itemsOf(store)).toEqual(itemsOf(newStore()))
   expect(bookOf(store).title).toBe("AI の名前")
 })
+
+test("continueStep のあとに同じ処理で行ったアクションは、そのブックの最後の段に足される。続けて何も変わらなければ段ごと無くなる", async () => {
+  const store = ready()
+  const before = itemsOf(store)
+  place(store, 40, "足した")
+  await settled()
+  const id = bookOf(store).pages[0]!.items!.at(-1)!.id
+  const page = bookOf(store).pages[0]!.id
+  store.actions.continueStep("b1")
+  store.actions.perform("@matomezu/paper:item-update", { page, item: id, props: { caption: "書いた" } }, { book: "b1" })
+  await settled()
+  expect(historyOf(store)?.undo).toHaveLength(1)
+  store.actions.command("s1", "@matomezu/base:undo")
+  expect(itemsOf(store)).toEqual(before)
+  // ページを足して、続けてそのページを消すと、何も変わらないので段は無くなる
+  store.actions.perform("@matomezu/base:page-add", { title: "足した" }, { book: "b1" })
+  await settled()
+  expect(historyOf(store)?.undo).toHaveLength(1)
+  store.actions.continueStep("b1")
+  store.actions.perform("@matomezu/base:page-remove", { page: bookOf(store).pages.at(-1)!.id }, { book: "b1" })
+  await settled()
+  expect(historyOf(store)?.undo).toHaveLength(0)
+})

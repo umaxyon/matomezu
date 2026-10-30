@@ -4,7 +4,7 @@
 import { type CommandContext, pagedOf } from "../../../plugin-api"
 import { refusalMessage, settingValue } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
-import { type Arrow, addArgs, afterRemove, keyPlus, moveFrom, selectedIn } from "./edit"
+import { ADDED_EDIT, type Arrow, addArgs, afterRemove, keyPlus, moveFrom, selectedIn } from "./edit"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 import { TreeRootSchema } from "./node"
@@ -89,7 +89,7 @@ function addCommand<const Id extends string>(
         return
       }
       a.select(ctx.stage.id, [added])
-      a.setEditing(ctx.stage.id, true)
+      a.setEditing(ctx.stage.id, ADDED_EDIT)
     },
     when,
   })
