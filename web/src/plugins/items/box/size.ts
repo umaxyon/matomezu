@@ -1,5 +1,6 @@
 // 箱の大きさと中身の並び: 幅と高さは置いたアイテムの w・h（利用者が決める。本文では伸び縮みしない）。
-// 上にキャプションを 1 行（隠れない。一番低い高さはキャプション 1 行ぶん）、本文があれば区切り線と、幅で折り返した本文の行を、高さに収まる数だけ出す。
+// 上にキャプションを 1 行（隠れない。一番低い高さはキャプション 1 行ぶん）、本文があれば区切り線と、本文の列の幅で折り返した本文の行を、高さに収まる数だけ出す。
+// 本文の列は、本文の幅（bodyWidth）を書いていればその幅（キャプションの幅より狭くはしない。箱の中より広ければ箱の中いっぱい）で、置き場所はキャプションの寄せに倣う。
 // 収まらない本文は、最後に出す行の終わりに … を付けて切る。本文が 1 行も出ない高さなら、区切り線も出さない。
 // 文字の幅と折り返しは base の text で計算するので、画面でも常駐でも同じ行になる。画面（BoxView）はこの値のとおりに描く
 import type { z } from "zod"
@@ -32,18 +33,51 @@ export const BOX_MIN: Size = { w: 64, h: HEAD } // 一番狭い幅と、一番�
 export interface BoxLayout {
   body: RichLine[] // 描く本文の行（装飾の区切りの並び。本文が無いか、1 行も出ない高さなら空）
   rule: boolean // 区切り線を引くか
+  column: BodyColumn // 本文の列
+}
+
+// 本文の列: 箱の中（枠と左右の余白の内側）の左からの位置と幅
+export interface BodyColumn {
+  x: number
+  w: number
 }
 
 const innerWidth = (w: number) => w - 2 * (L.border + L.padX)
 
+// 本文の幅を縮められる一番狭い幅: キャプションの幅（20 字まで）と、一番狭い箱の中の幅の広いほう
+export const bodyMinWidth = (props: BoxProps): number =>
+  Math.max(captionTextWidth(props.caption), innerWidth(BOX_MIN.w))
+
+// 幅 w の箱の本文の列（本文の幅が無いか、箱の中より広ければ箱の中いっぱい）
+export function bodyColumn(props: BoxProps, w: number): BodyColumn {
+  const inner = innerWidth(w)
+  const cw = Math.min(inner, Math.max(props.bodyWidth ?? inner, bodyMinWidth(props)))
+  const x = props.captionAlign === "left" ? 0 : props.captionAlign === "right" ? inner - cw : (inner - cw) / 2
+  return { x, w: cw }
+}
+
+// 本文の列の端（side）をつかんで、紙の上で dx だけ横に動かしたときの本文の幅（箱の中いっぱいになれば null。本文の幅を消す）。
+// キャプションが中央寄せなら両側が同じだけ縮み、左寄せなら右の端、右寄せなら左の端だけが動く
+export function bodyWidthAfter(props: BoxProps, w: number, side: "left" | "right", dx: number): number | null {
+  const now = bodyColumn(props, w).w
+  const grow = side === "right" ? dx : -dx
+  const next = Math.round(now + (props.captionAlign === "center" ? 2 * grow : grow))
+  if (next >= innerWidth(w)) return null
+  return Math.max(next, bodyMinWidth(props))
+}
+
+// 本文の列の端のうち、つかんで動かせる側（キャプションの寄せの側の端は動かさない）
+export const bodySides = (props: BoxProps): readonly ("left" | "right")[] =>
+  props.captionAlign === "left" ? ["right"] : props.captionAlign === "right" ? ["left"] : ["left", "right"]
+
 // 幅 w・高さ h の箱に描く本文の行と区切り線
 export function boxLayout(props: BoxProps, size: Size): BoxLayout {
-  if (props.body === "") return { body: [], rule: false }
+  const column = bodyColumn(props, size.w)
+  if (props.body === "") return { body: [], rule: false, column }
   const rule = props.rule ? RULE : 0
   const fits = Math.floor((size.h - HEAD - rule) / L.line)
-  if (fits <= 0) return { body: [], rule: false }
-  const inner = innerWidth(size.w)
-  return { body: clampRich(wrapRich(props.body, inner, L.body), fits, inner, L.body), rule: props.rule }
+  if (fits <= 0) return { body: [], rule: false, column }
+  return { body: clampRich(wrapRich(props.body, column.w, L.body), fits, column.w, L.body), rule: props.rule, column }
 }
 
 // 置いたときの幅: キャプションが PLACE_CAPTION 字まで切れずに見える幅（超えるなら、その字数と … が見える幅。一番狭くて BOX_SIZE の幅）
@@ -54,12 +88,12 @@ export function placedWidth(props: BoxProps): number {
 // 置いたときの高さ: 本文が PLACE_LINES 行まで見える高さ（一番低くて BOX_SIZE の高さ）
 export function placedHeight(props: BoxProps, w: number): number {
   if (props.body === "") return BOX_SIZE.h
-  const lines = Math.min(wrapRich(props.body, innerWidth(w), L.body).length, PLACE_LINES)
+  const lines = Math.min(wrapRich(props.body, bodyColumn(props, w).w, L.body).length, PLACE_LINES)
   return Math.max(BOX_SIZE.h, HEAD + (props.rule ? RULE : 0) + lines * L.line)
 }
 
-// キャプションと本文を全部出す高さ（本文は幅 w で折り返す。内包ボックスの子の領域は、塊が上ならこの下から、下ならこの上まで）
+// キャプションと本文を全部出す高さ（本文は幅 w の箱の本文の列で折り返す。内包ボックスの子の領域は、塊が上ならこの下から、下ならこの上まで）
 export function headHeight(props: BoxProps, w: number): number {
   if (props.body === "") return HEAD
-  return HEAD + (props.rule ? RULE : 0) + wrapRich(props.body, innerWidth(w), L.body).length * L.line
+  return HEAD + (props.rule ? RULE : 0) + wrapRich(props.body, bodyColumn(props, w).w, L.body).length * L.line
 }
