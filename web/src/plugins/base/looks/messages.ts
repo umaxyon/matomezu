@@ -13,4 +13,6 @@ export const LOOKS_MESSAGES = defineMessages({
   Dark: { en: "Dark", ja: "ダーク" },
   Light: { en: "Light", ja: "ライト" },
   matomezu: { en: "matomezu", ja: "matomezu" },
+  "matomezu Light": { en: "matomezu Light", ja: "matomezuライト" },
+  "matomezu Dark": { en: "matomezu Dark", ja: "matomezuダーク" },
 })
