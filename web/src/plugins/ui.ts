@@ -56,12 +56,12 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:book-settings",
     ],
   },
-  // 紙（何も無い所）の右クリックのメニューは、一番上にページ全体を収めると画面の分割（分割中は分割をやめる）を置き、区切り線で分ける
+  // 紙（何も無い所）の右クリックのメニューは、一番上にページ全体を収めると画面の分割（分割中は、右クリックしたステージを閉じる）を置き、区切り線で分ける
   contextMenus: {
     "@matomezu/paper:paper-context": [
       "@matomezu/base:zoom-fit",
       "@matomezu/base:stage-split",
-      "@matomezu/base:stage-unsplit",
+      "@matomezu/base:stage-close",
       "-",
       "@matomezu/base:page-settings",
       "@matomezu/base:book-settings",
@@ -71,7 +71,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/dir:dir-context": [
       "@matomezu/base:zoom-fit",
       "@matomezu/base:stage-split",
-      "@matomezu/base:stage-unsplit",
+      "@matomezu/base:stage-close",
       "-",
       "@matomezu/base:page-settings",
       "@matomezu/base:book-settings",
@@ -86,7 +86,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/tree:tree-context": [
       "@matomezu/base:zoom-fit",
       "@matomezu/base:stage-split",
-      "@matomezu/base:stage-unsplit",
+      "@matomezu/base:stage-close",
       "-",
       "@matomezu/base:page-settings",
       "@matomezu/base:book-settings",
