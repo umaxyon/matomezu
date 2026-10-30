@@ -1,7 +1,16 @@
 // データのグラフの計算: 目盛り・軸の合わせ方・項目の並べ方と飛ばし方・棒と折れ線・円・散布図の寸法・ダイアログの軸の下書き
 import { expect, test } from "bun:test"
 import { settleAxes } from "../../web/src/plugins/items/data/axes"
-import { CHART_LOOK, cartesianLayout, evenShown, fitText, rowOrder } from "../../web/src/plugins/items/data/cartesian"
+import {
+  CHART_LOOK,
+  cartesianLayout,
+  evenShown,
+  fitText,
+  LABEL_AREA_MAX,
+  labelAreaOf,
+  labelSizeAfter,
+  rowOrder,
+} from "../../web/src/plugins/items/data/cartesian"
 import { type DataProps, DataPropsSchema } from "../../web/src/plugins/items/data/data"
 import { axesProps, axesWithout, toAxesDraft, toggleValue, withView } from "../../web/src/plugins/items/data/draft"
 import { MAX_SLICES, pieLayout } from "../../web/src/plugins/items/data/pie"
@@ -139,7 +148,7 @@ test("ダイアログの軸の下書き: 見た目を変えると合わない軸
   a = toggleValue(a, 2)
   expect(a.values).toEqual([1, 2])
   expect(axesWithout(a, 1)).toMatchObject({ x: 1, values: [1] })
-  expect(axesProps({ ...a, sortBy: 2 }, ["m", "s", "g"])).toMatchObject({
+  expect(axesProps({ ...a, sortBy: 2 }, ["m", "s", "g"], [])).toMatchObject({
     view: "bar",
     x: "g",
     series: [{ column: "s" }, { column: "g" }],
@@ -147,7 +156,7 @@ test("ダイアログの軸の下書き: 見た目を変えると合わない軸
     label: null,
   })
   // 円と散布図の値は 1 つ目だけ
-  expect(axesProps({ ...a, view: "pie" }, ["m", "s", "g"]).series).toEqual([{ column: "s" }])
+  expect(axesProps({ ...a, view: "pie" }, ["m", "s", "g"], []).series).toEqual([{ column: "s" }])
 })
 
 test("吹き出し: 棒と折れ線は項目の名前と全部の系列の値、円は割合と値、散布図は X と Y", () => {
@@ -171,4 +180,75 @@ test("吹き出し: 棒と折れ線は項目の名前と全部の系列の値、
       { name: "目標", value: "15" },
     ],
   })
+})
+
+// 長い名前の行がたくさんある表（値は行の番号。7 行目だけ大きい）
+const MANY: Table = {
+  columns: TABLE.columns,
+  rows: Array.from({ length: 30 }, (_, i) => ({
+    id: `w${i}`,
+    cells: [`とても長い項目の名前 ${i}`, i === 7 ? 999 : i, 0],
+  })),
+}
+const shownRows = (p: Record<string, unknown>) =>
+  cartesianLayout(MANY, props({ view: "bar", x: "m", series: [{ column: "s" }], ...p }), SIZE)!
+    .categories.filter(c => c.shown)
+    .map(c => c.row)
+
+test("項目の文字の出し方: 等間隔は最初と最後、多い順は大きい値の行から、選んだ行だけは印の行。隣の文字までに入らなければ … で切る", () => {
+  const even = shownRows({})
+  expect(even[0]).toBe("w0")
+  expect(even.at(-1)).toBe("w29")
+  expect(even.length).toBeLessThan(30)
+  const top = shownRows({ skip: "top" })
+  expect(top).toContain("w7")
+  expect(top).toContain("w29")
+  expect(shownRows({ skip: "picked", picked: ["w3", "w20"] })).toEqual(["w3", "w20"])
+  // 飛ばして出す文字は切らずに入る。5 行離れた 2 行を選ぶと、隣までに入らないので切る
+  const c = cartesianLayout(MANY, props({ view: "bar", x: "m", series: [{ column: "s" }] }), SIZE)!
+  expect(c.categories.find(k => k.row === "w0")!.text).toBe("とても長い項目の名前 0")
+  const close = cartesianLayout(
+    MANY,
+    props({ view: "bar", x: "m", series: [{ column: "s" }], skip: "picked", picked: ["w3", "w8"] }),
+    SIZE,
+  )!
+  for (const k of close.categories.filter(x => x.shown)) expect(k.text).toMatch(/…$/)
+})
+
+test("傾けると、文字の領域が文字の斜めの高さ（高さの 4 割まで）になり、飛ばす間隔が狭まる。横の棒は傾けない", () => {
+  const flat = cartesianLayout(MANY, props({ view: "bar", x: "m", series: [{ column: "s" }] }), SIZE)!
+  const tilted = cartesianLayout(
+    MANY,
+    props({ view: "bar", x: "m", series: [{ column: "s" }], crowd: "rotate" }),
+    SIZE,
+  )!
+  expect(tilted.rotate).toBe(true)
+  expect(flat.labelArea.h).toBe(CHART_LOOK.line)
+  expect(tilted.labelArea.h).toBe(Math.floor((SIZE.h - 2 * CHART_LOOK.pad) * 0.4))
+  expect(tilted.categories.filter(k => k.shown).length).toBeGreaterThan(flat.categories.filter(k => k.shown).length)
+  const side = cartesianLayout(
+    MANY,
+    props({ view: "bar", bar: "horizontal", x: "m", series: [{ column: "s" }], crowd: "rotate" }),
+    SIZE,
+  )!
+  expect(side.rotate).toBe(false)
+})
+
+test("文字の領域は labelSize の大きさで、1 行から枠の 6 割まで。つまみで動かした量だけ変わる", () => {
+  const p = (labelSize: number) =>
+    cartesianLayout(MANY, props({ view: "bar", x: "m", series: [{ column: "s" }], labelSize }), SIZE)!
+  expect(p(40).labelArea.h).toBe(40)
+  expect(p(1).labelArea.h).toBe(CHART_LOOK.line)
+  expect(p(9999).labelArea.h).toBe(Math.round((SIZE.h - 2 * CHART_LOOK.pad) * LABEL_AREA_MAX))
+  expect(labelAreaOf(p(40))).toBe(40)
+  expect(labelSizeAfter(40, false, SIZE, 10)).toBe(50)
+  expect(labelSizeAfter(40, false, SIZE, -100)).toBe(CHART_LOOK.line)
+  // 文字の領域が広いほど、描く所は低くなる
+  expect(p(60).plot.h).toBeLessThan(p(20).plot.h)
+})
+
+test("軸を表に合わせると、表に無い選んだ行は外れる", () => {
+  expect(
+    settleAxes(props({ view: "bar", x: "m", series: [{ column: "s" }], picked: ["r1", "gone"] }), TABLE).picked,
+  ).toEqual(["r1"])
 })

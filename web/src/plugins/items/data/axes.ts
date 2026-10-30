@@ -1,4 +1,4 @@
-// グラフの軸を表に合わせる: 表に無い列・型の合わない列を名指した軸を外し、グラフの見た目で軸が無ければ既定の列を選ぶ。
+// グラフの軸を表に合わせる: 表に無い列・型の合わない列を名指した軸と、表に無い選んだ行を外し、グラフの見た目で軸が無ければ既定の列を選ぶ。
 // 既定は、x が 1 列目、系列が x でない最初の数の列（散布図は、x が最初の数の列、系列が次の数の列）。
 // 表が無い間は、軸をそのままにする（表を入れたときに合わせる）
 import type { DataProps, Series } from "./data"
@@ -26,12 +26,16 @@ export function settleAxes(props: DataProps, table: Table | undefined): DataProp
   }
   const label = props.label !== undefined && byId.has(props.label) ? props.label : undefined
   const sortBy = props.sortBy !== undefined && series.some(s => s.column === props.sortBy) ? props.sortBy : undefined
-  const { x: _x, label: _label, sortBy: _sortBy, ...rest } = props
+  // 選んだ行は、表にある行だけ（無くなれば消す）
+  const rows = new Set(table.rows.map(r => r.id))
+  const picked = props.picked?.filter(id => rows.has(id))
+  const { x: _x, label: _label, sortBy: _sortBy, picked: _picked, ...rest } = props
   return {
     ...rest,
     series,
     ...(x !== undefined ? { x } : {}),
     ...(label !== undefined ? { label } : {}),
     ...(sortBy !== undefined ? { sortBy } : {}),
+    ...(picked && picked.length > 0 ? { picked } : {}),
   }
 }

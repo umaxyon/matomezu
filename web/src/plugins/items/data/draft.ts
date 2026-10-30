@@ -108,10 +108,14 @@ export interface AxesDraft {
   bar: DataProps["bar"]
   sort: DataProps["sort"]
   sortBy: number | null
+  crowd: DataProps["crowd"]
+  skip: DataProps["skip"]
+  picked: number[] // 項目の文字を出す行（skip が picked のとき。下書きの行の位置）
 }
 
-// 項目の軸の下書き（表に無い列を名指す軸は外す）
+// 項目の軸の下書き（表に無い列を名指す軸と、表に無い行は外す）
 export function toAxesDraft(props: DataProps, table: Table | undefined): AxesDraft {
+  const rows = new Set(props.picked ?? [])
   const index = (id: string | undefined) => {
     const i = table?.columns.findIndex(c => c.id === id) ?? -1
     return i >= 0 ? i : null
@@ -126,8 +130,23 @@ export function toAxesDraft(props: DataProps, table: Table | undefined): AxesDra
     bar: props.bar,
     sort: props.sort,
     sortBy: index(props.sortBy),
+    crowd: props.crowd,
+    skip: props.skip,
+    picked: (table?.rows ?? []).flatMap((r, i) => (rows.has(r.id) ? [i] : [])),
   }
 }
+
+// 行を消したときの軸（消した行の印を外し、後ろの行の位置を詰める）
+export const axesWithoutRow = (a: AxesDraft, row: number): AxesDraft => ({
+  ...a,
+  picked: a.picked.flatMap(i => (i === row ? [] : [i > row ? i - 1 : i])),
+})
+
+// 行 row の項目の文字を出すかを入れ替える
+export const togglePicked = (a: AxesDraft, row: number): AxesDraft => ({
+  ...a,
+  picked: a.picked.includes(row) ? a.picked.filter(i => i !== row) : [...a.picked, row].sort((x, y) => x - y),
+})
 
 // 列を消したときの軸（消した列を名指す軸を外し、後ろの列の位置を詰める）
 export function axesWithout(a: AxesDraft, col: number): AxesDraft {
@@ -150,9 +169,9 @@ export function axesOk(a: AxesDraft, d: Draft): boolean {
   return a.view !== "scatter" || isNumber(a.x)
 }
 
-// 確定のときに item-update に渡す項目（列の位置を、data-set が返した列の id に直す）。外した軸は null で消す。
+// 確定のときに item-update に渡す項目（列と行の位置を、data-set が返した列と行の id に直す）。外した軸は null で消す。
 // 円と散布図の値は 1 つ目だけ
-export function axesProps(a: AxesDraft, columnIds: readonly string[]) {
+export function axesProps(a: AxesDraft, columnIds: readonly string[], rowIds: readonly string[]) {
   const id = (i: number | null) => (i === null ? null : (columnIds[i] ?? null))
   const one = a.view === "pie" || a.view === "scatter"
   const series = (one ? a.values.slice(0, 1) : a.values).flatMap((i, j) => {
@@ -169,6 +188,9 @@ export function axesProps(a: AxesDraft, columnIds: readonly string[]) {
     bar: a.bar,
     sort: a.sort,
     sortBy: values.includes(id(a.sortBy) ?? "") ? id(a.sortBy) : null,
+    crowd: a.crowd,
+    skip: a.skip,
+    picked: a.skip === "picked" ? a.picked.flatMap(i => (rowIds[i] ? [rowIds[i]] : [])) : null,
   }
 }
 

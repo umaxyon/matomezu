@@ -82,3 +82,24 @@
   margin-left: auto;
   padding-left: 8px;
 }
+/* 項目の文字の領域のつまみ: 境に、箱の本文のつまみと同じ色の細い線 */
+.grip {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+.grip::after {
+  content: "";
+  position: absolute;
+  inset: 2px 0;
+  background: color-mix(in srgb, var(--theme-accent) 70%, transparent);
+}
+.grip[data-label-grip="x"]::after {
+  inset: 0 2px;
+}
+.grip[data-label-grip="y"] {
+  cursor: ns-resize;
+}
+.grip[data-label-grip="x"] {
+  cursor: ew-resize;
+}

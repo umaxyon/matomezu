@@ -24,6 +24,10 @@ export type Series = z.infer<typeof SeriesSchema>
 export const MAX_SERIES = 8
 
 export const BAR_DIRECTIONS = ["vertical", "horizontal"] as const
+// 項目の文字が入りきらないとき: 間を飛ばす（skip）か、45 度に傾けて、まだ入らなければ間を飛ばす（rotate）
+export const CROWDS = ["skip", "rotate"] as const
+// 間を飛ばすときに出す文字: 等間隔（even）・値の多い順（top）・選んだ行だけ（picked）
+export const SKIPS = ["even", "top", "picked"] as const
 export const SORTS = ["none", "desc", "asc"] as const
 
 export const DataPropsSchema = z.strictObject({
@@ -61,6 +65,29 @@ export const DataPropsSchema = z.strictObject({
     .min(1)
     .optional()
     .describe("Id of the series column that sort orders by (without it, the first series)"),
+  crowd: z
+    .enum(CROWDS)
+    .default("skip")
+    .describe(
+      "When the category labels of a bar or line chart do not fit side by side: skip some (skip), or tilt them 45 degrees and skip some only when they still do not fit (rotate; vertical charts only). A label still too long for its room ends with an ellipsis",
+    ),
+  skip: z
+    .enum(SKIPS)
+    .default("even")
+    .describe(
+      "Which category labels show when some are skipped: evenly spaced, always the first and the last (even); the largest values first, by sortBy or the first series (top); or only the rows in picked (picked)",
+    ),
+  picked: z
+    .array(z.string().min(1))
+    .optional()
+    .describe("Ids of the rows whose category label shows when skip is picked"),
+  labelSize: z
+    .number()
+    .positive()
+    .optional()
+    .describe(
+      "Size in pixels of the category label area: its height under a vertical chart, its width beside horizontal bars. Without it, the area fits one line (tilted labels: up to 40% of the height) or, beside horizontal bars, the widest label up to 35% of the width",
+    ),
 })
 export type DataProps = z.infer<typeof DataPropsSchema>
 
