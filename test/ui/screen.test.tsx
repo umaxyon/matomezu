@@ -290,7 +290,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   expect(screen.getByRole("dialog", { name: "新しいページ" })).toBeTruthy()
 })
 
-test("図面の画面を右クリックすると押した位置にメニュー（一番上に画面の分割とページ全体を収める、区切り線の下にページの設定・ブックの設定）が出て、設定を押すと閉じて設定のダイアログが開く", () => {
+test("図面の画面を右クリックすると押した位置にメニュー（一番上にページ全体を収めると画面の分割、区切り線の下にページの設定・ブックの設定）が出て、設定を押すと閉じて設定のダイアログが開く", () => {
   renderScreen()
   const paper = screen.getByRole("img", { name: "紙" })
   const notCanceled = fireEvent.contextMenu(paper, { clientX: 40, clientY: 50 })
@@ -300,8 +300,8 @@ test("図面の画面を右クリックすると押した位置にメニュー�
     within(menu)
       .getAllByRole("menuitem")
       .map(b => b.textContent),
-  ).toEqual(["画面を分割", "ページ全体を収める", "ページの設定", "ブックの設定"])
-  // 一番上の 2 つ（画面の分割とページ全体を収める）の下に区切り線
+  ).toEqual(["ページ全体を収める", "画面を分割", "ページの設定", "ブックの設定"])
+  // 一番上の 2 つ（ページ全体を収めると画面の分割）の下に区切り線
   expect(within(menu).getAllByRole("separator")).toHaveLength(1)
   fireEvent.click(within(menu).getByRole("menuitem", { name: "ブックの設定" }))
   expect(screen.queryByRole("menu")).toBeNull()
@@ -562,7 +562,7 @@ test("紙の右クリックのメニューの「画面を分割」で分割し�
   expect(stages()).toHaveLength(2)
   fireEvent.contextMenu(screen.getAllByRole("img", { name: "紙" })[0]!, { clientX: 40, clientY: 50 })
   const menu = screen.getByRole("menu")
-  expect(within(menu).getAllByRole("menuitem")[0]?.textContent).toBe("分割をやめる")
+  expect(within(menu).getAllByRole("menuitem")[1]?.textContent).toBe("分割をやめる")
   fireEvent.click(within(menu).getByRole("menuitem", { name: "分割をやめる" }))
   expect(stages()).toHaveLength(1)
 })
