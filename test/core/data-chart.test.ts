@@ -1,5 +1,6 @@
 // データのグラフの計算: 目盛り・軸の合わせ方・項目の並べ方と飛ばし方・棒と折れ線・円・散布図の寸法・ダイアログの軸の下書き
 import { expect, test } from "bun:test"
+import { AREA_LOOK, areasOf, CONTENT_MIN } from "../../web/src/plugins/items/data/areas"
 import { settleAxes } from "../../web/src/plugins/items/data/axes"
 import {
   CHART_LOOK,
@@ -16,6 +17,7 @@ import { axesProps, axesWithout, toAxesDraft, toggleValue, withView } from "../.
 import { MAX_SLICES, pieLayout } from "../../web/src/plugins/items/data/pie"
 import { formatNumber, niceTicks } from "../../web/src/plugins/items/data/scale"
 import { scatterLayout } from "../../web/src/plugins/items/data/scatter"
+import { fitTable } from "../../web/src/plugins/items/data/size"
 import type { Table } from "../../web/src/plugins/items/data/table"
 import { cartesianTip, pieTip, scatterTip, seriesNames } from "../../web/src/plugins/items/data/tips"
 
@@ -251,4 +253,29 @@ test("軸を表に合わせると、表に無い選んだ行は外れる", () =>
   expect(
     settleAxes(props({ view: "bar", x: "m", series: [{ column: "s" }], picked: ["r1", "gone"] }), TABLE).picked,
   ).toEqual(["r1"])
+})
+
+test("文字の領域: キャプションか本文があれば上か下に出し、出さない・どちらも無いなら出さない。描く所は 40px より低くしない", () => {
+  const size = { w: 200, h: 120 }
+  const none = areasOf(props({}), size)
+  expect(none.text).toBeNull()
+  expect(none.content).toEqual({ w: 198, h: 118 })
+  const top = areasOf(props({ caption: "売上" }), size)
+  expect(top.text!.height).toBe(18 + 2 * AREA_LOOK.padY)
+  expect(top.content.h).toBe(118 - top.text!.height)
+  expect(top.contentTop).toBe(false)
+  expect(areasOf(props({ caption: "売上", textAt: "bottom" }), size).contentTop).toBe(true)
+  expect(areasOf(props({ caption: "売上", textAt: "none" }), size).text).toBeNull()
+  const long = areasOf(props({ caption: "売上", body: "とても長い本文。".repeat(40) }), size)
+  expect(long.content.h).toBeGreaterThanOrEqual(CONTENT_MIN)
+})
+
+test("表の見た目の大きさは、表と、本文を全部出した文字の領域が見える大きさ。幅はキャプションが見える幅より狭くしない", () => {
+  const plain = fitTable(TABLE, props({}), { w: 2000, h: 2000 })
+  const titled = fitTable(TABLE, props({ caption: "とても長い表のキャプションです", body: "説明" }), {
+    w: 2000,
+    h: 2000,
+  })
+  expect(titled.h).toBeGreaterThan(plain.h)
+  expect(titled.w).toBeGreaterThanOrEqual(plain.w)
 })

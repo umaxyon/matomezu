@@ -1,0 +1,65 @@
+/* 文字の塊（寸法は block.ts と fields.ts の TEXT_LOOK と同じ値にする）。字の形は、塊を置く形の CSS が決める */
+.block {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+/* キャプションと本文の寄せ */
+.block [data-align="left"] {
+  text-align: left;
+}
+.block [data-align="center"] {
+  text-align: center;
+}
+.block [data-align="right"] {
+  text-align: right;
+}
+/* キャプション: 1 行で、収まらない分は … で切る */
+.caption {
+  flex: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-height: 18px;
+  font-weight: 700;
+}
+.rule {
+  flex: none;
+  margin: 3px 0;
+  border: 0;
+  border-top: 1px solid var(--block-line);
+}
+/* 本文: 折り返した行を 1 行ずつ置く。行の中では折り返さない */
+.body {
+  position: relative;
+  flex: none;
+}
+/* 本文の列の端のつまみ（形を選んでいる間）: 端に重ねた細い縦の線。つかむ所は線より広い */
+.bodyGrip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.bodyGrip[data-body-grip="left"] {
+  left: -5px;
+}
+.bodyGrip[data-body-grip="right"] {
+  right: -5px;
+}
+.bodyGrip::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--theme-accent) 70%, transparent);
+}
+.line {
+  height: 18px;
+  white-space: pre;
+}

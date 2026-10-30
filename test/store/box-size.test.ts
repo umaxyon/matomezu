@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { shapesOf } from "../../web/src/core/placed"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { resolveTokens } from "../../web/src/core/theme"
+import { bodySides } from "../../web/src/plugins/base/text/block"
 import { plainOf } from "../../web/src/plugins/base/text/rich"
 import { textWidth } from "../../web/src/plugins/base/text/text"
 import { BOX_TOKENS } from "../../web/src/plugins/items/box/box"
@@ -10,7 +11,6 @@ import {
   BOX_MIN,
   bodyColumn,
   bodyMinWidth,
-  bodySides,
   bodyWidthAfter,
   boxLayout,
   placedHeight,

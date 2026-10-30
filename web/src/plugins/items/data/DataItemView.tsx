@@ -1,10 +1,14 @@
-// データのアイテムのビュー: 表を持たない間は、点線の枠の真ん中に「No Data」と出す。表を持てば、見出しの行（列の名前）の下に行を並べた表で描く
-// （数の列は右寄せ、文字の列は左寄せ。列の幅と行の高さは size.ts の値で、セルの中では折り返さない）。入りきらない行と列は、枠の中でスクロールする。
+// データのアイテムのビュー: 枠の中に、文字の領域（キャプションと本文。base の TextBlockView）と、表やグラフを描く所を上下に並べる（areas.ts）。
+// 表を持たない間は、点線の枠で、描く所の真ん中に「No Data」と出す。表を持てば、見た目が表なら見出しの行（列の名前）の下に行を並べた表
+// （数の列は右寄せ、文字の列は左寄せ。列の幅と行の高さは size.ts の値で、セルの中では折り返さない。入りきらない行と列は描く所の中でスクロールする）、
 // グラフの見た目なら、グラフ（ChartView）を描く。
+// データを選んでいる間（紙をずらす道具の間は除く）は、本文の列の端につまみを出し、離したら本文の幅（bodyWidth）をアクション item-update で書く。
 // データにテーマ（theme）を当てていれば、そのテーマのデータのテーマキーで描く。表に無いテーマならブックのテーマのまま
+import type { ReactNode } from "react"
 import type { ItemProps } from "../../../plugin-api"
-import { type ItemViewProps, useMessages } from "../../../plugin-api/ui"
-import { useThemeVars } from "../../base/ui"
+import { type ItemViewProps, useAllowed, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
+import { TextBlockView, useThemeVars } from "../../base/ui"
+import { areasOf } from "./areas"
 import { ChartView } from "./ChartView"
 import styles from "./DataItemView.module.css"
 import { type DATA, DATA_TOKENS } from "./data"
@@ -23,19 +27,52 @@ export function DataItemView({
 }: ItemViewProps<DataProps, { readonly table?: Table }>) {
   const t = useMessages(kit)
   const vars = useThemeVars(props.theme, DATA_TOKENS)
+  const at = useStage(stage)
+  const page = at?.opened?.page ?? undefined
+  const perform = usePerform(stage)
+  const allowed = useAllowed(stage, "@matomezu/paper:item-update", { page, items: [id] }).ok
+  const grips = allowed && at !== null && !at.pans && at.selection.includes(id)
   const table = content.table
-  if (!table)
-    return (
-      <div className={styles.empty} style={vars} data-theme={props.theme} data-empty>
-        {t("No Data")}
+  const areas = areasOf(props, size)
+  const text = areas.text && (
+    <div className={styles.text} style={{ height: areas.text.height }}>
+      <TextBlockView
+        props={props}
+        inner={areas.text.inner}
+        least={areas.text.least}
+        maxH={areas.text.maxH}
+        stage={stage}
+        grips={grips}
+        lineColor="var(--data-line)"
+        onBodyWidth={bodyWidth => {
+          if (page) perform("@matomezu/paper:item-update", { page, item: id, props: { bodyWidth } })
+        }}
+      />
+    </div>
+  )
+  let body: ReactNode
+  if (!table) body = <div className={styles.noData}>{t("No Data")}</div>
+  else if (props.view !== "table")
+    body = <ChartView table={table} props={props} size={areas.content} stage={stage} id={id} />
+  else body = <TableView table={table} />
+  return (
+    <div
+      className={styles.frame}
+      style={vars}
+      data-theme={props.theme}
+      data-view={props.view}
+      data-empty={table ? undefined : ""}
+    >
+      {!areas.contentTop && text}
+      <div className={styles.content} style={{ height: areas.content.h }}>
+        {body}
       </div>
-    )
-  if (props.view !== "table")
-    return (
-      <div className={styles.chartFrame} style={vars} data-theme={props.theme} data-view={props.view}>
-        <ChartView table={table} props={props} size={size} stage={stage} id={id} />
-      </div>
-    )
+      {areas.contentTop && text}
+    </div>
+  )
+}
+
+function TableView({ table }: { table: Table }) {
   const widths = columnWidths(table)
   // セルの大きさ: 2 列目からは左に、2 行目からは上に罫線を引く
   const cell = (row: number, col: number) => ({
@@ -43,7 +80,7 @@ export function DataItemView({
     height: ROW_HEIGHT + (row > 0 ? TABLE_LOOK.rule : 0),
   })
   return (
-    <div className={styles.frame} style={vars} data-theme={props.theme}>
+    <div className={styles.scroll}>
       <table className={styles.table}>
         <thead>
           <tr>

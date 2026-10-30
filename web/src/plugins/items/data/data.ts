@@ -1,9 +1,12 @@
 // データ: 中に 2 次元の表（table.ts）を持ち、表かグラフで見せる形。表を持たない間は、点線の枠に「No Data」と出す。
 // 見た目（view）は表・棒・折れ線・円・散布図から選び、既定は表。中身の表は中身のフィールド table に持ち、アクション data-set で丸ごと入れ替える。
 // グラフの軸は、表の列を id で名指す（x・series・label）。表に無い列や型の合わない列を名指した軸は外し、グラフにしたときに軸が無ければ既定の列を選ぶ（axes.ts）。
+// 箱と同じキャプションと本文（文字の領域）を、表やグラフの上か下に置ける（出さないこともできる。areas.ts）。
 // 置くときはダイアログを開かずに、表の無いまま置く。表は編集のダイアログ（data-edit）で書き換える
 import { z } from "zod"
 import type { ShapeEditArgs } from "../../../plugin-api"
+import { textProps } from "../../base"
+import { captionWidthOf } from "./areas"
 import { settleAxes } from "./axes"
 import { kit } from "./kit"
 import { TableSchema } from "./table"
@@ -30,7 +33,24 @@ export const CROWDS = ["skip", "rotate"] as const
 export const SKIPS = ["even", "top", "picked"] as const
 export const SORTS = ["none", "desc", "asc"] as const
 
+// 文字の領域（キャプションと本文）の置き場所: グラフや表の上（top）・下（bottom）・出さない（none）
+export const TEXT_ATS = ["top", "bottom", "none"] as const
+
 export const DataPropsSchema = z.strictObject({
+  ...textProps("center"), // キャプション・区切り線・本文と寄せ（キャプションは中央寄せ）
+  textAt: z
+    .enum(TEXT_ATS)
+    .default("top")
+    .describe(
+      "Where the caption and body sit: above the table or chart (top), below it (bottom), or not shown (none, keeping them in the data)",
+    ),
+  bodyWidth: z
+    .number()
+    .positive()
+    .optional()
+    .describe(
+      "Width in pixels of the column the body wraps in, as in a box: never narrower than the caption; without it, the body fills the item's inside",
+    ),
   theme: z.string().min(1).optional(), // データに当てるテーマの id（無ければブックのテーマ）
   view: z
     .enum(DATA_VIEWS)
@@ -130,6 +150,8 @@ export const DATA = kit.defineShape({
   title: "Data",
   capabilities: ["connectable", "resizable"],
   themeProp: "theme", // 個別のテーマ（この形だけ別のテーマで描く）
+  captionProp: "caption", // キャプション（変わったら見える幅まで広げる）
+  captionWidth: data => captionWidthOf(data.props.caption),
   toolbox: true,
   props: DataPropsSchema,
   content: { table: TableSchema },

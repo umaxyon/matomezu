@@ -1,7 +1,16 @@
-/* データの字: 箱と同じく同梱の Noto Sans JP で、字詰めなどを止める */
-.empty,
-.frame,
-.chartFrame {
+/* データの枠（寸法は areas.ts の AREA_LOOK と同じ値にする）: 文字の領域と、表やグラフを描く所を上下に並べる。
+   字は箱と同じく同梱の Noto Sans JP で、字詰めなどを止める */
+.frame {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--data-line);
+  border-radius: var(--data-radius);
+  background: var(--data-fill);
+  color: var(--data-text);
   font-family: "Noto Sans JP", sans-serif;
   font-size: 13px;
   font-weight: 400;
@@ -9,31 +18,45 @@
   letter-spacing: 0;
   font-kerning: none;
   font-variant-ligatures: none;
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-  border-radius: var(--data-radius);
-  color: var(--data-text);
+  font-feature-settings:
+    "kern" 0,
+    "liga" 0,
+    "palt" 0;
+  text-spacing-trim: space-all;
+  text-autospace: no-autospace;
 }
-/* 表の無い間: 点線の枠の真ん中に「No Data」 */
-.empty {
+/* 表の無い間: 点線の枠 */
+.frame[data-empty] {
+  border-style: dashed;
+  border-color: var(--data-empty);
+  background: none;
+}
+/* 文字の領域（キャプションと本文） */
+.text {
+  flex: none;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  overflow: hidden;
+}
+/* 表やグラフを描く所 */
+.content {
+  flex: none;
+  position: relative;
+  overflow: hidden;
+}
+/* 「No Data」: 描く所の真ん中 */
+.noData {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px dashed var(--data-empty);
+  height: 100%;
   color: var(--data-empty);
 }
-/* グラフ: 枠の中に描く（はみ出さない） */
-.chartFrame {
-  overflow: hidden;
-  border: 1px solid var(--data-line);
-  background: var(--data-fill);
-}
-/* 表: 枠の中でスクロールする */
-.frame {
+/* 表: 描く所の中でスクロールする */
+.scroll {
+  width: 100%;
+  height: 100%;
   overflow: auto;
-  border: 1px solid var(--data-line);
-  background: var(--data-fill);
 }
 /* 表: 列の幅と行の高さは DataItemView が size.ts の値で決める（罫線を含む大きさ）。枠のほうが広ければ、列を広げて枠を埋める */
 .table {

@@ -177,3 +177,42 @@ test("入りきらない項目の文字は傾けられ、選んでいる間は�
   await dialog.getByRole("button", { name: "確定" }).click()
   await expect(labels).toHaveText(["2月"])
 })
+
+test("データにもキャプションと本文を書け、表やグラフの上か下に出し、出さないこともできる。選んでいる間は本文の列の端のつまみで幅を変えられる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const data = await addData(page)
+  const dialog = await fillMonths(page, data)
+  await dialog.getByLabel("キャプション", { exact: true }).fill("月ごとの売上")
+  await dialog.getByLabel("本文", { exact: true }).fill("目標を上回ったのは 2 月だけ")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  const block = data.locator("[data-text-block]")
+  await expect(block).toContainText("月ごとの売上")
+  // 上なら表より上、下ならグラフより下
+  const table = data.locator("table")
+  expect((await block.boundingBox())!.y).toBeLessThan((await table.boundingBox())!.y)
+  await data.dblclick()
+  await dialog.getByLabel("見た目").selectOption("bar")
+  await dialog.getByLabel("文字の置き場所").selectOption("bottom")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  const chart = data.getByRole("img", { name: "棒グラフ" })
+  expect((await block.boundingBox())!.y).toBeGreaterThan((await chart.boundingBox())!.y)
+  // 本文の列の端のつまみで、本文の列を狭める
+  await data.click()
+  const right = data.locator('[data-body-grip="right"]')
+  const r = (await right.boundingBox())!
+  const before = (await data.locator("[data-text-block] [data-line]").first().boundingBox())!.width
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(r.x + r.width / 2 - 20, r.y + r.height / 2, { steps: 4 })
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await data.locator("[data-text-block] [data-line]").first().boundingBox())!.width)
+    .toBeLessThan(before)
+  // 出さない
+  await data.dblclick()
+  await dialog.getByLabel("文字の置き場所").selectOption("none")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(block).toHaveCount(0)
+})

@@ -1,6 +1,6 @@
 // データの編集のダイアログ: 表の格子をその場で書き換え、確定で表を丸ごと入れ替える（アクション data-set）。
 // 見出しの行で列の名前と型（数・文字）を選び、列を足す・消す。行は最後に足し、左の × で消す。数の列に数でない文字を書いたセルは赤くし、確定を押せない。
-// 上で見た目（表・棒・折れ線・円・散布図）と軸を選ぶ（AxesFields）。軸の列は下書きの列から選ぶ。
+// 上でキャプション・本文と文字の置き場所（TextFields）、見た目（表・棒・折れ線・円・散布図）と軸（AxesFields）を選ぶ。軸の列は下書きの列から選ぶ。
 // 文字の列を数の列に変えられるのは、どのセルも数として読めるときだけ。置けない（紙からはみ出すなど）ときは閉じずに理由を出す
 import { useId, useState } from "react"
 import { type DialogProps, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
@@ -31,56 +31,77 @@ import {
   togglePicked,
 } from "./draft"
 import { kit } from "./kit"
+import { type TextDraft, TextFields } from "./TextFields"
 import type { ColumnType } from "./table"
 
 export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
   const placed = useItem(stage, args.page, args.item, DATA.id)
   const perform = usePerform(stage)
   if (!placed) return null
-  // 見た目を変えてから表を入れ替え（表の見た目なら大きさが表に合う）、data-set が返した列の id で軸を書く（1 回の操作）
-  const save = (d: Draft, a: AxesDraft) => {
+  // 見た目と文字の項目を書いてから表を入れ替え（表の見た目なら、大きさが表と文字に合う）、data-set が返した列と行の id で軸を書く（1 回の操作）
+  const save = (d: Draft, a: AxesDraft, text: TextDraft) => {
     const set = draftArgs(d)
     if (!set) return false
     const at = { page: args.page, item: args.item }
-    const before = placed.props.view
-    const viewOk = a.view === before || perform("@matomezu/paper:item-update", { ...at, props: { view: a.view } }).ok
-    const done = viewOk ? perform(DATA_SET.id, { ...at, ...set }) : null
+    const before = { view: placed.props.view, ...textDraftOf(placed.props) }
+    const lookOk = perform("@matomezu/paper:item-update", { ...at, props: { view: a.view, ...text } }).ok
+    const done = lookOk ? perform(DATA_SET.id, { ...at, ...set }) : null
     const axesOk =
       done?.ok === true &&
-      perform("@matomezu/paper:item-update", { ...at, props: axesProps(a, done.result.columns, done.result.rows) }).ok
+      perform("@matomezu/paper:item-update", {
+        ...at,
+        props: axesProps(a, done.result.columns, done.result.rows),
+      }).ok
     if (axesOk) {
       onClose()
       return true
     }
-    // 途中で断られたら、変えた見た目を戻す（表と軸は、断られたアクションでは変わっていない）
-    if (viewOk && a.view !== before) perform("@matomezu/paper:item-update", { ...at, props: { view: before } })
+    // 途中で断られたら、変えた見た目と文字を戻す（表と軸は、断られたアクションでは変わっていない）
+    if (lookOk) perform("@matomezu/paper:item-update", { ...at, props: before })
     return false
   }
   return (
     <DataDialog
       start={toDraft(placed.table)}
       startAxes={toAxesDraft(placed.props, placed.table)}
+      startText={textDraftOf(placed.props)}
+      stage={stage}
       onSubmit={save}
       onClose={onClose}
     />
   )
 }
 
+// 文字の領域の項目の下書き
+const textDraftOf = (p: TextDraft): TextDraft => ({
+  caption: p.caption,
+  rule: p.rule,
+  body: p.body,
+  captionAlign: p.captionAlign,
+  bodyAlign: p.bodyAlign,
+  textAt: p.textAt,
+})
+
 function DataDialog({
   start,
   startAxes,
+  startText,
+  stage,
   onSubmit,
   onClose,
 }: {
   start: Draft
   startAxes: AxesDraft
-  onSubmit: (d: Draft, a: AxesDraft) => boolean // 決められたか
+  startText: TextDraft
+  stage: string
+  onSubmit: (d: Draft, a: AxesDraft, text: TextDraft) => boolean // 決められたか
   onClose: () => void
 }) {
   const t = useMessages(kit)
   const form = useId()
   const [draft, setDraft] = useState(start)
   const [axes, setAxes] = useState(startAxes)
+  const [text, setText] = useState(startText)
   const [problem, setProblem] = useState<"fit" | "type" | null>(null)
   const change = (next: Draft, nextAxes = axes) => {
     setDraft(next)
@@ -110,7 +131,8 @@ function DataDialog({
         </>
       }
     >
-      <Form id={form} ready={ok} onSubmit={() => setProblem(onSubmit(draft, axes) ? null : "fit")}>
+      <Form id={form} ready={ok} onSubmit={() => setProblem(onSubmit(draft, axes, text) ? null : "fit")}>
+        <TextFields stage={stage} text={text} onChange={setText} />
         <AxesFields draft={draft} axes={axes} onChange={setAxes} />
         <div className={styles.grid}>
           <table>
