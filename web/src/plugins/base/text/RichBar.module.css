@@ -4,7 +4,7 @@
   align-items: center;
   gap: 3px;
   padding: 2px 4px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 6px;
   background: var(--skin-btn);
 }
@@ -28,7 +28,7 @@
   width: 1px;
   height: 12px;
   margin: 0 3px;
-  background: var(--skin-line);
+  background: var(--skin-border);
 }
 .dot {
   all: unset;
@@ -44,8 +44,8 @@
 }
 /* 色なし: 白地に斜めの線 */
 .none {
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   background:
-    linear-gradient(135deg, transparent 45%, var(--skin-hint) 45%, var(--skin-hint) 55%, transparent 55%),
-    var(--skin-bg);
+    linear-gradient(135deg, transparent 45%, var(--skin-text-muted) 45%, var(--skin-text-muted) 55%, transparent 55%),
+    var(--skin-surface-muted);
 }

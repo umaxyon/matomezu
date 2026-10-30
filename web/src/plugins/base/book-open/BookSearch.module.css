@@ -8,9 +8,9 @@
 .input {
   width: 100%;
   padding: 7px 10px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border-strong);
   border-radius: 6px;
-  background: var(--skin-bg);
+  background: var(--skin-surface-muted);
   color: var(--skin-text);
   font: inherit;
 }
@@ -45,7 +45,7 @@
 }
 .when {
   flex: none;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   font-size: 12px;
 }
 /* ゴミ箱に入れるボタン: 行にポインタを乗せている間だけ出す */
@@ -60,7 +60,7 @@
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   cursor: pointer;
   visibility: hidden;
 }
@@ -79,7 +79,7 @@
   display: flex;
   flex-direction: column;
   padding: 6px 10px;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   cursor: not-allowed;
 }
 .broken > span {
@@ -91,14 +91,14 @@
 .partial {
   margin-left: 8px;
   font-size: 12px;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
 }
 .reason {
   font-size: 12px;
 }
 .empty {
   margin: 4px 10px;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
 }
 /* ゴミ箱の一覧の上の行（右にゴミ箱を空にするボタン） */
 .trashHead {

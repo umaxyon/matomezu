@@ -18,10 +18,10 @@
   cursor: pointer;
 }
 .button:hover:not(:disabled) {
-  background: var(--skin-float-hover);
+  background: var(--skin-accent-subtle);
 }
 .button:disabled {
-  opacity: 0.35;
+  color: var(--skin-text-disabled);
   cursor: default;
 }
 .button svg {

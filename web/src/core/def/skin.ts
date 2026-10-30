@@ -4,22 +4,32 @@ import type { SkinExtras } from "../catalog"
 import type { MessageKey } from "../i18n/i18n"
 
 export const SKIN_TOKENS = [
-  "bg",
-  "grid",
+  // 面
+  "stage", // ステージの地（紙の外）
+  "stage-grid", // ステージの地の点
+  "surface", // 下の行の地（ステージの下に付いた面）
+  "surface-muted", // 入力Formの地
+  "surface-strong", // ブック名のボタンの地
+  "surface-raised", // 浮かぶ面の地: ドロワー・メニュー・ダイアログ・トースト・画面の上に浮かぶ丸いボタン（道具のアイコン）
+  // 影（box-shadow の値）
+  "shadow-1", // 下の行・ドロワーの縁の薄い影
+  "shadow-2", // 浮かぶボタン・ミニマップ・道具箱・名前の札
+  "shadow-3", // メニュー・トースト・ダイアログ・色のポップアップ
+  // 線
+  "border",
+  "border-strong", // 入力Formの縁
+  // 文字
   "text",
-  "hint",
-  "bar",
-  "tools",
-  "line",
+  "text-muted",
+  "text-disabled", // 押せない物の文字とアイコン
+  // 操作
   "btn",
   "btn-hover",
+  // 強調
   "accent",
-  "current", // 分けているときのカレントのステージの下の行の地
-  "divider", // 分けているときの境目をつかんでいる間の線
-  "float", // 画面の上に浮かぶ丸いボタン（道具のアイコン）の地
-  "float-line", // 浮かぶボタンの縁
-  "float-hover", // 浮かぶボタンにポインタを乗せたときの地
+  "accent-subtle", // 強調の色を薄く敷いた地（分けているときのカレントのステージの下の行・浮かぶボタンに乗せたとき）
   "on-accent", // 強調の色の地の上の文字とアイコン
+  // 状態
   "danger", // 取り消せない操作（消すなど）のボタンの文字と縁。失敗を知らせるトーストの印
   "warn", // 断りを知らせるトーストの印
   "font",

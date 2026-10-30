@@ -29,9 +29,9 @@
   box-sizing: border-box;
   width: 100%;
   padding: 3px 6px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border-strong);
   border-radius: 4px;
-  background: var(--skin-bg);
+  background: var(--skin-surface-muted);
   color: var(--skin-text);
   font: inherit;
 }
@@ -52,7 +52,7 @@
 .add {
   border: none;
   background: none;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   cursor: pointer;
   white-space: nowrap;
 }

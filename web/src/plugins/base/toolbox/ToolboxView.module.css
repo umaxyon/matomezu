@@ -52,10 +52,10 @@
   grid-template-columns: repeat(8, 32px);
   gap: 2px;
   padding: 6px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 8px;
-  background: var(--skin-bar);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.16);
+  background: var(--skin-surface-raised);
+  box-shadow: var(--skin-shadow-2);
 }
 .cell {
   display: grid;

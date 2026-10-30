@@ -28,14 +28,14 @@
 .prompt {
   margin: 0;
   font-size: 14px;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
 }
 .create {
   padding: 7px 18px;
   border: 0;
   border-radius: 6px;
   background: var(--skin-accent);
-  color: var(--skin-bg);
+  color: var(--skin-on-accent);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -58,7 +58,7 @@
   left: 50%;
   margin: 0;
   transform: translate(-50%, -50%);
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   font-size: 14px;
 }
 /* 罫線（紙と同じ大きさの層。行の下に描く） */
