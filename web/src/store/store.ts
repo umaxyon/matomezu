@@ -140,6 +140,9 @@ export interface Actions {
   // ブック book の履歴の、戻せる段（from が undo）かやり直せる段（redo）の最後の段を、反対の側へ移す。段が変えたほかのブックの履歴でも移す。
   // 段を戻す・やり直すアクションを行えたあとに呼ぶ
   moveHistory(book: string, from: "undo" | "redo"): void
+  // 同じ処理の中でこのあと行うアクションを、ブック book の最後の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 段にする）。
+  // 足したあと何も変わらなければ（足した物を書かずに消したなど）、段ごと無くなる
+  continueStep(book: string): void
 }
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
@@ -306,11 +309,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   // 開いている段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 段にまとめ、処理が終わったら
   // 履歴に入れる（入れた段が変えたブックの、やり直せる段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
-  let open: { at: string; books: Record<string, { before: Book; after: Book }> } | null = null
+  let open: { at: string; books: Record<string, { before: Book; after: Book }>; continued?: true } | null = null
   const closeStep = () => {
     if (!open) return
-    const step: HistoryStep = open
+    const { at, books, continued } = open
+    const step: HistoryStep = { at, books }
     open = null
+    // 続けた段で何も変わらなかった（足した物を書かずに消したなど）なら入れない
+    if (continued && Object.values(books).every(b => JSON.stringify(b.before) === JSON.stringify(b.after))) return
     const history = { ...getState().history }
     for (const id of Object.keys(step.books))
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
@@ -473,6 +479,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }),
     closePicker: () => withWorkspace(ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
     showPickerMap: id => withWorkspace(ws => mapStage(ws, id, showPickerMap)),
+    continueStep: book => {
+      closeStep()
+      const { history } = getState()
+      const step = history[book]?.undo.at(-1)
+      if (!step) return
+      const next = { ...history }
+      for (const id of Object.keys(step.books)) {
+        const was = next[id] ?? NO_HISTORY
+        next[id] = { ...was, undo: was.undo.filter(s => s !== step) }
+      }
+      setState({ history: next })
+      open = { at: step.at, books: { ...step.books }, continued: true }
+      queueMicrotask(closeStep)
+    },
     moveHistory: (book, from) => {
       closeStep()
       const to = from === "undo" ? "redo" : "undo"

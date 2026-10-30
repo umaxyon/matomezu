@@ -30,6 +30,7 @@ import { RichBar, RichInput, type RichInputHandle, RichText, useResize, useZoomM
 import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "../actions"
 import { dropAt, subtreeIds } from "../drag"
 import {
+  ADDED_EDIT,
   addArgs,
   afterRemove,
   centerShift,
@@ -135,7 +136,7 @@ function Tree({
   const book = useShownBook(stage.id)
   const page = useShownPage(stage.id)
   const perform = usePerform(stage.id)
-  const { select, setEditing, panStageBy, zoomStage, showToast, openDialog } = useActions()
+  const { select, setEditing, panStageBy, zoomStage, showToast, openDialog, continueStep } = useActions()
   // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
@@ -168,6 +169,7 @@ function Tree({
   const end = (commit: boolean) => {
     if (ended.current) return
     ended.current = true
+    if (stage.editing === ADDED_EDIT) continueStep(book.id)
     const todo = editEnd(tree, selected, commit ? text : null)
     if (todo.kind === "remove") {
       const next = afterRemove(tree, grow, selected)
@@ -189,7 +191,7 @@ function Tree({
     const id = done.ok ? done.result.nodes[0]?.id : undefined
     if (!id) return refused(done.ok ? { reason: "refused" } : done)
     select(stage.id, [id])
-    setEditing(stage.id, true)
+    setEditing(stage.id, ADDED_EDIT)
   }
   const { nodes, lines } = laid
   // ドラッグで動かしている節（押しただけでまだ動かしていなければ null）と、落とす先
