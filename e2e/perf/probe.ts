@@ -2,8 +2,9 @@
 // - 1 コマの時間: requestAnimationFrame の間隔を、測っている間だけ記録する
 // - 長い処理: 50ms を超えた処理（longtask）を記録する
 // - 描き直した数: React の開発者ツールの口（__REACT_DEVTOOLS_GLOBAL_HOOK__。本番のビルドでも呼ばれる）で、
-//   コミットのたびに、描き直したコンポーネントの数と、アイテムの要素（[data-item]）を描き直した数をステージごとに数える
-// - 開くまでの時間: アイテムの要素が want 個そろった時点（ページを開き始めてからの ms）
+//   コミットのたびに、描き直したコンポーネントの数と、図の要素（アイテム [data-item]・ツリーの節 [data-node]・ディレクトリ構成図の中身 [data-entry]）を
+//   描き直した数をステージごとに数える
+// - 開くまでの時間: 図の要素が want 個そろった時点（ページを開き始めてからの ms）
 import type { Page } from "@playwright/test"
 
 export interface Probe {
@@ -11,15 +12,16 @@ export interface Probe {
   longTasks: { start: number; duration: number }[]
   commits: number
   renders: number // 描き直したコンポーネント
-  itemRedraws: Record<string, number> // ステージ（data-stage）ごとの、アイテムの要素を描き直した数
+  itemRedraws: Record<string, number> // ステージ（data-stage）ごとの、図の要素を描き直した数
   recording: boolean
-  want: number // そろうのを待つアイテムの要素の数（0 なら待たない）
+  want: number // そろうのを待つ図の要素の数（0 なら待たない）
   ready: number | null // want 個そろった時点
 }
 
 type ProbeWindow = Window & { __perf: Probe }
 
 function install() {
+  const PARTS = "[data-item], [data-node], [data-entry]" // 図の要素
   const perf: Probe = {
     frames: [],
     longTasks: [],
@@ -35,8 +37,7 @@ function install() {
   const tick = (t: number) => {
     if (perf.recording && last > 0) perf.frames.push(t - last)
     last = t
-    if (perf.want > 0 && perf.ready === null && document.querySelectorAll("[data-item]").length >= perf.want)
-      perf.ready = t
+    if (perf.want > 0 && perf.ready === null && document.querySelectorAll(PARTS).length >= perf.want) perf.ready = t
     requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)
@@ -63,7 +64,7 @@ function install() {
     if (COMPONENT_TAGS.has(fiber.tag) && (fiber.flags & PERFORMED_WORK) !== 0) perf.renders++
     if (fiber.tag === HOST && (prev === null || prev.memoizedProps !== fiber.memoizedProps)) {
       const el = fiber.stateNode as Element
-      if (el.hasAttribute?.("data-item")) {
+      if (el.matches?.(PARTS)) {
         const stage = el.closest("[data-stage]")?.getAttribute("data-stage") ?? "?"
         perf.itemRedraws[stage] = (perf.itemRedraws[stage] ?? 0) + 1
       }
@@ -89,7 +90,7 @@ function install() {
 
 export const installProbe = (page: Page) => page.addInitScript(install)
 
-// 開く前に、そろうのを待つアイテムの要素の数を決める
+// 開く前に、そろうのを待つ図の要素の数を決める
 export const awaitItems = (page: Page, want: number) =>
   page.addInitScript(n => {
     const set = () => {

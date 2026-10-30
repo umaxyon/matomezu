@@ -18,9 +18,11 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
+  memo,
   type PointerEvent,
   type RefObject,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -37,6 +39,8 @@ import {
   useShownBook,
   useShownPage,
   useStage,
+  useStagePan,
+  useToPaper,
 } from "../../../../plugin-api/ui"
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
 import { RichBar, RichInput, type RichInputHandle, RichText, useZoomMotion } from "../../../base/ui"
@@ -71,12 +75,17 @@ export function DirView({ stage: id }: BookViewProps) {
 // area はステージの表示領域の要素（押した所を紙の座標に直すのに使う）
 function Content({ stage, area }: { stage: StageView; area: RefObject<HTMLDivElement | null> }) {
   const t = useMessages(kit)
-  const p = placement(stage)
+  const pan = useStagePan(stage.id)
+  const p = pan && placement({ ...stage, pan })
+  // 紙の大きさ（変わらなければ同じ物を渡し、紙をずらしただけでは行を描き直さない）
+  const w = p?.w
+  const h = p?.h
+  const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
   const motion = useZoomMotion(stage.zoom, "")
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
-  if (!p) return null
+  if (!p || !paperSize) return null
   return (
     <div
       className={styles.paper}
@@ -90,13 +99,13 @@ function Content({ stage, area }: { stage: StageView; area: RefObject<HTMLDivEle
       }}
     >
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
-      <Rows stage={stage} paper={{ w: p.w, h: p.h }} area={area} />
+      <Rows stage={stage} paper={paperSize} area={area} />
     </div>
   )
 }
 
-// 開いたページの行と罫線（根の無いページは何も描かない）
-function Rows({
+// 開いたページの行と罫線（根の無いページは何も描かない）。受け取るものが変わらなければ描き直さない（紙をずらしただけでは描き直さない）
+const Rows = memo(function Rows({
   stage,
   paper,
   area,
@@ -390,7 +399,7 @@ function Rows({
       )}
     </>
   )
-}
+})
 
 // 中に足す種類を選ぶ枠: フォルダとファイルを縦に並べ、初めはフォルダに焦点を置く。↑・↓ で焦点を動かし、Enter か押して onPick、Escape か枠の外へ焦点が移ると onCancel
 function KindPicker({
@@ -593,21 +602,22 @@ function useRowDrag(stage: StageView, area: RefObject<HTMLDivElement | null>) {
   }
   const localRef = useRef(local)
   localRef.current = local
+  const toPaperAt = useToPaper(stage.id)
   const id = stage.id
   const pressed = state !== null
   const pointer = useRef<Point | null>(null) // 最後のポインタの所（画面の座標）
-  // 紙がずれたら（描き直したあとのステージで）、ポインタの下の紙の所を追い直す
-  const { opened, pan, zoom } = stage
+  // 紙がずれたら（描き直したあとのステージで）、ポインタの下の紙の所を追い直す。
+  // 紙をずらす量は押している間だけ追う（押していなければ、ずらしても描き直さない）
+  const { opened, zoom } = stage
+  const pan = useStagePan(id, pressed)
   useEffect(() => {
     const d = latest.current
     const c = pointer.current
     const p = c && localRef.current(c.x, c.y)
-    if (!d?.moved || !p) return
+    if (!d?.moved || !p || !pan) return
     const at = toPaper({ opened, pan, zoom }, p)
     if (at && (at.x !== d.at.x || at.y !== d.at.y)) setPress({ ...d, at })
   }, [opened, pan, zoom])
-  const stageRef = useRef(stage)
-  stageRef.current = stage
   useEffect(() => {
     if (!pressed) return
     const panner = edgePanner(
@@ -623,7 +633,7 @@ function useRowDrag(stage: StageView, area: RefObject<HTMLDivElement | null>) {
       pointer.current = { x: e.clientX, y: e.clientY }
       if (!d.moved && Math.hypot(e.clientX - d.from.x, e.clientY - d.from.y) < DRAG_START) return
       const p = localRef.current(e.clientX, e.clientY)
-      const at = p && toPaper(stageRef.current, p)
+      const at = p && toPaperAt(p)
       if (at) setPress({ ...d, moved: true, at })
       panner.follow(pointer.current)
     }
@@ -645,10 +655,10 @@ function useRowDrag(stage: StageView, area: RefObject<HTMLDivElement | null>) {
       window.removeEventListener("pointerup", up)
       window.removeEventListener("pointercancel", cancel)
     }
-  }, [pressed, id, area, panStageBy])
+  }, [pressed, id, area, panStageBy, toPaperAt])
   const start = (row: { id: string; x: number; y: number }, cx: number, cy: number) => {
     const p = local(cx, cy)
-    const at = p && toPaper(stage, p)
+    const at = p && toPaperAt(p)
     if (at)
       setPress({ entry: row.id, from: { x: cx, y: cy }, grab: { x: at.x - row.x, y: at.y - row.y }, at, moved: false })
   }

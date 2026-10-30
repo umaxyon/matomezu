@@ -2,8 +2,8 @@
 // 離すとその相手に引く（コマンド line-draw）。何も無い所・引けない相手の上で離す、Escape、3px 未満しか動かさないときは引かない。
 // ドラッグの間の途中の線の先と相手だけをビューに持つ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
-import { type CoreCatalog, type ItemPage, type Point, type Rect, type StageView, toPaper } from "../../../plugin-api"
-import { useCommand } from "../../../plugin-api/ui"
+import type { CoreCatalog, ItemPage, Point, Rect, StageView } from "../../../plugin-api"
+import { useCommand, useToPaper } from "../../../plugin-api/ui"
 import { LINE_DRAW } from "./commands"
 import { portAt, targetsFrom } from "./connect"
 import type { Side } from "./route"
@@ -25,6 +25,7 @@ export function useLinkDrag(
   localOf: (e: PointerEvent<Element>) => Point | null,
 ) {
   const draw = useCommand(stage.id, LINE_DRAW.id)
+  const toPaperAt = useToPaper(stage.id)
   const link = useRef<Link | null>(null)
   const [tip, setTip] = useState<{ at: Point; target: string | null } | null>(null) // 途中の線の先（紙の上）と、その下の引ける相手
   const active = tip !== null
@@ -59,7 +60,7 @@ export function useLinkDrag(
     move(e: PointerEvent<Element>) {
       const l = link.current
       const at = l?.pointer === e.pointerId ? localOf(e) : null
-      const on = at && toPaper(stage, at)
+      const on = at && toPaperAt(at)
       if (!l || !on) return
       // ポインタの下の、一番手前の形（線は飛ばす）。引ける相手でなければ相手は無し
       const shape = document

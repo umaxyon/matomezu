@@ -796,6 +796,37 @@ test("選択の道具で、選んでいない箱にポインタを乗せると�
   expect(pts[0]!.split(",")[1]).toBe(pts[1]!.split(",")[1])
 })
 
+test("〇から線を引いている途中にホイールで紙をずらしても、引いている線の先はポインタの所にある", async ({ page }) => {
+  await page.goto("/")
+  await (await drawerTool(page, "箱")).click()
+  const at = await onPaper(page, 150, 150)
+  await addBox(page, at.x, at.y, "始")
+  const empty = await onPaper(page, 600, 500)
+  await page.mouse.click(empty.x, empty.y) // 選択を外す
+  const start = items(page).filter({ hasText: "始" })
+  const s = (await start.boundingBox())!
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+  const r = (await start.locator('[data-port="r"]').boundingBox())!
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2)
+  await page.mouse.down()
+  const to = { x: s.x + 300, y: s.y + 120 }
+  await page.mouse.move(to.x, to.y, { steps: 5 })
+  const paper = page.getByRole("img", { name: "紙" })
+  const before = (await paper.boundingBox())!
+  await page.mouse.wheel(0, 120)
+  await expect.poll(async () => (await paper.boundingBox())!.y).not.toBe(before.y)
+  await page.mouse.move(to.x + 1, to.y, { steps: 1 })
+  // 線の先（紙の上）を画面の上に直すと、ポインタの所
+  const p = (await paper.boundingBox())!
+  const zoom = p.width / (await paper.evaluate(el => (el as HTMLElement).offsetWidth))
+  const tip = page.locator("svg line").last()
+  const x2 = Number(await tip.getAttribute("x2"))
+  const y2 = Number(await tip.getAttribute("y2"))
+  expect(Math.abs(p.x + x2 * zoom - (to.x + 1))).toBeLessThan(2)
+  expect(Math.abs(p.y + y2 * zoom - to.y)).toBeLessThan(2)
+  await page.mouse.up()
+})
+
 test("〇から同じ箱へ戻して離すと、自分に戻る線が引かれる", async ({ page }) => {
   await page.goto("/")
   await (await drawerTool(page, "箱")).click()

@@ -3,8 +3,8 @@
 // （区間・端・札はアクション line-update、ほかの形の上で離した端はコマンド line-drop でつなぎ替え）。項目は edit.ts の純粋な関数で決める。
 // 端を運ぶ間は、つなぎ替えられる形と今の形のほかを薄くし、ポインタの下のつなぎ替えられる形を相手として強調する。Escape で取りやめ
 import { type PointerEvent, useEffect, useRef, useState } from "react"
-import { type CoreCatalog, type ItemPage, type Point, type StageView, toPaper } from "../../../plugin-api"
-import { useActions, useAllowed, useCommand } from "../../../plugin-api/ui"
+import type { CoreCatalog, ItemPage, Point, StageView } from "../../../plugin-api"
+import { useActions, useAllowed, useCommand, useToPaper } from "../../../plugin-api/ui"
 import { LINE_UPDATE } from "./actions"
 import { LINE_RECONNECT_DROP } from "./commands"
 import { reconnectTargets } from "./connect"
@@ -47,6 +47,7 @@ export function useLineEdit(
 ) {
   const { perform } = useActions()
   const drop = useCommand(stage.id, LINE_RECONNECT_DROP.id)
+  const toPaperAt = useToPaper(stage.id)
   // 線を直せるか（認可ステップが止めていれば、札・折れ目・端を動かし始めない）
   const editable = useAllowed(stage.id, LINE_UPDATE.id).ok
   const drag = useRef<Drag | null>(null)
@@ -78,7 +79,7 @@ export function useLineEdit(
 
   const paperAt = (e: PointerEvent<Element>): Point | null => {
     const at = localOf(e)
-    return at && toPaper(stage, at)
+    return at && toPaperAt(at)
   }
   const begin = (e: PointerEvent<Element>, line: string, what: Kind) => {
     if (e.button !== 0 || !editable) return

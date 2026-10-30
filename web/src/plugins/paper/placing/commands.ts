@@ -6,10 +6,9 @@ import {
   type Point,
   pagedOf,
   paperOf,
-  type StageView,
   shapeDialogs,
-  toPaper,
   toPaperDelta,
+  toPaperIn,
 } from "../../../plugin-api"
 import { type Edges, fitsPaper, itemSize, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
@@ -19,9 +18,9 @@ import { PLACE_OFFSET } from "./items"
 
 const onDrawingPage = (ctx: CommandContext) => pagedOf(ctx.book) !== undefined && ctx.stage.opened?.page != null
 
-// 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所
-export function placeAt(ctx: { stage: Pick<StageView, "opened" | "pan" | "zoom"> }, pointer: Point): Point | null {
-  return toPaper(ctx.stage, { x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
+// 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
+export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
+  return toPaperAt({ x: pointer.x - PLACE_OFFSET.x, y: pointer.y - PLACE_OFFSET.y })
 }
 
 // 置こうとしているアイテムを、ポインタの所に置く。置けたら置くのをやめ、置いたアイテムを選ぶ。紙からはみ出す所なら何もしない。
@@ -33,7 +32,7 @@ export const PAPER_PLACE = kit.defineCommand({
   title: "Place item",
   run: (ctx, a, pointer: Point) => {
     const { stage } = ctx
-    const at = placeAt(ctx, pointer)
+    const at = placeAt(p => toPaperIn(ctx, p), pointer)
     const page = stage.opened?.page
     const size = stage.placing && itemSize(ctx.catalog, stage.placing)
     const paper = paperOf(stage)

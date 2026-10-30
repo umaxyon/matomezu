@@ -63,6 +63,11 @@ export function useHome(): string | null {
   return useMatomezuContext().store.home
 }
 
+// 今の状態を読む関数（描き直さない。イベントや effect の中で、その時点の値を読むのに使う）
+export function useReadState(): () => MatomezuState {
+  return useMatomezuContext().store.state.getState
+}
+
 export function useActions(): Actions {
   return useMatomezuContext().store.actions
 }

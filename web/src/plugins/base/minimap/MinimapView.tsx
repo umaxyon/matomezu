@@ -3,7 +3,7 @@
 // （紙をずらさない道具の間に押すと、組の紙をずらす道具に替えてから動かす。組にそれが無ければ動かさない）。
 // ミニマップの上でホイールを回すと、回した量をコマンド zoom-wheel に渡して、表示領域の真ん中を動かさずに拡大縮小する（ページはスクロールさせない）。
 // 紙の色と絵の色はブックのテーマの値で描く。children は絵の下に出す（右ボタンの長押しのミニマップの、拡大縮小の帯）。className は枠の見た目を替える（無ければ浮かぶ枠）
-import { type PointerEvent, type ReactNode, useCallback, useMemo, useRef } from "react"
+import { memo, type PointerEvent, type ReactNode, useCallback, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { paperOf } from "../../../core/stage"
 import { toolSetOf } from "../../../core/tools"
@@ -147,7 +147,8 @@ export function MinimapView({
   )
 }
 
-function Mark({ mark: m }: { mark: MinimapMark }) {
+// 絵 1 つ。絵が変わらなければ描き直さない（紙をずらして見えている範囲の四角が動いただけでは描き直さない）
+const Mark = memo(function Mark({ mark: m }: { mark: MinimapMark }) {
   const pts = (list: readonly Point[]) => list.map(p => `${p.x},${p.y}`).join(" ")
   switch (m.kind) {
     case "rect":
@@ -159,4 +160,4 @@ function Mark({ mark: m }: { mark: MinimapMark }) {
     case "polyline":
       return <polyline className={styles.line} points={pts(m.points)} />
   }
-}
+})

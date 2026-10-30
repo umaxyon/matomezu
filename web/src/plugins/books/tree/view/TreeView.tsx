@@ -11,7 +11,7 @@
 // 子として入る節には点線の枠、兄弟の間に入る所には線を出す）。押している間は、選んだ節を真ん中に持ってこない（離してから）。
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
 // 足す・書き換える・付け替えるのが紙に入らないので断られたら、トーストで知らせる
-import { type CSSProperties, Fragment, type RefObject, useEffect, useRef, useState } from "react"
+import { type CSSProperties, Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
 import { type Point, placement, type Size, type StageView, toPaper } from "../../../../plugin-api"
 import {
   type BookViewProps,
@@ -19,11 +19,14 @@ import {
   useCommand,
   useContextMenu,
   useCoreCatalog,
+  useLatestPan,
   useMessages,
   usePerform,
   useShownBook,
   useShownPage,
   useStage,
+  useStagePan,
+  useToPaper,
 } from "../../../../plugin-api/ui"
 import { edgePanner, refusalMessage, settingValue } from "../../../base"
 import { RichBar, RichInput, type RichInputHandle, RichText, useResize, useZoomMotion } from "../../../base/ui"
@@ -80,13 +83,18 @@ function Content({
   area: RefObject<HTMLDivElement | null>
 }) {
   const t = useMessages(kit)
-  const p = placement(stage)
+  const pan = useStagePan(stage.id)
+  const p = pan && placement({ ...stage, pan })
+  // 紙の大きさ（変わらなければ同じ物を渡し、紙をずらしただけでは木を描き直さない）
+  const w = p?.w
+  const h = p?.h
+  const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
   // 倍率と、編集の道具で選んでいる節が替わったときは、紙の動きをなめらかにする
   const motion = useZoomMotion(stage.zoom, stage.tool === EDIT_TOOL.id ? (stage.selection[0] ?? "") : "")
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
-  if (!p) return null
+  if (!p || !paperSize) return null
   return (
     <div
       className={styles.paper}
@@ -102,7 +110,7 @@ function Content({
       }
     >
       {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
-      <Tree stage={stage} paper={{ w: p.w, h: p.h }} view={view} area={area} />
+      <Tree stage={stage} paper={paperSize} view={view} area={area} />
     </div>
   )
 }
@@ -119,8 +127,8 @@ const plusName = (plus: Plus) =>
   plus.kind === "child" && plus.towards ? TOWARDS_NAMES[plus.towards] : PLUS_NAMES[plus.kind]
 
 // 開いたページの木（根の無いページは何も描かない）
-// area はステージの表示領域の要素（押した所を紙の座標に直すのに使う）
-function Tree({
+// area はステージの表示領域の要素（押した所を紙の座標に直すのに使う）。受け取るものが変わらなければ描き直さない（紙をずらしただけでは描き直さない）
+const Tree = memo(function Tree({
   stage,
   paper,
   view,
@@ -335,7 +343,7 @@ function Tree({
         })}
     </>
   )
-}
+})
 
 // 節のキャプションと、根の本文（描くときだけ）
 function NodeText({ node: n }: { node: LaidNode }) {
@@ -387,9 +395,10 @@ function useNodeDrag(stage: StageView, area: RefObject<HTMLDivElement | null>) {
     const r = area.current?.getBoundingClientRect()
     return r ? { x: cx - r.left, y: cy - r.top } : null
   }
+  const toPaperOf = useToPaper(stage.id)
   const toPaperAt = (cx: number, cy: number): Point | null => {
     const p = local(cx, cy)
-    return p ? toPaper(stage, p) : null
+    return p ? toPaperOf(p) : null
   }
   const toPaperRef = useRef(toPaperAt)
   toPaperRef.current = toPaperAt
@@ -398,13 +407,15 @@ function useNodeDrag(stage: StageView, area: RefObject<HTMLDivElement | null>) {
   const id = stage.id
   const pressed = state !== null
   const pointer = useRef<Point | null>(null) // 最後のポインタの所（画面の座標）
-  // 紙がずれたり倍率が変わったりしたら（描き直したあとのステージで）、ポインタの下の紙の所を追い直す
-  const { opened, pan, zoom } = stage
+  // 紙がずれたり倍率が変わったりしたら（描き直したあとのステージで）、ポインタの下の紙の所を追い直す。
+  // 紙をずらす量は押している間だけ追う（押していなければ、ずらしても描き直さない）
+  const { opened, zoom } = stage
+  const pan = useStagePan(id, pressed)
   useEffect(() => {
     const d = latest.current
     const c = pointer.current
     const p = c && localRef.current(c.x, c.y)
-    if (!d?.moved || !p) return
+    if (!d?.moved || !p || !pan) return
     const at = toPaper({ opened, pan, zoom }, p)
     if (at && (at.x !== d.at.x || at.y !== d.at.y)) setPress({ ...d, at })
   }, [opened, pan, zoom])
@@ -482,13 +493,15 @@ function useCentered(
 ) {
   const latest = useRef(stage)
   latest.current = stage
+  const latestPan = useLatestPan(stage.id)
   const { x, y, w, h } = rect ?? {}
   useEffect(() => {
-    const at = placement(latest.current)
+    const pan = latestPan()
+    const at = pan && placement({ ...latest.current, pan })
     if (x === undefined || y === undefined || w === undefined || h === undefined || !view?.w || !view.h || !at) return
     const shift = centerShift({ x, y, w, h }, view, at)
     if (shift) panStageBy(latest.current.id, shift.dx, shift.dy)
-  }, [x, y, w, h, view, panStageBy])
+  }, [x, y, w, h, view, panStageBy, latestPan])
 }
 
 function NoPages({ stage }: { stage: StageView }) {
