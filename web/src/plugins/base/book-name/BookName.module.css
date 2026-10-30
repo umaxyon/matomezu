@@ -11,9 +11,10 @@
   height: 100%;
   padding: 0 10px 0 12px;
   border: 0;
-  border-right: 1px solid var(--skin-line);
+  border-right: 1px solid var(--skin-border);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--skin-accent) 22%, transparent), transparent 85%), var(--skin-tools);
+    linear-gradient(90deg, color-mix(in srgb, var(--skin-accent) 22%, transparent), transparent 85%),
+    var(--skin-surface-strong);
   color: var(--skin-text);
   font: inherit;
   font-weight: 600;
@@ -39,14 +40,14 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   pointer-events: none;
 }
 .trigger[data-current="true"] {
   box-shadow: inset 3px 0 0 var(--skin-accent);
 }
 .trigger[aria-expanded="true"] {
-  background: color-mix(in srgb, var(--skin-accent) 28%, var(--skin-tools));
+  background: color-mix(in srgb, var(--skin-accent) 28%, var(--skin-surface-strong));
 }
 .trigger:focus-visible {
   outline: 2px solid var(--skin-accent);
@@ -74,8 +75,9 @@
   display: flex;
   align-items: stretch;
   height: 39px;
-  border-top: 1px solid var(--skin-line);
-  background: var(--skin-bar);
+  border-top: 1px solid var(--skin-border);
+  background: var(--skin-surface-raised);
+  box-shadow: var(--skin-shadow-1);
   transform: translateY(calc(100% + 160px));
   transition: transform 0.16s ease;
 }
@@ -94,7 +96,7 @@
 }
 /* 仕切りの線（前に描かれたスロットがあるときだけ） */
 .part:not(:empty) ~ .part:not(:empty) {
-  border-left: 1px solid var(--skin-line);
+  border-left: 1px solid var(--skin-border);
 }
 @media (prefers-reduced-motion: reduce) {
   .drawer,

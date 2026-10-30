@@ -16,7 +16,7 @@
   flex-direction: column;
 }
 .column + .column {
-  border-left: 1px solid var(--skin-line);
+  border-left: 1px solid var(--skin-border);
 }
 /* 列の境目をつかむ所（境目の線をまたぐ細い帯。色はつかんでいる間だけ付ける） */
 .divider {
@@ -33,8 +33,8 @@
   background: linear-gradient(
     to right,
     transparent 2px,
-    var(--skin-divider) 2px,
-    var(--skin-divider) 5px,
+    var(--skin-accent) 2px,
+    var(--skin-accent) 5px,
     transparent 5px
   );
 }
@@ -68,14 +68,15 @@
   display: flex;
   align-items: stretch;
   height: 30px;
-  background: var(--skin-bar);
-  border-top: 1px solid var(--skin-line);
+  background: var(--skin-surface);
+  border-top: 1px solid var(--skin-border);
+  box-shadow: var(--skin-shadow-1);
   font-size: 12px;
   user-select: none;
 }
 /* 分けているときのカレントのステージの下の行 */
 .column[data-current="true"] .bottom {
-  background: var(--skin-current);
+  background: var(--skin-accent-subtle);
 }
 /* 列の右上の角（ステージの上に浮かぶ。中身のスクロールバーに重ならないよう、その幅だけ内側） */
 .corner {

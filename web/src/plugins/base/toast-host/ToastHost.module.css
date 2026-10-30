@@ -16,11 +16,11 @@
   --mark: var(--skin-accent);
   max-width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-left: 4px solid var(--mark);
   border-radius: 10px;
-  background: var(--skin-bar);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  background: var(--skin-surface-raised);
+  box-shadow: var(--skin-shadow-3);
   color: var(--skin-text);
   font: inherit;
   font-size: 13px;

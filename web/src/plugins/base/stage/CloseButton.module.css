@@ -1,10 +1,10 @@
 /* ステージを閉じるボタン */
 .close {
   padding: 5px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-radius: 6px;
-  background: var(--skin-bar);
-  color: var(--skin-hint);
+  background: var(--skin-surface-raised);
+  color: var(--skin-text-muted);
   line-height: 0;
   cursor: pointer;
 }

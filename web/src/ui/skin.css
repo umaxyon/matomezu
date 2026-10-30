@@ -9,7 +9,7 @@ body,
   height: 100%;
 }
 body {
-  background: var(--skin-bg);
+  background: var(--skin-stage);
   color: var(--skin-text);
   font-family: var(--skin-font);
 }

@@ -13,10 +13,11 @@
   z-index: 1;
   box-sizing: border-box;
   padding: 6px 6px 4px;
-  border: 1px solid var(--skin-line);
+  border: 1px solid var(--skin-border);
   border-bottom: 0;
   border-radius: 8px 8px 0 0;
-  background: var(--skin-bar);
+  background: var(--skin-surface-raised);
+  box-shadow: var(--skin-shadow-1);
 }
 .mapView {
   display: flex;

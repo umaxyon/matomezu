@@ -7,7 +7,7 @@
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--skin-hint);
+  color: var(--skin-text-muted);
   cursor: pointer;
 }
 .toggle[aria-pressed="true"] {
