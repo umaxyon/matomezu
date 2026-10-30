@@ -546,7 +546,8 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
   fireEvent.pointerDown(grip, { button: 0, pointerId: 2, clientX: 300 })
   fireEvent.pointerMove(grip, { pointerId: 2, clientX: 260 })
   fireEvent.pointerUp(grip, { pointerId: 2, clientX: 260 })
-  const placed = (store.state.getState().books.w1 as { pages: { items: { id: string; props: object }[] }[] }).pages[0]!
-    .items[1]!
+  const placed = (
+    store.state.getState().books.w1 as { pages: readonly { items: readonly { id: string; props: object }[] }[] }
+  ).pages[0]!.items[1]!
   expect(placed.props).toMatchObject({ bodyWidth: 220 - 18 - 40 })
 })
