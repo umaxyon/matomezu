@@ -95,6 +95,19 @@ export {
   wrapRich,
 } from "./text"
 export {
+  BLOCK_CAPTION,
+  BLOCK_RULE,
+  type BlockProps,
+  type BodyColumn,
+  bodyColumn,
+  bodyMinWidth,
+  bodySides,
+  bodyWidthAfter,
+  type TextBlock,
+  textBlock,
+  textBlockHeight,
+} from "./text/block"
+export {
   AlignSchema,
   BODY_MAX,
   bodyText,

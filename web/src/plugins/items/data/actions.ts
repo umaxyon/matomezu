@@ -23,7 +23,7 @@ function keepsIds(now: readonly { id: string }[] | undefined, given: readonly (s
   return ids.every(id => known.has(id)) && new Set(ids).size === ids.length
 }
 
-// データ item の表を、columns と rows で丸ごと入れ替える。表の見た目なら、表が全部見える大きさ（紙の端まで）に合わせる。列が無ければ表を消す（No Data に戻す）。
+// データ item の表を、columns と rows で丸ごと入れ替える。表の見た目なら、表と文字の領域が全部見える大きさ（紙の端まで）に合わせる。列が無ければ表を消す（No Data に戻す）。
 // 行のセルが列の数と型に合わない・今の表に無い id を書いた・データでないなら断る
 export const DATA_SET = kit.defineAction({
   id: "data-set",
@@ -63,11 +63,11 @@ export const DATA_SET = kit.defineAction({
     if (!table.success) return null
     // 軸は新しい表に合わせる（無くなった列の軸を外し、グラフで軸が無ければ既定の列を選ぶ）
     const props = settleAxes(now.props, table.data)
-    // 表の見た目なら、表が全部見える大きさ（紙の端で止める）に合わせる。合わせて置けなければ、大きさはそのまま
+    // 表の見た目なら、表と文字の領域が全部見える大きさ（紙の端で止める）に合わせる。合わせて置けなければ、大きさはそのまま
     const paper = paperSize(ctx.catalog, page)
     const onPage = page.items?.some(i => i.id === args.item) ?? false
     const room = paper && (onPage ? { w: paper.w - now.x, h: paper.h - now.y } : paper)
-    const fitted = now.props.view === "table" && room ? fitTable(table.data, room) : null
+    const fitted = now.props.view === "table" && room ? fitTable(table.data, props, room) : null
     const next =
       (fitted &&
         replaceShapePushing(ctx.catalog, book, args.page, args.item, () => ({

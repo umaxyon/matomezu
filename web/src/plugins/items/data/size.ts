@@ -1,9 +1,10 @@
 // データの表の寸法: 列の幅は、見出し（太字）とセルのうち一番長い文字の幅に、左右の余白と罫線を足した幅。行の高さは 1 行ぶんで決まった高さ（セルの中では折り返さない）。
-// 表の見た目のときは、表を入れ替えるたびに、表が全部見える大きさ（紙の大きさで止める）に合わせる。
+// 表の見た目のときは、表を入れ替えるたびに、表と文字の領域が全部見える大きさ（紙の大きさで止める）に合わせる。
 // 文字の幅は base の text で計算するので、画面でも常駐でも同じ大きさになる。画面（DataItemView）はこの値のとおりに描く
 import type { Size } from "../../../plugin-api"
 import { TEXT_LOOK, textWidth } from "../../base"
-import { DATA_MIN } from "./data"
+import { captionWidthOf, textAreaHeight } from "./areas"
+import { DATA_MIN, type DataProps } from "./data"
 import type { Cell, Table } from "./table"
 
 // 表の見た目の寸法（px）。DataItemView.module.css と同じ値にする
@@ -43,8 +44,10 @@ export function tableSize(table: Table): Size {
   return { w: Math.max(w, DATA_MIN.w), h: Math.max(h, DATA_MIN.h) }
 }
 
-// 表が全部見える大きさを、room（置いた所から紙の端まで）で止めた大きさ
-export function fitTable(table: Table, room: Size): Size {
-  const size = tableSize(table)
+// 表と文字の領域（本文を全部出した高さ）が全部見える大きさを、room（置いた所から紙の端まで）で止めた大きさ。幅はキャプションが見える幅より狭くしない
+export function fitTable(table: Table, props: DataProps, room: Size): Size {
+  const t = tableSize(table)
+  const w = Math.max(t.w, captionWidthOf(props.caption))
+  const size = { w, h: t.h + textAreaHeight(props, w) }
   return { w: Math.max(Math.min(size.w, room.w), DATA_MIN.w), h: Math.max(Math.min(size.h, room.h), DATA_MIN.h) }
 }
