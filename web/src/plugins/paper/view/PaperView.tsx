@@ -7,7 +7,7 @@
 // アイテムを右クリックすると、そのアイテムを選んで（選んでいたなら選択はそのまま）アイテムのメニュー（item-context）を開く。
 // アイテムを 1 つだけ選んでいて、そのアイテムの大きさを変えられるなら、四辺と四隅をつかんで大きさを変えられる（印は出さず、ポインタの形だけが変わる。
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに paper-resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
-// 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。
+// 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。下書きを重ねた形は、形の整え（settle）を通して描く（placing/draft.ts。子を動かす整えも、決める前から見える）。
 // ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）の層で形の並びを包み、形ごとに重ねるコンポーネントを形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
 
@@ -17,6 +17,7 @@ import {
   type PointerEvent,
   type ReactNode,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -69,6 +70,7 @@ import {
   placeAt,
   trackDrag,
 } from "../placing"
+import { settledDraft } from "../placing/draft"
 import { REPARENT_TOOL } from "../tools"
 import styles from "./PaperView.module.css"
 
@@ -171,8 +173,10 @@ interface Stretch {
 // 開いたページのアイテム（ページが無ければ何も描かない）
 // 動かす計算は残っているページで、描くのは下書きを重ねたページで行う
 function Items({ stage, localOf }: { stage: StageView; localOf: LocalOf }) {
+  const catalog = useCoreCatalog()
   const page = usePage(stage.id)
-  const shownPage = useShownPage(stage.id)
+  const draft = useShownPage(stage.id)
+  const shownPage = useMemo(() => (page && draft ? settledDraft(catalog, page, draft) : null), [catalog, page, draft])
   return page && shownPage ? <PageItems stage={stage} page={page} shownPage={shownPage} localOf={localOf} /> : null
 }
 
