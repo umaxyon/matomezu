@@ -1,10 +1,14 @@
 // ダイアログ: 描いている間、画面の上に出し、ほかの操作を止める。Esc か外側を押すと閉じる（onClose）。
 // aside は見出しのすぐ右に置く物、actions は見出しの行の右に並べる物（ボタンなど。何を置くかは使う側が決める）。開くと、中身の最初の入力Form（選択肢のボタンは除く）に焦点を当てる。
+// 開いたときの上辺の位置を保ち、中身が増えたり減ったりしても下へ伸び縮みする（画面の下に入らなければ、入るだけ上へずらす）。
 // height を渡すと、ダイアログの高さをその高さ（画面に収まらなければ画面の高さ）に決め、中身が増えても大きさを変えない（入らない分は中身だけスクロール。見出しの行は動かない）。
 // 決める・閉じるキー（既定は Enter・Escape）はキーの割り当てが受け、決めるように頼まれたら（store の dialog.submitted）中身の form を送る
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react"
 import { useMatomezuState } from "../../../ui/store-context"
 import styles from "./Dialog.module.css"
+
+// 上辺をずらすときに残す、画面の上下の端との間
+const EDGE = 16
 
 export function Dialog({
   title,
@@ -39,7 +43,15 @@ export function Dialog({
         `.${styles.content} :is(input:not([type="radio"]), textarea, select, [contenteditable])`,
       )?.focus()
     }
+    const top = d.getBoundingClientRect().top // 真ん中に開いたときの上辺
+    const keep = () => {
+      d.style.marginTop = `${Math.max(EDGE, Math.min(top, window.innerHeight - d.offsetHeight - EDGE))}px`
+    }
+    keep()
+    const sizes = new ResizeObserver(keep)
+    sizes.observe(d)
     return () => {
+      sizes.disconnect()
       unmounting.current = true
       d.close()
     }
