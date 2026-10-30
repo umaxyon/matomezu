@@ -21,6 +21,14 @@ export const BoxPropsSchema = z.strictObject({
   ...textProps("center"), // キャプション・区切り線・本文と寄せ（キャプションは中央寄せ）
   theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければブックのテーマ）
   color: z.union([z.enum(PALETTE), z.string().regex(HEX)]).optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
+  // 本文の列の幅（無ければ箱の中いっぱい。size.ts の bodyColumn）
+  bodyWidth: z
+    .number()
+    .positive()
+    .optional()
+    .describe(
+      "Width in pixels of the column the body wraps in (bodyAlign aligns inside it). It is never narrower than the caption, and a box narrower than it fills its inside. The column follows captionAlign: left-aligned under a left caption, centered under a centered one, right-aligned under a right one. Without it, the body fills the box's inside",
+    ),
   // キャプション・区切り線・本文の塊を置く縦の位置（無ければ自動。size.ts の vAlignOf）
   vAlign: z
     .enum(VALIGNS)

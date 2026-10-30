@@ -81,7 +81,33 @@
 }
 /* 本文: 折り返した行を 1 行ずつ置く。行の中では折り返さない */
 .body {
+  position: relative;
   flex: none;
+}
+/* 本文の列の端のつまみ（箱を選んでいる間）: 端に重ねた細い縦の線。つかむ所は線より広い */
+.bodyGrip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.bodyGrip[data-body-grip="left"] {
+  left: -5px;
+}
+.bodyGrip[data-body-grip="right"] {
+  right: -5px;
+}
+.bodyGrip::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--theme-accent) 70%, transparent);
 }
 .line {
   height: 18px;

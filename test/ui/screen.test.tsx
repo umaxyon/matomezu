@@ -503,3 +503,50 @@ test("内包ボックスの子は親の中に描き、子に付いた線も描�
   const dialog = screen.getByRole("dialog")
   expect(within(dialog).getByDisplayValue("c")).toBeTruthy()
 })
+
+test("本文のある箱を選ぶと本文の列の端につまみが出て（中央寄せは左右、左寄せは右だけ）、ドラッグで本文の幅を書く", () => {
+  const box = (id: string, x: number, captionAlign: string) => ({
+    id,
+    item: "@matomezu/box:shape-nest-box",
+    x,
+    y: 40,
+    w: 220,
+    h: 140,
+    props: { caption: "見出し", body: "本文の幅を縮めるための長い文です。", captionAlign },
+  })
+  const book = {
+    type: "@matomezu/drawing:drawing",
+    id: "w1",
+    title: "幅",
+    pages: [
+      {
+        id: "p1",
+        title: "P",
+        paper: "@matomezu/base:a4",
+        orientation: "landscape",
+        items: [box("c", 40, "center"), box("l", 400, "left")],
+      },
+    ],
+  }
+  const store = renderScreen({ books: [], savedBooks: [book] })
+  act(() => store.actions.openBook("s1", "w1"))
+  const item = (id: string) => document.querySelector<HTMLElement>(`[data-item="${id}"]`)!
+  const grips = (id: string) =>
+    [...item(id).querySelectorAll("[data-body-grip]")].map(g => g.getAttribute("data-body-grip"))
+  expect(grips("c")).toEqual([]) // 選ぶまでは出さない
+  const pick = (id: string) => {
+    fireEvent.pointerDown(item(id), { button: 0, pointerId: 1 })
+    fireEvent.pointerUp(item(id), { button: 0, pointerId: 1 })
+  }
+  pick("c")
+  expect(grips("c")).toEqual(["left", "right"])
+  pick("l")
+  expect(grips("l")).toEqual(["right"])
+  const grip = item("l").querySelector<HTMLElement>('[data-body-grip="right"]')!
+  fireEvent.pointerDown(grip, { button: 0, pointerId: 2, clientX: 300 })
+  fireEvent.pointerMove(grip, { pointerId: 2, clientX: 260 })
+  fireEvent.pointerUp(grip, { pointerId: 2, clientX: 260 })
+  const placed = (store.state.getState().books.w1 as { pages: { items: { id: string; props: object }[] }[] }).pages[0]!
+    .items[1]!
+  expect(placed.props).toMatchObject({ bodyWidth: 220 - 18 - 40 })
+})
