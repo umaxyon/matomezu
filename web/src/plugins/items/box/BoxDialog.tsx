@@ -1,6 +1,7 @@
 // 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ・色。キャプションと本文の名前の右に、左・中央・右の寄せ）。
+// キャプションの寄せの隣に、キャプションと本文の塊の縦の位置（上・真ん中・下）。押している物をもう一度押すと自動（どれも押していない）に戻す。
 // テーマは「ブックのテーマ」（箱に当てない）か、表にあるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
-// 編集では、書いた本文と選んだ寄せ・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
+// 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
 // 区切り線は本文が空の間は押せず、本文を書き始めると入る。本文は BODY_MAX 字まで、上の装飾のボックスで太字と文字の色を付けられる（base の RichBody）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は開いたときに覚えた所に箱を置いて（アクション item-place）選び、編集は箱の項目を書き換える（アクション item-update）
@@ -26,13 +27,15 @@ import {
   useBookTheme,
   useSwatches,
 } from "../../base/ui"
+import styles from "./BoxDialog.module.css"
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
 import { kit } from "./kit"
+import { VALIGNS, type VAlign } from "./size"
 
 type BoxProps = ItemProps<typeof BOX.id>
 
 // 選んだそばから箱に見せる項目（本文・寄せ・テーマ・色。テーマの undefined はブックのテーマ、色の undefined はテーマの塗り）
-type Look = Pick<BoxProps, "body" | "captionAlign" | "bodyAlign" | "theme" | "color">
+type Look = Pick<BoxProps, "body" | "captionAlign" | "bodyAlign" | "vAlign" | "theme" | "color">
 
 const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "center", bodyAlign: "left" }
 
@@ -96,7 +99,7 @@ export function EditBoxDialog({ stage, args, onClose }: DialogProps<{ page: stri
     const done = perform("@matomezu/paper:item-update", {
       page: args.page,
       item: args.item,
-      props: { ...props, theme: props.theme ?? null, color: props.color ?? null },
+      props: { ...props, vAlign: props.vAlign ?? null, theme: props.theme ?? null, color: props.color ?? null },
     })
     if (done.ok) onClose()
     return done.ok
@@ -144,6 +147,7 @@ function BoxDialog({
   const [rule, setRule] = useState(start.rule)
   const [captionAlign, setCaptionAlign] = useState(start.captionAlign)
   const [bodyAlign, setBodyAlign] = useState(start.bodyAlign)
+  const [vAlign, setVAlign] = useState(start.vAlign)
   const [theme, setTheme] = useState(start.theme ?? "")
   const [color, setColor] = useState(start.color)
   const catalog = useCoreCatalog()
@@ -154,12 +158,14 @@ function BoxDialog({
     body !== start.body ||
     captionAlign !== start.captionAlign ||
     bodyAlign !== start.bodyAlign ||
+    vAlign !== start.vAlign ||
     theme !== (start.theme ?? "") ||
     color !== start.color
   useEffect(() => {
-    onPreview?.(changed ? { body, captionAlign, bodyAlign, theme: theme || undefined, color } : null)
-  }, [changed, body, captionAlign, bodyAlign, theme, color, onPreview])
+    onPreview?.(changed ? { body, captionAlign, bodyAlign, vAlign, theme: theme || undefined, color } : null)
+  }, [changed, body, captionAlign, bodyAlign, vAlign, theme, color, onPreview])
   const aligns = useAligns()
+  const vAligns = VALIGNS.map(v => ({ value: v, label: t(VALIGN_LOOK[v].label), icon: VALIGN_LOOK[v].icon }))
   const [refused, setRefused] = useState(false)
   const hasBody = body !== ""
   return (
@@ -186,6 +192,7 @@ function BoxDialog({
               body,
               captionAlign,
               bodyAlign,
+              ...(vAlign ? { vAlign } : {}),
               ...(theme ? { theme } : {}),
               ...(color ? { color } : {}),
             }),
@@ -195,7 +202,21 @@ function BoxDialog({
         <Field
           label={t("Caption")}
           aside={
-            <Choices label={t("Caption alignment")} value={captionAlign} options={aligns} onChange={setCaptionAlign} />
+            <span className={styles.aligns}>
+              <Choices
+                label={t("Caption alignment")}
+                value={captionAlign}
+                options={aligns}
+                onChange={setCaptionAlign}
+              />
+              <Choices<VAlign>
+                label={t("Vertical position")}
+                value={vAlign}
+                options={vAligns}
+                onChange={setVAlign}
+                clearable
+              />
+            </span>
           }
         >
           {id => <input id={id} className={controlClass} value={caption} onChange={e => setCaption(e.target.value)} />}
@@ -251,4 +272,17 @@ function BoxDialog({
       </Form>
     </Dialog>
   )
+}
+
+// 縦の位置のアイコン（枠の中の上・真ん中・下に短い横線）
+const vAlignIcon = (y: number) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <path d={`M8 ${y}h8`} />
+  </svg>
+)
+const VALIGN_LOOK: Record<VAlign, { label: MessageKey; icon: ReturnType<typeof vAlignIcon> }> = {
+  top: { label: kit.message("Top"), icon: vAlignIcon(8) },
+  middle: { label: kit.message("Middle"), icon: vAlignIcon(12) },
+  bottom: { label: kit.message("Bottom"), icon: vAlignIcon(16) },
 }

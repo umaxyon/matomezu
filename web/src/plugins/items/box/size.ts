@@ -9,6 +9,16 @@ import type { BoxPropsSchema } from "./box"
 
 type BoxProps = z.infer<typeof BoxPropsSchema>
 
+// キャプション・区切り線・本文の塊を置く縦の位置
+export const VALIGNS = ["top", "middle", "bottom"] as const
+export type VAlign = (typeof VALIGNS)[number]
+
+// 描く縦の位置: 書いていなければ自動（本文も子も無ければ真ん中、あれば上）。子がある間は真ん中を上として描く（子の領域に重ねない）
+export function vAlignOf(props: Pick<BoxProps, "vAlign" | "body">, hasChildren: boolean): VAlign {
+  const v = props.vAlign ?? (props.body === "" && !hasChildren ? "middle" : "top")
+  return hasChildren && v === "middle" ? "top" : v
+}
+
 // 箱の見た目の寸法（px）。BoxView.module.css と同じ値にする。文字の寸法は形で共通（shape の TEXT_LOOK）
 export const BOX_LOOK = { border: 1, ...TEXT_LOOK } as const
 
@@ -48,7 +58,7 @@ export function placedHeight(props: BoxProps, w: number): number {
   return Math.max(BOX_SIZE.h, HEAD + (props.rule ? RULE : 0) + lines * L.line)
 }
 
-// キャプションと本文を全部出す高さ（本文は幅 w で折り返す。内包ボックスの子の領域はこの下から）
+// キャプションと本文を全部出す高さ（本文は幅 w で折り返す。内包ボックスの子の領域は、塊が上ならこの下から、下ならこの上まで）
 export function headHeight(props: BoxProps, w: number): number {
   if (props.body === "") return HEAD
   return HEAD + (props.rule ? RULE : 0) + wrapRich(props.body, innerWidth(w), L.body).length * L.line

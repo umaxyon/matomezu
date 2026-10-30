@@ -84,3 +84,32 @@ test("選択の道具で親をドラッグすると子もついて動き、子�
   expect(Math.round(c2.x - c1.x)).toBeGreaterThan(0)
   await expect(item(page, "親").locator("[data-item]")).toHaveCount(1)
 })
+
+test("箱の編集のダイアログで縦の位置の「下」を押すと、子を持つ親のキャプションが子の下に出る。もう一度押すと自動に戻り、上に出る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await addBox(page, 100, 100, "親")
+  await addBox(page, 500, 100, "子")
+  await page.getByRole("button", { name: "選択ツール" }).click()
+  const parent = (await item(page, "親").boundingBox())!
+  const child = (await item(page, "子").boundingBox())!
+  await drag(page, "子", parent.x + parent.width / 2 - child.x - 10, parent.y + parent.height / 2 - child.y - 10)
+  await expect(item(page, "親").locator("[data-item]")).toHaveCount(1)
+  const edit = async () => {
+    const caption = (await item(page, "親").getByText("親", { exact: true }).boundingBox())!
+    await page.mouse.dblclick(caption.x + 4, caption.y + caption.height / 2)
+    const dialog = page.getByRole("dialog", { name: "ボックスの編集" })
+    await dialog.getByRole("group", { name: "縦の位置" }).getByTitle("下").click()
+    await dialog.getByRole("button", { name: "確定" }).click()
+    await expect(dialog).toBeHidden()
+  }
+  const captionTop = async () => (await item(page, "親").getByText("親", { exact: true }).boundingBox())!.y
+  const childTop = async () => (await item(page, "子").boundingBox())!.y
+  await edit()
+  await expect(item(page, "親").locator('[data-valign="bottom"]').first()).toBeVisible()
+  expect(await captionTop()).toBeGreaterThan(await childTop())
+  await edit()
+  await expect(item(page, "親").locator('[data-valign="top"]').first()).toBeVisible()
+  expect(await captionTop()).toBeLessThan(await childTop())
+})
