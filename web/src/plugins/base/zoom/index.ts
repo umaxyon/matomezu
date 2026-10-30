@@ -1,5 +1,6 @@
 // 拡大縮小: ステージの倍率は ZOOM_MIN～ZOOM_MAX の無段階（1% 単位）。拡大・縮小のコマンドは BUTTON_STEP の倍数へ 1 つずつ動き、
-// ホイールの拡大縮小のコマンドは、Ctrl+ホイールで回した量に合わせて倍率をかける（wheelZoom。回した量と位置は stage/StageView.tsx が渡す）。
+// ホイールの拡大縮小のコマンドは、回した量に合わせて倍率をかける（wheelZoom。ステージの Ctrl+ホイールは stage/StageView.tsx が、
+// 拡大縮小の帯の上のホイールは ZoomBar が、回した量と位置をそのまま渡す）。
 // 拡大・縮小は、表示領域の中の点 at の下の紙の点を動かさない（null なら表示領域の真ん中。Ctrl+ホイールはポインタの下を渡す）。
 // 開いたときの見え方（倍率 100%・最初の位置）に戻すコマンド（キーの既定は Home）と、ページの紙全体を表示領域に収めるコマンド（ZOOM_MIN より小さくはしない）
 import type { Point } from "../../../core/geom"
@@ -57,11 +58,11 @@ export const ZOOM_OUT = kit.defineCommand({
   enabled: ctx => stepZoom(ctx.stage.zoom, -1) !== ctx.stage.zoom,
 })
 
-// Ctrl+ホイール（ピンチも）の拡大縮小: 回した量 delta（下へ回すと正）に合わせて倍率をかける。表示領域の中の点 at の下の紙の点は動かさない
+// ホイールの拡大縮小: 回した量 delta（下へ回すと正）に合わせて倍率をかける。表示領域の中の点 at（無ければ真ん中）の下の紙の点は動かさない
 export const ZOOM_WHEEL = kit.defineCommand({
   id: "zoom-wheel",
   title: "Zoom",
-  run: (ctx, a, wheel: { delta: number; at: Point }) =>
+  run: (ctx, a, wheel: { delta: number; at?: Point }) =>
     a.zoomStage(ctx.stage.id, wheelZoom(ctx.stage.zoom, wheel.delta), wheel.at),
   when: ctx => paperOf(ctx.stage) !== null,
 })
