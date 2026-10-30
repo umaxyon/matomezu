@@ -1,20 +1,23 @@
 // プラグインの見た目が使うフック（matomezu/ui）: matomezu が渡すステージの id から、約束のものだけを引く。状態を丸ごとは見せない。
 // データはブック・ページ・アイテム、ステージは読むだけの StageView、ほかに機能台帳と利用者の設定。データを変えるのは usePerform（アクション）だけ
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
+import { useShallow } from "zustand/react/shallow"
 import { pagedOf, withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { Where } from "../core/def/action"
+import type { Point } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { deniedBy, inspect } from "../core/inspect"
 import type { ArgsOf } from "../core/perform"
 import { findShape, type ItemPage, type PlacedItem, type PlacedOf } from "../core/placed"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
+import { toPaper } from "../core/stage"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { Performed } from "../store/store"
 import type { UiCatalog } from "./plugin"
-import { useActions, useCatalog, useHome, useMatomezuState, useUiCatalog as useUi } from "./store-context"
+import { useActions, useCatalog, useHome, useMatomezuState, useReadState, useUiCatalog as useUi } from "./store-context"
 
 // そのステージが開いているブック（何も開いていなければ null）
 export function useBook(stage: string): Book | null {
@@ -111,12 +114,50 @@ export function useAllowed(stage: string, action: ActionId, where?: Where | { se
   return answer === "" ? { ok: true } : { ok: false, permission: answer === "-" ? null : answer }
 }
 
-// そのステージ（読むだけ。無いステージなら null）
+// そのステージ（読むだけ。無いステージなら null）。紙をずらしただけでは描き直さない
 export function useStage(stage: string): StageView | null {
   const catalog = useCatalog().core
-  const found = useMatomezuState(s => s.workspace.stages.find(st => st.id === stage))
+  const found = useMatomezuState(
+    useShallow(s => {
+      const st = s.workspace.stages.find(st => st.id === stage)
+      return st
+        ? {
+            id: st.id,
+            opened: st.opened,
+            zoom: st.zoom,
+            selection: st.selection,
+            editing: st.editing,
+            placing: st.placing,
+          }
+        : null
+    }),
+  )
   const tool = useMatomezuState(s => toolOf(catalog, s.workspace, stage, s.books))
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
+}
+
+// そのステージの紙をずらす量（無いステージなら null）。ずらすたびに描き直す（紙を置く所など、ずらす量で描くものが使う）。
+// watch が false の間は null を返し、ずらしても描き直さない（ドラッグの間だけ追うときなど）
+export function useStagePan(stage: string, watch = true): Point | null {
+  return useMatomezuState(s => (watch ? (s.workspace.stages.find(st => st.id === stage)?.pan ?? null) : null))
+}
+
+// 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す関数（描き直さない。押した所を直すときなど、イベントや effect の中で使う）
+export function useToPaper(stage: string): (p: Point) => Point | null {
+  const read = useReadState()
+  return useCallback(
+    (p: Point) => {
+      const st = read().workspace.stages.find(st => st.id === stage)
+      return st ? toPaper(st, p) : null
+    },
+    [read, stage],
+  )
+}
+
+// そのステージの今の紙をずらす量を読む関数（描き直さない。押した所を紙の上の点に直すときなど、イベントや effect の中で読む）
+export function useLatestPan(stage: string): () => Point | null {
+  const read = useReadState()
+  return useCallback(() => read().workspace.stages.find(st => st.id === stage)?.pan ?? null, [read, stage])
 }
 
 // 機能台帳（定義の表。読むだけ。コマンドの ctx.catalog と同じ物）

@@ -1,10 +1,11 @@
 // 箱を数百と線を置いたときの速さ。合否は付けず、数値を端末の表と e2e/.perf/<日時>.json に出す。
-// - 描き方: 箱 100・200・300 と線のブックを置き（JSON を PUT）、開くまで・パン（ホイール）・箱のドラッグ・左右に同じブックを開いてのパンを測る
+// - 描き方: 箱 100・200・300 と線のブックを置き（JSON を PUT）、開くまで・パン（ホイール）・箱のドラッグ・左右に同じブックを開いてのパンを測る。
+//   ツリー（節 100・200・300）とディレクトリ構成図（中身 100・200・300）も、開くまで・パン・左右でのパンを測る
 // - アクション: AI の入口から item-place と line-connect を 300 まで重ね、1 回の perform の時間を 100 ずつに分けて測る
 import { execSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { expect, type Page, test } from "@playwright/test"
-import { BOX_SIZE, boxAt, gridBook, PAGE } from "./books"
+import { BOX_SIZE, boxAt, dirBook, gridBook, PAGE, treeBook } from "./books"
 import { awaitItems, installProbe, readyAt, startRecording, stopRecording } from "./probe"
 
 test.describe.configure({ mode: "serial" })
@@ -33,7 +34,7 @@ const measured = (rec: Recorded) => ({
 
 const results: { drawing: Record<string, unknown>[]; actions: Record<string, unknown>[] } = { drawing: [], actions: [] }
 
-// 開いて、アイテムの要素が want 個そろうまでの時間（ページを開き始めてから）
+// 開いて、図の要素が want 個そろうまでの時間（ページを開き始めてから）
 async function open(page: Page, search: string, want: number) {
   await installProbe(page)
   await awaitItems(page, want)
@@ -92,8 +93,7 @@ for (const n of COUNTS) {
     await both.close()
 
     results.drawing.push({
-      boxes: n,
-      lines: n - 1,
+      book: `図面 箱 ${n}・線 ${n - 1}`,
       openMs,
       openSplitMs,
       pan: panned,
@@ -102,6 +102,41 @@ for (const n of COUNTS) {
     })
   })
 }
+
+// ツリーとディレクトリ構成図: 開くまで・パン・左右に同じブックを開いてのパン。
+// ツリーは編集の道具ではホイールで紙が動かないので、1 つ目のステージの道具のボタン（tool）を押してハンドに替えてから測る
+const OTHERS = [
+  { name: "ツリー 節", id: "perf-tree", make: treeBook, tool: "編集ツール" },
+  { name: "ディレクトリ 中身", id: "perf-dir", make: dirBook, tool: null },
+]
+const toHand = async (page: Page, tool: string | null) => {
+  if (tool === null) return
+  await page.getByRole("button", { name: tool }).first().click()
+  await expect(page.getByRole("button", { name: "ハンドツール" }).first()).toBeVisible()
+}
+for (const o of OTHERS)
+  for (const n of COUNTS) {
+    test(`描き方: ${o.name} ${n}`, async ({ browser, request }) => {
+      const id = `${o.id}-${n}`
+      const put = await request.put(`/api/books/${id}`, { data: { book: o.make(id, n), base: 0 } })
+      expect(put.ok()).toBe(true)
+
+      const single = await browser.newPage()
+      const openMs = await open(single, one(id), n)
+      await toHand(single, o.tool)
+      const panned = await pan(single)
+      await single.close()
+
+      const both = await browser.newPage()
+      const openSplitMs = await open(both, split(id), n * 2)
+      await expect(both.locator("[data-stage]")).toHaveCount(2)
+      await toHand(both, o.tool)
+      const pannedSplit = await pan(both)
+      await both.close()
+
+      results.drawing.push({ book: `${o.name} ${n}`, openMs, openSplitMs, pan: panned, panSplit: pannedSplit })
+    })
+  }
 
 test("アクション: AI の入口から箱と線を 300 まで足す", async ({ page, request }) => {
   const port = new URL(test.info().project.use.baseURL ?? "").port
@@ -187,22 +222,21 @@ test.afterAll(({ browserName }) => {
       .map(([s, c]) => `${s}:${c}`)
       .join(" ") || "0"
   const rows = results.drawing.flatMap(d => {
-    const r = d as { boxes: number; openMs: number; openSplitMs: number; pan: M; drag: M; panSplit: M }
-    return (
-      [
-        ["パン", r.pan, r.openMs],
-        ["ドラッグ", r.drag, null],
-        ["左右でパン", r.panSplit, r.openSplitMs],
-      ] as const
-    ).map(([what, m, openMs]) => ({
-      箱: r.boxes,
+    const r = d as { book: string; openMs: number; openSplitMs: number; pan: M; drag?: M; panSplit: M }
+    const ops: [string, M, number | null][] = [
+      ["パン", r.pan, r.openMs],
+      ...(r.drag ? [["ドラッグ", r.drag, null] as [string, M, null]] : []),
+      ["左右でパン", r.panSplit, r.openSplitMs],
+    ]
+    return ops.map(([what, m, openMs]) => ({
+      ブック: r.book,
       操作: what,
       "開くまで ms": openMs ?? "",
       "1コマ ms 平均/中央/95%/最大": f(m.frame),
       "長い処理 回/ms": `${m.longTasks.count}/${m.longTasks.total}`,
       コミット: m.commits,
       描き直したコンポーネント: m.renders,
-      "描き直したアイテム（ステージ:数）": redraws(m),
+      "描き直した図の要素（ステージ:数）": redraws(m),
     }))
   })
   // -g で一部だけ流したときは、流した方の表だけを出す

@@ -2,11 +2,12 @@
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
 import { newStage } from "../web/src/core/stage"
-import { stageView } from "../web/src/core/workspace"
+import { stageView, toolOf } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
+import { commandContext } from "../web/src/store/commands"
 import * as testing from "../web/src/testing"
-import { CORE_CATALOG } from "./support"
+import { CORE_CATALOG, newStore } from "./support"
 
 const names = (m: object) => Object.keys(m).sort()
 
@@ -116,6 +117,7 @@ test("matomezu が出す名前", () => {
     "toData",
     "toPaper",
     "toPaperDelta",
+    "toPaperIn",
     "tooClose",
     "toolOf",
     "unpinPage",
@@ -179,6 +181,7 @@ test("matomezu/ui が出す名前", () => {
     "useCoreCatalog",
     "useElapsed",
     "useItem",
+    "useLatestPan",
     "useLayoutWarnings",
     "useMenu",
     "useMenuCommand",
@@ -193,9 +196,11 @@ test("matomezu/ui が出す名前", () => {
     "useShownBook",
     "useShownPage",
     "useStage",
+    "useStagePan",
     "useSwatches",
     "useT",
     "useThemeVars",
+    "useToPaper",
     "useTokenScope",
     "useUiCatalog",
     "useUserSetting",
@@ -221,11 +226,20 @@ test("プラグインに見せるステージ（StageView）のフィールド",
     "editing",
     "id",
     "opened",
-    "pan",
     "pans",
     "placing",
     "selection",
     "tool",
     "zoom",
   ])
+})
+
+test("コマンドに見せるステージは、プラグインに見せるステージと同じ物", () => {
+  const store = newStore()
+  const state = store.state.getState()
+  const stage = state.workspace.stages.find(s => s.id === "s1")!
+  const tool = toolOf(store.catalog.core, state.workspace, "s1", state.books)
+  expect(commandContext(store.catalog.core, null, state, "s1")?.stage).toEqual(
+    stageView(store.catalog.core, stage, tool),
+  )
 })

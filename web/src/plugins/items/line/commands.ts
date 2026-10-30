@@ -1,6 +1,6 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（線の層から呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import { type CommandContext, type Point, pagedOf, toPaper } from "../../../plugin-api"
+import { type CommandContext, type Point, pagedOf, toPaperIn } from "../../../plugin-api"
 import { portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
@@ -22,7 +22,7 @@ export const LINE_DRAW = kit.defineCommand({
     const { opened } = ctx.stage
     const book = pagedOf(ctx.book) ?? null
     const page = book?.pages.find(p => p.id === opened?.page)
-    const drop = toPaper(ctx.stage, args.at)
+    const drop = toPaperIn(ctx, args.at)
     if (!opened || !book || !page || !drop) return
     const rects = portAreasOf(ctx.catalog, page)
     const props = drawnLineProps(page, rects, elbowAt(ctx.catalog, book, page), args.from, args.side, args.to, drop)
@@ -56,7 +56,7 @@ export const LINE_RECONNECT_DROP = kit.defineCommand({
     const book = pagedOf(ctx.book) ?? null
     const page = book?.pages.find(p => p.id === opened?.page)
     const line = page && linesOf(page).find(l => l.id === args.line)
-    const drop = toPaper(ctx.stage, args.at)
+    const drop = toPaperIn(ctx, args.at)
     if (!opened || !book || !page || !line || !drop) return
     const rects = portAreasOf(ctx.catalog, page)
     const to = rects.get(args.item)

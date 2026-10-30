@@ -9,13 +9,16 @@
 // 辺はその辺だけ、角は 2 つの辺を動かす。離したときに paper-resize。つかんで動かしている間は、ほかのアイテムを薄くする）。
 // 編集のダイアログで選んだ値（下書き）は、決める前から箱に重ねて描く。下書きを重ねた形は、形の整え（settle）を通して描く（placing/draft.ts。子を動かす整えも、決める前から見える）。
 // ブックで使えるつなぐもの（線など）は、そのビュー（ui/connector.ts）の層で形の並びを包み、形ごとに重ねるコンポーネントを形の上に出す。つなぐもののビューには今の形の様子だけを渡す。
-// ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ
+// ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ。
+// 紙をずらしても、ずらすのは紙の置き場所だけで、アイテムは描き直さない（紙をずらす量を読むのは紙を置く Content と点線の箱だけ）
 
 import {
   type CSSProperties,
   type MouseEvent,
+  memo,
   type PointerEvent,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -51,7 +54,9 @@ import {
   useShapeMarks,
   useShownPage,
   useStage,
+  useStagePan,
   useTokenScope,
+  useToPaper,
   useUiCatalog,
 } from "../../../plugin-api/ui"
 import { type Edges, fitsPaper, itemSize, minSize, placedSize, resizedBy, shownRects } from "../../base"
@@ -89,6 +94,7 @@ export function PaperView({ stage: id }: BookViewProps) {
   const [pointer, setPointer] = useState<Point | null>(null)
   const placing = stage?.placing != null
   const pans = stage?.pans === true
+  const localOf = useCallback((e: PointerEvent<Element>) => ref.current && local(e, ref.current), [])
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (placing && ref.current) setPointer(local(e, ref.current))
@@ -113,7 +119,7 @@ export function PaperView({ stage: id }: BookViewProps) {
       onPointerLeave={() => setPointer(null)}
       onPointerDown={onPointerDown}
     >
-      <Content stage={stage} pointer={placing ? pointer : null} localOf={e => ref.current && local(e, ref.current)} />
+      <Content stage={stage} pointer={placing ? pointer : null} localOf={localOf} />
     </div>
   )
 }
@@ -123,7 +129,8 @@ type LocalOf = (e: PointerEvent<Element>) => Point | null
 
 function Content({ stage, pointer, localOf }: { stage: StageView; pointer: Point | null; localOf: LocalOf }) {
   const t = useMessages(kit)
-  const p = placement(stage)
+  const pan = useStagePan(stage.id)
+  const p = pan && placement({ ...stage, pan })
   const motion = useZoomMotion(stage.zoom)
   const paper = stage.opened?.paper
   if (stage.opened?.page === null) return <NoPages stage={stage} />
@@ -171,14 +178,15 @@ interface Stretch {
 }
 
 // 開いたページのアイテム（ページが無ければ何も描かない）
-// 動かす計算は残っているページで、描くのは下書きを重ねたページで行う
-function Items({ stage, localOf }: { stage: StageView; localOf: LocalOf }) {
+// 動かす計算は残っているページで、描くのは下書きを重ねたページで行う。
+// stage と localOf が変わらなければ描き直さない（紙をずらしただけでは描き直さない）
+const Items = memo(function Items({ stage, localOf }: { stage: StageView; localOf: LocalOf }) {
   const catalog = useCoreCatalog()
   const page = usePage(stage.id)
   const draft = useShownPage(stage.id)
   const shownPage = useMemo(() => (page && draft ? settledDraft(catalog, page, draft) : null), [catalog, page, draft])
   return page && shownPage ? <PageItems stage={stage} page={page} shownPage={shownPage} localOf={localOf} /> : null
-}
+})
 
 // ページのアイテム。ドラッグ中は、動かすアイテムを動いた量だけずらして描く。つなぐもののビューの層で包む
 function PageItems({
@@ -207,6 +215,7 @@ function PageItems({
   const edit = useCommand(stage.id, PAPER_EDIT.id)
   const openMenu = useContextMenu(stage.id, ITEM_CONTEXT)
   const { select } = useActions()
+  const toPaperAt = useToPaper(stage.id)
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
   const resize = useCommand(stage.id, PAPER_RESIZE.id)
@@ -246,7 +255,7 @@ function PageItems({
     const by = toPaperDelta(stage, screen)
     if (d.reparent) {
       const at = localOf(e)
-      const point = at && toPaper(stage, at)
+      const point = at && toPaperAt(at)
       setTarget(point ? dropTarget(catalog, page, d.items[0] as string, point) : null)
     } else if (d.items.length === 1) {
       const id = d.items[0] as string
@@ -338,7 +347,7 @@ function PageItems({
     <Item
       key={item.id}
       stage={stage.id}
-      zoom={placement(stage)?.zoom ?? 1}
+      zoom={stage.zoom}
       item={item}
       onHover={on => setHover(h => (on ? item.id : h === item.id ? null : h))}
       overlays={connectors.flatMap(c => {
@@ -550,7 +559,8 @@ function Item({
 // 置こうとしているアイテムの点線の箱。紙からはみ出す所では薄く出す
 function Ghost({ stage, pointer }: { stage: StageView; pointer: Point }) {
   const catalog = useCoreCatalog()
-  const at = placeAt({ stage }, pointer)
+  const pan = useStagePan(stage.id)
+  const at = pan && placeAt(p => toPaper({ ...stage, pan }, p), pointer)
   const size = stage.placing ? itemSize(catalog, stage.placing) : null
   const paper = paperOf(stage)
   if (!at || !size || !paper) return null

@@ -4,9 +4,11 @@
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { Where } from "../../core/def/action"
+import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Book } from "../../core/schema/book"
+import { toPaper } from "../../core/stage"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
@@ -86,4 +88,10 @@ export function defineCommand<
   def: CommandDef<A> & { id: Id; performs?: P; place?: CommandPlace<NoInfer<A>> } & CommandScopeRequired<P>,
 ): CommandDef<A> & { id: Id } {
   return def
+}
+
+// 表示領域の中の点（左上から）を、コマンドが呼ばれたステージの今の紙の上の点に直す（紙が無ければ null）
+export function toPaperIn(ctx: Pick<CommandContext, "stage" | "workspace">, p: Point): Point | null {
+  const stage = ctx.workspace.stages.find(s => s.id === ctx.stage.id)
+  return stage ? toPaper(stage, p) : null
 }

@@ -195,21 +195,25 @@ export function followLibrary(
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
 
-// プラグインの見た目に見せるステージ（読むだけ）: 開いているもの・倍率とずらす量・選んでいる物とその場の編集中か・置こうとしているアイテム・今の道具と、
+// プラグインの見た目に見せるステージ（読むだけ）: 開いているもの・倍率・選んでいる物とその場の編集中か・置こうとしているアイテム・今の道具と、
 // それがドラッグで紙をずらす道具か（pans。そのあいだ、ビューはアイテムを選んだり動かしたりしない）。
+// 紙をずらす量（pan）は入れない（パンのたびに図を描き直さないため。読むのは matomezu/ui の useStagePan・useLatestPan）。
 // 表示領域の大きさ・道具のアイコンなど、中の状態は見せない（matomezu/ui の useStage）
-export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "pan" | "selection" | "editing" | "placing"> & {
+export type StageView = Pick<Stage, "id" | "opened" | "zoom" | "selection" | "editing" | "placing"> & {
   tool: ToolId | null
   pans: boolean
 }
 
-export function stageView(catalog: CoreCatalog, stage: Stage, tool: ToolId | null): StageView {
-  const { id, opened, zoom, pan, selection, editing, placing } = stage
+export function stageView(
+  catalog: CoreCatalog,
+  stage: Pick<Stage, "id" | "opened" | "zoom" | "selection" | "editing" | "placing">,
+  tool: ToolId | null,
+): StageView {
+  const { id, opened, zoom, selection, editing, placing } = stage
   return {
     id,
     opened,
     zoom,
-    pan,
     selection,
     editing,
     placing,
